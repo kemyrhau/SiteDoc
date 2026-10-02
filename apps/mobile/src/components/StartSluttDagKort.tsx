@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { Play, Square, Clock, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import {
   arbeidsdagLocal,
@@ -18,28 +18,16 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 import { useByggeplass } from "../kontekst/ByggeplassKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
+import { splittVedMidnatt, kappGlemtDagSlutt } from "../utils/dagsegment";
 import {
-  avstandMeter,
-  estimerReisetidMin,
-  klassifiserReise,
-  klassifiserArbeidstid,
-  velgOvertidLonnsart,
-  carveArbeidstider,
-  pauseVinduFra,
-  pauseMinForDag,
-  hhmmTilMin,
-  finnOverlappendeTidsrom,
-  DEFAULT_PAUSE_ETTER_TIMER,
-  type ReiseKategori,
-  type ReiseEnhet,
-} from "@sitedoc/shared";
-import { haversineKm } from "../utils/geo";
-import { rundTimerTilNarmeste } from "../utils/tidsrunding";
-import {
-  splittVedMidnatt,
-  kappGlemtDagSlutt,
-  type Dagsegment,
-} from "../utils/dagsegment";
+  beregnDagsforslag,
+  velgNaermesteProsjekt,
+  MAKS_ENKELTSKIFT_TIMER,
+  type BeregnDagsforslagInput,
+  type DagsforslagEffektiv,
+  type DagsforslagEksisterendeSedel,
+} from "../utils/dagsforslag";
+import { anvendDagsforslag } from "../utils/dagsforslagAnvend";
 import {
   useArbeidsdag,
   formatIsoDato,
@@ -49,7 +37,6 @@ import {
 } from "../hooks/useArbeidsdag";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
-import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
@@ -59,6 +46,9 @@ import {
   hentMatriseRadLokalt,
   resolverPrimaerByggeplass,
 } from "../services/reisetidMatriseKatalog";
+import { hentReiseGrensepunkterLokalt } from "../services/reiseGrensepunktKatalog";
+
+type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
 export function StartSluttDagKort() {
   const { t } = useTranslation();
@@ -103,19 +93,30 @@ export function StartSluttDagKort() {
         : await fangGps();
       const db = hentDatabase();
       if (!db) return;
+      const orgId = valgtFirmaId ?? "";
       const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
-      const forslag = genererForslag(
-        bruker.id,
-        valgtFirmaId ?? "",
-        aktivDag,
+      // LAG 0b: tre faser — LES (samle alt DB-kunnskapen) → REGN UT (ren
+      // beregnDagsforslag, ingen DB) → SKRIV (anvendDagsforslag). Splitten
+      // lukker at «avsluttet» ble satt uten å vite utfallet av skrivingen.
+      const input = samleDagsforslagInput(db, {
+        userId: bruker.id,
+        orgId,
+        dag: aktivDag,
         sluttIso,
-        lat,
-        lng,
-        valgtBygningId,
-        valgtProsjektId,
+        endLat: lat,
+        endLng: lng,
+        kontekstByggeplassId: valgtBygningId,
+        aktivtProsjektId: valgtProsjektId,
         sisteSegmentKilde,
-      );
-      const dagsseddelId = forslag.id;
+      });
+      const forslag = beregnDagsforslag(input);
+      const resultat = anvendDagsforslag(db, forslag, {
+        userId: bruker.id,
+        orgId,
+        nyId: randomUUID,
+        naa: Date.now,
+      });
+      const dagsseddelId = resultat.startSheetId;
       db.update(arbeidsdagLocal)
         .set({
           endAt: sluttIso,
@@ -134,28 +135,28 @@ export function StartSluttDagKort() {
       if (dagsseddelId) {
         router.push(`/timer/${dagsseddelId}`);
         // UF-1: dagens sedel var alt sendt → den nye økten ble ikke lagt til.
-        if (forslag.blokkertSendt) {
+        if (resultat.blokkertSendt) {
           Alert.alert(
             t("timer.appendSendt.tittel"),
             t("timer.appendSendt.melding"),
           );
-        } else if (forslag.vekForOverlapp.length > 0) {
+        } else if (resultat.vekForOverlapp.length > 0) {
           // 1b (fabel): si HVA som vek — tidsrommene — og at manuell rad er
           // beholdt. Foran «for kort» (om play vek helt, er overlapp den reelle
           // grunnen, ikke kort økt).
-          const intervaller = forslag.vekForOverlapp
+          const intervaller = resultat.vekForOverlapp
             .map((v) => `${v.fraTid}–${v.tilTid}`)
             .join(", ");
           Alert.alert(
             t("timer.playVek.tittel"),
             t("timer.playVek.melding", { intervaller }),
           );
-        } else if (forslag.ingenRader) {
+        } else if (resultat.ingenRader) {
           // F-c: økta førte 0 rader (for kort etter pause/runding) — gi
           // tilbakemelding i stedet for et stille tomt dagskort.
           // F-g: differensier copy — når sedelen alt HAR rader er «dagen ble
           // for kort» misvisende (dagen er ikke tom); vis pre-fylt-varianten.
-          const preFylt = forslag.harEksisterendeRader;
+          const preFylt = resultat.harEksisterendeRader;
           Alert.alert(
             t(preFylt ? "timer.forKort.preFyltTittel" : "timer.forKort.tittel"),
             t(preFylt ? "timer.forKort.preFyltMelding" : "timer.forKort.melding"),
@@ -319,623 +320,195 @@ export function StartSluttDagKort() {
 }
 
 /**
- * UF-2 trinn 8 — hard enkelt-skift-cap (timer). Spenn over dette tolkes som
- * glemt avslutning og kappes (se `kappGlemtDagSlutt`). Konstant inntil videre;
- * å gjøre den til en firma-setting (AML/tariff per firma) krever server +
- * migrering → egen runde.
- */
-const MAKS_ENKELTSKIFT_TIMER = 16;
-
-/**
- * Glemt-dag 0-fiks (c): fordel hele-dags-fradrag (pause + reise) over
- * midnatt-segmentene slik at intet segment får negativ arbeidstid
- * (`brutto − fradrag ≥ 0`). Tidligere lå alt på start-segmentet — et kort
- * start-segment (sen start nær midnatt) kunne ikke bære pause+reise →
- * `Math.max(0, …)` kappet arbeidstimene til 0 og timene forsvant.
+ * LES-fasen: samle ALT `beregnDagsforslag` trenger fra lokal DB — kataloger,
+ * org-setting, reise-oppslag (matrise + grensepunkter) og eksisterende-sedel-
+ * status per dato. Dette er stedet DB-kunnskapen gjøres SYNLIG; den rene
+ * utregningen (`beregnDagsforslag`) rører aldri databasen.
  *
- * Regler: **reise** prioriteres på start-segmentet (start-dags reise), med
- * overflyt til lengste-først. **Pause** prioriteres på lengste segment.
- * Begge kappes til hvert segments gjenværende kapasitet og rest omfordeles —
- * **aldri kapp-og-mist** (cond. 2). Σ fradrag bevares så lenge
- * Σbrutto ≥ Σfradrag → dag-total (`Σbrutto − pause`) er invariant (cond. 1).
- * Ett segment (normalt dagskift) → alt på det ene = uendret atferd (cond. 4).
+ * 🔴 LAG 3-GRENSE: denne lese-fasen flyttes UT av komponenten når bekreftelses-
+ * skjermen (`/timer/bekreft-dag`) kommer — skjermen trenger nøyaktig samme
+ * input fra et annet sted (henter kataloger + status, kaller `beregnDagsforslag`,
+ * viser forslaget, og kaller `anvendDagsforslag` først ved «Bekreft»). Flytt den
+ * da til en delt kilde; ALDRI dupliser lesningen inn i skjermen (fire slike
+ * kopier er lukket denne uken).
  */
-function fordelArbeidstidFradrag(
-  bruttoTimer: number[],
-  startIndeks: number,
-  pauseTotalMin: number,
-  reiseTotalTimer: number,
-): { pauseMin: number[]; reisetidTimer: number[] } {
-  const n = bruttoTimer.length;
-  const kapasitet = bruttoTimer.slice();
-  const reisePer = new Array<number>(n).fill(0);
-  const pauseTimerPer = new Array<number>(n).fill(0);
+function samleDagsforslagInput(
+  db: LokalDb,
+  p: {
+    userId: string;
+    orgId: string;
+    dag: AktivDag;
+    sluttIso: string;
+    endLat: number | null;
+    endLng: number | null;
+    kontekstByggeplassId: string | null;
+    aktivtProsjektId: string | null;
+    sisteSegmentKilde: "bruker" | "system";
+  },
+): BeregnDagsforslagInput {
+  const { orgId, dag } = p;
 
-  // F-e (dag-nivå gate, re-fiks 2026-07-13): pausefradrag gjelder KUN når dagens
-  // totale brutto arbeidstid overstiger terskelen (AML §10-9, 5,5 t). Gaten ligger
-  // her — i dag-nivå pause-kilden der dagstotalen finnes — så pausen nulles FØR den
-  // fordeles per segment (alle segmenters pauseMin blir 0 under terskel). Erstatter
-  // carve-intern gating. dagsTotalBrutto = sum av segmentenes brutto-spenn.
-  const dagsTotalBrutto = bruttoTimer.reduce((s, b) => s + Math.max(0, b), 0);
-  const effektivPauseTotalMin = pauseMinForDag(dagsTotalBrutto, pauseTotalMin);
-
-  const lengsteForst = bruttoTimer
-    .map((b, i) => ({ b, i }))
-    .sort((a, z) => z.b - a.b)
-    .map((x) => x.i);
-
-  // 1) Reise: start-segment først, så lengste-først for evt. overflyt.
-  const reiseRekke = [
-    startIndeks,
-    ...lengsteForst.filter((i) => i !== startIndeks),
-  ];
-  let restReise = Math.max(0, reiseTotalTimer);
-  for (const i of reiseRekke) {
-    if (restReise <= 0) break;
-    const ta = Math.min(restReise, kapasitet[i]);
-    reisePer[i] += ta;
-    kapasitet[i] -= ta;
-    restReise -= ta;
-  }
-
-  // 2) Pause: lengste-først, i kapasiteten som er igjen etter reise. Bruker den
-  // terskel-gatede pausen (0 når dagen < 5,5t).
-  let restPauseTimer = Math.max(0, effektivPauseTotalMin) / 60;
-  for (const i of lengsteForst) {
-    if (restPauseTimer <= 0) break;
-    const ta = Math.min(restPauseTimer, kapasitet[i]);
-    pauseTimerPer[i] += ta;
-    kapasitet[i] -= ta;
-    restPauseTimer -= ta;
-  }
-
-  return {
-    pauseMin: pauseTimerPer.map((t) => Math.round(t * 60)),
-    reisetidTimer: reisePer.map((t) => Math.round(t * 100) / 100),
-  };
-}
-
-/**
- * Generer dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
- * Returnerer **start-dagens** dagsseddel-id (for navigering), eller null hvis
- * prosjekt/aktivitet ikke kan utledes offline (kaller da manuell opprettelse).
- *
- * Slice 4a: en økt som krysser midnatt deles i én dagsseddel per kalenderdag
- * (`splittVedMidnatt`); timene summerer til reell total. Reise + firma-pause
- * føres KUN på start-dagen (vedtatt 2026-06-20). Per dag gjelder dagens
- * auto-fordeling: Timelønn (firma-default, Variant B `erStandardvalg`) opp til
- * dagsnorm + «Overtid 50%» (navne-match) for overskytende. Prosjekt = nærmeste
- * via Haversine (start-GPS, ellers slutt-GPS).
- */
-function genererForslag(
-  userId: string,
-  orgId: string,
-  dag: AktivDag,
-  sluttIso: string,
-  endLat: number | null,
-  endLng: number | null,
-  // F4: global aktiv byggeplass + aktivt prosjekt (for D2-match-sjekk).
-  kontekstByggeplassId: string | null,
-  aktivtProsjektId: string | null,
-  // Slice 4b-2: kilde for SISTE segments slutt-tid. Normal «Slutt dag» = "bruker"
-  // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
-  // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
-  sisteSegmentKilde: "bruker" | "system" = "bruker",
-): {
-  id: string | null;
-  blokkertSendt: boolean;
-  ingenRader: boolean;
-  harEksisterendeRader: boolean;
-  // 1b: tidsrom der play vek for manuelle rader (tomt = ingen konflikt).
-  vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
-} {
-  const db = hentDatabase();
-  if (!db) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false, vekForOverlapp: [] };
-
-  // 1. Prosjekt via Haversine.
-  const prosjekter = hentProsjekterLokalt(orgId);
-  if (prosjekter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false, vekForOverlapp: [] };
-  const lat = dag.startLat ?? endLat;
-  const lng = dag.startLng ?? endLng;
-  let valgtProsjekt = prosjekter[0];
-  if (lat != null && lng != null) {
-    const medKoord = prosjekter.filter((p) => p.lat != null && p.lng != null);
-    let besteAvstand = Infinity;
-    for (const p of medKoord) {
-      const km = haversineKm(lat, lng, p.lat as number, p.lng as number);
-      if (km < besteAvstand) {
-        besteAvstand = km;
-        valgtProsjekt = p;
-      }
-    }
-  }
-
-  // 2. Aktivitet — default «Anleggsarbeid» eller første.
+  // Kataloger (plain data, ikke Drizzle-rader, inn til den rene funksjonen).
+  const prosjekter = hentProsjekterLokalt(orgId).map((pr) => ({
+    id: pr.id,
+    lat: pr.lat,
+    lng: pr.lng,
+  }));
   const aktiviteter = db
-    .select()
+    .select({ id: aktivitetLocal.id, navn: aktivitetLocal.navn })
     .from(aktivitetLocal)
     .where(eq(aktivitetLocal.aktiv, true))
     .all();
-  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false, vekForOverlapp: [] };
-  const aktivitet =
-    aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
+  const alleLonnsarter = db
+    .select({
+      id: lonnsartLocal.id,
+      overtidsnivaa: lonnsartLocal.overtidsnivaa,
+      aktiv: lonnsartLocal.aktiv,
+      type: lonnsartLocal.type,
+      rekkefolge: lonnsartLocal.rekkefolge,
+    })
+    .from(lonnsartLocal)
+    .where(eq(lonnsartLocal.organizationId, orgId))
+    .all();
+  const standardLonnsartId = hentStandardLonnsartLokalt(orgId)?.id ?? null;
 
-  // 3. Reise-forslag (føres på START-dagen). Fase 3 (§ B) + R4: KUN når
-  // oppmøtested ble identifisert ved start (kontor→byggeplass — hjem→arbeidssted
-  // kompenseres ikke). Reisetid = matrise-kjøretid (kontor→prosjektets primær-
-  // byggeplass; autoritativ, end-uavhengig). kjoretidMin < 0 = uoppnåelig →
-  // ingen forslag. Ingen matrise-rad/byggeplass → graceful estimat-fallback
-  // (GPS-distanse start→slutt). Klassifiseres mot terskel; 'reisetid' → egen
-  // lønnsart-rad. Aldri auto-rad uten innsyn — havner i draft som forslag.
-  const regel = hentOrganizationSettingLokalt(orgId);
-  let reisetidTimer = 0;
-  let reiseLonnsartId: string | null = null;
-  if (dag.oppmotestedId && regel) {
-    let reisetidMin: number | null = null;
-    // Reise-terskel-km: avstand (meter) føres parallelt med varigheten så km-
-    // klassifisering kan bruke den. null = ukjent → konservativ under-type.
-    let avstandM: number | null = null;
+  const regelRad = hentOrganizationSettingLokalt(orgId);
+  const regel = regelRad
+    ? {
+        reiseTerskelEnhet: regelRad.reiseTerskelEnhet,
+        reiseTerskelMin: regelRad.reiseTerskelMin,
+        reiseTerskelM: regelRad.reiseTerskelM ?? null,
+        reiseUnderTerskelType: regelRad.reiseUnderTerskelType,
+        reiseOverTerskelType: regelRad.reiseOverTerskelType,
+        tidsrundingMinutter: regelRad.tidsrundingMinutter ?? null,
+        reisetidTellerOvertid: regelRad.reisetidTellerOvertid ?? false,
+        standardPauseEtterTimer: regelRad.standardPauseEtterTimer ?? null,
+      }
+    : null;
+
+  // Reise-oppslag: matrise-rad (oppmøtested → prosjektets primær-byggeplass) +
+  // grensepunkter + fallback-reiselønnsart. Prosjektet velges med SAMME rene
+  // helper som `beregnDagsforslag` bruker → ingen divergens.
+  let reiseOppslag: BeregnDagsforslagInput["reiseOppslag"] = null;
+  if (dag.oppmotestedId && regel && prosjekter.length > 0) {
+    const valgtProsjekt = velgNaermesteProsjekt(
+      prosjekter,
+      dag.startLat ?? p.endLat,
+      dag.startLng ?? p.endLng,
+    );
     const byggeplassId = resolverPrimaerByggeplass(
       valgtProsjekt.id,
       dag.oppmotestedId,
     );
-    if (byggeplassId) {
-      const rad = hentMatriseRadLokalt(dag.oppmotestedId, byggeplassId);
-      // -1 (uoppnåelig) → 0: ingen forslag, OG hopp over estimat-fallback.
-      if (rad) {
-        reisetidMin = rad.kjoretidMin < 0 ? 0 : rad.kjoretidMin;
-        // Avstand videreføres rått (-1/null håndteres i klassifiserReise).
-        avstandM = rad.avstandM ?? null;
-      }
-    }
-    // Fallback kun når matrisen ikke ga svar (ingen rad/byggeplass). Her HAR vi
-    // faktisk avstand direkte (GPS start→slutt) — km-klassifisering virker selv
-    // uten matrise-rad.
-    if (
-      reisetidMin == null &&
-      dag.startLat != null &&
-      dag.startLng != null &&
-      endLat != null &&
-      endLng != null
-    ) {
-      const fallbackM = avstandMeter(
-        { lat: dag.startLat, lng: dag.startLng },
-        { lat: endLat, lng: endLng },
-      );
-      reisetidMin = estimerReisetidMin(fallbackM);
-      avstandM = fallbackM;
-    }
-    if (reisetidMin != null && reisetidMin > 0) {
-      const kategori: ReiseKategori = klassifiserReise(
-        { reisetidMin, avstandM },
-        {
-          reiseTerskelEnhet: regel.reiseTerskelEnhet as ReiseEnhet,
-          reiseTerskelMin: regel.reiseTerskelMin,
-          reiseTerskelM: regel.reiseTerskelM ?? null,
-          reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
-          reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
-        },
-      );
-      if (kategori === "reisetid") {
-        // Resolver reise-lønnsart via delt helper. `avstandM` (i scope fra
-        // matrise-rad/GPS-fallback over) lar resolveren velge firmaets
-        // avstandsbånd; uten treff/uten avstand faller den tilbake på
-        // reiseLonnsartId/navne-match (samme kilde som render-laget).
-        reiseLonnsartId = hentReiseLonnsartId(orgId, avstandM);
-        // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
-        if (reiseLonnsartId) {
-          reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
-        }
-      }
-    }
+    const rad = byggeplassId
+      ? hentMatriseRadLokalt(dag.oppmotestedId, byggeplassId)
+      : null;
+    reiseOppslag = {
+      matriseRad: rad
+        ? { kjoretidMin: rad.kjoretidMin, avstandM: rad.avstandM ?? null }
+        : null,
+      grensepunkter: hentReiseGrensepunkterLokalt(orgId),
+      // Uten avstand → fallback-arten (regel.reiseLonnsartId ?? navne-match),
+      // samme kilde `løsReiseLonnsartId` faller tilbake på i den rene funksjonen.
+      fallbackReiseLonnsartId: hentReiseLonnsartId(orgId),
+    };
   }
 
-  // 4. UF-2: universell enkelt-skift-cap FØR midnatt-splitt. Er spennet (start→
-  // slutt) større enn hard-cap (trinn 8), tolkes det som glemt avslutning og
-  // slutt kappes til start + sesongjustert dagsnorm (trinn 7) → unngår N×24t-
-  // sedler. Kilde tvinges til "system" (gjettet → kontroll-badge). Et legitimt
-  // nattskift (< cap) slipper urørt gjennom. Recovery-banen estimerer alt en
-  // kort slutt → passerer uberørt (ingen dobbel-kapp).
+  // Midnatt-splitt for å vite HVILKE datoer vi må lese effektiv-arbeidstid og
+  // eksisterende-sedel for. Samme rene helpere (`kappGlemtDagSlutt` +
+  // `splittVedMidnatt`) som `beregnDagsforslag` → identiske datoer.
+  const startDato = formatIsoDato(new Date(dag.startAt));
   const effektivStartDag = hentEffektivArbeidstidLokal(
     orgId,
-    new Date(`${formatIsoDato(new Date(dag.startAt))}T00:00:00`),
+    new Date(`${startDato}T00:00:00`),
   );
   const kappLengdeTimer =
     effektivStartDag.dagsnorm > 0 ? effektivStartDag.dagsnorm : 7.5;
-  const { sluttIso: effektivSluttIso, kappet } = kappGlemtDagSlutt(
+  const { sluttIso: effektivSluttIso } = kappGlemtDagSlutt(
     dag.startAt,
-    sluttIso,
+    p.sluttIso,
     { deteksjonsTimer: MAKS_ENKELTSKIFT_TIMER, kappLengdeTimer },
   );
-  const effektivSisteKilde: "bruker" | "system" = kappet
-    ? "system"
-    : sisteSegmentKilde;
-
-  // Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
-  // segment (dagskift); kryssende skift → flere. Pause + reise fordeles over
-  // segmentene (pause→lengste, reise→start m/ overflyt — se
-  // fordelArbeidstidFradrag), ikke lenger blindt på start-segmentet. Returner
-  // start-dagens sedel for navigering.
   const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
-  const deltVedMidnatt = segmenter.length > 1;
-  // Glemt-dag 0-fiks (c): fordel pause + reise over segmentene (pause→lengste,
-  // reise→start m/ overflyt) så et kort start-segment aldri klampes til 0.
-  const bruttoPerSeg = segmenter.map(
-    (s) =>
-      (new Date(s.sluttIso).getTime() - new Date(s.startIso).getTime()) /
-      3_600_000,
-  );
-  const startIdx = segmenter.findIndex((s) => s.erStartSegment);
-  const fradrag = fordelArbeidstidFradrag(
-    bruttoPerSeg,
-    startIdx >= 0 ? startIdx : 0,
-    effektivStartDag.pauseMin,
-    reisetidTimer,
-  );
-  // F4: byggeplass-default-kjede → GPS (arbeidsdag) → global kontekst → ingen.
-  // D2: kontekst-fallback kun når utkastets prosjekt = aktivt prosjekt (timer er
-  // firma-scopet; et utkast på et annet prosjekt skal ikke arve feil byggeplass).
-  const byggeplassDefault =
-    dag.byggeplassId ??
-    (valgtProsjekt.id === aktivtProsjektId ? kontekstByggeplassId : null);
-  let startSheetId: string | null = null;
-  let blokkertSendt = false;
-  let totalRader = 0;
-  let harEksisterendeRader = false;
-  const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
-  segmenter.forEach((seg, i) => {
-    // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
-    // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
-    const erSiste = i === segmenter.length - 1;
-    const res = opprettDagsseddelForSegment({
-      userId,
+
+  const effektivPerDato: Record<string, DagsforslagEffektiv> = {};
+  const alleDatoer = new Set<string>([
+    startDato,
+    ...segmenter.map((s) => s.dato),
+  ]);
+  for (const dato of alleDatoer) {
+    const e = hentEffektivArbeidstidLokal(
       orgId,
-      segment: seg,
-      prosjektId: valgtProsjekt.id,
-      aktivitetId: aktivitet.id,
-      // L1/F4: samme byggeplass-default (GPS → kontekst → ingen) på alle midnatt-
-      // segmenter (én arbeidsdag = én byggeplass). Idempotens i helperen sikrer
-      // at kun NY draft får verdien; per-sedel-velger kan overstyre etterpå.
-      byggeplassId: byggeplassDefault,
-      // F-B: firmaets tidsrunding-grid for auto-rad-runding (regel fra org-setting).
-      tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
-      // (c): fordelt pause + reise per segment (pause→lengste, reise→start
-      // m/ overflyt) — aldri hele-dags-fradrag på et kort start-segment.
-      pauseMin: fradrag.pauseMin[i],
-      reisetidTimer: fradrag.reisetidTimer[i],
-      reiseLonnsartId,
-      reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
-      deltVedMidnatt,
-      sluttTidKilde: erSiste ? effektivSisteKilde : "midnatt",
-    });
-    if (res?.utfall === "blokkertSendt") blokkertSendt = true;
-    if (seg.erStartSegment) startSheetId = res?.id ?? null;
-    totalRader += res?.raderOpprettet ?? 0;
-    if (res?.haddeEksisterendeRader) harEksisterendeRader = true;
-    if (res?.vekForOverlapp?.length) vekForOverlapp.push(...res.vekForOverlapp);
-  });
-  return {
-    id: startSheetId,
-    blokkertSendt,
-    ingenRader: totalRader === 0,
-    // F-g: skiller pre-fylt sedel (økta bidro 0) fra reelt tom sedel.
-    harEksisterendeRader,
-    vekForOverlapp,
-  };
-}
+      new Date(`${dato}T00:00:00`),
+    );
+    effektivPerDato[dato] = {
+      startTid: e.startTid,
+      sluttTid: e.sluttTid,
+      pauseMin: e.pauseMin,
+      dagsnorm: e.dagsnorm,
+    };
+  }
 
-/**
- * Opprett én dagsseddel (draft) for ett dag-segment + dens timer-rader.
- *
- * Sedel-opprettelsen (find-or-create + idempotens per `(userId, dato)` +
- * org-backfill) deles med `ny.tsx` via `finnEllerOpprettDagsseddel` (UF-0).
- * Server håndhever `@@unique([userId, dato])` på `DailySheet`.
- *
- * UF-1 (multi-økt-append): finnes dagen alt som **redigerbar draft/returned**
- * → denne øktens rader **appendes** på samme sedel + arbeidstid-vinduet utvides
- * til å dekke økten. Er sedelen alt **sendt/godkjent** → ingen append (ville gi
- * server-konflikt); returneres som `blokkertSendt` så UI kan varsle (recall er
- * UF-4, egen server-runde).
- */
-type SegmentUtfall = "opprettet" | "appendet" | "blokkertSendt";
-
-function opprettDagsseddelForSegment(args: {
-  userId: string;
-  orgId: string;
-  segment: Dagsegment;
-  prosjektId: string;
-  aktivitetId: string;
-  /** L1: GPS-fanget byggeplass på arbeidsdagen — kopieres inn på NY draft. */
-  byggeplassId: string | null;
-  pauseMin: number;
-  reisetidTimer: number;
-  reiseLonnsartId: string | null;
-  reisetidTellerOvertid: boolean;
-  deltVedMidnatt: boolean;
-  sluttTidKilde: "bruker" | "midnatt" | "system";
-  /** F-B: firmaets tidsrunding-grid (15/30/60 min) — null = ingen runding. */
-  tidsrundingMinutter: number | null;
-}): {
-  id: string;
-  utfall: SegmentUtfall;
-  raderOpprettet: number;
-  haddeEksisterendeRader: boolean;
-  // 1b: tidsrom der en play-rad vek for en overlappende manuell rad.
-  vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
-} | null {
-  const {
-    userId,
-    orgId,
-    segment,
-    prosjektId,
-    aktivitetId,
-    byggeplassId,
-    pauseMin,
-    reisetidTimer,
-    reiseLonnsartId,
-    reisetidTellerOvertid,
-    deltVedMidnatt,
-    sluttTidKilde,
-    tidsrundingMinutter,
-  } = args;
-  const db = hentDatabase();
-  if (!db) return null;
-
-  // UF-0/UF-1: sedel-opprettelse + idempotens via delt helper (org-backfill
-  // følger med).
-  const resultat = finnEllerOpprettDagsseddel(db, {
-    userId,
-    orgId,
-    dato: segment.dato,
-    prosjektId,
-    aktivitetId,
-    byggeplassId,
-    startAt: segment.startIso,
-    endAt: segment.sluttIso,
-    pauseMin,
-    autoGenerert: true,
-    deltVedMidnatt,
-    sluttTidKilde,
-  });
-  const sheetId = resultat.id;
-
-  // F-g: hadde sedelen alt registreringer FØR denne økta? Brukes til å skille
-  // «reelt tom sedel» fra «pre-fylt sedel der økta bidro 0 rader» i «for kort»-
-  // meldingen (som ellers fyrer misvisende på en sedel full av rader).
-  let haddeEksisterendeRader = false;
-
-  // UF-1: dagen finnes alt.
-  if (resultat.eksisterte) {
-    if (resultat.status !== "draft" && resultat.status !== "returned") {
-      // Sendt/godkjent → kan ikke appende ny økt (ville gi server-konflikt).
-      // Recall er UF-4 (egen server-runde).
-      return {
-        id: sheetId,
-        utfall: "blokkertSendt",
-        raderOpprettet: 0,
-        haddeEksisterendeRader: false,
-        vekForOverlapp: [],
-      };
-    }
-    haddeEksisterendeRader =
-      db
-        .select({ id: sheetTimerLocal.id })
-        .from(sheetTimerLocal)
-        .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
-        .all().length > 0;
-    // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
-    // den nye økten. Rad-genereringen under bruker sheetId → appender rader.
-    utvidArbeidstidsvindu(
+  const eksisterendeSedelPerDato: Record<
+    string,
+    DagsforslagEksisterendeSedel
+  > = {};
+  for (const seg of segmenter) {
+    eksisterendeSedelPerDato[seg.dato] = lesEksisterendeSedel(
       db,
-      sheetId,
-      segment.startIso,
-      segment.sluttIso,
-      sluttTidKilde,
+      p.userId,
+      seg.dato,
     );
   }
 
-  // Nyopprettet eller append → generer (og append) denne øktens rader.
-  // Arbeidstid = segment-brutto − pause/reise (fordelt per segment, jf.
-  // fordelArbeidstidFradrag — pause→lengste, reise→start m/ overflyt).
-  const bruttoTimer =
-    (new Date(segment.sluttIso).getTime() -
-      new Date(segment.startIso).getTime()) /
-    3_600_000;
-  const totalTimer =
-    Math.round(Math.max(0, bruttoTimer - pauseMin / 60) * 100) / 100;
-  // Arbeidstimer til normaltid/overtid = total minus reise-andelen (reise føres
-  // på egen rad). Unngår dobbelttelling av brutto-tiden.
-  // F-B: rund arbeidstimer til firmaets tidsrunding-grid (15 min = 0.25 t) FØR
-  // normaltid/overtid-splitten — auto-rader hadde rå varighet (6.10/8.24 t).
-  // null = ingen runding konfigurert → behold 2-desimal. Reise rundes ikke.
-  const raaArbeid = Math.round(Math.max(0, totalTimer - reisetidTimer) * 100) / 100;
-  const arbeidstimer = rundTimerTilNarmeste(raaArbeid, tidsrundingMinutter);
-
-  const effektiv = hentEffektivArbeidstidLokal(
-    orgId,
-    new Date(`${segment.dato}T00:00:00`),
-  );
-
-  // F-c (fabel-vedtak 2026-07-13): tell rader denne økta faktisk fører (arbeid +
-  // reise). 0 rader = økta var for kort til å telle etter pause/runding →
-  // kalleren gir arbeideren en melding i stedet for et stille tomt dagskort.
-  let raderOpprettet = 0;
-
-  // 1b (fabel-vedtak 2026-08-20): play VIKER for manuelt førte timer. Manuell
-  // input er en aktiv brukerhandling og er fasit — en avledet (play-generert)
-  // rad skal aldri overlappe/overskrive den. Samler tidsrom der en play-rad ble
-  // hoppet over pga. overlapp, så kalleren kan varsle HVA som vek (ikke bare
-  // «konflikt»). Overlapp-vakten er DELT kilde (finnOverlappendeTidsrom,
-  // @sitedoc/shared) — samme som manuell-veien i TimerSeksjon.tsx.
-  const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
-  const eksisterendeTidsrom = db
-    .select({ fraTid: sheetTimerLocal.fraTid, tilTid: sheetTimerLocal.tilTid })
-    .from(sheetTimerLocal)
-    .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
-    .all();
-
-  // Auto-fordeling normaltid/overtid (per dag). Klassifiserings-regelen er
-  // isolert i @sitedoc/shared lonnsregel.ts (forward-compat Nivå 1-2). Overtid
-  // velges strukturert på overtidsnivaa — ALDRI fritekst-navn (③a).
-  if (arbeidstimer > 0) {
-    const dagsnorm0 = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : arbeidstimer;
-    // Fase 3: når reisetid teller mot overtid, spiser reise-andelen av dagsnorm-
-    // budsjettet → mer av arbeidstiden havner i overtid. Når false (default) er
-    // reise utenfor terskelen og dagsnorm gjelder kun arbeidstimene.
-    const dagsnorm =
-      reisetidTellerOvertid && reisetidTimer > 0
-        ? Math.max(0, dagsnorm0 - reisetidTimer)
-        : dagsnorm0;
-
-    const alleLonnsarter = db
-      .select()
-      .from(lonnsartLocal)
-      .where(eq(lonnsartLocal.organizationId, orgId))
-      .all();
-    const standard = hentStandardLonnsartLokalt(orgId);
-
-    // GPS-carve (fabel-vedtak 2026-07-13): tildel FAKTISKE fra/til fra segmentets
-    // reelle vindu (delt carveArbeidstider) i stedet for null-tider. Fra/til er nå
-    // obligatorisk på timer-rader — auto-utkastet må følge samme regel. Tidene
-    // carves fra ekte GPS-start (segment.startIso) + hour-grensene klassifiseringen
-    // beregner, aldri fabrikkert. Reise-raden (under) unntas bevisst.
-    const orgSetting = hentOrganizationSettingLokalt(orgId);
-    const pauseEtterTimer =
-      orgSetting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
-    const startTidHHMM = tilHHMM(segment.startIso);
-    const carvet = carveArbeidstider({
-      startTid: startTidHHMM,
-      // Reise forskyver arbeids-start (fordelArbeidstidFradrag legger reise først);
-      // reise-raden selv får ingen tid (matrise-mengde, se under).
-      reisetidTimer,
-      pauseFra: pauseVinduFra(startTidHHMM, pauseEtterTimer),
-      pauseMin,
-      segmenter: klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
-    });
-    for (const vindu of carvet) {
-      // Normaltid (overtidsnivaa=null) → firmaets standard-lønnsart.
-      // Overtid → velg strukturert på overtidsnivaa (type=ordinaer, aktiv).
-      const lonnsart =
-        vindu.overtidsnivaa === null
-          ? standard
-          : velgOvertidLonnsart(alleLonnsarter, vindu.overtidsnivaa);
-      // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden
-      // over, og [id].tsx viser banner (manglerStandard/manglerOvertidLonnsart).
-      if (!lonnsart) continue;
-      // 1b: play viker for overlappende manuell rad. Delt vakt
-      // (finnOverlappendeTidsrom) — berøring i endepunkt teller ikke. Ved treff
-      // settes IKKE play-raden inn; arbeiderens manuelle rad beholdes, og
-      // tidsrommet samles for varsel til kalleren.
-      if (finnOverlappendeTidsrom(vindu.fraTid, vindu.tilTid, eksisterendeTidsrom)) {
-        vekForOverlapp.push({ fraTid: vindu.fraTid, tilTid: vindu.tilTid });
-        continue;
-      }
-      // F5 (Valg A): bæreren = carve-vinduet som absorberer lunsjen. carve legger
-      // pausen på det ENE vinduet som krysser lunsjvinduet (tilFraAntall, «påføres
-      // én gang») → den raden har et klokke-gap (spenn − timer ≈ pauseMin). Den
-      // raden bærer sedelens pauseMin; øvrige rader får 0. Σ(rad.pauseMin) =
-      // segment-pausen = dagsseddel.pauseMin (invarianten for maskin-regelen).
-      // «Utledning avvist»: gap-en LOKALISERER kun bæreren; VERDIEN som lagres er
-      // den autoritative segment-pausen (`pauseMin`), ikke det avledede gapet.
-      const gapMin =
-        hhmmTilMin(vindu.tilTid) -
-        hhmmTilMin(vindu.fraTid) -
-        Math.round(vindu.timer * 60);
-      const radPauseMin = pauseMin > 0 && gapMin >= 1 ? pauseMin : 0;
-      db.insert(sheetTimerLocal)
-        .values({
-          id: randomUUID(),
-          dagsseddelId: sheetId,
-          projectId: prosjektId,
-          lonnsartId: lonnsart.id,
-          aktivitetId,
-          externalCostObjectId: null,
-          timer: vindu.timer,
-          fraTid: vindu.fraTid,
-          tilTid: vindu.tilTid,
-          pauseMin: radPauseMin,
-          sistEndretLokalt: Date.now(),
-        })
-        .run();
-      raderOpprettet++;
-    }
-  }
-
-  // Reise-rad (Fase 3 § B) — separat lønnsart-rad, kun på start-segmentet
-  // (reisetidTimer = 0 ellers). Føres på samme prosjekt. Forslag i draft.
-  if (reisetidTimer > 0 && reiseLonnsartId) {
-    db.insert(sheetTimerLocal)
-      .values({
-        id: randomUUID(),
-        dagsseddelId: sheetId,
-        projectId: prosjektId,
-        lonnsartId: reiseLonnsartId,
-        aktivitetId,
-        externalCostObjectId: null,
-        timer: reisetidTimer,
-        // REISE-UNNTAK (fabel-vedtak 2026-07-13): reise beholder null-tider —
-        // BEVISST unntatt fra fra/til-obligatorisk-regelen. Reisetiden er en
-        // matrise-/GPS-estimat-MENGDE (hentMatriseRadLokalt / estimerReisetidMin),
-        // ikke et målt klokke-vindu; et fabrikkert [start, start+reise] ville vært
-        // falske lønnsdata. Reise-rader round-tripper via syncBatch-legacy-veien
-        // (unntatt fra server-håndhevingen) — automatisk konsistent. Overlapp-
-        // vakten hopper uansett over tid-løse rader (finnOverlappendeTidsrom).
-        fraTid: null,
-        tilTid: null,
-        sistEndretLokalt: Date.now(),
-      })
-      .run();
-    raderOpprettet++;
-  }
-
   return {
-    id: sheetId,
-    utfall: resultat.eksisterte ? "appendet" : "opprettet",
-    raderOpprettet,
-    haddeEksisterendeRader,
-    vekForOverlapp,
+    dag: {
+      startAt: dag.startAt,
+      startLat: dag.startLat,
+      startLng: dag.startLng,
+      oppmotestedId: dag.oppmotestedId,
+      byggeplassId: dag.byggeplassId,
+    },
+    sluttIso: p.sluttIso,
+    endLat: p.endLat,
+    endLng: p.endLng,
+    kontekstByggeplassId: p.kontekstByggeplassId,
+    aktivtProsjektId: p.aktivtProsjektId,
+    sisteSegmentKilde: p.sisteSegmentKilde,
+    prosjekter,
+    aktiviteter,
+    alleLonnsarter,
+    standardLonnsartId,
+    regel,
+    reiseOppslag,
+    effektivPerDato,
+    eksisterendeSedelPerDato,
   };
 }
 
 /**
- * UF-1: utvid sedelens arbeidstid-vindu så det dekker en appendet økt.
- * startAt = tidligste, endAt = seneste. Markerer pending for re-sync.
+ * Snapshot av eksisterende dagsseddel for (userId, dato) FØR skrivingen: finnes
+ * den, hvilken status, og hvilke tidsrom bærer radene (for overlapp-vakten).
+ * Speiler lesningene det gamle `opprettDagsseddelForSegment` gjorde (idempotens-
+ * treff via `finnEllerOpprettDagsseddel` + eksisterende-rad-spørringen).
  */
-function utvidArbeidstidsvindu(
-  db: NonNullable<ReturnType<typeof hentDatabase>>,
-  sheetId: string,
-  nyStartIso: string,
-  nySluttIso: string,
-  sluttTidKilde: "bruker" | "midnatt" | "system",
-): void {
+function lesEksisterendeSedel(
+  db: LokalDb,
+  userId: string,
+  dato: string,
+): DagsforslagEksisterendeSedel {
   const sedel = db
-    .select({ startAt: dagsseddelLocal.startAt, endAt: dagsseddelLocal.endAt })
+    .select({ id: dagsseddelLocal.id, status: dagsseddelLocal.status })
     .from(dagsseddelLocal)
-    .where(eq(dagsseddelLocal.id, sheetId))
+    .where(and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.dato, dato)))
     .all()[0];
-  if (!sedel) return;
-
-  const tidligste =
-    sedel.startAt && sedel.startAt < nyStartIso ? sedel.startAt : nyStartIso;
-  // F-b (2026-07-13): utvid endAt KUN når slutt-tiden er bruker-BEKREFTET
-  // ("bruker"). "system"/"midnatt" er gjettede slutt-tider (glemt-dag / hard-cap
-  // / ikke-siste segment) — de skal IKKE skyve «Arbeidstid i dag»-vinduet ut med
-  // fabrikkerte tider. Behold da eksisterende endAt (fall til nySluttIso kun når
-  // sedelen ennå ikke har en endAt å bevare).
-  const seneste =
-    sluttTidKilde === "bruker"
-      ? sedel.endAt && sedel.endAt > nySluttIso
-        ? sedel.endAt
-        : nySluttIso
-      : (sedel.endAt ?? nySluttIso);
-
-  db.update(dagsseddelLocal)
-    .set({
-      startAt: tidligste,
-      endAt: seneste,
-      syncStatus: "pending",
-      sistEndretLokalt: Date.now(),
-    })
-    .where(eq(dagsseddelLocal.id, sheetId))
-    .run();
+  if (!sedel) {
+    return { finnes: false, status: null, eksisterendeRader: [] };
+  }
+  const rader = db
+    .select({ fraTid: sheetTimerLocal.fraTid, tilTid: sheetTimerLocal.tilTid })
+    .from(sheetTimerLocal)
+    .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
+    .all();
+  return { finnes: true, status: sedel.status, eksisterendeRader: rader };
 }
