@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Speltiden för {{intervaller}} lades inte till eftersom du redan har angett timmar manuellt under den perioden. Din manuella inmatning hålls oförändrad.",
   "timer.kildeManglet.tittel": "Timmarna registrerades inte",
   "timer.kildeManglet.melding": "Appen kunde inte hitta ett projekt att länka timmarna till, så inget dagblad skapades. Arbetsdagen är fortfarande öppen – försök \"Slutdag\" igen när projekten har laddats, eller skriv in timmarna manuellt.",
+  "timer.prosjektUkjent.tittel": "Kunde inte hitta projektet",
+  "timer.prosjektUkjent.melding": "Appen kunde inte härleda projektet från din position. Välj ett projekt i väljaren högst upp och tryck på \"Slutdag\" igen. Arbetsdagen är fortfarande öppen.",
   "timer.gjenaapne.knapp": "Öppna för redigering igen",
   "timer.gjenaapne.hjelp": "Dra tillbaka arket från godkännande så att du kan lägga till poster. Din chef kommer inte att se det igen förrän du skickar in det igen.",
   "timer.gjenaapne.feilGodkjent": "Dagbladet har redan godkänts av din chef – kontakta dem för att göra ändringar.",

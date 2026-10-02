@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Czas gry dla {{intervaller}} nie został dodany, ponieważ godziny w tym okresie zostały już ręcznie wprowadzone. Twój wpis ręczny pozostaje niezmieniony.",
   "timer.kildeManglet.tittel": "Godziny nie były rejestrowane",
   "timer.kildeManglet.melding": "Aplikacja nie mogła znaleźć projektu, z którym można by powiązać godziny, więc nie utworzono arkusza dziennego. Dzień pracy jest nadal otwarty – spróbuj ponownie „Dzień końcowy” po załadowaniu projektów lub wprowadź godziny ręcznie.",
+  "timer.prosjektUkjent.tittel": "Nie udało się znaleźć projektu",
+  "timer.prosjektUkjent.melding": "Aplikacja nie mogła wygenerować projektu na podstawie Twojej pozycji. Wybierz projekt w selektorze u góry i ponownie kliknij „Dzień końcowy”. Dzień pracy jest nadal otwarty.",
   "timer.gjenaapne.knapp": "Otwórz ponownie do edycji",
   "timer.gjenaapne.hjelp": "Wycofuje arkusz z zatwierdzenia, aby można było dodać wpisy. Twój menedżer nie zobaczy go ponownie, dopóki nie prześlesz go ponownie.",
   "timer.gjenaapne.feilGodkjent": "Arkusz dzienny został już zatwierdzony przez Twojego menedżera – skontaktuj się z nim, aby wprowadzić zmiany.",

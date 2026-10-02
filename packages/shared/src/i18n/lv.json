@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Spēles laiks {{intervaller}} netika pievienots, jo jūs jau esat manuāli ievadījis stundas šajā periodā. Jūsu manuālais ieraksts netiek mainīts.",
   "timer.kildeManglet.tittel": "Stundas netika reģistrētas",
   "timer.kildeManglet.melding": "Lietotne nevarēja atrast projektu, ar kuru saistīt stundas, tāpēc netika izveidota dienas lapa. Darba diena joprojām ir atvērta — mēģiniet vēlreiz “Beigt dienu”, kad projekti ir ielādēti, vai ievadiet stundas manuāli.",
+  "timer.prosjektUkjent.tittel": "Nevarēja atrast projektu",
+  "timer.prosjektUkjent.melding": "Lietotne nevarēja iegūt projektu no jūsu pozīcijas. Augšpusē esošajā atlasītājā atlasiet projektu un vēlreiz pieskarieties vienumam Beigt dienu. Darba diena joprojām ir atvērta.",
   "timer.gjenaapne.knapp": "Atkārtoti atvērt rediģēšanai",
   "timer.gjenaapne.hjelp": "Atvelk lapu no apstiprināšanas, lai jūs varētu pievienot ierakstus. Jūsu pārvaldnieks to vairs neredzēs, kamēr nebūsiet atkārtoti iesniedzis.",
   "timer.gjenaapne.feilGodkjent": "Dienas lapu jau ir apstiprinājis jūsu vadītājs — sazinieties ar viņu, lai veiktu izmaiņas.",

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   klassifiserReise,
-  estimerReisetidMin,
   løsReiseLonnsartId,
   REISE_LONNSART_REGEX,
   type ReiseRegelsett,
@@ -209,15 +208,5 @@ describe("løsReiseLonnsartId — grensepunkter (determinisme)", () => {
     expect(løsReiseLonnsartId(20_000, [], null)).toBe(null);
     // Selv med avstand null og ingen bånd: uendret fallback.
     expect(løsReiseLonnsartId(null, [], "eksplisitt-art")).toBe("eksplisitt-art");
-  });
-});
-
-describe("estimerReisetidMin", () => {
-  it("0 avstand → 0 min", () => {
-    expect(estimerReisetidMin(0)).toBe(0);
-  });
-
-  it("50 km ved 50 km/t → 60 min", () => {
-    expect(estimerReisetidMin(50_000)).toBe(60);
   });
 });

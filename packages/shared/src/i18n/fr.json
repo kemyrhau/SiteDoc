@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Le temps de lecture pour {{intervaller}} n'a pas été ajouté, car vous avez déjà saisi manuellement les heures dans cette période. Votre saisie manuelle reste inchangée.",
   "timer.kildeManglet.tittel": "Les heures n'ont pas été enregistrées",
   "timer.kildeManglet.melding": "L'application n'a pas trouvé de projet auquel lier les heures, donc aucune feuille journalière n'a été créée. La journée de travail est toujours ouverte – réessayez « Fin de journée » une fois les projets chargés, ou saisissez les heures manuellement.",
+  "timer.prosjektUkjent.tittel": "Impossible de trouver le projet",
+  "timer.prosjektUkjent.melding": "L'application n'a pas pu dériver le projet de votre position. Sélectionnez un projet dans le sélecteur en haut et appuyez à nouveau sur « Fin de journée ». La journée de travail est toujours ouverte.",
   "timer.gjenaapne.knapp": "Rouvrir pour modification",
   "timer.gjenaapne.hjelp": "Extrait la feuille de l'approbation afin que vous puissiez ajouter des entrées. Votre responsable ne le verra plus tant que vous ne le soumettrez pas à nouveau.",
   "timer.gjenaapne.feilGodkjent": "La feuille journalière a déjà été approuvée par votre responsable – contactez-le pour apporter des modifications.",

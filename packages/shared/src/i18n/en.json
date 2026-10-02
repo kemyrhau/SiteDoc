@@ -284,6 +284,8 @@
   "timer.playVek.melding": "The play time for {{intervaller}} was not added, because you already have manually entered hours in that period. Your manual entry is kept unchanged.",
   "timer.kildeManglet.tittel": "The hours were not recorded",
   "timer.kildeManglet.melding": "The app could not find a project to link the hours to, so no day sheet was created. The workday is still open – try “End day” again once the projects have loaded, or enter the hours manually.",
+  "timer.prosjektUkjent.tittel": "Could not find the project",
+  "timer.prosjektUkjent.melding": "The app could not derive the project from your position. Select a project in the picker at the top and tap “End day” again. The workday is still open.",
   "timer.gjenaapne.knapp": "Reopen for editing",
   "timer.gjenaapne.hjelp": "Pulls the sheet back from approval so you can add entries. Your manager won't see it again until you resubmit.",
   "timer.gjenaapne.feilGodkjent": "The daily sheet has already been approved by your manager — contact them to make changes.",

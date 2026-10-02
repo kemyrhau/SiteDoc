@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Die Spielzeit für {{intervaller}} wurde nicht hinzugefügt, da Sie in diesem Zeitraum bereits Stunden manuell eingegeben haben. Ihre manuelle Eingabe bleibt unverändert.",
   "timer.kildeManglet.tittel": "Die Stunden wurden nicht erfasst",
   "timer.kildeManglet.melding": "Die App konnte kein Projekt finden, mit dem die Stunden verknüpft werden könnten, daher wurde kein Tagesblatt erstellt. Der Arbeitstag ist noch offen – versuchen Sie es erneut mit „Tag beenden“, sobald die Projekte geladen wurden, oder geben Sie die Stunden manuell ein.",
+  "timer.prosjektUkjent.tittel": "Das Projekt konnte nicht gefunden werden",
+  "timer.prosjektUkjent.melding": "Die App konnte das Projekt nicht von Ihrer Position ableiten. Wählen Sie oben im Picker ein Projekt aus und tippen Sie erneut auf „Tag beenden“. Der Werktag ist noch offen.",
   "timer.gjenaapne.knapp": "Zur Bearbeitung erneut öffnen",
   "timer.gjenaapne.hjelp": "Zieht das Blatt aus der Genehmigung zurück, sodass Sie Einträge hinzufügen können. Ihr Vorgesetzter wird es erst wieder sehen, wenn Sie es erneut einreichen.",
   "timer.gjenaapne.feilGodkjent": "Das Tagesblatt wurde bereits von Ihrem Vorgesetzten genehmigt – kontaktieren Sie ihn, um Änderungen vorzunehmen.",

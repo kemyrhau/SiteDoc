@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Peliaikaa {{intervaller}} ei lisätty, koska olet jo syöttänyt tunnit manuaalisesti tälle ajanjaksolle. Manuaalinen syöttösi säilyy ennallaan.",
   "timer.kildeManglet.tittel": "Tunteja ei kirjattu",
   "timer.kildeManglet.melding": "Sovellus ei löytänyt projektia, johon tunnit olisi linkitetty, joten päivätaulukkoa ei luotu. Työpäivä on edelleen auki – kokeile \"Päättyvä päivä\" uudelleen, kun projektit on ladattu, tai syötä tunnit manuaalisesti.",
+  "timer.prosjektUkjent.tittel": "Projektia ei löytynyt",
+  "timer.prosjektUkjent.melding": "Sovellus ei voinut johtaa projektia sijaintistasi. Valitse projekti yläreunassa olevasta valitsimesta ja napauta \"Loppupäivä\" uudelleen. Työpäivä on vielä auki.",
   "timer.gjenaapne.knapp": "Avaa uudelleen muokkausta varten",
   "timer.gjenaapne.hjelp": "Vetää arkin pois hyväksynnästä, jotta voit lisätä merkintöjä. Esimies ei näe sitä uudelleen ennen kuin lähetät sen uudelleen.",
   "timer.gjenaapne.feilGodkjent": "Esimies on jo hyväksynyt päiväkirjan – ota yhteyttä häneen tehdäksesi muutoksia.",

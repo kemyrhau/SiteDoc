@@ -21,7 +21,6 @@ import { useTimerSync } from "../providers/TimerSyncProvider";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "../utils/dagsegment";
 import {
   beregnDagsforslag,
-  velgNaermesteProsjekt,
   avgjorSluttDagHandling,
   skalMarkereAvsluttet,
   MAKS_ENKELTSKIFT_TIMER,
@@ -29,6 +28,7 @@ import {
   type DagsforslagEffektiv,
   type DagsforslagEksisterendeSedel,
 } from "../utils/dagsforslag";
+import { tolkStart, tolkSlutt, velgDestinasjon } from "@sitedoc/shared";
 import { anvendDagsforslag } from "../utils/dagsforslagAnvend";
 import {
   useArbeidsdag,
@@ -44,10 +44,12 @@ import {
   hentReiseLonnsartId,
 } from "../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../services/organizationSettingKatalog";
+import { hentMatriseRadLokalt } from "../services/reisetidMatriseKatalog";
 import {
-  hentMatriseRadLokalt,
-  resolverPrimaerByggeplass,
-} from "../services/reisetidMatriseKatalog";
+  hentByggeplasserForFirmaLokalt,
+  hentByggeplasserForProsjektLokalt,
+} from "../services/byggeplassKatalog";
+import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { hentReiseGrensepunkterLokalt } from "../services/reiseGrensepunktKatalog";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
@@ -182,6 +184,15 @@ export function StartSluttDagKort() {
           Alert.alert(
             t("timer.kildeManglet.tittel"),
             t("timer.kildeManglet.melding"),
+          );
+          break;
+        case "prosjektUkjent":
+          // §2: A5 fant ingen destinasjon og arbeideren har ikke valgt prosjekt.
+          // Dagen står ÅPEN; meldingen navngir veien ut (velg prosjekt, prøv
+          // igjen) — et utfall uten stemme er verre enn et som blokkerer.
+          Alert.alert(
+            t("timer.prosjektUkjent.tittel"),
+            t("timer.prosjektUkjent.melding"),
           );
           break;
       }
@@ -405,26 +416,72 @@ function samleDagsforslagInput(
       }
     : null;
 
-  // Reise-oppslag: matrise-rad (oppmøtested → prosjektets primær-byggeplass) +
-  // grensepunkter + fallback-reiselønnsart. Prosjektet velges med SAMME rene
-  // helper som `beregnDagsforslag` bruker → ingen divergens.
+  // Reise-oppslag (A3/A4/A5): tolk start-/slutt-posisjon mot firmaets geofencer,
+  // velg destinasjon, og slå opp ut-/retur-matrisecellene. §2: prosjektvalget
+  // følger destinasjonen (byggeplassens prosjekt) → arbeiderens aktive prosjekt
+  // → prosjektUkjent. 🔴 `velgNaermesteProsjekt`/`resolverPrimaerByggeplass`
+  // (nærmeste-uten-grense + primærbyggeplass) er erstattet av A5.
   let reiseOppslag: BeregnDagsforslagInput["reiseOppslag"] = null;
-  if (dag.oppmotestedId && regel && prosjekter.length > 0) {
-    const valgtProsjekt = velgNaermesteProsjekt(
-      prosjekter,
-      dag.startLat ?? p.endLat,
-      dag.startLng ?? p.endLng,
+  let destinasjonProsjektId: string | null = null;
+  if (regel) {
+    const alleByggeplasser = hentByggeplasserForFirmaLokalt(orgId);
+    const byggGeofencer = alleByggeplasser.filter(
+      (b): b is typeof b & { lat: number; lng: number; radiusM: number } =>
+        b.lat != null && b.lng != null && b.radiusM != null,
     );
-    const byggeplassId = resolverPrimaerByggeplass(
-      valgtProsjekt.id,
-      dag.oppmotestedId,
+    const oppmGeofencer = hentOppmotederLokalt(orgId).filter(
+      (o): o is typeof o & { lat: number; lng: number; radiusM: number } =>
+        o.lat != null && o.lng != null && o.radiusM != null,
     );
-    const rad = byggeplassId
-      ? hentMatriseRadLokalt(dag.oppmotestedId, byggeplassId)
-      : null;
+    const startPos =
+      dag.startLat != null && dag.startLng != null
+        ? { lat: dag.startLat, lng: dag.startLng }
+        : null;
+    const sluttPos =
+      p.endLat != null && p.endLng != null
+        ? { lat: p.endLat, lng: p.endLng }
+        : null;
+    const start = tolkStart(startPos, oppmGeofencer, byggGeofencer);
+    const slutt = tolkSlutt(sluttPos, oppmGeofencer, byggGeofencer);
+    // A5-regel (3): prosjektets byggeplasser = arbeiderens AKTIVE prosjekt (§2).
+    const prosjektByggeplasser = p.aktivtProsjektId
+      ? hentByggeplasserForProsjektLokalt(p.aktivtProsjektId).map((b) => ({
+          id: b.id,
+          harPunkt: b.lat != null && b.lng != null,
+        }))
+      : [];
+    const destinasjon = velgDestinasjon({
+      sluttsted: slutt,
+      kontekstByggeplassId: p.kontekstByggeplassId,
+      prosjektByggeplasser,
+    });
+    if (destinasjon.type === "byggeplass") {
+      destinasjonProsjektId =
+        alleByggeplasser.find((b) => b.id === destinasjon.byggeplassId)
+          ?.projectId ?? null;
+    }
+    // Matriseceller: ut fra start-oppmøtested, retur fra slutt-oppmøtested —
+    // begge mot destinasjonen (A5). hentMatriseRadLokalt beholdt.
+    const utRad =
+      start.type === "kontor" && destinasjon.type === "byggeplass"
+        ? hentMatriseRadLokalt(start.oppmotestedId, destinasjon.byggeplassId)
+        : null;
+    const returRad =
+      slutt.type === "kontor" && destinasjon.type === "byggeplass"
+        ? hentMatriseRadLokalt(slutt.oppmotestedId, destinasjon.byggeplassId)
+        : null;
     reiseOppslag = {
-      matriseRad: rad
-        ? { kjoretidMin: rad.kjoretidMin, avstandM: rad.avstandM ?? null }
+      start,
+      slutt,
+      destinasjon,
+      utCelle: utRad
+        ? { kjoretidMin: utRad.kjoretidMin, avstandM: utRad.avstandM ?? null }
+        : null,
+      returCelle: returRad
+        ? {
+            kjoretidMin: returRad.kjoretidMin,
+            avstandM: returRad.avstandM ?? null,
+          }
         : null,
       grensepunkter: hentReiseGrensepunkterLokalt(orgId),
       // Uten avstand → fallback-arten (regel.reiseLonnsartId ?? navne-match),
@@ -493,6 +550,7 @@ function samleDagsforslagInput(
     endLng: p.endLng,
     kontekstByggeplassId: p.kontekstByggeplassId,
     aktivtProsjektId: p.aktivtProsjektId,
+    destinasjonProsjektId,
     sisteSegmentKilde: p.sisteSegmentKilde,
     prosjekter,
     aktiviteter,

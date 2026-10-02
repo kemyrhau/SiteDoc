@@ -43,6 +43,8 @@ export function anvendDagsforslag(
   const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
 
   // Ingen utledet prosjekt/aktivitet → ingenting å skrive (manuell flyt).
+  // `prosjektUkjent` bæres videre så kalleren skiller «velg prosjekt» fra
+  // «db/aktivitet manglet» (begge har startSheetId null).
   if (forslag.prosjektId == null || forslag.aktivitetId == null) {
     return {
       startSheetId: null,
@@ -50,6 +52,7 @@ export function anvendDagsforslag(
       ingenRader: true,
       harEksisterendeRader: false,
       vekForOverlapp: [],
+      prosjektUkjent: forslag.prosjektUkjent,
     };
   }
 
@@ -122,6 +125,7 @@ export function anvendDagsforslag(
     ingenRader: totalRader === 0,
     harEksisterendeRader,
     vekForOverlapp,
+    prosjektUkjent: false,
   };
 }
 

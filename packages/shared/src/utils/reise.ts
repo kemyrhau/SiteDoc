@@ -155,18 +155,3 @@ export function løsReiseLonnsartId(
   if (beste == null) return fallbackLonnsartId;
   return beste.lonnsartId ?? fallbackLonnsartId;
 }
-
-/**
- * MVP fast-estimat: avled reisetid (minutter) fra kjøreavstand (meter) ved en
- * antatt snitthastighet. GPS-faktisk reisetid (ankomst − avreise) er senere
- * oppfølger når ankomst-på-byggeplass fanges (jf. Fase 3-plan avvik C). Default
- * 50 km/t passer landevei/anleggsvei på byggeplass-skala. Arbeider justerer alltid.
- */
-export function estimerReisetidMin(
-  avstandM: number,
-  snittKmT: number = 50,
-): number {
-  if (avstandM <= 0 || snittKmT <= 0) return 0;
-  const km = avstandM / 1000;
-  return Math.round((km / snittKmT) * 60);
-}

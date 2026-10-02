@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Timpul de redare pentru {{intervaller}} nu a fost adăugat, deoarece ați introdus deja manual orele în acea perioadă. Introducerea manuală este păstrată neschimbată.",
   "timer.kildeManglet.tittel": "Orele nu au fost înregistrate",
   "timer.kildeManglet.melding": "Aplicația nu a putut găsi un proiect la care să facă legătura între orele, așa că nu a fost creată nicio foaie de zi. Ziua de lucru este încă deschisă – încercați din nou „Încheierea zilei” odată ce proiectele s-au încărcat sau introduceți manual orele.",
+  "timer.prosjektUkjent.tittel": "Nu am putut găsi proiectul",
+  "timer.prosjektUkjent.melding": "Aplicația nu a putut deriva proiectul din poziția dvs. Selectați un proiect în selectorul din partea de sus și atingeți din nou „Încheierea zilei”. Ziua de lucru este încă deschisă.",
   "timer.gjenaapne.knapp": "Redeschideți pentru editare",
   "timer.gjenaapne.hjelp": "Retrage foaia de la aprobare, astfel încât să puteți adăuga intrări. Managerul dvs. nu o va mai vedea până când nu retrimiteți.",
   "timer.gjenaapne.feilGodkjent": "Foaia zilnică a fost deja aprobată de managerul dvs. - contactați-i pentru a face modificări.",

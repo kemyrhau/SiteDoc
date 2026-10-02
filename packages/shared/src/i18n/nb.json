@@ -284,6 +284,8 @@
   "timer.playVek.melding": "Play-tiden for {{intervaller}} ble ikke lagt til, fordi du allerede har ført timer manuelt i det tidsrommet. Din manuelle registrering er beholdt uendret.",
   "timer.kildeManglet.tittel": "Timene ble ikke ført",
   "timer.kildeManglet.melding": "Appen fant ikke noe prosjekt å knytte timene til, så ingen dagsseddel ble opprettet. Arbeidsdagen står fortsatt åpen – prøv «Slutt dag» igjen når prosjektene er lastet, eller før timene manuelt.",
+  "timer.prosjektUkjent.tittel": "Fant ikke prosjektet",
+  "timer.prosjektUkjent.melding": "Appen klarte ikke å utlede prosjektet fra posisjonen din. Velg prosjekt i velgeren øverst og trykk «Slutt dag» på nytt. Arbeidsdagen står fortsatt åpen.",
   "timer.gjenaapne.knapp": "Gjenåpne for redigering",
   "timer.gjenaapne.hjelp": "Henter sedelen tilbake fra attestering så du kan etter-registrere. Lederen ser den ikke før du sender på nytt.",
   "timer.gjenaapne.feilGodkjent": "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring.",
