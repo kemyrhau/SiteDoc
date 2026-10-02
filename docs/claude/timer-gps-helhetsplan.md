@@ -328,7 +328,7 @@ bekreftelsessteget finnes, brytes G1.
 
 🔴 **Ingen av disse kan avgjøres av orkestratoren. Hver av dem endrer hva som bygges.**
 
-**Status 2026-10-03:** 🟢 K1, K2, K6, K7, K8, K9 vedtatt (regler i § 4b, V1–V16). 🔴 K3, K4, K5 åpne; **K10 VEDTATT 2026-10-03 (V17: punkt+radius standard, polygon for infrastruktur, delt med PSI).** K5 trengs før lag 2.
+**Status 2026-10-03:** 🟢 K1, K2, K6, K7, K8, K9 vedtatt (regler i § 4b, V1–V16). 🔴 K3, K4, K5 åpne; **K10 VEDTATT 2026-10-03 (V17).** 🟢 **K5 VEDTATT 2026-10-03: mottak med sporbarhet** — lag 2 spesifiseres. 🔴 K3, K4 åpne.
 
 | # | Beslutning | Hvorfor den er din | Konsekvens av valget |
 |---|---|---|---|
@@ -336,7 +336,7 @@ bekreftelsessteget finnes, brytes G1.
 | **K2** | 🟢 **VEDTATT 2026-10-02 (Kenneth): «på kontoret».** Treffer start-GPS både et oppmøtested og en byggeplass-geofence, er origo oppmøtestedet. Er dagens første prosjekt det byggeplassen tilhører, er avstanden null og ingen reise foreslås. Kjøres det til en annen byggeplass, er det en vanlig første etappe fra kontoret mot terskelen (V10). Ført som **V15** i § 4b | Produktvalg | Lukker H12 |
 | **K3** | **Sporing eller bekreftede stopp?** Sjåfør-modellen trenger å vite hvor man var underveis | 🔴 **Personvern.** Krever samtykke, og `mannskap.md:19` sier juridisk sign-off for bakgrunns-geofencing | Sporing: automatisk, men inngripende. Bekreftede stopp: arbeideren trykker ved ankomst |
 | **K4** | **Skal km bli en målt størrelse?** I dag skrives km i feltet «timer» med tak 24 | Lønn + regnskap. `timer.md:228` sier «regnskap eier satsene og km-utmålingen» — **vedtaket ditt kolliderer med det** | Eget felt: SiteDoc måler km. Som i dag: regnskap måler, vi bare fører |
-| **K5** | **Hvor mye skal serveren verifisere?** I dag: ingenting. Alt skjer offline på telefonen | Risiko vs. kompleksitet | Full verifisering krever at posisjon synkes — altså lagring av hvor ansatte har vært |
+| **K5** | 🟢 **VEDTATT 2026-10-03 (Kenneth): «mottak med sporbarhet».** Serveren tar imot reiseklassifiseringen med avstand, kjøretid, kilde, oppmøtested, byggeplass, retning og regel-snapshot på raden — og regner IKKE om. Rå GPS-posisjon synkes ikke (jf. `mannskap.md:45` «aldri GPS-posisjon til person»); omregning vurderes sammen med personvernvurderingen under K3. Spec: lag 2 | Risiko vs. kompleksitet | Lag 2 kan spesifiseres |
 | **K6** | 🟢 **VEDTATT via V14:** ingen bulk-etterfylling. Eksisterende byggeplasser uten punkt merkes i lista og telles på matrise-flaten; admin setter punkt i modalen (ett klikk) | Omfang | Antall som mangler er fortsatt ikke målt (§ 8) |
 | **K7** | 🟢 **VEDTATT:** *«reisetid er aldri overtid»* (V1). Flagget utgår (V2). Overtid er kronologisk og bæres av prosjektet som eier klokkeslettet; siste prosjekt bærer overtiden på delt dag (V4). Doktrinen samles: `timer.md:161` vinner, `:228`/`:1086` skrives om | Lønn | Lukker H17 |
 | **K8** | 🟢 **VEDTATT:** tur og retur (V7), utledet klokkevindu fra GPS ± matrise (V8), mellometappe = arbeidstid til prosjektet man kommer til (V9), terskel pr. etappe (V10). Normen følger ankomsten (V5) | Lønn | Lag 4 trenger IKKE ny matriseakse (V9) |
