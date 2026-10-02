@@ -594,6 +594,14 @@ en transaksjon som ruller tilbake gir fortsatt brukeren en feil som må oversett
 
 🟢 **Fangsten er verdt å merke seg som metode:** merge oppdaget det ikke ved å lese koden, men ved at et **forventet tall ikke materialiserte seg.** Gate-tall med forventning per pakke er derfor mer enn bokføring.
 
+### 🟡 Områdelista på byggeplass-siden har ingen vei til geometrien (Kenneth på test 2026-10-03)
+
+Områdene (Austadvegen, Røstbakken) listes på `oppsett/byggeplasser` med navn og type, men formen redigeres kun
+i `OmradeTegneverktoy.tsx`, montert på `/dashbord/[prosjektId]/tegninger:1329`. Kenneth konkluderte «jeg kan
+ikke justere soner mot tegning» — rimelig fra flaten han sto på. **Tiltak:** lenke/knapp fra områderaden til
+tegningen den hører til. Liten. Henger sammen med K10 i helhetsplanen (polygon → geofence), men er
+uavhengig av den. Ikke bestilt.
+
 ### 🟡 Mobil henter TI kataloger i sin helhet ved hver innlogging og nett-gjenkomst — «har noe endret seg?» finnes ikke (målt av orkestrator 2026-10-02, utløst av Kenneth)
 
 **Målt:** `TimerSyncProvider.tsx:116-127, 187-194` kjører blind full-refresh av byggeplass · kalender · maskin ·

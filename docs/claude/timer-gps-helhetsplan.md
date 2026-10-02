@@ -117,6 +117,7 @@ forutsetningen for at GPS i det hele tatt får lov til å velge prosjekt.**
 | **H20** | **Ingen origo når dagen ikke starter på et kontor.** Ingen reise, ingen reserve, ingen kobling bruker → fast oppmøtested. `Oppmotested.avdelingId` finnes men har ingen leser, og mobil-cachen mangler feltet | `useArbeidsdag.ts:473`-gaten, `oppmotested.ts:98-104` | Manglende funksjon | **1** |
 | **H21** | 🔴 **Matrisen ARVER prosjektets koordinat når byggeplassen mangler punkt** — `b.latitude ?? b.project?.latitude`. Samme arving Kenneth fjernet fra origo-ordren 2026-10-01, men den har produsert reise-avstander for punktløse byggeplasser siden R3 (2026-06-11). Funnet under lag 1-målingen | `apps/api/src/services/reisetidMatrise.ts:67-74` | 🔴 **Feil lønn, stille** | **1** (C1 i lag 1-spec) |
 | **H22** | 🔴 **To normkilder i drift uten modus:** mobil utleder dagsnormen fra kalenderen (sesong), server-varsel og web-sedel leser den flate `dagsnorm`-kolonnen (7,5). Et kalender-firma får i dag riktig forslag på mobil om sommeren (8 t) og et attesteringsvarsel regnet mot 7,5 | `kalenderKatalog.ts:139-200` vs. `dagsseddel.ts:2767`, `timer/[id]/page.tsx:396` | Inkonsistens | **1** (V16) |
+| **H23** | 🔴 **Sirkelen modellerer ikke et lineært prosjekt.** Byggeplass-geofence er punkt + radius; for en lang, smal trasé (Røstbakken) dekker sirkelen områder langt utenfor. **Og den automatiske utledningen fra georeferert tegning lager nøyaktig den sirkelen:** senter = tegningens 50/50, radius = største hjørneavstand + 100 m — ti km veg gir ~5 km radius. Trasé-formen FINNES (`Omrade.type = trase`, `polygon` i tegningskoordinater, tegneverktøy på tegninger-siden), men **broen polygon → geofence finnes ikke**. Funnet av Kenneth på test 2026-10-03 | `georeferanse.ts:433-454`, `tegning.ts:502`, `byggeplass.ts:135`, `schema.prisma` Omrade | 🔴 **Feil prosjekt** (kapabilitet A/C) — reise (B) tåler det | **3/4** (K10) |
 
 🔴 **H15 er samme feilklasse som arvingen orkestratoren fjernet fra origo-ordren — men den står
 i koden i dag.** Det var KS-ens skarpeste funn.
@@ -204,8 +205,12 @@ Leveranse A stedsmodell i shared · B reiseberegning i `beregnDagsforslag` · C 
 🟢 **L1-C `29f1d515` + L1-A `6f59a889` MERGET `9d67367a`** — **H21 lukket** (matrisen måler kun fra byggeplassens
 eget punkt), `sted.ts` erstatter alle haversine-kopier, `geofenceKilde` med backfill+CHECK. 🔴 Migrering
 `20261002120000_byggeplass_geofence_kilde` IKKE kjørt (Kenneth). ⚠️ Etter pull: `pnpm install` + `prisma generate` ×4,
-ellers rød typecheck som ikke er regresjon. **L1-B bestilt**, B6 v3 (server-svar for normen, cache pr. dato, norm/tider-splitt) **GATET 2026-10-02** — alle fire
-faser kan gå.
+ellers rød typecheck som ikke er regresjon. 🟢 **L1-B `c5fa7344`+`0a5f249a`+`830539d2` MERGET `2e993250` (2026-10-03) — LAG 1 KOMPLETT.** Etapper ut/retur,
+arbeidsvindu, V1 (norm-fradraget borte), A5-prosjektvalg + `prosjektUkjent`, `normKilde`/`pauseReferanse`,
+én norm-utledning på server, mobil svar-cache + markør. Fem brukervendte endringer ført i FUNKSJONSENDRINGER
+(`e430345f`). 🔴 Prisma-migrering `20261002130000_timer_normkilde_pausereferanse` IKKE kjørt på test (Kenneth); `20261002120000` ER kjørt
+(test-deploy `fd92736d`, `a54f8b2f`). **Første funn på test:** 2 av 5 byggeplasser på testprosjektet mangler
+punkt — de hadde reise via H21-arven, nå sier merket fra.
 
 🔴 **FORUTSETNING funnet 2026-10-02 (orkestrator, `SAMARBEIDSREGLER.md:1214`):** `packages/shared`
 typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signertBildePolicy.ts`)**.
@@ -322,7 +327,7 @@ bekreftelsessteget finnes, brytes G1.
 
 🔴 **Ingen av disse kan avgjøres av orkestratoren. Hver av dem endrer hva som bygges.**
 
-**Status 2026-10-02:** 🟢 K1, K2, K6, K7, K8, K9 vedtatt (regler i § 4b, V1–V16). 🔴 K3, K4, K5 åpne — ingen av dem blokkerer lag 1–3.
+**Status 2026-10-03:** 🟢 K1, K2, K6, K7, K8, K9 vedtatt (regler i § 4b, V1–V16). 🔴 K3, K4, K5 åpne; **K10 (H23, geofence-form) ny — må avgjøres før lag 3/4.** K5 trengs før lag 2.
 
 | # | Beslutning | Hvorfor den er din | Konsekvens av valget |
 |---|---|---|---|
@@ -335,6 +340,7 @@ bekreftelsessteget finnes, brytes G1.
 | **K7** | 🟢 **VEDTATT:** *«reisetid er aldri overtid»* (V1). Flagget utgår (V2). Overtid er kronologisk og bæres av prosjektet som eier klokkeslettet; siste prosjekt bærer overtiden på delt dag (V4). Doktrinen samles: `timer.md:161` vinner, `:228`/`:1086` skrives om | Lønn | Lukker H17 |
 | **K8** | 🟢 **VEDTATT:** tur og retur (V7), utledet klokkevindu fra GPS ± matrise (V8), mellometappe = arbeidstid til prosjektet man kommer til (V9), terskel pr. etappe (V10). Normen følger ankomsten (V5) | Lønn | Lag 4 trenger IKKE ny matriseakse (V9) |
 | **K9** | 🟢 **VEDTATT:** *«oppmøtested er på prosjekt»* — ingen reise når dagen ikke starter på et kontor (V11). GPS av → ingen reise med synlig årsak (V12). `Oppmotested.avdelingId` forblir uten leser | Lønn | Lukker H20 og H11 |
+| **K10** | 🔴 **Hvilken form skal stedsgjenkjenningen ha for anleggsprosjekter?** (H23) Sirkelen er feil form for en trasé, og auto-utledningen lager den. **Fabels anbefaling, rangert:** **(1) polygon i lat/lng som geofence-form** — trasé-formen tegnes alt (`Omrade.type = trase`), tegningen er georeferert, transformen `tegningTilGps` finnes; gjenkjenning blir punkt-i-polygon i `sted.ts` med sirkel som fallback, punktet beholdes som origo for reise · **(2) straks-tiltak uansett:** auto-sirkel med radius over en navngitt grense merkes `upresis` + varsel «sirkelen dekker N km — tegn trasé», så det verste stopper nå · (3) «aksepter sirkel + bekreft» er det lag 3 gir uansett, men fjerner ikke feil forslag når to lange prosjekter overlapper · (4) flere sirkler pr. byggeplass: feil form, mange rader · (5) korridor: dekkes av polygon | Produktvalg + kostnad ikke målt | **Må avgjøres før lag 3/4** (GPS velger prosjekt). Lag 2 er ikke avhengig |
 
 ---
 

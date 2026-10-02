@@ -3,7 +3,7 @@ name: timer-gps-lag1-spec
 description: Spesifikasjon for LAG 1 i timer-GPS-helhetsplanen — én stedsmodell i @sitedoc/shared, reiseberegning etter V3/V5/V6/V7/V10/V11/V12/V13/V15, og datagrunnlag (V14). Skrevet av fabel 2026-10-02, gates av orkestrator før ordrer skrives.
 sist_verifisert_mot_kode: 2026-10-02
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟡 L1-C + L1-A MERGET (9d67367a) · L1-B BESTILT, B6 v3 GATET 2026-10-02 uten vilkår — alle fire faser kan gå · migrering geofenceKilde IKKE kjørt (Kenneth) · etter pull: pnpm install + prisma generate ×4
+status: 🟢 LEVERT — L1-C + L1-A (9d67367a) + L1-B (2e993250) merget 2026-10-03, lag 1 komplett · geofenceKilde-migrering KJØRT på test (fd92736d) · 20261002130000_timer_normkilde_pausereferanse IKKE kjørt (Kenneth) · H23/K10 (sirkel ≠ trasé) ført i helhetsplanen
 ---
 
 # LAG 1 — én stedsmodell og én reiseberegning
