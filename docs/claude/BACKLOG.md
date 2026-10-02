@@ -594,6 +594,25 @@ en transaksjon som ruller tilbake gir fortsatt brukeren en feil som må oversett
 
 🟢 **Fangsten er verdt å merke seg som metode:** merge oppdaget det ikke ved å lese koden, men ved at et **forventet tall ikke materialiserte seg.** Gate-tall med forventning per pakke er derfor mer enn bokføring.
 
+### 🟡 Mobil henter TI kataloger i sin helhet ved hver innlogging og nett-gjenkomst — «har noe endret seg?» finnes ikke (målt av orkestrator 2026-10-02, utløst av Kenneth)
+
+**Målt:** `TimerSyncProvider.tsx:116-127, 187-194` kjører blind full-refresh av byggeplass · kalender · maskin ·
+oppmøtested · organizationSetting · prosjekt · reiseGrensepunkt · reisetidMatrise · sjekkliste · timer, ved
+innlogging OG ved nett-gjenkomst. `kalenderKatalog.ts:49-51` henter tre år hver gang. For en telefon på anlegg
+med dårlig dekning er det reell data og reelt batteri.
+
+**Kan besvares med dagens data:** `OrganizationSetting.updatedAt` og `ArbeidstidsKalender.updatedAt` finnes;
+serveren kan svare med én versjon pr. firma pr. katalog (`max(updatedAt)`), og telefonen hopper over hentingen
+når den er uendret. Ingen nye kolonner.
+
+🔴 **Fella (Kenneth-presisering, verifisert):** endringssjekken gjelder KATALOGER (referansedata), aldri
+DOKUMENTER. Dokument-detalj hentes live ved åpning (`sjekkliste/[id].tsx:145`) nettopp fordi en annen person
+kan ha endret den; dokument-LISTEN speiles lokalt; bevisst offline-lagring («Forbered offline», `mer.tsx`) må
+ikke klobres. Bygges «spør om noe har endret seg» naivt over hele linjen, blir en annens arbeid usynlig.
+
+**Plassering:** mobilsync-infrastruktur, ikke timer-GPS. Lag 1–5 trenger den ikke. Egen runde når noen
+bestiller den; plassert her av fabel (planeier timer-GPS) 2026-10-02. Ikke bestilt.
+
 ### 🟡 `tests/e2e` typesjekkes aldri — intet `typecheck`-script, ingen tsconfig (flagget av agent i lag 0c, 2026-10-02)
 
 Samme klasse hull som `packages/shared` var før `c78bc14f`: `turbo run typecheck` (regel 10, fire ledd fra

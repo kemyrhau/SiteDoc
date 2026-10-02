@@ -392,6 +392,9 @@ i `a86a5934`, før lag 0-ordrene gikk ut. Rapporten er skrevet mot en eldre lesn
   som kun Kenneth kjører.
 - **Eksportsidens behandling av `sats`/`satsEnhet`** mot regnskapssystemene er ikke lest.
 - **Overtid 100 %-nivå** finnes ikke i motoren og er ikke vedtatt. Eksemplene trenger det ikke.
+- **Katalog-synk («har noe endret seg?»)** — Kenneths forslag 2026-10-02 om at telefonen spør serveren om
+  endring i stedet for å hente ti kataloger blindt. Mobilsync-infrastruktur, ikke timer-GPS; lag 1–5 trenger
+  den ikke. Plassert i [BACKLOG § 1](BACKLOG.md) med fella kataloger-vs-dokumenter.
 - **K3 (sporing), K4 (km som målt størrelse), K5 (server-verifisering)** er fortsatt åpne. V9 gjør at
   K4 er det eneste som trenger byggeplass→byggeplass-aksen. K5 avgjør hvor mye lag 2 verifiserer server-side.
 - **Sjåfør-modellen er ikke spesifisert** av noen, noe sted. Den er nevnt av Kenneth 2026-10-01
