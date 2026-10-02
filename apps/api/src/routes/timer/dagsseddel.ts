@@ -2845,7 +2845,9 @@ export const dagsseddelRouter = router({
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length,
           tilleggHarKrav: s.tillegg.length > 0,
-          dagsnorm,
+          // B6 v3 (H22): sedelens norm fra servicen pr. dato (sommertid +
+          // normKilde), ikke den flate kolonnen. Flat `dagsnorm` er kun fallback.
+          dagsnorm: effektivDagsnormMap.get(isoDato) ?? dagsnorm,
           redigerTillatt,
           // ORDRE 2 STEG 1: beregnet vs. valgt overtid (dag-nivå) — attestanten
           // ser avvik, systemet retter aldri lonnsartId. Uke-nivå-varselet (D2)

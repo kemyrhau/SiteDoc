@@ -470,6 +470,16 @@ model OrganizationSetting {
   // — ligger i db-timer). NULL → fallback til navne-match ("reise/transport").
   reiseLonnsartId       String? @map("reise_lonnsart_id")
 
+  // B6 v3 (V16, L1-B): lønnsnormens kilde. "fast" = lovnorm (dagsnorm-kolonnen,
+  // 7,5), sesong ignoreres. "kalender" = utledet (sluttTid−startTid−pauseMin,
+  // sommertid-overstyrt). Default "fast" (Kenneth: «norsk lov med 7,5 t»).
+  // Backfill: firmaer med aktive sommertid_start-rader → "kalender".
+  normKilde       String @default("fast") @map("norm_kilde")
+  // B3 (V6, L1-B): pausevinduets referanse. "ankomst" = pausen regnes fra
+  // arbeidsstart (etter reisen) — legger aldri pausen i en reise. "fastStart" =
+  // fra firmaets sesongjusterte starttid. Default "ankomst".
+  pauseReferanse  String @default("ankomst") @map("pause_referanse")
+
   // Auto-prosjektadmin (B Kloss 2b, 2026-07-24) — løser hierarki-invarianten
   // (firma-admin ≥ prosjektadmin i eget firma) via MEDLEMSKAP, ikke flyt-nivå.
   // Når "alle_firma_admins": ved oppretting av NYE prosjekter legges firmaets

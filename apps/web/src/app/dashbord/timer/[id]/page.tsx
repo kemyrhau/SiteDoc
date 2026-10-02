@@ -179,6 +179,18 @@ export default function DagsseddelDetaljSide() {
       { enabled: !!sheet?.organizationId },
     );
 
+  // B6 v3 (H22): topp-sum-normen hentes fra ÉN utledning på serveren
+  // (sommertid + normKilde), pr. sedelens dato — IKKE den flate dagsnorm-
+  // kolonnen. Samme svar som mobil (cachet) og attesteringsvarselet får.
+  const { data: effektivNorm } =
+    trpc.organisasjon.hentEffektivArbeidstid.useQuery(
+      {
+        organizationId: sheet?.organizationId ?? "",
+        dato: sheet ? new Date(sheet.dato).toISOString().slice(0, 10) : "",
+      },
+      { enabled: !!sheet?.organizationId && !!sheet?.dato },
+    );
+
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
     | {
@@ -389,11 +401,12 @@ export default function DagsseddelDetaljSide() {
   );
   for (const pid of ekstraProsjektIder) noterProsjekt(pid);
 
-  // Topp-sum-norm = firmaets dagsnorm (fase-0:1041), decouplet fra arbeidstid-
-  // vinduet: en kort dag er gyldig og akseptert (blå), ikke en falsk «under
-  // norm»-alarm. Web bruker flat OrganizationSetting.dagsnorm (sesongjustering
-  // krever server-endepunkt → utenfor scope); null til orgSetting er lastet (grå).
-  const normTimer = orgSetting ? tilTall(orgSetting.dagsnorm) : null;
+  // Topp-sum-norm = firmaets dagsnorm for sedelens dato (fase-0:1041), decouplet
+  // fra arbeidstid-vinduet: en kort dag er gyldig og akseptert (blå), ikke en
+  // falsk «under norm»-alarm. B6 v3 (H22): sesongjustert via server-servicen
+  // (`hentEffektivArbeidstid`) — ikke lenger flat kolonne. null til lastet (grå).
+  const normTimer =
+    effektivNorm != null ? tilTall(effektivNorm.dagsnorm) : null;
 
   // Filtrer prosjekter som ikke er aktive ennå (tilgjengelige for «+ Legg til prosjekt»)
   const ledigeProsjekter = prosjekterForVelger.filter(

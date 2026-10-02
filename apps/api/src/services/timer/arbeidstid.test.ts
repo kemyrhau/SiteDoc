@@ -32,10 +32,16 @@ import { hentEffektivArbeidstid } from "./arbeidstid";
 const ORG = "11111111-1111-1111-1111-111111111111";
 // Fixture-firma fra spec § 3 B6: vinter 07:00–15:00/30 (7,5 t),
 // sommer 07:00–15:30/30 (8 t).
+// Kalender-firma: utledningen gjelder (normKilde "kalender"). Karakteriserings-
+// testene pinner DERIVASJONEN, som er uendret i B6 v3 — fast-grenen er ny (Dag G).
 const VINTER_SETTING = {
   standardStartTid: "07:00",
   standardSluttTid: "15:00",
   standardPauseMin: 30,
+  standardPauseEtterTimer: 4.0,
+  normKilde: "kalender",
+  pauseReferanse: "ankomst",
+  dagsnorm: 7.5,
 };
 const SOMMER_RAD = {
   standardStartTid: "07:00",
@@ -64,7 +70,7 @@ describe("hentEffektivArbeidstid — karakterisering (før B6 v3)", () => {
     findUnique.mockResolvedValue(VINTER_SETTING);
     sommertid(null, null);
     const r = await hentEffektivArbeidstid(ORG, new Date("2026-01-15T12:00:00Z"));
-    expect(r).toEqual({
+    expect(r).toMatchObject({
       startTid: "07:00",
       sluttTid: "15:00",
       pauseMin: 30,
@@ -76,7 +82,7 @@ describe("hentEffektivArbeidstid — karakterisering (før B6 v3)", () => {
     findUnique.mockResolvedValue(VINTER_SETTING);
     sommertid(SOMMER_RAD, { id: "slutt-1" });
     const r = await hentEffektivArbeidstid(ORG, new Date("2026-07-15T12:00:00Z"));
-    expect(r).toEqual({
+    expect(r).toMatchObject({
       startTid: "07:00",
       sluttTid: "15:30",
       pauseMin: 30,
@@ -99,7 +105,7 @@ describe("hentEffektivArbeidstid — karakterisering (før B6 v3)", () => {
       { id: "slutt-1" },
     );
     const r = await hentEffektivArbeidstid(ORG, new Date("2026-07-15T12:00:00Z"));
-    expect(r).toEqual({
+    expect(r).toMatchObject({
       startTid: "07:00", // fra default (null i raden)
       sluttTid: "16:00", // overstyrt
       pauseMin: 30, // fra default (null i raden)
@@ -118,11 +124,56 @@ describe("hentEffektivArbeidstid — karakterisering (før B6 v3)", () => {
     findUnique.mockResolvedValue(null);
     sommertid(null, null);
     const r = await hentEffektivArbeidstid(ORG, new Date("2026-01-15T12:00:00Z"));
-    expect(r).toEqual({
+    expect(r).toMatchObject({
       startTid: "07:00",
       sluttTid: "15:00",
       pauseMin: 30,
       dagsnorm: 7.5,
     });
+  });
+});
+
+describe("hentEffektivArbeidstid — B6 v3 normKilde (V16)", () => {
+  const FAST_SETTING = {
+    ...VINTER_SETTING,
+    normKilde: "fast",
+    dagsnorm: 7.5, // lovnorm fra kolonnen
+  };
+
+  it("🔴 Dag F (kalender, vinter-dato) → norm 7,5 (sesong-oppslaget lever — FEILER hvis 8)", async () => {
+    findUnique.mockResolvedValue(VINTER_SETTING);
+    sommertid(SOMMER_RAD, null); // vinter: start finnes men ingen slutt ≥ dato
+    const r = await hentEffektivArbeidstid(ORG, new Date("2026-01-15T12:00:00Z"));
+    expect(r.normKilde).toBe("kalender");
+    expect(r.dagsnorm).toBe(7.5); // IKKE 8
+  });
+
+  it("Dag F (kalender, sommer-dato) → norm 8 (sesongjustert)", async () => {
+    findUnique.mockResolvedValue(VINTER_SETTING);
+    sommertid(SOMMER_RAD, { id: "slutt-1" });
+    const r = await hentEffektivArbeidstid(ORG, new Date("2026-07-15T12:00:00Z"));
+    expect(r.dagsnorm).toBe(8);
+  });
+
+  it("🔴 Dag G (fast, sommer-dato) → lovnorm 7,5 fra kolonnen, sesong IGNORERT (FEILER hvis 8)", async () => {
+    findUnique.mockResolvedValue(FAST_SETTING);
+    // Om sesong ble lest ville 15:30-sommerdagen gitt 8 — fast skal ignorere den.
+    sommertid(SOMMER_RAD, { id: "slutt-1" });
+    const r = await hentEffektivArbeidstid(ORG, new Date("2026-07-15T12:00:00Z"));
+    expect(r.normKilde).toBe("fast");
+    expect(r.dagsnorm).toBe(7.5); // IKKE 8 — kolonnen vinner, sesong ignorert
+    expect(r.sluttTid).toBe("15:00"); // standarddagens tider (ikke 15:30)
+  });
+
+  it("svaret bærer pauseEtterTimer + pauseReferanse (B3) for én delt kilde", async () => {
+    findUnique.mockResolvedValue({
+      ...VINTER_SETTING,
+      standardPauseEtterTimer: 5,
+      pauseReferanse: "fastStart",
+    });
+    sommertid(null, null);
+    const r = await hentEffektivArbeidstid(ORG, new Date("2026-01-15T12:00:00Z"));
+    expect(r.pauseEtterTimer).toBe(5);
+    expect(r.pauseReferanse).toBe("fastStart");
   });
 });
