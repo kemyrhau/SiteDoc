@@ -282,6 +282,8 @@
   "timer.appendSendt.melding": "Turite šios dienos įrašą, kuris jau buvo pateiktas patvirtinti. Nauja sesija nebuvo pridėta. Norėdami pakeisti dieną, jį reikia vėl atidaryti (bus vėliau).",
   "timer.playVek.tittel": "Žaidimo laikas užleido vietą rankiniam įvedimui",
   "timer.playVek.melding": "Žaidimo laikas {{intervaller}} nepridėtas, nes jau įvedėte to laikotarpio valandas. Jūsų rankinis įvedimas lieka nepakitęs.",
+  "timer.kildeManglet.tittel": "Valandos nebuvo įrašytos",
+  "timer.kildeManglet.melding": "Programai nepavyko rasti projekto, su kuriuo būtų galima susieti valandas, todėl nebuvo sukurtas joks dienos lapas. Darbo diena vis dar atvira – pabandykite „Dienos pabaiga“ dar kartą, kai projektai bus įkelti, arba įveskite valandas rankiniu būdu.",
   "timer.gjenaapne.knapp": "Iš naujo atidaryti redaguoti",
   "timer.gjenaapne.hjelp": "Atšaukia lapą nuo patvirtinimo, kad galėtumėte pridėti įrašų. Jūsų vadovas daugiau jo nematys, kol nepateiksite iš naujo.",
   "timer.gjenaapne.feilGodkjent": "Dienos lapą jau patvirtino jūsų vadovas – susisiekite su juo ir atlikite pakeitimus.",

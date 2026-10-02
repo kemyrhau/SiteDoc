@@ -282,6 +282,8 @@
   "timer.appendSendt.melding": "Teil on selle päeva kanne, mis on juba kinnitamiseks esitatud. Uut seanssi ei lisatud. Päeva muutmiseks tuleb see uuesti avada (tuleb hiljem).",
   "timer.playVek.tittel": "Mänguaeg andis võimaluse käsitsi sisestamisele",
   "timer.playVek.melding": "Mänguaega {{intervaller}} ei lisatud, kuna olete juba selle perioodi tunnid käsitsi sisestanud. Teie käsitsi sisestatud sisestus jäetakse muutmata.",
+  "timer.kildeManglet.tittel": "Tunde ei fikseeritud",
+  "timer.kildeManglet.melding": "Rakendus ei leidnud tundide linkimiseks projekti, mistõttu päevalehte ei loodud. Tööpäev on endiselt lahtine – kui projektid on laaditud, proovige uuesti nuppu \"Lõpp päev\" või sisestage tunnid käsitsi.",
   "timer.gjenaapne.knapp": "Ava redigeerimiseks uuesti",
   "timer.gjenaapne.hjelp": "Tõmbab lehe kinnitusest tagasi, et saaksite kirjeid lisada. Teie haldur ei näe seda uuesti enne, kui esitate uuesti.",
   "timer.gjenaapne.feilGodkjent": "Teie juht on päevalehe juba heaks kiitnud – muudatuste tegemiseks võtke nendega ühendust.",
