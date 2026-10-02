@@ -25,6 +25,21 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-02
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `6ff26a80` | **Opprett byggeplass** (web) | **Før:** dialogen hadde kun navn. **Etter:** adressefelt — fylles det ut, geokodes byggeplassen mot Kartverket og får et punkt, så reise kan beregnes. 🔴 **Ikke påkrevd** (byggeplasser i terreng har ikke alltid adresse), og geokoding som feiler blokkerer aldri opprettelsen | 🟢 V14, helhetsplanen. Kenneth 2026-10-01: koordinat inn i opprettelsen |
+| `6ff26a80` | **Byggeplasslista + reisetid-matrisen** | **Før:** en byggeplass uten punkt var usynlig — ingen flate sa fra. **Etter:** «Mangler plassering — reise beregnes ikke» i lista (når Timer er aktiv), og to tellere på matrise-flaten: hvor mange byggeplasser som mangler punkt, og hvor mange par som er uoppnåelige | 🟢 V14. ⚠️ **Dette er grunnen til at H21 kunne stå i fire måneder** |
+| `6ff26a80` | **«Beregn fra tegning»** | **Før:** overskrev alltid et manuelt satt punkt. **Etter:** et punkt satt i kartvelgeren er fredet | 🟢 Kenneth-dialog 2026-10-01: «kartvelgeren overstyrer alltid» |
+| `1ca8f6e4` | **«+ Ny» dagsseddel på mobil** | **Før:** GPS foreslo prosjekt innenfor 500 m av prosjektets punkt. **Etter:** forslaget krever treff i en byggeplass-**geofence**. 🔴 **Noen prosjekter vil slutte å få forslag** til byggeplassene deres har punkt — det er tilsiktet, og C5-varslene viser hvilke | 🟢 H2 i helhetsplanen: to innganger med ulike regler |
+
+🔴 **Reparasjon med stor virkning, samme runde (`6ff26a80`): H21.** Reisematrisen målte til
+**prosjektets** koordinat når byggeplassen manglet punkt — siden `7d98b80a`, 11. juni. Et prosjekt kan
+strekke seg over kilometer, og avstanden avgjør om kjøringen betales som arbeidstid eller reisetid.
+**Arv-baserte rader slettes ved neste recompute.** ⚠️ **En byggeplass som i dag «har reise» via arven,
+mister den til punktet er satt** — C5-varslene gjør det synlig.
+
 ### 2026-10-01
 
 | Hash | Flate | Før → Etter | Hjemmel |
