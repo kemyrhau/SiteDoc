@@ -164,12 +164,35 @@ eksisterende varsel etter «Slutt dag» (den som i dag melder `blokkertSendt`/`k
 Lag 3 flytter dem til bekreftelsesskjermen. **Ingen stille tomhet:** test som feiler hvis en dag uten
 reise-forslag mangler årsak når `start.type === "kontor"`.
 
-**Fasit-tester (fra helhetsplanen § 4b, kun det lag 1 kan regne):** Dag A → ut 05:00–07:00 (2 t,
-reisetid), arbeidsvindu 07:00–17:30, retur 17:30–19:30 (slutt-GPS på kontor) · Dag B → ut 07:00–09:00,
+### B6 — normen er utledet, ikke et tall (funn i gate 2026-10-02, utløst av Kenneth)
+
+🔴 **Dagsnormen er ikke en konstant og ikke en lagret sesongverdi.** Den utledes pr. dato som
+`(sluttTid − startTid) − pauseMin` fra firmaets standarddag (`OrganizationSetting.standardStartTid/
+standardSluttTid/standardPauseMin`, default 07:00–15:00/30 → **7,5 t**), overstyrt av tidene på
+`sommertid_start`-raden når datoen ligger i sommerperioden (`kalenderKatalog.ts:139-200`, speil av
+`apps/api/src/services/timer/arbeidstid.ts`). Skjema-kommentarens «8 t sommer / 7 t vinter» er
+A.Markussens *eksempel* (07:00–15:30 / 07:00–14:30), ikke en regel. **Det finnes derfor ikke ett
+«vinter-tall» å vedta — vinternormen er firmaets standarddag.** Kenneths testfirma: 15:00 → 7,5.
+Et firma med 14:30 → 7. `dagsnorm`-kolonnen (`schema.prisma:404`, default 7,5) og fallbacken
+`dagsforslag.ts:420` (7,5) er samme tall av samme grunn.
+
+**Krav til fasit-testene (gate-krav 1–3):** (1) hver dag navngir sesong og firmaets tider · (2) minst
+én dag kjøres utenfor sommerperioden med samme input · (3) **normen hentes gjennom samme utledning som
+produksjon** (`effektivPerDato` bygges av `hentEffektivArbeidstidLokal`-ekvivalenten fra en kalender-
+fixture med `sommertid_start`/`sommertid_slutt`-rader), **aldri som literal `8` eller `7,5` i
+forventningen** — forventet overtid regnes i testen som `arbeidstimer − utledet norm`. En test som
+hardkoder normen består selv om sesong-oppslaget er ødelagt (jf. `ukenorm.ts:4`).
+
+**Fasit-tester (fra helhetsplanen § 4b, kun det lag 1 kan regne). Fixture-firma: standarddag
+07:00–15:00/30 (vinter, utledet 7,5 t), `sommertid_start` 07:00–15:30/30 (sommer, utledet 8 t):**
+Dag A (sommer) → ut 05:00–07:00 (2 t, reisetid), arbeidsvindu 07:00–17:30, retur 17:30–19:30
+(slutt-GPS på kontor); 10 t arbeid − 8 t norm = 2 t OT50 · **Dag F (vinter, samme input som Dag A,
+dato utenfor sommerperioden)** → 10 t − 7,5 t = **2,5 t OT50**, og testen FEILER hvis den gir 2 t
+(sesong-oppslaget er da dødt) · Dag B (sommer) → ut 07:00–09:00,
 arbeidsvindu 09:00–17:30 med pause 13:00–13:30 (`ankomst`) hhv. 11:00–11:30 (`fastStart`), retur
 17:30–19:30 · Dag C (ny): start innenfor kontor OG byggeplass, destinasjon = samme byggeplass → ingen
 etappe · **Dag E (ny, re-gate-krav): Dag A med `reisetidTellerOvertid = true` → nøyaktig samme svar som
-Dag A (8 t ordinær + 2 t OT50, norm 8 t urørt), og testen FEILER hvis normen senkes med `ut + retur`** ·
+Dag A (ordinær = utledet norm, 2 t OT50), og testen FEILER hvis normen senkes med `ut + retur`** ·
 Dag D (ny): start på kontor, byggeplass uten matrisecelle → ingen etappe, `reiseAarsak =
 "mangler_matrise"`, **og testen feiler hvis en etappe likevel foreslås**.
 
@@ -227,6 +250,10 @@ L1-B bestilles. L1-C og L1-A er uberørt og kan bestilles på Kenneths signal.**
 `dagsforslag.ts:573-575`) og mente den skulle overleve. **Den strider mot V1** — løst ved å trekke
 mobil-delen av V2 inn i L1-B (over) og legge til Dag E. **L1-B kan bestilles når orkestrator har sett
 denne løsningen.**
+
+🟢 **Sesong-funn 2026-10-02 (orkestrator, utløst av Kenneth «jeg håper 8 timer == standard arbeidstid»):**
+fasit-dagene låste normen til 8. Løst med B6 + Dag F. Spørsmålet «7 eller 7,5 om vinteren» oppløses —
+normen er utledet fra firmaets standarddag, ikke vedtatt.
 
 ## 7. Åpne punkter for gaten
 
