@@ -18,6 +18,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > hver runde mens modellen ennå ble formet, og to ordrer motsa hverandre.
 > 🟢 **Revidert kveld 2026-10-01:** K1, K6–K9 vedtatt som dagsmodell V1–V14 (§ 4b). K2–K5 åpne.
 > **Fabel eier planen, orkestrator gater den** (§ 7b). Origo-ordren kan omskrives til V14 etter gate.
+> 🟢 **LAG 0 LEVERT 2026-10-02:** km-tak `89acee95` (api) + beregn/anvend-splitt `a13f4343` (mobil, OTA).
+> 🔴 **Neste: lag 0c** — `packages/shared` typesjekkes ikke av regel 10 (3 kildefeil); forutsetning for lag 1.
 
 # 🔴 TAVLA — hvem sitter hvor
 

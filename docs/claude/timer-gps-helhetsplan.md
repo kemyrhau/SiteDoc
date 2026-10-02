@@ -94,9 +94,9 @@ forutsetningen for at GPS i det hele tatt får lov til å velge prosjekt.**
 | **H2** | **To innganger uenige:** manuell har 500 m-tak, auto har ingen | `timer/ny.tsx:139` vs. over | Inkonsistens |
 | **H3** | **Byggeplass-geofence er valgfri og finnes ikke i opprettelsen** — den settes i en EGEN modal etterpå (Kartverket-adressesøk, Leaflet-kart, breddegrad/lengdegrad, radius-glider **25–500 m** `oppsett/byggeplasser/page.tsx:1407-1409`, «Beregn fra tegning»), eller utledes fra georeferert tegning. *(Rettet etter KS: planen sa først «oppstår bare fra tegning».)* Tre ulike radius-spenn: modal 25–500 m · byggeplass-API 1–100 000 m · oppmøtested 10–5000 m | `validation/index.ts:95-101`, `page.tsx:959-966` (`handleOpprett` sender kun `name`+`projectId`) | Tomt datagrunnlag — **lukkes av V14** |
 | **H4** | **Avstanden som avgjorde lønnsart kastes** | `StartSluttDagKort.tsx:866-888` | Usporbar lønn |
-| **H5** | **Km har ikke noe felt** — skrives i `timer`, tak 24 interaktivt, **intet tak i `syncBatch`** | `dagsseddel.ts:1329` vs. `:3528` | 🔴 Funksjonsfeil |
+| **H5** | 🟢 **LEVERT (lag 0a, `ee6093fd` → `89acee95`).** Km skrives i `timer`; taket er nå lønnsart-bevisst i `rad-tak.ts` (`KM_MAKS_PER_DAG = 2000`, `TIMER_MAKS_PER_DAG = 24`), lest av alle fem skrivestier. *(Premisstabellen i planen var feil: `:3528` var `redigerSedelRader` (web firma-admin) som MANGLET taket, `:4670` var `syncBatch` som HADDE det — en 150 km-rad ble altså avvist fra BÅDE web og mobil, og 25 timer slapp gjennom fra firma-admin.)* K4 urørt | `rad-tak.ts:19,29,33`, `timer-km-tak.test.ts` | Funksjonsfeil — lukket |
 | **H6** | **Null server-side reiselogikk** | 0 treff på «reise» i timer-rutene | Ingen verifisering |
-| **H7** | **`genererForslag` skriver som sideeffekt** — og arbeidsdagen markeres `avsluttet` FØR utfallet sjekkes | `StartSluttDagKort.tsx:119-129` | 🔴 Tapt arbeidsdag |
+| **H7** | 🟢 **LEVERT (lag 0b, `00166759` → `a13f4343`).** `beregnDagsforslag` (ren, `utils/dagsforslag.ts:334`) skilt fra `anvendDagsforslag` (`utils/dagsforslagAnvend.ts:29`); `avsluttet` settes kun når skrivingen lyktes. **Fire utfall, tre regler:** suksess og for kort økt lukker · `blokkertSendt` og det nye `kildeManglet` (`dagsforslag.ts:670-679`) holder dagen åpen — `kildeManglet` var et stumt fjerde utfall (ingen db/prosjekter/aktiviteter → alle flagg false → ingen melding, dagen borte). Sier nå fra (`timer.kildeManglet.*`, 15 språk — avvik fra ordrens «ingen i18n», godtatt av orkestrator) | `dagsforslag.test.ts:293` (rød først) | Tapt arbeidsdag — lukket |
 | **H8** | **Segment = kalenderdøgn, ikke sted.** Ingen struktur å feste «prosjekt 2 fra 11:30» på | `utils/dagsegment.ts:93-94` | Modellmangel |
 | **H9** | **Posisjon fanges kun to ganger** — start og slutt. Ingen besøkslogg | `db/schema.ts:362-366` | Modellmangel |
 | **H10** | **Ingen byggeplass→byggeplass-akse** i matrisen. ⚠️ Etter V9 avgjør aksen IKKE lønn (mellometappe = arbeidstid uansett avstand) — den trengs kun for km (K4) og sjåfør, og ligger i lag 5 | `@@unique([oppmotestedId, byggeplassId])` | Modellmangel |
@@ -174,19 +174,30 @@ flaten sier «uten bånd velges på navn» — den hopper over midterste ledd.
 
 **Disse er uavhengige av hele GPS-modellen og retter feil som rammer i dag.**
 
-🟡 **BESTILT av Kenneth 2026-10-02** («bestill lag 0»). Rammene ligger i `relay/inbox-orkestrator.md`
-(samme dato): 0a lønnsart-bevisst symmetrisk validering uten km-felt (K4 åpen) · 0b kun
-beregn/anvend-splitt med null atferdsendring og karakteriseringstester først. Orkestrator sender
-agent-ordrene; hash meldes til fabel, som fører LEVERT her.
+🟢 **LEVERT 2026-10-02** (bestilt av Kenneth samme dag, orkestrator sendte ordrene). Regel 10 grønn på begge:
+api 647 → 657 tester, mobil 120 → 133. **Reload: OTA** (0b er mobil-JS, 0a er server).
 
-| Sak | Hull | Hvorfor nå |
-|---|---|---|
-| **24-taket på km-rader** | H5 | En kjøregodtgjørelse over 24 km avvises i dag. Rammer alle som fører km, ikke bare sjåfører. **Og de to veiene er usymmetriske** — `syncBatch` har ikke taket |
-| **`genererForslag` skriver som sideeffekt** | H7 | Feiler radopprettelsen, er GPS-økta oppbrukt og dagens timer tapt. **Splitt beregning fra skriving** |
+| Lag | Hull | Branch | Gatet | Merget |
+|---|---|---|---|---|
+| **0a** | H5 | `fix/timer-km-tak` | `ee6093fd` | `89acee95` |
+| **0b** | H7 | `fix/mobil-splitt-dagsforslag` | `00166759` | `a13f4343` |
+
+**To funn fra leveransen som endret planens tekst (ført i H5 og H7 over):** premisstabellen for H5 hadde
+riktige linjetall men feil prosedyrenavn — veien uten tak var `redigerSedelRader`, ikke `syncBatch` ·
+og H7 hadde et fjerde, stumt utfall (`kildeManglet`) som ingen hadde sett før agenten målte.
+
+🔴 **Lærdom for lag 1–5:** begge funnene kom fra agenten som bygde, ikke fra planen eller ordren.
+Linjetall uten prosedyrenavn er ikke en måling.
 
 ### LAG 1 — Fundament: én stedsmodell
 
 **Uten dette finnes det ikke ett svar på «hvor er jeg».**
+
+🔴 **FORUTSETNING funnet 2026-10-02 (orkestrator, `SAMARBEIDSREGLER.md:1214`):** `packages/shared`
+typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signertBildePolicy.ts`)**.
+Lag 1 legger den delte stedsmodellen nettopp i `packages/shared`. **Anbefaling (fabel): bestill
+«lag 0c» FØR lag 1 — rydd de 3 kildefeilene og ta `shared tsc` inn i regel 10.** Uavhengig av alle
+åpne beslutninger, liten, og uten den bygges lag 1 i en pakke ingen gate ser. *Kenneth-signal.*
 
 - **Én delt avstandsfunksjon** i `packages/shared` — i dag kun i `apps/mobile`. **Server og web må kunne regne.**
 - **Én funksjon pr. kapabilitet** (A/B/C fra § 1), ikke fire konkurrerende. **Hver med navngitt regel og test.**
@@ -303,9 +314,11 @@ bekreftelsessteget finnes, brytes G1.
 | `inbox-kontrollplan-bekreft-dagsforslag.md` | ⏸️ **PAUSET** | Arkitektur-splitten (beregn/anvend) står og hører i LAG 0. **Skjermen venter på at modellen er avklart** |
 | U-BEKREFT-R (forespørsel til leder) | ⏸️ | Krever migrering. Hører i lag 3, etter at lag 3s første del er inne |
 | Alt i lag 4 og 5 | ⏸️ | Forutsetter lag 1–3 |
+| **Lag 0** | 🟢 **LEVERT 2026-10-02** | `89acee95` + `a13f4343` — se § 5 |
+| **Lag 0c** (shared tsc) | 🟡 **ANBEFALT, venter Kenneth** | Forutsetning for lag 1 — se § 5 LAG 1 |
 
-🔴 **Det eneste som trygt kan bestilles nå er LAG 0** — de to reparasjonene som ikke avhenger av
-noen beslutning. **Lag 1 kan spesifiseres etter at orkestrator har gatet denne revisjonen.**
+🟢 **Lag 0 er levert.** 🔴 **Neste som trygt kan bestilles er lag 0c** (shared tsc). **Lag 1
+spesifiseres av fabel fra V-reglene når 0c er inne** — revisjonen er gatet (§ 7b).
 
 ---
 
@@ -334,6 +347,8 @@ er fabrikkert og må bære kilde-markør (V8) · server og mobil er uenige om ov
 (H17) · returen på delt dag går fra kontor × siste byggeplass (V7/V9). **To rettelser av egen tekst:**
 `:535` pekte på en kommentar (V5 rettet til `:544-548`, og kappingen er en glemt-dag-vakt, ikke en
 generell kapping) · gaten leste K8 som åpen, men den står som vedtatt — V7 var upresis på delt dag.
+*(Orkestrators lag 0-rapport 2026-10-02 lister de tre gate-funnene som «fortsatt uført» — de ble ført
+i `a86a5934`, før lag 0-ordrene gikk ut. Rapporten er skrevet mot en eldre lesning.)*
 
 ## 8. Hva denne planen IKKE svarer på
 
