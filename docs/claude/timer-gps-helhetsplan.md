@@ -263,6 +263,12 @@ byggeplassen GPS fant (H15). Alt annet gir «ingen reise» med årsak. **Lag 1 k
 
 **Uten dette er alt over et lag som produserer lønn ingen kan kontrollere.**
 
+📄 **Spesifikasjon: [timer-gps-lag2-spec.md](timer-gps-lag2-spec.md)** (fabel 2026-10-03, ⚠️ UTKAST TIL GATE, hjemmel K5
+«mottak med sporbarhet»). 🔴 **Skarpeste funn (M1+M6):** L1-B regner etappene men raden lagrer ingenting av dem, og
+`syncBatch` stripper ukjente felt stille — sporbarhet må deklareres i begge ender i samme release. A radmodell
+(`erReise`, retning, kjøretid, avstand, kilde, regel-snapshot, `tidKilde`, `normStatus`) · B mobil skriver sporet +
+V8-vindu · C mottak med invarianter + V1/V2 på server · D attestering + eksport. Tre ordrer: L2-A → L2-B ∥ L2-C.
+
 - **Avstanden som valgte lønnsart lagres på raden** (H4).
 - **Oppmøtestedet og posisjonen følger med til serveren** (H6) — i dag dør de på telefonen.
 - **Serveren kan verifisere en reiseklassifisering**, ikke bare ta imot den.
