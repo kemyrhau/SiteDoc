@@ -22,6 +22,16 @@ sist_verifisert_mot_kode: 2026-08-09
 > 🟢 **Lag 0c LEVERT `c78bc14f`** — regel 10 er fire ledd, `turbo run typecheck` gater 10 pakker. ⚠️ **`pnpm install` kreves i alle trær** (`@types/node`).
 > 🟡 **LAG 1 (2026-10-02):** L1-C `29f1d515` + L1-A `6f59a889` **MERGET `9d67367a`** — H21 lukket, `sted.ts`, `geofenceKilde`. 🔴 Migrering `20261002120000_byggeplass_geofence_kilde` IKKE kjørt (Kenneth). ⚠️ Pull krever `pnpm install` + `prisma generate` ×4. **L1-B gjenstår** (orkestrator skriver). V16 default `fast` (lovnorm 7,5), backfill `kalender` for firmaer med sommertid-rader. K3–K5 åpne.
 
+> 🟢 **TEST-DEPLOY 2026-10-02 kveld: `fd92736d`** — verifisert mot `/version`. Inneholder **hele
+> lag 0** (km-taket, beregn/skriv-splitten, shared-typesjekken) **+ L1-A og L1-C**.
+> 🟢 **Migrering `20261002120000_byggeplass_geofence_kilde` KJØRT** — verifisert ved at
+> byggeplass-lista laster og «Mangler plassering»-merket rendres.
+> 🔴 **Første funn på test, umiddelbart:** den **publiserte** byggeplassen på testprosjektet
+> (`900512 Røstbakken`) **mangler punkt** — 2 av 5 gjør det. **Den fikk tidligere reiseavstand via
+> H21-arven fra prosjektets koordinat; nå får den ingen, og merket sier fra.** Det er fiksen som
+> virker, men det betyr at punkter må settes før reise virker igjen.
+> ⚠️ **L1-B er IKKE med** — kontrollplan bygger fase 4.
+
 # 🔴 TAVLA — hvem sitter hvor
 
 **Eneste skribent: orkestrator** (cowork-rollen utgikk 2026-09-30). 🔴 **Føres FRA MÅLING — `git log
