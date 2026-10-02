@@ -198,6 +198,10 @@ typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signer
 Lag 1 legger den delte stedsmodellen nettopp i `packages/shared`. **Anbefaling (fabel): bestill
 «lag 0c» FØR lag 1 — rydd de 3 kildefeilene og ta `shared tsc` inn i regel 10.** Uavhengig av alle
 åpne beslutninger, liten, og uten den bygges lag 1 i en pakke ingen gate ser. *Kenneth-signal.*
+🟡 **BESTILT av Kenneth 2026-10-02** («bestill lag 0c»). Målt av fabel samme dag: 33 feil, 3 i kilden — alle
+TS2304 manglende globale typer (`URLSearchParams`, `setTimeout`) i `signertBildePolicy.ts`, altså tsconfig,
+ikke logikk. Rammer i `relay/inbox-orkestrator.md`: ingen `any`/`ts-ignore`, null atferdsendring i
+signerings-fila, `shared tsc` inn i regel 10 i samme commit.
 
 - **Én delt avstandsfunksjon** i `packages/shared` — i dag kun i `apps/mobile`. **Server og web må kunne regne.**
 - **Én funksjon pr. kapabilitet** (A/B/C fra § 1), ikke fire konkurrerende. **Hver med navngitt regel og test.**
@@ -315,7 +319,7 @@ bekreftelsessteget finnes, brytes G1.
 | U-BEKREFT-R (forespørsel til leder) | ⏸️ | Krever migrering. Hører i lag 3, etter at lag 3s første del er inne |
 | Alt i lag 4 og 5 | ⏸️ | Forutsetter lag 1–3 |
 | **Lag 0** | 🟢 **LEVERT 2026-10-02** | `89acee95` + `a13f4343` — se § 5 |
-| **Lag 0c** (shared tsc) | 🟡 **ANBEFALT, venter Kenneth** | Forutsetning for lag 1 — se § 5 LAG 1 |
+| **Lag 0c** (shared tsc) | 🟡 **BESTILT 2026-10-02** | Forutsetning for lag 1 — se § 5 LAG 1 |
 
 🟢 **Lag 0 er levert.** 🔴 **Neste som trygt kan bestilles er lag 0c** (shared tsc). **Lag 1
 spesifiseres av fabel fra V-reglene når 0c er inne** — revisjonen er gatet (§ 7b).
