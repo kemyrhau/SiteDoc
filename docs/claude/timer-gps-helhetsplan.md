@@ -132,7 +132,7 @@ gatet. Kode-referansene peker på det som skal endres, ikke på noe som virker.
 | **V3** | **Reise under terskel som firmaet har satt til «som arbeidstid» ER arbeidstid** — føres på prosjektraden fra GPS-start og teller mot normen. Det er kategorien, ikke kjøringen, som avgjør | — | 1 |
 | **V4** | **Overtid er kronologisk.** Alt over dagsnormen (sesongjustert via `ArbeidstidsKalender` `sommertid_start/slutt`) foreslås som overtid, og **prosjektet som eier klokkeslettet bærer det.** På en delt dag bærer siste prosjekt overtiden. Mobil regner i dag pr. økt, ikke pr. dag — må bli pr. dag | H17 | 4 |
 | **V5** | **Normen følger ankomsten, ikke firmaets standard starttid.** Arbeidsdagen begynner når reisen slutter; ordinær slutt = ankomst + norm + pause. `standardStartTid` er forhåndsutfylling, ikke ramme. ⚠️ Glemt-dag-vakten `kappGlemtDagSlutt` (`StartSluttDagKort.tsx:544-548`) kapper i dag til start + dagsnorm når spennet overstiger `MAKS_ENKELTSKIFT_TIMER` — med V5 må kapp-lengden bli reise + norm + pause, ellers kappes en lang reisedag feil *(rettet etter gate: `:535` pekte på kommentaren, ikke koden)* | — | 1 |
-| **V6** | **Pausen trekkes alltid** (`standardPauseMin`), vindu `standardPauseEtterTimer` etter skiftstart. ⚠️ **UTLEDET, ikke eksplisitt vedtatt:** «skiftstart» = ankomst, ikke reisestart (reise 07:00, ankomst 09:00 gir pause 13:00–13:30). På delt dag trekkes pausen fra prosjektet som eier vinduet | — | 1 |
+| **V6** | 🟢 **VEDTATT 2026-10-02 (Kenneth): pausevinduet er en firmainnstilling med to moduser.** **(a) Fast:** pause `X` timer etter fast arbeidstid-start (f.eks. 4 t etter 07:00 → 11:00–11:30, uansett ankomst). **(b) Fra ankomst:** pause `X` timer etter at reisen slutter (reise 07:00, ankomst 09:00 → 13:00–13:30). `X`, starttid og pauselengde er justerbare variabler. ⚠️ **Variablene FINNES alt** — `standardStartTid` 07:00, `standardPauseEtterTimer` 4.0, `standardPauseMin` 30 (`schema.prisma:430-437`); det nye er et modusvalg (arbeidsnavn `pauseReferanse: "fastStart" \| "ankomst"`, én ny kolonne, additiv). Pausen trekkes alltid; på delt dag fra prosjektet som eier vinduet | — | 1 |
 | **V7** | **Tur OG retur.** Slutt-GPS innenfor et oppmøtested → returetappe foreslås fra cellen **kontor × SISTE byggeplass** (på delt dag er det ikke samme celle som utreisen; matrisen har kontor × alle byggeplasser, så cellen finnes). Ellers foreslås slutt på prosjektet, og brukeren legger til retur selv | H18 | 1 |
 | **V8** | **Reise-rader får klokkevindu**, utledet fra GPS-tidspunkt ± matrisetid (start 05:00 + 120 min → ankomst 07:00; slutt 19:30 − 120 min → avreise 17:30) og **raden bærer en kilde-markør** (`tidKilde: utledet | stempel | manuell`) som vises på bekreftelsesskjermen og følger med i eksporten. 🔴 **Vinduet SER målt ut, men er det ikke** — REISE-UNNTAKETS begrunnelse («et fabrikkert vindu er falske lønnsdata») holder fortsatt, og markøren er det som gjør V8 forenlig med § 2. Uten markør er V8 nøyaktig den usporbarheten planen skal fjerne *(gate-funn 1b)*. 🔴 **Reverserer REISE-UNNTAKET** (fabel-vedtak 2026-07-13, `StartSluttDagKort.tsx:875-882`, `fraTid/tilTid: null`) — vinduet er nødvendig for V4 og V5. Lag 4 erstatter utledning med ekte ankomststempel. ⚠️ **Følge som MÅ testes:** med tider trer reise-rader inn i overlapp-vakten (`tidsromValidering.ts:64` hopper i dag over tid-løse rader), som er server-håndhevet (`dagsseddel.ts:635`, `:1750`) og **avviser hele synken ved treff**. Trolig trygt (arbeidsvinduet legges fra start + reise, `tidsromOverlapper` er streng), men det skal være en test, ikke en slutning *(gate-funn 1a)* | H4, H18 | 2 |
 | **V9** | **Mellometappe i ordinær tid er arbeidstid, uansett avstand.** Bæres av prosjektet man kommer til. Tiden er klokketid mellom avreise og ankomst (krever ankomst-registrering, lag 4). **Følge:** byggeplass→byggeplass-aksen (H10) avgjør ikke lønn — den trengs kun for km (K4) og sjåfør, og **flyttes tilbake til lag 5**. Returen (den andre halvdelen av H18) dekkes av V7 via kontor × siste byggeplass, så heller ikke den trenger aksen *(presisert etter gate-funn 3)* | H18, H10 | 4 |
@@ -336,8 +336,8 @@ bekreftelsessteget finnes, brytes G1.
 | **Lag 0c** (shared tsc) | 🟢 **LEVERT 2026-10-02** | `c78bc14f` — regel 10 er fire ledd, 10 pakker typesjekkes |
 
 🟢 **Lag 0 er komplett (0a · 0b · 0c).** 🔴 **Neste er lag 1-spesifikasjonen, skrevet av fabel fra
-V-reglene.** Den trenger to svar først: **K2** (kontor som ligger på en byggeplass) og **bekreftelse av
-V6** (pausevindu fra ankomst). Ingen kode-ordre før spesifikasjonen er gatet.
+V-reglene.** Den trenger ett svar først: **K2** (kontor som ligger innenfor en byggeplass-geofence). V6 er vedtatt
+(to moduser, 2026-10-02). Ingen kode-ordre før spesifikasjonen er gatet.
 
 ---
 
@@ -378,8 +378,6 @@ i `a86a5934`, før lag 0-ordrene gikk ut. Rapporten er skrevet mot en eldre lesn
 - **Hvor mange byggeplasser som faktisk mangler punkt** er ikke målt — krever SQL mot databasen,
   som kun Kenneth kjører.
 - **Eksportsidens behandling av `sats`/`satsEnhet`** mot regnskapssystemene er ikke lest.
-- **V6 (pausevindu fra ankomst) er utledet av fabel, ikke sagt av Kenneth.** Må bekreftes før
-  lag 1 bestilles.
 - **Overtid 100 %-nivå** finnes ikke i motoren og er ikke vedtatt. Eksemplene trenger det ikke.
 - **K2 (kontor på byggeplass), K3 (sporing), K4 (km som målt størrelse), K5 (server-verifisering)**
   er fortsatt åpne. V9 gjør at K4 er det eneste som trenger byggeplass→byggeplass-aksen.
