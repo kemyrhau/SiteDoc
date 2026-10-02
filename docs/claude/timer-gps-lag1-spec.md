@@ -164,7 +164,7 @@ eksisterende varsel etter «Slutt dag» (den som i dag melder `blokkertSendt`/`k
 Lag 3 flytter dem til bekreftelsesskjermen. **Ingen stille tomhet:** test som feiler hvis en dag uten
 reise-forslag mangler årsak når `start.type === "kontor"`.
 
-### B6 — normen er ÉN utledning på serveren; telefonen henter svaret (revidert 2026-10-02 kveld)
+### B6 — normen er ÉN utledning på serveren; telefonen henter svaret (v3, 2026-10-02 natt)
 
 **Historikk i én setning:** B6 v1 sa «tre lesere gjennom én delt `hentDagsnorm` i shared». Kenneth
 snudde det under L1-B: *«hvorfor kan ikke telefonen spørre serveren hva som er dagsnormen i dag ved
@@ -189,24 +189,45 @@ norsk lov med 7,5 timer arbeidsdag. Dersom kalender med vinter/sommertid velges,
 sesong; forslagene fortsetter uendret), alle andre → `"fast"`. **Test som FEILER** hvis et sommertid-firma
 står som `fast` etterpå.
 
-**B6.1 — én utledning.** `hentEffektivArbeidstid` (service) blir den ENESTE utledningen i systemet og får
+**B6.1 — én utledning.** `hentEffektivArbeidstid` (service) blir den ENESTE utledningen av **lønnsnormen** i systemet og får
 `normKilde` inn: `fast` → `dagsnorm` fra kolonnen; `kalender` → utledet. Svaret utvides til
 `{ dato, dagsnorm, startTid, sluttTid, pauseMin, normKilde, pauseEtterTimer, pauseReferanse }`.
 **Server-varselet** (`dagsseddel.ts:2767`) og **web-sedelen** (`timer/[id]/page.tsx:396`) kaller servicen
-pr. dato i stedet for å lese kolonnen. 🔴 **`hentEffektivArbeidstidLokal` på mobil SLETTES** — det er
-den andre utledningen. Ingen `dagsnorm`/`normKilde`/`pauseReferanse` replikeres til
+pr. dato i stedet for å lese kolonnen. 🔴 **Det er en synlig endring i lederens kontrollflate** for
+`kalender`-firmaer (varsel og web-sedel viser sesongjustert norm, ikke 7,5) — **føres i
+FUNKSJONSENDRINGER ved merge av L1-B** (hjemmel V16), og kommentaren på `:396` («sesongjustering krever
+server-endepunkt → utenfor scope») rettes i samme commit, ellers lyver den dagen etter.
+
+🔴 **`hentEffektivArbeidstidLokal` splittes i to — ikke slettes** (v3, etter gate-avvik 1: den har ti
+kallsteder i sju filer som spør om vilkårlige datoer). Målt hva hvert kallsted bruker:
+
+| Trenger | Kallsteder | Ny funksjon |
+|---|---|---|
+| **Lønnsnormen** (`dagsnorm`) | `StartSluttDagKort.tsx:459` (→ `effektivPerDato` → forslag) · `:440` (glemt-dag-kapp) · `app/timer/[id].tsx:422` (norm-visning på sedelen) · `:216` (glemt-dag-estimat, kun nattskift-fallback) | **`hentDagsnormLokalt(org, dato)`** → leser KUN `arbeidstid_svar_local`; returnerer `{ dagsnorm, normKilde, normStatus }` eller `null`. **Regner aldri.** |
+| **Kun klokkeslett** (`startTid/sluttTid/pauseMin`) til forhåndsutfylling og vinduer | `TimerSeksjon.tsx:984, :1002` · `MaskinSeksjon.tsx:491, :510` · `dagsseddelOpprett.ts:92` · `matpause.ts:57` | **`hentArbeidsdagTiderLokalt(org, dato)`** → dagens lokale utledning av tider fra `organization_setting_local` + `arbeidstidskalender_local`, **uten `dagsnorm`-felt**. Forhåndsutfylling er ikke lønn, arbeideren redigerer alltid, og staleness der er ufarlig. |
+
+**Null kallere kan lese en norm fra noe som regner lokalt** — typen uten `dagsnorm` er garantien. `:216`
+og `:440` bruker tider når normen er `null` (kapp = `startTid→sluttTid`-vinduet); `[id].tsx:422` viser
+«norm ukjent» i stedet for et tall. Ingen `dagsnorm`/`normKilde`/`pauseReferanse` replikeres til
 `organization_setting_local` (TILLEGG 2 i L1-B-ordren trakk den GO-en; B3 følger samme vei — én kilde,
 ett svar, i stedet for én innstilling via katalog og én via svar).
 
-**B6.2 — telefonen henter SVARET og cacher det pr. dato.** Ved «Start dag» (og på nytt ved «Slutt dag»,
-som oppfriskning) hentes svaret for startdato **og** sluttdato (midnatt-splitt gir to). Ny lokal tabell
+**B6.2 — telefonen henter SVARET og cacher det pr. dato.** Svaret hentes (når nett finnes) for **den datoen
+kalleren spør om**, på fem steder: «Start dag» og «Slutt dag» (start- og sluttdato, midnatt-splitt gir to) ·
+**åpning av en sedel** (`[id].tsx`, sedelens dato) · **«+ Ny»** for valgt dato (`dagsseddelOpprett`) · **pull-sync**
+av sedler laget på en annen enhet (hver pullet sedels dato). Henting er idempotent og billig (én rad). Da
+treffer trinn 3 i B6.3 kun en telefon som har vært uten nett i over 30 dager — ikke «åpne en sedel fra
+forrige uke» (gate-avvik 1). Ny lokal tabell
 `arbeidstid_svar_local { org_id, dato, dagsnorm, start_tid, slutt_tid, pause_min, norm_kilde,
 pause_etter_timer, pause_referanse, hentet_at }`, PK `(org_id, dato)`. ⚠️ **Lokal SQLite-migrering
 (`migreringer.ts`), ikke Prisma — ikke en del av Kenneths migrerings-gate.** `effektivPerDato` i
 `BeregnDagsforslagInput` bygges fra denne tabellen; den rene funksjonen er uendret.
 
-**B6.3 — offline, uten stillhet (gate-punkt 2 i TILLEGG 2).** Tre trinn, hvert med egen markør på
-forslaget (`normStatus`), synlig i varselet etter «Slutt dag» og senere på bekreftelsesskjermen:
+**B6.3 — offline, uten stillhet (gate-punkt 2 i TILLEGG 2).** Tre trinn, hvert med egen markør (`normStatus`) som
+🔴 **vises på flaten arbeideren faktisk ser** — i lag 1: varselet etter «Slutt dag» OG et banner øverst på
+sedelen (`[id].tsx`) så lenge `normStatus ≠ "server"`; lag 3 flytter det til bekreftelsesskjermen. Feil-
+retningen i trinn 3 er UNDERbetaling (overtiden mangler), så et usynlig felt på raden er stille tomhet i
+ny form (gate-vilkår):
 1. **Svar for datoen i cache** → brukes. `normStatus: "server"`.
 2. **Ingen svar for datoen, men et svar for samme firma ≤ 30 dager gammelt** → brukes, `normStatus:
    "cachet"`, tekst «Norm fra siste kjente svar (dd.mm)». Sesongovergang innenfor de 30 dagene er den
@@ -217,7 +238,7 @@ forslaget (`normStatus`), synlig i varselet etter «Slutt dag» og senere på be
    står raden slik til arbeideren eller attestanten retter den, og markøren følger raden så det ikke
    skjer stille. ⚠️ **Åpent for gaten:** alternativet er å bruke 7,5 (lovnormen) i trinn 3 med samme
    markør. Jeg anbefaler ingen splitt: 7,5 er riktig for `fast`-firmaer og galt for `kalender`-firmaer
-   om sommeren, og i trinn 3 vet ikke telefonen hvilket den er.
+   om sommeren, og en feil splitt ser ut som et regnet faktum. *(Gate 2026-10-02 støtter «ingen splitt».)*
 
 **B6.4 — tester.** Karakteriseringstester på serverens NÅVÆRENDE `hentEffektivArbeidstid` **FØRST**
 (sommer, vinter, overgangsdag, halvdag, firma uten rader) — grønne før noe røres, grønne etterpå
@@ -225,7 +246,10 @@ forslaget (`normStatus`), synlig i varselet etter «Slutt dag» og senere på be
 `kalender`/`fast`, og mobil-fasiten A–E konsumerer et cachet svar som fixture. **Én-utledning-testen:**
 server-varsel, web-sedel og mobil-forslag får identisk `dagsnorm` for samme firma og dato — fordi alle
 tre får den fra samme svar. **Offline-testene:** trinn 2 setter `cachet`, trinn 3 setter `ukjent` og
-lager ingen overtidsrad; **begge FEILER hvis forslaget mangler markør.**
+lager ingen overtidsrad; **begge FEILER hvis forslaget mangler markør.** **Splitt-testen:** typen fra
+`hentArbeidsdagTiderLokalt` har ikke `dagsnorm` (kompileringsgaranti), og `hentDagsnormLokalt` returnerer
+`null` for en dato uten rad — aldri 7,5. **Henting-ved-åpning-testen:** åpne en sedel for en dato uten rad
+med nett → raden finnes etterpå.
 
 **Krav til fasit-testene (gate-krav 1–3):** (1) hver dag navngir sesong og firmaets tider · (2) minst
 én dag kjøres utenfor sommerperioden med samme input · (3) **normen hentes gjennom samme utledning som
@@ -318,6 +342,6 @@ normen er utledet fra firmaets standarddag, ikke vedtatt.
    mister den til punktet er satt. C5 gjør det synlig. Antall er ikke målt (krever SQL, Kenneth).
 4. **Radius 150 m som geokodet default** (C2) — lånt fra oppmøtested. Alternativ: 75 m (modalens
    startverdi i skjermbildet 2026-10-01).
-6. **Offline trinn 3 (B6.3):** ingen splitt + markør (anbefalt) eller 7,5 + markør. Omregning ved sync er lag 2/K5.
+6. **Offline trinn 3 (B6.3):** ingen splitt + markør (anbefalt, støttet av gate) eller 7,5 + markør. Omregning ved sync er lag 2/K5.
 5. **Retning på reise-rad** (B4): `beskrivelse`-tekst eller nytt felt — lag 2 trenger uansett felt
    for kilde-markør (V8), så nytt felt kan vente dit.
