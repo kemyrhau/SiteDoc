@@ -125,6 +125,15 @@ trukket reisen to ganger. **Derfor:**
   **Og én test som FEILER hvis reisen trekkes to ganger:** Dag A skal gi nøyaktig 8 t ordinær + 2 t
   OT50, ikke 6 + 2.
 - **Dagsnormen anvendes på dette vinduet** (V5) — ikke på firmaets `standardStartTid`.
+- 🔴 **Den tredje mekanismen fjernes også — bevisst, etter V1/V2** (re-gate 2026-10-02 fant den):
+  `dagsforslag.ts:573-575` senker *dagsnormen* med reisetiden når `reisetidTellerOvertid` er på. Det er
+  ikke et fradrag i timene, men i terskelen — og det er nøyaktig det Kenneth avviste: *«reisetid er
+  aldri overtid»* (V1). **L1-B slutter å lese flagget**; normen er alltid `dagsnorm0`. Kolonnen
+  deprecates og serverens overtidsgrunnlag rettes i lag 2 (V2) — men mobil-lesingen trekkes hit, ellers
+  ville V7 (retur) gitt firmaer med flagget på en *midlertidig* større overtid fra L1-B til lag 2, som
+  så reverseres. To lønnsendringer i rekkefølge er verre enn én. **«Én mekanisme» gjelder dermed både
+  timene og terskelen: vinduet, og bare vinduet.** ⚠️ Kenneths testfirma har flagget PÅ i dag — etter
+  L1-B endrer det ingenting, og det er meningen.
 - **`fordelArbeidstidFradrag`** (`dagsforslag.ts:254-320`, midnatt-splitt) fordeler i dag reisen som et
   *fradrag* over segmentene. Med vinduet er reisen ikke lenger et fradrag: **ut-etappen hører til
   start-segmentet, retur-etappen til slutt-segmentet**, og funksjonen fordeler kun pausen. Reise-rader
@@ -159,7 +168,9 @@ reise-forslag mangler årsak når `start.type === "kontor"`.
 reisetid), arbeidsvindu 07:00–17:30, retur 17:30–19:30 (slutt-GPS på kontor) · Dag B → ut 07:00–09:00,
 arbeidsvindu 09:00–17:30 med pause 13:00–13:30 (`ankomst`) hhv. 11:00–11:30 (`fastStart`), retur
 17:30–19:30 · Dag C (ny): start innenfor kontor OG byggeplass, destinasjon = samme byggeplass → ingen
-etappe · Dag D (ny): start på kontor, byggeplass uten matrisecelle → ingen etappe, `reiseAarsak =
+etappe · **Dag E (ny, re-gate-krav): Dag A med `reisetidTellerOvertid = true` → nøyaktig samme svar som
+Dag A (8 t ordinær + 2 t OT50, norm 8 t urørt), og testen FEILER hvis normen senkes med `ut + retur`** ·
+Dag D (ny): start på kontor, byggeplass uten matrisecelle → ingen etappe, `reiseAarsak =
 "mangler_matrise"`, **og testen feiler hvis en etappe likevel foreslås**.
 
 ## 4. Leveranse C — datagrunnlaget (V14, H21)
@@ -211,6 +222,11 @@ ordrett med dato (`7d98b80a` 2026-06-11) · A5 styrker G1 (arbeiderens kontekst 
 stille-tomhet (a/b/c) · ordre-splitten holder. **Ett AVVIK:** B2 dobbelttrakk reisen — rettet samme
 dag (vinduet er eneste mekanisme, `sluttKapp` fjernet, invariant-test lagt til). **B2 til re-gate før
 L1-B bestilles. L1-C og L1-A er uberørt og kan bestilles på Kenneths signal.**
+
+🟢 **Re-gate B2 GATET 2026-10-02** med én presisering: orkestrator fant den tredje mekanismen (norm-fradraget
+`dagsforslag.ts:573-575`) og mente den skulle overleve. **Den strider mot V1** — løst ved å trekke
+mobil-delen av V2 inn i L1-B (over) og legge til Dag E. **L1-B kan bestilles når orkestrator har sett
+denne løsningen.**
 
 ## 7. Åpne punkter for gaten
 
