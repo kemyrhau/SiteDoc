@@ -1211,6 +1211,18 @@ når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dett
 
 ### 🔴 GATE-TALL SKAL SI HVA SOM KJØRTE (Kenneth/fabel 2026-09-15)
 
+🔴 **HULL I REGEL 10 SELV, målt 2026-10-02: `packages/shared` typesjekkes ALDRI.** De tre
+byggeleddene er web tsc, mobil tsc og web build — **ingen av dem kjører `tsc` i shared.**
+
+**Målt på ren develop (`89acee95`): 33 feil.** 30 i testfiler, 🔴 **3 i KILDEN —
+`signertBildePolicy.ts`, som styrer utløp av signerte `/uploads/`-URL-er.**
+
+⚠️ **Shared importeres av web, mobil, api OG pdf.** Et ledd som ingen kjører, er et ledd som
+drifter fritt. **Funnet av en agent som kjørte det på eget initiativ, ikke av gaten.**
+
+🔴 **Inntil dette er ryddet: en agent som melder «shared tsc har N feil» melder noe ekte, og
+tallet skal ikke avfeies som støy. Men det er heller ikke hans — mål mot ren develop først.**
+
 🔴 **PRESISERING 2026-09-30 — `apps/web`s `tsc --noEmit` kan melde FALSKE feil fra foreldet
 `.next/types`.** Målt ved mergen av `21064640`: to `TS2307` på
 `.next/types/app/dashbord/[prosjektId]/maler/layout.ts`, som pekte på en `layout.js` som ikke
