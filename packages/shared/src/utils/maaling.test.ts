@@ -103,9 +103,9 @@ describe("måling i tegning — akseptansetest: 2 870 mm ±0,5 %", () => {
     const sum = malPolylinjeMm(p, IMG_W, IMG_H, mmPrPx, 50);
     // 2 870 + veggluke (tikk 1569→1584 ≈ 95 mm) + 2 425 ≈ 5 390 mm.
     // Summen skal være leddvis addisjon — inkludert den reelle luken.
-    const forventet = malMm(p[0], p[1], IMG_W, IMG_H, mmPrPx, 50)
-      + malMm(p[1], p[2], IMG_W, IMG_H, mmPrPx, 50)
-      + malMm(p[2], p[3], IMG_W, IMG_H, mmPrPx, 50);
+    const forventet = malMm(p[0]!, p[1]!, IMG_W, IMG_H, mmPrPx, 50)
+      + malMm(p[1]!, p[2]!, IMG_W, IMG_H, mmPrPx, 50)
+      + malMm(p[2]!, p[3]!, IMG_W, IMG_H, mmPrPx, 50);
     expect(sum).toBeCloseTo(forventet, 6);
     expect(sum).toBeGreaterThan(5350);
     expect(sum).toBeLessThan(5450);

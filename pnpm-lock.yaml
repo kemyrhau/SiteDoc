@@ -602,6 +602,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.13
       google-translate-api-x:
         specifier: ^10.7.2
         version: 10.7.2

@@ -1092,7 +1092,7 @@ Før noen agent ber Kenneth om miljøoppsett: (1) `ls` etter `.env*` på kjente 
 All merge-koreografi går gjennom cowork:
 - **Rekkefølge:** timer og redesign treffer ikke develop samtidig uten build-gate mellom — én verifisert ting om gangen.
 - **Regel 9:** `redesign/navigasjon → develop` alltid `--no-ff` (synlige, revertbare grenser).
-- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck) **OG grønt `pnpm --filter @sitedoc/mobile typecheck` (exit 0)**.
+- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck) **OG grønt `npx turbo run typecheck --force` fra rot (exit 0, alle pakker fullført)**. 🟢 **Utvidet 2026-10-02 (`fix/shared-typecheck`):** typecheck-leddet er nå `turbo run typecheck` — ti pakker med `tsc --noEmit` i ett kall (api · db · db-maskin · db-timer · db-varelager · pdf · ui · shared · web · mobil), ikke lenger bare `mobile typecheck`. Det lukker hullet der `packages/shared` aldri ble typesjekket (se § GATE-TALL). Web build beholdes — det fanger `.next/types` og transitiv api-drift som `tsc` alene ikke ser.
 
   > 🔴 **HULL MÅLT 2026-09-24 — `next build` typesjekker IKKE testfiler.** Kontrollplan meldte at `tsc --noEmit` i `apps/web` var rød mens gaten var grønn; merge-agenten **bekreftet det på ren `origin/develop` (`4c5a02cb`)** etter `pnpm install` + fire `prisma generate`, så det var kodens tilstand og ikke treets:
   >
@@ -1211,17 +1211,32 @@ når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dett
 
 ### 🔴 GATE-TALL SKAL SI HVA SOM KJØRTE (Kenneth/fabel 2026-09-15)
 
-🔴 **HULL I REGEL 10 SELV, målt 2026-10-02: `packages/shared` typesjekkes ALDRI.** De tre
-byggeleddene er web tsc, mobil tsc og web build — **ingen av dem kjører `tsc` i shared.**
+🟢 **HULL I REGEL 10 SELV LUKKET 2026-10-02 (`fix/shared-typecheck`): `packages/shared`
+typesjekkes nå.** Fram til da var de tre byggeleddene web tsc, mobil tsc og web build —
+**ingen av dem kjørte `tsc` i shared**, enda shared importeres av web, mobil, api OG pdf.
+shared har ikke noe byggeledd som rører den (`pnpm` bygger den ikke; web/mobil konsumerer
+kilden direkte), så typedrift der var usynlig. **Funnet av en agent på eget initiativ, ikke
+av gaten** — et ledd ingen kjører drifter fritt.
 
-**Målt på ren develop (`89acee95`): 33 feil.** 30 i testfiler, 🔴 **3 i KILDEN —
-`signertBildePolicy.ts`, som styrer utløp av signerte `/uploads/`-URL-er.**
+**Målt på ren develop: 33 feil.** 30 i testfiler + 🔴 **3 i KILDEN — `signertBildePolicy.ts`,
+som styrer utløp av signerte `/uploads/`-URL-er.** Alle 33 var latente, aldri før kjørt.
 
-⚠️ **Shared importeres av web, mobil, api OG pdf.** Et ledd som ingen kjører, er et ledd som
-drifter fritt. **Funnet av en agent som kjørte det på eget initiativ, ikke av gaten.**
+**Fiksen rørte IKKE logikk.** De 3 kildefeilene (`TS2304` manglende globaler) ble løst med
+`"types": ["node"]` i `packages/shared/tsconfig.json` (+ `@types/node` devDep) — Node ≥18 er
+én av shared sine tre runtimes, og `ReturnType<typeof setTimeout>` i kilden absorberer
+node-typen uendret. `signertBildePolicy.ts` er **urørt** (0 endringer). De 30 testfeilene
+(`noUncheckedIndexedAccess`) ble rettet i TESTENE med `!`, aldri ved å svekke kildetyper —
+ingen `any`/`@ts-ignore`/`as unknown as`.
 
-🔴 **Inntil dette er ryddet: en agent som melder «shared tsc har N feil» melder noe ekte, og
-tallet skal ikke avfeies som støy. Men det er heller ikke hans — mål mot ren develop først.**
+🔴 **Regelen (ufravikelig):** typecheck-leddet i gaten er **`npx turbo run typecheck --force`
+fra rot**, og rapporten bærer **«N vellykket · N total»** fra siste turbo-linje. «6 vellykket»
+er ikke full dekning — turbo stopper på første røde pakke, så et lavt tall betyr at resten
+aldri kjørte (slik shared skjulte web + mobil før fiksen).
+
+🔴 **NESTE LATENTE HULL (målt 2026-10-02, IKKE fikset): `tests/e2e` (`@sitedoc/e2e`) har
+intet `typecheck`-script.** Turbo teller den som no-op-suksess (derav «11 total» mot 10
+reelle `tsc`-kjøringer), men e2e-TS typesjekkes aldri — samme klasse hull som shared var.
+Bestill eget ledd hvis e2e-drift skal fanges.
 
 🔴 **PRESISERING 2026-09-30 — `apps/web`s `tsc --noEmit` kan melde FALSKE feil fra foreldet
 `.next/types`.** Målt ved mergen av `21064640`: to `TS2307` på
