@@ -164,38 +164,73 @@ eksisterende varsel etter «Slutt dag» (den som i dag melder `blokkertSendt`/`k
 Lag 3 flytter dem til bekreftelsesskjermen. **Ingen stille tomhet:** test som feiler hvis en dag uten
 reise-forslag mangler årsak når `start.type === "kontor"`.
 
-### B6 — normen er utledet, ikke et tall (funn i gate 2026-10-02, utløst av Kenneth)
+### B6 — normen er ÉN utledning på serveren; telefonen henter svaret (revidert 2026-10-02 kveld)
 
-🔴 **Dagsnormen er ikke en konstant og ikke en lagret sesongverdi.** Den utledes pr. dato som
-`(sluttTid − startTid) − pauseMin` fra firmaets standarddag (`OrganizationSetting.standardStartTid/
-standardSluttTid/standardPauseMin`, default 07:00–15:00/30 → **7,5 t**), overstyrt av tidene på
-`sommertid_start`-raden når datoen ligger i sommerperioden (`kalenderKatalog.ts:139-200`, speil av
-`apps/api/src/services/timer/arbeidstid.ts`). Skjema-kommentarens «8 t sommer / 7 t vinter» er
-A.Markussens *eksempel* (07:00–15:30 / 07:00–14:30), ikke en regel. **Det finnes derfor ikke ett
-«vinter-tall» å vedta — vinternormen er firmaets standarddag.** Kenneths testfirma: 15:00 → 7,5.
-Et firma med 14:30 → 7. `dagsnorm`-kolonnen (`schema.prisma:404`, default 7,5) og fallbacken
-`dagsforslag.ts:420` (7,5) er samme tall av samme grunn.
+**Historikk i én setning:** B6 v1 sa «tre lesere gjennom én delt `hentDagsnorm` i shared». Kenneth
+snudde det under L1-B: *«hvorfor kan ikke telefonen spørre serveren hva som er dagsnormen i dag ved
+oppstart start timer. dersom offline → spør ved lagring»*. Orkestrator målte at v1 ville gitt **én delt
+funksjon på to cacher** — mobilen regner (`kalenderKatalog.ts:139-200`), serveren leser flat kolonne
+(`dagsseddel.ts:2767`) — og at en innstilling endret på web ville ligget gammel på telefonen til neste
+katalog-oppfriskning. **Det er H22 i finere form.** v2 under erstatter v1.
+
+**Målt grunnlag:** normen er ikke en lagret sesongverdi. Serveren utleder `(sluttTid − startTid) −
+pauseMin` fra standarddagen, overstyrt av `sommertid_start`-radens tider (`apps/api/src/services/
+timer.ts` `hentEffektivArbeidstid`), **eksponert alt som `organisasjon.hentEffektivArbeidstid(orgId,
+dato)`** (`organisasjon.ts:1130-1142`) og brukt av web `timer/ny/page.tsx:100`. Skjema-kommentarens
+«8 sommer / 7 vinter» er A.Markussens eksempel. `dagsnorm`-kolonnen (:404, 7,5) leses av server-varsel og
+web-sedel. **Det finnes ikke ett vinter-tall å vedta.**
 
 🟢 **V16 (Kenneth 2026-10-02): to tilfeller, valgt pr. firma.** Ny kolonne `OrganizationSetting.normKilde:
-"fast" | "kalender"` (additiv, i samme migrering som `pauseReferanse`). **«fast»** → dagsnorm =
-`OrganizationSetting.dagsnorm` (lovnorm 7,5, `schema.prisma:404`), sesong ignoreres; standarddagens tider
-brukes fortsatt til forhåndsutfylling og pausemodus `fastStart`. **«kalender»** → utledet som over.
-🔴 **Tre lesere, samme release (H22, stille-tomhet-lærdommen fra `ny_navigasjon`):** mobil-forslaget
-(`effektivPerDato`), serverens attesteringsvarsel (`dagsseddel.ts:2767` leser i dag flat kolonne
-uansett) og web-sedelens norm (`timer/[id]/page.tsx:396`, samme). Alle tre går gjennom én delt
-`hentDagsnorm(setting, kalender, dato)` i `packages/shared`. 🟢 **Default `"fast"` — Kenneth-vedtak 2026-10-02:** *«et skal være default og det er norsk lov med 7,5
-timer arbeidsdag. Dersom kalender med vinter/sommertid velges, gjelder ikke lenger 7,5 timer.»* (Mitt
-forslag var `kalender`; snudd.) 🔴 **Backfill ved migrering, så ingen eksisterende firma skifter norm
-stille:** firmaer som HAR aktive `sommertid_start`-rader i `ArbeidstidsKalender` får `normKilde =
-"kalender"` (de har valgt sesong ved å legge inn radene — mobilens forslag fortsetter uendret); alle
-andre får `"fast"` (= 7,5, som de alt får i praksis). Test som FEILER hvis et firma med sommertid-rader
-står som `fast` etter migreringen. Nye firmaer: `fast`. UI: valg på `firma/innstillinger` ved siden av pausemodus, i18n ×15.
+"fast" | "kalender"` (additiv). **«fast»** = lovnorm: dagsnorm = `OrganizationSetting.dagsnorm` (7,5),
+sesong ignoreres; standarddagens tider brukes fortsatt til forhåndsutfylling og pausemodus `fastStart`.
+**«kalender»** = utledet som over. 🟢 **Default `"fast"`** — Kenneth: *«et skal være default og det er
+norsk lov med 7,5 timer arbeidsdag. Dersom kalender med vinter/sommertid velges, gjelder ikke lenger 7,5.»*
+🔴 **Backfill ved migrering:** firmaer med aktive `sommertid_start`-rader → `"kalender"` (de har valgt
+sesong; forslagene fortsetter uendret), alle andre → `"fast"`. **Test som FEILER** hvis et sommertid-firma
+står som `fast` etterpå.
+
+**B6.1 — én utledning.** `hentEffektivArbeidstid` (service) blir den ENESTE utledningen i systemet og får
+`normKilde` inn: `fast` → `dagsnorm` fra kolonnen; `kalender` → utledet. Svaret utvides til
+`{ dato, dagsnorm, startTid, sluttTid, pauseMin, normKilde, pauseEtterTimer, pauseReferanse }`.
+**Server-varselet** (`dagsseddel.ts:2767`) og **web-sedelen** (`timer/[id]/page.tsx:396`) kaller servicen
+pr. dato i stedet for å lese kolonnen. 🔴 **`hentEffektivArbeidstidLokal` på mobil SLETTES** — det er
+den andre utledningen. Ingen `dagsnorm`/`normKilde`/`pauseReferanse` replikeres til
+`organization_setting_local` (TILLEGG 2 i L1-B-ordren trakk den GO-en; B3 følger samme vei — én kilde,
+ett svar, i stedet for én innstilling via katalog og én via svar).
+
+**B6.2 — telefonen henter SVARET og cacher det pr. dato.** Ved «Start dag» (og på nytt ved «Slutt dag»,
+som oppfriskning) hentes svaret for startdato **og** sluttdato (midnatt-splitt gir to). Ny lokal tabell
+`arbeidstid_svar_local { org_id, dato, dagsnorm, start_tid, slutt_tid, pause_min, norm_kilde,
+pause_etter_timer, pause_referanse, hentet_at }`, PK `(org_id, dato)`. ⚠️ **Lokal SQLite-migrering
+(`migreringer.ts`), ikke Prisma — ikke en del av Kenneths migrerings-gate.** `effektivPerDato` i
+`BeregnDagsforslagInput` bygges fra denne tabellen; den rene funksjonen er uendret.
+
+**B6.3 — offline, uten stillhet (gate-punkt 2 i TILLEGG 2).** Tre trinn, hvert med egen markør på
+forslaget (`normStatus`), synlig i varselet etter «Slutt dag» og senere på bekreftelsesskjermen:
+1. **Svar for datoen i cache** → brukes. `normStatus: "server"`.
+2. **Ingen svar for datoen, men et svar for samme firma ≤ 30 dager gammelt** → brukes, `normStatus:
+   "cachet"`, tekst «Norm fra siste kjente svar (dd.mm)». Sesongovergang innenfor de 30 dagene er den
+   kjente feilkilden; derfor markøren.
+3. **Ingenting** → forslaget lages **uten normaltid/overtid-splitt**: alle arbeidstimer på standard-
+   lønnsarten, `normStatus: "ukjent"`, tekst «Norm ukjent — fordeling til overtid gjøres når appen får
+   nett». 🔴 **Omregningen av splitten ved sync er lag 2 (K5: hvor mye verifiserer serveren)** — i lag 1
+   står raden slik til arbeideren eller attestanten retter den, og markøren følger raden så det ikke
+   skjer stille. ⚠️ **Åpent for gaten:** alternativet er å bruke 7,5 (lovnormen) i trinn 3 med samme
+   markør. Jeg anbefaler ingen splitt: 7,5 er riktig for `fast`-firmaer og galt for `kalender`-firmaer
+   om sommeren, og i trinn 3 vet ikke telefonen hvilket den er.
+
+**B6.4 — tester.** Karakteriseringstester på serverens NÅVÆRENDE `hentEffektivArbeidstid` **FØRST**
+(sommer, vinter, overgangsdag, halvdag, firma uten rader) — grønne før noe røres, grønne etterpå
+(orkestrators vilkår). **Dag F og Dag G kjøres mot server-servicen** (api vitest) med `normKilde` hhv.
+`kalender`/`fast`, og mobil-fasiten A–E konsumerer et cachet svar som fixture. **Én-utledning-testen:**
+server-varsel, web-sedel og mobil-forslag får identisk `dagsnorm` for samme firma og dato — fordi alle
+tre får den fra samme svar. **Offline-testene:** trinn 2 setter `cachet`, trinn 3 setter `ukjent` og
+lager ingen overtidsrad; **begge FEILER hvis forslaget mangler markør.**
 
 **Krav til fasit-testene (gate-krav 1–3):** (1) hver dag navngir sesong og firmaets tider · (2) minst
 én dag kjøres utenfor sommerperioden med samme input · (3) **normen hentes gjennom samme utledning som
-produksjon** (`effektivPerDato` bygges av `hentEffektivArbeidstidLokal`-ekvivalenten fra en kalender-
-fixture med `sommertid_start`/`sommertid_slutt`-rader), **aldri som literal `8` eller `7,5` i
-forventningen** — forventet overtid regnes i testen som `arbeidstimer − utledet norm`. En test som
+produksjon** (server-servicen med kalender-fixture; mobil-testene konsumerer svaret som cachet fixture),
+**aldri som literal `8` eller `7,5` i forventningen** — forventet overtid regnes i testen som `arbeidstimer − utledet norm`. En test som
 hardkoder normen består selv om sesong-oppslaget er ødelagt (jf. `ukenorm.ts:4`).
 
 **Fasit-tester (fra helhetsplanen § 4b, kun det lag 1 kan regne). Fixture-firma: standarddag
@@ -249,7 +284,7 @@ CHECK (C3). Stille-tomhet-regelen (CLAUDE.md) er oppfylt for C3: backfill (a), g
 |---|---|---|---|
 | **L1-C** | 🟢 **LEVERT** `29f1d515` → merge `9d67367a`. C7: OSM-nøkkelen var relikvie (0 kallere), slettet i 15 språk i stedet for omskrevet | ingen | `20261002120000_byggeplass_geofence_kilde` 🔴 IKKE KJØRT (Kenneth) |
 | **L1-A** | 🟢 **LEVERT** `6f59a889` → merge `9d67367a`. `sted.ts` 21/21, null haversine utenfor. `resolverPrimaerByggeplass` lever til L1-B (Y). «+ Ny» krever nå geofence-treff (H2, tilsiktet) | ingen | — |
-| **L1-B** | Leveranse B (mobil) + B3/B6-innstillingene (api + web) + de tre normleserne | L1-A | `pauseReferanse` + `normKilde` (én migrering) |
+| **L1-B** | Leveranse B (mobil) + B3/B6 v2: `normKilde` + `pauseReferanse` på server, én utledning i `hentEffektivArbeidstid`, server-varsel + web-sedel kaller servicen, mobil henter og cacher svaret (lokal SQLite-migrering), `hentEffektivArbeidstidLokal` slettes | L1-A | `pauseReferanse` + `normKilde` (én Prisma-migrering) + én LOKAL mobil-migrering |
 
 L1-C og L1-A kan gå parallelt. L1-B sist. ⚠️ **Begge migreringene ligger i `packages/db` og blir
 sekvensielle fordi L1-B er sist — skriv rekkefølgen eksplisitt i ordrene (`geofenceKilde` før
@@ -283,5 +318,6 @@ normen er utledet fra firmaets standarddag, ikke vedtatt.
    mister den til punktet er satt. C5 gjør det synlig. Antall er ikke målt (krever SQL, Kenneth).
 4. **Radius 150 m som geokodet default** (C2) — lånt fra oppmøtested. Alternativ: 75 m (modalens
    startverdi i skjermbildet 2026-10-01).
+6. **Offline trinn 3 (B6.3):** ingen splitt + markør (anbefalt) eller 7,5 + markør. Omregning ved sync er lag 2/K5.
 5. **Retning på reise-rad** (B4): `beskrivelse`-tekst eller nytt felt — lag 2 trenger uansett felt
    for kilde-markør (V8), så nytt felt kan vente dit.
