@@ -115,6 +115,7 @@ forutsetningen for at GPS i det hele tatt får lov til å velge prosjekt.**
 | **H18** | **Reise regnes ÉN vei, maks én rad pr. dag. Retur finnes ikke.** Og `timer.md:1086` sier **byggeplass → byggeplass er kompensert for ALLE**, ikke bare sjåfører | `StartSluttDagKort.tsx:866-888`, `timer.md:1086` | Manglende funksjon | **4** |
 | **H19** | **Eksporten bærer ingenting av sporbarheten.** Reise-rader går ut som vanlige timerader med lønnsartnavn — uten km, avstand, fra- eller til-sted. **Følger av H4: avstanden lagres aldri, så ingenting nedstrøms kan ha den** | `rapport.ts:465-470` | Usporbar lønn | **2** |
 | **H20** | **Ingen origo når dagen ikke starter på et kontor.** Ingen reise, ingen reserve, ingen kobling bruker → fast oppmøtested. `Oppmotested.avdelingId` finnes men har ingen leser, og mobil-cachen mangler feltet | `useArbeidsdag.ts:473`-gaten, `oppmotested.ts:98-104` | Manglende funksjon | **1** |
+| **H21** | 🔴 **Matrisen ARVER prosjektets koordinat når byggeplassen mangler punkt** — `b.latitude ?? b.project?.latitude`. Samme arving Kenneth fjernet fra origo-ordren 2026-10-01, men den har produsert reise-avstander for punktløse byggeplasser siden R3 (2026-06-11). Funnet under lag 1-målingen | `apps/api/src/services/reisetidMatrise.ts:67-74` | 🔴 **Feil lønn, stille** | **1** (C1 i lag 1-spec) |
 
 🔴 **H15 er samme feilklasse som arvingen orkestratoren fjernet fra origo-ordren — men den står
 i koden i dag.** Det var KS-ens skarpeste funn.
@@ -193,6 +194,10 @@ Linjetall uten prosedyrenavn er ikke en måling.
 ### LAG 1 — Fundament: én stedsmodell
 
 **Uten dette finnes det ikke ett svar på «hvor er jeg».**
+
+📄 **Spesifikasjon: [timer-gps-lag1-spec.md](timer-gps-lag1-spec.md)** (fabel 2026-10-02, ⚠️ UTKAST TIL GATE).
+Leveranse A stedsmodell i shared · B reiseberegning i `beregnDagsforslag` · C datagrunnlag (fjerner H21-arven,
+`geofenceKilde`, tre varsler) · D rydding. Tre ordrer, to additive migreringer. Fem åpne punkter for gaten (§ 7).
 
 🔴 **FORUTSETNING funnet 2026-10-02 (orkestrator, `SAMARBEIDSREGLER.md:1214`):** `packages/shared`
 typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signertBildePolicy.ts`)**.
@@ -337,7 +342,8 @@ bekreftelsessteget finnes, brytes G1.
 | **Lag 0c** (shared tsc) | 🟢 **LEVERT 2026-10-02** | `c78bc14f` — regel 10 er fire ledd, 10 pakker typesjekkes |
 
 🟢 **Lag 0 er komplett (0a · 0b · 0c).** 🔴 **Neste er lag 1-spesifikasjonen, skrevet av fabel fra
-V-reglene.** **K2 og V6 er vedtatt 2026-10-02 — lag 1 kan spesifiseres nå.** Ingen kode-ordre før spesifikasjonen er gatet. Ingen kode-ordre før spesifikasjonen er gatet.
+V-reglene.** **Lag 1-spesifikasjonen er skrevet** ([timer-gps-lag1-spec.md](timer-gps-lag1-spec.md)) og ligger til gate hos
+orkestrator. Ingen kode-ordre før gaten er gitt. Ingen kode-ordre før spesifikasjonen er gatet.
 
 ---
 
