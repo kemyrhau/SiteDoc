@@ -594,6 +594,14 @@ en transaksjon som ruller tilbake gir fortsatt brukeren en feil som må oversett
 
 🟢 **Fangsten er verdt å merke seg som metode:** merge oppdaget det ikke ved å lese koden, men ved at et **forventet tall ikke materialiserte seg.** Gate-tall med forventning per pakke er derfor mer enn bokføring.
 
+### 🟡 `tests/e2e` typesjekkes aldri — intet `typecheck`-script, ingen tsconfig (flagget av agent i lag 0c, 2026-10-02)
+
+Samme klasse hull som `packages/shared` var før `c78bc14f`: `turbo run typecheck` (regel 10, fire ledd fra
+2026-10-02) når bare pakker med et `typecheck`-script, og `tests/e2e` har ikke noe. E2e-TS kan drifte fritt
+— og § «Seks av sju e2e-spec-er er DRIFTET» over viser at det alt har skjedd på innholdsnivå. **Tiltak:**
+`tsconfig.json` + `"typecheck": "tsc --noEmit"` i `tests/e2e`, så turbo tar den med. Liten, uavhengig.
+Ikke bestilt. Plassert her av fabel (planeier timer-GPS) fordi det er gate-gjeld, ikke timer-GPS.
+
 ### 🟡 `tsc --noEmit` i `apps/web` er rød på develop — regel 10 fanger den ikke (meldt 2026-09-24 av kontrollplan)
 
 **Kontrollplan meldte:** `apps/web/src/lib/__tests__/bibliotek-mal.test.ts:25–26` feiler `tsc --noEmit`, **også på ren `origin/develop`** — urørt av hans runde.

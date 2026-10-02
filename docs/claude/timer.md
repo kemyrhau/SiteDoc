@@ -29,7 +29,7 @@ påvirkes_av_beslutninger:
 > KS-et av fabel 2026-10-01. **Kun LAG 0 kan trygt bestilles i dag.**
 > 🟢 **Revidert kveld 2026-10-01: dagsmodellen V1–V14 vedtatt (§ 4b) — reisetid er ALDRI overtid (V1),
 > `reisetidTellerOvertid` utgår (V2), tur/retur (V7), mellometappe = arbeidstid (V9). Fabel eier planen, orkestrator gater.**
-> 🟢 **Lag 0 levert 2026-10-02** (`89acee95` km-tak i `rad-tak.ts` · `a13f4343` `beregnDagsforslag`/`anvendDagsforslag`). Lag 1 venter på shared-tsc (lag 0c).
+> 🟢 **Lag 0 levert 2026-10-02** (`89acee95` km-tak i `rad-tak.ts` · `a13f4343` `beregnDagsforslag`/`anvendDagsforslag`). Lag 0c `c78bc14f` (shared typesjekkes, regel 10 fire ledd). **Lag 0 komplett.** Lag 1-spesifikasjon venter K2 + V6.
 
 
 ## Implementasjonsstatus per 2026-05-01

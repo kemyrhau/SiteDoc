@@ -198,10 +198,24 @@ typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signer
 Lag 1 legger den delte stedsmodellen nettopp i `packages/shared`. **Anbefaling (fabel): bestill
 «lag 0c» FØR lag 1 — rydd de 3 kildefeilene og ta `shared tsc` inn i regel 10.** Uavhengig av alle
 åpne beslutninger, liten, og uten den bygges lag 1 i en pakke ingen gate ser. *Kenneth-signal.*
-🟡 **BESTILT av Kenneth 2026-10-02** («bestill lag 0c»). Målt av fabel samme dag: 33 feil, 3 i kilden — alle
-TS2304 manglende globale typer (`URLSearchParams`, `setTimeout`) i `signertBildePolicy.ts`, altså tsconfig,
-ikke logikk. Rammer i `relay/inbox-orkestrator.md`: ingen `any`/`ts-ignore`, null atferdsendring i
-signerings-fila, `shared tsc` inn i regel 10 i samme commit.
+🟢 **LEVERT 2026-10-02** (`d25618b1` → merge `c78bc14f`, branch `fix/shared-typecheck`). Regel 10 er nå
+**fire ledd**: `turbo run typecheck --force` (11/11, 27 s) · web build · `turbo run test --force` 7/7 · lint.
+Løsningen ble bredere enn bestilt: de to `tsc`-leddene ble byttet mot ett turbo-kall, så **api, db,
+db-maskin, db-timer, db-varelager, pdf og ui er gatet for første gang** (var grønne; ingen så etter).
+`signertBildePolicy.ts` verifisert urørt (null linjer i diffen). Ingen `any`/`ts-ignore`.
+
+⚠️ **To kjente kanter, ført som begrensninger — ikke avvik:**
+- **`"types": ["node"]` i `packages/shared/tsconfig.json:6`** sier at Node-globaler finnes i hele pakken,
+  også i kode som kjører i React Native og nettleser. En fremtidig `fs`-import i shared ville typesjekke
+  og krasje i appen. DOM-lib hadde hatt speilvendt problem. **Lag 1 legger stedsmodellen i shared —
+  bruk kun globaler som finnes i alle tre runtimes, og ingen Node-moduler.**
+- **Mergen krever `pnpm install` i ALLE arbeidstrær** (`@types/node` er ny devDependency). Uten install:
+  `turbo typecheck` exit 2, «0 vellykket av 9», `TS2688`. **Ser ut som regresjon for den som ikke vet** —
+  står her fordi neste agent puller develop før han leser SAMARBEIDSREGLER.
+
+🟡 **Nytt latent hull, samme klasse, IKKE i denne planen:** `tests/e2e` har ingen typesjekk (intet
+`typecheck`-script, ingen tsconfig). Plassert i [BACKLOG § 1](BACKLOG.md) — det er gate-gjeld, ikke
+timer-GPS. Lag 1 er ikke avhengig av det.
 
 - **Én delt avstandsfunksjon** i `packages/shared` — i dag kun i `apps/mobile`. **Server og web må kunne regne.**
 - **Én funksjon pr. kapabilitet** (A/B/C fra § 1), ikke fire konkurrerende. **Hver med navngitt regel og test.**
@@ -319,10 +333,11 @@ bekreftelsessteget finnes, brytes G1.
 | U-BEKREFT-R (forespørsel til leder) | ⏸️ | Krever migrering. Hører i lag 3, etter at lag 3s første del er inne |
 | Alt i lag 4 og 5 | ⏸️ | Forutsetter lag 1–3 |
 | **Lag 0** | 🟢 **LEVERT 2026-10-02** | `89acee95` + `a13f4343` — se § 5 |
-| **Lag 0c** (shared tsc) | 🟡 **BESTILT 2026-10-02** | Forutsetning for lag 1 — se § 5 LAG 1 |
+| **Lag 0c** (shared tsc) | 🟢 **LEVERT 2026-10-02** | `c78bc14f` — regel 10 er fire ledd, 10 pakker typesjekkes |
 
-🟢 **Lag 0 er levert.** 🔴 **Neste som trygt kan bestilles er lag 0c** (shared tsc). **Lag 1
-spesifiseres av fabel fra V-reglene når 0c er inne** — revisjonen er gatet (§ 7b).
+🟢 **Lag 0 er komplett (0a · 0b · 0c).** 🔴 **Neste er lag 1-spesifikasjonen, skrevet av fabel fra
+V-reglene.** Den trenger to svar først: **K2** (kontor som ligger på en byggeplass) og **bekreftelse av
+V6** (pausevindu fra ankomst). Ingen kode-ordre før spesifikasjonen er gatet.
 
 ---
 
