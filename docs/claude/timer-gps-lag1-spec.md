@@ -3,7 +3,7 @@ name: timer-gps-lag1-spec
 description: Spesifikasjon for LAG 1 i timer-GPS-helhetsplanen — én stedsmodell i @sitedoc/shared, reiseberegning etter V3/V5/V6/V7/V10/V11/V12/V13/V15, og datagrunnlag (V14). Skrevet av fabel 2026-10-02, gates av orkestrator før ordrer skrives.
 sist_verifisert_mot_kode: 2026-10-02
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟡 L1-C + L1-A LEVERT OG MERGET 2026-10-02 (develop 9d67367a) — L1-B skrives av orkestrator; migrering geofenceKilde IKKE kjørt (Kenneth). Etter pull: pnpm install + prisma generate ×4
+status: 🟡 L1-C + L1-A MERGET (9d67367a) · L1-B BESTILT, B6 v3 GATET 2026-10-02 uten vilkår — alle fire faser kan gå · migrering geofenceKilde IKKE kjørt (Kenneth) · etter pull: pnpm install + prisma generate ×4
 ---
 
 # LAG 1 — én stedsmodell og én reiseberegning
@@ -328,6 +328,11 @@ L1-B bestilles. L1-C og L1-A er uberørt og kan bestilles på Kenneths signal.**
 `dagsforslag.ts:573-575`) og mente den skulle overleve. **Den strider mot V1** — løst ved å trekke
 mobil-delen av V2 inn i L1-B (over) og legge til Dag E. **L1-B kan bestilles når orkestrator har sett
 denne løsningen.**
+
+🟢 **B6 v2 → AVVIK (2026-10-02):** ti kallsteder for `hentEffektivArbeidstidLokal` med vilkårlige datoer;
+B6.1 er funksjonsendring i lederens flate. **B6 v3 → GATET uten vilkår:** skillet norm/tider er målt
+(0 `dagsnorm`-treff i de fire tids-filene, 7 i de to norm-filene), henting ved åpning/«+ Ny»/pull-sync,
+markør på synlig flate, FUNKSJONSENDRING føres av orkestrator ved merge. **Fase 4 i L1-B frigitt.**
 
 🟢 **Sesong-funn 2026-10-02 (orkestrator, utløst av Kenneth «jeg håper 8 timer == standard arbeidstid»):**
 fasit-dagene låste normen til 8. Løst med B6 + Dag F. Spørsmålet «7 eller 7,5 om vinteren» oppløses —

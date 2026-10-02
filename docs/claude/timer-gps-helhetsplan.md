@@ -204,7 +204,8 @@ Leveranse A stedsmodell i shared · B reiseberegning i `beregnDagsforslag` · C 
 🟢 **L1-C `29f1d515` + L1-A `6f59a889` MERGET `9d67367a`** — **H21 lukket** (matrisen måler kun fra byggeplassens
 eget punkt), `sted.ts` erstatter alle haversine-kopier, `geofenceKilde` med backfill+CHECK. 🔴 Migrering
 `20261002120000_byggeplass_geofence_kilde` IKKE kjørt (Kenneth). ⚠️ Etter pull: `pnpm install` + `prisma generate` ×4,
-ellers rød typecheck som ikke er regresjon. **L1-B gjenstår** (reiseberegning, `pauseReferanse` + `normKilde`).
+ellers rød typecheck som ikke er regresjon. **L1-B bestilt**, B6 v3 (server-svar for normen, cache pr. dato, norm/tider-splitt) **GATET 2026-10-02** — alle fire
+faser kan gå.
 
 🔴 **FORUTSETNING funnet 2026-10-02 (orkestrator, `SAMARBEIDSREGLER.md:1214`):** `packages/shared`
 typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signertBildePolicy.ts`)**.
