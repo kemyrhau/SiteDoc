@@ -3,7 +3,7 @@ name: timer-gps-lag1-spec
 description: Spesifikasjon for LAG 1 i timer-GPS-helhetsplanen — én stedsmodell i @sitedoc/shared, reiseberegning etter V3/V5/V6/V7/V10/V11/V12/V13/V15, og datagrunnlag (V14). Skrevet av fabel 2026-10-02, gates av orkestrator før ordrer skrives.
 sist_verifisert_mot_kode: 2026-10-02
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟡 BESTILT 2026-10-02 (Kenneth «bestill lag 1») — gatet av orkestrator, B2 re-gatet; L1-C ∥ L1-A nå, L1-B etter L1-A. Rammer i relay/inbox-orkestrator.md
+status: 🟡 L1-C + L1-A LEVERT OG MERGET 2026-10-02 (develop 9d67367a) — L1-B skrives av orkestrator; migrering geofenceKilde IKKE kjørt (Kenneth). Etter pull: pnpm install + prisma generate ×4
 ---
 
 # LAG 1 — én stedsmodell og én reiseberegning
@@ -183,10 +183,13 @@ brukes fortsatt til forhåndsutfylling og pausemodus `fastStart`. **«kalender»
 🔴 **Tre lesere, samme release (H22, stille-tomhet-lærdommen fra `ny_navigasjon`):** mobil-forslaget
 (`effektivPerDato`), serverens attesteringsvarsel (`dagsseddel.ts:2767` leser i dag flat kolonne
 uansett) og web-sedelens norm (`timer/[id]/page.tsx:396`, samme). Alle tre går gjennom én delt
-`hentDagsnorm(setting, kalender, dato)` i `packages/shared`. ⚠️ **Default `"kalender"`** — mitt valg:
-bevarer mobilens lønnsforslag for alle firmaer; serverens *varsel* endres for firmaer med sommertid-rader
-(fra 7,5 til utledet), og det er en rettelse, ikke en regresjon. Firmaer uten kalenderrader får 7,5 i
-begge moduser. UI: valg på `firma/innstillinger` ved siden av pausemodus, i18n ×15.
+`hentDagsnorm(setting, kalender, dato)` i `packages/shared`. 🟢 **Default `"fast"` — Kenneth-vedtak 2026-10-02:** *«et skal være default og det er norsk lov med 7,5
+timer arbeidsdag. Dersom kalender med vinter/sommertid velges, gjelder ikke lenger 7,5 timer.»* (Mitt
+forslag var `kalender`; snudd.) 🔴 **Backfill ved migrering, så ingen eksisterende firma skifter norm
+stille:** firmaer som HAR aktive `sommertid_start`-rader i `ArbeidstidsKalender` får `normKilde =
+"kalender"` (de har valgt sesong ved å legge inn radene — mobilens forslag fortsetter uendret); alle
+andre får `"fast"` (= 7,5, som de alt får i praksis). Test som FEILER hvis et firma med sommertid-rader
+står som `fast` etter migreringen. Nye firmaer: `fast`. UI: valg på `firma/innstillinger` ved siden av pausemodus, i18n ×15.
 
 **Krav til fasit-testene (gate-krav 1–3):** (1) hver dag navngir sesong og firmaets tider · (2) minst
 én dag kjøres utenfor sommerperioden med samme input · (3) **normen hentes gjennom samme utledning som
@@ -244,8 +247,8 @@ CHECK (C3). Stille-tomhet-regelen (CLAUDE.md) er oppfylt for C3: backfill (a), g
 
 | Ordre | Innhold | Avhenger av | Migrering |
 |---|---|---|---|
-| **L1-C** | Leveranse C (api + web): C1–C7 | ingen | `geofenceKilde` |
-| **L1-A** | Leveranse A (shared) + D-ryddingen av **gjenkjenning** (mobil). IKKE `resolverPrimaerByggeplass` — den er destinasjonsvalg og slettes i L1-B | ingen | — |
+| **L1-C** | 🟢 **LEVERT** `29f1d515` → merge `9d67367a`. C7: OSM-nøkkelen var relikvie (0 kallere), slettet i 15 språk i stedet for omskrevet | ingen | `20261002120000_byggeplass_geofence_kilde` 🔴 IKKE KJØRT (Kenneth) |
+| **L1-A** | 🟢 **LEVERT** `6f59a889` → merge `9d67367a`. `sted.ts` 21/21, null haversine utenfor. `resolverPrimaerByggeplass` lever til L1-B (Y). «+ Ny» krever nå geofence-treff (H2, tilsiktet) | ingen | — |
 | **L1-B** | Leveranse B (mobil) + B3/B6-innstillingene (api + web) + de tre normleserne | L1-A | `pauseReferanse` + `normKilde` (én migrering) |
 
 L1-C og L1-A kan gå parallelt. L1-B sist. ⚠️ **Begge migreringene ligger i `packages/db` og blir

@@ -144,7 +144,7 @@ gatet. Kode-referansene peker på det som skal endres, ikke på noe som virker.
 | **V13** | **Ingen regnefallback for manglende plassering.** Reservemålingen luftlinje/50 km/t (`StartSluttDagKort.tsx:494-507`, `reise.ts:165-172`) **fjernes**, og «mangler avstand → under terskel» (`reise.ts:91`) erstattes av «ingen reise». Mangler byggeplassen punkt, eller matrisen cellen, foreslås ingen reise — med årsak hos arbeideren | H16 | 1 |
 | **V14** | **Manglende plassering skal være synlig, ikke påkrevd.** Tre varsler: merke «mangler plassering — reise beregnes ikke» i byggeplasslista (`oppsett/byggeplasser`), teller på Reisetid-matrise-flaten i firmainnstillingene («N byggeplasser mangler punkt»), og årsak hos arbeideren (V12/V13). **Adressefeltet som alt finnes i `createByggeplassSchema` geokodes ved opprettelse** (geokodings-prosedyren finnes), så de fleste får punkt uten ekstra klikk. Kartmodalen overstyrer alltid. **Ingen arv fra prosjektets punkt** (fjernet fra origo-ordren 2026-10-01 — et prosjekt kan strekke seg over kilometer) | H3, K6 | 1 |
 | **V15** | 🟢 **Oppmøtested vinner over byggeplass ved start** (K2, 2026-10-02). Treffer start-GPS begge, er origo oppmøtestedet (`useArbeidsdag.ts:143-144` lagrer i dag begge uten å forene). Er første prosjekt det byggeplassen tilhører → avstand 0, ingen reise. Annet prosjekt → vanlig første etappe mot terskelen | H12 | 1 |
-| **V16** | 🟢 **Dagsnormen har to kilder, valgt pr. firma** (Kenneth 2026-10-02): **«fast»** = lovnorm 7,5 t (`OrganizationSetting.dagsnorm`, `schema.prisma:404`, default 7,5), uavhengig av sesong · **«kalender»** = utledet pr. dato som (slutt − start) − pause fra standarddagen, overstyrt av `sommertid_start`-raden (`kalenderKatalog.ts:139-200`). 🔴 **Alle tre leserne følger modusen i samme release:** mobil-forslag (utleder i dag), serverens attesteringsvarsel (`dagsseddel.ts:2767`, leser flat kolonne i dag) og web-sedelen (`timer/[id]/page.tsx:396`, flat kolonne). Ny kolonne `normKilde`, additiv | H22 | 1 |
+| **V16** | 🟢 **Dagsnormen har to kilder, valgt pr. firma** (Kenneth 2026-10-02): **«fast»** = lovnorm 7,5 t (`OrganizationSetting.dagsnorm`, `schema.prisma:404`, default 7,5), uavhengig av sesong · **«kalender»** = utledet pr. dato som (slutt − start) − pause fra standarddagen, overstyrt av `sommertid_start`-raden (`kalenderKatalog.ts:139-200`). 🔴 **Alle tre leserne følger modusen i samme release:** mobil-forslag (utleder i dag), serverens attesteringsvarsel (`dagsseddel.ts:2767`, leser flat kolonne i dag) og web-sedelen (`timer/[id]/page.tsx:396`, flat kolonne). Ny kolonne `normKilde`, additiv. **Default `fast` (Kenneth 2026-10-02: «norsk lov med 7,5 timer»); backfill `kalender` for firmaer med aktive sommertid-rader** | H22 | 1 |
 
 **Fasit-eksempler (Kenneths ord, 2026-10-01):**
 
@@ -200,8 +200,11 @@ Linjetall uten prosedyrenavn er ikke en måling.
 📄 **Spesifikasjon: [timer-gps-lag1-spec.md](timer-gps-lag1-spec.md)** (fabel 2026-10-02, ⚠️ UTKAST TIL GATE).
 Leveranse A stedsmodell i shared · B reiseberegning i `beregnDagsforslag` · C datagrunnlag (fjerner H21-arven,
 `geofenceKilde`, tre varsler) · D rydding. Tre ordrer, to additive migreringer. Fem åpne punkter for gaten (§ 7).
-🟡 **BESTILT av Kenneth 2026-10-02** («bestill lag 1»), etter gate + re-gate. L1-C ∥ L1-A → L1-B. Rammer i
-`relay/inbox-orkestrator.md`. Migreringer `geofenceKilde` → `pauseReferanse`, Kenneth-gatet.
+🟡 **BESTILT av Kenneth 2026-10-02** («bestill lag 1»), etter gate + re-gate. Rammer i `relay/inbox-orkestrator.md`.
+🟢 **L1-C `29f1d515` + L1-A `6f59a889` MERGET `9d67367a`** — **H21 lukket** (matrisen måler kun fra byggeplassens
+eget punkt), `sted.ts` erstatter alle haversine-kopier, `geofenceKilde` med backfill+CHECK. 🔴 Migrering
+`20261002120000_byggeplass_geofence_kilde` IKKE kjørt (Kenneth). ⚠️ Etter pull: `pnpm install` + `prisma generate` ×4,
+ellers rød typecheck som ikke er regresjon. **L1-B gjenstår** (reiseberegning, `pauseReferanse` + `normKilde`).
 
 🔴 **FORUTSETNING funnet 2026-10-02 (orkestrator, `SAMARBEIDSREGLER.md:1214`):** `packages/shared`
 typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signertBildePolicy.ts`)**.
