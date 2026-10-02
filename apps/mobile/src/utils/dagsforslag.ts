@@ -24,9 +24,6 @@
  * kjører kun når noe skal skrives.
  */
 import {
-  avstandM,
-  avstandMeter,
-  estimerReisetidMin,
   klassifiserReise,
   klassifiserArbeidstid,
   velgOvertidLonnsart,
@@ -40,6 +37,9 @@ import {
   type ReiseKategori,
   type ReiseEnhet,
   type ReiseGrensepunkt,
+  type Startsted,
+  type Sluttsted,
+  type Destinasjon,
 } from "@sitedoc/shared";
 import { rundTimerTilNarmeste } from "./tidsrunding";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "./dagsegment";
@@ -98,21 +98,64 @@ export type DagsforslagRegel = {
   standardPauseEtterTimer: number | null;
 };
 
-/** Effektiv arbeidstid for én dag (speiler `kalenderKatalog.EffektivArbeidstid`). */
+/**
+ * Effektiv arbeidstid for én dag — det cachede server-svaret (B6 v3). `dagsnorm`
+ * ≤ 0 (eller `normStatus === "ukjent"`) → ingen normaltid/overtid-splitt (trinn
+ * 3): alt på standard-lønnsarten, feilretning er UNDERbetaling → markør kreves.
+ */
 export type DagsforslagEffektiv = {
   startTid: string;
   sluttTid: string;
   pauseMin: number;
   dagsnorm: number;
+  /** B3 (V6): pausevinduets referanse. Default "ankomst" (fra arbeidsstart). */
+  pauseReferanse?: "fastStart" | "ankomst";
+  /** B6.3: svarets opphav — "server" (dagens dato), "cachet" (≤30d), "ukjent" (ingen). */
+  normStatus?: "server" | "cachet" | "ukjent";
 };
 
 /**
- * Ferdig-leste reise-oppslag (fra matrise + grensepunkt-katalog). `null` når
- * reise ikke er aktuelt (ikke noe oppmøtested, eller ingen org-setting).
+ * Hvorfor en reise-etappe IKKE ble foreslått (B5, V12/V13). Vises på flaten
+ * arbeideren ser (varsel etter «Slutt dag»), lag 3 flytter den til bekreftelses-
+ * skjermen. `null` = etappe(r) ble foreslått, eller reise er ikke aktuelt.
+ */
+export type ReiseAarsak =
+  | "posisjon_utilgjengelig"
+  | "mangler_matrise"
+  | "uoppnaaelig"
+  | "mangler_avstand";
+
+/**
+ * Én reise-etappe (B1, V7/V10). `ut` = oppmøtested → destinasjon,
+ * `retur` = destinasjon → oppmøtested. `kategori` fra `klassifiserReise` pr.
+ * etappe; kun `reisetid`-etapper gir reise-rad og trekker arbeidsvinduet.
+ */
+export type Etappe = {
+  retning: "ut" | "retur";
+  oppmotestedId: string;
+  byggeplassId: string;
+  kjoretidMin: number;
+  avstandM: number | null;
+  kategori: ReiseKategori;
+  kilde: "matrise";
+};
+
+/**
+ * Ferdig-leste reise-oppslag (stedstolkning + matriseceller + grensepunkt-
+ * katalog). `null` når reise ikke er aktuelt (ingen org-setting). Stedene (A3/A4)
+ * og destinasjonen (A5) er tolket av lese-fasen; cellene er slått opp i matrisen.
  */
 export type DagsforslagReiseOppslag = {
-  /** Matrise-rad (oppmøtested → prosjektets primær-byggeplass). null = ingen rad/byggeplass. */
-  matriseRad: { kjoretidMin: number; avstandM: number | null } | null;
+  /** A3: startposisjonen tolket mot oppmøtesteder/byggeplasser. */
+  start: Startsted;
+  /** A4: sluttposisjonen tolket. Grunnlag for retur (V7). */
+  slutt: Sluttsted;
+  /** A5: valgt destinasjon (byggeplass) eller ukjent med årsak. */
+  destinasjon: Destinasjon;
+  /** Matrisecelle for ut-etappen (start-oppmøtested → destinasjon). null = mangler. */
+  utCelle: { kjoretidMin: number; avstandM: number | null } | null;
+  /** Matrisecelle for retur-etappen (slutt-oppmøtested → destinasjon). null = mangler. */
+  returCelle: { kjoretidMin: number; avstandM: number | null } | null;
   /** Firmaets reise-avstandsbånd (for lønnsart-valg). */
   grensepunkter: ReiseGrensepunkt[];
   /** `regel.reiseLonnsartId ?? navne-match` — resolvert av kalleren (DB). */
@@ -173,6 +216,22 @@ export type Dagsforslag = {
   aktivitetId: string | null;
   /** true = spennet ble kappet (glemt avslutning) → siste kilde "system". */
   kappet: boolean;
+  /**
+   * §2: true når prosjektet ikke kunne utledes (A5 ga ingen destinasjon OG
+   * ingen `aktivtProsjektId`). Skiller «velg prosjekt og prøv igjen» fra
+   * `kildeManglet` (db/aktivitet mangler). Holder dagen åpen med egen melding.
+   */
+  prosjektUkjent: boolean;
+  /** B5: hvorfor ingen reise-etappe ble foreslått (V12/V13). null = etappe(r) foreslått. */
+  reiseAarsak: ReiseAarsak | null;
+  /** B5: A5-årsak når destinasjonen ikke kunne velges. null = destinasjon valgt. */
+  destinasjonAarsak: "flere_byggeplasser" | "ingen_byggeplass_med_punkt" | null;
+  /**
+   * B6.3: normens opphav for START-dagen — "server"/"cachet"/"ukjent". `null`
+   * når forslaget ikke ble laget. Markøren (varsel + banner) vises når ≠ "server";
+   * "ukjent" betyr at forslaget er uten overtid-splitt (UNDERbetaling-risiko).
+   */
+  normStatus: "server" | "cachet" | "ukjent" | null;
   datoer: DagsforslagDag[];
 };
 
@@ -191,6 +250,13 @@ export type BeregnDagsforslagInput = {
   /** F4: global aktiv byggeplass + aktivt prosjekt (for D2-match-sjekk). */
   kontekstByggeplassId: string | null;
   aktivtProsjektId: string | null;
+  /**
+   * §2 (A5): prosjektet destinasjonens byggeplass hører til, resolvert av
+   * lese-fasen. `null` når A5 ikke ga en destinasjon. Prosjektvalget er
+   * `destinasjonProsjektId ?? aktivtProsjektId ?? prosjektUkjent` — ingen
+   * `prosjekter[0]`-fallback lenger (H1 stille feil).
+   */
+  destinasjonProsjektId: string | null;
   /** Kilde for SISTE segments slutt-tid ("bruker" normal, "system" glemt-dag). */
   sisteSegmentKilde: "bruker" | "system";
   prosjekter: DagsforslagProsjekt[];
@@ -205,67 +271,138 @@ export type BeregnDagsforslagInput = {
   eksisterendeSedelPerDato: Record<string, DagsforslagEksisterendeSedel>;
 };
 
-/**
- * 🔴 Nærmeste prosjekt via Haversine — INKLUDERT dagens feil (bevart 1:1):
- * uten koordinater faller den tilbake på `prosjekter[0]`, og med koordinater
- * velges nærmeste UTEN avstandsgrense (ingen «for langt unna»-kutt). Delt ren
- * helper så lese-fasen og `beregnDagsforslag` velger likt uten divergens.
- */
-export function velgNaermesteProsjekt(
-  prosjekter: DagsforslagProsjekt[],
-  lat: number | null,
-  lng: number | null,
-): DagsforslagProsjekt {
-  let valgt = prosjekter[0]!;
-  if (lat != null && lng != null) {
-    const medKoord = prosjekter.filter((p) => p.lat != null && p.lng != null);
-    let besteAvstand = Infinity;
-    for (const p of medKoord) {
-      // A1 (LAG 1-A): delt haversine i meter. Kun nærmeste velges, så
-      // meter vs. km endrer ikke utfallet — samme prosjekt som før.
-      const m = avstandM(
-        { lat, lng },
-        { lat: p.lat as number, lng: p.lng as number },
-      );
-      if (m < besteAvstand) {
-        besteAvstand = m;
-        valgt = p;
-      }
-    }
-  }
-  return valgt;
+/** Delmengden av `DagsforslagRegel` som `klassifiserReise` trenger. */
+function reiseRegelsett(regel: DagsforslagRegel) {
+  return {
+    reiseTerskelEnhet: regel.reiseTerskelEnhet as ReiseEnhet,
+    reiseTerskelMin: regel.reiseTerskelMin,
+    reiseTerskelM: regel.reiseTerskelM ?? null,
+    reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
+    reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
+  };
 }
 
 /**
- * Glemt-dag 0-fiks (c): fordel hele-dags-fradrag (pause + reise) over
- * midnatt-segmentene slik at intet segment får negativ arbeidstid
- * (`brutto − fradrag ≥ 0`). Tidligere lå alt på start-segmentet — et kort
- * start-segment (sen start nær midnatt) kunne ikke bære pause+reise →
- * `Math.max(0, …)` kappet arbeidstimene til 0 og timene forsvant.
- *
- * Regler: **reise** prioriteres på start-segmentet (start-dags reise), med
- * overflyt til lengste-først. **Pause** prioriteres på lengste segment.
- * Begge kappes til hvert segments gjenværende kapasitet og rest omfordeles —
- * **aldri kapp-og-mist** (cond. 2). Σ fradrag bevares så lenge
- * Σbrutto ≥ Σfradrag → dag-total (`Σbrutto − pause`) er invariant (cond. 1).
- * Ett segment (normalt dagskift) → alt på det ene = uendret atferd (cond. 4).
+ * Bygg én etappe fra en matrisecelle, eller gi årsaken til at den ikke kunne
+ * bygges (V13). Celle null → `mangler_matrise`; `kjoretidMin < 0` →
+ * `uoppnaaelig`; km-enhet uten avstand → `mangler_avstand`. Ellers klassifiseres
+ * cellen én gang (V10).
  */
-export function fordelArbeidstidFradrag(
+function byggEtappe(
+  retning: "ut" | "retur",
+  oppmotestedId: string,
+  byggeplassId: string,
+  celle: { kjoretidMin: number; avstandM: number | null } | null,
+  regel: DagsforslagRegel,
+): { etappe: Etappe | null; aarsak: ReiseAarsak | null } {
+  if (celle == null) return { etappe: null, aarsak: "mangler_matrise" };
+  if (celle.kjoretidMin < 0) return { etappe: null, aarsak: "uoppnaaelig" };
+  if (regel.reiseTerskelEnhet === "km" && celle.avstandM == null) {
+    return { etappe: null, aarsak: "mangler_avstand" };
+  }
+  const kategori = klassifiserReise(
+    { reisetidMin: celle.kjoretidMin, avstandM: celle.avstandM },
+    reiseRegelsett(regel),
+  );
+  return {
+    etappe: {
+      retning,
+      oppmotestedId,
+      byggeplassId,
+      kjoretidMin: celle.kjoretidMin,
+      avstandM: celle.avstandM,
+      kategori,
+      kilde: "matrise",
+    },
+    aarsak: null,
+  };
+}
+
+/**
+ * B1 — bygg reise-etappene for en dag (V7/V10/V11/V12/V15).
+ *
+ * `ut`: start er kontor OG destinasjonen er en ANNEN byggeplass enn den kontoret
+ * ligger i (V15: samme → ingen etappe, avstand 0). `retur`: slutt er kontor →
+ * celle (slutt-oppmøtested → destinasjon). `start.type ∈ {byggeplass, utenfor}`
+ * → ingen ut-etappe (V11); `start.type === "ukjent"` → `posisjon_utilgjengelig`
+ * (V12). `aarsak` settes KUN for ut-etappen (B5 gjelder `start === kontor`).
+ */
+export function beregnReiseEtapper(
+  start: Startsted,
+  slutt: Sluttsted,
+  destinasjon: Destinasjon,
+  utCelle: { kjoretidMin: number; avstandM: number | null } | null,
+  returCelle: { kjoretidMin: number; avstandM: number | null } | null,
+  regel: DagsforslagRegel,
+): { etapper: Etappe[]; aarsak: ReiseAarsak | null } {
+  const etapper: Etappe[] = [];
+  let aarsak: ReiseAarsak | null = null;
+
+  // UT-etappe.
+  if (start.type === "ukjent") {
+    aarsak = "posisjon_utilgjengelig"; // V12
+  } else if (start.type === "kontor" && destinasjon.type === "byggeplass") {
+    if (start.byggeplassId !== destinasjon.byggeplassId) {
+      // V15: kontoret ligger IKKE i destinasjonen → ut-etappe.
+      const r = byggEtappe(
+        "ut",
+        start.oppmotestedId,
+        destinasjon.byggeplassId,
+        utCelle,
+        regel,
+      );
+      if (r.etappe) etapper.push(r.etappe);
+      else aarsak = r.aarsak;
+    }
+  }
+  // start.type ∈ { "byggeplass", "utenfor" } → ingen ut-etappe (V11), ingen årsak.
+
+  // RETUR-etappe (V7): slutt er kontor → destinasjon → slutt-oppmøtested.
+  if (
+    slutt.type === "kontor" &&
+    destinasjon.type === "byggeplass" &&
+    slutt.byggeplassId !== destinasjon.byggeplassId
+  ) {
+    const r = byggEtappe(
+      "retur",
+      slutt.oppmotestedId,
+      destinasjon.byggeplassId,
+      returCelle,
+      regel,
+    );
+    if (r.etappe) etapper.push(r.etappe);
+    // Retur-mangel setter ikke overordnet årsak (B5-gaten gjelder ut/start=kontor).
+  }
+
+  return { etapper, aarsak };
+}
+
+/**
+ * Fordel dagens pause over midnatt-segmentene (lengste-først) slik at intet
+ * segment får negativ arbeidstid. Et kort start-segment (sen start nær midnatt)
+ * kunne ikke bære pausen → `Math.max(0, …)` kappet arbeidstimene til 0 og timene
+ * forsvant; derfor omfordeling til lengste-først med rest-overflyt.
+ *
+ * 🔴 L1-B (B2): reisen er IKKE lenger et fradrag her — ut-etappen trekkes fra
+ * start-segmentets vindu og retur-etappen fra slutt-segmentets (i
+ * `beregnDagsforslag`), reise-raden legges på det segmentet etappen hører til.
+ * Denne funksjonen fordeler KUN pausen. «Én trekkmekanisme: vinduet.»
+ *
+ * Pause kappes til hvert segments gjenværende kapasitet og rest omfordeles —
+ * aldri kapp-og-mist. Ett segment (normalt dagskift) → alt på det ene.
+ */
+export function fordelPause(
   bruttoTimer: number[],
-  startIndeks: number,
   pauseTotalMin: number,
-  reiseTotalTimer: number,
-): { pauseMin: number[]; reisetidTimer: number[] } {
+): { pauseMin: number[] } {
   const n = bruttoTimer.length;
   const kapasitet = bruttoTimer.slice();
-  const reisePer = new Array<number>(n).fill(0);
   const pauseTimerPer = new Array<number>(n).fill(0);
 
   // F-e (dag-nivå gate, re-fiks 2026-07-13): pausefradrag gjelder KUN når dagens
   // totale brutto arbeidstid overstiger terskelen (AML §10-9, 5,5 t). Gaten ligger
   // her — i dag-nivå pause-kilden der dagstotalen finnes — så pausen nulles FØR den
-  // fordeles per segment (alle segmenters pauseMin blir 0 under terskel). Erstatter
-  // carve-intern gating. dagsTotalBrutto = sum av segmentenes brutto-spenn.
+  // fordeles per segment (alle segmenters pauseMin blir 0 under terskel).
   const dagsTotalBrutto = bruttoTimer.reduce((s, b) => s + Math.max(0, b), 0);
   const effektivPauseTotalMin = pauseMinForDag(dagsTotalBrutto, pauseTotalMin);
 
@@ -274,22 +411,7 @@ export function fordelArbeidstidFradrag(
     .sort((a, z) => z.b - a.b)
     .map((x) => x.i);
 
-  // 1) Reise: start-segment først, så lengste-først for evt. overflyt.
-  const reiseRekke = [
-    startIndeks,
-    ...lengsteForst.filter((i) => i !== startIndeks),
-  ];
-  let restReise = Math.max(0, reiseTotalTimer);
-  for (const i of reiseRekke) {
-    if (restReise <= 0) break;
-    const ta = Math.min(restReise, kapasitet[i]!);
-    reisePer[i]! += ta;
-    kapasitet[i]! -= ta;
-    restReise -= ta;
-  }
-
-  // 2) Pause: lengste-først, i kapasiteten som er igjen etter reise. Bruker den
-  // terskel-gatede pausen (0 når dagen < 5,5t).
+  // Pause: lengste-først. Bruker den terskel-gatede pausen (0 når dagen < 5,5t).
   let restPauseTimer = Math.max(0, effektivPauseTotalMin) / 60;
   for (const i of lengsteForst) {
     if (restPauseTimer <= 0) break;
@@ -299,10 +421,7 @@ export function fordelArbeidstidFradrag(
     restPauseTimer -= ta;
   }
 
-  return {
-    pauseMin: pauseTimerPer.map((t) => Math.round(t * 60)),
-    reisetidTimer: reisePer.map((t) => Math.round(t * 100) / 100),
-  };
+  return { pauseMin: pauseTimerPer.map((t) => Math.round(t * 60)) };
 }
 
 /**
@@ -322,88 +441,86 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     prosjektId: null,
     aktivitetId: null,
     kappet: false,
+    prosjektUkjent: false,
+    reiseAarsak: null,
+    destinasjonAarsak: null,
+    normStatus: null,
     datoer: [],
   };
-  const { dag, sluttIso, endLat, endLng, regel } = input;
+  const { dag, sluttIso, regel } = input;
 
-  // 1. Prosjekt via Haversine (start-GPS, ellers slutt-GPS).
+  // Ingen prosjekt/aktivitet-katalog → kildeManglet (som før; anvend → startSheetId null).
   if (input.prosjekter.length === 0) return tomt;
-  const lat = dag.startLat ?? endLat;
-  const lng = dag.startLng ?? endLng;
-  const valgtProsjekt = velgNaermesteProsjekt(input.prosjekter, lat, lng);
+  if (input.aktiviteter.length === 0) return tomt;
+
+  // 1. Prosjektvalg (§2): destinasjonens prosjekt (A5) → arbeiderens aktive
+  //    prosjekt → prosjektUkjent. 🔴 `prosjekter[0]`-fallbacken (H1 stille feil)
+  //    og `velgNaermesteProsjekt` (nærmeste-uten-grense) er fjernet.
+  const destinasjonAarsak =
+    input.reiseOppslag?.destinasjon.type === "ukjent"
+      ? input.reiseOppslag.destinasjon.aarsak
+      : null;
+  const prosjektId = input.destinasjonProsjektId ?? input.aktivtProsjektId;
+  if (prosjektId == null) {
+    // Dagen holdes åpen; meldingen navngir veien ut (velg prosjekt, prøv igjen).
+    return { ...tomt, prosjektUkjent: true, destinasjonAarsak };
+  }
 
   // 2. Aktivitet — default «Anleggsarbeid» eller første.
-  if (input.aktiviteter.length === 0) return tomt;
   const aktivitet =
     input.aktiviteter.find((a) => a.navn === "Anleggsarbeid") ??
     input.aktiviteter[0]!;
 
-  // 3. Reise-forslag (føres på START-dagen). KUN når oppmøtested ble
-  // identifisert ved start. Reisetid = matrise-kjøretid; kjoretidMin < 0 =
-  // uoppnåelig → ingen forslag. Ingen matrise-rad → graceful estimat-fallback
-  // (luftlinje start→slutt / 50 km/t). Klassifiseres mot terskel; 'reisetid' →
-  // egen lønnsart-rad.
-  let reisetidTimer = 0;
-  let reiseLonnsartId: string | null = null;
-  if (dag.oppmotestedId && regel && input.reiseOppslag) {
-    let reisetidMin: number | null = null;
-    let avstandM: number | null = null;
-    const rad = input.reiseOppslag.matriseRad;
-    if (rad) {
-      // -1 (uoppnåelig) → 0: ingen forslag, OG hopp over estimat-fallback.
-      reisetidMin = rad.kjoretidMin < 0 ? 0 : rad.kjoretidMin;
-      avstandM = rad.avstandM ?? null;
-    }
-    // Fallback kun når matrisen ikke ga svar (ingen rad/byggeplass).
-    if (
-      reisetidMin == null &&
-      dag.startLat != null &&
-      dag.startLng != null &&
-      endLat != null &&
-      endLng != null
-    ) {
-      const fallbackM = avstandMeter(
-        { lat: dag.startLat, lng: dag.startLng },
-        { lat: endLat, lng: endLng },
-      );
-      reisetidMin = estimerReisetidMin(fallbackM);
-      avstandM = fallbackM;
-    }
-    if (reisetidMin != null && reisetidMin > 0) {
-      const kategori: ReiseKategori = klassifiserReise(
-        { reisetidMin, avstandM },
-        {
-          reiseTerskelEnhet: regel.reiseTerskelEnhet as ReiseEnhet,
-          reiseTerskelMin: regel.reiseTerskelMin,
-          reiseTerskelM: regel.reiseTerskelM ?? null,
-          reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
-          reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
-        },
-      );
-      if (kategori === "reisetid") {
-        // `avstandM` lar resolveren velge firmaets avstandsbånd; uten treff/
-        // uten avstand faller den tilbake på fallbackReiseLonnsartId (samme
-        // kilde som render-laget: regel.reiseLonnsartId ?? navne-match).
-        reiseLonnsartId = løsReiseLonnsartId(
-          avstandM,
-          input.reiseOppslag.grensepunkter,
-          input.reiseOppslag.fallbackReiseLonnsartId,
-        );
-        if (reiseLonnsartId) {
-          reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
-        }
-      }
-    }
+  // 3. Reise-etapper (B1): ut + retur, klassifisert pr. etappe (V10). Kun
+  //    reisetid-etapper trekker vinduet og gir reise-rad; arbeidstid-etapper
+  //    (V3) teller som arbeid og ligger i prosjektraden.
+  let etapper: Etappe[] = [];
+  let reiseAarsak: ReiseAarsak | null = null;
+  const reiseOppslag = input.reiseOppslag;
+  if (regel && reiseOppslag) {
+    const r = beregnReiseEtapper(
+      reiseOppslag.start,
+      reiseOppslag.slutt,
+      reiseOppslag.destinasjon,
+      reiseOppslag.utCelle,
+      reiseOppslag.returCelle,
+      regel,
+    );
+    etapper = r.etapper;
+    reiseAarsak = r.aarsak;
   }
+  // Løs lønnsart pr. reisetid-etappe (samme kilde som før: avstandsbånd →
+  // fallbackReiseLonnsartId). Uten lønnsart → ingen reise-rad, ingen vindu-trekk.
+  const reiseForRetning = (
+    retning: "ut" | "retur",
+  ): { kjoretidMin: number; lonnsartId: string } | null => {
+    if (!reiseOppslag) return null;
+    const e = etapper.find(
+      (x) => x.retning === retning && x.kategori === "reisetid",
+    );
+    if (!e) return null;
+    const lonnsartId = løsReiseLonnsartId(
+      e.avstandM,
+      reiseOppslag.grensepunkter,
+      reiseOppslag.fallbackReiseLonnsartId,
+    );
+    return lonnsartId ? { kjoretidMin: e.kjoretidMin, lonnsartId } : null;
+  };
+  const utReise = reiseForRetning("ut");
+  const returReise = reiseForRetning("retur");
 
-  // 4. UF-2: universell enkelt-skift-cap FØR midnatt-splitt. Er spennet større
-  // enn hard-cap, tolkes det som glemt avslutning og slutt kappes til start +
-  // sesongjustert dagsnorm → unngår N×24t-sedler. Kilde tvinges "system".
+  // 4. UF-2: enkelt-skift-cap FØR midnatt-splitt. Glemt-dag-kapplengde =
+  //    ut-reise + dagsnorm + pause (M13 → B2): kappet skal romme reisen og
+  //    pausen, ikke bare normen.
   const startDato = formatIsoDato(new Date(dag.startAt));
   const effektivStartDag = input.effektivPerDato[startDato];
   if (!effektivStartDag) return tomt;
-  const kappLengdeTimer =
+  const normForKapp =
     effektivStartDag.dagsnorm > 0 ? effektivStartDag.dagsnorm : 7.5;
+  const kappLengdeTimer =
+    (utReise ? utReise.kjoretidMin / 60 : 0) +
+    normForKapp +
+    effektivStartDag.pauseMin / 60;
   const { sluttIso: effektivSluttIso, kappet } = kappGlemtDagSlutt(
     dag.startAt,
     sluttIso,
@@ -413,8 +530,8 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     ? "system"
     : input.sisteSegmentKilde;
 
-  // Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Pause + reise
-  // fordeles over segmentene (pause→lengste, reise→start m/ overflyt).
+  // Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. KUN pausen fordeles
+  // over segmentene (reisen er ikke lenger et fradrag — B2).
   const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
   const deltVedMidnatt = segmenter.length > 1;
   const bruttoPerSeg = segmenter.map(
@@ -422,24 +539,20 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       (new Date(s.sluttIso).getTime() - new Date(s.startIso).getTime()) /
       3_600_000,
   );
-  const startIdx = segmenter.findIndex((s) => s.erStartSegment);
-  const fradrag = fordelArbeidstidFradrag(
+  const pauseFordelt = fordelPause(
     bruttoPerSeg,
-    startIdx >= 0 ? startIdx : 0,
     effektivStartDag.pauseMin,
-    reisetidTimer,
-  );
+  ).pauseMin;
 
   // F4: byggeplass-default-kjede → GPS (arbeidsdag) → global kontekst → ingen.
   // D2: kontekst-fallback kun når utkastets prosjekt = aktivt prosjekt.
   const byggeplassDefault =
     dag.byggeplassId ??
-    (valgtProsjekt.id === input.aktivtProsjektId
-      ? input.kontekstByggeplassId
-      : null);
+    (prosjektId === input.aktivtProsjektId ? input.kontekstByggeplassId : null);
 
+  const sisteIdx = segmenter.length - 1;
   const datoer = segmenter.map((seg, i) => {
-    const erSiste = i === segmenter.length - 1;
+    const erSiste = i === sisteIdx;
     const sluttTidKilde: "bruker" | "midnatt" | "system" = erSiste
       ? effektivSisteKilde
       : "midnatt";
@@ -450,13 +563,13 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     };
     return beregnSegment({
       segment: seg,
-      prosjektId: valgtProsjekt.id,
+      prosjektId,
       aktivitetId: aktivitet.id,
       byggeplassId: byggeplassDefault,
-      pauseMin: fradrag.pauseMin[i]!,
-      reisetidTimer: fradrag.reisetidTimer[i]!,
-      reiseLonnsartId,
-      reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
+      pauseMin: pauseFordelt[i]!,
+      // Ut-etappen hører til start-segmentet, retur-etappen til slutt-segmentet.
+      utReise: seg.erStartSegment ? utReise : null,
+      returReise: erSiste ? returReise : null,
       tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
       standardPauseEtterTimer: regel?.standardPauseEtterTimer ?? null,
       deltVedMidnatt,
@@ -469,9 +582,13 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
   });
 
   return {
-    prosjektId: valgtProsjekt.id,
+    prosjektId,
     aktivitetId: aktivitet.id,
     kappet,
+    prosjektUkjent: false,
+    reiseAarsak,
+    destinasjonAarsak,
+    normStatus: effektivStartDag.normStatus ?? null,
     datoer,
   };
 }
@@ -489,9 +606,10 @@ function beregnSegment(a: {
   aktivitetId: string;
   byggeplassId: string | null;
   pauseMin: number;
-  reisetidTimer: number;
-  reiseLonnsartId: string | null;
-  reisetidTellerOvertid: boolean;
+  /** Ut-reise (reisetid) på start-segmentet — forskyver arbeidsstart + egen rad. null ellers. */
+  utReise: { kjoretidMin: number; lonnsartId: string } | null;
+  /** Retur-reise (reisetid) på slutt-segmentet — forskyver arbeidsslutt + egen rad. null ellers. */
+  returReise: { kjoretidMin: number; lonnsartId: string } | null;
   tidsrundingMinutter: number | null;
   standardPauseEtterTimer: number | null;
   deltVedMidnatt: boolean;
@@ -532,17 +650,21 @@ function beregnSegment(a: {
   // rader, ingen overlapp-sjekk).
   if (blokkert) return base;
 
-  // Arbeidstid = segment-brutto − pause/reise (fordelt per segment).
-  const bruttoTimer =
-    (new Date(segment.sluttIso).getTime() -
-      new Date(segment.startIso).getTime()) /
-    3_600_000;
-  const totalTimer =
-    Math.round(Math.max(0, bruttoTimer - a.pauseMin / 60) * 100) / 100;
+  // B2 — arbeidsvinduet er ENESTE trekkmekanisme. Ut-etappen (reisetid) skyver
+  // arbeidsstart fram fra start-GPS; retur-etappen skyver arbeidsslutt tilbake
+  // fra slutt-GPS. Reisen trekkes dermed via vinduet, ikke via timene — det gamle
+  // `totalTimer − reisetidTimer` er FJERNET (ville trukket reisen to ganger med
+  // etapper i begge ender).
+  const utMs = (a.utReise ? a.utReise.kjoretidMin : 0) * 60_000;
+  const returMs = (a.returReise ? a.returReise.kjoretidMin : 0) * 60_000;
+  const arbeidsstartMs = new Date(segment.startIso).getTime() + utMs;
+  const arbeidssluttMs = new Date(segment.sluttIso).getTime() - returMs;
+  const arbeidsstartIso = new Date(arbeidsstartMs).toISOString();
+  const bruttoVinduTimer = Math.max(0, (arbeidssluttMs - arbeidsstartMs) / 3_600_000);
   // F-B: rund arbeidstimer til firmaets tidsrunding-grid FØR normaltid/overtid-
   // splitten. Reise rundes ikke.
   const raaArbeid =
-    Math.round(Math.max(0, totalTimer - a.reisetidTimer) * 100) / 100;
+    Math.round(Math.max(0, bruttoVinduTimer - a.pauseMin / 60) * 100) / 100;
   const arbeidstimer = rundTimerTilNarmeste(raaArbeid, a.tidsrundingMinutter);
 
   const rader: DagsforslagRad[] = [];
@@ -553,23 +675,26 @@ function beregnSegment(a: {
   // overtidsnivaa — ALDRI fritekst-navn (③a).
   if (arbeidstimer > 0) {
     const effektivDagsnorm = a.effektiv?.dagsnorm ?? 0;
-    const dagsnorm0 = effektivDagsnorm > 0 ? effektivDagsnorm : arbeidstimer;
-    // Fase 3: når reisetid teller mot overtid, spiser reise-andelen av dagsnorm-
-    // budsjettet → mer av arbeidstiden havner i overtid.
-    const dagsnorm =
-      a.reisetidTellerOvertid && a.reisetidTimer > 0
-        ? Math.max(0, dagsnorm0 - a.reisetidTimer)
-        : dagsnorm0;
+    // V1: reisetid er ALDRI overtid. Normen er alltid `dagsnorm0` — det gamle
+    // `reisetidTellerOvertid`-fradraget i terskelen er fjernet (flagget leses ikke).
+    const dagsnorm = effektivDagsnorm > 0 ? effektivDagsnorm : arbeidstimer;
 
     const pauseEtterTimer =
       a.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
-    const startTidHHMM = tilHHMM(segment.startIso);
-    // GPS-carve: tildel FAKTISKE fra/til fra segmentets reelle vindu. Reise
-    // forskyver arbeids-start; reise-raden selv får ingen tid (under).
+    // Carve fra ARBEIDSSTART (etter ut-etappen), ikke segment-GPS-start.
+    // reisetidTimer=0: vinduet har alt ekskludert reisen (B2).
+    const arbeidsstartHHMM = tilHHMM(arbeidsstartIso);
+    // B3 (V6): pausevinduet. "fastStart" → fra firmaets sesongjusterte starttid;
+    // "ankomst" (default) → fra arbeidsstart (etter reisen) — legger aldri pausen
+    // i en reise.
+    const pauseFraTid =
+      a.effektiv?.pauseReferanse === "fastStart"
+        ? (a.effektiv?.startTid ?? arbeidsstartHHMM)
+        : arbeidsstartHHMM;
     const carvet = carveArbeidstider({
-      startTid: startTidHHMM,
-      reisetidTimer: a.reisetidTimer,
-      pauseFra: pauseVinduFra(startTidHHMM, pauseEtterTimer),
+      startTid: arbeidsstartHHMM,
+      reisetidTimer: 0,
+      pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
       pauseMin: a.pauseMin,
       segmenter: klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
     });
@@ -611,15 +736,16 @@ function beregnSegment(a: {
     }
   }
 
-  // Reise-rad — separat lønnsart-rad, kun på start-segmentet (reisetidTimer = 0
-  // ellers). REISE-UNNTAK: beholder null-tider bevisst (matrise-/GPS-MENGDE,
-  // ikke et målt klokke-vindu).
-  if (a.reisetidTimer > 0 && a.reiseLonnsartId) {
+  // Reise-rader (B4) — én rad pr. reisetid-etappe på dette segmentet (ut på
+  // start, retur på slutt). 🔴 `fraTid/tilTid` forblir `null` (V8 er lag 2 —
+  // ikke fabrikker et klokke-vindu her). `timer` = etappens kjøretid.
+  for (const r of [a.utReise, a.returReise]) {
+    if (!r) continue;
     rader.push({
       projectId: a.prosjektId,
-      lonnsartId: a.reiseLonnsartId,
+      lonnsartId: r.lonnsartId,
       aktivitetId: a.aktivitetId,
-      timer: a.reisetidTimer,
+      timer: Math.round((r.kjoretidMin / 60) * 100) / 100,
       fraTid: null,
       tilTid: null,
       pauseMin: 0,
@@ -642,6 +768,12 @@ export type AnvendDagsforslagResultat = {
   harEksisterendeRader: boolean;
   /** Tidsrom der en play-rad vek for en overlappende manuell rad. */
   vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
+  /**
+   * §2: forslaget kunne ikke velge prosjekt (A5 ga ingen destinasjon + ingen
+   * aktivtProsjektId). Skiller `prosjektUkjent`-handlingen fra `kildeManglet`
+   * (begge har `startSheetId == null`).
+   */
+  prosjektUkjent: boolean;
 };
 
 /**
@@ -662,7 +794,8 @@ export type SluttDagHandling =
   | { type: "blokkertSendt"; sheetId: string }
   | { type: "playVek"; sheetId: string; intervaller: string }
   | { type: "forKort"; sheetId: string; preFylt: boolean }
-  | { type: "kildeManglet" };
+  | { type: "kildeManglet" }
+  | { type: "prosjektUkjent" };
 
 /** true = dagen skal markeres `avsluttet` (skrivingen lyktes, ingenting tapt). */
 export function skalMarkereAvsluttet(handling: SluttDagHandling): boolean {
@@ -683,8 +816,14 @@ export function avgjorSluttDagHandling(
   resultat: AnvendDagsforslagResultat,
 ): SluttDagHandling {
   const sheetId = resultat.startSheetId;
-  // Ingen sedel ble opprettet (db/prosjekt/aktivitet manglet) → kilde manglet.
-  if (sheetId == null) return { type: "kildeManglet" };
+  if (sheetId == null) {
+    // §2: prosjektet kunne ikke velges → egen melding («velg prosjekt, prøv
+    // igjen»). Ellers manglet db/aktivitet-katalogen → kildeManglet. Begge
+    // holder dagen åpen.
+    return resultat.prosjektUkjent
+      ? { type: "prosjektUkjent" }
+      : { type: "kildeManglet" };
+  }
   // UF-1: dagens sedel var alt sendt → den nye økten ble ikke lagt til.
   if (resultat.blokkertSendt) return { type: "blokkertSendt", sheetId };
   // 1b: play vek for manuelt førte timer — si HVA som vek.

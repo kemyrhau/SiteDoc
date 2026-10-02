@@ -10,6 +10,8 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { gjenkjennSted } from "@sitedoc/shared";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
+import { hentOgCacheArbeidstidSvar } from "../services/arbeidstidSvarKatalog";
+import { trpc } from "../lib/trpc";
 
 /**
  * Delt arbeidsdag-tilstand for BÅDE «Start dag»-kortet (StartSluttDagKort, på
@@ -90,6 +92,7 @@ function identifiserOppmotested(
 export function useArbeidsdag() {
   const { bruker } = useAuth();
   const { valgtFirmaId } = useFirma();
+  const utils = trpc.useUtils();
 
   const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
   const [behandler, setBehandler] = useState(false);
@@ -177,10 +180,20 @@ export function useArbeidsdag() {
         byggeplassId: bygg?.id ?? null,
         byggeplassNavn: bygg?.navn ?? null,
       });
+      // B6 v3: forhåndshent dagens norm-svar mens nett sannsynligvis finnes
+      // (arbeider starter typisk på/ved oppmøtested). Da har «Slutt dag» svaret
+      // i cache selv om nettet er borte da. Best-effort.
+      if (valgtFirmaId) {
+        void hentOgCacheArbeidstidSvar(
+          utils.client,
+          valgtFirmaId,
+          formatIsoDato(new Date()),
+        );
+      }
     } finally {
       setBehandler(false);
     }
-  }, [bruker?.id, behandler, valgtFirmaId]);
+  }, [bruker?.id, behandler, valgtFirmaId, utils]);
 
   return { aktivDag, startDag, behandler, setBehandler, refresh };
 }

@@ -29,6 +29,29 @@ const STD_EFFEKTIV: DagsforslagEffektiv = {
   pauseMin: 30,
   dagsnorm: 7.5,
 };
+// Sommer-norm (sesongjustert) — brukt som cachet svar i fasit-dagene A/B/E.
+const SOMMER_EFFEKTIV: DagsforslagEffektiv = {
+  startTid: "07:00",
+  sluttTid: "15:30",
+  pauseMin: 30,
+  dagsnorm: 8,
+};
+
+/** Reise-oppslag der start/slutt er kontor og destinasjonen en byggeplass. */
+function lagReise(
+  over: Partial<BeregnDagsforslagInput["reiseOppslag"] & object> = {},
+): NonNullable<BeregnDagsforslagInput["reiseOppslag"]> {
+  return {
+    start: { type: "kontor", oppmotestedId: "o1", byggeplassId: null },
+    slutt: { type: "utenfor" },
+    destinasjon: { type: "byggeplass", byggeplassId: "b1" },
+    utCelle: { kjoretidMin: 120, avstandM: 50000 },
+    returCelle: null,
+    grensepunkter: [],
+    fallbackReiseLonnsartId: L_REISE,
+    ...over,
+  };
+}
 
 /** Bygg et minimalt input; overstyr feltene hver test bryr seg om. */
 function lagInput(
@@ -48,7 +71,10 @@ function lagInput(
     endLat: 59.9,
     endLng: 10.7,
     kontekstByggeplassId: null,
-    aktivtProsjektId: null,
+    // §2: prosjektvalg er destinasjon → aktivtProsjektId → prosjektUkjent.
+    // Uten reise-destinasjon leverer arbeiderens aktive prosjekt «p1».
+    aktivtProsjektId: "p1",
+    destinasjonProsjektId: null,
     sisteSegmentKilde: "bruker",
     prosjekter: [{ id: "p1", lat: 59.9, lng: 10.7 }],
     aktiviteter: [{ id: "a1", navn: "Anleggsarbeid" }],
@@ -81,9 +107,23 @@ function arbeidsTimer(f: ReturnType<typeof beregnDagsforslag>): number {
     .filter((r) => !r.erReise)
     .reduce((s, r) => s + r.timer, 0);
 }
+/** Sum av reise-rad-timer. */
+function reiseTimer(f: ReturnType<typeof beregnDagsforslag>): number {
+  return f.datoer
+    .flatMap((d) => d.rader)
+    .filter((r) => r.erReise)
+    .reduce((s, r) => s + r.timer, 0);
+}
+/** Overtid (OT50) i timer. */
+function ot50Timer(f: ReturnType<typeof beregnDagsforslag>): number {
+  return f.datoer
+    .flatMap((d) => d.rader)
+    .filter((r) => !r.erReise && r.lonnsartId === L_OT50)
+    .reduce((s, r) => s + r.timer, 0);
+}
 
 describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)", () => {
-  it("1. dag med reise: egen reise-rad med null-tider (REISE-UNNTAK) + arbeids-rad", () => {
+  it("1. dag med reise (ut-etappe): egen reise-rad med null-tider + arbeids-rad forskjøvet", () => {
     const f = beregnDagsforslag(
       lagInput({
         dag: {
@@ -93,11 +133,9 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
           oppmotestedId: "o1",
           byggeplassId: null,
         },
-        reiseOppslag: {
-          matriseRad: { kjoretidMin: 45, avstandM: 30000 },
-          grensepunkter: [],
-          fallbackReiseLonnsartId: L_REISE,
-        },
+        destinasjonProsjektId: "p1",
+        // 45 min ut-reise (reisetid), ingen retur (slutt ikke kontor).
+        reiseOppslag: lagReise({ utCelle: { kjoretidMin: 45, avstandM: 30000 } }),
       }),
     );
 
@@ -108,17 +146,18 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
 
     const reise = rader.find((r) => r.erReise);
     expect(reise).toBeDefined();
-    // REISE-UNNTAK: reise beholder null-tider (matrise-/GPS-mengde, ikke klokke-vindu).
+    // B4: reise beholder null-tider (V8 er lag 2).
     expect(reise!.fraTid).toBeNull();
     expect(reise!.tilTid).toBeNull();
     expect(reise!.lonnsartId).toBe(L_REISE);
     expect(reise!.timer).toBeCloseTo(0.75, 5); // 45 min
+    expect(rader.filter((r) => r.erReise)).toHaveLength(1); // kun ut, ingen retur
 
     const arbeid = rader.filter((r) => !r.erReise);
     expect(arbeid).toHaveLength(1);
-    // 8t brutto − 0,5t pause − 0,75t reise = 6,75t arbeid, carvet med klokke.
+    // Vindu 07:45–15:00 = 7,25t − 0,5t pause = 6,75t arbeid (reise trukket via vinduet).
     expect(arbeid[0]!.timer).toBeCloseTo(6.75, 5);
-    expect(arbeid[0]!.fraTid).toBe("07:45"); // forskjøvet av reise-tiden
+    expect(arbeid[0]!.fraTid).toBe("07:45"); // arbeidsstart = start-GPS + ut
     expect(arbeid[0]!.tilTid).toBe("15:00");
     expect(arbeid[0]!.lonnsartId).toBe(L_NORMAL);
     expect(arbeid[0]!.pauseMin).toBe(30); // bæreren av lunsjpausen
@@ -202,19 +241,19 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
     );
 
     expect(f.kappet).toBe(true);
-    expect(f.datoer).toHaveLength(1); // kappet til 7,5t ⇒ ingen midnatt-splitt
+    expect(f.datoer).toHaveLength(1); // kappet til 8t ⇒ ingen midnatt-splitt
     expect(f.datoer[0]!.dato).toBe("2026-10-01");
     // Kappet ⇒ siste (eneste) segments kilde tvinges "system" (gjettet tid).
     expect(f.datoer[0]!.sluttTidKilde).toBe("system");
-    // Kappet til start + dagsnorm (7,5t). Måler varighet, ikke eksakt ISO —
-    // `.toISOString()` gir UTC og er dermed runner-TZ-avhengig.
+    // M13→B2: kapplengde = ut(0) + dagsnorm(7,5) + pause(0,5) = 8,0t. Måler
+    // varighet, ikke eksakt ISO (`.toISOString()` er runner-TZ-avhengig).
     const spennTimer =
       (new Date(f.datoer[0]!.segmentSluttIso).getTime() -
         new Date(f.datoer[0]!.segmentStartIso).getTime()) /
       3_600_000;
-    expect(spennTimer).toBeCloseTo(7.5, 5);
-    // 7,5t brutto − 0,5t pause = 7,0t arbeid.
-    expect(arbeidsTimer(f)).toBeCloseTo(7.0, 5);
+    expect(spennTimer).toBeCloseTo(8.0, 5);
+    // 8,0t vindu − 0,5t pause = 7,5t arbeid (= dagsnorm; kappet dag yter normen).
+    expect(arbeidsTimer(f)).toBeCloseTo(7.5, 5);
   });
 
   it("5. UF-1 append: play viker for overlappende manuell rad, sedelen er pre-fylt", () => {
@@ -261,6 +300,206 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
 });
 
 /**
+ * L1-B fasit-dagene (helhetsplan § 4b). `beregnDagsforslag` er ren → normen er
+ * et INPUT (cachet server-svar via `effektivPerDato`), ikke noe funksjonen
+ * utleder. Forventet overtid regnes som `arbeid − norm` (ikke literal 8/7,5),
+ * jf. `ukenorm.ts:4` og gate-krav 3. Sesong-oppslaget selv (Dag F/G) testes mot
+ * server-servicen i api.
+ *
+ * Fixture: start/slutt kontor «o1», destinasjon byggeplass «b1», ut+retur 2 t
+ * (reisetid, 120 min ≥ 30 min terskel).
+ */
+describe("beregnDagsforslag — L1-B fasit-dager (etapper + vindu)", () => {
+  function dagMedReise(
+    over: Partial<BeregnDagsforslagInput> = {},
+    reiseOver: Partial<
+      NonNullable<BeregnDagsforslagInput["reiseOppslag"]> & object
+    > = {},
+  ) {
+    return beregnDagsforslag(
+      lagInput({
+        dag: {
+          startAt: "2026-07-01T05:00:00",
+          startLat: 59.9,
+          startLng: 10.7,
+          oppmotestedId: "o1",
+          byggeplassId: null,
+        },
+        sluttIso: "2026-07-01T19:30:00",
+        endLat: 59.9,
+        endLng: 10.7,
+        destinasjonProsjektId: "p1",
+        effektivPerDato: { "2026-07-01": SOMMER_EFFEKTIV },
+        reiseOppslag: lagReise({
+          // slutt er kontor → retur-etappe.
+          slutt: { type: "kontor", oppmotestedId: "o1", byggeplassId: null },
+          utCelle: { kjoretidMin: 120, avstandM: 50000 },
+          returCelle: { kjoretidMin: 120, avstandM: 50000 },
+          ...reiseOver,
+        }),
+        ...over,
+      }),
+    );
+  }
+
+  it("Dag A (sommer, norm 8): ut 05:00–07:00, vindu 07:00–17:30, retur 17:30–19:30 → 8 ord + 2 OT50", () => {
+    const f = dagMedReise();
+    const norm = SOMMER_EFFEKTIV.dagsnorm; // 8 (cachet svar, ikke literal her)
+    // 10 t arbeid (vindu 10,5 − 0,5 pause). Reisen trukket via vinduet.
+    expect(arbeidsTimer(f)).toBeCloseTo(10, 5);
+    // Overtid = arbeid − norm (ikke hardkodet).
+    expect(ot50Timer(f)).toBeCloseTo(arbeidsTimer(f) - norm, 5); // 10 − 8 = 2
+    // To reise-rader (ut + retur), 2 t hver, null-tider.
+    const reiser = f.datoer[0]!.rader.filter((r) => r.erReise);
+    expect(reiser).toHaveLength(2);
+    expect(reiser.every((r) => r.fraTid === null && r.tilTid === null)).toBe(true);
+    expect(reiseTimer(f)).toBeCloseTo(4, 5);
+    // Normaltid-vinduet starter ved arbeidsstart 07:00.
+    const normalt = f.datoer[0]!.rader.find(
+      (r) => !r.erReise && r.lonnsartId === L_NORMAL,
+    );
+    expect(normalt!.fraTid).toBe("07:00");
+  });
+
+  it("🔴 Dobbelttrekk: Dag A gir nøyaktig 8 ord + 2 OT50 (ikke 6 + 2) — reisen trekkes ÉN gang", () => {
+    const f = dagMedReise();
+    const normalt = f.datoer[0]!.rader
+      .filter((r) => !r.erReise && r.lonnsartId === L_NORMAL)
+      .reduce((s, r) => s + r.timer, 0);
+    expect(normalt).toBeCloseTo(8, 5); // 8, IKKE 6 (reisen ikke trukket to ganger)
+    expect(ot50Timer(f)).toBeCloseTo(2, 5);
+  });
+
+  it("Invariant: Σ carvede arbeids-vinduer + pause = arbeidsslutt − arbeidsstart (Dag A)", () => {
+    const f = dagMedReise();
+    const dag = f.datoer[0]!;
+    const arbeid = dag.rader
+      .filter((r) => !r.erReise)
+      .reduce((s, r) => s + r.timer, 0);
+    const pauseTimer = dag.pauseMin / 60;
+    // arbeidsstart 07:00, arbeidsslutt 17:30 → 10,5 t.
+    expect(arbeid + pauseTimer).toBeCloseTo(10.5, 5);
+  });
+
+  it("🔴 Dag E: Dag A med reisetidTellerOvertid = true → NØYAKTIG samme svar (normen ikke senket)", () => {
+    const a = dagMedReise();
+    const e = dagMedReise({
+      regel: {
+        reiseTerskelEnhet: "minutter",
+        reiseTerskelMin: 30,
+        reiseTerskelM: null,
+        reiseUnderTerskelType: "arbeidstid",
+        reiseOverTerskelType: "reisetid",
+        tidsrundingMinutter: null,
+        reisetidTellerOvertid: true, // flagget PÅ — skal ikke endre noe (V1)
+        standardPauseEtterTimer: 4.0,
+      },
+    });
+    expect(ot50Timer(e)).toBeCloseTo(ot50Timer(a), 5); // 2, ikke senket med ut+retur
+    expect(arbeidsTimer(e)).toBeCloseTo(arbeidsTimer(a), 5);
+  });
+
+  it("Dag B (start 07:00): ut 07:00–09:00, vindu 09:00–17:30, pause 13:00–13:30 (ankomst) → 8 ord, 0 OT", () => {
+    const f = dagMedReise({
+      dag: {
+        startAt: "2026-07-01T07:00:00",
+        startLat: 59.9,
+        startLng: 10.7,
+        oppmotestedId: "o1",
+        byggeplassId: null,
+      },
+    });
+    // Vindu 09:00–17:30 = 8,5 − 0,5 pause = 8 t = norm → alt normaltid.
+    expect(arbeidsTimer(f)).toBeCloseTo(8, 5);
+    expect(ot50Timer(f)).toBeCloseTo(0, 5);
+    const normalt = f.datoer[0]!.rader.find(
+      (r) => !r.erReise && r.lonnsartId === L_NORMAL,
+    );
+    expect(normalt!.fraTid).toBe("09:00"); // arbeidsstart etter ut-etappen
+    // Pause (ankomst): arbeidsstart 09:00 + 4 t = 13:00. Bæreren har pauseMin 30
+    // og et klokke-gap på 30 min ved 13:00–13:30.
+    expect(normalt!.pauseMin).toBe(30);
+  });
+
+  it("Dag C: start i kontor OG byggeplass, destinasjon = samme byggeplass → ingen etappe", () => {
+    const f = dagMedReise(
+      {},
+      {
+        start: { type: "kontor", oppmotestedId: "o1", byggeplassId: "b1" },
+        slutt: { type: "kontor", oppmotestedId: "o1", byggeplassId: "b1" },
+        destinasjon: { type: "byggeplass", byggeplassId: "b1" },
+      },
+    );
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise)).toHaveLength(0);
+    // Ingen vindu-trekk → vindu = fullt spenn 05:00–19:30 = 14,5 − 0,5 = 14 t.
+    expect(arbeidsTimer(f)).toBeCloseTo(14, 5);
+  });
+
+  it("🔴 Dag D: byggeplass uten matrisecelle → ingen etappe, reiseAarsak = 'mangler_matrise'", () => {
+    const f = dagMedReise({}, { utCelle: null, returCelle: null });
+    expect(f.reiseAarsak).toBe("mangler_matrise");
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise)).toHaveLength(0);
+    // Ingen ut-etappe → arbeidsstart = start-GPS 05:00.
+    const normalt = f.datoer[0]!.rader.find(
+      (r) => !r.erReise && r.lonnsartId === L_NORMAL,
+    );
+    expect(normalt!.fraTid).toBe("05:00");
+  });
+
+  it("§2 prosjektUkjent: ingen destinasjon OG ingen aktivtProsjektId → dagen åpen, prosjektId null", () => {
+    const f = beregnDagsforslag(
+      lagInput({ aktivtProsjektId: null, destinasjonProsjektId: null }),
+    );
+    expect(f.prosjektUkjent).toBe(true);
+    expect(f.prosjektId).toBeNull();
+    expect(f.datoer).toHaveLength(0);
+  });
+
+  it("§2 prosjektvalg: destinasjonProsjektId vinner over aktivtProsjektId", () => {
+    const f = beregnDagsforslag(
+      lagInput({ aktivtProsjektId: "p-aktiv", destinasjonProsjektId: "p-dest" }),
+    );
+    expect(f.prosjektId).toBe("p-dest");
+  });
+
+  it("🔴 B6.3 trinn 3 (norm ukjent): dagsnorm 0 → INGEN overtid-splitt, alt på standard-art", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        sluttIso: "2026-10-01T18:00:00", // 11t spenn → 10,5t arbeid
+        effektivPerDato: {
+          "2026-10-01": {
+            startTid: "07:00",
+            sluttTid: "15:00",
+            pauseMin: 30,
+            dagsnorm: 0, // ukjent → ingen norm å dele mot
+            normStatus: "ukjent",
+          },
+        },
+      }),
+    );
+    // Alle arbeidstimer på standard-lønnsarten (ingen OT50), selv over 7,5t.
+    expect(ot50Timer(f)).toBe(0);
+    expect(
+      f.datoer[0]!.rader.every(
+        (r) => r.erReise || r.lonnsartId === L_NORMAL,
+      ),
+    ).toBe(true);
+    expect(f.normStatus).toBe("ukjent");
+  });
+
+  it("B6.3 normStatus bæres fra start-dagens svar til forslaget (cachet)", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        effektivPerDato: {
+          "2026-10-01": { ...STD_EFFEKTIV, normStatus: "cachet" },
+        },
+      }),
+    );
+    expect(f.normStatus).toBe("cachet");
+  });
+});
+
+/**
  * H7 (LAG 0b commit 2) — rekkefølgen: «avsluttet» settes KUN når skrivingen
  * lyktes. `avgjorSluttDagHandling` + `skalMarkereAvsluttet` er den rene,
  * injiserbare rekkefølge-logikken (trukket ut av `useCallback`), så den kan
@@ -279,6 +518,7 @@ function lagResultat(
     ingenRader: false,
     harEksisterendeRader: false,
     vekForOverlapp: [],
+    prosjektUkjent: false,
     ...over,
   };
 }
@@ -293,6 +533,14 @@ describe("H7 — avgjorSluttDagHandling: dagen lukkes kun når skrivingen lyktes
   it("kildeManglet (startSheetId null): dagen står ÅPEN + eget utfall (rød-først — i dag er den stum)", () => {
     const h = avgjorSluttDagHandling(lagResultat({ startSheetId: null, ingenRader: true }));
     expect(h.type).toBe("kildeManglet");
+    expect(skalMarkereAvsluttet(h)).toBe(false);
+  });
+
+  it("§2 prosjektUkjent (startSheetId null + prosjektUkjent): dagen ÅPEN, eget utfall ≠ kildeManglet", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({ startSheetId: null, ingenRader: true, prosjektUkjent: true }),
+    );
+    expect(h.type).toBe("prosjektUkjent");
     expect(skalMarkereAvsluttet(h)).toBe(false);
   });
 

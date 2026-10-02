@@ -937,6 +937,9 @@ function StandardArbeidstidSeksjon() {
   const [tidsrunding, setTidsrunding] = useState<string>("15");
   // Slice 4b-2: arbeidstids-varsel-terskel (timer/dagsseddel). 13 default, 16 tariff.
   const [arbeidstidVarsel, setArbeidstidVarsel] = useState<string>("13");
+  // B6 v3 (V16): dagsnorm-kilde. B3 (V6): pausevinduets referanse.
+  const [normKilde, setNormKilde] = useState<string>("fast");
+  const [pauseReferanse, setPauseReferanse] = useState<string>("ankomst");
   const [skitten, setSkitten] = useState(false);
 
   useEffect(() => {
@@ -949,6 +952,8 @@ function StandardArbeidstidSeksjon() {
         setting.tidsrundingMinutter === null ? "none" : String(setting.tidsrundingMinutter),
       );
       setArbeidstidVarsel(String(setting.arbeidstidVarselTimer));
+      setNormKilde(setting.normKilde ?? "fast");
+      setPauseReferanse(setting.pauseReferanse ?? "ankomst");
       setSkitten(false);
     }
   }, [setting]);
@@ -975,6 +980,8 @@ function StandardArbeidstidSeksjon() {
         standardPauseEtterTimer: pauseEtterTimer,
         tidsrundingMinutter: tidsrundingVerdi,
         arbeidstidVarselTimer: Number(arbeidstidVarsel),
+        normKilde: normKilde as "fast" | "kalender",
+        pauseReferanse: pauseReferanse as "fastStart" | "ankomst",
       },
       { onSuccess: () => setSkitten(false) },
     );
@@ -1110,6 +1117,56 @@ function StandardArbeidstidSeksjon() {
         />
         <p className="mt-1 text-xs text-gray-500">
           {t("firma.innstillinger.standardArbeidstid.arbeidstidVarselHjelp")}
+        </p>
+      </div>
+
+      {/* B6 v3 (V16): dagsnorm-kilde — fast (lovnorm) vs kalender (sesong). */}
+      <div className="mt-3">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.standardArbeidstid.normKilde")}
+        </label>
+        <select
+          value={normKilde}
+          onChange={(e) => {
+            setNormKilde(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none sm:max-w-xs"
+        >
+          <option value="fast">
+            {t("firma.innstillinger.standardArbeidstid.normKildeFast")}
+          </option>
+          <option value="kalender">
+            {t("firma.innstillinger.standardArbeidstid.normKildeKalender")}
+          </option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.standardArbeidstid.normKildeHjelp")}
+        </p>
+      </div>
+
+      {/* B3 (V6): pausevinduets referanse — ankomst (etter reise) vs fast start. */}
+      <div className="mt-3">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.standardArbeidstid.pauseReferanse")}
+        </label>
+        <select
+          value={pauseReferanse}
+          onChange={(e) => {
+            setPauseReferanse(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none sm:max-w-xs"
+        >
+          <option value="ankomst">
+            {t("firma.innstillinger.standardArbeidstid.pauseReferanseAnkomst")}
+          </option>
+          <option value="fastStart">
+            {t("firma.innstillinger.standardArbeidstid.pauseReferanseFastStart")}
+          </option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.standardArbeidstid.pauseReferanseHjelp")}
         </p>
       </div>
 

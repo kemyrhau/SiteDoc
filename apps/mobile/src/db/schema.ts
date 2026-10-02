@@ -599,6 +599,29 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
 });
 
 /**
+ * arbeidstid_svar_local — B6 v3 (L1-B): cachet SVAR fra serverens ene
+ * norm-utledning (`organisasjon.hentEffektivArbeidstid`), pr. (firma, dato).
+ * Telefonen REGNER ikke lønnsnormen — den leser dette svaret. Hentes ved Start/
+ * Slutt dag, sedel-åpning, «+ Ny» og pull-sync. KUN lokal, synkes aldri opp.
+ */
+export const arbeidstidSvarLocal = sqliteTable(
+  "arbeidstid_svar_local",
+  {
+    organizationId: text("org_id").notNull(),
+    dato: text("dato").notNull(), // ISO YYYY-MM-DD
+    dagsnorm: real("dagsnorm").notNull(),
+    startTid: text("start_tid").notNull(),
+    sluttTid: text("slutt_tid").notNull(),
+    pauseMin: integer("pause_min").notNull(),
+    normKilde: text("norm_kilde").notNull(), // "fast" | "kalender"
+    pauseEtterTimer: real("pause_etter_timer").notNull(),
+    pauseReferanse: text("pause_referanse").notNull(), // "fastStart" | "ankomst"
+    hentetAt: integer("hentet_at").notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.organizationId, t.dato] }) }),
+);
+
+/**
  * sjekkliste_local — offline-katalog for sjekklistelista (Offline-sjekklister
  * fase 1, 2026-09-11). Speiler KUN det lista viser/filtrerer på (målt mot
  * app/sjekkliste/index.tsx + dokumentliste/dokumentlisteFilter.ts) — ikke hele

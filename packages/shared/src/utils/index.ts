@@ -30,7 +30,7 @@ export {
 export type { Punkt, ScaleKilde } from "./maaling";
 export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, RADIUS_GRENSER } from "./sted";
 export type { GpsPunkt, Geofence, Treff, TolketSted, Startsted, Sluttsted, Destinasjon, VelgDestinasjonArgs } from "./sted";
-export { klassifiserReise, estimerReisetidMin, løsReiseLonnsartId, REISE_LONNSART_REGEX } from "./reise";
+export { klassifiserReise, løsReiseLonnsartId, REISE_LONNSART_REGEX } from "./reise";
 export type { ReiseKategori, ReiseRegelsett, ReiseEnhet, ReiseMaaling, ReiseGrensepunkt } from "./reise";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";

@@ -69,7 +69,10 @@ import {
   fjernMatpause,
 } from "../../src/services/matpause";
 import { useMiniToast, MiniToast } from "../../src/components/MiniToast";
-import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import {
+  hentDagsnormLokalt,
+  hentOgCacheArbeidstidSvar,
+} from "../../src/services/arbeidstidSvarKatalog";
 import {
   hentStandardLonnsartLokalt,
   harOvertidLonnsartLokalt,
@@ -414,17 +417,31 @@ export default function DagsseddelDetalj() {
     return hentStandardLonnsartLokalt(sedel.organizationId) == null;
   }, [sedel?.autoGenerert, sedel?.organizationId]);
 
-  // Topp-sum-norm = sesongjustert dagsnorm fra firma-kalender (fase-0:1041),
-  // decouplet fra start/slutt-vinduet: en kort dag er gyldig og akseptert (blå),
-  // ikke en falsk «under norm»-alarm fra full-dag-prefill.
-  const normTimer = useMemo(() => {
-    if (!sedel) return null;
-    const effektiv = hentEffektivArbeidstidLokal(
+  // B6 v3: hent serverens norm-SVAR for sedelens dato ved åpning (femte
+  // hente-sted), så en sedel laget på en annen enhet får normen sin. Best-effort;
+  // offline beholder cachen. `normNonce` tvinger re-les når svaret er cachet.
+  const svarUtils = trpc.useUtils();
+  const [normNonce, settNormNonce] = useState(0);
+  useEffect(() => {
+    if (!sedel?.organizationId || !sedel?.dato) return;
+    void hentOgCacheArbeidstidSvar(
+      svarUtils.client,
       sedel.organizationId,
-      new Date(`${sedel.dato}T00:00:00`),
-    );
-    return effektiv.dagsnorm;
-  }, [sedel]);
+      sedel.dato,
+    ).then((ok) => {
+      if (ok) settNormNonce((n) => n + 1);
+    });
+  }, [sedel?.organizationId, sedel?.dato, svarUtils]);
+
+  // Topp-sum-normen LESES fra svar-cachen (server-utledet), REGNES aldri lokalt.
+  // `null` = norm ukjent (→ "norm ukjent", ikke et gjettet tall).
+  const normSvar = useMemo(() => {
+    if (!sedel) return null;
+    return hentDagsnormLokalt(sedel.organizationId, sedel.dato);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedel, normNonce]);
+  const normTimer = normSvar?.dagsnorm ?? null;
+  const normStatus = normSvar?.normStatus ?? "ukjent";
 
   const totaltimer = useMemo(
     () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
@@ -756,6 +773,19 @@ export default function DagsseddelDetalj() {
         dato={sedel.dato}
         ekskluderSheetId={sedel.id}
       />
+
+      {/* B6.3-markør: normen er ikke dagens server-svar. "ukjent" = ingen
+          overtid-splitt (UNDERbetaling-risiko) → aldri stille. Lag 3 flytter
+          markøren til bekreftelsesskjermen. */}
+      {normStatus !== "server" && (
+        <View className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <Text className="text-xs text-amber-800">
+            {normStatus === "ukjent"
+              ? t("timer.normMarkor.ukjent.banner")
+              : t("timer.normMarkor.cachet.banner")}
+          </Text>
+        </View>
+      )}
 
       {/* U1: topp-sum — dagens registrerte timer vs norm, synlig uten scroll
           (flyttet fra bunn-handlingsblokken). Fast over ScrollView; vises i

@@ -637,6 +637,24 @@ export function kjorMigreringer() {
     );
   `);
 
+  // B6 v3 (L1-B) — cachet SVAR fra serverens norm-utledning, pr. (firma, dato).
+  // Telefonen leser normen herfra (regner den aldri). Lokal, synkes aldri opp.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS arbeidstid_svar_local (
+      org_id TEXT NOT NULL,
+      dato TEXT NOT NULL,
+      dagsnorm REAL NOT NULL,
+      start_tid TEXT NOT NULL,
+      slutt_tid TEXT NOT NULL,
+      pause_min INTEGER NOT NULL,
+      norm_kilde TEXT NOT NULL,
+      pause_etter_timer REAL NOT NULL,
+      pause_referanse TEXT NOT NULL,
+      hentet_at INTEGER NOT NULL,
+      PRIMARY KEY (org_id, dato)
+    );
+  `);
+
   // T.5 (2026-05-16) — tidsrunding for picker-input. null = ingen avrunding.
   // Idempotent ALTER for klienter som allerede har T4-d-tabellen uten kolonnen.
   try {

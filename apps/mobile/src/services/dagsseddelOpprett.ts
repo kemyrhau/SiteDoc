@@ -2,7 +2,7 @@ import { eq, and } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { dagsseddelLocal } from "../db/schema";
 import { hentDatabase } from "../db/database";
-import { hentEffektivArbeidstidLokal } from "./kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 
 /**
  * UF-0 (2026-06-22) — delt find-or-create for dagsseddel.
@@ -89,7 +89,7 @@ export function finnEllerOpprettDagsseddel(
   let endAt = args.endAt;
   let pauseMin = args.pauseMin;
   if (startAt === undefined || endAt === undefined || pauseMin === undefined) {
-    const effektiv = hentEffektivArbeidstidLokal(
+    const effektiv = hentArbeidsdagTiderLokalt(
       args.orgId,
       new Date(`${args.dato}T00:00:00`),
     );

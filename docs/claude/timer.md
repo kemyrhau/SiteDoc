@@ -270,7 +270,13 @@ Eksempel: 10t totalt → Timelønn 7,5t + Overtid 50% 2,5t. Bruker justerer til 
 
 Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger lønnsart manuelt.
 
-> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `StartSluttDagKort.genererForslag`. **Reise-kobling (Fase 3 § B):** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget (`arbeidstimer = total − reisetid`, ingen dobbelttelling av brutto). `reisetidTellerOvertid` styrer terskelen: `false` (default) → dagsnorm gjelder kun arbeidstimene (reise utenfor overtid); `true` → reise spiser av dagsnorm (`dagsnorm − reisetid`), så mer arbeidstid havner i overtid. Når server-motoren bygges arver den samme kontrakt.
+> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `beregnDagsforslag` (`apps/mobile/src/utils/dagsforslag.ts`, ren, skilt fra skrivingen i lag 0b). **Reise-kobling:** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget.
+>
+> 🟢 **L1-B (branch `feat/timer-reiseetapper`, 2026-10-02 — venter merge) endrer modellen (hjemmel V1–V16):**
+> - **Reise = etapper** (`beregnReiseEtapper`): ut (kontor→destinasjon) + retur (destinasjon→kontor). **Arbeidsvinduet er eneste trekkmekanisme:** `arbeidsstart = startGPS + ut`, `arbeidsslutt = sluttGPS − retur`, `arbeidstimer = arbeidsslutt − arbeidsstart − pause`. Den gamle `total − reisetid`-subtraksjonen er FJERNET (dobbelttrekk med etapper i begge ender).
+> - **`reisetidTellerOvertid` leses IKKE lenger** (V1: reisetid er aldri overtid). Kolonnen deprecates; normen er alltid `dagsnorm0`.
+> - **Prosjektvalg via A5** (`velgDestinasjon`, `@sitedoc/shared`): destinasjon → `aktivtProsjektId` → `prosjektUkjent`. `velgNaermesteProsjekt` + `prosjekter[0]`-fallback + `resolverPrimaerByggeplass` + `estimerReisetidMin` SLETTET.
+> - **Norm = én server-utledning (B6 v3, H22):** `OrganizationSetting.normKilde` (`fast`=lovnorm/7,5-kolonnen · `kalender`=sesongutledet) + `pauseReferanse` (`ankomst`/`fastStart`). `hentEffektivArbeidstid`-servicen er eneste utledning; server-varsel + web-sedel kaller den pr. dato. Mobilen REGNER ikke normen — den cacher serverens svar pr. dato (`arbeidstid_svar_local`, lokal migrering) og leser via `hentDagsnormLokalt` (`server`/`cachet≤30d`/`null`, aldri 7,5). Ukjent norm → ingen overtid-splitt + markør (varsel + banner). Migrering `20261002130000_timer_normkilde_pausereferanse` (Prisma, backfill sommertid→kalender) — **ikke kjørt**.
 
 #### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
 

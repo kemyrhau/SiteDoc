@@ -21,7 +21,6 @@ import { useTimerSync } from "../providers/TimerSyncProvider";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "../utils/dagsegment";
 import {
   beregnDagsforslag,
-  velgNaermesteProsjekt,
   avgjorSluttDagHandling,
   skalMarkereAvsluttet,
   MAKS_ENKELTSKIFT_TIMER,
@@ -29,6 +28,7 @@ import {
   type DagsforslagEffektiv,
   type DagsforslagEksisterendeSedel,
 } from "../utils/dagsforslag";
+import { tolkStart, tolkSlutt, velgDestinasjon } from "@sitedoc/shared";
 import { anvendDagsforslag } from "../utils/dagsforslagAnvend";
 import {
   useArbeidsdag,
@@ -38,23 +38,31 @@ import {
   type AktivDag,
 } from "../hooks/useArbeidsdag";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
-import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "../services/kalenderKatalog";
+import {
+  hentDagsnormLokalt,
+  hentOgCacheArbeidstidSvar,
+} from "../services/arbeidstidSvarKatalog";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
 } from "../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../services/organizationSettingKatalog";
+import { hentMatriseRadLokalt } from "../services/reisetidMatriseKatalog";
 import {
-  hentMatriseRadLokalt,
-  resolverPrimaerByggeplass,
-} from "../services/reisetidMatriseKatalog";
+  hentByggeplasserForFirmaLokalt,
+  hentByggeplasserForProsjektLokalt,
+} from "../services/byggeplassKatalog";
+import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { hentReiseGrensepunkterLokalt } from "../services/reiseGrensepunktKatalog";
+import { trpc } from "../lib/trpc";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
 export function StartSluttDagKort() {
   const { t } = useTranslation();
   const router = useRouter();
+  const utils = trpc.useUtils();
   const { bruker } = useAuth();
   const { valgtFirmaId } = useFirma();
   // F4: timer-utkast defaulter byggeplass GPS → global kontekst → ingen.
@@ -97,6 +105,18 @@ export function StartSluttDagKort() {
       if (!db) return;
       const orgId = valgtFirmaId ?? "";
       const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
+      // B6 v3: hent serverens norm-SVAR for de berørte datoene (start + slutt,
+      // midnatt gir to) FØR lese-fasen, så forslaget bruker fersk norm når nett
+      // finnes. Best-effort — offline beholder cachen (markøren signaliserer).
+      const berorteDatoer = new Set<string>([
+        formatIsoDato(new Date(aktivDag.startAt)),
+        formatIsoDato(new Date(sluttIso)),
+      ]);
+      await Promise.all(
+        Array.from(berorteDatoer).map((d) =>
+          hentOgCacheArbeidstidSvar(utils.client, orgId, d),
+        ),
+      );
       // LAG 0b: tre faser — LES (samle alt DB-kunnskapen) → REGN UT (ren
       // beregnDagsforslag, ingen DB) → SKRIV (anvendDagsforslag). Splitten
       // lukker at «avsluttet» ble satt uten å vite utfallet av skrivingen.
@@ -145,6 +165,19 @@ export function StartSluttDagKort() {
       switch (handling.type) {
         case "suksess":
           router.push(`/timer/${handling.sheetId}`);
+          // B6.3-markør: normen var ikke dagens server-svar → si det (banneret på
+          // sedelen står også). "ukjent" = ingen overtid-splitt (UNDERbetaling).
+          if (forslag.normStatus === "ukjent") {
+            Alert.alert(
+              t("timer.normMarkor.ukjent.tittel"),
+              t("timer.normMarkor.ukjent.melding"),
+            );
+          } else if (forslag.normStatus === "cachet") {
+            Alert.alert(
+              t("timer.normMarkor.cachet.tittel"),
+              t("timer.normMarkor.cachet.melding"),
+            );
+          }
           break;
         case "blokkertSendt":
           // Dagen står ÅPEN — timene reddes ved at lederen returnerer sedelen.
@@ -184,11 +217,20 @@ export function StartSluttDagKort() {
             t("timer.kildeManglet.melding"),
           );
           break;
+        case "prosjektUkjent":
+          // §2: A5 fant ingen destinasjon og arbeideren har ikke valgt prosjekt.
+          // Dagen står ÅPEN; meldingen navngir veien ut (velg prosjekt, prøv
+          // igjen) — et utfall uten stemme er verre enn et som blokkerer.
+          Alert.alert(
+            t("timer.prosjektUkjent.tittel"),
+            t("timer.prosjektUkjent.melding"),
+          );
+          break;
       }
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler, utils]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som
@@ -213,19 +255,23 @@ export function StartSluttDagKort() {
   const gjenopprettGlemtDag = useCallback(() => {
     if (!aktivDag || behandler) return;
     const startDato = formatIsoDato(new Date(aktivDag.startAt));
-    const effektiv = hentEffektivArbeidstidLokal(
+    // Estimatet (ikke lønn): tider fra lokal utledning, norm fra svar-cachen med
+    // 7,5t-fallback når normen er ukjent. Arbeider korrigerer uansett.
+    const tider = hentArbeidsdagTiderLokalt(
       valgtFirmaId ?? "",
       new Date(`${startDato}T00:00:00`),
     );
+    const norm = hentDagsnormLokalt(valgtFirmaId ?? "", startDato);
     const start = new Date(aktivDag.startAt);
-    const [tt, mm] = effektiv.sluttTid.split(":").map(Number);
+    const [tt, mm] = tider.sluttTid.split(":").map(Number);
     let slutt = new Date(start);
     slutt.setHours(tt, mm, 0, 0);
     // Nattskift-edge (4b-2): standardSluttTid ligger før start-klokkeslettet →
     // 0/negativ varighet. Estimer i stedet start + dagsnorm (krysser evt.
     // midnatt → 4a-splitt håndterer det). Arbeider korrigerer uansett.
     if (slutt.getTime() <= start.getTime()) {
-      const dagsnormTimer = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : 7.5;
+      const dagsnormTimer =
+        norm?.dagsnorm && norm.dagsnorm > 0 ? norm.dagsnorm : 7.5;
       slutt = new Date(start.getTime() + dagsnormTimer * 3_600_000);
     }
     void utforSluttDag(slutt.toISOString(), "system");
@@ -405,26 +451,72 @@ function samleDagsforslagInput(
       }
     : null;
 
-  // Reise-oppslag: matrise-rad (oppmøtested → prosjektets primær-byggeplass) +
-  // grensepunkter + fallback-reiselønnsart. Prosjektet velges med SAMME rene
-  // helper som `beregnDagsforslag` bruker → ingen divergens.
+  // Reise-oppslag (A3/A4/A5): tolk start-/slutt-posisjon mot firmaets geofencer,
+  // velg destinasjon, og slå opp ut-/retur-matrisecellene. §2: prosjektvalget
+  // følger destinasjonen (byggeplassens prosjekt) → arbeiderens aktive prosjekt
+  // → prosjektUkjent. 🔴 `velgNaermesteProsjekt`/`resolverPrimaerByggeplass`
+  // (nærmeste-uten-grense + primærbyggeplass) er erstattet av A5.
   let reiseOppslag: BeregnDagsforslagInput["reiseOppslag"] = null;
-  if (dag.oppmotestedId && regel && prosjekter.length > 0) {
-    const valgtProsjekt = velgNaermesteProsjekt(
-      prosjekter,
-      dag.startLat ?? p.endLat,
-      dag.startLng ?? p.endLng,
+  let destinasjonProsjektId: string | null = null;
+  if (regel) {
+    const alleByggeplasser = hentByggeplasserForFirmaLokalt(orgId);
+    const byggGeofencer = alleByggeplasser.filter(
+      (b): b is typeof b & { lat: number; lng: number; radiusM: number } =>
+        b.lat != null && b.lng != null && b.radiusM != null,
     );
-    const byggeplassId = resolverPrimaerByggeplass(
-      valgtProsjekt.id,
-      dag.oppmotestedId,
+    const oppmGeofencer = hentOppmotederLokalt(orgId).filter(
+      (o): o is typeof o & { lat: number; lng: number; radiusM: number } =>
+        o.lat != null && o.lng != null && o.radiusM != null,
     );
-    const rad = byggeplassId
-      ? hentMatriseRadLokalt(dag.oppmotestedId, byggeplassId)
-      : null;
+    const startPos =
+      dag.startLat != null && dag.startLng != null
+        ? { lat: dag.startLat, lng: dag.startLng }
+        : null;
+    const sluttPos =
+      p.endLat != null && p.endLng != null
+        ? { lat: p.endLat, lng: p.endLng }
+        : null;
+    const start = tolkStart(startPos, oppmGeofencer, byggGeofencer);
+    const slutt = tolkSlutt(sluttPos, oppmGeofencer, byggGeofencer);
+    // A5-regel (3): prosjektets byggeplasser = arbeiderens AKTIVE prosjekt (§2).
+    const prosjektByggeplasser = p.aktivtProsjektId
+      ? hentByggeplasserForProsjektLokalt(p.aktivtProsjektId).map((b) => ({
+          id: b.id,
+          harPunkt: b.lat != null && b.lng != null,
+        }))
+      : [];
+    const destinasjon = velgDestinasjon({
+      sluttsted: slutt,
+      kontekstByggeplassId: p.kontekstByggeplassId,
+      prosjektByggeplasser,
+    });
+    if (destinasjon.type === "byggeplass") {
+      destinasjonProsjektId =
+        alleByggeplasser.find((b) => b.id === destinasjon.byggeplassId)
+          ?.projectId ?? null;
+    }
+    // Matriseceller: ut fra start-oppmøtested, retur fra slutt-oppmøtested —
+    // begge mot destinasjonen (A5). hentMatriseRadLokalt beholdt.
+    const utRad =
+      start.type === "kontor" && destinasjon.type === "byggeplass"
+        ? hentMatriseRadLokalt(start.oppmotestedId, destinasjon.byggeplassId)
+        : null;
+    const returRad =
+      slutt.type === "kontor" && destinasjon.type === "byggeplass"
+        ? hentMatriseRadLokalt(slutt.oppmotestedId, destinasjon.byggeplassId)
+        : null;
     reiseOppslag = {
-      matriseRad: rad
-        ? { kjoretidMin: rad.kjoretidMin, avstandM: rad.avstandM ?? null }
+      start,
+      slutt,
+      destinasjon,
+      utCelle: utRad
+        ? { kjoretidMin: utRad.kjoretidMin, avstandM: utRad.avstandM ?? null }
+        : null,
+      returCelle: returRad
+        ? {
+            kjoretidMin: returRad.kjoretidMin,
+            avstandM: returRad.avstandM ?? null,
+          }
         : null,
       grensepunkter: hentReiseGrensepunkterLokalt(orgId),
       // Uten avstand → fallback-arten (regel.reiseLonnsartId ?? navne-match),
@@ -437,12 +529,11 @@ function samleDagsforslagInput(
   // eksisterende-sedel for. Samme rene helpere (`kappGlemtDagSlutt` +
   // `splittVedMidnatt`) som `beregnDagsforslag` → identiske datoer.
   const startDato = formatIsoDato(new Date(dag.startAt));
-  const effektivStartDag = hentEffektivArbeidstidLokal(
-    orgId,
-    new Date(`${startDato}T00:00:00`),
-  );
+  // Lese-fasens kapp bestemmer kun HVILKE datoer vi leser for (den rene
+  // funksjonen gjør det reelle kappet). Grov norm fra svar-cachen, 7,5t-fallback.
+  const startNorm = hentDagsnormLokalt(orgId, startDato);
   const kappLengdeTimer =
-    effektivStartDag.dagsnorm > 0 ? effektivStartDag.dagsnorm : 7.5;
+    startNorm?.dagsnorm && startNorm.dagsnorm > 0 ? startNorm.dagsnorm : 7.5;
   const { sluttIso: effektivSluttIso } = kappGlemtDagSlutt(
     dag.startAt,
     p.sluttIso,
@@ -450,21 +541,24 @@ function samleDagsforslagInput(
   );
   const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
 
+  // effektivPerDato = tider (lokal utledning, forhåndsutfylling) + lønnsnorm
+  // (server-svar via svar-cachen). Mangler svar → dagsnorm 0 + normStatus
+  // "ukjent" (trinn 3: ingen overtid-splitt, markør vises).
   const effektivPerDato: Record<string, DagsforslagEffektiv> = {};
   const alleDatoer = new Set<string>([
     startDato,
     ...segmenter.map((s) => s.dato),
   ]);
   for (const dato of alleDatoer) {
-    const e = hentEffektivArbeidstidLokal(
-      orgId,
-      new Date(`${dato}T00:00:00`),
-    );
+    const tider = hentArbeidsdagTiderLokalt(orgId, new Date(`${dato}T00:00:00`));
+    const norm = hentDagsnormLokalt(orgId, dato);
     effektivPerDato[dato] = {
-      startTid: e.startTid,
-      sluttTid: e.sluttTid,
-      pauseMin: e.pauseMin,
-      dagsnorm: e.dagsnorm,
+      startTid: tider.startTid,
+      sluttTid: tider.sluttTid,
+      pauseMin: tider.pauseMin,
+      dagsnorm: norm?.dagsnorm ?? 0,
+      pauseReferanse: norm?.pauseReferanse ?? "ankomst",
+      normStatus: norm?.normStatus ?? "ukjent",
     };
   }
 
@@ -493,6 +587,7 @@ function samleDagsforslagInput(
     endLng: p.endLng,
     kontekstByggeplassId: p.kontekstByggeplassId,
     aktivtProsjektId: p.aktivtProsjektId,
+    destinasjonProsjektId,
     sisteSegmentKilde: p.sisteSegmentKilde,
     prosjekter,
     aktiviteter,
