@@ -116,6 +116,7 @@ forutsetningen for at GPS i det hele tatt får lov til å velge prosjekt.**
 | **H19** | **Eksporten bærer ingenting av sporbarheten.** Reise-rader går ut som vanlige timerader med lønnsartnavn — uten km, avstand, fra- eller til-sted. **Følger av H4: avstanden lagres aldri, så ingenting nedstrøms kan ha den** | `rapport.ts:465-470` | Usporbar lønn | **2** |
 | **H20** | **Ingen origo når dagen ikke starter på et kontor.** Ingen reise, ingen reserve, ingen kobling bruker → fast oppmøtested. `Oppmotested.avdelingId` finnes men har ingen leser, og mobil-cachen mangler feltet | `useArbeidsdag.ts:473`-gaten, `oppmotested.ts:98-104` | Manglende funksjon | **1** |
 | **H21** | 🔴 **Matrisen ARVER prosjektets koordinat når byggeplassen mangler punkt** — `b.latitude ?? b.project?.latitude`. Samme arving Kenneth fjernet fra origo-ordren 2026-10-01, men den har produsert reise-avstander for punktløse byggeplasser siden R3 (2026-06-11). Funnet under lag 1-målingen | `apps/api/src/services/reisetidMatrise.ts:67-74` | 🔴 **Feil lønn, stille** | **1** (C1 i lag 1-spec) |
+| **H22** | 🔴 **To normkilder i drift uten modus:** mobil utleder dagsnormen fra kalenderen (sesong), server-varsel og web-sedel leser den flate `dagsnorm`-kolonnen (7,5). Et kalender-firma får i dag riktig forslag på mobil om sommeren (8 t) og et attesteringsvarsel regnet mot 7,5 | `kalenderKatalog.ts:139-200` vs. `dagsseddel.ts:2767`, `timer/[id]/page.tsx:396` | Inkonsistens | **1** (V16) |
 
 🔴 **H15 er samme feilklasse som arvingen orkestratoren fjernet fra origo-ordren — men den står
 i koden i dag.** Det var KS-ens skarpeste funn.
@@ -143,6 +144,7 @@ gatet. Kode-referansene peker på det som skal endres, ikke på noe som virker.
 | **V13** | **Ingen regnefallback for manglende plassering.** Reservemålingen luftlinje/50 km/t (`StartSluttDagKort.tsx:494-507`, `reise.ts:165-172`) **fjernes**, og «mangler avstand → under terskel» (`reise.ts:91`) erstattes av «ingen reise». Mangler byggeplassen punkt, eller matrisen cellen, foreslås ingen reise — med årsak hos arbeideren | H16 | 1 |
 | **V14** | **Manglende plassering skal være synlig, ikke påkrevd.** Tre varsler: merke «mangler plassering — reise beregnes ikke» i byggeplasslista (`oppsett/byggeplasser`), teller på Reisetid-matrise-flaten i firmainnstillingene («N byggeplasser mangler punkt»), og årsak hos arbeideren (V12/V13). **Adressefeltet som alt finnes i `createByggeplassSchema` geokodes ved opprettelse** (geokodings-prosedyren finnes), så de fleste får punkt uten ekstra klikk. Kartmodalen overstyrer alltid. **Ingen arv fra prosjektets punkt** (fjernet fra origo-ordren 2026-10-01 — et prosjekt kan strekke seg over kilometer) | H3, K6 | 1 |
 | **V15** | 🟢 **Oppmøtested vinner over byggeplass ved start** (K2, 2026-10-02). Treffer start-GPS begge, er origo oppmøtestedet (`useArbeidsdag.ts:143-144` lagrer i dag begge uten å forene). Er første prosjekt det byggeplassen tilhører → avstand 0, ingen reise. Annet prosjekt → vanlig første etappe mot terskelen | H12 | 1 |
+| **V16** | 🟢 **Dagsnormen har to kilder, valgt pr. firma** (Kenneth 2026-10-02): **«fast»** = lovnorm 7,5 t (`OrganizationSetting.dagsnorm`, `schema.prisma:404`, default 7,5), uavhengig av sesong · **«kalender»** = utledet pr. dato som (slutt − start) − pause fra standarddagen, overstyrt av `sommertid_start`-raden (`kalenderKatalog.ts:139-200`). 🔴 **Alle tre leserne følger modusen i samme release:** mobil-forslag (utleder i dag), serverens attesteringsvarsel (`dagsseddel.ts:2767`, leser flat kolonne i dag) og web-sedelen (`timer/[id]/page.tsx:396`, flat kolonne). Ny kolonne `normKilde`, additiv | H22 | 1 |
 
 **Fasit-eksempler (Kenneths ord, 2026-10-01):**
 
@@ -316,7 +318,7 @@ bekreftelsessteget finnes, brytes G1.
 
 🔴 **Ingen av disse kan avgjøres av orkestratoren. Hver av dem endrer hva som bygges.**
 
-**Status 2026-10-02:** 🟢 K1, K2, K6, K7, K8, K9 vedtatt (regler i § 4b, V1–V15). 🔴 K3, K4, K5 åpne — ingen av dem blokkerer lag 1–3.
+**Status 2026-10-02:** 🟢 K1, K2, K6, K7, K8, K9 vedtatt (regler i § 4b, V1–V16). 🔴 K3, K4, K5 åpne — ingen av dem blokkerer lag 1–3.
 
 | # | Beslutning | Hvorfor den er din | Konsekvens av valget |
 |---|---|---|---|

@@ -176,6 +176,18 @@ A.Markussens *eksempel* (07:00–15:30 / 07:00–14:30), ikke en regel. **Det fi
 Et firma med 14:30 → 7. `dagsnorm`-kolonnen (`schema.prisma:404`, default 7,5) og fallbacken
 `dagsforslag.ts:420` (7,5) er samme tall av samme grunn.
 
+🟢 **V16 (Kenneth 2026-10-02): to tilfeller, valgt pr. firma.** Ny kolonne `OrganizationSetting.normKilde:
+"fast" | "kalender"` (additiv, i samme migrering som `pauseReferanse`). **«fast»** → dagsnorm =
+`OrganizationSetting.dagsnorm` (lovnorm 7,5, `schema.prisma:404`), sesong ignoreres; standarddagens tider
+brukes fortsatt til forhåndsutfylling og pausemodus `fastStart`. **«kalender»** → utledet som over.
+🔴 **Tre lesere, samme release (H22, stille-tomhet-lærdommen fra `ny_navigasjon`):** mobil-forslaget
+(`effektivPerDato`), serverens attesteringsvarsel (`dagsseddel.ts:2767` leser i dag flat kolonne
+uansett) og web-sedelens norm (`timer/[id]/page.tsx:396`, samme). Alle tre går gjennom én delt
+`hentDagsnorm(setting, kalender, dato)` i `packages/shared`. ⚠️ **Default `"kalender"`** — mitt valg:
+bevarer mobilens lønnsforslag for alle firmaer; serverens *varsel* endres for firmaer med sommertid-rader
+(fra 7,5 til utledet), og det er en rettelse, ikke en regresjon. Firmaer uten kalenderrader får 7,5 i
+begge moduser. UI: valg på `firma/innstillinger` ved siden av pausemodus, i18n ×15.
+
 **Krav til fasit-testene (gate-krav 1–3):** (1) hver dag navngir sesong og firmaets tider · (2) minst
 én dag kjøres utenfor sommerperioden med samme input · (3) **normen hentes gjennom samme utledning som
 produksjon** (`effektivPerDato` bygges av `hentEffektivArbeidstidLokal`-ekvivalenten fra en kalender-
@@ -187,8 +199,9 @@ hardkoder normen består selv om sesong-oppslaget er ødelagt (jf. `ukenorm.ts:4
 07:00–15:00/30 (vinter, utledet 7,5 t), `sommertid_start` 07:00–15:30/30 (sommer, utledet 8 t):**
 Dag A (sommer) → ut 05:00–07:00 (2 t, reisetid), arbeidsvindu 07:00–17:30, retur 17:30–19:30
 (slutt-GPS på kontor); 10 t arbeid − 8 t norm = 2 t OT50 · **Dag F (vinter, samme input som Dag A,
-dato utenfor sommerperioden)** → 10 t − 7,5 t = **2,5 t OT50**, og testen FEILER hvis den gir 2 t
-(sesong-oppslaget er da dødt) · Dag B (sommer) → ut 07:00–09:00,
+dato utenfor sommerperioden, `normKilde = kalender`)** → 10 t − 7,5 t = **2,5 t OT50**, og testen FEILER hvis
+den gir 2 t (sesong-oppslaget er da dødt) · **Dag G (sommer-dato, `normKilde = fast`, samme input som Dag A)**
+→ 10 t − 7,5 t = 2,5 t OT50, og testen FEILER hvis den gir 2 t (modusen leses ikke) · Dag B (sommer) → ut 07:00–09:00,
 arbeidsvindu 09:00–17:30 med pause 13:00–13:30 (`ankomst`) hhv. 11:00–11:30 (`fastStart`), retur
 17:30–19:30 · Dag C (ny): start innenfor kontor OG byggeplass, destinasjon = samme byggeplass → ingen
 etappe · **Dag E (ny, re-gate-krav): Dag A med `reisetidTellerOvertid = true` → nøyaktig samme svar som
@@ -230,7 +243,7 @@ CHECK (C3). Stille-tomhet-regelen (CLAUDE.md) er oppfylt for C3: backfill (a), g
 |---|---|---|---|
 | **L1-C** | Leveranse C (api + web): C1–C7 | ingen | `geofenceKilde` |
 | **L1-A** | Leveranse A (shared) + D-ryddingen av gjenkjenning (mobil) | ingen | — |
-| **L1-B** | Leveranse B (mobil) + B3-innstillingen (api + web) | L1-A | `pauseReferanse` |
+| **L1-B** | Leveranse B (mobil) + B3/B6-innstillingene (api + web) + de tre normleserne | L1-A | `pauseReferanse` + `normKilde` (én migrering) |
 
 L1-C og L1-A kan gå parallelt. L1-B sist. ⚠️ **Begge migreringene ligger i `packages/db` og blir
 sekvensielle fordi L1-B er sist — skriv rekkefølgen eksplisitt i ordrene (`geofenceKilde` før
