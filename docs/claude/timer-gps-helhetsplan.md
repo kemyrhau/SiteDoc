@@ -198,6 +198,8 @@ Linjetall uten prosedyrenavn er ikke en måling.
 📄 **Spesifikasjon: [timer-gps-lag1-spec.md](timer-gps-lag1-spec.md)** (fabel 2026-10-02, ⚠️ UTKAST TIL GATE).
 Leveranse A stedsmodell i shared · B reiseberegning i `beregnDagsforslag` · C datagrunnlag (fjerner H21-arven,
 `geofenceKilde`, tre varsler) · D rydding. Tre ordrer, to additive migreringer. Fem åpne punkter for gaten (§ 7).
+🟡 **BESTILT av Kenneth 2026-10-02** («bestill lag 1»), etter gate + re-gate. L1-C ∥ L1-A → L1-B. Rammer i
+`relay/inbox-orkestrator.md`. Migreringer `geofenceKilde` → `pauseReferanse`, Kenneth-gatet.
 
 🔴 **FORUTSETNING funnet 2026-10-02 (orkestrator, `SAMARBEIDSREGLER.md:1214`):** `packages/shared`
 typesjekkes aldri av regel 10 — 33 feil på ren develop, **3 i kilden (`signertBildePolicy.ts`)**.
@@ -342,8 +344,8 @@ bekreftelsessteget finnes, brytes G1.
 | **Lag 0c** (shared tsc) | 🟢 **LEVERT 2026-10-02** | `c78bc14f` — regel 10 er fire ledd, 10 pakker typesjekkes |
 
 🟢 **Lag 0 er komplett (0a · 0b · 0c).** 🔴 **Neste er lag 1-spesifikasjonen, skrevet av fabel fra
-V-reglene.** **Lag 1-spesifikasjonen er skrevet** ([timer-gps-lag1-spec.md](timer-gps-lag1-spec.md)) og ligger til gate hos
-orkestrator. Ingen kode-ordre før gaten er gitt. Ingen kode-ordre før spesifikasjonen er gatet.
+V-reglene.** **Lag 1 er gatet og BESTILT 2026-10-02** ([timer-gps-lag1-spec.md](timer-gps-lag1-spec.md)). Lag 2 spesifiseres av fabel
+når L1-B er merget — den trenger K5 (server-verifisering) fra Kenneth først. Ingen kode-ordre før spesifikasjonen er gatet.
 
 ---
 

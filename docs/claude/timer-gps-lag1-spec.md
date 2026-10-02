@@ -3,7 +3,7 @@ name: timer-gps-lag1-spec
 description: Spesifikasjon for LAG 1 i timer-GPS-helhetsplanen — én stedsmodell i @sitedoc/shared, reiseberegning etter V3/V5/V6/V7/V10/V11/V12/V13/V15, og datagrunnlag (V14). Skrevet av fabel 2026-10-02, gates av orkestrator før ordrer skrives.
 sist_verifisert_mot_kode: 2026-10-02
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 GATET 2026-10-02 (orkestrator) med ett avvik i B2 — rettet samme dag, B2 til re-gate før L1-B; L1-C og L1-A kan bestilles
+status: 🟡 BESTILT 2026-10-02 (Kenneth «bestill lag 1») — gatet av orkestrator, B2 re-gatet; L1-C ∥ L1-A nå, L1-B etter L1-A. Rammer i relay/inbox-orkestrator.md
 ---
 
 # LAG 1 — én stedsmodell og én reiseberegning
