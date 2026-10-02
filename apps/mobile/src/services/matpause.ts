@@ -9,7 +9,7 @@ import {
   pauseMinForDag,
   DEFAULT_PAUSE_ETTER_TIMER,
 } from "@sitedoc/shared";
-import { hentEffektivArbeidstidLokal } from "./kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
 
 /* ============================================================================
@@ -54,7 +54,7 @@ export function matpauseKontekst(
   const pauseEtterTimer =
     setting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
   const standardPauseMin = setting?.standardPauseMin ?? 30;
-  const skiftStart = hentEffektivArbeidstidLokal(
+  const skiftStart = hentArbeidsdagTiderLokalt(
     organizationId,
     new Date(`${dato}T00:00:00`),
   ).startTid;

@@ -461,6 +461,42 @@ describe("beregnDagsforslag — L1-B fasit-dager (etapper + vindu)", () => {
     );
     expect(f.prosjektId).toBe("p-dest");
   });
+
+  it("🔴 B6.3 trinn 3 (norm ukjent): dagsnorm 0 → INGEN overtid-splitt, alt på standard-art", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        sluttIso: "2026-10-01T18:00:00", // 11t spenn → 10,5t arbeid
+        effektivPerDato: {
+          "2026-10-01": {
+            startTid: "07:00",
+            sluttTid: "15:00",
+            pauseMin: 30,
+            dagsnorm: 0, // ukjent → ingen norm å dele mot
+            normStatus: "ukjent",
+          },
+        },
+      }),
+    );
+    // Alle arbeidstimer på standard-lønnsarten (ingen OT50), selv over 7,5t.
+    expect(ot50Timer(f)).toBe(0);
+    expect(
+      f.datoer[0]!.rader.every(
+        (r) => r.erReise || r.lonnsartId === L_NORMAL,
+      ),
+    ).toBe(true);
+    expect(f.normStatus).toBe("ukjent");
+  });
+
+  it("B6.3 normStatus bæres fra start-dagens svar til forslaget (cachet)", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        effektivPerDato: {
+          "2026-10-01": { ...STD_EFFEKTIV, normStatus: "cachet" },
+        },
+      }),
+    );
+    expect(f.normStatus).toBe("cachet");
+  });
 });
 
 /**

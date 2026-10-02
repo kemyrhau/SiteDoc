@@ -98,12 +98,20 @@ export type DagsforslagRegel = {
   standardPauseEtterTimer: number | null;
 };
 
-/** Effektiv arbeidstid for én dag (speiler `kalenderKatalog.EffektivArbeidstid`). */
+/**
+ * Effektiv arbeidstid for én dag — det cachede server-svaret (B6 v3). `dagsnorm`
+ * ≤ 0 (eller `normStatus === "ukjent"`) → ingen normaltid/overtid-splitt (trinn
+ * 3): alt på standard-lønnsarten, feilretning er UNDERbetaling → markør kreves.
+ */
 export type DagsforslagEffektiv = {
   startTid: string;
   sluttTid: string;
   pauseMin: number;
   dagsnorm: number;
+  /** B3 (V6): pausevinduets referanse. Default "ankomst" (fra arbeidsstart). */
+  pauseReferanse?: "fastStart" | "ankomst";
+  /** B6.3: svarets opphav — "server" (dagens dato), "cachet" (≤30d), "ukjent" (ingen). */
+  normStatus?: "server" | "cachet" | "ukjent";
 };
 
 /**
@@ -218,6 +226,12 @@ export type Dagsforslag = {
   reiseAarsak: ReiseAarsak | null;
   /** B5: A5-årsak når destinasjonen ikke kunne velges. null = destinasjon valgt. */
   destinasjonAarsak: "flere_byggeplasser" | "ingen_byggeplass_med_punkt" | null;
+  /**
+   * B6.3: normens opphav for START-dagen — "server"/"cachet"/"ukjent". `null`
+   * når forslaget ikke ble laget. Markøren (varsel + banner) vises når ≠ "server";
+   * "ukjent" betyr at forslaget er uten overtid-splitt (UNDERbetaling-risiko).
+   */
+  normStatus: "server" | "cachet" | "ukjent" | null;
   datoer: DagsforslagDag[];
 };
 
@@ -430,6 +444,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     prosjektUkjent: false,
     reiseAarsak: null,
     destinasjonAarsak: null,
+    normStatus: null,
     datoer: [],
   };
   const { dag, sluttIso, regel } = input;
@@ -573,6 +588,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     prosjektUkjent: false,
     reiseAarsak,
     destinasjonAarsak,
+    normStatus: effektivStartDag.normStatus ?? null,
     datoer,
   };
 }
@@ -668,10 +684,17 @@ function beregnSegment(a: {
     // Carve fra ARBEIDSSTART (etter ut-etappen), ikke segment-GPS-start.
     // reisetidTimer=0: vinduet har alt ekskludert reisen (B2).
     const arbeidsstartHHMM = tilHHMM(arbeidsstartIso);
+    // B3 (V6): pausevinduet. "fastStart" → fra firmaets sesongjusterte starttid;
+    // "ankomst" (default) → fra arbeidsstart (etter reisen) — legger aldri pausen
+    // i en reise.
+    const pauseFraTid =
+      a.effektiv?.pauseReferanse === "fastStart"
+        ? (a.effektiv?.startTid ?? arbeidsstartHHMM)
+        : arbeidsstartHHMM;
     const carvet = carveArbeidstider({
       startTid: arbeidsstartHHMM,
       reisetidTimer: 0,
-      pauseFra: pauseVinduFra(arbeidsstartHHMM, pauseEtterTimer),
+      pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
       pauseMin: a.pauseMin,
       segmenter: klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
     });

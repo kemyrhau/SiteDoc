@@ -38,7 +38,11 @@ import {
   type AktivDag,
 } from "../hooks/useArbeidsdag";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
-import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "../services/kalenderKatalog";
+import {
+  hentDagsnormLokalt,
+  hentOgCacheArbeidstidSvar,
+} from "../services/arbeidstidSvarKatalog";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
@@ -51,12 +55,14 @@ import {
 } from "../services/byggeplassKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { hentReiseGrensepunkterLokalt } from "../services/reiseGrensepunktKatalog";
+import { trpc } from "../lib/trpc";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
 export function StartSluttDagKort() {
   const { t } = useTranslation();
   const router = useRouter();
+  const utils = trpc.useUtils();
   const { bruker } = useAuth();
   const { valgtFirmaId } = useFirma();
   // F4: timer-utkast defaulter byggeplass GPS → global kontekst → ingen.
@@ -99,6 +105,18 @@ export function StartSluttDagKort() {
       if (!db) return;
       const orgId = valgtFirmaId ?? "";
       const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
+      // B6 v3: hent serverens norm-SVAR for de berørte datoene (start + slutt,
+      // midnatt gir to) FØR lese-fasen, så forslaget bruker fersk norm når nett
+      // finnes. Best-effort — offline beholder cachen (markøren signaliserer).
+      const berorteDatoer = new Set<string>([
+        formatIsoDato(new Date(aktivDag.startAt)),
+        formatIsoDato(new Date(sluttIso)),
+      ]);
+      await Promise.all(
+        Array.from(berorteDatoer).map((d) =>
+          hentOgCacheArbeidstidSvar(utils.client, orgId, d),
+        ),
+      );
       // LAG 0b: tre faser — LES (samle alt DB-kunnskapen) → REGN UT (ren
       // beregnDagsforslag, ingen DB) → SKRIV (anvendDagsforslag). Splitten
       // lukker at «avsluttet» ble satt uten å vite utfallet av skrivingen.
@@ -147,6 +165,19 @@ export function StartSluttDagKort() {
       switch (handling.type) {
         case "suksess":
           router.push(`/timer/${handling.sheetId}`);
+          // B6.3-markør: normen var ikke dagens server-svar → si det (banneret på
+          // sedelen står også). "ukjent" = ingen overtid-splitt (UNDERbetaling).
+          if (forslag.normStatus === "ukjent") {
+            Alert.alert(
+              t("timer.normMarkor.ukjent.tittel"),
+              t("timer.normMarkor.ukjent.melding"),
+            );
+          } else if (forslag.normStatus === "cachet") {
+            Alert.alert(
+              t("timer.normMarkor.cachet.tittel"),
+              t("timer.normMarkor.cachet.melding"),
+            );
+          }
           break;
         case "blokkertSendt":
           // Dagen står ÅPEN — timene reddes ved at lederen returnerer sedelen.
@@ -199,7 +230,7 @@ export function StartSluttDagKort() {
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler, utils]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som
@@ -224,19 +255,23 @@ export function StartSluttDagKort() {
   const gjenopprettGlemtDag = useCallback(() => {
     if (!aktivDag || behandler) return;
     const startDato = formatIsoDato(new Date(aktivDag.startAt));
-    const effektiv = hentEffektivArbeidstidLokal(
+    // Estimatet (ikke lønn): tider fra lokal utledning, norm fra svar-cachen med
+    // 7,5t-fallback når normen er ukjent. Arbeider korrigerer uansett.
+    const tider = hentArbeidsdagTiderLokalt(
       valgtFirmaId ?? "",
       new Date(`${startDato}T00:00:00`),
     );
+    const norm = hentDagsnormLokalt(valgtFirmaId ?? "", startDato);
     const start = new Date(aktivDag.startAt);
-    const [tt, mm] = effektiv.sluttTid.split(":").map(Number);
+    const [tt, mm] = tider.sluttTid.split(":").map(Number);
     let slutt = new Date(start);
     slutt.setHours(tt, mm, 0, 0);
     // Nattskift-edge (4b-2): standardSluttTid ligger før start-klokkeslettet →
     // 0/negativ varighet. Estimer i stedet start + dagsnorm (krysser evt.
     // midnatt → 4a-splitt håndterer det). Arbeider korrigerer uansett.
     if (slutt.getTime() <= start.getTime()) {
-      const dagsnormTimer = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : 7.5;
+      const dagsnormTimer =
+        norm?.dagsnorm && norm.dagsnorm > 0 ? norm.dagsnorm : 7.5;
       slutt = new Date(start.getTime() + dagsnormTimer * 3_600_000);
     }
     void utforSluttDag(slutt.toISOString(), "system");
@@ -494,12 +529,11 @@ function samleDagsforslagInput(
   // eksisterende-sedel for. Samme rene helpere (`kappGlemtDagSlutt` +
   // `splittVedMidnatt`) som `beregnDagsforslag` → identiske datoer.
   const startDato = formatIsoDato(new Date(dag.startAt));
-  const effektivStartDag = hentEffektivArbeidstidLokal(
-    orgId,
-    new Date(`${startDato}T00:00:00`),
-  );
+  // Lese-fasens kapp bestemmer kun HVILKE datoer vi leser for (den rene
+  // funksjonen gjør det reelle kappet). Grov norm fra svar-cachen, 7,5t-fallback.
+  const startNorm = hentDagsnormLokalt(orgId, startDato);
   const kappLengdeTimer =
-    effektivStartDag.dagsnorm > 0 ? effektivStartDag.dagsnorm : 7.5;
+    startNorm?.dagsnorm && startNorm.dagsnorm > 0 ? startNorm.dagsnorm : 7.5;
   const { sluttIso: effektivSluttIso } = kappGlemtDagSlutt(
     dag.startAt,
     p.sluttIso,
@@ -507,21 +541,24 @@ function samleDagsforslagInput(
   );
   const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
 
+  // effektivPerDato = tider (lokal utledning, forhåndsutfylling) + lønnsnorm
+  // (server-svar via svar-cachen). Mangler svar → dagsnorm 0 + normStatus
+  // "ukjent" (trinn 3: ingen overtid-splitt, markør vises).
   const effektivPerDato: Record<string, DagsforslagEffektiv> = {};
   const alleDatoer = new Set<string>([
     startDato,
     ...segmenter.map((s) => s.dato),
   ]);
   for (const dato of alleDatoer) {
-    const e = hentEffektivArbeidstidLokal(
-      orgId,
-      new Date(`${dato}T00:00:00`),
-    );
+    const tider = hentArbeidsdagTiderLokalt(orgId, new Date(`${dato}T00:00:00`));
+    const norm = hentDagsnormLokalt(orgId, dato);
     effektivPerDato[dato] = {
-      startTid: e.startTid,
-      sluttTid: e.sluttTid,
-      pauseMin: e.pauseMin,
-      dagsnorm: e.dagsnorm,
+      startTid: tider.startTid,
+      sluttTid: tider.sluttTid,
+      pauseMin: tider.pauseMin,
+      dagsnorm: norm?.dagsnorm ?? 0,
+      pauseReferanse: norm?.pauseReferanse ?? "ankomst",
+      normStatus: norm?.normStatus ?? "ukjent",
     };
   }
 

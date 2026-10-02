@@ -57,7 +57,7 @@ import {
   matpauseRegelTrigget,
   radKrysserPause,
 } from "../../services/matpause";
-import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
@@ -981,7 +981,7 @@ function TimerRadModal({
   // Pausevindu = skiftstart + pauseEtterTimer. Skiftstart = dagens effektive
   // arbeidstid-start (kalender-overstyring eller firma-default).
   const pauseFra = useMemo(() => {
-    const skiftStart = hentEffektivArbeidstidLokal(
+    const skiftStart = hentArbeidsdagTiderLokalt(
       organizationId,
       new Date(`${dato}T00:00:00`),
     ).startTid;
@@ -999,7 +999,7 @@ function TimerRadModal({
         til: eksisterendeRad.tilTid ?? null,
       };
     }
-    const effektiv = hentEffektivArbeidstidLokal(organizationId, new Date(`${dato}T00:00:00`));
+    const effektiv = hentArbeidsdagTiderLokalt(organizationId, new Date(`${dato}T00:00:00`));
     // Bolk (g) prefill-scope (M6, 2026-07-10): fra = seneste tilTid over HELE
     // sedelen (alle bøtter, `alleTimerRader`), beregnet som MAKS via hhmmTilMin
     // — ikke siste array-element (rekkefølge-uavhengig; speiler webs reduce i

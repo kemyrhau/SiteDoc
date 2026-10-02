@@ -46,7 +46,7 @@ import {
   tilErEtterFra,
 } from "@sitedoc/shared";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
-import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
@@ -488,7 +488,7 @@ function MaskinRadModal({
   // Pausevindu = skiftstart + pauseEtterTimer. Skiftstart = dagens effektive
   // arbeidstid-start (kalender-overstyring eller firma-default).
   const pauseFra = useMemo(() => {
-    const skiftStart = hentEffektivArbeidstidLokal(
+    const skiftStart = hentArbeidsdagTiderLokalt(
       organizationId,
       new Date(`${dato}T00:00:00`),
     ).startTid;
@@ -507,7 +507,7 @@ function MaskinRadModal({
         til: eksisterendeRad.tilTid ?? null,
       };
     }
-    const effektiv = hentEffektivArbeidstidLokal(
+    const effektiv = hentArbeidsdagTiderLokalt(
       organizationId,
       new Date(`${dato}T00:00:00`),
     );

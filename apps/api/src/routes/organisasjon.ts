@@ -1213,6 +1213,10 @@ export const organisasjonRouter = router({
         // firmaets firma-admins auto-legges som ProjectMember.role=admin ved
         // oppretting av NYE prosjekter. "av" = dagens oppførsel.
         autoProsjektAdmin: z.enum(["av", "alle_firma_admins"]).optional(),
+        // B6 v3 (V16): lønnsnormens kilde. "fast" = lovnorm (dagsnorm-kolonnen),
+        // "kalender" = sesongutledet. B3 (V6): pausevinduets referanse.
+        normKilde: z.enum(["fast", "kalender"]).optional(),
+        pauseReferanse: z.enum(["fastStart", "ankomst"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
