@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
+  avgjorSluttDagHandling,
+  skalMarkereAvsluttet,
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
+  type AnvendDagsforslagResultat,
 } from "./dagsforslag";
 
 /**
@@ -254,5 +257,84 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
     expect(dag.harEksisterendeRader).toBe(false); // ikke talt i blokkert-grenen
     expect(dag.rader).toHaveLength(0);
     expect(dag.vekForOverlapp).toHaveLength(0);
+  });
+});
+
+/**
+ * H7 (LAG 0b commit 2) — rekkefølgen: «avsluttet» settes KUN når skrivingen
+ * lyktes. `avgjorSluttDagHandling` + `skalMarkereAvsluttet` er den rene,
+ * injiserbare rekkefølge-logikken (trukket ut av `useCallback`), så den kan
+ * testes uten React Native.
+ *
+ * To utfall holder dagen ÅPEN så GPS-økta ikke går tapt — `blokkertSendt` og
+ * `kildeManglet`. Mot DAGENS (gamle) rekkefølge markerte begge `avsluttet`
+ * uansett → disse testene er rød-først.
+ */
+function lagResultat(
+  over: Partial<AnvendDagsforslagResultat> = {},
+): AnvendDagsforslagResultat {
+  return {
+    startSheetId: "sedel-1",
+    blokkertSendt: false,
+    ingenRader: false,
+    harEksisterendeRader: false,
+    vekForOverlapp: [],
+    ...over,
+  };
+}
+
+describe("H7 — avgjorSluttDagHandling: dagen lukkes kun når skrivingen lyktes", () => {
+  it("blokkertSendt: dagen står ÅPEN (rød-først — i dag markeres avsluttet)", () => {
+    const h = avgjorSluttDagHandling(lagResultat({ blokkertSendt: true }));
+    expect(h.type).toBe("blokkertSendt");
+    expect(skalMarkereAvsluttet(h)).toBe(false);
+  });
+
+  it("kildeManglet (startSheetId null): dagen står ÅPEN + eget utfall (rød-først — i dag er den stum)", () => {
+    const h = avgjorSluttDagHandling(lagResultat({ startSheetId: null, ingenRader: true }));
+    expect(h.type).toBe("kildeManglet");
+    expect(skalMarkereAvsluttet(h)).toBe(false);
+  });
+
+  it("regresjon: ingenRader (ekte, for kort økt) LUKKER fortsatt dagen", () => {
+    const h = avgjorSluttDagHandling(lagResultat({ ingenRader: true }));
+    expect(h.type).toBe("forKort");
+    expect(skalMarkereAvsluttet(h)).toBe(true);
+  });
+
+  it("regresjon: suksess lukker dagen og navigerer til sedelen", () => {
+    const h = avgjorSluttDagHandling(lagResultat({ startSheetId: "sedel-9" }));
+    expect(h).toEqual({ type: "suksess", sheetId: "sedel-9" });
+    expect(skalMarkereAvsluttet(h)).toBe(true);
+  });
+
+  it("playVek lukker dagen (manuell rad er fasit) og rapporterer tidsrommene", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({ vekForOverlapp: [{ fraTid: "07:00", tilTid: "09:00" }] }),
+    );
+    expect(h).toEqual({
+      type: "playVek",
+      sheetId: "sedel-1",
+      intervaller: "07:00–09:00",
+    });
+    expect(skalMarkereAvsluttet(h)).toBe(true);
+  });
+
+  it("forKort med pre-fylt sedel markeres preFylt (differensiert copy)", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({ ingenRader: true, harEksisterendeRader: true }),
+    );
+    expect(h).toEqual({ type: "forKort", sheetId: "sedel-1", preFylt: true });
+  });
+
+  it("prioritet: blokkertSendt slår vekForOverlapp og ingenRader", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({
+        blokkertSendt: true,
+        ingenRader: true,
+        vekForOverlapp: [{ fraTid: "07:00", tilTid: "09:00" }],
+      }),
+    );
+    expect(h.type).toBe("blokkertSendt");
   });
 });

@@ -22,6 +22,8 @@ import { splittVedMidnatt, kappGlemtDagSlutt } from "../utils/dagsegment";
 import {
   beregnDagsforslag,
   velgNaermesteProsjekt,
+  avgjorSluttDagHandling,
+  skalMarkereAvsluttet,
   MAKS_ENKELTSKIFT_TIMER,
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
@@ -116,55 +118,72 @@ export function StartSluttDagKort() {
         nyId: randomUUID,
         naa: Date.now,
       });
-      const dagsseddelId = resultat.startSheetId;
-      db.update(arbeidsdagLocal)
-        .set({
-          endAt: sluttIso,
-          endLat: lat,
-          endLng: lng,
-          status: "avsluttet",
-          generertDagsseddelId: dagsseddelId,
-          sistEndretLokalt: Date.now(),
-        })
-        .where(eq(arbeidsdagLocal.id, aktivDag.id))
-        .run();
-      // Re-les fra DB (status nå "avsluttet" → aktivDag blir null i hooken).
+      // H7: avgjør handlingen FØR vi rører arbeidsdagen. Dagen markeres
+      // «avsluttet» KUN når skrivingen lyktes (suksess/playVek/forKort); to
+      // utfall holder den ÅPEN så GPS-økta ikke går tapt — blokkertSendt (økta
+      // kunne ikke appendes på en sendt sedel) og kildeManglet (ingen sedel ble
+      // opprettet). Tidligere ble «avsluttet» satt uansett utfall.
+      const handling = avgjorSluttDagHandling(resultat);
+      if (skalMarkereAvsluttet(handling)) {
+        db.update(arbeidsdagLocal)
+          .set({
+            endAt: sluttIso,
+            endLat: lat,
+            endLng: lng,
+            status: "avsluttet",
+            generertDagsseddelId: resultat.startSheetId,
+            sistEndretLokalt: Date.now(),
+          })
+          .where(eq(arbeidsdagLocal.id, aktivDag.id))
+          .run();
+      }
+      // Re-les fra DB (ved avsluttet blir aktivDag null i hooken; ellers står
+      // dagen fortsatt åpen).
       refresh();
       oppdaterTellere();
       void triggerSync();
-      if (dagsseddelId) {
-        router.push(`/timer/${dagsseddelId}`);
-        // UF-1: dagens sedel var alt sendt → den nye økten ble ikke lagt til.
-        if (resultat.blokkertSendt) {
+      switch (handling.type) {
+        case "suksess":
+          router.push(`/timer/${handling.sheetId}`);
+          break;
+        case "blokkertSendt":
+          // Dagen står ÅPEN — timene reddes ved at lederen returnerer sedelen.
+          router.push(`/timer/${handling.sheetId}`);
           Alert.alert(
             t("timer.appendSendt.tittel"),
             t("timer.appendSendt.melding"),
           );
-        } else if (resultat.vekForOverlapp.length > 0) {
+          break;
+        case "playVek":
           // 1b (fabel): si HVA som vek — tidsrommene — og at manuell rad er
           // beholdt. Foran «for kort» (om play vek helt, er overlapp den reelle
           // grunnen, ikke kort økt).
-          const intervaller = resultat.vekForOverlapp
-            .map((v) => `${v.fraTid}–${v.tilTid}`)
-            .join(", ");
+          router.push(`/timer/${handling.sheetId}`);
           Alert.alert(
             t("timer.playVek.tittel"),
-            t("timer.playVek.melding", { intervaller }),
+            t("timer.playVek.melding", { intervaller: handling.intervaller }),
           );
-        } else if (resultat.ingenRader) {
+          break;
+        case "forKort":
           // F-c: økta førte 0 rader (for kort etter pause/runding) — gi
-          // tilbakemelding i stedet for et stille tomt dagskort.
-          // F-g: differensier copy — når sedelen alt HAR rader er «dagen ble
-          // for kort» misvisende (dagen er ikke tom); vis pre-fylt-varianten.
-          const preFylt = resultat.harEksisterendeRader;
+          // tilbakemelding i stedet for et stille tomt dagskort. F-g: pre-fylt-
+          // variant når sedelen alt HAR rader.
+          router.push(`/timer/${handling.sheetId}`);
           Alert.alert(
-            t(preFylt ? "timer.forKort.preFyltTittel" : "timer.forKort.tittel"),
-            t(preFylt ? "timer.forKort.preFyltMelding" : "timer.forKort.melding"),
+            t(handling.preFylt ? "timer.forKort.preFyltTittel" : "timer.forKort.tittel"),
+            t(handling.preFylt ? "timer.forKort.preFyltMelding" : "timer.forKort.melding"),
           );
-        }
-      } else {
-        // Kunne ikke utlede prosjekt/aktivitet offline → manuell opprettelse.
-        router.push("/timer/ny");
+          break;
+        case "kildeManglet":
+          // Prosjekt/aktivitet kunne ikke utledes offline → ingen sedel. Dagen
+          // står ÅPEN (H7) og brukeren varsles — ellers forsvinner dagen stumt.
+          // Manuell opprettelse er fortsatt tilgjengelig som fallback.
+          router.push("/timer/ny");
+          Alert.alert(
+            t("timer.kildeManglet.tittel"),
+            t("timer.kildeManglet.melding"),
+          );
+          break;
       }
     } finally {
       setBehandler(false);

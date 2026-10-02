@@ -282,6 +282,8 @@
   "timer.appendSendt.melding": "Sinulla on tämän päivän merkintä, joka on jo lähetetty hyväksyttäväksi. Uutta istuntoa ei lisätty. Jos haluat muuttaa päivää, se on avattava uudelleen (tulossa myöhemmin).",
   "timer.playVek.tittel": "Peliaika väistyi manuaaliseen syöttämiseen",
   "timer.playVek.melding": "Peliaikaa {{intervaller}} ei lisätty, koska olet jo syöttänyt tunnit manuaalisesti tälle ajanjaksolle. Manuaalinen syöttösi säilyy ennallaan.",
+  "timer.kildeManglet.tittel": "Tunteja ei kirjattu",
+  "timer.kildeManglet.melding": "Sovellus ei löytänyt projektia, johon tunnit olisi linkitetty, joten päivätaulukkoa ei luotu. Työpäivä on edelleen auki – kokeile \"Päättyvä päivä\" uudelleen, kun projektit on ladattu, tai syötä tunnit manuaalisesti.",
   "timer.gjenaapne.knapp": "Avaa uudelleen muokkausta varten",
   "timer.gjenaapne.hjelp": "Vetää arkin pois hyväksynnästä, jotta voit lisätä merkintöjä. Esimies ei näe sitä uudelleen ennen kuin lähetät sen uudelleen.",
   "timer.gjenaapne.feilGodkjent": "Esimies on jo hyväksynyt päiväkirjan – ota yhteyttä häneen tehdäksesi muutoksia.",

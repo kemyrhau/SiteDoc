@@ -282,6 +282,8 @@
   "timer.appendSendt.melding": "Ju keni një hyrje për këtë ditë që tashmë është dorëzuar për miratim. Sesioni i ri nuk u shtua. Për të ndryshuar ditën duhet të rihapet (vjen më vonë).",
   "timer.playVek.tittel": "Koha e lojës ia la vendin hyrjes manuale",
   "timer.playVek.melding": "Koha e lojës për {{intervaller}} nuk u shtua, sepse tashmë i keni futur manualisht orët në atë periudhë. Futja juaj manuale mbahet e pandryshuar.",
+  "timer.kildeManglet.tittel": "Orët nuk u regjistruan",
+  "timer.kildeManglet.melding": "Aplikacioni nuk mund të gjente një projekt për të lidhur orët, kështu që nuk u krijua asnjë fletë ditore. Dita e punës është ende e hapur – provoni sërish “End day” pasi të jenë ngarkuar projektet, ose futni orët manualisht.",
   "timer.gjenaapne.knapp": "Rihap për modifikim",
   "timer.gjenaapne.hjelp": "E tërheq fletën nga miratimi që të mund të shtoni hyrje. Menaxheri yt nuk do ta shikojë më derisa ta ridorëzosh.",
   "timer.gjenaapne.feilGodkjent": "Fleta ditore është miratuar tashmë nga menaxheri juaj — kontaktoni me të për të bërë ndryshime.",

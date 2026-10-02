@@ -15,23 +15,11 @@ import { eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { sheetTimerLocal, dagsseddelLocal } from "../db/schema";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
-import type { Dagsforslag } from "./dagsforslag";
+import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
-/** Utfallet av å anvende forslaget — samme felter kalleren viste Alerts fra. */
-export type AnvendDagsforslagResultat = {
-  /** Start-dagens sedel-id (for navigering), eller null hvis ingen datoer. */
-  startSheetId: string | null;
-  /** UF-1: minst én dato var alt sendt/godkjent → økta kunne ikke appendes. */
-  blokkertSendt: boolean;
-  /** Økta førte 0 rader totalt (for kort etter pause/runding, eller alt blokkert). */
-  ingenRader: boolean;
-  /** Minst én sedel HADDE rader før denne økta (pre-fylt — skiller «for kort»-copy). */
-  harEksisterendeRader: boolean;
-  /** Tidsrom der en play-rad vek for en overlappende manuell rad. */
-  vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
-};
+export type { AnvendDagsforslagResultat };
 
 /**
  * Anvend et beregnet dagsforslag: skriv sedler + rader. Injiserbare `nyId`/`naa`

@@ -643,3 +643,74 @@ function beregnSegment(a: {
 
   return { ...base, vekForOverlapp, rader };
 }
+
+/** Utfallet av å anvende forslaget (returneres av `anvendDagsforslag`). */
+export type AnvendDagsforslagResultat = {
+  /** Start-dagens sedel-id (for navigering). null = kunne ikke utlede/skrive. */
+  startSheetId: string | null;
+  /** UF-1: minst én dato var alt sendt/godkjent → økta kunne ikke appendes. */
+  blokkertSendt: boolean;
+  /** Økta førte 0 rader totalt (for kort etter pause/runding). */
+  ingenRader: boolean;
+  /** Minst én sedel HADDE rader før denne økta (pre-fylt — «for kort»-copy). */
+  harEksisterendeRader: boolean;
+  /** Tidsrom der en play-rad vek for en overlappende manuell rad. */
+  vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
+};
+
+/**
+ * H7 — handlingen «Slutt dag» skal utføre, utledet fra anvend-utfallet. REN og
+ * injiserbar så rekkefølge-logikken kan testes uten React Native.
+ *
+ * 🔴 KJERNEN I H7: dagen markeres `avsluttet` KUN når skrivingen lyktes
+ * (`suksess`/`playVek`/`forKort` — sedel finnes, ingenting tapt). To utfall
+ * holder dagen ÅPEN så GPS-økta ikke går tapt:
+ *  - `blokkertSendt`: sedelen er alt sendt → økta kunne ikke appendes. Timene
+ *    reddes ved at lederen returnerer sedelen (→ draft → appendbar).
+ *  - `kildeManglet` (`startSheetId == null`): db/prosjekt/aktivitet manglet →
+ *    ingen sedel, ingen rader. I dag forsvinner dagen STILT; nå står den åpen
+ *    OG brukeren varsles (ellers er en forsvunnet dag verre enn en blokkert).
+ */
+export type SluttDagHandling =
+  | { type: "suksess"; sheetId: string }
+  | { type: "blokkertSendt"; sheetId: string }
+  | { type: "playVek"; sheetId: string; intervaller: string }
+  | { type: "forKort"; sheetId: string; preFylt: boolean }
+  | { type: "kildeManglet" };
+
+/** true = dagen skal markeres `avsluttet` (skrivingen lyktes, ingenting tapt). */
+export function skalMarkereAvsluttet(handling: SluttDagHandling): boolean {
+  return (
+    handling.type === "suksess" ||
+    handling.type === "playVek" ||
+    handling.type === "forKort"
+  );
+}
+
+/**
+ * Avgjør «Slutt dag»-handlingen fra anvend-utfallet. Prioritet speiler dagens
+ * varsel-rekkefølge (blokkertSendt → vekForOverlapp → ingenRader), med
+ * `kildeManglet` (null sedel) løftet øverst — det er det stumme utfallet H7
+ * gir en stemme.
+ */
+export function avgjorSluttDagHandling(
+  resultat: AnvendDagsforslagResultat,
+): SluttDagHandling {
+  const sheetId = resultat.startSheetId;
+  // Ingen sedel ble opprettet (db/prosjekt/aktivitet manglet) → kilde manglet.
+  if (sheetId == null) return { type: "kildeManglet" };
+  // UF-1: dagens sedel var alt sendt → den nye økten ble ikke lagt til.
+  if (resultat.blokkertSendt) return { type: "blokkertSendt", sheetId };
+  // 1b: play vek for manuelt førte timer — si HVA som vek.
+  if (resultat.vekForOverlapp.length > 0) {
+    const intervaller = resultat.vekForOverlapp
+      .map((v) => `${v.fraTid}–${v.tilTid}`)
+      .join(", ");
+    return { type: "playVek", sheetId, intervaller };
+  }
+  // F-c: økta førte 0 rader (for kort etter pause/runding).
+  if (resultat.ingenRader) {
+    return { type: "forKort", sheetId, preFylt: resultat.harEksisterendeRader };
+  }
+  return { type: "suksess", sheetId };
+}

@@ -282,6 +282,8 @@
   "timer.appendSendt.melding": "Du har en registrering for denne dagen som alt er sendt til attestering. Den nye økten ble ikke lagt til. Åpne sedelen og trykk «Gjenåpne for redigering» for å endre den.",
   "timer.playVek.tittel": "Play-tid vek for manuell føring",
   "timer.playVek.melding": "Play-tiden for {{intervaller}} ble ikke lagt til, fordi du allerede har ført timer manuelt i det tidsrommet. Din manuelle registrering er beholdt uendret.",
+  "timer.kildeManglet.tittel": "Timene ble ikke ført",
+  "timer.kildeManglet.melding": "Appen fant ikke noe prosjekt å knytte timene til, så ingen dagsseddel ble opprettet. Arbeidsdagen står fortsatt åpen – prøv «Slutt dag» igjen når prosjektene er lastet, eller før timene manuelt.",
   "timer.gjenaapne.knapp": "Gjenåpne for redigering",
   "timer.gjenaapne.hjelp": "Henter sedelen tilbake fra attestering så du kan etter-registrere. Lederen ser den ikke før du sender på nytt.",
   "timer.gjenaapne.feilGodkjent": "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring.",
