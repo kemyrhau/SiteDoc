@@ -3,7 +3,7 @@ name: timer-gps-lag2-spec
 description: Spesifikasjon for LAG 2 i timer-GPS-helhetsplanen — sporbarhet. Det som avgjør lønn (reise-etappe, avstand, regel, norm, tidskilde) følger raden fra telefon til server til eksport, uten at serveren regner om (K5 «mottak med sporbarhet»). Skrevet av fabel 2026-10-03, gates av orkestrator.
 sist_verifisert_mot_kode: 2026-10-03
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: ⚠️ UTKAST TIL GATE — ingen kode-ordre før orkestrator har gatet
+status: 🟢 GATET 2026-10-03 (orkestrator) med to presiseringer — ført samme dag (backfill-rapport, reiseAvvik dobbel terskel). Ordrer kan skrives på Kenneths signal
 ---
 
 # LAG 2 — sporbarhet: det som avgjør lønn skal kunne etterprøves
@@ -65,6 +65,13 @@ Sporbarhet må deklareres i begge ender i samme release.
   for firmaer med `reiseLonnsartId = null` — der lønnsartnavnet matcher regexen. **Det speiler nøyaktig dagens
   leser-regel** (M3), ikke en ny gjetning. Gamle rader får `reiseKilde = null` (vi vet ikke) — ærlig, som
   `geofenceKilde = 'ukjent'` i lag 1.
+  🔴 **Migreringen skal RAPPORTERE antall rader satt via navne-match-grenen** (firmaer med `reiseLonnsartId =
+  null`), **separat fra** antall satt via konfigurert art (`reiseLonnsartId` + grensepunkt-arter). Grunn
+  (gate 2026-10-03): regexen matcher et brukerredigerbart lønnsartnavn — et firma uten konfigurert reise-art
+  med en art «Transporttillegg» får `erReise = true` frosset som eksplisitt sannhet. Settet fra konfigurerte arter
+  er trygt; regex-grenen arver dagens falske positive og gjør dem permanente, så tallet skal være synlig i
+  migreringsloggen (`RAISE NOTICE` / returnert telling), ikke bare resultatet. Kenneth leser tallet før han
+  kjører mot prod.
 - **CHECK:** `erReise = false ⇒ reiseRetning IS NULL AND reiseKjoretidMin IS NULL AND reiseAvstandM IS NULL` ·
   `erReise = true ⇒ reiseRetning IS NOT NULL`.
 - **Test som FEILER** hvis en rad med reise-lønnsart står med `erReise = false` etter backfill, og hvis en
@@ -101,12 +108,18 @@ Sporbarhet må deklareres i begge ender i samme release.
   `reiseKilde = "matrise" ⇒ reiseKjoretidMin ≥ 0 ∧ reiseAvstandM ≥ 0 ∧ reiseRegel` · `reiseOppmotestedId`
   tilhører firmaet · `reiseAvstandM ≤ 1 000 000` (navngitt konstant i `rad-tak.ts`-stil). Brudd → avvis
   raden med navngitt feil, ikke hele synken stille.
-- **C3 Kontroll, ikke omregning** ⚠️ *(gate-punkt — er dette innenfor K5?)*: ved mottak av en
-  `matrise`-rad slår serveren opp cellen `(reiseOppmotestedId, byggeplassId)` og **sammenligner** med
-  snapshotet. Avvik > 10 % i avstand eller kjøretid → `reiseAvvik = true` på raden som **varsel til
-  attestanten**. Ingenting klassifiseres på nytt, ingen lønnsart endres. Mangler cellen → `reiseAvvik = null`
-  (kan ikke kontrolleres). Jeg anbefaler å ta det med: det er sporbarhetens poeng — at avviket er synlig —
-  men orkestrator avgjør om det er «omregning» i K5s forstand.
+- **C3 Kontroll, ikke omregning** 🟢 *(gate 2026-10-03: INNENFOR K5 — «et snapshot ingen kontrollerer er et
+  arkiv, ikke sporbarhet»; omregning ville vært at serveren satte en annen lønnsart, og det gjør den ikke)*: ved
+  mottak av en `matrise`-rad slår serveren opp cellen `(reiseOppmotestedId, byggeplassId)` og **sammenligner**
+  med snapshotet. 🔴 **Dobbel terskel — flagg først når avviket overstiger BÅDE prosenten OG en nedre grense**
+  (gate-krav: ren prosent roper på korte turer og tier på mellomlange — 10 % av 2 km er 200 m støy). Navngitte
+  konstanter i `rad-tak.ts`-stil, én kilde:
+  `REISEAVVIK_MIN_PROSENT = 10` · `REISEAVVIK_MIN_AVSTAND_M = 2000` (meter) · `REISEAVVIK_MIN_KJORETID_MIN = 10`
+  (minutter). `reiseAvvik = true` når `|avstand_rad − avstand_celle| > 10 %` **og** `> 2000 m`, **eller**
+  `|kjøretid_rad − kjøretid_celle| > 10 %` **og** `> 10 min`. Ellers `false`. **Mangler cellen → `reiseAvvik =
+  null`** (kan ikke kontrolleres — tre tilstander, «vet ikke» er ærlig). Flagget er **varsel til attestanten**;
+  ingenting klassifiseres på nytt. Tallene er fabels forslag — orkestrator kan justere dem i ordren, men de skal
+  stå som konstanter, aldri som tall i kode.
 - **C4 V1/V2 på serveren.** `OvertidRad` får `erReise: boolean`; `beregnOvertidsgrunnlag` ekskluderer
   reise-rader; `byggUkeOvertidsgrunnlag` og `hentTilAttesteringFirma` sender flagget; `totaltimer` i
   attestering deles i `arbeidstimer` og `reisetimer`. **Test:** Dag A på serveren → overtidsgrunnlag 10 t
@@ -150,7 +163,7 @@ eksportrad for reise uten km når kilde er matrise (D2).
 
 ## 8. Åpne punkter for gaten
 
-1. **C3 kontroll vs. omregning** — innenfor K5 eller ikke. Jeg anbefaler innenfor.
+1. ~~C3 kontroll vs. omregning~~ — 🟢 avgjort av gaten: innenfor K5.
 2. **`reiseRegel` som Json vs. kolonner** — Json valgt for migreringsenkelhet; eksporten trenger bare
    `kategori` derfra.
 3. **Backfill-regelen for `erReise`** speiler dagens leser (M3). Alternativet er å la gamle rader stå
