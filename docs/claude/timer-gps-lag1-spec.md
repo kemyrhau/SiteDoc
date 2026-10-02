@@ -58,7 +58,7 @@ beholder sin ekvirektangulære for tegnings-transformasjoner, men **reise bruker
 
 | # | Funksjon | Kontrakt |
 |---|---|---|
-| **A1** | `avstandM(a: Punkt, b: Punkt): number` | Haversine i **meter** (heltall). Én implementasjon. Erstatter `geo.ts`, `dagsforslag.ts:235`, `ny.tsx`-bruken |
+| **A1** | `avstandM(a: GpsPunkt, b: GpsPunkt): number` *(typenavn `GpsPunkt` — `Punkt` finnes alt i shared som piksel-{x,y}, `utils/maaling`)* | Haversine i **meter** (heltall). Én implementasjon. Erstatter `geo.ts`, `dagsforslag.ts:235`, `ny.tsx`-bruken |
 | **A2** | `gjenkjennSted<T extends Geofence>(pos: Punkt \| null, kandidater: T[]): Treff<T> \| null` | **Kapabilitet A.** Nærmeste kandidat der `avstandM ≤ radiusM`. Returnerer `{ sted, avstandM }`. Kandidater uten `lat/lng/radiusM` filtreres av kalleren — funksjonen krever komplette geofencer. Brukes for BÅDE oppmøtested og byggeplass (erstatter M2) |
 | **A3** | `tolkStart(pos, oppmotesteder, byggeplasser): Startsted` | Forener de to treffene (V11, V12, V15). Diskriminert union: `{ type: "kontor", oppmotestedId, byggeplassId: string \| null }` · `{ type: "byggeplass", byggeplassId }` · `{ type: "utenfor" }` · `{ type: "ukjent", aarsak: "posisjon_utilgjengelig" }`. **Kontor vinner når begge treffer** (V15). `pos == null` → `ukjent`, aldri `utenfor` (H11) |
 | **A4** | `tolkSlutt(pos, oppmotesteder, byggeplasser): Sluttsted` | Samme union. Grunnlag for retur (V7) |
@@ -230,7 +230,10 @@ CHECK (C3). Stille-tomhet-regelen (CLAUDE.md) er oppfylt for C3: backfill (a), g
 - `apps/mobile/src/utils/geo.ts` slettes; `dagsforslag.ts:235` slettes; `ny.tsx:131-142` bruker A2 med
   byggeplass-geofencer i stedet for 500 m mot prosjektpunkt (H2). `identifiserOppmotested` og
   `identifiserByggeplass` blir tynne kallere av A2 (eller slettes til fordel for A3).
-- `resolverPrimaerByggeplass` slettes (M4) — A5 erstatter den. `hentMatriseRadLokalt` beholdes.
+- `resolverPrimaerByggeplass` slettes (M4) — A5 erstatter den. 🔴 **I L1-B, ikke L1-A** (rettet etter
+  kontrollplans funn 2026-10-02): eneste kaller er `StartSluttDagKort.tsx:418` i lese-fasen som bygger
+  `reiseOppslag.matriseRad`; sletting i L1-A ville tvunget A5 inn i reisekjeden og brutt «null
+  atferdsendring i L1-A». A5 bygges og testes fullt i L1-A, kobles i L1-B. `hentMatriseRadLokalt` beholdes.
 - De tre kommentarene «KUN dokumentasjon — aldri lønn/reise/prosjektvalg» **står** (`useArbeidsdag.ts:69-70`,
   `:141-142`, `byggeplassKatalog.ts:70`, `schema.ts:374`) — helhetsplanen § 5 LAG 3 sier de reverseres
   der, med henvisning til bekreftelsessteget. Lag 1 legger til én linje under hver: *«Lag 1 (dato):
@@ -242,7 +245,7 @@ CHECK (C3). Stille-tomhet-regelen (CLAUDE.md) er oppfylt for C3: backfill (a), g
 | Ordre | Innhold | Avhenger av | Migrering |
 |---|---|---|---|
 | **L1-C** | Leveranse C (api + web): C1–C7 | ingen | `geofenceKilde` |
-| **L1-A** | Leveranse A (shared) + D-ryddingen av gjenkjenning (mobil) | ingen | — |
+| **L1-A** | Leveranse A (shared) + D-ryddingen av **gjenkjenning** (mobil). IKKE `resolverPrimaerByggeplass` — den er destinasjonsvalg og slettes i L1-B | ingen | — |
 | **L1-B** | Leveranse B (mobil) + B3/B6-innstillingene (api + web) + de tre normleserne | L1-A | `pauseReferanse` + `normKilde` (én migrering) |
 
 L1-C og L1-A kan gå parallelt. L1-B sist. ⚠️ **Begge migreringene ligger i `packages/db` og blir
