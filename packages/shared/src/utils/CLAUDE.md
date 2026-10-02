@@ -236,6 +236,25 @@ Grenseverdier for `integer`/`decimal` — delt kilde for MalBygger-editor, utfyl
 
 Grensene BLOKKERER aldri innsending — et avvik er et gyldig funn.
 
+### Stedsmodell (`sted.ts`) — LAG 1-A (2026-10-02)
+
+Én kilde for «hvor er jeg, og hvor langt er det dit» — erstatter to haversine-kopier
+(`apps/mobile/src/utils/geo.ts` slettet, `dagsforslag.ts`-kopien slettet) og to speilede
+GPS-gjenkjennings-funksjoner. Rene funksjoner, ingen DB/RN/Node. Kontrakt A1–A6 i
+`docs/claude/timer-gps-lag1-spec.md § 2`.
+
+| # | Funksjon | Beskrivelse |
+|---|----------|-------------|
+| A1 | `avstandM(a, b)` → `number` | Haversine i hele meter. Eneste avstands-def. (`georeferanse.avstandMeter` er en EGEN ekvirektangulær for tegning — rør den ikke) |
+| A2 | `gjenkjennSted<T extends Geofence>(pos, kandidater)` → `Treff<T> \| null` | Nærmeste der `avstandM ≤ radiusM`. `pos==null`→`null`. Kaller filtrerer bort ukomplette geofencer |
+| A3/A4 | `tolkStart` / `tolkSlutt(pos, oppmøtesteder, byggeplasser)` → `TolketSted` | Union `kontor`/`byggeplass`/`utenfor`/`ukjent`. Kontor vinner når begge treffer (V15). `pos==null`→`ukjent`, ALDRI `utenfor` (H11) |
+| A5 | `velgDestinasjon(args)` → `Destinasjon` | Sluttsted-byggeplass → kontekst → nøyaktig én byggeplass med punkt → ellers `ukjent`. ALDRI primærbyggeplass/nærmeste-uten-grense/`prosjekter[0]` |
+| A6 | `RADIUS_GRENSER` | De tre spennene navngitt (oppmøtested 10–5000, byggeplass-API 1–100000, modal 25–500). Grensene uendret — kun én kilde |
+
+🔴 **A5 wires inn i reisekjeden (`beregnDagsforslag`) først i LAG 1-B.** I L1-A bygges/testes den,
+men `resolverPrimaerByggeplass` lever til L1-B gjør byttet. GPS-punkt-typen heter `GpsPunkt`
+(`Punkt` er opptatt av piksel-{x,y} i `maaling.ts`). Fasit: `sted.test.ts`.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

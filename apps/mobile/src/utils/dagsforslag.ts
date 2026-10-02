@@ -24,6 +24,7 @@
  * kjører kun når noe skal skrives.
  */
 import {
+  avstandM,
   avstandMeter,
   estimerReisetidMin,
   klassifiserReise,
@@ -220,34 +221,19 @@ export function velgNaermesteProsjekt(
     const medKoord = prosjekter.filter((p) => p.lat != null && p.lng != null);
     let besteAvstand = Infinity;
     for (const p of medKoord) {
-      const km = haversineKm(lat, lng, p.lat as number, p.lng as number);
-      if (km < besteAvstand) {
-        besteAvstand = km;
+      // A1 (LAG 1-A): delt haversine i meter. Kun nærmeste velges, så
+      // meter vs. km endrer ikke utfallet — samme prosjekt som før.
+      const m = avstandM(
+        { lat, lng },
+        { lat: p.lat as number, lng: p.lng as number },
+      );
+      if (m < besteAvstand) {
+        besteAvstand = m;
         valgt = p;
       }
     }
   }
   return valgt;
-}
-
-/** Haversine (km) — lokal kopi av `utils/geo` (den fila er ren, men vi holder
- *  denne modulen fri for sideimporter; identisk formel). */
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 /**
