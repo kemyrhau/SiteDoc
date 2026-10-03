@@ -4847,6 +4847,10 @@ export const dagsseddelRouter = router({
           beskrivelse: s.beskrivelse,
           lederKommentar: s.lederKommentar,
           attestertVed: s.attestertVed?.toISOString() ?? null,
+          // LAG 2 (L2-B TILLEGG 1): norm-sporet følger sedelen tilbake til mobil,
+          // så en pull ikke sletter normStatus/normSnapshot telefonen skrev.
+          normStatus: s.normStatus,
+          normSnapshot: s.normSnapshot,
           updatedAt: s.updatedAt.toISOString(),
           // T7-3b1 (2026-05-14): expose projectId per rad så mobil kan lagre
           // per-rad-attribusjon offline. Tidligere proxyet vi via første rad
@@ -4868,6 +4872,19 @@ export const dagsseddelRouter = router({
             beskrivelse: t.beskrivelse,
             // F5: per-rad matpause-bærer i pull-respons så mobil kan speile den.
             pauseMin: t.pauseMin,
+            // LAG 2 (L2-B TILLEGG 1): reise-sporet MÅ returneres i pull, ellers
+            // nuller mobilens rad-erstatning (delete+reinsert) K5-sporet som
+            // telefonen skrev og serveren lagret — samme feilklasse som :4734.
+            // Mobilen skiller «felt mangler» (gammel klient/server) fra null.
+            erReise: t.erReise,
+            reiseRetning: t.reiseRetning,
+            reiseOppmotestedId: t.reiseOppmotestedId,
+            reiseKjoretidMin: t.reiseKjoretidMin,
+            reiseAvstandM: t.reiseAvstandM,
+            reiseKilde: t.reiseKilde,
+            reiseRegel: t.reiseRegel,
+            tidKilde: t.tidKilde,
+            reiseAvvik: t.reiseAvvik,
           })),
           tillegg: s.tillegg.map((tl) => ({
             id: tl.id,

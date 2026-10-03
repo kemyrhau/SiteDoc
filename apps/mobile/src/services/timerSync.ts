@@ -14,6 +14,24 @@ import {
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
 
+/**
+ * LAG 2 (TILLEGG 1) — reise-/tid-spor på en pull-rad, ALLE valgfrie. En GAMMEL
+ * server (prod uten L2-A) UTELATER feltene (undefined), en ny server sender dem
+ * (kan være null). Pull-koden skiller `undefined` (mangler → bevar lokalt) fra
+ * `null` (server sa eksplisitt «ingen»). Eksplisitt type så skillet ikke
+ * forsvinner om den inferrerte klient-typen gjør feltene non-optional.
+ */
+type SporFelter = {
+  erReise?: boolean | null;
+  reiseRetning?: "ut" | "retur" | null;
+  reiseOppmotestedId?: string | null;
+  reiseKjoretidMin?: number | null;
+  reiseAvstandM?: number | null;
+  reiseKilde?: "matrise" | "manuell" | null;
+  reiseRegel?: unknown;
+  tidKilde?: "stempel" | "utledet" | "manuell" | null;
+};
+
 /* ============================================================================
  *  Timer offline-sync — orkestrerer push (lokale pending → server) og pull
  *  (server-endringer → lokal) mot timer.dagsseddel.syncBatch og
@@ -688,6 +706,17 @@ export async function syncTimer(
       // (Drizzle-typen forventer string).
       const sedelProjectId = serverSedel.projectId ?? "";
 
+      // LAG 2 (TILLEGG 1): norm-spor på sedelen. Samme mangler≠null-skille som
+      // radene — ny server sender normStatus/normSnapshot, gammel utelater dem
+      // (undefined → bevar lokalt på update). normSnapshot lagres som JSON-streng.
+      // Cast via unknown (ikke intersection med den dype tRPC-typen → TS2589).
+      const ssNorm = serverSedel as unknown as {
+        normStatus?: "server" | "cachet" | "ukjent" | null;
+        normSnapshot?: unknown;
+      };
+      const normSnapshotStr =
+        ssNorm.normSnapshot == null ? null : JSON.stringify(ssNorm.normSnapshot);
+
       if (!lokal) {
         // Ny seddel fra server (typisk en seddel registrert på en annen enhet).
         // Lokal id = clientUuid (invariant) så push/pull nøkler likt.
@@ -709,6 +738,10 @@ export async function syncTimer(
             beskrivelse: serverSedel.beskrivelse,
             lederKommentar: serverSedel.lederKommentar,
             attestertVed: serverSedel.attestertVed,
+            // Ny sedel fra server (annen enhet) → norm fra server (null når
+            // feltet mangler; ingen lokal verdi finnes å bevare på en ny rad).
+            normStatus: ssNorm.normStatus ?? null,
+            normSnapshot: normSnapshotStr,
             syncStatus: "synced",
             feilmelding: null,
             ...timestamps,
@@ -731,6 +764,14 @@ export async function syncTimer(
             beskrivelse: serverSedel.beskrivelse,
             lederKommentar: serverSedel.lederKommentar,
             attestertVed: serverSedel.attestertVed,
+            // Norm-spor: skriv KUN når server sendte feltet (ny server). Mangler
+            // (gammel server, undefined) → ikke i .set() → lokal verdi bevares.
+            ...(ssNorm.normStatus !== undefined
+              ? { normStatus: ssNorm.normStatus }
+              : {}),
+            ...(ssNorm.normSnapshot !== undefined
+              ? { normSnapshot: normSnapshotStr }
+              : {}),
             syncStatus: "synced",
             feilmelding: null,
             sistSynkronisert: serverTidMs,
@@ -738,6 +779,21 @@ export async function syncTimer(
           .where(eq(dagsseddelLocal.id, maalId))
           .run();
       }
+
+      // LAG 2 (L2-B TILLEGG 1) — snapshot lokalt reise-spor FØR rad-erstatningen.
+      // Pull gjør delete+reinsert fra server; returnerer en GAMMEL server (prod
+      // uten L2-A) ikke spor-feltene (mangler ≠ null), ville den rå reinsertingen
+      // NULLE sporet telefonen skrev — K5-sporet slettet av vanlig bruk uten at
+      // noen sier fra. Bevares per rad-id: server-verdi når den FINNES i svaret,
+      // ellers den lokale (prod-tilfellet). Ny server sender feltene → server vinner.
+      const sporFor = new Map(
+        db
+          .select()
+          .from(sheetTimerLocal)
+          .where(eq(sheetTimerLocal.dagsseddelId, maalId))
+          .all()
+          .map((r) => [r.id, r]),
+      );
 
       // Erstatt rader (samme atom-policy som server). Trygt her: pending og
       // avvist er hoppet over av den brede vakten, og conflict av sin egen gren
@@ -783,6 +839,20 @@ export async function syncTimer(
       // og maskin-rader. Default null hvis ikke satt.
       for (const t of serverSedel.timer) {
         if (levendeTombstoneIder.has(t.id)) continue; // S-A KRAV 1
+        // LAG 2 (TILLEGG 1): spor fra server når feltet FINNES i svaret (ny
+        // server, L2-A), ellers bevar lokalt (gammel server utelater feltet →
+        // undefined; mangler ≠ null). `reiseRegel` serialiseres som JSON-streng
+        // lokalt; server sender objekt → stringify, mangler → behold lokal streng.
+        const sp = sporFor.get(t.id);
+        // Cast via unknown (ikke intersection med den dype tRPC-typen → TS2589).
+        const tr = t as unknown as SporFelter;
+        const srvRegel = tr.reiseRegel;
+        const reiseRegel =
+          srvRegel !== undefined
+            ? srvRegel === null
+              ? null
+              : JSON.stringify(srvRegel)
+            : (sp?.reiseRegel ?? null);
         db.insert(sheetTimerLocal)
           .values({
             id: t.id,
@@ -800,6 +870,28 @@ export async function syncTimer(
             byggeplassId: t.byggeplassId ?? null,
             // F5: per-rad matpause-bærer fra server-respons (min).
             pauseMin: t.pauseMin ?? 0,
+            // LAG 2 spor — server-verdi når tilstede, ellers bevart lokalt.
+            erReise: tr.erReise !== undefined ? tr.erReise : (sp?.erReise ?? null),
+            reiseRetning:
+              tr.reiseRetning !== undefined
+                ? tr.reiseRetning
+                : (sp?.reiseRetning ?? null),
+            reiseOppmotestedId:
+              tr.reiseOppmotestedId !== undefined
+                ? tr.reiseOppmotestedId
+                : (sp?.reiseOppmotestedId ?? null),
+            reiseKjoretidMin:
+              tr.reiseKjoretidMin !== undefined
+                ? tr.reiseKjoretidMin
+                : (sp?.reiseKjoretidMin ?? null),
+            reiseAvstandM:
+              tr.reiseAvstandM !== undefined
+                ? tr.reiseAvstandM
+                : (sp?.reiseAvstandM ?? null),
+            reiseKilde:
+              tr.reiseKilde !== undefined ? tr.reiseKilde : (sp?.reiseKilde ?? null),
+            reiseRegel,
+            tidKilde: tr.tidKilde !== undefined ? tr.tidKilde : (sp?.tidKilde ?? null),
             sistEndretLokalt: serverTidMs,
           })
           .run();

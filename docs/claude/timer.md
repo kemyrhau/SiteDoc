@@ -328,9 +328,16 @@ Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger løn
 >   + `organizationSettingKatalog`/`StartSluttDagKort`. SQLite-KOLONNEN står (to-stegs, ikke DROP).
 > - **Lokal migrering (`migreringer.ts`):** idempotente `ALTER` for spor-kolonnene på `sheet_timer_local` +
 >   norm-kolonnene på `dagsseddel_local` (ingen backfill — eldre rader står null, ærlig).
-> - 🔴 **Pull bærer ikke sporet ennå:** `hentEndringerSiden` (server) returnerer ikke `erReise`/reise-feltene →
->   lokalt skrevet spor på synkede rader wipes ved første pull (rad-replace). B6-fallbacken dekker visningen
->   inntil pull-en utvides (lite, additivt — anbefalt oppfølger, utenfor L2-B-scope).
+> - **Pull bærer sporet (TILLEGG 1 — lukket i branch):** `hentEndringerSiden` (server) returnerer nå
+>   `erReise`/`reiseRetning`/`reiseOppmotestedId`/`reiseKjoretidMin`/`reiseAvstandM`/`reiseKilde`/`reiseRegel`/
+>   `tidKilde`/`reiseAvvik` på timeradene + `normStatus`/`normSnapshot` på sedelen. Mobilens pull snapshotter
+>   lokalt spor FØR rad-erstatningen og skriver server-verdien når feltet FINNES i svaret, ellers BEVARER det
+>   lokale (mangler ≠ null → gammel server/prod nuller ikke sporet). Uten dette ville rad-replace (delete+
+>   reinsert) slettet K5-sporet telefonen skrev, og neste push erstattet serverraden uten spor. Testet
+>   ende-til-ende i sql.js (`timerSync-lag2-spor.test.ts`: ny-server-ekko · gammel-server-bevaring · full
+>   push→pull→endre→push). 🔴 **Server-endringen rører KUN `hentEndringerSiden`** (ikke attestering → ingen
+>   L2-C-kollisjon). Migreringen `20261003120000_timer_lag2_sporbarhet` MÅ være kjørt før serveren deployes
+>   (query leser de nye kolonnene).
 
 #### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
 
