@@ -33,10 +33,13 @@ import {
   hhmmTilMin,
   finnOverlappendeTidsrom,
   løsReiseLonnsartId,
+  grensepunktTraff,
   DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
   type ReiseEnhet,
   type ReiseGrensepunkt,
+  type ReiseRegelSnapshot,
+  type NormSnapshot,
   type Startsted,
   type Sluttsted,
   type Destinasjon,
@@ -94,7 +97,6 @@ export type DagsforslagRegel = {
   reiseUnderTerskelType: string;
   reiseOverTerskelType: string;
   tidsrundingMinutter: number | null;
-  reisetidTellerOvertid: boolean;
   standardPauseEtterTimer: number | null;
 };
 
@@ -112,6 +114,12 @@ export type DagsforslagEffektiv = {
   pauseReferanse?: "fastStart" | "ankomst";
   /** B6.3: svarets opphav — "server" (dagens dato), "cachet" (≤30d), "ukjent" (ingen). */
   normStatus?: "server" | "cachet" | "ukjent";
+  /**
+   * B5 (L2-B): normens snapshot slik svar-cachen hadde den (dagsnorm/normKilde/
+   * dato/hentetAt). null ved "ukjent" (ingen norm → ingen snapshot). Skrives på
+   * sedelen av `anvendDagsforslag` og synkes opp.
+   */
+  normSnapshot?: NormSnapshot | null;
 };
 
 /**
@@ -138,6 +146,22 @@ export type Etappe = {
   avstandM: number | null;
   kategori: ReiseKategori;
   kilde: "matrise";
+};
+
+/**
+ * En reisetid-etappe som har fått en lønnsart (B1) — alt beregnSegment trenger
+ * for å skrive reise-raden og dens spor. Erstatter den gamle reduksjonen til
+ * `{ kjoretidMin, lonnsartId }`. `reiseKilde` er alltid "matrise" her (auto-
+ * etapper); manuelle reise-rader lages i UI (B4), ikke her.
+ */
+type ReiseRadResolvert = {
+  lonnsartId: string;
+  retning: "ut" | "retur";
+  oppmotestedId: string;
+  byggeplassId: string;
+  kjoretidMin: number;
+  avstandM: number | null;
+  reiseRegel: ReiseRegelSnapshot;
 };
 
 /**
@@ -181,8 +205,20 @@ export type DagsforslagRad = {
   fraTid: string | null;
   tilTid: string | null;
   pauseMin: number;
-  /** true = reise-rad (matrise-/GPS-mengde, bevisst uten fra/til). */
+  /** true = reise-rad. Eksplisitt flagg (M3) — ikke lenger gjettet fra lønnsart. */
   erReise: boolean;
+  // LAG 2 (B1) — reise-sporet. Null på arbeidsrader. På reise-rader (kilde
+  // "matrise") settes alle av `beregnSegment` fra `Etappe` + regelen.
+  reiseRetning: "ut" | "retur" | null;
+  reiseOppmotestedId: string | null;
+  /** Destinasjonen (reise-rad). null på arbeidsrader → arver sedel-nivå. */
+  byggeplassId: string | null;
+  reiseKjoretidMin: number | null;
+  reiseAvstandM: number | null;
+  reiseKilde: "matrise" | "manuell" | null;
+  reiseRegel: ReiseRegelSnapshot | null;
+  /** V8: "utledet" på auto-reise-rader (vindu fra GPS ± matrise). null ellers. */
+  tidKilde: "stempel" | "utledet" | "manuell" | null;
 };
 
 /** Forslaget for én kalenderdag (ett midnatt-segment). */
@@ -204,6 +240,9 @@ export type DagsforslagDag = {
   pauseMin: number;
   deltVedMidnatt: boolean;
   sluttTidKilde: "bruker" | "midnatt" | "system";
+  /** B5 (L2-B): normens kilde-status + snapshot for DENNE datoen (fra svar-cachen). */
+  normStatus: "server" | "cachet" | "ukjent" | null;
+  normSnapshot: NormSnapshot | null;
   /** Tidsrom der en play-rad vek for en overlappende manuell rad. */
   vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
   rader: DagsforslagRad[];
@@ -491,10 +530,15 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
   }
   // Løs lønnsart pr. reisetid-etappe (samme kilde som før: avstandsbånd →
   // fallbackReiseLonnsartId). Uten lønnsart → ingen reise-rad, ingen vindu-trekk.
+  //
+  // B1: etappen reduseres IKKE lenger til { kjoretidMin, lonnsartId } — hele
+  // sporet (retning, oppmøtested, byggeplass, avstand, regel-snapshot) bæres til
+  // beregnSegment, som skriver det på raden. reiseRegel er regelen slik den var
+  // da raden ble laget (ReiseRegelSnapshot).
   const reiseForRetning = (
     retning: "ut" | "retur",
-  ): { kjoretidMin: number; lonnsartId: string } | null => {
-    if (!reiseOppslag) return null;
+  ): ReiseRadResolvert | null => {
+    if (!reiseOppslag || !regel) return null;
     const e = etapper.find(
       (x) => x.retning === retning && x.kategori === "reisetid",
     );
@@ -504,7 +548,25 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       reiseOppslag.grensepunkter,
       reiseOppslag.fallbackReiseLonnsartId,
     );
-    return lonnsartId ? { kjoretidMin: e.kjoretidMin, lonnsartId } : null;
+    if (!lonnsartId) return null;
+    const reiseRegel: ReiseRegelSnapshot = {
+      enhet: regel.reiseTerskelEnhet as ReiseEnhet,
+      terskelMin: regel.reiseTerskelMin,
+      terskelM: regel.reiseTerskelM ?? null,
+      underType: regel.reiseUnderTerskelType as ReiseKategori,
+      overType: regel.reiseOverTerskelType as ReiseKategori,
+      kategori: e.kategori,
+      grensepunktTreff: grensepunktTraff(e.avstandM, reiseOppslag.grensepunkter),
+    };
+    return {
+      lonnsartId,
+      retning: e.retning,
+      oppmotestedId: e.oppmotestedId,
+      byggeplassId: e.byggeplassId,
+      kjoretidMin: e.kjoretidMin,
+      avstandM: e.avstandM,
+      reiseRegel,
+    };
   };
   const utReise = reiseForRetning("ut");
   const returReise = reiseForRetning("retur");
@@ -607,9 +669,9 @@ function beregnSegment(a: {
   byggeplassId: string | null;
   pauseMin: number;
   /** Ut-reise (reisetid) på start-segmentet — forskyver arbeidsstart + egen rad. null ellers. */
-  utReise: { kjoretidMin: number; lonnsartId: string } | null;
+  utReise: ReiseRadResolvert | null;
   /** Retur-reise (reisetid) på slutt-segmentet — forskyver arbeidsslutt + egen rad. null ellers. */
-  returReise: { kjoretidMin: number; lonnsartId: string } | null;
+  returReise: ReiseRadResolvert | null;
   tidsrundingMinutter: number | null;
   standardPauseEtterTimer: number | null;
   deltVedMidnatt: boolean;
@@ -643,6 +705,10 @@ function beregnSegment(a: {
     pauseMin: a.pauseMin,
     deltVedMidnatt: a.deltVedMidnatt,
     sluttTidKilde: a.sluttTidKilde,
+    // B5: normens kilde-status + snapshot for datoen (fra svar-cachen via
+    // effektiv). null når normen er ukjent (ingen svar-cache).
+    normStatus: a.effektiv?.normStatus ?? null,
+    normSnapshot: a.effektiv?.normSnapshot ?? null,
     vekForOverlapp: [],
     rader: [],
   };
@@ -731,25 +797,63 @@ function beregnSegment(a: {
         fraTid: vindu.fraTid,
         tilTid: vindu.tilTid,
         pauseMin: radPauseMin,
+        // Arbeidsrad: ingen reise-spor. byggeplassId null → arver sedel-nivå
+        // (byggeplassDefault), uendret oppførsel. tidKilde null (ikke reise).
         erReise: false,
+        reiseRetning: null,
+        reiseOppmotestedId: null,
+        byggeplassId: null,
+        reiseKjoretidMin: null,
+        reiseAvstandM: null,
+        reiseKilde: null,
+        reiseRegel: null,
+        tidKilde: null,
       });
     }
   }
 
-  // Reise-rader (B4) — én rad pr. reisetid-etappe på dette segmentet (ut på
-  // start, retur på slutt). 🔴 `fraTid/tilTid` forblir `null` (V8 er lag 2 —
-  // ikke fabrikker et klokke-vindu her). `timer` = etappens kjøretid.
+  // Reise-rader (B1/B2) — én rad pr. reisetid-etappe på dette segmentet (ut på
+  // start, retur på slutt). `timer` = etappens kjøretid.
+  //
+  // B2 V8 — klokkevindu på reise-raden. REISE-UNNTAKET (tidligere null-tider)
+  // er REVERSERT med henvisning til V8: reisen har et vindu som BERØRER
+  // arbeidsvinduet i endepunktet (ut.tilTid = arbeidsstart, retur.fraTid =
+  // arbeidsslutt), så de rører, men overlapper ikke (tidsromOverlapper er
+  // streng). 🔴 Vinduet SER målt ut men er UTLEDET fra GPS ± matrise — derfor
+  // tidKilde = "utledet"; markøren er det som gjør V8 forenlig med sporbarheten.
+  //   ut:    fraTid = segment-start,        tilTid = segment-start + kjøretid
+  //   retur: fraTid = segment-slutt − kjøretid, tilTid = segment-slutt
   for (const r of [a.utReise, a.returReise]) {
     if (!r) continue;
+    const kjoretidMs = r.kjoretidMin * 60_000;
+    let fraIso: string;
+    let tilIso: string;
+    if (r.retning === "ut") {
+      const startMs = new Date(segment.startIso).getTime();
+      fraIso = segment.startIso;
+      tilIso = new Date(startMs + kjoretidMs).toISOString();
+    } else {
+      const sluttMs = new Date(segment.sluttIso).getTime();
+      fraIso = new Date(sluttMs - kjoretidMs).toISOString();
+      tilIso = segment.sluttIso;
+    }
     rader.push({
       projectId: a.prosjektId,
       lonnsartId: r.lonnsartId,
       aktivitetId: a.aktivitetId,
       timer: Math.round((r.kjoretidMin / 60) * 100) / 100,
-      fraTid: null,
-      tilTid: null,
+      fraTid: tilHHMM(fraIso),
+      tilTid: tilHHMM(tilIso),
       pauseMin: 0,
       erReise: true,
+      reiseRetning: r.retning,
+      reiseOppmotestedId: r.oppmotestedId,
+      byggeplassId: r.byggeplassId,
+      reiseKjoretidMin: r.kjoretidMin,
+      reiseAvstandM: r.avstandM,
+      reiseKilde: "matrise",
+      reiseRegel: r.reiseRegel,
+      tidKilde: "utledet",
     });
   }
 

@@ -29,6 +29,8 @@ export type DagsnormSvar = {
   pauseReferanse: "fastStart" | "ankomst";
   /** "server" = svar for datoen; "cachet" = siste kjente svar ≤ 30 dager gammelt. */
   normStatus: "server" | "cachet";
+  /** Unix ms da svaret ble hentet — for B5 NormSnapshot.hentetAt (ISO ved bruk). */
+  hentetAt: number;
 };
 
 /**
@@ -141,5 +143,6 @@ function tilSvar(
     pauseEtterTimer: rad.pauseEtterTimer,
     pauseReferanse: rad.pauseReferanse === "fastStart" ? "fastStart" : "ankomst",
     normStatus,
+    hentetAt: rad.hentetAt,
   };
 }

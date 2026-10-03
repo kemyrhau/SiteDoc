@@ -63,6 +63,7 @@ import {
   hentReiseLonnsartId,
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
+import { erReiseRadVisning } from "../../utils/reiseRad";
 import type {
   TimerRad,
   Lonnsart,
@@ -223,6 +224,11 @@ export function TimerSeksjon({
           fraTid,
           tilTid,
           beskrivelse,
+          // B4 (L2-B): manuelt opprettet rad → arbeideren satte tiden selv.
+          // erReise/reiseKilde/reiseRetning settes IKKE her (manuell-UI har ingen
+          // retningsvelger; server UTLEDER erReise fra lønnsarten ved sync — se
+          // leveranse-funn om C2-invarianten erReise⇒reiseRetning).
+          tidKilde: "manuell",
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -274,6 +280,18 @@ export function TimerSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
+      // B4 (L2-B): «Endrer han tiden på en utledet rad → tidKilde = manuell.»
+      // Kun når fra/til FAKTISK endres — en no-op lagring skal ikke stemple en
+      // auto-reise-rads "utledet" om til "manuell" (det ville vært en spor-løgn).
+      const gammel = db
+        .select({ fraTid: sheetTimerLocal.fraTid, tilTid: sheetTimerLocal.tilTid })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.id, radId))
+        .all()[0];
+      const tidEndret =
+        gammel != null &&
+        ((gammel.fraTid ?? null) !== (fraTid ?? null) ||
+          (gammel.tilTid ?? null) !== (tilTid ?? null));
       db.update(sheetTimerLocal)
         .set({
           projectId: radProjectId,
@@ -286,6 +304,7 @@ export function TimerSeksjon({
           fraTid,
           tilTid,
           beskrivelse,
+          ...(tidEndret ? { tidKilde: "manuell" as const } : {}),
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTimerLocal.id, radId))
@@ -477,7 +496,14 @@ export function TimerSeksjon({
             rad={rad}
             gruppeProjectId={projectId}
             sedelByggeplassId={sedelByggeplassId}
-            erReise={reiseLonnsartId != null && rad.lonnsartId === reiseLonnsartId}
+            erReise={erReiseRadVisning(
+              // B6 (L2-B): les det EKSPLISITTE flagget (M3 — ingen gjetting fra
+              // lønnsart etter lag 2). Fallback til lønnsart-match KUN for rader
+              // uten flagg (se erReiseRadVisning + leveranse-funn om pull).
+              rad.erReise,
+              rad.lonnsartId,
+              reiseLonnsartId,
+            )}
             redigerbar={redigerbar}
             pauseFra={pauseFra}
             standardPauseMin={standardPauseMin}

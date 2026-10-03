@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   klassifiserReise,
   løsReiseLonnsartId,
+  grensepunktTraff,
   erReiseLonnsart,
   REISE_LONNSART_REGEX,
   type ReiseRegelsett,
@@ -210,6 +211,30 @@ describe("løsReiseLonnsartId — grensepunkter (determinisme)", () => {
     expect(løsReiseLonnsartId(20_000, [], null)).toBe(null);
     // Selv med avstand null og ingen bånd: uendret fallback.
     expect(løsReiseLonnsartId(null, [], "eksplisitt-art")).toBe("eksplisitt-art");
+  });
+});
+
+describe("grensepunktTraff — avgjorde et bånd lønnsarten? (L2-B snapshot)", () => {
+  const skala: ReiseGrensepunkt[] = [
+    { grenseM: 7_500, lonnsartId: "art-7-15" },
+    { grenseM: 15_000, lonnsartId: null }, // hull 15–20 km
+    { grenseM: 20_000, lonnsartId: "art-20+" },
+  ];
+
+  it("treff i et bånd MED art → true (samme grense-lesing som løsReiseLonnsartId)", () => {
+    expect(grensepunktTraff(10_000, skala)).toBe(true);
+    expect(grensepunktTraff(25_000, skala)).toBe(true);
+  });
+
+  it("treff i et hull (lonnsartId null) → false (fallback bestemte, ikke bånd)", () => {
+    expect(grensepunktTraff(17_000, skala)).toBe(false);
+  });
+
+  it("under laveste grense / ingen bånd / avstand mangler → false", () => {
+    expect(grensepunktTraff(5_000, skala)).toBe(false);
+    expect(grensepunktTraff(20_000, [])).toBe(false);
+    expect(grensepunktTraff(null, skala)).toBe(false);
+    expect(grensepunktTraff(-1, skala)).toBe(false);
   });
 });
 

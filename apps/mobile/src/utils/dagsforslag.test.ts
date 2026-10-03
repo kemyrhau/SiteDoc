@@ -90,7 +90,6 @@ function lagInput(
       reiseUnderTerskelType: "arbeidstid",
       reiseOverTerskelType: "reisetid",
       tidsrundingMinutter: null,
-      reisetidTellerOvertid: false,
       standardPauseEtterTimer: 4.0,
     },
     reiseOppslag: null,
@@ -123,7 +122,7 @@ function ot50Timer(f: ReturnType<typeof beregnDagsforslag>): number {
 }
 
 describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)", () => {
-  it("1. dag med reise (ut-etappe): egen reise-rad med null-tider + arbeids-rad forskjøvet", () => {
+  it("1. dag med reise (ut-etappe): egen reise-rad med V8-vindu + arbeids-rad forskjøvet", () => {
     const f = beregnDagsforslag(
       lagInput({
         dag: {
@@ -146,9 +145,15 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
 
     const reise = rader.find((r) => r.erReise);
     expect(reise).toBeDefined();
-    // B4: reise beholder null-tider (V8 er lag 2).
-    expect(reise!.fraTid).toBeNull();
-    expect(reise!.tilTid).toBeNull();
+    // B2 V8: ut-reise får et utledet klokkevindu 07:00–07:45 (start-GPS +
+    // kjøretid), tidKilde "utledet". Berører arbeidsstart 07:45 uten overlapp.
+    expect(reise!.fraTid).toBe("07:00");
+    expect(reise!.tilTid).toBe("07:45");
+    expect(reise!.tidKilde).toBe("utledet");
+    expect(reise!.reiseRetning).toBe("ut");
+    expect(reise!.reiseKilde).toBe("matrise");
+    expect(reise!.reiseKjoretidMin).toBe(45);
+    expect(reise!.reiseAvstandM).toBe(30000);
     expect(reise!.lonnsartId).toBe(L_REISE);
     expect(reise!.timer).toBeCloseTo(0.75, 5); // 45 min
     expect(rader.filter((r) => r.erReise)).toHaveLength(1); // kun ut, ingen retur
@@ -349,10 +354,17 @@ describe("beregnDagsforslag — L1-B fasit-dager (etapper + vindu)", () => {
     expect(arbeidsTimer(f)).toBeCloseTo(10, 5);
     // Overtid = arbeid − norm (ikke hardkodet).
     expect(ot50Timer(f)).toBeCloseTo(arbeidsTimer(f) - norm, 5); // 10 − 8 = 2
-    // To reise-rader (ut + retur), 2 t hver, null-tider.
+    // To reise-rader (ut + retur), 2 t hver. B2 V8: reisen har nå et UTLEDET
+    // klokkevindu (ikke lenger null-tider) — ut 05:00–07:00, retur 17:30–19:30 —
+    // som berører arbeidsvinduet i endepunktene (07:00 / 17:30) uten å overlappe.
     const reiser = f.datoer[0]!.rader.filter((r) => r.erReise);
     expect(reiser).toHaveLength(2);
-    expect(reiser.every((r) => r.fraTid === null && r.tilTid === null)).toBe(true);
+    const ut = reiser.find((r) => r.reiseRetning === "ut")!;
+    const retur = reiser.find((r) => r.reiseRetning === "retur")!;
+    expect([ut.fraTid, ut.tilTid]).toEqual(["05:00", "07:00"]);
+    expect([retur.fraTid, retur.tilTid]).toEqual(["17:30", "19:30"]);
+    expect(reiser.every((r) => r.tidKilde === "utledet")).toBe(true);
+    expect(reiser.every((r) => r.reiseKilde === "matrise")).toBe(true);
     expect(reiseTimer(f)).toBeCloseTo(4, 5);
     // Normaltid-vinduet starter ved arbeidsstart 07:00.
     const normalt = f.datoer[0]!.rader.find(
@@ -381,22 +393,17 @@ describe("beregnDagsforslag — L1-B fasit-dager (etapper + vindu)", () => {
     expect(arbeid + pauseTimer).toBeCloseTo(10.5, 5);
   });
 
-  it("🔴 Dag E: Dag A med reisetidTellerOvertid = true → NØYAKTIG samme svar (normen ikke senket)", () => {
+  it("Dag E (V1 / C5): reise teller ALDRI som overtid — reise-rader er utenfor OT-grunnlaget", () => {
+    // L2-B/C5: `reisetidTellerOvertid` er fjernet (feltet leses ikke lenger).
+    // V1 er nå strukturelt garantert — reise ligger på egen lønnsart (L_REISE),
+    // aldri OT-arten (L_OT50), og normen senkes ikke av reisen.
     const a = dagMedReise();
-    const e = dagMedReise({
-      regel: {
-        reiseTerskelEnhet: "minutter",
-        reiseTerskelMin: 30,
-        reiseTerskelM: null,
-        reiseUnderTerskelType: "arbeidstid",
-        reiseOverTerskelType: "reisetid",
-        tidsrundingMinutter: null,
-        reisetidTellerOvertid: true, // flagget PÅ — skal ikke endre noe (V1)
-        standardPauseEtterTimer: 4.0,
-      },
-    });
-    expect(ot50Timer(e)).toBeCloseTo(ot50Timer(a), 5); // 2, ikke senket med ut+retur
-    expect(arbeidsTimer(e)).toBeCloseTo(arbeidsTimer(a), 5);
+    const reiseSomOt = a.datoer
+      .flatMap((d) => d.rader)
+      .some((r) => r.erReise && r.lonnsartId === L_OT50);
+    expect(reiseSomOt).toBe(false);
+    // Arbeidsvinduet gir fortsatt OT for det som overstiger normen (ikke reisen).
+    expect(ot50Timer(a)).toBeCloseTo(2, 5);
   });
 
   it("Dag B (start 07:00): ut 07:00–09:00, vindu 09:00–17:30, pause 13:00–13:30 (ankomst) → 8 ord, 0 OT", () => {

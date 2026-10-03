@@ -1066,4 +1066,50 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_hms_local_project
       ON hms_local(project_id, user_id, kategori);
   `);
+
+  // LAG 2 (L2-B, 2026-10-03) — reise-sporet på sheet_timer_local: feltene som
+  // følger en reise-rad fra telefon til server (K5). Alle nullable/additive,
+  // idempotent ALTER etter PRAGMA table_info-mønsteret. Ingen backfill: eldre
+  // lokale rader står null (ærlig — som geofenceKilde='ukjent' i lag 1); server
+  // backfiller sine egne rader i db-timer-migreringen.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    const leggTil: Array<[string, string]> = [
+      ["er_reise", "INTEGER"],
+      ["reise_retning", "TEXT"],
+      ["reise_oppmotested_id", "TEXT"],
+      ["reise_kjoretid_min", "INTEGER"],
+      ["reise_avstand_m", "INTEGER"],
+      ["reise_kilde", "TEXT"],
+      ["reise_regel", "TEXT"],
+      ["tid_kilde", "TEXT"],
+    ];
+    for (const [navn, type] of leggTil) {
+      if (!kolonner.find((k) => k.name === navn)) {
+        console.log(`[MIG] Legger til ${navn} på sheet_timer_local (L2-B)`);
+        db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN ${navn} ${type}`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide sheet_timer_local med reise-spor:", e);
+  }
+
+  // LAG 2 (L2-B, 2026-10-03) — norm_status + norm_snapshot på dagsseddel_local
+  // (B5): lønnsnormens kilde + snapshot følger sedelen fra svar-cachen til
+  // attestanten. Nullable/additive, idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    for (const navn of ["norm_status", "norm_snapshot"]) {
+      if (!kolonner.find((k) => k.name === navn)) {
+        console.log(`[MIG] Legger til ${navn} på dagsseddel_local (L2-B)`);
+        db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN ${navn} TEXT`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med norm-spor:", e);
+  }
 }

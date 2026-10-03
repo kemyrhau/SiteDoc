@@ -384,6 +384,17 @@ export async function syncTimer(
             | "system",
           status: sedel.status,
           beskrivelse: sedel.beskrivelse ?? null,
+          // B5 (L2-B): lønnsnormens kilde + snapshot følger sedelen opp. normSnapshot
+          // lagres som JSON-streng lokalt → parse til objekt (server Zod = z.unknown()).
+          // Gammel server (uten feltene) stripper dem stille — ingen feil.
+          normStatus: (sedel.normStatus ?? null) as
+            | "server"
+            | "cachet"
+            | "ukjent"
+            | null,
+          normSnapshot: sedel.normSnapshot
+            ? (JSON.parse(sedel.normSnapshot) as unknown)
+            : null,
           // T7-3b1: send projectId per rad. Faller tilbake til sedel-nivå
           // hvis rad-nivå ikke er satt (legacy-data + lokal backfill).
           // Server bruker rad-nivå hvis satt, ellers sedel-nivå (kompat-shim).
@@ -405,6 +416,25 @@ export async function syncTimer(
             byggeplassId: t.byggeplassId ?? null,
             // F5: per-rad matpause-bærer (min). 0 = ingen pause på raden.
             pauseMin: t.pauseMin ?? 0,
+            // LAG 2 (B1): reise-sporet opp til server (M6 — MÅ sendes eksplisitt
+            // ellers stripper Zod dem). erReise null lokalt (eldre rad) → undefined
+            // så serveren UTLEDER flagget (overgangsperioden), ikke false. reiseRegel
+            // parses fra JSON-streng til objekt (server Zod = z.unknown()). Gammel
+            // server uten feltene stripper dem stille — raden lagres uten spor.
+            erReise: t.erReise ?? undefined,
+            reiseRetning: (t.reiseRetning ?? null) as "ut" | "retur" | null,
+            reiseOppmotestedId: t.reiseOppmotestedId ?? null,
+            reiseKjoretidMin: t.reiseKjoretidMin ?? null,
+            reiseAvstandM: t.reiseAvstandM ?? null,
+            reiseKilde: (t.reiseKilde ?? null) as "matrise" | "manuell" | null,
+            reiseRegel: t.reiseRegel
+              ? (JSON.parse(t.reiseRegel) as unknown)
+              : null,
+            tidKilde: (t.tidKilde ?? null) as
+              | "stempel"
+              | "utledet"
+              | "manuell"
+              | null,
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,

@@ -116,6 +116,12 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
   beskrivelse: text("beskrivelse"),
   lederKommentar: text("leder_kommentar"),
   attestertVed: text("attestert_ved"), // ISO timestamp fra server
+  // LAG 2 (L2-B / B5) — lønnsnormens kilde-status + snapshot følger sedelen fra
+  // svar-cachen (B6) til attestanten. Settes ved auto-generering; synkes opp.
+  // normStatus: "server" | "cachet" | "ukjent" | null (null = eldre sedel).
+  // normSnapshot: JSON (NormSnapshot) — TEXT lokalt, Json på server.
+  normStatus: text("norm_status"),
+  normSnapshot: text("norm_snapshot"),
   syncStatus: text("sync_status", {
     // "avvist" (SYNC-1): permanent avvist av server — terminal, retry stopper.
     // Ren TS-enum-utvidelse; SQLite-kolonnen er TEXT → ingen migrering nødvendig.
@@ -161,6 +167,24 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   // nivå pauseMin). timer = effektiveTimerFraSpenn(fra, til, pauseFra, pauseMin).
   // Speil av server sheet_timer.pause_min (F5). Bærer = lunsj-kryssende rad.
   pauseMin: integer("pause_min").notNull().default(0),
+  // LAG 2 (L2-B) — reise-sporet som følger raden fra telefon til server til
+  // eksport (K5: mottak med sporbarhet). Alle nullable/additive, tilføyes
+  // idempotent via ALTER. Speil av server SheetTimer.*; verditypene bor i
+  // @sitedoc/shared (ReiseRetning/ReiseKilde/TidKilde). Reise-rader (auto +
+  // manuell) bærer feltene; arbeidsrader har dem null.
+  //  - erReise: eksplisitt flagg (M3) — etter lag 2 gjetter ingen leser reise
+  //    fra lønnsart/regex. null = ukjent (eldre lokal rad / server-pull før L2-A
+  //    returnerer flagget).
+  erReise: integer("er_reise", { mode: "boolean" }),
+  reiseRetning: text("reise_retning"), // "ut" | "retur" | null
+  reiseOppmotestedId: text("reise_oppmotested_id"), // svak FK → Oppmotested
+  reiseKjoretidMin: integer("reise_kjoretid_min"), // matrisecellens kjøretid
+  reiseAvstandM: integer("reise_avstand_m"), // matrisecellens avstand (meter)
+  reiseKilde: text("reise_kilde"), // "matrise" | "manuell" | null
+  // JSON-snapshot av reise-regelen (ReiseRegelSnapshot) slik den var da raden
+  // ble laget. Lagres som TEXT (JSON.stringify); server tar imot som Json.
+  reiseRegel: text("reise_regel"),
+  tidKilde: text("tid_kilde"), // V8: "stempel" | "utledet" | "manuell" | null
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -591,9 +615,9 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   reiseTerskelM: integer("reise_terskel_m"),
   reiseUnderTerskelType: text("reise_under_terskel_type").notNull().default("arbeidstid"),
   reiseOverTerskelType: text("reise_over_terskel_type").notNull().default("reisetid"),
-  reisetidTellerOvertid: integer("reisetid_teller_overtid", { mode: "boolean" })
-    .notNull()
-    .default(false),
+  // DEPRECATED (L2-B / C5, 2026-10-03): reisetid_teller_overtid leses ikke lenger
+  // (V1: reisetid er ALDRI overtid). Drizzle-feltet fjernet så ingen leser kan
+  // dra det inn; SQLite-KOLONNEN står (to-stegs — droppes i senere release).
   reiseLonnsartId: text("reise_lonnsart_id"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });

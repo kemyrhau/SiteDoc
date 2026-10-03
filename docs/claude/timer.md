@@ -300,6 +300,38 @@ Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger løn
 >   `reisetidTellerOvertid`-avkrysningen er fjernet fra firma-innstillinger (web); api beholder kolonne +
 >   select/skriv men ignorerer verdien (to-stegs, droppes senere); i18n-nøkkelen `reise.tellerOvertid` slettet.
 
+> 🟢 **LAG 2-B (branch `feat/timer-l2b-mobil-spor`, 2026-10-03 — venter merge/gate; hjemmel V8/K5/V2):
+> mobilen SKRIVER sporet + V8-vinduet.** Forutsetter L2-A merget (feltene i `syncBatch` FØR telefonen sender,
+> M6). **Reload: OTA.**
+> - **B1 — raden bærer etappen:** `beregnDagsforslag` (`dagsforslag.ts`) reduserer ikke lenger etappen til
+>   `{ kjoretidMin, lonnsartId }`; `reiseForRetning` returnerer hele sporet (retning, oppmøtested, byggeplass,
+>   avstand, `reiseRegel`-snapshot via delt `grensepunktTraff`), og `anvendDagsforslag` (`dagsforslagAnvend.ts`)
+>   skriver `erReise`/`reiseRetning`/`reiseOppmotestedId`/`byggeplassId` (M1 — nå faktisk skrevet)/
+>   `reiseKjoretidMin`/`reiseAvstandM`/`reiseKilde:"matrise"`/`reiseRegel` (JSON)/`tidKilde` på `sheet_timer_local`.
+> - **B2 V8 — klokkevindu på reise-rader:** REISE-UNNTAKET (null-tider) er REVERSERT. `ut`: `fraTid=segment-start`,
+>   `tilTid=start+kjøretid`; `retur`: `fraTid=slutt−kjøretid`, `tilTid=segment-slutt`; `tidKilde="utledet"`
+>   (vinduet SER målt ut, er UTLEDET). Vinduene berører arbeidsvinduet i endepunktene uten å overlappe
+>   (`tidsromOverlapper` streng). **B3:** Dag A (ut/ordinær/OT50/retur) passerer serverens delte
+>   `finnTidsromKonflikt` (`@sitedoc/shared` — uendret siden SYNC-2 `a711ad7b`, i prod → gammel server avviser
+>   ikke synken; de nye feltene stripper Zod stille på gammel server).
+> - **B4 (delvis):** manuelt lagt til/endret rad får `tidKilde="manuell"` (bruker satte tiden; endret tid på en
+>   `utledet` rad → `manuell` kun når fra/til FAKTISK endres). 🔴 **`erReise=true`+`reiseKilde="manuell"` på
+>   manuelle reise-rader er IKKE satt** — C2-invarianten `erReise⇒reiseRetning` (L2-A) ville avvist raden, og
+>   manuell-UI har ingen retningsvelger. `erReise` sendes `undefined` → serveren UTLEDER flagget fra lønnsarten
+>   (utled-grenen, utenfor C2). Egen beslutning/oppfølger (retningsvelger) hos orkestrator.
+> - **B5:** `normStatus` + `normSnapshot` (fra svar-cachen, `arbeidstidSvarKatalog.hentetAt` eksponert) skrives på
+>   `dagsseddel_local` ved auto-generering og synkes opp (`timerSync` push). Pull oppdaterer sedelen in-place →
+>   normsporet overlever (til forskjell fra rader, som delete+reinsertes).
+> - **B6:** visningen (`TimerSeksjon`) leser `erReise` via delt `erReiseRadVisning` — fallback til lønnsart-match
+>   KUN for rader uten flagg (eldre lokale + server-pull før `hentEndringerSiden` returnerer `erReise`).
+> - **C5 (mobil):** `reisetidTellerOvertid` ut av `DagsforslagRegel` + `organizationSettingLocal`-Drizzle-feltet
+>   + `organizationSettingKatalog`/`StartSluttDagKort`. SQLite-KOLONNEN står (to-stegs, ikke DROP).
+> - **Lokal migrering (`migreringer.ts`):** idempotente `ALTER` for spor-kolonnene på `sheet_timer_local` +
+>   norm-kolonnene på `dagsseddel_local` (ingen backfill — eldre rader står null, ærlig).
+> - 🔴 **Pull bærer ikke sporet ennå:** `hentEndringerSiden` (server) returnerer ikke `erReise`/reise-feltene →
+>   lokalt skrevet spor på synkede rader wipes ved første pull (rad-replace). B6-fallbacken dekker visningen
+>   inntil pull-en utvides (lite, additivt — anbefalt oppfølger, utenfor L2-B-scope).
+
 #### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
 
 **`Lonnsart.overtidsnivaa Int?`** (db-timer, nullable): `null` = ikke overtid, `50`/`100` = tier. Erstatter fritekst-navne-match. Firma-admin setter feltet i web lønnsart-UI («Overtidsnivå»-select, kun for `type="ordinaer"`).
