@@ -63,9 +63,9 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `bee73957` | 🟡 **Levert 2026-10-03, i kø hos kontrollør** (etter offline-lesing). Skjermbilder krever at L2-A-migreringen er kjørt på test |
-| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/timer-l2b-mobil-spor` `95749673` | 🔴 **TILLEGG 1 sendt 2026-10-03** — pull mangler spor-feltene → `syncBatch` (deleteMany+createMany) sletter sporet på server ved neste push. B4 (manuell reise uten retning) hos fabel |
-| **Funn** | redesign | `SiteDoc-redesign` | `feat/mobil-offline-lesing` `6d8b0adf` | 🟡 **Levert 2026-10-03, hos kontrollør for gate.** Volum målt: `checklists.data` snitt 630 B, maks 10,7 KB (69 rader, test) → tak 200 ≈ maks ~2 MB |
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `8492b66c` | 🟡 **GATET (diff) 2026-10-03 — merge venter på Kenneths Excel-valg** (faste vs. skiftende kolonner). AML-varsel: behold (teller reise) |
+| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | — (detached) | 🟢 **L2-B MERGET `28c7d168` ← `99e5bdbc` 2026-10-03** (kontrollør GATET). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 21s (api 703, mobil 180). 🔴 Deploy-rekkefølge test: L2-A-migrering → server → OTA |
+| **Funn** | redesign | `SiteDoc-redesign` | `feat/mobil-offline-lesing` `6d8b0adf` | 🔴 **RETUR 1 sendt 2026-10-03** — «Frakoblet»-banner + tvungen lesemodus på treg online-query (Q5) + statuser fra shared + vedtakskommentarer tilbake |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |

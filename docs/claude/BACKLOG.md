@@ -54,6 +54,12 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🟡 «FORBERED OFFLINE» HAR HARDKODET NORSK — `apps/mobile/app/(tabs)/mer.tsx:91-132` (målt av kontrollør 2026-10-03)
+
+Hele statusteksten i «Forbered offline» er norske strenger utenfor `t()`, fra før offline fase 2. De nye strengene i
+`feat/mobil-offline-lesing` fulgte mønsteret. Brudd på i18n-kravet (CLAUDE.md). **Ikke bestilt.** Eget i18n-sveip, sammen
+med de tre foreldreløse `annotering.*`-nøklene under.
+
 ### 🟡 SJEKKLISTE-SPEILET LEKKER VED BRUKERBYTTE — `loggUt()` rydder ikke SQLite (målt 2026-10-03, redesign)
 
 **Funnet under `fix/mobil-offline-oppgave-hms`:** `sjekkliste_local` (`apps/mobile/src/db/schema.ts:640`) har ingen
