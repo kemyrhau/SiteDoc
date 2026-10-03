@@ -101,7 +101,11 @@ Sporbarhet må deklareres i begge ender i samme release.
   retur) og passerer serverens vakt.
 - **B4** Når arbeideren **legger til eller endrer** en reise-rad manuelt (`TimerSeksjon`): `erReise = true`
   (lønnsart-velgeren setter det når arten er reise-art), `reiseKilde = "manuell"`, `tidKilde = "manuell"`,
-  avstand/kjøretid `null`. Endrer han tiden på en `utledet` rad → `tidKilde = "manuell"`.
+  avstand/kjøretid `null`, **og `reiseRetning = null`** — manuell-UI-et har ingen retningsvelger, og skal ikke få
+  en (🟢 **valg A, 2026-10-03**: retningen er informasjon, ikke lønn; lønnsarten avgjøres av arten arbeideren
+  velger, og et ekstra trykk kjøper ingenting). Attestanten ser «Reise (manuell)». Endrer han tiden på en
+  `utledet` rad → `tidKilde = "manuell"`. 🔴 **Aldri «ikke send `erReise` og la serveren utlede»** (alternativ C):
+  da blir `reiseKilde = null`, og raden lyver om en kilde vi faktisk kjenner.
 - **B5** `normStatus` + `normSnapshot` skrives på sedelen fra svar-cachen (lag 1 B6) og synkes.
 - **B6** Mobilens reise-gjenkjenning ved visning (`TimerSeksjon.tsx:189-190, :480`) leser `erReise`,
   ikke lønnsart-id.
@@ -112,8 +116,16 @@ Sporbarhet må deklareres i begge ender i samme release.
   `reiseOppmotestedId`, `reiseKjoretidMin`, `reiseAvstandM`, `reiseKilde`, `reiseRegel`, `tidKilde` på
   timer-rader; `normStatus`, `normSnapshot` på sedelen. **Test som FEILER hvis et felt sendes og ikke
   lagres** (M11 — ingen slik test finnes i dag).
-- **C2 Invarianter ved mottak** (validering, ikke omregning): `erReise ⇒ reiseRetning ∧ reiseKilde` ·
-  `reiseKilde = "matrise" ⇒ reiseKjoretidMin ≥ 0 ∧ reiseAvstandM ≥ 0 ∧ reiseRegel` · `reiseOppmotestedId`
+  🔴 **C1 gjelder BEGGE retninger** (presisert 2026-10-03, funnet av orkestrator i L2-B): **pull**
+  (`hentEndringerSiden`) må returnere alle spor-feltene, og mobilen må lagre dem lokalt — ellers sletter neste
+  push dem på serveren, fordi `syncBatch` erstatter radene (`deleteMany` + `createMany`). **Test som FEILER:**
+  rad med spor → pull til tom klient → push → sporet står fortsatt på serveren. Blokkerende i L2-B (TILLEGG 1).
+- **C2 Invarianter ved mottak** (validering, ikke omregning): `erReise ⇒ reiseKilde` ·
+  🔴 **`erReise ∧ reiseKilde = "matrise" ⇒ reiseRetning ∧ reiseKjoretidMin ≥ 0 ∧ reiseAvstandM ≥ 0 ∧ reiseRegel`**
+  *(presisert 2026-10-03, valg A: retningskravet gjelder KUN matrise-rader — en manuell rad har ingen retning å
+  gi. Forrige formulering `erReise ⇒ reiseRetning ∧ reiseKilde` avviste manuelle rader fra `TimerSeksjon`,
+  funnet av kontrollplan i L2-B. Endringen i `validerReiseInvarianter` legges i L2-B-branchen, så mobil og
+  server endres i samme release.)* · `reiseOppmotestedId`
   tilhører firmaet · `reiseAvstandM ≤ 1 000 000` (navngitt konstant i `rad-tak.ts`-stil). Brudd → avvis
   raden med navngitt feil, ikke hele synken stille.
 - **C3 Kontroll, ikke omregning** 🟢 *(gate 2026-10-03: INNENFOR K5 — «et snapshot ingen kontrollerer er et
@@ -174,5 +186,6 @@ eksportrad for reise uten km når kilde er matrise (D2).
 1. ~~C3 kontroll vs. omregning~~ — 🟢 avgjort av gaten: innenfor K5.
 2. **`reiseRegel` som Json vs. kolonner** — Json valgt for migreringsenkelhet; eksporten trenger bare
    `kategori` derfra.
+4. ~~B4 manuell reise-rad vs. C2~~ — 🟢 **avgjort 2026-10-03: valg A** (retningskrav kun for matrise-rader).
 3. **Backfill-regelen for `erReise`** speiler dagens leser (M3). Alternativet er å la gamle rader stå
    `false` og kun merke nye — da lyver attesteringen om gamle reise-rader. Jeg anbefaler backfill.
