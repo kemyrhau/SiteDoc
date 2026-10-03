@@ -63,9 +63,9 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` (ny) | 🟡 **Ordre skrevet 2026-10-03** — L2-C attestering + eksport (`relay/inbox-dokgen-l2c-attestering-eksport.md`). L2-A MERGET `6b05a694`; migrering `20261003120000_timer_lag2_sporbarhet` IKKE kjørt (Kenneth) |
-| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/timer-l2b-mobil-spor` (ny) | 🟡 **Ordre skrevet 2026-10-03** — L2-B mobilen skriver sporet + V8 (`relay/inbox-kontrollplan-l2b-mobil-spor.md`). ∥ L2-C, disjunkte filer bortsett fra i18n |
-| **Funn** | redesign | `SiteDoc-redesign` | `feat/mobil-offline-lesing` (ny) | 🟡 **Ordre skrevet 2026-10-03** — offline fase 2: LESE dokumenter uten nett (Kenneth-vedtak A) + `user_id` på `sjekkliste_local` (`relay/inbox-redesign-offline-lesing.md`). Forrige: `1a9c8e10` merget, venter OTA |
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `bee73957` | 🟡 **Levert 2026-10-03, i kø hos kontrollør** (etter offline-lesing). Skjermbilder krever at L2-A-migreringen er kjørt på test |
+| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/timer-l2b-mobil-spor` `95749673` | 🔴 **TILLEGG 1 sendt 2026-10-03** — pull mangler spor-feltene → `syncBatch` (deleteMany+createMany) sletter sporet på server ved neste push. B4 (manuell reise uten retning) hos fabel |
+| **Funn** | redesign | `SiteDoc-redesign` | `feat/mobil-offline-lesing` `6d8b0adf` | 🟡 **Levert 2026-10-03, hos kontrollør for gate.** Volum målt: `checklists.data` snitt 630 B, maks 10,7 KB (69 rader, test) → tak 200 ≈ maks ~2 MB |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
