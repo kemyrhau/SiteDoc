@@ -1,4 +1,4 @@
-export { utledMinRolle, utledDokumentRettighet, beregnHarBallen, utledFlytRettighet } from "./flytRolle";
+export { utledMinRolle, utledDokumentRettighet, beregnHarBallen, utledFlytRettighet, TERMINALE_DOKUMENTSTATUSER } from "./flytRolle";
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker, FlytMedlemRedigering, FlytRedigeringBruker } from "./flytRolle";
 export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS, PROSJEKTADMIN_ROLLE } from "./statusHandlinger";
 export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
@@ -215,12 +215,14 @@ export {
 } from "./periode";
 export type { Periode, PeriodeHurtigvalg } from "./periode";
 export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
-export { velgOfflineListeKilde } from "./offlineListe";
+export { velgOfflineListeKilde, velgDokumentVisning } from "./offlineListe";
 export type {
   OfflineListeKilde,
   OfflineListeTilstand,
   OfflineListeInput,
   OfflineListeValg,
+  DokumentVisningInput,
+  DokumentVisningValg,
 } from "./offlineListe";
 export {
   avledSjekklisteFremdrift,

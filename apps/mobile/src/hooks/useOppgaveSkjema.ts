@@ -9,7 +9,7 @@ import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgOfflineListeKilde } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -242,16 +242,14 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     [oppgaveQuery.isSuccess, oppgaveId, userId],
   );
 
-  // «Server-bekreftet ellers lokal» via den delte kildevelgeren.
-  const kildeValg = velgOfflineListeKilde({
+  // Visningskilde via den delte predikaten. 🔴 AVVIK Q5: online-venting gir IKKE
+  // offline-modus — skjermen spinner, online-atferd uendret.
+  const { offlineModus, offlineIkkeLastet } = velgDokumentVisning({
     erPaaNettet,
     serverBekreftet: oppgaveQuery.isSuccess,
-    serverAntall: serverOppgave ? 1 : 0,
-    lokalAntall: speil ? 1 : 0,
+    erFeilet: oppgaveQuery.isError,
+    harSpeil: !!speil,
   });
-  const offlineModus = kildeValg.kilde === "lokal" && !!speil;
-  const offlineIkkeLastet =
-    !oppgaveQuery.isSuccess && !offlineModus && (!erPaaNettet || oppgaveQuery.isError);
 
   // Effektiv data: server når bekreftet, ellers speilet i tvungen lesemodus.
   const oppgave: OppgaveData | undefined = oppgaveQuery.isSuccess

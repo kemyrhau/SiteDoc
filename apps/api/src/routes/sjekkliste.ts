@@ -158,6 +158,8 @@ async function lesSjekklisteMedId(
       recipientGroup: { select: { id: true, name: true } },
       byggeplass: { select: { id: true, name: true } },
       drawing: { select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true } },
+      // Steg 2b (2026-09-23): områdenavn+type for lokasjonsvisning når lokasjonOmfang="omrade".
+      // Additiv lese-utvidelse — omradeId (skalar) fulgte alt med; navnet krevde relasjonen.
       omrade: { select: { id: true, navn: true, type: true } },
       images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
       transfers: {
@@ -176,6 +178,8 @@ async function lesSjekklisteMedId(
   });
 
   // Tilgangssjekk — hent projectId, domain og hmsSynlighet fra malen.
+  // hmsSynlighet sendes inn slik at "apen" HMS-dokumenter er lesbare for alle
+  // prosjektmedlemmer (lesing — mutations beholder streng tilgang).
   await verifiserDokumentTilgang(
     userId,
     sjekkliste.template.projectId,

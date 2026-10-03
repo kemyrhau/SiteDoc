@@ -1,6 +1,18 @@
 import type { DokumentflytRolle } from "../types";
 
 /**
+ * Terminale dokumentstatuser: ingen får ballen videre → alle er `leser`. ÉN kilde for
+ * domeneregelen (brukt av `utledDokumentRettighet` og offline-forhånds-nedlastingens
+ * «ikke-terminal»-filter, så de to ikke kan drifte). `deleted` er IKKE med her — det er
+ * ikke en flyt-terminal men en slettet rad; offline-filteret legger den til separat.
+ */
+export const TERMINALE_DOKUMENTSTATUSER: ReadonlySet<string> = new Set([
+  "closed",
+  "approved",
+  "cancelled",
+]);
+
+/**
  * Info om innlogget bruker i prosjektkontekst.
  */
 export interface FlytBrukerInfo {
@@ -194,7 +206,7 @@ export function utledDokumentRettighet(input: DokumentRettighetInput): DokumentR
   if (erAdmin) return "admin";
 
   // 2. Terminale statuser → alltid leser
-  if (["closed", "approved", "cancelled"].includes(status)) return "leser";
+  if (TERMINALE_DOKUMENTSTATUSER.has(status)) return "leser";
 
   // 3. Kladd → sjekk edit-tillatelse (med fallback)
   if (status === "draft") {

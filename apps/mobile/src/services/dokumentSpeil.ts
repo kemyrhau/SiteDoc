@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { raaVedleggIData } from "@sitedoc/shared";
+import { raaVedleggIData, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import { dokumentSpeil } from "../db/schema";
 import type { trpc } from "../lib/trpc";
@@ -120,10 +120,15 @@ export function hentDokumentSpeil(
 export const FORHAANDSLAST_TAK = 200;
 
 /**
- * Terminale statuser hoppes over — ferdige dokumenter som sjelden åpnes offline (holder
- * volumet nede). Draft/sent/received/in_progress/responded/approved/returned lastes ned.
+ * Statuser forhånds-nedlastingen hopper over = domenets terminale statuser
+ * (`TERMINALE_DOKUMENTSTATUSER` fra @sitedoc/shared, delt med `utledDokumentRettighet` —
+ * ingen lokal kopi) + `deleted`. `deleted` er navngitt med vilje: ikke en flyt-terminal,
+ * men en slettet rad ingen skal lese offline. (Write-through speiler fortsatt et åpnet
+ * «approved»-dokument — kun BULK-forhånds-nedlasting hopper over de terminale.)
  */
-const TERMINALE_STATUSER = new Set(["closed", "cancelled", "deleted"]);
+function erTerminalForForhaandslast(status: string): boolean {
+  return TERMINALE_DOKUMENTSTATUSER.has(status) || status === "deleted";
+}
 
 export interface ForhaandslastDokument {
   id: string;
@@ -166,7 +171,7 @@ export async function forhaandslastDokumenter(
   const res: ForhaandslastResultat = { lastet: 0, hoppet: 0, feilet: 0, serverManglerProsedyre: false };
   if (!userId) return res;
 
-  const kandidater = dokumenter.filter((d) => !TERMINALE_STATUSER.has(d.status));
+  const kandidater = dokumenter.filter((d) => !erTerminalForForhaandslast(d.status));
   res.hoppet = dokumenter.length - kandidater.length;
 
   let antall = 0;

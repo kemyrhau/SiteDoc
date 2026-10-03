@@ -9,7 +9,7 @@ import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { useAuth } from "../providers/AuthProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgOfflineListeKilde } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -259,18 +259,15 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     [sjekklisteQuery.isSuccess, sjekklisteId, userId],
   );
 
-  // «Server-bekreftet ellers lokal» via den delte kildevelgeren (enkeltdokument:
-  // antall = har-dokument ? 1 : 0).
-  const kildeValg = velgOfflineListeKilde({
+  // Visningskilde via den delte predikaten. 🔴 AVVIK Q5: online-venting (på nett,
+  // ikke feilet, ikke bekreftet ennå) gir IKKE offline-modus — da spinner skjermen og
+  // online-atferden er uendret. Speil vises kun uten nett eller ved feilet query.
+  const { offlineModus, offlineIkkeLastet } = velgDokumentVisning({
     erPaaNettet,
     serverBekreftet: sjekklisteQuery.isSuccess,
-    serverAntall: serverSjekkliste ? 1 : 0,
-    lokalAntall: speil ? 1 : 0,
+    erFeilet: sjekklisteQuery.isError,
+    harSpeil: !!speil,
   });
-  const offlineModus = kildeValg.kilde === "lokal" && !!speil;
-  // Offline/feilet OG ingen speil → «ikke lastet ned» (ikke evig spinner).
-  const offlineIkkeLastet =
-    !sjekklisteQuery.isSuccess && !offlineModus && (!erPaaNettet || sjekklisteQuery.isError);
 
   // Effektiv data: server når bekreftet, ellers speilet i tvungen lesemodus.
   const sjekkliste: SjekklisteData | undefined = sjekklisteQuery.isSuccess

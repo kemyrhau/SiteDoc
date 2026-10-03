@@ -66,3 +66,39 @@ export function velgOfflineListeKilde(i: OfflineListeInput): OfflineListeValg {
     ? { kilde: "lokal", tilstand: "lokal" }
     : { kilde: "lokal", tilstand: "lokal-tom" };
 }
+
+/**
+ * Visningskilde for ÉN dokument-detalj offline (fase 2). Skiller seg fra listenes
+ * `velgOfflineListeKilde` på ett avgjørende punkt: **online-venting skal IKKE vise
+ * speilet.** En treg spørring (online, `isLoading`) på et dokument som finnes i speilet
+ * må gi spinner og la online-atferden være uendret — ikke tvungen lesemodus som bytter
+ * til redigerbar når svaret kommer midt i at brukeren leser (AVVIK Q5, orkestrator
+ * 2026-10-03). «Frakoblet» gjelder derfor KUN uten nett eller ved feilet query.
+ */
+export interface DokumentVisningInput {
+  /** Nettverksstatus fra NettverkProvider. */
+  erPaaNettet: boolean;
+  /** Har detalj-spørringen svart (react-query `isSuccess`)? */
+  serverBekreftet: boolean;
+  /** Feilet detalj-spørringen (react-query `isError`)? */
+  erFeilet: boolean;
+  /** Finnes dokumentet i det bruker-filtrerte speilet? */
+  harSpeil: boolean;
+}
+
+export interface DokumentVisningValg {
+  /** Rendre fra speilet i tvungen lesemodus. */
+  offlineModus: boolean;
+  /** Vis «ikke lastet ned» (frakoblet uten speil) — ikke evig spinner. */
+  offlineIkkeLastet: boolean;
+}
+
+export function velgDokumentVisning(i: DokumentVisningInput): DokumentVisningValg {
+  // Frakoblet = ikke bekreftet server-svar OG (uten nett ELLER feilet). Online-venting
+  // (på nett, ikke feilet, ikke bekreftet ennå) er bevisst UTE → skjermen spinner.
+  const frakoblet = !i.serverBekreftet && (!i.erPaaNettet || i.erFeilet);
+  return {
+    offlineModus: frakoblet && i.harSpeil,
+    offlineIkkeLastet: frakoblet && !i.harSpeil,
+  };
+}
