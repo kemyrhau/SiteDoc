@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   klassifiserReise,
   løsReiseLonnsartId,
+  erReiseLonnsart,
   REISE_LONNSART_REGEX,
   type ReiseRegelsett,
   type ReiseGrensepunkt,
+  type ErReiseKontekst,
 } from "./reise";
 
 /**
@@ -208,5 +210,56 @@ describe("løsReiseLonnsartId — grensepunkter (determinisme)", () => {
     expect(løsReiseLonnsartId(20_000, [], null)).toBe(null);
     // Selv med avstand null og ingen bånd: uendret fallback.
     expect(løsReiseLonnsartId(null, [], "eksplisitt-art")).toBe("eksplisitt-art");
+  });
+});
+
+// ===========================================================================
+//  erReiseLonnsart (LAG 2) — ÉN regel delt av backfill-SQL + serverens skrivestier.
+//  Speiler dagens leser (M3): konfigurert art ∪ grensepunkt-arter, ellers navne-
+//  match KUN for firmaer uten konfigurert reiseLonnsartId.
+// ===========================================================================
+describe("erReiseLonnsart — delt reise-flagg-regel (backfill-speil)", () => {
+  const medKonfigurert: ErReiseKontekst = {
+    reiseLonnsartId: "reise-art",
+    grensepunktLonnsartIds: ["band-25", "band-50"],
+  };
+  const utenKonfigurert: ErReiseKontekst = {
+    reiseLonnsartId: null,
+    grensepunktLonnsartIds: ["band-25"],
+  };
+
+  it("konfigurert reise-art → true", () => {
+    expect(erReiseLonnsart("reise-art", "Hva som helst", medKonfigurert)).toBe(true);
+  });
+
+  it("grensepunkt-art (avstandsbånd) → true, uansett navn", () => {
+    expect(erReiseLonnsart("band-50", "Tillegg", medKonfigurert)).toBe(true);
+    expect(erReiseLonnsart("band-25", "Noe", utenKonfigurert)).toBe(true);
+  });
+
+  it("🔴 navne-match IGNORERES når firmaet HAR konfigurert reise-art (unngår falske positive)", () => {
+    // «Transporttillegg» matcher regexen, men firmaet har en eksplisitt reise-art
+    // → navnet skal ikke fryses som sannhet. Rød først: en naiv regex-only-regel
+    // ville satt true her.
+    expect(erReiseLonnsart("annen-art", "Transporttillegg", medKonfigurert)).toBe(false);
+  });
+
+  it("navne-match brukes KUN når reiseLonnsartId mangler", () => {
+    expect(erReiseLonnsart("x", "Reise til prosjekt", utenKonfigurert)).toBe(true);
+    expect(erReiseLonnsart("x", "Transport av masser", utenKonfigurert)).toBe(true);
+  });
+
+  it("ordinær lønnsart → false (begge kontekster)", () => {
+    expect(erReiseLonnsart("ordinaer", "Timelønn", medKonfigurert)).toBe(false);
+    expect(erReiseLonnsart("ordinaer", "Timelønn", utenKonfigurert)).toBe(false);
+  });
+
+  it("regelen er identisk med leser-regexen (REISE_LONNSART_REGEX)", () => {
+    // Navne-grenen SKAL bruke samme regex som dagens leser — ingen ny gjetning.
+    for (const navn of ["Reise", "transport", "REISEGODTGJØRELSE"]) {
+      expect(erReiseLonnsart("x", navn, utenKonfigurert)).toBe(
+        REISE_LONNSART_REGEX.test(navn),
+      );
+    }
   });
 });

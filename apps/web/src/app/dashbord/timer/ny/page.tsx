@@ -118,7 +118,10 @@ export default function NyDagsseddelSide() {
   }, [effektiv, orgId, manueltEndret]);
 
   const opprett = trpc.timer.dagsseddel.opprett.useMutation({
-    onSuccess: (sheet) => {
+    // LAG 2: eksplisitt param-type bryter den dype tRPC-inferensen (TS2589) —
+    // opprett-outputen fikk normSnapshot (Json?), og Prismas rekursive JsonValue
+    // blåser opp callback-typen (CLAUDE.md tRPC-fallgruve). Vi leser kun id + flagg.
+    onSuccess: (sheet: { id: string; eksisterte?: boolean }) => {
       // D7: bær prosjektvalget til detalj-siden (forhåndsåpner gruppa + default
       // for rader). D1: hvis sedelen fantes fra før (eksisterte), signaliser det
       // så detalj-siden viser «dagen fantes alt»-notis (mobil-atferd) i stedet

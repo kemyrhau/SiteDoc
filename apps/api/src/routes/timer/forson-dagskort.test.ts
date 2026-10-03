@@ -22,6 +22,15 @@ vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),
   hentEffektivArbeidstid: vi.fn(),
 }));
+// LAG 2: forsonDagskort utleder nå erReise via kjerne-prisma (hentErReiseKontekst).
+// Mock den så testene ikke treffer ekte DB.
+vi.mock("@sitedoc/db", () => ({
+  prisma: {
+    organizationSetting: { findUnique: vi.fn().mockResolvedValue({ reiseLonnsartId: null }) },
+    organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
+    reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
+  },
+}));
 
 import { dagsseddelRouter } from "./dagsseddel";
 import { krevTimerAktivert } from "../../services/timer";

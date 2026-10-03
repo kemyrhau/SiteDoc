@@ -278,6 +278,28 @@ Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger løn
 > - **Prosjektvalg via A5** (`velgDestinasjon`, `@sitedoc/shared`): destinasjon → `aktivtProsjektId` → `prosjektUkjent`. `velgNaermesteProsjekt` + `prosjekter[0]`-fallback + `resolverPrimaerByggeplass` + `estimerReisetidMin` SLETTET.
 > - **Norm = én server-utledning (B6 v3, H22):** `OrganizationSetting.normKilde` (`fast`=lovnorm/7,5-kolonnen · `kalender`=sesongutledet) + `pauseReferanse` (`ankomst`/`fastStart`). `hentEffektivArbeidstid`-servicen er eneste utledning; server-varsel + web-sedel kaller den pr. dato. Mobilen REGNER ikke normen — den cacher serverens svar pr. dato (`arbeidstid_svar_local`, lokal migrering) og leser via `hentDagsnormLokalt` (`server`/`cachet≤30d`/`null`, aldri 7,5). Ukjent norm → ingen overtid-splitt + markør (varsel + banner). Migrering `20261002130000_timer_normkilde_pausereferanse` (Prisma, backfill sommertid→kalender) — **ikke kjørt**.
 
+> 🟢 **LAG 2-A (branch `feat/timer-l2a-sporbarhet`, 2026-10-03 — venter merge/gate; hjemmel V1/V2/K5):
+> radmodellen + mottak med sporbarhet på serveren.**
+> - **Radmodell (db-timer, migrering `20261003120000_timer_lag2_sporbarhet` — IKKE kjørt):** `SheetTimer`
+>   får `erReise Boolean @default(false)`, `reiseRetning`, `reiseOppmotestedId` (svak FK → `oppmotesteder`),
+>   `reiseKjoretidMin`, `reiseAvstandM`, `reiseKilde` (`matrise`/`manuell`/null), `reiseRegel Json?`,
+>   `tidKilde` (V8), `reiseAvvik Boolean?` (tre tilstander). `DailySheet` får `normStatus` + `normSnapshot Json?`
+>   (`db-timer/schema.prisma`). Backfill av `erReise` speiler dagens leser (M3: konfigurert reise-art ∪
+>   grensepunkt-arter, ellers navne-match kun for firmaer uten konfigurert art) — delt regel `erReiseLonnsart`
+>   (`@sitedoc/shared` `reise.ts`). DB-CHECK: `er_reise=false ⇒ reisefelt NULL`. 🔴 **`er_reise=true ⇒ retning`
+>   er IKKE DB-CHECK** (backfill + overgangsrader har utledet flagg uten retning) — håndheves i mottaket (C2).
+> - **🔴 Eksplisitt flagg vinner (M3):** etter lag 2 leser ingen reise fra lønnsart/regex — `erReise` er sannheten.
+>   Alle 9 skrivestier i `apps/api/src/routes/timer/dagsseddel.ts` som setter `lonnsartId` utleder/skriver `erReise`
+>   (`byggTimerRadData` + syncBatch + oppdater/forson/splitt/rediger); splitt arver hele sporet.
+> - **Mottak med sporbarhet (K5, `reise-sporbarhet.ts`):** syncBatch deklarerer + lagrer alle felt (C1, M6-fiks);
+>   C2 validerer invariantene når klienten sendte `erReise` eksplisitt; C3 KONTROLLERER matrise-rader mot
+>   `ReisetidMatrise`-cellen og setter `reiseAvvik` (dobbel terskel `REISEAVVIK_MIN_PROSENT/AVSTAND_M/KJORETID_MIN`)
+>   — serveren klassifiserer ALDRI om, setter ingen lønnsart.
+> - **V1/V2 på serveren:** `beregnOvertidsgrunnlag` (`@sitedoc/shared` `overtidsgrunnlag.ts`) ekskluderer
+>   reise-rader HELT (`OvertidRad.erReise`); `totaltimer` deles i `arbeidstimer`/`reisetimer` i firma-attesteringen.
+>   `reisetidTellerOvertid`-avkrysningen er fjernet fra firma-innstillinger (web); api beholder kolonne +
+>   select/skriv men ignorerer verdien (to-stegs, droppes senere); i18n-nøkkelen `reise.tellerOvertid` slettet.
+
 #### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
 
 **`Lonnsart.overtidsnivaa Int?`** (db-timer, nullable): `null` = ikke overtid, `50`/`100` = tier. Erstatter fritekst-navne-match. Firma-admin setter feltet i web lønnsart-UI («Overtidsnivå»-select, kun for `type="ordinaer"`).

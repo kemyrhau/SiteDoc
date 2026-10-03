@@ -1815,7 +1815,6 @@
   "firma.innstillinger.reise.seLonnsarter": "Se lönetyper →",
   "firma.innstillinger.reise.varselIngenArt": "Ingen löneart tolkas som resor. Restid över tröskeln beräknas men bokförs inte automatiskt på lön förrän du väljer en reslönetyp nedan.",
   "firma.innstillinger.reise.varselTvetydigArt": "Flera löneslag kan tolkas som resor. Utan ett uttryckligt val bestämmer systemet vilken restid som ska registreras – välj rätt lönesätt nedan.",
-  "firma.innstillinger.reise.tellerOvertid": "Restiden räknas till övertid",
   "firma.innstillinger.reise.baandTittel": "Resavståndsband",
   "firma.innstillinger.reise.baandBeskrivelse": "Välj vilken reselöneslag som gäller utifrån avstånd. Varje punkt säger \"från detta avstånd och framåt, resor registreras på denna löneart\", tills nästa punkt tar vid. Utan band matchas reselöneslaget automatiskt med namn.",
   "firma.innstillinger.reise.baandTom": "Inga avståndsband konfigurerade. Lägg till poäng för att styra reslönetypen efter avstånd.",

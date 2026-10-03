@@ -1815,7 +1815,6 @@
   "firma.innstillinger.reise.seLonnsarter": "Zobrazit typy plateb →",
   "firma.innstillinger.reise.varselIngenArt": "Žádný typ platby není interpretován jako cestování. Doba cesty nad prahovou hodnotou se vypočítá, ale nezaznamená se do platu automaticky, dokud níže nezvolíte typ cestovního platu.",
   "firma.innstillinger.reise.varselTvetydigArt": "Několik typů platů lze interpretovat jako cestování. Bez explicitní volby systém rozhodne, na kterou dobu cesty se zaznamenává – níže vyberte správný typ mzdy.",
-  "firma.innstillinger.reise.tellerOvertid": "Doba jízdy se započítává do přesčasů",
   "firma.innstillinger.reise.baandTittel": "Pásma cestovní vzdálenosti",
   "firma.innstillinger.reise.baandBeskrivelse": "Vyberte, který druh cestovní mzdy se použije na základě vzdálenosti. Každý bod říká \"od této vzdálenosti dále se zaznamenává cesta na tento mzdový druh\", dokud nepřevezme další bod. Bez pásem je druh cestovní mzdy párován automaticky podle názvu.",
   "firma.innstillinger.reise.baandTom": "Nejsou nakonfigurována žádná vzdálenostní pásma. Přidáním bodů můžete ovládat typ cestovní mzdy podle vzdálenosti.",

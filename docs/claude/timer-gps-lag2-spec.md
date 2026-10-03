@@ -8,6 +8,14 @@ status: 🟢 GATET 2026-10-03 (orkestrator) med to presiseringer — ført samme
 
 # LAG 2 — sporbarhet: det som avgjør lønn skal kunne etterprøves
 
+> 🟢 **L2-A LEVERT (branch `feat/timer-l2a-sporbarhet`, 2026-10-03 — venter gate/merge):** Leveranse A
+> (db-timer-migrering `20261003120000_timer_lag2_sporbarhet` + shared-typer + `erReiseLonnsart`-regel) og
+> Leveranse C (C1–C5: syncBatch-mottak, C2-invarianter, C3 `reiseAvvik`, V1/V2 i `beregnOvertidsgrunnlag`,
+> `reisetidTellerOvertid`-deprecation) er bygget. **Avvik fra § 2 ført:** `erReise=true ⇒ reiseRetning` er IKKE
+> en DB-CHECK (backfill + overgangsrader bærer utledet flagg uten retning) — håndheves i C2-mottaket kun når
+> klienten sendte `erReise` eksplisitt. Migreringen er **ikke kjørt** (Kenneth kjører mot test, leser navne-match-
+> tallet før prod). **L2-B (mobil) og L2-C (attestering/eksport) gjenstår.**
+
 > Forelder: [timer-gps-helhetsplan.md](timer-gps-helhetsplan.md) § 2 og § 5 LAG 2. Forutsetter lag 1
 > (komplett `2e993250`). Hjemmel: V1, V2, V8, K5 (vedtatt 2026-10-03: **mottak med sporbarhet** —
 > serveren tar imot klassifiseringen med alt den bygde på, og regner IKKE om). **Alt under er
