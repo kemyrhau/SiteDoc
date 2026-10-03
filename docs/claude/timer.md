@@ -314,11 +314,15 @@ Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger løn
 >   (`tidsromOverlapper` streng). **B3:** Dag A (ut/ordinær/OT50/retur) passerer serverens delte
 >   `finnTidsromKonflikt` (`@sitedoc/shared` — uendret siden SYNC-2 `a711ad7b`, i prod → gammel server avviser
 >   ikke synken; de nye feltene stripper Zod stille på gammel server).
-> - **B4 (delvis):** manuelt lagt til/endret rad får `tidKilde="manuell"` (bruker satte tiden; endret tid på en
->   `utledet` rad → `manuell` kun når fra/til FAKTISK endres). 🔴 **`erReise=true`+`reiseKilde="manuell"` på
->   manuelle reise-rader er IKKE satt** — C2-invarianten `erReise⇒reiseRetning` (L2-A) ville avvist raden, og
->   manuell-UI har ingen retningsvelger. `erReise` sendes `undefined` → serveren UTLEDER flagget fra lønnsarten
->   (utled-grenen, utenfor C2). Egen beslutning/oppfølger (retningsvelger) hos orkestrator.
+> - **B4 (valg A, TILLEGG 2):** manuelt lagt til/endret rad får `tidKilde="manuell"` (endret tid på en
+>   `utledet` rad → `manuell` kun når fra/til FAKTISK endres). `erReise` settes EKSPLISITT fra lønnsarten via
+>   delt `erReiseLonnsartLokalt` → `erReiseLonnsart` (`@sitedoc/shared`, samme regel som serverens
+>   `utledErReise`); en manuell reise-rad får `erReise=true`+`reiseKilde="manuell"`, `reiseRetning=null`,
+>   avstand/kjøretid/regel `null`. Redigeres en matrise-rad: matrise-sporet bevares; byttes lønnsarten til en
+>   ikke-reise-art renses reise-sporet (C2: `false ⇒ spor null`). 🔴 **C2 slakket (server):** retning (+ matrise-
+>   tallene) kreves KUN for `reiseKilde="matrise"` — *retningen er informasjon, ikke lønn; lønnsarten avgjør*
+>   (fabel-vedtak, spec § 3 B4/§ 4 C2 `d9587bbe`). Alternativ C (ikke sende `erReise`, la server utlede) er
+>   forbudt — raden ville løyet om kilden.
 > - **B5:** `normStatus` + `normSnapshot` (fra svar-cachen, `arbeidstidSvarKatalog.hentetAt` eksponert) skrives på
 >   `dagsseddel_local` ved auto-generering og synkes opp (`timerSync` push). Pull oppdaterer sedelen in-place →
 >   normsporet overlever (til forskjell fra rader, som delete+reinsertes).
