@@ -72,6 +72,10 @@ export function anvendDagsforslag(
       autoGenerert: true,
       deltVedMidnatt: d.deltVedMidnatt,
       sluttTidKilde: d.sluttTidKilde,
+      // B5: norm-kilde/-snapshot skrives på NY draft (sedel-nivå); eksisterende
+      // sedel røres ikke (finnEllerOpprettDagsseddel setter kun på ny draft).
+      normStatus: d.normStatus,
+      normSnapshot: d.normSnapshot,
     });
     if (d.erStartSegment) startSheetId = resultat.id;
 
@@ -111,6 +115,18 @@ export function anvendDagsforslag(
           fraTid: rad.fraTid,
           tilTid: rad.tilTid,
           pauseMin: rad.pauseMin,
+          // B1: reise-sporet (M1 — innsettingen skrev det ikke før). byggeplassId
+          // settes nå faktisk (destinasjonen på reise-rader; null → arv på
+          // arbeidsrader). reiseRegel JSON-stringifies (TEXT-kolonne).
+          erReise: rad.erReise,
+          reiseRetning: rad.reiseRetning,
+          reiseOppmotestedId: rad.reiseOppmotestedId,
+          byggeplassId: rad.byggeplassId,
+          reiseKjoretidMin: rad.reiseKjoretidMin,
+          reiseAvstandM: rad.reiseAvstandM,
+          reiseKilde: rad.reiseKilde,
+          reiseRegel: rad.reiseRegel ? JSON.stringify(rad.reiseRegel) : null,
+          tidKilde: rad.tidKilde,
           sistEndretLokalt: ctx.naa(),
         })
         .run();

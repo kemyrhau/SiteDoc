@@ -166,6 +166,34 @@ describe("C2 — validerReiseInvarianter (eksplisitt erReise)", () => {
     ).toBeNull();
   });
 
+  it("🔴 (a) B4 valg A: manuell reise UTEN retning → gyldig (retning er informasjon, ikke lønn)", () => {
+    // Manuell-UI har ingen retningsvelger. Rød før C2-endringen: retning krevdes
+    // for alle erReise-rader. Nå kreves retning KUN for matrise-kilde.
+    expect(
+      validerReiseInvarianter(
+        {
+          erReise: true,
+          reiseRetning: null,
+          reiseKilde: "manuell",
+          reiseOppmotestedId: null,
+          reiseKjoretidMin: null,
+          reiseAvstandM: null,
+          reiseRegel: null,
+        },
+        oppmotesteder,
+      ),
+    ).toBeNull();
+  });
+
+  it("🔴 (b) matrise-reise UTEN retning → avvises fortsatt (retning + tall påkrevd for matrise)", () => {
+    expect(
+      validerReiseInvarianter(
+        { ...base, reiseRetning: null },
+        oppmotesteder,
+      ),
+    ).toMatch(/retning/i);
+  });
+
   it("oppmøtested utenfor firmaet → feil (firma-grense)", () => {
     expect(
       validerReiseInvarianter(

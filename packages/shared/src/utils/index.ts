@@ -30,7 +30,7 @@ export {
 export type { Punkt, ScaleKilde } from "./maaling";
 export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, RADIUS_GRENSER } from "./sted";
 export type { GpsPunkt, Geofence, Treff, TolketSted, Startsted, Sluttsted, Destinasjon, VelgDestinasjonArgs } from "./sted";
-export { klassifiserReise, løsReiseLonnsartId, erReiseLonnsart, REISE_LONNSART_REGEX } from "./reise";
+export { klassifiserReise, løsReiseLonnsartId, grensepunktTraff, erReiseLonnsart, REISE_LONNSART_REGEX } from "./reise";
 export type {
   ReiseKategori,
   ReiseRegelsett,

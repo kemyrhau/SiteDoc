@@ -3,6 +3,7 @@ import {
   utledOrdning,
   erGyldigOrdning,
   løsReiseLonnsartId,
+  erReiseLonnsart,
   REISE_LONNSART_REGEX,
   type UtleggOrdning,
 } from "@sitedoc/shared";
@@ -297,6 +298,30 @@ export function hentReiseLonnsartId(
     hentReiseGrensepunkterLokalt(organizationId),
     fallback,
   );
+}
+
+/**
+ * LAG 2 (B4): ER lønnsarten en reise-art? Bygger `ErReiseKontekst` fra lokal
+ * cache og delegerer til den DELTE `erReiseLonnsart` (`@sitedoc/shared`) — SAMME
+ * regel som serverens `utledErReise` og backfill-SQL-en. Brukt når arbeideren
+ * legger til/endrer en rad manuelt (TimerSeksjon), så `erReise` settes eksplisitt
+ * på raden (M3) i stedet for at serveren gjetter. Ingen lokal kopi av regelen.
+ */
+export function erReiseLonnsartLokalt(
+  organizationId: string,
+  lonnsartId: string,
+): boolean {
+  const regel = hentOrganizationSettingLokalt(organizationId);
+  const navn =
+    hentLonnsarterLokalt(organizationId).find((l) => l.id === lonnsartId)?.navn ??
+    "";
+  const grensepunktLonnsartIds = hentReiseGrensepunkterLokalt(organizationId)
+    .map((g) => g.lonnsartId)
+    .filter((id): id is string => id != null);
+  return erReiseLonnsart(lonnsartId, navn, {
+    reiseLonnsartId: regel?.reiseLonnsartId ?? null,
+    grensepunktLonnsartIds,
+  });
 }
 
 export function hentAktiviteterLokalt(organizationId: string) {

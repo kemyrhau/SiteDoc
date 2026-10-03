@@ -235,17 +235,47 @@ export function løsReiseLonnsartId(
   grensepunkter: ReiseGrensepunkt[],
   fallbackLonnsartId: string | null,
 ): string | null {
+  const beste = finnBesteGrensepunkt(avstandM, grensepunkter);
+  // Ingen brukbar avstand / under laveste grense / treff på et hull
+  // (lonnsartId null) → fallback.
+  if (beste == null) return fallbackLonnsartId;
+  return beste.lonnsartId ?? fallbackLonnsartId;
+}
+
+/**
+ * Det HØYESTE grensepunktet som ikke overstiger avstanden, eller `null` når
+ * avstanden mangler/er negativ, det ikke finnes grensepunkter, eller avstanden
+ * er under laveste grense. Delt kjerne for `løsReiseLonnsartId` og
+ * `grensepunktTraff` — begge må lese grensene likt.
+ */
+function finnBesteGrensepunkt(
+  avstandM: number | null,
+  grensepunkter: ReiseGrensepunkt[],
+): ReiseGrensepunkt | null {
   if (avstandM == null || avstandM < 0 || grensepunkter.length === 0) {
-    return fallbackLonnsartId;
+    return null;
   }
-  // Høyeste grenseM ≤ avstandM (uavhengig av innkommende rekkefølge).
   let beste: ReiseGrensepunkt | null = null;
   for (const g of grensepunkter) {
     if (g.grenseM <= avstandM && (beste == null || g.grenseM > beste.grenseM)) {
       beste = g;
     }
   }
-  // Under laveste grense → fallback. Treff på et hull (lonnsartId null) → fallback.
-  if (beste == null) return fallbackLonnsartId;
-  return beste.lonnsartId ?? fallbackLonnsartId;
+  return beste;
+}
+
+/**
+ * LAG 2 (B1): avgjorde et avstandsbånd (grensepunkt med en art) lønnsarten for
+ * denne avstanden? → `reiseRegel.grensepunktTreff` i radens snapshot. `true` KUN
+ * når et grensepunkt med `lonnsartId != null` treffer; et hull eller
+ * under/uten avstand gir `false` (da bestemte fallback-arten). Samme grense-
+ * lesing som `løsReiseLonnsartId` (delt `finnBesteGrensepunkt`), så snapshotet
+ * aldri sier «bånd» der resolveren falt tilbake.
+ */
+export function grensepunktTraff(
+  avstandM: number | null,
+  grensepunkter: ReiseGrensepunkt[],
+): boolean {
+  const beste = finnBesteGrensepunkt(avstandM, grensepunkter);
+  return beste != null && beste.lonnsartId != null;
 }

@@ -300,6 +300,49 @@ Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger løn
 >   `reisetidTellerOvertid`-avkrysningen er fjernet fra firma-innstillinger (web); api beholder kolonne +
 >   select/skriv men ignorerer verdien (to-stegs, droppes senere); i18n-nøkkelen `reise.tellerOvertid` slettet.
 
+> 🟢 **LAG 2-B (branch `feat/timer-l2b-mobil-spor`, 2026-10-03 — venter merge/gate; hjemmel V8/K5/V2):
+> mobilen SKRIVER sporet + V8-vinduet.** Forutsetter L2-A merget (feltene i `syncBatch` FØR telefonen sender,
+> M6). **Reload: OTA.**
+> - **B1 — raden bærer etappen:** `beregnDagsforslag` (`dagsforslag.ts`) reduserer ikke lenger etappen til
+>   `{ kjoretidMin, lonnsartId }`; `reiseForRetning` returnerer hele sporet (retning, oppmøtested, byggeplass,
+>   avstand, `reiseRegel`-snapshot via delt `grensepunktTraff`), og `anvendDagsforslag` (`dagsforslagAnvend.ts`)
+>   skriver `erReise`/`reiseRetning`/`reiseOppmotestedId`/`byggeplassId` (M1 — nå faktisk skrevet)/
+>   `reiseKjoretidMin`/`reiseAvstandM`/`reiseKilde:"matrise"`/`reiseRegel` (JSON)/`tidKilde` på `sheet_timer_local`.
+> - **B2 V8 — klokkevindu på reise-rader:** REISE-UNNTAKET (null-tider) er REVERSERT. `ut`: `fraTid=segment-start`,
+>   `tilTid=start+kjøretid`; `retur`: `fraTid=slutt−kjøretid`, `tilTid=segment-slutt`; `tidKilde="utledet"`
+>   (vinduet SER målt ut, er UTLEDET). Vinduene berører arbeidsvinduet i endepunktene uten å overlappe
+>   (`tidsromOverlapper` streng). **B3:** Dag A (ut/ordinær/OT50/retur) passerer serverens delte
+>   `finnTidsromKonflikt` (`@sitedoc/shared` — uendret siden SYNC-2 `a711ad7b`, i prod → gammel server avviser
+>   ikke synken; de nye feltene stripper Zod stille på gammel server).
+> - **B4 (valg A, TILLEGG 2):** manuelt lagt til/endret rad får `tidKilde="manuell"` (endret tid på en
+>   `utledet` rad → `manuell` kun når fra/til FAKTISK endres). `erReise` settes EKSPLISITT fra lønnsarten via
+>   delt `erReiseLonnsartLokalt` → `erReiseLonnsart` (`@sitedoc/shared`, samme regel som serverens
+>   `utledErReise`); en manuell reise-rad får `erReise=true`+`reiseKilde="manuell"`, `reiseRetning=null`,
+>   avstand/kjøretid/regel `null`. Redigeres en matrise-rad: matrise-sporet bevares; byttes lønnsarten til en
+>   ikke-reise-art renses reise-sporet (C2: `false ⇒ spor null`). 🔴 **C2 slakket (server):** retning (+ matrise-
+>   tallene) kreves KUN for `reiseKilde="matrise"` — *retningen er informasjon, ikke lønn; lønnsarten avgjør*
+>   (fabel-vedtak, spec § 3 B4/§ 4 C2 `d9587bbe`). Alternativ C (ikke sende `erReise`, la server utlede) er
+>   forbudt — raden ville løyet om kilden.
+> - **B5:** `normStatus` + `normSnapshot` (fra svar-cachen, `arbeidstidSvarKatalog.hentetAt` eksponert) skrives på
+>   `dagsseddel_local` ved auto-generering og synkes opp (`timerSync` push). Pull oppdaterer sedelen in-place →
+>   normsporet overlever (til forskjell fra rader, som delete+reinsertes).
+> - **B6:** visningen (`TimerSeksjon`) leser `erReise` via delt `erReiseRadVisning` — fallback til lønnsart-match
+>   KUN for rader uten flagg (eldre lokale + server-pull før `hentEndringerSiden` returnerer `erReise`).
+> - **C5 (mobil):** `reisetidTellerOvertid` ut av `DagsforslagRegel` + `organizationSettingLocal`-Drizzle-feltet
+>   + `organizationSettingKatalog`/`StartSluttDagKort`. SQLite-KOLONNEN står (to-stegs, ikke DROP).
+> - **Lokal migrering (`migreringer.ts`):** idempotente `ALTER` for spor-kolonnene på `sheet_timer_local` +
+>   norm-kolonnene på `dagsseddel_local` (ingen backfill — eldre rader står null, ærlig).
+> - **Pull bærer sporet (TILLEGG 1 — lukket i branch):** `hentEndringerSiden` (server) returnerer nå
+>   `erReise`/`reiseRetning`/`reiseOppmotestedId`/`reiseKjoretidMin`/`reiseAvstandM`/`reiseKilde`/`reiseRegel`/
+>   `tidKilde`/`reiseAvvik` på timeradene + `normStatus`/`normSnapshot` på sedelen. Mobilens pull snapshotter
+>   lokalt spor FØR rad-erstatningen og skriver server-verdien når feltet FINNES i svaret, ellers BEVARER det
+>   lokale (mangler ≠ null → gammel server/prod nuller ikke sporet). Uten dette ville rad-replace (delete+
+>   reinsert) slettet K5-sporet telefonen skrev, og neste push erstattet serverraden uten spor. Testet
+>   ende-til-ende i sql.js (`timerSync-lag2-spor.test.ts`: ny-server-ekko · gammel-server-bevaring · full
+>   push→pull→endre→push). 🔴 **Server-endringen rører KUN `hentEndringerSiden`** (ikke attestering → ingen
+>   L2-C-kollisjon). Migreringen `20261003120000_timer_lag2_sporbarhet` MÅ være kjørt før serveren deployes
+>   (query leser de nye kolonnene).
+
 #### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
 
 **`Lonnsart.overtidsnivaa Int?`** (db-timer, nullable): `null` = ikke overtid, `50`/`100` = tier. Erstatter fritekst-navne-match. Firma-admin setter feltet i web lønnsart-UI («Overtidsnivå»-select, kun for `type="ordinaer"`).

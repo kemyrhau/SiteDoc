@@ -46,6 +46,10 @@ export interface FinnEllerOpprettArgs {
   autoGenerert?: boolean;
   deltVedMidnatt?: boolean;
   sluttTidKilde?: "bruker" | "midnatt" | "system";
+  /** B5 (L2-B): lønnsnormens kilde-status for datoen. Skrives kun på NY sedel. */
+  normStatus?: "server" | "cachet" | "ukjent" | null;
+  /** B5: normens snapshot (NormSnapshot) — serialiseres til JSON-streng her. */
+  normSnapshot?: import("@sitedoc/shared").NormSnapshot | null;
 }
 
 export interface FinnEllerOpprettResultat {
@@ -117,6 +121,9 @@ export function finnEllerOpprettDagsseddel(
       autoGenerert: args.autoGenerert ?? null,
       deltVedMidnatt: args.deltVedMidnatt ?? null,
       sluttTidKilde: args.sluttTidKilde ?? "bruker",
+      // B5: norm-spor på sedelen (JSON-streng). null når normen var ukjent.
+      normStatus: args.normStatus ?? null,
+      normSnapshot: args.normSnapshot ? JSON.stringify(args.normSnapshot) : null,
       beskrivelse: args.beskrivelse ?? null,
       lederKommentar: null,
       attestertVed: null,

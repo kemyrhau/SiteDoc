@@ -61,8 +61,10 @@ import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
+  erReiseLonnsartLokalt,
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
+import { erReiseRadVisning } from "../../utils/reiseRad";
 import type {
   TimerRad,
   Lonnsart,
@@ -208,6 +210,12 @@ export function TimerSeksjon({
       if (!db) return;
       // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
       const timerRadId = randomUUID();
+      // B4 (L2-B, valg A): arbeideren satte tiden selv → tidKilde="manuell".
+      // erReise settes EKSPLISITT fra lønnsarten (delt regel, ikke server-gjetting,
+      // M3). En manuell reise-rad får reiseKilde="manuell", reiseRetning/avstand/
+      // kjøretid/regel null (retning er informasjon, ikke lønn — C2 krever retning
+      // KUN for matrise-kilde). Ikke-reise → erReise=false, ingen reise-spor.
+      const manuellErReise = erReiseLonnsartLokalt(organizationId, lonnsartId);
       db.insert(sheetTimerLocal)
         .values({
           id: timerRadId,
@@ -223,6 +231,9 @@ export function TimerSeksjon({
           fraTid,
           tilTid,
           beskrivelse,
+          erReise: manuellErReise,
+          reiseKilde: manuellErReise ? "manuell" : null,
+          tidKilde: "manuell",
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -251,7 +262,7 @@ export function TimerSeksjon({
       }
       onEndret();
     },
-    [sheetId, onEndret],
+    [sheetId, onEndret, organizationId],
   );
 
   const oppdater = useCallback(
@@ -274,6 +285,47 @@ export function TimerSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
+      // B4 (L2-B): «Endrer han tiden på en utledet rad → tidKilde = manuell.»
+      // Kun når fra/til FAKTISK endres — en no-op lagring skal ikke stemple en
+      // auto-reise-rads "utledet" om til "manuell" (det ville vært en spor-løgn).
+      const gammel = db
+        .select({
+          fraTid: sheetTimerLocal.fraTid,
+          tilTid: sheetTimerLocal.tilTid,
+          reiseKilde: sheetTimerLocal.reiseKilde,
+        })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.id, radId))
+        .all()[0];
+      const tidEndret =
+        gammel != null &&
+        ((gammel.fraTid ?? null) !== (fraTid ?? null) ||
+          (gammel.tilTid ?? null) !== (tilTid ?? null));
+      // B4: re-utled erReise fra (ev. byttet) lønnsart. Tre tilfeller:
+      //  - ikke reise  → erReise=false + RENS alt reise-spor (C2: false ⇒ spor null).
+      //  - matrise-rad → behold matrise-provenance (reiseKilde/retning/km/regel i
+      //    .set() urørt), bare erReise bekreftes true.
+      //  - manuell reise → reiseKilde="manuell", retning/km/avstand/regel null.
+      const erReise = erReiseLonnsartLokalt(organizationId, lonnsartId);
+      const reiseSet = !erReise
+        ? {
+            erReise: false,
+            reiseKilde: null,
+            reiseRetning: null,
+            reiseKjoretidMin: null,
+            reiseAvstandM: null,
+            reiseRegel: null,
+          }
+        : gammel?.reiseKilde === "matrise"
+          ? { erReise: true as const } // behold matrise-spor
+          : {
+              erReise: true as const,
+              reiseKilde: "manuell" as const,
+              reiseRetning: null,
+              reiseKjoretidMin: null,
+              reiseAvstandM: null,
+              reiseRegel: null,
+            };
       db.update(sheetTimerLocal)
         .set({
           projectId: radProjectId,
@@ -286,6 +338,8 @@ export function TimerSeksjon({
           fraTid,
           tilTid,
           beskrivelse,
+          ...reiseSet,
+          ...(tidEndret ? { tidKilde: "manuell" as const } : {}),
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTimerLocal.id, radId))
@@ -356,7 +410,7 @@ export function TimerSeksjon({
       }
       onEndret();
     },
-    [onEndret, sheetId],
+    [onEndret, sheetId, organizationId],
   );
 
   // F3 hybrid-hurtigsti: sekundærlinja åpner den kombinerte velgeren direkte.
@@ -477,7 +531,14 @@ export function TimerSeksjon({
             rad={rad}
             gruppeProjectId={projectId}
             sedelByggeplassId={sedelByggeplassId}
-            erReise={reiseLonnsartId != null && rad.lonnsartId === reiseLonnsartId}
+            erReise={erReiseRadVisning(
+              // B6 (L2-B): les det EKSPLISITTE flagget (M3 — ingen gjetting fra
+              // lønnsart etter lag 2). Fallback til lønnsart-match KUN for rader
+              // uten flagg (se erReiseRadVisning + leveranse-funn om pull).
+              rad.erReise,
+              rad.lonnsartId,
+              reiseLonnsartId,
+            )}
             redigerbar={redigerbar}
             pauseFra={pauseFra}
             standardPauseMin={standardPauseMin}

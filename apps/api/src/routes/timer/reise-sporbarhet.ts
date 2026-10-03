@@ -252,14 +252,17 @@ export function validerReiseInvarianter(
     return null;
   }
 
-  // erReise = true (eksplisitt): retning + kilde er påkrevd.
-  if (rad.reiseRetning == null) {
-    return "Reise-rad mangler retning (ut/retur).";
-  }
+  // erReise = true (eksplisitt): KILDE er alltid påkrevd. Retningen er
+  // informasjon, ikke lønn (B4 valg A, spec § 3/§ 4 C2) — lønnsarten arbeideren
+  // velger avgjør. Derfor kreves retning + matrise-tallene KUN for matrise-kilde;
+  // en manuell reise-rad (ingen retningsvelger i UI) er gyldig uten retning.
   if (rad.reiseKilde == null) {
     return "Reise-rad mangler kilde (matrise/manuell).";
   }
   if (rad.reiseKilde === "matrise") {
+    if (rad.reiseRetning == null) {
+      return "Matrise-reise mangler retning (ut/retur).";
+    }
     if (rad.reiseKjoretidMin == null || rad.reiseKjoretidMin < 0) {
       return "Matrise-reise mangler gyldig kjøretid.";
     }

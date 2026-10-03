@@ -172,7 +172,7 @@ Sporbarhet må deklareres i begge ender i samme release.
 | Ordre | Innhold | Avhenger av | Migrering |
 |---|---|---|---|
 | **L2-A** | Leveranse A (db-timer-migrering + typer i shared) + C1–C5 (mottak, invarianter, kontroll, V1/V2 server, deprecation) | ingen | `db-timer` additiv, Kenneth-gatet |
-| **L2-B** | Leveranse B (mobil: skriver sporet, V8-vindu, manuell-kilde, normStatus-sync, erReise-visning) | L2-A merget (feltene må finnes i `syncBatch` FØR mobilen sender, M6) | lokal mobil-migrering |
+| **L2-B** 🟢 BYGGET (branch `feat/timer-l2b-mobil-spor`, 2026-10-03 — venter gate/merge) | Leveranse B (mobil: skriver sporet, V8-vindu, normStatus-sync, erReise-visning) + C5 mobil. **B4 valg A (TILLEGG 2):** manuell reise-rad = `erReise=true`+`reiseKilde="manuell"`+`reiseRetning=null`; server C2 krever retning KUN for `matrise`. **TILLEGG 1 (lukket i branch):** `hentEndringerSiden` returnerer sporet + mobilen bevarer det ved pull (mangler ≠ null, gammel server nuller ikke); kun `hentEndringerSiden` rørt (ingen L2-C-kollisjon) | L2-A merget (feltene må finnes i `syncBatch` FØR mobilen sender, M6) | lokal mobil-migrering |
 | **L2-C** | Leveranse D (attestering web + eksport + doc-drift) | L2-A merget | — |
 
 L2-B ∥ L2-C etter L2-A. **Rekkefølgen er ufravikelig: server deklarerer feltene før telefonen sender

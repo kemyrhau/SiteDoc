@@ -446,7 +446,8 @@ function samleDagsforslagInput(
         reiseUnderTerskelType: regelRad.reiseUnderTerskelType,
         reiseOverTerskelType: regelRad.reiseOverTerskelType,
         tidsrundingMinutter: regelRad.tidsrundingMinutter ?? null,
-        reisetidTellerOvertid: regelRad.reisetidTellerOvertid ?? false,
+        // C5 (V1): reisetidTellerOvertid leses ikke lenger — reisetid er ALDRI
+        // overtid. Feltet er ute av DagsforslagRegel og org-setting-cachen.
         standardPauseEtterTimer: regelRad.standardPauseEtterTimer ?? null,
       }
     : null;
@@ -559,6 +560,16 @@ function samleDagsforslagInput(
       dagsnorm: norm?.dagsnorm ?? 0,
       pauseReferanse: norm?.pauseReferanse ?? "ankomst",
       normStatus: norm?.normStatus ?? "ukjent",
+      // B5: snapshot av normen svar-cachen hadde (null når ukjent — ingen svar).
+      // hentetAt (Unix ms) → ISO i snapshotet.
+      normSnapshot: norm
+        ? {
+            dagsnorm: norm.dagsnorm,
+            normKilde: norm.normKilde,
+            dato: norm.dato,
+            hentetAt: new Date(norm.hentetAt).toISOString(),
+          }
+        : null,
     };
   }
 
