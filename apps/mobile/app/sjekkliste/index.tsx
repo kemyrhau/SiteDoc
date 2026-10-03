@@ -18,6 +18,7 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useNettverk } from "../../src/providers/NettverkProvider";
+import { useAuth } from "../../src/providers/AuthProvider";
 import {
   hentSjekklisterLokalt,
   hentSistOppdatertLokalt,
@@ -49,6 +50,8 @@ export default function SjekklisteListe() {
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
+  const { bruker } = useAuth();
+  const brukerId = bruker?.id;
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -94,13 +97,13 @@ export default function SjekklisteListe() {
 
   const lokaleRader = useMemo(
     () =>
-      valgtProsjektId
-        ? (hentSjekklisterLokalt(valgtProsjektId, effektivBygg) as DokumentRad[])
+      valgtProsjektId && brukerId
+        ? (hentSjekklisterLokalt(valgtProsjektId, brukerId, effektivBygg) as DokumentRad[])
         : [],
     // Re-les lokal cache når prosjekt/byggeplass endres eller server-svaret
     // settler (etter en fei kan cachen ha nye rader).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [valgtProsjektId, effektivBygg, sjekklisteQuery.status],
+    [valgtProsjektId, brukerId, effektivBygg, sjekklisteQuery.status],
   );
 
   const { kilde, tilstand } = velgOfflineListeKilde({
@@ -116,10 +119,10 @@ export default function SjekklisteListe() {
   // lokale rader. Prosjektets eget stempel, ikke et globalt fei-tidspunkt.
   const sistHentet = useMemo(
     () =>
-      tilstand === "lokal" && valgtProsjektId
-        ? hentSistOppdatertLokalt(valgtProsjektId)
+      tilstand === "lokal" && valgtProsjektId && brukerId
+        ? hentSistOppdatertLokalt(valgtProsjektId, brukerId)
         : null,
-    [tilstand, valgtProsjektId, lokaleRader.length],
+    [tilstand, valgtProsjektId, brukerId, lokaleRader.length],
   );
 
   const tilgjengeligeStatuser = useMemo(

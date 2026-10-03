@@ -142,7 +142,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
         const prosjektIder = hentAktiveProsjektIderLokalt();
         const uid = bruker.id;
         const katalogPulls: Array<[string, (pid: string) => Promise<unknown>]> = [
-          ["SJEKKLISTE-KATALOG", (pid) => refreshSjekklisteKatalog(utils.client, pid)],
+          ["SJEKKLISTE-KATALOG", (pid) => refreshSjekklisteKatalog(utils.client, pid, uid)],
           ["OPPGAVE-KATALOG", (pid) => refreshOppgaveKatalog(utils.client, pid, uid)],
           ["HMS-KATALOG", (pid) => refreshHmsKatalog(utils.client, pid, uid)],
         ];

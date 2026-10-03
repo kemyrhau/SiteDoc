@@ -142,6 +142,91 @@ import { settUrlPaaVedlegg } from "../services/vedleggUrl";
 
 const FRITEKST_TYPER = new Set(["text_field"]);
 
+/**
+ * Delt leser for detalj-visning av én oppgave. `hentMedId` (online-visning) og
+ * `hentForOffline` (offline forhånds-nedlasting, fase 2 2026-10-03) deler ÉN include
+ * + tilgangssjekk + signering her.
+ *
+ * 🔴 ENESTE forskjell: `stemplLest`. `hentForOffline` stempler ALDRI `lestAvMottakerVed`
+ * — forhånds-nedlasting skal ikke endre lesekvitteringens betydning.
+ */
+async function lesOppgaveMedId(
+  prisma: Parameters<typeof hentMottakerEposter>[0],
+  userId: string,
+  id: string,
+  stemplLest: boolean,
+) {
+  const oppgave = await prisma.task.findUniqueOrThrow({
+    where: { id },
+    include: {
+      template: {
+        include: {
+          objects: { orderBy: { sortOrder: "asc" } },
+          project: { select: { sourceLanguage: true } },
+        },
+      },
+      bestiller: true,
+      bestillerFaggruppe: true,
+      utforerFaggruppe: true,
+      recipientGroup: { select: { id: true, name: true } },
+      drawing: {
+        include: {
+          byggeplass: { select: { id: true, name: true } },
+        },
+      },
+      omrade: { select: { id: true, navn: true, type: true } },
+      checklist: {
+        include: {
+          template: { select: { prefix: true, name: true } },
+        },
+      },
+      images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
+      transfers: {
+        include: {
+          sender: { select: { id: true, name: true } },
+          recipientUser: { select: { id: true, name: true } },
+          recipientGroup: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+      comments: {
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  // Tilgangssjekk via oppretter-faggruppens prosjekt.
+  await verifiserDokumentTilgang(
+    userId,
+    hentProjectId(oppgave),
+    oppgave.bestillerFaggruppeId,
+    oppgave.utforerFaggruppeId,
+    oppgave.template?.domain,
+    oppgave.id,
+    "task",
+    oppgave.template?.hmsSynlighet,
+  );
+
+  // Sett lestAvMottakerVed når mottaker åpner mens status er «sent» — KUN på
+  // ekte visning (hentMedId), aldri på forhånds-nedlasting.
+  if (
+    stemplLest &&
+    oppgave.status === "sent" &&
+    oppgave.recipientUserId === userId &&
+    !oppgave.lestAvMottakerVed
+  ) {
+    await prisma.task.update({
+      where: { id: oppgave.id },
+      data: { lestAvMottakerVed: new Date() },
+    });
+    oppgave.lestAvMottakerVed = new Date();
+  }
+
+  // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon.
+  return { ...signerDataRad(oppgave), images: signerBilder(oppgave.images) };
+}
+
 export const oppgaveRouter = router({
   // Hent alle oppgaver for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -267,82 +352,17 @@ export const oppgaveRouter = router({
       });
     }),
 
-  // Hent én oppgave med alle detaljer
+  // Hent én oppgave med alle detaljer (online-visning — stempler lest-kvittering)
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
-        where: { id: input.id },
-        include: {
-          template: {
-            include: {
-              objects: { orderBy: { sortOrder: "asc" } },
-              project: { select: { sourceLanguage: true } },
-            },
-          },
-          bestiller: true,
-          bestillerFaggruppe: true,
-          utforerFaggruppe: true,
-          recipientGroup: { select: { id: true, name: true } },
-          drawing: {
-            include: {
-              byggeplass: { select: { id: true, name: true } },
-            },
-          },
-          // Steg 2b (2026-09-23): områdenavn+type for lokasjonsvisning når lokasjonOmfang="omrade".
-          // Additiv lese-utvidelse — omradeId (skalar) fulgte alt med; navnet krevde relasjonen.
-          omrade: { select: { id: true, navn: true, type: true } },
-          checklist: {
-            include: {
-              template: { select: { prefix: true, name: true } },
-            },
-          },
-          images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
-          transfers: {
-            include: {
-              sender: { select: { id: true, name: true } },
-              recipientUser: { select: { id: true, name: true } },
-              recipientGroup: { select: { id: true, name: true } },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-          comments: {
-            include: { user: { select: { id: true, name: true, email: true } } },
-            orderBy: { createdAt: "asc" },
-          },
-        },
-      });
+    .query(({ ctx, input }) => lesOppgaveMedId(ctx.prisma, ctx.userId, input.id, true)),
 
-      // Tilgangssjekk via oppretter-faggruppens prosjekt.
-      // hmsSynlighet sendes inn slik at "apen" HMS-dokumenter er lesbare for alle
-      // prosjektmedlemmer (lesing — mutations beholder streng tilgang).
-      await verifiserDokumentTilgang(
-        ctx.userId,
-        hentProjectId(oppgave),
-        oppgave.bestillerFaggruppeId,
-        oppgave.utforerFaggruppeId,
-        oppgave.template?.domain,
-        oppgave.id,
-        "task",
-        oppgave.template?.hmsSynlighet,
-      );
-
-      // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
-      if (
-        oppgave.status === "sent" &&
-        oppgave.recipientUserId === ctx.userId &&
-        !oppgave.lestAvMottakerVed
-      ) {
-        await ctx.prisma.task.update({
-          where: { id: oppgave.id },
-          data: { lestAvMottakerVed: new Date() },
-        });
-        oppgave.lestAvMottakerVed = new Date();
-      }
-
-      // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon.
-      return { ...signerDataRad(oppgave), images: signerBilder(oppgave.images) };
-    }),
+  // Offline forhånds-nedlasting (fase 2 2026-10-03): identisk utvalg/signering som
+  // hentMedId, men stempler ALDRI lestAvMottakerVed. Mobilen tåler at denne mangler
+  // på en gammel server (hopper over forhånds-nedlasting, write-through virker).
+  hentForOffline: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(({ ctx, input }) => lesOppgaveMedId(ctx.prisma, ctx.userId, input.id, false)),
 
   // Hent kommentarer for en oppgave
   hentKommentarer: protectedProcedure

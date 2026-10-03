@@ -6,8 +6,10 @@ import { hentDatabase } from "../db/database";
 import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
+import { useAuth } from "../providers/AuthProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgOfflineListeKilde } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -102,6 +104,12 @@ export interface UseSjekklisteSkjemaResultat {
   rettighet: DokumentRettighet;
   lagreStatus: LagreStatus;
   synkStatus: SynkStatus;
+  /** Offline-lesing fase 2: rendrer fra speilet (query offline/feilet), tvungen lesemodus. */
+  offlineModus: boolean;
+  /** Unix ms da speilet ble hentet — «viser lagret versjon fra {tid}». null online. */
+  offlineHentetVed: number | null;
+  /** Offline/feilet OG dokumentet er ikke i speilet → vis «ikke lastet ned», ikke spinner. */
+  offlineIkkeLastet: boolean;
 }
 
 const REDIGERBARE_STATUSER = new Set(["draft", "received", "in_progress"]);
@@ -211,6 +219,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
 
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
+  const { bruker } = useAuth();
+  const userId = bruker?.id;
 
   // tRPC utils for å invalidere query-cache etter lagring
   const utils = trpc.useUtils();
@@ -221,10 +231,53 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     { enabled: !!sjekklisteId },
   );
 
-  // Cast for å unngå TS2589
-  const sjekkliste = sjekklisteQuery.data as UseSjekklisteSkjemaResultat["sjekkliste"] & {
+  type SjekklisteData = UseSjekklisteSkjemaResultat["sjekkliste"] & {
     data: Record<string, unknown> | null;
-  } | undefined;
+  };
+
+  // Cast for å unngå TS2589
+  const serverSjekkliste = sjekklisteQuery.data as SjekklisteData | undefined;
+
+  // Offline-LESING fase 2: write-through — hver gang query lykkes MED nett, speil
+  // svaret (signaturer strippes i tjenesten). Ingen ekstra nettkall.
+  useEffect(() => {
+    if (sjekklisteQuery.isSuccess && sjekklisteQuery.data && userId) {
+      const d = sjekklisteQuery.data as { id?: string; projectId?: string };
+      if (d.id) lagreDokumentSpeil("sjekkliste", d.id, d.projectId ?? "", userId, sjekklisteQuery.data);
+    }
+    // `dataUpdatedAt` (primitiv) i stedet for `sjekklisteQuery.data` i deps: den dype
+    // tRPC-typen i deps-arrayen trigger TS2589, og tidsstempelet er en bedre trigger.
+  }, [sjekklisteQuery.isSuccess, sjekklisteQuery.dataUpdatedAt, userId]);
+
+  // Offline-fallback: uten et bekreftet server-svar, les speilet (bruker-filtrert).
+  // Leses KUN når query ikke har lykkes — online er `serverSjekkliste` autoritativ.
+  const speil = useMemo(
+    () =>
+      !sjekklisteQuery.isSuccess && userId
+        ? hentDokumentSpeil("sjekkliste", sjekklisteId, userId)
+        : null,
+    [sjekklisteQuery.isSuccess, sjekklisteId, userId],
+  );
+
+  // «Server-bekreftet ellers lokal» via den delte kildevelgeren (enkeltdokument:
+  // antall = har-dokument ? 1 : 0).
+  const kildeValg = velgOfflineListeKilde({
+    erPaaNettet,
+    serverBekreftet: sjekklisteQuery.isSuccess,
+    serverAntall: serverSjekkliste ? 1 : 0,
+    lokalAntall: speil ? 1 : 0,
+  });
+  const offlineModus = kildeValg.kilde === "lokal" && !!speil;
+  // Offline/feilet OG ingen speil → «ikke lastet ned» (ikke evig spinner).
+  const offlineIkkeLastet =
+    !sjekklisteQuery.isSuccess && !offlineModus && (!erPaaNettet || sjekklisteQuery.isError);
+
+  // Effektiv data: server når bekreftet, ellers speilet i tvungen lesemodus.
+  const sjekkliste: SjekklisteData | undefined = sjekklisteQuery.isSuccess
+    ? serverSjekkliste
+    : offlineModus
+      ? (speil!.dokument as SjekklisteData)
+      : undefined;
 
   const alleObjekter = useMemo(
     () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],
@@ -666,7 +719,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     });
   }, [sjekkliste, rettighetInput]);
 
-  const erRedigerbar = rettighet !== "leser";
+  // Tvungen lesemodus offline — aldri redigerbar fra speilet, uansett rettighet (LES-vedtaket).
+  const erRedigerbar = !offlineModus && rettighet !== "leser";
 
   return {
     sjekkliste: sjekkliste
@@ -679,7 +733,9 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           utforerFaggruppe: sjekkliste.utforerFaggruppe,
         }
       : undefined,
-    erLaster: sjekklisteQuery.isLoading,
+    // Spinner kun mens vi faktisk venter online uten speil — offline-modus og
+    // «ikke lastet ned» stopper den (ellers evig spinner uten nett).
+    erLaster: sjekklisteQuery.isLoading && !offlineModus && !offlineIkkeLastet,
     hentFeltVerdi,
     hentTilfoyelser,
     sisteKollisjoner,
@@ -700,5 +756,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     rettighet,
     lagreStatus,
     synkStatus,
+    offlineModus,
+    offlineHentetVed: speil?.hentetVed ?? null,
+    offlineIkkeLastet,
   };
 }

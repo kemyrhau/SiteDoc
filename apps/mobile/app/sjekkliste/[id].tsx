@@ -28,6 +28,7 @@ import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useNettverk } from "../../src/providers/NettverkProvider";
+import { hentDokumentSpeil } from "../../src/services/dokumentSpeil";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
@@ -146,7 +147,17 @@ export default function SjekklisteUtfylling() {
     { id: id! },
     { enabled: !!id },
   );
-  const sjekklisteDetalj = detaljQuery.data as {
+  // Offline-LESING fase 2: skjermens egen hentMedId faller tilbake til speilet når
+  // query-en er offline/feilet, så lokasjon/header/historikk vises som lagret versjon
+  // (hooken har sin egen fallback for selve skjemadataene). Samme bruker-filtrerte speil.
+  const detaljSpeil = useMemo(
+    () =>
+      !detaljQuery.isSuccess && bruker?.id
+        ? hentDokumentSpeil("sjekkliste", id!, bruker.id)
+        : null,
+    [detaljQuery.isSuccess, id, bruker?.id],
+  );
+  const sjekklisteDetalj = (detaljQuery.isSuccess ? detaljQuery.data : detaljSpeil?.dokument) as {
     number?: number | null;
     transfers?: Transfer[];
     subject?: string | null;
@@ -533,6 +544,9 @@ export default function SjekklisteUtfylling() {
     erRedigerbar,
     lagreStatus,
     synkStatus,
+    offlineModus,
+    offlineHentetVed,
+    offlineIkkeLastet,
   } = useSjekklisteSkjema(id!, rettighetInput);
 
   // On-demand oversettelse av firmainnhold
@@ -727,6 +741,19 @@ export default function SjekklisteUtfylling() {
     );
   }
 
+  // Offline/feilet OG dokumentet er ikke lastet ned — tydelig vei videre, ikke evig spinner.
+  if (offlineIkkeLastet) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 px-8">
+        <CloudOff size={32} color="#9ca3af" />
+        <Text className="mt-3 text-center text-base text-gray-600">{t("offline.ikkeLastetNed")}</Text>
+        <Pressable onPress={() => router.back()} className="mt-4">
+          <Text className="text-blue-600">{t("dokument.gaaTilbake")}</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
   if (!sjekkliste) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
@@ -751,7 +778,8 @@ export default function SjekklisteUtfylling() {
     (sjekkliste.status === "draft" ||
       hmsAktivPosisjon === 1 ||
       (hmsAktivPosisjon == null && sjekkliste.status === "responded"));
-  const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Offline (speil-render) er ALLTID lesemodus, uansett rettighet/HMS-gren (LES-vedtaket).
+  const leseModus = offlineModus ? true : erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
   // Paritetsregel (2026-09-02): i lesevisning vises dokumentnivå-lokasjonen kun med
   // komplett markør (harMarkorDok); tegning uten punkt leses som «ingen lokasjon».
   // Lokasjonsomfang (2026-09-04; område 2026-09-23): «hele byggeplassen» og «et definert
@@ -865,6 +893,18 @@ export default function SjekklisteUtfylling() {
           />
         )}
       </View>
+
+      {/* Offline-LESING fase 2: viser lagret speil-versjon (tvungen lesemodus). */}
+      {offlineModus && (
+        <View className="flex-row items-center gap-2 bg-amber-50 px-3 py-2">
+          <CloudOff size={14} color="#b45309" />
+          <Text className="flex-1 text-xs text-amber-800">
+            {offlineHentetVed != null
+              ? t("offline.viserLagretVersjon", { tid: formaterHistorikkDato(new Date(offlineHentetVed)) })
+              : t("offline.viserLagretVersjonUtenTid")}
+          </Text>
+        </View>
+      )}
 
       {/* D: vedlegg som ennå lastes opp kommer ikke med i arkiv/PDF. Persistent
           ved handlingene (PDF + Send) — forsvinner når køen har levert alt. */}
@@ -1275,7 +1315,9 @@ export default function SjekklisteUtfylling() {
 
       {/* Handlingslinje (M2). Spor 2 / 5a: HMS-melder med ballen (utkast/returnert) får
           dedikert Send inn/Forkast/Send tilbake — mobil oppretter SJA via sjekkliste.opprett
-          (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
+          (→ draft), så denne stien MÅ kunne sende inn + varsle behandler.
+          Offline-LESING fase 2: skjult i offline-modus — ingen handlingsknapper fra speilet. */}
+      {!offlineModus && (
       <View className="border-t border-gray-200 bg-white px-4 py-3">
         {/* Funn E: kontroll før sending — forhåndsvis den server-rendrede
             eksport-PDF-en i appen. Ligger her, ved Send/Godkjenn, ikke bare som
@@ -1372,6 +1414,7 @@ export default function SjekklisteUtfylling() {
         />
         )}
       </View>
+      )}
 
       </KeyboardAvoidingView>
 
