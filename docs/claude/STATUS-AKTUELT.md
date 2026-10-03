@@ -63,7 +63,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-server-klassifisering` (ny) | 🟡 **Ordre gitt** — AM 2 steg 3 ledd 1, server som fasit for overtidsklassifisering |
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2a-sporbarhet` (ny) | 🟡 **Ordre skrevet 2026-10-03** — L2-A: radmodell + mottak med sporbarhet + V1/V2 server (`relay/inbox-dokgen-l2a-sporbarhet.md`). Deretter L2-B (mobil) ∥ L2-C (web/eksport). **Kenneth-vedtak 2026-10-03: offline-dokumenter fase 2 = A (LESE offline), bestilles etter denne runden** |
 | **Funn** | redesign | `SiteDoc-redesign` | `fix/mobil-offline-oppgave-hms` (ny) | 🟡 **Ordre skrevet 2026-10-03** — offline-liste for oppgave+HMS, paritet med sjekkliste fase 1 (`relay/inbox-redesign-offline-oppgave-hms.md`) |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
