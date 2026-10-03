@@ -30,6 +30,8 @@ import { VersjonsFooter } from "../../src/components/VersjonsFooter";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { refreshSjekklisteKatalog } from "../../src/services/sjekklisteKatalog";
+import { refreshOppgaveKatalog } from "../../src/services/oppgaveKatalog";
+import { refreshHmsKatalog } from "../../src/services/hmsKatalog";
 import { byttSpraak } from "../../src/lib/i18n";
 import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -82,18 +84,31 @@ export default function MerSkjerm() {
         tegningerQuery.data as Array<{ id: string; name: string; fileUrl: string | null; fileType: string | null; updatedAt?: string }>,
         (s) => setOfflineTekst(`${s.steg} ${s.ferdigeProsent}%`),
       );
-      // Sjekkliste-katalog i EGEN try/catch: feiler den, er tegningene ALT
-      // lastet (krav 6 rad 3 — ett nytt steg river ikke med seg det som virket).
-      let sjekklisteTekst = "";
+      // Dokumentliste-kataloger i EGET try/catch PER liste: feiler én, er
+      // tegningene (og de andre listene) ALT lastet (krav 6 rad 3 — ett nytt
+      // steg river ikke med seg det som virket).
+      let listeTekst = "";
       if (valgtProsjektId) {
         try {
           const s = await refreshSjekklisteKatalog(utils.client, valgtProsjektId);
-          sjekklisteTekst = `, ${s.sjekklister} sjekklister`;
+          listeTekst += `, ${s.sjekklister} sjekklister`;
         } catch {
-          sjekklisteTekst = ", sjekklister feilet";
+          listeTekst += ", sjekklister feilet";
+        }
+        try {
+          const o = await refreshOppgaveKatalog(utils.client, valgtProsjektId);
+          listeTekst += `, ${o.oppgaver} oppgaver`;
+        } catch {
+          listeTekst += ", oppgaver feilet";
+        }
+        try {
+          const h = await refreshHmsKatalog(utils.client, valgtProsjektId);
+          listeTekst += `, ${h.hms} HMS`;
+        } catch {
+          listeTekst += ", HMS feilet";
         }
       }
-      setOfflineTekst(`Ferdig: ${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller${sjekklisteTekst}`);
+      setOfflineTekst(`Ferdig: ${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller${listeTekst}`);
       setTimeout(() => setOfflineTekst(null), 4000);
     } catch (err) {
       setOfflineTekst(`Feil: ${err instanceof Error ? err.message : String(err)}`);

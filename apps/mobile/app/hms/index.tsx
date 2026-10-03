@@ -10,17 +10,26 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus } from "lucide-react-native";
+import { ArrowLeft, Plus, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import { velgOfflineListeKilde } from "@sitedoc/shared";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { useNettverk } from "../../src/providers/NettverkProvider";
+import {
+  hentHmsLokalt,
+  hentSistOppdatertHmsLokalt,
+} from "../../src/services/hmsKatalog";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { HmsMalVelger, type HmsMal, type HmsSubdomain } from "../../src/components/HmsMalVelger";
-import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
+import {
+  formaterNummer,
+  formaterOfflineTidspunkt,
+} from "../../src/components/dokumentliste/DokumentRadHjelpere";
 
 const FANER: HmsSubdomain[] = ["avvik", "sja", "ruh"];
 
@@ -45,6 +54,7 @@ export default function HmsListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
+  const { erPaaNettet } = useNettverk();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -58,7 +68,43 @@ export default function HmsListe() {
     { enabled: !!valgtProsjektId },
   );
 
-  const dok = dokQuery.data as HmsDokumenter | undefined;
+  // Offline-lesing (Offline-liste fase 1, 2026-10-03). Kildevalget gjøres på
+  // HELE datasettet (alle tre kategorier), ikke per fane — serveren leverer dem
+  // i ett kall. MED nett + bekreftet svar er serveren autoritativ; lokal er KUN
+  // fallback. Lokal scope speiler server-spørringens byggeplass-scope.
+  const bygg = valgtBygningId ?? undefined;
+  const serverDok = dokQuery.data as HmsDokumenter | undefined;
+
+  const lokalDok = useMemo<HmsDokumenter>(
+    () =>
+      valgtProsjektId
+        ? (hentHmsLokalt(valgtProsjektId, bygg) as HmsDokumenter)
+        : { avvik: [], sja: [], ruh: [] },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [valgtProsjektId, bygg, dokQuery.status],
+  );
+
+  const serverAntall = serverDok
+    ? serverDok.avvik.length + serverDok.sja.length + serverDok.ruh.length
+    : 0;
+  const lokalAntall = lokalDok.avvik.length + lokalDok.sja.length + lokalDok.ruh.length;
+
+  const { kilde, tilstand } = velgOfflineListeKilde({
+    erPaaNettet,
+    serverBekreftet: dokQuery.isSuccess,
+    serverAntall,
+    lokalAntall,
+  });
+
+  const dok = kilde === "server" ? serverDok : lokalDok;
+
+  const sistHentet = useMemo(
+    () =>
+      tilstand === "lokal" && valgtProsjektId
+        ? hentSistOppdatertHmsLokalt(valgtProsjektId)
+        : null,
+    [tilstand, valgtProsjektId, lokalAntall],
+  );
 
   const aktivListe = useMemo<HmsRad[]>(() => {
     if (!dok) return [];
@@ -211,7 +257,20 @@ export default function HmsListe() {
         onVelg={settStatusFilter}
       />
 
-      {dokQuery.isLoading ? (
+      {/* Offline-banner: viser lagrede HMS-dokumenter + «sist hentet». */}
+      {tilstand === "lokal" && (
+        <View className="flex-row items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2">
+          <WifiOff size={14} color="#b45309" />
+          <Text className="flex-1 text-xs text-amber-800">
+            {t("offline.frakobletLagretDok")}
+            {sistHentet != null
+              ? ` · ${t("offline.sistHentet", { tid: formaterOfflineTidspunkt(sistHentet) })}`
+              : ""}
+          </Text>
+        </View>
+      )}
+
+      {dokQuery.isLoading && lokalAntall === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>
@@ -226,14 +285,22 @@ export default function HmsListe() {
           }
           ListEmptyComponent={
             <View className="items-center px-8 pt-20">
-              <Text className="text-base text-gray-500">
-                {effektivStatus ? t("tom.ingenMatcherFilter") : t(`hms.tom.${fane}`)}
-              </Text>
-              {!effektivStatus ? (
-                <Text className="mt-1 text-center text-sm text-gray-400">
-                  {t(`hms.tom.${fane}Beskrivelse`)}
+              {!effektivStatus && tilstand === "lokal-tom" ? (
+                <Text className="text-base text-gray-500">
+                  {t("offline.ikkeSynkronisertDok")}
                 </Text>
-              ) : null}
+              ) : (
+                <>
+                  <Text className="text-base text-gray-500">
+                    {effektivStatus ? t("tom.ingenMatcherFilter") : t(`hms.tom.${fane}`)}
+                  </Text>
+                  {!effektivStatus ? (
+                    <Text className="mt-1 text-center text-sm text-gray-400">
+                      {t(`hms.tom.${fane}Beskrivelse`)}
+                    </Text>
+                  ) : null}
+                </>
+              )}
             </View>
           }
         />

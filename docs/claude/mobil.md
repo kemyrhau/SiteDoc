@@ -253,20 +253,32 @@ const { t } = useTranslation();
 | `oppgave_feltdata` | Lokal oppgave-utfylling |
 | `opplastings_ko` | Bakgrunnskø for filopplasting |
 | `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11) |
+| `oppgave_local` | Offline-katalog for oppgave**lista** (read-only mirror, 2026-10-03) |
+| `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03) |
 
-**Offline sjekklisteliste (fase 1, 2026-09-11):** `app/sjekkliste/index.tsx` leste før rett på
-`trpc.sjekkliste.hentForProsjekt` uten fallback → tom liste uten dekning (brøt CLAUDE.md «Mobil-appen
-MÅ fungere offline»). Nå: `sjekkliste_local` speiler lista (`services/sjekklisteKatalog.ts`,
-`prosjektKatalog`-mønster: full-overskriv per prosjekt, henter HELE prosjektet uten `byggeplassId` så
-lokal lesing selv gjør byggeplass-scopingen `byggeplassFilterDirekte` gjør). Server-tilgangsfilter +
-HMS-eksklusjon er alt anvendt ved henting. Kildevalg via delt ren `velgOfflineListeKilde`
-(`@sitedoc/shared`, testet): **med nett + bekreftet svar er serveren autoritativ (også tomt) — like
-fersk som før**; uten (offline/henger/feilet) leses lokal cache. Banner skiller «frakoblet, lagrede
-data (sist hentet …)» fra «ikke synkronisert ennå». Refresh trigges i `triggerKatalogRefresh`
-(sekvensiell fei over aktive `prosjekt_local`-prosjekter, egen try/catch — de 13 timer-katalogene
-upåvirket) + `startOffline` (Mer, valgt prosjekt, egen try/catch så tegninger lastes uansett).
-🟡 **Fase 2:** oppgaver + HMS (samme mønster). Standalone-prosjekter (`organizationId=null`) er ikke i
-`prosjekt_local` → dekkes kun av `startOffline`/list-skjermen, ikke login-feien.
+**Offline dokumentlister (fase 1):** list-skjermene leste før rett på tRPC uten fallback → tom liste
+uten dekning (brøt CLAUDE.md «Mobil-appen MÅ fungere offline»). Nå speiler `*_local`-tabeller lista.
+Delt mønster (`services/sjekklisteKatalog.ts` · `oppgaveKatalog.ts` · `hmsKatalog.ts`): full-overskriv
+PER PROSJEKT, henter HELE prosjektet uten `byggeplassId` så lokal lesing selv gjør byggeplass-scopingen.
+Kildevalg via den delte rene `velgOfflineListeKilde` (`@sitedoc/shared`, testet): **med nett + bekreftet
+svar er serveren autoritativ (også tomt) — like fersk som før**; uten (offline/henger/feilet) leses
+lokal cache. Banner skiller «frakoblet, lagrede data (sist hentet …)» fra «ikke synkronisert ennå».
+Refresh trigges i `triggerKatalogRefresh` (sekvensiell fei over aktive `prosjekt_local`-prosjekter,
+per-(prosjekt,liste) try/catch — de 13 timer-katalogene upåvirket) + `startOffline` (Mer, valgt
+prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-prosjekter
+(`organizationId=null`) er ikke i `prosjekt_local` → dekkes kun av `startOffline`/list-skjermen.
+
+- **Sjekkliste (2026-09-11):** `sjekkliste.hentForProsjekt`; byggeplass direkte (`byggeplassFilterDirekte`).
+- **Oppgave (2026-10-03):** `oppgave.hentForProsjekt` (uten `domain` → HMS ekskludert). Task har ingen
+  egen `byggeplassId` — tilhørighet via tegning. Serverens tre-ledds `byggeplassFilterViaTegning`
+  kollapser til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen når speilet lagrer den UTLEDETE
+  effektive byggeplassen (`drawing.byggeplass.id`; ingen/prosjekt-tegning → null → hele prosjektet).
+- **HMS (2026-10-03):** `hms.hentDokumenter` (alle tre kategorier i ett kall → én `hms_local`-tabell med
+  `kategori`-diskriminator; atomisk refresh/lesevei). avvik/RUH er Task (byggeplass via tegning), SJA er
+  Checklist (direkte) — begge utledes til samme effektive `byggeplassId`. 🔴 Speilet bærer ALDRI `data`/
+  signerte vedleggs-URL-er (utløper 15 min); kun visningsfelt. `TASK_SELECT`/`CHECKLIST_SELECT` i
+  `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
+  `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
 
 **Lagringsstrategi:**
 - SQLite først (<10ms), deretter server-synk

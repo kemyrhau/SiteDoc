@@ -685,3 +685,71 @@ export const reiseGrensepunktLocal = sqliteTable(
     pk: primaryKey({ columns: [t.organizationId, t.grenseM] }),
   }),
 );
+
+/**
+ * oppgave_local — offline-katalog for oppgavelista (Offline-liste fase 1 for
+ * oppgaver/HMS, 2026-10-03). Speiler KUN det lista viser/filtrerer på (målt mot
+ * app/oppgave/index.tsx). Read-only mirror: refresh full-overskriver per prosjekt
+ * fra `oppgave.hentForProsjekt` (uten byggeplassId → hele prosjektet, så lokal
+ * lesing selv gjør byggeplass-scopingen serveren gjør med byggeplassFilterViaTegning).
+ *
+ * Byggeplass-nøkkelen: Task har INGEN egen byggeplassId — tilhørighet finnes kun
+ * via tegningen (drawing.byggeplassId). Serverens TRE-ledds tegningsfilter kollapser
+ * til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen som Checklist bruker,
+ * når vi utleder byggeplassId = drawing.byggeplass.id (ingen tegning / prosjekt-
+ * tegning → null → gjelder hele prosjektet). Derfor er byggeplassId her den UTLEDETE
+ * effektive byggeplassen, ikke en rå kolonne.
+ *
+ * Serverens tilgangsfilter + HMS-eksklusjon (domain ≠ hms) er allerede anvendt ved
+ * henting → radene er en tro kopi av det denne brukeren ville sett online. Bærer
+ * ALDRI `data`/vedlegg (ingen URL-er). KUN lokal, synkes aldri opp.
+ */
+export const oppgaveLocal = sqliteTable("oppgave_local", {
+  id: text("id").primaryKey(), // = server Task.id
+  projectId: text("project_id").notNull(),
+  title: text("title").notNull(),
+  status: text("status").notNull(),
+  priority: text("priority").notNull(),
+  number: integer("number"),
+  createdAt: text("created_at").notNull(), // ISO
+  updatedAt: text("updated_at").notNull(), // ISO — sortering nyeste først
+  dueDate: text("due_date"), // ISO
+  byggeplassId: text("byggeplass_id"), // UTLEDET effektiv byggeplass (null = hele prosjektet)
+  templateName: text("template_name"),
+  templatePrefix: text("template_prefix"),
+  templateSubdomain: text("template_subdomain"), // kontraktssak-markering (subdomain="kontrakt")
+  utforerFaggruppeNavn: text("utforer_faggruppe_navn"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness (krav 7)
+});
+
+/**
+ * hms_local — offline-katalog for HMS-lista (Offline-liste fase 1, 2026-10-03).
+ * ÉN tabell for alle tre HMS-kategoriene, skilt på `kategori` (avvik/sja/ruh).
+ * Valgt fremfor tre tabeller fordi lista rendrer alle tre identisk (samme HmsRad,
+ * samme rad-render; kun fanen skiller) og serveren leverer dem i ETT kall
+ * (`hms.hentDokumenter` → {avvik, sja, ruh}). Én tabell gir atomisk refresh per
+ * prosjekt (ett delete+insert) og én lesevei.
+ *
+ * Datamodell: avvik/ruh er Task (byggeplass via tegning), sja er Checklist
+ * (byggeplass direkte). Begge kollapser til samme effektive byggeplassId (utledet) —
+ * se oppgave_local. Serverens synlighetsfilter (privat/åpen) + draft-guard er
+ * anvendt ved henting → radene er en tro kopi av denne brukerens HMS-liste.
+ *
+ * 🔴 Bærer ALDRI `data`/vedlegg — `hms.hentDokumenter` returnerer SIGNERTE
+ * vedleggs-URL-er (utløper 15 min); kun visningsfelt speiles. KUN lokal, synkes aldri.
+ */
+export const hmsLocal = sqliteTable("hms_local", {
+  id: text("id").primaryKey(), // = server Task.id / Checklist.id (uuid, globalt unik)
+  projectId: text("project_id").notNull(),
+  kategori: text("kategori").notNull(), // "avvik" | "sja" | "ruh"
+  title: text("title").notNull(),
+  status: text("status").notNull(),
+  number: integer("number"),
+  createdAt: text("created_at").notNull(), // ISO
+  updatedAt: text("updated_at").notNull(), // ISO — sortering (server orderBy updatedAt desc)
+  byggeplassId: text("byggeplass_id"), // UTLEDET effektiv byggeplass (null = hele prosjektet)
+  templateName: text("template_name"),
+  templatePrefix: text("template_prefix"),
+  bestillerFaggruppeNavn: text("bestiller_faggruppe_navn"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
+});
