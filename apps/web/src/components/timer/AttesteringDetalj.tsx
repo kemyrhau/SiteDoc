@@ -160,6 +160,22 @@ export function AttesteringDetalj({
   const antallValgt = valgteTimer.size + valgteTillegg.size + valgteMaskin.size;
   const kanHandle = sheet.status === "sent" && antallValgt > 0;
 
+  // LAG 2 D1 (V1): reise er aldri arbeidstid. Splitt dagens timer i arbeid/reise
+  // fra radenes `erReise` (nå i typen). «(inkl. reise)» erstattes av en ærlig
+  // arbeid/reise-linje. Trigger-terskelen på arbeidstidVarselet er BEVISST uendret
+  // (total tilstedeværelse = «lang dag»-signalet) — kun presentasjonen deles opp.
+  const reisetimer = timerRader.reduce(
+    (s, r) => s + (r.erReise === true ? Number(r.timer) : 0),
+    0,
+  );
+  const arbeidstimer = timerRader.reduce(
+    (s, r) => s + (r.erReise === true ? 0 : Number(r.timer)),
+    0,
+  );
+  // normStatus-banner: "cachet"/"ukjent" varsles. null = gammel sedel (feltet fantes
+  // ikke før lag 2) → intet banner (ingen falsk alarm på historiske sedler).
+  const normStatus = sheet.normStatus;
+
   function toggle(set: Set<string>, id: string, oppdater: (s: Set<string>) => void) {
     const ny = new Set(set);
     if (ny.has(id)) ny.delete(id);
@@ -228,9 +244,35 @@ export function AttesteringDetalj({
         />
       ) : (
       <>
+      {/* LAG 2 D1: norm-status fra sedelen (B6.3) — attestanten ser om overtiden
+          ble fordelt mot en frisk norm. "cachet"/"ukjent" varsles; "server"/null
+          (gammel sedel) gir intet banner. */}
+      {(normStatus === "cachet" || normStatus === "ukjent") && (
+        <div className="mb-4 flex">
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {normStatus === "cachet"
+              ? t("timer.attestering.norm.cachet")
+              : t("timer.attestering.norm.ukjent")}
+          </span>
+        </div>
+      )}
+
+      {/* LAG 2 D1 (V1): arbeid/reise-splitt — erstatter «(inkl. reise)». Vises kun
+          når det faktisk finnes reisetimer på sedelen. */}
+      {reisetimer > 0 && (
+        <div className="mb-4 text-sm text-gray-600">
+          {t("timer.attestering.arbeidReiseSplit", {
+            arbeid: arbeidstimer.toFixed(2),
+            reise: reisetimer.toFixed(2),
+          })}
+        </div>
+      )}
+
       {/* Slice 4b-2: kontroll-badges. (1) system-bestemt slutt-tid (ikke
-          arbeider-bekreftet). (2) total arbeidstid (inkl. reise) over firmaets
-          terskel. Begge er VARSEL, ikke blokkering. */}
+          arbeider-bekreftet). (2) total tilstedeværelse (arbeid + reise) over
+          firmaets terskel — «lang dag»-signal, derfor talt totalt. Begge er
+          VARSEL, ikke blokkering. */}
       {(sheet.sluttTidKilde === "system" ||
         timerRader.reduce((s, r) => s + Number(r.timer), 0) >
           sheet.arbeidstidVarselTimer) && (

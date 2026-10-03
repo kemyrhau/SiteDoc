@@ -27,12 +27,24 @@ const timerad = (o: Partial<DetaljEksportKilde["timerader"][number]> = {}) => ({
   ansattnr: "104",
   prosjekt: "Kai 12",
   lonnsart: "Normaltid",
+  lonnsartType: "ordinaer" as string | null,
+  satsEnhet: null as string | null,
   aktivitet: "Graving",
   fraTid: "07:00",
   tilTid: "15:00",
   timer: 7.5,
   beskrivelse: "gravde",
   radstatus: "attestert",
+  // LAG 2 D2 — default: vanlig arbeidsrad uten reise-spor.
+  erReise: false,
+  reiseRetning: null as "ut" | "retur" | null,
+  fraSted: null as string | null,
+  tilSted: null as string | null,
+  reiseAvstandM: null as number | null,
+  reiseKjoretidMin: null as number | null,
+  reiseKilde: null as "matrise" | "manuell" | null,
+  tidKilde: null as "stempel" | "utledet" | "manuell" | null,
+  normStatus: null as "server" | "cachet" | "ukjent" | null,
   maskiner: [],
   ...o,
 });
@@ -433,5 +445,129 @@ describe("losTimerKolonner (flateparitet — ÉN sannhet for skjerm/PDF/Excel)",
     expect(koler).not.toContain("ansattnr");
     expect(koler).not.toContain("status");
     expect(koler).toContain("ansatt");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  LAG 2 D2 — reise-sporet i detaljeksporten                          */
+/* ------------------------------------------------------------------ */
+
+const reiserad = (o: Partial<DetaljEksportKilde["timerader"][number]> = {}) =>
+  timerad({
+    id: "reise-ut",
+    lonnsart: "Reise til prosjekt",
+    aktivitet: "Reise",
+    erReise: true,
+    reiseRetning: "ut",
+    fraSted: "Kontor Narvik",
+    tilSted: "Grønnåsen",
+    reiseAvstandM: 42000,
+    reiseKjoretidMin: 48,
+    reiseKilde: "matrise",
+    tidKilde: "utledet",
+    normStatus: "server",
+    ...o,
+  });
+
+describe("LAG 2 D2 — reise-spor følger raden til detaljeksport", () => {
+  it("reise-feltene flyter gjennom byggDetaljRader på timeraden", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [reiserad()] }),
+      ALLE_RADTYPER,
+    );
+    const rad = rader[0]!;
+    expect(rad.type).toBe("timer");
+    expect(rad.erReise).toBe(true);
+    expect(rad.reiseRetning).toBe("ut");
+    expect(rad.fraSted).toBe("Kontor Narvik");
+    expect(rad.tilSted).toBe("Grønnåsen");
+    expect(rad.reiseAvstandM).toBe(42000);
+    expect(rad.reiseKjoretidMin).toBe(48);
+    expect(rad.reiseKilde).toBe("matrise");
+    expect(rad.tidKilde).toBe("utledet");
+    expect(rad.normStatus).toBe("server");
+  });
+
+  it("ikke-timer-rader bærer null reise-felt (type-fremmed)", () => {
+    const rader = byggDetaljRader(
+      kilde({
+        tillegg: [
+          {
+            id: "x1", dato: "2026-08-10", ansatt: "Ola", ansattnr: "104",
+            prosjekt: "Kai 12", tillegg: "Diett", antall: 1,
+            kommentar: null, radstatus: "attestert",
+          },
+        ],
+      }),
+      ALLE_RADTYPER,
+    );
+    const rad = rader[0]!;
+    expect(rad.type).toBe("tillegg");
+    expect(rad.erReise).toBeNull();
+    expect(rad.reiseRetning).toBeNull();
+  });
+
+  // GATE 1(a): en matrise-reise-rad UTEN km (gammel backfill-rad, ingen etappe)
+  // skal ikke gi en avstandKm-kolonne — ingen fabrikkert «0 km». «Reise: Ja» står
+  // likevel. Dette er stille-tomhet-ærlighet: tomt felt ≠ et tall.
+  it("matrise-reise uten km gir INGEN avstandKm-kolonne, men reise vises", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [reiserad({ reiseAvstandM: null, reiseKjoretidMin: null })] }),
+      ALLE_RADTYPER,
+    );
+    const innhold = kolonnerMedInnhold(rader);
+    expect(innhold.reise).toBe(true);
+    expect(innhold.avstandKm).toBe(false);
+    expect(innhold.kjoretidMin).toBe(false);
+    const koler = losTimerKolonner(rader, "intern", []);
+    expect(koler).toContain("reise");
+    expect(koler).not.toContain("avstandKm");
+    expect(koler).not.toContain("kjoretidMin");
+  });
+
+  it("avstandKm-kolonnen vises når en reise-rad har avstand", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [reiserad()] }),
+      ALLE_RADTYPER,
+    );
+    expect(kolonnerMedInnhold(rader).avstandKm).toBe(true);
+    expect(losTimerKolonner(rader, "intern", [])).toContain("avstandKm");
+  });
+
+  it("en ren arbeidsliste (ingen reise) får INGEN reise-kolonner — uendret eksport", () => {
+    const rader = byggDetaljRader(kilde({ timerader: [timerad()] }), ALLE_RADTYPER);
+    const koler = losTimerKolonner(rader, "intern", []);
+    for (const k of ["reise", "retning", "fraSted", "tilSted", "avstandKm", "kjoretidMin", "reiseKilde", "tidKilde", "normStatus"]) {
+      expect(koler).not.toContain(k);
+    }
+  });
+
+  it("proveniens-kolonnene (kilde/tidKilde/normStatus) strippes for EKSTERN mottaker", () => {
+    const rader = byggDetaljRader(kilde({ timerader: [reiserad()] }), ALLE_RADTYPER);
+    const intern = losTimerKolonner(rader, "intern", []);
+    const ekstern = losTimerKolonner(rader, "ekstern", []);
+    expect(intern).toContain("reiseKilde");
+    expect(intern).toContain("tidKilde");
+    expect(intern).toContain("normStatus");
+    expect(ekstern).not.toContain("reiseKilde");
+    expect(ekstern).not.toContain("tidKilde");
+    expect(ekstern).not.toContain("normStatus");
+    // fra/til-sted + avstand er IKKE proveniens → beholdes for byggherre.
+    expect(ekstern).toContain("fraSted");
+    expect(ekstern).toContain("avstandKm");
+  });
+
+  it("lonnsartType/satsEnhet vises kun ved ikke-ordinær type / sats-enhet", () => {
+    // Ren ordinær liste → ingen av dem.
+    const vanlig = byggDetaljRader(kilde({ timerader: [timerad()] }), ALLE_RADTYPER);
+    expect(losTimerKolonner(vanlig, "intern", [])).not.toContain("lonnsartType");
+    expect(losTimerKolonner(vanlig, "intern", [])).not.toContain("satsEnhet");
+    // Km-art (satsEnhet per_km) → begge vises.
+    const km = byggDetaljRader(
+      kilde({ timerader: [timerad({ lonnsartType: "diett", satsEnhet: "per_km" })] }),
+      ALLE_RADTYPER,
+    );
+    expect(losTimerKolonner(km, "intern", [])).toContain("lonnsartType");
+    expect(losTimerKolonner(km, "intern", [])).toContain("satsEnhet");
   });
 });

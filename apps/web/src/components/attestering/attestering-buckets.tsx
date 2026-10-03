@@ -11,6 +11,7 @@ import { timerStatusEtikett } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Check, RotateCcw, X } from "lucide-react";
+import { ReiseRadMerke } from "./ReiseRadMerke";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -38,6 +39,17 @@ export type TimerRad = {
   timer: unknown;
   attestertStatus: string | null;
   project?: RadProsjekt;
+  // LAG 2 D1 — reise-sporet (K5). Allerede i server-payloaden (default-select på
+  // SheetTimer); her synliggjort i typen så `as unknown as TimerRad[]`-casten i
+  // AttesteringDetalj ikke lenger stripper dem. Gamle rader: erReise satt, resten null.
+  erReise?: boolean | null;
+  reiseRetning?: "ut" | "retur" | null;
+  reiseOppmotestedId?: string | null;
+  reiseKjoretidMin?: number | null;
+  reiseAvstandM?: number | null;
+  reiseKilde?: "matrise" | "manuell" | null;
+  tidKilde?: "stempel" | "utledet" | "manuell" | null;
+  reiseAvvik?: boolean | null;
 };
 
 export type TilleggRad = {
@@ -212,6 +224,12 @@ function TimerRaderLeder({
                       </span>
                     )}
                   </p>
+                  {/* LAG 2 D1: reise-sporet + fritekst-beskrivelse (M7 — feltet lå
+                      i payloaden men ble aldri vist på attestant-raden). */}
+                  <ReiseRadMerke rad={rad} />
+                  {rad.beskrivelse && (
+                    <p className="mt-1 text-xs italic text-gray-500">{rad.beskrivelse}</p>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
                       {t("timer.attestering.flyttEco.etikett")}:

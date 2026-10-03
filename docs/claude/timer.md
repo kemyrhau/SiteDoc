@@ -300,6 +300,23 @@ Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger løn
 >   `reisetidTellerOvertid`-avkrysningen er fjernet fra firma-innstillinger (web); api beholder kolonne +
 >   select/skriv men ignorerer verdien (to-stegs, droppes senere); i18n-nøkkelen `reise.tellerOvertid` slettet.
 
+> 🟢 **LAG 2-C (branch `feat/timer-l2c-attestering-eksport`, 2026-10-03 — venter merge/gate; hjemmel K5/V8):
+> attestanten og regnskapet ser reise-sporet.**
+> - **D1 Attestering (web):** reise-rader får merke «Reise ut/retur» + rute-linje «Kontor → Byggeplass · km ·
+>   min · kilde» + tidskilde-merke (`utledet` → «tid utledet fra matrise») i `SeddelKort` og `TimerRaderLeder`
+>   (delt komponent `ReiseRadMerke.tsx`). Gammel backfill-rad uten etappe (reiseKilde=null, ingen km/min) viser
+>   ærlig «reise (kilde ukjent)» — aldri tomme «— km». `reiseAvvik === true` gir varsel; `null` viser ingenting.
+>   `normStatus ∈ {cachet, ukjent}` gir sedel-banner («Norm fra siste kjente svar» / «Norm ukjent — overtid ikke
+>   fordelt»); `null` (gammel sedel) gir ingenting. «(inkl. reise)» erstattet av arbeid/reise-splitt fra
+>   `arbeidstimer`/`reisetimer` (V1). `rad.beskrivelse` vises nå på attestant-raden (M7-fiks). **Arbeidstid-varselets
+>   TRIGGER er bevisst uendret (total tilstedeværelse = «lang dag») — kun presentasjonen deles opp.**
+> - **D2 Eksport:** nye detalj-kolonner `reise`/`retning`/`fraSted`/`tilSted`/`avstandKm`/`kjoretidMin`/`reiseKilde`/
+>   `tidKilde`/`normStatus` + `lonnsartType`/`satsEnhet` i `TIMER_KOL_KEYS` (`@sitedoc/shared timerDetaljRader.ts`);
+>   api `rapport.ts` resolver fra/til-sted fra `reiseOppmotestedId`+`byggeplassId` mot retningen (kjerne-klienten,
+>   svak FK). Kolonnene vises dynamisk KUN når de bærer data → en ren arbeidsliste er uendret. Proveniens
+>   (reiseKilde/tidKilde/normStatus) strippes for ekstern mottaker (byggherre). Arknavn/overskrifter via `t()`.
+> - **D3:** `attestertSnapshot.prisMotKunde`-påstanden i eksport-docen rettet (M9 — leses kun i attestering).
+
 #### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
 
 **`Lonnsart.overtidsnivaa Int?`** (db-timer, nullable): `null` = ikke overtid, `50`/`100` = tier. Erstatter fritekst-navne-match. Firma-admin setter feltet i web lønnsart-UI («Overtidsnivå»-select, kun for `type="ordinaer"`).
@@ -702,7 +719,7 @@ Mål-eksporten (utkast) joiner `sheet_timer`/`sheet_tillegg` med katalog-tabelle
 | Lønnsart-rader (med ECO per linje) | `sheet_timer` joinet med `lonnsarter` (`kode`, `navn`, `timer`, `attestertSnapshot.prisMotKunde`) + `externalCostObjectId` → `external_cost_objects.proAdmId` (valgfri per linje) |
 | Tillegg-rader | `sheet_tillegg` joinet med `tillegg` (`kode`, `navn`, `antall`, `attestertSnapshot.prisMotKunde`) |
 
-**Pris-snapshot:** Eksport bruker `attestertSnapshot.prisMotKunde` fra hver rad — ikke gjeldende pris i katalogen. Sikrer at attesterte timer beholder sin opprinnelige pris selv om katalog-prisen endres senere (Fase 0 A.7).
+**Pris-snapshot (❌ IKKE i eksporten i dag — D3-retting LAG 2-C):** Tabellen over er *utkast*. Dagens eksport (`timer/rapport.ts` → `detaljEksport`, Excel `timer-rapport-eksport.ts`, PDF `packages/pdf/timer-rapport.ts`) bærer **ikke** `attestertSnapshot.prisMotKunde` — den leser lønnsart-**navn** (nå også `type`/`satsEnhet`, LAG 2-C D2), timer, fra/til, beskrivelse og reise-sporet, ingen pris. `attestertSnapshot` (Json med lønnsart/aktivitet/sats/overtidsgrunnlag) leses **kun** i `hentForAttestering` (`dagsseddel.ts:3239`) for attesterings-visningen, aldri i en eksportvei. Den planlagte lønnsuttrekk-eksporten (når adaptere bygges) *skal* fryse pris pr. rad (Fase 0 A.7) — men gjør det ikke i dag (M9, målt 2026-10-03).
 
 **Eksport-kode-krav (planlagt, ikke bygget):** `lonnsarter.kode`/`tillegg.kode`/`aktiviteter.kode` er nullable. ⚠️ Doc-en beskriver *ønsket* atferd: eksport-modulen skal kaste tydelig feilmelding hvis kode mangler. **Eksport-modulen finnes ikke ennå** (adaptere «❌ Ikke startet»), og valideringen finnes ikke i noen kodevei i dag. Når den bygges bør sjekken skje ved **attestering**, ikke først ved lønnskjøring — se [BACKLOG § validering av `kode`](BACKLOG.md). Merk: `GRA`/`RYD`-aktivitetene er nå akseptert uten kode (SiteDoc-spesifikke) — aktivitet-kode-kravet må revideres når modulen bygges.
 
