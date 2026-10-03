@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Okänd",
   "timer.attestering.reise.merkeUt": "Resa ut",
   "timer.attestering.reise.merkeRetur": "Resa retur",
+  "timer.attestering.reise.merkeManuell": "Resor (manuell)",
+  "timer.attestering.reise.merke": "Resa",
   "timer.attestering.reise.kildeUkjent": "resa (källa okänd)",
   "timer.attestering.reise.tidUtledet": "tid härledd från matris",
   "timer.attestering.reise.tidManuell": "tid ställs in manuellt",

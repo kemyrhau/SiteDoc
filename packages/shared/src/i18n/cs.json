@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Neznámý",
   "timer.attestering.reise.merkeUt": "Cestujte ven",
   "timer.attestering.reise.merkeRetur": "Cestovní návrat",
+  "timer.attestering.reise.merkeManuell": "Cestování (manuální)",
+  "timer.attestering.reise.merke": "Cestovat",
   "timer.attestering.reise.kildeUkjent": "cestování (zdroj neznámý)",
   "timer.attestering.reise.tidUtledet": "čas odvozený z matice",
   "timer.attestering.reise.tidManuell": "čas nastavit ručně",

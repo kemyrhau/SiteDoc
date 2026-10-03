@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "E panjohur",
   "timer.attestering.reise.merkeUt": "Udhëtoni jashtë",
   "timer.attestering.reise.merkeRetur": "Kthimi i udhëtimit",
+  "timer.attestering.reise.merkeManuell": "Udhëtim (manual)",
+  "timer.attestering.reise.merke": "Udhëtoni",
   "timer.attestering.reise.kildeUkjent": "udhëtim (burimi i panjohur)",
   "timer.attestering.reise.tidUtledet": "koha që rrjedh nga matrica",
   "timer.attestering.reise.tidManuell": "koha e caktuar me dorë",

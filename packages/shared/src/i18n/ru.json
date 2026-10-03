@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Неизвестный",
   "timer.attestering.reise.merkeUt": "Путешествуйте",
   "timer.attestering.reise.merkeRetur": "Возврат путешествия",
+  "timer.attestering.reise.merkeManuell": "Путешествие (вручную)",
+  "timer.attestering.reise.merke": "Путешествовать",
   "timer.attestering.reise.kildeUkjent": "путешествие (источник неизвестен)",
   "timer.attestering.reise.tidUtledet": "время, полученное из матрицы",
   "timer.attestering.reise.tidManuell": "время устанавливается вручную",

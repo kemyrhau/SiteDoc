@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Nieznany",
   "timer.attestering.reise.merkeUt": "Wyjechać",
   "timer.attestering.reise.merkeRetur": "Powrót z podróży",
+  "timer.attestering.reise.merkeManuell": "Podróż (ręczna)",
+  "timer.attestering.reise.merke": "Podróż",
   "timer.attestering.reise.kildeUkjent": "podróż (źródło nieznane)",
   "timer.attestering.reise.tidUtledet": "czas wyliczony z macierzy",
   "timer.attestering.reise.tidManuell": "czas ustawiony ręcznie",

@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Nezināms",
   "timer.attestering.reise.merkeUt": "Ceļojiet ārā",
   "timer.attestering.reise.merkeRetur": "Ceļojuma atgriešanās",
+  "timer.attestering.reise.merkeManuell": "Ceļošana (manuāla)",
+  "timer.attestering.reise.merke": "Ceļot",
   "timer.attestering.reise.kildeUkjent": "ceļojumi (avots nav zināms)",
   "timer.attestering.reise.tidUtledet": "laiks, kas iegūts no matricas",
   "timer.attestering.reise.tidManuell": "manuāli iestatīts laiks",

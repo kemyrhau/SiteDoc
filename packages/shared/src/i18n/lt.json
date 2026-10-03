@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Nežinoma",
   "timer.attestering.reise.merkeUt": "Iškeliauti",
   "timer.attestering.reise.merkeRetur": "Kelionės grįžimas",
+  "timer.attestering.reise.merkeManuell": "Kelionė (rankiniu būdu)",
+  "timer.attestering.reise.merke": "Kelionės",
   "timer.attestering.reise.kildeUkjent": "kelionės (šaltinis nežinomas)",
   "timer.attestering.reise.tidUtledet": "laikas, gautas iš matricos",
   "timer.attestering.reise.tidManuell": "laikas nustatytas rankiniu būdu",

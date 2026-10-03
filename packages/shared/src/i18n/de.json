@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Unbekannt",
   "timer.attestering.reise.merkeUt": "Ausreisen",
   "timer.attestering.reise.merkeRetur": "Rückreise",
+  "timer.attestering.reise.merkeManuell": "Reisen (manuell)",
+  "timer.attestering.reise.merke": "Reisen",
   "timer.attestering.reise.kildeUkjent": "Reisen (Quelle unbekannt)",
   "timer.attestering.reise.tidUtledet": "Zeit abgeleitet von der Matrix",
   "timer.attestering.reise.tidManuell": "Zeit manuell eingestellt",

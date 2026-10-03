@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Tuntematon",
   "timer.attestering.reise.merkeUt": "Matkustaa ulos",
   "timer.attestering.reise.merkeRetur": "Matkan paluu",
+  "timer.attestering.reise.merkeManuell": "Matkailu (manuaalinen)",
+  "timer.attestering.reise.merke": "Matkustaa",
   "timer.attestering.reise.kildeUkjent": "matka (lähde tuntematon)",
   "timer.attestering.reise.tidUtledet": "matriisista johdettu aika",
   "timer.attestering.reise.tidManuell": "aika asetettu manuaalisesti",

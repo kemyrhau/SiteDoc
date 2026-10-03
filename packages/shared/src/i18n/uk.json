@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Невідомий",
   "timer.attestering.reise.merkeUt": "Виїзд",
   "timer.attestering.reise.merkeRetur": "Повернення подорожі",
+  "timer.attestering.reise.merkeManuell": "Подорож (ручна)",
+  "timer.attestering.reise.merke": "Подорожі",
   "timer.attestering.reise.kildeUkjent": "подорож (джерело невідоме)",
   "timer.attestering.reise.tidUtledet": "час, отриманий з матриці",
   "timer.attestering.reise.tidManuell": "час, встановлений вручну",

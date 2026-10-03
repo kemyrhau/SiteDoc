@@ -14,6 +14,7 @@ import { Car, AlertTriangle } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { trpc } from "@/lib/trpc";
 import type { TimerRad } from "./attestering-buckets";
+import { reiseMerkeNokkel } from "./reise-merke";
 
 export function ReiseRadMerke({ rad }: { rad: TimerRad }) {
   const { t } = useTranslation();
@@ -44,10 +45,9 @@ export function ReiseRadMerke({ rad }: { rad: TimerRad }) {
   const harDetaljer =
     rad.reiseKilde != null || rad.reiseAvstandM != null || rad.reiseKjoretidMin != null;
 
-  const merke =
-    retning === "retur"
-      ? t("timer.attestering.reise.merkeRetur")
-      : t("timer.attestering.reise.merkeUt");
+  // RETUR 1 avvik 1: manuell → «Reise (manuell)», retningsløs → nøytral «Reise»,
+  // aldri «Reise ut» uten faktisk retning.
+  const merke = t(reiseMerkeNokkel(rad));
 
   const tidMerke =
     rad.tidKilde === "utledet"

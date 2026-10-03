@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Tundmatu",
   "timer.attestering.reise.merkeUt": "Reisige välja",
   "timer.attestering.reise.merkeRetur": "Reisi tagasi",
+  "timer.attestering.reise.merkeManuell": "Reisimine (käsitsi)",
+  "timer.attestering.reise.merke": "Reisimine",
   "timer.attestering.reise.kildeUkjent": "reisimine (allikas teadmata)",
   "timer.attestering.reise.tidUtledet": "maatriksist tuletatud aeg",
   "timer.attestering.reise.tidManuell": "käsitsi seadistatud aeg",

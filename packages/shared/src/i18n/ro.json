@@ -4576,6 +4576,8 @@
   "timer.reise.norm.ukjent": "Necunoscut",
   "timer.attestering.reise.merkeUt": "Călătorește afară",
   "timer.attestering.reise.merkeRetur": "Călătorie retur",
+  "timer.attestering.reise.merkeManuell": "Călătorie (manual)",
+  "timer.attestering.reise.merke": "Voiaj",
   "timer.attestering.reise.kildeUkjent": "călătorie (sursa necunoscută)",
   "timer.attestering.reise.tidUtledet": "timp derivat din matrice",
   "timer.attestering.reise.tidManuell": "timpul setat manual",
