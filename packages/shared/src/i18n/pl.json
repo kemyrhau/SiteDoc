@@ -1815,7 +1815,6 @@
   "firma.innstillinger.reise.seLonnsarter": "Zobacz rodzaje wynagrodzeń →",
   "firma.innstillinger.reise.varselIngenArt": "Żaden rodzaj wynagrodzenia nie jest interpretowany jako podróż. Czas podróży powyżej progu jest obliczany, ale nie jest automatycznie rejestrowany w ramach wynagrodzenia, dopóki nie wybierzesz poniżej rodzaju płatności za podróż.",
   "firma.innstillinger.reise.varselTvetydigArt": "Jako podróże można interpretować kilka rodzajów wynagrodzeń. Bez wyraźnego wyboru system decyduje, który czas podróży jest rejestrowany — wybierz poniżej odpowiedni rodzaj wynagrodzenia.",
-  "firma.innstillinger.reise.tellerOvertid": "Czas podróży wlicza się do nadgodzin",
   "firma.innstillinger.reise.baandTittel": "Pasma odległości podróży",
   "firma.innstillinger.reise.baandBeskrivelse": "Wybierz rodzaj wynagrodzenia za podróż, który ma zastosowanie w zależności od odległości. Każdy punkt mówi „od tej odległości podróże są rejestrowane w ramach tego rodzaju wynagrodzenia”, aż do następnego punktu. Bez przegródek rodzaj wynagrodzenia podróżnego jest dopasowywany automatycznie według nazwiska.",
   "firma.innstillinger.reise.baandTom": "Nie skonfigurowano żadnych zakresów odległości. Dodaj punkty, aby kontrolować rodzaj wynagrodzenia za podróż według odległości.",

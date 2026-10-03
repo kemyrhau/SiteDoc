@@ -1815,7 +1815,6 @@
   "firma.innstillinger.reise.seLonnsarter": "Zahlungsarten anzeigen →",
   "firma.innstillinger.reise.varselIngenArt": "Es wird keine Lohnart als Reiseart interpretiert. Die über dem Schwellenwert liegende Reisezeit wird berechnet, aber nicht automatisch in der Vergütung erfasst, bis Sie unten eine Art der Reisevergütung auswählen.",
   "firma.innstillinger.reise.varselTvetydigArt": "Mehrere Entgeltarten können als Reisetätigkeit interpretiert werden. Ohne eine explizite Auswahl entscheidet das System, welche Reisezeit erfasst wird – wählen Sie unten die richtige Zahlungsart aus.",
-  "firma.innstillinger.reise.tellerOvertid": "Reisezeit wird auf die Überstunden angerechnet",
   "firma.innstillinger.reise.baandTittel": "Reiseentfernungsbänder",
   "firma.innstillinger.reise.baandBeskrivelse": "Wählen Sie anhand der Entfernung, welche Reiselohnart gilt. Bei jedem Punkt steht „Ab dieser Entfernung werden Fahrten auf dieser Lohnart erfasst“, bis der nächste Punkt übernimmt. Ohne Bänder wird die Reiselohnart automatisch namentlich zugeordnet.",
   "firma.innstillinger.reise.baandTom": "Keine Entfernungsbänder konfiguriert. Fügen Sie Punkte hinzu, um die Reiselohnart nach Entfernung zu steuern.",

@@ -18,6 +18,39 @@ describe("beregnOvertidsgrunnlag", () => {
     expect(g.avvik).toBe(false);
   });
 
+  // LAG 2 / V1 (gate-kriterie 1b): reise er ALDRI overtid. Dag A på serveren:
+  // 10 t arbeid (7,5 normal + 2,5 OT) + 4 t reise. Reise skal holdes HELT utenfor
+  // overtidsgrunnlaget. 🔴 Rød først: før erReise-flagget summerte funksjonen alle
+  // rader → reise ville skjøvet totalen og telt som arbeid i overtiden.
+  it("🔴 V1: reise-rader holdes utenfor overtidsgrunnlaget (Dag A)", () => {
+    const rader: OvertidRad[] = [
+      { timer: 7.5, overtidsnivaa: null, erReise: false },
+      { timer: 2.5, overtidsnivaa: 50, erReise: false },
+      { timer: 4, overtidsnivaa: null, erReise: true }, // reise ut+retur
+    ];
+    const g = beregnOvertidsgrunnlag(rader, 7.5);
+    expect(g.arbeidstimer).toBe(10);
+    expect(g.reisetimer).toBe(4);
+    expect(g.totaltimer).toBe(14); // visning: alle timer
+    expect(g.sumOvertid).toBe(2.5); // ført OT, reise ikke med
+    expect(g.beregnetOvertid).toBe(2.5); // 10 arbeid − 7,5 norm
+    expect(g.avvik).toBe(false);
+  });
+
+  it("🔴 V1: en reise-rad feil-tagget med overtidsnivaa teller likevel IKKE som overtid", () => {
+    // Selv om en reise-rad skulle bære overtidsnivaa (umulig i praksis), skal V1
+    // holde den ute av sumOvertid og arbeidstimer.
+    const rader: OvertidRad[] = [
+      { timer: 7.5, overtidsnivaa: null, erReise: false },
+      { timer: 3, overtidsnivaa: 50, erReise: true },
+    ];
+    const g = beregnOvertidsgrunnlag(rader, 7.5);
+    expect(g.arbeidstimer).toBe(7.5);
+    expect(g.reisetimer).toBe(3);
+    expect(g.sumOvertid).toBe(0);
+    expect(g.beregnetOvertid).toBe(0);
+  });
+
   it("over norm, korrekt tagget overtid → intet avvik", () => {
     // 7,5 normal + 1,5 overtid = 9 t; norm 7,5 → beregnet 1,5 = valgt 1,5
     const rader: OvertidRad[] = [
@@ -108,6 +141,10 @@ describe("lesOvertidsgrunnlagFraSnapshot (gamle snapshot-former)", () => {
     expect(lesOvertidsgrunnlagFraSnapshot(nytt)).toEqual({
       norm: 37.5,
       totaltimer: 40,
+      // LAG 2: snapshot uten arbeidstimer/reisetimer (pre-lag-2) → arbeidstimer =
+      // totaltimer, reisetimer = 0 (ærlig gjengivelse av det som ble attestert).
+      arbeidstimer: 40,
+      reisetimer: 0,
       sumOrdinaert: 38,
       sumOvertid: 2,
       beregnetOvertid: 2.5,

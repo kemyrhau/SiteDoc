@@ -35,6 +35,15 @@ vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),
   hentEffektivArbeidstid: vi.fn(),
 }));
+// LAG 2: syncBatch/forson/rediger henter nå reise-kontekst fra kjerne-prisma
+// (hentErReiseKontekst). Mock den så tak-testene ikke treffer ekte DB.
+vi.mock("@sitedoc/db", () => ({
+  prisma: {
+    organizationSetting: { findUnique: vi.fn().mockResolvedValue({ reiseLonnsartId: null }) },
+    organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
+    reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
+  },
+}));
 
 import { dagsseddelRouter } from "./dagsseddel";
 import {
@@ -251,7 +260,8 @@ function lagSyncCtx(satsEnhet: string | null) {
   const ctx = {
     userId: USER,
     req: { log: { info: vi.fn(), warn: vi.fn() } },
-    prisma: {},
+    // LAG 2: syncBatch leser firmaets oppmøtesteder (C2-firmagrense) fra ctx.prisma.
+    prisma: { oppmotested: { findMany: vi.fn().mockResolvedValue([]) } },
     prismaTimer: {
       dailySheet: { findUnique: vi.fn().mockResolvedValue(null) },
       aktivitet: {
@@ -259,7 +269,7 @@ function lagSyncCtx(satsEnhet: string | null) {
         findMany: vi.fn().mockResolvedValue([{ id: AKTIVITET }]),
       },
       lonnsart: {
-        findMany: vi.fn().mockResolvedValue([{ id: LONNSART, satsEnhet }]),
+        findMany: vi.fn().mockResolvedValue([{ id: LONNSART, satsEnhet, navn: "Timelønn" }]),
       },
       tillegg: { findMany: vi.fn().mockResolvedValue([]) },
     },

@@ -19,6 +19,55 @@
 
 export type ReiseKategori = "arbeidstid" | "reisetid";
 
+// ──────────────────────────────────────────────────────────────────────────
+//  LAG 2 — reise-sporet som følger raden (felt-typer delt av server + L2-B/L2-C).
+//  Verdiene speiler db-timer-kolonnene; de bor her så web, mobil og api aldri
+//  divergerer på hva «ut»/«matrise»/«utledet» betyr.
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Etappens retning. Lag 4 utvider med "mellom" (mellometapper). */
+export type ReiseRetning = "ut" | "retur";
+
+/** Hvor reise-tallene (kjøretid/avstand) kom fra. */
+export type ReiseKilde = "matrise" | "manuell";
+
+/**
+ * V8 tidskilde på en rad. "utledet" = vindu fra GPS ± matrise (ser målt ut, er
+ * det ikke) · "stempel" = ekte ankomst (lag 4) · "manuell" = arbeider satte tiden.
+ */
+export type TidKilde = "stempel" | "utledet" | "manuell";
+
+/**
+ * Lønnsnormens kilde-status på en sedel (B6.3). "server" = frisk norm fra API ·
+ * "cachet" = siste kjente svar · "ukjent" = ingen norm (overtid ikke fordelt).
+ */
+export type NormStatus = "server" | "cachet" | "ukjent";
+
+/**
+ * Snapshot av reise-regelen slik den var da raden ble laget (db-timer
+ * SheetTimer.reiseRegel). Json i basen; eksporten trenger kun `kategori`.
+ */
+export interface ReiseRegelSnapshot {
+  enhet: ReiseEnhet;
+  terskelMin: number;
+  terskelM: number | null;
+  underType: ReiseKategori;
+  overType: ReiseKategori;
+  kategori: ReiseKategori;
+  /** true når en grensepunkt-art (avstandsbånd) avgjorde lønnsarten. */
+  grensepunktTreff: boolean;
+}
+
+/**
+ * Normens snapshot på en sedel (db-timer DailySheet.normSnapshot). Json i basen.
+ */
+export interface NormSnapshot {
+  dagsnorm: number;
+  normKilde: string;
+  dato: string;
+  hentetAt: string;
+}
+
 /**
  * Enheten firmaets reise-terskel måles i. "minutter" = klassisk tid-terskel
  * (default, uendret oppførsel); "km" = avstands-terskel (A.Markussen-krav
@@ -36,6 +85,51 @@ export type ReiseEnhet = "minutter" | "km";
  * tvetydighet håndteres i stedet med et varsel + eksplisitt valg (firma-admin).
  */
 export const REISE_LONNSART_REGEX = /reise|transport/i;
+
+/**
+ * Firmaets kontekst for å avgjøre om en lønnsart ER en reise-art (LAG 2).
+ * Speiler backfill-SQL-ens to grener: konfigurert art (reiseLonnsartId ∪
+ * grensepunkt-arter) + navne-match (kun når reiseLonnsartId mangler).
+ */
+export interface ErReiseKontekst {
+  /** OrganizationSetting.reiseLonnsartId (null = ikke konfigurert). */
+  reiseLonnsartId: string | null;
+  /** Ikke-null lonnsartId-er fra OrganizationReiseGrense (grensepunkt-artene). */
+  grensepunktLonnsartIds: string[];
+}
+
+/**
+ * Avgjør om en timer-rad er en reise ut fra lønnsarten — ÉN definisjon delt av
+ * backfill-SQL (migreringen) og alle serverens skrivestier (dagsseddel.ts). Uten
+ * delt kilde ville SQL og TS kunne drifte uten at noen test fanger det.
+ *
+ * Reglen SPEILER dagens leser (M3), ikke en ny gjetning:
+ *   1. lønnsarten er firmaets konfigurerte reise-art, ELLER
+ *   2. lønnsarten er en grensepunkt-art (avstandsbånd), ELLER
+ *   3. KUN når firmaet IKKE har konfigurert reiseLonnsartId: navnet matcher
+ *      REISE_LONNSART_REGEX (arver dagens falske positive — derfor gatet på
+ *      «ingen konfigurert art», og backfill-tallet leses før prod).
+ *
+ * 🔴 Dette er leser-regelen frosset til et EKSPLISITT flagg — etter lag 2 skal
+ * ingen leser gjette reise fra lønnsart/regex på nytt.
+ */
+export function erReiseLonnsart(
+  lonnsartId: string,
+  lonnsartNavn: string,
+  ktx: ErReiseKontekst,
+): boolean {
+  if (ktx.reiseLonnsartId != null && lonnsartId === ktx.reiseLonnsartId) {
+    return true;
+  }
+  if (ktx.grensepunktLonnsartIds.includes(lonnsartId)) {
+    return true;
+  }
+  // Navne-match KUN for firmaer uten konfigurert reise-art (reise.ts:30-38).
+  if (ktx.reiseLonnsartId == null && REISE_LONNSART_REGEX.test(lonnsartNavn)) {
+    return true;
+  }
+  return false;
+}
 
 export interface ReiseRegelsett {
   /**

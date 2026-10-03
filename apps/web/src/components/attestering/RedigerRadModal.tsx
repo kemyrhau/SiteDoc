@@ -275,7 +275,13 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       setEditPauseTil(initialPauseTil);
       setInitialisert(true);
     }
-  }, [sheet, initialisert, initTimer, initMaskin]);
+    // LAG 2: dep-arrayet bruker primitive sheet-felt i stedet for hele `sheet`-
+    // objektet. hentForAttestering-outputen fikk nye Json?-felt (reiseRegel/
+    // normSnapshot) → Prismas rekursive JsonValue blåste opp tuppel-typen her
+    // (TS2589). initTimer/initMaskin (avledet fra sheet) dekker rad-endringer;
+    // pauseFra/pauseTil dekker resten. Effekten leser fortsatt `sheet` i kroppen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialisert, initTimer, initMaskin, sheet?.pauseFra, sheet?.pauseTil]);
 
   const harEndringer = useMemo(() => {
     if (!initialisert) return false;

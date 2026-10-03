@@ -1815,7 +1815,6 @@
   "firma.innstillinger.reise.seLonnsarter": "Skatīt samaksas veidus →",
   "firma.innstillinger.reise.varselIngenArt": "Neviens atalgojuma veids netiek interpretēts kā ceļošana. Ceļojuma laiks, kas pārsniedz slieksni, tiek aprēķināts, bet netiek automātiski reģistrēts atalgojumā, kamēr tālāk neizvēlaties ceļa apmaksas veidu.",
   "firma.innstillinger.reise.varselTvetydigArt": "Vairākus atalgojuma veidus var interpretēt kā ceļošanu. Bez skaidras izvēles sistēma izlemj, kurā ceļojuma laikā tiek reģistrēts — izvēlieties pareizo samaksas veidu zemāk.",
-  "firma.innstillinger.reise.tellerOvertid": "Ceļojuma laiks tiek ieskaitīts virsstundās",
   "firma.innstillinger.reise.baandTittel": "Ceļojuma attāluma joslas",
   "firma.innstillinger.reise.baandBeskrivelse": "Izvēlieties, kurš ceļojuma algas veids tiek piemērots, pamatojoties uz attālumu. Katrā punktā ir rakstīts: \"no šī attāluma brauciens tiek reģistrēts šim algas veidam\", līdz nākamais punkts pārņem. Bez joslām ceļojumu algas veids tiek automātiski saskaņots pēc nosaukuma.",
   "firma.innstillinger.reise.baandTom": "Nav konfigurēta neviena attāluma josla. Pievienojiet punktus, lai kontrolētu ceļojuma algas veidu pēc attāluma.",

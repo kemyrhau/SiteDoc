@@ -1256,7 +1256,7 @@ function ReiseSeksjon() {
   const [terskelKm, setTerskelKm] = useState<string>("");
   const [underType, setUnderType] = useState<string>("arbeidstid");
   const [overType, setOverType] = useState<string>("reisetid");
-  const [tellerOvertid, setTellerOvertid] = useState<boolean>(false);
+  // LAG 2 (C5): `tellerOvertid`-state fjernet — reisetid er aldri overtid (V1).
   const [lonnsartId, setLonnsartId] = useState<string>("");
   const [skitten, setSkitten] = useState(false);
   // Reise-avstandsskala (grensepunkter): redigerbare rader (km-input + art-valg;
@@ -1283,7 +1283,7 @@ function ReiseSeksjon() {
       );
       setUnderType(setting.reiseUnderTerskelType);
       setOverType(setting.reiseOverTerskelType);
-      setTellerOvertid(setting.reisetidTellerOvertid);
+      // LAG 2 (C5): reisetidTellerOvertid leses ikke lenger inn (avkrysning fjernet).
       setLonnsartId(setting.reiseLonnsartId ?? "");
       setSkitten(false);
       // Grensepunkter (allerede sortert stigende fra server) → km-visning.
@@ -1351,7 +1351,8 @@ function ReiseSeksjon() {
         ...(enhet === "km" ? { reiseTerskelM: terskelM } : {}),
         reiseUnderTerskelType: underType as "arbeidstid" | "reisetid",
         reiseOverTerskelType: overType as "arbeidstid" | "reisetid",
-        reisetidTellerOvertid: tellerOvertid,
+        // LAG 2 (C5): reisetidTellerOvertid sendes ikke lenger (V1). api beholder
+        // kolonnen (to-stegs), men verdien har ingen virkning på overtidsgrunnlaget.
         reiseLonnsartId: lonnsartId === "" ? null : lonnsartId,
       },
       { onSuccess: () => setSkitten(false) },
@@ -1532,18 +1533,10 @@ function ReiseSeksjon() {
         </Link>
       </div>
 
-      <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
-        <input
-          type="checkbox"
-          checked={tellerOvertid}
-          onChange={(e) => {
-            setTellerOvertid(e.target.checked);
-            setSkitten(true);
-          }}
-          className="h-4 w-4 rounded border-gray-300"
-        />
-        {t("firma.innstillinger.reise.tellerOvertid")}
-      </label>
+      {/* LAG 2 (C5, V1/V2): «Reisetid teller mot overtid» er fjernet — reisetid er
+          ALDRI overtid (Kenneth 2026-10-01). Serveren ekskluderer reise fra
+          overtidsgrunnlaget uansett; avkrysningen hadde ingen virkning lenger.
+          Kolonnen beholdes i DB/api til en senere release (to-stegs-policy). */}
 
       <div className="mt-4 flex justify-end">
         <KnappMedForklaring sperret={!skitten && !oppdater.isPending} forklaring={t("sperret.ingenEndringer")}>

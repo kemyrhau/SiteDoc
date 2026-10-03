@@ -18,6 +18,16 @@ import {
   takFeilmelding,
 } from "./rad-tak";
 import {
+  hentErReiseKontekst,
+  hentErReiseForLonnsarter,
+  utledErReise,
+  beregnReiseAvvik,
+  validerReiseInvarianter,
+  arvReiseSpor,
+  type ReiseRadInvariantInput,
+  type ReiseSporKilde,
+} from "./reise-sporbarhet";
+import {
   harGyldigMaskinforerbevis,
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
@@ -37,6 +47,7 @@ import {
   beregnOvertidsgrunnlag,
   lesOvertidsgrunnlagFraSnapshot,
   type Overtidsgrunnlag,
+  type ErReiseKontekst,
 } from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
@@ -241,6 +252,10 @@ function byggTimerRadData(
     externalCostObjectId?: string | null;
     vehicleId?: string | null;
   },
+  // LAG 2 (presisering 2): erReise MÅ settes på hver ny rad — de interaktive
+  // skrivestiene sender ikke flagget, så kalleren utleder det (samme regel som
+  // backfill/synk) og gir det hit. Ingen reise-rad fødes stille `false`.
+  erReise: boolean,
 ): Prisma.SheetTimerUncheckedCreateInput {
   return {
     sheetId,
@@ -254,7 +269,168 @@ function byggTimerRadData(
     beskrivelse: r.beskrivelse ?? null,
     externalCostObjectId: r.externalCostObjectId ?? null,
     vehicleId: r.vehicleId ?? null,
+    // Interaktive web-rader bærer ikke reise-spor (kilde/retning/tall) — kun
+    // flagget utledes. reiseKilde forblir null (web klassifiserte ikke etappen).
+    erReise,
   };
+}
+
+/** Reise-sporet som skal skrives på en rad etter C1/C2/C3-behandling i synken. */
+type ReiseFelter = {
+  erReise: boolean;
+  reiseRetning: string | null;
+  reiseOppmotestedId: string | null;
+  reiseKjoretidMin: number | null;
+  reiseAvstandM: number | null;
+  reiseKilde: string | null;
+  reiseRegel: unknown;
+  tidKilde: string | null;
+  reiseAvvik: boolean | null;
+};
+
+/** Json? til createMany: SQL NULL når vi ikke har en verdi (Prisma-krav). */
+function jsonEllerNull(
+  v: unknown,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  return v == null ? Prisma.DbNull : (v as Prisma.InputJsonValue);
+}
+
+/** En synket timer-rad, redusert til feltene reise-behandlingen leser. */
+type SynkTimerRad = {
+  id: string;
+  lonnsartId: string;
+  byggeplassId?: string | null;
+  erReise?: boolean;
+  reiseRetning?: "ut" | "retur" | null;
+  reiseOppmotestedId?: string | null;
+  reiseKjoretidMin?: number | null;
+  reiseAvstandM?: number | null;
+  reiseKilde?: "matrise" | "manuell" | null;
+  reiseRegel?: unknown;
+  tidKilde?: "stempel" | "utledet" | "manuell" | null;
+};
+
+/**
+ * LAG 2 (C1/C2/C3) — bygg reise-sporet for alle timer-rader på én sedel.
+ *
+ * K5 «mottak med sporbarhet»: sendte klienten erReise EKSPLISITT, valideres
+ * invariantene (C2) og matrise-rader kontrolleres mot cellen (C3, reiseAvvik) —
+ * men ingenting regnes om. Sendte den IKKE erReise (overgangsperioden), UTLEDES
+ * flagget fra samme regel som backfillen (presisering 2), med null-spor.
+ *
+ * Returnerer et kart rad-id → felter, eller en navngitt feil (C2-brudd) som
+ * kalleren bruker til å avvise HELE sedelen (resten av synken går gjennom).
+ */
+async function byggReiseFelterForSynk(
+  rader: SynkTimerRad[],
+  sedelByggeplassId: string | null,
+  ktx: ErReiseKontekst,
+  lonnsartNavnMap: Map<string, string>,
+  gyldigeOppmotesteder: Set<string>,
+): Promise<
+  | { ok: true; felter: Map<string, ReiseFelter> }
+  | { ok: false; feilmelding: string }
+> {
+  // Forhånds-hent matrisecellene for eksplisitte matrise-rader (C3). Ett oppslag
+  // mot kjernen, aldri N — cellen bor i reisetid_matrise (public-schema).
+  const matriseNokler = new Map<
+    string,
+    { oppmotestedId: string; byggeplassId: string }
+  >();
+  for (const r of rader) {
+    if (r.erReise === true && r.reiseKilde === "matrise") {
+      const bygg = r.byggeplassId ?? sedelByggeplassId ?? null;
+      if (r.reiseOppmotestedId && bygg) {
+        matriseNokler.set(`${r.reiseOppmotestedId}::${bygg}`, {
+          oppmotestedId: r.reiseOppmotestedId,
+          byggeplassId: bygg,
+        });
+      }
+    }
+  }
+  const celleMap = new Map<
+    string,
+    { avstandM: number | null; kjoretidMin: number }
+  >();
+  if (matriseNokler.size > 0) {
+    const celler = await prisma.reisetidMatrise.findMany({
+      where: {
+        OR: Array.from(matriseNokler.values()).map((n) => ({
+          oppmotestedId: n.oppmotestedId,
+          byggeplassId: n.byggeplassId,
+        })),
+      },
+      select: { oppmotestedId: true, byggeplassId: true, avstandM: true, kjoretidMin: true },
+    });
+    for (const c of celler) {
+      celleMap.set(`${c.oppmotestedId}::${c.byggeplassId}`, {
+        avstandM: c.avstandM,
+        kjoretidMin: c.kjoretidMin,
+      });
+    }
+  }
+
+  const felter = new Map<string, ReiseFelter>();
+  for (const r of rader) {
+    if (r.erReise === undefined) {
+      // Overgangsperioden: klienten sendte ikke flagget → utled fra lønnsarten
+      // (samme regel som backfillen). Ingen klassifisering fra arbeideren → spor
+      // er null, reiseAvvik null (ikke kontrollerbart uten snapshot).
+      const navn = lonnsartNavnMap.get(r.lonnsartId) ?? "";
+      felter.set(r.id, {
+        erReise: utledErReise(r.lonnsartId, navn, ktx),
+        reiseRetning: null,
+        reiseOppmotestedId: null,
+        reiseKjoretidMin: null,
+        reiseAvstandM: null,
+        reiseKilde: null,
+        reiseRegel: null,
+        tidKilde: r.tidKilde ?? null,
+        reiseAvvik: null,
+      });
+      continue;
+    }
+
+    // Eksplisitt erReise: C2-validering.
+    const invariantInput: ReiseRadInvariantInput = {
+      erReise: r.erReise,
+      reiseRetning: r.reiseRetning ?? null,
+      reiseKilde: r.reiseKilde ?? null,
+      reiseOppmotestedId: r.reiseOppmotestedId ?? null,
+      reiseKjoretidMin: r.reiseKjoretidMin ?? null,
+      reiseAvstandM: r.reiseAvstandM ?? null,
+      reiseRegel: r.reiseRegel ?? null,
+    };
+    const feil = validerReiseInvarianter(invariantInput, gyldigeOppmotesteder);
+    if (feil) return { ok: false, feilmelding: feil };
+
+    // C3-kontroll for matrise-rader (varsel, ingen omregning).
+    let reiseAvvik: boolean | null = null;
+    if (r.erReise && r.reiseKilde === "matrise") {
+      const bygg = r.byggeplassId ?? sedelByggeplassId ?? null;
+      const celle =
+        r.reiseOppmotestedId && bygg
+          ? celleMap.get(`${r.reiseOppmotestedId}::${bygg}`) ?? null
+          : null;
+      reiseAvvik = beregnReiseAvvik(
+        { avstandM: r.reiseAvstandM ?? null, kjoretidMin: r.reiseKjoretidMin ?? null },
+        celle,
+      );
+    }
+
+    felter.set(r.id, {
+      erReise: r.erReise,
+      reiseRetning: r.reiseRetning ?? null,
+      reiseOppmotestedId: r.reiseOppmotestedId ?? null,
+      reiseKjoretidMin: r.reiseKjoretidMin ?? null,
+      reiseAvstandM: r.reiseAvstandM ?? null,
+      reiseKilde: r.reiseKilde ?? null,
+      reiseRegel: r.reiseRegel ?? null,
+      tidKilde: r.tidKilde ?? null,
+      reiseAvvik,
+    });
+  }
+  return { ok: true, felter };
 }
 
 async function sjekkAldersgrense(
@@ -460,13 +636,19 @@ async function byggUkeOvertidsgrunnlag(
         },
       },
     },
-    select: { timer: true, lonnsart: { select: { overtidsnivaa: true } } },
+    select: {
+      timer: true,
+      erReise: true,
+      lonnsart: { select: { overtidsnivaa: true } },
+    },
   });
 
   return beregnOvertidsgrunnlag(
     rader.map((r) => ({
       timer: Number(r.timer),
       overtidsnivaa: r.lonnsart?.overtidsnivaa ?? null,
+      // V1: reise holdes utenfor overtidsgrunnlaget.
+      erReise: r.erReise,
     })),
     uke.norm,
   );
@@ -772,7 +954,7 @@ async function opprettForsteTimerRadForslag(
   // til manuelt (modalen ville hatt samme tomme default).
   const standardLonnsart = await prismaTimer.lonnsart.findFirst({
     where: { organizationId: orgId, erStandardvalg: true, aktiv: true },
-    select: { id: true },
+    select: { id: true, navn: true },
   });
   if (!standardLonnsart) return;
 
@@ -780,6 +962,11 @@ async function opprettForsteTimerRadForslag(
   const bruttoTimer = (endAt.getTime() - startAt.getTime()) / 3_600_000;
   const timer = Math.round(Math.max(0, bruttoTimer - pauseMin / 60) * 100) / 100;
   if (timer <= 0) return;
+
+  // LAG 2 (presisering 2): utled erReise også her. Standard-lønnsarten er normalt
+  // en ordinær art (erReise=false), men vi gjetter ikke — regelen avgjør.
+  const erReiseKtx = await hentErReiseKontekst(orgId);
+  const erReise = utledErReise(standardLonnsart.id, standardLonnsart.navn, erReiseKtx);
 
   await prismaTimer.$transaction([
     prismaTimer.sheetTimer.create({
@@ -792,6 +979,7 @@ async function opprettForsteTimerRadForslag(
         timer,
         fraTid: instantTilOsloHHMM(startAt),
         tilTid: instantTilOsloHHMM(endAt),
+        erReise,
       },
     }),
     touchSedel(prismaTimer, sheetId),
@@ -1431,10 +1619,15 @@ export const dagsseddelRouter = router({
         input.tilTid,
       );
 
+      // LAG 2 (presisering 2): utled erReise fra lønnsarten (web sender ikke
+      // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
+      const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
+      const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
+
       // F4-1d: rad-write + touchSedel atomisk så mobil pull ser den nye raden.
       const [rad] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetTimer.create({
-          data: byggTimerRadData(input.sheetId, input),
+          data: byggTimerRadData(input.sheetId, input, erReise),
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
       ]);
@@ -1505,6 +1698,14 @@ export const dagsseddelRouter = router({
       const data: Prisma.SheetTimerUpdateInput = {};
       if (input.lonnsartId !== undefined) {
         data.lonnsart = { connect: { id: input.lonnsartId } };
+        // LAG 2 (presisering 2): lønnsart-bytte → re-utled erReise (klienten sender
+        // ikke flagget). Raden kan gå fra arbeid til reise eller omvendt.
+        const erReiseMap = await hentErReiseForLonnsarter(
+          ctx.prismaTimer,
+          sheet.organizationId,
+          [input.lonnsartId],
+        );
+        data.erReise = erReiseMap.get(input.lonnsartId) ?? false;
       }
       if (input.aktivitetId !== undefined) {
         data.aktivitet = { connect: { id: input.aktivitetId } };
@@ -1816,6 +2017,17 @@ export const dagsseddelRouter = router({
       // attestering ser enten draft/returned (vi vinner) eller har alt committet accepted
       // (count=0 → vi kaster → ALT rulles tilbake). updateMany erstatter samtidig touchSedel
       // (begge bumper updatedAt). Alle rad-writes + sluttlesningen kjører på samme `tx`.
+      // LAG 2 (presisering 2): utled erReise for hver rad (oppdatering = kan ha
+      // byttet lønnsart → re-utled; ny rad = utled). Ett oppslag for alle arter.
+      const erReiseMap = await hentErReiseForLonnsarter(
+        ctx.prismaTimer,
+        sheet.organizationId,
+        [
+          ...input.oppdateringer.map((o) => o.lonnsartId),
+          ...input.nyeRader.map((r) => r.lonnsartId),
+        ],
+      );
+
       return ctx.prismaTimer.$transaction(async (tx) => {
         const laast = await tx.dailySheet.updateMany({
           where: { id: input.sheetId, status: { in: [...REDIGERBARE_STATUSER] } },
@@ -1831,11 +2043,21 @@ export const dagsseddelRouter = router({
         for (const o of input.oppdateringer) {
           await tx.sheetTimer.update({
             where: { id: o.id },
-            data: byggTimerRadData(input.sheetId, o),
+            data: byggTimerRadData(
+              input.sheetId,
+              o,
+              erReiseMap.get(o.lonnsartId) ?? false,
+            ),
           });
         }
         for (const r of input.nyeRader) {
-          await tx.sheetTimer.create({ data: byggTimerRadData(input.sheetId, r) });
+          await tx.sheetTimer.create({
+            data: byggTimerRadData(
+              input.sheetId,
+              r,
+              erReiseMap.get(r.lonnsartId) ?? false,
+            ),
+          });
         }
         return tx.sheetTimer.findMany({
           where: { sheetId: input.sheetId },
@@ -2819,6 +3041,8 @@ export const dagsseddelRouter = router({
           s.timer.map((r) => ({
             timer: Number(r.timer),
             overtidsnivaa: r.lonnsart?.overtidsnivaa ?? null,
+            // V1: reise holdes utenfor overtidsgrunnlaget.
+            erReise: r.erReise,
           })),
           effektivDagsnormMap.get(isoDato) ?? 0,
         );
@@ -2843,6 +3067,11 @@ export const dagsseddelRouter = router({
           ansatt: brukerMap.get(s.userId) ?? null,
           prosjekt: projectId ? (prosjektMap.get(projectId) ?? null) : null,
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+          // C4 (V1): del totalen i arbeid vs. reise — attestanten ser reise som
+          // en egen størrelse, aldri blandet inn i overtidsgrunnlaget. Tallene
+          // kommer fra samme beregning som overtidsgrunnlaget (reise ekskludert).
+          arbeidstimer: overtidsgrunnlag.arbeidstimer,
+          reisetimer: overtidsgrunnlag.reisetimer,
           antallRader: s.timer.length + s.tillegg.length,
           tilleggHarKrav: s.tillegg.length > 0,
           // B6 v3 (H22): sedelens norm fra servicen pr. dato (sommertid +
@@ -3821,6 +4050,14 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // LAG 2 (presisering 2): utled erReise for de nye rad-ene (firma-admin
+      // rediger sender ikke flagget). Ett oppslag for alle arter i edit-settet.
+      const redigerErReiseMap = await hentErReiseForLonnsarter(
+        ctx.prismaTimer,
+        sheet.organizationId,
+        input.nyeRader.timer.map((r) => r.lonnsartId),
+      );
+
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
         // F4-1d: oppdater sedelen ALLTID (ikke bare ved pause-endring) — ellers
@@ -3871,6 +4108,8 @@ export const dagsseddelRouter = router({
               vehicleId: rad.vehicleId ?? null,
               attestertStatus: "pending",
               parentRadId: rad.originalId,
+              // LAG 2: utledet fra (ev. byttet) lønnsart.
+              erReise: redigerErReiseMap.get(rad.lonnsartId) ?? false,
             },
           }),
         ),
@@ -4055,6 +4294,8 @@ export const dagsseddelRouter = router({
                 vehicleId: (original as { vehicleId: string | null }).vehicleId ?? null,
                 attestertStatus: "pending",
                 parentRadId: original.id,
+                // LAG 2: split = samme arbeid → arv hele reise-sporet (sporbarhet).
+                ...arvReiseSpor(original as ReiseSporKilde),
               },
             }),
           ),
@@ -4233,6 +4474,8 @@ export const dagsseddelRouter = router({
                 // Split = samme arbeid → arv original-radens kostnadsbærer.
                 vehicleId:
                   (original as { vehicleId: string | null }).vehicleId ?? null,
+                // LAG 2: arv hele reise-sporet (samme arbeid → samme spor).
+                ...arvReiseSpor(original as ReiseSporKilde),
               },
             }),
           ),
@@ -4718,6 +4961,13 @@ export const dagsseddelRouter = router({
             sluttTidKilde: z
               .enum(["bruker", "midnatt", "system"])
               .default("bruker"),
+            // LAG 2 (C1 / B5): lønnsnormens kilde følger sedelen fra mobilen.
+            // Optional → eldre klienter uten feltet lar dem stå null.
+            normStatus: z
+              .enum(["server", "cachet", "ukjent"])
+              .nullable()
+              .optional(),
+            normSnapshot: z.unknown().optional(),
             beskrivelse: z.string().nullable().optional(),
             // T7-3b1: projectId per rad (optional). Bruk rad-nivå hvis satt,
             // ellers fall tilbake til lokal.projectId (sedel-nivå, kompat-shim
@@ -4746,6 +4996,23 @@ export const dagsseddelRouter = router({
                 pauseMin: z.number().int().min(0).optional(),
                 // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
                 vehicleId: z.string().uuid().nullable().optional(),
+                // LAG 2 (C1): reise-sporet. MÅ deklareres her ellers stripper Zod
+                // det (M6) — da kastes klassifiseringen stille. Alle optional:
+                // sendes erReise eksplisitt brukes verdien (C2 validerer), ellers
+                // utledes flagget i handleren (presisering 2, overgangsperioden).
+                erReise: z.boolean().optional(),
+                reiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
+                reiseOppmotestedId: z.string().uuid().nullable().optional(),
+                reiseKjoretidMin: z.number().int().nullable().optional(),
+                reiseAvstandM: z.number().int().nullable().optional(),
+                reiseKilde: z.enum(["matrise", "manuell"]).nullable().optional(),
+                // Json-snapshot av regelen. z.unknown() → vilkårlig Json; C2 krever
+                // at den finnes for matrise-rader.
+                reiseRegel: z.unknown().optional(),
+                tidKilde: z
+                  .enum(["stempel", "utledet", "manuell"])
+                  .nullable()
+                  .optional(),
               }),
             ),
             tillegg: z.array(
@@ -4822,6 +5089,26 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
+
+      // LAG 2 (C1/C2): batch-nivå kontekst for reise-behandlingen — hentes ÉN gang
+      // for hele synken, ikke per sedel. erReiseKontekst speiler backfillen; navne-
+      // kartet brukes til utledning (overgangsperioden); oppmøtested-settet til
+      // C2-firmagrensen.
+      const erReiseKtx: ErReiseKontekst = await hentErReiseKontekst(orgId);
+      const [lonnsarterForReise, firmaOppmotesteder] = await Promise.all([
+        ctx.prismaTimer.lonnsart.findMany({
+          where: { organizationId: orgId },
+          select: { id: true, navn: true },
+        }),
+        ctx.prisma.oppmotested.findMany({
+          where: { organizationId: orgId },
+          select: { id: true },
+        }),
+      ]);
+      const lonnsartNavnMap = new Map(
+        lonnsarterForReise.map((l) => [l.id, l.navn]),
+      );
+      const gyldigeOppmotesteder = new Set(firmaOppmotesteder.map((o) => o.id));
 
       // SYNC-1 (2026-07-10): `avvist` = permanent avvisning klienten ikke kan
       // rette via retry (P2002-duplikat, katalog-mismatch, maskin>arbeid,
@@ -5193,6 +5480,28 @@ export const dagsseddelRouter = router({
             continue;
           }
 
+          // LAG 2 (C1/C2/C3): bygg reise-sporet for sedelens rader. Eksplisitt
+          // erReise valideres (C2) + matrise-rader kontrolleres (C3); ellers
+          // utledes flagget (overgangsperioden). C2-brudd avviser HELE sedelen med
+          // navngitt feil (SYNC-1) — resten av batchen går gjennom. Utenfor tx:
+          // rene oppslag, ingen skriving.
+          const reiseResultat = await byggReiseFelterForSynk(
+            lokal.timer,
+            lokal.byggeplassId ?? null,
+            erReiseKtx,
+            lonnsartNavnMap,
+            gyldigeOppmotesteder,
+          );
+          if (!reiseResultat.ok) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding: reiseResultat.feilmelding,
+            });
+            continue;
+          }
+          const reiseFelterMap = reiseResultat.felter;
+
           // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
           // T.1 (2026-05-11): projectId/byggeplassId lagres på rad-nivå.
           // Mobil sender fortsatt lokal.projectId på sedel-nivå inntil mobil-PR
@@ -5231,6 +5540,9 @@ export const dagsseddelRouter = router({
                   endAt: lokal.endAt ? new Date(lokal.endAt) : null,
                   pauseMin: lokal.pauseMin,
                   sluttTidKilde: lokal.sluttTidKilde,
+                  // LAG 2 (C1/B5): normens kilde + snapshot følger sedelen.
+                  normStatus: lokal.normStatus ?? null,
+                  normSnapshot: jsonEllerNull(lokal.normSnapshot),
                   status: innkommendeStatus,
                   beskrivelse: lokal.beskrivelse ?? null,
                   syncStatus: "synced",
@@ -5252,6 +5564,9 @@ export const dagsseddelRouter = router({
                   endAt: lokal.endAt ? new Date(lokal.endAt) : null,
                   pauseMin: lokal.pauseMin,
                   sluttTidKilde: lokal.sluttTidKilde,
+                  // LAG 2 (C1/B5): normens kilde + snapshot følger sedelen.
+                  normStatus: lokal.normStatus ?? null,
+                  normSnapshot: jsonEllerNull(lokal.normSnapshot),
                   status: innkommendeStatus,
                   beskrivelse: lokal.beskrivelse ?? null,
                   syncStatus: "synced",
@@ -5352,28 +5667,43 @@ export const dagsseddelRouter = router({
               // å avvise dem ville låst mobil-synk. Kun fra<til + overlapp
               // (SYNC-2, over) håndheves på synkveien.
               await tx.sheetTimer.createMany({
-                data: lokal.timer.map((t) => ({
-                  id: t.id,
-                  sheetId: sedel.id,
-                  projectId: radProsjekt(t.projectId)!,
-                  // F3: per-rad byggeplass overstyrer sedel-nivå; null → arv
-                  // fra dagskortet (sedel-verdien). Bakoverkompat: eldre klient
-                  // sender ikke feltet → t.byggeplassId undefined → sedel-nivå.
-                  byggeplassId: t.byggeplassId ?? lokal.byggeplassId ?? null,
-                  lonnsartId: t.lonnsartId,
-                  aktivitetId: t.aktivitetId,
-                  externalCostObjectId: t.externalCostObjectId ?? null,
-                  vehicleId: t.vehicleId ?? null,
-                  timer: t.timer,
-                  // SYNC-2: persister fra/til (før: strippet + utelatt → datatap).
-                  fraTid: t.fraTid ?? null,
-                  tilTid: t.tilTid ?? null,
-                  beskrivelse: t.beskrivelse ?? null,
-                  // F5: per-rad matpause-bærer. Ingen sedel-arv (per-rad-eid);
-                  // eldre klient sender ikke feltet → 0. Maskin-regelen bruker
-                  // fortsatt sedel-nivå pauseMin (lokal.pauseMin), ikke denne.
-                  pauseMin: t.pauseMin ?? 0,
-                })),
+                data: lokal.timer.map((t) => {
+                  // LAG 2 (C1): reise-sporet bygget over (C2/C3 alt kjørt). Hver rad
+                  // har en oppføring; utledet erReise for rader uten eksplisitt flagg.
+                  const rf = reiseFelterMap.get(t.id)!;
+                  return {
+                    id: t.id,
+                    sheetId: sedel.id,
+                    projectId: radProsjekt(t.projectId)!,
+                    // F3: per-rad byggeplass overstyrer sedel-nivå; null → arv
+                    // fra dagskortet (sedel-verdien). Bakoverkompat: eldre klient
+                    // sender ikke feltet → t.byggeplassId undefined → sedel-nivå.
+                    byggeplassId: t.byggeplassId ?? lokal.byggeplassId ?? null,
+                    lonnsartId: t.lonnsartId,
+                    aktivitetId: t.aktivitetId,
+                    externalCostObjectId: t.externalCostObjectId ?? null,
+                    vehicleId: t.vehicleId ?? null,
+                    timer: t.timer,
+                    // SYNC-2: persister fra/til (før: strippet + utelatt → datatap).
+                    fraTid: t.fraTid ?? null,
+                    tilTid: t.tilTid ?? null,
+                    beskrivelse: t.beskrivelse ?? null,
+                    // F5: per-rad matpause-bærer. Ingen sedel-arv (per-rad-eid);
+                    // eldre klient sender ikke feltet → 0. Maskin-regelen bruker
+                    // fortsatt sedel-nivå pauseMin (lokal.pauseMin), ikke denne.
+                    pauseMin: t.pauseMin ?? 0,
+                    // LAG 2 (C1): reise-sporet persisteres (M6 — før stripte Zod det).
+                    erReise: rf.erReise,
+                    reiseRetning: rf.reiseRetning,
+                    reiseOppmotestedId: rf.reiseOppmotestedId,
+                    reiseKjoretidMin: rf.reiseKjoretidMin,
+                    reiseAvstandM: rf.reiseAvstandM,
+                    reiseKilde: rf.reiseKilde,
+                    reiseRegel: jsonEllerNull(rf.reiseRegel),
+                    tidKilde: rf.tidKilde,
+                    reiseAvvik: rf.reiseAvvik,
+                  };
+                }),
               });
             }
             if (lokal.tillegg.length > 0) {

@@ -177,6 +177,13 @@ model DailySheet {
   //   "system"  = system-gjettet tid (glemt-dag-gjenoppretting / maks-varighet)
   //               → kontroll-badge i attestering (ikke arbeider-bekreftet).
   sluttTidKilde       String    @default("bruker") @map("slutt_tid_kilde")
+  // LAG 2 (timer-GPS, B5/B6.3) — lønnsnormens kilde følger sedelen til attestanten.
+  // normStatus: "server" (frisk norm fra API) | "cachet" (siste kjente svar) |
+  //   "ukjent" (ingen norm → overtid ikke fordelt) | null (gammel sedel, før lag 2).
+  // normSnapshot: { dagsnorm, normKilde, dato, hentetAt } — normen som delte
+  //   normaltid/overtid. Json for migreringsenkelhet. Begge additive.
+  normStatus          String?   @map("norm_status")
+  normSnapshot        Json?     @map("norm_snapshot")
   status              String    @default("draft") // "draft" | "sent" | "returned" | "accepted"
   beskrivelse         String?   @db.Text
   lederKommentar      String?   @map("leder_kommentar") @db.Text
@@ -252,6 +259,37 @@ model SheetTimer {
   // T7-2b2 — Svak selvreferanse til original-rad ved firma-admin rediger.
   // null = original rad eller helt ny rad. Ingen @relation (A.20-mønster).
   parentRadId           String?  @map("parent_rad_id")
+  // ──────────────────────────────────────────────────────────────────────
+  //  LAG 2 (timer-GPS, sporbarhet) — det som avgjør reise-lønn følger raden.
+  //  K5 «mottak med sporbarhet»: serveren TAR IMOT klassifiseringen med alt den
+  //  bygde på og regner IKKE om (reiseKilde/reiseRegel er snapshot fra mobilen).
+  //  Alle additive. Garantier (backfill + CHECK) i migreringen; se spec § 2.
+  // ──────────────────────────────────────────────────────────────────────
+  // 🔴 Eksplisitt reise-flagg. Ingen leser skal gjette reise fra lønnsart/regex
+  // etter lag 2 (M3). @default(false) — overgangsperioden utleder flagget i
+  // skrivestien (presisering 2), aldri stille false på en reise-rad.
+  erReise               Boolean  @default(false) @map("er_reise")
+  // Etappens retning. "ut" | "retur" (lag 4 legger til "mellom"). null = ikke reise.
+  reiseRetning          String?  @map("reise_retning")
+  // Fra-/til-kontoret. Svak FK → oppmotesteder (kjernen, A.20-mønster, ingen @relation).
+  reiseOppmotestedId    String?  @map("reise_oppmotested_id")
+  // Matrisecellens kjøretid (min) som ble brukt. null = manuell/ukjent.
+  reiseKjoretidMin      Int?     @map("reise_kjoretid_min")
+  // Matrisecellens avstand (meter) som avgjorde kategori/bånd. null = manuell/ukjent.
+  reiseAvstandM         Int?     @map("reise_avstand_m")
+  // Hvor tallene kom fra: "matrise" | "manuell" | null (gammel rad, vet ikke).
+  reiseKilde            String?  @map("reise_kilde")
+  // Snapshot av regelen slik den var da raden ble laget (enhet/terskler/kategori/
+  // grensepunktTreff). Json for migreringsenkelhet — eksporten trenger kun kategori.
+  reiseRegel            Json?    @map("reise_regel")
+  // V8 tidskilde: "stempel" (ekte ankomst, lag 4) | "utledet" (vindu fra GPS ±
+  // matrise) | "manuell" (arbeider satte tiden) | null.
+  tidKilde              String?  @map("tid_kilde")
+  // C3-kontroll (K5): serveren SAMMENLIGNER mottatt snapshot med matrisecellen og
+  // flagger avvik — klassifiserer ALDRI om. Tre tilstander: true = avvik, false =
+  // innenfor terskel, null = cellen mangler (kan ikke kontrolleres). Varsel til
+  // attestanten, ingen lønnsart settes.
+  reiseAvvik            Boolean? @map("reise_avvik")
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -268,6 +306,7 @@ model SheetTimer {
   @@index([vehicleId])
   @@index([attestertStatus])
   @@index([parentRadId])
+  @@index([reiseOppmotestedId])
   @@map("sheet_timer")
   @@schema("timer")
 }

@@ -1815,7 +1815,6 @@
   "firma.innstillinger.reise.seLonnsarter": "View pay types →",
   "firma.innstillinger.reise.varselIngenArt": "No pay type is interpreted as travel. Travel time above the threshold is calculated but not recorded on pay automatically until you choose a travel pay type below.",
   "firma.innstillinger.reise.varselTvetydigArt": "Several pay types can be interpreted as travel. Without an explicit choice the system decides which one travel time is recorded on — choose the correct pay type below.",
-  "firma.innstillinger.reise.tellerOvertid": "Travel time counts toward overtime",
   "firma.innstillinger.reise.baandTittel": "Travel distance bands",
   "firma.innstillinger.reise.baandBeskrivelse": "Choose which travel wage type applies based on distance. Each point says \"from this distance onward, travel is recorded on this wage type\", until the next point takes over. Without bands, the travel wage type is matched automatically by name.",
   "firma.innstillinger.reise.baandTom": "No distance bands configured. Add points to control the travel wage type by distance.",

@@ -1815,7 +1815,6 @@
   "firma.innstillinger.reise.seLonnsarter": "Vizualizați tipurile de plată →",
   "firma.innstillinger.reise.varselIngenArt": "Niciun tip de plată nu este interpretat ca deplasare. Timpul de călătorie peste prag este calculat, dar nu este înregistrat automat în plată până când alegeți un tip de plată de călătorie de mai jos.",
   "firma.innstillinger.reise.varselTvetydigArt": "Mai multe tipuri de plată pot fi interpretate drept călătorii. Fără o alegere explicită, sistemul decide pe care timp de călătorie este înregistrat - alegeți mai jos tipul de plată corect.",
-  "firma.innstillinger.reise.tellerOvertid": "Timpul de călătorie contează pentru orele suplimentare",
   "firma.innstillinger.reise.baandTittel": "Benzi de distanță de călătorie",
   "firma.innstillinger.reise.baandBeskrivelse": "Alegeți tipul de salariu de călătorie care se aplică în funcție de distanță. Fiecare punct spune „de la această distanță încolo, călătoria se înregistrează pe acest tip de salariu”, până când următorul punct preia controlul. Fără benzi, tipul de salariu de călătorie este potrivit automat după nume.",
   "firma.innstillinger.reise.baandTom": "Nu au fost configurate benzi de distanță. Adăugați puncte pentru a controla tipul de salariu de călătorie în funcție de distanță.",

@@ -30,9 +30,11 @@ export type ArbeidstidSegment = {
 /**
  * Klassifiser en dags arbeidstimer i normaltid + overtid-segmenter.
  *
- * `dagsnorm` er den EFFEKTIVE normen (call-site har allerede trukket fra
- * reisetid der `reisetidTellerOvertid` er på). 0 → hele arbeidstiden regnes
- * som normaltid (ingen overtid).
+ * `dagsnorm` er den EFFEKTIVE normen. `arbeidstimer` er ALLEREDE uten reise —
+ * reisetid er aldri overtid (V1, LAG 2): call-site (beregnOvertidsgrunnlag)
+ * ekskluderer reise-rader HELT før klassifiseringen, i stedet for det tidligere
+ * `reisetidTellerOvertid`-fradraget i normen (flagget er deprecated, C5). 0 →
+ * hele arbeidstiden regnes som normaltid (ingen overtid).
  *
  * Nivå 0-regel: `timelønn = min(arbeid, norm)`, `overtid50 = resten`.
  * Bytt KUN denne funksjonens kropp for Nivå 1-2 (terskler/tier-liste/dag-
