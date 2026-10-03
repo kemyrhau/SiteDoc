@@ -24,10 +24,11 @@ export interface OvertidRad {
   /**
    * LAG 2 / V1: reise er ALDRI overtid. Reise-rader holdes helt utenfor
    * overtidsgrunnlaget — de teller hverken i arbeidstimer, sumOvertid eller
-   * klassifiseringen. Default false (bakoverkompat: kaller som ikke setter
-   * flagget får uendret oppførsel, men serveren setter det nå alltid).
+   * klassifiseringen. 🔴 PÅKREVD (gate RETUR 1 avvik 2): garantien ligger i
+   * typen, ikke i disiplinen til neste kaller — en manglende verdi skal aldri
+   * kunne la en reise-rad telle som arbeid. Begge serverkallerne setter den.
    */
-  erReise?: boolean;
+  erReise: boolean;
 }
 
 export interface Overtidsgrunnlag {
@@ -61,8 +62,8 @@ export function beregnOvertidsgrunnlag(
 ): Overtidsgrunnlag {
   // V1: reise-rader holdes HELT utenfor overtidsgrunnlaget. De teller i reisetimer
   // (for visning), men aldri i arbeidstimer, sumOvertid eller klassifiseringen.
-  const arbeidRader = rader.filter((r) => r.erReise !== true);
-  const reiseRader = rader.filter((r) => r.erReise === true);
+  const arbeidRader = rader.filter((r) => !r.erReise);
+  const reiseRader = rader.filter((r) => r.erReise);
   const arbeidstimer = round2(arbeidRader.reduce((s, r) => s + r.timer, 0));
   const reisetimer = round2(reiseRader.reduce((s, r) => s + r.timer, 0));
   const totaltimer = round2(arbeidstimer + reisetimer);

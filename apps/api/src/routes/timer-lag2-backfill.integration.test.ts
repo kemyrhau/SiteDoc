@@ -1,23 +1,26 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { prisma } from "@sitedoc/db";
+import { erReiseLonnsart, REISE_LONNSART_REGEX, type ErReiseKontekst } from "@sitedoc/shared";
 
 /**
- * LAG 2 (ordre L2-A, gate-kriterie 4) — behavioural bevis for garantiene i
- * 20261003120000_timer_lag2_sporbarhet, mot EKTE Postgres (localhost/CI-sandkasse).
- * «Stille-tomhet krav c kan ikke kvitteres med mock» (ordre) → integrasjon.
+ * LAG 2 (ordre L2-A, gate-kriterie 4 + RETUR 1 avvik 1) — backfill + CHECK mot EKTE
+ * Postgres (localhost/CI-sandkasse). «Stille-tomhet krav c kan ikke kvitteres med mock».
  *
- *   1. BACKFILL av er_reise speiler dagens leser (M3): konfigurert art ∪
- *      grensepunkt-art (GREN 1, trygt) + navne-match KUN uten konfigurert art
- *      (GREN 2). De to tallene (migreringens RAISE NOTICE) måles her via
- *      $executeRawUnsafe-returverdien — samme WHERE som migreringen.
- *   2. 🔴 Falske-positive-vakten: en «Transporttillegg»-art i et firma MED
- *      konfigurert reise-art skal IKKE bli er_reise (rød først: en regex-only-
- *      backfill ville frosset den som sannhet).
- *   3. CHECK: er_reise=false MED reise-felt AVVISES («stille tomhet»-garanti).
- *      Kontroll: uten CHECK går den ugyldige raden inn.
+ * 🔴 RETUR 1 avvik 1: regelen skal finnes ÉN gang, bundet av test. Derfor:
+ *   1. Testen KJØRER selve migreringens backfill-blokk (lest fra migration.sql på
+ *      disk, kun schema/tabellnavn byttet til throwaway-tabeller — ingen avskrift).
+ *   2. For hver fixture-rad regnes forventet er_reise med `erReiseLonnsart` (shared)
+ *      på samme inndata, og sammenlignes med det SQL-en faktisk satte. Da feiler
+ *      testen hvis SQL-regelen og shared-regelen divergerer.
+ *   3. Regex-literalen i migreringen må være lik `REISE_LONNSART_REGEX.source`.
  *
- * Tabellene speiler migreringens SQL i throwaway-tabeller (samme mønster som
- * overflate-check-constraint.integration.test.ts) — ingen app-migrering nødvendig.
+ * Rød først: endres regexen i KUN én av de tre (migration.sql, shared, eller en
+ * throwaway-kopi), divergerer SQL-resultatet fra `erReiseLonnsart`-prediksjonen →
+ * TS↔SQL-sammenligningen feiler, og `.source`-assertet feiler. Verifisert ved å
+ * endre migreringens `~*`-literal i en engangskopi (comm -13 mot origin).
  */
 
 const ST = "sheet_timer_lag2test";
@@ -25,16 +28,56 @@ const LA = "lonnsarter_lag2test";
 const OS = "organization_settings_lag2test";
 const GR = "organization_reise_grenser_lag2test";
 
-const ORG_A = "org-a"; // HAR konfigurert reise_lonnsart_id
-const ORG_B = "org-b"; // UTEN konfigurert art, men med grensepunkt-art
+const ORG_A = "org-a"; // HAR konfigurert reise_lonnsart_id = reise-A
+const ORG_B = "org-b"; // UTEN konfigurert art, men med grensepunkt-art band-B
 
-describe("LAG 2 backfill + CHECK (ekte Postgres)", () => {
+// Firmaenes reise-oppsett — SAMME inndata til SQL-en (tabellene) og til
+// erReiseLonnsart (konteksten under). Én kilde for fixturen.
+const settings: Record<string, string | null> = { [ORG_A]: "reise-A", [ORG_B]: null };
+const grensepunkter: Record<string, string[]> = { [ORG_A]: [], [ORG_B]: ["band-B"] };
+const lonnsarter: { id: string; org: string; navn: string }[] = [
+  { id: "reise-A", org: ORG_A, navn: "Reise til prosjekt" },
+  { id: "ord-A", org: ORG_A, navn: "Timelønn" },
+  { id: "trans-A", org: ORG_A, navn: "Transporttillegg" }, // navne-match MEN org har konfig → false
+  { id: "band-B", org: ORG_B, navn: "Avstandsbånd 25km" },
+  { id: "trans-B", org: ORG_B, navn: "Transport av masser" },
+  { id: "ord-B", org: ORG_B, navn: "Timelønn" },
+];
+// Én rad per lønnsart (id = rN), så vi kan sjekke er_reise pr. dekningspunkt.
+const rader = lonnsarter.map((l, i) => ({ id: `r${i + 1}`, lonnsartId: l.id, org: l.org }));
+
+function ktxFor(org: string): ErReiseKontekst {
+  return {
+    reiseLonnsartId: settings[org] ?? null,
+    grensepunktLonnsartIds: grensepunkter[org] ?? [],
+  };
+}
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const migPath = join(
+  __dirname,
+  "../../../../packages/db-timer/prisma/migrations/20261003120000_timer_lag2_sporbarhet/migration.sql",
+);
+const migrationSql = readFileSync(migPath, "utf8");
+
+/** Hent backfill-DO-blokken (seksjon 3) fra migreringen og bytt navn til throwaway. */
+function backfillSqlFraMigrering(): string {
+  const start = migrationSql.indexOf("DO $$", migrationSql.indexOf("3. Backfill"));
+  const end = migrationSql.indexOf("END $$;", start) + "END $$;".length;
+  if (start < 0 || end < start) throw new Error("Fant ikke backfill-blokken i migration.sql");
+  return migrationSql
+    .slice(start, end)
+    .replaceAll('"timer"."sheet_timer"', ST)
+    .replaceAll('"timer"."lonnsarter"', LA)
+    .replaceAll('"public"."organization_settings"', OS)
+    .replaceAll('"public"."organization_reise_grenser"', GR);
+}
+
+describe("LAG 2 backfill + CHECK (ekte Postgres, bundet til migration.sql)", () => {
   beforeAll(async () => {
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${ST}`);
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${LA}`);
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${OS}`);
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${GR}`);
-
+    for (const t of [ST, LA, OS, GR]) {
+      await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${t}`);
+    }
     await prisma.$executeRawUnsafe(
       `CREATE TABLE ${LA} (id text PRIMARY KEY, organization_id text NOT NULL, navn text NOT NULL)`,
     );
@@ -55,80 +98,74 @@ describe("LAG 2 backfill + CHECK (ekte Postgres)", () => {
        )`,
     );
 
-    // Org A: KONFIGURERT reise-art = reise-A.
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO ${OS} VALUES ('${ORG_A}', 'reise-A'), ('${ORG_B}', NULL)`,
-    );
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO ${LA} VALUES
-         ('reise-A', '${ORG_A}', 'Reise til prosjekt'),
-         ('ord-A',   '${ORG_A}', 'Timelønn'),
-         ('trans-A', '${ORG_A}', 'Transporttillegg'),
-         ('band-B',  '${ORG_B}', 'Avstandsbånd 25km'),
-         ('trans-B', '${ORG_B}', 'Transport av masser'),
-         ('ord-B',   '${ORG_B}', 'Timelønn')`,
-    );
-    // Org B har en grensepunkt-art (band-B).
-    await prisma.$executeRawUnsafe(`INSERT INTO ${GR} VALUES ('${ORG_B}', 'band-B')`);
-
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO ${ST} (id, lonnsart_id) VALUES
-         ('r1', 'reise-A'),   -- GREN 1 (konfigurert art)
-         ('r2', 'ord-A'),     -- ingen
-         ('r3', 'trans-A'),   -- navne-match MEN org har konfigurert art → IKKE
-         ('r4', 'band-B'),    -- GREN 1 (grensepunkt-art)
-         ('r5', 'trans-B'),   -- GREN 2 (navne-match, ingen konfigurert art)
-         ('r6', 'ord-B')      -- ingen`,
-    );
+    for (const [org, reiseLonnsartId] of Object.entries(settings)) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO ${OS} (organization_id, reise_lonnsart_id) VALUES ($1, $2)`,
+        org,
+        reiseLonnsartId,
+      );
+    }
+    for (const l of lonnsarter) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO ${LA} (id, organization_id, navn) VALUES ($1, $2, $3)`,
+        l.id,
+        l.org,
+        l.navn,
+      );
+    }
+    for (const [org, ids] of Object.entries(grensepunkter)) {
+      for (const id of ids) {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO ${GR} (organization_id, lonnsart_id) VALUES ($1, $2)`,
+          org,
+          id,
+        );
+      }
+    }
+    for (const r of rader) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO ${ST} (id, lonnsart_id) VALUES ($1, $2)`,
+        r.id,
+        r.lonnsartId,
+      );
+    }
   });
 
   afterAll(async () => {
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${ST}`);
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${LA}`);
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${OS}`);
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${GR}`);
+    for (const t of [ST, LA, OS, GR]) {
+      await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS ${t}`);
+    }
   });
 
-  it("backfill gir forventede to tall (2 konfigurert, 1 navne-match)", async () => {
-    // GREN 1 — speiler migreringens WHERE (konfigurert art ∪ grensepunkt).
-    const konfigurert = await prisma.$executeRawUnsafe(
-      `UPDATE ${ST} st SET er_reise = true
-         FROM ${LA} la
-        WHERE st.lonnsart_id = la.id
-          AND st.er_reise = false
-          AND (
-            st.lonnsart_id = (SELECT os.reise_lonnsart_id FROM ${OS} os WHERE os.organization_id = la.organization_id)
-            OR EXISTS (SELECT 1 FROM ${GR} g WHERE g.organization_id = la.organization_id AND g.lonnsart_id = st.lonnsart_id)
-          )`,
-    );
-    // GREN 2 — navne-match KUN uten konfigurert art.
-    const navnematch = await prisma.$executeRawUnsafe(
-      `UPDATE ${ST} st SET er_reise = true
-         FROM ${LA} la
-        WHERE st.lonnsart_id = la.id
-          AND st.er_reise = false
-          AND la.navn ~* 'reise|transport'
-          AND NOT EXISTS (SELECT 1 FROM ${OS} os WHERE os.organization_id = la.organization_id AND os.reise_lonnsart_id IS NOT NULL)`,
-    );
-    expect(konfigurert).toBe(2); // r1 + r4
-    expect(navnematch).toBe(1); // r5
+  it("regex-literalen i migreringen er lik REISE_LONNSART_REGEX.source (ett hjem)", () => {
+    expect(migrationSql).toContain(`~* '${REISE_LONNSART_REGEX.source}'`);
   });
 
-  it("🔴 riktige rader satt (reise-lønnsart → true), falske positive unngått", async () => {
-    const rader = await prisma.$queryRawUnsafe<{ id: string; er_reise: boolean }[]>(
+  it("migreringens backfill (kjørt fra disk) == erReiseLonnsart for hver fixture-rad", async () => {
+    // Kjør DEN faktiske backfill-blokken fra migration.sql (ingen avskrift).
+    await prisma.$executeRawUnsafe(backfillSqlFraMigrering());
+
+    const dbRader = await prisma.$queryRawUnsafe<{ id: string; er_reise: boolean }[]>(
       `SELECT id, er_reise FROM ${ST} ORDER BY id`,
     );
-    const map = Object.fromEntries(rader.map((r) => [r.id, r.er_reise]));
-    expect(map.r1).toBe(true); // konfigurert reise-art
-    expect(map.r4).toBe(true); // grensepunkt-art
-    expect(map.r5).toBe(true); // navne-match (ingen konfigurert art)
-    expect(map.r2).toBe(false); // ordinær
-    expect(map.r6).toBe(false); // ordinær
-    // 🔴 Transporttillegg i firma MED konfigurert art: IKKE frosset som reise.
-    expect(map.r3).toBe(false);
+    const dbMap = new Map(dbRader.map((r) => [r.id, r.er_reise]));
+
+    // TS↔SQL: shared-regelen på SAMME inndata skal gi SAMME er_reise.
+    for (const r of rader) {
+      const navn = lonnsarter.find((l) => l.id === r.lonnsartId)!.navn;
+      const forventet = erReiseLonnsart(r.lonnsartId, navn, ktxFor(r.org));
+      expect(dbMap.get(r.id), `rad ${r.id} (${navn})`).toBe(forventet);
+    }
+
+    // Eksplisitt dekning av de fem påkrevde tilfellene:
+    expect(dbMap.get("r1")).toBe(true); // konfigurert reise-art
+    expect(dbMap.get("r4")).toBe(true); // grensepunkt-art
+    expect(dbMap.get("r5")).toBe(true); // navne-match, ingen konfigurert art
+    expect(dbMap.get("r3")).toBe(false); // navne-match MEN org har konfigurert art
+    expect(dbMap.get("r2")).toBe(false); // ikke-reise-art
   });
 
-  it("CHECK AVVISER er_reise=false med reise-felt (stille-tomhet)", async () => {
+  it("CHECK AVVISER er_reise=false med reise-felt; TILLATER true med felt + false uten", async () => {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE ${ST} ADD CONSTRAINT ${ST}_er_reise_tom CHECK (
          er_reise = true OR (reise_retning IS NULL AND reise_kjoretid_min IS NULL AND reise_avstand_m IS NULL)
@@ -139,9 +176,6 @@ describe("LAG 2 backfill + CHECK (ekte Postgres)", () => {
         `INSERT INTO ${ST} (id, lonnsart_id, er_reise, reise_retning) VALUES ('bad', 'ord-A', false, 'ut')`,
       ),
     ).rejects.toThrow();
-  });
-
-  it("CHECK TILLATER er_reise=true med reise-felt, og false uten", async () => {
     await prisma.$executeRawUnsafe(
       `INSERT INTO ${ST} (id, lonnsart_id, er_reise, reise_retning, reise_kjoretid_min, reise_avstand_m)
          VALUES ('ok-reise', 'reise-A', true, 'ut', 48, 42000)`,
