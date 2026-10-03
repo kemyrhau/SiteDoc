@@ -159,6 +159,11 @@ Sporbarhet må deklareres i begge ender i samme release.
   `retning`, `fraSted`, `tilSted`, `avstandKm`, `kjoretidMin`, `reiseKilde`, `tidKilde`, `normStatus`.
   Arknavn/overskrifter via `t()` (i18n gjelder også ikke-JSX, CLAUDE.md). `lonnsart.type` og `satsEnhet`
   tas med — regnskap trenger dem for km-arter (K4-forberedelse, ikke K4).
+  🟡 **Hull funnet i L2-C-gaten 2026-10-03:** `reiseAvvik` (true/false/tom) var ikke listet som eksportkolonne. I UI er
+  `null` og `false` bevisst uskillbare (støy), men regnskap/revisjon skal kunne skille «kontrollert, innenfor» fra
+  «ikke kontrollerbar». **Legges til D2 i en senere runde** (intern kolonne, strippes for ekstern). Ikke del av L2-C.
+  ⚠️ **To tolkninger fra L2-C ligger hos Kenneth:** AML «lang dag»-varselet teller reise (total tilstedeværelse) ·
+  Excel-kolonnene er dynamiske (kun når data finnes) — fabel anbefaler stabilt kolonnesett i Excel, dynamisk på skjerm.
 - **D3 Doc-drift:** `timer.md:680/683` om `attestertSnapshot.prisMotKunde` i eksport rettes til det koden
   gjør (M9).
 
