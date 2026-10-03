@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { velgOfflineListeKilde } from "./offlineListe";
+import { velgOfflineListeKilde, velgDokumentVisning } from "./offlineListe";
 
 describe("velgOfflineListeKilde", () => {
   it("online + bekreftet svar med rader → server (normalveien, like ferskt som før)", () => {
@@ -81,5 +81,38 @@ describe("velgOfflineListeKilde", () => {
         lokalAntall: 5,
       }),
     ).toEqual({ kilde: "lokal", tilstand: "lokal" });
+  });
+});
+
+describe("velgDokumentVisning (enkeltdokument-detalj, fase 2)", () => {
+  it("🔴 AVVIK Q5: online + venter (isLoading) + speil finnes → IKKE offline-modus (spinner)", () => {
+    // Rød uten fiksen: tidligere ga «lokal» for alt ikke-bekreftet, også online-venting.
+    expect(
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: false, harSpeil: true }),
+    ).toEqual({ offlineModus: false, offlineIkkeLastet: false });
+  });
+
+  it("offline + speil → tvungen lesemodus", () => {
+    expect(
+      velgDokumentVisning({ erPaaNettet: false, serverBekreftet: false, erFeilet: false, harSpeil: true }),
+    ).toEqual({ offlineModus: true, offlineIkkeLastet: false });
+  });
+
+  it("offline + ingen speil → «ikke lastet ned» (ikke spinner)", () => {
+    expect(
+      velgDokumentVisning({ erPaaNettet: false, serverBekreftet: false, erFeilet: false, harSpeil: false }),
+    ).toEqual({ offlineModus: false, offlineIkkeLastet: true });
+  });
+
+  it("online + feilet query + speil → offline-modus (feilet teller som frakoblet)", () => {
+    expect(
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: true, harSpeil: true }),
+    ).toEqual({ offlineModus: true, offlineIkkeLastet: false });
+  });
+
+  it("server bekreftet → aldri offline-modus (online-atferd uendret)", () => {
+    expect(
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: true, erFeilet: false, harSpeil: true }),
+    ).toEqual({ offlineModus: false, offlineIkkeLastet: false });
   });
 });

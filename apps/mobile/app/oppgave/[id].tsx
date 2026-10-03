@@ -50,6 +50,7 @@ import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { hentDokumentSpeil } from "../../src/services/dokumentSpeil";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
@@ -119,8 +120,17 @@ export default function OppgaveDetalj() {
     { id: id! },
     { enabled: !!id },
   );
+  // Offline-LESING fase 2: skjermens egen hentMedId faller tilbake til speilet når
+  // query-en er offline/feilet, så lokasjon/historikk vises som lagret versjon.
+  const detaljSpeil = useMemo(
+    () =>
+      !detaljQuery.isSuccess && bruker?.id
+        ? hentDokumentSpeil("oppgave", id!, bruker.id)
+        : null,
+    [detaljQuery.isSuccess, id, bruker?.id],
+  );
   // eslint-disable-next-line
-  const oppgaveDetalj = detaljQuery.data as {
+  const oppgaveDetalj = (detaljQuery.isSuccess ? detaljQuery.data : detaljSpeil?.dokument) as {
     transfers?: Transfer[];
     drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
     lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
@@ -436,6 +446,9 @@ export default function OppgaveDetalj() {
     erRedigerbar,
     lagreStatus,
     synkStatus,
+    offlineModus,
+    offlineHentetVed,
+    offlineIkkeLastet,
   } = useOppgaveSkjema(id!, rettighetInput);
 
   // eksport-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF + in-app
@@ -642,6 +655,19 @@ export default function OppgaveDetalj() {
     );
   }
 
+  // Offline/feilet OG dokumentet er ikke lastet ned — tydelig vei videre, ikke evig spinner.
+  if (offlineIkkeLastet) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 px-8">
+        <CloudOff size={32} color="#9ca3af" />
+        <Text className="mt-3 text-center text-base text-gray-600">{t("offline.ikkeLastetNed")}</Text>
+        <Pressable onPress={() => router.back()} className="mt-4">
+          <Text className="text-blue-600">{t("dokument.gaaTilbake")}</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
   if (!oppgave) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
@@ -672,7 +698,8 @@ export default function OppgaveDetalj() {
     (oppgave.status === "draft" ||
       hmsAktivPosisjon === 1 ||
       (hmsAktivPosisjon == null && oppgave.status === "responded"));
-  const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Offline (speil-render) er ALLTID lesemodus, uansett rettighet/HMS-gren (LES-vedtaket).
+  const leseModus = offlineModus ? true : erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
 
   // Sjekkliste-referanse
   const sjekklisteNummer = oppgave.checklist
@@ -764,6 +791,18 @@ export default function OppgaveDetalj() {
           />
         )}
       </View>
+
+      {/* Offline-LESING fase 2: viser lagret speil-versjon (tvungen lesemodus). */}
+      {offlineModus && (
+        <View className="flex-row items-center gap-2 bg-amber-50 px-3 py-2">
+          <CloudOff size={14} color="#b45309" />
+          <Text className="flex-1 text-xs text-amber-800">
+            {offlineHentetVed != null
+              ? t("offline.viserLagretVersjon", { tid: formaterHistorikkDato(new Date(offlineHentetVed)) })
+              : t("offline.viserLagretVersjonUtenTid")}
+          </Text>
+        </View>
+      )}
 
       {/* Kontraktssak-klasse (tavle 2, web-paritet): egen linje med nummeret, under header. */}
       {erKontraktssak && (
@@ -1161,7 +1200,9 @@ export default function OppgaveDetalj() {
       {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾.
           Spor 2 / 5a: HMS-melder med ballen (utkast/returnert) får dedikert Send inn/Forkast/
           Send tilbake i stedet for den generelle statuslinja — mobil oppretter HMS via
-          oppgave.opprett (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
+          oppgave.opprett (→ draft), så denne stien MÅ kunne sende inn + varsle behandler.
+          Offline-LESING fase 2: skjult i offline-modus — ingen handlingsknapper fra speilet. */}
+      {!offlineModus && (
       <View className="border-t border-gray-200 bg-white px-4 py-3">
         {/* Kontroll før sending: forhåndsvis den server-rendrede eksport-PDF-en i appen
             (speiler sjekkliste). Dekker oppgave + HMS avvik/RUH. */}
@@ -1244,6 +1285,7 @@ export default function OppgaveDetalj() {
         />
         )}
       </View>
+      )}
 
       </KeyboardAvoidingView>
 

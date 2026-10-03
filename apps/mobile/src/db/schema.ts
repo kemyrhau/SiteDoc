@@ -664,6 +664,10 @@ export const arbeidstidSvarLocal = sqliteTable(
 export const sjekklisteLocal = sqliteTable("sjekkliste_local", {
   id: text("id").primaryKey(), // = server Checklist.id
   projectId: text("project_id").notNull(),
+  // Eier-bruker — lesevakt (lagt til fase 2, 2026-10-03). Nullable fordi tabellen
+  // fantes før kolonnen; NULL-rader (ukjent eier) filtreres bort av leseren til
+  // neste per-prosjekt-refresh skriver riktig userId. Lukker brukerbytte-lekkasjen.
+  userId: text("user_id"),
   title: text("title").notNull(),
   status: text("status").notNull(),
   number: integer("number"),
@@ -784,3 +788,35 @@ export const hmsLocal = sqliteTable("hms_local", {
   bestillerFaggruppeNavn: text("bestiller_faggruppe_navn"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
 });
+
+/**
+ * dokument_speil — offline-speil av HELE dokumentet (`hentMedId`-svaret) for LESING
+ * uten nett (Offline-lesing fase 2, 2026-10-03). Én rad pr. (dokumentType, id, userId):
+ * serverens `hentMedId`-JSON (mal med `objects`, `data`, faggrupper, transfers,
+ * changeLog, images-metadata) lagret som én blob, slik at detaljskjermen kan rendre i
+ * tvungen lesemodus når query-en er offline/feilet.
+ *
+ * 🔴 Signerte vedleggs-URL-er (`?exp=&sig=`) STRIPPES før lagring (`raaUploadsSti`) —
+ * samme regel som fase-1-listene. Signaturer (base64 i `data`) består og vises offline;
+ * bilder krever nett (vises som rolig plassholder). Nøklet på `userId`: en ny bruker på
+ * samme telefon leser ALDRI forrige brukers speil. Synkes ALDRI opp (ren lese-cache —
+ * usynkede utkast bor fortsatt i `*_feltdata`). Skrives write-through ved online
+ * `hentMedId` + eksplisitt via «Forbered offline» (bieffekt-fri `hentForOffline`).
+ *
+ * Komposit-PK (dokumentType, id, userId) er DB-garantien mot duplikat/klobbing på tvers
+ * av brukere og dokumenttyper (stille-tomhet-regelen § b).
+ */
+export const dokumentSpeil = sqliteTable(
+  "dokument_speil",
+  {
+    id: text("id").notNull(), // = server Checklist.id / Task.id (uuid)
+    dokumentType: text("dokument_type").notNull(), // "sjekkliste" | "oppgave"
+    projectId: text("project_id").notNull(), // scope for «Forbered offline» + rydding
+    userId: text("user_id").notNull(), // eier-bruker — lesevakt
+    json: text("json").notNull(), // hentMedId-svaret, signaturer strippet
+    hentetAt: integer("hentet_at").notNull(), // Unix ms — «viser lagret versjon fra {tid}»
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.dokumentType, t.id, t.userId] }),
+  }),
+);
