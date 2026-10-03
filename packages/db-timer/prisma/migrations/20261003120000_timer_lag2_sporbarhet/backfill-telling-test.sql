@@ -1,5 +1,5 @@
 -- LAG 2-A backfill-telling — kjør mot sitedoc_test FØR og ETTER migreringen.
--- Gitignorert (*-test.sql). Verifiserer at de to RAISE NOTICE-tallene stemmer, og
+-- Versjonert, DRY-RUN-konvensjonen — kjøres manuelt mot `sitedoc_test`. Verifiserer at de to RAISE NOTICE-tallene stemmer, og
 -- at regex-grenen (navne-match) ikke fryser uventet mange falske positive.
 --
 -- ─────────────────────────────────────────────────────────────────────────

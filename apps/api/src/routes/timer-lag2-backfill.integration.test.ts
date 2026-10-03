@@ -60,6 +60,13 @@ const migPath = join(
 );
 const migrationSql = readFileSync(migPath, "utf8");
 
+// RETUR 2 (b): DRY-RUN-tellingen deler samme navne-match-gren og skal ikke drifte.
+const telleSqlPath = join(
+  __dirname,
+  "../../../../packages/db-timer/prisma/migrations/20261003120000_timer_lag2_sporbarhet/backfill-telling-test.sql",
+);
+const telleSql = readFileSync(telleSqlPath, "utf8");
+
 /** Hent backfill-DO-blokken (seksjon 3) fra migreringen og bytt navn til throwaway. */
 function backfillSqlFraMigrering(): string {
   const start = migrationSql.indexOf("DO $$", migrationSql.indexOf("3. Backfill"));
@@ -137,8 +144,10 @@ describe("LAG 2 backfill + CHECK (ekte Postgres, bundet til migration.sql)", () 
     }
   });
 
-  it("regex-literalen i migreringen er lik REISE_LONNSART_REGEX.source (ett hjem)", () => {
+  it("regex-literalen i migreringen OG DRY-RUN-tellingen er lik REISE_LONNSART_REGEX.source (ett hjem)", () => {
     expect(migrationSql).toContain(`~* '${REISE_LONNSART_REGEX.source}'`);
+    // RETUR 2 (b): samme navne-match-gren i den versjonerte DRY-RUN-tellingen.
+    expect(telleSql).toContain(`~* '${REISE_LONNSART_REGEX.source}'`);
   });
 
   it("migreringens backfill (kjørt fra disk) == erReiseLonnsart for hver fixture-rad", async () => {
