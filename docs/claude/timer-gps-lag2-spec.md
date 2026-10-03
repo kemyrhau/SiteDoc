@@ -162,8 +162,7 @@ Sporbarhet må deklareres i begge ender i samme release.
   🟡 **Hull funnet i L2-C-gaten 2026-10-03:** `reiseAvvik` (true/false/tom) var ikke listet som eksportkolonne. I UI er
   `null` og `false` bevisst uskillbare (støy), men regnskap/revisjon skal kunne skille «kontrollert, innenfor» fra
   «ikke kontrollerbar». **Legges til D2 i en senere runde** (intern kolonne, strippes for ekstern). Ikke del av L2-C.
-  ⚠️ **To tolkninger fra L2-C ligger hos Kenneth:** AML «lang dag»-varselet teller reise (total tilstedeværelse) ·
-  Excel-kolonnene er dynamiske (kun når data finnes) — fabel anbefaler stabilt kolonnesett i Excel, dynamisk på skjerm.
+  🟢 **Kenneth-vedtak 2026-10-03 (to tolkninger fra L2-C):** **Excel → FASTE kolonner** for L2-Cs nye kolonner (alltid til stede, tomme celler; skjerm forblir dynamisk; brukervalgte kolonner uendret) · **AML «lang dag»-varselet beholdes** — teller reise (total tilstedeværelse; ikke lønn).
 - **D3 Doc-drift:** `timer.md:680/683` om `attestertSnapshot.prisMotKunde` i eksport rettes til det koden
   gjør (M9).
 
