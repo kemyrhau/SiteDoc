@@ -64,8 +64,8 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
 | **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `8492b66c` | 🟡 **RETUR 2 sendt 2026-10-03 — Kenneth-vedtak «Excel → fast»** (L2-Cs kolonner alltid i Excel, dynamisk på skjerm). AML-varsel: behold. Ny hash → diff-gate → merge |
-| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | — (detached) | 🟢 **L2-B MERGET `28c7d168` ← `99e5bdbc` 2026-10-03** (kontrollør GATET). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 21s (api 703, mobil 180). 🔴 Deploy-rekkefølge test: L2-A-migrering → server → OTA |
-| **Funn** | redesign | `SiteDoc-redesign` | — (detached) | 🟢 **Ledig. Offline-lesing MERGET `fce371ad` ← `3025be8d` 2026-10-03** (kontrollør GATET). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s (shared 1023, mobil 190). Venter OTA + server-deploy + Kenneths flymodus-test |
+| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `docs/maaling-v17-geofence` (ny) | 🟡 **Ordre skrevet 2026-10-03** — V17-måling (lesende) som grunnlag for fabels spec (`relay/inbox-kontrollplan-v17-maaling.md`). L2-B merget `28c7d168` |
+| **Funn** | redesign | `SiteDoc-redesign` | `fix/mobil-i18n-sveip` (ny) | 🟡 **Ordre skrevet 2026-10-03** — i18n-sveip `mer.tsx` + slett tre foreldreløse `annotering.*`-nøkler (`relay/inbox-redesign-i18n-sveip.md`). Offline-lesing merget `fce371ad` |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
