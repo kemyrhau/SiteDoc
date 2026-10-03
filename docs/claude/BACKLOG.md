@@ -54,6 +54,14 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🟡 SJEKKLISTE-SPEILET LEKKER VED BRUKERBYTTE — `loggUt()` rydder ikke SQLite (målt 2026-10-03, redesign)
+
+**Funnet under `fix/mobil-offline-oppgave-hms`:** `sjekkliste_local` (`apps/mobile/src/db/schema.ts:640`) har ingen
+`user_id`, og utlogging tømmer ikke lokal base. Logger bruker B inn på samme telefon, kan sjekklistelista offline vise
+**bruker As liste** (titler, status, faggruppe). Oppgave- og HMS-speilene (`1a9c8e10`) har `user_id` + lesefilter og
+arver ikke hullet. **Fiks:** samme nøkling på `sjekkliste_local` (lokal migrering + lesefilter), eller rydding ved
+utlogging — vurder hvilke andre `*_local`-tabeller som bærer brukerdata. **Ikke bestilt.** Funn-sporet.
+
 ### 🟡 TRE FORELDRELØSE i18n-NØKLER etter at annoterings-modalen ble fjernet (2026-09-29)
 
 **Modalen er borte — teksten skrives nå direkte på bildet med `fabric.IText`. Nøklene ble igjen.**

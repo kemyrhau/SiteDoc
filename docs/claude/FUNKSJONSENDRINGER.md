@@ -237,6 +237,12 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
 
+### 2026-10-03
+
+| Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
+|---|---|---|---|
+| `1a9c8e10` ← `733903eb` | Mobil — oppgavelista og HMS-lista | **Uten nett var listene tomme/feilet.** Nå vises sist hentede liste med «Frakoblet – viser lagrede dokumenter» og «Sist hentet», som sjekklistelista har gjort siden `970045d7`. Å ÅPNE et dokument offline virker fortsatt ikke (fase 2, LES — Kenneth-vedtak 2026-10-03) | CLAUDE.md «Mobil-appen MÅ fungere offline» + Kenneth 2026-09-07 «offline må utbedres». Reload: OTA |
+
 ### 2026-09-30
 
 | Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |

@@ -63,8 +63,8 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2a-sporbarhet` (ny) | 🟡 **Ordre skrevet 2026-10-03** — L2-A: radmodell + mottak med sporbarhet + V1/V2 server (`relay/inbox-dokgen-l2a-sporbarhet.md`). Deretter L2-B (mobil) ∥ L2-C (web/eksport). **Kenneth-vedtak 2026-10-03: offline-dokumenter fase 2 = A (LESE offline), bestilles etter denne runden** |
-| **Funn** | redesign | `SiteDoc-redesign` | `fix/mobil-offline-oppgave-hms` (ny) | 🟡 **Ordre skrevet 2026-10-03** — offline-liste for oppgave+HMS, paritet med sjekkliste fase 1 (`relay/inbox-redesign-offline-oppgave-hms.md`) |
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2a-sporbarhet` `1cf078f6` | 🟡 **Levert, hos kontrollør for gate 2026-10-03** (`inbox-kontrollor.md` nederst). Migrering `20261003120000_timer_lag2_sporbarhet` IKKE kjørt. — L2-A: radmodell + mottak med sporbarhet + V1/V2 server (`relay/inbox-dokgen-l2a-sporbarhet.md`). Deretter L2-B (mobil) ∥ L2-C (web/eksport). **Kenneth-vedtak 2026-10-03: offline-dokumenter fase 2 = A (LESE offline), bestilles etter denne runden** |
+| **Funn** | redesign | `SiteDoc-redesign` | — | 🟢 **Ledig.** `fix/mobil-offline-oppgave-hms` `733903eb` MERGET `1a9c8e10` 2026-10-03 (typecheck 11/11 · web build 0 · test 7/7 --force 21s · mobil 153→167). Venter OTA + Kenneths flymodus-test |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
