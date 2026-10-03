@@ -63,7 +63,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2a-sporbarhet` `1cf078f6` | 🔴 **AVVIK fra kontrollør 2026-10-03 — RETUR 1 sendt** (SQL↔TS↔migreringsfil ubundet; `OvertidRad.erReise` påkrevd). Ny hash → ny gate (kun de to punktene). Migrering `20261003120000_timer_lag2_sporbarhet` IKKE kjørt. Funn H24: `per_km`-rader teller km som timer i overtidsgrunnlaget (pre-eksisterende, fabel fører) |
+| **Plan** | dokgen | `SiteDoc-dokgen` | — (detached `origin/develop`) | 🟢 **L2-A MERGET `6b05a694` ← `fe5ed27f` 2026-10-03** (kontrollør GATET m/vilkår, oppfylt). Regel 10: typecheck 11/11 · web build 0 · test 7/7 --force 22s (api 701, shared 1015, mobil 167). 🔴 Migrering `20261003120000_timer_lag2_sporbarhet` IKKE kjørt (Kenneth, test). Neste: L2-B ∥ L2-C |
 | **Funn** | redesign | `SiteDoc-redesign` | `feat/mobil-offline-lesing` (ny) | 🟡 **Ordre skrevet 2026-10-03** — offline fase 2: LESE dokumenter uten nett (Kenneth-vedtak A) + `user_id` på `sjekkliste_local` (`relay/inbox-redesign-offline-lesing.md`). Forrige: `1a9c8e10` merget, venter OTA |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
