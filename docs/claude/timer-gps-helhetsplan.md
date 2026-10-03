@@ -268,6 +268,9 @@ byggeplassen GPS fant (H15). Alt annet gir «ingen reise» med årsak. **Lag 1 k
 `syncBatch` stripper ukjente felt stille — sporbarhet må deklareres i begge ender i samme release. A radmodell
 (`erReise`, retning, kjøretid, avstand, kilde, regel-snapshot, `tidKilde`, `normStatus`) · B mobil skriver sporet +
 V8-vindu · C mottak med invarianter + V1/V2 på server · D attestering + eksport. Tre ordrer: L2-A → L2-B ∥ L2-C.
+🟢 **GATET 2026-10-03** med to presiseringer (backfill-rapport, `reiseAvvik` dobbel terskel) — på branch
+`docs/design-lag2-krav` @ `ed2c9e54`, merges av orkestrator. 🟡 **BESTILT av Kenneth 2026-10-03** («bestill lag 2»).
+Rammer i `relay/inbox-orkestrator.md`. Migrering i `db-timer` Kenneth-gatet — **les navne-match-tallet før prod.**
 
 - **Avstanden som valgte lønnsart lagres på raden** (H4).
 - **Oppmøtestedet og posisjonen følger med til serveren** (H6) — i dag dør de på telefonen.
