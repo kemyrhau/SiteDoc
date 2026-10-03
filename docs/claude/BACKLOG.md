@@ -5080,6 +5080,7 @@ blokkert lesing. Innstikkspunkter målt: **~15 kjerne, opptil 24 med signaturrut
 🔴 **De 11 HMS-mutasjonene går på `verifiserHmsHandling` og kaller aldri
 `verifiserDokumentTilgang`.** ⚠️ **`byttEier` (`oppgave.ts:2088`, `sjekkliste.ts:1924`) kjører
 kun `verifiserProsjektIkkeFrosset` — ingen dokumenttilgangssjekk overhodet. Eget funn.**
+⚠️ **REMÅLT 2026-10-03 (orkestrator): påstanden er foreldet.** `byttEier` (`oppgave.ts:2192`, `sjekkliste.ts:2021`) har en inline-sjekk — kun `sitedoc_admin` eller `ProjectMember.role="admin"` slipper gjennom (`oppgave.ts:2213-2228`). Gjenstående avvik er SMALERE og lukker, ikke åpner: `company_admin` uten ProjectMember-rad avvises fordi sjekken ikke går via `harProsjektTilgang`.
 
 🔴 **Fire «du kan ikke skrive»-mekanismer finnes fra før:** terminal status
 (`flytRolle.ts:197`) · append-only-vakten (`oppgave.ts:721+`) · `verifiserRundeIkkeLaast`

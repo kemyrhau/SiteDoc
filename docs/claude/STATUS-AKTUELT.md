@@ -20,7 +20,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > **Fabel eier planen, orkestrator gater den** (§ 7b). Origo-ordren kan omskrives til V14 etter gate.
 > 🟢 **LAG 0 LEVERT 2026-10-02:** km-tak `89acee95` (api) + beregn/anvend-splitt `a13f4343` (mobil, OTA).
 > 🟢 **Lag 0c LEVERT `c78bc14f`** — regel 10 er fire ledd, `turbo run typecheck` gater 10 pakker. ⚠️ **`pnpm install` kreves i alle trær** (`@types/node`).
-> 🟢 **LAG 1 KOMPLETT 2026-10-03:** L1-C+L1-A `9d67367a` + L1-B `2e993250`. H21+H22 lukket. Test-deploy `fd92736d` (lag 0 + L1-A/C, migrering `20261002120000` kjørt). 🔴 **`20261002130000_timer_normkilde_pausereferanse` IKKE kjørt** (Kenneth). ⚠️ Pull krever `pnpm install` + `prisma generate` ×4. **K10 VEDTATT → V17:** byggeplass-lokasjon = punkt+radius (standard) eller polygon (infrastruktur), én delt gjenkjenning for timer OG PSI; bygges før lag 3/4. 🟢 **K5 vedtatt (mottak med sporbarhet).** 📄 **Lag 2-spec skrevet** ([timer-gps-lag2-spec.md](timer-gps-lag2-spec.md)) — til gate. Funn: L1-B-etappene lagres ikke på raden, `syncBatch` stripper ukjente felt.
+> 🟢 **LAG 1 KOMPLETT 2026-10-03:** L1-C+L1-A `9d67367a` + L1-B `2e993250`. H21+H22 lukket. Test-deploy `fd92736d` (lag 0 + L1-A/C, migrering `20261002120000` kjørt). 🟢 **`20261002130000_timer_normkilde_pausereferanse` KJØRT** — verifisert av Kenneth i UI 2026-10-03 (firma → innstillinger viser «Dagsnorm-kilde: Fast (7,5 t)» og «Pausen starter fra: Ankomst»). ⚠️ Pull krever `pnpm install` + `prisma generate` ×4. **K10 VEDTATT → V17:** byggeplass-lokasjon = punkt+radius (standard) eller polygon (infrastruktur), én delt gjenkjenning for timer OG PSI; bygges før lag 3/4. 🟢 **K5 vedtatt (mottak med sporbarhet).** 📄 **Lag 2-spec skrevet** ([timer-gps-lag2-spec.md](timer-gps-lag2-spec.md)) — til gate. Funn: L1-B-etappene lagres ikke på raden, `syncBatch` stripper ukjente felt.
 
 > 🟢 **TEST-DEPLOY 2026-10-02 kveld: `fd92736d`** — verifisert mot `/version`. Inneholder **hele
 > lag 0** (km-taket, beregn/skriv-splitten, shared-typesjekken) **+ L1-A og L1-C**.
@@ -64,7 +64,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
 | **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-server-klassifisering` (ny) | 🟡 **Ordre gitt** — AM 2 steg 3 ledd 1, server som fasit for overtidsklassifisering |
-| **Funn** | — | `SiteDoc-redesign` | — | 🟢 **Ledig.** `fix/annotering-tom-tekst-vakt` merget `16a9de85` |
+| **Funn** | redesign | `SiteDoc-redesign` | `fix/mobil-offline-oppgave-hms` (ny) | 🟡 **Ordre skrevet 2026-10-03** — offline-liste for oppgave+HMS, paritet med sjekkliste fase 1 (`relay/inbox-redesign-offline-oppgave-hms.md`) |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
