@@ -2017,6 +2017,9 @@ brukeren hver gang han åpner den.
    divergerende offline-tilstand.**
 3. **Skal offline være LES eller LES+SKRIV?** Kun lesing er vesentlig billigere og dekker
    sannsynligvis mesteparten av feltbehovet. **Kenneth-beslutning.**
+   🟢 **BESLUTTET 2026-10-03 (Kenneth): LES først.** Neste fase = dokumenter (sjekkliste/oppgave/HMS) som er
+   lastet ned på forhånd kan åpnes og leses uten nett. LES+SKRIV (offline utfylling) er ikke besluttet og krever
+   eget design (konflikt i dokumentflyt). Bestilles etter offline-liste for oppgave+HMS (`fix/mobil-offline-oppgave-hms`).
 4. **Hva koster speilingen?** Dokumenter bærer `data`-JSON med repeatere og vedlegg — ikke flate
    rader som katalogene.
 
