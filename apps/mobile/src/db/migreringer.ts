@@ -1015,4 +1015,55 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_reise_grensepunkt_local_org
       ON reise_grensepunkt_local(organization_id);
   `);
+
+  // Offline-liste fase 1 for oppgaver/HMS (2026-10-03) — oppgave_local + hms_local:
+  // offline-kataloger for oppgavelista og HMS-lista, etter mønster fra sjekkliste_local.
+  // Read-only mirrors, full-overskrives per prosjekt via oppgaveKatalog/hmsKatalog.
+  // Bærer KUN visningsfelt — ALDRI `data`/signerte vedleggs-URL-er. byggeplass_id er
+  // den UTLEDETE effektive byggeplassen (drawing.byggeplass.id for Task, byggeplassId
+  // for Checklist); null = gjelder hele prosjektet. KUN lokal, synkes aldri opp.
+  // Idempotent CREATE IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS oppgave_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      priority TEXT NOT NULL,
+      number INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      due_date TEXT,
+      byggeplass_id TEXT,
+      template_name TEXT,
+      template_prefix TEXT,
+      template_subdomain TEXT,
+      utforer_faggruppe_navn TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_oppgave_local_project
+      ON oppgave_local(project_id, user_id);
+
+    CREATE TABLE IF NOT EXISTS hms_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      kategori TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      number INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      byggeplass_id TEXT,
+      template_name TEXT,
+      template_prefix TEXT,
+      bestiller_faggruppe_navn TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_hms_local_project
+      ON hms_local(project_id, user_id, kategori);
+  `);
 }

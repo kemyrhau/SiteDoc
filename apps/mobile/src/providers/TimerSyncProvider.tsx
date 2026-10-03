@@ -25,6 +25,8 @@ import {
   hentAktiveProsjektIderLokalt,
 } from "../services/prosjektKatalog";
 import { refreshSjekklisteKatalog } from "../services/sjekklisteKatalog";
+import { refreshOppgaveKatalog } from "../services/oppgaveKatalog";
+import { refreshHmsKatalog } from "../services/hmsKatalog";
 import { refreshKalenderKatalog } from "../services/kalenderKatalog";
 import { refreshOrganizationSettingKatalog } from "../services/organizationSettingKatalog";
 import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
@@ -127,30 +129,34 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      // Steg 3 — sjekkliste-katalog (Offline-sjekklister fase 1). Best-effort
-      // pre-caching av offline sjekklistelister. EGEN try/catch: en feilende
-      // sjekkliste-fei skal ALDRI velte de 13 timer-katalogene (alt hentet i
-      // steg 1–2). SEKVENSIELT + try/catch per prosjekt: ett dødt prosjekt
-      // stopper ikke resten, og vi fyrer ikke N samtidige kall på anleggsnett.
-      // Scope er alle AKTIVE prosjekter i prosjekt_local (som ble populert i
-      // steg 1). Standalone-prosjekter dekkes av «Forbered offline» + list-
-      // skjermen — TimerSyncProvider ligger over ProsjektProvider og kjenner
-      // ikke valgt prosjekt (målt 2026-09-11, vei A godkjent).
+      // Steg 3 — dokumentliste-kataloger (Offline-liste fase 1: sjekkliste
+      // 2026-09-11, oppgave + HMS 2026-10-03). Best-effort pre-caching av offline
+      // lister. EGEN try/catch: en feilende dokument-fei skal ALDRI velte de 13
+      // timer-katalogene (alt hentet i steg 1–2). SEKVENSIELT + try/catch PER
+      // (prosjekt, liste): ett dødt prosjekt eller én død liste stopper ikke
+      // resten, og vi fyrer ikke N samtidige kall på anleggsnett. Scope er alle
+      // AKTIVE prosjekter i prosjekt_local (populert i steg 1). Standalone-
+      // prosjekter dekkes av «Forbered offline» + list-skjermen — TimerSyncProvider
+      // ligger over ProsjektProvider og kjenner ikke valgt prosjekt (vei A).
       try {
         const prosjektIder = hentAktiveProsjektIderLokalt();
+        const uid = bruker.id;
+        const katalogPulls: Array<[string, (pid: string) => Promise<unknown>]> = [
+          ["SJEKKLISTE-KATALOG", (pid) => refreshSjekklisteKatalog(utils.client, pid)],
+          ["OPPGAVE-KATALOG", (pid) => refreshOppgaveKatalog(utils.client, pid, uid)],
+          ["HMS-KATALOG", (pid) => refreshHmsKatalog(utils.client, pid, uid)],
+        ];
         for (const pid of prosjektIder) {
-          try {
-            await refreshSjekklisteKatalog(utils.client, pid);
-          } catch (e) {
-            console.warn(
-              "[SJEKKLISTE-KATALOG] Refresh feilet for prosjekt",
-              pid,
-              e,
-            );
+          for (const [tag, pull] of katalogPulls) {
+            try {
+              await pull(pid);
+            } catch (e) {
+              console.warn(`[${tag}] Refresh feilet for prosjekt`, pid, e);
+            }
           }
         }
       } catch (e) {
-        console.warn("[SJEKKLISTE-KATALOG] Sjekkliste-fei feilet:", e);
+        console.warn("[DOKUMENT-KATALOG] Dokumentliste-fei feilet:", e);
       }
 
       setKatalogLastet(true);

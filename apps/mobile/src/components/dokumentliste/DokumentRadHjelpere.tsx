@@ -9,6 +9,17 @@ import { Text } from "react-native";
 
 export { formaterNummer } from "@sitedoc/shared";
 
+/**
+ * «Sist hentet»-tidspunkt (Unix ms) → «dd.mm.åååå kl. hh:mm» for offline-banneret
+ * (oppgave/HMS-liste). Speiler den inline-formattereren i sjekkliste/index.tsx —
+ * delt her så de to nye flatene ikke dupliserer den.
+ */
+export function formaterOfflineTidspunkt(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} kl. ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -110,6 +110,12 @@ const TASK_SELECT = {
   createdAt: true,
   updatedAt: true,
   data: true,
+  // Offline-speil (mobil, 2026-10-03): byggeplass-tilhørighet for Task finnes kun
+  // via tegningen (byggeplassFilterViaTegning). Tynn scalar-select av drawing.byggeplassId
+  // lar mobilens offline-katalog utlede den effektive byggeplassen og scope lokalt likt
+  // serveren. Additivt — ingen ny prosedyre/tilgangssjekk. Grunn select (ingen dyp
+  // relasjon) → ingen TS2589-risiko (jf. signaturliste-kommentaren over).
+  drawing: { select: { byggeplassId: true } },
   template: {
     select: {
       id: true,
@@ -139,6 +145,9 @@ const CHECKLIST_SELECT = {
   createdAt: true,
   updatedAt: true,
   data: true,
+  // Offline-speil (mobil, 2026-10-03): Checklist har byggeplassId direkte
+  // (byggeplassFilterDirekte). Scalar — ingen TS2589-risiko.
+  byggeplassId: true,
   template: {
     select: {
       id: true,
