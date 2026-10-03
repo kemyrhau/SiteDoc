@@ -133,6 +133,79 @@ async function hentHmsSjekkliste(
   return sjekkliste;
 }
 
+/**
+ * Delt leser for detalj-visning av én sjekkliste. `hentMedId` (online-visning) og
+ * `hentForOffline` (offline forhånds-nedlasting, fase 2 2026-10-03) deler ÉN include
+ * + tilgangssjekk + signering her, så de ikke kan drifte fra hverandre.
+ *
+ * 🔴 ENESTE forskjell: `stemplLest`. `hentMedId` stempler `lestAvMottakerVed` når
+ * mottakeren åpner (uendret atferd). `hentForOffline` gjør det IKKE — forhånds-nedlasting
+ * skal ALDRI endre lesekvitteringens betydning (brukeren har ikke sett dokumentet).
+ */
+async function lesSjekklisteMedId(
+  prisma: Parameters<typeof hentMottakerEposter>[0],
+  userId: string,
+  id: string,
+  stemplLest: boolean,
+) {
+  const sjekkliste = await prisma.checklist.findUniqueOrThrow({
+    where: { id },
+    include: {
+      template: { include: { objects: { orderBy: { sortOrder: "asc" } }, project: { select: { sourceLanguage: true } } } },
+      bestillerFaggruppe: true,
+      utforerFaggruppe: true,
+      bestiller: true,
+      recipientGroup: { select: { id: true, name: true } },
+      byggeplass: { select: { id: true, name: true } },
+      drawing: { select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true } },
+      omrade: { select: { id: true, navn: true, type: true } },
+      images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
+      transfers: {
+        include: {
+          sender: { select: { id: true, name: true } },
+          recipientUser: { select: { id: true, name: true } },
+          recipientGroup: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+      changeLog: {
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  // Tilgangssjekk — hent projectId, domain og hmsSynlighet fra malen.
+  await verifiserDokumentTilgang(
+    userId,
+    sjekkliste.template.projectId,
+    sjekkliste.bestillerFaggruppeId,
+    sjekkliste.utforerFaggruppeId,
+    sjekkliste.template.domain,
+    sjekkliste.id,
+    "checklist",
+    sjekkliste.template.hmsSynlighet,
+  );
+
+  // Sett lestAvMottakerVed når mottaker åpner mens status er «sent» — KUN på
+  // ekte visning (hentMedId), aldri på forhånds-nedlasting.
+  if (
+    stemplLest &&
+    sjekkliste.status === "sent" &&
+    sjekkliste.recipientUserId === userId &&
+    !sjekkliste.lestAvMottakerVed
+  ) {
+    await prisma.checklist.update({
+      where: { id: sjekkliste.id },
+      data: { lestAvMottakerVed: new Date() },
+    });
+    sjekkliste.lestAvMottakerVed = new Date();
+  }
+
+  // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon.
+  return { ...signerDataRad(sjekkliste), images: signerBilder(sjekkliste.images) };
+}
+
 export const sjekklisteRouter = router({
   // Hent alle sjekklister for et prosjekt (via mal)
   hentForProsjekt: protectedProcedure
@@ -220,70 +293,18 @@ export const sjekklisteRouter = router({
       return signerDataRader(sjekklister);
     }),
 
-  // Hent én sjekkliste med alle detaljer
+  // Hent én sjekkliste med alle detaljer (online-visning — stempler lest-kvittering)
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
-        where: { id: input.id },
-        include: {
-          template: { include: { objects: { orderBy: { sortOrder: "asc" } }, project: { select: { sourceLanguage: true } } } },
-          bestillerFaggruppe: true,
-          utforerFaggruppe: true,
-          bestiller: true,
-          recipientGroup: { select: { id: true, name: true } },
-          byggeplass: { select: { id: true, name: true } },
-          drawing: { select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true } },
-          // Steg 2b (2026-09-23): områdenavn+type for lokasjonsvisning når lokasjonOmfang="omrade".
-          // Additiv lese-utvidelse — omradeId (skalar) fulgte alt med; navnet krevde relasjonen.
-          omrade: { select: { id: true, navn: true, type: true } },
-          images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
-          transfers: {
-            include: {
-              sender: { select: { id: true, name: true } },
-              recipientUser: { select: { id: true, name: true } },
-              recipientGroup: { select: { id: true, name: true } },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-          changeLog: {
-            include: { user: { select: { id: true, name: true, email: true } } },
-            orderBy: { createdAt: "desc" },
-          },
-        },
-      });
+    .query(({ ctx, input }) => lesSjekklisteMedId(ctx.prisma, ctx.userId, input.id, true)),
 
-      // Tilgangssjekk — hent projectId, domain og hmsSynlighet fra malen.
-      // hmsSynlighet sendes inn slik at "apen" HMS-dokumenter er lesbare for alle
-      // prosjektmedlemmer (lesing — mutations beholder streng tilgang).
-      await verifiserDokumentTilgang(
-        ctx.userId,
-        sjekkliste.template.projectId,
-        sjekkliste.bestillerFaggruppeId,
-        sjekkliste.utforerFaggruppeId,
-        sjekkliste.template.domain,
-        sjekkliste.id,
-        "checklist",
-        sjekkliste.template.hmsSynlighet,
-      );
-
-      // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
-      if (
-        sjekkliste.status === "sent" &&
-        sjekkliste.recipientUserId === ctx.userId &&
-        !sjekkliste.lestAvMottakerVed
-      ) {
-        await ctx.prisma.checklist.update({
-          where: { id: sjekkliste.id },
-          data: { lestAvMottakerVed: new Date() },
-        });
-        sjekkliste.lestAvMottakerVed = new Date();
-      }
-
-      // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon
-      // (detalj- + utskriftsvei leser bilde-URL herfra).
-      return { ...signerDataRad(sjekkliste), images: signerBilder(sjekkliste.images) };
-    }),
+  // Offline forhånds-nedlasting (fase 2 2026-10-03): identisk utvalg/signering som
+  // hentMedId, men stempler ALDRI lestAvMottakerVed — brukeren har ikke sett dokumentet,
+  // så lesekvitteringen skal ikke endres av «Forbered offline». Mobilen tåler at denne
+  // mangler på en gammel server (hopper over forhånds-nedlasting, write-through virker).
+  hentForOffline: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(({ ctx, input }) => lesSjekklisteMedId(ctx.prisma, ctx.userId, input.id, false)),
 
   // Opprett ny sjekkliste
   opprett: protectedProcedure

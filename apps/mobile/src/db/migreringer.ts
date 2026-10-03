@@ -1112,4 +1112,44 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide dagsseddel_local med norm-spor:", e);
   }
+
+  // Offline-LESING fase 2 (2026-10-03) — dokument_speil: speil av HELE dokumentet
+  // (hentMedId-JSON) pr. (dokumentType, id, userId) for lesing uten nett i tvungen
+  // lesemodus. Komposit-PK = DB-garanti mot duplikat/klobbing på tvers av brukere
+  // og dokumenttyper. Signerte vedleggs-URL-er strippes før lagring (tjenestelaget).
+  // KUN lokal, synkes aldri opp. Idempotent CREATE IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS dokument_speil (
+      id TEXT NOT NULL,
+      dokument_type TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      json TEXT NOT NULL,
+      hentet_at INTEGER NOT NULL,
+      PRIMARY KEY (dokument_type, id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dokument_speil_scope
+      ON dokument_speil(project_id, user_id);
+  `);
+
+  // Lekkasjefiks (2026-10-03): sjekkliste_local manglet user_id (BACKLOG «SJEKKLISTE-
+  // SPEILET LEKKER VED BRUKERBYTTE»). ALTER ADD COLUMN (nullable — eksisterende rader
+  // kan ikke etterfylles med riktig eier). Lesefilteret (sjekklisteKatalog) krever
+  // user_id-match, så NULL-rader (ukjent eier) er usynlige for alle til neste
+  // per-prosjekt-refresh overskriver dem med riktig userId. Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync("PRAGMA table_info(sjekkliste_local)") as Array<{
+      name: string;
+    }>;
+    if (!kolonner.find((k) => k.name === "user_id")) {
+      console.log("[MIG] Legger til user_id på sjekkliste_local (offline-lesing fase 2 lekkasjefiks)");
+      db.execSync(`ALTER TABLE sjekkliste_local ADD COLUMN user_id TEXT`);
+      db.execSync(
+        `CREATE INDEX IF NOT EXISTS idx_sjekkliste_local_bruker ON sjekkliste_local(project_id, user_id)`,
+      );
+    }
+  } catch (e) {
+    console.warn("[MIG] user_id på sjekkliste_local feilet", e);
+  }
 }

@@ -58,6 +58,7 @@ function tilIso(v: Date | string | null | undefined): string | null {
 export async function refreshSjekklisteKatalog(
   klient: TrpcKlient,
   projectId: string,
+  userId: string,
 ): Promise<{ sjekklister: number }> {
   const db = hentDatabase();
   if (!db) return { sjekklister: 0 };
@@ -79,6 +80,10 @@ export async function refreshSjekklisteKatalog(
       .values({
         id: r.id,
         projectId,
+        // Eier-bruker — lesevakt (fase 2 lekkasjefiks). Full-overskriving per prosjekt
+        // sletter ALLE brukeres rader, så en ny brukers refresh fjerner forrige brukers
+        // cachede sjekklister aktivt (ikke bare skjuler dem). Speiler oppgave_local.
+        userId,
         title: r.title,
         status: r.status,
         number: r.number ?? null,
@@ -105,6 +110,28 @@ export async function refreshSjekklisteKatalog(
 }
 
 /**
+ * Delt scope-predikat: eier-bruker + prosjekt + (valgt byggeplass ELLER
+ * byggeplass-løs). userId-leddet er synlighetsvakten (fase 2 lekkasjefiks): en
+ * annen bruker på samme telefon leser ALDRI denne cachen, og gamle NULL-user-rader
+ * (fra før kolonnen fantes) matcher ingen bruker → usynlige til neste refresh.
+ */
+function scope(projectId: string, userId: string, byggeplassId?: string | null) {
+  const base = and(
+    eq(sjekklisteLocal.projectId, projectId),
+    eq(sjekklisteLocal.userId, userId),
+  );
+  return byggeplassId
+    ? and(
+        base,
+        or(
+          eq(sjekklisteLocal.byggeplassId, byggeplassId),
+          isNull(sjekklisteLocal.byggeplassId),
+        ),
+      )
+    : base;
+}
+
+/**
  * Synkron lese-funksjon for lista: hent prosjektets sjekklister fra lokal
  * cache, byggeplass-scopet likt serveren (byggeplassFilterDirekte: valgt
  * byggeplass ELLER byggeplass-løs). Utelates byggeplassId → hele prosjektet
@@ -113,25 +140,16 @@ export async function refreshSjekklisteKatalog(
  */
 export function hentSjekklisterLokalt(
   projectId: string,
+  userId: string,
   byggeplassId?: string | null,
 ): SjekklisteLokalRad[] {
   const db = hentDatabase();
   if (!db) return [];
 
-  const scope = byggeplassId
-    ? and(
-        eq(sjekklisteLocal.projectId, projectId),
-        or(
-          eq(sjekklisteLocal.byggeplassId, byggeplassId),
-          isNull(sjekklisteLocal.byggeplassId),
-        ),
-      )
-    : eq(sjekklisteLocal.projectId, projectId);
-
   const rader = db
     .select()
     .from(sjekklisteLocal)
-    .where(scope)
+    .where(scope(projectId, userId, byggeplassId))
     .orderBy(desc(sjekklisteLocal.updatedAt))
     .all();
 
@@ -167,20 +185,12 @@ export function hentSjekklisterLokalt(
  */
 export function tellSjekklisterLokalt(
   projectId: string,
+  userId: string,
   byggeplassId?: string | null,
 ): number {
   const db = hentDatabase();
   if (!db) return 0;
-  const scope = byggeplassId
-    ? and(
-        eq(sjekklisteLocal.projectId, projectId),
-        or(
-          eq(sjekklisteLocal.byggeplassId, byggeplassId),
-          isNull(sjekklisteLocal.byggeplassId),
-        ),
-      )
-    : eq(sjekklisteLocal.projectId, projectId);
-  return db.select().from(sjekklisteLocal).where(scope).all().length;
+  return db.select().from(sjekklisteLocal).where(scope(projectId, userId, byggeplassId)).all().length;
 }
 
 /**
@@ -189,13 +199,13 @@ export function tellSjekklisterLokalt(
  * så et prosjekt som feilet i en fei ikke viser stale data med ferskt stempel.
  * null hvis prosjektet ikke er cachet ennå.
  */
-export function hentSistOppdatertLokalt(projectId: string): number | null {
+export function hentSistOppdatertLokalt(projectId: string, userId: string): number | null {
   const db = hentDatabase();
   if (!db) return null;
   const rader = db
     .select({ sistOppdatert: sjekklisteLocal.sistOppdatert })
     .from(sjekklisteLocal)
-    .where(eq(sjekklisteLocal.projectId, projectId))
+    .where(and(eq(sjekklisteLocal.projectId, projectId), eq(sjekklisteLocal.userId, userId)))
     .orderBy(desc(sjekklisteLocal.sistOppdatert))
     .limit(1)
     .all();

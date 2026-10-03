@@ -29,9 +29,10 @@ import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { VersjonsFooter } from "../../src/components/VersjonsFooter";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
-import { refreshSjekklisteKatalog } from "../../src/services/sjekklisteKatalog";
-import { refreshOppgaveKatalog } from "../../src/services/oppgaveKatalog";
-import { refreshHmsKatalog } from "../../src/services/hmsKatalog";
+import { refreshSjekklisteKatalog, hentSjekklisterLokalt } from "../../src/services/sjekklisteKatalog";
+import { refreshOppgaveKatalog, hentOppgaverLokalt } from "../../src/services/oppgaveKatalog";
+import { refreshHmsKatalog, hentHmsLokalt } from "../../src/services/hmsKatalog";
+import { forhaandslastDokumenter, type ForhaandslastDokument } from "../../src/services/dokumentSpeil";
 import { byttSpraak } from "../../src/lib/i18n";
 import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -91,7 +92,7 @@ export default function MerSkjerm() {
       if (valgtProsjektId && bruker?.id) {
         const uid = bruker.id;
         try {
-          const s = await refreshSjekklisteKatalog(utils.client, valgtProsjektId);
+          const s = await refreshSjekklisteKatalog(utils.client, valgtProsjektId, uid);
           listeTekst += `, ${s.sjekklister} sjekklister`;
         } catch {
           listeTekst += ", sjekklister feilet";
@@ -107,6 +108,25 @@ export default function MerSkjerm() {
           listeTekst += `, ${h.hms} HMS`;
         } catch {
           listeTekst += ", HMS feilet";
+        }
+        // Offline-LESING fase 2: forhånds-nedlast dokument-speilene (via bieffekt-fri
+        // hentForOffline) fra de nå oppdaterte listene. HMS-kategori → dokumenttype:
+        // sja = checklist (sjekkliste-skjerm), avvik/ruh = task (oppgave-skjerm).
+        try {
+          const dokumenter: ForhaandslastDokument[] = [];
+          for (const s of hentSjekklisterLokalt(valgtProsjektId, uid))
+            dokumenter.push({ id: s.id, type: "sjekkliste", status: s.status });
+          for (const o of hentOppgaverLokalt(valgtProsjektId, uid))
+            dokumenter.push({ id: o.id, type: "oppgave", status: o.status });
+          const hms = hentHmsLokalt(valgtProsjektId, uid);
+          for (const sja of hms.sja) dokumenter.push({ id: sja.id, type: "sjekkliste", status: sja.status });
+          for (const a of [...hms.avvik, ...hms.ruh]) dokumenter.push({ id: a.id, type: "oppgave", status: a.status });
+          const r = await forhaandslastDokumenter(utils.client, valgtProsjektId, uid, dokumenter);
+          listeTekst += r.serverManglerProsedyre
+            ? ", dokumenter: ikke støttet på server ennå"
+            : `, ${r.lastet} dokumenter offline`;
+        } catch {
+          listeTekst += ", dokumenter feilet";
         }
       }
       setOfflineTekst(`Ferdig: ${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller${listeTekst}`);

@@ -252,9 +252,10 @@ const { t } = useTranslation();
 | `sjekkliste_feltdata` | Lokal sjekkliste-utfylling |
 | `oppgave_feltdata` | Lokal oppgave-utfylling |
 | `opplastings_ko` | Bakgrunnskø for filopplasting |
-| `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11) |
+| `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11; `user_id` + lesefilter lagt til fase 2 2026-10-03) |
 | `oppgave_local` | Offline-katalog for oppgave**lista** (read-only mirror, 2026-10-03) |
 | `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03) |
+| `dokument_speil` | Offline-speil av **hele dokumentet** (`hentMedId`-JSON) for LESING uten nett (fase 2 2026-10-03). Nøklet (dokumentType, id, userId); signaturer strippet |
 
 **Offline dokumentlister (fase 1):** list-skjermene leste før rett på tRPC uten fallback → tom liste
 uten dekning (brøt CLAUDE.md «Mobil-appen MÅ fungere offline»). Nå speiler `*_local`-tabeller lista.
@@ -263,12 +264,14 @@ PER PROSJEKT, henter HELE prosjektet uten `byggeplassId` så lokal lesing selv g
 Kildevalg via den delte rene `velgOfflineListeKilde` (`@sitedoc/shared`, testet): **med nett + bekreftet
 svar er serveren autoritativ (også tomt) — like fersk som før**; uten (offline/henger/feilet) leses
 lokal cache. Banner skiller «frakoblet, lagrede data (sist hentet …)» fra «ikke synkronisert ennå».
-🔴 **Synlighet (oppgave/HMS):** `oppgave_local`/`hms_local` bærer `user_id` og lesing filtrerer på
-innlogget bruker — en ny bruker på samme telefon ser ALDRI forrige brukers (tilgangs-/synlighets-
-filtrerte) liste offline (speiler den trygge timer-cache-nøklingen). Refresh full-overskriver per
-prosjekt for ALLE brukere, så en ny brukers sync også fjerner forrige brukers rader. ⚠️ **Funn:**
-`sjekkliste_local` mangler denne vakten (kun `project_id`) — den eldre fase 1-cachen KAN lekke forrige
-brukers sjekklisteliste offline inntil refresh; egen sak, ikke fikset her.
+🔴 **Synlighet (alle tre lister):** `oppgave_local`/`hms_local`/`sjekkliste_local` bærer `user_id` og
+lesing filtrerer på innlogget bruker — en ny bruker på samme telefon ser ALDRI forrige brukers
+(tilgangs-/synlighets-filtrerte) liste offline (speiler den trygge timer-cache-nøklingen). Refresh
+full-overskriver per prosjekt for ALLE brukere, så en ny brukers sync også fjerner forrige brukers rader.
+🟢 **Lekkasjen i `sjekkliste_local` er lukket fase 2 (2026-10-03):** kolonnen var fraværende (kun
+`project_id`); ALTER ADD COLUMN `user_id` (nullable — eksisterende rader kan ikke etterfylles med riktig
+eier, så NULL-rader er usynlige for alle til neste refresh skriver eieren). Lukker BACKLOG «SJEKKLISTE-
+SPEILET LEKKER VED BRUKERBYTTE».
 Refresh trigges i `triggerKatalogRefresh` (sekvensiell fei over aktive `prosjekt_local`-prosjekter,
 per-(prosjekt,liste) try/catch — de 13 timer-katalogene upåvirket) + `startOffline` (Mer, valgt
 prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-prosjekter
@@ -286,7 +289,31 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
   `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
 
-**Lagringsstrategi:**
+### Offline-LESING av dokumenter (fase 2, 2026-10-03)
+
+Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
+HELE dokumentet (`hentMedId`-svaret) i `dokument_speil` så detaljskjermen kan rendre uten nett i
+**tvungen lesemodus** (sjekkliste · oppgave · HMS — HMS har ingen egen hook, så begge
+skjema-hookene dekker SJA/avvik/RUH). Tjeneste: `services/dokumentSpeil.ts`.
+
+- **Når speiles det?** (1) **Write-through:** hver gang `hentMedId` lykkes online lagres svaret
+  (`useSjekklisteSkjema`/`useOppgaveSkjema`, ingen ekstra nettkall). (2) **«Forbered offline»**
+  (`mer.tsx`): forhånds-nedlaster prosjektets ikke-terminale dokumenter fra de nå-oppdaterte
+  listene. Tak: `FORHAANDSLAST_TAK = 200`, stopper ikke på ett feilet dokument.
+- 🔴 **Bieffekt-fri forhånds-nedlasting:** `hentMedId` stempler `lestAvMottakerVed` når mottakeren
+  åpner. Forhånds-nedlasting skal ALDRI endre lesekvitteringen → egne server-prosedyrer
+  `sjekkliste.hentForOffline` / `oppgave.hentForOffline` (delt leser med `stemplLest`-flagg;
+  online-atferd bit-identisk). **Mobilen tåler gammel server:** mangler prosedyren (NOT_FOUND),
+  hoppes forhånds-nedlasting over stille-men-logget — write-through virker uansett.
+- 🔴 **Signaturer strippes før lagring** (`raaVedleggIData`, @sitedoc/shared) — samme skrive-vei-
+  vaksine som server. Signaturer (base64 i `data`) vises offline; bilder krever nett → eksisterende
+  `BildeFallback`-plassholder.
+- **Visning offline:** hooken faller tilbake til speilet når `hentMedId` er offline/feilet (kildevalg
+  via delt `velgOfflineListeKilde`), tvinger `erRedigerbar=false`, og eksponerer
+  `offlineModus`/`offlineHentetVed`/`offlineIkkeLastet`. Skjermen viser banner «Frakoblet – viser
+  lagret versjon fra {tid}», skjuler handlingslinjen, og viser «ikke lastet ned»-tekst (ikke evig
+  spinner) når dokumentet ikke er i speilet. Prosjekt-queriene (flyt/faggrupper/tillatelser) tåler
+  `undefined` offline. **Ingen skriving offline.**
 - SQLite først (<10ms), deretter server-synk
 - `erSynkronisert`-flagg, `sistEndretLokalt`-tidsstempel
 - Usynkronisert data prioriteres over server-data
