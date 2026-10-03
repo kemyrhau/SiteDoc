@@ -88,7 +88,8 @@ export default function MerSkjerm() {
       // tegningene (og de andre listene) ALT lastet (krav 6 rad 3 — ett nytt
       // steg river ikke med seg det som virket).
       let listeTekst = "";
-      if (valgtProsjektId) {
+      if (valgtProsjektId && bruker?.id) {
+        const uid = bruker.id;
         try {
           const s = await refreshSjekklisteKatalog(utils.client, valgtProsjektId);
           listeTekst += `, ${s.sjekklister} sjekklister`;
@@ -96,13 +97,13 @@ export default function MerSkjerm() {
           listeTekst += ", sjekklister feilet";
         }
         try {
-          const o = await refreshOppgaveKatalog(utils.client, valgtProsjektId);
+          const o = await refreshOppgaveKatalog(utils.client, valgtProsjektId, uid);
           listeTekst += `, ${o.oppgaver} oppgaver`;
         } catch {
           listeTekst += ", oppgaver feilet";
         }
         try {
-          const h = await refreshHmsKatalog(utils.client, valgtProsjektId);
+          const h = await refreshHmsKatalog(utils.client, valgtProsjektId, uid);
           listeTekst += `, ${h.hms} HMS`;
         } catch {
           listeTekst += ", HMS feilet";
@@ -114,7 +115,7 @@ export default function MerSkjerm() {
       setOfflineTekst(`Feil: ${err instanceof Error ? err.message : String(err)}`);
       setTimeout(() => setOfflineTekst(null), 5000);
     }
-  }, [tegningerQuery.data, valgtProsjektId, utils.client]);
+  }, [tegningerQuery.data, valgtProsjektId, bruker?.id, utils.client]);
 
   const velgSpraak = useCallback(async (kode: SpraakKode) => {
     setVisSpraakModal(false);

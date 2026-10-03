@@ -108,6 +108,8 @@ function kastendeKlient() {
   } as unknown as Parameters<typeof refreshHmsKatalog>[0];
 }
 
+const U = "u1";
+
 beforeAll(async () => {
   const require = createRequire(import.meta.url);
   const initSqlJs = require("sql.js");
@@ -149,9 +151,10 @@ describe("refreshHmsKatalog + lesere", () => {
         ruh: [task({ id: "r1" }), task({ id: "r2" })],
       }),
       "p1",
+      U,
     );
     expect(r.hms).toBe(4);
-    const dok = hentHmsLokalt("p1");
+    const dok = hentHmsLokalt("p1", U);
     expect(dok.avvik.map((x) => x.id)).toEqual(["a1"]);
     expect(dok.sja.map((x) => x.id)).toEqual(["s1"]);
     expect(dok.ruh.map((x) => x.id).sort()).toEqual(["r1", "r2"]);
@@ -165,7 +168,7 @@ describe("refreshHmsKatalog + lesere", () => {
     expect(kolonner.some((k) => k.includes("url") || k.includes("data"))).toBe(false);
 
     // Verdi-nivå: selv når serveren sender signerte URL-er i `data`, lagres de ikke.
-    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "p1");
+    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "p1", U);
     const raader = holder.raw.exec("SELECT * FROM hms_local;");
     const alleVerdier = JSON.stringify(raader);
     expect(alleVerdier).not.toContain("X-Amz-Signature");
@@ -173,19 +176,31 @@ describe("refreshHmsKatalog + lesere", () => {
   });
 
   it("🔴 (b) feilet henting beholder gammel cache", async () => {
-    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "p1");
-    expect(tellHmsLokalt("p1")).toBe(1);
-    await expect(refreshHmsKatalog(kastendeKlient(), "p1")).rejects.toThrow("offline");
-    expect(tellHmsLokalt("p1")).toBe(1);
-    expect(hentHmsLokalt("p1").avvik[0].id).toBe("a1");
+    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "p1", U);
+    expect(tellHmsLokalt("p1", U)).toBe(1);
+    await expect(refreshHmsKatalog(kastendeKlient(), "p1", U)).rejects.toThrow("offline");
+    expect(tellHmsLokalt("p1", U)).toBe(1);
+    expect(hentHmsLokalt("p1", U).avvik[0].id).toBe("a1");
   });
 
   it("(c) prosjekt A's refresh rører ikke prosjekt B's rader", async () => {
-    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "A");
-    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "b1" })] }), "B");
-    await refreshHmsKatalog(lagKlient({}), "A"); // tomt svar for A
-    expect(tellHmsLokalt("A")).toBe(0);
-    expect(tellHmsLokalt("B")).toBe(1);
+    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "A", U);
+    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "b1" })] }), "B", U);
+    await refreshHmsKatalog(lagKlient({}), "A", U); // tomt svar for A
+    expect(tellHmsLokalt("A", U)).toBe(0);
+    expect(tellHmsLokalt("B", U)).toBe(1);
+  });
+
+  it("🔴 (synlighet) bruker B ser ALDRI bruker A's HMS-cache — særlig private utkast", async () => {
+    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a-privat" })] }), "p1", "A");
+    expect(hentHmsLokalt("p1", "A").avvik.map((x) => x.id)).toEqual(["a-privat"]);
+    // B ser ingenting (ikke A's private avvik).
+    expect(tellHmsLokalt("p1", "B")).toBe(0);
+    expect(hentHmsLokalt("p1", "B").avvik).toEqual([]);
+    // B's sync fjerner A's rader aktivt.
+    await refreshHmsKatalog(lagKlient({ ruh: [task({ id: "b-egen" })] }), "p1", "B");
+    expect(tellHmsLokalt("p1", "A")).toBe(0);
+    expect(hentHmsLokalt("p1", "B").ruh.map((x) => x.id)).toEqual(["b-egen"]);
   });
 
   it("byggeplass-scoping: Task via tegning + Checklist direkte, «valgt ELLER løs»", async () => {
@@ -202,22 +217,23 @@ describe("refreshHmsKatalog + lesere", () => {
         ],
       }),
       "p1",
+      U,
     );
     // Valgt bp1: bp1-radene + alle byggeplass-løse.
-    const bp1 = hentHmsLokalt("p1", "bp1");
+    const bp1 = hentHmsLokalt("p1", U, "bp1");
     expect(bp1.avvik.map((x) => x.id).sort()).toEqual(["avv-bp1", "avv-ingen-tegning", "avv-los"]);
     expect(bp1.sja.map((x) => x.id).sort()).toEqual(["sja-bp1", "sja-los"]);
     // Valgt bp2: bp1-radene forsvinner, løse består.
-    const bp2 = hentHmsLokalt("p1", "bp2");
+    const bp2 = hentHmsLokalt("p1", U, "bp2");
     expect(bp2.avvik.map((x) => x.id).sort()).toEqual(["avv-ingen-tegning", "avv-los"]);
     expect(bp2.sja.map((x) => x.id)).toEqual(["sja-los"]);
     // Hele prosjektet: alt.
-    expect(tellHmsLokalt("p1")).toBe(5);
+    expect(tellHmsLokalt("p1", U)).toBe(5);
   });
 
   it("hentSistOppdatert gir prosjektets stempel, null når ikke cachet", async () => {
-    expect(hentSistOppdatertHmsLokalt("p1")).toBeNull();
-    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "p1");
-    expect(hentSistOppdatertHmsLokalt("p1")).toBeGreaterThan(0);
+    expect(hentSistOppdatertHmsLokalt("p1", U)).toBeNull();
+    await refreshHmsKatalog(lagKlient({ avvik: [task({ id: "a1" })] }), "p1", U);
+    expect(hentSistOppdatertHmsLokalt("p1", U)).toBeGreaterThan(0);
   });
 });

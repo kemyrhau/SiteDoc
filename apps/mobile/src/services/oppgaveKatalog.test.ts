@@ -84,6 +84,8 @@ function serverOppgave(over: {
   };
 }
 
+const U = "u1";
+
 function lagKlient(rader: ReturnType<typeof serverOppgave>[]) {
   return {
     oppgave: { hentForProsjekt: { query: async () => rader } },
@@ -139,37 +141,51 @@ describe("refreshOppgaveKatalog + lesere", () => {
     const r = await refreshOppgaveKatalog(
       lagKlient([serverOppgave({ id: "o1" }), serverOppgave({ id: "o2" })]),
       "p1",
+      U,
     );
     expect(r.oppgaver).toBe(2);
-    expect(tellOppgaverLokalt("p1")).toBe(2);
-    const rader = hentOppgaverLokalt("p1");
+    expect(tellOppgaverLokalt("p1", U)).toBe(2);
+    const rader = hentOppgaverLokalt("p1", U);
     expect(rader.map((x) => x.id).sort()).toEqual(["o1", "o2"]);
     expect(rader[0].template?.prefix).toBe("OPG");
   });
 
   it("refresh er idempotent (full overskriving, ingen duplikater)", async () => {
-    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1");
-    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1");
-    expect(tellOppgaverLokalt("p1")).toBe(1);
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1", U);
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1", U);
+    expect(tellOppgaverLokalt("p1", U)).toBe(1);
   });
 
   it("🔴 (b) feilet henting beholder gammel cache", async () => {
-    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1");
-    expect(tellOppgaverLokalt("p1")).toBe(1);
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1", U);
+    expect(tellOppgaverLokalt("p1", U)).toBe(1);
     // Pullen kaster FØR scope-deleten → cachen skal bestå.
-    await expect(refreshOppgaveKatalog(kastendeKlient(), "p1")).rejects.toThrow("offline");
-    expect(tellOppgaverLokalt("p1")).toBe(1);
-    expect(hentOppgaverLokalt("p1")[0].id).toBe("o1");
+    await expect(refreshOppgaveKatalog(kastendeKlient(), "p1", U)).rejects.toThrow("offline");
+    expect(tellOppgaverLokalt("p1", U)).toBe(1);
+    expect(hentOppgaverLokalt("p1", U)[0].id).toBe("o1");
   });
 
   it("(c) prosjekt A's refresh rører ikke prosjekt B's rader", async () => {
-    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "a1" })]), "A");
-    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "b1" })]), "B");
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "a1" })]), "A", U);
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "b1" })]), "B", U);
     // Ny refresh av A med tomt svar: sletter kun A, lar B stå.
-    await refreshOppgaveKatalog(lagKlient([]), "A");
-    expect(tellOppgaverLokalt("A")).toBe(0);
-    expect(tellOppgaverLokalt("B")).toBe(1);
-    expect(hentOppgaverLokalt("B")[0].id).toBe("b1");
+    await refreshOppgaveKatalog(lagKlient([]), "A", U);
+    expect(tellOppgaverLokalt("A", U)).toBe(0);
+    expect(tellOppgaverLokalt("B", U)).toBe(1);
+    expect(hentOppgaverLokalt("B", U)[0].id).toBe("b1");
+  });
+
+  it("🔴 (synlighet) bruker B ser ALDRI bruker A's cache for samme prosjekt", async () => {
+    // A cacher prosjektet. B leser samme prosjekt-id offline (før egen refresh).
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "a-privat" })]), "p1", "A");
+    expect(hentOppgaverLokalt("p1", "A").map((x) => x.id)).toEqual(["a-privat"]);
+    // B ser ingenting — ikke A's liste (jf. sjekkliste_local-hullet, som IKKE har denne vakten).
+    expect(hentOppgaverLokalt("p1", "B")).toEqual([]);
+    expect(tellOppgaverLokalt("p1", "B")).toBe(0);
+    // Når B synker, fjernes A's rader aktivt (full overskriv per prosjekt).
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "b-egen" })]), "p1", "B");
+    expect(hentOppgaverLokalt("p1", "A")).toEqual([]);
+    expect(hentOppgaverLokalt("p1", "B").map((x) => x.id)).toEqual(["b-egen"]);
   });
 
   it("byggeplass-scoping: utledet byggeplassId kollapser tre-ledds filter til «valgt ELLER løs»", async () => {
@@ -180,20 +196,21 @@ describe("refreshOppgaveKatalog + lesere", () => {
         serverOppgave({ id: "uten-tegning", drawingId: null }), // ingen tegning
       ]),
       "p1",
+      U,
     );
     // Valgt bp1: oppgaven på bp1 + de to byggeplass-løse (prosjekt-tegning/ingen tegning).
-    const scopeBp1 = hentOppgaverLokalt("p1", "bp1").map((x) => x.id).sort();
+    const scopeBp1 = hentOppgaverLokalt("p1", U, "bp1").map((x) => x.id).sort();
     expect(scopeBp1).toEqual(["paa-bp1", "prosjekt-tegning", "uten-tegning"]);
     // Valgt bp2 (annen byggeplass): bp1-oppgaven forsvinner, de løse består.
-    const scopeBp2 = hentOppgaverLokalt("p1", "bp2").map((x) => x.id).sort();
+    const scopeBp2 = hentOppgaverLokalt("p1", U, "bp2").map((x) => x.id).sort();
     expect(scopeBp2).toEqual(["prosjekt-tegning", "uten-tegning"]);
     // Hele prosjektet (ingen byggeplass): alle tre.
-    expect(hentOppgaverLokalt("p1").length).toBe(3);
+    expect(hentOppgaverLokalt("p1", U).length).toBe(3);
   });
 
   it("hentSistOppdatert gir prosjektets stempel, null når ikke cachet", async () => {
-    expect(hentSistOppdatertOppgaveLokalt("p1")).toBeNull();
-    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1");
-    expect(hentSistOppdatertOppgaveLokalt("p1")).toBeGreaterThan(0);
+    expect(hentSistOppdatertOppgaveLokalt("p1", U)).toBeNull();
+    await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1", U);
+    expect(hentSistOppdatertOppgaveLokalt("p1", U)).toBeGreaterThan(0);
   });
 });

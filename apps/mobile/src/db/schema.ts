@@ -707,6 +707,10 @@ export const reiseGrensepunktLocal = sqliteTable(
 export const oppgaveLocal = sqliteTable("oppgave_local", {
   id: text("id").primaryKey(), // = server Task.id
   projectId: text("project_id").notNull(),
+  // Eier-bruker. Lesing filtrerer på denne så en ny bruker på samme telefon ALDRI
+  // ser forrige brukers (tilgangs-/synlighets-filtrerte) liste offline — speiler den
+  // trygge timer-cache-nøklingen (user_id), ikke sjekkliste_local som mangler den.
+  userId: text("user_id").notNull(),
   title: text("title").notNull(),
   status: text("status").notNull(),
   priority: text("priority").notNull(),
@@ -741,6 +745,9 @@ export const oppgaveLocal = sqliteTable("oppgave_local", {
 export const hmsLocal = sqliteTable("hms_local", {
   id: text("id").primaryKey(), // = server Task.id / Checklist.id (uuid, globalt unik)
   projectId: text("project_id").notNull(),
+  // Eier-bruker — se oppgave_local. HMS er særlig sensitivt (private utkast +
+  // synlighetsfilter), så per-bruker-isolasjon ved lesing er påkrevd.
+  userId: text("user_id").notNull(),
   kategori: text("kategori").notNull(), // "avvik" | "sja" | "ruh"
   title: text("title").notNull(),
   status: text("status").notNull(),

@@ -80,6 +80,7 @@ function effektivByggeplass(r: ServerHmsRad): string | null {
 export async function refreshHmsKatalog(
   klient: TrpcKlient,
   projectId: string,
+  userId: string,
 ): Promise<{ hms: number }> {
   const db = hentDatabase();
   if (!db) return { hms: 0 };
@@ -100,7 +101,8 @@ export async function refreshHmsKatalog(
     ["ruh", svar.ruh ?? []],
   ];
 
-  // Full overskriving for DETTE prosjektet (alle kategorier) — rør ikke andre.
+  // Full overskriving for DETTE prosjektet (alle kategorier, ALLE brukere) — en ny
+  // brukers sync fjerner forrige brukers rader aktivt. Rør ikke andre prosjekter.
   db.delete(hmsLocal).where(eq(hmsLocal.projectId, projectId)).run();
   let antall = 0;
   for (const [kategori, rader] of kategorier) {
@@ -109,6 +111,7 @@ export async function refreshHmsKatalog(
         .values({
           id: r.id,
           projectId,
+          userId,
           kategori,
           title: r.title,
           status: r.status,
@@ -129,14 +132,19 @@ export async function refreshHmsKatalog(
   return { hms: antall };
 }
 
-/** Delt scope-predikat: valgt byggeplass ELLER byggeplass-løs (= hele prosjektet). */
-function byggeplassScope(projectId: string, byggeplassId?: string | null) {
+/**
+ * Delt scope-predikat: eier-bruker + prosjekt + (valgt byggeplass ELLER
+ * byggeplass-løs). userId-leddet er synlighetsvakten — HMS er særlig sensitivt
+ * (private utkast + synlighetsfilter), så en annen bruker leser ALDRI cachen.
+ */
+function scope(projectId: string, userId: string, byggeplassId?: string | null) {
+  const base = and(eq(hmsLocal.projectId, projectId), eq(hmsLocal.userId, userId));
   return byggeplassId
     ? and(
-        eq(hmsLocal.projectId, projectId),
+        base,
         or(eq(hmsLocal.byggeplassId, byggeplassId), isNull(hmsLocal.byggeplassId)),
       )
-    : eq(hmsLocal.projectId, projectId);
+    : base;
 }
 
 function tilRad(r: typeof hmsLocal.$inferSelect): HmsLokalRad {
@@ -159,6 +167,7 @@ function tilRad(r: typeof hmsLocal.$inferSelect): HmsLokalRad {
  */
 export function hentHmsLokalt(
   projectId: string,
+  userId: string,
   byggeplassId?: string | null,
 ): HmsLokalDokumenter {
   const db = hentDatabase();
@@ -167,7 +176,7 @@ export function hentHmsLokalt(
   const rader = db
     .select()
     .from(hmsLocal)
-    .where(byggeplassScope(projectId, byggeplassId))
+    .where(scope(projectId, userId, byggeplassId))
     .orderBy(desc(hmsLocal.updatedAt))
     .all();
 
@@ -180,20 +189,24 @@ export function hentHmsLokalt(
 }
 
 /** Totalt antall lokale HMS-rader i scope (alle kategorier) — for kildevalget. */
-export function tellHmsLokalt(projectId: string, byggeplassId?: string | null): number {
+export function tellHmsLokalt(
+  projectId: string,
+  userId: string,
+  byggeplassId?: string | null,
+): number {
   const db = hentDatabase();
   if (!db) return 0;
-  return db.select().from(hmsLocal).where(byggeplassScope(projectId, byggeplassId)).all().length;
+  return db.select().from(hmsLocal).where(scope(projectId, userId, byggeplassId)).all().length;
 }
 
-/** Nyeste sistOppdatert-stempel (Unix ms) for PROSJEKTET. null hvis ikke cachet. */
-export function hentSistOppdatertHmsLokalt(projectId: string): number | null {
+/** Nyeste sistOppdatert-stempel (Unix ms) for brukerens prosjekt-cache. null hvis ikke cachet. */
+export function hentSistOppdatertHmsLokalt(projectId: string, userId: string): number | null {
   const db = hentDatabase();
   if (!db) return null;
   const rader = db
     .select({ sistOppdatert: hmsLocal.sistOppdatert })
     .from(hmsLocal)
-    .where(eq(hmsLocal.projectId, projectId))
+    .where(and(eq(hmsLocal.projectId, projectId), eq(hmsLocal.userId, userId)))
     .orderBy(desc(hmsLocal.sistOppdatert))
     .limit(1)
     .all();

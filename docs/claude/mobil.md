@@ -263,6 +263,12 @@ PER PROSJEKT, henter HELE prosjektet uten `byggeplassId` så lokal lesing selv g
 Kildevalg via den delte rene `velgOfflineListeKilde` (`@sitedoc/shared`, testet): **med nett + bekreftet
 svar er serveren autoritativ (også tomt) — like fersk som før**; uten (offline/henger/feilet) leses
 lokal cache. Banner skiller «frakoblet, lagrede data (sist hentet …)» fra «ikke synkronisert ennå».
+🔴 **Synlighet (oppgave/HMS):** `oppgave_local`/`hms_local` bærer `user_id` og lesing filtrerer på
+innlogget bruker — en ny bruker på samme telefon ser ALDRI forrige brukers (tilgangs-/synlighets-
+filtrerte) liste offline (speiler den trygge timer-cache-nøklingen). Refresh full-overskriver per
+prosjekt for ALLE brukere, så en ny brukers sync også fjerner forrige brukers rader. ⚠️ **Funn:**
+`sjekkliste_local` mangler denne vakten (kun `project_id`) — den eldre fase 1-cachen KAN lekke forrige
+brukers sjekklisteliste offline inntil refresh; egen sak, ikke fikset her.
 Refresh trigges i `triggerKatalogRefresh` (sekvensiell fei over aktive `prosjekt_local`-prosjekter,
 per-(prosjekt,liste) try/catch — de 13 timer-katalogene upåvirket) + `startOffline` (Mer, valgt
 prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-prosjekter

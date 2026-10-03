@@ -17,6 +17,7 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useNettverk } from "../../src/providers/NettverkProvider";
+import { useAuth } from "../../src/providers/AuthProvider";
 import {
   hentOppgaverLokalt,
   hentSistOppdatertOppgaveLokalt,
@@ -70,6 +71,7 @@ export default function OppgaveListe() {
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
+  const { bruker } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -89,15 +91,16 @@ export default function OppgaveListe() {
   // lokal lesing er KUN fallback (offline / henger / feilet). Lokal scope speiler
   // server-spørringens byggeplass-scope (samme byggeplassId).
   const bygg = valgtBygningId ?? undefined;
+  const brukerId = bruker?.id;
   const serverData = oppgaveQuery.data as OppgaveRad[] | undefined;
 
   const lokaleRader = useMemo(
     () =>
-      valgtProsjektId
-        ? (hentOppgaverLokalt(valgtProsjektId, bygg) as OppgaveRad[])
+      valgtProsjektId && brukerId
+        ? (hentOppgaverLokalt(valgtProsjektId, brukerId, bygg) as OppgaveRad[])
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [valgtProsjektId, bygg, oppgaveQuery.status],
+    [valgtProsjektId, brukerId, bygg, oppgaveQuery.status],
   );
 
   const { kilde, tilstand } = velgOfflineListeKilde({
@@ -112,10 +115,10 @@ export default function OppgaveListe() {
   // «Sist hentet»-tid for dette PROSJEKTET — kun når vi viser lokale rader.
   const sistHentet = useMemo(
     () =>
-      tilstand === "lokal" && valgtProsjektId
-        ? hentSistOppdatertOppgaveLokalt(valgtProsjektId)
+      tilstand === "lokal" && valgtProsjektId && brukerId
+        ? hentSistOppdatertOppgaveLokalt(valgtProsjektId, brukerId)
         : null,
-    [tilstand, valgtProsjektId, lokaleRader.length],
+    [tilstand, valgtProsjektId, brukerId, lokaleRader.length],
   );
 
   // Kontraktssak-segment vises kun når prosjektet har minst én kontraktssak-mal (samme

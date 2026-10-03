@@ -55,6 +55,7 @@ function tilIso(v: Date | string | null | undefined): string | null {
 export async function refreshOppgaveKatalog(
   klient: TrpcKlient,
   projectId: string,
+  userId: string,
 ): Promise<{ oppgaver: number }> {
   const db = hentDatabase();
   if (!db) return { oppgaver: 0 };
@@ -83,12 +84,16 @@ export async function refreshOppgaveKatalog(
 
   const naa = Date.now();
 
+  // Full overskriving for DETTE prosjektet — ALLE brukeres rader slettes, så en
+  // ny brukers sync aktivt fjerner forrige brukers cachede rader (ikke bare skjuler
+  // dem). Rør aldri andre prosjekter.
   db.delete(oppgaveLocal).where(eq(oppgaveLocal.projectId, projectId)).run();
   for (const r of rader) {
     db.insert(oppgaveLocal)
       .values({
         id: r.id,
         projectId,
+        userId,
         title: r.title,
         status: r.status,
         priority: r.priority,
@@ -110,23 +115,32 @@ export async function refreshOppgaveKatalog(
   return { oppgaver: rader.length };
 }
 
-/** Delt scope-predikat: valgt byggeplass ELLER byggeplass-løs (= hele prosjektet). */
-function byggeplassScope(projectId: string, byggeplassId?: string | null) {
+/**
+ * Delt scope-predikat: eier-bruker + prosjekt + (valgt byggeplass ELLER
+ * byggeplass-løs). userId-leddet er synlighetsvakten: en annen bruker på samme
+ * telefon leser ALDRI denne cachen (jf. filhode / sjekkliste_local-hullet).
+ */
+function scope(projectId: string, userId: string, byggeplassId?: string | null) {
+  const base = and(
+    eq(oppgaveLocal.projectId, projectId),
+    eq(oppgaveLocal.userId, userId),
+  );
   return byggeplassId
     ? and(
-        eq(oppgaveLocal.projectId, projectId),
+        base,
         or(eq(oppgaveLocal.byggeplassId, byggeplassId), isNull(oppgaveLocal.byggeplassId)),
       )
-    : eq(oppgaveLocal.projectId, projectId);
+    : base;
 }
 
 /**
- * Synkron lese-funksjon for lista: hent prosjektets oppgaver fra lokal cache,
- * byggeplass-scopet likt serveren. Sortert nyeste først (server-paritet:
- * orderBy updatedAt desc).
+ * Synkron lese-funksjon for lista: hent brukerens oppgaver for prosjektet fra
+ * lokal cache, byggeplass-scopet likt serveren. Sortert nyeste først
+ * (server-paritet: orderBy updatedAt desc).
  */
 export function hentOppgaverLokalt(
   projectId: string,
+  userId: string,
   byggeplassId?: string | null,
 ): OppgaveLokalRad[] {
   const db = hentDatabase();
@@ -135,7 +149,7 @@ export function hentOppgaverLokalt(
   const rader = db
     .select()
     .from(oppgaveLocal)
-    .where(byggeplassScope(projectId, byggeplassId))
+    .where(scope(projectId, userId, byggeplassId))
     .orderBy(desc(oppgaveLocal.updatedAt))
     .all();
 
@@ -161,25 +175,25 @@ export function hentOppgaverLokalt(
 /** Antall lokale rader i gjeldende scope — for kildevalget (velgOfflineListeKilde). */
 export function tellOppgaverLokalt(
   projectId: string,
+  userId: string,
   byggeplassId?: string | null,
 ): number {
   const db = hentDatabase();
   if (!db) return 0;
-  return db.select().from(oppgaveLocal).where(byggeplassScope(projectId, byggeplassId)).all().length;
+  return db.select().from(oppgaveLocal).where(scope(projectId, userId, byggeplassId)).all().length;
 }
 
 /**
- * Nyeste sistOppdatert-stempel (Unix ms) for PROSJEKTET — «sist hentet»-tid
- * lista viser. Prosjektets eget stempel, ikke et globalt fei-tidspunkt.
- * null hvis prosjektet ikke er cachet ennå.
+ * Nyeste sistOppdatert-stempel (Unix ms) for brukerens prosjekt-cache — «sist
+ * hentet»-tid lista viser. null hvis ikke cachet ennå.
  */
-export function hentSistOppdatertOppgaveLokalt(projectId: string): number | null {
+export function hentSistOppdatertOppgaveLokalt(projectId: string, userId: string): number | null {
   const db = hentDatabase();
   if (!db) return null;
   const rader = db
     .select({ sistOppdatert: oppgaveLocal.sistOppdatert })
     .from(oppgaveLocal)
-    .where(eq(oppgaveLocal.projectId, projectId))
+    .where(and(eq(oppgaveLocal.projectId, projectId), eq(oppgaveLocal.userId, userId)))
     .orderBy(desc(oppgaveLocal.sistOppdatert))
     .limit(1)
     .all();

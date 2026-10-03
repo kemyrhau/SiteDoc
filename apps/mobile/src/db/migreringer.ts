@@ -1027,6 +1027,7 @@ export function kjorMigreringer() {
     CREATE TABLE IF NOT EXISTS oppgave_local (
       id TEXT PRIMARY KEY NOT NULL,
       project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       title TEXT NOT NULL,
       status TEXT NOT NULL,
       priority TEXT NOT NULL,
@@ -1043,11 +1044,12 @@ export function kjorMigreringer() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_oppgave_local_project
-      ON oppgave_local(project_id);
+      ON oppgave_local(project_id, user_id);
 
     CREATE TABLE IF NOT EXISTS hms_local (
       id TEXT PRIMARY KEY NOT NULL,
       project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       kategori TEXT NOT NULL,
       title TEXT NOT NULL,
       status TEXT NOT NULL,
@@ -1062,6 +1064,6 @@ export function kjorMigreringer() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_hms_local_project
-      ON hms_local(project_id, kategori);
+      ON hms_local(project_id, user_id, kategori);
   `);
 }

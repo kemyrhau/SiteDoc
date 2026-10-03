@@ -18,6 +18,7 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useNettverk } from "../../src/providers/NettverkProvider";
+import { useAuth } from "../../src/providers/AuthProvider";
 import {
   hentHmsLokalt,
   hentSistOppdatertHmsLokalt,
@@ -55,6 +56,7 @@ export default function HmsListe() {
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
+  const { bruker } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -73,15 +75,16 @@ export default function HmsListe() {
   // i ett kall. MED nett + bekreftet svar er serveren autoritativ; lokal er KUN
   // fallback. Lokal scope speiler server-spørringens byggeplass-scope.
   const bygg = valgtBygningId ?? undefined;
+  const brukerId = bruker?.id;
   const serverDok = dokQuery.data as HmsDokumenter | undefined;
 
   const lokalDok = useMemo<HmsDokumenter>(
     () =>
-      valgtProsjektId
-        ? (hentHmsLokalt(valgtProsjektId, bygg) as HmsDokumenter)
+      valgtProsjektId && brukerId
+        ? (hentHmsLokalt(valgtProsjektId, brukerId, bygg) as HmsDokumenter)
         : { avvik: [], sja: [], ruh: [] },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [valgtProsjektId, bygg, dokQuery.status],
+    [valgtProsjektId, brukerId, bygg, dokQuery.status],
   );
 
   const serverAntall = serverDok
@@ -100,10 +103,10 @@ export default function HmsListe() {
 
   const sistHentet = useMemo(
     () =>
-      tilstand === "lokal" && valgtProsjektId
-        ? hentSistOppdatertHmsLokalt(valgtProsjektId)
+      tilstand === "lokal" && valgtProsjektId && brukerId
+        ? hentSistOppdatertHmsLokalt(valgtProsjektId, brukerId)
         : null,
-    [tilstand, valgtProsjektId, lokalAntall],
+    [tilstand, valgtProsjektId, brukerId, lokalAntall],
   );
 
   const aktivListe = useMemo<HmsRad[]>(() => {

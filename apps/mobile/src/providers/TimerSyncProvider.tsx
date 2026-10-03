@@ -140,10 +140,11 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
       // ligger over ProsjektProvider og kjenner ikke valgt prosjekt (vei A).
       try {
         const prosjektIder = hentAktiveProsjektIderLokalt();
+        const uid = bruker.id;
         const katalogPulls: Array<[string, (pid: string) => Promise<unknown>]> = [
           ["SJEKKLISTE-KATALOG", (pid) => refreshSjekklisteKatalog(utils.client, pid)],
-          ["OPPGAVE-KATALOG", (pid) => refreshOppgaveKatalog(utils.client, pid)],
-          ["HMS-KATALOG", (pid) => refreshHmsKatalog(utils.client, pid)],
+          ["OPPGAVE-KATALOG", (pid) => refreshOppgaveKatalog(utils.client, pid, uid)],
+          ["HMS-KATALOG", (pid) => refreshHmsKatalog(utils.client, pid, uid)],
         ];
         for (const pid of prosjektIder) {
           for (const [tag, pull] of katalogPulls) {
