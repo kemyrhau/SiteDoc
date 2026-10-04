@@ -242,8 +242,11 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // svaret (signaturer strippes i tjenesten). Ingen ekstra nettkall.
   useEffect(() => {
     if (sjekklisteQuery.isSuccess && sjekklisteQuery.data && userId) {
-      const d = sjekklisteQuery.data as { id?: string; projectId?: string };
-      if (d.id) lagreDokumentSpeil("sjekkliste", d.id, d.projectId ?? "", userId, sjekklisteQuery.data);
+      // projectId ligger nested (`template.projectId`), ikke top-level — uten dette
+      // lagres speilet med tom scope og «Forbered offline»-tellingen (per prosjekt) ser
+      // det aldri. Feltfunn 2026-10-04 (stille-tomhet).
+      const d = sjekklisteQuery.data as { id?: string; template?: { projectId?: string } };
+      if (d.id) lagreDokumentSpeil("sjekkliste", d.id, d.template?.projectId ?? "", userId, sjekklisteQuery.data);
     }
     // `dataUpdatedAt` (primitiv) i stedet for `sjekklisteQuery.data` i deps: den dype
     // tRPC-typen i deps-arrayen trigger TS2589, og tidsstempelet er en bedre trigger.
@@ -266,6 +269,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     erPaaNettet,
     serverBekreftet: sjekklisteQuery.isSuccess,
     erFeilet: sjekklisteQuery.isError,
+    erPauset: sjekklisteQuery.fetchStatus === "paused",
     harSpeil: !!speil,
   });
 

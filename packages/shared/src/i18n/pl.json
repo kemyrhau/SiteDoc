@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Właściwości ściany",
   "ifc.attributt.Pset_SlabCommon": "Właściwości płyty",
   "ifc.verdi.ja": "Tak",
-  "ifc.verdi.nei": "NIE"
+  "ifc.verdi.nei": "NIE",
+  "mer.offline.lagret": "Dokumenty {{dokumenter}} i rysunki {{tegninger}} zapisane w trybie offline",
+  "mer.offline.sistKlargjort": "· ostatnio przygotowane {{tid}}",
+  "mer.offline.ingentingLagret": "Nic nie zostało jeszcze zapisane do trybu offline"
 }

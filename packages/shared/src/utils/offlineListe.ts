@@ -82,6 +82,16 @@ export interface DokumentVisningInput {
   serverBekreftet: boolean;
   /** Feilet detalj-spørringen (react-query `isError`)? */
   erFeilet: boolean;
+  /**
+   * Er detalj-spørringen `paused` (react-query `fetchStatus === "paused"`)? Under
+   * `networkMode: "offlineFirst"` gjør en offline spørring ÉN forsøk, feiler, og PAUSER
+   * retry — den blir `paused`, IKKE `error`. Da er `erFeilet` false og `erPaaNettet` kan
+   * henge etter (NetInfo-startverdi true + «ingen CHANGE-event»-hull), så uten dette
+   * signalet spinner skjermen i et offline-vindu selv om speilet finnes. `paused` er det
+   * entydige «server er uråd nå»-signalet, og skiller offline-pause fra online-venting
+   * (`fetching`) — som Q5 bevisst holder på spinner.
+   */
+  erPauset: boolean;
   /** Finnes dokumentet i det bruker-filtrerte speilet? */
   harSpeil: boolean;
 }
@@ -94,9 +104,11 @@ export interface DokumentVisningValg {
 }
 
 export function velgDokumentVisning(i: DokumentVisningInput): DokumentVisningValg {
-  // Frakoblet = ikke bekreftet server-svar OG (uten nett ELLER feilet). Online-venting
-  // (på nett, ikke feilet, ikke bekreftet ennå) er bevisst UTE → skjermen spinner.
-  const frakoblet = !i.serverBekreftet && (!i.erPaaNettet || i.erFeilet);
+  // Frakoblet = ikke bekreftet server-svar OG (uten nett ELLER feilet ELLER pauset).
+  // `erPauset` fanger offlineFirst-tilstanden der spørringen hverken er feilet eller
+  // bekreftet, og lukker racet mot `erPaaNettet` (NetInfo-lag). Online-venting
+  // (`fetching`, på nett, ikke pauset/feilet/bekreftet) er fortsatt UTE → skjermen spinner (Q5).
+  const frakoblet = !i.serverBekreftet && (!i.erPaaNettet || i.erFeilet || i.erPauset);
   return {
     offlineModus: frakoblet && i.harSpeil,
     offlineIkkeLastet: frakoblet && !i.harSpeil,

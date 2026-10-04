@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Vlastnosti stěny",
   "ifc.attributt.Pset_SlabCommon": "Vlastnosti desky",
   "ifc.verdi.ja": "Ano",
-  "ifc.verdi.nei": "Žádný"
+  "ifc.verdi.nei": "Žádný",
+  "mer.offline.lagret": "{{dokumenter}} dokumentů a {{tegninger}} nákresů uložených pro režim offline",
+  "mer.offline.sistKlargjort": "· naposledy připraveno {{tid}}",
+  "mer.offline.ingentingLagret": "Zatím není nic uloženo pro režim offline"
 }

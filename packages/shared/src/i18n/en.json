@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Wall properties",
   "ifc.attributt.Pset_SlabCommon": "Slab properties",
   "ifc.verdi.ja": "Yes",
-  "ifc.verdi.nei": "No"
+  "ifc.verdi.nei": "No",
+  "mer.offline.lagret": "{{dokumenter}} documents and {{tegninger}} drawings saved for offline",
+  "mer.offline.sistKlargjort": " · last prepared {{tid}}",
+  "mer.offline.ingentingLagret": "Nothing saved for offline yet"
 }

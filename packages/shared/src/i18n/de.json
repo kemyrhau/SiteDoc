@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Wandeigenschaften",
   "ifc.attributt.Pset_SlabCommon": "Platteneigenschaften",
   "ifc.verdi.ja": "Ja",
-  "ifc.verdi.nei": "NEIN"
+  "ifc.verdi.nei": "NEIN",
+  "mer.offline.lagret": "{{dokumenter}} Dokumente und {{tegninger}} Zeichnungen offline gespeichert",
+  "mer.offline.sistKlargjort": "· zuletzt vorbereitet {{tid}}",
+  "mer.offline.ingentingLagret": "Es wurde noch nichts für den Offline-Modus gespeichert"
 }

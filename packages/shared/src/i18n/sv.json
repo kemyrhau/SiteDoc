@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Väggegenskaper",
   "ifc.attributt.Pset_SlabCommon": "Plattegenskaper",
   "ifc.verdi.ja": "Ja",
-  "ifc.verdi.nei": "Inga"
+  "ifc.verdi.nei": "Inga",
+  "mer.offline.lagret": "{{dokumenter}} dokument och {{tegninger}} ritningar sparade för offline",
+  "mer.offline.sistKlargjort": "· senast förberedd {{tid}}",
+  "mer.offline.ingentingLagret": "Inget sparat för offline ännu"
 }

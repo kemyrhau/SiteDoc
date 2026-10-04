@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Karakteristikat e murit",
   "ifc.attributt.Pset_SlabCommon": "Vetitë e pllakave",
   "ifc.verdi.ja": "po",
-  "ifc.verdi.nei": "Nr"
+  "ifc.verdi.nei": "Nr",
+  "mer.offline.lagret": "{{dokumenter}} dokumente dhe {{tegninger}} vizatime të ruajtura për jashtë linje",
+  "mer.offline.sistKlargjort": "· përgatitja e fundit {{tid}}",
+  "mer.offline.ingentingLagret": "Asgjë nuk është ruajtur ende për jashtë linje"
 }

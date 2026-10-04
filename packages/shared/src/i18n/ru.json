@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Свойства стены",
   "ifc.attributt.Pset_SlabCommon": "Свойства плиты",
   "ifc.verdi.ja": "Да",
-  "ifc.verdi.nei": "Нет"
+  "ifc.verdi.nei": "Нет",
+  "mer.offline.lagret": "Документы {{dokumenter}} и рисунки {{tegninger}} сохранены для автономного использования.",
+  "mer.offline.sistKlargjort": "· последний подготовленный {{tid}}",
+  "mer.offline.ingentingLagret": "Пока ничего не сохранено для офлайн-доступа."
 }

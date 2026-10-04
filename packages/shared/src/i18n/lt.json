@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Sienų savybės",
   "ifc.attributt.Pset_SlabCommon": "Plokštės savybės",
   "ifc.verdi.ja": "Taip",
-  "ifc.verdi.nei": "Nr"
+  "ifc.verdi.nei": "Nr",
+  "mer.offline.lagret": "{{dokumenter}} dokumentai ir {{tegninger}} piešiniai išsaugoti neprisijungus",
+  "mer.offline.sistKlargjort": "· paskutinį kartą ruoštas {{tid}}",
+  "mer.offline.ingentingLagret": "Dar nieko neišsaugota neprisijungus"
 }

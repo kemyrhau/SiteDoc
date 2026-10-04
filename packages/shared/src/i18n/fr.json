@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Propriétés des murs",
   "ifc.attributt.Pset_SlabCommon": "Propriétés de la dalle",
   "ifc.verdi.ja": "Oui",
-  "ifc.verdi.nei": "Non"
+  "ifc.verdi.nei": "Non",
+  "mer.offline.lagret": "{{dokumenter}} documents et {{tegninger}} dessins enregistrés pour une utilisation hors ligne",
+  "mer.offline.sistKlargjort": "· dernière préparation {{tid}}",
+  "mer.offline.ingentingLagret": "Rien n'a été enregistré pour le mode hors connexion pour l'instant"
 }

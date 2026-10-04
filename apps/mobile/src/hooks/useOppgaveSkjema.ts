@@ -226,8 +226,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   // svaret (signaturer strippes i tjenesten). Ingen ekstra nettkall.
   useEffect(() => {
     if (oppgaveQuery.isSuccess && oppgaveQuery.data && userId) {
-      const d = oppgaveQuery.data as { id?: string; projectId?: string };
-      if (d.id) lagreDokumentSpeil("oppgave", d.id, d.projectId ?? "", userId, oppgaveQuery.data);
+      // projectId ligger nested (`bestillerFaggruppe.projectId`, HMS-fallback `template.projectId`),
+      // ikke top-level — samme serversti som tilgangssjekkens `hentProsjektId`. Uten dette lagres
+      // speilet med tom scope og per-prosjekt-tellingen ser det aldri. Feltfunn 2026-10-04.
+      const d = oppgaveQuery.data as { id?: string; bestillerFaggruppe?: { projectId?: string } | null; template?: { projectId?: string } | null };
+      if (d.id) lagreDokumentSpeil("oppgave", d.id, d.bestillerFaggruppe?.projectId ?? d.template?.projectId ?? "", userId, oppgaveQuery.data);
     }
     // `dataUpdatedAt` (primitiv) i stedet for `oppgaveQuery.data` i deps: den dype
     // tRPC-typen i deps-arrayen trigger TS2589, og tidsstempelet er en bedre trigger.
@@ -248,6 +251,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     erPaaNettet,
     serverBekreftet: oppgaveQuery.isSuccess,
     erFeilet: oppgaveQuery.isError,
+    erPauset: oppgaveQuery.fetchStatus === "paused",
     harSpeil: !!speil,
   });
 

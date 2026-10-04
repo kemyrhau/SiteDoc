@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Seinän ominaisuudet",
   "ifc.attributt.Pset_SlabCommon": "Laatan ominaisuudet",
   "ifc.verdi.ja": "Kyllä",
-  "ifc.verdi.nei": "Ei"
+  "ifc.verdi.nei": "Ei",
+  "mer.offline.lagret": "{{dokumenter}} dokumenttia ja {{tegninger}} piirustusta tallennettu offline-käyttöön",
+  "mer.offline.sistKlargjort": "· valmisteltu viimeksi {{tid}}",
+  "mer.offline.ingentingLagret": "Mitään ei ole vielä tallennettu offline-käyttöön"
 }

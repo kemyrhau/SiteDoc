@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Sienu īpašības",
   "ifc.attributt.Pset_SlabCommon": "Plātņu īpašības",
   "ifc.verdi.ja": "Jā",
-  "ifc.verdi.nei": "Nē"
+  "ifc.verdi.nei": "Nē",
+  "mer.offline.lagret": "{{dokumenter}} dokumenti un {{tegninger}} zīmējumi saglabāti bezsaistē",
+  "mer.offline.sistKlargjort": "· pēdējo reizi sagatavots {{tid}}",
+  "mer.offline.ingentingLagret": "Vēl nekas nav saglabāts lietošanai bezsaistē"
 }

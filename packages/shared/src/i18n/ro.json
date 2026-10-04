@@ -4908,5 +4908,8 @@
   "ifc.attributt.Pset_WallCommon": "Proprietățile peretelui",
   "ifc.attributt.Pset_SlabCommon": "Proprietățile plăcii",
   "ifc.verdi.ja": "Da",
-  "ifc.verdi.nei": "Nu"
+  "ifc.verdi.nei": "Nu",
+  "mer.offline.lagret": "{{dokumenter}} documente și {{tegninger}} desene salvate pentru offline",
+  "mer.offline.sistKlargjort": "· ultima pregătire {{tid}}",
+  "mer.offline.ingentingLagret": "Nu s-a salvat încă nimic pentru offline"
 }
