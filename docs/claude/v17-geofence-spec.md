@@ -4,7 +4,7 @@ description: Spesifikasjon for V17 — byggeplassens lokasjon som sirkel (punkt+
 sist_verifisert_mot_kode: 2026-10-04
 versjon: v2.2 (2026-10-04) — v2 etter Kenneth (soner, karttegning, origo utledet); v2.2 etter gate-AVVIK (ingen linje-trasé i data, geometri-operasjoner navngitt, vern pr. objekt, selvkryssing avvises, sone-id utelatt, Polygon bærer id)
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: ⚠️ UTKAST TIL GATE — ingen kode-ordre før orkestrator har gatet
+status: 🟢 GATET 2026-10-04 (orkestrator, v2.2 — alle seks punkter fra gate v2.1 rettet). V17-A kan bestilles; V17-B venter på Kenneths valg av tegneverktøy-pakke; V17-D venter på valg av geometripakke
 ---
 
 # V17 — byggeplassens lokasjon: sirkel eller soner (polygon)
