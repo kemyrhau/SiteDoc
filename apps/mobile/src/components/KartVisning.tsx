@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 import { MapPin } from "lucide-react-native";
 
 // Fallback: Oslo sentrum
@@ -9,6 +10,7 @@ const STANDARD_POSISJON = {
 };
 
 export function KartVisning() {
+  const { t } = useTranslation();
   const [posisjon, setPosisjon] = useState(STANDARD_POSISJON);
   const [laster, setLaster] = useState(true);
   const [gpsStatus, setGpsStatus] = useState<string>("");
@@ -27,17 +29,17 @@ export function KartVisning() {
         const Location = await import("expo-location");
 
         // Be om tillatelse
-        setGpsStatus("Ber om tillatelse...");
+        setGpsStatus(t("kart.berOmTillatelse"));
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
           console.warn("[KART] GPS-tillatelse ikke gitt:", status);
-          setGpsStatus("GPS-tillatelse avslått");
+          setGpsStatus(t("kart.tillatelseAvslatt"));
           setLaster(false);
           return;
         }
 
         // Hent posisjon med timeout
-        setGpsStatus("Henter posisjon...");
+        setGpsStatus(t("kart.henterPosisjon"));
         const resultat = await Promise.race([
           Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
@@ -56,11 +58,11 @@ export function KartVisning() {
           setGpsStatus("");
         } else {
           console.warn("[KART] GPS timeout — bruker standardposisjon");
-          setGpsStatus("GPS utilgjengelig");
+          setGpsStatus(t("kart.gpsUtilgjengelig"));
         }
       } catch (feil) {
         console.warn("[KART] GPS feil:", feil instanceof Error ? feil.message : feil);
-        if (!avbrutt) setGpsStatus("GPS-feil");
+        if (!avbrutt) setGpsStatus(t("kart.gpsFeil"));
       } finally {
         if (!avbrutt) {
           setLaster(false);
@@ -73,14 +75,14 @@ export function KartVisning() {
     return () => {
       avbrutt = true;
     };
-  }, []);
+  }, [t]);
 
   if (laster) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-100">
         <ActivityIndicator size="large" color="#1e40af" />
         <Text className="mt-3 text-sm text-gray-500">
-          {gpsStatus || "Henter posisjon…"}
+          {gpsStatus || t("kart.henterPosisjon")}
         </Text>
       </View>
     );
@@ -90,7 +92,7 @@ export function KartVisning() {
     <View className="flex-1 items-center justify-center bg-gray-100">
       <MapPin size={48} color="#1e40af" />
       <Text className="mt-4 text-base font-medium text-gray-700">
-        Kartvisning
+        {t("kart.tittel")}
       </Text>
       <Text className="mt-1 text-sm text-gray-500">
         {posisjon.latitude.toFixed(4)}, {posisjon.longitude.toFixed(4)}
@@ -99,7 +101,7 @@ export function KartVisning() {
         <Text className="mt-2 text-xs text-amber-500">{gpsStatus}</Text>
       ) : null}
       <Text className="mt-4 px-8 text-center text-xs text-gray-400">
-        Fullt kart vises i development build (EAS Build).
+        {t("kart.devBuildInfo")}
       </Text>
     </View>
   );
