@@ -114,6 +114,8 @@ function lagForsonCtx(satsEnhet: string | null) {
   const tx = {
     dailySheet: { updateMany },
     sheetTimer: { update, create, findMany: vi.fn().mockResolvedValue([]) },
+    // V19 (A-5): forsonDagskort sletter forslaget i tx.
+    sheetTimerForslag: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
   };
   const transaction = vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
   const ctx = {

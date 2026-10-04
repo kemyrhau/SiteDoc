@@ -75,9 +75,12 @@ function lagCtx(opts: {
   const create = vi.fn().mockResolvedValue({ id: "ny-rad" });
   const updateMany = vi.fn().mockResolvedValue({ count: opts.touchCount ?? 1 });
   const txFindMany = vi.fn().mockResolvedValue(eksisterende);
+  // V19 (A-5): forsonDagskort sletter nå forslaget + nuller konfliktVentendeSiden i tx.
+  const forslagDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
   const tx = {
     dailySheet: { updateMany },
     sheetTimer: { update, create, findMany: txFindMany },
+    sheetTimerForslag: { deleteMany: forslagDeleteMany },
   };
   // Interaktiv form: $transaction(fn) kjører callbacken med tx-klienten og returnerer
   // resultatet. Kaster callbacken, propagerer feilen (ruller «tilbake» — her: ingen commit).
@@ -106,7 +109,7 @@ function lagCtx(opts: {
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
-  return { ctx, update, create, updateMany, transaction };
+  return { ctx, update, create, updateMany, transaction, forslagDeleteMany };
 }
 
 const rad = (o: Partial<MockRad> & { id: string }): MockRad => ({
@@ -214,14 +217,22 @@ describe("forsonDagskort — 🔴 atomisitet (gate 1): alle writes i ÉN $transa
     expect(create).toHaveBeenCalledTimes(1);
   });
 
-  it("alt valgt-server (tomme valg) → ingen $transaction, returnerer kortet som det står", async () => {
-    const { ctx, transaction, update, create } = lagCtx({
+  it("V19 (A-5): alt valgt-server (tomme valg) → ÉN $transaction som sletter forslaget + nuller feltet, ingen rad-write", async () => {
+    // Endret fra «ingen $transaction»: «behold PC for hele dagen» er et GYLDIG valg
+    // som fullfører forsoningen — forslaget må slettes og konfliktVentendeSiden nulles
+    // (ellers står invarianten brutt + attestering blokkert). Rør ikke radene.
+    const { ctx, transaction, update, create, updateMany, forslagDeleteMany } = lagCtx({
       status: "returned",
       eksisterende: [rad({ id: RAD1 })],
     });
     const caller = dagsseddelRouter.createCaller(ctx);
     const res = await caller.forsonDagskort({ sheetId: SHEET, oppdateringer: [], nyeRader: [] });
-    expect(transaction).not.toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledTimes(1);
+    // Status-betinget updateMany nuller konfliktVentendeSiden; forslaget slettes.
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(updateMany.mock.calls[0]![0].data).toMatchObject({ konfliktVentendeSiden: null });
+    expect(forslagDeleteMany).toHaveBeenCalledWith({ where: { sheetId: SHEET } });
+    // Ingen rad-endring.
     expect(update).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
     expect(res).toHaveLength(1);
