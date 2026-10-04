@@ -3,7 +3,7 @@ name: timer-overlapp-pc-mobil-spec
 description: Spesifikasjon for V19 — når en dagsseddel registrert på PC og en registrert på mobil for samme dag overlapper i tid, lagres mobilens rader som FORSLAG på serveren (egen tabell), arbeideren varsles og velger selv — på telefonen eller på PC — pr. tidsrom eller for hele dagen; attestanten ser begge versjonene lesbart og kan ikke attestere før valget er tatt. Kenneth-vedtak 2026-10-04 (b · V19.4 ja · V19.5 blokkert). v4. Skrevet av fabel, gates av orkestrator.
 sist_verifisert_mot_kode: 2026-10-04
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 GATET 2026-10-04 (orkestrator, v3). V19-A-ordren venter KUN på Kenneths svar på V19.4 (additiv sammenslåing uten overlapp) og V19.5 (blokkere vs. varsle attestering)
+status: ⚠️ UTKAST TIL GATE v4.1 (2026-10-05) — v4 gatet med ett vilkår (én tx med statusvakt i A-1a/A-1b), ført. Alle Kenneth-beslutninger tatt (b · V19.4 ja · V19.5 blokkert). Orkestrator setter GATET ved merge; V19-A-ordren går deretter
 ---
 
 # V19 — overlapp PC ↔ mobil på samme dag: forslaget lagres på serveren, arbeideren velger
@@ -83,20 +83,28 @@ sammenslåingen er blind for tid. Vedtaket snur ikke S2; det setter en port fora
   `finnOverlappMotServer(serverRader, payloadRader)` i `dagsseddel.ts` (eller `tidsromValidering.ts`) som bygger
   unionen av serverrader som overlever + payload og kaller `finnTidsromKonflikt` — **ingen av de to stedene skriver sin
   egen union.**
+  - **Én hjelpefunksjon `lagreOverlappForslag(tx, sheetId, payloadRader)`** brukes av BEGGE stedene, så statusvakten
+    finnes ett sted. Den gjør, i den tx-en kalleren alt står i: (1) `updateMany({ where: { id: sheetId, status: { notIn:
+    ["sent","accepted"] } }, data: { konfliktVentendeSiden: now } })` — **antall 0 = sedelen er låst → returner
+    `"laast"`** (§ 8.6: ingen forslag på låst sedel, ingen `konfliktVentendeSiden`); den betingede `updateMany` er både
+    statusvakt og radlås, samme mønster som `SedelAttestertConflict`-guarden og `forsonDagskort` · (2) `deleteMany` +
+    `createMany` på `SheetTimerForslag` for sedelen (idempotent erstatning) · (3) returner `"overlapp"`. **Ingen
+    `throw`, ingen egen feilklasse, ingen andre tx.**
   - **A-1a S2-handleren** (M11, `:5830-5870`): etter `findUnique(userId_dato)` har truffet en sedel med annen
-    `clientUuid`, les **dens** timer-rader og kjør hjelpefunksjonen mot `lokal.timer`. Treff → **i én tx:** slett
-    sedelens eksisterende forslag, `createMany` payload-radene som forslag (A-0), sett `konfliktVentendeSiden = now()`;
-    svar `conflict` med `aarsak: "overlapp"` + `serverData.clientUuid/id`. **`sheet_timer` urørt.** Ikke treff →
+    `clientUuid`: åpne én tx, les **dens** timer-rader via `tx`, kjør `finnOverlappMotServer` mot `lokal.timer`. Treff →
+    `lagreOverlappForslag(tx, …)` → `"overlapp"` → svar `conflict` med `aarsak: "overlapp"` + `serverData.clientUuid/id`;
+    `"laast"` → svar `conflict` med `aarsak: "laast"` (dagens server-wins). **`sheet_timer` urørt.** Ikke treff →
     `aarsak: "dato_kollisjon"` (V19.4 vedtatt: mobilen nøkler om og pusher additivt som i dag). **Dette er den
     vanligste saken** — dag ført på PC først.
   - **A-1b eksisterende-sedel-grenen** (etter en tidligere sammenslåing, eller samme enhet): web legger til en rad
-    ETTER merge, mobilen pusher igjen. 🔴 **Inni `$transaction`** (M12, TOCTOU): les de overlevende serverradene med
-    `tx` **etter `eksisterendeITx` og før `deleteMany`**; treff → kast `SedelOverlappConflict` (egen klasse, samme
-    mønster som `SedelAttestertConflict`) → tx ruller tilbake (**ingenting i `sheet_timer` skrives**) → `catch` skriver
-    forslaget i en **egen, kort tx** (slett + `createMany` + `konfliktVentendeSiden`, som A-1a) og svarer `conflict/
-    overlapp`. Forslaget skrives utenfor hoved-tx med vilje: hoved-tx MÅ rulle tilbake, forslaget MÅ bestå. En lesning
-    utenfor tx ville latt en web-rad lagt til mellom sjekk og skriving slippe gjennom — TOCTOU-klassen fra
-    `forsonDagskort` (lukket `9c7c1ad1`). **Idempotent:** ny push av samme forslag erstatter pr. sedel.
+    ETTER merge, mobilen pusher igjen. 🔴 **Inni den eksisterende `$transaction`** (M12), **rett etter `eksisterendeITx`
+    (`:5535`) og FØR header-skrivingen** (`create`/den status-betingede `updateMany` ~`:5578`): les de overlevende
+    serverradene via `tx`, kjør `finnOverlappMotServer`. Treff → `lagreOverlappForslag(tx, …)` i **samme tx** og
+    `return` en markør — **ingen header- eller radskriving fra payloaden, ingen `throw`**; `catch`-blokken berøres ikke.
+    `"laast"` fra hjelperen → markør `laast`. *(v4 kastet `SedelOverlappConflict` og skrev forslaget i en egen tx —
+    gate 2026-10-05: den andre tx-en hadde ingen statusvakt, så et forslag kunne lande på en sedel attestert i vinduet
+    mellom tilbakerullingen og forslags-tx-en — og låse den uten utvei. Én tx lukker det og er enklere.)* **Idempotent:**
+    ny push av samme forslag erstatter pr. sedel.
   - Ny-sedel-grenen er uendret (ingen server-rader å overlappe).
 - **A-2 `aarsak`-feltet** på `conflict`-resultatet: `"laast" | "nyere" | "dato_kollisjon" | "overlapp"` — i dag skilles
   grenene kun på `serverData.clientUuid !== clientUuid` (M3). Eksplisitt årsak gjør at mobilen aldri igjen må gjette fra
@@ -170,8 +178,10 @@ merger (skal: `conflict/overlapp` i S2-svaret, 0 rader i `sheet_timer`, **N rade
 `konfliktVentendeSiden` satt) · 1d. **Forslaget lekker:** en forslagsrad dukker opp i `beregnOvertidsgrunnlag`-input,
 `detaljEksport`, `hentEndringerSiden.timer` eller attesteringens radsett (grep-vakt + ende-til-ende) · 1e. Ny push av
 samme forslag dobler radene (skal: erstattes pr. sedel) · 1b. **Etter merge:** web legger til 12–14, mobil
-pusher 13–15 → skrives (skal: `SedelOverlappConflict` → rollback → `conflict/overlapp`) · 1c. **TOCTOU:** vakten i A-1b
-leser serverrader med en annen klient enn `tx` (grep-/typevakt: helperen tar `tx`, ikke `prismaTimer`) ·
+pusher 13–15 → payloadens header-felt eller rader skrives (skal: forslaget lagres, `sheet_timer` urørt, **header-feltene
+fra payloaden IKKE skrevet**, `conflict/overlapp`) · 1c. **TOCTOU:** vakten i A-1b
+leser serverrader med en annen klient enn `tx` (grep-/typevakt: `lagreOverlappForslag` og lesingen tar `tx`, ikke
+`prismaTimer`) ·
 2. PC 07–11 + mobil 12–15 (ingen overlapp) → `conflict` (skal: additiv merge som i dag, V19.4) ·
 3. Overlapp-vakten bruker en annen funksjon enn `finnTidsromKonflikt` (grep-vakt) ·
 4. `forsonDagskort` lykkes uten å nulle `konfliktVentendeSiden` **eller uten å slette forslaget** — også ved tomt
@@ -186,7 +196,9 @@ server** → den lokale sedelen er **fortsatt `conflict`** og mobilens rader **u
 serveren svarer `konfliktVentendeSiden = null, antallForslag = 0` → `synced`, rader erstattet; og en `laast`-konflikt
 slippes IKKE av samme pull · 12. **Eldre app** (uten `aarsak`-branch): første push → S2 lagrer forslag + conflict →
 eldre app nøkler om, pending → neste push → A-1b lagrer forslag igjen (idempotent) + conflict med lik `clientUuid` →
-vanlig konflikt, radene beskyttet; **ingen rad i `sheet_timer`** i noe steg.
+vanlig konflikt, radene beskyttet; **ingen rad i `sheet_timer`** i noe steg · **13. (§ 8.6, begge steder):** sedelen er
+`accepted` idet overlappsjekken treffer → svaret er `laast`, og det skrives **ingen** forslag og ingen
+`konfliktVentendeSiden` — i A-1a OG A-1b (den betingede `updateMany` gir 0).
 
 **Fasit-scenario A (telefon):** web 07:00–15:00 (7,5 t) + mobil 07:00–15:30 (8 t): push → forslag lagret, conflict/
 overlapp → banner → arbeideren velger «appen» for hele dagen på telefonen → `forsonDagskort` erstatter web-raden
@@ -215,8 +227,7 @@ ser 7,5 t (kun `sheet_timer`).
 5. **Eldre app etter valg på PC:** uten V19-B har den ingen V19.7b-slipp og blir stående i lokal `conflict` til den
    oppdateres (radene er trygge, forslaget er borte på server). Akseptert — OTA-oppdatering løser det; føres i
    FUNKSJONSENDRINGER.
-6. **Forslag på en LÅST sedel** (`sent`/`accepted` — modus C): A-1 lagrer forslaget og setter feltet selv om sedelen er
-   låst? Jeg sier **nei**: låst sedel → dagens server-wins-konflikt (`laast`), ingen forslag — forslaget ville ikke
+6. ~~Forslag på en LÅST sedel~~ — 🟢 **avgjort i gate 2026-10-05: nei** (statusvakten i `lagreOverlappForslag` gir `laast`). Begrunnelsen var: låst sedel → dagens server-wins-konflikt (`laast`), ingen forslag — forslaget ville ikke
    kunne velges (`forsonDagskort` avviser låst), og attestanten blokkeres ikke av noe hun alt har attestert. Gate det.
 4. **A-2 `aarsak` — eldre app (målt mot `timerSync.ts:259-290`, rettet etter gate):** eldre app ignorerer `aarsak`.
    Første svar (A-1a, `overlapp`) har `serverData.clientUuid ≠ lokal` → den nøkler om og setter `pending` (M3) → neste
