@@ -24,8 +24,8 @@ import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { hentByggeplasserForFirmaLokalt } from "../../src/services/byggeplassKatalog";
 import { finnEllerOpprettDagsseddel } from "../../src/services/dagsseddelOpprett";
 import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
-import { trpc } from "../../src/lib/trpc";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
+import { useProsjektListe } from "../../src/hooks/useProsjektListe";
 import { eq } from "drizzle-orm";
 
 type Prosjekt = { id: string; name: string; projectNumber: string | null };
@@ -65,15 +65,9 @@ export default function NyDagsseddelSide() {
   const [lagrer, setLagrer] = useState(false);
   const [geoForslagId, setGeoForslagId] = useState<string | null>(null);
 
-  // Hent prosjekter (online — for offline-bruk må klargjøring kjøres først)
-  const { data: prosjekterData } = trpc.prosjekt.hentMine.useQuery(
-    { organizationId: valgtFirmaId ?? undefined },
-    {
-      enabled: !!valgtFirmaId,
-      staleTime: 60 * 1000,
-    },
-  );
-  const prosjekter = (prosjekterData ?? []) as unknown as Prosjekt[];
+  // Prosjekter via delt hook med offline-fallback til prosjekt_local (feltfunn 2026-10-04):
+  // uten nett var lista tom og arbeideren kom ikke videre med manuell dagsseddel.
+  const { prosjekter } = useProsjektListe();
 
   // Hent aktive aktiviteter fra lokal cache (offline-trygt — uavhengig av org-id
   // siden hver bruker kun har sitt firmas data lokalt)

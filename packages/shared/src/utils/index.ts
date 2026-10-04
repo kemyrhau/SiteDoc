@@ -215,7 +215,7 @@ export {
 } from "./periode";
 export type { Periode, PeriodeHurtigvalg } from "./periode";
 export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
-export { velgOfflineListeKilde, velgDokumentVisning } from "./offlineListe";
+export { velgOfflineListeKilde, velgDokumentVisning, velgHjemProsjektVisning } from "./offlineListe";
 export type {
   OfflineListeKilde,
   OfflineListeTilstand,
@@ -223,6 +223,8 @@ export type {
   OfflineListeValg,
   DokumentVisningInput,
   DokumentVisningValg,
+  HjemProsjektVisning,
+  HjemProsjektInput,
 } from "./offlineListe";
 export {
   avledSjekklisteFremdrift,

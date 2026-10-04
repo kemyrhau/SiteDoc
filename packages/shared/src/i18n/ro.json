@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Nu",
   "mer.offline.lagret": "{{dokumenter}} documente și {{tegninger}} desene salvate pentru offline",
   "mer.offline.sistKlargjort": "· ultima pregătire {{tid}}",
-  "mer.offline.ingentingLagret": "Nu s-a salvat încă nimic pentru offline"
+  "mer.offline.ingentingLagret": "Nu s-a salvat încă nimic pentru offline",
+  "hjem.innboksKreverNett": "Inboxul necesită o conexiune",
+  "prosjektVelger.ingenOffline": "Niciun proiect salvat pentru offline"
 }

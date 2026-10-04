@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Nr",
   "mer.offline.lagret": "{{dokumenter}} dokumentai ir {{tegninger}} piešiniai išsaugoti neprisijungus",
   "mer.offline.sistKlargjort": "· paskutinį kartą ruoštas {{tid}}",
-  "mer.offline.ingentingLagret": "Dar nieko neišsaugota neprisijungus"
+  "mer.offline.ingentingLagret": "Dar nieko neišsaugota neprisijungus",
+  "hjem.innboksKreverNett": "Gautiesiems reikalingas ryšys",
+  "prosjektVelger.ingenOffline": "Nėra išsaugotų projektų neprisijungus"
 }

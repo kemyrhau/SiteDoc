@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Inga",
   "mer.offline.lagret": "{{dokumenter}} dokument och {{tegninger}} ritningar sparade för offline",
   "mer.offline.sistKlargjort": "· senast förberedd {{tid}}",
-  "mer.offline.ingentingLagret": "Inget sparat för offline ännu"
+  "mer.offline.ingentingLagret": "Inget sparat för offline ännu",
+  "hjem.innboksKreverNett": "Inkorgen kräver en anslutning",
+  "prosjektVelger.ingenOffline": "Inga projekt sparade för offline"
 }
