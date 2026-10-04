@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Platzieren Sie zunächst einen Marker auf der Zeichnung",
   "sperret.tilordneFaggruppe": "Geben Sie zuerst mindestens einem Gegenstand einen Tausch",
   "sperret.ryddValideringsfeil": "Beheben Sie zunächst die Fehler in der Liste",
-  "sperret.googleIkkeTilgjengelig": "Die Google-Anmeldung ist in dieser Version nicht verfügbar"
+  "sperret.googleIkkeTilgjengelig": "Die Google-Anmeldung ist in dieser Version nicht verfügbar",
+  "mer.offline.lagret": "{{dokumenter}} Dokumente und {{tegninger}} Zeichnungen offline gespeichert",
+  "mer.offline.sistKlargjort": "· zuletzt vorbereitet {{tid}}",
+  "mer.offline.ingentingLagret": "Es wurde noch nichts für den Offline-Modus gespeichert"
 }

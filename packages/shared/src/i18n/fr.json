@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Placez d'abord un marqueur sur le dessin",
   "sperret.tilordneFaggruppe": "Échangez d'abord au moins un objet",
   "sperret.ryddValideringsfeil": "Corrigez d'abord les erreurs dans la liste",
-  "sperret.googleIkkeTilgjengelig": "La connexion Google n'est pas disponible dans cette version"
+  "sperret.googleIkkeTilgjengelig": "La connexion Google n'est pas disponible dans cette version",
+  "mer.offline.lagret": "{{dokumenter}} documents et {{tegninger}} dessins enregistrés pour une utilisation hors ligne",
+  "mer.offline.sistKlargjort": "· dernière préparation {{tid}}",
+  "mer.offline.ingentingLagret": "Rien n'a été enregistré pour le mode hors connexion pour l'instant"
 }

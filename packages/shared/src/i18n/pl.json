@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Najpierw umieść znacznik na rysunku",
   "sperret.tilordneFaggruppe": "Najpierw wymień przynajmniej jeden przedmiot",
   "sperret.ryddValideringsfeil": "Najpierw napraw błędy na liście",
-  "sperret.googleIkkeTilgjengelig": "Logowanie przez Google nie jest dostępne w tej wersji"
+  "sperret.googleIkkeTilgjengelig": "Logowanie przez Google nie jest dostępne w tej wersji",
+  "mer.offline.lagret": "Dokumenty {{dokumenter}} i rysunki {{tegninger}} zapisane w trybie offline",
+  "mer.offline.sistKlargjort": "· ostatnio przygotowane {{tid}}",
+  "mer.offline.ingentingLagret": "Nic nie zostało jeszcze zapisane do trybu offline"
 }

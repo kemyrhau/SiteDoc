@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Vendosni fillimisht një shënues në vizatim",
   "sperret.tilordneFaggruppe": "Jepni së pari të paktën një artikull një tregtim",
   "sperret.ryddValideringsfeil": "Fillimisht rregulloni gabimet në listë",
-  "sperret.googleIkkeTilgjengelig": "Identifikimi në Google nuk ofrohet në këtë version"
+  "sperret.googleIkkeTilgjengelig": "Identifikimi në Google nuk ofrohet në këtë version",
+  "mer.offline.lagret": "{{dokumenter}} dokumente dhe {{tegninger}} vizatime të ruajtura për jashtë linje",
+  "mer.offline.sistKlargjort": "· përgatitja e fundit {{tid}}",
+  "mer.offline.ingentingLagret": "Asgjë nuk është ruajtur ende për jashtë linje"
 }

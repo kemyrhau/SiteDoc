@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Спочатку помістіть маркер на малюнок",
   "sperret.tilordneFaggruppe": "Спочатку обміняйте принаймні один предмет",
   "sperret.ryddValideringsfeil": "Спочатку виправте помилки в списку",
-  "sperret.googleIkkeTilgjengelig": "У цій версії вхід через Google недоступний"
+  "sperret.googleIkkeTilgjengelig": "У цій версії вхід через Google недоступний",
+  "mer.offline.lagret": "{{dokumenter}} документів і {{tegninger}} малюнків збережено для офлайн",
+  "mer.offline.sistKlargjort": "· востаннє підготовлено {{tid}}",
+  "mer.offline.ingentingLagret": "Ще нічого не збережено для офлайн"
 }

@@ -108,6 +108,32 @@ export function hentDokumentSpeil(
   }
 }
 
+/**
+ * Tell speil-dokumenter lagret for (userId, projectId) + nyeste `hentetAt`.
+ * Grunnlag for den VARIGE «hva er lagret for offline»-visningen på Mer (feltfunn A,
+ * 2026-10-04) — leses fra SQLite ved skjermfokus, ikke fra et flyktig useState.
+ * Teller begge dokumenttyper (sjekkliste + oppgave). `sistKlargjort` = null når tomt.
+ */
+export function tellDokumentSpeilForProsjekt(
+  userId: string,
+  projectId: string,
+): { antall: number; sistKlargjort: number | null } {
+  const db = hentDatabase();
+  if (!db || !userId || !projectId) return { antall: 0, sistKlargjort: null };
+
+  const rader = db
+    .select({ hentetAt: dokumentSpeil.hentetAt })
+    .from(dokumentSpeil)
+    .where(
+      and(eq(dokumentSpeil.userId, userId), eq(dokumentSpeil.projectId, projectId)),
+    )
+    .all();
+
+  if (rader.length === 0) return { antall: 0, sistKlargjort: null };
+  const sist = rader.reduce((m, r) => (r.hentetAt > m ? r.hentetAt : m), 0);
+  return { antall: rader.length, sistKlargjort: sist };
+}
+
 /* ---------------------------------------------------------------------------
  *  Forhånds-nedlasting («Forbered offline»)
  * ------------------------------------------------------------------------- */

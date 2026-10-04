@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Puneți mai întâi un marker pe desen",
   "sperret.tilordneFaggruppe": "Oferiți mai întâi cel puțin un articol",
   "sperret.ryddValideringsfeil": "Remediați mai întâi erorile din listă",
-  "sperret.googleIkkeTilgjengelig": "Conectarea la Google nu este disponibilă în această versiune"
+  "sperret.googleIkkeTilgjengelig": "Conectarea la Google nu este disponibilă în această versiune",
+  "mer.offline.lagret": "{{dokumenter}} documente și {{tegninger}} desene salvate pentru offline",
+  "mer.offline.sistKlargjort": "· ultima pregătire {{tid}}",
+  "mer.offline.ingentingLagret": "Nu s-a salvat încă nimic pentru offline"
 }

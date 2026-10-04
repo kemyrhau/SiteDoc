@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Kõigepealt asetage joonisele marker",
   "sperret.tilordneFaggruppe": "Tehke esmalt vähemalt üks kaup",
   "sperret.ryddValideringsfeil": "Parandage kõigepealt loendis olevad vead",
-  "sperret.googleIkkeTilgjengelig": "Google'i sisselogimine pole selles versioonis saadaval"
+  "sperret.googleIkkeTilgjengelig": "Google'i sisselogimine pole selles versioonis saadaval",
+  "mer.offline.lagret": "{{dokumenter}} dokumenti ja {{tegninger}} joonist on salvestatud võrguühenduseta kasutamiseks",
+  "mer.offline.sistKlargjort": "· viimati valmistati {{tid}}",
+  "mer.offline.ingentingLagret": "Midagi pole veel võrguühenduseta kasutamiseks salvestatud"
 }

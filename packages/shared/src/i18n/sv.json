@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Placera en markör på ritningen först",
   "sperret.tilordneFaggruppe": "Ge minst en vara en byte först",
   "sperret.ryddValideringsfeil": "Åtgärda felen i listan först",
-  "sperret.googleIkkeTilgjengelig": "Google-inloggning är inte tillgänglig i den här versionen"
+  "sperret.googleIkkeTilgjengelig": "Google-inloggning är inte tillgänglig i den här versionen",
+  "mer.offline.lagret": "{{dokumenter}} dokument och {{tegninger}} ritningar sparade för offline",
+  "mer.offline.sistKlargjort": "· senast förberedd {{tid}}",
+  "mer.offline.ingentingLagret": "Inget sparat för offline ännu"
 }

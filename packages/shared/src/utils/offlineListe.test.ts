@@ -85,34 +85,49 @@ describe("velgOfflineListeKilde", () => {
 });
 
 describe("velgDokumentVisning (enkeltdokument-detalj, fase 2)", () => {
-  it("🔴 AVVIK Q5: online + venter (isLoading) + speil finnes → IKKE offline-modus (spinner)", () => {
+  it("🔴 AVVIK Q5: online + venter (fetching) + speil finnes → IKKE offline-modus (spinner)", () => {
     // Rød uten fiksen: tidligere ga «lokal» for alt ikke-bekreftet, også online-venting.
     expect(
-      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: false, harSpeil: true }),
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: false, erPauset: false, harSpeil: true }),
     ).toEqual({ offlineModus: false, offlineIkkeLastet: false });
   });
 
   it("offline + speil → tvungen lesemodus", () => {
     expect(
-      velgDokumentVisning({ erPaaNettet: false, serverBekreftet: false, erFeilet: false, harSpeil: true }),
+      velgDokumentVisning({ erPaaNettet: false, serverBekreftet: false, erFeilet: false, erPauset: false, harSpeil: true }),
     ).toEqual({ offlineModus: true, offlineIkkeLastet: false });
   });
 
   it("offline + ingen speil → «ikke lastet ned» (ikke spinner)", () => {
     expect(
-      velgDokumentVisning({ erPaaNettet: false, serverBekreftet: false, erFeilet: false, harSpeil: false }),
+      velgDokumentVisning({ erPaaNettet: false, serverBekreftet: false, erFeilet: false, erPauset: false, harSpeil: false }),
     ).toEqual({ offlineModus: false, offlineIkkeLastet: true });
   });
 
   it("online + feilet query + speil → offline-modus (feilet teller som frakoblet)", () => {
     expect(
-      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: true, harSpeil: true }),
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: true, erPauset: false, harSpeil: true }),
     ).toEqual({ offlineModus: true, offlineIkkeLastet: false });
   });
 
   it("server bekreftet → aldri offline-modus (online-atferd uendret)", () => {
     expect(
-      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: true, erFeilet: false, harSpeil: true }),
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: true, erFeilet: false, erPauset: false, harSpeil: true }),
     ).toEqual({ offlineModus: false, offlineIkkeLastet: false });
+  });
+
+  // 🔴 FELTFUNN 2026-10-04 (rød uten erPauset-fiksen): offlineFirst gjør én forsøk, PAUSER retry.
+  // Query er `paused` (isLoading=true, isError=false), og erPaaNettet henger etter på NetInfo-startverdi
+  // true. Før fiksen: frakoblet=false → offlineModus=false → erLaster=true → EVIG SPINNER selv med speil.
+  it("paused query + erPaaNettet enda true + speil → offline-modus (lukker NetInfo-racet)", () => {
+    expect(
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: false, erPauset: true, harSpeil: true }),
+    ).toEqual({ offlineModus: true, offlineIkkeLastet: false });
+  });
+
+  it("paused query + erPaaNettet enda true + INGEN speil → «ikke lastet ned» (ikke evig spinner)", () => {
+    expect(
+      velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: false, erPauset: true, harSpeil: false }),
+    ).toEqual({ offlineModus: false, offlineIkkeLastet: true });
   });
 });

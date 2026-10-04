@@ -4836,5 +4836,8 @@
   "sperret.plasserMarkor": "Nejprve umístěte značku na výkres",
   "sperret.tilordneFaggruppe": "Nejprve obchodujte alespoň s jedním předmětem",
   "sperret.ryddValideringsfeil": "Nejprve opravte chyby v seznamu",
-  "sperret.googleIkkeTilgjengelig": "Přihlášení přes Google není v této verzi k dispozici"
+  "sperret.googleIkkeTilgjengelig": "Přihlášení přes Google není v této verzi k dispozici",
+  "mer.offline.lagret": "{{dokumenter}} dokumentů a {{tegninger}} nákresů uložených pro režim offline",
+  "mer.offline.sistKlargjort": "· naposledy připraveno {{tid}}",
+  "mer.offline.ingentingLagret": "Zatím není nic uloženo pro režim offline"
 }

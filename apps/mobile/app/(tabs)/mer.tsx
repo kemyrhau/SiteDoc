@@ -18,7 +18,7 @@ import {
   ClipboardCheck,
   Contact,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -32,7 +32,8 @@ import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { refreshSjekklisteKatalog, hentSjekklisterLokalt } from "../../src/services/sjekklisteKatalog";
 import { refreshOppgaveKatalog, hentOppgaverLokalt } from "../../src/services/oppgaveKatalog";
 import { refreshHmsKatalog, hentHmsLokalt } from "../../src/services/hmsKatalog";
-import { forhaandslastDokumenter, type ForhaandslastDokument } from "../../src/services/dokumentSpeil";
+import { forhaandslastDokumenter, tellDokumentSpeilForProsjekt, type ForhaandslastDokument } from "../../src/services/dokumentSpeil";
+import { erTegningCachet } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
 import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -46,6 +47,13 @@ export default function MerSkjerm() {
   const { valgtBygningId } = useByggeplass();
   const { pendingAntall, conflictAntall } = useTimerSync();
   const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
+  // Feltfunn A (2026-10-04): VARIG «hva er lagret for offline»-visning, lest fra SQLite/disk
+  // ved fokus — ikke den flyktige `offlineTekst` som forsvinner når fanen forlates.
+  const [lagretStatus, setLagretStatus] = useState<{
+    dokumenter: number;
+    tegninger: number;
+    sistKlargjort: number | null;
+  } | null>(null);
   const [visSpraakModal, setVisSpraakModal] = useState(false);
   const [visFirmaVelger, setVisFirmaVelger] = useState(false);
   const { valgtFirma, firmaer, valgtFirmaId } = useFirma();
@@ -73,6 +81,36 @@ export default function MerSkjerm() {
 
   const oppdaterSpraakMut = trpc.bruker.oppdaterSpraak.useMutation();
   const utils = trpc.useUtils();
+
+  // Les lagret-status fra varig lager (SQLite dokument-speil + disk-cachede tegninger)
+  // for valgt bruker + prosjekt. Kalles ved skjermfokus og etter klargjøring.
+  const oppdaterLagretStatus = useCallback(async () => {
+    if (!valgtProsjektId || !bruker?.id) {
+      setLagretStatus(null);
+      return;
+    }
+    const { antall, sistKlargjort } = tellDokumentSpeilForProsjekt(bruker.id, valgtProsjektId);
+    let tegninger = 0;
+    const liste = tegningerQuery.data as
+      | Array<{ fileUrl: string | null; fileType: string | null }>
+      | undefined;
+    if (liste) {
+      const cachet = await Promise.all(
+        liste
+          .filter((tg) => tg.fileUrl && (tg.fileType?.toLowerCase() ?? "") !== "ifc")
+          .map((tg) => erTegningCachet(tg.fileUrl as string)),
+      );
+      tegninger = cachet.filter(Boolean).length;
+    }
+    setLagretStatus({ dokumenter: antall, tegninger, sistKlargjort });
+  }, [valgtProsjektId, bruker?.id, tegningerQuery.data]);
+
+  // Oppdater ved hver skjermfokus — tallene leses på nytt fra lager, ikke fra minnet.
+  useFocusEffect(
+    useCallback(() => {
+      oppdaterLagretStatus();
+    }, [oppdaterLagretStatus]),
+  );
 
   const startOffline = useCallback(async () => {
     if (!tegningerQuery.data) {
@@ -136,12 +174,15 @@ export default function MerSkjerm() {
           tillegg: listeTekst,
         }),
       );
+      // Oppdater den varige lagret-visningen med én gang klargjøringen er ferdig.
+      void oppdaterLagretStatus();
       setTimeout(() => setOfflineTekst(null), 4000);
     } catch (err) {
+      // Feilen BLIR STÅENDE (ingen auto-tømming) til neste klargjøringsforsøk — feltfunn A.
       setOfflineTekst(t("mer.offline.feil", { melding: err instanceof Error ? err.message : String(err) }));
-      setTimeout(() => setOfflineTekst(null), 5000);
+      void oppdaterLagretStatus();
     }
-  }, [t, tegningerQuery.data, valgtProsjektId, bruker?.id, utils.client]);
+  }, [t, tegningerQuery.data, valgtProsjektId, bruker?.id, utils.client, oppdaterLagretStatus]);
 
   const velgSpraak = useCallback(async (kode: SpraakKode) => {
     setVisSpraakModal(false);
@@ -255,6 +296,25 @@ export default function MerSkjerm() {
           {/* Handling, ikke navigasjon: kjører offline-klargjøring inline og
               viser resultatet i radteksten. Chevron skjules — raden går ingen steder. */}
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} visChevron={false} />
+          {/* Varig lagret-status — leses fra SQLite/disk ved fokus (feltfunn A). Lar Kenneth
+              se på forhånd om det han vil åpne i felt faktisk er lagret. */}
+          {lagretStatus && (
+            <View className="border-b border-gray-100 bg-white px-4 pb-2.5 pt-0.5">
+              <Text className="text-xs text-gray-500">
+                {lagretStatus.dokumenter === 0 && lagretStatus.tegninger === 0
+                  ? t("mer.offline.ingentingLagret")
+                  : t("mer.offline.lagret", {
+                      dokumenter: lagretStatus.dokumenter,
+                      tegninger: lagretStatus.tegninger,
+                    }) +
+                    (lagretStatus.sistKlargjort
+                      ? t("mer.offline.sistKlargjort", {
+                          tid: new Date(lagretStatus.sistKlargjort).toLocaleString(),
+                        })
+                      : "")}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Firma — kun synlig ved multi-firma-medlemskap */}
