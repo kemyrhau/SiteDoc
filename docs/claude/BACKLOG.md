@@ -54,6 +54,15 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🔴 OVERLAPP PC ↔ MOBIL PÅ SAMME DAG LAGRES DOBBELT — Kenneth-vedtak 2026-10-04: ARBEIDEREN VELGER
+
+**Målt (orkestrator 2026-10-04):** ved dato-kollisjon (S2, `dagsseddel.ts` ~`:5838` → `timerSync.ts:259-267`) slås mobilens rader
+**additivt** inn på web-sedelen. Overlapp-vakten `finnTidsromKonflikt` (`dagsseddel.ts` ~`:5442`) sjekker kun mobilens payload,
+ikke server-radene → PC 07–15 + mobil 07–15 = 16 t lagret, bare AML-varselet (>13 t) slår ut. **Feil lønn mulig.**
+🟢 **Kenneth 2026-10-04:** *«den ansatte skal varsles → kunne lese begge og velge selv hvem som vinner»* — avviste flagg-til-attestant,
+avvis-synk og dagens stille sammenslåing. Bygger på «sammenlign dagskort» (`e4866f8d`) + `forsonDagskort` (`9c7c1ad1`).
+**Hos fabel for spec** (timer-planen). ❓ Uavklart: om ikke-overlappende rader fortsatt slås sammen additivt (orkestrators tolkning: ja).
+
 ### 🟡 HARDKODET NORSK I MOBIL — neste sveip (målt av redesign 2026-10-04, `fix/mobil-i18n-sveip`)
 
 🟢 **`mer.tsx` er ryddet** (`734ad1ea`: 17 nøkler, tre foreldreløse `annotering.*` slettet). **Gjenstår, målt:**
