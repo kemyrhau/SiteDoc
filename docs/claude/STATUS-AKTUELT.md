@@ -71,9 +71,9 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `8492b66c` | 🟡 **RETUR 2 sendt 2026-10-03 — Kenneth-vedtak «Excel → fast»** (L2-Cs kolonner alltid i Excel, dynamisk på skjerm). AML-varsel: behold. Ny hash → diff-gate → merge |
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `8492b66c` → så `feat/v19c-overlapp-web` | 🟡 L2-C retur 2 (faste Excel-kolonner) pågår; deretter **V19-C** (`relay/inbox-dokgen-v19c-web.md`) |
 | **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f`. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
-| **Plan** | redesign | `SiteDoc-redesign` | `feat/v19a-overlapp-server` (ny) | 🟡 **Ordre skrevet 2026-10-05** — V19-A server: `SheetTimerForslag`, vakt på unionen, attester-blokk (`relay/inbox-redesign-v19a-server.md`). Spec v4.1 GATET `4806c0b0`. Offline-inngang merget `54f7ccb2` (venter OTA + test) |
+| **Plan** | redesign | `SiteDoc-redesign` | `feat/v19b-overlapp-mobil` (ny) | 🟡 **V19-A MERGET `73fe99c0` ← `775246c2` 2026-10-05** (kontrollør GATET; typecheck 11/11 · web build 0 · 7/7 --force 22s · api 715 · shared 1066). 🔴 Migrering `20261005120000_v19_overlapp_forslag` IKKE kjørt (Kenneth, test). Ordre V19-B skrevet (`relay/inbox-redesign-v19b-mobil.md`) |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
