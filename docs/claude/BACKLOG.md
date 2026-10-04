@@ -59,8 +59,7 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 🟢 **`mer.tsx` er ryddet** (`734ad1ea`: 17 nøkler, tre foreldreløse `annotering.*` slettet). **Gjenstår, målt:**
 `logg-inn.tsx:54` · `psi/[psiId].tsx` (3 `Alert` + signatur-HTML) · `IfcViewer.tsx:36-60` (~15 IFC-etiketter) ·
 `KartVisning.tsx:34`. PSI og IfcViewer er de største. **Ikke bestilt.**
-❓ **Produktspørsmål til Kenneth:** «Skriv ut» og «Eksporter» under Mer → prosjekt viser kun «kommer snart» (`mer.tsx`).
-Skal knappene finnes før funksjonen gjør det?
+🟢 **Kenneth 2026-10-04: «fjern knappene»** («Skriv ut»/«Eksporter» under Mer → prosjekt). Bestilt sammen med sveip 2 (`fix/mobil-i18n-sveip2`).
 
 ### 🟡 TRE SMÅFUNN FRA V17-MÅLINGEN (kontrollplan 2026-10-03, `docs/claude/maaling-v17-geofence-2026-10-03.md` § 8)
 
