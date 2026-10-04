@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { Prisma } from "@sitedoc/db-timer";
+import { Prisma, type PrismaClient as PrismaClientTimer } from "@sitedoc/db-timer";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { signerHvisPrivat } from "../../utils/hmac";
@@ -293,6 +293,142 @@ function jsonEllerNull(
   v: unknown,
 ): Prisma.InputJsonValue | typeof Prisma.DbNull {
   return v == null ? Prisma.DbNull : (v as Prisma.InputJsonValue);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+//  V19 (overlapp PC ↔ mobil, Kenneth 2026-10-04 «b») — serverens vakt.
+//  Spec timer-overlapp-pc-mobil-spec.md § 3 A-1. ÉN overlapp-regel og ÉN
+//  forslags-skriving, så de to stedene flyten møter server-rader (A-1a
+//  S2-handleren og A-1b eksisterende-sedel-grenen) aldri bygger hver sin union
+//  eller sin egen statusvakt.
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Mobilens payload-rad, redusert til det forslags-speilet trenger å bære. */
+type OverlappPayloadRad = {
+  id: string;
+  projectId?: string | null;
+  byggeplassId?: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  fraTid?: string | null;
+  tilTid?: string | null;
+  timer: number;
+  pauseMin?: number | null;
+  beskrivelse?: string | null;
+  externalCostObjectId?: string | null;
+  vehicleId?: string | null;
+  erReise?: boolean;
+  reiseRetning?: "ut" | "retur" | null;
+  reiseOppmotestedId?: string | null;
+  reiseKjoretidMin?: number | null;
+  reiseAvstandM?: number | null;
+  reiseKilde?: "matrise" | "manuell" | null;
+  reiseRegel?: unknown;
+  tidKilde?: "stempel" | "utledet" | "manuell" | null;
+};
+
+/**
+ * V19.7 — overlapp mellom mobilens rader og serverradene som OVERLEVER, avgjort av
+ * den eksisterende `finnTidsromKonflikt` på UNIONEN (ingen ny kopi). Begge sider er
+ * alt internt validert (payload ved SYNC-2 `:5441`, serverrader ved sine skrive-
+ * stier), så et «overlapp»-treff i unionen er pr. definisjon et KRYSS (payload ×
+ * server). Tid-løse rader hoppes over som i dag (reise før V8).
+ */
+function finnOverlappMotServer(
+  serverRader: readonly { fraTid: string | null; tilTid: string | null }[],
+  payloadRader: readonly { fraTid?: string | null; tilTid?: string | null }[],
+): boolean {
+  const konflikt = finnTidsromKonflikt([...serverRader, ...payloadRader]);
+  return konflikt?.type === "overlapp";
+}
+
+/**
+ * V19.1/§8.6 — skriv mobilens payload som FORSLAG (ikke på sheet_timer) i den tx-en
+ * kalleren alt står i. Den status-betingede `updateMany` er BÅDE statusvakt og
+ * radlås (samme mønster som `SedelAttestertConflict`-guarden `:5596` og
+ * `forsonDagskort` `:2032`): 0 rader truffet ⇒ sedelen er låst (`sent`/`accepted`)
+ * ⇒ returner `"laast"` UTEN å skrive noe (ingen forslag, ingen `konfliktVentendeSiden`
+ * på en låst sedel). Ellers: idempotent erstatning av forslaget pr. sedel + `"overlapp"`.
+ * INGEN `throw`, ingen egen feilklasse, ingen annen tx (v4.1 — én tx lukker
+ * TOCTOU-vinduet den forkastede to-tx-varianten hadde).
+ */
+async function lagreOverlappForslag(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  payloadRader: readonly OverlappPayloadRad[],
+  sedelProjectId: string | null,
+): Promise<"overlapp" | "laast"> {
+  const laast = await tx.dailySheet.updateMany({
+    where: { id: sheetId, status: { notIn: ["sent", "accepted"] } },
+    data: { konfliktVentendeSiden: new Date() },
+  });
+  if (laast.count === 0) {
+    // Låst sedel → dagens server-wins (`laast`), ingen forslag, ingen felt satt.
+    return "laast";
+  }
+
+  // Idempotent erstatning pr. sedel: ny push av samme forslag dobler ikke radene.
+  await tx.sheetTimerForslag.deleteMany({ where: { sheetId } });
+  if (payloadRader.length > 0) {
+    await tx.sheetTimerForslag.createMany({
+      data: payloadRader.map((r) => ({
+        // id = mobilens rad-id (idempotent erstatning). projectId resolveres som
+        // i radProsjekt (rad-nivå ?? sedel-nivå); upstream-validering (`:5390`)
+        // garanterer at minst én er satt når vi når hit.
+        id: r.id,
+        sheetId,
+        projectId: (r.projectId ?? sedelProjectId)!,
+        byggeplassId: r.byggeplassId ?? null,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        fraTid: r.fraTid ?? null,
+        tilTid: r.tilTid ?? null,
+        timer: r.timer,
+        pauseMin: r.pauseMin ?? 0,
+        beskrivelse: r.beskrivelse ?? null,
+        externalCostObjectId: r.externalCostObjectId ?? null,
+        vehicleId: r.vehicleId ?? null,
+        // Lag 2-sporet lagres slik mobilen sendte det (ingen C2/C3-kontroll —
+        // forslaget er ikke lønnsdata; forsonDagskort re-utleder reise ved valget).
+        erReise: r.erReise ?? false,
+        reiseRetning: r.reiseRetning ?? null,
+        reiseOppmotestedId: r.reiseOppmotestedId ?? null,
+        reiseKjoretidMin: r.reiseKjoretidMin ?? null,
+        reiseAvstandM: r.reiseAvstandM ?? null,
+        reiseKilde: r.reiseKilde ?? null,
+        reiseRegel: jsonEllerNull(r.reiseRegel),
+        tidKilde: r.tidKilde ?? null,
+        kilde: "mobil",
+      })),
+    });
+  }
+  return "overlapp";
+}
+
+/**
+ * V19.5 (A-4) — attester-vakt. Attesteringen BLOKKERES så lenge en sedel har en
+ * uavklart overlapp (`konfliktVentendeSiden` satt / forslag finnes). Lederen ser
+ * forslaget og blokkeringen (C-2); utveien er retur, aldri attestering av et sett
+ * arbeideren ikke har valgt. Delt helper begge attesteringsveiene kaller (M13:
+ * `attesterRader` og `attester`), FØR `status: "accepted"` skrives — så regelen
+ * finnes ett sted og kan ikke divergere.
+ */
+async function krevIngenUavklartOverlapp(
+  prismaTimer: PrismaClientTimer,
+  sheetIds: readonly string[],
+): Promise<void> {
+  if (sheetIds.length === 0) return;
+  const uavklart = await prismaTimer.dailySheet.findFirst({
+    where: { id: { in: Array.from(sheetIds) }, konfliktVentendeSiden: { not: null } },
+    select: { id: true },
+  });
+  if (uavklart) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "Arbeideren har en uavklart overlapp mellom PC og mobil — avvent eller returner sedelen",
+    });
+  }
 }
 
 /** En synket timer-rad, redusert til feltene reise-behandlingen leser. */
@@ -1234,7 +1370,7 @@ export const dagsseddelRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
-      const [aktivitet, timer, tillegg, maskiner, utlegg] = await Promise.all([
+      const [aktivitet, timer, tillegg, maskiner, utlegg, forslag] = await Promise.all([
         sheet.aktivitetId
           ? ctx.prismaTimer.aktivitet.findUnique({ where: { id: sheet.aktivitetId } })
           : Promise.resolve(null),
@@ -1256,6 +1392,13 @@ export const dagsseddelRouter = router({
         ctx.prismaTimer.sheetUtlegg.findMany({
           where: { sheetId: sheet.id },
           orderBy: { createdAt: "asc" },
+        }),
+        // V19 (A-7): forslaget (mobilens overlappende rader) til EIEREN, så
+        // sammenligningen på web (C-1) og mobil (M6) viser samme kilde. Dette er
+        // ett av KUN to stedene forslaget leses — aldri en lønnsleser (M15).
+        ctx.prismaTimer.sheetTimerForslag.findMany({
+          where: { sheetId: sheet.id },
+          orderBy: { mottattAt: "asc" },
         }),
       ]);
       // T.1 (2026-05-11): DailySheet har ikke projectId. Bruk første rad som proxy.
@@ -1317,6 +1460,9 @@ export const dagsseddelRouter = router({
         utlegg: utleggMedVedlegg,
         prosjekt,
         manglerMaskinforerbevis,
+        // V19 (A-7): forslaget + konfliktVentendeSiden (fra ...sheet). Eieren
+        // velger mellom PC og mobil (C-1); tomt array når ingen overlapp venter.
+        forslag,
       };
     }),
 
@@ -1879,10 +2025,29 @@ export const dagsseddelRouter = router({
 
       const alleRader = [...input.oppdateringer, ...input.nyeRader];
       if (alleRader.length === 0) {
-        // Alt valgt-server → kortet er alt det ene settet. Returner som det står.
-        return ctx.prismaTimer.sheetTimer.findMany({
-          where: { sheetId: input.sheetId },
-          orderBy: { createdAt: "asc" },
+        // Alt valgt-server / «behold PC for hele dagen» → ingen rad-endring. Men
+        // forsoningen ER fullført: V19 (A-5) krever at forslaget slettes og
+        // konfliktVentendeSiden nulles — ellers står invarianten (felt ⇔ forslag)
+        // brutt og attesteringen forblir blokkert. Dagens tidlige `return` (ren
+        // findMany) måtte derfor inn i tx-en. Samme status-betingede updateMany
+        // som den fulle veien (TOCTOU: en sedel attestert i vinduet gir count 0).
+        return ctx.prismaTimer.$transaction(async (tx) => {
+          const laast = await tx.dailySheet.updateMany({
+            where: { id: input.sheetId, status: { in: [...REDIGERBARE_STATUSER] } },
+            data: { updatedAt: new Date(), konfliktVentendeSiden: null },
+          });
+          if (laast.count === 0) {
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message:
+                "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
+            });
+          }
+          await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
+          return tx.sheetTimer.findMany({
+            where: { sheetId: input.sheetId },
+            orderBy: { createdAt: "asc" },
+          });
         });
       }
 
@@ -2031,7 +2196,11 @@ export const dagsseddelRouter = router({
       return ctx.prismaTimer.$transaction(async (tx) => {
         const laast = await tx.dailySheet.updateMany({
           where: { id: input.sheetId, status: { in: [...REDIGERBARE_STATUSER] } },
-          data: { updatedAt: new Date() },
+          // V19 (A-3/A-5): forsoningen avslutter overlappen → null
+          // konfliktVentendeSiden i SAMME tx som forslaget slettes (invariant:
+          // felt ⇔ forslag). Alltid trygt å nulle — var det ingen overlapp, var
+          // feltet alt null.
+          data: { updatedAt: new Date(), konfliktVentendeSiden: null },
         });
         if (laast.count === 0) {
           throw new TRPCError({
@@ -2059,10 +2228,27 @@ export const dagsseddelRouter = router({
             ),
           });
         }
-        return tx.sheetTimer.findMany({
+        // V19 (A-5): forslaget er anvendt → slett det i samme tx.
+        await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
+        const forsonet = await tx.sheetTimer.findMany({
           where: { sheetId: input.sheetId },
           orderBy: { createdAt: "asc" },
         });
+        // V19 (A-5, vakt): forsoningen skal ALDRI etterlate en overlapp. Dette er
+        // sluttsettet (alle rad-writes committet i tx-en over) — kjør den delte
+        // regelen og kast (ruller tx tilbake) hvis den brøt. Et halvt anvendt valg
+        // som gjeninnfører overlappen er verre enn å avvise.
+        const sluttKonflikt = finnTidsromKonflikt(
+          forsonet.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid })),
+        );
+        if (sluttKonflikt?.type === "overlapp") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Valget etterlater to overlappende tidsrom på dagsseddelen. Velg én side pr. tidsrom.",
+          });
+        }
+        return forsonet;
       });
     }),
 
@@ -3118,7 +3304,7 @@ export const dagsseddelRouter = router({
       // T.1 (2026-05-11): Hent rader først for å få projectId (per rad-nivå).
       // Bruker første rad som proxy for autorisering (PR 2A — full per-rad-auth
       // kommer i senere PR per T.3).
-      const [timer, tillegg, maskiner] = await Promise.all([
+      const [timer, tillegg, maskiner, forslag] = await Promise.all([
         // Filtrer ut "erstattet"-rader (audit-spor fra rediger-mutasjoner).
         ctx.prismaTimer.sheetTimer.findMany({
           where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
@@ -3131,6 +3317,14 @@ export const dagsseddelRouter = router({
         ctx.prismaTimer.sheetMachine.findMany({
           where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
           orderBy: { createdAt: "asc" },
+        }),
+        // V19 (A-7, C-2): forslaget LESES av attestanten — vist side om side med
+        // radene, men ALDRI valgt eller attestert (V19.5). Attester-knappen er
+        // blokkert av konfliktVentendeSiden (fra ...sheet). Andre av KUN to
+        // forslags-lesere (M15).
+        ctx.prismaTimer.sheetTimerForslag.findMany({
+          where: { sheetId: sheet.id },
+          orderBy: { mottattAt: "asc" },
         }),
       ]);
       const projectId =
@@ -3264,6 +3458,9 @@ export const dagsseddelRouter = router({
         // ORDRE 2 STEG 3 ledd 2: uke-nivå overtidsgrunnlag (norm/ord/overtid)
         // for D2-banneret. null når org mangler eller ingen rader.
         ukeOvertidsgrunnlag,
+        // V19 (A-7/C-2): forslaget lederen SER (ikke velger) + konfliktVentendeSiden
+        // (fra ...sheet) som blokkerer attester-knappen. Tomt når ingen overlapp.
+        forslag,
       };
     }),
 
@@ -3445,6 +3642,11 @@ export const dagsseddelRouter = router({
 
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
+
+      // V19.5 (A-4): attesteringen blokkeres mens en sedel har uavklart overlapp
+      // (PC ↔ mobil). Gjelder også delvis rad-attestering — ingen del av en sedel
+      // med ventende valg skal attesteres. Delt helper (samme i `attester`).
+      await krevIngenUavklartOverlapp(ctx.prismaTimer, uniqueSheetIds);
 
       // ORDRE 2 STEG 1 — uke-nivå overtidsgrunnlag per sedel (etterprøvbart
       // snapshot). Cache per (bruker + uke) så samme uke ikke beregnes flere
@@ -4547,6 +4749,10 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // V19.5 (A-4): samme overlapp-blokk som attesterRader (denne er thin-wrapper,
+      // men vakten speiles her så begge veiene er dekket — M13).
+      await krevIngenUavklartOverlapp(ctx.prismaTimer, [input.id]);
+
       const [timer, tillegg, maskin] = await Promise.all([
         ctx.prismaTimer.sheetTimer.findMany({
           where: { sheetId: input.id, attestertStatus: "pending" },
@@ -4823,6 +5029,22 @@ export const dagsseddelRouter = router({
         utleggVedleggPerRad.set(v.sheetUtleggId, liste);
       }
 
+      // V19 (A-7, V19.7b): KUN antall forslag pr. sedel — ALDRI forslags-radene i
+      // pull-responsen (M15: ingen lønnsleser ser forslaget). Sammen med
+      // konfliktVentendeSiden på hodet lar dette mobilens pull-vakt (B-3b) skille
+      // «valget tatt på PC» (felt=null ∧ antall=0) fra en ventende overlapp.
+      const forslagPerSedel = new Map<string, number>();
+      if (sedler.length > 0) {
+        const forslagTellinger = await ctx.prismaTimer.sheetTimerForslag.groupBy({
+          by: ["sheetId"],
+          where: { sheetId: { in: sedler.map((s) => s.id) } },
+          _count: { _all: true },
+        });
+        for (const t of forslagTellinger) {
+          forslagPerSedel.set(t.sheetId, t._count._all);
+        }
+      }
+
       return {
         serverTid: new Date().toISOString(),
         // ORDRE 1a: intervallet id-settet gjelder for + de levende sedlene i det.
@@ -4847,6 +5069,11 @@ export const dagsseddelRouter = router({
           beskrivelse: s.beskrivelse,
           lederKommentar: s.lederKommentar,
           attestertVed: s.attestertVed?.toISOString() ?? null,
+          // V19 (A-7, V19.7b): overlapp-tilstand på HODET (aldri radene). Mobilen
+          // slipper lokal conflict KUN når konfliktVentendeSiden=null ∧
+          // antallForslag=0 (valget tatt på PC); ellers består M8.
+          konfliktVentendeSiden: s.konfliktVentendeSiden?.toISOString() ?? null,
+          antallForslag: forslagPerSedel.get(s.id) ?? 0,
           // LAG 2 (L2-B TILLEGG 1): norm-sporet følger sedelen tilbake til mobil,
           // så en pull ikke sletter normStatus/normSnapshot telefonen skrev.
           normStatus: s.normStatus,
@@ -5136,6 +5363,11 @@ export const dagsseddelRouter = router({
       type ResultatRad = {
         clientUuid: string;
         resultat: "ok" | "conflict" | "avvist" | "feilet";
+        // A-2 (V19): eksplisitt årsak på conflict — mobilen skal aldri igjen
+        // gjette fra identitet (M3). "overlapp" → forslag lagret, velg; "laast"/
+        // "nyere" → server-wins; "dato_kollisjon" → re-nøkle + additiv push (V19.4).
+        // Valgfritt → eldre klient ignorerer feltet (A-2, § 8.4).
+        aarsak?: "laast" | "nyere" | "dato_kollisjon" | "overlapp";
         serverData?: {
           id: string;
           // Synk-identitet (2026-07-11): server-sedelens clientUuid. Kun satt på
@@ -5523,7 +5755,15 @@ export const dagsseddelRouter = router({
           // T.1 (2026-05-11): projectId/byggeplassId lagres på rad-nivå.
           // Mobil sender fortsatt lokal.projectId på sedel-nivå inntil mobil-PR
           // er ute — vi propagerer den til alle rader her.
-          const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
+          // Tx-resultatet er enten den skrevne sedelen (`ok`) eller — ved V19-
+          // overlapp — en markør (`overlapp`) om at forslaget ble lagret og
+          // header/rader IKKE skrevet. A-1b håndteres HER inni tx-en (ikke som
+          // en egen tx), så statusvakten i lagreOverlappForslag ligger innenfor
+          // samme grense som rad-skrivingen (v4.1-rettelsen).
+          type SyncTxResultat =
+            | { slag: "ok"; sedel: Awaited<ReturnType<typeof ctx.prismaTimer.dailySheet.findUniqueOrThrow>> }
+            | { slag: "overlapp"; aarsak: "overlapp" | "laast" };
+          const txResultat: SyncTxResultat = await ctx.prismaTimer.$transaction(async (tx) => {
             // 2b (2026-07-16, TOCTOU-fiks): accepted-vakten (over) leser
             // `eksisterende` 277 linjer / 8+ await FØR denne tx. En leder som
             // attesterer i det vinduet ble ellers stille overskrevet
@@ -5536,6 +5776,38 @@ export const dagsseddelRouter = router({
               where: { clientUuid: lokal.clientUuid },
               select: { id: true },
             });
+
+            // A-1b (V19.7) — overlapp-vakt på UNIONEN, inni tx-en, rett etter
+            // eksisterendeITx og FØR header-skrivingen. Kun en EKSISTERENDE sedel
+            // kan ha server-rader å overlappe (ny-sedel-grenen har ingen). De
+            // OVERLEVENDE serverradene = de payloaden verken erstatter (samme id)
+            // eller sletter (slettedeIder); post-state = overlevende ∪ payload.
+            // Treff → lagreOverlappForslag i SAMME tx + markør; ingen header-/
+            // radskriving fra payloaden (catch-blokken berøres ikke). Idempotent.
+            if (eksisterendeITx) {
+              const erstattet = new Set<string>([
+                ...lokal.timer.map((t) => t.id),
+                ...(lokal.slettedeIder?.timer ?? []),
+              ]);
+              const overlevendeServerRader = await tx.sheetTimer.findMany({
+                where: {
+                  sheetId: eksisterendeITx.id,
+                  ...(erstattet.size > 0
+                    ? { id: { notIn: Array.from(erstattet) } }
+                    : {}),
+                },
+                select: { fraTid: true, tilTid: true },
+              });
+              if (finnOverlappMotServer(overlevendeServerRader, lokal.timer)) {
+                const aarsak = await lagreOverlappForslag(
+                  tx,
+                  eksisterendeITx.id,
+                  lokal.timer,
+                  lokal.projectId ?? null,
+                );
+                return { slag: "overlapp", aarsak };
+              }
+            }
 
             let sedel;
             if (!eksisterendeITx) {
@@ -5776,9 +6048,43 @@ export const dagsseddelRouter = router({
               });
             }
 
-            return sedel;
+            return { slag: "ok", sedel };
           });
 
+          // A-1b overlapp: forslaget er lagret (eller sedelen var låst → "laast"),
+          // sheet_timer URØRT. Svar conflict med eksplisitt årsak + sedelens egen
+          // identitet (clientUuid == lokal, sedelen er alt nøklet) så mobilen setter
+          // syncStatus = "conflict" uten å pushe rader (B-1).
+          if (txResultat.slag === "overlapp") {
+            const serverSedel = await ctx.prismaTimer.dailySheet.findUnique({
+              where: { clientUuid: lokal.clientUuid },
+            });
+            if (serverSedel) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "conflict",
+                aarsak: txResultat.aarsak,
+                serverData: {
+                  id: serverSedel.id,
+                  clientUuid: serverSedel.clientUuid,
+                  status: serverSedel.status as DagsseddelStatus,
+                  lederKommentar: serverSedel.lederKommentar,
+                  attestertVed: serverSedel.attestertVed?.toISOString() ?? null,
+                  updatedAt: serverSedel.updatedAt.toISOString(),
+                },
+              });
+            } else {
+              // Falt bort mellom tx og re-lesning (svært sjelden) → la klient retry.
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "feilet",
+                feilmelding: "Sedelen endret tilstand under synk",
+              });
+            }
+            continue;
+          }
+
+          const oppdatert = txResultat.sedel;
           resultater.push({
             clientUuid: lokal.clientUuid,
             resultat: "ok",
@@ -5857,9 +6163,36 @@ export const dagsseddelRouter = router({
                 eksisterende &&
                 eksisterende.clientUuid !== lokal.clientUuid
               ) {
+                // A-1a (V19.7, M11) — den VANLIGSTE saken: dagen er ført på PC
+                // først, telefonen pusher etterpå og får P2002. Her, FØR mobilen
+                // nøkler om, sjekkes overlapp mot server-sedelens rader. Alle
+                // server-rader overlever (mobilens rader finnes ikke på serveren
+                // ennå — create-en traff P2002), så unionen = serverRader ∪ payload.
+                // Treff → forslag lagret i egen tx (lesning + skriving på SAMME tx,
+                // test 1c TOCTOU) → "overlapp"/"laast". Ikke treff → "dato_kollisjon"
+                // (dagens re-nøkle + additiv push, V19.4). sheet_timer URØRT uansett.
+                const aarsak = await ctx.prismaTimer.$transaction(async (tx) => {
+                  const serverRader = await tx.sheetTimer.findMany({
+                    where: { sheetId: eksisterende.id },
+                    select: { fraTid: true, tilTid: true },
+                  });
+                  if (!finnOverlappMotServer(serverRader, lokal.timer)) {
+                    return "dato_kollisjon" as const;
+                  }
+                  return await lagreOverlappForslag(
+                    tx,
+                    eksisterende.id,
+                    lokal.timer,
+                    lokal.projectId ?? null,
+                  );
+                });
                 resultater.push({
                   clientUuid: lokal.clientUuid,
                   resultat: "conflict",
+                  // A-2: eksplisitt årsak. "dato_kollisjon" speiler dagens oppførsel
+                  // (re-nøkle + additiv push); "overlapp" → forslag lagret, velg;
+                  // "laast" → server-sedelen er sent/accepted, server-wins.
+                  aarsak,
                   serverData: {
                     id: eksisterende.id,
                     clientUuid: eksisterende.clientUuid,

@@ -189,6 +189,13 @@ model DailySheet {
   lederKommentar      String?   @map("leder_kommentar") @db.Text
   syncStatus          String    @default("synced") @map("sync_status") // "pending" | "synced" | "conflict"
   syncedAt            DateTime? @map("synced_at") @db.Timestamptz()
+  // V19 (overlapp PC ↔ mobil, Kenneth 2026-10-04 «b»): satt når mobilens rader
+  // overlapper serverens i tid og ble lagret som FORSLAG (SheetTimerForslag) i
+  // stedet for additiv sammenslåing. Invariant: konfliktVentendeSiden != null ⇔
+  // forslag finnes. Blokkerer attestering (V19.5), nulles av forsonDagskort
+  // (samme tx som sletter forslaget) eller av en synk uten overlapp. Additiv,
+  // nullable — eldre sedler har ingen uavklart overlapp.
+  konfliktVentendeSiden DateTime? @map("konflikt_ventende_siden") @db.Timestamptz()
   attestertAvUserId   String?   @map("attestert_av_user_id")
   attestertVed        DateTime? @map("attestert_ved") @db.Timestamptz()
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz()
@@ -199,6 +206,7 @@ model DailySheet {
   tillegg   SheetTillegg[]
   maskiner  SheetMachine[]
   utlegg    SheetUtlegg[]
+  forslag   SheetTimerForslag[]
 
   @@unique([userId, dato])
   @@index([organizationId])
@@ -308,6 +316,61 @@ model SheetTimer {
   @@index([parentRadId])
   @@index([reiseOppmotestedId])
   @@map("sheet_timer")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  SheetTimerForslag — V19 (overlapp PC ↔ mobil, Kenneth 2026-10-04 «b»)
+// ==========================================================================
+//  Når mobilens timer-rader overlapper serverens i tid på samme dag, lagres
+//  mobilens payload-rader HER (ikke på sheet_timer) som et FORSLAG arbeideren
+//  velger mellom — på telefonen eller på PC. Egen tabell, Kenneth «b»: ingen
+//  eksisterende lønnsleser (overtidsgrunnlag/eksport/attestering/pull-rader)
+//  ser forslaget uten å spørre etter det (M15). Et forslag er FØR attestering
+//  og kan ALDRI attesteres → ingen attestert*-felt.
+//
+//  `id` = mobilens rad-id → idempotent erstatning pr. sedel (deleteMany +
+//  createMany ved ny push av samme forslag). Speil av SheetTimers payload-felt
+//  + lag 2-sporet slik mobilen sendte dem (kontroll kjøres aldri om her —
+//  forsonDagskort re-utleder reise ved valget).
+//
+//  Stille-tomhet (CLAUDE.md): tabellen er TRANSAKSJONELL, ikke identitet →
+//  ingen backfill. Garanti = FK cascade (slettet sedel river forslaget) + PK.
+//  Test (c) = grep-vakt + ende-til-ende: forslaget leses KUN i sammenligning
+//  (hentMedId/hentForAttestering) og forsonDagskort — aldri av en lønnsleser.
+model SheetTimerForslag {
+  // = mobilens rad-id (idempotent erstatning). Ikke @default — settes fra payload.
+  id                   String   @id
+  sheetId              String   @map("sheet_id")
+  // Speil av SheetTimers payload-felt (samme navn/typer).
+  projectId            String   @map("project_id")
+  byggeplassId         String?  @map("byggeplass_id")
+  lonnsartId           String   @map("lonnsart_id")
+  aktivitetId          String   @map("aktivitet_id")
+  fraTid               String?  @map("fra_tid")
+  tilTid               String?  @map("til_tid")
+  timer                Decimal  @db.Decimal(6, 2)
+  pauseMin             Int      @default(0) @map("pause_min")
+  beskrivelse          String?  @db.Text
+  externalCostObjectId String?  @map("external_cost_object_id")
+  vehicleId            String?  @map("vehicle_id")
+  // Lag 2-sporet (speil, slik mobilen sendte det — ingen C2/C3-kontroll her).
+  erReise              Boolean  @default(false) @map("er_reise")
+  reiseRetning         String?  @map("reise_retning")
+  reiseOppmotestedId   String?  @map("reise_oppmotested_id")
+  reiseKjoretidMin     Int?     @map("reise_kjoretid_min")
+  reiseAvstandM        Int?     @map("reise_avstand_m")
+  reiseKilde           String?  @map("reise_kilde")
+  reiseRegel           Json?    @map("reise_regel")
+  tidKilde             String?  @map("tid_kilde")
+  // Opphav + mottakstid. kilde="mobil" (kun kilden i V19; utvidbar senere).
+  kilde                String   @default("mobil")
+  mottattAt            DateTime @default(now()) @map("mottatt_at") @db.Timestamptz()
+
+  sheet DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+  @@index([sheetId])
+  @@map("sheet_timer_forslag")
   @@schema("timer")
 }
 

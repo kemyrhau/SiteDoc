@@ -144,6 +144,14 @@ export {
   finnTidsromKonflikt,
 } from "./tidsromValidering";
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
+export { byggForsonInputFraValg } from "./forsonValg";
+export type {
+  ForsonSide,
+  ForsonRad,
+  ForsonOppdatering,
+  ForsonNyRad,
+  ForsonInput,
+} from "./forsonValg";
 export { finnSedlerÅSlette } from "./timerSyncSletting";
 export type { Slettevindu, LokalSedelUtsnitt } from "./timerSyncSletting";
 export { carveArbeidstider } from "./carveArbeidstid";
