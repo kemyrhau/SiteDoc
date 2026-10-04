@@ -27,7 +27,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > fase 2**, **i18n-sveip 1** og **V17-A**. 🟢 **Migrering `20261003120000_timer_lag2_sporbarhet` KJØRT** — verifisert ved
 > at `timer.sheet_timer` har `er_reise`/`reise_avvik`/`tid_kilde`. **Backfill-telling på test: 0 konfigurert, 0
 > navne-match** — test har ingen timerader med reise-lønnsart; reise-visningen testes kun med NYE dager. 🔴 **Tellingen
-> må kjøres mot PROD før prod-deploy** (`backfill-telling-test.sql` mot `-d sitedoc`). OTA test-kanal: venter Kenneth.
+> må kjøres mot PROD før prod-deploy** (`backfill-telling-test.sql` mot `-d sitedoc`). 🟢 **OTA test-kanal publisert 2026-10-04** fra `bd3053bd` (EAS update `0c77fe36-b455-4767-a129-286208c2be55`).
 > ⚠️ Migrasjonstabellen for db-timer ligger ikke i `timer._prisma_migrations` (målt) — sjekk kolonner, ikke tabellen.
 
 > 🟢 **TEST-DEPLOY 2026-10-02 kveld: `fd92736d`** — verifisert mot `/version`. Inneholder **hele
