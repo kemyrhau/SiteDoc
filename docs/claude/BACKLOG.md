@@ -54,6 +54,13 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🟡 OFFLINE — TO FANER OG STANDALONE ER FORTSATT NETT-ONLY (kartlagt av redesign 2026-10-04, `737a357e`)
+
+- **Tegninger-fanen** (`tegning.hentForProsjekt`): lista er nett-only, selv om tegningsfilene caches av «Forbered offline».
+- **Dokumenter/mapper-fanen** (`mappe.hentForProsjekt`): ingen speil/katalog finnes.
+- **Standalone-prosjekter** (uten firma): `TimerSyncProvider` cacher kun firmaprosjekter → Hjem viser feilside offline.
+**Ikke bestilt.** Egen offline-runde hvis piloten trenger dem.
+
 ### 🔴 OVERLAPP PC ↔ MOBIL PÅ SAMME DAG LAGRES DOBBELT — Kenneth-vedtak 2026-10-04: ARBEIDEREN VELGER
 
 **Målt (orkestrator 2026-10-04):** ved dato-kollisjon (S2, `dagsseddel.ts` ~`:5838` → `timerSync.ts:259-267`) slås mobilens rader
