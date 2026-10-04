@@ -5,7 +5,7 @@ import {
   tolkStart,
   tolkSlutt,
   velgDestinasjon,
-  RADIUS_GRENSER,
+  GEOFENCE_GRENSER,
   type Geofence,
 } from "./sted";
 
@@ -19,10 +19,10 @@ import {
 
 // Oppmøtested-geofence med id.
 function oppm(id: string, lat: number, lng: number, radiusM = 150) {
-  return { id, lat, lng, radiusM };
+  return { form: "sirkel" as const, id, lat, lng, radiusM };
 }
 function bygg(id: string, lat: number, lng: number, radiusM = 150) {
-  return { id, lat, lng, radiusM };
+  return { form: "sirkel" as const, id, lat, lng, radiusM };
 }
 
 describe("A1 avstandM — haversine i meter", () => {
@@ -189,10 +189,10 @@ describe("A5 velgDestinasjon", () => {
   });
 });
 
-describe("A6 RADIUS_GRENSER — navngitt, uendret kilde", () => {
+describe("A6 GEOFENCE_GRENSER — navngitt, uendret kilde", () => {
   it("speiler koden (oppmøtested 10–5000 · byggeplass-API 1–100000 · modal 25–500)", () => {
-    expect(RADIUS_GRENSER.oppmotested).toEqual({ min: 10, max: 5000 });
-    expect(RADIUS_GRENSER.byggeplassApi).toEqual({ min: 1, max: 100_000 });
-    expect(RADIUS_GRENSER.modal).toEqual({ min: 25, max: 500 });
+    expect(GEOFENCE_GRENSER.oppmotested).toEqual({ min: 10, max: 5000 });
+    expect(GEOFENCE_GRENSER.byggeplassApi).toEqual({ min: 1, max: 100_000 });
+    expect(GEOFENCE_GRENSER.modal).toEqual({ min: 25, max: 500 });
   });
 });

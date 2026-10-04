@@ -24,23 +24,15 @@ export type GpsPunkt = { lat: number; lng: number };
 
 /**
  * V17 — en byggeplass' geofence er enten en SIRKEL (punkt + radius, standard)
- * eller en SONE (polygon tegnet i lat/lng). Diskriminert union på `form`.
- *
- * 🔴 `Sirkel.form` er VALGFRI (`form?: "sirkel"`), IKKE påkrevd som spec § 3
- * skriver den. Grunn (målt mot koden, ikke gjetning): ordre V17-A krever at de
- * 21 `sted.test.ts`-testene står UENDRET og grønne, men testhjelperne `oppm`/
- * `bygg` (`sted.test.ts:21-26`) bygger FORMLØSE `{id,lat,lng,radiusM}`-objekter
- * og sender dem rett til `gjenkjennSted`/`tolkStart`. Med påkrevd `form` ville
- * de ikke typesjekke → testene måtte endres → ordrens 🔴 brytes. Valgfri `form`
- * (default = sirkel) holder både specens union (polygon er alltid `form:"polygon"`)
- * OG testene uendret. `tilGeofencer` (A4) setter alltid `form` eksplisitt; kun
- * eldre direkte-kallere utelater den. Avvik meldt til kontrollør/fabel.
+ * eller en SONE (polygon tegnet i lat/lng). Diskriminert union på `form`, påkrevd
+ * på begge grener (spec § 3) — kompilatoren vokter at ingen formløs kandidat når
+ * `gjenkjennSted`.
  *
  * `id = byggeplassId` (fordi `tolkPosisjon` leser `sted.id` som byggeplass,
  * `:107-110`). `lat/lng` = byggeplassens origo (reise-anker, B2) også for soner.
  */
 export type Sirkel = {
-  form?: "sirkel";
+  form: "sirkel";
   id: string;
   lat: number;
   lng: number;
@@ -565,17 +557,4 @@ export const GEOFENCE_GRENSER = {
   upresisRadiusM: 1500,
   /** Standard korridorbredde når en kartlinje bufres til sone (B5). Meter. */
   traseKorridorBreddeM: 30,
-} as const;
-
-/**
- * 🔴 Bakoverkompat-alias. V17-A beholder `RADIUS_GRENSER` fordi A6-testen
- * (`sted.test.ts:192-197`) importerer og asserter den, og ordren krever de 21
- * testene UENDRET. Den er nå en delmengde-peker av `GEOFENCE_GRENSER`; ny kode
- * importerer `GEOFENCE_GRENSER`. (Meldt til kontrollør — kan fjernes når A6-testen
- * migreres.)
- */
-export const RADIUS_GRENSER = {
-  oppmotested: GEOFENCE_GRENSER.oppmotested,
-  byggeplassApi: GEOFENCE_GRENSER.byggeplassApi,
-  modal: GEOFENCE_GRENSER.modal,
 } as const;

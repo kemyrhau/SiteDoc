@@ -28,7 +28,7 @@ export {
   kalibrerMalestokk,
 } from "./maaling";
 export type { Punkt, ScaleKilde } from "./maaling";
-export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, RADIUS_GRENSER, erInnenfor, polygonArealM2, sentroidePunkter, erEnkeltPolygon, korridorFraLinje, tilGeofencer, geofenceForm, GEOFENCE_GRENSER } from "./sted";
+export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, erInnenfor, polygonArealM2, sentroidePunkter, erEnkeltPolygon, korridorFraLinje, tilGeofencer, geofenceForm, GEOFENCE_GRENSER } from "./sted";
 export type { GpsPunkt, Geofence, Sirkel, Polygon, Treff, TolketSted, Startsted, Sluttsted, Destinasjon, VelgDestinasjonArgs } from "./sted";
 export { klassifiserReise, løsReiseLonnsartId, grensepunktTraff, erReiseLonnsart, REISE_LONNSART_REGEX } from "./reise";
 export type {

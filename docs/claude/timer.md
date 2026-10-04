@@ -692,9 +692,9 @@ Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggep
 >   skarp sving med navngitt feil). `gjenkjennSted` generalisert med **B4-prioritet** (sone før sirkel · sone
 >   minst areal · sirkel nærmest sentrum); `Treff` bærer nå `form` + `omradeId`. `tilGeofencer` (A4) er ÉN
 >   kilde som erstatter de tre `radiusM != null`-filtrene; `geofenceForm` (A5); `GEOFENCE_GRENSER` (A6).
-> - 🔴 **`Sirkel.form` er VALGFRI** (ikke påkrevd som spec § 3 skriver) — ellers ville de 21 eksisterende
->   `sted.test.ts`-testene (formløse `{id,lat,lng,radiusM}`-hjelpere) måtte endres, i strid med ordrens 🔴.
->   `RADIUS_GRENSER` beholdt som alias av samme grunn (A6-testen importerer den). Begge avvik meldt til kontrollør.
+> - **`Sirkel.form` er PÅKREVD** (`form: "sirkel"`, spec § 3) — kompilatoren vokter at ingen formløs kandidat
+>   når `gjenkjennSted`. `sted.test.ts`-hjelperne `oppm`/`bygg` setter `form` eksplisitt. `GEOFENCE_GRENSER`
+>   er eneste grense-kilde (det tidligere `RADIUS_GRENSER`-aliaset er fjernet). *(RETUR 1, kontrollør-gate 2026-10-04.)*
 > - **API binder nå grensene:** `byggeplass.ts` + `oppmotested.ts` importerer `GEOFENCE_GRENSER` (tall uendret).
 > - **Mobil:** `byggeplassKatalog.identifiserByggeplass`, `timer/ny.tsx`, `StartSluttDagKort.tsx` bygger
 >   kandidater via `tilGeofencer` (byggeplass); `useArbeidsdag`/`StartSluttDagKort` oppmøtested forblir sirkel

@@ -249,7 +249,7 @@ GPS-gjenkjennings-funksjoner. Rene funksjoner, ingen DB/RN/Node. Kontrakt A1–A
 | A2 | `gjenkjennSted<T extends Geofence>(pos, kandidater)` → `Treff<T> \| null` | Nærmeste der `avstandM ≤ radiusM`. `pos==null`→`null`. Kaller filtrerer bort ukomplette geofencer |
 | A3/A4 | `tolkStart` / `tolkSlutt(pos, oppmøtesteder, byggeplasser)` → `TolketSted` | Union `kontor`/`byggeplass`/`utenfor`/`ukjent`. Kontor vinner når begge treffer (V15). `pos==null`→`ukjent`, ALDRI `utenfor` (H11) |
 | A5 | `velgDestinasjon(args)` → `Destinasjon` | Sluttsted-byggeplass → kontekst → nøyaktig én byggeplass med punkt → ellers `ukjent`. ALDRI primærbyggeplass/nærmeste-uten-grense/`prosjekter[0]` |
-| A6 | `RADIUS_GRENSER` | De tre spennene navngitt (oppmøtested 10–5000, byggeplass-API 1–100000, modal 25–500). Grensene uendret — kun én kilde |
+| A6 | `GEOFENCE_GRENSER` | De tre radius-spennene (oppmøtested 10–5000, byggeplass-API 1–100000, modal 25–500) + V17-polygon-/trasé-konstanter. API-validatorene (`byggeplass.ts`/`oppmotested.ts`) importerer den — binder, dokumenterer ikke bare. Tall uendret |
 
 🔴 **A5 wires inn i reisekjeden (`beregnDagsforslag`) først i LAG 1-B.** I L1-A bygges/testes den,
 og `resolverPrimaerByggeplass` er SLETTET i L1-B (`2e993250`) — A5 erstattet den. GPS-punkt-typen heter `GpsPunkt`
