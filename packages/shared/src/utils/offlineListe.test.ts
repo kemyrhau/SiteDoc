@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { velgOfflineListeKilde, velgDokumentVisning } from "./offlineListe";
+import { velgOfflineListeKilde, velgDokumentVisning, velgHjemProsjektVisning } from "./offlineListe";
 
 describe("velgOfflineListeKilde", () => {
   it("online + bekreftet svar med rader → server (normalveien, like ferskt som før)", () => {
@@ -129,5 +129,40 @@ describe("velgDokumentVisning (enkeltdokument-detalj, fase 2)", () => {
     expect(
       velgDokumentVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: false, erPauset: true, harSpeil: false }),
     ).toEqual({ offlineModus: false, offlineIkkeLastet: true });
+  });
+});
+
+describe("velgHjemProsjektVisning (Hjem/prosjektvelger/ny dagsseddel — felles inngang, feltfunn 2026-10-04)", () => {
+  const i = (o: Partial<Parameters<typeof velgHjemProsjektVisning>[0]>) =>
+    velgHjemProsjektVisning({ erPaaNettet: true, serverBekreftet: false, erFeilet: false, erPauset: false, harLokaleProsjekter: false, ...o });
+
+  it("bekreftet server-svar → server (online-atferd uendret)", () => {
+    expect(i({ serverBekreftet: true })).toBe("server");
+  });
+
+  it("online + venter (fetching) → spinner (Q5 — online-atferd uendret)", () => {
+    expect(i({ erPaaNettet: true })).toBe("spinner");
+  });
+
+  // 🔴 RØD UTEN FIKSEN: før falt alt ikke-bekreftet offline/feilet rett til feilsiden,
+  // uansett om lokale prosjekter fantes — Hjem stengte veien til de lagrede dokumentene.
+  it("uten nett + lokale prosjekter → lokal (INGEN feilside)", () => {
+    expect(i({ erPaaNettet: false, harLokaleProsjekter: true })).toBe("lokal");
+  });
+
+  it("online + feilet + lokale prosjekter → lokal (feilet teller som frakoblet)", () => {
+    expect(i({ erFeilet: true, harLokaleProsjekter: true })).toBe("lokal");
+  });
+
+  it("paused + lokale prosjekter → lokal (samme pause-regel som fase 2)", () => {
+    expect(i({ erPauset: true, harLokaleProsjekter: true })).toBe("lokal");
+  });
+
+  it("uten nett + ingen lokale → feil (feilside/«ingenting lagret»)", () => {
+    expect(i({ erPaaNettet: false, harLokaleProsjekter: false })).toBe("feil");
+  });
+
+  it("online + feilet + ingen lokale → feil (ekte serverfeil, «prøv igjen»)", () => {
+    expect(i({ erFeilet: true, harLokaleProsjekter: false })).toBe("feil");
   });
 });

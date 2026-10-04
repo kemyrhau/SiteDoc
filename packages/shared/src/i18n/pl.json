@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "NIE",
   "mer.offline.lagret": "Dokumenty {{dokumenter}} i rysunki {{tegninger}} zapisane w trybie offline",
   "mer.offline.sistKlargjort": "· ostatnio przygotowane {{tid}}",
-  "mer.offline.ingentingLagret": "Nic nie zostało jeszcze zapisane do trybu offline"
+  "mer.offline.ingentingLagret": "Nic nie zostało jeszcze zapisane do trybu offline",
+  "hjem.innboksKreverNett": "Skrzynka odbiorcza wymaga połączenia",
+  "prosjektVelger.ingenOffline": "Brak projektów zapisanych do trybu offline"
 }

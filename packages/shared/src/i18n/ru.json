@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Нет",
   "mer.offline.lagret": "Документы {{dokumenter}} и рисунки {{tegninger}} сохранены для автономного использования.",
   "mer.offline.sistKlargjort": "· последний подготовленный {{tid}}",
-  "mer.offline.ingentingLagret": "Пока ничего не сохранено для офлайн-доступа."
+  "mer.offline.ingentingLagret": "Пока ничего не сохранено для офлайн-доступа.",
+  "hjem.innboksKreverNett": "Входящие требуют подключения",
+  "prosjektVelger.ingenOffline": "Нет сохраненных проектов для офлайн-режима."
 }

@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "NEIN",
   "mer.offline.lagret": "{{dokumenter}} Dokumente und {{tegninger}} Zeichnungen offline gespeichert",
   "mer.offline.sistKlargjort": "· zuletzt vorbereitet {{tid}}",
-  "mer.offline.ingentingLagret": "Es wurde noch nichts für den Offline-Modus gespeichert"
+  "mer.offline.ingentingLagret": "Es wurde noch nichts für den Offline-Modus gespeichert",
+  "hjem.innboksKreverNett": "Für den Posteingang ist eine Verbindung erforderlich",
+  "prosjektVelger.ingenOffline": "Keine Projekte für offline gespeichert"
 }

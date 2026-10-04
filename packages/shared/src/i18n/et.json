@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Ei",
   "mer.offline.lagret": "{{dokumenter}} dokumenti ja {{tegninger}} joonist on salvestatud võrguühenduseta kasutamiseks",
   "mer.offline.sistKlargjort": "· viimati valmistati {{tid}}",
-  "mer.offline.ingentingLagret": "Midagi pole veel võrguühenduseta kasutamiseks salvestatud"
+  "mer.offline.ingentingLagret": "Midagi pole veel võrguühenduseta kasutamiseks salvestatud",
+  "hjem.innboksKreverNett": "Postkast nõuab ühendust",
+  "prosjektVelger.ingenOffline": "Ühtegi projekti pole võrguühenduseta kasutamiseks salvestatud"
 }

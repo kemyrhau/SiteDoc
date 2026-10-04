@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Ei",
   "mer.offline.lagret": "{{dokumenter}} dokumenttia ja {{tegninger}} piirustusta tallennettu offline-käyttöön",
   "mer.offline.sistKlargjort": "· valmisteltu viimeksi {{tid}}",
-  "mer.offline.ingentingLagret": "Mitään ei ole vielä tallennettu offline-käyttöön"
+  "mer.offline.ingentingLagret": "Mitään ei ole vielä tallennettu offline-käyttöön",
+  "hjem.innboksKreverNett": "Saapuneet-kansio vaatii yhteyden",
+  "prosjektVelger.ingenOffline": "Offline-käyttöön ei ole tallennettu projekteja"
 }

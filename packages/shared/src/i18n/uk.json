@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "немає",
   "mer.offline.lagret": "{{dokumenter}} документів і {{tegninger}} малюнків збережено для офлайн",
   "mer.offline.sistKlargjort": "· востаннє підготовлено {{tid}}",
-  "mer.offline.ingentingLagret": "Ще нічого не збережено для офлайн"
+  "mer.offline.ingentingLagret": "Ще нічого не збережено для офлайн",
+  "hjem.innboksKreverNett": "Вхідні потребують з’єднання",
+  "prosjektVelger.ingenOffline": "Немає проектів, збережених для офлайн"
 }

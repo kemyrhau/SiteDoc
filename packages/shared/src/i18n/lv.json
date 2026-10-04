@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Nē",
   "mer.offline.lagret": "{{dokumenter}} dokumenti un {{tegninger}} zīmējumi saglabāti bezsaistē",
   "mer.offline.sistKlargjort": "· pēdējo reizi sagatavots {{tid}}",
-  "mer.offline.ingentingLagret": "Vēl nekas nav saglabāts lietošanai bezsaistē"
+  "mer.offline.ingentingLagret": "Vēl nekas nav saglabāts lietošanai bezsaistē",
+  "hjem.innboksKreverNett": "Iesūtnei ir nepieciešams savienojums",
+  "prosjektVelger.ingenOffline": "Bezsaistē nav saglabāts neviens projekts"
 }

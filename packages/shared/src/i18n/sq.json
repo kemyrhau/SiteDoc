@@ -4911,5 +4911,7 @@
   "ifc.verdi.nei": "Nr",
   "mer.offline.lagret": "{{dokumenter}} dokumente dhe {{tegninger}} vizatime të ruajtura për jashtë linje",
   "mer.offline.sistKlargjort": "· përgatitja e fundit {{tid}}",
-  "mer.offline.ingentingLagret": "Asgjë nuk është ruajtur ende për jashtë linje"
+  "mer.offline.ingentingLagret": "Asgjë nuk është ruajtur ende për jashtë linje",
+  "hjem.innboksKreverNett": "Kutia hyrëse kërkon një lidhje",
+  "prosjektVelger.ingenOffline": "Asnjë projekt i ruajtur për jashtë linje"
 }
