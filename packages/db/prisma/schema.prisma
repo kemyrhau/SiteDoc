@@ -1053,7 +1053,8 @@ model Byggeplass {
   latitude     Float?   @map("latitude")
   longitude    Float?   @map("longitude")
   radiusM      Int?     @map("radius_m") // geofence-radius (tegningsutstrekning + buffer)
-  // LAG 1 C3 (timer-GPS): punktets kilde — "tegning" | "manuell" | "geokodet" | "ukjent" | null.
+  // LAG 1 C3 (timer-GPS): punktets kilde — "tegning" | "manuell" | "geokodet" | "soner" | "ukjent" | null.
+  // "soner" (V17-B): origo utledet som sentroide av sonenes hjørner (B2) — punktet er fortsatt reise-anker.
   // Håndheves på DB-nivå (migrering 20261002120000): CHECK (latitude IS NULL) = (geofence_kilde IS NULL)
   // — Prisma modellerer ikke CHECK, så koblingen bor i migreringen. Backfill: latitude satt → 'ukjent'
   // (kilden kan ikke rekonstrueres; å gjette «manuell» ville vært verre), ellers NULL.
@@ -1090,7 +1091,13 @@ model Omrade {
   tegningId    String?  @map("tegning_id")
   navn         String
   type         String   @default("sone") // sone | rom | etasje | trase (trase lagt til 2026-09-23; enum håndheves i omrade.ts)
-  polygon      Json     @default("[]") // [{x: number, y: number}, ...]
+  polygon      Json     @default("[]") // [{x: number, y: number}, ...] — tegnings-PROSENT (overlegg på tegning)
+  // V17-B (timer-GPS): sonens geofence-polygon i lat/lng — GPS-gjenkjenning av sone, delt med PSI.
+  // Tegnes på kart ("kart") eller utledes fra `polygon` (prosent) via georeferert tegning ("tegning").
+  // CHECK (migrering 20261004120000): (geo_polygon IS NULL) = (geo_kilde IS NULL) + geo_kilde IN ('kart','tegning').
+  // Prisma modellerer ikke CHECK → koblingen bor i migreringen. Ingen backfill (ingen sone har lat/lng i dag).
+  geoPolygon   Json?    @map("geo_polygon") // [{lat: number, lng: number}, ...]
+  geoKilde     String?  @map("geo_kilde")   // kart | tegning
   farge        String   @default("#3b82f6")
   sortering    Int      @default(0)
   opprettet    DateTime @default(now())

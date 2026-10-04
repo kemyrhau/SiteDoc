@@ -153,7 +153,7 @@ kanten → ett deterministisk treff (B4), aldri null**; dagens auto-sirkel (M5) 
 | Ordre | Innhold | Avhenger av | Migrering |
 |---|---|---|---|
 | **V17-A** 🟢 GATET m/ RETUR 1 (branch `feat/v17a-stedsmodell`, 2026-10-04 — venter merge) | Leveranse A (shared) + C-2-ryddingen av filtrene (mobil, null atferdsendring for sirkler). RETUR 1: `Sirkel.form` påkrevd (`form: "sirkel"`, kompilator-voktet) og `RADIUS_GRENSER`-aliaset fjernet — `GEOFENCE_GRENSER` eneste grense-kilde | ingen | — |
-| **V17-B** | Leveranse B (db + api) + D (web-modal: sone-liste, karttegning polygon/linje, hent-fra-tegning, origo, varsler) | V17-A merget (typene) | `omrader.geo_polygon` + `geo_kilde` (Kenneth-gatet) |
+| **V17-B** 🟢 LEVERT (branch `feat/v17b-soner`, 2026-10-04 — venter gate/merge) | Leveranse B (db + api) + D (web-modal: form-velger Sirkel/Soner, sone-liste, karttegning polygon/linje via geoman, hent-fra-tegning, flyttbar origo, upresis-varsler). Migrering `20261004120000_omrade_geo_polygon` 🔴 KJØRES AV KENNETH | V17-A merget (typene) | `omrader.geo_polygon` + `geo_kilde` (Kenneth-gatet) |
 | **V17-C** | Leveranse C (mobil: `sone_geo_local` + gjenkjenning over soner) | V17-A + V17-B merget (feltene må finnes i `hentForFirma` FØR mobilen leser dem — lag 2-lærdommen M6) | lokal mobil |
 
 | **V17-D** | «Del sone» (polygon-splitting) | V17-B + Kenneths pakkevalg | — |

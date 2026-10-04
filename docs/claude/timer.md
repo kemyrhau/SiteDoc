@@ -701,6 +701,28 @@ Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggep
 >   (`tilGeofencer` med `soner: []`). Alle `radiusM != null`-byggeplassfiltre borte (grep-vakt). **Reload: OTA.**
 > - **Ikke i V17-A:** db/api-feltene (`omrader.geo_polygon`), karttegning, mobil sone-cache = V17-B/C/D.
 
+> 🟢 **V17-B LEVERT (branch `feat/v17b-soner`, 2026-10-04 — venter gate/merge; hjemmel V17, Kenneth
+> 2026-10-04 «tegne polygon selv … hver sideveg egen sone»):** datagrunnlag (db + api) + web-modalen
+> der soner tegnes på kart. **FUNKSJONSENDRING (ny sone-flate); null atferdsendring for sirkel-byggeplasser.**
+> - **DB (B-1):** migrering `20261004120000_omrade_geo_polygon` — additiv `omrader.geo_polygon JSONB` +
+>   `geo_kilde TEXT` med CHECK `(geo_polygon IS NULL)=(geo_kilde IS NULL)` + `geo_kilde IN ('kart','tegning')`.
+>   Ingen backfill (ingen sone har lat/lng i dag). 🔴 **Kjøres av Kenneth på test — ikke av agenten.**
+> - **Service (`byggeplassGeofence.ts`):** `oppdaterByggeplassGeofence` (punkt-del) UENDRET — auto-triggeren
+>   (`tegning.ts:502`) gir fortsatt KUN punkt + sirkel (B8/test §8.10). Ny `sikreByggeplassOrigo` (B2: utleder
+>   origo = sentroide av sonenes hjørner på punktløs byggeplass, `geofenceKilde="soner"`, recompute) og
+>   `utledGeometriFraTegning` (B4: `polygon`-prosent → lat/lng via `tegningTilGps`, ingen buffer, `erEnkeltPolygon`,
+>   `geoKilde="tegning"`; freder `geoKilde="kart"` pr. sone — B8/test §8.5).
+> - **API (`omrade.ts`):** `settGeometri` (B3: polygon direkte, eller kartlinje → `korridorFraLinje` på server;
+>   avviser selvkryssing med navngitt feil; utleder origo), `utledGeometriFraTegning`, `fjernGeometri` — alle
+>   admin-gatet. `bygning.hentForFirma` (B6) returnerer nå `geofenceKilde` + `soner` (kun soner med geometri);
+>   additivt, eldre mobil ignorerer feltene. `organisasjon`-matrisesettingen (B7) teller `reiseByggeplasserUpresisSirkel`.
+> - **Web (Leveranse D):** geofence-modalen (`byggeplasser/page.tsx`) fikk en **form-velger Sirkel/Soner**.
+>   «Soner» → ny `SoneEditor` + `KartTegner` (rå Leaflet + `@geoman-io/leaflet-geoman-free`, MIT, kun `apps/web`):
+>   tegn polygon/linje, hent fra tegning pr. område, fjern geometri, flyttbar origo (→ `manuell`), radius-UI skjult.
+>   «Upresis»-merke (B7) i byggeplasslista + matrise-flaten (`erUpresisSirkel`, radius > `GEOFENCE_UPRESIS_RADIUS_M`,
+>   ikke sone). **Reload: web-deploy (ingen mobil-endring i V17-B).**
+> - **Ikke i V17-B:** mobil sone-gjenkjenning (`sone_geo_local`) = V17-C · «Del sone» (polygon-splitting) = V17-D.
+
 ### Datamodell (kjerne `packages/db`)
 `Byggeplass.latitude Float?`, `longitude Float?`, `radiusM Int?` — alle nullable, additivt (migrasjon `20260609100000_byggeplass_geofence_fase1c`, enkelt-steg). Ingen 4. flagg-kolonne: override beskyttes av «auto fyller kun når tom»-regelen under.
 

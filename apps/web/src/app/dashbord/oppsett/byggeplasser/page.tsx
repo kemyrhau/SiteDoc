@@ -12,6 +12,7 @@ import {
   DRAWING_DISCIPLINES,
   DRAWING_TYPES,
 } from "@sitedoc/shared";
+import { erUpresisSirkel } from "@/lib/geofenceUpresis";
 import {
   Plus,
   LayoutGrid,
@@ -33,6 +34,7 @@ import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 import { SignertBilde } from "@/components/SignertBilde";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { OmradeAdmin } from "./_components/OmradeAdmin";
+import { SoneEditor } from "./_components/SoneEditor";
 
 // Leaflet-kart må lastes klient-side (window-avhengig) — SSR av.
 const KartVelgerDynamic = dynamic(
@@ -793,6 +795,8 @@ function PublisertLokasjonKort({
   erValgt,
   geofenceSatt,
   visReiseMangel,
+  visUpresis,
+  upresisKm,
   onVelg,
   onRediger,
   onGeofence,
@@ -805,6 +809,8 @@ function PublisertLokasjonKort({
   erValgt: boolean;
   geofenceSatt: boolean;
   visReiseMangel: boolean;
+  visUpresis: boolean;
+  upresisKm: string;
   onVelg: () => void;
   onRediger: () => void;
   onGeofence: () => void;
@@ -837,6 +843,19 @@ function PublisertLokasjonKort({
         <p className="border-t border-gray-100 px-3 py-1.5 text-xs text-amber-700">
           {t("lokasjoner.geofence.manglerReise")}
         </p>
+      )}
+      {visUpresis && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onGeofence();
+          }}
+          className="border-t border-gray-100 px-3 py-1.5 text-xs text-amber-700 underline underline-offset-2"
+        >
+          {t("lokasjoner.geofence.upresis", { km: upresisKm })}
+        </span>
       )}
     </button>
   );
@@ -906,6 +925,10 @@ export default function LokasjonerSide() {
     },
   });
 
+  // V17-B: form-velger i geofence-modalen — «Sirkel» (dagens punkt+radius) eller
+  // «Soner» (polygon/korridor tegnet på kart). Formen er utledet (B3), men velgeren
+  // styrer hvilken flate som vises; «soner» når origo er sone-utledet (geofenceKilde).
+  const [geoForm, setGeoForm] = useState<"sirkel" | "soner">("sirkel");
   // Fase 1c: geofence-override (lat/lng/radius som tekst, parses ved lagring)
   const [geoLat, setGeoLat] = useState("");
   const [geoLng, setGeoLng] = useState("");
@@ -1012,11 +1035,13 @@ export default function LokasjonerSide() {
   // Per-rad-inngang: åpner geofence-modalen med RADENS data (setter valgtId så
   // handleLagreGeofence lagrer på riktig byggeplass). Erstatter den tidligere
   // verktøylinje-knappen som leste valgtLokasjon.
-  function apneGeofence(lokasjon: GeofenceFelt & { id: string }) {
+  function apneGeofence(lokasjon: GeofenceFelt & { id: string; geofenceKilde?: string | null }) {
     setValgtId(lokasjon.id);
     setGeoLat(lokasjon.latitude != null ? String(lokasjon.latitude) : "");
     setGeoLng(lokasjon.longitude != null ? String(lokasjon.longitude) : "");
     setGeoRadius(lokasjon.radiusM != null ? String(lokasjon.radiusM) : "");
+    // V17-B: origo utledet av soner → åpne «Soner»-formen direkte; ellers «Sirkel».
+    setGeoForm(lokasjon.geofenceKilde === "soner" ? "soner" : "sirkel");
     setGeoFeil(null);
     setGeoAdresse("");
     setGeokodMelding(null);
@@ -1143,6 +1168,11 @@ export default function LokasjonerSide() {
                 </div>
               </div>
             </HjelpFane>
+            <HjelpFane tittel={t("hjelp.lokasjoner.sonerTittel")}>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t("hjelp.lokasjoner.soner")}</p>
+              </div>
+            </HjelpFane>
           </HjelpKnapp>
         </div>
       </div>
@@ -1210,6 +1240,17 @@ export default function LokasjonerSide() {
                                 {t("lokasjoner.geofence.manglerReise")}
                               </span>
                             )}
+                            {timerAktiv && erUpresisSirkel(lokasjon) && (
+                              <button
+                                type="button"
+                                onClick={() => apneGeofence(lokasjon)}
+                                className="text-xs text-amber-700 underline underline-offset-2"
+                              >
+                                {t("lokasjoner.geofence.upresis", {
+                                  km: (lokasjon.radiusM! / 1000).toFixed(1),
+                                })}
+                              </button>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm text-gray-500">
@@ -1242,6 +1283,8 @@ export default function LokasjonerSide() {
                     erValgt={valgtId === lokasjon.id}
                     geofenceSatt={harGeofence(lokasjon)}
                     visReiseMangel={timerAktiv && !harGeofence(lokasjon)}
+                    visUpresis={timerAktiv && erUpresisSirkel(lokasjon)}
+                    upresisKm={((lokasjon.radiusM ?? 0) / 1000).toFixed(1)}
                     onVelg={() => setValgtId(valgtId === lokasjon.id ? null : lokasjon.id)}
                     onRediger={() => setRedigerLokasjonId(lokasjon.id)}
                     onGeofence={() => apneGeofence(lokasjon)}
@@ -1340,6 +1383,41 @@ export default function LokasjonerSide() {
         title={t("lokasjoner.geofence.tittel")}
       >
         <div className="flex flex-col">
+          {/* V17-B: form-velger — Sirkel (punkt+radius) eller Soner (polygon/korridor) */}
+          <div className="mb-3 inline-flex rounded-lg border border-gray-200 p-0.5 text-sm">
+            <button
+              type="button"
+              onClick={() => setGeoForm("sirkel")}
+              className={`flex-1 rounded-md px-3 py-1.5 ${geoForm === "sirkel" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              {t("lokasjoner.geofence.formSirkel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setGeoForm("soner")}
+              disabled={!valgtId}
+              className={`flex-1 rounded-md px-3 py-1.5 ${geoForm === "soner" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              {t("lokasjoner.geofence.formSoner")}
+            </button>
+          </div>
+
+          {geoForm === "soner" && valgtId && prosjektId ? (
+            <SoneEditor
+              byggeplassId={valgtId}
+              projectId={prosjektId}
+              origo={
+                Number.isFinite(geoLatNum) && Number.isFinite(geoLngNum)
+                  ? { lat: geoLatNum, lng: geoLngNum }
+                  : null
+              }
+              radiusM={Number.isFinite(geoRadiusNum) ? Math.round(geoRadiusNum) : null}
+              onEndret={() => {
+                if (prosjektId) utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId });
+              }}
+            />
+          ) : (
+          <>
           <p className="mb-3 text-xs text-gray-500">
             {t("lokasjoner.geofence.beskrivelse")}
           </p>
@@ -1480,6 +1558,8 @@ export default function LokasjonerSide() {
               {t("lokasjoner.geofence.lagre")}
             </Button>
           </div>
+          </>
+          )}
         </div>
       </Modal>
 

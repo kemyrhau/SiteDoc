@@ -1,11 +1,24 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
+import { GEOFENCE_GRENSER, erEnkeltPolygon, korridorFraLinje } from "@sitedoc/shared";
+import {
+  sikreByggeplassOrigo,
+  utledGeometriFraTegning,
+} from "../services/byggeplassGeofence";
 
 const polygonPunktSchema = z.object({
   x: z.number().min(0).max(100),
   y: z.number().min(0).max(100),
+});
+
+// V17-B: sonens geofence-geometri i lat/lng (tegnet på kart). Grensene er delte
+// (GEOFENCE_GRENSER, A6) — samme kilde som sted.ts-geometrien og mobilen.
+const geoPunktSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
 });
 
 // Steg 2 (2026-09-23): `trase` er en fjerde type. En trasé er en LINJE, ikke en flate —
@@ -160,6 +173,107 @@ export const omradeRouter = router({
           ...data,
           ...(polygon !== undefined ? { polygon } : {}),
         },
+      });
+    }),
+
+  // V17-B / B-3: sett sonens geofence-polygon i lat/lng — tegnet på kart. Enten et polygon
+  // direkte, eller en kartlinje som bufres til en korridor på serveren (B5, delt korridorFraLinje).
+  // ADMIN-gatet (samme port som settGeofence — prosjektisolering). geoKilde = "kart".
+  // 🔴 Avviser selvkryssende polygon med navngitt feil (erEnkeltPolygon, delt geometri). Har
+  // byggeplassen ikke punkt → origo utledes (sentroide av alle soner, B2) via sikreByggeplassOrigo,
+  // som også trigger recompute av reisetid-matrisen (reise-ankeret er nytt).
+  settGeometri: protectedProcedure
+    .input(
+      z
+        .object({
+          omradeId: z.string(),
+          polygon: z
+            .array(geoPunktSchema)
+            .min(GEOFENCE_GRENSER.polygonMinPunkter)
+            .max(GEOFENCE_GRENSER.polygonMaksPunkter)
+            .optional(),
+          linje: z
+            .array(geoPunktSchema)
+            .min(2)
+            .max(GEOFENCE_GRENSER.polygonMaksPunkter)
+            .optional(),
+          korridorBreddeM: z.number().positive().max(10_000).optional(),
+        })
+        .refine((v) => (v.polygon != null) !== (v.linje != null), {
+          message: "Oppgi enten et polygon eller en linje — ikke begge, ikke ingen.",
+        }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const omrade = await ctx.prisma.omrade.findUniqueOrThrow({
+        where: { id: input.omradeId },
+        select: { projectId: true, byggeplassId: true },
+      });
+      await verifiserAdmin(ctx.userId, omrade.projectId);
+
+      let polygon: { lat: number; lng: number }[];
+      if (input.polygon) {
+        polygon = input.polygon;
+        // Direkte polygon: selvkryssing avvises med navngitt feil (korridoren
+        // valideres inne i korridorFraLinje).
+        if (!erEnkeltPolygon(polygon)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Polygonet selvkrysser — tegn en enkel (ikke-kryssende) sone.",
+          });
+        }
+      } else {
+        try {
+          polygon = korridorFraLinje(
+            input.linje!,
+            input.korridorBreddeM ?? GEOFENCE_GRENSER.traseKorridorBreddeM,
+          );
+        } catch (e) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: e instanceof Error ? e.message : "Kunne ikke lage korridor fra linjen.",
+          });
+        }
+      }
+
+      await ctx.prisma.omrade.update({
+        where: { id: input.omradeId },
+        data: { geoPolygon: polygon, geoKilde: "kart" },
+      });
+      const origo = await sikreByggeplassOrigo(omrade.byggeplassId);
+      return {
+        omradeId: input.omradeId,
+        punkter: polygon.length,
+        origoUtledet: origo != null,
+      };
+    }),
+
+  // V17-B / B-4: utled sonens lat/lng-geofence fra dens tegnings-polygon via georeferert tegning.
+  // ADMIN-gatet. Tynn mutasjon over tjenesten (vernet + geometrien bor der). Freder `kart` pr. sone (B8).
+  utledGeometriFraTegning: protectedProcedure
+    .input(z.object({ omradeId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const omrade = await ctx.prisma.omrade.findUniqueOrThrow({
+        where: { id: input.omradeId },
+        select: { projectId: true },
+      });
+      await verifiserAdmin(ctx.userId, omrade.projectId);
+      return utledGeometriFraTegning(input.omradeId);
+    }),
+
+  // V17-B: fjern sonens geofence-geometri (tilbake til et rent navne-/tegnings-område).
+  // ADMIN-gatet. 🔴 Fjerner KUN geometrien — byggeplassens origo beholdes (stabilt reise-anker, B2),
+  // og området selv (navn/type/tegnings-polygon) røres ikke. Nullstiller begge feltene sammen (CHECK).
+  fjernGeometri: protectedProcedure
+    .input(z.object({ omradeId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const omrade = await ctx.prisma.omrade.findUniqueOrThrow({
+        where: { id: input.omradeId },
+        select: { projectId: true },
+      });
+      await verifiserAdmin(ctx.userId, omrade.projectId);
+      return ctx.prisma.omrade.update({
+        where: { id: input.omradeId },
+        data: { geoPolygon: Prisma.DbNull, geoKilde: null },
       });
     }),
 

@@ -1329,8 +1329,11 @@ function ReiseSeksjon() {
   //  (2) par markert uoppnåelig (ingen kjørbar rute) → reise kan ikke beregnes dit.
   const byggeplasserUtenPunkt = setting.reiseByggeplasserUtenPunkt;
   const parUoppnaaelige = setting.reiseParUoppnaaelige;
+  // V17-B (B-7): byggeplasser med upresis sirkel (radius > grense, ikke sone-utledet).
+  const byggeplasserUpresis = setting.reiseByggeplasserUpresisSirkel ?? 0;
   const visManglerPunkt = timerAktiv && byggeplasserUtenPunkt > 0;
   const visUoppnaaelige = timerAktiv && parUoppnaaelige > 0;
+  const visUpresis = timerAktiv && byggeplasserUpresis > 0;
 
   function lagre() {
     const min = Number(terskel);
@@ -1719,6 +1722,15 @@ function ReiseSeksjon() {
             <p className="text-sm text-amber-800">
               {t("firma.innstillinger.reise.matriseManglerPunkt", {
                 antall: byggeplasserUtenPunkt,
+              })}
+            </p>
+          </div>
+        )}
+        {visUpresis && (
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-800">
+              {t("firma.innstillinger.reise.matriseUpresisSirkel", {
+                antall: byggeplasserUpresis,
               })}
             </p>
           </div>

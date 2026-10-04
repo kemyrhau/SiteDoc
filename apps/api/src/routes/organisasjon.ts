@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, inviteProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { REISE_LONNSART_REGEX } from "@sitedoc/shared";
+import { REISE_LONNSART_REGEX, GEOFENCE_GRENSER } from "@sitedoc/shared";
 import {
   autoriserAdminForFirma,
   harFirmaHmsTilgang,
@@ -1055,6 +1055,16 @@ export const organisasjonRouter = router({
     const reiseParUoppnaaelige = await ctx.prisma.reisetidMatrise.count({
       where: { organizationId: orgId, kjoretidMin: UOPPNAAELIG },
     });
+    // V17-B (B-7): byggeplasser med UPRESIS sirkel — radius > GEOFENCE_UPRESIS_RADIUS_M
+    // og ikke sone-utledet (geofenceKilde ≠ "soner"). Sirkelen dekker da for mye til å
+    // si «på byggeplassen»; teller klikkbart til byggeplasslista («tegn trasé eller sett polygon»).
+    const reiseByggeplasserUpresisSirkel = await ctx.prisma.byggeplass.count({
+      where: {
+        radiusM: { gt: GEOFENCE_GRENSER.upresisRadiusM },
+        NOT: { geofenceKilde: "soner" },
+        project: { primaryOrganizationId: orgId, status: "active" },
+      },
+    });
     // Reise-avstandsskala (grensepunkter): editor + varsel-demping. Når firmaet
     // har konfigurert bånd som peker på en art, er navne-match-tvetydigheten løst
     // deterministisk → klienten skjuler 0/≥2-varslene (analogt med reiseLonnsartId).
@@ -1067,6 +1077,7 @@ export const organisasjonRouter = router({
       ...setting,
       reiseLonnsartMatchAntall,
       reiseByggeplasserUtenPunkt,
+      reiseByggeplasserUpresisSirkel,
       reiseParUoppnaaelige,
       reiseGrenser,
     };

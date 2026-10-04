@@ -24,11 +24,14 @@ export const byggeplassRouter = router({
   // reisetid-matrise → prosjekt→primær-byggeplass-resolusjon). Firma-scopet via
   // project.primaryOrganizationId. L1 (2026-06-20): utvidet med name + geofence
   // (latitude/longitude/radiusM) for GPS-identifikasjon av byggeplass på mobil.
+  // V17-B (B-6): utvidet med geofenceKilde + soner (kun soner med geo_polygon) så
+  // mobilen (V17-C) kan gjenkjenne over polygoner. 🔴 Additivt — eldre mobil ignorerer
+  // de nye feltene (ikke-strict leser; verifisert at tillegget ikke brekker nåværende lesing).
   hentForFirma: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
-      return ctx.prisma.byggeplass.findMany({
+      const byggeplasser = await ctx.prisma.byggeplass.findMany({
         where: { project: { primaryOrganizationId: input.organizationId } },
         select: {
           id: true,
@@ -39,8 +42,15 @@ export const byggeplassRouter = router({
           latitude: true,
           longitude: true,
           radiusM: true,
+          geofenceKilde: true,
+          omrader: {
+            where: { geoKilde: { not: null } }, // kun soner med geometri (B9/B-6)
+            select: { id: true, navn: true, type: true, geoPolygon: true },
+          },
         },
       });
+      // Omdøp `omrader` → `soner` i grensesnittet mot mobilen (B-6-kontrakten).
+      return byggeplasser.map(({ omrader, ...b }) => ({ ...b, soner: omrader }));
     }),
 
   // Hent alle byggeplasser for et prosjekt
