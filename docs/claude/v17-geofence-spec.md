@@ -180,7 +180,7 @@ georeferering gir en byggeplass soner (skal KUN gi punkt + sirkel). *(Areal-beva
 4. ~~V17-b fri tegning~~ — 🟢 **Kenneth 2026-10-04: tegnes selv — kjernen i V17.** 🔴 **To pakkevalg er Kenneths
    (CLAUDE.md-pakkeregelen), med navn og lisens (§ 2b):** (a) tegneverktøy i web FØR V17-B — anbefalt
    `@geoman-io/leaflet-geoman-free` (MIT) · (b) polygon-splitting FØR V17-D — anbefalt `polygon-clipping` (MIT).
-   🟢 **(a) VEDTATT Kenneth 2026-10-04: `@geoman-io/leaflet-geoman-free`.** Kompatibilitet med `react-leaflet` 5 / React 18 er ⚠️ ikke målt — måles før V17-B-ordren. (b) ikke valgt ennå (trengs først til V17-D).
+   🟢 **(a) VEDTATT Kenneth 2026-10-04: `@geoman-io/leaflet-geoman-free`.** Kompatibilitet 🟢 målt 2026-10-04 (orkestrator): peer `leaflet ^1.2` (web har 1.9.4); `KartVelger.tsx` bruker Leaflet direkte (`L.map`, ikke `react-leaflet`), så React-versjonen er irrelevant. MIT, v2.20.2. (b) ikke valgt ennå (trengs først til V17-D).
 6. **Auto-trigger og soner:** avgjort etter gate-anbefaling — auto-triggeren utleder KUN punkt + sirkel; soner
    bare ved eksplisitt «Hent fra tegning» (B7). Kenneth kan snu.
 5. Målingens § 6-SQL (antall byggeplasser pr. kilde, største radius, antall trasé-områder) er ikke kjørt — tallene

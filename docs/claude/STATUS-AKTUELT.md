@@ -64,7 +64,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
 | **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `8492b66c` | 🟡 **RETUR 2 sendt 2026-10-03 — Kenneth-vedtak «Excel → fast»** (L2-Cs kolonner alltid i Excel, dynamisk på skjerm). AML-varsel: behold. Ny hash → diff-gate → merge |
-| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | — (detached) | 🟢 **Ledig. V17-A MERGET `8987843f` ← `70bbe438` 2026-10-04** (kontrollør GATET; retur-diff verifisert av orkestrator). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s. Neste: geoman-kompatibilitet måles før V17-B-ordren |
+| **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f`. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
 | **Funn** | redesign | `SiteDoc-redesign` | `fix/mobil-i18n-sveip2` (ny) | 🟡 **Ordre skrevet 2026-10-04** — i18n PSI/IFC/innlogging/kart + fjern «kommer snart»-knappene (Kenneth) (`relay/inbox-redesign-i18n-sveip2.md`) |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
