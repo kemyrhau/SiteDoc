@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { gjenkjennSted } from "@sitedoc/shared";
+import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import { byggeplassLocal } from "../db/schema";
 import type { trpc } from "../lib/trpc";
@@ -83,17 +83,28 @@ export function identifiserByggeplass(
   if (lat == null || lng == null || !organizationId) return null;
   const db = hentDatabase();
   if (!db) return null;
-  const kandidater = db
+  // V17-A: kandidatene bygges av `tilGeofencer` (A4) — radius-null-filteret er
+  // borte herfra. I V17-A har mobilen ingen sone-data, så dette gir én
+  // sirkel pr. byggeplass med punkt+radius (identisk sett som før). Treffet
+  // mappes tilbake til byggeplass-raden for navnet (Sirkel bærer ikke navn).
+  const rader = db
     .select()
     .from(byggeplassLocal)
     .where(eq(byggeplassLocal.organizationId, organizationId))
-    .all()
-    .filter(
-      (b): b is typeof b & { lat: number; lng: number; radiusM: number } =>
-        b.lat != null && b.lng != null && b.radiusM != null,
-    );
+    .all();
+  const kandidater = rader.flatMap((b) =>
+    tilGeofencer({
+      id: b.id,
+      lat: b.lat,
+      lng: b.lng,
+      radiusM: b.radiusM,
+      soner: [],
+    }),
+  );
   const treff = gjenkjennSted({ lat, lng }, kandidater);
-  return treff ? { id: treff.sted.id, navn: treff.sted.navn ?? null } : null;
+  if (!treff) return null;
+  const rad = rader.find((b) => b.id === treff.sted.id);
+  return { id: treff.sted.id, navn: rad?.navn ?? null };
 }
 
 /**

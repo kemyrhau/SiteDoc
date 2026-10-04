@@ -152,7 +152,7 @@ kanten → ett deterministisk treff (B4), aldri null**; dagens auto-sirkel (M5) 
 
 | Ordre | Innhold | Avhenger av | Migrering |
 |---|---|---|---|
-| **V17-A** | Leveranse A (shared) + C-2-ryddingen av filtrene (mobil, null atferdsendring for sirkler) | ingen | — |
+| **V17-A** 🟢 GATET m/ RETUR 1 (branch `feat/v17a-stedsmodell`, 2026-10-04 — venter merge) | Leveranse A (shared) + C-2-ryddingen av filtrene (mobil, null atferdsendring for sirkler). RETUR 1: `Sirkel.form` påkrevd (`form: "sirkel"`, kompilator-voktet) og `RADIUS_GRENSER`-aliaset fjernet — `GEOFENCE_GRENSER` eneste grense-kilde | ingen | — |
 | **V17-B** | Leveranse B (db + api) + D (web-modal: sone-liste, karttegning polygon/linje, hent-fra-tegning, origo, varsler) | V17-A merget (typene) | `omrader.geo_polygon` + `geo_kilde` (Kenneth-gatet) |
 | **V17-C** | Leveranse C (mobil: `sone_geo_local` + gjenkjenning over soner) | V17-A + V17-B merget (feltene må finnes i `hentForFirma` FØR mobilen leser dem — lag 2-lærdommen M6) | lokal mobil |
 

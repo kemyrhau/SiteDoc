@@ -23,7 +23,7 @@ import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { hentByggeplasserForFirmaLokalt } from "../../src/services/byggeplassKatalog";
 import { finnEllerOpprettDagsseddel } from "../../src/services/dagsseddelOpprett";
-import { gjenkjennSted } from "@sitedoc/shared";
+import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { trpc } from "../../src/lib/trpc";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { eq } from "drizzle-orm";
@@ -129,16 +129,26 @@ export default function NyDagsseddelSide() {
         // nærmeste prosjektpunkt innenfor 500 m. Byggeplassens prosjekt blir
         // forslaget. Lag 1 (2026-10-02): GPS-treff er FORSLAG; arbeider-valg
         // går foran (arbeideren kan overstyre i velgeren).
-        const kandidater = hentByggeplasserForFirmaLokalt(orgId).filter(
-          (b): b is typeof b & { lat: number; lng: number; radiusM: number } =>
-            b.lat !== null && b.lng !== null && b.radiusM !== null,
+        // V17-A: kandidater via tilGeofencer (A4) — radius-null-filteret er borte.
+        // Treff mappes tilbake til byggeplass-raden for prosjektet (Sirkel bærer
+        // ikke projectId). I V17-A: én sirkel pr. byggeplass (ingen sone-data).
+        const rader = hentByggeplasserForFirmaLokalt(orgId);
+        const kandidater = rader.flatMap((b) =>
+          tilGeofencer({
+            id: b.id,
+            lat: b.lat,
+            lng: b.lng,
+            radiusM: b.radiusM,
+            soner: [],
+          }),
         );
         const byggTreff = gjenkjennSted(
           { lat: pos.coords.latitude, lng: pos.coords.longitude },
           kandidater,
         );
         if (avbrutt || !byggTreff) return;
-        const treff = prosjekter.find((p) => p.id === byggTreff.sted.projectId);
+        const byggRad = rader.find((b) => b.id === byggTreff.sted.id);
+        const treff = prosjekter.find((p) => p.id === byggRad?.projectId);
         if (treff) {
           setGeoForslagId(treff.id);
           setValgtProsjekt(treff);

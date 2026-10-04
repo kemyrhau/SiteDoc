@@ -682,6 +682,25 @@ Fire funn fra gaten på `feat/kolonnevelger` (ikke feil, men ting gaten avdekket
 
 Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggeplass** arbeider står på (utvider Fase 1 som kun identifiserte prosjekt/oppmøtested). Løser byggeplass-koordinat-gapet [`fase-0 T.8:990`](fase-0-beslutninger.md) — som også Fase 3 (kontor→byggeplass-reise) trenger.
 
+> 🟢 **V17-A LEVERT (branch `feat/v17a-stedsmodell`, 2026-10-04 — venter gate/merge; hjemmel V17/K10,
+> spec `v17-geofence-spec.md` v2.2):** stedsmodellen generalisert fra ren SIRKEL til **Sirkel | Polygon**.
+> **Null atferdsendring for brukeren** (ingen sone-data finnes før V17-B/C; sirkler gjenkjennes nøyaktig som før).
+> - `packages/shared/src/utils/sted.ts`: `Geofence = Sirkel | Polygon` (diskriminert union). Nye rene
+>   geometrifunksjoner i ÉT lokalt plan (ingen pakke, ingen Node-import): `erInnenfor` (A1, sirkel = avstand ≤
+>   radius, polygon = ray-casting, kant = innenfor), `polygonArealM2` (A2 shoelace), `sentroidePunkter` (B2),
+>   `erEnkeltPolygon` (selvkryssing O(n²)), `korridorFraLinje` (B5 — bufrer kartlinje til korridor, avviser
+>   skarp sving med navngitt feil). `gjenkjennSted` generalisert med **B4-prioritet** (sone før sirkel · sone
+>   minst areal · sirkel nærmest sentrum); `Treff` bærer nå `form` + `omradeId`. `tilGeofencer` (A4) er ÉN
+>   kilde som erstatter de tre `radiusM != null`-filtrene; `geofenceForm` (A5); `GEOFENCE_GRENSER` (A6).
+> - **`Sirkel.form` er PÅKREVD** (`form: "sirkel"`, spec § 3) — kompilatoren vokter at ingen formløs kandidat
+>   når `gjenkjennSted`. `sted.test.ts`-hjelperne `oppm`/`bygg` setter `form` eksplisitt. `GEOFENCE_GRENSER`
+>   er eneste grense-kilde (det tidligere `RADIUS_GRENSER`-aliaset er fjernet). *(RETUR 1, kontrollør-gate 2026-10-04.)*
+> - **API binder nå grensene:** `byggeplass.ts` + `oppmotested.ts` importerer `GEOFENCE_GRENSER` (tall uendret).
+> - **Mobil:** `byggeplassKatalog.identifiserByggeplass`, `timer/ny.tsx`, `StartSluttDagKort.tsx` bygger
+>   kandidater via `tilGeofencer` (byggeplass); `useArbeidsdag`/`StartSluttDagKort` oppmøtested forblir sirkel
+>   (`tilGeofencer` med `soner: []`). Alle `radiusM != null`-byggeplassfiltre borte (grep-vakt). **Reload: OTA.**
+> - **Ikke i V17-A:** db/api-feltene (`omrader.geo_polygon`), karttegning, mobil sone-cache = V17-B/C/D.
+
 ### Datamodell (kjerne `packages/db`)
 `Byggeplass.latitude Float?`, `longitude Float?`, `radiusM Int?` — alle nullable, additivt (migrasjon `20260609100000_byggeplass_geofence_fase1c`, enkelt-steg). Ingen 4. flagg-kolonne: override beskyttes av «auto fyller kun når tom»-regelen under.
 

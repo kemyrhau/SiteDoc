@@ -28,7 +28,7 @@ import {
   type DagsforslagEffektiv,
   type DagsforslagEksisterendeSedel,
 } from "../utils/dagsforslag";
-import { tolkStart, tolkSlutt, velgDestinasjon } from "@sitedoc/shared";
+import { tolkStart, tolkSlutt, velgDestinasjon, tilGeofencer } from "@sitedoc/shared";
 import { anvendDagsforslag } from "../utils/dagsforslagAnvend";
 import {
   useArbeidsdag,
@@ -460,14 +460,16 @@ function samleDagsforslagInput(
   let reiseOppslag: BeregnDagsforslagInput["reiseOppslag"] = null;
   let destinasjonProsjektId: string | null = null;
   if (regel) {
+    // V17-A: geofence-kandidater via tilGeofencer (A4) — de to radius-null-
+    // filtrene er borte. I V17-A gir byggeplass én sirkel hver (ingen sone-data);
+    // oppmøtested kalles alltid med `soner: []` → forblir sirkel (spec C-2).
+    // tolkStart/tolkSlutt leser kun `sted.id`, så ingen navn-mapping trengs her.
     const alleByggeplasser = hentByggeplasserForFirmaLokalt(orgId);
-    const byggGeofencer = alleByggeplasser.filter(
-      (b): b is typeof b & { lat: number; lng: number; radiusM: number } =>
-        b.lat != null && b.lng != null && b.radiusM != null,
+    const byggGeofencer = alleByggeplasser.flatMap((b) =>
+      tilGeofencer({ id: b.id, lat: b.lat, lng: b.lng, radiusM: b.radiusM, soner: [] }),
     );
-    const oppmGeofencer = hentOppmotederLokalt(orgId).filter(
-      (o): o is typeof o & { lat: number; lng: number; radiusM: number } =>
-        o.lat != null && o.lng != null && o.radiusM != null,
+    const oppmGeofencer = hentOppmotederLokalt(orgId).flatMap((o) =>
+      tilGeofencer({ id: o.id, lat: o.lat, lng: o.lng, radiusM: o.radiusM, soner: [] }),
     );
     const startPos =
       dag.startLat != null && dag.startLng != null

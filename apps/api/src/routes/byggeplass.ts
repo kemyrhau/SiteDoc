@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { createByggeplassSchema } from "@sitedoc/shared";
+import { createByggeplassSchema, GEOFENCE_GRENSER } from "@sitedoc/shared";
 import {
   verifiserAdmin,
   verifiserProsjektmedlem,
@@ -184,7 +184,12 @@ export const byggeplassRouter = router({
         byggeplassId: z.string().uuid(),
         latitude: z.number().min(-90).max(90).nullable(),
         longitude: z.number().min(-180).max(180).nullable(),
-        radiusM: z.number().int().min(1).max(100000).nullable(),
+        radiusM: z
+          .number()
+          .int()
+          .min(GEOFENCE_GRENSER.byggeplassApi.min)
+          .max(GEOFENCE_GRENSER.byggeplassApi.max)
+          .nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
