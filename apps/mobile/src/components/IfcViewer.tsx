@@ -6,6 +6,7 @@ import { hentWebUrl } from "../config/auth";
 import { hentSessionToken } from "../services/auth";
 import { lastNedIfc } from "../services/ifcCache";
 import { Box, Eye, EyeOff, Scissors, X, ChevronLeft, Download } from "lucide-react-native";
+import i18n from "../lib/i18n";
 
 interface IfcModell {
   id: string;
@@ -27,42 +28,16 @@ interface IfcViewerProps {
   onTilbake: () => void;
 }
 
-/** Oversett IFC-kategorier til norsk */
+/** Oversett IFC-kategorier til brukerens språk. Nøkkelen (IfcWall …) er IFC-klassenavn (data);
+    den oversatte etiketten slås opp via i18n. Ukjent klasse faller tilbake til rådata (klassenavn). */
 function oversettKategori(kategori: string | null): string {
-  if (!kategori) return "Objekt";
-  const oversettelser: Record<string, string> = {
-    IfcWall: "Vegg", IfcWallStandardCase: "Vegg",
-    IfcSlab: "Dekke", IfcRoof: "Tak",
-    IfcBeam: "Bjelke", IfcColumn: "Søyle",
-    IfcDoor: "Dør", IfcWindow: "Vindu",
-    IfcStair: "Trapp", IfcStairFlight: "Trappløp",
-    IfcRailing: "Rekkverk", IfcRamp: "Rampe",
-    IfcPlate: "Plate", IfcMember: "Element",
-    IfcCurtainWall: "Fasadevegg", IfcCovering: "Kledning",
-    IfcFurnishingElement: "Møbel", IfcBuildingElementProxy: "Bygningselement",
-    IfcFlowTerminal: "Armatur", IfcFlowSegment: "Rør/Kanal",
-    IfcDistributionElement: "Teknisk installasjon",
-    IfcSpace: "Rom", IfcOpeningElement: "Åpning",
-  };
-  return oversettelser[kategori] ?? kategori.replace("Ifc", "");
+  if (!kategori) return i18n.t("ifc.kategori.objekt");
+  return i18n.t(`ifc.kategori.${kategori}`, { defaultValue: kategori.replace("Ifc", "") });
 }
 
-/** Oversett og filtrer IFC-attributter til lesbare norske etiketter */
+/** Oversett og filtrer IFC-attributter til lesbare etiketter. Etiketten slås opp via i18n
+    (ukjent felt faller tilbake til rå-feltnavnet = data). */
 function filtrerAttributter(attr: Record<string, unknown>): [string, string][] {
-  const oversettelser: Record<string, string> = {
-    Name: "Navn", Description: "Beskrivelse", ObjectType: "Type",
-    LongName: "Langt navn", PredefinedType: "Forhåndsdefinert type",
-    OverallHeight: "Høyde", OverallWidth: "Bredde", OverallDepth: "Dybde",
-    NominalHeight: "Nominell høyde", NominalWidth: "Nominell bredde",
-    TotalThickness: "Total tykkelse", Thickness: "Tykkelse",
-    Area: "Areal", NetArea: "Netto areal", GrossArea: "Brutto areal",
-    Volume: "Volum", NetVolume: "Netto volum",
-    LoadBearing: "Bærende", IsExternal: "Utvendig",
-    FireRating: "Brannklasse", AcousticRating: "Lydklasse",
-    Reference: "Referanse", Material: "Materiale",
-    Pset_WallCommon: "Veggegenskaper", Pset_SlabCommon: "Dekkeegenskaper",
-  };
-
   const skjult = new Set([
     "expressID", "type", "GlobalId", "Tag", "OwnerHistory",
     "ObjectPlacement", "Representation", "CompositionType", "ShapeType",
@@ -78,9 +53,9 @@ function filtrerAttributter(attr: Record<string, unknown>): [string, string][] {
     if (verdi != null) {
       const s = String(verdi);
       if (s && s !== "NOTDEFINED" && s !== "null" && s !== "undefined" && s !== "ELEMENT") {
-        const label = oversettelser[nøkkel] ?? nøkkel;
+        const label = i18n.t(`ifc.attributt.${nøkkel}`, { defaultValue: nøkkel });
         // Formater boolske verdier
-        const visnVerdi = s === "true" || s === ".T." ? "Ja" : s === "false" || s === ".F." ? "Nei" : s;
+        const visnVerdi = s === "true" || s === ".T." ? i18n.t("ifc.verdi.ja") : s === "false" || s === ".F." ? i18n.t("ifc.verdi.nei") : s;
         resultat.push([label, visnVerdi]);
       }
     }
@@ -93,8 +68,8 @@ function filtrerAttributter(attr: Record<string, unknown>): [string, string][] {
     if (!s || s === "NOTDEFINED" || s === "null" || s === "undefined" || s === "ELEMENT") continue;
     if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s)) continue;
     if (resultat.length >= 8) break;
-    const label = oversettelser[k] ?? k;
-    const visnVerdi = s === "true" || s === ".T." ? "Ja" : s === "false" || s === ".F." ? "Nei" : s;
+    const label = i18n.t(`ifc.attributt.${k}`, { defaultValue: k });
+    const visnVerdi = s === "true" || s === ".T." ? i18n.t("ifc.verdi.ja") : s === "false" || s === ".F." ? i18n.t("ifc.verdi.nei") : s;
     resultat.push([label, visnVerdi]);
   }
 

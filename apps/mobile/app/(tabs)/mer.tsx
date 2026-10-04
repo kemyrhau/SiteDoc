@@ -4,8 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { LucideIcon } from "lucide-react-native";
 import {
   Settings,
-  Printer,
-  Download,
   Building2,
   GitBranch,
   WifiOff,
@@ -188,20 +186,6 @@ export default function MerSkjerm() {
               } else {
                 Alert.alert(t("mer.prosjektinnstillinger"), t("mer.prosjektinnstillingerInfo"));
               }
-            }}
-          />
-          <MenyRad
-            ikon={Printer}
-            tekst={t("handling.skrivUt")}
-            onPress={() => {
-              Alert.alert(t("handling.skrivUt"), t("mer.skrivUtKommerSnart"));
-            }}
-          />
-          <MenyRad
-            ikon={Download}
-            tekst={t("handling.eksporter")}
-            onPress={() => {
-              Alert.alert(t("handling.eksporter"), t("mer.eksporterKommerSnart"));
             }}
           />
         </View>
