@@ -61,7 +61,7 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 ikke server-radene → PC 07–15 + mobil 07–15 = 16 t lagret, bare AML-varselet (>13 t) slår ut. **Feil lønn mulig.**
 🟢 **Kenneth 2026-10-04:** *«den ansatte skal varsles → kunne lese begge og velge selv hvem som vinner»* — avviste flagg-til-attestant,
 avvis-synk og dagens stille sammenslåing. Bygger på «sammenlign dagskort» (`e4866f8d`) + `forsonDagskort` (`9c7c1ad1`).
-Spec v3 gatet `853cb7d5`. 🟢 **Kenneth 2026-10-04 «b»: mobilens forslag lagres på SERVEREN (egen tabell, ikke flagg på `sheet_timer`) og kan velges på PC OG telefon** — v3 holdt det kun lokalt (tap hvis telefonen mistes, usynlig for PC/attestant). Fabel skriver v4. 🟢 **V19.4 Kenneth 2026-10-04: «ja»** — rader uten overlapp slås fortsatt sammen additivt. ❓ Uavklart hos Kenneth: V19.5 (blokkere vs. varsle attestering).
+Spec v3 gatet `853cb7d5`. 🟢 **Kenneth 2026-10-04 «b»: mobilens forslag lagres på SERVEREN (egen tabell, ikke flagg på `sheet_timer`) og kan velges på PC OG telefon** — v3 holdt det kun lokalt (tap hvis telefonen mistes, usynlig for PC/attestant). Fabel skriver v4. 🟢 **V19.4 Kenneth 2026-10-04: «ja»** — rader uten overlapp slås fortsatt sammen additivt. 🟢 **V19.5 Kenneth 2026-10-04: «blokkert»** — attestering blokkeres så lenge valget venter; lederens utvei er retur. Alle Kenneth-beslutninger for V19 er tatt.
 
 ### 🟡 HARDKODET NORSK I MOBIL — neste sveip (målt av redesign 2026-10-04, `fix/mobil-i18n-sveip`)
 
