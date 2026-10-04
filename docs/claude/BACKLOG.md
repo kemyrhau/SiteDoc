@@ -69,6 +69,7 @@ ikke server-radene → PC 07–15 + mobil 07–15 = 16 t lagret, bare AML-varsel
 🟢 **Kenneth 2026-10-04:** *«den ansatte skal varsles → kunne lese begge og velge selv hvem som vinner»* — avviste flagg-til-attestant,
 avvis-synk og dagens stille sammenslåing. Bygger på «sammenlign dagskort» (`e4866f8d`) + `forsonDagskort` (`9c7c1ad1`).
 Spec v3 gatet `853cb7d5`. 🟢 **Kenneth 2026-10-04 «b»: mobilens forslag lagres på SERVEREN (egen tabell, ikke flagg på `sheet_timer`) og kan velges på PC OG telefon** — v3 holdt det kun lokalt (tap hvis telefonen mistes, usynlig for PC/attestant). Fabel skriver v4. 🟢 **V19.4 Kenneth 2026-10-04: «ja»** — rader uten overlapp slås fortsatt sammen additivt. 🟢 **V19.5 Kenneth 2026-10-04: «blokkert»** — attestering blokkeres så lenge valget venter; lederens utvei er retur. Alle Kenneth-beslutninger for V19 er tatt.
+🟡 **V19.6 purring (A-6) UTSATT 2026-10-05 (orkestrator):** api-et har ingen scheduler (målt av redesign: `mannskap.ts:43-53` er lazy-close «api mangler app-scheduler i Fase A»). En purre-funksjon uten kaller ville vært død kode. Utveien (blokkering + lederens retur) finnes uten purring. Tas når en scheduler finnes, eller som lazy trigger (f.eks. når attestanten åpner sedelen) — fabel spesifiserer.
 
 ### 🟡 HARDKODET NORSK I MOBIL — neste sveip (målt av redesign 2026-10-04, `fix/mobil-i18n-sveip`)
 
