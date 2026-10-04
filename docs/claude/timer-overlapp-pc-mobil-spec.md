@@ -3,7 +3,7 @@ name: timer-overlapp-pc-mobil-spec
 description: Spesifikasjon for V19 — når en dagsseddel registrert på PC og en registrert på mobil for samme dag overlapper i tid, lagres mobilens rader som FORSLAG på serveren (egen tabell), arbeideren varsles og velger selv — på telefonen eller på PC — pr. tidsrom eller for hele dagen; attestanten ser begge versjonene lesbart og kan ikke attestere før valget er tatt. Kenneth-vedtak 2026-10-04 (b · V19.4 ja · V19.5 blokkert). v4. Skrevet av fabel, gates av orkestrator.
 sist_verifisert_mot_kode: 2026-10-04
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: ⚠️ UTKAST TIL GATE v4.1 (2026-10-05) — v4 gatet med ett vilkår (én tx med statusvakt i A-1a/A-1b), ført. Alle Kenneth-beslutninger tatt (b · V19.4 ja · V19.5 blokkert). Orkestrator setter GATET ved merge; V19-A-ordren går deretter
+status: 🟢 GATET 2026-10-05 (orkestrator, v4.1). Alle Kenneth-beslutninger tatt (b · V19.4 ja · V19.5 blokkert). V19-A bestilt
 ---
 
 # V19 — overlapp PC ↔ mobil på samme dag: forslaget lagres på serveren, arbeideren velger
