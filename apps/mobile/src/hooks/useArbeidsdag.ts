@@ -7,7 +7,7 @@ import { hentDatabase } from "../db/database";
 import { arbeidsdagLocal } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useFirma } from "../kontekst/FirmaKontekst";
-import { gjenkjennSted } from "@sitedoc/shared";
+import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentOgCacheArbeidstidSvar } from "../services/arbeidstidSvarKatalog";
@@ -81,12 +81,17 @@ function identifiserOppmotested(
   orgId: string,
 ): { id: string; navn: string } | null {
   if (lat == null || lng == null || !orgId) return null;
-  const kandidater = hentOppmotederLokalt(orgId).filter(
-    (s): s is typeof s & { lat: number; lng: number; radiusM: number } =>
-      s.lat != null && s.lng != null && s.radiusM != null,
+  // V17-A: oppmøtested forblir SIRKEL (spec C-2) — bygges via tilGeofencer med
+  // `soner: []`, så det får Sirkel-formen men aldri soner. Radius-null-filteret
+  // er borte. Treffet mappes tilbake til raden for navnet.
+  const rader = hentOppmotederLokalt(orgId);
+  const kandidater = rader.flatMap((s) =>
+    tilGeofencer({ id: s.id, lat: s.lat, lng: s.lng, radiusM: s.radiusM, soner: [] }),
   );
   const treff = gjenkjennSted({ lat, lng }, kandidater);
-  return treff ? { id: treff.sted.id, navn: treff.sted.navn } : null;
+  if (!treff) return null;
+  const rad = rader.find((s) => s.id === treff.sted.id);
+  return { id: treff.sted.id, navn: rad?.navn ?? "" };
 }
 
 export function useArbeidsdag() {
