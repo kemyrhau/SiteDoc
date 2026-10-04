@@ -60,6 +60,7 @@ men egen runde.
 | **B7** | **Tegningsutledning foretrekker soner:** finnes områder med tegnings-polygon på en georeferert tegning, utleder «Beregn fra tegning» geo-polygon pr. område (B5) i stedet for én sirkel. Ellers sirkel som i dag (M5). Sekundær vei — karttegning er primær | Eksisterende trasé-områder får geometri uten ny tegning; sirkelen er fallback, ikke standard, for anlegg |
 | **B8** | **`manuell`/`kart` fredes** — punkt satt manuelt og soner tegnet på kart (`geoKilde = "kart"`) overskrives aldri av tegningsutledning | Lag 1 C4 utvidet til soner |
 | **B9** | **Byggeplassens geofence = unionen av sonene**, med sirkelen som fallback KUN når ingen sone har geometri. Sirkel og soner kombineres ikke | Én modell pr. byggeplass å resonnere om; «upresis»-merket (B6) gjelder bare sirkel-byggeplasser |
+| **B10** | **Alt er soner — hovedtraséen også.** Det finnes ikke noe «hovedtrasé»-objekt: hovedvegen er en sone som sidevegene, og **en lang trasé kan deles i flere soner** («km 0–2», «km 2–4»). **Soneinndelingen er brukerens valg** — systemet deler aldri automatisk. Modalen støtter det med «Tegn sone» (flere) og **«Del sone»** (klipp én sone i to langs en tegnet linje; begge halvdeler arver navn med suffiks, brukeren omdøper). Tilstøtende soner som deler kant er normalen; et punkt på kanten treffer begge, og B4 (minst areal) avgjør — deterministisk, aldri «ingen» | Kenneth 2026-10-04: *«hovedtrase bør også bli sin egen sone. er hovedtrase lang → kan denne deles opp i flere soner. men det må være brukerens valg … soneinndeling må også støttes»* |
 
 ## 3. Leveranse A — stedsmodellen (`packages/shared/src/utils/sted.ts`)
 
@@ -80,7 +81,9 @@ export type Geofence = Sirkel | Polygon;
 
 `tolkStart/tolkSlutt/velgDestinasjon` endres ikke i signatur — de får `Geofence`-kandidater via A4 og arver A3.
 
-**Tester (shared):** A1 sirkel = dagens 5 tester uendret · A1 polygon: innenfor/utenfor/på kant/konkav (U-form, punkt i «bukta» = utenfor)/≥ 3 punkter krav · A3 blandet: punkt inne i både sirkel og sone → sone; **hovedtrasé + sideveg overlapper → sidevegen (minst areal), og treffet bærer sidevegens `omradeId`**; to sirkler → nærmest sentrum · A4: punkt+radius ✔, punkt+soner ✔ (tre kandidater), soner uten punkt → tom, punkt alene → tom · **Røstbakken-testen:** hovedtrasé 6 km × 60 m + sideveg 800 m × 40 m; GPS 2 km langs hovedvegen → hovedtrasé; GPS 300 m inn på sidevegen → sidevegen; dagens auto-sirkel (M5) med samme tegning gir radius > 1500 m → `upresis`.
+**Tester (shared):** A1 sirkel = dagens 5 tester uendret · A1 polygon: innenfor/utenfor/på kant/konkav (U-form, punkt i «bukta» = utenfor)/≥ 3 punkter krav · A3 blandet: punkt inne i både sirkel og sone → sone; **hovedtrasé + sideveg overlapper → sidevegen (minst areal), og treffet bærer sidevegens `omradeId`**; to sirkler → nærmest sentrum · A4: punkt+radius ✔, punkt+soner ✔ (tre kandidater), soner uten punkt → tom, punkt alene → tom · **Røstbakken-testen:** hovedtrasé 6 km × 60 m + sideveg 800 m × 40 m; GPS 2 km langs hovedvegen → hovedtrasé; GPS 300 m inn på sidevegen → sidevegen; **hovedtraséen delt i «km 0–3» og «km 3–6» som deler kant: GPS nøyaktig på
+kanten → ett deterministisk treff (B4), aldri null**; dagens auto-sirkel (M5) med samme tegning gir radius > 1500 m →
+`upresis`.
 
 ## 4. Leveranse B — datagrunnlag (db + api)
 
@@ -116,6 +119,9 @@ export type Geofence = Sirkel | Polygon;
   linje med bredde i Leaflet — `leaflet-draw` eller tilsvarende; `KartVelger.tsx` tegner i dag kun sirkel, `:26-43`),
   rediger/slett pr. sone, og **«Hent fra tegning»** pr. område som har tegningspolygon på en georeferert tegning (B-4).
   Hver sone er et `Omrade` (navn + type `sone | trase`), så en sideveg får navn — det er det Kenneth ba om.
+  **«Del sone»** (B10): velg en sone, tegn en klippelinje over den, bekreft → to soner. Er klipp-langs-linje ikke
+  tilgjengelig i valgt tegnebibliotek, er fallbacken i V17-B «tegn to nye, slett den gamle» — og «Del sone» blir
+  V17-B-tillegg, ikke utsatt runde. Orkestrator måler biblioteket før ordren.
 - Origo vises alltid (B2), utledet første gang og flyttbart; flytting → `manuell`. Radius-UI skjules når formen er
   soner (M7 #11).
 - Områdelista på byggeplass-siden (BACKLOG-funnet fra 2026-10-03: ingen vei til geometrien) får nå nettopp den veien
@@ -140,7 +146,8 @@ export type Geofence = Sirkel | Polygon;
 sidevegen gir hovedtraséen, ikke sidevegen (B4) · 3. Et `radiusM != null`-filter finnes fortsatt utenfor `sted.ts`
 (grep-vakt, som haversine-vakten i lag 1) · 4. Mobil-katalog mister en sone ved refresh · 5. Sone tegnet på kart
 (`kart`) overskrives av tegningsutledning · 6. Auto-sirkel > 1500 m uten upresis-merke · 7. Linje-sone bufres FØR
-transform (koordinatene blir da feil; testen sammenligner korridor-bredde i meter etter transform).
+transform (koordinatene blir da feil; testen sammenligner korridor-bredde i meter etter transform) · 8. «Del sone»
+gir to soner hvis samlede areal ≠ originalens (± toleranse) — klippet mistet eller doblet areal.
 
 ## 9. Åpne punkter for gaten / Kenneth
 
