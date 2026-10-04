@@ -3,7 +3,7 @@ name: timer-overlapp-pc-mobil-spec
 description: Spesifikasjon for V19 — når en dagsseddel registrert på PC og en registrert på mobil for samme dag overlapper i tid, varsles arbeideren og velger selv hvilken versjon som vinner, pr. tidsrom eller for hele dagen. Ingen stille sammenslåing, ingen avvist synk, ingen flagg-til-attestant som eneste løsning. Kenneth-vedtak 2026-10-04. Skrevet av fabel, gates av orkestrator.
 sist_verifisert_mot_kode: 2026-10-04
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: ⚠️ UTKAST TIL GATE v3 (2026-10-04) — v2 lukket flythull/TOCTOU/attesteringsveier/§ 8.4; v3 snur B-1 (omnøkling som i dag, conflict i stedet for pending, ingen ny lokal kolonne) etter pull-vakt-funnet M14. Ingen kode-ordre før gatet + Kenneth V19.4/V19.5
+status: 🟢 GATET 2026-10-04 (orkestrator, v3). V19-A-ordren venter KUN på Kenneths svar på V19.4 (additiv sammenslåing uten overlapp) og V19.5 (blokkere vs. varsle attestering)
 ---
 
 # V19 — overlapp PC ↔ mobil på samme dag: arbeideren velger
