@@ -3,7 +3,7 @@ name: timer-overlapp-pc-mobil-spec
 description: Spesifikasjon for V19 — når en dagsseddel registrert på PC og en registrert på mobil for samme dag overlapper i tid, varsles arbeideren og velger selv hvilken versjon som vinner, pr. tidsrom eller for hele dagen. Ingen stille sammenslåing, ingen avvist synk, ingen flagg-til-attestant som eneste løsning. Kenneth-vedtak 2026-10-04. Skrevet av fabel, gates av orkestrator.
 sist_verifisert_mot_kode: 2026-10-04
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: ⚠️ UTKAST TIL GATE v2 (2026-10-04) — rettet etter gate-AVVIK (flythull i S2, TOCTOU, to attesteringsveier, § 8.4). Ingen kode-ordre før gatet + Kenneth V19.4/V19.5
+status: ⚠️ UTKAST TIL GATE v3 (2026-10-04) — v2 lukket flythull/TOCTOU/attesteringsveier/§ 8.4; v3 snur B-1 (omnøkling som i dag, conflict i stedet for pending, ingen ny lokal kolonne) etter pull-vakt-funnet M14. Ingen kode-ordre før gatet + Kenneth V19.4/V19.5
 ---
 
 # V19 — overlapp PC ↔ mobil på samme dag: arbeideren velger
@@ -36,6 +36,7 @@ Den endrer **ikke** reise, norm eller spor (lag 1–2), og **ikke** lederens ret
 | M11 | 🔴 **Flyten ved første push** (gate-funn): mobilen sender dagen med sin egen `clientUuid` → oppslag på id treffer ikke → `create` → **P2002** → S2-handleren svarer `conflict` med serverens `clientUuid` → mobilen **nøkler om** → **først neste push** treffer grenen for eksisterende sedel. En vakt som bare ligger i eksisterende-sedel-grenen kjører aldri for den vanligste saken (dag ført på PC først, telefon synker etterpå) | `dagsseddel.ts:5830-5870` (S2), `timerSync.ts:259-290` |
 | M12 | Eksisterende-sedel-grenen leser `eksisterendeITx` **inni** `$transaction` for å lukke vinduet mot samtidig attestering (`SedelAttestertConflict`) — en overlapp-vakt må ligge innenfor samme grense | `dagsseddel.ts:~5537` |
 | M13 | Nøyaktig **to** skrivinger av `status: "accepted"`: `attesterRader` (`:3385`, skriver `:3562`) og `attester` (`:4529`, skriver `:4671`) | gate-måling |
+| M14 | 🔴 **Pull-vakten M2 nøkler om uansett** (gate-funn v2): finner pull en lokal sedel for samme `(userId, dato)` under annen id, hoppes `pending`/`avvist` over, men alt annet — **også `conflict`** — nøkles om med `forsonSedelIdentitet`. «Ingen omnøkling før valget» holder derfor ikke over én pull-syklus. **Og omnøklingen er ufarlig:** `forsonSedelIdentitet` flytter kun id-en (rader, tillegg, maskiner, tombstones + hode), **rører ikke `syncStatus`** — en `conflict`-sedel er fortsatt `conflict`, M8 beskytter radene på neste pull, og conflict-pushvakten sender den ikke | `timerSync.ts:612-645` (M2), `:192-230` (`forsonSedelIdentitet`), `:684-694` (M8) |
 | M10 | Delt overlapp-regel finnes: `finnTidsromKonflikt(rader)` (sett) og `finnOverlappendeTidsrom(fra, til, andre)` (én mot mange), streng (`aF < bT && aT > bF`), hopper over tid-løse rader | `tidsromValidering.ts:39-100` |
 
 🔴 **M3 + M4 sammen er hullet:** S2 ble bygget for å *ikke miste* mobilens rader ved dato-kollisjon — og lyktes — men
@@ -45,7 +46,7 @@ sammenslåingen er blind for tid. Vedtaket snur ikke S2; det setter en port fora
 
 | # | Regel | Lukker |
 |---|---|---|
-| **V19.1** | 🔴 **Overlapp i tid mellom mobilens rader og serverens rader på samme sedel → ingen additiv sammenslåing.** Serveren skriver ingenting, svarer `conflict` med `aarsak: "overlapp"` og server-sedelens identitet. Mobilen setter `syncStatus = "conflict"` (ikke `pending`), beholder radene lokalt og **varsler arbeideren** | M3, M4 |
+| **V19.1** | 🔴 **Overlapp i tid mellom mobilens rader og serverens rader på samme sedel → ingen additiv sammenslåing.** Serveren skriver ingenting, svarer `conflict` med `aarsak: "overlapp"` og server-sedelens identitet. Mobilen **nøkler om til server-identiteten som i dag** (M3, ufarlig per M14), men setter `syncStatus = "conflict"` i stedet for `pending` — **ingen push** — beholder radene lokalt og **varsler arbeideren** | M3, M4, M14 |
 | **V19.2** | **Mens valget venter:** serveren er urørt (web-radene står som de var), mobilens rader ligger lokalt beskyttet av dagens `conflict`-vakt (M8). **Ingenting går tapt, ingenting blir dobbelt.** Pull oppdaterer kun hodet, som i dag | M8 |
 | **V19.3** | **Valget:** arbeideren ser begge versjonene pr. tidsrom i sammenligningsvisningen (M6) og velger **pr. tidsrom** (radio) **eller for hele dagen** (to knapper «Behold appen for hele dagen» / «Behold web for hele dagen» som setter alle radioene — UI-snarvei, samme skrivevei). Valget skrives **atomisk** med `forsonDagskort` (M7). Rader som bare finnes på én side og ikke overlapper noe, beholdes alltid (de er ikke en konflikt) | M6, M7 |
 | **V19.4** | ⚠️ **Rader som IKKE overlapper slås fortsatt sammen additivt som i dag** (S2 består for dem). Vedtaket gjelder overlapp. **Orkestrators tolkning — Kenneth må bekrefte** | — |
@@ -91,17 +92,19 @@ sammenslåingen er blind for tid. Vedtaket snur ikke S2; det setter en port fora
 ## 4. Leveranse B — mobilen
 
 - **B-1 `timerSync.ts` M3-grenen** brancher på `aarsak` **ved første svar** (A-1a gjør at svaret alt vet om overlapp):
-  `"overlapp"` → `syncStatus = "conflict"`, `feilmelding = t("timer.sync.overlappKonflikt")`, teller `konflikt++`
-  (ikke `merged`), **ingen omnøkling før valget** — server-identiteten lagres i ny lokal kolonne
-  `dagsseddel_local.konflikt_server_id` (lokal migrering) så sammenligningen kan hente web-kortet (`hentMedId` på
-  serverens id) og forsoningen vet hvilken sedel den skriver til; `"dato_kollisjon"` → omnøkling + additiv push som i
-  dag (V19.4); `"laast"`/`"nyere"`/ukjent → dagens server-wins-konflikt.
+  `"overlapp"` → **omnøkling som i dag** (`forsonSedelIdentitet(lokal, serverData.clientUuid)`, M14: ufarlig, rører
+  ikke `syncStatus`), **men `syncStatus = "conflict"` i stedet for `pending`** → ingen push; `feilmelding =
+  t("timer.sync.overlappKonflikt")`, teller `konflikt++` (ikke `merged`). Sammenligningen henter web-kortet på
+  sedelens egen id (= serverens) og `forsonDagskort` skriver til den — **nøyaktig dagens konflikt-vei (M6/M7).**
+  🔴 **Ingen ny lokal kolonne, ingen lokal migrering** (v2s `konflikt_server_id` er strøket: en identitetskolonne uten
+  behov som ville driftet fra M2 — stille tomhet i miniatyr). `"dato_kollisjon"` → omnøkling + additiv push som i dag
+  (V19.4); `"laast"`/`"nyere"`/ukjent → dagens server-wins-konflikt. **B-1 er dermed én linje: `conflict` i stedet for
+  `pending`.**
 - **B-2 Varsling (V19.1):** statusbaren viser konflikt (som server-wins gjør i dag), sedelen får banner «Dagen er også
   registrert på PC, og tidene overlapper. Se begge og velg.» med knapp til sammenligningen. Lokalt push-varsel når
   synken setter tilstanden (arbeideren er ikke nødvendigvis i appen).
 - **B-3 Sammenligningen (V19.3):** `DagskortSammenligning` får de to «hele dagen»-knappene (setter `valg` for alle
-  tidsrom); `onBekreft` → `forsonDagskort` som i dag; svaret speiles til lokal, `syncStatus = "synced"`, omnøkling til
-  server-identiteten (`konflikt_server_id`) skjer **her** (etter valget), ikke i synken; kolonnen nulles. Tidsrom som bare finnes på én side vises som i dag
+  tidsrom); `onBekreft` → `forsonDagskort` som i dag; svaret speiles til lokal, `syncStatus = "synced"` — identiteten er alt serverens (B-1), ingenting å nøkle om. Tidsrom som bare finnes på én side vises som i dag
   («ingen registrering» på den andre) og er ikke valgbare (Q3(b)-invarianten består — ingen `fjern`).
 - **B-4 Offline (V19.8):** `erKonflikt && !erPaaNettet` → tekst, ingen valg-affordance; radene beholdes.
 - **B-5 Modus C:** overlapp mot en **låst** web-sedel (`sent`/`accepted`) → `forsonDagskort` avviser (M7) → visningen
@@ -126,7 +129,10 @@ leser serverrader med en annen klient enn `tx` (grep-/typevakt: helperen tar `tx
 6. Mobil setter `pending`/omnøkler ved `aarsak: "overlapp"` (skal: `conflict`, rader urørt) ·
 7. Pull erstatter lokale rader på en `conflict`-sedel (M8 består) ·
 8. Ukjent `aarsak` fra server → auto-merge (skal: behandles som låst) · 9. De to overlapp-stedene (A-1a/A-1b) kaller
-hver sin union-bygging (skal: én `finnOverlappMotServer`, grep-vakt).
+hver sin union-bygging (skal: én `finnOverlappMotServer`, grep-vakt) · **10. (M14, i `timerSync.test.ts`-harnessen):**
+overlapp-konflikt satt → pull leverer serverens sedel for samme dato under annen id → den lokale sedelen er **fortsatt
+`conflict`** og mobilens rader er **urørt** (M2-omnøkling + M8-radvern holder sammen). Feiler hvis status flipper
+eller rader erstattes.
 
 **Fasit-scenario (ende-til-ende, sql.js + mocket router):** Dag med web-rader 07:00–15:00 (7,5 t) og mobil 07:00–15:30
 (8 t): push → conflict/overlapp → banner → arbeideren velger «appen» for hele dagen → `forsonDagskort` erstatter
