@@ -22,6 +22,14 @@ sist_verifisert_mot_kode: 2026-08-09
 > 🟢 **Lag 0c LEVERT `c78bc14f`** — regel 10 er fire ledd, `turbo run typecheck` gater 10 pakker. ⚠️ **`pnpm install` kreves i alle trær** (`@types/node`).
 > 🟢 **LAG 1 KOMPLETT 2026-10-03:** L1-C+L1-A `9d67367a` + L1-B `2e993250`. H21+H22 lukket. Test-deploy `fd92736d` (lag 0 + L1-A/C, migrering `20261002120000` kjørt). 🟢 **`20261002130000_timer_normkilde_pausereferanse` KJØRT** — verifisert av Kenneth i UI 2026-10-03 (firma → innstillinger viser «Dagsnorm-kilde: Fast (7,5 t)» og «Pausen starter fra: Ankomst»). ⚠️ Pull krever `pnpm install` + `prisma generate` ×4. **K10 VEDTATT → V17:** byggeplass-lokasjon = punkt+radius (standard) eller polygon (infrastruktur), én delt gjenkjenning for timer OG PSI; bygges før lag 3/4. 🟢 **K5 vedtatt (mottak med sporbarhet).** 🟡 **LAG 2 BESTILT 2026-10-03** ([timer-gps-lag2-spec.md](timer-gps-lag2-spec.md), gatet; krav på `docs/design-lag2-krav` @ `ed2c9e54` venter merge): L2-A → L2-B ∥ L2-C. Funn: L1-B-etappene lagres ikke på raden, `syncBatch` stripper ukjente felt. 📄 **V17-spec skrevet 2026-10-04** ([v17-geofence-spec.md](v17-geofence-spec.md)) — til gate; bygges før lag 3/4.
 
+> 🟢 **TEST-DEPLOY 2026-10-04: `bd3053bd`** — verifisert mot `/version` (bygget 18:56). Inneholder **L2-A + L2-B**
+> (reise-spor, V1 på server, V8-vindu, pull bærer sporet, B4 manuell), **offline-liste oppgave/HMS**, **offline-lesing
+> fase 2**, **i18n-sveip 1** og **V17-A**. 🟢 **Migrering `20261003120000_timer_lag2_sporbarhet` KJØRT** — verifisert ved
+> at `timer.sheet_timer` har `er_reise`/`reise_avvik`/`tid_kilde`. **Backfill-telling på test: 0 konfigurert, 0
+> navne-match** — test har ingen timerader med reise-lønnsart; reise-visningen testes kun med NYE dager. 🔴 **Tellingen
+> må kjøres mot PROD før prod-deploy** (`backfill-telling-test.sql` mot `-d sitedoc`). OTA test-kanal: venter Kenneth.
+> ⚠️ Migrasjonstabellen for db-timer ligger ikke i `timer._prisma_migrations` (målt) — sjekk kolonner, ikke tabellen.
+
 > 🟢 **TEST-DEPLOY 2026-10-02 kveld: `fd92736d`** — verifisert mot `/version`. Inneholder **hele
 > lag 0** (km-taket, beregn/skriv-splitten, shared-typesjekken) **+ L1-A og L1-C**.
 > 🟢 **Migrering `20261002120000_byggeplass_geofence_kilde` KJØRT** — verifisert ved at
