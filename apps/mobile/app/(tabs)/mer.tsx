@@ -76,10 +76,10 @@ export default function MerSkjerm() {
 
   const startOffline = useCallback(async () => {
     if (!tegningerQuery.data) {
-      Alert.alert("Feil", "Tegninger er ikke lastet ennå. Prøv igjen.");
+      Alert.alert(t("feil.noeGikkGalt"), t("mer.offline.tegningerIkkeLastet"));
       return;
     }
-    setOfflineTekst("Starter...");
+    setOfflineTekst(t("mer.offline.starter"));
     try {
       const resultat = await klargjørForOffline(
         tegningerQuery.data as Array<{ id: string; name: string; fileUrl: string | null; fileType: string | null; updatedAt?: string }>,
@@ -93,21 +93,21 @@ export default function MerSkjerm() {
         const uid = bruker.id;
         try {
           const s = await refreshSjekklisteKatalog(utils.client, valgtProsjektId, uid);
-          listeTekst += `, ${s.sjekklister} sjekklister`;
+          listeTekst += t("mer.offline.sjekklister", { antall: s.sjekklister });
         } catch {
-          listeTekst += ", sjekklister feilet";
+          listeTekst += t("mer.offline.sjekklisterFeilet");
         }
         try {
           const o = await refreshOppgaveKatalog(utils.client, valgtProsjektId, uid);
-          listeTekst += `, ${o.oppgaver} oppgaver`;
+          listeTekst += t("mer.offline.oppgaver", { antall: o.oppgaver });
         } catch {
-          listeTekst += ", oppgaver feilet";
+          listeTekst += t("mer.offline.oppgaverFeilet");
         }
         try {
           const h = await refreshHmsKatalog(utils.client, valgtProsjektId, uid);
-          listeTekst += `, ${h.hms} HMS`;
+          listeTekst += t("mer.offline.hms", { antall: h.hms });
         } catch {
-          listeTekst += ", HMS feilet";
+          listeTekst += t("mer.offline.hmsFeilet");
         }
         // Offline-LESING fase 2: forhånds-nedlast dokument-speilene (via bieffekt-fri
         // hentForOffline) fra de nå oppdaterte listene. HMS-kategori → dokumenttype:
@@ -123,19 +123,25 @@ export default function MerSkjerm() {
           for (const a of [...hms.avvik, ...hms.ruh]) dokumenter.push({ id: a.id, type: "oppgave", status: a.status });
           const r = await forhaandslastDokumenter(utils.client, valgtProsjektId, uid, dokumenter);
           listeTekst += r.serverManglerProsedyre
-            ? ", dokumenter: ikke støttet på server ennå"
-            : `, ${r.lastet} dokumenter offline`;
+            ? t("mer.offline.dokumenterIkkeStoettet")
+            : t("mer.offline.dokumenter", { antall: r.lastet });
         } catch {
-          listeTekst += ", dokumenter feilet";
+          listeTekst += t("mer.offline.dokumenterFeilet");
         }
       }
-      setOfflineTekst(`Ferdig: ${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller${listeTekst}`);
+      setOfflineTekst(
+        t("mer.offline.ferdig", {
+          tegninger: resultat.tegningerLastet,
+          modeller: resultat.ifcLastet,
+          tillegg: listeTekst,
+        }),
+      );
       setTimeout(() => setOfflineTekst(null), 4000);
     } catch (err) {
-      setOfflineTekst(`Feil: ${err instanceof Error ? err.message : String(err)}`);
+      setOfflineTekst(t("mer.offline.feil", { melding: err instanceof Error ? err.message : String(err) }));
       setTimeout(() => setOfflineTekst(null), 5000);
     }
-  }, [tegningerQuery.data, valgtProsjektId, bruker?.id, utils.client]);
+  }, [t, tegningerQuery.data, valgtProsjektId, bruker?.id, utils.client]);
 
   const velgSpraak = useCallback(async (kode: SpraakKode) => {
     setVisSpraakModal(false);
@@ -180,7 +186,7 @@ export default function MerSkjerm() {
               if (!erAdmin) {
                 Alert.alert(t("feil.ingenTilgang"), t("feil.kunAdmin"));
               } else {
-                Alert.alert(t("mer.prosjektinnstillinger"), "Åpne prosjektinnstillinger på sitedoc.no for full redigering.");
+                Alert.alert(t("mer.prosjektinnstillinger"), t("mer.prosjektinnstillingerInfo"));
               }
             }}
           />
@@ -188,14 +194,14 @@ export default function MerSkjerm() {
             ikon={Printer}
             tekst={t("handling.skrivUt")}
             onPress={() => {
-              Alert.alert(t("handling.skrivUt"), "Utskriftsfunksjonalitet kommer snart.");
+              Alert.alert(t("handling.skrivUt"), t("mer.skrivUtKommerSnart"));
             }}
           />
           <MenyRad
             ikon={Download}
             tekst={t("handling.eksporter")}
             onPress={() => {
-              Alert.alert(t("handling.eksporter"), "Eksportfunksjonalitet kommer snart.");
+              Alert.alert(t("handling.eksporter"), t("mer.eksporterKommerSnart"));
             }}
           />
         </View>
@@ -311,7 +317,7 @@ export default function MerSkjerm() {
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-gray-900">
-                {bruker?.name ?? "Ukjent bruker"}
+                {bruker?.name ?? t("mer.ukjentBruker")}
               </Text>
               <Text className="text-sm text-gray-500">
                 {bruker?.email ?? ""}
@@ -346,7 +352,7 @@ export default function MerSkjerm() {
           className="flex-1 bg-black/30 justify-end"
         >
           <View className="rounded-t-2xl bg-white pb-8 pt-4">
-            <Text className="mb-3 px-5 text-sm font-semibold text-gray-900">Velg språk</Text>
+            <Text className="mb-3 px-5 text-sm font-semibold text-gray-900">{t("dokumentleser.velgSpraak")}</Text>
             <ScrollView style={{ maxHeight: 400 }}>
               {STOETTEDE_SPRAAK.map((spraak) => {
                 const erValgt = spraak.kode === i18n.language;
