@@ -54,11 +54,20 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
-### 🟡 «FORBERED OFFLINE» HAR HARDKODET NORSK — `apps/mobile/app/(tabs)/mer.tsx:91-132` (målt av kontrollør 2026-10-03)
+### 🟡 HARDKODET NORSK I MOBIL — neste sveip (målt av redesign 2026-10-04, `fix/mobil-i18n-sveip`)
 
-Hele statusteksten i «Forbered offline» er norske strenger utenfor `t()`, fra før offline fase 2. De nye strengene i
-`feat/mobil-offline-lesing` fulgte mønsteret. Brudd på i18n-kravet (CLAUDE.md). **Ikke bestilt.** Eget i18n-sveip, sammen
-med de tre foreldreløse `annotering.*`-nøklene under.
+🟢 **`mer.tsx` er ryddet** (`734ad1ea`: 17 nøkler, tre foreldreløse `annotering.*` slettet). **Gjenstår, målt:**
+`logg-inn.tsx:54` · `psi/[psiId].tsx` (3 `Alert` + signatur-HTML) · `IfcViewer.tsx:36-60` (~15 IFC-etiketter) ·
+`KartVisning.tsx:34`. PSI og IfcViewer er de største. **Ikke bestilt.**
+❓ **Produktspørsmål til Kenneth:** «Skriv ut» og «Eksporter» under Mer → prosjekt viser kun «kommer snart» (`mer.tsx`).
+Skal knappene finnes før funksjonen gjør det?
+
+### 🟡 TRE SMÅFUNN FRA V17-MÅLINGEN (kontrollplan 2026-10-03, `docs/claude/maaling-v17-geofence-2026-10-03.md` § 8)
+
+- `erInnenforTegning` er eksportert og dokumentert, men har **null tester**.
+- `RADIUS_GRENSER` (`sted.ts:198-202`) har ingen produksjonskaller — grensene håndheves fortsatt på opprinnelsesstedene
+  (`byggeplass.ts:187`, `oppmotested.ts:154`, web-modal). Konstanten dokumenterer, binder ikke.
+- `geofenceKilde` speiles ikke til mobil — tas i V17-specen hvis mobil skal skille sirkel/polygon.
 
 ### 🟡 SJEKKLISTE-SPEILET LEKKER VED BRUKERBYTTE — `loggUt()` rydder ikke SQLite (målt 2026-10-03, redesign)
 
