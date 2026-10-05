@@ -19,6 +19,8 @@ import {
   type DetaljEksport,
   typeEtikett,
   betegnelse,
+  lonnsartTypeEtikett,
+  satsEnhetEtikett,
   kolTekst,
   formaterNorsk,
   byggStatusEtiketter,
@@ -61,6 +63,8 @@ const KOL_META: Record<KolKey, { i18n: string; num?: boolean; sub?: keyof Detalj
   prosjekt: { i18n: "kolProsjekt" },
   type: { i18n: "kolType" },
   betegnelse: { i18n: "kolBetegnelse" },
+  lonnsartType: { i18n: "kolLonnsartType" },
+  satsEnhet: { i18n: "kolSatsEnhet" },
   aktivitet: { i18n: "kolAktivitet" },
   fraTid: { i18n: "kolFra" },
   tilTid: { i18n: "kolTil" },
@@ -70,6 +74,15 @@ const KOL_META: Record<KolKey, { i18n: string; num?: boolean; sub?: keyof Detalj
   belop: { i18n: "kolBelop", num: true, sub: "belop" },
   mengde: { i18n: "kolMengde", num: true },
   enhet: { i18n: "kolEnhet" },
+  reise: { i18n: "kolReise" },
+  retning: { i18n: "kolRetning" },
+  fraSted: { i18n: "kolFraSted" },
+  tilSted: { i18n: "kolTilSted" },
+  avstandKm: { i18n: "kolAvstandKm", num: true },
+  kjoretidMin: { i18n: "kolKjoretidMin", num: true },
+  reiseKilde: { i18n: "kolReiseKilde" },
+  tidKilde: { i18n: "kolTidKilde" },
+  normStatus: { i18n: "kolNormStatus" },
   beskrivelse: { i18n: "kolBeskrivelse" },
   status: { i18n: "kolStatus" },
 };
@@ -167,6 +180,32 @@ export function TimerRapportDetaljer({
         return r.mengde !== null ? formaterNorsk(r.mengde) : "";
       case "enhet":
         return r.enhet ?? "";
+      case "lonnsartType":
+        return lonnsartTypeEtikett(t, r.lonnsartType);
+      case "satsEnhet":
+        return satsEnhetEtikett(t, r.satsEnhet);
+      case "reise":
+        return r.erReise === true
+          ? t("timer.eksport.reiseJa")
+          : r.erReise === false
+            ? t("timer.eksport.reiseNei")
+            : "";
+      case "retning":
+        return r.reiseRetning ? t(`timer.reise.retning.${r.reiseRetning}`) : "";
+      case "fraSted":
+        return r.fraSted ?? "";
+      case "tilSted":
+        return r.tilSted ?? "";
+      case "avstandKm":
+        return r.reiseAvstandM != null ? formaterNorsk(r.reiseAvstandM / 1000) : "";
+      case "kjoretidMin":
+        return r.reiseKjoretidMin != null ? String(r.reiseKjoretidMin) : "";
+      case "reiseKilde":
+        return r.reiseKilde ? t(`timer.reise.kilde.${r.reiseKilde}`) : "";
+      case "tidKilde":
+        return r.tidKilde ? t(`timer.reise.tidKilde.${r.tidKilde}`) : "";
+      case "normStatus":
+        return r.normStatus ? t(`timer.reise.norm.${r.normStatus}`) : "";
       case "beskrivelse":
         return r.beskrivelse ?? "";
       case "status":

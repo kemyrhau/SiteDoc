@@ -78,6 +78,9 @@ type AttesteringRad = {
   utlegg: UtleggRad[];
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
+  // LAG 2 D1: sedelens norm-status (DailySheet.normStatus, via ...s-spread i
+  // hentTilAttesteringFirma). Driver norm-banneret i SeddelKort.
+  normStatus: "server" | "cachet" | "ukjent" | null;
   // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
   overtidsgrunnlag: {
     sumOrdinaert: number;

@@ -48,12 +48,28 @@ export type DetaljEksportKilde = {
     ansattnr: string | null;
     prosjekt: string;
     lonnsart: string;
+    /** LAG 2 D2: lønnsartens type (`Lonnsart.type`) + sats-enhet (`satsEnhet`).
+     *  Regnskap trenger dem for km-/diett-arter (K4-forberedelse). null = ikke satt. */
+    lonnsartType: string | null;
+    satsEnhet: string | null;
     aktivitet: string;
     timer: number;
     fraTid: string | null; // "HH:MM" — per-rad klokkeslett (SheetTimer.fraTid)
     tilTid: string | null; // "HH:MM"
     beskrivelse: string | null;
     radstatus: string;
+    // LAG 2 D2 — reise-sporet som følger raden til eksport (K5 mottak med sporbarhet).
+    // api resolver fraSted/tilSted fra reiseOppmotestedId + byggeplassId mot retningen,
+    // så shared slipper navneoppslag. Gamle rader: erReise satt, resten null (ærlig).
+    erReise: boolean;
+    reiseRetning: "ut" | "retur" | null;
+    fraSted: string | null; // oppmøtested (ut) / byggeplass (retur) — resolvert navn
+    tilSted: string | null; // byggeplass (ut) / oppmøtested (retur)
+    reiseAvstandM: number | null; // meter — avstandKm avledes ved rendering
+    reiseKjoretidMin: number | null;
+    reiseKilde: "matrise" | "manuell" | null;
+    tidKilde: "stempel" | "utledet" | "manuell" | null;
+    normStatus: "server" | "cachet" | "ukjent" | null; // sedelens norm-status (DailySheet)
     maskiner: KildeMaskin[];
   }>;
   maskinUtenTimerad: KildeLosMaskin[];
@@ -117,6 +133,20 @@ export type DetaljRad = {
   enhet: string | null; // maskin
   /** Beskrivelse (timer) · kommentar (tillegg/utlegg). */
   beskrivelse: string | null;
+  // LAG 2 D2 — lønnsart-/reise-/norm-spor. Kun `type: "timer"`-rader bærer dem;
+  // andre radtyper står null (type-fremmede felt, som resten av radmodellen).
+  lonnsartType: string | null;
+  satsEnhet: string | null;
+  /** true = reise-rad · false = arbeid · null = ikke en timerad. */
+  erReise: boolean | null;
+  reiseRetning: "ut" | "retur" | null;
+  fraSted: string | null;
+  tilSted: string | null;
+  reiseAvstandM: number | null; // meter
+  reiseKjoretidMin: number | null;
+  reiseKilde: "matrise" | "manuell" | null;
+  tidKilde: "stempel" | "utledet" | "manuell" | null;
+  normStatus: "server" | "cachet" | "ukjent" | null;
   /** Radstatus (timer/maskin/tillegg) · seddelstatus (utlegg). */
   status: string;
   /** Koblingsnøkkel (sheetTimer.id/sheetMachine.id o.l.) — Excel-only, aldri PDF. */
@@ -183,6 +213,17 @@ export function byggDetaljRader(
     mengde: m.mengde,
     enhet: m.enhet,
     beskrivelse: null,
+    lonnsartType: null,
+    satsEnhet: null,
+    erReise: null,
+    reiseRetning: null,
+    fraSted: null,
+    tilSted: null,
+    reiseAvstandM: null,
+    reiseKjoretidMin: null,
+    reiseKilde: null,
+    tidKilde: null,
+    normStatus: null,
     status: m.radstatus,
     id: m.id,
     maskinMerke: merke,
@@ -231,6 +272,17 @@ export function byggDetaljRader(
         mengde: enFold?.mengde ?? null,
         enhet: enFold?.enhet ?? null,
         beskrivelse: r.beskrivelse,
+        lonnsartType: r.lonnsartType,
+        satsEnhet: r.satsEnhet,
+        erReise: r.erReise,
+        reiseRetning: r.reiseRetning,
+        fraSted: r.fraSted,
+        tilSted: r.tilSted,
+        reiseAvstandM: r.reiseAvstandM,
+        reiseKjoretidMin: r.reiseKjoretidMin,
+        reiseKilde: r.reiseKilde,
+        tidKilde: r.tidKilde,
+        normStatus: r.normStatus,
         status: r.radstatus,
         id: r.id,
         maskinMerke: null,
@@ -279,6 +331,17 @@ export function byggDetaljRader(
             mengde: null,
             enhet: null,
             beskrivelse: r.kommentar,
+            lonnsartType: null,
+            satsEnhet: null,
+            erReise: null,
+            reiseRetning: null,
+            fraSted: null,
+            tilSted: null,
+            reiseAvstandM: null,
+            reiseKjoretidMin: null,
+            reiseKilde: null,
+            tidKilde: null,
+            normStatus: null,
             status: r.radstatus,
             id: r.id,
             maskinMerke: null,
@@ -312,6 +375,17 @@ export function byggDetaljRader(
             mengde: null,
             enhet: null,
             beskrivelse: r.kommentar,
+            lonnsartType: null,
+            satsEnhet: null,
+            erReise: null,
+            reiseRetning: null,
+            fraSted: null,
+            tilSted: null,
+            reiseAvstandM: null,
+            reiseKjoretidMin: null,
+            reiseKilde: null,
+            tidKilde: null,
+            normStatus: null,
             status: r.seddelstatus,
             id: r.id,
             maskinMerke: null,
@@ -342,9 +416,25 @@ export type KolonneTilstedevaerelse = {
   mengde: boolean;
   enhet: boolean;
   beskrivelse: boolean;
+  // LAG 2 D2 — reise-/lønnsart-spor. Hele reise-klyngen vises når det finnes ≥1
+  // reise-rad; lønnsartType/satsEnhet når det finnes en ikke-ordinær type / en sats-
+  // enhet (km/diett). Slik forblir en vanlig timeliste (ingen reise, kun ordinært)
+  // byte-identisk med før — nye kolonner dukker bare opp når de bærer noe.
+  reise: boolean;
+  retning: boolean;
+  fraSted: boolean;
+  tilSted: boolean;
+  avstandKm: boolean;
+  kjoretidMin: boolean;
+  reiseKilde: boolean;
+  tidKilde: boolean;
+  normStatus: boolean;
+  lonnsartType: boolean;
+  satsEnhet: boolean;
 };
 
 export function kolonnerMedInnhold(rader: DetaljRad[]): KolonneTilstedevaerelse {
+  const harReise = rader.some((r) => r.erReise === true);
   return {
     aktivitet: rader.some((r) => r.aktivitet !== null && r.aktivitet !== ""),
     fraTid: rader.some((r) => r.fraTid !== null && r.fraTid !== ""),
@@ -356,6 +446,20 @@ export function kolonnerMedInnhold(rader: DetaljRad[]): KolonneTilstedevaerelse 
     mengde: rader.some((r) => r.mengde !== null),
     enhet: rader.some((r) => r.enhet !== null && r.enhet !== ""),
     beskrivelse: rader.some((r) => r.beskrivelse !== null && r.beskrivelse !== ""),
+    // «Reise»-kolonnen (ja/nei) + retning vises så snart reise finnes; de øvrige
+    // reise-kolonnene når DET feltet faktisk har en verdi (gamle rader uten etappe
+    // gir tomme felt — ærlig, ingen fabrikkerte «0 km»).
+    reise: harReise,
+    retning: rader.some((r) => r.reiseRetning !== null),
+    fraSted: rader.some((r) => r.fraSted !== null && r.fraSted !== ""),
+    tilSted: rader.some((r) => r.tilSted !== null && r.tilSted !== ""),
+    avstandKm: rader.some((r) => r.reiseAvstandM !== null),
+    kjoretidMin: rader.some((r) => r.reiseKjoretidMin !== null),
+    reiseKilde: rader.some((r) => r.reiseKilde !== null),
+    tidKilde: rader.some((r) => r.tidKilde !== null),
+    normStatus: rader.some((r) => r.normStatus !== null),
+    lonnsartType: rader.some((r) => r.lonnsartType !== null && r.lonnsartType !== "ordinaer"),
+    satsEnhet: rader.some((r) => r.satsEnhet !== null),
   };
 }
 
@@ -377,6 +481,8 @@ export const TIMER_KOL_KEYS = [
   "prosjekt",
   "type",
   "betegnelse",
+  "lonnsartType",
+  "satsEnhet",
   "aktivitet",
   "fraTid",
   "tilTid",
@@ -386,6 +492,16 @@ export const TIMER_KOL_KEYS = [
   "belop",
   "mengde",
   "enhet",
+  // LAG 2 D2 — reise-sporet (vises dynamisk kun når det finnes reise-/norm-data).
+  "reise",
+  "retning",
+  "fraSted",
+  "tilSted",
+  "avstandKm",
+  "kjoretidMin",
+  "reiseKilde",
+  "tidKilde",
+  "normStatus",
   "beskrivelse",
   "status",
 ] as const;
@@ -398,7 +514,15 @@ export type TimerKolKey = (typeof TIMER_KOL_KEYS)[number];
  * VINNER over brukerens kolonnevalg — den kan ikke overstyres fra kolonnevelgeren.
  * (ID er uansett ikke en valgbar kolonne, og aldri i PDF.)
  */
-export const INTERNE_TIMER_KOLONNER: readonly TimerKolKey[] = ["ansattnr", "status"];
+export const INTERNE_TIMER_KOLONNER: readonly TimerKolKey[] = [
+  "ansattnr",
+  "status",
+  // LAG 2 D2 — proveniens/kvalitets-spor er internt (lønn/attestering), aldri til
+  // byggherre: hvor reise-tallene og normen kom fra sier ikke byggherren noe.
+  "reiseKilde",
+  "tidKilde",
+  "normStatus",
+];
 
 /** i18n-nøkkel pr. kolonne (delt av skjerm/velger/Excel via `kolTekst`/`t`). */
 export const TIMER_KOL_I18N: Record<TimerKolKey, string> = {
@@ -408,6 +532,8 @@ export const TIMER_KOL_I18N: Record<TimerKolKey, string> = {
   prosjekt: "kolProsjekt",
   type: "kolType",
   betegnelse: "kolBetegnelse",
+  lonnsartType: "kolLonnsartType",
+  satsEnhet: "kolSatsEnhet",
   aktivitet: "kolAktivitet",
   fraTid: "kolFra",
   tilTid: "kolTil",
@@ -417,6 +543,15 @@ export const TIMER_KOL_I18N: Record<TimerKolKey, string> = {
   belop: "kolBelop",
   mengde: "kolMengde",
   enhet: "kolEnhet",
+  reise: "kolReise",
+  retning: "kolRetning",
+  fraSted: "kolFraSted",
+  tilSted: "kolTilSted",
+  avstandKm: "kolAvstandKm",
+  kjoretidMin: "kolKjoretidMin",
+  reiseKilde: "kolReiseKilde",
+  tidKilde: "kolTidKilde",
+  normStatus: "kolNormStatus",
   beskrivelse: "kolBeskrivelse",
   status: "kolStatus",
 };
@@ -444,6 +579,8 @@ export const TIMER_KOL_BREDDE: Record<TimerKolKey, TimerKolBredde> = {
   prosjekt: { min: 120, vekt: 2, excel: 22 },
   type: { min: 78, vekt: 0, excel: 10 },
   betegnelse: { min: 150, vekt: 4, excel: 26 },
+  lonnsartType: { min: 90, vekt: 0, excel: 12 },
+  satsEnhet: { min: 84, vekt: 0, excel: 11 },
   aktivitet: { min: 110, vekt: 2, excel: 18 },
   fraTid: { min: 54, vekt: 0, excel: 7 },
   tilTid: { min: 54, vekt: 0, excel: 7 },
@@ -453,6 +590,15 @@ export const TIMER_KOL_BREDDE: Record<TimerKolKey, TimerKolBredde> = {
   belop: { min: 88, vekt: 0, excel: 11 },
   mengde: { min: 72, vekt: 0, excel: 10 },
   enhet: { min: 56, vekt: 0, excel: 8 },
+  reise: { min: 60, vekt: 0, excel: 8 },
+  retning: { min: 72, vekt: 0, excel: 9 },
+  fraSted: { min: 120, vekt: 2, excel: 20 },
+  tilSted: { min: 120, vekt: 2, excel: 20 },
+  avstandKm: { min: 78, vekt: 0, excel: 10 },
+  kjoretidMin: { min: 84, vekt: 0, excel: 11 },
+  reiseKilde: { min: 84, vekt: 0, excel: 11 },
+  tidKilde: { min: 90, vekt: 0, excel: 12 },
+  normStatus: { min: 90, vekt: 0, excel: 12 },
   beskrivelse: { min: 200, vekt: 6, excel: 40 },
   status: { min: 100, vekt: 0, excel: 12 },
 };
@@ -491,6 +637,8 @@ export function losTimerKolonner(
   const koler: TimerKolKey[] = ["dato", "ansatt"];
   if (!ekstern) koler.push("ansattnr");
   koler.push("prosjekt", "type", "betegnelse");
+  if (innhold.lonnsartType) koler.push("lonnsartType");
+  if (innhold.satsEnhet) koler.push("satsEnhet");
   if (innhold.aktivitet) koler.push("aktivitet");
   if (innhold.fraTid) koler.push("fraTid");
   if (innhold.tilTid) koler.push("tilTid");
@@ -500,6 +648,17 @@ export function losTimerKolonner(
   if (innhold.belop) koler.push("belop");
   if (innhold.mengde) koler.push("mengde");
   if (innhold.enhet) koler.push("enhet");
+  // Reise-klyngen — kun når reise-data finnes, og proveniens-kolonnene (kilde/
+  // tidKilde/normStatus) strippes for ekstern mottaker av strukturOk over.
+  if (innhold.reise) koler.push("reise");
+  if (innhold.retning) koler.push("retning");
+  if (innhold.fraSted) koler.push("fraSted");
+  if (innhold.tilSted) koler.push("tilSted");
+  if (innhold.avstandKm) koler.push("avstandKm");
+  if (innhold.kjoretidMin) koler.push("kjoretidMin");
+  if (!ekstern && innhold.reiseKilde) koler.push("reiseKilde");
+  if (!ekstern && innhold.tidKilde) koler.push("tidKilde");
+  if (!ekstern && innhold.normStatus) koler.push("normStatus");
   if (innhold.beskrivelse) koler.push("beskrivelse");
   if (!ekstern) koler.push("status");
   return koler;

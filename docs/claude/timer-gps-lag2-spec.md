@@ -14,7 +14,13 @@ status: 🟢 GATET 2026-10-03 (orkestrator) med to presiseringer — ført samme
 > `reisetidTellerOvertid`-deprecation) er bygget. **Avvik fra § 2 ført:** `erReise=true ⇒ reiseRetning` er IKKE
 > en DB-CHECK (backfill + overgangsrader bærer utledet flagg uten retning) — håndheves i C2-mottaket kun når
 > klienten sendte `erReise` eksplisitt. Migreringen er **ikke kjørt** (Kenneth kjører mot test, leser navne-match-
-> tallet før prod). **L2-B (mobil) og L2-C (attestering/eksport) gjenstår.**
+> tallet før prod). **L2-B (mobil) gjenstår.**
+
+> 🟢 **L2-C LEVERT (branch `feat/timer-l2c-attestering-eksport`, 2026-10-03 — venter gate/merge):** Leveranse D
+> (D1 attestering-web + D2 eksport + D3 doc-drift) er bygget. Reise-sporet vises på attestant-flaten (merke/rute/
+> tidskilde/avvik/norm-banner/arbeid-reise-splitt, delt `ReiseRadMerke.tsx`), eksporten bærer reise-kolonnene +
+> `lonnsartType`/`satsEnhet` (dynamisk, proveniens strippet for ekstern), og `timer.md`-påstanden om
+> `attestertSnapshot.prisMotKunde` i eksport er rettet (M9). Ingen server-omregning (K5). **Ingen migrering.**
 
 > Forelder: [timer-gps-helhetsplan.md](timer-gps-helhetsplan.md) § 2 og § 5 LAG 2. Forutsetter lag 1
 > (komplett `2e993250`). Hjemmel: V1, V2, V8, K5 (vedtatt 2026-10-03: **mottak med sporbarhet** —
