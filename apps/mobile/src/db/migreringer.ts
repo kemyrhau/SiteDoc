@@ -1152,4 +1152,22 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] user_id på sjekkliste_local feilet", e);
   }
+
+  // V19-B (B-1b, 2026-10-05) — konflikt_aarsak på dagsseddel_local: serverens
+  // `aarsak` lagres lokalt ved conflict ("overlapp"/"laast"/"nyere"/"dato_kollisjon")
+  // og leses KUN av pull-vakten (V19.7b/B-3b) for å slippe en overlapp-konflikt når
+  // valget er tatt på PC. Tilstand med én leser — ingen identitetskolonne, ingen
+  // backfill (eksisterende conflict-sedler er server-wins "laast"-oppførsel, og null
+  // leses konservativt som ikke-overlapp). NULLABLE. Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "konflikt_aarsak")) {
+      console.log("[MIG] Legger til konflikt_aarsak på dagsseddel_local (V19-B)");
+      db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN konflikt_aarsak TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] konflikt_aarsak på dagsseddel_local feilet", e);
+  }
 }

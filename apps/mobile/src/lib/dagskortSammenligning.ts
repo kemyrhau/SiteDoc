@@ -16,6 +16,8 @@
  * ene siden. `webLaster` skiller «vet ikke ennå» fra «vet at den er tom».
  */
 
+import { parForslagMotSedel, type ForsonRad } from "@sitedoc/shared";
+
 export type NettStatus = "online" | "offline";
 export type WebStatus = "draft" | "returned" | "sent" | "accepted";
 export type Side = "lokal" | "server";
@@ -39,12 +41,23 @@ export interface TimerRad {
 export interface TidsromRad {
   /** Visningsnøkkel for tidsrommet: «07:00–15:00», eller varigheten når klokkeslett mangler. */
   tidsrom: string;
+  /**
+   * Stabil, unik valg-/render-nøkkel. Satt i V19-overlapp-modus (forslagsradens id,
+   * ellers `sedel:…`) så to slots med likt tidsrom ikke kolliderer. Utelatt i den
+   * eksisterende U-BEKREFT-modusen → komponenten faller tilbake til `tidsrom`.
+   */
+  nokkel?: string;
   /** Appens utregnede rad for dette tidsrommet, eller null (ingen registrering fra appen). */
   lokal: TimerRad | null;
   /** Web-dagskortets rad for dette tidsrommet, eller null (ingen registrering på web). */
   server: TimerRad | null;
   /** Forhåndsvalgt side. Ensidig rad → den siden som finnes; begge → web-kortet (reviderbart). */
   valgt: Side;
+  /**
+   * Er denne raden valgbar? Satt `false` i V19-overlapp på ensidige slots (Q3(b): en
+   * rad som bare finnes på én side kan ikke velges bort). Utelatt → valgbar (som i dag).
+   */
+  valgbar?: boolean;
 }
 
 export type Sammenligning =
@@ -128,6 +141,77 @@ export function dagskortSammenligning(input: {
 
   const rader = flettPrTidsrom(input.lokaleTimer, input.webKort.timer);
   const redigerbar = input.webKort.status === "draft" || input.webKort.status === "returned";
+  return redigerbar
+    ? { slag: "modusB", rader }
+    : { slag: "modusC", rader, grunn: input.webKort.status };
+}
+
+/**
+ * V19-B (B-3) — overlapp-modus for sammenligningen. Til forskjell fra den eksisterende
+ * U-BEKREFT-modusen (lokale rader mot web, flettet pr. EKSAKT tidsrom) parer denne
+ * FORSLAGET fra serveren («appen»-siden) mot sedelens serverrader («web»-siden) PR.
+ * OVERLAPP — via den delte `parForslagMotSedel`, samme paring som skriveveien
+ * (`byggForsonInputFraValg`), så skjerm og skrivevei aldri kan pare ulikt. Dermed blir
+ * fasiten (web 07:00–15:00 vs mobil 07:00–15:30) ÉN slot med radio, ikke to linjer.
+ *
+ * Kilden er ALLTID forslaget på serveren (ikke lokale rader) → telefonen viser det
+ * samme som PC-en, også etter at brukeren rettet lokalt (spec § 3). Offline/laster/
+ * utilgjengelig håndteres likt den andre modusen (web-radene finnes ikke lokalt).
+ */
+export function overlappSammenligning(input: {
+  nettStatus: NettStatus;
+  webLaster: boolean;
+  /** Sedelens serverrader (web/PC) + status — null når ikke hentet/ikke lesbart. */
+  webKort: { status: WebStatus; sedelRader: ForsonRad[] } | null;
+  /** Forslagsradene fra serveren (mobilens overlappende rader). */
+  forslag: ForsonRad[];
+}): Sammenligning {
+  if (input.nettStatus === "offline") return { slag: "offline" };
+  if (input.webLaster) return { slag: "laster" };
+  if (!input.webKort) return { slag: "utilgjengelig" };
+
+  const tilTimerRad = (r: ForsonRad): TimerRad => ({
+    id: r.id,
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    timer: r.timer,
+    projectId: r.projectId,
+    lonnsartId: r.lonnsartId,
+    beskrivelse: r.beskrivelse,
+  });
+
+  const rader: TidsromRad[] = parForslagMotSedel(
+    input.webKort.sedelRader,
+    input.forslag,
+  ).map((slot) => {
+    const forslagRad = slot.forslag ? tilTimerRad(slot.forslag) : null;
+    const sedelRad = slot.sedel ? tilTimerRad(slot.sedel) : null;
+    // Minst én side finnes alltid på en slot.
+    const vis = (forslagRad ?? sedelRad) as TimerRad;
+    return {
+      nokkel: slot.nokkel,
+      tidsrom: tidsromEtikett(vis),
+      lokal: forslagRad, // appen = forslaget
+      server: sedelRad, // web = sedelen (PC)
+      // Paret slot: forhåndsvelg «behold PC» (server) — konservativt, = skriveveien
+      // uten valg. Ensidig slot: den siden som finnes (men ikke valgbar, Q3(b)).
+      valgt: slot.valgbar ? "server" : forslagRad && !sedelRad ? "lokal" : "server",
+      valgbar: slot.valgbar,
+    };
+  });
+
+  // Sorter på starttid (samme regel som flettPrTidsrom); tid-løse sist.
+  rader.sort((a, b) => {
+    const fa = a.lokal?.fraTid ?? a.server?.fraTid ?? null;
+    const fb = b.lokal?.fraTid ?? b.server?.fraTid ?? null;
+    if (fa === fb) return 0;
+    if (fa === null) return 1;
+    if (fb === null) return -1;
+    return fa < fb ? -1 : 1;
+  });
+
+  const redigerbar =
+    input.webKort.status === "draft" || input.webKort.status === "returned";
   return redigerbar
     ? { slag: "modusB", rader }
     : { slag: "modusC", rader, grunn: input.webKort.status };

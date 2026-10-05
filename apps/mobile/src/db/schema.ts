@@ -130,6 +130,11 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
     .notNull()
     .default("pending"),
   feilmelding: text("feilmelding"), // Server-feilmelding ved siste sync-forsøk
+  // V19-B (B-1b) — årsaken til `conflict`, satt fra serverens `aarsak`:
+  // "overlapp" | "laast" | "nyere" | "dato_kollisjon". KUN lokal tilstand med ÉN
+  // leser (pull-vakten, V19.7b/B-3b), ikke identitet — derfor ingen ny identitets-
+  // kolonne (v2s `konflikt_server_id` er strøket, M14). null = ingen/ukjent.
+  konfliktAarsak: text("konflikt_aarsak"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
   sistSynkronisert: integer("sist_synkronisert"),
 });
