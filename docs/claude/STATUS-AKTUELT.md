@@ -71,9 +71,9 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-l2c-attestering-eksport` `8492b66c` → så `feat/v19c-overlapp-web` | 🟡 L2-C retur 2 (faste Excel-kolonner) pågår; deretter **V19-C** (`relay/inbox-dokgen-v19c-web.md`) |
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/v19c-overlapp-web` (ny) | 🟡 **L2-C MERGET `3dd2f590` ← `8492b66c` 2026-10-05** (retur 2 trukket: Excel uten valg var alt fast, `78394d44`). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s · web 392. Neste: V19-C |
 | **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f`. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
-| **Plan** | redesign | `SiteDoc-redesign` | `feat/v19b-overlapp-mobil` (ny) | 🟡 **V19-A MERGET `73fe99c0` ← `775246c2` 2026-10-05** (kontrollør GATET; typecheck 11/11 · web build 0 · 7/7 --force 22s · api 715 · shared 1066). 🔴 Migrering `20261005120000_v19_overlapp_forslag` IKKE kjørt (Kenneth, test). Ordre V19-B skrevet (`relay/inbox-redesign-v19b-mobil.md`) |
+| **Plan** | redesign | `SiteDoc-redesign` | `feat/v19b-overlapp-mobil` `e9039b37` | 🟡 **V19-B levert 2026-10-05, hos kontrollør.** OS-push krever `expo-notifications` (ikke installert) — kun statusbar+banner |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
