@@ -106,14 +106,20 @@ export function DagskortSammenligning({
   resultat,
   valg,
   onVelg,
+  onVelgAlle,
   onBekreft,
   bekrefter = false,
 }: {
   resultat: Sammenligning;
-  /** Effektivt valg pr. tidsrom (modus B). Ignorert i modus C. */
+  /** Effektivt valg pr. slot-nøkkel (modus B). Ignorert i modus C. */
   valg: Record<string, Side>;
-  /** Registrer valg i skjerm-state (modus B). */
-  onVelg: (tidsrom: string, side: Side) => void;
+  /** Registrer valg for én slot i skjerm-state (modus B). Nøkkel = rad.nokkel ?? tidsrom. */
+  onVelg: (nokkel: string, side: Side) => void;
+  /**
+   * V19-B (B-3): «hele dagen»-snarvei — sett samme side for ALLE valgbare slots.
+   * Utelatt → ingen hele-dagen-knapper (eksisterende U-BEKREFT-modus).
+   */
+  onVelgAlle?: (side: Side) => void;
   /** Steg 2: anvend valgene → ett dagskort. Utelatt = kun visning (modus C/C-lesevisning). */
   onBekreft?: () => void;
   /** Mutasjonen pågår — deaktiver knappen. */
@@ -179,30 +185,63 @@ export function DagskortSammenligning({
           {t("timer.sammenlign.ingenRader")}
         </Text>
       ) : (
-        resultat.rader.map((rad) => (
-          <View key={rad.tidsrom} className="mt-3 border-t border-gray-100 pt-3">
-            <View className="mb-1.5 flex-row items-center gap-1.5">
-              <Clock size={13} color="#6b7280" />
-              <Text className="text-xs font-semibold text-gray-700">{rad.tidsrom}</Text>
+        resultat.rader.map((rad) => {
+          // Stabil, unik nøkkel: V19-overlapp setter `nokkel`; U-BEKREFT faller til
+          // `tidsrom`. En ensidig slot er ikke valgbar (Q3(b): rad.valgbar === false).
+          const key = rad.nokkel ?? rad.tidsrom;
+          const radValgbar = !laast && rad.valgbar !== false;
+          return (
+            <View key={key} className="mt-3 border-t border-gray-100 pt-3">
+              <View className="mb-1.5 flex-row items-center gap-1.5">
+                <Clock size={13} color="#6b7280" />
+                <Text className="text-xs font-semibold text-gray-700">{rad.tidsrom}</Text>
+              </View>
+              <View className="flex-row gap-2">
+                <RadSide
+                  etikett={t("timer.sammenlign.appen")}
+                  rad={rad.lokal}
+                  valgt={valg[key] === "lokal"}
+                  valgbar={radValgbar}
+                  onVelg={() => onVelg(key, "lokal")}
+                />
+                <RadSide
+                  etikett={t("timer.sammenlign.web")}
+                  rad={rad.server}
+                  valgt={valg[key] === "server"}
+                  valgbar={radValgbar}
+                  onVelg={() => onVelg(key, "server")}
+                />
+              </View>
             </View>
-            <View className="flex-row gap-2">
-              <RadSide
-                etikett={t("timer.sammenlign.appen")}
-                rad={rad.lokal}
-                valgt={valg[rad.tidsrom] === "lokal"}
-                valgbar={!laast}
-                onVelg={() => onVelg(rad.tidsrom, "lokal")}
-              />
-              <RadSide
-                etikett={t("timer.sammenlign.web")}
-                rad={rad.server}
-                valgt={valg[rad.tidsrom] === "server"}
-                valgbar={!laast}
-                onVelg={() => onVelg(rad.tidsrom, "server")}
-              />
-            </View>
-          </View>
-        ))
+          );
+        })
+      )}
+
+      {/* V19-B (B-3): «hele dagen»-snarvei — to knapper som setter alle valgbare
+          slots til samme side. Kun modus B med en skrivevei og minst én rad. */}
+      {!laast && onVelgAlle && onBekreft && resultat.rader.length > 0 && (
+        <View className="mt-3 flex-row gap-2">
+          <Pressable
+            onPress={() => onVelgAlle("lokal")}
+            disabled={bekrefter}
+            className="flex-1 rounded-lg border border-gray-300 bg-white py-2.5"
+            accessibilityRole="button"
+          >
+            <Text className="text-center text-sm font-medium text-gray-800">
+              {t("timer.sammenlign.velgAlleAppen")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onVelgAlle("server")}
+            disabled={bekrefter}
+            className="flex-1 rounded-lg border border-gray-300 bg-white py-2.5"
+            accessibilityRole="button"
+          >
+            <Text className="text-center text-sm font-medium text-gray-800">
+              {t("timer.sammenlign.velgAllePc")}
+            </Text>
+          </Pressable>
+        </View>
       )}
 
       {!laast && onBekreft && resultat.rader.length > 0 && (

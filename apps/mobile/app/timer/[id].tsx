@@ -50,7 +50,11 @@ import {
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { useNettverk } from "../../src/providers/NettverkProvider";
 import { trpc } from "../../src/lib/trpc";
-import { dagskortSammenligning, type Side } from "../../src/lib/dagskortSammenligning";
+import {
+  dagskortSammenligning,
+  overlappSammenligning,
+  type Side,
+} from "../../src/lib/dagskortSammenligning";
 import { DagskortSammenligning } from "../../src/components/timer-detalj/DagskortSammenligning";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
@@ -80,7 +84,12 @@ import {
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
-import { overstigerMaskinTak } from "@sitedoc/shared";
+import {
+  overstigerMaskinTak,
+  byggForsonInputFraValg,
+  type ForsonRad as DeltForsonRad,
+  type ForsonSide,
+} from "@sitedoc/shared";
 import type {
   Sedel,
   TimerRad,
@@ -168,6 +177,43 @@ function anvendForsonetLokalt(sheetId: string, rader: ForsonetServerRad[]): void
       })
       .run();
   }
+}
+
+/** Rå timer-/forslagsrad fra `hentMedId` (smal cast FØR bruk → unngår TS2589). */
+type RaaRad = {
+  id: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: number | string;
+  projectId: string | null;
+  byggeplassId?: string | null;
+  lonnsartId: string | null;
+  aktivitetId?: string | null;
+  externalCostObjectId?: string | null;
+  vehicleId?: string | null;
+  beskrivelse: string | null;
+};
+
+/**
+ * V19-B: rå rad (serverrad/forslag) → delt `ForsonRad`. `timer` kommer som streng
+ * (Prisma Decimal) → tall. projectId kan være null på en tom serverrad — koerser til
+ * "" (brukes aldri i skriveveien: en serverrad sendes bare via sin id). Ren → modul-
+ * scope (ikke en hook-dep).
+ */
+function raaTilForsonRad(r: RaaRad): DeltForsonRad {
+  return {
+    id: r.id,
+    projectId: r.projectId ?? "",
+    byggeplassId: r.byggeplassId ?? null,
+    lonnsartId: r.lonnsartId ?? "",
+    aktivitetId: r.aktivitetId ?? "",
+    timer: Number(r.timer),
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    beskrivelse: r.beskrivelse,
+    externalCostObjectId: r.externalCostObjectId ?? null,
+    vehicleId: r.vehicleId ?? null,
+  };
 }
 
 export default function DagsseddelDetalj() {
@@ -297,60 +343,82 @@ export default function DagsseddelDetalj() {
   // server-side → «får ikke kontakt» (ikke tomt panel). Leser kun; skriver aldri.
   const { erPaaNettet } = useNettverk();
   const erKonflikt = sedel?.syncStatus === "conflict";
+  // V19-B (B-3): overlapp-konflikt → sammenligningen leser FORSLAGET fra serveren
+  // som «appen»-siden (ikke lokale rader). Alle andre conflict-årsaker (laast/nyere)
+  // beholder den eksisterende U-BEKREFT-modusen (lokale rader mot web).
+  const erOverlapp = sedel?.konfliktAarsak === "overlapp";
   const webKortQuery = trpc.timer.dagsseddel.hentMedId.useQuery(
     { id: sheetId },
     { enabled: !!erKonflikt && erPaaNettet && !!sheetId },
   );
   // Smal cast av det dypt-inferrede tRPC-svaret FØR bruk — ellers TS2589 (dyp union)
-  // når .map/useMemo ekspanderer hele hentMedId-outputen. Vi trenger kun hode-status
-  // og timer-radenes fire sammenlignings-felt + visningsfelt.
+  // når .map/useMemo ekspanderer hele hentMedId-outputen. Vi trenger hode-status,
+  // sedelens timer-rader + V19-forslaget, begge med feltene forsoningen skriver.
   const webKortData = webKortQuery.data as
-    | {
-        status: string;
-        timer: Array<{
-          id: string;
-          fraTid: string | null;
-          tilTid: string | null;
-          timer: number | string;
-          projectId: string | null;
-          lonnsartId: string | null;
-          beskrivelse: string | null;
-        }>;
-      }
+    | { status: string; timer: RaaRad[]; forslag?: RaaRad[] }
     | undefined;
+  const webSedelRader = useMemo(
+    () => (webKortData ? webKortData.timer.map(raaTilForsonRad) : []),
+    [webKortData],
+  );
+  const forslagRader = useMemo(
+    () => (webKortData?.forslag ? webKortData.forslag.map(raaTilForsonRad) : []),
+    [webKortData],
+  );
   const sammenligning = useMemo(
     () =>
-      dagskortSammenligning({
-        nettStatus: erPaaNettet ? "online" : "offline",
-        webLaster: webKortQuery.isLoading,
-        webKort: webKortData
-          ? {
-              status: webKortData.status as "draft" | "returned" | "sent" | "accepted",
-              // Server-radenes `timer` kommer som streng (Prisma Decimal) — normaliser til
-              // tall så sammenligningen står på samme enhet som de lokale (Drizzle real).
-              timer: webKortData.timer.map((r) => ({
-                id: r.id,
-                fraTid: r.fraTid,
-                tilTid: r.tilTid,
-                timer: Number(r.timer),
-                projectId: r.projectId,
-                lonnsartId: r.lonnsartId,
-                beskrivelse: r.beskrivelse,
-              })),
-            }
-          : null,
-        lokaleTimer: timerRader,
-      }),
-    [erPaaNettet, webKortQuery.isLoading, webKortData, timerRader],
+      erOverlapp
+        ? overlappSammenligning({
+            nettStatus: erPaaNettet ? "online" : "offline",
+            webLaster: webKortQuery.isLoading,
+            webKort: webKortData
+              ? {
+                  status: webKortData.status as "draft" | "returned" | "sent" | "accepted",
+                  sedelRader: webSedelRader,
+                }
+              : null,
+            forslag: forslagRader,
+          })
+        : dagskortSammenligning({
+            nettStatus: erPaaNettet ? "online" : "offline",
+            webLaster: webKortQuery.isLoading,
+            webKort: webKortData
+              ? {
+                  status: webKortData.status as "draft" | "returned" | "sent" | "accepted",
+                  // Server-radenes `timer` → tall så sammenligningen står på samme
+                  // enhet som de lokale (Drizzle real).
+                  timer: webKortData.timer.map((r) => ({
+                    id: r.id,
+                    fraTid: r.fraTid,
+                    tilTid: r.tilTid,
+                    timer: Number(r.timer),
+                    projectId: r.projectId,
+                    lonnsartId: r.lonnsartId,
+                    beskrivelse: r.beskrivelse,
+                  })),
+                }
+              : null,
+            lokaleTimer: timerRader,
+          }),
+    [
+      erOverlapp,
+      erPaaNettet,
+      webKortQuery.isLoading,
+      webKortData,
+      webSedelRader,
+      forslagRader,
+      timerRader,
+    ],
   );
-  // Radvalg registreres i skjerm-state (modus B), men anvendes IKKE i steg 1 —
-  // overstyrer bare forhåndsvalget fra den rene funksjonen. Ingen skrivevei.
+  // Radvalg registreres i skjerm-state, nøklet på rad.nokkel (V19-overlapp) ellers
+  // tidsrom (U-BEKREFT). Overstyrer forhåndsvalget fra den rene funksjonen.
   const [valgOverstyr, setValgOverstyr] = useState<Record<string, Side>>({});
   const effektivtValg = useMemo(() => {
     if (sammenligning.slag !== "modusB" && sammenligning.slag !== "modusC") return {};
     const v: Record<string, Side> = {};
     for (const rad of sammenligning.rader) {
-      v[rad.tidsrom] = valgOverstyr[rad.tidsrom] ?? rad.valgt;
+      const key = rad.nokkel ?? rad.tidsrom;
+      v[key] = valgOverstyr[key] ?? rad.valgt;
     }
     return v;
   }, [sammenligning, valgOverstyr]);
@@ -361,32 +429,59 @@ export default function DagsseddelDetalj() {
   const [bekreftFeilTekst, setBekreftFeilTekst] = useState<string | null>(null);
   const håndterBekreft = useCallback(async () => {
     if (sammenligning.slag !== "modusB") return;
-    const lokalEtterId = new Map(timerRader.map((r) => [r.id, r]));
-    const oppdateringer: (ForsonRad & { id: string })[] = [];
-    const nyeRader: ForsonRad[] = [];
-    for (const rad of sammenligning.rader) {
-      const v = effektivtValg[rad.tidsrom];
-      if (rad.lokal && rad.server && v === "lokal") {
-        // Valgt-lokal på et tidsrom begge hadde → erstatt server-raden in-place på dens id.
-        const full = lokalEtterId.get(rad.lokal.id);
-        const p = full ? lokalRadTilForson(full) : null;
-        if (!p) {
-          setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
-          return;
+
+    let oppdateringer: (ForsonRad & { id: string })[] = [];
+    let nyeRader: ForsonRad[] = [];
+
+    if (erOverlapp) {
+      // V19-B (B-3): bygg skriveveien fra FORSLAGET på serveren via den DELTE
+      // `byggForsonInputFraValg` (samme paring som visningen). Valget pr. slot er
+      // nøklet på rad.nokkel (= forslagsradens id for parede slots); oversett til
+      // forslag-id → "forslag"/"sedel". Ensidige slots (ikke valgbare) utelates —
+      // byggForsonInputFraValg beholder dem uansett (Q3(b)).
+      const valgPerForslag: Record<string, ForsonSide> = {};
+      for (const rad of sammenligning.rader) {
+        if (rad.lokal && rad.server && rad.nokkel) {
+          valgPerForslag[rad.nokkel] =
+            effektivtValg[rad.nokkel] === "lokal" ? "forslag" : "sedel";
         }
-        oppdateringer.push({ id: rad.server.id, ...p });
-      } else if (rad.lokal && !rad.server) {
-        // Lokal-only beholdt → ny rad på kortet.
-        const full = lokalEtterId.get(rad.lokal.id);
-        const p = full ? lokalRadTilForson(full) : null;
-        if (!p) {
-          setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
-          return;
-        }
-        nyeRader.push(p);
       }
-      // Valgt-server / server-only beholdt → no-op (ligger alt på kortet).
+      const input = byggForsonInputFraValg(
+        webSedelRader,
+        forslagRader,
+        valgPerForslag,
+      );
+      oppdateringer = input.oppdateringer as (ForsonRad & { id: string })[];
+      nyeRader = input.nyeRader as ForsonRad[];
+    } else {
+      // U-BEKREFT (ikke-overlapp): lokale rader mot web pr. eksakt tidsrom.
+      const lokalEtterId = new Map(timerRader.map((r) => [r.id, r]));
+      for (const rad of sammenligning.rader) {
+        const key = rad.nokkel ?? rad.tidsrom;
+        const v = effektivtValg[key];
+        if (rad.lokal && rad.server && v === "lokal") {
+          // Valgt-lokal på et tidsrom begge hadde → erstatt server-raden in-place.
+          const full = lokalEtterId.get(rad.lokal.id);
+          const p = full ? lokalRadTilForson(full) : null;
+          if (!p) {
+            setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
+            return;
+          }
+          oppdateringer.push({ id: rad.server.id, ...p });
+        } else if (rad.lokal && !rad.server) {
+          // Lokal-only beholdt → ny rad på kortet.
+          const full = lokalEtterId.get(rad.lokal.id);
+          const p = full ? lokalRadTilForson(full) : null;
+          if (!p) {
+            setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
+            return;
+          }
+          nyeRader.push(p);
+        }
+        // Valgt-server / server-only beholdt → no-op (ligger alt på kortet).
+      }
     }
+
     setBekreftFeilTekst(null);
     try {
       const forsonet = (await forsonMutation.mutateAsync({
@@ -401,7 +496,34 @@ export default function DagsseddelDetalj() {
     } catch {
       setBekreftFeilTekst(t("timer.sammenlign.bekreftFeil"));
     }
-  }, [sammenligning, effektivtValg, timerRader, sheetId, forsonMutation, lesData, oppdaterTellere, t]);
+  }, [
+    sammenligning,
+    effektivtValg,
+    erOverlapp,
+    webSedelRader,
+    forslagRader,
+    timerRader,
+    sheetId,
+    forsonMutation,
+    lesData,
+    oppdaterTellere,
+    t,
+  ]);
+  // V19-B (B-3): «hele dagen»-snarvei — sett alle valgbare slots til samme side.
+  const håndterVelgAlle = useCallback(
+    (side: Side) => {
+      if (sammenligning.slag !== "modusB" && sammenligning.slag !== "modusC") return;
+      setValgOverstyr((forrige) => {
+        const neste = { ...forrige };
+        for (const rad of sammenligning.rader) {
+          if (rad.valgbar === false) continue;
+          neste[rad.nokkel ?? rad.tidsrom] = side;
+        }
+        return neste;
+      });
+    },
+    [sammenligning],
+  );
 
   const erRedigerbar = useMemo(() => {
     if (!sedel) return false;
@@ -913,12 +1035,25 @@ export default function DagsseddelDetalj() {
             Skriver ingenting i dette steget. */}
         {sedel.syncStatus === "conflict" && (
           <>
+            {/* V19-B (B-2): overlapp-banner — dagen er også ført på PC, og tidene
+                overlapper. Sammenligningen rett under er veien til å velge. */}
+            {erOverlapp && (
+              <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <View className="flex-row items-start gap-2">
+                  <AlertTriangle size={16} color="#b45309" style={{ marginTop: 1 }} />
+                  <Text className="flex-1 text-sm text-amber-900">
+                    {t("timer.sammenlign.overlappBanner")}
+                  </Text>
+                </View>
+              </View>
+            )}
             <DagskortSammenligning
               resultat={sammenligning}
               valg={effektivtValg}
-              onVelg={(tidsrom, side) =>
-                setValgOverstyr((forrige) => ({ ...forrige, [tidsrom]: side }))
+              onVelg={(nokkel, side) =>
+                setValgOverstyr((forrige) => ({ ...forrige, [nokkel]: side }))
               }
+              onVelgAlle={erOverlapp ? håndterVelgAlle : undefined}
               onBekreft={håndterBekreft}
               bekrefter={forsonMutation.isPending}
             />

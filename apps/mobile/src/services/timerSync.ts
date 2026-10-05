@@ -256,56 +256,91 @@ export async function syncTimer(
           .run();
         resultat.push.ok++;
       } else if (r.resultat === "conflict" && r.serverData) {
-        // M1 (2026-07-11): dato-kollisjon (S2) — server har allerede en sedel
-        // for datoen under en ANNEN clientUuid. Merge i stedet for server-wins:
-        // re-nøkle lokal sedel til server-identiteten, behold arbeiderens rader,
-        // sett `pending` → additiv re-push mot server-sedelen (trygt pga. S3
-        // bevarer web-rader). Uten datatap. Skilles fra vanlig server-wins-
-        // conflict (låst/nyere server-sedel, samme identitet).
+        // V19-B (B-1): serveren sender nå EKSPLISITT `aarsak` på conflict (V19-A,
+        // A-2) — mobilen gjetter ikke lenger fra identitet (M3). Fire utfall:
+        //   "overlapp"      → forslaget er lagret på server (sheet_timer urørt).
+        //                     Omnøkle som i dag (M14, ufarlig), men sett `conflict`
+        //                     (IKKE pending) → ingen push av rader. Arbeideren
+        //                     velger i sammenligningen (B-3). konflikt++.
+        //   "dato_kollisjon"→ dagens S2-merge: omnøkle + `pending` → additiv re-push
+        //                     (V19.4, rader uten overlapp slås sammen). merged++.
+        //   "laast"/"nyere" → server-wins som i dag: `conflict`, radene beholdes
+        //                     lokalt (M8), lesevisning/retur-vei.
+        //   ukjent verdi    → behandles som "laast" (konservativt, ingen auto-merge).
+        //   feltet MANGLER  → gammel server (pre-V19-A): fall tilbake til dagens
+        //                     identitets-diskriminator (ulik id = dato_kollisjon-
+        //                     merge, lik id = server-wins) så en pre-V19-A-server
+        //                     ikke regresjonerer til conflict på en ren merge.
         const serverClientUuid = r.serverData.clientUuid;
-        if (serverClientUuid && serverClientUuid !== r.clientUuid) {
-          forsonSedelIdentitet(r.clientUuid, serverClientUuid);
+        const ulikIdentitet = !!serverClientUuid && serverClientUuid !== r.clientUuid;
+        const raaAarsak = r.aarsak;
+        let aarsak: "overlapp" | "dato_kollisjon" | "laast" | "nyere";
+        if (
+          raaAarsak === "overlapp" ||
+          raaAarsak === "dato_kollisjon" ||
+          raaAarsak === "laast" ||
+          raaAarsak === "nyere"
+        ) {
+          aarsak = raaAarsak;
+        } else if (raaAarsak === undefined) {
+          aarsak = ulikIdentitet ? "dato_kollisjon" : "laast";
+        } else {
+          aarsak = "laast";
+        }
+
+        // Omnøkling trengs når serveren oppga en annen identitet (S2/A-1a). M14:
+        // flytter kun id-en, rører ikke syncStatus — trygt for alle årsaker.
+        const målId = ulikIdentitet ? serverClientUuid! : r.clientUuid;
+        if (ulikIdentitet) {
+          forsonSedelIdentitet(r.clientUuid, serverClientUuid!);
+        }
+
+        if (aarsak === "dato_kollisjon") {
+          // Automatisk sammenslåing — ikke en konflikt. `pending` → radene sendes
+          // inn på server-sedelen neste tick. Egen teller (merged) så run-resultatet
+          // ikke rapporterer falsk alarm. Statusbaren (DB-basert) viser «venter».
           db.update(dagsseddelLocal)
             .set({
-              // pending → radene sendes inn på server-sedelen neste tick.
               syncStatus: "pending",
+              konfliktAarsak: null,
               status: r.serverData.status,
               lederKommentar: r.serverData.lederKommentar,
               attestertVed: r.serverData.attestertVed,
-              // Beskriver det som ALT har skjedd (automatisk forsoning), ikke en
-              // manuell handling. Serveren sender ikke lenger tekst her; klienten
-              // eier brukerkopien via i18n. `r.feilmelding ??` beholdt som vern
-              // om en fremtidig server-variant skulle sende noe.
+              // Beskriver det som ALT har skjedd (automatisk forsoning). Klienten
+              // eier brukerkopien via i18n; `r.feilmelding ??` er vern mot en
+              // fremtidig server-variant.
               feilmelding: r.feilmelding ?? i18n.t("timer.sync.slattSammen"),
               sistSynkronisert: naa,
             })
-            .where(eq(dagsseddelLocal.id, serverClientUuid))
+            .where(eq(dagsseddelLocal.id, målId))
             .run();
-          // En automatisk sammenslåing er ikke en konflikt. Egen teller så
-          // run-resultatet ikke rapporterer en falsk alarm (server-wins under
-          // teller fortsatt `conflict`). Sedelen er `pending` → statusbaren
-          // (DB-basert) viser den som «venter på sync», ikke som konflikt.
           resultat.push.merged++;
         } else {
-          // Server-wins: låst (accepted) eller nyere server-versjon under samme
-          // identitet. Overskriv metadata, marker conflict for bruker-avklaring.
-          // feilmelding = null: klienten eier brukerkopien via i18n (samme mønster
-          // som `slattSammen` over). Banneret ([id].tsx) brancher på `status` og
-          // viser sann tekst per tilstand — conflict+låst vs conflict+returnert.
-          // (Datatap-ordre 2026-09-30, AVVIK 2: den hardkodede «Server-versjonen
-          // vinner» slo ut i18n-nøkkelen og ble usann etter rad-vakten.)
+          // "overlapp" | "laast" | "nyere" → conflict. Radene beholdes lokalt (M8
+          // beskytter dem på pull). konfliktAarsak lagres så pull-vakten (B-3b) kan
+          // slippe en overlapp-konflikt når valget er tatt på PC — og ALDRI en
+          // laast/nyere. For overlapp eier klienten brukerkopien (overlappKonflikt);
+          // for laast/nyere brancher banneret på `status` (datatap-ordre 2026-09-30).
           db.update(dagsseddelLocal)
             .set({
               syncStatus: "conflict",
+              konfliktAarsak: aarsak,
               status: r.serverData.status,
               lederKommentar: r.serverData.lederKommentar,
               attestertVed: r.serverData.attestertVed,
-              feilmelding: r.feilmelding ?? null,
+              feilmelding:
+                aarsak === "overlapp"
+                  ? i18n.t("timer.sync.overlappKonflikt")
+                  : (r.feilmelding ?? null),
               sistSynkronisert: naa,
             })
-            .where(eq(dagsseddelLocal.id, r.clientUuid))
+            .where(eq(dagsseddelLocal.id, målId))
             .run();
           resultat.push.conflict++;
+          // B-2: statusbaren plukker opp conflict (tellConflict), og sedelens banner
+          // ([id].tsx) viser overlapp-teksten + knapp til sammenligningen. Et ekte
+          // OS-push-varsel krever `expo-notifications` (ikke installert) — flagget
+          // til orkestrator; surfacingen er statusbar + banner.
         }
       } else if (r.resultat === "avvist") {
         // SYNC-1: permanent avvisning — terminal. Raden forlater pending
@@ -682,16 +717,38 @@ export async function syncTimer(
       // del av det eneste eksemplaret til konflikten er løst, og skal ikke
       // klobbes av server-versjonen (presisering, orkestrator TILLEGG 5).
       if (lokal && lokal.syncStatus === "conflict") {
-        db.update(dagsseddelLocal)
-          .set({
-            status: serverSedel.status as "draft" | "sent" | "returned" | "accepted",
-            lederKommentar: serverSedel.lederKommentar,
-            attestertVed: serverSedel.attestertVed,
-            sistSynkronisert: serverTidMs,
-          })
-          .where(eq(dagsseddelLocal.id, maalId))
-          .run();
-        continue;
+        // V19.7b (B-3b): veien ut av lokal `conflict` når valget er tatt på PC.
+        // Slipp raderstatningen KUN når (a) årsaken er "overlapp" OG (b) serveren
+        // sier forslaget er borte: `konfliktVentendeSiden = null ∧ antallForslag = 0`
+        // (forsonDagskort slettet forslaget + nullet feltet i samme tx, A-5). For
+        // ALLE andre årsaker (laast/nyere/ukjent) — og mot en GAMMEL server uten
+        // feltene (undefined ≠ null → ikke løst) — består M8 uendret: hodet
+        // oppdateres (lederens retur når telefonen), radene beholdes, syncStatus
+        // forblir conflict. `konflikt_aarsak` er tilstand med én leser (her).
+        const ss = serverSedel as unknown as {
+          konfliktVentendeSiden?: string | null;
+          antallForslag?: number;
+        };
+        const overlappLostPaaPc =
+          lokal.konfliktAarsak === "overlapp" &&
+          ss.konfliktVentendeSiden === null &&
+          ss.antallForslag === 0;
+        if (!overlappLostPaaPc) {
+          // Minimalt hode: KUN status/lederKommentar/attestertVed/sistSynkronisert.
+          db.update(dagsseddelLocal)
+            .set({
+              status: serverSedel.status as "draft" | "sent" | "returned" | "accepted",
+              lederKommentar: serverSedel.lederKommentar,
+              attestertVed: serverSedel.attestertVed,
+              sistSynkronisert: serverTidMs,
+            })
+            .where(eq(dagsseddelLocal.id, maalId))
+            .run();
+          continue;
+        }
+        // Valget er tatt på PC → behandle sedelen videre som `synced`: fall gjennom
+        // til den vanlige hode- + rad-erstatningen under (serverens forsonede sett
+        // vinner). Synced-grenene nuller `konfliktAarsak` og setter syncStatus.
       }
 
       const timestamps = {
@@ -743,6 +800,8 @@ export async function syncTimer(
             normStatus: ssNorm.normStatus ?? null,
             normSnapshot: normSnapshotStr,
             syncStatus: "synced",
+            // Synced ⇒ ingen konflikt-årsak (V19-B).
+            konfliktAarsak: null,
             feilmelding: null,
             ...timestamps,
           })
@@ -773,6 +832,9 @@ export async function syncTimer(
               ? { normSnapshot: normSnapshotStr }
               : {}),
             syncStatus: "synced",
+            // Synced ⇒ ingen konflikt-årsak (V19-B/B-3b: nulles når en overlapp-
+            // konflikt slippes etter valg på PC, og for enhver synced sedel).
+            konfliktAarsak: null,
             feilmelding: null,
             sistSynkronisert: serverTidMs,
           })
@@ -1072,7 +1134,8 @@ export function bekreftConflict(sheetId: string): void {
   const db = hentDatabase();
   if (!db) return;
   db.update(dagsseddelLocal)
-    .set({ syncStatus: "synced", feilmelding: null })
+    // V19-B (B-3): valget er tatt → synced, konflikt-årsak nulles.
+    .set({ syncStatus: "synced", konfliktAarsak: null, feilmelding: null })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
 }

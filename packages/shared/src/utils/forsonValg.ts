@@ -74,6 +74,74 @@ function harTid(
   return !!r.fraTid && !!r.tilTid;
 }
 
+/**
+ * Én slot i overlapp-sammenligningen. `nokkel` er en stabil, unik valg-/render-nøkkel.
+ *  - Paret slot (begge sider + overlapp): `nokkel` = forslagsradens id, `valgbar = true`.
+ *  - Forslag kun: `nokkel` = forslagsradens id, `valgbar = false` (beholdes alltid, Q3(b)).
+ *  - Sedel kun: `nokkel` = `"sedel:"+sedelradens id`, `valgbar = false` (beholdes alltid).
+ */
+export interface OverlappSlot {
+  nokkel: string;
+  /** Forslagsraden (mobil/«appen»), eller null på en sedel-kun-slot. */
+  forslag: ForsonRad | null;
+  /** Serverraden (PC/web/«sedelen»), eller null på en forslag-kun-slot. */
+  sedel: ForsonRad | null;
+  /** Kun paret slot (begge sider + overlapp) er valgbar (Q3(b)). */
+  valgbar: boolean;
+}
+
+/**
+ * Par forslagsrader mot serverrader PR. OVERLAPP (ikke eksakt tidsrom) — ÉN kilde både
+ * visningen (DagskortSammenligning) og `byggForsonInputFraValg` bruker, så skjermen og
+ * skriveveien aldri kan pare ulikt. Hver forslagsrad pares med den FØRSTE serverraden
+ * (sortert på fra-tid) den overlapper og som ikke alt er paret — 1:1 i praksis.
+ */
+export function parForslagMotSedel(
+  sedelRader: readonly ForsonRad[],
+  forslag: readonly ForsonRad[],
+): OverlappSlot[] {
+  // Serverrader sortert på fra-tid for deterministisk 1:1-paring; de uten tid kan
+  // aldri pares (ingen overlapp-definisjon) → de står alltid som sedel-kun (no-op).
+  const serverMedTid = sedelRader
+    .filter(harTid)
+    .slice()
+    .sort((a, b) => (a.fraTid < b.fraTid ? -1 : a.fraTid > b.fraTid ? 1 : 0));
+  const brukt = new Set<string>();
+  const slots: OverlappSlot[] = [];
+
+  // Behandle forslag i fra-tid-rekkefølge (stabil, speiler visningen).
+  const forslagSortert = forslag.slice().sort((a, b) => {
+    const fa = a.fraTid ?? "";
+    const fb = b.fraTid ?? "";
+    return fa < fb ? -1 : fa > fb ? 1 : 0;
+  });
+
+  for (const f of forslagSortert) {
+    const motpart = harTid(f)
+      ? serverMedTid.find(
+          (s) =>
+            !brukt.has(s.id) &&
+            tidsromOverlapper(f.fraTid, f.tilTid, s.fraTid, s.tilTid),
+        )
+      : undefined;
+    if (motpart) {
+      brukt.add(motpart.id);
+      slots.push({ nokkel: f.id, forslag: f, sedel: motpart, valgbar: true });
+    } else {
+      slots.push({ nokkel: f.id, forslag: f, sedel: null, valgbar: false });
+    }
+  }
+
+  // Serverrader uten motpart (inkl. alle tid-løse) → sedel-kun-slots, beholdes alltid.
+  for (const s of sedelRader) {
+    if (!brukt.has(s.id)) {
+      slots.push({ nokkel: `sedel:${s.id}`, forslag: null, sedel: s, valgbar: false });
+    }
+  }
+
+  return slots;
+}
+
 function tilNyRad(f: ForsonRad): ForsonNyRad {
   return {
     projectId: f.projectId,
@@ -109,49 +177,21 @@ export function byggForsonInputFraValg(
   const oppdateringer: ForsonOppdatering[] = [];
   const nyeRader: ForsonNyRad[] = [];
 
-  // Serverrader sortert på fra-tid for deterministisk 1:1-paring; de uten tid kan
-  // aldri pares (ingen overlapp-definisjon) → de står alltid (no-op).
-  const serverMedTid = sedelRader
-    .filter(harTid)
-    .slice()
-    .sort((a, b) => (a.fraTid < b.fraTid ? -1 : a.fraTid > b.fraTid ? 1 : 0));
-  const brukt = new Set<string>();
-
-  // Behandle forslag i fra-tid-rekkefølge (stabil, speiler visningen).
-  const forslagSortert = forslag
-    .slice()
-    .sort((a, b) => {
-      const fa = a.fraTid ?? "";
-      const fb = b.fraTid ?? "";
-      return fa < fb ? -1 : fa > fb ? 1 : 0;
-    });
-
-  for (const f of forslagSortert) {
-    // Finn første ledige serverrad f overlapper (1:1 i praksis).
-    const motpart = harTid(f)
-      ? serverMedTid.find(
-          (s) =>
-            !brukt.has(s.id) &&
-            tidsromOverlapper(f.fraTid, f.tilTid, s.fraTid, s.tilTid),
-        )
-      : undefined;
-
-    if (motpart) {
+  // Samme pr-overlapp-paring som visningen (én kilde: parForslagMotSedel).
+  for (const slot of parForslagMotSedel(sedelRader, forslag)) {
+    if (slot.valgbar && slot.forslag && slot.sedel) {
       // Tidsrom begge hadde → valget avgjør. Mangler valg → behold PC (konservativt).
-      if (valg[f.id] === "forslag") {
-        brukt.add(motpart.id);
-        oppdateringer.push({ ...tilNyRad(f), id: motpart.id });
+      if (valg[slot.forslag.id] === "forslag") {
+        oppdateringer.push({ ...tilNyRad(slot.forslag), id: slot.sedel.id });
       }
       // "sedel" / manglende valg → no-op (serverraden står).
       continue;
     }
-
     // Forslagsrad uten motpart = kun på mobil-siden → beholdes alltid (opprett),
     // MEN kun hvis den har tid (forsonDagskort krever fra/til). Tid-løst forslag uten
-    // motpart hoppes over — det kan ikke uttrykkes som en ny rad og har ingen
-    // serverrad å erstatte.
-    if (harTid(f)) {
-      nyeRader.push(tilNyRad(f));
+    // motpart hoppes over. Sedel-kun-slot → no-op (serverraden står).
+    if (slot.forslag && !slot.sedel && harTid(slot.forslag)) {
+      nyeRader.push(tilNyRad(slot.forslag));
     }
   }
 
