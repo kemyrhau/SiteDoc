@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· zuletzt vorbereitet {{tid}}",
   "mer.offline.ingentingLagret": "Es wurde noch nichts für den Offline-Modus gespeichert",
   "hjem.innboksKreverNett": "Für den Posteingang ist eine Verbindung erforderlich",
-  "prosjektVelger.ingenOffline": "Keine Projekte für offline gespeichert"
+  "prosjektVelger.ingenOffline": "Keine Projekte für offline gespeichert",
+  "timer.forslagValg.tittel": "Vorschlag vom Handy – wählen Sie",
+  "timer.forslagValg.innledning": "Die mobile App protokollierte Stunden, die sich mit den Angaben auf der PC-Tageskarte überschneiden. Wählen Sie für jedes Zeitfenster das Richtige aus.",
+  "timer.forslagValg.kolonnePc": "Auf dem PC",
+  "timer.forslagValg.kolonneMobil": "Vorschlag vom Handy",
+  "timer.forslagValg.kunEnSide": "Nur auf einer Seite – unverändert beibehalten.",
+  "timer.forslagValg.beholdPcDagen": "Behalten Sie den PC den ganzen Tag",
+  "timer.forslagValg.brukMobilDagen": "Nutzen Sie den ganzen Tag mobil",
+  "timer.forslagValg.bekreft": "Auswahl bestätigen",
+  "timer.forslagValg.venterSiden": "Vorschlag vom Mobilgerät, wartet auf die Auswahl des Arbeitnehmers seit {{dato}}",
+  "timer.forslagValg.venter": "Vorschlag vom Handy, der auf die Wahl des Arbeitnehmers wartet",
+  "timer.forslagValg.lesevisningHjelp": "Der Mitarbeiter muss zwischen PC und Mobilgerät wählen, bevor Sie die Genehmigung erteilen können. Sie können warten oder die Tageskarte zurückgeben.",
+  "timer.forslagValg.attesterBlokkert": "Der Arbeitnehmer hat sich nicht zwischen PC und Mobilgerät entschieden – warten oder die Tageskarte zurückgeben",
+  "timer.forslagValg.pille": "Mobiler Vorschlag"
 }

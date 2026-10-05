@@ -26,6 +26,7 @@ import {
   Scissors,
 } from "lucide-react";
 import type { UkeAvvik } from "@sitedoc/shared";
+import { overlappBlokkererAttestering } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Avviksbadge } from "./Avviksbadge";
 import { ReiseRadMerke } from "./ReiseRadMerke";
@@ -83,6 +84,12 @@ export type SeddelKortData = {
   // LAG 2 D1: sedelens norm-status (DailySheet.normStatus). "cachet"/"ukjent" gir
   // banner; "server"/null (gammel sedel) gir ingenting.
   normStatus?: "server" | "cachet" | "ukjent" | null;
+  // V19-C (C-2): uavklart overlapp mellom PC og mobil (DailySheet.konfliktVentende-
+  // Siden). Satt ⇔ det finnes et forslag arbeideren ikke har valgt → attestering
+  // blokkeres. Liste-queryen leser ALDRI forslagsradene (M15 — kun hentMedId/
+  // hentForAttestering gjør det); feltet alene bærer blokkeringen her. Full side-om-
+  // side-visning av forslaget skjer i detaljen (AttesteringDetalj).
+  konfliktVentendeSiden?: Date | string | null;
 };
 
 function initialer(navn: string | null | undefined, email: string | undefined): string {
@@ -137,6 +144,19 @@ export function SeddelKort({
 }) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
+
+  // V19-C (C-2): uavklart PC/mobil-overlapp blokkerer attestering. Serveren er
+  // sannheten (A-4 kaster PRECONDITION_FAILED uansett); dette gater ✓ i UI-et og
+  // forklarer hvorfor. Retur (↩) lar vi stå — det er utveien.
+  const forslagBlokkert = overlappBlokkererAttestering(sedel.konfliktVentendeSiden);
+  const forslagTekst = sedel.konfliktVentendeSiden
+    ? t("timer.forslagValg.venterSiden", {
+        dato: new Date(sedel.konfliktVentendeSiden).toLocaleDateString("no-NB", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+      })
+    : t("timer.forslagValg.venter");
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
   const [menyApen, setMenyApen] = useState(false);
@@ -362,6 +382,19 @@ export function SeddelKort({
           </span>
         )}
 
+        {/* V19-C (C-2): uavklart PC/mobil-overlapp — pille forklarer hvorfor ✓ er
+            død. Full side-om-side-visning er i detaljen (M15: lista leser ikke
+            forslagsradene). */}
+        {forslagBlokkert && (
+          <span
+            onClick={(e) => e.stopPropagation()}
+            title={forslagTekst}
+            className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+          >
+            {t("timer.forslagValg.pille")}
+          </span>
+        )}
+
         {/* Spacer + totaltimer/dagsnorm — oransje ved mertid */}
         <span
           className={`ml-auto font-mono text-sm ${
@@ -398,7 +431,8 @@ export function SeddelKort({
           </button>
         )}
 
-        {/* ✓ attester — T7-5e: skjult i read-only-modus */}
+        {/* ✓ attester — T7-5e: skjult i read-only-modus. V19-C (C-2): blokkert ved
+            uavklart overlapp (tooltip forklarer); retur-knappen over er IKKE gatet. */}
         {!readOnly && (
           <button
             type="button"
@@ -406,13 +440,17 @@ export function SeddelKort({
               e.stopPropagation();
               onAttester();
             }}
-            disabled={attesterPending}
+            disabled={attesterPending || forslagBlokkert}
             className={`rounded p-1 disabled:opacity-40 ${
               oransje
                 ? "text-orange-700 hover:bg-orange-100"
                 : "text-green-700 hover:bg-green-100"
             }`}
-            title={t("timer.attestering.attester")}
+            title={
+              forslagBlokkert
+                ? t("timer.forslagValg.attesterBlokkert")
+                : t("timer.attestering.attester")
+            }
             aria-label={t("timer.attestering.attester")}
           >
             <Check className="h-3.5 w-3.5" />

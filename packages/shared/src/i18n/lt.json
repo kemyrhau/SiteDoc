@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· paskutinį kartą ruoštas {{tid}}",
   "mer.offline.ingentingLagret": "Dar nieko neišsaugota neprisijungus",
   "hjem.innboksKreverNett": "Gautiesiems reikalingas ryšys",
-  "prosjektVelger.ingenOffline": "Nėra išsaugotų projektų neprisijungus"
+  "prosjektVelger.ingenOffline": "Nėra išsaugotų projektų neprisijungus",
+  "timer.forslagValg.tittel": "Pasiūlymas iš mobiliojo – pasirinkite",
+  "timer.forslagValg.innledning": "Programėlė mobiliesiems registravo valandas, kurios sutampa su tuo, kas yra kompiuterio dienos kortelėje. Pasirinkite, kas tinka kiekvienai laiko tarpai.",
+  "timer.forslagValg.kolonnePc": "Kompiuteryje",
+  "timer.forslagValg.kolonneMobil": "Pasiūlymas iš mobiliojo",
+  "timer.forslagValg.kunEnSide": "Tik iš vienos pusės – nepakeista.",
+  "timer.forslagValg.beholdPcDagen": "Laikykite kompiuterį visą dieną",
+  "timer.forslagValg.brukMobilDagen": "Naudokitės mobiliuoju telefonu visą dieną",
+  "timer.forslagValg.bekreft": "Patvirtinti pasirinkimą",
+  "timer.forslagValg.venterSiden": "Pasiūlymas iš mobiliojo telefono, laukiama darbuotojo pasirinkimo nuo {{dato}}",
+  "timer.forslagValg.venter": "Pasiūlymas iš mobiliojo, laukiama darbuotojo pasirinkimo",
+  "timer.forslagValg.lesevisningHjelp": "Kad galėtumėte patvirtinti, darbuotojas turi pasirinkti kompiuterį arba mobilųjį. Dienos kortelę galite palaukti arba grąžinti.",
+  "timer.forslagValg.attesterBlokkert": "Darbuotojas nepasirinko kompiuterio ir mobiliojo – palaukite arba grąžinkite dienos kortelę",
+  "timer.forslagValg.pille": "Mobilusis pasiūlymas"
 }

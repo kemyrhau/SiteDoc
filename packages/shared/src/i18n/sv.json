@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· senast förberedd {{tid}}",
   "mer.offline.ingentingLagret": "Inget sparat för offline ännu",
   "hjem.innboksKreverNett": "Inkorgen kräver en anslutning",
-  "prosjektVelger.ingenOffline": "Inga projekt sparade för offline"
+  "prosjektVelger.ingenOffline": "Inga projekt sparade för offline",
+  "timer.forslagValg.tittel": "Förslag från mobil — välj",
+  "timer.forslagValg.innledning": "Mobilappen loggade timmar som överlappar vad som finns på PC-dagkortet. Välj vad som är korrekt för varje tidslucka.",
+  "timer.forslagValg.kolonnePc": "På PC:n",
+  "timer.forslagValg.kolonneMobil": "Förslag från mobil",
+  "timer.forslagValg.kunEnSide": "Endast på ena sidan — bibehålls oförändrad.",
+  "timer.forslagValg.beholdPcDagen": "Behåll datorn hela dagen",
+  "timer.forslagValg.brukMobilDagen": "Använd mobilen hela dagen",
+  "timer.forslagValg.bekreft": "Bekräfta valet",
+  "timer.forslagValg.venterSiden": "Förslag från mobil, väntar på arbetarens val sedan {{dato}}",
+  "timer.forslagValg.venter": "Förslag från mobil, i väntan på arbetarens val",
+  "timer.forslagValg.lesevisningHjelp": "Arbetaren måste välja mellan PC och mobil innan du kan godkänna. Du kan vänta eller lämna tillbaka dagkortet.",
+  "timer.forslagValg.attesterBlokkert": "Arbetaren har inte valt mellan PC och mobil — vänta eller lämna tillbaka dagkortet",
+  "timer.forslagValg.pille": "Mobilförslag"
 }

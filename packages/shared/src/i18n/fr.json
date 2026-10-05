@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· dernière préparation {{tid}}",
   "mer.offline.ingentingLagret": "Rien n'a été enregistré pour le mode hors connexion pour l'instant",
   "hjem.innboksKreverNett": "La boîte de réception nécessite une connexion",
-  "prosjektVelger.ingenOffline": "Aucun projet enregistré pour une utilisation hors connexion"
+  "prosjektVelger.ingenOffline": "Aucun projet enregistré pour une utilisation hors connexion",
+  "timer.forslagValg.tittel": "Suggestion depuis un mobile – choisissez",
+  "timer.forslagValg.innledning": "L'application mobile a enregistré des heures qui chevauchent ce qui figure sur la carte journalière du PC. Choisissez ce qui est correct pour chaque créneau horaire.",
+  "timer.forslagValg.kolonnePc": "Sur le PC",
+  "timer.forslagValg.kolonneMobil": "Suggestions depuis un mobile",
+  "timer.forslagValg.kunEnSide": "Seulement d’un côté — resté inchangé.",
+  "timer.forslagValg.beholdPcDagen": "Gardez le PC toute la journée",
+  "timer.forslagValg.brukMobilDagen": "Utilisez votre mobile toute la journée",
+  "timer.forslagValg.bekreft": "Confirmer le choix",
+  "timer.forslagValg.venterSiden": "Suggestion depuis le mobile, en attente du choix du travailleur depuis {{dato}}",
+  "timer.forslagValg.venter": "Suggestion depuis le mobile, en attente du choix du travailleur",
+  "timer.forslagValg.lesevisningHjelp": "Le travailleur doit choisir entre PC et mobile avant que vous puissiez approuver. Vous pouvez attendre ou rendre la carte journalière.",
+  "timer.forslagValg.attesterBlokkert": "Le travailleur n'a pas choisi entre PC et mobile : attendez ou rendez la carte journalière",
+  "timer.forslagValg.pille": "Suggestions mobiles"
 }

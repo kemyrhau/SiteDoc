@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { byggForsonInputFraValg, type ForsonRad } from "./forsonValg";
+import {
+  byggForsonInputFraValg,
+  parForslagMotSedel,
+  overlappBlokkererAttestering,
+  type ForsonRad,
+} from "./forsonValg";
 
 /** Kortform for en rad med tid. */
 function rad(
@@ -128,5 +133,75 @@ describe("byggForsonInputFraValg", () => {
     const res = byggForsonInputFraValg([rad("web1", "07:00", "15:00", 7.5)], [], {});
     expect(res.oppdateringer).toHaveLength(0);
     expect(res.nyeRader).toHaveLength(0);
+  });
+});
+
+describe("parForslagMotSedel (delt paring — radio-visning + forsoning) [V19-C-bruk]", () => {
+  it("overlappende rader → én paret slot (begge sider, valgbar)", () => {
+    const slots = parForslagMotSedel(
+      [rad("web1", "07:00", "15:00", 7.5)],
+      [rad("mob1", "07:00", "15:30", 8)],
+    );
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({
+      nokkel: "mob1",
+      sedel: { id: "web1" },
+      forslag: { id: "mob1" },
+      valgbar: true,
+    });
+  });
+
+  it("forslag-only og sedel-only → to ensidige slots (ikke valgbare)", () => {
+    const slots = parForslagMotSedel(
+      [rad("web1", "07:00", "11:00", 4)],
+      [rad("mob2", "12:00", "16:00", 4)],
+    );
+    expect(slots).toHaveLength(2);
+    // Forslag-slots først (fra-tid-rekkefølge), deretter sedel-kun.
+    expect(slots[0]).toMatchObject({ forslag: { id: "mob2" }, sedel: null, valgbar: false });
+    expect(slots[1]).toMatchObject({ sedel: { id: "web1" }, forslag: null, valgbar: false });
+  });
+
+  it("to sammenhengende tidsrom → to parede slots, 1:1 på fra-tid", () => {
+    const slots = parForslagMotSedel(
+      [rad("web1", "07:00", "11:00", 4), rad("web2", "12:00", "16:00", 4)],
+      [rad("mobA", "07:00", "11:30", 4.5), rad("mobB", "12:00", "16:30", 4.5)],
+    );
+    expect(slots).toHaveLength(2);
+    expect(slots[0]).toMatchObject({ sedel: { id: "web1" }, forslag: { id: "mobA" }, valgbar: true });
+    expect(slots[1]).toMatchObject({ sedel: { id: "web2" }, forslag: { id: "mobB" }, valgbar: true });
+  });
+
+  it("tid-løs serverrad kan ikke pares → ensidig sedel-slot", () => {
+    const slots = parForslagMotSedel(
+      [rad("web1", null, null, 7.5)],
+      [rad("mob1", "07:00", "15:00", 7.5)],
+    );
+    expect(slots).toHaveLength(2);
+    expect(slots[0]).toMatchObject({ forslag: { id: "mob1" }, sedel: null, valgbar: false });
+    expect(slots[1]).toMatchObject({ nokkel: "sedel:web1", sedel: { id: "web1" }, forslag: null });
+  });
+
+  it("paringen er den byggForsonInputFraValg faktisk bruker (valgbare = parede)", () => {
+    const sedel = [rad("web1", "07:00", "11:00", 4), rad("web2", "12:00", "16:00", 4)];
+    const forslag = [rad("mobA", "07:00", "11:30", 4.5)];
+    const slots = parForslagMotSedel(sedel, forslag);
+    const parede = slots.filter((s) => s.valgbar && s.forslag && s.sedel);
+    // Bygg «velg forslag» for alle parede slots → nøyaktig de oppdateringene.
+    const valg = Object.fromEntries(parede.map((s) => [s.forslag!.id, "forslag" as const]));
+    const res = byggForsonInputFraValg(sedel, forslag, valg);
+    expect(res.oppdateringer.map((o) => o.id)).toEqual(parede.map((s) => s.sedel!.id));
+  });
+});
+
+describe("overlappBlokkererAttestering (C-2 — attester-knappen død ved uavklart overlapp)", () => {
+  it("konfliktVentendeSiden satt → blokkert (uten dette ville attester-knappen stått aktiv)", () => {
+    expect(overlappBlokkererAttestering(new Date("2026-10-04T08:00:00Z"))).toBe(true);
+    expect(overlappBlokkererAttestering("2026-10-04T08:00:00Z")).toBe(true);
+  });
+
+  it("null/undefined → ikke blokkert (normal attestering)", () => {
+    expect(overlappBlokkererAttestering(null)).toBe(false);
+    expect(overlappBlokkererAttestering(undefined)).toBe(false);
   });
 });

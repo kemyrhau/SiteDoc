@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· последний подготовленный {{tid}}",
   "mer.offline.ingentingLagret": "Пока ничего не сохранено для офлайн-доступа.",
   "hjem.innboksKreverNett": "Входящие требуют подключения",
-  "prosjektVelger.ingenOffline": "Нет сохраненных проектов для офлайн-режима."
+  "prosjektVelger.ingenOffline": "Нет сохраненных проектов для офлайн-режима.",
+  "timer.forslagValg.tittel": "Предложение с мобильного — выбирайте",
+  "timer.forslagValg.innledning": "Мобильное приложение регистрирует часы, которые совпадают с данными на дневной карточке ПК. Выберите то, что подходит для каждого временного интервала.",
+  "timer.forslagValg.kolonnePc": "На ПК",
+  "timer.forslagValg.kolonneMobil": "Предложение с мобильного телефона",
+  "timer.forslagValg.kunEnSide": "Только с одной стороны — сохранено без изменений.",
+  "timer.forslagValg.beholdPcDagen": "Держите компьютер на целый день",
+  "timer.forslagValg.brukMobilDagen": "Используйте мобильный телефон в течение всего дня",
+  "timer.forslagValg.bekreft": "Подтвердить выбор",
+  "timer.forslagValg.venterSiden": "Предложение с мобильного телефона, ожидание выбора работника с {{dato}}",
+  "timer.forslagValg.venter": "Предложение с мобильного, ждём выбора работника",
+  "timer.forslagValg.lesevisningHjelp": "Прежде чем вы сможете утвердить, работник должен выбрать между ПК и мобильным устройством. Вы можете подождать или вернуть дневную карту.",
+  "timer.forslagValg.attesterBlokkert": "Работник не выбрал между ПК и мобильным — подожди или верни карту дня",
+  "timer.forslagValg.pille": "Мобильное предложение"
 }

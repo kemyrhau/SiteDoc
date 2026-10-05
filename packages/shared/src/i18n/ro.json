@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· ultima pregătire {{tid}}",
   "mer.offline.ingentingLagret": "Nu s-a salvat încă nimic pentru offline",
   "hjem.innboksKreverNett": "Inboxul necesită o conexiune",
-  "prosjektVelger.ingenOffline": "Niciun proiect salvat pentru offline"
+  "prosjektVelger.ingenOffline": "Niciun proiect salvat pentru offline",
+  "timer.forslagValg.tittel": "Sugestie de pe mobil — alegeți",
+  "timer.forslagValg.innledning": "Aplicația mobilă a înregistrat orele care se suprapun cu ceea ce este pe cardul de zi pentru computer. Alegeți ce este corect pentru fiecare interval orar.",
+  "timer.forslagValg.kolonnePc": "Pe PC",
+  "timer.forslagValg.kolonneMobil": "Sugestie de pe mobil",
+  "timer.forslagValg.kunEnSide": "Doar pe o parte - păstrat neschimbat.",
+  "timer.forslagValg.beholdPcDagen": "Păstrați computerul pentru toată ziua",
+  "timer.forslagValg.brukMobilDagen": "Folosiți mobilul pentru întreaga zi",
+  "timer.forslagValg.bekreft": "Confirmați alegerea",
+  "timer.forslagValg.venterSiden": "Sugestie de pe mobil, așteaptă alegerea lucrătorului din {{dato}}",
+  "timer.forslagValg.venter": "Sugestie de pe mobil, în așteptarea alegerii lucrătorului",
+  "timer.forslagValg.lesevisningHjelp": "Lucrătorul trebuie să aleagă între computer și mobil înainte de a putea aproba. Puteți aștepta sau returna cardul de zi.",
+  "timer.forslagValg.attesterBlokkert": "Lucrătorul nu a ales între computer și mobil - așteptați sau returnați cardul de zi",
+  "timer.forslagValg.pille": "Sugestie mobilă"
 }

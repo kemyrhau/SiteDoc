@@ -22,6 +22,7 @@ import {
   Split,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
@@ -35,6 +36,7 @@ import {
   hhmmTilMin,
   pauseOverlappMin,
   finnOverlappendeTidsrom,
+  type ForsonRad,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 
@@ -273,6 +275,14 @@ export default function DagsseddelDetaljSide() {
       ),
   });
 
+  // V19-C (C-1): arbeiderens valg mellom PC og mobilens forslag → forsonDagskort.
+  // Server er sannheten (nuller konfliktVentendeSiden + sletter forslag atomisk);
+  // onSuccess invaliderer detaljen så banneret forsvinner når feltet er nullet.
+  const forson = trpc.timer.dagsseddel.forsonDagskort.useMutation({
+    onSuccess: () => utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id }),
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
   // Kaster tRPC-respons til en enklere type for å unngå TS2589 (excessively
   // deep instantiation). hentMine returnerer Project med faggrupper + _count
   // som gir dyp type-tre.
@@ -317,6 +327,43 @@ export default function DagsseddelDetaljSide() {
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
   const utleggRader = ((sheet as { utlegg?: unknown }).utlegg ?? []) as unknown as UtleggRad[];
+
+  // V19-C (C-1): mobilens forslag (SheetTimerForslag) + serverradene mappet til
+  // ForsonRad (timer er Decimal/streng over tRPC → tilTall). Rekkefølgen av felt
+  // speiler ForsonRad; begge sider mappes likt så byggForsonInputFraValg får ren
+  // input.
+  const tilForsonRad = (r: {
+    id: string;
+    projectId: string;
+    byggeplassId: string | null;
+    lonnsartId: string;
+    aktivitetId: string;
+    timer: unknown;
+    fraTid: string | null;
+    tilTid: string | null;
+    beskrivelse: string | null;
+    externalCostObjectId: string | null;
+    vehicleId: string | null;
+  }): ForsonRad => ({
+    id: r.id,
+    projectId: r.projectId,
+    byggeplassId: r.byggeplassId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: tilTall(r.timer),
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    beskrivelse: r.beskrivelse,
+    externalCostObjectId: r.externalCostObjectId,
+    vehicleId: r.vehicleId,
+  });
+  type ForslagRad = Parameters<typeof tilForsonRad>[0];
+  const forslagRader = ((sheet as { forslag?: ForslagRad[] }).forslag ?? []).map(
+    tilForsonRad,
+  );
+  const sedelForsonRader = timerRader.map((r) =>
+    tilForsonRad(r as unknown as ForslagRad),
+  );
 
   // Bolk (f): har leder attestert minst én rad? Da blokkerer server-vakten
   // gjenåpning — deaktiver knappen og be arbeideren kontakte leder for retur.
@@ -517,6 +564,20 @@ export default function DagsseddelDetaljSide() {
             {t("timer.maskinforerbevis.arbeider")}
           </p>
         </div>
+      )}
+
+      {/* V19-C (C-1): mobilen overlappet PC-dagskortet → arbeideren velger side.
+          Vises kun når det finnes et uavklart forslag (eier-queryen leverer
+          forslaget; attestering er blokkert på serveren til valget er gjort). */}
+      {forslagRader.length > 0 && (
+        <ForslagValgSeksjon
+          sedelRader={sedelForsonRader}
+          forslag={forslagRader}
+          bekrefter={forson.isPending}
+          onBekreft={(input) =>
+            forson.mutate({ sheetId: sheet.id, ...input })
+          }
+        />
       )}
 
       {/* Header-info — sedel-nivå */}

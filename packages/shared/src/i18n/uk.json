@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· востаннє підготовлено {{tid}}",
   "mer.offline.ingentingLagret": "Ще нічого не збережено для офлайн",
   "hjem.innboksKreverNett": "Вхідні потребують з’єднання",
-  "prosjektVelger.ingenOffline": "Немає проектів, збережених для офлайн"
+  "prosjektVelger.ingenOffline": "Немає проектів, збережених для офлайн",
+  "timer.forslagValg.tittel": "Пропозиція з мобільного — обирайте",
+  "timer.forslagValg.innledning": "У програмі для мобільних пристроїв зареєстровані години, які збігаються з тим, що зазначено в картці дня ПК. Виберіть правильний варіант для кожного часового інтервалу.",
+  "timer.forslagValg.kolonnePc": "На ПК",
+  "timer.forslagValg.kolonneMobil": "Пропозиція з мобільного",
+  "timer.forslagValg.kunEnSide": "Тільки з одного боку — зберігся без змін.",
+  "timer.forslagValg.beholdPcDagen": "Тримайте ПК на цілий день",
+  "timer.forslagValg.brukMobilDagen": "Використовуйте мобільний на цілий день",
+  "timer.forslagValg.bekreft": "Підтвердити вибір",
+  "timer.forslagValg.venterSiden": "Пропозиція з мобільного, очікує на вибір працівника з {{dato}}",
+  "timer.forslagValg.venter": "Пропозиція з мобільного, чекаю на вибір працівника",
+  "timer.forslagValg.lesevisningHjelp": "Працівник повинен вибрати між ПК і мобільним, перш ніж ви зможете схвалити. Ви можете почекати або повернути денну картку.",
+  "timer.forslagValg.attesterBlokkert": "Працівник не вибрав між ПК і мобільним — чекай або повертай денну картку",
+  "timer.forslagValg.pille": "Мобільна пропозиція"
 }

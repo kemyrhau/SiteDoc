@@ -81,6 +81,9 @@ type AttesteringRad = {
   // LAG 2 D1: sedelens norm-status (DailySheet.normStatus, via ...s-spread i
   // hentTilAttesteringFirma). Driver norm-banneret i SeddelKort.
   normStatus: "server" | "cachet" | "ukjent" | null;
+  // V19-C (C-2): uavklart PC/mobil-overlapp (DailySheet.konfliktVentendeSiden, via
+  // ...s-spread). Blokkerer ✓ i SeddelKort. Lista leser ALDRI forslagsradene (M15).
+  konfliktVentendeSiden: Date | string | null;
   // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
   overtidsgrunnlag: {
     sumOrdinaert: number;

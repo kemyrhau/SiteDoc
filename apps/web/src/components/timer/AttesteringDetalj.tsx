@@ -14,8 +14,13 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { ArrowLeft, Check, Pencil, RotateCcw, AlertTriangle } from "lucide-react";
-import { avvikRetning } from "@sitedoc/shared";
+import {
+  avvikRetning,
+  overlappBlokkererAttestering,
+  type ForsonRad,
+} from "@sitedoc/shared";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { AttesteringDetaljEdit } from "@/components/timer/AttesteringDetalj_Edit";
 import {
   ProsjektSectionAttest,
@@ -160,6 +165,50 @@ export function AttesteringDetalj({
   const antallValgt = valgteTimer.size + valgteTillegg.size + valgteMaskin.size;
   const kanHandle = sheet.status === "sent" && antallValgt > 0;
 
+  // V19-C (C-2): en uavklart overlapp (konfliktVentendeSiden satt / forslag finnes)
+  // BLOKKERER attestering — arbeideren har ikke valgt mellom PC og mobil. Serveren
+  // er sannheten (A-4: krevIngenUavklartOverlapp kaster PRECONDITION_FAILED på
+  // konfliktVentendeSiden uansett); dette gater BARE attester-knappen i UI-et, og
+  // retur lar vi stå (utveien er retur, aldri attestering av et uvalgt sett).
+  const konfliktVentendeSiden =
+    (sheet as { konfliktVentendeSiden?: string | Date | null }).konfliktVentendeSiden ??
+    null;
+  const forslagBlokkert = overlappBlokkererAttestering(konfliktVentendeSiden);
+  // Forslaget attestanten LESER (ikke velger). hentForAttestering er ett av KUN to
+  // steder forslaget leses (M15) — aldri en lønnsleser.
+  const forslagRader = (
+    (sheet as { forslag?: unknown[] }).forslag ?? []
+  ).map((r) => {
+    const f = r as Record<string, unknown>;
+    return {
+      id: f.id as string,
+      projectId: f.projectId as string,
+      byggeplassId: (f.byggeplassId as string | null) ?? null,
+      lonnsartId: f.lonnsartId as string,
+      aktivitetId: f.aktivitetId as string,
+      timer: Number(f.timer),
+      fraTid: (f.fraTid as string | null) ?? null,
+      tilTid: (f.tilTid as string | null) ?? null,
+      beskrivelse: (f.beskrivelse as string | null) ?? null,
+      externalCostObjectId: (f.externalCostObjectId as string | null) ?? null,
+      vehicleId: (f.vehicleId as string | null) ?? null,
+    } satisfies ForsonRad;
+  });
+  const sedelForsonRader: ForsonRad[] = timerRader.map((r) => ({
+    id: r.id,
+    projectId: r.projectId,
+    byggeplassId: (r as { byggeplassId?: string | null }).byggeplassId ?? null,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: Number(r.timer),
+    fraTid: r.fraTid ?? null,
+    tilTid: r.tilTid ?? null,
+    beskrivelse: (r as { beskrivelse?: string | null }).beskrivelse ?? null,
+    externalCostObjectId:
+      (r as { externalCostObjectId?: string | null }).externalCostObjectId ?? null,
+    vehicleId: (r as { vehicleId?: string | null }).vehicleId ?? null,
+  }));
+
   // LAG 2 D1 (V1): reise er aldri arbeidstid. Splitt dagens timer i arbeid/reise
   // fra radenes `erReise` (nå i typen). «(inkl. reise)» erstattes av en ærlig
   // arbeid/reise-linje. Trigger-terskelen på arbeidstidVarselet er BEVISST uendret
@@ -267,6 +316,18 @@ export function AttesteringDetalj({
             reise: reisetimer.toFixed(2),
           })}
         </div>
+      )}
+
+      {/* V19-C (C-2): mobilen overlappet PC-dagskortet → attestanten SER begge
+          versjonene lesbart (ingen radio), og attester-knappen er blokkert til
+          arbeideren har valgt. Utveien er retur. */}
+      {forslagRader.length > 0 && (
+        <ForslagValgSeksjon
+          sedelRader={sedelForsonRader}
+          forslag={forslagRader}
+          modus="lesevisning"
+          venterSiden={konfliktVentendeSiden}
+        />
       )}
 
       {/* Slice 4b-2: kontroll-badges. (1) system-bestemt slutt-tid (ikke
@@ -522,12 +583,20 @@ export function AttesteringDetalj({
               <RotateCcw className="mr-1 h-4 w-4" />
               {t("timer.attestering.radValg.returnerValgte")}
             </Button>
-            <Button onClick={handleAttester} disabled={!kanHandle || attesterRader.isPending}>
-              <Check className="mr-1 h-4 w-4" />
-              {attesterRader.isPending
-                ? t("handling.lagrer")
-                : t("timer.attestering.radValg.attesterValgte")}
-            </Button>
+            {/* V19-C (C-2): blokker attestering ved uavklart overlapp. `title` på en
+                wrapper (ikke selve knappen) så tooltipen vises selv når knappen er
+                disabled. Retur-knappen over er bevisst IKKE gatet — retur er utveien. */}
+            <span title={forslagBlokkert ? t("timer.forslagValg.attesterBlokkert") : undefined}>
+              <Button
+                onClick={handleAttester}
+                disabled={!kanHandle || forslagBlokkert || attesterRader.isPending}
+              >
+                <Check className="mr-1 h-4 w-4" />
+                {attesterRader.isPending
+                  ? t("handling.lagrer")
+                  : t("timer.attestering.radValg.attesterValgte")}
+              </Button>
+            </span>
           </div>
         </div>
       ) : (

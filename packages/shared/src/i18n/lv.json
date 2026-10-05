@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· pēdējo reizi sagatavots {{tid}}",
   "mer.offline.ingentingLagret": "Vēl nekas nav saglabāts lietošanai bezsaistē",
   "hjem.innboksKreverNett": "Iesūtnei ir nepieciešams savienojums",
-  "prosjektVelger.ingenOffline": "Bezsaistē nav saglabāts neviens projekts"
+  "prosjektVelger.ingenOffline": "Bezsaistē nav saglabāts neviens projekts",
+  "timer.forslagValg.tittel": "Ieteikums no mobilā — izvēlieties",
+  "timer.forslagValg.innledning": "Mobilā lietotne reģistrēja stundas, kas pārklājas ar datora dienas kartē norādīto. Katram laika posmam izvēlieties pareizo.",
+  "timer.forslagValg.kolonnePc": "Datorā",
+  "timer.forslagValg.kolonneMobil": "Ieteikums no mobilā tālruņa",
+  "timer.forslagValg.kunEnSide": "Tikai vienā pusē - saglabāts nemainīgs.",
+  "timer.forslagValg.beholdPcDagen": "Saglabājiet datoru visu dienu",
+  "timer.forslagValg.brukMobilDagen": "Izmantojiet mobilo tālruni visu dienu",
+  "timer.forslagValg.bekreft": "Apstipriniet izvēli",
+  "timer.forslagValg.venterSiden": "Ieteikums no mobilās ierīces, gaida darbinieka izvēli kopš {{dato}}",
+  "timer.forslagValg.venter": "Ieteikums no mobilā, gaida darbinieka izvēli",
+  "timer.forslagValg.lesevisningHjelp": "Lai jūs varētu apstiprināt, darbiniekam ir jāizvēlas starp datoru vai mobilo. Dienas karti vari pagaidīt vai atdot.",
+  "timer.forslagValg.attesterBlokkert": "Darbinieks nav izvēlējies starp datoru vai mobilo — pagaidiet vai atdodiet dienas karti",
+  "timer.forslagValg.pille": "Mobilais ieteikums"
 }

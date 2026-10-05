@@ -26,6 +26,20 @@ import { tidsromOverlapper } from "./tidsromValidering";
 export type ForsonSide = "forslag" | "sedel";
 
 /**
+ * V19-C (C-2 / A-4): en uavklart PC/mobil-overlapp BLOKKERER attestering. Feltet
+ * `konfliktVentendeSiden` (DailySheet) er satt ⇔ det finnes et forslag arbeideren
+ * ikke har valgt mellom. Delt predikat for begge attesteringsflatene
+ * (`AttesteringDetalj` + `SeddelKort`) så UI-blokkeringen har ÉN definisjon.
+ * Serveren er sannheten (`krevIngenUavklartOverlapp` kaster `PRECONDITION_FAILED`
+ * uansett) — dette gater kun attester-knappen og forklarer hvorfor.
+ */
+export function overlappBlokkererAttestering(
+  konfliktVentendeSiden: Date | string | null | undefined,
+): boolean {
+  return konfliktVentendeSiden != null;
+}
+
+/**
  * Minste felles form for en rad på begge sider — serverraden (`SheetTimer`, PC/web) og
  * forslagsraden (`SheetTimerForslag`, mobil). Feltene er de `forsonDagskort` skriver.
  * `id` på en serverrad er sheet_timer-id (målet for in-place-erstatning); `id` på en
@@ -92,9 +106,10 @@ export interface OverlappSlot {
 
 /**
  * Par forslagsrader mot serverrader PR. OVERLAPP (ikke eksakt tidsrom) — ÉN kilde både
- * visningen (DagskortSammenligning) og `byggForsonInputFraValg` bruker, så skjermen og
- * skriveveien aldri kan pare ulikt. Hver forslagsrad pares med den FØRSTE serverraden
- * (sortert på fra-tid) den overlapper og som ikke alt er paret — 1:1 i praksis.
+ * visningen (mobil DagskortSammenligning + web C-1 ForslagValgSeksjon) og
+ * `byggForsonInputFraValg` bruker, så skjermen og skriveveien aldri kan pare ulikt. Hver
+ * forslagsrad pares med den FØRSTE serverraden (sortert på fra-tid) den overlapper og som
+ * ikke alt er paret — 1:1 i praksis.
  */
 export function parForslagMotSedel(
   sedelRader: readonly ForsonRad[],
@@ -184,7 +199,6 @@ export function byggForsonInputFraValg(
       if (valg[slot.forslag.id] === "forslag") {
         oppdateringer.push({ ...tilNyRad(slot.forslag), id: slot.sedel.id });
       }
-      // "sedel" / manglende valg → no-op (serverraden står).
       continue;
     }
     // Forslagsrad uten motpart = kun på mobil-siden → beholdes alltid (opprett),
