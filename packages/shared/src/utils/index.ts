@@ -144,7 +144,11 @@ export {
   finnTidsromKonflikt,
 } from "./tidsromValidering";
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
-export { byggForsonInputFraValg, parForslagMotSedel } from "./forsonValg";
+export {
+  byggForsonInputFraValg,
+  parForslagMotSedel,
+  overlappBlokkererAttestering,
+} from "./forsonValg";
 export type {
   ForsonSide,
   ForsonRad,

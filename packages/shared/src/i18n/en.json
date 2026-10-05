@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": " · last prepared {{tid}}",
   "mer.offline.ingentingLagret": "Nothing saved for offline yet",
   "hjem.innboksKreverNett": "The inbox requires a connection",
-  "prosjektVelger.ingenOffline": "No projects saved for offline"
+  "prosjektVelger.ingenOffline": "No projects saved for offline",
+  "timer.forslagValg.tittel": "Suggestion from mobile — choose",
+  "timer.forslagValg.innledning": "The mobile app logged hours that overlap what's on the PC day card. Choose what's correct for each time slot.",
+  "timer.forslagValg.kolonnePc": "On the PC",
+  "timer.forslagValg.kolonneMobil": "Suggestion from mobile",
+  "timer.forslagValg.kunEnSide": "Only on one side — kept unchanged.",
+  "timer.forslagValg.beholdPcDagen": "Keep PC for the whole day",
+  "timer.forslagValg.brukMobilDagen": "Use mobile for the whole day",
+  "timer.forslagValg.bekreft": "Confirm choice",
+  "timer.forslagValg.venterSiden": "Suggestion from mobile, awaiting the worker's choice since {{dato}}",
+  "timer.forslagValg.venter": "Suggestion from mobile, awaiting the worker's choice",
+  "timer.forslagValg.lesevisningHjelp": "The worker must choose between PC and mobile before you can approve. You can wait or return the day card.",
+  "timer.forslagValg.attesterBlokkert": "The worker hasn't chosen between PC and mobile — wait or return the day card",
+  "timer.forslagValg.pille": "Mobile suggestion"
 }

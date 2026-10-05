@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· naposledy připraveno {{tid}}",
   "mer.offline.ingentingLagret": "Zatím není nic uloženo pro režim offline",
   "hjem.innboksKreverNett": "Doručená pošta vyžaduje připojení",
-  "prosjektVelger.ingenOffline": "Žádné projekty uložené pro režim offline"
+  "prosjektVelger.ingenOffline": "Žádné projekty uložené pro režim offline",
+  "timer.forslagValg.tittel": "Návrh z mobilu – vyberte si",
+  "timer.forslagValg.innledning": "Mobilní aplikace zaznamenávala hodiny, které se překrývají s tím, co je na denní kartě počítače. Vyberte, co je pro každý časový úsek správné.",
+  "timer.forslagValg.kolonnePc": "Na PC",
+  "timer.forslagValg.kolonneMobil": "Návrh z mobilu",
+  "timer.forslagValg.kunEnSide": "Pouze na jedné straně – beze změny.",
+  "timer.forslagValg.beholdPcDagen": "Nechte si PC na celý den",
+  "timer.forslagValg.brukMobilDagen": "Používejte mobil na celý den",
+  "timer.forslagValg.bekreft": "Potvrďte volbu",
+  "timer.forslagValg.venterSiden": "Návrh z mobilu, čeká se na volbu pracovníka od {{dato}}",
+  "timer.forslagValg.venter": "Návrh z mobilu, čeká se na volbu pracovníka",
+  "timer.forslagValg.lesevisningHjelp": "Před schválením si musí pracovník vybrat mezi počítačem a mobilním zařízením. Můžete počkat nebo denní kartu vrátit.",
+  "timer.forslagValg.attesterBlokkert": "Pracovník si nevybral mezi počítačem a mobilním zařízením – počkejte nebo vraťte denní kartu",
+  "timer.forslagValg.pille": "Mobilní návrh"
 }

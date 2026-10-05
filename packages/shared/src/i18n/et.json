@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· viimati valmistati {{tid}}",
   "mer.offline.ingentingLagret": "Midagi pole veel võrguühenduseta kasutamiseks salvestatud",
   "hjem.innboksKreverNett": "Postkast nõuab ühendust",
-  "prosjektVelger.ingenOffline": "Ühtegi projekti pole võrguühenduseta kasutamiseks salvestatud"
+  "prosjektVelger.ingenOffline": "Ühtegi projekti pole võrguühenduseta kasutamiseks salvestatud",
+  "timer.forslagValg.tittel": "Soovitus mobiilist – valige",
+  "timer.forslagValg.innledning": "Mobiilirakendus logis tunnid, mis kattuvad arvuti päevakaardil olevaga. Valige iga ajapilu jaoks õige.",
+  "timer.forslagValg.kolonnePc": "Arvutil",
+  "timer.forslagValg.kolonneMobil": "Soovitus mobiilist",
+  "timer.forslagValg.kunEnSide": "Ainult ühel küljel - hoitakse muutmata.",
+  "timer.forslagValg.beholdPcDagen": "Hoidke arvutit terveks päevaks",
+  "timer.forslagValg.brukMobilDagen": "Kasutage kogu päeva mobiili",
+  "timer.forslagValg.bekreft": "Kinnitage valik",
+  "timer.forslagValg.venterSiden": "Soovitus mobiilist, ootab töötaja valikut alates {{dato}}",
+  "timer.forslagValg.venter": "Soovitus mobiilist, ootab töötaja valikut",
+  "timer.forslagValg.lesevisningHjelp": "Enne heakskiitmist peab töötaja valima arvuti või mobiiltelefoni vahel. Päevakaardi võid oodata või tagastada.",
+  "timer.forslagValg.attesterBlokkert": "Töötaja pole valinud arvuti ja mobiili vahel – oodake või tagastage päevakaart",
+  "timer.forslagValg.pille": "Mobiilisoovitus"
 }

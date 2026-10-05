@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· përgatitja e fundit {{tid}}",
   "mer.offline.ingentingLagret": "Asgjë nuk është ruajtur ende për jashtë linje",
   "hjem.innboksKreverNett": "Kutia hyrëse kërkon një lidhje",
-  "prosjektVelger.ingenOffline": "Asnjë projekt i ruajtur për jashtë linje"
+  "prosjektVelger.ingenOffline": "Asnjë projekt i ruajtur për jashtë linje",
+  "timer.forslagValg.tittel": "Sugjerim nga celulari — zgjidhni",
+  "timer.forslagValg.innledning": "Aplikacioni celular regjistroi orë që mbivendosen me atë që është në kartën e ditës së PC. Zgjidhni atë që është e saktë për çdo kohë.",
+  "timer.forslagValg.kolonnePc": "Në PC",
+  "timer.forslagValg.kolonneMobil": "Sugjerim nga celulari",
+  "timer.forslagValg.kunEnSide": "Vetëm nga njëra anë — e mbajtur e pandryshuar.",
+  "timer.forslagValg.beholdPcDagen": "Mbajeni kompjuterin për gjithë ditën",
+  "timer.forslagValg.brukMobilDagen": "Përdorni celularin gjatë gjithë ditës",
+  "timer.forslagValg.bekreft": "Konfirmo zgjedhjen",
+  "timer.forslagValg.venterSiden": "Sugjerim nga celulari, në pritje të zgjedhjes së punëtorit që nga {{dato}}",
+  "timer.forslagValg.venter": "Sugjerim nga celulari, në pritje të zgjedhjes së punëtorit",
+  "timer.forslagValg.lesevisningHjelp": "Punonjësi duhet të zgjedhë midis kompjuterit dhe celularit përpara se të aprovoni. Mund të prisni ose të ktheni kartën e ditës.",
+  "timer.forslagValg.attesterBlokkert": "Punonjësi nuk ka zgjedhur mes kompjuterit dhe celularit — prisni ose ktheni kartën e ditës",
+  "timer.forslagValg.pille": "Sugjerim celular"
 }

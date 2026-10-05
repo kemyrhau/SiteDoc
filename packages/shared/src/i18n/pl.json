@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· ostatnio przygotowane {{tid}}",
   "mer.offline.ingentingLagret": "Nic nie zostało jeszcze zapisane do trybu offline",
   "hjem.innboksKreverNett": "Skrzynka odbiorcza wymaga połączenia",
-  "prosjektVelger.ingenOffline": "Brak projektów zapisanych do trybu offline"
+  "prosjektVelger.ingenOffline": "Brak projektów zapisanych do trybu offline",
+  "timer.forslagValg.tittel": "Sugestia z telefonu komórkowego — wybierz",
+  "timer.forslagValg.innledning": "Aplikacja mobilna rejestrowała godziny pokrywające się z godzinami zapisanymi na karcie dziennej na komputerze. Wybierz to, co jest właściwe dla każdego przedziału czasowego.",
+  "timer.forslagValg.kolonnePc": "Na komputerze",
+  "timer.forslagValg.kolonneMobil": "Sugestia z telefonu komórkowego",
+  "timer.forslagValg.kunEnSide": "Tylko z jednej strony – bez zmian.",
+  "timer.forslagValg.beholdPcDagen": "Trzymaj komputer przez cały dzień",
+  "timer.forslagValg.brukMobilDagen": "Korzystaj z telefonu komórkowego przez cały dzień",
+  "timer.forslagValg.bekreft": "Potwierdź wybór",
+  "timer.forslagValg.venterSiden": "Sugestia z telefonu komórkowego, oczekiwanie na wybór pracownika od {{dato}}",
+  "timer.forslagValg.venter": "Sugestia z telefonu komórkowego, oczekuje na wybór pracownika",
+  "timer.forslagValg.lesevisningHjelp": "Zanim zatwierdzisz, pracownik musi wybrać pomiędzy komputerem stacjonarnym a telefonem komórkowym. Możesz poczekać lub zwrócić kartę jednodniową.",
+  "timer.forslagValg.attesterBlokkert": "Pracownik nie wybrał między komputerem stacjonarnym a telefonem komórkowym — poczekaj lub zwróć kartę jednodniową",
+  "timer.forslagValg.pille": "Sugestia mobilna"
 }

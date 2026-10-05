@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": "· valmisteltu viimeksi {{tid}}",
   "mer.offline.ingentingLagret": "Mitään ei ole vielä tallennettu offline-käyttöön",
   "hjem.innboksKreverNett": "Saapuneet-kansio vaatii yhteyden",
-  "prosjektVelger.ingenOffline": "Offline-käyttöön ei ole tallennettu projekteja"
+  "prosjektVelger.ingenOffline": "Offline-käyttöön ei ole tallennettu projekteja",
+  "timer.forslagValg.tittel": "Ehdotus mobiilista – valitse",
+  "timer.forslagValg.innledning": "Mobiilisovellus kirjasi tunnit, jotka ovat päällekkäisiä PC-päiväkortin kanssa. Valitse kullekin aikavälille oikea.",
+  "timer.forslagValg.kolonnePc": "PC:llä",
+  "timer.forslagValg.kolonneMobil": "Ehdotus matkapuhelimesta",
+  "timer.forslagValg.kunEnSide": "Vain toisella puolella - säilytetty ennallaan.",
+  "timer.forslagValg.beholdPcDagen": "Pidä PC koko päivän ajan",
+  "timer.forslagValg.brukMobilDagen": "Käytä mobiilia koko päivän",
+  "timer.forslagValg.bekreft": "Vahvista valinta",
+  "timer.forslagValg.venterSiden": "Ehdotus mobiilista, odottaa työntekijän valintaa {{dato}} alkaen",
+  "timer.forslagValg.venter": "Ehdotus matkapuhelimesta, odottaa työntekijän valintaa",
+  "timer.forslagValg.lesevisningHjelp": "Työntekijän on valittava tietokoneen tai matkapuhelimen välillä, ennen kuin voit hyväksyä. Voit odottaa tai palauttaa päiväkortin.",
+  "timer.forslagValg.attesterBlokkert": "Työntekijä ei ole valinnut tietokoneen ja mobiilin välillä – odota tai palauta päiväkortti",
+  "timer.forslagValg.pille": "Mobiiliehdotus"
 }

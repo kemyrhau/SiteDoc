@@ -4954,5 +4954,18 @@
   "mer.offline.sistKlargjort": " · sist klargjort {{tid}}",
   "mer.offline.ingentingLagret": "Ingenting lagret for offline ennå",
   "hjem.innboksKreverNett": "Innboksen krever nett",
-  "prosjektVelger.ingenOffline": "Ingen prosjekter lagret for offline"
+  "prosjektVelger.ingenOffline": "Ingen prosjekter lagret for offline",
+  "timer.forslagValg.tittel": "Forslag fra mobilen — velg",
+  "timer.forslagValg.innledning": "Mobilen registrerte timer som overlapper det som står på PC-dagskortet. Velg hva som er rett for hvert tidsrom.",
+  "timer.forslagValg.kolonnePc": "Står på PC",
+  "timer.forslagValg.kolonneMobil": "Forslag fra mobilen",
+  "timer.forslagValg.kunEnSide": "Finnes bare på én side — står uendret.",
+  "timer.forslagValg.beholdPcDagen": "Behold PC for hele dagen",
+  "timer.forslagValg.brukMobilDagen": "Bruk mobilen for hele dagen",
+  "timer.forslagValg.bekreft": "Bekreft valg",
+  "timer.forslagValg.venterSiden": "Forslag fra mobil, venter på arbeiderens valg siden {{dato}}",
+  "timer.forslagValg.venter": "Forslag fra mobil, venter på arbeiderens valg",
+  "timer.forslagValg.lesevisningHjelp": "Arbeideren må velge mellom PC og mobil før du kan attestere. Du kan avvente eller returnere sedelen.",
+  "timer.forslagValg.attesterBlokkert": "Arbeideren har ikke valgt mellom PC og mobil — avvent eller returner sedelen",
+  "timer.forslagValg.pille": "Forslag fra mobil"
 }
