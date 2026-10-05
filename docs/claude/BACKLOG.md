@@ -61,6 +61,13 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Standalone-prosjekter** (uten firma): `TimerSyncProvider` cacher kun firmaprosjekter → Hjem viser feilside offline.
 **Ikke bestilt.** Egen offline-runde hvis piloten trenger dem.
 
+### 🔴 SAMME SEDEL REDIGERT PÅ PC OG TELEFON — SIST SYNKET VINNER STILLE (målt 2026-10-05, Kenneth på test)
+
+`syncBatch` erstatter payload-radene etter id uten å sjekke om serverraden er endret siden telefonen hentet den
+(`SheetTimer.updatedAt` finnes; `sheet_timer_local` har kun `sistEndretLokalt`, ingen serverversjon). V19 dekker kun to
+UAVHENGIGE sedler. 🟢 **Kenneth 2026-10-05:** *«dersom systemet ikke finner ut av dette uten en perfekt måte å opprette
+ting på → da mangler systemet noe»* → utvidelse av V19 med versjonssjekk pr. rad, samme forslag/valg-vei. **Hos fabel for spec.**
+
 ### 🔴 OVERLAPP PC ↔ MOBIL PÅ SAMME DAG LAGRES DOBBELT — Kenneth-vedtak 2026-10-04: ARBEIDEREN VELGER
 
 **Målt (orkestrator 2026-10-04):** ved dato-kollisjon (S2, `dagsseddel.ts` ~`:5838` → `timerSync.ts:259-267`) slås mobilens rader
