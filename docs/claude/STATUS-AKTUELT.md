@@ -77,7 +77,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/v19c-overlapp-web` (ny) | 🟡 **L2-C MERGET `3dd2f590` ← `8492b66c` 2026-10-05** (retur 2 trukket: Excel uten valg var alt fast, `78394d44`). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s · web 392. Neste: V19-C |
+| **Plan** | dokgen | `SiteDoc-dokgen` | — (detached) | 🟢 **Ledig. V19-C MERGET `9d400c02` ← `6abc2c47` 2026-10-05** (orkestrator-gate: kun web+shared, serveren håndhever eier og blokk). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s · web 399 · mobil 202. **V19 komplett** (A+B+C); purring utsatt. Venter web-deploy til test |
 | **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f`. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
 | **Plan** | redesign | `SiteDoc-redesign` | — (detached) | 🟢 **Ledig. V19-B MERGET `8100fcc0` ← `e9039b37` 2026-10-05** (kontrollør GATET). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 23s · mobil 202. 🔴 OTA først etter V19-A-migrering + server på test |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
