@@ -67,7 +67,7 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 (`dagsforslag.ts:785-799`) · (3) hodet = Σ rad (`matpause.ts:135-175`). Web regner fra hodet (`page.tsx:1694-1699`) → mobil/web ulike.
 Hodet `startAt/endAt/pauseMin` driver ikke lønn/overtid/norm/eksport (kun forslag + første auto-rad + glemt-dag). UI-tekst
 «Brukes for å beregne overtid» er feil. 🟢 **Kenneth 2026-10-06:** *«avhukingen skal vise tilstanden også for manuell føring»*
-(→ `fix/matpause-avkrysning`). «Én kilde for pause» + hodet som visning: **hos fabel for spec; A/B ikke vedtatt.**
+(→ `fix/matpause-avkrysning`). 🟢 **Kenneth-vedtak 2026-10-06: V20 = B** (radene eier pausen, avkrysningen er sannheten, hodet er visning; pausen utledes etter gjeldende firmaregler — «Pause starter etter» 4 t, `standardPauseMin`, terskel 5,5 t) → **V19.9-H strykes**. **V21 ja** (overtidsforslag ved manuell føring, ett trykk). **V22 ja, endret:** prosjekt og byggeplass vises **på raden med liten skrift** (mobil gjør det; web mangler) — ikke i Detaljer. Spec `docs/design-pause-en-kilde` hos fabel (PK4-AVVIK rettes).
 
 ### 🟡 REDIGERING MENS SEDELEN STÅR I KONFLIKT GÅR TAPT VED SLIPP (arvet fra V19, ført av fabel i V19.9 § 9.7.2, 2026-10-06)
 
