@@ -25,6 +25,12 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-06
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `a933898f` ← `dcaadd21` | 🔴 **Mobil — manuell timerad og matpause** | **Før:** en manuelt ført rad som krysset pausevinduet fikk firmaets 30 min trukket skjult. Avkrysningen sto tom, og fradraget skjedde også på dager under 5,5 t. **Etter:** raden bærer pausen synlig (kryss + `pauseMin` lagret) når dagen er over 5,5 t, raden krysser pausevinduet og ingen annen rad bærer den. Ellers trekkes ingenting. 07:00–15:00 → kryss, 7,50 t; fjernes krysset → 8,00 t. ⚠️ Eldre rader med skjult fradrag rettes først i V20-S (backfill). Reload: OTA | 🟢 Kenneth 2026-10-06 «avhukingen skal vise tilstanden også for manuell føring» + V20=B |
+
 ### 2026-10-03
 
 | Hash | Flate | Før → Etter | Hjemmel |

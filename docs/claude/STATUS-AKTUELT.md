@@ -85,7 +85,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 |---|---|---|---|---|
 | **Plan** | dokgen | `SiteDoc-dokgen` | — (detached) | 🟢 **Ledig. V19.9-A2 MERGET `d16f4521` ← `4f81b7c6` 2026-10-06** (orkestrator-gate). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s · api 746 · shared 1097 |
 | **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f`. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
-| **Funn** | redesign | `SiteDoc-redesign` | `fix/matpause-avkrysning` (ny) | 🔴 **Feltfunn 2026-10-06:** trykk på «Matpause trukket» endret rad 07:00–15:00 → 07:00–16:00/8.50 t; avkrysningen viser ikke skjult fradrag på manuelle rader (Kenneth: *«avhukingen skal vise tilstanden også for manuell føring»*). Ordre `relay/inbox-redesign-matpause.md`. V19.9 (A+A2+B) merget og på test — telefonen leser PC-endringer straks (Kenneth: «sterk forbedring») |
+| **Funn** | redesign | `SiteDoc-redesign` | — (ledig) | ✅ `fix/matpause-avkrysning` MERGET `a933898f` (V20 PK2: manuell rad bærer pausen synlig). 16:00 var Kenneths egen redigering. **OTA til test gjenstår.** Neste i timer-sporet: V20-S |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
