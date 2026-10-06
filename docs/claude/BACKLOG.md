@@ -3795,6 +3795,10 @@ med enslig repeater-barn treffer samme spørsmål.
 ⚠️ Ført her 2026-08-19 fordi spørsmålet kun eksisterte i en chat-melding — cowork
 formulerte det uten å legge det i repoet.
 
+### 🔴 Tegninger lastes opp én og én — serieopplasting + Tegningsserie (Kenneth 2026-10-06)
+
+20 ark-tegninger = 20 modaler (`oppsett/byggeplasser/page.tsx:293-319`, ingen `multiple`, ingen bulk i API). Bare navn er påkrevd, så «last opp alt først, detaljer etterpå» er mulig uten schema. `lastOppRevisjon` finnes i API uten web-kaller. Ingen gruppering av tegninger (Folder er dokument-modulens). **Spec: `tegning-serieopplasting-spec.md` (branch `docs/design-tegning-serieopplasting`), ordre T1 (ingen schema) → T2 (`Tegningsserie`). Målestokk forblir valgfri — ingen flate skal mase (Kenneth).**
+
 ### 🔴 Byggeplass og tegning kan ikke redigeres eller slettes fra UI (Kenneth 2026-08-19)
 
 > **[triage 2026-08-26]** verifisert åpen — Skjemmer — én runde: byggeplass-redigering/-sletting alt løst før posten (`oppsett/byggeplasser/page.tsx`); reell rest = 2D-tegning rename/slett uwired (`tegning.oppdater:294`/`slett:570`).
