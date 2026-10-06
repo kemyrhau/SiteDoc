@@ -177,8 +177,15 @@ export function parForslagMotSedel(
     if (motpart && !brukt.has(motpart.id)) {
       brukt.add(motpart.id);
       slots.push({ nokkel: f.id, forslag: f, sedel: motpart, valgbar: true, grunn: f.grunn });
+    } else if (f.grunn === "endret_begge") {
+      // V19.9-A2 (c): PC SLETTET serverraden etter at endret_begge-forslaget ble
+      // lagret → ingen sedelrad å erstatte. Oppfør slotten som slettet_pc: valgbar,
+      // sedel null, og raden opprettes KUN ved eksplisitt valg. Uten dette falt den i
+      // «forslag kun» som ALLTID opprettes → PC-slettingen ble angret uten valg.
+      slots.push({ nokkel: f.id, forslag: f, sedel: null, valgbar: true, grunn: "slettet_pc" });
     } else {
-      // Serverraden mangler (forventes ikke for disse grunnene) → ensidig, ikke valgbar.
+      // slettet_telefon uten motpart: PC slettet raden også (begge enige) → no-op-slot,
+      // ikke valgbar. byggForsonInputFraValg oppretter den ALDRI (id-paret-blokken).
       slots.push({ nokkel: f.id, forslag: f, sedel: null, valgbar: false, grunn: f.grunn });
     }
   }
@@ -257,27 +264,30 @@ export function byggForsonInputFraValg(
   // Samme pr-overlapp-paring som visningen (én kilde: parForslagMotSedel).
   for (const slot of parForslagMotSedel(sedelRader, forslag)) {
     const f = slot.forslag;
+    const g = slot.grunn;
 
-    // V19.9.7 — grunn-parede slots.
-    if (f && slot.grunn === "endret_begge" && slot.sedel) {
-      // Samme rad endret begge steder → valg «forslag» erstatter serverraden in-place.
-      if (valg[f.id] === "forslag") {
-        oppdateringer.push({ ...tilNyRad(f), id: slot.sedel.id });
+    // V19.9.7 — id-parede grunner. Faller ALDRI til V19-A-opprett-fallbacken under:
+    // ingen rad gjenoppstår og ingen sletting angres uten et eksplisitt valg.
+    if (g === "endret_begge" || g === "slettet_telefon" || g === "slettet_pc") {
+      if (!f) continue;
+      if (g === "endret_begge" && slot.sedel) {
+        // Samme rad endret begge steder → valg «forslag» erstatter serverraden in-place.
+        if (valg[f.id] === "forslag") {
+          oppdateringer.push({ ...tilNyRad(f), id: slot.sedel.id });
+        }
+      } else if (g === "slettet_telefon" && slot.sedel) {
+        // Telefonen slettet, PC endret → valg «forslag» = slett serverraden; «sedel» = behold.
+        if (valg[f.id] === "forslag") {
+          slettinger.push(slot.sedel.id);
+        }
+      } else if (g === "slettet_pc") {
+        // PC slettet (eller endret_begge der serverraden forsvant, V19.9-A2 c) → opprett
+        // telefonens rad KUN ved eksplisitt «forslag» (ikke Q3(b)s alltid-opprett).
+        if (valg[f.id] === "forslag" && harTid(f)) {
+          nyeRader.push(tilNyRad(f));
+        }
       }
-      continue;
-    }
-    if (f && slot.grunn === "slettet_telefon" && slot.sedel) {
-      // Telefonen slettet, PC endret → valg «forslag» = slett serverraden; «sedel» = behold.
-      if (valg[f.id] === "forslag") {
-        slettinger.push(slot.sedel.id);
-      }
-      continue;
-    }
-    if (f && slot.grunn === "slettet_pc") {
-      // PC slettet, telefonen endret → opprett KUN ved eksplisitt «forslag» (ikke Q3(b)).
-      if (valg[f.id] === "forslag" && harTid(f)) {
-        nyeRader.push(tilNyRad(f));
-      }
+      // endret_begge/slettet_telefon UTEN sedel (begge slettet) → no-op.
       continue;
     }
 

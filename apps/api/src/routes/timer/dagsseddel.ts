@@ -5971,10 +5971,18 @@ export const dagsseddelRouter = router({
                     ...t,
                     grunn: grunnById.get(t.id) ?? "overlapp",
                   }));
+                // V19.9-A2 (d): tombstone-avvik (slettet_telefon, S2'/S4) er IKKE i
+                // lokal.timer — det er en KOPI av serverraden. I ikke-overlapp-grenen
+                // går det med i forslaget; her må det også med, ellers forsvinner
+                // telefonens sletting stille. (Payload-kilde-avvik ligger alt i
+                // payloadMedGrunn via lokal.timer; server-kilde er kun slettet_telefon.)
+                const tombstoneForslag = avvikForslag.filter(
+                  (a) => a.grunn === "slettet_telefon",
+                );
                 const aarsak = await lagreOverlappForslag(
                   tx,
                   eksisterendeITx.id,
-                  payloadMedGrunn,
+                  [...payloadMedGrunn, ...tombstoneForslag],
                   lokal.projectId ?? null,
                 );
                 return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: hoppetOverIder };
