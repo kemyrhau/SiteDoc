@@ -3,7 +3,7 @@ name: timer-pause-en-kilde-spec
 description: Spesifikasjon for V20 — pausen (matpause) på dagsseddelen får ÉN kilde, radens avkrysning, og hodet «Arbeidstid i dag» blir visning utledet av radene. Måler de tre uenige stedene pausen ligger i dag (radens skjulte fradrag, rad.pauseMin fra GPS, hodet = Σ rad), hva hodet faktisk driver, og gir A/B med anbefaling. Bærer også Kenneths to UI-funn 2026-10-06 som V21 (overtidsforslag ved manuell føring) og V22 (bekreft prosjekt/byggeplass ved direkte opprettelse).
 sist_verifisert_mot_kode: 2026-10-06
 eier: fabel (plan-eier) — orkestrator gater, Kenneth vedtar A/B
-status: ⚠️ TIL GATE (rev. 2, 2026-10-06 kveld) — ❌ IKKE IMPLEMENTERT. 🟢 Kenneth-vedtak 2026-10-06: V20 = B, V21 = ja, V22 = ja (på raden). PK4 omskrevet etter gate-AVVIK (syncBatch normaliserer, avviser aldri)
+status: 🟢 GATET 2026-10-06 (orkestrator, rev. 2) — ❌ IKKE IMPLEMENTERT. Kenneth-vedtak V20 = B, V21 ja, V22 ja (på raden). Orkestrator-beslutning i gaten: PK4b-3 `SheetTimer.timerAvvik` bygges IKKE (null ville betydd både «ikke vurdert» og «stemmer» — stille tomhet); avvik i synk telles og logges kun. V20-S bestilles når `fix/matpause-avkrysning` er merget
 ---
 
 # V20 — én kilde for pause, og hodet «Arbeidstid i dag» som visning
