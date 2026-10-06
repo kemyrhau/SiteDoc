@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Prisma } from "@sitedoc/db";
+import { Prisma, type PrismaClient } from "@sitedoc/db";
 import { TRPCError } from "@trpc/server";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
@@ -15,6 +15,8 @@ import {
   geoReferanseSchema,
   utledMmPrPiksel,
   finnMalestokkFraTekst,
+  finnTegningsnummer,
+  finnTegningstype,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
@@ -50,6 +52,27 @@ async function hentMalestokkForslag(pdfFilSti: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync("pdftotext", ["-f", "1", "-l", "1", pdfFilSti, "-"], { timeout: 15000 });
     return finnMalestokkFraTekst(stdout);
+  } catch {
+    return null;
+  }
+}
+
+/** PDF-`Title` fra pdfinfo (dokumentmetadata). Null hvis tom/ukjent. R3-kilde (b). */
+async function hentPdfTitle(pdfFilSti: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync("pdfinfo", [pdfFilSti], { timeout: 15000 });
+    const title = stdout.match(/^Title:\s*(.+)$/im)?.[1]?.trim();
+    return title && title.length > 0 ? title : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Rå tittelfelt-tekst (pdftotext side 1). Null ved feil. R3-kilde (c). */
+async function hentTittelfeltTekst(pdfFilSti: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync("pdftotext", ["-f", "1", "-l", "1", pdfFilSti, "-"], { timeout: 15000 });
+    return stdout || null;
   } catch {
     return null;
   }
@@ -104,6 +127,175 @@ function byggTegningSlettevaktMelding(t: {
   if (t.kontrollpunkter > 0) deler.push(tall(t.kontrollpunkter, "kontrollplanpunkt", "kontrollplanpunkter"));
   if (t.omrader > 0) deler.push(tall(t.omrader, "område", "områder"));
   return `Tegningen brukes av ${deler.join(", ")} og kan ikke slettes. Flytt markørene til en annen tegning, eller fjern det som bruker den, først.`;
+}
+
+/**
+ * Start bakgrunns-konvertering for en PERSISTERT tegning (fire-and-forget).
+ *
+ * Felles vei for `opprett` (R2) og `lastOppRevisjon` (R8) — én kilde for PDF→PNG,
+ * DWG→SVG (+ layouts) og IFC-metadata, så ny revisjon aldri viser gammel PNG.
+ * Kalleren har ALLEREDE satt synkron initial-tilstand (`conversionStatus`,
+ * `originalFileUrl`, `fileType`, bilde-dimensjoner for bildetyper); denne gjør kun
+ * det asynkrone tunge arbeidet og den endelige `update`-en når konverteringen er
+ * ferdig. Feiler et steg → `conversionStatus = failed`, aldri en gjettet verdi.
+ *
+ * `brukerScale`: en allerede satt/bekreftet målestokk (brukerinput ved opplasting,
+ * eller eksisterende `scale` ved revisjon). Er den satt, overskrives den ALDRI av
+ * tittelfelt-forslaget (samme regel som før: forslag kun i tomt felt).
+ */
+function startTegningKonvertering(
+  prisma: PrismaClient,
+  tegning: { id: string; name: string; projectId: string; byggeplassId: string | null },
+  fil: { fileUrl: string; fileType: string; brukerScale?: string | null },
+): void {
+  const erDwg = fil.fileType.toLowerCase() === "dwg";
+  const erIfc = fil.fileType.toLowerCase() === "ifc";
+  const erPdf = fil.fileType.toLowerCase() === "pdf";
+
+  // Start asynkron DWG-konvertering i bakgrunnen
+  if (erDwg) {
+    const dwgFilSti = join(UPLOADS_DIR, fil.fileUrl.replace("/uploads/", ""));
+    konverterDwg(dwgFilSti, tegning.name, UPLOADS_DIR)
+      .then(async (resultat) => {
+        const oppdatering: Record<string, unknown> = {
+          conversionStatus: resultat.feil ? "failed" : "done",
+          conversionError: resultat.feil,
+        };
+
+        if (resultat.koordinatSystem) {
+          oppdatering.coordinateSystem = resultat.koordinatSystem;
+        }
+
+        if (resultat.geoReferanse) {
+          oppdatering.geoReference = resultat.geoReferanse;
+        }
+
+        if (resultat.visningUrl) {
+          oppdatering.fileUrl = resultat.visningUrl;
+          oppdatering.fileType = resultat.visningFilType;
+          // Hent dimensjoner fra konvertert fil
+          const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, resultat.visningUrl.replace("/uploads/", "")));
+          if (dim) { oppdatering.imageWidth = dim.width; oppdatering.imageHeight = dim.height; }
+        }
+
+        await prisma.drawing.update({
+          where: { id: tegning.id },
+          data: oppdatering,
+        });
+        console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
+
+        // Opprett ekstra tegninger for hvert layout i DWG-filen
+        if (resultat.layouts.length > 0) {
+          console.log(`[DWG] Oppretter ${resultat.layouts.length} layout-tegninger...`);
+          for (const layout of resultat.layouts) {
+            try {
+              await prisma.drawing.create({
+                data: {
+                  projectId: tegning.projectId,
+                  byggeplassId: tegning.byggeplassId,
+                  name: layout.navn,
+                  fileUrl: layout.visningUrl,
+                  fileType: layout.visningFilType,
+                  originalFileUrl: fil.fileUrl,
+                  conversionStatus: "done",
+                  coordinateSystem: resultat.koordinatSystem,
+                  description: `Layout fra ${tegning.name} (fane ${layout.tabOrder})`,
+                },
+              });
+              console.log(`[DWG] Layout-tegning opprettet: "${layout.navn}"`);
+            } catch (layoutErr) {
+              console.error(`[DWG] Feil ved opprettelse av layout "${layout.navn}":`, layoutErr);
+            }
+          }
+        }
+      })
+      .catch(async (err) => {
+        console.error(`[DWG] Konvertering feilet for tegning ${tegning.id}:`, err);
+        await prisma.drawing.update({
+          where: { id: tegning.id },
+          data: {
+            conversionStatus: "failed",
+            conversionError: err instanceof Error ? err.message : "Ukjent feil",
+          },
+        });
+      });
+  }
+
+  // Parse IFC-metadata asynkront
+  if (erIfc) {
+    const ifcFilSti = join(UPLOADS_DIR, fil.fileUrl.replace("/uploads/", ""));
+    trekUtIfcMetadata(ifcFilSti, tegning.name)
+      .then(async (meta) => {
+        const oppdatering: Record<string, unknown> = {
+          ifcMetadata: meta,
+        };
+        // Sett fag/opphav kun hvis ikke allerede angitt på raden (leser persistert
+        // tilstand i stedet for `input` — likeverdig for opprett, korrekt for revisjon).
+        const naa = await prisma.drawing.findUnique({ where: { id: tegning.id }, select: { discipline: true, originator: true } });
+        if (meta.fagdisiplin && !naa?.discipline) oppdatering.discipline = meta.fagdisiplin;
+        if (meta.organisasjon && !naa?.originator) oppdatering.originator = meta.organisasjon;
+        console.log(`[IFC] Metadata uttrukket for tegning ${tegning.id}: ${meta.prosjektnavn ?? "ukjent prosjekt"}`);
+        await prisma.drawing.update({
+          where: { id: tegning.id },
+          data: oppdatering,
+        });
+      })
+      .catch((err) => {
+        console.error(`[IFC] Metadata-utvinning feilet for tegning ${tegning.id}:`, err);
+      });
+  }
+
+  // Konverter PDF til PNG for presis visning (markører, GPS, georeferering)
+  if (erPdf) {
+    const pdfFilSti = join(UPLOADS_DIR, fil.fileUrl.replace("/uploads/", ""));
+    const pngFilnavn = `${randomUUID()}.png`;
+    const pngUtSti = join(UPLOADS_DIR, pngFilnavn.replace(".png", ""));
+
+    (async () => {
+      try {
+        console.log(`[PDF] Starter konvertering: ${tegning.name} → PNG (200 DPI)...`);
+        const start = Date.now();
+        await execFileAsync("pdftoppm", [
+          "-png", "-r", "200", "-singlefile",
+          pdfFilSti, pngUtSti,
+        ], { timeout: 30000 });
+        const ms = Date.now() - start;
+        console.log(`[PDF] Konvertering fullført på ${ms}ms: ${pngFilnavn}`);
+
+        // Dimensjoner + målemetadata (mm/piksel, målestokk-forslag) fra konvertert PNG
+        const { dim, mmPrPiksel, scaleForslag } = await utledMaalemetadata(pdfFilSti, pngFilnavn);
+        // Forhåndsutfyll målestokk KUN når brukeren ikke selv oppga én (aldri overskriv).
+        // Forslaget er «tittelfelt» og ubekreftet — verktøyet er avslått til et menneske bekrefter.
+        const settForslag = !fil.brukerScale && scaleForslag
+          ? { scale: scaleForslag, scaleKilde: "tittelfelt" as const }
+          : {};
+
+        await prisma.drawing.update({
+          where: { id: tegning.id },
+          data: {
+            fileUrl: `/uploads/${pngFilnavn}`,
+            fileType: "png",
+            imageWidth: dim?.width ?? null,
+            imageHeight: dim?.height ?? null,
+            mmPrPiksel,
+            ...settForslag,
+            conversionStatus: "done",
+          },
+        });
+        console.log(`[PDF] Database oppdatert: tegning ${tegning.id} → PNG (mm/px=${mmPrPiksel ?? "null"}, målestokk-forslag=${scaleForslag ?? "ingen"})`);
+      } catch (err) {
+        const melding = err instanceof Error ? err.message : "Ukjent feil";
+        console.error(`[PDF] Konvertering FEILET for tegning ${tegning.id}: ${melding}`);
+        await prisma.drawing.update({
+          where: { id: tegning.id },
+          data: {
+            conversionStatus: "failed",
+            conversionError: `PDF→PNG feilet: ${melding}`,
+          },
+        });
+      }
+    })();
+  }
 }
 
 export const tegningRouter = router({
@@ -220,155 +412,31 @@ export const tegningRouter = router({
         },
       });
 
-      // Start asynkron DWG-konvertering i bakgrunnen
-      if (erDwg) {
-        const dwgFilSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
-        konverterDwg(dwgFilSti, input.name, UPLOADS_DIR)
-          .then(async (resultat) => {
-            const oppdatering: Record<string, unknown> = {
-              conversionStatus: resultat.feil ? "failed" : "done",
-              conversionError: resultat.feil,
-            };
+      // R2/R8: felles konverteringsvei (PDF→PNG, DWG→SVG+layouts, IFC-metadata).
+      // Initial-tilstand (conversionStatus/originalFileUrl/bilde-dim) er satt synkront
+      // i create over; helperen gjør det asynkrone arbeidet.
+      startTegningKonvertering(
+        ctx.prisma,
+        { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
+        { fileUrl: input.fileUrl, fileType: input.fileType, brukerScale: input.scale },
+      );
 
-            if (resultat.koordinatSystem) {
-              oppdatering.coordinateSystem = resultat.koordinatSystem;
-            }
-
-            if (resultat.geoReferanse) {
-              oppdatering.geoReference = resultat.geoReferanse;
-            }
-
-            if (resultat.visningUrl) {
-              oppdatering.fileUrl = resultat.visningUrl;
-              oppdatering.fileType = resultat.visningFilType;
-              // Hent dimensjoner fra konvertert fil
-              const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, resultat.visningUrl.replace("/uploads/", "")));
-              if (dim) { oppdatering.imageWidth = dim.width; oppdatering.imageHeight = dim.height; }
-            }
-
-            await ctx.prisma.drawing.update({
-              where: { id: tegning.id },
-              data: oppdatering,
-            });
-            console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
-
-            // Opprett ekstra tegninger for hvert layout i DWG-filen
-            if (resultat.layouts.length > 0) {
-              console.log(`[DWG] Oppretter ${resultat.layouts.length} layout-tegninger...`);
-              for (const layout of resultat.layouts) {
-                try {
-                  await ctx.prisma.drawing.create({
-                    data: {
-                      projectId: input.projectId,
-                      byggeplassId: input.byggeplassId,
-                      name: layout.navn,
-                      fileUrl: layout.visningUrl,
-                      fileType: layout.visningFilType,
-                      originalFileUrl: input.fileUrl,
-                      conversionStatus: "done",
-                      coordinateSystem: resultat.koordinatSystem,
-                      description: `Layout fra ${input.name} (fane ${layout.tabOrder})`,
-                    },
-                  });
-                  console.log(`[DWG] Layout-tegning opprettet: "${layout.navn}"`);
-                } catch (layoutErr) {
-                  console.error(`[DWG] Feil ved opprettelse av layout "${layout.navn}":`, layoutErr);
-                }
-              }
-            }
-          })
-          .catch(async (err) => {
-            console.error(`[DWG] Konvertering feilet for tegning ${tegning.id}:`, err);
-            await ctx.prisma.drawing.update({
-              where: { id: tegning.id },
-              data: {
-                conversionStatus: "failed",
-                conversionError: err instanceof Error ? err.message : "Ukjent feil",
-              },
-            });
-          });
-      }
-
-      // Parse IFC-metadata asynkront
-      if (erIfc) {
-        const ifcFilSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
-        trekUtIfcMetadata(ifcFilSti, input.name)
-          .then(async (meta) => {
-            const oppdatering: Record<string, unknown> = {
-              ifcMetadata: meta,
-            };
-            // Sett fagdisiplin hvis ikke allerede angitt
-            if (meta.fagdisiplin && !input.discipline) {
-              oppdatering.discipline = meta.fagdisiplin;
-            }
-            // Sett originator fra organisasjon
-            if (meta.organisasjon && !input.originator) {
-              oppdatering.originator = meta.organisasjon;
-            }
-            console.log(`[IFC] Metadata uttrukket for tegning ${tegning.id}: ${meta.prosjektnavn ?? "ukjent prosjekt"}`);
-            await ctx.prisma.drawing.update({
-              where: { id: tegning.id },
-              data: oppdatering,
-            });
-          })
-          .catch((err) => {
-            console.error(`[IFC] Metadata-utvinning feilet for tegning ${tegning.id}:`, err);
-          });
-      }
-
-      // Konverter PDF til PNG for presis visning (markører, GPS, georeferering)
+      // R3: forhåndsutfyllings-forslag (tegningsnummer/-type) fra filnavn + (for PDF)
+      // PDF-Title og tittelfelt-tekst. SKRIVES IKKE på raden — returneres til klienten
+      // som «foreslått». Entydig treff eller tomt («usikkert → ikke fyll ut»).
+      const forslagKilder: Array<string | null> = [input.name];
       if (erPdf) {
-        const pdfFilSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
-        const pngFilnavn = `${randomUUID()}.png`;
-        const pngUtSti = join(UPLOADS_DIR, pngFilnavn.replace(".png", ""));
-
-        (async () => {
-          try {
-            console.log(`[PDF] Starter konvertering: ${input.name} → PNG (200 DPI)...`);
-            const start = Date.now();
-            await execFileAsync("pdftoppm", [
-              "-png", "-r", "200", "-singlefile",
-              pdfFilSti, pngUtSti,
-            ], { timeout: 30000 });
-            const ms = Date.now() - start;
-            console.log(`[PDF] Konvertering fullført på ${ms}ms: ${pngFilnavn}`);
-
-            // Dimensjoner + målemetadata (mm/piksel, målestokk-forslag) fra konvertert PNG
-            const { dim, mmPrPiksel, scaleForslag } = await utledMaalemetadata(pdfFilSti, pngFilnavn);
-            // Forhåndsutfyll målestokk KUN når brukeren ikke selv oppga én (aldri overskriv).
-            // Forslaget er «tittelfelt» og ubekreftet — verktøyet er avslått til et menneske bekrefter.
-            const settForslag = !input.scale && scaleForslag
-              ? { scale: scaleForslag, scaleKilde: "tittelfelt" as const }
-              : {};
-
-            await ctx.prisma.drawing.update({
-              where: { id: tegning.id },
-              data: {
-                fileUrl: `/uploads/${pngFilnavn}`,
-                fileType: "png",
-                imageWidth: dim?.width ?? null,
-                imageHeight: dim?.height ?? null,
-                mmPrPiksel,
-                ...settForslag,
-                conversionStatus: "done",
-              },
-            });
-            console.log(`[PDF] Database oppdatert: tegning ${tegning.id} → PNG (mm/px=${mmPrPiksel ?? "null"}, målestokk-forslag=${scaleForslag ?? "ingen"})`);
-          } catch (err) {
-            const melding = err instanceof Error ? err.message : "Ukjent feil";
-            console.error(`[PDF] Konvertering FEILET for tegning ${tegning.id}: ${melding}`);
-            await ctx.prisma.drawing.update({
-              where: { id: tegning.id },
-              data: {
-                conversionStatus: "failed",
-                conversionError: `PDF→PNG feilet: ${melding}`,
-              },
-            });
-          }
-        })();
+        const pdfSti = join(UPLOADS_DIR, input.fileUrl.replace("/uploads/", ""));
+        forslagKilder.push(await hentPdfTitle(pdfSti));
+        forslagKilder.push(await hentTittelfeltTekst(pdfSti));
       }
+      const metadataForslag = {
+        drawingNumber: finnTegningsnummer(forslagKilder),
+        drawingType: finnTegningstype(forslagKilder),
+        kilde: erPdf ? ("filnavn+pdf" as const) : ("filnavn" as const),
+      };
 
-      return tegning;
+      return { ...tegning, metadataForslag };
     }),
 
   // Oppdater tegningsmetadata
@@ -406,6 +474,9 @@ export const tegningRouter = router({
         drawingId: z.string().uuid(),
         revision: z.string().max(10),
         fileUrl: z.string(),
+        // R8: fileType kreves nå så serveren kan starte riktig konvertering for den
+        // nye fila (PDF→PNG / DWG→SVG), på samme vei som `opprett`.
+        fileType: z.string(),
         fileSize: z.number().int().optional(),
         description: z.string().optional(),
         uploadedById: z.string().uuid().optional(),
@@ -414,7 +485,7 @@ export const tegningRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { drawingId, revision, fileUrl, fileSize, description, uploadedById, status, issuedAt } = input;
+      const { drawingId, revision, fileUrl, fileType, fileSize, description, uploadedById, status, issuedAt } = input;
 
       // Hent gjeldende tegning
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({
@@ -436,19 +507,52 @@ export const tegningRouter = router({
         },
       });
 
-      // Oppdater tegningen med ny revisjon
-      return ctx.prisma.drawing.update({
+      // R8: initial-tilstand for den nye fila — speiler `opprett`s create-data, så
+      // konverteringen starter på samme vei (helperen under). For bildetyper regnes
+      // dimensjoner synkront; PDF/DWG får originalFileUrl + conversionStatus og
+      // konverteres asynkront (ellers ville ny revisjon vist gammel PNG).
+      const erDwg = fileType.toLowerCase() === "dwg";
+      const erIfc = fileType.toLowerCase() === "ifc";
+      const erPdf = fileType.toLowerCase() === "pdf";
+
+      let imageWidth: number | null = null;
+      let imageHeight: number | null = null;
+      if (!erDwg && !erIfc && !erPdf) {
+        const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, fileUrl.replace("/uploads/", "")));
+        if (dim) { imageWidth = dim.width; imageHeight = dim.height; }
+      }
+
+      const oppdatert = await ctx.prisma.drawing.update({
         where: { id: drawingId },
         data: {
           revision,
           version: tegning.version + 1,
           fileUrl,
+          fileType,
           fileSize: fileSize ?? null,
           status: status ?? tegning.status,
           issuedAt: issuedAt ?? null,
           description,
+          // Bildetype: sett dim + nullstill konvertering (ingen konvertering kreves).
+          // PDF/DWG: originalFileUrl + conversionStatus = venter på konvertering.
+          imageWidth,
+          imageHeight,
+          ...((erDwg || erPdf)
+            ? { originalFileUrl: fileUrl, conversionStatus: erDwg ? "pending" : "converting" }
+            : { conversionStatus: null }),
         },
       });
+
+      // R8: start konvertering for den nye fila (delt vei med `opprett`). brukerScale =
+      // eksisterende målestokk → en kalibrert/manuell målestokk overskrives aldri av et
+      // nytt tittelfelt-forslag.
+      startTegningKonvertering(
+        ctx.prisma,
+        { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
+        { fileUrl, fileType, brukerScale: tegning.scale },
+      );
+
+      return oppdatert;
     }),
 
   // Hent revisjonshistorikk for en tegning

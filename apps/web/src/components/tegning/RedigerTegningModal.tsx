@@ -8,6 +8,7 @@ import {
   byggRedigerTegningInput,
   type RedigerTegningFelt,
 } from "@/lib/tegningMutasjonEffekter";
+import { LastOppRevisjonKnapp } from "./LastOppRevisjonKnapp";
 
 /**
  * Redigeringsflate for tegningsdetaljer. Kobler de metadata-feltene som fylles ved
@@ -42,6 +43,8 @@ export interface RedigerbarTegning {
   floor: string | null;
   originator: string | null;
   description: string | null;
+  /** R8: gjeldende revisjon — til «Last opp ny revisjon». */
+  revision?: string | null;
 }
 
 interface RedigerTegningModalProps {
@@ -52,6 +55,8 @@ interface RedigerTegningModalProps {
   onLagre: (input: ReturnType<typeof byggRedigerTegningInput>) => void;
   lagrer: boolean;
   feil?: string | null;
+  /** R8: kalles når en ny revisjon er lastet opp (for invalidering). */
+  onRevisjonFerdig?: () => void;
 }
 
 export function RedigerTegningModal({
@@ -61,6 +66,7 @@ export function RedigerTegningModal({
   onLagre,
   lagrer,
   feil,
+  onRevisjonFerdig,
 }: RedigerTegningModalProps) {
   const { t } = useTranslation();
   const [felt, setFelt] = useState<RedigerTegningFelt>(() => tilFelt(tegning));
@@ -145,6 +151,18 @@ export function RedigerTegningModal({
         />
 
         {feil && <p className="text-sm text-sitedoc-error">{feil}</p>}
+
+        {/* R8: ny revisjon — egen flyt (bygger historikk + starter konvertering). */}
+        <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+          <span className="text-xs text-gray-500">
+            {t("tegninger.revisjon.gjeldende", { rev: tegning.revision ?? "A" })}
+          </span>
+          <LastOppRevisjonKnapp
+            drawingId={tegning.id}
+            gjeldendeRevisjon={tegning.revision}
+            onFerdig={onRevisjonFerdig}
+          />
+        </div>
 
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>

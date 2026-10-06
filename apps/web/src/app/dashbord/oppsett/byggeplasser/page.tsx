@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
@@ -33,6 +33,16 @@ import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 import { SignertBilde } from "@/components/SignertBilde";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { OmradeAdmin } from "./_components/OmradeAdmin";
+import {
+  TegningSerieTabell,
+  type SerieRad,
+  type LiveTegning,
+} from "@/components/tegning/TegningSerieTabell";
+import {
+  lastOppSerie,
+  grupperTegningerEtterFag,
+  type TegningRadEndring,
+} from "@/lib/tegningSerieOpplasting";
 
 // Leaflet-kart må lastes klient-side (window-avhengig) — SSR av.
 const KartVelgerDynamic = dynamic(
@@ -52,6 +62,13 @@ type TegningRad = {
   fileType: string;
   floor?: string | null;
   geoReference?: unknown;
+  // T1 (R6/R4): fag-gruppering + serietabell leser disse fra Drawing.
+  drawingNumber?: string | null;
+  discipline?: string | null;
+  drawingType?: string | null;
+  scale?: string | null;
+  revision?: string | null;
+  conversionStatus?: string | null;
 };
 
 interface TegningGruppe {
@@ -219,7 +236,26 @@ function RedigerLokasjon({
   const [metaOpphav, setMetaOpphav] = useState("");
   const [metaBeskrivelse, setMetaBeskrivelse] = useState("");
 
-  const { data: lokasjon } = trpc.bygning.hentMedId.useQuery({ id: lokasjonId });
+  // T1 serieopplasting (R1/R2/R4/R5): felles-felt + etterfyllings-tabell.
+  const [valgteFiler, setValgteFiler] = useState<File[]>([]);
+  const [visSerieModal, setVisSerieModal] = useState(false); // felles-felt-skjema
+  const [serieFag, setSerieFag] = useState("");
+  const [serieOpphav, setSerieOpphav] = useState("");
+  const [serieEtasje, setSerieEtasje] = useState("");
+  const [serieRader, setSerieRader] = useState<SerieRad[]>([]);
+  const [visSerieTabell, setVisSerieTabell] = useState(false);
+  const [radLagrerId, setRadLagrerId] = useState<string | null>(null);
+  const serieFilerRef = useRef<Record<string, File>>({}); // tempId → File (for «Prøv igjen»)
+  // R6: fag-gruppering som standard, med veksel til etasje-grupperingen.
+  const [grupperFag, setGrupperFag] = useState(true);
+
+  // Poll konverterings-status mens tabellen er åpen og minst én rad konverterer.
+  const skalPolle =
+    visSerieTabell && serieRader.some((r) => r.status === "konverterer");
+  const { data: lokasjon } = trpc.bygning.hentMedId.useQuery(
+    { id: lokasjonId },
+    { refetchInterval: skalPolle ? 2500 : false },
+  );
 
   // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
   useEffect(() => {
@@ -277,6 +313,10 @@ function RedigerLokasjon({
     },
   });
 
+  // Serie: egen opprett-mutasjon (uten enkel-modal-sideeffektene) + per-rad oppdater.
+  const serieOpprettMutation = trpc.tegning.opprett.useMutation();
+  const radOppdaterMutation = trpc.tegning.oppdater.useMutation();
+
   function nullstillMetadata() {
     setOpplastetFil(null);
     setMetaNavn("");
@@ -290,31 +330,143 @@ function RedigerLokasjon({
     setMetaBeskrivelse("");
   }
 
+  // R1: filfeltet tar nå flere filer. Én fil → dagens enkel-modal (bevart);
+  // flere → serieflyten (felles-felt-skjema → etterfyllings-tabell).
   async function handleFilValgt(e: React.ChangeEvent<HTMLInputElement>) {
-    const fil = e.target.files?.[0];
-    if (!fil) return;
+    const filer = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (filer.length === 0) return;
+    if (filer.length === 1) {
+      await lastOppEnkelFil(filer[0]!);
+      return;
+    }
+    // Serie: velg felles-felt først, last opp etterpå.
+    setValgteFiler(filer);
+    setSerieFag("");
+    setSerieOpphav("");
+    setSerieEtasje("");
+    setVisSerieModal(true);
+  }
 
+  // Dagens enkeltopplasting (bevart): last opp én fil → åpne detalj-modal.
+  async function lastOppEnkelFil(fil: File) {
     setLasterOpp(true);
     try {
       const formData = new FormData();
       formData.append("file", fil);
-
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       if (!res.ok) {
-        const err = await res.json();
-        alert(err.error ?? "Opplasting feilet");
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? t("tegninger.serie.opplastingFeilet"));
         return;
       }
-
       const data = await res.json();
       setOpplastetFil(data);
       setMetaNavn(fil.name.replace(/\.[^.]+$/, ""));
       setVisMetadataModal(true);
     } catch {
-      alert("Kunne ikke laste opp filen");
+      alert(t("tegninger.serie.opplastingFeilet"));
     } finally {
       setLasterOpp(false);
-      e.target.value = "";
+    }
+  }
+
+  function settRad(tempId: string, endring: Partial<SerieRad>) {
+    setSerieRader((rader) =>
+      rader.map((r) => (r.tempId === tempId ? { ...r, ...endring } : r)),
+    );
+  }
+
+  const konvTilStatus = (cs: string | null | undefined): SerieRad["status"] =>
+    cs === "converting" || cs === "pending" ? "konverterer" : "klar";
+
+  // Last opp én fil + opprett tegning (R2/R5). Kaster ved feil (isoleres av kalleren).
+  async function behandleSerieFil(tempId: string, fil: File) {
+    if (!prosjektId) throw new Error(t("tegninger.serie.opplastingFeilet"));
+    const formData = new FormData();
+    formData.append("file", fil);
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? t("tegninger.serie.opplastingFeilet"));
+    }
+    const opplastet = await res.json();
+    const created = await serieOpprettMutation.mutateAsync({
+      projectId: prosjektId,
+      byggeplassId: lokasjonId,
+      name: fil.name.replace(/\.[^.]+$/, ""),
+      discipline: (serieFag || undefined) as typeof DRAWING_DISCIPLINES[number] | undefined,
+      floor: serieEtasje || undefined,
+      originator: serieOpphav || undefined,
+      fileUrl: opplastet.fileUrl,
+      fileType: opplastet.fileType,
+      fileSize: opplastet.fileSize,
+    });
+    settRad(tempId, {
+      drawingId: created.id,
+      forslag: created.metadataForslag,
+      status: konvTilStatus(created.conversionStatus),
+    });
+  }
+
+  // R1/R2/R5: start serieopplasting fra felles-feltene.
+  async function startSerie() {
+    const filer = valgteFiler;
+    if (filer.length === 0) return;
+    const rader: SerieRad[] = filer.map((f, i) => ({
+      tempId: `rad-${i}`,
+      fileName: f.name,
+      drawingId: null,
+      status: "laster",
+    }));
+    serieFilerRef.current = {};
+    rader.forEach((r, i) => { serieFilerRef.current[r.tempId] = filer[i]!; });
+    setSerieRader(rader);
+    setVisSerieModal(false);
+    setVisSerieTabell(true);
+
+    await lastOppSerie(
+      filer.length,
+      (i) => behandleSerieFil(rader[i]!.tempId, filer[i]!),
+      {
+        maksSamtidig: 4,
+        onStatus: (i, status, feil) => {
+          if (status === "laster") settRad(rader[i]!.tempId, { status: "laster", feil: undefined });
+          else if (status === "feilet") settRad(rader[i]!.tempId, { status: "feilet", feil });
+        },
+      },
+    );
+    utils.bygning.hentMedId.invalidate({ id: lokasjonId });
+    utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+  }
+
+  // «Prøv igjen» for én feilet fil (R5).
+  async function prøvIgjenSerie(tempId: string) {
+    const fil = serieFilerRef.current[tempId];
+    if (!fil) return;
+    settRad(tempId, { status: "laster", feil: undefined });
+    try {
+      await behandleSerieFil(tempId, fil);
+      utils.bygning.hentMedId.invalidate({ id: lokasjonId });
+      utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    } catch (e) {
+      settRad(tempId, { status: "feilet", feil: e instanceof Error ? e.message : t("tegninger.serie.opplastingFeilet") });
+    }
+  }
+
+  // R4: lagre én rad (kun endrede felt) via tegning.oppdater. Enum-feltene
+  // (discipline/drawingType) kommer fra enum-selects → trygt å caste til input-typen.
+  async function lagreRad(endring: TegningRadEndring) {
+    setRadLagrerId(endring.id);
+    try {
+      await radOppdaterMutation.mutateAsync(
+        endring as Parameters<typeof radOppdaterMutation.mutateAsync>[0],
+      );
+      await utils.bygning.hentMedId.invalidate({ id: lokasjonId });
+      await utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    } finally {
+      setRadLagrerId(null);
     }
   }
 
@@ -344,7 +496,48 @@ function RedigerLokasjon({
     ?.filter((t) => !t.byggeplassId) ?? [];
   const tegninger = (lokasjon?.drawings ?? []) as TegningRad[];
   const valgtTegning = tegninger.find((t) => t.id === valgtTegningId) ?? null;
-  const tegningGrupper = grupperTegninger(tegninger);
+
+  // R6: fag-gruppering (standard) eller dagens etasje-gruppering (veksel).
+  const tegningGrupper: TegningGruppe[] = useMemo(() => {
+    if (!grupperFag) return grupperTegninger(tegninger);
+    return grupperTegningerEtterFag(tegninger).map((g) => ({
+      navn: g.fag ?? t("tegninger.serie.utenFag"),
+      tegninger: g.tegninger,
+      ikon: "etasje" as const,
+    }));
+  }, [grupperFag, tegninger, t]);
+
+  // Live-tegninger for serietabellen (status + originalverdier), nøklet på id.
+  const liveTegninger: Record<string, LiveTegning> = useMemo(() => {
+    const kart: Record<string, LiveTegning> = {};
+    for (const d of tegninger) {
+      kart[d.id] = {
+        id: d.id,
+        name: d.name,
+        drawingNumber: d.drawingNumber ?? null,
+        discipline: d.discipline ?? null,
+        drawingType: d.drawingType ?? null,
+        floor: d.floor ?? null,
+        scale: d.scale ?? null,
+        revision: d.revision ?? null,
+        conversionStatus: d.conversionStatus ?? null,
+      };
+    }
+    return kart;
+  }, [tegninger]);
+
+  // Rekonsilier «konverterer»-rader mot server-status (polling oppdaterer lokasjon).
+  useEffect(() => {
+    setSerieRader((rader) =>
+      rader.map((r) => {
+        if (r.status !== "konverterer" || !r.drawingId) return r;
+        const cs = liveTegninger[r.drawingId]?.conversionStatus;
+        if (cs === "done") return { ...r, status: "klar" };
+        if (cs === "failed") return { ...r, status: "feilet", feil: r.feil ?? t("tegninger.serie.konverteringFeilet") };
+        return r;
+      }),
+    );
+  }, [liveTegninger, t]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
@@ -462,10 +655,11 @@ function RedigerLokasjon({
         </button>
       </div>
 
-      {/* Skjult filinput */}
+      {/* Skjult filinput — R1: flervalg (serieopplasting ved >1 fil) */}
       <input
         ref={filInputRef}
         type="file"
+        multiple
         accept=".pdf,.dwg,.dxf,.ifc,.png,.jpg,.jpeg"
         className="hidden"
         onChange={handleFilValgt}
@@ -483,6 +677,27 @@ function RedigerLokasjon({
       <div className="flex flex-1 overflow-hidden">
         {/* Venstre — tegningsliste gruppert */}
         <div className="flex w-[260px] flex-shrink-0 flex-col border-r border-gray-200">
+          {/* R6: veksle mellom fag- og etasje-gruppering */}
+          {tegninger.length > 0 && (
+            <div className="flex items-center gap-1 border-b border-gray-100 px-3 py-1.5">
+              <button
+                onClick={() => setGrupperFag(true)}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  grupperFag ? "bg-sitedoc-primary/10 text-sitedoc-primary" : "text-gray-500 hover:bg-gray-100"
+                }`}
+              >
+                {t("tegninger.serie.grupperFag")}
+              </button>
+              <button
+                onClick={() => setGrupperFag(false)}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  !grupperFag ? "bg-sitedoc-primary/10 text-sitedoc-primary" : "text-gray-500 hover:bg-gray-100"
+                }`}
+              >
+                {t("tegninger.serie.grupperEtasje")}
+              </button>
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto px-3 py-3">
             {tegninger.length > 0 ? (
               <div className="flex flex-col gap-4">
@@ -737,6 +952,74 @@ function RedigerLokasjon({
           </div>
         </form>
       </Modal>
+
+      {/* R1: felles-felt for serieopplasting — settes ÉN gang for hele utvalget. */}
+      <Modal
+        open={visSerieModal}
+        onClose={() => setVisSerieModal(false)}
+        title={t("tegninger.serie.fellesTittel")}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600">
+            {t("tegninger.serie.fellesHjelp", { antall: valgteFiler.length })}
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label={t("tegninger.feltFagdisiplin")}
+              value={serieFag}
+              onChange={(e) => setSerieFag(e.target.value)}
+              placeholder={t("tegninger.velgDisiplin")}
+              options={DRAWING_DISCIPLINES.map((d) => ({ value: d, label: d }))}
+            />
+            <Input
+              label={t("tegninger.feltEtasje")}
+              value={serieEtasje}
+              onChange={(e) => setSerieEtasje(e.target.value)}
+              placeholder={t("tegninger.etasjePlaceholder")}
+            />
+          </div>
+          <Input
+            label={t("tegninger.feltOpphav")}
+            value={serieOpphav}
+            onChange={(e) => setSerieOpphav(e.target.value)}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setVisSerieModal(false)}>
+              {t("handling.avbryt")}
+            </Button>
+            <Button onClick={startSerie}>
+              {t("tegninger.serie.lastOppAntall", { antall: valgteFiler.length })}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* R2/R4: etterfyllings-tabell — detaljer legges inn etter opplasting. */}
+      {visSerieTabell && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-white">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
+            <span className="text-sm font-semibold text-gray-900">
+              {t("tegninger.serie.tabellTittel")}
+            </span>
+            <Button size="sm" variant="secondary" onClick={() => setVisSerieTabell(false)}>
+              {t("tegninger.serie.ferdig")}
+            </Button>
+          </div>
+          <div className="flex-1 overflow-auto p-4">
+            <TegningSerieTabell
+              rader={serieRader}
+              liveTegninger={liveTegninger}
+              onLagreRad={lagreRad}
+              lagrerId={radLagrerId}
+              onPrøvIgjen={prøvIgjenSerie}
+              onRevisjonFerdig={() => {
+                utils.bygning.hentMedId.invalidate({ id: lokasjonId });
+                utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
