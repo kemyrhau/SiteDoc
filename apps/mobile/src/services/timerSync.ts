@@ -831,10 +831,15 @@ export async function syncTimer(
           // Transient (nettverk/5xx/401): behold ALLE pending — ingen quarantine,
           // ingen tap av timer. Stopp denne ticken; retry hele batchen neste tick.
           const melding = e instanceof Error ? e.message : "Nettverksfeil";
-          if (batch[0]) {
+          // FUNN 2026-10-06: skriv feilmeldingen på ALLE sedlene i batchen, ikke
+          // bare den første. Ved transient feil beholdes alle pending (ingen tap),
+          // men uten dette viste sedel 2..N «Venter …» uten forklaring — den
+          // samme stille-tomheten pending-banneret (:304) nettopp lukket for én
+          // sedel. Én kolonne per sedel; ingen endring i HVA synken gjør.
+          for (const sedel of batch) {
             db.update(dagsseddelLocal)
               .set({ feilmelding: melding })
-              .where(eq(dagsseddelLocal.id, batch[0].id))
+              .where(eq(dagsseddelLocal.id, sedel.id))
               .run();
           }
           resultat.feil = melding;

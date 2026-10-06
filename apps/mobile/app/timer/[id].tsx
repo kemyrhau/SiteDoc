@@ -101,6 +101,7 @@ import {
   byggForsonOverlappKall,
   type ForsonetServerRad,
 } from "../../src/lib/forsoningSpeil";
+import { useReLesVedSynk } from "../../src/hooks/useReLesVedSynk";
 
 /** Felt-settet `forsonDagskort` tar for en rad (uten id = ny rad). */
 type ForsonRad = {
@@ -185,7 +186,7 @@ export default function DagsseddelDetalj() {
     nyttProsjekt?: string;
   }>();
   const sheetId = params.id ?? "";
-  const { triggerSync, oppdaterTellere } = useTimerSync();
+  const { triggerSync, oppdaterTellere, sistSynkronisert } = useTimerSync();
   // UF-4: recall — online-only (server er sannhetskilde for sent/accepted).
   const gjenaapneMutation = trpc.timer.dagsseddel.gjenaapneDagsseddel.useMutation();
 
@@ -282,6 +283,15 @@ export default function DagsseddelDetalj() {
       lesData();
     }, [lesData]),
   );
+
+  // FUNN 2026-10-06: skjermen leste BARE ved fokus (useFocusEffect). Fullfører
+  // en bakgrunnssynk mens skjermen alt er i fokus, oppdateres `syncStatus` på
+  // skjermen nå via dette signalet — «Venter» blir ikke stående. Trygt for
+  // pågående arbeid: `lesData()` setter kun data-arrayene (sedel + rader). En
+  // åpen rad-modal (TimerRadModal m.fl.) holder kladden i egen intern state via
+  // state-INITIALISATORER (kjøres kun ved mount), og conflict-valgene ligger i
+  // `valgOverstyr` (røres ikke her) — begge overlever en foreldre-re-render.
+  useReLesVedSynk(sistSynkronisert, lesData);
 
   // T.11: les innlogget brukers maskinførerbevis-status (SecureStore, async)
   // for sedelens org. Styrer soft-varsel i MaskinSeksjon — aldri blokkerende.
