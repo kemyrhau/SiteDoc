@@ -2285,13 +2285,15 @@ export const FP1_MAL = {
 // generer-mal-sql.ts kan opprette en manglende standard (NS3420-U) i samme transaksjon som
 // kapittel + mal (WHERE NOT EXISTS), og seeden bygger sine upserts fra samme kilde — ingen drift
 // mellom seed og generator. KUN OPPRETT (upsert med update:{}); eksisterende standard-rad røres ikke.
+// §7b: standardens navn bærer ikke NS-nummeret i UI (Kenneth 2026-09-18/2026-10-06); NS-henvisningen
+// står i hver mals beskrivelse («Faglig grunnlag: NS 3420-X:ÅÅÅÅ, post …»). Koden (NS3420-K) er nøkkel
+// i generer-mal-sql.ts/standardForMal og røres IKKE — årstallet lever videre i mal-beskrivelsene.
 export const STANDARD_DATA = [
-  { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
-  { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
-  { kode: "NS3420-U", navn: "NS 3420-U:2019 Rørinstallasjoner", sortering: 3 },
-  // NS3420-J lagt til (ordre JH2, Runde D): fjerde standard, dekke- og banearbeider. MERK årstallet
-  // 2008 — K/F er 2024, U er 2019. Hullet vi selv laget da asfalt ble tatt ut av KD1.
-  { kode: "NS3420-J", navn: "NS 3420-J:2008 Dekke- og banearbeider", sortering: 4 },
+  { kode: "NS3420-K", navn: "Anleggsgartnerarbeider", sortering: 1 },
+  { kode: "NS3420-F", navn: "Grunnarbeider", sortering: 2 },
+  { kode: "NS3420-U", navn: "Rørinstallasjoner", sortering: 3 },
+  // NS3420-J (ordre JH2, Runde D): fjerde standard, dekke- og banearbeider.
+  { kode: "NS3420-J", navn: "Dekke- og banearbeider", sortering: 4 },
 ];
 
 // Kapitler i NS 3420-K-arkivet (kode, navn, sortering). Eksportert (design-godkjent 2026-09-18)

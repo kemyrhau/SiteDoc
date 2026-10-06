@@ -324,7 +324,7 @@ describe("standard-opprett i modus ny (ordre UM1 §3)", () => {
     expect(stdIdx).toBeLessThan(kapIdx);
     expect(kapIdx).toBeLessThan(malIdx);
     // Ny standard NS3420-U, idempotent (WHERE NOT EXISTS), med navn + sortering fra STANDARD_DATA.
-    expect(s).toContain("'NS3420-U', 'NS 3420-U:2019 Rørinstallasjoner', 3");
+    expect(s).toContain("'NS3420-U', 'Rørinstallasjoner', 3");
     expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_standarder WHERE kode = 'NS3420-U'/);
     // Kapittel UM opprettes i NS3420-U.
     expect(s).toContain("'UM', 'Utendørs rørledninger', 1");
@@ -368,7 +368,7 @@ describe("byggFlerNySql (multi-ny, runde B)", () => {
 
   it("standard NS3420-U og begge kapitler (UM, UU) opprettes WHERE NOT EXISTS", () => {
     const s = byggFlerNySql([UM1, UU1]);
-    expect(s).toContain("'NS3420-U', 'NS 3420-U:2019 Rørinstallasjoner', 3");
+    expect(s).toContain("'NS3420-U', 'Rørinstallasjoner', 3");
     expect(s).toContain("'UM', 'Utendørs rørledninger', 1");
     // UU flyttet 3→4 i KAPITTEL_DATA_U ved UP-delingen (nytt kap. UO på 2, UP 2→3, UU 3→4 — normens
     // rekkefølge UM/UO/UP/UU). Speiler seed-konstanten.
@@ -464,7 +464,7 @@ describe("byggFlerNySql (multi-ny, runde D — FF1 + JH2)", () => {
     expect(stdIdx).toBeLessThan(kapIdx);
     expect(kapIdx).toBeLessThan(malIdx);
     // Ny standard NS3420-J, idempotent (WHERE NOT EXISTS), navn + sortering fra STANDARD_DATA.
-    expect(s).toContain("'NS3420-J', 'NS 3420-J:2008 Dekke- og banearbeider', 4");
+    expect(s).toContain("'NS3420-J', 'Dekke- og banearbeider', 4");
     expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_standarder WHERE kode = 'NS3420-J'/);
     // Kapittel JH opprettes i NS3420-J.
     expect(s).toContain("'JH', 'Asfaltdekker', 1");
