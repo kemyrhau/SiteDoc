@@ -1069,10 +1069,25 @@ export default function DagsseddelDetalj() {
           <View className="mx-4 mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2">
             <View className="flex-row items-center gap-2">
               <RotateCcw size={14} color="#a16207" />
-              <Text className="text-sm text-yellow-800">
-                {t("timer.sync.venterEn")}
+              {/* FUNN 2026-10-05: pending-banneret LESTE aldri feilmelding (søsterfunn
+                  :304) — et mislykket synk-forsøk var usynlig. Vis server-/klient-
+                  feilen når den finnes, ellers dagens «venter»-tekst. */}
+              <Text className="flex-1 text-sm text-yellow-800">
+                {sedel.feilmelding
+                  ? t("timer.sync.venterFeil", { feilmelding: sedel.feilmelding })
+                  : t("timer.sync.venterEn")}
               </Text>
             </View>
+            {/* Escape-luke: tving en synk nå i stedet for å vente på 30s-intervallet. */}
+            <Pressable
+              onPress={() => void triggerSync()}
+              className="mt-2 self-start rounded-md border border-yellow-300 bg-white px-3 py-1.5"
+              accessibilityRole="button"
+            >
+              <Text className="text-sm font-medium text-yellow-900">
+                {t("timer.sync.proevIgjenNaa")}
+              </Text>
+            </Pressable>
           </View>
         )}
 

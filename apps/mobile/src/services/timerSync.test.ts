@@ -700,3 +700,68 @@ describe("V19-B — overlapp PC ↔ mobil: aarsak-branch (push) + V19.7b-slipp (
     expect(s.konfliktAarsak).toBe("laast");
   });
 });
+
+describe("FUNN 2026-10-05 — et hengende nettkall låser ikke synken (timeout)", () => {
+  // Klient der ETT kall aldri settler (speiler 22:17: server committet, svaret kom
+  // aldri tilbake). Uten timeout henger syncTimer for alltid → testen tidsavbrytes
+  // (vitest 5s) = RØD. Med timeout settler syncTimer og markerer transient feil.
+  function klientMedHengendePush() {
+    return {
+      timer: {
+        dagsseddel: {
+          syncBatch: { mutate: () => new Promise(() => {}) }, // henger
+          hentEndringerSiden: {
+            query: async () => ({
+              serverTid: "2026-10-05T00:00:00.000Z",
+              sedler: [],
+              levendeSedler: [],
+              slettevindu: { fraDato: "2027-01-01", tilDato: null },
+            }),
+          },
+        },
+      },
+    } as unknown as Parameters<typeof syncTimer>[0];
+  }
+
+  function klientMedHengendePull() {
+    return {
+      timer: {
+        dagsseddel: {
+          syncBatch: { mutate: async () => ({ resultater: [] }) },
+          hentEndringerSiden: { query: () => new Promise(() => {}) }, // henger
+        },
+      },
+    } as unknown as Parameters<typeof syncTimer>[0];
+  }
+
+  it("🔴 PUSH henger → syncTimer SETTLER innen tidsgrensen (ikke evig), sedelen beholdes pending med feilmelding", async () => {
+    seedSedel({ id: "hang-1", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rh1", "hang-1", 7.5);
+
+    const start = Date.now();
+    const res = await syncTimer(klientMedHengendePush(), "u1", 50);
+    const brukt = Date.now() - start;
+
+    // Settlet raskt (ikke hengt) — langt under vitest-timeouten.
+    expect(brukt).toBeLessThan(2000);
+    // Transient: sedelen BEHOLDES pending (push er idempotent → retry neste tick).
+    const s = sedelFor("hang-1");
+    expect(s.syncStatus).toBe("pending");
+    expect(timerRaderFor("hang-1")).toHaveLength(1);
+    // Feilmeldingen er satt (synliggjøres i pending-banneret, item 3) = timeout-teksten.
+    expect(s.feilmelding).toBe("timer.sync.tidsavbrudd");
+    expect(res.push.feilet).toBe(1);
+  });
+
+  it("🔴 PULL henger → syncTimer SETTLER innen tidsgrensen, feil rapporteres", async () => {
+    // Ingen pending → push hoppes over, pull-kallet henger.
+    seedSedel({ id: "hang-2", dato: "2026-10-05", status: "accepted", syncStatus: "synced" });
+
+    const start = Date.now();
+    const res = await syncTimer(klientMedHengendePull(), "u1", 50);
+    const brukt = Date.now() - start;
+
+    expect(brukt).toBeLessThan(2000);
+    expect(res.feil).toBe("timer.sync.tidsavbrudd");
+  });
+});
