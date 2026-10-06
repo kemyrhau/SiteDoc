@@ -165,12 +165,62 @@ function erPermanentFeil(e: unknown): boolean {
 }
 
 /**
+ * FUNN 2026-10-05 (synk-henger): øvre grense på ETT nettkall. Uten dette kan et kall
+ * som aldri settler henge `syncTimer` for alltid. Målt på test: push 22:17 committet
+ * på server (200, 1 rad) men svaret nådde aldri telefonen → `await` settler aldri →
+ * `syncTimer` returnerer aldri → TimerSyncProviders reentrancy-vakt (`syncerRef`,
+ * nullstilt i `finally`) låser seg PERMANENT → hver 30s-tick no-op-er, ingen nye kall,
+ * sedelen står `pending`. Timeouten gjør at kallet ALLTID settler (resolve eller en
+ * `SynkTidsavbrudd`-reject), så `finally` kjører og neste tick prøver igjen. En timeout
+ * klassifiseres som TRANSIENT (ingen httpStatus 400) → pending beholdes, push er
+ * idempotent → ingen datatap, ingen endring i HVA synken gjør.
+ */
+export const SYNK_NETT_TIDSAVBRUDD_MS = 20 * 1000;
+
+/** Feil kastet når et nettkall ikke settler innen tidsgrensen (transient). */
+export class SynkTidsavbrudd extends Error {
+  constructor(melding: string) {
+    super(melding);
+    this.name = "SynkTidsavbrudd";
+  }
+}
+
+/**
+ * Bind `p` til en øvre tidsgrense. Settler alltid: med `p`-resultatet hvis det kommer
+ * først, ellers en `SynkTidsavbrudd`-reject. `clearTimeout` i begge grener så en løst
+ * promise ikke etterlater en hengende timer. Det underliggende kallet avbrytes IKKE
+ * (fetch har ingen abort her) — men resultatet forkastes når timeouten vant, og
+ * serveren er idempotent, så en sen ankomst er ufarlig.
+ */
+function medTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new SynkTidsavbrudd(i18n.t("timer.sync.tidsavbrudd"))),
+      ms,
+    );
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e as Error);
+      },
+    );
+  });
+}
+
+/**
  * Hovedinngang: push pending → pull server-endringer.
  * Returnerer telling som UI kan vise.
  */
 export async function syncTimer(
   klient: TrpcKlient,
   userId: string,
+  // FUNN 2026-10-05: øvre grense pr. nettkall (default prod-verdi; testen injiserer
+  // en liten verdi for å bevise at et hengende kall ikke lenger henger synken).
+  tidsavbruddMs: number = SYNK_NETT_TIDSAVBRUDD_MS,
 ): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
@@ -555,9 +605,12 @@ export async function syncTimer(
       });
 
       try {
-        const svar = await klient.timer.dagsseddel.syncBatch.mutate({
-          sedler: sedlerMedRader,
-        });
+        const svar = await medTimeout(
+          klient.timer.dagsseddel.syncBatch.mutate({
+            sedler: sedlerMedRader,
+          }),
+          tidsavbruddMs,
+        );
         anvendSvar(svar, Date.now());
       } catch (e) {
         if (!erPermanentFeil(e)) {
@@ -583,9 +636,12 @@ export async function syncTimer(
         // return-abort — vi fortsetter til neste batch etterpå.
         for (const item of sedlerMedRader) {
           try {
-            const enkeltSvar = await klient.timer.dagsseddel.syncBatch.mutate({
-              sedler: [item],
-            });
+            const enkeltSvar = await medTimeout(
+              klient.timer.dagsseddel.syncBatch.mutate({
+                sedler: [item],
+              }),
+              tidsavbruddMs,
+            );
             anvendSvar(enkeltSvar, Date.now());
           } catch (e2) {
             if (!erPermanentFeil(e2)) {
@@ -620,10 +676,13 @@ export async function syncTimer(
   /* ---------------- PULL: server-endringer → lokal ---------------- */
   const sistSynk = hentSistSynkronisert(userId);
   try {
-    const svar = await klient.timer.dagsseddel.hentEndringerSiden.query({
-      sistSynkronisert: sistSynk ?? undefined,
-      maksDagerTilbake: 90,
-    });
+    const svar = await medTimeout(
+      klient.timer.dagsseddel.hentEndringerSiden.query({
+        sistSynkronisert: sistSynk ?? undefined,
+        maksDagerTilbake: 90,
+      }),
+      tidsavbruddMs,
+    );
 
     const naa = Date.now();
     const serverTidMs = new Date(svar.serverTid).getTime();

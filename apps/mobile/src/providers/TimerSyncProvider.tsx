@@ -223,6 +223,18 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     };
   }, [bruker?.id, erPaaNettet, triggerSync]);
 
+  // FUNN 2026-10-05: synk ved RETUR til appen. 30s-intervallet fyrer bare mens appen
+  // alt er aktiv — kommer brukeren tilbake fra bakgrunn med en ventende endring, måtte
+  // de før vente opp til 30s. Her trigges en synk straks appen blir `active`.
+  // triggerSync vokter selv på nett + reentrancy, så kallet er trygt uansett tilstand.
+  useEffect(() => {
+    if (!bruker?.id) return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void triggerSync();
+    });
+    return () => sub.remove();
+  }, [bruker?.id, triggerSync]);
+
   return (
     <TimerSyncContext.Provider
       value={{
