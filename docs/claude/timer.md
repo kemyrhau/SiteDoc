@@ -204,6 +204,10 @@ Auto-importeres ved firma-opprettelse via seed-mekanisme (event-hook `onOrganiza
 
 #### Nivå 2 — Bransje-relevant tilleggspakke for anlegg/bygg (25 lønnsarter)
 
+> ⚠️ **Drift målt 2026-10-06:** seeden gir «Kilometergodtgjørelse (egen bil)» uten `satsEnhet = per_km` (`seed/index.ts:118`), så
+> km-taket (lag 0a) og `per_km`-unntakene (V20 PK4) virker først etter manuell innstilling. Sak i BACKLOG («SEED: Kilometergodtgjørelse»).
+> Km-godtgjørelse er en **lønnsart**, ikke en utleggskategori — Utleggskategorier-siden bør si det (samme sak).
+
 Valgfri import ved onboarding. Pakke-orientert UX: vises som «Bransje: Anlegg/bygg (25 lønnsarter)» med «Vis detaljer»-knapp som ekspanderer listen. Standard: importer hele pakken eller hopp over — ikke 25 enkeltsjekkbokser.
 
 | Kategori | Lønnsart | Brukstilfelle |

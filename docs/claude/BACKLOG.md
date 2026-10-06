@@ -61,6 +61,34 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Standalone-prosjekter** (uten firma): `TimerSyncProvider` cacher kun firmaprosjekter → Hjem viser feilside offline.
 **Ikke bestilt.** Egen offline-runde hvis piloten trenger dem.
 
+### 🟡 SEED: «Kilometergodtgjørelse (egen bil)» mangler `satsEnhet = per_km` (Kenneth-funn 2026-10-06)
+
+Kenneth lette etter km-godtgjørelse etter statens satser under **Utleggskategorier** i prod (`/dashbord/firma/timer/utleggskategorier`:
+Annet · Diett · Drivstoff · Parkering · Verktøy). Den er **ikke** en utleggskategori — den er lønnsarten «Kilometergodtgjørelse
+(egen bil)» i Nivå 2 (`apps/api/src/services/seed/index.ts:118`). Men seeden setter **ikke** `satsEnhet` (0 treff i `seed/index.ts`),
+så km-taket fra lag 0a (`rad-tak.ts:22-33`, `KM_MAKS_PER_DAG`) og «km, ikke timer»-logikken (V20 PK4: `per_km` vurderes ikke mot
+spennet) gjelder først når firmaet setter enheten manuelt. **Fiks (liten, api):** seeden setter `satsEnhet: "per_km"` på denne
+lønnsarten + `seedManglende` fyller `satsEnhet` der den er `null` på en lønnsart med dette navnet (kun navne-match på standardnavnet,
+aldri andre). Måling før fiks: `SELECT organization_id, navn, sats_enhet FROM timer.lonnsarter WHERE navn ILIKE '%kilometer%'` på test og
+prod. Hjelpetekst på Utleggskategorier-siden bør si: «Kjøregodtgjørelse for egen bil føres som lønnsart (Lønnsarter-fanen), ikke her».
+
+### 🟡 U6 — Drivstoff (firmabil) og km-godtgjørelse (egen bil) på samme dag: varsel, ikke sperre (Kenneth 2026-10-06)
+
+**Kenneth:** *«Det er ikke mulig å levere utlegg for drivstoff og bilgodtgjørelse på samme kjøring»*. Ingen vakt finnes (0 koblinger
+mellom `per_km`-rader og `expenseCategory` i api/mobil). **Vedtatt retning (fabel-anbefaling, Kenneth «før saken»):** **varsel**, ikke
+sperre — samme dag kan være lovlig med to biler (egen bil til plassen, firmabil i arbeidet). Regel: har dagsseddelen både en rad på en
+lønnsart med `satsEnhet = per_km` OG et utlegg i kategorien «Drivstoff» (standardnavn, eller kategori merket `erDrivstoff` hvis vi vil
+unngå navne-match) → gul linje på dagsseddelen (web + mobil): «Dagen har både km-godtgjørelse og drivstoff — sjekk at det ikke er samme
+kjøring», og attestanten ser samme merke i `AttesteringDetalj`. Ingen blokkering av «Send til leder» eller attestering. Delt predikat i
+`@sitedoc/shared` (ren, testet), lest av tre flater. Hører til utlegg-ordningsmodellen (U1 prod, U3 gatet; U2/U4/U5 gjenstår).
+
+**Også fra samme gjennomgang (Kenneth-spørsmål «fins det statens satser på verktøy og parkering?»):** statens satser finnes for
+km-godtgjørelse, diett og nattillegg — **ikke** for parkering/bom/ferge (refusjon mot kvittering) og **ikke** for verktøy
+(verktøygodtgjørelse er tariffsats pr. time = lønnstillegg, ikke utlegg). To følger: (a) «Verktøy»-kategorien bør ha ordning
+«lønnstillegg» eller fjernes fra standardsettet — Kenneth avgjør; (b) prod viser **«Annet» merket «Satsbasert (statens satser)»**
+(skjermbilde 2026-10-06) — stemmer neppe, bør av; `satsbasert`-avkrysningen gir bare mening for Diett blant standardkategoriene.
+Vurder å skjule avkrysningen for kategorier der den ikke kan gjelde, i stedet for å la den stå åpen på alle.
+
 ### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
 
 (1) radens timetall (skjult fradrag, `TimerSeksjon.tsx:1043-1060`) · (2) `rad.pauseMin` = avkrysningen, settes kun av GPS
