@@ -33,6 +33,9 @@ sist_verifisert_mot_kode: 2026-08-09
 > 🟢 **V20 = B VEDTATT 2026-10-06, spec rev. 2 til gate** (branch `docs/design-pause-en-kilde`, `timer-pause-en-kilde-spec.md`): P1–P8 målt, PK1–PK9 (PK4 rev. 2: syncBatch
 > normaliserer, avviser aldri; kun timebaserte lønnsarter), 17 tester, ordre V20-S → V20-M ∥ V20-W etter `fix/matpause-avkrysning`. **V19.9-H STRØKET.** V21 (overtidsforslag
 > manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT — egne små ordrer etter V20.
+> 🟡 **TEGNINGER: SERIEOPPLASTING — SPEC TIL GATE 2026-10-06** (branch `docs/design-tegning-serieopplasting`, `tegning-serieopplasting-spec.md`, omfang T1 → T2
+> godkjent av Kenneth): 20 ark-tegninger lastes én og én i dag. T1 uten schema (flervalg, detaljer etterpå, entydig-treff-forhåndsutfylling, fag-sortering, ny revisjon
+> på web), T2 `Tegningsserie`. Målestokk forblir valgfri uten mas.
 
 > 🟢 **TEST-DEPLOY 2026-10-04: `bd3053bd`** — verifisert mot `/version` (bygget 18:56). Inneholder **L2-A + L2-B**
 > (reise-spor, V1 på server, V8-vindu, pull bærer sporet, B4 manuell), **offline-liste oppgave/HMS**, **offline-lesing
