@@ -71,6 +71,9 @@ faller G1.**
 🔴 **Konsekvens for rekkefølgen: bekreftelsessteget er ikke en finesse som kan komme sist. Det er
 forutsetningen for at GPS i det hele tatt får lov til å velge prosjekt.**
 
+🟢 **Og speilbildet (Kenneth 2026-10-06):** GPS-veien virker bare når dagen startes ved oppmøte. **Manuell føring er
+hovedveien resten av tiden** — ikke en reserve. Se premisset under LAG 3.
+
 ---
 
 ## 4. Tilstanden, målt
@@ -296,6 +299,17 @@ funksjon brukeren ser — og uten det kan ingen svare på «hvorfor fikk jeg den
 ### LAG 3 — Bekreftelse: den menneskelige porten
 
 **Dette er det som gjør at lag 4 og 5 i det hele tatt er tillatt (§ 3).**
+
+> 🟢 **PREMISS (Kenneth 2026-10-06, ordrett):** *«GPS vegen fungerer bare hvis du starter ny dag når du kommer på jobb →
+> etter oppstart bør man føre manuelt»*. **Manuell føring er en hovedvei, ikke en reserve for når GPS svikter.** Glemmer
+> arbeideren «Start dag», er manuell føring det eneste som gjenstår — og det skjer hver dag for noen. Derfor gjelder:
+> **alt GPS-veien gir automatisk, skal manuell føring gi likt** — pausebærer synlig (V20 PK2), overtidsforslag (V21),
+> prosjekt · byggeplass på raden (V22), og reise-/norm-sporet fra lag 1–2 der det kan utledes uten posisjon (V12/V14-
+> årsakene vises også på manuell rad). Bekreftelsesskjermen er dermed **én skjerm for to innganger**: GPS-forslaget
+> og den manuelt førte dagen går gjennom samme bekreftelse, samme regler, samme vakter (PK4) — ingen funksjon får
+> finnes bare i forslags-grenen. **Målt 2026-10-06 (V20-spec P1/P6, § 8):** manuell rad mangler i dag pausebærer,
+> V6-pausevindu, overtidssplitt og (på web) prosjekt·byggeplass-linje — fire steder GPS-veien har og manuell ikke.
+> Lukkes av V20/V21/V22 **før** lag 3 bestilles, så bekreftelsesskjermen ikke arver skjevheten. Ikke hastesak.
 
 - **Bekreftelsessteget etter «Slutt dag»** — egen skjerm, forslaget vises, arbeideren retter og
   bekrefter. **Dagen forblir åpen hvis han avbryter** (Kenneth-vedtak 2026-10-01).
