@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { tilFraAntall, effektiveTimerFraSpenn } from "./pauseBeregning";
+import {
+  tilFraAntall,
+  effektiveTimerFraSpenn,
+  pauseVinduForDag,
+  utledArbeidstidFraRader,
+} from "./pauseBeregning";
 
 // Grensefiks 2026-07-09: tilFraAntall hoppet tidligere over pausen når raden
 // startet nøyaktig ved pausestart eller inne i pausevinduet (`fraMin >=
@@ -43,4 +48,87 @@ describe("tilFraAntall ↔ effektiveTimerFraSpenn — invers", () => {
       expect(effektiveTimerFraSpenn(fra, til, p, m)).toBe(n);
     });
   }
+});
+
+// V20/PK5 — pausevinduet følger pauseReferanse (spec-test 6: ankomst-firma skal
+// IKKE bruke fastStart-vinduet, men regne fra første rad-fraTid).
+describe("pauseVinduForDag — pauseReferanse", () => {
+  const rader = [{ fraTid: "08:00" }, { fraTid: "12:30" }];
+
+  it("fastStart → firmaets starttid + pauseEtterTimer (07:00 + 4t = 11:00)", () => {
+    expect(
+      pauseVinduForDag(rader, {
+        startTid: "07:00",
+        pauseEtterTimer: 4,
+        pauseReferanse: "fastStart",
+      }),
+    ).toBe("11:00");
+  });
+
+  it("ankomst → første rad-fraTid + pauseEtterTimer (08:00 + 4t = 12:00), IKKE 11:00", () => {
+    expect(
+      pauseVinduForDag(rader, {
+        startTid: "07:00",
+        pauseEtterTimer: 4,
+        pauseReferanse: "ankomst",
+      }),
+    ).toBe("12:00");
+  });
+
+  it("ankomst uten rader → faller tilbake til firmaets starttid", () => {
+    expect(
+      pauseVinduForDag([], {
+        startTid: "07:00",
+        pauseEtterTimer: 4,
+        pauseReferanse: "ankomst",
+      }),
+    ).toBe("11:00");
+  });
+
+  it("ankomst velger TIDLIGSTE fraTid uansett rekkefølge", () => {
+    expect(
+      pauseVinduForDag([{ fraTid: "12:30" }, { fraTid: "06:30" }], {
+        startTid: "07:00",
+        pauseEtterTimer: 4,
+        pauseReferanse: "ankomst",
+      }),
+    ).toBe("10:30");
+  });
+});
+
+// V20/PK7 — «Arbeidstid i dag» utledet av radene.
+describe("utledArbeidstidFraRader", () => {
+  it("to rader → ramme fra tidligste fra til seneste til, Σ pause og Σ netto", () => {
+    expect(
+      utledArbeidstidFraRader([
+        { fraTid: "07:00", tilTid: "15:00", pauseMin: 30, timer: 7.5 },
+        { fraTid: "15:00", tilTid: "16:00", pauseMin: 0, timer: 1 },
+      ]),
+    ).toEqual({
+      startTid: "07:00",
+      sluttTid: "16:00",
+      sumPauseMin: 30,
+      nettoTimer: 8.5,
+    });
+  });
+
+  it("rad uten tider teller kun i nettoTimer (ingen tidsramme)", () => {
+    expect(
+      utledArbeidstidFraRader([{ fraTid: null, tilTid: null, timer: 2 }]),
+    ).toEqual({
+      startTid: null,
+      sluttTid: null,
+      sumPauseMin: 0,
+      nettoTimer: 2,
+    });
+  });
+
+  it("tom input → null-ramme, 0 timer", () => {
+    expect(utledArbeidstidFraRader([])).toEqual({
+      startTid: null,
+      sluttTid: null,
+      sumPauseMin: 0,
+      nettoTimer: 0,
+    });
+  });
 });

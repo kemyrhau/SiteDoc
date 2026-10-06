@@ -136,6 +136,8 @@ export {
   tilFraAntall,
   PAUSE_TERSKEL_TIMER,
   pauseMinForDag,
+  pauseVinduForDag,
+  utledArbeidstidFraRader,
 } from "./pauseBeregning";
 export {
   tilErEtterFra,

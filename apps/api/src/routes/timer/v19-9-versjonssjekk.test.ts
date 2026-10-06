@@ -36,7 +36,7 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
 }));
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),
-  hentEffektivArbeidstid: vi.fn(),
+  hentEffektivArbeidstid: vi.fn().mockResolvedValue({ startTid: "07:00", sluttTid: "15:00", pauseMin: 30, dagsnorm: 7.5, normKilde: "fast", pauseEtterTimer: 4, pauseReferanse: "ankomst" }),
 }));
 vi.mock("@sitedoc/db", () => ({
   prisma: {
@@ -120,6 +120,8 @@ function lagCtx(initielleRader: Rad[]) {
     dailySheet: {
       findUnique: vi.fn().mockResolvedValue({ id: CLIENT_UUID }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      // V20/PK6: synkroniserHodePause setter hodet = Σ rad etter radskriving.
+      update: vi.fn().mockResolvedValue({}),
       findUniqueOrThrow: vi.fn(async () => ({
         id: CLIENT_UUID,
         clientUuid: CLIENT_UUID,
@@ -130,6 +132,10 @@ function lagCtx(initielleRader: Rad[]) {
       })),
     },
     sheetTimer: {
+      // V20/PK6: hodet utledes via aggregate(_sum pauseMin) over radene.
+      aggregate: vi.fn(async () => ({
+        _sum: { pauseMin: rows.reduce((s, r) => s + ((r as { pauseMin?: number }).pauseMin ?? 0), 0) },
+      })),
       findMany: vi.fn(async (args?: { where?: { id?: { in?: string[] } } }) =>
         rows.filter((r) => matchWhere(r, args?.where)),
       ),

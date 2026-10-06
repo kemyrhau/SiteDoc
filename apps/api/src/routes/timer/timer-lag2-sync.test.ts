@@ -35,7 +35,7 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
 }));
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),
-  hentEffektivArbeidstid: vi.fn(),
+  hentEffektivArbeidstid: vi.fn().mockResolvedValue({ startTid: "07:00", sluttTid: "15:00", pauseMin: 30, dagsnorm: 7.5, normKilde: "fast", pauseEtterTimer: 4, pauseReferanse: "ankomst" }),
 }));
 
 // Modul-nivå prisma (kjernen) — reise-utledning + matrise-oppslag. vi.hoisted så
@@ -73,8 +73,12 @@ function lagCtx() {
         attestertVed: null,
         updatedAt: new Date("2026-10-03T10:00:00Z"),
       }),
+      // V20/PK6: synkroniserHodePause oppdaterer hodet.
+      update: vi.fn().mockResolvedValue({}),
     },
     sheetTimer: {
+      // V20/PK6: hodet utledes via aggregate(_sum pauseMin).
+      aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
       // V19.9: ny sedel → ingen serverrader (findMany før skriving = []). Read-back
       // etter createMany (V19.9.8) returnerer de skrevne radenes versjoner.
       findMany: vi.fn(async () =>

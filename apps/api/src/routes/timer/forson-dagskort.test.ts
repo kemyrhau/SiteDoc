@@ -20,7 +20,7 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
 }));
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),
-  hentEffektivArbeidstid: vi.fn(),
+  hentEffektivArbeidstid: vi.fn().mockResolvedValue({ startTid: "07:00", sluttTid: "15:00", pauseMin: 30, dagsnorm: 7.5, normKilde: "fast", pauseEtterTimer: 4, pauseReferanse: "ankomst" }),
 }));
 // LAG 2: forsonDagskort utleder nå erReise via kjerne-prisma (hentErReiseKontekst).
 // Mock den så testene ikke treffer ekte DB.
@@ -78,8 +78,14 @@ function lagCtx(opts: {
   // V19 (A-5): forsonDagskort sletter nå forslaget + nuller konfliktVentendeSiden i tx.
   const forslagDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
   const tx = {
-    dailySheet: { updateMany },
-    sheetTimer: { update, create, findMany: txFindMany },
+    // V20/PK6: synkroniserHodePause bruker dailySheet.update + sheetTimer.aggregate.
+    dailySheet: { updateMany, update: vi.fn().mockResolvedValue({}) },
+    sheetTimer: {
+      update,
+      create,
+      findMany: txFindMany,
+      aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
+    },
     sheetTimerForslag: { deleteMany: forslagDeleteMany },
   };
   // Interaktiv form: $transaction(fn) kjører callbacken med tx-klienten og returnerer

@@ -34,7 +34,7 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
 }));
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),
-  hentEffektivArbeidstid: vi.fn(),
+  hentEffektivArbeidstid: vi.fn().mockResolvedValue({ startTid: "07:00", sluttTid: "15:00", pauseMin: 30, dagsnorm: 7.5, normKilde: "fast", pauseEtterTimer: 4, pauseReferanse: "ankomst" }),
 }));
 vi.mock("@sitedoc/db", () => ({
   prisma: {
@@ -137,11 +137,15 @@ function lagCtx(opts: {
       findUniqueOrThrow: vi.fn(async () =>
         sheetHode({ id: eksisterende?.id ?? CLIENT_UUID, clientUuid: CLIENT_UUID, status: "draft" }),
       ),
+      // V20/PK6: synkroniserHodePause oppdaterer hodet.
+      update: vi.fn().mockResolvedValue({}),
     },
     sheetTimer: {
       findMany: vi.fn().mockResolvedValue(serverRaderFull),
       deleteMany: timerDeleteMany,
       createMany: timerCreateMany,
+      // V20/PK6: hodet = Σ rad via aggregate.
+      aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
     },
     sheetTillegg: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: vi.fn().mockResolvedValue({ count: 0 }) },
     sheetMachine: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: vi.fn().mockResolvedValue({ count: 0 }) },
