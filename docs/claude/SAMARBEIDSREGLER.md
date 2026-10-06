@@ -1044,6 +1044,8 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 
 ### 🔴 Innboksfilen er kanalen — direktemeldinger er kun varsler (Kenneth 2026-09-23)
 
+- **Innboksene ryddes av orkestrator** (Kenneth 2026-10-06): avsluttede meldinger flyttes til `relay/arkiv/<innboks>-til-<dato>.md`, ved hver prod-deploy og når en innboks passerer ~300 linjer. Bare åpne ordrer og leveranser blir stående, og øverst står en peker til arkivet.
+
 **Bakgrunn:** design sendte ordreinnhold som direktemeldinger mens filene lå **upushet**, meldte hasher som ikke fantes på origin, og byttet filnavn uten å føre det i innboksen. Cowork gjorde samme feilklasse den andre veien: påsto at brancher var «amendet» uten å ha målt det — sannheten var at de aldri var pushet. **To uklare kanaler samtidig gir fire feil av samme rot.** Alle fire ville blitt fanget av ett `ls-remote` før hashen ble meldt.
 
 - **Innboksfilen (`relay/inbox-<navn>.md`) er kanalen. Branch + filnavn er innholdet. Direktemeldinger (nudger, bro-meldinger) er kun varsler** — de bærer aldri sannheten alene.
