@@ -660,13 +660,13 @@ hverandre → jeg vet aldri hvem du egentlig mener»*). Overskriften er `### →
 
 | Agentnavn | Kjører i | Rolle | Innboks |
 |---|---|---|---|
-| **Fabel** | Claude-appen (Desktop-økt «Fabel») | plan- og spec-eier | `relay/inbox-fabel.md` |
-| **Kontrollør** | terminal, mappa `SiteDoc-design` | kodegate før merge | `relay/inbox-kontrollor.md` |
+| **Fabel** | Claude-appen (Desktop-økt «Fabel»), tre `SiteDoc-design` | plan- og spec-eier | `relay/inbox-fabel.md` |
+| **Kontrollør** | terminal, tre `SiteDoc-gate` (fra 2026-10-06; før det delte den `SiteDoc-design` med Fabel) | kodegate før merge | `relay/inbox-kontrollor.md` |
 | **Redesign** | terminal, `SiteDoc-redesign` | utvikler | `relay/inbox-redesign-*.md` |
 | **Dokgen** | terminal, `SiteDoc-dokgen` | utvikler | `relay/inbox-dokgen-*.md` |
 | **Kontrollplan** | terminal, `SiteDoc-kontrollplan` | utvikler | `relay/inbox-kontrollplan-*.md` |
 
-Fabel og Kontrollør er to ulike agenter. Skriv aldri «SiteDoc-design» som mottaker.
+Fabel og Kontrollør er to ulike agenter i hvert sitt tre. **`design` = Fabel, `gate` = Kontrollør** (Kenneth 2026-10-06). Skriv aldri et mappenavn som mottaker.
 
 Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,
 og **rekkefølgen** hvis noe avhenger av noe annet. Kenneth skal kunne kopiere og
