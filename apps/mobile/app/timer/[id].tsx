@@ -86,9 +86,7 @@ import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
 import {
   overstigerMaskinTak,
-  byggForsonInputFraValg,
   type ForsonRad as DeltForsonRad,
-  type ForsonSide,
 } from "@sitedoc/shared";
 import type {
   Sedel,
@@ -98,6 +96,11 @@ import type {
   UtleggRad,
 } from "../../src/types/timer-detalj";
 import { bekreftConflict } from "../../src/services/timerSync";
+import {
+  anvendForsonetLokalt,
+  byggForsonOverlappKall,
+  type ForsonetServerRad,
+} from "../../src/lib/forsoningSpeil";
 
 /** Felt-settet `forsonDagskort` tar for en rad (uten id = ny rad). */
 type ForsonRad = {
@@ -130,53 +133,6 @@ function lokalRadTilForson(r: TimerRad): ForsonRad | null {
     beskrivelse: r.beskrivelse,
     externalCostObjectId: r.externalCostObjectId,
   };
-}
-
-/** Narrow form av server-radene forsonDagskort returnerer (unngår dyp tRPC-union / TS2589). */
-type ForsonetServerRad = {
-  id: string;
-  projectId: string | null;
-  byggeplassId: string | null;
-  lonnsartId: string;
-  aktivitetId: string;
-  externalCostObjectId: string | null;
-  timer: number | string;
-  fraTid: string | null;
-  tilTid: string | null;
-  beskrivelse: string | null;
-  pauseMin: number;
-};
-
-/**
- * Speil det autoritative forsonede rad-settet fra serveren til lokal DB: slett sedelens
- * lokale timer-rader og sett inn serverens. Server er sannhet (den validerte + skrev i én
- * transaksjon), så lokal kan ikke divergere fra web etter dette. Timer-radene er sedelens
- * sync-atom; ingen per-rad sync-status å bevare.
- */
-function anvendForsonetLokalt(sheetId: string, rader: ForsonetServerRad[]): void {
-  const db = hentDatabase();
-  if (!db) return;
-  const naa = Date.now();
-  db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).run();
-  for (const r of rader) {
-    db.insert(sheetTimerLocal)
-      .values({
-        id: r.id,
-        dagsseddelId: sheetId,
-        projectId: r.projectId,
-        byggeplassId: r.byggeplassId,
-        lonnsartId: r.lonnsartId,
-        aktivitetId: r.aktivitetId,
-        externalCostObjectId: r.externalCostObjectId,
-        timer: Number(r.timer),
-        fraTid: r.fraTid,
-        tilTid: r.tilTid,
-        beskrivelse: r.beskrivelse,
-        pauseMin: r.pauseMin ?? 0,
-        sistEndretLokalt: naa,
-      })
-      .run();
-  }
 }
 
 /** Rå timer-/forslagsrad fra `hentMedId` (smal cast FØR bruk → unngår TS2589). */
@@ -436,31 +392,25 @@ export default function DagsseddelDetalj() {
 
     let oppdateringer: (ForsonRad & { id: string })[] = [];
     let nyeRader: ForsonRad[] = [];
+    // V19.9 (RETUR 1, vilkår 1): serverrad-id-er valget «Telefonen slettet» gir
+    // (slettet_telefon → «forslag»). Må sendes til forsonDagskort, ellers slettes
+    // forslaget men serverraden blir stående. Tom i U-BEKREFT (ikke-overlapp).
+    let slettinger: string[] = [];
 
     if (erOverlapp) {
-      // V19-B (B-3): bygg skriveveien fra FORSLAGET på serveren via den DELTE
-      // `byggForsonInputFraValg` (samme paring som visningen). Valget pr. slot er
-      // nøklet på rad.nokkel (= forslagsradens id for parede slots); oversett til
-      // forslag-id → "forslag"/"sedel". Ensidige slots (ikke valgbare) utelates —
-      // byggForsonInputFraValg beholder dem uansett (Q3(b)).
-      // V19.9 (B'-6): map ALLE valgbare slots — ikke bare de med både lokal og
-      // server. `slettet_pc` har server=null (PC slettet raden) men er valgbar
-      // (gjenopprett = «appen»/forslag, behold slettet = «web»/sedel); utelatt her
-      // ville låst valget til default. byggForsonInputFraValg bruker grunn+valg.
-      const valgPerForslag: Record<string, ForsonSide> = {};
-      for (const rad of sammenligning.rader) {
-        if (rad.valgbar !== false && rad.nokkel) {
-          valgPerForslag[rad.nokkel] =
-            effektivtValg[rad.nokkel] === "lokal" ? "forslag" : "sedel";
-        }
-      }
-      const input = byggForsonInputFraValg(
+      // V19-B (B-3) + V19.9 (RETUR 1, vilkår 1): bygg skriveveien fra FORSLAGET via
+      // den delte `byggForsonOverlappKall` (samme paring som visningen). Den mapper
+      // ALLE valgbare slots (også `slettet_pc`, server=null) og BÆRER `slettinger`
+      // (slettet_telefon → «forslag»). Ekstrahert til lib så harnessen tester seamen.
+      const input = byggForsonOverlappKall(
+        sammenligning.rader,
+        effektivtValg,
         webSedelRader,
         forslagRader,
-        valgPerForslag,
       );
       oppdateringer = input.oppdateringer as (ForsonRad & { id: string })[];
       nyeRader = input.nyeRader as ForsonRad[];
+      slettinger = input.slettinger;
     } else {
       // U-BEKREFT (ikke-overlapp): lokale rader mot web pr. eksakt tidsrom.
       const lokalEtterId = new Map(timerRader.map((r) => [r.id, r]));
@@ -496,6 +446,7 @@ export default function DagsseddelDetalj() {
         sheetId,
         oppdateringer,
         nyeRader,
+        slettinger,
       })) as ForsonetServerRad[];
       anvendForsonetLokalt(sheetId, forsonet);
       bekreftConflict(sheetId);
