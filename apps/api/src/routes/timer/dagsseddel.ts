@@ -49,6 +49,12 @@ import {
   type Overtidsgrunnlag,
   type ErReiseKontekst,
 } from "@sitedoc/shared";
+import {
+  klassifiserSyncRader,
+  type ServerRad as VersjonServerRad,
+  type PayloadRad as VersjonPayloadRad,
+  type Tombstone as VersjonTombstone,
+} from "./sync-versjon";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 // Lukket ordning-enum for sync-input. Klienten STEMPLER ordningen ved føring
@@ -355,7 +361,10 @@ function finnOverlappMotServer(
 async function lagreOverlappForslag(
   tx: Prisma.TransactionClient,
   sheetId: string,
-  payloadRader: readonly OverlappPayloadRad[],
+  // V19.9.6 (A'-4): hver rad kan bære `grunn` (default "overlapp" → V19-A-kallerne
+  // uendret). "endret_begge"/"slettet_pc"/"slettet_telefon" styrer attestantens
+  // årsaks-tekst (C-2) + paringen i parForslagMotSedel.
+  payloadRader: readonly (OverlappPayloadRad & { grunn?: string })[],
   sedelProjectId: string | null,
 ): Promise<"overlapp" | "laast"> {
   const laast = await tx.dailySheet.updateMany({
@@ -399,6 +408,8 @@ async function lagreOverlappForslag(
         reiseRegel: jsonEllerNull(r.reiseRegel),
         tidKilde: r.tidKilde ?? null,
         kilde: "mobil",
+        // V19.9.6: default "overlapp" → V19-A-forslag uendret.
+        grunn: r.grunn ?? "overlapp",
       })),
     });
   }
@@ -2005,6 +2016,10 @@ export const dagsseddelRouter = router({
               .superRefine(refineFraForTil),
           )
           .default([]),
+        // V19.9.7 (A'-7): serverrad-id-er arbeideren valgte å SLETTE (valg «forslag»
+        // på en slettet_telefon-slot). Slettes i SAMME tx, FØR overlapp-vakten.
+        // Default [] → ren V19-A-forsoning uendret. Kommer fra byggForsonInputFraValg.
+        slettinger: z.array(z.string().uuid()).default([]),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2024,7 +2039,7 @@ export const dagsseddelRouter = router({
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
 
       const alleRader = [...input.oppdateringer, ...input.nyeRader];
-      if (alleRader.length === 0) {
+      if (alleRader.length === 0 && input.slettinger.length === 0) {
         // Alt valgt-server / «behold PC for hele dagen» → ingen rad-endring. Men
         // forsoningen ER fullført: V19 (A-5) krever at forslaget slettes og
         // konfliktVentendeSiden nulles — ellers står invarianten (felt ⇔ forslag)
@@ -2094,9 +2109,13 @@ export const dagsseddelRouter = router({
       // Bygg SLUTT-settet og valider ÉN gang (ikke per rad — per-rad mot DB-mellomtilstand
       // ville gi falske overlapp-brudd mens flere rader endres i samme runde). Server-rader
       // som ikke oppdateres står; oppdaterte får nye verdier; nye legges til.
-      const naavaerende = await ctx.prismaTimer.sheetTimer.findMany({
+      const naavaerendeAlle = await ctx.prismaTimer.sheetTimer.findMany({
         where: { sheetId: input.sheetId },
       });
+      // V19.9.7: rader som skal SLETTES holdes utenfor sluttsettet — ellers ville en
+      // slettet rad telt i overlapp-/maskinvakten mot en ny rad som tar dens plass.
+      const slettingerSet = new Set(input.slettinger);
+      const naavaerende = naavaerendeAlle.filter((r) => !slettingerSet.has(r.id));
       // 🔴 Hver oppdatering MÅ treffe en eksisterende rad på DETTE kortet (in-place, ingen
       // duplikat, ingen kryss-sedel-skriving). Ukjent id → avvis.
       for (const o of input.oppdateringer) {
@@ -2207,6 +2226,15 @@ export const dagsseddelRouter = router({
             code: "PRECONDITION_FAILED",
             message:
               "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
+          });
+        }
+        // V19.9.7 (A'-7): valgte slettinger (slettet_telefon → «forslag») utføres i
+        // SAMME tx, FØR rad-skrivingen og overlapp-vakten. Scopet på sheetId så
+        // arbeideren aldri kan slette rader på en annen sedel. Etter dette kjører
+        // sluttsettets finnTidsromKonflikt på det som faktisk står igjen.
+        if (input.slettinger.length > 0) {
+          await tx.sheetTimer.deleteMany({
+            where: { sheetId: input.sheetId, id: { in: input.slettinger } },
           });
         }
         for (const o of input.oppdateringer) {
@@ -5087,6 +5115,9 @@ export const dagsseddelRouter = router({
           timer: s.timer.map((t) => ({
             id: t.id,
             projectId: t.projectId,
+            // V19.9.1 (A'-6): radversjonen (ISO-ms) så mobilen lagrer server_versjon
+            // og sender den tilbake i syncBatch. Forslagsrader tas ALDRI med (M15).
+            updatedAt: t.updatedAt.toISOString(),
             // F3: per-rad byggeplass i pull-respons så mobil kan speile override.
             byggeplassId: t.byggeplassId,
             lonnsartId: t.lonnsartId,
@@ -5257,6 +5288,12 @@ export const dagsseddelRouter = router({
                   .enum(["stempel", "utledet", "manuell"])
                   .nullable()
                   .optional(),
+                // V19.9.1/2 (A'-2): radversjonen telefonen fikk ved pull/push-`ok`
+                // (`SheetTimer.updatedAt`, ISO-ms) + om telefonen selv har rørt raden.
+                // Begge optional/nullable → eldre app uten feltene → «ukjent versjon»
+                // (R9–R11/S4, innhold avgjør). ALDRI stille overskriving.
+                serverVersjon: z.string().datetime().nullable().optional(),
+                endretLokalt: z.boolean().optional(),
               }),
             ),
             tillegg: z.array(
@@ -5324,6 +5361,19 @@ export const dagsseddelRouter = router({
                 // U4: utlegg-slettinger propagerer som de andre typene. Optional
                 // → eldre slettedeIder-objekt uten feltet defaulter til [].
                 utlegg: z.array(z.string().uuid()).default([]),
+                // V19.9.1 (A'-2): timer-tombstones MED versjonen kopiert fra raden da
+                // den ble slettet lokalt → S1–S4-klassifisering (slett vs. avvik). Den
+                // gamle `timer: string[]` beholdes (eldre app → S4, trygg retning).
+                // Rader i `timerVersjoner` har forrang; `timer` dekker kun id-er som
+                // IKKE finnes der (ingen dobbeltbehandling).
+                timerVersjoner: z
+                  .array(
+                    z.object({
+                      id: z.string().uuid(),
+                      serverVersjon: z.string().datetime().nullable(),
+                    }),
+                  )
+                  .optional(),
               })
               .optional(),
           }),
@@ -5378,6 +5428,12 @@ export const dagsseddelRouter = router({
           lederKommentar: string | null;
           attestertVed: string | null;
           updatedAt: string;
+          // V19.9.8 (A'-5): versjonene for radene som FAKTISK ble skrevet (lest
+          // tilbake etter skriving) + rad-id-er som ble hoppet over (serverraden
+          // står, telefonen henter den ved neste pull). Begge `ok` og
+          // `conflict/overlapp`. Valgfritt → eldre klient ignorerer dem.
+          rader?: { id: string; updatedAt: string }[];
+          hoppetOver?: string[];
         };
         feilmelding?: string;
       };
@@ -5761,8 +5817,18 @@ export const dagsseddelRouter = router({
           // en egen tx), så statusvakten i lagreOverlappForslag ligger innenfor
           // samme grense som rad-skrivingen (v4.1-rettelsen).
           type SyncTxResultat =
-            | { slag: "ok"; sedel: Awaited<ReturnType<typeof ctx.prismaTimer.dailySheet.findUniqueOrThrow>> }
-            | { slag: "overlapp"; aarsak: "overlapp" | "laast" };
+            | {
+                slag: "ok";
+                sedel: Awaited<ReturnType<typeof ctx.prismaTimer.dailySheet.findUniqueOrThrow>>;
+                skrevneRader: { id: string; updatedAt: string }[];
+                hoppetOver: string[];
+              }
+            | {
+                slag: "overlapp";
+                aarsak: "overlapp" | "laast";
+                skrevneRader: { id: string; updatedAt: string }[];
+                hoppetOver: string[];
+              };
           const txResultat: SyncTxResultat = await ctx.prismaTimer.$transaction(async (tx) => {
             // 2b (2026-07-16, TOCTOU-fiks): accepted-vakten (over) leser
             // `eksisterende` 277 linjer / 8+ await FØR denne tx. En leder som
@@ -5777,35 +5843,133 @@ export const dagsseddelRouter = router({
               select: { id: true },
             });
 
-            // A-1b (V19.7) — overlapp-vakt på UNIONEN, inni tx-en, rett etter
-            // eksisterendeITx og FØR header-skrivingen. Kun en EKSISTERENDE sedel
-            // kan ha server-rader å overlappe (ny-sedel-grenen har ingen). De
-            // OVERLEVENDE serverradene = de payloaden verken erstatter (samme id)
-            // eller sletter (slettedeIder); post-state = overlevende ∪ payload.
-            // Treff → lagreOverlappForslag i SAMME tx + markør; ingen header-/
-            // radskriving fra payloaden (catch-blokken berøres ikke). Idempotent.
+            // V19.9 (A-1b) — klassifiser payload-radene og tombstones mot
+            // serverradene FØR noe skrives (spec § 9.3, inni tx-en). Resultatet
+            // styrer hva som faktisk skrives:
+            //   skrivTimerIder  = payload-rad-id-er som skal til sheet_timer
+            //   slettTimerIder  = tombstones serveren er enig i (S1)
+            //   avvikForslag    = rader til forslag (m/ grunn; R4/R7/R10/S2'/S4)
+            //   hoppetOverIder  = serverraden står (R3/R5/R8)
+            // Ny sedel: ingen serverrader → alt er «skriv» (R6/R11), ingen avvik.
+            let skrivTimerIder = new Set<string>(lokal.timer.map((t) => t.id));
+            let slettTimerIder: string[] = lokal.slettedeIder?.timer ?? [];
+            let avvikForslag: (OverlappPayloadRad & { grunn: string })[] = [];
+            let hoppetOverIder: string[] = [];
+
             if (eksisterendeITx) {
-              const erstattet = new Set<string>([
-                ...lokal.timer.map((t) => t.id),
-                ...(lokal.slettedeIder?.timer ?? []),
-              ]);
-              const overlevendeServerRader = await tx.sheetTimer.findMany({
-                where: {
-                  sheetId: eksisterendeITx.id,
-                  ...(erstattet.size > 0
-                    ? { id: { notIn: Array.from(erstattet) } }
-                    : {}),
-                },
-                select: { fraTid: true, tilTid: true },
+              // Les HELE serverradene (innhold + updatedAt + reise-sporet trengs for
+              // slettet_telefon-kopien) via tx — TOCTOU-lukket.
+              const serverTimerFull = await tx.sheetTimer.findMany({
+                where: { sheetId: eksisterendeITx.id },
               });
-              if (finnOverlappMotServer(overlevendeServerRader, lokal.timer)) {
+              const serverById = new Map(serverTimerFull.map((s) => [s.id, s]));
+
+              // Payload resolved likt som ved skriving (projectId/byggeplass) så
+              // innholds-sammenligningen (radInnholdLikt) treffer post-state.
+              const payloadVersjon: VersjonPayloadRad[] = lokal.timer.map((t) => ({
+                id: t.id,
+                serverVersjon: t.serverVersjon ?? null,
+                endretLokalt: t.endretLokalt,
+                projectId: radProsjekt(t.projectId),
+                byggeplassId: t.byggeplassId ?? lokal.byggeplassId ?? null,
+                lonnsartId: t.lonnsartId,
+                aktivitetId: t.aktivitetId,
+                externalCostObjectId: t.externalCostObjectId ?? null,
+                vehicleId: t.vehicleId ?? null,
+                timer: t.timer,
+                fraTid: t.fraTid ?? null,
+                tilTid: t.tilTid ?? null,
+                beskrivelse: t.beskrivelse ?? null,
+                pauseMin: t.pauseMin ?? 0,
+              }));
+
+              // Tombstones: `timerVersjoner` (m/ versjon) har forrang; eldre
+              // `timer: string[]` → ukjent versjon (S4, trygg retning). Ingen id
+              // behandles to ganger.
+              const versjonerIder = new Set(
+                (lokal.slettedeIder?.timerVersjoner ?? []).map((d) => d.id),
+              );
+              const tombstones: VersjonTombstone[] = [
+                ...(lokal.slettedeIder?.timerVersjoner ?? []).map((d) => ({
+                  id: d.id,
+                  serverVersjon: d.serverVersjon,
+                })),
+                ...(lokal.slettedeIder?.timer ?? [])
+                  .filter((id) => !versjonerIder.has(id))
+                  .map((id) => ({ id, serverVersjon: undefined })),
+              ];
+
+              const klass = klassifiserSyncRader(
+                serverTimerFull as unknown as VersjonServerRad[],
+                payloadVersjon,
+                tombstones,
+              );
+              skrivTimerIder = new Set(klass.skriv);
+              slettTimerIder = klass.slett;
+              hoppetOverIder = klass.hoppOver;
+
+              // Bygg forslags-radene: payload-kilde = telefonens rad; server-kilde
+              // (slettet_telefon) = KOPI av serverraden (samme id, V19.9.6).
+              const payloadById = new Map(lokal.timer.map((t) => [t.id, t]));
+              avvikForslag = klass.avvik.map((a) => {
+                if (a.kilde === "payload") {
+                  return { ...payloadById.get(a.id)!, grunn: a.grunn };
+                }
+                const s = serverById.get(a.id)!;
+                return {
+                  id: s.id,
+                  projectId: s.projectId,
+                  byggeplassId: s.byggeplassId,
+                  lonnsartId: s.lonnsartId,
+                  aktivitetId: s.aktivitetId,
+                  fraTid: s.fraTid,
+                  tilTid: s.tilTid,
+                  timer: Number(s.timer),
+                  pauseMin: s.pauseMin,
+                  beskrivelse: s.beskrivelse,
+                  externalCostObjectId: s.externalCostObjectId,
+                  vehicleId: s.vehicleId,
+                  erReise: s.erReise,
+                  reiseRetning: s.reiseRetning,
+                  reiseOppmotestedId: s.reiseOppmotestedId,
+                  reiseKjoretidMin: s.reiseKjoretidMin,
+                  reiseAvstandM: s.reiseAvstandM,
+                  reiseKilde: s.reiseKilde,
+                  reiseRegel: s.reiseRegel,
+                  tidKilde: s.tidKilde,
+                  grunn: a.grunn,
+                } as OverlappPayloadRad & { grunn: string };
+              });
+
+              // V19.1 har FORRANG (V19.9.5): post-state-unionen = overlevende
+              // serverrader (hoppede/avvikende/uberørte) ∪ «skriv»-rader. Overlapp
+              // i TID der → HELE payloaden blir forslag som i V19-A (grunn pr. rad:
+              // avvik beholder sin, resten "overlapp"), ingen skriving.
+              const skrivServerIder = new Set(
+                [...skrivTimerIder].filter((id) => serverById.has(id)),
+              );
+              const slettSet = new Set(slettTimerIder);
+              const overlevendeServerRader = serverTimerFull.filter(
+                (s) => !skrivServerIder.has(s.id) && !slettSet.has(s.id),
+              );
+              const skrivRader = lokal.timer.filter((t) => skrivTimerIder.has(t.id));
+              if (finnOverlappMotServer(overlevendeServerRader, skrivRader)) {
+                const grunnById = new Map(
+                  klass.avvik
+                    .filter((a) => a.kilde === "payload")
+                    .map((a) => [a.id, a.grunn]),
+                );
+                const payloadMedGrunn = lokal.timer.map((t) => ({
+                  ...t,
+                  grunn: grunnById.get(t.id) ?? "overlapp",
+                }));
                 const aarsak = await lagreOverlappForslag(
                   tx,
                   eksisterendeITx.id,
-                  lokal.timer,
+                  payloadMedGrunn,
                   lokal.projectId ?? null,
                 );
-                return { slag: "overlapp", aarsak };
+                return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: [] };
               }
             }
 
@@ -5881,13 +6045,16 @@ export const dagsseddelRouter = router({
             // SLETTING propagerer ikke automatisk — «aldri mist data» prioriteres
             // over sletting-propagering. Delte rad-id (samme rad på web og mobil)
             // gjenoppbygges fra mobil-versjonen (mobil eier egne rader).
-            const timerIder = lokal.timer.map((t) => t.id);
+            // V19.9: KUN «skriv»-radene erstattes (deleteMany deres id + createMany
+            // under). Hoppede/avvikende serverrader står urørt. tillegg/maskin/utlegg
+            // er IKKE versjonert → full payload-replace som før.
+            const skrivTimerListe = lokal.timer.filter((t) => skrivTimerIder.has(t.id));
             const tilleggIder = lokal.tillegg.map((tl) => tl.id);
             const maskinIder = lokal.maskiner.map((m) => m.id);
             const utleggIderPayload = lokal.utlegg.map((u) => u.id);
-            if (timerIder.length > 0) {
+            if (skrivTimerListe.length > 0) {
               await tx.sheetTimer.deleteMany({
-                where: { sheetId: sedel.id, id: { in: timerIder } },
+                where: { sheetId: sedel.id, id: { in: skrivTimerListe.map((t) => t.id) } },
               });
             }
             if (tilleggIder.length > 0) {
@@ -5918,7 +6085,10 @@ export const dagsseddelRouter = router({
             // payload-replace — hviler ikke på klient-låsen. Idempotent (trygt
             // ved re-send etter partiell batch-feil).
             if (lokal.slettedeIder) {
-              const slettTimer = lokal.slettedeIder.timer;
+              // V19.9: timer-slettinger er KLASSIFISERT (slettTimerIder) — en
+              // tombstone mot en PC-endret rad ble avvik (slettet_telefon), ikke en
+              // stille sletting. tillegg/maskin/utlegg er uendret (ikke versjonert).
+              const slettTimer = slettTimerIder;
               const slettTillegg = lokal.slettedeIder.tillegg;
               const slettMaskin = lokal.slettedeIder.maskiner;
               if (slettTimer.length > 0) {
@@ -5948,7 +6118,7 @@ export const dagsseddelRouter = router({
             // T7-3b1: rad-nivå projectId overstyrer sedel-nivå hvis satt.
             // Faller tilbake til lokal.projectId (sedel-nivå) for pre-T7-3b1
             // klienter som ikke sender per-rad projectId.
-            if (lokal.timer.length > 0) {
+            if (skrivTimerListe.length > 0) {
               // LEGACY-VERN (2026-07-13): fra/til-obligatorisk-regelen fra de
               // interaktive mutasjonene (tilfoyTimerRad/oppdaterTimerRad/splitt)
               // håndheves BEVISST IKKE her. Eksisterende prod-rader OG GPS-auto-
@@ -5956,7 +6126,7 @@ export const dagsseddelRouter = router({
               // å avvise dem ville låst mobil-synk. Kun fra<til + overlapp
               // (SYNC-2, over) håndheves på synkveien.
               await tx.sheetTimer.createMany({
-                data: lokal.timer.map((t) => {
+                data: skrivTimerListe.map((t) => {
                   // LAG 2 (C1): reise-sporet bygget over (C2/C3 alt kjørt). Hver rad
                   // har en oppføring; utledet erReise for rader uten eksplisitt flagg.
                   const rf = reiseFelterMap.get(t.id)!;
@@ -6048,13 +6218,44 @@ export const dagsseddelRouter = router({
               });
             }
 
-            return { slag: "ok", sedel };
+            // V19.9.8 (A'-5): les tilbake versjonene for radene som FAKTISK ble
+            // skrevet (etter createMany → updatedAt er satt). Mobilen skriver dem
+            // som server_versjon; hoppede rader røres ALDRI (stale innhold, hentes
+            // ved neste pull — sedel-hodets updatedAt er bumpet).
+            const skrevneRader = skrivTimerListe.length
+              ? (
+                  await tx.sheetTimer.findMany({
+                    where: {
+                      sheetId: sedel.id,
+                      id: { in: skrivTimerListe.map((t) => t.id) },
+                    },
+                    select: { id: true, updatedAt: true },
+                  })
+                ).map((r) => ({ id: r.id, updatedAt: r.updatedAt.toISOString() }))
+              : [];
+
+            // V19.9.5 (A-1b steg 5): uomstridte rader og hodet ER skrevet (over);
+            // hvis avvik-settet ikke er tomt, lagres forslaget i SAMME tx (grunn pr.
+            // rad) og konfliktVentendeSiden settes → svar conflict/overlapp. Ellers ok.
+            if (avvikForslag.length > 0) {
+              const aarsak = await lagreOverlappForslag(
+                tx,
+                sedel.id,
+                avvikForslag,
+                lokal.projectId ?? null,
+              );
+              return { slag: "overlapp", aarsak, skrevneRader, hoppetOver: hoppetOverIder };
+            }
+
+            return { slag: "ok", sedel, skrevneRader, hoppetOver: hoppetOverIder };
           });
 
-          // A-1b overlapp: forslaget er lagret (eller sedelen var låst → "laast"),
-          // sheet_timer URØRT. Svar conflict med eksplisitt årsak + sedelens egen
-          // identitet (clientUuid == lokal, sedelen er alt nøklet) så mobilen setter
-          // syncStatus = "conflict" uten å pushe rader (B-1).
+          // A-1b overlapp: forslaget er lagret (eller sedelen var låst → "laast").
+          // V19-A/laast: sheet_timer URØRT. V19.9 versjonsavvik: de uomstridte radene
+          // ER skrevet (`skrevneRader`), avvikende gikk til forslag. Svar conflict med
+          // eksplisitt årsak + sedelens identitet + versjonene (V19.9.8) så mobilen
+          // setter syncStatus = "conflict", skriver server_versjon for skrevne rader
+          // og lar de hoppede være (B-1/B'-4).
           if (txResultat.slag === "overlapp") {
             const serverSedel = await ctx.prismaTimer.dailySheet.findUnique({
               where: { clientUuid: lokal.clientUuid },
@@ -6071,6 +6272,8 @@ export const dagsseddelRouter = router({
                   lederKommentar: serverSedel.lederKommentar,
                   attestertVed: serverSedel.attestertVed?.toISOString() ?? null,
                   updatedAt: serverSedel.updatedAt.toISOString(),
+                  rader: txResultat.skrevneRader,
+                  hoppetOver: txResultat.hoppetOver,
                 },
               });
             } else {
@@ -6094,6 +6297,9 @@ export const dagsseddelRouter = router({
               lederKommentar: oppdatert.lederKommentar,
               attestertVed: oppdatert.attestertVed?.toISOString() ?? null,
               updatedAt: oppdatert.updatedAt.toISOString(),
+              // V19.9.8 (A'-5): versjonene for skrevne rader + hoppede rad-id-er.
+              rader: txResultat.skrevneRader,
+              hoppetOver: txResultat.hoppetOver,
             },
           });
         } catch (e) {

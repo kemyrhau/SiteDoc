@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prismaTimer } from "@sitedoc/db-timer";
-import { byggForsonInputFraValg } from "@sitedoc/shared";
+import { byggForsonInputFraValg, type ForsonRad } from "@sitedoc/shared";
+import { klassifiserSyncRader } from "./timer/sync-versjon";
 
 /**
  * V19 (ordre V19-A) — migreringen + forslagstabellens garantier mot EKTE Postgres
@@ -169,6 +170,119 @@ describe("V19 garantier — FK cascade, PK-idempotens, invariant, lekkasje", () 
     });
     const nullet = await prismaTimer.dailySheet.findUnique({ where: { id: SHEET } });
     expect(nullet!.konfliktVentendeSiden).toBeNull();
+    await ryddOpp();
+  });
+});
+
+describe("V19.9 migrering + tx + forsoning (ordre V19.9-A, gate 2)", () => {
+  it("migrering: sheet_timer_forslag.grunn finnes, default 'overlapp', CHECK avviser ukjent verdi", async () => {
+    const kol = await prismaTimer.$queryRaw<{ column_default: string | null }[]>`
+      SELECT column_default FROM information_schema.columns
+      WHERE table_schema = 'timer' AND table_name = 'sheet_timer_forslag'
+        AND column_name = 'grunn'`;
+    expect(kol).toHaveLength(1);
+    expect(kol[0]!.column_default).toContain("overlapp");
+
+    await lagSedel();
+    // Default fylles når grunn ikke sendes (V19-A-forslag).
+    await prismaTimer.sheetTimerForslag.create({ data: forslagRad(RAD_1, "07:00", "15:30", 8) });
+    const r = await prismaTimer.sheetTimerForslag.findUnique({ where: { id: RAD_1 } });
+    expect(r!.grunn).toBe("overlapp");
+    // CHECK avviser en ukjent grunn.
+    await expect(
+      prismaTimer.sheetTimerForslag.create({
+        data: { ...forslagRad(RAD_2, "07:00", "11:00", 4), grunn: "noe_ugyldig" },
+      }),
+    ).rejects.toBeTruthy();
+    await ryddOpp();
+  });
+
+  it("test 2 (R4) i EKTE tx: PC-raden står, avvik-forslaget får grunn endret_begge", async () => {
+    await seedKatalog();
+    await lagSedel();
+    // Serverraden slik PC lagret den (updatedAt = V2).
+    const serverRow = await prismaTimer.sheetTimer.create({
+      data: {
+        id: RAD_1, sheetId: SHEET, projectId: PROSJEKT, lonnsartId: LONNSART,
+        aktivitetId: AKTIVITET, timer: 8, fraTid: "07:00", tilTid: "15:30",
+      },
+    });
+    // Telefonen pusher RAD_1 m/ gammel versjon + endretLokalt + ulikt innhold (R4).
+    const klass = klassifiserSyncRader(
+      [{ id: serverRow.id, updatedAt: serverRow.updatedAt, projectId: PROSJEKT, lonnsartId: LONNSART, aktivitetId: AKTIVITET, timer: 8, fraTid: "07:00", tilTid: "15:30", pauseMin: 0 }],
+      [{ id: RAD_1, serverVersjon: "2020-01-01T00:00:00.000Z", endretLokalt: true, projectId: PROSJEKT, lonnsartId: LONNSART, aktivitetId: AKTIVITET, timer: 8, fraTid: "07:00", tilTid: "15:15", pauseMin: 0 }],
+      [],
+    );
+    expect(klass.avvik).toEqual([{ id: RAD_1, grunn: "endret_begge", kilde: "payload" }]);
+    expect(klass.skriv).toEqual([]);
+    // Skriv-stegets tx: avvik → forslag m/ grunn, serverraden urørt.
+    await prismaTimer.$transaction(async (tx) => {
+      await tx.sheetTimerForslag.deleteMany({ where: { sheetId: SHEET } });
+      await tx.sheetTimerForslag.createMany({
+        data: [{ ...forslagRad(RAD_1, "07:00", "15:15", 8), grunn: "endret_begge" }],
+      });
+      await tx.dailySheet.update({ where: { id: SHEET }, data: { konfliktVentendeSiden: new Date() } });
+    });
+    const rader = await prismaTimer.sheetTimer.findMany({ where: { sheetId: SHEET } });
+    expect(rader).toHaveLength(1);
+    expect(rader[0]!.tilTid).toBe("15:30"); // PC-raden står
+    const forslag = await prismaTimer.sheetTimerForslag.findMany({ where: { sheetId: SHEET } });
+    expect(forslag[0]!.grunn).toBe("endret_begge");
+    await ryddOpp();
+  });
+
+  it("test 6 i EKTE tx: uomstridt NY rad skrives i SAMME tx som avvik-forslaget", async () => {
+    await seedKatalog();
+    await lagSedel();
+    // Kun avvik + én ny rad — skriv NY, lagre forslag, ALT i én tx.
+    await prismaTimer.$transaction(async (tx) => {
+      await tx.sheetTimer.createMany({
+        data: [{ id: RAD_2, sheetId: SHEET, projectId: PROSJEKT, lonnsartId: LONNSART, aktivitetId: AKTIVITET, timer: 4, fraTid: "12:00", tilTid: "16:00" }],
+      });
+      await tx.sheetTimerForslag.createMany({
+        data: [{ ...forslagRad(RAD_1, "07:00", "11:00", 4), grunn: "endret_begge" }],
+      });
+      await tx.dailySheet.update({ where: { id: SHEET }, data: { konfliktVentendeSiden: new Date() } });
+    });
+    // Den uomstridte raden ER skrevet selv om sedelen har forslag.
+    const rader = await prismaTimer.sheetTimer.findMany({ where: { sheetId: SHEET } });
+    expect(rader.map((r) => r.id)).toEqual([RAD_2]);
+    expect(await prismaTimer.sheetTimerForslag.count({ where: { sheetId: SHEET } })).toBe(1);
+    await ryddOpp();
+  });
+
+  it("test 4 (S2'): slettet_telefon → valg «forslag» → slettinger sletter serverraden i tx", async () => {
+    await seedKatalog();
+    await lagSedel();
+    await prismaTimer.sheetTimer.create({
+      data: { id: RAD_1, sheetId: SHEET, projectId: PROSJEKT, lonnsartId: LONNSART, aktivitetId: AKTIVITET, timer: 8, fraTid: "07:00", tilTid: "15:30" },
+    });
+    // Forslaget = KOPI av serverraden (samme id), grunn slettet_telefon.
+    await prismaTimer.sheetTimerForslag.create({
+      data: { ...forslagRad(RAD_1, "07:00", "15:30", 8), grunn: "slettet_telefon" },
+    });
+    await prismaTimer.dailySheet.update({ where: { id: SHEET }, data: { konfliktVentendeSiden: new Date() } });
+
+    const sedelRader: ForsonRad[] = (await prismaTimer.sheetTimer.findMany({ where: { sheetId: SHEET } })).map((r) => ({
+      id: r.id, projectId: r.projectId, lonnsartId: r.lonnsartId, aktivitetId: r.aktivitetId,
+      timer: Number(r.timer), fraTid: r.fraTid, tilTid: r.tilTid,
+    }));
+    const forslag: ForsonRad[] = (await prismaTimer.sheetTimerForslag.findMany({ where: { sheetId: SHEET } })).map((f) => ({
+      id: f.id, projectId: f.projectId, lonnsartId: f.lonnsartId, aktivitetId: f.aktivitetId,
+      timer: Number(f.timer), fraTid: f.fraTid, tilTid: f.tilTid, grunn: f.grunn as ForsonRad["grunn"],
+    }));
+    const input = byggForsonInputFraValg(sedelRader, forslag, { [RAD_1]: "forslag" });
+    expect(input.slettinger).toEqual([RAD_1]);
+
+    // forsonDagskorts slettinger-steg (A'-7) i EKTE tx.
+    await prismaTimer.$transaction(async (tx) => {
+      await tx.sheetTimer.deleteMany({ where: { sheetId: SHEET, id: { in: input.slettinger } } });
+      await tx.sheetTimerForslag.deleteMany({ where: { sheetId: SHEET } });
+      await tx.dailySheet.update({ where: { id: SHEET }, data: { konfliktVentendeSiden: null } });
+    });
+    expect(await prismaTimer.sheetTimer.count({ where: { sheetId: SHEET } })).toBe(0);
+    expect(await prismaTimer.sheetTimerForslag.count({ where: { sheetId: SHEET } })).toBe(0);
+    expect((await prismaTimer.dailySheet.findUnique({ where: { id: SHEET } }))!.konfliktVentendeSiden).toBeNull();
     await ryddOpp();
   });
 });

@@ -366,6 +366,11 @@ model SheetTimerForslag {
   // Opphav + mottakstid. kilde="mobil" (kun kilden i V19; utvidbar senere).
   kilde                String   @default("mobil")
   mottattAt            DateTime @default(now()) @map("mottatt_at") @db.Timestamptz()
+  // V19.9.6 — HVORFOR forslaget oppsto. Additiv, DEFAULT 'overlapp' → alle
+  // eksisterende forslag er korrekt V19-A-overlapp (ingen tom fødsel). CHECK i
+  // migreringen låser til: overlapp · endret_begge · slettet_pc · slettet_telefon.
+  // Styrer paringen i parForslagMotSedel + attestantens årsaks-tekst (C-2).
+  grunn                String   @default("overlapp")
 
   sheet DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
 

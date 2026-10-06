@@ -3,7 +3,7 @@ name: timer-overlapp-pc-mobil-spec
 description: Spesifikasjon for V19 — når en dagsseddel registrert på PC og en registrert på mobil for samme dag overlapper i tid, lagres mobilens rader som FORSLAG på serveren (egen tabell), arbeideren varsles og velger selv — på telefonen eller på PC — pr. tidsrom eller for hele dagen; attestanten ser begge versjonene lesbart og kan ikke attestere før valget er tatt. Kenneth-vedtak 2026-10-04 (b · V19.4 ja · V19.5 blokkert). v4. Skrevet av fabel, gates av orkestrator.
 sist_verifisert_mot_kode: 2026-10-04
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 IMPLEMENTERT 2026-10-05 — V19-A `73fe99c0` · V19-B `8100fcc0` · V19-C `9d400c02` (A-6 purring utsatt, BACKLOG). Test: V19-A+B deployet `9145404b`; V19-C venter web-deploy · **§ 9 V19.9 (versjonssjekk pr. rad) 🟢 GATET 2026-10-06 (orkestrator) — ❌ IKKE IMPLEMENTERT; V19.9-A bestilt**
+status: 🟢 IMPLEMENTERT 2026-10-05 — V19-A `73fe99c0` · V19-B `8100fcc0` · V19-C `9d400c02` (A-6 purring utsatt, BACKLOG). Test: V19-A+B deployet `9145404b`; V19-C venter web-deploy · **§ 9 V19.9 (versjonssjekk pr. rad) 🟢 GATET 2026-10-06 (orkestrator) — 🟡 V19.9-A (server) LEVERT i `feat/v19-9a-versjonssjekk-server` (IKKE merget): klassifisering `apps/api/src/routes/timer/sync-versjon.ts`, `radInnholdLikt` `packages/shared/src/utils/radInnhold.ts`, paring/valg `forsonValg.ts`, migrering `20261006120000_v19_9_forslag_grunn`. V19.9-B (mobil+web) + V19.9-H (hode) IKKE STARTET**
 ---
 
 # V19 — overlapp PC ↔ mobil på samme dag: forslaget lagres på serveren, arbeideren velger

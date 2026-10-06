@@ -75,6 +75,14 @@ function lagCtx() {
       }),
     },
     sheetTimer: {
+      // V19.9: ny sedel → ingen serverrader (findMany før skriving = []). Read-back
+      // etter createMany (V19.9.8) returnerer de skrevne radenes versjoner.
+      findMany: vi.fn(async () =>
+        sisteCreateMany.map((r) => ({
+          id: r.id as string,
+          updatedAt: new Date("2026-10-03T10:00:00Z"),
+        })),
+      ),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       createMany: vi.fn((args: { data: Record<string, unknown>[] }) => {
         sisteCreateMany = args.data;
