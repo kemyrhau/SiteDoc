@@ -80,7 +80,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/v19-9a-versjonssjekk-server` (ny) | 🟡 **Ordre skrevet 2026-10-06** — V19.9-A versjonssjekk pr. rad, server (`relay/inbox-dokgen-v19-9a-server.md`). Spec § 9 GATET `a5df7672`. V19-C merget `9d400c02` (venter web-deploy) |
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/v19-9a-versjonssjekk-server` `3fe391f5` | 🟡 **V19.9-A levert 2026-10-06, hos kontrollør.** Migrering `20261006120000_v19_9_forslag_grunn` (additiv) IKKE kjørt på test |
 | **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f`. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
 | **Funn** | redesign | `SiteDoc-redesign` | — (detached) | 🟢 **Ledig. Synk-fiks MERGET 2026-10-06 ← `cef84b94`** (rotårsak: nettkall uten tidsgrense hang → reentrancy-vakten låst for alltid → ingen synk etter 22:17). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 23s · mobil 204. 🔴 Venter web-deploy + OTA |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
