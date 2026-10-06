@@ -3,7 +3,7 @@ name: timer-pause-en-kilde-spec
 description: Spesifikasjon for V20 — pausen (matpause) på dagsseddelen får ÉN kilde, radens avkrysning, og hodet «Arbeidstid i dag» blir visning utledet av radene. Måler de tre uenige stedene pausen ligger i dag (radens skjulte fradrag, rad.pauseMin fra GPS, hodet = Σ rad), hva hodet faktisk driver, og gir A/B med anbefaling. Bærer også Kenneths to UI-funn 2026-10-06 som V21 (overtidsforslag ved manuell føring) og V22 (bekreft prosjekt/byggeplass ved direkte opprettelse).
 sist_verifisert_mot_kode: 2026-10-06
 eier: fabel (plan-eier) — orkestrator gater, Kenneth vedtar A/B
-status: ⚠️ UTKAST TIL GATE 2026-10-06 — ❌ IKKE IMPLEMENTERT. A/B ikke vedtatt av Kenneth
+status: ⚠️ TIL GATE (rev. 2, 2026-10-06 kveld) — ❌ IKKE IMPLEMENTERT. 🟢 Kenneth-vedtak 2026-10-06: V20 = B, V21 = ja, V22 = ja (på raden). PK4 omskrevet etter gate-AVVIK (syncBatch normaliserer, avviser aldri)
 ---
 
 # V20 — én kilde for pause, og hodet «Arbeidstid i dag» som visning
@@ -16,7 +16,7 @@ status: ⚠️ UTKAST TIL GATE 2026-10-06 — ❌ IKKE IMPLEMENTERT. A/B ikke ve
 ## 0. Hva V20 er, og ikke er
 
 V20 svarer på: **hvor bor pausen, hvem viser den, og hva betyr tallene i «Arbeidstid i dag»?** Den rører ikke norm (V16),
-reise (lag 1–2) eller overlapp/versjon (V19/V19.9). Den **stryker V19.9-H** (hode-konflikt) hvis B vedtas — se § 2.
+reise (lag 1–2) eller overlapp/versjon (V19/V19.9). Den **stryker V19.9-H** (hode-konflikt) — 🟢 vedtatt med B 2026-10-06, ført i V19.9-specen § 9.2/§ 9.7.
 
 ## 1. Målt utgangspunkt (2026-10-06, develop `b48a2e02`)
 
@@ -34,7 +34,9 @@ reise (lag 1–2) eller overlapp/versjon (V19/V19.9). Den **stryker V19.9-H** (h
 🔴 **P1 + P3 er rotet Kenneth så:** tre regnestykker med tre ulike `pauseMin` (firma-default, hodet, raden) på to klienter,
 og en avkrysning som bare speiler det tredje.
 
-## 2. A/B — Kenneth vedtar
+## 2. A/B — 🟢 VEDTATT B (Kenneth 2026-10-06, ordrett: *«B -> pausen utledes etter gjeldende regler "4" timer"»*)
+
+**Presisering i vedtaket:** pausen utledes etter **gjeldende firmaregler** — «Pause starter etter (timer)» (`standardPauseEtterTimer`, i dag 4), `standardPauseMin` og 5,5-timersterskelen. Ingen nye tall. Hva «4 timer» måles fra, står i PK5.
 
 | | **A — hodet eier pausen** | **B — radene eier pausen, hodet er visning** (anbefalt) |
 |---|---|---|
@@ -45,18 +47,18 @@ og en avkrysning som bare speiler det tredje.
 | V19.9-H | Må bygges (hode-konflikt PC↔mobil) | **Strykes**: det eneste hodefeltet med lønnsrelevans er borte; `startAt/endAt` er prefyll, sist skrevet vinner er akseptabelt |
 | Risiko | Mister per-rad-bærer → maskin-bucket-taket (P5c) og flerprosjekt-dager (hvilket prosjekt tar pausen?) mister presisjon | Backfill av web-rader (P3) må plassere bæreren riktig — styres av timetall-formelen (§ 4 PK8) |
 
-**Anbefaling: B.** Begrunnelse: lønn og overtid leser allerede radene, ikke hodet (P5); radene er det eneste nivået
+**Vedtatt: B.** Begrunnelsen som lå til grunn: lønn og overtid leser allerede radene, ikke hodet (P5); radene er det eneste nivået
 der «hvilket prosjekt bar pausen» finnes; og Kenneths krav er en *tilstand* pr. rad, som bare B kan vise ærlig.
 
-## 3. Reglene (gjelder ved B)
+## 3. Reglene
 
 | # | Regel | Lukker |
 |---|---|---|
 | **PK1** | 🔴 **Én formel, radens egen pause:** `rad.timer = effektiveTimerFraSpenn(fra, til, pauseFra, rad.pauseMin)`. `rad.pauseMin = 0` → fullt spenn, ingenting skjult; `rad.pauseMin = firmaets standardPauseMin` → bæreren. Mobil, web og server bruker samme delte kall med **radens** verdi — aldri firma-default, aldri hodet | P1, P3 |
 | **PK2** | **Bæreren tildeles automatisk, synlig:** ny manuell rad (mobil OG web) får `pauseMin = standardPauseMin` **hvis** regelen trigger (dagsbrutto inkl. den nye raden > 5,5 t), raden krysser pausevinduet, og ingen annen rad alt bærer — ellers 0. Avkrysningen viser tilstanden og kan flyttes (`flyttMatpauseVedAvhuking`, kun-én-pr.-dag består). Dette er `fix/matpause-avkrysning` gjort til regel | Kenneth-vedtak |
 | **PK3** | **Web får avkrysningen** i rad-dialogen (samme regel som mobil, samme tekst «Matpause trukket (30 min)»), og `tilfoyTimerRad`/`oppdaterTimerRad`/`redigerSedelRader` får `pauseMin: z.number().int().min(0).optional()` → skrives på raden. `forsonDagskort.oppdateringer/nyeRader` likeså | P3 |
-| **PK4** | 🔴 **Server-vakt på timetallet:** når `fraTid`+`tilTid` er satt, avvises skriving der `|timer − effektiveTimerFraSpenn(fra, til, pauseFra, rad.pauseMin)| > 0,01` (alle radskrivere: tilfoy/oppdater/rediger/syncBatch/forson) — samme vakt mobilen alt har lokalt (`timer.feil.timerAvvik`). Pausevinduet (`pauseFra`) utledes server-side av PK5. *Toleranse for tidsrunding (T.5): rundingen skjer på fra/til før formelen, ikke på resultatet — ingen ekstra slack* | P1 |
-| **PK5** | **Pausevinduet følger V6 overalt:** én delt `pauseVinduForDag(rader, effektiv)` i shared: `pauseReferanse = "fastStart"` → `effektiv.startTid + pauseEtterTimer`; `"ankomst"` → første rad-`fraTid` på dagen + `pauseEtterTimer`. Mobil manuell rad, web og server bruker den (i dag bruker manuell rad alltid fastStart, P6) | P6, V6 |
+| **PK4** | 🔴 **Server-vakt på timetallet — to modi (rev. 2 etter gate-AVVIK):** gjelder rader med `fraTid`+`tilTid` på en **timebasert** lønnsart (`satsEnhet` ∈ {`per_time`, null}; `per_km`/`per_dag`/`per_natt` og andre sats-arter vurderes aldri mot spennet — en km-rad med tider er km, ikke timer). Forventet = `effektiveTimerFraSpenn(fra, til, pauseFra, rad.pauseMin)`, `pauseFra` fra PK5, toleranse 0,01. **(a) Interaktive skrivere** (`tilfoyTimerRad`, `oppdaterTimerRad`, `redigerSedelRader`, `forsonDagskort`): avvik → **avvis** med `timer.feil.timerAvvik` — en bruker står og ser feilen. **(b) `syncBatch`: aldri avvisning, normalisering.** Rekkefølge pr. rad: (1) stemmer `timer` med formelen gitt `rad.pauseMin` → skriv · (2) `rad.pauseMin = 0` (eller mangler) og `timer` stemmer med formelen gitt `standardPauseMin` → **sett raden som bærer** (`pauseMin = standardPauseMin`) hvis ingen annen rad på dagen alt bærer, ellers skriv som den er og tell — det er PK8s bevis anvendt i sanntid, og det er veien alle eksisterende manuelle mobilrader (P1) og eldre apper tar inn · (3) stemmer med ingen → **godta som før** (status quo), `tell + logg` (`timer_avvik_sync`), og sett `SheetTimer.timerAvvik = true` (ny nullable boolean, additiv; attestanten ser «Timer stemmer ikke med fra–til» på raden, samme mønster som `reiseAvvik` fra lag 2). **Reiserader (V8):** vinduet bygges som `start + kjøretid` / `slutt − kjøretid` og `timer = round(kjøretid/60, 2)` (`dagsforslag.ts:828-846`) → spennet er eksakt kjøretiden, `pauseMin = 0` → formelen gir samme tall; målt: ingen unntak trengs, men test 14 i § 5 vokter det | P1, gate 2026-10-06 |
+| **PK5** | **Pausevinduet følger V6 overalt:** én delt `pauseVinduForDag(rader, effektiv)` i shared: `pauseReferanse = "fastStart"` → `effektiv.startTid + pauseEtterTimer`; `"ankomst"` → første rad-`fraTid` på dagen + `pauseEtterTimer`. Mobil manuell rad, web og server bruker den (i dag bruker manuell rad alltid fastStart, P6). **Kenneths «4 timer» betyr dermed:** *4 timer etter ankomst* når firmaet står på «Ankomst» (Kenneths firma gjør det), *4 timer etter fast start* ellers. **Målt mot innstillingsteksten:** hjelpeteksten til «Pause starter etter (timer)» sier *«Hvor mange timer inn i skiftet pausen starter. F.eks. 4 t → 07:00-start gir pause 11:00»* (`nb.json:1854`) — den beskriver bare fast start; «Pausen starter fra»-hjelpen (`nb.json:1870`) sier riktig at «Ankomst» regner fra når arbeidet begynner. Koden: GPS-forslaget følger `pauseReferanse` (`dagsforslag.ts:757`), manuell rad gjør det **ikke** (`TimerSeksjon.tsx:1053-1060`). V20-W retter hjelpeteksten («… etter ankomst eller fast start, avhengig av «Pausen starter fra»»), V20-M retter manuell rad | P6, V6, Kenneth-presisering |
 | **PK6** | **Hodet `pauseMin` = Σ rad.pauseMin, utledet server-side** etter hver radskriving (én helper `synkroniserHodePause(tx, sheetId)` i samme tx) og speilet til mobil ved pull. **Ingen klient skriver det direkte**: web-dialogen mister pause-feltet; `syncBatch` ignorerer payloadens `hodet.pauseMin` (bakoverkompatibelt: eldre app sender det, serveren regner selv). Maskin-bucket-taket (P5c) leser videre `sheet.pauseMin` — nå alltid lik Σ rad. **Invariant-test (stille tomhet c):** `hodet.pauseMin ≠ Σ rad.pauseMin` etter noen mutasjon → FEIL | P4, P5c |
 | **PK7** | **«Arbeidstid i dag» blir visning:** med rader med tid viser den `første fraTid – siste tilTid · Σ pause · netto Σ timer`, utledet av radene (delt `utledArbeidstidFraRader`), og teksten «Forhåndsutfylt fra firmaets standardtider — … » erstattes med «Utledet av radene under». Uten rader viser den **rammen** (`startAt/endAt` fra stempling/norm) som prefyll-hint. «Brukes for å beregne overtid» fjernes (usann). `startAt/endAt` beholdes som ramme (stempel + `opprettForsteTimerRadForslag` + web-defaults) og `sluttTidKilde` som glemt-dag-merke — begge uendret | P5 |
 | **PK8** | 🔴 **Backfill (stille tomhet a):** for hver sedel med `hodet.pauseMin > 0 ∧ Σ rad.pauseMin = 0` (web-rader + mobile manuelle rader med skjult fradrag): velg bæreren som den raden med tid der `|rad.timer − effektiveTimerFraSpenn(fra, til, pauseFra, hodet.pauseMin)| ≤ 0,01` (timetallet beviser at fradraget alt ligger der); finnes flere, den som krysser vinduet; finnes ingen → **ikke rør**, tell og logg (`pause_backfill_uavklart`). Lønnstall endres ikke av backfillen (timer står). **Mål antall på test før ordren:** sedler totalt / med hodet>0 / Σ=0 / uavklart | P1, P3 |
@@ -76,7 +78,7 @@ der «hvilket prosjekt bar pausen» finnes; og Kenneths krav er en *tilstand* pr
 
 ## 5. Tester som skal FEILE (DoD)
 
-1. **Kenneths sak:** manuell rad 07:00–16:00 på mobil → `timer = 8,50` men `rad.pauseMin = 0` og avkrysning tom (skal: `pauseMin = 30`, huket, 8,50 — eller `pauseMin = 0` og 9,00; aldri 8,50 uhuket) · 2. web-rad 07–15 → `rad.pauseMin = 0` på server mens timetallet er 7,5 (skal: 30, PK3) · 3. server tar imot `timer` som ikke stemmer med spenn − overlapp(rad.pauseMin) (PK4, alle fem skrivere) · 4. `hodet.pauseMin ≠ Σ rad.pauseMin` etter tilfoy/oppdater/slett/syncBatch/forson (PK6) · 5. web «Rediger» sender `pauseMin` (skal: feltet finnes ikke) · 6. manuell rad på firma med `pauseReferanse = "ankomst"` bruker fastStart-vindu (PK5) · 7. to rader bærer pause samme dag (kun-én består) · 8. backfill endrer `rad.timer` på noen rad (skal: aldri) · 9. backfill setter bærer på en rad der timetallet ikke beviser fradraget (skal: uavklart, telt) · 10. «Arbeidstid i dag» viser rammen når rader med tid finnes (skal: utledet) · 11. `opprettForsteTimerRadForslag` leser `hodet.pauseMin` (skal: norm) · 12. grep-vakt: `effektiveTimerFraSpenn(` kalles med `standardPauseMin`/`sheet.pauseMin` som fjerde argument noe sted i klient- eller radskriver-kode (skal: kun `rad.pauseMin`).
+1. **Kenneths sak:** manuell rad 07:00–16:00 på mobil → `timer = 8,50` men `rad.pauseMin = 0` og avkrysning tom (skal: `pauseMin = 30`, huket, 8,50 — eller `pauseMin = 0` og 9,00; aldri 8,50 uhuket) · 2. web-rad 07–15 → `rad.pauseMin = 0` på server mens timetallet er 7,5 (skal: 30, PK3) · 3. server tar imot `timer` som ikke stemmer med spenn − overlapp(rad.pauseMin) (PK4, alle fem skrivere) · 4. `hodet.pauseMin ≠ Σ rad.pauseMin` etter tilfoy/oppdater/slett/syncBatch/forson (PK6) · 5. web «Rediger» sender `pauseMin` (skal: feltet finnes ikke) · 6. manuell rad på firma med `pauseReferanse = "ankomst"` bruker fastStart-vindu (PK5) · 7. to rader bærer pause samme dag (kun-én består) · 8. backfill endrer `rad.timer` på noen rad (skal: aldri) · 9. backfill setter bærer på en rad der timetallet ikke beviser fradraget (skal: uavklart, telt) · 10. «Arbeidstid i dag» viser rammen når rader med tid finnes (skal: utledet) · 11. `opprettForsteTimerRadForslag` leser `hodet.pauseMin` (skal: norm) · 12. grep-vakt: `effektiveTimerFraSpenn(` kalles med `standardPauseMin`/`sheet.pauseMin` som fjerde argument noe sted i klient- eller radskriver-kode (skal: kun `rad.pauseMin`) · **13. (gate a)** mobilrad med skjult fradrag (`pauseMin = 0`, `timer = spenn − 0,5`) synket → avvist eller skrevet uendret (skal: skrevet som **bærer**, `pauseMin = 30`, `timer` urørt, svar `ok`) · **14. (gate b)** rad på `per_km`-lønnsart med `fraTid/tilTid` og `timer = 60` → vurdert mot spennet (skal: ikke vurdert); reiserad V8 (`tidKilde = utledet`, vindu = kjøretid) → avvik (skal: stemmer, ingen normalisering) · **15. (gate c)** `oppdaterTimerRad` på web med `timer` ≠ formelen → skrevet (skal: avvist) · **16.** `syncBatch` med rad som stemmer med ingen av formlene → avvist (skal: skrevet, `timerAvvik = true`, telt) · **17.** `syncBatch` normaliserer til bærer når en annen rad alt bærer (skal: ikke to bærere — skriv uendret og tell).
 
 ## 6. Ordre (anbefaling)
 
@@ -89,14 +91,15 @@ Server først. Backfill-tellingen leveres som egen melding før migreringen skri
 
 ## 7. Åpne punkter
 
-1. **A/B** — Kenneth. Specen er skrevet for B; A krever omskriving av § 3.
+1. ~~A/B~~ — 🟢 **B vedtatt 2026-10-06.**
 2. **Flerprosjekt-dag og bæreren:** når pausen krysser et prosjektbytte (12:00 bytte, pause 11:30–12:00) bærer raden som
    dekker vinduet; krysser vinduet selve byttet, bærer **første** rad. Vedtak ønskes (lønn pr. prosjekt påvirkes ikke, bare
    hvilket prosjekt som «mister» 30 min).
-3. **V19.9-H strykes** ved B — føres i planen og V19.9-specen § 9.2 når A/B er tatt.
+3. ~~V19.9-H strykes~~ — 🟢 **strøket 2026-10-06** (planen + V19.9-specen § 9.2/§ 9.7 oppdatert i samme commit).
 4. **Backfill-telling** på test før V20-S skrives (PK8).
+5. **`SheetTimer.timerAvvik`** (PK4b-3) — ny nullable kolonne, additiv, ingen backfill (null = «ikke vurdert»/«stemmer»); test (c) = test 16. Gate om den er «billig nok» — alternativet er kun logg.
 
-## 8. Kenneths to UI-funn 2026-10-06 → V21 og V22 (egne vedtak, ikke del av V20-ordren)
+## 8. Kenneths to UI-funn 2026-10-06 → V21 og V22 — 🟢 VEDTATT (*«V21 ja, V22 ja -> vis registrert prosjekt og byggeplass på raden med små skrift»*). Egne små ordrer etter V20
 
 **V21 — overtidsforslag ved manuell føring** (*«ved timer over normal dag → ingen overtidsforslag i timeføringen → en ny
 linje etter at en passerer firmaets norm»*). Målt: GPS-dagsforslaget splitter normaltid/overtid strukturert
@@ -107,12 +110,18 @@ Timelønn 07:00–15:30 + Overtid 50 % 15:30–16:00?»* med én knapp. Deling v
 (samme regler som GPS: V1 reise aldri overtid, V4 kronologisk, siste prosjekt bærer). Delt helper `foreslaOvertidSplitt
 (rader, norm, lonnsarter)` i shared; mobil og web rendrer. Ingen auto-skriving — forslag, ett trykk. Finnes ingen
 overtid-lønnsart (`overtidsnivaa` null overalt) → ingen linje. **Lukker:** manuell føring står i dag uten overtidsvei;
-bare GPS-brukere får splitt.
+bare GPS-brukere får splitt. 🟢 **Vedtatt ja.**
 
-**V22 — bekreft prosjekt og byggeplass ved direkte opprettelse** (*«ingen informasjon/bekreftelse i registreringen at rett
+**V22 — prosjekt og byggeplass på RADEN med liten skrift (web-paritet)** (*«ingen informasjon/bekreftelse i registreringen at rett
 prosjekt/byggeplass er valgt»*). Målt: web bærer `?nyttProsjekt=` kun for å forhåndsåpne gruppa (`page.tsx:156, :239`);
 sedelens `byggeplassId` **rendres ikke** på web (0 treff utenom radtyper); mobil viser kortet «SD-… — prosjekt · Velg
-byggeplass» + notisen `timer.dagFinnes.notis`. Forslag: «Detaljer» får linjen **Prosjekt · Byggeplass** på begge klienter
-(fra `sheet.byggeplassId`/prosjekt-gruppen), med «Endre»; har prosjektet nøyaktig én byggeplass utledes den (ett-klikk-
-prinsippet), har det flere og ingen er valgt vises «Velg byggeplass» som i dag på mobil — også på web. Ingen ny tilstand;
-kun visning + eksisterende `oppdater(byggeplassId)`. **Lukker:** arbeideren ser hvor timene havner før «Send til leder».
+byggeplass» + notisen `timer.dagFinnes.notis`. 🟢 **Kenneth: ikke i «Detaljer» — på raden, liten skrift.** **Målt mobil:** sekundærlinja «Prosjekt · Byggeplass»
+under hver rad finnes alt (`ByggeplassLinjeTekst`, `TimerSeksjon.tsx:934-962`, grå ~12 px): prosjekt = `rad.projectId ??
+gruppens`, byggeplass = **`rad.byggeplassId ?? sedelens`** — arvet fra sedelen vises nedtonet med «(fra dagskortet)»,
+mangler begge: «Ingen byggeplass valgt». Hele linja er trykkflate til prosjekt+byggeplass-velgeren (F3). **Web
+(`RaderTimer`, `page.tsx:1356-1420`)** viser lønnsart, aktivitet og fra–til — **ikke** prosjekt (det står bare som
+gruppeoverskrift) og **ikke** byggeplass. **V22 = paritet på web:** samme sekundærlinje under raden (`text-xs
+text-gray-500`): «Prosjekt · Byggeplass», byggeplass fra `rad.byggeplassId ?? sheet.byggeplassId` med samme
+arvet-markering, klikk åpner rad-dialogen med byggeplass-feltet; har prosjektet nøyaktig én byggeplass utledes den
+ved ny rad (ett-klikk-prinsippet) på begge klienter. Ingen ny tilstand. **Lukker:** arbeideren ser hvor timene havner
+før «Send til leder», også på PC.
