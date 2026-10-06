@@ -61,6 +61,14 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Standalone-prosjekter** (uten firma): `TimerSyncProvider` cacher kun firmaprosjekter → Hjem viser feilside offline.
 **Ikke bestilt.** Egen offline-runde hvis piloten trenger dem.
 
+### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
+
+(1) radens timetall (skjult fradrag, `TimerSeksjon.tsx:1043-1060`) · (2) `rad.pauseMin` = avkrysningen, settes kun av GPS
+(`dagsforslag.ts:785-799`) · (3) hodet = Σ rad (`matpause.ts:135-175`). Web regner fra hodet (`page.tsx:1694-1699`) → mobil/web ulike.
+Hodet `startAt/endAt/pauseMin` driver ikke lønn/overtid/norm/eksport (kun forslag + første auto-rad + glemt-dag). UI-tekst
+«Brukes for å beregne overtid» er feil. 🟢 **Kenneth 2026-10-06:** *«avhukingen skal vise tilstanden også for manuell føring»*
+(→ `fix/matpause-avkrysning`). «Én kilde for pause» + hodet som visning: **hos fabel for spec; A/B ikke vedtatt.**
+
 ### 🟡 REDIGERING MENS SEDELEN STÅR I KONFLIKT GÅR TAPT VED SLIPP (arvet fra V19, ført av fabel i V19.9 § 9.7.2, 2026-10-06)
 
 Lokale rader redigert *mens* sedelen står i `conflict` erstattes av serverens når V19.7b-slippet skjer (valget tatt på PC).
