@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { type PrismaClient, Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
-import { faseFraHeadingLabel, reportObjectTypeSchema, templateZoneSchema } from "@sitedoc/shared";
+import { faseFraHeadingLabel, reportObjectTypeSchema, templateZoneSchema, prefiksFraReferanse } from "@sitedoc/shared";
 import { finnLedigeMalVerdier } from "./mal";
 import { kopierObjektTre } from "./objektkopi";
 
@@ -172,7 +172,7 @@ export const bibliotekRouter = router({
         input.projectId,
         bibMal.kategori,
         bibMal.navn,
-        bibMal.referanse.split(/[\s\/]/)[0] ?? null,
+        prefiksFraReferanse(bibMal.referanse),
       );
 
       // Opprett ReportTemplate (SjekklisteMal)

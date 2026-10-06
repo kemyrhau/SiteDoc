@@ -7,9 +7,11 @@ import { hentDatabase } from "../db/database";
 import { arbeidsdagLocal } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useFirma } from "../kontekst/FirmaKontekst";
-import { haversineKm } from "../utils/geo";
+import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
+import { hentOgCacheArbeidstidSvar } from "../services/arbeidstidSvarKatalog";
+import { trpc } from "../lib/trpc";
 
 /**
  * Delt arbeidsdag-tilstand for BÅDE «Start dag»-kortet (StartSluttDagKort, på
@@ -67,6 +69,11 @@ export async function fangGps(): Promise<{
  * Nærmeste oppmøtested innenfor sin geofence-radius. Returnerer null hvis
  * ingen treff (da brukes prosjekt-deteksjon / manuell flyt som før).
  * KUN dokumentasjon + forslag — aldri lønnsgrunnlag.
+ * Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
+ * arbeider-valg (`aktivtProsjektId`) går foran.
+ *
+ * Tynn kaller av A2 (`gjenkjennSted`, LAG 1-A): kalleren filtrerer bort
+ * kandidater uten komplett geofence; funksjonen gir nærmeste innenfor radius.
  */
 function identifiserOppmotested(
   lat: number | null,
@@ -74,21 +81,23 @@ function identifiserOppmotested(
   orgId: string,
 ): { id: string; navn: string } | null {
   if (lat == null || lng == null || !orgId) return null;
-  let beste: { id: string; navn: string } | null = null;
-  let besteM = Infinity;
-  for (const s of hentOppmotederLokalt(orgId)) {
-    const meter = haversineKm(lat, lng, s.lat, s.lng) * 1000;
-    if (meter <= s.radiusM && meter < besteM) {
-      besteM = meter;
-      beste = { id: s.id, navn: s.navn };
-    }
-  }
-  return beste;
+  // V17-A: oppmøtested forblir SIRKEL (spec C-2) — bygges via tilGeofencer med
+  // `soner: []`, så det får Sirkel-formen men aldri soner. Radius-null-filteret
+  // er borte. Treffet mappes tilbake til raden for navnet.
+  const rader = hentOppmotederLokalt(orgId);
+  const kandidater = rader.flatMap((s) =>
+    tilGeofencer({ id: s.id, lat: s.lat, lng: s.lng, radiusM: s.radiusM, soner: [] }),
+  );
+  const treff = gjenkjennSted({ lat, lng }, kandidater);
+  if (!treff) return null;
+  const rad = rader.find((s) => s.id === treff.sted.id);
+  return { id: treff.sted.id, navn: rad?.navn ?? "" };
 }
 
 export function useArbeidsdag() {
   const { bruker } = useAuth();
   const { valgtFirmaId } = useFirma();
+  const utils = trpc.useUtils();
 
   const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
   const [behandler, setBehandler] = useState(false);
@@ -140,6 +149,8 @@ export function useArbeidsdag() {
       if (!db) return;
       // GPS-identifiser oppmøtested + byggeplass (dokumentasjon + forslag, aldri
       // lønn/reise/prosjektvalg). L1: byggeplass speiler oppmøtested-mønsteret.
+      // Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
+      // arbeider-valg (`aktivtProsjektId`) går foran.
       const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
       const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();
@@ -174,10 +185,20 @@ export function useArbeidsdag() {
         byggeplassId: bygg?.id ?? null,
         byggeplassNavn: bygg?.navn ?? null,
       });
+      // B6 v3: forhåndshent dagens norm-svar mens nett sannsynligvis finnes
+      // (arbeider starter typisk på/ved oppmøtested). Da har «Slutt dag» svaret
+      // i cache selv om nettet er borte da. Best-effort.
+      if (valgtFirmaId) {
+        void hentOgCacheArbeidstidSvar(
+          utils.client,
+          valgtFirmaId,
+          formatIsoDato(new Date()),
+        );
+      }
     } finally {
       setBehandler(false);
     }
-  }, [bruker?.id, behandler, valgtFirmaId]);
+  }, [bruker?.id, behandler, valgtFirmaId, utils]);
 
   return { aktivDag, startDag, behandler, setBehandler, refresh };
 }

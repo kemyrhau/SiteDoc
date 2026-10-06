@@ -1,6 +1,6 @@
 ---
 tittel: MK C — konverteringslista for de 34 trafikklysene (fase 1: beslutningsgrunnlag)
-status: 🟡 TIL FABEL-GATE
+status: 🟢 DESIGNGATET 2026-09-26 — fase 2 kan bestilles. Ett tillegg: se § 7
 opprettet: 2026-09-11
 forfatter: kontrollplan (MK C)
 gjelder: packages/db/prisma/seed-bibliotek.ts
@@ -215,6 +215,97 @@ grensefeltet (`FeltKonfigurasjon.tsx:539-542`).
 🟢 **Ingen av mine 8 `list_single`-forslag er styrende for et nedstrøms grensefelt** — jeg
 foreslår ingen betingede grenser (Vei B) i denne batchen. Rekkefølge-regelen binder derfor
 ingen av forslagene, og det oppstår ingen `sortOrder`-konflikt. Punktet er ikke-utløst her.
+
+---
+
+## 7. 🟢 DESIGNGATE 2026-09-26 — godkjent, med ett tillegg
+
+**Gatet av design.** 🟢 **Fordelingen 0 / 8 / 26 er riktig, og begrunnelsene holder.**
+
+### Det som gjør lista sterk
+
+🔴 **Hovedfunnet motsier premisset i fabels eget notat — og det er riktig gjort.** Antakelsen om at kriteriet
+flytter en andel til «tall + grense» gjelder ikke denne batchen, **fordi seedforfatteren alt hadde trukket ut
+alt målbart i egne `desimal()`-felt.** ⚠️ **Å måle premisset og melde at det ikke holder, er mer verdt enn å
+levere tallet noen ventet.**
+
+🟢 **Og skillet mellom `L` og `T` er den riktige lesningen av kriteriet.** Design vurderte å utfordre de 13
+binære — «burde de ikke vært `list_single`?» — **og fant svaret alt gitt: «binær godkjenning — `list_single`
+gir kun farge-synonymer».** **Navngivning må gi informasjon fargene ikke gir.** De 8 `L`-ene er nettopp de med
+en tredje navngitt tilstand: «delvis (suppleres)», «Ikke nødvendig», «vannes vs returneres».
+
+🟢 **Kant 4.1 er riktig avgjort:** `:353` er en FØR-kvittering, og det faktiske profilavviket måles alt i
+`:383`. **Å splitte den i tre tallfelt ville duplisert en måling som finnes nedstrøms.**
+
+🟢 **Og 4.2–4.4 avvæpner seg selv:** 0 tall+grense betyr at `integer`-unionen ikke trengs, at ingen
+grense-config kreves, og at rekkefølgeregelen for betingede grenser ikke utløses. **Tre antatte hindringer,
+alle målt bort.**
+
+### 🔴 Tillegget: trafikklysets MIDTERSTE tilstand er udefinert
+
+**26 felt beholder et tre-tilstands-kontrollelement der bare to tilstander er navngitt i etiketten.**
+
+**«Vannet etter legging/såing» (`:241`) — hva betyr GUL?** I praksis «vannet, men ikke tilstrekkelig». **Men
+det står ingen steder.** ⚠️ **En utfyller i felt vet ikke når gul er riktig valg, og to personer vil bruke den
+ulikt.**
+
+🔴 **Det undergraver ikke konverteringen — det undergraver dokumentasjonsverdien av de 26 vi beholder.**
+**Et gult felt som ingen vet betydningen av, er ikke etterprøvbart i et sluttoppgjør.**
+
+**Design anbefaler en HUSKONVENSJON framfor 26 egne definisjoner:**
+
+| Farge | Betydning |
+|---|---|
+| 🟢 Grønn | Utført/godkjent som beskrevet |
+| 🟡 Gul | **Utført med merknad** — avvik som ikke stopper videre arbeid. **Krever kommentar** |
+| 🔴 Rød | Ikke utført, eller avvik som stopper arbeidet. **Krever kommentar** |
+
+⚠️ **Egen sak, ikke en betingelse for fase 2.** **Men den bør bestilles før de 26 blir stående som «avgjort».**
+
+---
+
+## 7. 🔴 GATEN ER TRUKKET 2026-09-26 — grunnlaget hadde driftet i 15 dager
+
+**Design gatet denne lista 2026-09-26 og TREKKER gaten samme dag.** **Ingen skal bygge fase 2 fra den.**
+
+### Hva som var galt
+
+**Kontrollplan målte mot kode før bygging — som arbeidsformen krever — og fant at grunnlaget hadde driftet:**
+
+| Akse | Lista sier | Målt 2026-09-26 |
+|---|---|---|
+| Antall trafikklys | 34 | 🔴 **47** |
+| `list_single`-konverteringer | 8 | 🔴 **2** — kun `KA7:1068` og `FD3:1142` |
+| Malkoder | FB2 · FC1 · FE1 · FD2 | 🔴 **Omkodet:** FB2→FD1 · FC1→FH1 · FE1→FS3 · gammel FD2→FS2. **Dagens FD2 er en ny grøft-mal** |
+
+**Tre av de åtte er alt konvertert i senere runder. Tre er borte eller flyttet.**
+
+### 🔴 Og feilen er designs, ikke listas
+
+**Lista bar sin egen datering i frontmatteret: `sist_verifisert_mot_kode: 2026-09-11`.**
+
+🔴 **Design leste forbi den og gatet 15 dager gammelt grunnlag uten å måle om radene fortsatt fantes.**
+⚠️ **Det er den samme feilklassen design har gatet ANDRE på gjennom hele uka: rapporten er input, ikke fasit
+— mål premisset selv.** **Lista var ærlig; lesningen var det ikke.**
+
+### 🔴 Og en støttemåling i gaten var også feil
+
+Gaten hevdet at `gray` («Ikke relevant») aldri rendres, og brukte det til å bekrefte
+`list_single`-begrunnelsene. **Målt på nytt: `TrafikklysObjekt.tsx` finnes i BÅDE web og mobil, og begge
+rendrer grå.**
+
+⚠️ **Design målte i `RapportObjektVisning.tsx` og `RapportObjektRenderer.tsx` — men aldri i selve
+kontrollelementet.** 🔴 **En måling i feil fil er ikke en svakere måling. Den er en gjetning med
+kildehenvisning.**
+
+### Hva som skjer nå
+
+🟢 **Kriteriet i § 1 står** — det er fabels, det er gatet, og det er ikke rørt av driften.
+🟢 **Metoden i § 2–4 står som mønster** for hvordan en fase-1-måling skal se ut.
+🔴 **Tallene og radene i § 3 er ugyldige.** **Kontrollplan leverer fersk fase-1-måling av de 47.**
+
+⚠️ **Og kant 4.2–4.4 må vurderes på nytt** — de avvæpnet seg selv fordi 0 tall+grense, og det tallet kom fra
+et utdatert utvalg.
 
 ---
 

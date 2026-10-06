@@ -8,7 +8,8 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -86,6 +87,12 @@ export interface UseOppgaveSkjemaResultat {
   rettighet: DokumentRettighet;
   lagreStatus: LagreStatus;
   synkStatus: SynkStatus;
+  /** Offline-lesing fase 2: rendrer fra speilet (query offline/feilet), tvungen lesemodus. */
+  offlineModus: boolean;
+  /** Unix ms da speilet ble hentet — «viser lagret versjon fra {tid}». null online. */
+  offlineHentetVed: number | null;
+  /** Offline/feilet OG dokumentet er ikke i speilet → vis «ikke lastet ned», ikke spinner. */
+  offlineIkkeLastet: boolean;
 }
 
 const REDIGERBARE_STATUSER = new Set(["draft", "received", "in_progress"]);
@@ -193,6 +200,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
   const { bruker } = useAuth();
+  const userId = bruker?.id;
 
   // tRPC utils for å invalidere query-cache etter lagring
   const utils = trpc.useUtils();
@@ -203,14 +211,56 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     { enabled: !!oppgaveId },
   );
 
-  // Cast for å unngå TS2589
-  const oppgave = oppgaveQuery.data as UseOppgaveSkjemaResultat["oppgave"] & {
+  type OppgaveData = UseOppgaveSkjemaResultat["oppgave"] & {
     data: Record<string, unknown> | null;
     drawingId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
     bestillerFaggruppeId?: string;
-  } | undefined;
+  };
+
+  // Cast for å unngå TS2589
+  const serverOppgave = oppgaveQuery.data as OppgaveData | undefined;
+
+  // Offline-LESING fase 2: write-through — hver gang query lykkes MED nett, speil
+  // svaret (signaturer strippes i tjenesten). Ingen ekstra nettkall.
+  useEffect(() => {
+    if (oppgaveQuery.isSuccess && oppgaveQuery.data && userId) {
+      // projectId ligger nested (`bestillerFaggruppe.projectId`, HMS-fallback `template.projectId`),
+      // ikke top-level — samme serversti som tilgangssjekkens `hentProsjektId`. Uten dette lagres
+      // speilet med tom scope og per-prosjekt-tellingen ser det aldri. Feltfunn 2026-10-04.
+      const d = oppgaveQuery.data as { id?: string; bestillerFaggruppe?: { projectId?: string } | null; template?: { projectId?: string } | null };
+      if (d.id) lagreDokumentSpeil("oppgave", d.id, d.bestillerFaggruppe?.projectId ?? d.template?.projectId ?? "", userId, oppgaveQuery.data);
+    }
+    // `dataUpdatedAt` (primitiv) i stedet for `oppgaveQuery.data` i deps: den dype
+    // tRPC-typen i deps-arrayen trigger TS2589, og tidsstempelet er en bedre trigger.
+  }, [oppgaveQuery.isSuccess, oppgaveQuery.dataUpdatedAt, userId]);
+
+  // Offline-fallback: uten bekreftet server-svar, les speilet (bruker-filtrert).
+  const speil = useMemo(
+    () =>
+      !oppgaveQuery.isSuccess && userId
+        ? hentDokumentSpeil("oppgave", oppgaveId, userId)
+        : null,
+    [oppgaveQuery.isSuccess, oppgaveId, userId],
+  );
+
+  // Visningskilde via den delte predikaten. 🔴 AVVIK Q5: online-venting gir IKKE
+  // offline-modus — skjermen spinner, online-atferd uendret.
+  const { offlineModus, offlineIkkeLastet } = velgDokumentVisning({
+    erPaaNettet,
+    serverBekreftet: oppgaveQuery.isSuccess,
+    erFeilet: oppgaveQuery.isError,
+    erPauset: oppgaveQuery.fetchStatus === "paused",
+    harSpeil: !!speil,
+  });
+
+  // Effektiv data: server når bekreftet, ellers speilet i tvungen lesemodus.
+  const oppgave: OppgaveData | undefined = oppgaveQuery.isSuccess
+    ? serverOppgave
+    : offlineModus
+      ? (speil!.dokument as OppgaveData)
+      : undefined;
 
   const alleObjekter = useMemo(
     () => (oppgave?.template?.objects ?? []) as RapportObjekt[],
@@ -665,7 +715,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     });
   }, [oppgave, rettighetInput]);
 
-  const erRedigerbar = rettighet !== "leser";
+  // Tvungen lesemodus offline — aldri redigerbar fra speilet, uansett rettighet (LES-vedtaket).
+  const erRedigerbar = !offlineModus && rettighet !== "leser";
 
   return {
     oppgave: oppgave
@@ -683,7 +734,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           checklist: oppgave.checklist,
         }
       : undefined,
-    erLaster: oppgaveQuery.isLoading,
+    // Spinner kun mens vi faktisk venter online uten speil (ellers evig spinner uten nett).
+    erLaster: oppgaveQuery.isLoading && !offlineModus && !offlineIkkeLastet,
     hentFeltVerdi,
     hentTilfoyelser,
     sisteKollisjoner,
@@ -705,5 +757,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     rettighet,
     lagreStatus,
     synkStatus,
+    offlineModus,
+    offlineHentetVed: speil?.hentetVed ?? null,
+    offlineIkkeLastet,
   };
 }

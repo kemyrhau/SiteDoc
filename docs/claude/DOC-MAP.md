@@ -13,6 +13,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Ny arkitektur-/designbeslutning | `fase-0-beslutninger.md` |
 | Feature deployet til prod | `STATUS.md` (prod-deploys) + `historikk-YYYY-MM.md` — fjernes fra STATUS-AKTUELT.md |
 | PR merget til develop | `STATUS-AKTUELT.md` § Pågående arbeid (maks 3 aktive) |
+| 🔴 **Merge endret noe brukeren SER, KLIKKER eller LESER** | `FUNKSJONSENDRINGER.md` — føres av cowork **ved merge**, aldri i ettertid. To seksjoner: funksjonsendring (krevde hjemmel fra Kenneth **før** ordren ble sendt) eller reparasjon med synlig virkning (til orientering). **Klassifisering + smutthull-guard: [SAMARBEIDSREGLER § LUKKER HULL vs ENDRER FUNKSJON](SAMARBEIDSREGLER.md)** |
 | Ny planlagt/deprioritert oppgave | `BACKLOG.md` (ikke STATUS-AKTUELT.md) |
 | Halvferdig feature parkeres | `BACKLOG.md` |
 | Ny prosess-/arbeidsregel | `CLAUDE.md` |

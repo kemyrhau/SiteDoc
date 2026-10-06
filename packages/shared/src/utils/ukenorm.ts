@@ -34,6 +34,22 @@ export interface UkenormResultat {
   perDag: UkenormDag[];
 }
 
+/**
+ * Mandagens ISO-dato (YYYY-MM-DD, UTC) for uken en dato faller i. Delt uke-
+ * nøkkel for klient-gruppering (attestantvarselet grupperer sedler pr. uke).
+ * Godtar Date eller ISO-streng; tidssone-nøytral (UTC-kalenderdato).
+ */
+export function mandagIso(dato: Date | string): string {
+  const d = typeof dato === "string" ? new Date(dato) : dato;
+  const u = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+  );
+  const dag = u.getUTCDay(); // 0=søndag, 1=mandag
+  const diff = dag === 0 ? -6 : 1 - dag;
+  u.setUTCDate(u.getUTCDate() + diff);
+  return u.toISOString().slice(0, 10);
+}
+
 /** Legg `n` dager til en ISO-dato (YYYY-MM-DD) i UTC. Ren, tidssone-nøytral. */
 function leggTilDager(isoDato: string, n: number): string {
   const [aar, mnd, dag] = isoDato.split("-").map(Number);

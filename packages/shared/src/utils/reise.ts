@@ -19,6 +19,55 @@
 
 export type ReiseKategori = "arbeidstid" | "reisetid";
 
+// ──────────────────────────────────────────────────────────────────────────
+//  LAG 2 — reise-sporet som følger raden (felt-typer delt av server + L2-B/L2-C).
+//  Verdiene speiler db-timer-kolonnene; de bor her så web, mobil og api aldri
+//  divergerer på hva «ut»/«matrise»/«utledet» betyr.
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Etappens retning. Lag 4 utvider med "mellom" (mellometapper). */
+export type ReiseRetning = "ut" | "retur";
+
+/** Hvor reise-tallene (kjøretid/avstand) kom fra. */
+export type ReiseKilde = "matrise" | "manuell";
+
+/**
+ * V8 tidskilde på en rad. "utledet" = vindu fra GPS ± matrise (ser målt ut, er
+ * det ikke) · "stempel" = ekte ankomst (lag 4) · "manuell" = arbeider satte tiden.
+ */
+export type TidKilde = "stempel" | "utledet" | "manuell";
+
+/**
+ * Lønnsnormens kilde-status på en sedel (B6.3). "server" = frisk norm fra API ·
+ * "cachet" = siste kjente svar · "ukjent" = ingen norm (overtid ikke fordelt).
+ */
+export type NormStatus = "server" | "cachet" | "ukjent";
+
+/**
+ * Snapshot av reise-regelen slik den var da raden ble laget (db-timer
+ * SheetTimer.reiseRegel). Json i basen; eksporten trenger kun `kategori`.
+ */
+export interface ReiseRegelSnapshot {
+  enhet: ReiseEnhet;
+  terskelMin: number;
+  terskelM: number | null;
+  underType: ReiseKategori;
+  overType: ReiseKategori;
+  kategori: ReiseKategori;
+  /** true når en grensepunkt-art (avstandsbånd) avgjorde lønnsarten. */
+  grensepunktTreff: boolean;
+}
+
+/**
+ * Normens snapshot på en sedel (db-timer DailySheet.normSnapshot). Json i basen.
+ */
+export interface NormSnapshot {
+  dagsnorm: number;
+  normKilde: string;
+  dato: string;
+  hentetAt: string;
+}
+
 /**
  * Enheten firmaets reise-terskel måles i. "minutter" = klassisk tid-terskel
  * (default, uendret oppførsel); "km" = avstands-terskel (A.Markussen-krav
@@ -36,6 +85,51 @@ export type ReiseEnhet = "minutter" | "km";
  * tvetydighet håndteres i stedet med et varsel + eksplisitt valg (firma-admin).
  */
 export const REISE_LONNSART_REGEX = /reise|transport/i;
+
+/**
+ * Firmaets kontekst for å avgjøre om en lønnsart ER en reise-art (LAG 2).
+ * Speiler backfill-SQL-ens to grener: konfigurert art (reiseLonnsartId ∪
+ * grensepunkt-arter) + navne-match (kun når reiseLonnsartId mangler).
+ */
+export interface ErReiseKontekst {
+  /** OrganizationSetting.reiseLonnsartId (null = ikke konfigurert). */
+  reiseLonnsartId: string | null;
+  /** Ikke-null lonnsartId-er fra OrganizationReiseGrense (grensepunkt-artene). */
+  grensepunktLonnsartIds: string[];
+}
+
+/**
+ * Avgjør om en timer-rad er en reise ut fra lønnsarten — ÉN definisjon delt av
+ * backfill-SQL (migreringen) og alle serverens skrivestier (dagsseddel.ts). Uten
+ * delt kilde ville SQL og TS kunne drifte uten at noen test fanger det.
+ *
+ * Reglen SPEILER dagens leser (M3), ikke en ny gjetning:
+ *   1. lønnsarten er firmaets konfigurerte reise-art, ELLER
+ *   2. lønnsarten er en grensepunkt-art (avstandsbånd), ELLER
+ *   3. KUN når firmaet IKKE har konfigurert reiseLonnsartId: navnet matcher
+ *      REISE_LONNSART_REGEX (arver dagens falske positive — derfor gatet på
+ *      «ingen konfigurert art», og backfill-tallet leses før prod).
+ *
+ * 🔴 Dette er leser-regelen frosset til et EKSPLISITT flagg — etter lag 2 skal
+ * ingen leser gjette reise fra lønnsart/regex på nytt.
+ */
+export function erReiseLonnsart(
+  lonnsartId: string,
+  lonnsartNavn: string,
+  ktx: ErReiseKontekst,
+): boolean {
+  if (ktx.reiseLonnsartId != null && lonnsartId === ktx.reiseLonnsartId) {
+    return true;
+  }
+  if (ktx.grensepunktLonnsartIds.includes(lonnsartId)) {
+    return true;
+  }
+  // Navne-match KUN for firmaer uten konfigurert reise-art (reise.ts:30-38).
+  if (ktx.reiseLonnsartId == null && REISE_LONNSART_REGEX.test(lonnsartNavn)) {
+    return true;
+  }
+  return false;
+}
 
 export interface ReiseRegelsett {
   /**
@@ -141,32 +235,47 @@ export function løsReiseLonnsartId(
   grensepunkter: ReiseGrensepunkt[],
   fallbackLonnsartId: string | null,
 ): string | null {
+  const beste = finnBesteGrensepunkt(avstandM, grensepunkter);
+  // Ingen brukbar avstand / under laveste grense / treff på et hull
+  // (lonnsartId null) → fallback.
+  if (beste == null) return fallbackLonnsartId;
+  return beste.lonnsartId ?? fallbackLonnsartId;
+}
+
+/**
+ * Det HØYESTE grensepunktet som ikke overstiger avstanden, eller `null` når
+ * avstanden mangler/er negativ, det ikke finnes grensepunkter, eller avstanden
+ * er under laveste grense. Delt kjerne for `løsReiseLonnsartId` og
+ * `grensepunktTraff` — begge må lese grensene likt.
+ */
+function finnBesteGrensepunkt(
+  avstandM: number | null,
+  grensepunkter: ReiseGrensepunkt[],
+): ReiseGrensepunkt | null {
   if (avstandM == null || avstandM < 0 || grensepunkter.length === 0) {
-    return fallbackLonnsartId;
+    return null;
   }
-  // Høyeste grenseM ≤ avstandM (uavhengig av innkommende rekkefølge).
   let beste: ReiseGrensepunkt | null = null;
   for (const g of grensepunkter) {
     if (g.grenseM <= avstandM && (beste == null || g.grenseM > beste.grenseM)) {
       beste = g;
     }
   }
-  // Under laveste grense → fallback. Treff på et hull (lonnsartId null) → fallback.
-  if (beste == null) return fallbackLonnsartId;
-  return beste.lonnsartId ?? fallbackLonnsartId;
+  return beste;
 }
 
 /**
- * MVP fast-estimat: avled reisetid (minutter) fra kjøreavstand (meter) ved en
- * antatt snitthastighet. GPS-faktisk reisetid (ankomst − avreise) er senere
- * oppfølger når ankomst-på-byggeplass fanges (jf. Fase 3-plan avvik C). Default
- * 50 km/t passer landevei/anleggsvei på byggeplass-skala. Arbeider justerer alltid.
+ * LAG 2 (B1): avgjorde et avstandsbånd (grensepunkt med en art) lønnsarten for
+ * denne avstanden? → `reiseRegel.grensepunktTreff` i radens snapshot. `true` KUN
+ * når et grensepunkt med `lonnsartId != null` treffer; et hull eller
+ * under/uten avstand gir `false` (da bestemte fallback-arten). Samme grense-
+ * lesing som `løsReiseLonnsartId` (delt `finnBesteGrensepunkt`), så snapshotet
+ * aldri sier «bånd» der resolveren falt tilbake.
  */
-export function estimerReisetidMin(
-  avstandM: number,
-  snittKmT: number = 50,
-): number {
-  if (avstandM <= 0 || snittKmT <= 0) return 0;
-  const km = avstandM / 1000;
-  return Math.round((km / snittKmT) * 60);
+export function grensepunktTraff(
+  avstandM: number | null,
+  grensepunkter: ReiseGrensepunkt[],
+): boolean {
+  const beste = finnBesteGrensepunkt(avstandM, grensepunkter);
+  return beste != null && beste.lonnsartId != null;
 }

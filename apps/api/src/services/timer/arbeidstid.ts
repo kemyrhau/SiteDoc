@@ -26,7 +26,13 @@ export type EffektivArbeidstid = {
   startTid: string; // HH:MM
   sluttTid: string; // HH:MM
   pauseMin: number;
-  dagsnorm: number; // timer (sluttTid - startTid - pauseMin)
+  dagsnorm: number; // timer — "fast": dagsnorm-kolonnen; "kalender": slutt−start−pause
+  // B6 v3 (H22): svaret er ÉN utledning av lønnsnormen. Telefonen cacher det
+  // pr. dato; server-varsel og web-sedel kaller servicen i stedet for å lese
+  // den flate kolonnen. `pauseEtterTimer`/`pauseReferanse` følger med (B3).
+  normKilde: "fast" | "kalender";
+  pauseEtterTimer: number;
+  pauseReferanse: "fastStart" | "ankomst";
 };
 
 // Sikkerhetsnett ved manglende OrganizationSetting (skal ikke skje i prod —
@@ -46,8 +52,18 @@ export async function hentEffektivArbeidstid(
       standardStartTid: true,
       standardSluttTid: true,
       standardPauseMin: true,
+      standardPauseEtterTimer: true,
+      normKilde: true,
+      pauseReferanse: true,
+      dagsnorm: true,
     },
   });
+
+  const normKilde: "fast" | "kalender" =
+    setting?.normKilde === "kalender" ? "kalender" : "fast";
+  const pauseEtterTimer = setting?.standardPauseEtterTimer ?? 4.0;
+  const pauseReferanse: "fastStart" | "ankomst" =
+    setting?.pauseReferanse === "fastStart" ? "fastStart" : "ankomst";
 
   let startTid = setting?.standardStartTid ?? DEFAULT_START_TID;
   let sluttTid = setting?.standardSluttTid ?? DEFAULT_SLUTT_TID;
@@ -55,52 +71,68 @@ export async function hentEffektivArbeidstid(
 
   const aar = dato.getUTCFullYear();
 
-  // Siste aktive sommertid_start ≤ dato i samme år.
-  const sommertidStart = await prisma.arbeidstidsKalender.findFirst({
-    where: {
-      organizationId,
-      aar,
-      type: "sommertid_start",
-      dato: { lte: dato },
-      aktiv: true,
-    },
-    orderBy: { dato: "desc" },
-    select: {
-      standardStartTid: true,
-      standardSluttTid: true,
-      pauseMin: true,
-    },
-  });
-
-  if (sommertidStart) {
-    // Vi er innenfor potensiell sommertid — sjekk at perioden ikke alt er
-    // avsluttet ved å lete etter en aktiv sommertid_slutt ≥ dato samme år.
-    const sommertidSlutt = await prisma.arbeidstidsKalender.findFirst({
+  // B6 v3: sesong-overstyring gjelder KUN "kalender". "fast" bruker standard-
+  // dagens tider (sesong ignoreres) og lovnormen fra dagsnorm-kolonnen.
+  if (normKilde === "kalender") {
+    // Siste aktive sommertid_start ≤ dato i samme år.
+    const sommertidStart = await prisma.arbeidstidsKalender.findFirst({
       where: {
         organizationId,
         aar,
-        type: "sommertid_slutt",
-        dato: { gte: dato },
+        type: "sommertid_start",
+        dato: { lte: dato },
         aktiv: true,
       },
-      select: { id: true },
+      orderBy: { dato: "desc" },
+      select: {
+        standardStartTid: true,
+        standardSluttTid: true,
+        pauseMin: true,
+      },
     });
 
-    if (sommertidSlutt) {
-      if (sommertidStart.standardStartTid !== null) {
-        startTid = sommertidStart.standardStartTid;
-      }
-      if (sommertidStart.standardSluttTid !== null) {
-        sluttTid = sommertidStart.standardSluttTid;
-      }
-      if (sommertidStart.pauseMin !== null) {
-        pauseMin = sommertidStart.pauseMin;
+    if (sommertidStart) {
+      // Vi er innenfor potensiell sommertid — sjekk at perioden ikke alt er
+      // avsluttet ved å lete etter en aktiv sommertid_slutt ≥ dato samme år.
+      const sommertidSlutt = await prisma.arbeidstidsKalender.findFirst({
+        where: {
+          organizationId,
+          aar,
+          type: "sommertid_slutt",
+          dato: { gte: dato },
+          aktiv: true,
+        },
+        select: { id: true },
+      });
+
+      if (sommertidSlutt) {
+        if (sommertidStart.standardStartTid !== null) {
+          startTid = sommertidStart.standardStartTid;
+        }
+        if (sommertidStart.standardSluttTid !== null) {
+          sluttTid = sommertidStart.standardSluttTid;
+        }
+        if (sommertidStart.pauseMin !== null) {
+          pauseMin = sommertidStart.pauseMin;
+        }
       }
     }
   }
 
-  const dagsnorm = beregnDagsnorm(startTid, sluttTid, pauseMin);
-  return { startTid, sluttTid, pauseMin, dagsnorm };
+  // "fast" → lovnorm fra kolonnen (sesong ignoreres); "kalender" → utledet.
+  const dagsnorm =
+    normKilde === "fast"
+      ? Number(setting?.dagsnorm ?? 7.5)
+      : beregnDagsnorm(startTid, sluttTid, pauseMin);
+  return {
+    startTid,
+    sluttTid,
+    pauseMin,
+    dagsnorm,
+    normKilde,
+    pauseEtterTimer,
+    pauseReferanse,
+  };
 }
 
 function beregnDagsnorm(

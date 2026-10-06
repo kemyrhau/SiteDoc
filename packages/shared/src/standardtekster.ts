@@ -28,6 +28,7 @@
  */
 
 import type { ReportObjectType } from "./types";
+import { normaliserOpsjon } from "./utils/opsjon";
 
 export interface StandardFeltLabel {
   type: ReportObjectType;
@@ -144,6 +145,68 @@ export const TRAFIKKLYS_VALG = [
   { value: "red", i18nKey: "standardopsjon.avvik" },
   { value: "gray", i18nKey: "standardopsjon.ikkeRelevant" },
 ] as const;
+
+/**
+ * Foreldreløs trafikklys-verdi: `Checklist.templateId` er en levende FK — svarene bor i `data`
+ * Json, opsjonene i malen. Er den lagrede verdien en streng UTENFOR `TRAFIKKLYS_VALG` (malen
+ * redigert / eldre verdisett), matcher ingen brikke → feltet ser ubesvart ut mens DB har et svar.
+ * Denne avgjør «vis rått i stedet for stille tap»: returnerer den rå verdien når den er ukjent,
+ * ellers `null`.
+ *
+ * 🔴 ÉN kilde for BESLUTNINGEN (ikke bare verdisettet) — web + mobil importerer denne; `packages/pdf`
+ * er null-avhengig og speiler regelen i `felt.ts`, voktet av `pdf-shared-tvilling-paritet.test.ts`.
+ * `trim()`-en er tilsiktet: et mellomrom er ikke et svar (ubesvart), så whitespace-only → `null`
+ * på ALLE tre flater. Den rå (ikke-trimmede) verdien vises når den først er en foreldreløs verdi.
+ */
+export function ukjentTrafikklysVerdi(verdi: unknown): string | null {
+  if (typeof verdi !== "string" || verdi.trim() === "") return null;
+  return TRAFIKKLYS_VALG.some((v) => v.value === verdi) ? null : verdi;
+}
+
+/**
+ * Ett lys i det effektive settet et trafikklys-felt skal rendre: verdien + hvor etiketten kommer
+ * fra. `erI18nNokkel` skiller de to etikett-kildene så visningen ikke må gjette:
+ *  - `true`  → `tekst` er en i18n-nøkkel (kanonisk etikett for verdien) → `t(tekst)`
+ *  - `false` → `tekst` er feltets EGEN etikett (seedet standardtekst el. firmastreng) →
+ *              `oversettStandardtekst(tekst) ?? tekst` (samme regel som `EnkeltvalgObjekt`)
+ */
+export interface TrafikklysValg {
+  value: string;
+  tekst: string;
+  erI18nNokkel: boolean;
+}
+
+/**
+ * Det EFFEKTIVE lyssettet for et trafikklys-felt (`objekt.config.options`), i visningsrekkefølge.
+ * Har feltet egne `options` (delmengde av de kanoniske nøklene + valgfri egen etikett per verdi),
+ * brukes de; ellers faller feltet til det kanoniske `TRAFIKKLYS_VALG` (fire lys, i18n-etiketter).
+ *
+ * Etikett-kilden per lys:
+ *  - egen etikett satt (f.eks. HMS-avvik `red` = «Åpent», Godkjenning `red` = «Avvist») → den
+ *    strengen, `erI18nNokkel=false` → oversettes ved rendring hvis den er en seedet standardtekst,
+ *    ellers vises rått (firmaets egen tekst)
+ *  - ingen egen etikett (bar verdi, f.eks. palett-4-lys) → verdiens kanoniske i18n-nøkkel,
+ *    `erI18nNokkel=true` → i18n bestemmer teksten (bevarer flerspråk)
+ *
+ * 🔴 ÉN kilde for web + mobil `TrafikklysObjekt`. `packages/pdf` er null-avhengig og speiler
+ * options-lesingen i `felt.ts`/`arkivmal/repeater.ts`, voktet av `pdf-shared-tvilling-paritet.test.ts`.
+ * Fargene bor i renderne (nøklet på `value`); denne bærer bare verdi + etikett-kilde.
+ */
+export function trafikklysOpsjoner(options: unknown): TrafikklysValg[] {
+  if (Array.isArray(options) && options.length > 0) {
+    return options.map((o) => {
+      const { value, label } = normaliserOpsjon(o);
+      // `normaliserOpsjon` setter label=value når opsjonen ikke bærer egen etikett — da skal den
+      // kanoniske i18n-etiketten for verdien brukes, ikke den bare nøkkelen «green».
+      if (label !== value) return { value, tekst: label, erI18nNokkel: false };
+      const kanonisk = TRAFIKKLYS_VALG.find((v) => v.value === value);
+      return kanonisk
+        ? { value, tekst: kanonisk.i18nKey, erI18nNokkel: true }
+        : { value, tekst: value, erI18nNokkel: false };
+    });
+  }
+  return TRAFIKKLYS_VALG.map((v) => ({ value: v.value, tekst: v.i18nKey, erI18nNokkel: true }));
+}
 
 // Oppslagsstrukturer (bygget én gang ved modul-last)
 const labelPerType = new Map<ReportObjectType, StandardFeltLabel>();

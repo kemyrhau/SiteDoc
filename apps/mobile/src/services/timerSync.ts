@@ -1,4 +1,4 @@
-import { eq, and, gt, gte, inArray } from "drizzle-orm";
+import { eq, and, gt, gte, lte, inArray } from "drizzle-orm";
 import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
@@ -13,6 +13,63 @@ import {
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
+
+/**
+ * LAG 2 (TILLEGG 1) — reise-/tid-spor på en pull-rad, ALLE valgfrie. En GAMMEL
+ * server (prod uten L2-A) UTELATER feltene (undefined), en ny server sender dem
+ * (kan være null). Pull-koden skiller `undefined` (mangler → bevar lokalt) fra
+ * `null` (server sa eksplisitt «ingen»). Eksplisitt type så skillet ikke
+ * forsvinner om den inferrerte klient-typen gjør feltene non-optional.
+ */
+type SporFelter = {
+  erReise?: boolean | null;
+  reiseRetning?: "ut" | "retur" | null;
+  reiseOppmotestedId?: string | null;
+  reiseKjoretidMin?: number | null;
+  reiseAvstandM?: number | null;
+  reiseKilde?: "matrise" | "manuell" | null;
+  reiseRegel?: unknown;
+  tidKilde?: "stempel" | "utledet" | "manuell" | null;
+  // V19.9.1 (B'-2): radversjonen fra pull (`SheetTimer.updatedAt`, ISO-ms). Mangler
+  // på en eldre server → undefined → lagres som null (ukjent versjon).
+  updatedAt?: string;
+};
+
+/**
+ * V19.9 (RETUR 1, vilkår 3) — en sedel der push-`ok` meldte at serveren HOPPET OVER
+ * rader (serverraden er nyere). Speiles fra `hentMedId` etter at den synkrone
+ * `anvendSvar` har kjørt. `naa` = sedelens nye `sistSynkronisert` (samme stempel).
+ */
+type HoppetSpeiling = { sheetId: string; hoppedeIder: string[]; naa: number };
+
+/** Rå timer-rad fra `hentMedId` (full Prisma-rad). Smal cast FØR bruk (unngår TS2589). */
+type RaaTimerRad = {
+  id: string;
+  projectId: string | null;
+  byggeplassId?: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  externalCostObjectId?: string | null;
+  timer: number | string;
+  fraTid: string | null;
+  tilTid: string | null;
+  beskrivelse: string | null;
+  pauseMin?: number | null;
+  erReise?: boolean | null;
+  reiseRetning?: "ut" | "retur" | null;
+  reiseOppmotestedId?: string | null;
+  reiseKjoretidMin?: number | null;
+  reiseAvstandM?: number | null;
+  reiseKilde?: "matrise" | "manuell" | null;
+  reiseRegel?: unknown;
+  tidKilde?: "stempel" | "utledet" | "manuell" | null;
+  updatedAt: string | Date;
+};
+
+/** Normaliser en tRPC-levert tidsverdi (streng/Date) til ISO-ms (= server_versjon-format). */
+function tilIsoVersjon(v: string | Date): string {
+  return typeof v === "string" ? v : new Date(v).toISOString();
+}
 
 /* ============================================================================
  *  Timer offline-sync — orkestrerer push (lokale pending → server) og pull
@@ -147,12 +204,62 @@ function erPermanentFeil(e: unknown): boolean {
 }
 
 /**
+ * FUNN 2026-10-05 (synk-henger): øvre grense på ETT nettkall. Uten dette kan et kall
+ * som aldri settler henge `syncTimer` for alltid. Målt på test: push 22:17 committet
+ * på server (200, 1 rad) men svaret nådde aldri telefonen → `await` settler aldri →
+ * `syncTimer` returnerer aldri → TimerSyncProviders reentrancy-vakt (`syncerRef`,
+ * nullstilt i `finally`) låser seg PERMANENT → hver 30s-tick no-op-er, ingen nye kall,
+ * sedelen står `pending`. Timeouten gjør at kallet ALLTID settler (resolve eller en
+ * `SynkTidsavbrudd`-reject), så `finally` kjører og neste tick prøver igjen. En timeout
+ * klassifiseres som TRANSIENT (ingen httpStatus 400) → pending beholdes, push er
+ * idempotent → ingen datatap, ingen endring i HVA synken gjør.
+ */
+export const SYNK_NETT_TIDSAVBRUDD_MS = 20 * 1000;
+
+/** Feil kastet når et nettkall ikke settler innen tidsgrensen (transient). */
+export class SynkTidsavbrudd extends Error {
+  constructor(melding: string) {
+    super(melding);
+    this.name = "SynkTidsavbrudd";
+  }
+}
+
+/**
+ * Bind `p` til en øvre tidsgrense. Settler alltid: med `p`-resultatet hvis det kommer
+ * først, ellers en `SynkTidsavbrudd`-reject. `clearTimeout` i begge grener så en løst
+ * promise ikke etterlater en hengende timer. Det underliggende kallet avbrytes IKKE
+ * (fetch har ingen abort her) — men resultatet forkastes når timeouten vant, og
+ * serveren er idempotent, så en sen ankomst er ufarlig.
+ */
+function medTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new SynkTidsavbrudd(i18n.t("timer.sync.tidsavbrudd"))),
+      ms,
+    );
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e as Error);
+      },
+    );
+  });
+}
+
+/**
  * Hovedinngang: push pending → pull server-endringer.
  * Returnerer telling som UI kan vise.
  */
 export async function syncTimer(
   klient: TrpcKlient,
   userId: string,
+  // FUNN 2026-10-05: øvre grense pr. nettkall (default prod-verdi; testen injiserer
+  // en liten verdi for å bevise at et hengende kall ikke lenger henger synken).
+  tidsavbruddMs: number = SYNK_NETT_TIDSAVBRUDD_MS,
 ): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
@@ -210,12 +317,62 @@ export async function syncTimer(
     }
   };
 
+  // V19.9.8 (B'-4) — etter push-`ok`/`conflict-overlapp`: skriv radversjonen
+  // (`updatedAt`) serveren leste tilbake for radene som FAKTISK ble skrevet, og
+  // restemple dem som synket. Gjelder KUN `serverData.rader` — `hoppetOver` RØRES
+  // ALDRI (serverraden der er nyere; telefonens stale kopi henter versjon + innhold
+  // ved neste pull). Restemplingen setter `sistEndretLokalt = naa` KUN for rader som
+  // ikke ble endret ETTER payloaden ble bygget (`sistEndretLokalt <= byggetVed`) —
+  // en rad brukeren rørte mid-push beholder sitt nyere stempel og pushes på nytt.
+  // 🔴 Aldri sett versjon på en rad hvis innholdet ikke ble lagret (hoppetOver/feil).
+  const skrivRadVersjoner = (
+    dagsseddelId: string,
+    rader: ReadonlyArray<{ id: string; updatedAt: string }> | undefined,
+    naa: number,
+    byggetVed: number,
+  ) => {
+    if (!rader || rader.length === 0) return;
+    for (const rad of rader) {
+      db.update(sheetTimerLocal)
+        .set({ serverVersjon: rad.updatedAt })
+        .where(
+          and(
+            eq(sheetTimerLocal.id, rad.id),
+            eq(sheetTimerLocal.dagsseddelId, dagsseddelId),
+          ),
+        )
+        .run();
+    }
+    // Restemple i én batch: kun skrevne rader som ikke er rørt etter byggetVed.
+    db.update(sheetTimerLocal)
+      .set({ sistEndretLokalt: naa })
+      .where(
+        and(
+          eq(sheetTimerLocal.dagsseddelId, dagsseddelId),
+          inArray(
+            sheetTimerLocal.id,
+            rader.map((rad) => rad.id),
+          ),
+          lte(sheetTimerLocal.sistEndretLokalt, byggetVed),
+        ),
+      )
+      .run();
+  };
+
   // Anvend syncBatch-resultater på lokal DB + oppdater tellere. Delt mellom
   // normal batch-send og per-item-fallback (gift-isolering ved permanent feil).
+  // `byggetVed` = tidspunktet payloaden ble lest (før mutate) — styrer rad-
+  // restemplingen (V19.9.8), så en mid-push-redigering ikke stemples som synket.
   const anvendSvar = (
     svar: Awaited<ReturnType<typeof klient.timer.dagsseddel.syncBatch.mutate>>,
     naa: number,
-  ) => {
+    byggetVed: number,
+  ): HoppetSpeiling[] => {
+    // V19.9 (RETUR 1, vilkår 3): sedler der serveren HOPPET OVER rader (serverraden
+    // er nyere). Delta-pullen henter dem ikke (hodets updatedAt er bumpet, men
+    // sistSynkronisert er satt til naa her → cursoren forbi). Samles og speiles via
+    // hentMedId ETTER denne (synkrone) funksjonen, i async-kalleren.
+    const speilinger: HoppetSpeiling[] = [];
     for (const r of svar.resultater) {
       if (r.resultat === "ok" && r.serverData) {
         db.update(dagsseddelLocal)
@@ -229,6 +386,17 @@ export async function syncTimer(
           })
           .where(eq(dagsseddelLocal.id, r.clientUuid))
           .run();
+        // V19.9.8: skriv versjon for skrevne rader (ikke hoppetOver) + restemple.
+        skrivRadVersjoner(r.clientUuid, r.serverData.rader, naa, byggetVed);
+        // V19.9 (RETUR 1, vilkår 3): hoppede rader må speiles fra serveren (ellers
+        // står telefonen med stale innhold + stale versjon → neste redigering gir R4).
+        if (r.serverData.hoppetOver && r.serverData.hoppetOver.length > 0) {
+          speilinger.push({
+            sheetId: r.clientUuid,
+            hoppedeIder: r.serverData.hoppetOver,
+            naa,
+          });
+        }
         // S-A KRAV 3: sedelen er bekreftet synket — server har kjørt deleteMany
         // på de sendte slettedeIder. Rydd tombstones for sedelen KUN her (ikke
         // conflict/avvist/feilet). deleteMany er idempotent → en tapt rydding
@@ -238,51 +406,97 @@ export async function syncTimer(
           .run();
         resultat.push.ok++;
       } else if (r.resultat === "conflict" && r.serverData) {
-        // M1 (2026-07-11): dato-kollisjon (S2) — server har allerede en sedel
-        // for datoen under en ANNEN clientUuid. Merge i stedet for server-wins:
-        // re-nøkle lokal sedel til server-identiteten, behold arbeiderens rader,
-        // sett `pending` → additiv re-push mot server-sedelen (trygt pga. S3
-        // bevarer web-rader). Uten datatap. Skilles fra vanlig server-wins-
-        // conflict (låst/nyere server-sedel, samme identitet).
+        // V19-B (B-1): serveren sender nå EKSPLISITT `aarsak` på conflict (V19-A,
+        // A-2) — mobilen gjetter ikke lenger fra identitet (M3). Fire utfall:
+        //   "overlapp"      → forslaget er lagret på server (sheet_timer urørt).
+        //                     Omnøkle som i dag (M14, ufarlig), men sett `conflict`
+        //                     (IKKE pending) → ingen push av rader. Arbeideren
+        //                     velger i sammenligningen (B-3). konflikt++.
+        //   "dato_kollisjon"→ dagens S2-merge: omnøkle + `pending` → additiv re-push
+        //                     (V19.4, rader uten overlapp slås sammen). merged++.
+        //   "laast"/"nyere" → server-wins som i dag: `conflict`, radene beholdes
+        //                     lokalt (M8), lesevisning/retur-vei.
+        //   ukjent verdi    → behandles som "laast" (konservativt, ingen auto-merge).
+        //   feltet MANGLER  → gammel server (pre-V19-A): fall tilbake til dagens
+        //                     identitets-diskriminator (ulik id = dato_kollisjon-
+        //                     merge, lik id = server-wins) så en pre-V19-A-server
+        //                     ikke regresjonerer til conflict på en ren merge.
         const serverClientUuid = r.serverData.clientUuid;
-        if (serverClientUuid && serverClientUuid !== r.clientUuid) {
-          forsonSedelIdentitet(r.clientUuid, serverClientUuid);
+        const ulikIdentitet = !!serverClientUuid && serverClientUuid !== r.clientUuid;
+        const raaAarsak = r.aarsak;
+        let aarsak: "overlapp" | "dato_kollisjon" | "laast" | "nyere";
+        if (
+          raaAarsak === "overlapp" ||
+          raaAarsak === "dato_kollisjon" ||
+          raaAarsak === "laast" ||
+          raaAarsak === "nyere"
+        ) {
+          aarsak = raaAarsak;
+        } else if (raaAarsak === undefined) {
+          aarsak = ulikIdentitet ? "dato_kollisjon" : "laast";
+        } else {
+          aarsak = "laast";
+        }
+
+        // Omnøkling trengs når serveren oppga en annen identitet (S2/A-1a). M14:
+        // flytter kun id-en, rører ikke syncStatus — trygt for alle årsaker.
+        const målId = ulikIdentitet ? serverClientUuid! : r.clientUuid;
+        if (ulikIdentitet) {
+          forsonSedelIdentitet(r.clientUuid, serverClientUuid!);
+        }
+
+        if (aarsak === "dato_kollisjon") {
+          // Automatisk sammenslåing — ikke en konflikt. `pending` → radene sendes
+          // inn på server-sedelen neste tick. Egen teller (merged) så run-resultatet
+          // ikke rapporterer falsk alarm. Statusbaren (DB-basert) viser «venter».
           db.update(dagsseddelLocal)
             .set({
-              // pending → radene sendes inn på server-sedelen neste tick.
               syncStatus: "pending",
+              konfliktAarsak: null,
               status: r.serverData.status,
               lederKommentar: r.serverData.lederKommentar,
               attestertVed: r.serverData.attestertVed,
-              // Beskriver det som ALT har skjedd (automatisk forsoning), ikke en
-              // manuell handling. Serveren sender ikke lenger tekst her; klienten
-              // eier brukerkopien via i18n. `r.feilmelding ??` beholdt som vern
-              // om en fremtidig server-variant skulle sende noe.
+              // Beskriver det som ALT har skjedd (automatisk forsoning). Klienten
+              // eier brukerkopien via i18n; `r.feilmelding ??` er vern mot en
+              // fremtidig server-variant.
               feilmelding: r.feilmelding ?? i18n.t("timer.sync.slattSammen"),
               sistSynkronisert: naa,
             })
-            .where(eq(dagsseddelLocal.id, serverClientUuid))
+            .where(eq(dagsseddelLocal.id, målId))
             .run();
-          // En automatisk sammenslåing er ikke en konflikt. Egen teller så
-          // run-resultatet ikke rapporterer en falsk alarm (server-wins under
-          // teller fortsatt `conflict`). Sedelen er `pending` → statusbaren
-          // (DB-basert) viser den som «venter på sync», ikke som konflikt.
           resultat.push.merged++;
         } else {
-          // Server-wins: låst (accepted) eller nyere server-versjon under samme
-          // identitet. Overskriv metadata, marker conflict for bruker-avklaring.
+          // "overlapp" | "laast" | "nyere" → conflict. Radene beholdes lokalt (M8
+          // beskytter dem på pull). konfliktAarsak lagres så pull-vakten (B-3b) kan
+          // slippe en overlapp-konflikt når valget er tatt på PC — og ALDRI en
+          // laast/nyere. For overlapp eier klienten brukerkopien (overlappKonflikt);
+          // for laast/nyere brancher banneret på `status` (datatap-ordre 2026-09-30).
           db.update(dagsseddelLocal)
             .set({
               syncStatus: "conflict",
+              konfliktAarsak: aarsak,
               status: r.serverData.status,
               lederKommentar: r.serverData.lederKommentar,
               attestertVed: r.serverData.attestertVed,
-              feilmelding: r.feilmelding ?? "Server-versjonen vinner",
+              feilmelding:
+                aarsak === "overlapp"
+                  ? i18n.t("timer.sync.pcOgsaEndret")
+                  : (r.feilmelding ?? null),
               sistSynkronisert: naa,
             })
-            .where(eq(dagsseddelLocal.id, r.clientUuid))
+            .where(eq(dagsseddelLocal.id, målId))
             .run();
           resultat.push.conflict++;
+          // V19.9.8 (B'-4): ved overlapp-conflict ER de uomstridte radene skrevet på
+          // server (`serverData.rader`); skriv deres versjon + restemple (samme regel
+          // som `ok`). laast/nyere skrev ingenting (rader tomt/undefined → no-op).
+          if (aarsak === "overlapp") {
+            skrivRadVersjoner(målId, r.serverData.rader, naa, byggetVed);
+          }
+          // B-2: statusbaren plukker opp conflict (tellConflict), og sedelens banner
+          // ([id].tsx) viser overlapp-teksten + knapp til sammenligningen. Et ekte
+          // OS-push-varsel krever `expo-notifications` (ikke installert) — flagget
+          // til orkestrator; surfacingen er statusbar + banner.
         }
       } else if (r.resultat === "avvist") {
         // SYNC-1: permanent avvisning — terminal. Raden forlater pending
@@ -307,6 +521,90 @@ export async function syncTimer(
         resultat.push.feilet++;
       }
     }
+    return speilinger;
+  };
+
+  // V19.9 (RETUR 1, vilkår 3) — hent serverens kort og speil KUN de hoppede radene:
+  // serverens innhold + `server_versjon = updatedAt` + `sistEndretLokalt = naa`
+  // (= sedelens sistSynkronisert). En rad som er borte på serveren (R8, slettet på PC)
+  // slettes lokalt. Feiler hentingen/timeouten: restemple de hoppede radene til `naa`
+  // (neste push → `endretLokalt = false` → R3, ingen falsk konflikt) UTEN å røre
+  // server_versjon, og la neste `ok` med hoppetOver prøve speilingen igjen.
+  const speilHoppedeRader = async (speilinger: HoppetSpeiling[]): Promise<void> => {
+    for (const sp of speilinger) {
+      if (sp.hoppedeIder.length === 0) continue;
+      try {
+        const kort = await medTimeout(
+          klient.timer.dagsseddel.hentMedId.query({ id: sp.sheetId }),
+          tidsavbruddMs,
+        );
+        const serverRader = (kort as { timer: RaaTimerRad[] }).timer;
+        const serverById = new Map(serverRader.map((t) => [t.id, t]));
+        for (const id of sp.hoppedeIder) {
+          const s = serverById.get(id);
+          if (!s) {
+            // R8: raden er slettet på PC → slett lokalt.
+            db.delete(sheetTimerLocal)
+              .where(
+                and(
+                  eq(sheetTimerLocal.id, id),
+                  eq(sheetTimerLocal.dagsseddelId, sp.sheetId),
+                ),
+              )
+              .run();
+            continue;
+          }
+          // Erstatt lokal rad med serverens autoritative innhold + versjon + stempel.
+          const reiseRegel =
+            s.reiseRegel == null
+              ? null
+              : typeof s.reiseRegel === "string"
+                ? s.reiseRegel
+                : JSON.stringify(s.reiseRegel);
+          db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.id, id)).run();
+          db.insert(sheetTimerLocal)
+            .values({
+              id: s.id,
+              dagsseddelId: sp.sheetId,
+              projectId: s.projectId ?? "",
+              byggeplassId: s.byggeplassId ?? null,
+              lonnsartId: s.lonnsartId,
+              aktivitetId: s.aktivitetId,
+              externalCostObjectId: s.externalCostObjectId ?? null,
+              timer: Number(s.timer),
+              fraTid: s.fraTid ?? null,
+              tilTid: s.tilTid ?? null,
+              beskrivelse: s.beskrivelse ?? null,
+              pauseMin: s.pauseMin ?? 0,
+              erReise: s.erReise ?? null,
+              reiseRetning: s.reiseRetning ?? null,
+              reiseOppmotestedId: s.reiseOppmotestedId ?? null,
+              reiseKjoretidMin: s.reiseKjoretidMin ?? null,
+              reiseAvstandM: s.reiseAvstandM ?? null,
+              reiseKilde: s.reiseKilde ?? null,
+              reiseRegel,
+              tidKilde: s.tidKilde ?? null,
+              serverVersjon: tilIsoVersjon(s.updatedAt),
+              sistEndretLokalt: sp.naa,
+            })
+            .run();
+        }
+      } catch {
+        // Henting/timeout feilet: restemple hoppede rader (endretLokalt=false → R3
+        // neste push) UTEN å røre server_versjon. Neste `ok` med hoppetOver prøver igjen.
+        for (const id of sp.hoppedeIder) {
+          db.update(sheetTimerLocal)
+            .set({ sistEndretLokalt: sp.naa })
+            .where(
+              and(
+                eq(sheetTimerLocal.id, id),
+                eq(sheetTimerLocal.dagsseddelId, sp.sheetId),
+              ),
+            )
+            .run();
+        }
+      }
+    }
   };
 
   /* ---------------- PUSH: lokale pending → server ----------------- */
@@ -329,6 +627,9 @@ export async function syncTimer(
     }
 
     for (const batch of batches) {
+      // V19.9.8 (B'-4): tidspunktet payloaden LESES — styrer rad-restemplingen i
+      // anvendSvar (en rad endret etter dette stemplet pushes på nytt, ikke synket).
+      const byggetVed = Date.now();
       const sedlerMedRader = batch.map((sedel) => {
         const timer = db
           .select()
@@ -379,6 +680,17 @@ export async function syncTimer(
             | "system",
           status: sedel.status,
           beskrivelse: sedel.beskrivelse ?? null,
+          // B5 (L2-B): lønnsnormens kilde + snapshot følger sedelen opp. normSnapshot
+          // lagres som JSON-streng lokalt → parse til objekt (server Zod = z.unknown()).
+          // Gammel server (uten feltene) stripper dem stille — ingen feil.
+          normStatus: (sedel.normStatus ?? null) as
+            | "server"
+            | "cachet"
+            | "ukjent"
+            | null,
+          normSnapshot: sedel.normSnapshot
+            ? (JSON.parse(sedel.normSnapshot) as unknown)
+            : null,
           // T7-3b1: send projectId per rad. Faller tilbake til sedel-nivå
           // hvis rad-nivå ikke er satt (legacy-data + lokal backfill).
           // Server bruker rad-nivå hvis satt, ellers sedel-nivå (kompat-shim).
@@ -400,6 +712,33 @@ export async function syncTimer(
             byggeplassId: t.byggeplassId ?? null,
             // F5: per-rad matpause-bærer (min). 0 = ingen pause på raden.
             pauseMin: t.pauseMin ?? 0,
+            // LAG 2 (B1): reise-sporet opp til server (M6 — MÅ sendes eksplisitt
+            // ellers stripper Zod dem). erReise null lokalt (eldre rad) → undefined
+            // så serveren UTLEDER flagget (overgangsperioden), ikke false. reiseRegel
+            // parses fra JSON-streng til objekt (server Zod = z.unknown()). Gammel
+            // server uten feltene stripper dem stille — raden lagres uten spor.
+            erReise: t.erReise ?? undefined,
+            reiseRetning: (t.reiseRetning ?? null) as "ut" | "retur" | null,
+            reiseOppmotestedId: t.reiseOppmotestedId ?? null,
+            reiseKjoretidMin: t.reiseKjoretidMin ?? null,
+            reiseAvstandM: t.reiseAvstandM ?? null,
+            reiseKilde: (t.reiseKilde ?? null) as "matrise" | "manuell" | null,
+            reiseRegel: t.reiseRegel
+              ? (JSON.parse(t.reiseRegel) as unknown)
+              : null,
+            tidKilde: (t.tidKilde ?? null) as
+              | "stempel"
+              | "utledet"
+              | "manuell"
+              | null,
+            // V19.9.1/2 (B'-3): radversjonen telefonen fikk ved pull/push-`ok`
+            // (null = ukjent, eldre/pending rad → server bruker innholdsregelen)
+            // + om telefonen selv har rørt raden siden sist synk. `endretLokalt`:
+            // raden er lokalt endret når dens stempel avviker fra sedelens
+            // sist-synket-tid (V19.9.2). Aldri-synket sedel (sistSynkronisert =
+            // null) → `!== null` er true = endretLokalt (trygg retning).
+            serverVersjon: t.serverVersjon ?? null,
+            endretLokalt: t.sistEndretLokalt !== sedel.sistSynkronisert,
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
@@ -451,6 +790,17 @@ export async function syncTimer(
                 timer: tombstones
                   .filter((t) => t.radType === "timer")
                   .map((t) => t.radId),
+                // V19.9.1 (B'-3): timer-tombstones MED versjonen kopiert fra raden
+                // da den ble slettet lokalt → S1–S4 (slett vs. avvik slettet_telefon).
+                // `timer` (over) beholdes for bakoverkompat; serveren dedupliserer
+                // (timerVersjoner har forrang). null = ukjent versjon (eldre
+                // tombstone) → S4, trygg retning.
+                timerVersjoner: tombstones
+                  .filter((t) => t.radType === "timer")
+                  .map((t) => ({
+                    id: t.radId,
+                    serverVersjon: t.serverVersjon ?? null,
+                  })),
                 tillegg: tombstones
                   .filter((t) => t.radType === "tillegg")
                   .map((t) => t.radId),
@@ -467,10 +817,15 @@ export async function syncTimer(
       });
 
       try {
-        const svar = await klient.timer.dagsseddel.syncBatch.mutate({
-          sedler: sedlerMedRader,
-        });
-        anvendSvar(svar, Date.now());
+        const svar = await medTimeout(
+          klient.timer.dagsseddel.syncBatch.mutate({
+            sedler: sedlerMedRader,
+          }),
+          tidsavbruddMs,
+        );
+        // V19.9 (RETUR 1, vilkår 3): anvendSvar samler hoppede sedler; speil dem
+        // fra hentMedId etterpå (async, utenfor den synkrone DB-skrivingen).
+        await speilHoppedeRader(anvendSvar(svar, Date.now(), byggetVed));
       } catch (e) {
         if (!erPermanentFeil(e)) {
           // Transient (nettverk/5xx/401): behold ALLE pending — ingen quarantine,
@@ -495,10 +850,14 @@ export async function syncTimer(
         // return-abort — vi fortsetter til neste batch etterpå.
         for (const item of sedlerMedRader) {
           try {
-            const enkeltSvar = await klient.timer.dagsseddel.syncBatch.mutate({
-              sedler: [item],
-            });
-            anvendSvar(enkeltSvar, Date.now());
+            const enkeltSvar = await medTimeout(
+              klient.timer.dagsseddel.syncBatch.mutate({
+                sedler: [item],
+              }),
+              tidsavbruddMs,
+            );
+            // Samme byggetVed — item ble lest i samme payload-bygg (over).
+            await speilHoppedeRader(anvendSvar(enkeltSvar, Date.now(), byggetVed));
           } catch (e2) {
             if (!erPermanentFeil(e2)) {
               // Transient midt i isolering — behold pending, prøv neste sedel.
@@ -532,10 +891,13 @@ export async function syncTimer(
   /* ---------------- PULL: server-endringer → lokal ---------------- */
   const sistSynk = hentSistSynkronisert(userId);
   try {
-    const svar = await klient.timer.dagsseddel.hentEndringerSiden.query({
-      sistSynkronisert: sistSynk ?? undefined,
-      maksDagerTilbake: 90,
-    });
+    const svar = await medTimeout(
+      klient.timer.dagsseddel.hentEndringerSiden.query({
+        sistSynkronisert: sistSynk ?? undefined,
+        maksDagerTilbake: 90,
+      }),
+      tidsavbruddMs,
+    );
 
     const naa = Date.now();
     const serverTidMs = new Date(svar.serverTid).getTime();
@@ -598,13 +960,69 @@ export async function syncTimer(
       const maalId = lokal ? lokal.id : serverSedel.clientUuid;
 
       // Hvis lokal har "pending"-endringer: ikke overskriv — pending vinner
-      // og syncBatch håndterer push neste gang. (Hvis pending ble pushet,
-      // er sync-status nå "synced" eller "conflict" — i begge tilfeller OK
-      // å oppdatere fra server.)
+      // og syncBatch håndterer push neste gang.
       // SYNC-1: "avvist" er en lokal terminal-tilstand arbeideren må rette eller
       // slette — pull skal ikke stille resette den til "synced".
-      if (lokal && (lokal.syncStatus === "pending" || lokal.syncStatus === "avvist")) {
+      // For BEGGE: hode OG rader er upushet eget arbeid som er nyere lokalt →
+      // hopp over ALT (den brede vakten).
+      if (
+        lokal &&
+        (lokal.syncStatus === "pending" || lokal.syncStatus === "avvist")
+      ) {
         continue;
+      }
+
+      // 🔴 "conflict" (datatap-ordre 2026-09-30, AVVIK 1): server-wins-grenen
+      // (:271-286) satte conflict FORDI serveren avviste pushen (accepted/sent-
+      // vaktene i dagsseddel.ts returnerte FØR radene ble skrevet). Sedelens
+      // lokale rader finnes derfor KUN her — de er IKKE på server, og er det
+      // eneste eksemplaret til konflikten er løst (avklaringsveien behold/forkast
+      // kommer i egen ordre, U-BEKREFT).
+      //
+      // Men vakten kan IKKE hoppe over alt (som den brede over): da når aldri
+      // lederens retur telefonen — status blir stående `sent`/`accepted` lokalt
+      // for alltid, og arbeideren står fast i conflict uten utvei. Derfor: la
+      // HODET oppdateres fra server (status/lederkommentar/attestering = utveien),
+      // men hopp over RADERSTATNINGEN under, og BEHOLD `syncStatus:"conflict"` så
+      // neste pull fortsatt beskytter de lokale radene.
+      //
+      // Minimalt hode: KUN status/lederKommentar/attestertVed/sistSynkronisert.
+      // projectId/dato/tider/beskrivelse røres IKKE — den lokale header-en er
+      // del av det eneste eksemplaret til konflikten er løst, og skal ikke
+      // klobbes av server-versjonen (presisering, orkestrator TILLEGG 5).
+      if (lokal && lokal.syncStatus === "conflict") {
+        // V19.7b (B-3b): veien ut av lokal `conflict` når valget er tatt på PC.
+        // Slipp raderstatningen KUN når (a) årsaken er "overlapp" OG (b) serveren
+        // sier forslaget er borte: `konfliktVentendeSiden = null ∧ antallForslag = 0`
+        // (forsonDagskort slettet forslaget + nullet feltet i samme tx, A-5). For
+        // ALLE andre årsaker (laast/nyere/ukjent) — og mot en GAMMEL server uten
+        // feltene (undefined ≠ null → ikke løst) — består M8 uendret: hodet
+        // oppdateres (lederens retur når telefonen), radene beholdes, syncStatus
+        // forblir conflict. `konflikt_aarsak` er tilstand med én leser (her).
+        const ss = serverSedel as unknown as {
+          konfliktVentendeSiden?: string | null;
+          antallForslag?: number;
+        };
+        const overlappLostPaaPc =
+          lokal.konfliktAarsak === "overlapp" &&
+          ss.konfliktVentendeSiden === null &&
+          ss.antallForslag === 0;
+        if (!overlappLostPaaPc) {
+          // Minimalt hode: KUN status/lederKommentar/attestertVed/sistSynkronisert.
+          db.update(dagsseddelLocal)
+            .set({
+              status: serverSedel.status as "draft" | "sent" | "returned" | "accepted",
+              lederKommentar: serverSedel.lederKommentar,
+              attestertVed: serverSedel.attestertVed,
+              sistSynkronisert: serverTidMs,
+            })
+            .where(eq(dagsseddelLocal.id, maalId))
+            .run();
+          continue;
+        }
+        // Valget er tatt på PC → behandle sedelen videre som `synced`: fall gjennom
+        // til den vanlige hode- + rad-erstatningen under (serverens forsonede sett
+        // vinner). Synced-grenene nuller `konfliktAarsak` og setter syncStatus.
       }
 
       const timestamps = {
@@ -618,6 +1036,17 @@ export async function syncTimer(
       // når rader er lagt til. Lokal lagring tolererer "" som plassholder
       // (Drizzle-typen forventer string).
       const sedelProjectId = serverSedel.projectId ?? "";
+
+      // LAG 2 (TILLEGG 1): norm-spor på sedelen. Samme mangler≠null-skille som
+      // radene — ny server sender normStatus/normSnapshot, gammel utelater dem
+      // (undefined → bevar lokalt på update). normSnapshot lagres som JSON-streng.
+      // Cast via unknown (ikke intersection med den dype tRPC-typen → TS2589).
+      const ssNorm = serverSedel as unknown as {
+        normStatus?: "server" | "cachet" | "ukjent" | null;
+        normSnapshot?: unknown;
+      };
+      const normSnapshotStr =
+        ssNorm.normSnapshot == null ? null : JSON.stringify(ssNorm.normSnapshot);
 
       if (!lokal) {
         // Ny seddel fra server (typisk en seddel registrert på en annen enhet).
@@ -640,7 +1069,13 @@ export async function syncTimer(
             beskrivelse: serverSedel.beskrivelse,
             lederKommentar: serverSedel.lederKommentar,
             attestertVed: serverSedel.attestertVed,
+            // Ny sedel fra server (annen enhet) → norm fra server (null når
+            // feltet mangler; ingen lokal verdi finnes å bevare på en ny rad).
+            normStatus: ssNorm.normStatus ?? null,
+            normSnapshot: normSnapshotStr,
             syncStatus: "synced",
+            // Synced ⇒ ingen konflikt-årsak (V19-B).
+            konfliktAarsak: null,
             feilmelding: null,
             ...timestamps,
           })
@@ -662,7 +1097,18 @@ export async function syncTimer(
             beskrivelse: serverSedel.beskrivelse,
             lederKommentar: serverSedel.lederKommentar,
             attestertVed: serverSedel.attestertVed,
+            // Norm-spor: skriv KUN når server sendte feltet (ny server). Mangler
+            // (gammel server, undefined) → ikke i .set() → lokal verdi bevares.
+            ...(ssNorm.normStatus !== undefined
+              ? { normStatus: ssNorm.normStatus }
+              : {}),
+            ...(ssNorm.normSnapshot !== undefined
+              ? { normSnapshot: normSnapshotStr }
+              : {}),
             syncStatus: "synced",
+            // Synced ⇒ ingen konflikt-årsak (V19-B/B-3b: nulles når en overlapp-
+            // konflikt slippes etter valg på PC, og for enhver synced sedel).
+            konfliktAarsak: null,
             feilmelding: null,
             sistSynkronisert: serverTidMs,
           })
@@ -670,9 +1116,28 @@ export async function syncTimer(
           .run();
       }
 
-      // Erstatt rader (samme atom-policy som server). Trygt her: pending/avvist-
-      // sedler (upushet offline-arbeid) er allerede hoppet over via guarden over,
-      // så vi sletter kun rader på synced/conflict-sedler som stemmer med server.
+      // LAG 2 (L2-B TILLEGG 1) — snapshot lokalt reise-spor FØR rad-erstatningen.
+      // Pull gjør delete+reinsert fra server; returnerer en GAMMEL server (prod
+      // uten L2-A) ikke spor-feltene (mangler ≠ null), ville den rå reinsertingen
+      // NULLE sporet telefonen skrev — K5-sporet slettet av vanlig bruk uten at
+      // noen sier fra. Bevares per rad-id: server-verdi når den FINNES i svaret,
+      // ellers den lokale (prod-tilfellet). Ny server sender feltene → server vinner.
+      const sporFor = new Map(
+        db
+          .select()
+          .from(sheetTimerLocal)
+          .where(eq(sheetTimerLocal.dagsseddelId, maalId))
+          .all()
+          .map((r) => [r.id, r]),
+      );
+
+      // Erstatt rader (samme atom-policy som server). Trygt her: pending og
+      // avvist er hoppet over av den brede vakten, og conflict av sin egen gren
+      // (som kun oppdaterer hodet og `continue`-er før hit). Det er nettopp de
+      // tre tilstandene der lokale rader kan finnes som IKKE er på server
+      // (upushet offline-arbeid eller server-wins-conflict der pushen ble avvist
+      // før skriving). Vi sletter derfor kun rader på SYNCED-sedler, som per
+      // definisjon stemmer med server.
       db.delete(sheetTimerLocal)
         .where(eq(sheetTimerLocal.dagsseddelId, maalId))
         .run();
@@ -710,6 +1175,20 @@ export async function syncTimer(
       // og maskin-rader. Default null hvis ikke satt.
       for (const t of serverSedel.timer) {
         if (levendeTombstoneIder.has(t.id)) continue; // S-A KRAV 1
+        // LAG 2 (TILLEGG 1): spor fra server når feltet FINNES i svaret (ny
+        // server, L2-A), ellers bevar lokalt (gammel server utelater feltet →
+        // undefined; mangler ≠ null). `reiseRegel` serialiseres som JSON-streng
+        // lokalt; server sender objekt → stringify, mangler → behold lokal streng.
+        const sp = sporFor.get(t.id);
+        // Cast via unknown (ikke intersection med den dype tRPC-typen → TS2589).
+        const tr = t as unknown as SporFelter;
+        const srvRegel = tr.reiseRegel;
+        const reiseRegel =
+          srvRegel !== undefined
+            ? srvRegel === null
+              ? null
+              : JSON.stringify(srvRegel)
+            : (sp?.reiseRegel ?? null);
         db.insert(sheetTimerLocal)
           .values({
             id: t.id,
@@ -727,6 +1206,34 @@ export async function syncTimer(
             byggeplassId: t.byggeplassId ?? null,
             // F5: per-rad matpause-bærer fra server-respons (min).
             pauseMin: t.pauseMin ?? 0,
+            // LAG 2 spor — server-verdi når tilstede, ellers bevart lokalt.
+            erReise: tr.erReise !== undefined ? tr.erReise : (sp?.erReise ?? null),
+            reiseRetning:
+              tr.reiseRetning !== undefined
+                ? tr.reiseRetning
+                : (sp?.reiseRetning ?? null),
+            reiseOppmotestedId:
+              tr.reiseOppmotestedId !== undefined
+                ? tr.reiseOppmotestedId
+                : (sp?.reiseOppmotestedId ?? null),
+            reiseKjoretidMin:
+              tr.reiseKjoretidMin !== undefined
+                ? tr.reiseKjoretidMin
+                : (sp?.reiseKjoretidMin ?? null),
+            reiseAvstandM:
+              tr.reiseAvstandM !== undefined
+                ? tr.reiseAvstandM
+                : (sp?.reiseAvstandM ?? null),
+            reiseKilde:
+              tr.reiseKilde !== undefined ? tr.reiseKilde : (sp?.reiseKilde ?? null),
+            reiseRegel,
+            tidKilde: tr.tidKilde !== undefined ? tr.tidKilde : (sp?.tidKilde ?? null),
+            // V19.9.1 (B'-2): lagre radversjonen fra pull (`updatedAt`, ISO-ms) så
+            // neste push sender den tilbake som `serverVersjon`. `updatedAt` finnes
+            // på alle rader fra en V19.9-A-server; en eldre server utelater feltet
+            // → null (ukjent versjon, innhold avgjør på server). Test 10/(c) feiler
+            // hvis en hentet rad får NULL mot en ny server.
+            serverVersjon: tr.updatedAt ?? null,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -907,7 +1414,8 @@ export function bekreftConflict(sheetId: string): void {
   const db = hentDatabase();
   if (!db) return;
   db.update(dagsseddelLocal)
-    .set({ syncStatus: "synced", feilmelding: null })
+    // V19-B (B-3): valget er tatt → synced, konflikt-årsak nulles.
+    .set({ syncStatus: "synced", konfliktAarsak: null, feilmelding: null })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
 }

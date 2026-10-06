@@ -499,6 +499,31 @@ Referanse-impl (fil + søkestreng, ikke linjenr — jf. dokumentasjons-standard.
 
 Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
 
+## P2002 → CONFLICT ved unik-brudd (mønster; `psi.opprett` 2026-09-27)
+
+Et unik-brudd i Postgres når klienten som `PrismaClientKnownRequestError` med `code === "P2002"`. Fanges den ikke, boble den opp som en rå intern feil (spinneren stopper, ingen melding). Mønsteret — samme struktur i `overflate.ts` (søk `catch (e)` i `beregnFraPunktsky`), `avdeling.ts` og nå `psi-feil.ts`:
+
+```ts
+} catch (e) {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    throw new TRPCError({ code: "CONFLICT", message: "..." });
+  }
+  throw e;   // 🔴 alt annet må boble URØRT — en for bred catch skjuler neste feil
+}
+```
+
+**Når flere unike indekser kan kaste P2002 på samme `create`, må meldingen si HVILKEN.** `psi.create` kan bryte to:
+- `psi_project_id_building_id_key` (sammensatt) → byggeplassen har alt en PSI
+- `psi_prosjektniva_unik` (partiell, `WHERE byggeplass_id IS NULL`) → prosjektet har alt en PSI på prosjektnivå
+
+Skill dem på **`e.meta.target`** (indeksnavnet — jf. `nummerRetry.ts`). `tolkPsiOpprettFeil` (`apps/api/src/routes/psi-feil.ts`, søk `export function tolkPsiOpprettFeil`) gjør dette:
+- `target` inneholder `prosjektniva` → kode `PSI_KONFLIKT_PROSJEKTNIVA`
+- `target` inneholder `building_id` → kode `PSI_KONFLIKT_BYGGEPLASS`
+- PSI-indeks men uklart mål → `PSI_KONFLIKT` (én melding sann for begge — aldri gjett)
+- **ikke en PSI-indeks** → rethrow urørt (falsk-positiv-vakt, låst i `psi.tolkOpprettFeil.test.ts`)
+
+Serveren sender **stabile koder**, ikke brukertekst; klienten oversetter via `t()` (`psi.konflikt.*` + `psi.opprettFeil`) og viser meldingen **inline ved skjemaet**, ikke som toast (brukeren står midt i opprettelsen). Ingen test-DB i api-harnessen → oversettelsen testes ved å mocke `PrismaClientKnownRequestError` med riktig `meta.target`. 🔴 Behavioral ende-til-ende-test av selve `psi.opprett` gjenstår til en test-DB er koblet.
+
 ## TS/tRPC-fallgruver
 
 Flyttet fra CLAUDE.md § Kodestil 2026-07-10. Kjerneregelen står som peker der.

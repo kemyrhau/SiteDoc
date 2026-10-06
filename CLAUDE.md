@@ -8,13 +8,14 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 |-----|---------|
 | [docs/claude/SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) | **Veileder Opus:** sesjonsoppstart-veileder — vis ved sesjon-start |
 | [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Veileder kontroll-Claude:** arbeidsmåte for verifiseringslaget over Opus — les `parallell-arbeid-lock.md` først |
-| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — cowork leser FØRST hver sesjon:** coworks rolle som orkestrator (merge/deploy, hvem gjør hva, kontroll mot kode før iverksetting), 10 arbeidsrutiner for fersk cowork, statustavle-plikt, lesekart, ordreformat hvem→hva→hvor→når, merge-mekanikk. **Ordrer til agentene bor i `relay/inbox-<navn>.md` i hovedtreet** (gitignorert — nudgen limes med full sti); alt en ordre PEKER på må være committet først, ellers finnes det ikke i agentens worktree. **Agentene er dynamiske — tavla i STATUS-AKTUELT er registeret** |
+| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — les § 0 KENNETHS FORVENTNINGER FØRST:** fakta ikke gjetning · mål fra koden før beslutning · belys konsekvens · kort svar · gi anbefaling · spør ved uklarhet, ikke gjett. **En regel som ikke tjener § 0 slettes.** Deretter roller, ordreformat, merge-mekanikk. Ordrer bor i `relay/inbox-<navn>.md`. Tavla i STATUS-AKTUELT er agentregisteret |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
+| [docs/claude/FUNKSJONSENDRINGER.md](docs/claude/FUNKSJONSENDRINGER.md) | **🔴 KENNETHS KONTROLLFLATE:** merger som endret det brukeren ser. Funksjonsendring krever hjemmel FØR ordren sendes; reparasjon føres til orientering |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
-| [docs/claude/kvalitetssikring-plan.md](docs/claude/kvalitetssikring-plan.md) | **🟢 VEDTATT 2026-08-31:** fire lag mot regresjoner. Lag 1 = gjør feilklassen ulovlig (lint) · lag 2 = simulator-røykliste FØR hvert EAS-bygg · lag 3 = slå på 29 ubrukte api-tester. Utløst av tre regresjoner på én dag som alle kompilerte grønt |
-| [docs/claude/DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md) | 🔴 **ENESTE kilde for deploy-kommandoer** — test · prod · OTA · env-filer på server, i rekkefølge. Opprettet 2026-09-07 etter at 12 filer viste seg å bære kommandoer i ulike varianter |
+| [docs/claude/kvalitetssikring-plan.md](docs/claude/kvalitetssikring-plan.md) | **🟢 VEDTATT 2026-08-31:** fire lag mot regresjoner — lag 1 lint, lag 2 simulator-røykliste før EAS-bygg, lag 3 de 29 ubrukte api-testene |
+| [docs/claude/DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md) | 🔴 **ENESTE kilde for deploy-kommandoer** — test · prod · OTA · env-filer på server, i rekkefølge |
 | [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Branching, mobil reload, prod-lærdommer. **Kommandoer: se DEPLOY-RUNBOK** |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
@@ -25,7 +26,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ:** Onboarding-veileder for firma (post-Fase 0) |
 | [docs/claude/prosjektoppsett-veileder.md](docs/claude/prosjektoppsett-veileder.md) | **🟡 PLAN:** Steg-for-steg ny bruker etter prosjektopprettelse |
 | [docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md](docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md) | **🟢 ANKER:** Komplett navigasjons-kartlegging mot tre-nivå-arkitektur |
-| [docs/redesign/redesign-handoff.md](docs/redesign/redesign-handoff.md) | **🟢 REDESIGN (branch `redesign/navigasjon`):** Designreferanse + spec + strategi (develop-bak-flagg, main-ren, eget stack senere). Følgefiler: HTML-prototyper 1a–2c, screenshots, K-BESLUTNINGER |
+| [docs/redesign/redesign-handoff.md](docs/redesign/redesign-handoff.md) | **🟢 REDESIGN (branch `redesign/navigasjon`):** designreferanse, spec og strategi. Følgefiler: HTML-prototyper 1a–2c, screenshots, K-BESLUTNINGER |
 | [docs/claude/redesign-paritetssjekkliste.md](docs/claude/redesign-paritetssjekkliste.md) | **🟢 REDESIGN-AKSEPTKRITERIUM:** Funksjonsparitet (130 rader), K1–K11, fremdrift. Fylles under `nyNavigasjon`-flagg-test |
 | [docs/claude/ux-arkitektur-agenda.md](docs/claude/ux-arkitektur-agenda.md) | **🟢 BESLUTNINGER (2026-05-06):** UX/arkitektur-gjennomgang, 2 vedtak + 5 åpne |
 | [docs/claude/admin-navigasjon-analyse-2026-05-03.md](docs/claude/admin-navigasjon-analyse-2026-05-03.md) | **🟡 AKTIV:** UX-funn admin/firma-kontekst, 6 prioriterte tiltak |
@@ -33,18 +34,18 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared + @sitedoc/ui — typer, validering, komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/eas-build-veileder.md](docs/claude/eas-build-veileder.md) | EAS iOS-bygg: credentials (API-nøkkel + 2FA-felle), profiler, device-reg, app variants |
-| [docs/claude/simulator-opus-oppkobling.md](docs/claude/simulator-opus-oppkobling.md) | **🟢 STYRENDE for simulator-Opus:** rollen, oppstart fra null (SSH-tunnel `3301`), fullt input-repertoar (`simctl`+`idb`: tap/tekst/swipe/deep link/GPS/foto/push/tillatelser), koordinat-mapping, handoff-protokoll |
+| [docs/claude/simulator-opus-oppkobling.md](docs/claude/simulator-opus-oppkobling.md) | **🟢 STYRENDE for simulator-Opus:** rollen, oppstart fra null (SSH-tunnel `3301`), input-repertoaret (`simctl`+`idb`), koordinat-mapping, handoff-protokoll |
 | [docs/claude/simulator-runbook.md](docs/claude/simulator-runbook.md) | Praktisk oppstartsløype + feilsøkingstabell for simulatoren |
 | [docs/claude/dev-login-agent.md](docs/claude/dev-login-agent.md) | Auth for agent-testing: dev-login-endepunkt, whitelist, secret, testbrukere, SSH-tunnel-rotårsak |
 | [docs/claude/mcp-playwright-simulator-oppsett.md](docs/claude/mcp-playwright-simulator-oppsett.md) | MCP/Playwright for **web** i Kenneths Chrome (simulatoren bruker `simctl`+`idb`, ikke MCP) |
 | [docs/claude/lokal-dev.md](docs/claude/lokal-dev.md) | Lokal dev-flate: porter, DB-tilkobling, feilsøkingstabell |
-| [docs/claude/simulator-ipv6-nordvpn.md](docs/claude/simulator-ipv6-nordvpn.md) | **Feilsøking:** iOS-simulator henger på evig spinner — AAAA/IPv6-rotårsak (ikke NordVPN). Sjekk FØR koden. Gjelder public-url-veien; `localhost:3301`-tunnelen omgår den |
+| [docs/claude/simulator-ipv6-nordvpn.md](docs/claude/simulator-ipv6-nordvpn.md) | **Feilsøking:** iOS-simulator henger på evig spinner — AAAA/IPv6-rotårsak, ikke NordVPN. **Sjekk FØR koden** |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre-nivå-anker |
 | [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk: embedding, hybrid søk, RAG, settings + testing UI |
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier/mottaker, flytregler, redigerbarhet |
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, dokumentsøk |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
-| [docs/claude/sikkerhet.md](docs/claude/sikkerhet.md) | **🟠 SAMLET SIKKERHETSVURDERING:** åpne punkter rangert etter vei fra utenforstående til skade, hva som er målt trygt med dato/metode, og de fire funnene om `/uploads/` som lå spredt i hvert sitt dokument. Erstatter sikkerhetspunktet i STATUS-AKTUELT |
+| [docs/claude/sikkerhet.md](docs/claude/sikkerhet.md) | **🟠 SAMLET SIKKERHETSVURDERING:** åpne punkter rangert etter vei fra utenforstående til skade, hva som er målt trygt, og de fire `/uploads/`-funnene |
 | [docs/claude/gdpr-kartlegging.md](docs/claude/gdpr-kartlegging.md) | **🟢 MÅLING:** Hvor persondata om ansatt bor (4 DB + disk); slett/anonymiser/bevar; ingen sletteløsning finnes |
 | [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT:** Aktivitet per `SheetTimer`-rad, ny `SheetMachine` — se også fase-0 C.18 |
 | [docs/claude/mobil-dagsseddel-ui-spec.md](docs/claude/mobil-dagsseddel-ui-spec.md) | **🟢 MÅL-SPEC:** Mobil dagsseddel-UI v2-overhaul — fasiten A.Markussen verifiserer mot. U-serie: U1–U3 visuelle + U-flyt (multi-økt/glemt-dag) |
@@ -66,7 +67,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH |
 | [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste, 5 prioritets-nivåer |
 | `docs/claude/historikk-2026-MM.md` | **Arkiv av deployete PR-er/saker per måned** (05, 06, 07, 08). Deployet arbeid flyttes hit fra STATUS-AKTUELT |
-| [docs/claude/dokumentgenerering-plan.md](docs/claude/dokumentgenerering-plan.md) | **🟢 STYRENDE for arkivmal/utskrift:** F1–F6 med avhengighetskart. F2 (fjern klient-utskrift) levert 2026-08-20 — lukket **1** BACKLOG-sak, ikke 4 (planens anslag korrigert ved måling) |
+| [docs/claude/dokumentgenerering-plan.md](docs/claude/dokumentgenerering-plan.md) | **🟢 STYRENDE for arkivmal/utskrift:** F1–F6 med avhengighetskart. F2 levert 2026-08-20 |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
@@ -185,7 +186,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Named exports (unntak: Next.js pages/layouts)
 - Zod-validering på alle API-endepunkter
 - Prisma (server), Drizzle (lokal SQLite)
-- ESLint v8 med `.eslintrc.json` — IKKE oppgrader til v9/v10
+- ESLint v8 — IKKE oppgrader til v9/v10. ⚠️ `apps/web` bruker `.eslintrc.js` fra 2026-09-26 (byttet fra `.json` for å bære kommentaren på `/uploads/`-lint-regelen); øvrige pakker har fortsatt `.eslintrc.json`
 - `@typescript-eslint/no-unused-vars`: prefiks med `_`
 - `eslint-config-next` MÅ matche Next.js-versjonen (v14)
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon
@@ -297,7 +298,15 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 ## Dokumentasjons-regler (UFRAVIKELIGE)
 
 **Størrelsesbegrensninger:**
-- CLAUDE.md: maks 40 960 tegn (40 × 1024) — overskrides aldri
+- CLAUDE.md: maks 40 960 **tegn** — overskrides aldri. 🔴 **Mål slik, ikke med `wc -m`:**
+  ```sh
+  python3 -c "print(len(open('CLAUDE.md',encoding='utf-8').read()))"
+  ```
+  ⚠️ **`wc -m` teller BYTE når locale ikke er UTF-8** — og i dette prosjektets skall er `LANG`/`LC_ALL` tomme.
+  **Målt 2026-09-26: «sjø» + linjeskift = 4 tegn, men `wc -c` OG `wc -m` svarer begge 5.** 🔴 **Samme fil gir
+  da ulikt svar på ulike maskiner — regelen blir maskinavhengig.** (`LC_ALL=en_US.UTF-8 wc -m` virker også,
+  men degraderer stille der den locale mangler.) Æ, ø, å og emoji er to byte hver, så et byte-tall gir falske
+  brudd
 - STATUS-AKTUELT.md § Pågående arbeid: maks 3 aktive PRs
 - Deprioritert/planlagt arbeid → [BACKLOG.md](docs/claude/BACKLOG.md) (ikke STATUS-AKTUELT.md)
 

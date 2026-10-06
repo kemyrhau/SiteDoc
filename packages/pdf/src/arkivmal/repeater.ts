@@ -12,7 +12,7 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, bildeOpptakTid, byggGrenseVerdi, byggTilfoyelser } from "../hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, bildeOpptakTid, byggGrenseVerdi, byggTilfoyelser } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
 import { normaliserRad } from "../typer";
@@ -80,7 +80,9 @@ export function skalarCelle(objekt: TreObjekt, felt: FeltVerdi | undefined): str
     case "traffic_light": {
       const tl = typeof verdi === "string" ? TRAFIKKLYS[verdi] : null;
       if (!tl) return TOM;
-      return `<span style="color:${tl.farge};font-weight:600">${esc(tl.label)}</span>`;
+      // Feltets egne options overstyrer etiketten (delmengde/omdøpt lyssett); fargen følger verdien.
+      const label = trafikklysEtikettPdf(verdi as string, objekt.config.options, tl.label);
+      return `<span style="color:${tl.farge};font-weight:600">${esc(label)}</span>`;
     }
     case "integer":
     case "decimal":

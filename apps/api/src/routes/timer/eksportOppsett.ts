@@ -46,10 +46,16 @@ async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<
 // migrering. Utelatt/tom → dagens faste kolonnesett i dagens rekkefølge (uendret
 // atferd for eksisterende maler). Kolonnevalget bor i malen fordi malen styrer
 // skjermen og eksporten skriver ut det som vises (flateparitet-vedtaket).
+// LAG 2 D2: speiler @sitedoc/shared TIMER_KOL_KEYS (holdt i sync manuelt — denne
+// Zod-enumen kan ikke ta en readonly-tuple direkte). Reise-/lønnsart-kolonnene lagt
+// til så malens kolonnevalg round-tripper; skjerm/Excel projiserer dem, PDF ignorerer.
 const KOLONNE_KEYS = [
-  "dato", "ansatt", "ansattnr", "prosjekt", "type", "betegnelse", "aktivitet",
-  "fraTid", "tilTid", "timer", "maskintimer", "antall", "belop", "mengde",
-  "enhet", "beskrivelse", "status",
+  "dato", "ansatt", "ansattnr", "prosjekt", "type", "betegnelse",
+  "lonnsartType", "satsEnhet", "aktivitet",
+  "fraTid", "tilTid", "timer", "maskintimer", "antall", "belop", "mengde", "enhet",
+  "reise", "retning", "fraSted", "tilSted", "avstandKm", "kjoretidMin",
+  "reiseKilde", "tidKilde", "normStatus",
+  "beskrivelse", "status",
 ] as const;
 
 const configSchema = z.object({

@@ -48,7 +48,14 @@ import {
   byggeplassLocal,
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
+import { useNettverk } from "../../src/providers/NettverkProvider";
 import { trpc } from "../../src/lib/trpc";
+import {
+  dagskortSammenligning,
+  overlappSammenligning,
+  type Side,
+} from "../../src/lib/dagskortSammenligning";
+import { DagskortSammenligning } from "../../src/components/timer-detalj/DagskortSammenligning";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
@@ -66,14 +73,21 @@ import {
   fjernMatpause,
 } from "../../src/services/matpause";
 import { useMiniToast, MiniToast } from "../../src/components/MiniToast";
-import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import {
+  hentDagsnormLokalt,
+  hentOgCacheArbeidstidSvar,
+} from "../../src/services/arbeidstidSvarKatalog";
 import {
   hentStandardLonnsartLokalt,
   harOvertidLonnsartLokalt,
 } from "../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
-import { overstigerMaskinTak } from "@sitedoc/shared";
+import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
+import {
+  overstigerMaskinTak,
+  type ForsonRad as DeltForsonRad,
+} from "@sitedoc/shared";
 import type {
   Sedel,
   TimerRad,
@@ -81,6 +95,86 @@ import type {
   MaskinRad,
   UtleggRad,
 } from "../../src/types/timer-detalj";
+import { bekreftConflict } from "../../src/services/timerSync";
+import {
+  anvendForsonetLokalt,
+  byggForsonOverlappKall,
+  type ForsonetServerRad,
+} from "../../src/lib/forsoningSpeil";
+
+/** Felt-settet `forsonDagskort` tar for en rad (uten id = ny rad). */
+type ForsonRad = {
+  projectId: string;
+  byggeplassId?: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  timer: number;
+  fraTid: string;
+  tilTid: string;
+  beskrivelse?: string | null;
+  externalCostObjectId?: string | null;
+};
+
+/**
+ * Lokal timer-rad → forson-payload. Returnerer null når raden mangler et felt serveren
+ * krever (projectId/fra/til) — da kan den ikke forsones, og kalleren avbryter med melding
+ * i stedet for å sende et ugyldig valg inn på lønnsdata.
+ */
+function lokalRadTilForson(r: TimerRad): ForsonRad | null {
+  if (!r.projectId || !r.fraTid || !r.tilTid) return null;
+  return {
+    projectId: r.projectId,
+    byggeplassId: r.byggeplassId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: r.timer,
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    beskrivelse: r.beskrivelse,
+    externalCostObjectId: r.externalCostObjectId,
+  };
+}
+
+/** Rå timer-/forslagsrad fra `hentMedId` (smal cast FØR bruk → unngår TS2589). */
+type RaaRad = {
+  id: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: number | string;
+  projectId: string | null;
+  byggeplassId?: string | null;
+  lonnsartId: string | null;
+  aktivitetId?: string | null;
+  externalCostObjectId?: string | null;
+  vehicleId?: string | null;
+  beskrivelse: string | null;
+  // V19.9 (B'-6): forslagsradens grunn (SheetTimerForslag.grunn). Kun på forslag-
+  // rader; serverens timer-rader har den ikke (→ undefined, ren overlapp-slot).
+  grunn?: string | null;
+};
+
+/**
+ * V19-B: rå rad (serverrad/forslag) → delt `ForsonRad`. `timer` kommer som streng
+ * (Prisma Decimal) → tall. projectId kan være null på en tom serverrad — koerser til
+ * "" (brukes aldri i skriveveien: en serverrad sendes bare via sin id). Ren → modul-
+ * scope (ikke en hook-dep).
+ */
+function raaTilForsonRad(r: RaaRad): DeltForsonRad {
+  return {
+    id: r.id,
+    projectId: r.projectId ?? "",
+    byggeplassId: r.byggeplassId ?? null,
+    lonnsartId: r.lonnsartId ?? "",
+    aktivitetId: r.aktivitetId ?? "",
+    timer: Number(r.timer),
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    beskrivelse: r.beskrivelse,
+    externalCostObjectId: r.externalCostObjectId ?? null,
+    vehicleId: r.vehicleId ?? null,
+    grunn: r.grunn as DeltForsonRad["grunn"],
+  };
+}
 
 export default function DagsseddelDetalj() {
   const router = useRouter();
@@ -203,6 +297,193 @@ export default function DagsseddelDetalj() {
     };
   }, [sedel?.organizationId]);
 
+  // U-BEKREFT steg 1: sammenligningsvisning ved conflict. Server-radene finnes IKKE
+  // lokalt under conflict (timerSync beholder kun lokale rader) → hent web-kortet LIVE
+  // via hentMedId, kun når sedelen er i conflict OG vi har nett. Offline → ingen
+  // server-side → «får ikke kontakt» (ikke tomt panel). Leser kun; skriver aldri.
+  const { erPaaNettet } = useNettverk();
+  const erKonflikt = sedel?.syncStatus === "conflict";
+  // V19-B (B-3): overlapp-konflikt → sammenligningen leser FORSLAGET fra serveren
+  // som «appen»-siden (ikke lokale rader). Alle andre conflict-årsaker (laast/nyere)
+  // beholder den eksisterende U-BEKREFT-modusen (lokale rader mot web).
+  const erOverlapp = sedel?.konfliktAarsak === "overlapp";
+  const webKortQuery = trpc.timer.dagsseddel.hentMedId.useQuery(
+    { id: sheetId },
+    { enabled: !!erKonflikt && erPaaNettet && !!sheetId },
+  );
+  // Smal cast av det dypt-inferrede tRPC-svaret FØR bruk — ellers TS2589 (dyp union)
+  // når .map/useMemo ekspanderer hele hentMedId-outputen. Vi trenger hode-status,
+  // sedelens timer-rader + V19-forslaget, begge med feltene forsoningen skriver.
+  const webKortData = webKortQuery.data as
+    | { status: string; timer: RaaRad[]; forslag?: RaaRad[] }
+    | undefined;
+  const webSedelRader = useMemo(
+    () => (webKortData ? webKortData.timer.map(raaTilForsonRad) : []),
+    [webKortData],
+  );
+  const forslagRader = useMemo(
+    () => (webKortData?.forslag ? webKortData.forslag.map(raaTilForsonRad) : []),
+    [webKortData],
+  );
+  const sammenligning = useMemo(
+    () =>
+      erOverlapp
+        ? overlappSammenligning({
+            nettStatus: erPaaNettet ? "online" : "offline",
+            webLaster: webKortQuery.isLoading,
+            webKort: webKortData
+              ? {
+                  status: webKortData.status as "draft" | "returned" | "sent" | "accepted",
+                  sedelRader: webSedelRader,
+                }
+              : null,
+            forslag: forslagRader,
+          })
+        : dagskortSammenligning({
+            nettStatus: erPaaNettet ? "online" : "offline",
+            webLaster: webKortQuery.isLoading,
+            webKort: webKortData
+              ? {
+                  status: webKortData.status as "draft" | "returned" | "sent" | "accepted",
+                  // Server-radenes `timer` → tall så sammenligningen står på samme
+                  // enhet som de lokale (Drizzle real).
+                  timer: webKortData.timer.map((r) => ({
+                    id: r.id,
+                    fraTid: r.fraTid,
+                    tilTid: r.tilTid,
+                    timer: Number(r.timer),
+                    projectId: r.projectId,
+                    lonnsartId: r.lonnsartId,
+                    beskrivelse: r.beskrivelse,
+                  })),
+                }
+              : null,
+            lokaleTimer: timerRader,
+          }),
+    [
+      erOverlapp,
+      erPaaNettet,
+      webKortQuery.isLoading,
+      webKortData,
+      webSedelRader,
+      forslagRader,
+      timerRader,
+    ],
+  );
+  // Radvalg registreres i skjerm-state, nøklet på rad.nokkel (V19-overlapp) ellers
+  // tidsrom (U-BEKREFT). Overstyrer forhåndsvalget fra den rene funksjonen.
+  const [valgOverstyr, setValgOverstyr] = useState<Record<string, Side>>({});
+  const effektivtValg = useMemo(() => {
+    if (sammenligning.slag !== "modusB" && sammenligning.slag !== "modusC") return {};
+    const v: Record<string, Side> = {};
+    for (const rad of sammenligning.rader) {
+      const key = rad.nokkel ?? rad.tidsrom;
+      v[key] = valgOverstyr[key] ?? rad.valgt;
+    }
+    return v;
+  }, [sammenligning, valgOverstyr]);
+
+  // Steg 2: anvend valgene ATOMISK på web-kortet (forsonDagskort), speil svaret til lokal,
+  // og kvitter ut konflikten. Kun modus B (redigerbart). Fravalgte rader fjernes bevisst.
+  const forsonMutation = trpc.timer.dagsseddel.forsonDagskort.useMutation();
+  const [bekreftFeilTekst, setBekreftFeilTekst] = useState<string | null>(null);
+  const håndterBekreft = useCallback(async () => {
+    if (sammenligning.slag !== "modusB") return;
+
+    let oppdateringer: (ForsonRad & { id: string })[] = [];
+    let nyeRader: ForsonRad[] = [];
+    // V19.9 (RETUR 1, vilkår 1): serverrad-id-er valget «Telefonen slettet» gir
+    // (slettet_telefon → «forslag»). Må sendes til forsonDagskort, ellers slettes
+    // forslaget men serverraden blir stående. Tom i U-BEKREFT (ikke-overlapp).
+    let slettinger: string[] = [];
+
+    if (erOverlapp) {
+      // V19-B (B-3) + V19.9 (RETUR 1, vilkår 1): bygg skriveveien fra FORSLAGET via
+      // den delte `byggForsonOverlappKall` (samme paring som visningen). Den mapper
+      // ALLE valgbare slots (også `slettet_pc`, server=null) og BÆRER `slettinger`
+      // (slettet_telefon → «forslag»). Ekstrahert til lib så harnessen tester seamen.
+      const input = byggForsonOverlappKall(
+        sammenligning.rader,
+        effektivtValg,
+        webSedelRader,
+        forslagRader,
+      );
+      oppdateringer = input.oppdateringer as (ForsonRad & { id: string })[];
+      nyeRader = input.nyeRader as ForsonRad[];
+      slettinger = input.slettinger;
+    } else {
+      // U-BEKREFT (ikke-overlapp): lokale rader mot web pr. eksakt tidsrom.
+      const lokalEtterId = new Map(timerRader.map((r) => [r.id, r]));
+      for (const rad of sammenligning.rader) {
+        const key = rad.nokkel ?? rad.tidsrom;
+        const v = effektivtValg[key];
+        if (rad.lokal && rad.server && v === "lokal") {
+          // Valgt-lokal på et tidsrom begge hadde → erstatt server-raden in-place.
+          const full = lokalEtterId.get(rad.lokal.id);
+          const p = full ? lokalRadTilForson(full) : null;
+          if (!p) {
+            setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
+            return;
+          }
+          oppdateringer.push({ id: rad.server.id, ...p });
+        } else if (rad.lokal && !rad.server) {
+          // Lokal-only beholdt → ny rad på kortet.
+          const full = lokalEtterId.get(rad.lokal.id);
+          const p = full ? lokalRadTilForson(full) : null;
+          if (!p) {
+            setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
+            return;
+          }
+          nyeRader.push(p);
+        }
+        // Valgt-server / server-only beholdt → no-op (ligger alt på kortet).
+      }
+    }
+
+    setBekreftFeilTekst(null);
+    try {
+      const forsonet = (await forsonMutation.mutateAsync({
+        sheetId,
+        oppdateringer,
+        nyeRader,
+        slettinger,
+      })) as ForsonetServerRad[];
+      anvendForsonetLokalt(sheetId, forsonet);
+      bekreftConflict(sheetId);
+      lesData();
+      oppdaterTellere();
+    } catch {
+      setBekreftFeilTekst(t("timer.sammenlign.bekreftFeil"));
+    }
+  }, [
+    sammenligning,
+    effektivtValg,
+    erOverlapp,
+    webSedelRader,
+    forslagRader,
+    timerRader,
+    sheetId,
+    forsonMutation,
+    lesData,
+    oppdaterTellere,
+    t,
+  ]);
+  // V19-B (B-3): «hele dagen»-snarvei — sett alle valgbare slots til samme side.
+  const håndterVelgAlle = useCallback(
+    (side: Side) => {
+      if (sammenligning.slag !== "modusB" && sammenligning.slag !== "modusC") return;
+      setValgOverstyr((forrige) => {
+        const neste = { ...forrige };
+        for (const rad of sammenligning.rader) {
+          if (rad.valgbar === false) continue;
+          neste[rad.nokkel ?? rad.tidsrom] = side;
+        }
+        return neste;
+      });
+    },
+    [sammenligning],
+  );
+
   const erRedigerbar = useMemo(() => {
     if (!sedel) return false;
     return sedel.status === "draft" || sedel.status === "returned";
@@ -217,17 +498,31 @@ export default function DagsseddelDetalj() {
     return hentStandardLonnsartLokalt(sedel.organizationId) == null;
   }, [sedel?.autoGenerert, sedel?.organizationId]);
 
-  // Topp-sum-norm = sesongjustert dagsnorm fra firma-kalender (fase-0:1041),
-  // decouplet fra start/slutt-vinduet: en kort dag er gyldig og akseptert (blå),
-  // ikke en falsk «under norm»-alarm fra full-dag-prefill.
-  const normTimer = useMemo(() => {
-    if (!sedel) return null;
-    const effektiv = hentEffektivArbeidstidLokal(
+  // B6 v3: hent serverens norm-SVAR for sedelens dato ved åpning (femte
+  // hente-sted), så en sedel laget på en annen enhet får normen sin. Best-effort;
+  // offline beholder cachen. `normNonce` tvinger re-les når svaret er cachet.
+  const svarUtils = trpc.useUtils();
+  const [normNonce, settNormNonce] = useState(0);
+  useEffect(() => {
+    if (!sedel?.organizationId || !sedel?.dato) return;
+    void hentOgCacheArbeidstidSvar(
+      svarUtils.client,
       sedel.organizationId,
-      new Date(`${sedel.dato}T00:00:00`),
-    );
-    return effektiv.dagsnorm;
-  }, [sedel]);
+      sedel.dato,
+    ).then((ok) => {
+      if (ok) settNormNonce((n) => n + 1);
+    });
+  }, [sedel?.organizationId, sedel?.dato, svarUtils]);
+
+  // Topp-sum-normen LESES fra svar-cachen (server-utledet), REGNES aldri lokalt.
+  // `null` = norm ukjent (→ "norm ukjent", ikke et gjettet tall).
+  const normSvar = useMemo(() => {
+    if (!sedel) return null;
+    return hentDagsnormLokalt(sedel.organizationId, sedel.dato);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedel, normNonce]);
+  const normTimer = normSvar?.dagsnorm ?? null;
+  const normStatus = normSvar?.normStatus ?? "ukjent";
 
   const totaltimer = useMemo(
     () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
@@ -560,6 +855,19 @@ export default function DagsseddelDetalj() {
         ekskluderSheetId={sedel.id}
       />
 
+      {/* B6.3-markør: normen er ikke dagens server-svar. "ukjent" = ingen
+          overtid-splitt (UNDERbetaling-risiko) → aldri stille. Lag 3 flytter
+          markøren til bekreftelsesskjermen. */}
+      {normStatus !== "server" && (
+        <View className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <Text className="text-xs text-amber-800">
+            {normStatus === "ukjent"
+              ? t("timer.normMarkor.ukjent.banner")
+              : t("timer.normMarkor.cachet.banner")}
+          </Text>
+        </View>
+      )}
+
       {/* U1: topp-sum — dagens registrerte timer vs norm, synlig uten scroll
           (flyttet fra bunn-handlingsblokken). Fast over ScrollView; vises i
           alle tilstander, ikke bare ved redigerbar. */}
@@ -680,28 +988,65 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        {/* U-BEKREFT steg 1: det røde conflict-banneret peker nå HIT — sammenlignings-
+            visningen er den ekte veien videre. Viser begge dagskort pr. tidsrom (modus B
+            redigerbar / modus C låst lesevisning), eller «får ikke kontakt» offline.
+            Skriver ingenting i dette steget. */}
         {sedel.syncStatus === "conflict" && (
-          <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
-            <View className="flex-row items-center gap-2">
-              <AlertTriangle size={16} color="#b91c1c" />
-              <Text className="text-sm font-semibold text-red-900">
-                {t("timer.sync.konflikt")}
-              </Text>
-            </View>
-            <Text className="mt-1 text-sm text-red-800">
-              {sedel.feilmelding ?? t("timer.sync.konfliktBeskrivelse")}
-            </Text>
-          </View>
+          <>
+            {/* V19-B (B-2): overlapp-banner — dagen er også ført på PC, og tidene
+                overlapper. Sammenligningen rett under er veien til å velge. */}
+            {erOverlapp && (
+              <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <View className="flex-row items-start gap-2">
+                  <AlertTriangle size={16} color="#b45309" style={{ marginTop: 1 }} />
+                  <Text className="flex-1 text-sm text-amber-900">
+                    {t("timer.sammenlign.overlappBanner")}
+                  </Text>
+                </View>
+              </View>
+            )}
+            <DagskortSammenligning
+              resultat={sammenligning}
+              valg={effektivtValg}
+              onVelg={(nokkel, side) =>
+                setValgOverstyr((forrige) => ({ ...forrige, [nokkel]: side }))
+              }
+              onVelgAlle={erOverlapp ? håndterVelgAlle : undefined}
+              onBekreft={håndterBekreft}
+              bekrefter={forsonMutation.isPending}
+            />
+            {bekreftFeilTekst && (
+              <View className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 p-2.5">
+                <Text className="text-sm text-red-800">{bekreftFeilTekst}</Text>
+              </View>
+            )}
+          </>
         )}
 
         {sedel.syncStatus === "pending" && (
           <View className="mx-4 mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2">
             <View className="flex-row items-center gap-2">
               <RotateCcw size={14} color="#a16207" />
-              <Text className="text-sm text-yellow-800">
-                {t("timer.sync.venterEn")}
+              {/* FUNN 2026-10-05: pending-banneret LESTE aldri feilmelding (søsterfunn
+                  :304) — et mislykket synk-forsøk var usynlig. Vis server-/klient-
+                  feilen når den finnes, ellers dagens «venter»-tekst. */}
+              <Text className="flex-1 text-sm text-yellow-800">
+                {sedel.feilmelding
+                  ? t("timer.sync.venterFeil", { feilmelding: sedel.feilmelding })
+                  : t("timer.sync.venterEn")}
               </Text>
             </View>
+            {/* Escape-luke: tving en synk nå i stedet for å vente på 30s-intervallet. */}
+            <Pressable
+              onPress={() => void triggerSync()}
+              className="mt-2 self-start rounded-md border border-yellow-300 bg-white px-3 py-1.5"
+              accessibilityRole="button"
+            >
+              <Text className="text-sm font-medium text-yellow-900">
+                {t("timer.sync.proevIgjenNaa")}
+              </Text>
+            </Pressable>
           </View>
         )}
 
@@ -862,23 +1207,44 @@ export default function DagsseddelDetalj() {
             </Text>
           )}
           {/* UF-4: recall — kun på SENDT sedel (ikke godkjent). */}
-          {sedel.status === "sent" && (
-            <>
-              <Pressable
-                onPress={gjenaapne}
-                disabled={gjenaapneMutation.isPending}
-                className="flex-row items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white py-3 active:bg-blue-50 disabled:opacity-50"
-              >
-                <RotateCcw size={16} color="#1e40af" />
-                <Text className="text-base font-medium text-sitedoc-primary">
-                  {t("timer.gjenaapne.knapp")}
+          {sedel.status === "sent" &&
+            (kanGjenaapneDagsseddel(sedel.status, sedel.syncStatus) ? (
+              <>
+                <Pressable
+                  onPress={gjenaapne}
+                  disabled={gjenaapneMutation.isPending}
+                  className="flex-row items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white py-3 active:bg-blue-50 disabled:opacity-50"
+                >
+                  <RotateCcw size={16} color="#1e40af" />
+                  <Text className="text-base font-medium text-sitedoc-primary">
+                    {t("timer.gjenaapne.knapp")}
+                  </Text>
+                </Pressable>
+                <Text className="text-center text-xs text-gray-500">
+                  {t("timer.gjenaapne.hjelp")}
                 </Text>
-              </Pressable>
-              <Text className="text-center text-xs text-gray-500">
-                {t("timer.gjenaapne.hjelp")}
-              </Text>
-            </>
-          )}
+              </>
+            ) : (
+              /* Datatap-ordre 2026-09-30: Gjenåpne er DEAKTIVERT i conflict.
+                 Å gjenåpne ville bumpe server-updatedAt → neste pull sletter de
+                 lokale radene (som kun finnes her). Knappen står synlig men grå
+                 så flaten ikke blir en ny stille tomhet, med tekst som sier at
+                 timene er bevart og at lederen kan returnere sedelen. */
+              <>
+                <Pressable
+                  disabled
+                  className="flex-row items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 py-3 opacity-50"
+                >
+                  <RotateCcw size={16} color="#9ca3af" />
+                  <Text className="text-base font-medium text-gray-400">
+                    {t("timer.gjenaapne.knapp")}
+                  </Text>
+                </Pressable>
+                <Text className="text-center text-xs text-gray-500">
+                  {t("timer.gjenaapne.sperretKonflikt")}
+                </Text>
+              </>
+            ))}
           {sedel.status === "draft" && (
             <Pressable
               onPress={slettSedel}

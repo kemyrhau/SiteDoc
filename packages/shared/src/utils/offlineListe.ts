@@ -66,3 +66,87 @@ export function velgOfflineListeKilde(i: OfflineListeInput): OfflineListeValg {
     ? { kilde: "lokal", tilstand: "lokal" }
     : { kilde: "lokal", tilstand: "lokal-tom" };
 }
+
+/**
+ * Visningskilde for ÉN dokument-detalj offline (fase 2). Skiller seg fra listenes
+ * `velgOfflineListeKilde` på ett avgjørende punkt: **online-venting skal IKKE vise
+ * speilet.** En treg spørring (online, `isLoading`) på et dokument som finnes i speilet
+ * må gi spinner og la online-atferden være uendret — ikke tvungen lesemodus som bytter
+ * til redigerbar når svaret kommer midt i at brukeren leser (AVVIK Q5, orkestrator
+ * 2026-10-03). «Frakoblet» gjelder derfor KUN uten nett eller ved feilet query.
+ */
+export interface DokumentVisningInput {
+  /** Nettverksstatus fra NettverkProvider. */
+  erPaaNettet: boolean;
+  /** Har detalj-spørringen svart (react-query `isSuccess`)? */
+  serverBekreftet: boolean;
+  /** Feilet detalj-spørringen (react-query `isError`)? */
+  erFeilet: boolean;
+  /**
+   * Er detalj-spørringen `paused` (react-query `fetchStatus === "paused"`)? Under
+   * `networkMode: "offlineFirst"` gjør en offline spørring ÉN forsøk, feiler, og PAUSER
+   * retry — den blir `paused`, IKKE `error`. Da er `erFeilet` false og `erPaaNettet` kan
+   * henge etter (NetInfo-startverdi true + «ingen CHANGE-event»-hull), så uten dette
+   * signalet spinner skjermen i et offline-vindu selv om speilet finnes. `paused` er det
+   * entydige «server er uråd nå»-signalet, og skiller offline-pause fra online-venting
+   * (`fetching`) — som Q5 bevisst holder på spinner.
+   */
+  erPauset: boolean;
+  /** Finnes dokumentet i det bruker-filtrerte speilet? */
+  harSpeil: boolean;
+}
+
+export interface DokumentVisningValg {
+  /** Rendre fra speilet i tvungen lesemodus. */
+  offlineModus: boolean;
+  /** Vis «ikke lastet ned» (frakoblet uten speil) — ikke evig spinner. */
+  offlineIkkeLastet: boolean;
+}
+
+export function velgDokumentVisning(i: DokumentVisningInput): DokumentVisningValg {
+  // Frakoblet = ikke bekreftet server-svar OG (uten nett ELLER feilet ELLER pauset).
+  // `erPauset` fanger offlineFirst-tilstanden der spørringen hverken er feilet eller
+  // bekreftet, og lukker racet mot `erPaaNettet` (NetInfo-lag). Online-venting
+  // (`fetching`, på nett, ikke pauset/feilet/bekreftet) er fortsatt UTE → skjermen spinner (Q5).
+  const frakoblet = !i.serverBekreftet && (!i.erPaaNettet || i.erFeilet || i.erPauset);
+  return {
+    offlineModus: frakoblet && i.harSpeil,
+    offlineIkkeLastet: frakoblet && !i.harSpeil,
+  };
+}
+
+/* ---------------------------------------------------------------------------
+ *  Hjem-inngangen (feltfunn 2026-10-04): Hjem og prosjektvelgeren er den eneste
+ *  veien inn til listene (og dermed de offline-lagrede dokumentene). Begge gikk
+ *  nett-only og viste en feilside som stengte veien uten nett. Denne funksjonen
+ *  avgjør hva Hjem/prosjektvelgeren viser for PROSJEKT-spørringen, med SAMME
+ *  pause-regel som `velgDokumentVisning` (frakoblet = uten nett / feilet / pauset).
+ * ------------------------------------------------------------------------- */
+
+export type HjemProsjektVisning = "spinner" | "server" | "lokal" | "feil";
+
+export interface HjemProsjektInput {
+  /** Nettverksstatus fra NettverkProvider. */
+  erPaaNettet: boolean;
+  /** Har prosjekt-spørringen svart (react-query `isSuccess`)? */
+  serverBekreftet: boolean;
+  /** Feilet prosjekt-spørringen (react-query `isError`)? */
+  erFeilet: boolean;
+  /** Er prosjekt-spørringen `paused` (`fetchStatus === "paused"`)? Samme signal som fase 2. */
+  erPauset: boolean;
+  /** Finnes prosjekter i lokal cache (`prosjekt_local`) for valgt firma? */
+  harLokaleProsjekter: boolean;
+}
+
+/**
+ * - `server`: autoritativt svar foreligger → bruk det (online-atferd uendret).
+ * - `spinner`: online og venter (fetching, ikke pauset/feilet) → spinn som i dag (Q5).
+ * - `lokal`: frakoblet (uten nett/feilet/pauset) OG lokale prosjekter finnes → vis dem, ingen feilside.
+ * - `feil`: frakoblet OG ingen lokale data → feilside (online-feil med «prøv igjen», offline «ingenting lagret»).
+ */
+export function velgHjemProsjektVisning(i: HjemProsjektInput): HjemProsjektVisning {
+  if (i.serverBekreftet) return "server";
+  const frakoblet = !i.erPaaNettet || i.erFeilet || i.erPauset;
+  if (frakoblet) return i.harLokaleProsjekter ? "lokal" : "feil";
+  return "spinner";
+}

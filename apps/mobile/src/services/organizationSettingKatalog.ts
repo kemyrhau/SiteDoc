@@ -77,7 +77,9 @@ export async function refreshOrganizationSettingKatalog(
       reiseTerskelM: setting.reiseTerskelM ?? null,
       reiseUnderTerskelType: setting.reiseUnderTerskelType ?? "arbeidstid",
       reiseOverTerskelType: setting.reiseOverTerskelType ?? "reisetid",
-      reisetidTellerOvertid: setting.reisetidTellerOvertid ?? false,
+      // C5 (V1): reisetidTellerOvertid leses ikke lenger (reisetid er ALDRI
+      // overtid). Drizzle-feltet fjernet — skrives ikke her. SQLite-kolonnen
+      // står (to-stegs); server kan fortsatt returnere feltet, det ignoreres.
       reiseLonnsartId: setting.reiseLonnsartId ?? null,
       sistOppdatert: naa,
     })

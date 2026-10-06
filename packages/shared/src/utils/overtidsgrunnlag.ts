@@ -21,17 +21,30 @@ export interface OvertidRad {
   timer: number;
   /** Fra lonnsart. null = ordinær/normaltid; 50/100 = overtid-tier. */
   overtidsnivaa: number | null;
+  /**
+   * LAG 2 / V1: reise er ALDRI overtid. Reise-rader holdes helt utenfor
+   * overtidsgrunnlaget — de teller hverken i arbeidstimer, sumOvertid eller
+   * klassifiseringen. 🔴 PÅKREVD (gate RETUR 1 avvik 2): garantien ligger i
+   * typen, ikke i disiplinen til neste kaller — en manglende verdi skal aldri
+   * kunne la en reise-rad telle som arbeid. Begge serverkallerne setter den.
+   */
+  erReise: boolean;
 }
 
 export interface Overtidsgrunnlag {
   /** Normen sammenligningen skjer mot: dagsnorm (dag) eller ukenorm (uke). */
   norm: number;
+  /** Alle timer (arbeid + reise) — uendret betydning, for visning. */
   totaltimer: number;
-  /** Valgt: timer ført på rader UTEN overtidsnivaa. */
+  /** LAG 2 / V1: timer på ikke-reise-rader — grunnlaget overtid beregnes fra. */
+  arbeidstimer: number;
+  /** LAG 2 / V1: timer på reise-rader — holdt UTENFOR overtidsfordelingen. */
+  reisetimer: number;
+  /** Valgt: timer ført på ikke-reise-rader UTEN overtidsnivaa. */
   sumOrdinaert: number;
-  /** Valgt: timer ført på rader MED overtidsnivaa (bruker-tagget overtid). */
+  /** Valgt: timer ført på ikke-reise-rader MED overtidsnivaa (bruker-tagget overtid). */
   sumOvertid: number;
-  /** Beregnet: timer regelen legger over normen (klassifiserArbeidstid). */
+  /** Beregnet: timer regelen legger over normen (klassifiserArbeidstid på arbeidstimer). */
   beregnetOvertid: number;
   /** true når beregnet og valgt overtid spriker (utover 0,01 t). */
   avvik: boolean;
@@ -47,17 +60,34 @@ export function beregnOvertidsgrunnlag(
   rader: OvertidRad[],
   norm: number,
 ): Overtidsgrunnlag {
-  const totaltimer = round2(rader.reduce((s, r) => s + r.timer, 0));
+  // V1: reise-rader holdes HELT utenfor overtidsgrunnlaget. De teller i reisetimer
+  // (for visning), men aldri i arbeidstimer, sumOvertid eller klassifiseringen.
+  const arbeidRader = rader.filter((r) => !r.erReise);
+  const reiseRader = rader.filter((r) => r.erReise);
+  const arbeidstimer = round2(arbeidRader.reduce((s, r) => s + r.timer, 0));
+  const reisetimer = round2(reiseRader.reduce((s, r) => s + r.timer, 0));
+  const totaltimer = round2(arbeidstimer + reisetimer);
   const sumOvertid = round2(
-    rader.filter((r) => r.overtidsnivaa !== null).reduce((s, r) => s + r.timer, 0),
+    arbeidRader
+      .filter((r) => r.overtidsnivaa !== null)
+      .reduce((s, r) => s + r.timer, 0),
   );
-  const sumOrdinaert = round2(totaltimer - sumOvertid);
-  const segmenter = klassifiserArbeidstid({ arbeidstimer: totaltimer, dagsnorm: norm });
+  const sumOrdinaert = round2(arbeidstimer - sumOvertid);
+  const segmenter = klassifiserArbeidstid({ arbeidstimer, dagsnorm: norm });
   const beregnetOvertid = round2(
     segmenter.filter((s) => s.overtidsnivaa !== null).reduce((s, x) => s + x.timer, 0),
   );
   const avvik = Math.abs(beregnetOvertid - sumOvertid) > 0.01;
-  return { norm, totaltimer, sumOrdinaert, sumOvertid, beregnetOvertid, avvik };
+  return {
+    norm,
+    totaltimer,
+    arbeidstimer,
+    reisetimer,
+    sumOrdinaert,
+    sumOvertid,
+    beregnetOvertid,
+    avvik,
+  };
 }
 
 /**
@@ -90,12 +120,91 @@ export function lesOvertidsgrunnlagFraSnapshot(
   ) {
     return null;
   }
+  // LAG 2: arbeidstimer/reisetimer kom til i lag 2. Eldre snapshots mangler dem —
+  // da fantes ikke reise-splittet, så reise var talt som arbeid: arbeidstimer =
+  // totaltimer, reisetimer = 0 (ærlig gjengivelse av det som faktisk ble attestert).
+  const arbeidstimer = num(g.arbeidstimer);
+  const reisetimer = num(g.reisetimer);
   return {
     norm,
     totaltimer,
+    arbeidstimer: arbeidstimer ?? totaltimer,
+    reisetimer: reisetimer ?? 0,
     sumOrdinaert,
     sumOvertid,
     beregnetOvertid,
     avvik: g.avvik === true,
   };
+}
+
+// ============================================================================
+//  Uke-avvik — attestantvarselet (ORDRE 2 STEG 3 ledd 2, designnotat § D2).
+//
+//  Bygd som per-sedel-grunnlaget aggregert til UKE: attestanten skal se at en
+//  ukes overtid ikke stemmer med normen, uten å regne selv. Trukket hit fra en
+//  privat funksjon i AttesteringPivot.tsx (web) så web SeddelKort/pivot, mobil-
+//  liste og detalj-banner deler ÉN kilde — ellers fødes kopi nummer to.
+//
+//  Semantikk (fabel-vedtak, pivot-kommentaren): varselet er MISFORHOLD mellom
+//  FØRT og BEREGNET overtid — ikke «over norm». En ansatt som fører overtiden
+//  riktig har intet avvik. Dette er den forfinede tolkningen av D2s (a).
+// ============================================================================
+
+/** Én sedel redusert til det uke-avviket trenger (dag-grunnlag + ukenorm). */
+export interface UkeSedelInput {
+  totaltimer: number;
+  /** Ukenormen sedelens uke måles mot (fra beregnUkenorm, servert per sedel). */
+  ukenorm: number;
+  /** Ført (valgt) overtid denne sedelen — dag-grunnlagets sumOvertid. */
+  sumOvertid: number;
+}
+
+/** Uke-nivå avvik (D2): misforhold mellom FØRT og BEREGNET overtid. */
+export interface UkeAvvik {
+  norm: number;
+  ukesum: number;
+  sumOrdinaert: number;
+  /** Ført (valgt) overtid over uken. */
+  sumOvertid: number;
+  /** Beregnet overtid = regelen (klassifiserArbeidstid) over ukesum mot norm. */
+  beregnetOvertid: number;
+  /** beregnet − ført; >0 = overtid ikke ført, <0 = ført under norm. */
+  avvikTimer: number;
+}
+
+/**
+ * Aggreger et sett sedler (samme bruker, samme uke) til uke-avviket. REN.
+ * `beregnetOvertid` går via `klassifiserArbeidstid` — SAMME regel som
+ * `beregnOvertidsgrunnlag`, så terskelen «hvor mye SKAL være overtid» har ett
+ * hjem og følger en fremtidig nivå 1/2-tariff automatisk.
+ */
+export function beregnUkeAvvik(sedler: UkeSedelInput[]): UkeAvvik {
+  const norm = sedler[0]?.ukenorm ?? 0;
+  const ukesum = round2(sedler.reduce((a, s) => a + s.totaltimer, 0));
+  const sumOvertid = round2(sedler.reduce((a, s) => a + s.sumOvertid, 0));
+  const sumOrdinaert = round2(ukesum - sumOvertid);
+  const beregnetOvertid = round2(
+    klassifiserArbeidstid({ arbeidstimer: ukesum, dagsnorm: norm })
+      .filter((s) => s.overtidsnivaa !== null)
+      .reduce((a, s) => a + s.timer, 0),
+  );
+  const avvikTimer = round2(beregnetOvertid - sumOvertid);
+  return { norm, ukesum, sumOrdinaert, sumOvertid, beregnetOvertid, avvikTimer };
+}
+
+/**
+ * Retningen på et avvik — én kilde delt av badge (web+mobil) og banner.
+ * `null` = intet varsel (norm ukjent, eller ført == beregnet innen 0,01 t).
+ * Godtar både `UkeAvvik` og `Overtidsgrunnlag` (begge bærer de tre feltene).
+ */
+export function avvikRetning(g: {
+  norm: number;
+  beregnetOvertid: number;
+  sumOvertid: number;
+}): "over" | "under" | null {
+  if (g.norm <= 0) return null;
+  const d = round2(g.beregnetOvertid - g.sumOvertid);
+  if (d > 0.01) return "over";
+  if (d < -0.01) return "under";
+  return null;
 }

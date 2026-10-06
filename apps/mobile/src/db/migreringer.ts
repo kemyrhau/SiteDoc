@@ -637,6 +637,24 @@ export function kjorMigreringer() {
     );
   `);
 
+  // B6 v3 (L1-B) — cachet SVAR fra serverens norm-utledning, pr. (firma, dato).
+  // Telefonen leser normen herfra (regner den aldri). Lokal, synkes aldri opp.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS arbeidstid_svar_local (
+      org_id TEXT NOT NULL,
+      dato TEXT NOT NULL,
+      dagsnorm REAL NOT NULL,
+      start_tid TEXT NOT NULL,
+      slutt_tid TEXT NOT NULL,
+      pause_min INTEGER NOT NULL,
+      norm_kilde TEXT NOT NULL,
+      pause_etter_timer REAL NOT NULL,
+      pause_referanse TEXT NOT NULL,
+      hentet_at INTEGER NOT NULL,
+      PRIMARY KEY (org_id, dato)
+    );
+  `);
+
   // T.5 (2026-05-16) — tidsrunding for picker-input. null = ingen avrunding.
   // Idempotent ALTER for klienter som allerede har T4-d-tabellen uten kolonnen.
   try {
@@ -997,4 +1015,190 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_reise_grensepunkt_local_org
       ON reise_grensepunkt_local(organization_id);
   `);
+
+  // Offline-liste fase 1 for oppgaver/HMS (2026-10-03) — oppgave_local + hms_local:
+  // offline-kataloger for oppgavelista og HMS-lista, etter mønster fra sjekkliste_local.
+  // Read-only mirrors, full-overskrives per prosjekt via oppgaveKatalog/hmsKatalog.
+  // Bærer KUN visningsfelt — ALDRI `data`/signerte vedleggs-URL-er. byggeplass_id er
+  // den UTLEDETE effektive byggeplassen (drawing.byggeplass.id for Task, byggeplassId
+  // for Checklist); null = gjelder hele prosjektet. KUN lokal, synkes aldri opp.
+  // Idempotent CREATE IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS oppgave_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      priority TEXT NOT NULL,
+      number INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      due_date TEXT,
+      byggeplass_id TEXT,
+      template_name TEXT,
+      template_prefix TEXT,
+      template_subdomain TEXT,
+      utforer_faggruppe_navn TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_oppgave_local_project
+      ON oppgave_local(project_id, user_id);
+
+    CREATE TABLE IF NOT EXISTS hms_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      kategori TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      number INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      byggeplass_id TEXT,
+      template_name TEXT,
+      template_prefix TEXT,
+      bestiller_faggruppe_navn TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_hms_local_project
+      ON hms_local(project_id, user_id, kategori);
+  `);
+
+  // LAG 2 (L2-B, 2026-10-03) — reise-sporet på sheet_timer_local: feltene som
+  // følger en reise-rad fra telefon til server (K5). Alle nullable/additive,
+  // idempotent ALTER etter PRAGMA table_info-mønsteret. Ingen backfill: eldre
+  // lokale rader står null (ærlig — som geofenceKilde='ukjent' i lag 1); server
+  // backfiller sine egne rader i db-timer-migreringen.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    const leggTil: Array<[string, string]> = [
+      ["er_reise", "INTEGER"],
+      ["reise_retning", "TEXT"],
+      ["reise_oppmotested_id", "TEXT"],
+      ["reise_kjoretid_min", "INTEGER"],
+      ["reise_avstand_m", "INTEGER"],
+      ["reise_kilde", "TEXT"],
+      ["reise_regel", "TEXT"],
+      ["tid_kilde", "TEXT"],
+    ];
+    for (const [navn, type] of leggTil) {
+      if (!kolonner.find((k) => k.name === navn)) {
+        console.log(`[MIG] Legger til ${navn} på sheet_timer_local (L2-B)`);
+        db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN ${navn} ${type}`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide sheet_timer_local med reise-spor:", e);
+  }
+
+  // LAG 2 (L2-B, 2026-10-03) — norm_status + norm_snapshot på dagsseddel_local
+  // (B5): lønnsnormens kilde + snapshot følger sedelen fra svar-cachen til
+  // attestanten. Nullable/additive, idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    for (const navn of ["norm_status", "norm_snapshot"]) {
+      if (!kolonner.find((k) => k.name === navn)) {
+        console.log(`[MIG] Legger til ${navn} på dagsseddel_local (L2-B)`);
+        db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN ${navn} TEXT`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med norm-spor:", e);
+  }
+
+  // Offline-LESING fase 2 (2026-10-03) — dokument_speil: speil av HELE dokumentet
+  // (hentMedId-JSON) pr. (dokumentType, id, userId) for lesing uten nett i tvungen
+  // lesemodus. Komposit-PK = DB-garanti mot duplikat/klobbing på tvers av brukere
+  // og dokumenttyper. Signerte vedleggs-URL-er strippes før lagring (tjenestelaget).
+  // KUN lokal, synkes aldri opp. Idempotent CREATE IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS dokument_speil (
+      id TEXT NOT NULL,
+      dokument_type TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      json TEXT NOT NULL,
+      hentet_at INTEGER NOT NULL,
+      PRIMARY KEY (dokument_type, id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dokument_speil_scope
+      ON dokument_speil(project_id, user_id);
+  `);
+
+  // Lekkasjefiks (2026-10-03): sjekkliste_local manglet user_id (BACKLOG «SJEKKLISTE-
+  // SPEILET LEKKER VED BRUKERBYTTE»). ALTER ADD COLUMN (nullable — eksisterende rader
+  // kan ikke etterfylles med riktig eier). Lesefilteret (sjekklisteKatalog) krever
+  // user_id-match, så NULL-rader (ukjent eier) er usynlige for alle til neste
+  // per-prosjekt-refresh overskriver dem med riktig userId. Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync("PRAGMA table_info(sjekkliste_local)") as Array<{
+      name: string;
+    }>;
+    if (!kolonner.find((k) => k.name === "user_id")) {
+      console.log("[MIG] Legger til user_id på sjekkliste_local (offline-lesing fase 2 lekkasjefiks)");
+      db.execSync(`ALTER TABLE sjekkliste_local ADD COLUMN user_id TEXT`);
+      db.execSync(
+        `CREATE INDEX IF NOT EXISTS idx_sjekkliste_local_bruker ON sjekkliste_local(project_id, user_id)`,
+      );
+    }
+  } catch (e) {
+    console.warn("[MIG] user_id på sjekkliste_local feilet", e);
+  }
+
+  // V19-B (B-1b, 2026-10-05) — konflikt_aarsak på dagsseddel_local: serverens
+  // `aarsak` lagres lokalt ved conflict ("overlapp"/"laast"/"nyere"/"dato_kollisjon")
+  // og leses KUN av pull-vakten (V19.7b/B-3b) for å slippe en overlapp-konflikt når
+  // valget er tatt på PC. Tilstand med én leser — ingen identitetskolonne, ingen
+  // backfill (eksisterende conflict-sedler er server-wins "laast"-oppførsel, og null
+  // leses konservativt som ikke-overlapp). NULLABLE. Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "konflikt_aarsak")) {
+      console.log("[MIG] Legger til konflikt_aarsak på dagsseddel_local (V19-B)");
+      db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN konflikt_aarsak TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] konflikt_aarsak på dagsseddel_local feilet", e);
+  }
+
+  // V19.9-B (B'-1, 2026-10-06) — server_versjon på sheet_timer_local og
+  // slettede_rader_local: radversjonen (`SheetTimer.updatedAt`, ISO-ms) telefonen
+  // fikk ved pull/push-`ok`, sendt tilbake i syncBatch → versjonssjekk pr. rad.
+  // NULLABLE, ingen backfill — stille tomhet er trygg ved konstruksjon (Kenneths
+  // krav 6): første pull etter oppdateringen fyller alle synkede rader; pending
+  // offline-rader beholder NULL til sin push → serveren bruker innholdsregelen
+  // (aldri stille overskriving). Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "server_versjon")) {
+      console.log("[MIG] Legger til server_versjon på sheet_timer_local (V19.9-B)");
+      db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN server_versjon TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] server_versjon på sheet_timer_local feilet", e);
+  }
+
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(slettede_rader_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "server_versjon")) {
+      console.log("[MIG] Legger til server_versjon på slettede_rader_local (V19.9-B)");
+      db.execSync(`ALTER TABLE slettede_rader_local ADD COLUMN server_versjon TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] server_versjon på slettede_rader_local feilet", e);
+  }
 }

@@ -398,6 +398,42 @@ KD1 (tre toleransesett for belegningstyper), FD2 (seks bunntoleranser etter grø
 lagtype), UP1 (kumtype) og UU1 (hva som prøves). **Struktur og innhold endres da i samme runde**, og da leses
 tekstbeviset ekstra nøye (jf. JH2 v2).
 
+### §1g. «Faglig grunnlag» siterer GRUPPEN når malen dekker mer enn én post (design 2026-09-26)
+
+**Gatet av design 2026-09-26, etter verifiseringsrunden mot NS 3420.**
+
+🔴 **Regelen:** dekker malen innholdet i én post, siteres posten. **Dekker den en gruppe eller flere poster,
+siteres GRUPPEN** — aldri én av dem som om den var hele grunnlaget.
+
+| Situasjon | Linje |
+|---|---|
+| Malen svarer til én post | `Faglig grunnlag: NS 3420-U:2019, post UM1.1.` |
+| Malen dekker flere poster / en gruppe | `Faglig grunnlag: NS 3420-U:2019, postgruppe UM1.` |
+| Malen har **ingen** normpost | 🔴 **Utelat linja helt.** **Aldri finn på en** |
+
+**Målt belegg (verifiseringsrunden 2026-09-26, 26 koder):**
+- `UM1.1` — normen: «Utendørs vannledninger» (kun vann). Vår mal dekket vann **og avløp og drens**. 🔴 Kollisjon
+- `FJ1` — normen: «vannlensing». Vår mal dekker hele kapittel FJ «Vannhåndtering»
+- `FD1` — normen: «generelle gravenivåer». Vår mal het «byggegrop»
+
+⚠️ **Alle tre er samme feil: en gruppe sitert som om den var én post.** **Det er ikke en unøyaktighet — det er
+en feil kildehenvisning i et dokument som kan havne i et sluttoppgjør.**
+
+### 🔴 §1g-b. Referansen skal slås opp i normen FØR den velges
+
+**`UM1.1` ble valgt av design som «UM1 pluss én», uten oppslag.** Normen brukte koden alt, til noe annet.
+
+🔴 **Enhver ny malreferanse slås opp i riktig NS 3420-del før den tas i bruk.**
+**Metode:** `pdftotext "<del>.pdf" - | grep -A4 "^<KODE>$"`.
+⚠️ **`-m1` er IKKE nok — første treff er innholdsfortegnelsen.** Les brødtekst-forekomsten.
+⚠️ **Del K og Del F mangler tekstlag** (skannet). Der må innholdsfortegnelsen leses som bilde, **og
+verifiseringsnivået er lavere — si det.**
+
+🟢 **Finnes ingen passende postkode, lag en som ikke kan forveksles med en** — f.eks. bokstav etter tall
+(`UM1S`), ikke et nytt punktum-ledd.
+
+---
+
 ### §1f. Hvilken forgrenings-hjelper — `barnAv` ved kryss-fase, `forgrening` ved samme fase (design 2026-09-23)
 
 **Gatet av design 2026-09-23, etter mal-Opus' KD1 v3-leveranse.** Regelen ble først gitt i en melding; den står
@@ -431,3 +467,22 @@ eneste medlem er et skjult barn, viser en tom overskrift på skjerm (arkiv-PDF s
 **Ordrer skrevet før 2026-09-23 sier «bruk `forgrening`»** fordi `barnAv` ikke fantes. **Denne regelen går
 foran ordrens bokstav der de er i konflikt** — det gjelder UP-delingen, UM1 v2 og UM1.1. Utføreren melder i
 leveransen hvilken hjelper som ble brukt hvor, så fasiten viser det.
+
+### §1f. Trafikklys med valgbart lyssett (2026-09-27, STYRENDE)
+
+`traffic_light` er ÉN felttype med et valgbart lyssett. Feltets `config.options` bærer HVILKE av de fire
+kanoniske verdiene (`green`/`yellow`/`red`/`gray`) feltet tilbyr, i hvilken rekkefølge, med valgfri egen
+etikett per verdi. Uten `config.options` faller feltet til det kanoniske firelys-settet
+(Godkjent/Anmerkning/Avvik/Ikke relevant) — uendret.
+
+**Regel for mal-bygging:**
+- **Fargen følger verdien**, ikke etiketten — `green` er alltid grønn. Et tresett = fire kanoniske minus én
+  verdi, ALDRI en egen fargeliste. Utelates `gray` får du Godkjent/Anmerkning/Avvik.
+- **Egen etikett brukes kun når betydningen er en annen** (HMS-avvik: `red`=«Åpent», `green`=«Lukket»;
+  Godkjenning: `red`=«Avvist»). Er etiketten seedet standardtekst, oversettes den ved rendring; ellers vises
+  den rått som firmatekst. Nye seedede etiketter MÅ føres i `STANDARD_OPSJONER` (`standardtekster.ts`).
+- **Antallet er ikke låst til 3/4.** Validering (`mal.ts`) krever bare: hver verdi er én kanonisk nøkkel,
+  ingen duplikater, minst to lys. Et framtidig behov for to eller fem lys er ikke sperret (bruk-er-ikke-behov.md).
+- **Malbyggerens palett tilbyr to trafikklys-objekter** (tre lys / fire lys). Begge oppretter `traffic_light`
+  og skiller seg bare i seedet `options` — palett-valg, ikke typevalg, så et bytte er en config-endring som
+  endringsvernet fanger, ikke en slett+nyopprett.

@@ -2,7 +2,7 @@
 name: sikkerhet
 description: Samlet sikkerhetsvurdering — hva er målt, hva er åpent, hva er avgjort. Erstatter spredte punkter i STATUS-AKTUELT og containertopologi-notatet.
 status: 🟠 LEVENDE — oppdateres ved hvert funn og hver lukking
-sist_verifisert_mot_kode: 2026-09-06
+sist_verifisert_mot_kode: 2026-09-28
 ---
 
 # Sikkerhet — samlet vurdering
@@ -37,6 +37,93 @@ sensitive filreferanser på åpen sti — timer, kompetanse, maskin, `Image.file
 feltvedlegg, alle 0. Kategoriene er ryddet. **Stien er der fortsatt.**
 
 ---
+
+## ✅ Femte /uploads/-funn: «forgiftet URL» — signaturgaten kunne gjøre gamle bilder usynlige (fikset 2026-09-28)
+
+**Feilklassen (ny, verd å kjenne):** en signert `/uploads/`-URL har innebygd utløp
+(`?exp=…&sig=…`). Havner den i lagret data (`checklists.data` / `tasks.data`) i stedet for
+kun på respons-veien, dør signaturen i databasen — den blir en **forgiftet URL**. Rotårsak
+var Fase 1 (`ca7f16b6`, 07.08): en signert URL ble skrevet til `data`. Målt 28.09: 5
+checklists + 1 task i prod bar en forgiftet URL, alle `received`/`draft` (ingen signert
+eller godkjent, ingen manglende bevis i et ferdig dokument).
+
+**Hvorfor den var permanent:** emisjonssigneringen (`hmac.ts:signerHvisPrivat` via
+`erAlleredeSignert`) spurte bare *om* det fantes `sig=` — en **død** signatur regnet den
+som «ferdig signert» og sendte den lagrede, utløpte URL-en ut uendret. `SignertBilde`
+invaliderte og hentet på nytt, fikk samme døde URL tilbake, ga opp etter tre forsøk.
+Bildet ble borte for godt.
+
+**Fiksen (tre deler), 2026-09-28:**
+- **A — heling på visnings-veien (kravet):** `erAlleredeSignert` leser nå `exp`; en
+  utløpt signatur er *ikke* ferdig — den faller gjennom til `signerFilSti`, som stripper
+  query og signerer stien på nytt. Gamle dokumenter viser bildene igjen **uten at
+  databasen røres**. Krav: *et lagret vedlegg skal alltid kunne vises*, uansett alder.
+- 🔴 **Idempotensen kan ikke ofres for å løse dette.** Løsningen re-signerer KUN utløpte
+  URL-er. En *gyldig* signert URL kommer uendret ut (`hmac.ts:erAlleredeSignert`,
+  `hmac.test.ts` KRAV 4). Å strippe + re-signere ved *hver* emisjon (den forkastede
+  ideen) ville brutt det dokumenterte idempotens-kravet (`hmac.ts:84-87`) OG gitt en ny
+  URL hvert kall — `SignertBilde`-koalesceringen og 15-min-levetiden hviler på at URL-en
+  er **stabil** i vinduet (jf. `fix/signert-bilde-flere-forsok`, `4ef039fd`).
+- **B — vakt mot ny forgiftning:** `avvisForgiftetVedleggIData` (bygget på
+  `erForgiftetUploadsUrl` i `@sitedoc/shared/uploadsSti.ts`, speilet av `erRaaUploadsUrl`
+  — ikke en femte kopi av regelen) kaster hvis en klient forsøker å skrive en signert
+  `/uploads/`-URL til `data`. Kalt i `sjekkliste`/`oppgave`-`oppdaterData`; `settVedleggUrl`
+  krever nå en *rå* sti.
+- **C — dataretting:** manuelle SQL-skript i
+  `packages/db/manuell/forgiftede-vedlegg-urler/` (DRY-RUN + rydding), bevisst **utenfor**
+  `prisma/migrations/` så de aldri auto-kjøres. Med A på plass er C rydding, ikke redning.
+
+### ✅ Mobil-motstykket til visnings-helingen (herding 2026-09-30, `fix/mobil-herding-signerte-urler`)
+
+Web helet på visnings-veien (del A over). Mobilen resolver signerte URL-er **ved visning**
+(`apps/mobile/src/utils/signerteUrler.ts`, `resolveSignerteUrler` i `hentFeltVerdi`), men
+resolveren hadde to hull (målt i `maaling-mobil-lagrede-uploads-2026-09-30.md`, «Funn C» +
+akse 2 fra cowork):
+
+- **Akse 1 — bare `url`-nøkkelen ble leget.** Annoteringens `originalUrl` (en `/uploads/`-streng
+  mobilen bærer i JSON-blobben, aldri navngitt i mobil-koden) ble aldri byttet → originalen
+  lastet ikke ved redigering av markeringer.
+- **Akse 2 — bare RÅ ble leget.** Init-veien kan persistere en **signert URL med utløp** til
+  SQLite (`skrivTilSQLite` kopierer `hentMedId`-svaret uendret). Den utløpte URL-en sto død;
+  resolveren rørte den ikke (den bærer `sig=`, så den var ikke «rå»).
+
+**Fiksen speiler web ved KONSTRUKSJON, ikke ved nøkkelliste:**
+- **Nøkkel-agnostisk:** både `samleSignerteVedleggUrler` og `resolveSignerteUrler` rekurserer
+  på strenger — enhver `/uploads/`-streng leges uansett nøkkelnavn (`originalUrl` dekket *fordi
+  den er en `/uploads/`-streng*). Begge nøkler på **rå sti** (`raaUploadsSti`), så rå og
+  utløpt-signert av samme fil finner den ferske.
+- **Utløpt ≠ rå:** heler når `erUtloptSignatur(url)` er sann (rå ELLER utløpt-signert) — **samme
+  delte grense web bruker** (`@sitedoc/shared/signertBildePolicy.ts`). 🔴 **Idempotensen bevart:**
+  en *gyldig* signert URL står urørt (samme grense som `erAlleredeSignert` server-side), ellers
+  skifter URL-en identitet ved hver visning og `SignertBilde`-koalesceringen faller.
+
+🔴 **Krav 3 (selvfornyelse på mobil — tak/backoff/debouncet invalidering + ingen stille feil)
+er IKKE i denne runden.** Den hører inni `AutentisertBilde` (`feat/mobil-bildeheader`, frossen),
+som erstatter `<Image>` i de samme visningskomponentene — å legge `onError` i dem nå ville
+kollidert i fil og havnet i komponenter som ikke lenger eier bildet. Leveres som tillegg når
+bildeheader er merget.
+
+---
+
+### 🟡 8. Skrive-vaksinen mot forgiftede `/uploads/`-URL-er kjøres ikke i mobilappen (funn 2026-09-30)
+
+**Målt av kontrollør under gaten av `feat/mobil-bilde-selvfornyelse`.** Vaksinen fra det
+femte funnet — `erForgiftetUploadsUrl` / `raaVedleggIData` — **har ingen kallsteder i
+`apps/mobile`.** Det som i praksis hindrer at en signert URL lagres i feltverdier, er
+**konvensjonen «mobil holder feltVerdier rå», ikke en vakt.**
+
+⚠️ **Ingen kjent vei til skade i dag** — derfor 🟡 og ikke 🟠. Mobilen skriver rå stier, og
+`stiForFornyelse` (`bildeKilde.ts`), som bevisst BEHOLDER `?sig=`, har ett kallsted og er kun
+lesende.
+
+🔴 **Men dette er klassen Kenneth selv har navngitt:** *«en feil som er fikset mange ganger og
+kommer tilbake, mangler ikke en fiks — den mangler en vakt.»* **Web ble vaksinert; mobil fikk
+konvensjonen.** Neste kallsted som bruker en signert URI mot data har ingenting som stopper
+det.
+
+**Tiltak når flaten røres:** kall vaksinen i mobilens skrivevei for feltverdier, eller legg en
+test som feiler hvis en `sig=`-bærende streng havner i lagret data. **Ikke bestilt** — ført her
+fordi funnet ellers bare finnes i en gitignorert innboks.
 
 ## Åpne punkter, rangert etter vei fra utenforstående til skade
 
@@ -148,6 +235,7 @@ sjekker på andre akser (ikke tenant-hull som de fem over), og vurderes i frys-v
 | Rot-lås på statisk servering | `server.ts:129` | 2026-08-28 |
 | Ingen sensitive filer på åpen sti | `audit-sensitive-apen-sti.ts` mot prod-DB, sum 0 | 2026-08-15 |
 | Signaturgate-omgåelse lukket | `//`, `/./`, `%2e` → ikke lenger 200 | 2026-08-12 |
+| `/uploads/` signaturgate — alle konsument-klasser selvfornyer, levetid 15 min | S1 Fase 1b default-deny (`hmac.ts:vurderUploadsFilForesporsel`); hver signert URL har kort levetid (`STANDARD_LEVETID_MS = 15 min`). Bilde-klassen fornyer via `SignertBilde` (onError) med **tre gjenforsøk + backoff** (`SIGNERT_BILDE_MAKS_FORSOK = 3` + `backoffForsokMs`, delt regel i `@sitedoc/shared`) — ett dekningsdropp på dårlig 4G ødelegger ikke lenger bildet (var 1 forsøk; med 15 min levetid fornyes en åpen fane ~96×/døgn, hver en ny sjanse til å bomme på det ene forsøket). Taket + 401-vs-404-skillet (`erUtloptSignatur`) hindrer løkke mot 401 og gjenforsøk av 404; debounce-en (`lagInvalideringsDebounce`) koalescerer fortsatt mange samtidige feil til én invalidering pr. forsøksnivå. Lenke-klassen fornyer via `SignertLenke` (sjekk før navigering) — LUKKET i lenke-runden 27.09. Snubletråd (`levetid-snubletraad.test.ts`) vokter at levetiden ikke heves umerket, eller senkes uten at en klasse mister dekning | 2026-09-28 |
 | Registrator er ikke superbruker | Fase A+B, `8a1de1a9` | 2026-07-21 |
 | 14 funn fra sikkerhets-audit adressert i prod | Se [historikk-2026-05.md](historikk-2026-05.md) | 2026-05-27 |
 | Ingen passord-innlogging finnes | `auth.ts` har kun Google + Microsoft Entra ID, ingen Credentials-provider | 2026-08-28 |

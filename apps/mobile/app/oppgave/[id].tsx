@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { ModalFlate } from "../../src/components/ModalFlate";
-import { ArkivPdfForhandsvisning } from "../../src/components/ArkivPdfForhandsvisning";
+import { EksportPdfForhandsvisning } from "../../src/components/EksportPdfForhandsvisning";
 import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import { useNettverk } from "../../src/providers/NettverkProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -45,10 +45,12 @@ import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { EmneFelt } from "../../src/components/EmneFelt";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
+import { dokumentLokasjonsOmfang } from "../../src/lib/dokumentLokasjonsOmfang";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { hentDokumentSpeil } from "../../src/services/dokumentSpeil";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
@@ -118,12 +120,34 @@ export default function OppgaveDetalj() {
     { id: id! },
     { enabled: !!id },
   );
+  // Offline-LESING fase 2: skjermens egen hentMedId faller tilbake til speilet når
+  // query-en er offline/feilet, så lokasjon/historikk vises som lagret versjon.
+  const detaljSpeil = useMemo(
+    () =>
+      !detaljQuery.isSuccess && bruker?.id
+        ? hentDokumentSpeil("oppgave", id!, bruker.id)
+        : null,
+    [detaljQuery.isSuccess, id, bruker?.id],
+  );
   // eslint-disable-next-line
-  const oppgaveDetalj = detaljQuery.data as {
+  const oppgaveDetalj = (detaljQuery.isSuccess ? detaljQuery.data : detaljSpeil?.dokument) as {
     transfers?: Transfer[];
     drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
+    lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
+    lokasjonFritekst?: string | null;
+    omradeId?: string | null;
+    omrade?: { id: string; navn: string; type: string } | null;
   } | undefined;
   const overforinger = oppgaveDetalj?.transfers;
+  // Lokasjonsomfang (2026-09-04; område 2026-09-23): les fra det RÅ, typede
+  // hentMedId-resultatet — ikke via `oppgave`-kastet fra useOppgaveSkjema (hooken typer
+  // ikke lokasjonsfeltene, derav de gamle `as`-kastene). Samme DB-rad → uendret byggeplass-
+  // oppførsel, og en ny enum-verdi faller ikke lenger stille ut.
+  const lokasjonOmfangVisning = dokumentLokasjonsOmfang({
+    lokasjonOmfang: oppgaveDetalj?.lokasjonOmfang,
+    lokasjonFritekst: oppgaveDetalj?.lokasjonFritekst,
+    omrade: oppgaveDetalj?.omrade,
+  });
 
   // Hent faggrupper for redigering
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
@@ -359,7 +383,7 @@ export default function OppgaveDetalj() {
     if (!dialogTekst.trim() || !id) return;
     // Kommentaren sendes til serveren — uten nett skjedde det tidligere ingenting
     // (ingen kø for kommentarer, kun bilder). Blokker med tydelig beskjed; teksten
-    // står så den kan sendes når dekningen er tilbake. Speiler arkiv-PDF-vakten under.
+    // står så den kan sendes når dekningen er tilbake. Speiler eksport-PDF-vakten under.
     if (!erPaaNettet) {
       settDialogFeil(t("oppgave.kommentarKreverTilkobling"));
       return;
@@ -422,12 +446,15 @@ export default function OppgaveDetalj() {
     erRedigerbar,
     lagreStatus,
     synkStatus,
+    offlineModus,
+    offlineHentetVed,
+    offlineIkkeLastet,
   } = useOppgaveSkjema(id!, rettighetInput);
 
-  // Arkiv-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF + in-app
+  // eksport-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF + in-app
   // forhåndsvisning som sjekkliste (speiler sjekkliste/[id].tsx). Ingen lokal HTML-bygging.
   // `erPaaNettet` hentes øverst (dialog-vakten trenger den før dette punktet).
-  const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  const [eksportMelding, settEksportMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
   const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
   const rendrArkiv = trpc.arkiv.rendr.useMutation({
@@ -453,41 +480,41 @@ export default function OppgaveDetalj() {
           });
         }
       } catch (feil) {
-        console.warn("Arkiv-PDF-håndtering feilet:", feil);
+        console.warn("eksport-PDF-håndtering feilet:", feil);
       }
       const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
       if (res.renderTimeout) {
-        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+        settEksportMelding({ type: "advarsel", tekst: t("eksport.advarselTimeout") });
       } else if (antallMangler > 0) {
-        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+        settEksportMelding({ type: "advarsel", tekst: t("eksport.advarselMangler", { antall: antallMangler }) });
       } else {
-        settArkivMelding(null);
+        settEksportMelding(null);
       }
     },
     onError: (error: { message?: string }) => {
-      settArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+      settEksportMelding({ type: "feil", tekst: error.message ?? t("eksport.feil") });
     },
   });
 
-  const håndterArkivPdf = useCallback(() => {
+  const håndterEksport = useCallback(() => {
     if (!id) return;
     if (!erPaaNettet) {
-      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      settEksportMelding({ type: "advarsel", tekst: t("eksport.kreverTilkobling") });
       return;
     }
     arkivIntensjonRef.current = "del";
-    settArkivMelding(null);
+    settEksportMelding(null);
     rendrArkiv.mutate({ dokumenter: [{ id, type: "oppgave" }] });
   }, [id, erPaaNettet, rendrArkiv, t]);
 
   const håndterForhåndsvisPdf = useCallback(() => {
     if (!id) return;
     if (!erPaaNettet) {
-      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      settEksportMelding({ type: "advarsel", tekst: t("eksport.kreverTilkobling") });
       return;
     }
     arkivIntensjonRef.current = "forhandsvis";
-    settArkivMelding(null);
+    settEksportMelding(null);
     rendrArkiv.mutate({ dokumenter: [{ id, type: "oppgave" }] });
   }, [id, erPaaNettet, rendrArkiv, t]);
 
@@ -628,6 +655,19 @@ export default function OppgaveDetalj() {
     );
   }
 
+  // Offline/feilet OG dokumentet er ikke lastet ned — tydelig vei videre, ikke evig spinner.
+  if (offlineIkkeLastet) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 px-8">
+        <CloudOff size={32} color="#9ca3af" />
+        <Text className="mt-3 text-center text-base text-gray-600">{t("offline.ikkeLastetNed")}</Text>
+        <Pressable onPress={() => router.back()} className="mt-4">
+          <Text className="text-blue-600">{t("dokument.gaaTilbake")}</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
   if (!oppgave) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
@@ -658,7 +698,8 @@ export default function OppgaveDetalj() {
     (oppgave.status === "draft" ||
       hmsAktivPosisjon === 1 ||
       (hmsAktivPosisjon == null && oppgave.status === "responded"));
-  const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Offline (speil-render) er ALLTID lesemodus, uansett rettighet/HMS-gren (LES-vedtaket).
+  const leseModus = offlineModus ? true : erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
 
   // Sjekkliste-referanse
   const sjekklisteNummer = oppgave.checklist
@@ -698,13 +739,13 @@ export default function OppgaveDetalj() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
-            {/* Server-generert arkiv-PDF (samme motor som web + sjekkliste). Offline:
+            {/* Server-generert eksport-PDF (samme motor som web + sjekkliste). Offline:
                 CloudOff signaliserer FØR tap at PDF krever nett. */}
             <Pressable
-              onPress={håndterArkivPdf}
+              onPress={håndterEksport}
               hitSlop={12}
               disabled={rendrArkiv.isPending}
-              accessibilityLabel={erPaaNettet ? t("handling.lastNedArkivPdf") : t("arkiv.kreverTilkobling")}
+              accessibilityLabel={erPaaNettet ? t("handling.lastNedPdf") : t("eksport.kreverTilkobling")}
             >
               {rendrArkiv.isPending
                 ? <ActivityIndicator size="small" color="#ffffff" />
@@ -750,6 +791,18 @@ export default function OppgaveDetalj() {
           />
         )}
       </View>
+
+      {/* Offline-LESING fase 2: viser lagret speil-versjon (tvungen lesemodus). */}
+      {offlineModus && (
+        <View className="flex-row items-center gap-2 bg-amber-50 px-3 py-2">
+          <CloudOff size={14} color="#b45309" />
+          <Text className="flex-1 text-xs text-amber-800">
+            {offlineHentetVed != null
+              ? t("offline.viserLagretVersjon", { tid: formaterHistorikkDato(new Date(offlineHentetVed)) })
+              : t("offline.viserLagretVersjonUtenTid")}
+          </Text>
+        </View>
+      )}
 
       {/* Kontraktssak-klasse (tavle 2, web-paritet): egen linje med nummeret, under header. */}
       {erKontraktssak && (
@@ -862,17 +915,33 @@ export default function OppgaveDetalj() {
 
         {/* Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» — paritet med web/PDF. Vises
             når omfanget er byggeplass (uten tegning); et eksplisitt svar, aldri et tomt felt. */}
-        {!oppgave.drawing &&
-          (oppgave as { lokasjonOmfang?: string | null }).lokasjonOmfang === "byggeplass" && (
+        {!oppgaveDetalj?.drawing && lokasjonOmfangVisning.slag === "byggeplass" && (
           <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
             <MapPin size={18} color="#7c3aed" />
             {/* Fritekst-sted (2026-09-06): stedet når satt, ellers «hele byggeplassen». */}
             <View className="flex-1">
               <Text className="text-sm text-purple-800">
-                {(oppgave as { lokasjonFritekst?: string | null }).lokasjonFritekst || t("lokasjonVelger.gjelderByggeplass")}
+                {lokasjonOmfangVisning.sted || t("lokasjonVelger.gjelderByggeplass")}
               </Text>
-              {(oppgave as { lokasjonFritekst?: string | null }).lokasjonFritekst && (
+              {lokasjonOmfangVisning.sted && (
                 <Text className="text-xs text-purple-500">{t("lokasjonVelger.gjelderByggeplass")}</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Område (2026-09-23): områdenavnet er stedet, områdetypen dempet kontekst under —
+            samme to-linjers form som byggeplass-grenen og PDFs område-gren. Mangler navnet
+            (område slettet / ennå ikke sammenstilt): nøytral tekst, aldri et tomt felt. */}
+        {!oppgaveDetalj?.drawing && lokasjonOmfangVisning.slag === "omrade" && (
+          <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
+            <MapPin size={18} color="#7c3aed" />
+            <View className="flex-1">
+              <Text className="text-sm text-purple-800">
+                {lokasjonOmfangVisning.navn || t("lokasjonVelger.omradeUtenNavn")}
+              </Text>
+              {lokasjonOmfangVisning.navn && lokasjonOmfangVisning.typeNokkel && (
+                <Text className="text-xs text-purple-500">{t(lokasjonOmfangVisning.typeNokkel)}</Text>
               )}
             </View>
           </View>
@@ -1131,9 +1200,11 @@ export default function OppgaveDetalj() {
       {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾.
           Spor 2 / 5a: HMS-melder med ballen (utkast/returnert) får dedikert Send inn/Forkast/
           Send tilbake i stedet for den generelle statuslinja — mobil oppretter HMS via
-          oppgave.opprett (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
+          oppgave.opprett (→ draft), så denne stien MÅ kunne sende inn + varsle behandler.
+          Offline-LESING fase 2: skjult i offline-modus — ingen handlingsknapper fra speilet. */}
+      {!offlineModus && (
       <View className="border-t border-gray-200 bg-white px-4 py-3">
-        {/* Kontroll før sending: forhåndsvis den server-rendrede arkiv-PDF-en i appen
+        {/* Kontroll før sending: forhåndsvis den server-rendrede eksport-PDF-en i appen
             (speiler sjekkliste). Dekker oppgave + HMS avvik/RUH. */}
         <Pressable
           onPress={håndterForhåndsvisPdf}
@@ -1146,13 +1217,13 @@ export default function OppgaveDetalj() {
           ) : (
             <Eye size={16} color="#1e40af" />
           )}
-          <Text className="text-sm font-semibold text-sitedoc-blue">{t("arkiv.forhandsvis")}</Text>
+          <Text className="text-sm font-semibold text-sitedoc-blue">{t("eksport.forhandsvis")}</Text>
         </Pressable>
-        {arkivMelding && (
+        {eksportMelding && (
           <Text
-            className={`mb-3 text-center text-xs ${arkivMelding.type === "feil" ? "text-red-600" : "text-amber-700"}`}
+            className={`mb-3 text-center text-xs ${eksportMelding.type === "feil" ? "text-red-600" : "text-amber-700"}`}
           >
-            {arkivMelding.tekst}
+            {eksportMelding.tekst}
           </Text>
         )}
         {erHms && erMelder && ballHosMelder ? (
@@ -1214,14 +1285,15 @@ export default function OppgaveDetalj() {
         />
         )}
       </View>
+      )}
 
       </KeyboardAvoidingView>
 
-      {/* Forhåndsvisning av arkiv-PDF (alltid montert, styrt av `synlig`) — speiler sjekkliste. */}
-      <ArkivPdfForhandsvisning
+      {/* Forhåndsvisning av eksport-PDF (alltid montert, styrt av `synlig`) — speiler sjekkliste. */}
+      <EksportPdfForhandsvisning
         synlig={pdfForhandsvisFil != null}
         filUri={pdfForhandsvisFil}
-        tittel={oppgave?.title ?? t("arkiv.forhandsvis")}
+        tittel={oppgave?.title ?? t("eksport.forhandsvis")}
         onDel={delForhåndsvistPdf}
         onLukk={() => settPdfForhandsvisFil(null)}
       />

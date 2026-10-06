@@ -7,6 +7,7 @@ import {
   autoriserAdminForFirma,
   verifiserOrganisasjonTilgang,
 } from "../trpc/tilgangskontroll";
+import { GEOFENCE_GRENSER } from "@sitedoc/shared";
 import { geokodAdresse } from "../services/rute-service";
 import {
   recomputeMatrise,
@@ -65,7 +66,12 @@ async function verifiserAvdelingValgfri(
 
 const latSchema = z.number().min(-90).max(90);
 const lngSchema = z.number().min(-180).max(180);
-const radiusSchema = z.number().int().min(10).max(5000);
+// V17-A: grensene BINDER nå fra den delte kilden (ingen tallendring).
+const radiusSchema = z
+  .number()
+  .int()
+  .min(GEOFENCE_GRENSER.oppmotested.min)
+  .max(GEOFENCE_GRENSER.oppmotested.max);
 
 export const oppmotestedRouter = router({
   // Hent alle oppmøtesteder for innlogget brukers firma (firma-admin)

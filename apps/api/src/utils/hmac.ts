@@ -1,13 +1,15 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { posix } from "node:path";
+import { UPLOADS_PREFIKS } from "@sitedoc/shared";
 
 /**
- * HMAC-signerte fil-URL-er (S1 autorisert filserving, Fase 1).
+ * HMAC-signerte fil-URL-er (S1 autorisert filserving).
  *
- * Sensitive filer serveres fra `/uploads/privat/*` og er signatur-KUN (ingen
- * sesjons-fallback). API signerer stien ved emisjon (etter authz i tRPC-laget)
- * og legger `?exp=&sig=` på. `/uploads/privat/*`-hooken i server.ts verifiserer
- * signaturen uten ny DB-authz.
+ * 🔴 Fase 1b (2026-09-24): gaten dekker HELE `/uploads/` — default-deny. Alle
+ * filer er signatur-KUN (ingen sesjons-fallback). API signerer stien ved emisjon
+ * (etter authz i tRPC-laget) og legger `?exp=&sig=` på; `/uploads/`-hooken i
+ * server.ts verifiserer signaturen uten ny DB-authz. Fase 1 gatet kun
+ * `/uploads/privat/*` — resten ble servert rått (S1-hullet fra 2026-08-15).
  *
  * Signaturen dekker path-delen + utløps-tidspunkt (millis). Query-strengen med
  * signaturen selv er ikke en del av signert innhold — kun `path\nexp`.
@@ -16,9 +18,22 @@ import { posix } from "node:path";
  * en `prefiks`-variant; Fase 1 signerer eksakt path.
  */
 
-// Kortlevd standard-levetid for fil-URL-er (nok til en visningsøkt; kort nok til
-// at en lekket URL dør raskt). Logo/langlevde varianter kommer i Fase 1b.
-const STANDARD_LEVETID_MS = 5 * 60 * 1000;
+// 🟢 Standard-levetid for fil-URL-er = 15 MINUTTER (E, Kenneth-vedtak 2026-09-24;
+// lenke-runden 2026-09-27).
+//
+// ÉN global levetid for ALLE `/uploads/`-signaturer, satt av den SVAKESTE
+// konsument-klassen. Signereren kan ikke vite om en URL blir et `<img>` eller en
+// nedlasting — samme URL kan bli begge — så per-klasse levetid er ikke mulig.
+// 15 min er forsvarlig NÅ fordi HVER konsument-klasse selvfornyer ved utløp:
+//   - bilder (`<img>`)  → `SignertBilde` (onError → debouncet re-emisjon).
+//   - lenker/nedlasting → `SignertLenke` (sjekk før navigering → invalidér + åpne fersk).
+// En utløpt signatur blir da et blunk, ikke en 401 i ansiktet. Snubletråden
+// (`levetid-snubletraad.test.ts`) er en permanent regresjonsvakt: senkes dekningen
+// (en klasse mister selvfornyelse) eller heves levetiden umerket, slår den ut.
+export const STANDARD_LEVETID_MS = 15 * 60 * 1000;
+
+/** 15 min — MÅL-levetiden når ALLE konsument-klasser (bilder + lenker) selvfornyer. Nå == STANDARD_LEVETID_MS. */
+export const LEVETID_NAAR_G_LEVERT_MS = 15 * 60 * 1000;
 
 // Dev-fallback så lokal utvikling/test uten satt secret ikke bryter. I produksjon
 // KREVES FIL_SIGNING_SECRET (kastes ved bruk) — flagget som deploy-forutsetning.
@@ -53,24 +68,53 @@ export function signerFilSti(sti: string, levetidMs = STANDARD_LEVETID_MS): stri
   return `${path}?exp=${exp}&sig=${sig}`;
 }
 
-const PRIVAT_PREFIKS = "/uploads/privat/";
+/**
+ * Bærer URL-en en `sig=` som FORTSATT ER GYLDIG (exp ikke passert)? → alt signert
+ * (idempotens-vakt: en fersk emisjonssignatur står uendret gjennom begge lag).
+ *
+ * 🔴 En URL med `sig=` men UTLØPT `exp` er IKKE ferdig signert — den er forgiftet
+ * (en død signatur lagret i `Checklist.data`/`Task.data`, rotårsak i Fase 1
+ * `ca7f16b6`). Uten exp-sjekken regnet vi den som ferdig og sendte den lagrede,
+ * døde URL-en ut uendret for alltid → gamle dokumenter kunne aldri vise bildene
+ * sine igjen. Ved å svare `false` her faller den gjennom til `signerFilSti`, som
+ * stripper query og signerer stien på nytt — dokumentet virker selv om DB aldri
+ * rettes. Vi leser KUN `exp` (ikke full HMAC-verifisering): `/uploads/`-gaten
+ * avviser uansett en tuklet-men-ufersk signatur, og exp-sjekken holder fiksen på
+ * tre linjer uten å røre idempotens-stabiliteten for gyldige URL-er.
+ */
+function erAlleredeSignert(url: string): boolean {
+  const q = url.indexOf("?");
+  if (q === -1) return false;
+  const params = new URLSearchParams(url.slice(q + 1));
+  if (!params.has("sig")) return false;
+  const exp = Number(params.get("exp"));
+  return Number.isFinite(exp) && exp > Date.now();
+}
 
 /**
- * Signer en fil-URL KUN hvis den peker inn i /uploads/privat/ (sensitiv,
- * signatur-KUN serving). Andre URL-er (non-privat, tomme, allerede signerte med
- * eget query, eksterne) returneres uendret. Målrettet signering ved emisjon —
- * kalles i de prosedyrene som faktisk returnerer privat-URL-er, i stedet for en
- * middleware som muterer alle svar (S1 Fase 1, forbedring etter Blokk 17).
+ * Signer en fil-URL hvis den peker inn i `/uploads/` (S1 Fase 1b: HELE treet,
+ * ikke bare `/uploads/privat/`). Andre URL-er (tomme, eksterne, absolutte)
+ * returneres uendret. Målrettet signering ved EMISJON — dette er den ENE
+ * delegerings-funksjonen: de eksplisitte kallstedene OG den sentrale
+ * output-middleware (`signerUploadsOutput`) går alle hit.
+ *
+ * 🔴 Idempotens (KRAV): bærer URL-en en FORTSATT GYLDIG `sig=`, returneres den
+ * uendret. Uten dette dobbeltsigneres alt som passerer to lag (eksplisitt kall +
+ * middleware), og den ytre signaturen ville dekket en path som alt inneholdt en
+ * query. En UTLØPT signatur (forgiftet lagret URL) regnes derimot IKKE som ferdig
+ * — se `erAlleredeSignert` — og re-signeres her, så gamle dokumenter viser bildene
+ * sine igjen uten at databasen røres.
  */
 export function signerHvisPrivat(url: string | null | undefined): string | null | undefined {
-  if (typeof url !== "string" || !url.startsWith(PRIVAT_PREFIKS)) return url;
+  if (typeof url !== "string" || !url.startsWith(UPLOADS_PREFIKS)) return url;
+  if (erAlleredeSignert(url)) return url; // gyldig signatur står; utløpt faller gjennom og re-signeres
   try {
     return signerFilSti(url);
   } catch (err) {
     // Kontrollert degradering: en signeringsfeil (f.eks. manglende secret) skal
     // ALDRI kaste midt i et tRPC-svar og velte urelaterte prosedyrer i en batch.
-    // Returnér usignert URL (fail-closed: /uploads/privat/*-hooken avviser den
-    // uten gyldig signatur → 401, fila blir utilgjengelig, ikke lekket).
+    // Returnér usignert URL (fail-closed: `/uploads/`-gaten avviser den uten
+    // gyldig signatur → 401, fila blir utilgjengelig, ikke lekket).
     // Oppstart-sjekken i server.ts fanger den egentlige årsaken i produksjon.
     console.error("[hmac] signering feilet — returnerer usignert URL:", err);
     return url;
@@ -152,17 +196,39 @@ export function normaliserFilSti(pathname: string): string {
   return posix.normalize(dekodet).replace(/\/+/g, "/");
 }
 
-export type PrivatFilVurdering =
-  | { type: "slipp" } // ikke en privat-fil — la passere uendret
+/**
+ * Kanonisér en klient-oppgitt fil-URL til den formen som er LAGRET i DB, før
+ * eksakt-streng-match (D2-invarianten, `bilde.slettMedUrl`). Klienten kan sende
+ * en URL som har passert emisjonssignering (`?exp=&sig=`) eller en sti-variant
+ * (`/./`, `//`, `..`); begge må reduseres til `/uploads/<...>` uten query, ellers
+ * feiler slettingen stille (deleteMany finner ingen rad). Ugyldig prosentkoding
+ * → behold rå (matcher da ikke, ingen sletting).
+ */
+export function kanoniserForSletting(fileUrl: string): string {
+  const utenQuery = fileUrl.split("?")[0] ?? fileUrl;
+  try {
+    return normaliserFilSti(utenQuery);
+  } catch {
+    return utenQuery;
+  }
+}
+
+export type UploadsFilVurdering =
+  | { type: "slipp" } // ikke en /uploads/-fil — la passere uendret
   | { type: "ok" } // gyldig signatur
   | { type: "avvist"; kode: 400 | 401 };
 
 /**
  * Full gate-beslutning for en innkommende request mot `/uploads/*`.
+ *
+ * 🔴 S1 Fase 1b — DEFAULT-DENY på HELE treet (Kenneth-krav 2026-09-24: «sjekk om
+ * den som henter ut bilder er innlogget, ikke bare ved pålogging»). Enhver
+ * `/uploads/`-sti KREVER en gyldig HMAC-signatur — manglende/ugyldig/utløpt → 401.
+ * Ingen sesjons-fallback (samme signatur-KUN-modell som `privat/` hadde i Fase 1).
  * Ren funksjon (ingen Fastify-avhengighet) så den kan enhets-testes mot alle
  * omgåelsesformene. server.ts-hooken bare oversetter resultatet til et svar.
  */
-export function vurderPrivatFilForesporsel(rawUrl: string): PrivatFilVurdering {
+export function vurderUploadsFilForesporsel(rawUrl: string): UploadsFilVurdering {
   const u = new URL(rawUrl, "http://localhost");
   let sti: string;
   try {
@@ -170,7 +236,7 @@ export function vurderPrivatFilForesporsel(rawUrl: string): PrivatFilVurdering {
   } catch {
     return { type: "avvist", kode: 400 }; // ugyldig prosentkoding
   }
-  if (!sti.startsWith("/uploads/privat/")) return { type: "slipp" };
+  if (!sti.startsWith(UPLOADS_PREFIKS)) return { type: "slipp" };
   const gyldig = verifiserFilSignatur(sti, u.searchParams.get("exp"), u.searchParams.get("sig"));
   return gyldig ? { type: "ok" } : { type: "avvist", kode: 401 };
 }

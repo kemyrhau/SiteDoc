@@ -6,15 +6,16 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Badge } from "@sitedoc/ui";
+import { timerStatusEtikett } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Check, RotateCcw, X } from "lucide-react";
+import { ReiseRadMerke } from "./ReiseRadMerke";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
 /* ------------------------------------------------------------------ */
-
-type RadStatus = "pending" | "attestert" | "returnert" | null;
 
 // T7-2d: per-rad prosjekt-join fra hentForAttestering / hentTilAttesteringFirma.
 export type RadProsjekt = {
@@ -38,6 +39,17 @@ export type TimerRad = {
   timer: unknown;
   attestertStatus: string | null;
   project?: RadProsjekt;
+  // LAG 2 D1 — reise-sporet (K5). Allerede i server-payloaden (default-select på
+  // SheetTimer); her synliggjort i typen så `as unknown as TimerRad[]`-casten i
+  // AttesteringDetalj ikke lenger stripper dem. Gamle rader: erReise satt, resten null.
+  erReise?: boolean | null;
+  reiseRetning?: "ut" | "retur" | null;
+  reiseOppmotestedId?: string | null;
+  reiseKjoretidMin?: number | null;
+  reiseAvstandM?: number | null;
+  reiseKilde?: "matrise" | "manuell" | null;
+  tidKilde?: "stempel" | "utledet" | "manuell" | null;
+  reiseAvvik?: boolean | null;
 };
 
 export type TilleggRad = {
@@ -93,27 +105,21 @@ function tilTall(v: unknown): number {
 
 function RadStatusBadge({ status }: { status: string | null }) {
   const { t } = useTranslation();
-  const normalisert = (status ?? "pending") as RadStatus;
-  if (normalisert === "attestert") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
-        <Check className="h-3 w-3" />
-        {t("timer.attestering.radStatus.attestert")}
-      </span>
-    );
-  }
-  if (normalisert === "returnert") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
-        <RotateCcw className="h-3 w-3" />
-        {t("timer.attestering.radStatus.returnert")}
-      </span>
-    );
-  }
+  // Del 7: farge + ord fra delt kilde. Ikonet er per-rad-nivåets egen
+  // affordans (Check/↩) og beholdes; ingen hardkodet fargetabell igjen.
+  const normalisert = status ?? "pending";
+  const { variant, etikettKey } = timerStatusEtikett(normalisert);
+  const ikon =
+    normalisert === "attestert" ? (
+      <Check className="h-3 w-3" />
+    ) : normalisert === "returnert" ? (
+      <RotateCcw className="h-3 w-3" />
+    ) : null;
   return (
-    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-      {t("timer.attestering.radStatus.pending")}
-    </span>
+    <Badge variant={variant} className={ikon ? "gap-1" : ""}>
+      {ikon}
+      {t(etikettKey)}
+    </Badge>
   );
 }
 
@@ -218,6 +224,12 @@ function TimerRaderLeder({
                       </span>
                     )}
                   </p>
+                  {/* LAG 2 D1: reise-sporet + fritekst-beskrivelse (M7 — feltet lå
+                      i payloaden men ble aldri vist på attestant-raden). */}
+                  <ReiseRadMerke rad={rad} />
+                  {rad.beskrivelse && (
+                    <p className="mt-1 text-xs italic text-gray-500">{rad.beskrivelse}</p>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
                       {t("timer.attestering.flyttEco.etikett")}:

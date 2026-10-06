@@ -56,13 +56,16 @@ import {
   matpauseKontekst,
   matpauseRegelTrigget,
   radKrysserPause,
+  avgjorRadPauseMin,
 } from "../../services/matpause";
-import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
+  erReiseLonnsartLokalt,
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
+import { erReiseRadVisning } from "../../utils/reiseRad";
 import type {
   TimerRad,
   Lonnsart,
@@ -202,12 +205,22 @@ export function TimerSeksjon({
       fraTid: string | null,
       tilTid: string | null,
       beskrivelse: string | null,
+      // V20 PK2: bærer denne raden dagens matpause? (0 ellers). Avgjort i RadSkjema
+      // via `avgjorRadPauseMin` og speilet i `timer`-argumentet (= effektiveTimer
+      // med DENNE pauseMin, aldri skjult firma-default). Avkrysningen viser den.
+      pauseMin: number,
       maskin: NyMaskin | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
       // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
       const timerRadId = randomUUID();
+      // B4 (L2-B, valg A): arbeideren satte tiden selv → tidKilde="manuell".
+      // erReise settes EKSPLISITT fra lønnsarten (delt regel, ikke server-gjetting,
+      // M3). En manuell reise-rad får reiseKilde="manuell", reiseRetning/avstand/
+      // kjøretid/regel null (retning er informasjon, ikke lønn — C2 krever retning
+      // KUN for matrise-kilde). Ikke-reise → erReise=false, ingen reise-spor.
+      const manuellErReise = erReiseLonnsartLokalt(organizationId, lonnsartId);
       db.insert(sheetTimerLocal)
         .values({
           id: timerRadId,
@@ -223,6 +236,11 @@ export function TimerSeksjon({
           fraTid,
           tilTid,
           beskrivelse,
+          // V20 PK2: skriv radens matpause-bærer (avkrysningen = pauseMin > 0).
+          pauseMin,
+          erReise: manuellErReise,
+          reiseKilde: manuellErReise ? "manuell" : null,
+          tidKilde: "manuell",
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -251,7 +269,7 @@ export function TimerSeksjon({
       }
       onEndret();
     },
-    [sheetId, onEndret],
+    [sheetId, onEndret, organizationId],
   );
 
   const oppdater = useCallback(
@@ -266,6 +284,9 @@ export function TimerSeksjon({
       fraTid: string | null,
       tilTid: string | null,
       beskrivelse: string | null,
+      // V20 PK2: radens matpause-bærer (0 ellers), avgjort i RadSkjema. `timer`
+      // er regnet med DENNE pauseMin, så avkrysningen og timetallet stemmer.
+      pauseMin: number,
       // Del B pkt 1: maskin-tilstanden fra rediger-modalen.
       //   undefined = ikke rør maskin-rader (hurtigsti: byggeplass-bytte),
       //   null      = fjern koblet maskin-rad (bruker tømte maskinen),
@@ -274,6 +295,47 @@ export function TimerSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
+      // B4 (L2-B): «Endrer han tiden på en utledet rad → tidKilde = manuell.»
+      // Kun når fra/til FAKTISK endres — en no-op lagring skal ikke stemple en
+      // auto-reise-rads "utledet" om til "manuell" (det ville vært en spor-løgn).
+      const gammel = db
+        .select({
+          fraTid: sheetTimerLocal.fraTid,
+          tilTid: sheetTimerLocal.tilTid,
+          reiseKilde: sheetTimerLocal.reiseKilde,
+        })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.id, radId))
+        .all()[0];
+      const tidEndret =
+        gammel != null &&
+        ((gammel.fraTid ?? null) !== (fraTid ?? null) ||
+          (gammel.tilTid ?? null) !== (tilTid ?? null));
+      // B4: re-utled erReise fra (ev. byttet) lønnsart. Tre tilfeller:
+      //  - ikke reise  → erReise=false + RENS alt reise-spor (C2: false ⇒ spor null).
+      //  - matrise-rad → behold matrise-provenance (reiseKilde/retning/km/regel i
+      //    .set() urørt), bare erReise bekreftes true.
+      //  - manuell reise → reiseKilde="manuell", retning/km/avstand/regel null.
+      const erReise = erReiseLonnsartLokalt(organizationId, lonnsartId);
+      const reiseSet = !erReise
+        ? {
+            erReise: false,
+            reiseKilde: null,
+            reiseRetning: null,
+            reiseKjoretidMin: null,
+            reiseAvstandM: null,
+            reiseRegel: null,
+          }
+        : gammel?.reiseKilde === "matrise"
+          ? { erReise: true as const } // behold matrise-spor
+          : {
+              erReise: true as const,
+              reiseKilde: "manuell" as const,
+              reiseRetning: null,
+              reiseKjoretidMin: null,
+              reiseAvstandM: null,
+              reiseRegel: null,
+            };
       db.update(sheetTimerLocal)
         .set({
           projectId: radProjectId,
@@ -286,6 +348,10 @@ export function TimerSeksjon({
           fraTid,
           tilTid,
           beskrivelse,
+          // V20 PK2: oppdater radens matpause-bærer (avkrysningen = pauseMin > 0).
+          pauseMin,
+          ...reiseSet,
+          ...(tidEndret ? { tidKilde: "manuell" as const } : {}),
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTimerLocal.id, radId))
@@ -356,7 +422,7 @@ export function TimerSeksjon({
       }
       onEndret();
     },
-    [onEndret, sheetId],
+    [onEndret, sheetId, organizationId],
   );
 
   // F3 hybrid-hurtigsti: sekundærlinja åpner den kombinerte velgeren direkte.
@@ -397,6 +463,9 @@ export function TimerSeksjon({
           rad.fraTid,
           rad.tilTid,
           rad.beskrivelse,
+          // Byggeplass-bytte rører ikke tider → bevar radens eksisterende
+          // matpause-bærer (ingen re-avgjøring). maskin utelatt = ikke rør.
+          rad.pauseMin,
         );
       }
       setHurtigRadId(null);
@@ -408,6 +477,15 @@ export function TimerSeksjon({
     (radId: string) => {
       const db = hentDatabase();
       if (!db) return;
+      // V19.9.1 (B'-3): kopier radens server_versjon inn i tombstonen FØR slettingen
+      // så serveren kan klassifisere slett-vs-avvik (S1–S4). null = ukjent versjon
+      // (eldre/pending rad) → S4, trygg retning (avvik slettet_telefon, ikke stille
+      // sletting). Leses før tx så verdien finnes når raden er borte.
+      const radForSletting = db
+        .select({ serverVersjon: sheetTimerLocal.serverVersjon })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.id, radId))
+        .all()[0];
       // S-A: slett lokalt + skriv tombstone ATOMISK (samme tx). Rå local-delete
       // alene propagerer ikke til server (S3 payload-id-policy) → tombstonen
       // bærer slettingen frem til neste sync.
@@ -418,6 +496,7 @@ export function TimerSeksjon({
             radId,
             dagsseddelId: sheetId,
             radType: "timer",
+            serverVersjon: radForSletting?.serverVersjon ?? null,
             slettetVed: Date.now(),
           })
           .onConflictDoNothing()
@@ -477,7 +556,14 @@ export function TimerSeksjon({
             rad={rad}
             gruppeProjectId={projectId}
             sedelByggeplassId={sedelByggeplassId}
-            erReise={reiseLonnsartId != null && rad.lonnsartId === reiseLonnsartId}
+            erReise={erReiseRadVisning(
+              // B6 (L2-B): les det EKSPLISITTE flagget (M3 — ingen gjetting fra
+              // lønnsart etter lag 2). Fallback til lønnsart-match KUN for rader
+              // uten flagg (se erReiseRadVisning + leveranse-funn om pull).
+              rad.erReise,
+              rad.lonnsartId,
+              reiseLonnsartId,
+            )}
             redigerbar={redigerbar}
             pauseFra={pauseFra}
             standardPauseMin={standardPauseMin}
@@ -541,6 +627,7 @@ export function TimerSeksjon({
             fraTid,
             tilTid,
             beskrivelse,
+            pauseMin,
             maskin,
           ) => {
             if (redigerRadId) {
@@ -555,6 +642,8 @@ export function TimerSeksjon({
                 fraTid,
                 tilTid,
                 beskrivelse,
+                // V20 PK2: radens matpause-bærer.
+                pauseMin,
                 // Del B pkt 1: maskin-tilstand fra modalen styrer koblet maskin-rad.
                 maskin,
               );
@@ -569,6 +658,8 @@ export function TimerSeksjon({
                 fraTid,
                 tilTid,
                 beskrivelse,
+                // V20 PK2: radens matpause-bærer.
+                pauseMin,
                 maskin,
               );
             }
@@ -960,6 +1051,8 @@ function TimerRadModal({
     fraTid: string | null,
     tilTid: string | null,
     beskrivelse: string | null,
+    // V20 PK2: radens matpause-bærer (0 ellers).
+    pauseMin: number,
     maskin: NyMaskin | null,
   ) => void;
   onLukk: () => void;
@@ -981,12 +1074,30 @@ function TimerRadModal({
   // Pausevindu = skiftstart + pauseEtterTimer. Skiftstart = dagens effektive
   // arbeidstid-start (kalender-overstyring eller firma-default).
   const pauseFra = useMemo(() => {
-    const skiftStart = hentEffektivArbeidstidLokal(
+    const skiftStart = hentArbeidsdagTiderLokalt(
       organizationId,
       new Date(`${dato}T00:00:00`),
     ).startTid;
     return pauseVinduFra(skiftStart, pauseEtterTimer);
   }, [organizationId, dato, pauseEtterTimer]);
+
+  // V20 PK2: radens EGEN matpause (0 eller standardPauseMin) for de oppgitte
+  // tidene — bæreren bestemmes mot alle sedelens rader (kun-én-pr.-dag). Brukes i
+  // både timer-synken og lagringen så timetallet, avkrysningen og det lagrede
+  // fradraget alltid stemmer — ingen skjult firma-default lenger (P1). Kalles med
+  // de FERSKE tidene i hver handler (unngår en-render-lag mot `radPauseMin`-memo).
+  const radPauseMinFor = useCallback(
+    (fra: string | null, til: string | null): number =>
+      avgjorRadPauseMin({
+        alleRader: alleTimerRader,
+        radId: eksisterendeRad?.id ?? null,
+        fraTid: fra,
+        tilTid: til,
+        pauseFra,
+        standardPauseMin: pauseMin,
+      }),
+    [alleTimerRader, eksisterendeRad, pauseFra, pauseMin],
+  );
 
   // Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
   //   - Ny rad: fraTid = SENESTE tilTid på HELE sedelen (M6 bolk (g) prefill-
@@ -999,7 +1110,7 @@ function TimerRadModal({
         til: eksisterendeRad.tilTid ?? null,
       };
     }
-    const effektiv = hentEffektivArbeidstidLokal(organizationId, new Date(`${dato}T00:00:00`));
+    const effektiv = hentArbeidsdagTiderLokalt(organizationId, new Date(`${dato}T00:00:00`));
     // Bolk (g) prefill-scope (M6, 2026-07-10): fra = seneste tilTid over HELE
     // sedelen (alle bøtter, `alleTimerRader`), beregnet som MAKS via hhmmTilMin
     // — ikke siste array-element (rekkefølge-uavhengig; speiler webs reduce i
@@ -1078,7 +1189,8 @@ function TimerRadModal({
         defaultTider.fra!,
         defaultTider.til!,
         pauseFra,
-        pauseMin,
+        // V20 PK2: radens egen pause, ikke firma-default (P1 skjult fradrag).
+        radPauseMinFor(defaultTider.fra, defaultTider.til),
       ).toFixed(2);
     }
     return "";
@@ -1154,11 +1266,16 @@ function TimerRadModal({
       setFraTid(hhmm);
       if (tilTid) {
         setTimer(
-          effektiveTimerFraSpenn(hhmm, tilTid, pauseFra, pauseMin).toFixed(2),
+          effektiveTimerFraSpenn(
+            hhmm,
+            tilTid,
+            pauseFra,
+            radPauseMinFor(hhmm, tilTid),
+          ).toFixed(2),
         );
       }
     },
-    [tilTid, pauseFra, pauseMin],
+    [tilTid, pauseFra, radPauseMinFor],
   );
 
   const handterTilEndret = useCallback(
@@ -1166,11 +1283,16 @@ function TimerRadModal({
       setTilTid(hhmm);
       if (fraTid) {
         setTimer(
-          effektiveTimerFraSpenn(fraTid, hhmm, pauseFra, pauseMin).toFixed(2),
+          effektiveTimerFraSpenn(
+            fraTid,
+            hhmm,
+            pauseFra,
+            radPauseMinFor(fraTid, hhmm),
+          ).toFixed(2),
         );
       }
     },
-    [fraTid, pauseFra, pauseMin],
+    [fraTid, pauseFra, radPauseMinFor],
   );
 
   const handterTimerEndret = useCallback(
@@ -1178,10 +1300,13 @@ function TimerRadModal({
       setTimer(tekst);
       const n = parseFloat(tekst.replace(",", "."));
       if (fraTid && !isNaN(n) && n > 0 && n <= 24) {
-        setTilTid(tilFraAntall(fraTid, n, pauseFra, pauseMin));
+        // Antall → til: bruk radens pause for GJELDENDE tider (til beregnes her,
+        // så bæreren avgjøres mot det nåværende spennet; lagrings-guarden regner
+        // uansett om med de ferske tidene).
+        setTilTid(tilFraAntall(fraTid, n, pauseFra, radPauseMinFor(fraTid, tilTid)));
       }
     },
-    [fraTid, pauseFra, pauseMin],
+    [fraTid, tilTid, pauseFra, radPauseMinFor],
   );
 
   // Transparens: hvor mange minutter pause raden faktisk absorberer (0 = ingen).
@@ -1190,8 +1315,14 @@ function TimerRadModal({
     const fm = hhmmTilMin(fraTid);
     const tm = hhmmTilMin(tilTid);
     if (tm <= fm) return 0;
-    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), pauseMin);
-  }, [fraTid, tilTid, pauseFra, pauseMin]);
+    // V20 PK2: vis bare fradrag når raden FAKTISK bærer pausen (0 ellers).
+    return pauseOverlappMin(
+      fm,
+      tm,
+      hhmmTilMin(pauseFra),
+      radPauseMinFor(fraTid, tilTid),
+    );
+  }, [fraTid, tilTid, pauseFra, radPauseMinFor]);
 
   const valgtProsjekt = useMemo(() => {
     return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
@@ -1380,8 +1511,16 @@ function TimerRadModal({
     // Pause-synk: når begge tider er satt MÅ antall stemme med (spenn − pause).
     // Auto-synken holder dem i takt; dette er sikkerhetsnettet mot manuell
     // desync (fjerner dagens stille avvik-bug).
+    // V20 PK2: avgjør radens egen matpause-bærer for de ENDELIGE tidene — guarden
+    // og lagringen bruker samme verdi, så timetall, avkrysning og fradrag stemmer.
+    const radPauseMin = radPauseMinFor(fraTid, tilTid);
     if (fraTid && tilTid) {
-      const forventet = effektiveTimerFraSpenn(fraTid, tilTid, pauseFra, pauseMin);
+      const forventet = effektiveTimerFraSpenn(
+        fraTid,
+        tilTid,
+        pauseFra,
+        radPauseMin,
+      );
       if (Math.abs(forventet - tall) > 0.01) {
         setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
         return;
@@ -1410,6 +1549,8 @@ function TimerRadModal({
       fraTid,
       tilTid,
       beskrivelse.trim() || null,
+      // V20 PK2: radens matpause-bærer (0 ellers).
+      radPauseMin,
       maskin,
     );
   }

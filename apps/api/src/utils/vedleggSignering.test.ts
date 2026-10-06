@@ -1,16 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { signerVedleggIData, signerBilder } from "./vedleggSignering";
+import { signerVedleggIData, signerBilder, avvisForgiftetVedleggIData } from "./vedleggSignering";
 
 /**
  * Kontrakt: signér ethvert `url`-felt på ethvert nivå (toppnivå-vedlegg,
- * repeater-nestede, attachments-felt), KUN for /uploads/privat/, uten å mutere
- * input. Speiler tellings-SQL-ens `$.**.url`.
+ * repeater-nestede, attachments-felt), for HELE `/uploads/` (Fase 1b — var
+ * tidligere kun `/uploads/privat/`), uten å mutere input. Speiler tellings-SQL-ens
+ * `$.**.url`.
  */
 
 const erSignert = (u: string) => /\?exp=\d+&sig=/.test(u);
 
 describe("signerVedleggIData", () => {
-  it("signerer toppnivå-vedlegg (kun privat) og lar åpne URL-er stå", () => {
+  it("signerer toppnivå-vedlegg — både privat OG ikke-privat /uploads/ (Fase 1b)", () => {
     const data = {
       "felt-1": {
         verdi: null,
@@ -24,7 +25,9 @@ describe("signerVedleggIData", () => {
     const ut = signerVedleggIData(data) as typeof data;
     expect(erSignert(ut["felt-1"].vedlegg[0]!.url)).toBe(true);
     expect(ut["felt-1"].vedlegg[0]!.url.startsWith("/uploads/privat/x.jpg?")).toBe(true);
-    expect(ut["felt-1"].vedlegg[1]!.url).toBe("/uploads/apen.jpg"); // åpen: uendret
+    // 🔴 Fase 1b: ikke-privat signeres nå OGSÅ (var uendret før).
+    expect(erSignert(ut["felt-1"].vedlegg[1]!.url)).toBe(true);
+    expect(ut["felt-1"].vedlegg[1]!.url.startsWith("/uploads/apen.jpg?")).toBe(true);
   });
 
   it("signerer repeater-nestede vedlegg (dyp rekursjon)", () => {
@@ -75,15 +78,59 @@ describe("signerVedleggIData", () => {
   });
 });
 
+describe("avvisForgiftetVedleggIData (del B — skrive-vei-vakt)", () => {
+  const raaData = {
+    "felt-1": {
+      verdi: null,
+      kommentar: "",
+      vedlegg: [{ id: "a", type: "bilde", url: "/uploads/privat/x.jpg", filnavn: "x.jpg" }],
+    },
+  };
+
+  it("🔴 KRAV 2 — kaster når en signert /uploads/-URL forsøkes skrevet til data", () => {
+    const forgiftet = {
+      "felt-1": {
+        verdi: null,
+        vedlegg: [{ id: "a", url: "/uploads/privat/x.jpg?exp=1787424297434&sig=abc123" }],
+      },
+    };
+    expect(() => avvisForgiftetVedleggIData(forgiftet)).toThrow(/signert \/uploads\//i);
+  });
+
+  it("🔴 KRAV 2 — finner forgiftet URL også dypt nestet (repeater-rad)", () => {
+    const nestet = {
+      "repeater-1": {
+        verdi: { "rad-1": { barn: { vedlegg: [{ id: "c", url: "/uploads/nested.jpg?sig=x" }] } } },
+      },
+    };
+    expect(() => avvisForgiftetVedleggIData(nestet)).toThrow();
+  });
+
+  it("🔴 KRAV 3 — rå /uploads/, ekstern https og file:// slipper uendret (ingen falsk-positiv)", () => {
+    expect(() => avvisForgiftetVedleggIData(raaData)).not.toThrow();
+    expect(() =>
+      avvisForgiftetVedleggIData({
+        f: { vedlegg: [{ url: "https://ekstern.no/bilde.jpg?sig=abc" }] },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      avvisForgiftetVedleggIData({ f: { vedlegg: [{ url: "file:///lokal/x.jpg" }] } }),
+    ).not.toThrow();
+    expect(() => avvisForgiftetVedleggIData(null)).not.toThrow();
+    expect(() => avvisForgiftetVedleggIData({})).not.toThrow();
+  });
+});
+
 describe("signerBilder", () => {
-  it("signerer fileUrl for privat, lar åpen stå, muterer ikke", () => {
+  it("signerer fileUrl for både privat og ikke-privat, muterer ikke (Fase 1b)", () => {
     const bilder = [
       { id: "1", fileUrl: "/uploads/privat/a.jpg" },
       { id: "2", fileUrl: "/uploads/b.jpg" },
     ];
     const ut = signerBilder(bilder);
     expect(erSignert(ut[0]!.fileUrl)).toBe(true);
-    expect(ut[1]!.fileUrl).toBe("/uploads/b.jpg");
+    expect(erSignert(ut[1]!.fileUrl)).toBe(true); // 🔴 ikke-privat signeres nå
     expect(bilder[0]!.fileUrl).toBe("/uploads/privat/a.jpg"); // input uendret
+    expect(bilder[1]!.fileUrl).toBe("/uploads/b.jpg"); // input uendret
   });
 });

@@ -2,7 +2,7 @@ import { eq, and } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { dagsseddelLocal } from "../db/schema";
 import { hentDatabase } from "../db/database";
-import { hentEffektivArbeidstidLokal } from "./kalenderKatalog";
+import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 
 /**
  * UF-0 (2026-06-22) — delt find-or-create for dagsseddel.
@@ -46,6 +46,10 @@ export interface FinnEllerOpprettArgs {
   autoGenerert?: boolean;
   deltVedMidnatt?: boolean;
   sluttTidKilde?: "bruker" | "midnatt" | "system";
+  /** B5 (L2-B): lønnsnormens kilde-status for datoen. Skrives kun på NY sedel. */
+  normStatus?: "server" | "cachet" | "ukjent" | null;
+  /** B5: normens snapshot (NormSnapshot) — serialiseres til JSON-streng her. */
+  normSnapshot?: import("@sitedoc/shared").NormSnapshot | null;
 }
 
 export interface FinnEllerOpprettResultat {
@@ -89,7 +93,7 @@ export function finnEllerOpprettDagsseddel(
   let endAt = args.endAt;
   let pauseMin = args.pauseMin;
   if (startAt === undefined || endAt === undefined || pauseMin === undefined) {
-    const effektiv = hentEffektivArbeidstidLokal(
+    const effektiv = hentArbeidsdagTiderLokalt(
       args.orgId,
       new Date(`${args.dato}T00:00:00`),
     );
@@ -117,6 +121,9 @@ export function finnEllerOpprettDagsseddel(
       autoGenerert: args.autoGenerert ?? null,
       deltVedMidnatt: args.deltVedMidnatt ?? null,
       sluttTidKilde: args.sluttTidKilde ?? "bruker",
+      // B5: norm-spor på sedelen (JSON-streng). null når normen var ukjent.
+      normStatus: args.normStatus ?? null,
+      normSnapshot: args.normSnapshot ? JSON.stringify(args.normSnapshot) : null,
       beskrivelse: args.beskrivelse ?? null,
       lederKommentar: null,
       attestertVed: null,

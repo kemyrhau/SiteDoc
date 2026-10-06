@@ -1,0 +1,352 @@
+---
+name: timer-gps-lag1-spec
+description: Spesifikasjon for LAG 1 i timer-GPS-helhetsplanen — én stedsmodell i @sitedoc/shared, reiseberegning etter V3/V5/V6/V7/V10/V11/V12/V13/V15, og datagrunnlag (V14). Skrevet av fabel 2026-10-02, gates av orkestrator før ordrer skrives.
+sist_verifisert_mot_kode: 2026-10-02
+eier: fabel (kontroll-Claude) — orkestrator gater
+status: 🟢 LEVERT — L1-C + L1-A (9d67367a) + L1-B (2e993250) merget 2026-10-03, lag 1 komplett · geofenceKilde-migrering KJØRT på test (fd92736d) · 20261002130000_timer_normkilde_pausereferanse IKKE kjørt (Kenneth) · H23/K10 (sirkel ≠ trasé) ført i helhetsplanen
+---
+
+# LAG 1 — én stedsmodell og én reiseberegning
+
+> Forelder: [timer-gps-helhetsplan.md](timer-gps-helhetsplan.md) § 5 LAG 1 og § 4b (V1–V15).
+> Lag 0 er komplett (`89acee95` · `a13f4343` · `c78bc14f`). **Alt under er spesifikasjon, ikke kode**
+> — hver påstand om hva systemet *skal* gjøre er ❌ IKKE IMPLEMENTERT inntil ordren som bærer den er
+> merget. Kode-referanser peker på det som skal endres.
+
+## 0. Hva lag 1 er, og ikke er
+
+**Lag 1 svarer på ett spørsmål med ett svar: «hvor er jeg, og hvor langt er det dit».** Det leverer
+tre ting: (A) én delt stedsmodell i `packages/shared`, (B) én reiseberegning i den rene
+forslagsfunksjonen fra lag 0b, og (C) datagrunnlaget som gjør at B har noe å regne på.
+
+**Ikke i lag 1:** reisetid ut av overtidsgrunnlaget og klokkevindu på reise-rader (V1, V2, V8 → lag 2)
+· bekreftelsesskjermen (lag 3) · mellometapper og flere prosjekter (V4, V9 → lag 4) · sjåfør (lag 5)
+· server-mottak av arbeidsdag (lag 2, K5). **Lag 1 endrer ingen lønnsklassifisering for en dag som
+i dag får riktig svar** — det fjerner svarene som er gale eller gjettet.
+
+## 1. Målt utgangspunkt (2026-10-02, `develop` ≥ `fa4a623e`)
+
+| # | Fakta | Bevis |
+|---|---|---|
+| M1 | **Fem** kopier av haversine, ikke fire: lag 0b la en femte i den rene funksjonen | `apps/mobile/src/utils/geo.ts:6`, `utils/dagsforslag.ts:235`, + `georeferanse.ts:411` (ekvirektangulær `avstandMeter`) |
+| M2 | Gjenkjenning av oppmøtested og byggeplass er to speilede kopier, begge «nærmeste innenfor egen radius», ingen test | `hooks/useArbeidsdag.ts:71-87`, `services/byggeplassKatalog.ts:72-96` |
+| M3 | Prosjekt velges som nærmeste haversine **uten grense**, fallback `prosjekter[0]`; «+ Ny» har 500 m-grense | `dagsforslag.ts:209-231` (`velgNaermesteProsjekt`), `app/timer/ny.tsx:139` |
+| M4 | Reise måles til prosjektets **primærbyggeplass** («published først, lavest nummer»), aldri til den GPS fant | `services/reisetidMatriseKatalog.ts:94-118`, `StartSluttDagKort.tsx:418` |
+| M5 | Reservemåling: luftlinje start→slutt ÷ 50 km/t; km-enhet uten avstand → stille «under terskel» | `dagsforslag.ts:~370-385`, `shared/utils/reise.ts:89-92`, `:165-172` |
+| M6 | 🔴 **H21 — matrisen arver prosjektets koordinat** når byggeplassen mangler punkt | `apps/api/src/services/reisetidMatrise.ts:67-74` (`b.latitude ?? b.project?.latitude`) |
+| M7 | Byggeplasser uten koordinat hoppes stille over i matrisen, radene deres slettes, ingen rapport; uoppnåelig lagres som `-1/-1` og telles som «beregnet» | `reisetidMatrise.ts:76-83`, `rute-service.ts:120-131`; returverdi `{ rader }` |
+| M8 | Opprett-dialogen for byggeplass har kun navn; `address` finnes i Zod og Prisma, ikke i UI; ingen geokoding noe sted | `oppsett/byggeplasser/page.tsx:960-967`, `:1239-1268`, `validation/index.ts:95-101`, `schema.prisma:1031-1069` |
+| M9 | Geofence-modalen: Kartverket-søk (`bygning.geokod` → `sokAdresser`), kart, lat/lng, glider 25–500, tallfelt ≤ 100 000; «Beregn fra tegning» **overskriver alltid** (`kunHvisTom=false`); auto fra `settGeoReferanse` kun hvis tomt | `page.tsx:1298-1435`, `byggeplass.ts:127-174`, `byggeplassGeofence.ts:17-58`, `tegning.ts:497-506` |
+| M10 | **Punktets kilde lagres ikke** (tegning / manuelt / geokodet) | `schema.prisma:1040-1045` |
+| M11 | To geokodere: Nominatim for oppmøtested (`oppmotested.geokod`), Kartverket/Geonorge for byggeplass-søk. i18n-attribusjon sier OpenStreetMap der siden viser Kartverket | `rute-service.ts:82-98`, `:156-188`, `nb.json:1686` vs. `page.tsx:1362` |
+| M12 | Pausevinduet regnes fra **segmentets GPS-start** (= reisestart), ikke fra ankomst og ikke fra fast starttid | `dagsforslag.ts:~580` `pauseVinduFra(startTidHHMM, …)`, `pauseBeregning.ts:55` |
+| M13 | Glemt-dag-vakten kapper til `start + dagsnorm`, uten reise og pause | `dagsforslag.ts:415-424` (`kappGlemtDagSlutt`) |
+| M14 | Ingen test dekker haversine, gjenkjenning, matrise-oppslag, `resolverPrimaerByggeplass`, `recomputeMatrise`, geokoding | agent-måling 2026-10-02 |
+| M15 | Eneste teller for manglende grunnlag er `reiseMatriseParUtenAvstand` (rader med `avstandM: null`); `-1` telles ikke | `organisasjon.ts:1046-1048`, `innstillinger/page.tsx:1272` |
+| M16 | `arbeidsdag_local` har kun start/slutt-posisjon + oppmøtested- og byggeplass-id/navn, synkes aldri | `apps/mobile/src/db/schema.ts:357-379` |
+
+🔴 **M6 er lag 1s skarpeste funn.** Det er den samme arvingen Kenneth fikk fjernet fra origo-ordren
+2026-10-01 («et prosjekt kan strekke seg over kilometer») — men den står i matrise-beregningen, og
+den har produsert reise-avstander for byggeplasser uten punkt siden R3 (2026-06-11). Ført som **H21**
+i helhetsplanen § 4.
+
+## 2. Leveranse A — stedsmodellen (`packages/shared/src/utils/sted.ts`)
+
+Én fil, rene funksjoner, ingen DB, ingen RN. **Kun globaler som finnes i RN, Node og nettleser** (jf.
+lag 0c-kanten `types: ["node"]`). Alle fem haversine-kopiene (M1) erstattes av A1; `georeferanse.ts`
+beholder sin ekvirektangulære for tegnings-transformasjoner, men **reise bruker den aldri**.
+
+| # | Funksjon | Kontrakt |
+|---|---|---|
+| **A1** | `avstandM(a: GpsPunkt, b: GpsPunkt): number` *(typenavn `GpsPunkt` — `Punkt` finnes alt i shared som piksel-{x,y}, `utils/maaling`)* | Haversine i **meter** (heltall). Én implementasjon. Erstatter `geo.ts`, `dagsforslag.ts:235`, `ny.tsx`-bruken |
+| **A2** | `gjenkjennSted<T extends Geofence>(pos: Punkt \| null, kandidater: T[]): Treff<T> \| null` | **Kapabilitet A.** Nærmeste kandidat der `avstandM ≤ radiusM`. Returnerer `{ sted, avstandM }`. Kandidater uten `lat/lng/radiusM` filtreres av kalleren — funksjonen krever komplette geofencer. Brukes for BÅDE oppmøtested og byggeplass (erstatter M2) |
+| **A3** | `tolkStart(pos, oppmotesteder, byggeplasser): Startsted` | Forener de to treffene (V11, V12, V15). Diskriminert union: `{ type: "kontor", oppmotestedId, byggeplassId: string \| null }` · `{ type: "byggeplass", byggeplassId }` · `{ type: "utenfor" }` · `{ type: "ukjent", aarsak: "posisjon_utilgjengelig" }`. **Kontor vinner når begge treffer** (V15). `pos == null` → `ukjent`, aldri `utenfor` (H11) |
+| **A4** | `tolkSlutt(pos, oppmotesteder, byggeplasser): Sluttsted` | Samme union. Grunnlag for retur (V7) |
+| **A5** | `velgDestinasjon(args): Destinasjon` | **Kapabilitet C, innsnevret.** Rekkefølge: (1) `sluttsted.type === "byggeplass"` → den · (2) `kontekstByggeplassId` (arbeiderens aktive byggeplass) · (3) prosjektet har **nøyaktig én** byggeplass med punkt → den · (4) ellers `{ type: "ukjent", aarsak: "flere_byggeplasser" \| "ingen_byggeplass_med_punkt" }`. **Aldri primærbyggeplass, aldri nærmeste-uten-grense, aldri `prosjekter[0]`** (M3, M4) |
+| **A6** | `RADIUS_GRENSER` | Én navngitt tabell for de tre spennene (oppmøtested 10–5000, byggeplass-API 1–100 000, modal 25–500). **Grensene endres ikke** i lag 1 — de får navn og én kilde |
+
+**Prosjektvalg (kapabilitet C) i lag 1:** prosjektet er byggeplassens prosjekt når A5 gir en
+destinasjon; ellers `aktivtProsjektId` (arbeiderens valgte kontekst — G1: arbeider-valg er
+autoritativt); ellers utfall **`prosjektUkjent`** i `anvendDagsforslag` — dagen holdes åpen med melding,
+samme mønster som `kildeManglet` fra lag 0b. 🔴 **Meldingen skal navngi veien ut** (gate-krav): *«Fant
+ikke prosjektet fra posisjonen. Velg prosjekt i velgeren øverst og trykk Slutt dag på nytt.»* — dagen
+står `aktiv`, så handlingen finnes; uten setningen sitter arbeideren med et utfall uten handling
+(lærdom fra `kildeManglet`, lag 0b). ⚠️ **Dette fjerner `prosjekter[0]`-fallbacken før
+bekreftelsesskjermen (lag 3) finnes.** Begrunnelse: fallbacken er H1 «stille feil» — en sedel på et
+vilkårlig prosjekt er verre enn en åpen dag med melding. Orkestrator gater om det holder.
+
+**Tester (vitest, shared):** A1 mot kjent avstand Narvik–Tromsø (±0,5 %) · A2 innenfor/utenfor/to
+overlappende (nærmeste vinner)/kandidat uten radius avvises · A3 alle fire utfall + kontor-og-byggeplass
+→ kontor · A5 alle fire grener, inkludert at primærbyggeplass **ikke** velges når prosjektet har to
+byggeplasser med punkt.
+
+## 3. Leveranse B — reiseberegningen (i `apps/mobile/src/utils/dagsforslag.ts`)
+
+Lander i den rene `beregnDagsforslag` fra lag 0b. Karakteriseringstestene fra 0b **skal endres
+bevisst** der V-reglene endrer svaret — hver endret forventning navngir regelen i testnavnet.
+
+### B1 — etapper, ikke én mengde
+
+Ny ren funksjon `beregnReiseEtapper(start: Startsted, slutt: Sluttsted, destinasjon, matrise, regel)`
+→ `Etappe[]`, der `Etappe = { retning: "ut" | "retur", oppmotestedId, byggeplassId, kjoretidMin,
+avstandM, kategori: "arbeidstid" | "reisetid", kilde: "matrise" }`.
+
+| Regel | Etappe | Betingelse |
+|---|---|---|
+| V7 | **ut** | `start.type === "kontor"` og destinasjonen er en annen byggeplass enn den kontoret ligger i (V15: samme → avstand 0, ingen etappe) |
+| V7 | **retur** | `slutt.type === "kontor"` → celle `(slutt.oppmotestedId, destinasjon.byggeplassId)`. Slutt annet sted → ingen retur, arbeid slutter ved slutt-GPS |
+| V11 | ingen | `start.type ∈ { "byggeplass", "utenfor" }` → ingen ut-etappe |
+| V12 | ingen + årsak | `start.type === "ukjent"` → `reiseAarsak: "posisjon_utilgjengelig"` |
+| V10 | pr. etappe | `klassifiserReise` kalles **én gang pr. etappe** |
+| V13 | ingen + årsak | Mangler matrisecelle, eller cellen er `-1` (uoppnåelig), eller km-enhet uten `avstandM` → ingen etappe, `reiseAarsak: "mangler_matrise" \| "uoppnaaelig" \| "mangler_avstand"`. **`estimerReisetidMin` og `avstandMeter`-fallbacken fjernes fra forslaget**; `estimerReisetidMin` slettes fra `reise.ts` med sine tester (ingen gjenværende kaller) |
+
+**`klassifiserReise` (`reise.ts:85-101`) endres ikke i signatur**, men den stille grenen `:91`
+(«mangler avstand → under-type») nås aldri lenger fra forslaget, fordi B1 gater før. Testene for grenen
+beholdes og merkes «defensiv — forslaget kaller ikke med null».
+
+### B2 — arbeidsvinduet følger etappene (V3, V5) — *rettet etter gate-avvik 2026-10-02*
+
+🔴 **Én trekkmekanisme overlever: vinduet.** I dag trekkes reisen to steder, bevisst og riktig for
+én etappe: timene (`dagsforslag.ts:558` `raaArbeid = totalTimer − reisetidTimer`) og vindusstarten
+(`carveArbeidstid.ts:68` `startTid + reisetidTimer`). Med etapper i begge ender ville den kombinasjonen
+trukket reisen to ganger. **Derfor:**
+
+- `arbeidsstart = start-GPS + ut.kjoretidMin` når ut-etappen er **reisetid**; `= start-GPS` når den er
+  **arbeidstid** (V3) eller ikke finnes.
+- `arbeidsslutt = slutt-GPS − retur.kjoretidMin` når retur er reisetid; `= slutt-GPS` ellers.
+- 🔴 **`arbeidstimer = arbeidsslutt − arbeidsstart − pause`** (rundet som før). **Subtraksjonen
+  `totalTimer − reisetidTimer` FJERNES** — vinduet har allerede ekskludert begge etapper.
+- `carveArbeidstider` får `startTid = arbeidsstart` og `reisetidTimer = 0` (eller parameteren fjernes).
+  **Ingen `sluttKapp`:** carven legger segmenter forover og stopper når `seg.timer` er brukt
+  (`carveArbeidstid.ts:72-85`) — er `arbeidstimer` regnet fra vinduet, summerer segmentene til nettopp
+  det, og carven ender i `arbeidsslutt` av seg selv. *(Spesifikasjonen hadde `sluttKapp`; gaten viste
+  at den var overflødig.)*
+- 🔴 **Invariant-test:** `Σ carvede vinduer + pause = arbeidsslutt − arbeidsstart` for Dag A og Dag B.
+  **Og én test som FEILER hvis reisen trekkes to ganger:** Dag A skal gi nøyaktig 8 t ordinær + 2 t
+  OT50, ikke 6 + 2.
+- **Dagsnormen anvendes på dette vinduet** (V5) — ikke på firmaets `standardStartTid`.
+- 🔴 **Den tredje mekanismen fjernes også — bevisst, etter V1/V2** (re-gate 2026-10-02 fant den):
+  `dagsforslag.ts:573-575` senker *dagsnormen* med reisetiden når `reisetidTellerOvertid` er på. Det er
+  ikke et fradrag i timene, men i terskelen — og det er nøyaktig det Kenneth avviste: *«reisetid er
+  aldri overtid»* (V1). **L1-B slutter å lese flagget**; normen er alltid `dagsnorm0`. Kolonnen
+  deprecates og serverens overtidsgrunnlag rettes i lag 2 (V2) — men mobil-lesingen trekkes hit, ellers
+  ville V7 (retur) gitt firmaer med flagget på en *midlertidig* større overtid fra L1-B til lag 2, som
+  så reverseres. To lønnsendringer i rekkefølge er verre enn én. **«Én mekanisme» gjelder dermed både
+  timene og terskelen: vinduet, og bare vinduet.** ⚠️ Kenneths testfirma har flagget PÅ i dag — etter
+  L1-B endrer det ingenting, og det er meningen.
+- **`fordelArbeidstidFradrag`** (`dagsforslag.ts:254-320`, midnatt-splitt) fordeler i dag reisen som et
+  *fradrag* over segmentene. Med vinduet er reisen ikke lenger et fradrag: **ut-etappen hører til
+  start-segmentet, retur-etappen til slutt-segmentet**, og funksjonen fordeler kun pausen. Reise-rader
+  (B4) legges på det segmentet etappen hører til.
+- Glemt-dag-vakten (M13): kapplengde = `ut.kjoretidMin + dagsnorm + pauseMin` (ikke bare `dagsnorm`).
+
+### B3 — pausevinduet (V6)
+
+Ny firmainnstilling `OrganizationSetting.pauseReferanse: "fastStart" | "ankomst"` (additiv kolonne,
+`String @default("ankomst")`). `pauseFra` = `fastStart` → `pauseVinduFra(effektiv.startTid, X)` (firmaets
+sesongjusterte starttid fra `ArbeidstidsKalender`) · `ankomst` → `pauseVinduFra(arbeidsstart, X)`.
+`X = standardPauseEtterTimer`, lengde `standardPauseMin` — begge finnes (`schema.prisma:430-437`).
+⚠️ **Default-valget er mitt, ikke Kenneths:** dagens oppførsel (M12, pause fra GPS-start) er ingen av
+modusene og gir pause midt i reisen på en reisedag (start 05:00 → pause 09:00–09:30). `ankomst` er den
+som aldri legger pausen i en reise. Orkestrator/Kenneth kan snu den. UI: ett valg på
+`firma/innstillinger` under «Fast arbeidsdag», i18n ×15.
+
+### B4 — reise-rader i lag 1
+
+Én rad pr. reisetid-etappe (`erReise: true`, `retning` ført i `beskrivelse` eller nytt felt — orkestrator
+velger), `projectId` = destinasjonens prosjekt, **`fraTid/tilTid` fortsatt `null`** (V8 er lag 2). Rad
+med kategori `arbeidstid` opprettes ikke — tiden ligger i prosjektraden (V3).
+
+### B5 — årsak synlig (V12, V13 → lag 3-forberedelse)
+
+`Dagsforslag` får `reiseAarsak: ReiseAarsak | null` og `destinasjonAarsak`. I lag 1 vises de i
+eksisterende varsel etter «Slutt dag» (den som i dag melder `blokkertSendt`/`kildeManglet`), i18n ×15.
+Lag 3 flytter dem til bekreftelsesskjermen. **Ingen stille tomhet:** test som feiler hvis en dag uten
+reise-forslag mangler årsak når `start.type === "kontor"`.
+
+### B6 — normen er ÉN utledning på serveren; telefonen henter svaret (v3, 2026-10-02 natt)
+
+**Historikk i én setning:** B6 v1 sa «tre lesere gjennom én delt `hentDagsnorm` i shared». Kenneth
+snudde det under L1-B: *«hvorfor kan ikke telefonen spørre serveren hva som er dagsnormen i dag ved
+oppstart start timer. dersom offline → spør ved lagring»*. Orkestrator målte at v1 ville gitt **én delt
+funksjon på to cacher** — mobilen regner (`kalenderKatalog.ts:139-200`), serveren leser flat kolonne
+(`dagsseddel.ts:2767`) — og at en innstilling endret på web ville ligget gammel på telefonen til neste
+katalog-oppfriskning. **Det er H22 i finere form.** v2 under erstatter v1.
+
+**Målt grunnlag:** normen er ikke en lagret sesongverdi. Serveren utleder `(sluttTid − startTid) −
+pauseMin` fra standarddagen, overstyrt av `sommertid_start`-radens tider (`apps/api/src/services/
+timer.ts` `hentEffektivArbeidstid`), **eksponert alt som `organisasjon.hentEffektivArbeidstid(orgId,
+dato)`** (`organisasjon.ts:1130-1142`) og brukt av web `timer/ny/page.tsx:100`. Skjema-kommentarens
+«8 sommer / 7 vinter» er A.Markussens eksempel. `dagsnorm`-kolonnen (:404, 7,5) leses av server-varsel og
+web-sedel. **Det finnes ikke ett vinter-tall å vedta.**
+
+🟢 **V16 (Kenneth 2026-10-02): to tilfeller, valgt pr. firma.** Ny kolonne `OrganizationSetting.normKilde:
+"fast" | "kalender"` (additiv). **«fast»** = lovnorm: dagsnorm = `OrganizationSetting.dagsnorm` (7,5),
+sesong ignoreres; standarddagens tider brukes fortsatt til forhåndsutfylling og pausemodus `fastStart`.
+**«kalender»** = utledet som over. 🟢 **Default `"fast"`** — Kenneth: *«et skal være default og det er
+norsk lov med 7,5 timer arbeidsdag. Dersom kalender med vinter/sommertid velges, gjelder ikke lenger 7,5.»*
+🔴 **Backfill ved migrering:** firmaer med aktive `sommertid_start`-rader → `"kalender"` (de har valgt
+sesong; forslagene fortsetter uendret), alle andre → `"fast"`. **Test som FEILER** hvis et sommertid-firma
+står som `fast` etterpå.
+
+**B6.1 — én utledning.** `hentEffektivArbeidstid` (service) blir den ENESTE utledningen av **lønnsnormen** i systemet og får
+`normKilde` inn: `fast` → `dagsnorm` fra kolonnen; `kalender` → utledet. Svaret utvides til
+`{ dato, dagsnorm, startTid, sluttTid, pauseMin, normKilde, pauseEtterTimer, pauseReferanse }`.
+**Server-varselet** (`dagsseddel.ts:2767`) og **web-sedelen** (`timer/[id]/page.tsx:396`) kaller servicen
+pr. dato i stedet for å lese kolonnen. 🔴 **Det er en synlig endring i lederens kontrollflate** for
+`kalender`-firmaer (varsel og web-sedel viser sesongjustert norm, ikke 7,5) — **føres i
+FUNKSJONSENDRINGER ved merge av L1-B** (hjemmel V16), og kommentaren på `:396` («sesongjustering krever
+server-endepunkt → utenfor scope») rettes i samme commit, ellers lyver den dagen etter.
+
+🔴 **`hentEffektivArbeidstidLokal` splittes i to — ikke slettes** (v3, etter gate-avvik 1: den har ti
+kallsteder i sju filer som spør om vilkårlige datoer). Målt hva hvert kallsted bruker:
+
+| Trenger | Kallsteder | Ny funksjon |
+|---|---|---|
+| **Lønnsnormen** (`dagsnorm`) | `StartSluttDagKort.tsx:459` (→ `effektivPerDato` → forslag) · `:440` (glemt-dag-kapp) · `app/timer/[id].tsx:422` (norm-visning på sedelen) · `:216` (glemt-dag-estimat, kun nattskift-fallback) | **`hentDagsnormLokalt(org, dato)`** → leser KUN `arbeidstid_svar_local`; returnerer `{ dagsnorm, normKilde, normStatus }` eller `null`. **Regner aldri.** |
+| **Kun klokkeslett** (`startTid/sluttTid/pauseMin`) til forhåndsutfylling og vinduer | `TimerSeksjon.tsx:984, :1002` · `MaskinSeksjon.tsx:491, :510` · `dagsseddelOpprett.ts:92` · `matpause.ts:57` | **`hentArbeidsdagTiderLokalt(org, dato)`** → dagens lokale utledning av tider fra `organization_setting_local` + `arbeidstidskalender_local`, **uten `dagsnorm`-felt**. Forhåndsutfylling er ikke lønn, arbeideren redigerer alltid, og staleness der er ufarlig. |
+
+**Null kallere kan lese en norm fra noe som regner lokalt** — typen uten `dagsnorm` er garantien. `:216`
+og `:440` bruker tider når normen er `null` (kapp = `startTid→sluttTid`-vinduet); `[id].tsx:422` viser
+«norm ukjent» i stedet for et tall. Ingen `dagsnorm`/`normKilde`/`pauseReferanse` replikeres til
+`organization_setting_local` (TILLEGG 2 i L1-B-ordren trakk den GO-en; B3 følger samme vei — én kilde,
+ett svar, i stedet for én innstilling via katalog og én via svar).
+
+**B6.2 — telefonen henter SVARET og cacher det pr. dato.** Svaret hentes (når nett finnes) for **den datoen
+kalleren spør om**, på fem steder: «Start dag» og «Slutt dag» (start- og sluttdato, midnatt-splitt gir to) ·
+**åpning av en sedel** (`[id].tsx`, sedelens dato) · **«+ Ny»** for valgt dato (`dagsseddelOpprett`) · **pull-sync**
+av sedler laget på en annen enhet (hver pullet sedels dato). Henting er idempotent og billig (én rad). Da
+treffer trinn 3 i B6.3 kun en telefon som har vært uten nett i over 30 dager — ikke «åpne en sedel fra
+forrige uke» (gate-avvik 1). Ny lokal tabell
+`arbeidstid_svar_local { org_id, dato, dagsnorm, start_tid, slutt_tid, pause_min, norm_kilde,
+pause_etter_timer, pause_referanse, hentet_at }`, PK `(org_id, dato)`. ⚠️ **Lokal SQLite-migrering
+(`migreringer.ts`), ikke Prisma — ikke en del av Kenneths migrerings-gate.** `effektivPerDato` i
+`BeregnDagsforslagInput` bygges fra denne tabellen; den rene funksjonen er uendret.
+
+**B6.3 — offline, uten stillhet (gate-punkt 2 i TILLEGG 2).** Tre trinn, hvert med egen markør (`normStatus`) som
+🔴 **vises på flaten arbeideren faktisk ser** — i lag 1: varselet etter «Slutt dag» OG et banner øverst på
+sedelen (`[id].tsx`) så lenge `normStatus ≠ "server"`; lag 3 flytter det til bekreftelsesskjermen. Feil-
+retningen i trinn 3 er UNDERbetaling (overtiden mangler), så et usynlig felt på raden er stille tomhet i
+ny form (gate-vilkår):
+1. **Svar for datoen i cache** → brukes. `normStatus: "server"`.
+2. **Ingen svar for datoen, men et svar for samme firma ≤ 30 dager gammelt** → brukes, `normStatus:
+   "cachet"`, tekst «Norm fra siste kjente svar (dd.mm)». Sesongovergang innenfor de 30 dagene er den
+   kjente feilkilden; derfor markøren.
+3. **Ingenting** → forslaget lages **uten normaltid/overtid-splitt**: alle arbeidstimer på standard-
+   lønnsarten, `normStatus: "ukjent"`, tekst «Norm ukjent — fordeling til overtid gjøres når appen får
+   nett». 🔴 **Omregningen av splitten ved sync er lag 2 (K5: hvor mye verifiserer serveren)** — i lag 1
+   står raden slik til arbeideren eller attestanten retter den, og markøren følger raden så det ikke
+   skjer stille. ⚠️ **Åpent for gaten:** alternativet er å bruke 7,5 (lovnormen) i trinn 3 med samme
+   markør. Jeg anbefaler ingen splitt: 7,5 er riktig for `fast`-firmaer og galt for `kalender`-firmaer
+   om sommeren, og en feil splitt ser ut som et regnet faktum. *(Gate 2026-10-02 støtter «ingen splitt».)*
+
+**B6.4 — tester.** Karakteriseringstester på serverens NÅVÆRENDE `hentEffektivArbeidstid` **FØRST**
+(sommer, vinter, overgangsdag, halvdag, firma uten rader) — grønne før noe røres, grønne etterpå
+(orkestrators vilkår). **Dag F og Dag G kjøres mot server-servicen** (api vitest) med `normKilde` hhv.
+`kalender`/`fast`, og mobil-fasiten A–E konsumerer et cachet svar som fixture. **Én-utledning-testen:**
+server-varsel, web-sedel og mobil-forslag får identisk `dagsnorm` for samme firma og dato — fordi alle
+tre får den fra samme svar. **Offline-testene:** trinn 2 setter `cachet`, trinn 3 setter `ukjent` og
+lager ingen overtidsrad; **begge FEILER hvis forslaget mangler markør.** **Splitt-testen:** typen fra
+`hentArbeidsdagTiderLokalt` har ikke `dagsnorm` (kompileringsgaranti), og `hentDagsnormLokalt` returnerer
+`null` for en dato uten rad — aldri 7,5. **Henting-ved-åpning-testen:** åpne en sedel for en dato uten rad
+med nett → raden finnes etterpå.
+
+**Krav til fasit-testene (gate-krav 1–3):** (1) hver dag navngir sesong og firmaets tider · (2) minst
+én dag kjøres utenfor sommerperioden med samme input · (3) **normen hentes gjennom samme utledning som
+produksjon** (server-servicen med kalender-fixture; mobil-testene konsumerer svaret som cachet fixture),
+**aldri som literal `8` eller `7,5` i forventningen** — forventet overtid regnes i testen som `arbeidstimer − utledet norm`. En test som
+hardkoder normen består selv om sesong-oppslaget er ødelagt (jf. `ukenorm.ts:4`).
+
+**Fasit-tester (fra helhetsplanen § 4b, kun det lag 1 kan regne). Fixture-firma: standarddag
+07:00–15:00/30 (vinter, utledet 7,5 t), `sommertid_start` 07:00–15:30/30 (sommer, utledet 8 t):**
+Dag A (sommer) → ut 05:00–07:00 (2 t, reisetid), arbeidsvindu 07:00–17:30, retur 17:30–19:30
+(slutt-GPS på kontor); 10 t arbeid − 8 t norm = 2 t OT50 · **Dag F (vinter, samme input som Dag A,
+dato utenfor sommerperioden, `normKilde = kalender`)** → 10 t − 7,5 t = **2,5 t OT50**, og testen FEILER hvis
+den gir 2 t (sesong-oppslaget er da dødt) · **Dag G (sommer-dato, `normKilde = fast`, samme input som Dag A)**
+→ 10 t − 7,5 t = 2,5 t OT50, og testen FEILER hvis den gir 2 t (modusen leses ikke) · Dag B (sommer) → ut 07:00–09:00,
+arbeidsvindu 09:00–17:30 med pause 13:00–13:30 (`ankomst`) hhv. 11:00–11:30 (`fastStart`), retur
+17:30–19:30 · Dag C (ny): start innenfor kontor OG byggeplass, destinasjon = samme byggeplass → ingen
+etappe · **Dag E (ny, re-gate-krav): Dag A med `reisetidTellerOvertid = true` → nøyaktig samme svar som
+Dag A (ordinær = utledet norm, 2 t OT50), og testen FEILER hvis normen senkes med `ut + retur`** ·
+Dag D (ny): start på kontor, byggeplass uten matrisecelle → ingen etappe, `reiseAarsak =
+"mangler_matrise"`, **og testen feiler hvis en etappe likevel foreslås**.
+
+## 4. Leveranse C — datagrunnlaget (V14, H21)
+
+| # | Endring | Hvor |
+|---|---|---|
+| **C1** | 🔴 **Fjern prosjekt-arven i matrisen** (M6/H21): `b.latitude ?? b.project?.latitude` → kun `b.latitude`. Rader som i dag bygger på arv **slettes ved neste recompute** (de er gale). Returverdien utvides: `{ rader, manglerPunkt: { byggeplassId, navn, projectId }[], uoppnaaelige: number }` | `reisetidMatrise.ts:67-74`, `oppmotested.ts:139-144` |
+| **C2** | **Adresse i opprett-dialogen** (feltet finnes i Zod/Prisma). Ved opprettelse med adresse: server kaller `sokAdresser` (Kartverket — samme kilde som modalen, M11); **nøyaktig ett treff** → `latitude/longitude` settes, `radiusM = 150` (oppmøtested-default), `geofenceKilde = "geokodet"`; null eller flere treff → ingen punkt, byggeplassen får merket i C4 | `page.tsx:960-967`, `:1239-1268`, `byggeplass.ts:91-105` |
+| **C3** | **Ny kolonne `Byggeplass.geofenceKilde: "tegning" \| "manuell" \| "geokodet" \| "ukjent" \| null`** (M10). Additiv migrering med **backfill**: `latitude IS NOT NULL → 'ukjent'`, ellers `NULL`. **Garanti:** CHECK `(latitude IS NULL) = (geofence_kilde IS NULL)`. **Test som feiler** hvis en rad har punkt uten kilde. Skrivere: modal → `manuell`, «Beregn fra tegning» → `tegning`, auto fra `settGeoReferanse` → `tegning`, C2 → `geokodet` | `schema.prisma:1040-1045`, `byggeplass.ts:147-174`, `byggeplassGeofence.ts` |
+| **C4** | **«Beregn fra tegning» overskriver aldri `manuell`** (kartvelgeren overstyrer alltid — dialog 2026-10-01). Overskriver `geokodet`, `tegning`, `ukjent`, `null`. Auto-utfylling forblir kun-hvis-tomt | `byggeplass.ts:127-144` (`kunHvisTom`-semantikk utvides til kilde) |
+| **C5** | **Tre varsler (V14):** (a) byggeplasslista — tekstmerke «Mangler plassering — reise beregnes ikke» ved siden av `GeofenceKnapp` når Timer-modulen er aktiv for firmaet · (b) Reisetid-matrise-flaten — «N byggeplasser i aktive prosjekter mangler punkt» fra C1s `manglerPunkt`, og «M par uoppnåelige», begge klikkbare til lista · (c) arbeideren — B5. `reiseMatriseParUtenAvstand` (M15) erstattes av de to tellerne | `page.tsx:762-785`, `innstillinger/page.tsx:1634-1675`, `organisasjon.ts:1046-1048` |
+| **C6** | **Ikke påkrevd.** Opprettelse uten adresse er fortsatt lov (byggeplasser i terreng). Ingen hard gate | — |
+| **C7** | i18n-attribusjon rettes (M11): `lokasjoner.geofence.attribusjon` → Kartverket der søket er Kartverket | `nb.json:1686` + 14 språk (eksisterende nøkkel → slett i 13 målspråk først, CLAUDE.md-regel) |
+
+**Migreringer i lag 1: to, begge additive, Kenneth-gatet:** `pauseReferanse` (B3) og `geofenceKilde` +
+CHECK (C3). Stille-tomhet-regelen (CLAUDE.md) er oppfylt for C3: backfill (a), garanti (b), test (c).
+`pauseReferanse` bærer ikke identitet — default er nok.
+
+## 5. Leveranse D — rydding
+
+- `apps/mobile/src/utils/geo.ts` slettes; `dagsforslag.ts:235` slettes; `ny.tsx:131-142` bruker A2 med
+  byggeplass-geofencer i stedet for 500 m mot prosjektpunkt (H2). `identifiserOppmotested` og
+  `identifiserByggeplass` blir tynne kallere av A2 (eller slettes til fordel for A3).
+- `resolverPrimaerByggeplass` slettes (M4) — A5 erstatter den. 🔴 **I L1-B, ikke L1-A** (rettet etter
+  kontrollplans funn 2026-10-02): eneste kaller er `StartSluttDagKort.tsx:418` i lese-fasen som bygger
+  `reiseOppslag.matriseRad`; sletting i L1-A ville tvunget A5 inn i reisekjeden og brutt «null
+  atferdsendring i L1-A». A5 bygges og testes fullt i L1-A, kobles i L1-B. `hentMatriseRadLokalt` beholdes.
+- De tre kommentarene «KUN dokumentasjon — aldri lønn/reise/prosjektvalg» **står** (`useArbeidsdag.ts:69-70`,
+  `:141-142`, `byggeplassKatalog.ts:70`, `schema.ts:374`) — helhetsplanen § 5 LAG 3 sier de reverseres
+  der, med henvisning til bekreftelsessteget. Lag 1 legger til én linje under hver: *«Lag 1 (dato):
+  GPS-treff brukes som FORSLAG til destinasjon via A5; arbeider-valg (`aktivtProsjektId`) går foran.»*
+- `byggeplassKatalog.ts:10-12` («Ingen koordinater») rettes — den lyver.
+
+## 6. Ordre-splitt (anbefaling til orkestrator)
+
+| Ordre | Innhold | Avhenger av | Migrering |
+|---|---|---|---|
+| **L1-C** | 🟢 **LEVERT** `29f1d515` → merge `9d67367a`. C7: OSM-nøkkelen var relikvie (0 kallere), slettet i 15 språk i stedet for omskrevet | ingen | `20261002120000_byggeplass_geofence_kilde` 🔴 IKKE KJØRT (Kenneth) |
+| **L1-A** | 🟢 **LEVERT** `6f59a889` → merge `9d67367a`. `sted.ts` 21/21, null haversine utenfor. `resolverPrimaerByggeplass` lever til L1-B (Y). «+ Ny» krever nå geofence-treff (H2, tilsiktet) | ingen | — |
+| **L1-B** | Leveranse B (mobil) + B3/B6 v2: `normKilde` + `pauseReferanse` på server, én utledning i `hentEffektivArbeidstid`, server-varsel + web-sedel kaller servicen, mobil henter og cacher svaret (lokal SQLite-migrering), `hentEffektivArbeidstidLokal` slettes | L1-A | `pauseReferanse` + `normKilde` (én Prisma-migrering) + én LOKAL mobil-migrering |
+
+L1-C og L1-A kan gå parallelt. L1-B sist. ⚠️ **Begge migreringene ligger i `packages/db` og blir
+sekvensielle fordi L1-B er sist — skriv rekkefølgen eksplisitt i ordrene (`geofenceKilde` før
+`pauseReferanse`), så ingen kjører dem om hverandre.** **Hver ordre: regel 10 fire ledd, fasit-testene i § 3 som
+DoD for L1-B, `pnpm install` etter pull (lag 0c-kanten). Mobil: OTA.**
+
+## 6b. Gate-record
+
+🟢 **GATET av orkestrator 2026-10-02** (`relay/inbox-fabel.md`), målt mot `9ff1ebce`: M6/H21 verifisert
+ordrett med dato (`7d98b80a` 2026-06-11) · A5 styrker G1 (arbeiderens kontekst tilbake som ledd 2) ·
+`ankomst`-default er dagens oppførsel på dager uten reise, endrer kun reisedager · C3 oppfyller
+stille-tomhet (a/b/c) · ordre-splitten holder. **Ett AVVIK:** B2 dobbelttrakk reisen — rettet samme
+dag (vinduet er eneste mekanisme, `sluttKapp` fjernet, invariant-test lagt til). **B2 til re-gate før
+L1-B bestilles. L1-C og L1-A er uberørt og kan bestilles på Kenneths signal.**
+
+🟢 **Re-gate B2 GATET 2026-10-02** med én presisering: orkestrator fant den tredje mekanismen (norm-fradraget
+`dagsforslag.ts:573-575`) og mente den skulle overleve. **Den strider mot V1** — løst ved å trekke
+mobil-delen av V2 inn i L1-B (over) og legge til Dag E. **L1-B kan bestilles når orkestrator har sett
+denne løsningen.**
+
+🟢 **B6 v2 → AVVIK (2026-10-02):** ti kallsteder for `hentEffektivArbeidstidLokal` med vilkårlige datoer;
+B6.1 er funksjonsendring i lederens flate. **B6 v3 → GATET uten vilkår:** skillet norm/tider er målt
+(0 `dagsnorm`-treff i de fire tids-filene, 7 i de to norm-filene), henting ved åpning/«+ Ny»/pull-sync,
+markør på synlig flate, FUNKSJONSENDRING føres av orkestrator ved merge. **Fase 4 i L1-B frigitt.**
+
+🟢 **Sesong-funn 2026-10-02 (orkestrator, utløst av Kenneth «jeg håper 8 timer == standard arbeidstid»):**
+fasit-dagene låste normen til 8. Løst med B6 + Dag F. Spørsmålet «7 eller 7,5 om vinteren» oppløses —
+normen er utledet fra firmaets standarddag, ikke vedtatt.
+
+## 7. Åpne punkter for gaten
+
+1. **Default `pauseReferanse = "ankomst"`** (B3) — mitt valg, begrunnet; kan snus.
+2. **`prosjektUkjent` før lag 3** (§ 2) — fjerner `prosjekter[0]` nå; alternativet er å beholde
+   fallbacken til bekreftelsesskjermen finnes. Jeg anbefaler å fjerne.
+3. **C1 sletter arv-baserte matriserader** — de er gale, men en byggeplass som i dag «har reise» via arv
+   mister den til punktet er satt. C5 gjør det synlig. Antall er ikke målt (krever SQL, Kenneth).
+4. **Radius 150 m som geokodet default** (C2) — lånt fra oppmøtested. Alternativ: 75 m (modalens
+   startverdi i skjermbildet 2026-10-01).
+6. **Offline trinn 3 (B6.3):** ingen splitt + markør (anbefalt, støttet av gate) eller 7,5 + markør. Omregning ved sync er lag 2/K5.
+5. **Retning på reise-rad** (B4): `beskrivelse`-tekst eller nytt felt — lag 2 trenger uansett felt
+   for kilde-markør (V8), så nytt felt kan vente dit.

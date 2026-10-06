@@ -1,4 +1,4 @@
-export { utledMinRolle, utledDokumentRettighet, beregnHarBallen, utledFlytRettighet } from "./flytRolle";
+export { utledMinRolle, utledDokumentRettighet, beregnHarBallen, utledFlytRettighet, TERMINALE_DOKUMENTSTATUSER } from "./flytRolle";
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker, FlytMedlemRedigering, FlytRedigeringBruker } from "./flytRolle";
 export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS, PROSJEKTADMIN_ROLLE } from "./statusHandlinger";
 export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
@@ -16,8 +16,35 @@ export { GRATIS_DOKUMENT_GRENSE, grenseNaadd } from "./prosjektGrense";
 export type { GrenseVilkaar } from "./prosjektGrense";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
-export { klassifiserReise, estimerReisetidMin, løsReiseLonnsartId, REISE_LONNSART_REGEX } from "./reise";
-export type { ReiseKategori, ReiseRegelsett, ReiseEnhet, ReiseMaaling, ReiseGrensepunkt } from "./reise";
+export {
+  utledMmPrPiksel,
+  parseMalestokk,
+  finnMalestokkFraTekst,
+  loesGrepMalestokk,
+  pikselAvstand,
+  malMm,
+  malPolylinjeMm,
+  kanMale,
+  kalibrerMalestokk,
+} from "./maaling";
+export type { Punkt, ScaleKilde } from "./maaling";
+export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, erInnenfor, polygonArealM2, sentroidePunkter, erEnkeltPolygon, korridorFraLinje, tilGeofencer, geofenceForm, GEOFENCE_GRENSER } from "./sted";
+export type { GpsPunkt, Geofence, Sirkel, Polygon, Treff, TolketSted, Startsted, Sluttsted, Destinasjon, VelgDestinasjonArgs } from "./sted";
+export { klassifiserReise, løsReiseLonnsartId, grensepunktTraff, erReiseLonnsart, REISE_LONNSART_REGEX } from "./reise";
+export type {
+  ReiseKategori,
+  ReiseRegelsett,
+  ReiseEnhet,
+  ReiseMaaling,
+  ReiseGrensepunkt,
+  ErReiseKontekst,
+  ReiseRetning,
+  ReiseKilde,
+  TidKilde,
+  NormStatus,
+  ReiseRegelSnapshot,
+  NormSnapshot,
+} from "./reise";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";
@@ -53,6 +80,7 @@ export type {
   Mottaker,
 } from "./flytPosisjon";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export { prefiksFraReferanse } from "./prefiks";
 export { formaterNummer } from "./dokumentnummer";
 export { lesSignaturVerdi, formaterSignaturLinje, formaterSignaturTidspunkt, signaturTidspunktNaa } from "./signaturVerdi";
 export type { SignaturVerdi } from "./signaturVerdi";
@@ -116,18 +144,41 @@ export {
   finnTidsromKonflikt,
 } from "./tidsromValidering";
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
+export {
+  byggForsonInputFraValg,
+  parForslagMotSedel,
+  overlappBlokkererAttestering,
+} from "./forsonValg";
+export type {
+  ForsonSide,
+  ForsonGrunn,
+  ForsonRad,
+  ForsonOppdatering,
+  ForsonNyRad,
+  ForsonInput,
+  OverlappSlot,
+} from "./forsonValg";
+export { radInnholdLikt } from "./radInnhold";
+export type { RadInnhold } from "./radInnhold";
 export { finnSedlerÅSlette } from "./timerSyncSletting";
 export type { Slettevindu, LokalSedelUtsnitt } from "./timerSyncSletting";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
-export { beregnUkenorm } from "./ukenorm";
+export { beregnUkenorm, mandagIso } from "./ukenorm";
 export type { UkenormResultat, UkenormDag } from "./ukenorm";
 export { STANDARD_ARBEIDSTID_FALLBACK } from "./arbeidstidDefault";
 export {
   beregnOvertidsgrunnlag,
   lesOvertidsgrunnlagFraSnapshot,
+  beregnUkeAvvik,
+  avvikRetning,
 } from "./overtidsgrunnlag";
-export type { OvertidRad, Overtidsgrunnlag } from "./overtidsgrunnlag";
+export type {
+  OvertidRad,
+  Overtidsgrunnlag,
+  UkeSedelInput,
+  UkeAvvik,
+} from "./overtidsgrunnlag";
 export {
   harFeltVerdi,
   beregnLaasteFelter,
@@ -180,12 +231,16 @@ export {
 } from "./periode";
 export type { Periode, PeriodeHurtigvalg } from "./periode";
 export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
-export { velgOfflineListeKilde } from "./offlineListe";
+export { velgOfflineListeKilde, velgDokumentVisning, velgHjemProsjektVisning } from "./offlineListe";
 export type {
   OfflineListeKilde,
   OfflineListeTilstand,
   OfflineListeInput,
   OfflineListeValg,
+  DokumentVisningInput,
+  DokumentVisningValg,
+  HjemProsjektVisning,
+  HjemProsjektInput,
 } from "./offlineListe";
 export {
   avledSjekklisteFremdrift,
@@ -203,6 +258,7 @@ export type {
   UkeRef,
 } from "./kontrollplanFremdrift";
 export { perspektivEtikett, utledPerspektiv, kvitteringEtikett, noeytralEtikett } from "./perspektivEtikett";
+export { timerStatusEtikett } from "./timerStatus";
 export type {
   BadgeVariant,
   Perspektiv,
@@ -317,10 +373,17 @@ export function isValidStatusTransition(
  *   - `responded`   — Besvar
  * Videresend (`forwarded`) og Send (`sent`) er UNNTAK — krever ikke kommentar.
  * Hver mål-status er enekilde til sin handling (målt Ledd 1), så `nyStatus` alene
- * skiller rent uten per-flate if-er.
+ * skiller de fleste rent uten per-flate if-er.
  *
- * Delt kilde for server-validering (Zod-gate i endreStatus) og klient-validering
- * (web + mobil handlingsmeny), så regelen ikke kan divergere mellom lagene.
+ * Gjenåpne-vedtak (Kenneth 2026-09-26): Gjenåpning (terminal→draft) endrer et ferdig
+ * kvalitetsdokument — arkivet skal bære HVORFOR → begrunnelse påkrevd. Trekk tilbake
+ * (received→draft) angrer din egen usendte ball; ingen mottaker finnes å forklare noe
+ * til → IKKE påkrevd. Begge har `nyStatus="draft"`, så `fraStatus` er det eneste som
+ * skiller dem — derav den valgfrie parameteren. Uten `fraStatus` faller draft tilbake
+ * til «ikke påkrevd» (bakoverkompat med enkelt-arg-kallere).
+ *
+ * Delt kilde for server-validering (Zod-gate i endreStatus + HMS gjenåpne) og klient-
+ * validering (web + mobil handlingsmeny), så regelen ikke kan divergere mellom lagene.
  */
 // Runde-2 (2026-08-02): `in_progress` («Send tilbake») fjernet fra klassen — handlingen finnes ikke mer.
 const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
@@ -328,7 +391,19 @@ const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
   "responded",
 ]);
 
-export function statusKreverBegrunnelse(nyStatus: string): boolean {
+// Gjenåpne-vedtak: de terminale kildene som, ved gjenåpning til draft, endrer et ferdig
+// kvalitetsdokument. `received` (trekk tilbake) er bevisst UTELATT — usendt egen ball.
+const GJENAPNE_FRA_TERMINAL: ReadonlySet<string> = new Set([
+  "approved",
+  "closed",
+  "dismissed",
+]);
+
+export function statusKreverBegrunnelse(nyStatus: string, fraStatus?: string): boolean {
+  // Gjenåpning (terminal→draft) krever begrunnelse; trekk tilbake (received→draft) ikke.
+  if (nyStatus === "draft") {
+    return fraStatus !== undefined && GJENAPNE_FRA_TERMINAL.has(fraStatus);
+  }
   return STATUS_KREVER_BEGRUNNELSE.has(nyStatus);
 }
 
@@ -351,3 +426,16 @@ export {
   matchScore,
   KJERNE_SYNONYMER,
 } from "./sokMatch";
+
+export { UPLOADS_PREFIKS, UPLOADS_PRIVAT_PREFIKS, erRaaUploadsUrl, erForgiftetUploadsUrl, raaUploadsSti, raaVedleggIData } from "./uploadsSti";
+
+export {
+  SIGNERT_BILDE_DEBOUNCE_MS,
+  SIGNERT_BILDE_MAKS_FORSOK,
+  SIGNERT_LENKE_MAKS_FORSOK,
+  SIGNERT_BILDE_BACKOFF_BASIS_MS,
+  backoffForsokMs,
+  lesExpFraUrl,
+  erUtloptSignatur,
+  lagInvalideringsDebounce,
+} from "./signertBildePolicy";

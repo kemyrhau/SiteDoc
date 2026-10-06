@@ -5,9 +5,9 @@ import { X, Share2 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-interface ArkivPdfForhandsvisningProps {
+interface EksportPdfForhandsvisningProps {
   synlig: boolean;
-  /** file://-URI til den server-rendrede arkiv-PDF-en (i cacheDirectory). */
+  /** file://-URI til den server-rendrede eksport-PDF-en (i cacheDirectory). */
   filUri: string | null;
   tittel: string;
   onDel: () => void;
@@ -15,20 +15,20 @@ interface ArkivPdfForhandsvisningProps {
 }
 
 /**
- * Funn E: forhåndsvis den server-rendrede arkiv-PDF-en (`arkiv.rendr`) INNE i
+ * Funn E: forhåndsvis den server-rendrede eksport-PDF-en (`arkiv.rendr`) INNE i
  * appen — kontroll før sending, ikke bare deling. Viser den ferdige PDF-fila
  * (samme motor som web, base64 → cacheDirectory) i en WebView. Bruker IKKE
  * expo-print/lokal HTML-bygging — den veien ble bevisst fjernet (2026-08-23,
  * `0188b6b6`) fordi telefonen uansett må være på nett for å hente bilder/
  * tegninger. Del-knappen beholdes (deler den samme fila).
  */
-export function ArkivPdfForhandsvisning({
+export function EksportPdfForhandsvisning({
   synlig,
   filUri,
   tittel,
   onDel,
   onLukk,
-}: ArkivPdfForhandsvisningProps) {
+}: EksportPdfForhandsvisningProps) {
   const { t } = useTranslation();
 
   // Foreldre-skjermen rendrer ofte (2000 ms autolagring + hentMedId-invalidering).
@@ -92,7 +92,7 @@ export function ArkivPdfForhandsvisning({
           </Text>
           <Pressable onPress={onDel} hitSlop={12} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Share2 size={18} color="#ffffff" />
-            <Text style={{ fontSize: 14, fontWeight: "500", color: "#ffffff" }}>{t("arkiv.del")}</Text>
+            <Text style={{ fontSize: 14, fontWeight: "500", color: "#ffffff" }}>{t("eksport.del")}</Text>
           </Pressable>
         </View>
 
@@ -114,7 +114,7 @@ export function ArkivPdfForhandsvisning({
             >
               <ActivityIndicator size="large" color="#1e40af" />
               <Text style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
-                {t("arkiv.lasterForhandsvisning")}
+                {t("eksport.lasterForhandsvisning")}
               </Text>
             </View>
           )}
@@ -134,12 +134,12 @@ export function ArkivPdfForhandsvisning({
               }}
             >
               <Text style={{ fontSize: 15, fontWeight: "600", color: "#111827", textAlign: "center" }}>
-                {t("arkiv.forhandsvisningFeiletTittel")}
+                {t("eksport.forhandsvisningFeiletTittel")}
               </Text>
               {/* Mikrotekst § 3: si hva brukeren KAN gjøre — Del-knappen øverst deler
                   den samme fila uten å måtte vise den her. */}
               <Text style={{ marginTop: 8, fontSize: 13, color: "#6b7280", textAlign: "center" }}>
-                {t("arkiv.forhandsvisningFeiletHjelp")}
+                {t("eksport.forhandsvisningFeiletHjelp")}
               </Text>
             </View>
           )}

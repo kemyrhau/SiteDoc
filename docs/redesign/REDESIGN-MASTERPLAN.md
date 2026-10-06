@@ -91,10 +91,32 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 | Kode | Hva finnes | Hva gjenstår |
 |---|---|---|
 | **EX** eksport | `EksportJobb` (`schema.prisma:198`) · `routes/eksport.ts:16` · UI `EksportSeksjon.tsx` (`3c6df4bf`) · mobil `Share2` | 🔴 **Navnevedtaket er ikke gjennomført** — «Arkiv-PDF» står fortsatt i `sjekklister/[id]/page.tsx:247`, `oppgaver/[id]/page.tsx:267`, `mobile/app/oppgave/[id].tsx:425` |
-| **AM 2** attestering | STEG 1 `overtidsgrunnlag.ts` + `ukenorm.ts:46` · STEG 2 `5c4d1e8b` pivot + `beregnUkeAvvik` | **STEG 3 attestantvarsel** — koden ber selv om det: `AttesteringPivot.tsx:13` «FABEL → STEG 3». ⚠️ **«40-timers» finnes ikke som begrep** — normen er konfigurerbar ukenorm |
+| **AM 2** attestering | STEG 1 `overtidsgrunnlag.ts` + `ukenorm.ts:46` · STEG 2 `5c4d1e8b` pivot + `beregnUkeAvvik` | **STEG 3 attestantvarsel** — koden ber selv om det: `AttesteringPivot.tsx:13` «FABEL → STEG 3». ⚠️ **«40-timers» finnes ikke som begrep** — normen er konfigurerbar ukenorm. 🟢 **MÅLT 2026-09-30: designnotatets forutsetning («klassifisering flyttes til server først», nå-rapport §5) ER OPPFYLT av STEG 1/2** — `overtidsgrunnlag.ts:17,55` kaller `klassifiserArbeidstid`; `dagsseddel.ts:2512` regner live beregnet-vs-valgt **inne i `hentTilAttesteringFirma` (`:2311`)**, som er pivotens egen datakilde; `:2940` fryser grunnlaget i `attestertSnapshot` ved attestering. 🔴 **Steg 3 trenger derfor INGEN materialisering og ingen migrering** — regelen gir et *aggregat*, ikke en per-rad-utpeking, og et per-rad-felt ville krevd ny carve + kryss-rad-invariant over ~15 skriveveier. *(Orkestrator skrev først en ordre på materialisering ut fra et grep-bom; dokgen stoppet og meldte. Ordren er trukket.)* 🟢 **MÅLT 2026-09-30, del 2: badgen i `AnsattPivot` ER BYGGET** — `b8a82f3b` 20.08, `beregnUkeAvvik` på `AttesteringPivot.tsx:102`. ⚠️ **Men den er privat i en web-komponent og har INGEN test** — seks uker utestet. **Gjenstår derfor:** uttrekk av kjernen til `shared/utils/overtidsgrunnlag.ts` · badge på **SeddelKort** (der D2 ordrett plasserer den; pivoten er en sekundær fane) · banner i sedel-detalj (`hentForAttestering` er **eneste** prosedyre som mangler grunnlaget — `hentTilAttesteringFirma` returnerer `overtidsgrunnlag` + `ukenorm` på `dagsseddel.ts:2547,2549`, og **mobilen kaller den samme prosedyren**, så mobil-badgen er ren UI) · de seks gate-testene, som dekker `b8a82f3b` retroaktivt |
 | **ON** onboarding | `harLokasjon` + `harTegning` skilt (`prosjekt.ts:287-291`) · firmaveiviser i bruk | Selve gaten er en **menneskelig test** — kan ikke måles i kode |
 | **AG** ansvarsgrense | Fabels tekst levert (`ag-ansvarsgrense-produkttekst-fabel-2026-09-06.md`) | **Null treff i kode og i18n** — teksten er skrevet, ikke innplassert |
-| **P2** inndata-validering | Timer krever kommentar (`dagsseddel.ts:3022`) | Dokumentflyt: `endreStatus` (`sjekkliste.ts:1169`) har `kommentar: z.string().optional()` — **«Send tilbake» uten innhold er fortsatt mulig** |
+| ~~**P2** inndata-validering~~ | ✅ **LEVERT — raden var DRIFT.** Se korreksjonen under | — |
+
+### 🔴 KORREKSJON 2026-09-25 — P2 var LEVERT, raden over var drift
+
+**Målt av kontrollplan før bygging, på coworks ordre.** Remålingen 11.09 skrev at `endreStatus` godtar «Send tilbake» uten innhold. **Det stemte ikke.**
+
+**Kravet ble innført som Kenneth-vedtak 2026-07-21 og herdet i runde 2 (2026-08-02):**
+
+| Lag | Bevis |
+|---|---|
+| Delt kilde | `packages/shared/src/utils/index.ts:343` — `statusKreverBegrunnelse()`, `STATUS_KREVER_BEGRUNNELSE = {dismissed, responded}` |
+| Server-gate | `sjekkliste.ts:1514` + `oppgave.ts:1611` — kaster `BAD_REQUEST` uten `kommentar?.trim()` |
+| Web | `DokumentHandlingsmeny.tsx:572, 619-620` |
+| Mobil | `DokumentHandlingslinje.tsx:336, 625` |
+| Test | `statusHandlinger.test.ts:310-333` — beviser at `responded` + `dismissed` krever, resten ikke |
+
+🟢 **`.optional()` på Zod-nivå er BEVISST:** regelen er betinget per målstatus via runtime-guarden, ikke uniform. **Coworks seks `optional()`-treff var derfor et stedfortredertall, ikke seks hull** — to er guardet, to er riktig valgfrie (`hmsLukk` = admin-exit, ikke tilbakesending), to er kandidater.
+
+🟢 **Og `hmsReturner` er dekket separat:** `oppgave.ts:1815` krever `sporsmaal: z.string().trim().min(1)`. HMS-ens «send tilbake med spørsmål» har alltid krevd innhold.
+
+⚠️ **Dette er fjerde gang planen har bedt om noe som alt var levert** (reise-terskel 09.09, P2-begrunnelse 09.09, mobil-PSI §220 11.09, og nå P2 selv). **Målingen ble gjort fordi vi skulle bygge — og den sparte en hel runde.** Kenneth 2026-09-25: *«det er ikke vits å remåle noe som vi ikke har tenkt å bygge nå»*. **Regelen holder begge veier: mål det du skal bygge, ikke det du kanskje bygger.**
+
+🔴 **ÉN genuin beslutning gjenstår — meldt, ikke gjettet:** skal **Gjenåpne** kreve begrunnelse? Komplikasjonen er at `draft` bærer to handlinger — «Trekk tilbake» (`received→draft`, angre egen send) og «Gjenåpne» (`terminal→draft`). `statusKreverBegrunnelse` nøkler kun på `nyStatus` og kan ikke skille dem uten også å ta `fraStatus`.
 
 ### ❌ IKKE BYGGET — begge søkeformer
 
@@ -108,7 +130,9 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 2. **P2 — kommentarkrav på `endreStatus`.** Mønsteret finnes i timer. Portering, ikke design.
 3. **MK C konverteringslista** for de 34 trafikklysene — sekvenslåsen er oppfylt.
 4. **10a fase 2** sletting av global prosjektliste — halv designsak (Ctrl+K-erstatningen må bestemmes).
-5. **ON-restansen** — delstatus på lokasjonssteget nå som `harTegning` finnes separat.
+5. ~~**ON-restansen** — delstatus på lokasjonssteget~~ ✅ **LEVERT — målt av kontrollplan 2026-09-26 før bygging.** Kjeden er komplett: `prosjekt.ts:291-292` beregner → `onboarding-wizard.ts:136-137` leser og setter `undertekstKey` → `[prosjektId]/page.tsx:166, 189-191` rendrer → `nb.json:1465` = **«Lokasjon ✓ · Tegning mangler»**, i alle 15 språk. Kom inn med `b32326a8`. Kommentaren på `:135` viser at det var bevisst: «Krever BÅDE byggeplass OG tegning — én byggeplass uten tegning holder ikke.»
+   ⚠️ **Coworks premiss om «null lesere» var tre grep-bom:** case-sensitivt søk (symbolene har stor L og T), feil ord (steget heter `"tegninger"`, ikke «lokasjon»), og `harTegningsmarkor` forvekslet med `harTegning`. **Samme felle som `setSlettFeil` i august, som alt står i SAMARBEIDSREGLER.**
+   🔴 **Mønster, andre gang på rad:** både P2 og ON sto på «kan ordres nå»-lista og var levert. **Cowork måler mot KODE før hver plan-ordre, ikke mot listen.**
 
 **Krever fortsatt fabel:** LP · BL · AG (plassering) · AM 2 steg 3 · EX ledd 2 · Del 7 · Del 8 · 10/K11 · K14.
 
@@ -121,6 +145,57 @@ bygget på en versjon fra ~21.08. Hans fil var **24 kB mot repoets 49 kB** og ma
 — `6b-x`, `UT`, `PR`, `REG`, `ON`, `FL` — altså all målt status fra 28.–30.08. Hadde cowork
 kopiert fila inn, var alt det tapt. **Kun MK, SJA, rekkefølgen og backlog-postene ble flettet
 inn.** Regelen i toppen av denne fila står ved lag: fabel leverer notater, cowork fører dem inn.
+
+## 🔴 REMÅLING MOT KODE 2026-09-30 — fire av åtte punkter var utdaterte
+
+> 🟢 **LUKKET SAMME DAG — AM 2 er ferdig.** `1cecdb71` (`ce1e5b5d`, kontrollørgatet) leverte
+> steg 3: `beregnUkeAvvik` trukket til `packages/shared/src/utils/overtidsgrunnlag.ts:144` med
+> én definisjon og tre konsumenter · `avvikRetning` (`:158`) som eneste kilde for retning ·
+> badge på `SeddelKort` (der D2 ordrett plasserte den) · banner i sedel-detalj · badge i mobil
+> sedel-lista · seks D2-tester som dekker `b8a82f3b` retroaktivt, med tilfelle 2 og 3 vist
+> røde først. **Ingen migrering, intet DB-felt.** 🔴 **Gjenstår av AM 2: ledd 3, myk sperre ved
+> føring** — overtidslønnsart kan ikke velges for en uke under norm (D2, samme hjemmel).
+> ⚠️ **Latent felle ført:** `avvikRetning` godtar strukturelt både uke- og dag-grunnlag uten
+> typefeil — en nivå-diskriminant hører inn hvis flaten røres.
+
+> **Kenneth 2026-09-30:** *«mål masterplanen på nytt → hva gjenstår faktisk?»*
+> **Målt av fire agenter parallelt, mot KODE.** Orkestrator verifiserte selv hvert funn som
+> snur en rad. 🔴 **Linjenumrene i 09-11-remålingen har driftet** — `schema.prisma:1168` er nå
+> `:1298`, `:953` er `:1031`. Sitatene var ikke etterprøvbare som skrevet.
+
+### ✅ LEVERT — planen sa noe annet
+
+| Kode | Bevis |
+|---|---|
+| **EX ledd 1** navnevedtaket | 🟢 **`449e30c4` 26.09 «lås vokabular arkiv → eksport»**, 21 filer: fire dokumentflater + alle 15 i18n-filer. **Alle tre stedene planen navngir er rettet** — og filnavnene i planen er feil (`[id]` → `[sjekklisteId]`/`[oppgaveId]`). `nb.json:844` = «Last ned PDF» i alle 15 språk. **Null treff på «Arkiv-PDF» i i18n** (to søkeformer) |
+| **LP** enum-utvidelse | 🟢 **Tre verdier, ikke to:** `punkt \| byggeplass \| omrade` (`schema.prisma:1298` Checklist, `:1383` Task; Zod i alle fire skriveveier: `sjekkliste.ts:303,649`, `oppgave.ts:460,721`). Migrering `20260923120000_omrade_lokasjonsniva` med CHECK-garanti. ⚠️ **Men `omrade` er nivået MELLOM punkt og byggeplass** (`schema.prisma:1288`); LP ber om nivået OVER. **Ingen overlapp — LP-behovet står** |
+| **K14** rolle-gating | 🟢 **Mekanismen er ferdig OG testet:** `kreverSitedocAdmin` i `dype-sider.tsx:35` (håndhevet `:98`), `firma-nav.tsx:38` (`:87`), `innstillinger-kort.tsx:116`. Negativ test finnes: `sok-dekning.test.ts:129-176`. **Ingen ny mekanisme trengs** |
+| **Del 7** tilstandene | 🟢 **Per-rad-retur ER bygget:** `returnerRader` (`dagsseddel.ts:3014`), rad-status pr. rad (`:2099-2122`), vist i web (`attestering-buckets.tsx:94-117`) og mobil (`AttesteringStatusBadge.tsx:8-39`). **Konflikt-tilstand finnes i data** (`db-timer/schema.prisma:183`) **og i mobil-UI** (`TimerStatusMerkelapp.tsx:19`). 🔴 **Planens «❌ IKKE BYGGET» på `:121` er feil** |
+| **Del 8a** `formaterAnsvarlig` | 🟢 Fiksen står — `utforerFaggruppe`-fallbacken er borte i begge kopier (`oppgaver/page.tsx:174-179`, `sjekklister/page.tsx:161-166`) |
+| **LP/BL** åpent funn «tegninger hardt / dokumenter mykt» | 🟢 **LUKKET** — tegning bruker samme myke filter (`byggeplassFilter.ts:8-10`, kalt `tegning.ts:131`) |
+
+### ❌ GJENSTÅR FAKTISK — målt, med fil:linje
+
+| Kode | Hva som gjenstår |
+|---|---|
+| **BL** | **Alt.** `Byggeplass` (`schema.prisma:1031-1069`) har **null datoer og null arkivfelt**. `status` har to verdier og **én retning** — eneste skrivevei er `publiser` → hardkodet `{status:"published"}` (`byggeplass.ts:198-208`); `oppdater` tar ikke status. **Ingen «avslutt», ingen vei tilbake.** 🔴 **Status filtreres ikke noe sted** — `hentForProsjekt` (`:40-72`) og `hentForFirma` (`:20-38`) filtrerer ikke, så upubliserte byggeplasser er synlige i alle velgere. 🔴 **Og `hentForProsjekt` har ingen paginering samtidig som den gjør `include: { drawings }`** (`:51-70`) — 500 byggeplasser drar alle tegninger i samme svar. *(type/geofence/hmsregNummer er bekreftet til stede men GAMLE — mars/juni/juli, ikke fra 23.09. Planens feltliste er utdatert, behovet er ikke.)* |
+| **LP** | En **fjerde** verdi over byggeplass-nivået, + lesere i fire flater. 🔴 **BLOKKERT PÅ ET NYTT FUNN: mobilen kjenner ikke `omrade`.** `oppgave/[id].tsx:866` og `sjekkliste/[id].tsx:755` sjekker kun `=== "byggeplass"`, og **null treff på `omradeId` i hele `apps/mobile`** (to søkeformer). **Et lokasjonsnivå levert 23.09 finnes ikke på telefonen.** ⚠️ Dessuten: «Hele prosjektet» er alt tatt i mobil-UI som *filtervalg* (`ByggeplassKontekst.tsx:23`, `ByggeplassChip.tsx:79-80`) — navnekollisjon å planlegge for |
+| **AG** | **Alt.** Null treff i kode og i18n (to søkeformer pr. frase). **Vertene er identifisert:** `firma/innstillinger/page.tsx:131` (seksjonsmønster `:449`–`:988`), peker-kort i `firma/oppsett/page.tsx:184-212`, dempet linje på `firma/hms/page.tsx:176-177` + `[prosjektId]/hms/page.tsx:358`. **Ingen vilkår-side finnes** (`personvern/page.tsx` er hardkodet norsk uten `t()`, kan ikke kopieres som mønster). 🔴 **BLOKKERT PÅ KENNETH:** teksten skal gates av ham, og det er uavklart om «Firmaoppsett» betyr `firma/innstillinger` eller `firma/oppsett` |
+| **Del 7** | Ikke tilstandene — **konsistensen.** Fire konkrete: **(1)** ingen delt fargekilde for timer-statuser — to hardkodede map-er (`web/StatusBadge.tsx:5-10`, `mobil/TimerStatusMerkelapp.tsx:8-12`). 🟢 **Mønsteret finnes alt i `mobil/statusFarger.ts:1-22`**, som henter fra `@sitedoc/shared` nettopp «så mobil og web ikke kan drifte fra hverandre» — bare ikke brukt på timer. **(2)** 🔴 **`accepted` heter «Godkjent» i web (`nb.json:362`) og «Attestert» i mobil (`:543`) og i webs EGEN rad-badge (`:598`)** — det bryter `CLAUDE.md` «Attestering ≠ Godkjenning», ufravikelig låst 2026-04-26. **(3)** retur er **amber** på sedelen (`StatusBadge.tsx:8`) og **rød** på raden (`attestering-buckets.tsx:107`) — samme handling, to farger, samme app. **(4)** **konflikt vises ikke i web** — null treff på `syncStatus`/`sync_status` i hele `apps/web/src` |
+| **Del 8a** | Begrepssaken, og den er **verre enn to kolonner**: fire steder svarer på «hvem har ballen» i samme rad — ANSVARLIG (`sjekklister/page.tsx:701-716`) · FLYT (`:741-747`) · DOKUMENTFLYT (`:736-740`) · «Venter på»-pille i STATUS (`:690-694`). **Alle fire er på som standard** (`STANDARD_AKTIVE` `:145`). Tre kopier av `formaterAnsvarlig` (web ×2 + `dokumentlisteFilter.ts:45`). 🔴 **Krever Kenneth-beslutning:** hvilke skal leve |
+| **Del 8b** | 🔴 **Tallet «sju ugatet» er utdatert — det er 10.** Årsaken er målbar: `3f605c66` (28.08 **13:52**) fjernet `kreverGruppemodul` fra sjekklister/oppgaver/tegninger. **Planens tall var riktig da det ble målt, og ble feil samme ettermiddag.** Planen nevner tre gate-mekanismer; det finnes **seks** (+ `kreverIfc` 2 elementer, `kreverTimerLeder` 1, `tillatelse` deklarert men ubrukt). 🔴 **Og den egentlige forvirringen er skarpere enn planen sier: `kreverFirmaModul` sjekker PROSJEKT-nivå i `sidebar-elementer.tsx:310-315` (kommentaren innrømmer det `:303-304`) og FIRMA-nivå i `firma-nav.tsx:74,85`.** Ett feltnavn, tre evalueringssteder, to nivåer, tre ulike typer |
+| **10a fase 2** | Mindre enn planen tror. Ctrl+K **finnes** (`sok-modal-kontekst.tsx:25`, `SokModal.tsx:29`) men er **rute-only** — `useSokRegistry.ts:42-140` har fire statiske rutelister, ingen `trpc`-import. 🟢 **Men det tverrgående prosjektsøket finnes alt:** `KontekstChip.tsx:247-254`, med usperret admin-gren i `prosjekt.ts hentAlle`. **Gjenstår: tre beslutninger** — erstattes admin-lista av KontekstChip eller av prosjekt-treff i Ctrl+K · hvor flyttes de fem handlingene som bare finnes i `admin/prosjekter/page.tsx` (rydd utløpte, forleng prøveperiode, slett m/statistikk, opprett malprosjekt, opprett for annet firma) · så slette ruta + `admin/layout.tsx:23-26` + testunntaket `sok-dekning.test.ts:84` |
+| **K14** | Kun **registrering** av de åtte admin-rutene i en søkekilde med `kreverSitedocAdmin: true`, + et `sokeordKey`-felt i den valgte kildens struktur (`DypSide` har det ikke), + fjern unntaksraden `sok-dekning.test.ts:84` |
+
+### 🔴 To vedtak som ikke ble rettet der de sto
+
+**1. EX-splittknappen er delvis strøket av Kenneth selv.** Planen ber om «Med logg (standard) / Uten logg / Send til». `packages/pdf/src/arkivmal/loggseksjon.ts:61-71` bærer **Kenneth-vedtak 2026-08-22**: dokumenthistorikken skrives ALLTID, *«Dermed finnes bare én PDF-variant og «Med logg / Uten logg»-valget bortfaller.»* **To av tre bein er borte. Bare «Send til» gjenstår** — og flagget `signaturMedLogg` er hardkodet `true` (`sammenstilling.ts:422`). ⚠️ **Planens spesifikasjon må revideres før den kan bygges.**
+
+**2. «arkiver» er reservert i planen, men navnerommet er alt okkupert.** EX sier *«arkiver reserveres for fremtidig handling»*. Men ordet brukes i to andre betydninger i dag: prosjekt-livssyklus (`nb.json:2828` «Arkiver prosjekt») og kontrollplan-revisjon (`:3567`). En fremtidig «arkiver dokument» kolliderer med begge.
+
+### 🟡 Én synlig restlekkasje fra det gamle vokabularet
+
+`nb.json:847` — *«De kommer med i **arkivet** og ved sending…»*, vist på `apps/mobile/app/sjekkliste/[id].tsx:861`. Interne navn (`rendrArkivPdf`, `trpc.arkiv.rendr`) er ikke synlige og kan ryddes opportunistisk.
 
 ## Nye backlog-saker (2026-09-05-runden, kodeverifisert)
 

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { SignertBilde } from "@/components/SignertBilde";
 
 export default function DokumentleserSide() {
   useToppbarFiltre({ byggeplass: false });
@@ -373,8 +374,8 @@ function BlokkVisning({
           case "image":
             return blokk.imageUrl ? (
               <figure key={blokk.id} className="my-6">
-                <img
-                  src={`/api${blokk.imageUrl}`}
+                <SignertBilde
+                  url={blokk.imageUrl}
                   alt=""
                   className="mx-auto max-h-96 rounded-lg border border-gray-200 shadow-sm"
                   loading="lazy"

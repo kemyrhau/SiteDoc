@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   klassifiserReise,
-  estimerReisetidMin,
   løsReiseLonnsartId,
+  grensepunktTraff,
+  erReiseLonnsart,
   REISE_LONNSART_REGEX,
   type ReiseRegelsett,
   type ReiseGrensepunkt,
+  type ErReiseKontekst,
 } from "./reise";
 
 /**
@@ -212,12 +214,77 @@ describe("løsReiseLonnsartId — grensepunkter (determinisme)", () => {
   });
 });
 
-describe("estimerReisetidMin", () => {
-  it("0 avstand → 0 min", () => {
-    expect(estimerReisetidMin(0)).toBe(0);
+describe("grensepunktTraff — avgjorde et bånd lønnsarten? (L2-B snapshot)", () => {
+  const skala: ReiseGrensepunkt[] = [
+    { grenseM: 7_500, lonnsartId: "art-7-15" },
+    { grenseM: 15_000, lonnsartId: null }, // hull 15–20 km
+    { grenseM: 20_000, lonnsartId: "art-20+" },
+  ];
+
+  it("treff i et bånd MED art → true (samme grense-lesing som løsReiseLonnsartId)", () => {
+    expect(grensepunktTraff(10_000, skala)).toBe(true);
+    expect(grensepunktTraff(25_000, skala)).toBe(true);
   });
 
-  it("50 km ved 50 km/t → 60 min", () => {
-    expect(estimerReisetidMin(50_000)).toBe(60);
+  it("treff i et hull (lonnsartId null) → false (fallback bestemte, ikke bånd)", () => {
+    expect(grensepunktTraff(17_000, skala)).toBe(false);
+  });
+
+  it("under laveste grense / ingen bånd / avstand mangler → false", () => {
+    expect(grensepunktTraff(5_000, skala)).toBe(false);
+    expect(grensepunktTraff(20_000, [])).toBe(false);
+    expect(grensepunktTraff(null, skala)).toBe(false);
+    expect(grensepunktTraff(-1, skala)).toBe(false);
+  });
+});
+
+// ===========================================================================
+//  erReiseLonnsart (LAG 2) — ÉN regel delt av backfill-SQL + serverens skrivestier.
+//  Speiler dagens leser (M3): konfigurert art ∪ grensepunkt-arter, ellers navne-
+//  match KUN for firmaer uten konfigurert reiseLonnsartId.
+// ===========================================================================
+describe("erReiseLonnsart — delt reise-flagg-regel (backfill-speil)", () => {
+  const medKonfigurert: ErReiseKontekst = {
+    reiseLonnsartId: "reise-art",
+    grensepunktLonnsartIds: ["band-25", "band-50"],
+  };
+  const utenKonfigurert: ErReiseKontekst = {
+    reiseLonnsartId: null,
+    grensepunktLonnsartIds: ["band-25"],
+  };
+
+  it("konfigurert reise-art → true", () => {
+    expect(erReiseLonnsart("reise-art", "Hva som helst", medKonfigurert)).toBe(true);
+  });
+
+  it("grensepunkt-art (avstandsbånd) → true, uansett navn", () => {
+    expect(erReiseLonnsart("band-50", "Tillegg", medKonfigurert)).toBe(true);
+    expect(erReiseLonnsart("band-25", "Noe", utenKonfigurert)).toBe(true);
+  });
+
+  it("🔴 navne-match IGNORERES når firmaet HAR konfigurert reise-art (unngår falske positive)", () => {
+    // «Transporttillegg» matcher regexen, men firmaet har en eksplisitt reise-art
+    // → navnet skal ikke fryses som sannhet. Rød først: en naiv regex-only-regel
+    // ville satt true her.
+    expect(erReiseLonnsart("annen-art", "Transporttillegg", medKonfigurert)).toBe(false);
+  });
+
+  it("navne-match brukes KUN når reiseLonnsartId mangler", () => {
+    expect(erReiseLonnsart("x", "Reise til prosjekt", utenKonfigurert)).toBe(true);
+    expect(erReiseLonnsart("x", "Transport av masser", utenKonfigurert)).toBe(true);
+  });
+
+  it("ordinær lønnsart → false (begge kontekster)", () => {
+    expect(erReiseLonnsart("ordinaer", "Timelønn", medKonfigurert)).toBe(false);
+    expect(erReiseLonnsart("ordinaer", "Timelønn", utenKonfigurert)).toBe(false);
+  });
+
+  it("regelen er identisk med leser-regexen (REISE_LONNSART_REGEX)", () => {
+    // Navne-grenen SKAL bruke samme regex som dagens leser — ingen ny gjetning.
+    for (const navn of ["Reise", "transport", "REISEGODTGJØRELSE"]) {
+      expect(erReiseLonnsart("x", navn, utenKonfigurert)).toBe(
+        REISE_LONNSART_REGEX.test(navn),
+      );
+    }
   });
 });

@@ -6,13 +6,14 @@ import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
+import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
 import { medNummerRetry } from "../utils/nummerRetry";
 import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
 import { harFeltVerdi } from "@sitedoc/shared";
+import { erRaaUploadsUrl } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
@@ -141,6 +142,95 @@ import { settUrlPaaVedlegg } from "../services/vedleggUrl";
 
 const FRITEKST_TYPER = new Set(["text_field"]);
 
+/**
+ * Delt leser for detalj-visning av én oppgave. `hentMedId` (online-visning) og
+ * `hentForOffline` (offline forhånds-nedlasting, fase 2 2026-10-03) deler ÉN include
+ * + tilgangssjekk + signering her.
+ *
+ * 🔴 ENESTE forskjell: `stemplLest`. `hentForOffline` stempler ALDRI `lestAvMottakerVed`
+ * — forhånds-nedlasting skal ikke endre lesekvitteringens betydning.
+ */
+async function lesOppgaveMedId(
+  prisma: Parameters<typeof hentMottakerEposter>[0],
+  userId: string,
+  id: string,
+  stemplLest: boolean,
+) {
+  const oppgave = await prisma.task.findUniqueOrThrow({
+    where: { id },
+    include: {
+      template: {
+        include: {
+          objects: { orderBy: { sortOrder: "asc" } },
+          project: { select: { sourceLanguage: true } },
+        },
+      },
+      bestiller: true,
+      bestillerFaggruppe: true,
+      utforerFaggruppe: true,
+      recipientGroup: { select: { id: true, name: true } },
+      drawing: {
+        include: {
+          byggeplass: { select: { id: true, name: true } },
+        },
+      },
+      // Steg 2b (2026-09-23): områdenavn+type for lokasjonsvisning når lokasjonOmfang="omrade".
+      // Additiv lese-utvidelse — omradeId (skalar) fulgte alt med; navnet krevde relasjonen.
+      omrade: { select: { id: true, navn: true, type: true } },
+      checklist: {
+        include: {
+          template: { select: { prefix: true, name: true } },
+        },
+      },
+      images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
+      transfers: {
+        include: {
+          sender: { select: { id: true, name: true } },
+          recipientUser: { select: { id: true, name: true } },
+          recipientGroup: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+      comments: {
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  // Tilgangssjekk via oppretter-faggruppens prosjekt.
+  // hmsSynlighet sendes inn slik at "apen" HMS-dokumenter er lesbare for alle
+  // prosjektmedlemmer (lesing — mutations beholder streng tilgang).
+  await verifiserDokumentTilgang(
+    userId,
+    hentProjectId(oppgave),
+    oppgave.bestillerFaggruppeId,
+    oppgave.utforerFaggruppeId,
+    oppgave.template?.domain,
+    oppgave.id,
+    "task",
+    oppgave.template?.hmsSynlighet,
+  );
+
+  // Sett lestAvMottakerVed når mottaker åpner mens status er «sent» — KUN på
+  // ekte visning (hentMedId), aldri på forhånds-nedlasting.
+  if (
+    stemplLest &&
+    oppgave.status === "sent" &&
+    oppgave.recipientUserId === userId &&
+    !oppgave.lestAvMottakerVed
+  ) {
+    await prisma.task.update({
+      where: { id: oppgave.id },
+      data: { lestAvMottakerVed: new Date() },
+    });
+    oppgave.lestAvMottakerVed = new Date();
+  }
+
+  // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon.
+  return { ...signerDataRad(oppgave), images: signerBilder(oppgave.images) };
+}
+
 export const oppgaveRouter = router({
   // Hent alle oppgaver for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -266,79 +356,17 @@ export const oppgaveRouter = router({
       });
     }),
 
-  // Hent én oppgave med alle detaljer
+  // Hent én oppgave med alle detaljer (online-visning — stempler lest-kvittering)
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
-        where: { id: input.id },
-        include: {
-          template: {
-            include: {
-              objects: { orderBy: { sortOrder: "asc" } },
-              project: { select: { sourceLanguage: true } },
-            },
-          },
-          bestiller: true,
-          bestillerFaggruppe: true,
-          utforerFaggruppe: true,
-          recipientGroup: { select: { id: true, name: true } },
-          drawing: {
-            include: {
-              byggeplass: { select: { id: true, name: true } },
-            },
-          },
-          checklist: {
-            include: {
-              template: { select: { prefix: true, name: true } },
-            },
-          },
-          images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
-          transfers: {
-            include: {
-              sender: { select: { id: true, name: true } },
-              recipientUser: { select: { id: true, name: true } },
-              recipientGroup: { select: { id: true, name: true } },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-          comments: {
-            include: { user: { select: { id: true, name: true, email: true } } },
-            orderBy: { createdAt: "asc" },
-          },
-        },
-      });
+    .query(({ ctx, input }) => lesOppgaveMedId(ctx.prisma, ctx.userId, input.id, true)),
 
-      // Tilgangssjekk via oppretter-faggruppens prosjekt.
-      // hmsSynlighet sendes inn slik at "apen" HMS-dokumenter er lesbare for alle
-      // prosjektmedlemmer (lesing — mutations beholder streng tilgang).
-      await verifiserDokumentTilgang(
-        ctx.userId,
-        hentProjectId(oppgave),
-        oppgave.bestillerFaggruppeId,
-        oppgave.utforerFaggruppeId,
-        oppgave.template?.domain,
-        oppgave.id,
-        "task",
-        oppgave.template?.hmsSynlighet,
-      );
-
-      // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
-      if (
-        oppgave.status === "sent" &&
-        oppgave.recipientUserId === ctx.userId &&
-        !oppgave.lestAvMottakerVed
-      ) {
-        await ctx.prisma.task.update({
-          where: { id: oppgave.id },
-          data: { lestAvMottakerVed: new Date() },
-        });
-        oppgave.lestAvMottakerVed = new Date();
-      }
-
-      // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon.
-      return { ...signerDataRad(oppgave), images: signerBilder(oppgave.images) };
-    }),
+  // Offline forhånds-nedlasting (fase 2 2026-10-03): identisk utvalg/signering som
+  // hentMedId, men stempler ALDRI lestAvMottakerVed. Mobilen tåler at denne mangler
+  // på en gammel server (hopper over forhånds-nedlasting, write-through virker).
+  hentForOffline: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(({ ctx, input }) => lesOppgaveMedId(ctx.prisma, ctx.userId, input.id, false)),
 
   // Hent kommentarer for en oppgave
   hentKommentarer: protectedProcedure
@@ -792,6 +820,9 @@ export const oppgaveRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Del B: avvis at en signert («forgiftet») /uploads/-URL persisteres i data.
+      avvisForgiftetVedleggIData(input.data);
+
       // Tilgangssjekk
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
@@ -1016,11 +1047,12 @@ export const oppgaveRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // Aldri persistér en lokal enhets-URL (file://) på server — det er hele
-      // feilklassen. Kun server-relative /uploads/-stier slipper inn.
-      if (!input.url.startsWith("/uploads/")) {
+      // feilklassen. Kun RÅ server-relative /uploads/-stier slipper inn: en signert
+      // («forgiftet») /uploads/-URL avvises også (del B), ellers dør signaturen i DB.
+      if (!erRaaUploadsUrl(input.url)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "settVedleggUrl krever en server-URL (/uploads/…)",
+          message: "settVedleggUrl krever en rå server-URL (/uploads/… uten ?exp=&sig=)",
         });
       }
 
@@ -1608,7 +1640,9 @@ export const oppgaveRouter = router({
 
       // P2 (Kenneth-vedtak 2026-07-21): Besvar/Send tilbake/Avvis krever ikke-tom
       // begrunnelse (statusKreverBegrunnelse — delt kilde, samme regel som klienten).
-      if (statusKreverBegrunnelse(input.nyStatus) && !input.kommentar?.trim()) {
+      // Gjenåpne-vedtak (2026-09-26): `fraStatus` skiller gjenåpne (terminal→draft, krever)
+      // fra trekk tilbake (received→draft, krever ikke) — begge har nyStatus="draft".
+      if (statusKreverBegrunnelse(input.nyStatus, oppgave.status) && !input.kommentar?.trim()) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Begrunnelse er påkrevd for denne handlingen",
@@ -1955,6 +1989,16 @@ export const oppgaveRouter = router({
         },
         "gjenapne",
       );
+
+      // Gjenåpne-vedtak (2026-09-26): gjenåpning krever begrunnelse — arkivet skal bære HVORFOR
+      // et ferdig kvalitetsdokument åpnes. HMS ruter gjenåpne til `responded`, men regelen er
+      // den delte gjenåpne-regelen (terminal→draft som kanonisk form), ikke responded-tilfeldet.
+      if (statusKreverBegrunnelse("draft", oppgave.status) && !input.kommentar?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Begrunnelse er påkrevd for denne handlingen",
+        });
+      }
 
       // F3.3: HMS-gjenåpne ruter via posisjon (terminal nulles, ball tilbake mot oppretter/Ledd 1).
       const hmsMedlemmer = await hentFlytMedlemmer(ctx.prisma, oppgave.dokumentflytId);

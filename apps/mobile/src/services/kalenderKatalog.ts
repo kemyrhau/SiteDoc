@@ -21,11 +21,16 @@ import type { trpc } from "../lib/trpc";
 
 type TrpcKlient = ReturnType<typeof trpc.useUtils>["client"];
 
-export type EffektivArbeidstid = {
+/**
+ * B6 v3 (L1-B): KUN klokkeslett — forhåndsutfylling og pausevinduer. 🔴 Ingen
+ * `dagsnorm`-felt: lønnsnormen er server-utledet og leses via `hentDagsnormLokalt`
+ * (svar-cachen), ALDRI regnet lokalt. Typen uten `dagsnorm` er kompileringsgarantien
+ * mot at en tids-kaller sniker inn en lokalt regnet norm.
+ */
+export type ArbeidsdagTider = {
   startTid: string; // HH:MM
   sluttTid: string; // HH:MM
   pauseMin: number;
-  dagsnorm: number; // timer (sluttTid - startTid - pauseMin)
 };
 
 // Sikkerhetsnett: brukes hvis cache er tom (første gang appen kjøres offline).
@@ -136,17 +141,16 @@ export function hentKalenderForAarLokalt(organizationId: string, aar: number) {
  * Halvdag håndteres ikke her — det er per-rad-overstyring på timerOverstyr
  * og registreres direkte i UI (T4-e).
  */
-export function hentEffektivArbeidstidLokal(
+export function hentArbeidsdagTiderLokalt(
   organizationId: string,
   dato: Date,
-): EffektivArbeidstid {
+): ArbeidsdagTider {
   const db = hentDatabase();
   if (!db) {
     return {
       startTid: DEFAULT_START_TID,
       sluttTid: DEFAULT_SLUTT_TID,
       pauseMin: DEFAULT_PAUSE_MIN,
-      dagsnorm: beregnDagsnorm(DEFAULT_START_TID, DEFAULT_SLUTT_TID, DEFAULT_PAUSE_MIN),
     };
   }
 
@@ -209,28 +213,5 @@ export function hentEffektivArbeidstidLokal(
     }
   }
 
-  return {
-    startTid,
-    sluttTid,
-    pauseMin,
-    dagsnorm: beregnDagsnorm(startTid, sluttTid, pauseMin),
-  };
-}
-
-function beregnDagsnorm(
-  startTid: string,
-  sluttTid: string,
-  pauseMin: number,
-): number {
-  const startMinutter = hhmmTilMinutter(startTid);
-  const sluttMinutter = hhmmTilMinutter(sluttTid);
-  const arbeidsMinutter = sluttMinutter - startMinutter - pauseMin;
-  return Math.max(0, arbeidsMinutter / 60);
-}
-
-function hhmmTilMinutter(hhmm: string): number {
-  const deler = hhmm.split(":");
-  const timer = Number(deler[0] ?? 0);
-  const minutter = Number(deler[1] ?? 0);
-  return timer * 60 + minutter;
+  return { startTid, sluttTid, pauseMin };
 }

@@ -25,7 +25,11 @@ import {
   RotateCcw,
   Scissors,
 } from "lucide-react";
+import type { UkeAvvik } from "@sitedoc/shared";
+import { overlappBlokkererAttestering } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { Avviksbadge } from "./Avviksbadge";
+import { ReiseRadMerke } from "./ReiseRadMerke";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
@@ -77,6 +81,15 @@ export type SeddelKortData = {
   // T.11: true når sedel har maskinarbeid og eier mangler gyldig
   // maskinførerbevis. Leder-synlighet — aldri blokkerende.
   manglerMaskinforerbevis: boolean;
+  // LAG 2 D1: sedelens norm-status (DailySheet.normStatus). "cachet"/"ukjent" gir
+  // banner; "server"/null (gammel sedel) gir ingenting.
+  normStatus?: "server" | "cachet" | "ukjent" | null;
+  // V19-C (C-2): uavklart overlapp mellom PC og mobil (DailySheet.konfliktVentende-
+  // Siden). Satt ⇔ det finnes et forslag arbeideren ikke har valgt → attestering
+  // blokkeres. Liste-queryen leser ALDRI forslagsradene (M15 — kun hentMedId/
+  // hentForAttestering gjør det); feltet alene bærer blokkeringen her. Full side-om-
+  // side-visning av forslaget skjer i detaljen (AttesteringDetalj).
+  konfliktVentendeSiden?: Date | string | null;
 };
 
 function initialer(navn: string | null | undefined, email: string | undefined): string {
@@ -111,6 +124,7 @@ export function SeddelKort({
   readOnly = false,
   expanded: expandedProp,
   onToggleExpand,
+  ukeAvvik,
 }: {
   sedel: SeddelKortData;
   onAttester: () => void;
@@ -124,9 +138,25 @@ export function SeddelKort({
   // sin egen interne tilstand med auto-expand ved avvik (DagsKort-bruken uendret).
   expanded?: boolean;
   onToggleExpand?: () => void;
+  // ORDRE 2 STEG 3 ledd 2 (D2): uke-avviket kortets uke tilhører (regnet på HELE
+  // uken av forelderen). Badgen vises kun ved avvik (Avviksbadge → null ellers).
+  ukeAvvik?: UkeAvvik | null;
 }) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
+
+  // V19-C (C-2): uavklart PC/mobil-overlapp blokkerer attestering. Serveren er
+  // sannheten (A-4 kaster PRECONDITION_FAILED uansett); dette gater ✓ i UI-et og
+  // forklarer hvorfor. Retur (↩) lar vi stå — det er utveien.
+  const forslagBlokkert = overlappBlokkererAttestering(sedel.konfliktVentendeSiden);
+  const forslagTekst = sedel.konfliktVentendeSiden
+    ? t("timer.forslagValg.venterSiden", {
+        dato: new Date(sedel.konfliktVentendeSiden).toLocaleDateString("no-NB", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+      })
+    : t("timer.forslagValg.venter");
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
   const [menyApen, setMenyApen] = useState(false);
@@ -162,6 +192,16 @@ export function SeddelKort({
   );
   const pauseTimer = sedel.pauseMin / 60;
   const maskinOk = !maskinOver;
+  // LAG 2 D1 (V1): arbeid/reise-splitt fra radenes erReise. Vises kun ved reise.
+  const reisetimer = sedel.timer.reduce(
+    (s, r) => s + (r.erReise === true ? tilTall(r.timer) : 0),
+    0,
+  );
+  const arbeidstimer = sedel.timer.reduce(
+    (s, r) => s + (r.erReise === true ? 0 : tilTall(r.timer)),
+    0,
+  );
+  const normStatus = sedel.normStatus;
   // T7-4g: default-expanded ved tilleggskrav ELLER mertid ELLER maskin over
   // invariant (kun i intern modus — DagsKort; firma-attestering styrer expand utenfra).
   const kontrollertExpand = expandedProp !== undefined;
@@ -342,6 +382,19 @@ export function SeddelKort({
           </span>
         )}
 
+        {/* V19-C (C-2): uavklart PC/mobil-overlapp — pille forklarer hvorfor ✓ er
+            død. Full side-om-side-visning er i detaljen (M15: lista leser ikke
+            forslagsradene). */}
+        {forslagBlokkert && (
+          <span
+            onClick={(e) => e.stopPropagation()}
+            title={forslagTekst}
+            className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+          >
+            {t("timer.forslagValg.pille")}
+          </span>
+        )}
+
         {/* Spacer + totaltimer/dagsnorm — oransje ved mertid */}
         <span
           className={`ml-auto font-mono text-sm ${
@@ -352,6 +405,14 @@ export function SeddelKort({
         >
           {sedel.totaltimer.toFixed(2)}t / {sedel.dagsnorm.toFixed(2)}t
         </span>
+
+        {/* D2-attestantvarsel (ledd 2): uke-avvik-badge. Klikk bobler ikke til
+            header-toggle (span, ikke knapp) — informativ, ikke handling. */}
+        {ukeAvvik && (
+          <span onClick={(e) => e.stopPropagation()}>
+            <Avviksbadge avvik={ukeAvvik} />
+          </span>
+        )}
 
         {/* ↩ returner — T7-5e: skjult i read-only-modus */}
         {!readOnly && (
@@ -370,7 +431,8 @@ export function SeddelKort({
           </button>
         )}
 
-        {/* ✓ attester — T7-5e: skjult i read-only-modus */}
+        {/* ✓ attester — T7-5e: skjult i read-only-modus. V19-C (C-2): blokkert ved
+            uavklart overlapp (tooltip forklarer); retur-knappen over er IKKE gatet. */}
         {!readOnly && (
           <button
             type="button"
@@ -378,13 +440,17 @@ export function SeddelKort({
               e.stopPropagation();
               onAttester();
             }}
-            disabled={attesterPending}
+            disabled={attesterPending || forslagBlokkert}
             className={`rounded p-1 disabled:opacity-40 ${
               oransje
                 ? "text-orange-700 hover:bg-orange-100"
                 : "text-green-700 hover:bg-green-100"
             }`}
-            title={t("timer.attestering.attester")}
+            title={
+              forslagBlokkert
+                ? t("timer.forslagValg.attesterBlokkert")
+                : t("timer.attestering.attester")
+            }
             aria-label={t("timer.attestering.attester")}
           >
             <Check className="h-3.5 w-3.5" />
@@ -489,6 +555,26 @@ export function SeddelKort({
             </div>
           )}
 
+          {/* LAG 2 D1: norm-status-banner + arbeid/reise-splitt (V1). */}
+          {(normStatus === "cachet" || normStatus === "ukjent") && (
+            <div className="border-t border-gray-100 px-4 py-2">
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                <AlertTriangle className="h-3 w-3" />
+                {normStatus === "cachet"
+                  ? t("timer.attestering.norm.cachet")
+                  : t("timer.attestering.norm.ukjent")}
+              </span>
+            </div>
+          )}
+          {reisetimer > 0 && (
+            <div className="border-t border-gray-100 px-4 py-2 text-xs text-gray-600">
+              {t("timer.attestering.arbeidReiseSplit", {
+                arbeid: arbeidstimer.toFixed(2),
+                reise: reisetimer.toFixed(2),
+              })}
+            </div>
+          )}
+
           {/* Tabell */}
           {(sedel.timer.length > 0 ||
             sedel.maskiner.length > 0 ||
@@ -541,6 +627,13 @@ export function SeddelKort({
                         >
                           <td className="px-3 py-2 text-gray-900">
                             {lonnsartNavn(rad.lonnsartId)}
+                            {/* LAG 2 D1: reise-spor + beskrivelse under lønnsarten. */}
+                            <ReiseRadMerke rad={rad} />
+                            {rad.beskrivelse && (
+                              <p className="mt-1 text-[11px] italic text-gray-500">
+                                {rad.beskrivelse}
+                              </p>
+                            )}
                           </td>
                           <td className="px-3 py-2 text-gray-700">
                             {aktivitetNavn(rad.aktivitetId)}

@@ -374,7 +374,10 @@ export const rapportRouter = router({
             // trenger å vite HVILKE timerad-id-er som ble ekskludert.
             where: { attestertStatus: { not: "erstattet" }, ...radProsjektFilter },
             include: {
-              lonnsart: { select: { navn: true, skalEksporteres: true } },
+              // LAG 2 D2: type + satsEnhet ut i eksporten (regnskap trenger dem for
+              // km-/diett-arter). Reise-feltene (erReise/reiseRetning/…/tidKilde) og
+              // normStatus kommer via default-select (include uten select).
+              lonnsart: { select: { navn: true, skalEksporteres: true, type: true, satsEnhet: true } },
               aktivitet: { select: { navn: true } },
             },
           },
@@ -457,6 +460,44 @@ export const rapportRouter = router({
         }
       }
 
+      // LAG 2 D2 — oppmøtested- og byggeplass-navn for reise-radenes fra/til-sted.
+      // Svak cross-table FK (A.20-mønster): ingen @relation, slås opp via kjerne-
+      // klienten, samme batch-mønster som prosjekt/maskin-navnene over.
+      const oppmotestedIder = Array.from(
+        new Set(
+          sedler.flatMap((s) =>
+            s.timer.map((r) => r.reiseOppmotestedId).filter((id): id is string => id != null),
+          ),
+        ),
+      );
+      const oppmotestedMap = new Map<string, string>();
+      if (oppmotestedIder.length > 0) {
+        const steder = await prisma.oppmotested.findMany({
+          where: { id: { in: oppmotestedIder } },
+          select: { id: true, navn: true },
+        });
+        for (const o of steder) oppmotestedMap.set(o.id, o.navn);
+      }
+      const byggeplassIder = Array.from(
+        new Set(
+          sedler.flatMap((s) =>
+            s.timer.map((r) => r.byggeplassId).filter((id): id is string => id != null),
+          ),
+        ),
+      );
+      const byggeplassMap = new Map<string, string>();
+      if (byggeplassIder.length > 0) {
+        const plasser = await prisma.byggeplass.findMany({
+          where: { id: { in: byggeplassIder } },
+          select: { id: true, name: true },
+        });
+        for (const b of plasser) byggeplassMap.set(b.id, b.name);
+      }
+      const oppmotestedNavn = (id: string | null): string | null =>
+        id == null ? null : (oppmotestedMap.get(id) ?? null);
+      const byggeplassNavn = (id: string | null): string | null =>
+        id == null ? null : (byggeplassMap.get(id) ?? null);
+
       const iso = (d: Date): string => d.toISOString().slice(0, 10);
       const ansatt = (userId: string): string =>
         brukerMap.get(userId)?.name ?? brukerMap.get(userId)?.email ?? "(ukjent)";
@@ -465,20 +506,50 @@ export const rapportRouter = router({
       const eksporterbar = (r: { lonnsart: { skalEksporteres: boolean } | null }): boolean =>
         r.lonnsart?.skalEksporteres !== false;
 
+      // LAG 2 D2 — valider DB-strengen mot det tillatte settet før den types som
+      // union (ingen `as unknown as`): ukjent/korrupt verdi faller til null, ærlig.
+      const tilEnum = <T extends string>(
+        v: string | null,
+        gyldige: readonly T[],
+      ): T | null => (v != null && (gyldige as readonly string[]).includes(v) ? (v as T) : null);
+
       const timerader = sedler.flatMap((s) =>
-        s.timer.filter(eksporterbar).map((r) => ({
+        s.timer.filter(eksporterbar).map((r) => {
+          // fra/til-sted orientert av retningen (K5 mottak; serveren regner ikke om).
+          // ut: kontor → byggeplass · retur: byggeplass → kontor. Null retning → ingen
+          // orientering (gammel backfill-rad) → begge null, men «Reise: Ja» står.
+          const retning = tilEnum(r.reiseRetning, ["ut", "retur"] as const);
+          const stedKontor = oppmotestedNavn(r.reiseOppmotestedId);
+          const stedBygg = byggeplassNavn(r.byggeplassId);
+          const fraSted = retning === "ut" ? stedKontor : retning === "retur" ? stedBygg : null;
+          const tilSted = retning === "ut" ? stedBygg : retning === "retur" ? stedKontor : null;
+          return {
           id: r.id,
           dato: iso(s.dato),
           ansatt: ansatt(s.userId),
           ansattnr: ansattnummerMap.get(s.userId) ?? null,
           prosjekt: prosjektNavn(r.projectId),
           lonnsart: r.lonnsart?.navn ?? "(ukjent)",
+          lonnsartType: r.lonnsart?.type ?? null,
+          satsEnhet: r.lonnsart?.satsEnhet ?? null,
           aktivitet: r.aktivitet?.navn ?? "(ukjent)",
           // T.4 per-rad klokkeslett "HH:MM" (kun timer-rader har det).
           fraTid: r.fraTid,
           tilTid: r.tilTid,
           timer: Number(r.timer),
           beskrivelse: r.beskrivelse,
+          // LAG 2 D2 — reise-sporet (K5). erReise er Boolean @default(false) → alltid
+          // boolean. De øvrige følger raden slik L2-A/L2-B skrev dem; gamle rader har
+          // null (ingen etappe) — vises ærlig, aldri fabrikkert.
+          erReise: r.erReise,
+          reiseRetning: retning,
+          fraSted,
+          tilSted,
+          reiseAvstandM: r.reiseAvstandM,
+          reiseKjoretidMin: r.reiseKjoretidMin,
+          reiseKilde: tilEnum(r.reiseKilde, ["matrise", "manuell"] as const),
+          tidKilde: tilEnum(r.tidKilde, ["stempel", "utledet", "manuell"] as const),
+          normStatus: tilEnum(s.normStatus, ["server", "cachet", "ukjent"] as const),
           // T.3: RAD-status (attestertStatus), ikke sedel-status. Lønn spør om
           // raden er attestert; en sedel kan stå "sent" mens enkeltrader er
           // returnert. null → "pending" (Prisma-default).
@@ -497,7 +568,8 @@ export const rapportRouter = router({
               radstatus: m.attestertStatus ?? "pending",
               utleieEnhet: utleieEnhetMap.get(m.vehicleId) ?? null,
             })),
-        })),
+          };
+        }),
       );
 
       // Maskin-linje (felles form for de to «løse» bøttene).
@@ -622,8 +694,15 @@ export const rapportRouter = router({
           .array(
             z.enum([
               "dato", "ansatt", "ansattnr", "prosjekt", "type", "betegnelse",
+              // LAG 2 D2 — speiler TIMER_KOL_KEYS (@sitedoc/shared). PDF ignorerer
+              // reise-nøkler den ikke rendrer; enumet må godta hele kol-settet så
+              // malens valgte kolonner round-tripper.
+              "lonnsartType", "satsEnhet",
               "aktivitet", "fraTid", "tilTid", "timer", "maskintimer", "antall",
-              "belop", "mengde", "enhet", "beskrivelse", "status",
+              "belop", "mengde", "enhet",
+              "reise", "retning", "fraSted", "tilSted", "avstandKm", "kjoretidMin",
+              "reiseKilde", "tidKilde", "normStatus",
+              "beskrivelse", "status",
             ]),
           )
           .optional(),

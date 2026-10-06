@@ -22,12 +22,18 @@ import {
   RefreshCw,
   ShieldCheck,
   Building2,
+  WifiOff,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { velgDokumentVisning } from "@sitedoc/shared";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { useAuth } from "../../src/providers/AuthProvider";
+import { useProsjektListe } from "../../src/hooks/useProsjektListe";
+import { hentSjekklisterLokalt } from "../../src/services/sjekklisteKatalog";
+import { hentOppgaverLokalt } from "../../src/services/oppgaveKatalog";
 import { ProsjektVelger } from "../../src/components/ProsjektVelger";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { FirmaVelger } from "../../src/components/FirmaVelger";
@@ -98,22 +104,25 @@ export default function HjemSkjerm() {
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
   // Fabel C: «Se alle»/«Vis færre» utvider innboksen inline til dagens tak (10).
   // Lokal (ikke persistert) — resettes ved remount, bevisst enkel løsning.
-  const { valgtFirmaId, firmaer, lasterFirmaer } = useFirma();
+  const { valgtFirmaId, firmaer } = useFirma();
+  const { bruker } = useAuth();
   const router = useRouter();
   const utils = trpc.useUtils();
   const queryClient = useQueryClient();
 
-  // Hent prosjektdata. Gated på valgt firma — men også aktiv når bruker
-  // ikke har noe firma (kun standalone-prosjekter), ellers henger queryen
-  // som disabled (isLoading=true) og «Henter prosjekter…» blir evig spinner.
-  const prosjektQuery = trpc.prosjekt.hentMine.useQuery(
-    { organizationId: valgtFirmaId ?? undefined },
-    { enabled: !!valgtFirmaId || (!lasterFirmaer && firmaer.length === 0) },
-  );
-  // Lean cast: tRPC-output drar med seg dyp config-Json (TS2589 på .find/.some).
-  // Samme mønster som bygninger/psiListe under — holder scope i mobil.
-  const prosjektListe = prosjektQuery.data as Array<{ id: string; name: string }> | undefined;
-  const valgtProsjekt = prosjektListe?.find((p) => p.id === valgtProsjektId);
+  // Prosjekter via delt hook med offline-fallback til prosjekt_local (feltfunn 2026-10-04):
+  // Hjem er eneste inngang til listene, så en nett-only feilside stengte veien til de
+  // offline-lagrede dokumentene. Hooken faller tilbake til lokal cache uten nett, med
+  // samme pause-regel som fase 2. Delt med prosjektvelgeren og «Ny dagsseddel».
+  const {
+    visning: prosjektVisning,
+    prosjekter: prosjektListe,
+    erFrakoblet: prosjektFrakoblet,
+    erPaaNettet,
+    feilmelding: prosjektFeilmelding,
+    refetch: refetchProsjekt,
+  } = useProsjektListe();
+  const valgtProsjekt = prosjektListe.find((p) => p.id === valgtProsjektId);
 
   // Hent bygninger for å vise valgt bygningsnavn
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -184,53 +193,81 @@ export default function HjemSkjerm() {
     | Array<{ id: string; title: string; status: string; priority: string; number?: number | null; updatedAt: Date | string; template?: { name: string; prefix?: string | null } | null }>
     | undefined;
 
-  // Filtrer aktive elementer for innboksen
-  const aktiveSjekklister = useMemo(
-    () => sjekklister?.filter((s) => AKTIVE_STATUSER.includes(s.status)) ?? [],
-    [sjekklister],
+  // Offline-fallback for innboksen: aktive sjekklister + oppgaver fra de lokale katalogene
+  // (samme kilde listeskjermene bruker). Bruker-scopet (userId), byggeplass-scopet likt server.
+  const brukerId = bruker?.id;
+  const effektivBygg = valgtBygningId ?? undefined;
+  const lokaleSjekklister = useMemo(
+    () => (valgtProsjektId && brukerId ? hentSjekklisterLokalt(valgtProsjektId, brukerId, effektivBygg) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [valgtProsjektId, brukerId, effektivBygg, sjekklisteQuery.status],
+  );
+  const lokaleOppgaver = useMemo(
+    () => (valgtProsjektId && brukerId ? hentOppgaverLokalt(valgtProsjektId, brukerId) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [valgtProsjektId, brukerId, oppgaveQuery.status],
   );
 
-  const aktiveOppgaver = useMemo(
-    () => oppgaver?.filter((o) => AKTIVE_STATUSER.includes(o.status)) ?? [],
-    [oppgaver],
-  );
+  // Visningskilde for listene. velgDokumentVisning bevarer online-spinner (Q5) og faller
+  // til lokalt uten nett/feilet/pauset (samme pause-regel som fase 2, 255c739c).
+  const brukServerListe = sjekklisteQuery.isSuccess && oppgaveQuery.isSuccess;
+  const { offlineModus: innboksFrakoblet } = velgDokumentVisning({
+    erPaaNettet,
+    serverBekreftet: brukServerListe,
+    erFeilet: sjekklisteQuery.isError || oppgaveQuery.isError,
+    erPauset: sjekklisteQuery.fetchStatus === "paused" || oppgaveQuery.fetchStatus === "paused",
+    harSpeil: lokaleSjekklister.length + lokaleOppgaver.length > 0,
+  });
 
-  const innboksAntall = aktiveSjekklister.length + aktiveOppgaver.length;
-  const totaleOppgaver = oppgaver?.length ?? 0;
-  const totaleSjekklister = sjekklister?.length ?? 0;
-
-  // Kombiner og sorter innbokselementer etter sist oppdatert
+  // Innboksen er STATUS-avledet (sent/received/in_progress) på dokumenter brukeren ser —
+  // den beregner ikke «hvem har ballen» per mottaker, bare dokumentets status. De lokale
+  // katalogene bærer status og er bruker-scopet, så det aktive settet rekonstrueres fullt
+  // offline. Derfor VISES innboksen lokalt (skjules ikke) når speilet finnes — jf. ordren.
   const innboksElementer = useMemo(() => {
-    const elementer: InnboksElement[] = [
-      ...aktiveSjekklister.map((s) => ({
-        id: s.id,
-        type: "sjekkliste" as const,
-        tittel: s.title,
-        nummer: formaterNummer(s.template?.prefix, s.number),
-        undertekst: s.template?.name ?? "",
-        bygning: s.byggeplass?.name ?? null,
-        tidspunkt: s.updatedAt,
-        status: s.status,
-      })),
-      ...aktiveOppgaver.map((o) => ({
-        id: o.id,
-        type: "oppgave" as const,
-        tittel: o.title,
-        nummer: formaterNummer(o.template?.prefix, o.number),
-        undertekst: PRIORITETS_NOEKLER[o.priority] ? t(PRIORITETS_NOEKLER[o.priority]) : o.priority,
-        bygning: null,
-        tidspunkt: o.updatedAt,
-        status: o.status,
-      })),
-    ];
-    elementer.sort(
-      (a, b) =>
-        new Date(b.tidspunkt).getTime() - new Date(a.tidspunkt).getTime(),
-    );
+    const aktiv = (status: string) => AKTIVE_STATUSER.includes(status);
+    let elementer: InnboksElement[] = [];
+    if (brukServerListe) {
+      elementer = [
+        ...(sjekklister ?? []).filter((s) => aktiv(s.status)).map((s) => ({
+          id: s.id, type: "sjekkliste" as const, tittel: s.title,
+          nummer: formaterNummer(s.template?.prefix, s.number),
+          undertekst: s.template?.name ?? "", bygning: s.byggeplass?.name ?? null,
+          tidspunkt: s.updatedAt, status: s.status,
+        })),
+        ...(oppgaver ?? []).filter((o) => aktiv(o.status)).map((o) => ({
+          id: o.id, type: "oppgave" as const, tittel: o.title,
+          nummer: formaterNummer(o.template?.prefix, o.number),
+          undertekst: PRIORITETS_NOEKLER[o.priority] ? t(PRIORITETS_NOEKLER[o.priority]) : o.priority,
+          bygning: null, tidspunkt: o.updatedAt, status: o.status,
+        })),
+      ];
+    } else if (innboksFrakoblet) {
+      // Lokale katalog-rader har samme template/byggeplass-objektform som serverradene.
+      elementer = [
+        ...lokaleSjekklister.filter((s) => aktiv(s.status)).map((s) => ({
+          id: s.id, type: "sjekkliste" as const, tittel: s.title,
+          nummer: formaterNummer(s.template?.prefix, s.number),
+          undertekst: s.template?.name ?? "", bygning: s.byggeplass?.name ?? null,
+          tidspunkt: s.updatedAt, status: s.status,
+        })),
+        ...lokaleOppgaver.filter((o) => aktiv(o.status)).map((o) => ({
+          id: o.id, type: "oppgave" as const, tittel: o.title,
+          nummer: formaterNummer(o.template?.prefix, o.number),
+          undertekst: PRIORITETS_NOEKLER[o.priority] ? t(PRIORITETS_NOEKLER[o.priority]) : o.priority,
+          bygning: null, tidspunkt: o.updatedAt, status: o.status,
+        })),
+      ];
+    }
+    elementer.sort((a, b) => new Date(b.tidspunkt).getTime() - new Date(a.tidspunkt).getTime());
     return elementer;
-    // `t` MÅ være med: undertekst bygges via t(PRIORITETS_NOEKLER[...]) inne i memo-en.
-    // Uten den henger prioritet-labelen ett språk bak ved språkbytte (data uendret → ingen re-beregning).
-  }, [aktiveSjekklister, aktiveOppgaver, t]);
+    // `t` MÅ være med: undertekst bygges via t(PRIORITETS_NOEKLER[...]) i memo-en.
+  }, [brukServerListe, innboksFrakoblet, sjekklister, oppgaver, lokaleSjekklister, lokaleOppgaver, t]);
+
+  const innboksAntall = innboksElementer.length;
+  const totaleOppgaver = brukServerListe ? (oppgaver?.length ?? 0) : innboksFrakoblet ? lokaleOppgaver.length : 0;
+  const totaleSjekklister = brukServerListe ? (sjekklister?.length ?? 0) : innboksFrakoblet ? lokaleSjekklister.length : 0;
+  // Offline uten nok lokale data → vis én linje i stedet for innboks (ikke en feilside).
+  const innboksKreverNett = !brukServerListe && !innboksFrakoblet && !erPaaNettet;
 
   // Sist oppdatert timestamp
   const sistOppdatert = Math.max(
@@ -282,8 +319,10 @@ export default function HjemSkjerm() {
     [valgtProsjektId, opprettKategori, utils, router],
   );
 
+  // Innholds-spinner KUN online mens vi faktisk venter på server (online-atferd uendret).
+  // Offline faller vi aldri hit — da vises lokal innboks + seksjonslenker, ingen spinner.
   const lasterData =
-    valgtProsjektId &&
+    !!valgtProsjektId && erPaaNettet && !brukServerListe &&
     (sjekklisteQuery.isLoading || oppgaveQuery.isLoading);
 
   return (
@@ -341,26 +380,26 @@ export default function HjemSkjerm() {
             <ChevronRight size={18} color="#d97706" />
           </Pressable>
         )}
-        {prosjektQuery.isLoading ? (
-          /* Laster prosjekter */
+        {prosjektVisning === "spinner" ? (
+          /* Laster prosjekter (online, venter på server) */
           <View className="items-center pt-20">
             <ActivityIndicator size="large" color="#1e40af" />
             <Text className="mt-3 text-sm text-gray-500">
               {t("hjem.henterProsjekter")}
             </Text>
           </View>
-        ) : prosjektQuery.isError ? (
-          /* Feil ved lasting av prosjekter */
+        ) : prosjektVisning === "feil" ? (
+          /* Feilside — på nett og spørringen feiler, eller uten nett og ingen lokale prosjekter. */
           <View className="flex-1 items-center justify-center px-6 pt-20">
             <AlertTriangle size={40} color="#f59e0b" />
             <Text className="mt-4 text-center text-base font-medium text-gray-900">
               {t("hjem.kunneIkkeHenteProsjekter")}
             </Text>
             <Text className="mt-2 text-center text-sm text-gray-500">
-              {prosjektQuery.error?.message ?? t("feil.sjekkNettverk")}
+              {prosjektFeilmelding ?? t("feil.sjekkNettverk")}
             </Text>
             <Pressable
-              onPress={() => prosjektQuery.refetch()}
+              onPress={refetchProsjekt}
               className="mt-4 flex-row items-center gap-2 rounded-lg bg-blue-600 px-6 py-3"
             >
               <RefreshCw size={16} color="#ffffff" />
@@ -370,7 +409,7 @@ export default function HjemSkjerm() {
         ) : !valgtProsjektId ? (
           /* Ingen prosjekt valgt */
           <View className="flex-1 items-center justify-center px-4 pt-20">
-            {prosjektQuery.data && prosjektQuery.data.length === 0 ? (
+            {prosjektListe.length === 0 ? (
               <Text className="text-center text-base text-gray-500">
                 {t("hjem.registrerPaaSitedoc")}
               </Text>
@@ -389,34 +428,27 @@ export default function HjemSkjerm() {
             )}
           </View>
         ) : lasterData ? (
-          /* Laster data */
+          /* Laster data (online) */
           <View className="items-center pt-20">
             <ActivityIndicator size="large" color="#1e40af" />
             <Text className="mt-3 text-sm text-gray-500">
               {t("hjem.henterData")}
             </Text>
           </View>
-        ) : (sjekklisteQuery.isError || oppgaveQuery.isError) ? (
-          /* Feil ved lasting av sjekklister/oppgaver */
-          <View className="flex-1 items-center justify-center px-6 pt-20">
-            <AlertTriangle size={40} color="#f59e0b" />
-            <Text className="mt-4 text-center text-base font-medium text-gray-900">
-              {t("feil.kunneIkkeHente")}
-            </Text>
-            <Text className="mt-2 text-center text-sm text-gray-500">
-              {sjekklisteQuery.error?.message ?? oppgaveQuery.error?.message ?? t("feil.sjekkNettverk")}
-            </Text>
-            <Pressable
-              onPress={onRefresh}
-              className="mt-4 flex-row items-center gap-2 rounded-lg bg-blue-600 px-6 py-3"
-            >
-              <RefreshCw size={16} color="#ffffff" />
-              <Text className="font-medium text-white">{t("handling.provIgjen")}</Text>
-            </Pressable>
-          </View>
         ) : (
           <>
-            {/* PSI-statuskort (over innboks) */}
+            {/* Frakoblet-banner — samme amber-linje som listeskjermene. Vises når prosjektet
+                og/eller innboksen leses fra lokal cache (uten nett / feilet / pauset). */}
+            {(prosjektFrakoblet || innboksFrakoblet) && (
+              <View className="flex-row items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2">
+                <WifiOff size={14} color="#b45309" />
+                <Text className="flex-1 text-xs text-amber-800">
+                  {t("offline.frakobletLagret")}
+                </Text>
+              </View>
+            )}
+
+            {/* PSI-statuskort (over innboks) — online-vy (hentForProsjekt/hentMinStatus). */}
             {erPsiAktiv && psiListe.length > 0 && (
               <PsiStatusKort psiListe={psiListe} />
             )}
@@ -437,11 +469,12 @@ export default function HjemSkjerm() {
               </View>
             </View>
 
-            {/* Innbokselementer */}
+            {/* Innbokselementer. Uten nett og uten lokale data: én linje «Innboksen krever
+                nett» (ikke en feilside) — se leveranse for begrunnelse. */}
             {innboksElementer.length === 0 ? (
               <View className="border-b border-gray-200 bg-white px-4 py-6">
                 <Text className="text-center text-sm text-gray-400">
-                  {t("hjem.ingenInnboks")}
+                  {innboksKreverNett ? t("hjem.innboksKreverNett") : t("hjem.ingenInnboks")}
                 </Text>
               </View>
             ) : (

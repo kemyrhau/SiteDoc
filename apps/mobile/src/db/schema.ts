@@ -116,6 +116,12 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
   beskrivelse: text("beskrivelse"),
   lederKommentar: text("leder_kommentar"),
   attestertVed: text("attestert_ved"), // ISO timestamp fra server
+  // LAG 2 (L2-B / B5) — lønnsnormens kilde-status + snapshot følger sedelen fra
+  // svar-cachen (B6) til attestanten. Settes ved auto-generering; synkes opp.
+  // normStatus: "server" | "cachet" | "ukjent" | null (null = eldre sedel).
+  // normSnapshot: JSON (NormSnapshot) — TEXT lokalt, Json på server.
+  normStatus: text("norm_status"),
+  normSnapshot: text("norm_snapshot"),
   syncStatus: text("sync_status", {
     // "avvist" (SYNC-1): permanent avvist av server — terminal, retry stopper.
     // Ren TS-enum-utvidelse; SQLite-kolonnen er TEXT → ingen migrering nødvendig.
@@ -124,6 +130,11 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
     .notNull()
     .default("pending"),
   feilmelding: text("feilmelding"), // Server-feilmelding ved siste sync-forsøk
+  // V19-B (B-1b) — årsaken til `conflict`, satt fra serverens `aarsak`:
+  // "overlapp" | "laast" | "nyere" | "dato_kollisjon". KUN lokal tilstand med ÉN
+  // leser (pull-vakten, V19.7b/B-3b), ikke identitet — derfor ingen ny identitets-
+  // kolonne (v2s `konflikt_server_id` er strøket, M14). null = ingen/ukjent.
+  konfliktAarsak: text("konflikt_aarsak"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
   sistSynkronisert: integer("sist_synkronisert"),
 });
@@ -161,6 +172,30 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   // nivå pauseMin). timer = effektiveTimerFraSpenn(fra, til, pauseFra, pauseMin).
   // Speil av server sheet_timer.pause_min (F5). Bærer = lunsj-kryssende rad.
   pauseMin: integer("pause_min").notNull().default(0),
+  // LAG 2 (L2-B) — reise-sporet som følger raden fra telefon til server til
+  // eksport (K5: mottak med sporbarhet). Alle nullable/additive, tilføyes
+  // idempotent via ALTER. Speil av server SheetTimer.*; verditypene bor i
+  // @sitedoc/shared (ReiseRetning/ReiseKilde/TidKilde). Reise-rader (auto +
+  // manuell) bærer feltene; arbeidsrader har dem null.
+  //  - erReise: eksplisitt flagg (M3) — etter lag 2 gjetter ingen leser reise
+  //    fra lønnsart/regex. null = ukjent (eldre lokal rad / server-pull før L2-A
+  //    returnerer flagget).
+  erReise: integer("er_reise", { mode: "boolean" }),
+  reiseRetning: text("reise_retning"), // "ut" | "retur" | null
+  reiseOppmotestedId: text("reise_oppmotested_id"), // svak FK → Oppmotested
+  reiseKjoretidMin: integer("reise_kjoretid_min"), // matrisecellens kjøretid
+  reiseAvstandM: integer("reise_avstand_m"), // matrisecellens avstand (meter)
+  reiseKilde: text("reise_kilde"), // "matrise" | "manuell" | null
+  // JSON-snapshot av reise-regelen (ReiseRegelSnapshot) slik den var da raden
+  // ble laget. Lagres som TEXT (JSON.stringify); server tar imot som Json.
+  reiseRegel: text("reise_regel"),
+  tidKilde: text("tid_kilde"), // V8: "stempel" | "utledet" | "manuell" | null
+  // V19.9.1 (B'-1) — radversjonen (`SheetTimer.updatedAt`, ISO-ms) telefonen fikk
+  // ved pull/push-`ok`. Sendes tilbake som `serverVersjon` i syncBatch →
+  // versjonssjekk pr. rad (R1–R12). NULL = «ikke hentet» (trygt ved konstruksjon:
+  // serveren behandler null på en eksisterende rad som ukjent, innhold avgjør —
+  // aldri stille overskriving). Nullable, additiv, idempotent ALTER.
+  serverVersjon: text("server_versjon"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -226,6 +261,12 @@ export const slettedeRaderLocal = sqliteTable("slettede_rader_local", {
   radType: text("rad_type", {
     enum: ["timer", "tillegg", "maskin", "utlegg"],
   }).notNull(),
+  // V19.9.1 (B'-1) — versjonen (`SheetTimer.updatedAt`) kopiert fra timer-raden da
+  // den ble slettet lokalt. Sendes som `slettedeIder.timerVersjoner` → S1–S4
+  // (slett vs. avvik `slettet_telefon`). KUN satt for radType "timer" (eneste
+  // versjonerte type); null for tillegg/maskin/utlegg og for eldre tombstones
+  // (→ S4, trygg retning). Nullable, additiv, idempotent ALTER.
+  serverVersjon: text("server_versjon"),
   slettetVed: integer("slettet_ved").notNull(),
 });
 
@@ -373,6 +414,8 @@ export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
   // L1 (2026-06-20): GPS-identifisert byggeplass ved «Start dag» — speil av
   // oppmøtested. Dokumentasjon, aldri lønn/reise/prosjektvalg. null = utenfor
   // alle byggeplass-geofence.
+  // Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
+  // arbeider-valg (`aktivtProsjektId`) går foran.
   byggeplassId: text("byggeplass_id"),
   byggeplassNavn: text("byggeplass_navn"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
@@ -589,12 +632,35 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   reiseTerskelM: integer("reise_terskel_m"),
   reiseUnderTerskelType: text("reise_under_terskel_type").notNull().default("arbeidstid"),
   reiseOverTerskelType: text("reise_over_terskel_type").notNull().default("reisetid"),
-  reisetidTellerOvertid: integer("reisetid_teller_overtid", { mode: "boolean" })
-    .notNull()
-    .default(false),
+  // DEPRECATED (L2-B / C5, 2026-10-03): reisetid_teller_overtid leses ikke lenger
+  // (V1: reisetid er ALDRI overtid). Drizzle-feltet fjernet så ingen leser kan
+  // dra det inn; SQLite-KOLONNEN står (to-stegs — droppes i senere release).
   reiseLonnsartId: text("reise_lonnsart_id"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
+
+/**
+ * arbeidstid_svar_local — B6 v3 (L1-B): cachet SVAR fra serverens ene
+ * norm-utledning (`organisasjon.hentEffektivArbeidstid`), pr. (firma, dato).
+ * Telefonen REGNER ikke lønnsnormen — den leser dette svaret. Hentes ved Start/
+ * Slutt dag, sedel-åpning, «+ Ny» og pull-sync. KUN lokal, synkes aldri opp.
+ */
+export const arbeidstidSvarLocal = sqliteTable(
+  "arbeidstid_svar_local",
+  {
+    organizationId: text("org_id").notNull(),
+    dato: text("dato").notNull(), // ISO YYYY-MM-DD
+    dagsnorm: real("dagsnorm").notNull(),
+    startTid: text("start_tid").notNull(),
+    sluttTid: text("slutt_tid").notNull(),
+    pauseMin: integer("pause_min").notNull(),
+    normKilde: text("norm_kilde").notNull(), // "fast" | "kalender"
+    pauseEtterTimer: real("pause_etter_timer").notNull(),
+    pauseReferanse: text("pause_referanse").notNull(), // "fastStart" | "ankomst"
+    hentetAt: integer("hentet_at").notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.organizationId, t.dato] }) }),
+);
 
 /**
  * sjekkliste_local — offline-katalog for sjekklistelista (Offline-sjekklister
@@ -615,6 +681,10 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
 export const sjekklisteLocal = sqliteTable("sjekkliste_local", {
   id: text("id").primaryKey(), // = server Checklist.id
   projectId: text("project_id").notNull(),
+  // Eier-bruker — lesevakt (lagt til fase 2, 2026-10-03). Nullable fordi tabellen
+  // fantes før kolonnen; NULL-rader (ukjent eier) filtreres bort av leseren til
+  // neste per-prosjekt-refresh skriver riktig userId. Lukker brukerbytte-lekkasjen.
+  userId: text("user_id"),
   title: text("title").notNull(),
   status: text("status").notNull(),
   number: integer("number"),
@@ -658,5 +728,112 @@ export const reiseGrensepunktLocal = sqliteTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.organizationId, t.grenseM] }),
+  }),
+);
+
+/**
+ * oppgave_local — offline-katalog for oppgavelista (Offline-liste fase 1 for
+ * oppgaver/HMS, 2026-10-03). Speiler KUN det lista viser/filtrerer på (målt mot
+ * app/oppgave/index.tsx). Read-only mirror: refresh full-overskriver per prosjekt
+ * fra `oppgave.hentForProsjekt` (uten byggeplassId → hele prosjektet, så lokal
+ * lesing selv gjør byggeplass-scopingen serveren gjør med byggeplassFilterViaTegning).
+ *
+ * Byggeplass-nøkkelen: Task har INGEN egen byggeplassId — tilhørighet finnes kun
+ * via tegningen (drawing.byggeplassId). Serverens TRE-ledds tegningsfilter kollapser
+ * til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen som Checklist bruker,
+ * når vi utleder byggeplassId = drawing.byggeplass.id (ingen tegning / prosjekt-
+ * tegning → null → gjelder hele prosjektet). Derfor er byggeplassId her den UTLEDETE
+ * effektive byggeplassen, ikke en rå kolonne.
+ *
+ * Serverens tilgangsfilter + HMS-eksklusjon (domain ≠ hms) er allerede anvendt ved
+ * henting → radene er en tro kopi av det denne brukeren ville sett online. Bærer
+ * ALDRI `data`/vedlegg (ingen URL-er). KUN lokal, synkes aldri opp.
+ */
+export const oppgaveLocal = sqliteTable("oppgave_local", {
+  id: text("id").primaryKey(), // = server Task.id
+  projectId: text("project_id").notNull(),
+  // Eier-bruker. Lesing filtrerer på denne så en ny bruker på samme telefon ALDRI
+  // ser forrige brukers (tilgangs-/synlighets-filtrerte) liste offline — speiler den
+  // trygge timer-cache-nøklingen (user_id), ikke sjekkliste_local som mangler den.
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  status: text("status").notNull(),
+  priority: text("priority").notNull(),
+  number: integer("number"),
+  createdAt: text("created_at").notNull(), // ISO
+  updatedAt: text("updated_at").notNull(), // ISO — sortering nyeste først
+  dueDate: text("due_date"), // ISO
+  byggeplassId: text("byggeplass_id"), // UTLEDET effektiv byggeplass (null = hele prosjektet)
+  templateName: text("template_name"),
+  templatePrefix: text("template_prefix"),
+  templateSubdomain: text("template_subdomain"), // kontraktssak-markering (subdomain="kontrakt")
+  utforerFaggruppeNavn: text("utforer_faggruppe_navn"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness (krav 7)
+});
+
+/**
+ * hms_local — offline-katalog for HMS-lista (Offline-liste fase 1, 2026-10-03).
+ * ÉN tabell for alle tre HMS-kategoriene, skilt på `kategori` (avvik/sja/ruh).
+ * Valgt fremfor tre tabeller fordi lista rendrer alle tre identisk (samme HmsRad,
+ * samme rad-render; kun fanen skiller) og serveren leverer dem i ETT kall
+ * (`hms.hentDokumenter` → {avvik, sja, ruh}). Én tabell gir atomisk refresh per
+ * prosjekt (ett delete+insert) og én lesevei.
+ *
+ * Datamodell: avvik/ruh er Task (byggeplass via tegning), sja er Checklist
+ * (byggeplass direkte). Begge kollapser til samme effektive byggeplassId (utledet) —
+ * se oppgave_local. Serverens synlighetsfilter (privat/åpen) + draft-guard er
+ * anvendt ved henting → radene er en tro kopi av denne brukerens HMS-liste.
+ *
+ * 🔴 Bærer ALDRI `data`/vedlegg — `hms.hentDokumenter` returnerer SIGNERTE
+ * vedleggs-URL-er (utløper 15 min); kun visningsfelt speiles. KUN lokal, synkes aldri.
+ */
+export const hmsLocal = sqliteTable("hms_local", {
+  id: text("id").primaryKey(), // = server Task.id / Checklist.id (uuid, globalt unik)
+  projectId: text("project_id").notNull(),
+  // Eier-bruker — se oppgave_local. HMS er særlig sensitivt (private utkast +
+  // synlighetsfilter), så per-bruker-isolasjon ved lesing er påkrevd.
+  userId: text("user_id").notNull(),
+  kategori: text("kategori").notNull(), // "avvik" | "sja" | "ruh"
+  title: text("title").notNull(),
+  status: text("status").notNull(),
+  number: integer("number"),
+  createdAt: text("created_at").notNull(), // ISO
+  updatedAt: text("updated_at").notNull(), // ISO — sortering (server orderBy updatedAt desc)
+  byggeplassId: text("byggeplass_id"), // UTLEDET effektiv byggeplass (null = hele prosjektet)
+  templateName: text("template_name"),
+  templatePrefix: text("template_prefix"),
+  bestillerFaggruppeNavn: text("bestiller_faggruppe_navn"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
+});
+
+/**
+ * dokument_speil — offline-speil av HELE dokumentet (`hentMedId`-svaret) for LESING
+ * uten nett (Offline-lesing fase 2, 2026-10-03). Én rad pr. (dokumentType, id, userId):
+ * serverens `hentMedId`-JSON (mal med `objects`, `data`, faggrupper, transfers,
+ * changeLog, images-metadata) lagret som én blob, slik at detaljskjermen kan rendre i
+ * tvungen lesemodus når query-en er offline/feilet.
+ *
+ * 🔴 Signerte vedleggs-URL-er (`?exp=&sig=`) STRIPPES før lagring (`raaUploadsSti`) —
+ * samme regel som fase-1-listene. Signaturer (base64 i `data`) består og vises offline;
+ * bilder krever nett (vises som rolig plassholder). Nøklet på `userId`: en ny bruker på
+ * samme telefon leser ALDRI forrige brukers speil. Synkes ALDRI opp (ren lese-cache —
+ * usynkede utkast bor fortsatt i `*_feltdata`). Skrives write-through ved online
+ * `hentMedId` + eksplisitt via «Forbered offline» (bieffekt-fri `hentForOffline`).
+ *
+ * Komposit-PK (dokumentType, id, userId) er DB-garantien mot duplikat/klobbing på tvers
+ * av brukere og dokumenttyper (stille-tomhet-regelen § b).
+ */
+export const dokumentSpeil = sqliteTable(
+  "dokument_speil",
+  {
+    id: text("id").notNull(), // = server Checklist.id / Task.id (uuid)
+    dokumentType: text("dokument_type").notNull(), // "sjekkliste" | "oppgave"
+    projectId: text("project_id").notNull(), // scope for «Forbered offline» + rydding
+    userId: text("user_id").notNull(), // eier-bruker — lesevakt
+    json: text("json").notNull(), // hentMedId-svaret, signaturer strippet
+    hentetAt: integer("hentet_at").notNull(), // Unix ms — «viser lagret versjon fra {tid}»
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.dokumentType, t.id, t.userId] }),
   }),
 );

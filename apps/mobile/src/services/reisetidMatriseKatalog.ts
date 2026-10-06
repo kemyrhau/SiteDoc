@@ -1,7 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { reisetidMatriseLocal } from "../db/schema";
-import { hentByggeplasserForProsjektLokalt } from "./byggeplassKatalog";
 import type { trpc } from "../lib/trpc";
 
 /* ============================================================================
@@ -81,37 +80,4 @@ export function hentMatriseRadLokalt(
     )
     .all();
   return rader[0] ?? null;
-}
-
-/**
- * Resolv prosjektets primær-byggeplass for reisetid-oppslag fra et gitt kontor.
- *
- * Kandidater = prosjektets byggeplasser som HAR en matrise-rad for kontoret
- * (rad-eksistens = koordinat-signal; R3 beregnet kun rad for byggeplasser med
- * resolvbar koordinat). Primær-regel (deterministisk): published først →
- * lavest number (null sist) → id. Returnerer byggeplassId eller null.
- */
-export function resolverPrimaerByggeplass(
-  projectId: string,
-  oppmotestedId: string,
-): string | null {
-  const byggeplasser = hentByggeplasserForProsjektLokalt(projectId);
-  if (byggeplasser.length === 0) return null;
-
-  const kandidater = byggeplasser.filter(
-    (b) => hentMatriseRadLokalt(oppmotestedId, b.id) != null,
-  );
-  if (kandidater.length === 0) return null;
-
-  kandidater.sort((a, b) => {
-    const aPub = a.status === "published" ? 0 : 1;
-    const bPub = b.status === "published" ? 0 : 1;
-    if (aPub !== bPub) return aPub - bPub;
-    const aNum = a.number ?? Number.POSITIVE_INFINITY;
-    const bNum = b.number ?? Number.POSITIVE_INFINITY;
-    if (aNum !== bNum) return aNum - bNum;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
-
-  return kandidater[0]!.id;
 }

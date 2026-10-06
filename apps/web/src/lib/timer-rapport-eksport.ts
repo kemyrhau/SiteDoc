@@ -21,6 +21,7 @@ import {
   type DetaljGruppe,
   type Gruppering,
   type TimerKolKey,
+  timerStatusEtikett,
 } from "@sitedoc/shared";
 
 /** Fase 4-akser som styrer eksport-utformingen (mottaker + gruppering). Radvalget
@@ -100,11 +101,24 @@ export type DetaljEksport = {
     ansattnr: string | null;
     prosjekt: string;
     lonnsart: string;
+    // LAG 2 D2 — speiler serverens DetaljEksportKilde.timerader (shared). Reise-
+    // sporet + lønnsart-type/satsEnhet + normStatus følger raden til eksport.
+    lonnsartType: string | null;
+    satsEnhet: string | null;
     aktivitet: string;
     fraTid: string | null; // "HH:MM" per-rad klokkeslett
     tilTid: string | null;
     timer: number;
     beskrivelse: string | null;
+    erReise: boolean;
+    reiseRetning: "ut" | "retur" | null;
+    fraSted: string | null;
+    tilSted: string | null;
+    reiseAvstandM: number | null;
+    reiseKjoretidMin: number | null;
+    reiseKilde: "matrise" | "manuell" | null;
+    tidKilde: "stempel" | "utledet" | "manuell" | null;
+    normStatus: "server" | "cachet" | "ukjent" | null;
     radstatus: string; // T.3 attestertStatus per rad, ikke sedel-status
     maskiner: Array<{
       id: string;
@@ -326,6 +340,24 @@ export function typeEtikett(t: OversettFn, type: DetaljRadType): string {
   return t(`timer.eksport.type${type.charAt(0).toUpperCase()}${type.slice(1)}`);
 }
 
+// LAG 2 D2 — lønnsart-type/sats-enhet gjenbruker firma-innstillingenes etiketter
+// (firma.timer.type.* / firma.timer.satsEnhet.*), så eksporten og innstillings-UI-en
+// ikke drifter. Ukjent/ny verdi → rå streng (skjul aldri en verdi vi ikke kjenner).
+const KJENTE_LONNSART_TYPER = ["ordinaer", "fravaer", "feriepenger", "diett"];
+const KJENTE_SATS_ENHETER = ["per_dag", "per_natt", "per_km", "per_time"];
+
+/** Lønnsart-type-etikett. null/tom → tom celle. */
+export function lonnsartTypeEtikett(t: OversettFn, type: string | null): string {
+  if (!type) return "";
+  return KJENTE_LONNSART_TYPER.includes(type) ? t(`firma.timer.type.${type}`) : type;
+}
+
+/** Sats-enhet-etikett. null/tom → tom celle. */
+export function satsEnhetEtikett(t: OversettFn, enhet: string | null): string {
+  if (!enhet) return "";
+  return KJENTE_SATS_ENHETER.includes(enhet) ? t(`firma.timer.satsEnhet.${enhet}`) : enhet;
+}
+
 /**
  * Status-VERDIENE er rå DB-koder (pending/sent/…) — ikke norsk. Status-kolonnen
  * blander to vokabular: rad-status (timer/maskin/tillegg = attestertStatus) og
@@ -333,28 +365,30 @@ export function typeEtikett(t: OversettFn, type: DetaljRadType): string {
  * (oversetter direkte) OG PDF (bygger etikett-map via `byggStatusEtiketter`, sendt
  * inn i `tekster` fordi api ikke har `t()`) — så flatene aldri kan drive fra hverandre.
  */
-const STATUS_I18N: Record<string, string> = {
-  // rad-status (attestertStatus)
-  pending: "timer.attestering.radStatus.pending",
-  attestert: "timer.attestering.radStatus.attestert",
-  returnert: "timer.attestering.radStatus.returnert",
-  // sedel-status (DailySheet.status)
-  draft: "timer.statusType.draft",
-  sent: "timer.statusType.sent",
-  returned: "timer.statusType.returned",
-  accepted: "timer.statusType.accepted",
-};
+// Del 7: status→etikettKey leses fra den DELTE kilden (timerStatusEtikett), så
+// eksporten ikke er en tredje kopi ved siden av badgene. Verdi-listen her er kun
+// «hvilke statuser eksporten kjenner» (rad-status + sedel-status), til PDF-mapen.
+const KJENTE_STATUSER = [
+  "pending",
+  "attestert",
+  "returnert", // rad-status (attestertStatus)
+  "draft",
+  "sent",
+  "returned",
+  "accepted", // sedel-status (DailySheet.status)
+] as const;
 
 /** Oversett én status-verdi; ukjent/ny verdi → rå streng (skjul aldri en verdi vi ikke kjenner). */
 export function statusEtikett(t: OversettFn, verdi: string): string {
-  const nøkkel = STATUS_I18N[verdi];
-  return nøkkel ? t(nøkkel) : verdi;
+  // timerStatusEtikett gir status-strengen selv som key for ukjent verdi → t()
+  // returnerer da den rå strengen (samme «skjul aldri»-kontrakt som før).
+  return t(timerStatusEtikett(verdi).etikettKey);
 }
 
 /** Ferdig-oversatt verdi→etikett-map for PDF (injiseres i `tekster.statusEtiketter`). */
 export function byggStatusEtiketter(t: OversettFn): Record<string, string> {
   const ut: Record<string, string> = {};
-  for (const [verdi, nøkkel] of Object.entries(STATUS_I18N)) ut[verdi] = t(nøkkel);
+  for (const verdi of KJENTE_STATUSER) ut[verdi] = statusEtikett(t, verdi);
   return ut;
 }
 
@@ -422,6 +456,8 @@ const EXCEL_KOL: Record<TimerKolKey, ExcelKolDesc> = {
   prosjekt: { i18n: "kolProsjekt", verdi: (r) => r.prosjekt },
   type: { i18n: "kolType", verdi: (r, t) => typeEtikett(t, r.type) },
   betegnelse: { i18n: "kolBetegnelse", verdi: (r, t, ekstern) => betegnelse(t, r, ekstern) },
+  lonnsartType: { i18n: "kolLonnsartType", verdi: (r, t) => lonnsartTypeEtikett(t, r.lonnsartType) },
+  satsEnhet: { i18n: "kolSatsEnhet", verdi: (r, t) => satsEnhetEtikett(t, r.satsEnhet) },
   aktivitet: { i18n: "kolAktivitet", verdi: (r) => r.aktivitet ?? "" },
   fraTid: { i18n: "kolFra", verdi: (r) => r.fraTid ?? "" },
   tilTid: { i18n: "kolTil", verdi: (r) => r.tilTid ?? "" },
@@ -431,6 +467,40 @@ const EXCEL_KOL: Record<TimerKolKey, ExcelKolDesc> = {
   belop: { i18n: "kolBelop", sum: true, verdi: (r) => r.belop ?? "" },
   mengde: { i18n: "kolMengde", verdi: (r) => r.mengde ?? "" },
   enhet: { i18n: "kolEnhet", verdi: (r) => r.enhet ?? "" },
+  // LAG 2 D2 — reise-spor. Tom celle der feltet mangler (gammel rad) — aldri «0».
+  reise: {
+    i18n: "kolReise",
+    verdi: (r, t) =>
+      r.erReise === true
+        ? t("timer.eksport.reiseJa")
+        : r.erReise === false
+          ? t("timer.eksport.reiseNei")
+          : "",
+  },
+  retning: {
+    i18n: "kolRetning",
+    verdi: (r, t) => (r.reiseRetning ? t(`timer.reise.retning.${r.reiseRetning}`) : ""),
+  },
+  fraSted: { i18n: "kolFraSted", verdi: (r) => r.fraSted ?? "" },
+  tilSted: { i18n: "kolTilSted", verdi: (r) => r.tilSted ?? "" },
+  avstandKm: {
+    i18n: "kolAvstandKm",
+    // meter → km (ingen delt helper finnes; inline /1000, jf. innstillinger-UI).
+    verdi: (r) => (r.reiseAvstandM == null ? "" : r.reiseAvstandM / 1000),
+  },
+  kjoretidMin: { i18n: "kolKjoretidMin", verdi: (r) => r.reiseKjoretidMin ?? "" },
+  reiseKilde: {
+    i18n: "kolReiseKilde",
+    verdi: (r, t) => (r.reiseKilde ? t(`timer.reise.kilde.${r.reiseKilde}`) : ""),
+  },
+  tidKilde: {
+    i18n: "kolTidKilde",
+    verdi: (r, t) => (r.tidKilde ? t(`timer.reise.tidKilde.${r.tidKilde}`) : ""),
+  },
+  normStatus: {
+    i18n: "kolNormStatus",
+    verdi: (r, t) => (r.normStatus ? t(`timer.reise.norm.${r.normStatus}`) : ""),
+  },
   beskrivelse: { i18n: "kolBeskrivelse", verdi: (r) => r.beskrivelse ?? "" },
   status: { i18n: "kolStatus", verdi: (r, t) => statusEtikett(t, r.status) },
 };

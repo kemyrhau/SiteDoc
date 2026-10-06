@@ -9,17 +9,27 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, Scale } from "lucide-react-native";
+import { ArrowLeft, Plus, Scale, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import { velgOfflineListeKilde } from "@sitedoc/shared";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { useNettverk } from "../../src/providers/NettverkProvider";
+import { useAuth } from "../../src/providers/AuthProvider";
+import {
+  hentOppgaverLokalt,
+  hentSistOppdatertOppgaveLokalt,
+} from "../../src/services/oppgaveKatalog";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
-import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
+import {
+  formaterNummer,
+  formaterOfflineTidspunkt,
+} from "../../src/components/dokumentliste/DokumentRadHjelpere";
 
 // i18n-nøkler (data utenfor komponent → labelKey, t() ved rendering)
 const PRIORITETS_NOKKEL: Record<string, string> = {
@@ -60,6 +70,8 @@ export default function OppgaveListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
+  const { erPaaNettet } = useNettverk();
+  const { bruker } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -74,7 +86,40 @@ export default function OppgaveListe() {
     { enabled: !!valgtProsjektId },
   );
 
-  const oppgaver = oppgaveQuery.data as OppgaveRad[] | undefined;
+  // Offline-lesing (Offline-liste fase 1, 2026-10-03), samme mønster som
+  // sjekklistelista: MED nett og et bekreftet server-svar er serveren autoritativ;
+  // lokal lesing er KUN fallback (offline / henger / feilet). Lokal scope speiler
+  // server-spørringens byggeplass-scope (samme byggeplassId).
+  const bygg = valgtBygningId ?? undefined;
+  const brukerId = bruker?.id;
+  const serverData = oppgaveQuery.data as OppgaveRad[] | undefined;
+
+  const lokaleRader = useMemo(
+    () =>
+      valgtProsjektId && brukerId
+        ? (hentOppgaverLokalt(valgtProsjektId, brukerId, bygg) as OppgaveRad[])
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [valgtProsjektId, brukerId, bygg, oppgaveQuery.status],
+  );
+
+  const { kilde, tilstand } = velgOfflineListeKilde({
+    erPaaNettet,
+    serverBekreftet: oppgaveQuery.isSuccess,
+    serverAntall: serverData?.length ?? 0,
+    lokalAntall: lokaleRader.length,
+  });
+
+  const oppgaver = kilde === "server" ? serverData : lokaleRader;
+
+  // «Sist hentet»-tid for dette PROSJEKTET — kun når vi viser lokale rader.
+  const sistHentet = useMemo(
+    () =>
+      tilstand === "lokal" && valgtProsjektId && brukerId
+        ? hentSistOppdatertOppgaveLokalt(valgtProsjektId, brukerId)
+        : null,
+    [tilstand, valgtProsjektId, brukerId, lokaleRader.length],
+  );
 
   // Kontraktssak-segment vises kun når prosjektet har minst én kontraktssak-mal (samme
   // vilkår som web). Egen lett mal-query — lista bruker MalVelger for oppretting, ikke maler direkte.
@@ -219,7 +264,21 @@ export default function OppgaveListe() {
         onVelg={settStatusFilter}
       />
 
-      {oppgaveQuery.isLoading ? (
+      {/* Offline-banner: viser lagrede oppgaver + «sist hentet». Skiller
+          «frakoblet, lagrede data» fra en tom liste. */}
+      {tilstand === "lokal" && (
+        <View className="flex-row items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2">
+          <WifiOff size={14} color="#b45309" />
+          <Text className="flex-1 text-xs text-amber-800">
+            {t("offline.frakobletLagretDok")}
+            {sistHentet != null
+              ? ` · ${t("offline.sistHentet", { tid: formaterOfflineTidspunkt(sistHentet) })}`
+              : ""}
+          </Text>
+        </View>
+      )}
+
+      {oppgaveQuery.isLoading && lokaleRader.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>
@@ -238,7 +297,11 @@ export default function OppgaveListe() {
           ListEmptyComponent={
             <View className="items-center px-4 pt-20">
               <Text className="text-base text-gray-500">
-                {effektivStatus ? t("tom.ingenMatcherFilter") : t("tom.ingenOppgaver")}
+                {effektivStatus
+                  ? t("tom.ingenMatcherFilter")
+                  : tilstand === "lokal-tom"
+                    ? t("offline.ikkeSynkronisertDok")
+                    : t("tom.ingenOppgaver")}
               </Text>
             </View>
           }

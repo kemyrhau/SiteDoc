@@ -25,8 +25,10 @@
 ## Bildeannotering
 
 - Annotert bilde erstatter original in-place via `erstattVedlegg()` — ingen duplikater
-- `BildeAnnotering`-komponent returnerer annotert fil → `FeltDokumentasjon` oppdaterer vedleggets URL
+- `BildeAnnotering`-komponent (`apps/mobile/src/components/BildeAnnotering.tsx`) returnerer annotert fil → `FeltDokumentasjon` oppdaterer vedleggets URL
 - Opplastingskø håndterer ny fil med samme vedlegg-ID
+- **Tegnemotoren er DELT:** HTML-strengen bor i `@sitedoc/shared` (`packages/shared/src/annotering/annoterings-html.ts`, `ANNOTERINGS_HTML`) og deles med web-flatens annotering. Broen er toveis (mobil: `window.ReactNativeWebView`; web: `window.parent.postMessage`) — ÉN implementasjon. Verktøy-etikettene går via i18n (`annotering.*`), ikke lenger hardkodet i `BildeAnnotering.tsx`
+- ⚠️ **Lag-modellen (redigerbar annotering) er foreløpig WEB-ONLY** (Kenneth-vedtak 2026-09-29). Den delte HTML-en BÆRER nå lag-støtten (`settBilde(lag)`, lag-eksport ved lagre, `select`-verktøy) og web bruker den, men mobil sender aldri et lag og viser ikke Velg-verktøyet — mobil erstatter fortsatt originalen in-place (koden over). Mobilens egen lag-runde holdes utenfor denne gaten fordi den rører offline-køen; se [shared-pakker.md § Bildeannotering](shared-pakker.md) + [web.md § Bildeannotering](web.md)
 
 ## Statusendring — detalj-redesign M1–M3 (2026-07-30)
 
@@ -116,7 +118,7 @@ Klikk-budsjett: **Send 3 → 2 taps** (primær → bekreft), **hvem-har-ballen 0
 
 **Tidtaker:** Lang-trykk (0.6s) → 2s nedtelling.
 
-**Bildeannotering (Fabric.js):** WebView-basert canvas. Verktøy: pil, sirkel, firkant, frihånd, tekst. Canvas-resize til bildets 5:4.
+**Bildeannotering (Fabric.js):** WebView-basert canvas. Verktøy: pil, sirkel, firkant, frihånd, tekst. Canvas-resize til bildets 5:4. HTML-en er delt med web via `@sitedoc/shared` `ANNOTERINGS_HTML` (se § Bildeannotering).
 
 **Server-URL-håndtering:** `file://` → lokal, `/uploads/...` → `AUTH_CONFIG.apiUrl + url`, `http(s)://` → direkte.
 
@@ -250,23 +252,68 @@ const { t } = useTranslation();
 | `sjekkliste_feltdata` | Lokal sjekkliste-utfylling |
 | `oppgave_feltdata` | Lokal oppgave-utfylling |
 | `opplastings_ko` | Bakgrunnskø for filopplasting |
-| `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11) |
+| `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11; `user_id` + lesefilter lagt til fase 2 2026-10-03) |
+| `oppgave_local` | Offline-katalog for oppgave**lista** (read-only mirror, 2026-10-03) |
+| `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03) |
+| `dokument_speil` | Offline-speil av **hele dokumentet** (`hentMedId`-JSON) for LESING uten nett (fase 2 2026-10-03). Nøklet (dokumentType, id, userId); signaturer strippet |
 
-**Offline sjekklisteliste (fase 1, 2026-09-11):** `app/sjekkliste/index.tsx` leste før rett på
-`trpc.sjekkliste.hentForProsjekt` uten fallback → tom liste uten dekning (brøt CLAUDE.md «Mobil-appen
-MÅ fungere offline»). Nå: `sjekkliste_local` speiler lista (`services/sjekklisteKatalog.ts`,
-`prosjektKatalog`-mønster: full-overskriv per prosjekt, henter HELE prosjektet uten `byggeplassId` så
-lokal lesing selv gjør byggeplass-scopingen `byggeplassFilterDirekte` gjør). Server-tilgangsfilter +
-HMS-eksklusjon er alt anvendt ved henting. Kildevalg via delt ren `velgOfflineListeKilde`
-(`@sitedoc/shared`, testet): **med nett + bekreftet svar er serveren autoritativ (også tomt) — like
-fersk som før**; uten (offline/henger/feilet) leses lokal cache. Banner skiller «frakoblet, lagrede
-data (sist hentet …)» fra «ikke synkronisert ennå». Refresh trigges i `triggerKatalogRefresh`
-(sekvensiell fei over aktive `prosjekt_local`-prosjekter, egen try/catch — de 13 timer-katalogene
-upåvirket) + `startOffline` (Mer, valgt prosjekt, egen try/catch så tegninger lastes uansett).
-🟡 **Fase 2:** oppgaver + HMS (samme mønster). Standalone-prosjekter (`organizationId=null`) er ikke i
-`prosjekt_local` → dekkes kun av `startOffline`/list-skjermen, ikke login-feien.
+**Offline dokumentlister (fase 1):** list-skjermene leste før rett på tRPC uten fallback → tom liste
+uten dekning (brøt CLAUDE.md «Mobil-appen MÅ fungere offline»). Nå speiler `*_local`-tabeller lista.
+Delt mønster (`services/sjekklisteKatalog.ts` · `oppgaveKatalog.ts` · `hmsKatalog.ts`): full-overskriv
+PER PROSJEKT, henter HELE prosjektet uten `byggeplassId` så lokal lesing selv gjør byggeplass-scopingen.
+Kildevalg via den delte rene `velgOfflineListeKilde` (`@sitedoc/shared`, testet): **med nett + bekreftet
+svar er serveren autoritativ (også tomt) — like fersk som før**; uten (offline/henger/feilet) leses
+lokal cache. Banner skiller «frakoblet, lagrede data (sist hentet …)» fra «ikke synkronisert ennå».
+🔴 **Synlighet (alle tre lister):** `oppgave_local`/`hms_local`/`sjekkliste_local` bærer `user_id` og
+lesing filtrerer på innlogget bruker — en ny bruker på samme telefon ser ALDRI forrige brukers
+(tilgangs-/synlighets-filtrerte) liste offline (speiler den trygge timer-cache-nøklingen). Refresh
+full-overskriver per prosjekt for ALLE brukere, så en ny brukers sync også fjerner forrige brukers rader.
+🟢 **Lekkasjen i `sjekkliste_local` er lukket fase 2 (2026-10-03):** kolonnen var fraværende (kun
+`project_id`); ALTER ADD COLUMN `user_id` (nullable — eksisterende rader kan ikke etterfylles med riktig
+eier, så NULL-rader er usynlige for alle til neste refresh skriver eieren). Lukker BACKLOG «SJEKKLISTE-
+SPEILET LEKKER VED BRUKERBYTTE».
+Refresh trigges i `triggerKatalogRefresh` (sekvensiell fei over aktive `prosjekt_local`-prosjekter,
+per-(prosjekt,liste) try/catch — de 13 timer-katalogene upåvirket) + `startOffline` (Mer, valgt
+prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-prosjekter
+(`organizationId=null`) er ikke i `prosjekt_local` → dekkes kun av `startOffline`/list-skjermen.
 
-**Lagringsstrategi:**
+- **Sjekkliste (2026-09-11):** `sjekkliste.hentForProsjekt`; byggeplass direkte (`byggeplassFilterDirekte`).
+- **Oppgave (2026-10-03):** `oppgave.hentForProsjekt` (uten `domain` → HMS ekskludert). Task har ingen
+  egen `byggeplassId` — tilhørighet via tegning. Serverens tre-ledds `byggeplassFilterViaTegning`
+  kollapser til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen når speilet lagrer den UTLEDETE
+  effektive byggeplassen (`drawing.byggeplass.id`; ingen/prosjekt-tegning → null → hele prosjektet).
+- **HMS (2026-10-03):** `hms.hentDokumenter` (alle tre kategorier i ett kall → én `hms_local`-tabell med
+  `kategori`-diskriminator; atomisk refresh/lesevei). avvik/RUH er Task (byggeplass via tegning), SJA er
+  Checklist (direkte) — begge utledes til samme effektive `byggeplassId`. 🔴 Speilet bærer ALDRI `data`/
+  signerte vedleggs-URL-er (utløper 15 min); kun visningsfelt. `TASK_SELECT`/`CHECKLIST_SELECT` i
+  `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
+  `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
+
+### Offline-LESING av dokumenter (fase 2, 2026-10-03)
+
+Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
+HELE dokumentet (`hentMedId`-svaret) i `dokument_speil` så detaljskjermen kan rendre uten nett i
+**tvungen lesemodus** (sjekkliste · oppgave · HMS — HMS har ingen egen hook, så begge
+skjema-hookene dekker SJA/avvik/RUH). Tjeneste: `services/dokumentSpeil.ts`.
+
+- **Når speiles det?** (1) **Write-through:** hver gang `hentMedId` lykkes online lagres svaret
+  (`useSjekklisteSkjema`/`useOppgaveSkjema`, ingen ekstra nettkall). (2) **«Forbered offline»**
+  (`mer.tsx`): forhånds-nedlaster prosjektets ikke-terminale dokumenter fra de nå-oppdaterte
+  listene. Tak: `FORHAANDSLAST_TAK = 200`, stopper ikke på ett feilet dokument.
+- 🔴 **Bieffekt-fri forhånds-nedlasting:** `hentMedId` stempler `lestAvMottakerVed` når mottakeren
+  åpner. Forhånds-nedlasting skal ALDRI endre lesekvitteringen → egne server-prosedyrer
+  `sjekkliste.hentForOffline` / `oppgave.hentForOffline` (delt leser med `stemplLest`-flagg;
+  online-atferd bit-identisk). **Mobilen tåler gammel server:** mangler prosedyren (NOT_FOUND),
+  hoppes forhånds-nedlasting over stille-men-logget — write-through virker uansett.
+- 🔴 **Signaturer strippes før lagring** (`raaVedleggIData`, @sitedoc/shared) — samme skrive-vei-
+  vaksine som server. Signaturer (base64 i `data`) vises offline; bilder krever nett → eksisterende
+  `BildeFallback`-plassholder.
+- **Visning offline:** hooken faller tilbake til speilet når `hentMedId` er offline/feilet (kildevalg
+  via delt `velgOfflineListeKilde`), tvinger `erRedigerbar=false`, og eksponerer
+  `offlineModus`/`offlineHentetVed`/`offlineIkkeLastet`. Skjermen viser banner «Frakoblet – viser
+  lagret versjon fra {tid}», skjuler handlingslinjen, og viser «ikke lastet ned»-tekst (ikke evig
+  spinner) når dokumentet ikke er i speilet. Prosjekt-queriene (flyt/faggrupper/tillatelser) tåler
+  `undefined` offline. **Ingen skriving offline.**
 - SQLite først (<10ms), deretter server-synk
 - `erSynkronisert`-flagg, `sistEndretLokalt`-tidsstempel
 - Usynkronisert data prioriteres over server-data

@@ -21,8 +21,10 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@sitedoc/ui";
-import { Check, ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, ChevronRight } from "lucide-react";
+import { beregnUkeAvvik, type UkeAvvik } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { Avviksbadge } from "./Avviksbadge";
 import {
   DagsKort,
   HoverKort,
@@ -88,28 +90,9 @@ export type PivotRad = {
   manglerMaskinforerbevis: boolean;
 };
 
-/** Uke-nivå avvik (D2): misforhold mellom FØRT og BEREGNET overtid — ikke
- *  «over norm». En ansatt som fører overtiden riktig har intet avvik. */
-export type UkeAvvik = {
-  norm: number;
-  ukesum: number;
-  sumOrdinaert: number;
-  sumOvertid: number; // ført (valgt)
-  beregnetOvertid: number; // ukesum − norm, gulv 0
-  avvikTimer: number; // beregnet − ført; >0 = overtid ikke ført, <0 = ført under norm
-};
-
-function beregnUkeAvvik(sedler: PivotRad[]): UkeAvvik {
-  const norm = sedler[0]?.ukenorm ?? 0;
-  const ukesum = r2(sedler.reduce((a, s) => a + s.totaltimer, 0));
-  const sumOvertid = r2(
-    sedler.reduce((a, s) => a + (s.overtidsgrunnlag?.sumOvertid ?? 0), 0),
-  );
-  const sumOrdinaert = r2(ukesum - sumOvertid);
-  const beregnetOvertid = r2(Math.max(0, ukesum - norm));
-  const avvikTimer = r2(beregnetOvertid - sumOvertid);
-  return { norm, ukesum, sumOrdinaert, sumOvertid, beregnetOvertid, avvikTimer };
-}
+// beregnUkeAvvik + UkeAvvik er trukket til @sitedoc/shared (overtidsgrunnlag.ts)
+// så web SeddelKort/pivot, mobil-liste og detalj-banner deler ÉN kilde. Pivoten
+// mapper sine PivotRad → UkeSedelInput ved kallet (dag-grunnlag + ukenorm).
 
 const r2 = (n: number): number => Math.round(n * 100) / 100;
 
@@ -460,7 +443,14 @@ export function AnsattPivot({
               a.sedler.find((s) => isoAv(s.dato) === d.iso),
             );
             // Avvik fra hele ukens grunnlag (union), ikke bare vist fane.
-            const avvik = beregnUkeAvvik(grunnlagPerAnsatt.get(a.id) ?? a.sedler);
+            // Map PivotRad → UkeSedelInput (dag-grunnlag + ukenorm).
+            const avvik = beregnUkeAvvik(
+              (grunnlagPerAnsatt.get(a.id) ?? a.sedler).map((s) => ({
+                totaltimer: s.totaltimer,
+                ukenorm: s.ukenorm,
+                sumOvertid: s.overtidsgrunnlag?.sumOvertid ?? 0,
+              })),
+            );
             // ukesum til visning følger fanen (det attestanten ser nå).
             const ukesum = r2(a.sedler.reduce((x, s) => x + s.totaltimer, 0));
             const apen = apenAnsatt.has(a.id);
@@ -623,29 +613,3 @@ function TomPivot() {
   );
 }
 
-/** Eksplisitt tallfestet avviksbadge (D2). «over norm» = beregnet overtid ikke
- *  ført; «ført under norm» = overtid ført mens uken er under norm. Tooltip viser
- *  de tre D2-tallene. Intet avvik → ingen badge (norm forblir høyrejustert). */
-function Avviksbadge({ avvik }: { avvik: UkeAvvik }) {
-  const { t } = useTranslation();
-  if (avvik.norm <= 0) return null;
-  const over = avvik.avvikTimer > 0.01;
-  const under = avvik.avvikTimer < -0.01;
-  if (!over && !under) return null;
-  const tooltip = t("timer.attestering.pivot.avvikTooltip", {
-    norm: avvik.norm.toFixed(1),
-    ord: avvik.sumOrdinaert.toFixed(1),
-    ot: avvik.sumOvertid.toFixed(1),
-  });
-  return (
-    <span
-      title={tooltip}
-      className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200"
-    >
-      <TriangleAlert className="h-3 w-3 shrink-0" />
-      {over
-        ? t("timer.attestering.pivot.avvikOver", { timer: avvik.avvikTimer.toFixed(1) })
-        : t("timer.attestering.pivot.avvikUnder")}
-    </span>
-  );
-}

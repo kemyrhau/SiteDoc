@@ -40,6 +40,16 @@ flyten til `closed`. Sletting krever `draft` ELLER `closed` (slettevakt) — alt
 Nye mikrotekst-nøkler: ingen (`handling.lukk`/`handling.slett`/`flythjelp.handling.lukk` fantes;
 sistnevntes tekst omskrevet til ny semantikk + regenerert for 13 språk).
 
+**Gjenåpne-vedtak (Kenneth 2026-09-26) — begrunnelse ved gjenåpning:** Gjenåpning
+(`approved/closed/dismissed → draft`) KREVER en ikke-tom begrunnelse — den endrer et ferdig
+kvalitetsdokument, og arkivet skal bære HVORFOR. **Trekk tilbake** (`received → draft`) krever den
+IKKE — det angrer din egen usendte ball, ingen mottaker finnes å forklare noe til. Begge har
+`nyStatus="draft"`, så `statusKreverBegrunnelse(nyStatus, fraStatus?)` tok en ny valgfri `fraStatus`
+for å skille dem. Uten `fraStatus` faller draft tilbake til «ikke påkrevd» (bakoverkompat med
+enkelt-arg-kallere). HMS-gjenåpne (`hmsGjenapne`, ruter til `responded`)
+guardes med samme delte regel via kanonisk form `statusKreverBegrunnelse("draft", fraStatus)`.
+`hmsLukk` forblir valgfri — administrativ exit, ikke tilbakesending.
+
 **F3 Merge «Under arbeid»:** `rejected` er merget inn i `in_progress` — Send tilbake
 (responded→in_progress) ruter direkte til Under arbeid, ingen Gjenoppta. `rejected`-rader
 migreres til `in_progress` (`20260725130000_merge_underarbeid_rejected`).
@@ -225,6 +235,25 @@ Grenseverdier for `integer`/`decimal` — delt kilde for MalBygger-editor, utfyl
 | `løsGrense(objekt, forelderVerdi)` → `Grense` | **Vei B-resolver — eneste inngang** for utfylling (web+mobil), PDF-oppslag (trinn 3 del A: `services/arkiv/grensesnapshot.ts`) og server-frys ved lagring (trinn 3 del B: `services/grenseLagring.ts`). Tar **verdien** til styrende felt, ikke konteksten (kallstedet henter fra `rad.felter[styrendeId].verdi` i repeater / `hentFeltVerdi(styrendeId).verdi` på rot). Uten `styrendeFeltId`/`grenseVarianter` → standardgrense (identisk med `normaliserGrense`, bakoverkompat). Med varianter: matcher styrende verdi mot varianttabellen (`normaliserOpsjon` på begge sider), overstyrer TALLENE; tom celle arver standard; `enhet`/`desimaler` alltid felles. Ingen treff → standard (aldri stille sletting; foreldreløse varianter vises i MalBygger, trinn 2) |
 
 Grensene BLOKKERER aldri innsending — et avvik er et gyldig funn.
+
+### Stedsmodell (`sted.ts`) — LAG 1-A (2026-10-02)
+
+Én kilde for «hvor er jeg, og hvor langt er det dit» — erstatter to haversine-kopier
+(`apps/mobile/src/utils/geo.ts` slettet, `dagsforslag.ts`-kopien slettet) og to speilede
+GPS-gjenkjennings-funksjoner. Rene funksjoner, ingen DB/RN/Node. Kontrakt A1–A6 i
+`docs/claude/timer-gps-lag1-spec.md § 2`.
+
+| # | Funksjon | Beskrivelse |
+|---|----------|-------------|
+| A1 | `avstandM(a, b)` → `number` | Haversine i hele meter. Eneste avstands-def. (`georeferanse.avstandMeter` er en EGEN ekvirektangulær for tegning — rør den ikke) |
+| A2 | `gjenkjennSted<T extends Geofence>(pos, kandidater)` → `Treff<T> \| null` | Nærmeste der `avstandM ≤ radiusM`. `pos==null`→`null`. Kaller filtrerer bort ukomplette geofencer |
+| A3/A4 | `tolkStart` / `tolkSlutt(pos, oppmøtesteder, byggeplasser)` → `TolketSted` | Union `kontor`/`byggeplass`/`utenfor`/`ukjent`. Kontor vinner når begge treffer (V15). `pos==null`→`ukjent`, ALDRI `utenfor` (H11) |
+| A5 | `velgDestinasjon(args)` → `Destinasjon` | Sluttsted-byggeplass → kontekst → nøyaktig én byggeplass med punkt → ellers `ukjent`. ALDRI primærbyggeplass/nærmeste-uten-grense/`prosjekter[0]` |
+| A6 | `GEOFENCE_GRENSER` | De tre radius-spennene (oppmøtested 10–5000, byggeplass-API 1–100000, modal 25–500) + V17-polygon-/trasé-konstanter. API-validatorene (`byggeplass.ts`/`oppmotested.ts`) importerer den — binder, dokumenterer ikke bare. Tall uendret |
+
+🔴 **A5 wires inn i reisekjeden (`beregnDagsforslag`) først i LAG 1-B.** I L1-A bygges/testes den,
+og `resolverPrimaerByggeplass` er SLETTET i L1-B (`2e993250`) — A5 erstattet den. GPS-punkt-typen heter `GpsPunkt`
+(`Punkt` er opptatt av piksel-{x,y} i `maaling.ts`). Fasit: `sted.test.ts`.
 
 ## Fallgruver
 

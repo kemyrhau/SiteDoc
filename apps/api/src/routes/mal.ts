@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import type { PrismaClient } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
+import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema, TRAFIKKLYS_VALG, normaliserOpsjon } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET, KUN_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
@@ -162,6 +162,40 @@ const configSchema = z.preprocess(
   z.record(z.string(), z.unknown()),
 ) as z.ZodType<Record<string, unknown>>;
 
+// De fire kanoniske trafikklys-verdiene — ÉN kilde (TRAFIKKLYS_VALG i @sitedoc/shared). Fargene er
+// nøklet på disse i renderne; en verdi utenfor settet ville blitt et usynlig, fargeløst lys.
+const KANONISKE_TRAFIKKLYS_VERDIER = new Set<string>(TRAFIKKLYS_VALG.map((v) => v.value));
+
+/**
+ * Validerer et trafikklys-felts `config.options` (lyssett). Ett type-felt, valgbar delmengde:
+ * `options` bærer HVILKE av de kanoniske nøklene feltet tilbyr, i hvilken rekkefølge, med valgfri
+ * egen etikett. Antallet er BEVISST ikke låst til 3/4 (en hardkodet grense ville gjentatt feilen i
+ * `retningslinjer/bruk-er-ikke-behov.md`) — men et sett trenger minst to lys for å være et valg.
+ *
+ * Mangler `options` er gyldig: feltet faller til det kanoniske firelys-settet (uendret atferd).
+ */
+export function valideerTrafikklysConfig(config: Record<string, unknown> | undefined): void {
+  const options = config?.options;
+  if (options === undefined || options === null) return; // → kanonisk fallback
+  if (!Array.isArray(options)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Trafikklys-options må være en liste." });
+  }
+  if (options.length < 2) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Et trafikklys må ha minst to lys." });
+  }
+  const sett = new Set<string>();
+  for (const o of options) {
+    const { value } = normaliserOpsjon(o);
+    if (!KANONISKE_TRAFIKKLYS_VERDIER.has(value)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: `Ugyldig trafikklys-verdi «${value}».` });
+    }
+    if (sett.has(value)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: `Trafikklys-verdien «${value}» er oppgitt flere ganger.` });
+    }
+    sett.add(value);
+  }
+}
+
 // 🔴 ÉN EIER for lovlige (domain, subdomain)-par (svar-kontraktssak-domain-vs-subdomain
 // § 3). Valideringen leser DENNE, ikke en schema-kommentar som kan drifte. Neste leser
 // møter regelen der den håndheves. `subdomain` = undertype INNENFOR domenet:
@@ -312,7 +346,11 @@ export async function finnLedigeMalVerdier(
   let prefiks = ønsketPrefiks?.trim() || null;
   if (prefiks && category !== "psi") {
     const basisPrefiks = prefiks;
-    for (let i = 2; prefiksBrukt.has(normMal(prefiks)); i++) prefiks = `${basisPrefiks}${i}`;
+    // Skilletegn «-» ved kollisjon: uten det ble «UM1.1» → «UM1.12», som SELV er en ekte
+    // NS 3420-normkode (Del U). «UM1.1-2» kan ikke forveksles med en normkode. normMal
+    // (trim+lowercase) stripper IKKE bindestreken, så disambigueringen overlever
+    // unikhets-sjekken — målt: normMal er ren trim+lowercase.
+    for (let i = 2; prefiksBrukt.has(normMal(prefiks)); i++) prefiks = `${basisPrefiks}-${i}`;
   }
   return { name: navn, prefix: prefiks };
 }
@@ -479,7 +517,10 @@ export const malRouter = router({
         id: z.string().uuid(),
         name: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
-        prefix: z.string().max(20).optional(),
+        // .min(1)+.regex(/\S/): prefiks kan ikke blankes til "" (ordre mal-prefiks-integritet).
+        // .optional() beholdt (partiell update: utelatt = uendret). Ikke ZodEffects/.nullable(),
+        // så TS-typen forblir string|undefined — ingen web-break/TS2589.
+        prefix: z.string().min(1).max(20).regex(/\S/, "Prefiks kan ikke være tom").optional(),
         category: z.enum(["oppgave", "sjekkliste", "hms"]).optional(),
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
         subdomain: z.enum(["avvik", "sja", "ruh", "kontrakt"]).nullable().optional(),
@@ -736,6 +777,7 @@ export const malRouter = router({
     .mutation(async ({ ctx, input }) => {
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.templateId }, select: { projectId: true } });
       await verifiserAdmin(ctx.userId, mal.projectId);
+      if (input.type === "traffic_light") valideerTrafikklysConfig(input.config);
       const { parentId, ...rest } = input;
       return ctx.prisma.reportObject.create({
         data: {
@@ -763,6 +805,7 @@ export const malRouter = router({
     .mutation(async ({ ctx, input }) => {
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
       await verifiserAdmin(ctx.userId, objekt.template.projectId);
+      if (objekt.type === "traffic_light" && input.config !== undefined) valideerTrafikklysConfig(input.config);
 
       // Endringsvern (2026-09-07): et krav som er MÅLT MOT i et aktivt dokument kan ikke endres —
       // ellers ville arkivet vist et annet krav enn det målingen ble vurdert mot (Kenneth-funn:

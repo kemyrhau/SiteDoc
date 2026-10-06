@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, Alert, Modal, ScrollView, InteractionManager, KeyboardAvoidingView, Platform } from "react-native";
+import { AutentisertBilde } from "../AutentisertBilde";
 import { ModalFlate } from "../ModalFlate";
 import { useTranslation } from "react-i18next";
 import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight, ImageOff } from "lucide-react-native";
@@ -410,8 +411,8 @@ export function FeltDokumentasjon({
                   </View>
                 ) : v.type === "bilde" ? (
                   <View className="h-[72px] w-[72px]">
-                    <Image
-                      source={{ uri: bildeUrl }}
+                    <AutentisertBilde
+                      uri={bildeUrl}
                       className={`h-[72px] w-[72px] rounded-lg ${
                         erValgt ? "border-2 border-blue-500" : ""
                       }`}

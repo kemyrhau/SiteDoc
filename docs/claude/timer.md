@@ -23,6 +23,15 @@ påvirkes_av_beslutninger:
 
 # Timeregistrering — Fase 3
 
+> 🔴 **GPS, reise og flere prosjekter pr. dag: les
+> [timer-gps-helhetsplan.md](timer-gps-helhetsplan.md) FØR noe bestilles.**
+> Fem lag med bindende rekkefølge, 20 målte hull og ni beslutninger som venter på Kenneth.
+> KS-et av fabel 2026-10-01. **Kun LAG 0 kan trygt bestilles i dag.**
+> 🟢 **Revidert kveld 2026-10-01: dagsmodellen V1–V14 vedtatt (§ 4b) — reisetid er ALDRI overtid (V1),
+> `reisetidTellerOvertid` utgår (V2), tur/retur (V7), mellometappe = arbeidstid (V9). Fabel eier planen, orkestrator gater.**
+> 🟢 **Lag 0 levert 2026-10-02** (`89acee95` km-tak i `rad-tak.ts` · `a13f4343` `beregnDagsforslag`/`anvendDagsforslag`). Lag 0c `c78bc14f` (shared typesjekkes, regel 10 fire ledd). **Lag 0 komplett.** Lag 1-spesifikasjon venter K2 + V6.
+
+
 ## Implementasjonsstatus per 2026-05-01
 
 Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet refererer til **planlagt** datamodell/UI hvis ikke annet er merket eksplisitt.
@@ -225,7 +234,7 @@ Valgfri import ved onboarding. Pakke-orientert UX: vises som «Bransje: Anlegg/b
 | Andre | Fakturerbar tid | Skille fra intern |
 | Andre | Timer prosjektleder | PL med egen sats |
 
-> **Reisetid vs. reise-godtgjørelse (Fase 3 § B, avvik A):** To distinkte konsepter — ikke slå sammen. **Reise-godtgjørelse** («Reise 7,5–15 km» … «45–60 km», «Kilometergodtgjørelse») er **avstands-/godtgjørelse-satser — regnskap eier satsene** og km-utmålingen. **Reisetid** er **timeført arbeidstid** på lønnsarten «Reise/transport til prosjekter» (`ordinaer`), klassifisert mot firmaets terskel (kontor→byggeplass). Fase 3 `reiseLonnsartId` peker som standard på reisetid-arten, IKKE en km-godtgjørelse-art. Seed-artene beholdes uendret; kun denne tekst-distinksjonen er reframet (ingen rad-rename).
+> **Reisetid vs. reise-godtgjørelse (Fase 3 § B, avvik A):** To distinkte konsepter — ikke slå sammen. **Reise-godtgjørelse** («Reise 7,5–15 km» … «45–60 km», «Kilometergodtgjørelse») er **avstands-/godtgjørelse-satser — regnskap eier satsene** og km-utmålingen. **Reisetid** er **timeført arbeidstid** på lønnsarten «Reise/transport til prosjekter» (`ordinaer`) *(⚠️ ordinær lønnsart-TYPE, men **aldri i overtidsgrunnlaget** — vedtak V1, [helhetsplan § 4b](timer-gps-helhetsplan.md), 2026-10-01)*, klassifisert mot firmaets terskel (kontor→byggeplass). Fase 3 `reiseLonnsartId` peker som standard på reisetid-arten, IKKE en km-godtgjørelse-art. Seed-artene beholdes uendret; kun denne tekst-distinksjonen er reframet (ingen rad-rename).
 
 #### Nivå 3 — Egendefinerte
 
@@ -261,7 +270,95 @@ Eksempel: 10t totalt → Timelønn 7,5t + Overtid 50% 2,5t. Bruker justerer til 
 
 Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger lønnsart manuelt.
 
-> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `StartSluttDagKort.genererForslag`. **Reise-kobling (Fase 3 § B):** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget (`arbeidstimer = total − reisetid`, ingen dobbelttelling av brutto). `reisetidTellerOvertid` styrer terskelen: `false` (default) → dagsnorm gjelder kun arbeidstimene (reise utenfor overtid); `true` → reise spiser av dagsnorm (`dagsnorm − reisetid`), så mer arbeidstid havner i overtid. Når server-motoren bygges arver den samme kontrakt.
+> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `beregnDagsforslag` (`apps/mobile/src/utils/dagsforslag.ts`, ren, skilt fra skrivingen i lag 0b). **Reise-kobling:** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget.
+>
+> 🟢 **L1-B (branch `feat/timer-reiseetapper`, 2026-10-02 — venter merge) endrer modellen (hjemmel V1–V16):**
+> - **Reise = etapper** (`beregnReiseEtapper`): ut (kontor→destinasjon) + retur (destinasjon→kontor). **Arbeidsvinduet er eneste trekkmekanisme:** `arbeidsstart = startGPS + ut`, `arbeidsslutt = sluttGPS − retur`, `arbeidstimer = arbeidsslutt − arbeidsstart − pause`. Den gamle `total − reisetid`-subtraksjonen er FJERNET (dobbelttrekk med etapper i begge ender).
+> - **`reisetidTellerOvertid` leses IKKE lenger** (V1: reisetid er aldri overtid). Kolonnen deprecates; normen er alltid `dagsnorm0`.
+> - **Prosjektvalg via A5** (`velgDestinasjon`, `@sitedoc/shared`): destinasjon → `aktivtProsjektId` → `prosjektUkjent`. `velgNaermesteProsjekt` + `prosjekter[0]`-fallback + `resolverPrimaerByggeplass` + `estimerReisetidMin` SLETTET.
+> - **Norm = én server-utledning (B6 v3, H22):** `OrganizationSetting.normKilde` (`fast`=lovnorm/7,5-kolonnen · `kalender`=sesongutledet) + `pauseReferanse` (`ankomst`/`fastStart`). `hentEffektivArbeidstid`-servicen er eneste utledning; server-varsel + web-sedel kaller den pr. dato. Mobilen REGNER ikke normen — den cacher serverens svar pr. dato (`arbeidstid_svar_local`, lokal migrering) og leser via `hentDagsnormLokalt` (`server`/`cachet≤30d`/`null`, aldri 7,5). Ukjent norm → ingen overtid-splitt + markør (varsel + banner). Migrering `20261002130000_timer_normkilde_pausereferanse` (Prisma, backfill sommertid→kalender) — **ikke kjørt**.
+
+> 🟢 **LAG 2-A (branch `feat/timer-l2a-sporbarhet`, 2026-10-03 — venter merge/gate; hjemmel V1/V2/K5):
+> radmodellen + mottak med sporbarhet på serveren.**
+> - **Radmodell (db-timer, migrering `20261003120000_timer_lag2_sporbarhet` — IKKE kjørt):** `SheetTimer`
+>   får `erReise Boolean @default(false)`, `reiseRetning`, `reiseOppmotestedId` (svak FK → `oppmotesteder`),
+>   `reiseKjoretidMin`, `reiseAvstandM`, `reiseKilde` (`matrise`/`manuell`/null), `reiseRegel Json?`,
+>   `tidKilde` (V8), `reiseAvvik Boolean?` (tre tilstander). `DailySheet` får `normStatus` + `normSnapshot Json?`
+>   (`db-timer/schema.prisma`). Backfill av `erReise` speiler dagens leser (M3: konfigurert reise-art ∪
+>   grensepunkt-arter, ellers navne-match kun for firmaer uten konfigurert art) — delt regel `erReiseLonnsart`
+>   (`@sitedoc/shared` `reise.ts`). DB-CHECK: `er_reise=false ⇒ reisefelt NULL`. 🔴 **`er_reise=true ⇒ retning`
+>   er IKKE DB-CHECK** (backfill + overgangsrader har utledet flagg uten retning) — håndheves i mottaket (C2).
+> - **🔴 Eksplisitt flagg vinner (M3):** etter lag 2 leser ingen reise fra lønnsart/regex — `erReise` er sannheten.
+>   Alle 9 skrivestier i `apps/api/src/routes/timer/dagsseddel.ts` som setter `lonnsartId` utleder/skriver `erReise`
+>   (`byggTimerRadData` + syncBatch + oppdater/forson/splitt/rediger); splitt arver hele sporet.
+> - **Mottak med sporbarhet (K5, `reise-sporbarhet.ts`):** syncBatch deklarerer + lagrer alle felt (C1, M6-fiks);
+>   C2 validerer invariantene når klienten sendte `erReise` eksplisitt; C3 KONTROLLERER matrise-rader mot
+>   `ReisetidMatrise`-cellen og setter `reiseAvvik` (dobbel terskel `REISEAVVIK_MIN_PROSENT/AVSTAND_M/KJORETID_MIN`)
+>   — serveren klassifiserer ALDRI om, setter ingen lønnsart.
+> - **V1/V2 på serveren:** `beregnOvertidsgrunnlag` (`@sitedoc/shared` `overtidsgrunnlag.ts`) ekskluderer
+>   reise-rader HELT (`OvertidRad.erReise`); `totaltimer` deles i `arbeidstimer`/`reisetimer` i firma-attesteringen.
+>   `reisetidTellerOvertid`-avkrysningen er fjernet fra firma-innstillinger (web); api beholder kolonne +
+>   select/skriv men ignorerer verdien (to-stegs, droppes senere); i18n-nøkkelen `reise.tellerOvertid` slettet.
+
+> 🟢 **LAG 2-B (branch `feat/timer-l2b-mobil-spor`, 2026-10-03 — venter merge/gate; hjemmel V8/K5/V2):
+> mobilen SKRIVER sporet + V8-vinduet.** Forutsetter L2-A merget (feltene i `syncBatch` FØR telefonen sender,
+> M6). **Reload: OTA.**
+> - **B1 — raden bærer etappen:** `beregnDagsforslag` (`dagsforslag.ts`) reduserer ikke lenger etappen til
+>   `{ kjoretidMin, lonnsartId }`; `reiseForRetning` returnerer hele sporet (retning, oppmøtested, byggeplass,
+>   avstand, `reiseRegel`-snapshot via delt `grensepunktTraff`), og `anvendDagsforslag` (`dagsforslagAnvend.ts`)
+>   skriver `erReise`/`reiseRetning`/`reiseOppmotestedId`/`byggeplassId` (M1 — nå faktisk skrevet)/
+>   `reiseKjoretidMin`/`reiseAvstandM`/`reiseKilde:"matrise"`/`reiseRegel` (JSON)/`tidKilde` på `sheet_timer_local`.
+> - **B2 V8 — klokkevindu på reise-rader:** REISE-UNNTAKET (null-tider) er REVERSERT. `ut`: `fraTid=segment-start`,
+>   `tilTid=start+kjøretid`; `retur`: `fraTid=slutt−kjøretid`, `tilTid=segment-slutt`; `tidKilde="utledet"`
+>   (vinduet SER målt ut, er UTLEDET). Vinduene berører arbeidsvinduet i endepunktene uten å overlappe
+>   (`tidsromOverlapper` streng). **B3:** Dag A (ut/ordinær/OT50/retur) passerer serverens delte
+>   `finnTidsromKonflikt` (`@sitedoc/shared` — uendret siden SYNC-2 `a711ad7b`, i prod → gammel server avviser
+>   ikke synken; de nye feltene stripper Zod stille på gammel server).
+> - **B4 (valg A, TILLEGG 2):** manuelt lagt til/endret rad får `tidKilde="manuell"` (endret tid på en
+>   `utledet` rad → `manuell` kun når fra/til FAKTISK endres). `erReise` settes EKSPLISITT fra lønnsarten via
+>   delt `erReiseLonnsartLokalt` → `erReiseLonnsart` (`@sitedoc/shared`, samme regel som serverens
+>   `utledErReise`); en manuell reise-rad får `erReise=true`+`reiseKilde="manuell"`, `reiseRetning=null`,
+>   avstand/kjøretid/regel `null`. Redigeres en matrise-rad: matrise-sporet bevares; byttes lønnsarten til en
+>   ikke-reise-art renses reise-sporet (C2: `false ⇒ spor null`). 🔴 **C2 slakket (server):** retning (+ matrise-
+>   tallene) kreves KUN for `reiseKilde="matrise"` — *retningen er informasjon, ikke lønn; lønnsarten avgjør*
+>   (fabel-vedtak, spec § 3 B4/§ 4 C2 `d9587bbe`). Alternativ C (ikke sende `erReise`, la server utlede) er
+>   forbudt — raden ville løyet om kilden.
+> - **B5:** `normStatus` + `normSnapshot` (fra svar-cachen, `arbeidstidSvarKatalog.hentetAt` eksponert) skrives på
+>   `dagsseddel_local` ved auto-generering og synkes opp (`timerSync` push). Pull oppdaterer sedelen in-place →
+>   normsporet overlever (til forskjell fra rader, som delete+reinsertes).
+> - **B6:** visningen (`TimerSeksjon`) leser `erReise` via delt `erReiseRadVisning` — fallback til lønnsart-match
+>   KUN for rader uten flagg (eldre lokale + server-pull før `hentEndringerSiden` returnerer `erReise`).
+> - **C5 (mobil):** `reisetidTellerOvertid` ut av `DagsforslagRegel` + `organizationSettingLocal`-Drizzle-feltet
+>   + `organizationSettingKatalog`/`StartSluttDagKort`. SQLite-KOLONNEN står (to-stegs, ikke DROP).
+> - **Lokal migrering (`migreringer.ts`):** idempotente `ALTER` for spor-kolonnene på `sheet_timer_local` +
+>   norm-kolonnene på `dagsseddel_local` (ingen backfill — eldre rader står null, ærlig).
+> - **Pull bærer sporet (TILLEGG 1 — lukket i branch):** `hentEndringerSiden` (server) returnerer nå
+>   `erReise`/`reiseRetning`/`reiseOppmotestedId`/`reiseKjoretidMin`/`reiseAvstandM`/`reiseKilde`/`reiseRegel`/
+>   `tidKilde`/`reiseAvvik` på timeradene + `normStatus`/`normSnapshot` på sedelen. Mobilens pull snapshotter
+>   lokalt spor FØR rad-erstatningen og skriver server-verdien når feltet FINNES i svaret, ellers BEVARER det
+>   lokale (mangler ≠ null → gammel server/prod nuller ikke sporet). Uten dette ville rad-replace (delete+
+>   reinsert) slettet K5-sporet telefonen skrev, og neste push erstattet serverraden uten spor. Testet
+>   ende-til-ende i sql.js (`timerSync-lag2-spor.test.ts`: ny-server-ekko · gammel-server-bevaring · full
+>   push→pull→endre→push). 🔴 **Server-endringen rører KUN `hentEndringerSiden`** (ikke attestering → ingen
+>   L2-C-kollisjon). Migreringen `20261003120000_timer_lag2_sporbarhet` MÅ være kjørt før serveren deployes
+>   (query leser de nye kolonnene).
+
+> 🟢 **LAG 2-C (branch `feat/timer-l2c-attestering-eksport`, 2026-10-03 — venter merge/gate; hjemmel K5/V8):
+> attestanten og regnskapet ser reise-sporet.**
+> - **D1 Attestering (web):** reise-rader får merke «Reise ut/retur» + rute-linje «Kontor → Byggeplass · km ·
+>   min · kilde» + tidskilde-merke (`utledet` → «tid utledet fra matrise») i `SeddelKort` og `TimerRaderLeder`
+>   (delt komponent `ReiseRadMerke.tsx`). Gammel backfill-rad uten etappe (reiseKilde=null, ingen km/min) viser
+>   ærlig «reise (kilde ukjent)» — aldri tomme «— km». `reiseAvvik === true` gir varsel; `null` viser ingenting.
+>   `normStatus ∈ {cachet, ukjent}` gir sedel-banner («Norm fra siste kjente svar» / «Norm ukjent — overtid ikke
+>   fordelt»); `null` (gammel sedel) gir ingenting. «(inkl. reise)» erstattet av arbeid/reise-splitt fra
+>   `arbeidstimer`/`reisetimer` (V1). `rad.beskrivelse` vises nå på attestant-raden (M7-fiks). **Arbeidstid-varselets
+>   TRIGGER er bevisst uendret (total tilstedeværelse = «lang dag») — kun presentasjonen deles opp.**
+> - **D2 Eksport:** nye detalj-kolonner `reise`/`retning`/`fraSted`/`tilSted`/`avstandKm`/`kjoretidMin`/`reiseKilde`/
+>   `tidKilde`/`normStatus` + `lonnsartType`/`satsEnhet` i `TIMER_KOL_KEYS` (`@sitedoc/shared timerDetaljRader.ts`);
+>   api `rapport.ts` resolver fra/til-sted fra `reiseOppmotestedId`+`byggeplassId` mot retningen (kjerne-klienten,
+>   svak FK). Kolonnene vises dynamisk KUN når de bærer data → en ren arbeidsliste er uendret. Proveniens
+>   (reiseKilde/tidKilde/normStatus) strippes for ekstern mottaker (byggherre). Arknavn/overskrifter via `t()`.
+> - **D3:** `attestertSnapshot.prisMotKunde`-påstanden i eksport-docen rettet (M9 — leses kun i attestering).
 
 #### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
 
@@ -367,7 +464,7 @@ Utility: `@sitedoc/shared/utils/pauseBeregning.ts` (delt mobil + web; mobil-kopi
 
 **Skille mot `pauseMin`:** dette er en **rad-nivå** fradragsvisning i modalen. `pauseMin` forblir **sedel-nivå** (maskin ≤ arbeid-buffer, `validerMaskinUnderArbeid`) — de to lever side om side.
 
-**5,5t-terskel (AML §10-9) — når pausen i det hele tatt gjelder:** `PAUSE_TERSKEL_TIMER = 5.5` i `pauseBeregning.ts`. `pauseMinForDag(dagsTotalBruttoTimer, standardPauseMin)` returnerer `standardPauseMin` KUN når dagens totale brutto arbeidstid > 5,5 t, ellers 0. Gaten er **dagstotal-basert, ikke per rad** (en dag splittet i flere rader skal verken miste eller få pause av rad-splitten). Ligger i `fordelArbeidstidFradrag` (`StartSluttDagKort.tsx`) der dagstotalen finnes. To ortogonale regler: **hvor** pausen faller (4,0t-vinduet) vs. **om** den gjelder (5,5t-terskelen).
+**5,5t-terskel (AML §10-9) — når pausen i det hele tatt gjelder:** `PAUSE_TERSKEL_TIMER = 5.5` i `pauseBeregning.ts`. `pauseMinForDag(dagsTotalBruttoTimer, standardPauseMin)` returnerer `standardPauseMin` KUN når dagens totale brutto arbeidstid > 5,5 t, ellers 0. Gaten er **dagstotal-basert, ikke per rad** (en dag splittet i flere rader skal verken miste eller få pause av rad-splitten). Ligger i `fordelArbeidstidFradrag` (`apps/mobile/src/utils/dagsforslag.ts`, LAG 0b-splitt) der dagstotalen finnes. To ortogonale regler: **hvor** pausen faller (4,0t-vinduet) vs. **om** den gjelder (5,5t-terskelen).
 
 **Web-speiling:** attestering (`RedigerRadModal.tsx`) og firma-innstillinger (`firma/innstillinger/page.tsx`) bruker samme skiftrelative modell.
 
@@ -602,6 +699,25 @@ Fire funn fra gaten på `feat/kolonnevelger` (ikke feil, men ting gaten avdekket
 
 Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggeplass** arbeider står på (utvider Fase 1 som kun identifiserte prosjekt/oppmøtested). Løser byggeplass-koordinat-gapet [`fase-0 T.8:990`](fase-0-beslutninger.md) — som også Fase 3 (kontor→byggeplass-reise) trenger.
 
+> 🟢 **V17-A LEVERT (branch `feat/v17a-stedsmodell`, 2026-10-04 — venter gate/merge; hjemmel V17/K10,
+> spec `v17-geofence-spec.md` v2.2):** stedsmodellen generalisert fra ren SIRKEL til **Sirkel | Polygon**.
+> **Null atferdsendring for brukeren** (ingen sone-data finnes før V17-B/C; sirkler gjenkjennes nøyaktig som før).
+> - `packages/shared/src/utils/sted.ts`: `Geofence = Sirkel | Polygon` (diskriminert union). Nye rene
+>   geometrifunksjoner i ÉT lokalt plan (ingen pakke, ingen Node-import): `erInnenfor` (A1, sirkel = avstand ≤
+>   radius, polygon = ray-casting, kant = innenfor), `polygonArealM2` (A2 shoelace), `sentroidePunkter` (B2),
+>   `erEnkeltPolygon` (selvkryssing O(n²)), `korridorFraLinje` (B5 — bufrer kartlinje til korridor, avviser
+>   skarp sving med navngitt feil). `gjenkjennSted` generalisert med **B4-prioritet** (sone før sirkel · sone
+>   minst areal · sirkel nærmest sentrum); `Treff` bærer nå `form` + `omradeId`. `tilGeofencer` (A4) er ÉN
+>   kilde som erstatter de tre `radiusM != null`-filtrene; `geofenceForm` (A5); `GEOFENCE_GRENSER` (A6).
+> - **`Sirkel.form` er PÅKREVD** (`form: "sirkel"`, spec § 3) — kompilatoren vokter at ingen formløs kandidat
+>   når `gjenkjennSted`. `sted.test.ts`-hjelperne `oppm`/`bygg` setter `form` eksplisitt. `GEOFENCE_GRENSER`
+>   er eneste grense-kilde (det tidligere `RADIUS_GRENSER`-aliaset er fjernet). *(RETUR 1, kontrollør-gate 2026-10-04.)*
+> - **API binder nå grensene:** `byggeplass.ts` + `oppmotested.ts` importerer `GEOFENCE_GRENSER` (tall uendret).
+> - **Mobil:** `byggeplassKatalog.identifiserByggeplass`, `timer/ny.tsx`, `StartSluttDagKort.tsx` bygger
+>   kandidater via `tilGeofencer` (byggeplass); `useArbeidsdag`/`StartSluttDagKort` oppmøtested forblir sirkel
+>   (`tilGeofencer` med `soner: []`). Alle `radiusM != null`-byggeplassfiltre borte (grep-vakt). **Reload: OTA.**
+> - **Ikke i V17-A:** db/api-feltene (`omrader.geo_polygon`), karttegning, mobil sone-cache = V17-B/C/D.
+
 ### Datamodell (kjerne `packages/db`)
 `Byggeplass.latitude Float?`, `longitude Float?`, `radiusM Int?` — alle nullable, additivt (migrasjon `20260609100000_byggeplass_geofence_fase1c`, enkelt-steg). Ingen 4. flagg-kolonne: override beskyttes av «auto fyller kun når tom»-regelen under.
 
@@ -665,7 +781,7 @@ Mål-eksporten (utkast) joiner `sheet_timer`/`sheet_tillegg` med katalog-tabelle
 | Lønnsart-rader (med ECO per linje) | `sheet_timer` joinet med `lonnsarter` (`kode`, `navn`, `timer`, `attestertSnapshot.prisMotKunde`) + `externalCostObjectId` → `external_cost_objects.proAdmId` (valgfri per linje) |
 | Tillegg-rader | `sheet_tillegg` joinet med `tillegg` (`kode`, `navn`, `antall`, `attestertSnapshot.prisMotKunde`) |
 
-**Pris-snapshot:** Eksport bruker `attestertSnapshot.prisMotKunde` fra hver rad — ikke gjeldende pris i katalogen. Sikrer at attesterte timer beholder sin opprinnelige pris selv om katalog-prisen endres senere (Fase 0 A.7).
+**Pris-snapshot (❌ IKKE i eksporten i dag — D3-retting LAG 2-C):** Tabellen over er *utkast*. Dagens eksport (`timer/rapport.ts` → `detaljEksport`, Excel `timer-rapport-eksport.ts`, PDF `packages/pdf/timer-rapport.ts`) bærer **ikke** `attestertSnapshot.prisMotKunde` — den leser lønnsart-**navn** (nå også `type`/`satsEnhet`, LAG 2-C D2), timer, fra/til, beskrivelse og reise-sporet, ingen pris. `attestertSnapshot` (Json med lønnsart/aktivitet/sats/overtidsgrunnlag) leses **kun** i `hentForAttestering` (`dagsseddel.ts:3239`) for attesterings-visningen, aldri i en eksportvei. Den planlagte lønnsuttrekk-eksporten (når adaptere bygges) *skal* fryse pris pr. rad (Fase 0 A.7) — men gjør det ikke i dag (M9, målt 2026-10-03).
 
 **Eksport-kode-krav (planlagt, ikke bygget):** `lonnsarter.kode`/`tillegg.kode`/`aktiviteter.kode` er nullable. ⚠️ Doc-en beskriver *ønsket* atferd: eksport-modulen skal kaste tydelig feilmelding hvis kode mangler. **Eksport-modulen finnes ikke ennå** (adaptere «❌ Ikke startet»), og valideringen finnes ikke i noen kodevei i dag. Når den bygges bør sjekken skje ved **attestering**, ikke først ved lønnskjøring — se [BACKLOG § validering av `kode`](BACKLOG.md). Merk: `GRA`/`RYD`-aktivitetene er nå akseptert uten kode (SiteDoc-spesifikke) — aktivitet-kode-kravet må revideres når modulen bygges.
 
@@ -1084,6 +1200,7 @@ En delvis attestert `sent`-sedel har derfor ingen vei tilbake for enkeltraden. E
 
 - **Oppmøtested = egen geo-entitet** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, adresse?, lat, lng, radiusM, avdelingId?, aktiv }`. A.Markussen: 3 kontorer (Narvik, Harstad, Tromsø). Geofence identifiserer kontor + logger inn/ut som *dokumentasjon* + *foreslår* starttid — aldri auto-rad (`fase-0 T.8:983`).
 - **Kompensert reise = kontor→byggeplass + byggeplass→byggeplass.** Hjem→arbeidssted er IKKE kompensert. Reisetid = **lønnsart-rad (ordinær lønn), utenfor overtid** (jf. § Lønnsart-katalog + `:282`). Ingen avstands-/godtgjørelse-sats (regnskap eier satser).
+  - 🔴 **Vedtak 2026-10-01 ([helhetsplan § 4b](timer-gps-helhetsplan.md)):** byggeplass→byggeplass i ordinær tid er **arbeidstid**, ikke reisetid (V9) · kategorien reisetid er **aldri** overtid (V1), flagget `reisetidTellerOvertid` utgår (V2) · tur OG retur (V7) · ingen reise når dagen ikke starter på kontor (V11), ingen fallback-estimat (V13).
 - **Reise-regelsett = firmainnstilling** (konfigurerbart, ikke regelmotor): `OrganizationSetting` + `reiseTerskelMin` (default 30) / `reiseUnderTerskelType` / `reiseOverTerskelType` / `reisetidTellerOvertid`. `<terskel` → arbeidstid, `>terskel` → reisetid. Terskel + lovlighet er per firmas tariff/avtale, ikke universell lov.
   - **⚠️ Terskel-enhet: TID eller AVSTAND (2026-09-08, `feat/reise-terskel-km`, venter Kenneth-gate på migrering `20260908120000_reise_terskel_km`):** `reiseTerskelEnhet` (`"minutter"` default | `"km"`) + `reiseTerskelM` (meter, aktiv ved km). A.Markussen måler km-grense; andre måler tid. **Default `"minutter"` er bevisst — bevarer klassifisering for alle eksisterende firmaer.** `klassifiserReise` tar nå `ReiseMaaling {reisetidMin, avstandM}` + regelsett med enhet (aldri «et tall uten enhet»). Avstand fra samme OSRM-kall (`annotations=duration,distance`) → `ReisetidMatrise.avstandM` (meter, `-1` = uoppnåelig symmetrisk med `kjoretidMin`). km + manglende/uoppnåelig avstand → konservativ under-type. Bytte til km auto-recomputer matrisen (fire-and-forget); firmainnstillingene varsler «avstand mangler for N par» (`hentSetting.reiseMatriseParUtenAvstand`) når rader ikke er reberegnet. **Automatisk avstandsBÅND-lønnsart er bevisst UTELATT** (Kenneth-vedtak 07.09: firma velger lønnsart eksplisitt).
 - **MVP på `Project.latitude/longitude`** (finnes, nullable); byggeplass-GPS er senere arbeid (`T.8:990`).
@@ -1106,7 +1223,11 @@ En delvis attestert `sent`-sedel har derfor ingen vei tilbake for enkeltraden. E
 
 ## Auto-generering av dagsseddel (Slice 3/4 — deployet prod 2026-06-21, server)
 
-> 🟢 **Live atferd (server prod-deployet `32b88bd7`; mobil-UI når arbeidere først ved EAS prod-bygg).** Konsolidert fra redesign-funn-doken + BACKLOG. Implementasjon: `apps/mobile/src/components/StartSluttDagKort.tsx` (`genererForslag`/`opprettDagsseddelForSegment`/`gjenopprettGlemtDag`), `utils/dagsegment.ts`, attestering-UI (`AttesteringDetalj.tsx` web + `AttesteringDetaljMobil.tsx`).
+> 🟢 **Live atferd (server prod-deployet `32b88bd7`; mobil-UI når arbeidere først ved EAS prod-bygg).** Konsolidert fra redesign-funn-doken + BACKLOG. Implementasjon: `apps/mobile/src/components/StartSluttDagKort.tsx` (`samleDagsforslagInput` = lese-fase + `gjenopprettGlemtDag`), den rene `beregnDagsforslag` i `utils/dagsforslag.ts`, skrivingen i `utils/dagsforslagAnvend.ts` (`anvendDagsforslag`), `utils/dagsegment.ts`, attestering-UI (`AttesteringDetalj.tsx` web + `AttesteringDetaljMobil.tsx`).
+
+> 🟢 **LAG 0b — utregning skilt fra skriving (2026-10-02, `fix/mobil-splitt-dagsforslag`, OTA).** `genererForslag` SKREV som sideeffekt (`opprettDagsseddelForSegment` → `finnEllerOpprettDagsseddel` + `db.insert`), og «Slutt dag» markerte arbeidsdagen `avsluttet` FØR utfallet var kjent. Splittet i tre: **`beregnDagsforslag`** (`utils/dagsforslag.ts`) — 🟢 REN, all utregning, null DB, fullt testbar uten RN/DB (`dagsforslag.test.ts`, 6 karakteriseringscase) · **`anvendDagsforslag`** (`utils/dagsforslagAnvend.ts`) — eksisterende persistering, kjører kun når noe skrives · **`samleDagsforslagInput`** (komponenten) — lese-fasen, flyttes ut ved bekreftelsesskjermen (LAG 3). 🔴 **NULL atferdsendring i utregningen** (reise-unntak, `reisetidTellerOvertid`, luftlinje/50, `prosjekter[0]`-fallback, nærmeste uten grense bevart 1:1). Plan: `timer-gps-helhetsplan.md` LAG 0.
+
+> 🟢 **H7 — «avsluttet» settes kun når skrivingen lyktes (commit 2).** Rekkefølge-logikken er trukket ut av `useCallback` til ren, injiserbar `avgjorSluttDagHandling`/`skalMarkereAvsluttet` (`utils/dagsforslag.ts`, testbar uten RN). Fire utfall, tre regler: **suksess/playVek/forKort** → dagen lukkes (som før) · **`blokkertSendt`** → dagen står ÅPEN (økta kunne ikke appendes på en sendt sedel; lederen returnerer → draft → appendbar) · **`kildeManglet`** (`startSheetId == null`, db/prosjekt/aktivitet manglet) → dagen står ÅPEN + NY melding (`timer.kildeManglet.*`, 15 språk) — i dag ble dagen stumt markert avsluttet uten sedel. H7-testene er rød-først mot dagens rekkefølge (`dagsforslag.test.ts`). Manuell-fallbacken (`/timer/ny`) for `kildeManglet` er beholdt.
 
 **Auto-utkast (BESLUTNING 1 = Alternativ B, fase-0 T.8).** Ved «Slutt dag» auto-skriver appen en **`draft`**-dagsseddel fra GPS-dagflyten — arbeidstid-rad(er) (timer = total − reise, splittet Timelønn opp til dagsnorm + «Overtid 50%» via navne-match) + reise-rad. Arbeider ser alt, kan redigere/slette enhver auto-rad, og **godkjenner ved innsending** (`draft → sent`). Invariant: **aldri auto-*innsending*** — ingen lønn uten menneskelig godkjenning. UX-signaler: auto-fyll-banner (lokal `auto_generert`-markør), reise-rad merket 🚗 «Reisetid» (deteksjon via delt `hentReiseLonnsartId` — samme kilde som genereringen, mot drift). **Idempotens:** finnes allerede en draft for `(userId, dato)` → naviger til den (server `@@unique([userId, dato])`), ikke lag ny.
 
@@ -1860,3 +1981,27 @@ Eksport til lønnssystem (Poweroffice/Tripletex/etc.) går via egen `timer.ekspo
 > - **Arbeidstidskalender** → Variant C: manuelt + import-knapp. Detaljer i § Database-modeller > `arbeidstidskalender` ovenfor.
 > - **PDF-rapporter** → Hybrid dynamisk arkitektur (per § Rapportmodul ovenfor). 20 forhåndsdefinerte rapport-typer er forkastet til fordel for én generator + 4 standard-presets + lagrede konfigurasjoner.
 > - **Drømmescenario ProAdm → SiteDoc Godkjenning** → Backlog. Ikke implementeres i Fase 3.
+
+## 🟡 Systemisk funn 2026-10-01 — TOCTOU-vindu i rad-mutasjonene
+
+**Funnet av kontrolløren under gaten av `forsonDagskort`.** `erRedigerbar`-sjekken leses
+**utenfor** transaksjonen i `tilfoyTimerRad`, `oppdater*` og `slett*`
+(`apps/api/src/routes/timer/dagsseddel.ts`). **Blir dagsseddelen attestert i vinduet mellom
+sjekk og skriving, lander endringen på et låst kort.**
+
+🟢 **`forsonDagskort` er lukket** (`9c7c1ad1`): status-betinget `updateMany` åpner den
+interaktive transaksjonen, UPDATE tar radlås til commit, `count === 0` → `PRECONDITION_FAILED`
+og full tilbakerulling. **Mønsteret er det samme som `SedelAttestertConflict`-vernet.**
+
+🔴 **De tre eldre er IKKE lukket. Ikke bestilt — ført her så det ikke bare lever i en
+gitignorert innboks.**
+
+| Forhold | Vurdering |
+|---|---|
+| Utfall | **Mindre enn `forsonDagskort`** — de skriver én rad, ikke hele dagen |
+| Vei inn | Smal: `returned → accepted` krever samtidig `sendInn` + leder-attestering (`:2310`) |
+| Vernet | **Ligger ferdig i samme fil** — mønsteret er etablert, så en fiks er mekanisk |
+
+⚠️ **Dette er ikke «akseptert risiko» — det er et uløst funn.** Kenneth har ikke tatt stilling
+til det, og en føring som sier at risikoen er godtatt ville vært et vedtak ingen har fattet.
+

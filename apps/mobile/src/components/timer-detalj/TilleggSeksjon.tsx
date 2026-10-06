@@ -7,7 +7,6 @@ import {
   ScrollView,
   Modal,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -31,6 +30,8 @@ import { fjernTilleggVedleggServer } from "../../services/bildeRegistrering";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
 import { AUTH_CONFIG } from "../../config/auth";
 import { trpc } from "../../lib/trpc";
+import { AutentisertBilde } from "../AutentisertBilde";
+import { BildeFallback } from "../BildeFallback";
 import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { VelgerFelt } from "./VelgerFelt";
@@ -307,9 +308,10 @@ type LokaltTilleggVedlegg = typeof sheetTilleggVedleggLocal.$inferSelect;
 
 /**
  * Én kvittering-miniatyr. S1 Fase 1: server-vedlegg bor under /uploads/privat/
- * og serveres signatur-KUN. En naken <Image> uten cookie kan ikke autentisere,
- * så når den lokale filen er borte (slettet etter opplasting) hentes en kortlevd
- * signert URL via `signerTilleggVedlegg`. Lokal fil foretrekkes (offline/nett-fri
+ * og serveres signatur-KUN. Bildeforespørselen bærer Bearer via `AutentisertBilde`
+ * (mobilens motstykke til webs cookie-bårne <img>), så når den lokale filen er
+ * borte (slettet etter opplasting) hentes en kortlevd signert URL via
+ * `signerTilleggVedlegg` og vises autentisert. Lokal fil foretrekkes (offline/nett-fri
  * + sparer round-trip). Uten nett + uten lokal fil vises ingenting (degraderer).
  */
 function VedleggBilde({
@@ -336,7 +338,11 @@ function VedleggBilde({
   return (
     <View className="relative">
       {uri && (
-        <Image source={{ uri }} className="h-20 w-20 rounded-lg bg-gray-100" />
+        <AutentisertBilde
+          uri={uri}
+          className="h-20 w-20 rounded-lg bg-gray-100"
+          fallback={<BildeFallback className="h-20 w-20" />}
+        />
       )}
       {!v.serverUrl && (
         <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-center gap-1 rounded-b-lg bg-black/50 py-0.5">

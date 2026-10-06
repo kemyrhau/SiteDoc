@@ -21,11 +21,11 @@ import { aktivitetLocal } from "../../src/db/schema";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
-import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
+import { hentByggeplasserForFirmaLokalt } from "../../src/services/byggeplassKatalog";
 import { finnEllerOpprettDagsseddel } from "../../src/services/dagsseddelOpprett";
-import { haversineKm } from "../../src/utils/geo";
-import { trpc } from "../../src/lib/trpc";
+import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
+import { useProsjektListe } from "../../src/hooks/useProsjektListe";
 import { eq } from "drizzle-orm";
 
 type Prosjekt = { id: string; name: string; projectNumber: string | null };
@@ -65,15 +65,9 @@ export default function NyDagsseddelSide() {
   const [lagrer, setLagrer] = useState(false);
   const [geoForslagId, setGeoForslagId] = useState<string | null>(null);
 
-  // Hent prosjekter (online — for offline-bruk må klargjøring kjøres først)
-  const { data: prosjekterData } = trpc.prosjekt.hentMine.useQuery(
-    { organizationId: valgtFirmaId ?? undefined },
-    {
-      enabled: !!valgtFirmaId,
-      staleTime: 60 * 1000,
-    },
-  );
-  const prosjekter = (prosjekterData ?? []) as unknown as Prosjekt[];
+  // Prosjekter via delt hook med offline-fallback til prosjekt_local (feltfunn 2026-10-04):
+  // uten nett var lista tom og arbeideren kom ikke videre med manuell dagsseddel.
+  const { prosjekter } = useProsjektListe();
 
   // Hent aktive aktiviteter fra lokal cache (offline-trygt — uavhengig av org-id
   // siden hver bruker kun har sitt firmas data lokalt)
@@ -101,10 +95,11 @@ export default function NyDagsseddelSide() {
     }
   }, [aktiviteter, valgtAktivitet]);
 
-  // T7-3b2 geo-forslag: ved sideåpning, hent GPS-posisjon og finn nærmeste
-  // prosjekt fra prosjekt_local innenfor 500m radius (Haversine). Forhåndsvelg
+  // T7-3b2 geo-forslag: ved sideåpning, hent GPS-posisjon og gjenkjenn
+  // byggeplass via geofence (A2); byggeplassens prosjekt blir forslaget (H2,
+  // LAG 1-A — tidligere nærmeste prosjektpunkt innenfor 500 m). Forhåndsvelg
   // hvis bruker ikke allerede har valgt manuelt. Faller stille tilbake ved
-  // tillatelse-avslag eller ingen nærhet — manuell velger fungerer som før.
+  // tillatelse-avslag eller ingen treff — manuell velger fungerer som før.
   useEffect(() => {
     if (valgtProsjekt) return; // bruker har allerede valgt
     if (!bruker) return;
@@ -124,24 +119,30 @@ export default function NyDagsseddelSide() {
           .filter((p) => p.primaryOrganizationId);
         const orgId = lokale[0]?.primaryOrganizationId;
         if (!orgId) return;
-        const kandidater = hentProsjekterLokalt(orgId).filter(
-          (p): p is typeof p & { lat: number; lng: number } =>
-            p.lat !== null && p.lng !== null,
+        // H2 (LAG 1-A): gjenkjenn byggeplass via geofence (A2), i stedet for
+        // nærmeste prosjektpunkt innenfor 500 m. Byggeplassens prosjekt blir
+        // forslaget. Lag 1 (2026-10-02): GPS-treff er FORSLAG; arbeider-valg
+        // går foran (arbeideren kan overstyre i velgeren).
+        // V17-A: kandidater via tilGeofencer (A4) — radius-null-filteret er borte.
+        // Treff mappes tilbake til byggeplass-raden for prosjektet (Sirkel bærer
+        // ikke projectId). I V17-A: én sirkel pr. byggeplass (ingen sone-data).
+        const rader = hentByggeplasserForFirmaLokalt(orgId);
+        const kandidater = rader.flatMap((b) =>
+          tilGeofencer({
+            id: b.id,
+            lat: b.lat,
+            lng: b.lng,
+            radiusM: b.radiusM,
+            soner: [],
+          }),
         );
-        let beste: { id: string; avstand: number } | null = null;
-        for (const p of kandidater) {
-          const km = haversineKm(
-            pos.coords.latitude,
-            pos.coords.longitude,
-            p.lat,
-            p.lng,
-          );
-          if (km <= 0.5 && (!beste || km < beste.avstand)) {
-            beste = { id: p.id, avstand: km };
-          }
-        }
-        if (avbrutt || !beste) return;
-        const treff = prosjekter.find((p) => p.id === beste.id);
+        const byggTreff = gjenkjennSted(
+          { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          kandidater,
+        );
+        if (avbrutt || !byggTreff) return;
+        const byggRad = rader.find((b) => b.id === byggTreff.sted.id);
+        const treff = prosjekter.find((p) => p.id === byggRad?.projectId);
         if (treff) {
           setGeoForslagId(treff.id);
           setValgtProsjekt(treff);

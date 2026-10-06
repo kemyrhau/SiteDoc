@@ -54,6 +54,7 @@ export {
   kanonisk,
   harMeningsfullLabel,
   normaliserOpsjon,
+  trafikklysEtikettPdf,
   formaterDato,
   formaterDatoTid,
   formaterDatoTidKort,

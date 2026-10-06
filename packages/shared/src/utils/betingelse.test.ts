@@ -113,7 +113,7 @@ describe("erObjektSynlig — de tre hook-tilfellene (DoD #4)", () => {
       { id: "p", type: "list_single", config: { conditionActive: false, conditionValues: ["ja"] } },
       { id: "c", type: "text", parentId: "p", config: {} },
     ];
-    const barn = tre[1];
+    const barn = tre[1]!;
     expect(erObjektSynlig(barn, tre, () => "hva-som-helst")).toBe(true);
     expect(erObjektSynlig(barn, tre, () => null)).toBe(true);
   });
@@ -123,7 +123,7 @@ describe("erObjektSynlig — de tre hook-tilfellene (DoD #4)", () => {
       { id: "p", type: "decimal", config: { conditionActive: true, conditionType: "utenfor_krav", maks: 10 } },
       { id: "avvik", type: "text", parentId: "p", config: {} },
     ];
-    const barn = tre[1];
+    const barn = tre[1]!;
     // Verdi 15 > maks 10 → utenfor krav → avviksfeltet vises.
     expect(erObjektSynlig(barn, tre, (id) => (id === "p" ? 15 : undefined))).toBe(true);
     // Verdi 5 ≤ maks 10 → innenfor → skjult.
@@ -136,7 +136,7 @@ describe("erObjektSynlig — de tre hook-tilfellene (DoD #4)", () => {
       { id: "mellom", type: "text", parentId: "p", config: {} },
       { id: "dyp", type: "text", parentId: "mellom", config: {} },
     ];
-    const dyp = tre[2];
+    const dyp = tre[2]!;
     // p = "ja" → hele kjeden synlig.
     expect(erObjektSynlig(dyp, tre, (id) => (id === "p" ? "ja" : undefined))).toBe(true);
     // p = "nei" → mellom skjult → dyp skjult.
@@ -161,12 +161,12 @@ describe("erObjektSynlig — maler uten betingelser er uendret (DoD #3)", () => 
       { id: "rep", type: "repeater", config: {} },
       { id: "rad", type: "text", parentId: "rep", config: {} },
     ];
-    expect(erObjektSynlig(tre[1], tre, () => undefined)).toBe(true);
+    expect(erObjektSynlig(tre[1]!, tre, () => undefined)).toBe(true);
   });
 
   it("betingelses-forelder finnes ikke i settet → barnet vises (sikkerhets-fallback)", () => {
     const tre: SynlighetsObjekt[] = [{ id: "foreldreløs", type: "text", parentId: "borte", config: {} }];
-    expect(erObjektSynlig(tre[0], tre, () => undefined)).toBe(true);
+    expect(erObjektSynlig(tre[0]!, tre, () => undefined)).toBe(true);
   });
 });
 

@@ -937,6 +937,9 @@ function StandardArbeidstidSeksjon() {
   const [tidsrunding, setTidsrunding] = useState<string>("15");
   // Slice 4b-2: arbeidstids-varsel-terskel (timer/dagsseddel). 13 default, 16 tariff.
   const [arbeidstidVarsel, setArbeidstidVarsel] = useState<string>("13");
+  // B6 v3 (V16): dagsnorm-kilde. B3 (V6): pausevinduets referanse.
+  const [normKilde, setNormKilde] = useState<string>("fast");
+  const [pauseReferanse, setPauseReferanse] = useState<string>("ankomst");
   const [skitten, setSkitten] = useState(false);
 
   useEffect(() => {
@@ -949,6 +952,8 @@ function StandardArbeidstidSeksjon() {
         setting.tidsrundingMinutter === null ? "none" : String(setting.tidsrundingMinutter),
       );
       setArbeidstidVarsel(String(setting.arbeidstidVarselTimer));
+      setNormKilde(setting.normKilde ?? "fast");
+      setPauseReferanse(setting.pauseReferanse ?? "ankomst");
       setSkitten(false);
     }
   }, [setting]);
@@ -975,6 +980,8 @@ function StandardArbeidstidSeksjon() {
         standardPauseEtterTimer: pauseEtterTimer,
         tidsrundingMinutter: tidsrundingVerdi,
         arbeidstidVarselTimer: Number(arbeidstidVarsel),
+        normKilde: normKilde as "fast" | "kalender",
+        pauseReferanse: pauseReferanse as "fastStart" | "ankomst",
       },
       { onSuccess: () => setSkitten(false) },
     );
@@ -1113,6 +1120,56 @@ function StandardArbeidstidSeksjon() {
         </p>
       </div>
 
+      {/* B6 v3 (V16): dagsnorm-kilde — fast (lovnorm) vs kalender (sesong). */}
+      <div className="mt-3">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.standardArbeidstid.normKilde")}
+        </label>
+        <select
+          value={normKilde}
+          onChange={(e) => {
+            setNormKilde(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none sm:max-w-xs"
+        >
+          <option value="fast">
+            {t("firma.innstillinger.standardArbeidstid.normKildeFast")}
+          </option>
+          <option value="kalender">
+            {t("firma.innstillinger.standardArbeidstid.normKildeKalender")}
+          </option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.standardArbeidstid.normKildeHjelp")}
+        </p>
+      </div>
+
+      {/* B3 (V6): pausevinduets referanse — ankomst (etter reise) vs fast start. */}
+      <div className="mt-3">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.standardArbeidstid.pauseReferanse")}
+        </label>
+        <select
+          value={pauseReferanse}
+          onChange={(e) => {
+            setPauseReferanse(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none sm:max-w-xs"
+        >
+          <option value="ankomst">
+            {t("firma.innstillinger.standardArbeidstid.pauseReferanseAnkomst")}
+          </option>
+          <option value="fastStart">
+            {t("firma.innstillinger.standardArbeidstid.pauseReferanseFastStart")}
+          </option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.standardArbeidstid.pauseReferanseHjelp")}
+        </p>
+      </div>
+
       {skitten && startTid >= sluttTid && (
         <p className="mt-2 text-xs text-red-500">
           {t("firma.innstillinger.standardArbeidstid.feilRekkefolge")}
@@ -1199,7 +1256,7 @@ function ReiseSeksjon() {
   const [terskelKm, setTerskelKm] = useState<string>("");
   const [underType, setUnderType] = useState<string>("arbeidstid");
   const [overType, setOverType] = useState<string>("reisetid");
-  const [tellerOvertid, setTellerOvertid] = useState<boolean>(false);
+  // LAG 2 (C5): `tellerOvertid`-state fjernet — reisetid er aldri overtid (V1).
   const [lonnsartId, setLonnsartId] = useState<string>("");
   const [skitten, setSkitten] = useState(false);
   // Reise-avstandsskala (grensepunkter): redigerbare rader (km-input + art-valg;
@@ -1226,7 +1283,7 @@ function ReiseSeksjon() {
       );
       setUnderType(setting.reiseUnderTerskelType);
       setOverType(setting.reiseOverTerskelType);
-      setTellerOvertid(setting.reisetidTellerOvertid);
+      // LAG 2 (C5): reisetidTellerOvertid leses ikke lenger inn (avkrysning fjernet).
       setLonnsartId(setting.reiseLonnsartId ?? "");
       setSkitten(false);
       // Grensepunkter (allerede sortert stigende fra server) → km-visning.
@@ -1265,13 +1322,15 @@ function ReiseSeksjon() {
   const visTvetydigReiseArt =
     timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff >= 2;
 
-  // Reise-terskel-km: varsel når firmaet måler i km, men matrise-rader mangler
-  // avstand (beregnet før avstand-kolonnen). De klassifiseres da konservativt
-  // (under-type) til noen trykker «Beregn reisetid-matrise». Uten dette varselet
-  // ville en stille auto-recompute-feil aldri blitt synlig (gate-krav b).
-  const parUtenAvstand = setting.reiseMatriseParUtenAvstand;
-  const visMangelAvstand =
-    timerAktiv && setting.reiseTerskelEnhet === "km" && parUtenAvstand > 0;
+  // C5 (V14): datagrunnlag-tomhet synlig på matrise-flaten. H21 gikk uoppdaget i
+  // fire måneder fordi disse tallene aldri ble vist. To uavhengige mangler:
+  //  (1) byggeplasser i aktive prosjekter uten eget punkt → ingen reise beregnes
+  //      (prosjekt-arven er fjernet i C1), gjelder uansett terskelenhet.
+  //  (2) par markert uoppnåelig (ingen kjørbar rute) → reise kan ikke beregnes dit.
+  const byggeplasserUtenPunkt = setting.reiseByggeplasserUtenPunkt;
+  const parUoppnaaelige = setting.reiseParUoppnaaelige;
+  const visManglerPunkt = timerAktiv && byggeplasserUtenPunkt > 0;
+  const visUoppnaaelige = timerAktiv && parUoppnaaelige > 0;
 
   function lagre() {
     const min = Number(terskel);
@@ -1292,7 +1351,8 @@ function ReiseSeksjon() {
         ...(enhet === "km" ? { reiseTerskelM: terskelM } : {}),
         reiseUnderTerskelType: underType as "arbeidstid" | "reisetid",
         reiseOverTerskelType: overType as "arbeidstid" | "reisetid",
-        reisetidTellerOvertid: tellerOvertid,
+        // LAG 2 (C5): reisetidTellerOvertid sendes ikke lenger (V1). api beholder
+        // kolonnen (to-stegs), men verdien har ingen virkning på overtidsgrunnlaget.
         reiseLonnsartId: lonnsartId === "" ? null : lonnsartId,
       },
       { onSuccess: () => setSkitten(false) },
@@ -1473,18 +1533,10 @@ function ReiseSeksjon() {
         </Link>
       </div>
 
-      <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
-        <input
-          type="checkbox"
-          checked={tellerOvertid}
-          onChange={(e) => {
-            setTellerOvertid(e.target.checked);
-            setSkitten(true);
-          }}
-          className="h-4 w-4 rounded border-gray-300"
-        />
-        {t("firma.innstillinger.reise.tellerOvertid")}
-      </label>
+      {/* LAG 2 (C5, V1/V2): «Reisetid teller mot overtid» er fjernet — reisetid er
+          ALDRI overtid (Kenneth 2026-10-01). Serveren ekskluderer reise fra
+          overtidsgrunnlaget uansett; avkrysningen hadde ingen virkning lenger.
+          Kolonnen beholdes i DB/api til en senere release (to-stegs-policy). */}
 
       <div className="mt-4 flex justify-end">
         <KnappMedForklaring sperret={!skitten && !oppdater.isPending} forklaring={t("sperret.ingenEndringer")}>
@@ -1662,11 +1714,20 @@ function ReiseSeksjon() {
             </span>
           )}
         </div>
-        {visMangelAvstand && (
+        {visManglerPunkt && (
           <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-800">
-              {t("firma.innstillinger.reise.matriseMangelAvstand", {
-                antall: parUtenAvstand,
+              {t("firma.innstillinger.reise.matriseManglerPunkt", {
+                antall: byggeplasserUtenPunkt,
+              })}
+            </p>
+          </div>
+        )}
+        {visUoppnaaelige && (
+          <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm text-gray-600">
+              {t("firma.innstillinger.reise.matriseUoppnaaelige", {
+                antall: parUoppnaaelige,
               })}
             </p>
           </div>

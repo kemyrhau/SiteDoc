@@ -7,6 +7,8 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
+import { SignertBilde } from "@/components/SignertBilde";
+import { SignertLenke } from "@/components/SignertLenke";
 import {
   ArrowLeft,
   Pencil,
@@ -20,6 +22,7 @@ import {
   Split,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
@@ -33,6 +36,7 @@ import {
   hhmmTilMin,
   pauseOverlappMin,
   finnOverlappendeTidsrom,
+  type ForsonRad,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 
@@ -177,6 +181,18 @@ export default function DagsseddelDetaljSide() {
       { enabled: !!sheet?.organizationId },
     );
 
+  // B6 v3 (H22): topp-sum-normen hentes fra ÉN utledning på serveren
+  // (sommertid + normKilde), pr. sedelens dato — IKKE den flate dagsnorm-
+  // kolonnen. Samme svar som mobil (cachet) og attesteringsvarselet får.
+  const { data: effektivNorm } =
+    trpc.organisasjon.hentEffektivArbeidstid.useQuery(
+      {
+        organizationId: sheet?.organizationId ?? "",
+        dato: sheet ? new Date(sheet.dato).toISOString().slice(0, 10) : "",
+      },
+      { enabled: !!sheet?.organizationId && !!sheet?.dato },
+    );
+
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
     | {
@@ -259,6 +275,14 @@ export default function DagsseddelDetaljSide() {
       ),
   });
 
+  // V19-C (C-1): arbeiderens valg mellom PC og mobilens forslag → forsonDagskort.
+  // Server er sannheten (nuller konfliktVentendeSiden + sletter forslag atomisk);
+  // onSuccess invaliderer detaljen så banneret forsvinner når feltet er nullet.
+  const forson = trpc.timer.dagsseddel.forsonDagskort.useMutation({
+    onSuccess: () => utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id }),
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
   // Kaster tRPC-respons til en enklere type for å unngå TS2589 (excessively
   // deep instantiation). hentMine returnerer Project med faggrupper + _count
   // som gir dyp type-tre.
@@ -303,6 +327,47 @@ export default function DagsseddelDetaljSide() {
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
   const utleggRader = ((sheet as { utlegg?: unknown }).utlegg ?? []) as unknown as UtleggRad[];
+
+  // V19-C (C-1): mobilens forslag (SheetTimerForslag) + serverradene mappet til
+  // ForsonRad (timer er Decimal/streng over tRPC → tilTall). Rekkefølgen av felt
+  // speiler ForsonRad; begge sider mappes likt så byggForsonInputFraValg får ren
+  // input.
+  const tilForsonRad = (r: {
+    id: string;
+    projectId: string;
+    byggeplassId: string | null;
+    lonnsartId: string;
+    aktivitetId: string;
+    timer: unknown;
+    fraTid: string | null;
+    tilTid: string | null;
+    beskrivelse: string | null;
+    externalCostObjectId: string | null;
+    vehicleId: string | null;
+    // V19.9 (C'-1): forslagsradens grunn (SheetTimerForslag.grunn) styrer slot-
+    // visningen. Sedelradene (serverens timer) har den ikke → undefined (ren overlapp).
+    grunn?: string | null;
+  }): ForsonRad => ({
+    id: r.id,
+    projectId: r.projectId,
+    byggeplassId: r.byggeplassId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: tilTall(r.timer),
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    beskrivelse: r.beskrivelse,
+    externalCostObjectId: r.externalCostObjectId,
+    vehicleId: r.vehicleId,
+    grunn: r.grunn as ForsonRad["grunn"],
+  });
+  type ForslagRad = Parameters<typeof tilForsonRad>[0];
+  const forslagRader = ((sheet as { forslag?: ForslagRad[] }).forslag ?? []).map(
+    tilForsonRad,
+  );
+  const sedelForsonRader = timerRader.map((r) =>
+    tilForsonRad(r as unknown as ForslagRad),
+  );
 
   // Bolk (f): har leder attestert minst én rad? Da blokkerer server-vakten
   // gjenåpning — deaktiver knappen og be arbeideren kontakte leder for retur.
@@ -387,11 +452,12 @@ export default function DagsseddelDetaljSide() {
   );
   for (const pid of ekstraProsjektIder) noterProsjekt(pid);
 
-  // Topp-sum-norm = firmaets dagsnorm (fase-0:1041), decouplet fra arbeidstid-
-  // vinduet: en kort dag er gyldig og akseptert (blå), ikke en falsk «under
-  // norm»-alarm. Web bruker flat OrganizationSetting.dagsnorm (sesongjustering
-  // krever server-endepunkt → utenfor scope); null til orgSetting er lastet (grå).
-  const normTimer = orgSetting ? tilTall(orgSetting.dagsnorm) : null;
+  // Topp-sum-norm = firmaets dagsnorm for sedelens dato (fase-0:1041), decouplet
+  // fra arbeidstid-vinduet: en kort dag er gyldig og akseptert (blå), ikke en
+  // falsk «under norm»-alarm. B6 v3 (H22): sesongjustert via server-servicen
+  // (`hentEffektivArbeidstid`) — ikke lenger flat kolonne. null til lastet (grå).
+  const normTimer =
+    effektivNorm != null ? tilTall(effektivNorm.dagsnorm) : null;
 
   // Filtrer prosjekter som ikke er aktive ennå (tilgjengelige for «+ Legg til prosjekt»)
   const ledigeProsjekter = prosjekterForVelger.filter(
@@ -502,6 +568,20 @@ export default function DagsseddelDetaljSide() {
             {t("timer.maskinforerbevis.arbeider")}
           </p>
         </div>
+      )}
+
+      {/* V19-C (C-1): mobilen overlappet PC-dagskortet → arbeideren velger side.
+          Vises kun når det finnes et uavklart forslag (eier-queryen leverer
+          forslaget; attestering er blokkert på serveren til valget er gjort). */}
+      {forslagRader.length > 0 && (
+        <ForslagValgSeksjon
+          sedelRader={sedelForsonRader}
+          forslag={forslagRader}
+          bekrefter={forson.isPending}
+          onBekreft={(input) =>
+            forson.mutate({ sheetId: sheet.id, ...input })
+          }
+        />
       )}
 
       {/* Header-info — sedel-nivå */}
@@ -1396,19 +1476,18 @@ function RaderTillegg({
               {rad.vedlegg && rad.vedlegg.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-2">
                   {rad.vedlegg.map((v) => (
-                    <a
+                    <SignertLenke
                       key={v.id}
-                      href={`/api${v.fileUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      url={v.fileUrl}
+                      nyFane
                       title={v.fileName}
                     >
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={t("timer.vedlegg.tittel")}
                         className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
                       />
-                    </a>
+                    </SignertLenke>
                   ))}
                 </div>
               )}
@@ -2489,9 +2568,8 @@ function TilleggRadDialog({
                 <div className="flex flex-wrap gap-2">
                   {radVedlegg.map((v) => (
                     <div key={v.id} className="relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={v.fileName}
                         className="h-16 w-16 rounded border border-gray-200 object-cover"
                       />
@@ -2641,20 +2719,18 @@ function RaderUtlegg({
               {rad.vedlegg && rad.vedlegg.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-2">
                   {rad.vedlegg.map((v) => (
-                    <a
+                    <SignertLenke
                       key={v.id}
-                      href={`/api${v.fileUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      url={v.fileUrl}
+                      nyFane
                       title={v.fileName}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={t("timer.vedlegg.tittel")}
                         className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
                       />
-                    </a>
+                    </SignertLenke>
                   ))}
                 </div>
               )}
@@ -3135,9 +3211,8 @@ function UtleggRadDialog({
                 <div className="flex flex-wrap gap-2">
                   {radVedlegg.map((v) => (
                     <div key={v.id} className="relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={v.fileName}
                         className="h-16 w-16 rounded border border-gray-200 object-cover"
                       />

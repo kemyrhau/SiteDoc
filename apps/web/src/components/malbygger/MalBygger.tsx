@@ -35,6 +35,7 @@ import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
 import { useMalDatakilde, tilMalObjekt, type MalNivaa } from "./useMalDatakilde";
 import { OppdaterFraHovedmalModal } from "./OppdaterFraHovedmalModal";
+import { SignertBilde } from "@/components/SignertBilde";
 import { MapPin, Pencil, FileText, Eye, EyeOff, AlertTriangle, Globe, Check, Building2, RefreshCw } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
@@ -505,7 +506,10 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
         sortOrder = siste ? siste.sortOrder + 1 : 0;
       }
 
-      const nyConfig: Record<string, unknown> = { ...meta.defaultConfig, zone: målSone };
+      // Palett-variant (trafikklys tre/fire lys) sår egen config; ellers type-defaulten. Objekt-
+      // etiketten er alltid type-navnet — «(3 lys)» er en palett-affordans, ikke et feltnavn.
+      const seedConfig = data.seedConfig as Record<string, unknown> | undefined;
+      const nyConfig: Record<string, unknown> = { ...(seedConfig ?? meta.defaultConfig), zone: målSone };
 
       datakilde.leggTilObjekt.mutate({
         templateId: mal.id,
@@ -1200,8 +1204,8 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
       return (
         <figure className="mb-4">
           {url ? (
-            <img
-              src={url.startsWith("http") ? url : `/api${url}`}
+            <SignertBilde
+              url={url}
               alt={caption}
               className="max-w-full rounded-lg border border-gray-200"
             />

@@ -131,3 +131,19 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `gpsTilTegning()`, `tegningTilGps()`, `erInnenforTegning()`
 - `utm33TilLatLng()` — UTM sone 33N → WGS84
 - `parserKoordinater(tekst)` — UTM33, DMS, desimal
+
+### Bildeannotering (`packages/shared/src/annotering/`)
+
+Tegnemotoren for bildeannotering bor her som ÉN delt kilde — web og mobil deler den (mønster som `@sitedoc/pdf`: HTML-streng i en delt pakke).
+
+- **`ANNOTERINGS_HTML`** (`annoterings-html.ts`) — komplett HTML+JS (Fabric.js) som en streng. Mobil laster den via `WebView source={{ html }}`, web via `<iframe srcDoc>`. Broen er **toveis og selv-detekterende**: `window.ReactNativeWebView.postMessage` (RN) ELLER `window.parent.postMessage` (iframe) — én implementasjon, ingen grener som drifter. Mottak lytter på både `document` (RN Android) og `window` (iOS + iframe). Verktøy: pil/sirkel/firkant/frihånd/tekst + **select** (flytt eksisterende objekt).
+- 🔴 **Fabric fra CDN** (`cdnjs`, versjon = `FABRIC_VERSJON`). Web-appen setter ingen CSP-header (`next.config.js`: kun HSTS + X-Frame-Options), så CDN-en laster i begge flater fra samme `<script src>` — én kilde. Endres versjonen, endres den i HTML-strengen OG i `FABRIC_VERSJON` (voktet av `annoterings-html.test.ts`).
+- **Eksport:** JPEG q0.92, hvit bakgrunn, originaloppløsning. 🔴 ALDRI PNG (PNG q1 av foto = 3–4 MB; målt 2026-08-26, BACKLOG-772). Voktet av test.
+
+**Lag-formatet** (`lag.ts`) — tre-artefakt-modellen (Kenneth-vedtak 2026-09-29):
+
+- **`AnnoteringsLag`** = `{ fabricVersion, bredde, hoyde, objekter }`. Lagres sammen med vedlegget (Checklist.data). `objekter` er Fabric `toObject().objects` (uten bakgrunnsbildet — det er originalen, lagret separat). `bredde`/`hoyde` er canvas-dimensjonene (display-piksler) da laget ble laget.
+- 🔴 **`FABRIC_VERSJON`** lagres MED hvert lag: JSON-en er Fabrics eget serialiseringsformat, og en framtidig oppgradering kan gjøre gamle lag uleselige. Med versjonen lagret kan feilsøking om to år SE hvorfor. Den utflatede JPEG-en består uansett — et ulesbart lag koster redigerbarhet, aldri bildet.
+- **`reskalerLagObjekt(obj, ratio)`** — koordinat-normalisering: et lag laget på én canvas-størrelse (mobil) åpnet på en annen (web) reskaleres mot lagret `bredde`. Type-agnostisk (`left`/`top`/`scaleX`/`scaleY` dekker alle Fabric-typer). 🔴 **Tvilling** inlinet i `ANNOTERINGS_HTML` (HTML-strengen kan ikke importere); denne er den testbare — endres formelen ett sted, endres den begge. Tester: `lag.test.ts`.
+
+Web-side (opplasting, `originalUrl`-bevaring, gjenåpne-på-original, bakoverkompat): `apps/web/.../rapportobjekter/annotering-lag.ts` + [web.md § Bildeannotering](web.md). Mobil-side (dagens erstatt-original-atferd, lag-runden kommer separat): [mobil.md § Bildeannotering](mobil.md).

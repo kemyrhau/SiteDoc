@@ -1,8 +1,20 @@
+import { useMemo } from "react";
 import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, ChevronRight, AlertCircle } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ChevronRight,
+  AlertCircle,
+  AlertTriangle,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import {
+  beregnUkeAvvik,
+  avvikRetning,
+  mandagIso,
+  type UkeAvvik,
+} from "@sitedoc/shared";
 import { trpc } from "../../../src/lib/trpc";
 import { useFirma } from "../../../src/kontekst/FirmaKontekst";
 import { formatNorskDato } from "../../../src/utils/dato";
@@ -25,6 +37,15 @@ type AttesteringRad = {
     name: string;
     projectNumber: string;
   } | null;
+  // ORDRE 2 STEG 3 ledd 2 (D2): server-avledet dag-grunnlag + ukenorm, servert
+  // av hentTilAttesteringFirma (:2547/:2549). Brukes til uke-avvik-badgen.
+  overtidsgrunnlag?: {
+    sumOrdinaert: number;
+    sumOvertid: number;
+    beregnetOvertid: number;
+    avvik: boolean;
+  } | null;
+  ukenorm?: number;
 };
 
 /**
@@ -52,6 +73,42 @@ export default function AttesteringListeSide() {
       { organizationId: orgId ?? "" },
       { enabled: !!orgId && kanAttestere },
     );
+
+  const sedler = useMemo(
+    () => (rader as unknown as AttesteringRad[] | undefined) ?? [],
+    [rader],
+  );
+
+  // ORDRE 2 STEG 3 ledd 2 (D2): uke-avvik pr. (ansatt + uke). Lista er ikke
+  // uke-filtrert (mobil sender ingen dato-range), så nøkkelen MÅ bære uken —
+  // ellers blandes flere ukers rader. Samme funksjon som web (delt kilde).
+  const avvikPerNokkel = useMemo(() => {
+    const bøtter = new Map<
+      string,
+      { totaltimer: number; ukenorm: number; sumOvertid: number }[]
+    >();
+    for (const s of sedler) {
+      const ansattId = s.ansatt?.id;
+      if (!ansattId) continue;
+      const nokkel = `${ansattId}-${mandagIso(s.dato)}`;
+      const liste = bøtter.get(nokkel) ?? [];
+      liste.push({
+        totaltimer: s.totaltimer,
+        ukenorm: s.ukenorm ?? 0,
+        sumOvertid: s.overtidsgrunnlag?.sumOvertid ?? 0,
+      });
+      bøtter.set(nokkel, liste);
+    }
+    const ut = new Map<string, UkeAvvik>();
+    for (const [nokkel, liste] of bøtter) ut.set(nokkel, beregnUkeAvvik(liste));
+    return ut;
+  }, [sedler]);
+
+  const avvikFor = (s: AttesteringRad): UkeAvvik | null => {
+    const ansattId = s.ansatt?.id;
+    if (!ansattId) return null;
+    return avvikPerNokkel.get(`${ansattId}-${mandagIso(s.dato)}`) ?? null;
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -85,10 +142,11 @@ export default function AttesteringListeSide() {
           </View>
         ) : (
           <View className="mt-4">
-            {(rader as unknown as AttesteringRad[]).map((rad) => (
+            {sedler.map((rad) => (
               <SedelKort
                 key={rad.id}
                 rad={rad}
+                avvik={avvikFor(rad)}
                 onTrykk={() => router.push(`/timer/attestering/${rad.id}`)}
               />
             ))}
@@ -101,12 +159,15 @@ export default function AttesteringListeSide() {
 
 function SedelKort({
   rad,
+  avvik,
   onTrykk,
 }: {
   rad: AttesteringRad;
+  avvik: UkeAvvik | null;
   onTrykk: () => void;
 }) {
   const { t } = useTranslation();
+  const retning = avvik ? avvikRetning(avvik) : null;
   return (
     <Pressable
       onPress={onTrykk}
@@ -142,6 +203,19 @@ function SedelKort({
           {" · "}
           {rad.antallRader} rader
         </Text>
+        {/* D2-attestantvarsel (ledd 2): uke-avvik-badge — kun badgen på mobil. */}
+        {retning && avvik && (
+          <View className="mt-1.5 flex-row items-center gap-1 self-start rounded bg-amber-50 px-1.5 py-0.5">
+            <AlertTriangle size={12} color="#b45309" />
+            <Text className="text-[11px] font-medium text-amber-700">
+              {retning === "over"
+                ? t("timer.attestering.pivot.avvikOver", {
+                    timer: avvik.avvikTimer.toFixed(1),
+                  })
+                : t("timer.attestering.pivot.avvikUnder")}
+            </Text>
+          </View>
+        )}
       </View>
       <ChevronRight size={20} color="#9ca3af" />
     </Pressable>

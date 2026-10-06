@@ -819,6 +819,59 @@ PSI (Prosjektspesifikk Sikkerhetsinstruks) er distinkt fra sjekkliste — det er
 6. Tilgang til byggeplassen registreres
 7. **Fase 4 (planlagt):** PSI utvides med innsjekk/utsjekk-mekanikk + mannskaps-vy som aggregerer §15-liste-data
 
+### 🔴 BINDENDE: PSI er PER BYGGEPLASS, og et prosjekt kan ha ti av dem (Kenneth 2026-09-27)
+
+> «ikke alle byggeplasser skal ha psi. når psi er slått på → da skal byggeplassen kreve psi. det
+> betyr i praksis at et prosjekt kan ha ti forskjellige psi»
+
+**Tre ting dette binder:**
+
+1. **PSI er opt-in pr. byggeplass.** En byggeplass uten PSI er en gyldig tilstand, ikke en mangel.
+2. 🔴 **Er PSI slått på for en byggeplass, KREVER byggeplassen PSI.** Da er det ikke valgfritt
+   lenger — instruksen er en forutsetning for adgang, og adgangen gjelder den byggeplassen.
+3. 🔴 **Antallet PSI pr. prosjekt er ubegrenset i praksis.** Ti byggeplasser med PSI = ti PSI-er.
+   **Enhver garanti, kvote, UI-liste eller spørring som antar «én PSI pr. prosjekt» er feil.**
+
+⚠️ **Dette står ikke i motstrid til [§ byggeplass er et VALGFRITT oppdelingsnivå](#-bindende-byggeplass-er-et-valgfritt-oppdelingsnivå--uten-byggeplass-er-normaltilstanden-kenneth-2026-09-04).**
+Et prosjekt uten byggeplasser har én PSI på prosjektnivå (`Psi.byggeplassId = null`,
+`schema.prisma:2142`). Deles prosjektet opp, flyttes PSI ned til byggeplassnivå — **det er
+oppdelingen som avgjør nivået, ikke PSI-en.**
+
+#### 🟡 MANGEL: én PSI på prosjektet skal kunne DEKKE alle byggeplasser (Kenneth 2026-09-27)
+
+> «det bør kunne være en psi på et prosjekt som da støtter alle byggeplasser»
+
+🔴 **Det støttes ikke i dag. Målt 2026-09-27 — det finnes ingen arveregel noe sted:**
+
+- `psiWhere()` (`apps/api/src/routes/psi.ts:8`) slår opp på `projectId_byggeplassId` med
+  `byggeplassId ?? null`. **Et oppslag for byggeplass X treffer bare en PSI som er registrert
+  på X** — den faller ikke tilbake til prosjektnivå-PSI-en.
+- `hentForProsjekt` (`:19`) og `hentForProsjektPublic` (`:611`) returnerer alle PSI-er **flatt**,
+  hver med sin `byggeplass`. **Klienten plukker; ingen regel sier at prosjektnivå-PSI-en gjelder
+  for en byggeplass uten egen PSI.**
+- ⚠️ **Dagens omvei er `kopier` (`:629`)** — deep copy av mal og rapportobjekter til hver
+  byggeplass. **Det er duplisering, altså det motsatte av én som dekker alle:** rettes teksten i
+  én, drifter de andre.
+
+🟡 **Tre spørsmål en framtidig ordre må svare på — ikke besvart her:**
+1. **Dekning eller arv?** Gjelder prosjekt-PSI-en alle byggeplasser *unntatt* de som har sin egen
+   (arv med overstyring), eller er de to gjensidig utelukkende pr. prosjekt?
+2. **Hva signeres?** `PsiSignatur` peker på én `Psi`. Signerer ti personer på ti byggeplasser
+   samme prosjekt-PSI, må signaturen bære HVILKEN byggeplass adgangen gjaldt — ellers vet
+   mannskapslista ikke hvem som er hvor.
+3. **Hva med kravet?** «Er PSI slått på for en byggeplass, KREVER byggeplassen PSI» — er kravet
+   oppfylt av en dekkende prosjekt-PSI, eller må byggeplassen ha sin egen?
+
+**Ført i [BACKLOG](BACKLOG.md). Ikke bestilt.**
+
+🔴 **Konsekvens for DB-garantien, målt 2026-09-27:** den sammensatte unike indeksen
+`@@unique([projectId, byggeplassId])` (`schema.prisma:2156`) er den RIKTIGE garantien for
+byggeplass-PSI-er. **Men `byggeplassId` er nullable, og Postgres regner NULL-er som ULIKE i en
+unik indeks** — så den hindrer ikke to PSI-er på prosjektnivå i samme prosjekt. **I prod er det i
+dag hindret ved et uhell**, av den foreldreløse `psi_project_id_key`-indeksen som skal fjernes.
+⚠️ **Fjernes den alene, byttes én feil mot en annen.** Ført i
+[BACKLOG § PSI](BACKLOG.md).
+
 ---
 
 ## Arbeidsflyt — Onboarding av ny ansatt

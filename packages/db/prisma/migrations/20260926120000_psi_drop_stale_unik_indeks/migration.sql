@@ -1,0 +1,32 @@
+-- Fjerner den foreldreløse UNIQUE-indeksen "psi_project_id_key" (project_id ALENE).
+--
+-- Bakgrunn (målt 2026-09-24, skjema-sammenligning test mot prod):
+--   * 20260403090000_psi_modul lagde indeksen med `CREATE UNIQUE INDEX` — altså en
+--     ren indeks, IKKE en named constraint (ingen rad i pg_constraint).
+--   * 20260403120000_psi_building prøvde å fjerne den med
+--     `ALTER TABLE "psi" DROP CONSTRAINT IF EXISTS "psi_project_id_key"`. DROP CONSTRAINT
+--     ser bare i pg_constraint, så på et indeks-navn er den en STILLE no-op — og IF EXISTS
+--     gjør at den ikke engang feiler. Indeksen overlevde i prod.
+--   * Konsekvens: PSI nr. 2 på en ANNEN byggeplass i samme prosjekt avvises, fordi project_id
+--     tvinges unik alene. Den sammensatte garantien er ment å være det eneste unike.
+--
+-- Riktig setning er DROP INDEX. IF EXISTS gjør migreringen idempotent — test-DB mangler
+-- allerede indeksen, der blir dette en trygg no-op.
+--
+-- URØRT: den sammensatte unike indeksen "psi_project_id_building_id_key" på
+-- ("project_id", "byggeplass_id") — kolonnen ble renamet i 20260405180000_navnegjennomgang
+-- uten at indeksen ble omdøpt, så navnet bærer fortsatt "building_id". Den er garantien som
+-- består. Ingen kolonne droppes, ingen NOT NULL settes (to-stegs-policy: dette er en indeks).
+DROP INDEX IF EXISTS "psi_project_id_key";
+
+-- Lukk NULL-hullet i SAMME migrering (Kenneth-vedtak 2026-09-27), så det aldri finnes et vindu der
+-- begge garantiene mangler. Psi.byggeplassId er NULLABLE ("null = gjelder hele prosjektet",
+-- schema.prisma). Den sammensatte unike indeksen @@unique([projectId, byggeplassId]) hindrer IKKE to
+-- PSI-er på prosjektnivå i samme prosjekt: Postgres regner NULL-er som ULIKE, så (project_id, NULL) +
+-- (project_id, NULL) kolliderer aldri der. I dag var hullet lukket ved et UHELL av den stale indeksen
+-- som droppes over. En PARTIELL unik indeks på project_id WHERE byggeplass_id IS NULL håndhever regelen
+-- direkte: høyst én prosjektnivå-PSI per prosjekt, uten å binde per-byggeplass-radene.
+-- IF NOT EXISTS gjør migreringen idempotent (test-DB kan alt ha den ved re-kjøring).
+-- FORHÅNDSSJEKK FØR DEPLOY: 0 prosjekter med 2+ PSI der byggeplass_id IS NULL (DRY-RUN spm. 4) — en
+-- CREATE UNIQUE INDEX feiler og ruller migreringen tilbake ved duplikater.
+CREATE UNIQUE INDEX IF NOT EXISTS "psi_prosjektniva_unik" ON "psi"("project_id") WHERE "byggeplass_id" IS NULL;

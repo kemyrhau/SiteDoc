@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon, TRAFIKKLYS_VALG, nb } from "@sitedoc/shared";
+import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon, TRAFIKKLYS_VALG, ukjentTrafikklysVerdi, nb, PROSJEKT_MODULER } from "@sitedoc/shared";
 import {
   lesSignaturVerdiPdf,
   formaterSignaturLinjePdf,
   feltKartFraRadPdf,
   normaliserOpsjon as normaliserOpsjonPdf,
   TRAFIKKLYS,
+  renderFelt,
 } from "@sitedoc/pdf";
 
 /**
@@ -123,4 +124,99 @@ describe("trafikklys-tvilling: TRAFIKKLYS_VALG (shared) ↔ TRAFIKKLYS (pdf)", (
       expect(TRAFIKKLYS[value]!.label).toBe(nbMap[i18nKey]);
     }
   });
-})
+});
+
+/**
+ * 🔴 Beslutnings-paritet (ikke bare kart-paritet): like verdisett er NØDVENDIG, ikke
+ * tilstrekkelig — pdf og shared kan behandle tom streng/whitespace ulikt uten at kart-vakten
+ * merker det. Denne binder «foreldreløs?»-avgjørelsen: shared `ukjentTrafikklysVerdi` ↔ pdf
+ * `renderFelt`. `trim()` er valgt kanon på BEGGE flater (et mellomrom er ikke et svar).
+ */
+describe("trafikklys foreldreløs-beslutning: shared ukjentTrafikklysVerdi ↔ pdf renderFelt", () => {
+  const config = { bildeBaseUrl: "/api" } as Parameters<typeof renderFelt>[2];
+  const obj = {
+    id: "f", type: "traffic_light", label: "Status", required: false,
+    config: {}, sortOrder: 0, parentId: null, children: [],
+  } as unknown as Parameters<typeof renderFelt>[0];
+  const pdfHtml = (verdi: unknown) =>
+    renderFelt(obj, { verdi, kommentar: "", vedlegg: [] } as unknown as Parameters<typeof renderFelt>[1], config);
+
+  it("ukjent verdi → foreldreløs på BEGGE (rå verdi vises, ikke «Ikke utfylt»)", () => {
+    expect(ukjentTrafikklysVerdi("gray_gammel")).toBe("gray_gammel");
+    const html = pdfHtml("gray_gammel");
+    expect(html).toContain("gray_gammel");
+    expect(html).not.toContain("Ikke utfylt");
+  });
+
+  it("tom streng → ubesvart på BEGGE", () => {
+    expect(ukjentTrafikklysVerdi("")).toBeNull();
+    expect(pdfHtml("")).toContain("Ikke utfylt");
+  });
+
+  it("ett mellomrom → ubesvart på BEGGE (trim-kanon; ingen uenighet)", () => {
+    expect(ukjentTrafikklysVerdi(" ")).toBeNull();
+    expect(pdfHtml(" ")).toContain("Ikke utfylt");
+  });
+
+  it("ikke-streng → ubesvart på BEGGE", () => {
+    expect(ukjentTrafikklysVerdi(123)).toBeNull();
+    expect(pdfHtml(123)).toContain("Ikke utfylt");
+  });
+
+  it("gyldig verdi → kjent på BEGGE (label, ikke foreldreløs)", () => {
+    expect(ukjentTrafikklysVerdi("green")).toBeNull();
+    const html = pdfHtml("green");
+    expect(html).toContain("Godkjent");
+    expect(html).not.toContain("Ikke utfylt");
+  });
+});
+
+/**
+ * 🔴 Valgbart lyssett i PDF (krav c pkt 3 + pkt 4). Arkiv-PDF-en rendrer `felt.verdi` mot sitt eget
+ * TRAFIKKLYS-kart; nå må den respektere feltets egne `options` (etikett-overstyring), ellers viser
+ * arkivet en annen etikett enn malen. pkt 4 kjører de TO systemmalenes FAKTISKE deklarasjoner
+ * (PROSJEKT_MODULER), ikke en kopi. Arkiv-PDF er nb-only, så «kanonisk» = norsk etikett.
+ */
+function trafikklysObjekt(options: unknown) {
+  return {
+    id: "f", type: "traffic_light", label: "Status", required: false,
+    config: options === undefined ? {} : { options }, sortOrder: 0, parentId: null, children: [],
+  } as unknown as Parameters<typeof renderFelt>[0];
+}
+function finnTrafikklysOptions(slug: string, label: string): unknown {
+  const modul = PROSJEKT_MODULER.find((m) => m.slug === slug);
+  const objekt = modul?.maler.flatMap((m) => m.objekter).find((o) => o.type === "traffic_light" && o.label === label);
+  if (!objekt) throw new Error(`Fant ikke traffic_light «${label}» i «${slug}»`);
+  return (objekt.config as { options: unknown }).options;
+}
+const pdfCfg = { bildeBaseUrl: "/api" } as Parameters<typeof renderFelt>[2];
+const pdfVerdi = (options: unknown, verdi: unknown) =>
+  renderFelt(trafikklysObjekt(options), { verdi, kommentar: "", vedlegg: [] } as unknown as Parameters<typeof renderFelt>[1], pdfCfg);
+
+describe("trafikklys valgbart lyssett — pdf renderFelt", () => {
+  it("(c3) egne options → feltets etikett, ikke den kanoniske", () => {
+    const html = pdfVerdi(
+      [{ value: "red", label: "Åpent" }, { value: "yellow", label: "Under behandling" }, { value: "green", label: "Lukket" }],
+      "red",
+    );
+    expect(html).toContain("Åpent");
+    expect(html).not.toContain("Avvik"); // kanonisk rød-etikett skal ikke lekke inn
+  });
+
+  it("(c3) uten options → kanonisk etikett uendret", () => {
+    const html = pdfVerdi(undefined, "green");
+    expect(html).toContain("Godkjent");
+  });
+
+  it("(c4) HMS-avvik «Status»: green rendrer «Lukket», ikke «Godkjent» (faktisk deklarasjon)", () => {
+    const html = pdfVerdi(finnTrafikklysOptions("hms-avvik", "Status"), "green");
+    expect(html).toContain("Lukket");
+    expect(html).not.toContain("Godkjent");
+  });
+
+  it("(c4) Godkjenning «Beslutning»: red rendrer «Avvist», ikke «Avvik» (faktisk deklarasjon)", () => {
+    const html = pdfVerdi(finnTrafikklysOptions("godkjenning", "Beslutning"), "red");
+    expect(html).toContain("Avvist");
+    expect(html).not.toMatch(/>[^<]*Avvik[^<]*</); // «Avvik» skal ikke stå som etikett
+  });
+});

@@ -95,8 +95,8 @@ export default function PsiLeser() {
       // Invalidér PSI-status slik at hjemskjermen oppdateres
       utils.psi.hentMinStatus.invalidate();
       utils.psi.hentForProsjekt.invalidate();
-      Alert.alert("PSI fullført", "Du har gjennomført og signert sikkerhetsinstruksen.", [
-        { text: "OK", onPress: () => router.back() },
+      Alert.alert(t("psi.ferdig"), t("psi.ferdigBeskrivelse"), [
+        { text: t("handling.ok"), onPress: () => router.back() },
       ]);
     },
   });
@@ -208,7 +208,7 @@ export default function PsiLeser() {
           data: feltVerdier as Record<string, unknown>,
         });
       } catch (err) {
-        Alert.alert("Feil", `Kunne ikke fullføre PSI: ${err instanceof Error ? err.message : "Ukjent feil"}`);
+        Alert.alert(t("feil.noeGikkGalt"), t("psi.fullforFeil", { feil: err instanceof Error ? err.message : t("feil.ukjent") }));
         return; // IKKE marker fullført — sendingen nådde ikke fram
       }
       setSeksjonFullfort((prev) => new Set(prev).add(aktivSeksjon));
@@ -236,7 +236,7 @@ export default function PsiLeser() {
       <SafeAreaView className="flex-1 bg-white">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
-          <Text className="mt-3 text-sm text-gray-500">Laster sikkerhetsinstruks...</Text>
+          <Text className="mt-3 text-sm text-gray-500">{t("psi.laster")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -247,7 +247,7 @@ export default function PsiLeser() {
       <SafeAreaView className="flex-1 bg-white">
         <Header onTilbake={() => router.back()} onLukk={() => router.back()} tittel="PSI" />
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-sm text-gray-500">Ingen innhold i PSI</Text>
+          <Text className="text-sm text-gray-500">{t("psi.ingenInnhold")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -325,7 +325,7 @@ export default function PsiLeser() {
               <View key={objekt.id} className="mt-4">
                 {/* HMS-kortnummer */}
                 <Text className="mb-1 text-sm font-medium text-gray-700">
-                  HMS-kortnummer <Text className="font-normal text-gray-400">(valgfritt)</Text>
+                  {t("psi.hmsKort")} <Text className="font-normal text-gray-400">{t("psi.valgfritt")}</Text>
                 </Text>
                 {!harIkkeHmsKort && (
                   <TextInput
@@ -333,7 +333,7 @@ export default function PsiLeser() {
                     onChangeText={(t) => setHmsKortNr(t.replace(/\D/g, "").slice(0, 7))}
                     keyboardType="number-pad"
                     maxLength={7}
-                    placeholder="7 siffer"
+                    placeholder={t("psi.hmsKortPlaceholder")}
                     className="mb-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
                   />
                 )}
@@ -344,9 +344,9 @@ export default function PsiLeser() {
                   <View className={`h-5 w-5 items-center justify-center rounded border ${harIkkeHmsKort ? "border-sitedoc-primary bg-sitedoc-primary" : "border-gray-300 bg-white"}`}>
                     {harIkkeHmsKort && <Check size={14} color="#ffffff" />}
                   </View>
-                  <Text className="text-sm text-gray-600">Har ikke HMS-kort</Text>
+                  <Text className="text-sm text-gray-600">{t("psi.harIkkeHmsKort")}</Text>
                 </TouchableOpacity>
-                <Text className="mb-2 text-sm font-medium text-gray-700">Signatur</Text>
+                <Text className="mb-2 text-sm font-medium text-gray-700">{t("psi.signatur")}</Text>
                 <PsiSignaturFelt
                   verdi={signaturData}
                   onEndre={setSignaturData}
@@ -395,7 +395,7 @@ export default function PsiLeser() {
             }}
             style={{ borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 16, paddingVertical: 12 }}
           >
-            <Text className="text-sm font-medium text-gray-600">Forrige</Text>
+            <Text className="text-sm font-medium text-gray-600">{t("handling.forrige")}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
@@ -416,7 +416,7 @@ export default function PsiLeser() {
           ) : (
             <>
               <Text className={`text-sm font-semibold ${kanGåVidere ? "text-white" : "text-gray-400"}`}>
-                {erSignaturSeksjon ? "Bekreft og signer" : "Neste"}
+                {erSignaturSeksjon ? t("psi.bekreftOgSigner") : t("handling.neste")}
               </Text>
               {!erSignaturSeksjon && kanGåVidere && <ChevronRight size={18} color="#ffffff" className="ml-1" />}
               {erSignaturSeksjon && kanGåVidere && <Check size={18} color="#ffffff" className="ml-1" />}
@@ -435,6 +435,7 @@ function PsiQuiz({ objekt, verdi, onRiktig }: {
   verdi: number | undefined;
   onRiktig: (v: number) => void;
 }) {
+  const { t } = useTranslation();
   const spørsmål = (objekt.config.question as string) ?? objekt.label;
   const alternativer = (objekt.config.options as string[]) ?? [];
   const riktigIndex = (objekt.config.correctIndex as number) ?? 0;
@@ -479,17 +480,21 @@ function PsiQuiz({ objekt, verdi, onRiktig }: {
         );
       })}
       {valgt !== null && valgt !== riktigIndex && !erBesvart && (
-        <Text className="mt-1 text-center text-sm text-red-600">Feil svar — prøv igjen</Text>
+        <Text className="mt-1 text-center text-sm text-red-600">{t("psi.feilSvar")}</Text>
       )}
       {erBesvart && (
-        <Text className="mt-1 text-center text-sm text-green-600">✓ Riktig!</Text>
+        <Text className="mt-1 text-center text-sm text-green-600">{t("psi.riktig")}</Text>
       )}
     </View>
   );
 }
 
-/* Enkel signatur for PSI — auto-lagrer ved tegneslutt, ingen "Lagre"-knapp */
-const PSI_SIGNATUR_HTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>*{margin:0;padding:0;box-sizing:border-box;touch-action:none}body{background:#fff}canvas{width:100%;height:180px;display:block;border-bottom:1px solid #d1d5db}.hint{text-align:center;padding:8px;color:#9ca3af;font:13px system-ui}.actions{display:flex;justify-content:center;padding:6px;gap:8px}.btn{font:13px system-ui;padding:6px 16px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer}</style></head><body><canvas id="c"></canvas><div class="hint">Tegn signaturen din</div><div class="actions"><button class="btn" onclick="tøm()">Tøm</button></div><script>const c=document.getElementById('c'),ctx=c.getContext('2d');let d=false,harTegnet=false;function r(){c.width=c.offsetWidth;c.height=180;ctx.strokeStyle='#1e40af';ctx.lineWidth=2;ctx.lineCap='round'}r();function gp(e){const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}c.onpointerdown=e=>{e.preventDefault();d=true;harTegnet=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'touchStart'}));const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};c.onpointermove=e=>{if(!d)return;e.preventDefault();const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke()};c.onpointerup=c.onpointerleave=()=>{if(d){d=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'touchEnd'}));if(harTegnet){window.ReactNativeWebView.postMessage(JSON.stringify({type:'signatur',dataUrl:c.toDataURL()}))}}};function tøm(){ctx.clearRect(0,0,c.width,c.height);harTegnet=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'tøm'}))}</script></body></html>`;
+/* Enkel signatur for PSI — auto-lagrer ved tegneslutt, ingen "Lagre"-knapp.
+   t() finnes ikke inne i WebView-en, så de synlige tekstene sendes inn som oversatte verdier
+   når HTML-en bygges. Funksjonsnavnet tøm() er en JS-identifikator (ikke synlig) og beholdes. */
+function byggSignaturHtml(hintTekst: string, tomTekst: string): string {
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>*{margin:0;padding:0;box-sizing:border-box;touch-action:none}body{background:#fff}canvas{width:100%;height:180px;display:block;border-bottom:1px solid #d1d5db}.hint{text-align:center;padding:8px;color:#9ca3af;font:13px system-ui}.actions{display:flex;justify-content:center;padding:6px;gap:8px}.btn{font:13px system-ui;padding:6px 16px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer}</style></head><body><canvas id="c"></canvas><div class="hint">${hintTekst}</div><div class="actions"><button class="btn" onclick="tøm()">${tomTekst}</button></div><script>const c=document.getElementById('c'),ctx=c.getContext('2d');let d=false,harTegnet=false;function r(){c.width=c.offsetWidth;c.height=180;ctx.strokeStyle='#1e40af';ctx.lineWidth=2;ctx.lineCap='round'}r();function gp(e){const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}c.onpointerdown=e=>{e.preventDefault();d=true;harTegnet=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'touchStart'}));const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};c.onpointermove=e=>{if(!d)return;e.preventDefault();const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke()};c.onpointerup=c.onpointerleave=()=>{if(d){d=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'touchEnd'}));if(harTegnet){window.ReactNativeWebView.postMessage(JSON.stringify({type:'signatur',dataUrl:c.toDataURL()}))}}};function tøm(){ctx.clearRect(0,0,c.width,c.height);harTegnet=false;window.ReactNativeWebView.postMessage(JSON.stringify({type:'tøm'}))}</script></body></html>`;
+}
 
 function PsiSignaturFelt({ verdi, onEndre, onTegnStart, onTegnSlutt }: {
   verdi: string | null;
@@ -497,6 +502,7 @@ function PsiSignaturFelt({ verdi, onEndre, onTegnStart, onTegnSlutt }: {
   onTegnStart?: () => void;
   onTegnSlutt?: () => void;
 }) {
+  const { t } = useTranslation();
   const håndterMelding = useCallback((e: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(e.nativeEvent.data);
@@ -510,7 +516,7 @@ function PsiSignaturFelt({ verdi, onEndre, onTegnStart, onTegnSlutt }: {
   return (
     <View className="overflow-hidden rounded-lg border border-gray-300 bg-white">
       <WebView
-        source={{ html: PSI_SIGNATUR_HTML }}
+        source={{ html: byggSignaturHtml(t("psi.tegnSignatur"), t("psi.tomSignatur")) }}
         style={{ height: 240 }}
         scrollEnabled={false}
         onMessage={håndterMelding}
@@ -521,6 +527,7 @@ function PsiSignaturFelt({ verdi, onEndre, onTegnStart, onTegnSlutt }: {
 }
 
 function Header({ onTilbake, onLukk, tittel, ekstra }: { onTilbake: () => void; onLukk: () => void; tittel: string; ekstra?: React.ReactNode }) {
+  const { t } = useTranslation();
   return (
     <View className="flex-row items-center border-b border-gray-200 px-3 py-2.5">
       <TouchableOpacity onPress={onTilbake} className="mr-2 rounded-lg p-1.5">
@@ -532,14 +539,14 @@ function Header({ onTilbake, onLukk, tittel, ekstra }: { onTilbake: () => void; 
       {ekstra}
       <TouchableOpacity
         onPress={() => {
-          Alert.alert("Avslutt PSI?", "Progresjonen din er lagret. Du kan fortsette senere.", [
-            { text: "Fortsett", style: "cancel" },
-            { text: "Avslutt", style: "destructive", onPress: onLukk },
+          Alert.alert(t("psi.avsluttTittel"), t("psi.avsluttBeskrivelse"), [
+            { text: t("psi.fortsett"), style: "cancel" },
+            { text: t("psi.avsluttBekreft"), style: "destructive", onPress: onLukk },
           ]);
         }}
         className="ml-2 rounded-lg p-1.5"
       >
-        <Text className="text-xs font-medium text-gray-400">Lukk</Text>
+        <Text className="text-xs font-medium text-gray-400">{t("handling.lukk")}</Text>
       </TouchableOpacity>
     </View>
   );

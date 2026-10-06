@@ -3,14 +3,16 @@ import { router, protectedProcedure, publicProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { oversettFritekst } from "../services/oversettelse-service";
+import { tolkPsiOpprettFeil } from "./psi-feil";
 
-// Hjelpefunksjon for å finne PSI med prosjekt + bygning (null = prosjektnivå)
-function psiWhere(projectId: string, byggeplassId?: string | null) {
+// Compound-nøkkelen for findUnique-oppslag på (prosjekt, byggeplass) — ett sted, ikke inlinet.
+// 🔴 Prisma typer `byggeplassId` som non-null i `PsiProjectIdByggeplassIdCompoundUniqueInput`
+// (findUnique kan ikke identifisere en rad på NULL), så denne krever en KONKRET byggeplassId.
+// Prosjektnivå-PSI (`byggeplassId = null`) kan IKKE slås opp via denne compound-nøkkelen —
+// bruk `findFirst({ where: { projectId, byggeplassId: null } })` der.
+function psiWhere(projectId: string, byggeplassId: string) {
   return {
-    projectId_byggeplassId: {
-      projectId,
-      byggeplassId: byggeplassId ?? null,
-    },
+    projectId_byggeplassId: { projectId, byggeplassId },
   } as const;
 }
 
@@ -200,20 +202,26 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
         }
       }
 
-      const psi = await ctx.prisma.psi.create({
-        data: {
-          projectId: input.projectId,
-          byggeplassId: input.byggeplassId ?? null,
-          templateId: mal.id,
-          version: 1,
-        },
-        include: {
-          template: { select: { id: true, name: true, prefix: true } },
-          byggeplass: { select: { id: true, name: true } },
-        },
-      });
-
-      return { ...psi, templateId: mal.id };
+      try {
+        const psi = await ctx.prisma.psi.create({
+          data: {
+            projectId: input.projectId,
+            byggeplassId: input.byggeplassId ?? null,
+            templateId: mal.id,
+            version: 1,
+          },
+          include: {
+            template: { select: { id: true, name: true, prefix: true } },
+            byggeplass: { select: { id: true, name: true } },
+          },
+        });
+        return { ...psi, templateId: mal.id };
+      } catch (e) {
+        // Byggeplassen (eller prosjektnivået) har alt en PSI — begge håndheves av
+        // hver sin unike indeks. tolkPsiOpprettFeil skiller dem og kaster CONFLICT
+        // (og bobler fremmede P2002 opp urørt).
+        tolkPsiOpprettFeil(e);
+      }
     }),
 
   // Bump versjon — krev ny signering
@@ -648,7 +656,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
 
       // Sjekk at målbygning ikke allerede har PSI
       const eksisterende = await ctx.prisma.psi.findUnique({
-        where: { projectId_byggeplassId: { projectId: kildePsi.projectId, byggeplassId: input.targetByggeplassId } },
+        where: psiWhere(kildePsi.projectId, input.targetByggeplassId),
       });
       if (eksisterende) throw new TRPCError({ code: "CONFLICT", message: "Bygningen har allerede en PSI" });
 

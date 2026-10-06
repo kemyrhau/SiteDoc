@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
@@ -11,6 +10,8 @@ import {
   Modal,
   Linking,
 } from "react-native";
+import { AutentisertBilde } from "../../src/components/AutentisertBilde";
+import { BildeFallback } from "../../src/components/BildeFallback";
 import { useLocalSearchParams, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Download, FileText, Check, X, Plus, RefreshCw } from "lucide-react-native";
@@ -446,10 +447,17 @@ export default function DokumentLeser() {
               bouncesZoom
             >
               {zoomBilde && (
-                <Image
-                  source={{ uri: zoomBilde }}
+                <AutentisertBilde
+                  uri={zoomBilde}
                   style={{ width: skjermBredde, height: skjermBredde }}
                   resizeMode="contain"
+                  fallback={
+                    <BildeFallback
+                      style={{ width: skjermBredde, height: skjermBredde }}
+                      ikonStr={48}
+                      tekstKlasse="text-sm"
+                    />
+                  }
                 />
               )}
             </ScrollView>
@@ -552,10 +560,17 @@ function BlokkRenderer({
             className="my-3 items-center"
             activeOpacity={0.8}
           >
-            <Image
-              source={{ uri: bildeUrl }}
+            <AutentisertBilde
+              uri={bildeUrl}
               style={{ width: bredde, height: bredde * 0.75, borderRadius: 8 }}
               resizeMode="contain"
+              fallback={
+                <BildeFallback
+                  style={{ width: bredde, height: bredde * 0.75, borderRadius: 8 }}
+                  ikonStr={36}
+                  tekstKlasse="text-xs"
+                />
+              }
             />
           </TouchableOpacity>
         );
