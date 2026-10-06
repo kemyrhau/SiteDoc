@@ -258,6 +258,36 @@ describe("V19.9.7 — grunn-parede slots (versjonssjekk pr. rad)", () => {
     expect(res.slettinger).toHaveLength(0);
   });
 
+  it("(V19.9-A2 c): endret_begge der serverraden er BORTE → oppfører seg som slettet_pc (valgbar, ikke opprett uten valg)", () => {
+    // PC slettet serverraden etter at endret_begge-forslaget ble lagret → ingen sedelrad.
+    const sedel: ForsonRad[] = [];
+    const forslag = [rad("r1", "07:00", "15:00", 7.5, { grunn: "endret_begge" })];
+    const slots = parForslagMotSedel(sedel, forslag);
+    expect(slots).toHaveLength(1);
+    // Slotten er valgbar, sedel null, og rapporterer slettet_pc (PC slettet).
+    expect(slots[0]).toMatchObject({ forslag: { id: "r1" }, sedel: null, valgbar: true, grunn: "slettet_pc" });
+    // Uten valg → INGEN rad opprettes (PC-slettingen angres ikke uten valg).
+    const utenValg = byggForsonInputFraValg(sedel, forslag, {});
+    expect(utenValg.nyeRader).toHaveLength(0);
+    expect(utenValg.oppdateringer).toHaveLength(0);
+    expect(utenValg.slettinger).toHaveLength(0);
+    // Valg «forslag» → opprett telefonens rad.
+    const medValg = byggForsonInputFraValg(sedel, forslag, { r1: "forslag" });
+    expect(medValg.nyeRader).toHaveLength(1);
+    expect(medValg.nyeRader[0]).toMatchObject({ fraTid: "07:00", tilTid: "15:00", timer: 7.5 });
+  });
+
+  it("(V19.9-A2 c): slettet_telefon der serverraden er BORTE (begge slettet) → no-op, opprettes aldri", () => {
+    const sedel: ForsonRad[] = [];
+    const forslag = [rad("r1", "07:00", "15:00", 7.5, { grunn: "slettet_telefon" })];
+    const utenValg = byggForsonInputFraValg(sedel, forslag, {});
+    expect(utenValg.nyeRader).toHaveLength(0);
+    // Selv et «forslag»-valg skal ikke gjenoppstå en rad begge slettet.
+    const medValg = byggForsonInputFraValg(sedel, forslag, { r1: "forslag" });
+    expect(medValg.nyeRader).toHaveLength(0);
+    expect(medValg.slettinger).toHaveLength(0);
+  });
+
   it("blandet: endret_begge + overlapp i samme runde pares uavhengig", () => {
     const sedel = [rad("r1", "07:00", "11:00", 4), rad("web2", "12:00", "16:00", 4)];
     const forslag = [

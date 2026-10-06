@@ -406,6 +406,32 @@ describe("V19.9-A syncBatch — versjonssjekk pr. rad (§ 9.6)", () => {
     // KUN den nye raden er forslag; stale A er filtrert bort.
     expect(forslagData().map((f) => f.id)).toEqual([RAD_NY]);
   });
+
+  it("(V19.9-A2 d): overlapp i tid + slettet_telefon-tombstone → forslaget BÆRER slettet_telefon-raden", async () => {
+    const RAD_B = "88888888-8888-8888-8888-000000000003";
+    // Server A 07–11 (urørt, overlever) + B 13–15 (PC endret, V2). Telefonen sletter B
+    // (tombstone m/ gammel versjon → S2' slettet_telefon) og pusher en ny rad 07:30–08:00
+    // som overlapper A i tid → V19-A-forrang. Uten fiksen forsvinner B-slettingen stille.
+    const { ctx, forslagData, txMock } = lagCtx([
+      serverRad({ id: RAD_A, updatedAt: new Date(V1), fraTid: "07:00", tilTid: "11:00" }),
+      serverRad({ id: RAD_B, updatedAt: new Date(V2), fraTid: "13:00", tilTid: "15:00" }),
+    ]);
+    const caller = dagsseddelRouter.createCaller(ctx);
+    const res = await caller.syncBatch({
+      sedler: [
+        sedel(
+          [{ id: RAD_NY, serverVersjon: null, fraTid: "07:30", tilTid: "08:00", timer: 0.5 }],
+          { timer: [], tillegg: [], maskiner: [], utlegg: [], timerVersjoner: [{ id: RAD_B, serverVersjon: V1 }] },
+        ),
+      ],
+    });
+    expect(res.resultater[0]!.resultat).toBe("conflict");
+    expect(txMock.sheetTimer.createMany).not.toHaveBeenCalled(); // V19-A: ingen skriving
+    const grunnById = Object.fromEntries(forslagData().map((f) => [f.id, f.grunn]));
+    // Både den nye raden OG tombstone-avviket er i forslaget.
+    expect(grunnById[RAD_NY]).toBe("overlapp");
+    expect(grunnById[RAD_B]).toBe("slettet_telefon");
+  });
 });
 
 describe("V19.9-A grep-vakter (§ 9.6 test 13)", () => {
