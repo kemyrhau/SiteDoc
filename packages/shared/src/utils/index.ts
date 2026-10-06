@@ -151,12 +151,15 @@ export {
 } from "./forsonValg";
 export type {
   ForsonSide,
+  ForsonGrunn,
   ForsonRad,
   ForsonOppdatering,
   ForsonNyRad,
   ForsonInput,
   OverlappSlot,
 } from "./forsonValg";
+export { radInnholdLikt } from "./radInnhold";
+export type { RadInnhold } from "./radInnhold";
 export { finnSedlerÅSlette } from "./timerSyncSletting";
 export type { Slettevindu, LokalSedelUtsnitt } from "./timerSyncSletting";
 export { carveArbeidstider } from "./carveArbeidstid";

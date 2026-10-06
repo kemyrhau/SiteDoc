@@ -79,6 +79,33 @@ function lagCtx(opts: {
   const serverRader = opts.serverRader ?? [];
   const forslagUpdateCount = opts.forslagUpdateCount ?? 1;
 
+  // V19.9: serveren leser nå HELE radene (id + updatedAt + innhold) for
+  // versjonssjekken. Disse V19-A-fikstur-radene har syntetiske id-er som ALDRI
+  // matcher payloadens (888…) → payload forblir «ny rad» (R6), union-overlapp som
+  // før (V19.1/V19.4-semantikken denne harnessen tester er uendret).
+  const serverRaderFull = serverRader.map((r, i) => ({
+    id: `99999999-9999-9999-9999-00000000000${i + 1}`,
+    updatedAt: new Date("2026-10-05T09:00:00Z"),
+    projectId: PROSJEKT,
+    byggeplassId: null,
+    lonnsartId: LONNSART,
+    aktivitetId: AKTIVITET,
+    externalCostObjectId: null,
+    vehicleId: null,
+    timer: 8,
+    beskrivelse: null,
+    pauseMin: 0,
+    erReise: false,
+    reiseRetning: null,
+    reiseOppmotestedId: null,
+    reiseKjoretidMin: null,
+    reiseAvstandM: null,
+    reiseKilde: null,
+    reiseRegel: null,
+    tidKilde: null,
+    ...r,
+  }));
+
   const sheetHode = (s: { id: string; clientUuid: string; status: string }) => ({
     ...s,
     userId: USER,
@@ -112,7 +139,7 @@ function lagCtx(opts: {
       ),
     },
     sheetTimer: {
-      findMany: vi.fn().mockResolvedValue(serverRader),
+      findMany: vi.fn().mockResolvedValue(serverRaderFull),
       deleteMany: timerDeleteMany,
       createMany: timerCreateMany,
     },
@@ -152,7 +179,7 @@ function lagCtx(opts: {
       lonnsart: { findMany: vi.fn().mockResolvedValue([{ id: LONNSART, satsEnhet: null }]) },
       tillegg: { findMany: vi.fn().mockResolvedValue([]) },
       expenseCategory: { findMany: vi.fn().mockResolvedValue([]) },
-      sheetTimer: { findMany: vi.fn().mockResolvedValue(serverRader) },
+      sheetTimer: { findMany: vi.fn().mockResolvedValue(serverRaderFull) },
       $transaction: vi.fn((arg: unknown) =>
         typeof arg === "function"
           ? (arg as (tx: typeof txMock) => Promise<unknown>)(txMock)
