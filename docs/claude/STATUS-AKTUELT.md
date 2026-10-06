@@ -27,6 +27,9 @@ sist_verifisert_mot_kode: 2026-08-09
 > offline-feltfunn, offline-inngang, i18n-sveip 2. 🟢 **Migrering `20261005120000_v19_overlapp_forslag` KJØRT** —
 > verifisert: `timer.sheet_timer_forslag` finnes, `daily_sheets.konflikt_ventende_siden` finnes. 🟢 **OTA test-kanal
 > publisert** fra `9145404b` (update `01a10da3-892f-7ef3-a880-2ff57f5e7019`). V19-C (web-valg for arbeideren) ikke med ennå.
+> 🔴 **V19.9 SPEC HOS ORKESTRATOR FOR GATE 2026-10-06** (branch `docs/design-v19-versjonssjekk`): Kenneth-vedtak 05.10 — avvik PC/telefon
+> skal oppdages uansett hvordan dagen ble opprettet. Versjonssjekk pr. rad i `syncBatch` (M17–M25 målt), matrise R1–R12 + S1–S4 + H1–H6,
+> ordre V19.9-A (server) → V19.9-B (mobil+web) → V19.9-H (hodet). Spec § 9 i `timer-overlapp-pc-mobil-spec.md`.
 
 > 🟢 **TEST-DEPLOY 2026-10-04: `bd3053bd`** — verifisert mot `/version` (bygget 18:56). Inneholder **L2-A + L2-B**
 > (reise-spor, V1 på server, V8-vindu, pull bærer sporet, B4 manuell), **offline-liste oppgave/HMS**, **offline-lesing

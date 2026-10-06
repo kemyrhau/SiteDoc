@@ -66,7 +66,7 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 `syncBatch` erstatter payload-radene etter id uten å sjekke om serverraden er endret siden telefonen hentet den
 (`SheetTimer.updatedAt` finnes; `sheet_timer_local` har kun `sistEndretLokalt`, ingen serverversjon). V19 dekker kun to
 UAVHENGIGE sedler. 🟢 **Kenneth 2026-10-05:** *«dersom systemet ikke finner ut av dette uten en perfekt måte å opprette
-ting på → da mangler systemet noe»* → utvidelse av V19 med versjonssjekk pr. rad, samme forslag/valg-vei. **Hos fabel for spec.**
+ting på → da mangler systemet noe»* → utvidelse av V19 med versjonssjekk pr. rad, samme forslag/valg-vei. **Spec skrevet 2026-10-06: `timer-overlapp-pc-mobil-spec.md` § 9 (V19.9, branch `docs/design-v19-versjonssjekk`) — hos orkestrator for gate.**
 
 ### 🔴 OVERLAPP PC ↔ MOBIL PÅ SAMME DAG LAGRES DOBBELT — Kenneth-vedtak 2026-10-04: ARBEIDEREN VELGER
 
