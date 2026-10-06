@@ -30,6 +30,9 @@ sist_verifisert_mot_kode: 2026-08-09
 > 🔴 **V19.9 SPEC HOS ORKESTRATOR FOR GATE 2026-10-06** (branch `docs/design-v19-versjonssjekk`): Kenneth-vedtak 05.10 — avvik PC/telefon
 > skal oppdages uansett hvordan dagen ble opprettet. Versjonssjekk pr. rad i `syncBatch` (M17–M25 målt), matrise R1–R12 + S1–S4 + H1–H6,
 > ordre V19.9-A (server) → V19.9-B (mobil+web) → V19.9-H (hodet). Spec § 9 i `timer-overlapp-pc-mobil-spec.md`.
+> 🟢 **V20 = B VEDTATT 2026-10-06, spec rev. 2 til gate** (branch `docs/design-pause-en-kilde`, `timer-pause-en-kilde-spec.md`): P1–P8 målt, PK1–PK9 (PK4 rev. 2: syncBatch
+> normaliserer, avviser aldri; kun timebaserte lønnsarter), 17 tester, ordre V20-S → V20-M ∥ V20-W etter `fix/matpause-avkrysning`. **V19.9-H STRØKET.** V21 (overtidsforslag
+> manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT — egne små ordrer etter V20.
 
 > 🟢 **TEST-DEPLOY 2026-10-04: `bd3053bd`** — verifisert mot `/version` (bygget 18:56). Inneholder **L2-A + L2-B**
 > (reise-spor, V1 på server, V8-vindu, pull bærer sporet, B4 manuell), **offline-liste oppgave/HMS**, **offline-lesing
