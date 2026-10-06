@@ -3,7 +3,7 @@ name: tegning-serieopplasting-spec
 description: Spesifikasjon for serieopplasting av 2D-tegninger — mange filer samtidig, detaljer etterpå, tegningsnummer/type kun ved entydig treff, fag-sortering, ny revisjon på web (T1, ingen schema); deretter Tegningsserie som merk-og-flytt-gruppering med egne metadata (T2, additiv). Kenneth-krav 2026-10-06 (20 ark-tegninger lastet én og én).
 sist_verifisert_mot_kode: 2026-10-06
 eier: fabel (plan-eier) — orkestrator gater
-status: ⚠️ UTKAST TIL GATE 2026-10-06 — ❌ IKKE IMPLEMENTERT. Omfang (T1 → T2) godkjent av Kenneth 2026-10-06
+status: 🟢 GATET 2026-10-06 (orkestrator) — ❌ IKKE IMPLEMENTERT. Gate-vilkår i § 6.1 (R3-mønsteret) løses i T1-ordren. Omfang (T1 → T2) godkjent av Kenneth 2026-10-06
 ---
 
 # Tegninger: serieopplasting, detaljer etterpå, serier
@@ -84,5 +84,11 @@ måleverktøyet. Målestokk forblir valgfri (§ 2 R7).
 
 1. **Mønsteret for tegningsnummer (R3)** er skrevet for ARK-konvensjon. Andre rådgivere (RIB «B-xx», RIE «E-xx») treffer
    samme regex; eksotiske nummerserier gir tomt — det er ønsket atferd. Utvides når målt mot ekte filnavn fra Kenneth.
+   🔴 **GATE-AVVIK (orkestrator 2026-10-06), løses i T1:** mønsteret `^[A-Z]{1,4}[- ]?\d{2,3}[- ]?\d{2,4}` treffer **ikke**
+   specens eget eksempel «ARK-P-101» (bokstavsegmentet «P» passer ikke inn), og ankeret `^` gjør at et nummer midt i et
+   filnavn («20251001_A-20-101.pdf») eller midt i tittelfelt-teksten aldri treffes. Konsekvens: test 2 («A-20-101.pdf» +
+   «ARK-P-102» → `null`) kan ikke bli grønn, fordi bare det ene nummeret treffes. **Vilkår for T1:** mønsteret skal treffe
+   alle eksemplene i § 2/§ 4 (også «ARK-P-101») uten `^`-anker (ordgrenser i stedet), og testene skal ha med ett
+   nummer midt i et filnavn og ett i tittelfelt-tekst.
 2. **Sletting av tegninger etterlater filer på disk** (BACKLOG :958) blir mer synlig med 20 om gangen — ikke del av T1.
 3. **DWG-tittelblokk** parses ikke (T-M6). Kan gi nummer/type for DWG senere; T1 gir tomt for DWG utover filnavn.
