@@ -105,6 +105,79 @@ export function effektiveTimerFraSpenn(
 }
 
 /**
+ * V20/PK5 — pausevinduets START (HH:MM) for en hel dag, én kilde for mobil
+ * manuell rad, web og server. Erstatter at manuell mobil-rad alltid brukte
+ * fastStart (P6) mens GPS-forslaget fulgte `pauseReferanse`:
+ *   - `"fastStart"` → firmaets sesongjusterte starttid + `pauseEtterTimer`
+ *   - `"ankomst"`   → første rad-`fraTid` på dagen + `pauseEtterTimer`
+ *                     (når arbeidet faktisk begynte, etter evt. reise)
+ * Ingen rader med tid (eller alle tomme) → faller tilbake til `startTid` som
+ * ramme, slik at vinduet alltid er definert. Kenneths «4 timer» = `pauseEtterTimer`.
+ */
+export function pauseVinduForDag(
+  rader: readonly { fraTid?: string | null }[],
+  dag: {
+    startTid: string;
+    pauseEtterTimer: number;
+    pauseReferanse: "fastStart" | "ankomst";
+  },
+): string {
+  if (dag.pauseReferanse === "ankomst") {
+    const forsteFra = rader
+      .map((r) => r.fraTid)
+      .filter((f): f is string => !!f)
+      .reduce<string | null>(
+        (min, f) => (min === null || hhmmTilMin(f) < hhmmTilMin(min) ? f : min),
+        null,
+      );
+    return pauseVinduFra(forsteFra ?? dag.startTid, dag.pauseEtterTimer);
+  }
+  return pauseVinduFra(dag.startTid, dag.pauseEtterTimer);
+}
+
+/**
+ * V20/PK7 — «Arbeidstid i dag» som VISNING utledet av radene (ikke hodet).
+ * Tar sedelens timebaserte rader (fra+til satt) og gir: første fraTid, siste
+ * tilTid, Σ pauseMin og netto Σ timer. Rader uten begge tider teller kun i
+ * `nettoTimer` (de har ingen spenn å vise i tidsrammen). Tom input → null-ramme
+ * med 0 timer, slik at kalleren kan falle tilbake til sedelens `startAt/endAt`.
+ */
+export function utledArbeidstidFraRader(
+  rader: readonly {
+    fraTid?: string | null;
+    tilTid?: string | null;
+    pauseMin?: number | null;
+    timer: number;
+  }[],
+): {
+  startTid: string | null;
+  sluttTid: string | null;
+  sumPauseMin: number;
+  nettoTimer: number;
+} {
+  let startMin: number | null = null;
+  let sluttMin: number | null = null;
+  let sumPauseMin = 0;
+  let nettoTimer = 0;
+  for (const r of rader) {
+    nettoTimer += r.timer;
+    sumPauseMin += r.pauseMin ?? 0;
+    if (r.fraTid && r.tilTid) {
+      const fm = hhmmTilMin(r.fraTid);
+      const tm = hhmmTilMin(r.tilTid);
+      if (startMin === null || fm < startMin) startMin = fm;
+      if (sluttMin === null || tm > sluttMin) sluttMin = tm;
+    }
+  }
+  return {
+    startTid: startMin === null ? null : minTilHhmm(startMin),
+    sluttTid: sluttMin === null ? null : minTilHhmm(sluttMin),
+    sumPauseMin,
+    nettoTimer: Math.round(nettoTimer * 100) / 100,
+  };
+}
+
+/**
  * Til-tid gitt fra + antall ARBEIDStimer, med pausevinduet skjøvet inn når
  * arbeidet krysser lunsj. Speiler `effektiveTimerFraSpenn` (invers):
  *   fra 10:00 + 1,5 t → 12:00  (30 min lunsj legges til når vi passerer 11:00)

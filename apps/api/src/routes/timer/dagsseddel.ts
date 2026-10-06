@@ -48,6 +48,11 @@ import {
   lesOvertidsgrunnlagFraSnapshot,
   type Overtidsgrunnlag,
   type ErReiseKontekst,
+  effektiveTimerFraSpenn,
+  pauseOverlappMin,
+  pauseVinduForDag,
+  hhmmTilMin,
+  PAUSE_TERSKEL_TIMER,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -254,6 +259,9 @@ function byggTimerRadData(
     timer: number;
     fraTid?: string | null;
     tilTid?: string | null;
+    // V20/PK1: radens egen matpause (min). Kalleren setter den til den
+    // vurderte verdien (vurderRadTimer), aldri rått fra klienten.
+    pauseMin?: number | null;
     beskrivelse?: string | null;
     externalCostObjectId?: string | null;
     vehicleId?: string | null;
@@ -272,6 +280,7 @@ function byggTimerRadData(
     timer: r.timer,
     fraTid: r.fraTid ?? null,
     tilTid: r.tilTid ?? null,
+    pauseMin: r.pauseMin ?? 0,
     beskrivelse: r.beskrivelse ?? null,
     externalCostObjectId: r.externalCostObjectId ?? null,
     vehicleId: r.vehicleId ?? null,
@@ -414,6 +423,204 @@ async function lagreOverlappForslag(
     });
   }
   return "overlapp";
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+//  V20 (pause — én kilde) — PK4/PK5/PK6-server. Radens `pauseMin` er kilden;
+//  hodet `DailySheet.pauseMin` utledes (Σ rad). Spec timer-pause-en-kilde-spec.md.
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Timebasert lønnsart — kun disse vurderes mot fra/til-spennet (PK4). */
+function erTimebasert(satsEnhet: string | null | undefined): boolean {
+  return satsEnhet == null || satsEnhet === "per_time";
+}
+
+const PAUSE_TOLERANSE = 0.01;
+
+/**
+ * PK5/PK6 — pausevinduet + firma-standardpause for en sedel. `rader` brukes kun
+ * for `pauseReferanse = "ankomst"` (vinduet regnes fra tidligste rad-fraTid).
+ */
+async function hentPauseVinduForSedel(
+  orgId: string,
+  dato: Date,
+  rader: readonly { fraTid?: string | null }[],
+): Promise<{ pauseVindu: string; standardPauseMin: number }> {
+  const eff = await hentEffektivArbeidstid(orgId, dato);
+  return {
+    pauseVindu: pauseVinduForDag(rader, {
+      startTid: eff.startTid,
+      pauseEtterTimer: eff.pauseEtterTimer,
+      pauseReferanse: eff.pauseReferanse,
+    }),
+    standardPauseMin: eff.pauseMin,
+  };
+}
+
+type RadVurdering = {
+  // Hva som skal skrives som radens pauseMin.
+  pauseMin: number;
+  // Telling/logging (PK4b-3) — null = intet å telle.
+  teller: null | "baerer" | "to_baerere" | "avvik";
+  // Interaktiv ny klient (eksplisitt pauseMin) med inkonsistent timer → kast.
+  kast: boolean;
+};
+
+/**
+ * PK4 — kjernen i server-vakten. Avgjør radens `pauseMin` ut fra timetallet og
+ * pausevinduet, i to modi:
+ *   - `interaktiv`: en NY klient som oppgir `pauseMin` får streng kontroll —
+ *     timer må stemme med formelen gitt den pausen, ellers `kast` (→ avvis).
+ *     En GAMMEL klient (pauseMin ikke oppgitt) normaliseres som i synk (ingen
+ *     bruker skal avvises for en app de ikke har oppdatert ennå).
+ *   - `sync`: aldri `kast`. Normaliserer: (1) oppgitt pause konsistent → skriv;
+ *     (2) skjult fradrag (timer stemmer med standardPauseMin og vinduet krysser
+ *     raden) → sett bæreren hvis ingen annen bærer, ellers skriv uendret + tell;
+ *     (3) stemmer med ingen → skriv uendret + tell (`timer_avvik_sync`).
+ * Rør ALDRI `timer` (test 8/13). Kun timebaserte rader med fra+til vurderes.
+ */
+export function vurderRadTimer(args: {
+  modus: "interaktiv" | "sync";
+  satsEnhet: string | null | undefined;
+  fraTid: string | null | undefined;
+  tilTid: string | null | undefined;
+  timer: number;
+  pauseMinAngitt: number | undefined;
+  pauseVindu: string;
+  standardPauseMin: number;
+  finnesAlleredeBaerer: boolean;
+}): RadVurdering {
+  const {
+    modus,
+    satsEnhet,
+    fraTid,
+    tilTid,
+    timer,
+    pauseMinAngitt,
+    pauseVindu,
+    standardPauseMin,
+    finnesAlleredeBaerer,
+  } = args;
+
+  // Ikke-timebasert eller tid-løs rad vurderes aldri mot spennet — behold det
+  // klienten sendte (km/dag/natt bærer aldri pause).
+  if (!erTimebasert(satsEnhet) || !fraTid || !tilTid) {
+    return { pauseMin: pauseMinAngitt ?? 0, teller: null, kast: false };
+  }
+
+  const stemmer = (pm: number) =>
+    Math.abs(timer - effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, pm)) <=
+    PAUSE_TOLERANSE;
+  const krysser =
+    pauseOverlappMin(
+      hhmmTilMin(fraTid),
+      hhmmTilMin(tilTid),
+      hhmmTilMin(pauseVindu),
+      standardPauseMin,
+    ) > 0;
+
+  // Interaktiv NY klient: streng kontrakt mot oppgitt pause.
+  if (modus === "interaktiv" && pauseMinAngitt !== undefined) {
+    return stemmer(pauseMinAngitt)
+      ? { pauseMin: pauseMinAngitt, teller: null, kast: false }
+      : { pauseMin: pauseMinAngitt, teller: null, kast: true };
+  }
+
+  // Normalisering (synk alltid; interaktiv gammel klient uten oppgitt pause).
+  // PK4b-1: oppgitt pause (F5 per-rad i synk) konsistent → behold.
+  if (pauseMinAngitt !== undefined && stemmer(pauseMinAngitt)) {
+    return { pauseMin: pauseMinAngitt, teller: null, kast: false };
+  }
+  // PK4b-2: skjult fradrag. Starter fra pause 0/mangler.
+  if (pauseMinAngitt === undefined || pauseMinAngitt === 0) {
+    if (stemmer(0)) {
+      return { pauseMin: 0, teller: null, kast: false };
+    }
+    if (krysser && stemmer(standardPauseMin)) {
+      return finnesAlleredeBaerer
+        ? { pauseMin: 0, teller: "to_baerere", kast: false }
+        : { pauseMin: standardPauseMin, teller: "baerer", kast: false };
+    }
+  }
+  // PK4b-3: stemmer med ingen → godta som før (status quo), tell.
+  return { pauseMin: pauseMinAngitt ?? 0, teller: "avvik", kast: false };
+}
+
+/**
+ * RETUR 1 (V20-S) — fordel bærerens pause ved SPLITT av en timer-rad. Originalens
+ * `pauseMin` flyttes til den delraden som KRYSSER pausevinduet (størst overlapp;
+ * uavgjort → første; krysser ingen → første). De øvrige får 0. Σ fordeling =
+ * `originalPauseMin` (bæreren forsvinner ikke og dupliseres ikke), og timetallet
+ * på delradene (klient-oppgitt, sum-validert mot originalen) røres aldri — kun
+ * HVILKEN delrad som eier fradrags-markøren flyttes. Returnerer pauseMin pr.
+ * delrad i samme rekkefølge som input.
+ */
+export function fordelPauseVedSplitt(
+  nyeRader: readonly { fraTid?: string | null; tilTid?: string | null }[],
+  originalPauseMin: number,
+  pauseVindu: string,
+): number[] {
+  const fordeling = new Array<number>(nyeRader.length).fill(0);
+  if (originalPauseMin <= 0 || nyeRader.length === 0) return fordeling;
+  const pauseFraMin = hhmmTilMin(pauseVindu);
+  let beste = -1;
+  let besteOverlapp = 0;
+  for (let i = 0; i < nyeRader.length; i++) {
+    const r = nyeRader[i]!;
+    if (!r.fraTid || !r.tilTid) continue;
+    const ov = pauseOverlappMin(
+      hhmmTilMin(r.fraTid),
+      hhmmTilMin(r.tilTid),
+      pauseFraMin,
+      originalPauseMin,
+    );
+    if (ov > besteOverlapp) {
+      besteOverlapp = ov;
+      beste = i;
+    }
+  }
+  // Krysser ingen delrad vinduet → bæreren legges på første rad (RETUR punkt 1).
+  fordeling[beste >= 0 ? beste : 0] = originalPauseMin;
+  return fordeling;
+}
+
+/** PK4a — interaktiv avvisning når timetallet ikke stemmer med oppgitt pause. */
+function avvisTimerAvvik(
+  fraTid: string,
+  tilTid: string,
+  timer: number,
+  pauseVindu: string,
+  pauseMin: number,
+): never {
+  const forventet = effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, pauseMin);
+  throw new TRPCError({
+    code: "BAD_REQUEST",
+    message: `Antall timer (${timer}) stemmer ikke med tidsrommet ${fraTid}–${tilTid} (forventet ${forventet.toFixed(
+      2,
+    )} t). Juster fra/til eller antall.`,
+  });
+}
+
+/**
+ * PK6 — hodet `DailySheet.pauseMin` = Σ aktive rad.pauseMin, utledet server-side
+ * etter hver radskriving. ÉN kilde; ingen klient skriver hodet direkte. Kjøres i
+ * samme tx som radskrivingen, og speiles til mobil ved pull. `erstattet`-rader
+ * (firma-admin rediger-historikk) teller ikke.
+ */
+async function synkroniserHodePause(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+): Promise<void> {
+  const agg = await tx.sheetTimer.aggregate({
+    where: { sheetId, attestertStatus: { not: "erstattet" } },
+    _sum: { pauseMin: true },
+  });
+  // Bumper `updatedAt` samtidig (subsumerer touchSedel i radskrive-stiene) så
+  // mobil pull ser endringen i én skriving.
+  await tx.dailySheet.update({
+    where: { id: sheetId },
+    data: { pauseMin: agg._sum.pauseMin ?? 0, updatedAt: new Date() },
+  });
 }
 
 /**
@@ -1083,12 +1290,13 @@ async function opprettForsteTimerRadForslag(
     projectId: string;
     aktivitetId: string;
     byggeplassId: string | null;
+    dato: Date;
     startAt: Date | null;
     endAt: Date | null;
-    pauseMin: number;
   },
 ): Promise<void> {
-  const { sheetId, orgId, projectId, aktivitetId, byggeplassId, startAt, endAt, pauseMin } = args;
+  const { sheetId, orgId, projectId, aktivitetId, byggeplassId, dato, startAt, endAt } =
+    args;
   if (!startAt || !endAt) return;
 
   // Idempotens: kun på en tom sedel (re-send av samme clientUuid, eller en
@@ -1105,9 +1313,29 @@ async function opprettForsteTimerRadForslag(
   });
   if (!standardLonnsart) return;
 
-  // Timer = brutto vindu − pause (samme som mobils totalTimer), 2-desimal.
+  const fraTid = instantTilOsloHHMM(startAt);
+  const tilTid = instantTilOsloHHMM(endAt);
+
+  // V20/PK9: pausen hentes fra NORMEN (V16), ikke hodet, og skrives PÅ raden som
+  // bærer når regelen trigger (dagsbrutto > 5,5 t OG raden krysser pausevinduet).
+  // Pausevinduet (PK5) følger firmaets pauseReferanse. Ingen skjult fradrag.
+  const eff = await hentEffektivArbeidstid(orgId, dato);
+  const pauseVindu = pauseVinduForDag([{ fraTid }], {
+    startTid: eff.startTid,
+    pauseEtterTimer: eff.pauseEtterTimer,
+    pauseReferanse: eff.pauseReferanse,
+  });
   const bruttoTimer = (endAt.getTime() - startAt.getTime()) / 3_600_000;
-  const timer = Math.round(Math.max(0, bruttoTimer - pauseMin / 60) * 100) / 100;
+  const krysser =
+    pauseOverlappMin(
+      hhmmTilMin(fraTid),
+      hhmmTilMin(tilTid),
+      hhmmTilMin(pauseVindu),
+      eff.pauseMin,
+    ) > 0;
+  const radPauseMin =
+    bruttoTimer > PAUSE_TERSKEL_TIMER && krysser ? eff.pauseMin : 0;
+  const timer = effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, radPauseMin);
   if (timer <= 0) return;
 
   // LAG 2 (presisering 2): utled erReise også her. Standard-lønnsarten er normalt
@@ -1115,8 +1343,8 @@ async function opprettForsteTimerRadForslag(
   const erReiseKtx = await hentErReiseKontekst(orgId);
   const erReise = utledErReise(standardLonnsart.id, standardLonnsart.navn, erReiseKtx);
 
-  await prismaTimer.$transaction([
-    prismaTimer.sheetTimer.create({
+  await prismaTimer.$transaction(async (tx) => {
+    await tx.sheetTimer.create({
       data: {
         sheetId,
         projectId,
@@ -1124,13 +1352,15 @@ async function opprettForsteTimerRadForslag(
         lonnsartId: standardLonnsart.id,
         aktivitetId,
         timer,
-        fraTid: instantTilOsloHHMM(startAt),
-        tilTid: instantTilOsloHHMM(endAt),
+        fraTid,
+        tilTid,
+        pauseMin: radPauseMin,
         erReise,
       },
-    }),
-    touchSedel(prismaTimer, sheetId),
-  ]);
+    });
+    // PK6: hodet = Σ rad (her = radPauseMin), speiler bæreren.
+    await synkroniserHodePause(tx, sheetId);
+  });
 }
 
 // ============================================================================
@@ -1582,9 +1812,9 @@ export const dagsseddelRouter = router({
             projectId: input.projectId,
             aktivitetId: input.aktivitetId,
             byggeplassId: input.byggeplassId ?? null,
+            dato,
             startAt: startAtVerdi,
             endAt: endAtVerdi,
-            pauseMin: pauseMinVerdi,
           });
         }
         return { ...sheet, eksisterte: false };
@@ -1681,6 +1911,10 @@ export const dagsseddelRouter = router({
         timer: z.number().min(0),
         fraTid: z.string().nullable().optional(),
         tilTid: z.string().nullable().optional(),
+        // V20/PK3: radens matpause. Valgfri — gammel klient sender den ikke
+        // (serveren normaliserer da som i synk); ny klient sender den og får
+        // streng kontroll mot timetallet.
+        pauseMin: z.number().int().min(0).optional(),
         // T.12: fritekst per rad («hva jeg gjorde»).
         beskrivelse: z.string().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
@@ -1781,13 +2015,54 @@ export const dagsseddelRouter = router({
       const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
       const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
 
-      // F4-1d: rad-write + touchSedel atomisk så mobil pull ser den nye raden.
-      const [rad] = await ctx.prismaTimer.$transaction([
-        ctx.prismaTimer.sheetTimer.create({
-          data: byggTimerRadData(input.sheetId, input, erReise),
-        }),
-        touchSedel(ctx.prismaTimer, input.sheetId),
-      ]);
+      // V20/PK4a — vurder timetallet mot radens pause og pausevinduet. Vinduet
+      // (PK5) regnes fra alle rader på dagen (ankomst = tidligste fraTid, inkl.
+      // den nye). `finnesAlleredeBaerer` holder kun-én-pr-dag.
+      const eksisterendeRader = await ctx.prismaTimer.sheetTimer.findMany({
+        where: { sheetId: input.sheetId, attestertStatus: { not: "erstattet" } },
+        select: { fraTid: true, pauseMin: true },
+      });
+      const { pauseVindu, standardPauseMin } = await hentPauseVinduForSedel(
+        sheet.organizationId,
+        sheet.dato,
+        [...eksisterendeRader, { fraTid: input.fraTid }],
+      );
+      const vurdering = vurderRadTimer({
+        modus: "interaktiv",
+        satsEnhet: lonnsart.satsEnhet,
+        fraTid: input.fraTid,
+        tilTid: input.tilTid,
+        timer: input.timer,
+        pauseMinAngitt: input.pauseMin,
+        pauseVindu,
+        standardPauseMin,
+        finnesAlleredeBaerer: eksisterendeRader.some(
+          (r) => (r.pauseMin ?? 0) > 0,
+        ),
+      });
+      if (vurdering.kast) {
+        avvisTimerAvvik(
+          input.fraTid,
+          input.tilTid,
+          input.timer,
+          pauseVindu,
+          input.pauseMin ?? 0,
+        );
+      }
+
+      // F4-1d: rad-write + hode-synk (PK6) atomisk så mobil pull ser den nye
+      // raden og hodet = Σ rad i samme skriving.
+      const rad = await ctx.prismaTimer.$transaction(async (tx) => {
+        const ny = await tx.sheetTimer.create({
+          data: byggTimerRadData(
+            input.sheetId,
+            { ...input, pauseMin: vurdering.pauseMin },
+            erReise,
+          ),
+        });
+        await synkroniserHodePause(tx, input.sheetId);
+        return ny;
+      });
       return rad;
     }),
 
@@ -1809,6 +2084,8 @@ export const dagsseddelRouter = router({
         // tids-endringer. Nullable/optional — sendes kun når feltet er i bruk.
         fraTid: z.string().nullable().optional(),
         tilTid: z.string().nullable().optional(),
+        // V20/PK3: radens matpause (se tilfoyTimerRad).
+        pauseMin: z.number().int().min(0).optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1915,14 +2192,59 @@ export const dagsseddelRouter = router({
         input.id,
       );
 
-      // F4-1d: rad-write + touchSedel atomisk.
-      const [oppdatert] = await ctx.prismaTimer.$transaction([
-        ctx.prismaTimer.sheetTimer.update({
+      // V20/PK4a — vurder post-state timetall mot pause + vindu. Effektiv
+      // lønnsart/tid/timer er ny verdi hvis satt, ellers radens egen.
+      const vurderLonnsart = await ctx.prismaTimer.lonnsart.findFirst({
+        where: {
+          id: input.lonnsartId ?? rad.lonnsartId,
+          organizationId: sheet.organizationId,
+        },
+        select: { satsEnhet: true },
+      });
+      const andreRader = await ctx.prismaTimer.sheetTimer.findMany({
+        where: {
+          sheetId: rad.sheetId,
+          attestertStatus: { not: "erstattet" },
+          id: { not: input.id },
+        },
+        select: { fraTid: true, pauseMin: true },
+      });
+      const { pauseVindu, standardPauseMin } = await hentPauseVinduForSedel(
+        sheet.organizationId,
+        sheet.dato,
+        [...andreRader, { fraTid: input.fraTid }],
+      );
+      const vurdering = vurderRadTimer({
+        modus: "interaktiv",
+        satsEnhet: vurderLonnsart?.satsEnhet,
+        fraTid: input.fraTid,
+        tilTid: input.tilTid,
+        timer: input.timer ?? Number(rad.timer),
+        pauseMinAngitt: input.pauseMin,
+        pauseVindu,
+        standardPauseMin,
+        finnesAlleredeBaerer: andreRader.some((r) => (r.pauseMin ?? 0) > 0),
+      });
+      if (vurdering.kast) {
+        avvisTimerAvvik(
+          input.fraTid,
+          input.tilTid,
+          input.timer ?? Number(rad.timer),
+          pauseVindu,
+          input.pauseMin ?? 0,
+        );
+      }
+      data.pauseMin = vurdering.pauseMin;
+
+      // F4-1d: rad-write + hode-synk (PK6) atomisk.
+      const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
+        const o = await tx.sheetTimer.update({
           where: { id: input.id },
           data,
-        }),
-        touchSedel(ctx.prismaTimer, rad.sheetId),
-      ]);
+        });
+        await synkroniserHodePause(tx, rad.sheetId);
+        return o;
+      });
       return oppdatert;
     }),
 
@@ -1942,11 +2264,13 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // F4-1d: rad-write + touchSedel atomisk.
-      const [slettet] = await ctx.prismaTimer.$transaction([
-        ctx.prismaTimer.sheetTimer.delete({ where: { id: input.id } }),
-        touchSedel(ctx.prismaTimer, rad.sheetId),
-      ]);
+      // F4-1d: rad-write + hode-synk (PK6) atomisk — sletting kan fjerne
+      // bæreren, så hodet må re-utledes (Σ rad).
+      const slettet = await ctx.prismaTimer.$transaction(async (tx) => {
+        const s = await tx.sheetTimer.delete({ where: { id: input.id } });
+        await synkroniserHodePause(tx, rad.sheetId);
+        return s;
+      });
       return slettet;
     }),
 
@@ -1990,6 +2314,8 @@ export const dagsseddelRouter = router({
                 timer: z.number().min(0),
                 fraTid: z.string(),
                 tilTid: z.string(),
+                // V20/PK3: radens matpause.
+                pauseMin: z.number().int().min(0).optional(),
                 beskrivelse: z.string().nullable().optional(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 vehicleId: z.string().uuid().nullable().optional(),
@@ -2009,6 +2335,8 @@ export const dagsseddelRouter = router({
                 timer: z.number().min(0),
                 fraTid: z.string(),
                 tilTid: z.string(),
+                // V20/PK3: radens matpause.
+                pauseMin: z.number().int().min(0).optional(),
                 beskrivelse: z.string().nullable().optional(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 vehicleId: z.string().uuid().nullable().optional(),
@@ -2212,6 +2540,58 @@ export const dagsseddelRouter = router({
         ],
       );
 
+      // V20/PK4a — vurder timetallet mot pause + vindu for hver skrevne rad.
+      // Vinduet (PK5) regnes fra hele sluttsettet. Bæreren spores på tvers av
+      // batchen (kun-én-pr-dag): starter true hvis en BEHOLDT server-rad alt
+      // bærer, settes når en skrevet rad blir bærer.
+      const { pauseVindu, standardPauseMin } = await hentPauseVinduForSedel(
+        sheet.organizationId,
+        sheet.dato,
+        sluttTimer.map((r) => ({ fraTid: r.fraTid })),
+      );
+      const beholdtBaerer = naavaerende.some(
+        (r) => !oppdatertEtterId.has(r.id) && (r.pauseMin ?? 0) > 0,
+      );
+      let baererTatt = beholdtBaerer;
+      const oppdateringPause = new Map<string, number>();
+      const nyRadPause: number[] = [];
+      for (const o of input.oppdateringer) {
+        const v = vurderRadTimer({
+          modus: "interaktiv",
+          satsEnhet: satsEnhetEtterLonnsart.get(o.lonnsartId),
+          fraTid: o.fraTid,
+          tilTid: o.tilTid,
+          timer: o.timer,
+          pauseMinAngitt: o.pauseMin,
+          pauseVindu,
+          standardPauseMin,
+          finnesAlleredeBaerer: baererTatt,
+        });
+        if (v.kast) {
+          avvisTimerAvvik(o.fraTid, o.tilTid, o.timer, pauseVindu, o.pauseMin ?? 0);
+        }
+        if (v.pauseMin > 0) baererTatt = true;
+        oppdateringPause.set(o.id, v.pauseMin);
+      }
+      for (const r of input.nyeRader) {
+        const v = vurderRadTimer({
+          modus: "interaktiv",
+          satsEnhet: satsEnhetEtterLonnsart.get(r.lonnsartId),
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+          timer: r.timer,
+          pauseMinAngitt: r.pauseMin,
+          pauseVindu,
+          standardPauseMin,
+          finnesAlleredeBaerer: baererTatt,
+        });
+        if (v.kast) {
+          avvisTimerAvvik(r.fraTid, r.tilTid, r.timer, pauseVindu, r.pauseMin ?? 0);
+        }
+        if (v.pauseMin > 0) baererTatt = true;
+        nyRadPause.push(v.pauseMin);
+      }
+
       return ctx.prismaTimer.$transaction(async (tx) => {
         const laast = await tx.dailySheet.updateMany({
           where: { id: input.sheetId, status: { in: [...REDIGERBARE_STATUSER] } },
@@ -2242,20 +2622,23 @@ export const dagsseddelRouter = router({
             where: { id: o.id },
             data: byggTimerRadData(
               input.sheetId,
-              o,
+              { ...o, pauseMin: oppdateringPause.get(o.id) ?? 0 },
               erReiseMap.get(o.lonnsartId) ?? false,
             ),
           });
         }
-        for (const r of input.nyeRader) {
+        for (let i = 0; i < input.nyeRader.length; i++) {
+          const r = input.nyeRader[i]!;
           await tx.sheetTimer.create({
             data: byggTimerRadData(
               input.sheetId,
-              r,
+              { ...r, pauseMin: nyRadPause[i] ?? 0 },
               erReiseMap.get(r.lonnsartId) ?? false,
             ),
           });
         }
+        // V20/PK6: hodet = Σ rad etter alle skrivinger (slett + oppdater + ny).
+        await synkroniserHodePause(tx, input.sheetId);
         // V19 (A-5): forslaget er anvendt → slett det i samme tx.
         await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
         const forsonet = await tx.sheetTimer.findMany({
@@ -4024,6 +4407,8 @@ export const dagsseddelRouter = router({
               fraTid: z.string().nullable().optional(),
               tilTid: z.string().nullable().optional(),
               timer: z.number().positive(),
+              // V20/PK3: radens matpause.
+              pauseMin: z.number().int().min(0).optional(),
               // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
               vehicleId: z.string().uuid().nullable().optional(),
             }),
@@ -4063,6 +4448,7 @@ export const dagsseddelRouter = router({
           status: true,
           userId: true,
           pauseMin: true,
+          dato: true,
         },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
@@ -4192,6 +4578,7 @@ export const dagsseddelRouter = router({
       // som manglet taket helt (.positive(), intet maks, lastet ikke lønnsarten) —
       // en firma-admin kunne føre 25 timer her. Ett batch-oppslag på satsEnhet,
       // samme regel som de andre skrivestiene. Ukjent lønnsart → 24-tak.
+      const redigerSatsEnhet = new Map<string, string | null>();
       if (input.nyeRader.timer.length > 0) {
         const redigerLonnsartIder = Array.from(
           new Set(input.nyeRader.timer.map((r) => r.lonnsartId)),
@@ -4203,13 +4590,50 @@ export const dagsseddelRouter = router({
           },
           select: { id: true, satsEnhet: true },
         });
-        const redigerSatsEnhet = new Map(
-          redigerLonnsarter.map((l) => [l.id, l.satsEnhet]),
-        );
+        for (const l of redigerLonnsarter) redigerSatsEnhet.set(l.id, l.satsEnhet);
         for (const r of input.nyeRader.timer) {
           krevRadInnenforTak(r.timer, redigerSatsEnhet.get(r.lonnsartId));
         }
       }
+
+      // V20/PK4a — vurder timetallet pr. timer-rad mot pause + vindu. Edit
+      // erstatter hele det pending timer-settet, så vinduet (PK5) regnes fra de
+      // nye radenes fraTid, og bæreren spores på tvers av settet (kun-én).
+      const { pauseVindu: redigerPauseVindu, standardPauseMin: redigerStdPause } =
+        await hentPauseVinduForSedel(
+          sheet.organizationId,
+          sheet.dato,
+          input.nyeRader.timer.map((r) => ({ fraTid: r.fraTid })),
+        );
+      let redigerBaererTatt = false;
+      const timerPause: number[] = [];
+      for (const r of input.nyeRader.timer) {
+        const v = vurderRadTimer({
+          modus: "interaktiv",
+          satsEnhet: redigerSatsEnhet.get(r.lonnsartId),
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+          timer: r.timer,
+          pauseMinAngitt: r.pauseMin,
+          pauseVindu: redigerPauseVindu,
+          standardPauseMin: redigerStdPause,
+          finnesAlleredeBaerer: redigerBaererTatt,
+        });
+        if (v.kast) {
+          avvisTimerAvvik(
+            r.fraTid ?? "",
+            r.tilTid ?? "",
+            r.timer,
+            redigerPauseVindu,
+            r.pauseMin ?? 0,
+          );
+        }
+        if (v.pauseMin > 0) redigerBaererTatt = true;
+        timerPause.push(v.pauseMin);
+      }
+      // PK6: hodet = Σ rad.pauseMin. Edit erstatter alle pending (MOVE til
+      // historikk), så post-state Σ = Σ de nye radenes vurderte pause.
+      const redigerSumPause = timerPause.reduce((s, p) => s + p, 0);
 
       const naa = new Date();
       const antallErstattet =
@@ -4241,12 +4665,14 @@ export const dagsseddelRouter = router({
       // Hvis begge undefined: ikke rør pause-feltene.
       // Hvis null eller delvis null: nullstill begge + pauseMin = 0.
       // Ellers: beregn minutter mellom HH:MM-tidspunktene.
+      // V20/PK6: pauseFra/pauseTil er fortsatt vindu-kolonner (visning), men
+      // hodet `pauseMin` er nå DERIVERT (Σ rad), ikke differansen av vinduet —
+      // radens matpause er kilden. Validerer fortsatt at vinduet er gyldig.
       const paussFeltGitt =
         input.pauseFra !== undefined || input.pauseTil !== undefined;
       let pauseUpdate: {
         pauseFra: string | null;
         pauseTil: string | null;
-        pauseMin: number;
       } | null = null;
       if (paussFeltGitt) {
         if (input.pauseFra && input.pauseTil) {
@@ -4259,19 +4685,14 @@ export const dagsseddelRouter = router({
               message: "pauseTil må være etter pauseFra",
             });
           }
-          pauseUpdate = {
-            pauseFra: input.pauseFra,
-            pauseTil: input.pauseTil,
-            pauseMin: Math.round(diff),
-          };
+          pauseUpdate = { pauseFra: input.pauseFra, pauseTil: input.pauseTil };
         } else {
-          pauseUpdate = { pauseFra: null, pauseTil: null, pauseMin: 0 };
+          pauseUpdate = { pauseFra: null, pauseTil: null };
         }
       }
 
-      // Pause-aware maskin-validering: bruk ny pauseMin hvis vi endrer den,
-      // ellers eksisterende sheet.pauseMin.
-      const effektivPauseMin = pauseUpdate?.pauseMin ?? sheet.pauseMin;
+      // Pause-aware maskin-validering: hodet pauseMin = Σ rad (redigerSumPause).
+      const effektivPauseMin = redigerSumPause;
       const brytt = validerMaskinUnderArbeid(postTimer, postMaskin, effektivPauseMin);
       if (brytt.length > 0) {
         throw new TRPCError({
@@ -4295,7 +4716,8 @@ export const dagsseddelRouter = router({
         // blir usynlige for mobil inkrementell pull (updatedAt > sistSynk).
         ctx.prismaTimer.dailySheet.update({
           where: { id: sheet.id },
-          data: { ...(pauseUpdate ?? {}), updatedAt: new Date() },
+          // PK6: hodet pauseMin = Σ rad (derivert). pauseFra/pauseTil er vindu.
+          data: { ...(pauseUpdate ?? {}), pauseMin: redigerSumPause, updatedAt: new Date() },
         }),
         // T7-2b-oppfølger (2026-07-13): MOVE de pending originalene til historikk
         // (INSERT snapshot) + SLETT dem fra hovedtabellene i SAMME transaksjon —
@@ -4323,7 +4745,7 @@ export const dagsseddelRouter = router({
         ctx.prismaTimer.sheetMachine.deleteMany({
           where: { id: { in: eksMaskin.map((r) => r.id) } },
         }),
-        ...input.nyeRader.timer.map((rad) =>
+        ...input.nyeRader.timer.map((rad, i) =>
           ctx.prismaTimer.sheetTimer.create({
             data: {
               sheetId: sheet.id,
@@ -4335,6 +4757,8 @@ export const dagsseddelRouter = router({
               fraTid: rad.fraTid ?? null,
               tilTid: rad.tilTid ?? null,
               timer: rad.timer,
+              // V20/PK1: radens vurderte matpause (bæreren).
+              pauseMin: timerPause[i] ?? 0,
               vehicleId: rad.vehicleId ?? null,
               attestertStatus: "pending",
               parentRadId: rad.originalId,
@@ -4456,6 +4880,7 @@ export const dagsseddelRouter = router({
           status: true,
           userId: true,
           pauseMin: true,
+          dato: true,
         },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
@@ -4500,15 +4925,46 @@ export const dagsseddelRouter = router({
       // 8) Transaksjon: marker original "erstattet" + opprett nye med parentRadId
       const naa = new Date();
       if (input.radType === "timer") {
-        await ctx.prismaTimer.$transaction([
+        // RETUR 1 (V20-S): er originalen bærer, flytt pausen til delraden som
+        // krysser pausevinduet (PK5). Ikke bare re-utled hodet — da ville
+        // delradenes timetall fortsatt bære fradraget skjult (P1).
+        const originalPauseMin = (original as { pauseMin: number }).pauseMin;
+        const andreRader = await ctx.prismaTimer.sheetTimer.findMany({
+          where: {
+            sheetId: sheet.id,
+            attestertStatus: { not: "erstattet" },
+            id: { not: original.id },
+          },
+          select: { fraTid: true },
+        });
+        const { pauseVindu } = await hentPauseVinduForSedel(
+          sheet.organizationId,
+          sheet.dato,
+          [...andreRader, ...input.nyeRader],
+        );
+        const splittPause = fordelPauseVedSplitt(
+          input.nyeRader,
+          originalPauseMin,
+          pauseVindu,
+        );
+        // Invariant (RETUR punkt 2): Σ delrad.pauseMin = originalens pauseMin.
+        const sumPause = splittPause.reduce((s, p) => s + p, 0);
+        if (sumPause !== originalPauseMin) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Splitt bevarte ikke pausen (original ${originalPauseMin}, fordelt ${sumPause})`,
+          });
+        }
+        await ctx.prismaTimer.$transaction(async (tx) => {
           // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk (INSERT
           // snapshot) + slett fra hovedtabellen i SAMME tx — ikke status="erstattet".
-          ctx.prismaTimer.sheetRadHistorikk.createMany({
+          await tx.sheetRadHistorikk.createMany({
             data: [byggHistorikkPost("timer", original, ctx.userId, naa)],
-          }),
-          ctx.prismaTimer.sheetTimer.delete({ where: { id: original.id } }),
-          ...input.nyeRader.map((rad) =>
-            ctx.prismaTimer.sheetTimer.create({
+          });
+          await tx.sheetTimer.delete({ where: { id: original.id } });
+          for (let i = 0; i < input.nyeRader.length; i++) {
+            const rad = input.nyeRader[i]!;
+            await tx.sheetTimer.create({
               data: {
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
@@ -4519,6 +4975,8 @@ export const dagsseddelRouter = router({
                 fraTid: rad.fraTid ?? null,
                 tilTid: rad.tilTid ?? null,
                 timer: rad.timer,
+                // RETUR 1: bæreren flyttet til delraden i pausevinduet.
+                pauseMin: splittPause[i] ?? 0,
                 // T.10: split = samme arbeid → arv original-radens kostnadsbærer.
                 // Allerede org-validert da originalen ble opprettet — ingen ny sjekk.
                 vehicleId: (original as { vehicleId: string | null }).vehicleId ?? null,
@@ -4527,9 +4985,11 @@ export const dagsseddelRouter = router({
                 // LAG 2: split = samme arbeid → arv hele reise-sporet (sporbarhet).
                 ...arvReiseSpor(original as ReiseSporKilde),
               },
-            }),
-          ),
-        ]);
+            });
+          }
+          // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
+          await synkroniserHodePause(tx, sheet.id);
+        });
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
           // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk + slett
@@ -4651,6 +5111,7 @@ export const dagsseddelRouter = router({
           status: true,
           userId: true,
           pauseMin: true,
+          dato: true,
         },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
@@ -4687,10 +5148,39 @@ export const dagsseddelRouter = router({
       //    tilfoy*-radene (ingen attestertStatus/parentRadId satt → skjema-
       //    default, identisk med normalt tillagte draft-rader).
       if (input.radType === "timer") {
-        await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetTimer.delete({ where: { id: original.id } }),
-          ...input.nyeRader.map((rad) =>
-            ctx.prismaTimer.sheetTimer.create({
+        // RETUR 1 (V20-S): samme bærer-flytting som leder-splittRad — pausen
+        // følger delraden som krysser pausevinduet (PK5), ikke bare hodet.
+        const originalPauseMin = (original as { pauseMin: number }).pauseMin;
+        const andreRader = await ctx.prismaTimer.sheetTimer.findMany({
+          where: {
+            sheetId: sheet.id,
+            attestertStatus: { not: "erstattet" },
+            id: { not: original.id },
+          },
+          select: { fraTid: true },
+        });
+        const { pauseVindu } = await hentPauseVinduForSedel(
+          sheet.organizationId,
+          sheet.dato,
+          [...andreRader, ...input.nyeRader],
+        );
+        const splittPause = fordelPauseVedSplitt(
+          input.nyeRader,
+          originalPauseMin,
+          pauseVindu,
+        );
+        const sumPause = splittPause.reduce((s, p) => s + p, 0);
+        if (sumPause !== originalPauseMin) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Splitt bevarte ikke pausen (original ${originalPauseMin}, fordelt ${sumPause})`,
+          });
+        }
+        await ctx.prismaTimer.$transaction(async (tx) => {
+          await tx.sheetTimer.delete({ where: { id: original.id } });
+          for (let i = 0; i < input.nyeRader.length; i++) {
+            const rad = input.nyeRader[i]!;
+            await tx.sheetTimer.create({
               data: {
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
@@ -4701,15 +5191,19 @@ export const dagsseddelRouter = router({
                 fraTid: rad.fraTid ?? null,
                 tilTid: rad.tilTid ?? null,
                 timer: rad.timer,
+                // RETUR 1: bæreren flyttet til delraden i pausevinduet.
+                pauseMin: splittPause[i] ?? 0,
                 // Split = samme arbeid → arv original-radens kostnadsbærer.
                 vehicleId:
                   (original as { vehicleId: string | null }).vehicleId ?? null,
                 // LAG 2: arv hele reise-sporet (samme arbeid → samme spor).
                 ...arvReiseSpor(original as ReiseSporKilde),
               },
-            }),
-          ),
-        ]);
+            });
+          }
+          // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
+          await synkroniserHodePause(tx, sheet.id);
+        });
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
           ctx.prismaTimer.sheetTillegg.delete({ where: { id: original.id } }),
@@ -5715,6 +6209,44 @@ export const dagsseddelRouter = router({
 
           const dato = new Date(lokal.dato);
 
+          // V20/PK4b — normaliser radenes pause (ALDRI avvis — eldre app må kunne
+          // synke). Pausevinduet (PK5) følger firmaets pauseReferanse; bæreren
+          // tildeles kun-én pr. dag. Payloadens hode-pause (lokal.pauseMin)
+          // ignoreres — hodet utledes server-side (PK6, synkroniserHodePause).
+          const { pauseVindu: syncPauseVindu, standardPauseMin: syncStdPause } =
+            await hentPauseVinduForSedel(orgId, dato, lokal.timer);
+          let syncBaererTatt = false;
+          let syncAvvikAntall = 0;
+          const syncPauseEtterId = new Map<string, number>();
+          for (const t of lokal.timer) {
+            const v = vurderRadTimer({
+              modus: "sync",
+              satsEnhet: syncSatsEnhet.get(t.lonnsartId),
+              fraTid: t.fraTid,
+              tilTid: t.tilTid,
+              timer: t.timer,
+              pauseMinAngitt: t.pauseMin ?? undefined,
+              pauseVindu: syncPauseVindu,
+              standardPauseMin: syncStdPause,
+              finnesAlleredeBaerer: syncBaererTatt,
+            });
+            if (v.pauseMin > 0) syncBaererTatt = true;
+            if (v.teller === "avvik" || v.teller === "to_baerere") {
+              syncAvvikAntall++;
+            }
+            syncPauseEtterId.set(t.id, v.pauseMin);
+          }
+          if (syncAvvikAntall > 0) {
+            // PK4b-3: stemmer med ingen / kun-én-vern → skrevet uendret, telt.
+            console.warn(
+              `[timer_avvik_sync] sedel=${lokal.clientUuid} rader=${syncAvvikAntall}: timetall uten bevist pause skrevet uendret (V20/PK4b-3)`,
+            );
+          }
+          const syncSumPause = Array.from(syncPauseEtterId.values()).reduce(
+            (s, p) => s + p,
+            0,
+          );
+
           // Klient kan ikke sette accepted — lederen attesterer på server
           // Klient kan sette draft, sent (etter "send"-knapp), eller behold returned
           const innkommendeStatus =
@@ -5774,7 +6306,11 @@ export const dagsseddelRouter = router({
           const syncBrytt = validerMaskinUnderArbeid(
             syncPostTimer,
             syncPostMaskin,
-            lokal.pauseMin,
+            // V20/PK6: buffer = Σ vurdert rad-pause (hodet er derivert). Men
+            // ALDRI mindre enn payloadens claimede hode-pause — maskin-regelen
+            // er en buffer (maskin ≤ arbeid + pause/60), så en eldre app skal
+            // aldri avvises STRENGERE enn før (ufravikelig: eldre app må synke).
+            Math.max(syncSumPause, lokal.pauseMin),
           );
           if (syncBrytt.length > 0) {
             resultater.push({
@@ -6163,10 +6699,9 @@ export const dagsseddelRouter = router({
                     fraTid: t.fraTid ?? null,
                     tilTid: t.tilTid ?? null,
                     beskrivelse: t.beskrivelse ?? null,
-                    // F5: per-rad matpause-bærer. Ingen sedel-arv (per-rad-eid);
-                    // eldre klient sender ikke feltet → 0. Maskin-regelen bruker
-                    // fortsatt sedel-nivå pauseMin (lokal.pauseMin), ikke denne.
-                    pauseMin: t.pauseMin ?? 0,
+                    // V20/PK4b: radens vurderte matpause (normalisert — bæreren
+                    // tildeles der timetallet beviser fradraget, aldri avvist).
+                    pauseMin: syncPauseEtterId.get(t.id) ?? 0,
                     // LAG 2 (C1): reise-sporet persisteres (M6 — før stripte Zod det).
                     erReise: rf.erReise,
                     reiseRetning: rf.reiseRetning,
@@ -6181,6 +6716,10 @@ export const dagsseddelRouter = router({
                 }),
               });
             }
+            // V20/PK6: hodet = Σ rad.pauseMin etter delete+create av timer-rader.
+            // Ignorerer payloadens lokal.pauseMin (satt på sedelen over) — hodet
+            // er utledet, ikke klient-skrevet.
+            await synkroniserHodePause(tx, sedel.id);
             if (lokal.tillegg.length > 0) {
               await tx.sheetTillegg.createMany({
                 data: lokal.tillegg.map((tl) => ({
