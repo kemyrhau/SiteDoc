@@ -51,6 +51,12 @@ import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { syncTimer, bekreftConflict } from "./timerSync";
+import {
+  anvendForsonetLokalt,
+  byggForsonOverlappKall,
+} from "../lib/forsoningSpeil";
+import type { TidsromRad } from "../lib/dagskortSammenligning";
+import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
 
 const { dagsseddelLocal, sheetTimerLocal } = schema;
 
@@ -145,6 +151,9 @@ function lagKlient(
       dagsseddel: {
         syncBatch: { mutate: async () => ({ resultater: pushResultater }) },
         hentEndringerSiden: { query: async () => pullSvar },
+        // V19.9 (RETUR 1, vilkår 3): speilingen kaller hentMedId ved ok+hoppetOver.
+        // Default = tomt kort (ingen hoppede rader i pull-tester → aldri kalt).
+        hentMedId: { query: async () => ({ timer: [] as Array<Record<string, unknown>> }) },
       },
     },
   } as unknown as Parameters<typeof syncTimer>[0];
@@ -185,7 +194,12 @@ function seedSedel(over: {
     .run();
 }
 
-function seedTimerRad(id: string, dagsseddelId: string, timer: number) {
+function seedTimerRad(
+  id: string,
+  dagsseddelId: string,
+  timer: number,
+  over: { serverVersjon?: string | null; sistEndretLokalt?: number } = {},
+) {
   db()
     .insert(sheetTimerLocal)
     .values({
@@ -195,9 +209,57 @@ function seedTimerRad(id: string, dagsseddelId: string, timer: number) {
       lonnsartId: "l1",
       aktivitetId: "a1",
       timer,
-      sistEndretLokalt: 1000,
+      serverVersjon: over.serverVersjon ?? null,
+      sistEndretLokalt: over.sistEndretLokalt ?? 1000,
     })
     .run();
+}
+
+/** Fanger syncBatch-payloaden mobilen sender + returnerer oppgitte push-resultater. */
+function lagKlientFanger(
+  pushResultater: PushResultat[] = [],
+  pullSvar = tomtPull,
+  // V19.9 (RETUR 1, vilkår 3): hentMedId-handler for speilingen av hoppede rader.
+  // Default = tomt kort. Kast for å teste feil-/timeout-grenen.
+  hentMedIdHandler: () => Promise<{ timer: Array<Record<string, unknown>> }> = async () => ({
+    timer: [],
+  }),
+) {
+  const fanget: { input: unknown } = { input: null };
+  const klient = {
+    timer: {
+      dagsseddel: {
+        syncBatch: {
+          mutate: async (input: unknown) => {
+            fanget.input = input;
+            return { resultater: pushResultater };
+          },
+        },
+        hentEndringerSiden: { query: async () => pullSvar },
+        hentMedId: { query: hentMedIdHandler },
+      },
+    },
+  } as unknown as Parameters<typeof syncTimer>[0];
+  return { klient, fanget };
+}
+
+/** Les timer-payloaden for den første sedelen i en fanget syncBatch-input. */
+function pushTimer(fanget: { input: unknown }) {
+  const inp = fanget.input as {
+    sedler: Array<{
+      timer: Array<{ id: string; serverVersjon: string | null; endretLokalt: boolean }>;
+      slettedeIder?: { timerVersjoner?: Array<{ id: string; serverVersjon: string | null }> };
+    }>;
+  };
+  return inp.sedler[0];
+}
+
+function timerRad(id: string) {
+  return db()
+    .select()
+    .from(sheetTimerLocal)
+    .where(eq(sheetTimerLocal.id, id))
+    .all()[0];
 }
 
 function timerRaderFor(dagsseddelId: string) {
@@ -698,6 +760,307 @@ describe("V19-B — overlapp PC ↔ mobil: aarsak-branch (push) + V19.7b-slipp (
     const s = sedelFor("sheet-11b");
     expect(s.syncStatus).toBe("conflict");
     expect(s.konfliktAarsak).toBe("laast");
+  });
+});
+
+describe("V19.9-B — versjonssjekk pr. rad (§ 9.6 test 10 + 11)", () => {
+  // § 9.6 test 10 (a): pull SKAL sette server_versjon på alle hentede rader.
+  it("🔴 test 10a: pull setter server_versjon = updatedAt på hentede rader (feiler ved NULL)", async () => {
+    const klient = lagKlient({
+      serverTid: "2026-10-06T10:00:00.000Z",
+      sedler: [
+        serverSedel({
+          id: "sheet-v1",
+          dato: "2026-10-05",
+          status: "draft",
+          timer: [
+            {
+              id: "rad-v1",
+              projectId: "p1",
+              lonnsartId: "l1",
+              aktivitetId: "a1",
+              timer: 7.5,
+              updatedAt: "2026-10-06T09:00:00.000Z",
+            },
+          ],
+        }),
+      ],
+      levendeSedler: [{ id: "sheet-v1", clientUuid: "sheet-v1" }],
+      slettevindu: { fraDato: "2026-01-01", tilDato: null },
+    });
+
+    await syncTimer(klient, "u1");
+
+    expect(timerRad("rad-v1")?.serverVersjon).toBe("2026-10-06T09:00:00.000Z");
+  });
+
+  // § 9.6 test 10 (b): push SENDER serverVersjon + endretLokalt korrekt for
+  // (a) hentet-og-urørt, (b) hentet-og-redigert, (c) født lokalt.
+  it("🔴 test 10b: push sender serverVersjon + endretLokalt for urørt/redigert/født-lokalt", async () => {
+    // sedel.sistSynkronisert = 1000 (via seedSedel). endretLokalt = rad.sistEndretLokalt !== 1000.
+    seedSedel({ id: "sheet-v2", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    // (a) hentet-og-urørt: versjon satt, stempel == sist synket.
+    seedTimerRad("rad-urort", "sheet-v2", 7.5, {
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      sistEndretLokalt: 1000,
+    });
+    // (b) hentet-og-redigert: versjon satt, stempel endret etter synk.
+    seedTimerRad("rad-redigert", "sheet-v2", 3.0, {
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      sistEndretLokalt: 2000,
+    });
+    // (c) født lokalt: ingen versjon, stempel != sist synket.
+    seedTimerRad("rad-nyfodt", "sheet-v2", 1.0, {
+      serverVersjon: null,
+      sistEndretLokalt: 2000,
+    });
+
+    const { klient, fanget } = lagKlientFanger([]);
+    await syncTimer(klient, "u1");
+
+    const rader = pushTimer(fanget).timer;
+    const etterId = new Map(rader.map((r) => [r.id, r]));
+    expect(etterId.get("rad-urort")).toMatchObject({
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      endretLokalt: false,
+    });
+    expect(etterId.get("rad-redigert")).toMatchObject({
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      endretLokalt: true,
+    });
+    expect(etterId.get("rad-nyfodt")).toMatchObject({
+      serverVersjon: null,
+      endretLokalt: true,
+    });
+  });
+
+  // § 9.6 test 10 (c): push-`ok` skriver server_versjon for `rader`, IKKE for
+  // `hoppetOver`, og restempler kun rader med sistEndretLokalt <= byggetVed.
+  it("🔴 test 10c: push-ok skriver versjon for skrevne rader, ikke hoppetOver, restempler kun <= byggetVed", async () => {
+    seedSedel({ id: "sheet-v3", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    // skrevet, stempel i fortiden → skal restemples.
+    seedTimerRad("rad-skrevet", "sheet-v3", 7.5, {
+      serverVersjon: "V_gammel",
+      sistEndretLokalt: 1000,
+    });
+    // hoppet over → versjon + stempel skal stå urørt (serverraden er nyere).
+    seedTimerRad("rad-hoppet", "sheet-v3", 3.0, {
+      serverVersjon: "V_hoppet",
+      sistEndretLokalt: 1000,
+    });
+    // skrevet, men redigert ETTER byggetVed (stempel i framtiden) → versjon skrives,
+    // men IKKE restemplet (brukerens nyere endring må pushes på nytt).
+    const framtid = 4102444800000; // 2100-01-01
+    seedTimerRad("rad-midpush", "sheet-v3", 2.0, {
+      serverVersjon: "V_mid",
+      sistEndretLokalt: framtid,
+    });
+
+    const { klient } = lagKlientFanger(
+      [
+        {
+          clientUuid: "sheet-v3",
+          resultat: "ok",
+          serverData: {
+            id: "sheet-v3",
+            status: "draft",
+            lederKommentar: null,
+            attestertVed: null,
+            updatedAt: "2026-10-06T10:00:00.000Z",
+            rader: [
+              { id: "rad-skrevet", updatedAt: "V_ny_skrevet" },
+              { id: "rad-midpush", updatedAt: "V_ny_mid" },
+            ],
+            hoppetOver: ["rad-hoppet"],
+          },
+        } as unknown as PushResultat,
+      ],
+      tomtPull,
+      // V19.9 (RETUR 1, vilkår 3): hentMedId leverer serverens nyere rad-hoppet.
+      async () => ({
+        timer: [
+          {
+            id: "rad-hoppet",
+            projectId: "p1",
+            lonnsartId: "l1",
+            aktivitetId: "a1",
+            timer: 9.0,
+            fraTid: null,
+            tilTid: null,
+            beskrivelse: "serverinnhold",
+            pauseMin: 0,
+            updatedAt: "V_server_hoppet",
+          },
+        ],
+      }),
+    );
+    await syncTimer(klient, "u1");
+
+    // Skrevet rad: versjon oppdatert + restemplet (stempel != 1000 lenger).
+    expect(timerRad("rad-skrevet")?.serverVersjon).toBe("V_ny_skrevet");
+    expect(timerRad("rad-skrevet")?.sistEndretLokalt).not.toBe(1000);
+    // Mid-push-redigert: versjon skrevet, men stempel IKKE restemplet (> byggetVed).
+    expect(timerRad("rad-midpush")?.serverVersjon).toBe("V_ny_mid");
+    expect(timerRad("rad-midpush")?.sistEndretLokalt).toBe(framtid);
+    // Hoppet over (RETUR 1 vilkår 3): SPEILET fra hentMedId — serverens innhold,
+    // server_versjon = serverens updatedAt, sistEndretLokalt = naa (= sistSynkronisert).
+    const hoppet = timerRad("rad-hoppet");
+    expect(hoppet?.serverVersjon).toBe("V_server_hoppet");
+    expect(hoppet?.timer).toBe(9.0);
+    expect(hoppet?.beskrivelse).toBe("serverinnhold");
+    expect(hoppet?.sistEndretLokalt).toBe(sedelFor("sheet-v3").sistSynkronisert);
+    expect(hoppet?.sistEndretLokalt).not.toBe(1000);
+  });
+
+  // RETUR 1 vilkår 3 — henting feiler: de hoppede radene restemples til
+  // sistEndretLokalt = naa (neste push → endretLokalt = false → R3), server_versjon
+  // URØRT, og innholdet står (speiles på nytt ved neste ok med hoppetOver).
+  it("🔴 vilkår 3b: hentMedId feiler → hoppet rad restemples, versjon urørt, innhold står", async () => {
+    seedSedel({ id: "sheet-v5", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rad-hoppet-feil", "sheet-v5", 7.5, {
+      serverVersjon: "V_stale",
+      sistEndretLokalt: 1000,
+    });
+
+    const { klient } = lagKlientFanger(
+      [
+        {
+          clientUuid: "sheet-v5",
+          resultat: "ok",
+          serverData: {
+            id: "sheet-v5",
+            status: "draft",
+            lederKommentar: null,
+            attestertVed: null,
+            updatedAt: "2026-10-06T10:00:00.000Z",
+            rader: [],
+            hoppetOver: ["rad-hoppet-feil"],
+          },
+        } as unknown as PushResultat,
+      ],
+      tomtPull,
+      // Henting feiler (speiler timeout/nettfeil).
+      async () => {
+        throw new Error("hentMedId feilet");
+      },
+    );
+    await syncTimer(klient, "u1");
+
+    const rad = timerRad("rad-hoppet-feil");
+    // Versjon URØRT (stale) + innhold står (7.5) — speiles på nytt neste ok.
+    expect(rad?.serverVersjon).toBe("V_stale");
+    expect(rad?.timer).toBe(7.5);
+    // Restemplet til naa = sedelens sistSynkronisert → endretLokalt = false neste push.
+    expect(rad?.sistEndretLokalt).toBe(sedelFor("sheet-v5").sistSynkronisert);
+    expect(rad?.sistEndretLokalt).not.toBe(1000);
+  });
+
+  // RETUR 1 vilkår 1 — byggForsonOverlappKall BÆRER slettinger: valg «lokal» (appen)
+  // på en slettet_telefon-slot → slettinger = [sedelRadId] (ellers blir raden stående).
+  it("🔴 vilkår 1: byggForsonOverlappKall gir slettinger for slettet_telefon-valg «lokal»", () => {
+    const sedelRad: DeltForsonRad = {
+      id: "rad-x",
+      projectId: "p1",
+      byggeplassId: null,
+      lonnsartId: "l1",
+      aktivitetId: "a1",
+      timer: 7.5,
+      fraTid: "07:00",
+      tilTid: "15:00",
+      beskrivelse: null,
+      externalCostObjectId: null,
+      vehicleId: null,
+    };
+    // slettet_telefon-forslaget er en KOPI av serverraden (samme id) m/ grunn.
+    const forslag: DeltForsonRad = { ...sedelRad, grunn: "slettet_telefon" };
+    const rader: TidsromRad[] = [
+      {
+        nokkel: "rad-x",
+        tidsrom: "07:00–15:00",
+        lokal: { id: "rad-x", fraTid: "07:00", tilTid: "15:00", timer: 7.5 },
+        server: { id: "rad-x", fraTid: "07:00", tilTid: "15:00", timer: 7.5 },
+        valgt: "server",
+        valgbar: true,
+        grunn: "slettet_telefon",
+      },
+    ];
+    // Valg «lokal» (appen = slett).
+    const input = byggForsonOverlappKall(rader, { "rad-x": "lokal" }, [sedelRad], [forslag]);
+    expect(input.slettinger).toEqual(["rad-x"]);
+    // Valg «server» (behold PC) → ingen sletting.
+    const input2 = byggForsonOverlappKall(rader, { "rad-x": "server" }, [sedelRad], [forslag]);
+    expect(input2.slettinger).toEqual([]);
+  });
+
+  // RETUR 1 vilkår 2 — anvendForsonetLokalt setter server_versjon ≠ NULL + stempler.
+  it("🔴 vilkår 2: anvendForsonetLokalt setter server_versjon + sistEndretLokalt === sedel.sistSynkronisert", () => {
+    seedSedel({ id: "sheet-v6", dato: "2026-10-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("gammel-rad", "sheet-v6", 5.0, { serverVersjon: null, sistEndretLokalt: 1000 });
+
+    const naa = 9_000_000;
+    anvendForsonetLokalt(
+      "sheet-v6",
+      [
+        {
+          id: "forsonet-1",
+          projectId: "p1",
+          byggeplassId: null,
+          lonnsartId: "l1",
+          aktivitetId: "a1",
+          externalCostObjectId: null,
+          timer: 7.5,
+          fraTid: "07:00",
+          tilTid: "15:00",
+          beskrivelse: null,
+          pauseMin: 0,
+          updatedAt: "2026-10-06T11:00:00.000Z",
+        },
+      ],
+      naa,
+    );
+
+    // Gamle rader borte, serverens forsonede rad inne med versjon + stempel.
+    expect(timerRad("gammel-rad")).toBeUndefined();
+    const rad = timerRad("forsonet-1");
+    expect(rad?.serverVersjon).toBe("2026-10-06T11:00:00.000Z");
+    expect(rad?.sistEndretLokalt).toBe(naa);
+    // Sedelen stemplet synket = naa → raden er «ren» ved neste push (ingen R10).
+    expect(sedelFor("sheet-v6").sistSynkronisert).toBe(naa);
+    expect(rad?.sistEndretLokalt).toBe(sedelFor("sheet-v6").sistSynkronisert);
+  });
+
+  // § 9.6 test 11: tombstonen BÆRER radens server_versjon (feiler ved NULL for en
+  // hentet rad). Her testes push-serialiseringen: en tombstone med versjon → payloadens
+  // slettedeIder.timerVersjoner; eldre tombstone uten versjon → null (S4, trygg retning).
+  it("🔴 test 11: tombstone-versjon bæres i slettedeIder.timerVersjoner (hentet rad != NULL)", async () => {
+    seedSedel({ id: "sheet-v4", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    db()
+      .insert(schema.slettedeRaderLocal)
+      .values([
+        {
+          radId: "slettet-hentet",
+          dagsseddelId: "sheet-v4",
+          radType: "timer",
+          serverVersjon: "2026-10-06T09:00:00.000Z",
+          slettetVed: 1500,
+        },
+        {
+          radId: "slettet-eldre",
+          dagsseddelId: "sheet-v4",
+          radType: "timer",
+          serverVersjon: null,
+          slettetVed: 1500,
+        },
+      ])
+      .run();
+
+    const { klient, fanget } = lagKlientFanger([]);
+    await syncTimer(klient, "u1");
+
+    const versjoner = pushTimer(fanget).slettedeIder?.timerVersjoner ?? [];
+    const etterId = new Map(versjoner.map((v) => [v.id, v.serverVersjon]));
+    expect(etterId.get("slettet-hentet")).toBe("2026-10-06T09:00:00.000Z");
+    expect(etterId.get("slettet-eldre")).toBe(null);
   });
 });
 

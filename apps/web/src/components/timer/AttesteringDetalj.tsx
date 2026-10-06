@@ -192,6 +192,8 @@ export function AttesteringDetalj({
       beskrivelse: (f.beskrivelse as string | null) ?? null,
       externalCostObjectId: (f.externalCostObjectId as string | null) ?? null,
       vehicleId: (f.vehicleId as string | null) ?? null,
+      // V19.9 (C'-2): grunn styrer attestantens lese-visning av slot-typene.
+      grunn: (f.grunn as ForsonRad["grunn"]) ?? null,
     } satisfies ForsonRad;
   });
   const sedelForsonRader: ForsonRad[] = timerRader.map((r) => ({

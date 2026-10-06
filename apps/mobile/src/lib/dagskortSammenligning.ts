@@ -16,7 +16,11 @@
  * ene siden. `webLaster` skiller «vet ikke ennå» fra «vet at den er tom».
  */
 
-import { parForslagMotSedel, type ForsonRad } from "@sitedoc/shared";
+import {
+  parForslagMotSedel,
+  type ForsonRad,
+  type ForsonGrunn,
+} from "@sitedoc/shared";
 
 export type NettStatus = "online" | "offline";
 export type WebStatus = "draft" | "returned" | "sent" | "accepted";
@@ -58,6 +62,16 @@ export interface TidsromRad {
    * rad som bare finnes på én side kan ikke velges bort). Utelatt → valgbar (som i dag).
    */
   valgbar?: boolean;
+  /**
+   * V19.9 (B'-6): forslagsradens `grunn` — styrer slot-visningen:
+   *  - `endret_begge`: begge sider har rad (vanlig radio) + «endret begge»-forklaring.
+   *  - `slettet_telefon`: appen-siden viser «Telefonen: slettet» (valg «appen» = slett
+   *    serverraden), web-siden viser raden.
+   *  - `slettet_pc`: web-siden viser «PC: slettet» (valg «web» = behold slettet), appen-
+   *    siden viser telefonens rad (valg «appen» = gjenopprett).
+   * `overlapp`/`null`/utelatt = ren V19-A-slot (uendret visning).
+   */
+  grunn?: ForsonGrunn | null;
 }
 
 export type Sammenligning =
@@ -194,9 +208,11 @@ export function overlappSammenligning(input: {
       lokal: forslagRad, // appen = forslaget
       server: sedelRad, // web = sedelen (PC)
       // Paret slot: forhåndsvelg «behold PC» (server) — konservativt, = skriveveien
-      // uten valg. Ensidig slot: den siden som finnes (men ikke valgbar, Q3(b)).
+      // uten valg (også `slettet_pc`: default «behold slettet» = web-siden). Ensidig
+      // slot: den siden som finnes (men ikke valgbar, Q3(b)).
       valgt: slot.valgbar ? "server" : forslagRad && !sedelRad ? "lokal" : "server",
       valgbar: slot.valgbar,
+      grunn: slot.grunn,
     };
   });
 

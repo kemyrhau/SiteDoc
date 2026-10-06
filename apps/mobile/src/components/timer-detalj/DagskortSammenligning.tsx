@@ -50,12 +50,19 @@ function RadSide({
   rad,
   valgt,
   valgbar,
+  slettet = false,
   onVelg,
 }: {
   etikett: string;
   rad: TimerRad | null;
   valgt: boolean;
   valgbar: boolean;
+  /**
+   * V19.9 (B'-6): denne siden REPRESENTERER en sletting (PC eller telefon slettet
+   * raden). Viser «Slettet» i stedet for rad/«ingen registrering», og er et reelt,
+   * valgbart alternativ (behold slettet / slett) selv når `rad` er null.
+   */
+  slettet?: boolean;
   onVelg?: () => void;
 }) {
   const { t } = useTranslation();
@@ -65,7 +72,11 @@ function RadSide({
         <Text className="text-xs font-medium text-gray-500">{etikett}</Text>
         {valgbar && valgt && <Check size={16} color="#1e40af" />}
       </View>
-      {rad ? (
+      {slettet ? (
+        <Text className="text-sm font-semibold italic text-red-700">
+          {t("timer.sammenlign.slettet")}
+        </Text>
+      ) : rad ? (
         <>
           <Text className="text-sm font-semibold text-gray-900">
             {t("timer.sammenlign.timer", { timer: rad.timer })}
@@ -85,8 +96,9 @@ function RadSide({
   );
 
   // Kun valgbare, eksisterende rader er trykkbare. Modus C (ikke valgbar) og tomme
-  // sider gir ingen trykkflate — ingen skrivevei, ingen illusjon av valg.
-  const kanTrykke = valgbar && !!rad && !!onVelg;
+  // sider gir ingen trykkflate — ingen skrivevei, ingen illusjon av valg. En
+  // «slettet»-side er et reelt valg (behold slettet / slett) → trykkbar uten `rad`.
+  const kanTrykke = valgbar && (!!rad || slettet) && !!onVelg;
   const ramme = valgt && valgbar ? "border-sitedoc-blue bg-blue-50" : "border-gray-200 bg-white";
   return kanTrykke ? (
     <Pressable
@@ -190,18 +202,37 @@ export function DagskortSammenligning({
           // `tidsrom`. En ensidig slot er ikke valgbar (Q3(b): rad.valgbar === false).
           const key = rad.nokkel ?? rad.tidsrom;
           const radValgbar = !laast && rad.valgbar !== false;
+          // V19.9 (B'-6): slot-typene. «slettet_telefon» → appen-siden viser
+          // «Slettet» (telefonen fjernet raden); «slettet_pc» → web-siden viser
+          // «Slettet» (PC fjernet raden). «endret_begge» → vanlig radio + forklaring.
+          const appenSlettet = rad.grunn === "slettet_telefon";
+          const pcSlettet = rad.grunn === "slettet_pc";
+          const grunnTekst =
+            rad.grunn === "endret_begge"
+              ? t("timer.sammenlign.grunnEndretBegge")
+              : rad.grunn === "slettet_telefon"
+                ? t("timer.sammenlign.grunnSlettetTelefon")
+                : rad.grunn === "slettet_pc"
+                  ? t("timer.sammenlign.grunnSlettetPc")
+                  : null;
           return (
             <View key={key} className="mt-3 border-t border-gray-100 pt-3">
               <View className="mb-1.5 flex-row items-center gap-1.5">
                 <Clock size={13} color="#6b7280" />
                 <Text className="text-xs font-semibold text-gray-700">{rad.tidsrom}</Text>
               </View>
+              {grunnTekst ? (
+                <Text className="mb-1.5 text-xs font-medium text-amber-700">
+                  {grunnTekst}
+                </Text>
+              ) : null}
               <View className="flex-row gap-2">
                 <RadSide
                   etikett={t("timer.sammenlign.appen")}
                   rad={rad.lokal}
                   valgt={valg[key] === "lokal"}
                   valgbar={radValgbar}
+                  slettet={appenSlettet}
                   onVelg={() => onVelg(key, "lokal")}
                 />
                 <RadSide
@@ -209,6 +240,7 @@ export function DagskortSammenligning({
                   rad={rad.server}
                   valgt={valg[key] === "server"}
                   valgbar={radValgbar}
+                  slettet={pcSlettet}
                   onVelg={() => onVelg(key, "server")}
                 />
               </View>
