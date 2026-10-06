@@ -655,6 +655,19 @@ sted.**
 
 ### Ordreformat til Kenneth: hvem → gjør hva → når
 
+🔴 **AGENTNAVN, ALDRI MAPPENAVN, over hver nudge** (Kenneth 2026-10-06: *«du bruker to navn → kontrollør og fabel om
+hverandre → jeg vet aldri hvem du egentlig mener»*). Overskriften er `### → <Agentnavn>`, ett navn pr. agent:
+
+| Agentnavn | Kjører i | Rolle | Innboks |
+|---|---|---|---|
+| **Fabel** | Claude-appen (Desktop-økt «Fabel») | plan- og spec-eier | `relay/inbox-fabel.md` |
+| **Kontrollør** | terminal, mappa `SiteDoc-design` | kodegate før merge | `relay/inbox-kontrollor.md` |
+| **Redesign** | terminal, `SiteDoc-redesign` | utvikler | `relay/inbox-redesign-*.md` |
+| **Dokgen** | terminal, `SiteDoc-dokgen` | utvikler | `relay/inbox-dokgen-*.md` |
+| **Kontrollplan** | terminal, `SiteDoc-kontrollplan` | utvikler | `relay/inbox-kontrollplan-*.md` |
+
+Fabel og Kontrollør er to ulike agenter. Skriv aldri «SiteDoc-design» som mottaker.
+
 Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,
 og **rekkefølgen** hvis noe avhenger av noe annet. Kenneth skal kunne kopiere og
 kjøre uten å tolke.
