@@ -5959,17 +5959,25 @@ export const dagsseddelRouter = router({
                     .filter((a) => a.kilde === "payload")
                     .map((a) => [a.id, a.grunn]),
                 );
-                const payloadMedGrunn = lokal.timer.map((t) => ({
-                  ...t,
-                  grunn: grunnById.get(t.id) ?? "overlapp",
-                }));
+                // V19.9 (fabel-vilkår a): hoppOver-radene er telefonens STALE kopi av
+                // rader PC-en har endret og telefonen ikke rørte (R3). I ren V19-A gikk
+                // de med i forslaget og ble valgbare på tid — «appen for hele dagen»
+                // rullet da PC-endringen tilbake. V19.9 VET hvilke det er → hold dem
+                // UTE av forslaget (PC-versjonen står urørt på serveren).
+                const hoppetOverSet = new Set(hoppetOverIder);
+                const payloadMedGrunn = lokal.timer
+                  .filter((t) => !hoppetOverSet.has(t.id))
+                  .map((t) => ({
+                    ...t,
+                    grunn: grunnById.get(t.id) ?? "overlapp",
+                  }));
                 const aarsak = await lagreOverlappForslag(
                   tx,
                   eksisterendeITx.id,
                   payloadMedGrunn,
                   lokal.projectId ?? null,
                 );
-                return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: [] };
+                return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: hoppetOverIder };
               }
             }
 

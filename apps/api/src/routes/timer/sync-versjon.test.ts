@@ -137,6 +137,22 @@ describe("klassifiserSyncRader — rader (R1–R12)", () => {
     const r = klassifiserSyncRader([], [pl({ id: "x", serverVersjon: null, endretLokalt: undefined })], []);
     expect(r.skriv).toEqual(["x"]);
   });
+
+  it("fail-safe (fabel-vilkår b): versjon SATT uten endretLokalt → forslag, ikke stille hopp over", () => {
+    // R4-retning: serverrad finnes, versjon ulik, innhold ulikt, endretLokalt mangler.
+    // `!== false` → avvik (trygg retning), ikke hopp over (som `=== true` ville gitt).
+    const r4 = klassifiserSyncRader(
+      [srv({ updatedAt: V2, tilTid: "15:30" })],
+      [pl({ serverVersjon: V1, endretLokalt: undefined, tilTid: "15:00" })],
+      [],
+    );
+    expect(r4.avvik).toEqual([{ id: "r1", grunn: "endret_begge", kilde: "payload" }]);
+    expect(r4.hoppOver).toEqual([]);
+    // R7-retning: serverraden mangler, versjon satt, endretLokalt mangler → slettet_pc.
+    const r7 = klassifiserSyncRader([], [pl({ serverVersjon: V1, endretLokalt: undefined })], []);
+    expect(r7.avvik).toEqual([{ id: "r1", grunn: "slettet_pc", kilde: "payload" }]);
+    expect(r7.hoppOver).toEqual([]);
+  });
 });
 
 describe("klassifiserSyncRader — slettinger (S1–S4)", () => {

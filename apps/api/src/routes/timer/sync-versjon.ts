@@ -84,11 +84,14 @@ export function klassifiserSyncRader(
       if (!versjonKjent) {
         // R6 (ny rad) / R11 (eldre app, kan ikke skilles) → opprett.
         skriv.push(p.id);
-      } else if (p.endretLokalt === true) {
-        // R7: slettet PC, endret telefon → avvik slettet_pc (telefonens rad, INGEN gjenoppstandelse).
+      } else if (p.endretLokalt !== false) {
+        // R7: slettet PC, endret telefon → avvik slettet_pc (telefonens rad, INGEN
+        // gjenoppstandelse). `!== false` (ikke `=== true`): spec R7 sier «true/ikke
+        // satt → forslag» — en klient som sender versjon uten flagget får trygg
+        // retning (forslag), aldri stille forkasting.
         avvik.push({ id: p.id, grunn: "slettet_pc", kilde: "payload" });
       } else {
-        // R8: slettet PC, uendret telefon → hopp over (PC-slettingen står).
+        // R8: slettet PC, uendret telefon (endretLokalt EKSPLISITT false) → hopp over.
         hoppOver.push(p.id);
       }
       continue;
@@ -117,11 +120,13 @@ export function klassifiserSyncRader(
     if (likt) {
       // R5: begge endret til det samme → hopp over (serverraden er alt riktig).
       hoppOver.push(p.id);
-    } else if (p.endretLokalt === true) {
+    } else if (p.endretLokalt !== false) {
       // R4: endret begge → avvik endret_begge (telefonens rad, serverraden står).
+      // `!== false` (fail-safe): versjon satt uten flagg → forslag, ikke stille
+      // forkasting av en mulig ekte redigering.
       avvik.push({ id: p.id, grunn: "endret_begge", kilde: "payload" });
     } else {
-      // R3: uendret telefon, endret PC → hopp over (PC vinner uten støy).
+      // R3: uendret telefon (endretLokalt EKSPLISITT false), endret PC → hopp over.
       hoppOver.push(p.id);
     }
   }

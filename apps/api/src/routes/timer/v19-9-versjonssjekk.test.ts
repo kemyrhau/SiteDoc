@@ -384,6 +384,28 @@ describe("V19.9-A syncBatch — versjonssjekk pr. rad (§ 9.6)", () => {
     expect(grunnById[RAD_A]).toBe("endret_begge");
     expect(grunnById[RAD_NY]).toBe("overlapp");
   });
+  it("(fabel-vilkår a): hoppOver-rad (stale telefon-kopi) tas IKKE med i overlapp-forslaget", async () => {
+    // Server A ligger 10–12 (PC flyttet den, V2). Telefonen pusher sin STALE A 07–09
+    // URØRT (R3 hoppOver) + en ny rad 11–13 (R6 skriv). Unionen (server-A 10–12 ∪
+    // skriv 11–13) overlapper → V19-A-forrang. Stale A SKAL ikke bli valgbar i forslaget
+    // (ellers ruller «appen for hele dagen» PC-ens flytting tilbake).
+    const { ctx, forslagData, txMock } = lagCtx([
+      serverRad({ id: RAD_A, updatedAt: new Date(V2), fraTid: "10:00", tilTid: "12:00" }),
+    ]);
+    const caller = dagsseddelRouter.createCaller(ctx);
+    const res = await caller.syncBatch({
+      sedler: [
+        sedel([
+          { id: RAD_A, serverVersjon: V1, endretLokalt: false, fraTid: "07:00", tilTid: "09:00", timer: 2 },
+          { id: RAD_NY, serverVersjon: null, fraTid: "11:00", tilTid: "13:00", timer: 2 },
+        ]),
+      ],
+    });
+    expect(res.resultater[0]!.resultat).toBe("conflict");
+    expect(txMock.sheetTimer.createMany).not.toHaveBeenCalled(); // V19-A: ingen skriving
+    // KUN den nye raden er forslag; stale A er filtrert bort.
+    expect(forslagData().map((f) => f.id)).toEqual([RAD_NY]);
+  });
 });
 
 describe("V19.9-A grep-vakter (§ 9.6 test 13)", () => {

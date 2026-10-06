@@ -80,7 +80,8 @@ describe("ForslagValgSeksjon (C-1)", () => {
     tegn(sedel, forslag, onBekreft);
 
     fireEvent.click(screen.getByText("Bekreft valg"));
-    expect(onBekreft.mock.calls[0]![0]).toEqual({ oppdateringer: [], nyeRader: [] });
+    // V19.9.7: byggForsonInputFraValg returnerer også `slettinger` (tom for ren V19-A).
+    expect(onBekreft.mock.calls[0]![0]).toEqual({ oppdateringer: [], nyeRader: [], slettinger: [] });
   });
 
   it("et tidsrom på bare én side er ikke valgbart (Q3(b)) — radio bare på parede slots", () => {
