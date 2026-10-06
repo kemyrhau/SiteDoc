@@ -80,9 +80,9 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 
 | Spor | Agent | Worktree | Branch | Tilstand |
 |---|---|---|---|---|
-| **Plan** | dokgen | `SiteDoc-dokgen` | `fix/v19-9a2-kanter` (ny) | 🟡 **Ordre skrevet 2026-10-06** — V19.9-A2: to kanter (tombstone-avvik i overlapp-grenen; `endret_begge` uten serverrad) (`relay/inbox-dokgen-v19-9a2-kanter.md`). V19.9-A merget `2e37dec3` |
+| **Plan** | dokgen | `SiteDoc-dokgen` | — (detached) | 🟢 **Ledig. V19.9-A2 MERGET `d16f4521` ← `4f81b7c6` 2026-10-06** (orkestrator-gate). Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s · api 746 · shared 1097 |
 | **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f`. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
-| **Plan** | redesign | `SiteDoc-redesign` | `feat/v19-9b-versjonssjekk-klient` (ny) | 🟡 **Ordre skrevet 2026-10-06** — V19.9-B klient: mobil sender versjon + slot-typer mobil/web (`relay/inbox-redesign-v19-9b-klient.md`). Synk-fiks `cef84b94` merget |
+| **Plan** | redesign | `SiteDoc-redesign` | `feat/v19-9b-versjonssjekk-klient` `912f817d` | 🟡 **V19.9-B levert 2026-10-06, hos kontrollør** (gate på merge-resultat med A2) |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
