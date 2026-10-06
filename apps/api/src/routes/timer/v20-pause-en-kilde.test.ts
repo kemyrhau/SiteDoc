@@ -36,10 +36,15 @@ vi.mock("@sitedoc/db", () => ({
     organizationSetting: { findUnique: vi.fn().mockResolvedValue({ reiseLonnsartId: null }) },
     organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
     reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
+    activity: { create: vi.fn().mockResolvedValue({}) },
   },
 }));
 
-import { dagsseddelRouter, vurderRadTimer } from "./dagsseddel";
+import {
+  dagsseddelRouter,
+  vurderRadTimer,
+  fordelPauseVedSplitt,
+} from "./dagsseddel";
 
 // Felles pausevindu i matrisen: 11:00–11:30 (07:00 start + 4 t, std 30 min).
 const VINDU = "11:00";
@@ -311,5 +316,177 @@ describe("V20 syncBatch — Kenneths rad (gate-kriterium 2)", () => {
     expect(skrevet.pauseMin).toBe(30); // normalisert til bærer
     expect(skrevet.timer).toBe(8.5); // ALDRI endret
     expect(sisteHodePause).toBe(30); // PK6: hode = Σ rad
+  });
+});
+
+// ── Del 3: splitt av bæreren (RETUR 1) ─────────────────────────────────────
+describe("V20/RETUR1 — fordelPauseVedSplitt", () => {
+  it("bærer 07:00–16:00 splittet ved 12:00 → 07:00–12:00 får 30, 12:00–16:00 får 0", () => {
+    const f = fordelPauseVedSplitt(
+      [
+        { fraTid: "07:00", tilTid: "12:00" },
+        { fraTid: "12:00", tilTid: "16:00" },
+      ],
+      30,
+      VINDU, // 11:00 → vinduet 11:00–11:30 ligger i første delrad
+    );
+    expect(f).toEqual([30, 0]);
+  });
+
+  it("original ikke bærer (pause 0) → alle delrader 0", () => {
+    const f = fordelPauseVedSplitt(
+      [
+        { fraTid: "07:00", tilTid: "12:00" },
+        { fraTid: "12:00", tilTid: "16:00" },
+      ],
+      0,
+      VINDU,
+    );
+    expect(f).toEqual([0, 0]);
+  });
+
+  it("største overlapp vinner når flere krysser (uavgjort → første)", () => {
+    // Vindu 11:00–11:30. Rad A 10:00–11:15 (overlapp 15), rad B 11:15–13:00 (overlapp 15).
+    // Uavgjort → første (A).
+    const f = fordelPauseVedSplitt(
+      [
+        { fraTid: "10:00", tilTid: "11:15" },
+        { fraTid: "11:15", tilTid: "13:00" },
+      ],
+      30,
+      VINDU,
+    );
+    expect(f).toEqual([30, 0]);
+  });
+
+  it("krysser ingen delrad → bæreren på første rad (invariant bevart)", () => {
+    const f = fordelPauseVedSplitt(
+      [
+        { fraTid: "12:00", tilTid: "14:00" },
+        { fraTid: "14:00", tilTid: "16:00" },
+      ],
+      30,
+      VINDU,
+    );
+    expect(f).toEqual([30, 0]);
+  });
+});
+
+const SHEET = "99999999-9999-9999-9999-999999999999";
+const RAD_ORIG = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+function lagSplittCtx(opts: { status: string; eier?: boolean }) {
+  const opprettede: Record<string, unknown>[] = [];
+  let hode: number | null = null;
+  const original = {
+    id: RAD_ORIG,
+    sheetId: SHEET,
+    lonnsartId: LONNSART,
+    aktivitetId: AKTIVITET,
+    projectId: PROSJEKT,
+    externalCostObjectId: null,
+    byggeplassId: null,
+    fraTid: "07:00",
+    tilTid: "16:00",
+    timer: 8.5,
+    pauseMin: 30, // bæreren
+    vehicleId: null,
+    attestertStatus: "pending",
+    parentRadId: null,
+    erReise: false,
+    reiseRetning: null,
+    reiseOppmotestedId: null,
+    reiseKjoretidMin: null,
+    reiseAvstandM: null,
+    reiseKilde: null,
+    reiseRegel: null,
+    tidKilde: null,
+    reiseAvvik: null,
+  };
+  const txMock = {
+    sheetRadHistorikk: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    dailySheet: {
+      update: vi.fn((args: { data: { pauseMin?: number } }) => {
+        if (typeof args.data.pauseMin === "number") hode = args.data.pauseMin;
+        return Promise.resolve({});
+      }),
+    },
+    sheetTimer: {
+      delete: vi.fn().mockResolvedValue({}),
+      create: vi.fn((args: { data: Record<string, unknown> }) => {
+        opprettede.push(args.data);
+        return Promise.resolve(args.data);
+      }),
+      aggregate: vi.fn(async () => ({
+        _sum: {
+          pauseMin: opprettede.reduce((s, r) => s + ((r.pauseMin as number) ?? 0), 0),
+        },
+      })),
+    },
+  };
+  const ctx = {
+    userId: USER,
+    prisma: {
+      organizationSetting: {
+        findUnique: vi.fn().mockResolvedValue({ tillattRedigerVedAttestering: true }),
+      },
+    },
+    prismaTimer: {
+      sheetTimer: {
+        findUnique: vi.fn().mockResolvedValue(original),
+        findMany: vi.fn().mockResolvedValue([]), // ingen andre rader på dagen
+      },
+      dailySheet: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: SHEET,
+          organizationId: ORG_SPLITT,
+          status: opts.status,
+          userId: opts.eier ? USER : "annen-bruker",
+          pauseMin: 30,
+          dato: new Date("2026-10-06T00:00:00Z"),
+        }),
+        // touchSedel (etter tx) bumper updatedAt på ctx.prismaTimer.
+        update: vi.fn().mockResolvedValue({}),
+      },
+      $transaction: vi.fn((arg: unknown) =>
+        typeof arg === "function"
+          ? (arg as (tx: unknown) => Promise<unknown>)(txMock)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  return { ctx, hentOpprettede: () => opprettede, hentHode: () => hode };
+}
+
+const ORG_SPLITT = "11111111-1111-1111-1111-111111111111";
+const splittNyeRader = [
+  { projectId: PROSJEKT, lonnsartId: LONNSART, aktivitetId: AKTIVITET, fraTid: "07:00", tilTid: "12:00", timer: 4.5 },
+  { projectId: PROSJEKT, lonnsartId: LONNSART, aktivitetId: AKTIVITET, fraTid: "12:00", tilTid: "16:00", timer: 4 },
+];
+
+describe("V20/RETUR1 — splittRad flytter bæreren (RETUR punkt 4)", () => {
+  it("leder splittRad: 07:00–12:00 bærer 30 (4,50 t), 12:00–16:00 pause 0, hode 30, én bærer", async () => {
+    const { ctx, hentOpprettede, hentHode } = lagSplittCtx({ status: "sent" });
+    const caller = dagsseddelRouter.createCaller(ctx);
+    await caller.splittRad({ radType: "timer", radId: RAD_ORIG, nyeRader: splittNyeRader });
+    const rader = hentOpprettede();
+    expect(rader).toHaveLength(2);
+    expect(rader[0]!.pauseMin).toBe(30);
+    expect(rader[0]!.timer).toBe(4.5);
+    expect(rader[1]!.pauseMin).toBe(0);
+    expect(rader[1]!.timer).toBe(4);
+    expect(rader.filter((r) => (r.pauseMin as number) > 0)).toHaveLength(1); // én bærer
+    expect(hentHode()).toBe(30); // PK6
+  });
+
+  it("eier splittRadEier (returned): samme bærer-flytting", async () => {
+    const { ctx, hentOpprettede, hentHode } = lagSplittCtx({ status: "returned", eier: true });
+    const caller = dagsseddelRouter.createCaller(ctx);
+    await caller.splittRadEier({ radType: "timer", radId: RAD_ORIG, nyeRader: splittNyeRader });
+    const rader = hentOpprettede();
+    expect(rader[0]!.pauseMin).toBe(30);
+    expect(rader[1]!.pauseMin).toBe(0);
+    expect(hentHode()).toBe(30);
   });
 });

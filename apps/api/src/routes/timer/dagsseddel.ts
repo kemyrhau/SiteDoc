@@ -546,6 +546,44 @@ export function vurderRadTimer(args: {
   return { pauseMin: pauseMinAngitt ?? 0, teller: "avvik", kast: false };
 }
 
+/**
+ * RETUR 1 (V20-S) — fordel bærerens pause ved SPLITT av en timer-rad. Originalens
+ * `pauseMin` flyttes til den delraden som KRYSSER pausevinduet (størst overlapp;
+ * uavgjort → første; krysser ingen → første). De øvrige får 0. Σ fordeling =
+ * `originalPauseMin` (bæreren forsvinner ikke og dupliseres ikke), og timetallet
+ * på delradene (klient-oppgitt, sum-validert mot originalen) røres aldri — kun
+ * HVILKEN delrad som eier fradrags-markøren flyttes. Returnerer pauseMin pr.
+ * delrad i samme rekkefølge som input.
+ */
+export function fordelPauseVedSplitt(
+  nyeRader: readonly { fraTid?: string | null; tilTid?: string | null }[],
+  originalPauseMin: number,
+  pauseVindu: string,
+): number[] {
+  const fordeling = new Array<number>(nyeRader.length).fill(0);
+  if (originalPauseMin <= 0 || nyeRader.length === 0) return fordeling;
+  const pauseFraMin = hhmmTilMin(pauseVindu);
+  let beste = -1;
+  let besteOverlapp = 0;
+  for (let i = 0; i < nyeRader.length; i++) {
+    const r = nyeRader[i]!;
+    if (!r.fraTid || !r.tilTid) continue;
+    const ov = pauseOverlappMin(
+      hhmmTilMin(r.fraTid),
+      hhmmTilMin(r.tilTid),
+      pauseFraMin,
+      originalPauseMin,
+    );
+    if (ov > besteOverlapp) {
+      besteOverlapp = ov;
+      beste = i;
+    }
+  }
+  // Krysser ingen delrad vinduet → bæreren legges på første rad (RETUR punkt 1).
+  fordeling[beste >= 0 ? beste : 0] = originalPauseMin;
+  return fordeling;
+}
+
 /** PK4a — interaktiv avvisning når timetallet ikke stemmer med oppgitt pause. */
 function avvisTimerAvvik(
   fraTid: string,
@@ -4842,6 +4880,7 @@ export const dagsseddelRouter = router({
           status: true,
           userId: true,
           pauseMin: true,
+          dato: true,
         },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
@@ -4886,15 +4925,46 @@ export const dagsseddelRouter = router({
       // 8) Transaksjon: marker original "erstattet" + opprett nye med parentRadId
       const naa = new Date();
       if (input.radType === "timer") {
-        await ctx.prismaTimer.$transaction([
+        // RETUR 1 (V20-S): er originalen bærer, flytt pausen til delraden som
+        // krysser pausevinduet (PK5). Ikke bare re-utled hodet — da ville
+        // delradenes timetall fortsatt bære fradraget skjult (P1).
+        const originalPauseMin = (original as { pauseMin: number }).pauseMin;
+        const andreRader = await ctx.prismaTimer.sheetTimer.findMany({
+          where: {
+            sheetId: sheet.id,
+            attestertStatus: { not: "erstattet" },
+            id: { not: original.id },
+          },
+          select: { fraTid: true },
+        });
+        const { pauseVindu } = await hentPauseVinduForSedel(
+          sheet.organizationId,
+          sheet.dato,
+          [...andreRader, ...input.nyeRader],
+        );
+        const splittPause = fordelPauseVedSplitt(
+          input.nyeRader,
+          originalPauseMin,
+          pauseVindu,
+        );
+        // Invariant (RETUR punkt 2): Σ delrad.pauseMin = originalens pauseMin.
+        const sumPause = splittPause.reduce((s, p) => s + p, 0);
+        if (sumPause !== originalPauseMin) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Splitt bevarte ikke pausen (original ${originalPauseMin}, fordelt ${sumPause})`,
+          });
+        }
+        await ctx.prismaTimer.$transaction(async (tx) => {
           // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk (INSERT
           // snapshot) + slett fra hovedtabellen i SAMME tx — ikke status="erstattet".
-          ctx.prismaTimer.sheetRadHistorikk.createMany({
+          await tx.sheetRadHistorikk.createMany({
             data: [byggHistorikkPost("timer", original, ctx.userId, naa)],
-          }),
-          ctx.prismaTimer.sheetTimer.delete({ where: { id: original.id } }),
-          ...input.nyeRader.map((rad) =>
-            ctx.prismaTimer.sheetTimer.create({
+          });
+          await tx.sheetTimer.delete({ where: { id: original.id } });
+          for (let i = 0; i < input.nyeRader.length; i++) {
+            const rad = input.nyeRader[i]!;
+            await tx.sheetTimer.create({
               data: {
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
@@ -4905,6 +4975,8 @@ export const dagsseddelRouter = router({
                 fraTid: rad.fraTid ?? null,
                 tilTid: rad.tilTid ?? null,
                 timer: rad.timer,
+                // RETUR 1: bæreren flyttet til delraden i pausevinduet.
+                pauseMin: splittPause[i] ?? 0,
                 // T.10: split = samme arbeid → arv original-radens kostnadsbærer.
                 // Allerede org-validert da originalen ble opprettet — ingen ny sjekk.
                 vehicleId: (original as { vehicleId: string | null }).vehicleId ?? null,
@@ -4913,9 +4985,11 @@ export const dagsseddelRouter = router({
                 // LAG 2: split = samme arbeid → arv hele reise-sporet (sporbarhet).
                 ...arvReiseSpor(original as ReiseSporKilde),
               },
-            }),
-          ),
-        ]);
+            });
+          }
+          // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
+          await synkroniserHodePause(tx, sheet.id);
+        });
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
           // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk + slett
@@ -5037,6 +5111,7 @@ export const dagsseddelRouter = router({
           status: true,
           userId: true,
           pauseMin: true,
+          dato: true,
         },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
@@ -5073,10 +5148,39 @@ export const dagsseddelRouter = router({
       //    tilfoy*-radene (ingen attestertStatus/parentRadId satt → skjema-
       //    default, identisk med normalt tillagte draft-rader).
       if (input.radType === "timer") {
-        await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetTimer.delete({ where: { id: original.id } }),
-          ...input.nyeRader.map((rad) =>
-            ctx.prismaTimer.sheetTimer.create({
+        // RETUR 1 (V20-S): samme bærer-flytting som leder-splittRad — pausen
+        // følger delraden som krysser pausevinduet (PK5), ikke bare hodet.
+        const originalPauseMin = (original as { pauseMin: number }).pauseMin;
+        const andreRader = await ctx.prismaTimer.sheetTimer.findMany({
+          where: {
+            sheetId: sheet.id,
+            attestertStatus: { not: "erstattet" },
+            id: { not: original.id },
+          },
+          select: { fraTid: true },
+        });
+        const { pauseVindu } = await hentPauseVinduForSedel(
+          sheet.organizationId,
+          sheet.dato,
+          [...andreRader, ...input.nyeRader],
+        );
+        const splittPause = fordelPauseVedSplitt(
+          input.nyeRader,
+          originalPauseMin,
+          pauseVindu,
+        );
+        const sumPause = splittPause.reduce((s, p) => s + p, 0);
+        if (sumPause !== originalPauseMin) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Splitt bevarte ikke pausen (original ${originalPauseMin}, fordelt ${sumPause})`,
+          });
+        }
+        await ctx.prismaTimer.$transaction(async (tx) => {
+          await tx.sheetTimer.delete({ where: { id: original.id } });
+          for (let i = 0; i < input.nyeRader.length; i++) {
+            const rad = input.nyeRader[i]!;
+            await tx.sheetTimer.create({
               data: {
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
@@ -5087,15 +5191,19 @@ export const dagsseddelRouter = router({
                 fraTid: rad.fraTid ?? null,
                 tilTid: rad.tilTid ?? null,
                 timer: rad.timer,
+                // RETUR 1: bæreren flyttet til delraden i pausevinduet.
+                pauseMin: splittPause[i] ?? 0,
                 // Split = samme arbeid → arv original-radens kostnadsbærer.
                 vehicleId:
                   (original as { vehicleId: string | null }).vehicleId ?? null,
                 // LAG 2: arv hele reise-sporet (samme arbeid → samme spor).
                 ...arvReiseSpor(original as ReiseSporKilde),
               },
-            }),
-          ),
-        ]);
+            });
+          }
+          // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
+          await synkroniserHodePause(tx, sheet.id);
+        });
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
           ctx.prismaTimer.sheetTillegg.delete({ where: { id: original.id } }),
