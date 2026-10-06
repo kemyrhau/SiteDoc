@@ -33,6 +33,15 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
   develop siste tre døgn ga 2 `feat` mot 13 `docs(samarbeid)`, og ni merge-runder gikk til ÉN
   funksjon.** 🔴 **En uke der planen ikke flyttet seg, er en uke som skal forklares — ikke en uke
   som forsvinner i fikser.**
+- 🔴 **INGEN SMÅ RELAY-RUNDER — hver nudge koster Kenneth usage.** *(Kenneth 2026-10-06: «hvorfor
+  sender du og fabel småting mellom dere? Det koster meg masse usage for liten eller ingen nytte.»)*
+  En melding mellom agenter sendes **kun når mottakeren MÅ handle: en ordre eller en retur.**
+  - **Ingen kvitteringer** («merget», «mottatt», «ført», «lest»). `git log` er kvitteringen.
+  - **Ingen egen docs-branch eller runde for premisser, avklaringer eller sitater.** De samles i
+    neste reelle ordre/spec-runde, eller føres av orkestrator i en commit som uansett går.
+  - **Testen før hver nudge:** *må mottakeren gjøre noe nå?* Nei → ikke send.
+  - Utløst 2026-10-06: Kenneth-sitat → orkestrator → fabel → docs-branch → orkestrator merget →
+    kvittering til fabel. Fire lim for to setninger i en plan.
 
 ### Hvorfor § 0 finnes
 
