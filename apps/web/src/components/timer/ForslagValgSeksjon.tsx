@@ -20,6 +20,7 @@ import {
   type ForsonRad,
   type ForsonSide,
   type ForsonInput,
+  type ForsonGrunn,
 } from "@sitedoc/shared";
 
 function tidsrom(r: ForsonRad): string {
@@ -34,6 +35,7 @@ function RadSide({
   rad,
   valgt,
   valgbar,
+  slettet = false,
   onVelg,
 }: {
   etikett: string;
@@ -41,6 +43,12 @@ function RadSide({
   rad: ForsonRad | null;
   valgt: boolean;
   valgbar: boolean;
+  /**
+   * V19.9 (C'-1/C'-2): denne siden REPRESENTERER en sletting (PC eller telefon
+   * slettet raden). Viser «Slettet» i stedet for rad/«ingen registrering», og er et
+   * reelt valgbart alternativ (behold slettet / slett) selv når `rad` er null.
+   */
+  slettet?: boolean;
   onVelg?: () => void;
 }) {
   const { t } = useTranslation();
@@ -53,7 +61,11 @@ function RadSide({
         </span>
         {valgbar && valgt && <Check className="h-4 w-4 text-sitedoc-primary" />}
       </div>
-      {rad ? (
+      {slettet ? (
+        <p className="text-sm font-semibold italic text-red-700">
+          {t("timer.sammenlign.slettet")}
+        </p>
+      ) : rad ? (
         <>
           <p className="text-sm font-semibold text-gray-900">
             {tidsrom(rad)} · {t("timer.sammenlign.timer", { timer: rad.timer })}
@@ -74,9 +86,9 @@ function RadSide({
     valgt && valgbar
       ? "border-sitedoc-primary bg-blue-50"
       : "border-gray-200 bg-white";
-  // Kun valgbare, eksisterende sider er trykkbare — ingen illusjon av valg på en
-  // tom side eller et ensidig tidsrom.
-  return valgbar && rad && onVelg ? (
+  // Kun valgbare sider med innhold (rad ELLER slettet-valg) er trykkbare — ingen
+  // illusjon av valg på en tom side eller et ensidig tidsrom.
+  return valgbar && (rad || slettet) && onVelg ? (
     <button
       type="button"
       onClick={onVelg}
@@ -169,8 +181,27 @@ export function ForslagValgSeksjon({
           const valgbar = !lesevisning && paret;
           // Default: parede uten eksplisitt valg vises som «behold PC» (sedel).
           const sideValgt: ForsonSide = f ? (valg[f.id] ?? "sedel") : "sedel";
+          // V19.9 (C'-1/C'-2): slot-typene. «slettet_telefon» → mobil-siden viser
+          // «Slettet»; «slettet_pc» → PC-siden viser «Slettet». «endret_begge» →
+          // vanlig radio + forklaring. Ren overlapp/uten grunn = uendret.
+          const grunn = slot.grunn as ForsonGrunn | null | undefined;
+          const mobilSlettet = grunn === "slettet_telefon";
+          const pcSlettet = grunn === "slettet_pc";
+          const grunnTekst =
+            grunn === "endret_begge"
+              ? t("timer.sammenlign.grunnEndretBegge")
+              : grunn === "slettet_telefon"
+                ? t("timer.sammenlign.grunnSlettetTelefon")
+                : grunn === "slettet_pc"
+                  ? t("timer.sammenlign.grunnSlettetPc")
+                  : null;
           return (
             <div key={slot.nokkel} className="rounded-lg border border-amber-200 bg-white/60 p-2">
+              {grunnTekst ? (
+                <p className="mb-1 px-1 text-xs font-medium text-amber-800">
+                  {grunnTekst}
+                </p>
+              ) : null}
               <div className="flex gap-2" role={valgbar ? "radiogroup" : undefined}>
                 <RadSide
                   etikett={t("timer.forslagValg.kolonnePc")}
@@ -178,6 +209,7 @@ export function ForslagValgSeksjon({
                   rad={slot.sedel}
                   valgt={valgbar && sideValgt === "sedel"}
                   valgbar={valgbar}
+                  slettet={pcSlettet}
                   onVelg={f ? () => setValg((v) => ({ ...v, [f.id]: "sedel" })) : undefined}
                 />
                 <RadSide
@@ -186,6 +218,7 @@ export function ForslagValgSeksjon({
                   rad={f}
                   valgt={valgbar && sideValgt === "forslag"}
                   valgbar={valgbar}
+                  slettet={mobilSlettet}
                   onVelg={f ? () => setValg((v) => ({ ...v, [f.id]: "forslag" })) : undefined}
                 />
               </div>

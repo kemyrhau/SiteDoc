@@ -192,6 +192,9 @@ type RaaRad = {
   externalCostObjectId?: string | null;
   vehicleId?: string | null;
   beskrivelse: string | null;
+  // V19.9 (B'-6): forslagsradens grunn (SheetTimerForslag.grunn). Kun på forslag-
+  // rader; serverens timer-rader har den ikke (→ undefined, ren overlapp-slot).
+  grunn?: string | null;
 };
 
 /**
@@ -213,6 +216,7 @@ function raaTilForsonRad(r: RaaRad): DeltForsonRad {
     beskrivelse: r.beskrivelse,
     externalCostObjectId: r.externalCostObjectId ?? null,
     vehicleId: r.vehicleId ?? null,
+    grunn: r.grunn as DeltForsonRad["grunn"],
   };
 }
 
@@ -439,9 +443,13 @@ export default function DagsseddelDetalj() {
       // nøklet på rad.nokkel (= forslagsradens id for parede slots); oversett til
       // forslag-id → "forslag"/"sedel". Ensidige slots (ikke valgbare) utelates —
       // byggForsonInputFraValg beholder dem uansett (Q3(b)).
+      // V19.9 (B'-6): map ALLE valgbare slots — ikke bare de med både lokal og
+      // server. `slettet_pc` har server=null (PC slettet raden) men er valgbar
+      // (gjenopprett = «appen»/forslag, behold slettet = «web»/sedel); utelatt her
+      // ville låst valget til default. byggForsonInputFraValg bruker grunn+valg.
       const valgPerForslag: Record<string, ForsonSide> = {};
       for (const rad of sammenligning.rader) {
-        if (rad.lokal && rad.server && rad.nokkel) {
+        if (rad.valgbar !== false && rad.nokkel) {
           valgPerForslag[rad.nokkel] =
             effektivtValg[rad.nokkel] === "lokal" ? "forslag" : "sedel";
         }

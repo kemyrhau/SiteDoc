@@ -190,6 +190,12 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   // ble laget. Lagres som TEXT (JSON.stringify); server tar imot som Json.
   reiseRegel: text("reise_regel"),
   tidKilde: text("tid_kilde"), // V8: "stempel" | "utledet" | "manuell" | null
+  // V19.9.1 (B'-1) — radversjonen (`SheetTimer.updatedAt`, ISO-ms) telefonen fikk
+  // ved pull/push-`ok`. Sendes tilbake som `serverVersjon` i syncBatch →
+  // versjonssjekk pr. rad (R1–R12). NULL = «ikke hentet» (trygt ved konstruksjon:
+  // serveren behandler null på en eksisterende rad som ukjent, innhold avgjør —
+  // aldri stille overskriving). Nullable, additiv, idempotent ALTER.
+  serverVersjon: text("server_versjon"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -255,6 +261,12 @@ export const slettedeRaderLocal = sqliteTable("slettede_rader_local", {
   radType: text("rad_type", {
     enum: ["timer", "tillegg", "maskin", "utlegg"],
   }).notNull(),
+  // V19.9.1 (B'-1) — versjonen (`SheetTimer.updatedAt`) kopiert fra timer-raden da
+  // den ble slettet lokalt. Sendes som `slettedeIder.timerVersjoner` → S1–S4
+  // (slett vs. avvik `slettet_telefon`). KUN satt for radType "timer" (eneste
+  // versjonerte type); null for tillegg/maskin/utlegg og for eldre tombstones
+  // (→ S4, trygg retning). Nullable, additiv, idempotent ALTER.
+  serverVersjon: text("server_versjon"),
   slettetVed: integer("slettet_ved").notNull(),
 });
 

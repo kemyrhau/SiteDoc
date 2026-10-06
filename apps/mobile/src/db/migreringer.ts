@@ -1170,4 +1170,35 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] konflikt_aarsak på dagsseddel_local feilet", e);
   }
+
+  // V19.9-B (B'-1, 2026-10-06) — server_versjon på sheet_timer_local og
+  // slettede_rader_local: radversjonen (`SheetTimer.updatedAt`, ISO-ms) telefonen
+  // fikk ved pull/push-`ok`, sendt tilbake i syncBatch → versjonssjekk pr. rad.
+  // NULLABLE, ingen backfill — stille tomhet er trygg ved konstruksjon (Kenneths
+  // krav 6): første pull etter oppdateringen fyller alle synkede rader; pending
+  // offline-rader beholder NULL til sin push → serveren bruker innholdsregelen
+  // (aldri stille overskriving). Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "server_versjon")) {
+      console.log("[MIG] Legger til server_versjon på sheet_timer_local (V19.9-B)");
+      db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN server_versjon TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] server_versjon på sheet_timer_local feilet", e);
+  }
+
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(slettede_rader_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "server_versjon")) {
+      console.log("[MIG] Legger til server_versjon på slettede_rader_local (V19.9-B)");
+      db.execSync(`ALTER TABLE slettede_rader_local ADD COLUMN server_versjon TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] server_versjon på slettede_rader_local feilet", e);
+  }
 }

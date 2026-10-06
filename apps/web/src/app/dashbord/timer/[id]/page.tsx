@@ -344,6 +344,9 @@ export default function DagsseddelDetaljSide() {
     beskrivelse: string | null;
     externalCostObjectId: string | null;
     vehicleId: string | null;
+    // V19.9 (C'-1): forslagsradens grunn (SheetTimerForslag.grunn) styrer slot-
+    // visningen. Sedelradene (serverens timer) har den ikke → undefined (ren overlapp).
+    grunn?: string | null;
   }): ForsonRad => ({
     id: r.id,
     projectId: r.projectId,
@@ -356,6 +359,7 @@ export default function DagsseddelDetaljSide() {
     beskrivelse: r.beskrivelse,
     externalCostObjectId: r.externalCostObjectId,
     vehicleId: r.vehicleId,
+    grunn: r.grunn as ForsonRad["grunn"],
   });
   type ForslagRad = Parameters<typeof tilForsonRad>[0];
   const forslagRader = ((sheet as { forslag?: ForslagRad[] }).forslag ?? []).map(

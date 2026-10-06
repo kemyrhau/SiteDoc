@@ -185,7 +185,12 @@ function seedSedel(over: {
     .run();
 }
 
-function seedTimerRad(id: string, dagsseddelId: string, timer: number) {
+function seedTimerRad(
+  id: string,
+  dagsseddelId: string,
+  timer: number,
+  over: { serverVersjon?: string | null; sistEndretLokalt?: number } = {},
+) {
   db()
     .insert(sheetTimerLocal)
     .values({
@@ -195,9 +200,51 @@ function seedTimerRad(id: string, dagsseddelId: string, timer: number) {
       lonnsartId: "l1",
       aktivitetId: "a1",
       timer,
-      sistEndretLokalt: 1000,
+      serverVersjon: over.serverVersjon ?? null,
+      sistEndretLokalt: over.sistEndretLokalt ?? 1000,
     })
     .run();
+}
+
+/** Fanger syncBatch-payloaden mobilen sender + returnerer oppgitte push-resultater. */
+function lagKlientFanger(
+  pushResultater: PushResultat[] = [],
+  pullSvar = tomtPull,
+) {
+  const fanget: { input: unknown } = { input: null };
+  const klient = {
+    timer: {
+      dagsseddel: {
+        syncBatch: {
+          mutate: async (input: unknown) => {
+            fanget.input = input;
+            return { resultater: pushResultater };
+          },
+        },
+        hentEndringerSiden: { query: async () => pullSvar },
+      },
+    },
+  } as unknown as Parameters<typeof syncTimer>[0];
+  return { klient, fanget };
+}
+
+/** Les timer-payloaden for den første sedelen i en fanget syncBatch-input. */
+function pushTimer(fanget: { input: unknown }) {
+  const inp = fanget.input as {
+    sedler: Array<{
+      timer: Array<{ id: string; serverVersjon: string | null; endretLokalt: boolean }>;
+      slettedeIder?: { timerVersjoner?: Array<{ id: string; serverVersjon: string | null }> };
+    }>;
+  };
+  return inp.sedler[0];
+}
+
+function timerRad(id: string) {
+  return db()
+    .select()
+    .from(sheetTimerLocal)
+    .where(eq(sheetTimerLocal.id, id))
+    .all()[0];
 }
 
 function timerRaderFor(dagsseddelId: string) {
@@ -698,6 +745,166 @@ describe("V19-B — overlapp PC ↔ mobil: aarsak-branch (push) + V19.7b-slipp (
     const s = sedelFor("sheet-11b");
     expect(s.syncStatus).toBe("conflict");
     expect(s.konfliktAarsak).toBe("laast");
+  });
+});
+
+describe("V19.9-B — versjonssjekk pr. rad (§ 9.6 test 10 + 11)", () => {
+  // § 9.6 test 10 (a): pull SKAL sette server_versjon på alle hentede rader.
+  it("🔴 test 10a: pull setter server_versjon = updatedAt på hentede rader (feiler ved NULL)", async () => {
+    const klient = lagKlient({
+      serverTid: "2026-10-06T10:00:00.000Z",
+      sedler: [
+        serverSedel({
+          id: "sheet-v1",
+          dato: "2026-10-05",
+          status: "draft",
+          timer: [
+            {
+              id: "rad-v1",
+              projectId: "p1",
+              lonnsartId: "l1",
+              aktivitetId: "a1",
+              timer: 7.5,
+              updatedAt: "2026-10-06T09:00:00.000Z",
+            },
+          ],
+        }),
+      ],
+      levendeSedler: [{ id: "sheet-v1", clientUuid: "sheet-v1" }],
+      slettevindu: { fraDato: "2026-01-01", tilDato: null },
+    });
+
+    await syncTimer(klient, "u1");
+
+    expect(timerRad("rad-v1")?.serverVersjon).toBe("2026-10-06T09:00:00.000Z");
+  });
+
+  // § 9.6 test 10 (b): push SENDER serverVersjon + endretLokalt korrekt for
+  // (a) hentet-og-urørt, (b) hentet-og-redigert, (c) født lokalt.
+  it("🔴 test 10b: push sender serverVersjon + endretLokalt for urørt/redigert/født-lokalt", async () => {
+    // sedel.sistSynkronisert = 1000 (via seedSedel). endretLokalt = rad.sistEndretLokalt !== 1000.
+    seedSedel({ id: "sheet-v2", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    // (a) hentet-og-urørt: versjon satt, stempel == sist synket.
+    seedTimerRad("rad-urort", "sheet-v2", 7.5, {
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      sistEndretLokalt: 1000,
+    });
+    // (b) hentet-og-redigert: versjon satt, stempel endret etter synk.
+    seedTimerRad("rad-redigert", "sheet-v2", 3.0, {
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      sistEndretLokalt: 2000,
+    });
+    // (c) født lokalt: ingen versjon, stempel != sist synket.
+    seedTimerRad("rad-nyfodt", "sheet-v2", 1.0, {
+      serverVersjon: null,
+      sistEndretLokalt: 2000,
+    });
+
+    const { klient, fanget } = lagKlientFanger([]);
+    await syncTimer(klient, "u1");
+
+    const rader = pushTimer(fanget).timer;
+    const etterId = new Map(rader.map((r) => [r.id, r]));
+    expect(etterId.get("rad-urort")).toMatchObject({
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      endretLokalt: false,
+    });
+    expect(etterId.get("rad-redigert")).toMatchObject({
+      serverVersjon: "2026-10-06T09:00:00.000Z",
+      endretLokalt: true,
+    });
+    expect(etterId.get("rad-nyfodt")).toMatchObject({
+      serverVersjon: null,
+      endretLokalt: true,
+    });
+  });
+
+  // § 9.6 test 10 (c): push-`ok` skriver server_versjon for `rader`, IKKE for
+  // `hoppetOver`, og restempler kun rader med sistEndretLokalt <= byggetVed.
+  it("🔴 test 10c: push-ok skriver versjon for skrevne rader, ikke hoppetOver, restempler kun <= byggetVed", async () => {
+    seedSedel({ id: "sheet-v3", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    // skrevet, stempel i fortiden → skal restemples.
+    seedTimerRad("rad-skrevet", "sheet-v3", 7.5, {
+      serverVersjon: "V_gammel",
+      sistEndretLokalt: 1000,
+    });
+    // hoppet over → versjon + stempel skal stå urørt (serverraden er nyere).
+    seedTimerRad("rad-hoppet", "sheet-v3", 3.0, {
+      serverVersjon: "V_hoppet",
+      sistEndretLokalt: 1000,
+    });
+    // skrevet, men redigert ETTER byggetVed (stempel i framtiden) → versjon skrives,
+    // men IKKE restemplet (brukerens nyere endring må pushes på nytt).
+    const framtid = 4102444800000; // 2100-01-01
+    seedTimerRad("rad-midpush", "sheet-v3", 2.0, {
+      serverVersjon: "V_mid",
+      sistEndretLokalt: framtid,
+    });
+
+    const { klient, fanget } = lagKlientFanger([
+      {
+        clientUuid: "sheet-v3",
+        resultat: "ok",
+        serverData: {
+          id: "sheet-v3",
+          status: "draft",
+          lederKommentar: null,
+          attestertVed: null,
+          updatedAt: "2026-10-06T10:00:00.000Z",
+          rader: [
+            { id: "rad-skrevet", updatedAt: "V_ny_skrevet" },
+            { id: "rad-midpush", updatedAt: "V_ny_mid" },
+          ],
+          hoppetOver: ["rad-hoppet"],
+        },
+      } as unknown as PushResultat,
+    ]);
+    void fanget;
+    await syncTimer(klient, "u1");
+
+    // Skrevet rad: versjon oppdatert + restemplet (stempel != 1000 lenger).
+    expect(timerRad("rad-skrevet")?.serverVersjon).toBe("V_ny_skrevet");
+    expect(timerRad("rad-skrevet")?.sistEndretLokalt).not.toBe(1000);
+    // Hoppet over: BÅDE versjon og stempel urørt.
+    expect(timerRad("rad-hoppet")?.serverVersjon).toBe("V_hoppet");
+    expect(timerRad("rad-hoppet")?.sistEndretLokalt).toBe(1000);
+    // Mid-push-redigert: versjon skrevet, men stempel IKKE restemplet (> byggetVed).
+    expect(timerRad("rad-midpush")?.serverVersjon).toBe("V_ny_mid");
+    expect(timerRad("rad-midpush")?.sistEndretLokalt).toBe(framtid);
+  });
+
+  // § 9.6 test 11: tombstonen BÆRER radens server_versjon (feiler ved NULL for en
+  // hentet rad). Her testes push-serialiseringen: en tombstone med versjon → payloadens
+  // slettedeIder.timerVersjoner; eldre tombstone uten versjon → null (S4, trygg retning).
+  it("🔴 test 11: tombstone-versjon bæres i slettedeIder.timerVersjoner (hentet rad != NULL)", async () => {
+    seedSedel({ id: "sheet-v4", dato: "2026-10-05", status: "draft", syncStatus: "pending" });
+    db()
+      .insert(schema.slettedeRaderLocal)
+      .values([
+        {
+          radId: "slettet-hentet",
+          dagsseddelId: "sheet-v4",
+          radType: "timer",
+          serverVersjon: "2026-10-06T09:00:00.000Z",
+          slettetVed: 1500,
+        },
+        {
+          radId: "slettet-eldre",
+          dagsseddelId: "sheet-v4",
+          radType: "timer",
+          serverVersjon: null,
+          slettetVed: 1500,
+        },
+      ])
+      .run();
+
+    const { klient, fanget } = lagKlientFanger([]);
+    await syncTimer(klient, "u1");
+
+    const versjoner = pushTimer(fanget).slettedeIder?.timerVersjoner ?? [];
+    const etterId = new Map(versjoner.map((v) => [v.id, v.serverVersjon]));
+    expect(etterId.get("slettet-hentet")).toBe("2026-10-06T09:00:00.000Z");
+    expect(etterId.get("slettet-eldre")).toBe(null);
   });
 });
 

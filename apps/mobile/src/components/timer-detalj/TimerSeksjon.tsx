@@ -462,6 +462,15 @@ export function TimerSeksjon({
     (radId: string) => {
       const db = hentDatabase();
       if (!db) return;
+      // V19.9.1 (B'-3): kopier radens server_versjon inn i tombstonen FØR slettingen
+      // så serveren kan klassifisere slett-vs-avvik (S1–S4). null = ukjent versjon
+      // (eldre/pending rad) → S4, trygg retning (avvik slettet_telefon, ikke stille
+      // sletting). Leses før tx så verdien finnes når raden er borte.
+      const radForSletting = db
+        .select({ serverVersjon: sheetTimerLocal.serverVersjon })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.id, radId))
+        .all()[0];
       // S-A: slett lokalt + skriv tombstone ATOMISK (samme tx). Rå local-delete
       // alene propagerer ikke til server (S3 payload-id-policy) → tombstonen
       // bærer slettingen frem til neste sync.
@@ -472,6 +481,7 @@ export function TimerSeksjon({
             radId,
             dagsseddelId: sheetId,
             radType: "timer",
+            serverVersjon: radForSletting?.serverVersjon ?? null,
             slettetVed: Date.now(),
           })
           .onConflictDoNothing()
