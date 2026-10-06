@@ -1128,3 +1128,43 @@ describe("FUNN 2026-10-05 — et hengende nettkall låser ikke synken (timeout)"
     expect(res.feil).toBe("timer.sync.tidsavbrudd");
   });
 });
+
+describe("FUNN 2026-10-06 — transient push-feil skriver feilmelding på ALLE sedlene i batchen", () => {
+  // Klient der syncBatch kaster en transient feil (ingen httpStatus 400 →
+  // erPermanentFeil=false). Da beholdes alle pending (ingen tap), og
+  // feilmeldingen skal nå stå på HVER sedel i batchen — ikke bare den første.
+  function klientTransientPush() {
+    return {
+      timer: {
+        dagsseddel: {
+          syncBatch: {
+            mutate: async () => {
+              throw new Error("Nettverksfeil");
+            },
+          },
+          hentEndringerSiden: { query: async () => tomtPull },
+        },
+      },
+    } as unknown as Parameters<typeof syncTimer>[0];
+  }
+
+  it("🔴 to pending sedler + transient feil → BEGGE får feilmelding", async () => {
+    // Begge pending for samme bruker → samme batch (slice på 100).
+    seedSedel({ id: "b1", dato: "2026-10-06", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rb1", "b1", 7.5);
+    seedSedel({ id: "b2", dato: "2026-10-06", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rb2", "b2", 6);
+
+    const res = await syncTimer(klientTransientPush(), "u1", 50);
+
+    const s1 = sedelFor("b1");
+    const s2 = sedelFor("b2");
+    // Transient: ingen tap — begge beholdes pending.
+    expect(s1.syncStatus).toBe("pending");
+    expect(s2.syncStatus).toBe("pending");
+    // Kjernen: feilmeldingen står på BEGGE. Rød før fiksen (kun batch[0]=b1 fikk den).
+    expect(s1.feilmelding).toBe("Nettverksfeil");
+    expect(s2.feilmelding).toBe("Nettverksfeil");
+    expect(res.push.feilet).toBe(2);
+  });
+});

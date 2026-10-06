@@ -21,6 +21,7 @@ import {
 } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useTimerSync } from "../providers/TimerSyncProvider";
+import { useReLesVedSynk } from "../hooks/useReLesVedSynk";
 import { TimerSyncStatusBar } from "./TimerSyncStatusBar";
 import { TimerStatusMerkelapp } from "./TimerStatusMerkelapp";
 import { UkeTotalBanner } from "./UkeTotalBanner";
@@ -161,7 +162,7 @@ export function DagsseddelListe({
   const router = useRouter();
   const { t } = useTranslation();
   const { bruker } = useAuth();
-  const { triggerSync, syncerNa } = useTimerSync();
+  const { triggerSync, syncerNa, sistSynkronisert } = useTimerSync();
 
   const [rader, setRader] = useState<DagsseddelRad[]>([]);
 
@@ -173,6 +174,14 @@ export function DagsseddelListe({
       }
     }, [bruker?.id]),
   );
+
+  // FUNN 2026-10-06 (punkt 3): samme fokus-blindhet som detaljskjermen. Står
+  // dag-lista i fokus mens en bakgrunnssynk fullfører, oppdaterte ikke
+  // syncStatus-merkelappene seg — «Venter» ble stående på dagene. Lista er en ren
+  // navigasjonsflate uten kladd, så re-les klobber ingenting.
+  useReLesVedSynk(sistSynkronisert, () => {
+    if (bruker?.id) setRader(lesDagssedlerLokalt(bruker.id));
+  });
 
   const onRefresh = useCallback(async () => {
     await triggerSync();
