@@ -61,6 +61,11 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Standalone-prosjekter** (uten firma): `TimerSyncProvider` cacher kun firmaprosjekter → Hjem viser feilside offline.
 **Ikke bestilt.** Egen offline-runde hvis piloten trenger dem.
 
+### 🟡 REDIGERING MENS SEDELEN STÅR I KONFLIKT GÅR TAPT VED SLIPP (arvet fra V19, ført av fabel i V19.9 § 9.7.2, 2026-10-06)
+
+Lokale rader redigert *mens* sedelen står i `conflict` erstattes av serverens når V19.7b-slippet skjer (valget tatt på PC).
+**Ikke bestilt.** Avgjøres om sammenligningen skal låse redigering under konflikt, eller om slippet skal ta lokale endringer med som nytt forslag.
+
 ### 🔴 SAMME SEDEL REDIGERT PÅ PC OG TELEFON — SIST SYNKET VINNER STILLE (målt 2026-10-05, Kenneth på test)
 
 `syncBatch` erstatter payload-radene etter id uten å sjekke om serverraden er endret siden telefonen hentet den
