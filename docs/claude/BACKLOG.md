@@ -3795,6 +3795,10 @@ med enslig repeater-barn treffer samme spørsmål.
 ⚠️ Ført her 2026-08-19 fordi spørsmålet kun eksisterte i en chat-melding — cowork
 formulerte det uten å legge det i repoet.
 
+### 🔴 Tegninger lastes opp én og én — serieopplasting + Tegningsserie (Kenneth 2026-10-06)
+
+20 ark-tegninger = 20 modaler (`oppsett/byggeplasser/page.tsx:293-319`, ingen `multiple`, ingen bulk i API). Bare navn er påkrevd, så «last opp alt først, detaljer etterpå» er mulig uten schema. `lastOppRevisjon` finnes i API uten web-kaller. Ingen gruppering av tegninger (Folder er dokument-modulens). **Spec: `tegning-serieopplasting-spec.md` (branch `docs/design-tegning-serieopplasting`), ordre T1 (ingen schema) → T2 (`Tegningsserie`). Målestokk forblir valgfri — ingen flate skal mase (Kenneth).**
+
 ### 🔴 Byggeplass og tegning kan ikke redigeres eller slettes fra UI (Kenneth 2026-08-19)
 
 > **[triage 2026-08-26]** verifisert åpen — Skjemmer — én runde: byggeplass-redigering/-sletting alt løst før posten (`oppsett/byggeplasser/page.tsx`); reell rest = 2D-tegning rename/slett uwired (`tegning.oppdater:294`/`slett:570`).
@@ -5915,3 +5919,5 @@ sjekklisteoversikten mot mobil.
 **Bakgrunn:** topplinja i prosjektkontekst viser `{projectNumber} {name} · {byggeplass}`. Reelle prosjektnumre er «SD-ÅÅÅÅMMDD-NNNN» (16 tegn) + fullt navn → fyller `max-w-[220px]` og trunkerer byggeplassen bort ([k3-verifiseringslogg § Funn 1](delplaner/verifisering/k3-verifiseringslogg.md)). Kenneth: *«det er behov for valgfri forkortelse i firmainformasjon-innstillinger».*
 
 **Forbedring:** valgfritt kortnavn-felt per firma/prosjekt i innstillinger, brukt i topplinja når satt. Generisk fallback = fullt navn. Feature: DB-felt + innstillings-UI + wiring i KontekstChip. **NB:** løser ikke alene at byggeplass må overleve trunkering — se den umiddelbare topplinje-fiksen (fabel design-call, K3). Denne er den pene, varige varianten; ikke i K3-kritisk sti.
+
+- 🟡 **V20-M (mobil) — låst visning skal vise matpause-avkrysningen skrivebeskyttet** (Kenneth-test 2026-10-07: sendt sedel 06.10, 07–16, 8,50, `pause_min = 30`; mobilen skjuler avkrysningen når sedelen er låst). Tas med i V20-M-ordren. Web-delen er lagt i V20-W (TILLEGG 2).

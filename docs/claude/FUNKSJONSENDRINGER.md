@@ -25,6 +25,15 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-07
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `d5758806` ← `e868f782` | 🔴 **Web — dagsseddel og attestering** | **Før:** web-raden hadde ingen matpause-avkrysning; timetallet trakk pausen skjult; «Arbeidstid i dag» hadde eget pausefelt. **Etter:** avkrysning «Matpause trukket (30 min)» på raden, ny rad får pausen automatisk etter regelen; «Arbeidstid i dag» utledes av radene og mister pausefeltet (start/slutt beholdt); attestanten ser «Matpause trukket» på bæreren, også når sedelen er låst | 🟢 Kenneth 2026-10-06 V20 = B |
+| `669c579b` ← `625a7de6` | 🔴 **Timer (server) — engangsretting S2** | Dager der timetallet beviser trukket pause men raden ikke bar den, får krysset også når hodet sto på 0 (Kenneths 05.10). Hodet = Σ rad. Timetall endres aldri. Migrering `20261007120000_v20_s2_pause_backfill` | 🟢 V20 = B; Kenneth-test 2026-10-07 |
+| `3b06dcb1` ← `dfa2a4aa` | 🔴 **Timer (server) — pausen eies av radene** | **Før:** hodet bar pausen, radene trakk den skjult. **Etter:** radens `pauseMin` er sannheten, hodet = Σ rad utledet på serveren; synk fra eldre app normaliseres (avvises aldri); splitt flytter pausen til delraden i pausevinduet; engangsretting `20261006220000_v20_pause_backfill` setter krysset der timetallet beviser fradraget | 🟢 Kenneth 2026-10-06 V20 = B |
+| (denne commit) | **Web — malarkiv (SiteDoc-arkivet, firmaarkivet, import-tilordning i kontrollplan)** | **Før:** gruppetitlene viste standardens kode foran navnet («NS3420-K — Anleggsgartnerarbeider»). **Etter:** bare navnet. Kapittelkoder («KB …») vises som før | 🟢 §7b pkt 2 (fabel 2026-10-07), etter at Kenneth stoppet prod-seed over NS-henvisninger |
+
 ### 2026-10-06
 
 | Hash | Flate | Før → Etter | Hjemmel |

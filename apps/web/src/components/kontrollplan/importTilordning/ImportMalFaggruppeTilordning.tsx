@@ -84,7 +84,7 @@ export function ImportMalFaggruppeTilordning({ steg, projectId, tilordning }: Im
                 return (
                   <div key={std.kode} className="mb-1">
                     <div className="text-[10px] font-semibold text-gray-400 uppercase px-2 py-0.5">
-                      {std.kode} — {std.navn}
+                      {std.navn}
                     </div>
                     {flatMaler.map((mal) => (
                       <button

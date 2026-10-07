@@ -30,6 +30,7 @@ import { overlappBlokkererAttestering } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Avviksbadge } from "./Avviksbadge";
 import { ReiseRadMerke } from "./ReiseRadMerke";
+import { MatpauseRadMerke } from "./MatpauseRadMerke";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
@@ -629,6 +630,8 @@ export function SeddelKort({
                             {lonnsartNavn(rad.lonnsartId)}
                             {/* LAG 2 D1: reise-spor + beskrivelse under lønnsarten. */}
                             <ReiseRadMerke rad={rad} />
+                            {/* V20-W / TILLEGG 2: matpause-avkrysning skrivebeskyttet. */}
+                            <MatpauseRadMerke rad={rad} />
                             {rad.beskrivelse && (
                               <p className="mt-1 text-[11px] italic text-gray-500">
                                 {rad.beskrivelse}

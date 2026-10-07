@@ -12,6 +12,7 @@ import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Check, RotateCcw, X } from "lucide-react";
 import { ReiseRadMerke } from "./ReiseRadMerke";
+import { MatpauseRadMerke } from "./MatpauseRadMerke";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -37,6 +38,10 @@ export type TimerRad = {
   // (hentTilAttesteringFirma bruker include uten select). Kjernen i dagskortet.
   beskrivelse: string | null;
   timer: unknown;
+  // V20-W / TILLEGG 2 — radens matpause (bæreren > 0). Allerede i server-payloaden
+  // (scalar på SheetTimer; hentForAttestering/hentTilAttesteringFirma bruker
+  // include/findMany uten select). Her synliggjort i typen for MatpauseRadMerke.
+  pauseMin?: number | null;
   attestertStatus: string | null;
   project?: RadProsjekt;
   // LAG 2 D1 — reise-sporet (K5). Allerede i server-payloaden (default-select på
@@ -227,6 +232,8 @@ function TimerRaderLeder({
                   {/* LAG 2 D1: reise-sporet + fritekst-beskrivelse (M7 — feltet lå
                       i payloaden men ble aldri vist på attestant-raden). */}
                   <ReiseRadMerke rad={rad} />
+                  {/* V20-W / TILLEGG 2: matpause-avkrysning skrivebeskyttet. */}
+                  <MatpauseRadMerke rad={rad} />
                   {rad.beskrivelse && (
                     <p className="mt-1 text-xs italic text-gray-500">{rad.beskrivelse}</p>
                   )}

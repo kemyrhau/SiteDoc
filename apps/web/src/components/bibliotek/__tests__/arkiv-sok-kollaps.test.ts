@@ -91,7 +91,7 @@ describe("byggSitedocGrupper — kollaps på standard, kapittel som etikett, ref
     const grupper = byggSitedocGrupper(standarder, "sjekkliste");
     expect(grupper).toHaveLength(1);
     expect(grupper[0]!.key).toBe("NS3420-K");
-    expect(grupper[0]!.tittel).toBe("NS3420-K — NS 3420-K Anleggsgartner");
+    expect(grupper[0]!.tittel).toBe("NS 3420-K Anleggsgartner"); // §7b pkt 2: kun navn
   });
 
   it("malene sorteres kapittel-for-kapittel og på referanse (numerisk: KB2 før KB10)", () => {
@@ -149,7 +149,7 @@ describe("grupperFirmaMaler — kollaps på standard + «Egenlagde» sist", () =
     expect(grupper).toHaveLength(2);
     // Standard-gruppen først, «Egenlagde» sist.
     expect(grupper[0]!.key).toBe("NS3420-K");
-    expect(grupper[0]!.tittel).toBe("NS3420-K — NS 3420-K Anleggsgartner");
+    expect(grupper[0]!.tittel).toBe("NS 3420-K Anleggsgartner"); // §7b pkt 2: kun navn
     // KA (sort 0) før KB (sort 1) — kapittel-for-kapittel.
     expect(grupper[0]!.maler.map((m) => m.id)).toEqual(["f-ka7", "f-kb2"]);
     expect(grupper[0]!.maler[0]!.kapittelKode).toBe("KA");

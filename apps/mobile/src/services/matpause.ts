@@ -7,8 +7,14 @@ import {
   pauseOverlappMin,
   hhmmTilMin,
   pauseMinForDag,
+  avgjorRadPauseMin,
   DEFAULT_PAUSE_ETTER_TIMER,
 } from "@sitedoc/shared";
+
+// V20/PK2: `avgjorRadPauseMin` er løftet til @sitedoc/shared (web + mobil deler
+// ÉN regel). Re-eksporteres her så eksisterende importører (TimerSeksjon +
+// matpause.test) er uendret.
+export { avgjorRadPauseMin };
 import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
 
@@ -106,54 +112,6 @@ export function radKrysserPause(
 function beregnRadTimer(rad: Rad, pauseFra: string, pauseMin: number): number {
   if (!rad.fraTid || !rad.tilTid) return rad.timer;
   return effektiveTimerFraSpenn(rad.fraTid, rad.tilTid, pauseFra, pauseMin);
-}
-
-/**
- * V20 PK2 — skal denne raden BÆRE dagens matpause når den lagres? Bæreren får
- * `standardPauseMin`, alle andre 0 (kun-én-pr.-dag). Regelen trigger når ALLE
- * holder:
- *   1) dagsbrutto INKL. denne raden > 5,5 t (`pauseMinForDag`, AML §10-9)
- *   2) raden krysser pausevinduet (overlapp > 0)
- *   3) ingen ANNEN rad på sedelen bærer pausen alt
- * Ellers 0 — da regnes raden fullt spenn (ingen skjult fradrag). Dette gjør
- * `fix/matpause-avkrysning` til regel for ny rad + redigering: avkrysningen
- * (`rad.pauseMin > 0`) speiler da det FAKTISKE fradraget, også for manuell føring.
- *
- * Rør ikke hodet (`dagsseddel.pauseMin`) — PK6/V20-S utleder det server-side.
- * Pausevinduet (`pauseFra`) kommer fra kalleren (dagens kilde; PK5 i V20-M).
- */
-export function avgjorRadPauseMin(args: {
-  /** Alle rader på sedelen (DB- eller state-snapshot). */
-  alleRader: Pick<Rad, "id" | "fraTid" | "tilTid" | "pauseMin">[];
-  /** Raden som lagres — `null` for ny rad (ekskluderes fra «andre»). */
-  radId: string | null;
-  fraTid: string | null;
-  tilTid: string | null;
-  pauseFra: string;
-  standardPauseMin: number;
-}): number {
-  const { alleRader, radId, fraTid, tilTid, pauseFra, standardPauseMin } = args;
-  if (!fraTid || !tilTid) return 0;
-  const andre = alleRader.filter((r) => r.id !== radId);
-  // (1) Dagsbrutto (sum rad-spenn) inkl. kandidatens NYE spenn.
-  const kandidatSpenn = Math.max(0, hhmmTilMin(tilTid) - hhmmTilMin(fraTid)) / 60;
-  const bruttoAndre = andre.reduce((sum, r) => {
-    if (!r.fraTid || !r.tilTid) return sum;
-    const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
-    return spenn > 0 ? sum + spenn / 60 : sum;
-  }, 0);
-  if (pauseMinForDag(bruttoAndre + kandidatSpenn, standardPauseMin) === 0) return 0;
-  // (2) Krysser kandidaten pausevinduet?
-  const overlapp = pauseOverlappMin(
-    hhmmTilMin(fraTid),
-    hhmmTilMin(tilTid),
-    hhmmTilMin(pauseFra),
-    standardPauseMin,
-  );
-  if (overlapp <= 0) return 0;
-  // (3) Bærer en ANNEN rad pausen alt? (kun-én-pr.-dag — flytt, ikke dupliser.)
-  if (andre.some((r) => r.pauseMin > 0)) return 0;
-  return standardPauseMin;
 }
 
 /** Kandidat-bærere (ekskl. gitt rad): krysser vinduet OG har positiv rest-timer

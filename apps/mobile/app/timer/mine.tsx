@@ -13,6 +13,7 @@ import {
 } from "../../src/db/schema";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
+import { useReLesVedSynk } from "../../src/hooks/useReLesVedSynk";
 
 /**
  * «Mine timer» mobil — kompakt rapport-visning på tvers av prosjekter
@@ -139,7 +140,7 @@ export default function MineTimerSide() {
   const router = useRouter();
   const { t } = useTranslation();
   const { bruker } = useAuth();
-  const { triggerSync, syncerNa } = useTimerSync();
+  const { triggerSync, syncerNa, sistSynkronisert } = useTimerSync();
 
   const [periode, setPeriode] = useState<Periode>("denne_uken");
   const [data, setData] = useState<{
@@ -156,6 +157,13 @@ export default function MineTimerSide() {
       }
     }, [bruker?.id, range.fra, range.til]),
   );
+
+  // FUNN 2026-10-06 (punkt 3): les på nytt når en bakgrunnssynk fullfører mens
+  // «Mine timer» står i fokus — ellers henger status/timer-tall etter til neste
+  // fokus. Samme mekanisme som dag-lista.
+  useReLesVedSynk(sistSynkronisert, () => {
+    if (bruker?.id) setData(lesDataLokalt(bruker.id, range.fra, range.til));
+  });
 
   const onRefresh = useCallback(async () => {
     await triggerSync();

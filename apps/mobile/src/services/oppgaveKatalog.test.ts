@@ -51,11 +51,6 @@ import {
   hentSistOppdatertOppgaveLokalt,
 } from "./oppgaveKatalog";
 
-type Db = ReturnType<typeof drizzle<typeof schema>>;
-function db(): Db {
-  return holder.drizzle as Db;
-}
-
 /** Server-rad-form oppgave.hentForProsjekt leverer (kun feltene speilet leser). */
 function serverOppgave(over: {
   id: string;

@@ -45,8 +45,6 @@ import {
   hentSistOppdatertHmsLokalt,
 } from "./hmsKatalog";
 
-type Db = ReturnType<typeof drizzle<typeof schema>>;
-
 const SIGNERT_URL = "https://signed.example/vedlegg.jpg?X-Amz-Signature=abc123";
 
 /** Task-rad (avvik/ruh): byggeplass via tegning (drawing.byggeplassId). */

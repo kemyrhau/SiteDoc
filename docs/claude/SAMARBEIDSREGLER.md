@@ -33,15 +33,15 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
   develop siste tre døgn ga 2 `feat` mot 13 `docs(samarbeid)`, og ni merge-runder gikk til ÉN
   funksjon.** 🔴 **En uke der planen ikke flyttet seg, er en uke som skal forklares — ikke en uke
   som forsvinner i fikser.**
-- 🔴 **INGEN SMÅ RELAY-RUNDER — hver nudge koster Kenneth usage.** *(Kenneth 2026-10-06: «hvorfor
-  sender du og fabel småting mellom dere? Det koster meg masse usage for liten eller ingen nytte.»)*
-  En melding mellom agenter sendes **kun når mottakeren MÅ handle: en ordre eller en retur.**
-  - **Ingen kvitteringer** («merget», «mottatt», «ført», «lest»). `git log` er kvitteringen.
-  - **Ingen egen docs-branch eller runde for premisser, avklaringer eller sitater.** De samles i
-    neste reelle ordre/spec-runde, eller føres av orkestrator i en commit som uansett går.
-  - **Testen før hver nudge:** *må mottakeren gjøre noe nå?* Nei → ikke send.
-  - Utløst 2026-10-06: Kenneth-sitat → orkestrator → fabel → docs-branch → orkestrator merget →
-    kvittering til fabel. Fire lim for to setninger i en plan.
+- 🔴 **ÉN GATE, ÉN MELDING, INGEN SMÅTURER — hver runde koster Kenneth usage** *(Kenneth 2026-10-06/07).*
+  1. **Én gate pr. leveranse, hos bestilleren.** Mal → Fabel (innhold + teknikk på agentens regel 10-tall). Kode-ordre
+     fra orkestrator → Kontrollør. Den som ikke bestilte, gater ikke; orkestrator merger mekanisk på «klar for merge».
+  2. **Gate i én melding:** GATET, eller én komplett vilkårsliste. Ny runde kun når et vilkår ikke er lukket.
+  3. **Mål aldri det samme to ganger.** `fil:linje` er målt — stikkprøv bare påstander uten referanse.
+  4. **Regel 10 re-kjøres uavhengig bare der feil koster lønn/data** (migrering, `syncBatch`, attestering, eksport).
+  5. **Bestilleren skriver rett i `relay/inbox-<agent>.md`**, orkestrator i kopi med «merge uten ny gate».
+  6. **Ingen kvitteringer, ingen egen runde for premisser/sitater** — de går i neste reelle ordre. `git log` er kvitteringen.
+  **Testen før hver melding:** *fører den til at noen skriver kode eller merger nå?* Nei → ikke send.
 
 ### Hvorfor § 0 finnes
 
@@ -655,6 +655,19 @@ sted.**
 
 ### Ordreformat til Kenneth: hvem → gjør hva → når
 
+🔴 **AGENTNAVN, ALDRI MAPPENAVN, over hver nudge** (Kenneth 2026-10-06: *«du bruker to navn → kontrollør og fabel om
+hverandre → jeg vet aldri hvem du egentlig mener»*). Overskriften er `### → <Agentnavn>`, ett navn pr. agent:
+
+| Agentnavn | Kjører i | Rolle | Innboks |
+|---|---|---|---|
+| **Fabel** | Claude-appen (Desktop-økt «Fabel»), tre `SiteDoc-design` | plan- og spec-eier | `relay/inbox-fabel.md` |
+| **Kontrollør** | terminal, tre `SiteDoc-gate` (fra 2026-10-06; før det delte den `SiteDoc-design` med Fabel) | kodegate før merge | `relay/inbox-kontrollor.md` |
+| **Redesign** | terminal, `SiteDoc-redesign` | utvikler | `relay/inbox-redesign-*.md` |
+| **Dokgen** | terminal, `SiteDoc-dokgen` | utvikler | `relay/inbox-dokgen-*.md` |
+| **Kontrollplan** | terminal, `SiteDoc-kontrollplan` | utvikler | `relay/inbox-kontrollplan-*.md` |
+
+Fabel og Kontrollør er to ulike agenter i hvert sitt tre. **`design` = Fabel, `gate` = Kontrollør** (Kenneth 2026-10-06). Skriv aldri et mappenavn som mottaker.
+
 Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,
 og **rekkefølgen** hvis noe avhenger av noe annet. Kenneth skal kunne kopiere og
 kjøre uten å tolke.
@@ -791,25 +804,6 @@ feilet med «No such file or directory» fordi forrige blokk var en server-sesjo
 
 Praktisk: server-kommandoer og Mac-kommandoer skal aldri stå i samme blokk uten at
 skiftet er markert.
-
-### Leveranser fra fabel — egen protokoll
-
-*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
-
-Fabel har **ingen skrivetilgang til repoet**. Alt kommer via nedlastingspakker Kenneth
-pakker ut, og det er der flyten svikter — ikke i innholdet.
-
-🔴 **Les [informasjonsflyt-fabel-cowork.md](informasjonsflyt-fabel-cowork.md) før du
-behandler en fabel-leveranse.** Kjernen:
-
-- Finn nyeste pakke selv med `ls -dt` — **macOS' « 2»-dubletter er de nyeste**, og sortert
-  på navn havner de feil sted.
-- Skill de tre feilmodusene (ikke lastet ned · dublett · synk-svikt) **før** du sier at
-  noe mangler.
-- **Ordlyd limt inn i meldingen slår disk** ved konflikt — synk kan svikte, limt tekst kan
-  ikke.
-- Cowork eier kopiering inn i repoet. **En leveranse som ikke er committet, finnes ikke**
-  for agentene og overlever ikke compact.
 
 ### 🔴 EN RELAYET ORDRE ER FROSSET — og ordrer stables ikke (Kenneth-vedtak 2026-09-06)
 
@@ -1030,6 +1024,8 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 - Kommandoer (git/build/sudo/deploy): formuleres til Kenneth, som kjører.
 
 ### 🔴 Innboksfilen er kanalen — direktemeldinger er kun varsler (Kenneth 2026-09-23)
+
+- **Innboksene ryddes av orkestrator** (Kenneth 2026-10-06): avsluttede meldinger flyttes til `relay/arkiv/<innboks>-til-<dato>.md`, ved hver prod-deploy og når en innboks passerer ~300 linjer. Bare åpne ordrer og leveranser blir stående, og øverst står en peker til arkivet.
 
 **Bakgrunn:** design sendte ordreinnhold som direktemeldinger mens filene lå **upushet**, meldte hasher som ikke fantes på origin, og byttet filnavn uten å føre det i innboksen. Cowork gjorde samme feilklasse den andre veien: påsto at brancher var «amendet» uten å ha målt det — sannheten var at de aldri var pushet. **To uklare kanaler samtidig gir fire feil av samme rot.** Alle fire ville blitt fanget av ett `ls-remote` før hashen ble meldt.
 
