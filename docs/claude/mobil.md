@@ -289,6 +289,34 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
   `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
 
+### Tegningsvisning: trykk-hint, langt trykk og måling (2026-10-08)
+
+`apps/mobile/src/components/TegningsVisning.tsx` (WebView) + `app/(tabs)/lokasjoner.tsx`. OTA-only
+(ingen server-endring — `tegning.hentMedId` returnerer allerede `mmPrPiksel`/`scale`/`scaleKilde`/
+`imageWidth`/`imageHeight`). Funksjonsendring med hjemmel (Kenneth 2026-10-07).
+
+- **Pekerbasert trykk-klassifisering:** WebView-en rapporterer rå gest (`{type:'gest', varighetMs,
+  flyttet, antallPekere, x, y}`) på `pointerup`; RN avgjør via den **rene, testede** `avgjorTrykkHandling`
+  (`src/lib/tegningTrykk.ts`, `tegningTrykk.test.ts`): pan (flyttet) og knip (≥2 pekere) → `ingen`;
+  målemodus → `malepunkt`; plassering → `opprett`; navigering → langt trykk (≥500 ms) `opprett`, kort
+  trykk `hint`. Legacy `onTrykk`/`{type:'trykk'}` (klikk) beholdt for de andre forbrukerne
+  (sjekkliste, rapportobjekt, skjermbilde, 3D) — aktiveres kun når `onHint`/`onOpprett`/`maleData`
+  mangler.
+- **§ 1 Hint:** kort trykk i navigering tegner en hint-boble ved punktet (`window.tegnHint`, ~2 s) og
+  blinker modus-bryteren én gang. Ingen bunn-toast. Ikke ved pan/knip, ikke i plassering.
+- **§ 2 Langt trykk:** setter markøren OG åpner malvalget direkte (`håndterOpprett`). Plasserings­modus
+  beholder dagens verifiser-flyt (sett markør → Bekreft-banner). Kort trykk panorerer som før.
+- **§ 3 Måling (tre verktøy, paritet med web):** linjal/polylinje/areal, ett aktivt. **All matematikk
+  gjenbrukt fra `@sitedoc/shared`** (`kanMale`, `malMm`, `malArealMm2`, `parseMalestokk`) — ingen kopi.
+  Overlayet (polylinje/polygon + punkter + etiketter) injiseres med `window.tegnMaling` (ingen reload;
+  re-injiseres i `onLoadEnd` når markør-refetch bygger HTML på nytt). Kilden vises ved resultatet
+  («1:50 (fra tittelfeltet)» osv.). **Samme lås som web:** `kanMale` styrer; usann → sperret knapp med
+  «Målestokken må bekreftes på web». **Ingen kalibrering på mobil.** Måling er papir-veien (georef-
+  avstand måles på web). Lukking: linjal etter 2 punkter; polylinje/areal via «Fullfør»/«Lukk flate»
+  eller trykk nær et eksisterende punkt (`LUKK_TERSKEL_PCT`). Esc finnes ikke på mobil → «Lukk»-knapp.
+- **SVAR (orkestrator):** måling bare online; ingen lokal metadata-tabell (offline-viseren er egen
+  ordre). Uten nett er «Mål» sperret likt som ved usann `kanMale`.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
