@@ -29,8 +29,10 @@ interface FeltWrapperProps {
   prosjektId?: string;
   byggeplassId?: string | null;
   standardTegningId?: string | null;
-  oppgaveNummer?: string;
-  oppgaveId?: string;
+  // C (2026-10-07): FLERE oppgaver pr. felt — én chip pr. oppgave, «+ Oppgave» blir
+  // stående. Datamodellen tillot det alt (Task.checklistFieldId ikke unik); kun
+  // klienten begrenset til én. Speiler repeater-radenes mønster.
+  oppgaver?: { id: string; nummer?: string }[];
   onOpprettOppgave?: () => void;
   onNavigerTilOppgave?: (id: string) => void;
   /** Oversettelser for firmainnhold (on-demand) */
@@ -59,8 +61,7 @@ export function FeltWrapper({
   prosjektId,
   byggeplassId,
   standardTegningId,
-  oppgaveNummer,
-  oppgaveId,
+  oppgaver,
   onOpprettOppgave,
   onNavigerTilOppgave,
   oversettelser,
@@ -188,24 +189,32 @@ export function FeltWrapper({
         ) : null;
       })()}
 
-      {/* Oppgave-badge eller +Oppgave-knapp */}
-      {oppgaveNummer && oppgaveId ? (
-        <button
-          type="button"
-          onClick={() => onNavigerTilOppgave?.(oppgaveId)}
-          className="mt-2 inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 print-skjul"
-        >
-          {oppgaveNummer}
-        </button>
-      ) : !leseModus && onOpprettOppgave && !oppgaveNummer ? (
-        <button
-          type="button"
-          onClick={onOpprettOppgave}
-          className="mt-2 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-200 print-skjul"
-        >
-          <Plus size={12} />
-          {t("papirkurv.typeOppgave")}
-        </button>
+      {/* Oppgave-chips + +Oppgave-knapp. C: ALLE oppgaver på feltet vises som chips,
+          og «+ Oppgave» blir stående ved siden av (erstattes ikke) så ett felt kan
+          utløse flere oppgaver. */}
+      {(oppgaver?.length ?? 0) > 0 || (!leseModus && onOpprettOppgave) ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {oppgaver?.map((opg) => (
+            <button
+              key={opg.id}
+              type="button"
+              onClick={() => onNavigerTilOppgave?.(opg.id)}
+              className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 print-skjul"
+            >
+              {opg.nummer ?? t("felt.oppgave")}
+            </button>
+          ))}
+          {!leseModus && onOpprettOppgave && (
+            <button
+              type="button"
+              onClick={onOpprettOppgave}
+              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-200 print-skjul"
+            >
+              <Plus size={12} />
+              {t("papirkurv.typeOppgave")}
+            </button>
+          )}
+        </div>
       ) : null}
     </div>
   );

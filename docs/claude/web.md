@@ -223,6 +223,8 @@ Oppgaver og sjekklister opprettes med **maks 2 klikk før utfylling** (ideal 1).
 
 Ingen skjemamodal med felter — kun (evt.) mal-velger. Emne/beskrivelse/lokasjon redigeres i detaljvisningen.
 
+**Oppgave fra felt — flere oppgaver pr. felt (C, 2026-10-07):** Et felt kan ha FLERE oppgaver — hver vises som en egen blå chip, og `+Oppgave` blir stående ved siden av (erstattes ikke), så ett felt kan utløse flere oppgaver. Datamodellen tillot dette alt (`Task.checklistFieldId` ikke unik, ingen server-sjekk); kun klienten begrenset til én. `FeltWrapper` tar nå `oppgaver: {id, nummer?}[]` (ikke `oppgaveNummer`/`oppgaveId`), og speiler repeater-radenes chip-mønster (`RepeaterObjekt.tsx`). Repeater-radene er uendret (per-rad `radOppgaver`).
+
 ## Lokasjon i detalj
 
 `LokasjonVelger`-komponent (`apps/web/src/components/LokasjonVelger.tsx`): klikkbar lokasjon-rad i oppgave/sjekkliste-detalj.
