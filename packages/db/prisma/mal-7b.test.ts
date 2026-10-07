@@ -20,21 +20,33 @@ import { malRegister, type MalKonstant } from "./generer-mal-sql";
  *    bekreftet smalt unntak, inbox-mal 2026-09-19)
  *
  * Rød først (ordre §2, 2026-10-07): kjørt mot dagens tekster FØR §7b-rettingen. 14 treff — FB4 (7
- * hjelpetekster «FB4 b1:» … «FB4 c5:») og FD3 (7, «FD3 b1:» … «FD3 c5:») — de to F-malene som aldri
- * ble §7b-renset. De står i AVVENTER_7B til fabel har gatet tekstomskrivingen (ordre 9b487c98 /
- * tillegg 31dee733). Vakten er LIVE over de 25 rene malene nå; AVVENTER_7B kan ikke vokse stille.
+ * hjelpetekster «FB4 b1:» … «FB4 c5:») og FD3 (7, «FD3 b1:» … «FD3 c5:»), de to F-malene som aldri ble
+ * §7b-renset. Omskrevet i denne branchen (RETUR 1, fabel 2026-10-07, vei a): ledende kode strippet,
+ * substans + tall bevart. Etter rettingen: 0 treff over alle 27, og AVVENTER_7B er tom.
  */
+
+// Normpunktkode: KJENT kapittelkode (alle KAPITTEL_DATA_*-koder, bygget fra kilden — ikke hardkodet) +
+// 1–2 sifre, ev. dottet underpost («.11») og postbokstav (« b1», « c3»). Kravet om kjent kapittelkode
+// + maks to sifre (RETUR 1, fabel 2026-10-07) fanger BARE poster: en bar «KB6» eller «KB2-sjekklisten»
+// (normkode §7b forbyr) treffes, mens produktmerking §7b TILLATER slipper — «FP100» (tre sifre), «F1»
+// (ingen kapittelkode), «KC-peler» (ingen sifre). (?!\d) hindrer treff på tresifrede klasser. Finnes en
+// tosifret produktklasse («FP10») i malene, hører den i utenUnntak med kommentar — ikke i regexen; ingen
+// slik streng finnes i de 974 testede pr. 2026-10-07.
+const KAPITTEL_KODER = [
+  ...seed.KAPITTEL_DATA_K,
+  ...seed.KAPITTEL_DATA_F,
+  ...seed.KAPITTEL_DATA_U,
+  ...seed.KAPITTEL_DATA_J,
+].map((k) => k.kode);
+const NORMPUNKTKODE = new RegExp(
+  `\\b(?:${KAPITTEL_KODER.join("|")})\\d{1,2}(?!\\d)(?:\\.\\d+)*(?:\\s[a-z]\\d[\\d.]*)?`,
+);
 
 /** Forbudte mønstre i hjelpetekst/alternativer. */
 const FORBUDT: { navn: string; re: RegExp }[] = [
   { navn: "Tabell", re: /Tabell [KFUJ]/ },
   { navn: "Matrise", re: /Matrise [KFUJ]/ },
-  // Normpunktkode: standardbokstav (K/F/U/J) + kapittelbokstav + tall, MED post-kvalifikator — enten
-  // dottet underpost («.2») eller mellomrom + postbokstav+tall (« b1», « c3»). Kvalifikatoren er KRAV
-  // (ikke valgfri): den skiller en ekte post-referanse («FB4 b1», «FD1.2», «UM1 c3», «JH2.11») fra en
-  // produktmerking §7b uttrykkelig TILLATER («FP100», «F1») og fra en bar mal-referanse. Uten kravet
-  // ga mønsteret falskt treff på «FP100» i KD1 (meldt til fabel 2026-10-07).
-  { navn: "normpunktkode", re: /\b[KFUJ][A-Z]\d+(?:\.\d+|\s[a-z]\d[\d.]*)/ },
+  { navn: "normpunktkode", re: NORMPUNKTKODE },
   // §7c pkt 2 — betalte/lukkede kilder: verdiløs henvisning for en arbeider uten tilgang.
   { navn: "NS 3420", re: /NS ?3420/ },
   { navn: "NS-EN", re: /NS-EN/ },
@@ -86,12 +98,12 @@ function bruddFor(mal: MalKonstant): { tekst: string; treff: string[] }[] {
 }
 
 /**
- * Maler med kjent §7b-gjeld, utestående fabel-gatet tekstomskriving (ordre 9b487c98 / tillegg
- * 31dee733). Hjelpetekstene starter med tabellkoder («FB4 b1:», «FD3 b1:»). Fjernes herfra i SAMME
- * commit som tekstene renses — den per-mal-assertion-en under FEILER hvis en avventende mal er blitt
- * ren (tvinger opprydding), og en ren mal som blir skitten fanges av at den IKKE er i settet.
+ * Maler med kjent §7b-gjeld, utestående fabel-gatet tekstomskriving. TOM etter at FB4/FD3 ble omskrevet
+ * (RETUR 1, fabel 2026-10-07, vei a). Mekanismen beholdes: legges en mal inn her, må den FORTSATT være
+ * skitten (per-mal-assertion-en under), og «AVVENTER_7B er tom»-testen feiler hvis settet vokser —
+ * ingen §7b-gjeld kan parkeres stille.
  */
-const AVVENTER_7B = new Set<string>(["FB4", "FD3"]);
+const AVVENTER_7B = new Set<string>([]);
 
 describe("§7b — ingen normkoder/betalte NS-standarder i hjelpetekster eller alternativer (alle maler)", () => {
   const register = malRegister();
@@ -123,6 +135,10 @@ describe("§7b — ingen normkoder/betalte NS-standarder i hjelpetekster eller a
     expect([...AVVENTER_7B].filter((ref) => !registrerte.has(ref))).toEqual([]);
   });
 
+  it("AVVENTER_7B er tom — ingen §7b-gjeld kan parkeres stille", () => {
+    expect([...AVVENTER_7B]).toEqual([]);
+  });
+
   for (const [ref, mal] of register) {
     if (AVVENTER_7B.has(ref)) {
       it(`${ref}: KJENT §7b-gjeld — fortsatt forbudte referanser (fjern fra AVVENTER_7B når fabel har gatet omskrivingen)`, () => {
@@ -145,6 +161,9 @@ describe("§7b — ingen normkoder/betalte NS-standarder i hjelpetekster eller a
     expect(forbudteTreff("se post UM1 c3 i grunnlaget")).toContain("normpunktkode");
     expect(forbudteTreff("JH2.11 angir toleransen")).toContain("normpunktkode");
     expect(forbudteTreff("FD1.2 dekker bunn")).toContain("normpunktkode");
+    // Bar post-referanse uten kvalifikator er også forbudt (RETUR 1, fabel 2026-10-07).
+    expect(forbudteTreff("se KB6 i grunnlaget")).toContain("normpunktkode");
+    expect(forbudteTreff("dokumenteres i KB2-sjekklisten")).toContain("normpunktkode");
     expect(forbudteTreff("Faglig grunnlag: NS 3420-K:2024")).toContain("NS 3420");
     expect(forbudteTreff("tilfredsstille NS-EN 1338")).toContain("NS-EN");
     expect(forbudteTreff("rør iht. NS 3458")).toContain("NS 3458");
