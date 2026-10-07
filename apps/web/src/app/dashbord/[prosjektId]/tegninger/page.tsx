@@ -7,6 +7,7 @@ import { rensSvg } from "@/lib/sanitize";
 import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass-kontekst";
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
 import { ønsketZoomScroll } from "@/lib/zoom-scroll";
+import { settVisningshøyde } from "@/lib/tegningVisningshoyde";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
 import { PeriodeFilter } from "@/components/PeriodeFilter";
@@ -433,6 +434,11 @@ export default function TegningerSide() {
   // Musehjul-zoom sentrert på musepekeren
   // Re-registrer når tegning endres (containerRef mountes etter data-lasting)
   const tegningId = aktivTegning?.id;
+  // Hvilken visnings-container som rendres (bilde/SVG, PDF-iframe eller «må
+  // konverteres»-melding) avgjøres av disse feltene. Når den skifter, byttes
+  // DOM-noden som bærer containerRef — brukes som dep slik at høyde-effekten
+  // under re-måler mot den nye noden.
+  const containerVariant = `${tegning?.conversionStatus ?? ""}|${tegning?.fileType ?? ""}|${tegning?.fileUrl ?? ""}`;
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -520,6 +526,39 @@ export default function TegningerSide() {
     el.scrollTop = mål.top;
     ønsketScrollRef.current = null;
   }, [zoom]);
+
+  // Gi visnings-containeren en DEFINIT høyde = fra dens egen topp til bunnen av
+  // vinduet. Uten dette scroller hele siden i stedet for tegningen (verktøylinja
+  // forsvinner oppover) OG scroll-containeren får aldri vertikal overflyt, så
+  // musehjul-zoomens scrollTop-korreksjon blir en no-op og zoomen låser seg til
+  // toppkanten. Rotårsaken ligger i den DELTE dashbord-layouten (<main> er
+  // display:block, så `flex-1` nedover er inert og ingen definit høyde når hit),
+  // men den kan ikke endres uten å klippe de 11 prosjektsidene som er avhengige av
+  // at <main> scroller — derfor måler vi høyden her, scoped til tegningssiden.
+  // Verifisert i nettleser (test.sitedoc.no): piksel under peker holdt seg innen
+  // ±0,2 px og hele-siden-scrollen forsvant. Matematikken i ønsketZoomScroll er urørt.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    function settHøyde() {
+      const e = containerRef.current;
+      if (!e) return;
+      settVisningshøyde(e, window.innerHeight);
+    }
+    settHøyde();
+    window.addEventListener("resize", settHøyde);
+    // Verktøylinjas høyde endres når bannere/paneler slås av og på (posisjonsvelger,
+    // målestokk-panel, måle-stripe) — de ligger over containeren og flytter dermed
+    // toppen. En ResizeObserver på forelderen fanger enhver slik omflyt uten at vi
+    // må telle opp hver enkelt tilstand. (Ingen løkke: containerens topp er uavhengig
+    // av dens egen høyde, så re-målingen gir samme verdi og stabiliserer seg.)
+    const ro = new ResizeObserver(settHøyde);
+    if (el.parentElement) ro.observe(el.parentElement);
+    return () => {
+      window.removeEventListener("resize", settHøyde);
+      ro.disconnect();
+    };
+  }, [tegningId, isLoading, containerVariant]);
 
   function lukkModal() {
     setVisOpprettModal(false);

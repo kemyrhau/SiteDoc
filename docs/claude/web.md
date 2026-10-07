@@ -467,6 +467,12 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - Dra-for-å-panorere: venstre museknapp + dra (>5px) panorerer tegningen
 - Pan/klikk-skilling: musedown-posisjon lagres, onClick ignoreres hvis bevegelse >5px
 - useEffect med `[tegningId, isLoading]` dependencies — registrerer wheel/pointer-handlers når container mountes etter data-lasting
+- Scroll-matematikken ligger i `lib/zoom-scroll.ts` (`ønsketZoomScroll`); ønsket scroll settes i en `useLayoutEffect([zoom])` **etter** at innholdet har fått ny bredde, ellers klipper nettleseren verdien til gammelt maksimum
+
+**Definit containerhøyde (`lib/tegningVisningshoyde.ts`, `settVisningshøyde`) — rotårsak-fiks 2026-10-07:**
+- Scroll-containeren får en eksplisitt høyde = fra sin egen topp til bunnen av vinduet (`window.innerHeight − getBoundingClientRect().top`), satt i en `useLayoutEffect` + `ResizeObserver` på forelderen (fanger banner/panel-omflyt) + `resize`-lytter. `flex: none` overstyrer `flex-1`.
+- **Hvorfor:** den delte dashbord-`<main>` er `display:block`, så `flex-1` nedover kjeden er inert og ingen definit høyde når frem. Uten dette (a) scroller hele siden i stedet for tegningen — verktøylinja forsvinner oppover — og (b) får ikke containeren vertikal overflyt, så musehjul-zoomens `scrollTop`-korreksjon blir en no-op og zoomen låser seg til toppkanten (vertikal bom målt til −63 px). `<main>` kan ikke gjøres til flex uten å klippe de 11 prosjektsidene som er avhengige av at den scroller — derfor måles høyden scoped her.
+- Verifisert i nettleser (test.sitedoc.no, to ekte tegninger): piksel under peker holdt seg innen ±0,9 px og hele-siden-scrollen forsvant (main-scrollbar 110→0). Formelen i `ønsketZoomScroll` er urørt.
 
 **Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)
