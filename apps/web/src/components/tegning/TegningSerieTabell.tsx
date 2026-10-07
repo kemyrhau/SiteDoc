@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Input, Select } from "@sitedoc/ui";
 import { DRAWING_TYPES } from "@sitedoc/shared";
-import { Loader2, RefreshCw, Check, AlertTriangle } from "lucide-react";
+import { Loader2, RefreshCw, Check, AlertTriangle, Eye } from "lucide-react";
 import {
   byggTegningRadEndring,
   type SerieFilStatus,
@@ -62,6 +62,10 @@ function initFelt(live: LiveTegning | undefined, forslag: SerieRad["forslag"]): 
  * R3-forslag vises merket «foreslått» til brukeren lagrer. Lagring pr. rad sender
  * KUN endrede felt (`byggTegningRadEndring`) via `tegning.oppdater`. Gjenbrukes fra
  * tegningslista som «Rediger flere» (samme komponent, samme mutasjon).
+ *
+ * T1b: `onVis` (valgfri) gir en «Vis»-knapp pr. rad — åpner tegningen i den
+ * omsluttende sidens egen forhåndsvisning. Tabellen forblir montert (ingen
+ * navigasjon), så ulagrede radendringer bevares når brukeren kommer tilbake.
  */
 export function TegningSerieTabell({
   rader,
@@ -70,6 +74,7 @@ export function TegningSerieTabell({
   lagrerId,
   onPrøvIgjen,
   onRevisjonFerdig,
+  onVis,
 }: {
   rader: SerieRad[];
   liveTegninger: Record<string, LiveTegning>;
@@ -77,6 +82,7 @@ export function TegningSerieTabell({
   lagrerId: string | null;
   onPrøvIgjen: (tempId: string) => void;
   onRevisjonFerdig: () => void;
+  onVis?: (drawingId: string) => void;
 }) {
   const { t } = useTranslation();
   const [felt, setFelt] = useState<Record<string, TegningRadFelt>>({});
@@ -218,6 +224,16 @@ export function TegningSerieTabell({
                     </div>
                   ) : (
                     <div className="flex flex-col items-start gap-1.5">
+                      {onVis && rad.drawingId && klar && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onVis(rad.drawingId!)}
+                        >
+                          <Eye className="mr-1.5 h-3.5 w-3.5" />
+                          {t("handling.vis")}
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         onClick={() => lagre(rad)}

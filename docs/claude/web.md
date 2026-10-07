@@ -436,6 +436,12 @@ Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `Redige
 - **R7:** målestokk forblir valgfri; ingen ny «mangler målestokk»-flate.
 - Ingen schema-endring. T2 (Tegningsserie-gruppering) ikke bygget — se `tegning-serieopplasting-spec.md`.
 
+### T1b — rediger etter opplasting, vis og tilbake, kollaps (2026-10-07)
+
+- **«Rediger flere» (R4):** `TegningSerieTabell` gjenåpnes fra tegningslista (knapp i gruppe-veksle-baren) med **alle** tegningene på byggeplassen, og pr. rad via et blyant-ikon (filtrert til den ene). Samme komponent, samme `tegning.oppdater` — ingen ny dialog. Rader bygges fra alt opprettede `Drawing` (`radFraTegning`, tempId = drawingId, ingen fil/forslag).
+- **Vis og tilbake:** «Vis»-knapp pr. rad (`onVis`) åpner tegningen i sidens egen forhåndsvisning. Tabell-overlayet **skjules med `hidden` (avmonteres ikke)**, så ulagrede radendringer bevares og tabellen lastes ikke på nytt; en floating «Tilbake til tabellen» henter overlayet tilbake. Valgt mekanisme fordi den gjenbruker den eksisterende viewer-en (SVG/PNG/pan/zoom) uten duplisering.
+- **Kollaps (localStorage):** fag-/etasje-gruppene kan kollapses enkeltvis via gruppe-headeren; valget huskes pr. byggeplass (`sitedoc_tegning_kollaps_<byggeplassId>`, try/catch). Nøkkel skilt på grupperingsmodus (`fag|etasje::navn`). Standard: alt åpent.
+
 ## Tegningsvisning
 
 Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
