@@ -114,6 +114,37 @@ export function malPolylinjeMm(
 }
 
 /**
+ * Virkelig areal (mm²) av et lukket polygon av prosent-punkter, via papir-
+ * målestokk. Shoelace-formelen på PIKSEL-koordinater (prosent → piksel med
+ * bildets faktiske bredde/høyde, slik `pikselAvstand` gjør — sideforholdet er
+ * dermed korrekt ivaretatt), deretter skalert til virkelig areal med
+ * `(mmPrPiksel · målestokk-nevner)²`.
+ *
+ * Punktene behandles som en lukket ring (siste → første). < 3 punkter → 0.
+ * Robust mot klikk-rekkefølge (bruker absoluttverdien av det signerte arealet).
+ */
+export function malArealMm2(
+  punkter: Punkt[],
+  imageWidth: number,
+  imageHeight: number,
+  mmPrPiksel: number,
+  malestokkNevner: number,
+): number {
+  if (punkter.length < 3) return 0;
+  // Prosent → piksel (samme omregning som pikselAvstand).
+  const px = punkter.map((p) => ({ x: (p.x / 100) * imageWidth, y: (p.y / 100) * imageHeight }));
+  let sum = 0;
+  for (let i = 0; i < px.length; i++) {
+    const a = px[i]!;
+    const b = px[(i + 1) % px.length]!;
+    sum += a.x * b.y - b.x * a.y;
+  }
+  const arealPiksel = Math.abs(sum) / 2;
+  const mmPrPikselVirkelig = mmPrPiksel * malestokkNevner;
+  return arealPiksel * mmPrPikselVirkelig * mmPrPikselVirkelig;
+}
+
+/**
  * Kan måleverktøyet (papir-veien) være aktivt? Krever utledet mm/piksel OG en
  * tolkbar målestokk med en KJENT kilde.
  *

@@ -22,12 +22,6 @@ export interface WheelHendelse {
   deltaMode: number;
 }
 
-/**
- * Over dette (piksler) regnes et rent vertikalt, helt pikseldelta som et
- * musehjul-hakk. Mindre/desimale/sidelengs delta er styreflate-scroll.
- */
-export const HJUL_PIKSEL_TERSKEL = 40;
-
 /** Følsomhet for knip-zoom: faktor = exp(-akkumulertDeltaY · k). */
 export const KNIP_K = 0.01;
 
@@ -37,21 +31,24 @@ export const KNIP_K = 0.01;
  * - `ctrlKey=true` ⇒ **knip** (styreflate-knip OG ctrl+hjul rapporteres slik av
  *   Chrome/Safari på Mac) → kontinuerlig zoom.
  * - `deltaMode ≠ 0` (linje/side) ⇒ **hjul** — tradisjonelt musehjul.
- * - pikselmodus: musehjulet gir store, hele, rene vertikale hakk; styreflate-
- *   scroll gir sidebevegelse og/eller små, ofte desimale delta i høy frekvens.
+ * - pikselmodus: **panorering kun når signaturen er entydig** (horisontal
+ *   komponent, `deltaX ≠ 0` — tofinger-scroll). Alt annet ⇒ **hjul**.
  *
- * Konservativ som standard: tvetydige, store, rene vertikale hakk tolkes som
- * **hjul** så musehjul-zoom ikke regresser til panorering.
+ * 🔴 RETUR 3 § A (regresjon): den forrige heuristikken krevde et helt, rent
+ * vertikalt hakk ≥ 40 px for å regne noe som hjul. Mus med jevn/akselerert
+ * scrolling gir desimale eller små `deltaY`, ble tolket som styreflate-scroll og
+ * **panorerte i stedet for å zoome**. Kenneth-regelen er «ved tvil → zoom»: en
+ * regresjon i det som virket (musehjul-zoom) er verre enn at styreflatens
+ * vertikale tofinger-scroll zoomer i stedet for å panorere. Derfor er den eneste
+ * entydige pan-signaturen en horisontal komponent.
  */
 export function klassifiserWheel(e: WheelHendelse): WheelGest {
   if (e.ctrlKey) return "knip";
   if (e.deltaMode !== 0) return "hjul";
-  const harSideBevegelse = Math.abs(e.deltaX) > 0;
-  const rentVertikaltHakk =
-    !harSideBevegelse &&
-    Number.isInteger(e.deltaY) &&
-    Math.abs(e.deltaY) >= HJUL_PIKSEL_TERSKEL;
-  return rentVertikaltHakk ? "hjul" : "styreflate-scroll";
+  // Pikselmodus. Entydig tofinger-scroll = horisontal bevegelse → panorer.
+  if (Math.abs(e.deltaX) > 0) return "styreflate-scroll";
+  // Ved tvil → zoom (aldri regresjon av musehjul-zoom).
+  return "hjul";
 }
 
 /** Forankring: pekerposisjon i viewporten + gjeldende scroll (piksler). */

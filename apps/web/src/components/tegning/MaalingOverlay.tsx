@@ -21,11 +21,13 @@ export interface MaalingSegment {
 interface MaalingOverlayProps {
   punkter: { x: number; y: number }[];
   segmenter: MaalingSegment[];
+  /** Areal-verktøy: tegn et lukket, skravert polygon i stedet for en åpen linje. */
+  fyll?: boolean;
 }
 
-export function MaalingOverlay({ punkter, segmenter }: MaalingOverlayProps) {
+export function MaalingOverlay({ punkter, segmenter, fyll = false }: MaalingOverlayProps) {
   if (punkter.length === 0) return null;
-  const polyline = punkter.map((p) => `${p.x},${p.y}`).join(" ");
+  const punktStreng = punkter.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -35,16 +37,28 @@ export function MaalingOverlay({ punkter, segmenter }: MaalingOverlayProps) {
         preserveAspectRatio="none"
         aria-hidden
       >
-        {punkter.length >= 2 && (
-          <polyline
-            points={polyline}
-            fill="none"
+        {fyll && punkter.length >= 3 ? (
+          // Lukket, skravert polygon (areal).
+          <polygon
+            points={punktStreng}
+            fill="rgba(30,64,175,0.18)"
             stroke="#1e40af"
             strokeWidth={2}
             strokeLinejoin="round"
-            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
+        ) : (
+          punkter.length >= 2 && (
+            <polyline
+              points={punktStreng}
+              fill="none"
+              stroke="#1e40af"
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )
         )}
       </svg>
 

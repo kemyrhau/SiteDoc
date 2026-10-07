@@ -24,6 +24,7 @@ export {
   pikselAvstand,
   malMm,
   malPolylinjeMm,
+  malArealMm2,
   kanMale,
   kalibrerMalestokk,
 } from "./maaling";
