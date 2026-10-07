@@ -1149,6 +1149,7 @@ export default function DagsseddelDetalj() {
           startAt={sedel.startAt}
           endAt={sedel.endAt}
           pauseMin={sedel.pauseMin}
+          timerRader={timerRader}
           redigerbar={erRedigerbar}
           onEndret={markerEndretOgLes}
         />

@@ -74,12 +74,10 @@ import type {
   Prosjekt,
 } from "../../types/timer-detalj";
 import {
-  DEFAULT_PAUSE_ETTER_TIMER,
   effektiveTimerFraSpenn,
   hhmmTilMin,
   maskinBucketKapasitet,
   pauseOverlappMin,
-  pauseVinduFra,
   tilFraAntall,
   tilErEtterFra,
   finnOverlappendeTidsrom,
@@ -160,9 +158,10 @@ export function TimerSeksjon({
   // F5: matpause-kontekst (hvor lunsjen faller + lengde) + om regelen trigger for
   // dagen (dagsbrutto > 5,5t). Trigget beregnes fra ALLE sedelens rader
   // (`alleTimerRader`), ikke bøtte-scopet `rader` — pausen er dag-nivå.
+  // V20/PK5: pausevinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
   const { pauseFra, standardPauseMin } = useMemo(
-    () => matpauseKontekst(organizationId, dato),
-    [organizationId, dato],
+    () => matpauseKontekst(organizationId, dato, alleTimerRader),
+    [organizationId, dato, alleTimerRader],
   );
   const pauseRegelTrigget = useMemo(
     () => matpauseRegelTrigget(alleTimerRader, standardPauseMin),
@@ -756,15 +755,20 @@ function TimerRadVis({
 }) {
   const { t } = useTranslation();
 
-  // F5: vis matpause-avhukingen kun når regelen trigger (dag > 5,5t) OG raden
-  // krysser lunsjvinduet (kvalifisert bærer). Bæreren (pauseMin > 0) er avhuket;
-  // øvrige kvalifiserte rader viser en tom checkbox man kan hake for å flytte
-  // pausen dit. Redigerbar-gate: kun draft/returned kan endre.
+  const pauseAvhuket = rad.pauseMin > 0;
+  // F5: vis matpause-avhukingen (INTERAKTIV) kun når regelen trigger (dag > 5,5t)
+  // OG raden krysser lunsjvinduet (kvalifisert bærer). Bæreren (pauseMin > 0) er
+  // avhuket; øvrige kvalifiserte rader viser en tom checkbox man kan hake for å
+  // flytte pausen dit. Redigerbar-gate: kun draft/returned kan endre.
   const visPauseRad =
     redigerbar &&
     pauseRegelTrigget &&
     radKrysserPause(rad, pauseFra, standardPauseMin);
-  const pauseAvhuket = rad.pauseMin > 0;
+  // V20 låst visning (Kenneth 2026-10-07): på en sendt/attestert/låst sedel er
+  // det ingenting å flytte — men bæreren skal VISE at pausen er trukket,
+  // skrivebeskyttet. Kun bæreren (ikke tom avkrysning): speiler web (dagsseddel +
+  // attestering), som også bare viser den honnøre påstanden.
+  const visPauseRadLaast = !redigerbar && pauseAvhuket;
   // F5 (fabel edge #1): etiketten viser de FAKTISK trukne minuttene for raden
   // (spenn-overlapp mot lunsjvinduet gitt radens pauseMin) — ikke hardkodet 30.
   // Full-spenn → 30 min; delvis overlapp → f.eks. 15 min. Kun visning; rører
@@ -949,6 +953,16 @@ function TimerRadVis({
           </Text>
         </Pressable>
       )}
+
+      {/* V20 låst visning: bæreren skrivebeskyttet (ingen Pressable, ingen flytt). */}
+      {visPauseRadLaast && (
+        <View className="min-h-[40px] flex-row items-center gap-2 border-t border-gray-100 px-4 py-2">
+          <CheckSquare size={18} color="#1e40af" />
+          <Text className="text-xs text-gray-700">
+            {t("timer.matpause.trukket", { min: pauseTrukketMin })}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -1060,26 +1074,23 @@ function TimerRadModal({
   const { t } = useTranslation();
   // T.5 + pause-synk: hent firma-innstillinger fra lokal cache.
   //   - tidsrundingMinutter: null = ingen runding
-  //   - pauseEtterTimer/pauseMin: obligatorisk lunsjvindu (default 4,0 t inn i
-  //     skiftet / 30 min), brukes til pause-bevisst auto-synk antall ↔ fra/til.
-  const { tidsrundingMinutter, pauseEtterTimer, pauseMin } = useMemo(() => {
+  //   - pauseMin: matpausens lengde (standardPauseMin, default 30), brukt til
+  //     pause-bevisst auto-synk antall ↔ fra/til. Pausevinduet (pauseFra) kommer
+  //     fra `matpauseKontekst` (PK5, pauseReferanse-aware).
+  const { tidsrundingMinutter, pauseMin } = useMemo(() => {
     const setting = hentOrganizationSettingLokalt(organizationId);
     return {
       tidsrundingMinutter: setting?.tidsrundingMinutter ?? null,
-      pauseEtterTimer: setting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER,
       pauseMin: setting?.standardPauseMin ?? 30,
     };
   }, [organizationId]);
 
-  // Pausevindu = skiftstart + pauseEtterTimer. Skiftstart = dagens effektive
-  // arbeidstid-start (kalender-overstyring eller firma-default).
-  const pauseFra = useMemo(() => {
-    const skiftStart = hentArbeidsdagTiderLokalt(
-      organizationId,
-      new Date(`${dato}T00:00:00`),
-    ).startTid;
-    return pauseVinduFra(skiftStart, pauseEtterTimer);
-  }, [organizationId, dato, pauseEtterTimer]);
+  // V20/PK5: pausevindu via delt `matpauseKontekst` (pauseReferanse-aware) — samme
+  // kilde som rad-lista og mutasjonene, mot dagens rader (ankomst → tidligste fraTid).
+  const pauseFra = useMemo(
+    () => matpauseKontekst(organizationId, dato, alleTimerRader).pauseFra,
+    [organizationId, dato, alleTimerRader],
+  );
 
   // V20 PK2: radens EGEN matpause (0 eller standardPauseMin) for de oppgitte
   // tidene — bæreren bestemmes mot alle sedelens rader (kun-én-pr.-dag). Brukes i
@@ -1183,7 +1194,7 @@ function TimerRadModal({
   const [timer, setTimer] = useState<string>(() => {
     if (eksisterendeRad?.timer) return eksisterendeRad.timer.toFixed(2);
     // B3 (M6): init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
-    // prefill. `pauseMin` her = firma standardPauseMin (utledet over). Ellers tom.
+    // prefill. Pausen er radens egen (`radPauseMinFor`, PK1), aldri firma-default.
     if (prefillGyldig) {
       return effektiveTimerFraSpenn(
         defaultTider.fra!,

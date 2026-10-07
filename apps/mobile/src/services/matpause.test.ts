@@ -60,6 +60,7 @@ import {
   avgjorRadPauseMin,
   settMatpauseBaerer,
   fjernMatpause,
+  matpauseKontekst,
 } from "./matpause";
 
 const { dagsseddelLocal, sheetTimerLocal } = schema;
@@ -186,7 +187,9 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  holder.raw.run("DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local;");
+  holder.raw.run(
+    "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM arbeidstid_svar_local;",
+  );
 });
 
 /** Én manuell rad 07:00–15:00, LAGRET slik leggTil nå gjør (PK2): bærer med
@@ -269,5 +272,53 @@ describe("settMatpause/fjernMatpause (sql.js)", () => {
     expect(etterPaa.pauseMin).toBe(30);
     expect(etterPaa.tilTid).toBe("15:00");
     expect(etterPaa.timer).toBe(7.5);
+  });
+});
+
+// ============================================================================
+//  V20 PK5 (test 6) — pausevinduet følger pauseReferanse (ankomst vs fastStart)
+// ============================================================================
+describe("matpauseKontekst — PK5 pausevindu (sql.js)", () => {
+  const { arbeidstidSvarLocal } = schema;
+
+  function seedNorm(pauseReferanse: "fastStart" | "ankomst") {
+    db()
+      .insert(arbeidstidSvarLocal)
+      .values({
+        organizationId: "o1",
+        dato: "2026-10-06",
+        dagsnorm: 7.5,
+        startTid: "07:00",
+        sluttTid: "15:00",
+        pauseMin: 30,
+        normKilde: "fast",
+        pauseEtterTimer: 4,
+        pauseReferanse,
+        hentetAt: 1000,
+      } as never)
+      .run();
+  }
+
+  it("uten cachet norm → fastStart fra kalenderens skiftstart (07:00+4t = 11:00)", () => {
+    // Ingen arbeidstid_svar_local-rad → norm=null → fastStart-fallback. Radens
+    // fraTid 08:00 skal IKKE flytte vinduet (fastStart er default).
+    const { pauseFra } = matpauseKontekst("o1", "2026-10-06", [{ fraTid: "08:00" }]);
+    expect(pauseFra).toBe("11:00");
+  });
+
+  it("(test 6) pauseReferanse=ankomst → vindu fra tidligste rad-fraTid (08:00+4t = 12:00)", () => {
+    seedNorm("ankomst");
+    const { pauseFra } = matpauseKontekst("o1", "2026-10-06", [
+      { fraTid: "09:00" },
+      { fraTid: "08:00" },
+    ]);
+    // Ankomst: tidligste fraTid 08:00 + 4t = 12:00 — IKKE fastStart 11:00.
+    expect(pauseFra).toBe("12:00");
+  });
+
+  it("pauseReferanse=fastStart (cachet) → 07:00+4t = 11:00 uansett rad-fraTid", () => {
+    seedNorm("fastStart");
+    const { pauseFra } = matpauseKontekst("o1", "2026-10-06", [{ fraTid: "08:00" }]);
+    expect(pauseFra).toBe("11:00");
   });
 });
