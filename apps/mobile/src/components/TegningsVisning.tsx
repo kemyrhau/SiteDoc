@@ -10,10 +10,33 @@ import {
 } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { X, AlertTriangle, RefreshCw } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, RotateCcw, Check } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import {
+  kanMale,
+  malMm,
+  malArealMm2,
+  parseMalestokk,
+  type Punkt,
+} from "@sitedoc/shared/utils";
+import { avgjorTrykkHandling, type TrykkModus } from "../lib/tegningTrykk";
 
 const LASTING_TIMEOUT_MS = 15_000;
+
+/** Måledata fra tegningen (speiler web). `undefined` = måling ikke aktivert av forelder. */
+export interface MaaleData {
+  mmPrPiksel: number | null;
+  scale: string | null;
+  scaleKilde: string | null;
+  imageWidth: number | null;
+  imageHeight: number | null;
+}
+
+/** De tre måleverktøyene (paritet med web RETUR 3 § C). */
+type MaleVerktoy = "linjal" | "polylinje" | "areal";
+
+/** Lukk-terskel i prosent: trykk nær et eksisterende punkt lukker polylinje/areal. */
+const LUKK_TERSKEL_PCT = 3.5;
 
 export interface Markør {
   x: number;
@@ -44,6 +67,7 @@ interface TegningsVisningProps {
   tegningUrl: string;
   tegningNavn: string;
   onLukk: () => void;
+  /** Legacy: enkelt trykk → plassering (sjekkliste/rapportobjekt m.fl.). */
   onTrykk?: (posX: number, posY: number) => void;
   onMarkørTrykk?: (id: string) => void;
   markører?: Markør[];
@@ -51,6 +75,16 @@ interface TegningsVisningProps {
   gpsMarkør?: GpsMarkør | null;
   /** Ubrukt — beholdt for bakoverkompatibilitet */
   pdfPageSize?: { width: number; height: number };
+  // --- Avansert trykk + måling (lokasjoner). Settes disse, brukes pekerbasert
+  //     trykk-klassifisering i stedet for legacy `onTrykk`. ---
+  /** true = plasseringsmodus (trykk oppretter). false/utelatt = navigering. */
+  plasseringAktiv?: boolean;
+  /** Kort trykk i navigering: vis hint og blink bryteren (ingen oppretting). */
+  onHint?: () => void;
+  /** Opprett her: langt trykk (navigering) ELLER trykk (plassering). */
+  onOpprett?: (posX: number, posY: number) => void;
+  /** Måledata. Settes (kan være null) → måleverktøyet vises. undefined → av. */
+  maleData?: MaaleData | null;
 }
 
 /**
@@ -63,7 +97,7 @@ function byggHtml(
   markører: Markør[],
   omrader: Omrade[],
   gpsMarkør: GpsMarkør | null,
-  kanTrykke: boolean,
+  trykkOppsett: "ingen" | "enkel" | "avansert",
 ): string {
   const markørData = JSON.stringify(markører.map((m) => ({
     id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
@@ -139,6 +173,9 @@ function oppdaterZoom() {
   document.querySelectorAll('.gps-outer').forEach(function(el) {
     el.style.transform = 'translate(-50%,-50%) scale(' + inv + ')';
     el.style.animation = 'none';
+  });
+  document.querySelectorAll('.male-dot,.male-label').forEach(function(el) {
+    el.style.transform = 'translate(-50%,-50%) scale(' + inv + ')';
   });
 }
 if (window.visualViewport) {
@@ -217,17 +254,98 @@ var img = document.getElementById('tegning');
 img.onload = function() { plasser(); };
 if (img.complete) plasser();
 
-${kanTrykke ? `
+function post(o){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
+
+// Hint-boble ved et punkt (navigeringsmodus, kort trykk) — forsvinner etter ~2 s.
+window.tegnHint = function(x, y, tekst) {
+  var g = document.getElementById('hintBoble'); if (g) g.remove();
+  var c = document.getElementById('container'); if (!c) return;
+  var d = document.createElement('div'); d.id = 'hintBoble';
+  d.style.cssText = 'position:absolute;z-index:30;left:' + x + '%;top:' + y + '%;transform:translate(-50%,-140%);background:rgba(17,24,39,0.92);color:#fff;font:600 11px sans-serif;padding:5px 9px;border-radius:7px;max-width:170px;text-align:center;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.4)';
+  d.textContent = tekst;
+  c.appendChild(d);
+  setTimeout(function(){ if (d.parentNode) d.parentNode.removeChild(d); }, 2000);
+};
+
+// Måle-overlay: polylinje/polygon + punkter + etiketter (prosent-koordinater).
+window.tegnMaling = function(punkter, segmenter, fyll) {
+  var g = document.getElementById('maleLag'); if (g) g.remove();
+  var c = document.getElementById('container'); if (!c) return;
+  if (!punkter || !punkter.length) return;
+  var lag = document.createElement('div'); lag.id = 'maleLag';
+  lag.style.cssText = 'position:absolute;inset:0;z-index:16;pointer-events:none';
+  var svgNs = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(svgNs, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%');
+  var pts = punkter.map(function(p){ return p.x + ',' + p.y; }).join(' ');
+  if (fyll && punkter.length >= 3) {
+    var poly = document.createElementNS(svgNs, 'polygon');
+    poly.setAttribute('points', pts); poly.setAttribute('fill', 'rgba(30,64,175,0.18)');
+    poly.setAttribute('stroke', '#1e40af'); poly.setAttribute('stroke-width', '2');
+    poly.setAttribute('stroke-linejoin', 'round'); poly.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(poly);
+  } else if (punkter.length >= 2) {
+    var pl = document.createElementNS(svgNs, 'polyline');
+    pl.setAttribute('points', pts); pl.setAttribute('fill', 'none');
+    pl.setAttribute('stroke', '#1e40af'); pl.setAttribute('stroke-width', '2');
+    pl.setAttribute('stroke-linejoin', 'round'); pl.setAttribute('stroke-linecap', 'round');
+    pl.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(pl);
+  }
+  lag.appendChild(svg);
+  punkter.forEach(function(p){
+    var dot = document.createElement('div'); dot.className = 'male-dot';
+    dot.style.cssText = 'position:absolute;left:' + p.x + '%;top:' + p.y + '%;width:12px;height:12px;border-radius:50%;background:#1e40af;border:2px solid #fff;transform:translate(-50%,-50%);transform-origin:center';
+    lag.appendChild(dot);
+  });
+  (segmenter || []).forEach(function(s){
+    var lbl = document.createElement('div'); lbl.className = 'male-label';
+    lbl.style.cssText = 'position:absolute;left:' + s.midx + '%;top:' + s.midy + '%;transform:translate(-50%,-50%);transform-origin:center;background:#1e40af;color:#fff;font:700 10px sans-serif;padding:1px 4px;border-radius:3px;white-space:nowrap';
+    lbl.textContent = s.tekst;
+    lag.appendChild(lbl);
+  });
+  c.appendChild(lag);
+  oppdaterZoom();
+};
+
+${trykkOppsett === "enkel" ? `
 document.getElementById('container').addEventListener('click', function(e) {
   var img = document.getElementById('tegning');
   var rect = img.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return;
   var x = ((e.clientX - rect.left) / rect.width) * 100;
   var y = ((e.clientY - rect.top) / rect.height) * 100;
-  window.ReactNativeWebView.postMessage(JSON.stringify({
-    type:'trykk', x:Math.max(0,Math.min(100,x)), y:Math.max(0,Math.min(100,y))
-  }));
+  post({ type:'trykk', x:Math.max(0,Math.min(100,x)), y:Math.max(0,Math.min(100,y)) });
 });` : ""}
+${trykkOppsett === "avansert" ? `
+(function(){
+  var c = document.getElementById('container');
+  var sx=0, sy=0, st=0, flyttet=false, antallPekere=0, maksPekere=0;
+  c.addEventListener('pointerdown', function(e){
+    antallPekere++;
+    if (antallPekere === 1) { sx=e.clientX; sy=e.clientY; st=Date.now(); flyttet=false; maksPekere=1; }
+    else { maksPekere = Math.max(maksPekere, antallPekere); }
+  });
+  c.addEventListener('pointermove', function(e){
+    if (Math.abs(e.clientX-sx) > 10 || Math.abs(e.clientY-sy) > 10) flyttet=true;
+  });
+  function slutt(e){
+    antallPekere = Math.max(0, antallPekere-1);
+    if (antallPekere > 0) return; // vent til alle fingre er oppe
+    var img = document.getElementById('tegning');
+    var rect = img.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) { maksPekere=0; return; }
+    var cx = (e.clientX != null ? e.clientX : sx), cy = (e.clientY != null ? e.clientY : sy);
+    var x = Math.max(0, Math.min(100, (cx-rect.left)/rect.width*100));
+    var y = Math.max(0, Math.min(100, (cy-rect.top)/rect.height*100));
+    post({ type:'gest', varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maksPekere, x:x, y:y });
+    maksPekere = 0;
+  }
+  c.addEventListener('pointerup', slutt);
+  c.addEventListener('pointercancel', function(){ antallPekere = Math.max(0, antallPekere-1); flyttet = true; });
+})();` : ""}
 </script>
 </body></html>`;
 }
@@ -241,12 +359,130 @@ export function TegningsVisning({
   markører = [],
   omrader = [],
   gpsMarkør,
+  plasseringAktiv = false,
+  onHint,
+  onOpprett,
+  maleData,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState(false);
   const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Avansert trykk/måling aktiveres når forelder gir avanserte props.
+  const avansert = !!onHint || !!onOpprett || maleData !== undefined;
+
+  // --- Måling (paritet med web, papir-veien). ---
+  const [maleVerktoy, setMaleVerktoy] = useState<MaleVerktoy | null>(null);
+  const [malePunkter, setMalePunkter] = useState<Punkt[]>([]);
+  const [maleFerdig, setMaleFerdig] = useState(false);
+
+  const mmPrPiksel = maleData?.mmPrPiksel ?? null;
+  const scale = maleData?.scale ?? null;
+  const scaleKilde = maleData?.scaleKilde ?? null;
+  const scaleDenom = parseMalestokk(scale);
+  const imgW = maleData?.imageWidth ?? null;
+  const imgH = maleData?.imageHeight ?? null;
+  const kanMaleNaa = !!maleData && kanMale(scale, mmPrPiksel, scaleKilde);
+  const erAreal = maleVerktoy === "areal";
+
+  const formatMeter = (m: number) => `${m.toFixed(2).replace(".", ",")} m`;
+  const formatAreal = (m2: number) => `${m2.toFixed(2).replace(".", ",")} m²`;
+
+  const kildeEtikett = (() => {
+    if (scaleKilde === "kalibrert") return t("maaling.kildeKalibrert");
+    if (scaleKilde === "manuell") return t("maaling.kildeManuell");
+    if (scaleKilde === "tittelfelt") return t("maaling.kildeTittelfelt");
+    return "";
+  })();
+  const malestokkEtikett = scale ? `${t("maaling.malestokk")} ${scale}, ${kildeEtikett}` : kildeEtikett;
+
+  // Ett segment i meter (papir-målestokk). null uten komplett måledata.
+  const segMeter = useCallback(
+    (a: Punkt, b: Punkt): number | null => {
+      if (mmPrPiksel != null && scaleDenom != null && imgW != null && imgH != null) {
+        return malMm(a, b, imgW, imgH, mmPrPiksel, scaleDenom) / 1000;
+      }
+      return null;
+    },
+    [mmPrPiksel, scaleDenom, imgW, imgH],
+  );
+
+  // Segment-/areal-etiketter + resultattekst.
+  const maleSegmenter: { midx: number; midy: number; tekst: string }[] = [];
+  let maleTotalMeter = 0;
+  let arealM2: number | null = null;
+  let omkretsMeter = 0;
+  if (!erAreal) {
+    for (let i = 1; i < malePunkter.length; i++) {
+      const a = malePunkter[i - 1];
+      const b = malePunkter[i];
+      if (!a || !b) continue;
+      const m = segMeter(a, b);
+      if (m == null) continue;
+      maleTotalMeter += m;
+      maleSegmenter.push({ midx: (a.x + b.x) / 2, midy: (a.y + b.y) / 2, tekst: formatMeter(m) });
+    }
+  } else if (malePunkter.length >= 3) {
+    const ring = [...malePunkter, malePunkter[0]!];
+    for (let i = 1; i < ring.length; i++) {
+      const m = segMeter(ring[i - 1]!, ring[i]!);
+      if (m != null) omkretsMeter += m;
+    }
+    if (mmPrPiksel != null && scaleDenom != null && imgW != null && imgH != null) {
+      arealM2 = malArealMm2(malePunkter, imgW, imgH, mmPrPiksel, scaleDenom) / 1_000_000;
+    }
+    const cx = malePunkter.reduce((s, p) => s + p.x, 0) / malePunkter.length;
+    const cy = malePunkter.reduce((s, p) => s + p.y, 0) / malePunkter.length;
+    if (arealM2 != null) maleSegmenter.push({ midx: cx, midy: cy, tekst: formatAreal(arealM2) });
+  }
+
+  // Refs så den stabile WebView-meldingshåndtereren leser ferskeste tilstand.
+  const maleVerktoyRef = useRef(maleVerktoy);
+  maleVerktoyRef.current = maleVerktoy;
+  const malePunkterRef = useRef(malePunkter);
+  malePunkterRef.current = malePunkter;
+  const maleFerdigRef = useRef(maleFerdig);
+  maleFerdigRef.current = maleFerdig;
+  const plasseringRef = useRef(plasseringAktiv);
+  plasseringRef.current = plasseringAktiv;
+
+  // Legg til et målepunkt (speiler web-logikken: linjal 2 punkter, polylinje/areal
+  // lukkes ved trykk nær et eksisterende punkt).
+  const leggTilMalepunkt = useCallback((x: number, y: number) => {
+    const verktoy = maleVerktoyRef.current;
+    if (!verktoy) return;
+    const p: Punkt = { x, y };
+    const forrige = malePunkterRef.current;
+    if (maleFerdigRef.current) {
+      setMaleFerdig(false);
+      setMalePunkter([p]);
+      return;
+    }
+    if (verktoy === "linjal") {
+      const nye = [...forrige, p].slice(-2);
+      setMalePunkter(nye);
+      if (nye.length >= 2) setMaleFerdig(true);
+      return;
+    }
+    const nær = (q: Punkt) => Math.hypot(q.x - x, q.y - y) <= LUKK_TERSKEL_PCT;
+    if (verktoy === "areal") {
+      if (forrige.length >= 3 && forrige[0] && nær(forrige[0])) { setMaleFerdig(true); return; }
+    } else if (forrige.length >= 2 && forrige.some(nær)) {
+      setMaleFerdig(true);
+      return;
+    }
+    setMalePunkter([...forrige, p]);
+  }, []);
+
+  const velgVerktoy = useCallback((v: MaleVerktoy) => {
+    setMaleVerktoy((forrige) => (forrige === v ? null : v));
+    setMalePunkter([]);
+    setMaleFerdig(false);
+  }, []);
+  const nullstillMaling = useCallback(() => { setMalePunkter([]); setMaleFerdig(false); }, []);
+  const avsluttMaling = useCallback(() => { setMaleVerktoy(null); setMalePunkter([]); setMaleFerdig(false); }, []);
 
   useEffect(() => {
     setLaster(true);
@@ -288,23 +524,74 @@ export function TegningsVisning({
     }
   }, [gpsMarkør, laster]);
 
+  // Injiser (eller fjern) måle-overlayet uten reload — kalt når punktene endres
+  // og etter en reload (markør-refetch bygger HTML på nytt). Leser fra refs så
+  // callbacken er stabil (ellers re-injiseres overlayet ved hver render).
+  const maleSegmenterRef = useRef(maleSegmenter);
+  maleSegmenterRef.current = maleSegmenter;
+  const injiserMaling = useCallback(() => {
+    if (!webViewRef.current) return;
+    const punkter = malePunkterRef.current;
+    const segmenter = punkter.length ? maleSegmenterRef.current : [];
+    const fyll = maleVerktoyRef.current === "areal";
+    webViewRef.current.injectJavaScript(
+      `window.tegnMaling && window.tegnMaling(${JSON.stringify(punkter)}, ${JSON.stringify(segmenter)}, ${fyll}); true;`,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (laster) return;
+    injiserMaling();
+  }, [malePunkter, maleVerktoy, laster, injiserMaling]);
+
   const håndterMelding = useCallback(
     (e: WebViewMessageEvent) => {
       try {
         const data = JSON.parse(e.nativeEvent.data);
-        if (data.type === "trykk" && onTrykk) {
-          onTrykk(data.x, data.y);
-        } else if (data.type === "markør" && onMarkørTrykk) {
-          onMarkørTrykk(data.id);
+        if (data.type === "markør") {
+          if (onMarkørTrykk) onMarkørTrykk(data.id);
+          return;
+        }
+        // Legacy enkelt-trykk (andre forbrukere uten avanserte props).
+        if (data.type === "trykk") {
+          if (onTrykk) onTrykk(data.x, data.y);
+          return;
+        }
+        if (data.type === "gest") {
+          const modus: TrykkModus = maleVerktoyRef.current
+            ? "maling"
+            : plasseringRef.current
+              ? "plassering"
+              : "navigering";
+          const handling = avgjorTrykkHandling(modus, {
+            varighetMs: data.varighetMs,
+            flyttet: data.flyttet,
+            antallPekere: data.antallPekere,
+          });
+          if (handling === "malepunkt") {
+            leggTilMalepunkt(data.x, data.y);
+          } else if (handling === "opprett") {
+            onOpprett?.(data.x, data.y);
+          } else if (handling === "hint") {
+            webViewRef.current?.injectJavaScript(
+              `window.tegnHint && window.tegnHint(${data.x}, ${data.y}, ${JSON.stringify(t("lokasjoner.trykkHint"))}); true;`,
+            );
+            onHint?.();
+          }
         }
       } catch {
         // Ignorer ugyldig melding
       }
     },
-    [onTrykk, onMarkørTrykk],
+    [onTrykk, onMarkørTrykk, onOpprett, onHint, leggTilMalepunkt, t],
   );
 
-  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, !!onTrykk);
+  const trykkOppsett: "ingen" | "enkel" | "avansert" = avansert
+    ? "avansert"
+    : onTrykk
+      ? "enkel"
+      : "ingen";
+  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett);
 
   return (
     <View className="flex-1 bg-black">
@@ -344,13 +631,96 @@ export function TegningsVisning({
             originWhitelist={["*"]}
             source={{ html, baseUrl: tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1) }}
             style={{ flex: 1, backgroundColor: "#1a1a1a" }}
-            onLoadEnd={() => { setLaster(false); setFeil(false); }}
+            onLoadEnd={() => { setLaster(false); setFeil(false); injiserMaling(); }}
             onError={() => { setLaster(false); setFeil(true); }}
             onMessage={håndterMelding}
             allowsInlineMediaPlayback
             javaScriptEnabled
             scalesPageToFit={false}
           />
+
+          {/* Måleverktøy-linje (paritet med web RETUR 3 § C). Vises når måling er
+              aktivert av forelder. Sperret med forklaring når målestokken ikke er
+              bekreftet/kalibrert (samme lås som web, ingen kalibrering på mobil). */}
+          {maleData !== undefined && !laster && (
+            <View style={stiler.maleToolbar} pointerEvents="box-none">
+              {kanMaleNaa ? (
+                <View style={stiler.maleKnappRad}>
+                  {([
+                    ["linjal", Ruler, t("maaling.verktoyLinjal")],
+                    ["polylinje", Waypoints, t("maaling.verktoyPolylinje")],
+                    ["areal", VectorSquare, t("maaling.verktoyAreal")],
+                  ] as const).map(([v, Ikon, etikett]) => {
+                    const aktiv = maleVerktoy === v;
+                    return (
+                      <Pressable
+                        key={v}
+                        onPress={() => velgVerktoy(v)}
+                        style={[stiler.maleKnapp, aktiv && stiler.maleKnappAktiv]}
+                      >
+                        <Ikon size={14} color={aktiv ? "#ffffff" : "#1e3a8a"} />
+                        <Text style={[stiler.maleKnappTekst, aktiv && stiler.maleKnappTekstAktiv]}>{etikett}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={stiler.maleSperret}>
+                  <Ruler size={14} color="#9ca3af" />
+                  <Text style={stiler.maleSperretTekst}>{t("maaling.malestokkBekreftPaaWeb")}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Resultatstripe — lengde/areal + kilde + handlinger. */}
+          {maleVerktoy && (
+            <View style={stiler.maleStripe} pointerEvents="box-none">
+              <View style={stiler.maleStripeInnhold}>
+                {erAreal ? (
+                  malePunkter.length < 3 ? (
+                    <Text style={stiler.maleHint}>{t("maaling.hintArealMobil")}</Text>
+                  ) : (
+                    <Text style={stiler.maleResultat}>
+                      {arealM2 != null ? formatAreal(arealM2) : "—"}
+                      <Text style={stiler.maleKilde}>  {t("maaling.omkrets")}: {formatMeter(omkretsMeter)}  ({malestokkEtikett})</Text>
+                    </Text>
+                  )
+                ) : malePunkter.length < 2 ? (
+                  <Text style={stiler.maleHint}>
+                    {maleVerktoy === "polylinje" ? t("maaling.hintPolylinjeMobil") : t("maaling.klikkToPunkter")}
+                  </Text>
+                ) : (
+                  <Text style={stiler.maleResultat}>
+                    {formatMeter(maleTotalMeter)}
+                    <Text style={stiler.maleKilde}>  ({malestokkEtikett})</Text>
+                  </Text>
+                )}
+                <View style={stiler.maleStripeKnapper}>
+                  {(maleVerktoy === "polylinje" && malePunkter.length >= 2 && !maleFerdig) && (
+                    <Pressable onPress={() => setMaleFerdig(true)} style={stiler.maleHandling}>
+                      <Check size={14} color="#16a34a" />
+                      <Text style={stiler.maleHandlingTekst}>{t("maaling.fullfor")}</Text>
+                    </Pressable>
+                  )}
+                  {(maleVerktoy === "areal" && malePunkter.length >= 3 && !maleFerdig) && (
+                    <Pressable onPress={() => setMaleFerdig(true)} style={stiler.maleHandling}>
+                      <Check size={14} color="#16a34a" />
+                      <Text style={stiler.maleHandlingTekst}>{t("maaling.lukkFlate")}</Text>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={nullstillMaling} style={stiler.maleHandling}>
+                    <RotateCcw size={14} color="#6b7280" />
+                    <Text style={stiler.maleHandlingTekst}>{t("maaling.nullstill")}</Text>
+                  </Pressable>
+                  <Pressable onPress={avsluttMaling} style={stiler.maleHandling}>
+                    <X size={14} color="#6b7280" />
+                    <Text style={stiler.maleHandlingTekst}>{t("handling.lukk")}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -403,5 +773,101 @@ const stiler = StyleSheet.create({
     color: "#d1d5db",
     fontSize: 14,
     marginTop: 12,
+  },
+  // --- Måleverktøy ---
+  maleToolbar: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    zIndex: 25,
+  },
+  maleKnappRad: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  maleKnapp: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  maleKnappAktiv: {
+    backgroundColor: "#1e40af",
+  },
+  maleKnappTekst: {
+    color: "#1e3a8a",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  maleKnappTekstAktiv: {
+    color: "#ffffff",
+  },
+  maleSperret: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    maxWidth: 260,
+  },
+  maleSperretTekst: {
+    color: "#6b7280",
+    fontSize: 11,
+    flexShrink: 1,
+  },
+  maleStripe: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 25,
+  },
+  maleStripeInnhold: {
+    backgroundColor: "rgba(239,246,255,0.97)",
+    borderTopWidth: 1,
+    borderTopColor: "#bfdbfe",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  maleHint: {
+    color: "#4b5563",
+    fontSize: 12,
+  },
+  maleResultat: {
+    color: "#1f2937",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  maleKilde: {
+    color: "#6b7280",
+    fontSize: 12,
+    fontWeight: "400",
+  },
+  maleStripeKnapper: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  maleHandling: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  maleHandlingTekst: {
+    color: "#4b5563",
+    fontSize: 12,
+    fontWeight: "500",
   },
 });

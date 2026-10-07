@@ -73,6 +73,12 @@ interface TegningDetalj {
   fileType?: string | null;
   geoReference?: unknown;
   pdfPageSize?: { width: number; height: number } | null;
+  // Måledata (samme kilder som web) — returneres allerede av tegning.hentMedId.
+  mmPrPiksel?: number | null;
+  scale?: string | null;
+  scaleKilde?: string | null;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
 }
 
 interface OppgaveMarkør {
@@ -527,6 +533,28 @@ export default function LokasjonerSkjerm() {
     [],
   );
 
+  // Opprett her (ordre § 2): plasseringsmodus beholder dagens verifiser-flyt
+  // (sett markør → Bekreft-banner). Langt trykk i navigering setter markøren OG
+  // åpner malvalget direkte, slik ordren krever.
+  const håndterOpprett = useCallback(
+    (posX: number, posY: number) => {
+      setMarkørPosisjon({ x: posX, y: posY });
+      if (!plasseringsmodus) setVisMalVelger(true);
+    },
+    [plasseringsmodus],
+  );
+
+  // Hint ved kort trykk i navigering (ordre § 1): hint-boblen tegnes i WebView;
+  // her blinker vi bryteren én gang slik at brukeren ser hvor modus byttes.
+  const [bryterBlink, setBryterBlink] = useState(false);
+  const blinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const håndterHint = useCallback(() => {
+    setBryterBlink(true);
+    if (blinkTimerRef.current) clearTimeout(blinkTimerRef.current);
+    blinkTimerRef.current = setTimeout(() => setBryterBlink(false), 220);
+  }, []);
+  useEffect(() => () => { if (blinkTimerRef.current) clearTimeout(blinkTimerRef.current); }, []);
+
   // Bruk GPS-posisjon som markørposisjon
   const brukGpsPosisjon = useCallback(() => {
     if (gpsMarkør) {
@@ -628,7 +656,7 @@ export default function LokasjonerSkjerm() {
                 if (plasseringsmodus) setMarkørPosisjon(null);
               }}
               hitSlop={8}
-              className={`rounded-full px-3 py-1 ${plasseringsmodus ? "bg-white" : "bg-white/20"}`}
+              className={`rounded-full px-3 py-1 ${plasseringsmodus ? "bg-white" : bryterBlink ? "bg-white/70" : "bg-white/20"}`}
             >
               <View className="flex-row items-center gap-1.5">
                 {plasseringsmodus ? (
@@ -800,12 +828,21 @@ export default function LokasjonerSkjerm() {
             }
             tegningNavn={valgtTegningDetalj!.name}
             onLukk={håndterLukkTegning}
-            onTrykk={plasseringsmodus ? håndterTegningTrykk : undefined}
             onMarkørTrykk={håndterMarkørTrykk}
             markører={markører}
             omrader={omrader}
             gpsMarkør={gpsMarkør}
             pdfPageSize={valgtTegningDetalj?.pdfPageSize ?? undefined}
+            plasseringAktiv={plasseringsmodus}
+            onHint={håndterHint}
+            onOpprett={håndterOpprett}
+            maleData={{
+              mmPrPiksel: valgtTegningDetalj?.mmPrPiksel ?? null,
+              scale: valgtTegningDetalj?.scale ?? null,
+              scaleKilde: valgtTegningDetalj?.scaleKilde ?? null,
+              imageWidth: valgtTegningDetalj?.imageWidth ?? null,
+              imageHeight: valgtTegningDetalj?.imageHeight ?? null,
+            }}
           />
         ) : (
           <KartVisning />
