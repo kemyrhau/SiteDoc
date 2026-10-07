@@ -75,6 +75,10 @@ export function finnTegningstype(tekster: Array<string | null | undefined>): Dra
     for (const type of DRAWING_TYPES) {
       const re = new RegExp(`\\b${type}\\b`, "i");
       if (re.test(tekst)) treff.add(type);
+      // Sammensatte plan-ord fra ARK («Himlingsplan», «Fallplan», «Møbleringsplan»)
+      // er planvisninger → `plan` (orkestrator 2026-10-07, målt på Kenneths filnavn).
+      // Bokstav-klassen tar med æøå; `u`-flagget kreves for \p{L}.
+      if (type === "plan" && /\p{L}{2,}plan(?![\p{L}])/iu.test(tekst)) treff.add(type);
     }
   }
   return treff.size === 1 ? ([...treff][0] ?? null) : null;

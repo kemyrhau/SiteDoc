@@ -95,3 +95,22 @@ describe("finnTegningstype (spec-test 3)", () => {
     expect(finnTegningstype(["A-20-101.pdf"])).toBeNull();
   });
 });
+
+describe("finnTegningstype — sammensatte plan-ord (ARK-filnavn 2026-10-07)", () => {
+  it("Himlingsplan, Møbleringsplan, Gulvbehandlingsplan og Fallplan gir plan", () => {
+    for (const navn of [
+      "B3-06-A-20-31-02 Himlingsplan MR 6. etasje",
+      "B3-06-A-20-23-01 Møbleringsplan MR 6. etasje",
+      "B3-06-A-20-33-01 Gulvbehandlingsplan",
+      "B3-06-A-20-35-01 Fallplan MR 6. etasje",
+    ]) {
+      expect(finnTegningstype([navn])).toBe("plan");
+    }
+  });
+  it("plan-ord sammen med en annen type gir fortsatt null", () => {
+    expect(finnTegningstype(["Fallplan og snitt"])).toBeNull();
+  });
+  it("«planlegging» er ikke en plan", () => {
+    expect(finnTegningstype(["Planlegging av arbeid"])).toBeNull();
+  });
+});
