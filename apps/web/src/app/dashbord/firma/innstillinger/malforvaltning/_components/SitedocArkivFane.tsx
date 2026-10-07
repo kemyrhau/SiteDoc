@@ -31,6 +31,10 @@ export function SitedocArkivFane() {
   return (
     <div className="flex h-full flex-col gap-4">
       <Nivaabanner nivaa="sitedoc" kontekst="liste" />
+      {/* Ansvarstekst — hva malene ER (NS 3420 som grunnlag, ikke godkjent av Standard Norge).
+          Fast, full bredde over tre + detaljpanel. Ingen lukk-knapp, ingen localStorage
+          (ordre ansvarstekst-arkiv 2026-10-07). Nivaabanner sier HVOR du er; denne sier HVA. */}
+      <p className="text-xs text-gray-600">{t("maler.arkiv.ansvarKilde")}</p>
       <div className="flex flex-1 gap-4 overflow-hidden">
         {/* Venstre — trestruktur (navigasjon til sentralmalene) */}
         <aside className="flex w-80 shrink-0 flex-col overflow-y-auto rounded-lg border border-gray-200 bg-white">

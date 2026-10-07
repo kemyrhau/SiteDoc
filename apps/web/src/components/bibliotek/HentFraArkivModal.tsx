@@ -395,6 +395,12 @@ export function HentFraArkivModal({
               onToggle={(key) => toggle(setUtfoldedeSitedoc, key)}
               lukkedeUnder={lukkedeUnderSitedoc}
               onToggleUnder={(key) => toggle(setLukkedeUnderSitedoc, key)}
+              topplinje={
+                <div className="space-y-0.5 text-xs text-gray-600">
+                  <p>{t("maler.arkiv.ansvarKilde")}</p>
+                  <p>{t("maler.arkiv.ansvarFirma")}</p>
+                </div>
+              }
               fotnote={
                 kanRedigereSitedoc ? (
                   <Link
@@ -486,6 +492,7 @@ function ArkivListe({
   lukkedeUnder,
   onToggleUnder,
   fotnote,
+  topplinje,
 }: {
   laster: boolean;
   tom: boolean;
@@ -496,6 +503,9 @@ function ArkivListe({
   lukkedeUnder: Set<string>;
   onToggleUnder: (key: string) => void;
   fotnote: ReactNode;
+  /** Valgfri linje(r) over lista (under søkefeltet). SiteDoc-fanen bruker den til
+   *  ansvarsteksten; firma-fanen sender ingenting (firmaet har alt tatt ansvaret ved hent). */
+  topplinje?: ReactNode;
 }) {
   if (laster) {
     return (
@@ -514,6 +524,7 @@ function ArkivListe({
   // filtrerte malene, så en overskrift forsvinner om søket tar underkapittelet under terskel.
   return (
     <>
+      {topplinje && <div className="mb-3">{topplinje}</div>}
       <div className="max-h-[55vh] space-y-2 overflow-y-auto">
         {grupper.map((g) => (
           <div key={g.key} className="rounded border border-gray-100">
