@@ -48,6 +48,49 @@ describe("settVisningshøyde", () => {
     // `flex: none` nøytraliserer flex-1 (grow 0) → den eksplisitte høyden gjelder.
     // (jsdom serialiserer kortformen til langform "0 0 auto".)
     expect(el.style.flexGrow).toBe("0");
+    // Stabilt rullefelt-gutter: hindrer at det vertikale rullefeltet reserverer
+    // bredde først ved fit→overflyt-overgangen (RETUR 1 — «hopper litt opp»).
+    expect(el.style.scrollbarGutter).toBe("stable");
+  });
+});
+
+// Modell av drift-rotårsaken bak RETUR 1 (jsdom gjør ingen layout — rektangler og
+// rullefelt modelleres). Bevismålt i nettleser: FØR fiks 29 px drift på første
+// zoomtrinn fra en tegning som får plass, ETTER fiks (stabilt gutter) 3 px.
+// Bildet er bredde-styrt (`w-full`) og sideforhold-låst, så vertikal skala = den
+// horisontale: nyBredde/gammelBredde. ønsketZoomScroll antar at den er lik
+// `nesteZoom/forrigeZoom` — det brytes bare når rullefeltet endrer innholdsbredden.
+function punktDriftPx(opts: {
+  zoomRatio: number; // nesteZoom / forrigeZoom (formelens antatte skala)
+  innholdsbreddeFør: number;
+  rullefeltBredde: number; // reservert når rullefeltet vises
+  rullefeltStabilt: boolean; // true = reservert allerede før overflyt (gutter:stable)
+  punktOffsetFraTopp: number; // px fra innholds-origo til punktet under pekeren
+}): number {
+  const { zoomRatio, innholdsbreddeFør, rullefeltBredde, rullefeltStabilt, punktOffsetFraTopp } = opts;
+  // Innholdsbredde FØR zoom (ingen overflyt ennå): gutter:stable har alt reservert
+  // rullefeltet; uten vises det ikke, så hele bredden er tilgjengelig.
+  const innholdsbreddeEtterGutterFør = innholdsbreddeFør - (rullefeltStabilt ? rullefeltBredde : 0);
+  // ETTER zoom overflyter innholdet → rullefeltet vises uansett, så bredden er
+  // redusert. Inner skaleres som zoomRatio × (tilgjengelig innholdsbredde).
+  const innholdsbreddeEtterGutterEtter = innholdsbreddeFør - rullefeltBredde;
+  const breddeFør = innholdsbreddeEtterGutterFør;
+  const breddeEtter = zoomRatio * innholdsbreddeEtterGutterEtter;
+  const faktiskSkala = breddeEtter / breddeFør;
+  // Formelen flytter punktet som om skala = zoomRatio; faktisk skala avviker når
+  // rullefeltet endret innholdsbredden mellom målingen og settingen.
+  return Math.abs(punktOffsetFraTopp * (faktiskSkala - zoomRatio));
+}
+
+describe("rullefelt-reflow bryter uniform skala (RETUR 1)", () => {
+  const felles = { zoomRatio: 1.25, innholdsbreddeFør: 1420, rullefeltBredde: 15, punktOffsetFraTopp: 650 };
+  it("dagens kode (rullefelt dukker opp ved overflyt) → punktet driver merkbart", () => {
+    const drift = punktDriftPx({ ...felles, rullefeltStabilt: false });
+    expect(drift).toBeGreaterThan(2); // ~7 px — utenfor ±2 px-kravet
+  });
+  it("med stabilt gutter → uniform skala, drift innen toleranse", () => {
+    const drift = punktDriftPx({ ...felles, rullefeltStabilt: true });
+    expect(drift).toBeLessThanOrEqual(2);
   });
 });
 
