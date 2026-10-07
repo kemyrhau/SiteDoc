@@ -170,16 +170,16 @@ export function OpprettDokumentModal({
   const [_visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
 
-  // `internSynlig` speiler `synlig`-propen. (Historisk hadde denne en `onShow`/
-  // `onDismiss`-gate for Paper-arkitekturens VC-kollisjon; under Fabric/newArch er
-  // modalen inline og de callbackene fyrer ikke pålitelig → gaten deadlocket ved
-  // auto-opprett og etterlot en usynlig touch-fangende modal-host = frys. Fjernet;
-  // se `fullførOpprett`. Reprodusert + verifisert i Release-sim 2026-08-19.)
-  const [internSynlig, setInternSynlig] = useState(synlig);
+  // Synligheten utledes DIREKTE av `synlig`-propen — ingen speil-state.
+  // (Rotårsak-fiks 2026-10-07, fjerde frys i samme klasse: a29f89b2 · df86b817 ·
+  // d4a76020 · 28e55ed5.) Den gamle speil-staten hang én render etter `synlig`: når
+  // auto-opprett fullførte og parenten satte `synlig=false`, sluttet `return null`-
+  // vakten lenger nede å slå inn mens speilet fortsatt var `true` → en native
+  // `<Modal visible={true}>` ble montert i ÉN render samtidig med `router.push` og
+  // etterlot en usynlig, touch-fangende modal-host over sjekklisten (frysen). Ved å
+  // binde `visible` til `synlig` kan modalen aldri rendres synlig etter at `synlig`
+  // er satt `false`. Grep-vakt: oppgave-modal-synlig-vakt.test.ts.
   const harAutoOpprettet = useRef(false);
-  useEffect(() => {
-    setInternSynlig(synlig);
-  }, [synlig]);
 
   // Default oppgave-tittel = malnavn ved modalåpning (redigerbar). Kun på
   // false→true-overgang, så brukerens redigering ikke overskrives.
@@ -564,7 +564,7 @@ export function OpprettDokumentModal({
   // utkastet opprettes. Kun ambiguøse tilfeller viser det fulle skjemaet.
   const kontekstLaster = dokumentflytQuery.isLoading;
   const visSpinner =
-    internSynlig && (kontekstLaster || skalAutoOpprett || erPending);
+    synlig && (kontekstLaster || skalAutoOpprett || erPending);
 
   // Lukk alle åpne dropdowns
   const lukkAlleDropdowns = () => {
@@ -592,7 +592,7 @@ export function OpprettDokumentModal({
 
   return (
     <Modal
-      visible={internSynlig}
+      visible={synlig}
       animationType="slide"
       onRequestClose={onLukk}
       onDismiss={håndterDismiss}
