@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Input, Select } from "@sitedoc/ui";
-import { DRAWING_TYPES } from "@sitedoc/shared";
+import { DRAWING_TYPES, DRAWING_DISCIPLINES } from "@sitedoc/shared";
 import { Loader2, RefreshCw, Check, AlertTriangle, Eye } from "lucide-react";
 import {
   byggTegningRadEndring,
@@ -30,6 +30,7 @@ export interface LiveTegning {
   discipline: string | null;
   drawingType: string | null;
   floor: string | null;
+  originator: string | null;
   scale: string | null;
   revision: string | null;
   conversionStatus?: string | null;
@@ -41,6 +42,7 @@ const TOM_FELT: TegningRadFelt = {
   discipline: "",
   drawingType: "",
   floor: "",
+  originator: "",
   scale: "",
 };
 
@@ -52,6 +54,7 @@ function initFelt(live: LiveTegning | undefined, forslag: SerieRad["forslag"]): 
     discipline: live?.discipline ?? "",
     drawingType: live?.drawingType ?? forslag?.drawingType ?? "",
     floor: live?.floor ?? "",
+    originator: live?.originator ?? "",
     scale: live?.scale ?? "",
   };
 }
@@ -118,6 +121,7 @@ export function TegningSerieTabell({
           discipline: live?.discipline ?? "",
           drawingType: live?.drawingType ?? "",
           floor: live?.floor ?? "",
+          originator: live?.originator ?? "",
           scale: live?.scale ?? "",
         },
         redigert,
@@ -127,14 +131,16 @@ export function TegningSerieTabell({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[920px] border-collapse text-sm">
+      <table className="w-full min-w-[1120px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
             <th className="px-2 py-2">{t("tegninger.serie.kolFil")}</th>
             <th className="px-2 py-2">{t("tegninger.feltNavn")}</th>
+            <th className="px-2 py-2">{t("tegninger.feltFagdisiplin")}</th>
             <th className="px-2 py-2">{t("tegninger.feltTegningsnummer")}</th>
             <th className="px-2 py-2">{t("tegninger.feltTegningstype")}</th>
             <th className="px-2 py-2">{t("tegninger.feltEtasje")}</th>
+            <th className="px-2 py-2">{t("tegninger.feltOpphav")}</th>
             <th className="px-2 py-2">{t("tegninger.serie.kolMålestokk")}</th>
             <th className="px-2 py-2">{t("tegninger.serie.kolRevisjon")}</th>
             <th className="px-2 py-2">{t("tegninger.serie.kolStatus")}</th>
@@ -164,6 +170,15 @@ export function TegningSerieTabell({
                     value={f.name}
                     onChange={(e) => settFelt(rad.tempId, "name", e.target.value)}
                     disabled={!klar}
+                  />
+                </td>
+                <td className="px-2 py-2">
+                  <Select
+                    value={f.discipline}
+                    onChange={(e) => settFelt(rad.tempId, "discipline", e.target.value)}
+                    placeholder={t("tegninger.velgDisiplin")}
+                    disabled={!klar}
+                    options={DRAWING_DISCIPLINES.map((d) => ({ value: d, label: d }))}
                   />
                 </td>
                 <td className="px-2 py-2">
@@ -199,6 +214,13 @@ export function TegningSerieTabell({
                   <Input
                     value={f.floor}
                     onChange={(e) => settFelt(rad.tempId, "floor", e.target.value)}
+                    disabled={!klar}
+                  />
+                </td>
+                <td className="px-2 py-2">
+                  <Input
+                    value={f.originator}
+                    onChange={(e) => settFelt(rad.tempId, "originator", e.target.value)}
                     disabled={!klar}
                   />
                 </td>

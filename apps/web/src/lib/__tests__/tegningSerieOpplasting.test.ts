@@ -87,15 +87,15 @@ describe("grupperTegningerEtterFag (R6)", () => {
 
 describe("byggTegningRadEndring (spec-test 6): kun endrede felt", () => {
   it("sender bare feltet brukeren endret", () => {
-    const original = { name: "Plan", drawingNumber: "", discipline: "ARK", drawingType: "", floor: "", scale: "" };
-    const redigert = { name: "Plan", drawingNumber: "A-20-101", discipline: "ARK", drawingType: "", floor: "", scale: "" };
+    const original = { name: "Plan", drawingNumber: "", discipline: "ARK", drawingType: "", floor: "", originator: "", scale: "" };
+    const redigert = { name: "Plan", drawingNumber: "A-20-101", discipline: "ARK", drawingType: "", floor: "", originator: "", scale: "" };
     const endring = byggTegningRadEndring("id-1", original, redigert);
     expect(Object.keys(endring).sort()).toEqual(["drawingNumber", "id"]);
     expect(endring.drawingNumber).toBe("A-20-101");
   });
 
   it("urørt rad → kun id", () => {
-    const felt = { name: "Plan", drawingNumber: "A-1", discipline: "ARK", drawingType: "plan", floor: "1", scale: "" };
+    const felt = { name: "Plan", drawingNumber: "A-1", discipline: "ARK", drawingType: "plan", floor: "1", originator: "", scale: "" };
     expect(byggTegningRadEndring("id-1", felt, felt)).toEqual({ id: "id-1" });
   });
 
@@ -103,7 +103,7 @@ describe("byggTegningRadEndring (spec-test 6): kun endrede felt", () => {
     const endring = byggTegningRadEndring(
       "id-1",
       { name: "Plan", floor: null as unknown as string },
-      { name: "Plan", drawingNumber: "", discipline: "", drawingType: "", floor: "", scale: "" },
+      { name: "Plan", drawingNumber: "", discipline: "", drawingType: "", floor: "", originator: "", scale: "" },
     );
     expect(endring).toEqual({ id: "id-1" });
   });
@@ -112,7 +112,7 @@ describe("byggTegningRadEndring (spec-test 6): kun endrede felt", () => {
     const endring = byggTegningRadEndring(
       "id-1",
       { name: "Plan", floor: "2" },
-      { name: "Plan", drawingNumber: "", discipline: "", drawingType: "", floor: "", scale: "" },
+      { name: "Plan", drawingNumber: "", discipline: "", drawingType: "", floor: "", originator: "", scale: "" },
     );
     expect(endring).toEqual({ id: "id-1", floor: "" });
   });

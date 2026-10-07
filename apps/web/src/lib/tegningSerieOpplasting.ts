@@ -151,6 +151,7 @@ export interface TegningRadFelt {
   discipline: string;
   drawingType: string;
   floor: string;
+  originator: string;
   scale: string;
 }
 
@@ -160,6 +161,7 @@ export type TegningRadEndring = { id: string } & Partial<{
   discipline: string;
   drawingType: string;
   floor: string;
+  originator: string;
   scale: string;
 }>;
 
@@ -186,6 +188,7 @@ export function byggTegningRadEndring(
     "discipline",
     "drawingType",
     "floor",
+    "originator",
     "scale",
   ];
   // Enum-felt (discipline/drawingType) kan ikke tømmes via `oppdater` (Zod-enum,
