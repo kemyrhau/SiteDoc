@@ -580,6 +580,68 @@ et **fast** sentinel virker ikke, DB-navnet må skrives for hånd (Kenneth-vedta
 `SEED_CONFIRM_DB=sitedoc` for å komme forbi er en bevisst prod-skriving — gjør det aldri for å
 «teste».** Referansedata bygges på test/lokal først.
 
+
+---
+
+# 8 · Seeding av SiteDoc-arkivet mot PROD (Kenneth kjører)
+
+> **Hvorfor seksjonen finnes (2026-10-07):** SiteDoc-arkivet i prod var tomt («Velg en mal i treet») fordi prod-deploy kjører
+> migreringer, aldri seeds, og merge-agenten seeder aldri. Test fikk arkivet fordi mal-Opus kjørte `.ts`-seeden mot
+> `sitedoc_test` via tunnel. **Forutsetning før første prod-kjøring:** `feat/mal-7b-standardnavn-vakt27` merget (nøytrale
+> standardnavn, §7b-vakt over alle 27 maler, FB4/FD3 renset) — ellers seedes NS-navn og kode-bærende tekster inn i prod.
+
+### Hva seeden gjør, og hvorfor den er trygg mot prod
+- `packages/db/prisma/seed-bibliotek.ts` er **kun opprett** (`opprettMalHvisMangler`, `update: {}` på standard): finnes
+  raden, røres den ikke. Idempotens er låst av `seed-bibliotek.test.ts`. Den sletter aldri noe (§ 7-regelen).
+- Ingen nettverksavhengigheter — bare Prisma + `@sitedoc/shared`. 4 standarder, 17 kapitler, 27 maler (pr. 2026-10-07).
+- 🔴 **Prod-vakten er BLIND gjennom tunnel.** `avbrytHvisProdUtenBekreftelse` (`seed-bibliotek.ts:43-62`) regner
+  `localhost`/`127.0.0.1` som lokal sandkasse → ingen `SEED_CONFIRM_DB`-prompt. **Det eneste vernet er at du leser
+  databasenavnet i URL-en selv før Enter.** `/sitedoc` = PROD. `/sitedoc_test` = test.
+
+### Steg 0 — treet som kjører seeden skal stå på develop-tippen ETTER merge
+```sh
+cd ~/Documents/Programmering/SiteDoc && git pull --ff-only origin develop && pnpm install && pnpm --filter @sitedoc/db exec prisma generate
+```
+(`.ts`-seeds går ikke på verten — § 7. Seeden kjøres fra Mac mot server-ny gjennom tunnel.)
+
+### Steg 1 — tunnel (eget terminalvindu, la det stå)
+```sh
+ssh -N -L 5433:127.0.0.1:5432 server-ny
+```
+
+### Steg 2 — tell FØR (prod) — **les `-d sitedoc`: det er prod, og det er meningen her**
+```sh
+ssh -t server-ny "sudo docker exec postgres psql -U sitedoc -d sitedoc -c \"SELECT 'standarder' t, count(*) FROM bibliotek_standarder UNION ALL SELECT 'kapitler', count(*) FROM bibliotek_kapitler UNION ALL SELECT 'maler', count(*) FROM bibliotek_maler UNION ALL SELECT 'objekter', count(*) FROM bibliotek_mal_objekter;\""
+```
+Forventet første gang: `0 / 0 / 0 / 0`.
+
+### Steg 3 — seed mot prod gjennom tunnelen
+Passordet står i prod-env-fila på server (`infrastruktur.md § Miljøvariabler`) — **skriv det aldri i terminal-historikk; bruk
+en variabel som leses inn, og `echo ${#PGPASS}` for å sjekke lengde, ikke verdien.**
+```sh
+cd ~/Documents/Programmering/SiteDoc && DATABASE_URL="postgresql://sitedoc:${PGPASS}@127.0.0.1:5433/sitedoc" pnpm --filter @sitedoc/db exec tsx prisma/seed-bibliotek.ts
+```
+🔴 **Før Enter: les URL-en høyt — `…:5433/sitedoc`.** Loggen skal melde «opprettet» for 4 standarder, 17 kapitler og 27 maler.
+
+### Steg 4 — tell ETTER, og verifiser som innlogget
+Samme kommando som steg 2. Forventet: `4 / 17 / 27 / <objekter>` (objekttallet meldes av mal-Opus ved hver leveranse).
+Deretter i nettleseren som innlogget (CLAUDE.md § Prod-verifisering): `/dashbord/firma/innstillinger/malforvaltning` → fane
+SiteDoc-arkiv → treet viser fire standarder med nøytrale navn («Anleggsgartnerarbeider» …), **uten** «NS3420-K —»-prefiks.
+
+### Steg 5 — re-kjøring er trygg (idempotens-bevis)
+Kjør steg 3 én gang til: tellingene i steg 4 er uendret, loggen melder «finnes» for alt, `0 opprettet`. Det er beviset
+på at seeden kan kjøres igjen etter neste mal-leveranse uten å røre eksisterende rader.
+
+### Senere maler — én mal om gangen
+Nye/reviderte maler går **ikke** via full re-seed mot prod. Revisjon = `generer-mal-sql.ts <REF> revisjon` (MAL-METODE § 6a)
+→ `<ref>-test.sql` mot test først → samme fil mot prod med `-d sitedoc` når den er gatet. Ny mal = seeden på nytt (steg 3,
+oppretter kun den manglende) **eller** `generer-mal-sql.ts <REF> ny`-SQL via § 7-veien. Begge er idempotente-sikre; velg
+SQL-veien når du vil se nøyaktig hva som skrives.
+
+🔴 **Test-arkivet må rettes separat** når denne seksjonen brukes første gang: `standardnavn-test.sql`, `fb4-test.sql`,
+`fd3-test.sql` (mal-Opus 2026-10-07, ligger i `~/Documents/Programmering/SiteDoc-mal/`, gitignorert) kjøres mot
+`sitedoc_test` via § 7 — prod får samme innhold fra seeden.
+
 ---
 
 ## Hvor bakgrunnen bor
