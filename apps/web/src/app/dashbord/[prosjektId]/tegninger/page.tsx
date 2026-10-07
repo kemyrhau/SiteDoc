@@ -6,7 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
 import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass-kontekst";
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
-import { ønsketZoomScroll } from "@/lib/zoom-scroll";
+import { klassifiserWheel, anvendZoomFaktor, knipFaktor, hjulFaktor } from "@/lib/tegningZoomGest";
 import { settVisningshøyde } from "@/lib/tegningVisningshoyde";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
@@ -137,6 +137,11 @@ export default function TegningerSide() {
   // Ønsket scroll etter musehjul-zoom; settes i useLayoutEffect (etter at
   // bredden er oppdatert), ikke i rAF (før), slik at verdien ikke klippes.
   const ønsketScrollRef = useRef<{ left: number; top: number } | null>(null);
+  // Knip-zoom (styreflate): akkumulert deltaY + siste pekerposisjon, samlet pr.
+  // animasjonsramme slik at mange høyfrekvente knip-event blir ÉN sømløs zoom.
+  const knipAkkRef = useRef(0);
+  const knipPekerRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const knipRafRef = useRef<number | null>(null);
 
   // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
   const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering" | "omrade">("plassering");
@@ -443,29 +448,81 @@ export default function TegningerSide() {
     const el = containerRef.current;
     if (!el) return;
 
-    function handleWheel(e: WheelEvent) {
-      e.preventDefault();
-
+    // Forankre en zoomfaktor i pekeren og lagre ønsket scroll (settes i
+    // useLayoutEffect på `zoom`, etter at bredden er oppdatert — ellers klipper
+    // nettleseren verdien til gammelt maksimum og visningen lander for høyt).
+    function zoomForankret(faktor: number, clientX: number, clientY: number) {
       const rect = el!.getBoundingClientRect();
-      // Museposisjon i innholdet (piksler fra topp-venstre av scrollbart innhold)
-      const contentX = e.clientX - rect.left + el!.scrollLeft;
-      const contentY = e.clientY - rect.top + el!.scrollTop;
-      // Museposisjon i viewporten (piksler fra topp-venstre av synlig område)
-      const viewX = e.clientX - rect.left;
-      const viewY = e.clientY - rect.top;
-
+      const viewX = clientX - rect.left;
+      const viewY = clientY - rect.top;
       setZoom((prev) => {
-        const faktor = e.deltaY > 0 ? 0.8 : 1.25;
-        const neste = Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
-        const skala = neste / prev;
-
-        // Lagre ønsket scroll; den settes i useLayoutEffect på `zoom` — etter at
-        // innholdet har fått sin nye bredde, ellers klipper nettleseren verdien
-        // til gammelt maksimum og visningen lander for høyt oppe.
-        ønsketScrollRef.current = ønsketZoomScroll({ contentX, contentY, viewX, viewY, skala });
-
+        const { zoom: neste, scroll } = anvendZoomFaktor(
+          prev,
+          faktor,
+          { min: MIN_ZOOM, maks: MAKS_ZOOM },
+          { viewX, viewY, scrollLeft: el!.scrollLeft, scrollTop: el!.scrollTop },
+        );
+        ønsketScrollRef.current = scroll;
         return neste;
       });
+    }
+
+    // Knip: samle alle event i gjeldende ramme til ÉN kontinuerlig zoom.
+    function anvendKnip() {
+      knipRafRef.current = null;
+      const akk = knipAkkRef.current;
+      knipAkkRef.current = 0;
+      const peker = knipPekerRef.current;
+      if (!peker || akk === 0) return;
+      zoomForankret(knipFaktor(akk), peker.clientX, peker.clientY);
+    }
+
+    function handleWheel(e: WheelEvent) {
+      const gest = klassifiserWheel(e);
+
+      // Styreflate-scroll (tofinger) → la beholderen panorere selv. Ingen
+      // preventDefault = nettleseren scroller overflow-containeren (x + y).
+      if (gest === "styreflate-scroll") return;
+
+      // Knip (styreflate) OG ctrl+hjul: kontinuerlig, pekerforankret zoom.
+      // preventDefault blokkerer nettleserens egen side-zoom på tegningsfeltet.
+      if (gest === "knip") {
+        e.preventDefault();
+        knipAkkRef.current += e.deltaY;
+        knipPekerRef.current = { clientX: e.clientX, clientY: e.clientY };
+        if (knipRafRef.current == null) {
+          knipRafRef.current = requestAnimationFrame(anvendKnip);
+        }
+        return;
+      }
+
+      // Musehjul: dagens diskrete trinn (uendret).
+      e.preventDefault();
+      zoomForankret(hjulFaktor(e.deltaY), e.clientX, e.clientY);
+    }
+
+    // Safari rapporterer styreflate-knip som gesture*-event (ikke ctrl+wheel).
+    // e.scale er kumulativ fra gesturestart; vi anvender forholdet pr. event.
+    let gestureForrigeScale = 1;
+    let gesturePeker = { clientX: 0, clientY: 0 };
+    function handleGestureStart(e: Event) {
+      e.preventDefault();
+      gestureForrigeScale = (e as unknown as { scale: number }).scale || 1;
+      const ge = e as unknown as { clientX?: number; clientY?: number };
+      const rect = el!.getBoundingClientRect();
+      gesturePeker = {
+        clientX: ge.clientX ?? rect.left + rect.width / 2,
+        clientY: ge.clientY ?? rect.top + rect.height / 2,
+      };
+    }
+    function handleGestureChange(e: Event) {
+      e.preventDefault();
+      const scale = (e as unknown as { scale: number }).scale || 1;
+      const faktor = gestureForrigeScale > 0 ? scale / gestureForrigeScale : 1;
+      gestureForrigeScale = scale;
+      const ge = e as unknown as { clientX?: number; clientY?: number };
+      if (ge.clientX != null && ge.clientY != null) gesturePeker = { clientX: ge.clientX, clientY: ge.clientY };
+      zoomForankret(faktor, gesturePeker.clientX, gesturePeker.clientY);
     }
 
     // Dra-for-å-panorere (midterste museknapp eller venstre + dra)
@@ -507,11 +564,28 @@ export default function TegningerSide() {
     el.addEventListener("pointerdown", handlePointerDown);
     el.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+    // Safari-knip (no-op i Chrome/Firefox som ikke fyrer gesture*-event).
+    const handleGestureEnd = (e: Event) => e.preventDefault();
+    // Safari `gesture*`-event finnes ikke i TS' DOM-lib → typet cast-mål.
+    const gestureMål = el as unknown as {
+      addEventListener(type: string, lytter: (e: Event) => void): void;
+      removeEventListener(type: string, lytter: (e: Event) => void): void;
+    };
+    gestureMål.addEventListener("gesturestart", handleGestureStart);
+    gestureMål.addEventListener("gesturechange", handleGestureChange);
+    gestureMål.addEventListener("gestureend", handleGestureEnd);
     return () => {
       el.removeEventListener("wheel", handleWheel);
       el.removeEventListener("pointerdown", handlePointerDown);
       el.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
+      gestureMål.removeEventListener("gesturestart", handleGestureStart);
+      gestureMål.removeEventListener("gesturechange", handleGestureChange);
+      gestureMål.removeEventListener("gestureend", handleGestureEnd);
+      if (knipRafRef.current != null) {
+        cancelAnimationFrame(knipRafRef.current);
+        knipRafRef.current = null;
+      }
     };
   }, [tegningId, isLoading]);
 
@@ -836,16 +910,14 @@ export default function TegningerSide() {
   const harGeoref = !!transformasjon && antallGeoPunkter >= 3;
   const maaleKilde: string | null = harGeoref ? "georeferanse" : scaleKilde;
   const kanMaleNaa = harGeoref || kanMale(tegning.scale, mmPrPiksel, scaleKilde);
-  // Lesbar grunn når verktøyet er avslått (ordre § D).
+  // Lesbar grunn når verktøyet er avslått (ordre § D). Et tittelfelt-forslag er
+  // IKKE lenger en avslagsgrunn (det er nå målbart direkte) — det som gjenstår er
+  // manglende mm/piksel eller manglende/utolkbar målestokk.
   const maleAvslagGrunn: string | null = kanMaleNaa
     ? null
     : mmPrPiksel == null
       ? t("maaling.avslagIngenMmPrPiksel")
-      : scaleDenom == null
-        ? t("maaling.avslagIngenMalestokk")
-        : scaleKilde === "tittelfelt"
-          ? t("maaling.avslagUbekreftet")
-          : t("maaling.avslagIngenMalestokk");
+      : t("maaling.avslagIngenMalestokk");
 
   const formatMeter = (m: number) =>
     `${m.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
@@ -896,6 +968,18 @@ export default function TegningerSide() {
     setKalibrerModus(false);
     setMalePunkter([]);
     setKalibrerLengde("");
+  };
+  // Start kalibrering (korreksjonen, ordre § C/§ D) — fra målestokk-panelet ELLER
+  // fra «Stemmer ikke? Kalibrer» ved måleresultatet. Åpner panelet så mm-feltet er
+  // synlig, og rydder måle-/markør-tilstand så klikk går til kalibreringspunkter.
+  const startKalibrering = () => {
+    setKalibrerModus(true);
+    setMaleAktiv(false);
+    setMalePunkter([]);
+    setKalibrerLengde("");
+    setKlikkModus("plassering");
+    setNyMarkør(null);
+    setVisMalestokkPanel(true);
   };
 
   const settMalestokk = (verdi: string, kilde: "manuell" | "kalibrert") => {
@@ -1251,42 +1335,15 @@ export default function TegningerSide() {
               {tegning.scale && scaleKilde && scaleKilde !== "tittelfelt" && (
                 <span className="text-gray-500">({kildeEtikett})</span>
               )}
-              {!kalibrerModus ? (
+              {/* Selve kalibreringsflyten (steg + mm-felt) bor i banneret over
+                  tegningen (ordre § C) — her bare inngangen. Skjult mens den pågår. */}
+              {!kalibrerModus && (
                 <button
-                  onClick={() => { setKalibrerModus(true); setMaleAktiv(false); setMalePunkter([]); setKlikkModus("plassering"); setNyMarkør(null); }}
+                  onClick={startKalibrering}
                   className="rounded border border-gray-300 px-2 py-1 text-gray-700 hover:bg-gray-100"
                 >
                   {t("maaling.kalibrer")}
                 </button>
-              ) : (
-                <span className="flex items-center gap-1 rounded bg-blue-50 px-2 py-1">
-                  <span className="text-gray-700">
-                    {malePunkter.length < 2 ? t("maaling.kalibrerTrekk") : t("maaling.kalibrerLengde")}
-                  </span>
-                  {malePunkter.length >= 2 && (
-                    <>
-                      <input
-                        value={kalibrerLengde}
-                        onChange={(e) => setKalibrerLengde(e.target.value)}
-                        placeholder="mm"
-                        className="w-20 rounded border border-gray-300 px-2 py-1"
-                      />
-                      <button
-                        onClick={lagreKalibrering}
-                        disabled={!(parseFloat(kalibrerLengde.replace(",", ".")) > 0)}
-                        className="rounded bg-sitedoc-primary px-2 py-1 text-white disabled:opacity-40"
-                      >
-                        {t("handling.lagre")}
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => { setKalibrerModus(false); setMalePunkter([]); setKalibrerLengde(""); }}
-                    className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100"
-                  >
-                    {t("handling.avbryt")}
-                  </button>
-                </span>
               )}
             </>
           )}
@@ -1300,16 +1357,71 @@ export default function TegningerSide() {
           {malePunkter.length < 2 ? (
             <span className="text-gray-600">{t("maaling.klikkToPunkter")}</span>
           ) : (
-            <span className="font-semibold text-gray-800">
-              {formatMeter(maleTotalMeter)}
-              <span className="ml-1 font-normal text-gray-500">({malestokkEtikett})</span>
-            </span>
+            <>
+              <span className="font-semibold text-gray-800">
+                {formatMeter(maleTotalMeter)}
+                <span className="ml-1 font-normal text-gray-500">({malestokkEtikett})</span>
+              </span>
+              {/* Kalibrering er korreksjonen (ordre § D): står ved resultatet, ikke
+                  som et bekreftelsessteg før måling. Kun for papir-målestokken —
+                  georeferanse kalibreres ikke. */}
+              {!harGeoref && mmPrPiksel != null && (
+                <button
+                  onClick={startKalibrering}
+                  className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100"
+                >
+                  {t("maaling.stemmerIkkeKalibrer")}
+                </button>
+              )}
+            </>
           )}
           <button onClick={nullstillMaling} className="ml-auto rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
             {t("maaling.nullstill")}
           </button>
           <button onClick={avsluttMaling} className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
             {t("handling.lukk")}
+          </button>
+        </div>
+      )}
+
+      {/* Kalibrerings-banner med SYNLIGE steg (ordre § C) — Kenneth skjønte ikke
+          hvordan kalibrering virket. Står tydelig ved tegningen; markøren viser
+          trådkors (cursor-crosshair), og punktene tegnes (MaalingOverlay). */}
+      {erBilde && kalibrerModus && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs">
+          <Crosshair className="h-4 w-4 text-sitedoc-primary" />
+          <span className={malePunkter.length === 0 ? "font-semibold text-gray-800" : "text-gray-500"}>
+            {t("maaling.kalibrerSteg1")}
+          </span>
+          <span className={malePunkter.length === 1 ? "font-semibold text-gray-800" : "text-gray-500"}>
+            {t("maaling.kalibrerSteg2")}
+          </span>
+          <span className={malePunkter.length >= 2 ? "font-semibold text-gray-800" : "text-gray-500"}>
+            {t("maaling.kalibrerSteg3")}
+          </span>
+          {malePunkter.length >= 2 && (
+            <span className="flex items-center gap-1">
+              <input
+                value={kalibrerLengde}
+                onChange={(e) => setKalibrerLengde(e.target.value)}
+                placeholder="mm"
+                autoFocus
+                className="w-24 rounded border border-gray-300 px-2 py-1"
+              />
+              <button
+                onClick={lagreKalibrering}
+                disabled={!(parseFloat(kalibrerLengde.replace(",", ".")) > 0)}
+                className="rounded bg-sitedoc-primary px-2 py-1 text-white disabled:opacity-40"
+              >
+                {t("handling.lagre")}
+              </button>
+            </span>
+          )}
+          <button onClick={nullstillMaling} className="ml-auto rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
+            {t("maaling.nullstill")}
+          </button>
+          <button onClick={avsluttMaling} className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
+            {t("handling.avbryt")}
           </button>
         </div>
       )}

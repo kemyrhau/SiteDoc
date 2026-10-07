@@ -460,13 +460,17 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - SVG-elementer har `data-layer` (lagnavn) og `data-type` (entitetstype) attributter fra DWG-konverteringen
 
 **Zoom og panorering:**
-- Multiplikativ scroll-zoom: `faktor = deltaY > 0 ? 0.8 : 1.25`, `zoom * faktor`
-- Musesentrert: beregner innholdspunkt under musen, justerer scrollLeft/scrollTop etter zoom
+- **Gest-skille (`lib/tegningZoomGest.ts`, `klassifiserWheel`) — RETUR 2 A, 2026-10-07:** hvert `wheel`-event klassifiseres som `knip` / `hjul` / `styreflate-scroll`. Kenneth spurte «er det mulig å oppdage om zoomhjul eller touchpad benyttes?» → ja, heuristikk på `ctrlKey`/`deltaMode`/`deltaX`/`deltaY`. Ren funksjon, testet isolert (`tegningZoomGest.test.ts`).
+  - **Knip** (`ctrlKey=true` — styreflate-knip OG ctrl+hjul på Mac): **kontinuerlig** zoom, faktor `exp(-akkumulertDeltaY · k)`, samlet pr. animasjonsramme (rAF), forankret i pekeren. `preventDefault` (`passive:false`) blokkerer nettleserens egen side-zoom på tegningsfeltet.
+  - **Styreflate-scroll** (tofinger, uten ctrlKey): ingen `preventDefault` → `overflow-auto`-containeren panorerer selv (x + y).
+  - **Hjul** (linje-/sidemodus, eller stort rent vertikalt pikselhakk ≥ `HJUL_PIKSEL_TERSKEL`): dagens diskrete trinn `0,8 / 1,25` (uendret).
+  - **Safari:** `gesturestart/change/end` håndteres (Safari gir knip som gesture-event, ikke ctrl+wheel); `e.scale`-forholdet anvendes pr. event. No-op i Chrome/Firefox.
+- Felles forankring: `anvendZoomFaktor` (gjenbruker `ønsketZoomScroll`) gir ny zoom + ønsket scroll for ett faktor-steg.
 - Zoom-nivåer for knapper: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50]
 - Klikk på prosenttall tilbakestiller til 100%
 - Dra-for-å-panorere: venstre museknapp + dra (>5px) panorerer tegningen
 - Pan/klikk-skilling: musedown-posisjon lagres, onClick ignoreres hvis bevegelse >5px
-- useEffect med `[tegningId, isLoading]` dependencies — registrerer wheel/pointer-handlers når container mountes etter data-lasting
+- useEffect med `[tegningId, isLoading]` dependencies — registrerer wheel/pointer/gesture-handlers når container mountes etter data-lasting
 - Scroll-matematikken ligger i `lib/zoom-scroll.ts` (`ønsketZoomScroll`); ønsket scroll settes i en `useLayoutEffect([zoom])` **etter** at innholdet har fått ny bredde, ellers klipper nettleseren verdien til gammelt maksimum
 
 **Definit containerhøyde (`lib/tegningVisningshoyde.ts`, `settVisningshøyde`) — rotårsak-fiks 2026-10-07:**
@@ -474,6 +478,12 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - **Hvorfor:** den delte dashbord-`<main>` er `display:block`, så `flex-1` nedover kjeden er inert og ingen definit høyde når frem. Uten dette (a) scroller hele siden i stedet for tegningen — verktøylinja forsvinner oppover — og (b) får ikke containeren vertikal overflyt, så musehjul-zoomens `scrollTop`-korreksjon blir en no-op og zoomen låser seg til toppkanten (vertikal bom målt til −63 px). `<main>` kan ikke gjøres til flex uten å klippe de 11 prosjektsidene som er avhengige av at den scroller — derfor måles høyden scoped her.
 - Verifisert i nettleser (test.sitedoc.no, to ekte tegninger): piksel under peker holdt seg innen ±0,9 px og hele-siden-scrollen forsvant (main-scrollbar 110→0). Formelen i `ønsketZoomScroll` er urørt.
 - **`scrollbar-gutter: stable` (RETUR 1, 2026-10-07):** `settVisningshøyde` setter også dette. Rotårsak for «første zoomtrinn hopper litt opp» på en tegning som får plass i feltet: det vertikale rullefeltet reserverte bredde FØRST ved fit→overflyt-overgangen, så innholdsbredden krympet ~15 px midt i zoomen. Bildet er bredde-styrt (`w-full`, sideforhold-låst) → vertikal skala ble `nesteZoom/forrigeZoom × (nyBredde/gammelBredde)` i stedet for `nesteZoom/forrigeZoom` → punktet drev. Målt: 29 → 3 px (naturlige) med gutter på. Overlay-rullefelt (Mac-standard) reserverer ingenting → no-op der. **Ikke** en feil: kant-klipping når ønsket scroll > maks (et punkt helt nede kan ikke holdes fast ved innzoom) — iboende, likt med/uten fiks.
+
+**Måleverktøy og målestokk (bilde-tegninger PNG/JPG/SVG) — RETUR 2 B/C/D, 2026-10-07:**
+- Låsen er delt: `kanMale(scale, mmPrPiksel, scaleKilde)` (`packages/shared/src/utils/maaling.ts`). 🟢 **Kenneth-vedtak 2026-10-07:** `scaleKilde="tittelfelt"` er nå GYLDIG for måling direkte (før: avslått som «forslag»). Rotårsaken til «måling virker ikke»: PDF→PNG setter automatisk `scale` + `scaleKilde="tittelfelt"` + `mmPrPiksel` (`api/tegning.ts:269`), og gamle `kanMale` avviste `tittelfelt` → Kenneths 1:50-ARK-tegninger var sperret. Rene SVG/DWG uten PDF-steg mangler ofte `mmPrPiksel` → fortsatt sperret med «Målestokk kan ikke utledes …».
+- **Kilde vises ved resultatet:** «2,87 m (Målestokk 1:50, fra tittelfeltet)» / «(bekreftet)» / «(kalibrert)» / «georeferanse». Måling via `malMm` (papir) eller GPS-avstand (georeferert, 3+ punkter har fortrinn).
+- **Kalibrering er korreksjonen, ikke et forsteg:** «Stemmer ikke? Kalibrer» ved måleresultatet (kun papir-veien). Kalibreringsflyten har et eget banner over tegningen med synlige steg (1. klikk første punkt · 2. klikk andre punkt · 3. skriv lengden i mm), trådkors-markør (`cursor-crosshair`) og tegnede punkter (`MaalingOverlay`). Lagrer `scaleKilde="kalibrert"`.
+- **Berører IKKE 3D-kalibrering:** 3D GPS/similarity-kalibrering bor i `tegning-3d/page.tsx` (`gpsOverride`), importerer verken `kanMale`, `maaling` eller zoom-gest — helt adskilt kodebase og begrep.
 
 **Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)

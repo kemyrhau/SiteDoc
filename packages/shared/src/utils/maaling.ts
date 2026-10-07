@@ -115,13 +115,20 @@ export function malPolylinjeMm(
 
 /**
  * Kan måleverktøyet (papir-veien) være aktivt? Krever utledet mm/piksel OG en
- * kjent, MENNESKE-BEKREFTET målestokk. En ubekreftet «tittelfelt»-verdi er et
- * FORSLAG, ikke en målestokk — verktøyet er avslått til et menneske har
- * bekreftet den. Georeferanse-veien håndteres separat (den måler bakken, ikke
- * papiret, og tåler at tegningen er strukket).
+ * tolkbar målestokk med en KJENT kilde.
  *
- * 🔴 Invariant (ordre § 4): verktøyet skal ALDRI være aktivt med null
- * målestokk. Testen `maaling.test.ts` feiler hvis dette brytes.
+ * 🟢 Kenneth-vedtak 2026-10-07 («vis 1:50 → da skal de fungere → kalibrering
+ * skal være en mulighet dersom 1:50 oppdages som feil»): et tittelfelt-forslag
+ * er nå gyldig for måling med én gang — målestokken som VISES skal kunne brukes
+ * uten et ekstra bekreftelsessteg. Kalibrering er korreksjonen dersom verdien er
+ * feil (lagrer `kalibrert`), ikke en forutsetning. Georeferanse-veien håndteres
+ * separat (den måler bakken, ikke papiret, og tåler at tegningen er strukket).
+ * Kilden skal alltid vises ved måleresultatet, så brukeren ser hva målet bygger
+ * på («1:50 (fra tittelfeltet)» osv.).
+ *
+ * 🔴 Invariant: verktøyet skal ALDRI være aktivt uten tolkbar målestokk og
+ * mm/piksel. En ukjent kilde (`null`) teller ikke. Testen `maaling.test.ts`
+ * feiler hvis dette brytes.
  */
 export function kanMale(
   scale: string | null | undefined,
@@ -130,7 +137,12 @@ export function kanMale(
 ): boolean {
   if (mmPrPiksel == null || !Number.isFinite(mmPrPiksel) || mmPrPiksel <= 0) return false;
   if (parseMalestokk(scale) == null) return false;
-  return scaleKilde === "manuell" || scaleKilde === "kalibrert" || scaleKilde === "georeferanse";
+  return (
+    scaleKilde === "tittelfelt" ||
+    scaleKilde === "manuell" ||
+    scaleKilde === "kalibrert" ||
+    scaleKilde === "georeferanse"
+  );
 }
 
 /**
