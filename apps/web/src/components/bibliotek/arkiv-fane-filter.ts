@@ -187,7 +187,7 @@ export function byggSitedocGrupper<
       maler.push(...relevante);
     }
     if (maler.length === 0) continue;
-    grupper.push({ key: s.kode, tittel: `${s.kode} — ${s.navn}`, maler });
+    grupper.push({ key: s.kode, tittel: s.navn, maler }); // §7b pkt 2: kun navn, aldri kode
   }
   return grupper;
 }
@@ -254,7 +254,7 @@ export function grupperFirmaMaler<
     if (!g) {
       g = {
         key,
-        tittel: kilde ? `${kilde.standardKode} — ${kilde.standardNavn}` : egenlagdeTittel,
+        tittel: kilde ? kilde.standardNavn : egenlagdeTittel, // §7b pkt 2: kun navn
         sort: kilde ? kilde.standardSort : Number.MAX_SAFE_INTEGER,
         poster: [],
       };

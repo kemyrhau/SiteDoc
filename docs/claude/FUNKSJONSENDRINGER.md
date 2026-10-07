@@ -25,6 +25,12 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-07
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| (denne commit) | **Web — malarkiv (SiteDoc-arkivet, firmaarkivet, import-tilordning i kontrollplan)** | **Før:** gruppetitlene viste standardens kode foran navnet («NS3420-K — Anleggsgartnerarbeider»). **Etter:** bare navnet. Kapittelkoder («KB …») vises som før | 🟢 §7b pkt 2 (fabel 2026-10-07), etter at Kenneth stoppet prod-seed over NS-henvisninger |
+
 ### 2026-10-06
 
 | Hash | Flate | Før → Etter | Hjemmel |
