@@ -1,9 +1,9 @@
 ---
 name: tegning-serieopplasting-spec
 description: Spesifikasjon for serieopplasting av 2D-tegninger — mange filer samtidig, detaljer etterpå, tegningsnummer/type kun ved entydig treff, fag-sortering, ny revisjon på web (T1, ingen schema); deretter Tegningsserie som merk-og-flytt-gruppering med egne metadata (T2, additiv). Kenneth-krav 2026-10-06 (20 ark-tegninger lastet én og én).
-sist_verifisert_mot_kode: 2026-10-06
+sist_verifisert_mot_kode: 2026-10-07
 eier: fabel (plan-eier) — orkestrator gater
-status: 🟢 T1 IMPLEMENTERT 2026-10-06 (branch `feat/tegning-serieopplasting-t1`) — R1–R8 + R11 (delvis) bygget (web+api+shared, ingen schema). T2 (R9–R10, Tegningsserie) ❌ IKKE IMPLEMENTERT. Gate-vilkår § 6.1 (R3-mønsteret) løst: `packages/shared/src/utils/tegningMetadata.ts`. Omfang (T1 → T2) godkjent av Kenneth 2026-10-06
+status: 🟢 T1 IMPLEMENTERT 2026-10-06 (branch `feat/tegning-serieopplasting-t1`) — R1–R8 + R11 (delvis) bygget (web+api+shared, ingen schema). **T1b IMPLEMENTERT 2026-10-07 (branch `feat/tegning-t1b`):** R4 «Rediger flere»-inngangen fra tegningslista (var ikke koblet i T1) + rediger én tegning pr. rad + «vis og tilbake» (skjult overlay bevarer ulagrede endringer) + kollapsbare fag-/etasje-grupper (localStorage pr. byggeplass). T2 (R9–R10, Tegningsserie) ❌ IKKE IMPLEMENTERT. Gate-vilkår § 6.1 (R3-mønsteret) løst: `packages/shared/src/utils/tegningMetadata.ts`. Omfang (T1 → T2) godkjent av Kenneth 2026-10-06
 ---
 
 # Tegninger: serieopplasting, detaljer etterpå, serier

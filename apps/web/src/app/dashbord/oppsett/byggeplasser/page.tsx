@@ -24,10 +24,13 @@ import {
   Box,
   FileText,
   ChevronDown,
+  ChevronRight,
+  ChevronLeft,
   Loader2,
   MapPin,
   ExternalLink,
   Search,
+  ListChecks,
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 import { SignertBilde } from "@/components/SignertBilde";
@@ -246,8 +249,18 @@ function RedigerLokasjon({
   const [visSerieTabell, setVisSerieTabell] = useState(false);
   const [radLagrerId, setRadLagrerId] = useState<string | null>(null);
   const serieFilerRef = useRef<Record<string, File>>({}); // tempId → File (for «Prøv igjen»)
+  // T1b R4: samme tabell gjenbrukes til å redigere eksisterende tegninger
+  // (ikke bare rett etter opplasting). Styrer kun tittelteksten.
+  const [erRedigerModus, setErRedigerModus] = useState(false);
+  // T1b (vis og tilbake): skjul tabell-overlayet (uten å avmontere det, så
+  // ulagrede radendringer bevares) mens brukeren ser tegningen i sidens egen
+  // forhåndsvisning. Floating «Tilbake til tabellen» henter overlayet tilbake.
+  const [serieTabellSkjult, setSerieTabellSkjult] = useState(false);
   // R6: fag-gruppering som standard, med veksel til etasje-grupperingen.
   const [grupperFag, setGrupperFag] = useState(true);
+  // T1b (kollaps): hvilke grupper er kollapset, nøklet på «fag|etasje::navn».
+  // Huskes pr. byggeplass i localStorage. Standard: alt åpent (tom mengde).
+  const [kollapsedeGrupper, setKollapsedeGrupper] = useState<Record<string, true>>({});
 
   // Poll konverterings-status mens tabellen er åpen og minst én rad konverterer.
   const skalPolle =
@@ -468,6 +481,82 @@ function RedigerLokasjon({
     } finally {
       setRadLagrerId(null);
     }
+  }
+
+  // T1b R4: bygg en tabellrad fra en alt opprettet tegning (ingen fil-opplasting,
+  // ingen R3-forslag — verdiene finnes allerede på Drawing). tempId = drawingId.
+  const radFraTegning = useCallback(
+    (d: TegningRad): SerieRad => ({
+      tempId: d.id,
+      fileName: d.name,
+      drawingId: d.id,
+      status: konvTilStatus(d.conversionStatus),
+    }),
+    [],
+  );
+
+  // «Rediger flere»: åpne tabellen med ALLE tegningene på byggeplassen.
+  function åpneRedigerFlere() {
+    serieFilerRef.current = {};
+    setSerieRader(tegninger.map(radFraTegning));
+    setErRedigerModus(true);
+    setSerieTabellSkjult(false);
+    setVisSerieTabell(true);
+  }
+
+  // Rediger ÉN tegning i samme tabell (filtrert til den ene) — ingen ny dialog.
+  function åpneRedigerEn(d: TegningRad) {
+    serieFilerRef.current = {};
+    setSerieRader([radFraTegning(d)]);
+    setErRedigerModus(true);
+    setSerieTabellSkjult(false);
+    setVisSerieTabell(true);
+  }
+
+  // T1b (vis og tilbake): vis tegningen i sidens egen forhåndsvisning uten å
+  // avmontere tabellen (ulagrede radendringer bevares). Skjuler kun overlayet.
+  function visTegningFraTabell(drawingId: string) {
+    velgTegning(drawingId);
+    setSerieTabellSkjult(true);
+  }
+
+  function lukkSerieTabell() {
+    setVisSerieTabell(false);
+    setSerieTabellSkjult(false);
+    setErRedigerModus(false);
+  }
+
+  // T1b (kollaps): nøkkel pr. gruppe, skilt på gjeldende grupperingsmodus slik at
+  // fag- og etasje-grupper med samme navn ikke kolliderer.
+  const kollapsNokkel = useCallback(
+    (navn: string) => `${grupperFag ? "fag" : "etasje"}::${navn}`,
+    [grupperFag],
+  );
+
+  // Last kollaps-valg fra localStorage pr. byggeplass (try/catch — privat modus
+  // / full disk / korrupt JSON skal aldri velte siden).
+  useEffect(() => {
+    try {
+      const rå = localStorage.getItem(`sitedoc_tegning_kollaps_${lokasjonId}`);
+      setKollapsedeGrupper(rå ? (JSON.parse(rå) as Record<string, true>) : {});
+    } catch {
+      setKollapsedeGrupper({});
+    }
+  }, [lokasjonId]);
+
+  function toggleKollaps(navn: string) {
+    const nokkel = kollapsNokkel(navn);
+    setKollapsedeGrupper((forrige) => {
+      const neste = { ...forrige };
+      if (neste[nokkel]) delete neste[nokkel];
+      else neste[nokkel] = true;
+      try {
+        localStorage.setItem(`sitedoc_tegning_kollaps_${lokasjonId}`, JSON.stringify(neste));
+      } catch {
+        // Lagring feilet (privat modus / kvote) — valget gjelder for økten uansett.
+      }
+      return neste;
+    });
   }
 
   function handleLagreTegning(e: React.FormEvent) {
@@ -696,14 +785,36 @@ function RedigerLokasjon({
               >
                 {t("tegninger.serie.grupperEtasje")}
               </button>
+              <div className="flex-1" />
+              {/* T1b R4: åpne etterfyllings-tabellen med ALLE tegningene. */}
+              <button
+                onClick={åpneRedigerFlere}
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100"
+                title={t("tegninger.serie.redigerFlere")}
+              >
+                <ListChecks className="h-3.5 w-3.5" />
+                {t("tegninger.serie.redigerFlere")}
+              </button>
             </div>
           )}
           <div className="flex-1 overflow-y-auto px-3 py-3">
             {tegninger.length > 0 ? (
               <div className="flex flex-col gap-4">
-                {tegningGrupper.map((gruppe) => (
+                {tegningGrupper.map((gruppe) => {
+                  const kollapset = !!kollapsedeGrupper[kollapsNokkel(gruppe.navn)];
+                  return (
                   <div key={gruppe.navn}>
-                    <div className="mb-1 flex items-center gap-2 px-3 py-1">
+                    {/* T1b (kollaps): gruppe-header åpner/lukker gruppen; valget huskes pr. byggeplass. */}
+                    <button
+                      onClick={() => toggleKollaps(gruppe.navn)}
+                      className="mb-1 flex w-full items-center gap-2 rounded px-3 py-1 text-left hover:bg-gray-50"
+                      aria-expanded={!kollapset}
+                    >
+                      {kollapset ? (
+                        <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+                      )}
                       {gruppe.ikon === "utomhus" ? (
                         <MapPin className="h-3.5 w-3.5 text-green-600" />
                       ) : (
@@ -715,34 +826,53 @@ function RedigerLokasjon({
                       <span className="text-xs text-gray-400">
                         ({gruppe.tegninger.length})
                       </span>
-                    </div>
+                    </button>
+                    {!kollapset && (
                     <ul className="flex flex-col gap-0.5">
                       {gruppe.tegninger.map((tegning) => {
                         const harGeoRef = !!tegning.geoReference;
+                        const valgt = valgtTegningId === tegning.id;
                         return (
                           <li key={tegning.id}>
-                            <button
-                              onClick={() => velgTegning(valgtTegningId === tegning.id ? null : tegning.id)}
-                              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                                valgtTegningId === tegning.id
-                                  ? "bg-sitedoc-primary/10 text-sitedoc-primary"
-                                  : "text-gray-700 hover:bg-gray-50"
+                            {/* Rad = valg (forhåndsvisning) + blyant (rediger i tabellen).
+                                Sibling-knapper, ikke nøstet, for gyldig markup. */}
+                            <div
+                              className={`flex items-center gap-1 rounded-md pr-1 text-sm transition-colors ${
+                                valgt ? "bg-sitedoc-primary/10" : "hover:bg-gray-50"
                               }`}
                             >
-                              <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                              <span className="flex-1">{tegning.name}</span>
-                              {harGeoRef && (
-                                <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
-                                  Georeferert
-                                </span>
-                              )}
-                            </button>
+                              <button
+                                onClick={() => velgTegning(valgt ? null : tegning.id)}
+                                className={`flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left ${
+                                  valgt ? "text-sitedoc-primary" : "text-gray-700"
+                                }`}
+                              >
+                                <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                                <span className="flex-1 truncate">{tegning.name}</span>
+                                {harGeoRef && (
+                                  <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                                    Georeferert
+                                  </span>
+                                )}
+                              </button>
+                              {/* T1b R4: rediger ÉN tegning i samme tabell. */}
+                              <button
+                                onClick={() => åpneRedigerEn(tegning)}
+                                className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                title={t("handling.rediger")}
+                                aria-label={t("handling.rediger")}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </li>
                         );
                       })}
                     </ul>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center pt-12">
@@ -994,14 +1124,20 @@ function RedigerLokasjon({
         </div>
       </Modal>
 
-      {/* R2/R4: etterfyllings-tabell — detaljer legges inn etter opplasting. */}
+      {/* R2/R4: etterfyllings-tabell — detaljer legges inn etter opplasting, eller
+          «Rediger flere» (T1b) på eksisterende tegninger. Skjules (ikke avmonteres)
+          med `hidden` når brukeren ser en tegning via «Vis», så radendringer bevares. */}
       {visSerieTabell && (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-white">
+        <div
+          className={`fixed inset-0 z-[60] flex-col bg-white ${serieTabellSkjult ? "hidden" : "flex"}`}
+        >
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
             <span className="text-sm font-semibold text-gray-900">
-              {t("tegninger.serie.tabellTittel")}
+              {erRedigerModus
+                ? t("tegninger.serie.tabellTittelRediger")
+                : t("tegninger.serie.tabellTittel")}
             </span>
-            <Button size="sm" variant="secondary" onClick={() => setVisSerieTabell(false)}>
+            <Button size="sm" variant="secondary" onClick={lukkSerieTabell}>
               {t("tegninger.serie.ferdig")}
             </Button>
           </div>
@@ -1012,6 +1148,7 @@ function RedigerLokasjon({
               onLagreRad={lagreRad}
               lagrerId={radLagrerId}
               onPrøvIgjen={prøvIgjenSerie}
+              onVis={visTegningFraTabell}
               onRevisjonFerdig={() => {
                 utils.bygning.hentMedId.invalidate({ id: lokasjonId });
                 utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -1019,6 +1156,17 @@ function RedigerLokasjon({
             />
           </div>
         </div>
+      )}
+
+      {/* T1b (vis og tilbake): floating retur til tabellen mens den er skjult. */}
+      {visSerieTabell && serieTabellSkjult && (
+        <button
+          onClick={() => setSerieTabellSkjult(false)}
+          className="fixed left-1/2 top-3 z-[70] flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white shadow-lg hover:bg-sitedoc-primary/90"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {t("tegninger.serie.tilbakeTilTabell")}
+        </button>
       )}
     </div>
   );
