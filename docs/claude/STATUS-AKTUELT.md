@@ -22,25 +22,23 @@ sist_verifisert_mot_kode: 2026-08-09
 > 🟢 **Lag 0c LEVERT `c78bc14f`** — regel 10 er fire ledd, `turbo run typecheck` gater 10 pakker. ⚠️ **`pnpm install` kreves i alle trær** (`@types/node`).
 > 🟢 **LAG 1 KOMPLETT 2026-10-03:** L1-C+L1-A `9d67367a` + L1-B `2e993250`. H21+H22 lukket. Test-deploy `fd92736d` (lag 0 + L1-A/C, migrering `20261002120000` kjørt). 🟢 **`20261002130000_timer_normkilde_pausereferanse` KJØRT** — verifisert av Kenneth i UI 2026-10-03 (firma → innstillinger viser «Dagsnorm-kilde: Fast (7,5 t)» og «Pausen starter fra: Ankomst»). ⚠️ Pull krever `pnpm install` + `prisma generate` ×4. **K10 VEDTATT → V17:** byggeplass-lokasjon = punkt+radius (standard) eller polygon (infrastruktur), én delt gjenkjenning for timer OG PSI; bygges før lag 3/4. 🟢 **K5 vedtatt (mottak med sporbarhet).** 🟡 **LAG 2 BESTILT 2026-10-03** ([timer-gps-lag2-spec.md](timer-gps-lag2-spec.md), gatet; krav på `docs/design-lag2-krav` @ `ed2c9e54` venter merge): L2-A → L2-B ∥ L2-C. Funn: L1-B-etappene lagres ikke på raden, `syncBatch` stripper ukjente felt. 📄 **V17-spec skrevet 2026-10-04** ([v17-geofence-spec.md](v17-geofence-spec.md)) — til gate; bygges før lag 3/4. 📄 **V19-spec skrevet** ([timer-overlapp-pc-mobil-spec.md](timer-overlapp-pc-mobil-spec.md), H25 overlapp PC↔mobil) — til gate.
 
-> 🟢 **PROD-DEPLOY 2026-10-06: `7845e9e8`** (main, bygget 20:16Z) — verifisert **innlogget** på sitedoc.no (prosjektliste +
-> firma/timer laster). Innhold: lag 2, V19/V19.9 overlapp + versjonssjekk, offline-lesing/-liste, V17-A, V20 PK2 matpause,
-> i18n-sveip, synk-fiks. 🟢 **8 migreringer kjørt mot `sitedoc`** (db-timer ×3: `20261003120000`, `20261005120000`,
-> `20261006120000` · db ×5: `20260924130000`, `20260926120000`, `20260926140000`, `20261002120000`, `20261002130000`).
-> Forsjekk: PSI-duplikater 0 · lag 2-backfill 0/0. Dump `~/backup/sitedoc-pre-release-20261006.dump`. 🟢 **OTA prod-kanal**
-> fra `7845e9e8`, verifisert på telefon (build 54, OTA `01a1130`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
-> ⚠️ **IKKE i prod:** `fix/sync-status-visning` (`358c104f`, mobil) og tegning-serieopplasting-spec — develop er 6 commits foran.
+> 🟢 **PROD-DEPLOY 2026-10-07 (runde 2): `ec35181d`** (main, bygget 13:39Z) — verifisert **innlogget** og på telefon.
+> Innhold: frys etter «+ Oppgave»→tilbake fikset i rotårsaken + flere oppgaver pr. felt, mobil+web (`6ec95359` ← `18ad5bc3`).
+> Ingen migreringer. 🟢 **OTA prod-kanal** fra `ec35181d` (update group `74576aa0-df23-4f0b-881f-ad384133a1a9`, iOS update
+> `01a116c8-8480-7d12-b5bc-d3df23407d69`), verifisert på telefon (build 54).
 
-> 🟢 **TEST-DEPLOY 2026-10-05: `9145404b`** — `/version` verifisert (bygget 21:43). Nytt siden `bd3053bd`: **L2-C**
-> (attestering + eksport med reisespor), **V19-A** (overlapp-forslag på server, attestering blokkert), **V19-B** (mobil),
-> offline-feltfunn, offline-inngang, i18n-sveip 2. 🟢 **Migrering `20261005120000_v19_overlapp_forslag` KJØRT** —
-> verifisert: `timer.sheet_timer_forslag` finnes, `daily_sheets.konflikt_ventende_siden` finnes. 🟢 **OTA test-kanal
-> publisert** fra `9145404b` (update `01a10da3-892f-7ef3-a880-2ff57f5e7019`). V19-C (web-valg for arbeideren) ikke med ennå.
-> 🔴 **V19.9 SPEC HOS ORKESTRATOR FOR GATE 2026-10-06** (branch `docs/design-v19-versjonssjekk`): Kenneth-vedtak 05.10 — avvik PC/telefon
-> skal oppdages uansett hvordan dagen ble opprettet. Versjonssjekk pr. rad i `syncBatch` (M17–M25 målt), matrise R1–R12 + S1–S4 + H1–H6,
-> ordre V19.9-A (server) → V19.9-B (mobil+web) → V19.9-H (hodet). Spec § 9 i `timer-overlapp-pc-mobil-spec.md`.
-> 🟢 **V20 = B VEDTATT 2026-10-06, spec rev. 2 til gate** (branch `docs/design-pause-en-kilde`, `timer-pause-en-kilde-spec.md`): P1–P8 målt, PK1–PK9 (PK4 rev. 2: syncBatch
-> normaliserer, avviser aldri; kun timebaserte lønnsarter), 17 tester, ordre V20-S → V20-M ∥ V20-W etter `fix/matpause-avkrysning`. **V19.9-H STRØKET.** V21 (overtidsforslag
-> manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT — egne små ordrer etter V20.
+> 🟢 **PROD-DEPLOY 2026-10-07 (runde 1): `4f7998c7`** (main, bygget 09:21Z) — verifisert **innlogget** og på telefon.
+> Innhold: V20 pause én kilde (S `3b06dcb1`, S2 `669c579b`, W `d5758806`) · ansvarstekst i SiteDoc-arkivet (`039c8cd6`) ·
+> standardnavn uten kode (`40164e63`, mal-7b `eb5af56a`) · synk-statusvisning (`ea18494f`). 🟢 **Migreringer kjørt mot `sitedoc`:**
+> db-timer `20261006220000_v20_pause_backfill` + `20261007120000_v20_s2_pause_backfill`. Telling etter: 9 sedler, 8 med hode>0,
+> Σ=0-kandidater 0, 1 uavklart (hode 0, ingen bevist fradrag). Dump `~/backup/sitedoc-pre-release-20261007.dump`.
+> 🟢 **SiteDoc-arkivet seedet i prod** (DEPLOY-RUNBOK § 8): 4 standarder / 17 kapitler / 27 maler / 402 objekter (fra 0).
+> 🟢 **OTA prod-kanal** fra `4f7998c7` (OTA `01a1166…`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
+> ⚠️ **IKKE i prod:** T1 serieopplasting av tegninger (`0e50adad`) — kun på test.
+
+> 🟡 **V20-oppfølgere (åpne):** V20-M (låst visning viser matpause-avkrysningen, BACKLOG `f032e6be`) · V21 (overtidsforslag
+> manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT 2026-10-06 — egne små ordrer.
+
 > 🟡 **TEGNINGER: SERIEOPPLASTING — SPEC TIL GATE 2026-10-06** (branch `docs/design-tegning-serieopplasting`, `tegning-serieopplasting-spec.md`, omfang T1 → T2
 > godkjent av Kenneth): 20 ark-tegninger lastes én og én i dag. T1 uten schema (flervalg, detaljer etterpå, entydig-treff-forhåndsutfylling, fag-sortering, ny revisjon
 > på web), T2 `Tegningsserie`. Målestokk forblir valgfri uten mas.
@@ -78,7 +76,7 @@ som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvillin
 |---|---|---|---|---|
 | **Plan** | dokgen | `SiteDoc-dokgen` | — (detached) | 🟢 **Ledig. V19.9-A2 MERGET `d16f4521` ← `4f81b7c6` 2026-10-06** (orkestrator-gate). 🟢 **I PROD `7845e9e8`.** Regel 10: typecheck 11/11 · web build 0 · 7/7 --force 22s · api 746 · shared 1097 |
 | **Plan** | kontrollplan | `SiteDoc-kontrollplan` | `feat/v17b-soner` (ny) | 🟡 **Ordre skrevet 2026-10-04** — V17-B: soner (db `omrader.geo_polygon` + api + web-modal med geoman) (`relay/inbox-kontrollplan-v17b-soner.md`). V17-A merget `8987843f` — 🟢 **i prod `7845e9e8`**. Geoman målt: peer `leaflet ^1.2` (vi 1.9.4), `KartVelger` bruker Leaflet direkte |
-| **Funn** | redesign | `SiteDoc-redesign` | — (ledig) | ✅ `fix/matpause-avkrysning` MERGET `a933898f` (V20 PK2: manuell rad bærer pausen synlig). 16:00 var Kenneths egen redigering. 🟢 **I PROD `7845e9e8` + OTA prod-kanal 2026-10-06.** Neste i timer-sporet: V20-S |
+| **Funn** | redesign | `SiteDoc-redesign` | — (ledig) | ✅ `fix/matpause-avkrysning` MERGET `a933898f` (V20 PK2: manuell rad bærer pausen synlig). 16:00 var Kenneths egen redigering. 🟢 **I PROD `7845e9e8` + OTA prod-kanal 2026-10-06.** V20-S/S2/W 🟢 **I PROD `4f7998c7` 2026-10-07** |
 | **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
 | **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
 | — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
@@ -648,6 +646,8 @@ til fabel først.
 > Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
 
 ### 🔴 FUNN 2026-09-05 — PROD har tomt sentralarkiv OG tom dokumentsøk-indeks
+
+🟢 **Arkivdelen LUKKET 2026-10-07:** SiteDoc-arkivet seedet i prod etter DEPLOY-RUNBOK § 8 — 4 standarder / 17 kapitler / 27 maler / 402 objekter (fra 0). ⚠️ Dokumentsøk-indeksen er ikke målt på nytt — den delen står åpen.
 
 Målt i tre miljøer 05.09 mens malverkstedet ble kartlagt:
 
