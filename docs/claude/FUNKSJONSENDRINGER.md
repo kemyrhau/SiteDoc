@@ -29,6 +29,7 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| ← `9cf1fbea` | 🔴 **Mobil — tegningsvisning** | **Før:** kort trykk i «Navigering» gjorde ingenting; opprettelse krevde bytte til «Plassering»; ingen måling. **Etter:** kort trykk viser hint («Hold inne for å opprette …») og bryteren blinker; langt trykk setter markør og åpner malvalget; «Mål» med linjal/polylinje/areal (samme regnestykke og lås som web, kilde vises, kalibrering kun på web, krever nett). Reload: OTA | 🟢 Kenneth 2026-10-07 «ja til 1 og 2, ta med måling på mobil» |
 | ← `84f97c19` | **Web — tegningssiden, måleverktøy og zoom** | **Før:** ett måleverktøy (kontinuerlig punkt til punkt); musehjulet panorerte (regresjon fra `09fd30a4`); knip rykket litt. **Etter:** tre verktøy — linjal (to punkter), polylinje (summert, avsluttes på eksisterende punkt/Enter/dobbeltklikk), areal (skravert, m² + omkrets); musehjulet zoomer igjen; knip forankret fra gest-start. Konsekvens: loddrett tofinger-scroll på styreflate zoomer (sidelengs panorerer) | 🟢 Kenneth 2026-10-07 («Adobe benytter 3 stk icon …»; musehjul = reparasjon) |
 
 ### 2026-10-07
