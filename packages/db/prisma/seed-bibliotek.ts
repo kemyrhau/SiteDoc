@@ -1095,13 +1095,13 @@ export const FB4_MAL = {
         "Riktig type – feil dimensjon",
         "Feil type – stopp og avklar",
       ],
-      "FB4 b1: Kontroller spuntprofil, stålkvalitet og lengde mot prosjektert løsning. Vanlige typer: stålspunt (U/Z-profil), sekantpeler, berlinervegg."),
+      "Kontroller spuntprofil, stålkvalitet og lengde mot prosjektert løsning. Vanlige typer: stålspunt (U/Z-profil), sekantpeler, berlinervegg."),
     trafikklys("Nabokontroll utført", "FØR",
-      "FB4 b2: Tilstandsregistrering av bygninger og konstruksjoner innenfor influensområdet. Foto + rapport før oppstart."),
+      "Tilstandsregistrering av bygninger og konstruksjoner innenfor influensområdet. Foto + rapport før oppstart."),
 
     // UNDER
     desimal("Vertikalitet – avvik (mm/m)", "UNDER", { enhet: "mm/m" },
-      "FB4 c1: Mål avvik fra lodd etter hvert element. Krav typisk ≤1 % av lengde. Korrigering vanskelig etter nedramming."),
+      "Mål avvik fra lodd etter hvert element. Krav typisk ≤1 % av lengde. Korrigering vanskelig etter nedramming."),
     valg("Tetthet mellom elementer", "UNDER",
       [
         "Tett – ingen synlig lekkasje",
@@ -1109,9 +1109,9 @@ export const FB4_MAL = {
         "Lekkasje – krever tetting",
         "Gjennombrudd – STOPP",
       ],
-      "FB4 c2: Kontroller låser/skjøter etter ramming. Vannlekkasje indikerer manglende sammenlåsing eller skadet profil."),
+      "Kontroller låser/skjøter etter ramming. Vannlekkasje indikerer manglende sammenlåsing eller skadet profil."),
     desimal("Stagkraft (kN)", "UNDER", { enhet: "kN" },
-      "FB4 c3: Mål stagkraft ved forspenning. Sammenlign med prosjektert verdi. Avvik >10 % → varsle geotekniker/prosjekterende."),
+      "Mål stagkraft ved forspenning. Sammenlign med prosjektert verdi. Avvik >10 % → varsle geotekniker/prosjekterende."),
 
     // ETTER
     valg("Setningskontroll nabolag", "ETTER",
@@ -1120,9 +1120,9 @@ export const FB4_MAL = {
         "Overvåkes – tiltaksgrense nærmer seg",
         "Tiltak nødvendig – varsle prosjekterende",
       ],
-      "FB4 c4: Sammenlign innmåling med nullmåling. Tiltaksgrense typisk 10–20 mm avhengig av konstruksjon."),
+      "Sammenlign innmåling med nullmåling. Tiltaksgrense typisk 10–20 mm avhengig av konstruksjon."),
     trafikklys("Spuntvegg stabil", "ETTER",
-      "FB4 c5: Visuell kontroll av deformasjon, lekkasje og erosjon bak spunt. Fotodokumenter."),
+      "Visuell kontroll av deformasjon, lekkasje og erosjon bak spunt. Fotodokumenter."),
   ] as FeltDef[],
 };
 
@@ -1139,20 +1139,20 @@ export const FD3_MAL = {
         "Iht. spesifikasjon – godkjent",
         "Avvik fra spesifikasjon – avklar med geotekniker",
       ],
-      "FD3 b1: Kontroller at utførelsesmetode stemmer med geoteknisk rapport. Vanlige metoder: KC-peler, jetinjeksjon, masseutskifting, forbelastning med vertikaldren."),
+      "Kontroller at utførelsesmetode stemmer med geoteknisk rapport. Vanlige metoder: KC-peler, jetinjeksjon, masseutskifting, forbelastning med vertikaldren."),
     trafikklys("Grunnundersøkelse verifisert", "FØR",
-      "FD3 b2: Kontroller at geoteknisk rapport dekker aktuelt område. Sjekk at antatt jordart og lagfølge stemmer med observert."),
+      "Kontroller at geoteknisk rapport dekker aktuelt område. Sjekk at antatt jordart og lagfølge stemmer med observert."),
 
     // UNDER
     desimal("Dybde (m)", "UNDER", { enhet: "m" },
-      "FD3 c1: Mål pelehull/injeksjonsdybde mot prosjektert. KC-peler: til antatt fast grunn eller angitt dybde. Avvik >0,5 m → varsle geotekniker."),
+      "Mål pelehull/injeksjonsdybde mot prosjektert. KC-peler: til antatt fast grunn eller angitt dybde. Avvik >0,5 m → varsle geotekniker."),
     valg("Bindemiddelmengde", "UNDER",
       [
         "Iht. resept – dokumentert",
         "Avvik <10 % – justert",
         "Avvik >10 % – stopp og varsle",
       ],
-      "FD3 c2: Bindemiddelforbruk (kg/m) skal logges per pel/punkt. Resept fra geotekniker angir type (kalk, sement, KC) og mengde."),
+      "Bindemiddelforbruk (kg/m) skal logges per pel/punkt. Resept fra geotekniker angir type (kalk, sement, KC) og mengde."),
 
     // ETTER
     valg("Prøvebelastning", "ETTER",
@@ -1161,11 +1161,11 @@ export const FD3_MAL = {
         "Marginal – tilleggskontroll",
         "Ikke bestått – tiltak nødvendig",
       ],
-      "FD3 c3: Statisk eller dynamisk prøvebelastning iht. geoteknikers anvisning. Dokumenter last-setningskurve."),
+      "Statisk eller dynamisk prøvebelastning iht. geoteknikers anvisning. Dokumenter last-setningskurve."),
     desimal("Setning (mm)", "ETTER", { enhet: "mm" },
-      "FD3 c4: Mål setning etter belastning. Sammenlign med beregnet. Typisk krav <25 mm totalsetning, <10 mm differansesetning."),
+      "Mål setning etter belastning. Sammenlign med beregnet. Typisk krav <25 mm totalsetning, <10 mm differansesetning."),
     trafikklys("Bæreevne dokumentert", "ETTER",
-      "FD3 c5: Geotekniker har signert at bæreevne er tilstrekkelig for planlagt konstruksjon."),
+      "Geotekniker har signert at bæreevne er tilstrekkelig for planlagt konstruksjon."),
   ] as FeltDef[],
 };
 
@@ -2285,13 +2285,15 @@ export const FP1_MAL = {
 // generer-mal-sql.ts kan opprette en manglende standard (NS3420-U) i samme transaksjon som
 // kapittel + mal (WHERE NOT EXISTS), og seeden bygger sine upserts fra samme kilde — ingen drift
 // mellom seed og generator. KUN OPPRETT (upsert med update:{}); eksisterende standard-rad røres ikke.
+// §7b: standardens navn bærer ikke NS-nummeret i UI (Kenneth 2026-09-18/2026-10-06); NS-henvisningen
+// står i hver mals beskrivelse («Faglig grunnlag: NS 3420-X:ÅÅÅÅ, post …»). Koden (NS3420-K) er nøkkel
+// i generer-mal-sql.ts/standardForMal og røres IKKE — årstallet lever videre i mal-beskrivelsene.
 export const STANDARD_DATA = [
-  { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
-  { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
-  { kode: "NS3420-U", navn: "NS 3420-U:2019 Rørinstallasjoner", sortering: 3 },
-  // NS3420-J lagt til (ordre JH2, Runde D): fjerde standard, dekke- og banearbeider. MERK årstallet
-  // 2008 — K/F er 2024, U er 2019. Hullet vi selv laget da asfalt ble tatt ut av KD1.
-  { kode: "NS3420-J", navn: "NS 3420-J:2008 Dekke- og banearbeider", sortering: 4 },
+  { kode: "NS3420-K", navn: "Anleggsgartnerarbeider", sortering: 1 },
+  { kode: "NS3420-F", navn: "Grunnarbeider", sortering: 2 },
+  { kode: "NS3420-U", navn: "Rørinstallasjoner", sortering: 3 },
+  // NS3420-J (ordre JH2, Runde D): fjerde standard, dekke- og banearbeider.
+  { kode: "NS3420-J", navn: "Dekke- og banearbeider", sortering: 4 },
 ];
 
 // Kapitler i NS 3420-K-arkivet (kode, navn, sortering). Eksportert (design-godkjent 2026-09-18)
