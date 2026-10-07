@@ -489,6 +489,7 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
   - **Polylinje** (`Waypoints`): summert lengde, per-segment-etiketter. Avsluttes ved klikk på et eksisterende punkt (≤ `PUNKT_TREFF_PX` = 12 px), Enter eller dobbeltklikk.
   - **Areal** (`VectorSquare`): lukket, skravert polygon. Viser m² (sentroide-etikett + stripe) og omkrets. Lukkes ved klikk på FØRSTE punkt. m² via ny delte `malArealMm2` (shoelace på pikselkoordinater → `(mmPrPiksel · målestokk-nevner)²`; sideforhold ivaretatt som `pikselAvstand`); omkrets via lukket ring. Areal krever papir-målestokk (`mmPrPiksel` + tolkbar `scale`); uten → «—» (omkrets vises likevel).
   - Kilden («1:50 (fra tittelfeltet)» osv.) vises ved alle tre. `MaalingOverlay` fikk `fyll`-prop (polygon ved areal, polyline ellers). Regnestykke testet isolert (`packages/shared/src/utils/maaling.test.ts`).
+  - **Dra satte punkter (TILLEGG RETUR 1, 2026-10-08):** punkt-prikkene i `MaalingOverlay` er dragbare med musa (`onPunktNed` → `startPunktDrag`); vindu-`pointermove`/`pointerup` oppdaterer punktet live, `punktDragRef` hindrer at tegningen panorerer under draget, og `nettoppDrattRef` undertrykker klikket etter slipp (ingen nytt punkt). Rører ikke «ferdig»-tilstanden — et lukket areal kan justeres. Mobil har samme funksjon med lupe (se `mobil.md`).
 
 **Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)

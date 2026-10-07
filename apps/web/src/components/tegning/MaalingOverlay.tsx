@@ -23,9 +23,11 @@ interface MaalingOverlayProps {
   segmenter: MaalingSegment[];
   /** Areal-verktøy: tegn et lukket, skravert polygon i stedet for en åpen linje. */
   fyll?: boolean;
+  /** Gjør punktene dragbare (TILLEGG RETUR 1). Starter dra av punkt-indeksen. */
+  onPunktNed?: (index: number, e: React.PointerEvent<HTMLDivElement>) => void;
 }
 
-export function MaalingOverlay({ punkter, segmenter, fyll = false }: MaalingOverlayProps) {
+export function MaalingOverlay({ punkter, segmenter, fyll = false, onPunktNed }: MaalingOverlayProps) {
   if (punkter.length === 0) return null;
   const punktStreng = punkter.map((p) => `${p.x},${p.y}`).join(" ");
 
@@ -62,11 +64,14 @@ export function MaalingOverlay({ punkter, segmenter, fyll = false }: MaalingOver
         )}
       </svg>
 
-      {/* Punkt-prikker */}
+      {/* Punkt-prikker — dragbare når onPunktNed er gitt (TILLEGG RETUR 1) */}
       {punkter.map((p, i) => (
         <div
           key={i}
-          className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sitedoc-primary shadow"
+          onPointerDown={onPunktNed ? (e) => onPunktNed(i, e) : undefined}
+          className={`absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sitedoc-primary shadow ${
+            onPunktNed ? "pointer-events-auto cursor-grab touch-none active:cursor-grabbing" : ""
+          }`}
           style={{ left: `${p.x}%`, top: `${p.y}%` }}
         />
       ))}

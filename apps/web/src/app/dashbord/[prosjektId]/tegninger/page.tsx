@@ -137,6 +137,12 @@ export default function TegningerSide() {
   } = useByggeplass();
   const utils = trpc.useUtils();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Web punkt-dra (TILLEGG RETUR 1): dra et satt målepunkt med musa. punktDragRef
+  // leses i pan-handlerne (zoom-effekten) for å ikke panorere mens et punkt dras.
+  const maleInnerRef = useRef<HTMLDivElement | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const punktDragRef = useRef(false);
+  const nettoppDrattRef = useRef(false);
 
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
@@ -593,6 +599,7 @@ export default function TegningerSide() {
 
     function handlePointerDown(e: PointerEvent) {
       if (e.button !== 0) return;
+      if (punktDragRef.current) return; // drar et målepunkt → ikke panorer
       dragging = false; // Settes til true ved bevegelse
       startX = e.clientX;
       startY = e.clientY;
@@ -601,6 +608,7 @@ export default function TegningerSide() {
     }
 
     function handlePointerMove(e: PointerEvent) {
+      if (punktDragRef.current) return; // drar et målepunkt → ikke panorer
       if (e.buttons !== 1) return; // Venstre knapp holdt nede
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
@@ -749,6 +757,8 @@ export default function TegningerSide() {
   }, []);
 
   const handleBildeKlikk = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Nettopp dratt et målepunkt → klikket som følger skal ikke sette nytt punkt.
+    if (nettoppDrattRef.current) { nettoppDrattRef.current = false; return; }
     // Ignorer klikk hvis musen ble dratt (pan)
     if (museNedPosRef.current) {
       const dx = e.clientX - museNedPosRef.current.x;
@@ -842,6 +852,44 @@ export default function TegningerSide() {
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
   }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleAktiv, kalibrerModus, maleVerktoy, maleFerdig, malePunkter]);
+
+  // Dra et satt målepunkt med musa (TILLEGG RETUR 1). Starter på punkt-prikken;
+  // move/up lyttes på vindu så dra fortsetter utenfor prikken. Rører ikke maleFerdig
+  // (lukket areal/polylinje forblir lukket), setter ikke nytt punkt (klikk undertrykkes).
+  const startPunktDrag = useCallback((index: number, e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    punktDragRef.current = true;
+    setDragIdx(index);
+  }, []);
+
+  useEffect(() => {
+    if (dragIdx == null) return;
+    const idx = dragIdx;
+    function flytt(ev: PointerEvent) {
+      const r = maleInnerRef.current?.getBoundingClientRect();
+      if (!r || r.width <= 0 || r.height <= 0) return;
+      const x = Math.max(0, Math.min(100, ((ev.clientX - r.left) / r.width) * 100));
+      const y = Math.max(0, Math.min(100, ((ev.clientY - r.top) / r.height) * 100));
+      setMalePunkter((prev) => {
+        if (idx >= prev.length) return prev;
+        const n = prev.slice();
+        n[idx] = { x, y };
+        return n;
+      });
+    }
+    function slutt() {
+      punktDragRef.current = false;
+      nettoppDrattRef.current = true; // undertrykk klikket som følger pointerup
+      setDragIdx(null);
+    }
+    window.addEventListener("pointermove", flytt);
+    window.addEventListener("pointerup", slutt);
+    return () => {
+      window.removeEventListener("pointermove", flytt);
+      window.removeEventListener("pointerup", slutt);
+    };
+  }, [dragIdx]);
 
   // Modell-korreksjon (funn 2026-08-22): dokumentflyt er nøkkelen, ikke faggruppe.
   // Serveren (F1/B1) krever `dokumentflytId` for ikke-HMS og validerer at flyten har malen
@@ -1625,6 +1673,7 @@ export default function TegningerSide() {
             className="flex-1 overflow-auto bg-gray-100"
           >
             <div
+              ref={maleInnerRef}
               className={`relative inline-block ${klikkModus === "inspeksjon" ? "cursor-pointer" : "cursor-crosshair"}`}
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
               onMouseDown={handleMuseNed}
@@ -1668,6 +1717,7 @@ export default function TegningerSide() {
                   punkter={malePunkter}
                   segmenter={kalibrerModus ? [] : maleSegmenter}
                   fyll={erAreal && malePunkter.length >= 3}
+                  onPunktNed={maleAktiv ? startPunktDrag : undefined}
                 />
               )}
 

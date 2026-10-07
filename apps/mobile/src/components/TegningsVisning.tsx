@@ -85,6 +85,8 @@ interface TegningsVisningProps {
   onOpprett?: (posX: number, posY: number) => void;
   /** Måledata. Settes (kan være null) → måleverktøyet vises. undefined → av. */
   maleData?: MaaleData | null;
+  /** Varsler når et måleverktøy slås på/av, så forelder kan skjule plasseringsmodus. */
+  onMaleModusEndring?: (aktiv: boolean) => void;
 }
 
 /**
@@ -122,9 +124,17 @@ function byggHtml(
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=10,user-scalable=yes">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
+  /* 🔴 RETUR 1 § 2: slå av iOS sin bilde-/tekstmeny og native bilde-dra, ellers
+     kaprer den langt trykk (bildemeny) OG måletrykk (dra-gest → pointermove). */
+  html, body, #container, #tegning, #maleLag, .male-dot, .male-label {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
   body { background:#1a1a1a; }
   #container { position:relative; }
-  #tegning { display:block; width:100%; height:auto; }
+  #tegning { display:block; width:100%; height:auto; pointer-events:none; }
   .pin { position:absolute; z-index:10; pointer-events:auto; }
   .pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);transform-origin:center; }
   #omradeSvg { position:absolute; inset:0; width:100%; height:100%; z-index:5; pointer-events:none; }
@@ -145,9 +155,12 @@ function byggHtml(
   }
   .gps-inner { width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,0.5); }
   @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.3)} }
+  #maleLupe .lk { position:absolute; background:rgba(30,64,175,0.7); }
+  #maleLupe .lkh { left:8px; right:8px; top:50%; height:1px; }
+  #maleLupe .lkv { top:8px; bottom:8px; left:50%; width:1px; }
 </style></head><body>
-<div id="container">
-  <img id="tegning" src="${tegningUrl}" />
+<div id="container" oncontextmenu="return false">
+  <img id="tegning" src="${tegningUrl}" draggable="false" oncontextmenu="return false" />
 </div>
 <script>
 var markører = ${markørData};
@@ -255,13 +268,38 @@ img.onload = function() { plasser(); };
 if (img.complete) plasser();
 
 function post(o){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
+var TEGNING_URL = ${JSON.stringify(tegningUrl)};
+
+// Lupe (TILLEGG RETUR 1): forstørret utsnitt forskjøvet over fingeren med trådkors,
+// så brukeren ser målepunktet fingeren dekker mens det dras.
+window.visLupe = function(px_pct, py_pct, clientX, clientY) {
+  var img = document.getElementById('tegning');
+  var c = document.getElementById('container'); if (!img || !c) return;
+  var dispW = img.clientWidth, dispH = img.clientHeight;
+  var M = 2.4, L = 118;
+  var ix = (px_pct/100) * dispW, iy = (py_pct/100) * dispH;
+  var lupe = document.getElementById('maleLupe');
+  if (!lupe) {
+    lupe = document.createElement('div'); lupe.id = 'maleLupe';
+    lupe.innerHTML = '<div class="lk lkh"></div><div class="lk lkv"></div>';
+    c.appendChild(lupe);
+  }
+  lupe.style.cssText = 'position:fixed;z-index:40;width:' + L + 'px;height:' + L + 'px;border-radius:50%;border:2px solid #1e40af;overflow:hidden;background-color:#fff;background-image:url(' + TEGNING_URL + ');background-repeat:no-repeat;background-size:' + (dispW*M) + 'px ' + (dispH*M) + 'px;background-position:' + (L/2 - ix*M) + 'px ' + (L/2 - iy*M) + 'px;box-shadow:0 2px 12px rgba(0,0,0,0.45);pointer-events:none;' +
+    'left:' + (clientX - L/2) + 'px;top:' + (clientY - L - 28) + 'px;';
+  // Gjenoppbygg trådkorset (cssText tømte ikke innerHTML, men sikre at det finnes).
+  if (!lupe.querySelector('.lk')) lupe.innerHTML = '<div class="lk lkh"></div><div class="lk lkv"></div>';
+};
+window.skjulLupe = function() {
+  var lupe = document.getElementById('maleLupe'); if (lupe) lupe.remove();
+};
 
 // Hint-boble ved et punkt (navigeringsmodus, kort trykk) — forsvinner etter ~2 s.
 window.tegnHint = function(x, y, tekst) {
   var g = document.getElementById('hintBoble'); if (g) g.remove();
   var c = document.getElementById('container'); if (!c) return;
+  var hintInv = 1 / (window.visualViewport ? window.visualViewport.scale : 1);
   var d = document.createElement('div'); d.id = 'hintBoble';
-  d.style.cssText = 'position:absolute;z-index:30;left:' + x + '%;top:' + y + '%;transform:translate(-50%,-140%);background:rgba(17,24,39,0.92);color:#fff;font:600 11px sans-serif;padding:5px 9px;border-radius:7px;max-width:170px;text-align:center;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.4)';
+  d.style.cssText = 'position:absolute;z-index:30;left:' + x + '%;top:' + y + '%;transform:translate(-50%,-140%) scale(' + hintInv + ');transform-origin:center bottom;background:rgba(17,24,39,0.92);color:#fff;font:600 11px sans-serif;padding:5px 9px;border-radius:7px;max-width:170px;text-align:center;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.4)';
   d.textContent = tekst;
   c.appendChild(d);
   setTimeout(function(){ if (d.parentNode) d.parentNode.removeChild(d); }, 2000);
@@ -269,6 +307,7 @@ window.tegnHint = function(x, y, tekst) {
 
 // Måle-overlay: polylinje/polygon + punkter + etiketter (prosent-koordinater).
 window.tegnMaling = function(punkter, segmenter, fyll) {
+  window.__malePunkter = punkter || []; // for hit-test ved punkt-dra
   var g = document.getElementById('maleLag'); if (g) g.remove();
   var c = document.getElementById('container'); if (!c) return;
   if (!punkter || !punkter.length) return;
@@ -295,14 +334,18 @@ window.tegnMaling = function(punkter, segmenter, fyll) {
     svg.appendChild(pl);
   }
   lag.appendChild(svg);
+  // 🔴 RETUR 1 § 1: punkter/etiketter skal ha FAST skjermstørrelse uansett zoom.
+  // oppdaterZoom() tidlig-returnerer når zoomen er uendret, så nye elementer må få
+  // invers skala ved opprettelse — ellers blir de zoom·størrelse store.
+  var inv = 1 / (window.visualViewport ? window.visualViewport.scale : 1);
   punkter.forEach(function(p){
     var dot = document.createElement('div'); dot.className = 'male-dot';
-    dot.style.cssText = 'position:absolute;left:' + p.x + '%;top:' + p.y + '%;width:12px;height:12px;border-radius:50%;background:#1e40af;border:2px solid #fff;transform:translate(-50%,-50%);transform-origin:center';
+    dot.style.cssText = 'position:absolute;left:' + p.x + '%;top:' + p.y + '%;width:11px;height:11px;border-radius:50%;background:#1e40af;border:2px solid #fff;transform:translate(-50%,-50%) scale(' + inv + ');transform-origin:center';
     lag.appendChild(dot);
   });
   (segmenter || []).forEach(function(s){
     var lbl = document.createElement('div'); lbl.className = 'male-label';
-    lbl.style.cssText = 'position:absolute;left:' + s.midx + '%;top:' + s.midy + '%;transform:translate(-50%,-50%);transform-origin:center;background:#1e40af;color:#fff;font:700 10px sans-serif;padding:1px 4px;border-radius:3px;white-space:nowrap';
+    lbl.style.cssText = 'position:absolute;left:' + s.midx + '%;top:' + s.midy + '%;transform:translate(-50%,-50%) scale(' + inv + ');transform-origin:center;background:#1e40af;color:#fff;font:700 9px sans-serif;padding:1px 4px;border-radius:3px;white-space:nowrap';
     lbl.textContent = s.tekst;
     lag.appendChild(lbl);
   });
@@ -322,29 +365,63 @@ document.getElementById('container').addEventListener('click', function(e) {
 ${trykkOppsett === "avansert" ? `
 (function(){
   var c = document.getElementById('container');
-  var sx=0, sy=0, st=0, flyttet=false, antallPekere=0, maksPekere=0;
+  var sx=0, sy=0, st=0, flyttet=false, antallPekere=0, maksPekere=0, dragIdx=-1;
+  var TREFF_PX = 22; // fingerradius for å treffe et eksisterende målepunkt
+  function pct(clientX, clientY, rect){
+    return {
+      x: Math.max(0, Math.min(100, (clientX-rect.left)/rect.width*100)),
+      y: Math.max(0, Math.min(100, (clientY-rect.top)/rect.height*100)),
+    };
+  }
+  // Nærmeste målepunkt innen TREFF_PX (i skjerm-px). -1 = ingen.
+  function finnPunkt(clientX, clientY, rect){
+    var pk = window.__malePunkter || [];
+    for (var i=0; i<pk.length; i++){
+      var dx = clientX - (rect.left + pk[i].x/100*rect.width);
+      var dy = clientY - (rect.top + pk[i].y/100*rect.height);
+      if (Math.sqrt(dx*dx + dy*dy) <= TREFF_PX) return i;
+    }
+    return -1;
+  }
   c.addEventListener('pointerdown', function(e){
     antallPekere++;
-    if (antallPekere === 1) { sx=e.clientX; sy=e.clientY; st=Date.now(); flyttet=false; maksPekere=1; }
-    else { maksPekere = Math.max(maksPekere, antallPekere); }
+    if (antallPekere === 1) {
+      sx=e.clientX; sy=e.clientY; st=Date.now(); flyttet=false; maksPekere=1;
+      var img = document.getElementById('tegning');
+      var rect = img.getBoundingClientRect();
+      dragIdx = (rect.width>0 && rect.height>0) ? finnPunkt(e.clientX, e.clientY, rect) : -1;
+    } else {
+      maksPekere = Math.max(maksPekere, antallPekere);
+      if (antallPekere > 1) { dragIdx = -1; window.skjulLupe && window.skjulLupe(); } // knip avbryter drag
+    }
   });
   c.addEventListener('pointermove', function(e){
     if (Math.abs(e.clientX-sx) > 10 || Math.abs(e.clientY-sy) > 10) flyttet=true;
+    if (dragIdx >= 0 && antallPekere === 1) {
+      var img = document.getElementById('tegning');
+      var rect = img.getBoundingClientRect();
+      if (rect.width<=0 || rect.height<=0) return;
+      var p = pct(e.clientX, e.clientY, rect);
+      post({ type:'maledrag', index: dragIdx, x: p.x, y: p.y });
+      window.visLupe && window.visLupe(p.x, p.y, e.clientX, e.clientY);
+    }
   });
   function slutt(e){
     antallPekere = Math.max(0, antallPekere-1);
     if (antallPekere > 0) return; // vent til alle fingre er oppe
     var img = document.getElementById('tegning');
     var rect = img.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) { maksPekere=0; return; }
+    if (rect.width <= 0 || rect.height <= 0) { maksPekere=0; dragIdx=-1; return; }
     var cx = (e.clientX != null ? e.clientX : sx), cy = (e.clientY != null ? e.clientY : sy);
-    var x = Math.max(0, Math.min(100, (cx-rect.left)/rect.width*100));
-    var y = Math.max(0, Math.min(100, (cy-rect.top)/rect.height*100));
-    post({ type:'gest', varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maksPekere, x:x, y:y });
-    maksPekere = 0;
+    var p = pct(cx, cy, rect);
+    // Var dette en punkt-dra? Da er det ALDRI et trykk (drarPunkt → 'ingen').
+    var vardrag = (dragIdx >= 0 && flyttet);
+    window.skjulLupe && window.skjulLupe();
+    post({ type:'gest', varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maksPekere, x:p.x, y:p.y, drarPunkt: vardrag });
+    maksPekere = 0; dragIdx = -1;
   }
   c.addEventListener('pointerup', slutt);
-  c.addEventListener('pointercancel', function(){ antallPekere = Math.max(0, antallPekere-1); flyttet = true; });
+  c.addEventListener('pointercancel', function(){ antallPekere = Math.max(0, antallPekere-1); flyttet = true; dragIdx = -1; window.skjulLupe && window.skjulLupe(); });
 })();` : ""}
 </script>
 </body></html>`;
@@ -363,6 +440,7 @@ export function TegningsVisning({
   onHint,
   onOpprett,
   maleData,
+  onMaleModusEndring,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
   const [laster, setLaster] = useState(true);
@@ -476,6 +554,16 @@ export function TegningsVisning({
     setMalePunkter([...forrige, p]);
   }, []);
 
+  // Flytt et eksisterende målepunkt (TILLEGG RETUR 1). Rører ikke maleFerdig →
+  // et lukket areal/polylinje forblir lukket mens punktet justeres.
+  const flyttMalepunkt = useCallback((index: number, x: number, y: number) => {
+    const forrige = malePunkterRef.current;
+    if (index < 0 || index >= forrige.length) return;
+    const nye = forrige.slice();
+    nye[index] = { x, y };
+    setMalePunkter(nye);
+  }, []);
+
   const velgVerktoy = useCallback((v: MaleVerktoy) => {
     setMaleVerktoy((forrige) => (forrige === v ? null : v));
     setMalePunkter([]);
@@ -544,6 +632,12 @@ export function TegningsVisning({
     injiserMaling();
   }, [malePunkter, maleVerktoy, laster, injiserMaling]);
 
+  // Måling har forrang over modus (RETUR 1 § 3/4): varsle forelder så
+  // plasseringsmodus (og banneret) slås av mens et verktøy er aktivt.
+  useEffect(() => {
+    onMaleModusEndring?.(maleVerktoy !== null);
+  }, [maleVerktoy, onMaleModusEndring]);
+
   const håndterMelding = useCallback(
     (e: WebViewMessageEvent) => {
       try {
@@ -555,6 +649,11 @@ export function TegningsVisning({
         // Legacy enkelt-trykk (andre forbrukere uten avanserte props).
         if (data.type === "trykk") {
           if (onTrykk) onTrykk(data.x, data.y);
+          return;
+        }
+        // Punkt-dra (TILLEGG RETUR 1): live-oppdatering mens fingeren drar.
+        if (data.type === "maledrag") {
+          flyttMalepunkt(data.index, data.x, data.y);
           return;
         }
         if (data.type === "gest") {
@@ -583,7 +682,7 @@ export function TegningsVisning({
         // Ignorer ugyldig melding
       }
     },
-    [onTrykk, onMarkørTrykk, onOpprett, onHint, leggTilMalepunkt, t],
+    [onTrykk, onMarkørTrykk, onOpprett, onHint, leggTilMalepunkt, flyttMalepunkt, t],
   );
 
   const trykkOppsett: "ingen" | "enkel" | "avansert" = avansert

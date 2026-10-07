@@ -18,6 +18,8 @@ export interface TrykkGest {
   flyttet: boolean;
   /** Antall samtidige pekere på et tidspunkt i gesten (≥2 = knip/zoom). */
   antallPekere: number;
+  /** Gesten dro et eksisterende målepunkt (TILLEGG RETUR 1) → aldri hint/opprett/nytt punkt. */
+  drarPunkt?: boolean;
 }
 
 /** Resulterende handling. */
@@ -35,6 +37,8 @@ export const LANGT_TRYKK_MS = 500;
  * - Navigeringsmodus → langt trykk `opprett`er, kort trykk gir `hint`.
  */
 export function avgjorTrykkHandling(modus: TrykkModus, gest: TrykkGest): TrykkHandling {
+  // Å dra et eksisterende målepunkt er aldri et trykk (TILLEGG RETUR 1).
+  if (gest.drarPunkt) return "ingen";
   if (gest.flyttet || gest.antallPekere > 1) return "ingen";
   if (modus === "maling") return "malepunkt";
   if (modus === "plassering") return "opprett";
