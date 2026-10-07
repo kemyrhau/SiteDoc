@@ -425,6 +425,17 @@ Logo, prosjektnummer · prosjektnavn, lokasjon · tegning, dato med klokkeslett,
 
 **Data-attributter:** `data-panel="sekundaert"`, `data-toolbar`.
 
+## Tegninger — serieopplasting (T1, 2026-10-06)
+
+Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `RedigerLokasjon`). Fil-feltet har `multiple`:
+- **Én fil** → dagens detalj-modal (bevart uendret).
+- **Flere filer** → serieflyt (R1/R2): felles-felt-modal (fag · opphav · etasje, settes én gang) → parallell opplasting (`lastOppSerie`, maks 4 samtidig, `apps/web/src/lib/tegningSerieOpplasting.ts`) → etterfyllings-tabell `TegningSerieTabell`. Hver fil opprettes straks som tegning (navn=filnavn, status utkast, felles-feltene); detaljer fylles i tabellen og lagres pr. rad (`tegning.oppdater`, **kun endrede felt** via `byggTegningRadEndring`). Feil på én fil stopper ikke de andre — raden står med årsak + «Prøv igjen».
+- **R3-forhåndsutfylling:** `tegning.opprett` returnerer `metadataForslag` (tegningsnummer/-type fra filnavn + PDF-Title + tittelfelt-tekst, `packages/shared/src/utils/tegningMetadata.ts`) — **skrives ikke** på raden, vises merket «foreslått» i tabellen til brukeren lagrer. Entydig treff eller tomt.
+- **R6 fag-gruppering:** venstre tegningsliste grupperes fag → tegningsnummer som standard, med veksel til etasje-gruppering. «Uten fag» sist.
+- **R8 ny revisjon:** `LastOppRevisjonKnapp` (tegningsrad i serietabell + rediger-dialogen) → `tegning.lastOppRevisjon`, som nå **starter konvertering** for den nye fila (delt helper `startTegningKonvertering` i `apps/api/src/routes/tegning.ts`, samme vei som `opprett`) — ny revisjon viser aldri gammel PNG. Revisjonskode foreslås som neste bokstav (`nesteRevisjon`), redigerbar.
+- **R7:** målestokk forblir valgfri; ingen ny «mangler målestokk»-flate.
+- Ingen schema-endring. T2 (Tegningsserie-gruppering) ikke bygget — se `tegning-serieopplasting-spec.md`.
+
 ## Tegningsvisning
 
 Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):

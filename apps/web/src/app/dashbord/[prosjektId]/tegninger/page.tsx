@@ -1673,10 +1673,14 @@ export default function TegningerSide() {
           floor: tegning.floor,
           originator: tegning.originator,
           description: tegning.description,
+          revision: tegning.revision,
         }}
         onLagre={(input) => { setRedigerFeil(null); redigerDetaljerMutation.mutate(input); }}
         lagrer={redigerDetaljerMutation.isPending}
         feil={redigerFeil}
+        onRevisjonFerdig={() =>
+          invaliderEtterRedigerDetaljer(utils, params.prosjektId, tegning.id)
+        }
       />
     </div>
   );
