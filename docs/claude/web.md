@@ -442,6 +442,11 @@ Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `Redige
 - **Vis og tilbake:** «Vis»-knapp pr. rad (`onVis`) åpner tegningen i sidens egen forhåndsvisning. Tabell-overlayet **skjules med `hidden` (avmonteres ikke)**, så ulagrede radendringer bevares og tabellen lastes ikke på nytt; en floating «Tilbake til tabellen» henter overlayet tilbake. Valgt mekanisme fordi den gjenbruker den eksisterende viewer-en (SVG/PNG/pan/zoom) uten duplisering.
 - **Kollaps (localStorage):** fag-/etasje-gruppene kan kollapses enkeltvis via gruppe-headeren; valget huskes pr. byggeplass (`sitedoc_tegning_kollaps_<byggeplassId>`, try/catch). Nøkkel skilt på grupperingsmodus (`fag|etasje::navn`). Standard: alt åpent.
 
+### T1c — fag + rådgiver i tabellen, ekte ARK-filnavn (2026-10-07)
+
+- **Fag- + Rådgiver-kolonne** i `TegningSerieTabell` (gjelder både serieopplasting og «Rediger flere»): «Fag» er nedtrekk fra `DRAWING_DISCIPLINES` plassert før tegningsnummer; «Rådgiver» (`originator`) er fritekst. Begge lagres via `tegning.oppdater` og sendes bare når endret (`byggTegningRadEndring` — `discipline` som enum sendes aldri tomt, `originator` kan tømmes). Var før bare i felles-skjemaet ved opplasting; nå redigerbare pr. rad. (Kenneth: «jeg kan ikke redigere fag dersom det er feil».)
+- **Tegningsnummer-mønster** utvidet for ekte 6-segments ARK-filnavn (`B3-06-A-20-31-02`): `packages/shared/src/utils/tegningMetadata.ts`, 3–7 bindestrek-separerte 1–4-tegns segmenter, krav om både bokstav og siffer (stenger datoer/rene bokstavsløp). Alle gamle forslag uendret.
+
 ## Tegningsvisning
 
 Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):

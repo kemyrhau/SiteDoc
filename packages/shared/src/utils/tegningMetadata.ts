@@ -15,28 +15,35 @@ import { DRAWING_TYPES, type DrawingType } from "../validation";
  */
 
 /**
- * Tegningsnummer-mønsteret (ARK-konvensjon). Tre bindestrek-separerte segmenter:
- *   - fagprefiks: 1–4 store bokstaver (A, ARK, RIB, RIE …)
- *   - midt-segment: én stor bokstav (P=plan, F=fasade i noen konvensjoner) ELLER
- *     1–3 sifre (etasje/løpenummer)
- *   - løpenummer: 1–4 sifre
+ * Tegningsnummer-mønsteret (ARK-konvensjon). Bindestrek-separerte segmenter, 3–7
+ * stykker, hvert segment 1–4 tegn av STORE bokstaver og/eller sifre:
+ *   - 3-segments-formen: «A-20-101» (fag · etasje/løpenr · løpenr) og «ARK-P-101»
+ *     (midt-segmentet kan være en bokstav, P=plan i noen konvensjoner)
+ *   - lange firma-koder: «B3-06-A-20-31-02» (bygg · etasje · fag · nn · nn · nn) —
+ *     Kenneths ekte ARK-filnavn, 6 segmenter (spec § 6.1 «utvides mot ekte filnavn»)
  *
  * Bindestrek kreves mellom segmentene — alle ekte eksempler bruker den, og det
- * stenger falske treff som «PLAN A-20» (mellomrom) i tittelfelt-tekst.
+ * stenger falske treff som «PLAN A-20» (mellomrom) i tittelfelt-tekst. KUN store
+ * bokstaver (ingen `i`-flagg): småbokstavsord som «Himlingsplan» treffer aldri.
  *
  * Ordgrensene `(?<![A-Za-z0-9])` / `(?![A-Za-z0-9])` lar nummeret stå HVOR som
  * helst i teksten (ikke bare i starten), men hindrer at det limes sammen med en
  * tilstøtende bokstav/siffer-serie («20251001_A-20-101» → «A-20-101», ikke
  * «1001_A-20-101» eller «A-20-1010»). Understrek er bevisst utenfor klassen, så
  * «_A-20-101» kutter rett før «A».
+ *
+ * Et rent-sifret treff (dato «2025-10-07») eller et rent-bokstavs treff
+ * («AS-IS-X») er IKKE et tegningsnummer — kravet om BÅDE bokstav og siffer
+ * håndheves i `finnTegningsnummer` (klarere enn i regexen).
  */
 export const TEGNINGSNUMMER_MONSTER =
-  /(?<![A-Za-z0-9])[A-Z]{1,4}-(?:[A-Z]|\d{1,3})-\d{1,4}(?![A-Za-z0-9])/g;
+  /(?<![A-Za-z0-9])[A-Z0-9]{1,4}(?:-[A-Z0-9]{1,4}){2,6}(?![A-Za-z0-9])/g;
 
 /**
  * Finn ETT entydig tegningsnummer på tvers av kildene. Samler alle treff, og
  * returnerer nummeret bare når alle treff er IDENTISKE. 0 treff eller ≥2 ulike
- * → `null` (usikkert = tomt).
+ * → `null` (usikkert = tomt). Et treff må inneholde BÅDE en bokstav og et siffer
+ * — ellers er det en dato eller et ord, ikke et tegningsnummer.
  */
 export function finnTegningsnummer(tekster: Array<string | null | undefined>): string | null {
   const treff = new Set<string>();
@@ -45,6 +52,9 @@ export function finnTegningsnummer(tekster: Array<string | null | undefined>): s
     // matchAll med global flagg; hvert treff er allerede store bokstaver + sifre,
     // så den rå strengen er sin egen nøkkel (ingen normalisering trengs).
     for (const m of tekst.matchAll(TEGNINGSNUMMER_MONSTER)) {
+      // Både bokstav og siffer kreves: stenger dato (2025-10-07) og rene
+      // bokstavs-løp (AS-IS-X) som tilfeldigvis har bindestreker.
+      if (!/[A-Z]/.test(m[0]) || !/[0-9]/.test(m[0])) continue;
       treff.add(m[0]);
     }
   }

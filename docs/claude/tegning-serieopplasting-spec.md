@@ -3,7 +3,7 @@ name: tegning-serieopplasting-spec
 description: Spesifikasjon for serieopplasting av 2D-tegninger — mange filer samtidig, detaljer etterpå, tegningsnummer/type kun ved entydig treff, fag-sortering, ny revisjon på web (T1, ingen schema); deretter Tegningsserie som merk-og-flytt-gruppering med egne metadata (T2, additiv). Kenneth-krav 2026-10-06 (20 ark-tegninger lastet én og én).
 sist_verifisert_mot_kode: 2026-10-07
 eier: fabel (plan-eier) — orkestrator gater
-status: 🟢 T1 IMPLEMENTERT 2026-10-06 (branch `feat/tegning-serieopplasting-t1`) — R1–R8 + R11 (delvis) bygget (web+api+shared, ingen schema). **T1b IMPLEMENTERT 2026-10-07 (branch `feat/tegning-t1b`):** R4 «Rediger flere»-inngangen fra tegningslista (var ikke koblet i T1) + rediger én tegning pr. rad + «vis og tilbake» (skjult overlay bevarer ulagrede endringer) + kollapsbare fag-/etasje-grupper (localStorage pr. byggeplass). T2 (R9–R10, Tegningsserie) ❌ IKKE IMPLEMENTERT. Gate-vilkår § 6.1 (R3-mønsteret) løst: `packages/shared/src/utils/tegningMetadata.ts`. Omfang (T1 → T2) godkjent av Kenneth 2026-10-06
+status: 🟢 T1 IMPLEMENTERT 2026-10-06 (branch `feat/tegning-serieopplasting-t1`) — R1–R8 + R11 (delvis) bygget (web+api+shared, ingen schema). **T1b IMPLEMENTERT 2026-10-07 (branch `feat/tegning-t1b`):** R4 «Rediger flere»-inngangen fra tegningslista (var ikke koblet i T1) + rediger én tegning pr. rad + «vis og tilbake» (skjult overlay bevarer ulagrede endringer) + kollapsbare fag-/etasje-grupper (localStorage pr. byggeplass). **T1c IMPLEMENTERT 2026-10-07 (branch `feat/tegning-t1c`):** Fag- + Rådgiver-kolonne i detaljtabellen (redigerbar, `discipline`/`originator` via `tegning.oppdater`) + utvidet tegningsnummer-mønster for ekte 6-segments ARK-filnavn (`B3-06-A-20-31-02`). T2 (R9–R10, Tegningsserie) ❌ IKKE IMPLEMENTERT. Gate-vilkår § 6.1 (R3-mønsteret) løst: `packages/shared/src/utils/tegningMetadata.ts`. Omfang (T1 → T2) godkjent av Kenneth 2026-10-06
 ---
 
 # Tegninger: serieopplasting, detaljer etterpå, serier
@@ -96,5 +96,15 @@ måleverktøyet. Målestokk forblir valgfri (§ 2 R7).
    Treffer «A-20-101», «ARK-P-101», nummer midt i filnavn («20251001_A-20-101.pdf») og i tittelfelt-tekst; to ulike
    treff → `null`. Bindestrek kreves mellom segmentene så «PLAN A-20» (mellomrom) ikke gir falskt treff. 14 tester i
    `tegningMetadata.test.ts`.
+   🟢 **UTVIDET T1c 2026-10-07** mot Kenneths ekte ARK-filnavn («B3-06-A-20-31-02 Himlingsplan …», 6-segments firma-kode):
+   `TEGNINGSNUMMER_MONSTER` = `(?<![A-Za-z0-9])[A-Z0-9]{1,4}(?:-[A-Z0-9]{1,4}){2,6}(?![A-Za-z0-9])` med `g` — 3–7
+   bindestrek-separerte segmenter à 1–4 tegn (STORE bokstaver/sifre). Småbokstavsord treffer aldri (ingen `i`-flagg).
+   Kravet om BÅDE bokstav og siffer i treffet håndheves i `finnTegningsnummer` (stenger dato «2025-10-07» og rene
+   bokstavs-løp «AS-IS-X»). Alle T1-tester fortsatt grønne; 9 nye (5 ekte filnavn, en-dash-uten-nummer, dato, bokstavs-løp,
+   to ulike firma-koder). 23 tester totalt.
+   ⚠️ **TYPE-FORSLAG, meldt ikke endret (T1c):** `finnTegningstype` bruker `\bplan\b` (helt ord), så sammensatte
+   «Himlingsplan»/«Møbleringsplan»/«Gulvbehandlingsplan»/«Fallplan» gir INGEN type i dag. De ER semantisk planer;
+   redesign anbefaler å la «…plan»-suffiks gi `plan`, men endret det IKKE i T1c (ordren: mål og meld, ikke endre uten
+   klarsignal — det endrer forslaget og må gates av Kenneth/fabel).
 2. **Sletting av tegninger etterlater filer på disk** (BACKLOG :958) blir mer synlig med 20 om gangen — ikke del av T1.
 3. **DWG-tittelblokk** parses ikke (T-M6). Kan gi nummer/type for DWG senere; T1 gir tomt for DWG utover filnavn.

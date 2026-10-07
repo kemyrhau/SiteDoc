@@ -69,6 +69,7 @@ type TegningRad = {
   drawingNumber?: string | null;
   discipline?: string | null;
   drawingType?: string | null;
+  originator?: string | null;
   scale?: string | null;
   revision?: string | null;
   conversionStatus?: string | null;
@@ -607,6 +608,7 @@ function RedigerLokasjon({
         discipline: d.discipline ?? null,
         drawingType: d.drawingType ?? null,
         floor: d.floor ?? null,
+        originator: d.originator ?? null,
         scale: d.scale ?? null,
         revision: d.revision ?? null,
         conversionStatus: d.conversionStatus ?? null,

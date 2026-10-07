@@ -39,6 +39,35 @@ describe("finnTegningsnummer (spec-test 2)", () => {
   it("tomme/ugyldige kilder → null", () => {
     expect(finnTegningsnummer([null, undefined, ""])).toBeNull();
   });
+
+  // T1c: Kenneths ekte ARK-filnavn (6-segments firma-kode). Hele nummeret.
+  it.each([
+    ["B3-06-A-20-31-02 Himlingsplan MR 6. etasje", "B3-06-A-20-31-02"],
+    ["B3-06-A-20-32-01 Himlingsplan MR 6. etasje", "B3-06-A-20-32-01"],
+    ["B3-06-A-20-23-01 Møbleringsplan MR 6. etasje", "B3-06-A-20-23-01"],
+    ["B3-06-A-20-33-01 Gulvbehandlingsplan", "B3-06-A-20-33-01"],
+    ["B3-06-A-20-35-01 Fallplan MR 6. etasje", "B3-06-A-20-35-01"],
+  ])("ekte ARK-filnavn %s → hele nummeret", (filnavn, forventet) => {
+    expect(finnTegningsnummer([filnavn])).toBe(forventet);
+  });
+
+  it("filnavn uten nummer → null (en-dash, ikke bindestrek-nummer)", () => {
+    expect(finnTegningsnummer(["Plantegning – Testområde 1"])).toBeNull();
+  });
+
+  it("dato med bindestreker → null (siffer uten bokstav er ikke et nummer)", () => {
+    expect(finnTegningsnummer(["2025-10-07_plan.pdf"])).toBeNull();
+  });
+
+  it("rent bokstavs-løp med bindestreker → null (ingen siffer)", () => {
+    expect(finnTegningsnummer(["AS-IS-X oversikt.pdf"])).toBeNull();
+  });
+
+  it("to ULIKE firma-koder → null", () => {
+    expect(
+      finnTegningsnummer(["B3-06-A-20-31-02.pdf", "B3-06-A-20-32-01.pdf"]),
+    ).toBeNull();
+  });
 });
 
 describe("finnTegningstype (spec-test 3)", () => {
