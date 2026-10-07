@@ -1033,10 +1033,12 @@ export default function SjekklisteDetaljSide() {
             );
           }
 
-          // Vanlige felt: uendret — én badge (den første). C (flere per rad) gjelder KUN
-          // repeater-rader; whole-field-oppgaver forblir 1:1 i visningen.
-          const feltOppgave = feltOppgaveMap.get(objekt.id)?.[0];
-          const oppgaveNummer = formaterOppgaveNr(feltOppgave);
+          // Vanlige felt: C (2026-10-07) — ALLE oppgaver på feltet (kan være flere),
+          // én chip pr. oppgave, «+ Oppgave» blir stående.
+          const feltOppgaver = (feltOppgaveMap.get(objekt.id) ?? []).map((o) => ({
+            id: o.id,
+            nummer: formaterOppgaveNr(o),
+          }));
 
           const erRepeater = objekt.type === "repeater";
           // Rad-scopet oppgave-adapter — KUN repeater. Whole-field-oppgaven på repeateren skrus AV
@@ -1086,8 +1088,7 @@ export default function SjekklisteDetaljSide() {
                 prosjektId={params.prosjektId}
                 byggeplassId={fullSjekkliste?.byggeplass?.id}
                 standardTegningId={standardTegning?.id}
-                oppgaveNummer={erRepeater ? undefined : oppgaveNummer}
-                oppgaveId={erRepeater ? undefined : feltOppgave?.id}
+                oppgaver={erRepeater ? undefined : feltOppgaver}
                 onOpprettOppgave={
                   erRepeater
                     ? undefined // avskrudd: repeater bruker per-rad-oppgaver (se radOppgaver).

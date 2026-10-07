@@ -33,8 +33,10 @@ interface FeltWrapperProps {
   erBetinget?: boolean;
   nestingNivå?: number;
   valideringsfeil?: string;
-  oppgaveNummer?: string;
-  oppgaveId?: string;
+  // C (2026-10-07): FLERE oppgaver pr. felt — én chip pr. oppgave, «+ Oppgave» blir
+  // stående. Datamodellen tillot det alt (Task.checklistFieldId ikke unik); kun
+  // klienten begrenset til én. Speiler repeater-radenes mønster.
+  oppgaver?: { id: string; nummer?: string }[];
   onOpprettOppgave?: () => void;
   onNavigerTilOppgave?: (id: string) => void;
   /** Oversettelser for firmainnhold (on-demand, Lag 2) */
@@ -64,8 +66,7 @@ export function FeltWrapper({
   erBetinget,
   nestingNivå = 0,
   valideringsfeil,
-  oppgaveNummer,
-  oppgaveId,
+  oppgaver,
   onOpprettOppgave,
   onNavigerTilOppgave,
   oversettelser,
@@ -179,23 +180,39 @@ export function FeltWrapper({
         ) : null;
       })()}
 
-      {/* Oppgave-badge og opprett-knapp (skjul for dato/vær og når vi er i en oppgave) */}
-      {SKJUL_VEDLEGG_TYPER.has(objekt.type) ? null : !oppgaveIdForKo && oppgaveNummer && oppgaveId ? (
-        <Pressable
-          onPress={() => onNavigerTilOppgave?.(oppgaveId)}
-          className="mt-2 self-start rounded-full bg-blue-100 px-3 py-1"
-        >
-          <Text className="text-xs font-medium text-blue-700">{oppgaveNummer}</Text>
-        </Pressable>
-      ) : !leseModus && onOpprettOppgave && !oppgaveNummer ? (
-        <Pressable
-          onPress={onOpprettOppgave}
-          className="mt-2 flex-row items-center gap-1 self-start rounded-full bg-gray-100 px-2.5 py-1"
-        >
-          <Plus size={12} color="#6b7280" />
-          <Text className="text-xs font-medium text-gray-600">{t("felt.oppgave")}</Text>
-        </Pressable>
-      ) : null}
+      {/* Oppgave-chips + opprett-knapp (skjul for dato/vær og når vi er i en oppgave).
+          C: ALLE oppgaver på feltet vises som chips, og «+ Oppgave» blir stående ved
+          siden av (erstattes ikke) så ett felt kan utløse flere oppgaver. */}
+      {SKJUL_VEDLEGG_TYPER.has(objekt.type) || oppgaveIdForKo ? null : (
+        <>
+          {(oppgaver?.length ?? 0) > 0 || (!leseModus && onOpprettOppgave) ? (
+            <View className="mt-2 flex-row flex-wrap items-center gap-2">
+              {oppgaver?.map((opg) => (
+                <Pressable
+                  key={opg.id}
+                  onPress={() => onNavigerTilOppgave?.(opg.id)}
+                  className="self-start rounded-full bg-blue-100 px-3 py-1"
+                  hitSlop={6}
+                >
+                  <Text className="text-xs font-medium text-blue-700">
+                    {opg.nummer ?? t("felt.oppgave")}
+                  </Text>
+                </Pressable>
+              ))}
+              {!leseModus && onOpprettOppgave && (
+                <Pressable
+                  onPress={onOpprettOppgave}
+                  className="flex-row items-center gap-1 self-start rounded-full bg-gray-100 px-2.5 py-1"
+                  hitSlop={6}
+                >
+                  <Plus size={12} color="#6b7280" />
+                  <Text className="text-xs font-medium text-gray-600">{t("felt.oppgave")}</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : null}
+        </>
+      )}
     </View>
   );
 }

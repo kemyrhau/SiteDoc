@@ -1076,11 +1076,12 @@ export default function SjekklisteUtfylling() {
           // lesemodus; enkeltfelt låses ikke etter innsending.
           const verdiLeseModus = leseModus;
 
-          // Oppgave-kobling for dette feltet (vanlige felt: uendret, én badge — C gjelder kun rader)
-          const feltOppgave = feltOppgaveMap.get(objekt.id)?.[0];
-          const oppgaveNummer = feltOppgave
-            ? `${feltOppgave.template?.prefix ?? ""}${feltOppgave.number ?? ""}`
-            : undefined;
+          // Oppgave-kobling for dette feltet. C (2026-10-07): ALLE oppgaver på feltet
+          // (kan være flere) — én chip pr. oppgave, «+ Oppgave» blir stående.
+          const feltOppgaver = (feltOppgaveMap.get(objekt.id) ?? []).map((o) => {
+            const nr = `${o.template?.prefix ?? ""}${o.number ?? ""}`;
+            return { id: o.id, nummer: nr.trim() ? nr : undefined };
+          });
 
           const erRepeater = objekt.type === "repeater";
           // Rad-scopet oppgave-adapter — KUN repeater. Whole-field-oppgaven på repeateren skrus AV
@@ -1139,8 +1140,7 @@ export default function SjekklisteUtfylling() {
               sjekklisteId={sjekkliste.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}
-              oppgaveNummer={erRepeater ? undefined : oppgaveNummer && oppgaveNummer.trim() ? oppgaveNummer : undefined}
-              oppgaveId={erRepeater ? undefined : feltOppgave?.id}
+              oppgaver={erRepeater ? undefined : feltOppgaver}
               onOpprettOppgave={
                 erRepeater
                   ? undefined // repeater bruker per-rad-oppgaver (radOppgaver); whole-field avskrudd
