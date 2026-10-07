@@ -129,7 +129,7 @@ describe("måling i tegning — målestokk foreslått fra «Mål»-nabolaget, ik
   });
 });
 
-describe("måling i tegning — verktøyet er AVSLÅTT uten bekreftet målestokk (rød-først)", () => {
+describe("måling i tegning — verktøyet er AVSLÅTT uten tolkbar målestokk + mm/piksel", () => {
   const mmPrPx = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
 
   it("er avslått når målestokk mangler", () => {
@@ -143,14 +143,30 @@ describe("måling i tegning — verktøyet er AVSLÅTT uten bekreftet målestokk
     expect(kanMale("1:50", 0, "manuell")).toBe(false);
   });
 
-  it("er avslått for et UBEKREFTET tittelfelt-forslag (må bekreftes først)", () => {
-    expect(kanMale("1:50", mmPrPx, "tittelfelt")).toBe(false);
+  it("er avslått når kilden er ukjent (null) — en vist verdi uten opprinnelse teller ikke", () => {
+    expect(kanMale("1:50", mmPrPx, null)).toBe(false);
+    expect(kanMale("1:50", mmPrPx, undefined)).toBe(false);
+  });
+});
+
+describe("måling i tegning — tittelfelt-målestokk er målbar direkte (Kenneth-vedtak 2026-10-07)", () => {
+  const mmPrPx = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
+
+  it("et tittelfelt-forslag er gyldig med én gang (ingen ekstra bekreftelse)", () => {
+    // Før vedtaket: `tittelfelt` var avslått (forslag, ikke målestokk). Nå:
+    // målestokken som vises skal kunne brukes; kalibrering er korreksjonen.
+    expect(kanMale("1:50", mmPrPx, "tittelfelt")).toBe(true);
   });
 
-  it("er aktivt først når et menneske har bekreftet/kalibrert, eller georeferanse finnes", () => {
+  it("er også aktivt når et menneske har bekreftet/kalibrert, eller georeferanse finnes", () => {
     expect(kanMale("1:50", mmPrPx, "manuell")).toBe(true);
     expect(kanMale("1:50", mmPrPx, "kalibrert")).toBe(true);
     expect(kanMale("1:50", mmPrPx, "georeferanse")).toBe(true);
+  });
+
+  it("tittelfelt uten tolkbar målestokk eller uten mm/piksel er fortsatt sperret", () => {
+    expect(kanMale(null, mmPrPx, "tittelfelt")).toBe(false);
+    expect(kanMale("1:50", null, "tittelfelt")).toBe(false);
   });
 });
 
