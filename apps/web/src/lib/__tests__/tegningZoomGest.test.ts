@@ -4,7 +4,6 @@ import {
   anvendZoomFaktor,
   knipFaktor,
   hjulFaktor,
-  HJUL_PIKSEL_TERSKEL,
 } from "../tegningZoomGest";
 
 // Modell av nettleserens scroll-klipping (nettleser-atferd, ikke komponentens).
@@ -22,16 +21,26 @@ describe("klassifiserWheel — skiller mus, knip og styreflate-scroll", () => {
     expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: 3, deltaMode: 1 })).toBe("hjul");
   });
 
-  it("stort, helt, rent vertikalt pikseldelta ⇒ hjul", () => {
+  it("rent vertikalt pikseldelta ⇒ hjul (uansett størrelse/presisjon)", () => {
+    // Notchet musehjul: store hele hakk.
     expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: 120, deltaMode: 0 })).toBe("hjul");
-    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: -HJUL_PIKSEL_TERSKEL, deltaMode: 0 })).toBe("hjul");
+    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: -120, deltaMode: 0 })).toBe("hjul");
   });
 
-  it("små/desimale/sidelengs delta ⇒ styreflate-scroll (panorer, ikke zoom)", () => {
-    // Tofinger-scroll: lite, desimalt, ofte med sidebevegelse.
-    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: 4.5, deltaMode: 0 })).toBe("styreflate-scroll");
+  // 🔴 RETUR 3 § A: Kenneths mus ga desimale/små `deltaY` og ble feilaktig tolket
+  // som styreflate-scroll (panorerte). «Ved tvil → zoom» — rent vertikalt hjul,
+  // også smått og desimalt, skal ALLTID zoome.
+  it("desimalt/lite rent vertikalt pikseldelta ⇒ hjul (ingen regresjon)", () => {
+    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: 4.5, deltaMode: 0 })).toBe("hjul");
+    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: -1.3, deltaMode: 0 })).toBe("hjul");
+    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: 10, deltaMode: 0 })).toBe("hjul");
+    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: 53.2, deltaMode: 0 })).toBe("hjul");
+  });
+
+  it("horisontal komponent ⇒ styreflate-scroll (eneste entydige pan-signatur)", () => {
     expect(klassifiserWheel({ ctrlKey: false, deltaX: 12, deltaY: 2, deltaMode: 0 })).toBe("styreflate-scroll");
-    expect(klassifiserWheel({ ctrlKey: false, deltaX: 0, deltaY: 10, deltaMode: 0 })).toBe("styreflate-scroll");
+    expect(klassifiserWheel({ ctrlKey: false, deltaX: -8, deltaY: 0, deltaMode: 0 })).toBe("styreflate-scroll");
+    expect(klassifiserWheel({ ctrlKey: false, deltaX: 3.5, deltaY: 9.1, deltaMode: 0 })).toBe("styreflate-scroll");
   });
 });
 

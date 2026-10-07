@@ -6,6 +6,7 @@ import {
   loesGrepMalestokk,
   malMm,
   malPolylinjeMm,
+  malArealMm2,
   kanMale,
   kalibrerMalestokk,
   type Punkt,
@@ -109,6 +110,48 @@ describe("måling i tegning — akseptansetest: 2 870 mm ±0,5 %", () => {
     expect(sum).toBeCloseTo(forventet, 6);
     expect(sum).toBeGreaterThan(5350);
     expect(sum).toBeLessThan(5450);
+  });
+});
+
+describe("måling i tegning — areal (shoelace) på kjent rektangel (RETUR 3 § C)", () => {
+  const mmPrPx = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W); // 0,127
+  const nevner = 50;
+  // Et akse-rettet rektangel definert i pikselkoordinater, uttrykt i prosent.
+  const rektPx = { x0: 1000, y0: 500, x1: 1500, y1: 900 }; // 500 × 400 px
+  const px2pct = (x: number, y: number): Punkt => ({ x: (x / IMG_W) * 100, y: (y / IMG_H) * 100 });
+  const hjørner: Punkt[] = [
+    px2pct(rektPx.x0, rektPx.y0),
+    px2pct(rektPx.x1, rektPx.y0),
+    px2pct(rektPx.x1, rektPx.y1),
+    px2pct(rektPx.x0, rektPx.y1),
+  ];
+
+  it("areal = bredde × høyde (virkelige mm)", () => {
+    const bredde = malMm(hjørner[0]!, hjørner[1]!, IMG_W, IMG_H, mmPrPx, nevner);
+    const høyde = malMm(hjørner[1]!, hjørner[2]!, IMG_W, IMG_H, mmPrPx, nevner);
+    const areal = malArealMm2(hjørner, IMG_W, IMG_H, mmPrPx, nevner);
+    expect(areal).toBeCloseTo(bredde * høyde, 2);
+  });
+
+  it("er uavhengig av klikk-rekkefølge (med/mot klokka)", () => {
+    const motsatt = [...hjørner].reverse();
+    expect(malArealMm2(motsatt, IMG_W, IMG_H, mmPrPx, nevner)).toBeCloseTo(
+      malArealMm2(hjørner, IMG_W, IMG_H, mmPrPx, nevner),
+      6,
+    );
+  });
+
+  it("lukker ringen automatisk (ekstra sluttpunkt = første endrer ingenting)", () => {
+    const medLukking = [...hjørner, hjørner[0]!];
+    expect(malArealMm2(medLukking, IMG_W, IMG_H, mmPrPx, nevner)).toBeCloseTo(
+      malArealMm2(hjørner, IMG_W, IMG_H, mmPrPx, nevner),
+      6,
+    );
+  });
+
+  it("< 3 punkter → 0 (ingen flate)", () => {
+    expect(malArealMm2([hjørner[0]!, hjørner[1]!], IMG_W, IMG_H, mmPrPx, nevner)).toBe(0);
+    expect(malArealMm2([], IMG_W, IMG_H, mmPrPx, nevner)).toBe(0);
   });
 });
 

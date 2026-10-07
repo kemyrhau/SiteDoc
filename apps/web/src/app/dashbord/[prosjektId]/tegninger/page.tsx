@@ -21,8 +21,12 @@ import {
   kanMale,
   kalibrerMalestokk,
   malMm,
+  malArealMm2,
   type Punkt,
 } from "@sitedoc/shared";
+
+/** De tre måleverktøyene (RETUR 3 § C). */
+type MaleVerktoy = "linjal" | "polylinje" | "areal";
 import type { GeoReferanse } from "@sitedoc/shared";
 
 interface DokumentflytMalRad {
@@ -35,7 +39,7 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
@@ -115,6 +119,8 @@ const ZOOM_NIVÅER: readonly number[] = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 2
 const MIN_ZOOM = 0.25;
 const MAKS_ZOOM = 50;
 const STANDARD_ZOOM = 1;
+// Treffradius (px) for «klikk på eksisterende punkt» = lukk/avslutt polylinje/areal.
+const PUNKT_TREFF_PX = 12;
 
 export default function TegningerSide() {
   const params = useParams<{ prosjektId: string }>();
@@ -134,14 +140,30 @@ export default function TegningerSide() {
 
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
+  // Gjeldende zoom lest synkront i rAF/knip (effekt-closuren har ikke `zoom` i deps).
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
   // Ønsket scroll etter musehjul-zoom; settes i useLayoutEffect (etter at
   // bredden er oppdatert), ikke i rAF (før), slik at verdien ikke klippes.
   const ønsketScrollRef = useRef<{ left: number; top: number } | null>(null);
-  // Knip-zoom (styreflate): akkumulert deltaY + siste pekerposisjon, samlet pr.
-  // animasjonsramme slik at mange høyfrekvente knip-event blir ÉN sømløs zoom.
-  const knipAkkRef = useRef(0);
-  const knipPekerRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  // Knip-zoom (styreflate): mange høyfrekvente knip-event samles til ÉN sømløs
+  // zoom pr. animasjonsramme.
   const knipRafRef = useRef<number | null>(null);
+  // 🔴 RETUR 3 § B: knip forankres fra GEST-STARTEN (zoom + scroll + peker), ikke
+  // fra forrige rammes scroll. Per-ramme-forankring leste `el.scrollLeft` på nytt
+  // hver ramme; i fit→overflyt-overgangen er den fortsatt klippet, så forankringen
+  // regnet fra feil origo og hoppet akkumulerte. Baseline = ett fast origo for hele
+  // knipet → ingen akkumulert drift; når innholdet blir stort nok, lander punktet
+  // rett. `knipTotalRef` er netto deltaY siden start (faktor = exp(-total·k)).
+  const knipBaseRef = useRef<{
+    zoom: number;
+    scrollLeft: number;
+    scrollTop: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const knipTotalRef = useRef(0);
+  const knipSettleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
   const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering" | "omrade">("plassering");
@@ -199,9 +221,16 @@ export default function TegningerSide() {
 
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
-  // Måleverktøy: samler klikkpunkter (prosent). kalibrerModus samler 2 punkter
-  // for å utlede målestokk fra en kjent lengde.
-  const [maleAktiv, setMaleAktiv] = useState(false);
+  // Måleverktøy (RETUR 3 § C, som Adobe): tre verktøy, ett aktivt om gangen.
+  //   linjal    – to punkter → én avstand, så stopp (neste klikk = ny måling)
+  //   polylinje – summert lengde, avsluttes ved klikk på et eksisterende punkt / Enter / dblklikk
+  //   areal     – lukket polygon (m² + omkrets), lukkes ved klikk på første punkt
+  // kalibrerModus samler 2 punkter for å utlede målestokk fra en kjent lengde.
+  const [maleVerktoy, setMaleVerktoy] = useState<MaleVerktoy | null>(null);
+  const maleAktiv = maleVerktoy !== null;
+  // En måling er «ferdig» (linjal fullført, polylinje/areal lukket): overlay viser
+  // sluttresultatet, og neste klikk starter en ny måling.
+  const [maleFerdig, setMaleFerdig] = useState(false);
   const [malePunkter, setMalePunkter] = useState<Punkt[]>([]);
   const [visMalestokkPanel, setVisMalestokkPanel] = useState(false);
   const [kalibrerModus, setKalibrerModus] = useState(false);
@@ -467,14 +496,27 @@ export default function TegningerSide() {
       });
     }
 
-    // Knip: samle alle event i gjeldende ramme til ÉN kontinuerlig zoom.
+    // Knip: anvend samlet deltaY SIDEN GEST-START mot baseline-origoet, i ÉN
+    // kontinuerlig zoom pr. ramme. Baseline (ikke forrige rammes scroll) gjør
+    // forankringen immun mot fit→overflyt-klipping — ingen akkumulert hopp.
     function anvendKnip() {
       knipRafRef.current = null;
-      const akk = knipAkkRef.current;
-      knipAkkRef.current = 0;
-      const peker = knipPekerRef.current;
-      if (!peker || akk === 0) return;
-      zoomForankret(knipFaktor(akk), peker.clientX, peker.clientY);
+      const base = knipBaseRef.current;
+      if (!base) return;
+      const rect = el!.getBoundingClientRect();
+      const { zoom: neste, scroll } = anvendZoomFaktor(
+        base.zoom,
+        knipFaktor(knipTotalRef.current),
+        { min: MIN_ZOOM, maks: MAKS_ZOOM },
+        {
+          viewX: base.clientX - rect.left,
+          viewY: base.clientY - rect.top,
+          scrollLeft: base.scrollLeft,
+          scrollTop: base.scrollTop,
+        },
+      );
+      ønsketScrollRef.current = scroll;
+      setZoom(neste);
     }
 
     function handleWheel(e: WheelEvent) {
@@ -488,11 +530,28 @@ export default function TegningerSide() {
       // preventDefault blokkerer nettleserens egen side-zoom på tegningsfeltet.
       if (gest === "knip") {
         e.preventDefault();
-        knipAkkRef.current += e.deltaY;
-        knipPekerRef.current = { clientX: e.clientX, clientY: e.clientY };
+        // Første event i gesten fastsetter baseline-origoet. Et knip ender ikke
+        // med et eget event (wheel-basert), så vi nullstiller baselinen etter en
+        // kort stillhet — neste knip starter da fra gjeldende visning.
+        if (!knipBaseRef.current) {
+          knipBaseRef.current = {
+            zoom: zoomRef.current,
+            scrollLeft: el!.scrollLeft,
+            scrollTop: el!.scrollTop,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          };
+          knipTotalRef.current = 0;
+        }
+        knipTotalRef.current += e.deltaY;
         if (knipRafRef.current == null) {
           knipRafRef.current = requestAnimationFrame(anvendKnip);
         }
+        if (knipSettleRef.current) clearTimeout(knipSettleRef.current);
+        knipSettleRef.current = setTimeout(() => {
+          knipBaseRef.current = null;
+          knipTotalRef.current = 0;
+        }, 160);
         return;
       }
 
@@ -586,6 +645,12 @@ export default function TegningerSide() {
         cancelAnimationFrame(knipRafRef.current);
         knipRafRef.current = null;
       }
+      if (knipSettleRef.current != null) {
+        clearTimeout(knipSettleRef.current);
+        knipSettleRef.current = null;
+      }
+      knipBaseRef.current = null;
+      knipTotalRef.current = 0;
     };
   }, [tegningId, isLoading]);
 
@@ -634,6 +699,23 @@ export default function TegningerSide() {
     };
   }, [tegningId, isLoading, containerVariant]);
 
+  // Tastatur under måling (RETUR 3 § C): Esc avbryter aktivt verktøy; Enter
+  // avslutter en pågående polylinje.
+  useEffect(() => {
+    if (!maleAktiv) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMaleVerktoy(null);
+        setMalePunkter([]);
+        setMaleFerdig(false);
+      } else if (e.key === "Enter" && maleVerktoy === "polylinje") {
+        setMaleFerdig((f) => (malePunkter.length >= 2 ? true : f));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [maleAktiv, maleVerktoy, malePunkter.length]);
+
   function lukkModal() {
     setVisOpprettModal(false);
     setNyMarkør(null);
@@ -681,9 +763,38 @@ export default function TegningerSide() {
       const py = ((e.clientY - r.top) / r.height) * 100;
       if (kalibrerModus) {
         setMalePunkter((p) => (p.length >= 2 ? [{ x: px, y: py }] : [...p, { x: px, y: py }]));
-      } else {
-        setMalePunkter((p) => [...p, { x: px, y: py }]);
+        return;
       }
+      // Ferdig måling → neste klikk starter en ny (RETUR 3 § C).
+      if (maleFerdig) {
+        setMaleFerdig(false);
+        setMalePunkter([{ x: px, y: py }]);
+        return;
+      }
+      if (maleVerktoy === "linjal") {
+        // To punkter gir én avstand, så stopp.
+        const nye = [...malePunkter, { x: px, y: py }].slice(-2);
+        setMalePunkter(nye);
+        if (nye.length >= 2) setMaleFerdig(true);
+        return;
+      }
+      // polylinje / areal: klikk på et eksisterende punkt lukker/avslutter.
+      const treffPx = (q: Punkt) =>
+        Math.hypot(((q.x - px) / 100) * r.width, ((q.y - py) / 100) * r.height) <= PUNKT_TREFF_PX;
+      if (maleVerktoy === "areal") {
+        // Lukkes KUN ved klikk på første punkt.
+        if (malePunkter.length >= 3 && malePunkter[0] && treffPx(malePunkter[0])) {
+          setMaleFerdig(true);
+          return;
+        }
+      } else {
+        // polylinje: avsluttes ved klikk på et hvilket som helst eksisterende punkt.
+        if (malePunkter.length >= 2 && malePunkter.some(treffPx)) {
+          setMaleFerdig(true);
+          return;
+        }
+      }
+      setMalePunkter((p) => [...p, { x: px, y: py }]);
       return;
     }
 
@@ -730,7 +841,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleAktiv, kalibrerModus]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleAktiv, kalibrerModus, maleVerktoy, maleFerdig, malePunkter]);
 
   // Modell-korreksjon (funn 2026-08-22): dokumentflyt er nøkkelen, ikke faggruppe.
   // Serveren (F1/B1) krever `dokumentflytId` for ikke-HMS og validerer at flyten har malen
@@ -921,6 +1032,8 @@ export default function TegningerSide() {
 
   const formatMeter = (m: number) =>
     `${m.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+  const formatAreal = (m2: number) =>
+    `${m2.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`;
 
   // Kilde-etikett — «en måleverdi uten sin opprinnelse er en påstand» (ordre § D).
   const kildeEtikett = (() => {
@@ -948,33 +1061,74 @@ export default function TegningerSide() {
     return null;
   };
 
+  const erAreal = maleVerktoy === "areal";
+
+  // Linjal/polylinje: per-segment-etiketter + total. Areal viser ikke
+  // segment-etiketter (for støyete) — én sentroide-etikett i stedet.
   const maleSegmenter: MaalingSegment[] = [];
   let maleTotalMeter = 0;
-  for (let i = 1; i < malePunkter.length; i++) {
-    const a = malePunkter[i - 1];
-    const b = malePunkter[i];
-    if (!a || !b) continue;
-    const m = segMeter(a, b);
-    if (m == null) continue;
-    maleTotalMeter += m;
-    maleSegmenter.push({ midx: (a.x + b.x) / 2, midy: (a.y + b.y) / 2, tekst: formatMeter(m) });
+  if (!erAreal) {
+    for (let i = 1; i < malePunkter.length; i++) {
+      const a = malePunkter[i - 1];
+      const b = malePunkter[i];
+      if (!a || !b) continue;
+      const m = segMeter(a, b);
+      if (m == null) continue;
+      maleTotalMeter += m;
+      maleSegmenter.push({ midx: (a.x + b.x) / 2, midy: (a.y + b.y) / 2, tekst: formatMeter(m) });
+    }
+  }
+
+  // Areal (lukket polygon): m² via papir-shoelace, omkrets via lukket ring.
+  let arealM2: number | null = null;
+  let omkretsMeter = 0;
+  let arealSenter: { x: number; y: number } | null = null;
+  if (erAreal && malePunkter.length >= 3) {
+    const ring = [...malePunkter, malePunkter[0]!];
+    for (let i = 1; i < ring.length; i++) {
+      const m = segMeter(ring[i - 1]!, ring[i]!);
+      if (m != null) omkretsMeter += m;
+    }
+    if (mmPrPiksel != null && scaleDenom != null && imgW != null && imgH != null) {
+      arealM2 = malArealMm2(malePunkter, imgW, imgH, mmPrPiksel, scaleDenom) / 1_000_000;
+    }
+    arealSenter = {
+      x: malePunkter.reduce((s, p) => s + p.x, 0) / malePunkter.length,
+      y: malePunkter.reduce((s, p) => s + p.y, 0) / malePunkter.length,
+    };
+  }
+  // Sentroide-etikett for areal (m² når tilgjengelig).
+  if (erAreal && arealSenter && arealM2 != null) {
+    maleSegmenter.push({ midx: arealSenter.x, midy: arealSenter.y, tekst: formatAreal(arealM2) });
   }
 
   const nullstillMaling = () => {
     setMalePunkter([]);
+    setMaleFerdig(false);
   };
   const avsluttMaling = () => {
-    setMaleAktiv(false);
+    setMaleVerktoy(null);
     setKalibrerModus(false);
     setMalePunkter([]);
+    setMaleFerdig(false);
     setKalibrerLengde("");
+  };
+  // Velg et måleverktøy (ett aktivt om gangen). Samme verktøy igjen = av.
+  const velgMaleVerktoy = (verktoy: MaleVerktoy) => {
+    setMaleVerktoy((forrige) => (forrige === verktoy ? null : verktoy));
+    setKalibrerModus(false);
+    setMalePunkter([]);
+    setMaleFerdig(false);
+    setKlikkModus("plassering");
+    setNyMarkør(null);
   };
   // Start kalibrering (korreksjonen, ordre § C/§ D) — fra målestokk-panelet ELLER
   // fra «Stemmer ikke? Kalibrer» ved måleresultatet. Åpner panelet så mm-feltet er
   // synlig, og rydder måle-/markør-tilstand så klikk går til kalibreringspunkter.
   const startKalibrering = () => {
     setKalibrerModus(true);
-    setMaleAktiv(false);
+    setMaleVerktoy(null);
+    setMaleFerdig(false);
     setMalePunkter([]);
     setKalibrerLengde("");
     setKlikkModus("plassering");
@@ -1094,22 +1248,40 @@ export default function TegningerSide() {
                 <Crosshair className="h-3 w-3" />
                 {tegning.scale && !harGeoref ? tegning.scale : t("maaling.malestokk")}
               </button>
+              {/* Tre måleverktøy (RETUR 3 § C, som Adobe): linjal · polylinje · areal.
+                  Ett aktivt om gangen; klikk på aktivt verktøy slår det av. */}
               <button
                 disabled={!kanMaleNaa}
-                onClick={() => {
-                  const på = !maleAktiv;
-                  setMaleAktiv(på);
-                  setKalibrerModus(false);
-                  setMalePunkter([]);
-                  if (på) { setKlikkModus("plassering"); setNyMarkør(null); }
-                }}
-                className={`flex items-center gap-1 rounded-r px-2 py-1 text-xs ${
-                  maleAktiv ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                onClick={() => velgMaleVerktoy("linjal")}
+                className={`flex items-center gap-1 border-l border-gray-200 px-2 py-1 text-xs ${
+                  maleVerktoy === "linjal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
-                title={kanMaleNaa ? t("maaling.malTittel") : (maleAvslagGrunn ?? "")}
+                title={kanMaleNaa ? t("maaling.verktoyLinjal") : (maleAvslagGrunn ?? "")}
               >
                 <Ruler className="h-3 w-3" />
-                {t("maaling.mal")}
+                {t("maaling.verktoyLinjal")}
+              </button>
+              <button
+                disabled={!kanMaleNaa}
+                onClick={() => velgMaleVerktoy("polylinje")}
+                className={`flex items-center gap-1 border-l border-gray-200 px-2 py-1 text-xs ${
+                  maleVerktoy === "polylinje" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={kanMaleNaa ? t("maaling.verktoyPolylinje") : (maleAvslagGrunn ?? "")}
+              >
+                <Waypoints className="h-3 w-3" />
+                {t("maaling.verktoyPolylinje")}
+              </button>
+              <button
+                disabled={!kanMaleNaa}
+                onClick={() => velgMaleVerktoy("areal")}
+                className={`flex items-center gap-1 rounded-r border-l border-gray-200 px-2 py-1 text-xs ${
+                  maleVerktoy === "areal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={kanMaleNaa ? t("maaling.verktoyAreal") : (maleAvslagGrunn ?? "")}
+              >
+                <VectorSquare className="h-3 w-3" />
+                {t("maaling.verktoyAreal")}
               </button>
             </div>
           </>
@@ -1350,30 +1522,49 @@ export default function TegningerSide() {
         </div>
       )}
 
-      {/* Måle-resultatstripe: alltid med kilde — «en måleverdi uten sin opprinnelse er en påstand» */}
+      {/* Måle-resultatstripe: alltid med kilde — «en måleverdi uten sin opprinnelse er en påstand».
+          Tre verktøy (RETUR 3 § C): linjal/polylinje viser lengde, areal viser m² + omkrets. */}
       {erBilde && maleAktiv && (
         <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs">
-          <Ruler className="h-4 w-4 text-sitedoc-primary" />
-          {malePunkter.length < 2 ? (
-            <span className="text-gray-600">{t("maaling.klikkToPunkter")}</span>
+          {maleVerktoy === "areal" ? (
+            <VectorSquare className="h-4 w-4 text-sitedoc-primary" />
+          ) : maleVerktoy === "polylinje" ? (
+            <Waypoints className="h-4 w-4 text-sitedoc-primary" />
           ) : (
-            <>
+            <Ruler className="h-4 w-4 text-sitedoc-primary" />
+          )}
+          {erAreal ? (
+            malePunkter.length < 3 ? (
+              <span className="text-gray-600">{t("maaling.hintAreal")}</span>
+            ) : (
               <span className="font-semibold text-gray-800">
-                {formatMeter(maleTotalMeter)}
+                {arealM2 != null ? formatAreal(arealM2) : "—"}
+                <span className="ml-2 font-normal text-gray-600">
+                  {t("maaling.omkrets")}: {formatMeter(omkretsMeter)}
+                </span>
                 <span className="ml-1 font-normal text-gray-500">({malestokkEtikett})</span>
               </span>
-              {/* Kalibrering er korreksjonen (ordre § D): står ved resultatet, ikke
-                  som et bekreftelsessteg før måling. Kun for papir-målestokken —
-                  georeferanse kalibreres ikke. */}
-              {!harGeoref && mmPrPiksel != null && (
-                <button
-                  onClick={startKalibrering}
-                  className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100"
-                >
-                  {t("maaling.stemmerIkkeKalibrer")}
-                </button>
-              )}
-            </>
+            )
+          ) : malePunkter.length < 2 ? (
+            <span className="text-gray-600">
+              {maleVerktoy === "polylinje" ? t("maaling.hintPolylinje") : t("maaling.klikkToPunkter")}
+            </span>
+          ) : (
+            <span className="font-semibold text-gray-800">
+              {formatMeter(maleTotalMeter)}
+              <span className="ml-1 font-normal text-gray-500">({malestokkEtikett})</span>
+            </span>
+          )}
+          {/* Kalibrering er korreksjonen (ordre § D): står ved resultatet, ikke
+              som et bekreftelsessteg før måling. Kun for papir-målestokken —
+              georeferanse kalibreres ikke. */}
+          {!harGeoref && mmPrPiksel != null && malePunkter.length >= 2 && (
+            <button
+              onClick={startKalibrering}
+              className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100"
+            >
+              {t("maaling.stemmerIkkeKalibrer")}
+            </button>
           )}
           <button onClick={nullstillMaling} className="ml-auto rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
             {t("maaling.nullstill")}
@@ -1438,6 +1629,10 @@ export default function TegningerSide() {
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
               onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
+              onDoubleClick={() => {
+                // Dobbeltklikk avslutter en polylinje (RETUR 3 § C).
+                if (maleVerktoy === "polylinje" && !maleFerdig && malePunkter.length >= 2) setMaleFerdig(true);
+              }}
               onMouseMove={handleMuseBevegelse}
               onMouseLeave={handleMuseForlat}
             >
@@ -1467,11 +1662,12 @@ export default function TegningerSide() {
                 synlig={visOmrader && klikkModus !== "omrade"}
               />
 
-              {/* Måle-overlay: linje + punkter + segment-lengder */}
+              {/* Måle-overlay: linje/polygon + punkter + segment-/areal-etiketter */}
               {(maleAktiv || kalibrerModus) && (
                 <MaalingOverlay
                   punkter={malePunkter}
                   segmenter={kalibrerModus ? [] : maleSegmenter}
+                  fyll={erAreal && malePunkter.length >= 3}
                 />
               )}
 
