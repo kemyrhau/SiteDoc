@@ -73,6 +73,19 @@ type TegningRad = {
   scale?: string | null;
   revision?: string | null;
   conversionStatus?: string | null;
+  // T2: hvilken serie tegningen ligger i (null = «ikke i serie», en gyldig tilstand).
+  serieId?: string | null;
+};
+
+// T2: en tegningsserie (merk-og-flytt-gruppering). Metadata er standardverdier.
+type SerieRadData = {
+  id: string;
+  name: string;
+  discipline?: string | null;
+  originator?: string | null;
+  description?: string | null;
+  byggeplassId?: string | null;
+  _count?: { drawings: number };
 };
 
 interface TegningGruppe {
@@ -263,6 +276,19 @@ function RedigerLokasjon({
   // Huskes pr. byggeplass i localStorage. Standard: alt åpent (tom mengde).
   const [kollapsedeGrupper, setKollapsedeGrupper] = useState<Record<string, true>>({});
 
+  // T2 (merk-og-flytt): avkryssings-utvalg i lista + serie-dialoger.
+  const [merkeModus, setMerkeModus] = useState(false);
+  const [valgteTegninger, setValgteTegninger] = useState<Set<string>>(new Set());
+  // Serie-dialog: null id = «ny serie fra valgte»; satt id = rediger eksisterende.
+  const [visSerieDialog, setVisSerieDialog] = useState(false);
+  const [serieDialogId, setSerieDialogId] = useState<string | null>(null);
+  const [serieNavn, setSerieNavn] = useState("");
+  const [serieFagFelt, setSerieFagFelt] = useState("");
+  const [serieOpphavFelt, setSerieOpphavFelt] = useState("");
+  const [serieBeskrFelt, setSerieBeskrFelt] = useState("");
+  // «Flytt til serie»-velger (eksisterende serier).
+  const [visFlyttTilSerie, setVisFlyttTilSerie] = useState(false);
+
   // Poll konverterings-status mens tabellen er åpen og minst én rad konverterer.
   const skalPolle =
     visSerieTabell && serieRader.some((r) => r.status === "konverterer");
@@ -330,6 +356,24 @@ function RedigerLokasjon({
   // Serie: egen opprett-mutasjon (uten enkel-modal-sideeffektene) + per-rad oppdater.
   const serieOpprettMutation = trpc.tegning.opprett.useMutation();
   const radOppdaterMutation = trpc.tegning.oppdater.useMutation();
+
+  // T2 (tegningsserie): seriene på byggeplassen + merk-og-flytt-mutasjoner.
+  const { data: serier } = trpc.tegningsserie.hentForByggeplass.useQuery(
+    { byggeplassId: lokasjonId },
+    { enabled: !!lokasjonId },
+  );
+  const serieListe = (serier ?? []) as SerieRadData[];
+
+  function invaliderEtterSerie() {
+    utils.bygning.hentMedId.invalidate({ id: lokasjonId });
+    utils.tegningsserie.hentForByggeplass.invalidate({ byggeplassId: lokasjonId });
+    utils.tegning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+  }
+  const opprettSerieMutation = trpc.tegningsserie.opprett.useMutation({ onSuccess: invaliderEtterSerie });
+  const oppdaterSerieMutation = trpc.tegningsserie.oppdater.useMutation({ onSuccess: invaliderEtterSerie });
+  const slettSerieMutation = trpc.tegningsserie.slett.useMutation({ onSuccess: invaliderEtterSerie });
+  const flyttTilSerieMutation = trpc.tegningsserie.flyttTegninger.useMutation({ onSuccess: invaliderEtterSerie });
+  const brukPaAlleMutation = trpc.tegningsserie.brukPaAlle.useMutation({ onSuccess: invaliderEtterSerie });
 
   function nullstillMetadata() {
     setOpplastetFil(null);
@@ -545,8 +589,7 @@ function RedigerLokasjon({
     }
   }, [lokasjonId]);
 
-  function toggleKollaps(navn: string) {
-    const nokkel = kollapsNokkel(navn);
+  function toggleKollapsNokkel(nokkel: string) {
     setKollapsedeGrupper((forrige) => {
       const neste = { ...forrige };
       if (neste[nokkel]) delete neste[nokkel];
@@ -558,6 +601,207 @@ function RedigerLokasjon({
       }
       return neste;
     });
+  }
+  function toggleKollaps(navn: string) {
+    toggleKollapsNokkel(kollapsNokkel(navn));
+  }
+  // T2: seriegrupper har egen kollaps-nøkkel (uavhengig av fag/etasje-veksel).
+  const serieKollapsNokkel = (serieId: string) => `serie::${serieId}`;
+
+  /* ---- T2: merk-og-flytt-handlere ---- */
+
+  function toggleMerkeModus() {
+    setMerkeModus((på) => {
+      if (på) setValgteTegninger(new Set()); // slå av → tøm utvalg
+      return !på;
+    });
+  }
+  function toggleValgt(id: string) {
+    setValgteTegninger((forrige) => {
+      const neste = new Set(forrige);
+      if (neste.has(id)) neste.delete(id);
+      else neste.add(id);
+      return neste;
+    });
+  }
+  function tømUtvalg() {
+    setValgteTegninger(new Set());
+  }
+
+  // Felles verdi blant de valgte tegningene, ellers "" (for navneforslag + forhåndsutfylling).
+  function fellesVerdi(felt: "discipline" | "originator"): string {
+    const valgte = tegninger.filter((d) => valgteTegninger.has(d.id));
+    if (valgte.length === 0) return "";
+    const første = (valgte[0]?.[felt] ?? "") || "";
+    return valgte.every((d) => ((d[felt] ?? "") || "") === første) ? første : "";
+  }
+
+  // «Ny serie fra valgte»: åpne dialog i opprett-modus med navneforslag = felles fag + rådgiver.
+  function åpneNySerie() {
+    const fag = fellesVerdi("discipline");
+    const opphav = fellesVerdi("originator");
+    setSerieDialogId(null);
+    setSerieNavn([fag, opphav].filter(Boolean).join(" ").trim());
+    setSerieFagFelt(fag);
+    setSerieOpphavFelt(opphav);
+    setSerieBeskrFelt("");
+    setVisSerieDialog(true);
+  }
+
+  // Rediger en eksisterende serie.
+  function åpneRedigerSerie(s: SerieRadData) {
+    setSerieDialogId(s.id);
+    setSerieNavn(s.name);
+    setSerieFagFelt(s.discipline ?? "");
+    setSerieOpphavFelt(s.originator ?? "");
+    setSerieBeskrFelt(s.description ?? "");
+    setVisSerieDialog(true);
+  }
+
+  function lagreSerie() {
+    if (!prosjektId || serieNavn.trim() === "") return;
+    const fag = (serieFagFelt || undefined) as typeof DRAWING_DISCIPLINES[number] | undefined;
+    if (serieDialogId === null) {
+      // Opprett fra valgte
+      opprettSerieMutation.mutate(
+        {
+          projectId: prosjektId,
+          byggeplassId: lokasjonId,
+          name: serieNavn.trim(),
+          discipline: fag,
+          originator: serieOpphavFelt || undefined,
+          description: serieBeskrFelt || undefined,
+          drawingIds: [...valgteTegninger],
+        },
+        {
+          onSuccess: () => {
+            setVisSerieDialog(false);
+            setMerkeModus(false);
+            tømUtvalg();
+          },
+        },
+      );
+    } else {
+      oppdaterSerieMutation.mutate(
+        {
+          id: serieDialogId,
+          name: serieNavn.trim(),
+          discipline: fag ?? null,
+          originator: serieOpphavFelt || null,
+          description: serieBeskrFelt || null,
+        },
+        { onSuccess: () => setVisSerieDialog(false) },
+      );
+    }
+  }
+
+  function slettSerie() {
+    if (serieDialogId === null) return;
+    slettSerieMutation.mutate({ id: serieDialogId }, { onSuccess: () => setVisSerieDialog(false) });
+  }
+
+  function brukPaAlle() {
+    if (serieDialogId === null) return;
+    brukPaAlleMutation.mutate({ serieId: serieDialogId });
+  }
+
+  // Flytt valgte inn i en eksisterende serie.
+  function flyttValgteTilSerie(serieId: string) {
+    flyttTilSerieMutation.mutate(
+      { drawingIds: [...valgteTegninger], serieId },
+      {
+        onSuccess: () => {
+          setVisFlyttTilSerie(false);
+          setMerkeModus(false);
+          tømUtvalg();
+        },
+      },
+    );
+  }
+
+  // Ta valgte ut av serie (serieId = null).
+  function taValgteUtAvSerie() {
+    flyttTilSerieMutation.mutate(
+      { drawingIds: [...valgteTegninger], serieId: null },
+      {
+        onSuccess: () => {
+          setMerkeModus(false);
+          tømUtvalg();
+        },
+      },
+    );
+  }
+
+  // T2: del en fag-gruppes tegninger i serie-bøtter (serie → nummer) + løse (uten serie).
+  // Serie-bøtter sorteres i serieListe-rekkefølge; løse tegninger beholder gruppas sortering.
+  function serieBucketsForGruppe(gruppeTegninger: TegningRad[]): {
+    buckets: { serie: SerieRadData; tegninger: TegningRad[] }[];
+    utenSerie: TegningRad[];
+  } {
+    const perSerie = new Map<string, TegningRad[]>();
+    const utenSerie: TegningRad[] = [];
+    for (const d of gruppeTegninger) {
+      if (d.serieId) {
+        const liste = perSerie.get(d.serieId);
+        if (liste) liste.push(d);
+        else perSerie.set(d.serieId, [d]);
+      } else {
+        utenSerie.push(d);
+      }
+    }
+    const buckets = serieListe
+      .filter((s) => perSerie.has(s.id))
+      .map((s) => ({ serie: s, tegninger: perSerie.get(s.id)! }));
+    return { buckets, utenSerie };
+  }
+
+  // Én tegningsrad i lista. I merkemodus (T2) får raden en avkryssingsboks foran.
+  function renderTegningRad(tegning: TegningRad) {
+    const harGeoRef = !!tegning.geoReference;
+    const valgt = valgtTegningId === tegning.id;
+    const avkrysset = valgteTegninger.has(tegning.id);
+    return (
+      <li key={tegning.id}>
+        <div
+          className={`flex items-center gap-1 rounded-md pr-1 text-sm transition-colors ${
+            valgt ? "bg-sitedoc-primary/10" : avkrysset ? "bg-sitedoc-primary/5" : "hover:bg-gray-50"
+          }`}
+        >
+          {merkeModus && (
+            <input
+              type="checkbox"
+              checked={avkrysset}
+              onChange={() => toggleValgt(tegning.id)}
+              aria-label={t("tegninger.serieGruppe.merkRad", { navn: tegning.name })}
+              className="ml-2 h-4 w-4 flex-shrink-0 accent-sitedoc-primary"
+            />
+          )}
+          <button
+            onClick={() => velgTegning(valgt ? null : tegning.id)}
+            className={`flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left ${
+              valgt ? "text-sitedoc-primary" : "text-gray-700"
+            }`}
+          >
+            <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
+            <span className="flex-1 truncate">{tegning.name}</span>
+            {harGeoRef && (
+              <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                Georeferert
+              </span>
+            )}
+          </button>
+          {/* T1b R4: rediger ÉN tegning i samme tabell. */}
+          <button
+            onClick={() => åpneRedigerEn(tegning)}
+            className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title={t("handling.rediger")}
+            aria-label={t("handling.rediger")}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </li>
+    );
   }
 
   function handleLagreTegning(e: React.FormEvent) {
@@ -788,6 +1032,19 @@ function RedigerLokasjon({
                 {t("tegninger.serie.grupperEtasje")}
               </button>
               <div className="flex-1" />
+              {/* T2: merkemodus for serie-flytting (kun i fag-gruppering). */}
+              {grupperFag && (
+                <button
+                  onClick={toggleMerkeModus}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
+                    merkeModus ? "bg-sitedoc-primary/10 text-sitedoc-primary" : "text-gray-500 hover:bg-gray-100"
+                  }`}
+                  title={t("tegninger.serieGruppe.merk")}
+                >
+                  <Box className="h-3.5 w-3.5" />
+                  {merkeModus ? t("handling.avbryt") : t("tegninger.serieGruppe.merk")}
+                </button>
+              )}
               {/* T1b R4: åpne etterfyllings-tabellen med ALLE tegningene. */}
               <button
                 onClick={åpneRedigerFlere}
@@ -829,49 +1086,63 @@ function RedigerLokasjon({
                         ({gruppe.tegninger.length})
                       </span>
                     </button>
-                    {!kollapset && (
-                    <ul className="flex flex-col gap-0.5">
-                      {gruppe.tegninger.map((tegning) => {
-                        const harGeoRef = !!tegning.geoReference;
-                        const valgt = valgtTegningId === tegning.id;
+                    {!kollapset && (() => {
+                      // T2: i fag-modus deles gruppa i serie-bøtter (fag → serie → nummer)
+                      // + løse tegninger. I etasje-modus beholdes flat liste.
+                      if (!grupperFag) {
                         return (
-                          <li key={tegning.id}>
-                            {/* Rad = valg (forhåndsvisning) + blyant (rediger i tabellen).
-                                Sibling-knapper, ikke nøstet, for gyldig markup. */}
-                            <div
-                              className={`flex items-center gap-1 rounded-md pr-1 text-sm transition-colors ${
-                                valgt ? "bg-sitedoc-primary/10" : "hover:bg-gray-50"
-                              }`}
-                            >
-                              <button
-                                onClick={() => velgTegning(valgt ? null : tegning.id)}
-                                className={`flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left ${
-                                  valgt ? "text-sitedoc-primary" : "text-gray-700"
-                                }`}
-                              >
-                                <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                                <span className="flex-1 truncate">{tegning.name}</span>
-                                {harGeoRef && (
-                                  <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
-                                    Georeferert
-                                  </span>
-                                )}
-                              </button>
-                              {/* T1b R4: rediger ÉN tegning i samme tabell. */}
-                              <button
-                                onClick={() => åpneRedigerEn(tegning)}
-                                className="flex-shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                                title={t("handling.rediger")}
-                                aria-label={t("handling.rediger")}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </li>
+                          <ul className="flex flex-col gap-0.5">
+                            {gruppe.tegninger.map(renderTegningRad)}
+                          </ul>
                         );
-                      })}
-                    </ul>
-                    )}
+                      }
+                      const { buckets, utenSerie } = serieBucketsForGruppe(gruppe.tegninger);
+                      return (
+                        <div className="flex flex-col gap-1">
+                          {buckets.map(({ serie, tegninger: serieT }) => {
+                            const serieKollapset = !!kollapsedeGrupper[serieKollapsNokkel(serie.id)];
+                            return (
+                              <div key={serie.id} className="ml-3 border-l border-gray-100 pl-1">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => toggleKollapsNokkel(serieKollapsNokkel(serie.id))}
+                                    className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-2 py-1 text-left hover:bg-gray-50"
+                                    aria-expanded={!serieKollapset}
+                                  >
+                                    {serieKollapset ? (
+                                      <ChevronRight className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                                    ) : (
+                                      <ChevronDown className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                                    )}
+                                    <Box className="h-3.5 w-3.5 flex-shrink-0 text-sitedoc-primary/70" />
+                                    <span className="truncate text-xs font-medium text-gray-700">{serie.name}</span>
+                                    <span className="text-xs text-gray-400">({serieT.length})</span>
+                                  </button>
+                                  <button
+                                    onClick={() => åpneRedigerSerie(serie)}
+                                    className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                    title={t("tegninger.serieGruppe.serieModalTittelRediger")}
+                                    aria-label={t("tegninger.serieGruppe.serieModalTittelRediger")}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                {!serieKollapset && (
+                                  <ul className="flex flex-col gap-0.5">
+                                    {serieT.map(renderTegningRad)}
+                                  </ul>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {utenSerie.length > 0 && (
+                            <ul className="flex flex-col gap-0.5">
+                              {utenSerie.map(renderTegningRad)}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   );
                 })}
@@ -891,6 +1162,37 @@ function RedigerLokasjon({
               </div>
             )}
           </div>
+          {/* T2: handlingslinje — dukker opp når tegninger er merket. */}
+          {merkeModus && valgteTegninger.size > 0 && (
+            <div className="flex flex-col gap-1.5 border-t border-gray-200 bg-gray-50 px-3 py-2">
+              <span className="text-xs font-medium text-gray-600">
+                {t("tegninger.serieGruppe.valgtAntall", { antall: valgteTegninger.size })}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={åpneNySerie}
+                  className="flex items-center gap-1 rounded bg-sitedoc-primary px-2 py-1 text-xs font-medium text-white hover:bg-sitedoc-primary/90"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t("tegninger.serieGruppe.nySerie")}
+                </button>
+                {serieListe.length > 0 && (
+                  <button
+                    onClick={() => setVisFlyttTilSerie(true)}
+                    className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    {t("tegninger.serieGruppe.flyttTilSerie")}
+                  </button>
+                )}
+                <button
+                  onClick={taValgteUtAvSerie}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  {t("tegninger.serieGruppe.taUtAvSerie")}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Høyre — forhåndsvisning eller georeferanse-editor */}
@@ -1170,6 +1472,119 @@ function RedigerLokasjon({
           {t("tegninger.serie.tilbakeTilTabell")}
         </button>
       )}
+
+      {/* T2: opprett / rediger tegningsserie. Serien bærer BEVISST ikke revisjon,
+          målestokk eller status — kun navn + standardverdier (fag/rådgiver). */}
+      <Modal
+        open={visSerieDialog}
+        onClose={() => setVisSerieDialog(false)}
+        title={
+          serieDialogId === null
+            ? t("tegninger.serieGruppe.serieModalTittelNy")
+            : t("tegninger.serieGruppe.serieModalTittelRediger")
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {serieDialogId === null && (
+            <p className="text-sm text-gray-600">
+              {t("tegninger.serieGruppe.nySerieHjelp", { antall: valgteTegninger.size })}
+            </p>
+          )}
+          <Input
+            label={t("tegninger.serieGruppe.feltNavn")}
+            value={serieNavn}
+            onChange={(e) => setSerieNavn(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label={t("tegninger.serieGruppe.feltFag")}
+              value={serieFagFelt}
+              onChange={(e) => setSerieFagFelt(e.target.value)}
+              placeholder={t("tegninger.velgDisiplin")}
+              options={DRAWING_DISCIPLINES.map((d) => ({ value: d, label: d }))}
+            />
+            <Input
+              label={t("tegninger.serieGruppe.feltRadgiver")}
+              value={serieOpphavFelt}
+              onChange={(e) => setSerieOpphavFelt(e.target.value)}
+            />
+          </div>
+          <Textarea
+            label={t("tegninger.serieGruppe.feltBeskrivelse")}
+            value={serieBeskrFelt}
+            onChange={(e) => setSerieBeskrFelt(e.target.value)}
+          />
+          {/* R10: «Bruk på alle» er eksplisitt og viser antallet som berøres. */}
+          {serieDialogId !== null && (
+            <div className="rounded border border-gray-200 bg-gray-50 p-3">
+              <p className="mb-2 text-xs text-gray-600">
+                {t("tegninger.serieGruppe.brukPaAlleBekreft", {
+                  antall: serieListe.find((s) => s.id === serieDialogId)?._count?.drawings ?? 0,
+                })}
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={brukPaAlle}
+                disabled={brukPaAlleMutation.isPending}
+              >
+                {t("tegninger.serieGruppe.brukPaAlle")}
+              </Button>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <div>
+              {serieDialogId !== null && (
+                <Button variant="danger" size="sm" onClick={slettSerie} disabled={slettSerieMutation.isPending}>
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  {t("tegninger.serieGruppe.slettSerie")}
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={() => setVisSerieDialog(false)}>
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                onClick={lagreSerie}
+                disabled={
+                  serieNavn.trim() === "" ||
+                  opprettSerieMutation.isPending ||
+                  oppdaterSerieMutation.isPending
+                }
+              >
+                {t("handling.lagre")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* T2: flytt valgte tegninger inn i en eksisterende serie. */}
+      <Modal
+        open={visFlyttTilSerie}
+        onClose={() => setVisFlyttTilSerie(false)}
+        title={t("tegninger.serieGruppe.flyttTilSerie")}
+      >
+        <div className="flex flex-col gap-2">
+          {serieListe.length === 0 ? (
+            <p className="text-sm text-gray-500">{t("tegninger.serieGruppe.ingenSerier")}</p>
+          ) : (
+            serieListe.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => flyttValgteTilSerie(s.id)}
+                disabled={flyttTilSerieMutation.isPending}
+                className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Box className="h-4 w-4 flex-shrink-0 text-sitedoc-primary/70" />
+                <span className="flex-1 truncate text-gray-800">{s.name}</span>
+                {s.discipline && <span className="text-xs text-gray-400">{s.discipline}</span>}
+              </button>
+            ))
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

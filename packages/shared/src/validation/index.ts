@@ -248,6 +248,35 @@ export const createDrawingSchema = z.object({
   fileSize: z.number().int().optional(),
 });
 
+// Tegningsserie-validering (T2): merk-og-flytt-gruppering. Metadata er STANDARDVERDIER
+// (fag/opphav) — serien bærer BEVISST ikke revisjon, målestokk eller status; de hører
+// til den enkelte tegningen (Kenneth 2026-10-06: «tegninger revideres enkeltvis»).
+export const opprettTegningsserieSchema = z.object({
+  projectId: z.string().uuid(),
+  byggeplassId: z.string().uuid().optional(),
+  name: z.string().min(1).max(255),
+  discipline: drawingDisciplineSchema.optional(),
+  originator: z.string().max(255).optional(),
+  description: z.string().optional(),
+  // Valgfritt: opprett serien med disse tegningene allerede koblet (fra «Ny serie fra valgte»)
+  drawingIds: z.array(z.string().uuid()).optional(),
+});
+
+export const oppdaterTegningsserieSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(255).optional(),
+  discipline: drawingDisciplineSchema.nullable().optional(),
+  originator: z.string().max(255).nullable().optional(),
+  description: z.string().nullable().optional(),
+});
+
+// Flytt tegninger inn i (serieId satt) eller ut av (serieId = null) en serie.
+// Rører KUN serie-koblingen — aldri tegningens eget fag/opphav (det er «Bruk på alle»).
+export const flyttTegningerTilSerieSchema = z.object({
+  drawingIds: z.array(z.string().uuid()).min(1),
+  serieId: z.string().uuid().nullable(),
+});
+
 // Gruppekategori-validering
 export const groupCategorySchema = z.enum(GROUP_CATEGORIES);
 

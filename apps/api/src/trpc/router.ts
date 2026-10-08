@@ -6,6 +6,7 @@ import { oppgaveRouter } from "../routes/oppgave";
 import { malRouter } from "../routes/mal";
 import { byggeplassRouter } from "../routes/byggeplass";
 import { tegningRouter } from "../routes/tegning";
+import { tegningsserieRouter } from "../routes/tegningsserie";
 import { dokumentflytRouter } from "../routes/dokumentflyt";
 import { mappeRouter } from "../routes/mappe";
 import { medlemRouter } from "../routes/medlem";
@@ -63,6 +64,7 @@ export const appRouter = router({
   mal: malRouter,
   bygning: byggeplassRouter, // bakoverkompatibel nøkkel (1 uke)
   tegning: tegningRouter,
+  tegningsserie: tegningsserieRouter,
   dokumentflyt: dokumentflytRouter,
   mappe: mappeRouter,
   medlem: medlemRouter,
