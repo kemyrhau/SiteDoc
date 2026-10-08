@@ -28,6 +28,7 @@ import {
   startMaling,
   leggTilPunkt,
   settFerdig,
+  gjenoppta,
   flyttPunkt,
   velgMaling,
   slettAktiv,
@@ -38,6 +39,10 @@ import {
   settInnPunktPaaKant,
   nyKantPunktIndeks,
   fjernPunkt,
+  beregnSnap,
+  type Hjelpelinjer,
+  type Referanselinje,
+  type SnapResultat,
   type Punkt,
   type MaleVerktoy,
   type Maling,
@@ -55,7 +60,7 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
@@ -137,6 +142,19 @@ const MAKS_ZOOM = 50;
 const STANDARD_ZOOM = 1;
 // Treffradius (px) for «klikk på eksisterende punkt» = lukk/avslutt polylinje/areal.
 const PUNKT_TREFF_PX = 12;
+
+/**
+ * Samle snap-/hjelpelinje-referanser fra ALLE målinger (også andre enn den
+ * aktive, jf. ordre § 2). I den aktive målingen kan ett punkt ekskluderes —
+ * ankeret ved tegning (unngå null-segment) eller punktet som dras.
+ */
+function samleReferanser(t: MaleTilstand, ekskluderIdx: number | null): Punkt[] {
+  return t.malinger.flatMap((m) =>
+    m.id === t.aktivId && ekskluderIdx != null
+      ? m.punkter.filter((_, i) => i !== ekskluderIdx)
+      : m.punkter,
+  );
+}
 
 export default function TegningerSide() {
   const params = useParams<{ prosjektId: string }>();
@@ -261,6 +279,28 @@ export default function TegningerSide() {
   const aktivPunkter = aktivMal?.punkter ?? [];
   const maleEngasjert = maleTilstand.aktivId !== null;
   const nesteIdRef = useRef(0);
+  // 90°-lås + snapping (ordre «90°-lås og snapping»). Snap holdes PÅ som standard;
+  // 90° er en toggle brukeren slår på for å måle vinkelrett. `hjelpelinjer` er de
+  // aktive stiplede hjelpelinjene (forhåndsvisning + dra); `forhandsPunkt` er hvor
+  // neste klikk lander (vist som en svak markør mens man beveger musa).
+  const [ortho, setOrtho] = useState(false);
+  const [snapPaa, setSnapPaa] = useState(true);
+  const [hjelpelinjer, setHjelpelinjer] = useState<Hjelpelinjer>({ vertikal: null, horisontal: null });
+  const [forhandsPunkt, setForhandsPunkt] = useState<Punkt | null>(null);
+  // Ortho-aksens stiplede hjelpelinje (to prosent-punkter) + «90°»-flagg (GJENOPPTA § 2).
+  const [aksehjelp, setAksehjelp] = useState<[Punkt, Punkt] | null>(null);
+  const [visVinkelrett, setVisVinkelrett] = useState(false);
+  // Valgt referanselinje (GJENOPPTA § 1) + ett-skudds «velg referanse»-modus.
+  const [referanselinje, setReferanselinje] = useState<Referanselinje | null>(null);
+  const [velgReferanseModus, setVelgReferanseModus] = useState(false);
+  // Ferskeste måletilstand for event-handlere (dra/mus) uten å kjede deps.
+  const maleTilstandRef = useRef(maleTilstand);
+  maleTilstandRef.current = maleTilstand;
+  // 90°/snap-parametre i en ref (fylles etter imgW/imgH er beregnet lenger ned),
+  // så event-handlerne leser ferskeste verdier uten TDZ eller deps-kjeding.
+  const snapParamRef = useRef<{ imgW: number | null; imgH: number | null; ortho: boolean; snapPaa: boolean; referanselinje: Referanselinje | null }>({
+    imgW: null, imgH: null, ortho: false, snapPaa: true, referanselinje: null,
+  });
   const [kalibrerPunkter, setKalibrerPunkter] = useState<Punkt[]>([]);
   const [slettAlleModalApen, setSlettAlleModalApen] = useState(false);
   const [visMalestokkPanel, setVisMalestokkPanel] = useState(false);
@@ -742,6 +782,7 @@ export default function TegningerSide() {
         setKalibrerModus(false);
         setKalibrerPunkter([]);
         setValgtPunktIdx(null);
+        setVelgReferanseModus(false);
       } else if (e.key === "Enter" && aktivVerktoy === "polylinje") {
         setMaleTilstand((t) => settFerdig(t));
       } else if ((e.key === "Delete" || e.key === "Backspace") && valgtPunktIdx != null) {
@@ -764,23 +805,73 @@ export default function TegningerSide() {
     setOpprettFeil(null);
   }
 
+  // Delt snap/lås for ett kandidatpunkt — leser ferskeste 90°/snap-parametre + måletilstand
+  // fra refs. `ekskluderIdx` = punktet som ikke skal være snap-mål (ankeret ved tegning,
+  // eller punktet som dras). Null hvis bildet mangler mål.
+  const beregnSnapForKandidat = useCallback(
+    (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null): SnapResultat | null => {
+      const sp = snapParamRef.current;
+      if (sp.imgW == null || sp.imgH == null) return null;
+      const t0 = maleTilstandRef.current;
+      const akt = aktivMaling(t0);
+      const pågår = !!akt && !akt.ferdig;
+      const sisteIdx = pågår && akt ? akt.punkter.length - 1 : -1;
+      const anker = sisteIdx >= 0 ? akt!.punkter[sisteIdx]! : null;
+      const forforrige = sisteIdx >= 1 ? akt!.punkter[sisteIdx - 1]! : null;
+      return beregnSnap({
+        kandidat, anker, forforrige,
+        referanser: samleReferanser(t0, ekskluderIdx),
+        referanselinje: sp.referanselinje,
+        ortho: sp.ortho, snap: sp.snapPaa,
+        imageWidth: sp.imgW, imageHeight: sp.imgH,
+        rectW, rectH, punktTolPx: PUNKT_TREFF_PX, guideTolPx: PUNKT_TREFF_PX,
+      });
+    },
+    [],
+  );
+
+  const nullstillForhandsvisning = useCallback(() => {
+    setForhandsPunkt(null);
+    setHjelpelinjer({ vertikal: null, horisontal: null });
+    setAksehjelp(null);
+    setVisVinkelrett(false);
+  }, []);
+
   const handleMuseBevegelse = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!transformasjon) return;
     const container = e.currentTarget;
     const rect = container.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    // Måle-forhåndsvisning (90°/snap): vis hvor neste klikk lander + aktive
+    // stiplede hjelpelinjer mens musa beveger seg over en påbegynt måling.
+    const t0 = maleTilstandRef.current;
+    const akt = aktivMaling(t0);
+    const ankerIdx = akt && !akt.ferdig ? akt.punkter.length - 1 : null;
+    if (!kalibrerModus && !punktDragRef.current && harPaagaaende(t0)) {
+      const snapR = beregnSnapForKandidat({ x, y }, rect.width, rect.height, ankerIdx);
+      if (snapR) {
+        setForhandsPunkt(snapR.punkt);
+        setHjelpelinjer(snapR.hjelpelinjer);
+        setAksehjelp(snapR.aksehjelpelinje);
+        setVisVinkelrett(snapR.vinkelrett);
+      }
+    }
+
+    // GPS-koordinat under peker (kun med georeferanse).
+    if (!transformasjon) return;
     try {
       const gps = tegningTilGps({ x, y }, transformasjon);
       setGpsKoordinat(gps);
     } catch {
       setGpsKoordinat(null);
     }
-  }, [transformasjon]);
+  }, [transformasjon, kalibrerModus, beregnSnapForKandidat]);
 
   const handleMuseForlat = useCallback(() => {
     setGpsKoordinat(null);
-  }, []);
+    nullstillForhandsvisning();
+  }, [nullstillForhandsvisning]);
 
   // Skille mellom pan (dra) og klikk (plassering)
   const museNedPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -810,6 +901,22 @@ export default function TegningerSide() {
         return;
       }
 
+      // 🟢 GJENOPPTA § 1: «velg referanselinje»-modus — klikk på et segment i en
+      // eksisterende måling (vegg langs en skrå linje) setter det som referanse.
+      if (velgReferanseModus) {
+        const traffId = finnMalingTreff(maleTilstand.malinger, { x: px, y: py }, r.width, r.height, PUNKT_TREFF_PX);
+        const m = traffId ? maleTilstand.malinger.find((x) => x.id === traffId) : null;
+        if (m && m.punkter.length >= 2) {
+          const lukket = m.verktoy === "areal" && m.ferdig;
+          const kant = finnNaermesteKant(m.punkter, { x: px, y: py }, r.width, r.height, PUNKT_TREFF_PX, lukket);
+          if (kant >= 0) {
+            setReferanselinje({ a: m.punkter[kant]!, b: m.punkter[(kant + 1) % m.punkter.length]! });
+          }
+        }
+        setVelgReferanseModus(false);
+        return;
+      }
+
       // Et klikk i bakgrunnen/på en kant velger bort et tidligere valgt hjørne
       // (klikk PÅ et hjørne går via startPunktDrag og beholder valget).
       setValgtPunktIdx(null);
@@ -826,13 +933,18 @@ export default function TegningerSide() {
         }
       }
 
-      // Trykk nær et eksisterende punkt (i prosent→px) lukker polylinje/areal.
-      const treffPx = (q: Punkt) =>
-        Math.hypot(((q.x - px) / 100) * r.width, ((q.y - py) / 100) * r.height) <= PUNKT_TREFF_PX;
-
       // En påbegynt måling → legg til punkt (RETUR 2: ingen reset på neste klikk).
+      // 90°/snap: punktet justeres via beregnSnap FØR det legges til (lukke-terskelen
+      // regnes mot det SNAPPEDE punktet, så snap-til-første-punkt lukker areal riktig).
       if (harPaagaaende(maleTilstand)) {
-        setMaleTilstand((t) => leggTilPunkt(t, { x: px, y: py }, treffPx));
+        const aktP = aktivMaling(maleTilstand);
+        const ankerIdx = aktP && !aktP.ferdig ? aktP.punkter.length - 1 : null;
+        const snapR = beregnSnapForKandidat({ x: px, y: py }, r.width, r.height, ankerIdx);
+        const fp = snapR ? snapR.punkt : { x: px, y: py };
+        const treffFp = (q: Punkt) =>
+          Math.hypot(((q.x - fp.x) / 100) * r.width, ((q.y - fp.y) / 100) * r.height) <= PUNKT_TREFF_PX;
+        setMaleTilstand((t) => leggTilPunkt(t, fp, treffFp));
+        nullstillForhandsvisning();
         return;
       }
 
@@ -893,7 +1005,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand, aktivMal]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand, aktivMal, velgReferanseModus, beregnSnapForKandidat, nullstillForhandsvisning]);
 
   // Dra et satt målepunkt med musa (TILLEGG RETUR 1). Starter på punkt-prikken;
   // move/up lyttes på vindu så dra fortsetter utenfor prikken. Rører ikke maleFerdig
@@ -914,12 +1026,18 @@ export default function TegningerSide() {
       if (!r || r.width <= 0 || r.height <= 0) return;
       const x = Math.max(0, Math.min(100, ((ev.clientX - r.left) / r.width) * 100));
       const y = Math.max(0, Math.min(100, ((ev.clientY - r.top) / r.height) * 100));
-      setMaleTilstand((t) => flyttPunkt(t, idx, { x, y }));
+      // 90°/snap under dra: snap til egne punkter + hjelpelinjer (ekskluder punktet
+      // som dras). Lås-mot-anker gjelder ikke dra (ingen «anker» i en ferdig figur).
+      const snapR = beregnSnapForKandidat({ x, y }, r.width, r.height, idx);
+      const fp = snapR ? snapR.punkt : { x, y };
+      setMaleTilstand((t) => flyttPunkt(t, idx, fp));
+      if (snapR) { setHjelpelinjer(snapR.hjelpelinjer); setAksehjelp(snapR.aksehjelpelinje); }
     }
     function slutt() {
       punktDragRef.current = false;
       nettoppDrattRef.current = true; // undertrykk klikket som følger pointerup
       setDragIdx(null);
+      nullstillForhandsvisning();
     }
     window.addEventListener("pointermove", flytt);
     window.addEventListener("pointerup", slutt);
@@ -927,7 +1045,7 @@ export default function TegningerSide() {
       window.removeEventListener("pointermove", flytt);
       window.removeEventListener("pointerup", slutt);
     };
-  }, [dragIdx]);
+  }, [dragIdx, beregnSnapForKandidat, nullstillForhandsvisning]);
 
   // Modell-korreksjon (funn 2026-08-22): dokumentflyt er nøkkelen, ikke faggruppe.
   // Serveren (F1/B1) krever `dokumentflytId` for ikke-HMS og validerer at flyten har malen
@@ -1101,6 +1219,7 @@ export default function TegningerSide() {
   const scaleDenom = parseMalestokk(tegning.scale);
   const imgW = tegning.imageWidth ?? null;
   const imgH = tegning.imageHeight ?? null;
+  snapParamRef.current = { imgW, imgH, ortho, snapPaa, referanselinje };
   // Georeferanse har FORTRINN når den finnes med 3+ punkter (måler bakken, ikke papiret,
   // og tåler at tegningen er strukket). Kun 3+ punkter gir en trygg affin avbildning.
   const antallGeoPunkter = geoRef ? 2 + (geoRef.ekstraPunkter?.length ?? 0) : 0;
@@ -1382,6 +1501,42 @@ export default function TegningerSide() {
                 {t("maaling.verktoyAreal")}
               </button>
             </div>
+            {/* 🟢 90°-lås · snap · referanselinje (ordre 90-snap + GJENOPPTA). */}
+            <div className="flex items-center rounded border border-gray-200">
+              <button
+                disabled={!kanMaleNaa}
+                onClick={() => setOrtho((v) => !v)}
+                className={`flex items-center gap-1 rounded-l px-2 py-1 text-xs ${
+                  ortho ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={t("maaling.laasVinkelHjelp")}
+              >
+                <TriangleRight className="h-3 w-3" />
+                {t("maaling.laasVinkel")}
+              </button>
+              <button
+                disabled={!kanMaleNaa || !ortho}
+                onClick={() => { setVelgReferanseModus((v) => !v); if (referanselinje) setReferanselinje(null); }}
+                className={`flex items-center gap-1 border-l border-gray-200 px-2 py-1 text-xs ${
+                  velgReferanseModus || referanselinje ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={t("maaling.referanselinjeHjelp")}
+              >
+                <Spline className="h-3 w-3" />
+                {t("maaling.referanselinje")}
+              </button>
+              <button
+                disabled={!kanMaleNaa}
+                onClick={() => setSnapPaa((v) => !v)}
+                className={`flex items-center gap-1 rounded-r border-l border-gray-200 px-2 py-1 text-xs ${
+                  snapPaa ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={t("maaling.snapHjelp")}
+              >
+                <Magnet className="h-3 w-3" />
+                {t("maaling.snap")}
+              </button>
+            </div>
           </>
         )}
 
@@ -1653,6 +1808,21 @@ export default function TegningerSide() {
               <span className="ml-1 font-normal text-gray-500">({malestokkEtikett})</span>
             </span>
           )}
+          {/* 🟢 TILLEGG: polylinje avsluttes KUN eksplisitt (paritet med mobil, ikke
+              dobbeltklikk/klikk-nær-punkt). «Fullfør» på en pågående, «Fortsett» på
+              en ferdig for å legge til flere punkter. Enter avslutter også. */}
+          {aktivVerktoy === "polylinje" && harPaagaaende(maleTilstand) && aktivPunkter.length >= 2 && (
+            <button onClick={() => setMaleTilstand((t) => settFerdig(t))} className="flex items-center gap-1 rounded border border-green-300 px-2 py-1 text-green-700 hover:bg-green-50">
+              <Check className="h-3 w-3" />
+              {t("maaling.fullfor")}
+            </button>
+          )}
+          {aktivMal?.verktoy === "polylinje" && aktivMal.ferdig && (
+            <button onClick={() => setMaleTilstand((t) => gjenoppta(t))} className="flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-gray-700 hover:bg-gray-100">
+              <Plus className="h-3 w-3" />
+              {t("maaling.fortsett")}
+            </button>
+          )}
           {/* Kalibrering er korreksjonen (ordre § D): står ved resultatet, ikke
               som et bekreftelsessteg før måling. Kun for papir-målestokken —
               georeferanse kalibreres ikke. */}
@@ -1735,12 +1905,6 @@ export default function TegningerSide() {
               style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
               onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
-              onDoubleClick={() => {
-                // Dobbeltklikk avslutter en pågående polylinje (RETUR 3 § C).
-                if (aktivVerktoy === "polylinje" && harPaagaaende(maleTilstand) && aktivPunkter.length >= 2) {
-                  setMaleTilstand((t) => settFerdig(t));
-                }
-              }}
               onMouseMove={handleMuseBevegelse}
               onMouseLeave={handleMuseForlat}
             >
@@ -1801,6 +1965,39 @@ export default function TegningerSide() {
               {/* Kalibrering: egen 2-punktsvisning. */}
               {kalibrerModus && (
                 <MaalingOverlay punkter={kalibrerPunkter} segmenter={[]} fyll={false} aktiv />
+              )}
+
+              {/* 🟢 90°/snap-veiledning (ordre 90-snap + GJENOPPTA § 2): valgt referanselinje
+                  (gul), ortho-akse + H/V-hjelpelinjer (stiplet blå), forhåndspunkt + «90°». */}
+              {(referanselinje || aksehjelp || hjelpelinjer.vertikal != null || hjelpelinjer.horisontal != null || forhandsPunkt) && (
+                <div className="pointer-events-none absolute inset-0">
+                  <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                    {referanselinje && (
+                      <line x1={referanselinje.a.x} y1={referanselinje.a.y} x2={referanselinje.b.x} y2={referanselinje.b.y}
+                        stroke="#f59e0b" strokeWidth={2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                    )}
+                    {aksehjelp && (
+                      <line x1={aksehjelp[0].x} y1={aksehjelp[0].y} x2={aksehjelp[1].x} y2={aksehjelp[1].y}
+                        stroke="#1e40af" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+                    )}
+                    {hjelpelinjer.vertikal != null && (
+                      <line x1={hjelpelinjer.vertikal} y1={0} x2={hjelpelinjer.vertikal} y2={100}
+                        stroke="#1e40af" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+                    )}
+                    {hjelpelinjer.horisontal != null && (
+                      <line x1={0} y1={hjelpelinjer.horisontal} x2={100} y2={hjelpelinjer.horisontal}
+                        stroke="#1e40af" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+                    )}
+                  </svg>
+                  {forhandsPunkt && (
+                    <div className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sitedoc-primary/60"
+                      style={{ left: `${forhandsPunkt.x}%`, top: `${forhandsPunkt.y}%` }} />
+                  )}
+                  {forhandsPunkt && visVinkelrett && (
+                    <div className="absolute -translate-x-1/2 -translate-y-full rounded bg-sitedoc-primary px-1 py-0.5 text-[10px] font-bold text-white shadow"
+                      style={{ left: `${forhandsPunkt.x}%`, top: `${forhandsPunkt.y}%` }}>{t("maaling.laasVinkel")}</div>
+                  )}
+                </div>
               )}
 
               {/* Område-tegneverktøy */}

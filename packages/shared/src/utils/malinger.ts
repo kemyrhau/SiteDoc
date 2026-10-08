@@ -131,6 +131,17 @@ export function settFerdig(t: MaleTilstand): MaleTilstand {
 }
 
 /**
+ * 🟢 TILLEGG (web polylinje-paritet): «Fortsett» en ferdig måling — åpne den aktive
+ * igjen (`ferdig = false`) så nye punkter kan legges til. Ingen aktiv / allerede
+ * påbegynt → uendret. (Areal forblir en ring; nye punkter legges til før lukking.)
+ */
+export function gjenoppta(t: MaleTilstand): MaleTilstand {
+  const m = aktivMaling(t);
+  if (!m || !m.ferdig) return t;
+  return { ...t, malinger: t.malinger.map((x) => (x.id === m.id ? { ...x, ferdig: false } : x)) };
+}
+
+/**
  * Flytt et punkt i den aktive målingen (dra). Rører ikke `ferdig` — et lukket
  * areal/polylinje forblir lukket mens punktet justeres (TILLEGG RETUR 1).
  */

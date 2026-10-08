@@ -194,3 +194,326 @@ export function kalibrerMalestokk(
   if (papirMm <= 0 || virkeligMm <= 0) return null;
   return virkeligMm / papirMm;
 }
+
+// =============================================================================
+// 90°-lås (ortho) + snapping — delt, ren geometri (ordre «90°-lås og snapping»).
+//
+// Prinsippet (som resten av fila): matematikken bor HER som rene funksjoner, og
+// begge flater kaller den. Web kaller direkte; mobil (`TegningsVisning.tsx`)
+// kaller den i React Native på commit-veien (gest/maledrag), mens den injiserte
+// WebView-JS-en SPEILER en forenklet variant kun for live lupe/hjelpelinje (som
+// `lupe.ts`). Siden snap/lås er idempotente (et punkt som allerede er snappet,
+// snappes til seg selv) er det trygt at speilet driver det visuelle mens den
+// delte funksjonen eier det LAGREDE punktet.
+//
+// 🔴 Vinkler regnes i PIKSELROM, ikke prosent. Prosentrommet er strukket av
+// bildets sideforhold (bredde ≠ høyde i px), så «vinkelrett» og «nærmeste
+// retning» blir feil hvis de måles i prosent. Vannrett/loddrett treffer riktig
+// uansett (samme prosent-y ⟺ samme piksel-y), men avgjørelsen om hvilken
+// retning som er nærmest må skje i piksler.
+// =============================================================================
+
+/** Klem en prosentverdi til 0–100. */
+function klem100(v: number): number {
+  return Math.max(0, Math.min(100, v));
+}
+
+function tilPiksel(p: Punkt, imageWidth: number, imageHeight: number): { x: number; y: number } {
+  return { x: (p.x / 100) * imageWidth, y: (p.y / 100) * imageHeight };
+}
+
+function tilProsent(px: { x: number; y: number }, imageWidth: number, imageHeight: number): Punkt {
+  return { x: klem100((px.x / imageWidth) * 100), y: klem100((px.y / imageHeight) * 100) };
+}
+
+/** En referanselinje (to prosent-punkter) å låse parallelt/vinkelrett på. */
+export interface Referanselinje {
+  a: Punkt;
+  b: Punkt;
+}
+
+/** Detaljert resultat av en 90°-lås (for hjelpelinje + «90°»-etikett). */
+export interface LaasDetalj {
+  /** Låst punkt (prosent). */
+  punkt: Punkt;
+  /** Valgt låseretning som enhetsvektor i PIKSELROM. */
+  retning: { x: number; y: number };
+  /** Står den valgte retningen vinkelrett på referanselinjen / forrige segment? */
+  vinkelrett: boolean;
+}
+
+/**
+ * Kjernen i 90°-låsen (detaljert). Projiser `kandidat` på den NÆRMESTE av de
+ * tillatte retningene fra `anker`:
+ *   - med `referanse`: PARALLELT eller VINKELRETT på referanselinja (løser skrå
+ *     vegger uten snap til tegningsgeometri — ordre GJENOPPTA § 1),
+ *   - ellers: vannrett + loddrett (tegningens akser) + vinkelrett på forrige
+ *     segment (`anker − forforrige`) for segment 2+.
+ * «Nærmest» = minst normalavstand fra kandidat til retningens linje gjennom
+ * anker. Alt i pikselrom (prosent forvrenger vinkler).
+ */
+function laasDetaljer(
+  anker: Punkt,
+  kandidat: Punkt,
+  imageWidth: number,
+  imageHeight: number,
+  forforrige?: Punkt | null,
+  referanse?: Referanselinje | null,
+): LaasDetalj {
+  if (imageWidth <= 0 || imageHeight <= 0) {
+    return { punkt: kandidat, retning: { x: 1, y: 0 }, vinkelrett: false };
+  }
+  const a = tilPiksel(anker, imageWidth, imageHeight);
+  const k = tilPiksel(kandidat, imageWidth, imageHeight);
+  const v = { x: k.x - a.x, y: k.y - a.y };
+
+  // Kandidatretninger (enhet, piksel) med et «vinkelrett»-flagg hver.
+  const retninger: { d: { x: number; y: number }; perp: boolean }[] = [];
+  if (referanse) {
+    const ra = tilPiksel(referanse.a, imageWidth, imageHeight);
+    const rb = tilPiksel(referanse.b, imageWidth, imageHeight);
+    const u = { x: rb.x - ra.x, y: rb.y - ra.y };
+    const len = Math.hypot(u.x, u.y);
+    if (len > 0) {
+      const un = { x: u.x / len, y: u.y / len };
+      retninger.push({ d: un, perp: false }); // parallelt med veggen
+      retninger.push({ d: { x: -un.y, y: un.x }, perp: true }); // vinkelrett inn mot veggen
+    }
+  }
+  if (retninger.length === 0) {
+    retninger.push({ d: { x: 1, y: 0 }, perp: false });
+    retninger.push({ d: { x: 0, y: 1 }, perp: false });
+    if (forforrige) {
+      const f = tilPiksel(forforrige, imageWidth, imageHeight);
+      const u = { x: a.x - f.x, y: a.y - f.y };
+      const len = Math.hypot(u.x, u.y);
+      if (len > 0) retninger.push({ d: { x: -u.y / len, y: u.x / len }, perp: true });
+    }
+  }
+
+  let best = k;
+  let bestRetning = retninger[0]!.d;
+  let bestPerp = false;
+  let bestAvstand = Infinity;
+  for (const r of retninger) {
+    const dl = Math.hypot(r.d.x, r.d.y);
+    if (dl === 0) continue;
+    const dn = { x: r.d.x / dl, y: r.d.y / dl };
+    const proj = v.x * dn.x + v.y * dn.y; // skalar-projeksjon langs retningen
+    const lp = { x: a.x + proj * dn.x, y: a.y + proj * dn.y };
+    const avstand = Math.hypot(k.x - lp.x, k.y - lp.y);
+    if (avstand < bestAvstand) {
+      bestAvstand = avstand;
+      best = lp;
+      bestRetning = dn;
+      bestPerp = r.perp;
+    }
+  }
+  return { punkt: tilProsent(best, imageWidth, imageHeight), retning: bestRetning, vinkelrett: bestPerp };
+}
+
+/**
+ * 90°-lås (enkel) — returnerer bare det låste punktet (prosent). Tynn wrapper over
+ * `laasDetaljer`; `beregnSnap` bruker den detaljerte for hjelpelinje + etikett.
+ */
+export function laasVinkel(
+  anker: Punkt,
+  kandidat: Punkt,
+  imageWidth: number,
+  imageHeight: number,
+  forforrige?: Punkt | null,
+  referanse?: Referanselinje | null,
+): Punkt {
+  return laasDetaljer(anker, kandidat, imageWidth, imageHeight, forforrige, referanse).punkt;
+}
+
+/**
+ * Endepunktene (prosent) der en akse gjennom `anker` med pikselretning `retning`
+ * treffer bildekanten [0,W]×[0,H] — til å tegne den stiplede hjelpelinja tvers
+ * over tegningen (GJENOPPTA § 2). null ved degenerert input.
+ */
+export function aksehjelpelinje(
+  anker: Punkt,
+  retning: { x: number; y: number },
+  imageWidth: number,
+  imageHeight: number,
+): [Punkt, Punkt] | null {
+  if (imageWidth <= 0 || imageHeight <= 0) return null;
+  const a = tilPiksel(anker, imageWidth, imageHeight);
+  const dl = Math.hypot(retning.x, retning.y);
+  if (dl === 0) return null;
+  const d = { x: retning.x / dl, y: retning.y / dl };
+  // Finn t der a + t·d krysser hver kant; behold de to ytterste innenfor boksen.
+  const ts: number[] = [];
+  if (d.x !== 0) {
+    ts.push((0 - a.x) / d.x, (imageWidth - a.x) / d.x);
+  }
+  if (d.y !== 0) {
+    ts.push((0 - a.y) / d.y, (imageHeight - a.y) / d.y);
+  }
+  // Behold t som gir et punkt innenfor boksen (med liten margin).
+  const eps = 1e-6;
+  const gyldige = ts.filter((t) => {
+    const x = a.x + t * d.x;
+    const y = a.y + t * d.y;
+    return x >= -eps && x <= imageWidth + eps && y >= -eps && y <= imageHeight + eps;
+  });
+  if (gyldige.length < 2) return null;
+  const tMin = Math.min(...gyldige);
+  const tMax = Math.max(...gyldige);
+  const p1 = { x: a.x + tMin * d.x, y: a.y + tMin * d.y };
+  const p2 = { x: a.x + tMax * d.x, y: a.y + tMax * d.y };
+  return [tilProsent(p1, imageWidth, imageHeight), tilProsent(p2, imageWidth, imageHeight)];
+}
+
+/**
+ * Snap til nærmeste punkt i `mål` innen `tolPx` SKJERMPIKSLER. Treff → det
+ * eksakte målpunktet (prosent); ingen treff → null. `rectW/rectH` er tegningens
+ * VISTE størrelse i px (inkl. zoom), slik at terskelen er en skjermavstand.
+ */
+export function snapTilPunkt(
+  kandidat: Punkt,
+  mål: Punkt[],
+  rectW: number,
+  rectH: number,
+  tolPx: number,
+): Punkt | null {
+  if (rectW <= 0 || rectH <= 0) return null;
+  const kx = (kandidat.x / 100) * rectW;
+  const ky = (kandidat.y / 100) * rectH;
+  let best: Punkt | null = null;
+  let bestAvstand = tolPx;
+  for (const m of mål) {
+    const mx = (m.x / 100) * rectW;
+    const my = (m.y / 100) * rectH;
+    const d = Math.hypot(mx - kx, my - ky);
+    if (d <= bestAvstand) {
+      bestAvstand = d;
+      best = m;
+    }
+  }
+  return best;
+}
+
+export interface Hjelpelinjer {
+  /** x-prosent for en loddrett hjelpelinje (kandidaten deler x med et punkt), ellers null. */
+  vertikal: number | null;
+  /** y-prosent for en vannrett hjelpelinje (kandidaten deler y med et punkt), ellers null. */
+  horisontal: number | null;
+}
+
+/**
+ * Snap til 90°-hjelpelinjer: hvis kandidatens x er innen `tolPx` av et
+ * referansepunkts x, lås x til det (loddrett hjelpelinje); samme for y (vannrett
+ * hjelpelinje). x og y vurderes uavhengig. Returnerer justert punkt + hvilke
+ * hjelpelinjer som ble aktive (for å tegne stiplet strek). Terskel i skjerm-px.
+ */
+export function snapTil90Linje(
+  kandidat: Punkt,
+  referanser: Punkt[],
+  rectW: number,
+  rectH: number,
+  tolPx: number,
+): { punkt: Punkt; hjelpelinjer: Hjelpelinjer } {
+  const resultat: Hjelpelinjer = { vertikal: null, horisontal: null };
+  if (rectW <= 0 || rectH <= 0 || referanser.length === 0) {
+    return { punkt: kandidat, hjelpelinjer: resultat };
+  }
+  let x = kandidat.x;
+  let y = kandidat.y;
+  let bestX = tolPx;
+  let bestY = tolPx;
+  for (const r of referanser) {
+    const dxPx = Math.abs(((r.x - kandidat.x) / 100) * rectW);
+    if (dxPx <= bestX) {
+      bestX = dxPx;
+      x = r.x;
+      resultat.vertikal = r.x;
+    }
+    const dyPx = Math.abs(((r.y - kandidat.y) / 100) * rectH);
+    if (dyPx <= bestY) {
+      bestY = dyPx;
+      y = r.y;
+      resultat.horisontal = r.y;
+    }
+  }
+  return { punkt: { x, y }, hjelpelinjer: resultat };
+}
+
+export interface SnapInn {
+  /** Rått kandidatpunkt (prosent), fra skjerm→prosent. */
+  kandidat: Punkt;
+  /** Forrige satte punkt i den påbegynte målingen (ortho-anker). null = første punkt / dra. */
+  anker: Punkt | null;
+  /** Punktet før ankeret (for vinkelrett på forrige segment). */
+  forforrige: Punkt | null;
+  /** Alle andre punkter på tegningen (snap-mål + hjelpelinje-referanser). */
+  referanser: Punkt[];
+  /** Valgt referanselinje (GJENOPPTA § 1) — lås parallelt/vinkelrett på den i stedet for akser. */
+  referanselinje?: Referanselinje | null;
+  /** 90°-lås på? */
+  ortho: boolean;
+  /** Snap på? */
+  snap: boolean;
+  imageWidth: number;
+  imageHeight: number;
+  /** Vist bilde-størrelse i px (inkl. zoom) for skjerm-terskler. */
+  rectW: number;
+  rectH: number;
+  /** Treffradius punkt-snap (px). */
+  punktTolPx: number;
+  /** Treffradius hjelpelinje-snap (px). */
+  guideTolPx: number;
+}
+
+export interface SnapResultat {
+  /** Endelig punkt (prosent) — det som skal lagres/vises. */
+  punkt: Punkt;
+  /** Landet eksakt på et eksisterende punkt? */
+  traffPunkt: boolean;
+  /** Aktive 90°-hjelpelinjer fra eksisterende punkters akser (for stiplet strek). */
+  hjelpelinjer: Hjelpelinjer;
+  /** Ortho-aksens stiplede hjelpelinje gjennom ankeret (to prosent-punkter), ellers null. */
+  aksehjelpelinje: [Punkt, Punkt] | null;
+  /** Står det tegnede segmentet vinkelrett på referanselinja / forrige segment? → «90°»-etikett. */
+  vinkelrett: boolean;
+}
+
+/**
+ * Full snap+lås for ETT kandidatpunkt. Presedens (bevisst valg — se leveransen):
+ *   1. snap på + nær et eksisterende punkt  → eksakt det punktet (vinner alltid).
+ *   2. ortho på + anker finnes (segment 2+) → lås mot akser / referanselinje, og
+ *      gi den stiplede aksehjelpelinja + «vinkelrett»-flagget for etiketten.
+ *   3. snap på + ortho på + INGEN anker     → snap til 90°-hjelpelinjer fra punkter.
+ * Uten anker (første punkt / fri dra) gjelder (1) og (3); et låst segment (2)
+ * forblir rent (ingen hjelpelinje-forskyvning som bryter låsen).
+ */
+export function beregnSnap(inn: SnapInn): SnapResultat {
+  const tom: Hjelpelinjer = { vertikal: null, horisontal: null };
+
+  // 1) Eksakt punkt-snap vinner.
+  if (inn.snap) {
+    const p = snapTilPunkt(inn.kandidat, inn.referanser, inn.rectW, inn.rectH, inn.punktTolPx);
+    if (p) return { punkt: p, traffPunkt: true, hjelpelinjer: tom, aksehjelpelinje: null, vinkelrett: false };
+  }
+
+  // 2) 90°-lås mot ankeret (akser eller valgt referanselinje).
+  if (inn.ortho && inn.anker) {
+    const d = laasDetaljer(inn.anker, inn.kandidat, inn.imageWidth, inn.imageHeight, inn.forforrige, inn.referanselinje);
+    return {
+      punkt: d.punkt,
+      traffPunkt: false,
+      hjelpelinjer: tom,
+      aksehjelpelinje: aksehjelpelinje(inn.anker, d.retning, inn.imageWidth, inn.imageHeight),
+      vinkelrett: d.vinkelrett,
+    };
+  }
+
+  // 3) 90°-hjelpelinjer (forlengelse av vannrett/loddrett fra eksisterende punkter).
+  if (inn.snap && inn.ortho) {
+    const { punkt, hjelpelinjer } = snapTil90Linje(inn.kandidat, inn.referanser, inn.rectW, inn.rectH, inn.guideTolPx);
+    return { punkt, traffPunkt: false, hjelpelinjer, aksehjelpelinje: null, vinkelrett: false };
+  }
+
+  return { punkt: inn.kandidat, traffPunkt: false, hjelpelinjer: tom, aksehjelpelinje: null, vinkelrett: false };
+}

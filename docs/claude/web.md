@@ -500,6 +500,16 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
   linje). Areal regner med sluttkanten (`lukket`). Mobil bruker samme funksjoner med trykk-på-kant +
   langt-trykk-fjern (se `mobil.md`). § 1 (polylinje auto-lukker aldri; areal kun første punkt) gjelder
   web via den delte `punktTilMaling` — ingen egen web-kode.
+- **90°-lås + snapping (ordre + GJENOPPTA, 2026-10-08):** verktøylinja fikk tre toggler — **90°**
+  (`TriangleRight`), **Referanse** (`Spline`, kun når 90° på), **Snap** (`Magnet`, PÅ som standard). Alt via
+  delt `beregnSnap` (`maaling.ts`): klikk/dra/hover kjører `beregnSnapForKandidat` (leser `snapParamRef`).
+  **Forhåndsvisning** på `onMouseMove`: svak markør der klikket lander + stiplet ortho-akse + H/V-hjelpelinjer
+  + «90°»-etikett (`visVinkelrett`). **Referanselinje:** «Referanse»-knapp → klikk på et segment i en måling
+  → neste linje låses parallelt/vinkelrett på den (gul strek). Snap-til-egne-punkter (12 px) på klikk + dra.
+- **TILLEGG (2026-10-08) — polylinje-paritet:** dobbeltklikk-avslutt FJERNET (var web-spesifikk). Polylinje
+  avsluttes nå KUN eksplisitt: **«Fullfør»**-knapp (grønn, i stripa) eller **Enter**. En ferdig polylinje får
+  **«Fortsett»** (`gjenoppta` i shared → `ferdig=false`) for å legge til flere punkter. Areal lukkes
+  fortsatt ved klikk på første punkt / «Lukk flate». (Klikk-nær-punkt lukker ikke lenger — delt § 1.)
 
 **Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)
