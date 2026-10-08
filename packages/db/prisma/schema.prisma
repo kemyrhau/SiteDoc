@@ -932,6 +932,12 @@ model Drawing {
   geoReference     Json?     @map("geo_reference") // Georeferanse med 2 referansepunkter
   ifcMetadata      Json?     @map("ifc_metadata") // Uttrukket IFC-metadata (prosjekt, organisasjon, etasjer, GPS)
   gpsOverride      Json?     @map("gps_override") // Manuell GPS-kalibrering for IFC: {lat, lng} — overstyrer ifcMetadata GPS
+  // DWG-layout-kobling (DWG-2, D6): en layout-tegning peker på hovedtegningen (modelspace)
+  // den stammer fra. NULL = hovedtegning — en GYLDIG tilstand (stille-tomhet-regelen).
+  // Svak FK (ingen Prisma self-relasjon — unngår TS2589); kaskade-sletting av layouts
+  // håndteres i koden (route). Revisjon/«prøv igjen» ERSTATTER på (parentDrawingId, layoutNavn).
+  parentDrawingId  String?   @map("parent_drawing_id")
+  layoutNavn       String?   @map("layout_navn") // Paper space-layoutens navn (kun på layout-rader)
   // Tegningsserie (T2): lett gruppering «merk tegninger → flytt inn i en serie».
   // NULL = «ikke i serie» — en gyldig tilstand (ingen backfill). Sletting av serien
   // setter denne til NULL (SetNull), aldri sletter tegningen. Revisjon/målestokk/status
@@ -953,6 +959,7 @@ model Drawing {
   @@index([byggeplassId])
   @@index([status])
   @@index([serieId])
+  @@index([parentDrawingId])
   @@map("drawings")
 }
 
@@ -1060,6 +1067,10 @@ model DrawingRevision {
   uploadedById String?   @map("uploaded_by_id")
   status       String // Status ved revisjon
   issuedAt     DateTime? @map("issued_at")
+  // DWG-layouts arkivert ved denne revisjonen (DWG-2, D6/Q3): [{layoutNavn, fileUrl}].
+  // Hovedtegningens forrige fil ligger i `fileUrl`; layoutenes forrige SVG-er her, så
+  // en gammel revisjon kan vises komplett. NULL = ingen layouts (gyldig).
+  layouter     Json?
   createdAt    DateTime  @default(now()) @map("created_at")
 
   drawing    Drawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)

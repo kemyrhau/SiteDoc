@@ -54,6 +54,8 @@ function lagCtx(eksisterende?: Record<string, unknown>) {
     drawing: {
       findUnique: vi.fn().mockResolvedValue(eksisterende ?? null),
       findUniqueOrThrow: vi.fn().mockResolvedValue(eksisterende),
+      // DWG-2/D6: lastOppRevisjon arkiverer gjeldende layouts (ingen her → tom liste).
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(async (arg: { data: Record<string, unknown> }) => {
         opprettelser.push(arg);
         return { id: "ny-tegning", ...arg.data };

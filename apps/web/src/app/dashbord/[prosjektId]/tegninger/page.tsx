@@ -65,6 +65,7 @@ import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/Maalin
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
 import { RedigerTegningModal } from "@/components/tegning/RedigerTegningModal";
+import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
@@ -1244,6 +1245,7 @@ export default function TegningerSide() {
   const kildeEtikett = (() => {
     const k = maaleKilde;
     if (k === "georeferanse") return t("maaling.kildeGeoreferanse");
+    if (k === "dwg") return t("maaling.kildeDwg");
     if (k === "kalibrert") return t("maaling.kildeKalibrert");
     if (k === "manuell") return t("maaling.kildeManuell");
     if (k === "tittelfelt") return t("maaling.kildeTittelfelt");
@@ -1418,6 +1420,8 @@ export default function TegningerSide() {
         {(tegning as unknown as { ifcMetadata: IfcMetadataJson | null }).ifcMetadata && (
           <IfcMetadataBadge metadata={(tegning as unknown as { ifcMetadata: IfcMetadataJson }).ifcMetadata} />
         )}
+        {/* D6b: tidligere revisjoner — klikk åpner forrige fil skrivebeskyttet */}
+        <RevisjonsListe revisjoner={tegning.revisions} />
         <div className="flex-1" />
 
         {/* Zoom-kontroller */}

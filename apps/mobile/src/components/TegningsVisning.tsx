@@ -706,6 +706,7 @@ export function TegningsVisning({
   const formatAreal = (m2: number) => `${m2.toFixed(2).replace(".", ",")} m²`;
 
   const kildeEtikett = (() => {
+    if (scaleKilde === "dwg") return t("maaling.kildeDwg");
     if (scaleKilde === "kalibrert") return t("maaling.kildeKalibrert");
     if (scaleKilde === "manuell") return t("maaling.kildeManuell");
     if (scaleKilde === "tittelfelt") return t("maaling.kildeTittelfelt");
