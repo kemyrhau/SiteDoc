@@ -9,6 +9,11 @@ import {
   malArealMm2,
   kanMale,
   kalibrerMalestokk,
+  laasVinkel,
+  aksehjelpelinje,
+  snapTilPunkt,
+  snapTil90Linje,
+  beregnSnap,
   type Punkt,
 } from "./maaling";
 
@@ -227,5 +232,251 @@ describe("måling i tegning — kalibrering utleder målestokk fra kjent lengde"
     const a: Punkt = { x: 10, y: 10 };
     expect(kalibrerMalestokk(a, a, IMG_W, IMG_H, 0.127, 1000)).toBeNull(); // null lengde
     expect(kalibrerMalestokk(a, { x: 20, y: 10 }, IMG_W, IMG_H, 0.127, 0)).toBeNull(); // 0 mm
+  });
+});
+
+// =============================================================================
+// 90°-lås (ortho) + snapping — rene geometritester (syntetiske, forklart i hver).
+// =============================================================================
+
+describe("laasVinkel — projiser kandidat på nærmeste av vannrett/loddrett/vinkelrett", () => {
+  // Kvadratisk bilde: 1 % = 10 px i begge akser, så prosent og piksel samvarierer.
+  const W = 1000, H = 1000;
+
+  it("nær-vannrett kandidat låses til vannrett (y = ankerets y)", () => {
+    const anker: Punkt = { x: 20, y: 50 };
+    const kandidat: Punkt = { x: 60, y: 52 }; // liten y-drift
+    const r = laasVinkel(anker, kandidat, W, H);
+    expect(r.y).toBeCloseTo(50, 5); // låst til ankerets y
+    expect(r.x).toBeCloseTo(60, 5); // x bevart
+  });
+
+  it("nær-loddrett kandidat låses til loddrett (x = ankerets x)", () => {
+    const anker: Punkt = { x: 40, y: 20 };
+    const kandidat: Punkt = { x: 42, y: 70 };
+    const r = laasVinkel(anker, kandidat, W, H);
+    expect(r.x).toBeCloseTo(40, 5);
+    expect(r.y).toBeCloseTo(70, 5);
+  });
+
+  it("vinkelrett på forrige segment: etter et loddrett segment låses neste til vannrett", () => {
+    // forforrige→anker er loddrett (samme x). Vinkelrett på det = vannrett.
+    const forforrige: Punkt = { x: 30, y: 20 };
+    const anker: Punkt = { x: 30, y: 60 };
+    const kandidat: Punkt = { x: 75, y: 58 }; // nesten vannrett ut fra ankeret
+    const r = laasVinkel(anker, kandidat, W, H, forforrige);
+    expect(r.y).toBeCloseTo(60, 5); // vannrett (= vinkelrett på loddrett forrige)
+    expect(r.x).toBeCloseTo(75, 5);
+  });
+
+  it("vinkelrett på et skrått forrige segment (45°) gir et 45°-låst punkt", () => {
+    const forforrige: Punkt = { x: 10, y: 10 };
+    const anker: Punkt = { x: 50, y: 50 }; // forrige segment = retning (1,1)
+    // Vinkelrett = retning (-1,1). Kandidat nær den.
+    const kandidat: Punkt = { x: 38, y: 64 };
+    const r = laasVinkel(anker, kandidat, W, H, forforrige);
+    // Låst punkt skal ligge på linja anker + t·(-1,1): dx og dy like store, motsatt fortegn.
+    expect(r.x - 50).toBeCloseTo(-(r.y - 50), 4);
+  });
+
+  it("degenerert bilde (0 px) returnerer kandidaten urørt", () => {
+    const anker: Punkt = { x: 10, y: 10 };
+    const kandidat: Punkt = { x: 20, y: 30 };
+    expect(laasVinkel(anker, kandidat, 0, 0)).toEqual(kandidat);
+  });
+
+  it("sideforhold ≠ 1: 'nærmeste retning' avgjøres i pikselrom, ikke prosent", () => {
+    // Bredt bilde (2000×500): 1 % x = 20 px, 1 % y = 5 px. En kandidat som i
+    // PROSENT ser nærmest loddrett ut, er i PIKSLER nærmest vannrett.
+    const W2 = 2000, H2 = 500;
+    const anker: Punkt = { x: 10, y: 50 };
+    const kandidat: Punkt = { x: 20, y: 56 }; // Δx=10%→200px, Δy=6%→30px → nær vannrett
+    const r = laasVinkel(anker, kandidat, W2, H2);
+    expect(r.y).toBeCloseTo(50, 5); // vannrett vant (riktig i pikselrom)
+  });
+});
+
+describe("snapTilPunkt — nærmeste punkt innen skjermterskel", () => {
+  const W = 1000, H = 1000, TOL = 12;
+
+  it("snapper til et punkt innenfor terskelen (eksakt det punktet)", () => {
+    const mål: Punkt[] = [{ x: 30, y: 40 }, { x: 70, y: 80 }];
+    // 0,5 % = 5 px < 12 px.
+    const r = snapTilPunkt({ x: 30.5, y: 40.3 }, mål, W, H, TOL);
+    expect(r).toEqual({ x: 30, y: 40 });
+  });
+
+  it("returnerer null når ingen er nær nok", () => {
+    const mål: Punkt[] = [{ x: 30, y: 40 }];
+    expect(snapTilPunkt({ x: 50, y: 50 }, mål, W, H, TOL)).toBeNull();
+  });
+
+  it("velger det nærmeste av flere kandidater", () => {
+    const mål: Punkt[] = [{ x: 30, y: 40 }, { x: 30.8, y: 40 }];
+    const r = snapTilPunkt({ x: 30.7, y: 40 }, mål, W, H, TOL);
+    expect(r).toEqual({ x: 30.8, y: 40 });
+  });
+});
+
+describe("snapTil90Linje — hjelpelinjer fra eksisterende punkters x/y", () => {
+  const W = 1000, H = 1000, TOL = 12;
+
+  it("låser x til et punkts x (loddrett hjelpelinje) når nær", () => {
+    const ref: Punkt[] = [{ x: 25, y: 10 }];
+    const r = snapTil90Linje({ x: 25.4, y: 70 }, ref, W, H, TOL);
+    expect(r.punkt.x).toBe(25);
+    expect(r.punkt.y).toBe(70); // y urørt
+    expect(r.hjelpelinjer.vertikal).toBe(25);
+    expect(r.hjelpelinjer.horisontal).toBeNull();
+  });
+
+  it("låser både x og y fra to ulike punkter", () => {
+    const ref: Punkt[] = [{ x: 25, y: 10 }, { x: 80, y: 60 }];
+    const r = snapTil90Linje({ x: 25.3, y: 60.4 }, ref, W, H, TOL);
+    expect(r.punkt).toEqual({ x: 25, y: 60 });
+    expect(r.hjelpelinjer.vertikal).toBe(25);
+    expect(r.hjelpelinjer.horisontal).toBe(60);
+  });
+
+  it("ingen referanser → punktet urørt, ingen hjelpelinjer", () => {
+    const r = snapTil90Linje({ x: 40, y: 40 }, [], W, H, TOL);
+    expect(r.punkt).toEqual({ x: 40, y: 40 });
+    expect(r.hjelpelinjer).toEqual({ vertikal: null, horisontal: null });
+  });
+});
+
+describe("beregnSnap — presedens: punkt-snap > ortho-lås > hjelpelinje", () => {
+  const base = {
+    forforrige: null,
+    imageWidth: 1000,
+    imageHeight: 1000,
+    rectW: 1000,
+    rectH: 1000,
+    punktTolPx: 12,
+    guideTolPx: 12,
+  };
+
+  it("punkt-snap vinner selv når ortho er på", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 30.4, y: 40.2 },
+      anker: { x: 10, y: 40 },
+      referanser: [{ x: 30, y: 40 }],
+      ortho: true,
+      snap: true,
+    });
+    expect(r.traffPunkt).toBe(true);
+    expect(r.punkt).toEqual({ x: 30, y: 40 });
+  });
+
+  it("ortho-lås mot anker når ingen punkter er nær", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 60, y: 52 },
+      anker: { x: 20, y: 50 },
+      referanser: [{ x: 90, y: 90 }],
+      ortho: true,
+      snap: true,
+    });
+    expect(r.traffPunkt).toBe(false);
+    expect(r.punkt.y).toBeCloseTo(50, 5); // vannrett-lås
+  });
+
+  it("hjelpelinje når ortho på men INGEN anker (første punkt)", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 25.3, y: 70 },
+      anker: null,
+      referanser: [{ x: 25, y: 10 }],
+      ortho: true,
+      snap: true,
+    });
+    expect(r.punkt.x).toBe(25);
+    expect(r.hjelpelinjer.vertikal).toBe(25);
+  });
+
+  it("ortho av + snap av → kandidaten urørt", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 33, y: 44 },
+      anker: { x: 10, y: 40 },
+      referanser: [{ x: 33.1, y: 44 }],
+      ortho: false,
+      snap: false,
+    });
+    expect(r.punkt).toEqual({ x: 33, y: 44 });
+    expect(r.traffPunkt).toBe(false);
+  });
+
+  it("snap er idempotent: et allerede-snappet punkt snappes til seg selv", () => {
+    const inn = {
+      ...base,
+      kandidat: { x: 30, y: 40 },
+      anker: null,
+      forforrige: null,
+      referanser: [{ x: 30, y: 40 }],
+      ortho: true,
+      snap: true,
+    };
+    const r1 = beregnSnap(inn);
+    const r2 = beregnSnap({ ...inn, kandidat: r1.punkt });
+    expect(r2.punkt).toEqual(r1.punkt);
+  });
+});
+
+describe("laasVinkel — referanselinje (GJENOPPTA § 1): lås parallelt/vinkelrett på en skrå vegg", () => {
+  const W = 1000, H = 1000;
+  const ref = { a: { x: 10, y: 10 }, b: { x: 60, y: 60 } }; // skrå vegg langs (1,1)
+
+  it("kandidat nær PARALLELT med veggen → låses parallelt (dx == dy)", () => {
+    const r = laasVinkel({ x: 40, y: 40 }, { x: 70, y: 68 }, W, H, null, ref);
+    expect(r.x - 40).toBeCloseTo(r.y - 40, 4);
+  });
+
+  it("kandidat nær VINKELRETT på veggen → låses vinkelrett (dx == -dy)", () => {
+    const r = laasVinkel({ x: 40, y: 40 }, { x: 28, y: 54 }, W, H, null, ref);
+    expect(r.x - 40).toBeCloseTo(-(r.y - 40), 4);
+  });
+
+  it("beregnSnap: vinkelrett=true + aksehjelpelinje når låst vinkelrett på referansen", () => {
+    const r = beregnSnap({
+      kandidat: { x: 28, y: 54 }, anker: { x: 40, y: 40 }, forforrige: null,
+      referanser: [], referanselinje: ref, ortho: true, snap: true,
+      imageWidth: W, imageHeight: H, rectW: W, rectH: H, punktTolPx: 12, guideTolPx: 12,
+    });
+    expect(r.vinkelrett).toBe(true);
+    expect(r.aksehjelpelinje).not.toBeNull();
+  });
+
+  it("beregnSnap: parallell-lås gir vinkelrett=false", () => {
+    const r = beregnSnap({
+      kandidat: { x: 70, y: 68 }, anker: { x: 40, y: 40 }, forforrige: null,
+      referanser: [], referanselinje: ref, ortho: true, snap: false,
+      imageWidth: W, imageHeight: H, rectW: W, rectH: H, punktTolPx: 12, guideTolPx: 12,
+    });
+    expect(r.vinkelrett).toBe(false);
+  });
+});
+
+describe("aksehjelpelinje — stiplet akse tvers over bildet", () => {
+  const W = 1000, H = 1000;
+  it("vannrett akse gjennom (50,30) treffer venstre+høyre kant (y=30)", () => {
+    const ep = aksehjelpelinje({ x: 50, y: 30 }, { x: 1, y: 0 }, W, H);
+    expect(ep).not.toBeNull();
+    const [p1, p2] = ep!;
+    expect(p1.y).toBeCloseTo(30, 4);
+    expect(p2.y).toBeCloseTo(30, 4);
+    const xs = [p1.x, p2.x].sort((a, b) => a - b);
+    expect(xs[0]).toBeCloseTo(0, 4);
+    expect(xs[1]).toBeCloseTo(100, 4);
+  });
+  it("loddrett akse gjennom (25,50) treffer topp+bunn (x=25)", () => {
+    const [p1, p2] = aksehjelpelinje({ x: 25, y: 50 }, { x: 0, y: 1 }, W, H)!;
+    expect(p1.x).toBeCloseTo(25, 4);
+    expect(p2.x).toBeCloseTo(25, 4);
+  });
+  it("degenerert (0-retning / 0-bilde) → null", () => {
+    expect(aksehjelpelinje({ x: 50, y: 50 }, { x: 0, y: 0 }, W, H)).toBeNull();
+    expect(aksehjelpelinje({ x: 50, y: 50 }, { x: 1, y: 0 }, 0, 0)).toBeNull();
   });
 });

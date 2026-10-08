@@ -27,8 +27,13 @@ export {
   malArealMm2,
   kanMale,
   kalibrerMalestokk,
+  laasVinkel,
+  aksehjelpelinje,
+  snapTilPunkt,
+  snapTil90Linje,
+  beregnSnap,
 } from "./maaling";
-export type { Punkt, ScaleKilde } from "./maaling";
+export type { Punkt, ScaleKilde, Hjelpelinjer, Referanselinje, LaasDetalj, SnapInn, SnapResultat } from "./maaling";
 export {
   TOM_MALETILSTAND,
   minPunkter,
@@ -37,6 +42,7 @@ export {
   startMaling,
   leggTilPunkt,
   settFerdig,
+  gjenoppta,
   flyttPunkt,
   velgMaling,
   slettAktiv,

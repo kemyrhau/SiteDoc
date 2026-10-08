@@ -454,6 +454,28 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
 - Verifisert: shared + mobil-tester grønne, mobil/web-typecheck + eslint rent. Kenneth tester på
   telefon etter OTA. Ikke publisert OTA.
 
+**90°-lås + snapping (ordre «90°-lås og snapping» + GJENOPPTA, 2026-10-08):**
+- **Delt geometri** i `packages/shared/src/utils/maaling.ts` (begge flater kaller SAMME funksjon):
+  `laasVinkel` (lås til nærmeste av vannrett/loddrett/vinkelrett-på-forrige, ELLER parallelt/vinkelrett
+  på en referanselinje), `snapTilPunkt` (12 pt skjerm), `snapTil90Linje` (H/V-hjelpelinjer fra punkter),
+  `aksehjelpelinje` (akse tvers over bildet), `beregnSnap` (presedens: punkt-snap > ortho-lås >
+  hjelpelinje; returnerer `punkt`, `traffPunkt`, `hjelpelinjer`, `aksehjelpelinje`, `vinkelrett`). Alt i
+  pikselrom (prosent forvrenger vinkler). Tester i `maaling.test.ts`.
+- **Tre toggler** i måleverktøylinja: **90°** (`TriangleRight`), **Referanse** (`Spline`, kun når 90° på),
+  **Snap** (`Magnet`, PÅ som standard).
+- **Referanselinje (GJENOPPTA § 1 — skrå vegger):** trykk «Referanse», så på et segment i en eksisterende
+  måling (vegg langs en skrå linje) → neste linje låses PARALLELT eller VINKELRETT på den, uten snap til
+  tegningsgeometri. Referanselinja vises gul (persistent, i `tegnMalinger`).
+- **Veiledning (GJENOPPTA § 2):** stiplet akse fra ankeret + H/V-hjelpelinjer tegnes live via `tegnVeiledning`
+  (round-trip: RN beregner med delt `beregnSnap`, WebView-en tegner); «90°»-etikett når linja står
+  vinkelrett. Snap/lås anvendes på commit (gest `settPunkt` + `maledrag`) så LAGRET geometri er den testede.
+- **Snap til egne punkter:** et punkt som slippes innen ~12 pt av et eksisterende målepunkt (alle målinger)
+  legges eksakt der; lukker også areal mot første punkt.
+- **§ 3 (MÅLT, ikke bygd):** mobil/web viser tegningen som RASTER-PNG (PDF→PNG 200 DPI); SVG-path finnes kun
+  for DWG-konverterte. Snap til tegningens egne linjer/hjørner krever enten vektorgrunnlag (`pdftocairo -svg`
+  ved konvertering) eller kantdeteksjon i bildet — se leveransen for omfang. Referanselinje-grepet dekker
+  skrå vegger uten dette.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
