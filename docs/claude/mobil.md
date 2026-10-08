@@ -317,6 +317,28 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
 - **SVAR (orkestrator):** måling bare online; ingen lokal metadata-tabell (offline-viseren er egen
   ordre). Uten nett er «Mål» sperret likt som ved usann `kanMale`.
 
+**RETUR 1 (2026-10-08) — fire feil fra enhet + dra-punkter:**
+- **§1 Størrelse:** punkter/etiketter/hint fikk `scale(1/visualViewport.scale)` **ved opprettelse**
+  (ikke bare i `oppdaterZoom`, som tidlig-returnerer ved uendret zoom) → fast skjermstørrelse uansett
+  zoom. Punkt 11 px, etikett 9 px.
+- **§2 iOS-bildemeny:** `-webkit-touch-callout/user-select/user-drag: none` på `html/body/#container/
+  #tegning`, `#tegning { pointer-events:none }`, `draggable=false` + `oncontextmenu` på img. Dette var
+  også rotårsaken til at §3/§4 (måletrykk) ikke registrerte — den native bilde-dra-gesten ga
+  `pointermove` → `flyttet=true` → trykket ble forkastet.
+- **§3/§4 Forrang:** måling har forrang i modus-utledningen (`maleVerktoy` → `"maling"`), og
+  `onMaleModusEndring` slår av plasseringsmodus (skjuler banneret) når et verktøy velges.
+- **TILLEGG dra-punkter:** et satt punkt kan dras (hit-test ≤ 22 px mot `window.__malePunkter`).
+  WebView sender `{type:'maledrag',index,x,y}` live; RN `flyttMalepunkt` oppdaterer uten å røre
+  `maleFerdig` (lukket areal/polylinje forblir lukket). En **lupe** (`window.visLupe`, forstørret
+  utsnitt + trådkors, forskjøvet over fingeren) vises under draget. Dra avsluttes med
+  `gest.drarPunkt=true` → `avgjorTrykkHandling` → `"ingen"` (aldri nytt punkt/hint/opprett; testet).
+  Web-paritet: punkt-prikkene i `MaalingOverlay` er dragbare med musa (`onPunktNed`), pan undertrykkes
+  via `punktDragRef` i tegningssidens pan-handler.
+- 🔴 **Simulator-verifisering blokkert:** `apps/mobile/.env` (dev-login-secret) mangler → ingen
+  innlogging → ingen in-app-repro; `.env` er gitignorert/secret (Kenneths hånd). `idb` har ingen
+  knip-primitiv → zoom-skalering (§1) kan ikke gest-reproduseres headless. Lupe-plassering trenger
+  on-device-finjustering. Verifiseres av Kenneth på enhet etter OTA.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler

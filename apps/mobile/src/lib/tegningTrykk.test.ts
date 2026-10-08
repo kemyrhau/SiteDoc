@@ -34,4 +34,12 @@ describe("avgjorTrykkHandling — hva et trykk gjør", () => {
   it("plassering + langt trykk → opprett (uendret plasseringsflyt)", () => {
     expect(avgjorTrykkHandling("plassering", tap(900))).toBe("opprett");
   });
+
+  it("dra av et målepunkt er aldri hint/opprett/nytt punkt (TILLEGG RETUR 1)", () => {
+    // Kort, uten bevegelse, men merket som punktdrag → ingen handling.
+    expect(avgjorTrykkHandling("maling", { varighetMs: 120, flyttet: false, antallPekere: 1, drarPunkt: true })).toBe("ingen");
+    // Også i navigering (skal ikke bli langt trykk / hint).
+    expect(avgjorTrykkHandling("navigering", { varighetMs: 700, flyttet: false, antallPekere: 1, drarPunkt: true })).toBe("ingen");
+    expect(avgjorTrykkHandling("navigering", { varighetMs: 120, flyttet: false, antallPekere: 1, drarPunkt: true })).toBe("ingen");
+  });
 });

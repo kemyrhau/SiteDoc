@@ -555,6 +555,12 @@ export default function LokasjonerSkjerm() {
   }, []);
   useEffect(() => () => { if (blinkTimerRef.current) clearTimeout(blinkTimerRef.current); }, []);
 
+  // Måleverktøy har forrang (RETUR 1 § 3/4): slå av plasseringsmodus så banneret
+  // forsvinner og trykk ikke tolkes som plassering mens måling er aktiv.
+  const håndterMaleModus = useCallback((aktiv: boolean) => {
+    if (aktiv) { setPlasseringsmodus(false); setMarkørPosisjon(null); }
+  }, []);
+
   // Bruk GPS-posisjon som markørposisjon
   const brukGpsPosisjon = useCallback(() => {
     if (gpsMarkør) {
@@ -843,6 +849,7 @@ export default function LokasjonerSkjerm() {
               imageWidth: valgtTegningDetalj?.imageWidth ?? null,
               imageHeight: valgtTegningDetalj?.imageHeight ?? null,
             }}
+            onMaleModusEndring={håndterMaleModus}
           />
         ) : (
           <KartVisning />
