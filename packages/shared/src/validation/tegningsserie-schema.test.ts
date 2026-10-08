@@ -34,7 +34,7 @@ describe("tegningsserie-schema — serien har ikke revisjon/målestokk/status (D
     const parset = opprettTegningsserieSchema.parse({
       projectId: "11111111-1111-1111-1111-111111111111",
       name: "ARK Multiconsult",
-      // @ts-expect-error — revisjon finnes ikke på serie; sendes den, skal den strippes bort
+      // revisjon finnes ikke på serie (parse tar unknown, så TS stopper det ikke); sendes den, skal den strippes bort
       revision: "B",
     });
     expect("revision" in parset).toBe(false);
