@@ -186,6 +186,8 @@ cd ~/Documents/Programmering/SiteDoc/apps/mobile && rm -f .env.local && ls -a | 
 **Forventet liste:** `.env.eas.local` (ASC-credentials, ufarlig — ingen `EXPO_PUBLIC_*`) ·
 `.env.production` · `.env.test` · `nativewind-env.d.ts`.
 
+🔴 **Ser du `.env` (uten endelse) i HOVEDTREET, STOPP.** `eas update` laster også `.env`, og alle `EXPO_PUBLIC_*` der som ikke overstyres av `.env.production`, bakes inn i bundelen. Det gjelder særlig `EXPO_PUBLIC_DEV_LOGIN_SECRET` og `localhost`-URL. Simulator-`.env` hører bare hjemme i agentenes worktrees (f.eks. `SiteDoc-redesign/apps/mobile/.env`), der OTA aldri publiseres fra (vedtatt 2026-10-08).
+
 ### Steg 2 — MÅL bundelen før du publiserer
 
 ```sh
