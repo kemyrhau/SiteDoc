@@ -29,6 +29,7 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| ← `21edd9ed` + `f0ad4d47` | **Mobil + web — måling i tegning** | **Etter:** fast størrelse på punkter, tekst og strek uansett zoom; iOS-bildemeny av ved langt trykk; måling går foran plassering; alle punkter kan dras (lupe på mobil); flere målinger blir liggende, trykk for å velge, «Slett»/«Slett alle»; maks zoom mobil 10→20. Målinger lagres ikke | 🟢 Kenneth 2026-10-08 (dra punkter, flere målinger + slett; «skal ikke lagres nå») |
 | ← `9cf1fbea` | 🔴 **Mobil — tegningsvisning** | **Før:** kort trykk i «Navigering» gjorde ingenting; opprettelse krevde bytte til «Plassering»; ingen måling. **Etter:** kort trykk viser hint («Hold inne for å opprette …») og bryteren blinker; langt trykk setter markør og åpner malvalget; «Mål» med linjal/polylinje/areal (samme regnestykke og lås som web, kilde vises, kalibrering kun på web, krever nett). Reload: OTA | 🟢 Kenneth 2026-10-07 «ja til 1 og 2, ta med måling på mobil» |
 | ← `84f97c19` | **Web — tegningssiden, måleverktøy og zoom** | **Før:** ett måleverktøy (kontinuerlig punkt til punkt); musehjulet panorerte (regresjon fra `09fd30a4`); knip rykket litt. **Etter:** tre verktøy — linjal (to punkter), polylinje (summert, avsluttes på eksisterende punkt/Enter/dobbeltklikk), areal (skravert, m² + omkrets); musehjulet zoomer igjen; knip forankret fra gest-start. Konsekvens: loddrett tofinger-scroll på styreflate zoomer (sidelengs panorerer) | 🟢 Kenneth 2026-10-07 («Adobe benytter 3 stk icon …»; musehjul = reparasjon) |
 
