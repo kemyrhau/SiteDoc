@@ -1077,6 +1077,7 @@
   "maaling.slettAlle": "Удалить все",
   "maaling.slettAlleTittel": "Удалить все измерения",
   "maaling.slettAlleBekreft": "При этом все измерения будут удалены из чертежа. Измерения не сохраняются – они все равно исчезают при закрытии чертежа.",
+  "maaling.finjuster": "Тонкая настройка",
   "maaling.stemmerIkkeKalibrer": "Неправильный? Калибровка",
   "maaling.kalibrerSteg1": "1. Щелкните первую точку известной длины.",
   "maaling.kalibrerSteg2": "2. Нажмите вторую точку",

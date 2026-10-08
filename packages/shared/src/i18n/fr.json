@@ -1077,6 +1077,7 @@
   "maaling.slettAlle": "Supprimer tout",
   "maaling.slettAlleTittel": "Supprimer toutes les mesures",
   "maaling.slettAlleBekreft": "Cela supprime toutes les mesures du dessin. Les mesures ne sont pas enregistrées – elles disparaissent de toute façon lorsque le dessin est fermé.",
+  "maaling.finjuster": "Affiner",
   "maaling.stemmerIkkeKalibrer": "Faux? Étalonner",
   "maaling.kalibrerSteg1": "1. Cliquez sur le premier point d'une longueur connue",
   "maaling.kalibrerSteg2": "2. Cliquez sur le deuxième point",

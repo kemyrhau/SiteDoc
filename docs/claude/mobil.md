@@ -383,6 +383,26 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   TIL SIDEN for fingeren og bytter side/retning ved skjermkanten; vises i måleverktøy (alltid) og i
   Flytt (på punkt). Flytt drar live (`maledrag`); måleverktøy committer på slipp (`gest` → `settPunkt`).
 
+**RETUR 4 (2026-10-08) — pan-sperre under drag, synlig lupe, piltast-finjustering:**
+- **🔴 § 1 Tegningen panorerte under drag:** pointer-events' `preventDefault` stopper IKKE
+  WKWebView-scroll/zoom. Fiks: non-passive `touchmove`-lytter på `#container` som `preventDefault`-er
+  når `lupeAktiv` (ett-finger sett/dra) og `!pinch` → tegningen står helt stille mens et punkt
+  settes/dras. Knip (≥2 fingre) og vanlig pan slippes gjennom. Pan-sperren = samme predikat som
+  `visLupeForGest` (testet i `tegningTrykk.test.ts`).
+- **🔴 § 2 Lupa usynlig på enhet (rotårsak):** `position: fixed` rendres upålitelig i WKWebView under
+  pinch-zoom (forankres til visuelt viewport). Fiks: `position: absolute` forankret i SIDEKOORDINATER
+  (`pageX/pageY`), lagt på `document.body` (ikke `#container`, som kan klippe), `z-index: 9999`, og
+  **quotet** `url("…")` (en usitert signert URL med spesialtegn kan knekke `background-image`). Lupa er
+  nå ~100 pt, ~3× lokal zoom, forskjøvet ~80 pt opp/side (RETUR 4-mål). Geometrien er rene, testbare
+  funksjoner i `src/lib/lupe.ts` (`lupePlassering` kant-flipp · `lupeBakgrunn` 3×-crop · `nudgePunkt` ·
+  `Z_LUPE > Z_MALELAG …` z-rekkefølge) — `lupe.test.ts`. WebView-JS speiler matematikken.
+- **Piltast-finjustering:** et punkt som dras/trykkes i Flytt blir «valgt» (`valgtPunktIndeks` fra
+  `gest.dragIdx`); stripa viser fire piler (← ↑ ↓ →). Hvert trykk flytter punktet 1 skjermpiksel
+  (`nudgePunkt`, px→prosent via siste viste bilde-rect); langt trykk gjentar (hold-repeat, 90 ms).
+- 🔴 **Verifisering: ingen simulator (Kenneth-vedtak 2026-10-08).** Simulator-sporet ble opphevet
+  («koster mer enn å teste selv»). Verifisert via rene tester + testbar logikk (gest-modell,
+  pan-sperre-predikat, lupe-geometri, nudge). Kenneth tester på telefon etter OTA.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
