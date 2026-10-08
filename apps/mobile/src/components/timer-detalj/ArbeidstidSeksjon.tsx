@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   Modal,
-  TextInput,
   Platform,
   KeyboardAvoidingView,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Pencil, X, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { utledArbeidstidFraRader } from "@sitedoc/shared";
 import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../db/database";
@@ -20,12 +20,22 @@ import { dagsseddelLocal } from "../../db/schema";
 import { isoTidspunktTilHHMM } from "../../utils/dato";
 import { TidFeltBoks } from "./TidFeltBoks";
 
+/** Minimumsformen ArbeidstidSeksjon trenger av en timer-rad (PK7-utledning). */
+type ArbeidstidRad = {
+  fraTid?: string | null;
+  tilTid?: string | null;
+  pauseMin?: number | null;
+  timer: number;
+};
+
 interface ArbeidstidSeksjonProps {
   sheetId: string;
   dato: string; // ISO YYYY-MM-DD
   startAt: string | null;
   endAt: string | null;
   pauseMin: number;
+  /** V20/PK7: radene «Arbeidstid i dag» utledes av når det finnes rader med tid. */
+  timerRader: ArbeidstidRad[];
   redigerbar: boolean;
   onEndret: () => void;
 }
@@ -36,11 +46,26 @@ export function ArbeidstidSeksjon({
   startAt,
   endAt,
   pauseMin,
+  timerRader,
   redigerbar,
   onEndret,
 }: ArbeidstidSeksjonProps) {
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
+
+  // V20/PK7: «Arbeidstid i dag» er en VISNING utledet av radene (delt
+  // `utledArbeidstidFraRader`) — ikke hodet. Finnes rader med tid → vis første
+  // fraTid – siste tilTid · Σ pause, tekst «Utledet av radene under». Ellers vis
+  // rammen (`startAt/endAt/pauseMin` fra stempling/norm) som prefyll-hint.
+  const utledet = utledArbeidstidFraRader(timerRader);
+  const harRaderMedTid = utledet.startTid !== null;
+  const visStart = harRaderMedTid
+    ? utledet.startTid
+    : isoTidspunktTilHHMM(startAt) || "—";
+  const visSlutt = harRaderMedTid
+    ? utledet.sluttTid
+    : isoTidspunktTilHHMM(endAt) || "—";
+  const visPause = harRaderMedTid ? utledet.sumPauseMin : pauseMin;
 
   return (
     <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
@@ -63,12 +88,14 @@ export function ArbeidstidSeksjon({
         )}
       </View>
       <Text className="mt-1 text-xs text-gray-500">
-        {t("timer.arbeidstidPrefyltHint")}
+        {harRaderMedTid
+          ? t("timer.arbeidstidUtledet")
+          : t("timer.arbeidstidPrefyltHint")}
       </Text>
       <View className="mt-3 flex-row gap-3">
-        <Felt label={t("timer.felt.startTid")} verdi={isoTidspunktTilHHMM(startAt) || "—"} />
-        <Felt label={t("timer.felt.sluttTid")} verdi={isoTidspunktTilHHMM(endAt) || "—"} />
-        <Felt label={t("timer.felt.pauseMin")} verdi={`${pauseMin} min`} />
+        <Felt label={t("timer.felt.startTid")} verdi={visStart || "—"} />
+        <Felt label={t("timer.felt.sluttTid")} verdi={visSlutt || "—"} />
+        <Felt label={t("timer.felt.pauseMin")} verdi={`${visPause} min`} />
       </View>
 
       {visModal && (
@@ -77,7 +104,6 @@ export function ArbeidstidSeksjon({
           dato={dato}
           startAt={startAt}
           endAt={endAt}
-          pauseMin={pauseMin}
           onLukk={() => setVisModal(false)}
           onLagret={() => {
             setVisModal(false);
@@ -111,7 +137,6 @@ function RedigerArbeidstidModal({
   dato,
   startAt,
   endAt,
-  pauseMin,
   onLukk,
   onLagret,
 }: {
@@ -119,7 +144,6 @@ function RedigerArbeidstidModal({
   dato: string;
   startAt: string | null;
   endAt: string | null;
-  pauseMin: number;
   onLukk: () => void;
   onLagret: () => void;
 }) {
@@ -128,7 +152,6 @@ function RedigerArbeidstidModal({
     startAt ? new Date(startAt) : null,
   );
   const [endDato, setEndDato] = useState<Date | null>(endAt ? new Date(endAt) : null);
-  const [pause, setPause] = useState(String(pauseMin));
   const [visStartPicker, setVisStartPicker] = useState(false);
   const [visEndPicker, setVisEndPicker] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
@@ -142,12 +165,6 @@ function RedigerArbeidstidModal({
 
   function lagre() {
     setFeil(null);
-
-    const pauseTall = parseInt(pause || "0", 10);
-    if (isNaN(pauseTall) || pauseTall < 0) {
-      setFeil(t("timer.feil.ugyldigPause"));
-      return;
-    }
 
     const nyStart = settTid(dato, startDato);
     const nyEnd = settTid(dato, endDato);
@@ -167,11 +184,13 @@ function RedigerArbeidstidModal({
       return;
     }
 
+    // V20/PK7: hodet `pauseMin` skrives IKKE her lenger — det utledes server-side
+    // (Σ rad) og speiles lokalt av matpause-veien. Rammen (start/slutt) beholdes
+    // for stempling/glemt-dag (`sluttTidKilde`).
     db.update(dagsseddelLocal)
       .set({
         startAt: nyStart,
         endAt: nyEnd,
-        pauseMin: pauseTall,
         // Slice 4b-2: manuell redigering av slutt-tid → bruker-bekreftet tid,
         // nullstiller evt. "system"/"midnatt" (fjerner kontroll-badge).
         sluttTidKilde: "bruker",
@@ -261,18 +280,9 @@ function RedigerArbeidstidModal({
             )}
           </View>
 
-          {/* Pause */}
-          <View>
-            <Text className="mb-1 text-sm font-medium text-gray-700">
-              {t("timer.felt.pauseMin")}
-            </Text>
-            <TextInput
-              value={pause}
-              onChangeText={setPause}
-              keyboardType="number-pad"
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
-            />
-          </View>
+          {/* V20/PK7: pausefeltet er fjernet — matpausen eies av radene
+              (avkrysningen), hodet utledes server-side (Σ rad). Start/slutt
+              beholdes som ramme for stempling/glemt-dag. */}
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 

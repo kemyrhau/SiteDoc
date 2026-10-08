@@ -20,6 +20,9 @@ type TimerRad = RadBase & {
   aktivitetId: string;
   externalCostObjectId: string | null;
   timer: number | string;
+  // V20 TILLEGG 2: radens matpause (bæreren > 0) — i payloaden (hentForAttestering
+  // uten select). Vises skrivebeskyttet som undertekst på bæreren.
+  pauseMin?: number | null;
 };
 
 type TilleggRad = RadBase & {
@@ -303,7 +306,12 @@ export function AttesteringDetaljMobil({
               tilgjengelig={rad.attestertStatus === "pending"}
               status={rad.attestertStatus}
               hovedtekst={`${tilTall(rad.timer).toFixed(2)} ${t("timer.timerEnhet")}`}
-              undertekst={null}
+              // V20 TILLEGG 2: bæreren viser matpausen skrivebeskyttet (parité med web).
+              undertekst={
+                rad.pauseMin && rad.pauseMin > 0
+                  ? t("timer.matpause.trukket", { min: rad.pauseMin })
+                  : null
+              }
               hoyreVerdi={undefined}
               onTrykk={() => toggle(valgteTimer, rad.id, setValgteTimer)}
             />
