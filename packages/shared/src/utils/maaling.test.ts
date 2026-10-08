@@ -212,6 +212,13 @@ describe("måling i tegning — tittelfelt-målestokk er målbar direkte (Kennet
     expect(kanMale("1:50", mmPrPx, "georeferanse")).toBe(true);
   });
 
+  it("DWG-enheter (scaleKilde=dwg) er målbar direkte (DWG-2, D5, Kenneth Q4)", () => {
+    // $INSUNITS gir «1:1» + mm/piksel fra tegningens enheter — måling aktiv uten
+    // bekreftelsessteg. Ukjent enhet → scaleKilde=null (fanget av testen under).
+    expect(kanMale("1:1", mmPrPx, "dwg")).toBe(true);
+    expect(kanMale("1:1", mmPrPx, null)).toBe(false);
+  });
+
   it("tittelfelt uten tolkbar målestokk eller uten mm/piksel er fortsatt sperret", () => {
     expect(kanMale(null, mmPrPx, "tittelfelt")).toBe(false);
     expect(kanMale("1:50", null, "tittelfelt")).toBe(false);

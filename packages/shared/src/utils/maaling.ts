@@ -12,8 +12,13 @@
 /** Punkt i prosent (0–100) av vist bilde — samme koordinatrom som tegningsmarkører. */
 export type Punkt = { x: number; y: number };
 
-/** Kjente kilder til en tegnings målestokk. */
-export type ScaleKilde = "tittelfelt" | "manuell" | "kalibrert" | "georeferanse";
+/**
+ * Kjente kilder til en tegnings målestokk. `"dwg"` (DWG-2, D5): utledet rett fra
+ * tegningens egne enheter ($INSUNITS) ved konvertering — måling er aktiv direkte
+ * (Kenneth Q4 2026-10-08), uten et bekreftelsessteg. Kalibrering kan alltid
+ * overstyre den (→ `"kalibrert"`).
+ */
+export type ScaleKilde = "tittelfelt" | "manuell" | "kalibrert" | "georeferanse" | "dwg";
 
 /**
  * mm pr. piksel PÅ PAPIRET = papirbredde (mm) ÷ pikselbredde.
@@ -172,7 +177,8 @@ export function kanMale(
     scaleKilde === "tittelfelt" ||
     scaleKilde === "manuell" ||
     scaleKilde === "kalibrert" ||
-    scaleKilde === "georeferanse"
+    scaleKilde === "georeferanse" ||
+    scaleKilde === "dwg"
   );
 }
 

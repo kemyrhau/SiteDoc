@@ -29,7 +29,22 @@ const execFileAsync = promisify(execFile);
 const DWG2DXF = process.env.DWG2DXF_PATH ?? "/usr/local/bin/dwg2dxf";
 const DWG2SVG = process.env.DWG2SVG_PATH ?? "/usr/local/bin/dwg2SVG";
 
-interface DwgKonverteringsResultat {
+/**
+ * Måling rett fra tegningens enheter (DWG-2, D5). Felles form for hovedtegning og
+ * hver layout: mm/piksel utledet av viewBox-bredden (tegningsenheter) × mm pr. enhet
+ * ($INSUNITS) ÷ 2000 (SVG-ens pikselbredde). `scaleKilde = "dwg"` → måling aktiv
+ * direkte; `null` ($INSUNITS ukjent) → låst til kalibrering.
+ */
+interface DwgMaaling {
+  mmPrPiksel: number | null;
+  scale: string | null;
+  scaleKilde: "dwg" | null;
+  /** SVG-ens pikselbredde/-høyde. null på dwg2SVG-fallbacken (ukjente dimensjoner). */
+  imageWidth: number | null;
+  imageHeight: number | null;
+}
+
+export interface DwgKonverteringsResultat extends DwgMaaling {
   /** URL til konvertert visningsfil (SVG/PDF) */
   visningUrl: string;
   /** Filtype for visningsfilen */
@@ -44,7 +59,7 @@ interface DwgKonverteringsResultat {
   layouts: DwgLayoutResultat[];
 }
 
-interface DwgLayoutResultat {
+interface DwgLayoutResultat extends DwgMaaling {
   /** Layout-navn fra DWG-filen */
   navn: string;
   /** Tab-rekkefølge (0 = Model) */
@@ -114,8 +129,113 @@ export async function hentKonverteringKapasitet(naa: number = Date.now()): Promi
   return verdi;
 }
 
+/**
+ * D3 — extents-vakt (1e20-saken). En koordinat er bare brukbar når den er endelig
+ * og under 1e12 i absoluttverdi. AutoCADs «tomme» model space-extents er ±1e20
+ * (endelig, men meningsløs) → uten denne vakta ble ±1e20 godtatt som header, min
+ * ble > max, og hele tegningen filtrert bort (Ålesund-saken). Grensa 1e12 er langt
+ * over enhver reell tegning i mm/m og langt under 1e20-sentinelen.
+ */
+export const MAKS_KOORDINAT = 1e12;
+
+/** Er én koordinatverdi endelig og innenfor |v| < 1e12? */
+export function gyldigKoordinat(v: number): boolean {
+  return Number.isFinite(v) && Math.abs(v) < MAKS_KOORDINAT;
+}
+
+/**
+ * Godtas disse extents? Alle fire endelige og `|v| < 1e12`, og `min < max` i begge
+ * akser (gir `w, h > 0`). Brukes på DXF-header-extents i både `beregnExtents` (georef)
+ * og `dxfTilSvg` (visning) — samme vakt begge steder (D3).
+ */
+export function gyldigeExtents(minX: number, maxX: number, minY: number, maxY: number): boolean {
+  return (
+    gyldigKoordinat(minX) && gyldigKoordinat(maxX) &&
+    gyldigKoordinat(minY) && gyldigKoordinat(maxY) &&
+    maxX > minX && maxY > minY
+  );
+}
+
+/**
+ * Er en resulterende viewBox brukbar? Endelig, `w, h > 0`, og sideforholdet
+ * innenfor [1/1000, 1000] (en strek-tynn eller ekstremt avlang «tegning» er et
+ * tegn på degenererte extents, ikke en ekte plan — da heller `failed` enn en
+ * ubrukelig SVG). D3.
+ */
+export function gyldigViewBox(w: number, h: number): boolean {
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false;
+  const ratio = w / h;
+  return ratio >= 1 / 1000 && ratio <= 1000;
+}
+
+/**
+ * D5 — mm pr. tegningsenhet fra DXF `$INSUNITS`. 1 tomme=25,4 · 2 fot=304,8 ·
+ * 4 mm=1 · 5 cm=10 · 6 m=1000. 0/ukjent → null (måling låses til kalibrering).
+ */
+export function insunitsTilMm(insunits: number | undefined | null): number | null {
+  switch (insunits) {
+    case 1: return 25.4;   // tommer
+    case 2: return 304.8;  // fot
+    case 4: return 1;      // mm
+    case 5: return 10;     // cm
+    case 6: return 1000;   // m
+    default: return null;  // 0/ukjent/udefinert
+  }
+}
+
+/**
+ * Les `$INSUNITS` fra DXF-headeren via lett rå-tekst-skann (unngår en ekstra full
+ * dxf-parser-kjøring på store filer). `$INSUNITS` etterfølges av gruppekode 70 og
+ * verdien. Fant ikke → null (behandles som ukjent enhet).
+ */
+export function lesInsunits(dxfInnhold: string): number | null {
+  const linjer = dxfInnhold.split("\n");
+  for (let i = 0; i < linjer.length - 1; i++) {
+    if (linjer[i]!.trim() !== "$INSUNITS") continue;
+    for (let j = i + 1; j + 1 < Math.min(i + 8, linjer.length); j += 2) {
+      if (linjer[j]!.trim() === "70") {
+        const n = parseInt(linjer[j + 1]!.trim(), 10);
+        return Number.isFinite(n) ? n : null;
+      }
+    }
+    return null;
+  }
+  return null;
+}
+
+/**
+ * D5 — måling fra viewBox-bredden (tegningsenheter) og mm/enhet. SVG-en lages med
+ * `width = 2000`, så `mmPrPiksel = vbW · mmPrEnhet / 2000`, `scale = "1:1"`,
+ * `scaleKilde = "dwg"`. Ukjent enhet (mmPrEnhet = null) → `mmPrPiksel = vbW/2000`
+ * (1 enhet = 1 mm som antakelse), men `scale`/`scaleKilde = null` → måling LÅST til
+ * brukeren kalibrerer (kalibrering utleder enhetsfaktoren via nevneren).
+ */
+export function utledDwgMaaling(
+  vbW: number,
+  svgWidth: number,
+  svgHeight: number,
+  mmPrEnhet: number | null,
+): DwgMaaling {
+  if (mmPrEnhet != null) {
+    return {
+      mmPrPiksel: (vbW * mmPrEnhet) / svgWidth,
+      scale: "1:1",
+      scaleKilde: "dwg",
+      imageWidth: svgWidth,
+      imageHeight: svgHeight,
+    };
+  }
+  return {
+    mmPrPiksel: vbW / svgWidth,
+    scale: null,
+    scaleKilde: null,
+    imageWidth: svgWidth,
+    imageHeight: svgHeight,
+  };
+}
+
 /** Ekstraher bounding box fra DXF-fil */
-function beregnExtents(dxfInnhold: string): {
+export function beregnExtents(dxfInnhold: string): {
   minX: number;
   maxX: number;
   minY: number;
@@ -131,7 +251,9 @@ function beregnExtents(dxfInnhold: string): {
     const header = (dxf as any).header;
     const extMin = header?.$EXTMIN;
     const extMax = header?.$EXTMAX;
-    if (extMin && extMax && isFinite(extMin.x) && isFinite(extMax.x)) {
+    // D3: godta header-extents bare når de passerer 1e20-vakta (endelig, |v|<1e12,
+    // min<max). ±1e20-sentinelen faller gjennom til entitets-fallbacken under.
+    if (extMin && extMax && gyldigeExtents(extMin.x, extMax.x, extMin.y, extMax.y)) {
       return { minX: extMin.x, maxX: extMax.x, minY: extMin.y, maxY: extMax.y };
     }
 
@@ -144,7 +266,8 @@ function beregnExtents(dxfInnhold: string): {
     let maxY = -Infinity;
 
     function oppdaterExtents(x: number, y: number) {
-      if (!isFinite(x) || !isFinite(y)) return;
+      // D3: forkast koordinater |v| ≥ 1e12 (sentinel-/søppelpunkter) før de utvider boksen.
+      if (!gyldigKoordinat(x) || !gyldigKoordinat(y)) return;
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
@@ -174,7 +297,8 @@ function beregnExtents(dxfInnhold: string): {
       }
     }
 
-    if (!isFinite(minX) || !isFinite(maxX)) return null;
+    // D3: entitets-boksen må også passere vakta (ellers er den degenerert/tom).
+    if (!gyldigeExtents(minX, maxX, minY, maxY)) return null;
 
     return { minX, maxX, minY, maxY };
   } catch (err) {
@@ -415,8 +539,20 @@ function deBoor(
   return d[p] ?? { x: 0, y: 0 };
 }
 
+/** Resultat fra `dxfTilSvg`: SVG-teksten + viewBox-bredden i TEGNINGSENHETER (vbW),
+ * som D5 trenger for å utlede mm/piksel, pluss SVG-ens pikseldimensjoner. */
+export interface DxfSvgResultat {
+  svg: string;
+  /** viewBox-bredde i tegningsenheter (inkl. 2 % marg) — inn i mmPrPiksel-utledningen. */
+  vbW: number;
+  vbH: number;
+  /** SVG-ens faste pikselbredde (2000) og utledede høyde. */
+  width: number;
+  height: number;
+}
+
 /** Generer SVG fra parsed DXF-entiteter (normaliserte koordinater) */
-function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: number; minY: number; maxY: number }): string | null {
+export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: number; minY: number; maxY: number }): DxfSvgResultat | null {
   try {
     const parser = new DxfParser();
     const dxf = parser.parseSync(dxfInnhold);
@@ -515,6 +651,16 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
           if (e.controlPoints) kopi.controlPoints = e.controlPoints.map((v: { x: number; y: number }) => applyAll(v));
           if (e.fitPoints) kopi.fitPoints = e.fitPoints.map((v: { x: number; y: number }) => applyAll(v));
           if (e.points) kopi.points = e.points.map((v: { x: number; y: number }) => applyAll(v));
+          // D-M12-fiks: skalarstørrelser (sirkel-/bue-radius, teksthøyde) må følge
+          // INSERT-skalaen, ellers tegnes en 2×-skalert sirkel med uendret radius.
+          // Uniform skala = geometrisk snitt av |sx·sy| gjennom alle nivåer.
+          let skala = 1;
+          for (const tf of item.transforms) skala *= Math.sqrt(Math.abs(tf.sx * tf.sy));
+          if (skala > 0 && skala !== 1) {
+            if (typeof e.radius === "number") kopi.radius = e.radius * skala;
+            if (typeof e.textHeight === "number") kopi.textHeight = e.textHeight * skala;
+            if (typeof e.height === "number") kopi.height = e.height * skala;
+          }
           alleEntiteter.push(kopi);
         } else {
           alleEntiteter.push(e);
@@ -548,7 +694,8 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
     const header = (dxf as any).header;
     const extMin = header?.$EXTMIN;
     const extMax = header?.$EXTMAX;
-    if (extMin && extMax && isFinite(extMin.x) && isFinite(extMax.x)) {
+    // D3: godta header-extents bare når de passerer 1e20-vakta; ellers persentil-fallback.
+    if (extMin && extMax && gyldigeExtents(extMin.x, extMax.x, extMin.y, extMax.y)) {
       minX = extMin.x;
       maxX = extMax.x;
       minY = extMin.y;
@@ -560,7 +707,8 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
       const alleY: number[] = [];
 
       function saml(x: number, y: number) {
-        if (isFinite(x) && isFinite(y)) { alleX.push(x); alleY.push(y); }
+        // D3: forkast sentinel-/søppelkoordinater (|v| ≥ 1e12) før persentilen.
+        if (gyldigKoordinat(x) && gyldigKoordinat(y)) { alleX.push(x); alleY.push(y); }
       }
 
       for (const entity of alleEntiteter) {
@@ -785,15 +933,24 @@ function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: numbe
     const vbW = w + 2 * svgMargin;
     const vbH = h + 2 * svgMargin;
 
+    // D3: en resulterende viewBox som er uendelig, null-stor eller ekstremt avlang
+    // (sideforhold utenfor [1/1000, 1000]) er et tegn på degenererte extents → ingen
+    // SVG (kalleren setter `failed: ugyldige extents`), aldri en ubrukelig tegneflate.
+    if (!gyldigViewBox(vbW, vbH)) {
+      console.warn(`[DWG] Ugyldig viewBox (w=${vbW}, h=${vbH}) — avbryter SVG-generering`);
+      return null;
+    }
+
     // Faste pikseldimensjoner for å sikre at <img> har intrinsic størrelse
     const svgHoyde = Math.round(svgBredde * (vbH / vbW));
 
-    return `<?xml version="1.0" encoding="UTF-8"?>
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${svgBredde}" height="${svgHoyde}">
 <style>line,polyline,circle,path,ellipse,polygon{vector-effect:non-scaling-stroke}</style>
 <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="white"/>
 ${paths.join("\n")}
 </svg>`;
+    return { svg, vbW, vbH, width: svgBredde, height: svgHoyde };
   } catch (err) {
     console.error("[DWG] DXF→SVG feilet:", err);
     return null;
@@ -811,185 +968,171 @@ function escapeXml(tekst: string): string {
 }
 
 /**
- * Konverter en DWG-fil til visningsformat + ekstraher georeferanse.
+ * Konverter en DWG- eller DXF-fil til visnings-SVG + enheter + georeferanse + layouts.
  *
- * @param dwgFilSti  Absolutt sti til DWG-filen på disk
- * @param filnavn    Originalt filnavn (for koordinatsystem-deteksjon)
- * @param uploadDir  Mappe der konverterte filer lagres
+ * D4: `.dxf` leses direkte (hopper over `dwg2dxf`). D5: `$INSUNITS` → mm/piksel,
+ * `scale="1:1"`, `scaleKilde="dwg"`. D6: hver layout med viewport/modelBounds
+ * KLIPPES til sin egen SVG (aldri samme SVG to ganger).
+ *
+ * @param filSti    Absolutt sti til DWG/DXF-filen på disk
+ * @param filnavn   Originalt filnavn (for koordinatsystem-deteksjon)
+ * @param uploadDir Mappe der konverterte filer lagres
+ * @param fileType  "dwg" (default) eller "dxf"
  */
 export async function konverterDwg(
-  dwgFilSti: string,
+  filSti: string,
   filnavn: string,
   uploadDir: string,
+  fileType: string = "dwg",
 ): Promise<DwgKonverteringsResultat> {
-  const harLibre = await sjekkLibreDwg();
+  const erDxf = fileType.toLowerCase() === "dxf";
+  const tomMaaling: DwgMaaling = { mmPrPiksel: null, scale: null, scaleKilde: null, imageWidth: null, imageHeight: null };
 
-  if (!harLibre) {
+  // DXF trenger ingen libredwg-konverterer (leses direkte); DWG gjør det.
+  if (!erDxf && !(await sjekkLibreDwg())) {
     return {
-      visningUrl: "",
-      visningFilType: "",
-      koordinatSystem: null,
-      geoReferanse: null,
+      ...tomMaaling,
+      visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: "DWG-konvertering (libredwg) er ikke tilgjengelig på denne serveren.",
       layouts: [],
     };
   }
 
-  const dwgDir = dirname(dwgFilSti);
-  const dwgBase = basename(dwgFilSti, ".dwg");
-  const svgSti = join(dwgDir, `${dwgBase}.svg`);
-  const visningId = randomUUID();
-  // Midlertidig DXF-sti (libredwg legger DXF-en ved siden av DWG-en)
-  const libreDxfSti = join(dwgDir, `${dwgBase}.dxf`);
+  const filDir = dirname(filSti);
+  // libredwg legger DXF-en ved siden av kildefila med samme base + .dxf
+  const libreDxfSti = join(filDir, `${basename(filSti).replace(/\.[^.]+$/, "")}.dxf`);
+  let ryddDxf = false;
 
   try {
-    // Rydd opp eventuelle gamle filer
-    try { await unlink(libreDxfSti); } catch { /* OK */ }
-    try { await unlink(svgSti); } catch { /* OK */ }
-
-    // 1. DWG → DXF via libredwg (eneste konverterer etter DWG-1).
+    // 1. Skaff DXF-tekst. D4: DXF leses direkte; DWG konverteres via libredwg.
     let dxfInnhold: string | null = null;
-    let dxfKilde = "";
-
-    {
-      console.log("[DWG] Konverterer med libredwg...");
+    if (erDxf) {
+      dxfInnhold = await readFile(filSti, "utf-8");
+      console.log(`[DWG] DXF lest direkte (${(dxfInnhold.length / 1024 / 1024).toFixed(1)} MB)`);
+    } else {
+      try { await unlink(libreDxfSti); } catch { /* OK */ }
       try {
-        await execFileAsync(DWG2DXF, ["-y", "--as", "r2000", dwgFilSti], {
-          timeout: 300000,
-          cwd: dwgDir,
-          maxBuffer: 50 * 1024 * 1024, // Store DWG-filer gir mye stderr-warnings
+        // NB (DWG-2, målt 2026-10-08): IKKE `--as r2000`. Nedgraderingen fra AC1032
+        // (AutoCAD 2018) til r2000 DROPPER model space-entitetene i libredwg 0.14 for
+        // Ålesund-fixturene (tom ENTITIES-seksjon → dxf-parser fikk 0 entiteter → fall
+        // til dwg2SVG som hang i minutter). Native DXF beholder alle 761 entitetene og
+        // dxf-parser leser dem på ~40 ms. Behold versjonen libredwg velger selv.
+        await execFileAsync(DWG2DXF, ["-y", filSti], {
+          timeout: 300000, cwd: filDir, maxBuffer: 200 * 1024 * 1024,
         });
         dxfInnhold = await readFile(libreDxfSti, "utf-8");
-        dxfKilde = "libredwg";
+        ryddDxf = true;
         console.log(`[DWG] DXF lest via libredwg (${(dxfInnhold.length / 1024 / 1024).toFixed(1)} MB)`);
       } catch (err) {
         console.warn("[DWG] libredwg konvertering feilet:", err);
       }
     }
 
-    // 2. Beregn extents fra DXF
-    let extents: ReturnType<typeof beregnExtents> = null;
-    if (dxfInnhold) {
-      extents = beregnExtents(dxfInnhold);
-      if (extents) {
-        console.log("[DWG] Extents:", JSON.stringify(extents));
-      }
+    // 2. Extents (georef) + enheter (D5)
+    const extents = dxfInnhold ? beregnExtents(dxfInnhold) : null;
+    if (extents) console.log("[DWG] Extents:", JSON.stringify(extents));
+    const mmPrEnhet = dxfInnhold ? insunitsTilMm(lesInsunits(dxfInnhold)) : null;
+    console.log(`[DWG] $INSUNITS → mm/enhet: ${mmPrEnhet ?? "ukjent (måling låses til kalibrering)"}`);
+
+    // 3. SVG fra egen DXF-parser → hovedtegningens måling (D5)
+    let visningUrl = "";
+    let visningFilType = "";
+    let maaling: DwgMaaling = tomMaaling;
+    const svgRes = dxfInnhold ? dxfTilSvg(dxfInnhold) : null;
+    if (svgRes) {
+      const svgFilnavn = `${randomUUID()}.svg`;
+      await writeFile(join(uploadDir, svgFilnavn), svgRes.svg, "utf-8");
+      visningUrl = `/uploads/${svgFilnavn}`;
+      visningFilType = "svg";
+      maaling = utledDwgMaaling(svgRes.vbW, svgRes.width, svgRes.height, mmPrEnhet);
+      console.log(`[DWG] SVG generert (mm/px=${maaling.mmPrPiksel ?? "null"}, scaleKilde=${maaling.scaleKilde ?? "null"})`);
     }
 
-    // 3. Generer SVG fra DXF
-    let harSvg = false;
-
-    if (dxfInnhold) {
-      console.log(`[DWG] Genererer SVG fra DXF (${dxfKilde})...`);
-      const egentSvg = dxfTilSvg(dxfInnhold);
-      if (egentSvg) {
-        await writeFile(svgSti, egentSvg, "utf-8");
-        harSvg = true;
-        console.log("[DWG] SVG generert fra DXF-parser");
-      }
-    }
-
-    // Fallback: dwg2SVG fra libredwg
-    if (!harSvg && harLibre) {
+    // Fallback: dwg2SVG (kun DWG). Ingen måling/inspeksjon (visningKilde=dwg2SVG) — D5/§6.
+    if (!visningUrl && !erDxf) {
       try {
-        const { stdout: svgOutput } = await execFileAsync(DWG2SVG, [dwgFilSti], {
-          timeout: 120000,
-          cwd: dwgDir,
-          maxBuffer: 50 * 1024 * 1024,
+        const { stdout } = await execFileAsync(DWG2SVG, [filSti], {
+          timeout: 120000, cwd: filDir, maxBuffer: 50 * 1024 * 1024,
         });
-        if (svgOutput && svgOutput.includes("<svg")) {
-          await writeFile(svgSti, svgOutput, "utf-8");
-          harSvg = true;
-          console.log("[DWG] SVG generert via dwg2SVG");
+        if (stdout && stdout.includes("<svg")) {
+          const svgFilnavn = `${randomUUID()}.svg`;
+          await writeFile(join(uploadDir, svgFilnavn), stdout, "utf-8");
+          visningUrl = `/uploads/${svgFilnavn}`;
+          visningFilType = "svg";
+          console.log("[DWG] SVG generert via dwg2SVG (fallback, uten måling)");
         }
       } catch (svgErr) {
         console.warn("[DWG] dwg2SVG feilet:", svgErr);
       }
     }
 
-    // 4. Parse layouts — opprett separate tegninger med layoutnavn
-    // Alle layouts bruker samme model space SVG (viewport-klipping krever UCS-data
-    // som ikke er tilgjengelig i DXF)
+    // 4. Layouts (D6): KUN layouts med viewport/modelBounds, hver KLIPPET til egen SVG
+    // (aldri samme SVG to ganger). Layouts uten viewport er tomme paper space-faner —
+    // hoppes over (modelspace er tegningen, Kenneth Q1).
     const layoutResultater: DwgLayoutResultat[] = [];
-    if (dxfInnhold && harSvg) {
-      const detekterteLayouts = parseLayouts(dxfInnhold);
-      if (detekterteLayouts.length > 0) {
-        // Alle layouts deler samme SVG (model space rendering)
-        const svgData = await readFile(svgSti, "utf-8");
-        for (const layout of detekterteLayouts) {
-          const layoutId = randomUUID();
-          const layoutFilnavn = `${layoutId}.svg`;
-          await writeFile(join(uploadDir, layoutFilnavn), svgData, "utf-8");
-          layoutResultater.push({
-            navn: layout.navn,
-            tabOrder: layout.tabOrder,
-            visningUrl: `/uploads/${layoutFilnavn}`,
-            visningFilType: "svg",
-          });
-          console.log(`[DWG] Layout "${layout.navn}" opprettet (delt SVG)`);
+    if (dxfInnhold && visningFilType === "svg" && svgRes) {
+      for (const layout of parseLayouts(dxfInnhold)) {
+        if (!layout.modelBounds) {
+          console.log(`[DWG] Hopper over layout "${layout.navn}" (ingen viewport/modelBounds)`);
+          continue;
         }
+        const klippet = dxfTilSvg(dxfInnhold, layout.modelBounds);
+        if (!klippet) {
+          console.warn(`[DWG] Layout "${layout.navn}" ga ingen SVG (ugyldig klipp) — hoppet over`);
+          continue;
+        }
+        const svgFilnavn = `${randomUUID()}.svg`;
+        await writeFile(join(uploadDir, svgFilnavn), klippet.svg, "utf-8");
+        layoutResultater.push({
+          navn: layout.navn,
+          tabOrder: layout.tabOrder,
+          visningUrl: `/uploads/${svgFilnavn}`,
+          visningFilType: "svg",
+          ...utledDwgMaaling(klippet.vbW, klippet.width, klippet.height, mmPrEnhet),
+        });
+        console.log(`[DWG] Layout "${layout.navn}" opprettet (klippet SVG)`);
       }
     }
 
-    // 5. Detekter koordinatsystem
+    // 5. Koordinatsystem + georeferanse (D7 forbedrer hjørnene senere)
     const system = detekterKoordinatSystem(filnavn, extents ?? undefined);
     console.log("[DWG] Detektert koordinatsystem:", system);
-
-    // 6. Generer georeferanse
     let geoReferanse: GeoReferanse | null = null;
     if (system && system !== "wgs84" && extents) {
       const topVenstre = konverterTilWgs84(extents.maxY, extents.minX, system);
       const bunnHoyre = konverterTilWgs84(extents.minY, extents.maxX, system);
-
       if (topVenstre && bunnHoyre) {
         geoReferanse = {
-          point1: {
-            pixel: { x: 0, y: 0 },
-            gps: { lat: topVenstre.lat, lng: topVenstre.lng },
-          },
-          point2: {
-            pixel: { x: 100, y: 100 },
-            gps: { lat: bunnHoyre.lat, lng: bunnHoyre.lng },
-          },
+          point1: { pixel: { x: 0, y: 0 }, gps: { lat: topVenstre.lat, lng: topVenstre.lng } },
+          point2: { pixel: { x: 100, y: 100 }, gps: { lat: bunnHoyre.lat, lng: bunnHoyre.lng } },
         };
         console.log("[DWG] Auto-georeferanse:", JSON.stringify(geoReferanse));
       }
     }
 
-    // 7. Kopier visningsfil til uploads
-    let visningUrl = "";
-    let visningFilType = "";
+    if (ryddDxf) { try { await unlink(libreDxfSti); } catch { /* OK */ } }
 
-    if (harSvg) {
-      const svgData = await readFile(svgSti);
-      const svgFilnavn = `${visningId}.svg`;
-      await writeFile(join(uploadDir, svgFilnavn), svgData);
-      visningUrl = `/uploads/${svgFilnavn}`;
-      visningFilType = "svg";
-    }
-
-    // 8. Rydd opp midlertidige filer
-    try { await unlink(libreDxfSti); } catch { /* OK */ }
-    try { if (harSvg) await unlink(svgSti); } catch { /* OK */ }
+    const feil = visningUrl
+      ? null
+      : dxfInnhold
+        ? "Kunne ikke utlede et gyldig tegningsområde (ugyldige extents eller ingen gjenkjent geometri)."
+        : "Kunne ikke lese DXF fra filen.";
 
     return {
+      ...maaling,
       visningUrl,
       visningFilType,
       koordinatSystem: system,
       geoReferanse,
-      feil: harSvg ? null : "Kunne ikke generere SVG fra DWG-filen",
+      feil,
       layouts: layoutResultater,
     };
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
-    try { await unlink(libreDxfSti); } catch { /* OK */ }
-    try { await unlink(svgSti); } catch { /* OK */ }
-
+    if (ryddDxf) { try { await unlink(libreDxfSti); } catch { /* OK */ } }
     return {
-      visningUrl: "",
-      visningFilType: "",
-      koordinatSystem: null,
-      geoReferanse: null,
+      ...tomMaaling,
+      visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: err instanceof Error ? err.message : "Ukjent konverteringsfeil",
       layouts: [],
     };

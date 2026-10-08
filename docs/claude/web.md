@@ -43,7 +43,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/maler/[id]             -> Mal-lesevisning (IKKE malbygger). Redusert fra byggeren 2026-09-12 — bygging skjer i Oppsett › Produksjon. Begge inngangene overlever som lesevisning
 /dashbord/[prosjektId]/faggrupper             -> Faggruppe-liste (tabell m/opprett/rediger/slett-modaler, faggruppeNummer, org.nr, dokumenttellere). Erstatter den gamle «entrepriser»-ruten — «entreprise» er forbudt i ny kode
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id, filopplasting m/fremdriftsindikator via XMLHttpRequest progress)
-/dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
+/dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning. DWG/DXF → SVG (libredwg, DWG-2): måling rett fra tegningens enheter ($INSUNITS, «fra tegningens enheter»), layouts klippet pr. viewport. Header har revisjonsliste (`RevisjonsListe`, D6b): klikk en tidligere revisjon → forrige fil skrivebeskyttet i modal, inkl. arkiverte DWG-layouts
 /dashbord/[prosjektId]/3d-visning            -> Samlet 3D-visning (IFC + punktsky + overflater + kutt/fyll)
 /dashbord/[prosjektId]/tegning-3d            -> Split-view tegning + 3D-modell med koordinatsynk og georeferanse
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
