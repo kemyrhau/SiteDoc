@@ -426,6 +426,34 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
 - Verifisert via rene tester (hit-test punkt 1 av 4 under zoom/scroll, crop-rect, full mobil-suite) +
   mobil-typecheck. Kenneth tester på telefon etter OTA.
 
+**RETUR 6 (2026-10-08) — areal lukket seg selv, rediger figur, lupe-hopp, zoom/oppløsning, forhåndslast:**
+- **🔴 § 1 + TILLEGG — figur avsluttes KUN eksplisitt.** Polylinje auto-lukket før på trykk nær et
+  hvilket som helst punkt (`malinger.ts punktTilMaling: some(erNaer)`) → ferdig → mobil hoppet til
+  Flytt «av seg selv»; areal lukket for lett fordi terskelen var i PROSENT (`LUKK_TERSKEL_PCT = 3.5`),
+  enorm ved innzoom. Fiks: polylinje auto-lukker **aldri** (kun Fullfør/Enter); areal lukkes kun ved
+  trykk på FØRSTE punkt, nå med terskel i SKJERM-px (`LUKK_TERSKEL_PX = 12`, regnet mot vist
+  bildestørrelse fra gesten) eller «Lukk flate». `avgjorTrykkHandling` i måleverktøy returnerer alltid
+  `settPunkt` (bytter aldri til Flytt). Test: N raske trykk i polylinje/areal → aldri ferdig/Flytt
+  (`malinger.test.ts`), og måleverktøy setter punkt uansett gest (`tegningTrykk.test.ts`).
+- **🟢 § 2 Rediger figur etter etablering (hjemmel: Kenneth).** Delte, testede funksjoner i
+  `malinger.ts`: `settInnPunktPaaKant` (nytt hjørne etter en kant), `fjernPunkt` (beholder min 3 areal
+  / 2 linje), `finnNaermesteKant` (kant-treff inkl. sluttkant for lukket areal), `nyKantPunktIndeks`.
+  **Mobil (Flytt):** trykk på en kant setter inn et hjørne og drar det straks (injisert `finnKant` →
+  `settInnKant`-melding → shared; `window.__maleLukket` = areal+ferdig styrer sluttkanten); langt trykk
+  på et hjørne → `fjernPunkt`-bekreftelsesmodal. Hint i stripa. **Web:** shift-klikk på en kant setter
+  inn, klikk velger et hjørne (uthevet ring), Delete/Backspace fjerner det.
+- **🔴 § 3 Lupa hoppet/stoppet over elementer.** `setPointerCapture` på `#container` ved gest-start →
+  pointermove/up havner på beholderen selv når fingeren drar over en markør/målelinje/tekst; posisjon
+  regnes uansett fra `pageX/pageY` (RETUR 5). Capture slippes ved slipp.
+- **§ 4 (MÅLT) oppløsning + zoomgrense.** Mobil laster FULL 200-DPI-PNG via `fileUrl` — ingen
+  forminsket/thumbnail-variant finnes (tegningen gjøres ikke mindre). Zoom var kappet på 20× av
+  `maximum-scale=20` (ingen native WKWebView-cap: `scalesPageToFit={false}`, ingen `maximumZoomScale`);
+  web tillater 50×. Hevet mobil til `maximum-scale=50` for å matche web.
+- **§ 5 Lupa kommer med en gang.** `Image.prefetch(tegningUrl)` når tegningen åpnes, så RN-lupa (samme
+  URL) har bildet i cache før fingeren legges ned.
+- Verifisert: shared + mobil-tester grønne, mobil/web-typecheck + eslint rent. Kenneth tester på
+  telefon etter OTA. Ikke publisert OTA.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler

@@ -44,6 +44,10 @@ export {
   avsluttAktiv,
   finnNaermestePunkt,
   finnMalingTreff,
+  finnNaermesteKant,
+  settInnPunktPaaKant,
+  nyKantPunktIndeks,
+  fjernPunkt,
 } from "./malinger";
 export type { MaleVerktoy, Maling, MaleTilstand } from "./malinger";
 export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, erInnenfor, polygonArealM2, sentroidePunkter, erEnkeltPolygon, korridorFraLinje, tilGeofencer, geofenceForm, GEOFENCE_GRENSER } from "./sted";

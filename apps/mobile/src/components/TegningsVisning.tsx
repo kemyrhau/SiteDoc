@@ -32,6 +32,8 @@ import {
   slettAlle,
   avsluttAktiv,
   finnMalingTreff,
+  settInnPunktPaaKant,
+  fjernPunkt,
   type Punkt,
   type MaleVerktoy,
   type Maling,
@@ -61,8 +63,9 @@ export interface MaaleData {
   imageHeight: number | null;
 }
 
-/** Lukk-terskel i prosent: trykk nær et eksisterende punkt lukker polylinje/areal. */
-const LUKK_TERSKEL_PCT = 3.5;
+/** 🔴 RETUR 6 § 1: areal lukkes når trykket er innen ~12 pt (SKJERM-px, ikke prosent)
+ * av FØRSTE punkt. Prosent-terskel lukket arealet «av seg selv» ved innzoom. */
+const LUKK_TERSKEL_PX = 12;
 
 /** Trykk innen denne radiusen (skjerm-px) velger en eksisterende måling. */
 const VELG_TREFF_PX = 20;
@@ -150,7 +153,7 @@ function byggHtml(
   const gpsData = gpsMarkør ? JSON.stringify({ x: gpsMarkør.x, y: gpsMarkør.y }) : "null";
 
   return `<!DOCTYPE html>
-<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=20,user-scalable=yes">
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=50,user-scalable=yes">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   /* 🔴 RETUR 1 § 2: slå av iOS sin bilde-/tekstmeny og native bilde-dra, ellers
@@ -326,10 +329,12 @@ window.tegnMalinger = function(data) {
   data = data || {};
   var malinger = data.malinger || [];
   var segmenter = data.segmenter || [];
-  // Hit-test ved punkt-dra gjelder KUN den aktive målingens punkter.
+  // Hit-test ved punkt-dra/kant gjelder KUN den aktive målingens punkter.
   var aktiv = null;
   for (var i = 0; i < malinger.length; i++) { if (malinger[i].aktiv) { aktiv = malinger[i]; break; } }
   window.__malePunkter = aktiv ? (aktiv.punkter || []) : [];
+  // Lukket (areal + ferdig) → sluttkanten teller for «sett inn hjørne» (RETUR 6 § 2).
+  window.__maleLukket = !!(aktiv && aktiv.verktoy === 'areal' && aktiv.ferdig);
 
   var g = document.getElementById('maleLag'); if (g) g.remove();
   var c = document.getElementById('container'); if (!c) return;
@@ -454,6 +459,26 @@ ${trykkOppsett === "avansert" ? `
     }
     return best;
   }
+  // Speil av malinger.finnNaermesteKant (side-px). Nærmeste KANT (segment) til
+  // fingeren → kant-indeks, ellers -1. For et lukket areal teller sluttkanten
+  // (siste → første, indeks n-1). Brukes til «sett inn hjørne på kant» (RETUR 6 § 2).
+  function finnKant(pageX, pageY, box){
+    var pk = window.__malePunkter || [];
+    if (pk.length < 2) return -1;
+    var tol = TREFF_PX / zoom();
+    function sx(i){ return box.sideLeft + pk[i].x/100*box.bredde; }
+    function sy(i){ return box.sideTop + pk[i].y/100*box.hoyde; }
+    function segD(px,py, ax,ay, bx,by){
+      var dx=bx-ax, dy=by-ay, l2=dx*dx+dy*dy;
+      if (l2===0) return Math.sqrt((px-ax)*(px-ax)+(py-ay)*(py-ay));
+      var tt=((px-ax)*dx+(py-ay)*dy)/l2; tt=Math.max(0,Math.min(1,tt));
+      var cx=ax+tt*dx, cy=ay+tt*dy; return Math.sqrt((px-cx)*(px-cx)+(py-cy)*(py-cy));
+    }
+    var best=-1, bestD=tol;
+    for (var i=0;i+1<pk.length;i++){ var d=segD(pageX,pageY, sx(i),sy(i), sx(i+1),sy(i+1)); if(d<=bestD){best=i;bestD=d;} }
+    if (window.__maleLukket && pk.length>=3){ var d2=segD(pageX,pageY, sx(pk.length-1),sy(pk.length-1), sx(0),sy(0)); if(d2<=bestD){best=pk.length-1;bestD=d2;} }
+    return best;
+  }
   function modus(){ return window.__maleModus || 'navigering'; }
   function erMale(m){ return m==='linjal'||m==='polylinje'||m==='areal'; }
   // 🔴 RETUR 5 § 2 — lupa er nå et RN-NATIVT overlay (ikke DOM i WebView-en, som
@@ -483,8 +508,24 @@ ${trykkOppsett === "avansert" ? `
       sx=e.clientX; sy=e.clientY; st=naa; flyttet=false; dragIdx=-1; pending=null; pinch=false;
       var box = sideBoks(); if (!box) return;
       var m = modus();
-      if (m === 'flytt') dragIdx = finnPunkt(e.pageX, e.pageY, box);
+      if (m === 'flytt') {
+        dragIdx = finnPunkt(e.pageX, e.pageY, box);
+        // 🟢 RETUR 6 § 2: traff ikke et punkt, men en KANT av den aktive figuren →
+        // sett inn et nytt hjørne der og dra det med en gang (indeks = kant+1).
+        if (dragIdx < 0) {
+          var k = finnKant(e.pageX, e.pageY, box);
+          if (k >= 0) {
+            var pp0 = pctSide(e.pageX, e.pageY, box);
+            post({ type:'settInnKant', kantIndex:k, x:pp0.x, y:pp0.y });
+            dragIdx = k + 1;
+          }
+        }
+      }
       lupeAktiv = erMale(m) || (m==='flytt' && dragIdx>=0);
+      // 🔴 RETUR 6 § 3: fang pekeren på beholderen så pointermove/up havner HER
+      // selv når fingeren drar over en markør/målelinje/tekst — ellers kapret
+      // barne-elementet gesten og lupa «hoppet»/sluttet. pageX/pageY brukes uansett.
+      if (lupeAktiv) { try { c.setPointerCapture(e.pointerId); } catch (err) {} }
       if (lupeAktiv) { pending = pctSide(e.pageX,e.pageY,box); sendLupe(e.pageX,e.pageY,box); }
     } else {
       // Ekstra finger → knip/zoom. Avbryt pending enkelt-finger-handling.
@@ -516,6 +557,7 @@ ${trykkOppsett === "avansert" ? `
     var erPrimær = (e.pointerId === primær);
     delete pekere[e.pointerId];
     if (!erPrimær) return; // sekundærfinger sluppet — primær styrer commit/reset
+    try { c.releasePointerCapture(e.pointerId); } catch (err) {}
     var box = sideBoks();
     skjulLupe();
     if (!avbrutt && !pinch && box) {
@@ -568,6 +610,8 @@ export function TegningsVisning({
   // er WebViewens målte dp-størrelse (for kant-flipp av lupa).
   const [lupe, setLupe] = useState<LupeData | null>(null);
   const [webViewStr, setWebViewStr] = useState<{ w: number; h: number } | null>(null);
+  // 🟢 RETUR 6 § 2: hjørne markert for fjerning (langt trykk i Flytt) → bekreft-modal.
+  const [fjernKandidat, setFjernKandidat] = useState<number | null>(null);
   const aktiv = aktivMaling(maleTilstand);
   const aktivPunkter = aktiv?.punkter ?? [];
   const erAreal = aktiv?.verktoy === "areal";
@@ -694,20 +738,31 @@ export function TegningsVisning({
     setAktivtVerktoy("opprett");
   }, [forlatPaagaaende]);
 
-  const håndterLeggTilPunkt = useCallback((x: number, y: number) => {
-    const neste = leggTilPunkt(
-      maleTilstandRef.current,
-      { x, y },
-      (q) => Math.hypot(q.x - x, q.y - y) <= LUKK_TERSKEL_PCT,
-    );
+  const håndterLeggTilPunkt = useCallback((x: number, y: number, rectW: number, rectH: number) => {
+    // Lukk-terskel i SKJERM-px (side-/vist-rom), ikke prosent: ~12 pt rundt FØRSTE
+    // punkt. rectW/rectH er vist bildestørrelse (dp) fra gesten.
+    const erNaer = (q: Punkt) =>
+      rectW > 0 && rectH > 0
+        ? Math.hypot(((q.x - x) / 100) * rectW, ((q.y - y) / 100) * rectH) <= LUKK_TERSKEL_PX
+        : false;
+    const neste = leggTilPunkt(maleTilstandRef.current, { x, y }, erNaer);
     setMaleTilstand(neste);
     // Ferdig figur → gå automatisk til Flytt med figuren valgt (RETUR 3 § 1).
+    // Polylinje blir ALDRI ferdig her (RETUR 6 § 1); kun linjal (2 pkt) / areal (lukk).
     const akt = aktivMaling(neste);
     if (akt?.ferdig) setAktivtVerktoy("flytt");
   }, []);
   const håndterFlyttPunkt = useCallback((index: number, x: number, y: number) => {
     setMaleTilstand((prev) => flyttPunkt(prev, index, { x, y }));
   }, []);
+  const håndterSettInnKant = useCallback((kantIndex: number, x: number, y: number) => {
+    setMaleTilstand((prev) => settInnPunktPaaKant(prev, kantIndex, { x, y }));
+  }, []);
+  const håndterFjernPunkt = useCallback(() => {
+    if (fjernKandidat == null) return;
+    setMaleTilstand((prev) => fjernPunkt(prev, fjernKandidat));
+    setFjernKandidat(null);
+  }, [fjernKandidat]);
   const håndterFerdig = useCallback(() => {
     setMaleTilstand((prev) => settFerdig(prev));
     setAktivtVerktoy("flytt");
@@ -726,6 +781,13 @@ export function TegningsVisning({
   useEffect(() => {
     setLaster(true);
     setFeil(false);
+  }, [tegningUrl]);
+
+  // 🔴 RETUR 6 § 5: forhåndslast tegningsbildet i RN-bildecachen når tegningen
+  // åpnes, så den RN-native lupa (som laster SAMME URL) kommer opp med en gang
+  // i stedet for å vente på et eget nettverkskall første gang fingeren legges ned.
+  useEffect(() => {
+    if (tegningUrl) Image.prefetch(tegningUrl).catch(() => {});
   }, [tegningUrl]);
 
   useEffect(() => {
@@ -829,6 +891,11 @@ export function TegningsVisning({
           håndterFlyttPunkt(data.index, data.x, data.y);
           return;
         }
+        // 🟢 RETUR 6 § 2: sett inn et nytt hjørne på en kant (trykk på kant i Flytt).
+        if (data.type === "settInnKant") {
+          håndterSettInnKant(data.kantIndex, data.x, data.y);
+          return;
+        }
         // RN-nativ lupe (RETUR 5 § 2): WebView mater finger + utsnitt, eller skjul.
         if (data.type === "lupe") {
           setLupe(data.vis ? { fingerX: data.fingerX, fingerY: data.fingerY, pctX: data.pctX, pctY: data.pctY, dispB: data.dispB, dispH: data.dispH } : null);
@@ -852,7 +919,11 @@ export function TegningsVisning({
           });
           switch (handling) {
             case "settPunkt":
-              håndterLeggTilPunkt(data.x, data.y);
+              håndterLeggTilPunkt(data.x, data.y, data.rectW, data.rectH);
+              return;
+            case "fjernPunkt":
+              // 🟢 RETUR 6 § 2: langt trykk på et hjørne i Flytt → bekreft fjerning.
+              if (typeof data.dragIdx === "number" && data.dragIdx >= 0) setFjernKandidat(data.dragIdx);
               return;
             case "draPunkt":
               // Punktet er dratt live via `maledrag`; posisjonen er allerede anvendt.
@@ -879,7 +950,7 @@ export function TegningsVisning({
         // Ignorer ugyldig melding
       }
     },
-    [onTrykk, onMarkørTrykk, onOpprett, onHint, håndterLeggTilPunkt, håndterFlyttPunkt, håndterVelgMaling, t],
+    [onTrykk, onMarkørTrykk, onOpprett, onHint, håndterLeggTilPunkt, håndterFlyttPunkt, håndterSettInnKant, håndterVelgMaling, t],
   );
 
   const trykkOppsett: "ingen" | "enkel" | "avansert" = avansert
@@ -1032,6 +1103,10 @@ export function TegningsVisning({
                 )}
                 {/* RETUR 5 § 3: piltastene er fjernet — lupa (RN-nativ, ved fingeren)
                     er presisjonsgrepet. Renest mulig UI. */}
+                {/* 🟢 RETUR 6 § 2: rediger-hint for en valgt figur i Flytt. */}
+                {aktivtVerktoy === "flytt" && aktiv && aktiv.ferdig && (
+                  <Text style={stiler.maleKilde}>{t("maaling.redigerHint")}</Text>
+                )}
                 <View style={stiler.maleStripeKnapper}>
                   {(aktiv?.verktoy === "polylinje" && aktivPunkter.length >= 2 && !aktiv.ferdig) && (
                     <Pressable onPress={håndterFerdig} style={stiler.maleHandling}>
@@ -1076,6 +1151,24 @@ export function TegningsVisning({
                   </Pressable>
                   <Pressable onPress={håndterSlettAlle} style={[stiler.modalKnapp, stiler.modalKnappSlett]}>
                     <Text style={[stiler.modalKnappTekst, { color: "#ffffff" }]}>{t("maaling.slettAlle")}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          {/* 🟢 RETUR 6 § 2: Fjern hjørne — bekreftelsesmodal (langt trykk på et punkt). */}
+          <Modal visible={fjernKandidat != null} transparent animationType="fade" onRequestClose={() => setFjernKandidat(null)}>
+            <View style={stiler.modalBakgrunn}>
+              <View style={stiler.modalKort}>
+                <Text style={stiler.modalTittel}>{t("maaling.fjernPunktTittel")}</Text>
+                <Text style={stiler.modalTekst}>{t("maaling.fjernPunktBekreft")}</Text>
+                <View style={stiler.modalKnapper}>
+                  <Pressable onPress={() => setFjernKandidat(null)} style={[stiler.modalKnapp, stiler.modalKnappAvbryt]}>
+                    <Text style={stiler.modalKnappTekst}>{t("handling.avbryt")}</Text>
+                  </Pressable>
+                  <Pressable onPress={håndterFjernPunkt} style={[stiler.modalKnapp, stiler.modalKnappSlett]}>
+                    <Text style={[stiler.modalKnappTekst, { color: "#ffffff" }]}>{t("maaling.fjernPunkt")}</Text>
                   </Pressable>
                 </View>
               </View>

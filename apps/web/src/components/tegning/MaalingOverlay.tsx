@@ -29,9 +29,11 @@ interface MaalingOverlayProps {
   onPunktNed?: (index: number, e: React.PointerEvent<HTMLDivElement>) => void;
   /** Klikk på linja/flaten velger målingen (RETUR 2). Kun for inaktive målinger. */
   onVelg?: () => void;
+  /** Valgt hjørne (RETUR 6 § 2) — uthevet med ring; Delete fjerner det. */
+  valgtIdx?: number | null;
 }
 
-export function MaalingOverlay({ punkter, segmenter, fyll = false, aktiv = true, onPunktNed, onVelg }: MaalingOverlayProps) {
+export function MaalingOverlay({ punkter, segmenter, fyll = false, aktiv = true, onPunktNed, onVelg, valgtIdx = null }: MaalingOverlayProps) {
   if (punkter.length === 0) return null;
   const punktStreng = punkter.map((p) => `${p.x},${p.y}`).join(" ");
   // Aktiv = sitedoc-primary (#1e40af); inaktiv = slate-500 (#64748b).
@@ -81,9 +83,11 @@ export function MaalingOverlay({ punkter, segmenter, fyll = false, aktiv = true,
         <div
           key={i}
           onPointerDown={onPunktNed ? (e) => onPunktNed(i, e) : undefined}
-          className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow ${
-            aktiv ? "h-2.5 w-2.5 bg-sitedoc-primary" : "h-2 w-2 bg-slate-500"
-          } ${onPunktNed ? "pointer-events-auto cursor-grab touch-none active:cursor-grabbing" : ""}`}
+          className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow ${
+            i === valgtIdx ? "border-amber-400 ring-2 ring-amber-400" : "border-white"
+          } ${aktiv ? "h-2.5 w-2.5 bg-sitedoc-primary" : "h-2 w-2 bg-slate-500"} ${
+            onPunktNed ? "pointer-events-auto cursor-grab touch-none active:cursor-grabbing" : ""
+          }`}
           style={{ left: `${p.x}%`, top: `${p.y}%` }}
         />
       ))}

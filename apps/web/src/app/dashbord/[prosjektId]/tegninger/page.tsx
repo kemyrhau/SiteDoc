@@ -34,6 +34,10 @@ import {
   slettAlle,
   avsluttAktiv,
   finnMalingTreff,
+  finnNaermesteKant,
+  settInnPunktPaaKant,
+  nyKantPunktIndeks,
+  fjernPunkt,
   type Punkt,
   type MaleVerktoy,
   type Maling,
@@ -155,6 +159,10 @@ export default function TegningerSide() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const punktDragRef = useRef(false);
   const nettoppDrattRef = useRef(false);
+  // 🟢 RETUR 6 § 2: valgt hjørne i den aktive målingen (for Delete-fjerning).
+  // Shift-klikk på en kant setter inn et nytt hjørne. Web-valget (meldt i leveransen):
+  // shift-klikk = legg til · klikk velger punkt · Delete/Backspace = fjern.
+  const [valgtPunktIdx, setValgtPunktIdx] = useState<number | null>(null);
 
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
@@ -733,13 +741,20 @@ export default function TegningerSide() {
         setMaleTilstand((t) => avsluttAktiv(t));
         setKalibrerModus(false);
         setKalibrerPunkter([]);
+        setValgtPunktIdx(null);
       } else if (e.key === "Enter" && aktivVerktoy === "polylinje") {
         setMaleTilstand((t) => settFerdig(t));
+      } else if ((e.key === "Delete" || e.key === "Backspace") && valgtPunktIdx != null) {
+        // 🟢 RETUR 6 § 2: Delete/Backspace fjerner det valgte hjørnet (beholder
+        // minst 3 for areal / 2 for linje — håndtert i shared fjernPunkt).
+        e.preventDefault();
+        setMaleTilstand((t) => fjernPunkt(t, valgtPunktIdx));
+        setValgtPunktIdx(null);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [maleEngasjert, kalibrerModus, aktivVerktoy]);
+  }, [maleEngasjert, kalibrerModus, aktivVerktoy, valgtPunktIdx]);
 
   function lukkModal() {
     setVisOpprettModal(false);
@@ -793,6 +808,22 @@ export default function TegningerSide() {
       if (kalibrerModus) {
         setKalibrerPunkter((p) => (p.length >= 2 ? [{ x: px, y: py }] : [...p, { x: px, y: py }]));
         return;
+      }
+
+      // Et klikk i bakgrunnen/på en kant velger bort et tidligere valgt hjørne
+      // (klikk PÅ et hjørne går via startPunktDrag og beholder valget).
+      setValgtPunktIdx(null);
+
+      // 🟢 RETUR 6 § 2: shift-klikk på en kant av den aktive figuren → nytt hjørne
+      // der (velges straks, så det kan dras / fjernes). Areal regner med sluttkanten.
+      if (e.shiftKey && aktivMal && aktivMal.punkter.length >= 2) {
+        const lukket = aktivMal.verktoy === "areal" && aktivMal.ferdig;
+        const kant = finnNaermesteKant(aktivMal.punkter, { x: px, y: py }, r.width, r.height, PUNKT_TREFF_PX, lukket);
+        if (kant >= 0) {
+          setMaleTilstand((t) => settInnPunktPaaKant(t, kant, { x: px, y: py }));
+          setValgtPunktIdx(nyKantPunktIndeks(kant));
+          return;
+        }
       }
 
       // Trykk nær et eksisterende punkt (i prosent→px) lukker polylinje/areal.
@@ -862,7 +893,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand, aktivMal]);
 
   // Dra et satt målepunkt med musa (TILLEGG RETUR 1). Starter på punkt-prikken;
   // move/up lyttes på vindu så dra fortsetter utenfor prikken. Rører ikke maleFerdig
@@ -872,6 +903,7 @@ export default function TegningerSide() {
     e.preventDefault();
     punktDragRef.current = true;
     setDragIdx(index);
+    setValgtPunktIdx(index); // 🟢 RETUR 6 § 2: klikk på et hjørne velger det (for Delete)
   }, []);
 
   useEffect(() => {
@@ -1762,6 +1794,7 @@ export default function TegningerSide() {
                     aktiv={erAktiv}
                     onPunktNed={erAktiv ? startPunktDrag : undefined}
                     onVelg={erAktiv ? undefined : () => setMaleTilstand((t) => velgMaling(t, m.id))}
+                    valgtIdx={erAktiv ? valgtPunktIdx : null}
                   />
                 );
               })}
