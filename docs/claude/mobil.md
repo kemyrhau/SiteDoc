@@ -361,6 +361,28 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   lagres IKKE (forsvinner når tegningen lukkes). Tester: `packages/shared/src/utils/malinger.test.ts`
   (hit-test alle punkter · bom-trykk sletter aldri · flere målinger/valg/slett).
 
+**RETUR 3 (2026-10-08) — eksplisitte verktøy, set-on-release, lupe ved siden, §0 skjermlås:**
+- **🔴 § 0 skjermlås (rotårsak + fiks):** den gamle gesten gjettet fire ting (nytt punkt / dra / velg /
+  langt trykk) ut fra hvor/hvor lenge fingeren lå, og pekertelleren (`antallPekere`) kunne bli stående
+  > 0 hvis en `pointerup` gikk tapt (systemgest/overtatt) → `slutt()` returnerte tidlig for alltid =
+  lås. Fiksen: gest-livssyklusen er forankret i PRIMÆRfingeren og nullstilles HELT ved
+  `pointerup`/`pointercancel` (`nullstill()` tømmer `pekere={}`), pluss selvheling (nytt nedtrykk
+  > 1,2 s etter siste hendelse nullstiller først). Ingen teller som kan låse. Lupa ryddes alltid.
+- **Eksplisitte verktøy (ren funksjon):** `avgjorTrykkHandling(verktoy, gest)` i `src/lib/tegningTrykk.ts`
+  tar nå `TegningVerktoy` (navigering/flytt/linjal/polylinje/areal/opprett) + kontekst (`nedPaaPunkt`,
+  `traffMaling`) → `settPunkt/draPunkt/velgMaling/opprett/hint/pan`. Verktøyet — ikke gjetting — avgjør.
+  Tester (`tegningTrykk.test.ts`): «trykk i Flytt setter ALDRI punkt» og «trykk i måleverktøy drar
+  ALDRI» (begge røde før RETUR 3), + knip→pan, opprett, navigering.
+- **Verktøylinje:** `[✋ Flytt] [📏 Linjal] [〰 Polylinje] [▱ Areal] [＋ Opprett]`, ett aktivt.
+  Måleverktøyene sperres når `kanMale` er usann; Flytt/Opprett alltid. Ferdig figur → auto til Flytt med
+  figuren valgt. Flytt = velg + dra (aldri punkt). ＋ Opprett = markør + mal (erstatter langt trykk mens
+  et verktøy er i bruk). Uten verktøy = forelderens bryter (plassering → opprett) / navigering (hint,
+  langt trykk). `window.__maleModus` injiseres ved modusbytte så WebView-en vet hva gesten skal gjøre.
+- **§ 2 Set-on-release + lupe:** punktet settes ved SLIPP (`touch-up`), ikke nedtrykk — så man kan
+  justere mot lupa først. Lupa (`window.visLupe`, ~2,5× lokal zoom + trådkors) står forskjøvet OPP og
+  TIL SIDEN for fingeren og bytter side/retning ved skjermkanten; vises i måleverktøy (alltid) og i
+  Flytt (på punkt). Flytt drar live (`maledrag`); måleverktøy committer på slipp (`gest` → `settPunkt`).
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
