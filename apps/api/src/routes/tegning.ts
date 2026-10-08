@@ -185,6 +185,10 @@ async function anvendDwgResultat(
   await prisma.drawing.update({ where: { id: tegning.id }, data: oppdatering });
   console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
 
+  // En FEILET konvertering skal ALDRI røre eksisterende layouts — ellers ville en
+  // transient feil (tom resultat.layouts) slettet/stale-et alle eksisterende layouts.
+  if (resultat.feil) return;
+
   // D6: erstatt layout-rader på (parentDrawingId, layoutNavn)
   const eksisterende = await prisma.drawing.findMany({
     where: { parentDrawingId: tegning.id },
