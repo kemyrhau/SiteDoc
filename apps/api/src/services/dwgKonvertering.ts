@@ -444,19 +444,227 @@ function parseLayouts(dxfInnhold: string): DxfLayoutInfo[] {
   return layouts;
 }
 
-/** Beregn farge fra DXF entity */
-function dxfFarge(e: { color?: number; colorIndex?: number }): string {
-  const rawColor = e.color ?? e.colorIndex ?? 7;
+/** Lag-navn → farge fra DXF LAYER-tabellen, for BYLAYER-oppslag (RETUR 1 pkt 1). */
+export type LagFarger = Record<string, { color?: number; colorIndex?: number }>;
+
+/**
+ * Normaliser én rå farge (resolved 24-bit RGB > 255, eller ACI-indeks ≤ 255) til en
+ * SVG-farge (RETUR 1 pkt 1/9). På hvit visningsbakgrunn tegnes hvit/nesten-hvit og
+ * ACI 7/0 («white/black») som SVART — ellers forsvinner BYLAYER-tegninger der laget
+ * har fargeindeks 7 (fallplan-saken: dxf-parser resolver ACI 7 til 0xFFFFFF = hvit).
+ * Ekte RGB-farger (f.eks. Ålesund) beholdes.
+ */
+export function fargeFraRaa(rawColor: number): string {
   if (rawColor > 255) {
     const r = (rawColor >> 16) & 0xFF;
     const g = (rawColor >> 8) & 0xFF;
     const b = rawColor & 0xFF;
+    if (r > 245 && g > 245 && b > 245) return "#000"; // hvit/nesten-hvit → svart
     return `rgb(${r},${g},${b})`;
-  } else if (rawColor === 7 || rawColor === 0) {
-    return "#000";
-  } else {
-    return `hsl(${(rawColor * 37) % 360}, 70%, 40%)`;
   }
+  if (rawColor === 7 || rawColor === 0) return "#000";
+  return `hsl(${(rawColor * 37) % 360}, 70%, 40%)`;
+}
+
+/**
+ * Beregn farge fra DXF-entity. Entitetens egen farge har forrang; mangler den
+ * (BYLAYER, `color/colorIndex = undefined`) slås lagets farge opp fra LAYER-tabellen
+ * (RETUR 1 pkt 1). Ingen treff → svart.
+ */
+function dxfFarge(e: { color?: number; colorIndex?: number; layer?: string }, lagFarger?: LagFarger): string {
+  if (typeof e.color === "number") return fargeFraRaa(e.color);
+  if (typeof e.colorIndex === "number") return fargeFraRaa(e.colorIndex);
+  if (e.layer && lagFarger && lagFarger[e.layer]) {
+    const l = lagFarger[e.layer]!;
+    if (typeof l.color === "number") return fargeFraRaa(l.color);
+    if (typeof l.colorIndex === "number") return fargeFraRaa(l.colorIndex);
+  }
+  return "#000";
+}
+
+/**
+ * HATCH pseudo-entitet (RETUR 1 pkt 3). dxf-parser@1.1.2 dropper HATCH fullstendig,
+ * så kundetegninger mister all veggskravering (fallplanen: 12 550 HATCH, 0 parset).
+ * Vi parser dem fra rå DXF-tekst og mater dem gjennom samme render-/transform-rør som
+ * øvrige entiteter. `hatchLoops` er grensebanene (ytre + evt. hull) i tegningsenheter.
+ */
+export interface HatchPseudo {
+  type: "HATCH";
+  layer: string;
+  /** DXF-kode 70: true = ekte solid-fyll; false = mønster-hatch (tegnes som grått fyll). */
+  solid: boolean;
+  colorIndex?: number;
+  color?: number;
+  hatchLoops: { x: number; y: number }[][];
+}
+
+/** Les punkt-par (f.eks. [[10,20],[11,21]]) fra en par-liste fra peker `p`. */
+function lesHatchPunkter(
+  pairs: Array<[number, string]>,
+  p: number,
+  koder: Array<[number, number]>,
+): { punkter: { x: number; y: number }[]; p: number } {
+  const punkter: { x: number; y: number }[] = [];
+  for (const [cx, cy] of koder) {
+    while (p < pairs.length && pairs[p]![0] !== cx) {
+      if (pairs[p]![0] === 92 || pairs[p]![0] === 97) return { punkter, p };
+      p++;
+    }
+    if (p >= pairs.length || pairs[p]![0] !== cx) break;
+    const x = parseFloat(pairs[p]![1]); p++;
+    let y = NaN;
+    if (p < pairs.length && pairs[p]![0] === cy) { y = parseFloat(pairs[p]![1]); p++; }
+    if (Number.isFinite(x) && Number.isFinite(y)) punkter.push({ x, y });
+  }
+  return { punkter, p };
+}
+
+/** Tolk én HATCH-record (par fra like etter `0/HATCH` til neste `0`). */
+function parseEnHatch(linjer: string[], start: number): { hatch: HatchPseudo | null; neste: number } {
+  const pairs: Array<[number, string]> = [];
+  let i = start;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    if (code === "0") break;
+    const nc = parseInt(code, 10);
+    if (!Number.isNaN(nc)) pairs.push([nc, linjer[i + 1]!.trim()]);
+    i += 2;
+  }
+  const neste = i;
+
+  let layer = "0";
+  let solid = false;
+  let colorIndex: number | undefined;
+  let color: number | undefined;
+  let nPaths = 0;
+  const loops: { x: number; y: number }[][] = [];
+
+  let p = 0;
+  for (; p < pairs.length; p++) {
+    const [c, v] = pairs[p]!;
+    if (c === 8) layer = v;
+    else if (c === 62) colorIndex = parseInt(v, 10);
+    else if (c === 420) color = parseInt(v, 10);
+    else if (c === 70) solid = v === "1";
+    else if (c === 91) { nPaths = parseInt(v, 10) || 0; p++; break; }
+  }
+
+  for (let path = 0; path < nPaths && p < pairs.length; path++) {
+    while (p < pairs.length && pairs[p]![0] !== 92) p++;
+    if (p >= pairs.length) break;
+    const flag = parseInt(pairs[p]![1], 10) || 0; p++;
+    const loop: { x: number; y: number }[] = [];
+
+    if ((flag & 2) !== 0) {
+      // Polyline-grense: 72 (bulge), 73 (lukket), 93 (antall), så n × (10,20[,42]).
+      while (p < pairs.length && pairs[p]![0] !== 93) { if (pairs[p]![0] === 92) break; p++; }
+      let nVerts = 0;
+      if (p < pairs.length && pairs[p]![0] === 93) { nVerts = parseInt(pairs[p]![1], 10) || 0; p++; }
+      for (let k = 0; k < nVerts && p < pairs.length; k++) {
+        while (p < pairs.length && pairs[p]![0] !== 10) { if (pairs[p]![0] === 92) break; p++; }
+        if (p >= pairs.length || pairs[p]![0] !== 10) break;
+        const x = parseFloat(pairs[p]![1]); p++;
+        let y = NaN;
+        if (p < pairs.length && pairs[p]![0] === 20) { y = parseFloat(pairs[p]![1]); p++; }
+        if (Number.isFinite(x) && Number.isFinite(y)) loop.push({ x, y });
+        if (p < pairs.length && pairs[p]![0] === 42) p++;
+      }
+    } else {
+      // Edge-grense: 93 (antall kanter), hver kant 72 (type) + data.
+      while (p < pairs.length && pairs[p]![0] !== 93) { if (pairs[p]![0] === 92) break; p++; }
+      let nEdges = 0;
+      if (p < pairs.length && pairs[p]![0] === 93) { nEdges = parseInt(pairs[p]![1], 10) || 0; p++; }
+      for (let e = 0; e < nEdges && p < pairs.length; e++) {
+        while (p < pairs.length && pairs[p]![0] !== 72) { if (pairs[p]![0] === 92 || pairs[p]![0] === 97) break; p++; }
+        if (p >= pairs.length || pairs[p]![0] !== 72) break;
+        const edgeType = parseInt(pairs[p]![1], 10); p++;
+        if (edgeType === 1) {
+          const r = lesHatchPunkter(pairs, p, [[10, 20], [11, 21]]); p = r.p;
+          for (const pt of r.punkter) loop.push(pt);
+        } else if (edgeType === 2) {
+          // Bue: 10,20 sentrum; 40 radius; 50/51 vinkler (grader). Tessellér grovt (12 segm).
+          const c = lesHatchPunkter(pairs, p, [[10, 20]]); p = c.p;
+          let radius = NaN, a0 = 0, a1 = 360;
+          while (p < pairs.length && ![72, 92, 97].includes(pairs[p]![0])) {
+            const [cc, vv] = pairs[p]!;
+            if (cc === 40) radius = parseFloat(vv);
+            else if (cc === 50) a0 = parseFloat(vv);
+            else if (cc === 51) a1 = parseFloat(vv);
+            p++;
+          }
+          const senter = c.punkter[0];
+          if (senter && Number.isFinite(radius)) {
+            const span = ((a1 - a0 + 360) % 360) || 360;
+            for (let s = 0; s <= 12; s++) {
+              const ang = ((a0 + (span * s) / 12) * Math.PI) / 180;
+              loop.push({ x: senter.x + radius * Math.cos(ang), y: senter.y + radius * Math.sin(ang) });
+            }
+          }
+        } else {
+          // Ellipse/spline-kant: hopp frem til neste kant/path (sjelden i vegg-hatch).
+          while (p < pairs.length && ![72, 92, 97].includes(pairs[p]![0])) p++;
+        }
+      }
+    }
+
+    if (loop.length >= 2) loops.push(loop);
+    while (p < pairs.length && pairs[p]![0] !== 92) p++; // forbi 97/330-trailer til neste path
+  }
+
+  if (loops.length === 0) return { hatch: null, neste };
+  return { hatch: { type: "HATCH", layer, solid, colorIndex, color, hatchLoops: loops }, neste };
+}
+
+/**
+ * Parse alle HATCH fra rå DXF. Model-space-HATCH (ENTITIES-seksjonen) returneres som
+ * `model` (verdenskoordinater, tegnes direkte); HATCH inne i blokk-definisjoner
+ * returneres per blokknavn i `perBlokk` slik at INSERT-utfoldelsen transformerer dem.
+ */
+export function parseHatcher(dxfInnhold: string): {
+  model: HatchPseudo[];
+  perBlokk: Record<string, HatchPseudo[]>;
+} {
+  const linjer = dxfInnhold.split("\n");
+  const model: HatchPseudo[] = [];
+  const perBlokk: Record<string, HatchPseudo[]> = {};
+  let sec = "";
+  let blokkNavn = "";
+
+  let i = 0;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    const value = linjer[i + 1]!.trim();
+    i += 2;
+    if (code === "2" && ["HEADER", "CLASSES", "TABLES", "BLOCKS", "ENTITIES", "OBJECTS"].includes(value)) {
+      sec = value; blokkNavn = ""; continue;
+    }
+    if (code !== "0") continue;
+    if (value === "BLOCK") {
+      blokkNavn = "";
+      for (let j = i; j < linjer.length - 1; j += 2) {
+        const gc = linjer[j]!.trim();
+        if (gc === "0") break;
+        if (gc === "2") { blokkNavn = linjer[j + 1]!.trim(); break; }
+      }
+      continue;
+    }
+    if (value === "ENDBLK") { blokkNavn = ""; continue; }
+    if (value === "HATCH") {
+      const res = parseEnHatch(linjer, i);
+      i = res.neste;
+      if (res.hatch) {
+        if (sec === "ENTITIES") model.push(res.hatch);
+        else if (sec === "BLOCKS" && blokkNavn) (perBlokk[blokkNavn] ??= []).push(res.hatch);
+      }
+    }
+  }
+  return { model, perBlokk };
+}
+
+/** SVG-fyllfarge for en HATCH: ekte solid → lagets/entitetens farge; mønster → lys grå. */
+function hatchFyll(h: HatchPseudo, lagFarger?: LagFarger): string {
+  if (h.solid) return dxfFarge(h, lagFarger);
+  return "#c8c8c8"; // mønster-hatch tegnes som lys grå flate («minst solid fill»)
 }
 
 /** Evaluer kubisk B-spline med kontrollpunkter og knot-vektor */
@@ -573,6 +781,32 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     }
     console.log(`[DWG] Blokker funnet: ${Object.keys(blokker).length} (${Object.entries(blokker).map(([n, e]) => `${n}:${e.length}`).join(", ")})`);
 
+    // RETUR 1 pkt 1: lag-farger fra LAYER-tabellen, for BYLAYER-oppslag i dxfFarge.
+    const lagFarger: LagFarger = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lagTabell = (dxf as any).tables?.layer?.layers;
+    if (lagTabell) {
+      for (const [navn, l] of Object.entries(lagTabell)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lg = l as any;
+        lagFarger[navn] = { color: lg.color, colorIndex: lg.colorIndex };
+      }
+    }
+
+    // RETUR 1 pkt 3: HATCH parses fra rå tekst (dxf-parser dropper dem). Blokk-HATCH
+    // legges i blokk-kartet så INSERT-utfoldelsen transformerer dem; model-HATCH mates
+    // inn i køen direkte (verdenskoordinater).
+    const { model: hatchModel, perBlokk: hatchPerBlokk } = parseHatcher(dxfInnhold);
+    for (const [bn, hs] of Object.entries(hatchPerBlokk)) {
+      if (bn.startsWith("*Paper_Space") || bn.startsWith("*D")) continue;
+      if (blokker[bn]) blokker[bn].push(...hs);
+      else blokker[bn] = [...hs];
+    }
+    const antHatchBlokk = Object.values(hatchPerBlokk).reduce((s, a) => s + a.length, 0);
+    if (hatchModel.length + antHatchBlokk > 0) {
+      console.log(`[DWG] HATCH parset fra rå DXF: ${hatchModel.length} model + ${antHatchBlokk} i blokker`);
+    }
+
     // Filtrer bort paper space entiteter — kun model space vises
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modelEntiteter = dxf.entities.filter((e: any) => !e.inPaperSpace);
@@ -587,8 +821,8 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const alleEntiteter: any[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    type ArbeidsItem = { entity: any; transforms: Array<{ pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }> };
-    const kø: ArbeidsItem[] = modelEntiteter.map(e => ({ entity: e, transforms: [] }));
+    type ArbeidsItem = { entity: any; transforms: Array<{ base: { x: number; y: number }; pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }> };
+    const kø: ArbeidsItem[] = [...modelEntiteter, ...hatchModel].map(e => ({ entity: e, transforms: [] }));
 
     while (kø.length > 0 && alleEntiteter.length < MAKS_ENTITETER) {
       const item = kø.shift()!;
@@ -613,7 +847,14 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
         const sx = e.xScale ?? 1;
         const sy = e.yScale ?? 1;
         const rot = ((e.rotation ?? 0) * Math.PI) / 180;
-        const nyTransform = { pos, sx, sy, cosR: Math.cos(rot), sinR: Math.sin(rot) };
+        // RETUR 1: trekk fra blokkens base-punkt (DXF BLOCK kode 10). INSERT plasserer
+        // blokken slik at base-punktet lander på innsettings-punktet. Uten fradraget
+        // dobbel-forskyves verdens-autorerte IFC-blokker (base = innsettingspunkt ≠ 0)
+        // — både linjer og HATCH havnet utenfor extents og forsvant. No-op når base=0.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const blokkBase = ((dxf as any).blocks?.[e.name]?.position) ?? { x: 0, y: 0 };
+        const base = { x: blokkBase.x ?? 0, y: blokkBase.y ?? 0 };
+        const nyTransform = { base, pos, sx, sy, cosR: Math.cos(rot), sinR: Math.sin(rot) };
         const transforms = [...item.transforms, nyTransform];
 
         for (const be of blokkEntiteter) {
@@ -627,10 +868,12 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
 
           function applyTransform(
             punkt: { x: number; y: number },
-            tf: { pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }
+            tf: { base: { x: number; y: number }; pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }
           ): { x: number; y: number } {
-            const rx = punkt.x * tf.sx * tf.cosR - punkt.y * tf.sy * tf.sinR + tf.pos.x;
-            const ry = punkt.x * tf.sx * tf.sinR + punkt.y * tf.sy * tf.cosR + tf.pos.y;
+            const bx = punkt.x - tf.base.x;
+            const by = punkt.y - tf.base.y;
+            const rx = bx * tf.sx * tf.cosR - by * tf.sy * tf.sinR + tf.pos.x;
+            const ry = bx * tf.sx * tf.sinR + by * tf.sy * tf.cosR + tf.pos.y;
             return { x: rx, y: ry };
           }
 
@@ -647,6 +890,7 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
           if (e.endPoint) kopi.endPoint = applyAll(e.endPoint);
           if (e.center) kopi.center = applyAll(e.center);
           if (e.vertices) kopi.vertices = e.vertices.map((v: { x: number; y: number }) => applyAll(v));
+          if (e.hatchLoops) kopi.hatchLoops = e.hatchLoops.map((loop: { x: number; y: number }[]) => loop.map(applyAll));
           if (e.insertionPoint) kopi.insertionPoint = applyAll(e.insertionPoint);
           if (e.controlPoints) kopi.controlPoints = e.controlPoints.map((v: { x: number; y: number }) => applyAll(v));
           if (e.fitPoints) kopi.fitPoints = e.fitPoints.map((v: { x: number; y: number }) => applyAll(v));
@@ -702,13 +946,19 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
       maxY = extMax.y;
       console.log(`[DWG] Bruker DXF header extents: (${minX}, ${minY}) → (${maxX}, ${maxY})`);
     } else {
-      // Fallback: beregn fra entiteter med persentil-basert outlier-filtrering
-      const alleX: number[] = [];
-      const alleY: number[] = [];
+      // RETUR 1 pkt 7: extents skal dekke ALL gyldig geometri. Tidligere klippet
+      // p1/p99-persentilen ekte kantgeometri bort (Ålesund: vegger/kantstein kuttet).
+      // Nå tas full min/max; kun sentinel-/søppelkoordinater (|v| ≥ 1e12) kastes.
+      let fMinX = Infinity, fMaxX = -Infinity, fMinY = Infinity, fMaxY = -Infinity;
+      let antall = 0;
 
       function saml(x: number, y: number) {
-        // D3: forkast sentinel-/søppelkoordinater (|v| ≥ 1e12) før persentilen.
-        if (gyldigKoordinat(x) && gyldigKoordinat(y)) { alleX.push(x); alleY.push(y); }
+        if (!gyldigKoordinat(x) || !gyldigKoordinat(y)) return;
+        if (x < fMinX) fMinX = x;
+        if (x > fMaxX) fMaxX = x;
+        if (y < fMinY) fMinY = y;
+        if (y > fMaxY) fMaxY = y;
+        antall++;
       }
 
       for (const entity of alleEntiteter) {
@@ -724,31 +974,19 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
             if (v.x !== undefined && v.y !== undefined) saml(v.x, v.y);
           }
         }
+        if (e.hatchLoops && Array.isArray(e.hatchLoops)) {
+          for (const loop of e.hatchLoops) for (const v of loop) saml(v.x, v.y);
+        }
         if (e.insertionPoint) saml(e.insertionPoint.x, e.insertionPoint.y);
       }
 
-      if (alleX.length === 0) return null;
-
-      // Bruk 1. og 99. persentil for å fjerne outliers
-      alleX.sort((a, b) => a - b);
-      alleY.sort((a, b) => a - b);
-      const p1 = Math.floor(alleX.length * 0.01);
-      const p99 = Math.ceil(alleX.length * 0.99) - 1;
-      minX = alleX[p1]!;
-      maxX = alleX[p99]!;
-      minY = alleY[p1]!;
-      maxY = alleY[p99]!;
-      console.log(`[DWG] Beregnet extents fra entiteter (persentil): (${minX}, ${minY}) → (${maxX}, ${maxY})`);
+      if (antall === 0) return null;
+      minX = fMinX; maxX = fMaxX; minY = fMinY; maxY = fMaxY;
+      console.log(`[DWG] Beregnet extents fra entiteter (full min/max, ${antall} pkt): (${minX}, ${minY}) → (${maxX}, ${maxY})`);
     }
     } // lukk if (!klippBounds)
 
     if (!isFinite(minX) || !isFinite(maxX)) return null;
-
-    // Normalisering: flytt alle koordinater til å starte nær 0
-    const oX = minX;
-    const oY = minY;
-    function nx(x: number) { return x - oX; }
-    function ny(y: number) { return -(y - oY); }
 
     // Beregn dimensjoner og stroke-width
     const w = maxX - minX;
@@ -758,6 +996,18 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     const svgBredde = 2000;
     const vbPerPx = w / svgBredde;
     const sw = vbPerPx * 1.5; // ~1.5px ved standard visning
+
+    // Normalisering: flytt alle koordinater til å starte nær 0. Avrund til ~0,05 px
+    // presisjon (adaptivt etter tegningens skala) — kutter SVG-størrelsen kraftig på
+    // store planer med full-presisjons IFC-koordinater (fallplan ~14 MB → ~6 MB) uten
+    // synlig tap, og beholder desimaler for små tegninger (Ålesund, ~200 enheter brede).
+    const koordDesimaler = Math.min(6, Math.max(0, Math.ceil(-Math.log10(Math.max(vbPerPx, 1e-9) * 0.05))));
+    const rundFaktor = 10 ** koordDesimaler;
+    const rund = (v: number) => Math.round(v * rundFaktor) / rundFaktor;
+    const oX = minX;
+    const oY = minY;
+    function nx(x: number) { return rund(x - oX); }
+    function ny(y: number) { return rund(-(y - oY)); }
 
     // Grenser for å filtrere bort entiteter langt utenfor tegningen (50% margin)
     const margin = Math.max(w, h) * 0.5;
@@ -772,6 +1022,8 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
 
     // Pass 2: Generer SVG-elementer fra alle entiteter (unntatt INSERT som allerede er utfoldet)
     const paths: string[] = [];
+    // HATCH tegnes bak linjene (fyll under kontur), derfor egen bunke som legges først.
+    const hatchPaths: string[] = [];
     let ubehandlede = 0;
     let utenforBounds = 0;
 
@@ -796,12 +1048,22 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
       else if (e.insertionPoint && erInnenforBounds(e.insertionPoint.x, e.insertionPoint.y)) innenfor = true;
       else if (e.vertices && Array.isArray(e.vertices) && e.vertices.some((v: { x: number; y: number }) => erInnenforBounds(v.x, v.y))) innenfor = true;
       else if (e.controlPoints && Array.isArray(e.controlPoints) && e.controlPoints.some((v: { x: number; y: number }) => erInnenforBounds(v.x, v.y))) innenfor = true;
+      else if (e.hatchLoops && Array.isArray(e.hatchLoops) && e.hatchLoops.some((loop: { x: number; y: number }[]) => loop.some(v => erInnenforBounds(v.x, v.y)))) innenfor = true;
       if (!innenfor) { utenforBounds++; continue; }
 
-      const stroke = dxfFarge(e);
+      const stroke = dxfFarge(e, lagFarger);
 
       const da = dataAttr(e);
-      if (e.type === "LINE" && e.startPoint && e.endPoint) {
+      if (e.type === "HATCH" && e.hatchLoops?.length) {
+        // RETUR 1 pkt 3: fyll grensebanene (evenodd gir hull). Mønster-hatch → lys grå,
+        // ekte solid → lagfarge. Tegnes bak linjene (hatchPaths).
+        const d = e.hatchLoops
+          .filter((loop: { x: number; y: number }[]) => loop.length >= 2)
+          .map((loop: { x: number; y: number }[]) =>
+            "M " + loop.map(v => `${nx(v.x)},${ny(v.y)}`).join(" L ") + " Z")
+          .join(" ");
+        if (d) hatchPaths.push(`<path d="${d}" fill="${hatchFyll(e, lagFarger)}" fill-rule="evenodd" stroke="none"${da} />`);
+      } else if (e.type === "LINE" && e.startPoint && e.endPoint) {
         paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "LINE" && e.vertices?.length >= 2) {
         const v0 = e.vertices[0];
@@ -888,7 +1150,9 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
         paths.push(`<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "POINT" && e.position) {
-        paths.push(`<circle cx="${nx(e.position.x)}" cy="${ny(e.position.y)}" r="${sw * 2}" fill="${stroke}"${da} />`);
+        // RETUR 1 pkt 4: CAD-POINT er en liten node-markør, ikke en stor fylt skive.
+        // `r=sw*2` ga en «stor svart prikk» større enn teksten på oppblåste viewBox-er.
+        paths.push(`<circle cx="${nx(e.position.x)}" cy="${ny(e.position.y)}" r="${sw * 0.5}" fill="${stroke}"${da} />`);
       } else if (e.type === "TEXT" && e.startPoint && e.text) {
         const fontSize = (e.textHeight ?? sw * 10) * 1;
         const x = nx(e.startPoint.x);
@@ -923,9 +1187,9 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     if (utenforBounds > 0) {
       console.log(`[DWG] Filtrerte bort ${utenforBounds} entiteter utenfor tegningens extents`);
     }
-    console.log(`[DWG] Genererte ${paths.length} SVG-elementer`);
+    console.log(`[DWG] Genererte ${paths.length} SVG-elementer (+ ${hatchPaths.length} HATCH-fyll)`);
 
-    if (paths.length === 0) return null;
+    if (paths.length === 0 && hatchPaths.length === 0) return null;
 
     const svgMargin = Math.max(w, h) * 0.02;
     const vbX = -svgMargin;
@@ -948,6 +1212,7 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${svgBredde}" height="${svgHoyde}">
 <style>line,polyline,circle,path,ellipse,polygon{vector-effect:non-scaling-stroke}</style>
 <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="white"/>
+${hatchPaths.join("\n")}
 ${paths.join("\n")}
 </svg>`;
     return { svg, vbW, vbH, width: svgBredde, height: svgHoyde };
