@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   kanMale,
@@ -36,6 +36,7 @@ import {
   type MaleTilstand,
 } from "@sitedoc/shared/utils";
 import { avgjorTrykkHandling, type TegningVerktoy } from "../lib/tegningTrykk";
+import { nudgePunkt } from "../lib/lupe";
 
 const LASTING_TIMEOUT_MS = 15_000;
 
@@ -293,31 +294,36 @@ if (img.complete) plasser();
 function post(o){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
 var TEGNING_URL = ${JSON.stringify(tegningUrl)};
 
-// Lupe (RETUR 3 § 2): forstørret utsnitt (~2,5× LOKAL zoom) forskjøvet OPP og TIL
-// SIDEN for fingeren, med trådkors som viser nøyaktig punkt. Bytter side/retning
-// ved skjermkanten. Vises både når man setter punkt (måleverktøy) og når man drar
-// (Flytt). Punktet settes ved SLIPP — lupa lar deg justere før du slipper.
-window.visLupe = function(px_pct, py_pct, clientX, clientY) {
-  var img = document.getElementById('tegning');
-  var c = document.getElementById('container'); if (!img || !c) return;
+// Lupe (RETUR 3 § 2 + RETUR 4 § 2): forstørret utsnitt (~3× lokal zoom, ~100 pt)
+// forskjøvet ~80 pt OPP og TIL SIDEN for fingeren, med trådkors. Bytter side/retning
+// ved skjermkanten. Vises når man setter punkt (måleverktøy) og når man drar (Flytt).
+// 🔴 RETUR 4 § 2 — lupa var USYNLIG på enhet: position:fixed rendres upålitelig i
+// WKWebView under pinch-zoom. Fiks: position:absolute forankret i SIDEKOORDINATER
+// (pageX/pageY), lagt på body (ikke #container, som kan klippe), z-index 9999, og
+// quotet url() (en usitert signert URL med spesialtegn kan knekke background-image).
+// Geometrien speiler src/lib/lupe.ts (testet der).
+window.visLupe = function(px_pct, py_pct, clientX, clientY, pageX, pageY) {
+  var img = document.getElementById('tegning'); if (!img) return;
   var dispW = img.clientWidth, dispH = img.clientHeight;
   var z = window.visualViewport ? window.visualViewport.scale : 1;
-  var M = 2.5 * z, L = 120, GAP = 26;
-  var ix = (px_pct/100) * dispW, iy = (py_pct/100) * dispH;
+  var M = 3 * z, L = 100, GAP = 80;
+  var ix = (px_pct/100) * dispW * M, iy = (py_pct/100) * dispH * M;
   var lupe = document.getElementById('maleLupe');
   if (!lupe) {
     lupe = document.createElement('div'); lupe.id = 'maleLupe';
     lupe.innerHTML = '<div class="lk lkh"></div><div class="lk lkv"></div>';
-    c.appendChild(lupe);
+    document.body.appendChild(lupe);
   }
+  // Side-/retnings-flipp avgjøres mot det synlige viewportet (klient-koord), men
+  // SELVE plasseringen bruker sidekoordinater (page) så lupa følger scroll + zoom.
   var vw = window.innerWidth, vh = window.innerHeight;
-  var left = clientX + GAP;                       // til høyre for fingeren
-  if (left + L > vw - 4) left = clientX - GAP - L; // flipp til venstre ved høyre kant
-  if (left < 4) left = 4;
-  var top = clientY - GAP - L;                     // over fingeren
-  if (top < 4) top = clientY + GAP;                // under ved toppkanten
-  if (top + L > vh - 4) top = vh - L - 4;
-  lupe.style.cssText = 'position:fixed;z-index:40;width:' + L + 'px;height:' + L + 'px;border-radius:50%;border:2px solid #1e40af;overflow:hidden;background-color:#fff;background-image:url(' + TEGNING_URL + ');background-repeat:no-repeat;background-size:' + (dispW*M) + 'px ' + (dispH*M) + 'px;background-position:' + (L/2 - ix*M) + 'px ' + (L/2 - iy*M) + 'px;box-shadow:0 2px 12px rgba(0,0,0,0.45);pointer-events:none;' +
+  var dx = GAP;                              // til høyre for fingeren
+  if (clientX + GAP + L > vw - 4) dx = -GAP - L; // flipp til venstre ved høyre kant
+  var dy = -GAP - L;                         // over fingeren
+  if (clientY - GAP - L < 4) dy = GAP;       // under ved toppkanten
+  var left = (pageX != null ? pageX : clientX) + dx;
+  var top = (pageY != null ? pageY : clientY) + dy;
+  lupe.style.cssText = 'position:absolute;z-index:9999;width:' + L + 'px;height:' + L + 'px;border-radius:50%;border:2px solid #1e40af;overflow:hidden;background-color:#fff;background-image:url("' + TEGNING_URL + '");background-repeat:no-repeat;background-size:' + (dispW*M) + 'px ' + (dispH*M) + 'px;background-position:' + (L/2 - ix) + 'px ' + (L/2 - iy) + 'px;box-shadow:0 2px 12px rgba(0,0,0,0.45);pointer-events:none;' +
     'left:' + left + 'px;top:' + top + 'px;';
   if (!lupe.querySelector('.lk')) lupe.innerHTML = '<div class="lk lkh"></div><div class="lk lkv"></div>';
 };
@@ -466,7 +472,7 @@ ${trykkOppsett === "avansert" ? `
       var m = modus();
       if (m === 'flytt') dragIdx = finnPunkt(e.clientX, e.clientY, r);
       lupeAktiv = erMale(m) || (m==='flytt' && dragIdx>=0);
-      if (lupeAktiv) { var p = pct(e.clientX,e.clientY,r); pending=p; window.visLupe && window.visLupe(p.x,p.y,e.clientX,e.clientY); }
+      if (lupeAktiv) { var p = pct(e.clientX,e.clientY,r); pending=p; window.visLupe && window.visLupe(p.x,p.y,e.clientX,e.clientY,e.pageX,e.pageY); }
     } else {
       // Ekstra finger → knip/zoom. Avbryt pending enkelt-finger-handling.
       pinch = true; dragIdx=-1; lupeAktiv=false; pending=null; window.skjulLupe && window.skjulLupe();
@@ -481,8 +487,16 @@ ${trykkOppsett === "avansert" ? `
     var r = rekt(); if (!r || r.width<=0 || r.height<=0) return;
     var p = pct(e.clientX,e.clientY,r); pending=p;
     if (dragIdx>=0) post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y }); // Flytt: live reshape
-    window.visLupe && window.visLupe(p.x,p.y,e.clientX,e.clientY);
+    window.visLupe && window.visLupe(p.x,p.y,e.clientX,e.clientY,e.pageX,e.pageY);
   });
+
+  // 🔴 RETUR 4 § 1: frys tegningen mens et punkt settes/dras. Pointer-events'
+  // preventDefault stopper IKKE WKWebView-scroll/zoom — vi må preventDefault på
+  // touchmove (non-passive). Kun når lupeAktiv (ett-finger sett/dra); knip (≥2
+  // fingre) og vanlig pan slippes gjennom.
+  c.addEventListener('touchmove', function(e){
+    if (lupeAktiv && !pinch && e.touches && e.touches.length <= 1) e.preventDefault();
+  }, { passive: false });
 
   function avslutt(e, avbrutt){
     sist = Date.now();
@@ -536,6 +550,10 @@ export function TegningsVisning({
   const [maleTilstand, setMaleTilstand] = useState<MaleTilstand>(TOM_MALETILSTAND);
   const [aktivtVerktoy, setAktivtVerktoy] = useState<TegningVerktoy>("navigering");
   const [visSlettAlle, setVisSlettAlle] = useState(false);
+  // Valgt punkt i Flytt (fra dra/trykk) → piltast-finjustering (RETUR 4). null = ingen.
+  const [valgtPunktIndeks, setValgtPunktIndeks] = useState<number | null>(null);
+  // Siste viste bilde-rect (fra en gest) — px→prosent for piltast-nudge.
+  const sisteRectRef = useRef<{ w: number; h: number } | null>(null);
   const aktiv = aktivMaling(maleTilstand);
   const aktivPunkter = aktiv?.punkter ?? [];
   const erAreal = aktiv?.verktoy === "areal";
@@ -635,6 +653,8 @@ export function TegningsVisning({
   maleTilstandRef.current = maleTilstand;
   const plasseringRef = useRef(plasseringAktiv);
   plasseringRef.current = plasseringAktiv;
+  const valgtPunktIndeksRef = useRef(valgtPunktIndeks);
+  valgtPunktIndeksRef.current = valgtPunktIndeks;
 
   // Unik id pr. ny måling (ingen Date.now/Math.random — en stigende teller holder).
   const nesteIdRef = useRef(0);
@@ -648,18 +668,21 @@ export function TegningsVisning({
     return t0;
   }, []);
 
-  // Verktøylinje (RETUR 3): ett verktøy om gangen.
+  // Verktøylinje (RETUR 3): ett verktøy om gangen. Verktøybytte nullstiller valgt punkt.
   const velgMaleVerktoy = useCallback((v: MaleVerktoy) => {
     setMaleTilstand((prev) => startMaling(prev, v, `m${(nesteIdRef.current += 1)}`));
     setAktivtVerktoy(v);
+    setValgtPunktIndeks(null);
   }, []);
   const velgFlytt = useCallback(() => {
     setMaleTilstand(forlatPaagaaende);
     setAktivtVerktoy("flytt");
+    setValgtPunktIndeks(null);
   }, [forlatPaagaaende]);
   const velgOpprett = useCallback(() => {
     setMaleTilstand(forlatPaagaaende);
     setAktivtVerktoy("opprett");
+    setValgtPunktIndeks(null);
   }, [forlatPaagaaende]);
 
   const håndterLeggTilPunkt = useCallback((x: number, y: number) => {
@@ -683,13 +706,36 @@ export function TegningsVisning({
   const håndterVelgMaling = useCallback((id: string) => {
     setMaleTilstand((prev) => velgMaling(prev, id));
     setAktivtVerktoy("flytt");
+    setValgtPunktIndeks(null);
   }, []);
-  const håndterSlettAktiv = useCallback(() => setMaleTilstand((prev) => slettAktiv(prev)), []);
-  const håndterSlettAlle = useCallback(() => { setMaleTilstand(slettAlle()); setVisSlettAlle(false); }, []);
+  const håndterSlettAktiv = useCallback(() => { setMaleTilstand((prev) => slettAktiv(prev)); setValgtPunktIndeks(null); }, []);
+  const håndterSlettAlle = useCallback(() => { setMaleTilstand(slettAlle()); setVisSlettAlle(false); setValgtPunktIndeks(null); }, []);
   const avsluttMaling = useCallback(() => {
     setMaleTilstand((prev) => avsluttAktiv(prev));
     setAktivtVerktoy("navigering");
+    setValgtPunktIndeks(null);
   }, []);
+
+  // Piltast-finjustering (RETUR 4): flytt valgt punkt 1 skjermpiksel. Langt trykk
+  // gjentar (hold-repeat via intervall). Bruker siste bilde-rect for px→prosent.
+  const nudgeAktivtPunkt = useCallback((dxPx: number, dyPx: number) => {
+    const idx = valgtPunktIndeksRef.current;
+    const rect = sisteRectRef.current;
+    const m = aktivMaling(maleTilstandRef.current);
+    if (idx == null || !rect || !m || !m.punkter[idx]) return;
+    const ny = nudgePunkt(m.punkter[idx]!, dxPx, dyPx, rect.w, rect.h);
+    setMaleTilstand((prev) => flyttPunkt(prev, idx, ny));
+  }, []);
+  const nudgeIntervallRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startNudge = useCallback((dxPx: number, dyPx: number) => {
+    nudgeAktivtPunkt(dxPx, dyPx); // ett steg umiddelbart
+    if (nudgeIntervallRef.current) clearInterval(nudgeIntervallRef.current);
+    nudgeIntervallRef.current = setInterval(() => nudgeAktivtPunkt(dxPx, dyPx), 90);
+  }, [nudgeAktivtPunkt]);
+  const stoppNudge = useCallback(() => {
+    if (nudgeIntervallRef.current) { clearInterval(nudgeIntervallRef.current); nudgeIntervallRef.current = null; }
+  }, []);
+  useEffect(() => () => { if (nudgeIntervallRef.current) clearInterval(nudgeIntervallRef.current); }, []);
 
   useEffect(() => {
     setLaster(true);
@@ -800,6 +846,8 @@ export function TegningsVisning({
         if (data.type === "gest") {
           const tilstand = maleTilstandRef.current;
           const verktoy = effektivtVerktoyRef.current;
+          // Lagre viste bilde-mål for piltast-nudge (px→prosent).
+          if (data.rectW > 0 && data.rectH > 0) sisteRectRef.current = { w: data.rectW, h: data.rectH };
           // Flytt + ikke på punkt: traff gesten en eksisterende måling? (grunnlag for valg)
           let traffMaling = false;
           if (verktoy === "flytt" && !data.nedPaaPunkt && tilstand.malinger.length) {
@@ -818,7 +866,9 @@ export function TegningsVisning({
               håndterLeggTilPunkt(data.x, data.y);
               return;
             case "draPunkt":
-              return; // allerede anvendt live via `maledrag`
+              // Punktet er dratt (eller trykket) → velg det for piltast-finjustering.
+              if (typeof data.dragIdx === "number" && data.dragIdx >= 0) setValgtPunktIndeks(data.dragIdx);
+              return; // posisjonen er allerede anvendt live via `maledrag`
             case "velgMaling": {
               const traff = finnMalingTreff(tilstand.malinger, { x: data.x, y: data.y }, data.rectW, data.rectH, VELG_TREFF_PX);
               if (traff) håndterVelgMaling(traff);
@@ -968,6 +1018,29 @@ export function TegningsVisning({
                     {formatMeter(maleTotalMeter)}
                     <Text style={stiler.maleKilde}>  ({malestokkEtikett})</Text>
                   </Text>
+                )}
+                {/* Piltast-finjustering (RETUR 4): valgt punkt i Flytt. 1 px pr. trykk,
+                    langt trykk gjentar. */}
+                {aktivtVerktoy === "flytt" && valgtPunktIndeks != null && (
+                  <View style={stiler.pilRad}>
+                    <Text style={stiler.pilEtikett}>{t("maaling.finjuster")}</Text>
+                    {([
+                      [ChevronLeft, -1, 0],
+                      [ChevronUp, 0, -1],
+                      [ChevronDown, 0, 1],
+                      [ChevronRight, 1, 0],
+                    ] as const).map(([Ikon, dx, dy], i) => (
+                      <Pressable
+                        key={i}
+                        onPressIn={() => startNudge(dx, dy)}
+                        onPressOut={stoppNudge}
+                        style={stiler.pilKnapp}
+                        hitSlop={6}
+                      >
+                        <Ikon size={18} color="#1e3a8a" />
+                      </Pressable>
+                    ))}
+                  </View>
                 )}
                 <View style={stiler.maleStripeKnapper}>
                   {(aktiv?.verktoy === "polylinje" && aktivPunkter.length >= 2 && !aktiv.ferdig) && (
@@ -1155,6 +1228,26 @@ const stiler = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  pilRad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  pilEtikett: {
+    color: "#6b7280",
+    fontSize: 12,
+    marginRight: 2,
+  },
+  pilKnapp: {
+    width: 38,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    borderRadius: 7,
   },
   maleHandling: {
     flexDirection: "row",

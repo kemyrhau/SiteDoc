@@ -1077,6 +1077,7 @@
   "maaling.slettAlle": "Poista kaikki",
   "maaling.slettAlleTittel": "Poista kaikki mittaukset",
   "maaling.slettAlleBekreft": "Tämä poistaa kaikki mitat piirustuksesta. Mittoja ei tallenneta – ne katoavat joka tapauksessa, kun piirustus suljetaan.",
+  "maaling.finjuster": "Hienosäätää",
   "maaling.stemmerIkkeKalibrer": "Väärin? Kalibroida",
   "maaling.kalibrerSteg1": "1. Napsauta tunnetun pituuden ensimmäistä pistettä",
   "maaling.kalibrerSteg2": "2. Napsauta toista pistettä",

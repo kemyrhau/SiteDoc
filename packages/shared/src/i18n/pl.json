@@ -1077,6 +1077,7 @@
   "maaling.slettAlle": "Usuń wszystko",
   "maaling.slettAlleTittel": "Usuń wszystkie pomiary",
   "maaling.slettAlleBekreft": "Spowoduje to usunięcie wszystkich pomiarów z rysunku. Pomiary nie są zapisywane – i tak znikają po zamknięciu rysunku.",
+  "maaling.finjuster": "Dostosuj",
   "maaling.stemmerIkkeKalibrer": "Zło? Kalibrować",
   "maaling.kalibrerSteg1": "1. Kliknij pierwszy punkt o znanej długości",
   "maaling.kalibrerSteg2": "2. Kliknij drugi punkt",
