@@ -114,14 +114,52 @@ export function malPolylinjeMm(
 }
 
 /**
- * Kan måleverktøyet (papir-veien) være aktivt? Krever utledet mm/piksel OG en
- * kjent, MENNESKE-BEKREFTET målestokk. En ubekreftet «tittelfelt»-verdi er et
- * FORSLAG, ikke en målestokk — verktøyet er avslått til et menneske har
- * bekreftet den. Georeferanse-veien håndteres separat (den måler bakken, ikke
- * papiret, og tåler at tegningen er strukket).
+ * Virkelig areal (mm²) av et lukket polygon av prosent-punkter, via papir-
+ * målestokk. Shoelace-formelen på PIKSEL-koordinater (prosent → piksel med
+ * bildets faktiske bredde/høyde, slik `pikselAvstand` gjør — sideforholdet er
+ * dermed korrekt ivaretatt), deretter skalert til virkelig areal med
+ * `(mmPrPiksel · målestokk-nevner)²`.
  *
- * 🔴 Invariant (ordre § 4): verktøyet skal ALDRI være aktivt med null
- * målestokk. Testen `maaling.test.ts` feiler hvis dette brytes.
+ * Punktene behandles som en lukket ring (siste → første). < 3 punkter → 0.
+ * Robust mot klikk-rekkefølge (bruker absoluttverdien av det signerte arealet).
+ */
+export function malArealMm2(
+  punkter: Punkt[],
+  imageWidth: number,
+  imageHeight: number,
+  mmPrPiksel: number,
+  malestokkNevner: number,
+): number {
+  if (punkter.length < 3) return 0;
+  // Prosent → piksel (samme omregning som pikselAvstand).
+  const px = punkter.map((p) => ({ x: (p.x / 100) * imageWidth, y: (p.y / 100) * imageHeight }));
+  let sum = 0;
+  for (let i = 0; i < px.length; i++) {
+    const a = px[i]!;
+    const b = px[(i + 1) % px.length]!;
+    sum += a.x * b.y - b.x * a.y;
+  }
+  const arealPiksel = Math.abs(sum) / 2;
+  const mmPrPikselVirkelig = mmPrPiksel * malestokkNevner;
+  return arealPiksel * mmPrPikselVirkelig * mmPrPikselVirkelig;
+}
+
+/**
+ * Kan måleverktøyet (papir-veien) være aktivt? Krever utledet mm/piksel OG en
+ * tolkbar målestokk med en KJENT kilde.
+ *
+ * 🟢 Kenneth-vedtak 2026-10-07 («vis 1:50 → da skal de fungere → kalibrering
+ * skal være en mulighet dersom 1:50 oppdages som feil»): et tittelfelt-forslag
+ * er nå gyldig for måling med én gang — målestokken som VISES skal kunne brukes
+ * uten et ekstra bekreftelsessteg. Kalibrering er korreksjonen dersom verdien er
+ * feil (lagrer `kalibrert`), ikke en forutsetning. Georeferanse-veien håndteres
+ * separat (den måler bakken, ikke papiret, og tåler at tegningen er strukket).
+ * Kilden skal alltid vises ved måleresultatet, så brukeren ser hva målet bygger
+ * på («1:50 (fra tittelfeltet)» osv.).
+ *
+ * 🔴 Invariant: verktøyet skal ALDRI være aktivt uten tolkbar målestokk og
+ * mm/piksel. En ukjent kilde (`null`) teller ikke. Testen `maaling.test.ts`
+ * feiler hvis dette brytes.
  */
 export function kanMale(
   scale: string | null | undefined,
@@ -130,7 +168,12 @@ export function kanMale(
 ): boolean {
   if (mmPrPiksel == null || !Number.isFinite(mmPrPiksel) || mmPrPiksel <= 0) return false;
   if (parseMalestokk(scale) == null) return false;
-  return scaleKilde === "manuell" || scaleKilde === "kalibrert" || scaleKilde === "georeferanse";
+  return (
+    scaleKilde === "tittelfelt" ||
+    scaleKilde === "manuell" ||
+    scaleKilde === "kalibrert" ||
+    scaleKilde === "georeferanse"
+  );
 }
 
 /**

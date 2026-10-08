@@ -425,6 +425,28 @@ Logo, prosjektnummer · prosjektnavn, lokasjon · tegning, dato med klokkeslett,
 
 **Data-attributter:** `data-panel="sekundaert"`, `data-toolbar`.
 
+## Tegninger — serieopplasting (T1, 2026-10-06)
+
+Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `RedigerLokasjon`). Fil-feltet har `multiple`:
+- **Én fil** → dagens detalj-modal (bevart uendret).
+- **Flere filer** → serieflyt (R1/R2): felles-felt-modal (fag · opphav · etasje, settes én gang) → parallell opplasting (`lastOppSerie`, maks 4 samtidig, `apps/web/src/lib/tegningSerieOpplasting.ts`) → etterfyllings-tabell `TegningSerieTabell`. Hver fil opprettes straks som tegning (navn=filnavn, status utkast, felles-feltene); detaljer fylles i tabellen og lagres pr. rad (`tegning.oppdater`, **kun endrede felt** via `byggTegningRadEndring`). Feil på én fil stopper ikke de andre — raden står med årsak + «Prøv igjen».
+- **R3-forhåndsutfylling:** `tegning.opprett` returnerer `metadataForslag` (tegningsnummer/-type fra filnavn + PDF-Title + tittelfelt-tekst, `packages/shared/src/utils/tegningMetadata.ts`) — **skrives ikke** på raden, vises merket «foreslått» i tabellen til brukeren lagrer. Entydig treff eller tomt.
+- **R6 fag-gruppering:** venstre tegningsliste grupperes fag → tegningsnummer som standard, med veksel til etasje-gruppering. «Uten fag» sist.
+- **R8 ny revisjon:** `LastOppRevisjonKnapp` (tegningsrad i serietabell + rediger-dialogen) → `tegning.lastOppRevisjon`, som nå **starter konvertering** for den nye fila (delt helper `startTegningKonvertering` i `apps/api/src/routes/tegning.ts`, samme vei som `opprett`) — ny revisjon viser aldri gammel PNG. Revisjonskode foreslås som neste bokstav (`nesteRevisjon`), redigerbar.
+- **R7:** målestokk forblir valgfri; ingen ny «mangler målestokk»-flate.
+- Ingen schema-endring. T2 (Tegningsserie-gruppering) ikke bygget — se `tegning-serieopplasting-spec.md`.
+
+### T1b — rediger etter opplasting, vis og tilbake, kollaps (2026-10-07)
+
+- **«Rediger flere» (R4):** `TegningSerieTabell` gjenåpnes fra tegningslista (knapp i gruppe-veksle-baren) med **alle** tegningene på byggeplassen, og pr. rad via et blyant-ikon (filtrert til den ene). Samme komponent, samme `tegning.oppdater` — ingen ny dialog. Rader bygges fra alt opprettede `Drawing` (`radFraTegning`, tempId = drawingId, ingen fil/forslag).
+- **Vis og tilbake:** «Vis»-knapp pr. rad (`onVis`) åpner tegningen i sidens egen forhåndsvisning. Tabell-overlayet **skjules med `hidden` (avmonteres ikke)**, så ulagrede radendringer bevares og tabellen lastes ikke på nytt; en floating «Tilbake til tabellen» henter overlayet tilbake. Valgt mekanisme fordi den gjenbruker den eksisterende viewer-en (SVG/PNG/pan/zoom) uten duplisering.
+- **Kollaps (localStorage):** fag-/etasje-gruppene kan kollapses enkeltvis via gruppe-headeren; valget huskes pr. byggeplass (`sitedoc_tegning_kollaps_<byggeplassId>`, try/catch). Nøkkel skilt på grupperingsmodus (`fag|etasje::navn`). Standard: alt åpent.
+
+### T1c — fag + rådgiver i tabellen, ekte ARK-filnavn (2026-10-07)
+
+- **Fag- + Rådgiver-kolonne** i `TegningSerieTabell` (gjelder både serieopplasting og «Rediger flere»): «Fag» er nedtrekk fra `DRAWING_DISCIPLINES` plassert før tegningsnummer; «Rådgiver» (`originator`) er fritekst. Begge lagres via `tegning.oppdater` og sendes bare når endret (`byggTegningRadEndring` — `discipline` som enum sendes aldri tomt, `originator` kan tømmes). Var før bare i felles-skjemaet ved opplasting; nå redigerbare pr. rad. (Kenneth: «jeg kan ikke redigere fag dersom det er feil».)
+- **Tegningsnummer-mønster** utvidet for ekte 6-segments ARK-filnavn (`B3-06-A-20-31-02`): `packages/shared/src/utils/tegningMetadata.ts`, 3–7 bindestrek-separerte 1–4-tegns segmenter, krav om både bokstav og siffer (stenger datoer/rene bokstavsløp). Alle gamle forslag uendret.
+
 ## Tegningsvisning
 
 Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
@@ -438,13 +460,46 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - SVG-elementer har `data-layer` (lagnavn) og `data-type` (entitetstype) attributter fra DWG-konverteringen
 
 **Zoom og panorering:**
-- Multiplikativ scroll-zoom: `faktor = deltaY > 0 ? 0.8 : 1.25`, `zoom * faktor`
-- Musesentrert: beregner innholdspunkt under musen, justerer scrollLeft/scrollTop etter zoom
+- **Gest-skille (`lib/tegningZoomGest.ts`, `klassifiserWheel`) — RETUR 2 A, 2026-10-07:** hvert `wheel`-event klassifiseres som `knip` / `hjul` / `styreflate-scroll`. Kenneth spurte «er det mulig å oppdage om zoomhjul eller touchpad benyttes?» → ja, heuristikk på `ctrlKey`/`deltaMode`/`deltaX`/`deltaY`. Ren funksjon, testet isolert (`tegningZoomGest.test.ts`).
+  - **Knip** (`ctrlKey=true` — styreflate-knip OG ctrl+hjul på Mac): **kontinuerlig** zoom, faktor `exp(-akkumulertDeltaY · k)`, samlet pr. animasjonsramme (rAF), forankret i pekeren. `preventDefault` (`passive:false`) blokkerer nettleserens egen side-zoom på tegningsfeltet. **🔴 RETUR 3 B (2026-10-07) — baseline-forankring:** knipet forankres fra GEST-STARTEN (zoom + scroll + peker, `knipBaseRef`), ikke fra forrige rammes `el.scrollLeft`. `knipTotalRef` = netto deltaY siden start (`faktor = exp(-total·k)`); baselinen nullstilles etter 160 ms stillhet (wheel-knip har ikke eget slutt-event). Hvorfor: per-ramme-forankring leste scroll på nytt hver ramme — i fit→overflyt-overgangen er den fortsatt klippet, så forankringen regnet fra feil origo og hoppet akkumulerte. Ett fast origo for hele knipet → ingen akkumulert drift; punktet lander rett når innholdet blir stort nok.
+  - **Styreflate-scroll** (tofinger, uten ctrlKey): ingen `preventDefault` → `overflow-auto`-containeren panorerer selv (x + y).
+  - **Hjul** — 🔴 **RETUR 3 A (2026-10-07), regresjonsfiks «ved tvil → zoom»:** pikselmodus panorerer KUN ved entydig signatur (horisontal komponent, `deltaX ≠ 0`); alt annet (også smått/desimalt rent vertikalt `deltaY`) er hjul → diskrete trinn `0,8 / 1,25`. Forrige heuristikk krevde et helt, rent vertikalt hakk ≥ 40 px; mus med jevn/akselerert scrolling gir desimale/små `deltaY`, ble tolket som styreflate-scroll og **panorerte i stedet for å zoome**. En regresjon i musehjul-zoom er verre enn at styreflatens vertikale tofinger-scroll zoomer. `HJUL_PIKSEL_TERSKEL` er fjernet.
+  - **Safari:** `gesturestart/change/end` håndteres (Safari gir knip som gesture-event, ikke ctrl+wheel); `e.scale`-forholdet anvendes pr. event. No-op i Chrome/Firefox.
+- Felles forankring: `anvendZoomFaktor` (gjenbruker `ønsketZoomScroll`) gir ny zoom + ønsket scroll for ett faktor-steg.
 - Zoom-nivåer for knapper: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50]
 - Klikk på prosenttall tilbakestiller til 100%
 - Dra-for-å-panorere: venstre museknapp + dra (>5px) panorerer tegningen
 - Pan/klikk-skilling: musedown-posisjon lagres, onClick ignoreres hvis bevegelse >5px
-- useEffect med `[tegningId, isLoading]` dependencies — registrerer wheel/pointer-handlers når container mountes etter data-lasting
+- useEffect med `[tegningId, isLoading]` dependencies — registrerer wheel/pointer/gesture-handlers når container mountes etter data-lasting
+- Scroll-matematikken ligger i `lib/zoom-scroll.ts` (`ønsketZoomScroll`); ønsket scroll settes i en `useLayoutEffect([zoom])` **etter** at innholdet har fått ny bredde, ellers klipper nettleseren verdien til gammelt maksimum
+
+**Definit containerhøyde (`lib/tegningVisningshoyde.ts`, `settVisningshøyde`) — rotårsak-fiks 2026-10-07:**
+- Scroll-containeren får en eksplisitt høyde = fra sin egen topp til bunnen av vinduet (`window.innerHeight − getBoundingClientRect().top`), satt i en `useLayoutEffect` + `ResizeObserver` på forelderen (fanger banner/panel-omflyt) + `resize`-lytter. `flex: none` overstyrer `flex-1`.
+- **Hvorfor:** den delte dashbord-`<main>` er `display:block`, så `flex-1` nedover kjeden er inert og ingen definit høyde når frem. Uten dette (a) scroller hele siden i stedet for tegningen — verktøylinja forsvinner oppover — og (b) får ikke containeren vertikal overflyt, så musehjul-zoomens `scrollTop`-korreksjon blir en no-op og zoomen låser seg til toppkanten (vertikal bom målt til −63 px). `<main>` kan ikke gjøres til flex uten å klippe de 11 prosjektsidene som er avhengige av at den scroller — derfor måles høyden scoped her.
+- Verifisert i nettleser (test.sitedoc.no, to ekte tegninger): piksel under peker holdt seg innen ±0,9 px og hele-siden-scrollen forsvant (main-scrollbar 110→0). Formelen i `ønsketZoomScroll` er urørt.
+- **`scrollbar-gutter: stable` (RETUR 1, 2026-10-07):** `settVisningshøyde` setter også dette. Rotårsak for «første zoomtrinn hopper litt opp» på en tegning som får plass i feltet: det vertikale rullefeltet reserverte bredde FØRST ved fit→overflyt-overgangen, så innholdsbredden krympet ~15 px midt i zoomen. Bildet er bredde-styrt (`w-full`, sideforhold-låst) → vertikal skala ble `nesteZoom/forrigeZoom × (nyBredde/gammelBredde)` i stedet for `nesteZoom/forrigeZoom` → punktet drev. Målt: 29 → 3 px (naturlige) med gutter på. Overlay-rullefelt (Mac-standard) reserverer ingenting → no-op der. **Ikke** en feil: kant-klipping når ønsket scroll > maks (et punkt helt nede kan ikke holdes fast ved innzoom) — iboende, likt med/uten fiks.
+
+**Måleverktøy og målestokk (bilde-tegninger PNG/JPG/SVG) — RETUR 2 B/C/D, 2026-10-07:**
+- Låsen er delt: `kanMale(scale, mmPrPiksel, scaleKilde)` (`packages/shared/src/utils/maaling.ts`). 🟢 **Kenneth-vedtak 2026-10-07:** `scaleKilde="tittelfelt"` er nå GYLDIG for måling direkte (før: avslått som «forslag»). Rotårsaken til «måling virker ikke»: PDF→PNG setter automatisk `scale` + `scaleKilde="tittelfelt"` + `mmPrPiksel` (`api/tegning.ts:269`), og gamle `kanMale` avviste `tittelfelt` → Kenneths 1:50-ARK-tegninger var sperret. Rene SVG/DWG uten PDF-steg mangler ofte `mmPrPiksel` → fortsatt sperret med «Målestokk kan ikke utledes …».
+- **Kilde vises ved resultatet:** «2,87 m (Målestokk 1:50, fra tittelfeltet)» / «(bekreftet)» / «(kalibrert)» / «georeferanse». Måling via `malMm` (papir) eller GPS-avstand (georeferert, 3+ punkter har fortrinn).
+- **Kalibrering er korreksjonen, ikke et forsteg:** «Stemmer ikke? Kalibrer» ved måleresultatet (kun papir-veien). Kalibreringsflyten har et eget banner over tegningen med synlige steg (1. klikk første punkt · 2. klikk andre punkt · 3. skriv lengden i mm), trådkors-markør (`cursor-crosshair`) og tegnede punkter (`MaalingOverlay`). Lagrer `scaleKilde="kalibrert"`.
+- **Berører IKKE 3D-kalibrering:** 3D GPS/similarity-kalibrering bor i `tegning-3d/page.tsx` (`gpsOverride`), importerer verken `kanMale`, `maaling` eller zoom-gest — helt adskilt kodebase og begrep.
+- **Tre måleverktøy (RETUR 3 C, 2026-10-07) — som Adobe:** verktøylinja har tre ikoner, ett aktivt om gangen (`maleVerktoy: "linjal" | "polylinje" | "areal"`). Esc avbryter, klikk på aktivt verktøy slår det av.
+  - **Linjal** (`Ruler`): to punkter → én avstand, så stopp (`maleFerdig`); neste klikk starter ny måling.
+  - **Polylinje** (`Waypoints`): summert lengde, per-segment-etiketter. 🔴 **RETUR 6:** auto-lukker ALDRI (lukket før på klikk nær et punkt → figuren ble ferdig utilsiktet). Avsluttes bare eksplisitt: Enter eller dobbeltklikk (web), «Fullfør» (mobil).
+  - **Areal** (`VectorSquare`): lukket, skravert polygon. Viser m² (sentroide-etikett + stripe) og omkrets. Lukkes ved klikk på FØRSTE punkt (≤ `PUNKT_TREFF_PX` = 12 px) — et klikk nær et annet punkt setter et nytt hjørne (RETUR 6 § 1). m² via ny delte `malArealMm2` (shoelace på pikselkoordinater → `(mmPrPiksel · målestokk-nevner)²`; sideforhold ivaretatt som `pikselAvstand`); omkrets via lukket ring. Areal krever papir-målestokk (`mmPrPiksel` + tolkbar `scale`); uten → «—» (omkrets vises likevel).
+  - Kilden («1:50 (fra tittelfeltet)» osv.) vises ved alle tre. `MaalingOverlay` fikk `fyll`-prop (polygon ved areal, polyline ellers). Regnestykke testet isolert (`packages/shared/src/utils/maaling.test.ts`).
+  - **Dra satte punkter (TILLEGG RETUR 1, 2026-10-08):** punkt-prikkene i `MaalingOverlay` er dragbare med musa (`onPunktNed` → `startPunktDrag`); vindu-`pointermove`/`pointerup` oppdaterer punktet live, `punktDragRef` hindrer at tegningen panorerer under draget, og `nettoppDrattRef` undertrykker klikket etter slipp (ingen nytt punkt). Rører ikke «ferdig»-tilstanden — et lukket areal kan justeres. Mobil har samme funksjon med lupe (se `mobil.md`).
+- **Flere målinger · aktiv · slett (RETUR 2, 2026-10-08):** måletilstanden er nå `MaleTilstand = {malinger[], aktivId}` fra den delte, rene modulen `packages/shared/src/utils/malinger.ts` (reducers + hit-test, **ingen kopi** — mobil bruker samme). En ferdig måling blir liggende; trykk på verktøyknappen starter en NY (`startMaling`, forrige beholdes). Den aktive vises i stripa med dragbare punkter; inaktive tegnes dempet (slate) og klikkes for å velges (`finnMalingTreff` + `onVelg` på linja/flaten). «Slett» fjerner den aktive (`slettAktiv`); «Slett alle» (`slettAlle`) bekreftes i modal (`maaling.slettAlleTittel/Bekreft`, ikke `confirm()`). Kalibrering har egen punktsamling (`kalibrerPunkter`), uavhengig av målingene. **🔴 Et bom-trykk sletter ALDRI en ferdig figur** (ingen reset-på-neste-klikk — punktlegging skjer kun i en påbegynt aktiv måling). Målinger lagres IKKE. Tester: `malinger.test.ts`.
+- **RETUR 3 (2026-10-08) — eksplisitte verktøy er en MOBIL-fiks; web uendret (målt):** RETUR 3 erstatter mobilens tvetydige én-finger-gest (nytt punkt / dra / velg / langt trykk gjettet ut fra posisjon og varighet) med eksplisitte verktøy + lupe + sett-ved-slipp. Web har ikke denne tvetydigheten: musa er presis, hover finnes, og dagens modell skiller allerede plassering (aktivt måleverktøy setter punkt), valg (klikk på en inaktiv måling) og dra (punkt-prikk i den aktive). Lupe/sett-ved-slipp gir ingen mening med mus. Derfor er web **ikke endret** i RETUR 3 (minst mulig endring, ingen regresjon) — den delte `malinger.ts` holder datamodell-pariteten. En eksplisitt «Flytt»/«＋ Opprett»-merking på web er mulig senere, men vurdert unødvendig nå.
+- **RETUR 6 § 2 (2026-10-08) — rediger figur etter etablering:** delte, testede `malinger.ts`-funksjoner
+  (`settInnPunktPaaKant`, `fjernPunkt`, `finnNaermesteKant`, `nyKantPunktIndeks`) brukes av begge flater.
+  **Web-valget (meldt):** **shift-klikk** på en kant av den aktive figuren setter inn et nytt hjørne der
+  (velges straks, kan dras); **klikk** på et hjørne velger det (gul ring via `MaalingOverlay`-prop
+  `valgtIdx`); **Delete/Backspace** fjerner det valgte hjørnet (`fjernPunkt` beholder min 3 areal / 2
+  linje). Areal regner med sluttkanten (`lukket`). Mobil bruker samme funksjoner med trykk-på-kant +
+  langt-trykk-fjern (se `mobil.md`). § 1 (polylinje auto-lukker aldri; areal kun første punkt) gjelder
+  web via den delte `punktTilMaling` — ingen egen web-kode.
 
 **Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)

@@ -21,11 +21,27 @@ export interface MaalingSegment {
 interface MaalingOverlayProps {
   punkter: { x: number; y: number }[];
   segmenter: MaalingSegment[];
+  /** Areal-verktøy: tegn et lukket, skravert polygon i stedet for en åpen linje. */
+  fyll?: boolean;
+  /** true = aktiv (valgt) måling: blå + dragbar. false = inaktiv: dempet grå (RETUR 2). */
+  aktiv?: boolean;
+  /** Gjør punktene dragbare (TILLEGG RETUR 1). Starter dra av punkt-indeksen. */
+  onPunktNed?: (index: number, e: React.PointerEvent<HTMLDivElement>) => void;
+  /** Klikk på linja/flaten velger målingen (RETUR 2). Kun for inaktive målinger. */
+  onVelg?: () => void;
+  /** Valgt hjørne (RETUR 6 § 2) — uthevet med ring; Delete fjerner det. */
+  valgtIdx?: number | null;
 }
 
-export function MaalingOverlay({ punkter, segmenter }: MaalingOverlayProps) {
+export function MaalingOverlay({ punkter, segmenter, fyll = false, aktiv = true, onPunktNed, onVelg, valgtIdx = null }: MaalingOverlayProps) {
   if (punkter.length === 0) return null;
-  const polyline = punkter.map((p) => `${p.x},${p.y}`).join(" ");
+  const punktStreng = punkter.map((p) => `${p.x},${p.y}`).join(" ");
+  // Aktiv = sitedoc-primary (#1e40af); inaktiv = slate-500 (#64748b).
+  const strek = aktiv ? "#1e40af" : "#64748b";
+  const fyllFarge = aktiv ? "rgba(30,64,175,0.15)" : "rgba(100,116,139,0.12)";
+  const velgProps = onVelg
+    ? { onClick: onVelg, style: { pointerEvents: "stroke" as const, cursor: "pointer" } }
+    : {};
 
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -35,33 +51,55 @@ export function MaalingOverlay({ punkter, segmenter }: MaalingOverlayProps) {
         preserveAspectRatio="none"
         aria-hidden
       >
-        {punkter.length >= 2 && (
-          <polyline
-            points={polyline}
-            fill="none"
-            stroke="#1e40af"
+        {fyll && punkter.length >= 3 ? (
+          // Lukket, skravert polygon (areal) — halvgjennomsiktig så tegningen synes.
+          <polygon
+            points={punktStreng}
+            fill={fyllFarge}
+            stroke={strek}
             strokeWidth={2}
             strokeLinejoin="round"
-            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
+            {...(onVelg ? { onClick: onVelg, style: { pointerEvents: "auto" as const, cursor: "pointer" } } : {})}
           />
+        ) : (
+          punkter.length >= 2 && (
+            <polyline
+              points={punktStreng}
+              fill="none"
+              stroke={strek}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              {...velgProps}
+            />
+          )
         )}
       </svg>
 
-      {/* Punkt-prikker */}
+      {/* Punkt-prikker — dragbare når onPunktNed er gitt (TILLEGG RETUR 1) */}
       {punkter.map((p, i) => (
         <div
           key={i}
-          className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sitedoc-primary shadow"
+          onPointerDown={onPunktNed ? (e) => onPunktNed(i, e) : undefined}
+          className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow ${
+            i === valgtIdx ? "border-amber-400 ring-2 ring-amber-400" : "border-white"
+          } ${aktiv ? "h-2.5 w-2.5 bg-sitedoc-primary" : "h-2 w-2 bg-slate-500"} ${
+            onPunktNed ? "pointer-events-auto cursor-grab touch-none active:cursor-grabbing" : ""
+          }`}
           style={{ left: `${p.x}%`, top: `${p.y}%` }}
         />
       ))}
 
-      {/* Segment-etiketter (lengde + kilde) */}
+      {/* Etiketter — aktiv: blå segment-/areal-etiketter; inaktiv: dempet resultat. */}
       {segmenter.map((s, i) => (
         <div
           key={i}
-          className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-sitedoc-primary px-1.5 py-0.5 text-[11px] font-semibold text-white shadow"
+          onClick={onVelg}
+          className={`absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold text-white shadow ${
+            aktiv ? "bg-sitedoc-primary" : "bg-slate-500"
+          } ${onVelg ? "pointer-events-auto cursor-pointer" : ""}`}
           style={{ left: `${s.midx}%`, top: `${s.midy}%` }}
         >
           {s.tekst}

@@ -24,10 +24,32 @@ export {
   pikselAvstand,
   malMm,
   malPolylinjeMm,
+  malArealMm2,
   kanMale,
   kalibrerMalestokk,
 } from "./maaling";
 export type { Punkt, ScaleKilde } from "./maaling";
+export {
+  TOM_MALETILSTAND,
+  minPunkter,
+  aktivMaling,
+  harPaagaaende,
+  startMaling,
+  leggTilPunkt,
+  settFerdig,
+  flyttPunkt,
+  velgMaling,
+  slettAktiv,
+  slettAlle,
+  avsluttAktiv,
+  finnNaermestePunkt,
+  finnMalingTreff,
+  finnNaermesteKant,
+  settInnPunktPaaKant,
+  nyKantPunktIndeks,
+  fjernPunkt,
+} from "./malinger";
+export type { MaleVerktoy, Maling, MaleTilstand } from "./malinger";
 export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, erInnenfor, polygonArealM2, sentroidePunkter, erEnkeltPolygon, korridorFraLinje, tilGeofencer, geofenceForm, GEOFENCE_GRENSER } from "./sted";
 export type { GpsPunkt, Geofence, Sirkel, Polygon, Treff, TolketSted, Startsted, Sluttsted, Destinasjon, VelgDestinasjonArgs } from "./sted";
 export { klassifiserReise, løsReiseLonnsartId, grensepunktTraff, erReiseLonnsart, REISE_LONNSART_REGEX } from "./reise";
@@ -53,6 +75,7 @@ export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
 export { harTegningsmarkor } from "./tegningsmarkor";
 export type { MarkorFelter } from "./tegningsmarkor";
+export { finnTegningsnummer, finnTegningstype, TEGNINGSNUMMER_MONSTER } from "./tegningMetadata";
 export { byggBibliotekRader, bibliotekFaseHeadingLabel, faseFraHeadingLabel } from "./bibliotekRader";
 export type { BibliotekFeltData, BibliotekRadData } from "./bibliotekRader";
 export {

@@ -1,10 +1,60 @@
 ---
 name: historikk-2026-10
 description: Arkiv av deployete PR-er/saker fra oktober 2026. Flyttet hit fra STATUS-AKTUELT ved DEPLOYET TIL PROD.
-sist_verifisert_mot_kode: 2026-10-06
+sist_verifisert_mot_kode: 2026-10-07
 ---
 
 # Historikk oktober 2026
+
+## Prod-deploy 2026-10-07 runde 2 (`ec35181d`, develop→main) — frys etter «+ Oppgave» + flere oppgaver pr. felt (LIVE)
+
+Release-commit `ec35181d` på `main`, bygget 13:39Z. **Verifisert innlogget** og på telefon.
+
+**Innhold:** frys etter «+ Oppgave»→tilbake fikset i rotårsaken + flere oppgaver pr. felt, mobil+web (`6ec95359` ← `18ad5bc3`).
+
+**Migreringer:** ingen.
+
+**Mobil:** OTA prod-kanal fra `ec35181d` — update group `74576aa0-df23-4f0b-881f-ad384133a1a9`, iOS update `01a116c8-8480-7d12-b5bc-d3df23407d69`, verifisert på telefon (build 54). Rad i [eas-build-veileder.md § OTA-logg](eas-build-veileder.md).
+
+**Ikke med:** T1 serieopplasting av tegninger (`0e50adad`) — kun på test.
+
+## Prod-deploy 2026-10-07 runde 1 (`4f7998c7`, develop→main) — V20 pause én kilde, ansvarstekst, standardnavn, synk-status (LIVE)
+
+Release-commit `4f7998c7` på `main`, bygget 09:21Z. **Verifisert innlogget** og på telefon.
+
+**Innhold:** V20 pause én kilde — S `3b06dcb1` (server eier pausen, splitt bevarer bæreren), S2 `669c579b` (backfill der hodet er 0), W `d5758806` (web-avkrysning, radene eier pausen) · ansvarstekst i SiteDoc-arkivet og hent-dialogen (`039c8cd6`) · standardnavn uten kode (`40164e63`, mal-7b `eb5af56a`) · synk-statusvisning (`ea18494f`; `fix/sync-status-visning` `358c104f`).
+
+**Migreringer kjørt mot prod `sitedoc` (2):**
+
+| Pakke | Migrering |
+|---|---|
+| db-timer | `20261006220000_v20_pause_backfill` |
+| db-timer | `20261007120000_v20_s2_pause_backfill` |
+
+**Telling etter:** 9 sedler · 8 med hode>0 · Σ=0-kandidater 0 · 1 uavklart (hode 0, ingen bevist fradrag).
+
+**Backup:** `~/backup/sitedoc-pre-release-20261007.dump`, tatt før migrering.
+
+**SiteDoc-arkivet seedet i prod** etter [DEPLOY-RUNBOK § 8](DEPLOY-RUNBOK.md): 4 standarder / 17 kapitler / 27 maler / 402 objekter (fra 0).
+
+**Mobil:** OTA prod-kanal fra `4f7998c7` (OTA `01a1166…`). Rad i [eas-build-veileder.md § OTA-logg](eas-build-veileder.md).
+
+## Arkivert fra STATUS-AKTUELT 2026-10-07
+
+Flyttet ordrett fra toppen av STATUS-AKTUELT. Alle hasher er forfedre av `ec35181d` (målt med `git merge-base --is-ancestor`: `9145404b`, `bd3053bd`, `6dd4b511` V19.9-spec, `ab86dfa4` V20-spec, `3b06dcb1`/`669c579b`/`d5758806` V20-S/S2/W). Den åpne resten av V20-innslaget (V20-M, V21, V22) står igjen i STATUS-AKTUELT. Prod-linja for `7845e9e8` er erstattet av de to nye — innholdet står i seksjonen under.
+
+🟢 **TEST-DEPLOY 2026-10-05: `9145404b`** — `/version` verifisert (bygget 21:43). Nytt siden `bd3053bd`: **L2-C**
+(attestering + eksport med reisespor), **V19-A** (overlapp-forslag på server, attestering blokkert), **V19-B** (mobil),
+offline-feltfunn, offline-inngang, i18n-sveip 2. 🟢 **Migrering `20261005120000_v19_overlapp_forslag` KJØRT** —
+verifisert: `timer.sheet_timer_forslag` finnes, `daily_sheets.konflikt_ventende_siden` finnes. 🟢 **OTA test-kanal
+publisert** fra `9145404b` (update `01a10da3-892f-7ef3-a880-2ff57f5e7019`). V19-C (web-valg for arbeideren) ikke med ennå.
+🔴 **V19.9 SPEC HOS ORKESTRATOR FOR GATE 2026-10-06** (branch `docs/design-v19-versjonssjekk`): Kenneth-vedtak 05.10 — avvik PC/telefon
+skal oppdages uansett hvordan dagen ble opprettet. Versjonssjekk pr. rad i `syncBatch` (M17–M25 målt), matrise R1–R12 + S1–S4 + H1–H6,
+ordre V19.9-A (server) → V19.9-B (mobil+web) → V19.9-H (hodet). Spec § 9 i `timer-overlapp-pc-mobil-spec.md`.
+
+🟢 **V20 = B VEDTATT 2026-10-06, spec rev. 2 til gate** (branch `docs/design-pause-en-kilde`, `timer-pause-en-kilde-spec.md`): P1–P8 målt, PK1–PK9 (PK4 rev. 2: syncBatch
+normaliserer, avviser aldri; kun timebaserte lønnsarter), 17 tester, ordre V20-S → V20-M ∥ V20-W etter `fix/matpause-avkrysning`. **V19.9-H STRØKET.** V21 (overtidsforslag
+manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT — egne små ordrer etter V20.
 
 ## Prod-deploy 2026-10-06 (`7845e9e8`, develop→main) — lag 2, V19/V19.9, offline-lesing, V17-A, V20 PK2 (LIVE)
 

@@ -57,6 +57,7 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 ### 🟡 OFFLINE — TO FANER OG STANDALONE ER FORTSATT NETT-ONLY (kartlagt av redesign 2026-10-04, `737a357e`)
 
 - **Tegninger-fanen** (`tegning.hentForProsjekt`): lista er nett-only, selv om tegningsfilene caches av «Forbered offline».
+  - 🔴 **Målt på nytt 2026-10-07 (redesign, mobil måling):** viseren (`TegningsVisning.tsx`) laster alltid bildet fra server-URL; `hentTegningLokalSti` har 0 brukere, så den nedlastede kopien brukes aldri. `tegning.hentMedId` (målestokk-metadata) er live-query uten fallback. **Offline-viser = egen ordre:** vis cachet bilde + metadata-fallback; først da kan måling virke offline.
 - **Dokumenter/mapper-fanen** (`mappe.hentForProsjekt`): ingen speil/katalog finnes.
 - **Standalone-prosjekter** (uten firma): `TimerSyncProvider` cacher kun firmaprosjekter → Hjem viser feilside offline.
 **Ikke bestilt.** Egen offline-runde hvis piloten trenger dem.

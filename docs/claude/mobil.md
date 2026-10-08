@@ -289,6 +289,171 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
   `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
 
+### Tegningsvisning: trykk-hint, langt trykk og måling (2026-10-08)
+
+`apps/mobile/src/components/TegningsVisning.tsx` (WebView) + `app/(tabs)/lokasjoner.tsx`. OTA-only
+(ingen server-endring — `tegning.hentMedId` returnerer allerede `mmPrPiksel`/`scale`/`scaleKilde`/
+`imageWidth`/`imageHeight`). Funksjonsendring med hjemmel (Kenneth 2026-10-07).
+
+- **Pekerbasert trykk-klassifisering:** WebView-en rapporterer rå gest (`{type:'gest', varighetMs,
+  flyttet, antallPekere, x, y}`) på `pointerup`; RN avgjør via den **rene, testede** `avgjorTrykkHandling`
+  (`src/lib/tegningTrykk.ts`, `tegningTrykk.test.ts`): pan (flyttet) og knip (≥2 pekere) → `ingen`;
+  målemodus → `malepunkt`; plassering → `opprett`; navigering → langt trykk (≥500 ms) `opprett`, kort
+  trykk `hint`. Legacy `onTrykk`/`{type:'trykk'}` (klikk) beholdt for de andre forbrukerne
+  (sjekkliste, rapportobjekt, skjermbilde, 3D) — aktiveres kun når `onHint`/`onOpprett`/`maleData`
+  mangler.
+- **§ 1 Hint:** kort trykk i navigering tegner en hint-boble ved punktet (`window.tegnHint`, ~2 s) og
+  blinker modus-bryteren én gang. Ingen bunn-toast. Ikke ved pan/knip, ikke i plassering.
+- **§ 2 Langt trykk:** setter markøren OG åpner malvalget direkte (`håndterOpprett`). Plasserings­modus
+  beholder dagens verifiser-flyt (sett markør → Bekreft-banner). Kort trykk panorerer som før.
+- **§ 3 Måling (tre verktøy, paritet med web):** linjal/polylinje/areal, ett aktivt. **All matematikk
+  gjenbrukt fra `@sitedoc/shared`** (`kanMale`, `malMm`, `malArealMm2`, `parseMalestokk`) — ingen kopi.
+  Overlayet (polylinje/polygon + punkter + etiketter) injiseres med `window.tegnMaling` (ingen reload;
+  re-injiseres i `onLoadEnd` når markør-refetch bygger HTML på nytt). Kilden vises ved resultatet
+  («1:50 (fra tittelfeltet)» osv.). **Samme lås som web:** `kanMale` styrer; usann → sperret knapp med
+  «Målestokken må bekreftes på web». **Ingen kalibrering på mobil.** Måling er papir-veien (georef-
+  avstand måles på web). Lukking: linjal etter 2 punkter; polylinje/areal via «Fullfør»/«Lukk flate»
+  eller trykk nær et eksisterende punkt (`LUKK_TERSKEL_PCT`). Esc finnes ikke på mobil → «Lukk»-knapp.
+- **SVAR (orkestrator):** måling bare online; ingen lokal metadata-tabell (offline-viseren er egen
+  ordre). Uten nett er «Mål» sperret likt som ved usann `kanMale`.
+
+**RETUR 1 (2026-10-08) — fire feil fra enhet + dra-punkter:**
+- **§1 Størrelse:** punkter/etiketter/hint fikk `scale(1/visualViewport.scale)` **ved opprettelse**
+  (ikke bare i `oppdaterZoom`, som tidlig-returnerer ved uendret zoom) → fast skjermstørrelse uansett
+  zoom. Punkt 11 px, etikett 9 px.
+- **§2 iOS-bildemeny:** `-webkit-touch-callout/user-select/user-drag: none` på `html/body/#container/
+  #tegning`, `#tegning { pointer-events:none }`, `draggable=false` + `oncontextmenu` på img. Dette var
+  også rotårsaken til at §3/§4 (måletrykk) ikke registrerte — den native bilde-dra-gesten ga
+  `pointermove` → `flyttet=true` → trykket ble forkastet.
+- **§3/§4 Forrang:** måling har forrang i modus-utledningen (`maleVerktoy` → `"maling"`), og
+  `onMaleModusEndring` slår av plasseringsmodus (skjuler banneret) når et verktøy velges.
+- **TILLEGG dra-punkter:** et satt punkt kan dras (hit-test ≤ 22 px mot `window.__malePunkter`).
+  WebView sender `{type:'maledrag',index,x,y}` live; RN `flyttMalepunkt` oppdaterer uten å røre
+  `maleFerdig` (lukket areal/polylinje forblir lukket). En **lupe** (`window.visLupe`, forstørret
+  utsnitt + trådkors, forskjøvet over fingeren) vises under draget. Dra avsluttes med
+  `gest.drarPunkt=true` → `avgjorTrykkHandling` → `"ingen"` (aldri nytt punkt/hint/opprett; testet).
+  Web-paritet: punkt-prikkene i `MaalingOverlay` er dragbare med musa (`onPunktNed`), pan undertrykkes
+  via `punktDragRef` i tegningssidens pan-handler.
+- 🔴 **Simulator-verifisering blokkert:** `apps/mobile/.env` (dev-login-secret) mangler → ingen
+  innlogging → ingen in-app-repro; `.env` er gitignorert/secret (Kenneths hånd). `idb` har ingen
+  knip-primitiv → zoom-skalering (§1) kan ikke gest-reproduseres headless. Lupe-plassering trenger
+  on-device-finjustering. Verifiseres av Kenneth på enhet etter OTA.
+
+**RETUR 2 (2026-10-08) — strek-skala, flere målinger, valg, slett, høyere zoom:**
+- **§1 Strektykkelse:** `vector-effect: non-scaling-stroke` nøytraliserer bare SVG-viewBox-skaleringen,
+  IKKE nettleserens pinch-zoom. Streken får nå `stroke-width = 2 · (1/visualViewport.scale)` både ved
+  opprettelse og i `oppdaterZoom` (klasse `.male-stroke`) → fast ~2 pt på skjermen. Areal-skravering
+  halvgjennomsiktig (`rgba(...,0.15)`).
+- **§2 Hit-test / bom-trykk:** ALLE punkter er dragbare (`finnPunkt` itererer `__malePunkter`, som nå
+  er den AKTIVE målingens punkter). Et bom-trykk sletter ALDRI en ferdig figur: punktlegging skjer kun
+  i en påbegynt aktiv måling (delt `leggTilPunkt`); ellers velges en truffet måling, eller trykket er
+  no-op. Ingen reset-på-neste-klikk lenger.
+- **§3 Maks zoom:** `maximum-scale` 10 → 20 i viewport-metaen. A1 i 200 DPI ≈ 4600 px bred, vist på
+  ~390 pt → mild oppskalering først forbi ~12× zoom; 20× er akseptabelt.
+- **🟢 Flere målinger (delt modell):** `packages/shared/src/utils/malinger.ts` — `MaleTilstand =
+  {malinger[], aktivId}` + rene reducers (`startMaling`/`leggTilPunkt`/`settFerdig`/`flyttPunkt`/
+  `velgMaling`/`slettAktiv`/`slettAlle`/`avsluttAktiv`) + hit-test (`finnMalingTreff`/
+  `finnNaermestePunkt`). **Ingen kopi** — web (`tegninger/page.tsx`) bruker samme modul. Trykk på
+  verktøyknappen starter en NY måling; forrige blir stående (dempet grå, én resultat-etikett). Trykk
+  på en eksisterende måling velger den (WebView sender `rectW/rectH` i gesten; RN hit-tester).
+  `window.tegnMalinger` tegner alle (aktiv blå + dragbar, inaktiv grå). «Slett» (aktiv) · «Slett alle»
+  (bekreftelsesmodal, ikke `confirm()`) · «Lukk». `onMaleModusEndring(aktivId != null)`. Målinger
+  lagres IKKE (forsvinner når tegningen lukkes). Tester: `packages/shared/src/utils/malinger.test.ts`
+  (hit-test alle punkter · bom-trykk sletter aldri · flere målinger/valg/slett).
+
+**RETUR 3 (2026-10-08) — eksplisitte verktøy, set-on-release, lupe ved siden, §0 skjermlås:**
+- **🔴 § 0 skjermlås (rotårsak + fiks):** den gamle gesten gjettet fire ting (nytt punkt / dra / velg /
+  langt trykk) ut fra hvor/hvor lenge fingeren lå, og pekertelleren (`antallPekere`) kunne bli stående
+  > 0 hvis en `pointerup` gikk tapt (systemgest/overtatt) → `slutt()` returnerte tidlig for alltid =
+  lås. Fiksen: gest-livssyklusen er forankret i PRIMÆRfingeren og nullstilles HELT ved
+  `pointerup`/`pointercancel` (`nullstill()` tømmer `pekere={}`), pluss selvheling (nytt nedtrykk
+  > 1,2 s etter siste hendelse nullstiller først). Ingen teller som kan låse. Lupa ryddes alltid.
+- **Eksplisitte verktøy (ren funksjon):** `avgjorTrykkHandling(verktoy, gest)` i `src/lib/tegningTrykk.ts`
+  tar nå `TegningVerktoy` (navigering/flytt/linjal/polylinje/areal/opprett) + kontekst (`nedPaaPunkt`,
+  `traffMaling`) → `settPunkt/draPunkt/velgMaling/opprett/hint/pan`. Verktøyet — ikke gjetting — avgjør.
+  Tester (`tegningTrykk.test.ts`): «trykk i Flytt setter ALDRI punkt» og «trykk i måleverktøy drar
+  ALDRI» (begge røde før RETUR 3), + knip→pan, opprett, navigering.
+- **Verktøylinje:** `[✋ Flytt] [📏 Linjal] [〰 Polylinje] [▱ Areal] [＋ Opprett]`, ett aktivt.
+  Måleverktøyene sperres når `kanMale` er usann; Flytt/Opprett alltid. Ferdig figur → auto til Flytt med
+  figuren valgt. Flytt = velg + dra (aldri punkt). ＋ Opprett = markør + mal (erstatter langt trykk mens
+  et verktøy er i bruk). Uten verktøy = forelderens bryter (plassering → opprett) / navigering (hint,
+  langt trykk). `window.__maleModus` injiseres ved modusbytte så WebView-en vet hva gesten skal gjøre.
+- **§ 2 Set-on-release + lupe:** punktet settes ved SLIPP (`touch-up`), ikke nedtrykk — så man kan
+  justere mot lupa først. Lupa (`window.visLupe`, ~2,5× lokal zoom + trådkors) står forskjøvet OPP og
+  TIL SIDEN for fingeren og bytter side/retning ved skjermkanten; vises i måleverktøy (alltid) og i
+  Flytt (på punkt). Flytt drar live (`maledrag`); måleverktøy committer på slipp (`gest` → `settPunkt`).
+
+**RETUR 4 (2026-10-08) — pan-sperre under drag, synlig lupe, piltast-finjustering:**
+- **🔴 § 1 Tegningen panorerte under drag:** pointer-events' `preventDefault` stopper IKKE
+  WKWebView-scroll/zoom. Fiks: non-passive `touchmove`-lytter på `#container` som `preventDefault`-er
+  når `lupeAktiv` (ett-finger sett/dra) og `!pinch` → tegningen står helt stille mens et punkt
+  settes/dras. Knip (≥2 fingre) og vanlig pan slippes gjennom. Pan-sperren = samme predikat som
+  `visLupeForGest` (testet i `tegningTrykk.test.ts`).
+- **🔴 § 2 Lupa usynlig på enhet (rotårsak):** `position: fixed` rendres upålitelig i WKWebView under
+  pinch-zoom (forankres til visuelt viewport). Fiks: `position: absolute` forankret i SIDEKOORDINATER
+  (`pageX/pageY`), lagt på `document.body` (ikke `#container`, som kan klippe), `z-index: 9999`, og
+  **quotet** `url("…")` (en usitert signert URL med spesialtegn kan knekke `background-image`). Lupa er
+  nå ~100 pt, ~3× lokal zoom, forskjøvet ~80 pt opp/side (RETUR 4-mål). Geometrien er rene, testbare
+  funksjoner i `src/lib/lupe.ts` (`lupePlassering` kant-flipp · `lupeBakgrunn` 3×-crop · `nudgePunkt` ·
+  `Z_LUPE > Z_MALELAG …` z-rekkefølge) — `lupe.test.ts`. WebView-JS speiler matematikken.
+- **Piltast-finjustering:** et punkt som dras/trykkes i Flytt blir «valgt» (`valgtPunktIndeks` fra
+  `gest.dragIdx`); stripa viser fire piler (← ↑ ↓ →). Hvert trykk flytter punktet 1 skjermpiksel
+  (`nudgePunkt`, px→prosent via siste viste bilde-rect); langt trykk gjentar (hold-repeat, 90 ms).
+- 🔴 **Verifisering: ingen simulator (Kenneth-vedtak 2026-10-08).** Simulator-sporet ble opphevet
+  («koster mer enn å teste selv»). Verifisert via rene tester + testbar logikk (gest-modell,
+  pan-sperre-predikat, lupe-geometri, nudge). Kenneth tester på telefon etter OTA.
+
+**RETUR 5 (2026-10-08) — bare siste punkt flyttes, usynlig lupe, piltastene ut:**
+- **🔴 § 1 Bare siste punkt kunne flyttes på enhet (rotårsak):** drag-hit-testen i den injiserte
+  WebView-JS-en (`finnPunkt`) regnet i SKJERM-koordinater (`clientX`/`getBoundingClientRect`), mens
+  lupa — det eneste som ble synlig i RETUR 4 — regnet i SIDE-/DOKUMENT-koordinater (`pageX/pageY`).
+  Under WKWebView pinch-zoom + pan peker de to rommene på ulike steder, og avviket vokser med
+  scroll-offset → bare punkter nær der man nettopp zoomet (typisk det siste satte) traff
+  treffradiusen. **Fiks:** alt regnes nå i side-/dokumentkoordinater (`pageX/pageY` + bildets
+  offset-boks `offsetLeft/Top/Width/Height`, alt zoom-invariant), og treffradius skaleres med
+  `1/zoom`. Matematikken er rene, testbare funksjoner i `src/lib/tegningKoordinat.ts`
+  (`sideTilProsent` · `finnNaermesteSidePunkt` · `sideTilSkjerm`); `tegningKoordinat.test.ts` treffer
+  **punkt nr. 1 av 4** med WebViewens transform (zoom ≠ 1, scroll ≠ 0) og demonstrerer bugen. Den
+  injiserte JS-en speiler funksjonene.
+- **🔴 § 2 Lupa fortsatt usynlig → RN-nativ lupe (plan B):** den DOM-baserte lupa (RETUR 4,
+  `window.visLupe`) ble aldri synlig på enhet. Flyttet UT av WebView-en: WebView-en poster nå
+  `{type:'lupe', fingerX/Y (synlig skjerm-dp), pctX/Y (bilde), dispB/H (vist bildestørrelse)}`, og RN
+  tegner en `<View>`-sirkel (~100 pt) med et forstørret `<Image>`-utsnitt (~3×) + trådkors i senter.
+  Plassering/crop gjenbruker `lupePlassering`/`lupeBakgrunn` fra `src/lib/lupe.ts` (testet,
+  crop-rect-akseptansetest: trådkorset treffer bildepunktet uansett zoom). DOM-lupa + CSS fjernet.
+- **§ 3 Piltastene fjernet:** `valgtPunktIndeks`-pilrad + `nudgePunkt` er borte (Kenneth: «stegene blir
+  for store og løser ikke problemet»). Lupa er presisjonsgrepet. Renest mulig UI.
+- Verifisert via rene tester (hit-test punkt 1 av 4 under zoom/scroll, crop-rect, full mobil-suite) +
+  mobil-typecheck. Kenneth tester på telefon etter OTA.
+
+**RETUR 6 (2026-10-08) — areal lukket seg selv, rediger figur, lupe-hopp, zoom/oppløsning, forhåndslast:**
+- **🔴 § 1 + TILLEGG — figur avsluttes KUN eksplisitt.** Polylinje auto-lukket før på trykk nær et
+  hvilket som helst punkt (`malinger.ts punktTilMaling: some(erNaer)`) → ferdig → mobil hoppet til
+  Flytt «av seg selv»; areal lukket for lett fordi terskelen var i PROSENT (`LUKK_TERSKEL_PCT = 3.5`),
+  enorm ved innzoom. Fiks: polylinje auto-lukker **aldri** (kun Fullfør/Enter); areal lukkes kun ved
+  trykk på FØRSTE punkt, nå med terskel i SKJERM-px (`LUKK_TERSKEL_PX = 12`, regnet mot vist
+  bildestørrelse fra gesten) eller «Lukk flate». `avgjorTrykkHandling` i måleverktøy returnerer alltid
+  `settPunkt` (bytter aldri til Flytt). Test: N raske trykk i polylinje/areal → aldri ferdig/Flytt
+  (`malinger.test.ts`), og måleverktøy setter punkt uansett gest (`tegningTrykk.test.ts`).
+- **🟢 § 2 Rediger figur etter etablering (hjemmel: Kenneth).** Delte, testede funksjoner i
+  `malinger.ts`: `settInnPunktPaaKant` (nytt hjørne etter en kant), `fjernPunkt` (beholder min 3 areal
+  / 2 linje), `finnNaermesteKant` (kant-treff inkl. sluttkant for lukket areal), `nyKantPunktIndeks`.
+  **Mobil (Flytt):** trykk på en kant setter inn et hjørne og drar det straks (injisert `finnKant` →
+  `settInnKant`-melding → shared; `window.__maleLukket` = areal+ferdig styrer sluttkanten); langt trykk
+  på et hjørne → `fjernPunkt`-bekreftelsesmodal. Hint i stripa. **Web:** shift-klikk på en kant setter
+  inn, klikk velger et hjørne (uthevet ring), Delete/Backspace fjerner det.
+- **🔴 § 3 Lupa hoppet/stoppet over elementer.** `setPointerCapture` på `#container` ved gest-start →
+  pointermove/up havner på beholderen selv når fingeren drar over en markør/målelinje/tekst; posisjon
+  regnes uansett fra `pageX/pageY` (RETUR 5). Capture slippes ved slipp.
+- **§ 4 (MÅLT) oppløsning + zoomgrense.** Mobil laster FULL 200-DPI-PNG via `fileUrl` — ingen
+  forminsket/thumbnail-variant finnes (tegningen gjøres ikke mindre). Zoom var kappet på 20× av
+  `maximum-scale=20` (ingen native WKWebView-cap: `scalesPageToFit={false}`, ingen `maximumZoomScale`);
+  web tillater 50×. Hevet mobil til `maximum-scale=50` for å matche web.
+- **§ 5 Lupa kommer med en gang.** `Image.prefetch(tegningUrl)` når tegningen åpnes, så RN-lupa (samme
+  URL) har bildet i cache før fingeren legges ned.
+- Verifisert: shared + mobil-tester grønne, mobil/web-typecheck + eslint rent. Kenneth tester på
+  telefon etter OTA. Ikke publisert OTA.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
