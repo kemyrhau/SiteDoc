@@ -434,7 +434,7 @@ Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `Redige
 - **R6 fag-gruppering:** venstre tegningsliste grupperes fag → tegningsnummer som standard, med veksel til etasje-gruppering. «Uten fag» sist.
 - **R8 ny revisjon:** `LastOppRevisjonKnapp` (tegningsrad i serietabell + rediger-dialogen) → `tegning.lastOppRevisjon`, som nå **starter konvertering** for den nye fila (delt helper `startTegningKonvertering` i `apps/api/src/routes/tegning.ts`, samme vei som `opprett`) — ny revisjon viser aldri gammel PNG. Revisjonskode foreslås som neste bokstav (`nesteRevisjon`), redigerbar.
 - **R7:** målestokk forblir valgfri; ingen ny «mangler målestokk»-flate.
-- Ingen schema-endring. T2 (Tegningsserie-gruppering) ikke bygget — se `tegning-serieopplasting-spec.md`.
+- Ingen schema-endring i T1. T2 (Tegningsserie-gruppering) bygget 2026-10-08 — se T2-seksjonen nedenfor + `tegning-serieopplasting-spec.md`.
 
 ### T1b — rediger etter opplasting, vis og tilbake, kollaps (2026-10-07)
 
@@ -446,6 +446,16 @@ Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `Redige
 
 - **Fag- + Rådgiver-kolonne** i `TegningSerieTabell` (gjelder både serieopplasting og «Rediger flere»): «Fag» er nedtrekk fra `DRAWING_DISCIPLINES` plassert før tegningsnummer; «Rådgiver» (`originator`) er fritekst. Begge lagres via `tegning.oppdater` og sendes bare når endret (`byggTegningRadEndring` — `discipline` som enum sendes aldri tomt, `originator` kan tømmes). Var før bare i felles-skjemaet ved opplasting; nå redigerbare pr. rad. (Kenneth: «jeg kan ikke redigere fag dersom det er feil».)
 - **Tegningsnummer-mønster** utvidet for ekte 6-segments ARK-filnavn (`B3-06-A-20-31-02`): `packages/shared/src/utils/tegningMetadata.ts`, 3–7 bindestrek-separerte 1–4-tegns segmenter, krav om både bokstav og siffer (stenger datoer/rene bokstavsløp). Alle gamle forslag uendret.
+
+### T2 — Tegningsserie: merk-og-flytt-gruppering (2026-10-08)
+
+Lett gruppering oppå T1 (Kenneth-gatet 2026-10-06: «merk tegninger → flytt dem inn i en serie … gi serier nye navn/metadata etterpå»). `oppsett/byggeplasser/page.tsx`, venstre tegningsliste.
+
+- **Modell:** egen `Tegningsserie` (`packages/db`) + `Drawing.serieId` (FK `onDelete: SetNull`). Tom `serieId` = «ikke i serie» (gyldig). Serien bærer **ikke** revisjon/målestokk/status — de er alltid pr. tegning. API: `tegningsserie.opprett/oppdater/slett/flyttTegninger/hentForByggeplass/brukPaAlle` (`apps/api/src/routes/tegningsserie.ts`, tilgang via `verifiserProsjektmedlem`).
+- **Gruppering:** i fag-modus deles hver fag-gruppe i serie-bøtter (fag → serie → nummer) + løse tegninger (uten serie). Seriegruppen kan kollapses (samme `localStorage`-mekanisme som T1b, nøkkel `serie::<id>`). Etasje-modus er flat som før.
+- **Merk-og-flytt:** «Merk»-knapp i gruppe-veksle-baren slår på avkryssing pr. rad. Handlingslinje (sticky i panelet) viser antall valgt + «Ny serie fra valgte» (navneforslag = felles fag + rådgiver blant de valgte) · «Flytt til serie» (velger blant eksisterende) · «Ta ut av serie» (`serieId = null`). «Flytt» rører **kun** `serieId` — aldri tegningens eget fag/opphav.
+- **R10 standardverdier:** serie-dialogen (opprett/rediger) har navn + fag + rådgiver + beskrivelse. «Bruk på alle i serien» er en egen knapp som viser antallet som berøres («N tegninger får seriens fag og rådgiver») før den skriver — ingen automatikk. i18n `tegninger.serieGruppe.*`.
+- **Mobil:** ingen serie-UI; `serieId` følger bare med i `hentForProsjekt`-responsen (ignoreres av de lokale interface-castene).
 
 ## Tegningsvisning
 
