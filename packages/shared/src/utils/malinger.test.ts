@@ -13,6 +13,10 @@ import {
   avsluttAktiv,
   finnNaermestePunkt,
   finnMalingTreff,
+  finnNaermesteKant,
+  settInnPunktPaaKant,
+  nyKantPunktIndeks,
+  fjernPunkt,
   type MaleTilstand,
 } from "./malinger";
 
@@ -172,5 +176,111 @@ describe("malinger — hit-test", () => {
     expect(finnMalingTreff(malinger, { x: 60, y: 60 }, W, H, 4)).toBeNull();
     // Men en kant treffer fortsatt.
     expect(finnMalingTreff(malinger, { x: 60, y: 40 }, W, H, 4)).toBe("flate");
+  });
+});
+
+describe("malinger — RETUR 6 § 1: auto-avslutt stoppet (polylinje) + areal kun første punkt", () => {
+  it("polylinje lukker ALDRI av seg selv — heller ikke ved trykk nær et eksisterende punkt", () => {
+    let t = startMaling(TOM_MALETILSTAND, "polylinje", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    t = leggTilPunkt(t, { x: 40, y: 10 }, naer(40, 10));
+    // Trykk rett ved første punkt (ville lukket før RETUR 6) → setter nytt punkt.
+    t = leggTilPunkt(t, { x: 11, y: 11 }, naer(11, 11));
+    expect(aktivMaling(t)?.ferdig).toBe(false);
+    expect(aktivMaling(t)?.punkter).toHaveLength(3);
+    // Trykk nær et MIDT-punkt → fortsatt bare nytt punkt, aldri ferdig.
+    t = leggTilPunkt(t, { x: 40, y: 11 }, naer(40, 11));
+    expect(aktivMaling(t)?.ferdig).toBe(false);
+    expect(aktivMaling(t)?.punkter).toHaveLength(4);
+  });
+
+  it("N raske trykk på ulike steder (polylinje) bytter aldri til ferdig", () => {
+    let t = startMaling(TOM_MALETILSTAND, "polylinje", "a");
+    const steder = [[10, 10], [30, 15], [55, 40], [20, 60], [70, 70], [12, 12]] as const;
+    for (const [x, y] of steder) t = leggTilPunkt(t, { x, y }, naer(x, y));
+    expect(aktivMaling(t)?.ferdig).toBe(false);
+    expect(aktivMaling(t)?.punkter).toHaveLength(steder.length);
+    // Avsluttes bare eksplisitt:
+    t = settFerdig(t);
+    expect(aktivMaling(t)?.ferdig).toBe(true);
+  });
+
+  it("areal: trykk nær et ANNET punkt enn første setter nytt punkt (lukker ikke)", () => {
+    let t = startMaling(TOM_MALETILSTAND, "areal", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    t = leggTilPunkt(t, { x: 40, y: 10 }, naer(40, 10));
+    t = leggTilPunkt(t, { x: 40, y: 40 }, naer(40, 40));
+    // Nær TREDJE punkt (ikke første) → nytt punkt, ikke lukk.
+    t = leggTilPunkt(t, { x: 41, y: 41 }, naer(41, 41));
+    expect(aktivMaling(t)?.ferdig).toBe(false);
+    expect(aktivMaling(t)?.punkter).toHaveLength(4);
+    // Nær FØRSTE punkt → lukk (den ene tillatte auto-avslutningen).
+    t = leggTilPunkt(t, { x: 11, y: 10 }, naer(11, 10));
+    expect(aktivMaling(t)?.ferdig).toBe(true);
+  });
+});
+
+describe("malinger — RETUR 6 § 2: rediger figur (sett inn / fjern hjørne)", () => {
+  const W = 100, H = 100;
+
+  function arealFigur(): MaleTilstand {
+    let t = startMaling(TOM_MALETILSTAND, "areal", "a");
+    t = leggTilPunkt(t, { x: 20, y: 20 }, naer(20, 20));
+    t = leggTilPunkt(t, { x: 80, y: 20 }, naer(80, 20));
+    t = leggTilPunkt(t, { x: 80, y: 80 }, naer(80, 80));
+    t = leggTilPunkt(t, { x: 20, y: 80 }, naer(20, 80));
+    return settFerdig(t);
+  }
+
+  it("settInnPunktPaaKant setter et hjørne etter kant-indeksen, på ny indeks kantIndex+1", () => {
+    const t0 = arealFigur();
+    const ny = settInnPunktPaaKant(t0, 0, { x: 50, y: 20 }); // på kant 0→1 (toppen)
+    expect(aktivMaling(ny)?.punkter).toHaveLength(5);
+    expect(nyKantPunktIndeks(0)).toBe(1);
+    expect(aktivMaling(ny)?.punkter[1]).toEqual({ x: 50, y: 20 });
+    expect(aktivMaling(ny)?.ferdig).toBe(true); // lukket forblir lukket
+  });
+
+  it("settInnPunktPaaKant på sluttkanten (n-1) legger hjørnet sist", () => {
+    const t0 = arealFigur(); // 4 punkter, sluttkant = indeks 3 (siste→første)
+    const ny = settInnPunktPaaKant(t0, 3, { x: 20, y: 50 });
+    expect(aktivMaling(ny)?.punkter).toHaveLength(5);
+    expect(aktivMaling(ny)?.punkter[4]).toEqual({ x: 20, y: 50 });
+  });
+
+  it("ugyldig kant-indeks → uendret", () => {
+    const t0 = arealFigur();
+    expect(settInnPunktPaaKant(t0, 9, { x: 0, y: 0 })).toBe(t0);
+    expect(settInnPunktPaaKant(t0, -1, { x: 0, y: 0 })).toBe(t0);
+  });
+
+  it("fjernPunkt fjerner et hjørne, men beholder minst 3 for areal", () => {
+    const t0 = arealFigur(); // 4 punkter
+    const ett = fjernPunkt(t0, 1);
+    expect(aktivMaling(ett)?.punkter).toHaveLength(3);
+    // Fra 3 kan vi ikke fjerne flere (areal-minimum).
+    expect(fjernPunkt(ett, 0)).toBe(ett);
+  });
+
+  it("fjernPunkt for polylinje beholder minst 2", () => {
+    let t = startMaling(TOM_MALETILSTAND, "polylinje", "p");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    t = leggTilPunkt(t, { x: 40, y: 40 }, naer(40, 40));
+    t = leggTilPunkt(t, { x: 70, y: 10 }, naer(70, 10));
+    const ett = fjernPunkt(t, 2);
+    expect(aktivMaling(ett)?.punkter).toHaveLength(2);
+    expect(fjernPunkt(ett, 0)).toBe(ett); // minst 2
+  });
+
+  it("finnNaermesteKant treffer en kant (ikke et punkt), inkl. sluttkant ved lukket areal", () => {
+    const pts = [{ x: 20, y: 20 }, { x: 80, y: 20 }, { x: 80, y: 80 }, { x: 20, y: 80 }];
+    // Midt på toppkanten (kant 0→1): y=20, x=50.
+    expect(finnNaermesteKant(pts, { x: 50, y: 20 }, W, H, 4, true)).toBe(0);
+    // Midt på venstrekanten = sluttkant (punkt 3 → 0): x=20, y=50.
+    expect(finnNaermesteKant(pts, { x: 20, y: 50 }, W, H, 4, true)).toBe(3);
+    // Åpen polylinje teller ikke sluttkanten.
+    expect(finnNaermesteKant(pts, { x: 20, y: 50 }, W, H, 4, false)).toBe(-1);
+    // Midt inni flaten (ikke nær noen kant) → ingen.
+    expect(finnNaermesteKant(pts, { x: 50, y: 50 }, W, H, 4, true)).toBe(-1);
   });
 });

@@ -107,16 +107,18 @@ function punktTilMaling(m: Maling, p: Punkt, erNaer: (q: Punkt) => boolean): Mal
     return { ...m, punkter, ferdig: punkter.length >= 2 };
   }
   if (m.verktoy === "areal") {
-    // Areal lukkes KUN ved trykk nær første punkt.
+    // 🔴 RETUR 6 § 1: areal lukkes KUN ved trykk nær FØRSTE punkt (den eneste
+    // auto-avslutningen som er lov). Et trykk nær et annet punkt setter et nytt
+    // punkt. Terskelen (`erNaer`) eies av kalleren og skal regnes i SKJERM-/side-
+    // piksler (~12 pt), ikke prosent — ellers lukker arealet seg selv ved innzoom.
     if (m.punkter.length >= 3 && m.punkter[0] && erNaer(m.punkter[0])) {
       return { ...m, ferdig: true };
     }
     return { ...m, punkter: [...m.punkter, p] };
   }
-  // polylinje: lukkes ved trykk nær et hvilket som helst eksisterende punkt.
-  if (m.punkter.length >= 2 && m.punkter.some(erNaer)) {
-    return { ...m, ferdig: true };
-  }
+  // 🔴 RETUR 6 § 1 + TILLEGG: polylinje auto-lukker ALDRI (den gjorde det før på
+  // trykk nær et hvilket som helst punkt → figuren ble ferdig → mobil hoppet til
+  // Flytt «av seg selv»). Polylinje avsluttes bare eksplisitt (Fullfør / Enter).
   return { ...m, punkter: [...m.punkter, p] };
 }
 
@@ -156,6 +158,39 @@ export function slettAktiv(t: MaleTilstand): MaleTilstand {
 /** Slett alle målinger. */
 export function slettAlle(): MaleTilstand {
   return { malinger: [], aktivId: null };
+}
+
+/**
+ * 🟢 RETUR 6 § 2: sett inn et nytt hjørne ETTER kant-indeksen `kantIndex` i den
+ * aktive målingen (trykk på en kant → nytt punkt der, dragbart med en gang).
+ * `kantIndex` er segmentet mellom punkt `kantIndex` og `kantIndex+1`; for et lukket
+ * areals siste kant (n-1 → 0) er `kantIndex = n-1`, og punktet legges til sist.
+ * Returnerer uendret tilstand ved ugyldig kant. (Ingen `ferdig`-endring — en lukket
+ * figur forblir lukket.)
+ */
+export function settInnPunktPaaKant(t: MaleTilstand, kantIndex: number, p: Punkt): MaleTilstand {
+  const m = aktivMaling(t);
+  if (!m || kantIndex < 0 || kantIndex >= m.punkter.length) return t;
+  const punkter = m.punkter.slice();
+  punkter.splice(kantIndex + 1, 0, p);
+  return { ...t, malinger: t.malinger.map((x) => (x.id === m.id ? { ...x, punkter } : x)) };
+}
+
+/** Indeksen det nye hjørnet får når man setter inn på `kantIndex`. */
+export function nyKantPunktIndeks(kantIndex: number): number {
+  return kantIndex + 1;
+}
+
+/**
+ * 🟢 RETUR 6 § 2: fjern et hjørne i den aktive målingen. Beholder minst
+ * `minPunkter` (areal 3, ellers 2) — ellers uendret (et areal kan ikke bli en linje).
+ */
+export function fjernPunkt(t: MaleTilstand, index: number): MaleTilstand {
+  const m = aktivMaling(t);
+  if (!m || index < 0 || index >= m.punkter.length) return t;
+  if (m.punkter.length - 1 < minPunkter(m.verktoy)) return t;
+  const punkter = m.punkter.filter((_, i) => i !== index);
+  return { ...t, malinger: t.malinger.map((x) => (x.id === m.id ? { ...x, punkter } : x)) };
 }
 
 /**
@@ -220,6 +255,43 @@ export function finnNaermestePunkt(
     const d = Math.hypot(q.x - pp.x, q.y - pp.y);
     if (d <= bestAvstand) {
       best = i;
+      bestAvstand = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * 🟢 RETUR 6 § 2: nærmeste KANT (segment) til `p` innen `tolPx` skjerm-piksler.
+ * Returnerer kant-indeksen (segmentet mellom punkt `i` og `i+1`), eller -1. For et
+ * `lukket` areal regnes også sluttkanten (siste → første), med kant-indeks n-1.
+ * Brukes til «sett inn hjørne på kant» — kalleren sjekker punkt-treff FØRST (dra),
+ * så kant-treff (sett inn).
+ */
+export function finnNaermesteKant(
+  punkter: Punkt[],
+  p: Punkt,
+  rectW: number,
+  rectH: number,
+  tolPx: number,
+  lukket: boolean,
+): number {
+  if (rectW <= 0 || rectH <= 0 || punkter.length < 2) return -1;
+  const pp = tilPx(p, rectW, rectH);
+  const pts = punkter.map((q) => tilPx(q, rectW, rectH));
+  let best = -1;
+  let bestAvstand = tolPx;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const d = avstandTilSegment(pp, pts[i]!, pts[i + 1]!);
+    if (d <= bestAvstand) {
+      best = i;
+      bestAvstand = d;
+    }
+  }
+  if (lukket && pts.length >= 3) {
+    const d = avstandTilSegment(pp, pts[pts.length - 1]!, pts[0]!);
+    if (d <= bestAvstand) {
+      best = pts.length - 1; // sluttkant (siste → første)
       bestAvstand = d;
     }
   }

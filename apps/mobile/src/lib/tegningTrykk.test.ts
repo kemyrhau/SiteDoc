@@ -39,6 +39,15 @@ describe("avgjorTrykkHandling — eksplisitte verktøy (RETUR 3)", () => {
     expect(avgjorTrykkHandling("flytt", gest())).toBe("pan");
   });
 
+  it("Flytt: langt trykk på et hjørne UTEN å dra → fjernPunkt (RETUR 6 § 2)", () => {
+    // Langt + stille på et punkt → fjern-kandidat.
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_MS }))).toBe("fjernPunkt");
+    // Langt MEN dratt → vanlig drag (brukeren flyttet punktet).
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: 900, flyttet: true }))).toBe("draPunkt");
+    // Kort trykk på punkt → drag (ikke fjern).
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_MS - 1 }))).toBe("draPunkt");
+  });
+
   it("🔴 et trykk i måleverktøy DRAR aldri (og velger aldri) — setter punkt", () => {
     for (const v of ["linjal", "polylinje", "areal"] as const) {
       // Selv om nedtrykket tilfeldigvis traff et punkt/måling: måleverktøy setter punkt.
