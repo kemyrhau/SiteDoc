@@ -339,6 +339,28 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   knip-primitiv → zoom-skalering (§1) kan ikke gest-reproduseres headless. Lupe-plassering trenger
   on-device-finjustering. Verifiseres av Kenneth på enhet etter OTA.
 
+**RETUR 2 (2026-10-08) — strek-skala, flere målinger, valg, slett, høyere zoom:**
+- **§1 Strektykkelse:** `vector-effect: non-scaling-stroke` nøytraliserer bare SVG-viewBox-skaleringen,
+  IKKE nettleserens pinch-zoom. Streken får nå `stroke-width = 2 · (1/visualViewport.scale)` både ved
+  opprettelse og i `oppdaterZoom` (klasse `.male-stroke`) → fast ~2 pt på skjermen. Areal-skravering
+  halvgjennomsiktig (`rgba(...,0.15)`).
+- **§2 Hit-test / bom-trykk:** ALLE punkter er dragbare (`finnPunkt` itererer `__malePunkter`, som nå
+  er den AKTIVE målingens punkter). Et bom-trykk sletter ALDRI en ferdig figur: punktlegging skjer kun
+  i en påbegynt aktiv måling (delt `leggTilPunkt`); ellers velges en truffet måling, eller trykket er
+  no-op. Ingen reset-på-neste-klikk lenger.
+- **§3 Maks zoom:** `maximum-scale` 10 → 20 i viewport-metaen. A1 i 200 DPI ≈ 4600 px bred, vist på
+  ~390 pt → mild oppskalering først forbi ~12× zoom; 20× er akseptabelt.
+- **🟢 Flere målinger (delt modell):** `packages/shared/src/utils/malinger.ts` — `MaleTilstand =
+  {malinger[], aktivId}` + rene reducers (`startMaling`/`leggTilPunkt`/`settFerdig`/`flyttPunkt`/
+  `velgMaling`/`slettAktiv`/`slettAlle`/`avsluttAktiv`) + hit-test (`finnMalingTreff`/
+  `finnNaermestePunkt`). **Ingen kopi** — web (`tegninger/page.tsx`) bruker samme modul. Trykk på
+  verktøyknappen starter en NY måling; forrige blir stående (dempet grå, én resultat-etikett). Trykk
+  på en eksisterende måling velger den (WebView sender `rectW/rectH` i gesten; RN hit-tester).
+  `window.tegnMalinger` tegner alle (aktiv blå + dragbar, inaktiv grå). «Slett» (aktiv) · «Slett alle»
+  (bekreftelsesmodal, ikke `confirm()`) · «Lukk». `onMaleModusEndring(aktivId != null)`. Målinger
+  lagres IKKE (forsvinner når tegningen lukkes). Tester: `packages/shared/src/utils/malinger.test.ts`
+  (hit-test alle punkter · bom-trykk sletter aldri · flere målinger/valg/slett).
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
