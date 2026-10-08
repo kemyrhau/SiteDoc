@@ -1,10 +1,44 @@
 ---
 name: historikk-2026-10
 description: Arkiv av deployete PR-er/saker fra oktober 2026. Flyttet hit fra STATUS-AKTUELT ved DEPLOYET TIL PROD.
-sist_verifisert_mot_kode: 2026-10-07
+sist_verifisert_mot_kode: 2026-10-08
 ---
 
 # Historikk oktober 2026
+
+## Prod-deploy 2026-10-08 (`de1582ae`, develop→main) — tegninger serieopplasting, zoom, måling web+mobil (LIVE)
+
+Release-commit `de1582ae` på `main`, bygget 15:38Z.
+
+**Innhold:**
+- Tegninger serieopplasting T1/T1b/T1c (`0e50adad`, `c9c55137`, `48016503`).
+- Zoom og verktøylinje på tegningssiden (`ce29a0ba` — zoom treffer pekeren, verktøylinja blir stående; `0f1e38e0` — første zoomtrinn hopper ikke).
+- Måling web: målestokk fra tittelfelt, kalibreringsveiledning, styreflate-knip, linjal/polylinje/areal (merger `09fd30a4`, `84f97c19`).
+- Måling mobil: hint, langt trykk, verktøy, lupe, rediger figur (merger av `9cf1fbea`, `21edd9ed`, `f0ad4d47`, `e9662121`, `b3f7d24f`, `c62bb180`, `66a25e24`).
+
+**Migreringer:** ingen.
+
+**Mobil:** OTA prod-kanal fra `de1582ae` (OTA `01a11c3…`), verifisert på telefon (build 54, Mer viser `de1582ae`). Rad i [eas-build-veileder.md § OTA-logg](eas-build-veileder.md).
+
+**Ikke med:** 90°/snap (`feat/maaling-90-snap`, under arbeid) · V20-M (ikke levert).
+
+## Arkivert fra STATUS-AKTUELT 2026-10-08
+
+Flyttet ordrett. Alle hasher er forfedre av `de1582ae` (målt med `git merge-base --is-ancestor`: de 14 innholdshashene over, samt spec-hashene `d543e37d` og `499a99f3`). Prod-linjene for `ec35181d` og `4f7998c7` er erstattet av linja for `de1582ae` — innholdet står i seksjonene under. Gjenstående fra tegningsspec-en (T2 `Tegningsserie`) står som én linje i STATUS-AKTUELT.
+
+Fra prod-linja for `4f7998c7`:
+
+> ⚠️ **IKKE i prod:** T1 serieopplasting av tegninger (`0e50adad`) — kun på test.
+
+Tegningsspec-innslaget (T1 levert og i prod; T2 gjenstår):
+
+> 🟡 **TEGNINGER: SERIEOPPLASTING — SPEC TIL GATE 2026-10-06** (branch `docs/design-tegning-serieopplasting`, `tegning-serieopplasting-spec.md`, omfang T1 → T2
+> godkjent av Kenneth): 20 ark-tegninger lastes én og én i dag. T1 uten schema (flervalg, detaljer etterpå, entydig-treff-forhåndsutfylling, fag-sortering, ny revisjon
+> på web), T2 `Tegningsserie`. Målestokk forblir valgfri uten mas.
+
+Fra «Feltfunn 2026-09-24» (rettet av `ce29a0ba`):
+
+- **Zoom i tegningsvisningen bruker ikke musepekeren som origo.** Virker, men irriterer. Kenneth, test.sitedoc.no.
 
 ## Prod-deploy 2026-10-07 runde 2 (`ec35181d`, develop→main) — frys etter «+ Oppgave» + flere oppgaver pr. felt (LIVE)
 
