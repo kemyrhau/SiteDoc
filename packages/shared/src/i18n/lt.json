@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Redaguoti kelis",
   "tegninger.serie.tilbakeTilTabell": "Atgal prie stalo",
   "tegninger.serie.ferdig": "Atlikta",
+  "tegninger.dwgSperre.tittel": "DWG konvertavimas nepasiekiamas",
+  "tegninger.dwgSperre.forklaring": "DWG konvertavimas šiame serveryje nepasiekiamas, todėl nebuvo įkeltas (-i) {{antall}} DWG/DXF failas (-ai). Kitų tipų failai (PDF, vaizdai, IFC) įkeliami kaip įprasta. Jei trūksta DWG palaikymo, susisiekite su administratoriumi.",
   "tegninger.serieGruppe.merk": "Pasirinkite",
   "tegninger.serieGruppe.merkRad": "Pasirinkite {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "Pasirinktas {{antall}}",

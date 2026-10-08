@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Redigera flera",
   "tegninger.serie.tilbakeTilTabell": "Tillbaka till bordet",
   "tegninger.serie.ferdig": "Gjort",
+  "tegninger.dwgSperre.tittel": "DWG-konvertering är inte tillgänglig",
+  "tegninger.dwgSperre.forklaring": "DWG-konvertering är inte tillgänglig på den här servern, så {{antall}} DWG/DXF-fil(er) laddades inte upp. Andra filtyper (PDF, bilder, IFC) laddar upp som vanligt. Kontakta din administratör om DWG-support saknas.",
   "tegninger.serieGruppe.merk": "Välja",
   "tegninger.serieGruppe.merkRad": "Välj {{namn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} har valts",

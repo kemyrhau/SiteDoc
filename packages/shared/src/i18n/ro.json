@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Editați mai multe",
   "tegninger.serie.tilbakeTilTabell": "Înapoi la masă",
   "tegninger.serie.ferdig": "Făcut",
+  "tegninger.dwgSperre.tittel": "Conversia DWG nu este disponibilă",
+  "tegninger.dwgSperre.forklaring": "Conversia DWG nu este disponibilă pe acest server, așa că {{antall}} fișiere DWG/DXF nu au fost încărcate. Alte tipuri de fișiere (PDF, imagini, IFC) se încarcă ca de obicei. Contactați administratorul dacă lipsește suportul DWG.",
   "tegninger.serieGruppe.merk": "Selecta",
   "tegninger.serieGruppe.merkRad": "Selectați {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} selectat",

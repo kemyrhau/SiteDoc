@@ -357,6 +357,13 @@ function RedigerLokasjon({
   const serieOpprettMutation = trpc.tegning.opprett.useMutation();
   const radOppdaterMutation = trpc.tegning.oppdater.useMutation();
 
+  // DWG-1 (D2): er DWG/DXF-konvertering tilgjengelig på serveren? Når ikke, avvises
+  // .dwg/.dxf i opplastingsdialogen med forklaring (ingen stille `failed`).
+  const { data: konvKapasitet } = trpc.tegning.konverteringKapasitet.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+  const [dwgSperreAntall, setDwgSperreAntall] = useState<number | null>(null);
+
   // T2 (tegningsserie): seriene på byggeplassen + merk-og-flytt-mutasjoner.
   const { data: serier } = trpc.tegningsserie.hentForByggeplass.useQuery(
     { byggeplassId: lokasjonId },
@@ -391,9 +398,21 @@ function RedigerLokasjon({
   // R1: filfeltet tar nå flere filer. Én fil → dagens enkel-modal (bevart);
   // flere → serieflyten (felles-felt-skjema → etterfyllings-tabell).
   async function handleFilValgt(e: React.ChangeEvent<HTMLInputElement>) {
-    const filer = Array.from(e.target.files ?? []);
+    let filer = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (filer.length === 0) return;
+
+    // D2: avvis .dwg/.dxf når serveren mangler konverterer — forklar i stedet for stille `failed`.
+    if (konvKapasitet && konvKapasitet.dwg === false) {
+      const erDwg = (f: File) => /\.(dwg|dxf)$/i.test(f.name);
+      const avviste = filer.filter(erDwg);
+      if (avviste.length > 0) {
+        setDwgSperreAntall(avviste.length);
+        filer = filer.filter((f) => !erDwg(f));
+        if (filer.length === 0) return;
+      }
+    }
+
     if (filer.length === 1) {
       await lastOppEnkelFil(filer[0]!);
       return;
@@ -1472,6 +1491,22 @@ function RedigerLokasjon({
           {t("tegninger.serie.tilbakeTilTabell")}
         </button>
       )}
+
+      {/* D2: DWG/DXF avvist fordi serveren mangler libredwg. */}
+      <Modal
+        open={dwgSperreAntall !== null}
+        onClose={() => setDwgSperreAntall(null)}
+        title={t("tegninger.dwgSperre.tittel")}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600">
+            {t("tegninger.dwgSperre.forklaring", { antall: dwgSperreAntall ?? 0 })}
+          </p>
+          <div className="flex justify-end">
+            <Button onClick={() => setDwgSperreAntall(null)}>{t("handling.lukk")}</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* T2: opprett / rediger tegningsserie. Serien bærer BEVISST ikke revisjon,
           målestokk eller status — kun navn + standardverdier (fag/rådgiver). */}

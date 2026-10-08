@@ -9,7 +9,7 @@
  */
 
 import { execFile } from "node:child_process";
-import { readFile, unlink, writeFile, access, mkdir, readdir, copyFile, rm } from "node:fs/promises";
+import { readFile, unlink, writeFile } from "node:fs/promises";
 import { join, dirname, basename } from "node:path";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
@@ -23,11 +23,11 @@ import type { GeoReferanse } from "@sitedoc/shared";
 
 const execFileAsync = promisify(execFile);
 
-/** Finn full sti til konverteringsverktøy */
+/** Finn full sti til konverteringsverktøy. libredwg er eneste konverterer (DWG-1,
+ * 2026-10-08): ODA File Converter er valgt bort (lukket lisens), så ODA-/xvfb-sporet
+ * er fjernet fra både kode og Docker-bildene. */
 const DWG2DXF = process.env.DWG2DXF_PATH ?? "/usr/local/bin/dwg2dxf";
 const DWG2SVG = process.env.DWG2SVG_PATH ?? "/usr/local/bin/dwg2SVG";
-const ODA_CONVERTER = process.env.ODA_CONVERTER_PATH ?? "/usr/bin/ODAFileConverter";
-const XVFB_RUN = "xvfb-run";
 
 interface DwgKonverteringsResultat {
   /** URL til konvertert visningsfil (SVG/PDF) */
@@ -64,17 +64,7 @@ interface DxfLayoutInfo {
   modelBounds: { minX: number; maxX: number; minY: number; maxY: number } | null;
 }
 
-/** Sjekk om ODA File Converter er installert */
-async function sjekkOda(): Promise<boolean> {
-  try {
-    await access(ODA_CONVERTER);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Sjekk om libredwg er installert */
+/** Sjekk om libredwg er installert (eneste vakt etter DWG-1). */
 async function sjekkLibreDwg(): Promise<boolean> {
   try {
     await execFileAsync(DWG2DXF, ["--version"], { timeout: 5000 });
@@ -85,52 +75,43 @@ async function sjekkLibreDwg(): Promise<boolean> {
 }
 
 /**
- * Konverter DWG til DXF via ODA File Converter.
- * ODA opererer på mapper, ikke enkeltfiler.
- * Returnerer sti til generert DXF-fil, eller null ved feil.
+ * Konverterer-kapasitet for klienten (D2): er libredwg tilgjengelig i DENNE
+ * containeren, og hvilken versjon. Cachet 60 s — `dwg2dxf --version` er et billig,
+ * men ikke gratis, child-process-kall og kalles fra hver opplastingsdialog.
+ *
+ * Merk D-M2: tRPC kjører in-process i web-containeren også, så denne kjører der
+ * opplastingen faktisk skjer (web for nettleser-opplasting). Begge bilder har libredwg.
  */
-async function konverterMedOda(dwgFilSti: string): Promise<string | null> {
-  const tmpId = randomUUID();
-  const tmpInDir = join("/tmp", `oda-in-${tmpId}`);
-  const tmpOutDir = join("/tmp", `oda-out-${tmpId}`);
+export interface KonverteringKapasitet {
+  dwg: boolean;
+  versjon: string | null;
+}
 
+/** Hent første x.y(.z) fra `dwg2dxf --version`-utskriften («dwg2dxf 0.14 ...»). Ren → testbar. */
+export function parseDwgVersjon(tekst: string): string | null {
+  const m = tekst.match(/\b(\d+\.\d+(?:\.\d+)?)\b/);
+  return m ? m[1]! : null;
+}
+
+let kapasitetCache: { verdi: KonverteringKapasitet; utloper: number } | null = null;
+const KAPASITET_TTL_MS = 60_000;
+
+/** Nullstill kapasitets-cachen (kun for test). */
+export function _nullstillKapasitetCache(): void {
+  kapasitetCache = null;
+}
+
+export async function hentKonverteringKapasitet(naa: number = Date.now()): Promise<KonverteringKapasitet> {
+  if (kapasitetCache && kapasitetCache.utloper > naa) return kapasitetCache.verdi;
+  let verdi: KonverteringKapasitet = { dwg: false, versjon: null };
   try {
-    await mkdir(tmpInDir, { recursive: true });
-    await mkdir(tmpOutDir, { recursive: true });
-
-    // Kopier DWG-filen til input-mappen
-    const dwgNavn = basename(dwgFilSti);
-    await copyFile(dwgFilSti, join(tmpInDir, dwgNavn));
-
-    // Kjør ODA med xvfb (headless) — --auto-servernum unngår display-konflikter
-    console.log("[DWG] Konverterer med ODA File Converter...");
-    await execFileAsync(XVFB_RUN, [
-      "--auto-servernum", ODA_CONVERTER, tmpInDir, tmpOutDir, "ACAD2018", "DXF", "0", "1",
-    ], {
-      timeout: 300000, // 5 min for store filer
-      maxBuffer: 10 * 1024 * 1024,
-    });
-
-    // Finn generert DXF-fil
-    const filer = await readdir(tmpOutDir);
-    const dxfFil = filer.find(f => f.toLowerCase().endsWith(".dxf"));
-    if (!dxfFil) {
-      console.warn("[DWG] ODA ga ingen DXF-output");
-      return null;
-    }
-
-    const dxfSti = join(tmpOutDir, dxfFil);
-    console.log("[DWG] ODA konvertering ferdig:", dxfSti);
-    return dxfSti;
-  } catch (err) {
-    console.warn("[DWG] ODA konvertering feilet:", err);
-    return null;
-  } finally {
-    // Rydd opp input-mappe (output-mappen ryddes etter DXF er lest)
-    try {
-      await rm(tmpInDir, { recursive: true, force: true });
-    } catch { /* OK */ }
+    const { stdout, stderr } = await execFileAsync(DWG2DXF, ["--version"], { timeout: 5000 });
+    verdi = { dwg: true, versjon: parseDwgVersjon(`${stdout}\n${stderr}`) };
+  } catch {
+    verdi = { dwg: false, versjon: null };
   }
+  kapasitetCache = { verdi, utloper: naa + KAPASITET_TTL_MS };
+  return verdi;
 }
 
 /** Ekstraher bounding box fra DXF-fil */
@@ -841,16 +822,15 @@ export async function konverterDwg(
   filnavn: string,
   uploadDir: string,
 ): Promise<DwgKonverteringsResultat> {
-  const harOda = await sjekkOda();
   const harLibre = await sjekkLibreDwg();
 
-  if (!harOda && !harLibre) {
+  if (!harLibre) {
     return {
       visningUrl: "",
       visningFilType: "",
       koordinatSystem: null,
       geoReferanse: null,
-      feil: "Ingen DWG-konverterer installert. Installer ODA File Converter eller libredwg.",
+      feil: "DWG-konvertering (libredwg) er ikke tilgjengelig på denne serveren.",
       layouts: [],
     };
   }
@@ -859,35 +839,20 @@ export async function konverterDwg(
   const dwgBase = basename(dwgFilSti, ".dwg");
   const svgSti = join(dwgDir, `${dwgBase}.svg`);
   const visningId = randomUUID();
-  // Midlertidig DXF-sti (brukes av libredwg-fallback)
+  // Midlertidig DXF-sti (libredwg legger DXF-en ved siden av DWG-en)
   const libreDxfSti = join(dwgDir, `${dwgBase}.dxf`);
-  // ODA lager DXF i egen mappe, sti settes dynamisk
-  let odaDxfSti: string | null = null;
 
   try {
     // Rydd opp eventuelle gamle filer
     try { await unlink(libreDxfSti); } catch { /* OK */ }
     try { await unlink(svgSti); } catch { /* OK */ }
 
-    // 1. DWG → DXF — prøv ODA først (bedre kvalitet), libredwg som fallback
+    // 1. DWG → DXF via libredwg (eneste konverterer etter DWG-1).
     let dxfInnhold: string | null = null;
     let dxfKilde = "";
 
-    if (harOda) {
-      odaDxfSti = await konverterMedOda(dwgFilSti);
-      if (odaDxfSti) {
-        try {
-          dxfInnhold = await readFile(odaDxfSti, "utf-8");
-          dxfKilde = "ODA";
-          console.log(`[DWG] DXF lest via ODA (${(dxfInnhold.length / 1024 / 1024).toFixed(1)} MB)`);
-        } catch (err) {
-          console.warn("[DWG] Kunne ikke lese ODA DXF:", err);
-        }
-      }
-    }
-
-    if (!dxfInnhold && harLibre) {
-      console.log("[DWG] Fallback: konverterer med libredwg...");
+    {
+      console.log("[DWG] Konverterer med libredwg...");
       try {
         await execFileAsync(DWG2DXF, ["-y", "--as", "r2000", dwgFilSti], {
           timeout: 300000,
@@ -1005,9 +970,6 @@ export async function konverterDwg(
 
     // 8. Rydd opp midlertidige filer
     try { await unlink(libreDxfSti); } catch { /* OK */ }
-    if (odaDxfSti) {
-      try { await rm(dirname(odaDxfSti), { recursive: true, force: true }); } catch { /* OK */ }
-    }
     try { if (harSvg) await unlink(svgSti); } catch { /* OK */ }
 
     return {
@@ -1021,9 +983,6 @@ export async function konverterDwg(
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
     try { await unlink(libreDxfSti); } catch { /* OK */ }
-    if (odaDxfSti) {
-      try { await rm(dirname(odaDxfSti), { recursive: true, force: true }); } catch { /* OK */ }
-    }
     try { await unlink(svgSti); } catch { /* OK */ }
 
     return {

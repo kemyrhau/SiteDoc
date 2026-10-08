@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Upravit několik",
   "tegninger.serie.tilbakeTilTabell": "Zpět ke stolu",
   "tegninger.serie.ferdig": "Hotovo",
+  "tegninger.dwgSperre.tittel": "Převod DWG není k dispozici",
+  "tegninger.dwgSperre.forklaring": "Konverze DWG není na tomto serveru k dispozici, takže {{antall}} soubory DWG/DXF nebyly nahrány. Ostatní typy souborů (PDF, obrázky, IFC) nahrajte jako obvykle. Pokud chybí podpora DWG, kontaktujte svého správce.",
   "tegninger.serieGruppe.merk": "Vybrat",
   "tegninger.serieGruppe.merkRad": "Vyberte {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "Vybráno {{antall}}",

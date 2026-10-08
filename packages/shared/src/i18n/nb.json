@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Rediger flere",
   "tegninger.serie.tilbakeTilTabell": "Tilbake til tabellen",
   "tegninger.serie.ferdig": "Ferdig",
+  "tegninger.dwgSperre.tittel": "DWG-konvertering er ikke tilgjengelig",
+  "tegninger.dwgSperre.forklaring": "DWG-konvertering er ikke tilgjengelig på denne serveren, så {{antall}} DWG/DXF-fil(er) ble ikke lastet opp. Andre filtyper (PDF, bilder, IFC) lastes opp som vanlig. Kontakt administrator om DWG-støtte mangler.",
   "tegninger.serieGruppe.merk": "Merk",
   "tegninger.serieGruppe.merkRad": "Merk {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} valgt",

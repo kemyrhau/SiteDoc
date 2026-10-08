@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Rediģēt vairākus",
   "tegninger.serie.tilbakeTilTabell": "Atpakaļ pie galda",
   "tegninger.serie.ferdig": "Gatavs",
+  "tegninger.dwgSperre.tittel": "DWG konvertēšana nav pieejama",
+  "tegninger.dwgSperre.forklaring": "DWG konvertēšana šajā serverī nav pieejama, tāpēc {{antall}} DWG/DXF fails(-i) netika augšupielādēts(-i). Citus failu tipus (PDF, attēlus, IFC) augšupielādējiet kā parasti. Ja trūkst DWG atbalsta, sazinieties ar savu administratoru.",
   "tegninger.serieGruppe.merk": "Izvēlieties",
   "tegninger.serieGruppe.merkRad": "Izvēlieties {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "Atlasīts {{antall}}",

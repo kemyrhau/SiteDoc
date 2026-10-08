@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Muokkaa useita",
   "tegninger.serie.tilbakeTilTabell": "Takaisin pöytään",
   "tegninger.serie.ferdig": "Tehty",
+  "tegninger.dwgSperre.tittel": "DWG-muunnos ei ole käytettävissä",
+  "tegninger.dwgSperre.forklaring": "DWG-muunnos ei ole käytettävissä tällä palvelimella, joten {{antall}} DWG/DXF-tiedostoa ei lähetetty. Muut tiedostotyypit (PDF, kuvat, IFC) ladataan tavalliseen tapaan. Ota yhteyttä järjestelmänvalvojaan, jos DWG-tuki puuttuu.",
   "tegninger.serieGruppe.merk": "Valitse",
   "tegninger.serieGruppe.merkRad": "Valitse {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} valittu",
