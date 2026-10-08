@@ -29,6 +29,23 @@ export {
   kalibrerMalestokk,
 } from "./maaling";
 export type { Punkt, ScaleKilde } from "./maaling";
+export {
+  TOM_MALETILSTAND,
+  minPunkter,
+  aktivMaling,
+  harPaagaaende,
+  startMaling,
+  leggTilPunkt,
+  settFerdig,
+  flyttPunkt,
+  velgMaling,
+  slettAktiv,
+  slettAlle,
+  avsluttAktiv,
+  finnNaermestePunkt,
+  finnMalingTreff,
+} from "./malinger";
+export type { MaleVerktoy, Maling, MaleTilstand } from "./malinger";
 export { avstandM, gjenkjennSted, tolkStart, tolkSlutt, velgDestinasjon, erInnenfor, polygonArealM2, sentroidePunkter, erEnkeltPolygon, korridorFraLinje, tilGeofencer, geofenceForm, GEOFENCE_GRENSER } from "./sted";
 export type { GpsPunkt, Geofence, Sirkel, Polygon, Treff, TolketSted, Startsted, Sluttsted, Destinasjon, VelgDestinasjonArgs } from "./sted";
 export { klassifiserReise, løsReiseLonnsartId, grensepunktTraff, erReiseLonnsart, REISE_LONNSART_REGEX } from "./reise";

@@ -22,11 +22,23 @@ import {
   kalibrerMalestokk,
   malMm,
   malArealMm2,
+  TOM_MALETILSTAND,
+  aktivMaling,
+  harPaagaaende,
+  startMaling,
+  leggTilPunkt,
+  settFerdig,
+  flyttPunkt,
+  velgMaling,
+  slettAktiv,
+  slettAlle,
+  avsluttAktiv,
+  finnMalingTreff,
   type Punkt,
+  type MaleVerktoy,
+  type Maling,
+  type MaleTilstand,
 } from "@sitedoc/shared";
-
-/** De tre måleverktøyene (RETUR 3 § C). */
-type MaleVerktoy = "linjal" | "polylinje" | "areal";
 import type { GeoReferanse } from "@sitedoc/shared";
 
 interface DokumentflytMalRad {
@@ -232,12 +244,17 @@ export default function TegningerSide() {
   //   polylinje – summert lengde, avsluttes ved klikk på et eksisterende punkt / Enter / dblklikk
   //   areal     – lukket polygon (m² + omkrets), lukkes ved klikk på første punkt
   // kalibrerModus samler 2 punkter for å utlede målestokk fra en kjent lengde.
-  const [maleVerktoy, setMaleVerktoy] = useState<MaleVerktoy | null>(null);
-  const maleAktiv = maleVerktoy !== null;
-  // En måling er «ferdig» (linjal fullført, polylinje/areal lukket): overlay viser
-  // sluttresultatet, og neste klikk starter en ny måling.
-  const [maleFerdig, setMaleFerdig] = useState(false);
-  const [malePunkter, setMalePunkter] = useState<Punkt[]>([]);
+  // RETUR 2: flere målinger via delt reducer. En ferdig måling blir liggende;
+  // trykk på verktøyknappen igjen starter en ny. Den valgte er «aktiv» (vises i
+  // stripa, punktene kan dras). Kalibrering har egen punktsamling (kalibrerPunkter).
+  const [maleTilstand, setMaleTilstand] = useState<MaleTilstand>(TOM_MALETILSTAND);
+  const aktivMal = aktivMaling(maleTilstand);
+  const aktivVerktoy = aktivMal?.verktoy ?? null;
+  const aktivPunkter = aktivMal?.punkter ?? [];
+  const maleEngasjert = maleTilstand.aktivId !== null;
+  const nesteIdRef = useRef(0);
+  const [kalibrerPunkter, setKalibrerPunkter] = useState<Punkt[]>([]);
+  const [slettAlleModalApen, setSlettAlleModalApen] = useState(false);
   const [visMalestokkPanel, setVisMalestokkPanel] = useState(false);
   const [kalibrerModus, setKalibrerModus] = useState(false);
   const [kalibrerLengde, setKalibrerLengde] = useState("");
@@ -710,19 +727,19 @@ export default function TegningerSide() {
   // Tastatur under måling (RETUR 3 § C): Esc avbryter aktivt verktøy; Enter
   // avslutter en pågående polylinje.
   useEffect(() => {
-    if (!maleAktiv) return;
+    if (!maleEngasjert && !kalibrerModus) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        setMaleVerktoy(null);
-        setMalePunkter([]);
-        setMaleFerdig(false);
-      } else if (e.key === "Enter" && maleVerktoy === "polylinje") {
-        setMaleFerdig((f) => (malePunkter.length >= 2 ? true : f));
+        setMaleTilstand((t) => avsluttAktiv(t));
+        setKalibrerModus(false);
+        setKalibrerPunkter([]);
+      } else if (e.key === "Enter" && aktivVerktoy === "polylinje") {
+        setMaleTilstand((t) => settFerdig(t));
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [maleAktiv, maleVerktoy, malePunkter.length]);
+  }, [maleEngasjert, kalibrerModus, aktivVerktoy]);
 
   function lukkModal() {
     setVisOpprettModal(false);
@@ -766,46 +783,40 @@ export default function TegningerSide() {
       if (Math.sqrt(dx * dx + dy * dy) > 5) return;
     }
 
-    // Måle-/kalibrermodus: samle klikkpunkter (prosent). Kalibrering tar nøyaktig 2.
-    if (maleAktiv || kalibrerModus) {
+    // Måle-/kalibrermodus: samle klikkpunkter (prosent).
+    {
       const r = e.currentTarget.getBoundingClientRect();
       const px = ((e.clientX - r.left) / r.width) * 100;
       const py = ((e.clientY - r.top) / r.height) * 100;
+
+      // Kalibrering tar nøyaktig 2 punkter (egen samling, uendret flyt).
       if (kalibrerModus) {
-        setMalePunkter((p) => (p.length >= 2 ? [{ x: px, y: py }] : [...p, { x: px, y: py }]));
+        setKalibrerPunkter((p) => (p.length >= 2 ? [{ x: px, y: py }] : [...p, { x: px, y: py }]));
         return;
       }
-      // Ferdig måling → neste klikk starter en ny (RETUR 3 § C).
-      if (maleFerdig) {
-        setMaleFerdig(false);
-        setMalePunkter([{ x: px, y: py }]);
-        return;
-      }
-      if (maleVerktoy === "linjal") {
-        // To punkter gir én avstand, så stopp.
-        const nye = [...malePunkter, { x: px, y: py }].slice(-2);
-        setMalePunkter(nye);
-        if (nye.length >= 2) setMaleFerdig(true);
-        return;
-      }
-      // polylinje / areal: klikk på et eksisterende punkt lukker/avslutter.
+
+      // Trykk nær et eksisterende punkt (i prosent→px) lukker polylinje/areal.
       const treffPx = (q: Punkt) =>
         Math.hypot(((q.x - px) / 100) * r.width, ((q.y - py) / 100) * r.height) <= PUNKT_TREFF_PX;
-      if (maleVerktoy === "areal") {
-        // Lukkes KUN ved klikk på første punkt.
-        if (malePunkter.length >= 3 && malePunkter[0] && treffPx(malePunkter[0])) {
-          setMaleFerdig(true);
-          return;
-        }
-      } else {
-        // polylinje: avsluttes ved klikk på et hvilket som helst eksisterende punkt.
-        if (malePunkter.length >= 2 && malePunkter.some(treffPx)) {
-          setMaleFerdig(true);
+
+      // En påbegynt måling → legg til punkt (RETUR 2: ingen reset på neste klikk).
+      if (harPaagaaende(maleTilstand)) {
+        setMaleTilstand((t) => leggTilPunkt(t, { x: px, y: py }, treffPx));
+        return;
+      }
+
+      // Ferdige målinger finnes: klikk på en velger den (RETUR 2).
+      if (maleTilstand.malinger.length) {
+        const traff = finnMalingTreff(maleTilstand.malinger, { x: px, y: py }, r.width, r.height, PUNKT_TREFF_PX);
+        if (traff) {
+          setMaleTilstand((t) => velgMaling(t, traff));
           return;
         }
       }
-      setMalePunkter((p) => [...p, { x: px, y: py }]);
-      return;
+
+      // En måling er valgt (engasjert), men klikket bommet → gjør INGENTING. Et
+      // bom-trykk skal ALDRI slette en ferdig figur eller opprette en markør (§ 2).
+      if (maleEngasjert) return;
     }
 
     // Inspeksjonsmodus: vis DWG-egenskaper
@@ -851,7 +862,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleAktiv, kalibrerModus, maleVerktoy, maleFerdig, malePunkter]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand]);
 
   // Dra et satt målepunkt med musa (TILLEGG RETUR 1). Starter på punkt-prikken;
   // move/up lyttes på vindu så dra fortsetter utenfor prikken. Rører ikke maleFerdig
@@ -871,12 +882,7 @@ export default function TegningerSide() {
       if (!r || r.width <= 0 || r.height <= 0) return;
       const x = Math.max(0, Math.min(100, ((ev.clientX - r.left) / r.width) * 100));
       const y = Math.max(0, Math.min(100, ((ev.clientY - r.top) / r.height) * 100));
-      setMalePunkter((prev) => {
-        if (idx >= prev.length) return prev;
-        const n = prev.slice();
-        n[idx] = { x, y };
-        return n;
-      });
+      setMaleTilstand((t) => flyttPunkt(t, idx, { x, y }));
     }
     function slutt() {
       punktDragRef.current = false;
@@ -1109,16 +1115,16 @@ export default function TegningerSide() {
     return null;
   };
 
-  const erAreal = maleVerktoy === "areal";
+  const erAreal = aktivVerktoy === "areal";
 
-  // Linjal/polylinje: per-segment-etiketter + total. Areal viser ikke
-  // segment-etiketter (for støyete) — én sentroide-etikett i stedet.
+  // Resultat for den AKTIVE målingen: linjal/polylinje per-segment + total;
+  // areal viser én sentroide-etikett (m²).
   const maleSegmenter: MaalingSegment[] = [];
   let maleTotalMeter = 0;
   if (!erAreal) {
-    for (let i = 1; i < malePunkter.length; i++) {
-      const a = malePunkter[i - 1];
-      const b = malePunkter[i];
+    for (let i = 1; i < aktivPunkter.length; i++) {
+      const a = aktivPunkter[i - 1];
+      const b = aktivPunkter[i];
       if (!a || !b) continue;
       const m = segMeter(a, b);
       if (m == null) continue;
@@ -1131,18 +1137,18 @@ export default function TegningerSide() {
   let arealM2: number | null = null;
   let omkretsMeter = 0;
   let arealSenter: { x: number; y: number } | null = null;
-  if (erAreal && malePunkter.length >= 3) {
-    const ring = [...malePunkter, malePunkter[0]!];
+  if (erAreal && aktivPunkter.length >= 3) {
+    const ring = [...aktivPunkter, aktivPunkter[0]!];
     for (let i = 1; i < ring.length; i++) {
       const m = segMeter(ring[i - 1]!, ring[i]!);
       if (m != null) omkretsMeter += m;
     }
     if (mmPrPiksel != null && scaleDenom != null && imgW != null && imgH != null) {
-      arealM2 = malArealMm2(malePunkter, imgW, imgH, mmPrPiksel, scaleDenom) / 1_000_000;
+      arealM2 = malArealMm2(aktivPunkter, imgW, imgH, mmPrPiksel, scaleDenom) / 1_000_000;
     }
     arealSenter = {
-      x: malePunkter.reduce((s, p) => s + p.x, 0) / malePunkter.length,
-      y: malePunkter.reduce((s, p) => s + p.y, 0) / malePunkter.length,
+      x: aktivPunkter.reduce((s, p) => s + p.x, 0) / aktivPunkter.length,
+      y: aktivPunkter.reduce((s, p) => s + p.y, 0) / aktivPunkter.length,
     };
   }
   // Sentroide-etikett for areal (m² når tilgjengelig).
@@ -1150,34 +1156,46 @@ export default function TegningerSide() {
     maleSegmenter.push({ midx: arealSenter.x, midy: arealSenter.y, tekst: formatAreal(arealM2) });
   }
 
-  const nullstillMaling = () => {
-    setMalePunkter([]);
-    setMaleFerdig(false);
+  // Kort resultat-etikett for en INAKTIV måling (vises ved tyngdepunktet).
+  const summaryFor = (m: Maling): string => {
+    if (m.verktoy === "areal") {
+      if (m.punkter.length >= 3 && mmPrPiksel != null && scaleDenom != null && imgW != null && imgH != null) {
+        return formatAreal(malArealMm2(m.punkter, imgW, imgH, mmPrPiksel, scaleDenom) / 1_000_000);
+      }
+      return "";
+    }
+    if (m.punkter.length < 2) return "";
+    let sum = 0;
+    for (let i = 1; i < m.punkter.length; i++) {
+      const d = segMeter(m.punkter[i - 1]!, m.punkter[i]!);
+      if (d != null) sum += d;
+    }
+    return formatMeter(sum);
   };
-  const avsluttMaling = () => {
-    setMaleVerktoy(null);
-    setKalibrerModus(false);
-    setMalePunkter([]);
-    setMaleFerdig(false);
-    setKalibrerLengde("");
-  };
-  // Velg et måleverktøy (ett aktivt om gangen). Samme verktøy igjen = av.
+
+  // RETUR 2: trykk på verktøyknappen starter en NY måling; forrige blir stående.
   const velgMaleVerktoy = (verktoy: MaleVerktoy) => {
-    setMaleVerktoy((forrige) => (forrige === verktoy ? null : verktoy));
+    setMaleTilstand((t) => startMaling(t, verktoy, `m${(nesteIdRef.current += 1)}`));
     setKalibrerModus(false);
-    setMalePunkter([]);
-    setMaleFerdig(false);
+    setKalibrerPunkter([]);
     setKlikkModus("plassering");
     setNyMarkør(null);
   };
+  const avsluttMaling = () => {
+    setMaleTilstand((t) => avsluttAktiv(t));
+    setKalibrerModus(false);
+    setKalibrerPunkter([]);
+    setKalibrerLengde("");
+  };
+  const slettAktivMaling = () => setMaleTilstand((t) => slettAktiv(t));
+  const slettAlleMalinger = () => { setMaleTilstand(slettAlle()); setSlettAlleModalApen(false); };
   // Start kalibrering (korreksjonen, ordre § C/§ D) — fra målestokk-panelet ELLER
   // fra «Stemmer ikke? Kalibrer» ved måleresultatet. Åpner panelet så mm-feltet er
-  // synlig, og rydder måle-/markør-tilstand så klikk går til kalibreringspunkter.
+  // synlig; behold ferdige målinger, men forkast påbegynt og rydd valg.
   const startKalibrering = () => {
     setKalibrerModus(true);
-    setMaleVerktoy(null);
-    setMaleFerdig(false);
-    setMalePunkter([]);
+    setMaleTilstand((t) => avsluttAktiv(t));
+    setKalibrerPunkter([]);
     setKalibrerLengde("");
     setKlikkModus("plassering");
     setNyMarkør(null);
@@ -1192,15 +1210,15 @@ export default function TegningerSide() {
   };
   // Kalibrering: 2 punkter + kjent lengde (mm) → utled målestokk-nevner.
   const lagreKalibrering = () => {
-    const a = malePunkter[0];
-    const b = malePunkter[1];
+    const a = kalibrerPunkter[0];
+    const b = kalibrerPunkter[1];
     const mm = parseFloat(kalibrerLengde.replace(",", "."));
     if (!a || !b || mmPrPiksel == null || imgW == null || imgH == null || !Number.isFinite(mm) || mm <= 0) return;
     const nevner = kalibrerMalestokk(a, b, imgW, imgH, mmPrPiksel, mm);
     if (nevner == null) return;
     settMalestokk(`1:${Math.round(nevner)}`, "kalibrert");
     setKalibrerModus(false);
-    setMalePunkter([]);
+    setKalibrerPunkter([]);
     setKalibrerLengde("");
   };
 
@@ -1302,7 +1320,7 @@ export default function TegningerSide() {
                 disabled={!kanMaleNaa}
                 onClick={() => velgMaleVerktoy("linjal")}
                 className={`flex items-center gap-1 border-l border-gray-200 px-2 py-1 text-xs ${
-                  maleVerktoy === "linjal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                  aktivVerktoy === "linjal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={kanMaleNaa ? t("maaling.verktoyLinjal") : (maleAvslagGrunn ?? "")}
               >
@@ -1313,7 +1331,7 @@ export default function TegningerSide() {
                 disabled={!kanMaleNaa}
                 onClick={() => velgMaleVerktoy("polylinje")}
                 className={`flex items-center gap-1 border-l border-gray-200 px-2 py-1 text-xs ${
-                  maleVerktoy === "polylinje" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                  aktivVerktoy === "polylinje" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={kanMaleNaa ? t("maaling.verktoyPolylinje") : (maleAvslagGrunn ?? "")}
               >
@@ -1324,7 +1342,7 @@ export default function TegningerSide() {
                 disabled={!kanMaleNaa}
                 onClick={() => velgMaleVerktoy("areal")}
                 className={`flex items-center gap-1 rounded-r border-l border-gray-200 px-2 py-1 text-xs ${
-                  maleVerktoy === "areal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                  aktivVerktoy === "areal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={kanMaleNaa ? t("maaling.verktoyAreal") : (maleAvslagGrunn ?? "")}
               >
@@ -1572,17 +1590,17 @@ export default function TegningerSide() {
 
       {/* Måle-resultatstripe: alltid med kilde — «en måleverdi uten sin opprinnelse er en påstand».
           Tre verktøy (RETUR 3 § C): linjal/polylinje viser lengde, areal viser m² + omkrets. */}
-      {erBilde && maleAktiv && (
+      {erBilde && maleEngasjert && (
         <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs">
-          {maleVerktoy === "areal" ? (
+          {aktivVerktoy === "areal" ? (
             <VectorSquare className="h-4 w-4 text-sitedoc-primary" />
-          ) : maleVerktoy === "polylinje" ? (
+          ) : aktivVerktoy === "polylinje" ? (
             <Waypoints className="h-4 w-4 text-sitedoc-primary" />
           ) : (
             <Ruler className="h-4 w-4 text-sitedoc-primary" />
           )}
           {erAreal ? (
-            malePunkter.length < 3 ? (
+            aktivPunkter.length < 3 ? (
               <span className="text-gray-600">{t("maaling.hintAreal")}</span>
             ) : (
               <span className="font-semibold text-gray-800">
@@ -1593,9 +1611,9 @@ export default function TegningerSide() {
                 <span className="ml-1 font-normal text-gray-500">({malestokkEtikett})</span>
               </span>
             )
-          ) : malePunkter.length < 2 ? (
+          ) : aktivPunkter.length < 2 ? (
             <span className="text-gray-600">
-              {maleVerktoy === "polylinje" ? t("maaling.hintPolylinje") : t("maaling.klikkToPunkter")}
+              {aktivVerktoy === "polylinje" ? t("maaling.hintPolylinje") : t("maaling.klikkToPunkter")}
             </span>
           ) : (
             <span className="font-semibold text-gray-800">
@@ -1606,7 +1624,7 @@ export default function TegningerSide() {
           {/* Kalibrering er korreksjonen (ordre § D): står ved resultatet, ikke
               som et bekreftelsessteg før måling. Kun for papir-målestokken —
               georeferanse kalibreres ikke. */}
-          {!harGeoref && mmPrPiksel != null && malePunkter.length >= 2 && (
+          {!harGeoref && mmPrPiksel != null && aktivPunkter.length >= 2 && (
             <button
               onClick={startKalibrering}
               className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100"
@@ -1614,9 +1632,16 @@ export default function TegningerSide() {
               {t("maaling.stemmerIkkeKalibrer")}
             </button>
           )}
-          <button onClick={nullstillMaling} className="ml-auto rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
-            {t("maaling.nullstill")}
+          {/* Slett aktiv måling · Slett alle (modal) · Lukk (RETUR 2). */}
+          <button onClick={slettAktivMaling} className="ml-auto flex items-center gap-1 rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50">
+            <Trash2 className="h-3 w-3" />
+            {t("maaling.slett")}
           </button>
+          {maleTilstand.malinger.length > 1 && (
+            <button onClick={() => setSlettAlleModalApen(true)} className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
+              {t("maaling.slettAlle")}
+            </button>
+          )}
           <button onClick={avsluttMaling} className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
             {t("handling.lukk")}
           </button>
@@ -1629,16 +1654,16 @@ export default function TegningerSide() {
       {erBilde && kalibrerModus && (
         <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs">
           <Crosshair className="h-4 w-4 text-sitedoc-primary" />
-          <span className={malePunkter.length === 0 ? "font-semibold text-gray-800" : "text-gray-500"}>
+          <span className={kalibrerPunkter.length === 0 ? "font-semibold text-gray-800" : "text-gray-500"}>
             {t("maaling.kalibrerSteg1")}
           </span>
-          <span className={malePunkter.length === 1 ? "font-semibold text-gray-800" : "text-gray-500"}>
+          <span className={kalibrerPunkter.length === 1 ? "font-semibold text-gray-800" : "text-gray-500"}>
             {t("maaling.kalibrerSteg2")}
           </span>
-          <span className={malePunkter.length >= 2 ? "font-semibold text-gray-800" : "text-gray-500"}>
+          <span className={kalibrerPunkter.length >= 2 ? "font-semibold text-gray-800" : "text-gray-500"}>
             {t("maaling.kalibrerSteg3")}
           </span>
-          {malePunkter.length >= 2 && (
+          {kalibrerPunkter.length >= 2 && (
             <span className="flex items-center gap-1">
               <input
                 value={kalibrerLengde}
@@ -1656,7 +1681,7 @@ export default function TegningerSide() {
               </button>
             </span>
           )}
-          <button onClick={nullstillMaling} className="ml-auto rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
+          <button onClick={() => setKalibrerPunkter([])} className="ml-auto rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
             {t("maaling.nullstill")}
           </button>
           <button onClick={avsluttMaling} className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
@@ -1679,8 +1704,10 @@ export default function TegningerSide() {
               onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
               onDoubleClick={() => {
-                // Dobbeltklikk avslutter en polylinje (RETUR 3 § C).
-                if (maleVerktoy === "polylinje" && !maleFerdig && malePunkter.length >= 2) setMaleFerdig(true);
+                // Dobbeltklikk avslutter en pågående polylinje (RETUR 3 § C).
+                if (aktivVerktoy === "polylinje" && harPaagaaende(maleTilstand) && aktivPunkter.length >= 2) {
+                  setMaleTilstand((t) => settFerdig(t));
+                }
               }}
               onMouseMove={handleMuseBevegelse}
               onMouseLeave={handleMuseForlat}
@@ -1711,14 +1738,36 @@ export default function TegningerSide() {
                 synlig={visOmrader && klikkModus !== "omrade"}
               />
 
-              {/* Måle-overlay: linje/polygon + punkter + segment-/areal-etiketter */}
-              {(maleAktiv || kalibrerModus) && (
-                <MaalingOverlay
-                  punkter={malePunkter}
-                  segmenter={kalibrerModus ? [] : maleSegmenter}
-                  fyll={erAreal && malePunkter.length >= 3}
-                  onPunktNed={maleAktiv ? startPunktDrag : undefined}
-                />
+              {/* Måle-overlay (RETUR 2): alle målinger. Inaktive dempet + klikkbare
+                  for valg; den aktive uthevet med dragbare punkter + segment-etiketter. */}
+              {maleTilstand.malinger.map((m) => {
+                const erAktiv = m.id === maleTilstand.aktivId;
+                const sum = erAktiv ? "" : summaryFor(m);
+                return (
+                  <MaalingOverlay
+                    key={m.id}
+                    punkter={m.punkter}
+                    segmenter={
+                      erAktiv
+                        ? maleSegmenter
+                        : sum && m.punkter.length
+                          ? [{
+                              midx: m.punkter.reduce((s, p) => s + p.x, 0) / m.punkter.length,
+                              midy: m.punkter.reduce((s, p) => s + p.y, 0) / m.punkter.length,
+                              tekst: sum,
+                            }]
+                          : []
+                    }
+                    fyll={m.verktoy === "areal" && m.punkter.length >= 3}
+                    aktiv={erAktiv}
+                    onPunktNed={erAktiv ? startPunktDrag : undefined}
+                    onVelg={erAktiv ? undefined : () => setMaleTilstand((t) => velgMaling(t, m.id))}
+                  />
+                );
+              })}
+              {/* Kalibrering: egen 2-punktsvisning. */}
+              {kalibrerModus && (
+                <MaalingOverlay punkter={kalibrerPunkter} segmenter={[]} fyll={false} aktiv />
               )}
 
               {/* Område-tegneverktøy */}
@@ -2048,6 +2097,26 @@ export default function TegningerSide() {
               {t("tegninger.slett")}
             </Button>
             <Button type="button" variant="secondary" onClick={() => setSlettModalApen(false)}>
+              {t("tegninger.avbryt")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Slett alle målinger — bekreftelsesmodal (ikke confirm(), jf. ui-standarder). */}
+      <Modal
+        open={slettAlleModalApen}
+        onClose={() => setSlettAlleModalApen(false)}
+        title={t("maaling.slettAlleTittel")}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-700">{t("maaling.slettAlleBekreft")}</p>
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="danger" onClick={slettAlleMalinger}>
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              {t("maaling.slettAlle")}
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setSlettAlleModalApen(false)}>
               {t("tegninger.avbryt")}
             </Button>
           </div>
