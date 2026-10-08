@@ -3,7 +3,7 @@ name: tegning-dwg-spec
 description: Spesifikasjon for DWG/DXF-tegninger ende til ende med libredwg (Kenneth-valg 2026-10-08) — konverterer i begge Docker-bilder, robust DXF→SVG (1e20-vakt, INSUNITS, DXF direkte, layouts uten duplikater), måling rett fra tegningens enheter, georeferanse fra eksakte hjørner, mobil uten brutt bilde, snap til tegningsgeometri. Fem ordrer DWG-1…DWG-5, tester som skal feile, fire Kenneth-spørsmål.
 sist_verifisert_mot_kode: 2026-10-08
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: ⚠️ TIL GATE (rev. 2, 2026-10-08) — ❌ IKKE IMPLEMENTERT. 🟢 Kenneth-svar Q1–Q4 ført (modelspace · fixtures · slett uten markør + arkiv · måling direkte)
+status: 🟢 GATET (rev. 2, 2026-10-08) — **DWG-1 (D1+D2) IMPLEMENTERT 2026-10-08** (branch `feat/dwg1-libredwg`): libredwg 0.14 fra kilde i `libredwg-build`-stage i begge Dockerfiles (ODA+xvfb fjernet), `tegning.konverteringKapasitet`-query + dialog-sperre for .dwg/.dxf, runbok § 1/§ 2-verifisering. 🟢 Kenneth-svar Q1–Q4 ført (modelspace · fixtures · slett uten markør + arkiv · måling direkte). DWG-2…DWG-5 ❌ IKKE IMPLEMENTERT
 ---
 
 # DWG-tegninger ende til ende — libredwg

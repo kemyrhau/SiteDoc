@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Редактировать несколько",
   "tegninger.serie.tilbakeTilTabell": "Вернуться к столу",
   "tegninger.serie.ferdig": "Сделанный",
+  "tegninger.dwgSperre.tittel": "Преобразование DWG недоступно.",
+  "tegninger.dwgSperre.forklaring": "Преобразование DWG недоступно на этом сервере, поэтому {{antall}} файлы DWG/DXF не были загружены. Другие типы файлов (PDF, изображения, IFC) загружаются как обычно. Если поддержка DWG отсутствует, обратитесь к своему администратору.",
   "tegninger.serieGruppe.merk": "Выбирать",
   "tegninger.serieGruppe.merkRad": "Выберите {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} выбрано",

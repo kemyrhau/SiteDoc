@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Redakto disa",
   "tegninger.serie.tilbakeTilTabell": "Kthehu në tryezë",
   "tegninger.serie.ferdig": "U krye",
+  "tegninger.dwgSperre.tittel": "Konvertimi DWG nuk është i disponueshëm",
+  "tegninger.dwgSperre.forklaring": "Konvertimi DWG nuk disponohet në këtë server, kështu që {{antall}} skedarë DWG/DXF nuk u ngarkuan. Llojet e tjera të skedarëve (PDF, imazhe, IFC) ngarkohen si zakonisht. Kontaktoni administratorin tuaj nëse mungon mbështetja e DWG.",
   "tegninger.serieGruppe.merk": "Zgjidhni",
   "tegninger.serieGruppe.merkRad": "Zgjidh {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} u zgjodh",

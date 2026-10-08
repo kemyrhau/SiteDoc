@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Edytuj kilka",
   "tegninger.serie.tilbakeTilTabell": "Powrót do stołu",
   "tegninger.serie.ferdig": "Zrobione",
+  "tegninger.dwgSperre.tittel": "Konwersja DWG nie jest dostępna",
+  "tegninger.dwgSperre.forklaring": "Konwersja DWG nie jest dostępna na tym serwerze, dlatego nie przesłano plików DWG/DXF {{antall}}. Inne typy plików (PDF, obrazy, IFC) przesyłane są w zwykły sposób. Jeśli brakuje obsługi formatu DWG, skontaktuj się z administratorem.",
   "tegninger.serieGruppe.merk": "Wybierać",
   "tegninger.serieGruppe.merkRad": "Wybierz {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "Wybrano {{antall}}",

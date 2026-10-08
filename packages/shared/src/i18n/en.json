@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Edit several",
   "tegninger.serie.tilbakeTilTabell": "Back to the table",
   "tegninger.serie.ferdig": "Done",
+  "tegninger.dwgSperre.tittel": "DWG conversion is not available",
+  "tegninger.dwgSperre.forklaring": "DWG conversion is not available on this server, so {{antall}} DWG/DXF file(s) were not uploaded. Other file types (PDF, images, IFC) upload as usual. Contact your administrator if DWG support is missing.",
   "tegninger.serieGruppe.merk": "Select",
   "tegninger.serieGruppe.merkRad": "Select {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} selected",

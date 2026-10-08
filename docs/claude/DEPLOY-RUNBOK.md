@@ -66,6 +66,16 @@ curl -s https://api-test.sitedoc.no/version
 
 **`gitSha` skal matche hashen fra steg 1.** Gjør den ikke det, stopp.
 
+🔴 **DWG-konverterer (DWG-1, etter full rebuild):** libredwg MÅ svare i BEGGE containere
+(tRPC kjører in-process i web, så web konverterer også):
+
+```sh
+docker exec sitedoc-test-api dwg2dxf --version && docker exec sitedoc-test-web dwg2dxf --version
+```
+
+Svarer én av dem ikke, mangler DWG-opplasting (dialogen avviser .dwg/.dxf med forklaring,
+ingen stille `failed`) — bygg på nytt med `--no-cache` for det bildet.
+
 ---
 
 # 2 · Deploy til PRODUKSJON
@@ -121,6 +131,12 @@ curl -s https://api.sitedoc.no/version
 
 🔴 **Og deretter som INNLOGGET bruker på `https://sitedoc.no/dashbord`** — prosjektlista skal
 laste med data. **Anonym 200 er ikke verifisering** (vedtak 2026-05-02).
+
+🔴 **DWG-konverterer (DWG-1, etter full rebuild):** libredwg MÅ svare i BEGGE prod-containere:
+
+```sh
+docker exec sitedoc-api dwg2dxf --version && docker exec sitedoc-web dwg2dxf --version
+```
 
 ### Steg 5b — bekreft at koden FAKTISK er i imaget (ved tvil)
 

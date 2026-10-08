@@ -1700,6 +1700,8 @@
   "tegninger.serie.redigerFlere": "Redigeeri mitut",
   "tegninger.serie.tilbakeTilTabell": "Tagasi laua juurde",
   "tegninger.serie.ferdig": "Valmis",
+  "tegninger.dwgSperre.tittel": "DWG teisendamine pole saadaval",
+  "tegninger.dwgSperre.forklaring": "DWG-konversioon pole selles serveris saadaval, seega ei laaditud üles {{antall}} DWG/DXF-faili. Muud failitüübid (PDF, pildid, IFC) laadivad üles nagu tavaliselt. Kui DWG tugi puudub, võtke ühendust oma administraatoriga.",
   "tegninger.serieGruppe.merk": "Valige",
   "tegninger.serieGruppe.merkRad": "Valige {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} on valitud",

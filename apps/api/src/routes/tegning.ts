@@ -19,7 +19,7 @@ import {
   finnTegningstype,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
-import { konverterDwg } from "../services/dwgKonvertering";
+import { konverterDwg, hentKonverteringKapasitet } from "../services/dwgKonvertering";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
@@ -681,6 +681,15 @@ export const tegningRouter = router({
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return tegning;
     }),
+
+  // D2: er DWG/DXF-konvertering (libredwg) tilgjengelig i DENNE containeren?
+  // Opplastingsdialogen bruker dette til å avvise .dwg/.dxf med forklaring i stedet for
+  // en stille `failed`. Ingen prosjekt-scope — serveren selv har eller mangler konvertereren.
+  // Cachet 60 s i tjenesten. NB (D-M2): tRPC kjører in-process i web, så svaret her
+  // gjelder containeren som faktisk ville konvertert (web for nettleser-opplasting).
+  konverteringKapasitet: protectedProcedure.query(async () => {
+    return hentKonverteringKapasitet();
+  }),
 
   // Prøv DWG-konvertering på nytt
   provKonverteringIgjen: protectedProcedure

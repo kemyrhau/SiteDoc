@@ -3,6 +3,26 @@
 # Bygger api-pakken også (tRPC-typer er devDependency av web). Fett image (web er IKKE standalone ennaa).
 # Oppfoelger: sett `output: "standalone"` i apps/web/next.config.mjs for slankere image.
 
+# ============ libredwg (DWG/DXF→SVG, bygges fra kilde) ============
+# DWG-1 (2026-10-08): tRPC kjører in-process i web (route.ts importerer appRouter), så
+# DWG-konverteringen skjer i web-containeren når opplastingen kommer fra nettleseren (D-M2).
+# Derfor MÅ libredwg også ligge her — samme build-stage som Dockerfile.api. SHA256-pinnet,
+# ingen runtime-nettverk. Identisk med api-bildets stage (hold dem i synk).
+FROM debian:bookworm-slim AS libredwg-build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential pkg-config curl xz-utils ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+ARG LIBREDWG_VERSION=0.14
+ARG LIBREDWG_SHA256=62ebb73b984f865960f20ed26619ea5f8789d5e3fd088fa40a2598384da81275
+WORKDIR /build
+RUN curl -fsSL -o libredwg.tar.xz "https://ftp.gnu.org/gnu/libredwg/libredwg-${LIBREDWG_VERSION}.tar.xz" \
+ && echo "${LIBREDWG_SHA256}  libredwg.tar.xz" | sha256sum -c - \
+ && tar xf libredwg.tar.xz \
+ && cd "libredwg-${LIBREDWG_VERSION}" \
+ && ./configure --disable-bindings --disable-python --enable-release --prefix=/usr/local \
+ && make -j"$(nproc)" \
+ && make install
+
 FROM node:20-bookworm-slim AS build
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
@@ -11,11 +31,16 @@ WORKDIR /app
 # appRouter), saa tRPC-prosedyrer som shell-er ut til pdftoppm (PDF-tegninger, tegning.ts)
 # og tesseract (OCR, ftd-prosessering.ts) trenger binaerene i DETTE imaget. Dockerfile.web
 # er ett-stegs (build ER runtime), saa de maa staa her. xvfb er UTELATT med vilje — den
-# hoerer til DWG/3D-veiene som er utsatt (BACKLOG § FEM FUNKSJONER TAPT VED SERVERFLYTTINGEN).
+# hoerte til ODA-DWG-veien (fjernet i DWG-1) og 3D (utsatt, BACKLOG).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ openssl \
       poppler-utils tesseract-ocr tesseract-ocr-nor \
     && rm -rf /var/lib/apt/lists/*
+# DWG-1: libredwg-binærene + .so fra build-staget (D-M2 — konvertering skjer også her).
+COPY --from=libredwg-build /usr/local/bin/dwg2dxf /usr/local/bin/dwg2dxf
+COPY --from=libredwg-build /usr/local/bin/dwg2SVG /usr/local/bin/dwg2SVG
+COPY --from=libredwg-build /usr/local/lib/libredwg.so* /usr/local/lib/
+RUN ldconfig
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @sitedoc/db exec prisma generate \

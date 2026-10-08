@@ -44,7 +44,7 @@ API når ML-tjenestene via env: `NORBERT_URL=http://embed:3302`, `OVERSETTELSE_U
 
 ## Native avhengigheter
 
-Bygges nå inn i Docker-imagene (ikke apt på host). `Dockerfile.api` installerer `poppler-utils` (PDF→PNG), `tesseract-ocr` + `tesseract-ocr-nor` (OCR), `xvfb`, `openssl`, `ca-certificates`, `fontconfig`. DWG→DXF: `libredwg`/ODA er kommentert ut (legg ODA-`.deb` i `docker/vendor/` for bedre DWG-konvertering).
+Bygges nå inn i Docker-imagene (ikke apt på host). `Dockerfile.api` installerer `poppler-utils` (PDF→PNG), `tesseract-ocr` + `tesseract-ocr-nor` (OCR), `openssl`, `ca-certificates`, `fontconfig`. **DWG/DXF (DWG-1, 2026-10-08):** libredwg 0.14 bygges fra kilde i et eget `libredwg-build`-stage (SHA256-pinnet GNU-tarball, bygget med `build-essential`/`pkg-config`/`curl`/`xz-utils`); kun `dwg2dxf`/`dwg2SVG` + `libredwg.so*` kopieres inn i runtime + `ldconfig`. Samme stage i `Dockerfile.web` (tRPC kjører in-process i web). ODA og `xvfb` er fjernet (ODA valgt bort; xvfb ble kun brukt av ODA).
 
 ## Miljøvariabler
 
