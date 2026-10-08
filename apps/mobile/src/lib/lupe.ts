@@ -109,19 +109,3 @@ export function lupeBakgrunn(
   return { bildeB, bildeH, posX: D / 2 - ix, posY: D / 2 - iy };
 }
 
-/**
- * Flytt et punkt `n` skjermpiksler i en retning (piltast-finjustering, RETUR 4).
- * 1 px omregnes til prosent via tegningens viste størrelse. Klemmes til 0–100.
- */
-export function nudgePunkt(
-  p: { x: number; y: number },
-  dxPx: number,
-  dyPx: number,
-  dispB: number,
-  dispH: number,
-): { x: number; y: number } {
-  if (dispB <= 0 || dispH <= 0) return p;
-  const x = Math.max(0, Math.min(100, p.x + (dxPx / dispB) * 100));
-  const y = Math.max(0, Math.min(100, p.y + (dyPx / dispH) * 100));
-  return { x, y };
-}

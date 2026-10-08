@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   lupePlassering,
   lupeBakgrunn,
-  nudgePunkt,
   lupeLiggerOverst,
   LUPE_DIAMETER,
+  LUPE_FORSTORRELSE,
   Z_LUPE,
   Z_MALELAG,
 } from "./lupe";
@@ -65,19 +65,33 @@ describe("lupeBakgrunn — 3× crop sentrert på punktet", () => {
   });
 });
 
-describe("nudgePunkt — 1 px finjustering", () => {
-  const dispB = 1000, dispH = 500;
-  it("flytter 1 px i hver retning (→ prosent av vist størrelse)", () => {
-    expect(nudgePunkt({ x: 50, y: 50 }, 1, 0, dispB, dispH).x).toBeCloseTo(50.1, 5); // 1/1000*100
-    expect(nudgePunkt({ x: 50, y: 50 }, -1, 0, dispB, dispH).x).toBeCloseTo(49.9, 5);
-    expect(nudgePunkt({ x: 50, y: 50 }, 0, 1, dispB, dispH).y).toBeCloseTo(50.2, 5); // 1/500*100
+describe("lupeBakgrunn — RN-nativ crop-rect (RETUR 5 § 2): trådkorset treffer bildepunktet", () => {
+  // Modellerer de ekte RN-lupe-innputtene: dispB/H = bildets VISTE størrelse
+  // (layout × zoom), M = LUPE_FORSTORRELSE, D = LUPE_DIAMETER. Trådkorset ligger i
+  // lupas senter (D/2, D/2); det forstørrede bildet forskyves så bildepunktet
+  // (pctX,pctY) havner nøyaktig der. Dvs. senter − (Image-left) skal lande på
+  // bildepunktet i det forstørrede bildet.
+  const D = LUPE_DIAMETER;
+  const M = LUPE_FORSTORRELSE;
+
+  it("vilkårlig punkt ender under trådkorset uansett zoom", () => {
+    // Bilde 1000×700 layout, pinch-zoom 2× → vist 2000×1400.
+    const dispB = 1000 * 2, dispH = 700 * 2;
+    for (const [px, py] of [[0, 0], [100, 100], [30, 70], [62.5, 12.5]] as const) {
+      const r = lupeBakgrunn(px, py, dispB, dispH, M, D);
+      // Bildepunktet i det forstørrede utsnittet:
+      const bildeX = (px / 100) * r.bildeB;
+      const bildeY = (py / 100) * r.bildeH;
+      // Image-left = posX → punktets skjermposisjon i lupa = posX + bildeX.
+      expect(r.posX + bildeX).toBeCloseTo(D / 2, 6); // trådkors-x
+      expect(r.posY + bildeY).toBeCloseTo(D / 2, 6); // trådkors-y
+    }
   });
-  it("klemmes til 0–100", () => {
-    expect(nudgePunkt({ x: 0, y: 0 }, -5, -5, dispB, dispH)).toEqual({ x: 0, y: 0 });
-    expect(nudgePunkt({ x: 100, y: 100 }, 50, 50, dispB, dispH)).toEqual({ x: 100, y: 100 });
-  });
-  it("ugyldig displaystørrelse → uendret", () => {
-    expect(nudgePunkt({ x: 50, y: 50 }, 1, 1, 0, 0)).toEqual({ x: 50, y: 50 });
+
+  it("utsnittet er forstørret M× av den viste størrelsen", () => {
+    const r = lupeBakgrunn(50, 50, 800, 600, M, D);
+    expect(r.bildeB).toBe(800 * M);
+    expect(r.bildeH).toBe(600 * M);
   });
 });
 
