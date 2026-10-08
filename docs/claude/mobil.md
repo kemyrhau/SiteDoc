@@ -403,6 +403,29 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   («koster mer enn å teste selv»). Verifisert via rene tester + testbar logikk (gest-modell,
   pan-sperre-predikat, lupe-geometri, nudge). Kenneth tester på telefon etter OTA.
 
+**RETUR 5 (2026-10-08) — bare siste punkt flyttes, usynlig lupe, piltastene ut:**
+- **🔴 § 1 Bare siste punkt kunne flyttes på enhet (rotårsak):** drag-hit-testen i den injiserte
+  WebView-JS-en (`finnPunkt`) regnet i SKJERM-koordinater (`clientX`/`getBoundingClientRect`), mens
+  lupa — det eneste som ble synlig i RETUR 4 — regnet i SIDE-/DOKUMENT-koordinater (`pageX/pageY`).
+  Under WKWebView pinch-zoom + pan peker de to rommene på ulike steder, og avviket vokser med
+  scroll-offset → bare punkter nær der man nettopp zoomet (typisk det siste satte) traff
+  treffradiusen. **Fiks:** alt regnes nå i side-/dokumentkoordinater (`pageX/pageY` + bildets
+  offset-boks `offsetLeft/Top/Width/Height`, alt zoom-invariant), og treffradius skaleres med
+  `1/zoom`. Matematikken er rene, testbare funksjoner i `src/lib/tegningKoordinat.ts`
+  (`sideTilProsent` · `finnNaermesteSidePunkt` · `sideTilSkjerm`); `tegningKoordinat.test.ts` treffer
+  **punkt nr. 1 av 4** med WebViewens transform (zoom ≠ 1, scroll ≠ 0) og demonstrerer bugen. Den
+  injiserte JS-en speiler funksjonene.
+- **🔴 § 2 Lupa fortsatt usynlig → RN-nativ lupe (plan B):** den DOM-baserte lupa (RETUR 4,
+  `window.visLupe`) ble aldri synlig på enhet. Flyttet UT av WebView-en: WebView-en poster nå
+  `{type:'lupe', fingerX/Y (synlig skjerm-dp), pctX/Y (bilde), dispB/H (vist bildestørrelse)}`, og RN
+  tegner en `<View>`-sirkel (~100 pt) med et forstørret `<Image>`-utsnitt (~3×) + trådkors i senter.
+  Plassering/crop gjenbruker `lupePlassering`/`lupeBakgrunn` fra `src/lib/lupe.ts` (testet,
+  crop-rect-akseptansetest: trådkorset treffer bildepunktet uansett zoom). DOM-lupa + CSS fjernet.
+- **§ 3 Piltastene fjernet:** `valgtPunktIndeks`-pilrad + `nudgePunkt` er borte (Kenneth: «stegene blir
+  for store og løser ikke problemet»). Lupa er presisjonsgrepet. Renest mulig UI.
+- Verifisert via rene tester (hit-test punkt 1 av 4 under zoom/scroll, crop-rect, full mobil-suite) +
+  mobil-typecheck. Kenneth tester på telefon etter OTA.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler

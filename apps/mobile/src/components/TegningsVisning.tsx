@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   StyleSheet,
   Modal,
+  Image,
 } from "react-native";
+import type { LayoutChangeEvent } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   kanMale,
@@ -36,7 +38,17 @@ import {
   type MaleTilstand,
 } from "@sitedoc/shared/utils";
 import { avgjorTrykkHandling, type TegningVerktoy } from "../lib/tegningTrykk";
-import { nudgePunkt } from "../lib/lupe";
+import { lupePlassering, lupeBakgrunn, LUPE_DIAMETER, LUPE_FORSTORRELSE, LUPE_FORSKYVNING } from "../lib/lupe";
+
+/** Live lupe-data fra WebView-en (RETUR 5 § 2): finger i skjerm-dp + bilde-pct + vist bildestørrelse. */
+interface LupeData {
+  fingerX: number;
+  fingerY: number;
+  pctX: number;
+  pctY: number;
+  dispB: number;
+  dispH: number;
+}
 
 const LASTING_TIMEOUT_MS = 15_000;
 
@@ -172,9 +184,6 @@ function byggHtml(
   }
   .gps-inner { width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,0.5); }
   @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.3)} }
-  #maleLupe .lk { position:absolute; background:rgba(30,64,175,0.7); }
-  #maleLupe .lkh { left:8px; right:8px; top:50%; height:1px; }
-  #maleLupe .lkv { top:8px; bottom:8px; left:50%; width:1px; }
 </style></head><body>
 <div id="container" oncontextmenu="return false">
   <img id="tegning" src="${tegningUrl}" draggable="false" oncontextmenu="return false" />
@@ -292,44 +301,11 @@ img.onload = function() { plasser(); };
 if (img.complete) plasser();
 
 function post(o){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
-var TEGNING_URL = ${JSON.stringify(tegningUrl)};
 
-// Lupe (RETUR 3 § 2 + RETUR 4 § 2): forstørret utsnitt (~3× lokal zoom, ~100 pt)
-// forskjøvet ~80 pt OPP og TIL SIDEN for fingeren, med trådkors. Bytter side/retning
-// ved skjermkanten. Vises når man setter punkt (måleverktøy) og når man drar (Flytt).
-// 🔴 RETUR 4 § 2 — lupa var USYNLIG på enhet: position:fixed rendres upålitelig i
-// WKWebView under pinch-zoom. Fiks: position:absolute forankret i SIDEKOORDINATER
-// (pageX/pageY), lagt på body (ikke #container, som kan klippe), z-index 9999, og
-// quotet url() (en usitert signert URL med spesialtegn kan knekke background-image).
-// Geometrien speiler src/lib/lupe.ts (testet der).
-window.visLupe = function(px_pct, py_pct, clientX, clientY, pageX, pageY) {
-  var img = document.getElementById('tegning'); if (!img) return;
-  var dispW = img.clientWidth, dispH = img.clientHeight;
-  var z = window.visualViewport ? window.visualViewport.scale : 1;
-  var M = 3 * z, L = 100, GAP = 80;
-  var ix = (px_pct/100) * dispW * M, iy = (py_pct/100) * dispH * M;
-  var lupe = document.getElementById('maleLupe');
-  if (!lupe) {
-    lupe = document.createElement('div'); lupe.id = 'maleLupe';
-    lupe.innerHTML = '<div class="lk lkh"></div><div class="lk lkv"></div>';
-    document.body.appendChild(lupe);
-  }
-  // Side-/retnings-flipp avgjøres mot det synlige viewportet (klient-koord), men
-  // SELVE plasseringen bruker sidekoordinater (page) så lupa følger scroll + zoom.
-  var vw = window.innerWidth, vh = window.innerHeight;
-  var dx = GAP;                              // til høyre for fingeren
-  if (clientX + GAP + L > vw - 4) dx = -GAP - L; // flipp til venstre ved høyre kant
-  var dy = -GAP - L;                         // over fingeren
-  if (clientY - GAP - L < 4) dy = GAP;       // under ved toppkanten
-  var left = (pageX != null ? pageX : clientX) + dx;
-  var top = (pageY != null ? pageY : clientY) + dy;
-  lupe.style.cssText = 'position:absolute;z-index:9999;width:' + L + 'px;height:' + L + 'px;border-radius:50%;border:2px solid #1e40af;overflow:hidden;background-color:#fff;background-image:url("' + TEGNING_URL + '");background-repeat:no-repeat;background-size:' + (dispW*M) + 'px ' + (dispH*M) + 'px;background-position:' + (L/2 - ix) + 'px ' + (L/2 - iy) + 'px;box-shadow:0 2px 12px rgba(0,0,0,0.45);pointer-events:none;' +
-    'left:' + left + 'px;top:' + top + 'px;';
-  if (!lupe.querySelector('.lk')) lupe.innerHTML = '<div class="lk lkh"></div><div class="lk lkv"></div>';
-};
-window.skjulLupe = function() {
-  var lupe = document.getElementById('maleLupe'); if (lupe) lupe.remove();
-};
+// 🔴 RETUR 5 § 2: lupa er flyttet UT av WebView-en til et RN-nativt overlay
+// (den DOM-baserte lupa var usynlig på enhet tross RETUR 4-forsøkene). WebView-en
+// sender nå bare fingerposisjon + bilde-koordinat via sendLupe() (se gest-blokken
+// nederst); RN tegner sirkelen med forstørret utsnitt + trådkors.
 
 // Hint-boble ved et punkt (navigeringsmodus, kort trykk) — forsvinner etter ~2 s.
 window.tegnHint = function(x, y, tekst) {
@@ -440,24 +416,61 @@ ${trykkOppsett === "avansert" ? `
   // kan bli stående > 0 og blokkere alle videre trykk (rotårsaken til låsen).
   // En tapt pointerup selvheles: hvis et nytt nedtrykk kommer > 1,2 s etter siste
   // hendelse mens vi fortsatt tror en finger er nede, nullstiller vi først.
+  //
+  // 🔴 RETUR 5 § 1: ALT regnes i SIDE-/DOKUMENT-koordinater (pageX/pageY + bildets
+  // offset-boks), ikke skjerm (clientX/getBoundingClientRect). Da ligger finger og
+  // punkter i samme rom uansett pinch-zoom/scroll, og ALLE punkter er grabbare —
+  // ikke bare det siste. Matematikken speiler src/lib/tegningKoordinat.ts (testet).
   var c = document.getElementById('container');
   var MOVE_PX = 10, TREFF_PX = 24;
   var primær = null, pekere = {}, maks = 0;
   var sx=0, sy=0, st=0, flyttet=false, dragIdx=-1, lupeAktiv=false, pending=null, pinch=false, sist=0;
 
   function antallPekere(){ return Object.keys(pekere).length; }
-  function rekt(){ var img=document.getElementById('tegning'); return img?img.getBoundingClientRect():null; }
-  function pct(clientX, clientY, r){
-    return { x: Math.max(0,Math.min(100,(clientX-r.left)/r.width*100)), y: Math.max(0,Math.min(100,(clientY-r.top)/r.height*100)) };
+  function zoom(){ return window.visualViewport ? window.visualViewport.scale : 1; }
+  // Bildets boks i DOKUMENT-koordinater (zoom-invariant): sum offset opp kjeden + layout-størrelse.
+  function sideBoks(){
+    var img = document.getElementById('tegning'); if (!img) return null;
+    var left=0, top=0, el=img;
+    while (el){ left += el.offsetLeft; top += el.offsetTop; el = el.offsetParent; }
+    if (img.offsetWidth<=0 || img.offsetHeight<=0) return null;
+    return { sideLeft:left, sideTop:top, bredde:img.offsetWidth, hoyde:img.offsetHeight };
   }
-  function finnPunkt(clientX, clientY, r){
+  // Speil av tegningKoordinat.sideTilProsent.
+  function pctSide(pageX, pageY, box){
+    return { x: Math.max(0,Math.min(100,(pageX-box.sideLeft)/box.bredde*100)),
+             y: Math.max(0,Math.min(100,(pageY-box.sideTop)/box.hoyde*100)) };
+  }
+  // Speil av tegningKoordinat.finnNaermesteSidePunkt. Treffradius i SIDE-px = TREFF_PX/zoom.
+  function finnPunkt(pageX, pageY, box){
     var pk = window.__malePunkter || [];
-    for (var i=0;i<pk.length;i++){ var dx=clientX-(r.left+pk[i].x/100*r.width), dy=clientY-(r.top+pk[i].y/100*r.height); if (Math.sqrt(dx*dx+dy*dy)<=TREFF_PX) return i; }
-    return -1;
+    var tol = TREFF_PX / zoom();
+    var best=-1, bestD=tol;
+    for (var i=0;i<pk.length;i++){
+      var qx = box.sideLeft + pk[i].x/100*box.bredde;
+      var qy = box.sideTop + pk[i].y/100*box.hoyde;
+      var d = Math.sqrt((qx-pageX)*(qx-pageX)+(qy-pageY)*(qy-pageY));
+      if (d<=bestD){ best=i; bestD=d; }
+    }
+    return best;
   }
   function modus(){ return window.__maleModus || 'navigering'; }
   function erMale(m){ return m==='linjal'||m==='polylinje'||m==='areal'; }
-  function nullstill(){ primær=null; pekere={}; maks=0; flyttet=false; dragIdx=-1; lupeAktiv=false; pending=null; pinch=false; window.skjulLupe && window.skjulLupe(); }
+  // 🔴 RETUR 5 § 2 — lupa er nå et RN-NATIVT overlay (ikke DOM i WebView-en, som
+  // var usynlig). Vi sender bare fingerens posisjon i WebViewens SYNLIGE skjerm
+  // (dp), bilde-koordinatet (prosent) og vist bildestørrelse (dp). RN tegner
+  // sirkelen med forstørret utsnitt + trådkors (src/lib/lupe.ts-geometrien).
+  function sendLupe(pageX, pageY, box){
+    var vv = window.visualViewport, z = vv?vv.scale:1;
+    var vpLeft = vv?vv.pageLeft:0, vpTop = vv?vv.pageTop:0;
+    var p = pctSide(pageX, pageY, box);
+    post({ type:'lupe', vis:true,
+      fingerX:(pageX-vpLeft)*z, fingerY:(pageY-vpTop)*z,
+      pctX:p.x, pctY:p.y,
+      dispB: box.bredde*z, dispH: box.hoyde*z });
+  }
+  function skjulLupe(){ post({ type:'lupe', vis:false }); }
+  function nullstill(){ primær=null; pekere={}; maks=0; flyttet=false; dragIdx=-1; lupeAktiv=false; pending=null; pinch=false; skjulLupe(); }
 
   c.addEventListener('pointerdown', function(e){
     var naa = Date.now();
@@ -468,14 +481,14 @@ ${trykkOppsett === "avansert" ? `
     if (primær === null) {
       primær = e.pointerId;
       sx=e.clientX; sy=e.clientY; st=naa; flyttet=false; dragIdx=-1; pending=null; pinch=false;
-      var r = rekt(); if (!r || r.width<=0 || r.height<=0) return;
+      var box = sideBoks(); if (!box) return;
       var m = modus();
-      if (m === 'flytt') dragIdx = finnPunkt(e.clientX, e.clientY, r);
+      if (m === 'flytt') dragIdx = finnPunkt(e.pageX, e.pageY, box);
       lupeAktiv = erMale(m) || (m==='flytt' && dragIdx>=0);
-      if (lupeAktiv) { var p = pct(e.clientX,e.clientY,r); pending=p; window.visLupe && window.visLupe(p.x,p.y,e.clientX,e.clientY,e.pageX,e.pageY); }
+      if (lupeAktiv) { pending = pctSide(e.pageX,e.pageY,box); sendLupe(e.pageX,e.pageY,box); }
     } else {
       // Ekstra finger → knip/zoom. Avbryt pending enkelt-finger-handling.
-      pinch = true; dragIdx=-1; lupeAktiv=false; pending=null; window.skjulLupe && window.skjulLupe();
+      pinch = true; dragIdx=-1; lupeAktiv=false; pending=null; skjulLupe();
     }
   });
 
@@ -484,10 +497,10 @@ ${trykkOppsett === "avansert" ? `
     sist = Date.now();
     if (Math.abs(e.clientX-sx)>MOVE_PX || Math.abs(e.clientY-sy)>MOVE_PX) flyttet=true;
     if (pinch || antallPekere()>1 || !lupeAktiv) return;
-    var r = rekt(); if (!r || r.width<=0 || r.height<=0) return;
-    var p = pct(e.clientX,e.clientY,r); pending=p;
+    var box = sideBoks(); if (!box) return;
+    var p = pctSide(e.pageX,e.pageY,box); pending=p;
     if (dragIdx>=0) post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y }); // Flytt: live reshape
-    window.visLupe && window.visLupe(p.x,p.y,e.clientX,e.clientY,e.pageX,e.pageY);
+    sendLupe(e.pageX,e.pageY,box);
   });
 
   // 🔴 RETUR 4 § 1: frys tegningen mens et punkt settes/dras. Pointer-events'
@@ -503,13 +516,13 @@ ${trykkOppsett === "avansert" ? `
     var erPrimær = (e.pointerId === primær);
     delete pekere[e.pointerId];
     if (!erPrimær) return; // sekundærfinger sluppet — primær styrer commit/reset
-    var r = rekt();
-    window.skjulLupe && window.skjulLupe();
-    if (!avbrutt && !pinch && r && r.width>0 && r.height>0) {
-      var cx = (e.clientX!=null?e.clientX:sx), cy=(e.clientY!=null?e.clientY:sy);
-      var p = pending || pct(cx,cy,r);
+    var box = sideBoks();
+    skjulLupe();
+    if (!avbrutt && !pinch && box) {
+      var p = pending || pctSide(e.pageX, e.pageY, box);
       // Punktet settes HER (ved slipp). RN avgjør handling via avgjorTrykkHandling.
-      post({ type:'gest', verktoy: modus(), varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maks, nedPaaPunkt: dragIdx>=0, dragIdx: dragIdx, x:p.x, y:p.y, rectW:r.width, rectH:r.height });
+      // rectW/rectH = VIST bildestørrelse (skjerm-dp) — brukes til px-terskel ved valg.
+      post({ type:'gest', verktoy: modus(), varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maks, nedPaaPunkt: dragIdx>=0, dragIdx: dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() });
     }
     nullstill();
   }
@@ -550,10 +563,11 @@ export function TegningsVisning({
   const [maleTilstand, setMaleTilstand] = useState<MaleTilstand>(TOM_MALETILSTAND);
   const [aktivtVerktoy, setAktivtVerktoy] = useState<TegningVerktoy>("navigering");
   const [visSlettAlle, setVisSlettAlle] = useState(false);
-  // Valgt punkt i Flytt (fra dra/trykk) → piltast-finjustering (RETUR 4). null = ingen.
-  const [valgtPunktIndeks, setValgtPunktIndeks] = useState<number | null>(null);
-  // Siste viste bilde-rect (fra en gest) — px→prosent for piltast-nudge.
-  const sisteRectRef = useRef<{ w: number; h: number } | null>(null);
+  // 🔴 RETUR 5 § 2: RN-nativ lupe. `lupe` != null mens fingeren ligger nede i et
+  // måleverktøy/Flytt; WebView-en mater fingerposisjon + bilde-utsnitt. `webViewStr`
+  // er WebViewens målte dp-størrelse (for kant-flipp av lupa).
+  const [lupe, setLupe] = useState<LupeData | null>(null);
+  const [webViewStr, setWebViewStr] = useState<{ w: number; h: number } | null>(null);
   const aktiv = aktivMaling(maleTilstand);
   const aktivPunkter = aktiv?.punkter ?? [];
   const erAreal = aktiv?.verktoy === "areal";
@@ -653,8 +667,6 @@ export function TegningsVisning({
   maleTilstandRef.current = maleTilstand;
   const plasseringRef = useRef(plasseringAktiv);
   plasseringRef.current = plasseringAktiv;
-  const valgtPunktIndeksRef = useRef(valgtPunktIndeks);
-  valgtPunktIndeksRef.current = valgtPunktIndeks;
 
   // Unik id pr. ny måling (ingen Date.now/Math.random — en stigende teller holder).
   const nesteIdRef = useRef(0);
@@ -672,17 +684,14 @@ export function TegningsVisning({
   const velgMaleVerktoy = useCallback((v: MaleVerktoy) => {
     setMaleTilstand((prev) => startMaling(prev, v, `m${(nesteIdRef.current += 1)}`));
     setAktivtVerktoy(v);
-    setValgtPunktIndeks(null);
   }, []);
   const velgFlytt = useCallback(() => {
     setMaleTilstand(forlatPaagaaende);
     setAktivtVerktoy("flytt");
-    setValgtPunktIndeks(null);
   }, [forlatPaagaaende]);
   const velgOpprett = useCallback(() => {
     setMaleTilstand(forlatPaagaaende);
     setAktivtVerktoy("opprett");
-    setValgtPunktIndeks(null);
   }, [forlatPaagaaende]);
 
   const håndterLeggTilPunkt = useCallback((x: number, y: number) => {
@@ -706,36 +715,13 @@ export function TegningsVisning({
   const håndterVelgMaling = useCallback((id: string) => {
     setMaleTilstand((prev) => velgMaling(prev, id));
     setAktivtVerktoy("flytt");
-    setValgtPunktIndeks(null);
   }, []);
-  const håndterSlettAktiv = useCallback(() => { setMaleTilstand((prev) => slettAktiv(prev)); setValgtPunktIndeks(null); }, []);
-  const håndterSlettAlle = useCallback(() => { setMaleTilstand(slettAlle()); setVisSlettAlle(false); setValgtPunktIndeks(null); }, []);
+  const håndterSlettAktiv = useCallback(() => { setMaleTilstand((prev) => slettAktiv(prev)); }, []);
+  const håndterSlettAlle = useCallback(() => { setMaleTilstand(slettAlle()); setVisSlettAlle(false); }, []);
   const avsluttMaling = useCallback(() => {
     setMaleTilstand((prev) => avsluttAktiv(prev));
     setAktivtVerktoy("navigering");
-    setValgtPunktIndeks(null);
   }, []);
-
-  // Piltast-finjustering (RETUR 4): flytt valgt punkt 1 skjermpiksel. Langt trykk
-  // gjentar (hold-repeat via intervall). Bruker siste bilde-rect for px→prosent.
-  const nudgeAktivtPunkt = useCallback((dxPx: number, dyPx: number) => {
-    const idx = valgtPunktIndeksRef.current;
-    const rect = sisteRectRef.current;
-    const m = aktivMaling(maleTilstandRef.current);
-    if (idx == null || !rect || !m || !m.punkter[idx]) return;
-    const ny = nudgePunkt(m.punkter[idx]!, dxPx, dyPx, rect.w, rect.h);
-    setMaleTilstand((prev) => flyttPunkt(prev, idx, ny));
-  }, []);
-  const nudgeIntervallRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startNudge = useCallback((dxPx: number, dyPx: number) => {
-    nudgeAktivtPunkt(dxPx, dyPx); // ett steg umiddelbart
-    if (nudgeIntervallRef.current) clearInterval(nudgeIntervallRef.current);
-    nudgeIntervallRef.current = setInterval(() => nudgeAktivtPunkt(dxPx, dyPx), 90);
-  }, [nudgeAktivtPunkt]);
-  const stoppNudge = useCallback(() => {
-    if (nudgeIntervallRef.current) { clearInterval(nudgeIntervallRef.current); nudgeIntervallRef.current = null; }
-  }, []);
-  useEffect(() => () => { if (nudgeIntervallRef.current) clearInterval(nudgeIntervallRef.current); }, []);
 
   useEffect(() => {
     setLaster(true);
@@ -843,11 +829,14 @@ export function TegningsVisning({
           håndterFlyttPunkt(data.index, data.x, data.y);
           return;
         }
+        // RN-nativ lupe (RETUR 5 § 2): WebView mater finger + utsnitt, eller skjul.
+        if (data.type === "lupe") {
+          setLupe(data.vis ? { fingerX: data.fingerX, fingerY: data.fingerY, pctX: data.pctX, pctY: data.pctY, dispB: data.dispB, dispH: data.dispH } : null);
+          return;
+        }
         if (data.type === "gest") {
           const tilstand = maleTilstandRef.current;
           const verktoy = effektivtVerktoyRef.current;
-          // Lagre viste bilde-mål for piltast-nudge (px→prosent).
-          if (data.rectW > 0 && data.rectH > 0) sisteRectRef.current = { w: data.rectW, h: data.rectH };
           // Flytt + ikke på punkt: traff gesten en eksisterende måling? (grunnlag for valg)
           let traffMaling = false;
           if (verktoy === "flytt" && !data.nedPaaPunkt && tilstand.malinger.length) {
@@ -866,9 +855,8 @@ export function TegningsVisning({
               håndterLeggTilPunkt(data.x, data.y);
               return;
             case "draPunkt":
-              // Punktet er dratt (eller trykket) → velg det for piltast-finjustering.
-              if (typeof data.dragIdx === "number" && data.dragIdx >= 0) setValgtPunktIndeks(data.dragIdx);
-              return; // posisjonen er allerede anvendt live via `maledrag`
+              // Punktet er dratt live via `maledrag`; posisjonen er allerede anvendt.
+              return;
             case "velgMaling": {
               const traff = finnMalingTreff(tilstand.malinger, { x: data.x, y: data.y }, data.rectW, data.rectH, VELG_TREFF_PX);
               if (traff) håndterVelgMaling(traff);
@@ -939,6 +927,7 @@ export function TegningsVisning({
             originWhitelist={["*"]}
             source={{ html, baseUrl: tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1) }}
             style={{ flex: 1, backgroundColor: "#1a1a1a" }}
+            onLayout={(e: LayoutChangeEvent) => setWebViewStr({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
             onLoadEnd={() => { setLaster(false); setFeil(false); injiserMaling(); }}
             onError={() => { setLaster(false); setFeil(true); }}
             onMessage={håndterMelding}
@@ -946,6 +935,28 @@ export function TegningsVisning({
             javaScriptEnabled
             scalesPageToFit={false}
           />
+
+          {/* 🔴 RETUR 5 § 2: RN-nativ lupe. Plasseres over/til siden for fingeren
+              (lupePlassering), med et forstørret utsnitt av tegningsbildet
+              (lupeBakgrunn, ~3×) og trådkors i senter der punktet havner. Begge
+              geometrifunksjoner er testet i src/lib/lupe.ts. pointerEvents=none så
+              den aldri fanger trykk. */}
+          {lupe && webViewStr && (() => {
+            const D = LUPE_DIAMETER;
+            const pos = lupePlassering(lupe.fingerX, lupe.fingerY, webViewStr.w, webViewStr.h, D, LUPE_FORSKYVNING);
+            const bg = lupeBakgrunn(lupe.pctX, lupe.pctY, lupe.dispB, lupe.dispH, LUPE_FORSTORRELSE, D);
+            return (
+              <View pointerEvents="none" style={[stiler.lupe, { left: pos.left, top: pos.top, width: D, height: D, borderRadius: D / 2 }]}>
+                <Image
+                  source={{ uri: tegningUrl }}
+                  style={{ position: "absolute", width: bg.bildeB, height: bg.bildeH, left: bg.posX, top: bg.posY }}
+                  resizeMode="stretch"
+                />
+                <View style={[stiler.lupeKryss, { left: 8, right: 8, top: D / 2, height: 1 }]} />
+                <View style={[stiler.lupeKryss, { top: 8, bottom: 8, left: D / 2, width: 1 }]} />
+              </View>
+            );
+          })()}
 
           {/* Verktøylinje (RETUR 3): [Flytt] [Linjal] [Polylinje] [Areal] [＋ Opprett].
               Ett verktøy om gangen. Måleverktøyene sperres når målestokken ikke er
@@ -1019,29 +1030,8 @@ export function TegningsVisning({
                     <Text style={stiler.maleKilde}>  ({malestokkEtikett})</Text>
                   </Text>
                 )}
-                {/* Piltast-finjustering (RETUR 4): valgt punkt i Flytt. 1 px pr. trykk,
-                    langt trykk gjentar. */}
-                {aktivtVerktoy === "flytt" && valgtPunktIndeks != null && (
-                  <View style={stiler.pilRad}>
-                    <Text style={stiler.pilEtikett}>{t("maaling.finjuster")}</Text>
-                    {([
-                      [ChevronLeft, -1, 0],
-                      [ChevronUp, 0, -1],
-                      [ChevronDown, 0, 1],
-                      [ChevronRight, 1, 0],
-                    ] as const).map(([Ikon, dx, dy], i) => (
-                      <Pressable
-                        key={i}
-                        onPressIn={() => startNudge(dx, dy)}
-                        onPressOut={stoppNudge}
-                        style={stiler.pilKnapp}
-                        hitSlop={6}
-                      >
-                        <Ikon size={18} color="#1e3a8a" />
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
+                {/* RETUR 5 § 3: piltastene er fjernet — lupa (RN-nativ, ved fingeren)
+                    er presisjonsgrepet. Renest mulig UI. */}
                 <View style={stiler.maleStripeKnapper}>
                   {(aktiv?.verktoy === "polylinje" && aktivPunkter.length >= 2 && !aktiv.ferdig) && (
                     <Pressable onPress={håndterFerdig} style={stiler.maleHandling}>
@@ -1229,25 +1219,22 @@ const stiler = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
-  pilRad: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  pilEtikett: {
-    color: "#6b7280",
-    fontSize: 12,
-    marginRight: 2,
-  },
-  pilKnapp: {
-    width: 38,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
+  lupe: {
+    position: "absolute",
+    zIndex: 50,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#1e40af",
     backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
-    borderRadius: 7,
+    shadowColor: "#000",
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 8,
+  },
+  lupeKryss: {
+    position: "absolute",
+    backgroundColor: "rgba(30,64,175,0.7)",
   },
   maleHandling: {
     flexDirection: "row",
