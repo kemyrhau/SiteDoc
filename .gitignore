@@ -87,3 +87,6 @@ kilder/*
 
 # Prøvebenk-output (annotering) — generert HTML, aldri versjoneres
 /scripts/*.local.html
+
+# Kundetegninger til lokal DWG-testing — aldri i git (Kenneth 2026-10-08)
+DWG eksempelfiler/
