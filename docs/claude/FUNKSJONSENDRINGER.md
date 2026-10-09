@@ -25,6 +25,13 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-09
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| ← `0747c6bf` | **Web + mobil — måling** | **Før:** snap kunne feste seg til punkter fra en tidligere åpnet tegning og til hjelpelinjer fra punkter utenfor skjermen. **Etter:** snap kun til synlige mål; målinger nullstilles ved tegningsbytte | 🟢 Reparasjon (Kenneth 2026-10-09) |
+| ← `4452a40b` | **Web + mobil — måling, eldre tegninger** | **Før:** PDF-er konvertert før 25.09 kunne aldri måles; håndskrevet målestokk telte ikke; forklaringen sa «bekreft målestokk». **Etter:** «Hent målegrunnlag» (admin) regner mm/px fra original-PDF uten ny rendering; målestokk skrevet inn = «manuell»; forklaringen sier «mangler målegrunnlag» når det er årsaken | 🟢 Reparasjon (Kenneth 2026-10-09) |
+
 ### 2026-10-08
 
 | Hash | Flate | Før → Etter | Hjemmel |
