@@ -20,7 +20,7 @@ import {
   finnTegningstype,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
-import { konverterDwg, hentKonverteringKapasitet, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
+import { konverterDwg, hentKonverteringKapasitet, roterProsentMarkor, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
@@ -160,6 +160,60 @@ async function tegningHarMarkorer(prisma: PrismaClient, drawingId: string): Prom
  *  3. Forsvunne layouts (fantes før, ikke i ny fil): slettes uten markør, ellers merkes
  *     `conversionStatus = "stale"` (Kenneth Q3).
  */
+/**
+ * RETUR 3 §2 — flytt eksisterende markører/områder (lagret i prosent) med `delta` graders
+ * rotasjon om bildesenteret (50,50) når en re-konvertering endrer den inn-bakte auto-rotasjonen.
+ * Uten dette ville markørene blitt liggende på gammel pikselposisjon og pekt feil mot den nye,
+ * roterte SVG-en. Manuell «Roter» håndteres IKKE her — den er en CSS-rotasjon av hele wrapperen
+ * (markører + SVG roterer sammen), så prosentposisjonene skal da stå urørt.
+ */
+async function roterMarkorerVedRotasjonsendring(
+  tx: Prisma.TransactionClient,
+  drawingId: string,
+  delta: number,
+): Promise<void> {
+  if (!delta) return;
+
+  const oppgaver = await tx.task.findMany({
+    where: { drawingId, positionX: { not: null }, positionY: { not: null } },
+    select: { id: true, positionX: true, positionY: true },
+  });
+  for (const o of oppgaver) {
+    const p = roterProsentMarkor({ x: o.positionX!, y: o.positionY! }, delta);
+    await tx.task.update({ where: { id: o.id }, data: { positionX: p.x, positionY: p.y } });
+  }
+
+  const sjekklister = await tx.checklist.findMany({
+    where: { drawingId, positionX: { not: null }, positionY: { not: null } },
+    select: { id: true, positionX: true, positionY: true },
+  });
+  for (const s of sjekklister) {
+    const p = roterProsentMarkor({ x: s.positionX!, y: s.positionY! }, delta);
+    await tx.checklist.update({ where: { id: s.id }, data: { positionX: p.x, positionY: p.y } });
+  }
+
+  const punkter = await tx.kontrollplanPunkt.findMany({
+    where: { drawingId, positionX: { not: null }, positionY: { not: null } },
+    select: { id: true, positionX: true, positionY: true },
+  });
+  for (const k of punkter) {
+    const p = roterProsentMarkor({ x: k.positionX!, y: k.positionY! }, delta);
+    await tx.kontrollplanPunkt.update({ where: { id: k.id }, data: { positionX: p.x, positionY: p.y } });
+  }
+
+  const omrader = await tx.omrade.findMany({
+    where: { tegningId: drawingId },
+    select: { id: true, polygon: true },
+  });
+  for (const om of omrader) {
+    const poly = Array.isArray(om.polygon) ? (om.polygon as { x: number; y: number }[]) : [];
+    if (!poly.length) continue;
+    const ny = poly.map((v) => roterProsentMarkor({ x: v.x, y: v.y }, delta));
+    await tx.omrade.update({ where: { id: om.id }, data: { polygon: ny as unknown as Prisma.InputJsonValue } });
+  }
+  console.log(`[DWG] Rotasjon endret ${delta.toFixed(1)}° → flyttet ${oppgaver.length} oppgave-, ${sjekklister.length} sjekkliste-, ${punkter.length} kontrollpunkt-markører og ${omrader.length} område(r)`);
+}
+
 async function anvendDwgResultat(
   prisma: PrismaClient,
   tegning: { id: string; name: string; projectId: string; byggeplassId: string | null },
@@ -188,7 +242,22 @@ async function anvendDwgResultat(
     oppdatering.rotasjonOverstyrt = null;
     oppdatering.startutsnitt = resultat.startutsnitt ?? Prisma.JsonNull;
   }
-  await prisma.drawing.update({ where: { id: tegning.id }, data: oppdatering });
+
+  // RETUR 3 §2: endres den inn-bakte auto-rotasjonen ved denne (re-)konverteringen, må
+  // eksisterende markører/områder flyttes med samme rotasjon — i SAMME transaksjon som
+  // tegnings-oppdateringen, så de aldri blir stående feil mellom to skrivinger. Første
+  // opplasting har ingen markører → no-op; georefererte tegninger får rotasjon 0 (§1) → delta 0.
+  const forrige = await prisma.drawing.findUnique({
+    where: { id: tegning.id },
+    select: { autoRotasjon: true },
+  });
+  const rotDelta = resultat.visningUrl
+    ? (resultat.autoRotasjon ?? 0) - (forrige?.autoRotasjon ?? 0)
+    : 0;
+  await prisma.$transaction(async (tx) => {
+    await tx.drawing.update({ where: { id: tegning.id }, data: oppdatering });
+    await roterMarkorerVedRotasjonsendring(tx, tegning.id, rotDelta);
+  });
   console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
 
   // En FEILET konvertering skal ALDRI røre eksisterende layouts — ellers ville en

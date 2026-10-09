@@ -859,9 +859,11 @@ export function velgAutoRotasjon(
 }
 
 /**
- * Roter et punkt (verden CCW, grader) om et senter. Brukes til å bake rotasjonen inn i
- * geometri-koordinatene OG til georef-konsistens: et kjent verdenspunkt skal lande på
- * samme sted i rotert og urotert visning når georefen regner med samme rotasjon.
+ * Roter et punkt (verden CCW, grader) om et senter. Brukes til å bake auto-rotasjonen inn i
+ * geometri-koordinatene (bygningsplaner UTEN koordinatsystem) og — via `roterProsentMarkor` —
+ * til å flytte markør-/område-posisjoner når en re-konvertering endrer rotasjonen (RETUR 3 §2).
+ * Georefererte tegninger roteres ALDRI (CRS funnet → rotasjon 0, RETUR 3 §1), så georef-hjørnene
+ * og de uroterte extentene forblir konsistente uten at punktet her trenger å røres for georef.
  */
 export function roterPunkt(
   p: { x: number; y: number },
@@ -875,6 +877,22 @@ export function roterPunkt(
   const dx = p.x - senter.x;
   const dy = p.y - senter.y;
   return { x: senter.x + dx * c - dy * s, y: senter.y + dx * s + dy * c };
+}
+
+/**
+ * RETUR 3 §2 — roter en markør-/område-prosentposisjon om bildesenteret (50,50) når en
+ * re-konvertering endrer den inn-bakte auto-rotasjonen med `grader` (ny − gammel, verden CCW).
+ * SVG-rommet er y-ned (`ny(y) = -(y-oY)`), så samme vinkel om senteret flytter prosentpunktet
+ * i takt med den roterte geometrien. Klemmes til [0,100] (et hjørne kan havne akkurat på kanten).
+ */
+export function roterProsentMarkor(
+  p: { x: number; y: number },
+  grader: number,
+): { x: number; y: number } {
+  if (!grader) return { x: p.x, y: p.y };
+  const r = roterPunkt(p, grader, { x: 50, y: 50 });
+  const klem = (v: number) => Math.max(0, Math.min(100, v));
+  return { x: klem(r.x), y: klem(r.y) };
 }
 
 /**
@@ -998,7 +1016,11 @@ export interface DxfSvgResultat {
 }
 
 /** Generer SVG fra parsed DXF-entiteter (normaliserte koordinater) */
-export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX: number; minY: number; maxY: number }): DxfSvgResultat | null {
+export function dxfTilSvg(
+  dxfInnhold: string,
+  klippBounds?: { minX: number; maxX: number; minY: number; maxY: number },
+  opsjoner?: { ingenAutoRotasjon?: boolean },
+): DxfSvgResultat | null {
   try {
     const parser = new DxfParser();
     const dxf = parser.parseSync(dxfInnhold);
@@ -1180,8 +1202,11 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     // mod 90°) gir aksejevnhet; tekstrotasjonene løser 90°-kvadranten. Rotasjonen BAKES inn
     // i koordinatene under, mens TEXT/MTEXT beholder sin egen rotasjon (motroteres → står
     // vannrett, som arkitektens PDF). Hoppes over ved layout-klipp (klippBounds).
+    // RETUR 3 §1: georefererte tegninger (koordinatsystem detektert) skal stå nord-opp —
+    // kalleren setter `ingenAutoRotasjon` og veggrid-rotasjonen kobles ut. Uten dette ville
+    // en bygning tegnet i UTM/NTM med akse-nær veggrid blitt skjevstilt mot sin egen georef.
     let autoRotasjon: number | null = null;
-    if (!klippBounds) {
+    if (!klippBounds && !opsjoner?.ingenAutoRotasjon) {
       const segmenter: Segment[] = [];
       const tekstRot: { grader: number; vekt: number }[] = [];
       let rMinX = Infinity, rMaxX = -Infinity, rMinY = Infinity, rMaxY = -Infinity;
@@ -1669,13 +1694,20 @@ export async function konverterDwg(
     const mmPrEnhet = dxfInnhold ? insunitsTilMm(lesInsunits(dxfInnhold)) : null;
     console.log(`[DWG] $INSUNITS → mm/enhet: ${mmPrEnhet ?? "ukjent (måling låses til kalibrering)"}`);
 
+    // RETUR 3 §1: CRS-deteksjon og veggrid-rotasjon kobles. Detekteres et koordinatsystem
+    // (filnavn eller norske koordinatverdier), er tegningen i verdenskoordinater og skal stå
+    // nord-opp — auto-rotasjonen fra veggrid kobles ut (`ingenAutoRotasjon`), så den uroterte
+    // geometrien og den uroterte-extents-baserte georefen (under) forblir konsistente.
+    const system = dxfInnhold ? detekterKoordinatSystem(filnavn, extents ?? undefined) : null;
+    console.log("[DWG] Detektert koordinatsystem:", system);
+
     // 3. SVG fra egen DXF-parser → hovedtegningens måling (D5)
     let visningUrl = "";
     let visningFilType = "";
     let maaling: DwgMaaling = tomMaaling;
     let autoRotasjon: number | null = null;
     let startutsnitt: { x: number; y: number; w: number; h: number } | null = null;
-    const svgRes = dxfInnhold ? dxfTilSvg(dxfInnhold) : null;
+    const svgRes = dxfInnhold ? dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system }) : null;
     if (svgRes) {
       const svgFilnavn = `${randomUUID()}.svg`;
       await writeFile(join(uploadDir, svgFilnavn), svgRes.svg, "utf-8");
@@ -1733,9 +1765,8 @@ export async function konverterDwg(
       }
     }
 
-    // 5. Koordinatsystem + georeferanse (D7 forbedrer hjørnene senere)
-    const system = detekterKoordinatSystem(filnavn, extents ?? undefined);
-    console.log("[DWG] Detektert koordinatsystem:", system);
+    // 5. Georeferanse (D7 forbedrer hjørnene senere). `system` er detektert over (RETUR 3 §1),
+    // og auto-rotasjon er da koblet ut → SVG-en er urotert, konsistent med disse hjørnene.
     let geoReferanse: GeoReferanse | null = null;
     if (system && system !== "wgs84" && extents) {
       const topVenstre = konverterTilWgs84(extents.maxY, extents.minX, system);

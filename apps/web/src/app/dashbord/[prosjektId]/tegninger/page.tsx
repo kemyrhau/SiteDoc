@@ -40,6 +40,7 @@ import {
   nyKantPunktIndeks,
   fjernPunkt,
   beregnSnap,
+  inverseRoterKlikk,
   type Hjelpelinjer,
   type Utsnitt,
   type Referanselinje,
@@ -303,6 +304,10 @@ export default function TegningerSide() {
   const snapParamRef = useRef<{ imgW: number | null; imgH: number | null; ortho: boolean; snapPaa: boolean; referanselinje: Referanselinje | null }>({
     imgW: null, imgH: null, ortho: false, snapPaa: true, referanselinje: null,
   });
+  // RETUR 3 §3: brukerens manuelle «Roter»-overstyring (CSS-rotasjon av wrapperen, grader).
+  // I en ref så klikk-handlerne leser ferskeste verdi (settes lenger ned, etter at
+  // auto/overstyrt-rotasjonen er utledet) uten TDZ eller deps-kjeding.
+  const visningsDeltaRef = useRef(0);
   const [kalibrerPunkter, setKalibrerPunkter] = useState<Punkt[]>([]);
   const [slettAlleModalApen, setSlettAlleModalApen] = useState(false);
   const [visMalestokkPanel, setVisMalestokkPanel] = useState(false);
@@ -914,11 +919,21 @@ export default function TegningerSide() {
     setVisVinkelrett(false);
   }, []);
 
+  // RETUR 3 §3: skjermklikk → prosent i det UROTERTE bildet. Har brukeren rotert visningen
+  // («Roter» = CSS-rotate av wrapperen) inverse-roteres klikket med samme vinkel om senteret
+  // først — ellers leses prosenten mot den roterte AABB-en og nye markører/målepunkt havner
+  // feil. `w/h` er layout-størrelsen (offsetWidth/offsetHeight, upåvirket av rotasjonen) som
+  // snap/treff skal regne px-toleranse mot. Uten rotasjon er resultatet identisk med før.
+  const klikkTilProsent = useCallback((klientX: number, klientY: number, el: HTMLElement): { x: number; y: number; w: number; h: number } => {
+    const rect = el.getBoundingClientRect();
+    const w = el.offsetWidth || rect.width;
+    const h = el.offsetHeight || rect.height;
+    const p = inverseRoterKlikk(klientX, klientY, rect.left + rect.width / 2, rect.top + rect.height / 2, w, h, visningsDeltaRef.current);
+    return { x: p.x, y: p.y, w, h };
+  }, []);
+
   const handleMuseBevegelse = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    const rect = container.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const { x, y, w: rW, h: rH } = klikkTilProsent(e.clientX, e.clientY, e.currentTarget);
 
     // Måle-forhåndsvisning (90°/snap): vis hvor neste klikk lander + aktive
     // stiplede hjelpelinjer mens musa beveger seg over en påbegynt måling.
@@ -926,7 +941,7 @@ export default function TegningerSide() {
     const akt = aktivMaling(t0);
     const ankerIdx = akt && !akt.ferdig ? akt.punkter.length - 1 : null;
     if (!kalibrerModus && !punktDragRef.current && harPaagaaende(t0)) {
-      const snapR = beregnSnapForKandidat({ x, y }, rect.width, rect.height, ankerIdx);
+      const snapR = beregnSnapForKandidat({ x, y }, rW, rH, ankerIdx);
       if (snapR) {
         setForhandsPunkt(snapR.punkt);
         setHjelpelinjer(snapR.hjelpelinjer);
@@ -943,7 +958,7 @@ export default function TegningerSide() {
     } catch {
       setGpsKoordinat(null);
     }
-  }, [transformasjon, kalibrerModus, beregnSnapForKandidat]);
+  }, [transformasjon, kalibrerModus, beregnSnapForKandidat, klikkTilProsent]);
 
   const handleMuseForlat = useCallback(() => {
     setGpsKoordinat(null);
@@ -966,11 +981,10 @@ export default function TegningerSide() {
       if (Math.sqrt(dx * dx + dy * dy) > 5) return;
     }
 
-    // Måle-/kalibrermodus: samle klikkpunkter (prosent).
+    // Måle-/kalibrermodus: samle klikkpunkter (prosent, inverse-rotert ved overstyring).
     {
-      const r = e.currentTarget.getBoundingClientRect();
-      const px = ((e.clientX - r.left) / r.width) * 100;
-      const py = ((e.clientY - r.top) / r.height) * 100;
+      const { x: px, y: py, w: rW, h: rH } = klikkTilProsent(e.clientX, e.clientY, e.currentTarget);
+      const r = { width: rW, height: rH };
 
       // Kalibrering tar nøyaktig 2 punkter (egen samling, uendret flyt).
       if (kalibrerModus) {
@@ -1063,10 +1077,8 @@ export default function TegningerSide() {
     }
     setValgtElement(null);
 
-    const container = e.currentTarget;
-    const rect = container.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    // Markørplassering (prosent, inverse-rotert ved overstyring).
+    const { x, y } = klikkTilProsent(e.clientX, e.clientY, e.currentTarget);
 
     // Posisjonsvelger-modus: returner posisjon og naviger tilbake
     if (posisjonsvelgerAktiv && aktivTegning) {
@@ -1082,7 +1094,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand, aktivMal, velgReferanseModus, beregnSnapForKandidat, nullstillForhandsvisning]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand, aktivMal, velgReferanseModus, beregnSnapForKandidat, nullstillForhandsvisning, klikkTilProsent]);
 
   // Dra et satt målepunkt med musa (TILLEGG RETUR 1). Starter på punkt-prikken;
   // move/up lyttes på vindu så dra fortsetter utenfor prikken. Rører ikke maleFerdig
@@ -1099,13 +1111,15 @@ export default function TegningerSide() {
     if (dragIdx == null) return;
     const idx = dragIdx;
     function flytt(ev: PointerEvent) {
-      const r = maleInnerRef.current?.getBoundingClientRect();
-      if (!r || r.width <= 0 || r.height <= 0) return;
-      const x = Math.max(0, Math.min(100, ((ev.clientX - r.left) / r.width) * 100));
-      const y = Math.max(0, Math.min(100, ((ev.clientY - r.top) / r.height) * 100));
+      const el = maleInnerRef.current;
+      if (!el || el.offsetWidth <= 0 || el.offsetHeight <= 0) return;
+      // RETUR 3 §3: inverse-roter dra-punktet ved aktiv overstyring (klemt til [0,100]).
+      const p = klikkTilProsent(ev.clientX, ev.clientY, el);
+      const x = Math.max(0, Math.min(100, p.x));
+      const y = Math.max(0, Math.min(100, p.y));
       // 90°/snap under dra: snap til egne punkter + hjelpelinjer (ekskluder punktet
       // som dras). Lås-mot-anker gjelder ikke dra (ingen «anker» i en ferdig figur).
-      const snapR = beregnSnapForKandidat({ x, y }, r.width, r.height, idx);
+      const snapR = beregnSnapForKandidat({ x, y }, p.w, p.h, idx);
       const fp = snapR ? snapR.punkt : { x, y };
       setMaleTilstand((t) => flyttPunkt(t, idx, fp));
       if (snapR) { setHjelpelinjer(snapR.hjelpelinjer); setAksehjelp(snapR.aksehjelpelinje); }
@@ -1122,7 +1136,7 @@ export default function TegningerSide() {
       window.removeEventListener("pointermove", flytt);
       window.removeEventListener("pointerup", slutt);
     };
-  }, [dragIdx, beregnSnapForKandidat, nullstillForhandsvisning]);
+  }, [dragIdx, beregnSnapForKandidat, nullstillForhandsvisning, klikkTilProsent]);
 
   // Modell-korreksjon (funn 2026-08-22): dokumentflyt er nøkkelen, ikke faggruppe.
   // Serveren (F1/B1) krever `dokumentflytId` for ikke-HMS og validerer at flyten har malen
@@ -1297,6 +1311,7 @@ export default function TegningerSide() {
   const rotOverstyrt = typeof tegning.rotasjonOverstyrt === "number" ? tegning.rotasjonOverstyrt : null;
   const effektivRot = rotOverstyrt ?? autoRot ?? 0;
   const visningsDelta = effektivRot - (autoRot ?? 0);
+  visningsDeltaRef.current = visningsDelta;
   const norm180 = (d: number) => { let v = ((d % 360) + 360) % 360; if (v > 180) v -= 360; return v; };
   const roterNittiGrader = () => {
     if (!aktivTegning?.id) return;

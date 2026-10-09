@@ -34,6 +34,7 @@ export {
   snapTil90Linje,
   filtrerSynligePunkter,
   beregnSnap,
+  inverseRoterKlikk,
 } from "./maaling";
 export type { Punkt, ScaleKilde, Hjelpelinjer, Utsnitt, Referanselinje, LaasDetalj, SnapInn, SnapResultat } from "./maaling";
 export {

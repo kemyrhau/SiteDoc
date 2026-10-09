@@ -13,6 +13,46 @@
 export type Punkt = { x: number; y: number };
 
 /**
+ * RETUR 3 §3 — et skjermklikk i en CSS-rotert tegningsvisning (brukerens «Roter»-overstyring)
+ * inverse-roteres til prosent i det UROTERTE bildet, slik at en ny markør/målepunkt havner samme
+ * sted som uten rotasjon. Visningen roterer wrapperen `rotate(grader)` om senteret
+ * (`transformOrigin: center center`), så klikket må roteres tilbake med samme vinkel om samme
+ * senter før prosenten regnes ut.
+ *
+ * - `klientX/Y`: musas skjermkoordinat (clientX/clientY).
+ * - `senterX/Y`: det roterte elementets visuelle senter = AABB-senteret fra getBoundingClientRect
+ *   (= det uroterte senteret, siden rotasjon om senteret bevarer det).
+ * - `bredde/høyde`: elementets LAYOUT-størrelse (offsetWidth/offsetHeight), upåvirket av rotasjonen
+ *   — IKKE AABB-en getBoundingClientRect gir for det roterte elementet.
+ * - `grader`: visningsdelta (samme fortegn som CSS `rotate`). 0 → ren prosent.
+ *
+ * Prosenten er uklampet (et klikk utenfor bildet kan gi <0 eller >100 — kalleren klemmer ved behov).
+ */
+export function inverseRoterKlikk(
+  klientX: number,
+  klientY: number,
+  senterX: number,
+  senterY: number,
+  bredde: number,
+  høyde: number,
+  grader: number,
+): Punkt {
+  const vx = klientX - senterX;
+  const vy = klientY - senterY;
+  if (!grader) {
+    // Ren prosent: senter − halv layout-størrelse gir venstre/topp-kant.
+    return { x: ((vx + bredde / 2) / bredde) * 100, y: ((vy + høyde / 2) / høyde) * 100 };
+  }
+  const r = (grader * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  // Inverse av CSS-rotasjonen R(θ)=[[c,-s],[s,c]] (skjerm, y-ned): u = R(−θ)·v.
+  const ux = vx * c + vy * s;
+  const uy = -vx * s + vy * c;
+  return { x: (ux / bredde + 0.5) * 100, y: (uy / høyde + 0.5) * 100 };
+}
+
+/**
  * Kjente kilder til en tegnings målestokk. `"dwg"` (DWG-2, D5): utledet rett fra
  * tegningens egne enheter ($INSUNITS) ved konvertering — måling er aktiv direkte
  * (Kenneth Q4 2026-10-08), uten et bekreftelsessteg. Kalibrering kan alltid
