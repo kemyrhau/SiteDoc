@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Välja",
   "tegninger.serieGruppe.merkRad": "Välj {{namn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} har valts",
+  "tegninger.serieGruppe.lastNedValgte": "Ladda ner ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Ladda ner serien",
   "tegninger.serieGruppe.nySerie": "Ny serie från urval",
   "tegninger.serieGruppe.nySerieHjelp": "Skapar en serie från {{antall}} ritningar. Disciplin och konsult föreslås från urvalet.",
   "tegninger.serieGruppe.flyttTilSerie": "Flytta till serie",

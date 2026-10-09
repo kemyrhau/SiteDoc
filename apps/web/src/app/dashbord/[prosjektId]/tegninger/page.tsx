@@ -49,6 +49,7 @@ import {
   type MaleVerktoy,
   type Maling,
   type MaleTilstand,
+  byggTegningNedlastingsnavn,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
@@ -62,7 +63,7 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
@@ -71,6 +72,7 @@ import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
+import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 interface Markør {
   id: string;
@@ -340,6 +342,34 @@ export default function TegningerSide() {
     const status = tegning?.conversionStatus;
     setDwgPoller(status === "pending" || status === "converting");
   }, [tegning?.conversionStatus]);
+
+  // Enkeltfil-nedlasting: originalfila (DWG/PDF slik den ble lastet opp), fallback
+  // til den konverterte fila for rene bilder. `download`-attributtet gir filnavnet
+  // (tegningsnummer_revX.endelse); SignertLenke-åpneren fornyer utløpt signatur.
+  // Primitivene trekkes ut med cast FØR callbacken for å unngå TS2589 på den dype
+  // tRPC-typen i useCallback-generiken (kjent mønster).
+  const nedlastMeta = tegning as unknown as {
+    originalFileUrl: string | null;
+    fileUrl: string;
+    drawingNumber: string | null;
+    name: string;
+    revision: string;
+  } | undefined;
+  const nedlastUrl = nedlastMeta?.originalFileUrl ?? nedlastMeta?.fileUrl ?? null;
+  const nedlastNavn =
+    nedlastMeta && nedlastUrl
+      ? byggTegningNedlastingsnavn({
+          tegningsnummer: nedlastMeta.drawingNumber,
+          navn: nedlastMeta.name,
+          revisjon: nedlastMeta.revision,
+          fileUrl: nedlastUrl,
+        })
+      : "";
+  const apneNedlasting = useSignertLenkeApner([nedlastMeta?.originalFileUrl, nedlastMeta?.fileUrl]);
+  const lastNedTegning = useCallback(() => {
+    if (!nedlastUrl) return;
+    apneNedlasting(nedlastUrl, { download: nedlastNavn });
+  }, [nedlastUrl, nedlastNavn, apneNedlasting]);
 
   // Beregn GPS-transformasjon for georefererte tegninger
   const geoRef = (tegning as unknown as { geoReference?: unknown } | undefined)?.geoReference as GeoReferanse | null;
@@ -1529,8 +1559,24 @@ export default function TegningerSide() {
           <IfcMetadataBadge metadata={(tegning as unknown as { ifcMetadata: IfcMetadataJson }).ifcMetadata} />
         )}
         {/* D6b: tidligere revisjoner — klikk åpner forrige fil skrivebeskyttet */}
-        <RevisjonsListe revisjoner={tegning.revisions} />
+        <RevisjonsListe
+          revisjoner={tegning.revisions}
+          tegningsnummer={tegning.drawingNumber}
+          tegningNavn={tegning.name}
+        />
         <div className="flex-1" />
+
+        {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
+        {nedlastUrl && (
+          <button
+            onClick={lastNedTegning}
+            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            title={t("handling.lastNed")}
+          >
+            <Download className="h-4 w-4" />
+            {t("handling.lastNed")}
+          </button>
+        )}
 
         {/* Zoom-kontroller */}
         <div className="flex items-center gap-1">

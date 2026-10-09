@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Выбирать",
   "tegninger.serieGruppe.merkRad": "Выберите {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} выбрано",
+  "tegninger.serieGruppe.lastNedValgte": "Скачать ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Скачать серию",
   "tegninger.serieGruppe.nySerie": "Новая серия из подборки",
   "tegninger.serieGruppe.nySerieHjelp": "Создает серию из рисунков {{antall}}. Дисциплина и консультант предлагаются из подборки.",
   "tegninger.serieGruppe.flyttTilSerie": "Перейти в серию",

@@ -474,3 +474,9 @@ export {
   erUtloptSignatur,
   lagInvalideringsDebounce,
 } from "./signertBildePolicy";
+
+export {
+  filendelseFraUrl,
+  byggTegningNedlastingsnavn,
+  unikNedlastingsnavn,
+} from "./tegningNedlasting";

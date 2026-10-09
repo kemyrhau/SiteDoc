@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Izvēlieties",
   "tegninger.serieGruppe.merkRad": "Izvēlieties {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "Atlasīts {{antall}}",
+  "tegninger.serieGruppe.lastNedValgte": "Lejupielādēt ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Lejupielādēt sēriju",
   "tegninger.serieGruppe.nySerie": "Jauns seriāls no izlases",
   "tegninger.serieGruppe.nySerieHjelp": "Izveido sēriju no {{antall}} zīmējumiem. No atlases tiek ieteikta disciplīna un konsultants.",
   "tegninger.serieGruppe.flyttTilSerie": "Pāriet uz sēriju",

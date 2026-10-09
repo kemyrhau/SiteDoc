@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Merk",
   "tegninger.serieGruppe.merkRad": "Merk {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} valgt",
+  "tegninger.serieGruppe.lastNedValgte": "Last ned ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Last ned serie",
   "tegninger.serieGruppe.nySerie": "Ny serie fra valgte",
   "tegninger.serieGruppe.nySerieHjelp": "Lager en serie av {{antall}} tegninger. Fag og rådgiver foreslås fra de valgte.",
   "tegninger.serieGruppe.flyttTilSerie": "Flytt til serie",

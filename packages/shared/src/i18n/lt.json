@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Pasirinkite",
   "tegninger.serieGruppe.merkRad": "Pasirinkite {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "Pasirinktas {{antall}}",
+  "tegninger.serieGruppe.lastNedValgte": "Atsisiųsti ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Atsisiųsti serialą",
   "tegninger.serieGruppe.nySerie": "Nauja serija iš atrankos",
   "tegninger.serieGruppe.nySerieHjelp": "Sukuria seriją iš {{antall}} piešinių. Iš atrankos siūloma disciplina ir konsultantas.",
   "tegninger.serieGruppe.flyttTilSerie": "Pereikite prie serijos",

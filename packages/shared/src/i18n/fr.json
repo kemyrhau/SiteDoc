@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Sélectionner",
   "tegninger.serieGruppe.merkRad": "Sélectionnez {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} sélectionné",
+  "tegninger.serieGruppe.lastNedValgte": "Télécharger ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Télécharger la série",
   "tegninger.serieGruppe.nySerie": "Nouvelle série de sélection",
   "tegninger.serieGruppe.nySerieHjelp": "Crée une série à partir de dessins {{antall}}. La discipline et le consultant sont suggérés parmi la sélection.",
   "tegninger.serieGruppe.flyttTilSerie": "Passer à la série",

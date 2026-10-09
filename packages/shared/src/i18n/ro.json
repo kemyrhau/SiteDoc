@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Selecta",
   "tegninger.serieGruppe.merkRad": "Selectați {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} selectat",
+  "tegninger.serieGruppe.lastNedValgte": "Descărcați ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Descărcați seriale",
   "tegninger.serieGruppe.nySerie": "Seria noua din selectie",
   "tegninger.serieGruppe.nySerieHjelp": "Creează o serie din {{antall}} desene. Din selecție sunt sugerate disciplină și consultant.",
   "tegninger.serieGruppe.flyttTilSerie": "Treci la serie",

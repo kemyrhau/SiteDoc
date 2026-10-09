@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal } from "@sitedoc/ui";
-import { History } from "lucide-react";
+import { byggTegningNedlastingsnavn } from "@sitedoc/shared";
+import { History, Download } from "lucide-react";
+import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 /**
  * D6b (DWG-2): kompakt liste over TIDLIGERE revisjoner på tegningssiden. Klikk åpner
@@ -61,11 +63,19 @@ function FilVisning({ url, alt }: { url: string; alt: string }) {
 
 export function RevisjonsListe({
   revisjoner,
+  tegningsnummer,
+  tegningNavn,
 }: {
   revisjoner: RevisjonRad[];
+  /** For nedlastings-filnavnet (tegningsnummer_revX.endelse). */
+  tegningsnummer?: string | null;
+  tegningNavn?: string;
 }) {
   const { t } = useTranslation();
   const [valgt, setValgt] = useState<RevisjonRad | null>(null);
+  // Nedlasting av den ARKIVERTE revisjonsfila. For DWG/DXF er dette den konverterte
+  // SVG-en (originalen arkiveres ikke pr. revisjon); for PDF/bilde er det selve fila.
+  const apneNedlasting = useSignertLenkeApner(valgt?.fileUrl ? [valgt.fileUrl] : []);
 
   if (!revisjoner || revisjoner.length === 0) return null;
 
@@ -96,7 +106,25 @@ export function RevisjonsListe({
         {valgt && (
           <div className="flex flex-col gap-4">
             {valgt.fileUrl ? (
-              <FilVisning url={valgt.fileUrl} alt={t("tegninger.revisjon.visning", { rev: valgt.revision })} />
+              <>
+                <FilVisning url={valgt.fileUrl} alt={t("tegninger.revisjon.visning", { rev: valgt.revision })} />
+                <button
+                  onClick={() =>
+                    apneNedlasting(valgt.fileUrl, {
+                      download: byggTegningNedlastingsnavn({
+                        tegningsnummer,
+                        navn: tegningNavn ?? t("tegninger.revisjon.visning", { rev: valgt.revision }),
+                        revisjon: valgt.revision,
+                        fileUrl: valgt.fileUrl,
+                      }),
+                    })
+                  }
+                  className="flex items-center gap-1 self-start rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t("handling.lastNed")}
+                </button>
+              </>
             ) : (
               <p className="text-sm text-gray-500">{t("tegninger.revisjon.ingenFil")}</p>
             )}

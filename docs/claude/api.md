@@ -268,6 +268,13 @@ Backfill-strategi: eksisterende sessions fikk `created_at = last_rotated_at = ex
 - Rate limiting: 30 forespørsler/minutt per IP
 - Filer serveres med `X-Content-Type-Options: nosniff`
 
+`/tegning/last-ned-zip`-endepunkt (REST, ikke tRPC) i `apps/api/src/routes/tegningNedlasting.ts` (2026-10-10):
+- Pakker tegninger som ZIP og **strømmer** (`archiver` → `reply.raw`, `reply.hijack()`) — aldri inn i nettleseren. Enkeltfil-nedlasting går IKKE hit (web laster ned originalfila direkte via signert `/uploads/`-URL + `download`-attributt).
+- Query: `?serieId=<uuid>` (hel serie) ELLER `?ider=a,b,c` (valgte) — nøyaktig én kilde, ellers 400.
+- Auth: cookie-sesjon (samme mønster som `/upload`) → `verifiserProsjektmedlem` (SAMME sjekk som å åpne tegningen). **Prosjektet utledes server-side fra id-ene/serien** — ingen prosjekt-id fra klienten. Spenner id-ene flere prosjekter, eller finnes en id ikke → HELE forespørselen avvises (403). Ren avvisnings-helper `utledProsjektForZip` (enhetstestet).
+- Hver oppføring = originalfila (`originalFileUrl ?? fileUrl`), filnavn via `byggTegningNedlastingsnavn` (tegningsnummer\_revX.endelse), kollisjoner → `-2`/`-3` (`unikNedlastingsnavn`, `@sitedoc/shared`). Zip-navn = serienavn / «tegninger». Filer som mangler på disk hoppes over (feller ikke); 0 igjen → 404.
+- Rate limiting: 30/min per IP (`tegning-zip`).
+
 ## Lagringsstatistikk (`lagring`-router, 2026-08-11)
 
 `SUM(file_size)` per prosjekt/modell over de fem fil-modellene (`images`, `drawings`,
@@ -313,6 +320,7 @@ Minnebasert rate limiter i `apps/api/src/utils/rateLimiter.ts`. Automatisk oppry
 | `organisasjon.inviterBruker` (`inviteProcedure`) | 10/min | userId | M1 (2026-05-27) |
 | `prosjekt.opprett` + `opprettTestprosjekt` + `admin.opprettProsjekt` (`opprettProsjektProcedure`) | 20/min | userId | M1 (2026-05-27) |
 | `/upload` | 30/min | cf-connecting-ip (Cloudflare) | Original |
+| `/tegning/last-ned-zip` | 30/min | cf-connecting-ip (Cloudflare) | 2026-10-10 |
 | `mobilAuth.byttToken` | 10/min | cf-connecting-ip (Cloudflare) | Original |
 | `invitasjon.validerToken` | 20/min | cf-connecting-ip (Cloudflare) | Original |
 | `invitasjon.aksepter` | 10/min | cf-connecting-ip (Cloudflare) | Original |

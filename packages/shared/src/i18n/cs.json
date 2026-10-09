@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Vybrat",
   "tegninger.serieGruppe.merkRad": "Vyberte {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "Vybráno {{antall}}",
+  "tegninger.serieGruppe.lastNedValgte": "Stáhnout ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Stáhnout seriál",
   "tegninger.serieGruppe.nySerie": "Nová řada z výběru",
   "tegninger.serieGruppe.nySerieHjelp": "Vytvoří sérii z {{antall}} kreseb. Z výběru se navrhuje disciplína a konzultant.",
   "tegninger.serieGruppe.flyttTilSerie": "Přejít na sérii",

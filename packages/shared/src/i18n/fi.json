@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Valitse",
   "tegninger.serieGruppe.merkRad": "Valitse {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} valittu",
+  "tegninger.serieGruppe.lastNedValgte": "Lataa ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Lataa sarja",
   "tegninger.serieGruppe.nySerie": "Uusi sarja valikoimasta",
   "tegninger.serieGruppe.nySerieHjelp": "Luo sarjan {{antall}} piirroksesta. Kurinalaa ja konsulttia ehdotetaan valinnasta.",
   "tegninger.serieGruppe.flyttTilSerie": "Siirry sarjaan",

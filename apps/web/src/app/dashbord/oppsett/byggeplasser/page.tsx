@@ -31,6 +31,7 @@ import {
   ExternalLink,
   Search,
   ListChecks,
+  Download,
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 import { SignertBilde } from "@/components/SignertBilde";
@@ -647,6 +648,21 @@ function RedigerLokasjon({
     setValgteTegninger(new Set());
   }
 
+  // T2: last ned valgte tegninger / en hel serie som ZIP. Serveren pakker
+  // originalfilene og strømmer; prosjektet utledes server-side fra id-ene/serien
+  // (ingen prosjekt-id fra klienten). En vanlig GET-navigering bærer cookie-sesjonen,
+  // og Content-Disposition fra ruten gir zip-navnet.
+  function lastNedZip(params: { serieId?: string; ider?: string[] }) {
+    const sp = new URLSearchParams();
+    if (params.serieId) sp.set("serieId", params.serieId);
+    if (params.ider && params.ider.length > 0) sp.set("ider", params.ider.join(","));
+    const a = document.createElement("a");
+    a.href = `/api/tegning/last-ned-zip?${sp.toString()}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   // Felles verdi blant de valgte tegningene, ellers "" (for navneforslag + forhåndsutfylling).
   function fellesVerdi(felt: "discipline" | "originator"): string {
     const valgte = tegninger.filter((d) => valgteTegninger.has(d.id));
@@ -1137,6 +1153,16 @@ function RedigerLokasjon({
                                     <span className="truncate text-xs font-medium text-gray-700">{serie.name}</span>
                                     <span className="text-xs text-gray-400">({serieT.length})</span>
                                   </button>
+                                  {serieT.length > 0 && (
+                                    <button
+                                      onClick={() => lastNedZip({ serieId: serie.id })}
+                                      className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                      title={t("tegninger.serieGruppe.lastNedSerie")}
+                                      aria-label={t("tegninger.serieGruppe.lastNedSerie")}
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => åpneRedigerSerie(serie)}
                                     className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -1188,6 +1214,13 @@ function RedigerLokasjon({
                 {t("tegninger.serieGruppe.valgtAntall", { antall: valgteTegninger.size })}
               </span>
               <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => lastNedZip({ ider: [...valgteTegninger] })}
+                  className="flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t("tegninger.serieGruppe.lastNedValgte", { antall: valgteTegninger.size })}
+                </button>
                 <button
                   onClick={åpneNySerie}
                   className="flex items-center gap-1 rounded bg-sitedoc-primary px-2 py-1 text-xs font-medium text-white hover:bg-sitedoc-primary/90"

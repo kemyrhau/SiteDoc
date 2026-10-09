@@ -1724,6 +1724,8 @@
   "tegninger.serieGruppe.merk": "Zgjidhni",
   "tegninger.serieGruppe.merkRad": "Zgjidh {{navn}}",
   "tegninger.serieGruppe.valgtAntall": "{{antall}} u zgjodh",
+  "tegninger.serieGruppe.lastNedValgte": "Shkarko ({{antall}})",
+  "tegninger.serieGruppe.lastNedSerie": "Shkarkoni seritë",
   "tegninger.serieGruppe.nySerie": "Seriali i ri nga përzgjedhja",
   "tegninger.serieGruppe.nySerieHjelp": "Krijon një seri nga vizatimet {{antall}}. Disiplina dhe konsulent sugjerohen nga përzgjedhja.",
   "tegninger.serieGruppe.flyttTilSerie": "Kaloni në seri",
