@@ -5925,3 +5925,6 @@ sjekklisteoversikten mot mobil.
 
 - 🟡 **DWG — markører ved rotasjonsendring er bare tilnærmet riktige** (Kontrollør 2026-10-09 på `51295a13`): `roterProsentMarkor` roterer i prosent-rommet om (50,50) og ignorerer sideforhold/viewBox-endring → ~25 % avvik på 2:1-tegninger. Oppfølger: full gammel→ny affin remap. Sjelden sti (re-konvertering med eksisterende markører som endrer rotasjon).
 - 🟡 **Snap-utsnitt under manuell rotasjon** (Dokgen 2026-10-09): `beregnUtsnitt` regner AABB og blir litt upresis når «Roter» er aktiv. Presisjon, ikke korrekthet.
+
+- 🟡 **Timer — dagsseddel viste 0 rader tross 2 i DB** (prod 2026-10-09, Kenneths 19.08 hos A.Markussen, nå slettet): radvisningen filtrerer ikke på firma (målt av redesign); hypotese id vs clientUuid-mismatch. Ikke reproduserbar etter sletting — mål ved neste forekomst (SQL: `sheet_timer.sheet_id` vs `daily_sheets.id/client_uuid`).
+- 🟡 **`eksternKostObjekt.list` bruker brukerens medlemsfirma** (redesign-funn 2026-10-09, 12+ prosjekt-skopede kallere). Bør følge valgt firma som timer-kjernen (`830f7221`).
