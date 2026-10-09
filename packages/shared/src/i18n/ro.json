@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Revizuirile anterioare",
   "tegninger.revisjon.visning": "Revizia {{rev}} — numai în citire",
   "tegninger.revisjon.ingenFil": "Niciun fișier arhivat pentru această revizuire",
+  "tegninger.revisjon.ingenOriginal": "Fișierul original nu este stocat pentru această revizuire",
   "tegninger.revisjon.arkiverteLayouts": "Aspecte arhivate",
   "malVelger.velgSjekklistemal": "Selectați șablonul de listă de verificare",
   "malVelger.velgOppgavemal": "Selectați șablonul de sarcină",

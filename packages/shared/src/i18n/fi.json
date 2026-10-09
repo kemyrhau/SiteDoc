@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Aiemmat versiot",
   "tegninger.revisjon.visning": "Versio {{rev}} – vain luku",
   "tegninger.revisjon.ingenFil": "Tätä versiota varten ei ole arkistoitu tiedostoa",
+  "tegninger.revisjon.ingenOriginal": "Alkuperäistä tiedostoa ei ole tallennettu tätä versiota varten",
   "tegninger.revisjon.arkiverteLayouts": "Arkistoidut asettelut",
   "malVelger.velgSjekklistemal": "Valitse tarkistuslistamalli",
   "malVelger.velgOppgavemal": "Valitse tehtävämalli",

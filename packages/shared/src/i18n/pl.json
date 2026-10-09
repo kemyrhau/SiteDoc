@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Poprzednie wersje",
   "tegninger.revisjon.visning": "Wersja {{rev}} — tylko do odczytu",
   "tegninger.revisjon.ingenFil": "Nie zarchiwizowano żadnego pliku dla tej wersji",
+  "tegninger.revisjon.ingenOriginal": "Oryginalny plik nie został zapisany dla tej wersji",
   "tegninger.revisjon.arkiverteLayouts": "Archiwalne układy",
   "malVelger.velgSjekklistemal": "Wybierz szablon listy kontrolnej",
   "malVelger.velgOppgavemal": "Wybierz szablon zadania",

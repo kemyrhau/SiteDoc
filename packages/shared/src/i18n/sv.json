@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Tidigare revisioner",
   "tegninger.revisjon.visning": "Revision {{rev}} — skrivskyddad",
   "tegninger.revisjon.ingenFil": "Ingen fil arkiverad för denna version",
+  "tegninger.revisjon.ingenOriginal": "Originalfilen har inte lagrats för denna version",
   "tegninger.revisjon.arkiverteLayouts": "Arkiverade layouter",
   "malVelger.velgSjekklistemal": "Välj checklista mall",
   "malVelger.velgOppgavemal": "Välj uppgiftsmall",

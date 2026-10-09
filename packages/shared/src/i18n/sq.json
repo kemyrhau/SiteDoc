@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Rishikimet e mëparshme",
   "tegninger.revisjon.visning": "Rishikimi {{rev}} - vetëm për lexim",
   "tegninger.revisjon.ingenFil": "Asnjë skedar nuk u arkivua për këtë rishikim",
+  "tegninger.revisjon.ingenOriginal": "Skedari origjinal nuk është ruajtur për këtë rishikim",
   "tegninger.revisjon.arkiverteLayouts": "Paraqitjet e arkivuara",
   "malVelger.velgSjekklistemal": "Zgjidhni shabllonin e listës së kontrollit",
   "malVelger.velgOppgavemal": "Zgjidhni shabllonin e detyrës",

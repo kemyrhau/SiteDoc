@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Iepriekšējie labojumi",
   "tegninger.revisjon.visning": "Pārskatīšana {{rev}} — tikai lasāma",
   "tegninger.revisjon.ingenFil": "Šai versijai nav arhivēts neviens fails",
+  "tegninger.revisjon.ingenOriginal": "Oriģinālais fails nav saglabāts šai versijai",
   "tegninger.revisjon.arkiverteLayouts": "Arhivētie izkārtojumi",
   "malVelger.velgSjekklistemal": "Atlasiet kontrolsaraksta veidni",
   "malVelger.velgOppgavemal": "Izvēlieties uzdevuma veidni",

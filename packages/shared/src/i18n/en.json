@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Previous revisions",
   "tegninger.revisjon.visning": "Revision {{rev}} — read-only",
   "tegninger.revisjon.ingenFil": "No file archived for this revision",
+  "tegninger.revisjon.ingenOriginal": "Original file not stored for this revision",
   "tegninger.revisjon.arkiverteLayouts": "Archived layouts",
   "malVelger.velgSjekklistemal": "Select checklist template",
   "malVelger.velgOppgavemal": "Select task template",

@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Frühere Überarbeitungen",
   "tegninger.revisjon.visning": "Revision {{rev}} – schreibgeschützt",
   "tegninger.revisjon.ingenFil": "Für diese Revision ist keine Datei archiviert",
+  "tegninger.revisjon.ingenOriginal": "Die Originaldatei wurde für diese Revision nicht gespeichert",
   "tegninger.revisjon.arkiverteLayouts": "Archivierte Layouts",
   "malVelger.velgSjekklistemal": "Checklistenvorlage auswählen",
   "malVelger.velgOppgavemal": "Wählen Sie eine Aufgabenvorlage aus",

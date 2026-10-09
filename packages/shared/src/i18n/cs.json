@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Předchozí revize",
   "tegninger.revisjon.visning": "Revize {{rev}} — pouze pro čtení",
   "tegninger.revisjon.ingenFil": "Pro tuto revizi nebyl archivován žádný soubor",
+  "tegninger.revisjon.ingenOriginal": "Původní soubor nebyl pro tuto revizi uložen",
   "tegninger.revisjon.arkiverteLayouts": "Archivované rozvržení",
   "malVelger.velgSjekklistemal": "Vyberte šablonu kontrolního seznamu",
   "malVelger.velgOppgavemal": "Vyberte šablonu úkolu",

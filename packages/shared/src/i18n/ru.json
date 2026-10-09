@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Предыдущие версии",
   "tegninger.revisjon.visning": "Версия {{rev}} — только для чтения.",
   "tegninger.revisjon.ingenFil": "Для этой версии в архиве нет файлов",
+  "tegninger.revisjon.ingenOriginal": "Исходный файл для этой версии не сохранен.",
   "tegninger.revisjon.arkiverteLayouts": "Архивные макеты",
   "malVelger.velgSjekklistemal": "Выберите шаблон контрольного списка",
   "malVelger.velgOppgavemal": "Выберите шаблон задачи",

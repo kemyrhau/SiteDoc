@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Ankstesni pataisymai",
   "tegninger.revisjon.visning": "Pataisa {{rev}} – tik skaitoma",
   "tegninger.revisjon.ingenFil": "Nėra suarchyvuotų šios pataisos failų",
+  "tegninger.revisjon.ingenOriginal": "Originalus šios versijos failas nesaugomas",
   "tegninger.revisjon.arkiverteLayouts": "Archyvuoti maketai",
   "malVelger.velgSjekklistemal": "Pasirinkite kontrolinio sąrašo šabloną",
   "malVelger.velgOppgavemal": "Pasirinkite užduoties šabloną",

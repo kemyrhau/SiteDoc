@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Varasemad redaktsioonid",
   "tegninger.revisjon.visning": "Redaktsioon {{rev}} – kirjutuskaitstud",
   "tegninger.revisjon.ingenFil": "Selle versiooni jaoks pole arhiveeritud ühtegi faili",
+  "tegninger.revisjon.ingenOriginal": "Originaalfaili selle versiooni jaoks ei salvestatud",
   "tegninger.revisjon.arkiverteLayouts": "Arhiveeritud paigutused",
   "malVelger.velgSjekklistemal": "Valige kontrollnimekirja mall",
   "malVelger.velgOppgavemal": "Valige ülesande mall",

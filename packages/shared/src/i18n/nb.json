@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Tidligere revisjoner",
   "tegninger.revisjon.visning": "Revisjon {{rev}} — skrivebeskyttet",
   "tegninger.revisjon.ingenFil": "Ingen fil arkivert for denne revisjonen",
+  "tegninger.revisjon.ingenOriginal": "Originalfil ikke lagret for denne revisjonen",
   "tegninger.revisjon.arkiverteLayouts": "Arkiverte layouts",
   "malVelger.velgSjekklistemal": "Velg sjekklistemal",
   "malVelger.velgOppgavemal": "Velg oppgavemal",

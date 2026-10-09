@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Révisions précédentes",
   "tegninger.revisjon.visning": "Révision {{rev}} – lecture seule",
   "tegninger.revisjon.ingenFil": "Aucun fichier archivé pour cette révision",
+  "tegninger.revisjon.ingenOriginal": "Fichier original non stocké pour cette révision",
   "tegninger.revisjon.arkiverteLayouts": "Mises en page archivées",
   "malVelger.velgSjekklistemal": "Sélectionnez un modèle de liste de contrôle",
   "malVelger.velgOppgavemal": "Sélectionner un modèle de tâche",

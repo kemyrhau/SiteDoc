@@ -1749,6 +1749,7 @@
   "tegninger.revisjon.tidligere": "Попередні редакції",
   "tegninger.revisjon.visning": "Редакція {{rev}} — лише для читання",
   "tegninger.revisjon.ingenFil": "Немає файлів, заархівованих для цієї версії",
+  "tegninger.revisjon.ingenOriginal": "Оригінальний файл не збережено для цієї версії",
   "tegninger.revisjon.arkiverteLayouts": "Архівні макети",
   "malVelger.velgSjekklistemal": "Виберіть шаблон контрольного списку",
   "malVelger.velgOppgavemal": "Виберіть шаблон завдання",
