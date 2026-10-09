@@ -29,6 +29,7 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| `91cbd3ea` ← `51295a13` (DWG retur 2+3) | 🔴 **Server + web + mobil — DWG** | **Etter:** bygningsplaner uten koordinatsystem rettes opp automatisk (veggvinkel), tekst holdes vannrett; tegninger med koordinatsystem står nord-opp (ingen rotasjon); «Rotert N° automatisk» + «Roter»; fallpiler (LEADER) tegnes; startvisning zoomer til bygget; markører følger rotasjonsendring (tilnærmet for ikke-kvadratiske tegninger). Migrering `20261009120000_dwg_rotasjon_startutsnitt` | 🟢 Kenneth 2026-10-09 (A rett opp, B godta) |
 | ← `0747c6bf` | **Web + mobil — måling** | **Før:** snap kunne feste seg til punkter fra en tidligere åpnet tegning og til hjelpelinjer fra punkter utenfor skjermen. **Etter:** snap kun til synlige mål; målinger nullstilles ved tegningsbytte | 🟢 Reparasjon (Kenneth 2026-10-09) |
 | ← `4452a40b` | **Web + mobil — måling, eldre tegninger** | **Før:** PDF-er konvertert før 25.09 kunne aldri måles; håndskrevet målestokk telte ikke; forklaringen sa «bekreft målestokk». **Etter:** «Hent målegrunnlag» (admin) regner mm/px fra original-PDF uten ny rendering; målestokk skrevet inn = «manuell»; forklaringen sier «mangler målegrunnlag» når det er årsaken | 🟢 Reparasjon (Kenneth 2026-10-09) |
 
