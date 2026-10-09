@@ -835,7 +835,10 @@ export default function DagsseddelDetaljSide() {
       {/* Send + slett */}
       {erRedigerbar && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-5">
-          {sheet.status === "draft" && (
+          {/* Kenneth-vedtak 2026-10-09 (2): utkast ELLER returnert-og-ikke-attestert
+              kan slettes av eieren (server håndhever samme regel). */}
+          {(sheet.status === "draft" ||
+            (sheet.status === "returned" && !sheet.attestertVed)) && (
             <Button
               variant="secondary"
               onClick={() => setVisSlettModal(true)}

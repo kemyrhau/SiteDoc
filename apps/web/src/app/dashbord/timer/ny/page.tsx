@@ -90,6 +90,16 @@ export default function NyDagsseddelSide() {
     [prosjekterRaw],
   );
 
+  // Kenneth-vedtak 2026-10-09 (2): egne timer kan bare føres av ansatte i det innloggede
+  // firmaet. Serveren håndhever (FORBIDDEN); her gjør vi sperren SYNLIG — «Ny dagsseddel»
+  // deaktiveres med forklaring i stedet for å feile ved innsending. Default: ikke sperr før
+  // svaret er kjent (unngå å blokkere en ansatt på treg lasting — serveren er siste vakt).
+  const { data: ansattStatus } = trpc.timer.dagsseddel.kanFoereTimer.useQuery({
+    organizationId: orgId ?? undefined,
+  });
+  const kanFoereTimer = ansattStatus?.kanFoere ?? true;
+  const ansattFirmanavn = ansattStatus?.firmanavn ?? valgtFirma?.name ?? "";
+
   // Prefyll prosjekt fra aktiv toppbar-kontekst — paritet med mobils GPS-forvalg.
   // Kun når: bruker ikke har rørt velgeren, feltet er tomt, en kontekst finnes,
   // og konteksten peker på et prosjekt som faktisk finnes i timer-lista. Ingen
@@ -156,6 +166,11 @@ export default function NyDagsseddelSide() {
     e.preventDefault();
     setFeil(null);
 
+    if (!kanFoereTimer) {
+      setFeil(t("timer.ikkeAnsatt", { firma: ansattFirmanavn }));
+      return;
+    }
+
     if (!projectId) {
       setFeil(t("timer.feil.ingenProsjekt"));
       return;
@@ -209,6 +224,12 @@ export default function NyDagsseddelSide() {
         {t("timer.nyDagsseddel")}
       </h1>
       <p className="mb-6 text-sm text-gray-600">{t("timer.nyBeskrivelse")}</p>
+
+      {!kanFoereTimer && (
+        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          {t("timer.ikkeAnsatt", { firma: ansattFirmanavn })}
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -346,8 +367,15 @@ export default function NyDagsseddelSide() {
             >
               {t("handling.avbryt")}
             </Button>
-            <KnappMedForklaring sperret={!projectId && !opprett.isPending} forklaring={t("sperret.velgProsjekt")}>
-              <Button type="submit" disabled={opprett.isPending || !projectId}>
+            <KnappMedForklaring
+              sperret={(!kanFoereTimer || !projectId) && !opprett.isPending}
+              forklaring={
+                !kanFoereTimer
+                  ? t("timer.ikkeAnsatt", { firma: ansattFirmanavn })
+                  : t("sperret.velgProsjekt")
+              }
+            >
+              <Button type="submit" disabled={opprett.isPending || !projectId || !kanFoereTimer}>
                 {opprett.isPending ? t("handling.lagrer") : t("timer.opprett")}
               </Button>
             </KnappMedForklaring>

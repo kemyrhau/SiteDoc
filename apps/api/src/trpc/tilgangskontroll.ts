@@ -307,6 +307,61 @@ export async function resolverOrgFraInput(
 }
 
 /**
+ * Løs firma for EGEN timeføring (skriving) og krev at brukeren er aktivt ansatt der.
+ *
+ * Kenneth-vedtak 2026-10-09 (2): «timer kan bare føres av ansatte». Dette OVERSTYRER
+ * admin-unntaket i `resolverOrgFraInput` for EGNE timer-skrivinger: en sitedoc_admin/
+ * company_admin som ikke har et aktivt `OrganizationMember` i det valgte firmaet kan
+ * IKKE føre egne timer der (admin-roller beholder lesing + attestering separat).
+ *
+ * `inputOrgId` (valgt/innlogget firma) brukes når oppgitt — ingen admin-bypass. Utelatt
+ * (eldre mobilklient) faller tilbake til brukerens egen org (`krevBrukersOrg`, som alt
+ * filtrerer `status="aktiv"`). Deretter kreves aktivt medlemskap i det løste firmaet,
+ * ellers lesbar FORBIDDEN (firmanavn interpolert; server har ingen i18n — klienten viser
+ * egen oversatt tekst og speiler denne).
+ */
+export async function resolverOrgForEgenTimeføring(
+  userId: string,
+  inputOrgId?: string,
+): Promise<string> {
+  const orgId = inputOrgId ?? (await krevBrukersOrg(userId));
+  await verifiserAnsattIFirma(userId, orgId);
+  return orgId;
+}
+
+/**
+ * Kaster lesbar FORBIDDEN hvis brukeren ikke er aktivt ansatt (`OrganizationMember`
+ * med `status="aktiv"`) i firmaet. Brukt av egen-timeføring (se
+ * `resolverOrgForEgenTimeføring` + eier-stien i `hentEgenDagsseddel`). Henter firmanavn
+ * kun på feil-stien for en forståelig melding.
+ */
+export async function erAnsattIFirma(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { status: true },
+  });
+  return member?.status === "aktiv";
+}
+
+export async function verifiserAnsattIFirma(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  if (await erAnsattIFirma(userId, organizationId)) return;
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { name: true },
+  });
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: `Du er ikke registrert som ansatt i ${org?.name ?? "firmaet"}. Timer kan bare føres av ansatte. Firmaadmin legger deg til under Firma → Ansatte.`,
+  });
+}
+
+/**
  * Intern hjelper for firma-admin-rettighet.
  * Leser fra OrganizationMember.firmaRoller — OG status.
  *
