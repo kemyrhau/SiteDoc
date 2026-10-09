@@ -22,16 +22,16 @@ sist_verifisert_mot_kode: 2026-08-09
 > 🟢 **Lag 0c LEVERT `c78bc14f`** — regel 10 er fire ledd, `turbo run typecheck` gater 10 pakker. ⚠️ **`pnpm install` kreves i alle trær** (`@types/node`).
 > 🟢 **LAG 1 KOMPLETT 2026-10-03:** L1-C+L1-A `9d67367a` + L1-B `2e993250`. H21+H22 lukket. Test-deploy `fd92736d` (lag 0 + L1-A/C, migrering `20261002120000` kjørt). 🟢 **`20261002130000_timer_normkilde_pausereferanse` KJØRT** — verifisert av Kenneth i UI 2026-10-03 (firma → innstillinger viser «Dagsnorm-kilde: Fast (7,5 t)» og «Pausen starter fra: Ankomst»). ⚠️ Pull krever `pnpm install` + `prisma generate` ×4. **K10 VEDTATT → V17:** byggeplass-lokasjon = punkt+radius (standard) eller polygon (infrastruktur), én delt gjenkjenning for timer OG PSI; bygges før lag 3/4. 🟢 **K5 vedtatt (mottak med sporbarhet).** 🟡 **LAG 2 BESTILT 2026-10-03** ([timer-gps-lag2-spec.md](timer-gps-lag2-spec.md), gatet; krav på `docs/design-lag2-krav` @ `ed2c9e54` venter merge): L2-A → L2-B ∥ L2-C. Funn: L1-B-etappene lagres ikke på raden, `syncBatch` stripper ukjente felt. 📄 **V17-spec skrevet 2026-10-04** ([v17-geofence-spec.md](v17-geofence-spec.md)) — til gate; bygges før lag 3/4. 📄 **V19-spec skrevet** ([timer-overlapp-pc-mobil-spec.md](timer-overlapp-pc-mobil-spec.md), H25 overlapp PC↔mobil) — til gate.
 
-> 🟢 **PROD-DEPLOY 2026-10-08: `de1582ae`** (main, bygget 15:38Z) — ingen migreringer. 🟢 **OTA prod-kanal** fra `de1582ae`
-> (OTA `01a11c3…`), verifisert på telefon (build 54, Mer viser `de1582ae`). Innhold: tegninger serieopplasting T1/T1b/T1c
-> (`0e50adad`, `c9c55137`, `48016503`) · zoom og verktøylinje på tegningssiden (`ce29a0ba`, `0f1e38e0`) · måling web (målestokk fra
-> tittelfelt, kalibreringsveiledning, styreflate-knip, linjal/polylinje/areal: `09fd30a4`, `84f97c19`) · måling mobil (hint, langt trykk,
-> verktøy, lupe, rediger figur: `9cf1fbea`, `21edd9ed`, `f0ad4d47`, `e9662121`, `b3f7d24f`, `c62bb180`, `66a25e24`).
-> Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
-> ⚠️ **IKKE i prod:** 90°/snap (`feat/maaling-90-snap`, under arbeid) · V20-M (ikke levert). 🟡 **Gjenstår tegninger:** T2 `Tegningsserie` (ikke bestilt).
+> 🟢 **PROD-DEPLOY 2026-10-09: `64de37bd`** (main, bygget 00:21Z). Migreringer kjørt mot prod: `20261008120000_tegningsserie`,
+> `20261008130000_dwg_layout_kobling`. DB-dump før release: `~/backup/sitedoc-pre-release-20261009.dump` (forutsatt tatt, ikke målt her).
+> libredwg verifisert: `dwg2dxf 0.14` i `sitedoc-api` og `sitedoc-web`. 🟢 **OTA prod-kanal** fra `64de37bd`, verifisert på telefon (Mer viser `64de37bd`).
+> Innhold: T2 tegningsserie (`19dbc187`) · V20-M pause mobil (`948c564a`) · 90°-lås/referanselinje/snap + polylinje Fullfør/Fortsett
+> (`e633d27c`) · DWG-1 libredwg (`732ce826`) · DWG-2 konvertering, måling fra DWG-enheter, layouts, revisjonsliste (`510aa11c`) ·
+> DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
+> ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
-> 🟡 **V20-oppfølgere (åpne):** V20-M (låst visning viser matpause-avkrysningen, BACKLOG `f032e6be`) · V21 (overtidsforslag
-> manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT 2026-10-06 — egne små ordrer.
+> 🟡 **V20-oppfølgere (åpne):** V21 (overtidsforslag manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT
+> 2026-10-06 — egne små ordrer.
 
 # 🔴 TAVLA — hvem sitter hvor
 
@@ -173,6 +173,8 @@ som rører CLAUDE.md skal derfor merges samme døgn de gates**, ikke stables.
 🟢 **Kenneths manuelt kalibrerte tegninger er IKKE berørt.** Mistenktmengden er auto-georefererte DWG — koordinatfestet av kode, med to punkter koden selv valgte. Manuelle tegninger med ≥3 punkter går til `beregnAffine` (`georeferanse.ts:199-200`) og har aldri vært innom 2-punktssimilariteten.
 
 ⚠️ **`pdftoppm` + `tesseract` har INGEN slik kobling** og kan deployes fritt. Bindingen gjelder kun DWG.
+
+⚠️ **Målt 2026-10-09:** binærene er nå i prod (`64de37bd`, `dwg2dxf 0.14`), men georeferansefiksen (DWG-3, [tegning-dwg-spec.md](tegning-dwg-spec.md) D7) er ikke levert. Autoveien i `64de37bd` bygger fortsatt kun `point1`+`point2` (`apps/api/src/services/dwgKonvertering.ts:1362-1374`). Bindingen over er dermed brutt — orkestrator/Kenneth vurderer.
 
 ### Én branch pushet, ikke merget
 
