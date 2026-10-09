@@ -64,6 +64,8 @@ describe.skipIf(!dwg2dxf)("D10 — ekte DWG-fixtures (libredwg)", () => {
     expect(res.scaleKilde).toBe("dwg");
     expect(res.scale).toBe("1:1");
     expect(res.mmPrPiksel).toBeGreaterThan(0);
+    // RETUR 2 (vedtak A): kartdata har ingen tydelig vinkelrett veggrid → ingen rotasjon.
+    expect(res.autoRotasjon).toBeNull();
   });
 
   it("UTM32: koordinatsystem gjenkjennes fra filnavnet", { timeout: 120_000 }, async () => {
@@ -71,6 +73,8 @@ describe.skipIf(!dwg2dxf)("D10 — ekte DWG-fixtures (libredwg)", () => {
     expect(res.feil).toBeNull();
     expect(res.koordinatSystem).toBeTruthy();
     expect(res.scaleKilde).toBe("dwg"); // INSUNITS=6 (meter)
+    // Kartdata skal stå urotert (ingen dominant vinkelrett par).
+    expect(res.autoRotasjon).toBeNull();
   });
 });
 
@@ -82,6 +86,41 @@ describe.skipIf(!dwg2dxf || !KUNDEFIL || !existsSync(KUNDEFIL))(
       expect(res.feil).toBeNull();
       expect(res.visningUrl).toMatch(/\.svg$/);
       expect(res.mmPrPiksel).toBeGreaterThan(0);
+    });
+
+    it("RETUR 2 (vedtak A): bygget auto-roteres ~+40° (vegger 50° → aksejevnt)", { timeout: 180_000 }, async () => {
+      const { res } = await konverterFixture(KUNDEFIL);
+      expect(res.autoRotasjon).not.toBeNull();
+      // Veggrid målt til ~50,5° (97,6 % av linjelengden) → ~+39,5° gjør det aksejevnt.
+      // Rotasjonen skal orthogonalisere (|θ| ≤ 45°) og ligge rundt +40°.
+      expect(res.autoRotasjon!).toBeGreaterThan(35);
+      expect(res.autoRotasjon!).toBeLessThanOrEqual(45);
+    });
+
+    it("RETUR 2 §3: startutsnitt (tett klynge) settes", { timeout: 180_000 }, async () => {
+      const { res } = await konverterFixture(KUNDEFIL);
+      expect(res.startutsnitt).not.toBeNull();
+      expect(res.startutsnitt!.w).toBeGreaterThan(0);
+      expect(res.startutsnitt!.w).toBeLessThanOrEqual(1);
+      expect(res.startutsnitt!.h).toBeGreaterThan(0);
+    });
+
+    it("RETUR 2 TILLEGG: LEADER (fall-piler) tegnes — dxf-parser dropper dem", { timeout: 180_000 }, async () => {
+      const { konverterDwg: _k } = await import("./dwgKonvertering");
+      const { parseLeadere } = await import("./dwgKonvertering");
+      const dir = mkdtempSync(join(tmpdir(), "dwgtest-"));
+      const kopi = join(dir, basename(KUNDEFIL));
+      copyFileSync(KUNDEFIL, kopi);
+      execFileSync(dwg2dxf!, ["-y", kopi], { timeout: 180_000, cwd: dir, maxBuffer: 300 * 1024 * 1024, stdio: "ignore" });
+      const dxf = readFileSync(kopi.replace(/\.[^.]+$/, ".dxf"), "utf-8");
+      const leadere = parseLeadere(dxf);
+      // Kundefila: 24 LEADER i model space (23 på «878-…», 1 på «858-…»).
+      expect(leadere.model.length).toBeGreaterThanOrEqual(20);
+      const { dxfTilSvg } = await import("./dwgKonvertering");
+      const svg = dxfTilSvg(dxf)!.svg;
+      // Alle LEADER-ene skal ende som polylinjer i SVG-en (før RETUR 2: 0).
+      const antall = (svg.match(/data-type="LEADER"/g) || []).length;
+      expect(antall).toBeGreaterThanOrEqual(leadere.model.length);
     });
   },
 );

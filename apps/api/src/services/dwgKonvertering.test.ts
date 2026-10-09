@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, copyFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
-import { kanMale, malMm } from "@sitedoc/shared";
+import { kanMale, malMm, detekterKoordinatSystem } from "@sitedoc/shared";
 import {
   gyldigKoordinat,
   gyldigeExtents,
@@ -15,6 +15,13 @@ import {
   dxfTilSvg,
   fargeFraRaa,
   parseHatcher,
+  parseLeadere,
+  dominantVeggvinkel,
+  velgAutoRotasjon,
+  roterPunkt,
+  roterProsentMarkor,
+  normaliser180,
+  beregnStartutsnitt,
 } from "./dwgKonvertering";
 
 // ---------------------------------------------------------------------------
@@ -297,6 +304,273 @@ describe("RETUR 1 (reparasjon) — blokkens base-punkt trekkes fra ved INSERT", 
     const res = dxfTilSvg(blokkBaseDxf());
     expect(res).not.toBeNull();
     expect(res!.svg).toContain("<line");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RETUR 2 — auto-rotasjon (vegg + tekst), roterPunkt, startutsnitt, LEADER.
+// Rene funksjoner + minimale håndskrevne DXF-er.
+// ---------------------------------------------------------------------------
+
+/** N parallelle LINE-segmenter i gitt vinkel (grader), + valgfri TEXT (rotasjon 0). */
+function veggerDxf(vinkelDeg: number, antall: number, medTekst: boolean): string {
+  const rad = (vinkelDeg * Math.PI) / 180;
+  const L = 1000;
+  const dx = Math.cos(rad) * L;
+  const dy = Math.sin(rad) * L;
+  const linjer: string[] = ["0", "SECTION", "2", "ENTITIES"];
+  for (let i = 0; i < antall; i++) {
+    const x0 = i * 80;
+    const y0 = 0;
+    linjer.push("0", "LINE", "8", "VEGG", "10", String(x0), "20", String(y0), "11", String(x0 + dx), "21", String(y0 + dy));
+  }
+  if (medTekst) {
+    // TEXT med rotasjon 0 (kode 50 utelatt) midt i tegningen.
+    linjer.push("0", "TEXT", "8", "KOTE", "10", "500.0", "20", "400.0", "40", "100.0", "1", "+42 000");
+  }
+  linjer.push("0", "ENDSEC", "0", "EOF");
+  return linjer.join("\n");
+}
+
+/** Minimal DXF med én LEADER (2 knekkpunkter, pilhode på) i model space. */
+function leaderDxf(): string {
+  return [
+    "0", "SECTION", "2", "ENTITIES",
+    "0", "LEADER", "8", "FALL", "71", "1",
+    "10", "0.0", "20", "0.0", "30", "0.0",
+    "10", "100.0", "20", "50.0", "30", "0.0",
+    "0", "ENDSEC", "0", "EOF",
+  ].join("\n");
+}
+
+describe("RETUR 2 — dominantVeggvinkel (lengdevektet histogram mod 90°)", () => {
+  it("25 parallelle 50°-linjer → dominant ≈ 50°, andel ≈ 100 %", () => {
+    const segs = Array.from({ length: 25 }, (_, i) => {
+      const r = (50 * Math.PI) / 180;
+      return { x1: i * 80, y1: 0, x2: i * 80 + 1000 * Math.cos(r), y2: 1000 * Math.sin(r) };
+    });
+    const d = dominantVeggvinkel(segs)!;
+    expect(d).not.toBeNull();
+    expect(d.grader).toBeCloseTo(50, 0);
+    expect(d.andel).toBeGreaterThan(0.95);
+  });
+
+  it("perpendikulært par (0° + 90°) havner i samme mod-90-topp", () => {
+    const segs = [
+      ...Array.from({ length: 15 }, (_, i) => ({ x1: 0, y1: i, x2: 1000, y2: i })), // 0°
+      ...Array.from({ length: 15 }, (_, i) => ({ x1: i, y1: 0, x2: i, y2: 1000 })), // 90°
+    ];
+    const d = dominantVeggvinkel(segs)!;
+    expect(d.grader).toBeCloseTo(0, 0);
+    expect(d.andel).toBeGreaterThan(0.95);
+  });
+
+  it("for tynt grunnlag (< 20 segmenter) → null", () => {
+    expect(dominantVeggvinkel([{ x1: 0, y1: 0, x2: 1, y2: 1 }])).toBeNull();
+  });
+});
+
+describe("RETUR 2 — velgAutoRotasjon (kvadrant fra tekst)", () => {
+  it("vegg 50°, tekst vannrett (0°) → +40° (orthogonaliserer, minste |θ|)", () => {
+    const tekst = Array.from({ length: 10 }, () => ({ grader: 0, vekt: 1 }));
+    expect(velgAutoRotasjon(50, tekst)).toBeCloseTo(40, 5);
+  });
+
+  it("vegg 50°, tekst følger veggen (50°) → -50° (tekst blir lesbar ved 0°)", () => {
+    const tekst = Array.from({ length: 10 }, () => ({ grader: 50, vekt: 1 }));
+    expect(velgAutoRotasjon(50, tekst)).toBeCloseTo(-50, 5);
+  });
+
+  it("ingen tekst → minste |rotasjon| (≤ 45°)", () => {
+    expect(velgAutoRotasjon(50, [])).toBeCloseTo(40, 5);
+    expect(Math.abs(velgAutoRotasjon(50, []))).toBeLessThanOrEqual(45);
+  });
+
+  it("allerede aksejevn (0°) → 0", () => {
+    expect(velgAutoRotasjon(0, [])).toBe(0);
+  });
+});
+
+describe("RETUR 2 — roterPunkt + normaliser180 (georef-konsistens)", () => {
+  it("roterer (1,0) 90° CCW om origo → (0,1)", () => {
+    const p = roterPunkt({ x: 1, y: 0 }, 90, { x: 0, y: 0 });
+    expect(p.x).toBeCloseTo(0, 6);
+    expect(p.y).toBeCloseTo(1, 6);
+  });
+
+  it("round-trip: roter +R så -R gir opprinnelig punkt (kjent verdenspunkt lander likt)", () => {
+    const senter = { x: 500000, y: 300000 };
+    const P = { x: 581384.88, y: 346999.99 };
+    const rotert = roterPunkt(P, 39.5, senter);
+    const tilbake = roterPunkt(rotert, -39.5, senter);
+    expect(tilbake.x).toBeCloseTo(P.x, 3);
+    expect(tilbake.y).toBeCloseTo(P.y, 3);
+    // avstand fra senter er bevart (stiv rotasjon)
+    const d0 = Math.hypot(P.x - senter.x, P.y - senter.y);
+    const d1 = Math.hypot(rotert.x - senter.x, rotert.y - senter.y);
+    expect(d1).toBeCloseTo(d0, 3);
+  });
+
+  it("normaliser180 kartlegger til (-180, 180]", () => {
+    expect(normaliser180(270)).toBe(-90);
+    expect(normaliser180(190)).toBe(-170);
+    expect(normaliser180(-200)).toBe(160);
+    expect(normaliser180(180)).toBe(180);
+    expect(normaliser180(40)).toBe(40);
+  });
+});
+
+describe("RETUR 2 — beregnStartutsnitt (tett klynge, uteliggere ut)", () => {
+  it("tett klynge + spredte uteliggere → boksen dekker klyngen, ikke uteliggerne", () => {
+    const pkt: { x: number; y: number }[] = [];
+    for (let i = 0; i < 200; i++) pkt.push({ x: 100 + (i % 20), y: 100 + Math.floor(i / 20) });
+    pkt.push({ x: -5000, y: -5000 }, { x: 9000, y: 9000 }); // 2 uteliggere
+    const su = beregnStartutsnitt(pkt)!;
+    expect(su).not.toBeNull();
+    expect(su.w).toBeLessThan(100); // klyngen er ~20 bred, ikke 14000
+    expect(su.h).toBeLessThan(100);
+    expect(su.x).toBeGreaterThan(50);
+  });
+
+  it("for få punkter (< 50) → null", () => {
+    expect(beregnStartutsnitt([{ x: 0, y: 0 }])).toBeNull();
+  });
+});
+
+describe("RETUR 2 TILLEGG — parseLeadere (dxf-parser dropper LEADER)", () => {
+  it("leser model-space LEADER med knekkpunkter + pilhode-flagg", () => {
+    const l = parseLeadere(leaderDxf());
+    expect(l.model.length).toBe(1);
+    expect(l.model[0]!.vertices.length).toBe(2);
+    expect(l.model[0]!.harPil).toBe(true);
+    expect(l.model[0]!.layer).toBe("FALL");
+  });
+
+  it("dxfTilSvg tegner LEADER som polylinje (data-type=LEADER)", () => {
+    // Legg LEADER i en tegning med litt geometri så viewBox blir gyldig.
+    const dxf = [
+      "0", "SECTION", "2", "HEADER",
+      "9", "$EXTMIN", "10", "0.0", "20", "0.0", "30", "0.0",
+      "9", "$EXTMAX", "10", "100.0", "20", "100.0", "30", "0.0",
+      "0", "ENDSEC",
+      "0", "SECTION", "2", "ENTITIES",
+      "0", "LINE", "8", "0", "10", "0.0", "20", "0.0", "11", "100.0", "21", "100.0",
+      "0", "LEADER", "8", "FALL", "71", "0",
+      "10", "10.0", "20", "10.0", "10", "60.0", "20", "40.0",
+      "0", "ENDSEC", "0", "EOF",
+    ].join("\n");
+    const res = dxfTilSvg(dxf)!;
+    expect(res).not.toBeNull();
+    expect(res.svg).toContain('data-type="LEADER"');
+  });
+});
+
+describe("RETUR 2 — rotasjon bakes inn, tekst motroteres (står vannrett som PDF)", () => {
+  it("vegger 50° + tekst 0° → autoRotasjon ≈ +40°, og TEXT får ingen rotasjon (horisontal)", () => {
+    const res = dxfTilSvg(veggerDxf(50, 25, true))!;
+    expect(res).not.toBeNull();
+    expect(res.autoRotasjon).not.toBeNull();
+    expect(res.autoRotasjon!).toBeCloseTo(40, 0);
+    // TEXT har rotasjon 0 i kilden → ingen rotate()-transform → står vannrett selv om
+    // geometrien er rotert +40°.
+    const tekstEl = res.svg.match(/<text[^>]*>\+42 000<\/text>/)?.[0] ?? "";
+    expect(tekstEl).not.toBe("");
+    expect(tekstEl).not.toContain("rotate(");
+  });
+
+  it("kartdata uten dominant par → ingen rotasjon (autoRotasjon null)", () => {
+    // Spredte vinkler, ingen dominans.
+    const linjer: string[] = ["0", "SECTION", "2", "ENTITIES"];
+    for (let i = 0; i < 40; i++) {
+      const r = ((i * 9) * Math.PI) / 180; // 0,9,18,... spredt
+      linjer.push("0", "LINE", "8", "K", "10", String(i * 10), "20", "0", "11", String(i * 10 + 100 * Math.cos(r)), "21", String(100 * Math.sin(r)));
+    }
+    linjer.push("0", "ENDSEC", "0", "EOF");
+    const res = dxfTilSvg(linjer.join("\n"))!;
+    expect(res).not.toBeNull();
+    expect(res.autoRotasjon).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RETUR 3 — Kontrollør-avvik: CRS kobler ut rotasjon (§1), markør-rotasjon ved
+// re-konvertering (§2). Klikk-inverse-rotasjon (§3) testes i shared (maaling.test.ts).
+// ---------------------------------------------------------------------------
+
+describe("RETUR 3 §1 — CRS funnet kobler ut auto-rotasjon (georef står nord-opp)", () => {
+  // Akse-rotert veggrid (50°) MEN plassert i UTM-verdenskoordinater (easting ~500 000,
+  // northing ~6 500 000). Både et dominant veggpar OG norske koordinatverdier — nettopp
+  // kombinasjonen som traff BEGGE signalene uten vakt (vanlig i norsk prosjektering).
+  function utmVeggerDxf(): string {
+    const rad = (50 * Math.PI) / 180, L = 100;
+    const dx = Math.cos(rad) * L, dy = Math.sin(rad) * L;
+    const baseX = 500000, baseY = 6500000;
+    const linjer: string[] = ["0", "SECTION", "2", "ENTITIES"];
+    for (let i = 0; i < 25; i++) {
+      const x0 = baseX + i * 8, y0 = baseY;
+      linjer.push("0", "LINE", "8", "VEGG", "10", String(x0), "20", String(y0), "11", String(x0 + dx), "21", String(y0 + dy));
+    }
+    linjer.push("0", "ENDSEC", "0", "EOF");
+    return linjer.join("\n");
+  }
+
+  it("UTM-extents detekteres som koordinatsystem", () => {
+    const ext = beregnExtents(utmVeggerDxf())!;
+    expect(ext).not.toBeNull();
+    expect(detekterKoordinatSystem("plan.dxf", ext)).toBe("utm33");
+  });
+
+  it("ingenAutoRotasjon=true kobler ut veggrid-rotasjonen (rotasjon 0); uten flagg roteres den", () => {
+    const dxf = utmVeggerDxf();
+    // Koblet (som konverterDwg gjør når et koordinatsystem er funnet): rotasjon 0.
+    expect(dxfTilSvg(dxf, undefined, { ingenAutoRotasjon: true })!.autoRotasjon).toBeNull();
+    // Uten kobling ville SAMME veggrid blitt rotert ~+40° — nettopp skjevstillingen vakta hindrer.
+    const urørt = dxfTilSvg(dxf)!;
+    expect(urørt.autoRotasjon).not.toBeNull();
+    expect(urørt.autoRotasjon!).toBeCloseTo(40, 0);
+  });
+
+  it("urotert SVG bevarer verdens-aksene (bred easting-akse); rotert ville gitt ~kvadratisk bbox", () => {
+    // Koblet ut: SVG-koordinatene er bare forskjøvet/y-speilet verden (ny(y)=-(y-oY)), ingen
+    // rotasjon → viewBox beholder det brede easting×northing-forholdet (~256×77). Da peker
+    // georefen (bygd på de samme uroterte extentene) konsistent. Hadde geometrien blitt rotert
+    // ~40° ville bounding-boksen blitt nær kvadratisk — nettopp skjevstillingen vakta hindrer.
+    const dxf = utmVeggerDxf();
+    const urotert = dxfTilSvg(dxf, undefined, { ingenAutoRotasjon: true })!;
+    const rotert = dxfTilSvg(dxf)!;
+    expect(urotert.vbW / urotert.vbH).toBeGreaterThan(2.5); // bred, aksejustert verden
+    expect(rotert.vbW / rotert.vbH).toBeLessThan(1.6);      // rotert bbox ~kvadratisk
+  });
+});
+
+describe("RETUR 3 §2 — roterProsentMarkor (markør flyttes med endret bake-rotasjon)", () => {
+  it("hjørnemarkør (0,0) roteres +90° om bildesenteret → (100,0); −90° bringer den tilbake", () => {
+    const etter = roterProsentMarkor({ x: 0, y: 0 }, 90);
+    expect(etter.x).toBeCloseTo(100, 6);
+    expect(etter.y).toBeCloseTo(0, 6);
+    const tilbake = roterProsentMarkor(etter, -90);
+    expect(tilbake.x).toBeCloseTo(0, 6);
+    expect(tilbake.y).toBeCloseTo(0, 6);
+  });
+
+  it("delta 0 → markøren står urørt (ingen rotasjonsendring)", () => {
+    const p = roterProsentMarkor({ x: 37, y: 62 }, 0);
+    expect(p.x).toBe(37);
+    expect(p.y).toBe(62);
+  });
+
+  it("senter-markøren (50,50) er rotasjons-invariant", () => {
+    const p = roterProsentMarkor({ x: 50, y: 50 }, 39.5);
+    expect(p.x).toBeCloseTo(50, 6);
+    expect(p.y).toBeCloseTo(50, 6);
+  });
+
+  it("resultatet klemmes til [0,100] (et hjørne kan lande akkurat på kanten)", () => {
+    const p = roterProsentMarkor({ x: 100, y: 100 }, 45);
+    expect(p.x).toBeGreaterThanOrEqual(0);
+    expect(p.x).toBeLessThanOrEqual(100);
+    expect(p.y).toBeGreaterThanOrEqual(0);
+    expect(p.y).toBeLessThanOrEqual(100);
   });
 });
 

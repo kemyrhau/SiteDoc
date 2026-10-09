@@ -16,6 +16,7 @@ import {
   snapTil90Linje,
   filtrerSynligePunkter,
   beregnSnap,
+  inverseRoterKlikk,
   type Punkt,
 } from "./maaling";
 
@@ -621,5 +622,44 @@ describe("aksehjelpelinje — stiplet akse tvers over bildet", () => {
   it("degenerert (0-retning / 0-bilde) → null", () => {
     expect(aksehjelpelinje({ x: 50, y: 50 }, { x: 0, y: 0 }, W, H)).toBeNull();
     expect(aksehjelpelinje({ x: 50, y: 50 }, { x: 1, y: 0 }, 0, 0)).toBeNull();
+  });
+});
+
+describe("RETUR 3 §3 — inverseRoterKlikk (klikk i rotert visning → prosent i urotert bilde)", () => {
+  // Elementets layout-størrelse og skjermplassering (senter = AABB-senter = urotert senter).
+  const W = 400, H = 200, CX = 1000, CY = 1000;
+  // Lokalt punkt i prosent → skjermvektor (fra senter) FØR CSS-rotasjonen.
+  const lokalVektor = (px: number, py: number) => ({ x: (px / 100 - 0.5) * W, y: (py / 100 - 0.5) * H });
+
+  it("grader=0 → ren prosent (identisk med gammel (klient−kant)/størrelse-vei)", () => {
+    // Klikk 100 px til høyre og 40 px ned for senteret.
+    const p = inverseRoterKlikk(CX + 100, CY + 40, CX, CY, W, H, 0);
+    expect(p.x).toBeCloseTo((100 / W + 0.5) * 100, 6); // = 75
+    expect(p.y).toBeCloseTo((40 / H + 0.5) * 100, 6);  // = 70
+  });
+
+  it("rotert +90°: et klikk der det kjente punktet HAVNER gir samme prosent som urotert", () => {
+    // Kjent punkt (75,50): lokal vektor (100,0). CSS rotate(90) [y-ned]: R(90)·(100,0)=(0,100).
+    const v = lokalVektor(75, 50); // (100,0)
+    const p = inverseRoterKlikk(CX + 0, CY + 100, CX, CY, W, H, 90);
+    expect(p.x).toBeCloseTo(75, 6);
+    expect(p.y).toBeCloseTo(50, 6);
+    // sanity: round-trip gjennom forward-rotasjonen stemmer med konstruksjonen
+    expect(v.x).toBeCloseTo(100, 6);
+    expect(v.y).toBeCloseTo(0, 6);
+  });
+
+  it("vilkårlig vinkel: forward (CSS) → inverse gir tilbake opprinnelig prosent", () => {
+    const θ = 37;
+    const r = (θ * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
+    for (const [px, py] of [[20, 80], [60, 15], [95, 95]] as const) {
+      const v = lokalVektor(px, py);
+      // CSS R(θ)=[[c,-s],[s,c]] mapper lokal vektor → skjermvektor.
+      const sx = v.x * c - v.y * s;
+      const sy = v.x * s + v.y * c;
+      const p = inverseRoterKlikk(CX + sx, CY + sy, CX, CY, W, H, θ);
+      expect(p.x).toBeCloseTo(px, 6);
+      expect(p.y).toBeCloseTo(py, 6);
+    }
   });
 });
