@@ -8,6 +8,7 @@ import {
   malPolylinjeMm,
   malArealMm2,
   kanMale,
+  utledScaleKildeVedLagring,
   kalibrerMalestokk,
   laasVinkel,
   aksehjelpelinje,
@@ -222,6 +223,47 @@ describe("måling i tegning — tittelfelt-målestokk er målbar direkte (Kennet
   it("tittelfelt uten tolkbar målestokk eller uten mm/piksel er fortsatt sperret", () => {
     expect(kanMale(null, mmPrPx, "tittelfelt")).toBe(false);
     expect(kanMale("1:50", null, "tittelfelt")).toBe(false);
+  });
+});
+
+describe("måling i tegning — håndskrevet målestokk blir «manuell» (UNN-regresjon 2026-10-09)", () => {
+  const mmPrPx = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
+
+  it("en satt scale uten eksplisitt kilde lagres som «manuell»", () => {
+    // Detaljtabellen / «Rediger flere» sendte bare `scale` — kilden ble null og
+    // måling var avslått selv om 1:50 sto i feltet. Nå utledes «manuell».
+    expect(utledScaleKildeVedLagring(true, undefined)).toBe("manuell");
+    expect(utledScaleKildeVedLagring(true, null)).toBe("manuell");
+  });
+
+  it("en eksplisitt kilde (panel/kalibrering) beholdes", () => {
+    expect(utledScaleKildeVedLagring(true, "kalibrert")).toBe("kalibrert");
+    expect(utledScaleKildeVedLagring(true, "tittelfelt")).toBe("tittelfelt");
+  });
+
+  it("ingen scale i endringen → ingen kilde å utlede (feltet røres ikke)", () => {
+    expect(utledScaleKildeVedLagring(false, undefined)).toBeUndefined();
+    // men en eksplisitt kilde alene (f.eks. «Bekreft forslag») beholdes
+    expect(utledScaleKildeVedLagring(false, "manuell")).toBe("manuell");
+  });
+
+  it("den utledede «manuell»-kilden gjør tegningen målbar (lukker regresjonen)", () => {
+    const kilde = utledScaleKildeVedLagring(true, undefined);
+    expect(kanMale("1:50", mmPrPx, kilde)).toBe(true);
+    // FEILER hvis kilden IKKE utledes (null) — som var bugg-tilstanden
+    expect(kanMale("1:50", mmPrPx, null)).toBe(false);
+  });
+});
+
+describe("måling i tegning — backfill av mm/piksel for eldre tegninger (uten ny rendering)", () => {
+  it("utleder samme mm/piksel fra lagret bredde som den opprinnelige konverteringen", () => {
+    // Backfill leser papirbredden på nytt (pdfinfo) og bruker ALLEREDE lagret
+    // imageWidth — ingen ny rendering. Resultatet er identisk med det
+    // konverteringen ville gitt (selvvaliderende brøk).
+    const vedKonvertering = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
+    const vedBackfill = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
+    expect(vedBackfill).toBe(vedKonvertering);
+    expect(vedBackfill).toBeCloseTo(420.0 / 3308, 10);
   });
 });
 
