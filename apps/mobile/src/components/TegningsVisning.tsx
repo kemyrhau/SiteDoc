@@ -38,6 +38,7 @@ import {
   fjernPunkt,
   beregnSnap,
   type Punkt,
+  type Utsnitt,
   type Referanselinje,
   type Hjelpelinjer,
   type MaleVerktoy,
@@ -512,6 +513,21 @@ ${trykkOppsett === "avansert" ? `
     return { x: Math.max(0,Math.min(100,(pageX-box.sideLeft)/box.bredde*100)),
              y: Math.max(0,Math.min(100,(pageY-box.sideTop)/box.hoyde*100)) };
   }
+  // RETUR 1: synlig utsnitt av bildet i PROSENT = der den synlige viewporten
+  // (visualViewport, dokument-px) overlapper bildeboksen. Sendes til RN så snap/
+  // hjelpelinjer ikke fester seg til punkter som er scrollet/zoomet ut av syne.
+  function utsnitt(box){
+    var vv = window.visualViewport;
+    var vL = vv?vv.pageLeft:0, vT = vv?vv.pageTop:0;
+    var vR = vL + (vv?vv.width:box.bredde), vB = vT + (vv?vv.height:box.hoyde);
+    function clamp(v){ return Math.max(0,Math.min(100,v)); }
+    return {
+      xMin: clamp((Math.max(vL, box.sideLeft) - box.sideLeft)/box.bredde*100),
+      xMax: clamp((Math.min(vR, box.sideLeft+box.bredde) - box.sideLeft)/box.bredde*100),
+      yMin: clamp((Math.max(vT, box.sideTop) - box.sideTop)/box.hoyde*100),
+      yMax: clamp((Math.min(vB, box.sideTop+box.hoyde) - box.sideTop)/box.hoyde*100),
+    };
+  }
   // Speil av tegningKoordinat.finnNaermesteSidePunkt. Treffradius i SIDE-px = TREFF_PX/zoom.
   function finnPunkt(pageX, pageY, box){
     var pk = window.__malePunkter || [];
@@ -607,10 +623,10 @@ ${trykkOppsett === "avansert" ? `
     var box = sideBoks(); if (!box) return;
     var p = pctSide(e.pageX,e.pageY,box); pending=p;
     if (dragIdx>=0) {
-      post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() }); // Flytt: live reshape (+90°/snap i RN)
+      post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom(), utsnitt:utsnitt(box) }); // Flytt: live reshape (+90°/snap i RN)
     } else if (erMale(modus())) {
       // Måleverktøy-plassering: la RN beregne 90°/snap + stiplet veiledning live.
-      post({ type:'forhaandspunkt', x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() });
+      post({ type:'forhaandspunkt', x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom(), utsnitt:utsnitt(box) });
     }
     sendLupe(e.pageX,e.pageY,box);
   });
@@ -635,7 +651,7 @@ ${trykkOppsett === "avansert" ? `
       var p = pending || pctSide(e.pageX, e.pageY, box);
       // Punktet settes HER (ved slipp). RN avgjør handling via avgjorTrykkHandling.
       // rectW/rectH = VIST bildestørrelse (skjerm-dp) — brukes til px-terskel ved valg.
-      post({ type:'gest', verktoy: modus(), varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maks, nedPaaPunkt: dragIdx>=0, dragIdx: dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() });
+      post({ type:'gest', verktoy: modus(), varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maks, nedPaaPunkt: dragIdx>=0, dragIdx: dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom(), utsnitt:utsnitt(box) });
     }
     nullstill();
   }
@@ -796,7 +812,7 @@ export function TegningsVisning({
 
   // Delt 90°/snap for ett kandidatpunkt (leser refs). null når bildet mangler mål.
   const beregnSnapForKandidat = useCallback(
-    (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null) => {
+    (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null, utsnitt?: Utsnitt | null) => {
       const sp = snapParamRef.current;
       if (sp.imgW == null || sp.imgH == null || rectW <= 0 || rectH <= 0) return null;
       const t0 = maleTilstandRef.current;
@@ -808,6 +824,7 @@ export function TegningsVisning({
       return beregnSnap({
         kandidat, anker, forforrige,
         referanser: samleReferanser(t0, ekskluderIdx),
+        utsnitt,
         referanselinje: sp.referanselinje,
         ortho: sp.ortho, snap: sp.snapPaa,
         imageWidth: sp.imgW, imageHeight: sp.imgH,
@@ -891,6 +908,11 @@ export function TegningsVisning({
   useEffect(() => {
     setLaster(true);
     setFeil(false);
+    // RETUR 1: målinger er flyktig klient-state (ikke persistert pr. tegning) —
+    // nullstill ved tegningsbytte så de ikke henger igjen som snap-kandidater på
+    // neste tegning.
+    setMaleTilstand(slettAlle());
+    setAktivtVerktoy("navigering");
   }, [tegningUrl]);
 
   // 🔴 RETUR 6 § 5: forhåndslast tegningsbildet i RN-bildecachen når tegningen
@@ -1018,7 +1040,7 @@ export function TegningsVisning({
         }
         // Punkt-dra (Flytt): live-oppdatering + 90°/snap (ekskluder punktet som dras).
         if (data.type === "maledrag") {
-          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, data.index);
+          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, data.index, data.utsnitt);
           const fp = snapR ? snapR.punkt : { x: data.x, y: data.y };
           håndterFlyttPunkt(data.index, fp.x, fp.y);
           injiserVeiledning(snapR);
@@ -1026,7 +1048,7 @@ export function TegningsVisning({
         }
         // 🟢 90°/snap forhåndsvisning under PLASSERING (måleverktøy, før slipp).
         if (data.type === "forhaandspunkt") {
-          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, null);
+          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, null, data.utsnitt);
           injiserVeiledning(snapR);
           return;
         }
@@ -1081,7 +1103,7 @@ export function TegningsVisning({
               // 90°/snap: juster punktet FØR det legges til (ekskluder ankeret som snap-mål).
               const aktP = aktivMaling(tilstand);
               const ankerIdx = aktP && !aktP.ferdig ? aktP.punkter.length - 1 : null;
-              const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, ankerIdx);
+              const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, ankerIdx, data.utsnitt);
               const fp = snapR ? snapR.punkt : { x: data.x, y: data.y };
               håndterLeggTilPunkt(fp.x, fp.y, data.rectW, data.rectH);
               return;

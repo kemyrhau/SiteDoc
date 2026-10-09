@@ -13,6 +13,7 @@ import {
   aksehjelpelinje,
   snapTilPunkt,
   snapTil90Linje,
+  filtrerSynligePunkter,
   beregnSnap,
   type Punkt,
 } from "./maaling";
@@ -462,6 +463,99 @@ describe("laasVinkel — referanselinje (GJENOPPTA § 1): lås parallelt/vinkelr
       imageWidth: W, imageHeight: H, rectW: W, rectH: H, punktTolPx: 12, guideTolPx: 12,
     });
     expect(r.vinkelrett).toBe(false);
+  });
+});
+
+describe("filtrerSynligePunkter — bare punkter i synlig utsnitt (RETUR 1)", () => {
+  const utsnitt = { xMin: 40, yMin: 40, xMax: 60, yMax: 60 };
+  it("beholder punkter inne i utsnittet, forkaster utenfor", () => {
+    const inne = { x: 50, y: 50 };
+    const ute = { x: 10, y: 10 };
+    const r = filtrerSynligePunkter([inne, ute], utsnitt);
+    expect(r).toEqual([inne]);
+  });
+  it("margin pr. akse slipper med et punkt rett utenfor kanten", () => {
+    const r = filtrerSynligePunkter([{ x: 62, y: 50 }], utsnitt, 3, 3);
+    expect(r).toHaveLength(1); // 62 <= 60 + 3
+    expect(filtrerSynligePunkter([{ x: 64, y: 50 }], utsnitt, 3, 3)).toHaveLength(0);
+  });
+});
+
+describe("beregnSnap — utsnitt-filter: snap fester seg ikke til usynlige objekter (RETUR 1)", () => {
+  const base = {
+    forforrige: null,
+    anker: null,
+    imageWidth: 1000,
+    imageHeight: 1000,
+    rectW: 1000,
+    rectH: 1000,
+    punktTolPx: 12,
+    guideTolPx: 12,
+    ortho: false,
+  };
+  const utsnitt = { xMin: 40, yMin: 40, xMax: 60, yMax: 60 };
+
+  it("punkt-snap ignorerer et mål utenfor synlig utsnitt", () => {
+    // Kandidaten er nær et punkt i prosent, men punktet er utenfor utsnittet.
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 10.4, y: 10.2 },
+      referanser: [{ x: 10, y: 10 }],
+      snap: true,
+      utsnitt,
+    });
+    expect(r.traffPunkt).toBe(false);
+    expect(r.punkt).toEqual({ x: 10.4, y: 10.2 });
+  });
+
+  it("uten utsnitt snapper samme kandidat som før (bakoverkompat)", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 10.4, y: 10.2 },
+      referanser: [{ x: 10, y: 10 }],
+      snap: true,
+    });
+    expect(r.traffPunkt).toBe(true);
+    expect(r.punkt).toEqual({ x: 10, y: 10 });
+  });
+
+  it("punkt-snap treffer et mål inne i utsnittet", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 50.4, y: 50.2 },
+      referanser: [{ x: 50, y: 50 }],
+      snap: true,
+      utsnitt,
+    });
+    expect(r.traffPunkt).toBe(true);
+    expect(r.punkt).toEqual({ x: 50, y: 50 });
+  });
+
+  it("90°-hjelpelinje fra et punkt utenfor utsnittet trekker ikke kandidaten", () => {
+    // Loddrett hjelpelinje ville ellers låst x til 50, men punktet er usynlig.
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 50.3, y: 50 },
+      referanser: [{ x: 50, y: 5 }], // x=50 ligger i utsnittet, men y=5 er utenfor
+      ortho: true,
+      snap: true,
+      utsnitt,
+    });
+    expect(r.hjelpelinjer.vertikal).toBeNull();
+    expect(r.punkt.x).toBeCloseTo(50.3, 5);
+  });
+
+  it("90°-hjelpelinje fra et synlig punkt virker fortsatt", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 50.3, y: 55 },
+      referanser: [{ x: 50, y: 45 }], // både x og y inne i utsnittet
+      ortho: true,
+      snap: true,
+      utsnitt,
+    });
+    expect(r.hjelpelinjer.vertikal).toBe(50);
+    expect(r.punkt.x).toBe(50);
   });
 });
 

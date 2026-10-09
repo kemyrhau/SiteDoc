@@ -41,6 +41,7 @@ import {
   fjernPunkt,
   beregnSnap,
   type Hjelpelinjer,
+  type Utsnitt,
   type Referanselinje,
   type SnapResultat,
   type Punkt,
@@ -477,6 +478,14 @@ export default function TegningerSide() {
     setZoom(STANDARD_ZOOM);
     setNyMarkør(null);
     setGpsKoordinat(null);
+    // RETUR 1: målinger er flyktig klient-state (ikke persistert pr. tegning) —
+    // nullstill ved tegningsbytte så de ikke henger igjen som snap-kandidater/vises
+    // på neste tegning.
+    setMaleTilstand(slettAlle());
+    setForhandsPunkt(null);
+    setHjelpelinjer({ vertikal: null, horisontal: null });
+    setAksehjelp(null);
+    setVisVinkelrett(false);
   }, [aktivTegning?.id]);
 
   // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
@@ -809,6 +818,22 @@ export default function TegningerSide() {
   // Delt snap/lås for ett kandidatpunkt — leser ferskeste 90°/snap-parametre + måletilstand
   // fra refs. `ekskluderIdx` = punktet som ikke skal være snap-mål (ankeret ved tegning,
   // eller punktet som dras). Null hvis bildet mangler mål.
+  // RETUR 1: synlig utsnitt (prosent av bildet) = der viewporten (containerRef)
+  // overlapper det zoomede bildet (maleInnerRef). Snap/hjelpelinjer begrenses til
+  // dette, så snap aldri fester seg til et punkt som er scrollet/zoomet ut av syne.
+  const beregnUtsnitt = useCallback((): Utsnitt | null => {
+    const view = containerRef.current?.getBoundingClientRect();
+    const img = maleInnerRef.current?.getBoundingClientRect();
+    if (!view || !img || img.width <= 0 || img.height <= 0) return null;
+    const klem = (v: number) => Math.max(0, Math.min(100, v));
+    return {
+      xMin: klem(((view.left - img.left) / img.width) * 100),
+      xMax: klem(((view.right - img.left) / img.width) * 100),
+      yMin: klem(((view.top - img.top) / img.height) * 100),
+      yMax: klem(((view.bottom - img.top) / img.height) * 100),
+    };
+  }, []);
+
   const beregnSnapForKandidat = useCallback(
     (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null): SnapResultat | null => {
       const sp = snapParamRef.current;
@@ -822,13 +847,14 @@ export default function TegningerSide() {
       return beregnSnap({
         kandidat, anker, forforrige,
         referanser: samleReferanser(t0, ekskluderIdx),
+        utsnitt: beregnUtsnitt(),
         referanselinje: sp.referanselinje,
         ortho: sp.ortho, snap: sp.snapPaa,
         imageWidth: sp.imgW, imageHeight: sp.imgH,
         rectW, rectH, punktTolPx: PUNKT_TREFF_PX, guideTolPx: PUNKT_TREFF_PX,
       });
     },
-    [],
+    [beregnUtsnitt],
   );
 
   const nullstillForhandsvisning = useCallback(() => {

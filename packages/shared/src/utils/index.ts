@@ -31,9 +31,10 @@ export {
   aksehjelpelinje,
   snapTilPunkt,
   snapTil90Linje,
+  filtrerSynligePunkter,
   beregnSnap,
 } from "./maaling";
-export type { Punkt, ScaleKilde, Hjelpelinjer, Referanselinje, LaasDetalj, SnapInn, SnapResultat } from "./maaling";
+export type { Punkt, ScaleKilde, Hjelpelinjer, Utsnitt, Referanselinje, LaasDetalj, SnapInn, SnapResultat } from "./maaling";
 export {
   TOM_MALETILSTAND,
   minPunkter,

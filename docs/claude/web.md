@@ -520,6 +520,13 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
   avsluttes nå KUN eksplisitt: **«Fullfør»**-knapp (grønn, i stripa) eller **Enter**. En ferdig polylinje får
   **«Fortsett»** (`gjenoppta` i shared → `ferdig=false`) for å legge til flere punkter. Areal lukkes
   fortsatt ved klikk på første punkt / «Lukk flate». (Klikk-nær-punkt lukker ikke lenger — delt § 1.)
+- **RETUR 1 (2026-10-09) — snap fester seg ikke til usynlige objekter:** `beregnSnap` tar nå et
+  valgfritt `utsnitt` (synlig del av bildet i prosent). Web beregner det fra `containerRef` (viewport)
+  mot `maleInnerRef` (zoomet bilde) i `beregnUtsnitt()` og sender det inn; snap-mål og 90°-hjelpelinjer
+  utenfor utsnittet ignoreres (margin pr. akse = treffradius→prosent, krymper riktig ved innzoom). I
+  tillegg nullstilles `maleTilstand` ved tegningsbytte (målinger er flyktig klient-state, ikke persistert
+  pr. tegning) så de ikke henger igjen som snap-kandidater på neste tegning. Treffradiusen var allerede
+  i skjerm-px (`rect.width` fra `getBoundingClientRect`) — ingen endring der. Tester: `maaling.test.ts`.
 
 **Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)
