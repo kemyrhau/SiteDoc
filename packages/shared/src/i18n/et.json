@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Tegevuse kohta",
   "timer.mine.perStatus": "Staatuse järgi",
   "timer.mine.alleSedler": "Kõik lehed perioodis",
+  "timer.mine.avkuttet": "Kuvatakse {{vist}} kõige värskem {{totalt}}. Kitsendage perioodi või kasutage filtreid, et näha rohkem.",
   "timer.mine.ingenSedler": "Valitud perioodil pole päevalehti.",
   "timer.mine.kol.prosjekt": "Projekt",
   "timer.mine.periode.denne_uken": "Sel nädalal",

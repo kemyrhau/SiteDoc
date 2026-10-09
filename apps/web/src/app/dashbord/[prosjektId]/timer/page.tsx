@@ -59,12 +59,16 @@ export default function TimerListSide() {
     return d;
   }, [ukeStart]);
 
-  const { data: rader, isLoading } = trpc.timer.dagsseddel.list.useQuery({
+  // `list` returnerer nå { sedler, totalt, grense } (Kontrollør-funn: ikke stille tak).
+  // Denne prosjekt-ukelista er iboende avgrenset (én uke) → langt under grensen; vi leser
+  // kun sedlene. `rader` beholdes som array-alias så resten av siden er uendret.
+  const { data: listeSvar, isLoading } = trpc.timer.dagsseddel.list.useQuery({
     projectId: prosjektId,
     fra: tilIso(ukeStart),
     til: tilIso(ukeSlutt),
     ...(statusFilter !== "alle" ? { status: statusFilter } : {}),
   });
+  const rader = listeSvar?.sedler;
 
   function endreUke(retning: -1 | 1) {
     const d = new Date(ukeStart);

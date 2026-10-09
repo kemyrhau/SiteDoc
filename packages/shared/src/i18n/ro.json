@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Pe activitate",
   "timer.mine.perStatus": "Pe statut",
   "timer.mine.alleSedler": "Toate foile în perioada",
+  "timer.mine.avkuttet": "Se afișează cel mai recent {{vist}} dintre {{totalt}}. Restrângeți perioada sau folosiți filtre pentru a vedea mai multe.",
   "timer.mine.ingenSedler": "Fără foi zilnice în perioada selectată.",
   "timer.mine.kol.prosjekt": "Proiect",
   "timer.mine.periode.denne_uken": "În această săptămână",

@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Toimintaa kohden",
   "timer.mine.perStatus": "Tilan mukaan",
   "timer.mine.alleSedler": "Kaikki arkit jaksossa",
+  "timer.mine.avkuttet": "Näytetään {{vist}} viimeisin / {{totalt}}. Tarkenna ajanjaksoa tai käytä suodattimia nähdäksesi lisää.",
   "timer.mine.ingenSedler": "Ei päivittäisiä lakanoita valitulla ajanjaksolla.",
   "timer.mine.kol.prosjekt": "Projekti",
   "timer.mine.periode.denne_uken": "Tällä viikolla",

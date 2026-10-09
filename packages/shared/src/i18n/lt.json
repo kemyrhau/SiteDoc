@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Pagal veiklą",
   "timer.mine.perStatus": "Pagal būseną",
   "timer.mine.alleSedler": "Visi lapai tam tikru laikotarpiu",
+  "timer.mine.avkuttet": "Rodomas {{vist}} naujausias iš {{totalt}}. Susiaurinkite laikotarpį arba naudokite filtrus, kad pamatytumėte daugiau.",
   "timer.mine.ingenSedler": "Dienos lapų pasirinktu laikotarpiu nėra.",
   "timer.mine.kol.prosjekt": "Projektas",
   "timer.mine.periode.denne_uken": "Šią savaitę",

@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "За діяльність",
   "timer.mine.perStatus": "За статусом",
   "timer.mine.alleSedler": "Всі аркуші в період",
+  "timer.mine.avkuttet": "Показано {{vist}} останнього з {{totalt}}. Звужте період або використовуйте фільтри, щоб побачити більше.",
   "timer.mine.ingenSedler": "Немає щоденних простирадл у вибраний період.",
   "timer.mine.kol.prosjekt": "Демонструвати",
   "timer.mine.periode.denne_uken": "Цього тижня",

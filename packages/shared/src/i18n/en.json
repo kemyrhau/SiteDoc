@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "By activity",
   "timer.mine.perStatus": "By status",
   "timer.mine.alleSedler": "All sheets in period",
+  "timer.mine.avkuttet": "Showing the {{vist}} most recent of {{totalt}}. Narrow the period or use filters to see more.",
   "timer.mine.ingenSedler": "No daily sheets in selected period.",
   "timer.mine.kol.prosjekt": "Project",
   "timer.mine.periode.denne_uken": "This week",

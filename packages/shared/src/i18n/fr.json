@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Par activité",
   "timer.mine.perStatus": "Par statut",
   "timer.mine.alleSedler": "Toutes les feuilles en période",
+  "timer.mine.avkuttet": "Affichage du {{vist}} le plus récent de {{totalt}}. Réduisez la période ou utilisez des filtres pour en voir plus.",
   "timer.mine.ingenSedler": "Pas de feuilles quotidiennes dans la période sélectionnée.",
   "timer.mine.kol.prosjekt": "Projet",
   "timer.mine.periode.denne_uken": "Cette semaine",

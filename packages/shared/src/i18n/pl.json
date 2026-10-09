@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Na czynność",
   "timer.mine.perStatus": "Według stanu",
   "timer.mine.alleSedler": "Wszystkie arkusze w okresie",
+  "timer.mine.avkuttet": "Wyświetlanie {{vist}} najnowszych z {{totalt}}. Zawęź okres lub użyj filtrów, aby zobaczyć więcej.",
   "timer.mine.ingenSedler": "Brak arkuszy dziennych w wybranym okresie.",
   "timer.mine.kol.prosjekt": "Projekt",
   "timer.mine.periode.denne_uken": "W tym tygodniu",

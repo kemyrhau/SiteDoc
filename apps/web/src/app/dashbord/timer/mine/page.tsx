@@ -182,7 +182,7 @@ export default function MineTimerSide() {
   const kanFoereTimer = ansattStatus?.kanFoere ?? true;
   const ansattFirmanavn = ansattStatus?.firmanavn ?? valgtFirma?.name ?? "";
 
-  const { data: rader, isLoading } = trpc.timer.dagsseddel.list.useQuery({
+  const { data: listeSvar, isLoading } = trpc.timer.dagsseddel.list.useQuery({
     fra,
     til,
     organizationId: orgId,
@@ -195,7 +195,11 @@ export default function MineTimerSide() {
     },
   });
 
-  const alleRader = (rader as unknown as ListeRad[] | undefined) ?? [];
+  // `list` returnerer { sedler, totalt, grense } (Kontrollør-funn: ikke stille tak).
+  const svar = listeSvar as unknown as { sedler: ListeRad[]; totalt: number; grense: number } | undefined;
+  const alleRader = svar?.sedler ?? [];
+  // Server kuttet ved `grense` nyeste: si det ærlig i stedet for stille tomhet.
+  const serverAvkuttet = svar ? svar.totalt > svar.sedler.length : false;
 
   // Klient-side filtrering (TILLEGG 3): status + prosjekt(er) + fritekst. Dato-vinduet
   // er allerede avgrenset server-side via fra/til.
@@ -230,16 +234,18 @@ export default function MineTimerSide() {
   // fra TIDLIGERE dager (mobil `DagsseddelListe` UF-3). Periode-UAVHENGIG: egen
   // query uten fra/til så en glemt kladd utenfor valgt periode fortsatt fanges.
   // Dagens egen draft maser ikke (kun dato < i dag). Lenker til eldste.
-  const { data: draftRader } = trpc.timer.dagsseddel.list.useQuery({
+  const { data: draftSvar } = trpc.timer.dagsseddel.list.useQuery({
     status: "draft",
     organizationId: orgId,
   });
   const usendteKladder = useMemo(() => {
     const iDag = tilIso(new Date());
-    return ((draftRader as unknown as ListeRad[] | undefined) ?? [])
+    const draftListe =
+      (draftSvar as unknown as { sedler: ListeRad[] } | undefined)?.sedler ?? [];
+    return draftListe
       .filter((r) => r.antallRader > 0 && tilIso(new Date(r.dato)) < iDag)
       .sort((a, b) => tilIso(new Date(b.dato)).localeCompare(tilIso(new Date(a.dato))));
-  }, [draftRader]);
+  }, [draftSvar]);
   const eldsteKladd = usendteKladder[usendteKladder.length - 1];
 
   const oppsummering = useMemo(() => {
@@ -519,6 +525,11 @@ export default function MineTimerSide() {
             <h2 className="mb-2 text-sm font-semibold text-gray-900">
               {t("timer.mine.alleSedler")}
             </h2>
+            {serverAvkuttet && (
+              <p className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {t("timer.mine.avkuttet", { vist: svar?.sedler.length ?? 0, totalt: svar?.totalt ?? 0 })}
+              </p>
+            )}
             <table className="w-full text-sm">
               <thead className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500">
                 <tr>

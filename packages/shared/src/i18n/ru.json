@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "За активность",
   "timer.mine.perStatus": "По статусу",
   "timer.mine.alleSedler": "Все листы за период",
+  "timer.mine.avkuttet": "Показаны самые последние {{vist}} из {{totalt}}. Ограничьте период или используйте фильтры, чтобы увидеть больше.",
   "timer.mine.ingenSedler": "Нет ежедневных листов за выбранный период.",
   "timer.mine.kol.prosjekt": "Проект",
   "timer.mine.periode.denne_uken": "На этой неделе",

@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Pro Aktivität",
   "timer.mine.perStatus": "Pro Status",
   "timer.mine.alleSedler": "Alle Blätter zeitgemäß",
+  "timer.mine.avkuttet": "Zeigt den {{vist}} aktuellsten von {{totalt}}. Grenzen Sie den Zeitraum ein oder verwenden Sie Filter, um mehr zu sehen.",
   "timer.mine.ingenSedler": "Keine Tagesblätter im ausgewählten Zeitraum.",
   "timer.mine.kol.prosjekt": "Projekt",
   "timer.mine.periode.denne_uken": "Diese Woche",

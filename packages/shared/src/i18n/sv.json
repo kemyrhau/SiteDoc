@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Per aktivitet",
   "timer.mine.perStatus": "Per status",
   "timer.mine.alleSedler": "Alla blad i punkt",
+  "timer.mine.avkuttet": "Visar den {{vist}} senaste av {{totalt}}. Begränsa perioden eller använd filter för att se mer.",
   "timer.mine.ingenSedler": "Inga dagliga blad under vald period.",
   "timer.mine.kol.prosjekt": "Projekt",
   "timer.mine.periode.denne_uken": "Denna vecka",

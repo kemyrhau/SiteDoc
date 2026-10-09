@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Për aktivitet",
   "timer.mine.perStatus": "Sipas statusit",
   "timer.mine.alleSedler": "Të gjitha fletët në periudhë",
+  "timer.mine.avkuttet": "Duke shfaqur {{vist}} më të fundit nga {{totalt}}. Kufizoni periudhën ose përdorni filtra për të parë më shumë.",
   "timer.mine.ingenSedler": "Nuk ka fletë ditore në periudhën e zgjedhur.",
   "timer.mine.kol.prosjekt": "Projekti",
   "timer.mine.periode.denne_uken": "Këtë javë",

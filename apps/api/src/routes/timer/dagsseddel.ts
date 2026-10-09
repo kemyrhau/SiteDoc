@@ -1590,22 +1590,30 @@ export const dagsseddelRouter = router({
           : {}),
       };
 
-      const sedler = await ctx.prismaTimer.dailySheet.findMany({
-        where,
-        include: {
-          aktivitet: { select: { id: true, navn: true, kode: true } },
-          timer: true,
-          tillegg: true,
-          maskiner: true,
-        },
-        orderBy: [{ dato: "desc" }, { createdAt: "desc" }],
-        take: 200,
-      });
+      // Kontrollør-funn 2026-10-09: taket var stille (take:200 uten at klienten fikk vite
+      // om noe ble kuttet → stille tomhet forbudt). Returner `totalt` (count på samme
+      // where) ved siden av de `grense` nyeste, så klienten kan vise «Viser X av N —
+      // avgrens perioden». Count + findMany samlet (to spørringer, ett rundtur-sett).
+      const GRENSE = 200;
+      const [totalt, sedler] = await Promise.all([
+        ctx.prismaTimer.dailySheet.count({ where }),
+        ctx.prismaTimer.dailySheet.findMany({
+          where,
+          include: {
+            aktivitet: { select: { id: true, navn: true, kode: true } },
+            timer: true,
+            tillegg: true,
+            maskiner: true,
+          },
+          orderBy: [{ dato: "desc" }, { createdAt: "desc" }],
+          take: GRENSE,
+        }),
+      ]);
 
       // Berik med totaltimer (sum av alle SheetTimer-rader) for liste-visning.
       // T.1: prosjekt(er) utledes fra radene (DailySheet har ikke projectId) —
       // distinct projectId på tvers av timer-/maskin-/tillegg-rader.
-      return sedler.map((s) => {
+      const berikede = sedler.map((s) => {
         const prosjektIder = [
           ...new Set(
             [
@@ -1622,6 +1630,8 @@ export const dagsseddelRouter = router({
           antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
         };
       });
+
+      return { sedler: berikede, totalt, grense: GRENSE };
     }),
 
   // Kenneth-vedtak 2026-10-09 (2): kan innlogget bruker føre EGNE timer i firmaet?
@@ -1631,11 +1641,20 @@ export const dagsseddelRouter = router({
   kanFoereTimer: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
-      const orgId = input?.organizationId ?? (await hentBrukersOrg(ctx.userId));
-      if (!orgId) return { kanFoere: false, firmanavn: null };
+      // Kontrollør-funn 2026-10-09: firmanavnet må ALDRI lekke til en kaller uten forhold
+      // til firmaet (ellers kan en fremmed enumerere firmanavn via gjettede org-UUID-er).
+      // `resolverOrgFraInput` gater relasjonen: sitedoc_admin → hvilket som helst firma;
+      // andre → kun eget aktivt medlemskap, ellers FORBIDDEN. Org-løs bruker uten oppgitt
+      // firma (standalone, ingen timer-tilgang) får et nøytralt svar uten navn i stedet
+      // for en kastet feil, så UI-et ikke knekker.
+      if (!input?.organizationId && !(await hentBrukersOrg(ctx.userId))) {
+        return { kanFoere: false, firmanavn: null };
+      }
+      const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
       const kanFoere = await erAnsattIFirma(ctx.userId, orgId);
       let firmanavn: string | null = null;
       if (!kanFoere) {
+        // Trygt å hente navnet nå — kalleren er verifisert medlem/admin for firmaet.
         const org = await ctx.prisma.organization.findUnique({
           where: { id: orgId },
           select: { name: true },

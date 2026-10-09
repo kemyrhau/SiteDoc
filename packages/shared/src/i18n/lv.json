@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Katrai aktivitātei",
   "timer.mine.perStatus": "Pēc statusa",
   "timer.mine.alleSedler": "Visas lapas attiecīgajā periodā",
+  "timer.mine.avkuttet": "Tiek rādīts {{vist}} jaunākais no {{totalt}}. Sašauriniet periodu vai izmantojiet filtrus, lai redzētu vairāk.",
   "timer.mine.ingenSedler": "Atlasītajā periodā nav nevienas dienas lapas.",
   "timer.mine.kol.prosjekt": "Projekts",
   "timer.mine.periode.denne_uken": "Šonedēļ",

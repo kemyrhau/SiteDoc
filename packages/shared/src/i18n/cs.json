@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Za aktivitu",
   "timer.mine.perStatus": "Podle stavu",
   "timer.mine.alleSedler": "Všechny listy v období",
+  "timer.mine.avkuttet": "Zobrazuje se {{vist}} nejnovější z {{totalt}}. Chcete-li zobrazit více, zužte období nebo použijte filtry.",
   "timer.mine.ingenSedler": "Žádné denní listy ve vybraném období.",
   "timer.mine.kol.prosjekt": "Projekt",
   "timer.mine.periode.denne_uken": "Tento týden",

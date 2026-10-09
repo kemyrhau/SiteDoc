@@ -362,6 +362,7 @@
   "timer.mine.perAktivitet": "Etter aktivitet",
   "timer.mine.perStatus": "Etter status",
   "timer.mine.alleSedler": "Alle sedler i perioden",
+  "timer.mine.avkuttet": "Viser de {{vist}} nyeste av {{totalt}}. Avgrens perioden eller bruk filtre for å se flere.",
   "timer.mine.ingenSedler": "Ingen dagssedler i valgt periode.",
   "timer.mine.kol.prosjekt": "Prosjekt",
   "timer.mine.periode.denne_uken": "Denne uken",
