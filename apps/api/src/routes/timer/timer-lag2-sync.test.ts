@@ -32,6 +32,7 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
   hentBrukersOrg: vi.fn(),
   // Literal (ikke ORG-const) — vi.mock hoistes over const-deklarasjonene (TDZ).
   krevBrukersOrg: vi.fn().mockResolvedValue("11111111-1111-1111-1111-111111111111"),
+  resolverOrgFraInput: vi.fn().mockResolvedValue("11111111-1111-1111-1111-111111111111"),
 }));
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import { Spinner, Input } from "@sitedoc/ui";
 import { Clock, FileText, Briefcase, Activity, Plus, Info, ChevronRight } from "lucide-react";
 
@@ -80,6 +81,10 @@ function periodeRange(periode: Periode, fraEgen: string, tilEgen: string): { fra
 
 export default function MineTimerSide() {
   const { t } = useTranslation();
+  // Kenneth-vedtak 2026-10-09: timer følger innlogget firma — samme firmakilde til
+  // både prosjektliste og dagsseddel-lista.
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id ?? undefined;
   const [periode, setPeriode] = useState<Periode>("denne_uken");
   const [fraEgen, setFraEgen] = useState<string>(tilIso(ukestart(new Date())));
   const [tilEgen, setTilEgen] = useState<string>(tilIso(new Date()));
@@ -91,7 +96,9 @@ export default function MineTimerSide() {
 
   // hentForTimer (Fase 2 / T.10): inkluderer interne prosjekter så navn på
   // ikke-prosjekt-tid-rader resolver i lista (hentMine ville utelatt dem).
-  const { data: prosjekter } = trpc.prosjekt.hentForTimer.useQuery();
+  const { data: prosjekter } = trpc.prosjekt.hentForTimer.useQuery({
+    organizationId: orgId,
+  });
   const prosjektNavnMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const p of (prosjekter ?? []) as Array<{ id: string; name: string }>) {
@@ -103,6 +110,7 @@ export default function MineTimerSide() {
   const { data: rader, isLoading } = trpc.timer.dagsseddel.list.useQuery({
     fra,
     til,
+    organizationId: orgId,
   });
 
   const liste = (rader as unknown as ListeRad[] | undefined) ?? [];
@@ -113,6 +121,7 @@ export default function MineTimerSide() {
   // Dagens egen draft maser ikke (kun dato < i dag). Lenker til eldste.
   const { data: draftRader } = trpc.timer.dagsseddel.list.useQuery({
     status: "draft",
+    organizationId: orgId,
   });
   const usendteKladder = useMemo(() => {
     const iDag = tilIso(new Date());

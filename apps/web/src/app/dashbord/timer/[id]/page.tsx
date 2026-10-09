@@ -179,7 +179,13 @@ export default function DagsseddelDetaljSide() {
     { id: params.id },
     { retry: false },
   );
-  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery();
+  // Kenneth-vedtak 2026-10-09: prosjektvelgeren følger SEDELENS firma (en eksisterende
+  // sedel tilhører ett bestemt firma — radene føres mot det firmaets prosjekter), ikke
+  // det valgte toppbar-firmaet. Før sedelen er lastet → egen org (server-fallback).
+  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery(
+    { organizationId: sheet?.organizationId ?? undefined },
+    { enabled: !!sheet?.organizationId },
+  );
 
   // Maskin-fra-til (2026-05-17): orgSetting brukes som fallback når en
   // bucket mangler timer-rader (ingen rad å ta fra/til fra). Trpc-cache

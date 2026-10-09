@@ -9,7 +9,7 @@ import {
   verifiserProsjektmedlem,
   verifiserProsjekterTilhørerFirma,
   hentBrukersOrg,
-  krevBrukersOrg,
+  resolverOrgFraInput,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
@@ -1524,11 +1524,13 @@ export const dagsseddelRouter = router({
           fra: z.string().optional(),
           til: z.string().optional(),
           status: z.enum(STATUS_VERDIER).optional(),
+          // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+          organizationId: z.string().uuid().optional(),
         })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
 
       // Default: kun egne dagssedler
       const userId = input?.userId ?? ctx.userId;
@@ -1725,14 +1727,17 @@ export const dagsseddelRouter = router({
         pauseMin: z.number().int().min(0).default(0),
         sluttTidKilde: z.enum(["bruker", "midnatt", "system"]).default("bruker"),
         beskrivelse: z.string().nullable().optional(),
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09): sedelen lagres på DETTE
+        // firmaet, ikke på medlemskapet. Serveren verifiserer tilgang. Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       // T.1: Web-opprett er dato-only — sedelen eies av arbeider/firma og har
-      // ingen prosjekttilhørighet. Org-tilgang (krevBrukersOrg + krevTimerAktivert)
+      // ingen prosjekttilhørighet. Org-tilgang (resolverOrgFraInput + krevTimerAktivert)
       // er tilstrekkelig auth; prosjekt legges per rad på detalj-siden.
 
       // Verifiser at aktiviteten tilhører firmaet
@@ -5466,10 +5471,12 @@ export const dagsseddelRouter = router({
         sistSynkronisert: z.string().optional(), // ISO timestamp eller undefined for full pull
         // Begrens til siste N dager hvis full pull, for å unngå å laste hele historikken
         maksDagerTilbake: z.number().int().min(1).max(365).default(90),
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       const sistSynk = input.sistSynkronisert
@@ -5872,10 +5879,12 @@ export const dagsseddelRouter = router({
               .optional(),
           }),
         ).max(100), // Begrens batch-størrelse for å unngå tidsavbrudd
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       // LAG 2 (C1/C2): batch-nivå kontekst for reise-behandlingen — hentes ÉN gang
@@ -5998,7 +6007,7 @@ export const dagsseddelRouter = router({
             // Ny seddel — verifiser prosjekttilgang. F4-4: sedel-nivå projectId
             // kan nå være null (tom/plassholder-sedel). Rad-nivå-medlemskap
             // sjekkes uansett under (radProjectIder); org-tilgang er allerede
-            // sikret (krevBrukersOrg + krevTimerAktivert). Konsistent med web
+            // sikret (resolverOrgFraInput + krevTimerAktivert). Konsistent med web
             // `opprett` (T.1: dato-only, org-tilgang tilstrekkelig).
             await verifiserProsjektmedlem(ctx.userId, lokal.projectId);
           }
@@ -7213,10 +7222,12 @@ export const dagsseddelRouter = router({
       z.object({
         userId: z.string().uuid().optional(), // default = innlogget bruker
         dato: z.string(), // ISO YYYY-MM-DD
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input.organizationId);
       const userId = input.userId ?? ctx.userId;
 
       // Hvis bruker ber om noen andres dagstotal: krev admin

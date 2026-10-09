@@ -33,6 +33,7 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
   verifiserKjoretoyTilhørerFirma: vi.fn().mockResolvedValue(undefined),
   hentBrukersOrg: vi.fn(),
   krevBrukersOrg: vi.fn().mockResolvedValue("11111111-1111-1111-1111-111111111111"),
+  resolverOrgFraInput: vi.fn().mockResolvedValue("11111111-1111-1111-1111-111111111111"),
 }));
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),

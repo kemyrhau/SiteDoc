@@ -74,7 +74,12 @@ export default function NyDagsseddelSide() {
 
   // D7: prosjektliste for arbeider (inkluderer interne prosjekter). Cast for å
   // unngå TS2589 (dyp Project-type) — samme mønster som detalj-siden.
-  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery();
+  // Kenneth-vedtak 2026-10-09: timer følger innlogget firma. Send valgtFirma som
+  // organizationId → lista viser bare prosjekter i DET firmaet (samme regel som
+  // skrivingen), og serveren verifiserer tilgang.
+  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery({
+    organizationId: orgId ?? undefined,
+  });
   const prosjekter = useMemo(
     () =>
       (prosjekterRaw ?? []) as unknown as Array<{
@@ -177,6 +182,8 @@ export default function NyDagsseddelSide() {
       endAt: tilstartAt(endAt),
       pauseMin,
       beskrivelse: beskrivelse.trim() || null,
+      // Lagre sedelen på det innloggede firmaet (ikke medlemskapet). Server verifiserer.
+      organizationId: orgId ?? undefined,
     });
   }
 
