@@ -8,8 +8,8 @@
 ## Komponenter
 | Tjeneste | Image | Port | Innhold |
 |---|---|---|---|
-| `sitedoc-api` | Dockerfile.api | 3001 | Fastify/tRPC + native konvertere (poppler, tesseract+nor, xvfb, libredwg, evt. ODA) |
-| `sitedoc-web` | Dockerfile.web | 3100 | Next.js 14 |
+| `sitedoc-api` | Dockerfile.api | 3001 | Fastify/tRPC + native konvertere (poppler, tesseract+nor, **libredwg** — DWG/DXF) |
+| `sitedoc-web` | Dockerfile.web | 3100 | Next.js 14 + **libredwg** (tRPC in-process → web konverterer DWG ved nettleser-opplasting, D-M2) |
 | `embed` | Dockerfile.ml | 3302 | NorBERT + multilingual-e5 (torch/transformers) |
 | `oversettelse` | Dockerfile.ml | 3303 | OPUS-MT (samme image, annen command) |
 | `postgres` | pgvector/pgvector:pg16 | 5432 | delt container (egen compose) — pgvector klar |
@@ -22,7 +22,7 @@ Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
    - `web.env` — `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` …
    - Kopier fra gammel server (`~/programmering/sitedoc/apps/{api/.env,web/.env.local}`), endre kun `DATABASE_URL`/`DIRECT_URL` → `@postgres:5432`.
 2. **DB-rolle:** opprett `sitedoc`-rolle (least-privilege) + database, som vi gjorde med `salsa`. Prod-DB er eid av `postgres` på gammel server — vi restorer med `--no-owner` til ny rolle.
-3. **(Valgfritt) ODAFileConverter .deb** → `docker/vendor/` + fjern kommentar i Dockerfile.api. Uten den: `dwg2dxf` (libredwg) som fallback.
+3. **DWG-konvertering — ingenting å skaffe (DWG-1, 2026-10-08).** libredwg 0.14 bygges fra kilde i et eget build-stage (`libredwg-build`, bookworm-slim + build-essential/curl/xz) i BÅDE Dockerfile.api og Dockerfile.web; kun `dwg2dxf`/`dwg2SVG` + `libredwg.so*` kopieres inn i runtime (+ `ldconfig`). Tarball SHA256-pinnet (`LIBREDWG_SHA256`-arg), hentes fra `ftp.gnu.org` ved BUILD-tid — ingen runtime-nettverk. ODA File Converter er valgt bort (lukket lisens) og helt fjernet fra Dockerfile + kode; xvfb fjernet (ble kun brukt av ODA; 3D-veiene er fortsatt ute, BACKLOG). **Verifiser etter rebuild:** `docker exec <api> dwg2dxf --version && docker exec <web> dwg2dxf --version` (runbok § 1 steg 3 / § 2 steg 5).
 
 ## Åpne punkter å verifisere under bygg
 - **Oversettelse-URL env-navn:** sjekk `apps/api/src/services/oversettelse-service.ts` — sett riktig env (f.eks. `OVERSETTELSE_URL=http://oversettelse:3303`) i `api.env`/compose. (`NORBERT_URL` er bekreftet.)

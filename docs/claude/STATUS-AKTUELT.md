@@ -22,26 +22,16 @@ sist_verifisert_mot_kode: 2026-08-09
 > 🟢 **Lag 0c LEVERT `c78bc14f`** — regel 10 er fire ledd, `turbo run typecheck` gater 10 pakker. ⚠️ **`pnpm install` kreves i alle trær** (`@types/node`).
 > 🟢 **LAG 1 KOMPLETT 2026-10-03:** L1-C+L1-A `9d67367a` + L1-B `2e993250`. H21+H22 lukket. Test-deploy `fd92736d` (lag 0 + L1-A/C, migrering `20261002120000` kjørt). 🟢 **`20261002130000_timer_normkilde_pausereferanse` KJØRT** — verifisert av Kenneth i UI 2026-10-03 (firma → innstillinger viser «Dagsnorm-kilde: Fast (7,5 t)» og «Pausen starter fra: Ankomst»). ⚠️ Pull krever `pnpm install` + `prisma generate` ×4. **K10 VEDTATT → V17:** byggeplass-lokasjon = punkt+radius (standard) eller polygon (infrastruktur), én delt gjenkjenning for timer OG PSI; bygges før lag 3/4. 🟢 **K5 vedtatt (mottak med sporbarhet).** 🟡 **LAG 2 BESTILT 2026-10-03** ([timer-gps-lag2-spec.md](timer-gps-lag2-spec.md), gatet; krav på `docs/design-lag2-krav` @ `ed2c9e54` venter merge): L2-A → L2-B ∥ L2-C. Funn: L1-B-etappene lagres ikke på raden, `syncBatch` stripper ukjente felt. 📄 **V17-spec skrevet 2026-10-04** ([v17-geofence-spec.md](v17-geofence-spec.md)) — til gate; bygges før lag 3/4. 📄 **V19-spec skrevet** ([timer-overlapp-pc-mobil-spec.md](timer-overlapp-pc-mobil-spec.md), H25 overlapp PC↔mobil) — til gate.
 
-> 🟢 **PROD-DEPLOY 2026-10-07 (runde 2): `ec35181d`** (main, bygget 13:39Z) — verifisert **innlogget** og på telefon.
-> Innhold: frys etter «+ Oppgave»→tilbake fikset i rotårsaken + flere oppgaver pr. felt, mobil+web (`6ec95359` ← `18ad5bc3`).
-> Ingen migreringer. 🟢 **OTA prod-kanal** fra `ec35181d` (update group `74576aa0-df23-4f0b-881f-ad384133a1a9`, iOS update
-> `01a116c8-8480-7d12-b5bc-d3df23407d69`), verifisert på telefon (build 54).
-
-> 🟢 **PROD-DEPLOY 2026-10-07 (runde 1): `4f7998c7`** (main, bygget 09:21Z) — verifisert **innlogget** og på telefon.
-> Innhold: V20 pause én kilde (S `3b06dcb1`, S2 `669c579b`, W `d5758806`) · ansvarstekst i SiteDoc-arkivet (`039c8cd6`) ·
-> standardnavn uten kode (`40164e63`, mal-7b `eb5af56a`) · synk-statusvisning (`ea18494f`). 🟢 **Migreringer kjørt mot `sitedoc`:**
-> db-timer `20261006220000_v20_pause_backfill` + `20261007120000_v20_s2_pause_backfill`. Telling etter: 9 sedler, 8 med hode>0,
-> Σ=0-kandidater 0, 1 uavklart (hode 0, ingen bevist fradrag). Dump `~/backup/sitedoc-pre-release-20261007.dump`.
-> 🟢 **SiteDoc-arkivet seedet i prod** (DEPLOY-RUNBOK § 8): 4 standarder / 17 kapitler / 27 maler / 402 objekter (fra 0).
-> 🟢 **OTA prod-kanal** fra `4f7998c7` (OTA `01a1166…`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
-> ⚠️ **IKKE i prod:** T1 serieopplasting av tegninger (`0e50adad`) — kun på test.
+> 🟢 **PROD-DEPLOY 2026-10-08: `de1582ae`** (main, bygget 15:38Z) — ingen migreringer. 🟢 **OTA prod-kanal** fra `de1582ae`
+> (OTA `01a11c3…`), verifisert på telefon (build 54, Mer viser `de1582ae`). Innhold: tegninger serieopplasting T1/T1b/T1c
+> (`0e50adad`, `c9c55137`, `48016503`) · zoom og verktøylinje på tegningssiden (`ce29a0ba`, `0f1e38e0`) · måling web (målestokk fra
+> tittelfelt, kalibreringsveiledning, styreflate-knip, linjal/polylinje/areal: `09fd30a4`, `84f97c19`) · måling mobil (hint, langt trykk,
+> verktøy, lupe, rediger figur: `9cf1fbea`, `21edd9ed`, `f0ad4d47`, `e9662121`, `b3f7d24f`, `c62bb180`, `66a25e24`).
+> Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
+> ⚠️ **IKKE i prod:** 90°/snap (`feat/maaling-90-snap`, under arbeid) · V20-M (ikke levert). 🟡 **Gjenstår tegninger:** T2 `Tegningsserie` (ikke bestilt).
 
 > 🟡 **V20-oppfølgere (åpne):** V20-M (låst visning viser matpause-avkrysningen, BACKLOG `f032e6be`) · V21 (overtidsforslag
 > manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT 2026-10-06 — egne små ordrer.
-
-> 🟡 **TEGNINGER: SERIEOPPLASTING — SPEC TIL GATE 2026-10-06** (branch `docs/design-tegning-serieopplasting`, `tegning-serieopplasting-spec.md`, omfang T1 → T2
-> godkjent av Kenneth): 20 ark-tegninger lastes én og én i dag. T1 uten schema (flervalg, detaljer etterpå, entydig-treff-forhåndsutfylling, fag-sortering, ny revisjon
-> på web), T2 `Tegningsserie`. Målestokk forblir valgfri uten mas.
 
 # 🔴 TAVLA — hvem sitter hvor
 
@@ -168,7 +158,6 @@ som rører CLAUDE.md skal derfor merges samme døgn de gates**, ikke stables.
 
 ### 🟡 Feltfunn 2026-09-24 (funn-sporet, ikke blokkerende)
 
-- **Zoom i tegningsvisningen bruker ikke musepekeren som origo.** Virker, men irriterer. Kenneth, test.sitedoc.no.
 - **Banneret sier «DWG-konvertering feilet» også for PDF-feil** (`apps/web/src/app/dashbord/[prosjektId]/tegninger/page.tsx:883`). Del av grunnen til at PDF-feilen så ut som en DWG-sak. Krever i18n i 15 språk.
 - 🔴 **AVKLART OG MÅLT — nedlastede filer får UUID som navn.** Symptomet så ut som en opplastingsfeil (ny tegning listet som `40ae60ab-…`), men opplastingen gjør riktig: `apps/web/src/app/dashbord/oppsett/byggeplasser/page.tsx:310` setter `setMetaNavn(fil.name.replace(/\.[^.]+$/, ""))` — filnavnet uten endelse. **UUID-en VAR filnavnet.** Kenneth lastet fila ned fra prod, og den kom ut som `<uuid>.pdf`.
   **Rotårsak:** `apps/api/src/routes/upload.ts:133` lagrer på disk som `<uuid>.<ext>` (riktig — hindrer kollisjon), men `apps/api/src/server.ts:131` setter `Content-Disposition: inline` **uten `filename=`**. Nettleseren har da ingenting å gå på og bruker siste URL-ledd.

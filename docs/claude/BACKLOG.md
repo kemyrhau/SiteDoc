@@ -1220,7 +1220,7 @@ flytting av server til server-ny».*
 |---|---|---|---|
 | **PDF-tegning** | `pdftoppm` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
 | 🔴 **OCR (Fil-til-database)** | `tesseract` + språkdata `nor` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
-| **DWG** | `dwg2dxf` + `dwg2SVG` (libredwg) | 🔴 **borte i BEGGE** | libredwg fra kilde, eller ODA-konto + `.deb` |
+| **DWG** | `dwg2dxf` + `dwg2SVG` (libredwg) | 🔴 **borte i BEGGE** | **Spec 2026-10-08: `tegning-dwg-spec.md` — libredwg 0.14 fra kilde i begge bilder (Kenneth-valg, ODA ut), ordre DWG-1** |
 | **3D / punktsky** | `CloudCompare` + `PotreeConverter` | 🔴 **borte i BEGGE** | ⚠️ **ikke målt** |
 | *(støtte)* | `xvfb-run` | mangler i web | følger DWG/3D |
 

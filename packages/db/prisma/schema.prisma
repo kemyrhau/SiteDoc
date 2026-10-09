@@ -685,6 +685,7 @@ model Project {
   members              ProjectMember[]
   faggrupper           Faggruppe[]
   drawings             Drawing[]
+  tegningsserier       Tegningsserie[]
   pointClouds          PointCloud[]
   overflater           Overflate[]
   byggeplasser         Byggeplass[]
@@ -931,11 +932,23 @@ model Drawing {
   geoReference     Json?     @map("geo_reference") // Georeferanse med 2 referansepunkter
   ifcMetadata      Json?     @map("ifc_metadata") // Uttrukket IFC-metadata (prosjekt, organisasjon, etasjer, GPS)
   gpsOverride      Json?     @map("gps_override") // Manuell GPS-kalibrering for IFC: {lat, lng} — overstyrer ifcMetadata GPS
+  // DWG-layout-kobling (DWG-2, D6): en layout-tegning peker på hovedtegningen (modelspace)
+  // den stammer fra. NULL = hovedtegning — en GYLDIG tilstand (stille-tomhet-regelen).
+  // Svak FK (ingen Prisma self-relasjon — unngår TS2589); kaskade-sletting av layouts
+  // håndteres i koden (route). Revisjon/«prøv igjen» ERSTATTER på (parentDrawingId, layoutNavn).
+  parentDrawingId  String?   @map("parent_drawing_id")
+  layoutNavn       String?   @map("layout_navn") // Paper space-layoutens navn (kun på layout-rader)
+  // Tegningsserie (T2): lett gruppering «merk tegninger → flytt inn i en serie».
+  // NULL = «ikke i serie» — en gyldig tilstand (ingen backfill). Sletting av serien
+  // setter denne til NULL (SetNull), aldri sletter tegningen. Revisjon/målestokk/status
+  // er ALLTID pr. tegning — serien bærer dem ikke.
+  serieId          String?   @map("serie_id")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   project             Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass          Byggeplass?         @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
+  serie               Tegningsserie?      @relation(fields: [serieId], references: [id], onDelete: SetNull)
   revisions           DrawingRevision[]
   tasks               Task[]
   checklists          Checklist[]
@@ -945,7 +958,33 @@ model Drawing {
   @@index([projectId])
   @@index([byggeplassId])
   @@index([status])
+  @@index([serieId])
+  @@index([parentDrawingId])
   @@map("drawings")
+}
+
+// Tegningsserie (T2, 2026-10-08): lett gruppering av tegninger fra én rådgiver på
+// én byggeplass. Metadata (fag/opphav/beskrivelse) er STANDARDVERDIER — forslag ved
+// opplasting inn i serien og «Bruk på alle i serien» (eksplisitt). Serien har IKKE
+// revisjon, målestokk eller status; de hører til den enkelte tegningen.
+model Tegningsserie {
+  id           String      @id @default(uuid())
+  projectId    String      @map("project_id")
+  byggeplassId String?     @map("byggeplass_id")
+  name         String
+  discipline   String? // Felles fagdisiplin (ARK, RIB, ...) — standardverdi
+  originator   String? // Felles opphav/rådgiver — standardverdi
+  description  String?
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
+  drawings   Drawing[]
+
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@map("tegningsserier")
 }
 
 model PointCloud {
@@ -1028,6 +1067,10 @@ model DrawingRevision {
   uploadedById String?   @map("uploaded_by_id")
   status       String // Status ved revisjon
   issuedAt     DateTime? @map("issued_at")
+  // DWG-layouts arkivert ved denne revisjonen (DWG-2, D6/Q3): [{layoutNavn, fileUrl}].
+  // Hovedtegningens forrige fil ligger i `fileUrl`; layoutenes forrige SVG-er her, så
+  // en gammel revisjon kan vises komplett. NULL = ingen layouts (gyldig).
+  layouter     Json?
   createdAt    DateTime  @default(now()) @map("created_at")
 
   drawing    Drawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)
@@ -1068,6 +1111,7 @@ model Byggeplass {
 
   project          Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   drawings         Drawing[]
+  tegningsserier   Tegningsserie[]
   pointClouds      PointCloud[]
   overflater       Overflate[]
   checklists       Checklist[]

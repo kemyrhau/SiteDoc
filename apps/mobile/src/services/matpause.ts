@@ -3,7 +3,7 @@ import { hentDatabase } from "../db/database";
 import { sheetTimerLocal, dagsseddelLocal } from "../db/schema";
 import {
   effektiveTimerFraSpenn,
-  pauseVinduFra,
+  pauseVinduForDag,
   pauseOverlappMin,
   hhmmTilMin,
   pauseMinForDag,
@@ -17,6 +17,7 @@ import {
 export { avgjorRadPauseMin };
 import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
+import { hentDagsnormLokalt } from "./arbeidstidSvarKatalog";
 
 /* ============================================================================
  *  F5 (2026-07-14) — matpause-bærer på timer-rader.
@@ -51,21 +52,38 @@ export type MatpauseResultat =
   /** Ingen endring (ugyldig tilstand). */
   | { utfall: "ingen" };
 
-/** Pausevindu-kontekst for en sedel: hvor lunsjen faller + dens lengde. */
+/**
+ * Pausevindu-kontekst for en sedel: hvor lunsjen faller + dens lengde.
+ *
+ * V20/PK5 — vinduet følger firmaets `pauseReferanse` (én delt `pauseVinduForDag`
+ * med server + web): «ankomst» regner fra dagens tidligste rad-`fraTid` (når
+ * arbeidet faktisk begynte, etter evt. reise), «fastStart» fra skiftstart. Normen
+ * (startTid/pauseEtterTimer/pauseReferanse) leses fra svar-cachen
+ * (`hentDagsnormLokalt`, REGNER aldri); mangler den, fall tilbake til fastStart
+ * fra kalenderens skiftstart + firma-innstilling — uendret atferd for
+ * fastStart-firmaer og offline uten cachet norm. `rader` må sendes for at
+ * «ankomst» skal finne tidligste fraTid; tom liste → vinduet rammes av skiftstart.
+ */
 export function matpauseKontekst(
   organizationId: string,
   dato: string,
+  rader: readonly { fraTid?: string | null }[] = [],
 ): { pauseFra: string; standardPauseMin: number } {
   const setting = hentOrganizationSettingLokalt(organizationId);
-  const pauseEtterTimer =
-    setting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
   const standardPauseMin = setting?.standardPauseMin ?? 30;
-  const skiftStart = hentArbeidsdagTiderLokalt(
-    organizationId,
-    new Date(`${dato}T00:00:00`),
-  ).startTid;
+  const norm = hentDagsnormLokalt(organizationId, dato);
+  const skiftStart =
+    norm?.startTid ??
+    hentArbeidsdagTiderLokalt(organizationId, new Date(`${dato}T00:00:00`)).startTid;
+  const pauseEtterTimer =
+    norm?.pauseEtterTimer ?? setting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
+  const pauseReferanse = norm?.pauseReferanse ?? "fastStart";
   return {
-    pauseFra: pauseVinduFra(skiftStart, pauseEtterTimer),
+    pauseFra: pauseVinduForDag(rader, {
+      startTid: skiftStart,
+      pauseEtterTimer,
+      pauseReferanse,
+    }),
     standardPauseMin,
   };
 }
@@ -193,12 +211,13 @@ export function flyttMatpauseVedAvhuking(
 ): MatpauseResultat {
   const db = hentDatabase();
   if (!db) return { utfall: "ingen" };
-  const { pauseFra, standardPauseMin } = matpauseKontekst(organizationId, dato);
   const rader = db
     .select()
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
     .all();
+  // PK5: vinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
+  const { pauseFra, standardPauseMin } = matpauseKontekst(organizationId, dato, rader);
   const kandidater = kvalifiserteBaerere(
     rader,
     baererRadId,
@@ -231,12 +250,13 @@ export function settMatpauseBaerer(
 ): MatpauseResultat {
   const db = hentDatabase();
   if (!db) return { utfall: "ingen" };
-  const { pauseFra, standardPauseMin } = matpauseKontekst(organizationId, dato);
   const rader = db
     .select()
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
     .all();
+  // PK5: vinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
+  const { pauseFra, standardPauseMin } = matpauseKontekst(organizationId, dato, rader);
   const endringer = new Map<string, number>();
   for (const r of rader) {
     if (r.pauseMin > 0 && r.id !== nyBaererRadId) endringer.set(r.id, 0);
@@ -257,12 +277,13 @@ export function fjernMatpause(
 ): MatpauseResultat {
   const db = hentDatabase();
   if (!db) return { utfall: "ingen" };
-  const { pauseFra } = matpauseKontekst(organizationId, dato);
   const rader = db
     .select()
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
     .all();
+  // PK5: vinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
+  const { pauseFra } = matpauseKontekst(organizationId, dato, rader);
   const endringer = new Map<string, number>();
   for (const r of rader) if (r.pauseMin > 0) endringer.set(r.id, 0);
   if (endringer.size === 0) return { utfall: "ingen" };

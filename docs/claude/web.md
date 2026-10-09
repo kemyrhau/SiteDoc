@@ -43,7 +43,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/maler/[id]             -> Mal-lesevisning (IKKE malbygger). Redusert fra byggeren 2026-09-12 — bygging skjer i Oppsett › Produksjon. Begge inngangene overlever som lesevisning
 /dashbord/[prosjektId]/faggrupper             -> Faggruppe-liste (tabell m/opprett/rediger/slett-modaler, faggruppeNummer, org.nr, dokumenttellere). Erstatter den gamle «entrepriser»-ruten — «entreprise» er forbudt i ny kode
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id, filopplasting m/fremdriftsindikator via XMLHttpRequest progress)
-/dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
+/dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning. DWG/DXF → SVG (libredwg, DWG-2): måling rett fra tegningens enheter ($INSUNITS, «fra tegningens enheter»), layouts klippet pr. viewport. Header har revisjonsliste (`RevisjonsListe`, D6b): klikk en tidligere revisjon → forrige fil skrivebeskyttet i modal, inkl. arkiverte DWG-layouts
 /dashbord/[prosjektId]/3d-visning            -> Samlet 3D-visning (IFC + punktsky + overflater + kutt/fyll)
 /dashbord/[prosjektId]/tegning-3d            -> Split-view tegning + 3D-modell med koordinatsynk og georeferanse
 /dashbord/[prosjektId]/punktskyer            -> Redirect → /3d-visning
@@ -434,7 +434,7 @@ Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `Redige
 - **R6 fag-gruppering:** venstre tegningsliste grupperes fag → tegningsnummer som standard, med veksel til etasje-gruppering. «Uten fag» sist.
 - **R8 ny revisjon:** `LastOppRevisjonKnapp` (tegningsrad i serietabell + rediger-dialogen) → `tegning.lastOppRevisjon`, som nå **starter konvertering** for den nye fila (delt helper `startTegningKonvertering` i `apps/api/src/routes/tegning.ts`, samme vei som `opprett`) — ny revisjon viser aldri gammel PNG. Revisjonskode foreslås som neste bokstav (`nesteRevisjon`), redigerbar.
 - **R7:** målestokk forblir valgfri; ingen ny «mangler målestokk»-flate.
-- Ingen schema-endring. T2 (Tegningsserie-gruppering) ikke bygget — se `tegning-serieopplasting-spec.md`.
+- Ingen schema-endring i T1. T2 (Tegningsserie-gruppering) bygget 2026-10-08 — se T2-seksjonen nedenfor + `tegning-serieopplasting-spec.md`.
 
 ### T1b — rediger etter opplasting, vis og tilbake, kollaps (2026-10-07)
 
@@ -446,6 +446,16 @@ Opplasting skjer i byggeplass-kontekst (`oppsett/byggeplasser/page.tsx`, `Redige
 
 - **Fag- + Rådgiver-kolonne** i `TegningSerieTabell` (gjelder både serieopplasting og «Rediger flere»): «Fag» er nedtrekk fra `DRAWING_DISCIPLINES` plassert før tegningsnummer; «Rådgiver» (`originator`) er fritekst. Begge lagres via `tegning.oppdater` og sendes bare når endret (`byggTegningRadEndring` — `discipline` som enum sendes aldri tomt, `originator` kan tømmes). Var før bare i felles-skjemaet ved opplasting; nå redigerbare pr. rad. (Kenneth: «jeg kan ikke redigere fag dersom det er feil».)
 - **Tegningsnummer-mønster** utvidet for ekte 6-segments ARK-filnavn (`B3-06-A-20-31-02`): `packages/shared/src/utils/tegningMetadata.ts`, 3–7 bindestrek-separerte 1–4-tegns segmenter, krav om både bokstav og siffer (stenger datoer/rene bokstavsløp). Alle gamle forslag uendret.
+
+### T2 — Tegningsserie: merk-og-flytt-gruppering (2026-10-08)
+
+Lett gruppering oppå T1 (Kenneth-gatet 2026-10-06: «merk tegninger → flytt dem inn i en serie … gi serier nye navn/metadata etterpå»). `oppsett/byggeplasser/page.tsx`, venstre tegningsliste.
+
+- **Modell:** egen `Tegningsserie` (`packages/db`) + `Drawing.serieId` (FK `onDelete: SetNull`). Tom `serieId` = «ikke i serie» (gyldig). Serien bærer **ikke** revisjon/målestokk/status — de er alltid pr. tegning. API: `tegningsserie.opprett/oppdater/slett/flyttTegninger/hentForByggeplass/brukPaAlle` (`apps/api/src/routes/tegningsserie.ts`, tilgang via `verifiserProsjektmedlem`).
+- **Gruppering:** i fag-modus deles hver fag-gruppe i serie-bøtter (fag → serie → nummer) + løse tegninger (uten serie). Seriegruppen kan kollapses (samme `localStorage`-mekanisme som T1b, nøkkel `serie::<id>`). Etasje-modus er flat som før.
+- **Merk-og-flytt:** «Merk»-knapp i gruppe-veksle-baren slår på avkryssing pr. rad. Handlingslinje (sticky i panelet) viser antall valgt + «Ny serie fra valgte» (navneforslag = felles fag + rådgiver blant de valgte) · «Flytt til serie» (velger blant eksisterende) · «Ta ut av serie» (`serieId = null`). «Flytt» rører **kun** `serieId` — aldri tegningens eget fag/opphav.
+- **R10 standardverdier:** serie-dialogen (opprett/rediger) har navn + fag + rådgiver + beskrivelse. «Bruk på alle i serien» er en egen knapp som viser antallet som berøres («N tegninger får seriens fag og rådgiver») før den skriver — ingen automatikk. i18n `tegninger.serieGruppe.*`.
+- **Mobil:** ingen serie-UI; `serieId` følger bare med i `hentForProsjekt`-responsen (ignoreres av de lokale interface-castene).
 
 ## Tegningsvisning
 
@@ -500,6 +510,16 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
   linje). Areal regner med sluttkanten (`lukket`). Mobil bruker samme funksjoner med trykk-på-kant +
   langt-trykk-fjern (se `mobil.md`). § 1 (polylinje auto-lukker aldri; areal kun første punkt) gjelder
   web via den delte `punktTilMaling` — ingen egen web-kode.
+- **90°-lås + snapping (ordre + GJENOPPTA, 2026-10-08):** verktøylinja fikk tre toggler — **90°**
+  (`TriangleRight`), **Referanse** (`Spline`, kun når 90° på), **Snap** (`Magnet`, PÅ som standard). Alt via
+  delt `beregnSnap` (`maaling.ts`): klikk/dra/hover kjører `beregnSnapForKandidat` (leser `snapParamRef`).
+  **Forhåndsvisning** på `onMouseMove`: svak markør der klikket lander + stiplet ortho-akse + H/V-hjelpelinjer
+  + «90°»-etikett (`visVinkelrett`). **Referanselinje:** «Referanse»-knapp → klikk på et segment i en måling
+  → neste linje låses parallelt/vinkelrett på den (gul strek). Snap-til-egne-punkter (12 px) på klikk + dra.
+- **TILLEGG (2026-10-08) — polylinje-paritet:** dobbeltklikk-avslutt FJERNET (var web-spesifikk). Polylinje
+  avsluttes nå KUN eksplisitt: **«Fullfør»**-knapp (grønn, i stripa) eller **Enter**. En ferdig polylinje får
+  **«Fortsett»** (`gjenoppta` i shared → `ferdig=false`) for å legge til flere punkter. Areal lukkes
+  fortsatt ved klikk på første punkt / «Lukk flate». (Klikk-nær-punkt lukker ikke lenger — delt § 1.)
 
 **Klikkemodus (toggle i verktøylinjen, kun SVG-tegninger):**
 - **Oppgave** (standard): klikk plasserer blå markør → opprett-modal (oppgave/sjekkliste)

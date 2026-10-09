@@ -13,7 +13,7 @@ import {
 import type { LayoutChangeEvent } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   kanMale,
@@ -26,15 +26,20 @@ import {
   startMaling,
   leggTilPunkt,
   settFerdig,
+  gjenoppta,
   flyttPunkt,
   velgMaling,
   slettAktiv,
   slettAlle,
   avsluttAktiv,
   finnMalingTreff,
+  finnNaermesteKant,
   settInnPunktPaaKant,
   fjernPunkt,
+  beregnSnap,
   type Punkt,
+  type Referanselinje,
+  type Hjelpelinjer,
   type MaleVerktoy,
   type Maling,
   type MaleTilstand,
@@ -66,6 +71,16 @@ export interface MaaleData {
 /** 🔴 RETUR 6 § 1: areal lukkes når trykket er innen ~12 pt (SKJERM-px, ikke prosent)
  * av FØRSTE punkt. Prosent-terskel lukket arealet «av seg selv» ved innzoom. */
 const LUKK_TERSKEL_PX = 12;
+
+/** Treffradius (skjerm-px) for 90°/snap (punkt-snap + hjelpelinje). */
+const SNAP_TOL_PX = 12;
+
+/** Samle snap-/hjelpelinje-referanser fra ALLE målinger; ekskluder ett punkt i den aktive. */
+function samleReferanser(t: MaleTilstand, ekskluderIdx: number | null): Punkt[] {
+  return t.malinger.flatMap((m) =>
+    m.id === t.aktivId && ekskluderIdx != null ? m.punkter.filter((_, i) => i !== ekskluderIdx) : m.punkter,
+  );
+}
 
 /** Trykk innen denne radiusen (skjerm-px) velger en eksisterende måling. */
 const VELG_TREFF_PX = 20;
@@ -305,6 +320,47 @@ if (img.complete) plasser();
 
 function post(o){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
 
+// 🟢 90°/snap-veiledning (ordre 90-snap + GJENOPPTA § 2): stiplet akse + H/V-hjelpelinjer
+// + valgt referanselinje (gul) + «90°»-etikett. RN beregner (delt beregnSnap) og sender
+// resultatet; her tegnes det bare. null → fjern laget.
+window.tegnVeiledning = function(d) {
+  var g = document.getElementById('maleVeiledning'); if (g) g.remove();
+  var c = document.getElementById('container'); if (!c || !d) return;
+  var inv = 1 / (window.visualViewport ? window.visualViewport.scale : 1);
+  var lag = document.createElement('div'); lag.id = 'maleVeiledning';
+  lag.style.cssText = 'position:absolute;inset:0;z-index:15;pointer-events:none';
+  var svgNs = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(svgNs, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%');
+  var SW = (1 * inv).toFixed(3);
+  function strek(x1,y1,x2,y2,farge,bredde,stiplet){
+    var l = document.createElementNS(svgNs,'line');
+    l.setAttribute('x1',x1); l.setAttribute('y1',y1); l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+    l.setAttribute('stroke',farge); l.setAttribute('stroke-width',bredde);
+    if (stiplet) l.setAttribute('stroke-dasharray',(1.2*inv).toFixed(3)+' '+(0.9*inv).toFixed(3));
+    svg.appendChild(l);
+  }
+  if (d.akse) strek(d.akse[0].x,d.akse[0].y,d.akse[1].x,d.akse[1].y,'#1e40af',SW,true);
+  if (d.vertikal != null) strek(d.vertikal,0,d.vertikal,100,'#1e40af',SW,true);
+  if (d.horisontal != null) strek(d.horisontal,0,d.horisontal,100,'#1e40af',SW,true);
+  lag.appendChild(svg);
+  if (d.punkt) {
+    var dot = document.createElement('div');
+    dot.style.cssText = 'position:absolute;left:'+d.punkt.x+'%;top:'+d.punkt.y+'%;width:12px;height:12px;border-radius:50%;background:rgba(30,64,175,0.6);border:2px solid #fff;transform:translate(-50%,-50%) scale('+inv+');transform-origin:center';
+    lag.appendChild(dot);
+    if (d.vinkelrett) {
+      var lbl = document.createElement('div');
+      lbl.style.cssText = 'position:absolute;left:'+d.punkt.x+'%;top:'+d.punkt.y+'%;transform:translate(-50%,-160%) scale('+inv+');transform-origin:center bottom;background:#1e40af;color:#fff;font:700 9px sans-serif;padding:1px 4px;border-radius:3px;white-space:nowrap';
+      lbl.textContent = '90°';
+      lag.appendChild(lbl);
+    }
+  }
+  c.appendChild(lag);
+};
+window.skjulVeiledning = function(){ var g = document.getElementById('maleVeiledning'); if (g) g.remove(); };
+
 // 🔴 RETUR 5 § 2: lupa er flyttet UT av WebView-en til et RN-nativt overlay
 // (den DOM-baserte lupa var usynlig på enhet tross RETUR 4-forsøkene). WebView-en
 // sender nå bare fingerposisjon + bilde-koordinat via sendLupe() (se gest-blokken
@@ -348,6 +404,16 @@ window.tegnMalinger = function(data) {
   svg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%');
   var inv = 1 / (window.visualViewport ? window.visualViewport.scale : 1);
   var SW = (2 * inv).toFixed(3);
+
+  // 🟢 GJENOPPTA § 1: valgt referanselinje (gul) — vises persistent mens man tegner.
+  if (data.referanse) {
+    var rl = document.createElementNS(svgNs, 'line');
+    rl.setAttribute('x1', data.referanse.a.x); rl.setAttribute('y1', data.referanse.a.y);
+    rl.setAttribute('x2', data.referanse.b.x); rl.setAttribute('y2', data.referanse.b.y);
+    rl.setAttribute('stroke', '#f59e0b'); rl.setAttribute('stroke-width', SW);
+    rl.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(rl);
+  }
 
   malinger.forEach(function(m) {
     var punkter = m.punkter || [];
@@ -540,7 +606,12 @@ ${trykkOppsett === "avansert" ? `
     if (pinch || antallPekere()>1 || !lupeAktiv) return;
     var box = sideBoks(); if (!box) return;
     var p = pctSide(e.pageX,e.pageY,box); pending=p;
-    if (dragIdx>=0) post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y }); // Flytt: live reshape
+    if (dragIdx>=0) {
+      post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() }); // Flytt: live reshape (+90°/snap i RN)
+    } else if (erMale(modus())) {
+      // Måleverktøy-plassering: la RN beregne 90°/snap + stiplet veiledning live.
+      post({ type:'forhaandspunkt', x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() });
+    }
     sendLupe(e.pageX,e.pageY,box);
   });
 
@@ -612,6 +683,11 @@ export function TegningsVisning({
   const [webViewStr, setWebViewStr] = useState<{ w: number; h: number } | null>(null);
   // 🟢 RETUR 6 § 2: hjørne markert for fjerning (langt trykk i Flytt) → bekreft-modal.
   const [fjernKandidat, setFjernKandidat] = useState<number | null>(null);
+  // 90°-lås + snap + referanselinje (ordre 90-snap + GJENOPPTA). Snap PÅ som standard.
+  const [ortho, setOrtho] = useState(false);
+  const [snapPaa, setSnapPaa] = useState(true);
+  const [referanselinje, setReferanselinje] = useState<Referanselinje | null>(null);
+  const [velgReferanseModus, setVelgReferanseModus] = useState(false);
   const aktiv = aktivMaling(maleTilstand);
   const aktivPunkter = aktiv?.punkter ?? [];
   const erAreal = aktiv?.verktoy === "areal";
@@ -630,6 +706,7 @@ export function TegningsVisning({
   const formatAreal = (m2: number) => `${m2.toFixed(2).replace(".", ",")} m²`;
 
   const kildeEtikett = (() => {
+    if (scaleKilde === "dwg") return t("maaling.kildeDwg");
     if (scaleKilde === "kalibrert") return t("maaling.kildeKalibrert");
     if (scaleKilde === "manuell") return t("maaling.kildeManuell");
     if (scaleKilde === "tittelfelt") return t("maaling.kildeTittelfelt");
@@ -711,6 +788,34 @@ export function TegningsVisning({
   maleTilstandRef.current = maleTilstand;
   const plasseringRef = useRef(plasseringAktiv);
   plasseringRef.current = plasseringAktiv;
+  // 90°/snap-parametre i en ref (stabil meldingshåndterer leser ferskeste verdier).
+  const snapParamRef = useRef({ ortho, snapPaa, referanselinje, imgW, imgH });
+  snapParamRef.current = { ortho, snapPaa, referanselinje, imgW, imgH };
+  const velgReferanseRef = useRef(velgReferanseModus);
+  velgReferanseRef.current = velgReferanseModus;
+
+  // Delt 90°/snap for ett kandidatpunkt (leser refs). null når bildet mangler mål.
+  const beregnSnapForKandidat = useCallback(
+    (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null) => {
+      const sp = snapParamRef.current;
+      if (sp.imgW == null || sp.imgH == null || rectW <= 0 || rectH <= 0) return null;
+      const t0 = maleTilstandRef.current;
+      const akt = aktivMaling(t0);
+      const pågår = !!akt && !akt.ferdig;
+      const sisteIdx = pågår && akt ? akt.punkter.length - 1 : -1;
+      const anker = sisteIdx >= 0 ? akt!.punkter[sisteIdx]! : null;
+      const forforrige = sisteIdx >= 1 ? akt!.punkter[sisteIdx - 1]! : null;
+      return beregnSnap({
+        kandidat, anker, forforrige,
+        referanser: samleReferanser(t0, ekskluderIdx),
+        referanselinje: sp.referanselinje,
+        ortho: sp.ortho, snap: sp.snapPaa,
+        imageWidth: sp.imgW, imageHeight: sp.imgH,
+        rectW, rectH, punktTolPx: SNAP_TOL_PX, guideTolPx: SNAP_TOL_PX,
+      });
+    },
+    [],
+  );
 
   // Unik id pr. ny måling (ingen Date.now/Math.random — en stigende teller holder).
   const nesteIdRef = useRef(0);
@@ -766,6 +871,11 @@ export function TegningsVisning({
   const håndterFerdig = useCallback(() => {
     setMaleTilstand((prev) => settFerdig(prev));
     setAktivtVerktoy("flytt");
+  }, []);
+  // 🟢 TILLEGG: «Fortsett» en ferdig polylinje — åpne den igjen og gå til polylinje-modus.
+  const håndterGjenoppta = useCallback(() => {
+    setMaleTilstand((prev) => gjenoppta(prev));
+    setAktivtVerktoy("polylinje");
   }, []);
   const håndterVelgMaling = useCallback((id: string) => {
     setMaleTilstand((prev) => velgMaling(prev, id));
@@ -842,6 +952,7 @@ export function TegningsVisning({
         summary: m.id === tilstand.aktivId ? "" : summaryFor(m),
       })),
       segmenter: maleSegmenterRef.current,
+      referanse: snapParamRef.current.referanselinje,
     };
     webViewRef.current.injectJavaScript(
       `window.tegnMalinger && window.tegnMalinger(${JSON.stringify(payload)}); true;`,
@@ -851,7 +962,26 @@ export function TegningsVisning({
   useEffect(() => {
     if (laster) return;
     injiserMaling();
-  }, [maleTilstand, laster, injiserMaling]);
+  }, [maleTilstand, referanselinje, laster, injiserMaling]);
+
+  // 🟢 90°/snap-veiledning: injiser (eller fjern) stiplet akse/hjelpelinjer + «90°».
+  // Alltid referanselinja med (så den vises mens man tegner). Round-trip: RN beregner
+  // med delt beregnSnap, WebView-en tegner bare resultatet.
+  const injiserVeiledning = useCallback((snapR: { aksehjelpelinje: [Punkt, Punkt] | null; hjelpelinjer: Hjelpelinjer; vinkelrett: boolean; punkt: Punkt } | null) => {
+    if (!webViewRef.current) return;
+    const payload = snapR
+      ? {
+          akse: snapR.aksehjelpelinje,
+          vertikal: snapR.hjelpelinjer.vertikal,
+          horisontal: snapR.hjelpelinjer.horisontal,
+          vinkelrett: snapR.vinkelrett,
+          punkt: snapR.punkt,
+        }
+      : null;
+    webViewRef.current.injectJavaScript(
+      `window.tegnVeiledning && window.tegnVeiledning(${JSON.stringify(payload)}); true;`,
+    );
+  }, []);
 
   // Verktøyet har forrang over forelderens modus (RETUR 1 § 3/4, RETUR 3): varsle
   // forelder så plasseringsmodus (og banneret) slås av mens et verktøy er valgt.
@@ -886,9 +1016,18 @@ export function TegningsVisning({
           if (onTrykk) onTrykk(data.x, data.y);
           return;
         }
-        // Punkt-dra (Flytt): live-oppdatering mens fingeren drar.
+        // Punkt-dra (Flytt): live-oppdatering + 90°/snap (ekskluder punktet som dras).
         if (data.type === "maledrag") {
-          håndterFlyttPunkt(data.index, data.x, data.y);
+          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, data.index);
+          const fp = snapR ? snapR.punkt : { x: data.x, y: data.y };
+          håndterFlyttPunkt(data.index, fp.x, fp.y);
+          injiserVeiledning(snapR);
+          return;
+        }
+        // 🟢 90°/snap forhåndsvisning under PLASSERING (måleverktøy, før slipp).
+        if (data.type === "forhaandspunkt") {
+          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, null);
+          injiserVeiledning(snapR);
           return;
         }
         // 🟢 RETUR 6 § 2: sett inn et nytt hjørne på en kant (trykk på kant i Flytt).
@@ -898,12 +1037,32 @@ export function TegningsVisning({
         }
         // RN-nativ lupe (RETUR 5 § 2): WebView mater finger + utsnitt, eller skjul.
         if (data.type === "lupe") {
-          setLupe(data.vis ? { fingerX: data.fingerX, fingerY: data.fingerY, pctX: data.pctX, pctY: data.pctY, dispB: data.dispB, dispH: data.dispH } : null);
+          if (data.vis) {
+            setLupe({ fingerX: data.fingerX, fingerY: data.fingerY, pctX: data.pctX, pctY: data.pctY, dispB: data.dispB, dispH: data.dispH });
+          } else {
+            setLupe(null);
+            injiserVeiledning(null); // gest slutt (også ved avbrytelse) → fjern veiledning
+          }
           return;
         }
         if (data.type === "gest") {
           const tilstand = maleTilstandRef.current;
           const verktoy = effektivtVerktoyRef.current;
+          injiserVeiledning(null); // slipp → fjern stiplet veiledning
+
+          // 🟢 GJENOPPTA § 1: «velg referanselinje»-modus — trykk på et segment i en
+          // eksisterende måling (vegg langs en skrå linje) setter det som referanse.
+          if (velgReferanseRef.current) {
+            const traffId = finnMalingTreff(tilstand.malinger, { x: data.x, y: data.y }, data.rectW, data.rectH, VELG_TREFF_PX);
+            const m = traffId ? tilstand.malinger.find((x) => x.id === traffId) : null;
+            if (m && m.punkter.length >= 2) {
+              const lukket = m.verktoy === "areal" && m.ferdig;
+              const kant = finnNaermesteKant(m.punkter, { x: data.x, y: data.y }, data.rectW, data.rectH, VELG_TREFF_PX, lukket);
+              if (kant >= 0) setReferanselinje({ a: m.punkter[kant]!, b: m.punkter[(kant + 1) % m.punkter.length]! });
+            }
+            setVelgReferanseModus(false);
+            return;
+          }
           // Flytt + ikke på punkt: traff gesten en eksisterende måling? (grunnlag for valg)
           let traffMaling = false;
           if (verktoy === "flytt" && !data.nedPaaPunkt && tilstand.malinger.length) {
@@ -918,9 +1077,15 @@ export function TegningsVisning({
             traffMaling,
           });
           switch (handling) {
-            case "settPunkt":
-              håndterLeggTilPunkt(data.x, data.y, data.rectW, data.rectH);
+            case "settPunkt": {
+              // 90°/snap: juster punktet FØR det legges til (ekskluder ankeret som snap-mål).
+              const aktP = aktivMaling(tilstand);
+              const ankerIdx = aktP && !aktP.ferdig ? aktP.punkter.length - 1 : null;
+              const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, ankerIdx);
+              const fp = snapR ? snapR.punkt : { x: data.x, y: data.y };
+              håndterLeggTilPunkt(fp.x, fp.y, data.rectW, data.rectH);
               return;
+            }
             case "fjernPunkt":
               // 🟢 RETUR 6 § 2: langt trykk på et hjørne i Flytt → bekreft fjerning.
               if (typeof data.dragIdx === "number" && data.dragIdx >= 0) setFjernKandidat(data.dragIdx);
@@ -950,7 +1115,7 @@ export function TegningsVisning({
         // Ignorer ugyldig melding
       }
     },
-    [onTrykk, onMarkørTrykk, onOpprett, onHint, håndterLeggTilPunkt, håndterFlyttPunkt, håndterSettInnKant, håndterVelgMaling, t],
+    [onTrykk, onMarkørTrykk, onOpprett, onHint, håndterLeggTilPunkt, håndterFlyttPunkt, håndterSettInnKant, håndterVelgMaling, beregnSnapForKandidat, injiserVeiledning, t],
   );
 
   const trykkOppsett: "ingen" | "enkel" | "avansert" = avansert
@@ -1069,6 +1234,33 @@ export function TegningsVisning({
                   <Text style={[stiler.maleKnappTekst, aktivtVerktoy === "opprett" && stiler.maleKnappTekstAktiv]}>{t("maaling.verktoyOpprett")}</Text>
                 </Pressable>
               </View>
+              {/* 🟢 90°-lås · referanselinje · snap (ordre 90-snap + GJENOPPTA). */}
+              {kanMaleNaa && (
+                <View style={stiler.maleKnappRad}>
+                  <Pressable onPress={() => setOrtho((v) => !v)} style={[stiler.maleKnapp, ortho && stiler.maleKnappAktiv]}>
+                    <TriangleRight size={14} color={ortho ? "#ffffff" : "#1e3a8a"} />
+                    <Text style={[stiler.maleKnappTekst, ortho && stiler.maleKnappTekstAktiv]}>{t("maaling.laasVinkel")}</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={!ortho}
+                    onPress={() => { setVelgReferanseModus((v) => !v); if (referanselinje) setReferanselinje(null); }}
+                    style={[stiler.maleKnapp, (velgReferanseModus || referanselinje) && stiler.maleKnappAktiv, !ortho && stiler.maleKnappSperret]}
+                  >
+                    <Spline size={14} color={velgReferanseModus || referanselinje ? "#ffffff" : "#1e3a8a"} />
+                    <Text style={[stiler.maleKnappTekst, (velgReferanseModus || referanselinje) && stiler.maleKnappTekstAktiv]}>{t("maaling.referanselinje")}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setSnapPaa((v) => !v)} style={[stiler.maleKnapp, snapPaa && stiler.maleKnappAktiv]}>
+                    <Magnet size={14} color={snapPaa ? "#ffffff" : "#1e3a8a"} />
+                    <Text style={[stiler.maleKnappTekst, snapPaa && stiler.maleKnappTekstAktiv]}>{t("maaling.snap")}</Text>
+                  </Pressable>
+                </View>
+              )}
+              {velgReferanseModus && (
+                <View style={stiler.maleSperret}>
+                  <Spline size={12} color="#1e3a8a" />
+                  <Text style={[stiler.maleSperretTekst, { color: "#1e3a8a" }]}>{t("maaling.referanselinjeHjelp")}</Text>
+                </View>
+              )}
               {!kanMaleNaa && (
                 <View style={stiler.maleSperret}>
                   <Ruler size={12} color="#9ca3af" />
@@ -1118,6 +1310,12 @@ export function TegningsVisning({
                     <Pressable onPress={håndterFerdig} style={stiler.maleHandling}>
                       <Check size={14} color="#16a34a" />
                       <Text style={stiler.maleHandlingTekst}>{t("maaling.lukkFlate")}</Text>
+                    </Pressable>
+                  )}
+                  {(aktiv?.verktoy === "polylinje" && aktiv.ferdig) && (
+                    <Pressable onPress={håndterGjenoppta} style={stiler.maleHandling}>
+                      <Plus size={14} color="#1e3a8a" />
+                      <Text style={stiler.maleHandlingTekst}>{t("maaling.fortsett")}</Text>
                     </Pressable>
                   )}
                   <Pressable onPress={håndterSlettAktiv} style={stiler.maleHandling}>

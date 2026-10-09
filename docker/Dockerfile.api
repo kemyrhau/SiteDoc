@@ -2,6 +2,27 @@
 # NY-SERVER — sitedoc API (Fastify/tRPC) i monorepo (i prod fra 2026-06-10).
 # Build-context = repo-rot. Bygg: docker compose -f docker/docker-compose.yml build sitedoc-api
 
+# ============ libredwg (DWG/DXF→SVG-konverterer, bygges fra kilde) ============
+# DWG-1 (2026-10-08): libredwg 0.14 fra GNU-ftp bygges her og KUN binærene + .so
+# kopieres inn i runtime (og i Dockerfile.web — tRPC kjører in-process i web, D-M2).
+# Ingen apt-pakke finnes (bookworm har den ikke). ODA valgt bort (lukket lisens).
+# Tarball pinnes med SHA256; ingen nettverkshenting i runtime. bookworm-base → samme
+# glibc som node:20-bookworm-slim, så .so-en er ABI-kompatibel.
+FROM debian:bookworm-slim AS libredwg-build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential pkg-config curl xz-utils ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+ARG LIBREDWG_VERSION=0.14
+ARG LIBREDWG_SHA256=62ebb73b984f865960f20ed26619ea5f8789d5e3fd088fa40a2598384da81275
+WORKDIR /build
+RUN curl -fsSL -o libredwg.tar.xz "https://ftp.gnu.org/gnu/libredwg/libredwg-${LIBREDWG_VERSION}.tar.xz" \
+ && echo "${LIBREDWG_SHA256}  libredwg.tar.xz" | sha256sum -c - \
+ && tar xf libredwg.tar.xz \
+ && cd "libredwg-${LIBREDWG_VERSION}" \
+ && ./configure --disable-bindings --disable-python --enable-release --prefix=/usr/local \
+ && make -j"$(nproc)" \
+ && make install
+
 # ============ Build (hele monorepoet) ============
 FROM node:20-bookworm-slim AS build
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
@@ -30,20 +51,16 @@ ENV GIT_SHA=${GIT_SHA}
 ENV BUILD_TID=${BUILD_TID}
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      poppler-utils tesseract-ocr tesseract-ocr-nor xvfb \
+      poppler-utils tesseract-ocr tesseract-ocr-nor \
       openssl ca-certificates fontconfig \
     && rm -rf /var/lib/apt/lists/*
-# DWG-konvertering: libredwg er ikke i bookworm-apt (gammel server bygde fra kilde).
-# Legg til ODAFileConverter (seksjonen under) eller bygg libredwg fra kilde senere.
-# Uten det feiler KUN DWG→DXF-konvertering; resten av API-et virker.
-
-# --- ODAFileConverter (valgfri, bedre DWG enn libredwg-fallback) ---
-# Last ned .deb fra https://www.opendesign.com/guestfiles/oda_file_converter (krever ODA-konto),
-# legg den i docker/vendor/, og fjern kommentarene under. Uten ODA brukes dwg2dxf (libredwg) som fallback.
-# COPY docker/vendor/ODAFileConverter*.deb /tmp/oda.deb
-# RUN apt-get update && (dpkg -i /tmp/oda.deb || apt-get -f install -y) \
-#     && rm -f /tmp/oda.deb && rm -rf /var/lib/apt/lists/*
-# ENV ODA_CONVERTER_PATH=/usr/bin/ODAFileConverter
+# DWG/DXF-konvertering: libredwg-binærene + .so fra build-staget (D-M3). ODA-sporet og
+# xvfb er fjernet (DWG-1: ODA valgt bort, xvfb ble kun brukt av ODA; 3D-veiene er ikke i
+# bildet ennå — BACKLOG). ldconfig så dwg2dxf/dwg2SVG finner libredwg.so i /usr/local/lib.
+COPY --from=libredwg-build /usr/local/bin/dwg2dxf /usr/local/bin/dwg2dxf
+COPY --from=libredwg-build /usr/local/bin/dwg2SVG /usr/local/bin/dwg2SVG
+COPY --from=libredwg-build /usr/local/lib/libredwg.so* /usr/local/lib/
+RUN ldconfig
 
 WORKDIR /app
 COPY --from=build /app ./

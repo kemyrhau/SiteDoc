@@ -210,6 +210,8 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 
 **Timer-modal B3 + prefill-scope (M6, 2026-07-10):** `TimerSeksjon.tsx` (`TimerRadModal`) prefyller nå **antall** for ny rad: `timer`-init lazy-kaller delt `effektiveTimerFraSpenn(fra, til, pauseFra, standardPauseMin)` når `prefillGyldig` (begge tider satt + `hhmmTilMin(fra) < hhmmTilMin(til)`), ellers tom — speiler webs `TimerRadDialog`. `tilTid` prefylles kun ved gyldig prefill (som web). **Prefill-scope løftet til hele sedelen:** `defaultTider.fra` = seneste `tilTid` over `alleTimerRader` (alle bøtter), beregnet som **maks** via `hhmmTilMin` (ikke array-rekkefølge — fjerner det gamle `[...eksisterendeRader].reverse().find()`), fallback `effektiv.startTid`. `eksisterendeRader` beholdt for lønnsart/aktivitet-prefill (`defaultValg`, bevisst bøtte-scopet). Lukker bolk-(g)-prefill-scope-bulleten. Ingen ny i18n, ingen api, ingen migrering. Detaljer i [timer.md § B3](timer.md) + [BACKLOG § bolk (g)](BACKLOG.md).
 
+**V20-M — pausen eies av radene (mobil, `feat/v20-m-pause-mobil` 2026-10-07, OTA):** **PK1** rad-modalens timetall regnes med radens egen pause (`radPauseMinFor`, erstatter firma-default `standardPauseMin` i prefill/synk-vakten M6/B3 over) — grep-vakt `timer-pause-en-kilde-vakt.test.ts`. **PK5** pausevinduet følger firmaets `pauseReferanse`: `matpauseKontekst` (`matpause.ts`) bruker delt `pauseVinduForDag` med `pauseReferanse`/`startTid`/`pauseEtterTimer` fra `hentDagsnormLokalt` (svar-cachen) og dagens rader — «Ankomst» regner fra tidligste `fraTid`, ikke lenger alltid fastStart (P6); mangler cachet norm → fastStart-fallback. `pauseVinduFra` fjernet fra `TimerSeksjon`. **PK7** `ArbeidstidSeksjon` viser «Arbeidstid i dag» utledet av radene (`utledArbeidstidFraRader`, tekst «Utledet av radene under»); pause-feltet er fjernet fra Rediger-modalen (hodet `pauseMin` skrives ikke lokalt utover Σ-speilet, kommer fra server ved pull). **Låst visning:** bæreren vises skrivebeskyttet i rad-lista (`TimerRadVis`) og i attesteringsvisningen (`AttesteringDetaljMobil`). Detaljer i [timer.md § V20 leveranse M](timer.md).
+
 **Maskin-modal speiler web B1/B2/B3 (M5, 2026-07-10):** `MaskinSeksjon.tsx` (`MaskinRadModal`) speiler nå webs `MaskinRadDialog` (ikke `RedigerMaskinRad`, som er leder-attestering uten B2). **B1** — maskintimene trekker lunsjpause via delt `effektiveTimerFraSpenn` med `standardPauseMin` (firma-default fra `hentOrganizationSettingLokalt`, «maskin følger føreren» — IKKE sedel-`pauseMin`, som er Del 2 bucket-taket). **B2** — hard sperre i `lagre()`: når begge tider er satt MÅ `antall == effektiveTimerFraSpenn(...)` (`timer.feil.timerAvvik`), ellers blokkeres lagring. Klient-only (serveren håndhever ikke B2 — se [BACKLOG](BACKLOG.md)). **B3** — `timer`-feltet init fra prefill-spennet. Auto-synk (`handterFraEndret`/`handterTilEndret`/`handterTimerEndret`) via `effektiveTimerFraSpenn`/`tilFraAntall`, sist-rørte felt vinner. **B4-prefill** — `defaultTider` foreslår maskinens driftsvindu fra bucketens arbeidsspenn (første/siste timer-rad i `(defaultProjectId, defaultEcoId)`), faller til `hentEffektivArbeidstidLokal`. Ingen ny i18n (`timer.feil.timerAvvik`/`sluttForStart` finnes), ingen SQLite-migrering. **Synk-vakt:** `syncBatch` validerer nå maskin-`fra<til` (`tilErEtterFra` på `lokal.maskiner`) → `"avvist"` (SYNC-1); før M5 omgikk synkveien vakten. Detaljer i [timer.md § B1–B4](timer.md).
 
 **Gjenåpning — feilkode-mapping (M4, 2026-07-10):** `apps/mobile/app/timer/[id].tsx` sin `gjenaapneMutation.onError` mapper nå på `e.data?.code` i stedet for delstreng på meldingen. **To kjente koder** får egne i18n-tekster: `CONFLICT` → `timer.gjenaapne.feilGodkjent`, `PRECONDITION_FAILED` (attestert-vakt) → `timer.gjenaapne.laastAttestert` (nøkkel finnes i nb+en, delt med web). **Enhver annen kode** viser serverens egen `message` — dette dekker `BAD_REQUEST` (ikke-sent-status) og `FORBIDDEN`/`NOT_FOUND` som `gjenaapneDagsseddel` arver fra eierskaps-helperen `hentEgenDagsseddel` (`apps/api/src/routes/timer/dagsseddel.ts`), pluss alt fremtidig. **Kun fravær av `code`** → `timer.gjenaapne.feilNett`. Tidligere falt alt uten delstrengen `"godkjent"` til «Krever nett» — også attestert-vakten og en sedel arbeideren ikke eier, som er rene server-avvisninger, ikke nett. `NOT_FOUND` fikk samtidig serverside-meldingen `"Dagsseddelen finnes ikke"` (var tom). `e.data.code`/`e.data.httpStatus` er tilgjengelig fra default tRPC-feilform (samme kilde som `erPermanentFeil` i `timerSync.ts` leser). Ingen nye i18n-nøkler. Mobil mangler fortsatt webs proaktive `disabled`-guard (krever SQLite-migrering) — se [BACKLOG](BACKLOG.md). Detaljer i [timer.md § Gjenåpning](timer.md).
@@ -453,6 +455,28 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   URL) har bildet i cache før fingeren legges ned.
 - Verifisert: shared + mobil-tester grønne, mobil/web-typecheck + eslint rent. Kenneth tester på
   telefon etter OTA. Ikke publisert OTA.
+
+**90°-lås + snapping (ordre «90°-lås og snapping» + GJENOPPTA, 2026-10-08):**
+- **Delt geometri** i `packages/shared/src/utils/maaling.ts` (begge flater kaller SAMME funksjon):
+  `laasVinkel` (lås til nærmeste av vannrett/loddrett/vinkelrett-på-forrige, ELLER parallelt/vinkelrett
+  på en referanselinje), `snapTilPunkt` (12 pt skjerm), `snapTil90Linje` (H/V-hjelpelinjer fra punkter),
+  `aksehjelpelinje` (akse tvers over bildet), `beregnSnap` (presedens: punkt-snap > ortho-lås >
+  hjelpelinje; returnerer `punkt`, `traffPunkt`, `hjelpelinjer`, `aksehjelpelinje`, `vinkelrett`). Alt i
+  pikselrom (prosent forvrenger vinkler). Tester i `maaling.test.ts`.
+- **Tre toggler** i måleverktøylinja: **90°** (`TriangleRight`), **Referanse** (`Spline`, kun når 90° på),
+  **Snap** (`Magnet`, PÅ som standard).
+- **Referanselinje (GJENOPPTA § 1 — skrå vegger):** trykk «Referanse», så på et segment i en eksisterende
+  måling (vegg langs en skrå linje) → neste linje låses PARALLELT eller VINKELRETT på den, uten snap til
+  tegningsgeometri. Referanselinja vises gul (persistent, i `tegnMalinger`).
+- **Veiledning (GJENOPPTA § 2):** stiplet akse fra ankeret + H/V-hjelpelinjer tegnes live via `tegnVeiledning`
+  (round-trip: RN beregner med delt `beregnSnap`, WebView-en tegner); «90°»-etikett når linja står
+  vinkelrett. Snap/lås anvendes på commit (gest `settPunkt` + `maledrag`) så LAGRET geometri er den testede.
+- **Snap til egne punkter:** et punkt som slippes innen ~12 pt av et eksisterende målepunkt (alle målinger)
+  legges eksakt der; lukker også areal mot første punkt.
+- **§ 3 (MÅLT, ikke bygd):** mobil/web viser tegningen som RASTER-PNG (PDF→PNG 200 DPI); SVG-path finnes kun
+  for DWG-konverterte. Snap til tegningens egne linjer/hjørner krever enten vektorgrunnlag (`pdftocairo -svg`
+  ved konvertering) eller kantdeteksjon i bildet — se leveransen for omfang. Referanselinje-grepet dekker
+  skrå vegger uten dette.
 
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 

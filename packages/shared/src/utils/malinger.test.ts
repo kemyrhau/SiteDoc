@@ -13,6 +13,7 @@ import {
   avsluttAktiv,
   finnNaermestePunkt,
   finnMalingTreff,
+  gjenoppta,
   finnNaermesteKant,
   settInnPunktPaaKant,
   nyKantPunktIndeks,
@@ -282,5 +283,26 @@ describe("malinger — RETUR 6 § 2: rediger figur (sett inn / fjern hjørne)", 
     expect(finnNaermesteKant(pts, { x: 20, y: 50 }, W, H, 4, false)).toBe(-1);
     // Midt inni flaten (ikke nær noen kant) → ingen.
     expect(finnNaermesteKant(pts, { x: 50, y: 50 }, W, H, 4, true)).toBe(-1);
+  });
+});
+
+describe("malinger — TILLEGG: «Fortsett» (gjenoppta) en ferdig polylinje", () => {
+  it("åpner den ferdige aktive målingen så nye punkter kan legges til", () => {
+    let t = startMaling(TOM_MALETILSTAND, "polylinje", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    t = leggTilPunkt(t, { x: 40, y: 10 }, naer(40, 10));
+    t = settFerdig(t);
+    expect(aktivMaling(t)?.ferdig).toBe(true);
+    t = gjenoppta(t);
+    expect(aktivMaling(t)?.ferdig).toBe(false);
+    // Nytt punkt legges til igjen.
+    t = leggTilPunkt(t, { x: 70, y: 30 }, naer(70, 30));
+    expect(aktivMaling(t)?.punkter).toHaveLength(3);
+  });
+  it("uendret når ingen aktiv / allerede påbegynt", () => {
+    expect(gjenoppta(TOM_MALETILSTAND)).toBe(TOM_MALETILSTAND);
+    let t = startMaling(TOM_MALETILSTAND, "polylinje", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    expect(gjenoppta(t)).toBe(t); // påbegynt (ikke ferdig) → uendret
   });
 });
