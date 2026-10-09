@@ -5921,4 +5921,4 @@ sjekklisteoversikten mot mobil.
 
 **Forbedring:** valgfritt kortnavn-felt per firma/prosjekt i innstillinger, brukt i topplinja når satt. Generisk fallback = fullt navn. Feature: DB-felt + innstillings-UI + wiring i KontekstChip. **NB:** løser ikke alene at byggeplass må overleve trunkering — se den umiddelbare topplinje-fiksen (fabel design-call, K3). Denne er den pene, varige varianten; ikke i K3-kritisk sti.
 
-- 🟡 **V20-M (mobil) — låst visning skal vise matpause-avkrysningen skrivebeskyttet** (Kenneth-test 2026-10-07: sendt sedel 06.10, 07–16, 8,50, `pause_min = 30`; mobilen skjuler avkrysningen når sedelen er låst). Tas med i V20-M-ordren. Web-delen er lagt i V20-W (TILLEGG 2).
+- ✅ **LEVERT `948c564a`, i prod `64de37bd` (2026-10-09).** ~~V20-M (mobil) — låst visning skal vise matpause-avkrysningen skrivebeskyttet~~ (Kenneth-test 2026-10-07: sendt sedel 06.10, 07–16, 8,50, `pause_min = 30`; mobilen skjuler avkrysningen når sedelen er låst). Tas med i V20-M-ordren. Web-delen er lagt i V20-W (TILLEGG 2).
