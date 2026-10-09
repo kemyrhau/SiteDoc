@@ -76,6 +76,15 @@ describe.skipIf(!dwg2dxf)("D10 — ekte DWG-fixtures (libredwg)", () => {
     // Kartdata skal stå urotert (ingen dominant vinkelrett par).
     expect(res.autoRotasjon).toBeNull();
   });
+
+  it("RETUR 4 fullstendighet: NTM6 + UTM32 har ingen parset-men-ikke-tegnet type", { timeout: 120_000 }, async () => {
+    for (const fil of [NTM6, UTM32]) {
+      const { res } = await konverterFixture(fil);
+      expect(res.feil).toBeNull();
+      // Gate: hver DXF-type er tegnet eller på allowlist (VERTEX/SEQEND folder inn i POLYLINE).
+      expect(res.rapport!.ikkeTegnet).toEqual({});
+    }
+  });
 });
 
 describe.skipIf(!dwg2dxf || !KUNDEFIL || !existsSync(KUNDEFIL))(
@@ -121,6 +130,15 @@ describe.skipIf(!dwg2dxf || !KUNDEFIL || !existsSync(KUNDEFIL))(
       // Alle LEADER-ene skal ende som polylinjer i SVG-en (før RETUR 2: 0).
       const antall = (svg.match(/data-type="LEADER"/g) || []).length;
       expect(antall).toBeGreaterThanOrEqual(leadere.model.length);
+    });
+
+    it("RETUR 4 fullstendighet: ikkeTegnet er tom, og ATTRIB-verditekst tegnes", { timeout: 180_000 }, async () => {
+      const { res } = await konverterFixture(KUNDEFIL);
+      expect(res.feil).toBeNull();
+      expect(res.rapport!.ikkeTegnet).toEqual({});
+      // 503 ATTRIB var usynlige før RETUR 4 (dxf-parser dropper dem) → nå tegnes verdiene.
+      expect(res.rapport!.parsetPrType["ATTRIB"]).toBeGreaterThan(0);
+      expect(res.rapport!.tegnetPrType["ATTRIB"]).toBeGreaterThan(0);
     });
   },
 );

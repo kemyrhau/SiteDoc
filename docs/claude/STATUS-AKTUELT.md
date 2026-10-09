@@ -28,7 +28,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > Innhold: T2 tegningsserie (`19dbc187`) · V20-M pause mobil (`948c564a`) · 90°-lås/referanselinje/snap + polylinje Fullfør/Fortsett
 > (`e633d27c`) · DWG-1 libredwg (`732ce826`) · DWG-2 konvertering, måling fra DWG-enheter, layouts, revisjonsliste (`510aa11c`) ·
 > DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
-> ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
+> ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > 🟡 **V20-oppfølgere (åpne):** V21 (overtidsforslag manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT
 > 2026-10-06 — egne små ordrer.
