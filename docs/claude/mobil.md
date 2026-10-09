@@ -478,6 +478,14 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   ved konvertering) eller kantdeteksjon i bildet — se leveransen for omfang. Referanselinje-grepet dekker
   skrå vegger uten dette.
 
+**RETUR 1 (2026-10-09) — snap fester seg ikke til usynlige objekter:** `beregnSnap` tar nå et valgfritt
+`utsnitt` (synlig del av bildet i prosent). WebView-en beregner det (`utsnitt(box)`: `visualViewport` mot
+bildeboksen) og legger det på `forhaandspunkt`/`maledrag`/`gest`-meldingene; RN sender det til
+`beregnSnapForKandidat`. Snap-mål og 90°-hjelpelinjer utenfor utsnittet ignoreres (margin pr. akse =
+treffradius→prosent). I tillegg nullstilles `maleTilstand` ved `tegningUrl`-bytte så målinger fra en annen
+tegning ikke blir snap-kandidater. Treffradiusen var allerede i skjerm-px (`box.bredde*visualViewport.scale`)
+— ingen endring der. Tester: `maaling.test.ts`.
+
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 
 Fase 1 speilet LISTENE; trykk på et dokument offline ga spinner/«ikke funnet». Fase 2 speiler
