@@ -241,6 +241,11 @@ async function anvendDwgResultat(
     oppdatering.autoRotasjon = resultat.autoRotasjon;
     oppdatering.rotasjonOverstyrt = null;
     oppdatering.startutsnitt = resultat.startutsnitt ?? Prisma.JsonNull;
+    // RETUR 4 (fullstendighet): lagre parset-vs-tegnet-rapporten så manglende typer
+    // synes på test uten å lese kode.
+    oppdatering.konverteringRapport = resultat.rapport
+      ? (resultat.rapport as unknown as Prisma.InputJsonValue)
+      : Prisma.JsonNull;
   }
 
   // RETUR 3 §2: endres den inn-bakte auto-rotasjonen ved denne (re-)konverteringen, må

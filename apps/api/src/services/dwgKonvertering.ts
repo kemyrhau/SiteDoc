@@ -62,6 +62,8 @@ export interface DwgKonverteringsResultat extends DwgMaaling {
   autoRotasjon: number | null;
   /** RETUR 2 §3: startutsnitt som brøk [0,1] av viewBox — vieweren åpner zoomet hit. */
   startutsnitt: { x: number; y: number; w: number; h: number } | null;
+  /** RETUR 4 (fullstendighet): parset-vs-tegnet-rapport for hovedtegningen. */
+  rapport: KonverteringRapport | null;
 }
 
 interface DwgLayoutResultat extends DwgMaaling {
@@ -764,6 +766,196 @@ export function parseLeadere(dxfInnhold: string): {
   return { model, perBlokk };
 }
 
+/**
+ * ATTRIB pseudo-entitet (RETUR 4 / fullstendighet). dxf-parser@1.1.2 dropper ATTRIB
+ * fullstendig — verken som egen entitet eller på `INSERT.attributes` (fallplanen: 503
+ * ATTRIB, 0 parset). Det er blokk-attributtenes synlige verdi-tekst (vindus-ID, sill-
+ * prefiks, merketekst). Vi parser dem fra rå DXF og tegner dem som TEXT: `position`/
+ * `textHeight`/`rotation`/`text` i tegningsenheter. Usynlige attributter (kode 70 bit 1)
+ * hoppes over — bare det som er synlig i model space skal med.
+ */
+export interface AttribPseudo {
+  type: "ATTRIB";
+  layer: string;
+  colorIndex?: number;
+  color?: number;
+  position: { x: number; y: number };
+  textHeight: number;
+  rotation: number;
+  text: string;
+}
+
+/** Tolk én ATTRIB-record (par fra like etter `0/ATTRIB` til neste `0`). */
+function parseEnAttrib(linjer: string[], start: number): { attrib: AttribPseudo | null; neste: number } {
+  let i = start;
+  let layer = "0";
+  let colorIndex: number | undefined;
+  let color: number | undefined;
+  let text = "";
+  let height = 0;
+  let rotation = 0;
+  const p10: { x?: number; y?: number } = {};
+  const p11: { x?: number; y?: number } = {};
+  let just = 0; // kode 72/74 ≠ 0 → tekst plasseres på justeringspunktet (11/21)
+  let flags: number | null = null; // kode 70: bit 1 = usynlig
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    if (code === "0") break;
+    const nc = parseInt(code, 10);
+    const v = linjer[i + 1]!.trim();
+    i += 2;
+    if (nc === 8) layer = v;
+    else if (nc === 62) colorIndex = parseInt(v, 10);
+    else if (nc === 420) color = parseInt(v, 10);
+    else if (nc === 1) text = v;
+    else if (nc === 40) height = parseFloat(v);
+    else if (nc === 50) rotation = parseFloat(v);
+    else if (nc === 10) p10.x = parseFloat(v);
+    else if (nc === 20) p10.y = parseFloat(v);
+    else if (nc === 11) p11.x = parseFloat(v);
+    else if (nc === 21) p11.y = parseFloat(v);
+    else if (nc === 72 || nc === 74) { if (parseInt(v, 10) !== 0) just = 1; }
+    else if (nc === 70 && flags === null) flags = parseInt(v, 10);
+  }
+  const neste = i;
+  // Usynlig attributt (bit 1) eller tom verdi → ikke synlig i model space.
+  if ((flags !== null && (flags & 1) === 1) || !text) return { attrib: null, neste };
+  // Justert tekst (senter/høyre/midtstilt) sitter på justeringspunktet (11/21).
+  const pos = just && p11.x !== undefined && p11.y !== undefined
+    ? { x: p11.x, y: p11.y }
+    : { x: p10.x ?? 0, y: p10.y ?? 0 };
+  if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return { attrib: null, neste };
+  return { attrib: { type: "ATTRIB", layer, colorIndex, color, position: pos, textHeight: height || 0, rotation, text }, neste };
+}
+
+/**
+ * Parse alle ATTRIB fra rå DXF. Samme model/perBlokk-mønster som HATCH/LEADER:
+ * model-ATTRIB (verdenskoordinater) tegnes direkte; ATTRIB i blokk-definisjoner
+ * transformeres av INSERT-utfoldelsen.
+ */
+export function parseAttrib(dxfInnhold: string): {
+  model: AttribPseudo[];
+  perBlokk: Record<string, AttribPseudo[]>;
+} {
+  const linjer = dxfInnhold.split("\n");
+  const model: AttribPseudo[] = [];
+  const perBlokk: Record<string, AttribPseudo[]> = {};
+  let sec = "";
+  let blokkNavn = "";
+
+  let i = 0;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    const value = linjer[i + 1]!.trim();
+    i += 2;
+    if (code === "2" && ["HEADER", "CLASSES", "TABLES", "BLOCKS", "ENTITIES", "OBJECTS"].includes(value)) {
+      sec = value; blokkNavn = ""; continue;
+    }
+    if (code !== "0") continue;
+    if (value === "BLOCK") {
+      blokkNavn = "";
+      for (let j = i; j < linjer.length - 1; j += 2) {
+        const gc = linjer[j]!.trim();
+        if (gc === "0") break;
+        if (gc === "2") { blokkNavn = linjer[j + 1]!.trim(); break; }
+      }
+      continue;
+    }
+    if (value === "ENDBLK") { blokkNavn = ""; continue; }
+    if (value === "ATTRIB") {
+      const res = parseEnAttrib(linjer, i);
+      i = res.neste;
+      if (res.attrib) {
+        if (sec === "ENTITIES") model.push(res.attrib);
+        else if (sec === "BLOCKS" && blokkNavn) (perBlokk[blokkNavn] ??= []).push(res.attrib);
+      }
+    }
+  }
+  return { model, perBlokk };
+}
+
+/**
+ * Fullstendighetsrapport (RETUR 4, Kenneth «skal ikke alle streker gjenskapes?»).
+ * Teller entiteter pr. type i den rå DXF-en (model space + blokk-definisjoner, som
+ * INSERT utfolder) — men IKKE paper space (vedtak B) eller strukturmarkører. Typer som
+ * er bevisst ikke-visuelle eller foldet inn i en annen type står i ALLOWLIST og regnes
+ * ikke som manglende. `dwg_ikke_tegnet` = typer i DXF-en uten noen tegnet representasjon.
+ */
+export const RAPPORT_ALLOWLIST: ReadonlySet<string> = new Set([
+  "INSERT",   // utfoldes til barn-entitetene (tegnes); referansen selv tegnes ikke
+  "SEQEND",   // sekvens-slutt-markør for POLYLINE/INSERT
+  "VERTEX",   // POLYLINE-underrecord, foldet inn i POLYLINE.vertices
+  "ATTDEF",   // attributt-DEFINISJON i blokk (mal, ikke instans) — ATTRIB bærer verdien
+  "VIEWPORT", // paper space-viewport, ikke model-geometri
+  "DICTIONARY",
+]);
+
+/** Strukturmarkører i DXF som aldri er entiteter. */
+const DXF_STRUKTUR: ReadonlySet<string> = new Set([
+  "SECTION", "ENDSEC", "TABLE", "ENDTAB", "BLOCK", "ENDBLK", "EOF",
+  "LAYER", "LTYPE", "STYLE", "VIEW", "UCS", "VPORT", "APPID", "DIMSTYLE",
+  "BLOCK_RECORD", "CLASS",
+]);
+
+/**
+ * Tell entiteter pr. type i den rå DXF-teksten (ENTITIES + BLOCKS, uten paper space
+ * og uten strukturmarkører). Robust par-for-par-skanning (DXF er strengt kode/verdi).
+ */
+export function tellDxfInventar(dxfInnhold: string): Record<string, number> {
+  const linjer = dxfInnhold.split(/\r?\n/);
+  const inventar: Record<string, number> = {};
+  let sec = "";
+  let iBlock = false;
+  let blokkPaperSpace = false;
+  for (let i = 0; i + 1 < linjer.length; i += 2) {
+    const code = linjer[i]!.trim();
+    const value = linjer[i + 1]!.trim();
+    if (code === "2" && ["HEADER", "CLASSES", "TABLES", "BLOCKS", "ENTITIES", "OBJECTS"].includes(value)) {
+      sec = value; iBlock = false; continue;
+    }
+    if (code !== "0") continue;
+    if (value === "BLOCK") {
+      iBlock = true; blokkPaperSpace = false;
+      // Blokknavn (kode 2) avgjør om det er paper space (hoppes over).
+      for (let j = i + 2; j + 1 < linjer.length; j += 2) {
+        const gc = linjer[j]!.trim();
+        if (gc === "0") break;
+        if (gc === "2") { const bn = linjer[j + 1]!.trim(); blokkPaperSpace = bn.startsWith("*Paper_Space") || bn.startsWith("*D"); break; }
+      }
+      continue;
+    }
+    if (value === "ENDBLK") { iBlock = false; blokkPaperSpace = false; continue; }
+    if (DXF_STRUKTUR.has(value)) continue;
+    if (sec === "ENTITIES") inventar[value] = (inventar[value] ?? 0) + 1;
+    else if (sec === "BLOCKS" && iBlock && !blokkPaperSpace) inventar[value] = (inventar[value] ?? 0) + 1;
+  }
+  return inventar;
+}
+
+/** Fullstendighetsrapport som lagres i tegningens metadata (`konverteringRapport`). */
+export interface KonverteringRapport {
+  /** Entiteter pr. type i den rå DXF-en (model + blokker). */
+  parsetPrType: Record<string, number>;
+  /** Tegnede SVG-elementer pr. `data-type`. */
+  tegnetPrType: Record<string, number>;
+  /** Typer i DXF-en uten noen tegnet representasjon, utenom ALLOWLIST → antall i DXF-en. */
+  ikkeTegnet: Record<string, number>;
+}
+
+/**
+ * Bygg fullstendighetsrapporten: parset (rå DXF) vs. tegnet (data-type i SVG). En type
+ * havner i `ikkeTegnet` bare når den finnes i DXF-en, ikke er på ALLOWLIST, og har NULL
+ * tegnede elementer. Antalls-avvik (f.eks. 38 981 vs 38 982 LINE) er IKKE mangler.
+ */
+export function byggRapport(inventar: Record<string, number>, tegnet: Record<string, number>): KonverteringRapport {
+  const ikkeTegnet: Record<string, number> = {};
+  for (const [type, antall] of Object.entries(inventar)) {
+    if (RAPPORT_ALLOWLIST.has(type)) continue;
+    if (!tegnet[type]) ikkeTegnet[type] = antall;
+  }
+  return { parsetPrType: inventar, tegnetPrType: tegnet, ikkeTegnet };
+}
+
 // ---------------------------------------------------------------------------
 // RETUR 2 (vedtak A) — automatisk rotasjon: to signaler. Veggvinkelen (mod 90°)
 // gir aksejevnhet, tekstrotasjonene løser 90°-kvadrant-tvetydigheten. Rotasjonen
@@ -1013,6 +1205,9 @@ export interface DxfSvgResultat {
   /** RETUR 2 §3: startutsnitt som brøk [0,1] av viewBox (x,y,w,h) — der innholdet er
    * tett. Vieweren åpner zoomet hit. null = for lite grunnlag → vis hele. */
   startutsnitt: { x: number; y: number; w: number; h: number } | null;
+  /** RETUR 4 (fullstendighet): parset-vs-tegnet pr. type. null for layout-klipp
+   * (inventaret gjelder hele DXF-en, ikke klippet). */
+  rapport: KonverteringRapport | null;
 }
 
 /** Generer SVG fra parsed DXF-entiteter (normaliserte koordinater) */
@@ -1080,6 +1275,20 @@ export function dxfTilSvg(
       console.log(`[DWG] LEADER parset fra rå DXF: ${leaderModel.length} model + ${antLeaderBlokk} i blokker`);
     }
 
+    // RETUR 4 (fullstendighet): ATTRIB parses fra rå tekst (dxf-parser dropper dem) —
+    // blokk-attributtenes synlige verditekst. Samme mønster: blokk-ATTRIB inn i blokk-
+    // kartet (INSERT-utfoldelsen transformerer dem), model-ATTRIB i køen.
+    const { model: attribModel, perBlokk: attribPerBlokk } = parseAttrib(dxfInnhold);
+    for (const [bn, as] of Object.entries(attribPerBlokk)) {
+      if (bn.startsWith("*Paper_Space") || bn.startsWith("*D")) continue;
+      if (blokker[bn]) blokker[bn].push(...as);
+      else blokker[bn] = [...as];
+    }
+    const antAttribBlokk = Object.values(attribPerBlokk).reduce((s, a) => s + a.length, 0);
+    if (attribModel.length + antAttribBlokk > 0) {
+      console.log(`[DWG] ATTRIB parset fra rå DXF: ${attribModel.length} model + ${antAttribBlokk} i blokker`);
+    }
+
     // Filtrer bort paper space entiteter — kun model space vises
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modelEntiteter = dxf.entities.filter((e: any) => !e.inPaperSpace);
@@ -1095,7 +1304,7 @@ export function dxfTilSvg(
     const alleEntiteter: any[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type ArbeidsItem = { entity: any; transforms: Array<{ base: { x: number; y: number }; pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }> };
-    const kø: ArbeidsItem[] = [...modelEntiteter, ...hatchModel, ...leaderModel].map(e => ({ entity: e, transforms: [] }));
+    const kø: ArbeidsItem[] = [...modelEntiteter, ...hatchModel, ...leaderModel, ...attribModel].map(e => ({ entity: e, transforms: [] }));
 
     while (kø.length > 0 && alleEntiteter.length < MAKS_ENTITETER) {
       const item = kø.shift()!;
@@ -1544,6 +1753,16 @@ export function dxfTilSvg(
         // MTEXT kan ha formatering — strip basic DXF formatting codes
         const renTekst = e.text.replace(/\\[A-Za-z][^;]*;/g, "").replace(/\{|\}/g, "");
         paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif"${da}>${escapeXml(renTekst)}</text>`);
+      } else if (e.type === "ATTRIB" && e.position && e.text) {
+        // RETUR 4 (fullstendighet): blokk-attributt-verdi. Tegnes som TEXT. Som MTEXT/TEXT
+        // beholdes e.rotation urørt av auto-rotasjonen og motroteres rundt eget punkt, så
+        // teksten står lesbart (jf. arkitektens PDF). Egen rotasjon mater IKKE kvadrant-
+        // histogrammet — det ville flyttet den verifiserte veggrid-rotasjonen.
+        const fontSize = (e.textHeight && e.textHeight > 0 ? e.textHeight : sw * 10) * 1;
+        const x = nx(e.position.x);
+        const y = ny(e.position.y);
+        const rot = e.rotation ? ` transform="rotate(${-e.rotation} ${x} ${y})"` : "";
+        paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif"${da}>${escapeXml(e.text)}</text>`);
       } else if (e.type === "DIMENSION") {
         // Dimensjoner — tegn som linjer mellom punktene
         if (e.anchorPoint && e.middleOfText) {
@@ -1608,7 +1827,19 @@ ${paths.join("\n")}
       console.log(`[DWG] Startutsnitt (brøk): x=${startutsnitt.x.toFixed(2)} y=${startutsnitt.y.toFixed(2)} w=${startutsnitt.w.toFixed(2)} h=${startutsnitt.h.toFixed(2)}`);
     }
 
-    return { svg, vbW, vbH, width: svgBredde, height: svgHoyde, autoRotasjon, startutsnitt };
+    // RETUR 4 (fullstendighet): rapport parset-vs-tegnet. Kun for hovedtegningen —
+    // et layout-klipp har hele DXF-ens inventar, men bare klippets geometri tegnet.
+    let rapport: KonverteringRapport | null = null;
+    if (!klippBounds) {
+      const tegnetPrType: Record<string, number> = {};
+      for (const m of svg.matchAll(/data-type="([^"]+)"/g)) tegnetPrType[m[1]!] = (tegnetPrType[m[1]!] ?? 0) + 1;
+      rapport = byggRapport(tellDxfInventar(dxfInnhold), tegnetPrType);
+      const mangler = Object.keys(rapport.ikkeTegnet);
+      if (mangler.length) console.warn(`[DWG] FULLSTENDIGHET: typer parset men ikke tegnet: ${JSON.stringify(rapport.ikkeTegnet)}`);
+      else console.log(`[DWG] FULLSTENDIGHET: alle ${Object.keys(rapport.parsetPrType).length} DXF-typer tegnet (eller på allowlist)`);
+    }
+
+    return { svg, vbW, vbH, width: svgBredde, height: svgHoyde, autoRotasjon, startutsnitt, rapport };
   } catch (err) {
     console.error("[DWG] DXF→SVG feilet:", err);
     return null;
@@ -1655,6 +1886,7 @@ export async function konverterDwg(
       layouts: [],
       autoRotasjon: null,
       startutsnitt: null,
+      rapport: null,
     };
   }
 
@@ -1707,6 +1939,7 @@ export async function konverterDwg(
     let maaling: DwgMaaling = tomMaaling;
     let autoRotasjon: number | null = null;
     let startutsnitt: { x: number; y: number; w: number; h: number } | null = null;
+    let rapport: KonverteringRapport | null = null;
     const svgRes = dxfInnhold ? dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system }) : null;
     if (svgRes) {
       const svgFilnavn = `${randomUUID()}.svg`;
@@ -1716,6 +1949,7 @@ export async function konverterDwg(
       maaling = utledDwgMaaling(svgRes.vbW, svgRes.width, svgRes.height, mmPrEnhet);
       autoRotasjon = svgRes.autoRotasjon;
       startutsnitt = svgRes.startutsnitt;
+      rapport = svgRes.rapport;
       console.log(`[DWG] SVG generert (mm/px=${maaling.mmPrPiksel ?? "null"}, scaleKilde=${maaling.scaleKilde ?? "null"}, rotasjon=${autoRotasjon ?? "null"})`);
     }
 
@@ -1798,6 +2032,7 @@ export async function konverterDwg(
       layouts: layoutResultater,
       autoRotasjon,
       startutsnitt,
+      rapport,
     };
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
@@ -1809,6 +2044,7 @@ export async function konverterDwg(
       layouts: [],
       autoRotasjon: null,
       startutsnitt: null,
+      rapport: null,
     };
   }
 }

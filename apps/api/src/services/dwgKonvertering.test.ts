@@ -22,6 +22,10 @@ import {
   roterProsentMarkor,
   normaliser180,
   beregnStartutsnitt,
+  parseAttrib,
+  tellDxfInventar,
+  byggRapport,
+  RAPPORT_ALLOWLIST,
 } from "./dwgKonvertering";
 
 // ---------------------------------------------------------------------------
@@ -579,6 +583,80 @@ describe("RETUR 3 §2 — roterProsentMarkor (markør flyttes med endret bake-ro
 // (`dwg2dxf`) + `SITEDOC_DWG_KUNDEFIL`; ellers skippet.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// RETUR 4 (fullstendighet) — ATTRIB-parsing + rapport. dxf-parser dropper ATTRIB,
+// så den parses fra rå tekst og tegnes som TEXT. Rapporten flagger typer i DXF-en
+// som ikke er tegnet (utenom allowlist). Gate: ukjent synlig type → ikkeTegnet ≠ {}.
+// ---------------------------------------------------------------------------
+
+/** Minimal DXF: ett ATTRIB i ENTITIES. flags=70 (bit 1 = usynlig). */
+function attribDxf(opts: { text: string; flags?: number; rot?: number }): string {
+  return [
+    "0", "SECTION", "2", "ENTITIES",
+    // En LINE så dxf.entities ikke er tom (dxf-parser dropper ATTRIB; ekte filer har
+    // alltid geometri ved siden av attributtene).
+    "0", "LINE", "8", "KOTE", "10", "0.0", "20", "0.0", "11", "300.0", "21", "300.0",
+    "0", "ATTRIB", "8", "KOTE", "62", "7",
+    "10", "100.0", "20", "200.0", "30", "0.0",
+    "40", "2.5", "1", opts.text, "50", String(opts.rot ?? 0),
+    "70", String(opts.flags ?? 0), "2", "TAG1",
+    "0", "ENDSEC", "0", "EOF",
+  ].join("\n");
+}
+
+describe("RETUR 4 — parseAttrib (dxf-parser dropper ATTRIB)", () => {
+  it("synlig ATTRIB parses med posisjon, høyde, rotasjon og verditekst", () => {
+    const a = parseAttrib(attribDxf({ text: "+42 000", rot: 50 }));
+    expect(a.model).toHaveLength(1);
+    expect(a.model[0]!.text).toBe("+42 000");
+    expect(a.model[0]!.position).toEqual({ x: 100, y: 200 });
+    expect(a.model[0]!.textHeight).toBe(2.5);
+    expect(a.model[0]!.rotation).toBe(50);
+  });
+
+  it("usynlig ATTRIB (kode 70 bit 1) hoppes over — bare synlig i model space", () => {
+    expect(parseAttrib(attribDxf({ text: "skjult", flags: 1 })).model).toHaveLength(0);
+  });
+
+  it("tom verditekst gir ingen ATTRIB", () => {
+    expect(parseAttrib(attribDxf({ text: "" })).model).toHaveLength(0);
+  });
+
+  it("ATTRIB tegnes som <text> i SVG (verdien synes)", () => {
+    const res = dxfTilSvg(attribDxf({ text: "V-42" }))!;
+    expect(res).not.toBeNull();
+    expect(res.svg).toContain(">V-42</text>");
+    expect(res.rapport!.tegnetPrType["ATTRIB"]).toBe(1);
+  });
+});
+
+describe("RETUR 4 — tellDxfInventar + byggRapport (fullstendighets-gate)", () => {
+  it("teller entiteter pr. type i ENTITIES (strukturmarkører utelatt)", () => {
+    const dxf = rektangelDxf({ w: 10, h: 10 });
+    const inv = tellDxfInventar(dxf);
+    expect(inv["LWPOLYLINE"]).toBe(1);
+    expect(inv["SECTION"]).toBeUndefined();
+    expect(inv["ENDSEC"]).toBeUndefined();
+  });
+
+  it("ukjent synlig type i DXF uten tegnet element → ikkeTegnet flagger den", () => {
+    const r = byggRapport({ LINE: 5, WIPEOUT: 2 }, { LINE: 5 });
+    expect(r.ikkeTegnet).toEqual({ WIPEOUT: 2 });
+  });
+
+  it("allowlistede typer (INSERT/SEQEND/ATTDEF/VERTEX) regnes ikke som manglende", () => {
+    const r = byggRapport({ INSERT: 3, SEQEND: 3, ATTDEF: 1, VERTEX: 40, LINE: 2 }, { LINE: 2 });
+    expect(r.ikkeTegnet).toEqual({});
+    expect(RAPPORT_ALLOWLIST.has("INSERT")).toBe(true);
+    expect(RAPPORT_ALLOWLIST.has("VERTEX")).toBe(true);
+  });
+
+  it("antalls-avvik (LINE 38 982 parset vs 38 981 tegnet) er IKKE en mangel", () => {
+    const r = byggRapport({ LINE: 38982 }, { LINE: 38981 });
+    expect(r.ikkeTegnet).toEqual({});
+  });
+});
+
 const KUNDEFIL = process.env.SITEDOC_DWG_KUNDEFIL;
 const DWG2DXF = process.env.DWG2DXF_PATH ?? "dwg2dxf";
 function harDwg2dxf(): boolean {
@@ -614,5 +692,16 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     const ratio = res.vbW / res.vbH;
     expect(ratio).toBeGreaterThan(0.1);
     expect(ratio).toBeLessThan(10);
+  }, 180000);
+
+  it("fullstendighet: ingen parset-men-ikke-tegnet type (utenom allowlist), og ATTRIB tegnes", () => {
+    const res = dxfTilSvg(konverterKundefil())!;
+    expect(res).not.toBeNull();
+    const r = res.rapport!;
+    // Gate: hver type i DXF-en er enten tegnet eller dokumentert ikke-visuell (allowlist).
+    expect(r.ikkeTegnet).toEqual({});
+    // De 503 ATTRIB var usynlige før RETUR 4 — nå tegnes de synlige verdiene.
+    expect(r.parsetPrType["ATTRIB"]).toBeGreaterThan(0);
+    expect(r.tegnetPrType["ATTRIB"]).toBeGreaterThan(0);
   }, 180000);
 });

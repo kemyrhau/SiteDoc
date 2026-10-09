@@ -949,6 +949,10 @@ model Drawing {
   // Startutsnitt (RETUR 2 §3): {x,y,w,h} som brøk [0,1] av viewBox der innholdet er
   // tett — vieweren åpner zoomet hit. NULL = vis hele (gyldig).
   startutsnitt     Json?     @map("startutsnitt")
+  // Fullstendighetsrapport (RETUR 4): {parsetPrType, tegnetPrType, ikkeTegnet} fra
+  // DWG→SVG. `ikkeTegnet` er typer i DXF-en uten tegnet representasjon (utenom allowlist)
+  // — synlig på test uten å lese kode. NULL = ikke en DWG/DXF-konvertering (gyldig).
+  konverteringRapport Json?  @map("konvertering_rapport")
   // Tegningsserie (T2): lett gruppering «merk tegninger → flytt inn i en serie».
   // NULL = «ikke i serie» — en gyldig tilstand (ingen backfill). Sletting av serien
   // setter denne til NULL (SetNull), aldri sletter tegningen. Revisjon/målestokk/status
