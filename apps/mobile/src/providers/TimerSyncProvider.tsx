@@ -33,6 +33,7 @@ import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
 import { refreshByggeplassKatalog } from "../services/byggeplassKatalog";
 import { refreshReisetidMatriseKatalog } from "../services/reisetidMatriseKatalog";
 import { refreshReiseGrensepunktKatalog } from "../services/reiseGrensepunktKatalog";
+import { hentLagretFirmaId } from "../kontekst/FirmaKontekst";
 
 interface TimerSyncKontekst {
   pendingAntall: number;
@@ -175,7 +176,11 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     syncerRef.current = true;
     setSyncerNa(true);
     try {
-      const resultat = await syncTimer(utils.client, bruker.id);
+      // Kenneth-vedtak 2026-10-09: synk følger «Mitt firma». TimerSyncProvider ligger
+      // utenfor FirmaProvider (kan ikke bruke useFirma) → les det persisterte valget
+      // direkte. null → serveren faller tilbake til medlemskapet (bakoverkompat).
+      const firmaId = (await hentLagretFirmaId()) ?? undefined;
+      const resultat = await syncTimer(utils.client, bruker.id, undefined, firmaId);
       setSistSynkronisert(Date.now());
       setSisteFeil(resultat.feil ?? null);
       // Refresh tellere fra DB etter sync

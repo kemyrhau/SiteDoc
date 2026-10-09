@@ -74,7 +74,12 @@ export default function NyDagsseddelSide() {
 
   // D7: prosjektliste for arbeider (inkluderer interne prosjekter). Cast for å
   // unngå TS2589 (dyp Project-type) — samme mønster som detalj-siden.
-  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery();
+  // Kenneth-vedtak 2026-10-09: timer følger innlogget firma. Send valgtFirma som
+  // organizationId → lista viser bare prosjekter i DET firmaet (samme regel som
+  // skrivingen), og serveren verifiserer tilgang.
+  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery({
+    organizationId: orgId ?? undefined,
+  });
   const prosjekter = useMemo(
     () =>
       (prosjekterRaw ?? []) as unknown as Array<{
@@ -84,6 +89,16 @@ export default function NyDagsseddelSide() {
       }>,
     [prosjekterRaw],
   );
+
+  // Kenneth-vedtak 2026-10-09 (2): egne timer kan bare føres av ansatte i det innloggede
+  // firmaet. Serveren håndhever (FORBIDDEN); her gjør vi sperren SYNLIG — «Ny dagsseddel»
+  // deaktiveres med forklaring i stedet for å feile ved innsending. Default: ikke sperr før
+  // svaret er kjent (unngå å blokkere en ansatt på treg lasting — serveren er siste vakt).
+  const { data: ansattStatus } = trpc.timer.dagsseddel.kanFoereTimer.useQuery({
+    organizationId: orgId ?? undefined,
+  });
+  const kanFoereTimer = ansattStatus?.kanFoere ?? true;
+  const ansattFirmanavn = ansattStatus?.firmanavn ?? valgtFirma?.name ?? "";
 
   // Prefyll prosjekt fra aktiv toppbar-kontekst — paritet med mobils GPS-forvalg.
   // Kun når: bruker ikke har rørt velgeren, feltet er tomt, en kontekst finnes,
@@ -151,6 +166,11 @@ export default function NyDagsseddelSide() {
     e.preventDefault();
     setFeil(null);
 
+    if (!kanFoereTimer) {
+      setFeil(t("timer.ikkeAnsatt", { firma: ansattFirmanavn }));
+      return;
+    }
+
     if (!projectId) {
       setFeil(t("timer.feil.ingenProsjekt"));
       return;
@@ -177,6 +197,8 @@ export default function NyDagsseddelSide() {
       endAt: tilstartAt(endAt),
       pauseMin,
       beskrivelse: beskrivelse.trim() || null,
+      // Lagre sedelen på det innloggede firmaet (ikke medlemskapet). Server verifiserer.
+      organizationId: orgId ?? undefined,
     });
   }
 
@@ -202,6 +224,12 @@ export default function NyDagsseddelSide() {
         {t("timer.nyDagsseddel")}
       </h1>
       <p className="mb-6 text-sm text-gray-600">{t("timer.nyBeskrivelse")}</p>
+
+      {!kanFoereTimer && (
+        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          {t("timer.ikkeAnsatt", { firma: ansattFirmanavn })}
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -339,8 +367,15 @@ export default function NyDagsseddelSide() {
             >
               {t("handling.avbryt")}
             </Button>
-            <KnappMedForklaring sperret={!projectId && !opprett.isPending} forklaring={t("sperret.velgProsjekt")}>
-              <Button type="submit" disabled={opprett.isPending || !projectId}>
+            <KnappMedForklaring
+              sperret={(!kanFoereTimer || !projectId) && !opprett.isPending}
+              forklaring={
+                !kanFoereTimer
+                  ? t("timer.ikkeAnsatt", { firma: ansattFirmanavn })
+                  : t("sperret.velgProsjekt")
+              }
+            >
+              <Button type="submit" disabled={opprett.isPending || !projectId || !kanFoereTimer}>
                 {opprett.isPending ? t("handling.lagrer") : t("timer.opprett")}
               </Button>
             </KnappMedForklaring>

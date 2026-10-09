@@ -9,7 +9,10 @@ import {
   verifiserProsjektmedlem,
   verifiserProsjekterTilhørerFirma,
   hentBrukersOrg,
-  krevBrukersOrg,
+  resolverOrgFraInput,
+  resolverOrgForEgenTimeføring,
+  verifiserAnsattIFirma,
+  erAnsattIFirma,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
@@ -173,7 +176,14 @@ async function hentEgenDagsseddel(
   prismaTimer: Prisma.TransactionClient | typeof import("@sitedoc/db-timer").prismaTimer,
   ctxUserId: string,
   sheetId: string,
+  // Kenneth-vedtak 2026-10-09 (2): EGEN timeføring krever aktivt ansettelsesforhold.
+  // Default true (skrive-stiene: tilfoy/oppdater/fjern-rader, forson, oppdater sedel) →
+  // eieren må være aktivt ansatt i sedelens firma. Lese- og livssyklus-stiene
+  // (hentMedId, list/signer-vedlegg, send, gjenåpne, slett) sender `false` — de beholder
+  // dagens tilgang (en sluttet ansatt skal fortsatt se og avvikle sine egne sedler).
+  opts: { krevAnsatt?: boolean } = {},
 ) {
+  const { krevAnsatt = true } = opts;
   // F4-1b (2026-07-11): identitets-robust oppslag. Mobil sender lokal id
   // (= clientUuid, jf. F4-1 pull-M2). For sedler laget FØR F4-1-invarianten
   // (`id = clientUuid` ved create) er server-PK `id` ≠ `clientUuid` → et rent
@@ -217,6 +227,11 @@ async function hentEgenDagsseddel(
         message: "Du eier ikke denne dagsseddelen",
       });
     }
+    // Admin/firmaadmin som redigerer en ANNENS sedel beholder dagens tilgang
+    // (attestering/retting) — ansatt-kravet gjelder kun EGEN timeføring under.
+  } else if (krevAnsatt) {
+    // Eieren fører egne timer → krev aktivt ansettelsesforhold i sedelens firma.
+    await verifiserAnsattIFirma(ctxUserId, sheet.organizationId);
   }
 
   return sheet;
@@ -1524,11 +1539,13 @@ export const dagsseddelRouter = router({
           fra: z.string().optional(),
           til: z.string().optional(),
           status: z.enum(STATUS_VERDIER).optional(),
+          // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+          organizationId: z.string().uuid().optional(),
         })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
 
       // Default: kun egne dagssedler
       const userId = input?.userId ?? ctx.userId;
@@ -1607,10 +1624,31 @@ export const dagsseddelRouter = router({
       });
     }),
 
+  // Kenneth-vedtak 2026-10-09 (2): kan innlogget bruker føre EGNE timer i firmaet?
+  // = aktivt ansettelsesforhold (samme regel som skrive-gaten `verifiserAnsattIFirma`,
+  // ingen admin-bypass). Klienten bruker svaret til å deaktivere «Ny dagsseddel» med en
+  // forklaring. `firmanavn` følger med (kun når sperret) til meldingsteksten.
+  kanFoereTimer: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const orgId = input?.organizationId ?? (await hentBrukersOrg(ctx.userId));
+      if (!orgId) return { kanFoere: false, firmanavn: null };
+      const kanFoere = await erAnsattIFirma(ctx.userId, orgId);
+      let firmanavn: string | null = null;
+      if (!kanFoere) {
+        const org = await ctx.prisma.organization.findUnique({
+          where: { id: orgId },
+          select: { name: true },
+        });
+        firmanavn = org?.name ?? null;
+      }
+      return { kanFoere, firmanavn };
+    }),
+
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
       const [aktivitet, timer, tillegg, maskiner, utlegg, forslag] = await Promise.all([
         sheet.aktivitetId
           ? ctx.prismaTimer.aktivitet.findUnique({ where: { id: sheet.aktivitetId } })
@@ -1725,14 +1763,19 @@ export const dagsseddelRouter = router({
         pauseMin: z.number().int().min(0).default(0),
         sluttTidKilde: z.enum(["bruker", "midnatt", "system"]).default("bruker"),
         beskrivelse: z.string().nullable().optional(),
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09): sedelen lagres på DETTE
+        // firmaet, ikke på medlemskapet. Serveren verifiserer tilgang. Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      // Kenneth-vedtak 2026-10-09 (2): egen timeføring krever aktivt ansettelsesforhold
+      // i det valgte firmaet — ingen admin-bypass (jf. resolverOrgForEgenTimeføring).
+      const orgId = await resolverOrgForEgenTimeføring(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       // T.1: Web-opprett er dato-only — sedelen eies av arbeider/firma og har
-      // ingen prosjekttilhørighet. Org-tilgang (krevBrukersOrg + krevTimerAktivert)
+      // ingen prosjekttilhørighet. Org-tilgang (resolverOrgFraInput + krevTimerAktivert)
       // er tilstrekkelig auth; prosjekt legges per rad på detalj-siden.
 
       // Verifiser at aktiviteten tilhører firmaet
@@ -2688,7 +2731,7 @@ export const dagsseddelRouter = router({
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
       // Firma-grense: brukeren må eie dagsseddelen tillegg-raden ligger på.
-      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId, { krevAnsatt: false });
       const data = {
         sheetTilleggId: input.sheetTilleggId,
         fileUrl: input.fileUrl,
@@ -2724,7 +2767,7 @@ export const dagsseddelRouter = router({
     .query(async ({ ctx, input }) => {
       // Eierskap via egen dagsseddel. Returnerer alle vedlegg for sedlens
       // tillegg-rader (fileUrl = /uploads/...; aldri rå lagrings-nøkler).
-      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId, { krevAnsatt: false });
       const rader = await ctx.prismaTimer.sheetTillegg.findMany({
         where: { sheetId: input.sheetId },
         select: { id: true },
@@ -2757,7 +2800,7 @@ export const dagsseddelRouter = router({
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
       // Eierskaps-/firma-authz (kaster FORBIDDEN ellers).
-      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId, { krevAnsatt: false });
       // M1: signer på stedet (mobil viser umiddelbart, persisterer ikke denne).
       return { url: signerHvisPrivat(vedlegg.fileUrl) ?? vedlegg.fileUrl };
     }),
@@ -2773,7 +2816,7 @@ export const dagsseddelRouter = router({
         where: { id: vedlegg.sheetTilleggId },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
-      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId, { krevAnsatt: false });
       if (!erRedigerbar(sheet.status)) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -2928,7 +2971,7 @@ export const dagsseddelRouter = router({
         where: { id: input.sheetUtleggId },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
-      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId, { krevAnsatt: false });
       const data = {
         sheetUtleggId: input.sheetUtleggId,
         fileUrl: input.fileUrl,
@@ -2959,7 +3002,7 @@ export const dagsseddelRouter = router({
   listUtleggVedlegg: protectedProcedure
     .input(z.object({ sheetId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId, { krevAnsatt: false });
       const rader = await ctx.prismaTimer.sheetUtlegg.findMany({
         where: { sheetId: input.sheetId },
         select: { id: true },
@@ -2985,7 +3028,7 @@ export const dagsseddelRouter = router({
         select: { sheetId: true },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
-      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId, { krevAnsatt: false });
       return { url: signerHvisPrivat(vedlegg.fileUrl) ?? vedlegg.fileUrl };
     }),
 
@@ -3000,7 +3043,7 @@ export const dagsseddelRouter = router({
         where: { id: vedlegg.sheetUtleggId },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
-      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId, { krevAnsatt: false });
       if (!erRedigerbar(sheet.status)) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -3193,7 +3236,7 @@ export const dagsseddelRouter = router({
   send: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
 
       if (sheet.status !== "draft" && sheet.status !== "returned") {
         throw new TRPCError({
@@ -3272,7 +3315,7 @@ export const dagsseddelRouter = router({
   gjenaapneDagsseddel: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
 
       // M4 (2026-07-10): distinkte koder for de tre avvisningene så klienten
       // kan mappe på e.data.code i stedet for delstreng på meldingen. Meldingene
@@ -3351,15 +3394,21 @@ export const dagsseddelRouter = router({
       });
     }),
 
-  // Slett egen dagsseddel — kun draft-status tillatt
+  // Slett egen dagsseddel — utkast (draft) ELLER returnert-og-ikke-attestert.
+  // Kenneth-vedtak 2026-10-09 (2): en returnert dagsseddel (status="returned") som ennå
+  // ikke er attestert (attestertVed IS NULL) kan slettes av eieren, som et utkast — den
+  // skal uansett føres på nytt. Sendte, attesterte og eksporterte sedler kan IKKE slettes.
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
-      if (sheet.status !== "draft") {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
+      const kanSlettes =
+        sheet.status === "draft" ||
+        (sheet.status === "returned" && sheet.attestertVed === null);
+      if (!kanSlettes) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: "Kun utkast (draft) kan slettes",
+          message: "Bare utkast eller returnerte (ikke-attesterte) dagssedler kan slettes",
         });
       }
       // Cascade på sheetId-FK sletter SheetTimer + SheetTillegg automatisk
@@ -5466,10 +5515,12 @@ export const dagsseddelRouter = router({
         sistSynkronisert: z.string().optional(), // ISO timestamp eller undefined for full pull
         // Begrens til siste N dager hvis full pull, for å unngå å laste hele historikken
         maksDagerTilbake: z.number().int().min(1).max(365).default(90),
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       const sistSynk = input.sistSynkronisert
@@ -5872,10 +5923,14 @@ export const dagsseddelRouter = router({
               .optional(),
           }),
         ).max(100), // Begrens batch-størrelse for å unngå tidsavbrudd
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      // Kenneth-vedtak 2026-10-09 (2): egen timeføring (mobil-synk) krever aktivt
+      // ansettelsesforhold i firmaet — ingen admin-bypass.
+      const orgId = await resolverOrgForEgenTimeføring(ctx.userId, input.organizationId);
       await krevTimerAktivert(orgId);
 
       // LAG 2 (C1/C2): batch-nivå kontekst for reise-behandlingen — hentes ÉN gang
@@ -5998,7 +6053,7 @@ export const dagsseddelRouter = router({
             // Ny seddel — verifiser prosjekttilgang. F4-4: sedel-nivå projectId
             // kan nå være null (tom/plassholder-sedel). Rad-nivå-medlemskap
             // sjekkes uansett under (radProjectIder); org-tilgang er allerede
-            // sikret (krevBrukersOrg + krevTimerAktivert). Konsistent med web
+            // sikret (resolverOrgFraInput + krevTimerAktivert). Konsistent med web
             // `opprett` (T.1: dato-only, org-tilgang tilstrekkelig).
             await verifiserProsjektmedlem(ctx.userId, lokal.projectId);
           }
@@ -7213,10 +7268,12 @@ export const dagsseddelRouter = router({
       z.object({
         userId: z.string().uuid().optional(), // default = innlogget bruker
         dato: z.string(), // ISO YYYY-MM-DD
+        // Valgt/innlogget firma (Kenneth-vedtak 2026-10-09). Utelatt → egen org.
+        organizationId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await krevBrukersOrg(ctx.userId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input.organizationId);
       const userId = input.userId ?? ctx.userId;
 
       // Hvis bruker ber om noen andres dagstotal: krev admin

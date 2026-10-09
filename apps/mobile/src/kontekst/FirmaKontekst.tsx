@@ -38,6 +38,20 @@ async function slettVerdi(key: string): Promise<void> {
   }
 }
 
+/**
+ * Lagret «Mitt firma»-id (persistert valg). Ren async-funksjon (ikke hook) så den kan
+ * leses av TimerSyncProvider, som ligger UTENFOR FirmaProvider i treet og derfor ikke kan
+ * bruke `useFirma()`. Kenneth-vedtak 2026-10-09: timer-synk følger det valgte firmaet.
+ * Returnerer null hvis intet er lagret (serveren faller da tilbake til medlemskapet).
+ */
+export async function hentLagretFirmaId(): Promise<string | null> {
+  try {
+    return await hentVerdi(VALGT_FIRMA_KEY);
+  } catch {
+    return null;
+  }
+}
+
 interface Firma {
   id: string;
   name: string;
