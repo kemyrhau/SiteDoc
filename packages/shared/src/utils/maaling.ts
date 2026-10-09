@@ -183,6 +183,24 @@ export function kanMale(
 }
 
 /**
+ * Kilden til `scale` ved LAGRING fra et skjema (detaljtabell / «Rediger flere»).
+ * Et menneske som taster inn en målestokk ER en manuell bekreftelse — så en satt
+ * `scale` uten en eksplisitt kilde skal lagres som `"manuell"`, ellers forblir
+ * `scaleKilde` null og `kanMale()` avslår måling selv om 1:50 står i feltet
+ * (regresjonen på eldre UNN-tegninger, 2026-10-09). En eksplisitt kilde
+ * (in-viewer-panelet, kalibrering) beholdes alltid. Ingen `scale` i endringen →
+ * ingen kilde å utlede (`undefined`, feltet røres ikke). Serveren (`tegning.oppdater`)
+ * håndhever denne regelen.
+ */
+export function utledScaleKildeVedLagring(
+  scaleEndret: boolean,
+  eksplisittKilde: ScaleKilde | null | undefined,
+): ScaleKilde | undefined {
+  if (eksplisittKilde != null) return eksplisittKilde;
+  return scaleEndret ? "manuell" : undefined;
+}
+
+/**
  * Kalibrering (fallback): bruker trekker en linje mellom to punkter og oppgir
  * virkelig lengde (mm) → regner ut målestokk-nevneren. Nødvendig for skannede
  * tegninger der papirmålestokken lyver fordi skanneren har strukket bildet.

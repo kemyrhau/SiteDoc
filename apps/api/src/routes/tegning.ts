@@ -14,6 +14,7 @@ import {
   drawingStatusSchema,
   geoReferanseSchema,
   utledMmPrPiksel,
+  utledScaleKildeVedLagring,
   finnMalestokkFraTekst,
   finnTegningsnummer,
   finnTegningstype,
@@ -526,6 +527,12 @@ export const tegningRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      // Målestokk skrevet inn for hånd (detaljtabellen / «Rediger flere») bærer ingen
+      // egen kilde — et menneske som taster en målestokk ER manuell bekreftelse. Settes
+      // `scaleKilde` eksplisitt (in-viewer-panelet, kalibrering), beholdes den. Uten dette
+      // ble `scaleKilde` null og `kanMale()` avslo måling selv om brukeren hadde skrevet 1:50.
+      const utledetKilde = utledScaleKildeVedLagring(data.scale !== undefined, data.scaleKilde);
+      if (utledetKilde !== undefined) data.scaleKilde = utledetKilde;
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.update({ where: { id }, data });
@@ -933,6 +940,79 @@ export const tegningRouter = router({
       }
 
       return { startet: pdfTegninger.length, melding: `Startet konvertering av ${pdfTegninger.length} PDF-tegning(er)` };
+    }),
+
+  // Backfill av måle-grunnlag (mm/piksel) for eldre PDF-tegninger UTEN ny rendering.
+  //
+  // Tegninger konvertert før måling-i-tegning (2026-09-24) fikk aldri `mmPrPiksel`,
+  // så `kanMale()` avslår måling selv om målestokken er satt. `rekonverterPdf` tar
+  // bare uferdige/feilede PDF-er, aldri de ferdige — derfor denne. Papirbredden
+  // leses på nytt fra original-PDF-en (`pdfinfo`) og mm/piksel utledes mot den
+  // ALLEREDE lagrede `imageWidth`. `fileUrl` røres ikke og ingenting rendres på nytt.
+  // Begrenset til PDF-kilde: en DWG/DXF-tegnings `mmPrPiksel = null` er legitim
+  // (ukjent enhet → låst til kalibrering) og pdfinfo gjelder ikke der.
+  backfillMaalegrunnlag: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektIkkeFrosset(ctx.userId, input.projectId);
+      // Samme tilgang som rekonverter-knappen: sitedoc_admin eller prosjektadmin.
+      const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
+      if (bruker?.role !== "sitedoc_admin") {
+        const medlem = await ctx.prisma.projectMember.findUnique({
+          where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        });
+        if (medlem?.role !== "admin") {
+          return { totalt: 0, oppdatert: 0, utenGrunnlag: 0, melding: "Kun admin kan hente målegrunnlag" };
+        }
+      }
+
+      const kandidater = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          conversionStatus: "done",
+          mmPrPiksel: null,
+          OR: [
+            { fileType: "pdf" },
+            { originalFileUrl: { endsWith: ".pdf" } },
+          ],
+        },
+        select: { id: true, name: true, fileUrl: true, originalFileUrl: true, fileType: true, imageWidth: true },
+      });
+
+      let oppdatert = 0;
+      let utenGrunnlag = 0;
+      for (const t of kandidater) {
+        // PDF-kilden: original-PDF-en (konverterte) eller selve fila (uendret pdf).
+        const pdfRel = t.originalFileUrl ?? (t.fileType === "pdf" ? t.fileUrl : null);
+        if (!pdfRel) { utenGrunnlag++; continue; }
+        const pdfFilSti = join(UPLOADS_DIR, pdfRel.replace("/uploads/", ""));
+        const papirBreddeMm = await hentPapirbreddeMm(pdfFilSti);
+        if (!papirBreddeMm) { utenGrunnlag++; continue; }
+
+        // Bredde: bruk lagret imageWidth; mangler den, les fra det viste bildet (sharp).
+        let imageWidth = t.imageWidth ?? null;
+        let imageHeight: number | null = null;
+        if (imageWidth == null) {
+          const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, t.fileUrl.replace("/uploads/", "")));
+          if (dim) { imageWidth = dim.width; imageHeight = dim.height; }
+        }
+        if (imageWidth == null || imageWidth <= 0) { utenGrunnlag++; continue; }
+
+        const mmPrPiksel = utledMmPrPiksel(papirBreddeMm, imageWidth);
+        await ctx.prisma.drawing.update({
+          where: { id: t.id },
+          data: { mmPrPiksel, ...(imageHeight != null ? { imageWidth, imageHeight } : {}) },
+        });
+        oppdatert++;
+        console.log(`[Backfill-mål] ${t.name}: mm/px=${mmPrPiksel}`);
+      }
+
+      return {
+        totalt: kandidater.length,
+        oppdatert,
+        utenGrunnlag,
+        melding: `${oppdatert} av ${kandidater.length} tegning(er) fikk målegrunnlag${utenGrunnlag > 0 ? `, ${utenGrunnlag} uten PDF-grunnlag` : ""}`,
+      };
     }),
 
   // Backfill: hent bildedimensjoner for tegninger som mangler imageWidth/imageHeight

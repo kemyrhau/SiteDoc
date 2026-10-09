@@ -1286,7 +1286,11 @@ export function TegningsVisning({
               {!kanMaleNaa && (
                 <View style={stiler.maleSperret}>
                   <Ruler size={12} color="#9ca3af" />
-                  <Text style={stiler.maleSperretTekst}>{t("maaling.malestokkBekreftPaaWeb")}</Text>
+                  <Text style={stiler.maleSperretTekst}>
+                    {mmPrPiksel == null
+                      ? t("maaling.manglerMaalegrunnlag")
+                      : t("maaling.malestokkBekreftPaaWeb")}
+                  </Text>
                 </View>
               )}
             </View>

@@ -445,6 +445,15 @@ export default function TegningerSide() {
     },
   });
 
+  // Hent målegrunnlag for eldre PDF-tegninger (mm/piksel utledet fra original-PDF uten ny
+  // rendering). Prosjekt-batch, admin-gatet som rekonverter. Invaliderer detaljen så den
+  // åpne tegningen får mm/piksel og måleverktøyet låses opp.
+  const backfillMaalegrunnlagMutation = trpc.tegning.backfillMaalegrunnlag.useMutation({
+    onSuccess: () => {
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
   // Rediger tegningsdetaljer — kobler de metadata-feltene som fylles ved opprettelse til den
   // eksisterende `tegning.oppdater`. Egen mutasjon (ikke målestokk-mutasjonen over) fordi den
   // MÅ invalidere LISTA: endres `floor`, skal raden flytte seg ut av «Uten etasje» (Krav 2).
@@ -1259,7 +1268,7 @@ export default function TegningerSide() {
   const maleAvslagGrunn: string | null = kanMaleNaa
     ? null
     : mmPrPiksel == null
-      ? t("maaling.avslagIngenMmPrPiksel")
+      ? t("maaling.manglerMaalegrunnlag")
       : t("maaling.avslagIngenMalestokk");
 
   const formatMeter = (m: number) =>
@@ -1745,7 +1754,20 @@ export default function TegningerSide() {
           {harGeoref ? (
             <span className="text-gray-600">{t("maaling.georeferertInfo")}</span>
           ) : mmPrPiksel == null ? (
-            <span className="text-amber-700">{t("maaling.avslagIngenMmPrPiksel")}</span>
+            <span className="flex items-center gap-2">
+              <span className="text-amber-700">{t("maaling.manglerMaalegrunnlag")}</span>
+              {kanAdministrereOmrade && (
+                <button
+                  onClick={() => backfillMaalegrunnlagMutation.mutate({ projectId: params.prosjektId })}
+                  disabled={backfillMaalegrunnlagMutation.isPending}
+                  title={t("maaling.hentMaalegrunnlagHjelp")}
+                  className="flex items-center gap-1 rounded border border-amber-400 bg-amber-50 px-2 py-1 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${backfillMaalegrunnlagMutation.isPending ? "animate-spin" : ""}`} />
+                  {t("maaling.hentMaalegrunnlag")}
+                </button>
+              )}
+            </span>
           ) : (
             <>
               <select

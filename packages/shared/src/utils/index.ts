@@ -26,6 +26,7 @@ export {
   malPolylinjeMm,
   malArealMm2,
   kanMale,
+  utledScaleKildeVedLagring,
   kalibrerMalestokk,
   laasVinkel,
   aksehjelpelinje,
