@@ -468,6 +468,8 @@ Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):
 - SVG hentes, width/height fjernes, erstattes med `width="100%" height="auto"`
 - Originale `<style>`-blokker fjernes, egen zoom-aware style injiseres
 - SVG-elementer har `data-layer` (lagnavn) og `data-type` (entitetstype) attributter fra DWG-konverteringen
+- **Rotasjon (DWG-2/RETUR 2, vedtak A):** auto-rotasjonen er allerede BAKT inn i SVG-en ved konvertering (bygget aksejevnt, tekst motrotert vannrett). Vieweren viser «Rotert N° automatisk» i verktøylinja + en Roter-knapp (90°-trinn / «Auto» = tilbake til auto). En brukeroverstyring (`rotasjon_overstyrt`) legges på som CSS `transform: rotate(delta)` på `maleInnerRef`-wrapperen — SVG og markører roterer sammen, så prosent-koordinatene holder. Lagres via `tegning.settRotasjon`.
+- **Startutsnitt (DWG-2/RETUR 2 §3):** ved åpning zoomer vieweren til `tegning.startutsnitt` ({x,y,w,h}-brøk av viewBox der innholdet er tett) — løser «DWG åpnes veldig lite». Zoom = 0.98/max(w,h), scroll sentrerer klyngen (via `ønsketScrollRef` + `useLayoutEffect[zoom]`). Alt annet er fortsatt med og synlig når man zoomer ut. Kjøres én gang pr. tegning (`startutsnittRef`-vakt), overstyrer ikke brukerens egen zoom.
 
 **Zoom og panorering:**
 - **Gest-skille (`lib/tegningZoomGest.ts`, `klassifiserWheel`) — RETUR 2 A, 2026-10-07:** hvert `wheel`-event klassifiseres som `knip` / `hjul` / `styreflate-scroll`. Kenneth spurte «er det mulig å oppdage om zoomhjul eller touchpad benyttes?» → ja, heuristikk på `ctrlKey`/`deltaMode`/`deltaX`/`deltaY`. Ren funksjon, testet isolert (`tegningZoomGest.test.ts`).

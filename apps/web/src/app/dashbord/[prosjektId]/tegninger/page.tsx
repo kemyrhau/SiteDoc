@@ -61,7 +61,7 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
@@ -454,6 +454,13 @@ export default function TegningerSide() {
     },
   });
 
+  // RETUR 2 (vedtak A): lagre/nullstill brukerens rotasjons-overstyring for DWG-tegningen.
+  const settRotasjonMutation = trpc.tegning.settRotasjon.useMutation({
+    onSuccess: () => {
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
   // Rediger tegningsdetaljer — kobler de metadata-feltene som fylles ved opprettelse til den
   // eksisterende `tegning.oppdater`. Egen mutasjon (ikke målestokk-mutasjonen over) fordi den
   // MÅ invalidere LISTA: endres `floor`, skal raden flytte seg ut av «Uten etasje» (Krav 2).
@@ -532,6 +539,40 @@ export default function TegningerSide() {
       })
       .catch(() => setSvgInnhold(null));
   }, [svgUrl, erSvgFil]);
+
+  // RETUR 2 §3: startutsnitt — åpne zoomet til der innholdet er tett (DWG åpnet «veldig
+  // lite»). Kjøres når SVG-en er i DOM (svgInnhold satt) så inner-høyden er målbar. Alt
+  // annet er fortsatt med og synlig når man zoomer ut.
+  const startutsnittRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!erSvgFil || !svgInnhold) return;
+    // Cast via lett type: `startutsnitt` er Prisma Json? (dyp rekursiv union → TS2589
+    // både ved direkte aksess og i deps). Les feltet gjennom en smal struktur.
+    const su = ((tegning as unknown as { startutsnitt?: unknown } | null)?.startutsnitt ?? null) as { x: number; y: number; w: number; h: number } | null;
+    const el = containerRef.current;
+    if (!su || typeof su.w !== "number" || typeof su.h !== "number" || !el) return;
+    // Kjør kun én gang pr. tegning (ikke overstyr brukerens egen zoom).
+    const nøkkel = `${aktivTegning?.id}`;
+    if (startutsnittRef.current === nøkkel) return;
+    startutsnittRef.current = nøkkel;
+    const raf = requestAnimationFrame(() => {
+      const cw = el.clientWidth, ch = el.clientHeight;
+      if (!cw || !ch) return;
+      const z = Math.min(MAKS_ZOOM, Math.max(STANDARD_ZOOM, (0.98 / Math.max(su.w, su.h))));
+      const iw = tegning?.imageWidth ?? null;
+      const ih = tegning?.imageHeight ?? null;
+      const innerW = cw * z;
+      const innerH = iw && ih ? innerW * (ih / iw) : innerW;
+      ønsketScrollRef.current = {
+        left: Math.max(0, (su.x + su.w / 2) * innerW - cw / 2),
+        top: Math.max(0, (su.y + su.h / 2) * innerH - ch / 2),
+      };
+      setZoom(z);
+    });
+    return () => cancelAnimationFrame(raf);
+    // startutsnitt er stabil pr. tegning (id) → ikke i deps (Json?-type gir TS2589).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svgInnhold, erSvgFil, aktivTegning?.id]);
 
   // SVG-variant for inspeksjonsmodus med bredere treffområde og hover-highlight
   const svgInnholdInspeksjon = useMemo(() => {
@@ -1249,6 +1290,23 @@ export default function TegningerSide() {
   const erLaster = opprettOppgaveMutation.isPending || opprettSjekklisteMutation.isPending;
   const zoomProsent = Math.round(zoom * 100);
 
+  // --- RETUR 2 (vedtak A): rotasjon. Auto-rotasjonen er BAKT inn i SVG-en; vieweren
+  // legger kun en brukeroverstyring på toppen (CSS-rotate av HELE wrapperen, så SVG og
+  // markører roterer sammen). `visningsDelta` = effektiv − auto. ---
+  const autoRot = typeof tegning.autoRotasjon === "number" ? tegning.autoRotasjon : null;
+  const rotOverstyrt = typeof tegning.rotasjonOverstyrt === "number" ? tegning.rotasjonOverstyrt : null;
+  const effektivRot = rotOverstyrt ?? autoRot ?? 0;
+  const visningsDelta = effektivRot - (autoRot ?? 0);
+  const norm180 = (d: number) => { let v = ((d % 360) + 360) % 360; if (v > 180) v -= 360; return v; };
+  const roterNittiGrader = () => {
+    if (!aktivTegning?.id) return;
+    settRotasjonMutation.mutate({ drawingId: aktivTegning.id, grader: norm180(effektivRot + 90) });
+  };
+  const roterTilbake = () => {
+    if (!aktivTegning?.id) return;
+    settRotasjonMutation.mutate({ drawingId: aktivTegning.id, grader: null });
+  };
+
   // --- Måleverktøy: utledet mm/piksel + kilde-sporet målestokk ---
   const mmPrPiksel = tegning.mmPrPiksel ?? null;
   const scaleKilde = tegning.scaleKilde ?? null;
@@ -1485,6 +1543,41 @@ export default function TegningerSide() {
             <ZoomIn className="h-4 w-4" />
           </button>
         </div>
+
+        {/* RETUR 2 (vedtak A): rotasjon — kun for DWG→SVG. Auto-rotasjonen er bakt inn;
+            her vises etiketten + en manuell overstyring (90°-trinn / tilbake til auto). */}
+        {erSvgFil && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <div className="flex items-center gap-1">
+              {Math.round(effektivRot) !== 0 && (
+                <span className="whitespace-nowrap text-xs text-gray-500">
+                  {rotOverstyrt == null && autoRot != null
+                    ? t("tegninger.rotertAuto", { grader: Math.round(autoRot) })
+                    : t("tegninger.rotert", { grader: Math.round(effektivRot) })}
+                </span>
+              )}
+              <button
+                onClick={roterNittiGrader}
+                disabled={settRotasjonMutation.isPending}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
+                title={t("tegninger.roter90")}
+              >
+                <RotateCw className="h-4 w-4" />
+              </button>
+              {rotOverstyrt != null && (
+                <button
+                  onClick={roterTilbake}
+                  disabled={settRotasjonMutation.isPending}
+                  className="rounded px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-100 disabled:text-gray-300"
+                  title={t("tegninger.roterTilbake")}
+                >
+                  {t("tegninger.roterTilbakeKort")}
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Måleverktøy — kun for bilde-tegninger (PNG/JPG/SVG) */}
         {erBilde && (
@@ -1954,7 +2047,13 @@ export default function TegningerSide() {
             <div
               ref={maleInnerRef}
               className={`relative inline-block ${klikkModus === "inspeksjon" ? "cursor-pointer" : "cursor-crosshair"}`}
-              style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
+              style={{
+                width: `${zoom * 100}%`,
+                minWidth: "100%",
+                // RETUR 2: brukeroverstyring roterer SVG + markører SAMMEN (samme wrapper),
+                // på toppen av den inn-bakte auto-rotasjonen. 0 = ingen ekstra rotasjon.
+                ...(visningsDelta ? { transform: `rotate(${visningsDelta}deg)`, transformOrigin: "center center" } : {}),
+              }}
               onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
               onMouseMove={handleMuseBevegelse}

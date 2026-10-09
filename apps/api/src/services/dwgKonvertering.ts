@@ -57,6 +57,11 @@ export interface DwgKonverteringsResultat extends DwgMaaling {
   feil: string | null;
   /** Layout-tegninger (tom array = ingen ekstra layouts) */
   layouts: DwgLayoutResultat[];
+  /** RETUR 2 (vedtak A): auto-detektert rotasjon (grader) bakt inn i hovedtegningens SVG.
+   * null = ikke rotert (gyldig: ingen tydelig veggrid, f.eks. kartdata). */
+  autoRotasjon: number | null;
+  /** RETUR 2 §3: startutsnitt som brøk [0,1] av viewBox — vieweren åpner zoomet hit. */
+  startutsnitt: { x: number; y: number; w: number; h: number } | null;
 }
 
 interface DwgLayoutResultat extends DwgMaaling {
@@ -667,6 +672,233 @@ function hatchFyll(h: HatchPseudo, lagFarger?: LagFarger): string {
   return "#c8c8c8"; // mønster-hatch tegnes som lys grå flate («minst solid fill»)
 }
 
+/**
+ * LEADER pseudo-entitet (RETUR 2 TILLEGG). dxf-parser@1.1.2 dropper LEADER fullstendig
+ * (kundefila: 24 LEADER, 0 parset) — det er nettopp fall-pilene som peker fra sluk/koter.
+ * Vi parser dem fra rå DXF og mater dem gjennom samme render-/transform-rør som HATCH:
+ * `vertices` er knekkpunktene (verden eller blokk-lokalt), `harPil` = DXF kode 71.
+ */
+export interface LeaderPseudo {
+  type: "LEADER";
+  layer: string;
+  colorIndex?: number;
+  color?: number;
+  /** DXF kode 71: pilhode på (tegnes som liten trekant ved første knekkpunkt). */
+  harPil: boolean;
+  vertices: { x: number; y: number }[];
+}
+
+/** Tolk én LEADER-record (par fra like etter `0/LEADER` til neste `0`). */
+function parseEnLeader(linjer: string[], start: number): { leader: LeaderPseudo | null; neste: number } {
+  let i = start;
+  let layer = "0";
+  let colorIndex: number | undefined;
+  let color: number | undefined;
+  let harPil = false;
+  const vertices: { x: number; y: number }[] = [];
+  let ventX: number | null = null;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    if (code === "0") break;
+    const nc = parseInt(code, 10);
+    const v = linjer[i + 1]!.trim();
+    i += 2;
+    if (nc === 8) layer = v;
+    else if (nc === 62) colorIndex = parseInt(v, 10);
+    else if (nc === 420) color = parseInt(v, 10);
+    else if (nc === 71) harPil = v === "1";
+    else if (nc === 10) ventX = parseFloat(v);
+    else if (nc === 20 && ventX !== null) {
+      const y = parseFloat(v);
+      if (Number.isFinite(ventX) && Number.isFinite(y)) vertices.push({ x: ventX, y });
+      ventX = null;
+    }
+  }
+  if (vertices.length < 2) return { leader: null, neste: i };
+  return { leader: { type: "LEADER", layer, colorIndex, color, harPil, vertices }, neste: i };
+}
+
+/**
+ * Parse alle LEADER fra rå DXF. Model-space-LEADER returneres som `model`
+ * (verdenskoordinater, tegnes direkte); LEADER inne i blokk-definisjoner per blokknavn
+ * i `perBlokk` slik at INSERT-utfoldelsen transformerer dem — samme mønster som HATCH.
+ */
+export function parseLeadere(dxfInnhold: string): {
+  model: LeaderPseudo[];
+  perBlokk: Record<string, LeaderPseudo[]>;
+} {
+  const linjer = dxfInnhold.split("\n");
+  const model: LeaderPseudo[] = [];
+  const perBlokk: Record<string, LeaderPseudo[]> = {};
+  let sec = "";
+  let blokkNavn = "";
+
+  let i = 0;
+  while (i < linjer.length - 1) {
+    const code = linjer[i]!.trim();
+    const value = linjer[i + 1]!.trim();
+    i += 2;
+    if (code === "2" && ["HEADER", "CLASSES", "TABLES", "BLOCKS", "ENTITIES", "OBJECTS"].includes(value)) {
+      sec = value; blokkNavn = ""; continue;
+    }
+    if (code !== "0") continue;
+    if (value === "BLOCK") {
+      blokkNavn = "";
+      for (let j = i; j < linjer.length - 1; j += 2) {
+        const gc = linjer[j]!.trim();
+        if (gc === "0") break;
+        if (gc === "2") { blokkNavn = linjer[j + 1]!.trim(); break; }
+      }
+      continue;
+    }
+    if (value === "ENDBLK") { blokkNavn = ""; continue; }
+    if (value === "LEADER") {
+      const res = parseEnLeader(linjer, i);
+      i = res.neste;
+      if (res.leader) {
+        if (sec === "ENTITIES") model.push(res.leader);
+        else if (sec === "BLOCKS" && blokkNavn) (perBlokk[blokkNavn] ??= []).push(res.leader);
+      }
+    }
+  }
+  return { model, perBlokk };
+}
+
+// ---------------------------------------------------------------------------
+// RETUR 2 (vedtak A) — automatisk rotasjon: to signaler. Veggvinkelen (mod 90°)
+// gir aksejevnhet, tekstrotasjonene løser 90°-kvadrant-tvetydigheten. Rotasjonen
+// lagres som transform og BAKES inn i SVG-koordinatene, mens tekst motroteres så
+// den står vannrett (som arkitektens PDF). Rene funksjoner → testbare.
+// ---------------------------------------------------------------------------
+
+export interface Segment { x1: number; y1: number; x2: number; y2: number; }
+
+/** Normaliser en vinkel i grader til halvåpent intervall (-180, 180]. */
+export function normaliser180(grader: number): number {
+  let d = ((grader % 360) + 360) % 360; // 0..360
+  if (d > 180) d -= 360;                 // (-180, 180]
+  return d;
+}
+
+/**
+ * Lengdevektet vinkelhistogram mod 90° (1°-binner) over veggkandidat-segmenter.
+ * Returnerer den dominante vinkelen (lengdevektet snitt rundt toppen, 0..90) og
+ * andelen av total segmentlengde innenfor ±1° av toppen. `null` når grunnlaget er
+ * for tynt (< 20 segmenter) — et par streker definerer ingen bygningsgrid.
+ */
+export function dominantVeggvinkel(segmenter: Segment[]): { grader: number; andel: number } | null {
+  const bins = new Array(90).fill(0);
+  let tot = 0;
+  let antall = 0;
+  for (const s of segmenter) {
+    const dx = s.x2 - s.x1;
+    const dy = s.y2 - s.y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-6) continue;
+    let a = (Math.atan2(dy, dx) * 180) / Math.PI;
+    a = ((a % 90) + 90) % 90; // 0..90
+    bins[Math.min(89, Math.floor(a))] += len;
+    tot += len;
+    antall++;
+  }
+  if (antall < 20 || tot <= 0) return null;
+
+  let topp = 0;
+  for (let i = 1; i < 90; i++) if (bins[i]! > bins[topp]!) topp = i;
+  let naer = 0;
+  for (let d = -1; d <= 1; d++) naer += bins[((topp + d) % 90 + 90) % 90]!;
+
+  // Sub-grad presisjon: lengdevektet snitt av segmentvinkler innenfor ±1,5° av toppen.
+  let sum = 0;
+  let vekt = 0;
+  for (const s of segmenter) {
+    const dx = s.x2 - s.x1;
+    const dy = s.y2 - s.y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-6) continue;
+    let a = (Math.atan2(dy, dx) * 180) / Math.PI;
+    a = ((a % 90) + 90) % 90;
+    let diff = a - topp;
+    if (diff > 45) diff -= 90;
+    if (diff < -45) diff += 90;
+    if (Math.abs(diff) <= 1.5) { sum += (topp + diff) * len; vekt += len; }
+  }
+  const presis = vekt > 0 ? ((sum / vekt) % 90 + 90) % 90 : topp;
+  return { grader: presis, andel: naer / tot };
+}
+
+/**
+ * Velg geometri-rotasjon (grader, verden CCW) som gjør veggene aksejevne. Veggvinkelen
+ * gir bare «mod 90°»; tekstrotasjonene løser hvilken av de fire kvadrantene som er rett:
+ * den som gjør flest tekster lesbare (|sluttvinkel| ≤ 45° mod 360, vektet). Ingen/ingen
+ * lesbar tekst → minste |rotasjon| (≤ 45°). Returnert verdi er i (-180, 180].
+ */
+export function velgAutoRotasjon(
+  veggVinkel: number,
+  tekstRotasjoner: { grader: number; vekt: number }[],
+): number {
+  const base = -veggVinkel; // bringer veggen til 0
+  const kandidater = [base, base + 90, base + 180, base + 270].map(normaliser180);
+  function skaar(R: number): { lesbare: number; absR: number } {
+    let lesbare = 0;
+    for (const t of tekstRotasjoner) {
+      if (Math.abs(normaliser180(t.grader + R)) <= 45) lesbare += t.vekt;
+    }
+    return { lesbare, absR: Math.abs(R) };
+  }
+  let best = kandidater[0]!;
+  let bestS = skaar(best);
+  for (const R of kandidater.slice(1)) {
+    const s = skaar(R);
+    if (s.lesbare > bestS.lesbare || (s.lesbare === bestS.lesbare && s.absR < bestS.absR)) {
+      best = R;
+      bestS = s;
+    }
+  }
+  return best;
+}
+
+/**
+ * Roter et punkt (verden CCW, grader) om et senter. Brukes til å bake rotasjonen inn i
+ * geometri-koordinatene OG til georef-konsistens: et kjent verdenspunkt skal lande på
+ * samme sted i rotert og urotert visning når georefen regner med samme rotasjon.
+ */
+export function roterPunkt(
+  p: { x: number; y: number },
+  grader: number,
+  senter: { x: number; y: number },
+): { x: number; y: number } {
+  if (!grader) return { x: p.x, y: p.y };
+  const r = (grader * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const dx = p.x - senter.x;
+  const dy = p.y - senter.y;
+  return { x: senter.x + dx * c - dy * s, y: senter.y + dx * s + dy * c };
+}
+
+/**
+ * RETUR 2 §3 — startutsnitt: tettest klynge. Persentil [p, 1-p] pr. akse fjerner spredte
+ * uteliggere (tittelfelt/tegnforklaring/én punktmarkør langt unna), så visningen åpner
+ * der innholdet er tett. Alt annet er fortsatt med i viewBox og synlig når man zoomer ut.
+ * Punktene er i samme rom kalleren gir (her: SVG-piksel). Returnerer {x,y,w,h} eller null.
+ */
+export function beregnStartutsnitt(
+  punkter: { x: number; y: number }[],
+  p: number = 0.01,
+): { x: number; y: number; w: number; h: number } | null {
+  if (punkter.length < 50) return null;
+  const xs = punkter.map((q) => q.x).sort((a, b) => a - b);
+  const ys = punkter.map((q) => q.y).sort((a, b) => a - b);
+  const kv = (arr: number[], f: number) =>
+    arr[Math.min(arr.length - 1, Math.max(0, Math.round(f * (arr.length - 1))))]!;
+  const x0 = kv(xs, p), x1 = kv(xs, 1 - p);
+  const y0 = kv(ys, p), y1 = kv(ys, 1 - p);
+  const w = x1 - x0, h = y1 - y0;
+  if (!(w > 0) || !(h > 0)) return null;
+  return { x: x0, y: y0, w, h };
+}
+
 /** Evaluer kubisk B-spline med kontrollpunkter og knot-vektor */
 function evaluerSpline(
   kontrollPunkter: { x: number; y: number }[],
@@ -757,6 +989,12 @@ export interface DxfSvgResultat {
   /** SVG-ens faste pikselbredde (2000) og utledede høyde. */
   width: number;
   height: number;
+  /** RETUR 2 (vedtak A): auto-detektert geometri-rotasjon (grader, verden CCW) som er
+   * BAKT inn i SVG-koordinatene. null = ingen tydelig veggrid → urotert (gyldig). */
+  autoRotasjon: number | null;
+  /** RETUR 2 §3: startutsnitt som brøk [0,1] av viewBox (x,y,w,h) — der innholdet er
+   * tett. Vieweren åpner zoomet hit. null = for lite grunnlag → vis hele. */
+  startutsnitt: { x: number; y: number; w: number; h: number } | null;
 }
 
 /** Generer SVG fra parsed DXF-entiteter (normaliserte koordinater) */
@@ -807,6 +1045,19 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
       console.log(`[DWG] HATCH parset fra rå DXF: ${hatchModel.length} model + ${antHatchBlokk} i blokker`);
     }
 
+    // RETUR 2 TILLEGG: LEADER parses fra rå tekst (dxf-parser dropper dem) — fall-pilene.
+    // Samme mønster som HATCH: blokk-LEADER inn i blokk-kartet, model-LEADER i køen.
+    const { model: leaderModel, perBlokk: leaderPerBlokk } = parseLeadere(dxfInnhold);
+    for (const [bn, ls] of Object.entries(leaderPerBlokk)) {
+      if (bn.startsWith("*Paper_Space") || bn.startsWith("*D")) continue;
+      if (blokker[bn]) blokker[bn].push(...ls);
+      else blokker[bn] = [...ls];
+    }
+    const antLeaderBlokk = Object.values(leaderPerBlokk).reduce((s, a) => s + a.length, 0);
+    if (leaderModel.length + antLeaderBlokk > 0) {
+      console.log(`[DWG] LEADER parset fra rå DXF: ${leaderModel.length} model + ${antLeaderBlokk} i blokker`);
+    }
+
     // Filtrer bort paper space entiteter — kun model space vises
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modelEntiteter = dxf.entities.filter((e: any) => !e.inPaperSpace);
@@ -822,7 +1073,7 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     const alleEntiteter: any[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type ArbeidsItem = { entity: any; transforms: Array<{ base: { x: number; y: number }; pos: { x: number; y: number }; sx: number; sy: number; cosR: number; sinR: number }> };
-    const kø: ArbeidsItem[] = [...modelEntiteter, ...hatchModel].map(e => ({ entity: e, transforms: [] }));
+    const kø: ArbeidsItem[] = [...modelEntiteter, ...hatchModel, ...leaderModel].map(e => ({ entity: e, transforms: [] }));
 
     while (kø.length > 0 && alleEntiteter.length < MAKS_ENTITETER) {
       const item = kø.shift()!;
@@ -925,6 +1176,79 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     }
     console.log(`[DWG] Entitetstyper: ${JSON.stringify(typeTelling)}`);
 
+    // RETUR 2 (vedtak A) — auto-rotasjon. To signaler: veggvinkel (lengdevektet histogram
+    // mod 90°) gir aksejevnhet; tekstrotasjonene løser 90°-kvadranten. Rotasjonen BAKES inn
+    // i koordinatene under, mens TEXT/MTEXT beholder sin egen rotasjon (motroteres → står
+    // vannrett, som arkitektens PDF). Hoppes over ved layout-klipp (klippBounds).
+    let autoRotasjon: number | null = null;
+    if (!klippBounds) {
+      const segmenter: Segment[] = [];
+      const tekstRot: { grader: number; vekt: number }[] = [];
+      let rMinX = Infinity, rMaxX = -Infinity, rMinY = Infinity, rMaxY = -Infinity;
+      const utvid = (x: number, y: number) => {
+        if (!gyldigKoordinat(x) || !gyldigKoordinat(y)) return;
+        if (x < rMinX) rMinX = x; if (x > rMaxX) rMaxX = x;
+        if (y < rMinY) rMinY = y; if (y > rMaxY) rMaxY = y;
+      };
+      for (const entity of alleEntiteter) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const e = entity as any;
+        if (e.type === "INSERT") continue;
+        if (e.type === "LINE" && e.startPoint && e.endPoint) {
+          segmenter.push({ x1: e.startPoint.x, y1: e.startPoint.y, x2: e.endPoint.x, y2: e.endPoint.y });
+        } else if (e.type === "LINE" && e.vertices?.length >= 2) {
+          segmenter.push({ x1: e.vertices[0].x, y1: e.vertices[0].y, x2: e.vertices[1].x, y2: e.vertices[1].y });
+        } else if ((e.type === "LWPOLYLINE" || e.type === "POLYLINE") && e.vertices?.length > 1) {
+          for (let i = 0; i + 1 < e.vertices.length; i++) {
+            segmenter.push({ x1: e.vertices[i].x, y1: e.vertices[i].y, x2: e.vertices[i + 1].x, y2: e.vertices[i + 1].y });
+          }
+        } else if ((e.type === "TEXT" || e.type === "MTEXT") && (e.text || e.startPoint || e.position)) {
+          tekstRot.push({ grader: e.rotation ?? 0, vekt: 1 });
+        }
+        if (e.position) utvid(e.position.x, e.position.y);
+        if (e.startPoint) utvid(e.startPoint.x, e.startPoint.y);
+        if (e.endPoint) utvid(e.endPoint.x, e.endPoint.y);
+        if (e.center) utvid(e.center.x, e.center.y);
+        if (e.vertices) for (const v of e.vertices) utvid(v.x, v.y);
+      }
+      const rotSenter = isFinite(rMinX) ? { x: (rMinX + rMaxX) / 2, y: (rMinY + rMaxY) / 2 } : { x: 0, y: 0 };
+      const vegg = dominantVeggvinkel(segmenter);
+      if (vegg && vegg.andel >= 0.6) {
+        const R = velgAutoRotasjon(vegg.grader, tekstRot);
+        if (Math.abs(R) >= 0.5) autoRotasjon = R;
+      }
+      console.log(`[DWG] Veggvinkel: ${vegg ? `${vegg.grader.toFixed(1)}° (andel ${(vegg.andel * 100).toFixed(0)}%)` : "ingen (for tynt grunnlag/ingen par)"} → auto-rotasjon ${autoRotasjon != null ? autoRotasjon.toFixed(1) + "°" : "null"}`);
+
+      // Bak rotasjonen inn i entitetenes koordinater. TEXT/MTEXT-rotasjonen BEVISST urørt.
+      if (autoRotasjon) {
+        const rot = (pt: { x: number; y: number }) => roterPunkt(pt, autoRotasjon!, rotSenter);
+        const rotVec = (pt: { x: number; y: number }) => roterPunkt(pt, autoRotasjon!, { x: 0, y: 0 });
+        const Rrad = (autoRotasjon * Math.PI) / 180;
+        for (let i = 0; i < alleEntiteter.length; i++) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const e: any = { ...alleEntiteter[i] };
+          if (e.position) e.position = rot(e.position);
+          if (e.startPoint) e.startPoint = rot(e.startPoint);
+          if (e.endPoint) e.endPoint = rot(e.endPoint);
+          if (e.center) e.center = rot(e.center);
+          if (e.insertionPoint) e.insertionPoint = rot(e.insertionPoint);
+          if (e.vertices) e.vertices = e.vertices.map(rot);
+          if (e.hatchLoops) e.hatchLoops = e.hatchLoops.map((l: { x: number; y: number }[]) => l.map(rot));
+          if (e.points) e.points = e.points.map(rot);
+          if (e.controlPoints) e.controlPoints = e.controlPoints.map(rot);
+          if (e.fitPoints) e.fitPoints = e.fitPoints.map(rot);
+          // ARC-vinkler (radianer i dxf-parser) følger rotasjonen; ELLIPSE-majoraksen er en
+          // vektor relativt senteret → roteres om origo. TEXT/MTEXT e.rotation urørt.
+          if (e.type === "ARC") {
+            if (typeof e.startAngle === "number") e.startAngle += Rrad;
+            if (typeof e.endAngle === "number") e.endAngle += Rrad;
+          }
+          if (e.type === "ELLIPSE" && e.majorAxisEndPoint) e.majorAxisEndPoint = rotVec(e.majorAxisEndPoint);
+          alleEntiteter[i] = e;
+        }
+      }
+    }
+
     // Pass 1: Finn extents — bruk klippBounds, DXF header, eller persentil-fallback
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     if (klippBounds) {
@@ -939,7 +1263,9 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     const extMin = header?.$EXTMIN;
     const extMax = header?.$EXTMAX;
     // D3: godta header-extents bare når de passerer 1e20-vakta; ellers persentil-fallback.
-    if (extMin && extMax && gyldigeExtents(extMin.x, extMax.x, extMin.y, extMax.y)) {
+    // RETUR 2: når geometrien er rotert er header-extents (urotert rom) ubrukelige →
+    // alltid full min/max på de roterte koordinatene.
+    if (!autoRotasjon && extMin && extMax && gyldigeExtents(extMin.x, extMax.x, extMin.y, extMax.y)) {
       minX = extMin.x;
       maxX = extMax.x;
       minY = extMin.y;
@@ -1026,6 +1352,8 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
     const hatchPaths: string[] = [];
     let ubehandlede = 0;
     let utenforBounds = 0;
+    // RETUR 2 §3: punkter (SVG-piksel) fra det som faktisk tegnes → startutsnitt.
+    const startPkt: { x: number; y: number }[] = [];
 
     // Hjelpefunksjon for å legge til lag- og type-attributter på SVG-elementer
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1051,6 +1379,13 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
       else if (e.hatchLoops && Array.isArray(e.hatchLoops) && e.hatchLoops.some((loop: { x: number; y: number }[]) => loop.some(v => erInnenforBounds(v.x, v.y)))) innenfor = true;
       if (!innenfor) { utenforBounds++; continue; }
 
+      // Samle tegnede punkter (SVG-piksel) for startutsnitt-tettheten.
+      if (e.position) startPkt.push({ x: nx(e.position.x), y: ny(e.position.y) });
+      if (e.startPoint) startPkt.push({ x: nx(e.startPoint.x), y: ny(e.startPoint.y) });
+      if (e.endPoint) startPkt.push({ x: nx(e.endPoint.x), y: ny(e.endPoint.y) });
+      if (e.center) startPkt.push({ x: nx(e.center.x), y: ny(e.center.y) });
+      if (e.vertices) for (const v of e.vertices) startPkt.push({ x: nx(v.x), y: ny(v.y) });
+
       const stroke = dxfFarge(e, lagFarger);
 
       const da = dataAttr(e);
@@ -1063,6 +1398,23 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
             "M " + loop.map(v => `${nx(v.x)},${ny(v.y)}`).join(" L ") + " Z")
           .join(" ");
         if (d) hatchPaths.push(`<path d="${d}" fill="${hatchFyll(e, lagFarger)}" fill-rule="evenodd" stroke="none"${da} />`);
+      } else if (e.type === "LEADER" && e.vertices?.length >= 2) {
+        // RETUR 2 TILLEGG: fall-pil. Tegn knekklinjen + et lite pilhode ved første
+        // knekkpunkt (der pilen peker) når kode 71 er satt.
+        const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
+        paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        if (e.harPil) {
+          const a = e.vertices[0];
+          const b = e.vertices[1];
+          const ax = nx(a.x), ay = ny(a.y);
+          const dx = ax - nx(b.x), dy = ay - ny(b.y);
+          const len = Math.hypot(dx, dy) || 1;
+          const ux = dx / len, uy = dy / len;              // retning pilen peker
+          const pilLen = sw * 8, pilBredde = sw * 3;
+          const bx = ax - ux * pilLen, by = ay - uy * pilLen; // basis for pilhodet
+          const px = -uy, py = ux;                          // normal
+          paths.push(`<polygon points="${ax},${ay} ${bx + px * pilBredde},${by + py * pilBredde} ${bx - px * pilBredde},${by - py * pilBredde}" fill="${stroke}" stroke="none"${da} />`);
+        }
       } else if (e.type === "LINE" && e.startPoint && e.endPoint) {
         paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="${sw}"${da} />`);
       } else if (e.type === "LINE" && e.vertices?.length >= 2) {
@@ -1215,7 +1567,23 @@ export function dxfTilSvg(dxfInnhold: string, klippBounds?: { minX: number; maxX
 ${hatchPaths.join("\n")}
 ${paths.join("\n")}
 </svg>`;
-    return { svg, vbW, vbH, width: svgBredde, height: svgHoyde };
+
+    // RETUR 2 §3: startutsnitt (tettest klynge) som brøk [0,1] av viewBox. Vieweren
+    // åpner zoomet hit; resten er fortsatt med og synlig når man zoomer ut.
+    const suPix = beregnStartutsnitt(startPkt);
+    const startutsnitt = suPix
+      ? {
+          x: (suPix.x - vbX) / vbW,
+          y: (suPix.y - vbY) / vbH,
+          w: suPix.w / vbW,
+          h: suPix.h / vbH,
+        }
+      : null;
+    if (startutsnitt) {
+      console.log(`[DWG] Startutsnitt (brøk): x=${startutsnitt.x.toFixed(2)} y=${startutsnitt.y.toFixed(2)} w=${startutsnitt.w.toFixed(2)} h=${startutsnitt.h.toFixed(2)}`);
+    }
+
+    return { svg, vbW, vbH, width: svgBredde, height: svgHoyde, autoRotasjon, startutsnitt };
   } catch (err) {
     console.error("[DWG] DXF→SVG feilet:", err);
     return null;
@@ -1260,6 +1628,8 @@ export async function konverterDwg(
       visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: "DWG-konvertering (libredwg) er ikke tilgjengelig på denne serveren.",
       layouts: [],
+      autoRotasjon: null,
+      startutsnitt: null,
     };
   }
 
@@ -1303,6 +1673,8 @@ export async function konverterDwg(
     let visningUrl = "";
     let visningFilType = "";
     let maaling: DwgMaaling = tomMaaling;
+    let autoRotasjon: number | null = null;
+    let startutsnitt: { x: number; y: number; w: number; h: number } | null = null;
     const svgRes = dxfInnhold ? dxfTilSvg(dxfInnhold) : null;
     if (svgRes) {
       const svgFilnavn = `${randomUUID()}.svg`;
@@ -1310,7 +1682,9 @@ export async function konverterDwg(
       visningUrl = `/uploads/${svgFilnavn}`;
       visningFilType = "svg";
       maaling = utledDwgMaaling(svgRes.vbW, svgRes.width, svgRes.height, mmPrEnhet);
-      console.log(`[DWG] SVG generert (mm/px=${maaling.mmPrPiksel ?? "null"}, scaleKilde=${maaling.scaleKilde ?? "null"})`);
+      autoRotasjon = svgRes.autoRotasjon;
+      startutsnitt = svgRes.startutsnitt;
+      console.log(`[DWG] SVG generert (mm/px=${maaling.mmPrPiksel ?? "null"}, scaleKilde=${maaling.scaleKilde ?? "null"}, rotasjon=${autoRotasjon ?? "null"})`);
     }
 
     // Fallback: dwg2SVG (kun DWG). Ingen måling/inspeksjon (visningKilde=dwg2SVG) — D5/§6.
@@ -1391,6 +1765,8 @@ export async function konverterDwg(
       geoReferanse,
       feil,
       layouts: layoutResultater,
+      autoRotasjon,
+      startutsnitt,
     };
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
@@ -1400,6 +1776,8 @@ export async function konverterDwg(
       visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: err instanceof Error ? err.message : "Ukjent konverteringsfeil",
       layouts: [],
+      autoRotasjon: null,
+      startutsnitt: null,
     };
   }
 }

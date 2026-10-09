@@ -938,6 +938,17 @@ model Drawing {
   // håndteres i koden (route). Revisjon/«prøv igjen» ERSTATTER på (parentDrawingId, layoutNavn).
   parentDrawingId  String?   @map("parent_drawing_id")
   layoutNavn       String?   @map("layout_navn") // Paper space-layoutens navn (kun på layout-rader)
+  // DWG auto-rotasjon (DWG-2 RETUR 2, vedtak A): grader (verden CCW) som BAKES inn i
+  // SVG-koordinatene ved konvertering slik at veggene blir aksejevne (bygget sto skrått
+  // i verdenskoordinater). NULL = ingen tydelig veggrid → urotert (GYLDIG, f.eks.
+  // kartdata). `rotasjonOverstyrt` = brukerens valgte visningsrotasjon (90°-trinn eller
+  // 0 = tilbake til opprinnelig urotert); NULL = følg auto. Vieweren roterer
+  // (rotasjonOverstyrt − autoRotasjon) på toppen. Begge NULL = stille-tomhet, gyldig.
+  autoRotasjon     Float?    @map("auto_rotasjon")
+  rotasjonOverstyrt Float?   @map("rotasjon_overstyrt")
+  // Startutsnitt (RETUR 2 §3): {x,y,w,h} som brøk [0,1] av viewBox der innholdet er
+  // tett — vieweren åpner zoomet hit. NULL = vis hele (gyldig).
+  startutsnitt     Json?     @map("startutsnitt")
   // Tegningsserie (T2): lett gruppering «merk tegninger → flytt inn i en serie».
   // NULL = «ikke i serie» — en gyldig tilstand (ingen backfill). Sletting av serien
   // setter denne til NULL (SetNull), aldri sletter tegningen. Revisjon/målestokk/status

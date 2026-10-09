@@ -13,7 +13,7 @@ import {
 import type { LayoutChangeEvent } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline, RotateCw } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   kanMale,
@@ -135,6 +135,11 @@ interface TegningsVisningProps {
   maleData?: MaaleData | null;
   /** Varsler når et måleverktøy slås på/av, så forelder kan skjule plasseringsmodus. */
   onMaleModusEndring?: (aktiv: boolean) => void;
+  /** RETUR 2 (vedtak A): DWG-rotasjon. `auto` er BAKT inn i SVG-en (vises uansett);
+   * `overstyrt` er brukerens valg. Vieweren roterer (overstyrt − auto) på toppen. */
+  rotasjon?: { auto: number | null; overstyrt: number | null } | null;
+  /** Lagre/nullstill brukerens rotasjons-overstyring (null = tilbake til auto). */
+  onSettRotasjon?: (grader: number | null) => void;
 }
 
 /**
@@ -148,6 +153,7 @@ function byggHtml(
   omrader: Omrade[],
   gpsMarkør: GpsMarkør | null,
   trykkOppsett: "ingen" | "enkel" | "avansert",
+  rotasjonDelta: number = 0,
 ): string {
   const markørData = JSON.stringify(markører.map((m) => ({
     id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
@@ -181,7 +187,9 @@ function byggHtml(
     -webkit-user-drag: none;
   }
   body { background:#1a1a1a; }
-  #container { position:relative; }
+  /* RETUR 2: brukeroverstyring roterer HELE containeren (bilde + markører sammen), på
+     toppen av den inn-bakte auto-rotasjonen. 0 = ingen ekstra rotasjon. */
+  #container { position:relative; ${rotasjonDelta ? `transform:rotate(${rotasjonDelta}deg); transform-origin:center center;` : ""} }
   #tegning { display:block; width:100%; height:auto; pointer-events:none; }
   .pin { position:absolute; z-index:10; pointer-events:auto; }
   .pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);transform-origin:center; }
@@ -676,8 +684,16 @@ export function TegningsVisning({
   onOpprett,
   maleData,
   onMaleModusEndring,
+  rotasjon,
+  onSettRotasjon,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
+  // RETUR 2: auto-rotasjon er bakt inn i SVG-en; her legges kun en brukeroverstyring på.
+  const autoRot = typeof rotasjon?.auto === "number" ? rotasjon.auto : null;
+  const rotOverstyrt = typeof rotasjon?.overstyrt === "number" ? rotasjon.overstyrt : null;
+  const effektivRot = rotOverstyrt ?? autoRot ?? 0;
+  const rotasjonDelta = effektivRot - (autoRot ?? 0);
+  const norm180Rot = (d: number) => { let v = ((d % 360) + 360) % 360; if (v > 180) v -= 360; return v; };
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState(false);
   const webViewRef = useRef<WebView>(null);
@@ -1145,7 +1161,7 @@ export function TegningsVisning({
     : onTrykk
       ? "enkel"
       : "ingen";
-  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett);
+  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta);
 
   return (
     <View className="flex-1 bg-black">
@@ -1156,7 +1172,39 @@ export function TegningsVisning({
         <Text className="flex-1 px-4 text-center text-sm font-medium text-white" numberOfLines={1}>
           {tegningNavn}
         </Text>
-        <View style={{ width: 42 }} />
+        {/* RETUR 2 (vedtak A): rotasjon — auto-rotasjonen er bakt inn; her vises etikett
+            + manuell overstyring (90°-trinn). Kun når forelder gir rotasjon-prop (DWG). */}
+        {rotasjon && onSettRotasjon ? (
+          <View className="flex-row items-center gap-2" style={{ minWidth: 42 }}>
+            {Math.round(effektivRot) !== 0 && (
+              <Text className="text-xs text-white/70">
+                {rotOverstyrt == null && autoRot != null
+                  ? t("tegninger.rotertAuto", { grader: Math.round(autoRot) })
+                  : t("tegninger.rotert", { grader: Math.round(effektivRot) })}
+              </Text>
+            )}
+            <Pressable
+              onPress={() => onSettRotasjon(norm180Rot(effektivRot + 90))}
+              hitSlop={12}
+              className="rounded-full bg-white/20 p-2.5"
+              accessibilityLabel={t("tegninger.roter90")}
+            >
+              <RotateCw size={18} color="#ffffff" />
+            </Pressable>
+            {rotOverstyrt != null && (
+              <Pressable
+                onPress={() => onSettRotasjon(null)}
+                hitSlop={12}
+                className="rounded-full bg-white/20 px-2.5 py-1"
+                accessibilityLabel={t("tegninger.roterTilbake")}
+              >
+                <Text className="text-xs font-medium text-white">{t("tegninger.roterTilbakeKort")}</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : (
+          <View style={{ width: 42 }} />
+        )}
       </View>
 
       {feil ? (

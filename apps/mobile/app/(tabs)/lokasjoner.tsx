@@ -79,6 +79,11 @@ interface TegningDetalj {
   scaleKilde?: string | null;
   imageWidth?: number | null;
   imageHeight?: number | null;
+  // RETUR 2: auto-rotasjon (bakt inn i SVG-en) + brukeroverstyring. `startutsnitt` er
+  // Json? på server (brukes ikke på mobil ennå — fit-to-width + bakt tett viewBox).
+  autoRotasjon?: number | null;
+  rotasjonOverstyrt?: number | null;
+  startutsnitt?: unknown;
 }
 
 interface OppgaveMarkør {
@@ -168,6 +173,14 @@ export default function LokasjonerSkjerm() {
     { id: valgtTegningId! },
     { enabled: !!valgtTegningId },
   );
+
+  // RETUR 2 (vedtak A): lagre/nullstill brukerens rotasjons-overstyring.
+  const trpcUtils = trpc.useUtils();
+  const settRotasjonMutation = trpc.tegning.settRotasjon.useMutation({
+    onSuccess: () => {
+      if (valgtTegningId) trpcUtils.tegning.hentMedId.invalidate({ id: valgtTegningId });
+    },
+  });
 
   // Hent eksisterende oppgaver for valgt tegning
   const oppgaverQuery = trpc.oppgave.hentForTegning.useQuery(
@@ -850,6 +863,14 @@ export default function LokasjonerSkjerm() {
               imageHeight: valgtTegningDetalj?.imageHeight ?? null,
             }}
             onMaleModusEndring={håndterMaleModus}
+            rotasjon={
+              (valgtTegningDetalj?.fileType ?? "") === "svg"
+                ? { auto: valgtTegningDetalj?.autoRotasjon ?? null, overstyrt: valgtTegningDetalj?.rotasjonOverstyrt ?? null }
+                : null
+            }
+            onSettRotasjon={(grader) => {
+              if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });
+            }}
           />
         ) : (
           <KartVisning />

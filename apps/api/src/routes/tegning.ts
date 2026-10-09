@@ -182,6 +182,11 @@ async function anvendDwgResultat(
     oppdatering.mmPrPiksel = resultat.mmPrPiksel;
     oppdatering.scale = resultat.scale;
     oppdatering.scaleKilde = resultat.scaleKilde;
+    // RETUR 2: auto-rotasjon bakt inn i SVG-en + startutsnitt. Ny fil → nullstill en
+    // tidligere brukeroverstyring (den gjaldt forrige fil, som enhetene/kalibreringen).
+    oppdatering.autoRotasjon = resultat.autoRotasjon;
+    oppdatering.rotasjonOverstyrt = null;
+    oppdatering.startutsnitt = resultat.startutsnitt ?? Prisma.JsonNull;
   }
   await prisma.drawing.update({ where: { id: tegning.id }, data: oppdatering });
   console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
@@ -691,6 +696,24 @@ export const tegningRouter = router({
         }
       }
       return oppdatert;
+    }),
+
+  // RETUR 2 (vedtak A): sett/nullstill brukerens rotasjons-overstyring for en DWG-tegning.
+  // `grader` = absolutt visningsrotasjon (auto ± 90°-trinn, eller 0 = tilbake til
+  // opprinnelig urotert). `null` = fjern overstyring, følg auto igjen. Vieweren roterer
+  // (rotasjonOverstyrt − autoRotasjon) på toppen av den allerede inn-bakte auto-rotasjonen.
+  settRotasjon: protectedProcedure
+    .input(z.object({
+      drawingId: z.string().uuid(),
+      grader: z.number().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      return ctx.prisma.drawing.update({
+        where: { id: input.drawingId },
+        data: { rotasjonOverstyrt: input.grader },
+      });
     }),
 
   // Sett GPS-override for IFC-modell (kalibrering med valgfri rotasjon)
