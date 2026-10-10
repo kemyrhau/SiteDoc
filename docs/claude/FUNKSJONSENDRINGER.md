@@ -300,6 +300,12 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
 
+### 2026-10-10
+
+| Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
+|---|---|---|---|
+| `deb57d89` ← `def7f228` | Web + mobil — DWG-tegninger | **Store DWG-er (fallplan) viste svarte flater** i georeferanse-editor, ved åpning og på mobil (strektykkelse i tegningsenheter ≈ 94 px). Nå fast 1,5 px-strek i SVG-en selv | Tegningen skal vises som tegnet. Reload: deploy (ny konvertering for eksisterende DWG) |
+
 ### 2026-10-03
 
 | Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
