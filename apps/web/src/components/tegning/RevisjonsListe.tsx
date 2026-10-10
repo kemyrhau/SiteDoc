@@ -23,20 +23,25 @@ export type RevisjonRad = {
   revision: string;
   version: number;
   fileUrl: string;
+  /** Arkivert original (DWG/PDF) for denne revisjonen. NULL = ikke tatt vare på
+   * (eldre revisjoner arkivert før feltet fantes). */
+  originalFileUrl?: string | null;
   createdAt: string | Date;
   uploadedBy?: { name: string | null; email: string | null } | null;
   layouter?: unknown;
 };
 
 /**
- * Har revisjonen en ORIGINAL å laste ned? DWG/DXF arkiveres pr. revisjon som den
- * KONVERTERTE SVG-en (originalen lagres ikke pr. revisjon), så en `.svg`-fileUrl er
- * aldri en original. PDF/bilde/IFC: `fileUrl` ER originalen. SVG er ikke en tillatt
- * opplastingstype, så endelsen er en entydig diskriminator. Vi gir aldri en fil som
- * ser ut som originalen når den ikke er det (orkestrator-SVAR 2026-10-10).
+ * URL-en til revisjonens ORIGINAL å laste ned, eller null om den ikke finnes.
+ * Diskriminator (NESTE 2026-10-10): `originalFileUrl` hvis arkivert; ellers er `fileUrl`
+ * originalen BARE når den ikke er en konvertert SVG (DWG/DXF arkivert før feltet fantes
+ * har `.svg`-fileUrl → ingen original). SVG er ikke en tillatt opplastingstype, så
+ * endelsen skiller entydig. Vi gir aldri en fil som ser ut som originalen når den ikke er
+ * det (orkestrator-SVAR 2026-10-10).
  */
-function revisjonHarOriginal(fileUrl: string): boolean {
-  return filendelseFraUrl(fileUrl).toLowerCase() !== ".svg";
+function revisjonOriginalUrl(r: Pick<RevisjonRad, "fileUrl" | "originalFileUrl">): string | null {
+  if (r.originalFileUrl) return r.originalFileUrl;
+  return filendelseFraUrl(r.fileUrl).toLowerCase() !== ".svg" ? r.fileUrl : null;
 }
 
 /** SVG/PNG/JPG vises som bilde, PDF i iframe, annet som nedlastingslenke. */
@@ -84,9 +89,10 @@ export function RevisjonsListe({
 }) {
   const { t } = useTranslation();
   const [valgt, setValgt] = useState<RevisjonRad | null>(null);
-  // Nedlasting av den ARKIVERTE revisjonsfila. For DWG/DXF er dette den konverterte
-  // SVG-en (originalen arkiveres ikke pr. revisjon); for PDF/bilde er det selve fila.
-  const apneNedlasting = useSignertLenkeApner(valgt?.fileUrl ? [valgt.fileUrl] : []);
+  // Nedlasting av revisjonens ORIGINAL (DWG/PDF). For revisjoner uten arkivert original
+  // (eldre DWG/DXF) er den null → ingen knapp. Visningen under bruker fortsatt fileUrl.
+  const valgtOriginalUrl = valgt ? revisjonOriginalUrl(valgt) : null;
+  const apneNedlasting = useSignertLenkeApner(valgtOriginalUrl ? [valgtOriginalUrl] : []);
 
   if (!revisjoner || revisjoner.length === 0) return null;
 
@@ -119,15 +125,15 @@ export function RevisjonsListe({
             {valgt.fileUrl ? (
               <>
                 <FilVisning url={valgt.fileUrl} alt={t("tegninger.revisjon.visning", { rev: valgt.revision })} />
-                {revisjonHarOriginal(valgt.fileUrl) ? (
+                {valgtOriginalUrl ? (
                   <button
                     onClick={() =>
-                      apneNedlasting(valgt.fileUrl, {
+                      apneNedlasting(valgtOriginalUrl, {
                         download: byggTegningNedlastingsnavn({
                           tegningsnummer,
                           navn: tegningNavn ?? t("tegninger.revisjon.visning", { rev: valgt.revision }),
                           revisjon: valgt.revision,
-                          fileUrl: valgt.fileUrl,
+                          fileUrl: valgtOriginalUrl,
                         }),
                       })
                     }

@@ -657,6 +657,11 @@ export const tegningRouter = router({
           revision: tegning.revision,
           version: tegning.version,
           fileUrl: tegning.fileUrl,
+          // NESTE: arkiver originalfila (DWG/PDF) sammen med revisjonen. Kopieres fra
+          // Drawing.originalFileUrl, som ER satt også på tegninger lastet opp før dette
+          // feltet (opprett/lastOppRevisjon har satt den lenge) → de beholder originalen
+          // ved neste revisjon. NULL kun for rene bilder (ingen separat original).
+          originalFileUrl: tegning.originalFileUrl,
           fileSize: tegning.fileSize,
           status: tegning.status,
           issuedAt: tegning.issuedAt,

@@ -73,4 +73,15 @@ describe("RevisjonsListe — nedlasting pr. revisjon", () => {
     apneModal("A");
     expect(screen.getByText("handling.lastNed")).toBeTruthy();
   });
+
+  it("NESTE: DWG-revisjon med arkivert original → «Last ned» (diskriminator = originalFileUrl, ikke .svg)", () => {
+    render(
+      <RevisjonsListe
+        revisjoner={[rev({ fileUrl: "/uploads/konvertert.svg", originalFileUrl: "/uploads/original.dwg" })]}
+      />,
+    );
+    apneModal("A");
+    expect(screen.getByText("handling.lastNed")).toBeTruthy();
+    expect(screen.queryByText("tegninger.revisjon.ingenOriginal")).toBeNull();
+  });
 });
