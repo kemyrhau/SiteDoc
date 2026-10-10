@@ -5928,3 +5928,5 @@ sjekklisteoversikten mot mobil.
 
 - 🟡 **Timer — dagsseddel viste 0 rader tross 2 i DB** (prod 2026-10-09, Kenneths 19.08 hos A.Markussen, nå slettet): radvisningen filtrerer ikke på firma (målt av redesign); hypotese id vs clientUuid-mismatch. Ikke reproduserbar etter sletting — mål ved neste forekomst (SQL: `sheet_timer.sheet_id` vs `daily_sheets.id/client_uuid`).
 - 🟡 **`eksternKostObjekt.list` bruker brukerens medlemsfirma** (redesign-funn 2026-10-09, 12+ prosjekt-skopede kallere). Bør følge valgt firma som timer-kjernen (`830f7221`).
+
+- 🟡 **Tegningsviser: guard-test mot ekte `page.tsx`** (Kontrollør 2026-10-11, gate `7821138a`). Wheel-re-attach-testen (`apps/web/src/lib/__tests__/tegning-wheel-reattach.test.tsx`) speiler effekten i en modell og fanger ikke en fremtidig regresjon i den ekte dep-arrayen i `tegninger/page.tsx`. Trenger en test som monterer viseren og bytter `fileUrl`.

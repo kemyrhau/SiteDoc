@@ -6,6 +6,25 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## Prod-deploy 2026-10-10 (`83a8d53f`, develop→main) — tegning-nedlasting, DWG retur 2–4 + strek/tekst, timer firma-isolasjon (LIVE)
+
+Release-commit `83a8d53f` på `main`, bygget 19:35Z. `curl /version` = `83a8d53f` (målt av orkestrator).
+
+**Innhold** (merger i `64de37bd..83a8d53f`):
+- Snap kun til synlige punkter (`18440b71`) · måling på eldre tegninger (`6b509f12`).
+- DWG retur 2/3 — auto-rotasjon, startutsnitt, LEADER, georefererte nord-opp (`91cbd3ea`).
+- Timer følger innlogget firma, ansatt-krav, «Mine dagsedler», slett returnert (`033d720d`).
+- DWG retur 4 — ATTRIB, `konvertering_rapport` (`76520b47`).
+- Last ned tegning / valgte som zip / serie; `diskSti` herdet mot path traversal (`b57d462b`).
+- Originalfil pr. revisjon, `MANGLER.txt` i zip (`cea95273`).
+- DWG fast strektykkelse (`deb57d89`) · rotasjon følger revisjon (`c323e309`) · teksthøyde, MTEXT-forankring, robust startutsnitt (`9dd836fc` + `675f8cc3`).
+
+**Migreringer kjørt mot prod:** `20261009120000_dwg_rotasjon_startutsnitt` · `20261009130000_dwg_konvertering_rapport` · `20261010120000_revisjon_originalfil` (alle additive).
+
+**Mobil:** OTA prod-kanal fra `83a8d53f`, verifisert på telefon (Kenneth: telefonen viser `83a8d53f`). Rad i [eas-build-veileder.md § OTA-logg](eas-build-veileder.md).
+
+**Ikke med:** lås etter «Last opp ny revisjon» (Redesign, under arbeid) · ezdxf-motor (PoC, Dokgen) · DWG-3 georef fire hjørner · `tegning.opprett`-validering av `fileUrl` (sikkerhet.md 8b).
+
 ## Prod-deploy 2026-10-09 (`64de37bd`, develop→main) — T2 tegningsserie, V20-M, 90°/snap, DWG libredwg (LIVE)
 
 Release-commit `64de37bd` på `main`, bygget 00:21Z.
