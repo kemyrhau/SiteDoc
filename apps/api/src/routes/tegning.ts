@@ -214,7 +214,9 @@ async function roterMarkorerVedRotasjonsendring(
   console.log(`[DWG] Rotasjon endret ${delta.toFixed(1)}° → flyttet ${oppgaver.length} oppgave-, ${sjekklister.length} sjekkliste-, ${punkter.length} kontrollpunkt-markører og ${omrader.length} område(r)`);
 }
 
-async function anvendDwgResultat(
+// Eksportert for enhetstest (rotasjonOverstyrt bevares ved revisjon — test c). Kalles
+// ellers kun internt fra `startTegningKonvertering`/`provKonverteringIgjen`.
+export async function anvendDwgResultat(
   prisma: PrismaClient,
   tegning: { id: string; name: string; projectId: string; byggeplassId: string | null },
   resultat: DwgKonverteringsResultat,
@@ -236,10 +238,18 @@ async function anvendDwgResultat(
     oppdatering.mmPrPiksel = resultat.mmPrPiksel;
     oppdatering.scale = resultat.scale;
     oppdatering.scaleKilde = resultat.scaleKilde;
-    // RETUR 2: auto-rotasjon bakt inn i SVG-en + startutsnitt. Ny fil → nullstill en
-    // tidligere brukeroverstyring (den gjaldt forrige fil, som enhetene/kalibreringen).
+    // RETUR 2: auto-rotasjon bakt inn i SVG-en + startutsnitt.
     oppdatering.autoRotasjon = resultat.autoRotasjon;
-    oppdatering.rotasjonOverstyrt = null;
+    // FUNKSJONSENDRING (Kenneth 2026-10-10: «rotasjonen skal følge med til neste revisjon»):
+    // `rotasjonOverstyrt` BEHOLDES ved revisjon/«prøv igjen» — den er brukerens ABSOLUTTE
+    // valgte visningsrotasjon (bygget står likt i hver revisjon), ikke en filavhengig
+    // kalibrering. Vi lar feltet være urørt i `oppdatering` (ikke satt = uendret i DB).
+    // Den effektive visningsrotasjonen `effektivRot = rotasjonOverstyrt ?? autoRotasjon`
+    // forblir dermed den samme, og vieweren legger `rotasjonOverstyrt − autoRotasjon` på
+    // toppen av den nye baked-rotasjonen. Markørene flyttes konsistent av `rotDelta`
+    // (= ny − gammel autoRotasjon) under, uavhengig av overstyringen — se regneeksempel i
+    // `roterMarkorerVedRotasjonsendring`/spec. (Enhet/kalibrering nullstilles fortsatt over,
+    // for de ER filavhengige.)
     oppdatering.startutsnitt = resultat.startutsnitt ?? Prisma.JsonNull;
     // RETUR 4 (fullstendighet): lagre parset-vs-tegnet-rapporten så manglende typer
     // synes på test uten å lese kode.
@@ -252,6 +262,13 @@ async function anvendDwgResultat(
   // eksisterende markører/områder flyttes med samme rotasjon — i SAMME transaksjon som
   // tegnings-oppdateringen, så de aldri blir stående feil mellom to skrivinger. Første
   // opplasting har ingen markører → no-op; georefererte tegninger får rotasjon 0 (§1) → delta 0.
+  //
+  // `rotDelta` avhenger KUN av auto-rotasjonen og er uavhengig av at `rotasjonOverstyrt`
+  // nå beholdes (over). Regneeksempel (to tall): gammel auto A1=40°, bruker-overstyring
+  // O=90°, ny auto A2=130° etter revisjon. Markør P flyttes +rotDelta=(130−40)=90° til P'.
+  // Visnings-delta vieweren legger på: før = O−A1 = 50°, etter = O−A2 = −40°. Markørens
+  // SKJERM-posisjon: før rotate(P, 50°), etter rotate(P', −40°) = rotate(P, 90°−40°) =
+  // rotate(P, 50°). Identisk — markøren ligger visuelt likt, og effektivRot = O = 90° holder.
   const forrige = await prisma.drawing.findUnique({
     where: { id: tegning.id },
     select: { autoRotasjon: true },
