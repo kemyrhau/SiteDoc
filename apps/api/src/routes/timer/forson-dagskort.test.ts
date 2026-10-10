@@ -17,6 +17,8 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
   verifiserProsjektmedlem: vi.fn(),
   hentBrukersOrg: vi.fn(),
   krevBrukersOrg: vi.fn(),
+  resolverOrgForEgenTimeføring: vi.fn().mockResolvedValue("11111111-1111-1111-1111-111111111111"),
+  verifiserAnsattIFirma: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn().mockResolvedValue(undefined),

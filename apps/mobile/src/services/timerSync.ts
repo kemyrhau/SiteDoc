@@ -260,6 +260,10 @@ export async function syncTimer(
   // FUNN 2026-10-05: øvre grense pr. nettkall (default prod-verdi; testen injiserer
   // en liten verdi for å bevise at et hengende kall ikke lenger henger synken).
   tidsavbruddMs: number = SYNK_NETT_TIDSAVBRUDD_MS,
+  // Kenneth-vedtak 2026-10-09: timer følger «Mitt firma». Sendes som organizationId på
+  // PULL (hentEndringerSiden). PUSH bruker hver sedels egen org (robust mot firma-bytte).
+  // Utelatt (eldre kall) → serveren faller tilbake til brukerens medlemskap (bakoverkompat).
+  firmaId?: string,
 ): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
@@ -816,10 +820,15 @@ export async function syncTimer(
         };
       });
 
+      // Kenneth-vedtak 2026-10-09: sedelen lagres på SITT firma. En mobil-bruker har én
+      // aktiv org (hentBrukersOrg kaster på multi-org), så batchen er homogen — send
+      // sedelens egen org så serveren lagrer på riktig firma, ikke et avledet medlemskap.
+      const batchOrgId = batch[0]?.organizationId ?? firmaId;
       try {
         const svar = await medTimeout(
           klient.timer.dagsseddel.syncBatch.mutate({
             sedler: sedlerMedRader,
+            organizationId: batchOrgId,
           }),
           tidsavbruddMs,
         );
@@ -858,6 +867,7 @@ export async function syncTimer(
             const enkeltSvar = await medTimeout(
               klient.timer.dagsseddel.syncBatch.mutate({
                 sedler: [item],
+                organizationId: batchOrgId,
               }),
               tidsavbruddMs,
             );
@@ -900,6 +910,8 @@ export async function syncTimer(
       klient.timer.dagsseddel.hentEndringerSiden.query({
         sistSynkronisert: sistSynk ?? undefined,
         maksDagerTilbake: 90,
+        // Kenneth-vedtak 2026-10-09: pull endringer for «Mitt firma» (utelatt → medlemskap).
+        organizationId: firmaId,
       }),
       tidsavbruddMs,
     );

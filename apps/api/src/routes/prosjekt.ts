@@ -11,6 +11,8 @@ import {
   hentDeaktiverteOrgIder,
   erFirmaAdminForProsjekt,
   kanOppretteProsjekt,
+  prosjektTilhørerFirmaWhere,
+  resolverOrgFraInput,
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
@@ -46,25 +48,27 @@ export const prosjektRouter = router({
       });
     }),
 
-  // Fase 2 / T.10: prosjektvelger for Timer. Union av:
-  //   - kunde-prosjekter der bruker er medlem (samme scope som hentMine —
-  //     interne har ingen ProjectMember-rader, så de faller naturlig bort her)
-  //   - interne prosjekter (type="internt") for brukerens eget firma
-  // Egen prosedyre slik at kundevendte lister (hentMine/hentAlle) forblir rene
-  // og fortsatt filtrerer interne ut. Brukes KUN av timer-flate.
+  // Fase 2 / T.10: prosjektvelger for Timer. Firma-skopet, IKKE medlemskaps-skopet: timer
+  // er en firma-flate (et firma kan føre timer mot ethvert prosjekt det eier eller er koblet
+  // til — jf. verifiserProsjekterTilhørerFirma).
+  //
+  // Kenneth-vedtak 2026-10-09: timer følger firmaet man er LOGGET INN i (`valgtFirma`), ikke
+  // medlemskapet. Klienten sender `organizationId`; serveren verifiserer tilgang via
+  // `resolverOrgFraInput` (sitedoc_admin → hvilket som helst firma; andre → kun eget aktivt
+  // medlemskap, ellers FORBIDDEN). Utelatt `organizationId` (eldre mobilklient) faller
+  // tilbake til brukerens egen org — identisk med tidligere oppførsel.
+  //
+  // Lista bruker SAMME regel (`prosjektTilhørerFirmaWhere`) som skrive-vakta, så velgeren
+  // aldri tilbyr et prosjekt skrivingen avviser (feltfunn 2026-10-09: medlemskaps-lista
+  // tilbød «UNN - prosjekter» i et annet firma → skrivingen kastet FORBIDDEN). Dekker eide
+  // (inkl. interne, type="internt") og ProjectOrganization-koblede prosjekter. Brukes KUN
+  // av timer-flate.
   hentForTimer: protectedProcedure
-    .query(async ({ ctx }) => {
-      const brukersOrgId = await hentBrukersOrg(ctx.userId);
-      const where: Prisma.ProjectWhereInput = {
-        OR: [
-          { members: { some: { userId: ctx.userId } } },
-          ...(brukersOrgId
-            ? [{ type: "internt", primaryOrganizationId: brukersOrgId }]
-            : []),
-        ],
-      };
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
       return ctx.prisma.project.findMany({
-        where,
+        where: prosjektTilhørerFirmaWhere(orgId),
         orderBy: [{ type: "asc" }, { updatedAt: "desc" }],
         include: {
           faggrupper: true,

@@ -14,12 +14,13 @@ import {
   drawingStatusSchema,
   geoReferanseSchema,
   utledMmPrPiksel,
+  utledScaleKildeVedLagring,
   finnMalestokkFraTekst,
   finnTegningsnummer,
   finnTegningstype,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
-import { konverterDwg, hentKonverteringKapasitet, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
+import { konverterDwg, hentKonverteringKapasitet, roterProsentMarkor, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
@@ -159,7 +160,63 @@ async function tegningHarMarkorer(prisma: PrismaClient, drawingId: string): Prom
  *  3. Forsvunne layouts (fantes før, ikke i ny fil): slettes uten markør, ellers merkes
  *     `conversionStatus = "stale"` (Kenneth Q3).
  */
-async function anvendDwgResultat(
+/**
+ * RETUR 3 §2 — flytt eksisterende markører/områder (lagret i prosent) med `delta` graders
+ * rotasjon om bildesenteret (50,50) når en re-konvertering endrer den inn-bakte auto-rotasjonen.
+ * Uten dette ville markørene blitt liggende på gammel pikselposisjon og pekt feil mot den nye,
+ * roterte SVG-en. Manuell «Roter» håndteres IKKE her — den er en CSS-rotasjon av hele wrapperen
+ * (markører + SVG roterer sammen), så prosentposisjonene skal da stå urørt.
+ */
+async function roterMarkorerVedRotasjonsendring(
+  tx: Prisma.TransactionClient,
+  drawingId: string,
+  delta: number,
+): Promise<void> {
+  if (!delta) return;
+
+  const oppgaver = await tx.task.findMany({
+    where: { drawingId, positionX: { not: null }, positionY: { not: null } },
+    select: { id: true, positionX: true, positionY: true },
+  });
+  for (const o of oppgaver) {
+    const p = roterProsentMarkor({ x: o.positionX!, y: o.positionY! }, delta);
+    await tx.task.update({ where: { id: o.id }, data: { positionX: p.x, positionY: p.y } });
+  }
+
+  const sjekklister = await tx.checklist.findMany({
+    where: { drawingId, positionX: { not: null }, positionY: { not: null } },
+    select: { id: true, positionX: true, positionY: true },
+  });
+  for (const s of sjekklister) {
+    const p = roterProsentMarkor({ x: s.positionX!, y: s.positionY! }, delta);
+    await tx.checklist.update({ where: { id: s.id }, data: { positionX: p.x, positionY: p.y } });
+  }
+
+  const punkter = await tx.kontrollplanPunkt.findMany({
+    where: { drawingId, positionX: { not: null }, positionY: { not: null } },
+    select: { id: true, positionX: true, positionY: true },
+  });
+  for (const k of punkter) {
+    const p = roterProsentMarkor({ x: k.positionX!, y: k.positionY! }, delta);
+    await tx.kontrollplanPunkt.update({ where: { id: k.id }, data: { positionX: p.x, positionY: p.y } });
+  }
+
+  const omrader = await tx.omrade.findMany({
+    where: { tegningId: drawingId },
+    select: { id: true, polygon: true },
+  });
+  for (const om of omrader) {
+    const poly = Array.isArray(om.polygon) ? (om.polygon as { x: number; y: number }[]) : [];
+    if (!poly.length) continue;
+    const ny = poly.map((v) => roterProsentMarkor({ x: v.x, y: v.y }, delta));
+    await tx.omrade.update({ where: { id: om.id }, data: { polygon: ny as unknown as Prisma.InputJsonValue } });
+  }
+  console.log(`[DWG] Rotasjon endret ${delta.toFixed(1)}° → flyttet ${oppgaver.length} oppgave-, ${sjekklister.length} sjekkliste-, ${punkter.length} kontrollpunkt-markører og ${omrader.length} område(r)`);
+}
+
+// Eksportert for enhetstest (rotasjonOverstyrt bevares ved revisjon — test c). Kalles
+// ellers kun internt fra `startTegningKonvertering`/`provKonverteringIgjen`.
+export async function anvendDwgResultat(
   prisma: PrismaClient,
   tegning: { id: string; name: string; projectId: string; byggeplassId: string | null },
   resultat: DwgKonverteringsResultat,
@@ -181,8 +238,48 @@ async function anvendDwgResultat(
     oppdatering.mmPrPiksel = resultat.mmPrPiksel;
     oppdatering.scale = resultat.scale;
     oppdatering.scaleKilde = resultat.scaleKilde;
+    // RETUR 2: auto-rotasjon bakt inn i SVG-en + startutsnitt.
+    oppdatering.autoRotasjon = resultat.autoRotasjon;
+    // FUNKSJONSENDRING (Kenneth 2026-10-10: «rotasjonen skal følge med til neste revisjon»):
+    // `rotasjonOverstyrt` BEHOLDES ved revisjon/«prøv igjen» — den er brukerens ABSOLUTTE
+    // valgte visningsrotasjon (bygget står likt i hver revisjon), ikke en filavhengig
+    // kalibrering. Vi lar feltet være urørt i `oppdatering` (ikke satt = uendret i DB).
+    // Den effektive visningsrotasjonen `effektivRot = rotasjonOverstyrt ?? autoRotasjon`
+    // forblir dermed den samme, og vieweren legger `rotasjonOverstyrt − autoRotasjon` på
+    // toppen av den nye baked-rotasjonen. Markørene flyttes konsistent av `rotDelta`
+    // (= ny − gammel autoRotasjon) under, uavhengig av overstyringen — se regneeksempel i
+    // `roterMarkorerVedRotasjonsendring`/spec. (Enhet/kalibrering nullstilles fortsatt over,
+    // for de ER filavhengige.)
+    oppdatering.startutsnitt = resultat.startutsnitt ?? Prisma.JsonNull;
+    // RETUR 4 (fullstendighet): lagre parset-vs-tegnet-rapporten så manglende typer
+    // synes på test uten å lese kode.
+    oppdatering.konverteringRapport = resultat.rapport
+      ? (resultat.rapport as unknown as Prisma.InputJsonValue)
+      : Prisma.JsonNull;
   }
-  await prisma.drawing.update({ where: { id: tegning.id }, data: oppdatering });
+
+  // RETUR 3 §2: endres den inn-bakte auto-rotasjonen ved denne (re-)konverteringen, må
+  // eksisterende markører/områder flyttes med samme rotasjon — i SAMME transaksjon som
+  // tegnings-oppdateringen, så de aldri blir stående feil mellom to skrivinger. Første
+  // opplasting har ingen markører → no-op; georefererte tegninger får rotasjon 0 (§1) → delta 0.
+  //
+  // `rotDelta` avhenger KUN av auto-rotasjonen og er uavhengig av at `rotasjonOverstyrt`
+  // nå beholdes (over). Regneeksempel (to tall): gammel auto A1=40°, bruker-overstyring
+  // O=90°, ny auto A2=130° etter revisjon. Markør P flyttes +rotDelta=(130−40)=90° til P'.
+  // Visnings-delta vieweren legger på: før = O−A1 = 50°, etter = O−A2 = −40°. Markørens
+  // SKJERM-posisjon: før rotate(P, 50°), etter rotate(P', −40°) = rotate(P, 90°−40°) =
+  // rotate(P, 50°). Identisk — markøren ligger visuelt likt, og effektivRot = O = 90° holder.
+  const forrige = await prisma.drawing.findUnique({
+    where: { id: tegning.id },
+    select: { autoRotasjon: true },
+  });
+  const rotDelta = resultat.visningUrl
+    ? (resultat.autoRotasjon ?? 0) - (forrige?.autoRotasjon ?? 0)
+    : 0;
+  await prisma.$transaction(async (tx) => {
+    await tx.drawing.update({ where: { id: tegning.id }, data: oppdatering });
+    await roterMarkorerVedRotasjonsendring(tx, tegning.id, rotDelta);
+  });
   console.log(`[DWG] Konvertering fullført for tegning ${tegning.id}`);
 
   // En FEILET konvertering skal ALDRI røre eksisterende layouts — ellers ville en
@@ -526,6 +623,12 @@ export const tegningRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      // Målestokk skrevet inn for hånd (detaljtabellen / «Rediger flere») bærer ingen
+      // egen kilde — et menneske som taster en målestokk ER manuell bekreftelse. Settes
+      // `scaleKilde` eksplisitt (in-viewer-panelet, kalibrering), beholdes den. Uten dette
+      // ble `scaleKilde` null og `kanMale()` avslo måling selv om brukeren hadde skrevet 1:50.
+      const utledetKilde = utledScaleKildeVedLagring(data.scale !== undefined, data.scaleKilde);
+      if (utledetKilde !== undefined) data.scaleKilde = utledetKilde;
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
       return ctx.prisma.drawing.update({ where: { id }, data });
@@ -571,6 +674,11 @@ export const tegningRouter = router({
           revision: tegning.revision,
           version: tegning.version,
           fileUrl: tegning.fileUrl,
+          // NESTE: arkiver originalfila (DWG/PDF) sammen med revisjonen. Kopieres fra
+          // Drawing.originalFileUrl, som ER satt også på tegninger lastet opp før dette
+          // feltet (opprett/lastOppRevisjon har satt den lenge) → de beholder originalen
+          // ved neste revisjon. NULL kun for rene bilder (ingen separat original).
+          originalFileUrl: tegning.originalFileUrl,
           fileSize: tegning.fileSize,
           status: tegning.status,
           issuedAt: tegning.issuedAt,
@@ -684,6 +792,24 @@ export const tegningRouter = router({
         }
       }
       return oppdatert;
+    }),
+
+  // RETUR 2 (vedtak A): sett/nullstill brukerens rotasjons-overstyring for en DWG-tegning.
+  // `grader` = absolutt visningsrotasjon (auto ± 90°-trinn, eller 0 = tilbake til
+  // opprinnelig urotert). `null` = fjern overstyring, følg auto igjen. Vieweren roterer
+  // (rotasjonOverstyrt − autoRotasjon) på toppen av den allerede inn-bakte auto-rotasjonen.
+  settRotasjon: protectedProcedure
+    .input(z.object({
+      drawingId: z.string().uuid(),
+      grader: z.number().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      return ctx.prisma.drawing.update({
+        where: { id: input.drawingId },
+        data: { rotasjonOverstyrt: input.grader },
+      });
     }),
 
   // Sett GPS-override for IFC-modell (kalibrering med valgfri rotasjon)
@@ -933,6 +1059,79 @@ export const tegningRouter = router({
       }
 
       return { startet: pdfTegninger.length, melding: `Startet konvertering av ${pdfTegninger.length} PDF-tegning(er)` };
+    }),
+
+  // Backfill av måle-grunnlag (mm/piksel) for eldre PDF-tegninger UTEN ny rendering.
+  //
+  // Tegninger konvertert før måling-i-tegning (2026-09-24) fikk aldri `mmPrPiksel`,
+  // så `kanMale()` avslår måling selv om målestokken er satt. `rekonverterPdf` tar
+  // bare uferdige/feilede PDF-er, aldri de ferdige — derfor denne. Papirbredden
+  // leses på nytt fra original-PDF-en (`pdfinfo`) og mm/piksel utledes mot den
+  // ALLEREDE lagrede `imageWidth`. `fileUrl` røres ikke og ingenting rendres på nytt.
+  // Begrenset til PDF-kilde: en DWG/DXF-tegnings `mmPrPiksel = null` er legitim
+  // (ukjent enhet → låst til kalibrering) og pdfinfo gjelder ikke der.
+  backfillMaalegrunnlag: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektIkkeFrosset(ctx.userId, input.projectId);
+      // Samme tilgang som rekonverter-knappen: sitedoc_admin eller prosjektadmin.
+      const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
+      if (bruker?.role !== "sitedoc_admin") {
+        const medlem = await ctx.prisma.projectMember.findUnique({
+          where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        });
+        if (medlem?.role !== "admin") {
+          return { totalt: 0, oppdatert: 0, utenGrunnlag: 0, melding: "Kun admin kan hente målegrunnlag" };
+        }
+      }
+
+      const kandidater = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          conversionStatus: "done",
+          mmPrPiksel: null,
+          OR: [
+            { fileType: "pdf" },
+            { originalFileUrl: { endsWith: ".pdf" } },
+          ],
+        },
+        select: { id: true, name: true, fileUrl: true, originalFileUrl: true, fileType: true, imageWidth: true },
+      });
+
+      let oppdatert = 0;
+      let utenGrunnlag = 0;
+      for (const t of kandidater) {
+        // PDF-kilden: original-PDF-en (konverterte) eller selve fila (uendret pdf).
+        const pdfRel = t.originalFileUrl ?? (t.fileType === "pdf" ? t.fileUrl : null);
+        if (!pdfRel) { utenGrunnlag++; continue; }
+        const pdfFilSti = join(UPLOADS_DIR, pdfRel.replace("/uploads/", ""));
+        const papirBreddeMm = await hentPapirbreddeMm(pdfFilSti);
+        if (!papirBreddeMm) { utenGrunnlag++; continue; }
+
+        // Bredde: bruk lagret imageWidth; mangler den, les fra det viste bildet (sharp).
+        let imageWidth = t.imageWidth ?? null;
+        let imageHeight: number | null = null;
+        if (imageWidth == null) {
+          const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, t.fileUrl.replace("/uploads/", "")));
+          if (dim) { imageWidth = dim.width; imageHeight = dim.height; }
+        }
+        if (imageWidth == null || imageWidth <= 0) { utenGrunnlag++; continue; }
+
+        const mmPrPiksel = utledMmPrPiksel(papirBreddeMm, imageWidth);
+        await ctx.prisma.drawing.update({
+          where: { id: t.id },
+          data: { mmPrPiksel, ...(imageHeight != null ? { imageWidth, imageHeight } : {}) },
+        });
+        oppdatert++;
+        console.log(`[Backfill-mål] ${t.name}: mm/px=${mmPrPiksel}`);
+      }
+
+      return {
+        totalt: kandidater.length,
+        oppdatert,
+        utenGrunnlag,
+        melding: `${oppdatert} av ${kandidater.length} tegning(er) fikk målegrunnlag${utenGrunnlag > 0 ? `, ${utenGrunnlag} uten PDF-grunnlag` : ""}`,
+      };
     }),
 
   // Backfill: hent bildedimensjoner for tegninger som mangler imageWidth/imageHeight

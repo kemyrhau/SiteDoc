@@ -26,14 +26,17 @@ export {
   malPolylinjeMm,
   malArealMm2,
   kanMale,
+  utledScaleKildeVedLagring,
   kalibrerMalestokk,
   laasVinkel,
   aksehjelpelinje,
   snapTilPunkt,
   snapTil90Linje,
+  filtrerSynligePunkter,
   beregnSnap,
+  inverseRoterKlikk,
 } from "./maaling";
-export type { Punkt, ScaleKilde, Hjelpelinjer, Referanselinje, LaasDetalj, SnapInn, SnapResultat } from "./maaling";
+export type { Punkt, ScaleKilde, Hjelpelinjer, Utsnitt, Referanselinje, LaasDetalj, SnapInn, SnapResultat } from "./maaling";
 export {
   TOM_MALETILSTAND,
   minPunkter,
@@ -471,3 +474,9 @@ export {
   erUtloptSignatur,
   lagInvalideringsDebounce,
 } from "./signertBildePolicy";
+
+export {
+  filendelseFraUrl,
+  byggTegningNedlastingsnavn,
+  unikNedlastingsnavn,
+} from "./tegningNedlasting";

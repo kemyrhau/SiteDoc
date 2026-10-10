@@ -13,7 +13,7 @@ import {
 import type { LayoutChangeEvent } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline, RotateCw } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   kanMale,
@@ -38,6 +38,7 @@ import {
   fjernPunkt,
   beregnSnap,
   type Punkt,
+  type Utsnitt,
   type Referanselinje,
   type Hjelpelinjer,
   type MaleVerktoy,
@@ -134,6 +135,11 @@ interface TegningsVisningProps {
   maleData?: MaaleData | null;
   /** Varsler når et måleverktøy slås på/av, så forelder kan skjule plasseringsmodus. */
   onMaleModusEndring?: (aktiv: boolean) => void;
+  /** RETUR 2 (vedtak A): DWG-rotasjon. `auto` er BAKT inn i SVG-en (vises uansett);
+   * `overstyrt` er brukerens valg. Vieweren roterer (overstyrt − auto) på toppen. */
+  rotasjon?: { auto: number | null; overstyrt: number | null } | null;
+  /** Lagre/nullstill brukerens rotasjons-overstyring (null = tilbake til auto). */
+  onSettRotasjon?: (grader: number | null) => void;
 }
 
 /**
@@ -147,6 +153,7 @@ function byggHtml(
   omrader: Omrade[],
   gpsMarkør: GpsMarkør | null,
   trykkOppsett: "ingen" | "enkel" | "avansert",
+  rotasjonDelta: number = 0,
 ): string {
   const markørData = JSON.stringify(markører.map((m) => ({
     id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
@@ -180,7 +187,9 @@ function byggHtml(
     -webkit-user-drag: none;
   }
   body { background:#1a1a1a; }
-  #container { position:relative; }
+  /* RETUR 2: brukeroverstyring roterer HELE containeren (bilde + markører sammen), på
+     toppen av den inn-bakte auto-rotasjonen. 0 = ingen ekstra rotasjon. */
+  #container { position:relative; ${rotasjonDelta ? `transform:rotate(${rotasjonDelta}deg); transform-origin:center center;` : ""} }
   #tegning { display:block; width:100%; height:auto; pointer-events:none; }
   .pin { position:absolute; z-index:10; pointer-events:auto; }
   .pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);transform-origin:center; }
@@ -512,6 +521,21 @@ ${trykkOppsett === "avansert" ? `
     return { x: Math.max(0,Math.min(100,(pageX-box.sideLeft)/box.bredde*100)),
              y: Math.max(0,Math.min(100,(pageY-box.sideTop)/box.hoyde*100)) };
   }
+  // RETUR 1: synlig utsnitt av bildet i PROSENT = der den synlige viewporten
+  // (visualViewport, dokument-px) overlapper bildeboksen. Sendes til RN så snap/
+  // hjelpelinjer ikke fester seg til punkter som er scrollet/zoomet ut av syne.
+  function utsnitt(box){
+    var vv = window.visualViewport;
+    var vL = vv?vv.pageLeft:0, vT = vv?vv.pageTop:0;
+    var vR = vL + (vv?vv.width:box.bredde), vB = vT + (vv?vv.height:box.hoyde);
+    function clamp(v){ return Math.max(0,Math.min(100,v)); }
+    return {
+      xMin: clamp((Math.max(vL, box.sideLeft) - box.sideLeft)/box.bredde*100),
+      xMax: clamp((Math.min(vR, box.sideLeft+box.bredde) - box.sideLeft)/box.bredde*100),
+      yMin: clamp((Math.max(vT, box.sideTop) - box.sideTop)/box.hoyde*100),
+      yMax: clamp((Math.min(vB, box.sideTop+box.hoyde) - box.sideTop)/box.hoyde*100),
+    };
+  }
   // Speil av tegningKoordinat.finnNaermesteSidePunkt. Treffradius i SIDE-px = TREFF_PX/zoom.
   function finnPunkt(pageX, pageY, box){
     var pk = window.__malePunkter || [];
@@ -607,10 +631,10 @@ ${trykkOppsett === "avansert" ? `
     var box = sideBoks(); if (!box) return;
     var p = pctSide(e.pageX,e.pageY,box); pending=p;
     if (dragIdx>=0) {
-      post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() }); // Flytt: live reshape (+90°/snap i RN)
+      post({ type:'maledrag', index:dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom(), utsnitt:utsnitt(box) }); // Flytt: live reshape (+90°/snap i RN)
     } else if (erMale(modus())) {
       // Måleverktøy-plassering: la RN beregne 90°/snap + stiplet veiledning live.
-      post({ type:'forhaandspunkt', x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() });
+      post({ type:'forhaandspunkt', x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom(), utsnitt:utsnitt(box) });
     }
     sendLupe(e.pageX,e.pageY,box);
   });
@@ -635,7 +659,7 @@ ${trykkOppsett === "avansert" ? `
       var p = pending || pctSide(e.pageX, e.pageY, box);
       // Punktet settes HER (ved slipp). RN avgjør handling via avgjorTrykkHandling.
       // rectW/rectH = VIST bildestørrelse (skjerm-dp) — brukes til px-terskel ved valg.
-      post({ type:'gest', verktoy: modus(), varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maks, nedPaaPunkt: dragIdx>=0, dragIdx: dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom() });
+      post({ type:'gest', verktoy: modus(), varighetMs: Date.now()-st, flyttet: flyttet, antallPekere: maks, nedPaaPunkt: dragIdx>=0, dragIdx: dragIdx, x:p.x, y:p.y, rectW:box.bredde*zoom(), rectH:box.hoyde*zoom(), utsnitt:utsnitt(box) });
     }
     nullstill();
   }
@@ -660,8 +684,16 @@ export function TegningsVisning({
   onOpprett,
   maleData,
   onMaleModusEndring,
+  rotasjon,
+  onSettRotasjon,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
+  // RETUR 2: auto-rotasjon er bakt inn i SVG-en; her legges kun en brukeroverstyring på.
+  const autoRot = typeof rotasjon?.auto === "number" ? rotasjon.auto : null;
+  const rotOverstyrt = typeof rotasjon?.overstyrt === "number" ? rotasjon.overstyrt : null;
+  const effektivRot = rotOverstyrt ?? autoRot ?? 0;
+  const rotasjonDelta = effektivRot - (autoRot ?? 0);
+  const norm180Rot = (d: number) => { let v = ((d % 360) + 360) % 360; if (v > 180) v -= 360; return v; };
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState(false);
   const webViewRef = useRef<WebView>(null);
@@ -796,7 +828,7 @@ export function TegningsVisning({
 
   // Delt 90°/snap for ett kandidatpunkt (leser refs). null når bildet mangler mål.
   const beregnSnapForKandidat = useCallback(
-    (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null) => {
+    (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null, utsnitt?: Utsnitt | null) => {
       const sp = snapParamRef.current;
       if (sp.imgW == null || sp.imgH == null || rectW <= 0 || rectH <= 0) return null;
       const t0 = maleTilstandRef.current;
@@ -808,6 +840,7 @@ export function TegningsVisning({
       return beregnSnap({
         kandidat, anker, forforrige,
         referanser: samleReferanser(t0, ekskluderIdx),
+        utsnitt,
         referanselinje: sp.referanselinje,
         ortho: sp.ortho, snap: sp.snapPaa,
         imageWidth: sp.imgW, imageHeight: sp.imgH,
@@ -891,6 +924,11 @@ export function TegningsVisning({
   useEffect(() => {
     setLaster(true);
     setFeil(false);
+    // RETUR 1: målinger er flyktig klient-state (ikke persistert pr. tegning) —
+    // nullstill ved tegningsbytte så de ikke henger igjen som snap-kandidater på
+    // neste tegning.
+    setMaleTilstand(slettAlle());
+    setAktivtVerktoy("navigering");
   }, [tegningUrl]);
 
   // 🔴 RETUR 6 § 5: forhåndslast tegningsbildet i RN-bildecachen når tegningen
@@ -1018,7 +1056,7 @@ export function TegningsVisning({
         }
         // Punkt-dra (Flytt): live-oppdatering + 90°/snap (ekskluder punktet som dras).
         if (data.type === "maledrag") {
-          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, data.index);
+          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, data.index, data.utsnitt);
           const fp = snapR ? snapR.punkt : { x: data.x, y: data.y };
           håndterFlyttPunkt(data.index, fp.x, fp.y);
           injiserVeiledning(snapR);
@@ -1026,7 +1064,7 @@ export function TegningsVisning({
         }
         // 🟢 90°/snap forhåndsvisning under PLASSERING (måleverktøy, før slipp).
         if (data.type === "forhaandspunkt") {
-          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, null);
+          const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, null, data.utsnitt);
           injiserVeiledning(snapR);
           return;
         }
@@ -1081,7 +1119,7 @@ export function TegningsVisning({
               // 90°/snap: juster punktet FØR det legges til (ekskluder ankeret som snap-mål).
               const aktP = aktivMaling(tilstand);
               const ankerIdx = aktP && !aktP.ferdig ? aktP.punkter.length - 1 : null;
-              const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, ankerIdx);
+              const snapR = beregnSnapForKandidat({ x: data.x, y: data.y }, data.rectW, data.rectH, ankerIdx, data.utsnitt);
               const fp = snapR ? snapR.punkt : { x: data.x, y: data.y };
               håndterLeggTilPunkt(fp.x, fp.y, data.rectW, data.rectH);
               return;
@@ -1123,7 +1161,7 @@ export function TegningsVisning({
     : onTrykk
       ? "enkel"
       : "ingen";
-  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett);
+  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta);
 
   return (
     <View className="flex-1 bg-black">
@@ -1134,7 +1172,39 @@ export function TegningsVisning({
         <Text className="flex-1 px-4 text-center text-sm font-medium text-white" numberOfLines={1}>
           {tegningNavn}
         </Text>
-        <View style={{ width: 42 }} />
+        {/* RETUR 2 (vedtak A): rotasjon — auto-rotasjonen er bakt inn; her vises etikett
+            + manuell overstyring (90°-trinn). Kun når forelder gir rotasjon-prop (DWG). */}
+        {rotasjon && onSettRotasjon ? (
+          <View className="flex-row items-center gap-2" style={{ minWidth: 42 }}>
+            {Math.round(effektivRot) !== 0 && (
+              <Text className="text-xs text-white/70">
+                {rotOverstyrt == null && autoRot != null
+                  ? t("tegninger.rotertAuto", { grader: Math.round(autoRot) })
+                  : t("tegninger.rotert", { grader: Math.round(effektivRot) })}
+              </Text>
+            )}
+            <Pressable
+              onPress={() => onSettRotasjon(norm180Rot(effektivRot + 90))}
+              hitSlop={12}
+              className="rounded-full bg-white/20 p-2.5"
+              accessibilityLabel={t("tegninger.roter90")}
+            >
+              <RotateCw size={18} color="#ffffff" />
+            </Pressable>
+            {rotOverstyrt != null && (
+              <Pressable
+                onPress={() => onSettRotasjon(null)}
+                hitSlop={12}
+                className="rounded-full bg-white/20 px-2.5 py-1"
+                accessibilityLabel={t("tegninger.roterTilbake")}
+              >
+                <Text className="text-xs font-medium text-white">{t("tegninger.roterTilbakeKort")}</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : (
+          <View style={{ width: 42 }} />
+        )}
       </View>
 
       {feil ? (
@@ -1264,7 +1334,11 @@ export function TegningsVisning({
               {!kanMaleNaa && (
                 <View style={stiler.maleSperret}>
                   <Ruler size={12} color="#9ca3af" />
-                  <Text style={stiler.maleSperretTekst}>{t("maaling.malestokkBekreftPaaWeb")}</Text>
+                  <Text style={stiler.maleSperretTekst}>
+                    {mmPrPiksel == null
+                      ? t("maaling.manglerMaalegrunnlag")
+                      : t("maaling.malestokkBekreftPaaWeb")}
+                  </Text>
                 </View>
               )}
             </View>

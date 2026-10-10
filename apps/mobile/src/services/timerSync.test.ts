@@ -1168,3 +1168,51 @@ describe("FUNN 2026-10-06 — transient push-feil skriver feilmelding på ALLE s
     expect(res.push.feilet).toBe(2);
   });
 });
+
+describe("syncTimer — firma følger «Mitt firma» (Kenneth-vedtak 2026-10-09)", () => {
+  // Fanger både PUSH- (syncBatch) og PULL-input (hentEndringerSiden) så vi kan bevise
+  // at organizationId propagerer riktig vei: PUSH = sedelens egen org, PULL = valgt firma.
+  function lagFanger() {
+    const fanget: { push: unknown; pull: unknown } = { push: null, pull: null };
+    const klient = {
+      timer: {
+        dagsseddel: {
+          syncBatch: {
+            mutate: async (input: unknown) => {
+              fanget.push = input;
+              return { resultater: [] };
+            },
+          },
+          hentEndringerSiden: {
+            query: async (input: unknown) => {
+              fanget.pull = input;
+              return tomtPull;
+            },
+          },
+          hentMedId: { query: async () => ({ timer: [] }) },
+        },
+      },
+    } as unknown as Parameters<typeof syncTimer>[0];
+    return { klient, fanget };
+  }
+
+  it("PUSH sender sedelens egen organizationId; PULL sender valgt firma", async () => {
+    seedSedel({ id: "fs-1", dato: "2026-09-20", status: "draft", syncStatus: "pending" });
+    seedTimerRad("fr-1", "fs-1", 7.5);
+
+    const { klient, fanget } = lagFanger();
+    await syncTimer(klient, "u1", undefined, "valgt-firma-x");
+
+    // seedSedel setter organizationId "o1" → PUSH må bære den (ikke det valgte firmaet,
+    // som kan avvike ved firma-bytte; sedelen tilhører firmaet den ble ført på).
+    expect((fanget.push as { organizationId?: string }).organizationId).toBe("o1");
+    // PULL henter endringer for det valgte firmaet.
+    expect((fanget.pull as { organizationId?: string }).organizationId).toBe("valgt-firma-x");
+  });
+
+  it("uten firmaId (eldre kall) sendes organizationId=undefined på PULL (server-fallback)", async () => {
+    const { klient, fanget } = lagFanger();
+    await syncTimer(klient, "u1");
+    expect((fanget.pull as { organizationId?: string }).organizationId).toBeUndefined();
+  });
+});

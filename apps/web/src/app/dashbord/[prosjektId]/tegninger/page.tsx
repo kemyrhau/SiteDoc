@@ -40,13 +40,16 @@ import {
   nyKantPunktIndeks,
   fjernPunkt,
   beregnSnap,
+  inverseRoterKlikk,
   type Hjelpelinjer,
+  type Utsnitt,
   type Referanselinje,
   type SnapResultat,
   type Punkt,
   type MaleVerktoy,
   type Maling,
   type MaleTilstand,
+  byggTegningNedlastingsnavn,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
@@ -60,7 +63,7 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
@@ -69,6 +72,7 @@ import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
+import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 interface Markør {
   id: string;
@@ -302,6 +306,10 @@ export default function TegningerSide() {
   const snapParamRef = useRef<{ imgW: number | null; imgH: number | null; ortho: boolean; snapPaa: boolean; referanselinje: Referanselinje | null }>({
     imgW: null, imgH: null, ortho: false, snapPaa: true, referanselinje: null,
   });
+  // RETUR 3 §3: brukerens manuelle «Roter»-overstyring (CSS-rotasjon av wrapperen, grader).
+  // I en ref så klikk-handlerne leser ferskeste verdi (settes lenger ned, etter at
+  // auto/overstyrt-rotasjonen er utledet) uten TDZ eller deps-kjeding.
+  const visningsDeltaRef = useRef(0);
   const [kalibrerPunkter, setKalibrerPunkter] = useState<Punkt[]>([]);
   const [slettAlleModalApen, setSlettAlleModalApen] = useState(false);
   const [visMalestokkPanel, setVisMalestokkPanel] = useState(false);
@@ -334,6 +342,34 @@ export default function TegningerSide() {
     const status = tegning?.conversionStatus;
     setDwgPoller(status === "pending" || status === "converting");
   }, [tegning?.conversionStatus]);
+
+  // Enkeltfil-nedlasting: originalfila (DWG/PDF slik den ble lastet opp), fallback
+  // til den konverterte fila for rene bilder. `download`-attributtet gir filnavnet
+  // (tegningsnummer_revX.endelse); SignertLenke-åpneren fornyer utløpt signatur.
+  // Primitivene trekkes ut med cast FØR callbacken for å unngå TS2589 på den dype
+  // tRPC-typen i useCallback-generiken (kjent mønster).
+  const nedlastMeta = tegning as unknown as {
+    originalFileUrl: string | null;
+    fileUrl: string;
+    drawingNumber: string | null;
+    name: string;
+    revision: string;
+  } | undefined;
+  const nedlastUrl = nedlastMeta?.originalFileUrl ?? nedlastMeta?.fileUrl ?? null;
+  const nedlastNavn =
+    nedlastMeta && nedlastUrl
+      ? byggTegningNedlastingsnavn({
+          tegningsnummer: nedlastMeta.drawingNumber,
+          navn: nedlastMeta.name,
+          revisjon: nedlastMeta.revision,
+          fileUrl: nedlastUrl,
+        })
+      : "";
+  const apneNedlasting = useSignertLenkeApner([nedlastMeta?.originalFileUrl, nedlastMeta?.fileUrl]);
+  const lastNedTegning = useCallback(() => {
+    if (!nedlastUrl) return;
+    apneNedlasting(nedlastUrl, { download: nedlastNavn });
+  }, [nedlastUrl, nedlastNavn, apneNedlasting]);
 
   // Beregn GPS-transformasjon for georefererte tegninger
   const geoRef = (tegning as unknown as { geoReference?: unknown } | undefined)?.geoReference as GeoReferanse | null;
@@ -444,6 +480,22 @@ export default function TegningerSide() {
     },
   });
 
+  // Hent målegrunnlag for eldre PDF-tegninger (mm/piksel utledet fra original-PDF uten ny
+  // rendering). Prosjekt-batch, admin-gatet som rekonverter. Invaliderer detaljen så den
+  // åpne tegningen får mm/piksel og måleverktøyet låses opp.
+  const backfillMaalegrunnlagMutation = trpc.tegning.backfillMaalegrunnlag.useMutation({
+    onSuccess: () => {
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
+  // RETUR 2 (vedtak A): lagre/nullstill brukerens rotasjons-overstyring for DWG-tegningen.
+  const settRotasjonMutation = trpc.tegning.settRotasjon.useMutation({
+    onSuccess: () => {
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
   // Rediger tegningsdetaljer — kobler de metadata-feltene som fylles ved opprettelse til den
   // eksisterende `tegning.oppdater`. Egen mutasjon (ikke målestokk-mutasjonen over) fordi den
   // MÅ invalidere LISTA: endres `floor`, skal raden flytte seg ut av «Uten etasje» (Krav 2).
@@ -477,6 +529,14 @@ export default function TegningerSide() {
     setZoom(STANDARD_ZOOM);
     setNyMarkør(null);
     setGpsKoordinat(null);
+    // RETUR 1: målinger er flyktig klient-state (ikke persistert pr. tegning) —
+    // nullstill ved tegningsbytte så de ikke henger igjen som snap-kandidater/vises
+    // på neste tegning.
+    setMaleTilstand(slettAlle());
+    setForhandsPunkt(null);
+    setHjelpelinjer({ vertikal: null, horisontal: null });
+    setAksehjelp(null);
+    setVisVinkelrett(false);
   }, [aktivTegning?.id]);
 
   // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
@@ -514,6 +574,40 @@ export default function TegningerSide() {
       })
       .catch(() => setSvgInnhold(null));
   }, [svgUrl, erSvgFil]);
+
+  // RETUR 2 §3: startutsnitt — åpne zoomet til der innholdet er tett (DWG åpnet «veldig
+  // lite»). Kjøres når SVG-en er i DOM (svgInnhold satt) så inner-høyden er målbar. Alt
+  // annet er fortsatt med og synlig når man zoomer ut.
+  const startutsnittRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!erSvgFil || !svgInnhold) return;
+    // Cast via lett type: `startutsnitt` er Prisma Json? (dyp rekursiv union → TS2589
+    // både ved direkte aksess og i deps). Les feltet gjennom en smal struktur.
+    const su = ((tegning as unknown as { startutsnitt?: unknown } | null)?.startutsnitt ?? null) as { x: number; y: number; w: number; h: number } | null;
+    const el = containerRef.current;
+    if (!su || typeof su.w !== "number" || typeof su.h !== "number" || !el) return;
+    // Kjør kun én gang pr. tegning (ikke overstyr brukerens egen zoom).
+    const nøkkel = `${aktivTegning?.id}`;
+    if (startutsnittRef.current === nøkkel) return;
+    startutsnittRef.current = nøkkel;
+    const raf = requestAnimationFrame(() => {
+      const cw = el.clientWidth, ch = el.clientHeight;
+      if (!cw || !ch) return;
+      const z = Math.min(MAKS_ZOOM, Math.max(STANDARD_ZOOM, (0.98 / Math.max(su.w, su.h))));
+      const iw = tegning?.imageWidth ?? null;
+      const ih = tegning?.imageHeight ?? null;
+      const innerW = cw * z;
+      const innerH = iw && ih ? innerW * (ih / iw) : innerW;
+      ønsketScrollRef.current = {
+        left: Math.max(0, (su.x + su.w / 2) * innerW - cw / 2),
+        top: Math.max(0, (su.y + su.h / 2) * innerH - ch / 2),
+      };
+      setZoom(z);
+    });
+    return () => cancelAnimationFrame(raf);
+    // startutsnitt er stabil pr. tegning (id) → ikke i deps (Json?-type gir TS2589).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svgInnhold, erSvgFil, aktivTegning?.id]);
 
   // SVG-variant for inspeksjonsmodus med bredere treffområde og hover-highlight
   const svgInnholdInspeksjon = useMemo(() => {
@@ -809,6 +903,22 @@ export default function TegningerSide() {
   // Delt snap/lås for ett kandidatpunkt — leser ferskeste 90°/snap-parametre + måletilstand
   // fra refs. `ekskluderIdx` = punktet som ikke skal være snap-mål (ankeret ved tegning,
   // eller punktet som dras). Null hvis bildet mangler mål.
+  // RETUR 1: synlig utsnitt (prosent av bildet) = der viewporten (containerRef)
+  // overlapper det zoomede bildet (maleInnerRef). Snap/hjelpelinjer begrenses til
+  // dette, så snap aldri fester seg til et punkt som er scrollet/zoomet ut av syne.
+  const beregnUtsnitt = useCallback((): Utsnitt | null => {
+    const view = containerRef.current?.getBoundingClientRect();
+    const img = maleInnerRef.current?.getBoundingClientRect();
+    if (!view || !img || img.width <= 0 || img.height <= 0) return null;
+    const klem = (v: number) => Math.max(0, Math.min(100, v));
+    return {
+      xMin: klem(((view.left - img.left) / img.width) * 100),
+      xMax: klem(((view.right - img.left) / img.width) * 100),
+      yMin: klem(((view.top - img.top) / img.height) * 100),
+      yMax: klem(((view.bottom - img.top) / img.height) * 100),
+    };
+  }, []);
+
   const beregnSnapForKandidat = useCallback(
     (kandidat: Punkt, rectW: number, rectH: number, ekskluderIdx: number | null): SnapResultat | null => {
       const sp = snapParamRef.current;
@@ -822,13 +932,14 @@ export default function TegningerSide() {
       return beregnSnap({
         kandidat, anker, forforrige,
         referanser: samleReferanser(t0, ekskluderIdx),
+        utsnitt: beregnUtsnitt(),
         referanselinje: sp.referanselinje,
         ortho: sp.ortho, snap: sp.snapPaa,
         imageWidth: sp.imgW, imageHeight: sp.imgH,
         rectW, rectH, punktTolPx: PUNKT_TREFF_PX, guideTolPx: PUNKT_TREFF_PX,
       });
     },
-    [],
+    [beregnUtsnitt],
   );
 
   const nullstillForhandsvisning = useCallback(() => {
@@ -838,11 +949,21 @@ export default function TegningerSide() {
     setVisVinkelrett(false);
   }, []);
 
+  // RETUR 3 §3: skjermklikk → prosent i det UROTERTE bildet. Har brukeren rotert visningen
+  // («Roter» = CSS-rotate av wrapperen) inverse-roteres klikket med samme vinkel om senteret
+  // først — ellers leses prosenten mot den roterte AABB-en og nye markører/målepunkt havner
+  // feil. `w/h` er layout-størrelsen (offsetWidth/offsetHeight, upåvirket av rotasjonen) som
+  // snap/treff skal regne px-toleranse mot. Uten rotasjon er resultatet identisk med før.
+  const klikkTilProsent = useCallback((klientX: number, klientY: number, el: HTMLElement): { x: number; y: number; w: number; h: number } => {
+    const rect = el.getBoundingClientRect();
+    const w = el.offsetWidth || rect.width;
+    const h = el.offsetHeight || rect.height;
+    const p = inverseRoterKlikk(klientX, klientY, rect.left + rect.width / 2, rect.top + rect.height / 2, w, h, visningsDeltaRef.current);
+    return { x: p.x, y: p.y, w, h };
+  }, []);
+
   const handleMuseBevegelse = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    const rect = container.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const { x, y, w: rW, h: rH } = klikkTilProsent(e.clientX, e.clientY, e.currentTarget);
 
     // Måle-forhåndsvisning (90°/snap): vis hvor neste klikk lander + aktive
     // stiplede hjelpelinjer mens musa beveger seg over en påbegynt måling.
@@ -850,7 +971,7 @@ export default function TegningerSide() {
     const akt = aktivMaling(t0);
     const ankerIdx = akt && !akt.ferdig ? akt.punkter.length - 1 : null;
     if (!kalibrerModus && !punktDragRef.current && harPaagaaende(t0)) {
-      const snapR = beregnSnapForKandidat({ x, y }, rect.width, rect.height, ankerIdx);
+      const snapR = beregnSnapForKandidat({ x, y }, rW, rH, ankerIdx);
       if (snapR) {
         setForhandsPunkt(snapR.punkt);
         setHjelpelinjer(snapR.hjelpelinjer);
@@ -867,7 +988,7 @@ export default function TegningerSide() {
     } catch {
       setGpsKoordinat(null);
     }
-  }, [transformasjon, kalibrerModus, beregnSnapForKandidat]);
+  }, [transformasjon, kalibrerModus, beregnSnapForKandidat, klikkTilProsent]);
 
   const handleMuseForlat = useCallback(() => {
     setGpsKoordinat(null);
@@ -890,11 +1011,10 @@ export default function TegningerSide() {
       if (Math.sqrt(dx * dx + dy * dy) > 5) return;
     }
 
-    // Måle-/kalibrermodus: samle klikkpunkter (prosent).
+    // Måle-/kalibrermodus: samle klikkpunkter (prosent, inverse-rotert ved overstyring).
     {
-      const r = e.currentTarget.getBoundingClientRect();
-      const px = ((e.clientX - r.left) / r.width) * 100;
-      const py = ((e.clientY - r.top) / r.height) * 100;
+      const { x: px, y: py, w: rW, h: rH } = klikkTilProsent(e.clientX, e.clientY, e.currentTarget);
+      const r = { width: rW, height: rH };
 
       // Kalibrering tar nøyaktig 2 punkter (egen samling, uendret flyt).
       if (kalibrerModus) {
@@ -987,10 +1107,8 @@ export default function TegningerSide() {
     }
     setValgtElement(null);
 
-    const container = e.currentTarget;
-    const rect = container.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    // Markørplassering (prosent, inverse-rotert ved overstyring).
+    const { x, y } = klikkTilProsent(e.clientX, e.clientY, e.currentTarget);
 
     // Posisjonsvelger-modus: returner posisjon og naviger tilbake
     if (posisjonsvelgerAktiv && aktivTegning) {
@@ -1006,7 +1124,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand, aktivMal, velgReferanseModus, beregnSnapForKandidat, nullstillForhandsvisning]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleEngasjert, kalibrerModus, maleTilstand, aktivMal, velgReferanseModus, beregnSnapForKandidat, nullstillForhandsvisning, klikkTilProsent]);
 
   // Dra et satt målepunkt med musa (TILLEGG RETUR 1). Starter på punkt-prikken;
   // move/up lyttes på vindu så dra fortsetter utenfor prikken. Rører ikke maleFerdig
@@ -1023,13 +1141,15 @@ export default function TegningerSide() {
     if (dragIdx == null) return;
     const idx = dragIdx;
     function flytt(ev: PointerEvent) {
-      const r = maleInnerRef.current?.getBoundingClientRect();
-      if (!r || r.width <= 0 || r.height <= 0) return;
-      const x = Math.max(0, Math.min(100, ((ev.clientX - r.left) / r.width) * 100));
-      const y = Math.max(0, Math.min(100, ((ev.clientY - r.top) / r.height) * 100));
+      const el = maleInnerRef.current;
+      if (!el || el.offsetWidth <= 0 || el.offsetHeight <= 0) return;
+      // RETUR 3 §3: inverse-roter dra-punktet ved aktiv overstyring (klemt til [0,100]).
+      const p = klikkTilProsent(ev.clientX, ev.clientY, el);
+      const x = Math.max(0, Math.min(100, p.x));
+      const y = Math.max(0, Math.min(100, p.y));
       // 90°/snap under dra: snap til egne punkter + hjelpelinjer (ekskluder punktet
       // som dras). Lås-mot-anker gjelder ikke dra (ingen «anker» i en ferdig figur).
-      const snapR = beregnSnapForKandidat({ x, y }, r.width, r.height, idx);
+      const snapR = beregnSnapForKandidat({ x, y }, p.w, p.h, idx);
       const fp = snapR ? snapR.punkt : { x, y };
       setMaleTilstand((t) => flyttPunkt(t, idx, fp));
       if (snapR) { setHjelpelinjer(snapR.hjelpelinjer); setAksehjelp(snapR.aksehjelpelinje); }
@@ -1046,7 +1166,7 @@ export default function TegningerSide() {
       window.removeEventListener("pointermove", flytt);
       window.removeEventListener("pointerup", slutt);
     };
-  }, [dragIdx, beregnSnapForKandidat, nullstillForhandsvisning]);
+  }, [dragIdx, beregnSnapForKandidat, nullstillForhandsvisning, klikkTilProsent]);
 
   // Modell-korreksjon (funn 2026-08-22): dokumentflyt er nøkkelen, ikke faggruppe.
   // Serveren (F1/B1) krever `dokumentflytId` for ikke-HMS og validerer at flyten har malen
@@ -1214,6 +1334,24 @@ export default function TegningerSide() {
   const erLaster = opprettOppgaveMutation.isPending || opprettSjekklisteMutation.isPending;
   const zoomProsent = Math.round(zoom * 100);
 
+  // --- RETUR 2 (vedtak A): rotasjon. Auto-rotasjonen er BAKT inn i SVG-en; vieweren
+  // legger kun en brukeroverstyring på toppen (CSS-rotate av HELE wrapperen, så SVG og
+  // markører roterer sammen). `visningsDelta` = effektiv − auto. ---
+  const autoRot = typeof tegning.autoRotasjon === "number" ? tegning.autoRotasjon : null;
+  const rotOverstyrt = typeof tegning.rotasjonOverstyrt === "number" ? tegning.rotasjonOverstyrt : null;
+  const effektivRot = rotOverstyrt ?? autoRot ?? 0;
+  const visningsDelta = effektivRot - (autoRot ?? 0);
+  visningsDeltaRef.current = visningsDelta;
+  const norm180 = (d: number) => { let v = ((d % 360) + 360) % 360; if (v > 180) v -= 360; return v; };
+  const roterNittiGrader = () => {
+    if (!aktivTegning?.id) return;
+    settRotasjonMutation.mutate({ drawingId: aktivTegning.id, grader: norm180(effektivRot + 90) });
+  };
+  const roterTilbake = () => {
+    if (!aktivTegning?.id) return;
+    settRotasjonMutation.mutate({ drawingId: aktivTegning.id, grader: null });
+  };
+
   // --- Måleverktøy: utledet mm/piksel + kilde-sporet målestokk ---
   const mmPrPiksel = tegning.mmPrPiksel ?? null;
   const scaleKilde = tegning.scaleKilde ?? null;
@@ -1233,7 +1371,7 @@ export default function TegningerSide() {
   const maleAvslagGrunn: string | null = kanMaleNaa
     ? null
     : mmPrPiksel == null
-      ? t("maaling.avslagIngenMmPrPiksel")
+      ? t("maaling.manglerMaalegrunnlag")
       : t("maaling.avslagIngenMalestokk");
 
   const formatMeter = (m: number) =>
@@ -1421,8 +1559,24 @@ export default function TegningerSide() {
           <IfcMetadataBadge metadata={(tegning as unknown as { ifcMetadata: IfcMetadataJson }).ifcMetadata} />
         )}
         {/* D6b: tidligere revisjoner — klikk åpner forrige fil skrivebeskyttet */}
-        <RevisjonsListe revisjoner={tegning.revisions} />
+        <RevisjonsListe
+          revisjoner={tegning.revisions}
+          tegningsnummer={tegning.drawingNumber}
+          tegningNavn={tegning.name}
+        />
         <div className="flex-1" />
+
+        {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
+        {nedlastUrl && (
+          <button
+            onClick={lastNedTegning}
+            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            title={t("handling.lastNed")}
+          >
+            <Download className="h-4 w-4" />
+            {t("handling.lastNed")}
+          </button>
+        )}
 
         {/* Zoom-kontroller */}
         <div className="flex items-center gap-1">
@@ -1450,6 +1604,41 @@ export default function TegningerSide() {
             <ZoomIn className="h-4 w-4" />
           </button>
         </div>
+
+        {/* RETUR 2 (vedtak A): rotasjon — kun for DWG→SVG. Auto-rotasjonen er bakt inn;
+            her vises etiketten + en manuell overstyring (90°-trinn / tilbake til auto). */}
+        {erSvgFil && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <div className="flex items-center gap-1">
+              {Math.round(effektivRot) !== 0 && (
+                <span className="whitespace-nowrap text-xs text-gray-500">
+                  {rotOverstyrt == null && autoRot != null
+                    ? t("tegninger.rotertAuto", { grader: Math.round(autoRot) })
+                    : t("tegninger.rotert", { grader: Math.round(effektivRot) })}
+                </span>
+              )}
+              <button
+                onClick={roterNittiGrader}
+                disabled={settRotasjonMutation.isPending}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
+                title={t("tegninger.roter90")}
+              >
+                <RotateCw className="h-4 w-4" />
+              </button>
+              {rotOverstyrt != null && (
+                <button
+                  onClick={roterTilbake}
+                  disabled={settRotasjonMutation.isPending}
+                  className="rounded px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-100 disabled:text-gray-300"
+                  title={t("tegninger.roterTilbake")}
+                >
+                  {t("tegninger.roterTilbakeKort")}
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Måleverktøy — kun for bilde-tegninger (PNG/JPG/SVG) */}
         {erBilde && (
@@ -1719,7 +1908,20 @@ export default function TegningerSide() {
           {harGeoref ? (
             <span className="text-gray-600">{t("maaling.georeferertInfo")}</span>
           ) : mmPrPiksel == null ? (
-            <span className="text-amber-700">{t("maaling.avslagIngenMmPrPiksel")}</span>
+            <span className="flex items-center gap-2">
+              <span className="text-amber-700">{t("maaling.manglerMaalegrunnlag")}</span>
+              {kanAdministrereOmrade && (
+                <button
+                  onClick={() => backfillMaalegrunnlagMutation.mutate({ projectId: params.prosjektId })}
+                  disabled={backfillMaalegrunnlagMutation.isPending}
+                  title={t("maaling.hentMaalegrunnlagHjelp")}
+                  className="flex items-center gap-1 rounded border border-amber-400 bg-amber-50 px-2 py-1 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${backfillMaalegrunnlagMutation.isPending ? "animate-spin" : ""}`} />
+                  {t("maaling.hentMaalegrunnlag")}
+                </button>
+              )}
+            </span>
           ) : (
             <>
               <select
@@ -1906,7 +2108,13 @@ export default function TegningerSide() {
             <div
               ref={maleInnerRef}
               className={`relative inline-block ${klikkModus === "inspeksjon" ? "cursor-pointer" : "cursor-crosshair"}`}
-              style={{ width: `${zoom * 100}%`, minWidth: "100%" }}
+              style={{
+                width: `${zoom * 100}%`,
+                minWidth: "100%",
+                // RETUR 2: brukeroverstyring roterer SVG + markører SAMMEN (samme wrapper),
+                // på toppen av den inn-bakte auto-rotasjonen. 0 = ingen ekstra rotasjon.
+                ...(visningsDelta ? { transform: `rotate(${visningsDelta}deg)`, transformOrigin: "center center" } : {}),
+              }}
               onMouseDown={handleMuseNed}
               onClick={handleBildeKlikk}
               onMouseMove={handleMuseBevegelse}

@@ -1,10 +1,47 @@
 ---
 name: historikk-2026-10
 description: Arkiv av deployete PR-er/saker fra oktober 2026. Flyttet hit fra STATUS-AKTUELT ved DEPLOYET TIL PROD.
-sist_verifisert_mot_kode: 2026-10-08
+sist_verifisert_mot_kode: 2026-10-09
 ---
 
 # Historikk oktober 2026
+
+## Prod-deploy 2026-10-09 (`64de37bd`, develop→main) — T2 tegningsserie, V20-M, 90°/snap, DWG libredwg (LIVE)
+
+Release-commit `64de37bd` på `main`, bygget 00:21Z.
+
+**Innhold** (alle målt som forfedre av `64de37bd` med `git merge-base --is-ancestor`):
+- T2 Tegningsserie — merk-og-flytt-gruppering (`19dbc187`, merge `60ae540d`).
+- V20-M — mobilen følger samme pauseregel, låst visning viser matpause-bæreren (`948c564a`, merge `521e805b`). Lukker BACKLOG-punktet fra `f032e6be`.
+- 90°-lås, referanselinje, snap til egne punkter, polylinje Fullfør/Fortsett (`e633d27c`, merge `8df57549`).
+- DWG-1 — libredwg 0.14 i begge Docker-bilder, konverterer-helse, dialog-sperre (`732ce826`, merge `45b4d80d`).
+- DWG-2 — extents-vakt, DXF, måling fra DWG-enheter, layouts/revisjoner, revisjonsliste (`510aa11c`, merge `13b0a79e`).
+- DWG retur 1 — HATCH-fyll, BYLAYER/ACI 7-farge, extents-dekning, blokk-base (`d0ea3a93`, merge `c49558f3`).
+
+**Migreringer kjørt mot prod:** `20261008120000_tegningsserie` · `20261008130000_dwg_layout_kobling`. DB-dump før release:
+`~/backup/sitedoc-pre-release-20261009.dump` (forutsatt tatt).
+
+**Server:** `dwg2dxf 0.14` verifisert i `sitedoc-api` og `sitedoc-web`.
+
+**Mobil:** OTA prod-kanal fra `64de37bd`, verifisert på telefon (Mer viser `64de37bd`). Rad i [eas-build-veileder.md § OTA-logg](eas-build-veileder.md).
+
+**Ikke med:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert.
+
+## Arkivert fra STATUS-AKTUELT 2026-10-09
+
+Flyttet ordrett. Prod-linja for `de1582ae` er erstattet av linja for `64de37bd`; «IKKE i prod»-punktene (90°/snap, V20-M) og
+«Gjenstår tegninger: T2» er nå i prod. V20-M er fjernet fra V20-oppfølger-linja (V21/V22 står igjen i STATUS-AKTUELT).
+
+> 🟢 **PROD-DEPLOY 2026-10-08: `de1582ae`** (main, bygget 15:38Z) — ingen migreringer. 🟢 **OTA prod-kanal** fra `de1582ae`
+> (OTA `01a11c3…`), verifisert på telefon (build 54, Mer viser `de1582ae`). Innhold: tegninger serieopplasting T1/T1b/T1c
+> (`0e50adad`, `c9c55137`, `48016503`) · zoom og verktøylinje på tegningssiden (`ce29a0ba`, `0f1e38e0`) · måling web (målestokk fra
+> tittelfelt, kalibreringsveiledning, styreflate-knip, linjal/polylinje/areal: `09fd30a4`, `84f97c19`) · måling mobil (hint, langt trykk,
+> verktøy, lupe, rediger figur: `9cf1fbea`, `21edd9ed`, `f0ad4d47`, `e9662121`, `b3f7d24f`, `c62bb180`, `66a25e24`).
+> Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
+> ⚠️ **IKKE i prod:** 90°/snap (`feat/maaling-90-snap`, under arbeid) · V20-M (ikke levert). 🟡 **Gjenstår tegninger:** T2 `Tegningsserie` (ikke bestilt).
+
+> 🟡 **V20-oppfølgere (åpne):** V20-M (låst visning viser matpause-avkrysningen, BACKLOG `f032e6be`) · V21 (overtidsforslag
+> manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT 2026-10-06 — egne små ordrer.
 
 ## Prod-deploy 2026-10-08 (`de1582ae`, develop→main) — tegninger serieopplasting, zoom, måling web+mobil (LIVE)
 

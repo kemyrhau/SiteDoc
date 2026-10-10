@@ -312,8 +312,9 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   gjenbrukt fra `@sitedoc/shared`** (`kanMale`, `malMm`, `malArealMm2`, `parseMalestokk`) — ingen kopi.
   Overlayet (polylinje/polygon + punkter + etiketter) injiseres med `window.tegnMaling` (ingen reload;
   re-injiseres i `onLoadEnd` når markør-refetch bygger HTML på nytt). Kilden vises ved resultatet
-  («1:50 (fra tittelfeltet)» osv.). **Samme lås som web:** `kanMale` styrer; usann → sperret knapp med
-  «Målestokken må bekreftes på web». **Ingen kalibrering på mobil.** Måling er papir-veien (georef-
+  («1:50 (fra tittelfeltet)» osv.). **Samme lås som web:** `kanMale` styrer; usann → sperret knapp. Teksten
+  følger årsaken (reparasjon 2026-10-09): mangler `mmPrPiksel` → «Tegningen mangler målegrunnlag. Oppdater
+  den på web.»; ellers «Målestokken må bekreftes på web». **Ingen kalibrering på mobil.** Måling er papir-veien (georef-
   avstand måles på web). Lukking: linjal etter 2 punkter; polylinje/areal via «Fullfør»/«Lukk flate»
   eller trykk nær et eksisterende punkt (`LUKK_TERSKEL_PCT`). Esc finnes ikke på mobil → «Lukk»-knapp.
 - **SVAR (orkestrator):** måling bare online; ingen lokal metadata-tabell (offline-viseren er egen
@@ -477,6 +478,14 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   for DWG-konverterte. Snap til tegningens egne linjer/hjørner krever enten vektorgrunnlag (`pdftocairo -svg`
   ved konvertering) eller kantdeteksjon i bildet — se leveransen for omfang. Referanselinje-grepet dekker
   skrå vegger uten dette.
+
+**RETUR 1 (2026-10-09) — snap fester seg ikke til usynlige objekter:** `beregnSnap` tar nå et valgfritt
+`utsnitt` (synlig del av bildet i prosent). WebView-en beregner det (`utsnitt(box)`: `visualViewport` mot
+bildeboksen) og legger det på `forhaandspunkt`/`maledrag`/`gest`-meldingene; RN sender det til
+`beregnSnapForKandidat`. Snap-mål og 90°-hjelpelinjer utenfor utsnittet ignoreres (margin pr. akse =
+treffradius→prosent). I tillegg nullstilles `maleTilstand` ved `tegningUrl`-bytte så målinger fra en annen
+tegning ikke blir snap-kandidater. Treffradiusen var allerede i skjerm-px (`box.bredde*visualViewport.scale`)
+— ingen endring der. Tester: `maaling.test.ts`.
 
 ### Offline-LESING av dokumenter (fase 2, 2026-10-03)
 

@@ -9,6 +9,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
 import { versionRoute } from "./routes/version";
 import { uploadRoute } from "./routes/upload";
+import { tegningNedlastingRoute } from "./routes/tegningNedlasting";
 import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
@@ -154,6 +155,9 @@ async function start() {
 
   // Filopplasting
   await server.register(uploadRoute);
+
+  // Nedlasting av tegninger som ZIP (valgte / serie) — strømmer server-side
+  await server.register(tegningNedlastingRoute);
 
   // Dev-bypass-innlogging — KUN i dev eller når eksplisitt enabled på test
   if (erDevLoginAktiv()) {

@@ -25,6 +25,19 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-09
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `cea95273` ← `dc8fe05f` | 🔴 **Web — originalfil pr. revisjon** | **Før:** eldre revisjoner av DWG-tegninger hadde bare den konverterte visningen. **Etter:** ny revisjon tar vare på originalfila (gjelder fra nå, også tegninger lastet opp tidligere); revisjoner arkivert før endringen viser fortsatt «Originalfil ikke lagret». Zip lister filer som mangler på disk i `MANGLER.txt`. Migrering `20261010120000_revisjon_originalfil` (additiv). Reload: deploy + migrering | 🟢 Kenneth 2026-10-10 («ja, ta med original på nye revisjoner») |
+| `c323e309` ← `48abf5a6` | 🔴 **Web + mobil — DWG-rotasjon** | **Før:** rotasjon valgt med ⟳ ble nullstilt ved ny revisjon eller «prøv igjen». **Etter:** brukerens rotasjon følger med; markører holder posisjon. Automatisk veggretting beholdes. Reload: deploy | 🟢 Kenneth 2026-10-10 («rotasjonen skal følge med til neste revisjon») |
+| `b57d462b` ← `be46642b` | 🔴 **Web — last ned tegninger** | **Før:** tegninger kunne bare åpnes i visningen, originalfila (DWG/PDF) kunne ikke hentes. **Etter:** «Last ned» i tegningsvisning (originalfil) og pr. revisjon (PDF/bilde; DWG-revisjoner viser «Originalfil ikke lagret»); avkryssede tegninger og hel serie som zip (maks 200 tegninger / 2 GB). Sikkerhet: `diskSti` herdet sentralt mot path traversal (gjelder også eksport/arkiv). Reload: deploy | 🟢 Kenneth 2026-10-10 («med zip … laste ned en serie») |
+| `76520b47` ← `271b52d8` | 🔴 **Web + mobil — DWG-konvertering, retur 4** | **Før:** blokk-attributter (ATTRIB, f.eks. høydetekster i fallplan) ble ikke tegnet. **Etter:** synlige ATTRIB tegnes (fallplan 0 → 237 tekster), vannrett som MTEXT; hver konvertering lagrer `drawings.konvertering_rapport` (tegnet / hoppet over pr. type), test feiler ved ukjent synlig type. Migrering `20261009130000_dwg_konvertering_rapport` (additiv). Reload: deploy + migrering + ny konvertering | 🟢 Kenneth 2026-10-09 («skal ikke alle streker gjenskapes?») |
+| `033d720d` ← `830f7221` | 🔴 **Web + mobil + server — timer, firma-isolasjon** | **Før:** ny dagsseddel blandet tre firmakilder (valgt firma, alle medlemsprosjekter, medlemsfirma) — prosjekter fra andre firma ble tilbudt og avvist; timer havnet på medlemsfirmaet. **Etter:** timer følger innlogget firma («Mitt firma» på mobil); prosjektlista kun firmaets prosjekter; egne timer krever å være ansatt i firmaet (synlig sperre m/ forklaring, ingen admin-unntak); «Mine dagsedler» (periode, dato, prosjekt, status, fritekst, også sedler uten rader); returnert og ikke-attestert dagsseddel kan slettes. Reload: OTA + deploy | 🟢 Kenneth 2026-10-09 (to vedtak + tillegg) |
+| `91cbd3ea` ← `51295a13` (DWG retur 2+3) | 🔴 **Server + web + mobil — DWG** | **Etter:** bygningsplaner uten koordinatsystem rettes opp automatisk (veggvinkel), tekst holdes vannrett; tegninger med koordinatsystem står nord-opp (ingen rotasjon); «Rotert N° automatisk» + «Roter»; fallpiler (LEADER) tegnes; startvisning zoomer til bygget; markører følger rotasjonsendring (tilnærmet for ikke-kvadratiske tegninger). Migrering `20261009120000_dwg_rotasjon_startutsnitt` | 🟢 Kenneth 2026-10-09 (A rett opp, B godta) |
+| ← `0747c6bf` | **Web + mobil — måling** | **Før:** snap kunne feste seg til punkter fra en tidligere åpnet tegning og til hjelpelinjer fra punkter utenfor skjermen. **Etter:** snap kun til synlige mål; målinger nullstilles ved tegningsbytte | 🟢 Reparasjon (Kenneth 2026-10-09) |
+| ← `4452a40b` | **Web + mobil — måling, eldre tegninger** | **Før:** PDF-er konvertert før 25.09 kunne aldri måles; håndskrevet målestokk telte ikke; forklaringen sa «bekreft målestokk». **Etter:** «Hent målegrunnlag» (admin) regner mm/px fra original-PDF uten ny rendering; målestokk skrevet inn = «manuell»; forklaringen sier «mangler målegrunnlag» når det er årsaken | 🟢 Reparasjon (Kenneth 2026-10-09) |
+
 ### 2026-10-08
 
 | Hash | Flate | Før → Etter | Hjemmel |
@@ -287,6 +300,13 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 ---
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
+
+### 2026-10-10
+
+| Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
+|---|---|---|---|
+| `675f8cc3` ← `2f4a3558` | Web + mobil — DWG-tegninger | **Tekst ble ~0,72× riktig høyde** (rom- og kotetekster for små mot TrueView); MTEXT-forankring (gruppe 71) ble ignorert (tekst oppå tekst). Løse elementer (modullinjer, snittmarkør) styrte startutsnittet så tegningen åpnet for langt ute. Nå riktig teksthøyde og forankring, startutsnitt etter bygget (georefererte tegninger uendret) | Tegningen skal vises som tegnet; startutsnitt vedtatt RETUR 2 §3. Reload: deploy + ny konvertering |
+| `deb57d89` ← `def7f228` | Web + mobil — DWG-tegninger | **Store DWG-er (fallplan) viste svarte flater** i georeferanse-editor, ved åpning og på mobil (strektykkelse i tegningsenheter ≈ 94 px). Nå fast 1,5 px-strek i SVG-en selv | Tegningen skal vises som tegnet. Reload: deploy (ny konvertering for eksisterende DWG) |
 
 ### 2026-10-03
 

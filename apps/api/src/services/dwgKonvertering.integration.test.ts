@@ -64,6 +64,8 @@ describe.skipIf(!dwg2dxf)("D10 — ekte DWG-fixtures (libredwg)", () => {
     expect(res.scaleKilde).toBe("dwg");
     expect(res.scale).toBe("1:1");
     expect(res.mmPrPiksel).toBeGreaterThan(0);
+    // RETUR 2 (vedtak A): kartdata har ingen tydelig vinkelrett veggrid → ingen rotasjon.
+    expect(res.autoRotasjon).toBeNull();
   });
 
   it("UTM32: koordinatsystem gjenkjennes fra filnavnet", { timeout: 120_000 }, async () => {
@@ -71,6 +73,37 @@ describe.skipIf(!dwg2dxf)("D10 — ekte DWG-fixtures (libredwg)", () => {
     expect(res.feil).toBeNull();
     expect(res.koordinatSystem).toBeTruthy();
     expect(res.scaleKilde).toBe("dwg"); // INSUNITS=6 (meter)
+    // Kartdata skal stå urotert (ingen dominant vinkelrett par).
+    expect(res.autoRotasjon).toBeNull();
+  });
+
+  it("RETUR 4 fullstendighet: NTM6 + UTM32 har ingen parset-men-ikke-tegnet type", { timeout: 120_000 }, async () => {
+    for (const fil of [NTM6, UTM32]) {
+      const { res } = await konverterFixture(fil);
+      expect(res.feil).toBeNull();
+      // Gate: hver DXF-type er tegnet eller på allowlist (VERTEX/SEQEND folder inn i POLYLINE).
+      expect(res.rapport!.ikkeTegnet).toEqual({});
+    }
+  });
+
+  it("SVAR RETUR 6 spor 2: Ålesund er en no-op (ingen isolerte ytter-klynger → all geometri innenfor viewBox)", { timeout: 120_000 }, async () => {
+    // Robust-grensen skal IKKE trimme kartdata (ingen modullinjer/løse markører). Bevis:
+    // hvert tegnet punkt ligger innenfor viewBox. Hadde den skrelt, ville skrelt geometri
+    // ligget utenfor. (RETUR 1 pkt 7: aldri klipp ekte kantgeometri.)
+    for (const fil of [NTM6, UTM32]) {
+      const { res, dir } = await konverterFixture(fil);
+      const svg = readFileSync(join(dir, res.visningUrl.replace("/uploads/", "")), "utf-8");
+      const vb = svg.match(/viewBox="([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+)"/)!;
+      const vbX = parseFloat(vb[1]!), vbY = parseFloat(vb[2]!), vbW = parseFloat(vb[3]!), vbH = parseFloat(vb[4]!);
+      const eps = Math.max(vbW, vbH) * 1e-6;
+      let utenfor = 0;
+      for (const m of svg.matchAll(/points="([^"]+)"/g))
+        for (const c of m[1]!.matchAll(/(-?[\d.eE]+),(-?[\d.eE]+)/g)) {
+          const x = parseFloat(c[1]!), y = parseFloat(c[2]!);
+          if (x < vbX - eps || x > vbX + vbW + eps || y < vbY - eps || y > vbY + vbH + eps) utenfor++;
+        }
+      expect(utenfor).toBe(0);
+    }
   });
 });
 
@@ -82,6 +115,50 @@ describe.skipIf(!dwg2dxf || !KUNDEFIL || !existsSync(KUNDEFIL))(
       expect(res.feil).toBeNull();
       expect(res.visningUrl).toMatch(/\.svg$/);
       expect(res.mmPrPiksel).toBeGreaterThan(0);
+    });
+
+    it("RETUR 2 (vedtak A): bygget auto-roteres ~+40° (vegger 50° → aksejevnt)", { timeout: 180_000 }, async () => {
+      const { res } = await konverterFixture(KUNDEFIL);
+      expect(res.autoRotasjon).not.toBeNull();
+      // Veggrid målt til ~50,5° (97,6 % av linjelengden) → ~+39,5° gjør det aksejevnt.
+      // Rotasjonen skal orthogonalisere (|θ| ≤ 45°) og ligge rundt +40°.
+      expect(res.autoRotasjon!).toBeGreaterThan(35);
+      expect(res.autoRotasjon!).toBeLessThanOrEqual(45);
+    });
+
+    it("RETUR 2 §3: startutsnitt (tett klynge) settes", { timeout: 180_000 }, async () => {
+      const { res } = await konverterFixture(KUNDEFIL);
+      expect(res.startutsnitt).not.toBeNull();
+      expect(res.startutsnitt!.w).toBeGreaterThan(0);
+      expect(res.startutsnitt!.w).toBeLessThanOrEqual(1);
+      expect(res.startutsnitt!.h).toBeGreaterThan(0);
+    });
+
+    it("RETUR 2 TILLEGG: LEADER (fall-piler) tegnes — dxf-parser dropper dem", { timeout: 180_000 }, async () => {
+      const { konverterDwg: _k } = await import("./dwgKonvertering");
+      const { parseLeadere } = await import("./dwgKonvertering");
+      const dir = mkdtempSync(join(tmpdir(), "dwgtest-"));
+      const kopi = join(dir, basename(KUNDEFIL));
+      copyFileSync(KUNDEFIL, kopi);
+      execFileSync(dwg2dxf!, ["-y", kopi], { timeout: 180_000, cwd: dir, maxBuffer: 300 * 1024 * 1024, stdio: "ignore" });
+      const dxf = readFileSync(kopi.replace(/\.[^.]+$/, ".dxf"), "utf-8");
+      const leadere = parseLeadere(dxf);
+      // Kundefila: 24 LEADER i model space (23 på «878-…», 1 på «858-…»).
+      expect(leadere.model.length).toBeGreaterThanOrEqual(20);
+      const { dxfTilSvg } = await import("./dwgKonvertering");
+      const svg = dxfTilSvg(dxf)!.svg;
+      // Alle LEADER-ene skal ende som polylinjer i SVG-en (før RETUR 2: 0).
+      const antall = (svg.match(/data-type="LEADER"/g) || []).length;
+      expect(antall).toBeGreaterThanOrEqual(leadere.model.length);
+    });
+
+    it("RETUR 4 fullstendighet: ikkeTegnet er tom, og ATTRIB-verditekst tegnes", { timeout: 180_000 }, async () => {
+      const { res } = await konverterFixture(KUNDEFIL);
+      expect(res.feil).toBeNull();
+      expect(res.rapport!.ikkeTegnet).toEqual({});
+      // 503 ATTRIB var usynlige før RETUR 4 (dxf-parser dropper dem) → nå tegnes verdiene.
+      expect(res.rapport!.parsetPrType["ATTRIB"]).toBeGreaterThan(0);
+      expect(res.rapport!.tegnetPrType["ATTRIB"]).toBeGreaterThan(0);
     });
   },
 );

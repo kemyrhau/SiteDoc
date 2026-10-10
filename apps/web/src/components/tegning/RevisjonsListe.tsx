@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal } from "@sitedoc/ui";
-import { History } from "lucide-react";
+import { byggTegningNedlastingsnavn, filendelseFraUrl } from "@sitedoc/shared";
+import { History, Download } from "lucide-react";
+import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 /**
  * D6b (DWG-2): kompakt liste over TIDLIGERE revisjoner på tegningssiden. Klikk åpner
@@ -21,10 +23,26 @@ export type RevisjonRad = {
   revision: string;
   version: number;
   fileUrl: string;
+  /** Arkivert original (DWG/PDF) for denne revisjonen. NULL = ikke tatt vare på
+   * (eldre revisjoner arkivert før feltet fantes). */
+  originalFileUrl?: string | null;
   createdAt: string | Date;
   uploadedBy?: { name: string | null; email: string | null } | null;
   layouter?: unknown;
 };
+
+/**
+ * URL-en til revisjonens ORIGINAL å laste ned, eller null om den ikke finnes.
+ * Diskriminator (NESTE 2026-10-10): `originalFileUrl` hvis arkivert; ellers er `fileUrl`
+ * originalen BARE når den ikke er en konvertert SVG (DWG/DXF arkivert før feltet fantes
+ * har `.svg`-fileUrl → ingen original). SVG er ikke en tillatt opplastingstype, så
+ * endelsen skiller entydig. Vi gir aldri en fil som ser ut som originalen når den ikke er
+ * det (orkestrator-SVAR 2026-10-10).
+ */
+function revisjonOriginalUrl(r: Pick<RevisjonRad, "fileUrl" | "originalFileUrl">): string | null {
+  if (r.originalFileUrl) return r.originalFileUrl;
+  return filendelseFraUrl(r.fileUrl).toLowerCase() !== ".svg" ? r.fileUrl : null;
+}
 
 /** SVG/PNG/JPG vises som bilde, PDF i iframe, annet som nedlastingslenke. */
 function erBildeUrl(url: string): boolean {
@@ -61,11 +79,20 @@ function FilVisning({ url, alt }: { url: string; alt: string }) {
 
 export function RevisjonsListe({
   revisjoner,
+  tegningsnummer,
+  tegningNavn,
 }: {
   revisjoner: RevisjonRad[];
+  /** For nedlastings-filnavnet (tegningsnummer_revX.endelse). */
+  tegningsnummer?: string | null;
+  tegningNavn?: string;
 }) {
   const { t } = useTranslation();
   const [valgt, setValgt] = useState<RevisjonRad | null>(null);
+  // Nedlasting av revisjonens ORIGINAL (DWG/PDF). For revisjoner uten arkivert original
+  // (eldre DWG/DXF) er den null → ingen knapp. Visningen under bruker fortsatt fileUrl.
+  const valgtOriginalUrl = valgt ? revisjonOriginalUrl(valgt) : null;
+  const apneNedlasting = useSignertLenkeApner(valgtOriginalUrl ? [valgtOriginalUrl] : []);
 
   if (!revisjoner || revisjoner.length === 0) return null;
 
@@ -96,7 +123,31 @@ export function RevisjonsListe({
         {valgt && (
           <div className="flex flex-col gap-4">
             {valgt.fileUrl ? (
-              <FilVisning url={valgt.fileUrl} alt={t("tegninger.revisjon.visning", { rev: valgt.revision })} />
+              <>
+                <FilVisning url={valgt.fileUrl} alt={t("tegninger.revisjon.visning", { rev: valgt.revision })} />
+                {valgtOriginalUrl ? (
+                  <button
+                    onClick={() =>
+                      apneNedlasting(valgtOriginalUrl, {
+                        download: byggTegningNedlastingsnavn({
+                          tegningsnummer,
+                          navn: tegningNavn ?? t("tegninger.revisjon.visning", { rev: valgt.revision }),
+                          revisjon: valgt.revision,
+                          fileUrl: valgtOriginalUrl,
+                        }),
+                      })
+                    }
+                    className="flex items-center gap-1 self-start rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {t("handling.lastNed")}
+                  </button>
+                ) : (
+                  // DWG/DXF: kun den konverterte SVG-en er arkivert pr. revisjon —
+                  // originalen finnes ikke, så ingen nedlastingsknapp.
+                  <p className="text-xs text-gray-500">{t("tegninger.revisjon.ingenOriginal")}</p>
+                )}
+              </>
             ) : (
               <p className="text-sm text-gray-500">{t("tegninger.revisjon.ingenFil")}</p>
             )}

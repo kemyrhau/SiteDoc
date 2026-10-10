@@ -5921,4 +5921,10 @@ sjekklisteoversikten mot mobil.
 
 **Forbedring:** valgfritt kortnavn-felt per firma/prosjekt i innstillinger, brukt i topplinja når satt. Generisk fallback = fullt navn. Feature: DB-felt + innstillings-UI + wiring i KontekstChip. **NB:** løser ikke alene at byggeplass må overleve trunkering — se den umiddelbare topplinje-fiksen (fabel design-call, K3). Denne er den pene, varige varianten; ikke i K3-kritisk sti.
 
-- 🟡 **V20-M (mobil) — låst visning skal vise matpause-avkrysningen skrivebeskyttet** (Kenneth-test 2026-10-07: sendt sedel 06.10, 07–16, 8,50, `pause_min = 30`; mobilen skjuler avkrysningen når sedelen er låst). Tas med i V20-M-ordren. Web-delen er lagt i V20-W (TILLEGG 2).
+- ✅ **LEVERT `948c564a`, i prod `64de37bd` (2026-10-09).** ~~V20-M (mobil) — låst visning skal vise matpause-avkrysningen skrivebeskyttet~~ (Kenneth-test 2026-10-07: sendt sedel 06.10, 07–16, 8,50, `pause_min = 30`; mobilen skjuler avkrysningen når sedelen er låst). Tas med i V20-M-ordren. Web-delen er lagt i V20-W (TILLEGG 2).
+
+- 🟡 **DWG — markører ved rotasjonsendring er bare tilnærmet riktige** (Kontrollør 2026-10-09 på `51295a13`): `roterProsentMarkor` roterer i prosent-rommet om (50,50) og ignorerer sideforhold/viewBox-endring → ~25 % avvik på 2:1-tegninger. Oppfølger: full gammel→ny affin remap. Sjelden sti (re-konvertering med eksisterende markører som endrer rotasjon).
+- 🟡 **Snap-utsnitt under manuell rotasjon** (Dokgen 2026-10-09): `beregnUtsnitt` regner AABB og blir litt upresis når «Roter» er aktiv. Presisjon, ikke korrekthet.
+
+- 🟡 **Timer — dagsseddel viste 0 rader tross 2 i DB** (prod 2026-10-09, Kenneths 19.08 hos A.Markussen, nå slettet): radvisningen filtrerer ikke på firma (målt av redesign); hypotese id vs clientUuid-mismatch. Ikke reproduserbar etter sletting — mål ved neste forekomst (SQL: `sheet_timer.sheet_id` vs `daily_sheets.id/client_uuid`).
+- 🟡 **`eksternKostObjekt.list` bruker brukerens medlemsfirma** (redesign-funn 2026-10-09, 12+ prosjekt-skopede kallere). Bør følge valgt firma som timer-kjernen (`830f7221`).

@@ -13,6 +13,46 @@
 export type Punkt = { x: number; y: number };
 
 /**
+ * RETUR 3 §3 — et skjermklikk i en CSS-rotert tegningsvisning (brukerens «Roter»-overstyring)
+ * inverse-roteres til prosent i det UROTERTE bildet, slik at en ny markør/målepunkt havner samme
+ * sted som uten rotasjon. Visningen roterer wrapperen `rotate(grader)` om senteret
+ * (`transformOrigin: center center`), så klikket må roteres tilbake med samme vinkel om samme
+ * senter før prosenten regnes ut.
+ *
+ * - `klientX/Y`: musas skjermkoordinat (clientX/clientY).
+ * - `senterX/Y`: det roterte elementets visuelle senter = AABB-senteret fra getBoundingClientRect
+ *   (= det uroterte senteret, siden rotasjon om senteret bevarer det).
+ * - `bredde/høyde`: elementets LAYOUT-størrelse (offsetWidth/offsetHeight), upåvirket av rotasjonen
+ *   — IKKE AABB-en getBoundingClientRect gir for det roterte elementet.
+ * - `grader`: visningsdelta (samme fortegn som CSS `rotate`). 0 → ren prosent.
+ *
+ * Prosenten er uklampet (et klikk utenfor bildet kan gi <0 eller >100 — kalleren klemmer ved behov).
+ */
+export function inverseRoterKlikk(
+  klientX: number,
+  klientY: number,
+  senterX: number,
+  senterY: number,
+  bredde: number,
+  høyde: number,
+  grader: number,
+): Punkt {
+  const vx = klientX - senterX;
+  const vy = klientY - senterY;
+  if (!grader) {
+    // Ren prosent: senter − halv layout-størrelse gir venstre/topp-kant.
+    return { x: ((vx + bredde / 2) / bredde) * 100, y: ((vy + høyde / 2) / høyde) * 100 };
+  }
+  const r = (grader * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  // Inverse av CSS-rotasjonen R(θ)=[[c,-s],[s,c]] (skjerm, y-ned): u = R(−θ)·v.
+  const ux = vx * c + vy * s;
+  const uy = -vx * s + vy * c;
+  return { x: (ux / bredde + 0.5) * 100, y: (uy / høyde + 0.5) * 100 };
+}
+
+/**
  * Kjente kilder til en tegnings målestokk. `"dwg"` (DWG-2, D5): utledet rett fra
  * tegningens egne enheter ($INSUNITS) ved konvertering — måling er aktiv direkte
  * (Kenneth Q4 2026-10-08), uten et bekreftelsessteg. Kalibrering kan alltid
@@ -180,6 +220,24 @@ export function kanMale(
     scaleKilde === "georeferanse" ||
     scaleKilde === "dwg"
   );
+}
+
+/**
+ * Kilden til `scale` ved LAGRING fra et skjema (detaljtabell / «Rediger flere»).
+ * Et menneske som taster inn en målestokk ER en manuell bekreftelse — så en satt
+ * `scale` uten en eksplisitt kilde skal lagres som `"manuell"`, ellers forblir
+ * `scaleKilde` null og `kanMale()` avslår måling selv om 1:50 står i feltet
+ * (regresjonen på eldre UNN-tegninger, 2026-10-09). En eksplisitt kilde
+ * (in-viewer-panelet, kalibrering) beholdes alltid. Ingen `scale` i endringen →
+ * ingen kilde å utlede (`undefined`, feltet røres ikke). Serveren (`tegning.oppdater`)
+ * håndhever denne regelen.
+ */
+export function utledScaleKildeVedLagring(
+  scaleEndret: boolean,
+  eksplisittKilde: ScaleKilde | null | undefined,
+): ScaleKilde | undefined {
+  if (eksplisittKilde != null) return eksplisittKilde;
+  return scaleEndret ? "manuell" : undefined;
 }
 
 /**
@@ -409,6 +467,40 @@ export interface Hjelpelinjer {
 }
 
 /**
+ * Synlig utsnitt av tegningen i PROSENT (0–100) av bildet — den delen som
+ * faktisk vises på skjermen etter zoom/scroll. Brukt til å holde snap borte fra
+ * usynlige objekter (RETUR 1): et punkt eller en hjelpelinje som ikke er inne i
+ * utsnittet skal aldri trekke kandidaten til seg.
+ */
+export interface Utsnitt {
+  xMin: number;
+  yMin: number;
+  xMax: number;
+  yMax: number;
+}
+
+/**
+ * Behold bare punktene som ligger inne i det synlige `utsnitt`-et (prosent), med
+ * en margin pr. akse (prosent) slik at et punkt rett utenfor kanten — men innen
+ * snap-terskelen — fortsatt teller. Marginen regnes av kalleren fra treffradius
+ * (skjerm-px) → prosent, så den krymper riktig når man zoomer inn.
+ */
+export function filtrerSynligePunkter(
+  punkter: Punkt[],
+  utsnitt: Utsnitt,
+  marginX = 0,
+  marginY = 0,
+): Punkt[] {
+  return punkter.filter(
+    (p) =>
+      p.x >= utsnitt.xMin - marginX &&
+      p.x <= utsnitt.xMax + marginX &&
+      p.y >= utsnitt.yMin - marginY &&
+      p.y <= utsnitt.yMax + marginY,
+  );
+}
+
+/**
  * Snap til 90°-hjelpelinjer: hvis kandidatens x er innen `tolPx` av et
  * referansepunkts x, lås x til det (loddrett hjelpelinje); samme for y (vannrett
  * hjelpelinje). x og y vurderes uavhengig. Returnerer justert punkt + hvilke
@@ -455,6 +547,12 @@ export interface SnapInn {
   forforrige: Punkt | null;
   /** Alle andre punkter på tegningen (snap-mål + hjelpelinje-referanser). */
   referanser: Punkt[];
+  /**
+   * Synlig utsnitt (prosent). Oppgitt → snap-mål og 90°-hjelpelinjer begrenses
+   * til punkter inne i utsnittet, så snap aldri fester seg til usynlige objekter
+   * (RETUR 1). Utelatt/null → ingen filtrering (bakoverkompat).
+   */
+  utsnitt?: Utsnitt | null;
   /** Valgt referanselinje (GJENOPPTA § 1) — lås parallelt/vinkelrett på den i stedet for akser. */
   referanselinje?: Referanselinje | null;
   /** 90°-lås på? */
@@ -497,9 +595,21 @@ export interface SnapResultat {
 export function beregnSnap(inn: SnapInn): SnapResultat {
   const tom: Hjelpelinjer = { vertikal: null, horisontal: null };
 
+  // RETUR 1: snap-mål og hjelpelinje-referanser begrenses til det synlige
+  // utsnittet. Marginen pr. akse = treffradius (skjerm-px) → prosent, så et punkt
+  // rett utenfor kanten men innen snap-avstand fortsatt teller. Krymper riktig
+  // ved innzoom (rectW/rectH vokser) og demper utzoomet overrekkevidde.
+  let referanser = inn.referanser;
+  if (inn.utsnitt) {
+    const tol = Math.max(inn.punktTolPx, inn.guideTolPx);
+    const marginX = inn.rectW > 0 ? (tol / inn.rectW) * 100 : 0;
+    const marginY = inn.rectH > 0 ? (tol / inn.rectH) * 100 : 0;
+    referanser = filtrerSynligePunkter(inn.referanser, inn.utsnitt, marginX, marginY);
+  }
+
   // 1) Eksakt punkt-snap vinner.
   if (inn.snap) {
-    const p = snapTilPunkt(inn.kandidat, inn.referanser, inn.rectW, inn.rectH, inn.punktTolPx);
+    const p = snapTilPunkt(inn.kandidat, referanser, inn.rectW, inn.rectH, inn.punktTolPx);
     if (p) return { punkt: p, traffPunkt: true, hjelpelinjer: tom, aksehjelpelinje: null, vinkelrett: false };
   }
 
@@ -517,7 +627,7 @@ export function beregnSnap(inn: SnapInn): SnapResultat {
 
   // 3) 90°-hjelpelinjer (forlengelse av vannrett/loddrett fra eksisterende punkter).
   if (inn.snap && inn.ortho) {
-    const { punkt, hjelpelinjer } = snapTil90Linje(inn.kandidat, inn.referanser, inn.rectW, inn.rectH, inn.guideTolPx);
+    const { punkt, hjelpelinjer } = snapTil90Linje(inn.kandidat, referanser, inn.rectW, inn.rectH, inn.guideTolPx);
     return { punkt, traffPunkt: false, hjelpelinjer, aksehjelpelinje: null, vinkelrett: false };
   }
 

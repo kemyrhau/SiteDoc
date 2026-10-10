@@ -189,6 +189,10 @@ export default function DagsseddelDetalj() {
   const { triggerSync, oppdaterTellere, sistSynkronisert } = useTimerSync();
   // UF-4: recall — online-only (server er sannhetskilde for sent/accepted).
   const gjenaapneMutation = trpc.timer.dagsseddel.gjenaapneDagsseddel.useMutation();
+  // Kenneth-vedtak 2026-10-09 (2): slett returnert-ikke-attestert. En returnert sedel
+  // LEVER på serveren (ble sendt → returnert) — lokal sletting alene ville la den komme
+  // tilbake ved neste pull. Derfor server-mutasjon (online). Draft slettes lokalt (under).
+  const slettMutation = trpc.timer.dagsseddel.slett.useMutation();
 
   const [sedel, setSedel] = useState<Sedel | null>(null);
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
@@ -784,41 +788,59 @@ export default function DagsseddelDetalj() {
     );
   }
 
+  function slettLokalt() {
+    const db = hentDatabase();
+    if (!db) return;
+    // Fjern lokale rader + selve sedlen.
+    db.delete(sheetTimerLocal)
+      .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+      .run();
+    db.delete(sheetTilleggLocal)
+      .where(eq(sheetTilleggLocal.dagsseddelId, sheetId))
+      .run();
+    db.delete(sheetMachineLocal)
+      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
+      .run();
+    db.delete(sheetUtleggLocal)
+      .where(eq(sheetUtleggLocal.dagsseddelId, sheetId))
+      .run();
+    db.delete(dagsseddelLocal)
+      .where(eq(dagsseddelLocal.id, sheetId))
+      .run();
+    oppdaterTellere();
+    router.back();
+  }
+
   function slettSedel() {
-    Alert.alert(
-      t("timer.bekreftSlett"),
-      t("timer.bekreftSlettBeskrivelse"),
-      [
-        { text: t("handling.avbryt"), style: "cancel" },
-        {
-          text: t("handling.slett"),
-          style: "destructive",
-          onPress: () => {
-            const db = hentDatabase();
-            if (!db) return;
-            // Fjern lokale rader + selve sedlen.
-            // Server-siden får aldri sett en pending-sedel som slettes lokalt.
-            db.delete(sheetTimerLocal)
-              .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
-              .run();
-            db.delete(sheetTilleggLocal)
-              .where(eq(sheetTilleggLocal.dagsseddelId, sheetId))
-              .run();
-            db.delete(sheetMachineLocal)
-              .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
-              .run();
-            db.delete(sheetUtleggLocal)
-              .where(eq(sheetUtleggLocal.dagsseddelId, sheetId))
-              .run();
-            db.delete(dagsseddelLocal)
-              .where(eq(dagsseddelLocal.id, sheetId))
-              .run();
-            oppdaterTellere();
-            router.back();
-          },
+    // Returnert sedel lever på serveren (ble sendt → returnert). Den må slettes der
+    // først (online), ellers kommer den tilbake ved neste pull. En draft som aldri er
+    // sendt finnes bare lokalt → ren lokal sletting (server så den aldri).
+    const erServerSedel = sedel?.status === "returned";
+    if (erServerSedel && !erPaaNettet) {
+      Alert.alert(t("timer.slettDagsseddel"), t("timer.slettReturnertKreverNett"));
+      return;
+    }
+    Alert.alert(t("timer.bekreftSlett"), t("timer.bekreftSlettBeskrivelse"), [
+      { text: t("handling.avbryt"), style: "cancel" },
+      {
+        text: t("handling.slett"),
+        style: "destructive",
+        onPress: () => {
+          if (erServerSedel) {
+            slettMutation.mutate(
+              { id: sheetId },
+              {
+                onSuccess: () => slettLokalt(),
+                onError: (e) =>
+                  Alert.alert(t("timer.slettDagsseddel"), e.message),
+              },
+            );
+          } else {
+            slettLokalt();
+          }
         },
-      ],
-    );
+      },
+    ]);
   }
 
   if (!sedel) {
@@ -1256,7 +1278,10 @@ export default function DagsseddelDetalj() {
                 </Text>
               </>
             ))}
-          {sedel.status === "draft" && (
+          {/* Kenneth-vedtak 2026-10-09 (2): slett draft ELLER returnert-ikke-attestert.
+              attestertVed=null gjelder alltid for returned i mobil-cachen (en attestert
+              sedel har status accepted, ikke returned). */}
+          {(sedel.status === "draft" || sedel.status === "returned") && (
             <Pressable
               onPress={slettSedel}
               className="flex-row items-center justify-center gap-2 rounded-lg border border-red-300 bg-white py-3 active:bg-red-50"

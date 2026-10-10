@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import type { Prisma } from "@sitedoc/db";
 import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, erAvsenderledd, erMedlemAvFlyt } from "@sitedoc/shared";
 import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 
@@ -303,6 +304,61 @@ export async function resolverOrgFraInput(
     throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
   }
   return krevBrukersOrg(userId);
+}
+
+/**
+ * Løs firma for EGEN timeføring (skriving) og krev at brukeren er aktivt ansatt der.
+ *
+ * Kenneth-vedtak 2026-10-09 (2): «timer kan bare føres av ansatte». Dette OVERSTYRER
+ * admin-unntaket i `resolverOrgFraInput` for EGNE timer-skrivinger: en sitedoc_admin/
+ * company_admin som ikke har et aktivt `OrganizationMember` i det valgte firmaet kan
+ * IKKE føre egne timer der (admin-roller beholder lesing + attestering separat).
+ *
+ * `inputOrgId` (valgt/innlogget firma) brukes når oppgitt — ingen admin-bypass. Utelatt
+ * (eldre mobilklient) faller tilbake til brukerens egen org (`krevBrukersOrg`, som alt
+ * filtrerer `status="aktiv"`). Deretter kreves aktivt medlemskap i det løste firmaet,
+ * ellers lesbar FORBIDDEN (firmanavn interpolert; server har ingen i18n — klienten viser
+ * egen oversatt tekst og speiler denne).
+ */
+export async function resolverOrgForEgenTimeføring(
+  userId: string,
+  inputOrgId?: string,
+): Promise<string> {
+  const orgId = inputOrgId ?? (await krevBrukersOrg(userId));
+  await verifiserAnsattIFirma(userId, orgId);
+  return orgId;
+}
+
+/**
+ * Kaster lesbar FORBIDDEN hvis brukeren ikke er aktivt ansatt (`OrganizationMember`
+ * med `status="aktiv"`) i firmaet. Brukt av egen-timeføring (se
+ * `resolverOrgForEgenTimeføring` + eier-stien i `hentEgenDagsseddel`). Henter firmanavn
+ * kun på feil-stien for en forståelig melding.
+ */
+export async function erAnsattIFirma(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { status: true },
+  });
+  return member?.status === "aktiv";
+}
+
+export async function verifiserAnsattIFirma(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  if (await erAnsattIFirma(userId, organizationId)) return;
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { name: true },
+  });
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: `Du er ikke registrert som ansatt i ${org?.name ?? "firmaet"}. Timer kan bare føres av ansatte. Firmaadmin legger deg til under Firma → Ansatte.`,
+  });
 }
 
 /**
@@ -684,20 +740,38 @@ export async function verifiserProsjektmedlem(
 }
 
 /**
- * Verifiser at alle oppgitte prosjekter tilhører firmaet.
+ * Prisma-where for «prosjektet tilhører firmaet» — DELT firma-grense-regel for timer.
  *
- * Firma-grense på rad-nivå for timer-modulen (`SheetTimer.projectId` er svak FK til
- * Project i kjerne-DB). Dette er en FIRMA-grense, ikke prosjekt-medlemskap (jf. G1
- * firma-nivå-tilgang): et firma kan føre timer mot ethvert prosjekt det har en relasjon
- * til. "Tilhører" = unionen av to relasjoner:
+ * Firma-grense på rad-nivå (ikke prosjekt-medlemskap, jf. G1 firma-nivå-tilgang): et firma
+ * kan føre timer mot ethvert prosjekt det har en relasjon til. "Tilhører" = unionen av:
+ *   - EIER:   primaryOrganizationId == orgId (dekker også LEGACY eide prosjekter som mangler
+ *             ProjectOrganization-rad — opprettet før auto-koblingen, jf. admin.ts-bugfix)
  *   - DELTAR: ProjectOrganization-kobling (dekker underentreprenør på annet firmas prosjekt)
- *   - EIER: primaryOrganizationId == orgId (dekker også LEGACY eide prosjekter som mangler
- *     ProjectOrganization-rad — opprettet før auto-koblingen, jf. admin.ts-bugfix; verifisert
- *     på test: "Test redigert mal" hadde timer-rader uten kobling men eide-match).
  *
- * Ren ProjectOrganization-sjekk ville feilaktig avvist skriv mot firmaets egne legacy-
- * prosjekter — derfor unionen. Kaster FORBIDDEN hvis ett eller flere projectId verken er
- * eid av eller koblet til orgId. Tom liste = no-op. To samlede findMany (ikke N oppslag).
+ * 🔴 Dette er ÉN regel med to lesere: `verifiserProsjekterTilhørerFirma` (skrive-vakt) og
+ * `prosjekt.hentForTimer` (prosjektvelgeren). De MÅ dele den — divergens (feltfunn 2026-10-09:
+ * lista bygget på medlemskap, skrivingen på firmatilhørighet) lot velgeren tilby «UNN -
+ * prosjekter» som skrivingen så avviste med teknisk feilmelding.
+ */
+export function prosjektTilhørerFirmaWhere(
+  organizationId: string,
+): Prisma.ProjectWhereInput {
+  return {
+    OR: [
+      { primaryOrganizationId: organizationId },
+      { projectOrganizations: { some: { organizationId } } },
+    ],
+  };
+}
+
+/**
+ * Verifiser at alle oppgitte prosjekter tilhører firmaet (firma-grense på rad-nivå for
+ * timer-modulen — `SheetTimer.projectId` er svak FK til Project i kjerne-DB).
+ *
+ * Bruker `prosjektTilhørerFirmaWhere` (eier ∪ kobling), samme regel som prosjektvelgeren.
+ * Kaster FORBIDDEN hvis ett eller flere projectId verken er eid av eller koblet til orgId;
+ * feilmeldingen navngir de avviste prosjektene (lesbar — vises i praksis ikke lenger fordi
+ * velgeren filtrerer med samme regel). Tom liste = no-op.
  */
 export async function verifiserProsjekterTilhørerFirma(
   projectIds: string[],
@@ -706,27 +780,30 @@ export async function verifiserProsjekterTilhørerFirma(
   const unike = Array.from(new Set(projectIds));
   if (unike.length === 0) return;
 
-  const [koblet, eide] = await Promise.all([
-    prisma.projectOrganization.findMany({
-      where: { projectId: { in: unike }, organizationId },
-      select: { projectId: true },
-    }),
-    prisma.project.findMany({
-      where: { id: { in: unike }, primaryOrganizationId: organizationId },
-      select: { id: true },
-    }),
-  ]);
-  const gyldigeIder = new Set<string>([
-    ...koblet.map((p) => p.projectId),
-    ...eide.map((p) => p.id),
-  ]);
-  const ugyldig = unike.filter((pid) => !gyldigeIder.has(pid));
-  if (ugyldig.length > 0) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
-    });
-  }
+  const gyldige = await prisma.project.findMany({
+    where: { id: { in: unike }, ...prosjektTilhørerFirmaWhere(organizationId) },
+    select: { id: true },
+  });
+  const gyldigeIder = new Set<string>(gyldige.map((p) => p.id));
+  const ugyldigeIder = unike.filter((pid) => !gyldigeIder.has(pid));
+  if (ugyldigeIder.length === 0) return;
+
+  // Hent navn på de avviste for en lesbar melding (UUID alene sier ingenting til brukeren).
+  const avviste = await prisma.project.findMany({
+    where: { id: { in: ugyldigeIder } },
+    select: { id: true, name: true },
+  });
+  const navn = ugyldigeIder.map(
+    (id) => `«${avviste.find((p) => p.id === id)?.name ?? id}»`,
+  );
+  const liste = navn.join(", ");
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message:
+      navn.length === 1
+        ? `Prosjektet ${liste} tilhører ikke firmaet ditt`
+        : `Prosjektene ${liste} tilhører ikke firmaet ditt`,
+  });
 }
 
 /**

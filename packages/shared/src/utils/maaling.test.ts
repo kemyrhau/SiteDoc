@@ -8,12 +8,15 @@ import {
   malPolylinjeMm,
   malArealMm2,
   kanMale,
+  utledScaleKildeVedLagring,
   kalibrerMalestokk,
   laasVinkel,
   aksehjelpelinje,
   snapTilPunkt,
   snapTil90Linje,
+  filtrerSynligePunkter,
   beregnSnap,
+  inverseRoterKlikk,
   type Punkt,
 } from "./maaling";
 
@@ -222,6 +225,47 @@ describe("måling i tegning — tittelfelt-målestokk er målbar direkte (Kennet
   it("tittelfelt uten tolkbar målestokk eller uten mm/piksel er fortsatt sperret", () => {
     expect(kanMale(null, mmPrPx, "tittelfelt")).toBe(false);
     expect(kanMale("1:50", null, "tittelfelt")).toBe(false);
+  });
+});
+
+describe("måling i tegning — håndskrevet målestokk blir «manuell» (UNN-regresjon 2026-10-09)", () => {
+  const mmPrPx = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
+
+  it("en satt scale uten eksplisitt kilde lagres som «manuell»", () => {
+    // Detaljtabellen / «Rediger flere» sendte bare `scale` — kilden ble null og
+    // måling var avslått selv om 1:50 sto i feltet. Nå utledes «manuell».
+    expect(utledScaleKildeVedLagring(true, undefined)).toBe("manuell");
+    expect(utledScaleKildeVedLagring(true, null)).toBe("manuell");
+  });
+
+  it("en eksplisitt kilde (panel/kalibrering) beholdes", () => {
+    expect(utledScaleKildeVedLagring(true, "kalibrert")).toBe("kalibrert");
+    expect(utledScaleKildeVedLagring(true, "tittelfelt")).toBe("tittelfelt");
+  });
+
+  it("ingen scale i endringen → ingen kilde å utlede (feltet røres ikke)", () => {
+    expect(utledScaleKildeVedLagring(false, undefined)).toBeUndefined();
+    // men en eksplisitt kilde alene (f.eks. «Bekreft forslag») beholdes
+    expect(utledScaleKildeVedLagring(false, "manuell")).toBe("manuell");
+  });
+
+  it("den utledede «manuell»-kilden gjør tegningen målbar (lukker regresjonen)", () => {
+    const kilde = utledScaleKildeVedLagring(true, undefined);
+    expect(kanMale("1:50", mmPrPx, kilde)).toBe(true);
+    // FEILER hvis kilden IKKE utledes (null) — som var bugg-tilstanden
+    expect(kanMale("1:50", mmPrPx, null)).toBe(false);
+  });
+});
+
+describe("måling i tegning — backfill av mm/piksel for eldre tegninger (uten ny rendering)", () => {
+  it("utleder samme mm/piksel fra lagret bredde som den opprinnelige konverteringen", () => {
+    // Backfill leser papirbredden på nytt (pdfinfo) og bruker ALLEREDE lagret
+    // imageWidth — ingen ny rendering. Resultatet er identisk med det
+    // konverteringen ville gitt (selvvaliderende brøk).
+    const vedKonvertering = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
+    const vedBackfill = utledMmPrPiksel(PAPIRBREDDE_MM, IMG_W);
+    expect(vedBackfill).toBe(vedKonvertering);
+    expect(vedBackfill).toBeCloseTo(420.0 / 3308, 10);
   });
 });
 
@@ -465,6 +509,99 @@ describe("laasVinkel — referanselinje (GJENOPPTA § 1): lås parallelt/vinkelr
   });
 });
 
+describe("filtrerSynligePunkter — bare punkter i synlig utsnitt (RETUR 1)", () => {
+  const utsnitt = { xMin: 40, yMin: 40, xMax: 60, yMax: 60 };
+  it("beholder punkter inne i utsnittet, forkaster utenfor", () => {
+    const inne = { x: 50, y: 50 };
+    const ute = { x: 10, y: 10 };
+    const r = filtrerSynligePunkter([inne, ute], utsnitt);
+    expect(r).toEqual([inne]);
+  });
+  it("margin pr. akse slipper med et punkt rett utenfor kanten", () => {
+    const r = filtrerSynligePunkter([{ x: 62, y: 50 }], utsnitt, 3, 3);
+    expect(r).toHaveLength(1); // 62 <= 60 + 3
+    expect(filtrerSynligePunkter([{ x: 64, y: 50 }], utsnitt, 3, 3)).toHaveLength(0);
+  });
+});
+
+describe("beregnSnap — utsnitt-filter: snap fester seg ikke til usynlige objekter (RETUR 1)", () => {
+  const base = {
+    forforrige: null,
+    anker: null,
+    imageWidth: 1000,
+    imageHeight: 1000,
+    rectW: 1000,
+    rectH: 1000,
+    punktTolPx: 12,
+    guideTolPx: 12,
+    ortho: false,
+  };
+  const utsnitt = { xMin: 40, yMin: 40, xMax: 60, yMax: 60 };
+
+  it("punkt-snap ignorerer et mål utenfor synlig utsnitt", () => {
+    // Kandidaten er nær et punkt i prosent, men punktet er utenfor utsnittet.
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 10.4, y: 10.2 },
+      referanser: [{ x: 10, y: 10 }],
+      snap: true,
+      utsnitt,
+    });
+    expect(r.traffPunkt).toBe(false);
+    expect(r.punkt).toEqual({ x: 10.4, y: 10.2 });
+  });
+
+  it("uten utsnitt snapper samme kandidat som før (bakoverkompat)", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 10.4, y: 10.2 },
+      referanser: [{ x: 10, y: 10 }],
+      snap: true,
+    });
+    expect(r.traffPunkt).toBe(true);
+    expect(r.punkt).toEqual({ x: 10, y: 10 });
+  });
+
+  it("punkt-snap treffer et mål inne i utsnittet", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 50.4, y: 50.2 },
+      referanser: [{ x: 50, y: 50 }],
+      snap: true,
+      utsnitt,
+    });
+    expect(r.traffPunkt).toBe(true);
+    expect(r.punkt).toEqual({ x: 50, y: 50 });
+  });
+
+  it("90°-hjelpelinje fra et punkt utenfor utsnittet trekker ikke kandidaten", () => {
+    // Loddrett hjelpelinje ville ellers låst x til 50, men punktet er usynlig.
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 50.3, y: 50 },
+      referanser: [{ x: 50, y: 5 }], // x=50 ligger i utsnittet, men y=5 er utenfor
+      ortho: true,
+      snap: true,
+      utsnitt,
+    });
+    expect(r.hjelpelinjer.vertikal).toBeNull();
+    expect(r.punkt.x).toBeCloseTo(50.3, 5);
+  });
+
+  it("90°-hjelpelinje fra et synlig punkt virker fortsatt", () => {
+    const r = beregnSnap({
+      ...base,
+      kandidat: { x: 50.3, y: 55 },
+      referanser: [{ x: 50, y: 45 }], // både x og y inne i utsnittet
+      ortho: true,
+      snap: true,
+      utsnitt,
+    });
+    expect(r.hjelpelinjer.vertikal).toBe(50);
+    expect(r.punkt.x).toBe(50);
+  });
+});
+
 describe("aksehjelpelinje — stiplet akse tvers over bildet", () => {
   const W = 1000, H = 1000;
   it("vannrett akse gjennom (50,30) treffer venstre+høyre kant (y=30)", () => {
@@ -485,5 +622,44 @@ describe("aksehjelpelinje — stiplet akse tvers over bildet", () => {
   it("degenerert (0-retning / 0-bilde) → null", () => {
     expect(aksehjelpelinje({ x: 50, y: 50 }, { x: 0, y: 0 }, W, H)).toBeNull();
     expect(aksehjelpelinje({ x: 50, y: 50 }, { x: 1, y: 0 }, 0, 0)).toBeNull();
+  });
+});
+
+describe("RETUR 3 §3 — inverseRoterKlikk (klikk i rotert visning → prosent i urotert bilde)", () => {
+  // Elementets layout-størrelse og skjermplassering (senter = AABB-senter = urotert senter).
+  const W = 400, H = 200, CX = 1000, CY = 1000;
+  // Lokalt punkt i prosent → skjermvektor (fra senter) FØR CSS-rotasjonen.
+  const lokalVektor = (px: number, py: number) => ({ x: (px / 100 - 0.5) * W, y: (py / 100 - 0.5) * H });
+
+  it("grader=0 → ren prosent (identisk med gammel (klient−kant)/størrelse-vei)", () => {
+    // Klikk 100 px til høyre og 40 px ned for senteret.
+    const p = inverseRoterKlikk(CX + 100, CY + 40, CX, CY, W, H, 0);
+    expect(p.x).toBeCloseTo((100 / W + 0.5) * 100, 6); // = 75
+    expect(p.y).toBeCloseTo((40 / H + 0.5) * 100, 6);  // = 70
+  });
+
+  it("rotert +90°: et klikk der det kjente punktet HAVNER gir samme prosent som urotert", () => {
+    // Kjent punkt (75,50): lokal vektor (100,0). CSS rotate(90) [y-ned]: R(90)·(100,0)=(0,100).
+    const v = lokalVektor(75, 50); // (100,0)
+    const p = inverseRoterKlikk(CX + 0, CY + 100, CX, CY, W, H, 90);
+    expect(p.x).toBeCloseTo(75, 6);
+    expect(p.y).toBeCloseTo(50, 6);
+    // sanity: round-trip gjennom forward-rotasjonen stemmer med konstruksjonen
+    expect(v.x).toBeCloseTo(100, 6);
+    expect(v.y).toBeCloseTo(0, 6);
+  });
+
+  it("vilkårlig vinkel: forward (CSS) → inverse gir tilbake opprinnelig prosent", () => {
+    const θ = 37;
+    const r = (θ * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
+    for (const [px, py] of [[20, 80], [60, 15], [95, 95]] as const) {
+      const v = lokalVektor(px, py);
+      // CSS R(θ)=[[c,-s],[s,c]] mapper lokal vektor → skjermvektor.
+      const sx = v.x * c - v.y * s;
+      const sy = v.x * s + v.y * c;
+      const p = inverseRoterKlikk(CX + sx, CY + sy, CX, CY, W, H, θ);
+      expect(p.x).toBeCloseTo(px, 6);
+      expect(p.y).toBeCloseTo(py, 6);
+    }
   });
 });
