@@ -181,6 +181,7 @@ som rører CLAUDE.md skal derfor merges samme døgn de gates**, ikke stables.
 | Branch | Hash | Hva | Tilstand |
 |---|---|---|---|
 | `fix/pdf-omrade-navn` | `b223d036` | dokgen runde 2 — `omradeNavn`/`omradeType` i arkiv-sammenstillingen, begge dokumenttyper. Hans gate: api 542→**546** (+4, nøyaktig hans fire tester), resten stille, 7/7. To tester beviser at slettet område (`onDelete: SetNull`) fortsatt gir nøytral linje, ikke tom streng — for BEGGE dokumenttyper | 🟢 LEVERT, teknisk gate grønn — 🔴 **venter designs gate** |
+| `feat/revisjon-originalfil` | *(se orkestrator-inbox)* | dokgen — originalfil arkiveres pr. revisjon (`DrawingRevision.originalFileUrl`, additiv migrering `20261010120000`; kopieres fra `Drawing.originalFileUrl` ved ny opplasting → eldre tegninger beholder originalen ved neste revisjon). Web-revisjonsnedlasting: diskriminator `originalFileUrl ?? (fileUrl hvis ikke .svg)`. + `MANGLER.txt` i zip for filer som mangler på disk (stille-tomhet). Gate: api **858**, web tegning 4/4, typecheck grønt. Funksjonsendring m/ hjemmel (Kenneth 2026-10-10) | 🟢 LEVERT — venter Kontrollørs gate (migrering + tilgang) |
 
 🔴 **DEPLOY-GATE:** `b223d036` SKAL inn før neste test-deploy — ellers skjules `omrade` som valg i lokasjonsvelgeren i den deployen. Arkiv-PDF rendres på forespørsel og er selvhelende, men en EKSPORTERT kopi bærer «Et definert område» for alltid.
 

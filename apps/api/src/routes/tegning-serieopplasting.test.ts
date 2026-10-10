@@ -48,6 +48,7 @@ interface Oppdatering {
 function lagCtx(eksisterende?: Record<string, unknown>) {
   const oppdateringer: Oppdatering[] = [];
   const opprettelser: { data: Record<string, unknown> }[] = [];
+  const revisjonsArkiv: { data: Record<string, unknown> }[] = [];
 
   const prisma = {
     user: { findUnique: vi.fn().mockResolvedValue({ role: "sitedoc_admin" }) },
@@ -66,7 +67,10 @@ function lagCtx(eksisterende?: Record<string, unknown>) {
       }),
     },
     drawingRevision: {
-      create: vi.fn().mockResolvedValue({ id: "rev-1" }),
+      create: vi.fn(async (arg: { data: Record<string, unknown> }) => {
+        revisjonsArkiv.push(arg);
+        return { id: "rev-1", ...arg.data };
+      }),
     },
   };
 
@@ -80,7 +84,7 @@ function lagCtx(eksisterende?: Record<string, unknown>) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
-  return { ctx, oppdateringer, opprettelser };
+  return { ctx, oppdateringer, opprettelser, revisjonsArkiv };
 }
 
 describe("tegning.opprett — R3: forslag returneres, skrives ikke (spec-test 4)", () => {
@@ -164,5 +168,36 @@ describe("tegning.lastOppRevisjon — R8: starter konvertering (spec-test 8)", (
     expect(done.data.fileType).toBe("png");
     expect(String(done.data.fileUrl)).toMatch(/\/uploads\/.*\.png$/);
     expect(done.data.fileUrl).not.toBe("/uploads/gammel.png");
+  });
+
+  it("NESTE (test c): ny DWG-revisjon arkiverer forrige originalFileUrl i revisjonen", async () => {
+    const { ctx, revisjonsArkiv } = lagCtx({
+      id: TEGNING,
+      projectId: PROSJEKT,
+      name: "Plantegning",
+      byggeplassId: null,
+      revision: "A",
+      version: 1,
+      scale: null,
+      fileUrl: "/uploads/konvertert.svg", // gjeldende visning (konvertert)
+      originalFileUrl: "/uploads/original-A.dwg", // originalen som skal arkiveres
+      fileSize: 100,
+      status: "utkast",
+      issuedAt: null,
+    });
+    const caller = tegningRouter.createCaller(ctx);
+
+    await caller.lastOppRevisjon({
+      drawingId: TEGNING,
+      revision: "B",
+      fileUrl: "/uploads/ny.dwg",
+      fileType: "dwg",
+    });
+
+    // Den arkiverte revisjonen bærer forrige originalfil (ikke .svg-visningen).
+    expect(revisjonsArkiv).toHaveLength(1);
+    expect(revisjonsArkiv[0]!.data.originalFileUrl).toBe("/uploads/original-A.dwg");
+    // Gate: feltet skal ha verdi (test c feiler hvis tomt).
+    expect(revisjonsArkiv[0]!.data.originalFileUrl).toBeTruthy();
   });
 });

@@ -80,39 +80,62 @@ export interface ZipOppforing {
   navn: string;
 }
 
+/** En tegningsfil som er registrert i DB, men mangler på disk (ENOENT). */
+export interface ManglendeFil {
+  tegningsnummer: string;
+  filnavn: string;
+}
+
 /**
  * Bygg zip-oppføringene: originalfila (fallback `fileUrl`), unikt filnavn, samlet
  * størrelse. `diskSti` KASTER på path traversal — det bobler ut (ruten → 400).
- * En fil som bare mangler på disk (`statFn` avviser) hoppes over, feller ikke.
- * `statFn` injiseres så funksjonen kan enhets-testes uten ekte filer.
+ * En fil som bare mangler på disk (`statFn` avviser) tas IKKE stille ut — den føres i
+ * `manglende` så ruten kan legge en `MANGLER.txt` i zip-en (stille-tomhet-regelen,
+ * Kontrollør-gate 2026-10-10). `statFn` injiseres så funksjonen kan enhets-testes.
  */
 export async function byggOppforinger(
   rader: ZipTegningRad[],
   statFn: (disk: string) => Promise<{ size: number }>,
-): Promise<{ oppforinger: ZipOppforing[]; sumBytes: number }> {
+): Promise<{ oppforinger: ZipOppforing[]; sumBytes: number; manglende: ManglendeFil[] }> {
   const brukteNavn = new Set<string>();
   const oppforinger: ZipOppforing[] = [];
+  const manglende: ManglendeFil[] = [];
   let sumBytes = 0;
   for (const rad of rader) {
     const kildeUrl = rad.originalFileUrl ?? rad.fileUrl;
-    if (!kildeUrl) continue;
+    const ønsket = byggTegningNedlastingsnavn({
+      tegningsnummer: rad.drawingNumber,
+      navn: rad.name,
+      revisjon: rad.revision,
+      fileUrl: kildeUrl || rad.fileUrl,
+    });
+    if (!kildeUrl) {
+      manglende.push({ tegningsnummer: rad.drawingNumber ?? rad.name, filnavn: ønsket });
+      continue;
+    }
     const disk = diskSti(kildeUrl); // kaster ved traversal → 400 i ruten
     let storrelse: number;
     try {
       storrelse = (await statFn(disk)).size;
     } catch {
-      continue; // registrert i DB men mangler på disk — hopp over, fell ikke
+      // registrert i DB, men filen mangler på disk — før den opp, aldri stille bort.
+      manglende.push({ tegningsnummer: rad.drawingNumber ?? rad.name, filnavn: ønsket });
+      continue;
     }
-    const ønsket = byggTegningNedlastingsnavn({
-      tegningsnummer: rad.drawingNumber,
-      navn: rad.name,
-      revisjon: rad.revision,
-      fileUrl: kildeUrl,
-    });
     oppforinger.push({ disk, navn: unikNedlastingsnavn(ønsket, brukteNavn) });
     sumBytes += storrelse;
   }
-  return { oppforinger, sumBytes };
+  return { oppforinger, sumBytes, manglende };
+}
+
+/** Innholdet i MANGLER.txt — én linje pr. fil som ikke fantes på lagringen. */
+export function byggManglerTekst(manglende: ManglendeFil[]): string {
+  return [
+    "Disse tegningsfilene var registrert, men manglet på lagringen og er IKKE med i zip-en:",
+    "",
+    ...manglende.map((m) => `${m.tegningsnummer}\t${m.filnavn}`),
+    "",
+  ].join("\n");
 }
 
 /** `?ider=a,b,c` → unik liste med ikke-tomme id-er (rekkefølge bevart). */
@@ -141,7 +164,7 @@ function settZipHeader(reply: FastifyReply, zipNavn: string): void {
 /** Hva som skal strømmes — eller en feilstatus (4xx) å svare med FØR strøm. */
 type Forberedt =
   | { feil: number; grunn?: "antall" | "storrelse"; melding: string }
-  | { ok: true; oppforinger: ZipOppforing[]; zipNavn: string };
+  | { ok: true; oppforinger: ZipOppforing[]; zipNavn: string; manglende: ManglendeFil[] };
 
 async function forberedZip(req: FastifyRequest): Promise<Forberedt> {
   // ── Autentisering (samme mønster som /upload) ──
@@ -211,7 +234,7 @@ async function forberedZip(req: FastifyRequest): Promise<Forberedt> {
   }
 
   // ── Bygg oppføringer (diskSti herdet → 400 ved traversal) + summer størrelse ──
-  let bygget: { oppforinger: ZipOppforing[]; sumBytes: number };
+  let bygget: { oppforinger: ZipOppforing[]; sumBytes: number; manglende: ManglendeFil[] };
   try {
     bygget = await byggOppforinger(rader, (disk) => stat(disk));
   } catch {
@@ -226,7 +249,7 @@ async function forberedZip(req: FastifyRequest): Promise<Forberedt> {
     return { feil: 413, grunn: grense.grunn, melding: "Samlet størrelse over grensen (maks 2 GB)" };
   }
 
-  return { ok: true, oppforinger: bygget.oppforinger, zipNavn };
+  return { ok: true, oppforinger: bygget.oppforinger, zipNavn, manglende: bygget.manglende };
 }
 
 export async function tegningNedlastingRoute(server: FastifyInstance) {
@@ -257,6 +280,11 @@ export async function tegningNedlastingRoute(server: FastifyInstance) {
       archive.on("error", () => reply.raw.destroy());
       archive.pipe(reply.raw);
       for (const o of resultat.oppforinger) archive.file(o.disk, { name: o.navn });
+      // Stille-tomhet-regelen: filer som manglet på disk føres i MANGLER.txt, aldri
+      // stille utelatt (Kontrollør-gate 2026-10-10).
+      if (resultat.manglende.length > 0) {
+        archive.append(byggManglerTekst(resultat.manglende), { name: "MANGLER.txt" });
+      }
       await archive.finalize();
     },
   });

@@ -4,6 +4,7 @@ import {
   ZipAvvist,
   vurderZipGrenser,
   byggOppforinger,
+  byggManglerTekst,
   MAKS_TEGNINGER,
   MAKS_SUM_BYTES,
   type ZipTegningRad,
@@ -76,16 +77,19 @@ describe("byggOppforinger (traversal + manglende fil + størrelse)", () => {
     await expect(byggOppforinger(rader, statOk(10))).rejects.toThrow();
   });
 
-  it("hopper over fil som mangler på disk, feller ikke", async () => {
+  it("fil som mangler på disk føres i manglende (ikke stille bort), feller ikke", async () => {
     const rader = [
       rad("a", "P1", { fileUrl: "/uploads/finnes.dwg" }),
-      rad("b", "P1", { fileUrl: "/uploads/mangler.dwg" }),
+      rad("b", "P1", { drawingNumber: "B-02", fileUrl: "/uploads/mangler.dwg" }),
     ];
     const statFn = (disk: string) =>
       disk.includes("mangler") ? Promise.reject(new Error("ENOENT")) : Promise.resolve({ size: 50 });
-    const { oppforinger, sumBytes } = await byggOppforinger(rader, statFn);
+    const { oppforinger, sumBytes, manglende } = await byggOppforinger(rader, statFn);
     expect(oppforinger).toHaveLength(1);
     expect(sumBytes).toBe(50);
+    expect(manglende).toHaveLength(1);
+    expect(manglende[0]!.tegningsnummer).toBe("B-02");
+    expect(manglende[0]!.filnavn).toContain("B-02");
   });
 
   it("foretrekker originalFileUrl og summerer størrelser", async () => {
@@ -93,9 +97,22 @@ describe("byggOppforinger (traversal + manglende fil + størrelse)", () => {
       rad("a", "P1", { originalFileUrl: "/uploads/orig-a.dwg", fileUrl: "/uploads/konv-a.svg" }),
       rad("b", "P1", { originalFileUrl: null, fileUrl: "/uploads/b.pdf" }),
     ];
-    const { oppforinger, sumBytes } = await byggOppforinger(rader, statOk(100));
+    const { oppforinger, sumBytes, manglende } = await byggOppforinger(rader, statOk(100));
     expect(oppforinger).toHaveLength(2);
     expect(oppforinger[0]!.disk).toContain("orig-a.dwg");
     expect(sumBytes).toBe(200);
+    expect(manglende).toHaveLength(0);
+  });
+});
+
+describe("byggManglerTekst (MANGLER.txt-innhold)", () => {
+  it("lister tegningsnummer + filnavn pr. manglende fil", () => {
+    const tekst = byggManglerTekst([
+      { tegningsnummer: "A-01", filnavn: "A-01_revA.dwg" },
+      { tegningsnummer: "B-02", filnavn: "B-02_revC.pdf" },
+    ]);
+    expect(tekst).toContain("A-01\tA-01_revA.dwg");
+    expect(tekst).toContain("B-02\tB-02_revC.pdf");
+    expect(tekst).toContain("IKKE med i zip");
   });
 });

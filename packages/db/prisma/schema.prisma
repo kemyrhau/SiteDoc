@@ -1077,6 +1077,11 @@ model DrawingRevision {
   revision     String // Revisjonskode ved denne versjonen (A, B, C)
   version      Int // Versjonsnummer ved denne revisjonen
   fileUrl      String    @map("file_url")
+  // Originalfila (DWG/PDF) slik den ble lastet opp, arkivert sammen med revisjonen
+  // (kopiert fra Drawing.originalFileUrl ved ny opplasting). NULL = originalen ble ikke
+  // tatt vare på — en gyldig, varig tilstand for revisjoner arkivert før dette feltet
+  // (ingen backfill mulig). Diskriminator for revisjonsnedlasting (ikke `.svg`-endelsen).
+  originalFileUrl String? @map("original_file_url")
   fileSize     Int?      @map("file_size") // Int? bevisst: 0 rader/utestet skrivevei (se Drawing.fileSize, lagringsstatistikk 2026-08-11)
   description  String? // Beskrivelse av endringer
   uploadedById String?   @map("uploaded_by_id")
