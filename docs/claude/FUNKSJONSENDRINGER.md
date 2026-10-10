@@ -305,6 +305,7 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 
 | Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
 |---|---|---|---|
+| `675f8cc3` ← `2f4a3558` | Web + mobil — DWG-tegninger | **Tekst ble ~0,72× riktig høyde** (rom- og kotetekster for små mot TrueView); MTEXT-forankring (gruppe 71) ble ignorert (tekst oppå tekst). Løse elementer (modullinjer, snittmarkør) styrte startutsnittet så tegningen åpnet for langt ute. Nå riktig teksthøyde og forankring, startutsnitt etter bygget (georefererte tegninger uendret) | Tegningen skal vises som tegnet; startutsnitt vedtatt RETUR 2 §3. Reload: deploy + ny konvertering |
 | `deb57d89` ← `def7f228` | Web + mobil — DWG-tegninger | **Store DWG-er (fallplan) viste svarte flater** i georeferanse-editor, ved åpning og på mobil (strektykkelse i tegningsenheter ≈ 94 px). Nå fast 1,5 px-strek i SVG-en selv | Tegningen skal vises som tegnet. Reload: deploy (ny konvertering for eksisterende DWG) |
 
 ### 2026-10-03
