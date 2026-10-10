@@ -1679,7 +1679,17 @@ export function dxfTilSvg(
     // Beregn dimensjoner og geometri-skala
     const w = maxX - minX;
     const h = maxY - minY;
-    const svgBredde = 2000;
+    // PROD-REGRESJON (mobil, 2026-10-11): `<img>`-SVG-en rasteriseres i iOS WebKit til et
+    // bitmap på sin INTRINSIC størrelse (width×height-attributtene). Da bredden var FAST
+    // 2000 vokste høyden fritt med sideforholdet — auto-rotasjonen snudde fallplanen loddrett
+    // (vbH/vbW 1,10 → 1,75) → `svgHoyde` 2193 → 3491 px → intrinsic 4,4 → 7,0 MP (~28 MB
+    // dekodet), over WebKits per-`<img>`-dekodebudsjett → tegningen forsvant. Fest derfor
+    // LENGSTE side til 2000 (ikke alltid bredden): intrinsic ≤ 2000×2000 = 4 MP uansett
+    // sideforhold (fallplan: 1145×2000 = 2,3 MP). Målingen er INVARIANT — `svgBredde`
+    // kansellerer i `mmPrPiksel · imageWidth` (se utledDwgMaaling) — så snap/måling/georef
+    // er urørt. `sw`/`koordDesimaler` følger `vbPerPx` og selvjusterer.
+    const LANGSIDE_PIKSEL = 2000;
+    const svgBredde = h > w ? Math.max(1, Math.round(LANGSIDE_PIKSEL * (w / h))) : LANGSIDE_PIKSEL;
     const vbPerPx = w / svgBredde;
     // `sw` er GEOMETRI-skalaen (viewBox-enheter ≈ 1,5 px ved standard visning). Brukes til
     // størrelser som ER geometri og skal skalere med tegningen: pilhoder, punkt-radius og
