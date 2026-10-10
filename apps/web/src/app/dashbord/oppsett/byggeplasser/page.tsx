@@ -652,12 +652,36 @@ function RedigerLokasjon({
   // originalfilene og strømmer; prosjektet utledes server-side fra id-ene/serien
   // (ingen prosjekt-id fra klienten). En vanlig GET-navigering bærer cookie-sesjonen,
   // og Content-Disposition fra ruten gir zip-navnet.
-  function lastNedZip(params: { serieId?: string; ider?: string[] }) {
+  //
+  // HEAD-preflight FØRST: samme vakter uten strøm, så en 413 (over 200 tegninger /
+  // 2 GB) blir en tydelig melding i stedet for en tom nedlasting. `x-zip-grense`
+  // sier hvilken grense som slo til. Maks-tallene speiler serveren (MAKS_TEGNINGER
+  // = 200, MAKS_SUM_BYTES = 2 GB i `tegningNedlasting.ts`).
+  async function lastNedZip(params: { serieId?: string; ider?: string[] }) {
     const sp = new URLSearchParams();
     if (params.serieId) sp.set("serieId", params.serieId);
     if (params.ider && params.ider.length > 0) sp.set("ider", params.ider.join(","));
+    const url = `/api/tegning/last-ned-zip?${sp.toString()}`;
+    try {
+      const head = await fetch(url, { method: "HEAD" });
+      if (head.status === 413) {
+        alert(
+          head.headers.get("x-zip-grense") === "antall"
+            ? t("tegninger.nedlasting.forMange", { maks: 200 })
+            : t("tegninger.nedlasting.forStor", { maks: "2 GB" }),
+        );
+        return;
+      }
+      if (!head.ok) {
+        alert(t("tegninger.nedlasting.feil"));
+        return;
+      }
+    } catch {
+      alert(t("tegninger.nedlasting.feil"));
+      return;
+    }
     const a = document.createElement("a");
-    a.href = `/api/tegning/last-ned-zip?${sp.toString()}`;
+    a.href = url;
     document.body.appendChild(a);
     a.click();
     a.remove();

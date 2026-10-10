@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { utledProsjektForZip, ZipAvvist, type ZipTegningRad } from "./tegningNedlasting";
+import {
+  utledProsjektForZip,
+  ZipAvvist,
+  vurderZipGrenser,
+  byggOppforinger,
+  MAKS_TEGNINGER,
+  MAKS_SUM_BYTES,
+  type ZipTegningRad,
+} from "./tegningNedlasting";
 
-function rad(id: string, projectId: string): ZipTegningRad {
+function rad(id: string, projectId: string, over: Partial<ZipTegningRad> = {}): ZipTegningRad {
   return {
     id,
     name: id,
@@ -10,6 +18,7 @@ function rad(id: string, projectId: string): ZipTegningRad {
     fileUrl: `/uploads/${id}.dwg`,
     originalFileUrl: null,
     projectId,
+    ...over,
   };
 }
 
@@ -38,5 +47,55 @@ describe("utledProsjektForZip (tilgangsavvisning)", () => {
     // medlemssjekken (DB) avviser. Dette dokumenterer ansvarsdelingen.
     const rader = [rad("a", "FREMMED")];
     expect(utledProsjektForZip(rader, 1)).toBe("FREMMED");
+  });
+});
+
+describe("vurderZipGrenser (413-grensene)", () => {
+  const liteBytes = 1024;
+  it("innenfor begge grensene → ok", () => {
+    expect(vurderZipGrenser(MAKS_TEGNINGER, liteBytes)).toEqual({ ok: true });
+    expect(vurderZipGrenser(1, MAKS_SUM_BYTES)).toEqual({ ok: true });
+  });
+  it("over antallsgrensen → grunn=antall", () => {
+    expect(vurderZipGrenser(MAKS_TEGNINGER + 1, liteBytes)).toEqual({ ok: false, grunn: "antall" });
+  });
+  it("over størrelsesgrensen → grunn=storrelse", () => {
+    expect(vurderZipGrenser(1, MAKS_SUM_BYTES + 1)).toEqual({ ok: false, grunn: "storrelse" });
+  });
+  it("antall sjekkes før størrelse", () => {
+    // Begge brutt → antall rapporteres (billigste vakt, sjekkes først).
+    expect(vurderZipGrenser(MAKS_TEGNINGER + 1, MAKS_SUM_BYTES + 1)).toEqual({ ok: false, grunn: "antall" });
+  });
+});
+
+describe("byggOppforinger (traversal + manglende fil + størrelse)", () => {
+  const statOk = (size: number) => () => Promise.resolve({ size });
+
+  it("KASTER når en fileUrl prøver path traversal (→ 400 i ruten)", async () => {
+    const rader = [rad("a", "P1", { fileUrl: "/uploads/../../../etc/passwd" })];
+    await expect(byggOppforinger(rader, statOk(10))).rejects.toThrow();
+  });
+
+  it("hopper over fil som mangler på disk, feller ikke", async () => {
+    const rader = [
+      rad("a", "P1", { fileUrl: "/uploads/finnes.dwg" }),
+      rad("b", "P1", { fileUrl: "/uploads/mangler.dwg" }),
+    ];
+    const statFn = (disk: string) =>
+      disk.includes("mangler") ? Promise.reject(new Error("ENOENT")) : Promise.resolve({ size: 50 });
+    const { oppforinger, sumBytes } = await byggOppforinger(rader, statFn);
+    expect(oppforinger).toHaveLength(1);
+    expect(sumBytes).toBe(50);
+  });
+
+  it("foretrekker originalFileUrl og summerer størrelser", async () => {
+    const rader = [
+      rad("a", "P1", { originalFileUrl: "/uploads/orig-a.dwg", fileUrl: "/uploads/konv-a.svg" }),
+      rad("b", "P1", { originalFileUrl: null, fileUrl: "/uploads/b.pdf" }),
+    ];
+    const { oppforinger, sumBytes } = await byggOppforinger(rader, statOk(100));
+    expect(oppforinger).toHaveLength(2);
+    expect(oppforinger[0]!.disk).toContain("orig-a.dwg");
+    expect(sumBytes).toBe(200);
   });
 });

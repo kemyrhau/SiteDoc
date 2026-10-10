@@ -269,11 +269,15 @@ Backfill-strategi: eksisterende sessions fikk `created_at = last_rotated_at = ex
 - Filer serveres med `X-Content-Type-Options: nosniff`
 
 `/tegning/last-ned-zip`-endepunkt (REST, ikke tRPC) i `apps/api/src/routes/tegningNedlasting.ts` (2026-10-10):
-- Pakker tegninger som ZIP og **strømmer** (`archiver` → `reply.raw`, `reply.hijack()`) — aldri inn i nettleseren. Enkeltfil-nedlasting går IKKE hit (web laster ned originalfila direkte via signert `/uploads/`-URL + `download`-attributt).
+- `GET` pakker tegninger som ZIP og **strømmer** (`archiver` → `reply.raw`, `reply.hijack()`) — aldri inn i nettleseren. `HEAD` kjører SAMME vakter uten kropp (web-preflight) og setter `x-zip-grense: antall|storrelse` ved 413, så UI kan vise en melding før nedlasting. Enkeltfil-nedlasting går IKKE hit (web laster ned originalfila direkte via signert `/uploads/`-URL + `download`-attributt).
 - Query: `?serieId=<uuid>` (hel serie) ELLER `?ider=a,b,c` (valgte) — nøyaktig én kilde, ellers 400.
 - Auth: cookie-sesjon (samme mønster som `/upload`) → `verifiserProsjektmedlem` (SAMME sjekk som å åpne tegningen). **Prosjektet utledes server-side fra id-ene/serien** — ingen prosjekt-id fra klienten. Spenner id-ene flere prosjekter, eller finnes en id ikke → HELE forespørselen avvises (403). Ren avvisnings-helper `utledProsjektForZip` (enhetstestet).
+- **Path traversal:** disksti-oppslaget går gjennom herdet `diskSti` (se under). En avvist sti gir **400 FØR strømmen starter** — aldri en zip der fila stille mangler. Renbygging + grense i testbare helpere (`byggOppforinger`, `vurderZipGrenser`).
+- **Grenser:** maks **200 tegninger** og maks **2 GB** samlet (summert via `stat` før strøm) → **413** med `x-zip-grense`. Over → web viser i18n-melding (`tegninger.nedlasting.forMange`/`forStor`).
 - Hver oppføring = originalfila (`originalFileUrl ?? fileUrl`), filnavn via `byggTegningNedlastingsnavn` (tegningsnummer\_revX.endelse), kollisjoner → `-2`/`-3` (`unikNedlastingsnavn`, `@sitedoc/shared`). Zip-navn = serienavn / «tegninger». Filer som mangler på disk hoppes over (feller ikke); 0 igjen → 404.
 - Rate limiting: 30/min per IP (`tegning-zip`).
+
+🔴 **`diskSti` (`services/eksport/felles.ts`) er HERDET mot path traversal (2026-10-10).** `fileUrl` lagres uvalidert ved `tegning.opprett`, så en klient kan plante `/uploads/../../etc/passwd`. `diskSti` stripper query, dekoder prosent-koding, resolver stien og **kaster** hvis den havner utenfor uploads-roten. Sentralt → beskytter ALLE kallere: zip-nedlasting (`tegningNedlasting.ts`), eksport-arkiv (`arkiv.ts:128`), bilde-render til PDF (`arkiv/disk-bilde.ts:23`), eksport-worker (server-genererte stier). Negativkontroll: `felles.test.ts`. (`tegning.opprett`-input-validering er egen BACKLOG/sikkerhet-sak.)
 
 ## Lagringsstatistikk (`lagring`-router, 2026-08-11)
 
