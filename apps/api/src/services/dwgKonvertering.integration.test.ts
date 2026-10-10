@@ -85,6 +85,26 @@ describe.skipIf(!dwg2dxf)("D10 — ekte DWG-fixtures (libredwg)", () => {
       expect(res.rapport!.ikkeTegnet).toEqual({});
     }
   });
+
+  it("SVAR RETUR 6 spor 2: Ålesund er en no-op (ingen isolerte ytter-klynger → all geometri innenfor viewBox)", { timeout: 120_000 }, async () => {
+    // Robust-grensen skal IKKE trimme kartdata (ingen modullinjer/løse markører). Bevis:
+    // hvert tegnet punkt ligger innenfor viewBox. Hadde den skrelt, ville skrelt geometri
+    // ligget utenfor. (RETUR 1 pkt 7: aldri klipp ekte kantgeometri.)
+    for (const fil of [NTM6, UTM32]) {
+      const { res, dir } = await konverterFixture(fil);
+      const svg = readFileSync(join(dir, res.visningUrl.replace("/uploads/", "")), "utf-8");
+      const vb = svg.match(/viewBox="([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+)"/)!;
+      const vbX = parseFloat(vb[1]!), vbY = parseFloat(vb[2]!), vbW = parseFloat(vb[3]!), vbH = parseFloat(vb[4]!);
+      const eps = Math.max(vbW, vbH) * 1e-6;
+      let utenfor = 0;
+      for (const m of svg.matchAll(/points="([^"]+)"/g))
+        for (const c of m[1]!.matchAll(/(-?[\d.eE]+),(-?[\d.eE]+)/g)) {
+          const x = parseFloat(c[1]!), y = parseFloat(c[2]!);
+          if (x < vbX - eps || x > vbX + vbW + eps || y < vbY - eps || y > vbY + vbH + eps) utenfor++;
+        }
+      expect(utenfor).toBe(0);
+    }
+  });
 });
 
 describe.skipIf(!dwg2dxf || !KUNDEFIL || !existsSync(KUNDEFIL))(
