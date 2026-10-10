@@ -657,6 +657,37 @@ describe("RETUR 4 — tellDxfInventar + byggRapport (fullstendighets-gate)", () 
   });
 });
 
+describe("RETUR 5 TILLEGG 2 — stroke-width er fast skjerm-px, ikke viewBox-enheter", () => {
+  /** Alle stroke-width-attributter i en SVG som tallverdier. */
+  function strokeBredder(svg: string): number[] {
+    return [...svg.matchAll(/stroke-width="([-\d.eE]+)"/g)].map((m) => parseFloat(m[1] ?? ""));
+  }
+
+  it("STOR tegning (vbW ~100 000): ingen stroke-width > 2 px — svart-klump-gaten", () => {
+    // Før reparasjonen: sw = vbW/2000·1,5 ≈ 75 → `vector-effect:non-scaling-stroke`
+    // realiserer det i 75 SKJERMPIKSLER → hele tegningen blir en svart klump i ren <img>.
+    // Nå er stroke-width en konstant (1,5), uavhengig av tegningens skala.
+    const svg = dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!.svg;
+    const sws = strokeBredder(svg);
+    expect(sws.length).toBeGreaterThan(0);
+    expect(Math.max(...sws)).toBeLessThanOrEqual(2);
+  });
+
+  it("LITEN tegning (vbW ~200): samme faste stroke-width (ikke skalert ned til hårstrek)", () => {
+    const svg = dxfTilSvg(rektangelDxf({ w: 200, h: 200 }))!.svg;
+    const sws = strokeBredder(svg);
+    expect(Math.max(...sws)).toBeLessThanOrEqual(2);
+    // Stor og liten tegning får nå IDENTISK stroke-width — det er hele poenget.
+    const stor = strokeBredder(dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!.svg);
+    expect(Math.max(...sws)).toBeCloseTo(Math.max(...stor), 6);
+  });
+
+  it("SVG-en bærer non-scaling-stroke i egen <style> (tynn strek også uten injisert CSS)", () => {
+    const svg = dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!.svg;
+    expect(svg).toContain("non-scaling-stroke");
+  });
+});
+
 const KUNDEFIL = process.env.SITEDOC_DWG_KUNDEFIL;
 const DWG2DXF = process.env.DWG2DXF_PATH ?? "dwg2dxf";
 function harDwg2dxf(): boolean {
@@ -703,5 +734,15 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     // De 503 ATTRIB var usynlige før RETUR 4 — nå tegnes de synlige verdiene.
     expect(r.parsetPrType["ATTRIB"]).toBeGreaterThan(0);
     expect(r.tegnetPrType["ATTRIB"]).toBeGreaterThan(0);
+  }, 180000);
+
+  it("RETUR 5 TILLEGG 2: ingen stroke-width > 2 px (fallplanen ble en svart klump i ren <img>)", () => {
+    // Målt: vbW ~134 000 → gammel sw ≈ 94 → non-scaling-stroke ga ~94 px strek →
+    // hele planen svart i georef-editor/eksport/mobil-WebView. Nå fast 1,5 px.
+    const res = dxfTilSvg(konverterKundefil())!;
+    const sws = [...res.svg.matchAll(/stroke-width="([-\d.eE]+)"/g)].map((m) => parseFloat(m[1] ?? ""));
+    expect(sws.length).toBeGreaterThan(1000);
+    expect(Math.max(...sws)).toBeLessThanOrEqual(2);
+    expect(res.svg).toContain("non-scaling-stroke");
   }, 180000);
 });

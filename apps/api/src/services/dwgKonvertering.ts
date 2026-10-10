@@ -1548,14 +1548,25 @@ export function dxfTilSvg(
 
     if (!isFinite(minX) || !isFinite(maxX)) return null;
 
-    // Beregn dimensjoner og stroke-width
+    // Beregn dimensjoner og geometri-skala
     const w = maxX - minX;
     const h = maxY - minY;
-    // Stroke-width i viewBox-enheter som tilsvarer ~1px ved standard visning
-    // viewBox-bredde / SVG-piksler gir skaleringsfaktor
     const svgBredde = 2000;
     const vbPerPx = w / svgBredde;
-    const sw = vbPerPx * 1.5; // ~1.5px ved standard visning
+    // `sw` er GEOMETRI-skalaen (viewBox-enheter ≈ 1,5 px ved standard visning). Brukes til
+    // størrelser som ER geometri og skal skalere med tegningen: pilhoder, punkt-radius og
+    // font-fallback. IKKE til stroke-width — se `strekBredde`.
+    const sw = vbPerPx * 1.5;
+    // RETUR 5 TILLEGG 2 (reparasjon): stroke-width skal være en KONSTANT skjermtykkelse,
+    // ikke viewBox-enheter. `vector-effect: non-scaling-stroke` (SVG-ens egen <style>)
+    // realiserer stroke-width i SKJERMPIKSLER uansett zoom/viewBox — målt mot kundefila
+    // og sharp/librsvg. Da ga `stroke-width = sw` (= vbPerPx·1,5, ~94 enheter på fallplan)
+    // ~94 px strek → hele tegningen ble en svart klump i ren <img> (georef-editor, eksport,
+    // mobil-WebView). Innholds-extents (startutsnittet, 68 % av vbW) ville gitt ~68 px —
+    // fortsatt klump. Målt årsak er altså ikke oppblåste extents, men at et verdensenhet-
+    // tall tolkes som skjermpiksler. Fast 1,5 px gir knivskarp strek overalt, og matcher
+    // gulvet viewerne allerede injiserer (`calc(1.5 / var(--svg-zoom))`).
+    const strekBredde = 1.5;
 
     // Normalisering: flytt alle koordinater til å starte nær 0. Avrund til ~0,05 px
     // presisjon (adaptivt etter tegningens skala) — kutter SVG-størrelsen kraftig på
@@ -1636,7 +1647,7 @@ export function dxfTilSvg(
         // RETUR 2 TILLEGG: fall-pil. Tegn knekklinjen + et lite pilhode ved første
         // knekkpunkt (der pilen peker) når kode 71 er satt.
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-        paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
         if (e.harPil) {
           const a = e.vertices[0];
           const b = e.vertices[1];
@@ -1650,17 +1661,17 @@ export function dxfTilSvg(
           paths.push(`<polygon points="${ax},${ay} ${bx + px * pilBredde},${by + py * pilBredde} ${bx - px * pilBredde},${by - py * pilBredde}" fill="${stroke}" stroke="none"${da} />`);
         }
       } else if (e.type === "LINE" && e.startPoint && e.endPoint) {
-        paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        paths.push(`<line x1="${nx(e.startPoint.x)}" y1="${ny(e.startPoint.y)}" x2="${nx(e.endPoint.x)}" y2="${ny(e.endPoint.y)}" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
       } else if (e.type === "LINE" && e.vertices?.length >= 2) {
         const v0 = e.vertices[0];
         const v1 = e.vertices[1];
-        paths.push(`<line x1="${nx(v0.x)}" y1="${ny(v0.y)}" x2="${nx(v1.x)}" y2="${ny(v1.y)}" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        paths.push(`<line x1="${nx(v0.x)}" y1="${ny(v0.y)}" x2="${nx(v1.x)}" y2="${ny(v1.y)}" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
       } else if ((e.type === "LWPOLYLINE" || e.type === "POLYLINE") && e.vertices?.length > 1) {
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
         const lukket = e.shape ? " " + `${nx(e.vertices[0].x)},${ny(e.vertices[0].y)}` : "";
-        paths.push(`<polyline points="${pts}${lukket}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        paths.push(`<polyline points="${pts}${lukket}" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
       } else if (e.type === "CIRCLE" && e.center) {
-        paths.push(`<circle cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" r="${e.radius ?? 1}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        paths.push(`<circle cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" r="${e.radius ?? 1}" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
       } else if (e.type === "ARC" && e.center) {
         const r = e.radius ?? 1;
         // dxf-parser konverterer ARC-vinkler til radianer
@@ -1674,7 +1685,7 @@ export function dxfTilSvg(
         if (vinkelSpenn < 0) vinkelSpenn += Math.PI * 2;
         const large = vinkelSpenn > Math.PI ? 1 : 0;
         // SVG arc sweep: 0 for DXF (counter-clockwise), men Y er flippa → bruk 0
-        paths.push(`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        paths.push(`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 0 ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
       } else if (e.type === "SPLINE") {
         // B-spline kurve
         const cp = e.controlPoints ?? [];
@@ -1694,7 +1705,7 @@ export function dxfTilSvg(
 
         if (punkter.length >= 2) {
           const pts = punkter.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-          paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+          paths.push(`<polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
         }
       } else if (e.type === "ELLIPSE" && e.center && e.majorAxisEndPoint) {
         // Ellipse med major-akse endepunkt (relativt til sentrum) og aksforhold
@@ -1711,7 +1722,7 @@ export function dxfTilSvg(
         const erHel = Math.abs(ea - sa - Math.PI * 2) < 0.001 || (sa === 0 && ea === 0);
 
         if (erHel) {
-          paths.push(`<ellipse cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" rx="${majorLen}" ry="${minorLen}" transform="rotate(${-rotDeg} ${nx(e.center.x)} ${ny(e.center.y)})" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+          paths.push(`<ellipse cx="${nx(e.center.x)}" cy="${ny(e.center.y)}" rx="${majorLen}" ry="${minorLen}" transform="rotate(${-rotDeg} ${nx(e.center.x)} ${ny(e.center.y)})" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
         } else {
           // Delvis ellipse — approksimer med polyline
           const antPkt = 50;
@@ -1722,7 +1733,7 @@ export function dxfTilSvg(
             const py = e.center.y + majorLen * Math.cos(t) * Math.sin(rotDeg * Math.PI / 180) + minorLen * Math.sin(t) * Math.cos(rotDeg * Math.PI / 180);
             pts.push(`${nx(px)},${ny(py)}`);
           }
-          paths.push(`<polyline points="${pts.join(" ")}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+          paths.push(`<polyline points="${pts.join(" ")}" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
         }
       } else if (e.type === "SOLID" && e.points?.length >= 3) {
         // SOLID: fylt polygon med 3 eller 4 punkter
@@ -1731,10 +1742,10 @@ export function dxfTilSvg(
         const pts = p.length === 4
           ? `${nx(p[0].x)},${ny(p[0].y)} ${nx(p[1].x)},${ny(p[1].y)} ${nx(p[3].x)},${ny(p[3].y)} ${nx(p[2].x)},${ny(p[2].y)}`
           : p.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-        paths.push(`<polygon points="${pts}" fill="${stroke}" stroke="${stroke}" stroke-width="${sw * 0.5}"${da} />`);
+        paths.push(`<polygon points="${pts}" fill="${stroke}" stroke="${stroke}" stroke-width="${strekBredde * 0.5}"${da} />`);
       } else if (e.type === "3DFACE" && e.vertices?.length >= 3) {
         const pts = e.vertices.map((v: { x: number; y: number }) => `${nx(v.x)},${ny(v.y)}`).join(" ");
-        paths.push(`<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}"${da} />`);
+        paths.push(`<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="${strekBredde}"${da} />`);
       } else if (e.type === "POINT" && e.position) {
         // RETUR 1 pkt 4: CAD-POINT er en liten node-markør, ikke en stor fylt skive.
         // `r=sw*2` ga en «stor svart prikk» større enn teksten på oppblåste viewBox-er.
@@ -1766,7 +1777,7 @@ export function dxfTilSvg(
       } else if (e.type === "DIMENSION") {
         // Dimensjoner — tegn som linjer mellom punktene
         if (e.anchorPoint && e.middleOfText) {
-          paths.push(`<line x1="${nx(e.anchorPoint.x)}" y1="${ny(e.anchorPoint.y)}" x2="${nx(e.middleOfText.x)}" y2="${ny(e.middleOfText.y)}" stroke="${stroke}" stroke-width="${sw * 0.5}"${da} />`);
+          paths.push(`<line x1="${nx(e.anchorPoint.x)}" y1="${ny(e.anchorPoint.y)}" x2="${nx(e.middleOfText.x)}" y2="${ny(e.middleOfText.y)}" stroke="${stroke}" stroke-width="${strekBredde * 0.5}"${da} />`);
         }
         if (e.text && e.middleOfText) {
           const fontSize = sw * 8;
