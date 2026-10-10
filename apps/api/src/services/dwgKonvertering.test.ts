@@ -238,6 +238,40 @@ describe("D5 — $INSUNITS → måling rett fra tegningens enheter", () => {
   });
 });
 
+describe("PROD-REGRESJON mobil (2026-10-11) — intrinsic raster festes til lengste side", () => {
+  // Rotårsak: `<img>`-SVG rasteriseres i iOS WebKit på intrinsic width×height. Da bredden
+  // var fast 2000 vokste høyden fritt med sideforholdet (auto-rotert fallplan: 2000×3491 =
+  // 7,0 MP ~28 MB dekodet) → over WebKits dekodebudsjett → tegningen forsvant. Nå festes
+  // LENGSTE side til 2000.
+  it("høy tegning (h≫b): høyden festes til ≤2000, ikke 3491-aktig overskytelse", () => {
+    const res = dxfTilSvg(rektangelDxf({ w: 1000, h: 5000, insunits: 4 }))!;
+    expect(res).not.toBeNull();
+    // Lengste side (her høyden) ≤ 2000; begge sider ≤ 2000 → intrinsic ≤ 4 MP.
+    expect(Math.max(res.width, res.height)).toBeLessThanOrEqual(2000);
+    expect(res.height).toBeLessThanOrEqual(2000);
+    expect(res.width).toBeLessThan(2000); // bredden krympet fordi høyden er lengst
+    expect(res.width * res.height).toBeLessThanOrEqual(2000 * 2000);
+  });
+
+  it("bred tegning (b≫h): bredden festes til 2000 (uendret oppførsel)", () => {
+    const res = dxfTilSvg(rektangelDxf({ w: 5000, h: 1000, insunits: 4 }))!;
+    expect(res.width).toBe(2000);
+    expect(res.height).toBeLessThanOrEqual(2000);
+  });
+
+  it("måling er INVARIANT mot kappingen: mmPrPiksel·imageWidth = vbW·mmPrEnhet for begge orienteringer", () => {
+    // En fast fysisk strekning måler likt uansett om langsiden er bredde eller høyde,
+    // fordi svgBredde kansellerer i mmPrPiksel·imageWidth (= vbW·mmPrEnhet).
+    const mmPrEnhet = insunitsTilMm(4)!; // 4 = mm → 1
+    for (const dims of [{ w: 1000, h: 5000 }, { w: 5000, h: 1000 }, { w: 2000, h: 2000 }]) {
+      const res = dxfTilSvg(rektangelDxf({ ...dims, insunits: 4 }))!;
+      const m = utledDwgMaaling(res.vbW, res.width, res.height, mmPrEnhet);
+      expect(m.mmPrPiksel! * res.width).toBeCloseTo(res.vbW * mmPrEnhet, 6);
+      expect(m.scaleKilde).toBe("dwg");
+    }
+  });
+});
+
 describe("D-M12 — INSERT-skala treffer skalarstørrelser", () => {
   it("INSERT med skala 2 dobler sirkelens radius (10 → 20)", () => {
     const res = dxfTilSvg(insertSirkelDxf(10, 2))!;

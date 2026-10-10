@@ -820,7 +820,16 @@ export default function TegningerSide() {
       knipBaseRef.current = null;
       knipTotalRef.current = 0;
     };
-  }, [tegningId, isLoading]);
+    // PROD-REGRESJON (web, 2026-10-11): `containerVariant` MÅ være med. Når en ny revisjon
+    // lastes opp (fileUrl endres → conversionStatus converting→done) byttes DOM-noden som
+    // bærer `containerRef` (samme grunn som høyde-effekten under tar containerVariant som
+    // dep). Uten den re-festes IKKE wheel/pointer/gesture-lytterne på den nye noden — og
+    // `tegningId`/`isLoading` er uendret fordi en revisjon deler tegning-id. Resultat:
+    // styreflate-pinch (ctrl+wheel) treffer en node uten `{passive:false}`-lytter, så
+    // Chrome zoomer HELE siden i stedet for tegningen (pageZoom vokser pr. pinch → «hele
+    // vinduet større enn skjermen», «hjul/touchpad virker ikke»). containerVariant fester
+    // lytterne på nytt mot den nye noden.
+  }, [tegningId, isLoading, containerVariant]);
 
   // Sett scroll etter musehjul-zoom. useLayoutEffect kjører etter DOM-mutasjon og
   // layout (bredden er oppdatert til `zoom * 100%`), men før maling — så verdien
