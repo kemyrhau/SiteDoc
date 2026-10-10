@@ -1660,8 +1660,12 @@ export function dxfTilSvg(
       // (Ålesund uendret); på fallplanen skrelles modullinje-boblene og snittmarkøren.
       // Elementene tegnes fortsatt (de ligger innenfor margin-bounds under) — de styrer
       // bare ikke lenger utstrekningen/startutsnittet.
-      const gx = robustGrense(samX);
-      const gy = robustGrense(samY);
+      // Kontrollør-funn (gate 2f4a3558): georefererte tegninger (koordinatsystem detektert)
+      // beholder full min/max — beregnExtents (georef-hjørnene) skreller ikke, og de to må
+      // være like, ellers forskyves GPS-pinnen.
+      const brukRobust = !opsjoner?.ingenAutoRotasjon;
+      const gx = brukRobust ? robustGrense(samX) : { lo: fMinX, hi: fMaxX };
+      const gy = brukRobust ? robustGrense(samY) : { lo: fMinY, hi: fMaxY };
       minX = gx.lo; maxX = gx.hi; minY = gy.lo; maxY = gy.hi;
       const trimX = ((fMaxX - fMinX) - (maxX - minX));
       const trimY = ((fMaxY - fMinY) - (maxY - minY));

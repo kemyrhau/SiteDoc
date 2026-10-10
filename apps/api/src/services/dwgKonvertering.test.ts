@@ -549,6 +549,27 @@ describe("RETUR 3 §1 — CRS funnet kobler ut auto-rotasjon (georef står nord-
     expect(urotert.vbW / urotert.vbH).toBeGreaterThan(2.5); // bred, aksejustert verden
     expect(rotert.vbW / rotert.vbH).toBeLessThan(1.6);      // rotert bbox ~kvadratisk
   });
+
+  it("georeferert (ingenAutoRotasjon) beholder full min/max — løst punkt skrelles ikke (georef-hjørnene skreller heller ikke)", () => {
+    // Kontrollør-funn gate 2f4a3558: dxfTilSvg og beregnExtents må gi samme utstrekning
+    // for georefererte tegninger, ellers forskyves GPS-pinnen.
+    // 100 vegger (200 punkter) + ett løst linjestykke (2 punkter = 1 % < 2 %-guarden).
+    const linjer: string[] = ["0", "SECTION", "2", "ENTITIES"];
+    for (let i = 0; i < 100; i++) {
+      const x0 = 500000 + i * 2;
+      linjer.push("0", "LINE", "8", "VEGG", "10", String(x0), "20", "6500000", "11", String(x0 + 64), "21", "6500077");
+    }
+    linjer.push("0", "LINE", "8", "LOS", "10", "520000", "20", "6500000", "11", "520001", "21", "6500000");
+    linjer.push("0", "ENDSEC", "0", "EOF");
+    const dxf = linjer.join("\n");
+    // Kontroll: uten flagget SKRELLES det løse punktet (ellers tester vi ingenting).
+    expect(dxfTilSvg(dxf)!.vbW).toBeLessThan(19000);
+    const georef = dxfTilSvg(dxf, undefined, { ingenAutoRotasjon: true })!;
+    const ext = beregnExtents(dxf)!;
+    expect(ext.maxX).toBeGreaterThan(519999);
+    // vbW dekker det løse punktet (≈ 20 000 bred), ikke bare veggklyngen (≈ 256 bred).
+    expect(georef.vbW).toBeGreaterThan(19000);
+  });
 });
 
 describe("RETUR 3 §2 — roterProsentMarkor (markør flyttes med endret bake-rotasjon)", () => {
