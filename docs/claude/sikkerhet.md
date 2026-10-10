@@ -191,7 +191,7 @@ Eies av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling
 ---
 
 ### 8b. 🟠 `tegning.opprett` lagrer klient-levert `fileUrl` uten validering (funn 2026-10-10, Kontrollør)
-`fileUrl: z.string()` (`apps/api/src/routes/tegning.ts:525`) lagres rått. Ble utnyttbart i ny zip-rute via `diskSti()` (`apps/api/src/services/eksport/felles.ts:9-11`, naiv `join`) — **blokkert i gate**, sinken herdes i `feat/tegning-nedlasting` (RETUR 1, ⚠️ under arbeid). 🟡 PLANLAGT: valider at `fileUrl` er en `/uploads/`-sti fra egen opplasting ved `opprett` (kilden), ikke bare ved sinken. Seks kallere av `diskSti` i api — dekkes av sink-herdingen.
+`fileUrl: z.string()` (`apps/api/src/routes/tegning.ts:525`) lagres rått. Ble utnyttbart i ny zip-rute via `diskSti()` (`apps/api/src/services/eksport/felles.ts:9-11`, naiv `join`) — **blokkert i gate**, sinken herdet i `b57d462b` (`felles.ts:18-31`, resolve + `startsWith(rot+sep)`). 🟡 PLANLAGT: valider at `fileUrl` er en `/uploads/`-sti fra egen opplasting ved `opprett` (kilden), ikke bare ved sinken. Seks kallere av `diskSti` i api — dekkes av sink-herdingen.
 
 ## ✅ Lukket 2026-09-06 — FTD tenant-grense + uautentisert prosessering-endepunkt
 
