@@ -255,6 +255,19 @@ GPS-gjenkjennings-funksjoner. Rene funksjoner, ingen DB/RN/Node. Kontrakt A1–A
 og `resolverPrimaerByggeplass` er SLETTET i L1-B (`2e993250`) — A5 erstattet den. GPS-punkt-typen heter `GpsPunkt`
 (`Punkt` er opptatt av piksel-{x,y} i `maaling.ts`). Fasit: `sted.test.ts`.
 
+### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
+
+ÉN kilde for filnavn-regelen ved nedlasting av tegninger — brukt av web (enkeltfil,
+`download`-attributt) og api (hver zip-oppføring, `routes/tegningNedlasting.ts`).
+
+| Funksjon | Beskrivelse |
+|----------|-------------|
+| `byggTegningNedlastingsnavn({tegningsnummer, navn, revisjon, fileUrl})` → `string` | `tegningsnummer` (fallback `navn`) + `_rev<REV>` + EKTE endelse fra URL-en (stien er sannhet, ikke `fileType`). Saniterer (beholder bindestrek/punktum/æøå) |
+| `unikNedlastingsnavn(ønsket, brukt)` → `string` | Kollisjon → `-2`/`-3` FØR endelsen (muterer `brukt`). Deterministisk, samme konvensjon som `unikArkivSti` i eksport-arkivet |
+| `filendelseFraUrl(url)` → `string` | Endelse (med punktum) fra URL/sti, ignorerer query-signatur |
+
+Fasit: `tegningNedlasting.test.ts`.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

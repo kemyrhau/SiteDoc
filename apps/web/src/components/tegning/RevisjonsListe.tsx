@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal } from "@sitedoc/ui";
-import { History } from "lucide-react";
+import { byggTegningNedlastingsnavn, filendelseFraUrl } from "@sitedoc/shared";
+import { History, Download } from "lucide-react";
+import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 /**
  * D6b (DWG-2): kompakt liste over TIDLIGERE revisjoner på tegningssiden. Klikk åpner
@@ -25,6 +27,17 @@ export type RevisjonRad = {
   uploadedBy?: { name: string | null; email: string | null } | null;
   layouter?: unknown;
 };
+
+/**
+ * Har revisjonen en ORIGINAL å laste ned? DWG/DXF arkiveres pr. revisjon som den
+ * KONVERTERTE SVG-en (originalen lagres ikke pr. revisjon), så en `.svg`-fileUrl er
+ * aldri en original. PDF/bilde/IFC: `fileUrl` ER originalen. SVG er ikke en tillatt
+ * opplastingstype, så endelsen er en entydig diskriminator. Vi gir aldri en fil som
+ * ser ut som originalen når den ikke er det (orkestrator-SVAR 2026-10-10).
+ */
+function revisjonHarOriginal(fileUrl: string): boolean {
+  return filendelseFraUrl(fileUrl).toLowerCase() !== ".svg";
+}
 
 /** SVG/PNG/JPG vises som bilde, PDF i iframe, annet som nedlastingslenke. */
 function erBildeUrl(url: string): boolean {
@@ -61,11 +74,19 @@ function FilVisning({ url, alt }: { url: string; alt: string }) {
 
 export function RevisjonsListe({
   revisjoner,
+  tegningsnummer,
+  tegningNavn,
 }: {
   revisjoner: RevisjonRad[];
+  /** For nedlastings-filnavnet (tegningsnummer_revX.endelse). */
+  tegningsnummer?: string | null;
+  tegningNavn?: string;
 }) {
   const { t } = useTranslation();
   const [valgt, setValgt] = useState<RevisjonRad | null>(null);
+  // Nedlasting av den ARKIVERTE revisjonsfila. For DWG/DXF er dette den konverterte
+  // SVG-en (originalen arkiveres ikke pr. revisjon); for PDF/bilde er det selve fila.
+  const apneNedlasting = useSignertLenkeApner(valgt?.fileUrl ? [valgt.fileUrl] : []);
 
   if (!revisjoner || revisjoner.length === 0) return null;
 
@@ -96,7 +117,31 @@ export function RevisjonsListe({
         {valgt && (
           <div className="flex flex-col gap-4">
             {valgt.fileUrl ? (
-              <FilVisning url={valgt.fileUrl} alt={t("tegninger.revisjon.visning", { rev: valgt.revision })} />
+              <>
+                <FilVisning url={valgt.fileUrl} alt={t("tegninger.revisjon.visning", { rev: valgt.revision })} />
+                {revisjonHarOriginal(valgt.fileUrl) ? (
+                  <button
+                    onClick={() =>
+                      apneNedlasting(valgt.fileUrl, {
+                        download: byggTegningNedlastingsnavn({
+                          tegningsnummer,
+                          navn: tegningNavn ?? t("tegninger.revisjon.visning", { rev: valgt.revision }),
+                          revisjon: valgt.revision,
+                          fileUrl: valgt.fileUrl,
+                        }),
+                      })
+                    }
+                    className="flex items-center gap-1 self-start rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {t("handling.lastNed")}
+                  </button>
+                ) : (
+                  // DWG/DXF: kun den konverterte SVG-en er arkivert pr. revisjon —
+                  // originalen finnes ikke, så ingen nedlastingsknapp.
+                  <p className="text-xs text-gray-500">{t("tegninger.revisjon.ingenOriginal")}</p>
+                )}
+              </>
             ) : (
               <p className="text-sm text-gray-500">{t("tegninger.revisjon.ingenFil")}</p>
             )}

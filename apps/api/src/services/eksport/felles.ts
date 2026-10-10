@@ -1,13 +1,34 @@
 /**
  * Delte hjelpere for dataeksport (worker + filsamling).
  */
-import { join } from "path";
+import { join, resolve, sep } from "path";
 
 export const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "uploads");
 
-/** URL-sti (`/uploads/...`) → disk-sti. Samme reversering som resten av kodebasen. */
+/**
+ * URL-sti (`/uploads/...`) → absolutt disk-sti — HERDET mot path traversal.
+ *
+ * 🔴 `fileUrl` lagres UVALIDERT ved `tegning.opprett`, så en klient kan plante
+ * `/uploads/../../../etc/passwd`. Denne funksjonen er den ENE reverseringen alle
+ * fil-kallere går gjennom (eksport-arkiv, bilde-render til PDF, zip-nedlasting),
+ * så sjekken bor HER: query strippes, prosent-koding dekodes, stien resolves og må
+ * ligge innenfor uploads-roten — ellers KASTES det. Da er hver kaller beskyttet
+ * uten å måtte huske det. (Kontrollør-RETUR 2026-10-10.)
+ */
 export function diskSti(urlSti: string): string {
-  return join(UPLOADS_DIR, urlSti.replace(/^\/uploads\//, ""));
+  const utenQuery = urlSti.split("?")[0] ?? urlSti;
+  let rel: string;
+  try {
+    rel = decodeURIComponent(utenQuery.replace(/^\/uploads\//, ""));
+  } catch {
+    throw new Error(`Ugyldig fil-sti (prosentkoding): ${urlSti}`);
+  }
+  const rot = resolve(UPLOADS_DIR);
+  const full = resolve(rot, rel);
+  if (full !== rot && !full.startsWith(rot + sep)) {
+    throw new Error(`Fil-sti utenfor uploads-roten avvist: ${urlSti}`);
+  }
+  return full;
 }
 
 /**
