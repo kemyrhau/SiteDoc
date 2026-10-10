@@ -26,6 +26,10 @@ import {
   tellDxfInventar,
   byggRapport,
   RAPPORT_ALLOWLIST,
+  robustGrense,
+  fontStr,
+  CAP_RATIO,
+  mtekstForankring,
 } from "./dwgKonvertering";
 
 // ---------------------------------------------------------------------------
@@ -688,6 +692,74 @@ describe("RETUR 5 TILLEGG 2 — stroke-width er fast skjerm-px, ikke viewBox-enh
   });
 });
 
+// ---------------------------------------------------------------------------
+// SVAR RETUR 6 — spor 2 (robust ytter-grense), teksthøyde (cap-ratio), MTEXT-
+// forankring (gruppe 71). Rene funksjoner, deterministiske syntetiske data.
+// ---------------------------------------------------------------------------
+
+describe("SVAR RETUR 6 spor 2 — robustGrense (skrell isolerte ytter-klynger)", () => {
+  it("jevn tett fordeling: ingen gap → full min/max (no-op, Ålesund uendret)", () => {
+    const v = Array.from({ length: 1000 }, (_, i) => i); // 0..999, tett
+    const g = robustGrense(v);
+    expect(g.lo).toBeLessThanOrEqual(0 + 1000 / 512); // innen én bin-bredde
+    expect(g.hi).toBeGreaterThanOrEqual(999 - 1000 / 512);
+  });
+
+  it("isolert ytter-klynge bak et stort gap, < maksTrim → skrelles bort", () => {
+    // Hovedmasse jevnt 100..199 (1000 pkt) + ÉN uteligger på 1000 (modullinje-bobbel),
+    // skilt med et stort tomt gap (200..1000). Uteligger = 0,1 % ≤ maksTrim → skrelles.
+    const masse = Array.from({ length: 1000 }, (_, i) => 100 + (i % 100));
+    const g = robustGrense([...masse, 1000]);
+    expect(g.hi).toBeLessThan(300);         // uteliggeren på 1000 er borte fra grensen
+    expect(g.lo).toBeLessThanOrEqual(102);  // nedre kant ~100 bevart
+  });
+
+  it("to like store klynger (hver 50 %): guard hindrer trimming → full range", () => {
+    // En uteligger-klynge som utgjør mer enn maksTrim (2 %) skal IKKE skrelles —
+    // beskytter ekte kantgeometri (RETUR 1 pkt 7).
+    const v = [...Array(500).fill(0), ...Array(500).fill(1000)];
+    const g = robustGrense(v);
+    expect(g.lo).toBeLessThanOrEqual(2);
+    expect(g.hi).toBeGreaterThanOrEqual(998);
+  });
+
+  it("tom/degenerert input er trygt", () => {
+    expect(robustGrense([])).toEqual({ lo: 0, hi: 0 });
+    expect(robustGrense([5, 5, 5]).lo).toBe(5);
+  });
+});
+
+describe("SVAR RETUR 6 pkt 2 — fontStr (SVG-versalhøyde = CAD-nominalhøyde)", () => {
+  it("font-size = høyde / cap-ratio (≈1,40× — vår tekst var ~0,72× av TrueView)", () => {
+    expect(fontStr(100)).toBeCloseTo(100 / CAP_RATIO, 6);
+    expect(fontStr(100) * CAP_RATIO).toBeCloseTo(100, 6); // versalhøyden lander på 100
+    expect(fontStr(100)).toBeGreaterThan(130);
+  });
+});
+
+describe("SVAR RETUR 6 pkt 3 — mtekstForankring (gruppe 71 → anchor/baseline)", () => {
+  it("bunn-venstre (7) og udefinert gir TOM streng (uendret gammel utskrift)", () => {
+    expect(mtekstForankring(7)).toBe("");
+    expect(mtekstForankring(undefined)).toBe("");
+    expect(mtekstForankring(0)).toBe("");
+  });
+  it("topp-venstre (1) henger teksten UNDER punktet (text-before-edge), venstre = default", () => {
+    const s = mtekstForankring(1);
+    expect(s).toContain('dominant-baseline="text-before-edge"');
+    expect(s).not.toContain("text-anchor"); // kolonne venstre = start = default
+  });
+  it("topp-høyre (3): text-anchor=end + text-before-edge", () => {
+    const s = mtekstForankring(3);
+    expect(s).toContain('text-anchor="end"');
+    expect(s).toContain('dominant-baseline="text-before-edge"');
+  });
+  it("midt-senter (5): text-anchor=middle + central", () => {
+    const s = mtekstForankring(5);
+    expect(s).toContain('text-anchor="middle"');
+    expect(s).toContain('dominant-baseline="central"');
+  });
+});
+
 const KUNDEFIL = process.env.SITEDOC_DWG_KUNDEFIL;
 const DWG2DXF = process.env.DWG2DXF_PATH ?? "dwg2dxf";
 function harDwg2dxf(): boolean {
@@ -734,6 +806,20 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     // De 503 ATTRIB var usynlige før RETUR 4 — nå tegnes de synlige verdiene.
     expect(r.parsetPrType["ATTRIB"]).toBeGreaterThan(0);
     expect(r.tegnetPrType["ATTRIB"]).toBeGreaterThan(0);
+  }, 180000);
+
+  it("SVAR RETUR 6 spor 2: utstrekningen dekker bygget, ikke modullinjene (de tegnes fortsatt, utenfor viewBox)", () => {
+    const res = dxfTilSvg(konverterKundefil())!;
+    const vb = res.svg.match(/viewBox="([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+)"/)!;
+    const vbX = parseFloat(vb[1]!), vbW = parseFloat(vb[3]!);
+    // Alle tegnede x-koordinater (line/polyline/circle/text).
+    const xs: number[] = [];
+    for (const m of res.svg.matchAll(/<line [^>]*x1="([-\d.eE]+)"[^>]*x2="([-\d.eE]+)"/g)) { xs.push(parseFloat(m[1]!), parseFloat(m[2]!)); }
+    for (const m of res.svg.matchAll(/points="([^"]+)"/g)) for (const c of m[1]!.matchAll(/(-?[\d.eE]+),(-?[\d.eE]+)/g)) xs.push(parseFloat(c[1]!));
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    // Modullinje-boblene tegnes fortsatt, men ligger UTENFOR viewBox: bevis på at de
+    // IKKE styrer utstrekningen (uten skrelling ville all geometri ligget innenfor).
+    expect(minX < vbX || maxX > vbX + vbW).toBe(true);
   }, 180000);
 
   it("RETUR 5 TILLEGG 2: ingen stroke-width > 2 px (fallplanen ble en svart klump i ren <img>)", () => {

@@ -1109,6 +1109,82 @@ export function beregnStartutsnitt(
   return { x: x0, y: y0, w, h };
 }
 
+/**
+ * SVAR RETUR 6 spor 2 — robust ytre grense pr. akse. Trimmer bort isolerte ytter-
+ * klynger (modullinje-«bobler», enslige snitt-/nordmarkører, andre løse elementer
+ * langt fra hovedmassen) som ellers blåser opp extents og dermed krymper selve
+ * bygget i startvisningen. Ren, testbar funksjon — ingen lagnavn-heuristikk.
+ *
+ * Metode (tetthet + gap, ikke lengdevekting — en LANG modullinje ville dratt
+ * lengdevekt-persentilen MOT seg, se leveransen): binn verdiene, og «skrell» fra
+ * hver ende isolerte klynger som (a) er skilt fra resten med et tomt gap ≥ `gapAndel`
+ * av spennet OG (b) til sammen utgjør ≤ `maksTrimAndel` av punktene. Treffer vi ikke
+ * et slikt gap, stopper vi — hovedmassens egen kant bevares (RETUR 1 pkt 7: aldri
+ * klipp ekte kantgeometri). Ingen kvalifiserende gap ⇒ full min/max uendret, så rene
+ * tegninger (Ålesund) er en no-op.
+ */
+export function robustGrense(
+  verdier: number[],
+  opts: { gapAndel?: number; maksTrimAndel?: number; bins?: number } = {},
+): { lo: number; hi: number } {
+  const gapAndel = opts.gapAndel ?? 0.03;
+  const maksTrim = opts.maksTrimAndel ?? 0.02;
+  const K = opts.bins ?? 512;
+  const n = verdier.length;
+  if (n === 0) return { lo: 0, hi: 0 };
+  let lo = Infinity, hi = -Infinity;
+  for (const v of verdier) {
+    if (!Number.isFinite(v)) continue;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const span = hi - lo;
+  if (!(span > 0)) return { lo, hi };
+
+  const bw = span / K;
+  const bins = new Array<number>(K).fill(0);
+  for (const v of verdier) {
+    if (!Number.isFinite(v)) continue;
+    let i = Math.floor((v - lo) / bw);
+    if (i < 0) i = 0;
+    if (i >= K) i = K - 1;
+    bins[i] = (bins[i] ?? 0) + 1;
+  }
+  const minGapBins = Math.max(1, Math.ceil(gapAndel * K));
+  const maksTrimN = maksTrim * n;
+
+  // Skrell isolerte ytter-klynger fra lav ende.
+  let loBin = 0;
+  {
+    let trimmet = 0, i = 0;
+    while (i < K) {
+      if (bins[i] === 0) { i++; continue; }            // ledende tomme bins
+      let j = i, klynge = 0;
+      while (j < K && bins[j]! > 0) { klynge += bins[j]!; j++; }   // klynge [i..j)
+      let g = j; while (g < K && bins[g] === 0) g++;               // gap [j..g)
+      if (g < K && (g - j) >= minGapBins && (trimmet + klynge) <= maksTrimN) {
+        trimmet += klynge; loBin = g; i = g;            // isolert → trim, hopp forbi gapet
+      } else break;                                     // hovedmasse nådd
+    }
+  }
+  // Skrell isolerte ytter-klynger fra høy ende.
+  let hiBin = K - 1;
+  {
+    let trimmet = 0, i = K - 1;
+    while (i >= 0) {
+      if (bins[i] === 0) { i--; continue; }
+      let j = i, klynge = 0;
+      while (j >= 0 && bins[j]! > 0) { klynge += bins[j]!; j--; }
+      let g = j; while (g >= 0 && bins[g] === 0) g--;
+      if (g >= 0 && (j - g) >= minGapBins && (trimmet + klynge) <= maksTrimN) {
+        trimmet += klynge; hiBin = g; i = g;
+      } else break;
+    }
+  }
+  if (loBin > hiBin) return { lo, hi };                 // degenerert → full min/max
+  return { lo: lo + loBin * bw, hi: lo + (hiBin + 1) * bw };
+}
+
 /** Evaluer kubisk B-spline med kontrollpunkter og knot-vektor */
 function evaluerSpline(
   kontrollPunkter: { x: number; y: number }[],
@@ -1208,6 +1284,40 @@ export interface DxfSvgResultat {
   /** RETUR 4 (fullstendighet): parset-vs-tegnet pr. type. null for layout-klipp
    * (inventaret gjelder hele DXF-en, ikke klippet). */
   rapport: KonverteringRapport | null;
+}
+
+/**
+ * SVAR RETUR 6 pkt 2 — teksthøyde. DXF-/CAD-tekst­høyden (gruppe 40) ER versal­høyden
+ * (cap height): en tekst med høyde 100 har 100 enheter høye STORE bokstaver, slik
+ * TrueView tegner den. SVG `font-size` er derimot EM-kvadratet; for en sans-serif er
+ * versalhøyden bare ~0,716 · em. Satte vi `font-size = høyde` ble versalene ~72 % av
+ * CAD (målt mot TrueView: kote-tekst vs. sluk-diameter, begge 100 i DXF → vår ~0,72).
+ * Deler vi på cap-ratio blir SVG-versalhøyden lik CAD-høyden. */
+export const CAP_RATIO = 0.716;
+export function fontStr(hoyde: number): number { return hoyde / CAP_RATIO; }
+
+/**
+ * SVAR RETUR 6 pkt 3 — MTEXT innfestingspunkt (gruppe 71, 1–9). Posisjonen (gruppe 10)
+ * er ett av ni ankerpunkter, ikke alltid venstre grunnlinje. Uten dette ble topp-
+ * forankret tekst (att=1, f.eks. areal «9,54 m²») tegnet som grunnlinje-venstre, dvs.
+ * skjøvet ~én tekstlinje OPP — opp i romnavnet over (Teknisk rom-kollisjonen). Vi
+ * mapper kolonne→`text-anchor` og rad→`dominant-baseline` så ankeret havner på (x,y).
+ *   1 TL 2 TC 3 TR · 4 ML 5 MC 6 MR · 7 BL 8 BC 9 BR
+ */
+export function mtekstForankring(att: number | undefined): string {
+  // Default (udefinert eller 7 = bunn-venstre) gir TOM streng → identisk med gammel
+  // utskrift (grunnlinje-venstre). Bare ikke-default forankring får attributter, så
+  // vanlige tegninger (inkl. Ålesunds bunn-venstre tekst) er uendret.
+  if (typeof att !== "number" || att < 1 || att > 9 || att === 7) return "";
+  const kol = (att - 1) % 3;                  // 0=venstre 1=senter 2=høyre
+  const rad = Math.floor((att - 1) / 3);      // 0=topp 1=midt 2=bunn
+  let s = "";
+  if (kol === 1) s += ` text-anchor="middle"`;
+  else if (kol === 2) s += ` text-anchor="end"`;
+  if (rad === 0) s += ` dominant-baseline="text-before-edge"`;
+  else if (rad === 1) s += ` dominant-baseline="central"`;
+  // rad === 2 (bunn): grunnlinje ≈ posisjon → ingen baseline-attributt (default).
+  return s;
 }
 
 /** Generer SVG fra parsed DXF-entiteter (normaliserte koordinater) */
@@ -1511,6 +1621,10 @@ export function dxfTilSvg(
       // Nå tas full min/max; kun sentinel-/søppelkoordinater (|v| ≥ 1e12) kastes.
       let fMinX = Infinity, fMaxX = -Infinity, fMinY = Infinity, fMaxY = -Infinity;
       let antall = 0;
+      // SVAR RETUR 6 spor 2: samle koordinatene så den robuste grensen kan skrelle
+      // bort isolerte ytter-klynger (modullinjer, løse markører) fra extents.
+      const samX: number[] = [];
+      const samY: number[] = [];
 
       function saml(x: number, y: number) {
         if (!gyldigKoordinat(x) || !gyldigKoordinat(y)) return;
@@ -1518,6 +1632,7 @@ export function dxfTilSvg(
         if (x > fMaxX) fMaxX = x;
         if (y < fMinY) fMinY = y;
         if (y > fMaxY) fMaxY = y;
+        samX.push(x); samY.push(y);
         antall++;
       }
 
@@ -1541,8 +1656,17 @@ export function dxfTilSvg(
       }
 
       if (antall === 0) return null;
-      minX = fMinX; maxX = fMaxX; minY = fMinY; maxY = fMaxY;
-      console.log(`[DWG] Beregnet extents fra entiteter (full min/max, ${antall} pkt): (${minX}, ${minY}) → (${maxX}, ${maxY})`);
+      // SVAR RETUR 6 spor 2: robust grense pr. akse. No-op uten isolerte ytter-klynger
+      // (Ålesund uendret); på fallplanen skrelles modullinje-boblene og snittmarkøren.
+      // Elementene tegnes fortsatt (de ligger innenfor margin-bounds under) — de styrer
+      // bare ikke lenger utstrekningen/startutsnittet.
+      const gx = robustGrense(samX);
+      const gy = robustGrense(samY);
+      minX = gx.lo; maxX = gx.hi; minY = gy.lo; maxY = gy.hi;
+      const trimX = ((fMaxX - fMinX) - (maxX - minX));
+      const trimY = ((fMaxY - fMinY) - (maxY - minY));
+      console.log(`[DWG] Robust extents (${antall} pkt): (${minX.toFixed(0)}, ${minY.toFixed(0)}) → (${maxX.toFixed(0)}, ${maxY.toFixed(0)})` +
+        (trimX > 0 || trimY > 0 ? ` [skrelt X ${trimX.toFixed(0)}, Y ${trimY.toFixed(0)} fra full min/max]` : " [full min/max, ingen ytter-klynger]"));
     }
     } // lukk if (!klippBounds)
 
@@ -1751,25 +1875,28 @@ export function dxfTilSvg(
         // `r=sw*2` ga en «stor svart prikk» større enn teksten på oppblåste viewBox-er.
         paths.push(`<circle cx="${nx(e.position.x)}" cy="${ny(e.position.y)}" r="${sw * 0.5}" fill="${stroke}"${da} />`);
       } else if (e.type === "TEXT" && e.startPoint && e.text) {
-        const fontSize = (e.textHeight ?? sw * 10) * 1;
+        // SVAR RETUR 6 pkt 2: versalhøyde = CAD-høyde (fontStr deler på cap-ratio).
+        const fontSize = fontStr(e.textHeight ?? sw * 10);
         const x = nx(e.startPoint.x);
         const y = ny(e.startPoint.y);
         const rot = e.rotation ? ` transform="rotate(${-e.rotation} ${x} ${y})"` : "";
         paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif"${da}>${escapeXml(e.text)}</text>`);
       } else if (e.type === "MTEXT" && e.position && e.text) {
-        const fontSize = (e.height ?? sw * 10) * 1;
+        const fontSize = fontStr(e.height ?? sw * 10);
         const x = nx(e.position.x);
         const y = ny(e.position.y);
         const rot = e.rotation ? ` transform="rotate(${-e.rotation} ${x} ${y})"` : "";
+        // SVAR RETUR 6 pkt 3: forankre etter gruppe 71 så ankeret havner på (x,y).
+        const forankring = mtekstForankring(e.attachmentPoint);
         // MTEXT kan ha formatering — strip basic DXF formatting codes
         const renTekst = e.text.replace(/\\[A-Za-z][^;]*;/g, "").replace(/\{|\}/g, "");
-        paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${rot} font-family="sans-serif"${da}>${escapeXml(renTekst)}</text>`);
+        paths.push(`<text x="${x}" y="${y}" font-size="${fontSize}" fill="${stroke}"${forankring}${rot} font-family="sans-serif"${da}>${escapeXml(renTekst)}</text>`);
       } else if (e.type === "ATTRIB" && e.position && e.text) {
         // RETUR 4 (fullstendighet): blokk-attributt-verdi. Tegnes som TEXT. Som MTEXT/TEXT
         // beholdes e.rotation urørt av auto-rotasjonen og motroteres rundt eget punkt, så
         // teksten står lesbart (jf. arkitektens PDF). Egen rotasjon mater IKKE kvadrant-
         // histogrammet — det ville flyttet den verifiserte veggrid-rotasjonen.
-        const fontSize = (e.textHeight && e.textHeight > 0 ? e.textHeight : sw * 10) * 1;
+        const fontSize = fontStr(e.textHeight && e.textHeight > 0 ? e.textHeight : sw * 10);
         const x = nx(e.position.x);
         const y = ny(e.position.y);
         const rot = e.rotation ? ` transform="rotate(${-e.rotation} ${x} ${y})"` : "";
@@ -1780,7 +1907,7 @@ export function dxfTilSvg(
           paths.push(`<line x1="${nx(e.anchorPoint.x)}" y1="${ny(e.anchorPoint.y)}" x2="${nx(e.middleOfText.x)}" y2="${ny(e.middleOfText.y)}" stroke="${stroke}" stroke-width="${strekBredde * 0.5}"${da} />`);
         }
         if (e.text && e.middleOfText) {
-          const fontSize = sw * 8;
+          const fontSize = fontStr(sw * 8);
           paths.push(`<text x="${nx(e.middleOfText.x)}" y="${ny(e.middleOfText.y)}" font-size="${fontSize}" fill="${stroke}" text-anchor="middle" font-family="sans-serif"${da}>${escapeXml(e.text)}</text>`);
         }
       } else if (e.type !== "ATTDEF") {
