@@ -69,6 +69,8 @@ import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
 import { RedigerTegningModal } from "@/components/tegning/RedigerTegningModal";
 import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
+import { KonverteringMarkorLinje } from "@/components/tegning/KonverteringMarkorLinje";
+import { lesKonverteringMarkor } from "@/lib/konverteringMarkor";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
@@ -1524,6 +1526,14 @@ export default function TegningerSide() {
 
   const MALESTOKK_VALG = ["1:20", "1:50", "1:100", "1:200", "1:500"];
 
+  // Konverteringsmarkør (stille metadata): hvilken kode som sist konverterte tegningen.
+  // `erKonvertert` = tegningen har en arkivert original (DWG/PDF) → eldre tegninger uten
+  // markør viser «Konvertert før versjonsmerking»; rene bildeopplastinger viser ingenting.
+  const konvMarkor = lesKonverteringMarkor(
+    (tegning as unknown as { konverteringRapport: unknown }).konverteringRapport,
+  );
+  const tegningErKonvertert = !!(tegning as unknown as { originalFileUrl: string | null }).originalFileUrl;
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Posisjonsvelger-banner */}
@@ -1573,6 +1583,8 @@ export default function TegningerSide() {
           tegningsnummer={tegning.drawingNumber}
           tegningNavn={tegning.name}
         />
+        {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11). */}
+        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} />
         <div className="flex-1" />
 
         {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
@@ -2598,6 +2610,8 @@ export default function TegningerSide() {
         onRevisjonFerdig={() =>
           invaliderEtterRedigerDetaljer(utils, params.prosjektId, tegning.id)
         }
+        konverteringMarkor={konvMarkor}
+        erKonvertert={tegningErKonvertert}
       />
     </div>
   );
