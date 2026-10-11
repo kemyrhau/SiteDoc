@@ -1756,6 +1756,8 @@
   "tegninger.markor.konvertert": "Convertit {{tid}} · versiunea {{versjon}}",
   "tegninger.markor.konvertertUkjent": "Convertit {{tid}} · versiune necunoscută",
   "tegninger.markor.foerMerking": "Convertit înainte de etichetarea versiunii",
+  "tegninger.konverterer": "Conversia…",
+  "tegninger.konvStoppet": "Conversia pare să se fi oprit",
   "tegninger.revisjon.arkiverteLayouts": "Aspecte arhivate",
   "malVelger.velgSjekklistemal": "Selectați șablonul de listă de verificare",
   "malVelger.velgOppgavemal": "Selectați șablonul de sarcină",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Input, Modal } from "@sitedoc/ui";
 import { Upload, Loader2 } from "lucide-react";
@@ -34,18 +34,28 @@ export function LastOppRevisjonKnapp({
   variant = "secondary",
   size = "sm",
   onFerdig,
+  onOpptatt,
 }: {
   drawingId: string;
   gjeldendeRevisjon: string | null | undefined;
   variant?: "primary" | "secondary" | "ghost";
   size?: "sm" | "md";
   onFerdig?: () => void;
+  /** Meldes `true` fra filvalg/opplasting til revisjonsdialogen lukkes. Lar en
+   * omsluttende modal (RedigerTegningModal) deaktivere Lagre/Avbryt/lukk i
+   * `lasterOpp`-vinduet FØR den indre dialogen gjør den ytre inert. */
+  onOpptatt?: (opptatt: boolean) => void;
 }) {
   const { t } = useTranslation();
   const filInput = useRef<HTMLInputElement>(null);
   const [lasterOpp, setLasterOpp] = useState(false);
   const [valgt, setValgt] = useState<OpplastetFil | null>(null);
   const [revisjon, setRevisjon] = useState("");
+
+  const opptatt = lasterOpp || !!valgt;
+  useEffect(() => {
+    onOpptatt?.(opptatt);
+  }, [opptatt, onOpptatt]);
 
   const mutation = trpc.tegning.lastOppRevisjon.useMutation({
     onSuccess: () => {

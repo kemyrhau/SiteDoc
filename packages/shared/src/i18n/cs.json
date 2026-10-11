@@ -1756,6 +1756,8 @@
   "tegninger.markor.konvertert": "Převedeno {{tid}} · verze {{versjon}}",
   "tegninger.markor.konvertertUkjent": "Převedeno {{tid}} · neznámá verze",
   "tegninger.markor.foerMerking": "Převedeno před označením verze",
+  "tegninger.konverterer": "Převádí se…",
+  "tegninger.konvStoppet": "Zdá se, že konverze byla zastavena",
   "tegninger.revisjon.arkiverteLayouts": "Archivované rozvržení",
   "malVelger.velgSjekklistemal": "Vyberte šablonu kontrolního seznamu",
   "malVelger.velgOppgavemal": "Vyberte šablonu úkolu",

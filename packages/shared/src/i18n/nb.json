@@ -1756,6 +1756,8 @@
   "tegninger.markor.konvertert": "Konvertert {{tid}} · versjon {{versjon}}",
   "tegninger.markor.konvertertUkjent": "Konvertert {{tid}} · ukjent versjon",
   "tegninger.markor.foerMerking": "Konvertert før versjonsmerking",
+  "tegninger.konverterer": "Konverterer …",
+  "tegninger.konvStoppet": "Konverteringen ser ut til å ha stoppet",
   "tegninger.revisjon.arkiverteLayouts": "Arkiverte layouts",
   "malVelger.velgSjekklistemal": "Velg sjekklistemal",
   "malVelger.velgOppgavemal": "Velg oppgavemal",

@@ -1756,6 +1756,8 @@
   "tegninger.markor.konvertert": "Converti {{tid}} · version {{versjon}}",
   "tegninger.markor.konvertertUkjent": "Converti {{tid}} · version inconnue",
   "tegninger.markor.foerMerking": "Converti avant le balisage de version",
+  "tegninger.konverterer": "Conversion…",
+  "tegninger.konvStoppet": "La conversion semble s'être arrêtée",
   "tegninger.revisjon.arkiverteLayouts": "Mises en page archivées",
   "malVelger.velgSjekklistemal": "Sélectionnez un modèle de liste de contrôle",
   "malVelger.velgOppgavemal": "Sélectionner un modèle de tâche",

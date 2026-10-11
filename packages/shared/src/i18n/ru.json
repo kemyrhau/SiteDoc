@@ -1756,6 +1756,8 @@
   "tegninger.markor.konvertert": "Преобразовано {{tid}} · версия {{versjon}}",
   "tegninger.markor.konvertertUkjent": "Преобразовано {{tid}} · неизвестная версия",
   "tegninger.markor.foerMerking": "Преобразовано до пометки версии",
+  "tegninger.konverterer": "Преобразование…",
+  "tegninger.konvStoppet": "Преобразование, похоже, остановлено",
   "tegninger.revisjon.arkiverteLayouts": "Архивные макеты",
   "malVelger.velgSjekklistemal": "Выберите шаблон контрольного списка",
   "malVelger.velgOppgavemal": "Выберите шаблон задачи",
