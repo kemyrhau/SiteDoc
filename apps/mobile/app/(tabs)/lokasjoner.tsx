@@ -45,7 +45,6 @@ import {
   isoUkeRef,
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse, Periode } from "@sitedoc/shared";
-import { lesKonverteringMarkor } from "@sitedoc/shared";
 
 // Type-casts for å unngå TS2589 (excessively deep type instantiation)
 interface BygningData {
@@ -88,9 +87,6 @@ interface TegningDetalj {
   autoRotasjon?: number | null;
   rotasjonOverstyrt?: number | null;
   startutsnitt?: unknown;
-  // RETUR 2: konverteringsmarkøren (motor) brukes for å avgjøre om tegningen skal
-  // inlines som ezdxf (behold/damp strek) eller vises som <img> (egen/raster).
-  konverteringRapport?: unknown;
 }
 
 interface OppgaveMarkør {
@@ -888,15 +884,14 @@ export default function LokasjonerSkjerm() {
               if (!su || typeof su.x !== "number" || typeof su.y !== "number" || typeof su.w !== "number" || typeof su.h !== "number") return null;
               return { x: su.x, y: su.y, w: su.w, h: su.h };
             })()}
-            // C2 (L6) + RETUR 2: ezdxf-SVG rendres INLINE så streken kan dempes/strippes
-            // (<img> kan ikke → tykk svart ved zoom). Gjelder BÅDE den farge-grupperte
-            // mobilvarianten (mobilFileUrl, ny ezdxf med C1) OG en gammel ezdxf-SVG uten
-            // mobilvariant (fileUrl, pre-C1): inline-handleren i byggHtml ser C1-formatet og
-            // gir rå (173-enhets) strek egen-behandling. Egen-motor / raster → <img>.
+            // C2 (L6): ezdxf-mobilvarianten (farge-gruppert, ~2,5 MB) rendres INLINE så
+            // streken kan dempes ved zoom. Kun når mobilFileUrl finnes — den er alltid lett
+            // nok til å inlines. RETUR 2: en gammel ezdxf UTEN mobilvariant har bare den
+            // fulle ~22 MB-fila; å inlinee den henger WebView-en (målt i WebKit), så den
+            // «behandles som egen» = `<img>` (streken dempes ikke; løses ved re-konvertering
+            // som lager den lette mobilvarianten). byggHtml C1-gater selve inline-veien.
             svgInline={
-              (valgtTegningDetalj?.fileType ?? "") === "svg" &&
-              (!!valgtTegningDetalj?.mobilFileUrl ||
-                lesKonverteringMarkor(valgtTegningDetalj?.konverteringRapport)?.motor === "ezdxf")
+              (valgtTegningDetalj?.fileType ?? "") === "svg" && !!valgtTegningDetalj?.mobilFileUrl
             }
             onSettRotasjon={(grader) => {
               if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });
