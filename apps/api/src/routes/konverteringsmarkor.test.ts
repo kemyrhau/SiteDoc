@@ -75,19 +75,21 @@ describe("byggKonverteringMarkor — kodeversjon aldri tom (test c)", () => {
 // L8: DWG layout-barn (paper space) fikk ingen markør før og viste derfor «Konvertert
 // før versjonsmerking» selv ferske — den falske infoen markøren skal hindre. Denne
 // testen FEILER hvis et nyopprettet layout-barn mangler markøren (stille tomhet).
+//
+// Stram markør (2026-10-11): markøren bærer motoren som FAKTISK tegnet (fra resultatet),
+// ikke env-flagget DWG_MOTOR. Ved ezdxf→egen-fallback: motor="egen" + fallbackFra="ezdxf".
 describe("anvendDwgResultat — layout-barn får konverteringsmarkør (L8)", () => {
-  const forrigeMotor = process.env.DWG_MOTOR;
-  afterEach(() => {
-    if (forrigeMotor === undefined) delete process.env.DWG_MOTOR;
-    else process.env.DWG_MOTOR = forrigeMotor;
-  });
-
-  function resultatMedLayout(): DwgKonverteringsResultat {
+  function resultatMedLayout(
+    motor: "egen" | "ezdxf" = "egen",
+    fallbackFra: "egen" | "ezdxf" | null = null,
+    fallbackAarsak: string | null = null,
+  ): DwgKonverteringsResultat {
     return {
       mmPrPiksel: 10, scale: "1:100", scaleKilde: "dwg", imageWidth: 2000, imageHeight: 1500,
       visningUrl: "/uploads/hoved.svg", mobilVisningUrl: null, visningFilType: "svg",
       koordinatSystem: null, geoReferanse: null, feil: null,
       autoRotasjon: null, startutsnitt: null, rapport: null,
+      motor, fallbackFra, fallbackAarsak,
       layouts: [{
         navn: "Plan 1:100", tabOrder: 1, visningUrl: "/uploads/layout.svg", visningFilType: "svg",
         mmPrPiksel: 10, scale: "1:100", scaleKilde: "dwg", imageWidth: 2000, imageHeight: 1500,
@@ -117,11 +119,10 @@ describe("anvendDwgResultat — layout-barn får konverteringsmarkør (L8)", () 
 
   const TEGNING = { id: "d1", name: "Plan 06", projectId: "p1", byggeplassId: null };
 
-  it("nytt layout-barn får markør med motoren fra DWG_MOTOR (ezdxf)", async () => {
+  it("nytt layout-barn får markør med den FAKTISKE motoren (ezdxf) fra resultatet", async () => {
     process.env.GIT_SHA = "2034396e";
-    process.env.DWG_MOTOR = "ezdxf";
     const { prisma, opprettet } = fakePrisma();
-    await anvendDwgResultat(prisma, TEGNING, resultatMedLayout(), "/uploads/orig.dwg");
+    await anvendDwgResultat(prisma, TEGNING, resultatMedLayout("ezdxf"), "/uploads/orig.dwg");
     expect(opprettet).toHaveLength(1);
     const rapport = opprettet[0]!.konverteringRapport as { markor?: { motor?: string; kodeversjon?: string } };
     // Kjernen: layout-barnet har en markør (ikke tomt → «Konvertert før versjonsmerking»).
@@ -130,12 +131,28 @@ describe("anvendDwgResultat — layout-barn får konverteringsmarkør (L8)", () 
     expect(rapport.markor!.kodeversjon).toBe("2034396e");
   });
 
-  it("markøren følger egen-motoren når DWG_MOTOR ikke er satt", async () => {
+  it("markøren følger egen-motoren når resultatet rapporterer egen", async () => {
     process.env.GIT_SHA = "2034396e";
-    delete process.env.DWG_MOTOR;
     const { prisma, opprettet } = fakePrisma();
-    await anvendDwgResultat(prisma, TEGNING, resultatMedLayout(), "/uploads/orig.dwg");
+    await anvendDwgResultat(prisma, TEGNING, resultatMedLayout("egen"), "/uploads/orig.dwg");
     const rapport = opprettet[0]!.konverteringRapport as { markor?: { motor?: string } };
     expect(rapport.markor!.motor).toBe("egen");
+  });
+
+  // 🔴 Kjernen i stram-markør: DWG_MOTOR=ezdxf, men ezdxf falt tilbake til egen. Markøren
+  // skal da si motor="egen" + fallbackFra="ezdxf" — ALDRI "ezdxf" (en markør som lyver om
+  // motoren er nettopp feilklassen den skal hindre). Gjelder både hovedtegning og layout-barn.
+  it("ezdxf→egen-fallback: markøren viser egen + fallbackFra=ezdxf, ikke ezdxf", async () => {
+    process.env.GIT_SHA = "2034396e";
+    const { prisma, opprettet } = fakePrisma();
+    const resultat = resultatMedLayout("egen", "ezdxf", "ezdxf-render feilet");
+    await anvendDwgResultat(prisma, TEGNING, resultat, "/uploads/orig.dwg");
+    const rapport = opprettet[0]!.konverteringRapport as {
+      markor?: { motor?: string; fallbackFra?: string; fallbackAarsak?: string };
+    };
+    expect(rapport.markor!.motor).toBe("egen");
+    expect(rapport.markor!.motor).not.toBe("ezdxf");
+    expect(rapport.markor!.fallbackFra).toBe("ezdxf");
+    expect(rapport.markor!.fallbackAarsak).toBe("ezdxf-render feilet");
   });
 });

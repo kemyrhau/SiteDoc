@@ -33,7 +33,7 @@ WORKDIR /app
 # er ett-stegs (build ER runtime), saa de maa staa her. xvfb er UTELATT med vilje — den
 # hoerte til ODA-DWG-veien (fjernet i DWG-1) og 3D (utsatt, BACKLOG).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3 make g++ openssl \
+      python3 python3-venv make g++ openssl \
       poppler-utils tesseract-ocr tesseract-ocr-nor \
     && rm -rf /var/lib/apt/lists/*
 # DWG-1: libredwg-binærene + .so fra build-staget (D-M2 — konvertering skjer også her).
@@ -42,6 +42,15 @@ COPY --from=libredwg-build /usr/local/bin/dwg2SVG /usr/local/bin/dwg2SVG
 COPY --from=libredwg-build /usr/local/lib/libredwg.so* /usr/local/lib/
 RUN ldconfig
 COPY . .
+# ezdxf-motor (DWG_MOTOR=ezdxf, L9 2026-10-11): isolert Python-venv med hash-låste hjul.
+# Nettleser-opplasting konverterer i web-containeren (D-M2), så ezdxf MÅ ligge her også.
+# INERT til DWG_MOTOR=ezdxf settes i env. Identisk venv-oppsett som Dockerfile.api —
+# hold i synk. requirements.txt + render.py kom med `COPY . .`.
+RUN python3 -m venv /opt/ezdxf-venv \
+ && /opt/ezdxf-venv/bin/pip install --no-cache-dir --require-hashes \
+      -r /app/apps/api/src/services/ezdxf/requirements.txt
+ENV EZDXF_PYTHON=/opt/ezdxf-venv/bin/python3
+ENV EZDXF_RENDER_PY=/app/apps/api/src/services/ezdxf/render.py
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @sitedoc/db exec prisma generate \
  && pnpm --filter @sitedoc/db-maskin exec prisma generate \

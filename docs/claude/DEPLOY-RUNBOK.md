@@ -76,6 +76,19 @@ docker exec sitedoc-test-api dwg2dxf --version && docker exec sitedoc-test-web d
 Svarer én av dem ikke, mangler DWG-opplasting (dialogen avviser .dwg/.dxf med forklaring,
 ingen stille `failed`) — bygg på nytt med `--no-cache` for det bildet.
 
+🟢 **ezdxf-motor (L9, etter full rebuild):** ezdxf MÅ være importerbar i BEGGE containere
+(nettleser-opplasting konverterer i web-containeren). Inert til `DWG_MOTOR=ezdxf` settes
+(se infrastruktur.md § Miljøvariabler → DWG-motor), men venv-en skal finnes uansett:
+
+```sh
+docker exec sitedoc-test-api /opt/ezdxf-venv/bin/python3 -c "import ezdxf; print(ezdxf.__version__)" \
+ && docker exec sitedoc-test-web /opt/ezdxf-venv/bin/python3 -c "import ezdxf; print(ezdxf.__version__)"
+```
+
+Begge skal skrive `1.4.4`. Svarer én ikke, er ezdxf-motoren utilgjengelig der — med
+`DWG_MOTOR=ezdxf` faller den containeren stille til egen motor (synlig i markøren som
+`fallbackFra: "ezdxf"`, `fallbackAarsak: "ezdxf ikke konfigurert"`). Bygg bildet på nytt.
+
 ---
 
 # 2 · Deploy til PRODUKSJON
@@ -136,6 +149,14 @@ laste med data. **Anonym 200 er ikke verifisering** (vedtak 2026-05-02).
 
 ```sh
 docker exec sitedoc-api dwg2dxf --version && docker exec sitedoc-web dwg2dxf --version
+```
+
+🟢 **ezdxf-motor (L9):** ezdxf MÅ være importerbar i BEGGE prod-containere (inert til
+`DWG_MOTOR=ezdxf` — prod bytter først etter iPhone-sjekk på test):
+
+```sh
+docker exec sitedoc-api /opt/ezdxf-venv/bin/python3 -c "import ezdxf; print(ezdxf.__version__)" \
+ && docker exec sitedoc-web /opt/ezdxf-venv/bin/python3 -c "import ezdxf; print(ezdxf.__version__)"
 ```
 
 ### Steg 5b — bekreft at koden FAKTISK er i imaget (ved tvil)

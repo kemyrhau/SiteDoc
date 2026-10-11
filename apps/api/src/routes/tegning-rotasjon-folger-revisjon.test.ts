@@ -39,6 +39,9 @@ function lagResultat(nyAuto: number | null, overstyr: Partial<DwgKonverteringsRe
     autoRotasjon: nyAuto,
     startutsnitt: null,
     rapport: null,
+    motor: "egen",
+    fallbackFra: null,
+    fallbackAarsak: null,
     ...overstyr,
   };
 }

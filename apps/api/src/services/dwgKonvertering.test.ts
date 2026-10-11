@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, copyFileSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, copyFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import { kanMale, malMm, detekterKoordinatSystem } from "@sitedoc/shared";
@@ -972,5 +972,45 @@ describe("DWG_MOTOR — motorvalg (L0)", () => {
     delete process.env.EZDXF_RENDER_PY;
     const res = await dxfTilSvgEzdxf("/finnes/ikke.dxf");
     expect(res).toBeNull();
+  });
+
+  // 🔴 Stram markør (2026-10-11): DWG_MOTOR=ezdxf men ezdxf ikke konfigurert → konverteringen
+  // faller trygt til egen, OG resultatet rapporterer den FAKTISKE motoren (egen) + fallbackFra.
+  // Uten dette ville markøren lyve «ezdxf» selv om egen tegnet. Krever ikke ezdxf installert.
+  it("konverterDwg: ezdxf valgt men ikke konfigurert → motor=egen + fallbackFra=ezdxf (faktisk brukt)", async () => {
+    process.env.DWG_MOTOR = "ezdxf";
+    delete process.env.EZDXF_RENDER_PY;
+    const dir = mkdtempSync(join(tmpdir(), "dwgfallback-"));
+    try {
+      const dxfSti = join(dir, "plan.dxf");
+      writeFileSync(dxfSti, rektangelDxf({ w: 1000, h: 800, insunits: 4 }), "utf-8");
+      const res = await konverterDwg(dxfSti, "plan.dxf", dir, "dxf");
+      expect(res.feil).toBeNull();
+      expect(res.visningUrl).toMatch(/\.svg$/); // egen tegnet
+      expect(res.motor).toBe("egen");
+      expect(res.motor).not.toBe("ezdxf");
+      expect(res.fallbackFra).toBe("ezdxf");
+      expect(res.fallbackAarsak).toBe("ezdxf ikke konfigurert");
+      // egen-motoren lager ingen egen mobilvariant (mobil faller til fileUrl).
+      expect(res.mobilVisningUrl).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Motstykke: default egen → motor=egen, ingen fallback (fallbackFra=null).
+  it("konverterDwg: default egen → motor=egen, fallbackFra=null", async () => {
+    delete process.env.DWG_MOTOR;
+    const dir = mkdtempSync(join(tmpdir(), "dwgegen-"));
+    try {
+      const dxfSti = join(dir, "plan.dxf");
+      writeFileSync(dxfSti, rektangelDxf({ w: 1000, h: 800, insunits: 4 }), "utf-8");
+      const res = await konverterDwg(dxfSti, "plan.dxf", dir, "dxf");
+      expect(res.motor).toBe("egen");
+      expect(res.fallbackFra).toBeNull();
+      expect(res.fallbackAarsak).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

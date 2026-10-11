@@ -68,6 +68,17 @@ export interface DwgKonverteringsResultat extends DwgMaaling {
   startutsnitt: { x: number; y: number; w: number; h: number } | null;
   /** RETUR 4 (fullstendighet): parset-vs-tegnet-rapport for hovedtegningen. */
   rapport: KonverteringRapport | null;
+  /** Motoren som FAKTISK tegnet hovedtegningens SVG (L9/stram-markør 2026-10-11).
+   * Markøren skal vise dette, ikke env-valget `DWG_MOTOR` — falt ezdxf tilbake til
+   * egen, er `motor: "egen"` og `fallbackFra: "ezdxf"`. En markør som lyver om motoren
+   * er nettopp feilklassen den skal hindre. */
+  motor: DwgMotor;
+  /** Motoren som ble VALGT men feilet, slik at vi falt tilbake (kun ved fallback).
+   * null = ingen fallback (motor = valgt motor). */
+  fallbackFra: DwgMotor | null;
+  /** Kort årsak til fallbacken (f.eks. «ezdxf ikke konfigurert», «ezdxf-render feilet»).
+   * null når `fallbackFra` er null. */
+  fallbackAarsak: string | null;
 }
 
 interface DwgLayoutResultat extends DwgMaaling {
@@ -2165,6 +2176,11 @@ export async function konverterDwg(
       autoRotasjon: null,
       startutsnitt: null,
       rapport: null,
+      // Ingen SVG → markør skrives ikke (anvendDwgResultat krever visningUrl); felter
+      // settes for typens skyld. Valgt motor, ingen fallback (ingenting ble tegnet).
+      motor: valgtMotor(),
+      fallbackFra: null,
+      fallbackAarsak: null,
     };
   }
 
@@ -2229,19 +2245,29 @@ export async function konverterDwg(
     let mobilVisningUrl: string | null = null;
     let svgRes: DxfSvgResultat | null = null;
     let ezdxfBrukt = false; // true kun når ezdxf-web faktisk lyktes (ikke egen-fallback)
+    // Stram markør (2026-10-11): spor motoren som FAKTISK tegnet, ikke env-valget.
+    // Falt ezdxf tilbake til egen → motor="egen", fallbackFra="ezdxf" + kort årsak.
+    let fallbackFra: DwgMotor | null = null;
+    let fallbackAarsak: string | null = null;
     if (dxfInnhold) {
       if (motor === "ezdxf") {
         svgRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, dxfInnhold });
         if (svgRes) {
           ezdxfBrukt = true;
         } else {
-          console.warn("[DWG] ezdxf-motor ga ingen SVG — faller tilbake til egen motor.");
+          // Skill de to grunnene så markøren bærer en ærlig årsak: motoren er ikke
+          // installert/konfigurert i containeren vs. render.py feilet på DENNE fila.
+          fallbackFra = "ezdxf";
+          fallbackAarsak = EZDXF_RENDER_PY ? "ezdxf-render feilet" : "ezdxf ikke konfigurert";
+          console.warn(`[DWG] ezdxf-motor ga ingen SVG (${fallbackAarsak}) — faller tilbake til egen motor.`);
           svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
         }
       } else {
         svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
       }
     }
+    // Motoren vi rapporterer i markøren = den som faktisk produserte SVG-en.
+    const faktiskMotor: DwgMotor = ezdxfBrukt ? "ezdxf" : "egen";
     if (svgRes) {
       const svgFilnavn = `${randomUUID()}.svg`;
       await writeFile(join(uploadDir, svgFilnavn), svgRes.svg, "utf-8");
@@ -2353,6 +2379,9 @@ export async function konverterDwg(
       autoRotasjon,
       startutsnitt,
       rapport,
+      motor: faktiskMotor,
+      fallbackFra,
+      fallbackAarsak,
     };
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
@@ -2365,6 +2394,9 @@ export async function konverterDwg(
       autoRotasjon: null,
       startutsnitt: null,
       rapport: null,
+      motor: valgtMotor(),
+      fallbackFra: null,
+      fallbackAarsak: null,
     };
   }
 }

@@ -46,11 +46,31 @@ API når ML-tjenestene via env: `NORBERT_URL=http://embed:3302`, `OVERSETTELSE_U
 
 Bygges nå inn i Docker-imagene (ikke apt på host). `Dockerfile.api` installerer `poppler-utils` (PDF→PNG), `tesseract-ocr` + `tesseract-ocr-nor` (OCR), `openssl`, `ca-certificates`, `fontconfig`. **DWG/DXF (DWG-1, 2026-10-08):** libredwg 0.14 bygges fra kilde i et eget `libredwg-build`-stage (SHA256-pinnet GNU-tarball, bygget med `build-essential`/`pkg-config`/`curl`/`xz-utils`); kun `dwg2dxf`/`dwg2SVG` + `libredwg.so*` kopieres inn i runtime + `ldconfig`. Samme stage i `Dockerfile.web` (tRPC kjører in-process i web). ODA og `xvfb` er fjernet (ODA valgt bort; xvfb ble kun brukt av ODA).
 
-**ezdxf-motor (DWG_MOTOR=ezdxf, 2026-10-11, branch `feat/ezdxf-motor`):** 🟡 under arbeid. Python-venv med ezdxf 1.4.4 (hash-låst, `apps/api/src/services/ezdxf/requirements.txt`) legges i **både** `Dockerfile.api` og `Dockerfile.web` (nettleser-opplasting konverterer i web-containeren). Env: `DWG_MOTOR` (`egen` default / `ezdxf`), `EZDXF_PYTHON` (venv-python, default `python3`), `EZDXF_RENDER_PY` (full sti til `render.py`). Mangler `EZDXF_RENDER_PY` → faller tilbake til egen motor. Helsesjekk (ezdxf importerbar i begge containere) kommer i DEPLOY-RUNBOK § 1/§ 2 (L9). Spec: [tegning-dwg-spec.md § EZDXF-MOTOR](tegning-dwg-spec.md).
+**ezdxf-motor (DWG_MOTOR=ezdxf, 2026-10-11, branch `feat/ezdxf-motor`):** 🟢 L9 bygget. Isolert Python-venv (`/opt/ezdxf-venv`) med ezdxf 1.4.4 + deps hash-låst (`--require-hashes`, `apps/api/src/services/ezdxf/requirements.txt`) i **både** `Dockerfile.api` (runtime-steget) og `Dockerfile.web` (build=runtime) — nettleser-opplasting konverterer i web-containeren (D-M2). Begge bilder får `apt install python3 python3-venv`. Imagene setter `EZDXF_PYTHON=/opt/ezdxf-venv/bin/python3` og `EZDXF_RENDER_PY=/app/apps/api/src/services/ezdxf/render.py`. Verifisert i bookworm/py3.11.2-container: hash-sett resolver, `render.py` tegner (`dwgKonvertering.ts:dxfTilSvgEzdxf`). **INERT til `DWG_MOTOR=ezdxf` settes** — se § Miljøvariabler → DWG-motor. Helsesjekk (ezdxf importerbar i begge containere) i DEPLOY-RUNBOK § 1/§ 2. Spec: [tegning-dwg-spec.md § EZDXF-MOTOR](tegning-dwg-spec.md).
 
 ## Miljøvariabler
 
 Container-env settes via `env_file` (se «Env-filer på server» under) + `environment:` i `docker-compose.yml`. Uploads er bind-mountet (`~/stack/sitedoc/uploads` → `/app/apps/api/uploads`), så egen `UPLOADS_DIR`-variabel trengs ikke som på gammel server.
+
+### DWG-motor — `DWG_MOTOR` (Kenneths steg på test)
+
+`DWG_MOTOR` velger hvilken motor som tegner DWG/DXF→SVG: `egen` (default, libredwg + TS-parser) eller `ezdxf` (Python-renderen). `EZDXF_PYTHON`/`EZDXF_RENDER_PY` bakes i imaget (L9) — bare `DWG_MOTOR` skal settes for å bytte. Standard er `egen` overalt; **test byttes til `ezdxf` av Kenneth** etter merge + test-deploy, før iPhone-sjekk. Prod bytter først etter at telefon-sjekken på test er grønn.
+
+Bytt på test (begge test-containere konverterer — api for mobil, web for nettleser):
+
+```sh
+# 1. Legg til linja i BEGGE test-env-filer (append, aldri `>` — se STYRENDE under).
+#    Les først at den ikke finnes:
+ssh -t server-ny "grep -c '^DWG_MOTOR=' ~/stack/sitedoc/docker/env/api-test.env ~/stack/sitedoc/docker/env/web-test.env"
+ssh -t server-ny "printf 'DWG_MOTOR=ezdxf\n' >> ~/stack/sitedoc/docker/env/api-test.env \
+ && printf 'DWG_MOTOR=ezdxf\n' >> ~/stack/sitedoc/docker/env/web-test.env"
+# 2. Recreate test-containerne så ny env leses (compose-prosjekt sitedoc-test):
+ssh -t server-ny "cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.test.yml up -d sitedoc-test-api sitedoc-test-web"
+# 3. Bekreft at prosessen har variabelen (uten å lekke andre secrets):
+ssh -t server-ny "sudo docker exec sitedoc-test-api sh -c 'echo \$DWG_MOTOR' && sudo docker exec sitedoc-test-web sh -c 'echo \$DWG_MOTOR'"
+```
+
+Tilbake til `egen`: fjern linja fra begge filer og recreate på nytt. **Faller ezdxf av en grunn tilbake til egen** (venv/render mangler), bærer konverteringsmarkøren `fallbackFra: "ezdxf"` — da tegnet egen selv om flagget sa ezdxf (markøren lyver aldri om motoren).
 
 ### 🔴 STYRENDE: env-filer overskrives — tre hendelser på fem dager (2026-08-13 → 08-18)
 
