@@ -140,6 +140,9 @@ interface TegningsVisningProps {
   rotasjon?: { auto: number | null; overstyrt: number | null } | null;
   /** Lagre/nullstill brukerens rotasjons-overstyring (null = tilbake til auto). */
   onSettRotasjon?: (grader: number | null) => void;
+  /** L4b: startutsnitt (brøk [0,1] av viewBox) — mobilen åpner zoomet HIT (på bygget),
+   * ikke fit-to-width på rutenettet. null/utelatt = fit-to-width (egen-SVG/ikke-DWG). */
+  startutsnitt?: { x: number; y: number; w: number; h: number } | null;
 }
 
 /**
@@ -154,6 +157,7 @@ function byggHtml(
   gpsMarkør: GpsMarkør | null,
   trykkOppsett: "ingen" | "enkel" | "avansert",
   rotasjonDelta: number = 0,
+  startutsnitt: { x: number; y: number; w: number; h: number } | null = null,
 ): string {
   const markørData = JSON.stringify(markører.map((m) => ({
     id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
@@ -173,6 +177,7 @@ function byggHtml(
       })),
   );
   const gpsData = gpsMarkør ? JSON.stringify({ x: gpsMarkør.x, y: gpsMarkør.y }) : "null";
+  const startutsnittData = startutsnitt ? JSON.stringify(startutsnitt) : "null";
 
   return `<!DOCTYPE html>
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=50,user-scalable=yes">
@@ -219,6 +224,7 @@ function byggHtml(
 var markører = ${markørData};
 var omrader = ${omradeData};
 var gpsPos = ${gpsData};
+var startutsnitt = ${startutsnittData};
 var currentZoom = 1;
 
 // Hold markører visuelt like store ved pinch-zoom
@@ -324,8 +330,33 @@ function plasser() {
 }
 
 var img = document.getElementById('tegning');
-img.onload = function() { plasser(); };
-if (img.complete) plasser();
+var startutsnittApplisert = false;
+// L4b: åpne zoomet på startutsnittet (bygget), ikke fit-to-width på rutenettet.
+// SPEILER den testede hjelperen tegning-startutsnitt.ts (startutsnittRamme) — den kan
+// ikke importeres inn i WebView-JS-en, så math-en er inlinet her. Endres formelen,
+// endres begge steder. zoom = 0,98/maks(w,h) klemt [1,50]; container-bredden settes til
+// zoom*100 % (markører er prosent-baserte → følger med); scroll sentrerer midtpunktet.
+// Kjøres EN gang på load.
+function anvendStartutsnitt() {
+  if (startutsnittApplisert || !startutsnitt) return;
+  var su = startutsnitt;
+  if (!(su.w > 0) || !(su.h > 0)) return;
+  startutsnittApplisert = true;
+  var container = document.getElementById('container');
+  var z = Math.min(50, Math.max(1, 0.98 / Math.max(su.w, su.h)));
+  container.style.width = (z * 100) + '%';
+  // Vent på layout (bredden anvendt) før vi leser faktisk størrelse og scroller.
+  requestAnimationFrame(function() {
+    var cw = window.innerWidth, ch = window.innerHeight;
+    var innerW = container.offsetWidth, innerH = container.offsetHeight;
+    if (!innerW || !innerH) return;
+    var left = (su.x + su.w / 2) * innerW - cw / 2;
+    var top = (su.y + su.h / 2) * innerH - ch / 2;
+    window.scrollTo(Math.max(0, left), Math.max(0, top));
+  });
+}
+img.onload = function() { plasser(); anvendStartutsnitt(); };
+if (img.complete) { plasser(); anvendStartutsnitt(); }
 
 function post(o){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
 
@@ -686,6 +717,7 @@ export function TegningsVisning({
   onMaleModusEndring,
   rotasjon,
   onSettRotasjon,
+  startutsnitt,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
   // RETUR 2: auto-rotasjon er bakt inn i SVG-en; her legges kun en brukeroverstyring på.
@@ -1161,7 +1193,7 @@ export function TegningsVisning({
     : onTrykk
       ? "enkel"
       : "ingen";
-  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta);
+  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta, startutsnitt ?? null);
 
   return (
     <View className="flex-1 bg-black">

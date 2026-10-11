@@ -82,7 +82,8 @@ interface TegningDetalj {
   imageWidth?: number | null;
   imageHeight?: number | null;
   // RETUR 2: auto-rotasjon (bakt inn i SVG-en) + brukeroverstyring. `startutsnitt` er
-  // Json? på server (brukes ikke på mobil ennå — fit-to-width + bakt tett viewBox).
+  // Json? på server. L4b: mobilen åpner nå zoomet på startutsnittet (bygget), ikke
+  // fit-to-width — sendes til TegningsVisning (se startutsnitt-prop under).
   autoRotasjon?: number | null;
   rotasjonOverstyrt?: number | null;
   startutsnitt?: unknown;
@@ -872,6 +873,17 @@ export default function LokasjonerSkjerm() {
                 ? { auto: valgtTegningDetalj?.autoRotasjon ?? null, overstyrt: valgtTegningDetalj?.rotasjonOverstyrt ?? null }
                 : null
             }
+            startutsnitt={(() => {
+              // L4b: mobilen åpner på startutsnittet (bygget) i stedet for fit-to-width på
+              // rutenettet. Kun SVG; Json-feltet leses gjennom en smal struktur.
+              if ((valgtTegningDetalj?.fileType ?? "") !== "svg") return null;
+              const su = valgtTegningDetalj?.startutsnitt as
+                | { x?: unknown; y?: unknown; w?: unknown; h?: unknown }
+                | null
+                | undefined;
+              if (!su || typeof su.x !== "number" || typeof su.y !== "number" || typeof su.w !== "number" || typeof su.h !== "number") return null;
+              return { x: su.x, y: su.y, w: su.w, h: su.h };
+            })()}
             onSettRotasjon={(grader) => {
               if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });
             }}
