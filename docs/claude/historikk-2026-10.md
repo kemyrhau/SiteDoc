@@ -6,6 +6,12 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## Prod-deploy 2026-10-11 (`c46b8805`) og hotfix 2026-10-11 (`92ca2735`): DWG-visning, lås, markør (LIVE)
+
+- `92ca2735` (bygget 23:55Z 10.10): SVG lengste side 2000 for iOS; wheel-lytter re-festes etter ny revisjon (`7c9c1811`).
+- `c46b8805` (bygget 16:48Z 11.10): DWG-strek uten `vector-effect`, svart flate på iPhone (`8cdfc888`, verifisert på iPhone på test) · lås etter «Last opp ny revisjon» fra «Rediger tegningsdetaljer» (`ba70fa4a`) · konverteringsmarkør (`793018d0`, verifisert på test: «Konvertert 11.10 18:46 · versjon 8bba6974»).
+- Ingen migreringer, ingen OTA (mobilkode uendret). `curl /version` = `c46b8805`.
+
 ## Prod-deploy 2026-10-10 (`83a8d53f`, develop→main) — tegning-nedlasting, DWG retur 2–4 + strek/tekst, timer firma-isolasjon (LIVE)
 
 Release-commit `83a8d53f` på `main`, bygget 19:35Z. `curl /version` = `83a8d53f` (målt av orkestrator).
