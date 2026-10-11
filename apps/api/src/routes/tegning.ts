@@ -981,11 +981,15 @@ export const tegningRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
 
-      // Idempotent: en konvertering som ALT pågår skal verken dobles eller avbrytes
-      // (reparasjon 2026-10-11). Uten vakten startet et «Konverter DWG»-klikk under
-      // pending/converting en ny `konverterDwg` i parallell → to anvendDwgResultat-løp
-      // på samme tegning. Returner gjeldende status uendret.
-      if (tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting") {
+      // Idempotent MED rømningsvei (reparasjon 2026-10-11 + RETUR 1): en konvertering som
+      // ALT pågår skal verken dobles eller avbrytes — men dør prosessen midt i, blir raden
+      // stående på pending/converting for alltid, og uten rømningsvei kan tegningen aldri
+      // konverteres igjen (stille felle). Derfor: fersk pending/converting avvises, men er
+      // statusen eldre enn 10 min (updatedAt; ezdxf-tidsavbruddet er 300 s) regnes den som
+      // død og vi faller gjennom og starter en ny konvertering.
+      const KONVERTERING_FRIST_MS = 10 * 60 * 1000;
+      const pågår = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
+      if (pågår && Date.now() - new Date(tegning.updatedAt).getTime() < KONVERTERING_FRIST_MS) {
         return { status: tegning.conversionStatus };
       }
 

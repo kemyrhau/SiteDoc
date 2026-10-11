@@ -1757,6 +1757,7 @@
   "tegninger.markor.konvertertUkjent": "Teisendatud {{tid}} · tundmatu versioon",
   "tegninger.markor.foerMerking": "Teisendatud enne versiooni märgistamist",
   "tegninger.konverterer": "Teisendamine…",
+  "tegninger.konvStoppet": "Näib, et teisendamine on peatunud",
   "tegninger.revisjon.arkiverteLayouts": "Arhiveeritud paigutused",
   "malVelger.velgSjekklistemal": "Valige kontrollnimekirja mall",
   "malVelger.velgOppgavemal": "Valige ülesande mall",

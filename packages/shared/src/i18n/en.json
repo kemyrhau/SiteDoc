@@ -1757,6 +1757,7 @@
   "tegninger.markor.konvertertUkjent": "Converted {{tid}} · unknown version",
   "tegninger.markor.foerMerking": "Converted before version tagging",
   "tegninger.konverterer": "Converting …",
+  "tegninger.konvStoppet": "The conversion appears to have stopped",
   "tegninger.revisjon.arkiverteLayouts": "Archived layouts",
   "malVelger.velgSjekklistemal": "Select checklist template",
   "malVelger.velgOppgavemal": "Select task template",

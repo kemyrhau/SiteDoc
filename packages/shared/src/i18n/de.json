@@ -1757,6 +1757,7 @@
   "tegninger.markor.konvertertUkjent": "Konvertiert {{tid}} · unbekannte Version",
   "tegninger.markor.foerMerking": "Vor dem Versions-Tagging konvertiert",
   "tegninger.konverterer": "Konvertieren …",
+  "tegninger.konvStoppet": "Die Konvertierung scheint gestoppt worden zu sein",
   "tegninger.revisjon.arkiverteLayouts": "Archivierte Layouts",
   "malVelger.velgSjekklistemal": "Checklistenvorlage auswählen",
   "malVelger.velgOppgavemal": "Wählen Sie eine Aufgabenvorlage aus",

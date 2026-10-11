@@ -1757,6 +1757,7 @@
   "tegninger.markor.konvertertUkjent": "Przekonwertowano {{tid}} · nieznana wersja",
   "tegninger.markor.foerMerking": "Przekonwertowano przed oznaczeniem wersji",
   "tegninger.konverterer": "Konwersja…",
+  "tegninger.konvStoppet": "Wygląda na to, że konwersja została zatrzymana",
   "tegninger.revisjon.arkiverteLayouts": "Archiwalne układy",
   "malVelger.velgSjekklistemal": "Wybierz szablon listy kontrolnej",
   "malVelger.velgOppgavemal": "Wybierz szablon zadania",

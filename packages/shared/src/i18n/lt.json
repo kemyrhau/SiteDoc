@@ -1757,6 +1757,7 @@
   "tegninger.markor.konvertertUkjent": "Konvertuota {{tid}} · versija nežinoma",
   "tegninger.markor.foerMerking": "Konvertuota prieš priskiriant versiją",
   "tegninger.konverterer": "Konvertuojama…",
+  "tegninger.konvStoppet": "Atrodo, kad konversija sustojo",
   "tegninger.revisjon.arkiverteLayouts": "Archyvuoti maketai",
   "malVelger.velgSjekklistemal": "Pasirinkite kontrolinio sąrašo šabloną",
   "malVelger.velgOppgavemal": "Pasirinkite užduoties šabloną",

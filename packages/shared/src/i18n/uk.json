@@ -1757,6 +1757,7 @@
   "tegninger.markor.konvertertUkjent": "Перетворено {{tid}} · невідома версія",
   "tegninger.markor.foerMerking": "Перетворено до позначення версії",
   "tegninger.konverterer": "Перетворення…",
+  "tegninger.konvStoppet": "Перетворення, здається, зупинилося",
   "tegninger.revisjon.arkiverteLayouts": "Архівні макети",
   "malVelger.velgSjekklistemal": "Виберіть шаблон контрольного списку",
   "malVelger.velgOppgavemal": "Виберіть шаблон завдання",

@@ -1551,6 +1551,15 @@ export default function TegningerSide() {
     typeof suVent.h === "number" &&
     startutsnittAnvendtId !== aktivTegning?.id;
 
+  // RETUR 1: står status på pending/converting > 10 min (prosessen døde midt i), vis
+  // «Konverteringen ser ut til å ha stoppet» + «Prøv igjen». Polling (3s) re-rendrer så
+  // terskelen krysses; `updatedAt` endres ikke mens en død konvertering «henger».
+  const konvUpdatedAt = (tegning as unknown as { updatedAt?: string | Date | null }).updatedAt;
+  const konvStoppet =
+    erDwgKonvertering &&
+    !!konvUpdatedAt &&
+    Date.now() - new Date(konvUpdatedAt).getTime() > 10 * 60 * 1000;
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Posisjonsvelger-banner */}
@@ -1901,12 +1910,26 @@ export default function TegningerSide() {
       </div>
 
       {/* Konverteringsstatus — tekst per filtype (PDF vs DWG) */}
-      {erDwgKonvertering && (
+      {erDwgKonvertering && !konvStoppet && (
         <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
           <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
           <span className="text-sm font-medium text-amber-800">
             {t(banner.konverteresNokkel)}
           </span>
+        </div>
+      )}
+      {/* RETUR 1: hengende konvertering (> 10 min) — rømningsvei med «Prøv igjen». */}
+      {konvStoppet && (
+        <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <span className="text-sm text-amber-800">{t("tegninger.konvStoppet")}</span>
+          <button
+            onClick={() => provKonverteringIgjenMutation.mutate({ id: tegning.id })}
+            disabled={provKonverteringIgjenMutation.isPending}
+            className="ml-auto rounded border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+          >
+            {t("tegninger.provIgjen")}
+          </button>
         </div>
       )}
       {dwgFeilet && (
@@ -2475,10 +2498,16 @@ export default function TegningerSide() {
             // Konvertering pågår: bare en venteflate (banneret over viser status).
             // Issue 2 (2026-10-11): INGEN «Konverter DWG»-knapp her — den avbrøt/doblet
             // den pågående konverteringen. Knappen finnes kun ved failed/manglende status.
-            <>
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-              <p className="text-sm text-gray-500">{t("tegninger.konverterer")}</p>
-            </>
+            // RETUR 1: henger den > 10 min (konvStoppet) vises stoppet-tekst (banneret bærer
+            // «Prøv igjen»), ikke en evig spinner.
+            konvStoppet ? (
+              <p className="text-sm text-gray-500">{t("tegninger.konvStoppet")}</p>
+            ) : (
+              <>
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <p className="text-sm text-gray-500">{t("tegninger.konverterer")}</p>
+              </>
+            )
           ) : erUkonvertertDwg ? (
             <>
               <p className="text-sm text-gray-500">DWG-filen må konverteres før den kan vises</p>
