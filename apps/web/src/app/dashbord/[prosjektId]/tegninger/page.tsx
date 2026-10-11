@@ -50,6 +50,7 @@ import {
   type Maling,
   type MaleTilstand,
   byggTegningNedlastingsnavn,
+  beregnStrekVars,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
@@ -545,9 +546,14 @@ export default function TegningerSide() {
   const svgUrl = tegning?.fileUrl ? `/api${tegning.fileUrl}` : null;
   const erSvgFil = (tegning?.fileType ?? "") === "svg";
   const [svgInnhold, setSvgInnhold] = useState<string | null>(null);
+  // RETUR 1: ezdxf-SVG bærer sin EGEN <style> (dempet clamp-regel) + data-motor/data-lw-base.
+  // Da skal viseren BEHOLDE den stilen (ikke stripe + injisere egens faste 1,5-regel, som
+  // gjorde hver strek ~115× for tynn). Strek-variablene settes pr. zoom i layout-effekten under.
+  const [erEzdxfSvg, setErEzdxfSvg] = useState(false);
   useEffect(() => {
     if (!svgUrl || !erSvgFil) {
       setSvgInnhold(null);
+      setErEzdxfSvg(false);
       return;
     }
     fetch(svgUrl)
@@ -555,7 +561,8 @@ export default function TegningerSide() {
       .then((raaTekst) => {
         // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner
         const tekst = rensSvg(raaTekst);
-        // Fjern faste width/height og inject zoom-justert stroke-width CSS
+        const erEzdxf = /<svg[^>]*\sdata-motor="ezdxf"/.test(tekst);
+        // Fjern faste width/height (behold øvrige attributter: data-motor, data-lw-base, viewBox)
         let tilpasset = tekst.replace(
           /<svg([^>]*)>/,
           (_match, attrs: string) => {
@@ -565,17 +572,43 @@ export default function TegningerSide() {
             return `<svg${uten} width="100%" height="auto" style="display:block">`;
           },
         );
-        // Fjern eksisterende <style> og erstatt med zoom-bevisst versjon
-        tilpasset = tilpasset.replace(/<style>[^<]*<\/style>/g, "");
-        // Inject ny style rett etter <svg ...>
-        tilpasset = tilpasset.replace(
-          /(<svg[^>]*>)/,
-          `$1\n<style>line,polyline,circle,path,ellipse,polygon{stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important}</style>`,
-        );
+        if (!erEzdxf) {
+          // egen-motor: uendret — strip <style> og injiser fast zoom-bevisst strek.
+          tilpasset = tilpasset.replace(/<style>[^<]*<\/style>/g, "");
+          tilpasset = tilpasset.replace(
+            /(<svg[^>]*>)/,
+            `$1\n<style>line,polyline,circle,path,ellipse,polygon{stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important}</style>`,
+          );
+        }
+        // ezdxf: behold SVG-ens egen <style> uendret (dempet clamp-regel bruker --strek-*).
+        setErEzdxfSvg(erEzdxf);
         setSvgInnhold(tilpasset);
       })
-      .catch(() => setSvgInnhold(null));
+      .catch(() => {
+        setSvgInnhold(null);
+        setErEzdxfSvg(false);
+      });
   }, [svgUrl, erSvgFil]);
+
+  // RETUR 1 TILLEGG C1: dempet strekskalering for ezdxf-SVG. Viseren setter --strek-skala
+  // (= zoom^(k−1)) + gulv/tak (px→viewBox-konvertert fra displayScale) på SVG-wrapperen pr.
+  // zoom/resize. displayScale = rendret SVG-bredde / viewBox-bredde. Konstantene + formelen
+  // bor i @sitedoc/shared (beregnStrekVars) — delt med mobil (C2).
+  const svgSkalaRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = svgSkalaRef.current;
+    if (!el || !erEzdxfSvg || !svgInnhold) return;
+    const svgEl = el.querySelector("svg") as SVGSVGElement | null;
+    if (!svgEl) return;
+    const vbW = svgEl.viewBox?.baseVal?.width || 0;
+    const renderedW = svgEl.getBoundingClientRect().width;
+    const lwBase = parseFloat(svgEl.getAttribute("data-lw-base") || "") || 1;
+    if (!vbW || !renderedW) return;
+    const { strekSkala, strekMin, strekMaksK } = beregnStrekVars(zoom, renderedW / vbW, lwBase);
+    el.style.setProperty("--strek-skala", String(strekSkala));
+    el.style.setProperty("--strek-min", `${strekMin}px`);
+    el.style.setProperty("--strek-maks-k", String(strekMaksK));
+  }, [zoom, erEzdxfSvg, svgInnhold, klikkModus]);
 
   // RETUR 2 §3: startutsnitt — åpne zoomet til der innholdet er tett (DWG åpnet «veldig
   // lite»). Kjøres når SVG-en er i DOM (svgInnhold satt) så inner-høyden er målbar. Alt
@@ -620,7 +653,16 @@ export default function TegningerSide() {
   // SVG-variant for inspeksjonsmodus med bredere treffområde og hover-highlight
   const svgInnholdInspeksjon = useMemo(() => {
     if (!svgInnhold) return null;
-    // Erstatt stroke-width CSS med bredere versjon + pointer-events stroke + hover-effekt
+    if (erEzdxfSvg) {
+      // ezdxf: BEHOLD den dempede clamp-regelen (SVG-ens egen <style>); LEGG TIL et bredere
+      // treffområde + hover på [data-layer]. Treffbredden følger samme dempede strek × 3
+      // (relativ boost, bevarer lineweight-forhold), med 2 px gulv for klikkbarhet.
+      return svgInnhold.replace(
+        /(<svg[^>]*>)/,
+        `$1\n<style>[data-layer]{pointer-events:stroke;cursor:pointer}[data-layer]:hover{stroke:#3b82f6 !important}path[data-layer][style*="--lw"]{stroke-width:clamp(2px,calc(var(--lw) * var(--strek-skala,1) * 3 * 1px),calc(var(--lw) * var(--strek-maks-k,1e9) * 3 * 1px)) !important}</style>`,
+      );
+    }
+    // egen: erstatt stroke-width CSS med bredere versjon + pointer-events stroke + hover-effekt
     return svgInnhold.replace(
       /<style>[^<]*<\/style>/,
       `<style>
@@ -637,7 +679,7 @@ export default function TegningerSide() {
         }
       </style>`,
     );
-  }, [svgInnhold]);
+  }, [svgInnhold, erEzdxfSvg]);
 
   // Musehjul-zoom sentrert på musepekeren
   // Re-registrer når tegning endres (containerRef mountes etter data-lasting)
@@ -2187,6 +2229,7 @@ export default function TegningerSide() {
               {/* SVG: inline rendering med zoom-justert linjetykkelse */}
               {erSvgFil && svgInnhold ? (
                 <div
+                  ref={svgSkalaRef}
                   className="block w-full"
                   style={{ "--svg-zoom": zoom } as React.CSSProperties}
                   dangerouslySetInnerHTML={{ __html: klikkModus === "inspeksjon" && svgInnholdInspeksjon ? svgInnholdInspeksjon : svgInnhold }}

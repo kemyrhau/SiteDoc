@@ -904,6 +904,21 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
       const webSz = statSync(join(dir, basename(res.visningUrl))).size;
       const mobSz = statSync(join(dir, basename(res.mobilVisningUrl!))).size;
       expect(mobSz).toBeLessThan(webSz);
+
+      // RETUR 1 (web-visning): ezdxf-SVG bærer markørene viseren trenger for dempet
+      // strekskalering (data-motor/data-lw-base), per-strek --lw, og den klemmende
+      // <style>-regelen. STANDALONE (ingen --strek-*): stroke-width = --lw = ekte lineweight.
+      const webSvg = readFileSync(join(dir, basename(res.visningUrl)), "utf-8");
+      expect(webSvg).toMatch(/<svg[^>]*\sdata-motor="ezdxf"/);
+      expect(webSvg).toMatch(/\sdata-lw-base="[\d.]+"/);
+      expect(webSvg).toContain("var(--strek-skala");
+      expect(webSvg).toContain("var(--strek-maks-k");
+      expect(webSvg).not.toContain("vector-effect");
+      // Hver strek har BÅDE stroke-width (standalone/PDF) OG style="--lw" (web zoom-bevisst),
+      // og de to er like (samme kilde) — ellers lyver standalone om lineweight.
+      const strekM = webSvg.match(/<path[^>]*stroke-width="([\d.]+)"[^>]*style="--lw:([\d.]+)"/);
+      expect(strekM).toBeTruthy();
+      expect(strekM![1]).toBe(strekM![2]);
     } finally {
       if (forrigeMotor === undefined) delete process.env.DWG_MOTOR;
       else process.env.DWG_MOTOR = forrigeMotor;

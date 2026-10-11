@@ -475,6 +475,7 @@ def main():
     fills = []
     stroke_paths = []
     strokes_by = {}
+    lw_min = None  # tynneste strek (viewBox-enheter) -> data-lw-base (lw-faktor = lw/lwBase)
     def meta_attr(p):
         if args.metadata != "på":
             return ""
@@ -488,12 +489,19 @@ def main():
             fills.append(f'<path d="{td}" fill="{p.color}" stroke="none"{meta_attr(p)}/>')
         else:
             swv = lw_til_vb(p.lineweight)
+            lw_min = swv if lw_min is None else min(lw_min, swv)
+            # RETUR 1 (web-visning): strek bærer BÅDE `stroke-width` (ekte lineweight i
+            # viewBox-enheter — standalone <img>/PDF/librsvg uten var()-støtte bruker den)
+            # OG `style="--lw"` (per-strek lineweight som rot-<style> dempet-skalerer pr.
+            # zoom i web-viseren → bevarer FORHOLDET mellom lineweights).
             if args.gruppering == "ingen":
-                stroke_paths.append(f'<path d="{td}" fill="none" stroke="{p.color}" stroke-width="{swv}"{meta_attr(p)}/>')
+                stroke_paths.append(f'<path d="{td}" fill="none" stroke="{p.color}" stroke-width="{swv}" style="--lw:{swv}"{meta_attr(p)}/>')
             else:
                 strokes_by.setdefault((p.color, swv), []).append(td)
     for (color, swv), ds in strokes_by.items():
-        stroke_paths.append(f'<path d="{" ".join(ds)}" fill="none" stroke="{color}" stroke-width="{swv}"/>')
+        lw_min = swv if lw_min is None else min(lw_min, swv)
+        stroke_paths.append(f'<path d="{" ".join(ds)}" fill="none" stroke="{color}" stroke-width="{swv}" style="--lw:{swv}"/>')
+    lw_base = lw_min if lw_min is not None else strekBredde
 
     # tekst som egen <text>
     text_svg = []
@@ -522,9 +530,22 @@ def main():
           rund(-(((roter_pkt(x,y,rotm)[1] if rotm else y)) - miny))) for (x,y) in zip(xs,ys)],
         vbX, vbY, vbW, vbH)
 
+    # RETUR 1: `data-motor="ezdxf"` på roten lar web-viseren kjenne igjen ezdxf-SVG-en og
+    # BEHOLDE denne <style>-en (i stedet for å stripe den og injisere sin faste 1,5-regel,
+    # som gjorde hver strek ~115× for tynn på denne 135501-brede viewBoxen).
+    #
+    # TILLEGG C1 (dempet strekskalering): stroke-width = var(--lw) × --strek-skala, klemt i
+    # viewBox-enheter til [--strek-min, var(--lw) × --strek-maks-k]. Viseren setter de tre
+    # JS-variablene pr. zoom (zoom^(k−1) + px→vb-konvertert gulv/tak — beregnStrekVars() i
+    # @sitedoc/shared). STANDALONE (<img>/PDF/librsvg, ingen JS): --strek-skala=1, --strek-min=0,
+    # --strek-maks-k = stor → stroke-width = var(--lw) = ekte lineweight (uendret der).
+    # `data-lw-base` = tynneste strek → lw-faktor = lw/lwBase for taket.
     svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vbX:g} {vbY:g} {vbW:g} {vbH:g}" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" data-motor="ezdxf" data-lw-base="{lw_base:g}" '
+        f'viewBox="{vbX:g} {vbY:g} {vbW:g} {vbH:g}" '
         f'width="{svgBredde}" height="{svgHoyde}">'
+        f'<style>path[style*="--lw"]{{stroke-width:clamp(var(--strek-min,0px),'
+        f'calc(var(--lw) * var(--strek-skala,1) * 1px),calc(var(--lw) * var(--strek-maks-k,1e9) * 1px))}}</style>'
         f'<rect x="{vbX:g}" y="{vbY:g}" width="{vbW:g}" height="{vbH:g}" fill="#ffffff"/>'
         f'<g stroke-linecap="round" stroke-linejoin="round">'
         + "".join(fills) + "".join(stroke_paths) + "".join(text_svg)
