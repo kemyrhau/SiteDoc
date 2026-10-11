@@ -1756,6 +1756,7 @@
   "tegninger.markor.konvertert": "Muutettu {{tid}} · versio {{versjon}}",
   "tegninger.markor.konvertertUkjent": "Muutettu {{tid}} · tuntematon versio",
   "tegninger.markor.foerMerking": "Muutettu ennen versioiden merkitsemistä",
+  "tegninger.konverterer": "Muunnetaan…",
   "tegninger.revisjon.arkiverteLayouts": "Arkistoidut asettelut",
   "malVelger.velgSjekklistemal": "Valitse tarkistuslistamalli",
   "malVelger.velgOppgavemal": "Valitse tehtävämalli",

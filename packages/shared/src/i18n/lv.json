@@ -1756,6 +1756,7 @@
   "tegninger.markor.konvertert": "Konvertēts {{tid}} · versija {{versjon}}",
   "tegninger.markor.konvertertUkjent": "Konvertēts {{tid}} · nezināma versija",
   "tegninger.markor.foerMerking": "Konvertēts pirms versijas marķēšanas",
+  "tegninger.konverterer": "Notiek konvertēšana…",
   "tegninger.revisjon.arkiverteLayouts": "Arhivētie izkārtojumi",
   "malVelger.velgSjekklistemal": "Atlasiet kontrolsaraksta veidni",
   "malVelger.velgOppgavemal": "Izvēlieties uzdevuma veidni",

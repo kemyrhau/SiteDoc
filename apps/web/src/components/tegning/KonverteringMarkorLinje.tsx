@@ -16,11 +16,19 @@ import {
 export function KonverteringMarkorLinje({
   markor,
   erKonvertert,
+  konverterer,
 }: {
   markor: KonverteringMarkor | null;
   erKonvertert: boolean;
+  /** Konvertering pågår (pending/converting): vis «Konverterer …», ALDRI den gamle
+   * markøren — den ville vist forrige revisjons versjon som falsk informasjon. */
+  konverterer?: boolean;
 }) {
   const { t } = useTranslation();
+
+  if (konverterer) {
+    return <span className="text-xs text-gray-400">{t("tegninger.konverterer")}</span>;
+  }
 
   if (markor) {
     const tid = formaterKonvertertTid(markor.konvertertTid);

@@ -580,7 +580,12 @@ export default function TegningerSide() {
   // RETUR 2 §3: startutsnitt — åpne zoomet til der innholdet er tett (DWG åpnet «veldig
   // lite»). Kjøres når SVG-en er i DOM (svgInnhold satt) så inner-høyden er målbar. Alt
   // annet er fortsatt med og synlig når man zoomer ut.
-  const startutsnittRef = useRef<string | null>(null);
+  // Issue 3 (2026-10-11): SVG-visningen holdes SKJULT (`venterStartutsnitt`, beregnet i
+  // render) til startutsnittet er satt, så brukeren aldri ser tegningen i full størrelse
+  // scrolle til riktig utsnitt. `startutsnittAnvendtId` avdekker den (state, ikke ref, så
+  // render re-evalueres). `setZoom` + `setStartutsnittAnvendtId` batches i samme rAF-commit
+  // → `[zoom]`-layouteffekten anvender scroll FØR paint, og avdekkingen skjer samme frame.
+  const [startutsnittAnvendtId, setStartutsnittAnvendtId] = useState<string | null>(null);
   useEffect(() => {
     if (!erSvgFil || !svgInnhold) return;
     // Cast via lett type: `startutsnitt` er Prisma Json? (dyp rekursiv union → TS2589
@@ -590,11 +595,11 @@ export default function TegningerSide() {
     if (!su || typeof su.w !== "number" || typeof su.h !== "number" || !el) return;
     // Kjør kun én gang pr. tegning (ikke overstyr brukerens egen zoom).
     const nøkkel = `${aktivTegning?.id}`;
-    if (startutsnittRef.current === nøkkel) return;
-    startutsnittRef.current = nøkkel;
+    if (startutsnittAnvendtId === nøkkel) return;
     const raf = requestAnimationFrame(() => {
       const cw = el.clientWidth, ch = el.clientHeight;
-      if (!cw || !ch) return;
+      // Kan vi ikke måle containeren, avdekk likevel — aldri stå skjult.
+      if (!cw || !ch) { setStartutsnittAnvendtId(nøkkel); return; }
       const z = Math.min(MAKS_ZOOM, Math.max(STANDARD_ZOOM, (0.98 / Math.max(su.w, su.h))));
       const iw = tegning?.imageWidth ?? null;
       const ih = tegning?.imageHeight ?? null;
@@ -605,11 +610,12 @@ export default function TegningerSide() {
         top: Math.max(0, (su.y + su.h / 2) * innerH - ch / 2),
       };
       setZoom(z);
+      setStartutsnittAnvendtId(nøkkel);
     });
     return () => cancelAnimationFrame(raf);
     // startutsnitt er stabil pr. tegning (id) → ikke i deps (Json?-type gir TS2589).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svgInnhold, erSvgFil, aktivTegning?.id]);
+  }, [svgInnhold, erSvgFil, aktivTegning?.id, startutsnittAnvendtId]);
 
   // SVG-variant for inspeksjonsmodus med bredere treffområde og hover-highlight
   const svgInnholdInspeksjon = useMemo(() => {
@@ -1534,6 +1540,17 @@ export default function TegningerSide() {
   );
   const tegningErKonvertert = !!(tegning as unknown as { originalFileUrl: string | null }).originalFileUrl;
 
+  // Issue 3: SVG skjules til startutsnittet er satt (se startutsnitt-effekten). Smal cast
+  // (startutsnitt er Prisma Json? → TS2589 ved direkte aksess).
+  const suVent = ((tegning as unknown as { startutsnitt?: unknown } | null)?.startutsnitt ?? null) as { w?: unknown; h?: unknown } | null;
+  const venterStartutsnitt =
+    erSvgFil &&
+    !!svgInnhold &&
+    !!suVent &&
+    typeof suVent.w === "number" &&
+    typeof suVent.h === "number" &&
+    startutsnittAnvendtId !== aktivTegning?.id;
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Posisjonsvelger-banner */}
@@ -1584,7 +1601,7 @@ export default function TegningerSide() {
           tegningNavn={tegning.name}
         />
         {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11). */}
-        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} />
+        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={erDwgKonvertering} />
         <div className="flex-1" />
 
         {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
@@ -2125,6 +2142,9 @@ export default function TegningerSide() {
           <div
             ref={containerRef}
             className="flex-1 overflow-auto bg-gray-100"
+            // Issue 3: skjul til startutsnittet er satt (beholder layout → clientWidth/
+            // clientHeight målbar i startutsnitt-effekten). Avdekkes samme frame som scroll.
+            style={venterStartutsnitt ? { visibility: "hidden" } : undefined}
           >
             <div
               ref={maleInnerRef}
@@ -2451,7 +2471,15 @@ export default function TegningerSide() {
         )
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-gray-50">
-          {erUkonvertertDwg ? (
+          {erDwgKonvertering ? (
+            // Konvertering pågår: bare en venteflate (banneret over viser status).
+            // Issue 2 (2026-10-11): INGEN «Konverter DWG»-knapp her — den avbrøt/doblet
+            // den pågående konverteringen. Knappen finnes kun ved failed/manglende status.
+            <>
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <p className="text-sm text-gray-500">{t("tegninger.konverterer")}</p>
+            </>
+          ) : erUkonvertertDwg ? (
             <>
               <p className="text-sm text-gray-500">DWG-filen må konverteres før den kan vises</p>
               <button
@@ -2612,6 +2640,7 @@ export default function TegningerSide() {
         }
         konverteringMarkor={konvMarkor}
         erKonvertert={tegningErKonvertert}
+        konverterer={erDwgKonvertering}
       />
     </div>
   );

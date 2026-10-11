@@ -981,6 +981,14 @@ export const tegningRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
 
+      // Idempotent: en konvertering som ALT pågår skal verken dobles eller avbrytes
+      // (reparasjon 2026-10-11). Uten vakten startet et «Konverter DWG»-klikk under
+      // pending/converting en ny `konverterDwg` i parallell → to anvendDwgResultat-løp
+      // på samme tegning. Returner gjeldende status uendret.
+      if (tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting") {
+        return { status: tegning.conversionStatus };
+      }
+
       if (!tegning.originalFileUrl) {
         throw new Error("Denne tegningen har ingen original DWG-fil");
       }
