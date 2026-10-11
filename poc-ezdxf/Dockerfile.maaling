@@ -1,0 +1,25 @@
+# MÅLE-DOCKERFILE (PoC) — kun for å måle størrelses-økningen ezdxf-laget
+# legger på api-runtime (node:20-bookworm-slim, som allerede har fontconfig).
+# IKKE en produksjons-Dockerfile. Bygg to targets og diff `docker images`.
+#
+#   docker build -f poc-ezdxf/Dockerfile.maaling --target base    -t poc-base  poc-ezdxf
+#   docker build -f poc-ezdxf/Dockerfile.maaling --target ezdxf   -t poc-ezdxf poc-ezdxf
+
+FROM node:20-bookworm-slim AS base
+# speiler dagens api-runtime-avhengigheter som er relevante
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      openssl ca-certificates fontconfig \
+ && rm -rf /var/lib/apt/lists/*
+
+FROM base AS ezdxf
+# Python-runtime + venv med hash-låst ezdxf. Tekst tegnes av oss (TextPolicy.IGNORE),
+# så ingen font-pakke trengs for ezdxf-tegning.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 python3-venv \
+ && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt /opt/ezdxf/requirements.txt
+RUN python3 -m venv /opt/ezdxf/venv \
+ && /opt/ezdxf/venv/bin/pip install --no-cache-dir --upgrade pip \
+ && /opt/ezdxf/venv/bin/pip install --no-cache-dir --require-hashes -r /opt/ezdxf/requirements.txt \
+ && find /opt/ezdxf/venv -name "__pycache__" -type d -prune -exec rm -rf {} + \
+ && /opt/ezdxf/venv/bin/python -c "import ezdxf,ezdxf.addons.drawing.svg; print('ezdxf', ezdxf.__version__)"
