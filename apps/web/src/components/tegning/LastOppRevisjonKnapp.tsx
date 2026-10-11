@@ -21,6 +21,12 @@ type OpplastetFil = {
  * foreslår neste revisjonskode (redigerbar), og kaller `tegning.lastOppRevisjon`
  * — som nå starter konvertering for den nye fila (api), så ny revisjon aldri viser
  * gammel PNG. Gjenbrukes på tegningsraden og i rediger-dialogen.
+ *
+ * 🔴 Alle knappene MÅ ha `type="button"`. Komponenten gjenbrukes inne i
+ * `RedigerTegningModal` sitt <form>; uten eksplisitt type arver de `type="submit"`
+ * og submitter det ytre skjemaet → ytre modal lukkes → den indre revisjons-dialogen
+ * (en DOM-etterkommer) rendres 0×0 men forblir `:modal` i top-layer → siden låser seg
+ * (inert). Målt i ekte Chrome; se `revisjon-laas-modal-i-modal.test.tsx`.
  */
 export function LastOppRevisjonKnapp({
   drawingId,
@@ -94,6 +100,7 @@ export function LastOppRevisjonKnapp({
         onChange={handleFil}
       />
       <Button
+        type="button"
         variant={variant}
         size={size}
         onClick={() => filInput.current?.click()}
@@ -127,10 +134,10 @@ export function LastOppRevisjonKnapp({
             </p>
           )}
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setValgt(null)}>
+            <Button type="button" variant="secondary" onClick={() => setValgt(null)}>
               {t("handling.avbryt")}
             </Button>
-            <Button onClick={bekreft} disabled={mutation.isPending}>
+            <Button type="button" onClick={bekreft} disabled={mutation.isPending}>
               {mutation.isPending
                 ? t("handling.lagrer")
                 : t("tegninger.revisjon.lastOpp")}
