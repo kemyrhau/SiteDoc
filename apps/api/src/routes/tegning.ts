@@ -269,6 +269,10 @@ export async function anvendDwgResultat(
   if (resultat.geoReferanse) oppdatering.geoReference = resultat.geoReferanse;
   if (resultat.visningUrl) {
     oppdatering.fileUrl = resultat.visningUrl;
+    // L1: mobil-variant (ezdxf hatch=solid) eller null (egen/ikke-DWG → mobil bruker
+    // fileUrl). ALLTID satt sammen med fileUrl så en re-konvertering til egen rydder en
+    // tidligere ezdxf-mobilvariant (ingen stale URL mot en slettet web-fil).
+    oppdatering.mobilFileUrl = resultat.mobilVisningUrl;
     oppdatering.fileType = resultat.visningFilType;
     oppdatering.imageWidth = resultat.imageWidth;
     oppdatering.imageHeight = resultat.imageHeight;
@@ -720,6 +724,10 @@ export const tegningRouter = router({
           revision: tegning.revision,
           version: tegning.version,
           fileUrl: tegning.fileUrl,
+          // L1: arkiver mobilvarianten sammen med revisjonen. Uten dette mister en
+          // arkivert ezdxf-revisjon mobil-SVG-en og faller tilbake til web-full-hatch
+          // (rendrer ikke på mobil = selve buggen). NULL = egen/ikke-DWG → bruk fileUrl.
+          mobilFileUrl: tegning.mobilFileUrl,
           // NESTE: arkiver originalfila (DWG/PDF) sammen med revisjonen. Kopieres fra
           // Drawing.originalFileUrl, som ER satt også på tegninger lastet opp før dette
           // feltet (opprett/lastOppRevisjon har satt den lenge) → de beholder originalen

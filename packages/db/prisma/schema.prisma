@@ -907,6 +907,13 @@ model Drawing {
   description      String? // Innholdsbeskrivelse
   originator       String? // Opphav (firma/person)
   fileUrl          String    @map("file_url")
+  // Mobil-variant av visnings-SVG (ezdxf-motor, L1): web får full mønster-hatch i
+  // `fileUrl`, mobil en lettere `hatch=solid`-variant som rendrer i iOS WebKit `<img>`.
+  // NULL = bruk `fileUrl` — en gyldig, varig tilstand for tegninger konvertert med
+  // `egen` (egen-SVG rendrer på mobil) og for ikke-DWG. Ingen backfill (Kenneth
+  // 2026-10-11). Mobil velger `mobilFileUrl ?? fileUrl`. Egen kolonne (ikke JSON) så
+  // den synes der `/uploads/`-URL-er signeres/herdes/lastes ned/slettes.
+  mobilFileUrl     String?   @map("mobil_file_url")
   fileType         String    @map("file_type") // PDF, DWG, DXF, IFC
   // Lagringsstatistikk (2026-08-11): står Int? BEVISST — prod-dekningen (4/4) er
   // data-tilfeldighet, ikke en robust skrivevei. Koden oppretter DWG-layout-
@@ -1082,6 +1089,11 @@ model DrawingRevision {
   // tatt vare på — en gyldig, varig tilstand for revisjoner arkivert før dette feltet
   // (ingen backfill mulig). Diskriminator for revisjonsnedlasting (ikke `.svg`-endelsen).
   originalFileUrl String? @map("original_file_url")
+  // Mobil-variant av visnings-SVG (ezdxf-motor, L1), arkivert sammen med revisjonen
+  // (kopiert fra Drawing.mobilFileUrl). Uten dette ville en arkivert ezdxf-revisjon
+  // miste mobilvarianten og falle tilbake til web-full-hatch (rendrer ikke på mobil).
+  // NULL = bruk `fileUrl` (egen-motor / ikke-DWG / revisjoner før feltet). Ingen backfill.
+  mobilFileUrl String?   @map("mobil_file_url")
   fileSize     Int?      @map("file_size") // Int? bevisst: 0 rader/utestet skrivevei (se Drawing.fileSize, lagringsstatistikk 2026-08-11)
   description  String? // Beskrivelse av endringer
   uploadedById String?   @map("uploaded_by_id")

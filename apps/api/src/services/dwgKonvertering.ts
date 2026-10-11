@@ -45,8 +45,12 @@ interface DwgMaaling {
 }
 
 export interface DwgKonverteringsResultat extends DwgMaaling {
-  /** URL til konvertert visningsfil (SVG/PDF) */
+  /** URL til konvertert visningsfil (SVG/PDF) — web-varianten (full mønster-hatch). */
   visningUrl: string;
+  /** L1: mobil-variant (ezdxf `hatch=solid`, ~5–6 MB som rendrer i iOS WebKit).
+   * null = ingen egen mobilvariant (egen-motor / ikke-DWG / ezdxf-mobil feilet) →
+   * mobil faller tilbake til `visningUrl`. */
+  mobilVisningUrl: string | null;
   /** Filtype for visningsfilen */
   visningFilType: string;
   /** Detektert koordinatsystem */
@@ -2155,7 +2159,7 @@ export async function konverterDwg(
   if (!erDxf && !(await sjekkLibreDwg())) {
     return {
       ...tomMaaling,
-      visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
+      visningUrl: "", mobilVisningUrl: null, visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: "DWG-konvertering (libredwg) er ikke tilgjengelig på denne serveren.",
       layouts: [],
       autoRotasjon: null,
@@ -2219,11 +2223,18 @@ export async function konverterDwg(
     let autoRotasjon: number | null = null;
     let startutsnitt: { x: number; y: number; w: number; h: number } | null = null;
     let rapport: KonverteringRapport | null = null;
+    // Mobil-variant (L1): kun ezdxf-motoren produserer en egen lettere SVG (hatch=solid).
+    // egen-SVG og dwg2SVG rendrer alt i iOS WebKit → mobilVisningUrl = null, mobil
+    // faller tilbake til fileUrl (gyldig, ingen backfill).
+    let mobilVisningUrl: string | null = null;
     let svgRes: DxfSvgResultat | null = null;
+    let ezdxfBrukt = false; // true kun når ezdxf-web faktisk lyktes (ikke egen-fallback)
     if (dxfInnhold) {
       if (motor === "ezdxf") {
         svgRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, dxfInnhold });
-        if (!svgRes) {
+        if (svgRes) {
+          ezdxfBrukt = true;
+        } else {
           console.warn("[DWG] ezdxf-motor ga ingen SVG — faller tilbake til egen motor.");
           svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
         }
@@ -2241,6 +2252,22 @@ export async function konverterDwg(
       startutsnitt = svgRes.startutsnitt;
       rapport = svgRes.rapport;
       console.log(`[DWG] SVG generert (mm/px=${maaling.mmPrPiksel ?? "null"}, scaleKilde=${maaling.scaleKilde ?? "null"}, rotasjon=${autoRotasjon ?? "null"})`);
+
+      // Mobil-variant: samme ramme (extents/rotasjon/viewBox uendret av hatch-modus),
+      // men hatch=solid → ~5–6 MB som rendrer i iOS WebKit <img> (PoC: full hatch ~19 MB
+      // dekoder ikke). Produseres KUN når ezdxf-web lyktes; feiler den, står mobil uten
+      // egen variant og faller tilbake til fileUrl (ingen hard feil på opplastingen).
+      if (ezdxfBrukt && dxfInnhold) {
+        const mobilRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, hatch: "solid" });
+        if (mobilRes) {
+          const mobilFilnavn = `${randomUUID()}.svg`;
+          await writeFile(join(uploadDir, mobilFilnavn), mobilRes.svg, "utf-8");
+          mobilVisningUrl = `/uploads/${mobilFilnavn}`;
+          console.log(`[DWG] Mobil-variant generert (hatch=solid, ${(mobilRes.svg.length / 1024 / 1024).toFixed(1)} MB)`);
+        } else {
+          console.warn("[DWG] Mobil-variant (ezdxf hatch=solid) feilet — mobil faller tilbake til fileUrl.");
+        }
+      }
     }
 
     // Fallback: dwg2SVG (kun DWG). Ingen måling/inspeksjon (visningKilde=dwg2SVG) — D5/§6.
@@ -2317,6 +2344,7 @@ export async function konverterDwg(
     return {
       ...maaling,
       visningUrl,
+      mobilVisningUrl,
       visningFilType,
       koordinatSystem: system,
       geoReferanse,
@@ -2331,7 +2359,7 @@ export async function konverterDwg(
     if (ryddDxf) { try { await unlink(libreDxfSti); } catch { /* OK */ } }
     return {
       ...tomMaaling,
-      visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
+      visningUrl: "", mobilVisningUrl: null, visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: err instanceof Error ? err.message : "Ukjent konverteringsfeil",
       layouts: [],
       autoRotasjon: null,

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, copyFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, copyFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import { kanMale, malMm, detekterKoordinatSystem } from "@sitedoc/shared";
@@ -29,6 +29,7 @@ import {
   robustGrense,
   valgtMotor,
   dxfTilSvgEzdxf,
+  konverterDwg,
   fontStr,
   CAP_RATIO,
   mtekstForankring,
@@ -872,6 +873,43 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     expect(r.parsetPrType["ATTRIB"]).toBeGreaterThan(0);
     expect(r.tegnetPrType["ATTRIB"]).toBeGreaterThan(0);
   }, 180000);
+
+  // L1 TEST (c): en ezdxf-konvertert tegning MÅ ha en mobil-variant. Uten den ville
+  // mobilen servere web-full-hatch-SVG-en som ikke rendrer i iOS WebKit (buggen L1
+  // løser). Testen FEILER hvis mobilVisningUrl er tom for en vellykket ezdxf-konvertering.
+  // Krever ezdxf (EZDXF_RENDER_PY + python m/ ezdxf) — ellers skippet (CI har det ikke;
+  // Kontrollørs Docker-gate / L10 kjører det).
+  const harEzdxf = (() => {
+    if (!process.env.EZDXF_RENDER_PY) return false;
+    try {
+      execFileSync(process.env.EZDXF_PYTHON ?? "python3", ["-c", "import ezdxf"], { timeout: 10000, stdio: "ignore" });
+      return true;
+    } catch { return false; }
+  })();
+
+  it.skipIf(!harEzdxf)("test (c): ezdxf-konvertering gir en mobil-variant (< web-variant)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "dwgezdxf-"));
+    const dwg = join(dir, basename(KUNDEFIL!));
+    copyFileSync(KUNDEFIL!, dwg);
+    const forrigeMotor = process.env.DWG_MOTOR;
+    process.env.DWG_MOTOR = "ezdxf";
+    try {
+      const res = await konverterDwg(dwg, basename(KUNDEFIL!), dir, "dwg");
+      expect(res.feil).toBeNull();
+      expect(res.visningUrl).toMatch(/\.svg$/);
+      // Kjernen i test (c): ezdxf-konvertering UTEN mobilvariant er en feil.
+      expect(res.mobilVisningUrl).toBeTruthy();
+      expect(res.mobilVisningUrl).toMatch(/\.svg$/);
+      // Mobilvarianten (hatch=solid) skal være mindre enn web-varianten (full hatch).
+      const webSz = statSync(join(dir, basename(res.visningUrl))).size;
+      const mobSz = statSync(join(dir, basename(res.mobilVisningUrl!))).size;
+      expect(mobSz).toBeLessThan(webSz);
+    } finally {
+      if (forrigeMotor === undefined) delete process.env.DWG_MOTOR;
+      else process.env.DWG_MOTOR = forrigeMotor;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 300000);
 
   it("SVAR RETUR 6 spor 2: utstrekningen dekker bygget, ikke modullinjene (de tegnes fortsatt, utenfor viewBox)", () => {
     const res = dxfTilSvg(konverterKundefil())!;

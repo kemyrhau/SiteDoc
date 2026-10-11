@@ -30,6 +30,7 @@ function lagResultat(nyAuto: number | null, overstyr: Partial<DwgKonverteringsRe
   return {
     ...MAALING,
     visningUrl: "/uploads/ny.svg",
+    mobilVisningUrl: null,
     visningFilType: "svg",
     koordinatSystem: null,
     geoReferanse: null,
