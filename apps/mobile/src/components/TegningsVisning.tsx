@@ -143,6 +143,9 @@ interface TegningsVisningProps {
   /** L4b: startutsnitt (brøk [0,1] av viewBox) — mobilen åpner zoomet HIT (på bygget),
    * ikke fit-to-width på rutenettet. null/utelatt = fit-to-width (egen-SVG/ikke-DWG). */
   startutsnitt?: { x: number; y: number; w: number; h: number } | null;
+  /** C2 (L6): render ezdxf-mobilvarianten INLINE (ikke `<img>`) så streken kan dempes ved
+   * zoom (settle). Settes kun for ezdxf-konverterte tegninger (mobilFileUrl). */
+  svgInline?: boolean;
 }
 
 /**
@@ -158,6 +161,7 @@ function byggHtml(
   trykkOppsett: "ingen" | "enkel" | "avansert",
   rotasjonDelta: number = 0,
   startutsnitt: { x: number; y: number; w: number; h: number } | null = null,
+  svgInline: boolean = false,
 ): string {
   const markørData = JSON.stringify(markører.map((m) => ({
     id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
@@ -178,6 +182,7 @@ function byggHtml(
   );
   const gpsData = gpsMarkør ? JSON.stringify({ x: gpsMarkør.x, y: gpsMarkør.y }) : "null";
   const startutsnittData = startutsnitt ? JSON.stringify(startutsnitt) : "null";
+  const tegningUrlJson = JSON.stringify(tegningUrl);
 
   return `<!DOCTYPE html>
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=50,user-scalable=yes">
@@ -218,13 +223,17 @@ function byggHtml(
   @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.3)} }
 </style></head><body>
 <div id="container" oncontextmenu="return false">
-  <img id="tegning" src="${tegningUrl}" draggable="false" oncontextmenu="return false" />
+  ${svgInline
+    ? `<div id="tegning" oncontextmenu="return false"></div>`
+    : `<img id="tegning" src="${tegningUrl}" draggable="false" oncontextmenu="return false" />`}
 </div>
 <script>
 var markører = ${markørData};
 var omrader = ${omradeData};
 var gpsPos = ${gpsData};
 var startutsnitt = ${startutsnittData};
+var SVG_INLINE = ${svgInline ? "true" : "false"};
+var TEGNING_URL = ${tegningUrlJson};
 var currentZoom = 1;
 
 // Hold markører visuelt like store ved pinch-zoom
@@ -257,9 +266,38 @@ function oppdaterZoom() {
     el.setAttribute('stroke-width', (2 * inv).toFixed(3));
   });
 }
+// C2 (L6): dempet strek på inline ezdxf-SVG. Oppdateres KUN når pinch STOPPER (settle),
+// ikke pr. frame — måling viste at CSS-recalc pr. frame på alle noder gir ~8–40 fps, mens
+// én recalc ved settle er 1 ms. Under aktiv pinch skalerer streken visuelt med tegningen
+// (som <img>), så snapper den til dempet bredde i hvile (det brukeren ser når han stopper).
+// Formelen SPEILER beregnStrekVars i @sitedoc/shared/strek-skalering.ts (k=0,5, gulv 0,5px,
+// tak 4px) — kan ikke importeres inn i WebView-JS, så den er inlinet (render.py↔dxfTilSvg-mønster).
+// Effektiv skala = layout displayScale × pinch (visualViewport.scale); getBoundingClientRect
+// gir LAYOUT-px (uendret av pinch), så pinch legges til via z.
+var STREK_K = 0.5, STREK_MIN_PX = 0.5, STREK_MAKS_PX = 4;
+function oppdaterStrek() {
+  if (!SVG_INLINE) return;
+  var el = document.getElementById('tegning');
+  var svg = el ? el.querySelector('svg') : null;
+  if (!svg || !svg.viewBox || !svg.viewBox.baseVal) return;
+  var vbW = svg.viewBox.baseVal.width;
+  var renderedW = svg.getBoundingClientRect().width;
+  if (!vbW || !renderedW) return;
+  var lwBase = parseFloat(svg.getAttribute('data-lw-base')) || 1;
+  var z = window.visualViewport ? window.visualViewport.scale : 1;
+  var ds = (renderedW / vbW) * z;
+  svg.style.setProperty('--strek-skala', String(Math.pow(Math.max(z, 1e-6), STREK_K - 1)));
+  svg.style.setProperty('--strek-min', (STREK_MIN_PX / ds) + 'px');
+  svg.style.setProperty('--strek-maks-k', String(STREK_MAKS_PX / (lwBase * ds)));
+}
+var strekTimer = null;
+function planleggStrek() {
+  if (strekTimer) clearTimeout(strekTimer);
+  strekTimer = setTimeout(oppdaterStrek, 150);
+}
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('scroll', oppdaterZoom);
-  window.visualViewport.addEventListener('resize', oppdaterZoom);
+  window.visualViewport.addEventListener('scroll', function(){ oppdaterZoom(); planleggStrek(); });
+  window.visualViewport.addEventListener('resize', function(){ oppdaterZoom(); planleggStrek(); });
 }
 
 function plasser() {
@@ -329,7 +367,6 @@ function plasser() {
   oppdaterZoom();
 }
 
-var img = document.getElementById('tegning');
 var startutsnittApplisert = false;
 // L4b: åpne zoomet på startutsnittet (bygget), ikke fit-to-width på rutenettet.
 // SPEILER den testede hjelperen tegning-startutsnitt.ts (startutsnittRamme) — den kan
@@ -355,8 +392,31 @@ function anvendStartutsnitt() {
     window.scrollTo(Math.max(0, left), Math.max(0, top));
   });
 }
-img.onload = function() { plasser(); anvendStartutsnitt(); };
-if (img.complete) { plasser(); anvendStartutsnitt(); }
+function etterTegning() { plasser(); anvendStartutsnitt(); oppdaterStrek(); }
+if (SVG_INLINE) {
+  // Inline ezdxf-SVG (farge-gruppert mobilvariant): hent SVG-teksten og injiser i DOM så
+  // vi kan dempe streken via CSS-variabler (<img> kan ikke det → tykk svart ved zoom).
+  // SVG-en er generert av vår render.py (kontrollert markup; tekst/lagnavn er html-escapet).
+  fetch(TEGNING_URL).then(function(r){ return r.text(); }).then(function(txt){
+    // Fjern faste width/height → width:100% (som web-viseren), behold data-motor/-lw-base/viewBox.
+    txt = txt.replace(/<svg([^>]*)>/, function(m, a){
+      return '<svg' + a.replace(/\\s*width="[^"]*"/g, '').replace(/\\s*height="[^"]*"/g, '') + ' width="100%" height="auto" style="display:block">';
+    });
+    var el = document.getElementById('tegning');
+    el.innerHTML = txt;
+    etterTegning();
+  }).catch(function(){
+    // Fallback: vis som <img> (mister damping, men tegningen vises).
+    var el = document.getElementById('tegning');
+    el.innerHTML = '<img src="' + TEGNING_URL + '" style="display:block;width:100%;height:auto" draggable="false" />';
+    var im = el.querySelector('img');
+    im.onload = etterTegning; if (im.complete) etterTegning();
+  });
+} else {
+  var img = document.getElementById('tegning');
+  img.onload = function() { etterTegning(); };
+  if (img.complete) etterTegning();
+}
 
 function post(o){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
 
@@ -718,6 +778,7 @@ export function TegningsVisning({
   rotasjon,
   onSettRotasjon,
   startutsnitt,
+  svgInline = false,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
   // RETUR 2: auto-rotasjon er bakt inn i SVG-en; her legges kun en brukeroverstyring på.
@@ -1193,7 +1254,7 @@ export function TegningsVisning({
     : onTrykk
       ? "enkel"
       : "ingen";
-  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta, startutsnitt ?? null);
+  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta, startutsnitt ?? null, svgInline);
 
   return (
     <View className="flex-1 bg-black">

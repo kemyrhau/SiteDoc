@@ -884,6 +884,9 @@ export default function LokasjonerSkjerm() {
               if (!su || typeof su.x !== "number" || typeof su.y !== "number" || typeof su.w !== "number" || typeof su.h !== "number") return null;
               return { x: su.x, y: su.y, w: su.w, h: su.h };
             })()}
+            // C2 (L6): ezdxf-mobilvarianten (farge-gruppert) rendres INLINE så streken dempes
+            // ved zoom. Kun når mobilFileUrl finnes (ezdxf-konvertert); egen/raster → <img>.
+            svgInline={!!valgtTegningDetalj?.mobilFileUrl}
             onSettRotasjon={(grader) => {
               if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });
             }}

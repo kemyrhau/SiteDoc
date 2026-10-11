@@ -919,6 +919,18 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
       const strekM = webSvg.match(/<path[^>]*stroke-width="([\d.]+)"[^>]*style="--lw:([\d.]+)"/);
       expect(strekM).toBeTruthy();
       expect(strekM![1]).toBe(strekM![2]);
+
+      // C2 (L6, mobil): mobilvarianten er farge-gruppert (mega-paths → færre noder, lettere
+      // DOM for inline-visning) og metadata=av (ingen data-layer — klikk-identifiser ville
+      // krevd ugruppert). Den bærer samme dempet-strek-markører (data-motor/-lw-base/--lw).
+      const mobSvg = readFileSync(join(dir, basename(res.mobilVisningUrl!)), "utf-8");
+      expect(mobSvg).toMatch(/<svg[^>]*\sdata-motor="ezdxf"/);
+      expect(mobSvg).toMatch(/\sdata-lw-base="[\d.]+"/);
+      expect(mobSvg).toContain('style="--lw:');
+      expect(mobSvg).not.toContain("data-layer");
+      // Farge-gruppering → langt færre path-noder enn ugruppert web-variant.
+      const tell = (s: string) => (s.match(/<path/g) ?? []).length;
+      expect(tell(mobSvg)).toBeLessThan(tell(webSvg));
     } finally {
       if (forrigeMotor === undefined) delete process.env.DWG_MOTOR;
       else process.env.DWG_MOTOR = forrigeMotor;

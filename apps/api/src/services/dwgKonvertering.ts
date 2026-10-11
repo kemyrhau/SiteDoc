@@ -2073,6 +2073,10 @@ export async function dxfTilSvgEzdxf(
     ingenAutoRotasjon?: boolean;
     hatch?: "normal" | "solid";
     gruppering?: "ingen" | "farge";
+    /** data-layer/data-type pr. element. "på" (default) for web-varianten (klikk-identifiser
+     * + fullstendighetsrapport). "av" for mobil-varianten: farge-gruppering kan uansett ikke
+     * bære per-element-metadata, og mobil bruker ikke klikk-identifiser (C2-vedtak 2026-10-11). */
+    metadata?: "på" | "av";
     /** Rå DXF-tekst — kun for fullstendighetsrapporten (motor-uavhengig, som egen).
      * Utelates ved layout-klipp (rapporten gjelder hele DXF-en, ikke klippet). */
     dxfInnhold?: string;
@@ -2093,7 +2097,7 @@ export async function dxfTilSvgEzdxf(
     "--hatch", opsjoner?.hatch ?? "normal",
     // data-layer (player) + data-type (handle→dxftype / tekst-type) pr. element →
     // web klikk-identifiser + fullstendighetsrapport, uten SVGBackend-subklasse.
-    "--metadata", "på",
+    "--metadata", opsjoner?.metadata ?? "på",
   ];
   if (opsjoner?.ingenAutoRotasjon) args.push("--rotasjon", "av", "--robust", "av");
   if (klippBounds) {
@@ -2281,10 +2285,14 @@ export async function konverterDwg(
 
       // Mobil-variant: samme ramme (extents/rotasjon/viewBox uendret av hatch-modus),
       // men hatch=solid → ~5–6 MB som rendrer i iOS WebKit <img> (PoC: full hatch ~19 MB
-      // dekoder ikke). Produseres KUN når ezdxf-web lyktes; feiler den, står mobil uten
-      // egen variant og faller tilbake til fileUrl (ingen hard feil på opplastingen).
+      // dekoder ikke). C2-vedtak 2026-10-11: gruppering=farge (mega-paths) → ~1/4 noder og
+      // ~1/4 filstørrelse (målt fallplan: 12 775 vs 59 958 noder, 2,5 vs 9,3 MB) → mindre
+      // minne/parsing på eldre iPhones + raskere settle-recalc for inline-visning. metadata=av:
+      // farge-gruppering kan ikke bære per-element data-layer, og mobil bruker ikke
+      // klikk-identifiser (det ville i så fall kreve ugruppert variant). Produseres KUN når
+      // ezdxf-web lyktes; feiler den, står mobil uten egen variant og faller tilbake til fileUrl.
       if (ezdxfBrukt && dxfInnhold) {
-        const mobilRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, hatch: "solid" });
+        const mobilRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, hatch: "solid", gruppering: "farge", metadata: "av" });
         if (mobilRes) {
           const mobilFilnavn = `${randomUUID()}.svg`;
           await writeFile(join(uploadDir, mobilFilnavn), mobilRes.svg, "utf-8");
