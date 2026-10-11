@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, copyFileSync, rmSync, statSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { kanMale, malMm, detekterKoordinatSystem } from "@sitedoc/shared";
+import { kanMale, malMm, detekterKoordinatSystem, farligCss } from "@sitedoc/shared";
 import {
   gyldigKoordinat,
   gyldigeExtents,
@@ -1101,4 +1101,73 @@ describe.skipIf(!harDwg2dxf() || !harEzdxfL10)("L10 paritet egen vs ezdxf — Å
       expect(rel(egen!.vbW, ez!.vbW)).toBeLessThanOrEqual(0.002);
     }, 180000);
   }
+});
+
+// ---------------------------------------------------------------------------
+// XSS-regresjon (orkestrator-ordre 2026-10-11, pkt. 2): render.py skal escape ALL
+// bruker-kontrollert tekst (TEXT/MTEXT/ATTRIB/lagnavn) slik at et ondsinnet DXF ikke
+// kan smugle <script>, en ny tag, en event-handler eller aktiv CSS inn i SVG-en.
+// Genererer sin EGEN ondsinnede DXF (trenger ikke kundefil). Krever ezdxf.
+// ---------------------------------------------------------------------------
+const harEzdxfXss = (() => {
+  if (!process.env.EZDXF_RENDER_PY) return false;
+  try {
+    execFileSync(process.env.EZDXF_PYTHON ?? "python3", ["-c", "import ezdxf"], { timeout: 10000, stdio: "ignore" });
+    return true;
+  } catch { return false; }
+})();
+
+describe.skipIf(!harEzdxfXss)("XSS-regresjon — render.py escaper ondsinnet DXF-tekst", () => {
+  it("<script>, ny <svg>-tag, event-handler og aktiv CSS slipper IKKE gjennom", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ezdxf-xss-"));
+    try {
+      const genPy = join(dir, "gen.py");
+      const dxf = join(dir, "ondsinnet.dxf");
+      const svgOut = join(dir, "ut.svg");
+      const metaOut = join(dir, "meta.json");
+      // ezdxf-generator: all farlig nyttelast i FRITEKST (TEXT/MTEXT) — den reelle
+      // injeksjonsflaten (lagnavn har DXF-tegnrestriksjoner; samme html.escape dekker begge).
+      writeFileSync(
+        genPy,
+        [
+          "import sys, ezdxf",
+          "doc = ezdxf.new()",
+          "msp = doc.modelspace()",
+          "msp.add_line((0, 0), (1000, 1000))",
+          "msp.add_line((0, 1000), (1000, 0))",
+          "t = msp.add_text('</text><script>alert(1)</script>', height=50)",
+          "t.dxf.insert = (100, 100)",
+          "mt = msp.add_mtext('\"><svg onload=alert(1)> @import url(http://evil/x) expression(1) behavior:url(y)')",
+          "mt.dxf.insert = (200, 200)",
+          "mt.dxf.char_height = 50",
+          "doc.saveas(sys.argv[1])",
+          "",
+        ].join("\n"),
+      );
+      const python = process.env.EZDXF_PYTHON ?? "python3";
+      execFileSync(python, [genPy, dxf], { timeout: 60000, stdio: "ignore" });
+      execFileSync(
+        python,
+        [process.env.EZDXF_RENDER_PY!, dxf, svgOut, "--meta", metaOut, "--tekst", "egen", "--metadata", "på"],
+        { timeout: 120000, stdio: "ignore", maxBuffer: 50 * 1024 * 1024 },
+      );
+      const svg = readFileSync(svgOut, "utf-8");
+
+      // Positiv kontroll: teksten tegnes faktisk (escapet), ikke stille droppet.
+      expect(svg).toContain("&lt;/text&gt;&lt;script&gt;");
+      // Ingen ekte script-tag / rå breakout / foreignObject.
+      expect(svg).not.toContain("<script");
+      expect(svg).not.toContain("</text><script");
+      expect(svg).not.toContain("<foreignObject");
+      // Bare ÉN <svg: payloaden "><svg onload=...> ble escapet, ikke en ny tag.
+      expect((svg.match(/<svg[\s>]/g) ?? []).length).toBe(1);
+      expect(svg).toContain("onload=alert(1)&gt;"); // bevis: <svg onload=...> ble escapet
+      // <style> bærer KUN render.py sin faste clamp-regel — ingen aktiv CSS.
+      const styleM = svg.match(/<style>([\s\S]*?)<\/style>/);
+      expect(styleM).toBeTruthy();
+      expect(farligCss(styleM![1]!)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 180000);
 });

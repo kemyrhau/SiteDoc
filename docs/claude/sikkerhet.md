@@ -193,6 +193,13 @@ Eies av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling
 ### 8b. 🟠 `tegning.opprett` lagrer klient-levert `fileUrl` uten validering (funn 2026-10-10, Kontrollør)
 `fileUrl: z.string()` (`apps/api/src/routes/tegning.ts:525`) lagres rått. Ble utnyttbart i ny zip-rute via `diskSti()` (`apps/api/src/services/eksport/felles.ts:9-11`, naiv `join`) — **blokkert i gate**, sinken herdet i `b57d462b` (`felles.ts:18-31`, resolve + `startsWith(rot+sep)`). 🟡 PLANLAGT: valider at `fileUrl` er en `/uploads/`-sti fra egen opplasting ved `opprett` (kilden), ikke bare ved sinken. Seks kallere av `diskSti` i api — dekkes av sink-herdingen. Samme rotårsak: en `.txt`-`fileUrl` kan gi navnekollisjon med `MANGLER.txt` i zip (kosmetisk, Kontrollør 2026-10-10) — lukkes av kilde-valideringen.
 
+### ✅ 8c. ezdxf-SVG-visningen stolte 100 % på at markupen var render.py-generert (herding 2026-10-11, `fix/ezdxf-xss-vern`)
+Web beholdt SVG-ens egen `<style>` når den så `data-motor="ezdxf"` **i fila**, og mobil injiserte markupen rått via `innerHTML` i en WebView. DOMPurify saniterer ikke CSS, og mobil har ingen DOMPurify. Trygt i dag (render.py `html.escape`-er tekst/lag og skriver en fast `<style>`), men ingen sperre ved drift i render.py, en ny motor, eller en forfalsket SVG. Opplasting av SVG er dessuten ikke klient-tillatt (`ACCEPT` uten `.svg`), men `upload.ts:72` er en **blokkliste** — en direkte `.svg`-POST lagres med `fileType="svg"`. Herdet:
+- **Web motorvalg fra serverens markør, ikke fila:** `erEzdxfMotor = lesKonverteringMarkor(...).motor === "ezdxf"` (`tegninger/page.tsx`). En forfalsket SVG kan bære `data-motor="ezdxf"`, men får aldri server-markøren (`konverteringRapport.markor.motor`, skrevet kun av render.py/pdf) → behandles som «egen» → `<style>` strippes.
+- **Web CSS-vern** på den beholdte `<style>`: `farligCss` strippes om den har `url(`/`@import`/`expression`/`behavior` (`@sitedoc/shared`, `apps/web/src/lib/ezdxfSvgVisning.ts`).
+- **Mobil allowlist før `innerHTML`:** DOM-parset (`svgMarkupErTrygg`, speilet i WebView-JS i `TegningsVisning`) — kun ezdxf-render.py sine tagger, ingen `on*`/`href`/aktiv CSS. Faller valideringen → `<img>` (kjører ikke skript i SVG).
+- **render.py-regresjonstest** (`dwgKonvertering.test.ts`, krever ezdxf): ondsinnet DXF → SVG uten `<script>`/`on*`/`foreignObject`/breakout, `<style>` uten CSS-funksjoner.
+
 ## ✅ Lukket 2026-09-06 — FTD tenant-grense + uautentisert prosessering-endepunkt
 
 **Funn (metode: skrivevei-folketelling av `apps/api` mot de 12 prosjekt-portene i
