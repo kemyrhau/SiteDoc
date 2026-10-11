@@ -200,6 +200,9 @@ Web beholdt SVG-ens egen `<style>` når den så `data-motor="ezdxf"` **i fila**,
 - **Mobil allowlist før `innerHTML`:** DOM-parset (`svgMarkupErTrygg`, speilet i WebView-JS i `TegningsVisning`) — kun ezdxf-render.py sine tagger, ingen `on*`/`href`/aktiv CSS. Faller valideringen → `<img>` (kjører ikke skript i SVG).
 - **render.py-regresjonstest** (`dwgKonvertering.test.ts`, krever ezdxf): ondsinnet DXF → SVG uten `<script>`/`on*`/`foreignObject`/breakout, `<style>` uten CSS-funksjoner.
 
+### 8c-2. 🔴 Lagret XSS via opplastet SVG, på web-origin (funn 2026-10-11, Kontrollør + orkestrator)
+`apps/api/src/routes/upload.ts:71` blokklister filendelser, og `.svg` er ikke blokkert, så en autentisert bruker kan POSTe en SVG med `<script>`. `apps/api/src/server.ts:128-148` serverer den `image/svg+xml`, `inline`, uten CSP. **`apps/web/next.config.js:146` rewriter `/api/uploads/*` til API-et**, så fila kan åpnes på **`sitedoc.no`-origin**. Scriptet kjører da med offerets sesjon (kan kalle tRPC som offeret; HttpOnly hindrer bare lesing av cookien). HMAC-signeringen hindrer bare usignert henting, ikke kjøring. Krever en innlogget angriper og et offer som åpner lenken. ⚠️ Gjelder prod. Hotfix bestilt (Redesign, `inbox-redesign-svg-xss-hotfix.md`).
+
 ## ✅ Lukket 2026-09-06 — FTD tenant-grense + uautentisert prosessering-endepunkt
 
 **Funn (metode: skrivevei-folketelling av `apps/api` mot de 12 prosjekt-portene i
