@@ -5930,3 +5930,6 @@ sjekklisteoversikten mot mobil.
 - 🟡 **`eksternKostObjekt.list` bruker brukerens medlemsfirma** (redesign-funn 2026-10-09, 12+ prosjekt-skopede kallere). Bør følge valgt firma som timer-kjernen (`830f7221`).
 
 - 🟡 **Tegningsviser: guard-test mot ekte `page.tsx`** (Kontrollør 2026-10-11, gate `7821138a`). Wheel-re-attach-testen (`apps/web/src/lib/__tests__/tegning-wheel-reattach.test.tsx`) speiler effekten i en modell og fanger ikke en fremtidig regresjon i den ekte dep-arrayen i `tegninger/page.tsx`. Trenger en test som monterer viseren og bytter `fileUrl`.
+- 🟡 **Tegningsviser web: hopper ved høy zoom** (Kenneth 2026-10-11, prod, 1455 %). Dokgen målte: wheel-zoom leser nettleser-avrundet `el.scrollLeft` som baseline hvert trinn, så det blir ~0,5 px sub-piksel-drift; `ønsketZoomScroll` er eksakt. Forslag: float-baseline som knip-stien. Ikke tatt i hotfix.
+- 🟡 **Visuell regresjonstest i WebKit (iOS-motor)** for DWG-SVG som `<img>` (2026-10-11). To DWG-feil slapp gjennom fordi librsvg/headless Chromium tegner annerledes enn iOS WebKit. Krever `playwright` + webkit som dev-avhengighet og CI-nedlasting (e2e-riggen har kun chromium). Pakkebeslutning: Kenneth.
+

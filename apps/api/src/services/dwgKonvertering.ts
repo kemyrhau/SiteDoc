@@ -1695,16 +1695,28 @@ export function dxfTilSvg(
     // størrelser som ER geometri og skal skalere med tegningen: pilhoder, punkt-radius og
     // font-fallback. IKKE til stroke-width — se `strekBredde`.
     const sw = vbPerPx * 1.5;
-    // RETUR 5 TILLEGG 2 (reparasjon): stroke-width skal være en KONSTANT skjermtykkelse,
-    // ikke viewBox-enheter. `vector-effect: non-scaling-stroke` (SVG-ens egen <style>)
-    // realiserer stroke-width i SKJERMPIKSLER uansett zoom/viewBox — målt mot kundefila
-    // og sharp/librsvg. Da ga `stroke-width = sw` (= vbPerPx·1,5, ~94 enheter på fallplan)
-    // ~94 px strek → hele tegningen ble en svart klump i ren <img> (georef-editor, eksport,
-    // mobil-WebView). Innholds-extents (startutsnittet, 68 % av vbW) ville gitt ~68 px —
-    // fortsatt klump. Målt årsak er altså ikke oppblåste extents, men at et verdensenhet-
-    // tall tolkes som skjermpiksler. Fast 1,5 px gir knivskarp strek overalt, og matcher
-    // gulvet viewerne allerede injiserer (`calc(1.5 / var(--svg-zoom))`).
-    const strekBredde = 1.5;
+    // PROD-REGRESJON RETUR 1 (mobil, 2026-10-11): stroke-width er bakt i VIEWBOX-ENHETER
+    // (= `sw`, som gir ~1,5 px ved intrinsic størrelse), og `vector-effect:non-scaling-stroke`
+    // er FJERNET fra <style>.
+    //
+    // HVORFOR: RETUR 5 satte `strekBredde = 1,5` + vector-effect for å få konstant
+    // skjermtykkelse. Men i en `<img>` i iOS WebKit (WKWebView, secure static mode) regnes
+    // vector-effect-streken mot feil CTM — 1,5 tolkes mot viewBox→viewport-skalaen
+    // (vbW/svgBredde ≈ 114 på fallplanen) → ~170 px strek → hele den tette tegningen ble en
+    // SVART flate på telefonen (fallplan Rev. B). Reprodusert i Playwright WebKit: med
+    // vector-effect + ~sw px = 100 % svart; headless desktop-WebKit/librsvg honorerer
+    // vector-effect korrekt (1,5 px) og skjulte buggen. Web skjulte den også — den stripper
+    // <style> og injiserer egen `stroke-width:calc(1.5/--svg-zoom) !important`.
+    //
+    // En `<img>` rasteriseres ÉN gang ved intrinsic størrelse; vector-effect gir ingen
+    // gevinst for en fast raster, bare upålitelighet. `sw` viewBox-enheter rendres av ALLE
+    // rasterisere (enhet + desktop + librsvg/sharp) uten CTM-spesialtilfelle → stabilt 1,5 px.
+    // Målt likt (headless): dagens 4 % svart vs. fiksen 7 % — samme rene strek. Den LEVENDE
+    // web-viseren beholder konstant skjermtykkelse via sin injiserte `calc(1.5/zoom)`
+    // (overstyrer `stroke-width`-attributtet med !important), så web er uendret.
+    // Rund til 2 desimaler: full flyttall-presisjon ville lagt ~18 tegn på hvert av ~52 000
+    // elementer (+0,7 MB på fallplanen) uten synlig gevinst.
+    const strekBredde = Math.round(sw * 100) / 100;
 
     // Normalisering: flytt alle koordinater til å starte nær 0. Avrund til ~0,05 px
     // presisjon (adaptivt etter tegningens skala) — kutter SVG-størrelsen kraftig på
@@ -1956,9 +1968,12 @@ export function dxfTilSvg(
     // Faste pikseldimensjoner for å sikre at <img> har intrinsic størrelse
     const svgHoyde = Math.round(svgBredde * (vbH / vbW));
 
+    // PROD-REGRESJON RETUR 1: INGEN `vector-effect:non-scaling-stroke` i <style> — den gjorde
+    // tegningen svart i iOS WebKit `<img>` (se `strekBredde`-kommentaren over). stroke-width er
+    // bakt i viewBox-enheter (`sw`) på hvert element og rendres stabilt uten den. Den LEVENDE
+    // web-viseren fjerner uansett <style> og injiserer sin egen zoom-bevisste stroke-width.
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${svgBredde}" height="${svgHoyde}">
-<style>line,polyline,circle,path,ellipse,polygon{vector-effect:non-scaling-stroke}</style>
 <rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="white"/>
 ${hatchPaths.join("\n")}
 ${paths.join("\n")}

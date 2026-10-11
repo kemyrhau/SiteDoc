@@ -716,34 +716,42 @@ describe("RETUR 4 — tellDxfInventar + byggRapport (fullstendighets-gate)", () 
   });
 });
 
-describe("RETUR 5 TILLEGG 2 — stroke-width er fast skjerm-px, ikke viewBox-enheter", () => {
-  /** Alle stroke-width-attributter i en SVG som tallverdier. */
+describe("PROD-REGRESJON RETUR 1 (2026-10-11) — stroke-width i viewBox-enheter, INGEN vector-effect", () => {
+  // RETUR 5 satte stroke-width=1,5 + `vector-effect:non-scaling-stroke`. I iOS WebKit `<img>`
+  // regnes vector-effect-streken mot feil CTM (1,5 → ~vbW/svgBredde px) → svart klump på
+  // telefonen. Nå bakes stroke-width i VIEWBOX-ENHETER (= sw), som gir ~1,5 px ved intrinsic
+  // i ALLE rasterisere uten vector-effect-avhengighet. Kontrakt: (1) ingen non-scaling-stroke,
+  // (2) rendret strek ved intrinsic ≈ 1,5 px for både stor og liten tegning.
   function strokeBredder(svg: string): number[] {
     return [...svg.matchAll(/stroke-width="([-\d.eE]+)"/g)].map((m) => parseFloat(m[1] ?? ""));
   }
+  /** Rendret strektykkelse i piksler ved SVG-ens intrinsic størrelse = strokeBredde·(width/vbW). */
+  function rendretPx(res: { svg: string; vbW: number; width: number }): number {
+    return Math.max(...strokeBredder(res.svg)) * (res.width / res.vbW);
+  }
 
-  it("STOR tegning (vbW ~100 000): ingen stroke-width > 2 px — svart-klump-gaten", () => {
-    // Før reparasjonen: sw = vbW/2000·1,5 ≈ 75 → `vector-effect:non-scaling-stroke`
-    // realiserer det i 75 SKJERMPIKSLER → hele tegningen blir en svart klump i ren <img>.
-    // Nå er stroke-width en konstant (1,5), uavhengig av tegningens skala.
+  it("ingen `vector-effect`/`non-scaling-stroke` i den bakte SVG-en (svart-klump-rotårsaken)", () => {
     const svg = dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!.svg;
-    const sws = strokeBredder(svg);
-    expect(sws.length).toBeGreaterThan(0);
-    expect(Math.max(...sws)).toBeLessThanOrEqual(2);
+    expect(svg).not.toContain("vector-effect");
+    expect(svg).not.toContain("non-scaling-stroke");
   });
 
-  it("LITEN tegning (vbW ~200): samme faste stroke-width (ikke skalert ned til hårstrek)", () => {
-    const svg = dxfTilSvg(rektangelDxf({ w: 200, h: 200 }))!.svg;
-    const sws = strokeBredder(svg);
-    expect(Math.max(...sws)).toBeLessThanOrEqual(2);
-    // Stor og liten tegning får nå IDENTISK stroke-width — det er hele poenget.
-    const stor = strokeBredder(dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!.svg);
-    expect(Math.max(...sws)).toBeCloseTo(Math.max(...stor), 6);
+  it("STOR tegning (vbW ~100 000): rendret strek ved intrinsic ≈ 1,5 px (ikke ~75 px klump)", () => {
+    const res = dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!;
+    expect(strokeBredder(res.svg).length).toBeGreaterThan(0);
+    expect(rendretPx(res)).toBeGreaterThan(1);
+    expect(rendretPx(res)).toBeLessThan(2);
   });
 
-  it("SVG-en bærer non-scaling-stroke i egen <style> (tynn strek også uten injisert CSS)", () => {
-    const svg = dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!.svg;
-    expect(svg).toContain("non-scaling-stroke");
+  it("LITEN tegning (vbW ~200): rendret strek ved intrinsic ≈ samme ~1,5 px (ikke hårstrek)", () => {
+    const liten = dxfTilSvg(rektangelDxf({ w: 200, h: 200 }))!;
+    const stor = dxfTilSvg(rektangelDxf({ w: 100_000, h: 80_000 }))!;
+    // Rå viewBox-enhet-stroke skiller stort (strokeBredde ~159) fra lite (~0,16) ...
+    expect(Math.max(...strokeBredder(liten.svg))).not.toBeCloseTo(Math.max(...strokeBredder(stor.svg)), 1);
+    // ... men RENDRET ved intrinsic lander begge på ~1,5 px — det er hele poenget.
+    expect(rendretPx(liten)).toBeGreaterThan(1);
+    expect(rendretPx(liten)).toBeLessThan(2);
+    expect(rendretPx(liten)).toBeCloseTo(rendretPx(stor), 1);
   });
 });
 
@@ -877,13 +885,15 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     expect(minX < vbX || maxX > vbX + vbW).toBe(true);
   }, 180000);
 
-  it("RETUR 5 TILLEGG 2: ingen stroke-width > 2 px (fallplanen ble en svart klump i ren <img>)", () => {
-    // Målt: vbW ~134 000 → gammel sw ≈ 94 → non-scaling-stroke ga ~94 px strek →
-    // hele planen svart i georef-editor/eksport/mobil-WebView. Nå fast 1,5 px.
+  it("PROD-REGRESJON RETUR 1: ingen vector-effect; rendret strek ved intrinsic ≈ 1,5 px (ikke svart klump)", () => {
+    // RETUR 1-rotårsak: vector-effect-streken ble ~170 px i iOS WebKit <img> → svart flate.
+    // Nå stroke-width i viewBox-enheter → rendret ved intrinsic ≈ 1,5 px, uten vector-effect.
     const res = dxfTilSvg(konverterKundefil())!;
     const sws = [...res.svg.matchAll(/stroke-width="([-\d.eE]+)"/g)].map((m) => parseFloat(m[1] ?? ""));
     expect(sws.length).toBeGreaterThan(1000);
-    expect(Math.max(...sws)).toBeLessThanOrEqual(2);
-    expect(res.svg).toContain("non-scaling-stroke");
+    expect(res.svg).not.toContain("vector-effect");
+    const rendretPx = Math.max(...sws) * (res.width / res.vbW);
+    expect(rendretPx).toBeGreaterThan(1);
+    expect(rendretPx).toBeLessThan(2);
   }, 180000);
 });
