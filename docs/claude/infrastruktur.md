@@ -46,6 +46,8 @@ API når ML-tjenestene via env: `NORBERT_URL=http://embed:3302`, `OVERSETTELSE_U
 
 Bygges nå inn i Docker-imagene (ikke apt på host). `Dockerfile.api` installerer `poppler-utils` (PDF→PNG), `tesseract-ocr` + `tesseract-ocr-nor` (OCR), `openssl`, `ca-certificates`, `fontconfig`. **DWG/DXF (DWG-1, 2026-10-08):** libredwg 0.14 bygges fra kilde i et eget `libredwg-build`-stage (SHA256-pinnet GNU-tarball, bygget med `build-essential`/`pkg-config`/`curl`/`xz-utils`); kun `dwg2dxf`/`dwg2SVG` + `libredwg.so*` kopieres inn i runtime + `ldconfig`. Samme stage i `Dockerfile.web` (tRPC kjører in-process i web). ODA og `xvfb` er fjernet (ODA valgt bort; xvfb ble kun brukt av ODA).
 
+**ezdxf-motor (DWG_MOTOR=ezdxf, 2026-10-11, branch `feat/ezdxf-motor`):** 🟡 under arbeid. Python-venv med ezdxf 1.4.4 (hash-låst, `apps/api/src/services/ezdxf/requirements.txt`) legges i **både** `Dockerfile.api` og `Dockerfile.web` (nettleser-opplasting konverterer i web-containeren). Env: `DWG_MOTOR` (`egen` default / `ezdxf`), `EZDXF_PYTHON` (venv-python, default `python3`), `EZDXF_RENDER_PY` (full sti til `render.py`). Mangler `EZDXF_RENDER_PY` → faller tilbake til egen motor. Helsesjekk (ezdxf importerbar i begge containere) kommer i DEPLOY-RUNBOK § 1/§ 2 (L9). Spec: [tegning-dwg-spec.md § EZDXF-MOTOR](tegning-dwg-spec.md).
+
 ## Miljøvariabler
 
 Container-env settes via `env_file` (se «Env-filer på server» under) + `environment:` i `docker-compose.yml`. Uploads er bind-mountet (`~/stack/sitedoc/uploads` → `/app/apps/api/uploads`), så egen `UPLOADS_DIR`-variabel trengs ikke som på gammel server.

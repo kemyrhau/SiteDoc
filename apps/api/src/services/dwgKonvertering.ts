@@ -2024,6 +2024,91 @@ function escapeXml(tekst: string): string {
 }
 
 /**
+ * Valgt DWG→SVG-motor. `egen` (default) = den TS-interne `dxfTilSvg`; `ezdxf` =
+ * Python-renderen (`ezdxf/render.py`) bak samme lag. Byttes av `DWG_MOTOR`-env.
+ * Test settes til `ezdxf` av Kenneth når den er klar; prod bytter først etter
+ * iPhone-sjekk. extents/rotasjon/startutsnitt/georef/`mmPrPiksel` beregnes rundt
+ * motoren (georef i `konverterDwg`, resten speiles i begge renderne) — derav
+ * paritetskravet (gate L10).
+ */
+export type DwgMotor = "egen" | "ezdxf";
+export function valgtMotor(): DwgMotor {
+  return process.env.DWG_MOTOR === "ezdxf" ? "ezdxf" : "egen";
+}
+
+/** Python-tolk + render.py-sti for ezdxf-motoren. Settes i Docker (api + web) —
+ * se infrastruktur.md / DEPLOY-RUNBOK. Mangler `EZDXF_RENDER_PY`, er ezdxf
+ * utilgjengelig og kalleren faller tilbake til egen motor (synlig i loggen). */
+const EZDXF_PYTHON = process.env.EZDXF_PYTHON ?? "python3";
+const EZDXF_RENDER_PY = process.env.EZDXF_RENDER_PY ?? "";
+
+/**
+ * ezdxf-motorens motstykke til `dxfTilSvg`: spawner `render.py` på DXF-fila og
+ * returnerer samme `DxfSvgResultat`-form. Sikkerhet: `execFile` (ingen shell) +
+ * tidsavbrudd her, selvpålagt minnetak (RLIMIT_AS) i render.py. Kundefila leses
+ * kun. Returnerer null ved manglende motor/feil → kalleren faller til egen.
+ *
+ * `klippBounds` → layout-klipp (som egens `klippBounds`): extents settes direkte,
+ * rotasjon/robust kobles ut, rapport = null.
+ */
+export async function dxfTilSvgEzdxf(
+  dxfSti: string,
+  klippBounds?: { minX: number; maxX: number; minY: number; maxY: number },
+  opsjoner?: {
+    ingenAutoRotasjon?: boolean;
+    hatch?: "normal" | "solid";
+    gruppering?: "ingen" | "farge";
+  },
+): Promise<DxfSvgResultat | null> {
+  if (!EZDXF_RENDER_PY) {
+    console.warn("[DWG] ezdxf-motor valgt, men EZDXF_RENDER_PY er ikke satt — kan ikke rendre med ezdxf.");
+    return null;
+  }
+  const dir = dirname(dxfSti);
+  const svgOut = join(dir, `${randomUUID()}.svg`);
+  const metaOut = join(dir, `${randomUUID()}.json`);
+  const args = [
+    EZDXF_RENDER_PY, dxfSti, svgOut,
+    "--meta", metaOut,
+    "--tekst", "egen",
+    "--gruppering", opsjoner?.gruppering ?? "ingen",
+    "--hatch", opsjoner?.hatch ?? "normal",
+  ];
+  if (opsjoner?.ingenAutoRotasjon) args.push("--rotasjon", "av", "--robust", "av");
+  if (klippBounds) {
+    args.push("--klipp", `${klippBounds.minX},${klippBounds.minY},${klippBounds.maxX},${klippBounds.maxY}`);
+  }
+  try {
+    await execFileAsync(EZDXF_PYTHON, args, {
+      timeout: 300000, cwd: dir, maxBuffer: 50 * 1024 * 1024,
+    });
+    const [svg, metaRaw] = await Promise.all([
+      readFile(svgOut, "utf-8"),
+      readFile(metaOut, "utf-8"),
+    ]);
+    const meta = JSON.parse(metaRaw) as {
+      vbW: number; vbH: number; width: number; height: number;
+      autoRotasjon: number | null;
+      startutsnitt: { x: number; y: number; w: number; h: number } | null;
+    };
+    return {
+      svg,
+      vbW: meta.vbW, vbH: meta.vbH, width: meta.width, height: meta.height,
+      autoRotasjon: meta.autoRotasjon ?? null,
+      startutsnitt: meta.startutsnitt ?? null,
+      // L5 gjenoppretter fullstendighetsrapporten fra player-primitiver (--metadata på).
+      rapport: null,
+    };
+  } catch (err) {
+    console.warn("[DWG] ezdxf render.py feilet:", err);
+    return null;
+  } finally {
+    await unlink(svgOut).catch(() => { /* OK */ });
+    await unlink(metaOut).catch(() => { /* OK */ });
+  }
+}
+
+/**
  * Konverter en DWG- eller DXF-fil til visnings-SVG + enheter + georeferanse + layouts.
  *
  * D4: `.dxf` leses direkte (hopper over `dwg2dxf`). D5: `$INSUNITS` → mm/piksel,
@@ -2100,14 +2185,30 @@ export async function konverterDwg(
     const system = dxfInnhold ? detekterKoordinatSystem(filnavn, extents ?? undefined) : null;
     console.log("[DWG] Detektert koordinatsystem:", system);
 
-    // 3. SVG fra egen DXF-parser → hovedtegningens måling (D5)
+    // Motorvalg (DWG_MOTOR). ezdxf trenger DXF-FILA (readfile), ikke strengen.
+    const motor = valgtMotor();
+    const dxfSti = erDxf ? filSti : libreDxfSti;
+    if (motor === "ezdxf") console.log("[DWG] Motor: ezdxf");
+
+    // 3. SVG → hovedtegningens måling (D5). egen = TS-parser; ezdxf = render.py.
     let visningUrl = "";
     let visningFilType = "";
     let maaling: DwgMaaling = tomMaaling;
     let autoRotasjon: number | null = null;
     let startutsnitt: { x: number; y: number; w: number; h: number } | null = null;
     let rapport: KonverteringRapport | null = null;
-    const svgRes = dxfInnhold ? dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system }) : null;
+    let svgRes: DxfSvgResultat | null = null;
+    if (dxfInnhold) {
+      if (motor === "ezdxf") {
+        svgRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system });
+        if (!svgRes) {
+          console.warn("[DWG] ezdxf-motor ga ingen SVG — faller tilbake til egen motor.");
+          svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
+        }
+      } else {
+        svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
+      }
+    }
     if (svgRes) {
       const svgFilnavn = `${randomUUID()}.svg`;
       await writeFile(join(uploadDir, svgFilnavn), svgRes.svg, "utf-8");
@@ -2148,7 +2249,9 @@ export async function konverterDwg(
           console.log(`[DWG] Hopper over layout "${layout.navn}" (ingen viewport/modelBounds)`);
           continue;
         }
-        const klippet = dxfTilSvg(dxfInnhold, layout.modelBounds);
+        const klippet = motor === "ezdxf"
+          ? (await dxfTilSvgEzdxf(dxfSti, layout.modelBounds)) ?? dxfTilSvg(dxfInnhold, layout.modelBounds)
+          : dxfTilSvg(dxfInnhold, layout.modelBounds);
         if (!klippet) {
           console.warn(`[DWG] Layout "${layout.navn}" ga ingen SVG (ugyldig klipp) — hoppet over`);
           continue;

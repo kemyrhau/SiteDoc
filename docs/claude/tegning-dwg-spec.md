@@ -170,3 +170,19 @@ mobil. Rører **ikke** 3D/IFC/punktsky (egen chat), PDF-veien (virker), eller te
 - **Test:** `dwgKonvertering.test.ts` (rød→grønn): ingen `vector-effect`/`non-scaling-stroke`; rendret strek ved intrinsic (`strokeBredde·width/vbW`) ∈ (1,2) px for både stor og liten tegning + kundefil-integrasjon. (Playwright WebKit-visuell test ikke committet — ville krevd playwright+webkit som ny avhengighet; målingene er bevis.)
 
 **B — web: «hopper noe» ved 1455 % zoom (RAPPORT, ikke rettet).** `ønsketZoomScroll` er eksakt flyttall (`contentX·skala − viewX`), og SVG-en re-rendrer ikke på zoom (kun CSS-var). Målt årsak: wheel-stien leser `el.scrollLeft` (nettleser-avrundet til heltall px) ferskt som baseline hvert trinn → ~0,5 px sub-piksel-drift som akkumulerer; knip-stien unngår det via `knipBaseRef`-baseline. **Anbefalt fiks (egen runde):** la wheel-zoom bruke en float-scroll-baseline (ref) som knip, i stedet for `el.scrollLeft`. Ikke rettet i denne hotfixen for ikke å destabilisere den finjusterte zoom-matematikken; kun synlig ved ekstrem innzoom.
+
+### EZDXF-MOTOR (2026-10-11, branch `feat/ezdxf-motor`) — DWG→SVG bak `DWG_MOTOR`
+
+🟡 **UNDER ARBEID** (L0 levert; L1–L10 følger). Hjemmel: Kenneth 2026-10-11 *«ja»* til ordentlig bygging etter PoC (`poc/ezdxf-motor`). **Funksjonsendring med hjemmel.**
+
+**Hva L0 gjør:** ezdxf (`apps/api/src/services/ezdxf/render.py`, ezdxf 1.4.4 hash-låst) tegner geometri til `DxfSvgResultat`-formen bak samme lag som `dxfTilSvg`. Bryter `DWG_MOTOR=egen|ezdxf` i `konverterDwg` (`dwgKonvertering.ts`), **standard `egen`** — `valgtMotor()`. ezdxf velges kun når env er satt (test settes av Kenneth; prod etter iPhone-sjekk).
+- `dxfTilSvgEzdxf(dxfSti, klippBounds?, {ingenAutoRotasjon, hatch, gruppering})` spawner `render.py` på DXF-**fila** (ezdxf.readfile) og returnerer `{svg, vbW, vbH, width, height, autoRotasjon, startutsnitt, rapport:null}`. Rapport (fullstendighet) gjenopprettes i L5 via `--metadata på`.
+- **Motor-uavhengig ramme:** georef beregnes i `konverterDwg` fra `beregnExtents` (TS, begge motorer); `mmPrPiksel` fra `vbW/width`. rotasjon/extents/robust/startutsnitt er SPEILET i render.py (Python) mot `dxfTilSvg` (TS) — paritetstest (L10) er vakten mot drift (≤ 0,1 % på Ålesund/NTM6/UTM32).
+- **Tekst:** `TextPolicy.IGNORE` + egen `<text>` (samme `CAP_RATIO`/`mtekstForankring`/motrotering). **Strek** i viewBox-enheter, **ingen `vector-effect`** (hotfix 2-lærdom bevart).
+- **Layout-klipp:** `--klipp minX,minY,maxX,maxY` setter extents direkte og kobler ut rotasjon/robust (= egens `klippBounds`).
+- **Sikkerhet:** `execFile` (ingen shell) + Node-tidsavbrudd (300 s); selvpålagt minnetak i render.py (`RLIMIT_AS`, `--mem-mb` default 2048). Kundefila leses kun. Mangler `EZDXF_RENDER_PY` → `dxfTilSvgEzdxf` returnerer null og `konverterDwg` faller tilbake til egen (synlig i loggen).
+- **Env (settes i Docker api + web, L9):** `DWG_MOTOR`, `EZDXF_PYTHON`, `EZDXF_RENDER_PY`. Se infrastruktur.md.
+- **Målt lokalt (UTM32-fixture, venv):** render OK (exit 0), vbW/vbH/mmPrPiksel/startutsnitt i meta, 0× `vector-effect`, strek 0,16 viewBox-enheter; `--klipp` gir extents = gitte bounds + rotasjon 0.
+- **Verktøy:** `DxfSvgResultat`-kontrakten uendret; egen motor rørt ikke (regel 10 — 69 dwg-tester grønne, inkl. 4 nye motor-tester).
+
+**Gjenstår:** L1 to varianter (web full hatch / mobil solid, `Drawing.mobilFileUrl`-kolonne) · L2 DIMENSION-tekst · L4 startutsnitt på bygget (tetthet, ikke lagnavn) · L5 data-layer/data-type + rapport · L6 mobil zoom-strek (måle-gate) · L7 librsvg `XML_PARSE_HUGE` · L8 markør `motor:"ezdxf"` · L9 Docker · L10 paritet/docs/WebKit-bevis.

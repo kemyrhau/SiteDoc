@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, copyFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,6 +27,8 @@ import {
   byggRapport,
   RAPPORT_ALLOWLIST,
   robustGrense,
+  valgtMotor,
+  dxfTilSvgEzdxf,
   fontStr,
   CAP_RATIO,
   mtekstForankring,
@@ -896,4 +898,41 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     expect(rendretPx).toBeGreaterThan(1);
     expect(rendretPx).toBeLessThan(2);
   }, 180000);
+});
+
+// ---------------------------------------------------------------------------
+// L0 — motorbryter (DWG_MOTOR). egen er standard; ezdxf er opt-in. Full
+// ende-til-ende-render av ezdxf krever Python+ezdxf (Docker, L9) og dekkes av
+// paritetstesten (L10); her testes bryteren + den trygge fallbacken.
+// ---------------------------------------------------------------------------
+describe("DWG_MOTOR — motorvalg (L0)", () => {
+  const før = process.env.DWG_MOTOR;
+  const førPy = process.env.EZDXF_RENDER_PY;
+  afterEach(() => {
+    if (før === undefined) delete process.env.DWG_MOTOR;
+    else process.env.DWG_MOTOR = før;
+    if (førPy === undefined) delete process.env.EZDXF_RENDER_PY;
+    else process.env.EZDXF_RENDER_PY = førPy;
+  });
+
+  it("valgtMotor: default er egen", () => {
+    delete process.env.DWG_MOTOR;
+    expect(valgtMotor()).toBe("egen");
+  });
+
+  it("valgtMotor: DWG_MOTOR=ezdxf gir ezdxf", () => {
+    process.env.DWG_MOTOR = "ezdxf";
+    expect(valgtMotor()).toBe("ezdxf");
+  });
+
+  it("valgtMotor: ukjent verdi faller til egen", () => {
+    process.env.DWG_MOTOR = "noe-annet";
+    expect(valgtMotor()).toBe("egen");
+  });
+
+  it("dxfTilSvgEzdxf returnerer null (→ egen-fallback) når EZDXF_RENDER_PY mangler", async () => {
+    delete process.env.EZDXF_RENDER_PY;
+    const res = await dxfTilSvgEzdxf("/finnes/ikke.dxf");
+    expect(res).toBeNull();
+  });
 });
