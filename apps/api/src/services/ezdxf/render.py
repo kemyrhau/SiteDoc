@@ -565,6 +565,13 @@ def les_segmenter(msp):
                 segs.append((vs[i][0], vs[i][1], vs[i+1][0], vs[i+1][1]))
     return segs
 
+def _mtext_rot(e):
+    """MTEXT-rotasjon i GRADER. Rå DXF lagrer MTEXT-kode 50 i radianer, men ezdxfs
+    høynivå-API (`e.dxf.rotation`) konverterer alltid til grader — så vi returnerer
+    verdien direkte. (PoC hadde en «> 2π ⇒ radianer»-heuristikk som feiltolket f.eks.
+    53°-rotert måltekst som radianer → ~3044°; fjernet.)"""
+    return e.dxf.get("rotation", 0) or 0
+
 def les_tekster(msp):
     ut = []
     for e in msp:
@@ -575,7 +582,7 @@ def les_tekster(msp):
                        "color": "#000000", "att": None})
         elif t == "MTEXT":
             ut.append({"tekst": _ren_mtext(e.text), "x": e.dxf.insert.x, "y": e.dxf.insert.y,
-                       "h": e.dxf.char_height, "rot": math.degrees(e.dxf.get("rotation", 0) or 0) if e.dxf.get("rotation",0) and abs(e.dxf.get("rotation",0))>2*math.pi else (e.dxf.get("rotation",0) or 0),
+                       "h": e.dxf.char_height, "rot": _mtext_rot(e),
                        "color": "#000000", "att": e.dxf.get("attachment_point", 1)})
         elif t == "ATTRIB":
             ut.append({"tekst": e.dxf.text, "x": e.dxf.insert.x, "y": e.dxf.insert.y,
@@ -587,7 +594,67 @@ def les_tekster(msp):
             ut.append({"tekst": att.dxf.text, "x": att.dxf.insert.x, "y": att.dxf.insert.y,
                        "h": att.dxf.height, "rot": att.dxf.get("rotation", 0) or 0,
                        "color": "#000000", "att": None})
+    # DIMENSION -> måltekst. ezdxf tegner dimensjonens linjer/piler, men TextPolicy.IGNORE
+    # suppr. teksten — så vi henter den selv (krav 2; manglet i PoC). Primær kilde er
+    # dimensjonens geometri-blokk (*D...), som bærer TEXT/MTEXT ferdig plassert/rotert/
+    # skalert slik AutoCAD/TrueView viser den. Fallback: egen måling + text_midpoint.
+    doc = getattr(msp, "doc", None)
+    if doc is not None:
+        for dim in msp.query("DIMENSION"):
+            ut.extend(_dim_tekster(dim, doc))
     return [t for t in ut if (t["tekst"] or "").strip()]
+
+def _fmt_maal(v):
+    # Fallback-formattering (kun når geometri-blokk mangler): strip hale-nuller.
+    return f"{round(v, 2):g}"
+
+def _dim_tekster(dim, doc):
+    ut = []
+    blk_navn = dim.dxf.get("geometry", None)   # anonym *D...-blokk (DXF-kode 2)
+    blk = None
+    if blk_navn:
+        try:
+            blk = doc.blocks.get(blk_navn)
+        except Exception:
+            blk = None
+    if blk is not None:
+        for e in blk:
+            t = e.dxftype()
+            if t == "MTEXT":
+                ut.append({"tekst": _ren_mtext(e.text), "x": e.dxf.insert.x, "y": e.dxf.insert.y,
+                           "h": e.dxf.char_height, "rot": _mtext_rot(e),
+                           "color": "#000000", "att": e.dxf.get("attachment_point", 5)})
+            elif t == "TEXT":
+                ut.append({"tekst": e.dxf.text, "x": e.dxf.insert.x, "y": e.dxf.insert.y,
+                           "h": e.dxf.height, "rot": e.dxf.get("rotation", 0) or 0,
+                           "color": "#000000", "att": None})
+        if any((t["tekst"] or "").strip() for t in ut):
+            return ut
+        ut = []
+    # Fallback: ingen brukbar geometri-blokk -> mål selv og plasser på text_midpoint.
+    txt = (dim.dxf.get("text", "<>") or "<>")
+    maal = None
+    try:
+        maal = dim.get_measurement()
+    except Exception:
+        maal = None
+    if isinstance(maal, (int, float)):
+        vist = _fmt_maal(maal) if txt in ("", "<>") else txt.replace("<>", _fmt_maal(maal))
+    else:
+        vist = "" if txt in ("", "<>") else txt
+    if not (vist or "").strip():
+        return ut
+    pos = dim.dxf.get("text_midpoint", None) or dim.dxf.get("defpoint", None)
+    if pos is None:
+        return ut
+    h = 2.5
+    try:
+        style = doc.dimstyles.get(dim.dxf.get("dimstyle", "Standard"))
+        h = (float(style.dxf.get("dimtxt", 2.5) or 2.5) * float(style.dxf.get("dimscale", 1.0) or 1.0)) or 2.5
+    except Exception:
+        pass
+    ut.append({"tekst": vist, "x": pos.x, "y": pos.y, "h": h, "rot": 0, "color": "#000000", "att": 5})
+    return ut
 
 def _ren_mtext(s):
     import re
