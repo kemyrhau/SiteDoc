@@ -275,6 +275,10 @@ function oppdaterZoom() {
 // Effektiv skala = layout displayScale × pinch (visualViewport.scale); getBoundingClientRect
 // gir LAYOUT-px (uendret av pinch), så pinch legges til via z.
 var STREK_K = 0.5, STREK_MIN_PX = 0.5, STREK_MAKS_PX = 4;
+// RETUR 2: inline-SVG-en er enten C1 (dempet --lw-strek) eller en gammel ezdxf uten C1
+// som får egen-behandling (konstant ~EGEN_STREK_PX på skjermen, som web). Settes ved fetch.
+var SVG_ER_C1 = false;
+var EGEN_STREK_PX = 1.5;
 function oppdaterStrek() {
   if (!SVG_INLINE) return;
   var el = document.getElementById('tegning');
@@ -283,12 +287,18 @@ function oppdaterStrek() {
   var vbW = svg.viewBox.baseVal.width;
   var renderedW = svg.getBoundingClientRect().width;
   if (!vbW || !renderedW) return;
-  var lwBase = parseFloat(svg.getAttribute('data-lw-base')) || 1;
   var z = window.visualViewport ? window.visualViewport.scale : 1;
   var ds = (renderedW / vbW) * z;
-  svg.style.setProperty('--strek-skala', String(Math.pow(Math.max(z, 1e-6), STREK_K - 1)));
-  svg.style.setProperty('--strek-min', (STREK_MIN_PX / ds) + 'px');
-  svg.style.setProperty('--strek-maks-k', String(STREK_MAKS_PX / (lwBase * ds)));
+  if (SVG_ER_C1) {
+    var lwBase = parseFloat(svg.getAttribute('data-lw-base')) || 1;
+    svg.style.setProperty('--strek-skala', String(Math.pow(Math.max(z, 1e-6), STREK_K - 1)));
+    svg.style.setProperty('--strek-min', (STREK_MIN_PX / ds) + 'px');
+    svg.style.setProperty('--strek-maks-k', String(STREK_MAKS_PX / (lwBase * ds)));
+  } else {
+    // Egen-behandling: rå (173-enhets) strek skal aldri vises. Konstant skjermtykkelse
+    // (~EGEN_STREK_PX) via stroke-width i viewBox-enheter = EGEN_STREK_PX / ds.
+    svg.style.setProperty('--egen-sw', (EGEN_STREK_PX / ds) + 'px');
+  }
 }
 var strekTimer = null;
 function planleggStrek() {
@@ -447,6 +457,16 @@ if (SVG_INLINE) {
     txt = txt.replace(/<svg([^>]*)>/, function(m, a){
       return '<svg' + a.replace(/\\s*width="[^"]*"/g, '').replace(/\\s*height="[^"]*"/g, '') + ' width="100%" height="auto" style="display:block">';
     });
+    // RETUR 2: C1-gate. data-lw-base på roten = dempet-strek-formatet. SPEILER
+    // svgHarC1Format i @sitedoc/shared (kan ikke importeres inn i inline-JS). En gammel
+    // ezdxf uten C1 (rå stroke-width ~173) får egen-behandling (strip <style> + injiser
+    // dempet !important-regel) — aldri rå strek, som web-viseren.
+    var rotTagg = (txt.match(/<svg[^>]*>/i) || [''])[0];
+    SVG_ER_C1 = /\\bdata-lw-base\\s*=/i.test(rotTagg);
+    if (!SVG_ER_C1) {
+      txt = txt.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '');
+      txt = txt.replace(/(<svg[^>]*>)/, '$1<style>line,polyline,circle,path,ellipse,polygon{stroke-width:var(--egen-sw,1.5px) !important}</style>');
+    }
     var el = document.getElementById('tegning');
     if (svgTrygg(txt)) { el.innerHTML = txt; etterTegning(); }
     else { visSomBilde(el); }

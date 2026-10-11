@@ -45,6 +45,7 @@ import {
   isoUkeRef,
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse, Periode } from "@sitedoc/shared";
+import { lesKonverteringMarkor } from "@sitedoc/shared";
 
 // Type-casts for å unngå TS2589 (excessively deep type instantiation)
 interface BygningData {
@@ -87,6 +88,9 @@ interface TegningDetalj {
   autoRotasjon?: number | null;
   rotasjonOverstyrt?: number | null;
   startutsnitt?: unknown;
+  // RETUR 2: konverteringsmarkøren (motor) brukes for å avgjøre om tegningen skal
+  // inlines som ezdxf (behold/damp strek) eller vises som <img> (egen/raster).
+  konverteringRapport?: unknown;
 }
 
 interface OppgaveMarkør {
@@ -884,9 +888,16 @@ export default function LokasjonerSkjerm() {
               if (!su || typeof su.x !== "number" || typeof su.y !== "number" || typeof su.w !== "number" || typeof su.h !== "number") return null;
               return { x: su.x, y: su.y, w: su.w, h: su.h };
             })()}
-            // C2 (L6): ezdxf-mobilvarianten (farge-gruppert) rendres INLINE så streken dempes
-            // ved zoom. Kun når mobilFileUrl finnes (ezdxf-konvertert); egen/raster → <img>.
-            svgInline={!!valgtTegningDetalj?.mobilFileUrl}
+            // C2 (L6) + RETUR 2: ezdxf-SVG rendres INLINE så streken kan dempes/strippes
+            // (<img> kan ikke → tykk svart ved zoom). Gjelder BÅDE den farge-grupperte
+            // mobilvarianten (mobilFileUrl, ny ezdxf med C1) OG en gammel ezdxf-SVG uten
+            // mobilvariant (fileUrl, pre-C1): inline-handleren i byggHtml ser C1-formatet og
+            // gir rå (173-enhets) strek egen-behandling. Egen-motor / raster → <img>.
+            svgInline={
+              (valgtTegningDetalj?.fileType ?? "") === "svg" &&
+              (!!valgtTegningDetalj?.mobilFileUrl ||
+                lesKonverteringMarkor(valgtTegningDetalj?.konverteringRapport)?.motor === "ezdxf")
+            }
             onSettRotasjon={(grader) => {
               if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });
             }}

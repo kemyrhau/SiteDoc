@@ -9,3 +9,4 @@ export * from "./annotering/bro";
 export * from "./tegning/strek-skalering";
 export * from "./tegning/startutsnitt-zoom";
 export * from "./tegning/svg-sikkerhet";
+export * from "./tegning/konvertering-markor";

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { STREK_SKALERING, beregnStrekVars } from "./strek-skalering";
+import { STREK_SKALERING, beregnStrekVars, svgHarC1Format } from "./strek-skalering";
 
 /**
  * RETUR 1 TILLEGG C1: dempet strekskalering. Viseren måler `displayScale` (rendret
@@ -59,5 +59,27 @@ describe("beregnStrekVars — dempet strekskalering", () => {
     const tynn = skjermBredde(100, 1, baseScale, lwBase);
     const tykk = skjermBredde(300, 1, baseScale, lwBase);
     expect(tykk / tynn).toBeCloseTo(3, 6);
+  });
+});
+
+describe("svgHarC1Format — C1-gate (RETUR 2)", () => {
+  it("sann når rot-<svg> bærer data-lw-base (ny ezdxf)", () => {
+    const c1 = `<svg xmlns="http://www.w3.org/2000/svg" data-motor="ezdxf" data-lw-base="2.3" viewBox="0 0 100 100"><path d="M0 0" style="--lw:2.3"/></svg>`;
+    expect(svgHarC1Format(c1)).toBe(true);
+  });
+
+  it("usann for gammel ezdxf uten C1 (Rev. F: rå stroke-width, ingen data-lw-base/--lw)", () => {
+    const revF = `<svg xmlns="http://www.w3.org/2000/svg" data-motor="ezdxf" viewBox="0 0 100 100"><path d="M0 0" stroke-width="173"/></svg>`;
+    expect(svgHarC1Format(revF)).toBe(false);
+  });
+
+  it("usann for egen-SVG", () => {
+    const egen = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><style>path{stroke-width:1.5}</style><path d="M0 0"/></svg>`;
+    expect(svgHarC1Format(egen)).toBe(false);
+  });
+
+  it("leser KUN rot-taggen — data-lw-base i en barneverdi teller ikke", () => {
+    const lureri = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text>data-lw-base=5</text></svg>`;
+    expect(svgHarC1Format(lureri)).toBe(false);
   });
 });
