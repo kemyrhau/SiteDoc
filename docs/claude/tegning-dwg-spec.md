@@ -173,7 +173,7 @@ mobil. Rører **ikke** 3D/IFC/punktsky (egen chat), PDF-veien (virker), eller te
 
 ### EZDXF-MOTOR (2026-10-11, branch `feat/ezdxf-motor`) — DWG→SVG bak `DWG_MOTOR`
 
-🟡 **UNDER ARBEID** (L0 levert; L1–L10 følger). Hjemmel: Kenneth 2026-10-11 *«ja»* til ordentlig bygging etter PoC (`poc/ezdxf-motor`). **Funksjonsendring med hjemmel.**
+🟡 **UNDER ARBEID** (L0+L2+L3+L5 levert; L1/L6–L10 følger, L4 avventer retning). Hjemmel: Kenneth 2026-10-11 *«ja»* til ordentlig bygging etter PoC (`poc/ezdxf-motor`). **Funksjonsendring med hjemmel.**
 
 **Hva L0 gjør:** ezdxf (`apps/api/src/services/ezdxf/render.py`, ezdxf 1.4.4 hash-låst) tegner geometri til `DxfSvgResultat`-formen bak samme lag som `dxfTilSvg`. Bryter `DWG_MOTOR=egen|ezdxf` i `konverterDwg` (`dwgKonvertering.ts`), **standard `egen`** — `valgtMotor()`. ezdxf velges kun når env er satt (test settes av Kenneth; prod etter iPhone-sjekk).
 - `dxfTilSvgEzdxf(dxfSti, klippBounds?, {ingenAutoRotasjon, hatch, gruppering})` spawner `render.py` på DXF-**fila** (ezdxf.readfile) og returnerer `{svg, vbW, vbH, width, height, autoRotasjon, startutsnitt, rapport:null}`. Rapport (fullstendighet) gjenopprettes i L5 via `--metadata på`.
@@ -185,4 +185,12 @@ mobil. Rører **ikke** 3D/IFC/punktsky (egen chat), PDF-veien (virker), eller te
 - **Målt lokalt (UTM32-fixture, venv):** render OK (exit 0), vbW/vbH/mmPrPiksel/startutsnitt i meta, 0× `vector-effect`, strek 0,16 viewBox-enheter; `--klipp` gir extents = gitte bounds + rotasjon 0.
 - **Verktøy:** `DxfSvgResultat`-kontrakten uendret; egen motor rørt ikke (regel 10 — 69 dwg-tester grønne, inkl. 4 nye motor-tester).
 
-**Gjenstår:** L1 to varianter (web full hatch / mobil solid, `Drawing.mobilFileUrl`-kolonne) · L2 DIMENSION-tekst · L4 startutsnitt på bygget (tetthet, ikke lagnavn) · L5 data-layer/data-type + rapport · L6 mobil zoom-strek (måle-gate) · L7 librsvg `XML_PARSE_HUGE` · L8 markør `motor:"ezdxf"` · L9 Docker · L10 paritet/docs/WebKit-bevis.
+**L2 (DIMENSION-tekst):** måltekst hentes fra dimensjonens geometri-blokk (`*D...`), som bærer TEXT/MTEXT ferdig plassert/rotert/skalert slik AutoCAD viser den; fallback `get_measurement()` + `text_midpoint` + dimstyle-høyde. Fiks i `_mtext_rot`: ezdxf gir MTEXT-rotasjon i GRADER (høynivå-API) — PoCs «> 2π ⇒ radianer»-heuristikk feiltolket 53°-rotert måltekst → ~3044°; fjernet. Verifisert mot ezdxf-generert lineær + aligned dim.
+
+**L3 (strek):** oppfylt av render.py — viewBox-enheter, ingen `vector-effect` (verifisert L0).
+
+**L5 (data-layer/data-type + rapport):** `--metadata på` på i motoren → `data-layer`/`data-type` pr. element (paths + tekst) = web klikk-identifiser. Rapport bygges motor-uavhengig i TS (som egen: `tellDxfInventar` vs data-type i SVG). ezdxf-særtilfelle fikset: blokk-intern geometri (ARC/ELLIPSE) attribueres av ezdxf til INSERT-handelet → render.py emitterer `blokkTyper` (typer i refererte blokker, rekursivt), TS krediterer dem så `ikkeTegnet` ikke gir falske positiver. Verifisert ende-til-ende på fallplan: `ikkeTegnet {}` (var `{ARC:630, ELLIPSE:104}`).
+
+**L4 (startutsnitt på bygget) — MÅLT, avventer retning:** fallplanen har enorme extents (205000×225000 enheter) drevet av modullinjer (gitter) med akse-bobler som strekker seg forbi bygget. **Funn:** dagens persentil-1-99-startutsnitt (0,61×0,66 @ origo 0,13/0,23) rammer allerede bygget og ekskluderer de gitter-bare halene. Alle testede tetthets-alternativer er verre: 2D-tetthet-capture (ingen gevinst, 0,66), største sammenhengende tette region (kutter Ålesund UTM32 til 59% — regresjon på rene tegninger), tetthet-hale-trim (0,66, løsere enn persentil). **Konklusjon:** boksen er ikke hovedlever; gitteret dominerer fordi det overlapper bygget og tegnes tykt (strek-sak, krav 3/L6). Anbefaling: behold persentil; avvent Kenneths retning på om tettere «åpne på tetteste fløy» ønskes (bytter vekk hele-bygg-visning).
+
+**Gjenstår:** L1 to varianter (`Drawing.mobilFileUrl`-kolonne, Kenneth-vedtak 2026-10-11) · L4 retning · L6 mobil zoom-strek (måle-gate) · L7 librsvg `XML_PARSE_HUGE` · L8 markør `motor:"ezdxf"` · L9 Docker · L10 paritet/docs/WebKit-bevis.
