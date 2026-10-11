@@ -1,18 +1,21 @@
-// Ren zoom-matematikk for startutsnittet i tegningsvisningen.
-// Trukket ut fra `tegninger/page.tsx` slik at den kan testes uten å bygge om
-// komponenten. Beregner zoomen som får HELE startutsnittet inn i containeren i
-// BEGGE akser (bredde og høyde). Tidligere regnet inline-koden kun bredden og
-// antok kvadratisk innerflate (`0.98 / max(su.w, su.h)`), slik at en stående
-// tegning sprengte høyden og brukeren måtte scrolle.
+// Ren zoom-matematikk for startutsnittet i tegningsvisningen (web + mobil).
+// Beregner zoomen som får HELE startutsnittet inn i containeren i BEGGE akser
+// (bredde og høyde). Tidligere regnet både web- og mobil-viseren kun bredden og
+// antok kvadratisk innerflate (`0.98 / max(w, h)`), slik at en stående tegning
+// (fallplan etter rotasjon, forhold ≈ 1,75) sprengte høyden og måtte scrolles.
+//
+// Delt mellom web (`tegninger/page.tsx`) og mobil (`tegning-startutsnitt.ts` +
+// den inlinede WebView-JS-en i `TegningsVisning.byggHtml`, som SPEILER denne).
+// Endres formelen, endres begge steder på mobil.
 
 export interface StartutsnittZoomInput {
   /** Startutsnittets bredde som andel av innerflaten (0–1). */
   bredde: number;
   /** Startutsnittets høyde som andel av innerflaten (0–1). */
   høyde: number;
-  /** Containerens bredde i piksler (`clientWidth`). */
+  /** Containerens bredde i piksler (`clientWidth`/`window.innerWidth`). */
   cw: number;
-  /** Containerens høyde i piksler (`clientHeight`). */
+  /** Containerens høyde i piksler (`clientHeight`/`window.innerHeight`). */
   ch: number;
   /**
    * Bildets høyde/bredde-forhold (`imageHeight / imageWidth`), dvs. innerflatens
@@ -60,7 +63,9 @@ export function beregnStartutsnittZoom({
  */
 export function svgViewBoxForhold(svg: string | null | undefined): number | null {
   if (!svg) return null;
-  const treff = svg.match(/viewBox\s*=\s*["']\s*([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)\s*["']/);
+  const treff = svg.match(
+    /viewBox\s*=\s*["']\s*([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)\s*["']/,
+  );
   if (!treff || treff[3] === undefined || treff[4] === undefined) return null;
   const vbW = parseFloat(treff[3]);
   const vbH = parseFloat(treff[4]);

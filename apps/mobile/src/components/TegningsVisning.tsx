@@ -369,22 +369,32 @@ function plasser() {
 
 var startutsnittApplisert = false;
 // L4b: åpne zoomet på startutsnittet (bygget), ikke fit-to-width på rutenettet.
-// SPEILER den testede hjelperen tegning-startutsnitt.ts (startutsnittRamme) — den kan
-// ikke importeres inn i WebView-JS-en, så math-en er inlinet her. Endres formelen,
-// endres begge steder. zoom = 0,98/maks(w,h) klemt [1,50]; container-bredden settes til
-// zoom*100 % (markører er prosent-baserte → følger med); scroll sentrerer midtpunktet.
-// Kjøres EN gang på load.
+// SPEILER den testede hjelperen tegning-startutsnitt.ts + beregnStartutsnittZoom
+// (@sitedoc/shared) — kan ikke importeres inn i WebView-JS-en, så math-en er inlinet
+// her. Endres formelen, endres begge steder. Begge akser (reparasjon 2026-10-11):
+// z = min(0,98/w, 0,98·ch/(h·cw·forhold)) klemt [1,50] — stående tegninger sprengte
+// før høyden (kun bredden ble regnet). forhold = innerH/innerW måles FØR zoom.
+// Container-bredden settes til zoom*100 % (markører er prosent-baserte → følger med);
+// scroll sentrerer midtpunktet. Kjøres EN gang på load.
 function anvendStartutsnitt() {
   if (startutsnittApplisert || !startutsnitt) return;
   var su = startutsnitt;
   if (!(su.w > 0) || !(su.h > 0)) return;
   startutsnittApplisert = true;
   var container = document.getElementById('container');
-  var z = Math.min(50, Math.max(1, 0.98 / Math.max(su.w, su.h)));
+  var cw = window.innerWidth, ch = window.innerHeight;
+  // Innerflatens høyde/bredde-forhold måles på naturlig størrelse (bredden 100 %,
+  // høyden følger aspekt) FØR zoom anvendes. Aldri kvadratisk gjetning.
+  var baseW = container.offsetWidth, baseH = container.offsetHeight;
+  var forhold = (baseW > 0 && baseH > 0) ? baseH / baseW : null;
+  var breddeTilpass = 0.98 / su.w;
+  var tilpass = (forhold && forhold > 0)
+    ? Math.min(breddeTilpass, (0.98 * ch) / (su.h * cw * forhold))
+    : breddeTilpass;
+  var z = Math.min(50, Math.max(1, tilpass));
   container.style.width = (z * 100) + '%';
   // Vent på layout (bredden anvendt) før vi leser faktisk størrelse og scroller.
   requestAnimationFrame(function() {
-    var cw = window.innerWidth, ch = window.innerHeight;
     var innerW = container.offsetWidth, innerH = container.offsetHeight;
     if (!innerW || !innerH) return;
     var left = (su.x + su.w / 2) * innerW - cw / 2;

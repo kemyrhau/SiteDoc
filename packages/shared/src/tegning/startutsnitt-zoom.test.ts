@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { beregnStartutsnittZoom, svgViewBoxForhold } from "../startutsnittZoom";
+import { beregnStartutsnittZoom, svgViewBoxForhold } from "./startutsnitt-zoom";
 
 const MIN = 1; // STANDARD_ZOOM
 const MAKS = 50; // MAKS_ZOOM

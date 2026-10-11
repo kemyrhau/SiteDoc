@@ -7,3 +7,4 @@ export * from "./annotering/annoterings-html";
 export * from "./annotering/lag";
 export * from "./annotering/bro";
 export * from "./tegning/strek-skalering";
+export * from "./tegning/startutsnitt-zoom";

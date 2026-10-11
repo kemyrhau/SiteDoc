@@ -8,7 +8,6 @@ import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
 import { klassifiserWheel, anvendZoomFaktor, knipFaktor, hjulFaktor } from "@/lib/tegningZoomGest";
 import { settVisningshøyde } from "@/lib/tegningVisningshoyde";
-import { beregnStartutsnittZoom, svgViewBoxForhold } from "@/lib/startutsnittZoom";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
 import { PeriodeFilter } from "@/components/PeriodeFilter";
@@ -52,6 +51,8 @@ import {
   type MaleTilstand,
   byggTegningNedlastingsnavn,
   beregnStrekVars,
+  beregnStartutsnittZoom,
+  svgViewBoxForhold,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
