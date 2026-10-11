@@ -236,21 +236,40 @@ export function hentKodeversjon(): string {
   return "dev";
 }
 
-/** DWG-motor: "egen" (libredwg) i dag; `DWG_MOTOR=ezdxf` bytter til ezdxf-motoren. */
-function dwgMotor(): string {
-  return process.env.DWG_MOTOR || "egen";
-}
-
 /** Markør i `drawings.konvertering_rapport` som BEVISER at en konvertering faktisk kjørte. */
 export interface KonverteringMarkor {
   kodeversjon: string;
   konvertertTid: string;
+  /** Motoren som FAKTISK tegnet (egen/ezdxf/pdf) — ikke env-valget `DWG_MOTOR`. */
   motor: string;
+  /** Motoren som ble valgt men feilet, slik at vi falt tilbake (kun ved fallback). */
+  fallbackFra?: string;
+  /** Kort årsak til fallbacken. */
+  fallbackAarsak?: string;
 }
 
-/** Bygg markøren med versjonen der koden kjører + konverteringstidspunkt + motor. */
-export function byggKonverteringMarkor(motor: string): KonverteringMarkor {
-  return { kodeversjon: hentKodeversjon(), konvertertTid: new Date().toISOString(), motor };
+/**
+ * Bygg markøren med versjonen der koden kjører + konverteringstidspunkt + FAKTISK motor.
+ * `motor` er motoren som faktisk tegnet (fra `konverterDwg`-resultatet), ikke env-flagget
+ * `DWG_MOTOR` — falt ezdxf tilbake til egen, bærer markøren `motor: "egen"` +
+ * `fallbackFra: "ezdxf"`. En markør som lyver om motoren er nettopp feilklassen den
+ * skal hindre (stram-markør 2026-10-11).
+ */
+export function byggKonverteringMarkor(
+  motor: string,
+  fallbackFra?: string | null,
+  fallbackAarsak?: string | null,
+): KonverteringMarkor {
+  const markor: KonverteringMarkor = {
+    kodeversjon: hentKodeversjon(),
+    konvertertTid: new Date().toISOString(),
+    motor,
+  };
+  if (fallbackFra) {
+    markor.fallbackFra = fallbackFra;
+    if (fallbackAarsak) markor.fallbackAarsak = fallbackAarsak;
+  }
+  return markor;
 }
 
 // Eksportert for enhetstest (rotasjonOverstyrt bevares ved revisjon — test c). Kalles
@@ -269,6 +288,10 @@ export async function anvendDwgResultat(
   if (resultat.geoReferanse) oppdatering.geoReference = resultat.geoReferanse;
   if (resultat.visningUrl) {
     oppdatering.fileUrl = resultat.visningUrl;
+    // L1: mobil-variant (ezdxf hatch=solid) eller null (egen/ikke-DWG → mobil bruker
+    // fileUrl). ALLTID satt sammen med fileUrl så en re-konvertering til egen rydder en
+    // tidligere ezdxf-mobilvariant (ingen stale URL mot en slettet web-fil).
+    oppdatering.mobilFileUrl = resultat.mobilVisningUrl;
     oppdatering.fileType = resultat.visningFilType;
     oppdatering.imageWidth = resultat.imageWidth;
     oppdatering.imageHeight = resultat.imageHeight;
@@ -295,7 +318,7 @@ export async function anvendDwgResultat(
     // 2026-10-11) legges i SAMME felt under `markor` — fullstendighetsrapporten beholdes.
     oppdatering.konverteringRapport = {
       ...(resultat.rapport ?? {}),
-      markor: byggKonverteringMarkor(dwgMotor()),
+      markor: byggKonverteringMarkor(resultat.motor, resultat.fallbackFra, resultat.fallbackAarsak),
     } as unknown as Prisma.InputJsonValue;
   }
 
@@ -347,6 +370,13 @@ export async function anvendDwgResultat(
       mmPrPiksel: layout.mmPrPiksel,
       scale: layout.scale,
       scaleKilde: layout.scaleKilde,
+      // L8: layout-barn (paper space) fikk ingen markør før og viste derfor «Konvertert
+      // før versjonsmerking» selv ferske — nettopp den falske infoen markøren skal hindre.
+      // Layouts har ingen fullstendighetsrapport (klipp av hele DXF-en) → kun markør i
+      // feltet. Samme FAKTISKE motor (egen/ezdxf) + evt. fallback som hovedtegningen.
+      konverteringRapport: {
+        markor: byggKonverteringMarkor(resultat.motor, resultat.fallbackFra, resultat.fallbackAarsak),
+      } as unknown as Prisma.InputJsonValue,
     };
     const treff = eksisterende.find((e) => e.layoutNavn === layout.navn);
     if (treff) {
@@ -720,6 +750,10 @@ export const tegningRouter = router({
           revision: tegning.revision,
           version: tegning.version,
           fileUrl: tegning.fileUrl,
+          // L1: arkiver mobilvarianten sammen med revisjonen. Uten dette mister en
+          // arkivert ezdxf-revisjon mobil-SVG-en og faller tilbake til web-full-hatch
+          // (rendrer ikke på mobil = selve buggen). NULL = egen/ikke-DWG → bruk fileUrl.
+          mobilFileUrl: tegning.mobilFileUrl,
           // NESTE: arkiver originalfila (DWG/PDF) sammen med revisjonen. Kopieres fra
           // Drawing.originalFileUrl, som ER satt også på tegninger lastet opp før dette
           // feltet (opprett/lastOppRevisjon har satt den lenge) → de beholder originalen

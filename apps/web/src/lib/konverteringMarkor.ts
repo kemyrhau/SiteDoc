@@ -10,7 +10,13 @@
 export interface KonverteringMarkor {
   kodeversjon: string;
   konvertertTid: string;
+  /** Motoren som FAKTISK tegnet (egen/ezdxf/pdf) — ikke env-valget. */
   motor: string;
+  /** Motoren som ble valgt men feilet (kun ved fallback). Avslører at DWG_MOTOR=ezdxf
+   * i praksis ga en egen-tegning — så en som verifiserer på test ikke tror ezdxf kjørte. */
+  fallbackFra?: string;
+  /** Kort årsak til fallbacken. */
+  fallbackAarsak?: string;
 }
 
 /** Hent markøren fra `konverteringRapport`, eller null om den mangler/har feil form. */
@@ -18,7 +24,7 @@ export function lesKonverteringMarkor(rapport: unknown): KonverteringMarkor | nu
   if (!rapport || typeof rapport !== "object") return null;
   const markor = (rapport as { markor?: unknown }).markor;
   if (!markor || typeof markor !== "object") return null;
-  const { kodeversjon, konvertertTid, motor } = markor as Record<string, unknown>;
+  const { kodeversjon, konvertertTid, motor, fallbackFra, fallbackAarsak } = markor as Record<string, unknown>;
   if (
     typeof kodeversjon !== "string" ||
     typeof konvertertTid !== "string" ||
@@ -26,7 +32,10 @@ export function lesKonverteringMarkor(rapport: unknown): KonverteringMarkor | nu
   ) {
     return null;
   }
-  return { kodeversjon, konvertertTid, motor };
+  const resultat: KonverteringMarkor = { kodeversjon, konvertertTid, motor };
+  if (typeof fallbackFra === "string") resultat.fallbackFra = fallbackFra;
+  if (typeof fallbackAarsak === "string") resultat.fallbackAarsak = fallbackAarsak;
+  return resultat;
 }
 
 /** Kompakt lokaltid «dd.MM HH:mm» (f.eks. «11.10 10:45»). Tom streng ved ugyldig ISO. */

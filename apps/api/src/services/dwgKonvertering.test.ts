@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, copyFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, copyFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import { kanMale, malMm, detekterKoordinatSystem } from "@sitedoc/shared";
@@ -27,6 +27,9 @@ import {
   byggRapport,
   RAPPORT_ALLOWLIST,
   robustGrense,
+  valgtMotor,
+  dxfTilSvgEzdxf,
+  konverterDwg,
   fontStr,
   CAP_RATIO,
   mtekstForankring,
@@ -871,6 +874,43 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     expect(r.tegnetPrType["ATTRIB"]).toBeGreaterThan(0);
   }, 180000);
 
+  // L1 TEST (c): en ezdxf-konvertert tegning MÅ ha en mobil-variant. Uten den ville
+  // mobilen servere web-full-hatch-SVG-en som ikke rendrer i iOS WebKit (buggen L1
+  // løser). Testen FEILER hvis mobilVisningUrl er tom for en vellykket ezdxf-konvertering.
+  // Krever ezdxf (EZDXF_RENDER_PY + python m/ ezdxf) — ellers skippet (CI har det ikke;
+  // Kontrollørs Docker-gate / L10 kjører det).
+  const harEzdxf = (() => {
+    if (!process.env.EZDXF_RENDER_PY) return false;
+    try {
+      execFileSync(process.env.EZDXF_PYTHON ?? "python3", ["-c", "import ezdxf"], { timeout: 10000, stdio: "ignore" });
+      return true;
+    } catch { return false; }
+  })();
+
+  it.skipIf(!harEzdxf)("test (c): ezdxf-konvertering gir en mobil-variant (< web-variant)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "dwgezdxf-"));
+    const dwg = join(dir, basename(KUNDEFIL!));
+    copyFileSync(KUNDEFIL!, dwg);
+    const forrigeMotor = process.env.DWG_MOTOR;
+    process.env.DWG_MOTOR = "ezdxf";
+    try {
+      const res = await konverterDwg(dwg, basename(KUNDEFIL!), dir, "dwg");
+      expect(res.feil).toBeNull();
+      expect(res.visningUrl).toMatch(/\.svg$/);
+      // Kjernen i test (c): ezdxf-konvertering UTEN mobilvariant er en feil.
+      expect(res.mobilVisningUrl).toBeTruthy();
+      expect(res.mobilVisningUrl).toMatch(/\.svg$/);
+      // Mobilvarianten (hatch=solid) skal være mindre enn web-varianten (full hatch).
+      const webSz = statSync(join(dir, basename(res.visningUrl))).size;
+      const mobSz = statSync(join(dir, basename(res.mobilVisningUrl!))).size;
+      expect(mobSz).toBeLessThan(webSz);
+    } finally {
+      if (forrigeMotor === undefined) delete process.env.DWG_MOTOR;
+      else process.env.DWG_MOTOR = forrigeMotor;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 300000);
+
   it("SVAR RETUR 6 spor 2: utstrekningen dekker bygget, ikke modullinjene (de tegnes fortsatt, utenfor viewBox)", () => {
     const res = dxfTilSvg(konverterKundefil())!;
     const vb = res.svg.match(/viewBox="([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+) ([-\d.eE]+)"/)!;
@@ -896,4 +936,81 @@ describe.skipIf(!kjørIntegrasjon)("D10 integrasjon — kundefil (fallplan) via 
     expect(rendretPx).toBeGreaterThan(1);
     expect(rendretPx).toBeLessThan(2);
   }, 180000);
+});
+
+// ---------------------------------------------------------------------------
+// L0 — motorbryter (DWG_MOTOR). egen er standard; ezdxf er opt-in. Full
+// ende-til-ende-render av ezdxf krever Python+ezdxf (Docker, L9) og dekkes av
+// paritetstesten (L10); her testes bryteren + den trygge fallbacken.
+// ---------------------------------------------------------------------------
+describe("DWG_MOTOR — motorvalg (L0)", () => {
+  const før = process.env.DWG_MOTOR;
+  const førPy = process.env.EZDXF_RENDER_PY;
+  afterEach(() => {
+    if (før === undefined) delete process.env.DWG_MOTOR;
+    else process.env.DWG_MOTOR = før;
+    if (førPy === undefined) delete process.env.EZDXF_RENDER_PY;
+    else process.env.EZDXF_RENDER_PY = førPy;
+  });
+
+  it("valgtMotor: default er egen", () => {
+    delete process.env.DWG_MOTOR;
+    expect(valgtMotor()).toBe("egen");
+  });
+
+  it("valgtMotor: DWG_MOTOR=ezdxf gir ezdxf", () => {
+    process.env.DWG_MOTOR = "ezdxf";
+    expect(valgtMotor()).toBe("ezdxf");
+  });
+
+  it("valgtMotor: ukjent verdi faller til egen", () => {
+    process.env.DWG_MOTOR = "noe-annet";
+    expect(valgtMotor()).toBe("egen");
+  });
+
+  it("dxfTilSvgEzdxf returnerer null (→ egen-fallback) når EZDXF_RENDER_PY mangler", async () => {
+    delete process.env.EZDXF_RENDER_PY;
+    const res = await dxfTilSvgEzdxf("/finnes/ikke.dxf");
+    expect(res).toBeNull();
+  });
+
+  // 🔴 Stram markør (2026-10-11): DWG_MOTOR=ezdxf men ezdxf ikke konfigurert → konverteringen
+  // faller trygt til egen, OG resultatet rapporterer den FAKTISKE motoren (egen) + fallbackFra.
+  // Uten dette ville markøren lyve «ezdxf» selv om egen tegnet. Krever ikke ezdxf installert.
+  it("konverterDwg: ezdxf valgt men ikke konfigurert → motor=egen + fallbackFra=ezdxf (faktisk brukt)", async () => {
+    process.env.DWG_MOTOR = "ezdxf";
+    delete process.env.EZDXF_RENDER_PY;
+    const dir = mkdtempSync(join(tmpdir(), "dwgfallback-"));
+    try {
+      const dxfSti = join(dir, "plan.dxf");
+      writeFileSync(dxfSti, rektangelDxf({ w: 1000, h: 800, insunits: 4 }), "utf-8");
+      const res = await konverterDwg(dxfSti, "plan.dxf", dir, "dxf");
+      expect(res.feil).toBeNull();
+      expect(res.visningUrl).toMatch(/\.svg$/); // egen tegnet
+      expect(res.motor).toBe("egen");
+      expect(res.motor).not.toBe("ezdxf");
+      expect(res.fallbackFra).toBe("ezdxf");
+      expect(res.fallbackAarsak).toBe("ezdxf ikke konfigurert");
+      // egen-motoren lager ingen egen mobilvariant (mobil faller til fileUrl).
+      expect(res.mobilVisningUrl).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Motstykke: default egen → motor=egen, ingen fallback (fallbackFra=null).
+  it("konverterDwg: default egen → motor=egen, fallbackFra=null", async () => {
+    delete process.env.DWG_MOTOR;
+    const dir = mkdtempSync(join(tmpdir(), "dwgegen-"));
+    try {
+      const dxfSti = join(dir, "plan.dxf");
+      writeFileSync(dxfSti, rektangelDxf({ w: 1000, h: 800, insunits: 4 }), "utf-8");
+      const res = await konverterDwg(dxfSti, "plan.dxf", dir, "dxf");
+      expect(res.motor).toBe("egen");
+      expect(res.fallbackFra).toBeNull();
+      expect(res.fallbackAarsak).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -30,6 +30,7 @@ function lagResultat(nyAuto: number | null, overstyr: Partial<DwgKonverteringsRe
   return {
     ...MAALING,
     visningUrl: "/uploads/ny.svg",
+    mobilVisningUrl: null,
     visningFilType: "svg",
     koordinatSystem: null,
     geoReferanse: null,
@@ -38,6 +39,9 @@ function lagResultat(nyAuto: number | null, overstyr: Partial<DwgKonverteringsRe
     autoRotasjon: nyAuto,
     startutsnitt: null,
     rapport: null,
+    motor: "egen",
+    fallbackFra: null,
+    fallbackAarsak: null,
     ...overstyr,
   };
 }

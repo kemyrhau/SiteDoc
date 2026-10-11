@@ -11,7 +11,7 @@
  * mangel-merknad + registreres i loggseksjonen av sammenstillingen).
  */
 
-import sharp from "sharp";
+import { aapneBilde } from "./svg-sharp";
 
 /** Trykk-oppløsning: 1600 px lang side ≈ 270 DPI på ~15 cm A4-bilde. Nok for tynne streker. */
 const MAKS_KANT = 1600;
@@ -21,9 +21,12 @@ const JPEG_KVALITET = 88;
 /**
  * Komprimerer ett bilde til trykk-JPEG. Flater transparent marg (annoterte PNG-er)
  * mot hvit, nedskalerer til trykk-oppløsning, beholder annotasjons-skarphet.
+ *
+ * L7: DWG-tegninger inlines her som store SVG-er — `aapneBilde` setter `unlimited`
+ * for SVG-input så librsvg ikke kaster på ett mega-path-attributt (> ~10 MB).
  */
 export async function komprimerBilde(bytes: Buffer): Promise<Buffer> {
-  return sharp(bytes)
+  return aapneBilde(bytes)
     .flatten({ background: "#ffffff" })
     .resize({ width: MAKS_KANT, height: MAKS_KANT, fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: JPEG_KVALITET })

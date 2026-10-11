@@ -70,6 +70,8 @@ interface TegningDetalj {
   id: string;
   name: string;
   fileUrl: string | null;
+  // L1: mobil-variant (ezdxf hatch=solid). null = bruk fileUrl (egen/ikke-DWG).
+  mobilFileUrl?: string | null;
   fileType?: string | null;
   geoReference?: unknown;
   pdfPageSize?: { width: number; height: number } | null;
@@ -840,11 +842,13 @@ export default function LokasjonerSkjerm() {
           </View>
         ) : visserTegning ? (
           <TegningsVisning
-            tegningUrl={
-              valgtTegningDetalj!.fileUrl!.startsWith("http")
-                ? valgtTegningDetalj!.fileUrl!
-                : `${AUTH_CONFIG.apiUrl}${valgtTegningDetalj!.fileUrl}`
-            }
+            tegningUrl={(() => {
+              // L1: mobil bruker den lettere mobilvarianten (ezdxf hatch=solid) når den
+              // finnes, ellers fileUrl (egen-SVG / ikke-DWG rendrer på mobil). Begge er
+              // ferdig signert av uploads-middlewaren (auto-signert /uploads/-streng).
+              const u = valgtTegningDetalj!.mobilFileUrl ?? valgtTegningDetalj!.fileUrl!;
+              return u.startsWith("http") ? u : `${AUTH_CONFIG.apiUrl}${u}`;
+            })()}
             tegningNavn={valgtTegningDetalj!.name}
             onLukk={håndterLukkTegning}
             onMarkørTrykk={håndterMarkørTrykk}
