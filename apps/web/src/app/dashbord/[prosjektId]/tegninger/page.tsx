@@ -51,6 +51,8 @@ import {
   type MaleTilstand,
   byggTegningNedlastingsnavn,
   beregnStrekVars,
+  beregnStartutsnittZoom,
+  svgViewBoxForhold,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
@@ -633,11 +635,23 @@ export default function TegningerSide() {
       const cw = el.clientWidth, ch = el.clientHeight;
       // Kan vi ikke måle containeren, avdekk likevel — aldri stå skjult.
       if (!cw || !ch) { setStartutsnittAnvendtId(nøkkel); return; }
-      const z = Math.min(MAKS_ZOOM, Math.max(STANDARD_ZOOM, (0.98 / Math.max(su.w, su.h))));
+      // Forholdet innerH/innerW: primært fra imageWidth/imageHeight, ellers fra
+      // SVG-ens viewBox. Aldri kvadratisk gjetning (da sprenger stående tegninger
+      // høyden). `null` → beregnStartutsnittZoom bruker kun bredde-tilpasning.
       const iw = tegning?.imageWidth ?? null;
       const ih = tegning?.imageHeight ?? null;
+      const forhold = iw && ih ? ih / iw : svgViewBoxForhold(svgInnhold);
+      const z = beregnStartutsnittZoom({
+        bredde: su.w,
+        høyde: su.h,
+        cw,
+        ch,
+        forhold,
+        minZoom: STANDARD_ZOOM,
+        maksZoom: MAKS_ZOOM,
+      });
       const innerW = cw * z;
-      const innerH = iw && ih ? innerW * (ih / iw) : innerW;
+      const innerH = forhold ? innerW * forhold : innerW;
       ønsketScrollRef.current = {
         left: Math.max(0, (su.x + su.w / 2) * innerW - cw / 2),
         top: Math.max(0, (su.y + su.h / 2) * innerH - ch / 2),
