@@ -173,7 +173,7 @@ mobil. Rører **ikke** 3D/IFC/punktsky (egen chat), PDF-veien (virker), eller te
 
 ### EZDXF-MOTOR (2026-10-11, branch `feat/ezdxf-motor`) — DWG→SVG bak `DWG_MOTOR`
 
-🟡 **UNDER ARBEID** (L0+L1+L2+L3+L5 levert; L4 godtatt (persistens→L4b m/L6); L6–L10 følger). Hjemmel: Kenneth 2026-10-11 *«ja»* til ordentlig bygging etter PoC (`poc/ezdxf-motor`). **Funksjonsendring med hjemmel.**
+🟡 **UNDER ARBEID** (L0+L1+L2+L3+L5+L8 levert; L4 godtatt (persistens→L4b m/L6); L6/L7/L9/L10 følger). Hjemmel: Kenneth 2026-10-11 *«ja»* til ordentlig bygging etter PoC (`poc/ezdxf-motor`). **Funksjonsendring med hjemmel.**
 
 **Hva L0 gjør:** ezdxf (`apps/api/src/services/ezdxf/render.py`, ezdxf 1.4.4 hash-låst) tegner geometri til `DxfSvgResultat`-formen bak samme lag som `dxfTilSvg`. Bryter `DWG_MOTOR=egen|ezdxf` i `konverterDwg` (`dwgKonvertering.ts`), **standard `egen`** — `valgtMotor()`. ezdxf velges kun når env er satt (test settes av Kenneth; prod etter iPhone-sjekk).
 - `dxfTilSvgEzdxf(dxfSti, klippBounds?, {ingenAutoRotasjon, hatch, gruppering})` spawner `render.py` på DXF-**fila** (ezdxf.readfile) og returnerer `{svg, vbW, vbH, width, height, autoRotasjon, startutsnitt, rapport:null}`. Rapport (fullstendighet) gjenopprettes i L5 via `--metadata på`.
@@ -195,4 +195,6 @@ mobil. Rører **ikke** 3D/IFC/punktsky (egen chat), PDF-veien (virker), eller te
 
 **L1 (to varianter — web full hatch / mobil solid):** egen kolonne `Drawing.mobilFileUrl` + `DrawingRevision.mobilFileUrl` (Kenneth-vedtak 2026-10-11; migrering `20261011120000_tegning_mobil_fil_url`, additiv/nullbar, **NULL = bruk `fileUrl`** — gyldig for egen/ikke-DWG, ingen backfill). `konverterDwg` lager mobilvarianten (`hatch=solid`) KUN når ezdxf-web lyktes; `mobilVisningUrl` i resultatet; `anvendDwgResultat` setter `mobilFileUrl` (ryddes ved re-konvertering til egen); `lastOppRevisjon` arkiverer den. Mobil (`lokasjoner.tsx`) velger `mobilFileUrl ?? fileUrl`. Signering er automatisk (uploads-middleware, `/uploads/`-streng → auto-signert i query-svar; `hentMedId` bruker `include`). Ingen disksletting finnes i dag → ingen slettelogikk. **Test (c)** (integrasjon, krever ezdxf): ezdxf-konvertering UTEN `mobilVisningUrl` feiler — verifisert ende-til-ende på fallplan (mobil < web). Migrering kjørt lokalt 2× (scratch-DB): kjøring 1 anvender, kjøring 2 no-op; begge kolonner TEXT/nullbare. **Kenneth kjører migreringen på test + prod.**
 
-**Gjenstår:** L4b mobil startutsnitt (m/L6) · L6 mobil zoom-strek (måle-gate) · L7 librsvg `XML_PARSE_HUGE` · L8 markør `motor:"ezdxf"` (markør merget `793018d0` — ulåst) · L9 Docker · L10 paritet/docs/WebKit-bevis.
+**L8 (markør `motor:"ezdxf"`):** bygget på markør-branchen (merget `793018d0`, rebaset inn). `dwgMotor()` leser `DWG_MOTOR` → hovedtegningens `markor.motor = "ezdxf"` virker alt. **Kontrollør-funn rettet:** DWG layout-barn (paper space, `parentDrawingId`) fikk ingen markør → viste «Konvertert før versjonsmerking» selv ferske. Nå settes `konverteringRapport.markor` på layout-barna i `anvendDwgResultat` (samme motor som hovedtegningen; layouts har ingen fullstendighetsrapport → kun markør). Test: nytt layout-barn får markør med riktig motor (ezdxf/egen).
+
+**Gjenstår:** L4b mobil startutsnitt (m/L6) · L6 mobil zoom-strek (måle-gate) · L7 librsvg `XML_PARSE_HUGE` · L9 Docker · L10 paritet/docs/WebKit-bevis.

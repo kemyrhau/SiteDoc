@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { hentKodeversjon, byggKonverteringMarkor } from "./tegning";
+import { hentKodeversjon, byggKonverteringMarkor, anvendDwgResultat } from "./tegning";
+import type { DwgKonverteringsResultat } from "../services/dwgKonvertering";
 
 /**
  * Konverteringsmarkør (2026-10-11): BEVISER at en konvertering faktisk kjørte, med hvilken
@@ -68,5 +69,73 @@ describe("byggKonverteringMarkor — kodeversjon aldri tom (test c)", () => {
     process.env.NODE_ENV = "production";
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(byggKonverteringMarkor("pdf").kodeversjon).not.toBe("");
+  });
+});
+
+// L8: DWG layout-barn (paper space) fikk ingen markør før og viste derfor «Konvertert
+// før versjonsmerking» selv ferske — den falske infoen markøren skal hindre. Denne
+// testen FEILER hvis et nyopprettet layout-barn mangler markøren (stille tomhet).
+describe("anvendDwgResultat — layout-barn får konverteringsmarkør (L8)", () => {
+  const forrigeMotor = process.env.DWG_MOTOR;
+  afterEach(() => {
+    if (forrigeMotor === undefined) delete process.env.DWG_MOTOR;
+    else process.env.DWG_MOTOR = forrigeMotor;
+  });
+
+  function resultatMedLayout(): DwgKonverteringsResultat {
+    return {
+      mmPrPiksel: 10, scale: "1:100", scaleKilde: "dwg", imageWidth: 2000, imageHeight: 1500,
+      visningUrl: "/uploads/hoved.svg", mobilVisningUrl: null, visningFilType: "svg",
+      koordinatSystem: null, geoReferanse: null, feil: null,
+      autoRotasjon: null, startutsnitt: null, rapport: null,
+      layouts: [{
+        navn: "Plan 1:100", tabOrder: 1, visningUrl: "/uploads/layout.svg", visningFilType: "svg",
+        mmPrPiksel: 10, scale: "1:100", scaleKilde: "dwg", imageWidth: 2000, imageHeight: 1500,
+      }],
+    };
+  }
+
+  function fakePrisma() {
+    const opprettet: Record<string, unknown>[] = [];
+    const tomListe = { findMany: vi.fn(async () => []), update: vi.fn() };
+    const tx = {
+      drawing: { update: vi.fn() },
+      task: tomListe, checklist: tomListe, kontrollplanPunkt: tomListe, omrade: tomListe,
+    };
+    const prisma = {
+      drawing: {
+        update: vi.fn(),
+        findUnique: vi.fn(async () => ({ autoRotasjon: null })),
+        findMany: vi.fn(async () => []), // ingen eksisterende layout-barn
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { opprettet.push(data); }),
+      },
+      $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<void>) => { await fn(tx); }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+    return { prisma, opprettet };
+  }
+
+  const TEGNING = { id: "d1", name: "Plan 06", projectId: "p1", byggeplassId: null };
+
+  it("nytt layout-barn får markør med motoren fra DWG_MOTOR (ezdxf)", async () => {
+    process.env.GIT_SHA = "2034396e";
+    process.env.DWG_MOTOR = "ezdxf";
+    const { prisma, opprettet } = fakePrisma();
+    await anvendDwgResultat(prisma, TEGNING, resultatMedLayout(), "/uploads/orig.dwg");
+    expect(opprettet).toHaveLength(1);
+    const rapport = opprettet[0]!.konverteringRapport as { markor?: { motor?: string; kodeversjon?: string } };
+    // Kjernen: layout-barnet har en markør (ikke tomt → «Konvertert før versjonsmerking»).
+    expect(rapport?.markor).toBeTruthy();
+    expect(rapport.markor!.motor).toBe("ezdxf");
+    expect(rapport.markor!.kodeversjon).toBe("2034396e");
+  });
+
+  it("markøren følger egen-motoren når DWG_MOTOR ikke er satt", async () => {
+    process.env.GIT_SHA = "2034396e";
+    delete process.env.DWG_MOTOR;
+    const { prisma, opprettet } = fakePrisma();
+    await anvendDwgResultat(prisma, TEGNING, resultatMedLayout(), "/uploads/orig.dwg");
+    const rapport = opprettet[0]!.konverteringRapport as { markor?: { motor?: string } };
+    expect(rapport.markor!.motor).toBe("egen");
   });
 });

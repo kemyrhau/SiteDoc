@@ -351,6 +351,13 @@ export async function anvendDwgResultat(
       mmPrPiksel: layout.mmPrPiksel,
       scale: layout.scale,
       scaleKilde: layout.scaleKilde,
+      // L8: layout-barn (paper space) fikk ingen markør før og viste derfor «Konvertert
+      // før versjonsmerking» selv ferske — nettopp den falske infoen markøren skal hindre.
+      // Layouts har ingen fullstendighetsrapport (klipp av hele DXF-en) → kun markør i
+      // feltet. Samme motor (egen/ezdxf) som hovedtegningen.
+      konverteringRapport: {
+        markor: byggKonverteringMarkor(dwgMotor()),
+      } as unknown as Prisma.InputJsonValue,
     };
     const treff = eksisterende.find((e) => e.layoutNavn === layout.navn);
     if (treff) {
