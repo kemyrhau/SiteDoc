@@ -173,7 +173,11 @@ mobil. Rører **ikke** 3D/IFC/punktsky (egen chat), PDF-veien (virker), eller te
 
 ### EZDXF-MOTOR (2026-10-11, branch `feat/ezdxf-motor`) — DWG→SVG bak `DWG_MOTOR`
 
-🟡 **UNDER ARBEID** (L0+L1+L2+L3+L5+L7+L8+L9 levert + stram markør; L4 godtatt (persistens→L4b m/L6); L4b/L6/L10 følger). Hjemmel: Kenneth 2026-10-11 *«ja»* til ordentlig bygging etter PoC (`poc/ezdxf-motor`). **Funksjonsendring med hjemmel.**
+🟡 **UNDER ARBEID, bare på test.** Status 2026-10-12: L0–L10 merget til develop (`8af3cc6e` motor, `749b362e` visning, `b4fafe65` startutsnitt to akser, `d647cc18` XSS-vern). Test kjører `491a74bd` med `DWG_MOTOR=ezdxf`. Prod bruker fortsatt `egen` (ingen env satt).
+
+**⚠️ Kenneths test 2026-10-12 (web + iPhone, fallplan Rev. F):** *«linjer er alt for tykke»*. Veggene og de tynne linjene vises som svarte bjelker både på web (455 %) og mobil. Forrige test (Rev. E, før `feat/ezdxf-visning`) ga det motsatte: nesten usynlige streker. **Målt årsak:** Rev. F er konvertert av ezdxf **før** C1 (markør `cc910979`, ingen `--lw`/`data-lw-base`, inline `stroke-width` ≈ 173 viewBox-enheter). Den nye viseren beholder ezdxf-stilen ut fra markøren `motor: "ezdxf"` alene, og viser de 173-enhetene rått. 🟡 RETUR 2 bestilt (`fix/ezdxf-gammelt-format`): ezdxf-stilen beholdes bare når SVG-en har C1-formatet, ellers egen-behandling. ❌ **Ikke verifisert:** en fil konvertert med `491a74bd` (Rev. G) er ikke testet ennå, så dempet strek på en ekte C1-fil er ikke bekreftet av Kenneth.
+
+Opprinnelig fremdrift: L0+L1+L2+L3+L5+L7+L8+L9 levert + stram markør; L4 godtatt (persistens→L4b m/L6); L4b/L6/L10 levert i `feat/ezdxf-visning`. Hjemmel: Kenneth 2026-10-11 *«ja»* til ordentlig bygging etter PoC (`poc/ezdxf-motor`). **Funksjonsendring med hjemmel.**
 
 **Hva L0 gjør:** ezdxf (`apps/api/src/services/ezdxf/render.py`, ezdxf 1.4.4 hash-låst) tegner geometri til `DxfSvgResultat`-formen bak samme lag som `dxfTilSvg`. Bryter `DWG_MOTOR=egen|ezdxf` i `konverterDwg` (`dwgKonvertering.ts`), **standard `egen`** — `valgtMotor()`. ezdxf velges kun når env er satt (test settes av Kenneth; prod etter iPhone-sjekk).
 - `dxfTilSvgEzdxf(dxfSti, klippBounds?, {ingenAutoRotasjon, hatch, gruppering})` spawner `render.py` på DXF-**fila** (ezdxf.readfile) og returnerer `{svg, vbW, vbH, width, height, autoRotasjon, startutsnitt, rapport:null}`. Rapport (fullstendighet) gjenopprettes i L5 via `--metadata på`.
