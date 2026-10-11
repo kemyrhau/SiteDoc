@@ -6,3 +6,4 @@ export * from "./standardtekster";
 export * from "./annotering/annoterings-html";
 export * from "./annotering/lag";
 export * from "./annotering/bro";
+export * from "./tegning/strek-skalering";
