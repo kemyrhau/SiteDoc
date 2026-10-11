@@ -322,6 +322,10 @@ def main():
     ap.add_argument("--presisjon", choices=["adaptiv", "full"], default="adaptiv",
                     help="full = ingen koordinatavrunding (krav 3-måling)")
     ap.add_argument("--lineweight", choices=["ekte", "uniform"], default="ekte")
+    ap.add_argument("--hatch", choices=["normal", "solid", "ignore"], default="normal",
+                    help="normal=mønster (tungt), solid=fyll, ignore=dropp — for å redusere størrelse")
+    ap.add_argument("--linje", choices=["accurate", "solid"], default="accurate",
+                    help="accurate=ekte linjetyper (stiplet), solid=heltrukket (mindre)")
     ap.add_argument("--gruppering", choices=["farge", "ingen"], default="farge",
                     help="farge=mega-paths (liten fil), ingen=per-primitiv (jevn perf)")
     ap.add_argument("--metadata", choices=["av", "på"], default="av",
@@ -337,11 +341,14 @@ def main():
     mmPrEnhet = {1: 25.4, 2: 304.8, 4: 1.0, 5: 10.0, 6: 1000.0}.get(doc.header.get("$INSUNITS", 0))
     t_les = time.time() - t0
 
+    hatch_map = {"normal": HatchPolicy.NORMAL, "solid": HatchPolicy.SHOW_SOLID,
+                 "ignore": HatchPolicy.IGNORE}
+    line_map = {"accurate": LinePolicy.ACCURATE, "solid": LinePolicy.SOLID}
     ctx = RenderContext(doc)
     cfg = Configuration(
         text_policy=TextPolicy.IGNORE if args.tekst != "ezdxf" else TextPolicy.OUTLINE,
-        line_policy=LinePolicy.ACCURATE,
-        hatch_policy=HatchPolicy.NORMAL,
+        line_policy=line_map[args.linje],
+        hatch_policy=hatch_map[args.hatch],
         background_policy=BackgroundPolicy.WHITE,
         color_policy=ColorPolicy.COLOR,
         lineweight_policy=LineweightPolicy.ABSOLUTE,
