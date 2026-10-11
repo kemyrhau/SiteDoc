@@ -403,6 +403,41 @@ function anvendStartutsnitt() {
   });
 }
 function etterTegning() { plasser(); anvendStartutsnitt(); oppdaterStrek(); }
+// XSS-vern (ordre 2026-10-11, pkt. 3): allowlist FØR innerHTML. WebView-en har ingen
+// DOMPurify, så dette er primærvernet. SPEIL av @sitedoc/shared svgMarkupErTrygg/farligCss
+// (kan ikke importeres inn i WebView-JS). Endres der, endre her i takt. DOM-parset (ikke
+// regex) så et escapet lagnavn med «onload=» i data-layer ikke forveksles med en handler.
+function farligCss(css){ return /url\\s*\\(|@import|expression\\s*\\(|behavior\\s*:/i.test(css); }
+function svgTrygg(markup){
+  var tillatt = ['svg','g','path','line','polyline','polygon','circle','ellipse','rect','text','tspan','style'];
+  var doc;
+  try { doc = new DOMParser().parseFromString(markup, 'image/svg+xml'); } catch(e){ return false; }
+  var root = doc.documentElement;
+  if (!root || root.nodeName.toLowerCase() !== 'svg') return false;
+  var alle = root.getElementsByTagName('*');
+  var noder = [root];
+  for (var i=0;i<alle.length;i++) noder.push(alle[i]);
+  for (var n=0;n<noder.length;n++){
+    var el = noder[n];
+    var tag = el.nodeName.toLowerCase();
+    if (tillatt.indexOf(tag) < 0) return false;
+    var attrs = el.attributes;
+    for (var j=0;j<attrs.length;j++){
+      var navn = attrs[j].name.toLowerCase();
+      if (navn.indexOf('on') === 0) return false;
+      if (navn === 'href' || navn === 'xlink:href') return false;
+      if (navn === 'style' && farligCss(attrs[j].value)) return false;
+    }
+    if (tag === 'style' && farligCss(el.textContent || '')) return false;
+  }
+  return true;
+}
+function visSomBilde(el) {
+  // Fallback: vis som <img> (mister strek-damping, men SVG kjører ikke skript i <img>).
+  el.innerHTML = '<img src="' + TEGNING_URL + '" style="display:block;width:100%;height:auto" draggable="false" />';
+  var im = el.querySelector('img');
+  im.onload = etterTegning; if (im.complete) etterTegning();
+}
 if (SVG_INLINE) {
   // Inline ezdxf-SVG (farge-gruppert mobilvariant): hent SVG-teksten og injiser i DOM så
   // vi kan dempe streken via CSS-variabler (<img> kan ikke det → tykk svart ved zoom).
@@ -413,14 +448,10 @@ if (SVG_INLINE) {
       return '<svg' + a.replace(/\\s*width="[^"]*"/g, '').replace(/\\s*height="[^"]*"/g, '') + ' width="100%" height="auto" style="display:block">';
     });
     var el = document.getElementById('tegning');
-    el.innerHTML = txt;
-    etterTegning();
+    if (svgTrygg(txt)) { el.innerHTML = txt; etterTegning(); }
+    else { visSomBilde(el); }
   }).catch(function(){
-    // Fallback: vis som <img> (mister damping, men tegningen vises).
-    var el = document.getElementById('tegning');
-    el.innerHTML = '<img src="' + TEGNING_URL + '" style="display:block;width:100%;height:auto" draggable="false" />';
-    var im = el.querySelector('img');
-    im.onload = etterTegning; if (im.complete) etterTegning();
+    visSomBilde(document.getElementById('tegning'));
   });
 } else {
   var img = document.getElementById('tegning');

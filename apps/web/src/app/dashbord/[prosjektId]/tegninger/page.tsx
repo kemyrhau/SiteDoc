@@ -74,6 +74,7 @@ import { RedigerTegningModal } from "@/components/tegning/RedigerTegningModal";
 import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
 import { KonverteringMarkorLinje } from "@/components/tegning/KonverteringMarkorLinje";
 import { lesKonverteringMarkor } from "@/lib/konverteringMarkor";
+import { tilpassEzdxfSvg } from "@/lib/ezdxfSvgVisning";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
@@ -552,6 +553,13 @@ export default function TegningerSide() {
   // Da skal viseren BEHOLDE den stilen (ikke stripe + injisere egens faste 1,5-regel, som
   // gjorde hver strek ~115× for tynn). Strek-variablene settes pr. zoom i layout-effekten under.
   const [erEzdxfSvg, setErEzdxfSvg] = useState(false);
+  // XSS-vern (ordre 2026-10-11, pkt. 1): «er dette en ezdxf-SVG som skal beholde sin <style>?»
+  // avgjøres av SERVERENS markør (konverteringRapport.markor.motor), IKKE av data-motor i fila.
+  // En opplastet/forfalsket SVG kan bære data-motor="ezdxf", men får aldri server-markøren.
+  const erEzdxfMotor =
+    lesKonverteringMarkor(
+      (tegning as unknown as { konverteringRapport?: unknown })?.konverteringRapport ?? null,
+    )?.motor === "ezdxf";
   useEffect(() => {
     if (!svgUrl || !erSvgFil) {
       setSvgInnhold(null);
@@ -561,36 +569,17 @@ export default function TegningerSide() {
     fetch(svgUrl)
       .then((res) => res.text())
       .then((raaTekst) => {
-        // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner
-        const tekst = rensSvg(raaTekst);
-        const erEzdxf = /<svg[^>]*\sdata-motor="ezdxf"/.test(tekst);
-        // Fjern faste width/height (behold øvrige attributter: data-motor, data-lw-base, viewBox)
-        let tilpasset = tekst.replace(
-          /<svg([^>]*)>/,
-          (_match, attrs: string) => {
-            const uten = attrs
-              .replace(/\s*width="[^"]*"/g, "")
-              .replace(/\s*height="[^"]*"/g, "");
-            return `<svg${uten} width="100%" height="auto" style="display:block">`;
-          },
-        );
-        if (!erEzdxf) {
-          // egen-motor: uendret — strip <style> og injiser fast zoom-bevisst strek.
-          tilpasset = tilpasset.replace(/<style>[^<]*<\/style>/g, "");
-          tilpasset = tilpasset.replace(
-            /(<svg[^>]*>)/,
-            `$1\n<style>line,polyline,circle,path,ellipse,polygon{stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important}</style>`,
-          );
-        }
-        // ezdxf: behold SVG-ens egen <style> uendret (dempet clamp-regel bruker --strek-*).
+        // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner.
+        // tilpassEzdxfSvg avgjør <style>-skjebnen fra server-markøren + CSS-vern (pkt. 1 + 4).
+        const { svg, erEzdxf } = tilpassEzdxfSvg(rensSvg(raaTekst), erEzdxfMotor);
         setErEzdxfSvg(erEzdxf);
-        setSvgInnhold(tilpasset);
+        setSvgInnhold(svg);
       })
       .catch(() => {
         setSvgInnhold(null);
         setErEzdxfSvg(false);
       });
-  }, [svgUrl, erSvgFil]);
+  }, [svgUrl, erSvgFil, erEzdxfMotor]);
 
   // RETUR 1 TILLEGG C1: dempet strekskalering for ezdxf-SVG. Viseren setter --strek-skala
   // (= zoom^(k−1)) + gulv/tak (px→viewBox-konvertert fra displayScale) på SVG-wrapperen pr.
