@@ -397,6 +397,12 @@ def main():
     player = backend.player()
     prims = hent_primitiver(player, args.flatten_mm, db=doc.entitydb if args.metadata == "på" else None)
 
+    # Fullstendighetsrapport (krav 5): ezdxf attribuerer blokk-intern geometri til
+    # INSERT-handelet, så ARC/ELLIPSE osv. inne i blokker får data-type="INSERT" og
+    # ville ellers flagges falskt som «ikke tegnet». Vi samler derfor typene inne i
+    # blokker som faktisk refereres av en INSERT (rekursivt), og krediterer dem i TS.
+    blokk_typer = blokk_innhold_typer(msp, doc) if args.metadata == "på" else {}
+
     # punkter for extents fra ALLE prims
     xs, ys = [], []
     for p in prims:
@@ -491,6 +497,12 @@ def main():
 
     # tekst som egen <text>
     text_svg = []
+    def meta_text(t):
+        if args.metadata != "på":
+            return ""
+        lag = f' data-layer="{html.escape(t["layer"])}"' if t.get("layer") else ""
+        typ = f' data-type="{html.escape(t["dtype"])}"' if t.get("dtype") else ""
+        return lag + typ
     if args.tekst == "egen":
         for t in tekster:
             x, y = t["x"], t["y"]
@@ -501,7 +513,7 @@ def main():
             rot_attr = f' transform="rotate({-t["rot"]:g} {nx:g} {ny:g})"' if t["rot"] else ""
             text_svg.append(
                 f'<text x="{nx:g}" y="{ny:g}" font-size="{fs:g}" font-family="sans-serif" '
-                f'fill="{t["color"]}"{(" "+anchor) if anchor else ""}{rot_attr}>{html.escape(t["tekst"])}</text>'
+                f'fill="{t["color"]}"{(" "+anchor) if anchor else ""}{rot_attr}{meta_text(t)}>{html.escape(t["tekst"])}</text>'
             )
 
     # startutsnitt (persentil 1-99 av tegnede punkter i SVG-piksel-brøk)
@@ -532,6 +544,7 @@ def main():
         "svg_bytes": len(svg.encode()), "path_noder": svg.count("<path"),
         "text_noder": svg.count("<text"), "noder_total": noder,
         "antall_tekster": len(tekster),
+        "blokkTyper": blokk_typer,
         "extents": {"minX": minx, "maxX": maxx, "minY": miny, "maxY": maxy},
         "mmPrPiksel": (vbW * mmPrEnhet) / svgBredde if mmPrEnhet else vbW / svgBredde,
         "startutsnitt": startutsnitt,
@@ -540,6 +553,40 @@ def main():
     if args.meta:
         with open(args.meta, "w") as f: json.dump(meta, f, indent=2)
     print(json.dumps(meta, indent=2))
+
+def blokk_innhold_typer(msp, doc):
+    """Entitetstyper (med antall) inne i blokker som faktisk refereres av en INSERT
+    i modelspace (rekursivt gjennom nestede INSERT). Når en INSERT tegnes, tegnes
+    hele blokk-innholdet — så disse typene ER dekket selv om player attribuerer dem
+    til INSERT-handelet. Krediteres i TS så rapporten ikke gir falske «ikke tegnet»."""
+    referert = set()
+    def saml(navn):
+        if not navn or navn in referert:
+            return
+        referert.add(navn)
+        try:
+            blk = doc.blocks.get(navn)
+        except Exception:
+            return
+        if blk is None:
+            return
+        for e in blk:
+            if e.dxftype() == "INSERT":
+                saml(e.dxf.get("name", None))
+    for ins in msp.query("INSERT"):
+        saml(ins.dxf.get("name", None))
+    typer = {}
+    for navn in referert:
+        try:
+            blk = doc.blocks.get(navn)
+        except Exception:
+            continue
+        if blk is None:
+            continue
+        for e in blk:
+            t = e.dxftype()
+            typer[t] = typer.get(t, 0) + 1
+    return typer
 
 def les_segmenter(msp):
     """Rene LINE/LWPOLYLINE/POLYLINE-segmenter i verdenskoord (for rotasjon)."""
@@ -576,24 +623,27 @@ def les_tekster(msp):
     ut = []
     for e in msp:
         t = e.dxftype()
+        lag = e.dxf.get("layer", "") or ""
         if t == "TEXT":
             ut.append({"tekst": e.dxf.text, "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                        "h": e.dxf.height, "rot": e.dxf.get("rotation", 0) or 0,
-                       "color": "#000000", "att": None})
+                       "color": "#000000", "att": None, "dtype": "TEXT", "layer": lag})
         elif t == "MTEXT":
             ut.append({"tekst": _ren_mtext(e.text), "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                        "h": e.dxf.char_height, "rot": _mtext_rot(e),
-                       "color": "#000000", "att": e.dxf.get("attachment_point", 1)})
+                       "color": "#000000", "att": e.dxf.get("attachment_point", 1),
+                       "dtype": "MTEXT", "layer": lag})
         elif t == "ATTRIB":
             ut.append({"tekst": e.dxf.text, "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                        "h": e.dxf.height, "rot": e.dxf.get("rotation", 0) or 0,
-                       "color": "#000000", "att": None})
+                       "color": "#000000", "att": None, "dtype": "ATTRIB", "layer": lag})
     # INSERT -> ATTRIB
     for ins in msp.query("INSERT"):
         for att in ins.attribs:
             ut.append({"tekst": att.dxf.text, "x": att.dxf.insert.x, "y": att.dxf.insert.y,
                        "h": att.dxf.height, "rot": att.dxf.get("rotation", 0) or 0,
-                       "color": "#000000", "att": None})
+                       "color": "#000000", "att": None,
+                       "dtype": "ATTRIB", "layer": att.dxf.get("layer", "") or ""})
     # DIMENSION -> måltekst. ezdxf tegner dimensjonens linjer/piler, men TextPolicy.IGNORE
     # suppr. teksten — så vi henter den selv (krav 2; manglet i PoC). Primær kilde er
     # dimensjonens geometri-blokk (*D...), som bærer TEXT/MTEXT ferdig plassert/rotert/
@@ -610,6 +660,7 @@ def _fmt_maal(v):
 
 def _dim_tekster(dim, doc):
     ut = []
+    lag = dim.dxf.get("layer", "") or ""
     blk_navn = dim.dxf.get("geometry", None)   # anonym *D...-blokk (DXF-kode 2)
     blk = None
     if blk_navn:
@@ -623,11 +674,13 @@ def _dim_tekster(dim, doc):
             if t == "MTEXT":
                 ut.append({"tekst": _ren_mtext(e.text), "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                            "h": e.dxf.char_height, "rot": _mtext_rot(e),
-                           "color": "#000000", "att": e.dxf.get("attachment_point", 5)})
+                           "color": "#000000", "att": e.dxf.get("attachment_point", 5),
+                           "dtype": "DIMENSION", "layer": lag})
             elif t == "TEXT":
                 ut.append({"tekst": e.dxf.text, "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                            "h": e.dxf.height, "rot": e.dxf.get("rotation", 0) or 0,
-                           "color": "#000000", "att": None})
+                           "color": "#000000", "att": None,
+                           "dtype": "DIMENSION", "layer": lag})
         if any((t["tekst"] or "").strip() for t in ut):
             return ut
         ut = []
@@ -653,7 +706,8 @@ def _dim_tekster(dim, doc):
         h = (float(style.dxf.get("dimtxt", 2.5) or 2.5) * float(style.dxf.get("dimscale", 1.0) or 1.0)) or 2.5
     except Exception:
         pass
-    ut.append({"tekst": vist, "x": pos.x, "y": pos.y, "h": h, "rot": 0, "color": "#000000", "att": 5})
+    ut.append({"tekst": vist, "x": pos.x, "y": pos.y, "h": h, "rot": 0, "color": "#000000",
+               "att": 5, "dtype": "DIMENSION", "layer": lag})
     return ut
 
 def _ren_mtext(s):

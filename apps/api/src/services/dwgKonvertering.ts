@@ -2058,6 +2058,9 @@ export async function dxfTilSvgEzdxf(
     ingenAutoRotasjon?: boolean;
     hatch?: "normal" | "solid";
     gruppering?: "ingen" | "farge";
+    /** Rå DXF-tekst — kun for fullstendighetsrapporten (motor-uavhengig, som egen).
+     * Utelates ved layout-klipp (rapporten gjelder hele DXF-en, ikke klippet). */
+    dxfInnhold?: string;
   },
 ): Promise<DxfSvgResultat | null> {
   if (!EZDXF_RENDER_PY) {
@@ -2073,6 +2076,9 @@ export async function dxfTilSvgEzdxf(
     "--tekst", "egen",
     "--gruppering", opsjoner?.gruppering ?? "ingen",
     "--hatch", opsjoner?.hatch ?? "normal",
+    // data-layer (player) + data-type (handle→dxftype / tekst-type) pr. element →
+    // web klikk-identifiser + fullstendighetsrapport, uten SVGBackend-subklasse.
+    "--metadata", "på",
   ];
   if (opsjoner?.ingenAutoRotasjon) args.push("--rotasjon", "av", "--robust", "av");
   if (klippBounds) {
@@ -2090,14 +2096,30 @@ export async function dxfTilSvgEzdxf(
       vbW: number; vbH: number; width: number; height: number;
       autoRotasjon: number | null;
       startutsnitt: { x: number; y: number; w: number; h: number } | null;
+      blokkTyper?: Record<string, number>;
     };
+    // Fullstendighetsrapport bygges motor-uavhengig fra SVG-ens data-type (samme
+    // logikk som egen, dwgKonvertering): parset = tellDxfInventar, tegnet = telling
+    // av data-type i SVG. Null ved layout-klipp (inventaret gjelder hele DXF-en).
+    let rapport: KonverteringRapport | null = null;
+    if (!klippBounds && opsjoner?.dxfInnhold) {
+      const tegnetPrType: Record<string, number> = {};
+      for (const m of svg.matchAll(/data-type="([^"]+)"/g)) {
+        tegnetPrType[m[1]!] = (tegnetPrType[m[1]!] ?? 0) + 1;
+      }
+      // Krediter blokk-interne typer (ARC/ELLIPSE osv.): ezdxf tegner dem via INSERT,
+      // så de mangler egen data-type — uten dette ville de bli falske «ikke tegnet».
+      for (const [type, antall] of Object.entries(meta.blokkTyper ?? {})) {
+        tegnetPrType[type] = (tegnetPrType[type] ?? 0) + antall;
+      }
+      rapport = byggRapport(tellDxfInventar(opsjoner.dxfInnhold), tegnetPrType);
+    }
     return {
       svg,
       vbW: meta.vbW, vbH: meta.vbH, width: meta.width, height: meta.height,
       autoRotasjon: meta.autoRotasjon ?? null,
       startutsnitt: meta.startutsnitt ?? null,
-      // L5 gjenoppretter fullstendighetsrapporten fra player-primitiver (--metadata på).
-      rapport: null,
+      rapport,
     };
   } catch (err) {
     console.warn("[DWG] ezdxf render.py feilet:", err);
@@ -2200,7 +2222,7 @@ export async function konverterDwg(
     let svgRes: DxfSvgResultat | null = null;
     if (dxfInnhold) {
       if (motor === "ezdxf") {
-        svgRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system });
+        svgRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, dxfInnhold });
         if (!svgRes) {
           console.warn("[DWG] ezdxf-motor ga ingen SVG — faller tilbake til egen motor.");
           svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
