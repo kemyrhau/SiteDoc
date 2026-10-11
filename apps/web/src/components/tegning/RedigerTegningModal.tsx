@@ -9,6 +9,8 @@ import {
   type RedigerTegningFelt,
 } from "@/lib/tegningMutasjonEffekter";
 import { LastOppRevisjonKnapp } from "./LastOppRevisjonKnapp";
+import { KonverteringMarkorLinje } from "./KonverteringMarkorLinje";
+import type { KonverteringMarkor } from "@/lib/konverteringMarkor";
 
 /**
  * Redigeringsflate for tegningsdetaljer. Kobler de metadata-feltene som fylles ved
@@ -57,6 +59,10 @@ interface RedigerTegningModalProps {
   feil?: string | null;
   /** R8: kalles når en ny revisjon er lastet opp (for invalidering). */
   onRevisjonFerdig?: () => void;
+  /** Konverteringsmarkør for gjeldende tegning (stille metadata). */
+  konverteringMarkor?: KonverteringMarkor | null;
+  /** Tegningen har vært gjennom konvertering (DWG/PDF) — styrer «før versjonsmerking». */
+  erKonvertert?: boolean;
 }
 
 export function RedigerTegningModal({
@@ -67,6 +73,8 @@ export function RedigerTegningModal({
   lagrer,
   feil,
   onRevisjonFerdig,
+  konverteringMarkor,
+  erKonvertert,
 }: RedigerTegningModalProps) {
   const { t } = useTranslation();
   const [felt, setFelt] = useState<RedigerTegningFelt>(() => tilFelt(tegning));
@@ -153,15 +161,24 @@ export function RedigerTegningModal({
         {feil && <p className="text-sm text-sitedoc-error">{feil}</p>}
 
         {/* R8: ny revisjon — egen flyt (bygger historikk + starter konvertering). */}
-        <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-          <span className="text-xs text-gray-500">
-            {t("tegninger.revisjon.gjeldende", { rev: tegning.revision ?? "A" })}
-          </span>
-          <LastOppRevisjonKnapp
-            drawingId={tegning.id}
-            gjeldendeRevisjon={tegning.revision}
-            onFerdig={onRevisjonFerdig}
-          />
+        <div className="border-t border-gray-100 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              {t("tegninger.revisjon.gjeldende", { rev: tegning.revision ?? "A" })}
+            </span>
+            <LastOppRevisjonKnapp
+              drawingId={tegning.id}
+              gjeldendeRevisjon={tegning.revision}
+              onFerdig={onRevisjonFerdig}
+            />
+          </div>
+          {/* Stille metadata: hvilken kode som sist konverterte tegningen. */}
+          <div className="mt-1">
+            <KonverteringMarkorLinje
+              markor={konverteringMarkor ?? null}
+              erKonvertert={!!erKonvertert}
+            />
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

@@ -214,6 +214,45 @@ async function roterMarkorerVedRotasjonsendring(
   console.log(`[DWG] Rotasjon endret ${delta.toFixed(1)}° → flyttet ${oppgaver.length} oppgave-, ${sjekklister.length} sjekkliste-, ${punkter.length} kontrollpunkt-markører og ${omrader.length} område(r)`);
 }
 
+/**
+ * Build-SHA der konverteringskoden FAKTISK kjører. Nettleser-opplasting konverterer
+ * in-process i WEB-containeren (`NEXT_PUBLIC_BUILD_SHA`, Dockerfile.web:62-63); mobil
+ * konverterer i api-containeren (`GIT_SHA`, Dockerfile.api:48-50). Begge bæres fra samme
+ * `GIT_SHA` build-arg, men bare én finnes pr. runtime → les begge. Eksportert for test.
+ *
+ * 🔴 Stille tomhet forbudt: tom sha i prod/test (NODE_ENV=production) logges som feil og
+ * returneres som "ukjent" (vises som «ukjent versjon»), ALDRI som tom streng. Kun lokal
+ * dev (NODE_ENV≠production) får "dev".
+ */
+export function hentKodeversjon(): string {
+  const sha = process.env.GIT_SHA || process.env.NEXT_PUBLIC_BUILD_SHA || "";
+  if (sha) return sha;
+  if (process.env.NODE_ENV === "production") {
+    console.error(
+      "[konvertering] mangler build-SHA (GIT_SHA/NEXT_PUBLIC_BUILD_SHA) — merker konvertering som «ukjent»",
+    );
+    return "ukjent";
+  }
+  return "dev";
+}
+
+/** DWG-motor: "egen" (libredwg) i dag; `DWG_MOTOR=ezdxf` bytter til ezdxf-motoren. */
+function dwgMotor(): string {
+  return process.env.DWG_MOTOR || "egen";
+}
+
+/** Markør i `drawings.konvertering_rapport` som BEVISER at en konvertering faktisk kjørte. */
+export interface KonverteringMarkor {
+  kodeversjon: string;
+  konvertertTid: string;
+  motor: string;
+}
+
+/** Bygg markøren med versjonen der koden kjører + konverteringstidspunkt + motor. */
+export function byggKonverteringMarkor(motor: string): KonverteringMarkor {
+  return { kodeversjon: hentKodeversjon(), konvertertTid: new Date().toISOString(), motor };
+}
+
 // Eksportert for enhetstest (rotasjonOverstyrt bevares ved revisjon — test c). Kalles
 // ellers kun internt fra `startTegningKonvertering`/`provKonverteringIgjen`.
 export async function anvendDwgResultat(
@@ -252,10 +291,12 @@ export async function anvendDwgResultat(
     // for de ER filavhengige.)
     oppdatering.startutsnitt = resultat.startutsnitt ?? Prisma.JsonNull;
     // RETUR 4 (fullstendighet): lagre parset-vs-tegnet-rapporten så manglende typer
-    // synes på test uten å lese kode.
-    oppdatering.konverteringRapport = resultat.rapport
-      ? (resultat.rapport as unknown as Prisma.InputJsonValue)
-      : Prisma.JsonNull;
+    // synes på test uten å lese kode. Konverteringsmarkøren (kodeversjon/tid/motor,
+    // 2026-10-11) legges i SAMME felt under `markor` — fullstendighetsrapporten beholdes.
+    oppdatering.konverteringRapport = {
+      ...(resultat.rapport ?? {}),
+      markor: byggKonverteringMarkor(dwgMotor()),
+    } as unknown as Prisma.InputJsonValue;
   }
 
   // RETUR 3 §2: endres den inn-bakte auto-rotasjonen ved denne (re-)konverteringen, må
@@ -439,6 +480,11 @@ function startTegningKonvertering(
             mmPrPiksel,
             ...settForslag,
             conversionStatus: "done",
+            // Konverteringsmarkør (2026-10-11): PDF→PNG har ingen fullstendighetsrapport,
+            // så markøren står alene i feltet. motor "pdf" (pdftoppm, ikke libredwg).
+            konverteringRapport: {
+              markor: byggKonverteringMarkor("pdf"),
+            } as unknown as Prisma.InputJsonValue,
           },
         });
         console.log(`[PDF] Database oppdatert: tegning ${tegning.id} → PNG (mm/px=${mmPrPiksel ?? "null"}, målestokk-forslag=${scaleForslag ?? "ingen"})`);
@@ -1041,6 +1087,10 @@ export const tegningRouter = router({
                 mmPrPiksel,
                 ...settForslag,
                 conversionStatus: "done",
+                // Konverteringsmarkør (2026-10-11): også på batch-rekonvertering av PDF.
+                konverteringRapport: {
+                  markor: byggKonverteringMarkor("pdf"),
+                } as unknown as Prisma.InputJsonValue,
               },
             });
             console.log(`[PDF-batch] Ferdig: ${tegning.name} (mm/px=${mmPrPiksel ?? "null"}, målestokk-forslag=${scaleForslag ?? "ingen"})`);
