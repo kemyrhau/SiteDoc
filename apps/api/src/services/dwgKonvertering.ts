@@ -2053,9 +2053,11 @@ export function valgtMotor(): DwgMotor {
 
 /** Python-tolk + render.py-sti for ezdxf-motoren. Settes i Docker (api + web) —
  * se infrastruktur.md / DEPLOY-RUNBOK. Mangler `EZDXF_RENDER_PY`, er ezdxf
- * utilgjengelig og kalleren faller tilbake til egen motor (synlig i loggen). */
-const EZDXF_PYTHON = process.env.EZDXF_PYTHON ?? "python3";
-const EZDXF_RENDER_PY = process.env.EZDXF_RENDER_PY ?? "";
+ * utilgjengelig og kalleren faller tilbake til egen motor (synlig i loggen).
+ * Leses DYNAMISK (ikke modul-const) så tester kan styre env pr. case — ellers er
+ * «ezdxf ikke konfigurert»-stien og test(c)/paritet gjensidig utelukkende i én prosess. */
+const ezdxfPython = () => process.env.EZDXF_PYTHON ?? "python3";
+const ezdxfRenderPy = () => process.env.EZDXF_RENDER_PY ?? "";
 
 /**
  * ezdxf-motorens motstykke til `dxfTilSvg`: spawner `render.py` på DXF-fila og
@@ -2082,7 +2084,8 @@ export async function dxfTilSvgEzdxf(
     dxfInnhold?: string;
   },
 ): Promise<DxfSvgResultat | null> {
-  if (!EZDXF_RENDER_PY) {
+  const renderPy = ezdxfRenderPy();
+  if (!renderPy) {
     console.warn("[DWG] ezdxf-motor valgt, men EZDXF_RENDER_PY er ikke satt — kan ikke rendre med ezdxf.");
     return null;
   }
@@ -2090,7 +2093,7 @@ export async function dxfTilSvgEzdxf(
   const svgOut = join(dir, `${randomUUID()}.svg`);
   const metaOut = join(dir, `${randomUUID()}.json`);
   const args = [
-    EZDXF_RENDER_PY, dxfSti, svgOut,
+    renderPy, dxfSti, svgOut,
     "--meta", metaOut,
     "--tekst", "egen",
     "--gruppering", opsjoner?.gruppering ?? "ingen",
@@ -2104,7 +2107,7 @@ export async function dxfTilSvgEzdxf(
     args.push("--klipp", `${klippBounds.minX},${klippBounds.minY},${klippBounds.maxX},${klippBounds.maxY}`);
   }
   try {
-    await execFileAsync(EZDXF_PYTHON, args, {
+    await execFileAsync(ezdxfPython(), args, {
       timeout: 300000, cwd: dir, maxBuffer: 50 * 1024 * 1024,
     });
     const [svg, metaRaw] = await Promise.all([
@@ -2262,7 +2265,7 @@ export async function konverterDwg(
           // Skill de to grunnene så markøren bærer en ærlig årsak: motoren er ikke
           // installert/konfigurert i containeren vs. render.py feilet på DENNE fila.
           fallbackFra = "ezdxf";
-          fallbackAarsak = EZDXF_RENDER_PY ? "ezdxf-render feilet" : "ezdxf ikke konfigurert";
+          fallbackAarsak = ezdxfRenderPy() ? "ezdxf-render feilet" : "ezdxf ikke konfigurert";
           console.warn(`[DWG] ezdxf-motor ga ingen SVG (${fallbackAarsak}) — faller tilbake til egen motor.`);
           svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
         }

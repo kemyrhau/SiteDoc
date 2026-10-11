@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, copyFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
+import { fileURLToPath } from "node:url";
 import { kanMale, malMm, detekterKoordinatSystem } from "@sitedoc/shared";
 import {
   gyldigKoordinat,
@@ -1040,4 +1041,64 @@ describe("DWG_MOTOR — motorvalg (L0)", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// L10 — PARITET egen vs ezdxf på de georefererte Ålesund-fixturene (NTM6 + UTM32).
+// Gate-kravet: georef/mmPrPiksel/målestokk/målt strekning ≤ 0,1 %. Alle disse
+// utledes av viewBox-bredden (tegningsenheter) og svgBredde, så paritet på
+// {vbW, vbH, width, mmPrPiksel-ekvivalent} dekker dem. Georef-tegninger: ingen
+// auto-rotasjon/robust (som konverterDwg når koordinatsystem er detektert).
+// Krever dwg2dxf + ezdxf (ellers skippet — CI har ingen av delene).
+// ---------------------------------------------------------------------------
+const harEzdxfL10 = (() => {
+  if (!process.env.EZDXF_RENDER_PY) return false;
+  try {
+    execFileSync(process.env.EZDXF_PYTHON ?? "python3", ["-c", "import ezdxf"], { timeout: 10000, stdio: "ignore" });
+    return true;
+  } catch { return false; }
+})();
+
+describe.skipIf(!harDwg2dxf() || !harEzdxfL10)("L10 paritet egen vs ezdxf — Ålesund (georef)", () => {
+  const FIXTURER = [
+    "2413953_Aalesund_byrom_Vektoriserte_objekter_NTM6.dwg",
+    "2413953_Aalesund_byrom_Vektoriserte_objekter_utomhus_UTM32.dwg",
+  ];
+  const rel = (a: number, b: number) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1e-9);
+
+  async function parityFor(navn: string) {
+    const dir = mkdtempSync(join(tmpdir(), "dwgpar-"));
+    try {
+      const kilde = fileURLToPath(new URL(`../../test-fixtures/dwg/${navn}`, import.meta.url));
+      const dwg = join(dir, navn);
+      copyFileSync(kilde, dwg);
+      execFileSync(DWG2DXF, ["-y", dwg], { timeout: 120000, cwd: dir, maxBuffer: 200 * 1024 * 1024, stdio: "ignore" });
+      const dxfSti = dwg.replace(/\.[^.]+$/, ".dxf");
+      const dxfText = readFileSync(dxfSti, "utf-8");
+      const egen = dxfTilSvg(dxfText, undefined, { ingenAutoRotasjon: true });
+      const ez = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: true });
+      return { egen, ez };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  for (const navn of FIXTURER) {
+    it(`paritet ≤ 0,1 % på ${navn.includes("NTM6") ? "NTM6" : "UTM32"}`, async () => {
+      const { egen, ez } = await parityFor(navn);
+      expect(egen).not.toBeNull();
+      expect(ez).not.toBeNull();
+      // 🔴 GATE-METRIKKEN: georef/mmPrPiksel/målestokk/målt strekning utledes ALLE av
+      // mmPrPiksel-ekvivalenten (vbW/width), ikke av rå vbW. ≤ 0,1 %.
+      // Målt: NTM6 0,024 %, UTM32 ~0 %. (Extent og svgBredde skalerer SAMMEN, så raw-avvik
+      // i vbW kanselleres i forholdet — det er forholdet snap/måling/georef faktisk leser.)
+      expect(rel(egen!.vbW / egen!.width, ez!.vbW / ez!.width)).toBeLessThanOrEqual(0.001);
+      // Rå viewBox-høyde er eksakt (ingen kurve-ytterpunkt på Y her).
+      expect(rel(egen!.vbH, ez!.vbH)).toBeLessThanOrEqual(0.001);
+      // Rå viewBox-bredde: ezdxf flater kurver (sirkel/bue → segmenter), så ett kurve-
+      // ytterpunkt på X kan ligge inntil ~0,12 % innenfor egens analytiske bbox (NTM6:
+      // 220,42 vs 220,15 enh). Påvirker IKKE mmPrPiksel (width skalerer med extent).
+      expect(rel(egen!.vbW, ez!.vbW)).toBeLessThanOrEqual(0.002);
+    }, 180000);
+  }
 });
