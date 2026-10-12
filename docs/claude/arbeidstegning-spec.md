@@ -3,7 +3,7 @@ name: arbeidstegning-spec
 description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, § 8 felles objektmodell på tvers av 2D-tegning, IFC/3D og mobil (Kenneth-vedtak 2026-10-12), åtte spørsmål til Kenneth. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
 sist_verifisert_mot_kode: 2026-10-12
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: ⚠️ UTKAST TIL GATE (rev. 5, 2026-10-12 — + § 8 felles objektmodell 2D/3D, IFC-viseren målt AT-I1–I8) — ingenting under er bygget. Q1–Q8 til Kenneth.
+status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 5, 2026-10-12 — + § 8 felles objektmodell 2D/3D, IFC-viseren målt AT-I1–I8) — ingenting under er bygget. Q1–Q8 til Kenneth.
 ---
 
 # Arbeidstegning — DWG/DXF som verktøy, ikke bilde
@@ -283,6 +283,19 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q6 | Offline F7: holder **vise + lag + egenskaper** (MÅ) og søk/måling KAN? | **Ja.** Måling offline krever enheter som alt ligger i tegningen, så den kan komme gratis med vei B — men ikke lov det nå |
 | Q7 | **HABU-filene i repoet?** (flyttet bort fra prosjektmappa 12.10 — spørsmålet gjelder om de kan hentes tilbake som fixtures) De er tilbudsunderlag for et navngitt prosjekt (UNN, AART, adresse, gnr/bnr) — ikke våre data. Fixtures i `apps/api/test-fixtures/dwg/` ligger i git og på GitHub | **Nei, ikke uten skriftlig OK fra eier.** Behold dem lokalt i `DWG eksempelfiler/HABU/` (untracked); tester på dem **skippes når mappa mangler** (samme mønster som «krever dwg2dxf + ezdxf»). Dokgens prøve kjører lokalt på dem. Alternativ: be AART om lov, eller lag én anonymisert Revit-eksport selv (ikke generert — ekte Revit-modell) |
 | Q8 | **Underlag (F10):** skal SiteDoc kunne legge VVS/EL-tegningen oppå ARK-tegningen når de deler koordinatramme, eller holder det å vise tilstanden «underlag mangler»? TB3/VB3 er ubrukelige alene (rør i tomrom) | **Ja, F10 som BØR rett etter F8.** Det er slik fagarbeideren leser et tegningssett; og rammen er alt felles i filene (AT-F12). Samme spørsmål gjelder AB3/VB3/TB3 i repoet som fixtures (eier?) — anbefaler samme regel som Q7 |
+
+### 5a. Kenneth-svar 2026-10-12 — 🟢 alle åtte
+
+| # | Svar |
+|---|---|
+| Q1 | Har ikke riktige MEP-eksporter nå, kan komme senere. Prøven går uten; måles når de finnes |
+| Q2 | Som anbefalt: grupper + rå lag under |
+| Q3 | Som anbefalt: MÅ (Kenneth spurte hva MÅ betyr: med i første leveranse av F5, kan ikke droppes uten nytt vedtak) |
+| Q4 | Som anbefalt: pr. bruker på enheten først |
+| Q5 | MÅ står. Kenneth spurte om konsekvens og realiserbarhet → prøven får en **tredje variant A2: lett, farge-gruppert visning + separat romlig objektindeks** (bbox/id pr. objekt, oppslag ved trykk) i tillegg til A (ugruppert SVG m/ id) og B (klient-render). D5 avgjør på tall |
+| Q6 | Som anbefalt |
+| Q7 | HABU-filene er fjernet fra prosjektmappa; en agent kan få se dem ved behov (Kenneth gir tilgang). Aldri i git |
+| Q8 | Som anbefalt: F10 BØR rett etter F8; sykehusfilene samme regel som Q7 |
 
 ## 6. Hva Dokgens prøve må levere (gate for valg A/B — ikke bygging)
 
