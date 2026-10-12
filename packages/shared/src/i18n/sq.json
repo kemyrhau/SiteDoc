@@ -1756,6 +1756,8 @@
   "tegninger.markor.konvertert": "U konvertua {{tid}} · versioni {{versjon}}",
   "tegninger.markor.konvertertUkjent": "U konvertua {{tid}} · version i panjohur",
   "tegninger.markor.foerMerking": "Konvertuar përpara etiketimit të versionit",
+  "tegninger.konverterer": "Po konvertohet…",
+  "tegninger.konvStoppet": "Konvertimi duket se ka ndaluar",
   "tegninger.revisjon.arkiverteLayouts": "Paraqitjet e arkivuara",
   "malVelger.velgSjekklistemal": "Zgjidhni shabllonin e listës së kontrollit",
   "malVelger.velgOppgavemal": "Zgjidhni shabllonin e detyrës",

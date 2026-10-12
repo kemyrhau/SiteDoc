@@ -70,6 +70,8 @@ interface TegningDetalj {
   id: string;
   name: string;
   fileUrl: string | null;
+  // L1: mobil-variant (ezdxf hatch=solid). null = bruk fileUrl (egen/ikke-DWG).
+  mobilFileUrl?: string | null;
   fileType?: string | null;
   geoReference?: unknown;
   pdfPageSize?: { width: number; height: number } | null;
@@ -80,7 +82,8 @@ interface TegningDetalj {
   imageWidth?: number | null;
   imageHeight?: number | null;
   // RETUR 2: auto-rotasjon (bakt inn i SVG-en) + brukeroverstyring. `startutsnitt` er
-  // Json? på server (brukes ikke på mobil ennå — fit-to-width + bakt tett viewBox).
+  // Json? på server. L4b: mobilen åpner nå zoomet på startutsnittet (bygget), ikke
+  // fit-to-width — sendes til TegningsVisning (se startutsnitt-prop under).
   autoRotasjon?: number | null;
   rotasjonOverstyrt?: number | null;
   startutsnitt?: unknown;
@@ -840,11 +843,13 @@ export default function LokasjonerSkjerm() {
           </View>
         ) : visserTegning ? (
           <TegningsVisning
-            tegningUrl={
-              valgtTegningDetalj!.fileUrl!.startsWith("http")
-                ? valgtTegningDetalj!.fileUrl!
-                : `${AUTH_CONFIG.apiUrl}${valgtTegningDetalj!.fileUrl}`
-            }
+            tegningUrl={(() => {
+              // L1: mobil bruker den lettere mobilvarianten (ezdxf hatch=solid) når den
+              // finnes, ellers fileUrl (egen-SVG / ikke-DWG rendrer på mobil). Begge er
+              // ferdig signert av uploads-middlewaren (auto-signert /uploads/-streng).
+              const u = valgtTegningDetalj!.mobilFileUrl ?? valgtTegningDetalj!.fileUrl!;
+              return u.startsWith("http") ? u : `${AUTH_CONFIG.apiUrl}${u}`;
+            })()}
             tegningNavn={valgtTegningDetalj!.name}
             onLukk={håndterLukkTegning}
             onMarkørTrykk={håndterMarkørTrykk}
@@ -867,6 +872,26 @@ export default function LokasjonerSkjerm() {
               (valgtTegningDetalj?.fileType ?? "") === "svg"
                 ? { auto: valgtTegningDetalj?.autoRotasjon ?? null, overstyrt: valgtTegningDetalj?.rotasjonOverstyrt ?? null }
                 : null
+            }
+            startutsnitt={(() => {
+              // L4b: mobilen åpner på startutsnittet (bygget) i stedet for fit-to-width på
+              // rutenettet. Kun SVG; Json-feltet leses gjennom en smal struktur.
+              if ((valgtTegningDetalj?.fileType ?? "") !== "svg") return null;
+              const su = valgtTegningDetalj?.startutsnitt as
+                | { x?: unknown; y?: unknown; w?: unknown; h?: unknown }
+                | null
+                | undefined;
+              if (!su || typeof su.x !== "number" || typeof su.y !== "number" || typeof su.w !== "number" || typeof su.h !== "number") return null;
+              return { x: su.x, y: su.y, w: su.w, h: su.h };
+            })()}
+            // C2 (L6): ezdxf-mobilvarianten (farge-gruppert, ~2,5 MB) rendres INLINE så
+            // streken kan dempes ved zoom. Kun når mobilFileUrl finnes — den er alltid lett
+            // nok til å inlines. RETUR 2: en gammel ezdxf UTEN mobilvariant har bare den
+            // fulle ~22 MB-fila; å inlinee den henger WebView-en (målt i WebKit), så den
+            // «behandles som egen» = `<img>` (streken dempes ikke; løses ved re-konvertering
+            // som lager den lette mobilvarianten). byggHtml C1-gater selve inline-veien.
+            svgInline={
+              (valgtTegningDetalj?.fileType ?? "") === "svg" && !!valgtTegningDetalj?.mobilFileUrl
             }
             onSettRotasjon={(grader) => {
               if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });

@@ -6,3 +6,7 @@ export * from "./standardtekster";
 export * from "./annotering/annoterings-html";
 export * from "./annotering/lag";
 export * from "./annotering/bro";
+export * from "./tegning/strek-skalering";
+export * from "./tegning/startutsnitt-zoom";
+export * from "./tegning/svg-sikkerhet";
+export * from "./tegning/konvertering-markor";

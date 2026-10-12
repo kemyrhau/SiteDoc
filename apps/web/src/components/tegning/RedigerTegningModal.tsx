@@ -63,6 +63,8 @@ interface RedigerTegningModalProps {
   konverteringMarkor?: KonverteringMarkor | null;
   /** Tegningen har vært gjennom konvertering (DWG/PDF) — styrer «før versjonsmerking». */
   erKonvertert?: boolean;
+  /** Konvertering pågår (pending/converting) → markøren viser «Konverterer …». */
+  konverterer?: boolean;
 }
 
 export function RedigerTegningModal({
@@ -75,9 +77,14 @@ export function RedigerTegningModal({
   onRevisjonFerdig,
   konverteringMarkor,
   erKonvertert,
+  konverterer,
 }: RedigerTegningModalProps) {
   const { t } = useTranslation();
   const [felt, setFelt] = useState<RedigerTegningFelt>(() => tilFelt(tegning));
+  // Issue 1 (2026-10-11): fra klikk på «Last opp ny revisjon» til revisjonsdialogen er
+  // åpen (filvelger + opplasting), skal den ytre modalens Lagre/Avbryt/lukk ikke kunne
+  // avbryte oppdateringen. LastOppRevisjonKnapp melder «opptatt» i hele det vinduet.
+  const [revisjonOpptatt, setRevisjonOpptatt] = useState(false);
 
   // Fyll skjemaet på nytt hver gang modalen åpnes eller en annen tegning velges,
   // slik at ubekreftede endringer ikke henger igjen.
@@ -93,8 +100,13 @@ export function RedigerTegningModal({
     onLagre(byggRedigerTegningInput(tegning.id, felt));
   };
 
+  // Blokker lukking av den ytre modalen (X/ESC/backdrop) mens revisjonsflyten er opptatt.
+  const lukkHvisLedig = () => {
+    if (!revisjonOpptatt) onClose();
+  };
+
   return (
-    <Modal open={open} onClose={onClose} title={t("tegninger.redigerTittel")}>
+    <Modal open={open} onClose={lukkHvisLedig} title={t("tegninger.redigerTittel")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <p className="text-xs text-gray-500">{t("tegninger.redigerHjelp")}</p>
 
@@ -170,6 +182,7 @@ export function RedigerTegningModal({
               drawingId={tegning.id}
               gjeldendeRevisjon={tegning.revision}
               onFerdig={onRevisjonFerdig}
+              onOpptatt={setRevisjonOpptatt}
             />
           </div>
           {/* Stille metadata: hvilken kode som sist konverterte tegningen. */}
@@ -177,15 +190,16 @@ export function RedigerTegningModal({
             <KonverteringMarkorLinje
               markor={konverteringMarkor ?? null}
               erKonvertert={!!erKonvertert}
+              konverterer={!!konverterer}
             />
           </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={revisjonOpptatt}>
             {t("handling.avbryt")}
           </Button>
-          <Button type="submit" disabled={lagrer}>
+          <Button type="submit" disabled={lagrer || revisjonOpptatt}>
             {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>
         </div>

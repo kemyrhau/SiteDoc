@@ -11,12 +11,37 @@ async function lagAnnotertPng(): Promise<Buffer> {
     .toBuffer();
 }
 
+/**
+ * L7-regresjon: en DWG-SVG med ett mega-path `d`-attributt over libxml2-grensa
+ * (`XML_MAX_TEXT_LENGTH` ≈ 10 MB). Uten `{ unlimited: true }` kaster librsvg
+ * «Resource limit exceeded … try XML_PARSE_HUGE» → arkiv-PDF med DWG feiler.
+ */
+function lagMegaPathSvg(dMb: number): Buffer {
+  let d = "M 0 0";
+  while (d.length < dMb * 1024 * 1024) d += " l 3.5 2.1";
+  return Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1500" width="2000" height="1500">' +
+      '<rect width="2000" height="1500" fill="#ffffff"/>' +
+      `<path d="${d}" fill="none" stroke="#000" stroke-width="1.5"/></svg>`,
+  );
+}
+
 describe("komprimerBilde", () => {
   it("flater alfa mot hvit + gir JPEG (ingen alfakanal igjen)", async () => {
     const jpg = await komprimerBilde(await lagAnnotertPng());
     const meta = await sharp(jpg).metadata();
     expect(meta.format).toBe("jpeg");
     expect(meta.hasAlpha).toBe(false);
+  });
+
+  it("L7: stor DWG-SVG (mega-path > 10 MB) komprimeres (librsvg-grensa løftet)", async () => {
+    const svg = lagMegaPathSvg(11);
+    // Negativkontroll: samme buffer UTEN unlimited skal faktisk feile — ellers måler
+    // ikke testen noe (grensa må være reell for at fiksen skal bevises).
+    await expect(sharp(svg).jpeg().toBuffer()).rejects.toThrow();
+    // Fiksen: komprimerBilde åpner SVG med unlimited → lykkes.
+    const jpg = await komprimerBilde(svg);
+    expect((await sharp(jpg).metadata()).format).toBe("jpeg");
   });
 });
 

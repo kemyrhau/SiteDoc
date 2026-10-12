@@ -53,6 +53,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 RUN apt-get update && apt-get install -y --no-install-recommends \
       poppler-utils tesseract-ocr tesseract-ocr-nor \
       openssl ca-certificates fontconfig \
+      python3 python3-venv \
     && rm -rf /var/lib/apt/lists/*
 # DWG/DXF-konvertering: libredwg-binærene + .so fra build-staget (D-M3). ODA-sporet og
 # xvfb er fjernet (DWG-1: ODA valgt bort, xvfb ble kun brukt av ODA; 3D-veiene er ikke i
@@ -64,6 +65,17 @@ RUN ldconfig
 
 WORKDIR /app
 COPY --from=build /app ./
+# ezdxf-motor (DWG_MOTOR=ezdxf, L9 2026-10-11): isolert Python-venv med hash-låste hjul
+# (ezdxf 1.4.4 + deps, --require-hashes → ingen uverifisert nedlasting). INERT til
+# DWG_MOTOR=ezdxf settes i env (Kenneths steg på test) — da bruker konverterDwg denne
+# via EZDXF_PYTHON/EZDXF_RENDER_PY, ellers egen motor. render.py + requirements.txt
+# ligger alt i repoet (kopiert over). MÅ finnes i BEGGE bilder (nettleser-opplasting
+# konverterer i web-containeren, D-M2) — hold i synk med Dockerfile.web.
+RUN python3 -m venv /opt/ezdxf-venv \
+ && /opt/ezdxf-venv/bin/pip install --no-cache-dir --require-hashes \
+      -r /app/apps/api/src/services/ezdxf/requirements.txt
+ENV EZDXF_PYTHON=/opt/ezdxf-venv/bin/python3
+ENV EZDXF_RENDER_PY=/app/apps/api/src/services/ezdxf/render.py
 WORKDIR /app/apps/api
 EXPOSE 3001
 # Repoet kjorer api via tsx (root tsconfig har noEmit -> dist har extensionless ESM-imports som

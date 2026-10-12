@@ -12,7 +12,7 @@
  * N ganger i nyttelasten.
  */
 
-import sharp from "sharp";
+import { aapneBilde } from "./svg-sharp";
 import { normaliserRad } from "@sitedoc/pdf";
 import type { TreObjekt, FeltVerdi } from "@sitedoc/pdf";
 
@@ -115,7 +115,7 @@ export async function malBildeDimensjoner(
   bytes: Buffer,
 ): Promise<{ bredde: number; hoyde: number } | null> {
   try {
-    const m = await sharp(bytes).metadata();
+    const m = await aapneBilde(bytes).metadata();
     if (m.width && m.height) return { bredde: m.width, hoyde: m.height };
     return null;
   } catch {
@@ -146,7 +146,8 @@ export async function byggUtsnittCrop(
   const left = Math.max(0, Math.min(imageWidth - w, Math.round(cx - w / 2)));
   const top = Math.max(0, Math.min(imageHeight - h, Math.round(cy - h / 2)));
   try {
-    const buf = await sharp(bytes)
+    // L7: DWG-tegninger kan være store SVG-er → unlimited for SVG-input (aapneBilde).
+    const buf = await aapneBilde(bytes)
       .extract({ left, top, width: w, height: h })
       .resize({ width: CROP_MAKS_BREDDE, withoutEnlargement: true })
       .flatten({ background: "#ffffff" })

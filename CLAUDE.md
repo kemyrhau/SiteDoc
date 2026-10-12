@@ -37,7 +37,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/simulator-opus-oppkobling.md](docs/claude/simulator-opus-oppkobling.md) | **🟢 STYRENDE for simulator-Opus:** rollen, oppstart fra null (SSH-tunnel `3301`), input-repertoaret (`simctl`+`idb`), koordinat-mapping, handoff-protokoll |
 | [docs/claude/simulator-runbook.md](docs/claude/simulator-runbook.md) | Praktisk oppstartsløype + feilsøkingstabell for simulatoren |
 | [docs/claude/dev-login-agent.md](docs/claude/dev-login-agent.md) | Auth for agent-testing: dev-login-endepunkt, whitelist, secret, testbrukere, SSH-tunnel-rotårsak |
-| [docs/claude/mcp-playwright-simulator-oppsett.md](docs/claude/mcp-playwright-simulator-oppsett.md) | MCP/Playwright for **web** i Kenneths Chrome (simulatoren bruker `simctl`+`idb`, ikke MCP) |
+| [docs/claude/mcp-playwright-simulator-oppsett.md](docs/claude/mcp-playwright-simulator-oppsett.md) | 🔴 **Playwright-utvidelsen i Kenneths Chrome er deaktivert (2026-10-12)** — ikke start `--extension`, ikke be om token. Bruk egen headless nettleser + dev-login (§ 0-STOPP) |
 | [docs/claude/lokal-dev.md](docs/claude/lokal-dev.md) | Lokal dev-flate: porter, DB-tilkobling, feilsøkingstabell |
 | [docs/claude/simulator-ipv6-nordvpn.md](docs/claude/simulator-ipv6-nordvpn.md) | **Feilsøking:** iOS-simulator henger på evig spinner — AAAA/IPv6-rotårsak, ikke NordVPN. **Sjekk FØR koden** |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre-nivå-anker |

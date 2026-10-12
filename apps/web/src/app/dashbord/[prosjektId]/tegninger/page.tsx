@@ -50,6 +50,9 @@ import {
   type Maling,
   type MaleTilstand,
   byggTegningNedlastingsnavn,
+  beregnStrekVars,
+  beregnStartutsnittZoom,
+  svgViewBoxForhold,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
@@ -71,6 +74,7 @@ import { RedigerTegningModal } from "@/components/tegning/RedigerTegningModal";
 import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
 import { KonverteringMarkorLinje } from "@/components/tegning/KonverteringMarkorLinje";
 import { lesKonverteringMarkor } from "@/lib/konverteringMarkor";
+import { tilpassEzdxfSvg } from "@/lib/ezdxfSvgVisning";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
@@ -545,42 +549,67 @@ export default function TegningerSide() {
   const svgUrl = tegning?.fileUrl ? `/api${tegning.fileUrl}` : null;
   const erSvgFil = (tegning?.fileType ?? "") === "svg";
   const [svgInnhold, setSvgInnhold] = useState<string | null>(null);
+  // RETUR 1: ezdxf-SVG bærer sin EGEN <style> (dempet clamp-regel) + data-motor/data-lw-base.
+  // Da skal viseren BEHOLDE den stilen (ikke stripe + injisere egens faste 1,5-regel, som
+  // gjorde hver strek ~115× for tynn). Strek-variablene settes pr. zoom i layout-effekten under.
+  const [erEzdxfSvg, setErEzdxfSvg] = useState(false);
+  // XSS-vern (ordre 2026-10-11, pkt. 1): «er dette en ezdxf-SVG som skal beholde sin <style>?»
+  // avgjøres av SERVERENS markør (konverteringRapport.markor.motor), IKKE av data-motor i fila.
+  // En opplastet/forfalsket SVG kan bære data-motor="ezdxf", men får aldri server-markøren.
+  const erEzdxfMotor =
+    lesKonverteringMarkor(
+      (tegning as unknown as { konverteringRapport?: unknown })?.konverteringRapport ?? null,
+    )?.motor === "ezdxf";
   useEffect(() => {
     if (!svgUrl || !erSvgFil) {
       setSvgInnhold(null);
+      setErEzdxfSvg(false);
       return;
     }
     fetch(svgUrl)
       .then((res) => res.text())
       .then((raaTekst) => {
-        // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner
-        const tekst = rensSvg(raaTekst);
-        // Fjern faste width/height og inject zoom-justert stroke-width CSS
-        let tilpasset = tekst.replace(
-          /<svg([^>]*)>/,
-          (_match, attrs: string) => {
-            const uten = attrs
-              .replace(/\s*width="[^"]*"/g, "")
-              .replace(/\s*height="[^"]*"/g, "");
-            return `<svg${uten} width="100%" height="auto" style="display:block">`;
-          },
-        );
-        // Fjern eksisterende <style> og erstatt med zoom-bevisst versjon
-        tilpasset = tilpasset.replace(/<style>[^<]*<\/style>/g, "");
-        // Inject ny style rett etter <svg ...>
-        tilpasset = tilpasset.replace(
-          /(<svg[^>]*>)/,
-          `$1\n<style>line,polyline,circle,path,ellipse,polygon{stroke-width:calc(1.5 / var(--svg-zoom, 1)) !important}</style>`,
-        );
-        setSvgInnhold(tilpasset);
+        // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner.
+        // tilpassEzdxfSvg avgjør <style>-skjebnen fra server-markøren + CSS-vern (pkt. 1 + 4).
+        const { svg, erEzdxf } = tilpassEzdxfSvg(rensSvg(raaTekst), erEzdxfMotor);
+        setErEzdxfSvg(erEzdxf);
+        setSvgInnhold(svg);
       })
-      .catch(() => setSvgInnhold(null));
-  }, [svgUrl, erSvgFil]);
+      .catch(() => {
+        setSvgInnhold(null);
+        setErEzdxfSvg(false);
+      });
+  }, [svgUrl, erSvgFil, erEzdxfMotor]);
+
+  // RETUR 1 TILLEGG C1: dempet strekskalering for ezdxf-SVG. Viseren setter --strek-skala
+  // (= zoom^(k−1)) + gulv/tak (px→viewBox-konvertert fra displayScale) på SVG-wrapperen pr.
+  // zoom/resize. displayScale = rendret SVG-bredde / viewBox-bredde. Konstantene + formelen
+  // bor i @sitedoc/shared (beregnStrekVars) — delt med mobil (C2).
+  const svgSkalaRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = svgSkalaRef.current;
+    if (!el || !erEzdxfSvg || !svgInnhold) return;
+    const svgEl = el.querySelector("svg") as SVGSVGElement | null;
+    if (!svgEl) return;
+    const vbW = svgEl.viewBox?.baseVal?.width || 0;
+    const renderedW = svgEl.getBoundingClientRect().width;
+    const lwBase = parseFloat(svgEl.getAttribute("data-lw-base") || "") || 1;
+    if (!vbW || !renderedW) return;
+    const { strekSkala, strekMin, strekMaksK } = beregnStrekVars(zoom, renderedW / vbW, lwBase);
+    el.style.setProperty("--strek-skala", String(strekSkala));
+    el.style.setProperty("--strek-min", `${strekMin}px`);
+    el.style.setProperty("--strek-maks-k", String(strekMaksK));
+  }, [zoom, erEzdxfSvg, svgInnhold, klikkModus]);
 
   // RETUR 2 §3: startutsnitt — åpne zoomet til der innholdet er tett (DWG åpnet «veldig
   // lite»). Kjøres når SVG-en er i DOM (svgInnhold satt) så inner-høyden er målbar. Alt
   // annet er fortsatt med og synlig når man zoomer ut.
-  const startutsnittRef = useRef<string | null>(null);
+  // Issue 3 (2026-10-11): SVG-visningen holdes SKJULT (`venterStartutsnitt`, beregnet i
+  // render) til startutsnittet er satt, så brukeren aldri ser tegningen i full størrelse
+  // scrolle til riktig utsnitt. `startutsnittAnvendtId` avdekker den (state, ikke ref, så
+  // render re-evalueres). `setZoom` + `setStartutsnittAnvendtId` batches i samme rAF-commit
+  // → `[zoom]`-layouteffekten anvender scroll FØR paint, og avdekkingen skjer samme frame.
+  const [startutsnittAnvendtId, setStartutsnittAnvendtId] = useState<string | null>(null);
   useEffect(() => {
     if (!erSvgFil || !svgInnhold) return;
     // Cast via lett type: `startutsnitt` er Prisma Json? (dyp rekursiv union → TS2589
@@ -590,31 +619,53 @@ export default function TegningerSide() {
     if (!su || typeof su.w !== "number" || typeof su.h !== "number" || !el) return;
     // Kjør kun én gang pr. tegning (ikke overstyr brukerens egen zoom).
     const nøkkel = `${aktivTegning?.id}`;
-    if (startutsnittRef.current === nøkkel) return;
-    startutsnittRef.current = nøkkel;
+    if (startutsnittAnvendtId === nøkkel) return;
     const raf = requestAnimationFrame(() => {
       const cw = el.clientWidth, ch = el.clientHeight;
-      if (!cw || !ch) return;
-      const z = Math.min(MAKS_ZOOM, Math.max(STANDARD_ZOOM, (0.98 / Math.max(su.w, su.h))));
+      // Kan vi ikke måle containeren, avdekk likevel — aldri stå skjult.
+      if (!cw || !ch) { setStartutsnittAnvendtId(nøkkel); return; }
+      // Forholdet innerH/innerW: primært fra imageWidth/imageHeight, ellers fra
+      // SVG-ens viewBox. Aldri kvadratisk gjetning (da sprenger stående tegninger
+      // høyden). `null` → beregnStartutsnittZoom bruker kun bredde-tilpasning.
       const iw = tegning?.imageWidth ?? null;
       const ih = tegning?.imageHeight ?? null;
+      const forhold = iw && ih ? ih / iw : svgViewBoxForhold(svgInnhold);
+      const z = beregnStartutsnittZoom({
+        bredde: su.w,
+        høyde: su.h,
+        cw,
+        ch,
+        forhold,
+        minZoom: STANDARD_ZOOM,
+        maksZoom: MAKS_ZOOM,
+      });
       const innerW = cw * z;
-      const innerH = iw && ih ? innerW * (ih / iw) : innerW;
+      const innerH = forhold ? innerW * forhold : innerW;
       ønsketScrollRef.current = {
         left: Math.max(0, (su.x + su.w / 2) * innerW - cw / 2),
         top: Math.max(0, (su.y + su.h / 2) * innerH - ch / 2),
       };
       setZoom(z);
+      setStartutsnittAnvendtId(nøkkel);
     });
     return () => cancelAnimationFrame(raf);
     // startutsnitt er stabil pr. tegning (id) → ikke i deps (Json?-type gir TS2589).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svgInnhold, erSvgFil, aktivTegning?.id]);
+  }, [svgInnhold, erSvgFil, aktivTegning?.id, startutsnittAnvendtId]);
 
   // SVG-variant for inspeksjonsmodus med bredere treffområde og hover-highlight
   const svgInnholdInspeksjon = useMemo(() => {
     if (!svgInnhold) return null;
-    // Erstatt stroke-width CSS med bredere versjon + pointer-events stroke + hover-effekt
+    if (erEzdxfSvg) {
+      // ezdxf: BEHOLD den dempede clamp-regelen (SVG-ens egen <style>); LEGG TIL et bredere
+      // treffområde + hover på [data-layer]. Treffbredden følger samme dempede strek × 3
+      // (relativ boost, bevarer lineweight-forhold), med 2 px gulv for klikkbarhet.
+      return svgInnhold.replace(
+        /(<svg[^>]*>)/,
+        `$1\n<style>[data-layer]{pointer-events:stroke;cursor:pointer}[data-layer]:hover{stroke:#3b82f6 !important}path[data-layer][style*="--lw"]{stroke-width:clamp(2px,calc(var(--lw) * var(--strek-skala,1) * 3 * 1px),calc(var(--lw) * var(--strek-maks-k,1e9) * 3 * 1px)) !important}</style>`,
+      );
+    }
+    // egen: erstatt stroke-width CSS med bredere versjon + pointer-events stroke + hover-effekt
     return svgInnhold.replace(
       /<style>[^<]*<\/style>/,
       `<style>
@@ -631,7 +682,7 @@ export default function TegningerSide() {
         }
       </style>`,
     );
-  }, [svgInnhold]);
+  }, [svgInnhold, erEzdxfSvg]);
 
   // Musehjul-zoom sentrert på musepekeren
   // Re-registrer når tegning endres (containerRef mountes etter data-lasting)
@@ -1534,6 +1585,26 @@ export default function TegningerSide() {
   );
   const tegningErKonvertert = !!(tegning as unknown as { originalFileUrl: string | null }).originalFileUrl;
 
+  // Issue 3: SVG skjules til startutsnittet er satt (se startutsnitt-effekten). Smal cast
+  // (startutsnitt er Prisma Json? → TS2589 ved direkte aksess).
+  const suVent = ((tegning as unknown as { startutsnitt?: unknown } | null)?.startutsnitt ?? null) as { w?: unknown; h?: unknown } | null;
+  const venterStartutsnitt =
+    erSvgFil &&
+    !!svgInnhold &&
+    !!suVent &&
+    typeof suVent.w === "number" &&
+    typeof suVent.h === "number" &&
+    startutsnittAnvendtId !== aktivTegning?.id;
+
+  // RETUR 1: står status på pending/converting > 10 min (prosessen døde midt i), vis
+  // «Konverteringen ser ut til å ha stoppet» + «Prøv igjen». Polling (3s) re-rendrer så
+  // terskelen krysses; `updatedAt` endres ikke mens en død konvertering «henger».
+  const konvUpdatedAt = (tegning as unknown as { updatedAt?: string | Date | null }).updatedAt;
+  const konvStoppet =
+    erDwgKonvertering &&
+    !!konvUpdatedAt &&
+    Date.now() - new Date(konvUpdatedAt).getTime() > 10 * 60 * 1000;
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Posisjonsvelger-banner */}
@@ -1584,7 +1655,7 @@ export default function TegningerSide() {
           tegningNavn={tegning.name}
         />
         {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11). */}
-        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} />
+        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={erDwgKonvertering} />
         <div className="flex-1" />
 
         {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
@@ -1884,12 +1955,26 @@ export default function TegningerSide() {
       </div>
 
       {/* Konverteringsstatus — tekst per filtype (PDF vs DWG) */}
-      {erDwgKonvertering && (
+      {erDwgKonvertering && !konvStoppet && (
         <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
           <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
           <span className="text-sm font-medium text-amber-800">
             {t(banner.konverteresNokkel)}
           </span>
+        </div>
+      )}
+      {/* RETUR 1: hengende konvertering (> 10 min) — rømningsvei med «Prøv igjen». */}
+      {konvStoppet && (
+        <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <span className="text-sm text-amber-800">{t("tegninger.konvStoppet")}</span>
+          <button
+            onClick={() => provKonverteringIgjenMutation.mutate({ id: tegning.id })}
+            disabled={provKonverteringIgjenMutation.isPending}
+            className="ml-auto rounded border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+          >
+            {t("tegninger.provIgjen")}
+          </button>
         </div>
       )}
       {dwgFeilet && (
@@ -2125,6 +2210,9 @@ export default function TegningerSide() {
           <div
             ref={containerRef}
             className="flex-1 overflow-auto bg-gray-100"
+            // Issue 3: skjul til startutsnittet er satt (beholder layout → clientWidth/
+            // clientHeight målbar i startutsnitt-effekten). Avdekkes samme frame som scroll.
+            style={venterStartutsnitt ? { visibility: "hidden" } : undefined}
           >
             <div
               ref={maleInnerRef}
@@ -2144,6 +2232,7 @@ export default function TegningerSide() {
               {/* SVG: inline rendering med zoom-justert linjetykkelse */}
               {erSvgFil && svgInnhold ? (
                 <div
+                  ref={svgSkalaRef}
                   className="block w-full"
                   style={{ "--svg-zoom": zoom } as React.CSSProperties}
                   dangerouslySetInnerHTML={{ __html: klikkModus === "inspeksjon" && svgInnholdInspeksjon ? svgInnholdInspeksjon : svgInnhold }}
@@ -2451,7 +2540,21 @@ export default function TegningerSide() {
         )
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-gray-50">
-          {erUkonvertertDwg ? (
+          {erDwgKonvertering ? (
+            // Konvertering pågår: bare en venteflate (banneret over viser status).
+            // Issue 2 (2026-10-11): INGEN «Konverter DWG»-knapp her — den avbrøt/doblet
+            // den pågående konverteringen. Knappen finnes kun ved failed/manglende status.
+            // RETUR 1: henger den > 10 min (konvStoppet) vises stoppet-tekst (banneret bærer
+            // «Prøv igjen»), ikke en evig spinner.
+            konvStoppet ? (
+              <p className="text-sm text-gray-500">{t("tegninger.konvStoppet")}</p>
+            ) : (
+              <>
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <p className="text-sm text-gray-500">{t("tegninger.konverterer")}</p>
+              </>
+            )
+          ) : erUkonvertertDwg ? (
             <>
               <p className="text-sm text-gray-500">DWG-filen må konverteres før den kan vises</p>
               <button
@@ -2612,6 +2715,7 @@ export default function TegningerSide() {
         }
         konverteringMarkor={konvMarkor}
         erKonvertert={tegningErKonvertert}
+        konverterer={erDwgKonvertering}
       />
     </div>
   );

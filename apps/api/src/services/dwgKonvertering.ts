@@ -45,8 +45,12 @@ interface DwgMaaling {
 }
 
 export interface DwgKonverteringsResultat extends DwgMaaling {
-  /** URL til konvertert visningsfil (SVG/PDF) */
+  /** URL til konvertert visningsfil (SVG/PDF) — web-varianten (full mønster-hatch). */
   visningUrl: string;
+  /** L1: mobil-variant (ezdxf `hatch=solid`, ~5–6 MB som rendrer i iOS WebKit).
+   * null = ingen egen mobilvariant (egen-motor / ikke-DWG / ezdxf-mobil feilet) →
+   * mobil faller tilbake til `visningUrl`. */
+  mobilVisningUrl: string | null;
   /** Filtype for visningsfilen */
   visningFilType: string;
   /** Detektert koordinatsystem */
@@ -64,6 +68,17 @@ export interface DwgKonverteringsResultat extends DwgMaaling {
   startutsnitt: { x: number; y: number; w: number; h: number } | null;
   /** RETUR 4 (fullstendighet): parset-vs-tegnet-rapport for hovedtegningen. */
   rapport: KonverteringRapport | null;
+  /** Motoren som FAKTISK tegnet hovedtegningens SVG (L9/stram-markør 2026-10-11).
+   * Markøren skal vise dette, ikke env-valget `DWG_MOTOR` — falt ezdxf tilbake til
+   * egen, er `motor: "egen"` og `fallbackFra: "ezdxf"`. En markør som lyver om motoren
+   * er nettopp feilklassen den skal hindre. */
+  motor: DwgMotor;
+  /** Motoren som ble VALGT men feilet, slik at vi falt tilbake (kun ved fallback).
+   * null = ingen fallback (motor = valgt motor). */
+  fallbackFra: DwgMotor | null;
+  /** Kort årsak til fallbacken (f.eks. «ezdxf ikke konfigurert», «ezdxf-render feilet»).
+   * null når `fallbackFra` er null. */
+  fallbackAarsak: string | null;
 }
 
 interface DwgLayoutResultat extends DwgMaaling {
@@ -2024,6 +2039,120 @@ function escapeXml(tekst: string): string {
 }
 
 /**
+ * Valgt DWG→SVG-motor. `egen` (default) = den TS-interne `dxfTilSvg`; `ezdxf` =
+ * Python-renderen (`ezdxf/render.py`) bak samme lag. Byttes av `DWG_MOTOR`-env.
+ * Test settes til `ezdxf` av Kenneth når den er klar; prod bytter først etter
+ * iPhone-sjekk. extents/rotasjon/startutsnitt/georef/`mmPrPiksel` beregnes rundt
+ * motoren (georef i `konverterDwg`, resten speiles i begge renderne) — derav
+ * paritetskravet (gate L10).
+ */
+export type DwgMotor = "egen" | "ezdxf";
+export function valgtMotor(): DwgMotor {
+  return process.env.DWG_MOTOR === "ezdxf" ? "ezdxf" : "egen";
+}
+
+/** Python-tolk + render.py-sti for ezdxf-motoren. Settes i Docker (api + web) —
+ * se infrastruktur.md / DEPLOY-RUNBOK. Mangler `EZDXF_RENDER_PY`, er ezdxf
+ * utilgjengelig og kalleren faller tilbake til egen motor (synlig i loggen).
+ * Leses DYNAMISK (ikke modul-const) så tester kan styre env pr. case — ellers er
+ * «ezdxf ikke konfigurert»-stien og test(c)/paritet gjensidig utelukkende i én prosess. */
+const ezdxfPython = () => process.env.EZDXF_PYTHON ?? "python3";
+const ezdxfRenderPy = () => process.env.EZDXF_RENDER_PY ?? "";
+
+/**
+ * ezdxf-motorens motstykke til `dxfTilSvg`: spawner `render.py` på DXF-fila og
+ * returnerer samme `DxfSvgResultat`-form. Sikkerhet: `execFile` (ingen shell) +
+ * tidsavbrudd her, selvpålagt minnetak (RLIMIT_AS) i render.py. Kundefila leses
+ * kun. Returnerer null ved manglende motor/feil → kalleren faller til egen.
+ *
+ * `klippBounds` → layout-klipp (som egens `klippBounds`): extents settes direkte,
+ * rotasjon/robust kobles ut, rapport = null.
+ */
+export async function dxfTilSvgEzdxf(
+  dxfSti: string,
+  klippBounds?: { minX: number; maxX: number; minY: number; maxY: number },
+  opsjoner?: {
+    ingenAutoRotasjon?: boolean;
+    hatch?: "normal" | "solid";
+    gruppering?: "ingen" | "farge";
+    /** data-layer/data-type pr. element. "på" (default) for web-varianten (klikk-identifiser
+     * + fullstendighetsrapport). "av" for mobil-varianten: farge-gruppering kan uansett ikke
+     * bære per-element-metadata, og mobil bruker ikke klikk-identifiser (C2-vedtak 2026-10-11). */
+    metadata?: "på" | "av";
+    /** Rå DXF-tekst — kun for fullstendighetsrapporten (motor-uavhengig, som egen).
+     * Utelates ved layout-klipp (rapporten gjelder hele DXF-en, ikke klippet). */
+    dxfInnhold?: string;
+  },
+): Promise<DxfSvgResultat | null> {
+  const renderPy = ezdxfRenderPy();
+  if (!renderPy) {
+    console.warn("[DWG] ezdxf-motor valgt, men EZDXF_RENDER_PY er ikke satt — kan ikke rendre med ezdxf.");
+    return null;
+  }
+  const dir = dirname(dxfSti);
+  const svgOut = join(dir, `${randomUUID()}.svg`);
+  const metaOut = join(dir, `${randomUUID()}.json`);
+  const args = [
+    renderPy, dxfSti, svgOut,
+    "--meta", metaOut,
+    "--tekst", "egen",
+    "--gruppering", opsjoner?.gruppering ?? "ingen",
+    "--hatch", opsjoner?.hatch ?? "normal",
+    // data-layer (player) + data-type (handle→dxftype / tekst-type) pr. element →
+    // web klikk-identifiser + fullstendighetsrapport, uten SVGBackend-subklasse.
+    "--metadata", opsjoner?.metadata ?? "på",
+  ];
+  if (opsjoner?.ingenAutoRotasjon) args.push("--rotasjon", "av", "--robust", "av");
+  if (klippBounds) {
+    args.push("--klipp", `${klippBounds.minX},${klippBounds.minY},${klippBounds.maxX},${klippBounds.maxY}`);
+  }
+  try {
+    await execFileAsync(ezdxfPython(), args, {
+      timeout: 300000, cwd: dir, maxBuffer: 50 * 1024 * 1024,
+    });
+    const [svg, metaRaw] = await Promise.all([
+      readFile(svgOut, "utf-8"),
+      readFile(metaOut, "utf-8"),
+    ]);
+    const meta = JSON.parse(metaRaw) as {
+      vbW: number; vbH: number; width: number; height: number;
+      autoRotasjon: number | null;
+      startutsnitt: { x: number; y: number; w: number; h: number } | null;
+      blokkTyper?: Record<string, number>;
+    };
+    // Fullstendighetsrapport bygges motor-uavhengig fra SVG-ens data-type (samme
+    // logikk som egen, dwgKonvertering): parset = tellDxfInventar, tegnet = telling
+    // av data-type i SVG. Null ved layout-klipp (inventaret gjelder hele DXF-en).
+    let rapport: KonverteringRapport | null = null;
+    if (!klippBounds && opsjoner?.dxfInnhold) {
+      const tegnetPrType: Record<string, number> = {};
+      for (const m of svg.matchAll(/data-type="([^"]+)"/g)) {
+        tegnetPrType[m[1]!] = (tegnetPrType[m[1]!] ?? 0) + 1;
+      }
+      // Krediter blokk-interne typer (ARC/ELLIPSE osv.): ezdxf tegner dem via INSERT,
+      // så de mangler egen data-type — uten dette ville de bli falske «ikke tegnet».
+      for (const [type, antall] of Object.entries(meta.blokkTyper ?? {})) {
+        tegnetPrType[type] = (tegnetPrType[type] ?? 0) + antall;
+      }
+      rapport = byggRapport(tellDxfInventar(opsjoner.dxfInnhold), tegnetPrType);
+    }
+    return {
+      svg,
+      vbW: meta.vbW, vbH: meta.vbH, width: meta.width, height: meta.height,
+      autoRotasjon: meta.autoRotasjon ?? null,
+      startutsnitt: meta.startutsnitt ?? null,
+      rapport,
+    };
+  } catch (err) {
+    console.warn("[DWG] ezdxf render.py feilet:", err);
+    return null;
+  } finally {
+    await unlink(svgOut).catch(() => { /* OK */ });
+    await unlink(metaOut).catch(() => { /* OK */ });
+  }
+}
+
+/**
  * Konverter en DWG- eller DXF-fil til visnings-SVG + enheter + georeferanse + layouts.
  *
  * D4: `.dxf` leses direkte (hopper over `dwg2dxf`). D5: `$INSUNITS` → mm/piksel,
@@ -2048,12 +2177,17 @@ export async function konverterDwg(
   if (!erDxf && !(await sjekkLibreDwg())) {
     return {
       ...tomMaaling,
-      visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
+      visningUrl: "", mobilVisningUrl: null, visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: "DWG-konvertering (libredwg) er ikke tilgjengelig på denne serveren.",
       layouts: [],
       autoRotasjon: null,
       startutsnitt: null,
       rapport: null,
+      // Ingen SVG → markør skrives ikke (anvendDwgResultat krever visningUrl); felter
+      // settes for typens skyld. Valgt motor, ingen fallback (ingenting ble tegnet).
+      motor: valgtMotor(),
+      fallbackFra: null,
+      fallbackAarsak: null,
     };
   }
 
@@ -2100,14 +2234,47 @@ export async function konverterDwg(
     const system = dxfInnhold ? detekterKoordinatSystem(filnavn, extents ?? undefined) : null;
     console.log("[DWG] Detektert koordinatsystem:", system);
 
-    // 3. SVG fra egen DXF-parser → hovedtegningens måling (D5)
+    // Motorvalg (DWG_MOTOR). ezdxf trenger DXF-FILA (readfile), ikke strengen.
+    const motor = valgtMotor();
+    const dxfSti = erDxf ? filSti : libreDxfSti;
+    if (motor === "ezdxf") console.log("[DWG] Motor: ezdxf");
+
+    // 3. SVG → hovedtegningens måling (D5). egen = TS-parser; ezdxf = render.py.
     let visningUrl = "";
     let visningFilType = "";
     let maaling: DwgMaaling = tomMaaling;
     let autoRotasjon: number | null = null;
     let startutsnitt: { x: number; y: number; w: number; h: number } | null = null;
     let rapport: KonverteringRapport | null = null;
-    const svgRes = dxfInnhold ? dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system }) : null;
+    // Mobil-variant (L1): kun ezdxf-motoren produserer en egen lettere SVG (hatch=solid).
+    // egen-SVG og dwg2SVG rendrer alt i iOS WebKit → mobilVisningUrl = null, mobil
+    // faller tilbake til fileUrl (gyldig, ingen backfill).
+    let mobilVisningUrl: string | null = null;
+    let svgRes: DxfSvgResultat | null = null;
+    let ezdxfBrukt = false; // true kun når ezdxf-web faktisk lyktes (ikke egen-fallback)
+    // Stram markør (2026-10-11): spor motoren som FAKTISK tegnet, ikke env-valget.
+    // Falt ezdxf tilbake til egen → motor="egen", fallbackFra="ezdxf" + kort årsak.
+    let fallbackFra: DwgMotor | null = null;
+    let fallbackAarsak: string | null = null;
+    if (dxfInnhold) {
+      if (motor === "ezdxf") {
+        svgRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, dxfInnhold });
+        if (svgRes) {
+          ezdxfBrukt = true;
+        } else {
+          // Skill de to grunnene så markøren bærer en ærlig årsak: motoren er ikke
+          // installert/konfigurert i containeren vs. render.py feilet på DENNE fila.
+          fallbackFra = "ezdxf";
+          fallbackAarsak = ezdxfRenderPy() ? "ezdxf-render feilet" : "ezdxf ikke konfigurert";
+          console.warn(`[DWG] ezdxf-motor ga ingen SVG (${fallbackAarsak}) — faller tilbake til egen motor.`);
+          svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
+        }
+      } else {
+        svgRes = dxfTilSvg(dxfInnhold, undefined, { ingenAutoRotasjon: !!system });
+      }
+    }
+    // Motoren vi rapporterer i markøren = den som faktisk produserte SVG-en.
+    const faktiskMotor: DwgMotor = ezdxfBrukt ? "ezdxf" : "egen";
     if (svgRes) {
       const svgFilnavn = `${randomUUID()}.svg`;
       await writeFile(join(uploadDir, svgFilnavn), svgRes.svg, "utf-8");
@@ -2118,6 +2285,26 @@ export async function konverterDwg(
       startutsnitt = svgRes.startutsnitt;
       rapport = svgRes.rapport;
       console.log(`[DWG] SVG generert (mm/px=${maaling.mmPrPiksel ?? "null"}, scaleKilde=${maaling.scaleKilde ?? "null"}, rotasjon=${autoRotasjon ?? "null"})`);
+
+      // Mobil-variant: samme ramme (extents/rotasjon/viewBox uendret av hatch-modus),
+      // men hatch=solid → ~5–6 MB som rendrer i iOS WebKit <img> (PoC: full hatch ~19 MB
+      // dekoder ikke). C2-vedtak 2026-10-11: gruppering=farge (mega-paths) → ~1/4 noder og
+      // ~1/4 filstørrelse (målt fallplan: 12 775 vs 59 958 noder, 2,5 vs 9,3 MB) → mindre
+      // minne/parsing på eldre iPhones + raskere settle-recalc for inline-visning. metadata=av:
+      // farge-gruppering kan ikke bære per-element data-layer, og mobil bruker ikke
+      // klikk-identifiser (det ville i så fall kreve ugruppert variant). Produseres KUN når
+      // ezdxf-web lyktes; feiler den, står mobil uten egen variant og faller tilbake til fileUrl.
+      if (ezdxfBrukt && dxfInnhold) {
+        const mobilRes = await dxfTilSvgEzdxf(dxfSti, undefined, { ingenAutoRotasjon: !!system, hatch: "solid", gruppering: "farge", metadata: "av" });
+        if (mobilRes) {
+          const mobilFilnavn = `${randomUUID()}.svg`;
+          await writeFile(join(uploadDir, mobilFilnavn), mobilRes.svg, "utf-8");
+          mobilVisningUrl = `/uploads/${mobilFilnavn}`;
+          console.log(`[DWG] Mobil-variant generert (hatch=solid, ${(mobilRes.svg.length / 1024 / 1024).toFixed(1)} MB)`);
+        } else {
+          console.warn("[DWG] Mobil-variant (ezdxf hatch=solid) feilet — mobil faller tilbake til fileUrl.");
+        }
+      }
     }
 
     // Fallback: dwg2SVG (kun DWG). Ingen måling/inspeksjon (visningKilde=dwg2SVG) — D5/§6.
@@ -2148,7 +2335,9 @@ export async function konverterDwg(
           console.log(`[DWG] Hopper over layout "${layout.navn}" (ingen viewport/modelBounds)`);
           continue;
         }
-        const klippet = dxfTilSvg(dxfInnhold, layout.modelBounds);
+        const klippet = motor === "ezdxf"
+          ? (await dxfTilSvgEzdxf(dxfSti, layout.modelBounds)) ?? dxfTilSvg(dxfInnhold, layout.modelBounds)
+          : dxfTilSvg(dxfInnhold, layout.modelBounds);
         if (!klippet) {
           console.warn(`[DWG] Layout "${layout.navn}" ga ingen SVG (ugyldig klipp) — hoppet over`);
           continue;
@@ -2192,6 +2381,7 @@ export async function konverterDwg(
     return {
       ...maaling,
       visningUrl,
+      mobilVisningUrl,
       visningFilType,
       koordinatSystem: system,
       geoReferanse,
@@ -2200,18 +2390,24 @@ export async function konverterDwg(
       autoRotasjon,
       startutsnitt,
       rapport,
+      motor: faktiskMotor,
+      fallbackFra,
+      fallbackAarsak,
     };
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
     if (ryddDxf) { try { await unlink(libreDxfSti); } catch { /* OK */ } }
     return {
       ...tomMaaling,
-      visningUrl: "", visningFilType: "", koordinatSystem: null, geoReferanse: null,
+      visningUrl: "", mobilVisningUrl: null, visningFilType: "", koordinatSystem: null, geoReferanse: null,
       feil: err instanceof Error ? err.message : "Ukjent konverteringsfeil",
       layouts: [],
       autoRotasjon: null,
       startutsnitt: null,
       rapport: null,
+      motor: valgtMotor(),
+      fallbackFra: null,
+      fallbackAarsak: null,
     };
   }
 }

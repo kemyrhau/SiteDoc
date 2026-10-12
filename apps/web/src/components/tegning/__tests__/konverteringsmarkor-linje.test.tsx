@@ -43,4 +43,17 @@ describe("KonverteringMarkorLinje — stille konverteringsmetadata", () => {
     const { container } = render(<KonverteringMarkorLinje markor={null} erKonvertert={false} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("konvertering pågår → «Konverterer …», ALDRI den gamle markøren (issue 2)", () => {
+    render(
+      <KonverteringMarkorLinje
+        markor={{ kodeversjon: "8bba6974", konvertertTid: "2026-10-11T16:46:00.000Z", motor: "egen" }}
+        erKonvertert
+        konverterer
+      />,
+    );
+    expect(screen.getByText("tegninger.konverterer")).toBeTruthy();
+    // den gamle markøren skal IKKE vises mens det konverteres
+    expect(screen.queryByText(/tegninger\.markor\.konvertert:/)).toBeNull();
+  });
 });

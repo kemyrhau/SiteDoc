@@ -1,7 +1,7 @@
 ---
 tittel: Nettleser- og simulator-styring for Claude (Playwright MCP + idb)
-status: 🟢 AKTIV
-sist_verifisert_mot_kode: 2026-07-08
+status: ⚠️ DELVIS UTE AV DRIFT (Playwright-utvidelsen i Kenneths Chrome er deaktivert, se § 0-STOPP)
+sist_verifisert_mot_kode: 2026-10-12
 gjelder: verktøyoppsett for Opus-økter (web-verifisering + iOS-simulator)
 ---
 
@@ -10,6 +10,19 @@ gjelder: verktøyoppsett for Opus-økter (web-verifisering + iOS-simulator)
 Hvordan en Opus-økt kan (1) styre Kenneths **ekte, innloggede Chrome** for
 web-verifisering/seeding, og (2) styre **iOS-simulatoren** for mobil-app-testing.
 Oppsettet persisterer på maskinen — en ny økt trenger kun å kjenne til det.
+
+## 0-STOPP. 🔴 Playwright-utvidelsen i Kenneths Chrome kan ikke slås på (målt 2026-10-12)
+
+Chrome har slått av «Playwright Extension» (v0.4.0) med meldingen *«Slå på utviklermodus for å bruke denne utvidelsen … er ikke gjennomgått av Chrome Nettmarked»*. Bryteren står på **Av**, og Kenneth får den ikke på. Agenter har prøvd å starte `--extension`-relayen gjentatte ganger uten resultat.
+
+**Gjelder til Kenneth sier noe annet:**
+- ❌ **Ikke** start `@playwright/mcp --extension`, og ikke be Kenneth om token eller klikk på utvidelsen. Den virker ikke, og hvert forsøk koster ham tid.
+- ❌ **Ikke** `claude-in-chrome` mot SiteDoc (Caveat A under gjelder fortsatt).
+- ✅ **Bruk egen nettleser (headless Playwright/Chromium/WebKit) startet av agenten selv**, mot lokal stack eller test, med innlogging via dev-login-endepunktet ([dev-login-agent.md](dev-login-agent.md)). Det er slik visuelle bevis lages (eksempel: `relay/bevis-ezdxf-c1gate/`, Dokgen 2026-10-12).
+- ✅ Orkestrator i Claude-appen kan bruke appens innebygde nettleser.
+- Å slå på utviklermodus i Chrome er Kenneths valg (sikkerhetsinnstilling). Agenter skal ikke be om det.
+
+Seksjonene under (0a, 0, 4) beskriver det gamle utvidelsesoppsettet og står som historikk.
 
 ## 0a. 🔴 TIL AGENTEN: slik kobler du deg til SiteDoc web (les FØR du prøver noe)
 

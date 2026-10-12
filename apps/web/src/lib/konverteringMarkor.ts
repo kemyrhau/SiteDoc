@@ -1,33 +1,14 @@
 /**
- * Konverteringsmarkør (2026-10-11): leser `{ kodeversjon, konvertertTid, motor }` som
- * api lagrer under `markor` i `drawings.konvertering_rapport` (ved siden av DWG-
- * fullstendighetsrapporten). BEVISER hvilken kode som sist konverterte tegningen — vist
- * som stille metadata i «Rediger tegningsdetaljer» og revisjonslista.
+ * Konverteringsmarkør (2026-10-11): `{ kodeversjon, konvertertTid, motor }` som api
+ * lagrer under `markor` i `drawings.konvertering_rapport`. BEVISER hvilken kode/motor
+ * som sist konverterte tegningen — vist som stille metadata i «Rediger
+ * tegningsdetaljer» og revisjonslista.
  *
- * Rent lesende + defensivt: feltet er `Json?` og kan være null, en ren
- * fullstendighetsrapport uten `markor` (eldre tegning), eller ukjent form.
+ * `KonverteringMarkor` + `lesKonverteringMarkor` er flyttet til @sitedoc/shared (RETUR 2,
+ * 2026-10-12) så mobil-viseren deler parseren. Re-eksporteres her for å beholde den
+ * stabile `@/lib/konverteringMarkor`-importstien i web. UI-formatererne under er web-lokale.
  */
-export interface KonverteringMarkor {
-  kodeversjon: string;
-  konvertertTid: string;
-  motor: string;
-}
-
-/** Hent markøren fra `konverteringRapport`, eller null om den mangler/har feil form. */
-export function lesKonverteringMarkor(rapport: unknown): KonverteringMarkor | null {
-  if (!rapport || typeof rapport !== "object") return null;
-  const markor = (rapport as { markor?: unknown }).markor;
-  if (!markor || typeof markor !== "object") return null;
-  const { kodeversjon, konvertertTid, motor } = markor as Record<string, unknown>;
-  if (
-    typeof kodeversjon !== "string" ||
-    typeof konvertertTid !== "string" ||
-    typeof motor !== "string"
-  ) {
-    return null;
-  }
-  return { kodeversjon, konvertertTid, motor };
-}
+export { lesKonverteringMarkor, type KonverteringMarkor } from "@sitedoc/shared";
 
 /** Kompakt lokaltid «dd.MM HH:mm» (f.eks. «11.10 10:45»). Tom streng ved ugyldig ISO. */
 export function formaterKonvertertTid(iso: string): string {
