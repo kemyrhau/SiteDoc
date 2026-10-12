@@ -1,9 +1,9 @@
 ---
 name: arbeidstegning-spec
-description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tolv ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + to MEP-tegninger: medisinske gasser og tele/elektro), avgrensning, åtte spørsmål til Kenneth. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
+description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, åtte spørsmål til Kenneth. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
 sist_verifisert_mot_kode: 2026-10-12
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: ⚠️ UTKAST TIL GATE (rev. 3, 2026-10-12 — HABU/Revit + to MEP-filer målt) — ingenting under er bygget. Q1–Q8 til Kenneth.
+status: ⚠️ UTKAST TIL GATE (rev. 4, 2026-10-12 — HABU/Revit + sykehus-sett ARK/VVS/EL målt) — ingenting under er bygget. Q1–Q8 til Kenneth.
 ---
 
 # Arbeidstegning — DWG/DXF som verktøy, ikke bilde
@@ -13,12 +13,12 @@ status: ⚠️ UTKAST TIL GATE (rev. 3, 2026-10-12 — HABU/Revit + to MEP-filer
 > utføres på byggeplass. DWG inneholder også metadata på linjer og objekter. disse bør også være klikkbare og kunne hentes
 > opp. jeg hadde håpet dxf-sporet ville lede til det detaljerte grensesnittet som gjør dwg/dxf nyttig vs PDF»* + *«ja»* til
 > spesifikasjon før noe mer bygges. Ordre: orkestrator 2026-10-12 (`relay/inbox-fabel.md`). Rev. 2: Kenneth la til sju
-> Revit-tegninger (`DWG eksempelfiler/HABU/Fra interaxo/`) — *«prøv å analysere disse filene → er det mer informasjon?»* Ja (§ 1b). Rev. 3: to MEP-tegninger (`TB3-1074.dwg`, `VB3-1074.DWG`) — *«sjekk disse to filene»* (AT-F10–F13).
+> Revit-tegninger (`DWG eksempelfiler/HABU/Fra interaxo/`) — *«prøv å analysere disse filene → er det mer informasjon?»* Ja (§ 1b). Rev. 3: to MEP-tegninger (`TB3-1074.dwg`, `VB3-1074.DWG`) — *«sjekk disse to filene»* (AT-F10–F13). Rev. 4: ARK-underlaget `AB3-1071.dwg` kom — *«nå er filen der»* (AT-F14).
 
 ## 0. Hva dette er, og ikke er
 
 Dette er **hva byggeplassbrukeren skal kunne gjøre** med en DWG/DXF-tegning på telefon og PC, med krav som kan testes på de
-tolv ekte filene i `DWG eksempelfiler/` (tre av dem er fixtures i `apps/api/test-fixtures/dwg/`; HABU-filene: se Q7, flyttet bort 2026-10-12). Den
+tretten ekte filene i `DWG eksempelfiler/` (tre av dem er fixtures i `apps/api/test-fixtures/dwg/`; HABU-filene: se Q7, flyttet bort 2026-10-12). Den
 **velger ikke** teknisk vei. A (ezdxf-SVG + egenskapsregister) mot B (DXF tegnet på klient) avgjøres av Dokgens målte prøve
 mot akseptkriteriene i § 3. Bygger på [tegning-dwg-spec.md](tegning-dwg-spec.md) (konvertering, enheter, layouts, strek) og
 rører ikke 3D/IFC/punktsky, PDF-veien eller tegningsserie (T2).
@@ -40,7 +40,7 @@ rører ikke 3D/IFC/punktsky, PDF-veien eller tegningsserie (T2).
 | AT-M9 | **Stabil objekt-id finnes ikke i SVG-en:** `render.py` leser DXF-handle for å utlede type, men skriver ikke `data-handle` (0 treff). **XDATA leses ikke** av noen motor (0 treff `xdata`/`get_xdata` i `render.py`/`dwgKonvertering.ts`). **Laginventar lagres ikke i DB** — `konverteringRapport` har bare `parsetPrType/tegnetPrType/ikkeTegnet` + `markor` | `render.py:80, :203-208, :479-513`; `dwgKonvertering.ts:950-971, :1364-1372` |
 | AT-M10 | Tegningssiden har **ingen hjelpetekst** (?-ikon); bare tooltip-nøkler `maaling.*Hjelp` | `nb.json:1670-1678`; `grep HjelpKnapp tegninger/` → 0 |
 
-### 1b. Hva de tolv ekte filene faktisk bærer (ezdxf 1.4.4 på `dwg2dxf -y`-DXF, lokalt 2026-10-12)
+### 1b. Hva de tretten ekte filene faktisk bærer (ezdxf 1.4.4 på `dwg2dxf -y`-DXF, lokalt 2026-10-12)
 
 | # | Fil | Fakta |
 |---|---|---|
@@ -56,14 +56,16 @@ rører ikke 3D/IFC/punktsky, PDF-veien eller tegningsserie (T2).
 
 | AT-F10 | **VB3-1074 (VVS, medisinske gasser; AC1018 = AutoCAD 2004, `$INSUNITS 0` = enhetsløs, koordinater i mm)** 1 303 entiteter. **Hvert gassystem er ett lag med egen farge OG linjetype:** V3411 (CENTER, gul), V3412 (CENTER2, blå), V3413 (CENTERX2, magenta), V3414 (DASHEDX2), V3415 (DIVIDEX2), V3416 (DIVIDE2) — NS 3451 341 medisinske gassanlegg, siste siffer = system. V3400 = utstyr (blokker `GB` 13, `SKAP2/3`, `TRVAKT`), V341-T = **tekstlag** med 152 TEXT: dimensjon + medium «15.TR», «12.O2», «18.O2», «22.TR», «10.LG», «15.EVAK», «10.CO2», «10 MM OKSYGEN», «12 MM MED.TR.LUFT». Blokker: `PILS` (strømningspil) 126, `AVST` (avstengingsventil) 34. 175 CIRCLE (r 15/20 = uttak). **Ingen ATTRIB, ingen XDATA på entiteter, ingen hyperlenker.** Hvilken tekst som hører til hvilket rør er **bare geometri** (nærmeste linje), ikke data |
 | AT-F11 | **TB3-1074 (tele/elektro, samme bygg, AC1018, enhetsløs)** 731 entiteter, 14 lag: E4113 (449, føringer; 172 LINE `DASHED_2` = skjult/i tak), E4111, E521/E520-T (tele, 521), E556 (lyd/bilde), E4611 (lys), E1821, E232, E433. **Komponentblokker med attributter:** `_E-0019` ×11 på E521 (`LITT=J32.200`, `ANTAL=1`), `_E-0234B` ×13 på E556 (`LITT=J76.2`, `$TEXT=R/TV`), `_E-01221` ×23 på E1821, `ESYMB_30` (`PLH=3000` plasseringshøyde, `MAN=Av`), `$AHEIGHT` (rom-/dørhøyder). Attributtene `LITT` (littera/komponentmerking), `RUM` (rom, tom), `ANTAL` kommer fra et nordisk E-CAD-oppsett. TEXT: romnummer «B7.06» ×11 på E520-T, kursnummer «D1.1»–«D2.7». Tekstlag med suffiks «-T»/«T» |
-| AT-F12 | 🔴 **Bygget er en xref som mangler.** Begge filene refererer `AB3-1071` (ARK-plan) fra `T:\A-RITO\B\B3\AB3-1071.DWG`, innsatt i origo, skala 1, rotasjon 0, på lag `XREF-ARK`. Xref-fila er ikke med → **konvertert alene viser tegningen bare rør/kabler i tomrom, uten vegger.** VB3 bærer ARK-ens lagnavn med beskrivelse (`AB3-1071|A2312` «Ikke bærende yttervegg», `AB3-1071|ROMNR` «Tekn.romnr./Romkode», «Lagstruktur etter POINT arkitekt modul») — et spor etter underlaget, ikke geometri. **TB3, VB3 og AB3 deler koordinatramme** (extents 152 694–197 330 / 257 727–294 508, samme xref-innsetting) → fagtegningene kan legges oppå hverandre uten kalibrering |
+| AT-F12 | 🔴 **Bygget er en xref som mangler.** Begge filene refererer `AB3-1071` (ARK-plan) fra `T:\A-RITO\B\B3\AB3-1071.DWG`, innsatt i origo, skala 1, rotasjon 0, på lag `XREF-ARK`. Lastes VB3/TB3 opp alene → **tegningen viser bare rør/kabler i tomrom, uten vegger.** (Xref-fila kom i rev. 4, AT-F14.) VB3 bærer ARK-ens lagnavn med beskrivelse (`AB3-1071|A2312` «Ikke bærende yttervegg», `AB3-1071|ROMNR` «Tekn.romnr./Romkode», «Lagstruktur etter POINT arkitekt modul») — et spor etter underlaget, ikke geometri. **TB3, VB3 og AB3 deler koordinatramme** (extents 152 694–197 330 / 257 727–294 508, samme xref-innsetting) → fagtegningene kan legges oppå hverandre uten kalibrering. **Bekreftet i rev. 4:** AB3-1071 har extents 152 999–197 326 / 257 740–294 263 — samme ramme som VB3 på desimalen |
 | AT-F13 | **Enhetsløs (`$INSUNITS 0`)** på begge → D5-regelen låser måling til kalibrering, selv om koordinatene åpenbart er mm (bygg 44 × 37 m, teksthøyde 150). `$LTSCALE` 50/200 → linjetypemønsteret (CENTER/DASHED) må skaleres riktig for å skille systemene visuelt; egen motor tegner i dag alle linjetyper heltrukne (`tegning-dwg-spec.md` D-M12), ezdxf-motoren er ikke målt på dette |
+
+| AT-F14 | **AB3-1071 (ARK-underlaget; AC1032, mm, `$LTSCALE 200`)** 1 911 entiteter (1 465 LINE, 213 TEXT, 204 INSERT), 21 lag. 🟢 **Lagene bærer egne beskrivelser i fila** (`AcAecLayerStandard`, lest av ezdxf `layer.description`): A2311 «Yttervegg bærende», A2411 «Innervegg bærende», A2412 «Innervegg IKKE bærende» (966 el.), A2433 «Dører i innervegg», A2334 «Vindu i yttervegg», A222 «Søyler», A271 «Fast innventar», A27131 «Sanitærutstyr», A621 «Heiser», A661 «Sjakter», ROMNR «Tekn.romnr./Romkode», BRNR «Bruksnr.» — lagstruktur etter POINT arkitektmodul. **Rom:** 140 TEXT på ROMNR = romkode («7S-21.02») og romnavn («EKSP.», «MEDISIN», «VAKT», «ISOL.») som to løse tekster ~230 mm fra hverandre; BRNR = bruksnummer («B3-773 A»). **XDATA fra POINT** på 1 373 entiteter (`XA40AWALLLINE` vertex-punkt + typekode, `XA40ASTOMKOMP` dør/vindu-mål 4500×1380, `XA40ACOLUMN` søylemål 400×400) — **gir ikke objektidentitet** (vegg = linjer som deler vertex, bare geometri). Dør/vindu-blokker med kodet navn («_A_LD1P9590PMLNS88», «_A_W24P115…»), anonyme `*U24…` dynamiske blokker, WC1/S14/G2 sanitær. Ingen tittelfelt (Layout1 tom), 3 DIMENSION. ⚠️ **libredwg 0.14 gir 97 `ERROR: bit_rd_BL: unexpected 2-bit code`** på denne AC1032-fila og skriver likevel DXF — fullstendighet mot TrueView er ikke målt (test 18) |
 
 **Konsekvens:** «hva er dette?» kommer fra fire kildeklasser, avhengig av eksporten:
 1. **Revit-eksport (HABU):** element-id + kategori + type fra XDATA, familie/størrelse fra blokknavn, pennebredde fra lag — rikest, og id-en holder på tvers av tegninger og (normalt) revisjoner.
 2. **ArchiCAD/IFC-import (fallplan):** lagnavn (NS 3451/IFC), romblokker med attributter, skravurmønster = materiale.
 3. **Vektorisert/landmåler (UTM32, NTM6):** bare lagnavn og farge; AEC-egenskapssett tapt.
-4. **Eldre AutoCAD-MEP (VB3/TB3):** system = lag + linjetype + farge, dimensjon/medium = tekst ved siden av røret (bare geometrisk kobling), komponent = blokk med attributter (littera, type, høyde); **bygget ligger i en xref som ikke følger med**.
+4. **Eldre AutoCAD/POINT (AB3/VB3/TB3):** system/bygningsdel = lag med **beskrivelse i fila** + linjetype + farge, dimensjon/medium/romnavn = tekst ved siden av objektet (bare geometrisk kobling), komponent = blokk med attributter (littera, type, høyde); **bygget ligger i en egen xref-tegning** som må stables under fagtegningene (F10).
 § 3 krever at viseren bruker det som finnes, og viser aldri «—» for det som mangler.
 
 ## 2. Brukerhistorier
@@ -99,7 +101,7 @@ er de Dokgens prøve måles mot.
 - Trykk/klikk på en strek, flate eller tekst viser et egenskapskort. **Hele objektet markeres**, ikke bare streken: alle
   elementer med samme Revit element-id (AT-F6), ellers samme blokk-instans, ellers bare det trufne elementet.
 - **Felt, i denne rekkefølgen, bare de som har verdi:**
-  1. **Hva** — Revit-kategori på norsk («Vegg», «Dør», «Vindu», «Himling», …) når XDATA finnes; ellers tolket fra lagnavn: bygningsdel (NS 3451-kode + navn), objekttype (SOSI-kode + navn) eller IFC-kategori. Rå lagnavn alltid synlig under
+  1. **Hva** — Revit-kategori på norsk («Vegg», «Dør», «Vindu», «Himling», …) når XDATA finnes; ellers **lagets egen beskrivelse fra fila** når den finnes (AT-F14: «Innervegg IKKE bærende»); ellers tolket fra lagnavn: bygningsdel (NS 3451-kode + navn), objekttype (SOSI-kode + navn) eller IFC-kategori. Rå lagnavn alltid synlig under
   2. **Type/størrelse** — fra blokknavn (familie + type + størrelse: «Focus-ID Hel · 10×21 M») eller Revit type-id
   3. **Rom/blokk** — blokknavn + attributter (`ROOM_NAME`, `ROOM_NUMBER`, …) når objektet er, eller ligger i, en blokk; romtekst (navn/nummer/areal) når objektet er en romtagg
   4. **Materiale** — skravurmønster oversatt («Betong_strukturell» → Betong), rå navn under; Revit `FP_n` vises ikke (bare nummer, uten mening)
@@ -125,11 +127,12 @@ er de Dokgens prøve måles mot.
   - A11 HABU A-10-101: klikk på målsetting → måleverdi (f.eks. «3 440 mm»); på romtekst «137» → «Rom 137 · Aktivitetssal · 56,8 m²».
   - A12 VB3-1074: trykk på en linje på V3411 → «Medisinsk gass · system 3411 · lag V3411 · linjetype CENTER» + «15.TR (nærmeste merking)» når teksten ligger innen grensen; linje uten tekst i nærheten → ingen merkingsfelt.
   - A13 TB3-1074: trykk på blokken `_E-0234B` → «Komponent · _E-0234B · LITT J76.2 · R/TV · antall 1 · lag E556»; på `ESYMB_30` → «PLH 3000».
+  - A14 AB3-1071: klikk på en linje på A2412 → «Innervegg IKKE bærende · A2412» (beskrivelsen fra fila, ikke tolkning); på romkoden «7S-21.02» → «Rom 7S-21.02 · EKSP. (nærmeste merking)».
 - **Objektidentitet:** hvert objekt skal kunne refereres stabilt: **Revit element-id når den finnes** (stabil på tvers av tegninger og revisjoner fra samme modell), ellers DXF-handle innen samme revisjon (AT-M9). Kreves av F3/F5/F8.
 
 ### F2 — Lag/fag av og på · **MÅ** (web + mobil)
 
-- Lagpanel med to nivåer: **gruppe** → **rå lag** under. Gruppe = Revit-kategori når XDATA finnes («Vegger», «Dører/vinduer», «Akser», «Målsetting», «Tekst», «Himlinger»); ellers tolket fra lagnavn: NS 3451-prefiks (2–3 siffer, med eller uten «A»-prefiks og «-»/«_»), AIA/IFC-prefiks (`A-`/`S-`/`P-`/`I-`/`Q-`), SOSI-kode (3–4 siffer + mellomrom), suffiks «(Skravur)»/«(Tekst)»/«(Nye konstruksjoner)». Lag uten treff → gruppe «Andre» med rå navn.
+- Lagpanel med to nivåer: **gruppe** → **rå lag** under. Gruppe = Revit-kategori når XDATA finnes («Vegger», «Dører/vinduer», «Akser», «Målsetting», «Tekst», «Himlinger»); ellers lagets beskrivelse fra fila som visningsnavn (AT-F14) gruppert på NS 3451-prefiks; ellers tolket fra lagnavn: NS 3451-prefiks (2–3 siffer, med eller uten «A»-prefiks og «-»/«_»), AIA/IFC-prefiks (`A-`/`S-`/`P-`/`I-`/`Q-`), SOSI-kode (3–4 siffer + mellomrom), suffiks «(Skravur)»/«(Tekst)»/«(Nye konstruksjoner)». Lag uten treff → gruppe «Andre» med rå navn.
 - Av/på pr. gruppe og pr. lag; «Bare dette»; «Alle på». Antall objekter pr. lag synlig.
 - Oppsettet huskes pr. tegning på enheten (Q4 avgjør om det skal deles).
 - **Akseptkriterier:**
@@ -140,6 +143,7 @@ er de Dokgens prøve måles mot.
   - B5 Lagvalget overlever bytte til annen tegning og tilbake (samme enhet).
   - B6 Markører (F5) følger ikke lag — de vises uansett.
   - B7 HABU A-10-101: gruppe «Vegger» (kategori −2000011) av → 325 elementer borte på tvers av lagene A23/A24/A85; lag «A82_akser» alene av → 29 borte.
+  - B9 AB3-1071: panelet viser «Innervegg IKKE bærende (966)» og «Yttervegg bærende (142)» — beskrivelsene fra fila, rå navn under; slå av begge dør-lagene (A2433, A2333) → 171 borte.
   - B8 VB3-1074: «Bare dette» på V3411 → ett gassystem (265 el.) + tekstlaget valgfritt; slå av V3413 → 284 borte. Linjetypen (CENTER mot CENTERX2) er synlig forskjellig ved arbeidsnivå (F4).
 
 ### F3 — Søk etter objekt/system · **BØR** (web MÅ, mobil BØR)
@@ -151,6 +155,7 @@ er de Dokgens prøve måles mot.
   - C3 Fallplan: søk «sanitær» → lag «315- Utstyr for sanitærinstallasjoner» + «P-SANR-FIXT» som lagtreff.
   - C4 UTM32: søk «kum» → lagtreff 8250/8253 (ingen tekst i fila).
   - C5 Søk uten treff → «Ingen treff», ingen feil.
+  - C7 AB3-1071: søk «7S-21.02» → romkoden sentrert; søk «MEDISIN» → romnavnet; søk «B3-773» → bruksnummeret.
   - C6 HABU A-10-101: søk «137» → rom Aktivitetssal; søk «10x21» → de 5 dørblokkene i størrelsen; søk «727699» → veggen.
 
 ### F4 — Detaljnivå ved zoom · **MÅ**
@@ -228,8 +233,8 @@ Dette er Kenneths kjernekrav: *«man skal se hva som skal utføres»*. Reglene (
 - En DWG som refererer en xref som mangler (AT-F12) viser tilstanden **«Underlag AB3-1071 mangler»** i stedet for rør i tomrom, og lar brukeren velge en tegning på samme byggeplass som underlag. Når to tegninger deler koordinatramme (samme xref-base, eller extents som overlapper ≥ 90 %), kan de **stables**: ARK nederst, VVS/EL over, hvert fag med egen av/på-bryter (F2 på tvers av filer). Markører (F5) settes på den tegningen brukeren ser øverst, men posisjonen er felles.
 - Ingen automatisk henting av xref-filer fra kundens filserver; underlaget er alltid en tegning som alt er lastet opp.
 - **Akseptkriterier:**
-  - K1 VB3-1074 alene → tilstand «Underlag AB3-1071 mangler» synlig i viseren og i tegningslisten; rørene vises likevel.
-  - K2 VB3 + TB3 på samme byggeplass → «Legg oppå» tilbys (felles ramme målt); begge vises i samme utsnitt, VVS-lag og EL-lag kan slås av/på hver for seg.
+  - K1 VB3-1074 lastet opp uten AB3 på byggeplassen → tilstand «Underlag AB3-1071 mangler» synlig i viseren og i tegningslisten; rørene vises likevel.
+  - K2 AB3-1071 + VB3 + TB3 på samme byggeplass → «Legg oppå» tilbys (felles ramme målt på desimalen, AT-F12); ARK nederst, VVS og EL over, hvert fag av/på for seg; rørene ligger i korridorene, ikke i tomrom. Bevisbilde web + telefon.
   - K3 VB3 + fallplanen (ulik ramme) → «Legg oppå» tilbys ikke, ingen feil.
   - K4 Oppgave satt i stablet visning har `drawingId` = tegningen den ble satt på, og vises på samme punkt når tegningen åpnes alene.
 
@@ -262,12 +267,12 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q5 | Objektklikk på **mobil** er MÅ i § 3. Det kan koste større nedlasting/minne enn dagens fargegrupperte variant (AT-M7). Står MÅ, med D5-budsjettet som gate? | **Ja, MÅ.** Fagarbeideren står med telefonen. D5 (≤ 3 s, ≤ 150 MB, ≥ 30 fps) er gaten; klarer ingen vei det på fallplanen, meldes det tilbake med tall før nedprioritering |
 | Q6 | Offline F7: holder **vise + lag + egenskaper** (MÅ) og søk/måling KAN? | **Ja.** Måling offline krever enheter som alt ligger i tegningen, så den kan komme gratis med vei B — men ikke lov det nå |
 | Q7 | **HABU-filene i repoet?** (flyttet bort fra prosjektmappa 12.10 — spørsmålet gjelder om de kan hentes tilbake som fixtures) De er tilbudsunderlag for et navngitt prosjekt (UNN, AART, adresse, gnr/bnr) — ikke våre data. Fixtures i `apps/api/test-fixtures/dwg/` ligger i git og på GitHub | **Nei, ikke uten skriftlig OK fra eier.** Behold dem lokalt i `DWG eksempelfiler/HABU/` (untracked); tester på dem **skippes når mappa mangler** (samme mønster som «krever dwg2dxf + ezdxf»). Dokgens prøve kjører lokalt på dem. Alternativ: be AART om lov, eller lag én anonymisert Revit-eksport selv (ikke generert — ekte Revit-modell) |
-| Q8 | **Underlag (F10):** skal SiteDoc kunne legge VVS/EL-tegningen oppå ARK-tegningen når de deler koordinatramme, eller holder det å vise tilstanden «underlag mangler»? TB3/VB3 er ubrukelige alene (rør i tomrom) | **Ja, F10 som BØR rett etter F8.** Det er slik fagarbeideren leser et tegningssett; og rammen er alt felles i filene (AT-F12). Samme spørsmål gjelder VB3/TB3 i repoet som fixtures (eier?) — anbefaler samme regel som Q7 |
+| Q8 | **Underlag (F10):** skal SiteDoc kunne legge VVS/EL-tegningen oppå ARK-tegningen når de deler koordinatramme, eller holder det å vise tilstanden «underlag mangler»? TB3/VB3 er ubrukelige alene (rør i tomrom) | **Ja, F10 som BØR rett etter F8.** Det er slik fagarbeideren leser et tegningssett; og rammen er alt felles i filene (AT-F12). Samme spørsmål gjelder AB3/VB3/TB3 i repoet som fixtures (eier?) — anbefaler samme regel som Q7 |
 
 ## 6. Hva Dokgens prøve må levere (gate for valg A/B — ikke bygging)
 
-Én prøve, begge veier om mulig, på **fallplanen**, **UTM32**, **HABU A-10-101** og **VB3-1074** (linjetyper, xref-tilstand, enhetsløs), på web (Chromium) og telefon (WebKit,
-390×844): tallene for A5, A8, A12, B4, B8, D1, D3, D4, D5, D6 i § 3 + filstørrelse pr. tegning + hvor objektidentitet (element-id/handle),
+Én prøve, begge veier om mulig, på **fallplanen**, **UTM32**, **HABU A-10-101** og **sykehus-settet AB3+VB3+TB3** (linjetyper, stabling K2, enhetsløs), på web (Chromium) og telefon (WebKit,
+390×844): tallene for A5, A8, A12, A14, B4, B8, D1, D3, D4, D5, D6, K2 i § 3 + filstørrelse pr. tegning + hvor objektidentitet (element-id/handle),
 XDATA og laginventar bor i hver vei. Rapport som tabell, samme form som C2-tabellen i `tegning-dwg-spec.md`. Valget tas av
 orkestrator/Kenneth på tallene; deretter bestilles F1/F2/F4 som første byggeordre. Ingen kode merges fra prøven.
 
@@ -290,3 +295,5 @@ orkestrator/Kenneth på tallene; deretter bestilles F1/F2/F4 som første byggeor
 15. Xref som mangler → tilstand «Underlag … mangler» i konverteringsrapporten og viseren (K1); i dag: stille tomrom.
 16. Linjetyper CENTER/CENTERX2/DASHEDX2 tegnes som tre ulike mønstre (D4); i dag heltrukne.
 17. «Nærmeste merking» på VB3 gir «15.TR» for røret ved teksten og **ingenting** for et rør uten tekst innen grensen (A12) — tolkningen må feile rent.
+18. Lagbeskrivelse fra fila (AT-F14) brukes som visningsnavn når den finnes (A14/B9); i dag leses den ikke (0 treff `description` i `render.py`/`dwgKonvertering.ts`).
+19. Fullstendighet AB3-1071: antall LINE/TEXT/INSERT i DXF-en = antall i `dwgread` (libredwg 97 dekodefeil, AT-F14) — og TrueView-fasit side om side.
