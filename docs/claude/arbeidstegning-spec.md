@@ -1,9 +1,9 @@
 ---
 name: arbeidstegning-spec
-description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, åtte spørsmål til Kenneth. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
+description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, § 8 felles objektmodell på tvers av 2D-tegning, IFC/3D og mobil (Kenneth-vedtak 2026-10-12), åtte spørsmål til Kenneth. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
 sist_verifisert_mot_kode: 2026-10-12
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: ⚠️ UTKAST TIL GATE (rev. 4, 2026-10-12 — HABU/Revit + sykehus-sett ARK/VVS/EL målt) — ingenting under er bygget. Q1–Q8 til Kenneth.
+status: ⚠️ UTKAST TIL GATE (rev. 5, 2026-10-12 — + § 8 felles objektmodell 2D/3D, IFC-viseren målt AT-I1–I8) — ingenting under er bygget. Q1–Q8 til Kenneth.
 ---
 
 # Arbeidstegning — DWG/DXF som verktøy, ikke bilde
@@ -13,15 +13,15 @@ status: ⚠️ UTKAST TIL GATE (rev. 4, 2026-10-12 — HABU/Revit + sykehus-sett
 > utføres på byggeplass. DWG inneholder også metadata på linjer og objekter. disse bør også være klikkbare og kunne hentes
 > opp. jeg hadde håpet dxf-sporet ville lede til det detaljerte grensesnittet som gjør dwg/dxf nyttig vs PDF»* + *«ja»* til
 > spesifikasjon før noe mer bygges. Ordre: orkestrator 2026-10-12 (`relay/inbox-fabel.md`). Rev. 2: Kenneth la til sju
-> Revit-tegninger (`DWG eksempelfiler/HABU/Fra interaxo/`) — *«prøv å analysere disse filene → er det mer informasjon?»* Ja (§ 1b). Rev. 3: to MEP-tegninger (`TB3-1074.dwg`, `VB3-1074.DWG`) — *«sjekk disse to filene»* (AT-F10–F13). Rev. 4: ARK-underlaget `AB3-1071.dwg` kom — *«nå er filen der»* (AT-F14).
+> Revit-tegninger (`DWG eksempelfiler/HABU/Fra interaxo/`) — *«prøv å analysere disse filene → er det mer informasjon?»* Ja (§ 1b). Rev. 3: to MEP-tegninger (`TB3-1074.dwg`, `VB3-1074.DWG`) — *«sjekk disse to filene»* (AT-F10–F13). Rev. 4: ARK-underlaget `AB3-1071.dwg` kom — *«nå er filen der»* (AT-F14). Rev. 5: Kenneth *«har du sjekket hva 3d motoren med ifc gjør → vi har objekter der også som leses og vises. kan vi bygge på de ulike plattformer slik at vi bygger bredt og robust?»* → *«ja»* til § 8.
 
 ## 0. Hva dette er, og ikke er
 
 Dette er **hva byggeplassbrukeren skal kunne gjøre** med en DWG/DXF-tegning på telefon og PC, med krav som kan testes på de
 tretten ekte filene i `DWG eksempelfiler/` (tre av dem er fixtures i `apps/api/test-fixtures/dwg/`; HABU-filene: se Q7, flyttet bort 2026-10-12). Den
 **velger ikke** teknisk vei. A (ezdxf-SVG + egenskapsregister) mot B (DXF tegnet på klient) avgjøres av Dokgens målte prøve
-mot akseptkriteriene i § 3. Bygger på [tegning-dwg-spec.md](tegning-dwg-spec.md) (konvertering, enheter, layouts, strek) og
-rører ikke 3D/IFC/punktsky, PDF-veien eller tegningsserie (T2).
+mot akseptkriteriene i § 3. Bygger på [tegning-dwg-spec.md](tegning-dwg-spec.md) (konvertering, enheter, layouts, strek). § 8 eier den **felles objektmodellen** som også IFC/3D-viseren skal bruke (Kenneth 2026-10-12), men
+rører ikke 3D-renderen/punktsky, PDF-veien eller tegningsserie (T2).
 
 ## 1. Målt utgangspunkt (2026-10-12)
 
@@ -67,6 +67,21 @@ rører ikke 3D/IFC/punktsky, PDF-veien eller tegningsserie (T2).
 3. **Vektorisert/landmåler (UTM32, NTM6):** bare lagnavn og farge; AEC-egenskapssett tapt.
 4. **Eldre AutoCAD/POINT (AB3/VB3/TB3):** system/bygningsdel = lag med **beskrivelse i fila** + linjetype + farge, dimensjon/medium/romnavn = tekst ved siden av objektet (bare geometrisk kobling), komponent = blokk med attributter (littera, type, høyde); **bygget ligger i en egen xref-tegning** som må stables under fagtegningene (F10).
 § 3 krever at viseren bruker det som finnes, og viser aldri «—» for det som mangler.
+
+### 1c. IFC/3D-viseren i dag (målt 2026-10-12)
+
+| # | Fakta | Bevis |
+|---|---|---|
+| AT-I1 | **Modellen parses i nettleseren** (web-ifc wasm + `@thatopen/components` ^3.3.3, `FragmentsManager`/`IfcLoader`). Ingen server-konvertering, ingen objekter/egenskaper i DB; serveren leser bare metadata med regex (prosjekt, etasjer, GPS → `Drawing.ifcMetadata`) | `tred-viewer-kontekst.tsx:345-471`; `ifcMetadata.ts:20-156`; `tegning.ts:454-475` |
+| AT-I2 | 🟢 **Klikk gir rike egenskaper:** raycast → `getItemProperties`/`getPropertySets`/`getTypeProperties`/`getMaterialsProperties`, forelder (IfcRelAggregates), type (IfcRelDefinesByType), lag (IfcPresentationLayerAssignment), system (IfcRelAssignsToGroup), Psets + mengder, materialer/lag/profiler, IFC-typenavn. Vist i `EgenskapsPopup` (kategori, navn, attributter, grupper). **GlobalId/expressID filtreres bort** fra visningen | `kontekst :619-942`; `EgenskapsPopup.tsx:39-110`; `konstanter.ts:29-35` |
+| AT-I3 | **Skjul pr. IFC-type / lag / system** finnes, men bare fra et klikket objekt (øye-knapper) via `GetLineIDsWithType` + `setVisible`. **Ingen forhåndsliste/lagpanel, ingen søk** (0 funksjonstreff). Etasje: nedtrekk fra `ifcMetadata.etasjer` + to klippeplan, bare i `/tegning-3d` | `kontekst :967-1122, :1172-1185`; `FilterChipBar.tsx`; `tegning-3d/page.tsx:203-311` |
+| AT-I4 | **Ingen kobling objekt → oppgave/sjekkliste.** 3D-markøren er en midlertidig rød kule som ikke lagres. `Task`/`Checklist` har bare `drawingId` + 2D-posisjon; ingen felt for GlobalId/expressID/3D-posisjon | `kontekst :583-601, :647`; `schema.prisma:1377-1379, :1468-1470` |
+| AT-I5 | **2D ↔ 3D:** `gpsOverride {lat,lng,rotasjon,skala,transform}` fra firepunkts-kalibrering i tegning-3d; etasjeklipp bytter til plantegning med samme `floor`; `flyTil`/`sisteKlikkPunkt` synker. Ingen 2D-plangenerering fra IFC | `tegning.ts:896-931`; `tegning-3d/page.tsx:294-311, :402-505`; `kontekst :1123-1155` |
+| AT-I6 | **Mobil:** egen WebView-rute `/mobil-viewer` med egen OBC/web-ifc-instans; bare `getItemProperties` (ingen Psets), ingen skjuling pr. type/lag/system. To cacher (IFC-fil `sitedoc-ifc/`, fragmenter `sitedoc-fragments/`); **modell lastet fra fragment-cache gir ingen egenskaper ved klikk** (`ifcDataMap` settes bare i fallback). `sendModeller` sender nett-URL, ikke `file://` (avvik fra mobil.md:563) | `mobil-viewer/page.tsx:54-106, :218-244, :288-315, :395-411`; `IfcViewer.tsx:94-158`; `ifcCache.ts:11-105` |
+| AT-I7 | **Viserne deler nesten ingenting.** Tegningsviser og 3D deler bare `beregnTransformasjon`/`tegningTilGps`/`gpsTil3D`. Ingen felles markørmodell, egenskapskort eller lagpanel; **to kopier av `EgenskapsPopup`** (3d-visning/komponenter + modeller/page.tsx:326) | `tegninger/page.tsx:16-56`; `tegning-3d/page.tsx:10-16`; `koordinatBro.ts:118-168`; `web.md:502` |
+| AT-I8 | Ytelse/gjeld: web-3D fast høyde + treg pan/zoom (regresjon kommer tilbake), debug-`console.log` i kontekst, layout-persistering 🔴 | `BACKLOG.md:1082-1103, :5551-5556`; `kontekst :476-481, :650-651` |
+
+**Konsekvens:** 3D-viseren har allerede det rikeste egenskapskortet (AT-I2) og mekanismen for skjuling pr. kategori (AT-I3), men mangler panel, søk og kobling til dokumenter — de samme hullene som 2D (AT-M2/M3/M5). Byggeplassbrukeren møter dermed to visere med ulik oppførsel for samme vegg. § 8 lukker det.
 
 ## 2. Brukerhistorier
 
@@ -273,7 +288,7 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 
 Én prøve, begge veier om mulig, på **fallplanen**, **UTM32**, **HABU A-10-101** og **sykehus-settet AB3+VB3+TB3** (linjetyper, stabling K2, enhetsløs), på web (Chromium) og telefon (WebKit,
 390×844): tallene for A5, A8, A12, A14, B4, B8, D1, D3, D4, D5, D6, K2 i § 3 + filstørrelse pr. tegning + hvor objektidentitet (element-id/handle),
-XDATA og laginventar bor i hver vei. Rapport som tabell, samme form som C2-tabellen i `tegning-dwg-spec.md`. Valget tas av
+XDATA og laginventar bor i hver vei. Rapport som tabell, samme form som C2-tabellen i `tegning-dwg-spec.md`. Prøven må i tillegg vise at kortet i vei A/B kan ta et O1-objekt fra IFC-viseren (§ 8 L1) — ellers er veien for smal. Valget tas av
 orkestrator/Kenneth på tallene; deretter bestilles F1/F2/F4 som første byggeordre. Ingen kode merges fra prøven.
 
 ## 7. Tester som skal FEILE i dag (DoD, uavhengig av vei)
@@ -297,3 +312,36 @@ orkestrator/Kenneth på tallene; deretter bestilles F1/F2/F4 som første byggeor
 17. «Nærmeste merking» på VB3 gir «15.TR» for røret ved teksten og **ingenting** for et rør uten tekst innen grensen (A12) — tolkningen må feile rent.
 18. Lagbeskrivelse fra fila (AT-F14) brukes som visningsnavn når den finnes (A14/B9); i dag leses den ikke (0 treff `description` i `render.py`/`dwgKonvertering.ts`).
 19. Fullstendighet AB3-1071: antall LINE/TEXT/INSERT i DXF-en = antall i `dwgread` (libredwg 97 dekodefeil, AT-F14) — og TrueView-fasit side om side.
+20. Én egenskapskort-komponent for tre kilder (L1); i dag to kopier av `EgenskapsPopup` og ingen i 2D.
+21. IFC: kategori-panel før klikk (L2); oppgave fra IfcWall med `objektRef` som overlever gjenåpning (L3); fragment-cache med egenskaper (L4); 2D↔IFC ingen auto-id (L5).
+
+## 8. Felles objektmodell på tvers av 2D, IFC/3D og mobil · **MÅ** (Kenneth 2026-10-12 «ja»)
+
+**Prinsipp:** fire ting er like uansett kilde og bygges **én gang** i `packages/shared`, med tynne adaptere pr. kilde. Renderne forblir
+separate: 2D-viseren skal **ikke** avhenge av three/web-ifc/wasm (tunge, mobil kjører dem bare i WebView, 3D-pan er alt treg — AT-I8).
+Felles er modellen og komponentene, ikke renderen.
+
+| Del | Innhold | Kilder (adaptere) | Bruk |
+|---|---|---|---|
+| **O1 Objektmodell** | `{ kilde, id, kategori, type?, navn?, egenskaper: [{gruppe, nøkkel, verdi, enhet?, tolket?}], geometriRef, tegningId/modellId, revisjon }` | IFC: `GlobalId` + IFC-type + Psets/mengder/materialer (AT-I2) · Revit-DWG: element-id + kategori + type-id + blokknavn (AT-F6/F9) · lag-DWG: handle + lagbeskrivelse/lagnavn-tolkning + nærmeste merking (AT-F10/F14) · PDF: ingen objekter (kortet vises ikke) | F1, F3, F5, F8, 3D-kort |
+| **O2 Egenskapskort** | Én komponent, web + mobil-WebView; viser O1 i F1-rekkefølgen; handlinger «Opprett her», «Vises også i», øye (skjul kategori/lag) | 3D-kortet (`EgenskapsPopup`) er malen; begge kopier erstattes | F1 (2D), 3D-visning, mobil-viewer, mobil tegning |
+| **O3 Lag-/kategoripanel** | gruppe → lag/type, av/på, «bare dette», «alle på», antall; husket pr. tegning/modell på enheten (Q4) | 2D: lag (F2) · IFC: IFC-type / lag / system / etasje (AT-I3 får forhåndslisten den mangler) | F2, 3D-visning, mobil |
+| **O4 Objektreferanse på dokument** | `objektRef { kilde, id, kategori, tekst, tegningId/modellId, revisjon }` som **tilleggsfelt** på `Task`/`Checklist`/`KontrollplanPunkt` (F5 E6: gamle rader uendret); markør utledes av objektets midtpunkt i hver flate som bærer samme id | 2D (F5), 3D (AT-I4 lukkes: markøren lagres på objektet, ikke som kule) | F5, F8, 3D, mobil |
+
+**Regler:**
+- R8.1 **Samme vegg, samme kort:** et objekt vist i 2D-tegning, 3D-modell og på mobil gir samme felt i samme rekkefølge; bare kildespesifikke felt varierer (Psets i IFC, littera i EL-DWG).
+- R8.2 **Id-rom holdes atskilt:** IFC `GlobalId`, Revit element-id og DXF-handle er tre ulike rom. Kryss-visning *innen* et rom (F8: samme element-id i plan/snitt/fasade; samme GlobalId i to IFC-modeller) er automatisk. Kryss-visning 2D-DWG ↔ IFC er **ikke** automatisk (ulike id-er for samme vegg) — den går via kategori + navn/romnummer + posisjon (GPS-broen AT-I5) og merkes «tolket». Aldri gjett id-likhet.
+- R8.3 **GlobalId vises** (lite, kopierbart) i 3D-kortet som i 2D (F1 felt 9) — i dag filtrert bort (AT-I2).
+- R8.4 **Offline:** O1-inventar + O3-oppsett følger «Forbered til offline» for både tegning (F7) og IFC (mobil-cache AT-I6); fragment-cache uten egenskaper (AT-I6) er et brudd på R8.1 og rettes.
+- R8.5 **Søk** (F3) kjører på O1 uansett kilde: navn, type, kategori, romnummer, id.
+
+**Akseptkriterier (legges til Dokgens prøve, § 6):**
+- L1 Samme egenskapskort-komponent rendrer: fallplan-vegg (A1), HABU-vegg 727699 (A8) og en IfcWall i en IFC-modell — tre kilder, én komponent, test på komponentnivå med tre O1-objekter.
+- L2 IFC-modell: panelet (O3) lister IFC-typer med antall før noe er klikket; «bare IfcPipeSegment» skjuler alt annet; samme panel-komponent som B1 på fallplanen.
+- L3 Oppgave opprettet fra IfcWall i 3D har `objektRef {kilde:"ifc", id:GlobalId}` og vises som markør på veggens midtpunkt ved neste åpning (ikke kule, ikke tapt); samme test-oppsett som E1.
+- L4 Mobil: IFC lastet fra fragment-cache gir egenskaper ved klikk (AT-I6 rettet) — test som feiler i dag.
+- L5 2D-DWG-vegg og IfcWall i samme bygg får **ikke** automatisk samme objektRef (R8.2); negativkontroll.
+
+**Rekkefølge:** O1+O2 bygges med F1 (første byggeordre etter prøven) og tas i bruk i 3D-kortet i samme ordre, så det aldri finnes tre kort. O3 med F2. O4 med F5. IFC-panelet (L2) og mobil-IFC (L4) er egne små ordrer etter det, i 3D-sporet — spec-en her eier modellen, ikke 3D-renderen.
+
+**Hvilken fil oppdateres:** `web.md` § 3D-visning og `mobil.md` § IFC får henvisning til § 8 ved første byggeordre (DOC-MAP); avvikene i AT-I6 (meldingsnavn `cacheFragment`, `file://`) rettes i `mobil.md` i samme ordre.
