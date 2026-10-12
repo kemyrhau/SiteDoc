@@ -1171,3 +1171,73 @@ describe.skipIf(!harEzdxfXss)("XSS-regresjon — render.py escaper ondsinnet DXF
     }
   }, 180000);
 });
+
+// ---------------------------------------------------------------------------
+// O1-register bbox (gate 1, arbeidstegning-f1): bbox_oppdater() i render.py skal lese
+// td-strengens SVG-minispråk korrekt (M/L absolutt, m/l/c relativ delta) — ikke telle
+// alle tall som absolutte (x,y)-par uavhengig av kommando. Linje med --rotasjon av
+// (ingen auto-rotasjon, så transformen er bare offset + y-flip — delta-lengder bevares
+// eksakt) så forventet bbox-bredde/høyde = |dx|/|dy| i world-enheter, uavhengig av hvor
+// i tegningen streken ligger.
+// ---------------------------------------------------------------------------
+const harEzdxfBbox = (() => {
+  if (!process.env.EZDXF_RENDER_PY) return false;
+  try {
+    execFileSync(process.env.EZDXF_PYTHON ?? "python3", ["-c", "import ezdxf"], { timeout: 10000, stdio: "ignore" });
+    return true;
+  } catch { return false; }
+})();
+
+describe.skipIf(!harEzdxfBbox)("O1-register — bbox for et objekt = DXF-geometriens utstrekning", () => {
+  it("linje langt fra origo: bbox-bredde/høyde matcher ekte delta (±1 enhet), ikke relativ-delta lest som absolutt punkt", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ezdxf-bbox-"));
+    try {
+      const genPy = join(dir, "gen.py");
+      const dxf = join(dir, "test.dxf");
+      const svgOut = join(dir, "ut.svg");
+      const regOut = join(dir, "register.json");
+      // Linje (50000,-80000) -> (50002,-80150): ekte delta er (2, -150). Bugen leser delta-
+      // paret (2,-150) som et ABSOLUTT punkt og gir en bbox som spenner fra (2,-150) til det
+      // transformerte startpunktet (titusenvis av enheter unna) — bredde/høyde blir enorm.
+      writeFileSync(
+        genPy,
+        [
+          "import sys, ezdxf",
+          "doc = ezdxf.new()",
+          "msp = doc.modelspace()",
+          "msp.add_line((50000, -80000), (50002, -80150))",
+          "doc.saveas(sys.argv[1])",
+          "",
+        ].join("\n"),
+      );
+      const python = process.env.EZDXF_PYTHON ?? "python3";
+      execFileSync(python, [genPy, dxf], { timeout: 60000, stdio: "ignore" });
+      execFileSync(
+        python,
+        [
+          process.env.EZDXF_RENDER_PY!,
+          dxf,
+          svgOut,
+          "--register", regOut,
+          "--rotasjon", "av",
+          "--gruppering", "handle",
+        ],
+        { timeout: 120000, stdio: "ignore", maxBuffer: 50 * 1024 * 1024 },
+      );
+      const reg = JSON.parse(readFileSync(regOut, "utf-8")) as { objekter: Record<string, { bbox?: number[] }> };
+      const objekter = Object.values(reg.objekter);
+      expect(objekter).toHaveLength(1);
+      const bbox = objekter[0]!.bbox;
+      expect(bbox).toBeTruthy();
+      const [minx, miny, maxx, maxy] = bbox!;
+      const bredde = maxx - minx;
+      const hoyde = maxy - miny;
+      // Ekte geometri: |dx|=2, |dy|=150 — test som FEILER i dag (bugen gir bredde/høyde i
+      // størrelsesorden titusenvis fordi delta-paret (2,-150) leses som absolutt punkt).
+      expect(bredde).toBeCloseTo(2, 0);
+      expect(hoyde).toBeCloseTo(150, 0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 180000);
+});

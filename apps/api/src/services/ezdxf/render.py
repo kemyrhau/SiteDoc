@@ -397,6 +397,9 @@ def path_til_d(path, flatten_dist, close):
 # M/L/Q/C/Z.
 import re
 _TOKEN = re.compile(r"([MLQCZ])|(-?\d+(?:\.\d+)?)")
+# samme som _TOKEN, men inkluderer SMÅ bokstaver (m/l/c/q/z) — brukes til å parse transform_d()
+# sin RELATIV-kommando-output (td), ikke det absolutte M/L/Q/C/Z-inputformatet _TOKEN er for.
+_BBOX_TOKEN = re.compile(r"([MmLlQqCcZz])|(-?\d+(?:\.\d+)?)")
 
 def transform_d(d, rotm, minx, miny, rund, relativ=True):
     """Transformer verdens-d (M/L/Q/C/Z) til viewBox-koord. Emitterer RELATIVE
@@ -648,13 +651,19 @@ def main():
                 idd += f' data-elid="{html.escape(o["elid"])}"'
         return lag + typ + idd
     def bbox_oppdater(handle, td):
+        # td er transform_d() sin RELATIV-kommando-output (M absolutt, m/l/c/q relativ delta
+        # etter første M — se transform_d-docstring). Må parses med kommando-semantikk, ikke
+        # som en flat liste av (x,y)-par: _TOKEN matcher bare STORE bokstaver, så en naiv
+        # findall(td) mister alle små m/l/c-tokens og leser etterfølgende delta-tall som om de
+        # var absolutte punkter — ga feil bbox for samtlige objekter (funnet i V1/V2-prøven,
+        # gate 1, 2026-10-13). Z/z hoppes over: hver subpath i td starter alltid med en ny
+        # absolutt M (transform_d), så Z sin implisitte lukke-linje treffer alltid et punkt
+        # subpathens egen M allerede har talt med i bbox.
         if not args.register or not handle:
             return
-        toks = _TOKEN.findall(td)
-        tall = [float(n) for (_, n) in toks if n]
         bb = reg_bbox.get(handle)
-        for i in range(0, len(tall) - 1, 2):
-            x, y = tall[i], tall[i+1]
+        def punkt(x, y):
+            nonlocal bb
             if bb is None:
                 bb = [x, y, x, y]; reg_bbox[handle] = bb
             else:
@@ -662,6 +671,40 @@ def main():
                 if y < bb[1]: bb[1] = y
                 if x > bb[2]: bb[2] = x
                 if y > bb[3]: bb[3] = y
+        cx = cy = 0.0
+        cmd = None
+        buf = []
+        def flush():
+            nonlocal cx, cy
+            if cmd == "M" or cmd == "L":
+                for i in range(0, len(buf) - 1, 2):
+                    cx2, cy2 = buf[i], buf[i+1]; cx, cy = cx2, cy2; punkt(cx, cy)
+            elif cmd == "m" or cmd == "l":
+                for i in range(0, len(buf) - 1, 2):
+                    cx, cy = cx + buf[i], cy + buf[i+1]; punkt(cx, cy)
+            elif cmd == "c":
+                for i in range(0, len(buf) - 5, 6):
+                    punkt(cx + buf[i], cy + buf[i+1]); punkt(cx + buf[i+2], cy + buf[i+3])
+                    cx, cy = cx + buf[i+4], cy + buf[i+5]; punkt(cx, cy)
+            elif cmd == "C":
+                for i in range(0, len(buf) - 5, 6):
+                    punkt(buf[i], buf[i+1]); punkt(buf[i+2], buf[i+3])
+                    cx, cy = buf[i+4], buf[i+5]; punkt(cx, cy)
+            elif cmd == "q":
+                for i in range(0, len(buf) - 3, 4):
+                    punkt(cx + buf[i], cy + buf[i+1])
+                    cx, cy = cx + buf[i+2], cy + buf[i+3]; punkt(cx, cy)
+            elif cmd == "Q":
+                for i in range(0, len(buf) - 3, 4):
+                    punkt(buf[i], buf[i+1])
+                    cx, cy = buf[i+2], buf[i+3]; punkt(cx, cy)
+            buf.clear()
+        for (c, num) in _BBOX_TOKEN.findall(td):
+            if c:
+                flush(); cmd = c
+            else:
+                buf.append(float(num))
+        flush()
     for p in prims:
         td = transform_d(p.d, rotm, minx, miny, rund)
         if not td: continue
