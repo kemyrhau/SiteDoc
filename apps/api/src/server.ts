@@ -15,6 +15,7 @@ import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 import { vurderUploadsFilForesporsel, assertFilSigneringEnv } from "./utils/hmac";
+import { trengerSandboxCsp, UPLOADS_SANDBOX_CSP } from "./utils/uploadsFiltype";
 
 /**
  * Leser de første bytene av en fil og returnerer korrekt bilde-Content-Type
@@ -144,6 +145,14 @@ async function start() {
       // PNG-bytes → helsvart felt. Korrekt header retter det uten å røre data.
       const bildeType = bildeContentTypeFraMagic(path);
       if (bildeType) res.setHeader("Content-Type", bildeType);
+      // 🔴 SIKKERHET (8c-2): sandbox-CSP på alt som ikke er bilde/PDF/kjent binær
+      // (SVG, XML, CSV, ukjent/eldre). Dreper script/aktivt innhold om en slik fil
+      // åpnes på web-origin. `nosniff` over gjelder alle svar. Bilder/PDF/binær får
+      // IKKE CSP (inline PDF-visning + bilder uberørt). Magic-bytes-bildetypen over
+      // vinner: en PNG lagret med rar endelse serveres som bilde → ingen sandbox.
+      if (!bildeType && trengerSandboxCsp(path)) {
+        res.setHeader("Content-Security-Policy", UPLOADS_SANDBOX_CSP);
+      }
     },
   });
 

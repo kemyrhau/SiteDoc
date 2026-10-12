@@ -6,6 +6,7 @@ import { join, extname } from "path";
 import { pipeline } from "stream/promises";
 import { prisma } from "@sitedoc/db";
 import { sjekkRateLimit, hentKlientIp } from "../utils/rateLimiter";
+import { erTillattOpplasting } from "../utils/uploadsFiltype";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 const PRIVAT_DIR = join(UPLOADS_DIR, "privat");
@@ -68,16 +69,6 @@ async function bildeEndelseFraMagic(filsti: string): Promise<".png" | ".jpg" | n
   }
 }
 
-// Blokkerte filtyper — potensielt farlige kjørbare filer
-const BLOKKERTE_TYPER = new Set([
-  ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".pif",
-  ".sh", ".bash", ".csh", ".ksh",
-  ".vbs", ".vbe", ".js", ".jse", ".ws", ".wsf", ".wsc", ".wsh",
-  ".ps1", ".psm1", ".psd1",
-  ".reg", ".inf", ".lnk",
-  ".dll", ".sys", ".drv",
-]);
-
 export async function uploadRoute(server: FastifyInstance) {
   // Sørg for at uploads-mappene eksisterer (inkl. privat for sensitive filer)
   await mkdir(UPLOADS_DIR, { recursive: true });
@@ -118,10 +109,13 @@ export async function uploadRoute(server: FastifyInstance) {
       return reply.status(400).send({ error: "Ingen fil mottatt" });
     }
 
+    // 🔴 SIKKERHET (8c-2): allowlist, ikke blokkliste. Bare filtypene appen
+    // faktisk tar imot. Blokkerer bl.a. `.svg`/`.html`/`.js`/`.xml`-med-script
+    // som den gamle blokklista slapp gjennom → lagret XSS på web-origin.
     const ext = extname(data.filename).toLowerCase();
-    if (!ext || BLOKKERTE_TYPER.has(ext)) {
+    if (!erTillattOpplasting(ext)) {
       return reply.status(400).send({
-        error: `Ugyldig filtype: ${ext || "(ingen)"}. Kjørbare filer er ikke tillatt.`,
+        error: `Ugyldig filtype: ${ext || "(ingen)"}. Denne filtypen kan ikke lastes opp.`,
       });
     }
 
