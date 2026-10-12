@@ -6,6 +6,14 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## Prod-deploy 2026-10-12 (`1e6cb861`): SVG-XSS-hotfix, ezdxf-motor (av), revisjon-UX, startutsnitt (LIVE)
+
+- Release `1e6cb861` (bygget 20:35Z). `curl /version` = `1e6cb861`. `dwg2dxf 0.14` og `ezdxf 1.4.4` i både `sitedoc-api` og `sitedoc-web`. `DWG_MOTOR` ikke satt i prod, så den gamle motoren brukes.
+- Innhold: SVG-XSS-hotfix 8c-2 (allowlist + sandbox-CSP, `9f6cf836`) · ezdxf-motor og visning bak `DWG_MOTOR` (`8af3cc6e`, `749b362e`, `d647cc18`, `3c83052d`) · revisjon-UX (`29807936`) · startutsnitt i to akser web og mobil (`b4fafe65`) · konverteringsmarkør på layout-barn · arbeidstegning-spec (docs).
+- Migrering: `20261011120000_tegning_mobil_fil_url` (additiv).
+- Pre-prod: visuell sjekk av Kontrollør (`relay/preprod-56a9072a/`). Den gamle motoren gir byte-identisk SVG på main og develop, og eksisterende tegninger vises uendret eller bedre i ny viser. Orkestrator så på bildene.
+- Mobil: OTA publisert to ganger (`1e6cb861`, så `56a9072a`, identisk innhold). Verifisert på telefon. Se eas-build-veileder § OTA-logg.
+
 ## Prod-deploy 2026-10-11 (`c46b8805`) og hotfix 2026-10-11 (`92ca2735`): DWG-visning, lås, markør (LIVE)
 
 - `92ca2735` (bygget 23:55Z 10.10): SVG lengste side 2000 for iOS; wheel-lytter re-festes etter ny revisjon (`7c9c1811`).
