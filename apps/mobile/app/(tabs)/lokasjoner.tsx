@@ -884,9 +884,15 @@ export default function LokasjonerSkjerm() {
               if (!su || typeof su.x !== "number" || typeof su.y !== "number" || typeof su.w !== "number" || typeof su.h !== "number") return null;
               return { x: su.x, y: su.y, w: su.w, h: su.h };
             })()}
-            // C2 (L6): ezdxf-mobilvarianten (farge-gruppert) rendres INLINE så streken dempes
-            // ved zoom. Kun når mobilFileUrl finnes (ezdxf-konvertert); egen/raster → <img>.
-            svgInline={!!valgtTegningDetalj?.mobilFileUrl}
+            // C2 (L6): ezdxf-mobilvarianten (farge-gruppert, ~2,5 MB) rendres INLINE så
+            // streken kan dempes ved zoom. Kun når mobilFileUrl finnes — den er alltid lett
+            // nok til å inlines. RETUR 2: en gammel ezdxf UTEN mobilvariant har bare den
+            // fulle ~22 MB-fila; å inlinee den henger WebView-en (målt i WebKit), så den
+            // «behandles som egen» = `<img>` (streken dempes ikke; løses ved re-konvertering
+            // som lager den lette mobilvarianten). byggHtml C1-gater selve inline-veien.
+            svgInline={
+              (valgtTegningDetalj?.fileType ?? "") === "svg" && !!valgtTegningDetalj?.mobilFileUrl
+            }
             onSettRotasjon={(grader) => {
               if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });
             }}

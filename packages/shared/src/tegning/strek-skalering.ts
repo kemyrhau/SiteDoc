@@ -51,3 +51,25 @@ export function beregnStrekVars(zoom: number, displayScale: number, lwBase: numb
     strekMaksK: maksPx / (b * d),
   };
 }
+
+/**
+ * Sann når SVG-en bærer C1-formatet (dempet strekskalering): `data-lw-base` på rot-
+ * `<svg>` + per-strek `--lw`. KUN da kan viseren beholde SVG-ens egen `<style>` og la
+ * {@link beregnStrekVars} dempe streken relativt.
+ *
+ * RETUR 2 (2026-10-12): en ezdxf-SVG konvertert FØR C1 (Rev. F) har server-markøren
+ * `motor: "ezdxf"`, men bærer rå inline `stroke-width` (~173 viewBox-enheter) og verken
+ * `data-lw-base` eller `--lw`. Beholdt viseren da SVG-ens stil (fordi markøren sa
+ * «ezdxf»), ble de 173 enhetene vist rått — svarte bjelker på web og mobil. Derfor skal
+ * motoren ALENE aldri avgjøre: en gammel ezdxf-SVG uten C1-format behandles som «egen»
+ * (strip + inject), slik at den aldri vises med rå strektykkelse. Riktig varig løsning
+ * for slike filer er re-konvertering med dagens kode (som gir C1).
+ *
+ * Ren funksjon (ingen DOM) — enhetstestes i node og SPEILES i WebView-JS-en i
+ * `TegningsVisning` (kan ikke importeres inn i en inline-`<script>`). `data-lw-base` på
+ * roten er den entydige markøren render.py skriver for C1; det holder å sjekke den.
+ */
+export function svgHarC1Format(svg: string): boolean {
+  const rotTagg = svg.match(/<svg[^>]*>/i)?.[0] ?? "";
+  return /\bdata-lw-base\s*=/i.test(rotTagg);
+}
