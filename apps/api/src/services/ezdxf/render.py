@@ -44,6 +44,135 @@ CAP_RATIO = 0.716          # dwgKonvertering.ts:1296
 LANGSIDE_PIKSEL = 2000     # dwgKonvertering.ts (hotfix mobil)
 MARGIN_ANDEL = 0.02        # dwgKonvertering.ts:1954
 
+# ---------- felles objektmodell O1 (arbeidstegning-spec § 8) ----------
+# Revit BuiltInCategory -> norsk (målt AT-F6, arbeidstegning-spec.md § 1b).
+BUILTIN_CAT = {
+    -2000011: "Vegg", -2000023: "Dør", -2000014: "Vindu", -2000032: "Dekke",
+    -2000035: "Tak", -2000038: "Himling", -2000100: "Søyle", -2000080: "Inventar",
+    -2000220: "Akse", -2000240: "Nivå/kote", -2000260: "Målsetting", -2000300: "Tekst",
+    -2000480: "Romtagg", -2000200: "Snittmarkør", -2001160: "VVS",
+    -2005002: "Himlingskode", -2005011: "Veggkode", -2000588: "Vegg (projeksjon)",
+}
+# Skravurmønster -> materiale (AT-F1, F1 felt 4). Revit FP_n skjules (bare nummer).
+MATERIALE = {
+    "Betong_strukturell": "Betong", "Gips": "Gips", "Lettklinker": "Lettklinker",
+    "Trefiber": "Trefiber",
+}
+
+def parse_revit_xdata(e):
+    """REVIT-XDATA: nested {(1070,kode)(1000,verdi)}. kode 1=element-id,
+    2=kategori (BuiltInCategory), 3=underkategori, 5=type-id (AT-F6)."""
+    try:
+        tags = e.get_xdata("REVIT")
+    except Exception:
+        return None
+    if not tags:
+        return None
+    par = {}
+    kode = None
+    for (gc, val) in tags:
+        if gc == 1070:
+            kode = val
+        elif gc == 1000 and kode is not None:
+            par[kode] = val
+            kode = None
+    res = {}
+    if 1 in par: res["elid"] = str(par[1])
+    if 5 in par: res["typeId"] = str(par[5])
+    if 2 in par:
+        try: res["katKode"] = int(par[2])
+        except Exception: res["katKode"] = par[2]
+    if 3 in par: res["subKode"] = par[3]
+    return res or None
+
+def tolk_lagnavn(navn):
+    """F1 felt 1 fallback: tolk bygningsdel/objekttype fra lagnavn — NS 3451
+    (2-3 siffer, evt. A-prefiks), SOSI (3-4 siffer + mellomrom), IFC/AIA-prefiks."""
+    if not navn:
+        return ""
+    base = navn
+    m = re.match(r"^(\d{3,4})\s+(.+)$", base)             # SOSI: "8250 Kum"
+    if m:
+        return f"{m.group(2).strip()} · {m.group(1)}"
+    m = re.match(r"^A(\d{2,4})[_\- ]?(.*)$", base)         # "A24_innervegg"
+    if m and m.group(1):
+        rest = m.group(2).strip()
+        return f"{rest} · {m.group(1)}" if rest else m.group(1)
+    m = re.match(r"^(\d{2,3})[-.\s]+(.+)$", base)          # "242- Ikke-bærende..."
+    if m:
+        rest = re.sub(r"\((Skravur|Tekst|Nye konstruksjoner|Polylinje)\)", "", m.group(2)).strip()
+        return f"{rest} · {m.group(1)}"
+    return base
+
+def layer_info_map(doc):
+    """Lag -> {aci, ltype, lw, desc}. `description` er en property (AT-F14:
+    lagbeskrivelse fra fila, f.eks. POINT-arkitektmodul), ikke et DXF-attributt."""
+    ut = {}
+    for lay in doc.layers:
+        lw = lay.dxf.get("lineweight", None)
+        ut[lay.dxf.name] = {
+            "aci": lay.dxf.color, "ltype": lay.dxf.linetype,
+            "lw": (lw if lw not in (None, -3, -1) else None),
+            "desc": (getattr(lay, "description", "") or ""),
+        }
+    return ut
+
+def bygg_objektregister(doc, msp, handles, lagmap):
+    """O1 pr. handle som faktisk er tegnet. Kategori-prioritet (F1 felt 1):
+    Revit-XDATA -> lagbeskrivelse fra fila -> lagnavn-tolkning. Rå lagnavn
+    følger alltid med (§ 8, O1 egenskaper)."""
+    objekter = {}
+    elid_index = {}
+    insert_info = {}
+    for ins in msp.query("INSERT"):
+        h = ins.dxf.handle
+        atts = {a.dxf.tag: a.dxf.text for a in ins.attribs if (a.dxf.text or "").strip()}
+        insert_info[h] = {"navn": ins.dxf.name, "attr": atts}
+    hatch_info = {h.dxf.handle: h.dxf.get("pattern_name", "") for h in msp.query("HATCH")}
+    for h in handles:
+        e = doc.entitydb.get(h)
+        if e is None:
+            continue
+        lag = e.dxf.get("layer", "") or ""
+        lm = lagmap.get(lag, {})
+        obj = {"id": h, "lag": lag, "dtype": e.dxftype()}
+        rev = parse_revit_xdata(e)
+        kat = None
+        if rev:
+            if "elid" in rev: obj["elid"] = rev["elid"]
+            if "typeId" in rev: obj["typeId"] = rev["typeId"]
+            kk = rev.get("katKode")
+            if isinstance(kk, int):
+                kat = BUILTIN_CAT.get(kk, f"Kategori {kk}")
+        if not kat and lm.get("desc"):
+            kat = lm["desc"]
+        if not kat:
+            kat = tolk_lagnavn(lag) or lag
+        obj["kategori"] = kat
+        if h in insert_info:
+            obj["blokk"] = insert_info[h]["navn"]
+            if insert_info[h]["attr"]:
+                obj["attr"] = insert_info[h]["attr"]
+        if h in hatch_info:
+            pn = hatch_info[h]
+            if pn in MATERIALE:
+                obj["materiale"] = MATERIALE[pn]
+            elif pn and not pn.startswith("FP_") and pn != "SOLID":
+                obj["materialeRaa"] = pn
+        lt = e.dxf.get("linetype", "BYLAYER")
+        if lt and lt != "BYLAYER":
+            obj["linjetype"] = lt
+        obj["lagLinjetype"] = lm.get("ltype", "")
+        obj["lagLw"] = lm.get("lw")
+        if (lt or "").lower().startswith("demol") or lm.get("ltype", "").lower().startswith("demol"):
+            obj["status"] = "rives"
+        elif "Nye konstruksjoner" in lag:
+            obj["status"] = "nytt"
+        objekter[h] = obj
+        if "elid" in obj:
+            elid_index.setdefault(obj["elid"], []).append(h)
+    return objekter, elid_index
+
 
 def sett_minnetak(mem_mb: int) -> None:
     """Selvpålagt minnetak via RLIMIT_AS (unix). Ingen shell/ulimit trengs — en
@@ -348,11 +477,23 @@ def main():
                     help="normal=mønster (web), solid=fyll (mobil), ignore=dropp")
     ap.add_argument("--linje", choices=["accurate", "solid"], default="accurate",
                     help="accurate=ekte linjetyper (stiplet), solid=heltrukket (mindre)")
-    ap.add_argument("--gruppering", choices=["farge", "ingen"], default="ingen",
-                    help="farge=mega-paths (liten fil, hakkete pan), ingen=per-primitiv (jevn perf)")
+    ap.add_argument("--gruppering", choices=["farge", "ingen", "handle"], default="ingen",
+                    help="farge=mega-paths (liten fil, hakkete pan, MISTER objektidentitet), "
+                         "ingen=per-primitiv (jevn perf, ett path pr. geometri-fragment), "
+                         "handle=per (handle,farge,lw) — SAMME objektidentitet som ingen "
+                         "(data-id/data-elid uendret pr. objekt), men blokk-instanser (dør/"
+                         "vindu, mange streker pr. INSERT-handle) samles til én path. "
+                         "Kutter nodetall uten tap av F1/F8-picking (D5-fiks for tegninger "
+                         "med mange blokk-instanser, f.eks. fallplanens 1231 dørblokker)")
+    ap.add_argument("--fyll-gruppering", choices=["ingen", "lag"], default="ingen",
+                    help="lag=skravur/flate slått sammen pr. (lag,farge) — kutter nodetall på "
+                         "hatch-tunge tegninger (D5). Strek ALLTID per-primitiv her (data-id/"
+                         "data-elid uendret, F1/F8-picking bevart). ingen=dagens per-primitiv fyll.")
     ap.add_argument("--metadata", choices=["av", "på"], default="av",
                     help="på = data-layer (fra player) + data-type (via handle) pr. element "
                          "(kun gruppering=ingen) — gjenoppretter klikk-identifiser + rapport UTEN subklasse")
+    ap.add_argument("--register", help="skriv egenskapsregister (O1, § 8) hit + data-id/"
+                                       "data-elid pr. strek i SVG-en (impliserer metadata=på)")
     ap.add_argument("--klipp", default=None,
                     help="minX,minY,maxX,maxY i tegningsenheter (layout-klipp) — "
                          "setter extents direkte, kobler ut rotasjon/robust (som egens klippBounds)")
@@ -361,6 +502,9 @@ def main():
                     help="selvpålagt minnetak (RLIMIT_AS). 0 = av.")
     ap.add_argument("--flatten-mm", type=float, default=0.1)
     args = ap.parse_args()
+
+    if args.register:
+        args.metadata = "på"
 
     sett_minnetak(args.mem_mb)
 
@@ -469,24 +613,64 @@ def main():
         vb = lw_mm / mmPrEnhet  # DXF-enheter = viewBox-enheter
         return max(strekBredde, round(vb * 100) / 100)
 
+    # O1-register (§ 8): bygges FØR emit så strek-paths kan bære data-id/data-elid.
+    # Kun handles som faktisk er tegnet (prims) telles — speiler fullstendighetsrapporten.
+    reg_objekter, reg_elidIndex = {}, {}
+    lagmap_reg = layer_info_map(doc) if args.register else {}
+    if args.register:
+        # union med tekst-handles: rom-/komponentstempler (INSERT m/ attributt, F1 felt 3)
+        # har ofte INGEN synlig strek/fyll-geometri — bare attributtekst — og ville ellers
+        # aldri få en O1-oppføring (AT-F1: 53/60 romtagger på fallplanen er rene attributt-
+        # blokker uten egen boundary).
+        prim_handles = {p.handle for p in prims if p.handle} | {t.get("handle") for t in tekster if t.get("handle")}
+        reg_objekter, reg_elidIndex = bygg_objektregister(doc, msp, prim_handles, lagmap_reg)
+
     # emit. gruppering=farge: slå sammen per (farge,strek) -> få mega-paths (liten
     # fil, men dårlig panorerings-perf — hele pathen må re-rasteriseres). gruppering=ingen:
     # én path pr. primitiv (flere noder, men nettleseren kan delinvalidere -> jevn perf).
+    # fyll-gruppering=lag: skravur/flate slått sammen pr. (lag,farge) UAVHENGIG av strek-
+    # gruppering — strek beholder alltid data-id/data-elid (F1/F8-picking upåvirket, D5-fiks
+    # for hatch-tunge tegninger som fallplanen, AT-F1: 86 % av nodene er skravur).
     fills = []
+    fills_by = {}
     stroke_paths = []
     strokes_by = {}
+    reg_bbox = {}
     lw_min = None  # tynneste strek (viewBox-enheter) -> data-lw-base (lw-faktor = lw/lwBase)
     def meta_attr(p):
-        if args.metadata != "på":
-            return ""
-        lag = f' data-layer="{html.escape(p.layer)}"' if p.layer else ""
-        typ = f' data-type="{html.escape(p.dtype)}"' if p.dtype else ""
-        return lag + typ
+        lag = f' data-layer="{html.escape(p.layer)}"' if (args.metadata == "på" and p.layer) else ""
+        typ = f' data-type="{html.escape(p.dtype)}"' if (args.metadata == "på" and p.dtype) else ""
+        idd = ""
+        if args.register and p.handle:
+            idd = f' data-id="{html.escape(p.handle)}"'
+            o = reg_objekter.get(p.handle)
+            if o and o.get("elid"):
+                idd += f' data-elid="{html.escape(o["elid"])}"'
+        return lag + typ + idd
+    def bbox_oppdater(handle, td):
+        if not args.register or not handle:
+            return
+        toks = _TOKEN.findall(td)
+        tall = [float(n) for (_, n) in toks if n]
+        bb = reg_bbox.get(handle)
+        for i in range(0, len(tall) - 1, 2):
+            x, y = tall[i], tall[i+1]
+            if bb is None:
+                bb = [x, y, x, y]; reg_bbox[handle] = bb
+            else:
+                if x < bb[0]: bb[0] = x
+                if y < bb[1]: bb[1] = y
+                if x > bb[2]: bb[2] = x
+                if y > bb[3]: bb[3] = y
     for p in prims:
         td = transform_d(p.d, rotm, minx, miny, rund)
         if not td: continue
+        bbox_oppdater(p.handle, td)
         if p.kind == "fill":
-            fills.append(f'<path d="{td}" fill="{p.color}" stroke="none"{meta_attr(p)}/>')
+            if args.fyll_gruppering == "lag":
+                fills_by.setdefault((p.layer, p.color), []).append(td)
+            else:
+                fills.append(f'<path d="{td}" fill="{p.color}" stroke="none"{meta_attr(p)}/>')
         else:
             swv = lw_til_vb(p.lineweight)
             lw_min = swv if lw_min is None else min(lw_min, swv)
@@ -496,11 +680,33 @@ def main():
             # zoom i web-viseren → bevarer FORHOLDET mellom lineweights).
             if args.gruppering == "ingen":
                 stroke_paths.append(f'<path d="{td}" fill="none" stroke="{p.color}" stroke-width="{swv}" style="--lw:{swv}"{meta_attr(p)}/>')
+            elif args.gruppering == "handle":
+                # Identitet bevart (gruppenøkkelen ER handle) — kutter kun duplikat-geometri
+                # fra samme objekt (blokk-instanser med mange interne streker, se D5).
+                key = (p.handle, p.color, swv)
+                g = strokes_by.setdefault(key, {"ds": [], "layer": p.layer, "dtype": p.dtype})
+                g["ds"].append(td)
             else:
                 strokes_by.setdefault((p.color, swv), []).append(td)
-    for (color, swv), ds in strokes_by.items():
-        lw_min = swv if lw_min is None else min(lw_min, swv)
-        stroke_paths.append(f'<path d="{" ".join(ds)}" fill="none" stroke="{color}" stroke-width="{swv}" style="--lw:{swv}"/>')
+    for (lag, color), ds in fills_by.items():
+        lagattr = f' data-layer="{html.escape(lag)}"' if (args.metadata == "på" and lag) else ""
+        fills.append(f'<path d="{" ".join(ds)}" fill="{color}" stroke="none"{lagattr}/>')
+    if args.gruppering == "handle":
+        for (handle, color, swv), g in strokes_by.items():
+            lw_min = swv if lw_min is None else min(lw_min, swv)
+            lag = f' data-layer="{html.escape(g["layer"])}"' if (args.metadata == "på" and g["layer"]) else ""
+            typ = f' data-type="{html.escape(g["dtype"])}"' if (args.metadata == "på" and g["dtype"]) else ""
+            idd = ""
+            if args.register and handle:
+                idd = f' data-id="{html.escape(handle)}"'
+                o = reg_objekter.get(handle)
+                if o and o.get("elid"):
+                    idd += f' data-elid="{html.escape(o["elid"])}"'
+            stroke_paths.append(f'<path d="{" ".join(g["ds"])}" fill="none" stroke="{color}" stroke-width="{swv}" style="--lw:{swv}"{lag}{typ}{idd}/>')
+    else:
+        for (color, swv), ds in strokes_by.items():
+            lw_min = swv if lw_min is None else min(lw_min, swv)
+            stroke_paths.append(f'<path d="{" ".join(ds)}" fill="none" stroke="{color}" stroke-width="{swv}" style="--lw:{swv}"/>')
     lw_base = lw_min if lw_min is not None else strekBredde
 
     # tekst som egen <text>
@@ -571,6 +777,29 @@ def main():
         "startutsnitt": startutsnitt,
         "tid_s": {"les": round(t_les,2), "tegn": round(t_tegn,2), "total": round(t_tot,2)},
     }
+    if args.register:
+        for h, o in reg_objekter.items():
+            bb = reg_bbox.get(h)
+            if bb:
+                o["bbox"] = [round(bb[0], 3), round(bb[1], 3), round(bb[2], 3), round(bb[3], 3)]
+        lag_antall = {}
+        for o in reg_objekter.values():
+            lag_antall[o["lag"]] = lag_antall.get(o["lag"], 0) + 1
+        laginventar = []
+        for navn, ant in sorted(lag_antall.items(), key=lambda kv: -kv[1]):
+            lm = lagmap_reg.get(navn, {})
+            laginventar.append({
+                "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
+                "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
+            })
+        register = {
+            "fil": args.dxf, "vbW": vbW, "vbH": vbH,
+            "antallObjekter": len(reg_objekter), "antallLag": len(laginventar), "antallElid": len(reg_elidIndex),
+            "objekter": reg_objekter, "elidIndex": reg_elidIndex, "laginventar": laginventar,
+        }
+        with open(args.register, "w") as f: json.dump(register, f, ensure_ascii=False)
+        meta["register"] = {"objekter": len(reg_objekter), "lag": len(laginventar), "elid": len(reg_elidIndex)}
+
     if args.meta:
         with open(args.meta, "w") as f: json.dump(meta, f, indent=2)
     print(json.dumps(meta, indent=2))
@@ -648,23 +877,27 @@ def les_tekster(msp):
         if t == "TEXT":
             ut.append({"tekst": e.dxf.text, "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                        "h": e.dxf.height, "rot": e.dxf.get("rotation", 0) or 0,
-                       "color": "#000000", "att": None, "dtype": "TEXT", "layer": lag})
+                       "color": "#000000", "att": None, "dtype": "TEXT", "layer": lag,
+                       "handle": e.dxf.handle})
         elif t == "MTEXT":
             ut.append({"tekst": _ren_mtext(e.text), "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                        "h": e.dxf.char_height, "rot": _mtext_rot(e),
                        "color": "#000000", "att": e.dxf.get("attachment_point", 1),
-                       "dtype": "MTEXT", "layer": lag})
+                       "dtype": "MTEXT", "layer": lag, "handle": e.dxf.handle})
         elif t == "ATTRIB":
             ut.append({"tekst": e.dxf.text, "x": e.dxf.insert.x, "y": e.dxf.insert.y,
                        "h": e.dxf.height, "rot": e.dxf.get("rotation", 0) or 0,
-                       "color": "#000000", "att": None, "dtype": "ATTRIB", "layer": lag})
-    # INSERT -> ATTRIB
+                       "color": "#000000", "att": None, "dtype": "ATTRIB", "layer": lag,
+                       "handle": e.dxf.handle})
+    # INSERT -> ATTRIB. handle = BLOKK-INSTANSEN (ins), ikke attributtets egen handle —
+    # det er rom-/komponent-stempelet brukeren klikker på (F1/register, O1-id).
     for ins in msp.query("INSERT"):
         for att in ins.attribs:
             ut.append({"tekst": att.dxf.text, "x": att.dxf.insert.x, "y": att.dxf.insert.y,
                        "h": att.dxf.height, "rot": att.dxf.get("rotation", 0) or 0,
                        "color": "#000000", "att": None,
-                       "dtype": "ATTRIB", "layer": att.dxf.get("layer", "") or ""})
+                       "dtype": "ATTRIB", "layer": att.dxf.get("layer", "") or "",
+                       "handle": ins.dxf.handle})
     # DIMENSION -> måltekst. ezdxf tegner dimensjonens linjer/piler, men TextPolicy.IGNORE
     # suppr. teksten — så vi henter den selv (krav 2; manglet i PoC). Primær kilde er
     # dimensjonens geometri-blokk (*D...), som bærer TEXT/MTEXT ferdig plassert/rotert/
