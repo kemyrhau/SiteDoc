@@ -20,11 +20,14 @@ export function Fulltekst({ documentId, søkeord, scrollTilSide }: FulltekstProp
     { enabled: !!documentId },
   );
 
-  // Scroll til valgt side når treff velges (reader-støtte innen panelet).
+  // Scroll til valgt treff når det velges (reader-støtte innen panelet): finn sidens
+  // blokk, og rull til første uthevede treff (<mark>) i den — ikke bare toppen av siden.
   useEffect(() => {
     if (scrollTilSide == null) return;
-    const el = beholderRef.current?.querySelector(`[data-side="${scrollTilSide}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const sideEl = beholderRef.current?.querySelector(`[data-side="${scrollTilSide}"]`);
+    if (!sideEl) return;
+    const mark = sideEl.querySelector("mark") ?? sideEl;
+    mark.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [scrollTilSide, documentId, chunks]);
 
   // Bygg sammenhengende tekst per side, fjern overlapp

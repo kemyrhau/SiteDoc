@@ -23,6 +23,11 @@ interface Treff {
   folderId: string | null;
   utdrag?: string | null;
   metode?: "tekst" | "semantisk" | "begge";
+  // Scoring (dev-modus): hybrid har score/cosineSim/reRankScore, leksikalsk har rank
+  score?: number;
+  cosineSim?: number;
+  reRankScore?: number;
+  rank?: number;
   [key: string]: unknown;
 }
 
@@ -31,6 +36,21 @@ interface TreffListeProps {
   onVelgTreff: (treff: Treff) => void;
   valgtId: string | null;
   søkeord: string;
+  /** Vis score pr. metode (dev-modus, ?debug i URL) — F.2 presisjonsanalyse. */
+  visScore?: boolean;
+}
+
+/** Dev-modus: kompakt score-linje pr. treff. */
+function ScoreLinje({ tr }: { tr: Treff }) {
+  const deler: string[] = [];
+  if (tr.score != null) deler.push(`score ${tr.score.toFixed(3)}`);
+  if (tr.cosineSim != null) deler.push(`cos ${tr.cosineSim.toFixed(3)}`);
+  if (tr.reRankScore != null) deler.push(`rerank ${tr.reRankScore.toFixed(3)}`);
+  if (tr.rank != null && tr.score == null) deler.push(`rank ${tr.rank.toFixed(4)}`);
+  if (deler.length === 0) return null;
+  return (
+    <div className="mt-1 font-mono text-[10px] text-fuchsia-600">{deler.join(" · ")}</div>
+  );
 }
 
 /** Rendrer utdraget: server-uthevet (ts_headline-sentinler) hvis det finnes, ellers klient-highlight. */
@@ -76,7 +96,7 @@ function MetodeBadge({ metode }: { metode?: Treff["metode"] }) {
   );
 }
 
-export function TreffListe({ treff, onVelgTreff, valgtId, søkeord }: TreffListeProps) {
+export function TreffListe({ treff, onVelgTreff, valgtId, søkeord, visScore }: TreffListeProps) {
   const { t } = useTranslation();
   // Hook FØR den tidlige returnen under (Rules of Hooks).
   const apneLenke = useSignertLenkeApner(treff.map((tr) => tr.fileUrl));
@@ -156,6 +176,7 @@ export function TreffListe({ treff, onVelgTreff, valgtId, søkeord }: TreffListe
                 <div className="line-clamp-3 text-xs leading-relaxed text-gray-700">
                   <Utdrag tr={tr} søkeord={søkeord} />
                 </div>
+                {visScore && <ScoreLinje tr={tr} />}
               </button>
             ))}
           </div>

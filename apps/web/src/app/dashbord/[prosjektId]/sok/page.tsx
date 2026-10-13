@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -32,6 +32,8 @@ export default function DokumentsokSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
+  // Dev-modus for presisjonsanalyse (?debug i URL) — viser score pr. metode (F.2).
+  const visScore = useSearchParams().has("debug");
 
   const [query, setQuery] = useState("");
   const [aktivtSok, setAktivtSok] = useState("");
@@ -221,6 +223,7 @@ export default function DokumentsokSide() {
             <TreffListe
               treff={visbareTreff ?? []}
               søkeord={aktivtSok}
+              visScore={visScore}
               onVelgTreff={(tr) => {
                 setValgtTreffId(tr.id);
                 setValgtDokumentId(tr.documentId);
