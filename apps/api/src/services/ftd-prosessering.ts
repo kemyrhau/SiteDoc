@@ -385,9 +385,11 @@ async function prosesserPdf(
   docType: string,
   filsti: string,
 ): Promise<Array<{ side: number; tekst: string }>> {
-  // pdf-parse v1 — default export er en funksjon
+  // pdf-parse v1 — lib-filen direkte, IKKE pakkens index.js: den kjører en debug-blokk når
+  // `module.parent` mangler (Next-bundling i web-containeren, der nettleser-opplasting
+  // prosesseres), og prøver å lese ./test/data/05-versions-space.pdf → ENOENT (prod 2026-10-13).
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string; numpages: number }>;
+  const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string; numpages: number }>;
   const resultat = await pdfParse(buffer);
 
   const sider = resultat.text.split("\f").filter((s: string) => s.trim());
