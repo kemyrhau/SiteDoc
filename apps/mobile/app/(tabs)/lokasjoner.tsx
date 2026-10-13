@@ -500,7 +500,7 @@ export default function LokasjonerSkjerm() {
     const ref = { fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl };
     (async () => {
       const [kilde, erForberedt] = await Promise.all([
-        hentTegningKilde(ref, erPaaNettet, AUTH_CONFIG.apiUrl),
+        hentTegningKilde(ref, erPaaNettet, AUTH_CONFIG.apiUrl, valgtTegningId ?? undefined),
         erTegningForberedt(ref),
       ]);
       if (!aktiv) return;
@@ -509,7 +509,7 @@ export default function LokasjonerSkjerm() {
       setKildeLaster(false);
     })();
     return () => { aktiv = false; };
-  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet]);
+  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet, valgtTegningId]);
 
   // Forbered DENNE tegningen for offline (laster ned fileUrl + mobilvarianten).
   const forberedDenne = useCallback(async () => {
@@ -517,11 +517,16 @@ export default function LokasjonerSkjerm() {
     setForbereder(true);
     setOfflineMelding(t("lokasjoner.offline.forbereder"));
     try {
-      await forberedTegning({ fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl });
+      await forberedTegning(
+        { fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl },
+        valgtTegningId ?? undefined,
+        valgtBygningId,
+      );
       const kilde = await hentTegningKilde(
         { fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl },
         erPaaNettet,
         AUTH_CONFIG.apiUrl,
+        valgtTegningId ?? undefined,
       );
       setTegningKilde(kilde);
       setForberedt(true);
@@ -532,7 +537,7 @@ export default function LokasjonerSkjerm() {
       setForbereder(false);
       setTimeout(() => setOfflineMelding(null), 3500);
     }
-  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet, forbereder, t]);
+  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet, forbereder, t, valgtTegningId, valgtBygningId]);
 
   // Forbered ALLE tegningene i gjeldende byggeplass-filter for offline.
   const forberedByggeplass = useCallback(async () => {
@@ -544,7 +549,7 @@ export default function LokasjonerSkjerm() {
     for (const tg of liste) {
       setOfflineMelding(t("lokasjoner.offline.forbererAntall", { ferdig, total: liste.length }));
       try {
-        await forberedTegning({ fileUrl: tg.fileUrl, mobilFileUrl: tg.mobilFileUrl ?? null });
+        await forberedTegning({ fileUrl: tg.fileUrl, mobilFileUrl: tg.mobilFileUrl ?? null }, tg.id, valgtBygningId);
       } catch { /* enkeltfeil river ikke resten (krav 6) */ }
       ferdig++;
     }
@@ -555,7 +560,7 @@ export default function LokasjonerSkjerm() {
     setOfflineMelding(t("lokasjoner.offline.byggeplassFerdig", { antall: liste.length }));
     setForbereder(false);
     setTimeout(() => setOfflineMelding(null), 3500);
-  }, [tegninger, forbereder, detaljFileUrl, detaljMobilFileUrl, t]);
+  }, [tegninger, forbereder, detaljFileUrl, detaljMobilFileUrl, t, valgtBygningId]);
 
   // Oppdater oppgave-/kontrollpunkt-markørene fra server.
   const oppdaterOppgaver = useCallback(() => {

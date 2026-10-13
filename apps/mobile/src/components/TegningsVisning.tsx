@@ -48,6 +48,7 @@ import {
 } from "@sitedoc/shared/utils";
 import { avgjorTrykkHandling, type TegningVerktoy } from "../lib/tegningTrykk";
 import { lupePlassering, lupeBakgrunn, LUPE_DIAMETER, LUPE_FORSTORRELSE, LUPE_FORSKYVNING } from "../lib/lupe";
+import { skrivTegningHtml, TEGNING_CACHE_MAPPE } from "../services/offlineKlargjoring";
 
 /** Live lupe-data fra WebView-en (RETUR 5 § 2): finger i skjerm-dp + bilde-pct + vist bildestørrelse. */
 interface LupeData {
@@ -184,6 +185,14 @@ export function TegningsVisning({
   const [feil, setFeil] = useState(false);
   const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // RETUR 1 B: lokal kopi leveres som file://-sti (ikke base64). Da skriver vi viser-HTML-en
+  // til cache-mappa og laster WebView-en derfra, så `<img>`/`fetch` leser tegningen direkte.
+  const erLokalFil = tegningUrl.startsWith("file://");
+  // RN <Image> kan ikke dekode SVG → native lupe + prefetch er bortkastet for SVG/ezdxf
+  // (RETUR 1 B). Raster (PDF→png/jpg) beholder lupa.
+  const erSvg = svgInline || /\.svg(\?|#|$)/i.test(tegningUrl);
+  const [htmlFilUrl, setHtmlFilUrl] = useState<string | null>(null);
+  const htmlNonceRef = useRef(0);
 
   // Avansert trykk/måling aktiveres når forelder gir avanserte props.
   const avansert = !!onHint || !!onOpprett || maleData !== undefined;
@@ -417,12 +426,10 @@ export function TegningsVisning({
     setAktivtVerktoy("navigering");
   }, [tegningUrl]);
 
-  // 🔴 RETUR 6 § 5: forhåndslast tegningsbildet i RN-bildecachen når tegningen
-  // åpnes, så den RN-native lupa (som laster SAMME URL) kommer opp med en gang
-  // i stedet for å vente på et eget nettverkskall første gang fingeren legges ned.
-  useEffect(() => {
-    if (tegningUrl) Image.prefetch(tegningUrl).catch(() => {});
-  }, [tegningUrl]);
+  // RETUR 1 B: forhåndslasting av bildet i RN-bildecachen er fjernet — den tjente kun
+  // den native lupa, som for SVG/ezdxf er bortkastet (RN <Image> dekoder ikke SVG), og
+  // for raster lastes bildet uansett når lupa dukker opp. Prefetch av en file://-/data:-
+  // kilde ga ingen nettverksgevinst.
 
   useEffect(() => {
     if (laster && !feil) {
@@ -648,13 +655,39 @@ export function TegningsVisning({
       ? "enkel"
       : "ingen";
   const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta, startutsnitt ?? null, svgInline);
-  // data:-URI (lokal kopi) har «/» inne i base64 → en substring-baseUrl ville bli søppel.
-  // undefined (ikke "") → WKWebView loadHTMLString(html, baseURL:nil): null-origin, der
-  // fetch(data:) er tillatt (verifisert i WebKit). HTML-en bruker uansett kun innebygde
-  // ressurser, så baseUrl trengs ikke for data:/tom.
-  const baseUrl = tegningUrl.startsWith("data:") || tegningUrl === ""
+  // Nett-URL: loadHTMLString med baseUrl = tegningens mappe (relativ henting). Tom/data:
+  // → undefined (null-origin). Lokal fil håndteres via file://-lasting under (ikke baseUrl).
+  const baseUrl = tegningUrl.startsWith("data:") || tegningUrl === "" || erLokalFil
     ? undefined
     : tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1);
+
+  // RETUR 1 B: for lokal kopi skriver vi HTML-en til cache-mappa og laster den som file://,
+  // med lese-tilgang til mappa. Da refererer `<img src="file://…">`/`fetch("file://…")`
+  // tegningen DIREKTE (ingen base64 i minnet → ingen tredobling av RSS på store filer).
+  // Unikt filnavn pr. innholdsendring tvinger reload (file-URL caches ellers).
+  useEffect(() => {
+    if (!erLokalFil) { setHtmlFilUrl(null); return; }
+    let aktiv = true;
+    const nonce = (htmlNonceRef.current += 1);
+    (async () => {
+      try {
+        const url = await skrivTegningHtml(html, nonce);
+        if (aktiv) setHtmlFilUrl(url);
+      } catch {
+        // Skriving til documentDirectory feiler i praksis aldri; skulle den gjøre det,
+        // forblir htmlFilUrl null → lastetidsavbruddet (15 s) viser feil-/prøv-igjen-UI-et.
+        if (aktiv) setHtmlFilUrl(null);
+      }
+    })();
+    return () => { aktiv = false; };
+  }, [erLokalFil, html]);
+
+  // Venter på at viser-HTML skrives til cache før WebView-en kan peke på file://-fila.
+  const venterFil = erLokalFil && htmlFilUrl === null;
+  const filKilde = erLokalFil && htmlFilUrl !== null;
+  const filTilgangProps = filKilde
+    ? { allowingReadAccessToURL: TEGNING_CACHE_MAPPE, allowFileAccessFromFileURLs: true, allowFileAccess: true }
+    : {};
 
   return (
     <View className="flex-1 bg-black">
@@ -722,16 +755,18 @@ export function TegningsVisning({
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {laster && (
+          {(laster || venterFil) && (
             <View style={stiler.lastingContainer}>
               <ActivityIndicator size="large" color="#ffffff" />
               <Text style={stiler.lastingTekst}>{t("tegningsvelger.lasterTegning")}</Text>
             </View>
           )}
+          {!venterFil && (
           <WebView
             ref={webViewRef}
             originWhitelist={["*"]}
-            source={{ html, baseUrl }}
+            source={filKilde ? { uri: htmlFilUrl! } : { html, baseUrl }}
+            {...filTilgangProps}
             style={{ flex: 1, backgroundColor: "#1a1a1a" }}
             onLayout={(e: LayoutChangeEvent) => setWebViewStr({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
             onLoadEnd={() => { setLaster(false); setFeil(false); injiserMaling(); }}
@@ -741,13 +776,16 @@ export function TegningsVisning({
             javaScriptEnabled
             scalesPageToFit={false}
           />
+          )}
 
           {/* 🔴 RETUR 5 § 2: RN-nativ lupe. Plasseres over/til siden for fingeren
               (lupePlassering), med et forstørret utsnitt av tegningsbildet
               (lupeBakgrunn, ~3×) og trådkors i senter der punktet havner. Begge
               geometrifunksjoner er testet i src/lib/lupe.ts. pointerEvents=none så
-              den aldri fanger trykk. */}
-          {lupe && webViewStr && (() => {
+              den aldri fanger trykk. RETUR 1 B: kun for raster — RN <Image> dekoder
+              ikke SVG/ezdxf, så lupa ville vært en tom hvit sirkel (og holdt en base64-
+              kopi i minnet). Vektortegninger er uansett skarpe ved zoom i WebView-en. */}
+          {lupe && webViewStr && !erSvg && (() => {
             const D = LUPE_DIAMETER;
             const pos = lupePlassering(lupe.fingerX, lupe.fingerY, webViewStr.w, webViewStr.h, D, LUPE_FORSKYVNING);
             const bg = lupeBakgrunn(lupe.pctX, lupe.pctY, lupe.dispB, lupe.dispH, LUPE_FORSTORRELSE, D);
