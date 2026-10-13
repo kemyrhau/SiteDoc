@@ -55,15 +55,22 @@ function harPågåendeJobb(d: unknown): boolean {
 }
 
 /**
- * True når dokumentet mangler søkbart innhold og kan reprosesseres. Dokumenter som
- * kjører (pending/processing) eller har ikke-støttet format (.doc/ukjent) utelates —
- * reprosessering hjelper ikke der. `failed` og `completed` med 0 chunks kan prøves på nytt.
+ * True når dokumentet mangler søkbart innhold eller fullført embedding og kan
+ * reprosesseres. Dokumenter som kjører (pending/processing) eller har ikke-støttet
+ * format (.doc/ukjent) utelates — reprosessering hjelper ikke der. Dekker: `failed`,
+ * `completed` med 0 chunks, og chunks der embedding er ufullstendig/feilet
+ * (`chunksEmbedded < chunksTotalt`).
  */
-function maaReprosesseres(rad: { processingState: string | null; chunksTotalt: number }): boolean {
+function maaReprosesseres(rad: {
+  processingState: string | null;
+  chunksTotalt: number;
+  chunksEmbedded: number;
+}): boolean {
   if (rad.processingState === "pending" || rad.processingState === "processing") return false;
   if (rad.processingState === "unsupported") return false;
   if (rad.processingState === "failed") return true;
-  return rad.chunksTotalt === 0;
+  if (rad.chunksTotalt === 0) return true;
+  return rad.chunksEmbedded < rad.chunksTotalt;
 }
 
 /**
@@ -397,6 +404,7 @@ export default function MapperSide() {
     languageConfirmed: boolean;
     chunksTotalt: number;
     chunksEmbedded: number;
+    chunksEmbeddingFeilet: number;
     oversettelse?: {
       tilgjengelig: string[];
       pågår: boolean;
@@ -694,7 +702,7 @@ export default function MapperSide() {
 }
 
 /** Embedding-statusindikator per dokument */
-function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; processingError: string | null; chunksTotalt: number; chunksEmbedded: number } }) {
+function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; processingError: string | null; chunksTotalt: number; chunksEmbedded: number; chunksEmbeddingFeilet: number } }) {
   const { t } = useTranslation();
   // Ikke-støttet filtype (gammelt .doc, .rtf osv.) — synlig status, ikke stille tomhet
   if (rad.processingState === "unsupported") {
@@ -709,6 +717,15 @@ function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; pr
   if (rad.processingError) {
     return (
       <span title={`Feil: ${rad.processingError}`}>
+        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+      </span>
+    );
+  }
+
+  // Embedding feilet (embedding-serveren utilgjengelig) — synlig, ikke stille «venter»
+  if (rad.chunksEmbeddingFeilet > 0) {
+    return (
+      <span title={`${t("mapper.embeddingFeilet")} (${rad.chunksEmbeddingFeilet}/${rad.chunksTotalt})`}>
         <AlertCircle className="h-3.5 w-3.5 text-red-500" />
       </span>
     );

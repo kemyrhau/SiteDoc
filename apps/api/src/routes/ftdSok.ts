@@ -8,6 +8,7 @@ export interface SokTreff {
   id: string;
   documentId: string;
   chunkText: string;
+  chunkIndex: number | null;
   pageNumber: number | null;
   sectionTitle: string | null;
   nsCode: string | null;
@@ -16,7 +17,17 @@ export interface SokTreff {
   docType: string | null;
   folderId: string | null;
   rank: number;
+  /** Server-generert utdrag med søkeord uthevet via sentinel-markører (ts_headline). Null i ILIKE-fallback. */
+  utdrag: string | null;
+  /** Søkemetode — fulltekst gir alltid "tekst". */
+  metode: "tekst";
 }
+
+// Sentinel-markører rundt treff fra ts_headline. Svært usannsynlige i dokumenttekst;
+// klienten splitter på disse og rendrer <mark>. Se treff-liste.tsx.
+export const HL_START = "❰HL❱"; // ❰HL❱
+export const HL_STOP = "❰/HL❱"; // ❰/HL❱
+const HEADLINE_OPTS = `StartSel=${HL_START}, StopSel=${HL_STOP}, MaxWords=32, MinWords=12, ShortWord=2, HighlightAll=FALSE`;
 
 export const ftdSokRouter = router({
   sokDokumenter: protectedProcedure
@@ -24,7 +35,7 @@ export const ftdSokRouter = router({
       z.object({
         projectId: z.string().uuid(),
         query: z.string().min(1),
-        limit: z.number().default(20),
+        limit: z.number().default(40),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -41,39 +52,19 @@ export const ftdSokRouter = router({
           ? Prisma.empty
           : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
 
-      // Dedup: DISTINCT ON dokument — behold best-ranked treff per dokument
-      let treff = await ctx.prisma.$queryRaw<SokTreff[]>`
-        SELECT DISTINCT ON (c.document_id)
-          c.id,
-          c.document_id AS "documentId",
-          c.chunk_text AS "chunkText",
-          c.page_number AS "pageNumber",
-          c.section_title AS "sectionTitle",
-          c.ns_code AS "nsCode",
-          d.filename,
-          d.file_url AS "fileUrl",
-          d.doc_type AS "docType",
-          d.folder_id AS "folderId",
-          ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) AS rank
-        FROM ftd_document_chunks c
-        JOIN ftd_documents d ON d.id = c.document_id
-        WHERE d.project_id = ${input.projectId}
-          AND d.is_active = true
-          AND c.search_vector @@ plainto_tsquery('norwegian', ${input.query})
-          ${mappeKlausul}
-        ORDER BY c.document_id, rank DESC
-      `;
-      // Re-sorter på rank etter dedup
-      treff.sort((a, b) => b.rank - a.rank);
-      if (treff.length > input.limit) treff = treff.slice(0, input.limit);
-
-      // Fallback til ILIKE hvis tsvector gir 0 treff (delord, forkortelser)
-      if (treff.length === 0) {
-        treff = await ctx.prisma.$queryRaw<SokTreff[]>`
-          SELECT DISTINCT ON (c.document_id)
+      // Flere treff pr. dokument (opptil MAKS_PR_DOK), så UI kan gruppere dem under
+      // dokumentet. ts_headline gir et utdrag med søkeord uthevet via sentinel-markører.
+      type RåTreff = Omit<SokTreff, "metode">;
+      let rader = await ctx.prisma.$queryRaw<RåTreff[]>`
+        SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
+               t."sectionTitle", t."nsCode", t.filename, t."fileUrl", t."docType",
+               t."folderId", t.rank, t.utdrag
+        FROM (
+          SELECT
             c.id,
             c.document_id AS "documentId",
             c.chunk_text AS "chunkText",
+            c.chunk_index AS "chunkIndex",
             c.page_number AS "pageNumber",
             c.section_title AS "sectionTitle",
             c.ns_code AS "nsCode",
@@ -81,19 +72,61 @@ export const ftdSokRouter = router({
             d.file_url AS "fileUrl",
             d.doc_type AS "docType",
             d.folder_id AS "folderId",
-            1.0 AS rank
+            ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) AS rank,
+            ts_headline('norwegian', c.chunk_text, plainto_tsquery('norwegian', ${input.query}), ${HEADLINE_OPTS}) AS utdrag,
+            ROW_NUMBER() OVER (
+              PARTITION BY c.document_id
+              ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) DESC
+            ) AS rn
           FROM ftd_document_chunks c
           JOIN ftd_documents d ON d.id = c.document_id
           WHERE d.project_id = ${input.projectId}
             AND d.is_active = true
-            AND c.chunk_text ILIKE ${"%" + input.query + "%"}
+            AND c.search_vector @@ plainto_tsquery('norwegian', ${input.query})
             ${mappeKlausul}
-          ORDER BY c.document_id, rank DESC
+        ) t
+        WHERE t.rn <= 5
+        ORDER BY t.rank DESC
+        LIMIT ${input.limit}
+      `;
+
+      // Fallback til ILIKE hvis tsvector gir 0 treff (delord, forkortelser).
+      // Ingen ts_headline her (tsquery matcher ikke) — klienten highlighter utdraget.
+      if (rader.length === 0) {
+        rader = await ctx.prisma.$queryRaw<RåTreff[]>`
+          SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
+                 t."sectionTitle", t."nsCode", t.filename, t."fileUrl", t."docType",
+                 t."folderId", t.rank, t.utdrag
+          FROM (
+            SELECT
+              c.id,
+              c.document_id AS "documentId",
+              c.chunk_text AS "chunkText",
+              c.chunk_index AS "chunkIndex",
+              c.page_number AS "pageNumber",
+              c.section_title AS "sectionTitle",
+              c.ns_code AS "nsCode",
+              d.filename,
+              d.file_url AS "fileUrl",
+              d.doc_type AS "docType",
+              d.folder_id AS "folderId",
+              1.0 AS rank,
+              NULL::text AS utdrag,
+              ROW_NUMBER() OVER (PARTITION BY c.document_id ORDER BY c.chunk_index ASC) AS rn
+            FROM ftd_document_chunks c
+            JOIN ftd_documents d ON d.id = c.document_id
+            WHERE d.project_id = ${input.projectId}
+              AND d.is_active = true
+              AND c.chunk_text ILIKE ${"%" + input.query + "%"}
+              ${mappeKlausul}
+          ) t
+          WHERE t.rn <= 5
+          ORDER BY t.filename ASC, t.rank DESC
+          LIMIT ${input.limit}
         `;
-        if (treff.length > input.limit) treff = treff.slice(0, input.limit);
       }
 
-      return treff;
+      return rader.map((r) => ({ ...r, metode: "tekst" as const }));
     }),
 
   hentDokumentChunks: protectedProcedure

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -8,14 +8,24 @@ import { trpc } from "@/lib/trpc";
 interface FulltekstProps {
   documentId: string | null;
   søkeord?: string;
+  /** Sidenummer det skal scrolles til (valgt treff). 0/null = ingen scroll. */
+  scrollTilSide?: number | null;
 }
 
-export function Fulltekst({ documentId, søkeord }: FulltekstProps) {
+export function Fulltekst({ documentId, søkeord, scrollTilSide }: FulltekstProps) {
   const { t } = useTranslation();
+  const beholderRef = useRef<HTMLDivElement>(null);
   const { data: chunks, isLoading } = trpc.ftdSok.hentDokumentChunks.useQuery(
     { documentId: documentId! },
     { enabled: !!documentId },
   );
+
+  // Scroll til valgt side når treff velges (reader-støtte innen panelet).
+  useEffect(() => {
+    if (scrollTilSide == null) return;
+    const el = beholderRef.current?.querySelector(`[data-side="${scrollTilSide}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [scrollTilSide, documentId, chunks]);
 
   // Bygg sammenhengende tekst per side, fjern overlapp
   const sider = useMemo(() => {
@@ -83,7 +93,7 @@ export function Fulltekst({ documentId, søkeord }: FulltekstProps) {
   const filnavn = (chunks as Array<{ document?: { filename?: string } }>)?.[0]?.document?.filename;
 
   return (
-    <div className="space-y-4 overflow-y-auto">
+    <div ref={beholderRef} className="space-y-4 overflow-y-auto">
       {filnavn && (
         <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
           <FileText className="h-4 w-4 text-gray-400" />
@@ -91,7 +101,7 @@ export function Fulltekst({ documentId, søkeord }: FulltekstProps) {
         </div>
       )}
       {sider.map((s) => (
-        <div key={s.side}>
+        <div key={s.side} data-side={s.side} className="scroll-mt-2">
           {s.side > 0 && (
             <div className="mb-1 text-xs text-gray-400">
               {t("firma.timer.rapport.pdf.footerSide")} {s.side}
@@ -120,7 +130,7 @@ function finnOverlapp(a: string, b: string): number {
 }
 
 /** Highlight søkeord i tekst */
-function HighlightTekst({ tekst, søkeord }: { tekst: string; søkeord: string }) {
+export function HighlightTekst({ tekst, søkeord }: { tekst: string; søkeord: string }) {
   const termer = søkeord
     .toLowerCase()
     .split(/\s+/)
