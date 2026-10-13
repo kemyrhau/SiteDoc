@@ -26,8 +26,26 @@ interface TegningInfo {
   id: string;
   name: string;
   fileUrl: string | null;
+  // Mobilvariant (ezdxf hatch=solid). Vises i stedet for fileUrl når satt → caches også.
+  mobilFileUrl?: string | null;
   fileType: string | null;
   updatedAt?: string;
+}
+
+/** Minste form viseren trenger for å avgjøre offline-tilstand (lokasjoner + Mer). */
+export interface TegningKildeRef {
+  fileUrl: string | null;
+  mobilFileUrl?: string | null;
+}
+
+/** Resolvert kilde for viseren: data-URI (lokal) ELLER nett-URL, eller utilgjengelig. */
+export interface TegningKilde {
+  /** data:-URI når lokal · full nett-URL når online · null når offline + ikke forberedt. */
+  uri: string | null;
+  /** true = lest fra lokal cache (fungerer i flymodus). */
+  lokal: boolean;
+  /** true = uten nett OG ikke forberedt → viseren viser «Ikke tilgjengelig offline». */
+  offlineUtilgjengelig: boolean;
 }
 
 /** Sørg for at cache-mappen finnes */
@@ -58,8 +76,88 @@ export async function hentTegningLokalSti(fileUrl: string): Promise<string | nul
   return info.exists ? sti : null;
 }
 
+/**
+ * Effektiv vis-URL for en tegning: mobilvarianten (ezdxf) når den finnes, ellers
+ * fileUrl. Speiler valget i lokasjoner.tsx (`mobilFileUrl ?? fileUrl`) — begge er
+ * revisjon-unike UUID-filnavn (upload.ts + dwgKonvertering.ts), så siste URL-ledd
+ * er en komplett revisjon-nøkkel: ny revisjon ⇒ nytt filnavn ⇒ egen cache-nøkkel.
+ */
+function effektivVisUrl(ref: TegningKildeRef): string | null {
+  return ref.mobilFileUrl ?? ref.fileUrl ?? null;
+}
+
+/** MIME-type fra filendelse (de typene viseren faktisk får: svg / png / jpg). */
+function mimeForUrl(url: string): string {
+  const navn = lagFilnavn(url).toLowerCase();
+  if (navn.endsWith(".svg")) return "image/svg+xml";
+  if (navn.endsWith(".png")) return "image/png";
+  if (navn.endsWith(".jpg") || navn.endsWith(".jpeg")) return "image/jpeg";
+  if (navn.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
+}
+
+/**
+ * Last den lokale kopien inn som data-URI. WKWebView nekter å lese `file://` fra en
+ * HTML-streng-kilde (`loadHTMLString`), så lokal visning går via data-URI — fungerer
+ * likt for `<img>`, `fetch()` (ezdxf-inline) og RN-lupa, og nettstien laster uansett
+ * de samme bytene.
+ */
+async function lesSomDataUri(lokalSti: string, url: string): Promise<string> {
+  const b64 = await FileSystem.readAsStringAsync(lokalSti, { encoding: FileSystem.EncodingType.Base64 });
+  return `data:${mimeForUrl(url)};base64,${b64}`;
+}
+
+/**
+ * Forbered ÉN tegning for offline: last ned både fileUrl og (når satt) mobilvarianten,
+ * så viseren kan lese den lokalt uansett hvilken variant den bruker. Idempotent
+ * (lastNedTegning hopper over allerede cachede filer).
+ */
+export async function forberedTegning(ref: TegningKildeRef): Promise<void> {
+  if (ref.fileUrl) await lastNedTegning(ref.fileUrl);
+  if (ref.mobilFileUrl) await lastNedTegning(ref.mobilFileUrl);
+}
+
+/**
+ * Er tegningen forberedt for offline? Sjekker den EFFEKTIVE vis-URL-en (mobilvariant
+ * når den finnes) — det er den fila viseren faktisk trenger lokalt.
+ */
+export async function erTegningForberedt(ref: TegningKildeRef): Promise<boolean> {
+  const url = effektivVisUrl(ref);
+  if (!url) return false;
+  return erTegningCachet(url);
+}
+
+/**
+ * Resolver kilden viseren skal bruke: LOKAL KOPI FØRST (data-URI), ellers nett, ellers
+ * «ikke tilgjengelig offline». `apiUrl` speiler lokasjoner-nettstien (AUTH_CONFIG.apiUrl).
+ */
+export async function hentTegningKilde(
+  ref: TegningKildeRef,
+  erPaaNettet: boolean,
+  apiUrl: string,
+): Promise<TegningKilde> {
+  const url = effektivVisUrl(ref);
+  if (!url) return { uri: null, lokal: false, offlineUtilgjengelig: false };
+
+  const lokalSti = await hentTegningLokalSti(url);
+  if (lokalSti) {
+    try {
+      return { uri: await lesSomDataUri(lokalSti, url), lokal: true, offlineUtilgjengelig: false };
+    } catch {
+      // Lesing feilet (korrupt/slettet under oss) → fall til nett om mulig.
+    }
+  }
+
+  if (erPaaNettet) {
+    const nett = url.startsWith("http") ? url : `${apiUrl}${url}`;
+    return { uri: nett, lokal: false, offlineUtilgjengelig: false };
+  }
+
+  return { uri: null, lokal: false, offlineUtilgjengelig: true };
+}
+
 /** Last ned én tegning til lokal cache */
-async function lastNedTegning(fileUrl: string): Promise<void> {
+export async function lastNedTegning(fileUrl: string): Promise<void> {
   await initialiserMappe();
   const filnavn = lagFilnavn(fileUrl);
   const lokalSti = `${TEGNING_MAPPE}${filnavn}`;
@@ -110,6 +208,9 @@ export async function klargjørForOffline(
     });
     try {
       await lastNedTegning(t.fileUrl);
+      // Mobilvarianten (ezdxf) er den som faktisk vises for DWG → cache den også,
+      // ellers brukes den nedlastede fileUrl aldri av viseren offline.
+      if (t.mobilFileUrl) await lastNedTegning(t.mobilFileUrl);
       tegningerLastet++;
     } catch (err) {
       feil.push(`${t.name}: ${err instanceof Error ? err.message : String(err)}`);

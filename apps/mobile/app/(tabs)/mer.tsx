@@ -118,7 +118,7 @@ export default function MerSkjerm() {
     setOfflineTekst(t("mer.offline.starter"));
     try {
       const resultat = await klargjørForOffline(
-        tegningerQuery.data as Array<{ id: string; name: string; fileUrl: string | null; fileType: string | null; updatedAt?: string }>,
+        tegningerQuery.data as Array<{ id: string; name: string; fileUrl: string | null; mobilFileUrl?: string | null; fileType: string | null; updatedAt?: string }>,
         (s) => setOfflineTekst(`${s.steg} ${s.ferdigeProsent}%`),
       );
       // Dokumentliste-kataloger i EGET try/catch PER liste: feiler én, er

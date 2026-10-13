@@ -517,6 +517,22 @@ skjema-hookene dekker SJA/avvik/RUH). Tjeneste: `services/dokumentSpeil.ts`.
 - Usynkronisert data prioriteres over server-data
 - Auto-synk ved nettverksovergang
 
+**Offline tegningsvisning (disk-cache, `fix/offline-tegning` 2026-10-13):** tegningsfilene
+ligger på disk (`sitedoc-tegninger/`, `offlineKlargjoring.ts`), ikke i SQLite. Viseren leser
+LOKAL kopi FØRST: `lokasjoner.tsx` resolver via `hentTegningKilde({fileUrl, mobilFileUrl}, erPaaNettet, apiUrl)`
+→ **lokal fil som data-URI** → **nett-URL** → **`offlineUtilgjengelig`**. Lokal fil leveres som
+`data:`-URI (ikke `file://`): WKWebView nekter å lese `file://` fra en HTML-streng-kilde
+(`loadHTMLString`), mens `data:` + `fetch(data:)` virker (verifisert i WebKit). Både `fileUrl` og
+ezdxf-`mobilFileUrl` caches og leses — `klargjørForOffline` laster begge, og treprikkmenyen i
+`lokasjoner.tsx` har «Forbered til offline» (denne tegningen), «Forbered alle i byggeplassen» +
+offline-status i headeren (`CloudCheck`/`CloudDownload`/`CloudOff`). **Revisjon-nøkkel:** siste
+URL-ledd er et unikt UUID-filnavn pr. opplasting/konvertering (`upload.ts`, `dwgKonvertering.ts`),
+så en ny revisjon gir ny cache-nøkkel → gammel lokal kopi vises aldri som gjeldende.
+Uten nett + ikke forberedt → `TegningsVisning` viser «Ikke tilgjengelig offline» (`CloudOff`), ikke
+brutt bilde. ⚠️ **Metadata-begrensning:** `tegning.hentMedId` (målestokk m.m.) er fortsatt live-query
+uten speil — en ikke-besøkt tegning på kald start offline mangler metadata → velgeren vises (ikke
+krasj). Tester: `offlineTegning.test.ts` (H1 flymodus-lokal, H2 ikke-forberedt-tilstand).
+
 **Bakgrunnskø:**
 - Én fil av gangen, eksponentiell backoff (maks 5 forsøk)
 - Callback: `registrerCallback()` for URL-oppdateringer i sanntid

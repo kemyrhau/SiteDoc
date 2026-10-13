@@ -14,7 +14,7 @@ import type { LayoutChangeEvent } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { byggHtml } from "./tegning-webview-html";
-import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline, RotateCw } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline, RotateCw, CloudOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   kanMale,
@@ -147,6 +147,9 @@ interface TegningsVisningProps {
   /** C2 (L6): render ezdxf-mobilvarianten INLINE (ikke `<img>`) så streken kan dempes ved
    * zoom (settle). Settes kun for ezdxf-konverterte tegninger (mobilFileUrl). */
   svgInline?: boolean;
+  /** Offline: uten nett OG ikke forberedt → vis «Ikke tilgjengelig offline»-tilstand
+   * i stedet for et brutt bilde / evig spinner (ordre fix/offline-tegning, D8/H2). */
+  offlineUtilgjengelig?: boolean;
 }
 
 
@@ -168,6 +171,7 @@ export function TegningsVisning({
   onSettRotasjon,
   startutsnitt,
   svgInline = false,
+  offlineUtilgjengelig = false,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
   // RETUR 2: auto-rotasjon er bakt inn i SVG-en; her legges kun en brukeroverstyring på.
@@ -644,6 +648,13 @@ export function TegningsVisning({
       ? "enkel"
       : "ingen";
   const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta, startutsnitt ?? null, svgInline);
+  // data:-URI (lokal kopi) har «/» inne i base64 → en substring-baseUrl ville bli søppel.
+  // undefined (ikke "") → WKWebView loadHTMLString(html, baseURL:nil): null-origin, der
+  // fetch(data:) er tillatt (verifisert i WebKit). HTML-en bruker uansett kun innebygde
+  // ressurser, så baseUrl trengs ikke for data:/tom.
+  const baseUrl = tegningUrl.startsWith("data:") || tegningUrl === ""
+    ? undefined
+    : tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1);
 
   return (
     <View className="flex-1 bg-black">
@@ -689,7 +700,14 @@ export function TegningsVisning({
         )}
       </View>
 
-      {feil ? (
+      {offlineUtilgjengelig ? (
+        // D8/H2: uten nett og ikke forberedt → tydelig tilstand, aldri brutt bilde.
+        <View style={stiler.feilContainer}>
+          <CloudOff size={48} color="#9ca3af" />
+          <Text style={stiler.feilTekst}>{t("tegningsvelger.offlineUtilgjengelig")}</Text>
+          <Text style={stiler.feilBeskrivelse}>{t("tegningsvelger.offlineUtilgjengeligInfo")}</Text>
+        </View>
+      ) : feil ? (
         <View style={stiler.feilContainer}>
           <AlertTriangle size={48} color="#f59e0b" />
           <Text style={stiler.feilTekst}>{t("tegningsvelger.kunneIkkeLaste")}</Text>
@@ -713,7 +731,7 @@ export function TegningsVisning({
           <WebView
             ref={webViewRef}
             originWhitelist={["*"]}
-            source={{ html, baseUrl: tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1) }}
+            source={{ html, baseUrl }}
             style={{ flex: 1, backgroundColor: "#1a1a1a" }}
             onLayout={(e: LayoutChangeEvent) => setWebViewStr({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
             onLoadEnd={() => { setLaster(false); setFeil(false); injiserMaling(); }}
