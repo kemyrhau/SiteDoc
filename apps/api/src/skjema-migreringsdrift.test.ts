@@ -14,7 +14,9 @@ const PAKKER = ["db", "db-timer", "db-maskin", "db-varelager"];
 function kolonnerUtenMigrering(pakke: string): string[] {
   const prismaDir = join(ROT, pakke, "prisma");
   const skjema = readFileSync(join(prismaDir, "schema.prisma"), "utf8");
-  const kolonner = new Set([...skjema.matchAll(/@map\("([a-z0-9_]+)"\)/g)].map((m) => m[1]));
+  const kolonner = new Set(
+    [...skjema.matchAll(/@map\("([a-z0-9_]+)"\)/g)].map((m) => m[1]).filter((k): k is string => !!k),
+  );
   const migDir = join(prismaDir, "migrations");
   const sql = readdirSync(migDir, { withFileTypes: true })
     .filter((d) => d.isDirectory())
