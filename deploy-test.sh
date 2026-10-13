@@ -120,6 +120,8 @@ rsync -a --delete \
   --exclude .pnpm-store \
   --exclude docker/env \
   --exclude uploads \
+  --exclude 'DWG eksempelfiler' \
+  --exclude relay \
   "$SRC" "$DST"
 
 # --- 2. Skriv ut docker-kommandoen (kjøres IKKE her — sudo krever TTY) -------
