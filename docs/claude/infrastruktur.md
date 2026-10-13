@@ -72,6 +72,10 @@ ssh -t server-ny "sudo docker exec sitedoc-test-api sh -c 'echo \$DWG_MOTOR' && 
 
 Tilbake til `egen`: fjern linja fra begge filer og recreate på nytt. **Faller ezdxf av en grunn tilbake til egen** (venv/render mangler), bærer konverteringsmarkøren `fallbackFra: "ezdxf"` — da tegnet egen selv om flagget sa ezdxf (markøren lyver aldri om motoren).
 
+### Web trenger env for alt tRPC gjør (målt 2026-10-13)
+
+tRPC kjører **in-process i web-containeren** for alt nettleseren trigger, så web må ha env for de tjenestene: `NORBERT_URL`/`OVERSETTELSE_URL`/`PDF_URL` (i `docker/docker-compose.yml` og `docker-compose.test.yml` på web) og `VEGVESEN_API_KEY` (i `web.env`/`web-test.env`, kopiert fra api-filene). Sjekk paritet med navn-diff (aldri verdier): `diff <(docker exec sitedoc-api printenv | cut -d= -f1 | sort) <(docker exec sitedoc-web printenv | cut -d= -f1 | sort)`. Forventet differanse: `BUILD_TID`, `GIT_SHA`, `HOST`, `MICROSOFT_MOBILE_CLIENT_ID` (mobilauth går mot api).
+
 ### 🔴 STYRENDE: env-filer overskrives — tre hendelser på fem dager (2026-08-13 → 08-18)
 
 Env-filer er **gitignorert og har ingen historikk**. Overskriver du en, finnes originalen

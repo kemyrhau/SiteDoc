@@ -6,6 +6,14 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## Prod-hotfixer 2026-10-13 (`66b36226` → `841dd4e5` → `f60d7fd1`): dokumentopplasting, kundefiler, PDF og embedding (LIVE)
+
+- `66b36226`: migrering `20261013120000_ftd_split_sources` (`ftd_documents.split_sources` manglet i prod siden schema-endring 31.03 uten migrering, så opplasting i Mapper feilet) + vakt `apps/api/src/skjema-migreringsdrift.test.ts`.
+- `841dd4e5`: `deploy-prod.sh`/`deploy-test.sh` utelater `DWG eksempelfiler` og `relay` (rsync lastet opp 3,2 GB kundefiler). `.dockerignore` likeså (lå i api/web-bildene via `COPY . .`). Mappene slettet fra `~/stack/sitedoc` av Kenneth.
+- `f60d7fd1`: `pdf-parse/lib/pdf-parse.js` (ENOENT `./test/data/05-versions-space.pdf` ved PDF-uttrekk i web) + `NORBERT_URL`/`OVERSETTELSE_URL`/`PDF_URL` på web i compose (embedding feilet fra web). Verifisert: `printenv NORBERT_URL` i web = `http://embed:3302`.
+- Env (Kenneth, ikke i git): `VEGVESEN_API_KEY` kopiert fra `api.env`→`web.env` og `api-test.env`→`web-test.env` (Vegvesen-oppslag i maskin kjører i web). Prod-web gjenskapt, lengde 37 bekreftet.
+- ⚠️ Gjenstår: DOCX gjøres ikke søkbar (Redesign `feat/docx-sok`), test-web får `VEGVESEN_API_KEY` ved neste test-deploy.
+
 ## Prod-deploy 2026-10-12 (`1e6cb861`): SVG-XSS-hotfix, ezdxf-motor (av), revisjon-UX, startutsnitt (LIVE)
 
 - Release `1e6cb861` (bygget 20:35Z). `curl /version` = `1e6cb861`. `dwg2dxf 0.14` og `ezdxf 1.4.4` i både `sitedoc-api` og `sitedoc-web`. `DWG_MOTOR` ikke satt i prod, så den gamle motoren brukes.
