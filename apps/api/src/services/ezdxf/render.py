@@ -127,7 +127,19 @@ def bygg_objektregister(doc, msp, handles, lagmap):
     for ins in msp.query("INSERT"):
         h = ins.dxf.handle
         atts = {a.dxf.tag: a.dxf.text for a in ins.attribs if (a.dxf.text or "").strip()}
-        insert_info[h] = {"navn": ins.dxf.name, "attr": atts}
+        # attrMeta (GATE 3-TELEFON pkt 1): egen posisjon/høyde/rotasjon pr. ATTRIB — INSERT-
+        # ens samlede bbox dekker HELE blokken (dørsymbol+ramme m.m.), ikke der teksten faktisk
+        # sitter. Kun i register-world (rå DXF-verdenskoord, ingen SVG-transform å tolke).
+        attr_meta = {
+            a.dxf.tag: {
+                "x": round(a.dxf.get("insert", (0, 0))[0], 3),
+                "y": round(a.dxf.get("insert", (0, 0))[1], 3),
+                "h": round(a.dxf.get("height", 0.0), 3),
+                "rot": round(a.dxf.get("rotation", 0.0), 2),
+            }
+            for a in ins.attribs if (a.dxf.text or "").strip()
+        }
+        insert_info[h] = {"navn": ins.dxf.name, "attr": atts, "attrMeta": attr_meta}
     hatch_info = {h.dxf.handle: h.dxf.get("pattern_name", "") for h in msp.query("HATCH")}
     for h in handles:
         e = doc.entitydb.get(h)
@@ -153,6 +165,8 @@ def bygg_objektregister(doc, msp, handles, lagmap):
             obj["blokk"] = insert_info[h]["navn"]
             if insert_info[h]["attr"]:
                 obj["attr"] = insert_info[h]["attr"]
+                if insert_info[h]["attrMeta"]:
+                    obj["attrMeta"] = insert_info[h]["attrMeta"]
         if h in hatch_info:
             pn = hatch_info[h]
             if pn in MATERIALE:
@@ -846,33 +860,12 @@ def main():
         "startutsnitt": startutsnitt,
         "tid_s": {"les": round(t_les,2), "tegn": round(t_tegn,2), "total": round(t_tot,2)},
     }
-    if args.register:
-        for h, o in reg_objekter.items():
-            bb = reg_bbox.get(h)
-            if bb:
-                o["bbox"] = [round(bb[0], 3), round(bb[1], 3), round(bb[2], 3), round(bb[3], 3)]
-        lag_antall = {}
-        for o in reg_objekter.values():
-            lag_antall[o["lag"]] = lag_antall.get(o["lag"], 0) + 1
-        laginventar = []
-        for navn, ant in sorted(lag_antall.items(), key=lambda kv: -kv[1]):
-            lm = lagmap_reg.get(navn, {})
-            laginventar.append({
-                "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
-                "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
-            })
-        register = {
-            "fil": args.dxf, "vbW": vbW, "vbH": vbH,
-            "antallObjekter": len(reg_objekter), "antallLag": len(laginventar), "antallElid": len(reg_elidIndex),
-            "objekter": reg_objekter, "elidIndex": reg_elidIndex, "laginventar": laginventar,
-        }
-        with open(args.register, "w") as f: json.dump(register, f, ensure_ascii=False)
-        meta["register"] = {"objekter": len(reg_objekter), "lag": len(laginventar), "elid": len(reg_elidIndex)}
-
     if args.register_world:
-        # Egne kopier av objektene (IKKE reg_objekter direkte) — --register over kan ha
-        # mutert "bbox" på de samme dict-instansene til SVG-viewBox-koordinater; de to
-        # registrene deler objekt-METADATA (kategori/lag/elid/attr), men ALDRI bbox-verdien.
+        # Egne kopier av objektene (IKKE reg_objekter direkte) — --register under muterer
+        # "bbox" (og fjerner attrMeta) på de samme dict-instansene til SVG-viewBox-koordinater;
+        # de to registrene deler objekt-METADATA (kategori/lag/elid/attr), men ALDRI bbox-
+        # verdien eller attrMeta (rå verdenskoordinater, kun gyldig her). MÅ bygges FØR
+        # --register-blokken under muterer/fjerner felt på de delte dict-instansene.
         objekter_world = {}
         for h, o in reg_objekter.items():
             ow = dict(o)
@@ -902,6 +895,33 @@ def main():
         }
         with open(args.register_world, "w") as f: json.dump(register_world, f, ensure_ascii=False)
         meta["registerWorld"] = {"objekter": len(objekter_world), "lag": len(laginventar_w), "elid": len(reg_elidIndex)}
+
+    if args.register:
+        for h, o in reg_objekter.items():
+            bb = reg_bbox.get(h)
+            if bb:
+                o["bbox"] = [round(bb[0], 3), round(bb[1], 3), round(bb[2], 3), round(bb[3], 3)]
+            # attrMeta er RÅ DXF-verdenskoordinater (kun gyldig i --register-world) — ugyldig i
+            # dette SVG-roterte/flippede/margin-forskjøvede koordinatsystemet. Fjernes her.
+            # (register-world-blokken over har allerede tatt sin egen kopi inkl. attrMeta.)
+            o.pop("attrMeta", None)
+        lag_antall = {}
+        for o in reg_objekter.values():
+            lag_antall[o["lag"]] = lag_antall.get(o["lag"], 0) + 1
+        laginventar = []
+        for navn, ant in sorted(lag_antall.items(), key=lambda kv: -kv[1]):
+            lm = lagmap_reg.get(navn, {})
+            laginventar.append({
+                "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
+                "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
+            })
+        register = {
+            "fil": args.dxf, "vbW": vbW, "vbH": vbH,
+            "antallObjekter": len(reg_objekter), "antallLag": len(laginventar), "antallElid": len(reg_elidIndex),
+            "objekter": reg_objekter, "elidIndex": reg_elidIndex, "laginventar": laginventar,
+        }
+        with open(args.register, "w") as f: json.dump(register, f, ensure_ascii=False)
+        meta["register"] = {"objekter": len(reg_objekter), "lag": len(laginventar), "elid": len(reg_elidIndex)}
 
     if args.meta:
         with open(args.meta, "w") as f: json.dump(meta, f, indent=2)
