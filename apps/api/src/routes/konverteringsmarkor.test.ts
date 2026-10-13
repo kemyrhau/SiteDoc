@@ -90,6 +90,7 @@ describe("anvendDwgResultat — layout-barn får konverteringsmarkør (L8)", () 
       koordinatSystem: null, geoReferanse: null, feil: null,
       autoRotasjon: null, startutsnitt: null, rapport: null,
       motor, fallbackFra, fallbackAarsak,
+      dxfViewerFileUrl: null, registerWorldUrl: null,
       layouts: [{
         navn: "Plan 1:100", tabOrder: 1, visningUrl: "/uploads/layout.svg", visningFilType: "svg",
         mmPrPiksel: 10, scale: "1:100", scaleKilde: "dwg", imageWidth: 2000, imageHeight: 1500,

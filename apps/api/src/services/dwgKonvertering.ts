@@ -79,6 +79,13 @@ export interface DwgKonverteringsResultat extends DwgMaaling {
   /** Kort årsak til fallbacken (f.eks. «ezdxf ikke konfigurert», «ezdxf-render feilet»).
    * null når `fallbackFra` er null. */
   fallbackAarsak: string | null;
+  /** Leveranse 1 (TEGNING_MOTOR=dxfviewer): forenklet DXF for klienten som tegner
+   * direkte fra DXF-en (dxf-viewer/WebGL) — se `genererDxfViewerArtefakter`. null =
+   * flagget var av, eller genereringen feilet (web faller da tilbake til SVG-veien). */
+  dxfViewerFileUrl: string | null;
+  /** O1-registeret i rå DXF-verdenskoordinater (render.py --register-world), satt
+   * SAMMEN med `dxfViewerFileUrl` (begge eller ingen). */
+  registerWorldUrl: string | null;
 }
 
 interface DwgLayoutResultat extends DwgMaaling {
@@ -2152,6 +2159,60 @@ export async function dxfTilSvgEzdxf(
   }
 }
 
+/** Kill-switch for klient-rendering-valget (leveranse 1, plan § 1): web/mobil tegner
+ * enten den ferdigkonverterte SVG-en (`svg`, default — uendret for alle i dag) eller
+ * `dxf-viewer` direkte fra DXF-en + O1-registeret (`dxfviewer`). Samme mønster som
+ * `DWG_MOTOR`, men en UAVHENGIG akse: `DWG_MOTOR` avgjør hvilken SVG som FINNES på
+ * disk (fortsatt nødvendig for F7-offline/PDF-eksport), `TEGNING_MOTOR` avgjør om
+ * klienten bruker den eller tegner dxf-viewer-artefaktene i stedet. */
+export function dxfViewerAktivert(): boolean {
+  return process.env.TEGNING_MOTOR === "dxfviewer";
+}
+
+/**
+ * Leveranse 1: genererer de to artefaktene dxf-viewer-visningen trenger — en
+ * forenklet DXF (spike 0,5b: XDATA/extension-dicts/ubrukte blokker fjernet,
+ * koordinater avrundet <=0,1 mm) og O1-registeret i rå DXF-verdenskoordinater
+ * (`render.py --register-world`, samme funksjon som allerede bygger --register for
+ * SVG-inspeksjonsmodus). Krever `EZDXF_RENDER_PY` (samme som ezdxf-motoren) —
+ * uavhengig av `DWG_MOTOR` (fungerer også når hoved-SVG-en kommer fra egen-motoren).
+ * Returnerer null ved manglende motor/feil → kalleren lar web falle tilbake til SVG.
+ */
+export async function genererDxfViewerArtefakter(
+  dxfSti: string,
+  uploadDir: string,
+): Promise<{ dxfViewerFileUrl: string; registerWorldUrl: string } | null> {
+  const renderPy = ezdxfRenderPy();
+  if (!renderPy) {
+    console.warn("[DWG] TEGNING_MOTOR=dxfviewer, men EZDXF_RENDER_PY er ikke satt — hopper over.");
+    return null;
+  }
+  const dir = dirname(dxfSti);
+  const kastSvg = join(dir, `${randomUUID()}.svg`); // trengs ikke av klienten, kun render.py sitt CLI-krav
+  const forenkletFilnavn = `${randomUUID()}.dxf`;
+  const registerFilnavn = `${randomUUID()}.json`;
+  const forenkletSti = join(uploadDir, forenkletFilnavn);
+  const registerSti = join(uploadDir, registerFilnavn);
+  const args = [
+    renderPy, dxfSti, kastSvg,
+    "--register-world", registerSti,
+    "--forenklet-dxf", forenkletSti,
+  ];
+  try {
+    await execFileAsync(ezdxfPython(), args, {
+      timeout: 300000, cwd: dir, maxBuffer: 50 * 1024 * 1024,
+    });
+    return { dxfViewerFileUrl: `/uploads/${forenkletFilnavn}`, registerWorldUrl: `/uploads/${registerFilnavn}` };
+  } catch (err) {
+    console.warn("[DWG] dxf-viewer-artefakter feilet:", err);
+    await unlink(forenkletSti).catch(() => { /* OK */ });
+    await unlink(registerSti).catch(() => { /* OK */ });
+    return null;
+  } finally {
+    await unlink(kastSvg).catch(() => { /* OK */ });
+  }
+}
+
 /**
  * Konverter en DWG- eller DXF-fil til visnings-SVG + enheter + georeferanse + layouts.
  *
@@ -2188,6 +2249,8 @@ export async function konverterDwg(
       motor: valgtMotor(),
       fallbackFra: null,
       fallbackAarsak: null,
+      dxfViewerFileUrl: null,
+      registerWorldUrl: null,
     };
   }
 
@@ -2370,6 +2433,22 @@ export async function konverterDwg(
       }
     }
 
+    // 6. dxf-viewer-artefakter (leveranse 1, kill-switch): KUN når hoved-SVG-en lyktes
+    // (visningUrl satt) — en fil som ikke kunne tegnes i det hele tatt får heller ikke
+    // en dxf-viewer-variant. Må kjøre FØR DXF-opprydningen under (trenger dxfSti på disk).
+    let dxfViewerFileUrl: string | null = null;
+    let registerWorldUrl: string | null = null;
+    if (visningUrl && dxfInnhold && dxfViewerAktivert()) {
+      const artefakter = await genererDxfViewerArtefakter(dxfSti, uploadDir);
+      if (artefakter) {
+        dxfViewerFileUrl = artefakter.dxfViewerFileUrl;
+        registerWorldUrl = artefakter.registerWorldUrl;
+        console.log("[DWG] dxf-viewer-artefakter generert:", JSON.stringify(artefakter));
+      } else {
+        console.warn("[DWG] dxf-viewer-artefakter ble ikke generert — web faller tilbake til SVG-veien for denne tegningen.");
+      }
+    }
+
     if (ryddDxf) { try { await unlink(libreDxfSti); } catch { /* OK */ } }
 
     const feil = visningUrl
@@ -2393,6 +2472,8 @@ export async function konverterDwg(
       motor: faktiskMotor,
       fallbackFra,
       fallbackAarsak,
+      dxfViewerFileUrl,
+      registerWorldUrl,
     };
   } catch (err) {
     console.error("[DWG] Konvertering feilet:", err);
@@ -2408,6 +2489,8 @@ export async function konverterDwg(
       motor: valgtMotor(),
       fallbackFra: null,
       fallbackAarsak: null,
+      dxfViewerFileUrl: null,
+      registerWorldUrl: null,
     };
   }
 }

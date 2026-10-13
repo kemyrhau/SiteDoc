@@ -914,6 +914,15 @@ model Drawing {
   // 2026-10-11). Mobil velger `mobilFileUrl ?? fileUrl`. Egen kolonne (ikke JSON) så
   // den synes der `/uploads/`-URL-er signeres/herdes/lastes ned/slettes.
   mobilFileUrl     String?   @map("mobil_file_url")
+  // dxf-viewer-visning (leveranse 1, TEGNING_MOTOR=dxfviewer): forenklet DXF (XDATA/
+  // extension-dicts/ubrukte blokker fjernet, koordinater avrundet <=0,1 mm — spike
+  // 0,5b, relay/inbox-orkestrator.md) + O1-registeret i RÅ DXF-verdenskoordinater
+  // (render.py --register-world). Begge NULL = `TEGNING_MOTOR` var av ved siste
+  // konvertering, ELLER filen er ikke DWG/DXF — en gyldig, varig tilstand (SVG-veien
+  // er fortsatt default, F1/F2/F4 ikke bevist i prod ennå). Alltid satt SAMMEN (som
+  // `mobilFileUrl`) så en re-konvertering med flagget av rydder stale URL-er.
+  dxfViewerFileUrl String?   @map("dxf_viewer_file_url")
+  registerWorldUrl String?   @map("register_world_url")
   fileType         String    @map("file_type") // PDF, DWG, DXF, IFC
   // Lagringsstatistikk (2026-08-11): står Int? BEVISST — prod-dekningen (4/4) er
   // data-tilfeldighet, ikke en robust skrivevei. Koden oppretter DWG-layout-
@@ -1094,6 +1103,12 @@ model DrawingRevision {
   // miste mobilvarianten og falle tilbake til web-full-hatch (rendrer ikke på mobil).
   // NULL = bruk `fileUrl` (egen-motor / ikke-DWG / revisjoner før feltet). Ingen backfill.
   mobilFileUrl String?   @map("mobil_file_url")
+  // Speiler Drawing.dxfViewerFileUrl/registerWorldUrl (leveranse 1) — uten dette
+  // ville en arkivert revisjon konvertert med TEGNING_MOTOR=dxfviewer PÅ miste
+  // artefaktene og falle tilbake til SVG-veien kun for gamle revisjoner (drift).
+  // NULL = bruk fileUrl / ingen register (egen-motor, ikke-DWG, revisjoner før feltet).
+  dxfViewerFileUrl String? @map("dxf_viewer_file_url")
+  registerWorldUrl String? @map("register_world_url")
   fileSize     Int?      @map("file_size") // Int? bevisst: 0 rader/utestet skrivevei (se Drawing.fileSize, lagringsstatistikk 2026-08-11)
   description  String? // Beskrivelse av endringer
   uploadedById String?   @map("uploaded_by_id")

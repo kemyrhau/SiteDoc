@@ -292,6 +292,11 @@ export async function anvendDwgResultat(
     // fileUrl). ALLTID satt sammen med fileUrl så en re-konvertering til egen rydder en
     // tidligere ezdxf-mobilvariant (ingen stale URL mot en slettet web-fil).
     oppdatering.mobilFileUrl = resultat.mobilVisningUrl;
+    // Leveranse 1: speiler mobilFileUrl-mønsteret over. ALLTID satt sammen med
+    // visningUrl, så en re-konvertering med TEGNING_MOTOR av rydder en tidligere
+    // dxf-viewer-variant (ingen stale URL mot en slettet /uploads/-fil).
+    oppdatering.dxfViewerFileUrl = resultat.dxfViewerFileUrl;
+    oppdatering.registerWorldUrl = resultat.registerWorldUrl;
     oppdatering.fileType = resultat.visningFilType;
     oppdatering.imageWidth = resultat.imageWidth;
     oppdatering.imageHeight = resultat.imageHeight;
@@ -754,6 +759,10 @@ export const tegningRouter = router({
           // arkivert ezdxf-revisjon mobil-SVG-en og faller tilbake til web-full-hatch
           // (rendrer ikke på mobil = selve buggen). NULL = egen/ikke-DWG → bruk fileUrl.
           mobilFileUrl: tegning.mobilFileUrl,
+          // Leveranse 1: speiler mobilFileUrl-arkiveringen over, for dxf-viewer-
+          // artefaktene (forenklet DXF + O1-register). NULL = TEGNING_MOTOR var av.
+          dxfViewerFileUrl: tegning.dxfViewerFileUrl,
+          registerWorldUrl: tegning.registerWorldUrl,
           // NESTE: arkiver originalfila (DWG/PDF) sammen med revisjonen. Kopieres fra
           // Drawing.originalFileUrl, som ER satt også på tegninger lastet opp før dette
           // feltet (opprett/lastOppRevisjon har satt den lenge) → de beholder originalen

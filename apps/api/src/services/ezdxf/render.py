@@ -44,6 +44,121 @@ CAP_RATIO = 0.716          # dwgKonvertering.ts:1296
 LANGSIDE_PIKSEL = 2000     # dwgKonvertering.ts (hotfix mobil)
 MARGIN_ANDEL = 0.02        # dwgKonvertering.ts:1954
 
+# ---------- forenklet DXF for dxf-viewer (spike 0,5b, leveranse 1) ----------
+# Egen fil for klienten som tegner DIREKTE fra rå DXF (dxf-viewer/WebGL) — SVG-veien
+# og registeret (hit-test) bygges fortsatt fra den OPPRINNELIGE, upåvirkede DXF-en
+# (full presisjon). Avrundingen her er <=0,1 mm, godt innenfor registerets egen 2 mm
+# treffetoleranse (se hit_tol_world under) — målt 0-0,13 % pikselavvik, kun
+# sub-piksel antialiasing (relay/arbeidstegning-prove/spike-05b). Fjerner KUN
+# ikke-tegnet metadata (XDATA/extension-dicts/ubrukte blokker) + avrunder koordinater
+# — aldri geometri som faktisk tegnes.
+MM_PR_ENHET_FORENKLET = {0: 1.0, 1: 25.4, 2: 304.8, 3: 1609344.0, 4: 1.0, 5: 10.0,
+                          6: 1000.0, 8: 0.0000254, 9: 0.0254, 10: 914.4, 13: 0.001, 14: 0.01}
+_PUNKT_KODER_FORENKLET = set(range(10, 40))
+
+
+def _forenklet_desimaler(doc) -> int:
+    units = doc.header.get("$INSUNITS", 4) or 4
+    mm_pr_enhet = MM_PR_ENHET_FORENKLET.get(units, 1.0)
+    tol_enheter = 0.1 / mm_pr_enhet
+    if tol_enheter <= 0:
+        return 6
+    dec = max(0, -math.floor(math.log10(tol_enheter)))
+    return min(dec, 8)
+
+
+def _forenklet_refererte_blokknavn(doc) -> set:
+    referert = set()
+    for e in list(doc.entitydb.values()):
+        if not e.is_alive:
+            continue
+        t = e.dxftype()
+        if t == "INSERT":
+            navn = e.dxf.get("name", None)
+            if navn:
+                referert.add(navn)
+        elif t == "DIMENSION":
+            geo = e.dxf.get("geometry", None)
+            if geo:
+                referert.add(geo)
+    for nokkel in ("$DIMBLK", "$DIMBLK1", "$DIMBLK2", "$DIMLDRBLK"):
+        verdi = doc.header.get(nokkel, "")
+        if verdi:
+            referert.add(verdi)
+    for dimstil in doc.dimstyles:
+        for attr in ("dimblk", "dimblk1", "dimblk2", "dimldrblk"):
+            verdi = dimstil.dxf.get(attr, "")
+            if verdi:
+                referert.add(verdi)
+    return referert
+
+
+def _forenklet_rund_koordinater(tekst: str, desimaler: int) -> str:
+    # DXF ASCII er en streng (kode, verdi)-vekselrekke fra forste linje — MA
+    # behandles parvis med fast steg 2 (en verdi som "24" ligger selv innenfor
+    # punkt-kode-intervallet 10-39 og feiltolkes som ny kode ellers).
+    har_siste_linjeskift = tekst.endswith("\n")
+    linjer = tekst.split("\n")
+    if har_siste_linjeskift:
+        linjer = linjer[:-1]
+    ut_desimaler = desimaler if desimaler > 0 else 1
+    n = len(linjer)
+    i = 0
+    while i + 1 < n:
+        kode_linje = linjer[i].strip()
+        if kode_linje.isdigit() and int(kode_linje) in _PUNKT_KODER_FORENKLET:
+            try:
+                verdi = float(linjer[i + 1].strip())
+                linjer[i + 1] = f"{round(verdi, desimaler):.{ut_desimaler}f}"
+            except ValueError:
+                pass
+        i += 2
+    resultat = "\n".join(linjer)
+    return resultat + "\n" if har_siste_linjeskift else resultat
+
+
+def skriv_forenklet_dxf(kilde_dxf_sti: str, ut_sti: str) -> dict:
+    """Leser DXF-en PÅ NYTT (upåvirket kopi) og skriver en forenklet variant:
+    XDATA + extension-dicts fjernet, ubrukte blokkdefinisjoner slettet (sikret
+    mot DIMENSION-geometri/DIMSTYLE-pilblokker — se spike 0,5b-rapport), ikke-
+    tegnede seksjoner (THUMBNAILIMAGE/ACDSDATA/ubrukt CLASSES) faller bort ved
+    ezdxf sin egen skriving, og koordinater avrundet til <=0,1 mm. Returnerer
+    tall til markøren (konverteringsrapport)."""
+    doc = ezdxf.readfile(kilde_dxf_sti)
+    xdata_n = 0
+    extdict_n = 0
+    for e in list(doc.entitydb.values()):
+        if not e.is_alive:
+            continue
+        if e.xdata:
+            e.xdata = None
+            xdata_n += 1
+        if e.has_extension_dict:
+            e.discard_extension_dict()
+            extdict_n += 1
+    referert = _forenklet_refererte_blokknavn(doc)
+    slettet_blokker = []
+    for navn in [b.name for b in doc.blocks if not b.name.startswith("*")]:
+        if navn in referert:
+            continue
+        try:
+            doc.blocks.delete_block(navn, safe=True)
+            slettet_blokker.append(navn)
+        except Exception:
+            pass  # i faktisk bruk (nested INSERT/layout/special) -> behold
+    desimaler = _forenklet_desimaler(doc)
+    tmp_sti = ut_sti + ".tmp"
+    doc.saveas(tmp_sti)
+    with open(tmp_sti, "r", encoding="utf-8", errors="replace") as fh:
+        tekst = fh.read()
+    tekst = _forenklet_rund_koordinater(tekst, desimaler)
+    with open(ut_sti, "w", encoding="utf-8") as fh:
+        fh.write(tekst)
+    import os
+    os.remove(tmp_sti)
+    return {"xdataStrippet": xdata_n, "extdictStrippet": extdict_n,
+            "blokkerSlettet": len(slettet_blokker), "desimaler": desimaler}
+
 # ---------- felles objektmodell O1 (arbeidstegning-spec § 8) ----------
 # Revit BuiltInCategory -> norsk (målt AT-F6, arbeidstegning-spec.md § 1b).
 BUILTIN_CAT = {
@@ -589,6 +704,11 @@ def main():
     ap.add_argument("--mem-mb", type=int, default=2048,
                     help="selvpålagt minnetak (RLIMIT_AS). 0 = av.")
     ap.add_argument("--flatten-mm", type=float, default=0.1)
+    ap.add_argument("--forenklet-dxf", help="skriv en forenklet DXF hit for dxf-viewer-klienten "
+                    "(leveranse 1) — XDATA/extension-dicts/ubrukte blokker fjernet, koordinater "
+                    "avrundet <=0,1 mm. Bygges fra en FERSK lesing av kilde-DXF-en (uavhengig av "
+                    "SVG/register over, som alltid bruker full presisjon). Tall til markøren "
+                    "skrives inn i --meta under nøkkelen forenkletDxf.")
     args = ap.parse_args()
 
     if args.register or args.register_world:
@@ -1022,6 +1142,9 @@ def main():
         }
         with open(args.register, "w") as f: json.dump(register, f, ensure_ascii=False)
         meta["register"] = {"objekter": len(reg_objekter), "lag": len(laginventar), "elid": len(reg_elidIndex)}
+
+    if args.forenklet_dxf:
+        meta["forenkletDxf"] = skriv_forenklet_dxf(args.dxf, args.forenklet_dxf)
 
     if args.meta:
         with open(args.meta, "w") as f: json.dump(meta, f, indent=2)

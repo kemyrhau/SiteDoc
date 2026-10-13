@@ -34,6 +34,8 @@ import {
   fontStr,
   CAP_RATIO,
   mtekstForankring,
+  dxfViewerAktivert,
+  genererDxfViewerArtefakter,
 } from "./dwgKonvertering";
 
 // ---------------------------------------------------------------------------
@@ -1229,7 +1231,7 @@ describe.skipIf(!harEzdxfBbox)("O1-register — bbox for et objekt = DXF-geometr
       expect(objekter).toHaveLength(1);
       const bbox = objekter[0]!.bbox;
       expect(bbox).toBeTruthy();
-      const [minx, miny, maxx, maxy] = bbox!;
+      const [minx, miny, maxx, maxy] = bbox! as [number, number, number, number];
       const bredde = maxx - minx;
       const hoyde = maxy - miny;
       // Ekte geometri: |dx|=2, |dy|=150 — test som FEILER i dag (bugen gir bredde/høyde i
@@ -1240,4 +1242,94 @@ describe.skipIf(!harEzdxfBbox)("O1-register — bbox for et objekt = DXF-geometr
       rmSync(dir, { recursive: true, force: true });
     }
   }, 180000);
+});
+
+// ---------------------------------------------------------------------------
+// TEGNING_MOTOR — klient-rendering-valget (leveranse 1, plan § 1). Egen akse fra
+// DWG_MOTOR: DWG_MOTOR avgjør hvilken SVG som finnes på disk, TEGNING_MOTOR om web
+// bruker den eller tegner dxf-viewer-artefaktene (forenklet DXF + O1-register) i stedet.
+// ---------------------------------------------------------------------------
+describe("TEGNING_MOTOR — klient-rendering-valg (leveranse 1)", () => {
+  const før = process.env.TEGNING_MOTOR;
+  afterEach(() => {
+    if (før === undefined) delete process.env.TEGNING_MOTOR;
+    else process.env.TEGNING_MOTOR = før;
+  });
+
+  it("dxfViewerAktivert: default er av (svg-veien uendret)", () => {
+    delete process.env.TEGNING_MOTOR;
+    expect(dxfViewerAktivert()).toBe(false);
+  });
+
+  it("dxfViewerAktivert: TEGNING_MOTOR=dxfviewer slår den på", () => {
+    process.env.TEGNING_MOTOR = "dxfviewer";
+    expect(dxfViewerAktivert()).toBe(true);
+  });
+
+  it("dxfViewerAktivert: ukjent verdi faller til av", () => {
+    process.env.TEGNING_MOTOR = "noe-annet";
+    expect(dxfViewerAktivert()).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// genererDxfViewerArtefakter — ekte render.py-kall (spike 0,5b portert inn, leveranse 1).
+// Mål: forenklet DXF skal (a) være mindre, (b) IKKE bære XDATA fra kildefilen, (c)
+// fortsatt være en gyldig DXF (leses rent tilbake), (d) register-world skal finnes
+// og dekke samme antall objekter. Rød-først verifisert manuelt ved første porting
+// (se relay/inbox-orkestrator.md, spike 0,5b): uten paritets-sjekken over (DIMENSION-
+// geometri/DIMSTYLE-pilblokker) ville en naiv "ubrukt blokk"-sjekk slettet geometri
+// som faktisk tegnes — dekkes her ved at path/tekst-nodetallet i --register IKKE synker.
+// ---------------------------------------------------------------------------
+describe.skipIf(!harEzdxfBbox)("genererDxfViewerArtefakter — ekte fil (leveranse 1)", () => {
+  it("forenklet DXF er mindre, uten XDATA, og register-world dekker samme objekter", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "dxfviewer-artefakter-"));
+    try {
+      const genPy = join(dir, "gen.py");
+      const dxf = join(dir, "kilde.dxf");
+      // Minimal fil MED xdata (REVIT-aktig appid) på én linje, så xdataStrippet-tallet
+      // har noe reelt å telle — matcher mønsteret render.py allerede forventer.
+      writeFileSync(
+        genPy,
+        [
+          "import sys, ezdxf",
+          "doc = ezdxf.new()",
+          "doc.appids.new('TESTAPP')",
+          "msp = doc.modelspace()",
+          "l = msp.add_line((0, 0), (100, 50))",
+          "l.set_xdata('TESTAPP', [(1000, 'merkelapp')])",
+          "msp.add_lwpolyline([(0, 0), (100, 0), (100, 50), (0, 50)], close=True)",
+          "doc.saveas(sys.argv[1])",
+          "",
+        ].join("\n"),
+      );
+      const python = process.env.EZDXF_PYTHON ?? "python3";
+      execFileSync(python, [genPy, dxf], { timeout: 60000, stdio: "ignore" });
+
+      // genererDxfViewerArtefakter krever EZDXF_RENDER_PY satt (samme forutsetning som
+      // harEzdxfBbox over — allerede sann her siden describe.skipIf passerte).
+      const resultat = await genererDxfViewerArtefakter(dxf, dir);
+      expect(resultat).not.toBeNull();
+      const forenkletSti = join(dir, basename(resultat!.dxfViewerFileUrl));
+      const registerSti = join(dir, basename(resultat!.registerWorldUrl));
+      expect(statSync(forenkletSti).isFile()).toBe(true);
+      const forenkletTekst = readFileSync(forenkletSti, "utf-8");
+      // Størrelsesreduksjonen (23-67 % på ekte filer, spike 0,5b) kommer fra BULK
+      // XDATA/blokker — en minimal 2-entitets fiksturfil her har ingenting å vinne
+      // på (fast tabell-overhead dominerer), derfor ingen størrelsespåstand her.
+      // (b) XDATA-NYTTELASTEN er borte fra entiteten (APPID-tabelloppføringen "TESTAPP"
+      // selv kan fortsatt stå registrert — kun registrerte-men-ubrukte APPID-rader er
+      // IKKE i scope her, bare XDATA faktisk FESTET på entiteter, jf. vedtaket).
+      expect(forenkletTekst).not.toContain("merkelapp");
+      // (c) fortsatt gyldig DXF — leses rent tilbake
+      execFileSync(python, ["-c", `import ezdxf; ezdxf.readfile(${JSON.stringify(forenkletSti)})`], {
+        timeout: 30000, stdio: "ignore",
+      });
+      // (d) register-world dekker begge entitetene (linje + polylinje), geometrien bevart
+      const register = JSON.parse(readFileSync(registerSti, "utf-8")) as { antallObjekter: number };
+      expect(register.antallObjekter).toBe(2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
 });

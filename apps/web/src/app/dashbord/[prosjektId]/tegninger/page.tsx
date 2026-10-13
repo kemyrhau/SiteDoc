@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
 import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass-kontekst";
@@ -78,6 +79,13 @@ import { tilpassEzdxfSvg } from "@/lib/ezdxfSvgVisning";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
+// Leveranse 1: dynamic+ssr:false — dxf-viewer drar med seg en EGEN three.js-kopi
+// (^0.186), som ikke skal lastes før tegningssiden faktisk bruker den (orkestrator-
+// vedtak 2026-10-13: to kopier akseptert, tegningssiden lazy-lastet).
+const DxfViewerTegning = dynamic(
+  () => import("@/components/tegning/DxfViewerTegning").then((m) => m.DxfViewerTegning),
+  { ssr: false },
+);
 import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 interface Markør {
@@ -1389,6 +1397,13 @@ export default function TegningerSide() {
   const erDwgKonvertering = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
   const dwgFeilet = tegning.conversionStatus === "failed";
   const erUkonvertertDwg = fileType === "dwg"; // DWG kan ikke vises direkte i nettleser
+  // Leveranse 1 (plan § 1): klient-kill-switch TEGNING_MOTOR, uavhengig av DWG_MOTOR.
+  // Krever BEGGE artefaktene (satt sammen av anvendDwgResultat) — flagget av ELLER
+  // en konvertering uten dem (egen-motor/ikke-DWG/feilet) → SVG-veien uendret.
+  const brukDxfViewer =
+    process.env.NEXT_PUBLIC_TEGNING_MOTOR === "dxfviewer" &&
+    !!tegning.dxfViewerFileUrl &&
+    !!tegning.registerWorldUrl;
   // Feilet/konvertert PDF beholder fileType="pdf" (feilveien flipper ikke typen) → banner-tekst
   // OG re-konverter-vei velges etter filtype (se konverteringBanner). `kanAdministrereOmrade`
   // (gruppe.hentMinTilgang.erAdmin) er admin-proxy for slett/re-konverter; serveren er porten.
@@ -2206,7 +2221,18 @@ export default function TegningerSide() {
 
       {/* Tegningsvisning med markører */}
       {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
-        erBilde ? (
+        brukDxfViewer && tegning.dxfViewerFileUrl && tegning.registerWorldUrl ? (
+          // Leveranse 1: PARALLELL vei bak flagget, leser SAMME Drawing-rad (plan § 3).
+          // Egen, isolert gren — markører/måling/lagpanel/klikk er leveranse 2/3/5,
+          // ikke del av denne gaten (DoD: riktig startutsnitt i appens faktiske layout).
+          <div className="flex-1 overflow-hidden bg-gray-100">
+            <DxfViewerTegning
+              dxfUrl={`/api${tegning.dxfViewerFileUrl}`}
+              registerWorldUrl={`/api${tegning.registerWorldUrl}`}
+              rotasjonOverstyrt={tegning.rotasjonOverstyrt ?? null}
+            />
+          </div>
+        ) : erBilde ? (
           <div
             ref={containerRef}
             className="flex-1 overflow-auto bg-gray-100"
