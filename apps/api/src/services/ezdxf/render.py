@@ -222,6 +222,13 @@ class Prim:
     layer: str
     handle: str
     dtype: str = ""      # DXF-entitetstype utledet fra handle (for data-type)
+    pts: list | None = None  # KORREKSJON treff (Kenneth 2026-10-13): liste av polylinjer
+                          # (hver en liste (x,y)-tupler) i VERDENSKOORD, kun for kind=='stroke'
+                          # og kun når register-world sin treffetest trenger ekte geometri (ikke
+                          # kontrollpunkter — path_til_d sin d-streng bærer Bezier-KONTROLLpunkter
+                          # for Q/C, som ikke ligger PÅ kurven og derfor ikke kan brukes til
+                          # avstandsmåling). None for fill (flate taper alltid mot kontur/symbol —
+                          # bbox-containment er nok, se erFlateObjekt i harness).
 
 # ---------- rotasjon (speiler dominantVeggvinkel/velgAutoRotasjon) ----------
 
@@ -337,7 +344,11 @@ def roter_pkt(x, y, m):
     dx, dy = x - cx, y - cy
     return (cx + dx * c - dy * s, cy + dx * s + dy * c)
 
-def hent_primitiver(player, flatten_dist, db=None):
+def hent_primitiver(player, flatten_dist, db=None, hit_tol=None):
+    # hit_tol (verdenskoord, kun satt når --register-world): slår PÅ innsamling av ekte
+    # polylinje-geometri (pts) pr. strek-primitiv, til KORREKSJON-treffetesten (avstand
+    # punkt->segment, ikke bbox-kant). record.path.flattening(hit_tol) gir punkter PÅ
+    # kurven (bue/spline), i motsetning til path_til_d sin Bezier-kontrollpunkt-streng.
     prims = []
     for record, props in player.recordings():
         color = props.color[:7] if props.color else "#000000"
@@ -350,9 +361,22 @@ def hent_primitiver(player, flatten_dist, db=None):
             if e is not None:
                 dtype = e.dxftype()
         cls = type(record).__name__
+        # KORREKSJON-MÅLING (Kenneth 2026-10-13): HATCH/SOLID er ALLTID "flate" i harnessets
+        # erFlateObjekt() og treffer kun via bbox-containment (tier 1, taper alltid mot kontur/
+        # symbol) — geometri der er ren kost uten gevinst. MÅLT: ezdxf tegner skravurMØNSTERET
+        # (ANSI31 m.m.) som ekte strek-primitiver attribuert til HATCH-handelet (kind='stroke',
+        # dtype='HATCH'), IKKE som én fylt bane — uten dette unntaket ble registeret 40 MB/
+        # 1,0 mill. polylinjer (933 200 fra HATCH alene) i stedet for titusener.
+        tol = hit_tol if dtype not in ("HATCH", "SOLID") else None
         if cls == "PathRecord":
             d = path_til_d(record.path, flatten_dist, close=False)
-            if d: prims.append(Prim("stroke", d, color, lw, layer, handle, dtype))
+            if d:
+                pts = None
+                if tol is not None:
+                    verts = [(v.x, v.y) for v in record.path.flattening(tol)]
+                    if len(verts) >= 2:
+                        pts = [verts]
+                prims.append(Prim("stroke", d, color, lw, layer, handle, dtype, pts))
         elif cls == "FilledPathsRecord":
             ds = [path_til_d(p, flatten_dist, close=True) for p in record.paths]
             ds = [x for x in ds if x]
@@ -365,18 +389,60 @@ def hent_primitiver(player, flatten_dist, db=None):
                 prims.append(Prim("fill", d, color, lw, layer, handle, dtype))
             elif n == 2:
                 p0, p1 = pts
-                prims.append(Prim("stroke", f"M {p0.x:.4f} {p0.y:.4f} L {p1.x:.4f} {p1.y:.4f}", color, lw, layer, handle, dtype))
+                geo = [[(p0.x, p0.y), (p1.x, p1.y)]] if tol is not None else None
+                prims.append(Prim("stroke", f"M {p0.x:.4f} {p0.y:.4f} L {p1.x:.4f} {p1.y:.4f}", color, lw, layer, handle, dtype, geo))
             elif n == 1:
                 p = pts[0]
-                prims.append(Prim("stroke", f"M {p.x:.4f} {p.y:.4f} L {p.x:.4f} {p.y:.4f}", color, lw, layer, handle, dtype))
+                geo = [[(p.x, p.y)]] if tol is not None else None
+                prims.append(Prim("stroke", f"M {p.x:.4f} {p.y:.4f} L {p.x:.4f} {p.y:.4f}", color, lw, layer, handle, dtype, geo))
         elif cls == "SolidLinesRecord":
             pts = record.lines.vertices()
             segs = []
+            geo = [] if tol is not None else None
             for i in range(0, len(pts) - 1, 2):
                 a, b = pts[i], pts[i+1]
                 segs.append(f"M {a.x:.4f} {a.y:.4f} L {b.x:.4f} {b.y:.4f}")
-            if segs: prims.append(Prim("stroke", " ".join(segs), color, lw, layer, handle, dtype))
+                if geo is not None:
+                    geo.append([(a.x, a.y), (b.x, b.y)])
+            if segs: prims.append(Prim("stroke", " ".join(segs), color, lw, layer, handle, dtype, geo or None))
     return prims
+
+def rdp_simplify(pts, tol):
+    """Ramer-Douglas-Peucker, iterativ (stack) — ingen rekursjonsgrense på lange
+    LWPOLYLINE-kjeder. Bevarer alltid endepunktene. KORREKSJON (Kenneth 2026-10-13):
+    kurveforenkling der det ikke påvirker treff (±tol, typisk 2 mm) — kutter register-
+    størrelsen på flattened buer/polylinjer uten å flytte punktene mer enn toleransen."""
+    if len(pts) < 3 or tol <= 0:
+        return pts
+    keep = [True] * len(pts)
+    stack = [(0, len(pts) - 1)]
+
+    def dist_til_segment(p, a, b):
+        ax, ay = a; bx, by = b; px, py = p
+        dx, dy = bx - ax, by - ay
+        if dx == 0 and dy == 0:
+            return math.hypot(px - ax, py - ay)
+        t = ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)
+        t = max(0.0, min(1.0, t))
+        return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+    while stack:
+        i0, i1 = stack.pop()
+        if i1 - i0 < 2:
+            continue
+        a, b = pts[i0], pts[i1]
+        maks_d, maks_i = -1.0, -1
+        for i in range(i0 + 1, i1):
+            d = dist_til_segment(pts[i], a, b)
+            if d > maks_d:
+                maks_d, maks_i = d, i
+        if maks_d > tol:
+            stack.append((i0, maks_i))
+            stack.append((maks_i, i1))
+        else:
+            for i in range(i0 + 1, i1):
+                keep[i] = False
+    return [p for i, p in enumerate(pts) if keep[i]]
 
 def path_til_d(path, flatten_dist, close):
     # Bevar kurver via commands() (M/L/C) i verdenskoord.
@@ -560,8 +626,16 @@ def main():
     Frontend(ctx, backend, config=cfg).draw_layout(msp)
     t_tegn = time.time() - t1
 
+    # KORREKSJON (Kenneth 2026-10-13): 2 mm reell toleranse for treffe-geometri/RDP-forenkling,
+    # uttrykt i DXF-enheter (mmPrEnhet = mm pr. DXF-enhet). Kun satt for --register-world —
+    # kostnaden (flattening + RDP pr. strek-primitiv) tas ikke for vanlig SVG-rendering.
+    hit_tol_world = None
+    if args.register_world:
+        hit_tol_world = 2.0 / mmPrEnhet if mmPrEnhet else 2.0
+
     player = backend.player()
-    prims = hent_primitiver(player, args.flatten_mm, db=doc.entitydb if args.metadata == "på" else None)
+    prims = hent_primitiver(player, args.flatten_mm, db=doc.entitydb if args.metadata == "på" else None,
+                             hit_tol=hit_tol_world)
 
     # Fullstendighetsrapport (krav 5): ezdxf attribuerer blokk-intern geometri til
     # INSERT-handelet, så ARC/ELLIPSE osv. inne i blokker får data-type="INSERT" og
@@ -660,6 +734,7 @@ def main():
     strokes_by = {}
     reg_bbox = {}
     reg_bbox_world = {}
+    reg_segs_world = {}  # handle -> liste av polylinjer (RDP-forenklet, kun stroke) — KORREKSJON treff
     lw_min = None  # tynneste strek (viewBox-enheter) -> data-lw-base (lw-faktor = lw/lwBase)
     def meta_attr(p):
         lag = f' data-layer="{html.escape(p.layer)}"' if (args.metadata == "på" and p.layer) else ""
@@ -744,11 +819,25 @@ def main():
                 if y < bb[1]: bb[1] = y
                 if x > bb[2]: bb[2] = x
                 if y > bb[3]: bb[3] = y
+    def segs_world_oppdater(handle, pts_list):
+        # KORREKSJON (Kenneth 2026-10-13): ekte geometri pr. primitiv, RDP-forenklet ±2 mm.
+        # Flate (HATCH/SOLID/skravur) kommer ALDRI hit — p.pts er None for kind=='fill'
+        # (erFlateObjekt i harness avgjør alene via containment, geometri er overflødig der).
+        if not handle or not pts_list:
+            return
+        arr = reg_segs_world.setdefault(handle, [])
+        for poly in pts_list:
+            if len(poly) < 3:
+                arr.append(poly)  # 1-2 punkt: RDP gir ingen besparelse, lagre som-er
+            else:
+                arr.append(rdp_simplify(poly, hit_tol_world))
     for p in prims:
         td = transform_d(p.d, rotm, minx, miny, rund)
         if not td: continue
         bbox_oppdater(p.handle, td)
         bbox_world_oppdater(p.handle, p.d)
+        if p.kind == "stroke":
+            segs_world_oppdater(p.handle, p.pts)
         if p.kind == "fill":
             if args.fyll_gruppering == "lag":
                 fills_by.setdefault((p.layer, p.color), []).append(td)
@@ -871,9 +960,18 @@ def main():
             ow = dict(o)
             bb = reg_bbox_world.get(h)
             if bb:
-                ow["bbox"] = [round(bb[0], 3), round(bb[1], 3), round(bb[2], 3), round(bb[3], 3)]
+                # KORREKSJON (Kenneth 2026-10-13): heltall (bbox er allerede kun grovfilter/
+                # containment for flate+rbush — sub-mm-presisjon her tjener ingen treff).
+                ow["bbox"] = [round(bb[0]), round(bb[1]), round(bb[2]), round(bb[3])]
             else:
                 ow.pop("bbox", None)
+            segs = reg_segs_world.get(h)
+            if segs:
+                # Ekte geometri pr. primitiv (RDP-forenklet ±2 mm), heltall, flate array
+                # pr. polylinje [x0,y0,x1,y1,...] — treffetesten måler avstand punkt->segment
+                # mot DENNE, ikke bbox-kanten (var rotårsaken: dørsvingens union-bbox er langt
+                # fra trykkpunktet, mens kledningens tette bbox feilaktig vant).
+                ow["geom"] = [[c for (x, y) in poly for c in (round(x), round(y))] for poly in segs]
             objekter_world[h] = ow
         lag_antall_w = {}
         for o in objekter_world.values():
@@ -889,7 +987,9 @@ def main():
             "fil": args.dxf,
             "koordsys": "dxf-verden (rå enheter fra fila, Y opp, INGEN rotasjon/flip/margin — "
                         "matcher det en motor som tegner direkte fra DXF-en (f.eks. dxf-viewer) "
-                        "bruker FØR dens egen lokale origin-forskyvning)",
+                        "bruker FØR dens egen lokale origin-forskyvning). bbox og geom er HELTALL "
+                        "i denne enheten (KORREKSJON Kenneth 2026-10-13, mm for filer der "
+                        "$INSUNITS=mm — se mmPrEnhet i --meta for andre enheter).",
             "antallObjekter": len(objekter_world), "antallLag": len(laginventar_w), "antallElid": len(reg_elidIndex),
             "objekter": objekter_world, "elidIndex": reg_elidIndex, "laginventar": laginventar_w,
         }
