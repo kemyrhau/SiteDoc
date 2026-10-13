@@ -497,6 +497,11 @@ def main():
                          "(kun gruppering=ingen) — gjenoppretter klikk-identifiser + rapport UTEN subklasse")
     ap.add_argument("--register", help="skriv egenskapsregister (O1, § 8) hit + data-id/"
                                        "data-elid pr. strek i SVG-en (impliserer metadata=på)")
+    ap.add_argument("--register-world", help="skriv et EKSTRA register hit med bbox i RÅ DXF-"
+                    "verdenskoordinater (ingen rotasjon, ingen Y-flip, ingen margin/viewBox-"
+                    "offset) — for motorer som tegner direkte fra DXF-en (dxf-viewer/WebGL), "
+                    "ikke fra vår SVG. Samme objekt-felter som --register (kategori/lag/elid/"
+                    "attr), kun bbox-koordinatsystemet er annerledes. Kan brukes uten --register.")
     ap.add_argument("--klipp", default=None,
                     help="minX,minY,maxX,maxY i tegningsenheter (layout-klipp) — "
                          "setter extents direkte, kobler ut rotasjon/robust (som egens klippBounds)")
@@ -506,7 +511,7 @@ def main():
     ap.add_argument("--flatten-mm", type=float, default=0.1)
     args = ap.parse_args()
 
-    if args.register:
+    if args.register or args.register_world:
         args.metadata = "på"
 
     sett_minnetak(args.mem_mb)
@@ -619,8 +624,9 @@ def main():
     # O1-register (§ 8): bygges FØR emit så strek-paths kan bære data-id/data-elid.
     # Kun handles som faktisk er tegnet (prims) telles — speiler fullstendighetsrapporten.
     reg_objekter, reg_elidIndex = {}, {}
-    lagmap_reg = layer_info_map(doc) if args.register else {}
-    if args.register:
+    trenger_register = bool(args.register or args.register_world)
+    lagmap_reg = layer_info_map(doc) if trenger_register else {}
+    if trenger_register:
         # union med tekst-handles: rom-/komponentstempler (INSERT m/ attributt, F1 felt 3)
         # har ofte INGEN synlig strek/fyll-geometri — bare attributtekst — og ville ellers
         # aldri få en O1-oppføring (AT-F1: 53/60 romtagger på fallplanen er rene attributt-
@@ -639,6 +645,7 @@ def main():
     stroke_paths = []
     strokes_by = {}
     reg_bbox = {}
+    reg_bbox_world = {}
     lw_min = None  # tynneste strek (viewBox-enheter) -> data-lw-base (lw-faktor = lw/lwBase)
     def meta_attr(p):
         lag = f' data-layer="{html.escape(p.layer)}"' if (args.metadata == "på" and p.layer) else ""
@@ -705,10 +712,29 @@ def main():
             else:
                 buf.append(float(num))
         flush()
+    def bbox_world_oppdater(handle, d_verden):
+        # p.d er ALLTID absolutt M/L/Q/C/Z i rå DXF-verdenskoordinater (se path_til_d) —
+        # ingen rotasjon/flip/relativ-delta å tolke, i motsetning til bbox_oppdater() sin td.
+        # Samme enkle (x,y)-par-uttrekk som extents-beregningen (xs/ys) lenger opp.
+        if not args.register_world or not handle:
+            return
+        bb = reg_bbox_world.get(handle)
+        toks = _TOKEN.findall(d_verden)
+        tall = [float(n) for (_, n) in toks if n]
+        for i in range(0, len(tall) - 1, 2):
+            x, y = tall[i], tall[i+1]
+            if bb is None:
+                bb = [x, y, x, y]; reg_bbox_world[handle] = bb
+            else:
+                if x < bb[0]: bb[0] = x
+                if y < bb[1]: bb[1] = y
+                if x > bb[2]: bb[2] = x
+                if y > bb[3]: bb[3] = y
     for p in prims:
         td = transform_d(p.d, rotm, minx, miny, rund)
         if not td: continue
         bbox_oppdater(p.handle, td)
+        bbox_world_oppdater(p.handle, p.d)
         if p.kind == "fill":
             if args.fyll_gruppering == "lag":
                 fills_by.setdefault((p.layer, p.color), []).append(td)
@@ -842,6 +868,40 @@ def main():
         }
         with open(args.register, "w") as f: json.dump(register, f, ensure_ascii=False)
         meta["register"] = {"objekter": len(reg_objekter), "lag": len(laginventar), "elid": len(reg_elidIndex)}
+
+    if args.register_world:
+        # Egne kopier av objektene (IKKE reg_objekter direkte) — --register over kan ha
+        # mutert "bbox" på de samme dict-instansene til SVG-viewBox-koordinater; de to
+        # registrene deler objekt-METADATA (kategori/lag/elid/attr), men ALDRI bbox-verdien.
+        objekter_world = {}
+        for h, o in reg_objekter.items():
+            ow = dict(o)
+            bb = reg_bbox_world.get(h)
+            if bb:
+                ow["bbox"] = [round(bb[0], 3), round(bb[1], 3), round(bb[2], 3), round(bb[3], 3)]
+            else:
+                ow.pop("bbox", None)
+            objekter_world[h] = ow
+        lag_antall_w = {}
+        for o in objekter_world.values():
+            lag_antall_w[o["lag"]] = lag_antall_w.get(o["lag"], 0) + 1
+        laginventar_w = []
+        for navn, ant in sorted(lag_antall_w.items(), key=lambda kv: -kv[1]):
+            lm = lagmap_reg.get(navn, {})
+            laginventar_w.append({
+                "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
+                "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
+            })
+        register_world = {
+            "fil": args.dxf,
+            "koordsys": "dxf-verden (rå enheter fra fila, Y opp, INGEN rotasjon/flip/margin — "
+                        "matcher det en motor som tegner direkte fra DXF-en (f.eks. dxf-viewer) "
+                        "bruker FØR dens egen lokale origin-forskyvning)",
+            "antallObjekter": len(objekter_world), "antallLag": len(laginventar_w), "antallElid": len(reg_elidIndex),
+            "objekter": objekter_world, "elidIndex": reg_elidIndex, "laginventar": laginventar_w,
+        }
+        with open(args.register_world, "w") as f: json.dump(register_world, f, ensure_ascii=False)
+        meta["registerWorld"] = {"objekter": len(objekter_world), "lag": len(laginventar_w), "elid": len(reg_elidIndex)}
 
     if args.meta:
         with open(args.meta, "w") as f: json.dump(meta, f, indent=2)
