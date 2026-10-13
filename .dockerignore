@@ -12,3 +12,7 @@ docker/env/*.env
 apps/api/uploads
 **/.DS_Store
 docker/vendor
+
+# Lokale kundefiler og agent-relay — aldri i bilder (2026-10-13, lå i api/web-bildene via COPY . .)
+DWG eksempelfiler
+relay
