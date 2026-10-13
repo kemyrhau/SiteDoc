@@ -365,7 +365,7 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q8 | Som anbefalt: F10 BØR rett etter F8; sykehusfilene samme regel som Q7 |
 | Q9 | 🟢 2026-10-13: **Ja**, ett fastpunkt med eksplisitt bekreftelse av at aksene peker mot rutenett-nord; nordpil + GPS-markør vises straks |
 | Q10 | 🟢 2026-10-13: IFC (`E3 3D-modell ARK.ifc`, HABU) + punktsky lagt i eksempelmappa (ikke i git) |
-| Q11 | 🟢 2026-10-13: **Annet bygg.** Punktskyen er eksisterende bygg; IFC er tilbygget som skal kobles til det; en del av det skannede bygget skal rives for tilkoblingen. ⚠️ **Avvik å måle:** da skal de to ligge inntil hverandre, men målt avstand er ~160 m (AT-G14). Én av georeferansene er trolig feil, eller E57-posen er lokal → M10 kan ikke brukes som fasit før avviket er forklart |
+| Q11 | 🟢 2026-10-13: **Annet bygg.** Punktskyen er eksisterende bygg; IFC er tilbygget som skal kobles til det; en del av det skannede bygget skal rives for tilkoblingen. ⚠️ **Avvik å måle:** da skal de to ligge inntil hverandre, men målt avstand er ~160 m (AT-G14). Én av georeferansene er trolig feil, eller E57-posen er lokal → M10 kan ikke brukes som fasit før avviket er forklart. **Kenneth 2026-10-13:** *«jeg tror IFC er feil georeferert … punktskyen stoler jeg 100 % at er rett»* → punktskyen er fasit (M10 gyldig), IFC-ens site-plassering regnes som feil |
 | Rotasjon | 🟢 2026-10-13: **B** — ikke-georefererte DWG vises som tegnet i arbeidstegning-motoren (ingen automatisk kamerarotasjon); brukerens ⟳ beholdes. Georefererte: nord opp (F11.4) |
 
 ## 6. Hva Dokgens prøve må levere (gate for valg A/B — ikke bygging)
