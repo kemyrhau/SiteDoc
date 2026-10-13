@@ -1,9 +1,9 @@
 ---
 name: arbeidstegning-spec
-description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, § 8 felles objektmodell på tvers av 2D-tegning, IFC/3D og mobil (Kenneth-vedtak 2026-10-12), åtte spørsmål til Kenneth. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
+description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, § 8 felles objektmodell på tvers av 2D-tegning, IFC/3D og mobil (Kenneth-vedtak 2026-10-12), F11 georeferanse fra DWG (kart-CRS, ett fastpunkt à la Dalux, to punkter, 2D→IFC via IfcMapConversion, nord opp), ti spørsmål til Kenneth. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
 sist_verifisert_mot_kode: 2026-10-12
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 5, 2026-10-12 — + § 8 felles objektmodell 2D/3D, IFC-viseren målt AT-I1–I8) — ingenting under er bygget. Q1–Q8 til Kenneth.
+status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 6, 2026-10-13 — ⚠️ F11 georeferanse fra DWG er UTKAST TIL GATE (AT-G1–G12 målt, Q9–Q10 til Kenneth). Ingenting under er bygget.
 ---
 
 # Arbeidstegning — DWG/DXF som verktøy, ikke bilde
@@ -13,7 +13,7 @@ status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 5, 2026-10-12 — + §
 > utføres på byggeplass. DWG inneholder også metadata på linjer og objekter. disse bør også være klikkbare og kunne hentes
 > opp. jeg hadde håpet dxf-sporet ville lede til det detaljerte grensesnittet som gjør dwg/dxf nyttig vs PDF»* + *«ja»* til
 > spesifikasjon før noe mer bygges. Ordre: orkestrator 2026-10-12 (`relay/inbox-fabel.md`). Rev. 2: Kenneth la til sju
-> Revit-tegninger (`DWG eksempelfiler/HABU/Fra interaxo/`) — *«prøv å analysere disse filene → er det mer informasjon?»* Ja (§ 1b). Rev. 3: to MEP-tegninger (`TB3-1074.dwg`, `VB3-1074.DWG`) — *«sjekk disse to filene»* (AT-F10–F13). Rev. 4: ARK-underlaget `AB3-1071.dwg` kom — *«nå er filen der»* (AT-F14). Rev. 5: Kenneth *«har du sjekket hva 3d motoren med ifc gjør → vi har objekter der også som leses og vises. kan vi bygge på de ulike plattformer slik at vi bygger bredt og robust?»* → *«ja»* til § 8.
+> Revit-tegninger (`DWG eksempelfiler/HABU/Fra interaxo/`) — *«prøv å analysere disse filene → er det mer informasjon?»* Ja (§ 1b). Rev. 3: to MEP-tegninger (`TB3-1074.dwg`, `VB3-1074.DWG`) — *«sjekk disse to filene»* (AT-F10–F13). Rev. 4: ARK-underlaget `AB3-1071.dwg` kom — *«nå er filen der»* (AT-F14). Rev. 5: Kenneth *«har du sjekket hva 3d motoren med ifc gjør → vi har objekter der også som leses og vises. kan vi bygge på de ulike plattformer slik at vi bygger bredt og robust?»* → *«ja»* til § 8. Rev. 6 (13.10): Kenneth *«en dwg-tegning kan være georeferert … IFC-modellen georefereres basert på DWG-ens georeferanse … Dalux orienterte tegningen med kun det ene koordinatet»* → orkestrator: krav nå, ikke bygging (F11).
 
 ## 0. Hva dette er, og ikke er
 
@@ -82,6 +82,25 @@ rører ikke 3D-renderen/punktsky, PDF-veien eller tegningsserie (T2).
 | AT-I8 | Ytelse/gjeld: web-3D fast høyde + treg pan/zoom (regresjon kommer tilbake), debug-`console.log` i kontekst, layout-persistering 🔴 | `BACKLOG.md:1082-1103, :5551-5556`; `kontekst :476-481, :650-651` |
 
 **Konsekvens:** 3D-viseren har allerede det rikeste egenskapskortet (AT-I2) og mekanismen for skjuling pr. kategori (AT-I3), men mangler panel, søk og kobling til dokumenter — de samme hullene som 2D (AT-M2/M3/M5). Byggeplassbrukeren møter dermed to visere med ulik oppførsel for samme vegg. § 8 lukker det.
+
+### 1d. Georeferanse i dag — 2D, IFC og de 13 filene (målt 2026-10-13)
+
+| # | Fakta | Bevis |
+|---|---|---|
+| AT-G1 | **Kartsystemer:** wgs84, UTM 32/33/35/36, NTM 5–20 (ikke 21–30). Egen Transverse Mercator-rekke, ingen proj4, **ingen høyde/NN2000** noe sted. `detekterKoordinatSystem`: filnavn (`EPSG…`, `NTM_n`, `UTM_nn`) først, så tallheuristikk: northing 6,4–8 M kreves; X 30–200 k → `null` («kan ikke bestemme NTM-sone»); **X 100–900 k → alltid «utm33»** — en gjetning uten sone-grunnlag | `koordinatKonvertering.ts:10-29, :40-140, :167-218` |
+| AT-G2 | **Auto-georef ved DWG-konvertering:** bare når CRS er funnet: to punkter fra extents (pixel {0,0} ↔ (maxY,minX), {100,100} ↔ (minY,maxX)), uten marg-korreksjon, uten `$INSUNITS`-sjekk. JSON `GeoReferanse {point1, point2, ekstraPunkter?}` med pixel i **prosent av SVG**, gps lat/lng; **ingen crs i JSON** — CRS i egen kolonne `Drawing.coordinateSystem` | `dwgKonvertering.ts:2234, :2358-2371`; `types/index.ts:902-911`; `schema.prisma:935` |
+| AT-G3 | **Minst to punkter alltid:** Zod krever point1+point2 (`ekstraPunkter` uten tak); **ett punkt er umulig i typen**. Matematikk: 2 punkter = eksakt similaritet (skala+rotasjon+translasjon, speiling foldet inn); 3+ = **full affin** minste kvadrat (kan skjære). Web krever ≥ 3 for måling (`harGeoref`), mobil nøyer seg med 2 (GPS-markør) | `validation/index.ts:76-92`; `georeferanse.ts:90-184, :217-298`; `page.tsx:1424-1427`; `lokasjoner.tsx:233, :354-406` |
+| AT-G4 | **Editor** (`GeoReferanseEditor.tsx`, under byggeplass-oppsett, ikke på tegningssiden): klikk i tegning + GPS fra Leaflet-klikk eller tekst (`øst,nord@EPSG:258xx`, «Nord/Øst», desimalgrader, DMS). **Valgbare: WGS84 + UTM 32/33/35/36 — ikke NTM.** Kalibreringsfeil vises først ved ≥ 3 punkter | `GeoReferanseEditor.tsx:69-77, :96-180, :485-498, :685-722` |
+| AT-G5 | **Rotasjon:** auto-rotasjon = dominant veggvinkel (lengdevektet 1°-histogram mod 90°, ≥ 20 segmenter, andel ≥ 0,6), kvadrant etter lesbar tekst; **slås av når CRS er funnet** («georefererte tegninger skal stå nord-opp», `:1539-1543`; ezdxf `--rotasjon av`). «Nord opp» er bare implisitt (urotert SVG); **ingen nordpil** i 2D web/mobil. `rotasjonOverstyrt` er visningsrotasjon satt av bruker; markører flyttes med `rotDelta` ved re-konvertering | `dwgKonvertering.ts:996-1066, :1539-1609, :2105`; `tegning.ts:304-345, :882-893`; `page.tsx:1402-1405` |
+| AT-G6 | **IFC:** serveren leser bare `IFCSITE RefLatitude/RefLongitude/RefElevation` med regex (krever `.ELEMENT.`, bare positive heltall). **0 treff `MapConversion`/`ProjectedCRS`/`Eastings`/`Northings`** i kode. **0 `.ifc`-filer lokalt** (repo, fixtures, Downloads) | `ifcMetadata.ts:28-43, :172-186`; `grep -r` |
+| AT-G7 | **2D↔3D (`gpsOverride`):** to punktpar (tegning A/B ↔ 3D A/B) → eksakt 2D-similaritet tegning(%)→3D(x,z): `a = s·cosθ, b = s·sinθ`, ingen minste kvadrat; `rotasjon`/`skala` sendes aldri fra UI; uten transform = ren TM-differanse fra IFC-opprinnelsen **uten rotasjon**. Opprinnelse: gpsOverride → `ifcMetadata.gps` → null; CRS = modellens, ellers «utm33» | `tegning.ts:896-931`; `tegning-3d/page.tsx:130-151, :231-232, :416-500`; `koordinatBro.ts:141-201` |
+| AT-G8 | **DWG-3/D7 (fire hjørner, marg-korreksjon, `$INSUNITS`=m, sone-varsel) er ikke bygget**; STATUS-AKTUELT:177 «bindingen brutt» | `tegning-dwg-spec.md:6, :48, :59`; `STATUS-AKTUELT.md:167-177` |
+| AT-G9 | **dxf-viewer (`feat/arbeidstegning-f1`, ikke på develop):** `render.py --register-world` gir bbox i **rå DXF-verdenskoordinater** (uavhengig av rotasjon/trim/viewBox); viseren er en harness utenfor git (`relay/arbeidstegning-prove/gate1/harness-v3.html`), kameraet roteres `R = overstyrt ?? autoRotasjon`, native tekst tilter med. **Åpent valg A/B/C hos Kenneth** (A behold kamerarotasjon, tekst tiltet · B ingen rotasjon, vegger skrå · C tegn all tekst selv, motrotert) | `a652254b`, `6717ba7b`; `relay/inbox-orkestrator.md:1218-1225` |
+| AT-G10 | **De 13 filene:** 🟢 **I kartsystem (2):** Ålesund UTM32 (E 353 343 / N 6 929 907, m) og NTM6 (E 82 215 / N 1 498 216, m) — CRS bare fra **filnavnet**; uten det gir heuristikken `null` for NTM6 og **feil sone «utm33»** for UTM32-fila. **Lokalt nett (11):** fallplan (mm, 0–662 m, gitterdominert), HABU ×7 (mm, 0–45 m, Revit-prosjektbase; målt 12.10 på kopier), sykehus AB3/VB3/TB3 (mm, 139–204 m / 252–300 m, POINT-nett, felles ramme). **Ingen fil har `GEODATA`, fastpunkt-tekst, nordpil-blokk eller EPSG i tekst.** `$LATITUDE/$LONGITUDE` = **37.795/−122.394 (AutoCADs San Francisco-default)** på 4 filer, 0/0 på HABU, mangler på AC1018 → **må ignoreres uten `GEODATA`** (felle). `$NORTHDIRECTION` 0 der den finnes | `georef.py` 13.10 på `dwg2dxf -y`-DXF |
+| AT-G11 | **Dalux (hjelpesider, lest 13.10 — uten innlogging; artiklene gir 403 ved direkte henting, lest via søkeutdrag):** kartsystem settes **pr. prosjekt** (EPSG-søk eller egen PROJ-streng); «Edit system setup» gir **X-offset, Y-offset, skala, rotasjon** på prosjektnivå; **DWG med innebygde koordinater plasseres automatisk og kan ikke flyttes**; tegninger uten koordinater «mappes manuelt mot modellen»; Revit-modell forankres i filens (0,0,0) → survey-koordinater går rett inn. Kenneths opplevelse (ett fastpunkt med kartsystem, riktig orientert) = kart-CRS + forskyvning, rotasjon 0 | support.dalux.com «How to set up Coordinate systems», «Upload and update drawings in Locations», «Revit Survey Point» |
+| AT-G12 | **buildingSMART «User Guide for Geo-referencing in IFC» v2.0 (2020):** 2D Helmert (`Eastings, Northings, OrthogonalHeight, XAxisAbscissa, XAxisOrdinate, Scale`) i `IfcMapConversion` + `IfcProjectedCRS` (IFC4), i IFC2x3 som `ePSet_MapConversion`/`ePSet_ProjectedCRS` på `IfcProject`. Rotasjon er mot **rutenett-nord**, ikke sann/magnetisk nord. «Can be computed using two or more survey marks». Små tomter (≤ ~1 km²): én transformasjon holder. ⚠️ Veilederens formel `Rotation = atan2(XAxisAbscissa, XAxisOrdinate)` har **byttede argumenter**; IFC-skjemaet sier `atan2(XAxisOrdinate, XAxisAbscissa)` | veileder s. 8, 14–17; standards.buildingsmart.org IfcMapConversion |
+
+**Konsekvens:** ett fastpunkt er umulig i dagens datamodell (AT-G3), CRS gjettes fra tallverdi (AT-G1), georef lagres i SVG-prosent som ikke overlever ny viewBox (AT-G2) mens arbeidstegning-motoren jobber i DXF-verdenskoordinater (AT-G9), og IFC-ens egen georeferanse leses ikke (AT-G6). F11 retter alle fire.
 
 ## 2. Brukerhistorier
 
@@ -253,9 +272,45 @@ Dette er Kenneths kjernekrav: *«man skal se hva som skal utføres»*. Reglene (
   - K3 VB3 + fallplanen (ulik ramme) → «Legg oppå» tilbys ikke, ingen feil.
   - K4 Oppgave satt i stablet visning har `drawingId` = tegningen den ble satt på, og vises på samme punkt når tegningen åpnes alene.
 
+### F11 — Georeferanse fra DWG: kart-CRS, ett fastpunkt, to punkter, 2D→IFC · **BØR** (hjemmel Kenneth 2026-10-13; krav nå, bygging senere)
+
+**Tre tilstander for en tegning, og hva som kreves for hver (F11.1):**
+
+| Tilstand | Når | Hva gir georeferansen | Rotasjon | Skala |
+|---|---|---|---|---|
+| **K Kart** | koordinatene *er* kartkoordinater (Ålesund, AT-G10) | CRS + `$INSUNITS` — **ingen punkter trengs**, georef = identitet | 0 (tegningsakser = rutenett-akser) | fra enheter |
+| **F Fastpunkt** (Dalux-modellen) | lokalt nett **parallelt** med rutenett-nord | **ett** punkt: tegningskoordinat (DXF-verden) ↔ E/N i oppgitt CRS (+ høyde NN2000 som etikett) → ren forskyvning | 0, **bekreftet eksplisitt** av brukeren («aksene peker mot rutenett-nord») | fra enheter |
+| **R Rotert** | lokalt prosjektnett dreid mot kartnord (HABU, sykehus, fallplan — ukjent retning) | **to** punkter (Helmert: forskyvning + rotasjon, skala som kontroll), **eller** ett punkt + oppgitt vinkel mot rutenett-nord (nordpil/«rotasjon» som i Dalux «Edit system setup»). 3+ punkter: similaritet med minste kvadrat + **residual** (ikke affin — affin kan skjære, AT-G3) | beregnet / oppgitt | fra enheter; avvik > 0,5 % → varsel |
+
+- **Når holder ett punkt?** Bare i K (ingen) og F (bekreftet retning). Ett punkt *uten* bekreftelse gir tilstanden «mangler retning», ikke en gjettet georef. Ett punkt er nok i Dalux fordi prosjektets kartsystem og rotasjon alt er satt (AT-G11); hos oss bærer tegningen det selv.
+- **CRS kommer aldri fra tallheuristikk alene** (AT-G1): kilder i rekkefølge `GEODATA` (ingen av de 13 har det) → EPSG/NTM/UTM i filnavn → brukervalg i editor (NTM 5–30 og UTM må være valgbare, AT-G4). Tallene brukes bare til å *foreslå* («ser ut som UTM — velg sone»). `$LATITUDE/$LONGITUDE` ignoreres uten `GEODATA` (San Francisco-fella, AT-G10).
+- **Høyde:** `OrthogonalHeight`/NN2000 lagres og vises som etikett på fastpunktet; ingen høydetransformasjon finnes (AT-G1) og loves ikke.
+
+**Datamodell (F11.2):** `GeoReferanse` utvides, bakoverkompatibelt: `{ modell: "kart"|"fastpunkt"|"topunkt"|"flerpunkt", crs, enhetMm, fastpunkt?: { tegning:{x,y} i DXF-verdenskoordinater, kart:{east,north,hoyde?}, vinkelMotNord: 0 | tall, bekreftetAvBruker: boolean }, punkter?: [...], residualM? }` + **avledede** `point1/point2` i SVG-prosent for alt som leser dem i dag (web, mobil, geofence). Punkter lagres i **DXF-verdenskoordinater**, ikke SVG-prosent, så georef overlever ny revisjon/viewBox og passer motoren (AT-G9). `Drawing.coordinateSystem` beholdes som speil av `crs`.
+
+**2D → IFC (F11.3), koordinatkobling, ikke objektkobling (R8.2):**
+- Når IFC-modellen deler koordinatsystem med plantegningen (Revit «shared coordinates», bekreftet av brukeren: «modellen har samme origo og akser som tegningen»), avledes **IfcMapConversion-ekvivalenten** fra tegningens georef: `Eastings/Northings` = kart − (rotert) tegningsorigo, `XAxisAbscissa/XAxisOrdinate` = cos/sin(vinkel), `Scale` = enhetsfaktor, `OrthogonalHeight` = fastpunkthøyde eller 0. Den lagres som dagens `gpsOverride.transform {a,b,tx,tz}` (samme similaritet, AT-G7) med `kilde:"dwg-georef"`.
+- **Prioritet:** IFC-ens egen `IfcMapConversion`/`ePSet_MapConversion` (leses server-side i `ifcMetadata.ts`, i dag 0 treff AT-G6) **>** avledet fra DWG **>** manuell to-punkts kalibrering i tegning-3d. Kilden vises alltid. Rotasjon regnes `atan2(XAxisOrdinate, XAxisAbscissa)` (AT-G12-advarsel).
+- Aldri auto: ulikt origo (IfcSite RefLat/Long > 50 m fra tegningens fastpunkt) → ingen kobling, tilstand «modell og tegning har ulikt origo», manuell kalibrering som i dag.
+
+**Visning (F11.4):** en georeferert tegning (K/F/R) vises **nord opp** — dagens regel beholdes (AT-G5) og utvides fra «CRS funnet» til «georef finnes». **Nordpil MÅ vises** når georef finnes (i dag ingen). For arbeidstegning-motoren betyr det: **georefererte tegninger får ingen kamerarotasjon** (= valg B tvunget for K/F/R, uavhengig av Kenneths A/B/C-valg, AT-G9); `rotasjonOverstyrt` forblir en ren visningsrotasjon som nordpilen følger. For **ikke**-georefererte tegninger gjelder Kenneths rotasjonsvalg. Native tekst som tilter (valg A) er dermed bare et problem for lokalt-nett-tegninger uten georef.
+
+**Forhold til DWG-3/D7 (F11.5):** D7 (fire hjørner fra extents, marg-korreksjon, `$INSUNITS`=m, sone-varsel) var en punktbasert omskriving av tilstand K. **F11 erstatter DWG-3:** for K lagres `modell:"kart"` + CRS + enhet, og hjørnepunktene **avledes** (eksakt, uten marg-feil) i stedet for å lagres. D7s sone-varsel beholdes som F11.1-regelen om CRS-kilde. DWG-3 bestilles ikke; F11-K er første byggeordre i georef-sporet, F11-F/R og F11.3 etter prøven (§ 6) fordi de trenger DXF-verdenskoordinater fra motoren.
+
+**§ 8-kobling:** O1 `geometriRef` i DXF-verdenskoordinater + tegningens georef gir **objektets kartposisjon** (tolket, merket kilde) → F8 kan vise samme vegg i plan og i 3D via posisjon, aldri via id (R8.2); objektRef kan bære kartposisjonen som tilleggsfelt for GPS-markør på mobil.
+
+**Akseptkriterier:**
+- M1 Ålesund UTM32: opplasting → `modell:"kart"`, `crs:"utm32"`, rotasjon 0, nord opp, nordpil synlig; GPS under musepeker ved et hjørne = DXF-hjørnet konvertert (±0,5 m); måling mellom to punkter = DXF-avstand (±0,5 %) på web **og** mobil (ikke lenger ≥ 3-punkts-sperre for K).
+- M2 Ålesund NTM6: samme med `ntm6`. **Negativkontroll:** fila omdøpt uten «NTM6» → ingen CRS satt, tilstand «ser ut som NTM — velg sone», aldri «utm33».
+- M3 Sykehus AB3-1071 (lokalt nett): ett fastpunkt (tegningskoordinat + E/N i UTM33 + bekreftet «aksene = rutenett-nord») → `modell:"fastpunkt"`; `tegningTilGps` på et annet kjent punkt = regnet verdi (±0,1 m); mobil GPS-markør virker; VB3/TB3 stablet (F10) **arver** samme georef uten nye punkter.
+- M4 HABU A-10-101 (lokalt, rotert): ett punkt uten bekreftelse → «mangler retning», ingen georef; ett punkt + vinkel 23° → OK, nordpil viser 23°; to punkter → vinkel beregnet og vist, skalaavvik vist; tre punkter → residual vist, > 0,5 m gir varsel; test som feiler når affin brukes (skjæring ≠ 0).
+- M5 2D→IFC: IFC uten `IfcMapConversion` + tegning i F + «samme origo» bekreftet → `gpsOverride.transform` avledet, kilde «dwg-georef»; et 3D-objekt ved kjent punkt lander på kart ±0,5 m. IFC **med** `IfcMapConversion` → den vinner, kilde «ifc». Negativ: IfcSite 200 m unna → ingen auto, tilstand vist. (Krever en ekte IFC, Q10.)
+- M6 Ny revisjon av AB3-1071 med annen viewBox → georef uendret (lagret i DXF-verden), markører på plass.
+- M7 `$LATITUDE/$LONGITUDE` = 37.795/−122.394 uten `GEODATA` → ignorert; test som feiler om verdien brukes.
+
 ### Prioritert rekkefølge (anbefaling)
 
-F1 → F2 → F4 (ytelsesgaten) → F5 → F7 → F8 → F10 → F3 → F9 → F6. F1/F2/F4 er **én** prøve hos Dokgen (A mot B) fordi de deler
+F1 → F2 → F4 (ytelsesgaten) → F5 → F7 → F8 → F10 → F3 → F9 → F6. **Georef-sporet parallelt:** F11-K (erstatter DWG-3) når som helst; F11-F/R og F11.3 etter prøven. F1/F2/F4 er **én** prøve hos Dokgen (A mot B) fordi de deler
 samme grunnspørsmål: kan telefonen bære objektidentitet og lag på fallplanen med ≥ 30 fps? Først når den er målt, bestilles
 bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektreferansen; tittelfeltet er tekst i Layout1). F10 er den som gjør MEP-tegningene brukbare i det hele tatt (AT-F12).
 
@@ -267,7 +322,7 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 - **Henting av xref-filer** fra kundens filserver/Interaxo (F10 bruker bare opplastede tegninger). Rør-til-tekst-kobling som *data* (bare geometrisk tolkning, F1 felt 5b).
 - Paper space / layouts: følger `tegning-dwg-spec.md` D6 (klippet under hovedtegningen); F1–F8 gjelder modelspace. F9 leser bare tekst fra Layout1.
 - 3D/IFC, punktsky, PDF-tegninger (PDF beholder dagens bilde-vei med kalibrering; F1–F3/F8 gjelder ikke PDF).
-- Georeferanse (DWG-3/D7) og tegningsserie (T2) — egne spor.
+- Tegningsserie (T2) — eget spor. Georeferanse er nå F11 (erstatter DWG-3/D7). **Ikke med i F11:** høydetransformasjon (NN2000 bare etikett), NTM 21–30/andre land, automatisk henting av fastpunkt fra kartverket, geoid.
 - Sammenligning av revisjoner (visuell diff) — KAN senere; F5 E5/E7 dekker bare at markører overlever.
 - Lagring av målinger (AT-M4) — uendret, ikke i denne spec-en.
 
@@ -282,6 +337,8 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q5 | Objektklikk på **mobil** er MÅ i § 3. Det kan koste større nedlasting/minne enn dagens fargegrupperte variant (AT-M7). Står MÅ, med D5-budsjettet som gate? | **Ja, MÅ.** Fagarbeideren står med telefonen. D5 (≤ 3 s, ≤ 150 MB, ≥ 30 fps) er gaten; klarer ingen vei det på fallplanen, meldes det tilbake med tall før nedprioritering |
 | Q6 | Offline F7: holder **vise + lag + egenskaper** (MÅ) og søk/måling KAN? | **Ja.** Måling offline krever enheter som alt ligger i tegningen, så den kan komme gratis med vei B — men ikke lov det nå |
 | Q7 | **HABU-filene i repoet?** (flyttet bort fra prosjektmappa 12.10 — spørsmålet gjelder om de kan hentes tilbake som fixtures) De er tilbudsunderlag for et navngitt prosjekt (UNN, AART, adresse, gnr/bnr) — ikke våre data. Fixtures i `apps/api/test-fixtures/dwg/` ligger i git og på GitHub | **Nei, ikke uten skriftlig OK fra eier.** Behold dem lokalt i `DWG eksempelfiler/HABU/` (untracked); tester på dem **skippes når mappa mangler** (samme mønster som «krever dwg2dxf + ezdxf»). Dokgens prøve kjører lokalt på dem. Alternativ: be AART om lov, eller lag én anonymisert Revit-eksport selv (ikke generert — ekte Revit-modell) |
+| Q9 | **Ett fastpunkt uten nordpil (F11.1 F):** skal brukeren kunne bekrefte «aksene peker mot rutenett-nord» og få georef fra ett punkt (Dalux-modellen), eller kreve to punkter alltid? | **Tillat ett punkt med eksplisitt bekreftelse**, og vis nordpil + GPS-markør straks så en feil retning ses med én gang. To punkter forblir anbefalt vei for roterte nett |
+| Q10 | **Ingen IFC-fil finnes lokalt** (AT-G6). M5 kan ikke måles uten. Kan du skaffe en IFC fra sykehus-settet eller HABU (helst eksportert med «shared coordinates»)? | **Ja, før F11.3 bestilles.** Uten den spesifiseres 2D→IFC bare på papiret; med den måles om IFC-en bærer `IfcMapConversion` (da gratis) eller bare IfcSite |
 | Q8 | **Underlag (F10):** skal SiteDoc kunne legge VVS/EL-tegningen oppå ARK-tegningen når de deler koordinatramme, eller holder det å vise tilstanden «underlag mangler»? TB3/VB3 er ubrukelige alene (rør i tomrom) | **Ja, F10 som BØR rett etter F8.** Det er slik fagarbeideren leser et tegningssett; og rammen er alt felles i filene (AT-F12). Samme spørsmål gjelder AB3/VB3/TB3 i repoet som fixtures (eier?) — anbefaler samme regel som Q7 |
 
 ### 5a. Kenneth-svar 2026-10-12 — 🟢 alle åtte
@@ -301,7 +358,7 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 
 Én prøve, begge veier om mulig, på **fallplanen**, **UTM32**, **HABU A-10-101** og **sykehus-settet AB3+VB3+TB3** (linjetyper, stabling K2, enhetsløs), på web (Chromium) og telefon (WebKit,
 390×844): tallene for A5, A8, A12, A14, B4, B8, D1, D3, D4, D5, D6, K2 i § 3 + filstørrelse pr. tegning + hvor objektidentitet (element-id/handle),
-XDATA og laginventar bor i hver vei. Rapport som tabell, samme form som C2-tabellen i `tegning-dwg-spec.md`. Prøven må i tillegg vise at kortet i vei A/B kan ta et O1-objekt fra IFC-viseren (§ 8 L1) — ellers er veien for smal. Valget tas av
+XDATA og laginventar bor i hver vei. Rapport som tabell, samme form som C2-tabellen i `tegning-dwg-spec.md`. Prøven må i tillegg vise at kortet i vei A/B kan ta et O1-objekt fra IFC-viseren (§ 8 L1) — ellers er veien for smal. Og at motoren eksponerer DXF-verdenskoordinater for klikkpunkt og objekter (F11.2/M3 trenger dem). Valget tas av
 orkestrator/Kenneth på tallene; deretter bestilles F1/F2/F4 som første byggeordre. Ingen kode merges fra prøven.
 
 ## 7. Tester som skal FEILE i dag (DoD, uavhengig av vei)
@@ -327,6 +384,11 @@ orkestrator/Kenneth på tallene; deretter bestilles F1/F2/F4 som første byggeor
 19. Fullstendighet AB3-1071: antall LINE/TEXT/INSERT i DXF-en = antall i `dwgread` (libredwg 97 dekodefeil, AT-F14) — og TrueView-fasit side om side.
 20. Én egenskapskort-komponent for tre kilder (L1); i dag to kopier av `EgenskapsPopup` og ingen i 2D.
 21. IFC: kategori-panel før klikk (L2); oppgave fra IfcWall med `objektRef` som overlever gjenåpning (L3); fragment-cache med egenskaper (L4); 2D↔IFC ingen auto-id (L5).
+22. Kart-tegning (UTM32) får georef uten punkter og måling på mobil med 2 avledede punkter (M1); UTM32-fil uten filnavn-hint gir aldri «utm33» (M2).
+23. Ett fastpunkt + bekreftet retning gir gyldig georef (M3); ett punkt uten bekreftelse gir ikke (M4) — i dag er ett punkt umulig i typen.
+24. 3+ punkter løses som similaritet med residual, ikke affin (M4).
+25. `ifcMetadata` leser `IfcMapConversion`/`ePSet_MapConversion` og den vinner over avledet transform (M5); `$LATITUDE` ignoreres uten `GEODATA` (M7).
+26. Georef lagret i DXF-verdenskoordinater overlever ny viewBox (M6); nordpil rendres når georef finnes (M1).
 
 ## 8. Felles objektmodell på tvers av 2D, IFC/3D og mobil · **MÅ** (Kenneth 2026-10-12 «ja»)
 
