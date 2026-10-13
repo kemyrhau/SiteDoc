@@ -52,6 +52,11 @@ services:
       - ./env/web.env                  # AUTH_SECRET, AUTH_GOOGLE_*, AUTH_MICROSOFT_*, DATABASE_URL, RESEND ...
     environment:
       PORT: "3100"
+      # 2026-10-13: tRPC (opplasting, AI-søk-embedding, arkiv-PDF) kjører IN-PROCESS i web, så
+      # tjeneste-URL-ene må stå her óg — uten dem falt web til 127.0.0.1 og embedding/oversettelse feilet.
+      NORBERT_URL: "http://embed:3302"
+      OVERSETTELSE_URL: "http://oversettelse:3303"
+      PDF_URL: "http://pdf-render:3304"
     # Read-only: web kjører tRPC in-process (arkivmal-sammenstillingen), og
     # `hentBildeBytesFraDisk` må LESE vedlegg fra disk. `:ro` gir lesetilgang
     # uten at den eksponerte flaten kan skrive brukerdata. Arkiv-PDF skrives
