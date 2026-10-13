@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { PrismaClient } from "@sitedoc/db";
+import * as mammoth from "mammoth";
 import { splittMalebrevPdf } from "./pdf-splitting";
 import { genererBlokker } from "./blokk-prosessering";
 import { embeddNyeBlokker } from "./embedding-service";
@@ -21,6 +22,28 @@ const execFileAsync = promisify(execFile);
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 const MAKS_CHUNK = 1500;
 const OVERLAPP = 100;
+
+// Filtyper som gir søkbart innhold. Alt annet (f.eks. gammelt binært .doc, .rtf,
+// .pages) skal IKKE markeres `completed` med 0 chunks — det blir «stille tomhet».
+// I stedet settes status `unsupported` med en synlig melding. Se prosesserDokument.
+export const STOTTEDE_FILTYPER = [
+  ".pdf",
+  ".xlsx",
+  ".xls",
+  ".xml",
+  ".csv",
+  ".gab",
+  ".ga1",
+  ".docx",
+];
+
+export function erStøttetFiltype(ext: string): boolean {
+  return STOTTEDE_FILTYPER.includes(ext.toLowerCase());
+}
+
+// Melding ved ikke-støttet format. Gammelt .doc er vanligste tilfelle.
+const IKKE_STOTTET_MELDING =
+  "Filformatet støttes ikke for søk. Lagre som .docx eller PDF og last opp på nytt.";
 
 // NS 3420 kodemønster: f.eks. "21.341", "21.341.1", "01.1"
 const NS_KODE_REGEX = /\b(\d{2}\.\d{1,3}(?:\.\d+)?)\b/;
@@ -155,14 +178,20 @@ export async function prosesserDokument(
       case ".ga1":
         await prosesserGab(prisma, documentId, buffer, dok.projectId);
         break;
+      case ".docx":
+        await prosesserDocx(prisma, documentId, buffer);
+        break;
       default:
-        // Ukjent filtype — marker som ferdig uten chunks
+        // Ikke-støttet filtype (gammelt .doc, .rtf osv.) — håndteres etter switch
         break;
     }
 
+    const støttet = erStøttetFiltype(ext);
     await prisma.ftdDocument.update({
       where: { id: documentId },
-      data: { processingState: "completed" },
+      data: støttet
+        ? { processingState: "completed", processingError: null }
+        : { processingState: "unsupported", processingError: IKKE_STOTTET_MELDING },
     });
 
     // Oppdater budsjett-poster fra nota-verdier (A-nota/T-nota)
@@ -1576,6 +1605,167 @@ function delTekstIChunks(
 function detekterNsKode(tekst: string): string | null {
   const match = tekst.match(NS_KODE_REGEX);
   return match?.[1] ?? null;
+}
+
+// --------------------------------------------------------------------------
+// DOCX-prosessering (mammoth → samme chunk-format som PDF)
+// --------------------------------------------------------------------------
+
+export interface DocxChunk {
+  chunkIndex: number;
+  chunkText: string;
+  sectionTitle: string | null;
+  sectionLevel: number | null;
+  nsCode: string | null;
+}
+
+/** Dekod de vanligste HTML-entitetene mammoth produserer. */
+function dekodHtmlEntiteter(s: string): string {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_m, d) => String.fromCodePoint(Number(d)));
+}
+
+type DocxBlokk = { type: "heading" | "para"; level: number | null; text: string };
+
+/**
+ * Parser mammoth-HTML til ordnede blokker. Overskrifter (`<h1>`–`<h6>`) bærer nivå;
+ * avsnitt/listepunkter/tabellceller (`<p>`/`<li>`/`<td>`/`<th>`) blir tekst-blokker.
+ * Inline-tagger (`<strong>`, `<em>`, `<a>`) ignoreres — kun tekstinnholdet beholdes.
+ */
+function parseDocxBlokker(html: string): DocxBlokk[] {
+  const blokker: DocxBlokk[] = [];
+  const tokens = html.split(/(<[^>]+>)/);
+  let aktiv: { type: "heading" | "para"; level: number | null; buf: string } | null = null;
+
+  const flush = () => {
+    if (!aktiv) return;
+    const text = dekodHtmlEntiteter(aktiv.buf).replace(/\s+/g, " ").trim();
+    if (text) blokker.push({ type: aktiv.type, level: aktiv.level, text });
+    aktiv = null;
+  };
+
+  const erBlokkTag = (tag: string) =>
+    /^h[1-6]$/.test(tag) || tag === "p" || tag === "li" || tag === "td" || tag === "th";
+
+  for (const tok of tokens) {
+    const m = tok.match(/^<\s*(\/?)\s*([a-zA-Z0-9]+)/);
+    if (m) {
+      const lukkende = m[1] === "/";
+      const tag = m[2]!.toLowerCase();
+      if (!lukkende) {
+        if (/^h[1-6]$/.test(tag)) {
+          flush();
+          aktiv = { type: "heading", level: Number(tag[1]), buf: "" };
+        } else if (tag === "p" || tag === "li" || tag === "td" || tag === "th") {
+          flush();
+          aktiv = { type: "para", level: null, buf: "" };
+        } else if (tag === "br" && aktiv) {
+          aktiv.buf += " ";
+        }
+      } else if (erBlokkTag(tag)) {
+        flush();
+      }
+    } else if (tok && aktiv) {
+      aktiv.buf += tok;
+    }
+  }
+  flush();
+  return blokker;
+}
+
+/**
+ * Bygger chunks fra DOCX-blokker. Hver overskrift starter en ny seksjon og settes som
+ * `sectionTitle`/`sectionLevel`; overskriftsteksten prependes chunk-teksten så den er
+ * søkbar. Avsnitt akkumuleres til `MAKS_CHUNK` og deles så. En overskrift uten brødtekst
+ * gir fortsatt en egen chunk (ellers ville overskriften forsvunnet fra søk).
+ */
+function byggDocxChunks(blokker: DocxBlokk[]): DocxChunk[] {
+  const chunks: DocxChunk[] = [];
+  let index = 0;
+  let overskrift: string | null = null;
+  let nivå: number | null = null;
+  let overskriftEmittert = false;
+  let buffer = "";
+
+  const flush = () => {
+    const tekst = buffer.trim();
+    if (tekst || (overskrift && !overskriftEmittert)) {
+      const chunkText = overskrift
+        ? tekst
+          ? `${overskrift}\n\n${tekst}`
+          : overskrift
+        : tekst;
+      chunks.push({
+        chunkIndex: index++,
+        chunkText,
+        sectionTitle: overskrift,
+        sectionLevel: nivå,
+        nsCode: detekterNsKode(chunkText),
+      });
+      overskriftEmittert = true;
+    }
+    buffer = "";
+  };
+
+  for (const b of blokker) {
+    if (b.type === "heading") {
+      flush();
+      overskrift = b.text;
+      nivå = b.level;
+      overskriftEmittert = false;
+      continue;
+    }
+    if (buffer.length + b.text.length > MAKS_CHUNK && buffer.length > 0) {
+      flush();
+    }
+    buffer += (buffer ? "\n\n" : "") + b.text;
+  }
+  flush();
+  return chunks;
+}
+
+/** Ekstraher søkbare chunks fra en DOCX-buffer. Ren funksjon — ingen DB. */
+export async function ekstraherDocxChunks(buffer: Buffer): Promise<DocxChunk[]> {
+  const { value: html } = await mammoth.convertToHtml({ buffer });
+  const blokker = parseDocxBlokker(html);
+  return byggDocxChunks(blokker);
+}
+
+async function prosesserDocx(
+  prisma: PrismaClient,
+  documentId: string,
+  buffer: Buffer,
+): Promise<void> {
+  const chunks = await ekstraherDocxChunks(buffer);
+
+  if (chunks.length > 0) {
+    await prisma.ftdDocumentChunk.createMany({
+      data: chunks.map((c) => ({
+        documentId,
+        chunkIndex: c.chunkIndex,
+        chunkText: c.chunkText,
+        pageNumber: null,
+        sectionTitle: c.sectionTitle,
+        sectionLevel: c.sectionLevel,
+        nsCode: c.nsCode,
+        profile: "docx",
+      })),
+    });
+  }
+
+  const totalTekst = chunks.map((c) => c.chunkText).join(" ");
+  await prisma.ftdDocument.update({
+    where: { id: documentId },
+    data: {
+      wordCount: totalTekst.split(/\s+/).filter(Boolean).length,
+    },
+  });
 }
 
 // --------------------------------------------------------------------------

@@ -39,8 +39,16 @@ Bruker: Søk "grøftesnitt type 2"
 - **Modell:** `ltgoslo/norbert2` (768 dim, optimalisert for norsk)
 - **Kjøring:** Python venv (`~/norbert-env`) med torch + transformers
 - **Server:** Persistent HTTP-server via PM2 (`norbert-embed`, port 3302)
-- **Automatisk:** Nye filer embeddes automatisk etter prosessering
+- **Automatisk:** Nye filer embeddes automatisk etter prosessering (`embeddNyeChunks` i `ftd-prosessering.ts`, fire-and-forget via NorBERT Python-subprosess `norbert-embed.py`). Finnes ikke `~/norbert-env` i api-prosessen, hoppes embedding over og chunks blir stående `pending` til den manuelle løkka startes (AI-søk-innstillinger → `aiSok.genererEmbeddings`). Fulltekst-søk (tsvector) virker uansett uten embedding.
 - **Recovery:** Stuck `processing`-chunks settes tilbake til `pending` ved API-oppstart
+
+## Filtyper og reprosessering
+
+Tekstuttrekk skjer i `apps/api/src/services/ftd-prosessering.ts` (`prosesserDokument`). Støttede filtyper (`STOTTEDE_FILTYPER`): `.pdf`, `.xlsx`/`.xls`, `.xml`, `.csv`, `.gab`/`.ga1`, `.docx`.
+
+- **DOCX** (`prosesserDocx` / `ekstraherDocxChunks`, 2026-10-14): `mammoth.convertToHtml` → overskrifter `<h1>`–`<h6>` blir `sectionTitle`/`sectionLevel`, avsnitt/lister/tabellceller blir chunk-tekst. Samme `ftd_document_chunks`-format som PDF (`profile: "docx"`, `pageNumber: null`). `search_vector`-triggeren fyller fulltekst-indeksen automatisk, så DOCX blir søkbart umiddelbart. Gammelt binært `.doc` håndteres ikke.
+- **Ikke-støttet format** (gammelt `.doc`, `.rtf` m.m.): settes `processingState: "unsupported"` med synlig status i fillista (`mapper/page.tsx`) — ikke stille `completed` med 0 chunks. Melding: «lagre som .docx eller PDF».
+- **Reprosessering:** `mappe.reprosesserDokument` (pr. dokument) og `mappe.reprosesserMappe` (pr. mappe — dokumenter med 0 chunks eller `failed`; hopper over `pending`/`processing`/`unsupported`). Idempotent — `prosesserDokument` sletter chunks/poster før ny kjøring. Økonomi-visningen bruker `mengde.reprosesser` pr. dokument.
 
 ## Re-ranking signaler
 

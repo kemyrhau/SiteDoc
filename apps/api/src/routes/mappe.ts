@@ -929,6 +929,60 @@ export const mappeRouter = router({
       return doc;
     }),
 
+  // Reprosesser ett dokument: kjør tekstuttrekk + embedding på nytt. Idempotent —
+  // prosesserDokument sletter eksisterende chunks/poster før ny kjøring.
+  // Tilgang = prosjektmedlem, som opplasting.
+  reprosesserDokument: protectedProcedure
+    .input(z.object({ documentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+        select: { id: true, projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+
+      await ctx.prisma.ftdDocument.update({
+        where: { id: doc.id },
+        data: { processingState: "pending", processingError: null },
+      });
+      triggerProsessering(doc.id);
+      return { ok: true };
+    }),
+
+  // Reprosesser alle dokumenter i en mappe som mangler søkbart innhold (0 chunks)
+  // eller har feilet. Dokumenter som kjører (pending/processing) eller har
+  // ikke-støttet format (reprosessering hjelper ikke) hoppes over.
+  // Tilgang = prosjektmedlem, som opplasting.
+  reprosesserMappe: protectedProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      const dokumenter = await ctx.prisma.ftdDocument.findMany({
+        where: {
+          folderId: input.folderId,
+          isActive: true,
+          processingState: { notIn: ["pending", "processing", "unsupported"] },
+          OR: [{ processingState: "failed" }, { chunks: { none: {} } }],
+        },
+        select: { id: true },
+      });
+
+      if (dokumenter.length > 0) {
+        const ider = dokumenter.map((d) => d.id);
+        await ctx.prisma.ftdDocument.updateMany({
+          where: { id: { in: ider } },
+          data: { processingState: "pending", processingError: null },
+        });
+        for (const id of ider) triggerProsessering(id);
+      }
+      return { ok: true, antall: dokumenter.length };
+    }),
+
   settKontrakt: protectedProcedure
     .input(
       z.object({

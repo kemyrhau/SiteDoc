@@ -20,6 +20,8 @@ import {
   Globe,
   ChevronRight,
   FolderPlus,
+  RefreshCw,
+  FileX,
 } from "lucide-react";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -44,8 +46,24 @@ function harPågåendeJobb(d: unknown): boolean {
     : ((d as { dokumenter?: unknown[] } | undefined)?.dokumenter ?? []);
   return arr.some((doc) => {
     const jobber = (doc as { oversettelse?: { jobber?: Array<{ status: string }> } }).oversettelse?.jobber ?? [];
-    return jobber.some((j) => j.status === "pending" || j.status === "processing");
+    if (jobber.some((j) => j.status === "pending" || j.status === "processing")) return true;
+    // Poll også mens et dokument prosesseres (f.eks. etter «Prosesser på nytt»),
+    // så spinner blir grønn/rød uten manuell refresh.
+    const s = (doc as { processingState?: string }).processingState;
+    return s === "pending" || s === "processing";
   });
+}
+
+/**
+ * True når dokumentet mangler søkbart innhold og kan reprosesseres. Dokumenter som
+ * kjører (pending/processing) eller har ikke-støttet format (.doc/ukjent) utelates —
+ * reprosessering hjelper ikke der. `failed` og `completed` med 0 chunks kan prøves på nytt.
+ */
+function maaReprosesseres(rad: { processingState: string | null; chunksTotalt: number }): boolean {
+  if (rad.processingState === "pending" || rad.processingState === "processing") return false;
+  if (rad.processingState === "unsupported") return false;
+  if (rad.processingState === "failed") return true;
+  return rad.chunksTotalt === 0;
 }
 
 /**
@@ -231,6 +249,18 @@ export default function MapperSide() {
   });
 
   const bekreftSpraakMut = trpc.mappe.bekreftDokumentSpraak.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
+    },
+  });
+
+  const reprosesserDokMut = trpc.mappe.reprosesserDokument.useMutation({
+    onSuccess: () => {
+      utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
+    },
+  });
+
+  const reprosesserMappeMut = trpc.mappe.reprosesserMappe.useMutation({
     onSuccess: () => {
       utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId! });
     },
@@ -434,6 +464,17 @@ export default function MapperSide() {
             </span>
           </button>
         )}
+        {valgtMappeId && (dokumenter ?? []).some(maaReprosesseres) && (
+          <button
+            onClick={() => reprosesserMappeMut.mutate({ folderId: valgtMappeId })}
+            disabled={reprosesserMappeMut.isPending}
+            className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            title={t("mapper.reprosesserMappeHjelp")}
+          >
+            <RefreshCw className={`h-4 w-4 text-sitedoc-primary ${reprosesserMappeMut.isPending ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">{t("mapper.reprosesserMappe")}</span>
+          </button>
+        )}
         <button
           onClick={() => filInputRef.current?.click()}
           disabled={lasterOpp}
@@ -609,6 +650,16 @@ export default function MapperSide() {
                   >
                     <Download className="h-4 w-4" />
                   </SignertLenke>
+                  {maaReprosesseres(rad) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); reprosesserDokMut.mutate({ documentId: rad.id }); }}
+                      disabled={reprosesserDokMut.isPending}
+                      className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-sitedoc-primary disabled:opacity-50"
+                      title={t("mapper.reprosesserDokument")}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${reprosesserDokMut.isPending ? "animate-spin" : ""}`} />
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       if (confirm(`Slett «${rad.filename}»?`)) {
@@ -645,6 +696,15 @@ export default function MapperSide() {
 /** Embedding-statusindikator per dokument */
 function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; processingError: string | null; chunksTotalt: number; chunksEmbedded: number } }) {
   const { t } = useTranslation();
+  // Ikke-støttet filtype (gammelt .doc, .rtf osv.) — synlig status, ikke stille tomhet
+  if (rad.processingState === "unsupported") {
+    return (
+      <span title={rad.processingError ?? t("mapper.formatIkkeStottet")}>
+        <FileX className="h-3.5 w-3.5 text-amber-500" />
+      </span>
+    );
+  }
+
   // Feil
   if (rad.processingError) {
     return (
