@@ -76,6 +76,24 @@ Tilbake til `egen`: fjern linja fra begge filer og recreate på nytt. **Faller e
 
 tRPC kjører **in-process i web-containeren** for alt nettleseren trigger, så web må ha env for de tjenestene: `NORBERT_URL`/`OVERSETTELSE_URL`/`PDF_URL` (i `docker/docker-compose.yml` og `docker-compose.test.yml` på web) og `VEGVESEN_API_KEY` (i `web.env`/`web-test.env`, kopiert fra api-filene). Sjekk paritet med navn-diff (aldri verdier): `diff <(docker exec sitedoc-api printenv | cut -d= -f1 | sort) <(docker exec sitedoc-web printenv | cut -d= -f1 | sort)`. Forventet differanse: `BUILD_TID`, `GIT_SHA`, `HOST`, `MICROSOFT_MOBILE_CLIENT_ID` (mobilauth går mot api).
 
+### Arbeidstegning — `TEGNING_MOTOR` (leveranse 1, 2026-10-13, 🟡 bak flagg)
+
+🟡 Kun Kenneths egen testing foreløpig — ingen test/prod-utrulling bestemt. Uavhengig akse fra `DWG_MOTOR` (plan: `relay/inbox-orkestrator.md` § PLAN app-integrasjon): `DWG_MOTOR` avgjør hvilken SVG som **finnes på disk**, `TEGNING_MOTOR` avgjør om web/mobil **bruker** den eller tegner `dxf-viewer` (WebGL) direkte fra en forenklet DXF + O1-register i stedet.
+
+- **Server (api):** `TEGNING_MOTOR=dxfviewer` slår på `genererDxfViewerArtefakter()` i `dwgKonvertering.ts` — krever samme `EZDXF_PYTHON`/`EZDXF_RENDER_PY` som ezdxf-motoren (uavhengig av `DWG_MOTOR`). Skriver `Drawing.dxfViewerFileUrl` (forenklet DXF, spike 0,5b: XDATA/extension-dicts/ubrukte blokker fjernet, koordinater avrundet ≤0,1 mm) + `Drawing.registerWorldUrl` (O1-register, rå DXF-verdenskoordinater) — begge `/uploads/`-URL-er, signert automatisk av den globale tRPC-middlewaren (`signerUploadsOutput.ts`, ingen eksplisitt kall trengt).
+- **Klient (web):** `NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer` er den FAKTISKE kill-switchen (build-time, samme to-var-mønster som `GIT_SHA`/`NEXT_PUBLIC_BUILD_SHA`) — server-flagget avgjør kun om NYE konverteringer produserer artefaktene. `tegninger/page.tsx` krever BEGGE (client-flagg PÅ + artefaktene finnes på raden) før den bruker `DxfViewerTegning`-komponenten (dynamic import, `ssr:false` — egen three.js-kopi ^0.186 lastes kun på tegningssiden, ikke globalt).
+- **Begge flagg er wiret i `docker-compose.test.yml` som shell-variabler (ikke env-fil-append), kun test — prod uendret:**
+  - `TEGNING_MOTOR` (runtime) står i `environment:` på **begge** `sitedoc-test-api` og `sitedoc-test-web` (web konverterer selv ved nettleser-opplasting, D-M2) — `TEGNING_MOTOR: ${TEGNING_MOTOR:-}`, tom fallback = av.
+  - `NEXT_PUBLIC_TEGNING_MOTOR` (build-time) står i `sitedoc-test-web`s `build.args`, og `Dockerfile.web` har tilsvarende `ARG`/`ENV` (samme mønster som `NEXT_PUBLIC_BUILD_SHA`).
+  - **Bytt på test** (ingen env-fil-redigering på server nødvendig lenger):
+    ```sh
+    ssh -t server-ny "cd ~/stack/sitedoc && \
+      NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer sudo -E docker compose -f docker/docker-compose.test.yml build sitedoc-test-web && \
+      TEGNING_MOTOR=dxfviewer sudo -E docker compose -f docker/docker-compose.test.yml up -d sitedoc-test-api sitedoc-test-web"
+    ```
+    `sudo -E` er påkrevd begge steder — uten den arver ikke `sudo` shell-variablene, og flagget bakes/settes av uansett.
+- Default er av overalt. Ingen migrering trengs for å bytte (additive, nullable felt).
+
 ### 🔴 STYRENDE: env-filer overskrives — tre hendelser på fem dager (2026-08-13 → 08-18)
 
 Env-filer er **gitignorert og har ingen historikk**. Overskriver du en, finnes originalen

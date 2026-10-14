@@ -72,6 +72,12 @@ ARG NEXT_PUBLIC_BUILD_SHA=
 ENV NEXT_PUBLIC_BUILD_SHA=${NEXT_PUBLIC_BUILD_SHA}
 ARG NEXT_PUBLIC_BUILD_TID=
 ENV NEXT_PUBLIC_BUILD_TID=${NEXT_PUBLIC_BUILD_TID}
+# NEXT_PUBLIC_TEGNING_MOTOR (arbeidstegning leveranse 1, 🟡 bak flagg): FAKTISKE
+# kill-switchen for dxf-viewer-visningen bakes inn ved BUILD-tid (samme to-var-mønster
+# som over) — server-flaggets TEGNING_MOTOR (runtime, api+web, se infrastruktur.md)
+# avgjør kun om NYE konverteringer produserer artefaktene. Usatt (prod) = av.
+ARG NEXT_PUBLIC_TEGNING_MOTOR=
+ENV NEXT_PUBLIC_TEGNING_MOTOR=${NEXT_PUBLIC_TEGNING_MOTOR}
 RUN pnpm turbo build --filter @sitedoc/web
 
 ENV NODE_ENV=production
