@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 
 export interface SokTreff {
@@ -126,7 +126,13 @@ export const ftdSokRouter = router({
         `;
       }
 
-      return rader.map((r) => ({ ...r, metode: "tekst" as const }));
+      // RETUR 1 R1: `rank` (ts_rank-score) er dev-diagnostikk → gates server-side til
+      // sitedoc_admin/dev, ikke bare skjult i klienten. Utdrag/metode beholdes (bruker-innhold).
+      const visScore =
+        process.env.NODE_ENV === "development" || (await erSiteDocAdmin(ctx.userId));
+      return rader.map(({ rank: _rank, ...r }) =>
+        visScore ? { ...r, rank: _rank, metode: "tekst" as const } : { ...r, metode: "tekst" as const },
+      );
     }),
 
   hentDokumentChunks: protectedProcedure

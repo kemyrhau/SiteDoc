@@ -5,6 +5,20 @@ import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, 
 import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 
 /**
+ * Boolean-sjekk: er brukeren `sitedoc_admin`? For steder der rollen skal GATE hva som
+ * sendes i responsen (ikke en tilgangsport som kaster) — f.eks. dev-score pr. metode i
+ * dokumentsøket (RETUR 1 R1). Returnerer false for anonym/ukjent bruker.
+ */
+export async function erSiteDocAdmin(userId: string | null): Promise<boolean> {
+  if (!userId) return false;
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return bruker?.role === "sitedoc_admin";
+}
+
+/**
  * Nekt prosjekttilgang når brukerens ansettelse i prosjektets EIER-firma er
  * deaktivert (registreringsmodell fase 1, 2026-08-28).
  *

@@ -1730,8 +1730,67 @@ function byggDocxChunks(blokker: DocxBlokk[]): DocxChunk[] {
   return chunks;
 }
 
+// Zip-bomb-vern for DOCX (RETUR 1 R2). DOCX er en ZIP; mammoth pakker den ut IN-PROCESS
+// i web-containeren, så en dekompresjonsbombe (noen KB → gigabyte XML) gir OOM som tar
+// ned frontend for ALLE. Vi leser ZIP-katalogen (autoritativ, ikke lokale headere som kan
+// lyve) FØR utpakking og avviser på utpakket total-størrelse og kompresjonsforhold.
+const DOCX_MAKS_UTPAKKET = 50 * 1024 * 1024; // 50 MB utpakket total
+const DOCX_MAKS_FORHOLD = 100; // maks utpakket/komprimert (ekte DOCX ~10:1; bomber 1000:1+)
+export const DOCX_UGYLDIG_MELDING =
+  "Filen er for stor eller ugyldig for søk (maks 50 MB utpakket). Del opp eller lagre som PDF.";
+
+/**
+ * Les ZIP-katalogen (central directory) og summer komprimert/utpakket størrelse over alle
+ * entries. Returnerer null hvis bufferen ikke er en lesbar ZIP. Leser 32-bits feltene rått:
+ * en ZIP64-markør (0xFFFFFFFF) telles da som ~4 GB → avvises uansett (ingen reell DOCX er
+ * så stor), så vi slipper å tolke ZIP64-extra for et bombe-vern.
+ */
+function lesZipKatalogStorrelse(
+  buffer: Buffer,
+): { sumUtpakket: number; sumKomprimert: number; antall: number } | null {
+  const EOCD_SIG = 0x06054b50;
+  const CDH_SIG = 0x02014b50;
+  if (buffer.length < 22) return null;
+
+  // Finn End Of Central Directory (kan ha inntil 65535 byte kommentar etter seg).
+  let eocd = -1;
+  const minPos = Math.max(0, buffer.length - 22 - 0xffff);
+  for (let i = buffer.length - 22; i >= minPos; i--) {
+    if (buffer.readUInt32LE(i) === EOCD_SIG) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+
+  const cdOffset = buffer.readUInt32LE(eocd + 16);
+  let p = cdOffset;
+  let sumUtpakket = 0;
+  let sumKomprimert = 0;
+  let antall = 0;
+  while (p + 46 <= buffer.length && buffer.readUInt32LE(p) === CDH_SIG) {
+    sumKomprimert += buffer.readUInt32LE(p + 20);
+    sumUtpakket += buffer.readUInt32LE(p + 24);
+    const nameLen = buffer.readUInt16LE(p + 28);
+    const extraLen = buffer.readUInt16LE(p + 30);
+    const commentLen = buffer.readUInt16LE(p + 32);
+    antall++;
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  if (antall === 0) return null;
+  return { sumUtpakket, sumKomprimert, antall };
+}
+
+/** Avvis zip-bomber/ugyldige DOCX før mammoth (RETUR 1 R2). Kaster med synlig melding. */
+export function sjekkDocxTrygg(buffer: Buffer): void {
+  const info = lesZipKatalogStorrelse(buffer);
+  if (!info) throw new Error(DOCX_UGYLDIG_MELDING); // ikke en lesbar ZIP/DOCX
+  if (info.sumUtpakket > DOCX_MAKS_UTPAKKET) throw new Error(DOCX_UGYLDIG_MELDING);
+  if (info.sumKomprimert > 0 && info.sumUtpakket / info.sumKomprimert > DOCX_MAKS_FORHOLD) {
+    throw new Error(DOCX_UGYLDIG_MELDING);
+  }
+}
+
 /** Ekstraher søkbare chunks fra en DOCX-buffer. Ren funksjon — ingen DB. */
 export async function ekstraherDocxChunks(buffer: Buffer): Promise<DocxChunk[]> {
+  sjekkDocxTrygg(buffer); // zip-bomb-vern FØR mammoth (OOM in-process = nedetid for alle)
   const { value: html } = await mammoth.convertToHtml({ buffer });
   const blokker = parseDocxBlokker(html);
   return byggDocxChunks(blokker);

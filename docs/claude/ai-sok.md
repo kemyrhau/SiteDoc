@@ -46,7 +46,7 @@ Bruker: Søk "grøftesnitt type 2"
 
 Tekstuttrekk skjer i `apps/api/src/services/ftd-prosessering.ts` (`prosesserDokument`). Støttede filtyper (`STOTTEDE_FILTYPER`): `.pdf`, `.xlsx`/`.xls`, `.xml`, `.csv`, `.gab`/`.ga1`, `.docx`.
 
-- **DOCX** (`prosesserDocx` / `ekstraherDocxChunks`, 2026-10-14): `mammoth.convertToHtml` → overskrifter `<h1>`–`<h6>` blir `sectionTitle`/`sectionLevel`, avsnitt/lister/tabellceller blir chunk-tekst. Samme `ftd_document_chunks`-format som PDF (`profile: "docx"`, `pageNumber: null`). `search_vector`-triggeren fyller fulltekst-indeksen automatisk, så DOCX blir søkbart umiddelbart. Gammelt binært `.doc` håndteres ikke.
+- **DOCX** (`prosesserDocx` / `ekstraherDocxChunks`, 2026-10-14): `mammoth.convertToHtml` → overskrifter `<h1>`–`<h6>` blir `sectionTitle`/`sectionLevel`, avsnitt/lister/tabellceller blir chunk-tekst. Samme `ftd_document_chunks`-format som PDF (`profile: "docx"`, `pageNumber: null`). `search_vector`-triggeren fyller fulltekst-indeksen automatisk, så DOCX blir søkbart umiddelbart. Gammelt binært `.doc` håndteres ikke. **Zip-bomb-vern (RETUR 1 R2):** `sjekkDocxTrygg` leser ZIP-katalogen (central directory) FØR `mammoth` og avviser på utpakket total > 50 MB eller kompresjonsforhold > 100:1 (mammoth pakker ut in-process i web → en dekompresjonsbombe ville gitt OOM for alle). Avvist fil → `failed` med synlig melding i fillista.
 - **Ikke-støttet format** (gammelt `.doc`, `.rtf` m.m.): settes `processingState: "unsupported"` med synlig status i fillista (`mapper/page.tsx`) — ikke stille `completed` med 0 chunks. Melding: «lagre som .docx eller PDF».
 - **Reprosessering:** `mappe.reprosesserDokument` (pr. dokument) og `mappe.reprosesserMappe` (pr. mappe — dokumenter med 0 chunks eller `failed`; hopper over `pending`/`processing`/`unsupported`). Idempotent — `prosesserDokument` sletter chunks/poster før ny kjøring. Økonomi-visningen bruker `mengde.reprosesser` pr. dokument.
 
@@ -67,6 +67,8 @@ Tekstuttrekk skjer i `apps/api/src/services/ftd-prosessering.ts` (`prosesserDoku
 
 **Sluttscoring:** `recall × sim_norm + precision × rerank_norm + latency × latency_norm`
 - Default: recall=0.6, precision=0.4, latency=0.2
+
+**Dev-score (`?debug` i søk-URL):** viser score pr. metode pr. treff for presisjonsanalyse. **Gaten ligger SERVER-side (RETUR 1 R1):** `aiSok.sok` fjerner `score`/`cosineSim`/`reRankScore` og `ftdSok.sokDokumenter` fjerner `rank` fra responsen med mindre brukeren er `sitedoc_admin` (`erSiteDocAdmin`) eller `NODE_ENV=development` — scorene sendes ikke og skjules ikke bare i klienten. `metode` (semantisk/tekst/begge) sendes alltid (bruker-innhold).
 
 ## Dokumentfilter
 

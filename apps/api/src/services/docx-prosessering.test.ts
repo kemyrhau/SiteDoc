@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { deflateRawSync } from "node:zlib";
+import { randomBytes } from "node:crypto";
 import { Document, Packer, Paragraph, HeadingLevel } from "docx";
 import {
   ekstraherDocxChunks,
   erStøttetFiltype,
+  sjekkDocxTrygg,
+  DOCX_UGYLDIG_MELDING,
 } from "./ftd-prosessering";
 
 /**
@@ -52,6 +56,71 @@ describe("DOCX-ekstraksjon", () => {
     const buffer = await lagDocx();
     const chunks = await ekstraherDocxChunks(buffer);
     chunks.forEach((c, i) => expect(c.chunkIndex).toBe(i));
+  });
+});
+
+/**
+ * Bygg en minimal, strukturelt gyldig ZIP med ÉN entry. `komprimert` er de faktiske
+ * lagrede bytene; `utpakketDeklarert` skrives i katalogen (en zip-bombe deklarerer en
+ * langt større utpakket størrelse enn de komprimerte bytene). CRC settes 0 — vernet leser
+ * kun størrelsene fra central directory og avviser FØR noen dekomprimering.
+ */
+function lagZip(navn: string, komprimert: Buffer, utpakketDeklarert: number): Buffer {
+  const name = Buffer.from(navn, "utf-8");
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt16LE(8, 8); // deflate
+  local.writeUInt32LE(komprimert.length, 18);
+  local.writeUInt32LE(utpakketDeklarert, 22);
+  local.writeUInt16LE(name.length, 26);
+  const localDel = Buffer.concat([local, name, komprimert]);
+
+  const cd = Buffer.alloc(46);
+  cd.writeUInt32LE(0x02014b50, 0);
+  cd.writeUInt16LE(20, 4);
+  cd.writeUInt16LE(20, 6);
+  cd.writeUInt16LE(8, 10); // deflate
+  cd.writeUInt32LE(komprimert.length, 20);
+  cd.writeUInt32LE(utpakketDeklarert, 24);
+  cd.writeUInt16LE(name.length, 28);
+  cd.writeUInt32LE(0, 42); // local header offset
+  const cdDel = Buffer.concat([cd, name]);
+
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(1, 8); // entries på disken
+  eocd.writeUInt16LE(1, 10); // entries totalt
+  eocd.writeUInt32LE(cdDel.length, 12);
+  eocd.writeUInt32LE(localDel.length, 16); // central-dir-offset
+  return Buffer.concat([localDel, cdDel, eocd]);
+}
+
+describe("DOCX zip-bomb-vern (RETUR 1 R2)", () => {
+  it("godtar en ekte, liten DOCX", async () => {
+    const buffer = await lagDocx();
+    expect(() => sjekkDocxTrygg(buffer)).not.toThrow();
+  });
+
+  it("avviser for stor UTPAKKET total (> 50 MB)", () => {
+    // ~1 MB komprimert, deklarert 60 MB utpakket → forhold ~60:1 (< 100), men over 50 MB.
+    const bombe = lagZip("word/document.xml", deflateRawSync(randomBytes(1024 * 1024)), 60 * 1024 * 1024);
+    expect(() => sjekkDocxTrygg(bombe)).toThrow(DOCX_UGYLDIG_MELDING);
+  });
+
+  it("avviser for høyt kompresjonsforhold (> 100:1)", () => {
+    // Noen få komprimerte byte, deklarert 10 MB utpakket → forhold enormt, men under 50 MB.
+    const bombe = lagZip("word/document.xml", deflateRawSync(Buffer.from("x")), 10 * 1024 * 1024);
+    expect(() => sjekkDocxTrygg(bombe)).toThrow(DOCX_UGYLDIG_MELDING);
+  });
+
+  it("avviser en fil som ikke er en lesbar ZIP", () => {
+    expect(() => sjekkDocxTrygg(randomBytes(500))).toThrow(DOCX_UGYLDIG_MELDING);
+  });
+
+  it("ekstraksjon kaster på en zip-bombe (FØR mammoth)", async () => {
+    const bombe = lagZip("word/document.xml", deflateRawSync(Buffer.from("x")), 10 * 1024 * 1024);
+    await expect(ekstraherDocxChunks(bombe)).rejects.toThrow(DOCX_UGYLDIG_MELDING);
   });
 });
 
