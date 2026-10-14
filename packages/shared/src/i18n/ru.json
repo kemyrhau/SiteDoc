@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Недоступно офлайн",
   "tegningsvelger.offlineUtilgjengeligInfo": "Подготовьте рисунок к работе в автономном режиме, пока есть подключение, тогда он будет отображаться без покрытия.",
   "tegningsvelger.lasterTegning": "Загрузка чертежа…",
+  "tegningsvelger.lasterTegningProsent": "Загрузка рисунка… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Зритель потерял графический контекст (например, после длительного нахождения в фоновом режиме). Пожалуйста, попробуйте еще раз.",
   "tegningsvelger.utomhus": "на открытом воздухе",
   "tegningsvelger.utenEtasje": "Нет этажа",
   "tegningsvelger.alleLokasjoner": "Все локации",

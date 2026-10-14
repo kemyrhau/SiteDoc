@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Non disponible hors ligne",
   "tegningsvelger.offlineUtilgjengeligInfo": "Préparez le dessin pour une utilisation hors ligne pendant que vous disposez d'une connexion, puis il s'affichera sans couverture.",
   "tegningsvelger.lasterTegning": "Chargement du dessin…",
+  "tegningsvelger.lasterTegningProsent": "Chargement du dessin… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Le spectateur a perdu son contexte graphique (par exemple après un long moment en arrière-plan). Veuillez réessayer.",
   "tegningsvelger.utomhus": "En plein air",
   "tegningsvelger.utenEtasje": "Pas de plancher",
   "tegningsvelger.alleLokasjoner": "Tous les emplacements",

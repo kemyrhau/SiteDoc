@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Nepasiekiamas neprisijungus",
   "tegningsvelger.offlineUtilgjengeligInfo": "Paruoškite piešinį neprisijungus, kol turite ryšį, tada jis bus rodomas be aprėpties.",
   "tegningsvelger.lasterTegning": "Įkeliamas piešinys…",
+  "tegningsvelger.lasterTegningProsent": "Įkeliamas brėžinys… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Žiūrovas prarado grafinį kontekstą (pvz., ilgai praleidęs fone). Bandykite dar kartą.",
   "tegningsvelger.utomhus": "Lauke",
   "tegningsvelger.utenEtasje": "Nėra grindų",
   "tegningsvelger.alleLokasjoner": "Visos vietos",

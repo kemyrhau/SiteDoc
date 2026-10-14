@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Inte tillgänglig offline",
   "tegningsvelger.offlineUtilgjengeligInfo": "Förbered ritningen för offline medan du har en anslutning, så visas den utan täckning.",
   "tegningsvelger.lasterTegning": "Laddar ritning...",
+  "tegningsvelger.lasterTegningProsent": "Laddar ritning... {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Tittaren tappade sitt grafiska sammanhang (t.ex. efter en lång tid i bakgrunden). Försök igen.",
   "tegningsvelger.utomhus": "Utomhus",
   "tegningsvelger.utenEtasje": "Inget golv",
   "tegningsvelger.alleLokasjoner": "Alla platser",

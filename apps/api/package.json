@@ -12,6 +12,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@fastify/compress": "^9.2.2",
     "@fastify/cors": "^10.0.0",
     "@fastify/multipart": "^9.4.0",
     "@fastify/static": "^9.3.0",

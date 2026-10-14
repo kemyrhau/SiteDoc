@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Pole võrguühenduseta saadaval",
   "tegningsvelger.offlineUtilgjengeligInfo": "Valmistage joonis ette võrguühenduseta kasutamiseks, kui teil on ühendus, siis kuvatakse see ilma katvuseta.",
   "tegningsvelger.lasterTegning": "Joonise laadimine…",
+  "tegningsvelger.lasterTegningProsent": "Joonise laadimine… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Vaataja kaotas oma graafilise konteksti (nt pärast pikka taustal viibimist). Palun proovi uuesti.",
   "tegningsvelger.utomhus": "Õues",
   "tegningsvelger.utenEtasje": "Põrandat pole",
   "tegningsvelger.alleLokasjoner": "Kõik asukohad",

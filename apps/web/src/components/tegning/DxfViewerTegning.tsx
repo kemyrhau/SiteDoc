@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RegisterVerden } from "@sitedoc/shared";
 import { erGyldigRegisterVerden } from "@sitedoc/shared";
+import { hentFilMedCache, usignertFilSti } from "@/lib/tegningFilCache";
 
 /**
  * Leveranse 1 (TEGNING_MOTOR=dxfviewer): tegner forenklet DXF + O1-register direkte
@@ -16,6 +17,15 @@ import { erGyldigRegisterVerden } from "@sitedoc/shared";
  * Kun INITIELT kamera-oppsett (fit + startutsnitt + VEDTAK B-rotasjon) bygges her —
  * pan/zoom kommer "gratis" fra dxf-viewer sin egne OrbitControls. Objektklikk/lag-panel/
  * måling er leveranse 2/3/5 (plan § 12), ikke del av denne gaten.
+ *
+ * RETUR 4 (relay/inbox-dokgen-arbeidstegning-f1.md): `dxfUrl`/`registerWorldUrl` er
+ * SIGNERT ved hver tRPC-emisjon (`signerUploadsOutput`, `hmac.ts`) — EN NY signatur pr.
+ * `tegning.hentMedId`-kall, inkl. bakgrunns-refetch ved vindu-fokus (react-query v5
+ * default). Effektens avhengigheter bruker derfor den USIGNERTE stien (stabil for
+ * samme fil), ikke den signerte strengen — en bakgrunnsrefetch skal ALDRI rive ned og
+ * bygge scenen på nytt. Selve nedlastingen går via `hentFilMedCache` (klient-cache,
+ * usignert nøkkel; signert URL brukes kun ved cache-bom) — SVAR RETUR 4: ikke rør
+ * `hmac.ts`, cache på klienten i stedet.
  */
 
 export interface DxfViewerTegningProps {
@@ -54,10 +64,22 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
   const containerRef = useRef<HTMLDivElement>(null);
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState<string | null>(null);
+  const [fremdriftProsent, setFremdriftProsent] = useState<number | null>(null);
+  // Manuelt "Prøv igjen"-trykk (feilvisning) — teller inngår bevisst i avhengighetene
+  // under: en brukerinitiert retry SKAL laste på nytt, i motsetning til signatur-churn.
+  const [retryTeller, setRetryTeller] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const viewerRef = useRef<any>(null);
   const bygningRef = useRef<ReturnType<typeof beregnByggUtstrekning>>(null);
   const fitZoomBaseRef = useRef<number | null>(null);
+  // Ferskeste SIGNERTE URL-er tilgjengelig for effekten uten å trigge et nytt effekt-løp
+  // (se avhengighetene i useEffect under — kun den USIGNERTE stien trigger reload).
+  const dxfUrlRef = useRef(dxfUrl);
+  dxfUrlRef.current = dxfUrl;
+  const registerWorldUrlRef = useRef(registerWorldUrl);
+  registerWorldUrlRef.current = registerWorldUrl;
+  const usignertDxfSti = usignertFilSti(dxfUrl);
+  const usignertRegisterSti = usignertFilSti(registerWorldUrl);
 
   /** Kamera-fit til bygningsutstrekningen (eller hele DXF-en før registeret er lastet),
    * for den GJELDENDE containerstørrelsen. Kalt ved første last OG fra ResizeObserver —
@@ -106,19 +128,72 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
     let kansellert = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let viewer: any = null;
+    let dxfBlobUrl: string | null = null;
+    let fjernContextLytter: (() => void) | null = null;
 
     async function last() {
+      // Rydd en FORRIGE instans FØR en ny bygges — `last()` kan kalles re-entrant fra
+      // `webglcontextrestored` (ikke bare ved et nytt effekt-løp), og uten dette stables
+      // flere canvas i samme container (DxfViewer.appendChild fjerner aldri en gammel).
+      if (viewer) {
+        fjernContextLytter?.();
+        fjernContextLytter = null;
+        viewer.Destroy?.();
+        viewer = null;
+      }
+      if (dxfBlobUrl) {
+        URL.revokeObjectURL(dxfBlobUrl);
+        dxfBlobUrl = null;
+      }
       setLaster(true);
       setFeil(null);
+      setFremdriftProsent(null);
       const el = containerRef.current;
       if (!el) return;
       try {
+        // RETUR 4 punkt 1+3: hent fra klient-cache (usignert nøkkel) først; signert URL
+        // brukes kun ved bom. Parallelt (ikke sekvensielt som før) — register-fetchen
+        // venter ikke på at DXF-parsingen er ferdig.
+        const [dxfBlob, registerBlob] = await Promise.all([
+          hentFilMedCache(usignertDxfSti, dxfUrlRef.current, (fase, mottatt, total) => {
+            if (kansellert) return;
+            setFremdriftProsent(fase === "nedlasting" && total ? Math.round((mottatt / total) * 100) : null);
+          }),
+          hentFilMedCache(usignertRegisterSti, registerWorldUrlRef.current),
+        ]);
+        if (kansellert) return;
+        dxfBlobUrl = URL.createObjectURL(dxfBlob);
+        setFremdriftProsent(null);
+
         const { DxfViewer } = await import("dxf-viewer");
         viewer = new DxfViewer(el, { autoResize: false, colorCorrection: true, sceneOptions: { wireframeMesh: false } });
         viewerRef.current = viewer;
         bygningRef.current = null;
         fitZoomBaseRef.current = null;
-        await viewer.Load({ url: dxfUrl, fonts: ["/fonts/Arimo.ttf"] });
+
+        // RETUR 4 punkt 2: tapt WebGL-kontekst (f.eks. en bakgrunnsfane Chrome reklamerer
+        // GPU-minne fra) skal ALDRI gi en stille blank flate. "lost" viser feil+"Prøv
+        // igjen"; "restored" laster på nytt automatisk (blobene er alt cachet → raskt).
+        const canvas: HTMLCanvasElement | undefined = viewer.canvas;
+        if (canvas) {
+          const paaContextTapt = (e: Event) => {
+            e.preventDefault();
+            if (kansellert) return;
+            setFeil(t("tegningsvelger.feilWebglKontekstTapt"));
+            setLaster(false);
+          };
+          const paaContextGjenopprettet = () => {
+            if (!kansellert) last();
+          };
+          canvas.addEventListener("webglcontextlost", paaContextTapt, false);
+          canvas.addEventListener("webglcontextrestored", paaContextGjenopprettet, false);
+          fjernContextLytter = () => {
+            canvas.removeEventListener("webglcontextlost", paaContextTapt);
+            canvas.removeEventListener("webglcontextrestored", paaContextGjenopprettet);
+          };
+        }
+
+        await viewer.Load({ url: dxfBlobUrl, fonts: ["/fonts/Arimo.ttf"] });
         if (kansellert) { viewer.Destroy?.(); return; }
         if (viewer.SetClearColor) viewer.SetClearColor(0xffffff);
 
@@ -145,7 +220,7 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
         // Startutsnitt (RETUR, orkestrator 2026-10-13): regnes DIREKTE fra registerets
         // bygningsutstrekning (rutenett ekskludert), IKKE render.py sin SVG-startutsnitt-
         // brøk (annen koordinatramme: rotert/flippet/margin — kun gyldig for SVG-veien).
-        const register = await fetch(registerWorldUrl).then((r) => r.json());
+        const register = JSON.parse(await registerBlob.text());
         if (kansellert) return;
         if (erGyldigRegisterVerden(register)) {
           bygningRef.current = beregnByggUtstrekning(register);
@@ -179,22 +254,35 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
     return () => {
       kansellert = true;
       ro?.disconnect();
+      fjernContextLytter?.();
       viewer?.Destroy?.();
+      if (dxfBlobUrl) URL.revokeObjectURL(dxfBlobUrl);
     };
+    // RETUR 4 punkt 1: avhengig av den USIGNERTE stien (stabil for samme fil), ikke
+    // dxfUrl/registerWorldUrl (signert på nytt ved hver tRPC-refetch — se filheaderen).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dxfUrl, registerWorldUrl, rotasjonOverstyrt]);
+  }, [usignertDxfSti, usignertRegisterSti, rotasjonOverstyrt, retryTeller]);
 
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="absolute inset-0" />
       {laster && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500">
-          {t("tegningsvelger.lasterTegning")}
+          {fremdriftProsent !== null
+            ? t("tegningsvelger.lasterTegningProsent", { prosent: fremdriftProsent })
+            : t("tegningsvelger.lasterTegning")}
         </div>
       )}
       {feil && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 p-4 text-center text-red-600">
-          {feil}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-100 p-4 text-center text-red-600">
+          <span>{feil}</span>
+          <button
+            type="button"
+            onClick={() => setRetryTeller((n) => n + 1)}
+            className="rounded border border-red-300 bg-white px-3 py-1 text-sm text-red-700 hover:bg-red-50"
+          >
+            {t("handling.provIgjen")}
+          </button>
         </div>
       )}
     </div>

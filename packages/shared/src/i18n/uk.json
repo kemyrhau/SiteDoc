@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Недоступно офлайн",
   "tegningsvelger.offlineUtilgjengeligInfo": "Підготуйте малюнок для роботи в режимі офлайн, поки у вас є з’єднання, тоді він відображатиметься без покриття.",
   "tegningsvelger.lasterTegning": "Завантаження малюнка…",
+  "tegningsvelger.lasterTegningProsent": "Завантаження малюнка… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Програма перегляду втратила свій графічний контекст (наприклад, після тривалого часу роботи у фоновому режимі). Спробуйте ще раз.",
   "tegningsvelger.utomhus": "На відкритому повітрі",
   "tegningsvelger.utenEtasje": "Без підлоги",
   "tegningsvelger.alleLokasjoner": "Всі локації",

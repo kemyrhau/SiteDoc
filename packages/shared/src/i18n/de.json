@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Nicht offline verfügbar",
   "tegningsvelger.offlineUtilgjengeligInfo": "Bereiten Sie die Zeichnung offline vor, während eine Verbindung besteht. Dann wird sie ohne Abdeckung angezeigt.",
   "tegningsvelger.lasterTegning": "Zeichnung wird geladen…",
+  "tegningsvelger.lasterTegningProsent": "Zeichnung wird geladen… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Der Viewer hat seinen Grafikkontext verloren (z. B. nach langer Zeit im Hintergrund). Bitte versuchen Sie es erneut.",
   "tegningsvelger.utomhus": "Draußen",
   "tegningsvelger.utenEtasje": "Kein Boden",
   "tegningsvelger.alleLokasjoner": "Alle Standorte",
