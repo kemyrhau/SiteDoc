@@ -1201,4 +1201,46 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] server_versjon på slettede_rader_local feilet", e);
   }
+
+  // RETUR 2 (2026-10-14) — offline-navigasjon for tegninger. tegning_local: katalog
+  // for tegningslista; byggeplass_nav_local: prosjekt-scopet byggeplass-liste for
+  // velgeren (byggeplass_local er firma-scopet → tom for standalone). Begge er
+  // read-only mirrors, full-overskrives per prosjekt, bærer userId-synlighetsvakt og
+  // tømmes ved utlogging. Viewer-metadata (hentMedId + markører) bor i dokument_speil
+  // med dokument_type="tegning". Idempotent CREATE IF NOT EXISTS — additiv, OTA-trygg
+  // (eksisterende installasjoner får tabellene uten reinstall og uten tap av utkast/kø).
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS tegning_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      byggeplass_id TEXT,
+      name TEXT NOT NULL,
+      drawing_number TEXT,
+      discipline TEXT,
+      floor TEXT,
+      file_type TEXT,
+      file_url TEXT,
+      mobil_file_url TEXT,
+      revisjons_nokkel TEXT,
+      antall_revisjoner INTEGER,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tegning_local_project
+      ON tegning_local(project_id, user_id);
+
+    CREATE TABLE IF NOT EXISTS byggeplass_nav_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      navn TEXT NOT NULL,
+      number INTEGER,
+      status TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_byggeplass_nav_local_project
+      ON byggeplass_nav_local(project_id, user_id);
+  `);
 }

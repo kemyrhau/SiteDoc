@@ -42,6 +42,8 @@ function lagResultat(nyAuto: number | null, overstyr: Partial<DwgKonverteringsRe
     motor: "egen",
     fallbackFra: null,
     fallbackAarsak: null,
+    dxfViewerFileUrl: null,
+    registerWorldUrl: null,
     ...overstyr,
   };
 }

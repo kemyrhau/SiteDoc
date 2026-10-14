@@ -39,12 +39,15 @@ describe("avgjorTrykkHandling — eksplisitte verktøy (RETUR 3)", () => {
     expect(avgjorTrykkHandling("flytt", gest())).toBe("pan");
   });
 
-  it("Flytt: langt trykk på et hjørne UTEN å dra → fjernPunkt (RETUR 6 § 2)", () => {
-    // Langt + stille på et punkt → fjern-kandidat.
-    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_MS }))).toBe("fjernPunkt");
-    // Langt MEN dratt → vanlig drag (brukeren flyttet punktet).
+  it("Flytt: langt trykk på et hjørne fjerner det IKKE lenger — alltid draPunkt (2026-10-14)", () => {
+    // Fjern-hjørne-gesten er borte (Kenneth-telefontest): langt + stille på et
+    // punkt gir draPunkt, ikke «fjernPunkt». Uten bevegelse er draPunkt et no-op,
+    // så punktlista endres ikke av et langt trykk.
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_MS }))).toBe("draPunkt");
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: 2000 }))).toBe("draPunkt");
+    // Langt MEN dratt → vanlig drag (brukeren flyttet punktet), som før.
     expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: 900, flyttet: true }))).toBe("draPunkt");
-    // Kort trykk på punkt → drag (ikke fjern).
+    // Kort trykk på punkt → drag.
     expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_MS - 1 }))).toBe("draPunkt");
   });
 

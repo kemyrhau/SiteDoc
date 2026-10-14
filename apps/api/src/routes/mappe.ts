@@ -8,6 +8,7 @@ import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
 import { prosesserDokument } from "../services/ftd-prosessering";
+import { embeddDokumentChunks } from "../services/embedding-service";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
@@ -17,10 +18,143 @@ const UPLOADS_DIR = join(process.cwd(), "uploads");
 // Fire-and-forget dokumentprosessering, in-process. Tidligere via HTTP-selvkall
 // til /prosesser/:documentId — et uautentisert offentlig endepunkt (funnet
 // 2026-09-06). Se mengde.ts for full begrunnelse. Autorisasjon gjort i kalleren.
-function triggerProsessering(documentId: string) {
-  prosesserDokument(prisma, documentId).catch(
+function triggerProsessering(
+  documentId: string,
+  opts: { bevarVedFeil?: boolean } = {},
+) {
+  prosesserDokument(prisma, documentId, opts).catch(
     (err) => console.error(`Kunne ikke trigge prosessering for ${documentId}:`, err),
   );
+}
+
+// Maks antall dokumenter som prosesseres samtidig ved bulk-reekstraksjon.
+// Prosesseringen kjører in-process i api — fyrer vi alle samtidig (f.eks. et
+// prosjekt med hundrevis av PDF-er), spiker vi CPU/minne og tar ned serveren
+// (RETUR 2026-10-14). Dokumentene settes `pending` opp front (synlig i fillista)
+// og plukkes to av gangen.
+const REEKSTRAKSJON_SAMTIDIG = 2;
+
+/**
+ * Kjør `jobb` for hver id med maks `grense` samtidige — enkel worker-pool uten
+ * ny pakke. Fire-and-forget: kalles uten `await` fra mutasjonene så de svarer
+ * med en gang, mens køen tømmes i bakgrunnen. Feil pr. dokument svelges (logges)
+ * så én feil ikke stopper resten; status pr. dokument føres av `prosesserDokument`.
+ */
+function kjørMedGrense(
+  ider: string[],
+  grense: number,
+  jobb: (id: string) => Promise<unknown>,
+): void {
+  let neste = 0;
+  const arbeider = async (): Promise<void> => {
+    while (neste < ider.length) {
+      const id = ider[neste++]!;
+      await jobb(id).catch((err) =>
+        console.error(`Bulk-reekstraksjon feilet for ${id}:`, err),
+      );
+    }
+  };
+  const antall = Math.min(grense, ider.length);
+  for (let i = 0; i < antall; i++) void arbeider();
+}
+
+/**
+ * Tvungen reekstraksjon av et dokumentsett (mappe eller helt prosjekt): kjører
+ * full tekstuttrekk + chunking + embedding på nytt fra lagret fil, uansett om
+ * dokumentet allerede er `completed`. Brukes for å rette eksisterende PDF-er
+ * som står på feil sidetall («side 1» overalt) uten ny opplasting. Gamle chunks
+ * bevares atomisk ved feil (`prosesserDokument({ bevarVedFeil: true })`).
+ * Hopper over kjørende (pending/processing) og ikke-støttede formater.
+ * Kalleren MÅ ha verifisert tilgang til prosjektet.
+ */
+async function tvingReekstraksjonAv(
+  where: Prisma.FtdDocumentWhereInput,
+): Promise<{ ok: true; tvunget: number }> {
+  const dokumenter = await prisma.ftdDocument.findMany({
+    where: {
+      ...where,
+      isActive: true,
+      processingState: { notIn: ["pending", "processing", "unsupported"] },
+    },
+    select: { id: true },
+  });
+  if (dokumenter.length === 0) return { ok: true, tvunget: 0 };
+
+  const ider = dokumenter.map((d) => d.id);
+  await prisma.ftdDocument.updateMany({
+    where: { id: { in: ider } },
+    data: { processingState: "pending", processingError: null },
+  });
+  // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.
+  kjørMedGrense(ider, REEKSTRAKSJON_SAMTIDIG, (id) =>
+    prosesserDokument(prisma, id, { bevarVedFeil: true }),
+  );
+  return { ok: true, tvunget: ider.length };
+}
+
+/**
+ * Reparer et dokumentsett (mappe eller helt prosjekt): full re-ekstraksjon kun
+ * der søkbart innhold mangler (0 chunks / `failed`); ellers kun re-embedding av
+ * chunks som ikke er ferdig embeddet. Kjørende/ikke-støttede hoppes over.
+ * Kalleren MÅ ha verifisert tilgang til prosjektet.
+ */
+async function reparerDokumentSett(
+  where: Prisma.FtdDocumentWhereInput,
+): Promise<{ ok: true; full: number; embedding: number }> {
+  const dokumenter = await prisma.ftdDocument.findMany({
+    where: {
+      ...where,
+      isActive: true,
+      processingState: { notIn: ["pending", "processing", "unsupported"] },
+    },
+    select: { id: true, processingState: true },
+  });
+  if (dokumenter.length === 0) return { ok: true, full: 0, embedding: 0 };
+
+  const ider = dokumenter.map((d) => d.id);
+  const stats = await prisma.$queryRaw<
+    Array<{ documentId: string; totalt: bigint; udone: bigint }>
+  >`
+    SELECT document_id AS "documentId",
+           COUNT(*) AS totalt,
+           COUNT(*) FILTER (WHERE embedding_state <> 'done') AS udone
+    FROM ftd_document_chunks
+    WHERE document_id IN (${Prisma.join(ider)})
+    GROUP BY document_id
+  `;
+  const statMap = new Map(
+    stats.map((s) => [s.documentId, { totalt: Number(s.totalt), udone: Number(s.udone) }]),
+  );
+
+  const fullIder: string[] = [];
+  const embeddingIder: string[] = [];
+  for (const d of dokumenter) {
+    const st = statMap.get(d.id);
+    const totalt = st?.totalt ?? 0;
+    const udone = st?.udone ?? 0;
+    if (totalt === 0 || d.processingState === "failed") {
+      fullIder.push(d.id); // mangler søkbart innhold → full re-ekstraksjon
+    } else if (udone > 0) {
+      embeddingIder.push(d.id); // kun re-embedding
+    }
+  }
+
+  if (fullIder.length > 0) {
+    await prisma.ftdDocument.updateMany({
+      where: { id: { in: fullIder } },
+      data: { processingState: "pending", processingError: null },
+    });
+    // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.
+    kjørMedGrense(fullIder, REEKSTRAKSJON_SAMTIDIG, (id) =>
+      prosesserDokument(prisma, id),
+    );
+  }
+  if (embeddingIder.length > 0) {
+    kjørMedGrense(embeddingIder, REEKSTRAKSJON_SAMTIDIG, (id) =>
+      embeddDokumentChunks(prisma, id),
+    );
+  }
+  return { ok: true, full: fullIder.length, embedding: embeddingIder.length };
 }
 
 export const mappeRouter = router({
@@ -616,12 +750,13 @@ export const mappeRouter = router({
       if (docs.length === 0) return { dokumenter: [], mappeSprak: effektiv.languages };
       const docIds = docs.map((d) => d.id);
       const embeddingStats = await ctx.prisma.$queryRaw<
-        Array<{ documentId: string; totalt: bigint; embedded: bigint }>
+        Array<{ documentId: string; totalt: bigint; embedded: bigint; feilet: bigint }>
       >`
         SELECT
           document_id AS "documentId",
           COUNT(*) AS totalt,
-          COUNT(*) FILTER (WHERE embedding_state = 'done') AS embedded
+          COUNT(*) FILTER (WHERE embedding_state = 'done') AS embedded,
+          COUNT(*) FILTER (WHERE embedding_state = 'failed') AS feilet
         FROM ftd_document_chunks
         WHERE document_id IN (${Prisma.join(docIds)})
         GROUP BY document_id
@@ -630,7 +765,7 @@ export const mappeRouter = router({
       const statsMap = new Map(
         embeddingStats.map((s) => [
           s.documentId,
-          { totalt: Number(s.totalt), embedded: Number(s.embedded) },
+          { totalt: Number(s.totalt), embedded: Number(s.embedded), feilet: Number(s.feilet) },
         ]),
       );
 
@@ -689,6 +824,7 @@ export const mappeRouter = router({
           ...d,
           chunksTotalt: statsMap.get(d.id)?.totalt ?? 0,
           chunksEmbedded: statsMap.get(d.id)?.embedded ?? 0,
+          chunksEmbeddingFeilet: statsMap.get(d.id)?.feilet ?? 0,
           oversettelse: oversettStatusMap.get(d.id) ?? null,
         })),
         mappeSprak,
@@ -927,6 +1063,110 @@ export const mappeRouter = router({
       triggerProsessering(doc.id);
 
       return doc;
+    }),
+
+  // Reprosesser ett dokument. Mangler søkbart innhold (0 chunks / `failed`) → full
+  // tekstuttrekk på nytt (idempotent; prosesserDokument sletter før ny kjøring).
+  // Har chunks men embedding er ufullstendig/feilet → kun re-embedding (unngår dyr
+  // re-ekstraksjon/OCR). Tilgang = prosjektmedlem, som opplasting.
+  reprosesserDokument: protectedProcedure
+    .input(
+      z.object({
+        // FtdDocument.id er cuid (schema.prisma), IKKE uuid — `.uuid()` avviste
+        // ALLE ekte dokument-id-er, så «Prosesser på nytt» pr. dokument var
+        // ødelagt (RETUR 2026-10-14). `min(1)` som de andre ftd-documentId-ene.
+        documentId: z.string().min(1),
+        // Tving full re-ekstraksjon selv om dokumentet er `completed` med chunks
+        // (f.eks. retting av feil sidetall uten ny opplasting).
+        tvingReekstraksjon: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+        select: { id: true, projectId: true, processingState: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+
+      // Tvungen reekstraksjon: full ny kjøring uansett tilstand. Gamle chunks
+      // bevares atomisk ved feil (`bevarVedFeil`) → dokumentet ender aldri tomt.
+      if (input.tvingReekstraksjon) {
+        if (doc.processingState === "unsupported") {
+          return { ok: true, modus: "hoppet" as const };
+        }
+        await ctx.prisma.ftdDocument.update({
+          where: { id: doc.id },
+          data: { processingState: "pending", processingError: null },
+        });
+        triggerProsessering(doc.id, { bevarVedFeil: true });
+        return { ok: true, modus: "full-tving" as const };
+      }
+
+      const chunkCount = await ctx.prisma.ftdDocumentChunk.count({
+        where: { documentId: doc.id },
+      });
+
+      if (chunkCount > 0 && doc.processingState === "completed") {
+        // Ekstraksjon ok — bare embedding mangler/feilet. Re-embed pending/failed.
+        embeddDokumentChunks(ctx.prisma, doc.id).catch((err) =>
+          console.error(`Re-embedding feilet for ${doc.id}:`, err),
+        );
+        return { ok: true, modus: "embedding" as const };
+      }
+
+      await ctx.prisma.ftdDocument.update({
+        where: { id: doc.id },
+        data: { processingState: "pending", processingError: null },
+      });
+      triggerProsessering(doc.id);
+      return { ok: true, modus: "full" as const };
+    }),
+
+  // Reprosesser alle dokumenter i en mappe. Standard: full re-ekstraksjon kun der
+  // søkbart innhold mangler (0 chunks / `failed`), ellers kun re-embedding.
+  // `tvingReekstraksjon`: full ny kjøring for ALLE dokumenter (gamle chunks bevares
+  // ved feil) — for å rette feil sidetall uten ny opplasting. Kjørende/ikke-støttet
+  // hoppes over. Tilgang = prosjektmedlem, som opplasting.
+  reprosesserMappe: protectedProcedure
+    .input(
+      z.object({
+        folderId: z.string().uuid(),
+        tvingReekstraksjon: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      if (input.tvingReekstraksjon) {
+        const res = await tvingReekstraksjonAv({ folderId: input.folderId });
+        return { ok: true, full: res.tvunget, embedding: 0 };
+      }
+      return reparerDokumentSett({ folderId: input.folderId });
+    }),
+
+  // Reprosesser alle dokumenter i et helt prosjekt (på tvers av mapper). Samme
+  // semantikk som reprosesserMappe, men prosjekt-scopet. `tvingReekstraksjon`
+  // tvinger full ny kjøring av ALLE dokumenter (feil sidetall-retting i bulk).
+  // Tilgang = prosjektmedlem, som opplasting/reprosessering.
+  reprosesserProsjekt: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        tvingReekstraksjon: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      if (input.tvingReekstraksjon) {
+        const res = await tvingReekstraksjonAv({ projectId: input.projectId });
+        return { ok: true, full: res.tvunget, embedding: 0 };
+      }
+      return reparerDokumentSett({ projectId: input.projectId });
     }),
 
   settKontrakt: protectedProcedure

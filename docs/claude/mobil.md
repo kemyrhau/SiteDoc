@@ -517,6 +517,58 @@ skjema-hookene dekker SJA/avvik/RUH). Tjeneste: `services/dokumentSpeil.ts`.
 - Usynkronisert data prioriteres over server-data
 - Auto-synk ved nettverksovergang
 
+**Offline tegningsvisning (disk-cache, `fix/offline-tegning` 2026-10-13, RETUR 1 2026-10-14):**
+tegningsfilene ligger på disk (`sitedoc-tegninger/`, `offlineKlargjoring.ts`), ikke i SQLite.
+Viseren leser LOKAL kopi FØRST: `lokasjoner.tsx` resolver via
+`hentTegningKilde({fileUrl, mobilFileUrl}, erPaaNettet, apiUrl, tegningId)`
+→ **lokal fil som `file://`-sti** → **nett-URL** → **`offlineUtilgjengelig`**. Både `fileUrl` og
+ezdxf-`mobilFileUrl` caches og leses — `klargjørForOffline` laster begge, og treprikkmenyen i
+`lokasjoner.tsx` har «Forbered til offline» (denne tegningen), «Forbered alle i byggeplassen» +
+offline-status i headeren (`CloudCheck`/`CloudDownload`/`CloudOff`).
+**file://-lasting (RETUR 1 B):** lokal kopi leveres nå som `file://`-sti (ikke base64 data-URI).
+`TegningsVisning` skriver viser-HTML-en til cache-mappa (`skrivTegningHtml`) og laster WebView-en
+derfra med `allowingReadAccessToURL=TEGNING_CACHE_MAPPE` + `allowFileAccessFromFileURLs` + `allowFileAccess`,
+slik at `<img src="file://…">` og ezdxf-`fetch("file://…")` leser tegningen DIREKTE. Base64-veien
+holdt innholdet i 4–5 kopier (~380 MB transient for en fallplan-stor tegning) → kunne sprenge
+jetsam på eldre iPhone; file://-veien fjerner triplingen (WKWebView leser fila i sin egen pipeline,
+JS holder aldri bytene). `Image.prefetch` og den native lupa er fjernet for SVG/ezdxf (RN `<Image>`
+dekoder ikke SVG → tom lupe + bortkastet base64-kopi); raster beholder lupa.
+**Revisjon-nøkkel:** siste URL-ledd er et unikt UUID-filnavn pr. opplasting/konvertering
+(`upload.ts`, `dwgKonvertering.ts`), så en ny revisjon gir ny cache-nøkkel → gammel lokal kopi
+vises aldri som gjeldende.
+**Disk-opprydning (RETUR 1 A):** et manifest (`manifest.json`, `tegningId → {filer, forberedt,
+byggeplassId, sistBrukt}`) kobler filene til tegningen. `forberedTegning(ref, tegningId, byggeplassId)`
+og `klargjørForOffline` **sletter forrige revisjons filer** av samme tegning ved ny nedlasting
+(ellers ble hver revisjon liggende ~10–20 MB for alltid). Et **LRU-tak på 500 MB** (`_settCacheTak`
+for test) kaster eldste tegning eldst-først etter `sistBrukt`, men **skåner tegninger forberedt for
+den aktive byggeplassen** (så «Forbered byggeplass» ikke spiser seg selv). IFC har egen cache utenfor taket.
+Uten nett + ikke forberedt → `TegningsVisning` viser «Ikke tilgjengelig offline» (`CloudOff`), ikke
+brutt bilde. Tester: `offlineTegning.test.ts` (H1 flymodus-lokal file://, H2 ikke-forberedt, REV
+revisjon-opprydning, LRU-tak med aktiv-byggeplass-skåning).
+
+**Metadata-speil for kald start i flymodus (RETUR 2, `fix/offline-tegning-2` 2026-10-14):** fila
+på disk var «foreldreløs» — navigasjonen (byggeplass-/tegningsliste + `tegning.hentMedId`) var
+live-query uten speil, så offline virket BARE for tegninger åpnet online i samme økt. Nå speiles
+metadataen lokalt (SQLite-katalog-mønster, `tegningKatalog.ts`):
+- `tegning_local` (tegningsliste, prosjekt+bruker-scopet, `revisjons_nokkel` = filcache-nøkkel),
+  `byggeplass_nav_local` (byggeplass-velger — PROSJEKT-scopet, dekker standalone der firma-scopet
+  `byggeplass_local` er tom), og `dokument_speil` med `dokument_type="tegning"` for viewer-blobben
+  (hentMedId + markører: oppgaver/kontrollpunkter/områder).
+- **Skrives** av «Forbered til offline» (lokasjoner/mer) OG write-through ved online-besøk
+  (`lokasjoner.tsx`/`tegninger.tsx`/`ByggeplassChip`). **Leses** offline via `hent*Lokalt` når
+  server-spørringene er av (`enabled: … && erPaaNettet`).
+- **Ærlige tomtilstander:** offline + ikke lagret viser «Ikke lagret for offline …»
+  (`offline.ikkeLagret`), aldri falsk «Ingen byggeplasser»/«Ingen tegninger». «Sist oppdatert …»
+  på offline-tegningslista. Hjem-banneret er nøytralt («Frakoblet – viser lagrede data»).
+- **Prosjekt-isolert + tømmes ved utlogging:** `userId`-synlighetsvakt + full-overskriving per
+  prosjekt (`id` er global PK); `tomTegningSpeil()` kalt fra `auth.loggUt`.
+- **OTA-trygt:** additive `CREATE TABLE IF NOT EXISTS` (ingen reinstall/datatap — testet i
+  `migreringer.test.ts`). Tester: `tegningKatalog.test.ts` (katalog/byggeplass/detalj-roundtrip,
+  synlighetsvakt, revisjonsnøkkel, logout-tømming).
+- ⚠️ **Avgrenset (listet, ikke speilet):** kontrollplan-skjermens egen liste + frittstående
+  markør-kilder utenfor tegning har samme live-query-mønster. Markørene vises nå offline via
+  tegning-detalj-speilet; egne kataloger for kontrollplan-skjermen er en egen leveranse ved behov.
+
 **Bakgrunnskø:**
 - Én fil av gangen, eksponentiell backoff (maks 5 forsøk)
 - Callback: `registrerCallback()` for URL-oppdateringer i sanntid

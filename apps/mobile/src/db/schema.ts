@@ -837,3 +837,50 @@ export const dokumentSpeil = sqliteTable(
     pk: primaryKey({ columns: [t.dokumentType, t.id, t.userId] }),
   }),
 );
+
+/**
+ * tegning_local — offline-katalog for tegningslista (RETUR 2, 2026-10-14). Speiler
+ * KUN det lista/velgeren viser/filtrerer på (målt mot `app/(tabs)/lokasjoner.tsx` +
+ * `tegninger.tsx`). Read-only mirror: refresh full-overskriver per prosjekt fra
+ * `tegning.hentForProsjekt`. Lesing filtrerer på `userId` (synlighetsvakt, speiler
+ * oppgave_local) → en ny bruker på samme telefon ser ALDRI forrige brukers liste;
+ * tømmes dessuten aktivt ved utlogging. `revisjonsNokkel` = siste ledd av den
+ * effektive vis-URL-en (UUID-filnavn) = SAMME nøkkel som filcachen/manifestet, så
+ * en ny server-revisjon gir ny nøkkel → gammel og ny blandes aldri. KUN lokal,
+ * synkes aldri opp. Selve viewer-metadataen (hentMedId + markører) bor i
+ * `dokument_speil` med `dokument_type="tegning"`.
+ */
+export const tegningLocal = sqliteTable("tegning_local", {
+  id: text("id").primaryKey(), // = server Drawing.id
+  projectId: text("project_id").notNull(),
+  userId: text("user_id").notNull(), // eier-bruker — lesevakt
+  byggeplassId: text("byggeplass_id"), // null = prosjekt-tegning (hele prosjektet)
+  name: text("name").notNull(),
+  drawingNumber: text("drawing_number"),
+  discipline: text("discipline"),
+  floor: text("floor"),
+  fileType: text("file_type"),
+  fileUrl: text("file_url"),
+  mobilFileUrl: text("mobil_file_url"),
+  revisjonsNokkel: text("revisjons_nokkel"), // siste URL-ledd (UUID) = filcache-nøkkel
+  antallRevisjoner: integer("antall_revisjoner"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — katalog-freshness
+});
+
+/**
+ * byggeplass_nav_local — offline byggeplass-liste for NAVIGASJON (byggeplass-velger
+ * + lokasjoner), RETUR 2. SKILT fra `byggeplass_local`: den er firma-scopet (org NOT
+ * NULL) og fylles bare når timer er synket, så den er tom for standalone-prosjekter
+ * (rotårsaken bak den falske «Ingen byggeplasser»). Denne er PROSJEKT+bruker-scopet
+ * og fylles av «Forbered til offline» + online-besøk, så den dekker standalone også.
+ * Full-overskrives per prosjekt via `refreshByggeplassNavKatalog`. Tømmes ved utlogging.
+ */
+export const byggeplassNavLocal = sqliteTable("byggeplass_nav_local", {
+  id: text("id").primaryKey(), // = server Byggeplass.id
+  projectId: text("project_id").notNull(),
+  userId: text("user_id").notNull(), // eier-bruker — lesevakt
+  navn: text("navn").notNull(),
+  number: integer("number"),
+  status: text("status"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
+});

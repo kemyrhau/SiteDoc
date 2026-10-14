@@ -1086,6 +1086,60 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
   **Arver du det, skriv «umålt» ved siden av.** ⚠️ **Et navn fra en velskrevet melding leses som målt:**
   `dwgread` reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp — de virkelige binærene er
   `dwg2dxf` og `dwg2SVG`. **Gjelder begge veier.**
+### 🔴 /clear-REGELEN — agenten skal kunne tømmes når som helst (Kenneth-vedtak 2026-10-14, skjerpet samme kveld)
+
+Kenneth kjører `/clear` på en agent **når den har skrevet et SJEKKPUNKT**: etter en levert oppgave, eller når han ber om det ved ~20 % kontekst. Det er bare trygt hvis ingenting bor kun i chatten. **Tilstand som ikke står i en fil eller på origin, finnes ikke.**
+
+**Målt 2026-10-14, første kveld:** orkestrator sendte en oppgave («ta UI-bevis for reekstraksjonen») BARE som nudge. Kenneth tømte Redesign og limte inn nudgen. Agenten visste ikke hvilken PDF, hvilket prosjekt eller hvor rapporten skulle, og begynte å lete fra null. **To feil: ordren fantes ikke i fil, og regelen krevde to meldinger etter /clear.** Begge er rettet under.
+
+#### A. Orkestrator: ordre i fil, nudge selvforklarende
+
+1. **Ingen oppgave uten POST i innboksfila.** Gjelder også små oppgaver som «ta et bilde». Posten skal kunne utføres av en agent som husker NULL:
+   - **Hva og hvorfor:** én setning.
+   - **Utgangspunkt:** branch/hash og miljø (test-hash).
+   - **Data:** konkret prosjekt/fil/tegning ved navn. Hvordan agenten logger inn: peker til `docs/claude/dev-login-agent.md` + bruker.
+   - **DoD:** hva som skal vises eller måles.
+   - **Hvor svaret skal:** `relay/inbox-orkestrator.md` + SJEKKPUNKT.
+2. **Hver nudge har ÉN fast form** og virker likt om agenten er tømt eller ikke:
+   ```
+   Du er <Agent>. Innboks: ~/Documents/Programmering/SiteDoc/relay/<fil>. Er du nettopp tømt: følg § /clear-REGELEN punkt C i docs/claude/SAMARBEIDSREGLER.md først. Ny post: «<overskrift i innboksen>».
+   ```
+   Nudgen bærer aldri innhold som ikke står i posten. **Kenneth trenger aldri en egen oppstartsmelding.**
+
+#### B. Agenten: SJEKKPUNKT før Kenneth kan tømme
+
+Hver leveranse, og hver gang Kenneth skriver «Skriv SJEKKPUNKT», slutter med dette nederst i `~/Documents/Programmering/SiteDoc/relay/inbox-orkestrator.md` (hovedtreets kopi, absolutt sti):
+```
+SJEKKPUNKT <Agent> <dato tid>
+Branch: <navn> @ <hash>   (verifisert: git ls-remote --heads origin <branch>)
+Worktree: <absolutt sti>
+Ordre: <innboksfil> § <overskrift>
+Status: levert / under arbeid / venter på <hva>
+Kunnskap å ta med: <det du lærte som ikke står i ordren: testdata du laget, ID-er, innlogging, fallgruver>
+Åpent: <det som ikke er gjort, eller «ingenting»>
+Neste steg: <én setning, eller «vent på ordre»>
+```
+- Midt i en oppgave: commit og push pågående arbeid på **egen feature-branch** (WIP-commit er lov der, aldri på develop/main), skriv SJEKKPUNKT, og svar bare **«klar for clear»**. Ingen ny kode etter det.
+- 🔴 **«Kunnskap å ta med» er feltet som gjør /clear trygt.** Testdokumenter du lastet opp, prosjekt-ID-er og hvilken bruker som virket. Det du ellers måtte lete fram på nytt, skal stå her.
+
+#### C. Agenten etter /clear: les før du gjør noe
+
+1. Denne regelen.
+2. Posten nudgen navngir, i egen innboks (søk på overskriften). Finnes den ikke: **STOPP og meld «posten finnes ikke»**. Ikke gjett ut fra nudgen.
+3. Siste `SJEKKPUNKT <Agent>` i `relay/inbox-orkestrator.md`, inkludert «Kunnskap å ta med».
+4. `git -C <worktree> status` + `git log -1`. Avviker treet fra sjekkpunktet: **meld avviket før du gjør noe.**
+
+Les ikke hele innboksen eller historikken. Posten pluss sjekkpunktet er hele konteksten. Mangler noe, er det posten eller sjekkpunktet som var dårlig, og det skal meldes (det er en feil å rette, ikke å jobbe rundt).
+
+**Innboks pr. agent** (orkestrator holder lista oppdatert):
+
+| Agent | Innboksfil |
+|---|---|
+| Dokgen | `inbox-dokgen-arbeidstegning-f1.md` |
+| Redesign | `inbox-redesign-docx-sok.md` |
+| Kontrollør | `inbox-kontrollor.md` |
+| Fabel | `inbox-fabel.md` |
+
 ## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
 
 **Miljøspørsmål besvares fra [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + sjekk-først — aldri ved å be Kenneth gjenta oppsett.** Kunnskapen om `.env`-filer, lokal DB og test-kjøring bor i repoet ([LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) → [lokal-dev.md](lokal-dev.md), [tests/e2e/README.md](../../tests/e2e/README.md), [dev-login-agent.md](dev-login-agent.md)). Compaction sletter agentens minne om at filene finnes — ikke filene.

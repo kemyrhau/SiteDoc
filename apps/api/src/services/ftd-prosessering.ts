@@ -9,10 +9,12 @@ import { readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { inflateRawSync } from "node:zlib";
 import type { PrismaClient } from "@sitedoc/db";
+import * as mammoth from "mammoth";
 import { splittMalebrevPdf } from "./pdf-splitting";
 import { genererBlokker } from "./blokk-prosessering";
-import { embeddNyeBlokker } from "./embedding-service";
+import { embeddNyeBlokker, embeddDokumentChunks } from "./embedding-service";
 import { detekterSpraak } from "./spraak-deteksjon";
 
 const execFileAsync = promisify(execFile);
@@ -21,6 +23,28 @@ const execFileAsync = promisify(execFile);
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 const MAKS_CHUNK = 1500;
 const OVERLAPP = 100;
+
+// Filtyper som gir søkbart innhold. Alt annet (f.eks. gammelt binært .doc, .rtf,
+// .pages) skal IKKE markeres `completed` med 0 chunks — det blir «stille tomhet».
+// I stedet settes status `unsupported` med en synlig melding. Se prosesserDokument.
+export const STOTTEDE_FILTYPER = [
+  ".pdf",
+  ".xlsx",
+  ".xls",
+  ".xml",
+  ".csv",
+  ".gab",
+  ".ga1",
+  ".docx",
+];
+
+export function erStøttetFiltype(ext: string): boolean {
+  return STOTTEDE_FILTYPER.includes(ext.toLowerCase());
+}
+
+// Melding ved ikke-støttet format. Gammelt .doc er vanligste tilfelle.
+const IKKE_STOTTET_MELDING =
+  "Filformatet støttes ikke for søk. Lagre som .docx eller PDF og last opp på nytt.";
 
 // NS 3420 kodemønster: f.eks. "21.341", "21.341.1", "01.1"
 const NS_KODE_REGEX = /\b(\d{2}\.\d{1,3}(?:\.\d+)?)\b/;
@@ -89,7 +113,15 @@ async function lagreSpecPoster(
 export async function prosesserDokument(
   prisma: PrismaClient,
   documentId: string,
+  opts: { bevarVedFeil?: boolean } = {},
 ): Promise<void> {
+  // Tvungen reekstraksjon (bevarVedFeil): behold eksisterende chunks/poster til
+  // ny ekstraksjon har lykkes, slik at et completed dokument ALDRI ender tomt om
+  // reekstraksjonen feiler. Mulig fordi ftd_document_chunks ikke har unik
+  // (document_id, chunk_index) — gamle og nye rader kan sameksistere i vinduet.
+  const { bevarVedFeil = false } = opts;
+  let gamleChunkIds: string[] | null = null;
+  let gamleSpecIds: string[] | null = null;
   try {
     // Concurrency guard: sett status til "processing" KUN hvis ikke allerede pågår
     const oppdatert = await prisma.ftdDocument.updateMany({
@@ -105,9 +137,19 @@ export async function prosesserDokument(
       return;
     }
 
-    // Atomisk sletting av eksisterende data før ny prosessering
-    await prisma.ftdSpecPost.deleteMany({ where: { documentId } });
-    await prisma.ftdDocumentChunk.deleteMany({ where: { documentId } });
+    if (bevarVedFeil) {
+      // Snapshot gamle rad-id-er; de slettes først når ny ekstraksjon har lykkes.
+      gamleChunkIds = (
+        await prisma.ftdDocumentChunk.findMany({ where: { documentId }, select: { id: true } })
+      ).map((c) => c.id);
+      gamleSpecIds = (
+        await prisma.ftdSpecPost.findMany({ where: { documentId }, select: { id: true } })
+      ).map((p) => p.id);
+    } else {
+      // Standardvei (ny opplasting / reparasjon): slett eksisterende data først.
+      await prisma.ftdSpecPost.deleteMany({ where: { documentId } });
+      await prisma.ftdDocumentChunk.deleteMany({ where: { documentId } });
+    }
 
     const dok = await prisma.ftdDocument.findUniqueOrThrow({
       where: { id: documentId },
@@ -155,14 +197,39 @@ export async function prosesserDokument(
       case ".ga1":
         await prosesserGab(prisma, documentId, buffer, dok.projectId);
         break;
+      case ".docx":
+        await prosesserDocx(prisma, documentId, buffer);
+        break;
       default:
-        // Ukjent filtype — marker som ferdig uten chunks
+        // Ikke-støttet filtype (gammelt .doc, .rtf osv.) — håndteres etter switch
         break;
     }
 
+    if (bevarVedFeil && gamleChunkIds) {
+      // Swap kun hvis ny ekstraksjon faktisk ga nye chunks. Gir den 0 (f.eks.
+      // tom/ødelagt fil), kaster vi → catch beholder de gamle chunkene.
+      const nyeAntall = await prisma.ftdDocumentChunk.count({
+        where: { documentId, id: { notIn: gamleChunkIds } },
+      });
+      if (nyeAntall === 0) {
+        throw new Error("Tvungen reekstraksjon ga 0 nye chunks — beholder eksisterende");
+      }
+      await prisma.$transaction([
+        prisma.ftdDocumentChunk.deleteMany({
+          where: { documentId, id: { in: gamleChunkIds } },
+        }),
+        prisma.ftdSpecPost.deleteMany({
+          where: { documentId, id: { in: gamleSpecIds ?? [] } },
+        }),
+      ]);
+    }
+
+    const støttet = erStøttetFiltype(ext);
     await prisma.ftdDocument.update({
       where: { id: documentId },
-      data: { processingState: "completed" },
+      data: støttet
+        ? { processingState: "completed", processingError: null }
+        : { processingState: "unsupported", processingError: IKKE_STOTTET_MELDING },
     });
 
     // Oppdater budsjett-poster fra nota-verdier (A-nota/T-nota)
@@ -170,8 +237,8 @@ export async function prosesserDokument(
       await oppdaterBudsjettFraNota(prisma, dok.kontraktId, documentId);
     }
 
-    // Automatisk embedding av nye chunks (fire-and-forget)
-    embeddNyeChunks(prisma, documentId).catch((err) => {
+    // Automatisk embedding av nye chunks (fire-and-forget) via HTTP (NORBERT_URL)
+    embeddDokumentChunks(prisma, documentId).catch((err) => {
       console.error(`Embedding feilet for ${documentId}:`, err);
     });
 
@@ -185,12 +252,32 @@ export async function prosesserDokument(
     const melding =
       err instanceof Error ? err.message : "Ukjent prosesseringsfeil";
     console.error(`FTD prosessering feilet for ${documentId}:`, melding);
-    await prisma.ftdDocument
-      .update({
-        where: { id: documentId },
-        data: { processingState: "failed", processingError: melding },
-      })
-      .catch(() => {});
+    if (bevarVedFeil && gamleChunkIds) {
+      // Rull tilbake: fjern nye rader fra denne kjøringen, behold de gamle, og
+      // la dokumentet stå som completed (fortsatt søkbart) med synlig feilårsak.
+      await prisma.ftdDocumentChunk
+        .deleteMany({ where: { documentId, id: { notIn: gamleChunkIds } } })
+        .catch(() => {});
+      await prisma.ftdSpecPost
+        .deleteMany({ where: { documentId, id: { notIn: gamleSpecIds ?? [] } } })
+        .catch(() => {});
+      await prisma.ftdDocument
+        .update({
+          where: { id: documentId },
+          data: {
+            processingState: "completed",
+            processingError: `Tvungen reekstraksjon feilet (gamle treff beholdt): ${melding}`,
+          },
+        })
+        .catch(() => {});
+    } else {
+      await prisma.ftdDocument
+        .update({
+          where: { id: documentId },
+          data: { processingState: "failed", processingError: melding },
+        })
+        .catch(() => {});
+    }
   }
 }
 
@@ -377,6 +464,73 @@ async function ocrPdf(
 // PDF-prosessering
 // --------------------------------------------------------------------------
 
+/** Minimal form av pdf.js-sideproxyen `pagerender` får. */
+interface PdfSideProxy {
+  pageNumber?: number;
+  getTextContent(opts: {
+    normalizeWhitespace: boolean;
+    disableCombineTextItems: boolean;
+  }): Promise<{ items: Array<{ str: string; transform: number[] }> }>;
+}
+
+/**
+ * Henter tekst PR. SIDE via pdf-parse sin `pagerender`-opsjon.
+ *
+ * Tidligere ble sidene delt på form-feed (`\f`) i den sammenslåtte teksten
+ * (`resultat.text.split("\f")`), men pdf-parse v1 skiller sider med `\n\n` —
+ * ALDRI `\f` — så *alle* PDF-er havnet på «side 1» (prod-feil 2026-10-14).
+ * `pagerender` kalles én gang pr. side med pdf.js-sideproxyen, så vi fanger
+ * sann `pageNumber` direkte i stedet for å gjette sidegrenser i teksten.
+ * Tekstuttrekket er identisk med pdf-parse sin standard-render (samme
+ * Y-baserte linjeskift) — bare fanget pr. side i stedet for sammenslått.
+ */
+export async function ekstraherPdfSider(
+  buffer: Buffer,
+): Promise<{ sider: Array<{ side: number; tekst: string }>; antallSider: number }> {
+  // pdf-parse v1 — lib-filen direkte, IKKE pakkens index.js (se under / prod 2026-10-13).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
+    buf: Buffer,
+    opts?: { pagerender?: (side: PdfSideProxy) => Promise<string> },
+  ) => Promise<{ text: string; numpages: number }>;
+
+  const sider: Array<{ side: number; tekst: string }> = [];
+
+  const renderSide = async (pageData: PdfSideProxy): Promise<string> => {
+    const innhold = await pageData.getTextContent({
+      normalizeWhitespace: false,
+      disableCombineTextItems: false,
+    });
+    // Samme logikk som pdf-parse sin standard-render: nytt linjeskift når Y endrer seg.
+    let forrigeY: number | undefined;
+    let tekst = "";
+    for (const item of innhold.items) {
+      if (forrigeY === item.transform[5] || forrigeY === undefined) tekst += item.str;
+      else tekst += "\n" + item.str;
+      forrigeY = item.transform[5];
+    }
+    const sidenr =
+      typeof pageData.pageNumber === "number" && pageData.pageNumber > 0
+        ? pageData.pageNumber
+        : sider.length + 1;
+    sider.push({ side: sidenr, tekst });
+    return tekst; // pdf-parse bygger `ret.text` videre — ellers uendret oppførsel
+  };
+
+  const resultat = await pdfParse(buffer, { pagerender: renderSide });
+
+  sider.sort((a, b) => a.side - b.side);
+  let sideData = sider.map((s) => ({ side: s.side, tekst: s.tekst.trim() }));
+
+  // Robusthet: fanget `pagerender` ingenting (f.eks. side-feil), men pdf-parse
+  // fikk likevel ut tekst → behold den på side 1 framfor å miste alt.
+  if (sideData.length === 0 && resultat.text.trim()) {
+    sideData = [{ side: 1, tekst: resultat.text.trim() }];
+  }
+
+  return { sider: sideData, antallSider: resultat.numpages };
+}
+
 async function prosesserPdf(
   prisma: PrismaClient,
   documentId: string,
@@ -385,22 +539,10 @@ async function prosesserPdf(
   docType: string,
   filsti: string,
 ): Promise<Array<{ side: number; tekst: string }>> {
-  // pdf-parse v1 — lib-filen direkte, IKKE pakkens index.js: den kjører en debug-blokk når
-  // `module.parent` mangler (Next-bundling i web-containeren, der nettleser-opplasting
-  // prosesseres), og prøver å lese ./test/data/05-versions-space.pdf → ENOENT (prod 2026-10-13).
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string; numpages: number }>;
-  const resultat = await pdfParse(buffer);
-
-  const sider = resultat.text.split("\f").filter((s: string) => s.trim());
-  let sideData = sider.map((tekst: string, i: number) => ({
-    side: i + 1,
-    tekst: tekst.trim(),
-  }));
-
-  if (sideData.length === 0 && resultat.text.trim()) {
-    sideData.push({ side: 1, tekst: resultat.text.trim() });
-  }
+  // Tekst pr. side via pagerender (se ekstraherPdfSider). Erstatter det gamle
+  // `split("\f")` som gjorde alle PDF-er til «side 1» (prod-feil 2026-10-14).
+  const { sider: siderFraPdf, antallSider } = await ekstraherPdfSider(buffer);
+  let sideData = siderFraPdf;
 
   // OCR-fallback for skannede PDFer
   if (!harTilstrekkeligTekst(sideData)) {
@@ -409,7 +551,7 @@ async function prosesserPdf(
     const ocrSpråk = prosjekt?.sourceLanguage ?? "nb";
     console.log(`Skannet PDF oppdaget (${documentId}), kjører OCR (${ocrSpråk})...`);
     try {
-      sideData = await ocrPdf(filsti, resultat.numpages, ocrSpråk);
+      sideData = await ocrPdf(filsti, antallSider, ocrSpråk);
     } catch (err) {
       console.error(`OCR feilet for ${documentId}:`, err);
       // Fortsett med tom sideData — bedre enn å krasje
@@ -473,7 +615,7 @@ async function prosesserPdf(
   await prisma.ftdDocument.update({
     where: { id: documentId },
     data: {
-      pageCount: resultat.numpages ?? sideData.length,
+      pageCount: antallSider || sideData.length,
       wordCount: totalTekst.split(/\s+/).filter(Boolean).length,
     },
   });
@@ -1508,7 +1650,7 @@ async function prosesserCsv(
 // Chunking-hjelpefunksjoner
 // --------------------------------------------------------------------------
 
-function delTekstIChunks(
+export function delTekstIChunks(
   sideData: Array<{ side: number; tekst: string }>,
 ): Array<{
   chunkIndex: number;
@@ -1576,6 +1718,333 @@ function delTekstIChunks(
 function detekterNsKode(tekst: string): string | null {
   const match = tekst.match(NS_KODE_REGEX);
   return match?.[1] ?? null;
+}
+
+// --------------------------------------------------------------------------
+// DOCX-prosessering (mammoth → samme chunk-format som PDF)
+// --------------------------------------------------------------------------
+
+export interface DocxChunk {
+  chunkIndex: number;
+  chunkText: string;
+  sectionTitle: string | null;
+  sectionLevel: number | null;
+  nsCode: string | null;
+}
+
+/** Dekod de vanligste HTML-entitetene mammoth produserer. */
+function dekodHtmlEntiteter(s: string): string {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_m, d) => String.fromCodePoint(Number(d)));
+}
+
+type DocxBlokk = { type: "heading" | "para"; level: number | null; text: string };
+
+/**
+ * Parser mammoth-HTML til ordnede blokker. Overskrifter (`<h1>`–`<h6>`) bærer nivå;
+ * avsnitt/listepunkter/tabellceller (`<p>`/`<li>`/`<td>`/`<th>`) blir tekst-blokker.
+ * Inline-tagger (`<strong>`, `<em>`, `<a>`) ignoreres — kun tekstinnholdet beholdes.
+ */
+function parseDocxBlokker(html: string): DocxBlokk[] {
+  const blokker: DocxBlokk[] = [];
+  const tokens = html.split(/(<[^>]+>)/);
+  let aktiv: { type: "heading" | "para"; level: number | null; buf: string } | null = null;
+
+  const flush = () => {
+    if (!aktiv) return;
+    const text = dekodHtmlEntiteter(aktiv.buf).replace(/\s+/g, " ").trim();
+    if (text) blokker.push({ type: aktiv.type, level: aktiv.level, text });
+    aktiv = null;
+  };
+
+  const erBlokkTag = (tag: string) =>
+    /^h[1-6]$/.test(tag) || tag === "p" || tag === "li" || tag === "td" || tag === "th";
+
+  for (const tok of tokens) {
+    const m = tok.match(/^<\s*(\/?)\s*([a-zA-Z0-9]+)/);
+    if (m) {
+      const lukkende = m[1] === "/";
+      const tag = m[2]!.toLowerCase();
+      if (!lukkende) {
+        if (/^h[1-6]$/.test(tag)) {
+          flush();
+          aktiv = { type: "heading", level: Number(tag[1]), buf: "" };
+        } else if (tag === "p" || tag === "li" || tag === "td" || tag === "th") {
+          flush();
+          aktiv = { type: "para", level: null, buf: "" };
+        } else if (tag === "br" && aktiv) {
+          aktiv.buf += " ";
+        }
+      } else if (erBlokkTag(tag)) {
+        flush();
+      }
+    } else if (tok && aktiv) {
+      aktiv.buf += tok;
+    }
+  }
+  flush();
+  return blokker;
+}
+
+/**
+ * Bygger chunks fra DOCX-blokker. Hver overskrift starter en ny seksjon og settes som
+ * `sectionTitle`/`sectionLevel`; overskriftsteksten prependes chunk-teksten så den er
+ * søkbar. Avsnitt akkumuleres til `MAKS_CHUNK` og deles så. En overskrift uten brødtekst
+ * gir fortsatt en egen chunk (ellers ville overskriften forsvunnet fra søk).
+ */
+function byggDocxChunks(blokker: DocxBlokk[]): DocxChunk[] {
+  const chunks: DocxChunk[] = [];
+  let index = 0;
+  let overskrift: string | null = null;
+  let nivå: number | null = null;
+  let overskriftEmittert = false;
+  let buffer = "";
+
+  const flush = () => {
+    const tekst = buffer.trim();
+    if (tekst || (overskrift && !overskriftEmittert)) {
+      const chunkText = overskrift
+        ? tekst
+          ? `${overskrift}\n\n${tekst}`
+          : overskrift
+        : tekst;
+      chunks.push({
+        chunkIndex: index++,
+        chunkText,
+        sectionTitle: overskrift,
+        sectionLevel: nivå,
+        nsCode: detekterNsKode(chunkText),
+      });
+      overskriftEmittert = true;
+    }
+    buffer = "";
+  };
+
+  for (const b of blokker) {
+    if (b.type === "heading") {
+      flush();
+      overskrift = b.text;
+      nivå = b.level;
+      overskriftEmittert = false;
+      continue;
+    }
+    if (buffer.length + b.text.length > MAKS_CHUNK && buffer.length > 0) {
+      flush();
+    }
+    buffer += (buffer ? "\n\n" : "") + b.text;
+  }
+  flush();
+  return chunks;
+}
+
+// Zip-bomb-vern for DOCX (RETUR 2). DOCX er en ZIP; mammoth (via jszip) pakker HELE arkivet
+// ut IN-PROCESS i web-containeren FØR vi ser noe — en dekompresjonsbombe (noen KB → gigabyte)
+// gir OOM som tar ned frontend for ALLE. De deklarerte størrelsene i ZIP-katalogen KAN
+// forfalskes (liten deklarert, enorm faktisk strøm), så vi stoler ikke på dem. I stedet
+// pakker vi ut hver entry SELV med et hardt byte-budsjett (inflateRawSync + maxOutputLength
+// avbryter og kaster idet budsjettet overskrides — allokeringen er bundet til budsjettet),
+// og mater mammoth en REN ZIP (STORED, ærlige størrelser + CRC) av de verifiserte entriene.
+const DOCX_MAKS_UTPAKKET = 50 * 1024 * 1024; // 50 MB utpakket total (hardt tak)
+export const DOCX_UGYLDIG_MELDING =
+  "Filen er for stor eller ugyldig for søk (maks 50 MB utpakket). Del opp eller lagre som PDF.";
+
+const LFH_SIG = 0x04034b50; // local file header
+const CDH_SIG = 0x02014b50; // central directory header
+const EOCD_SIG = 0x06054b50; // end of central directory
+
+interface ZipEntry {
+  navn: string;
+  metode: number; // 0 = stored, 8 = deflate
+  lokalOffset: number; // offset til local file header
+  kompStr: number; // komprimert størrelse (katalog — kan lyve, kun til slicing)
+}
+
+/** Les central directory til en entry-liste. Returnerer null hvis ikke en lesbar ZIP. */
+function lesZipKatalog(buffer: Buffer): ZipEntry[] | null {
+  if (buffer.length < 22) return null;
+  let eocd = -1;
+  const minPos = Math.max(0, buffer.length - 22 - 0xffff);
+  for (let i = buffer.length - 22; i >= minPos; i--) {
+    if (buffer.readUInt32LE(i) === EOCD_SIG) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+
+  let p = buffer.readUInt32LE(eocd + 16); // central-dir-offset
+  const entries: ZipEntry[] = [];
+  while (p + 46 <= buffer.length && buffer.readUInt32LE(p) === CDH_SIG) {
+    const metode = buffer.readUInt16LE(p + 10);
+    const kompStr = buffer.readUInt32LE(p + 20);
+    const navnLen = buffer.readUInt16LE(p + 28);
+    const extraLen = buffer.readUInt16LE(p + 30);
+    const kommentarLen = buffer.readUInt16LE(p + 32);
+    const lokalOffset = buffer.readUInt32LE(p + 42);
+    const navn = buffer.toString("utf-8", p + 46, p + 46 + navnLen);
+    entries.push({ navn, metode, lokalOffset, kompStr });
+    p += 46 + navnLen + extraLen + kommentarLen;
+  }
+  return entries.length > 0 ? entries : null;
+}
+
+// CRC-32 (IEEE) — trengs for å bygge en ren STORED-ZIP mammoth/jszip godtar. Tabell lazy.
+let crcTabell: Uint32Array | null = null;
+function crc32(data: Buffer): number {
+  if (!crcTabell) {
+    crcTabell = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      crcTabell[n] = c >>> 0;
+    }
+  }
+  let c = 0xffffffff;
+  for (let i = 0; i < data.length; i++) c = crcTabell[(c ^ data[i]!) & 0xff]! ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Pakk ut DOCX-en SELV med hardt byte-budsjett (RETUR 2) og returner en REN ZIP (STORED)
+ * av de verifiserte entriene — trygg å gi til mammoth. Kaster `DOCX_UGYLDIG_MELDING` ved
+ * bombe (total utpakket > 50 MB, eller en enkelt entry sprenger budsjettet) eller ugyldig ZIP.
+ * Allokeringen er bundet til gjenværende budsjett pr. entry (`maxOutputLength`), så en entry
+ * som LYVER om størrelsen kan ikke materialisere mer enn budsjettet før den kastes.
+ */
+export function pakkUtDocxTrygg(buffer: Buffer): Buffer {
+  const entries = lesZipKatalog(buffer);
+  if (!entries) throw new Error(DOCX_UGYLDIG_MELDING);
+
+  const utpakkede: { navn: string; data: Buffer }[] = [];
+  let brukt = 0;
+
+  for (const e of entries) {
+    if (e.navn.endsWith("/")) continue; // katalog-oppføring, ingen data
+    // Finn faktisk data-start fra LOCAL header (egne navn-/extra-lengder).
+    const lo = e.lokalOffset;
+    if (lo + 30 > buffer.length || buffer.readUInt32LE(lo) !== LFH_SIG) {
+      throw new Error(DOCX_UGYLDIG_MELDING);
+    }
+    const lNavnLen = buffer.readUInt16LE(lo + 26);
+    const lExtraLen = buffer.readUInt16LE(lo + 28);
+    const dataStart = lo + 30 + lNavnLen + lExtraLen;
+    const dataSlutt = Math.min(dataStart + e.kompStr, buffer.length);
+    if (dataStart > buffer.length) throw new Error(DOCX_UGYLDIG_MELDING);
+    const komp = buffer.subarray(dataStart, dataSlutt);
+
+    const rest = DOCX_MAKS_UTPAKKET - brukt;
+    let data: Buffer;
+    if (e.metode === 0) {
+      if (komp.length > rest) throw new Error(DOCX_UGYLDIG_MELDING);
+      data = Buffer.from(komp);
+    } else if (e.metode === 8) {
+      try {
+        // maxOutputLength avbryter og kaster ERR_BUFFER_TOO_LARGE idet budsjettet nås —
+        // uansett hva katalogen deklarerer. +1 så en entry PÅ grensen ikke feil-avvises.
+        data = inflateRawSync(komp, { maxOutputLength: rest + 1 });
+      } catch {
+        throw new Error(DOCX_UGYLDIG_MELDING); // bombe (for stor) eller korrupt strøm
+      }
+    } else {
+      throw new Error(DOCX_UGYLDIG_MELDING); // ukjent metode — ekte DOCX bruker kun 0/8
+    }
+
+    brukt += data.length;
+    if (brukt > DOCX_MAKS_UTPAKKET) throw new Error(DOCX_UGYLDIG_MELDING);
+    utpakkede.push({ navn: e.navn, data });
+  }
+
+  if (utpakkede.length === 0) throw new Error(DOCX_UGYLDIG_MELDING);
+  return byggStoredZip(utpakkede);
+}
+
+/** Bygg en minimal ZIP med alle entries lagret ukomprimert (metode 0) + korrekt CRC. */
+function byggStoredZip(entries: { navn: string; data: Buffer }[]): Buffer {
+  const lokale: Buffer[] = [];
+  const sentrale: Buffer[] = [];
+  let offset = 0;
+
+  for (const e of entries) {
+    const navn = Buffer.from(e.navn, "utf-8");
+    const crc = crc32(e.data);
+    const lfh = Buffer.alloc(30);
+    lfh.writeUInt32LE(LFH_SIG, 0);
+    lfh.writeUInt16LE(20, 4); // versjon
+    lfh.writeUInt16LE(0, 6); // metode 0 (stored)
+    lfh.writeUInt32LE(crc, 14);
+    lfh.writeUInt32LE(e.data.length, 18); // komprimert = utpakket (stored)
+    lfh.writeUInt32LE(e.data.length, 22);
+    lfh.writeUInt16LE(navn.length, 26);
+    const lokalDel = Buffer.concat([lfh, navn, e.data]);
+    lokale.push(lokalDel);
+
+    const cdh = Buffer.alloc(46);
+    cdh.writeUInt32LE(CDH_SIG, 0);
+    cdh.writeUInt16LE(20, 4);
+    cdh.writeUInt16LE(20, 6);
+    cdh.writeUInt16LE(0, 10); // metode 0
+    cdh.writeUInt32LE(crc, 16);
+    cdh.writeUInt32LE(e.data.length, 20);
+    cdh.writeUInt32LE(e.data.length, 24);
+    cdh.writeUInt16LE(navn.length, 28);
+    cdh.writeUInt32LE(offset, 42); // local-header-offset
+    sentrale.push(Buffer.concat([cdh, navn]));
+    offset += lokalDel.length;
+  }
+
+  const lokalBlokk = Buffer.concat(lokale);
+  const sentralBlokk = Buffer.concat(sentrale);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(EOCD_SIG, 0);
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(sentralBlokk.length, 12);
+  eocd.writeUInt32LE(lokalBlokk.length, 16);
+  return Buffer.concat([lokalBlokk, sentralBlokk, eocd]);
+}
+
+/** Ekstraher søkbare chunks fra en DOCX-buffer. Ren funksjon — ingen DB. */
+export async function ekstraherDocxChunks(buffer: Buffer): Promise<DocxChunk[]> {
+  // RETUR 2: pakk ut selv med byte-budsjett og gi mammoth en ren, verifisert ZIP. Aldri gi
+  // råbufferen til mammoth — jszip ville pakket ut hele bomba FØR noen størrelsessjekk.
+  const rentZip = pakkUtDocxTrygg(buffer);
+  const { value: html } = await mammoth.convertToHtml({ buffer: rentZip });
+  const blokker = parseDocxBlokker(html);
+  return byggDocxChunks(blokker);
+}
+
+async function prosesserDocx(
+  prisma: PrismaClient,
+  documentId: string,
+  buffer: Buffer,
+): Promise<void> {
+  const chunks = await ekstraherDocxChunks(buffer);
+
+  if (chunks.length > 0) {
+    await prisma.ftdDocumentChunk.createMany({
+      data: chunks.map((c) => ({
+        documentId,
+        chunkIndex: c.chunkIndex,
+        chunkText: c.chunkText,
+        pageNumber: null,
+        sectionTitle: c.sectionTitle,
+        sectionLevel: c.sectionLevel,
+        nsCode: c.nsCode,
+        profile: "docx",
+      })),
+    });
+  }
+
+  const totalTekst = chunks.map((c) => c.chunkText).join(" ");
+  await prisma.ftdDocument.update({
+    where: { id: documentId },
+    data: {
+      wordCount: totalTekst.split(/\s+/).filter(Boolean).length,
+    },
+  });
 }
 
 // --------------------------------------------------------------------------
@@ -2687,90 +3156,12 @@ function detekterOverskrift(tekst: string): string | null {
   return null;
 }
 
-// --------------------------------------------------------------------------
-// Automatisk embedding av nye chunks via NorBERT Python-subprosess
-// --------------------------------------------------------------------------
-
-const NORBERT_PYTHON = join(
-  process.env.HOME ?? "",
-  "norbert-env",
-  "bin",
-  "python3",
-);
-const NORBERT_SCRIPT = join(process.cwd(), "src", "services", "norbert-embed.py");
-
-async function embeddNyeChunks(
-  prisma: PrismaClient,
-  documentId: string,
-): Promise<void> {
-  const { existsSync } = await import("node:fs");
-
-  // Sjekk om NorBERT er tilgjengelig
-  if (!existsSync(NORBERT_PYTHON) || !existsSync(NORBERT_SCRIPT)) {
-    console.warn(`[EMBEDDING] NorBERT ikke tilgjengelig — hopper over for ${documentId}`);
-    return;
-  }
-
-  const chunks = await prisma.ftdDocumentChunk.findMany({
-    where: { documentId, embeddingState: "pending" },
-    select: { id: true, chunkText: true },
-  });
-
-  if (chunks.length === 0) return;
-
-  const ider = chunks.map((c) => c.id);
-  await prisma.ftdDocumentChunk.updateMany({
-    where: { id: { in: ider } },
-    data: { embeddingState: "processing" },
-  });
-
-  try {
-    const BATCH = 16;
-    for (let i = 0; i < chunks.length; i += BATCH) {
-      const batch = chunks.slice(i, i + BATCH);
-      const tekster = batch.map((c) => c.chunkText);
-
-      const embeddings = await new Promise<number[][]>((resolve, reject) => {
-        const proc = execFile(
-          NORBERT_PYTHON,
-          [NORBERT_SCRIPT],
-          { encoding: "utf-8", maxBuffer: 50 * 1024 * 1024, timeout: 120_000 },
-          (err, stdout) => {
-            if (err) return reject(err);
-            try { resolve(JSON.parse(stdout as string)); } catch (e) { reject(e); }
-          },
-        );
-        proc.stdin?.write(JSON.stringify(tekster));
-        proc.stdin?.end();
-      });
-
-      for (let j = 0; j < batch.length; j++) {
-        const emb = embeddings[j]!;
-        const chunk = batch[j]!;
-        const vecStr = `[${emb.join(",")}]`;
-        await prisma.$executeRaw`
-          UPDATE ftd_document_chunks
-          SET embedding_vector = ${vecStr}::vector,
-              embedding_state = 'done'
-          WHERE id = ${chunk.id}
-        `;
-      }
-    }
-  } catch (err) {
-    // Sett tilbake til pending ved feil
-    await prisma.ftdDocumentChunk.updateMany({
-      where: { id: { in: ider } },
-      data: { embeddingState: "pending" },
-    });
-
-    // Logg embedding-feil på dokumentet
-    const melding = err instanceof Error ? err.message : "Embedding feilet";
-    await prisma.ftdDocument.update({
-      where: { id: documentId },
-      data: { processingError: `Embedding: ${melding}` },
-    }).catch(() => {});
-  }
-}
+// Automatisk embedding av chunks skjer nå via `embeddDokumentChunks` i
+// embedding-service.ts (HTTP mot NORBERT_URL, samme vei som den manuelle løkka).
+// Den gamle Python-subprosessen (`norbert-env/bin/python3` + `norbert-embed.py`)
+// fantes aldri i Docker-containerne og hoppet stille over — chunks ble stående
+// `pending` for alltid (prod 2026-10-14). Feiler embedding-serveren nå, settes
+// chunkene til `failed` (synlig), ikke stille `pending`.
 
 // ---------------------------------------------------------------------------
 // Oppdater budsjett-poster med nota-verdier

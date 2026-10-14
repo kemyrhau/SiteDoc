@@ -58,10 +58,20 @@ export const DEFAULT_VEKTER: SokVekter = {
   pageposWeight: 0.01,
 };
 
+/** Søkemetode som ga treffet — vises som badge i trefflista. */
+export type SokMetode = "semantisk" | "tekst" | "begge";
+
+function kildeTilMetode(kilde: "vektor" | "leksikalsk" | "begge"): SokMetode {
+  if (kilde === "vektor") return "semantisk";
+  if (kilde === "leksikalsk") return "tekst";
+  return "begge";
+}
+
 export interface HybridSokTreff {
   id: string;
   documentId: string;
   chunkText: string;
+  chunkIndex: number | null;
   pageNumber: number | null;
   sectionTitle: string | null;
   nsCode: string | null;
@@ -72,12 +82,14 @@ export interface HybridSokTreff {
   score: number;
   cosineSim?: number;
   reRankScore?: number;
+  metode: SokMetode;
 }
 
 interface RåChunk {
   id: string;
   documentId: string;
   chunkText: string;
+  chunkIndex: number | null;
   pageNumber: number | null;
   sectionTitle: string | null;
   pageHeading: string | null;
@@ -285,6 +297,7 @@ export async function hybridSok(
       c.id,
       c.document_id AS "documentId",
       c.chunk_text AS "chunkText",
+      c.chunk_index AS "chunkIndex",
       c.page_number AS "pageNumber",
       c.section_title AS "sectionTitle",
       c.page_heading AS "pageHeading",
@@ -312,6 +325,7 @@ export async function hybridSok(
       c.id,
       c.document_id AS "documentId",
       c.chunk_text AS "chunkText",
+      c.chunk_index AS "chunkIndex",
       c.page_number AS "pageNumber",
       c.section_title AS "sectionTitle",
       c.page_heading AS "pageHeading",
@@ -406,6 +420,7 @@ export async function hybridSok(
       id: s.chunk.id,
       documentId: s.chunk.documentId,
       chunkText: s.chunk.chunkText,
+      chunkIndex: s.chunk.chunkIndex,
       pageNumber: s.chunk.pageNumber,
       sectionTitle: s.chunk.sectionTitle,
       nsCode: s.chunk.nsCode,
@@ -416,6 +431,7 @@ export async function hybridSok(
       score: s.score,
       cosineSim: s.cosineSim,
       reRankScore: s.reRankScore,
+      metode: kildeTilMetode(s.chunk.kilde),
     });
   }
 
@@ -438,11 +454,12 @@ async function leksikalskSok(
       ? Prisma.empty
       : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
 
-  let treff = await prisma.$queryRaw<HybridSokTreff[]>`
+  let treff = await prisma.$queryRaw<Omit<HybridSokTreff, "metode">[]>`
     SELECT DISTINCT ON (c.document_id)
       c.id,
       c.document_id AS "documentId",
       c.chunk_text AS "chunkText",
+      c.chunk_index AS "chunkIndex",
       c.page_number AS "pageNumber",
       c.section_title AS "sectionTitle",
       c.ns_code AS "nsCode",
@@ -461,7 +478,7 @@ async function leksikalskSok(
   `;
 
   treff.sort((a, b) => b.score - a.score);
-  return treff.slice(0, limit);
+  return treff.slice(0, limit).map((t) => ({ ...t, metode: "tekst" as const }));
 }
 
 // ---- Flerspråklig blokk-søk ----

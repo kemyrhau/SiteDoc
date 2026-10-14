@@ -43,7 +43,7 @@ apps/api/src/
 │   ├── nota-import-router.ts             # Nota-import (prosedyrer: § API-prosedyrer under)
 │   └── kontrakt.ts                       # Kontrakt-CRUD (prosedyrer: § API-prosedyrer under)
 ├── services/
-│   ├── ftd-prosessering.ts               # Hovedprosessor: PDF, Excel, GAB, XML, CSV + budsjettoppdatering (~2800 linjer)
+│   ├── ftd-prosessering.ts               # Hovedprosessor: PDF, Excel, GAB, XML, CSV, DOCX + budsjettoppdatering (~2800 linjer)
 │   ├── nota-import.ts                    # Scenariodeteksjon + akkumuleringsvalidering (~500 linjer)
 │   ├── pdf-splitting.ts                  # Splitt målebrev-PDF per NS-kode (~180 linjer)
 │   ├── blokk-prosessering.ts             # Flerspråklige blokker + bildeutrekking
@@ -62,10 +62,10 @@ Container for økonomi-dokumenter per entreprise.
 - Relasjon til `byggeplass`, `entrepriser`, `dokumenter`, `mapper`, `notaPerioder`
 
 ### FtdDocument
-Hoveddokument (PDF, Excel, GAB, XML, CSV).
+Hoveddokument (PDF, Excel, GAB, XML, CSV, DOCX).
 - `docType`: anbudsgrunnlag | mengdebeskrivelse | a_nota | t_nota | varsel | varsel_om_endring | endringsmelding | regningsarbeid | annet
 - `notaType`: A-Nota | T-Nota | Sluttnota
-- `processingState`: pending | processing | completed | error
+- `processingState`: pending | processing | completed | failed | unsupported (`unsupported` = ikke-støttet format, f.eks. gammelt `.doc` — synlig status, ikke stille `completed`)
 - Header-verdier fra A-nota: `utfortPr`, `utfortTotalt`, `utfortForrige`, `utfortDenne`, `innestaaende`, `nettoDenne`, `mva`, `sumInkMva`
 - Språk: `sourceLanguage`, `detectedLanguage`, `languageConfirmed`
 - Soft delete via `isActive`-flagg
@@ -169,7 +169,7 @@ Asynkron oversettelsesoppgave per dokument+språk.
 ## Prosesseringsflyt
 
 ### Dokumentimport
-1. Bruker laster opp fil (PDF, Excel, GAB, XML, CSV)
+1. Bruker laster opp fil (PDF, Excel, GAB, XML, CSV, DOCX)
 2. `import-dialog.tsx` auto-gjetter type (`gjettDokType`) og nota-nummer (`gjettNotaNr`)
 3. `registrerDokument` oppretter FtdDocument, trigger asynkron prosessering
 4. `ftd-prosessering.ts` dispatcher til riktig handler basert på filtype:
@@ -178,6 +178,8 @@ Asynkron oversettelsesoppgave per dokument+språk.
    - **GAB**: Binær parsing → spec-poster med enhetspris (IEEE 754)
    - **XML**: NS 3459-format → spec-poster
    - **CSV**: Standard CSV-parsing
+   - **DOCX**: mammoth → HTML → overskrifter (`sectionTitle`/`sectionLevel`) + avsnitt → chunks (`prosesserDocx`)
+   - **Ikke-støttet** (gammelt `.doc` m.m.): `processingState: "unsupported"` med synlig melding, ingen stille `completed`
 5. Resultat: FtdDocument (completed) + FtdDocumentChunks + FtdSpecPosts
 6. **Budsjettoppdatering**: Ved A-nota/T-nota oppdateres anbudsgrunnlagets spec-poster
    automatisk med nota-verdier (`oppdaterBudsjettFraNota`) hvis de mangler mengde/enhetspris/sum

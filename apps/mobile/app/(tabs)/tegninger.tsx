@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   History,
   Search,
   MapPin,
+  CloudOff,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
@@ -24,6 +25,15 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { useNettverk } from "../../src/providers/NettverkProvider";
+import { useAuth } from "../../src/providers/AuthProvider";
+import {
+  refreshTegningKatalog,
+  refreshByggeplassNavKatalog,
+  hentTegningerLokalt,
+  hentByggeplasserNavLokalt,
+  hentTegningSistOppdatert,
+} from "../../src/services/tegningKatalog";
 import { aapneTegning } from "../../src/lib/tegningNavigasjon";
 
 type Modus = "2d" | "3d" | "2d3d";
@@ -56,6 +66,10 @@ export default function TegningerTab() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId, velgHeleProsjektet, hentSistTegning } = useByggeplass();
+  const { erPaaNettet } = useNettverk();
+  const { bruker } = useAuth();
+  const brukerId = bruker?.id;
+  const utils = trpc.useUtils();
   const [modus, setModus] = useState<Modus>("2d");
   const [søk, setSøk] = useState("");
 
@@ -63,15 +77,49 @@ export default function TegningerTab() {
   // Send `byggeplassId` når en byggeplass er valgt (serveren filtrerer hardt,
   // `tegning.ts:57`); ved «Hele prosjektet» (valgtBygningId == null) sendes den ikke,
   // og dagens gruppering per byggeplass-navn beholdes.
+  // RETUR 2: spør serveren KUN online; offline leses lista fra det lokale speilet.
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
     {
       projectId: valgtProsjektId!,
       ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}),
     },
-    { enabled: !!valgtProsjektId },
+    { enabled: !!valgtProsjektId && erPaaNettet },
   );
 
-  const alle = (tegninger ?? []) as TegningRad[];
+  // Online-besøk → skriv gjennom til offline-speilene (kald start virker neste gang).
+  useEffect(() => {
+    if (erPaaNettet && valgtProsjektId && brukerId && tegninger) {
+      refreshTegningKatalog(utils.client, valgtProsjektId, brukerId).catch(() => {});
+      refreshByggeplassNavKatalog(utils.client, valgtProsjektId, brukerId).catch(() => {});
+    }
+  }, [erPaaNettet, valgtProsjektId, brukerId, tegninger, utils]);
+
+  // Offline-fallback (RETUR 2): tegningsliste fra lokalt speil, byggeplass-navn fra
+  // nav-cachen, byggeplass-scopet likt serveren (valgt ELLER prosjekt-tegning).
+  const lokale = useMemo((): TegningRad[] => {
+    if (!valgtProsjektId || !brukerId) return [];
+    const navn = new Map(
+      hentByggeplasserNavLokalt(valgtProsjektId, brukerId).map((b) => [b.id, b.name]),
+    );
+    return hentTegningerLokalt(valgtProsjektId, brukerId)
+      .filter((r) => !valgtBygningId || r.byggeplassId === valgtBygningId || r.byggeplassId == null)
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        drawingNumber: r.drawingNumber,
+        fileType: r.fileType,
+        revision: null,
+        byggeplass: r.byggeplassId
+          ? { id: r.byggeplassId, name: navn.get(r.byggeplassId) ?? "" }
+          : null,
+      }));
+  }, [valgtProsjektId, brukerId, valgtBygningId, tegninger]);
+
+  const alle = ((tegninger as TegningRad[] | undefined) ?? lokale);
+  const sistOppdatert = useMemo(
+    () => (!erPaaNettet && valgtProsjektId && brukerId ? hentTegningSistOppdatert(valgtProsjektId, brukerId) : null),
+    [erPaaNettet, valgtProsjektId, brukerId, tegninger],
+  );
 
   // 3D-modul aktiv for prosjektet
   const { data: moduler } = trpc.modul.hentForProsjekt.useQuery(
@@ -191,6 +239,19 @@ export default function TegningerTab() {
         />
       </View>
 
+      {/* RETUR 2: nøytralt frakoblet-banner + «Sist oppdatert» når lista leses lokalt. */}
+      {!erPaaNettet && alle.length > 0 && (
+        <View className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <CloudOff size={14} color="#d97706" />
+          <Text className="flex-1 text-xs text-amber-700" numberOfLines={1}>
+            {t("offline.frakobletLagret")}
+            {sistOppdatert
+              ? ` · ${t("offline.sistOppdatert", { tid: new Date(sistOppdatert).toLocaleString() })}`
+              : ""}
+          </Text>
+        </View>
+      )}
+
       {/* B Krav 2: si eksplisitt at lista er avkortet av byggeplass-filteret, med
           vei ut til hele prosjektet. Gjenbruker chippens tekst + `velgHeleProsjektet`
           (tegninger-tab-en monterer ikke selve ByggeplassChip). */}
@@ -265,10 +326,23 @@ export default function TegningerTab() {
           }
           ListEmptyComponent={() => (
             <View className="items-center px-8 py-12">
-              <Layers size={40} color="#d1d5db" />
-              <Text className="mt-3 text-sm text-gray-500">
-                {t("tegninger.ingenTegninger")}
-              </Text>
+              {/* RETUR 2: offline + tomt skal ALDRI påstå «ingen tegninger» — skill
+                  ærlig mellom «ikke lagret for offline» og «finnes ingen». */}
+              {!erPaaNettet ? (
+                <>
+                  <CloudOff size={40} color="#d1d5db" />
+                  <Text className="mt-3 text-center text-sm text-gray-500">
+                    {t("offline.ikkeLagret")}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Layers size={40} color="#d1d5db" />
+                  <Text className="mt-3 text-sm text-gray-500">
+                    {t("tegninger.ingenTegninger")}
+                  </Text>
+                </>
+              )}
             </View>
           )}
           renderSectionHeader={({ section }) =>

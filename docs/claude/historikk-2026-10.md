@@ -6,6 +6,18 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## 🔴 Hendelse 2026-10-14: prod uten database 11:37–15:51 (norsk tid)
+
+Under test-deploy `bac63017` (api+web bygget samtidig) startet Docker-tjenesten på nytt (`dockerd` 09:37:59 UTC). postgres (`unless-stopped`) fikk «fast shutdown» 09:37:46 og kom ikke tilbake, og det samme gjaldt `sitedoc-embed`/`sitedoc-oversettelse` (137) og `salsaklubb-postgres`. api/web/pdf-render (`always`) startet igjen, så `/version` svarte og skjulte bruddet. Oppdaget ved at test-migreringen fikk `P1001`. Tiltak: containerne startet manuelt, omstartsregel satt til `always` for postgres/embed/oversettelse, `deploy-test.sh` bygger api og web hver for seg, og runboken har fått en sjekk av delte tjenester etter deploy. ⚠️ Hvorfor dockerd startet på nytt er ikke fastslått (ingen OOM-linjer i journalen 09:36:30–09:37:59; automatiske oppdateringer 06:23 gjaldt bare kjernepakker).
+
+## Prod-hotfixer 2026-10-13 (`66b36226` → `841dd4e5` → `f60d7fd1`): dokumentopplasting, kundefiler, PDF og embedding (LIVE)
+
+- `66b36226`: migrering `20261013120000_ftd_split_sources` (`ftd_documents.split_sources` manglet i prod siden schema-endring 31.03 uten migrering, så opplasting i Mapper feilet) + vakt `apps/api/src/skjema-migreringsdrift.test.ts`.
+- `841dd4e5`: `deploy-prod.sh`/`deploy-test.sh` utelater `DWG eksempelfiler` og `relay` (rsync lastet opp 3,2 GB kundefiler). `.dockerignore` likeså (lå i api/web-bildene via `COPY . .`). Mappene slettet fra `~/stack/sitedoc` av Kenneth.
+- `f60d7fd1`: `pdf-parse/lib/pdf-parse.js` (ENOENT `./test/data/05-versions-space.pdf` ved PDF-uttrekk i web) + `NORBERT_URL`/`OVERSETTELSE_URL`/`PDF_URL` på web i compose (embedding feilet fra web). Verifisert: `printenv NORBERT_URL` i web = `http://embed:3302`.
+- Env (Kenneth, ikke i git): `VEGVESEN_API_KEY` kopiert fra `api.env`→`web.env` og `api-test.env`→`web-test.env` (Vegvesen-oppslag i maskin kjører i web). Prod-web gjenskapt, lengde 37 bekreftet.
+- ⚠️ Gjenstår: DOCX gjøres ikke søkbar (Redesign `feat/docx-sok`), test-web får `VEGVESEN_API_KEY` ved neste test-deploy.
+
 ## Prod-deploy 2026-10-12 (`1e6cb861`): SVG-XSS-hotfix, ezdxf-motor (av), revisjon-UX, startutsnitt (LIVE)
 
 - Release `1e6cb861` (bygget 20:35Z). `curl /version` = `1e6cb861`. `dwg2dxf 0.14` og `ezdxf 1.4.4` i både `sitedoc-api` og `sitedoc-web`. `DWG_MOTOR` ikke satt i prod, så den gamle motoren brukes.

@@ -2,6 +2,7 @@ import { join } from "path";
 import { openSync, readSync, closeSync } from "fs";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
@@ -97,6 +98,26 @@ async function start() {
       return cb(new Error("Ikke tillatt av CORS"), false);
     },
     credentials: true,
+  });
+
+  // RETUR 4 punkt 3 (relay/inbox-dokgen-arbeidstegning-f1.md): `/uploads/*` (inkl.
+  // dxf-viewer-filene — forenklet DXF 15,9 MB, register 1,4 MB) ble servert HELT
+  // ukomprimert, både direkte mot api-test.sitedoc.no og via test.sitedoc.no/api
+  // (Next-rewrite — som ikke komprimerer proxyede svar selv). Cloudflare komprimerer
+  // heller ikke (`image/vnd.dxf`-MIME-typen faller trolig utenfor dens allow-liste).
+  // Fiks: komprimer ved OPPRINNELSEN (api), br/gzip etter klientens Accept-Encoding —
+  // Cloudflare lar et allerede komprimert svar passere uendret. Global (gjelder
+  // tRPC-JSON også, ikke bare `/uploads/`).
+  // RETUR 5 (relay/inbox-dokgen-arbeidstegning-f1.md): default-regexen i
+  // @fastify/compress komprimerer ikke `image/vnd.dxf` (DXF-en serveres med denne
+  // typen av `bildeContentTypeFraMagic`-logikken under, ikke som `.dxf`-filendelse).
+  // customTypes utvider default-regexen (samme mønster, inkl. `text/event-stream`-
+  // unntaket for SSE) med `image/vnd.dxf`.
+  await server.register(compress, {
+    global: true,
+    encodings: ["br", "gzip"],
+    customTypes:
+      /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)|octet-stream(?:;|$)|^image\/vnd\.dxf(?:;|$)/u,
   });
 
   // WebSocket for sanntids presence

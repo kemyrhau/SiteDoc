@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
 import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass-kontekst";
@@ -78,6 +79,13 @@ import { tilpassEzdxfSvg } from "@/lib/ezdxfSvgVisning";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
+// Leveranse 1: dynamic+ssr:false — dxf-viewer drar med seg en EGEN three.js-kopi
+// (^0.186), som ikke skal lastes før tegningssiden faktisk bruker den (orkestrator-
+// vedtak 2026-10-13: to kopier akseptert, tegningssiden lazy-lastet).
+const DxfViewerTegning = dynamic(
+  () => import("@/components/tegning/DxfViewerTegning").then((m) => m.DxfViewerTegning),
+  { ssr: false },
+);
 import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 interface Markør {
@@ -545,6 +553,17 @@ export default function TegningerSide() {
     setVisVinkelrett(false);
   }, [aktivTegning?.id]);
 
+  // Leveranse 1 (plan § 1): klient-kill-switch TEGNING_MOTOR, uavhengig av DWG_MOTOR.
+  // Krever BEGGE artefaktene (satt sammen av anvendDwgResultat) — flagget av ELLER
+  // en konvertering uten dem (egen-motor/ikke-DWG/feilet) → SVG-veien uendret. Hoistet
+  // over SVG-fetch-effekten under (RETUR 4 punkt 3): den skal IKKE hente+sanitere den
+  // gamle SVG-en når dxf-viewer-grenen er aktiv — 24 MB dekodet, bortkastet arbeid i
+  // parallell med dxf-viewer-lasten (målt relay/inbox-dokgen-arbeidstegning-f1.md).
+  const brukDxfViewer =
+    process.env.NEXT_PUBLIC_TEGNING_MOTOR === "dxfviewer" &&
+    !!tegning?.dxfViewerFileUrl &&
+    !!tegning?.registerWorldUrl;
+
   // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
   const svgUrl = tegning?.fileUrl ? `/api${tegning.fileUrl}` : null;
   const erSvgFil = (tegning?.fileType ?? "") === "svg";
@@ -561,7 +580,9 @@ export default function TegningerSide() {
       (tegning as unknown as { konverteringRapport?: unknown })?.konverteringRapport ?? null,
     )?.motor === "ezdxf";
   useEffect(() => {
-    if (!svgUrl || !erSvgFil) {
+    // RETUR 4 punkt 3: dxf-viewer-grenen rendrer aldri SVG-en (linje ~2243) — hent den
+    // ikke i bakgrunnen heller. Målt: 975 KB / 24 MB dekodet bortkastet pr. last.
+    if (!svgUrl || !erSvgFil || brukDxfViewer) {
       setSvgInnhold(null);
       setErEzdxfSvg(false);
       return;
@@ -579,7 +600,7 @@ export default function TegningerSide() {
         setSvgInnhold(null);
         setErEzdxfSvg(false);
       });
-  }, [svgUrl, erSvgFil, erEzdxfMotor]);
+  }, [svgUrl, erSvgFil, erEzdxfMotor, brukDxfViewer]);
 
   // RETUR 1 TILLEGG C1: dempet strekskalering for ezdxf-SVG. Viseren setter --strek-skala
   // (= zoom^(k−1)) + gulv/tak (px→viewBox-konvertert fra displayScale) på SVG-wrapperen pr.
@@ -1670,36 +1691,45 @@ export default function TegningerSide() {
           </button>
         )}
 
-        {/* Zoom-kontroller */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={zoomUt}
-            disabled={zoom <= MIN_ZOOM}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
-            title="Zoom ut"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setZoom(STANDARD_ZOOM)}
-            className="min-w-[48px] rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-            title="Tilbakestill zoom"
-          >
-            {zoomProsent}%
-          </button>
-          <button
-            onClick={zoomInn}
-            disabled={zoom >= MAKS_ZOOM}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
-            title="Zoom inn"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-        </div>
+        {/* Zoom-kontroller — kun SVG-veien. Leveranse 1 (dxf-viewer) styrer zoom via
+            dxf-viewers egne OrbitControls (musehjul/pinch); %-tallet og knappene her er
+            ikke koblet til den kameraet og skal ikke vises som om de var (RETUR
+            orkestrator 2026-10-14: «ikke la dem stå døde»). Kommer tilbake koblet i en
+            senere leveranse (lag/klikk/måling, plan § 12). */}
+        {!brukDxfViewer && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={zoomUt}
+              disabled={zoom <= MIN_ZOOM}
+              className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
+              title="Zoom ut"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setZoom(STANDARD_ZOOM)}
+              className="min-w-[48px] rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              title="Tilbakestill zoom"
+            >
+              {zoomProsent}%
+            </button>
+            <button
+              onClick={zoomInn}
+              disabled={zoom >= MAKS_ZOOM}
+              className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
+              title="Zoom inn"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* RETUR 2 (vedtak A): rotasjon — kun for DWG→SVG. Auto-rotasjonen er bakt inn;
-            her vises etiketten + en manuell overstyring (90°-trinn / tilbake til auto). */}
-        {erSvgFil && (
+            her vises etiketten + en manuell overstyring (90°-trinn / tilbake til auto).
+            Ikke for dxf-viewer-grenen (RETUR orkestrator 2026-10-14): VEDTAK B viser
+            tegningen SOM TEGNET der, uten auto-rotasjon — etiketten «Rotert 40°
+            automatisk» ville løyet om det faktiske kameraet. */}
+        {erSvgFil && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center gap-1">
@@ -1732,8 +1762,11 @@ export default function TegningerSide() {
           </>
         )}
 
-        {/* Måleverktøy — kun for bilde-tegninger (PNG/JPG/SVG) */}
-        {erBilde && (
+        {/* Måleverktøy + 90°/referanse/snap — kun for bilde-tegninger (PNG/JPG/SVG).
+            RETUR 3 (orkestrator 2026-10-14): disse klikker mot SVG-DOM-en
+            (getBoundingClientRect/data-layer), som ikke finnes i dxf-viewer-grenens
+            three.js-canvas — samme mønster som zoom/rotasjon over. */}
+        {erBilde && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center rounded border border-gray-200">
@@ -1825,8 +1858,9 @@ export default function TegningerSide() {
           </>
         )}
 
-        {/* Klikkemodus — kun for DWG-konverterte SVG-tegninger */}
-        {erSvgFil && (
+        {/* Klikkemodus — kun for DWG-konverterte SVG-tegninger. Ikke for dxf-viewer-grenen
+            (RETUR 3): samme årsak som måleverktøyene over. */}
+        {erSvgFil && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center rounded border border-gray-200">
@@ -1866,8 +1900,10 @@ export default function TegningerSide() {
         )}
 
         {/* L2 lagfilter: hvilke markørtyper vises. Begge på = «begge». «Frie sjekklister»
-            er ikke et lag (rendres ikke på tegning i dag). */}
-        {(kontrollpunkter.length > 0 || markører.length > 0) && (
+            er ikke et lag (rendres ikke på tegning i dag). Ikke for dxf-viewer-grenen
+            (RETUR 3, samme årsak): markørene selv rendres kun i erBilde-grenen (linje
+            2390/2410), så filteret har ingenting å vise/skjule i dxf-viewer-canvaset. */}
+        {!brukDxfViewer && (kontrollpunkter.length > 0 || markører.length > 0) && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center gap-1">
@@ -1896,16 +1932,18 @@ export default function TegningerSide() {
         )}
 
         {/* Periodefilter på markørene (createdAt). Vises når tegningen HAR markører (ufiltrert), så
-            filteret er tilgjengelig selv når gjeldende periode skjuler alle. */}
-        {((oppgaveMarkører?.length ?? 0) + (kontrollpunktMarkører?.length ?? 0)) > 0 && (
+            filteret er tilgjengelig selv når gjeldende periode skjuler alle. Ikke for dxf-viewer-
+            grenen (RETUR 3): markørene filteret virker på, rendres ikke der. */}
+        {!brukDxfViewer && ((oppgaveMarkører?.length ?? 0) + (kontrollpunktMarkører?.length ?? 0)) > 0 && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <PeriodeFilter periode={periode} onEndre={setPeriode} />
           </>
         )}
 
-        {/* GPS-koordinater for georefererte tegninger */}
-        {transformasjon && (
+        {/* GPS-koordinater for georefererte tegninger. Avhenger av onMouseMove på SVG-wrapperen
+            (handleMuseBevegelse) — finnes ikke i dxf-viewer-grenen (RETUR 3), skjul til koblet. */}
+        {transformasjon && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <MapPin className="h-3.5 w-3.5 text-green-600" />
@@ -1921,7 +1959,9 @@ export default function TegningerSide() {
           </>
         )}
 
-        {!posisjonsvelgerAktiv && (
+        {/* RETUR 3 (orkestrator 2026-10-14): denne hinten løy i dxf-viewer-grenen — det finnes
+            ingen klikk-overlay der (samme årsak som måleverktøy/klikkemodus over). */}
+        {!posisjonsvelgerAktiv && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <span className="text-xs text-gray-400">
@@ -2206,7 +2246,25 @@ export default function TegningerSide() {
 
       {/* Tegningsvisning med markører */}
       {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
-        erBilde ? (
+        brukDxfViewer && tegning.dxfViewerFileUrl && tegning.registerWorldUrl ? (
+          // Leveranse 1: PARALLELL vei bak flagget, leser SAMME Drawing-rad (plan § 3).
+          // Egen, isolert gren — markører/måling/lagpanel/klikk er leveranse 2/3/5,
+          // ikke del av denne gaten (DoD: riktig startutsnitt i appens faktiske layout).
+          <div
+            ref={containerRef}
+            className="flex-1 overflow-hidden bg-gray-100"
+            // RETUR (orkestrator 2026-10-14): samme definit-høyde-mekanisme som
+            // erBilde-grenen (tegningVisningshoyde.ts) — uten den er `flex-1` inert i
+            // den delte dashbord-layouten (<main> er display:block), og flaten kollapser
+            // til ~270 px / 0 px på smal viewport.
+          >
+            <DxfViewerTegning
+              dxfUrl={`/api${tegning.dxfViewerFileUrl}`}
+              registerWorldUrl={`/api${tegning.registerWorldUrl}`}
+              rotasjonOverstyrt={tegning.rotasjonOverstyrt ?? null}
+            />
+          </div>
+        ) : erBilde ? (
           <div
             ref={containerRef}
             className="flex-1 overflow-auto bg-gray-100"

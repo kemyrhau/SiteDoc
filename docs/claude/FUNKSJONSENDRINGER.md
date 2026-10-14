@@ -25,6 +25,14 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-14
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `feca5bc4` ← `e22a995e` | 🔴 **Mobil — offline tegninger (RETUR 2)** | **Før:** kald start i flymodus ga «Ingen byggeplasser»/«Ingen tegninger» selv for et forberedt prosjekt. **Etter:** tegningsliste og byggeplass-velger leses fra lokalt speil offline, med «Sist oppdatert …»; ikke-lagret prosjekt viser «Ikke lagret for offline» (aldri falsk tomhet); nøytralt «Frakoblet»-banner; speilet tømmes ved utlogging. ✅ Kenneth verifiserte på telefon 2026-10-14 (OTA test). Reload: OTA | 🟢 Kenneth 2026-10-13 (offline-testen: «da åpnes ikke byggeplasser») |
+| `9182ab38` ← `ce91ba7a` (+ `07b62198`, `6349fcf7`) | 🔴 **Web — arbeidstegning leveranse 1 (dxf-viewer, KUN test bak `TEGNING_MOTOR`)** | **Før:** DWG vises kun som SVG. **Etter (bare med bryteren på, bare test):** ny tegning tegnes i WebGL fra forenklet DXF, skarpt ved innzoom; vises som tegnet (vedtak B). I denne grenen er måling, markører, filtre, rotasjon og zoom-knapper **skjult** (kommer i senere leveranser) — derfor kan bryteren ikke slås på i prod før markørene er bygget. ⚠️ RETUR 4 åpen: ny lasting ved fokusbytte, blank flate, 9 s lastetid. Reload: test-deploy + bryter | 🟢 Kenneth 2026-10-12/13 (spec rev. 9, rotasjon B) |
+| *(bestilt, ikke merget)* | 🔴 **Mobil — måling: langt trykk fjerner ikke lenger hjørne** | **Før:** langt trykk på hjørne → «Fjern hjørne?» → sletter punktet (i praksis det sist flyttede) og avslutter målingen. **Etter:** langt trykk gjør ingenting; «Slett» (hele målingen) beholdes. | 🟢 Kenneth 2026-10-14 («trenger vi denne? nei») |
+
 ### 2026-10-09
 
 | Hash | Flate | Før → Etter | Hjemmel |
@@ -303,11 +311,19 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
 
+### 2026-10-14
+
+| Hash | Flate | Før → Etter |
+|---|---|---|
+| `feca5bc4` ← `d3fb35bc` | **Web — dokumentsøk, PDF-sidetall** | **Før:** alle PDF-treff sto på «side 1» (pdf-parse skiller ikke sider med `\f`), og «avsnitt» var 0-indeksert. **Etter:** riktig side pr. treff for nye PDF-er; avsnitt 1-indeksert. Eksisterende PDF-er rettes først med reekstraksjon (`fix/pdf-reekstraksjon`, venter Kontrollør). Reload: deploy |
+
 ### 2026-10-10
 
 | Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
 |---|---|---|---|
 | `5efd2a6f` ← `9f6cf836` + `3c83052d` | Web + mobil + API — opplasting og DWG-visning | **Sikkerhet (8c-2):** opplasting tar nå bare filtyper appen bruker (`.svg`/`.html`/`.js` avvises); filer i `/uploads/` som ikke er bilde/PDF/binær får sandbox-CSP, så skript i dem ikke kjører. **ezdxf:** gammel ezdxf-fil uten nytt strekformat vises med vanlig strek, ikke som svarte bjelker (bare test berørt) | Lukker lagret XSS; tegningen skal vises som tegnet. Reload: deploy + OTA |
+| `44d2e913` ← `31e78bdd` | 🔴 **Web — dokumentsøk** | **Før:** DOCX ble aldri søkbar (stille «ferdig» uten tekst), embedding etter opplasting hoppet stille over (evig «venter»), søketreff viste ikke hva/hvor. **Etter:** DOCX søkbar med overskrifter; ukjent format får synlig status; embedding via tjenesten med synlig feil; «Prosesser på nytt» pr. dokument/mappe; treff med uthevet utdrag, side/seksjon, metode, gruppert pr. dokument, forhåndsvisning til treffet; zip-bomb-vern; score kun superadmin. ✅ Verifisert i UI på test 2026-10-14 (Redesign, `relay/dokumentsok-bevis/01–06`). Reload: deploy | 🟢 Kenneth 2026-10-13/14 («ja til A, B og C», søkekvalitet) |
+| `0d5dab1b` ← `66b27df8` | Mobil — offline tegning | **«Forbered til offline» gjorde ingenting** (tomme handlere) og viseren leste aldri lokal kopi. Nå: forbered tegning/byggeplass, lokal kopi først (file://), «Ikke tilgjengelig offline» uten nett, gammel revisjon ryddes, LRU-tak 500 MB. Lupe vises ikke lenger for SVG/DWG (dekodet aldri SVG; pinch-zoom). ⚠️ Ikke verifisert på telefon | F7 MÅ (arbeidstegning-spec), BACKLOG § OFFLINE. Reload: OTA |
 | `b4fafe65` ← `5150b332` | Web + mobil — startutsnitt | **Stående tegninger** (fallplan etter rotasjon) åpnet for stort og måtte scrolles: zoomen ble regnet bare i bredden. Nå får hele utsnittet plass i begge akser; liggende tegninger uendret | Startutsnitt vedtatt RETUR 2 §3. Reload: deploy + OTA |
 | `29807936` ← `76c390b2` | Web — ny revisjon og konvertering | **Lagre/Avbryt** i «Rediger tegningsdetaljer» kunne avbryte revisjonsopplasting; **«Konverter DWG»** var aktiv under pågående konvertering og startet en parallell; markøren viste forrige revisjons versjon under konvertering; tegningen scrollet i stort format før startutsnittet. Nå sperret, idempotent, «Konverterer …», startutsnitt før første bilde. Henger en konvertering > 10 min: «Konverteringen ser ut til å ha stoppet» + «Prøv igjen» | Ny revisjon skal fullføres uten feller. ⚠️ Klokka er `updatedAt`, så redigering under henging utsetter rømningsveien (BACKLOG). Reload: deploy |
 | `ba70fa4a` ← `7e42ddf2` | Web — «Last opp ny revisjon» fra «Rediger tegningsdetaljer» | **Siden låste seg og fila ble aldri lastet opp** (knappen submittet det ytre skjemaet, revisjonsdialogen ble liggende usynlig over siden). Nå åpnes A→B-dialogen og opplastingen fullføres. Fra «Rediger tegninger»-tabellen virket det fra før | Ny revisjon fra begge steder (T1/R8). Reload: deploy |

@@ -39,8 +39,18 @@ Bruker: Søk "grøftesnitt type 2"
 - **Modell:** `ltgoslo/norbert2` (768 dim, optimalisert for norsk)
 - **Kjøring:** Python venv (`~/norbert-env`) med torch + transformers
 - **Server:** Persistent HTTP-server via PM2 (`norbert-embed`, port 3302)
-- **Automatisk:** Nye filer embeddes automatisk etter prosessering
+- **Automatisk:** Nye filer embeddes automatisk etter prosessering (`embeddNyeChunks` i `ftd-prosessering.ts`, fire-and-forget via NorBERT Python-subprosess `norbert-embed.py`). Finnes ikke `~/norbert-env` i api-prosessen, hoppes embedding over og chunks blir stående `pending` til den manuelle løkka startes (AI-søk-innstillinger → `aiSok.genererEmbeddings`). Fulltekst-søk (tsvector) virker uansett uten embedding.
 - **Recovery:** Stuck `processing`-chunks settes tilbake til `pending` ved API-oppstart
+
+## Filtyper og reprosessering
+
+Tekstuttrekk skjer i `apps/api/src/services/ftd-prosessering.ts` (`prosesserDokument`). Støttede filtyper (`STOTTEDE_FILTYPER`): `.pdf`, `.xlsx`/`.xls`, `.xml`, `.csv`, `.gab`/`.ga1`, `.docx`.
+
+- **PDF — side-attribusjon** (`ekstraherPdfSider`, 2026-10-14): tekst hentes PR. SIDE via pdf-parse sin `pagerender`-opsjon — den kalles én gang pr. side med pdf.js-sideproxyen, så sann `pageNumber` fanges direkte (ingen gjetting av sidegrenser i teksten). Erstatter tidligere `resultat.text.split("\f")`, som aldri traff fordi pdf-parse v1 skiller sider med `\n\n`, ikke form-feed → *alle* PDF-er havnet på «side 1» (prod-feil 2026-10-14). Tekstuttrekket pr. side er identisk med pdf-parse sin standard-render. OCR-fallbacken (`ocrPdf`, skannede PDF-er uten tekstlag) og `harTilstrekkeligTekst`-terskelen er uendret. Eksisterende dokumenter får riktig side først ved **reprosessering** (se under).
+- **DOCX** (`prosesserDocx` / `ekstraherDocxChunks`, 2026-10-14): `mammoth.convertToHtml` → overskrifter `<h1>`–`<h6>` blir `sectionTitle`/`sectionLevel`, avsnitt/lister/tabellceller blir chunk-tekst. Samme `ftd_document_chunks`-format som PDF (`profile: "docx"`, `pageNumber: null`). `search_vector`-triggeren fyller fulltekst-indeksen automatisk, så DOCX blir søkbart umiddelbart. Gammelt binært `.doc` håndteres ikke. **Zip-bomb-vern (RETUR 2):** DOCX gis ALDRI rått til mammoth (jszip pakker ut hele arkivet FØR noen sjekk → OOM), og de deklarerte størrelsene i ZIP-katalogen kan forfalskes. I stedet pakker `pakkUtDocxTrygg` ut hver entry SELV med et hardt byte-budsjett (`inflateRawSync` + `maxOutputLength` avbryter og kaster idet 50 MB-budsjettet nås — allokeringen er bundet til budsjettet uansett hva katalogen lyver om), og bygger en ren STORED-ZIP (ærlige størrelser + CRC) av de verifiserte entriene som mates til mammoth. Bombe/ugyldig ZIP → kast → `processingState=failed` med synlig melding i fillista.
+- **Ikke-støttet format** (gammelt `.doc`, `.rtf` m.m.): settes `processingState: "unsupported"` med synlig status i fillista (`mapper/page.tsx`) — ikke stille `completed` med 0 chunks. Melding: «lagre som .docx eller PDF».
+- **Reprosessering:** `mappe.reprosesserDokument` (pr. dokument), `mappe.reprosesserMappe` (pr. mappe) og `mappe.reprosesserProsjekt` (pr. prosjekt, ny 2026-10-14). Standard: full re-ekstraksjon kun der søkbart innhold mangler (0 chunks eller `failed`), ellers kun re-embedding; `pending`/`processing`/`unsupported` hoppes over. Idempotent — `prosesserDokument` sletter chunks/poster før ny kjøring. Økonomi-visningen bruker `mengde.reprosesser` pr. dokument.
+- **Tvungen reekstraksjon** (`tvingReekstraksjon: true` på alle tre mutasjonene, 2026-10-14): tvinger full ny kjøring (tekstuttrekk + chunking + embedding) fra lagret fil selv for `completed` dokumenter med chunks — veien til å rette eksisterende PDF-er som står på feil sidetall («side 1» overalt) UTEN ny opplasting. **Atomisk:** `prosesserDokument(..., { bevarVedFeil: true })` beholder de gamle chunkene til ny ekstraksjon har lykkes (mulig fordi `ftd_document_chunks` ikke har unik `(document_id, chunk_index)`); feiler reekstraksjonen (eller gir den 0 nye chunks) beholdes de gamle og dokumentet står igjen `completed` med synlig `processingError` — ingen stille tomhet. For et helt prosjekt kjører en prosjektadmin det fra UI-et: knappen **«Prosesser alle PDF-er på nytt»** på Mapper-siden (`apps/web/.../mapper/page.tsx`, gated på `useKanManageField`, bekreftelse i `Modal`) kaller `mappe.reprosesserProsjekt({ projectId, tvingReekstraksjon: true })` i api-prosessen (riktig uploads-volum + `NORBERT_URL`). Bulk-kjøringen prosesserer maks `REEKSTRAKSJON_SAMTIDIG` (2) dokumenter om gangen (`mappe.ts`); status pr. dokument synes i fillista mens køen tømmes.
 
 ## Re-ranking signaler
 
@@ -59,6 +69,8 @@ Bruker: Søk "grøftesnitt type 2"
 
 **Sluttscoring:** `recall × sim_norm + precision × rerank_norm + latency × latency_norm`
 - Default: recall=0.6, precision=0.4, latency=0.2
+
+**Dev-score (`?debug` i søk-URL):** viser score pr. metode pr. treff for presisjonsanalyse. **Gaten ligger SERVER-side (RETUR 1 R1):** `aiSok.sok` fjerner `score`/`cosineSim`/`reRankScore` og `ftdSok.sokDokumenter` fjerner `rank` fra responsen med mindre brukeren er `sitedoc_admin` (`erSiteDocAdmin`) eller `NODE_ENV=development` — scorene sendes ikke og skjules ikke bare i klienten. `metode` (semantisk/tekst/begge) sendes alltid (bruker-innhold).
 
 ## Dokumentfilter
 

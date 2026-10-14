@@ -14,7 +14,7 @@ import type { LayoutChangeEvent } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { byggHtml } from "./tegning-webview-html";
-import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline, RotateCw } from "lucide-react-native";
+import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline, RotateCw, CloudOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   kanMale,
@@ -36,7 +36,6 @@ import {
   finnMalingTreff,
   finnNaermesteKant,
   settInnPunktPaaKant,
-  fjernPunkt,
   beregnSnap,
   type Punkt,
   type Utsnitt,
@@ -48,6 +47,7 @@ import {
 } from "@sitedoc/shared/utils";
 import { avgjorTrykkHandling, type TegningVerktoy } from "../lib/tegningTrykk";
 import { lupePlassering, lupeBakgrunn, LUPE_DIAMETER, LUPE_FORSTORRELSE, LUPE_FORSKYVNING } from "../lib/lupe";
+import { skrivTegningHtml, TEGNING_CACHE_MAPPE } from "../services/offlineKlargjoring";
 
 /** Live lupe-data fra WebView-en (RETUR 5 § 2): finger i skjerm-dp + bilde-pct + vist bildestørrelse. */
 interface LupeData {
@@ -147,6 +147,9 @@ interface TegningsVisningProps {
   /** C2 (L6): render ezdxf-mobilvarianten INLINE (ikke `<img>`) så streken kan dempes ved
    * zoom (settle). Settes kun for ezdxf-konverterte tegninger (mobilFileUrl). */
   svgInline?: boolean;
+  /** Offline: uten nett OG ikke forberedt → vis «Ikke tilgjengelig offline»-tilstand
+   * i stedet for et brutt bilde / evig spinner (ordre fix/offline-tegning, D8/H2). */
+  offlineUtilgjengelig?: boolean;
 }
 
 
@@ -168,6 +171,7 @@ export function TegningsVisning({
   onSettRotasjon,
   startutsnitt,
   svgInline = false,
+  offlineUtilgjengelig = false,
 }: TegningsVisningProps) {
   const { t } = useTranslation();
   // RETUR 2: auto-rotasjon er bakt inn i SVG-en; her legges kun en brukeroverstyring på.
@@ -180,6 +184,14 @@ export function TegningsVisning({
   const [feil, setFeil] = useState(false);
   const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // RETUR 1 B: lokal kopi leveres som file://-sti (ikke base64). Da skriver vi viser-HTML-en
+  // til cache-mappa og laster WebView-en derfra, så `<img>`/`fetch` leser tegningen direkte.
+  const erLokalFil = tegningUrl.startsWith("file://");
+  // RN <Image> kan ikke dekode SVG → native lupe + prefetch er bortkastet for SVG/ezdxf
+  // (RETUR 1 B). Raster (PDF→png/jpg) beholder lupa.
+  const erSvg = svgInline || /\.svg(\?|#|$)/i.test(tegningUrl);
+  const [htmlFilUrl, setHtmlFilUrl] = useState<string | null>(null);
+  const htmlNonceRef = useRef(0);
 
   // Avansert trykk/måling aktiveres når forelder gir avanserte props.
   const avansert = !!onHint || !!onOpprett || maleData !== undefined;
@@ -195,8 +207,6 @@ export function TegningsVisning({
   // er WebViewens målte dp-størrelse (for kant-flipp av lupa).
   const [lupe, setLupe] = useState<LupeData | null>(null);
   const [webViewStr, setWebViewStr] = useState<{ w: number; h: number } | null>(null);
-  // 🟢 RETUR 6 § 2: hjørne markert for fjerning (langt trykk i Flytt) → bekreft-modal.
-  const [fjernKandidat, setFjernKandidat] = useState<number | null>(null);
   // 90°-lås + snap + referanselinje (ordre 90-snap + GJENOPPTA). Snap PÅ som standard.
   const [ortho, setOrtho] = useState(false);
   const [snapPaa, setSnapPaa] = useState(true);
@@ -378,11 +388,6 @@ export function TegningsVisning({
   const håndterSettInnKant = useCallback((kantIndex: number, x: number, y: number) => {
     setMaleTilstand((prev) => settInnPunktPaaKant(prev, kantIndex, { x, y }));
   }, []);
-  const håndterFjernPunkt = useCallback(() => {
-    if (fjernKandidat == null) return;
-    setMaleTilstand((prev) => fjernPunkt(prev, fjernKandidat));
-    setFjernKandidat(null);
-  }, [fjernKandidat]);
   const håndterFerdig = useCallback(() => {
     setMaleTilstand((prev) => settFerdig(prev));
     setAktivtVerktoy("flytt");
@@ -413,12 +418,10 @@ export function TegningsVisning({
     setAktivtVerktoy("navigering");
   }, [tegningUrl]);
 
-  // 🔴 RETUR 6 § 5: forhåndslast tegningsbildet i RN-bildecachen når tegningen
-  // åpnes, så den RN-native lupa (som laster SAMME URL) kommer opp med en gang
-  // i stedet for å vente på et eget nettverkskall første gang fingeren legges ned.
-  useEffect(() => {
-    if (tegningUrl) Image.prefetch(tegningUrl).catch(() => {});
-  }, [tegningUrl]);
+  // RETUR 1 B: forhåndslasting av bildet i RN-bildecachen er fjernet — den tjente kun
+  // den native lupa, som for SVG/ezdxf er bortkastet (RN <Image> dekoder ikke SVG), og
+  // for raster lastes bildet uansett når lupa dukker opp. Prefetch av en file://-/data:-
+  // kilde ga ingen nettverksgevinst.
 
   useEffect(() => {
     if (laster && !feil) {
@@ -606,10 +609,6 @@ export function TegningsVisning({
               håndterLeggTilPunkt(fp.x, fp.y, data.rectW, data.rectH);
               return;
             }
-            case "fjernPunkt":
-              // 🟢 RETUR 6 § 2: langt trykk på et hjørne i Flytt → bekreft fjerning.
-              if (typeof data.dragIdx === "number" && data.dragIdx >= 0) setFjernKandidat(data.dragIdx);
-              return;
             case "draPunkt":
               // Punktet er dratt live via `maledrag`; posisjonen er allerede anvendt.
               return;
@@ -644,6 +643,39 @@ export function TegningsVisning({
       ? "enkel"
       : "ingen";
   const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta, startutsnitt ?? null, svgInline);
+  // Nett-URL: loadHTMLString med baseUrl = tegningens mappe (relativ henting). Tom/data:
+  // → undefined (null-origin). Lokal fil håndteres via file://-lasting under (ikke baseUrl).
+  const baseUrl = tegningUrl.startsWith("data:") || tegningUrl === "" || erLokalFil
+    ? undefined
+    : tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1);
+
+  // RETUR 1 B: for lokal kopi skriver vi HTML-en til cache-mappa og laster den som file://,
+  // med lese-tilgang til mappa. Da refererer `<img src="file://…">`/`fetch("file://…")`
+  // tegningen DIREKTE (ingen base64 i minnet → ingen tredobling av RSS på store filer).
+  // Unikt filnavn pr. innholdsendring tvinger reload (file-URL caches ellers).
+  useEffect(() => {
+    if (!erLokalFil) { setHtmlFilUrl(null); return; }
+    let aktiv = true;
+    const nonce = (htmlNonceRef.current += 1);
+    (async () => {
+      try {
+        const url = await skrivTegningHtml(html, nonce);
+        if (aktiv) setHtmlFilUrl(url);
+      } catch {
+        // Skriving til documentDirectory feiler i praksis aldri; skulle den gjøre det,
+        // forblir htmlFilUrl null → lastetidsavbruddet (15 s) viser feil-/prøv-igjen-UI-et.
+        if (aktiv) setHtmlFilUrl(null);
+      }
+    })();
+    return () => { aktiv = false; };
+  }, [erLokalFil, html]);
+
+  // Venter på at viser-HTML skrives til cache før WebView-en kan peke på file://-fila.
+  const venterFil = erLokalFil && htmlFilUrl === null;
+  const filKilde = erLokalFil && htmlFilUrl !== null;
+  const filTilgangProps = filKilde
+    ? { allowingReadAccessToURL: TEGNING_CACHE_MAPPE, allowFileAccessFromFileURLs: true, allowFileAccess: true }
+    : {};
 
   return (
     <View className="flex-1 bg-black">
@@ -689,7 +721,14 @@ export function TegningsVisning({
         )}
       </View>
 
-      {feil ? (
+      {offlineUtilgjengelig ? (
+        // D8/H2: uten nett og ikke forberedt → tydelig tilstand, aldri brutt bilde.
+        <View style={stiler.feilContainer}>
+          <CloudOff size={48} color="#9ca3af" />
+          <Text style={stiler.feilTekst}>{t("tegningsvelger.offlineUtilgjengelig")}</Text>
+          <Text style={stiler.feilBeskrivelse}>{t("tegningsvelger.offlineUtilgjengeligInfo")}</Text>
+        </View>
+      ) : feil ? (
         <View style={stiler.feilContainer}>
           <AlertTriangle size={48} color="#f59e0b" />
           <Text style={stiler.feilTekst}>{t("tegningsvelger.kunneIkkeLaste")}</Text>
@@ -704,16 +743,18 @@ export function TegningsVisning({
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {laster && (
+          {(laster || venterFil) && (
             <View style={stiler.lastingContainer}>
               <ActivityIndicator size="large" color="#ffffff" />
               <Text style={stiler.lastingTekst}>{t("tegningsvelger.lasterTegning")}</Text>
             </View>
           )}
+          {!venterFil && (
           <WebView
             ref={webViewRef}
             originWhitelist={["*"]}
-            source={{ html, baseUrl: tegningUrl.substring(0, tegningUrl.lastIndexOf("/") + 1) }}
+            source={filKilde ? { uri: htmlFilUrl! } : { html, baseUrl }}
+            {...filTilgangProps}
             style={{ flex: 1, backgroundColor: "#1a1a1a" }}
             onLayout={(e: LayoutChangeEvent) => setWebViewStr({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
             onLoadEnd={() => { setLaster(false); setFeil(false); injiserMaling(); }}
@@ -723,13 +764,16 @@ export function TegningsVisning({
             javaScriptEnabled
             scalesPageToFit={false}
           />
+          )}
 
           {/* 🔴 RETUR 5 § 2: RN-nativ lupe. Plasseres over/til siden for fingeren
               (lupePlassering), med et forstørret utsnitt av tegningsbildet
               (lupeBakgrunn, ~3×) og trådkors i senter der punktet havner. Begge
               geometrifunksjoner er testet i src/lib/lupe.ts. pointerEvents=none så
-              den aldri fanger trykk. */}
-          {lupe && webViewStr && (() => {
+              den aldri fanger trykk. RETUR 1 B: kun for raster — RN <Image> dekoder
+              ikke SVG/ezdxf, så lupa ville vært en tom hvit sirkel (og holdt en base64-
+              kopi i minnet). Vektortegninger er uansett skarpe ved zoom i WebView-en. */}
+          {lupe && webViewStr && !erSvg && (() => {
             const D = LUPE_DIAMETER;
             const pos = lupePlassering(lupe.fingerX, lupe.fingerY, webViewStr.w, webViewStr.h, D, LUPE_FORSKYVNING);
             const bg = lupeBakgrunn(lupe.pctX, lupe.pctY, lupe.dispB, lupe.dispH, LUPE_FORSTORRELSE, D);
@@ -851,7 +895,8 @@ export function TegningsVisning({
                 )}
                 {/* RETUR 5 § 3: piltastene er fjernet — lupa (RN-nativ, ved fingeren)
                     er presisjonsgrepet. Renest mulig UI. */}
-                {/* 🟢 RETUR 6 § 2: rediger-hint for en valgt figur i Flytt. */}
+                {/* Rediger-hint for en valgt figur i Flytt: sett inn hjørne på en kant.
+                    Fjern-hjørne via langt trykk er fjernet (2026-10-14). */}
                 {aktivtVerktoy === "flytt" && aktiv && aktiv.ferdig && (
                   <Text style={stiler.maleKilde}>{t("maaling.redigerHint")}</Text>
                 )}
@@ -905,24 +950,6 @@ export function TegningsVisning({
                   </Pressable>
                   <Pressable onPress={håndterSlettAlle} style={[stiler.modalKnapp, stiler.modalKnappSlett]}>
                     <Text style={[stiler.modalKnappTekst, { color: "#ffffff" }]}>{t("maaling.slettAlle")}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          </Modal>
-
-          {/* 🟢 RETUR 6 § 2: Fjern hjørne — bekreftelsesmodal (langt trykk på et punkt). */}
-          <Modal visible={fjernKandidat != null} transparent animationType="fade" onRequestClose={() => setFjernKandidat(null)}>
-            <View style={stiler.modalBakgrunn}>
-              <View style={stiler.modalKort}>
-                <Text style={stiler.modalTittel}>{t("maaling.fjernPunktTittel")}</Text>
-                <Text style={stiler.modalTekst}>{t("maaling.fjernPunktBekreft")}</Text>
-                <View style={stiler.modalKnapper}>
-                  <Pressable onPress={() => setFjernKandidat(null)} style={[stiler.modalKnapp, stiler.modalKnappAvbryt]}>
-                    <Text style={stiler.modalKnappTekst}>{t("handling.avbryt")}</Text>
-                  </Pressable>
-                  <Pressable onPress={håndterFjernPunkt} style={[stiler.modalKnapp, stiler.modalKnappSlett]}>
-                    <Text style={[stiler.modalKnappTekst, { color: "#ffffff" }]}>{t("maaling.fjernPunkt")}</Text>
                   </Pressable>
                 </View>
               </View>
