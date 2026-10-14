@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { prisma } from "@sitedoc/db";
 import { prosesserDokument } from "./ftd-prosessering";
-import { mappeRouter } from "../routes/mappe";
 
 /**
  * Tvungen reekstraksjon (ordre fix/pdf-reekstraksjon 2026-10-14). Eksisterende
@@ -17,11 +16,16 @@ import { mappeRouter } from "../routes/mappe";
  * kjøres via `pnpm --filter @sitedoc/api test:integration` (DATABASE_URL,
  * localhost-sandkasse). Fixturen (3-siders PDF) lages av test-koden selv.
  *
- * Tre saker, satt RØDE mot dagens kode (tving-veien finnes ikke):
+ * To saker som BEVISER tving-veien mot ekte ekstraksjon:
  *  A. completed-dokument med side=1 overalt → side 1/2/3 etter tvungen reekstraksjon.
  *  B. feiler reekstraksjonen (fil borte) → de GAMLE chunkene står igjen (ikke tomt),
  *     status completed + synlig feilårsak (ingen stille tomhet).
- *  C. kontrast: uten tving lar reprosesseringen sidene stå feil (modus "embedding").
+ *
+ * 🔴 DENNE FILA IMPORTERER IKKE `mappeRouter`. Å dra inn router-grafen forgifter
+ * pdf.js under kjøreren (pdf-parse sin bundlede pdf.js vs. den routeren trekker
+ * inn), slik at `pagerender` returnerer tom side-info og test A falskt får «side
+ * 1» (RETUR 2026-10-14). Kontrast-saken som trenger routeren (uten tving = modus
+ * "embedding") ligger derfor i ftd-reprosess-modus.integration.test.ts.
  */
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -49,18 +53,6 @@ async function lagTreSidersPdf(): Promise<Buffer> {
     });
   }
   return Buffer.from(await doc.save());
-}
-
-function ctx(userId: string) {
-  return {
-    userId,
-    tokenKilde: null,
-    sessionToken: null,
-    req: { log: { info: () => {}, warn: () => {} } },
-    nyttSessionTokenForRespons: { value: null },
-    prisma,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
 }
 
 const ids = { userId: "", projectId: "" };
@@ -181,25 +173,5 @@ describe("Tvungen reekstraksjon av FTD-PDF", () => {
     const d = await prisma.ftdDocument.findUniqueOrThrow({ where: { id: dokId } });
     expect(d.processingState).toBe("completed"); // fortsatt søkbart
     expect(d.processingError).toContain("Tvungen reekstraksjon feilet");
-  });
-
-  it("C: uten tving lar reprosesseringen sidene stå feil (modus embedding)", async () => {
-    const navn = `reekst-C-${Date.now()}.pdf`;
-    const sti = join(UPLOADS_DIR, navn);
-    await writeFile(sti, await lagTreSidersPdf());
-    fixturFiler.push(sti);
-
-    const dokId = await lagDokumentMedSide1Chunks(`/uploads/${navn}`);
-    const caller = mappeRouter.createCaller(ctx(ids.userId));
-
-    const res = await caller.reprosesserDokument({ documentId: dokId });
-    expect(res.modus).toBe("embedding"); // completed + chunks → ingen re-ekstraksjon
-
-    const etter = await prisma.ftdDocumentChunk.findMany({
-      where: { documentId: dokId },
-      select: { pageNumber: true },
-    });
-    // Sidene står fortsatt feil — tving er nødvendig for å rette dem.
-    expect(new Set(etter.map((c) => c.pageNumber))).toEqual(new Set([1]));
   });
 });

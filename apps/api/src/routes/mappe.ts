@@ -27,6 +27,37 @@ function triggerProsessering(
   );
 }
 
+// Maks antall dokumenter som prosesseres samtidig ved bulk-reekstraksjon.
+// Prosesseringen kjører in-process i api — fyrer vi alle samtidig (f.eks. et
+// prosjekt med hundrevis av PDF-er), spiker vi CPU/minne og tar ned serveren
+// (RETUR 2026-10-14). Dokumentene settes `pending` opp front (synlig i fillista)
+// og plukkes to av gangen.
+const REEKSTRAKSJON_SAMTIDIG = 2;
+
+/**
+ * Kjør `jobb` for hver id med maks `grense` samtidige — enkel worker-pool uten
+ * ny pakke. Fire-and-forget: kalles uten `await` fra mutasjonene så de svarer
+ * med en gang, mens køen tømmes i bakgrunnen. Feil pr. dokument svelges (logges)
+ * så én feil ikke stopper resten; status pr. dokument føres av `prosesserDokument`.
+ */
+function kjørMedGrense(
+  ider: string[],
+  grense: number,
+  jobb: (id: string) => Promise<unknown>,
+): void {
+  let neste = 0;
+  const arbeider = async (): Promise<void> => {
+    while (neste < ider.length) {
+      const id = ider[neste++]!;
+      await jobb(id).catch((err) =>
+        console.error(`Bulk-reekstraksjon feilet for ${id}:`, err),
+      );
+    }
+  };
+  const antall = Math.min(grense, ider.length);
+  for (let i = 0; i < antall; i++) void arbeider();
+}
+
 /**
  * Tvungen reekstraksjon av et dokumentsett (mappe eller helt prosjekt): kjører
  * full tekstuttrekk + chunking + embedding på nytt fra lagret fil, uansett om
@@ -54,7 +85,10 @@ async function tvingReekstraksjonAv(
     where: { id: { in: ider } },
     data: { processingState: "pending", processingError: null },
   });
-  for (const id of ider) triggerProsessering(id, { bevarVedFeil: true });
+  // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.
+  kjørMedGrense(ider, REEKSTRAKSJON_SAMTIDIG, (id) =>
+    prosesserDokument(prisma, id, { bevarVedFeil: true }),
+  );
   return { ok: true, tvunget: ider.length };
 }
 
@@ -93,7 +127,7 @@ async function reparerDokumentSett(
   );
 
   const fullIder: string[] = [];
-  let embedding = 0;
+  const embeddingIder: string[] = [];
   for (const d of dokumenter) {
     const st = statMap.get(d.id);
     const totalt = st?.totalt ?? 0;
@@ -101,8 +135,7 @@ async function reparerDokumentSett(
     if (totalt === 0 || d.processingState === "failed") {
       fullIder.push(d.id); // mangler søkbart innhold → full re-ekstraksjon
     } else if (udone > 0) {
-      embeddDokumentChunks(prisma, d.id).catch(() => {}); // kun re-embedding
-      embedding++;
+      embeddingIder.push(d.id); // kun re-embedding
     }
   }
 
@@ -111,9 +144,17 @@ async function reparerDokumentSett(
       where: { id: { in: fullIder } },
       data: { processingState: "pending", processingError: null },
     });
-    for (const id of fullIder) triggerProsessering(id);
+    // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.
+    kjørMedGrense(fullIder, REEKSTRAKSJON_SAMTIDIG, (id) =>
+      prosesserDokument(prisma, id),
+    );
   }
-  return { ok: true, full: fullIder.length, embedding };
+  if (embeddingIder.length > 0) {
+    kjørMedGrense(embeddingIder, REEKSTRAKSJON_SAMTIDIG, (id) =>
+      embeddDokumentChunks(prisma, id),
+    );
+  }
+  return { ok: true, full: fullIder.length, embedding: embeddingIder.length };
 }
 
 export const mappeRouter = router({
@@ -1031,7 +1072,10 @@ export const mappeRouter = router({
   reprosesserDokument: protectedProcedure
     .input(
       z.object({
-        documentId: z.string().uuid(),
+        // FtdDocument.id er cuid (schema.prisma), IKKE uuid — `.uuid()` avviste
+        // ALLE ekte dokument-id-er, så «Prosesser på nytt» pr. dokument var
+        // ødelagt (RETUR 2026-10-14). `min(1)` som de andre ftd-documentId-ene.
+        documentId: z.string().min(1),
         // Tving full re-ekstraksjon selv om dokumentet er `completed` med chunks
         // (f.eks. retting av feil sidetall uten ny opplasting).
         tvingReekstraksjon: z.boolean().optional(),
