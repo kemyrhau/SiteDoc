@@ -9,6 +9,7 @@ import { readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { inflateRawSync } from "node:zlib";
 import type { PrismaClient } from "@sitedoc/db";
 import * as mammoth from "mammoth";
 import { splittMalebrevPdf } from "./pdf-splitting";
@@ -1730,29 +1731,31 @@ function byggDocxChunks(blokker: DocxBlokk[]): DocxChunk[] {
   return chunks;
 }
 
-// Zip-bomb-vern for DOCX (RETUR 1 R2). DOCX er en ZIP; mammoth pakker den ut IN-PROCESS
-// i web-containeren, så en dekompresjonsbombe (noen KB → gigabyte XML) gir OOM som tar
-// ned frontend for ALLE. Vi leser ZIP-katalogen (autoritativ, ikke lokale headere som kan
-// lyve) FØR utpakking og avviser på utpakket total-størrelse og kompresjonsforhold.
-const DOCX_MAKS_UTPAKKET = 50 * 1024 * 1024; // 50 MB utpakket total
-const DOCX_MAKS_FORHOLD = 100; // maks utpakket/komprimert (ekte DOCX ~10:1; bomber 1000:1+)
+// Zip-bomb-vern for DOCX (RETUR 2). DOCX er en ZIP; mammoth (via jszip) pakker HELE arkivet
+// ut IN-PROCESS i web-containeren FØR vi ser noe — en dekompresjonsbombe (noen KB → gigabyte)
+// gir OOM som tar ned frontend for ALLE. De deklarerte størrelsene i ZIP-katalogen KAN
+// forfalskes (liten deklarert, enorm faktisk strøm), så vi stoler ikke på dem. I stedet
+// pakker vi ut hver entry SELV med et hardt byte-budsjett (inflateRawSync + maxOutputLength
+// avbryter og kaster idet budsjettet overskrides — allokeringen er bundet til budsjettet),
+// og mater mammoth en REN ZIP (STORED, ærlige størrelser + CRC) av de verifiserte entriene.
+const DOCX_MAKS_UTPAKKET = 50 * 1024 * 1024; // 50 MB utpakket total (hardt tak)
 export const DOCX_UGYLDIG_MELDING =
   "Filen er for stor eller ugyldig for søk (maks 50 MB utpakket). Del opp eller lagre som PDF.";
 
-/**
- * Les ZIP-katalogen (central directory) og summer komprimert/utpakket størrelse over alle
- * entries. Returnerer null hvis bufferen ikke er en lesbar ZIP. Leser 32-bits feltene rått:
- * en ZIP64-markør (0xFFFFFFFF) telles da som ~4 GB → avvises uansett (ingen reell DOCX er
- * så stor), så vi slipper å tolke ZIP64-extra for et bombe-vern.
- */
-function lesZipKatalogStorrelse(
-  buffer: Buffer,
-): { sumUtpakket: number; sumKomprimert: number; antall: number } | null {
-  const EOCD_SIG = 0x06054b50;
-  const CDH_SIG = 0x02014b50;
-  if (buffer.length < 22) return null;
+const LFH_SIG = 0x04034b50; // local file header
+const CDH_SIG = 0x02014b50; // central directory header
+const EOCD_SIG = 0x06054b50; // end of central directory
 
-  // Finn End Of Central Directory (kan ha inntil 65535 byte kommentar etter seg).
+interface ZipEntry {
+  navn: string;
+  metode: number; // 0 = stored, 8 = deflate
+  lokalOffset: number; // offset til local file header
+  kompStr: number; // komprimert størrelse (katalog — kan lyve, kun til slicing)
+}
+
+/** Les central directory til en entry-liste. Returnerer null hvis ikke en lesbar ZIP. */
+function lesZipKatalog(buffer: Buffer): ZipEntry[] | null {
+  if (buffer.length < 22) return null;
   let eocd = -1;
   const minPos = Math.max(0, buffer.length - 22 - 0xffff);
   for (let i = buffer.length - 22; i >= minPos; i--) {
@@ -1760,38 +1763,143 @@ function lesZipKatalogStorrelse(
   }
   if (eocd < 0) return null;
 
-  const cdOffset = buffer.readUInt32LE(eocd + 16);
-  let p = cdOffset;
-  let sumUtpakket = 0;
-  let sumKomprimert = 0;
-  let antall = 0;
+  let p = buffer.readUInt32LE(eocd + 16); // central-dir-offset
+  const entries: ZipEntry[] = [];
   while (p + 46 <= buffer.length && buffer.readUInt32LE(p) === CDH_SIG) {
-    sumKomprimert += buffer.readUInt32LE(p + 20);
-    sumUtpakket += buffer.readUInt32LE(p + 24);
-    const nameLen = buffer.readUInt16LE(p + 28);
+    const metode = buffer.readUInt16LE(p + 10);
+    const kompStr = buffer.readUInt32LE(p + 20);
+    const navnLen = buffer.readUInt16LE(p + 28);
     const extraLen = buffer.readUInt16LE(p + 30);
-    const commentLen = buffer.readUInt16LE(p + 32);
-    antall++;
-    p += 46 + nameLen + extraLen + commentLen;
+    const kommentarLen = buffer.readUInt16LE(p + 32);
+    const lokalOffset = buffer.readUInt32LE(p + 42);
+    const navn = buffer.toString("utf-8", p + 46, p + 46 + navnLen);
+    entries.push({ navn, metode, lokalOffset, kompStr });
+    p += 46 + navnLen + extraLen + kommentarLen;
   }
-  if (antall === 0) return null;
-  return { sumUtpakket, sumKomprimert, antall };
+  return entries.length > 0 ? entries : null;
 }
 
-/** Avvis zip-bomber/ugyldige DOCX før mammoth (RETUR 1 R2). Kaster med synlig melding. */
-export function sjekkDocxTrygg(buffer: Buffer): void {
-  const info = lesZipKatalogStorrelse(buffer);
-  if (!info) throw new Error(DOCX_UGYLDIG_MELDING); // ikke en lesbar ZIP/DOCX
-  if (info.sumUtpakket > DOCX_MAKS_UTPAKKET) throw new Error(DOCX_UGYLDIG_MELDING);
-  if (info.sumKomprimert > 0 && info.sumUtpakket / info.sumKomprimert > DOCX_MAKS_FORHOLD) {
-    throw new Error(DOCX_UGYLDIG_MELDING);
+// CRC-32 (IEEE) — trengs for å bygge en ren STORED-ZIP mammoth/jszip godtar. Tabell lazy.
+let crcTabell: Uint32Array | null = null;
+function crc32(data: Buffer): number {
+  if (!crcTabell) {
+    crcTabell = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      crcTabell[n] = c >>> 0;
+    }
   }
+  let c = 0xffffffff;
+  for (let i = 0; i < data.length; i++) c = crcTabell[(c ^ data[i]!) & 0xff]! ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Pakk ut DOCX-en SELV med hardt byte-budsjett (RETUR 2) og returner en REN ZIP (STORED)
+ * av de verifiserte entriene — trygg å gi til mammoth. Kaster `DOCX_UGYLDIG_MELDING` ved
+ * bombe (total utpakket > 50 MB, eller en enkelt entry sprenger budsjettet) eller ugyldig ZIP.
+ * Allokeringen er bundet til gjenværende budsjett pr. entry (`maxOutputLength`), så en entry
+ * som LYVER om størrelsen kan ikke materialisere mer enn budsjettet før den kastes.
+ */
+export function pakkUtDocxTrygg(buffer: Buffer): Buffer {
+  const entries = lesZipKatalog(buffer);
+  if (!entries) throw new Error(DOCX_UGYLDIG_MELDING);
+
+  const utpakkede: { navn: string; data: Buffer }[] = [];
+  let brukt = 0;
+
+  for (const e of entries) {
+    if (e.navn.endsWith("/")) continue; // katalog-oppføring, ingen data
+    // Finn faktisk data-start fra LOCAL header (egne navn-/extra-lengder).
+    const lo = e.lokalOffset;
+    if (lo + 30 > buffer.length || buffer.readUInt32LE(lo) !== LFH_SIG) {
+      throw new Error(DOCX_UGYLDIG_MELDING);
+    }
+    const lNavnLen = buffer.readUInt16LE(lo + 26);
+    const lExtraLen = buffer.readUInt16LE(lo + 28);
+    const dataStart = lo + 30 + lNavnLen + lExtraLen;
+    const dataSlutt = Math.min(dataStart + e.kompStr, buffer.length);
+    if (dataStart > buffer.length) throw new Error(DOCX_UGYLDIG_MELDING);
+    const komp = buffer.subarray(dataStart, dataSlutt);
+
+    const rest = DOCX_MAKS_UTPAKKET - brukt;
+    let data: Buffer;
+    if (e.metode === 0) {
+      if (komp.length > rest) throw new Error(DOCX_UGYLDIG_MELDING);
+      data = Buffer.from(komp);
+    } else if (e.metode === 8) {
+      try {
+        // maxOutputLength avbryter og kaster ERR_BUFFER_TOO_LARGE idet budsjettet nås —
+        // uansett hva katalogen deklarerer. +1 så en entry PÅ grensen ikke feil-avvises.
+        data = inflateRawSync(komp, { maxOutputLength: rest + 1 });
+      } catch {
+        throw new Error(DOCX_UGYLDIG_MELDING); // bombe (for stor) eller korrupt strøm
+      }
+    } else {
+      throw new Error(DOCX_UGYLDIG_MELDING); // ukjent metode — ekte DOCX bruker kun 0/8
+    }
+
+    brukt += data.length;
+    if (brukt > DOCX_MAKS_UTPAKKET) throw new Error(DOCX_UGYLDIG_MELDING);
+    utpakkede.push({ navn: e.navn, data });
+  }
+
+  if (utpakkede.length === 0) throw new Error(DOCX_UGYLDIG_MELDING);
+  return byggStoredZip(utpakkede);
+}
+
+/** Bygg en minimal ZIP med alle entries lagret ukomprimert (metode 0) + korrekt CRC. */
+function byggStoredZip(entries: { navn: string; data: Buffer }[]): Buffer {
+  const lokale: Buffer[] = [];
+  const sentrale: Buffer[] = [];
+  let offset = 0;
+
+  for (const e of entries) {
+    const navn = Buffer.from(e.navn, "utf-8");
+    const crc = crc32(e.data);
+    const lfh = Buffer.alloc(30);
+    lfh.writeUInt32LE(LFH_SIG, 0);
+    lfh.writeUInt16LE(20, 4); // versjon
+    lfh.writeUInt16LE(0, 6); // metode 0 (stored)
+    lfh.writeUInt32LE(crc, 14);
+    lfh.writeUInt32LE(e.data.length, 18); // komprimert = utpakket (stored)
+    lfh.writeUInt32LE(e.data.length, 22);
+    lfh.writeUInt16LE(navn.length, 26);
+    const lokalDel = Buffer.concat([lfh, navn, e.data]);
+    lokale.push(lokalDel);
+
+    const cdh = Buffer.alloc(46);
+    cdh.writeUInt32LE(CDH_SIG, 0);
+    cdh.writeUInt16LE(20, 4);
+    cdh.writeUInt16LE(20, 6);
+    cdh.writeUInt16LE(0, 10); // metode 0
+    cdh.writeUInt32LE(crc, 16);
+    cdh.writeUInt32LE(e.data.length, 20);
+    cdh.writeUInt32LE(e.data.length, 24);
+    cdh.writeUInt16LE(navn.length, 28);
+    cdh.writeUInt32LE(offset, 42); // local-header-offset
+    sentrale.push(Buffer.concat([cdh, navn]));
+    offset += lokalDel.length;
+  }
+
+  const lokalBlokk = Buffer.concat(lokale);
+  const sentralBlokk = Buffer.concat(sentrale);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(EOCD_SIG, 0);
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(sentralBlokk.length, 12);
+  eocd.writeUInt32LE(lokalBlokk.length, 16);
+  return Buffer.concat([lokalBlokk, sentralBlokk, eocd]);
 }
 
 /** Ekstraher søkbare chunks fra en DOCX-buffer. Ren funksjon — ingen DB. */
 export async function ekstraherDocxChunks(buffer: Buffer): Promise<DocxChunk[]> {
-  sjekkDocxTrygg(buffer); // zip-bomb-vern FØR mammoth (OOM in-process = nedetid for alle)
-  const { value: html } = await mammoth.convertToHtml({ buffer });
+  // RETUR 2: pakk ut selv med byte-budsjett og gi mammoth en ren, verifisert ZIP. Aldri gi
+  // råbufferen til mammoth — jszip ville pakket ut hele bomba FØR noen størrelsessjekk.
+  const rentZip = pakkUtDocxTrygg(buffer);
+  const { value: html } = await mammoth.convertToHtml({ buffer: rentZip });
   const blokker = parseDocxBlokker(html);
   return byggDocxChunks(blokker);
 }
