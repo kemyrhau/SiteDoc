@@ -22,6 +22,7 @@ import {
 } from "./sidebar-elementer";
 import { useFirmaNavElementer } from "./firma-nav";
 import { Settings } from "lucide-react";
+import { tomTegningCache } from "@/lib/tegningFilCache";
 
 export function Toppbar() {
   const { data: session } = useSession();
@@ -163,7 +164,12 @@ export function Toppbar() {
               </button>
             )}
             <button
-              onClick={() => signOut({ callbackUrl: "/" })}
+              onClick={() => {
+                // RETUR 4 DoD (relay/inbox-dokgen-arbeidstegning-f1.md): tøm
+                // tegningsfil-cachen ved utlogging (delt maskin/nettleser).
+                void tomTegningCache();
+                signOut({ callbackUrl: "/" });
+              }}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <LogOut className="h-4 w-4" />

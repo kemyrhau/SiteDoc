@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Not available offline",
   "tegningsvelger.offlineUtilgjengeligInfo": "Prepare the drawing for offline while you have a connection, then it shows without coverage.",
   "tegningsvelger.lasterTegning": "Loading drawing…",
+  "tegningsvelger.lasterTegningProsent": "Loading drawing… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "The viewer lost its graphics context (e.g. after a long time in the background). Please try again.",
   "tegningsvelger.utomhus": "Outdoors",
   "tegningsvelger.utenEtasje": "No floor",
   "tegningsvelger.alleLokasjoner": "All locations",

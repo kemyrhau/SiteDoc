@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Není k dispozici offline",
   "tegningsvelger.offlineUtilgjengeligInfo": "Připravte výkres pro offline, když máte připojení, pak se zobrazí bez pokrytí.",
   "tegningsvelger.lasterTegning": "Načítání výkresu…",
+  "tegningsvelger.lasterTegningProsent": "Načítání výkresu… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Divák ztratil svůj grafický kontext (např. po dlouhé době na pozadí). Zkuste to prosím znovu.",
   "tegningsvelger.utomhus": "Venku",
   "tegningsvelger.utenEtasje": "Žádná podlaha",
   "tegningsvelger.alleLokasjoner": "Všechny lokality",

@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Nav pieejams bezsaistē",
   "tegningsvelger.offlineUtilgjengeligInfo": "Sagatavojiet zīmējumu lietošanai bezsaistē, kamēr ir savienojums, un pēc tam tas tiek rādīts bez pārklājuma.",
   "tegningsvelger.lasterTegning": "Notiek zīmējuma ielāde…",
+  "tegningsvelger.lasterTegningProsent": "Notiek zīmējuma ielāde… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Skatītājs zaudēja grafisko kontekstu (piemēram, pēc ilga laika fonā). Lūdzu, mēģiniet vēlreiz.",
   "tegningsvelger.utomhus": "Ārā",
   "tegningsvelger.utenEtasje": "Nav grīdas",
   "tegningsvelger.alleLokasjoner": "Visas atrašanās vietas",

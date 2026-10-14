@@ -553,6 +553,17 @@ export default function TegningerSide() {
     setVisVinkelrett(false);
   }, [aktivTegning?.id]);
 
+  // Leveranse 1 (plan § 1): klient-kill-switch TEGNING_MOTOR, uavhengig av DWG_MOTOR.
+  // Krever BEGGE artefaktene (satt sammen av anvendDwgResultat) — flagget av ELLER
+  // en konvertering uten dem (egen-motor/ikke-DWG/feilet) → SVG-veien uendret. Hoistet
+  // over SVG-fetch-effekten under (RETUR 4 punkt 3): den skal IKKE hente+sanitere den
+  // gamle SVG-en når dxf-viewer-grenen er aktiv — 24 MB dekodet, bortkastet arbeid i
+  // parallell med dxf-viewer-lasten (målt relay/inbox-dokgen-arbeidstegning-f1.md).
+  const brukDxfViewer =
+    process.env.NEXT_PUBLIC_TEGNING_MOTOR === "dxfviewer" &&
+    !!tegning?.dxfViewerFileUrl &&
+    !!tegning?.registerWorldUrl;
+
   // Hent SVG-innhold for inline rendering med zoom-justert linjetykkelse
   const svgUrl = tegning?.fileUrl ? `/api${tegning.fileUrl}` : null;
   const erSvgFil = (tegning?.fileType ?? "") === "svg";
@@ -569,7 +580,9 @@ export default function TegningerSide() {
       (tegning as unknown as { konverteringRapport?: unknown })?.konverteringRapport ?? null,
     )?.motor === "ezdxf";
   useEffect(() => {
-    if (!svgUrl || !erSvgFil) {
+    // RETUR 4 punkt 3: dxf-viewer-grenen rendrer aldri SVG-en (linje ~2243) — hent den
+    // ikke i bakgrunnen heller. Målt: 975 KB / 24 MB dekodet bortkastet pr. last.
+    if (!svgUrl || !erSvgFil || brukDxfViewer) {
       setSvgInnhold(null);
       setErEzdxfSvg(false);
       return;
@@ -587,7 +600,7 @@ export default function TegningerSide() {
         setSvgInnhold(null);
         setErEzdxfSvg(false);
       });
-  }, [svgUrl, erSvgFil, erEzdxfMotor]);
+  }, [svgUrl, erSvgFil, erEzdxfMotor, brukDxfViewer]);
 
   // RETUR 1 TILLEGG C1: dempet strekskalering for ezdxf-SVG. Viseren setter --strek-skala
   // (= zoom^(k−1)) + gulv/tak (px→viewBox-konvertert fra displayScale) på SVG-wrapperen pr.
@@ -1397,13 +1410,6 @@ export default function TegningerSide() {
   const erDwgKonvertering = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
   const dwgFeilet = tegning.conversionStatus === "failed";
   const erUkonvertertDwg = fileType === "dwg"; // DWG kan ikke vises direkte i nettleser
-  // Leveranse 1 (plan § 1): klient-kill-switch TEGNING_MOTOR, uavhengig av DWG_MOTOR.
-  // Krever BEGGE artefaktene (satt sammen av anvendDwgResultat) — flagget av ELLER
-  // en konvertering uten dem (egen-motor/ikke-DWG/feilet) → SVG-veien uendret.
-  const brukDxfViewer =
-    process.env.NEXT_PUBLIC_TEGNING_MOTOR === "dxfviewer" &&
-    !!tegning.dxfViewerFileUrl &&
-    !!tegning.registerWorldUrl;
   // Feilet/konvertert PDF beholder fileType="pdf" (feilveien flipper ikke typen) → banner-tekst
   // OG re-konverter-vei velges etter filtype (se konverteringBanner). `kanAdministrereOmrade`
   // (gruppe.hentMinTilgang.erAdmin) er admin-proxy for slett/re-konverter; serveren er porten.

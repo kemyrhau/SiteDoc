@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Nu este disponibil offline",
   "tegningsvelger.offlineUtilgjengeligInfo": "Pregătiți desenul pentru offline în timp ce aveți o conexiune, apoi se afișează fără acoperire.",
   "tegningsvelger.lasterTegning": "Se încarcă desenul...",
+  "tegningsvelger.lasterTegningProsent": "Se încarcă desenul... {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Vizionatorul și-a pierdut contextul grafic (de exemplu, după mult timp în fundal). Vă rugăm să încercați din nou.",
   "tegningsvelger.utomhus": "În aer liber",
   "tegningsvelger.utenEtasje": "Fără podea",
   "tegningsvelger.alleLokasjoner": "Toate locațiile",

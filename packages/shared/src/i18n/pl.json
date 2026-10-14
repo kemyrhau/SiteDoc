@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Niedostępne offline",
   "tegningsvelger.offlineUtilgjengeligInfo": "Przygotuj rysunek do pracy w trybie offline, gdy masz połączenie, a następnie będzie wyświetlany bez zasięgu.",
   "tegningsvelger.lasterTegning": "Ładowanie rysunku…",
+  "tegningsvelger.lasterTegningProsent": "Ładowanie rysunku… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Widz tracił swój kontekst graficzny (np. po długim czasie przebywania w tle). Spróbuj ponownie.",
   "tegningsvelger.utomhus": "Na powietrzu",
   "tegningsvelger.utenEtasje": "Brak podłogi",
   "tegningsvelger.alleLokasjoner": "Wszystkie lokalizacje",

@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Ei saatavilla offline-tilassa",
   "tegningsvelger.offlineUtilgjengeligInfo": "Valmistele piirustus offline-käyttöä varten, kun sinulla on yhteys, niin se näkyy ilman peittoa.",
   "tegningsvelger.lasterTegning": "Ladataan piirrosta…",
+  "tegningsvelger.lasterTegningProsent": "Ladataan piirrosta… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Katsoja menetti graafisen kontekstinsa (esimerkiksi pitkän taustalla olon jälkeen). Yritä uudelleen.",
   "tegningsvelger.utomhus": "Ulkona",
   "tegningsvelger.utenEtasje": "Ei kerrosta",
   "tegningsvelger.alleLokasjoner": "Kaikki paikat",

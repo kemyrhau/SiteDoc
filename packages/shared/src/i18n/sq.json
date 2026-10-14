@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Nuk disponohet jashtë linje",
   "tegningsvelger.offlineUtilgjengeligInfo": "Përgatitni vizatimin për offline ndërsa keni një lidhje, më pas ai shfaqet pa mbulim.",
   "tegningsvelger.lasterTegning": "Po ngarkon vizatimin…",
+  "tegningsvelger.lasterTegningProsent": "Po ngarkon vizatimin… {{ prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Shikuesi humbi kontekstin e tij grafik (p.sh. pas një kohe të gjatë në sfond). Ju lutemi provoni përsëri.",
   "tegningsvelger.utomhus": "Jashtë",
   "tegningsvelger.utenEtasje": "Pa dysheme",
   "tegningsvelger.alleLokasjoner": "Të gjitha vendndodhjet",

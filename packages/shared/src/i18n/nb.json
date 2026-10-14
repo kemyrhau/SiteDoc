@@ -1784,6 +1784,8 @@
   "tegningsvelger.offlineUtilgjengelig": "Ikke tilgjengelig offline",
   "tegningsvelger.offlineUtilgjengeligInfo": "Forbered tegningen for offline mens du har nett, så vises den uten dekning.",
   "tegningsvelger.lasterTegning": "Laster tegning…",
+  "tegningsvelger.lasterTegningProsent": "Laster tegning… {{prosent}} %",
+  "tegningsvelger.feilWebglKontekstTapt": "Visningen mistet grafikk-konteksten (f.eks. etter lenge i bakgrunnen). Prøv igjen.",
   "tegningsvelger.utomhus": "Utomhus",
   "tegningsvelger.utenEtasje": "Uten etasje",
   "tegningsvelger.alleLokasjoner": "Alle lokasjoner",
