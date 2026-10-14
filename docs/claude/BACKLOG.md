@@ -62,6 +62,15 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Dokumenter/mapper-fanen** (`mappe.hentForProsjekt`): ingen speil/katalog finnes.
 - **Standalone-prosjekter** (uten firma): `TimerSyncProvider` cacher kun firmaprosjekter → Hjem viser feilside offline.
 **Ikke bestilt.** Egen offline-runde hvis piloten trenger dem.
+- ✅ **Tegninger-fanen + byggeplass-velger offline LØST 2026-10-14** (`feca5bc4` ← `e22a995e`, `tegningKatalog.ts`): speil `tegning_local`/`byggeplass_nav_local`/`dokument_speil`. Gjenstår fra Kontrollør-gaten (ikke-blokkerende): write-through fyrer ekstra `hentForProsjekt` ved filterbytte; kort vindu med tomme markører i detalj-speilet. Kontrollplan-listen og frittstående markør-kilder er fortsatt live-query.
+
+### 🟡 WEB UNDER 768 px — TEGNINGSLISTEN (SekundaertPanel) HAR INGEN MOBIL-ERSTATNING (målt av Dokgen 2026-10-14)
+
+`SekundaertPanel.tsx:54` er `hidden … md:flex`, uten hamburger eller ark under 768 px. I mobil-nettleser kan man derfor ikke velge tegning (gjelder alle sider som bruker panelet). Telefonbrukere bruker Expo-appen, så det haster ikke. **Ikke bestilt.**
+
+### 🟡 MOBIL — INGEN LUPE PÅ SVG/DWG-TEGNINGER (Kenneth 2026-10-14)
+
+`TegningsVisning.tsx:788` viser lupen bare når `!erSvg` (RN `<Image>` kan ikke dekode SVG). Siden DWG ble SVG, har måling på DWG ingen lupe, og detaljene er dårligere enn på web. **Plan:** løses av dxf-viewer i mobilappen (Dokgen, neste etter RETUR 4), med lupe bygget i WebView-en.
 
 ### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
 
