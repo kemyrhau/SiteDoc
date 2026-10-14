@@ -21,13 +21,23 @@ import {
   X,
   ChevronDown,
   SlidersHorizontal,
+  CloudDownload,
+  CloudCheck,
+  CloudOff,
 } from "lucide-react-native";
 import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { useNettverk } from "../../src/providers/NettverkProvider";
 import { AUTH_CONFIG } from "../../src/config/auth";
+import {
+  forberedTegning,
+  erTegningForberedt,
+  hentTegningKilde,
+  type TegningKilde,
+} from "../../src/services/offlineKlargjoring";
 import { KartVisning } from "../../src/components/KartVisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør, GpsMarkør, Omrade } from "../../src/components/TegningsVisning";
@@ -62,6 +72,9 @@ interface TegningData {
   floor: string | null;
   byggeplassId: string | null;
   fileUrl: string | null;
+  // Mobilvariant (ezdxf) — den som faktisk vises/caches for DWG. Scalar fra hentForProsjekt.
+  mobilFileUrl?: string | null;
+  fileType?: string | null;
   geoReference?: unknown;
   _count: { revisions: number };
 }
@@ -124,7 +137,17 @@ export default function LokasjonerSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId, erHeleProsjektet, settBygning, settSistTegning } = useByggeplass();
+  const { erPaaNettet } = useNettverk();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
+
+  // Offline tegningsvisning (ordre fix/offline-tegning): lokal kopi FØR nett.
+  // `tegningKilde` er resolvert kilde (data-URI lokal / nett-URL / utilgjengelig).
+  const [tegningKilde, setTegningKilde] = useState<TegningKilde | null>(null);
+  const [kildeLaster, setKildeLaster] = useState(false);
+  // Offline-status for den valgte tegningen (lagret / ikke lagret) + pågående nedlasting.
+  const [forberedt, setForberedt] = useState<boolean | null>(null);
+  const [forbereder, setForbereder] = useState(false);
+  const [offlineMelding, setOfflineMelding] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -458,31 +481,134 @@ export default function LokasjonerSkjerm() {
     }
   }, [bygninger, settBygning]);
 
-  // Treprikk-meny
+  // Offline-ref for valgt tegning (fileUrl + ezdxf-mobilvariant). mobilFileUrl er den
+  // faktiske vis-fila for DWG — resolver + forberedelse følger den.
+  const detaljFileUrl = valgtTegningDetalj?.fileUrl ?? null;
+  const detaljMobilFileUrl = valgtTegningDetalj?.mobilFileUrl ?? null;
+
+  // Resolver kilden viseren skal bruke: LOKAL KOPI FØRST (data-URI), ellers nett, ellers
+  // «ikke tilgjengelig offline». Kjøres på tegningsbytte og når nett-status endres
+  // (kommer brukeren tilbake på nett, byttes nett-URL automatisk inn).
+  useEffect(() => {
+    if (!detaljFileUrl) {
+      setTegningKilde(null);
+      setForberedt(null);
+      return;
+    }
+    let aktiv = true;
+    setKildeLaster(true);
+    const ref = { fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl };
+    (async () => {
+      const [kilde, erForberedt] = await Promise.all([
+        hentTegningKilde(ref, erPaaNettet, AUTH_CONFIG.apiUrl, valgtTegningId ?? undefined),
+        erTegningForberedt(ref),
+      ]);
+      if (!aktiv) return;
+      setTegningKilde(kilde);
+      setForberedt(erForberedt);
+      setKildeLaster(false);
+    })();
+    return () => { aktiv = false; };
+  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet, valgtTegningId]);
+
+  // Forbered DENNE tegningen for offline (laster ned fileUrl + mobilvarianten).
+  const forberedDenne = useCallback(async () => {
+    if (!detaljFileUrl || forbereder) return;
+    setForbereder(true);
+    setOfflineMelding(t("lokasjoner.offline.forbereder"));
+    try {
+      await forberedTegning(
+        { fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl },
+        valgtTegningId ?? undefined,
+        valgtBygningId,
+      );
+      const kilde = await hentTegningKilde(
+        { fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl },
+        erPaaNettet,
+        AUTH_CONFIG.apiUrl,
+        valgtTegningId ?? undefined,
+      );
+      setTegningKilde(kilde);
+      setForberedt(true);
+      setOfflineMelding(t("lokasjoner.offline.lagret"));
+    } catch {
+      setOfflineMelding(t("lokasjoner.offline.feilet"));
+    } finally {
+      setForbereder(false);
+      setTimeout(() => setOfflineMelding(null), 3500);
+    }
+  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet, forbereder, t, valgtTegningId, valgtBygningId]);
+
+  // Forbered ALLE tegningene i gjeldende byggeplass-filter for offline.
+  const forberedByggeplass = useCallback(async () => {
+    if (forbereder) return;
+    const liste = tegninger.filter((tg) => tg.fileUrl && (tg.fileType?.toLowerCase() ?? "") !== "ifc");
+    if (liste.length === 0) return;
+    setForbereder(true);
+    let ferdig = 0;
+    for (const tg of liste) {
+      setOfflineMelding(t("lokasjoner.offline.forbererAntall", { ferdig, total: liste.length }));
+      try {
+        await forberedTegning({ fileUrl: tg.fileUrl, mobilFileUrl: tg.mobilFileUrl ?? null }, tg.id, valgtBygningId);
+      } catch { /* enkeltfeil river ikke resten (krav 6) */ }
+      ferdig++;
+    }
+    // Oppdater status for den åpne tegningen etterpå.
+    if (detaljFileUrl) {
+      setForberedt(await erTegningForberedt({ fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl }));
+    }
+    setOfflineMelding(t("lokasjoner.offline.byggeplassFerdig", { antall: liste.length }));
+    setForbereder(false);
+    setTimeout(() => setOfflineMelding(null), 3500);
+  }, [tegninger, forbereder, detaljFileUrl, detaljMobilFileUrl, t, valgtBygningId]);
+
+  // Oppdater oppgave-/kontrollpunkt-markørene fra server.
+  const oppdaterOppgaver = useCallback(() => {
+    if (!valgtTegningId) return;
+    trpcUtils.oppgave.hentForTegning.invalidate({ drawingId: valgtTegningId });
+    trpcUtils.kontrollplan.hentForTegning.invalidate({ drawingId: valgtTegningId });
+  }, [valgtTegningId, trpcUtils]);
+
+  // Tegningsinformasjon — kort faktasammendrag (ingen redigering).
+  const visTegningsinfo = useCallback(() => {
+    if (!valgtTegning) return;
+    const rader = [
+      valgtTegning.drawingNumber ? `${t("tegninger.tegningsnummer")}: ${valgtTegning.drawingNumber}` : null,
+      valgtTegning.discipline ? `${t("tegninger.feltFagdisiplin")}: ${valgtTegning.discipline}` : null,
+      valgtTegning.floor ? `${t("tegninger.etasje")}: ${valgtTegning.floor}` : null,
+      `${t("lokasjoner.info.revisjoner")}: ${valgtTegning._count.revisions}`,
+      `${t("lokasjoner.offline.statusEtikett")}: ${forberedt ? t("lokasjoner.offline.lagret") : t("lokasjoner.offline.ikkeLagret")}`,
+    ].filter(Boolean);
+    Alert.alert(valgtTegning.name, rader.join("\n"));
+  }, [valgtTegning, forberedt, t]);
+
+  // Treprikk-meny (iOS ActionSheet / Android Alert — paritet, ingen død knapp).
   const visTreprikkmeny = useCallback(() => {
+    const flereTegninger = tegninger.filter((tg) => tg.fileUrl).length > 1;
+    const offlineEtikett = forberedt ? t("lokasjoner.offline.lagret") : t("lokasjoner.forberedOffline");
+    // Rekkefølge: info · forbered denne · (forbered byggeplass) · oppdater oppgaver.
+    const handlinger: Array<{ etikett: string; kjor: () => void }> = [
+      { etikett: t("lokasjoner.tegningsinformasjon"), kjor: visTegningsinfo },
+      { etikett: offlineEtikett, kjor: () => { void forberedDenne(); } },
+      ...(flereTegninger ? [{ etikett: t("lokasjoner.offline.forberedByggeplass"), kjor: () => { void forberedByggeplass(); } }] : []),
+      { etikett: t("lokasjoner.oppdatereOppgaver"), kjor: oppdaterOppgaver },
+    ];
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [
-            t("handling.avbryt"),
-            t("lokasjoner.tegningsinformasjon"),
-            t("lokasjoner.forberedOffline"),
-            t("lokasjoner.oppdatereOppgaver"),
-          ],
-          cancelButtonIndex: 0,
-        },
-        (indeks) => {
-          if (indeks === 1) {
-            // Tegningsinformasjon
-          } else if (indeks === 2) {
-            // Forbered til offline
-          } else if (indeks === 3) {
-            // Oppdatere oppgaver
-          }
-        },
+        { options: [t("handling.avbryt"), ...handlinger.map((h) => h.etikett)], cancelButtonIndex: 0 },
+        (indeks) => { if (indeks > 0) handlinger[indeks - 1]?.kjor(); },
+      );
+    } else {
+      Alert.alert(
+        valgtTegning?.name ?? t("lokasjoner.tittel"),
+        undefined,
+        [
+          ...handlinger.map((h) => ({ text: h.etikett, onPress: h.kjor })),
+          { text: t("handling.avbryt"), style: "cancel" as const },
+        ],
       );
     }
-  }, []);
+  }, [tegninger, forberedt, valgtTegning, t, visTegningsinfo, forberedDenne, forberedByggeplass, oppdaterOppgaver]);
 
   // Håndter tegningsvalg
   const håndterVelgTegning = useCallback(
@@ -692,11 +818,39 @@ export default function LokasjonerSkjerm() {
               </View>
             </Pressable>
           )}
+          {/* Offline-status (kun når tegning vises): lagret ✓ · last ned · uten nett.
+              Tapp for å forberede når på nett og ikke lagret. */}
+          {visserTegning && (
+            <Pressable
+              onPress={() => { if (!forberedt && erPaaNettet) void forberedDenne(); }}
+              hitSlop={8}
+              disabled={forbereder || forberedt === true || (!erPaaNettet && !forberedt)}
+              accessibilityLabel={t("lokasjoner.offline.statusEtikett")}
+            >
+              {forbereder ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : forberedt ? (
+                <CloudCheck size={20} color="#4ade80" />
+              ) : erPaaNettet ? (
+                <CloudDownload size={20} color="#ffffff" />
+              ) : (
+                <CloudOff size={20} color="#93c5fd" />
+              )}
+            </Pressable>
+          )}
           <Pressable onPress={visTreprikkmeny} hitSlop={12}>
             <MoreVertical size={20} color="#ffffff" />
           </Pressable>
         </View>
       </View>
+
+      {/* Offline-forberedelse: liten status/fremdrift-stripe (forbereder/lagret/feilet). */}
+      {visserTegning && offlineMelding && (
+        <View className="flex-row items-center gap-2 bg-blue-50 px-4 py-2">
+          {forbereder && <ActivityIndicator size="small" color="#1e40af" />}
+          <Text className="flex-1 text-xs text-blue-700">{offlineMelding}</Text>
+        </View>
+      )}
 
       {/* GPS-status-banner (kun for georefererte tegninger med problemer) */}
       {visserTegning && harGeoRef && gpsStatus === "ingen_tillatelse" && (
@@ -842,14 +996,16 @@ export default function LokasjonerSkjerm() {
             </Text>
           </View>
         ) : visserTegning ? (
+          kildeLaster || !tegningKilde ? (
+            // Mens lokal-kopi-resolveren jobber (les cache / bygg data-URI).
+            <View className="flex-1 items-center justify-center bg-black">
+              <ActivityIndicator size="large" color="#ffffff" />
+            </View>
+          ) : (
           <TegningsVisning
-            tegningUrl={(() => {
-              // L1: mobil bruker den lettere mobilvarianten (ezdxf hatch=solid) når den
-              // finnes, ellers fileUrl (egen-SVG / ikke-DWG rendrer på mobil). Begge er
-              // ferdig signert av uploads-middlewaren (auto-signert /uploads/-streng).
-              const u = valgtTegningDetalj!.mobilFileUrl ?? valgtTegningDetalj!.fileUrl!;
-              return u.startsWith("http") ? u : `${AUTH_CONFIG.apiUrl}${u}`;
-            })()}
+            // Lokal kopi FØRST (data-URI) → nett → utilgjengelig. Resolvert i effekten over.
+            tegningUrl={tegningKilde.uri ?? ""}
+            offlineUtilgjengelig={tegningKilde.offlineUtilgjengelig}
             tegningNavn={valgtTegningDetalj!.name}
             onLukk={håndterLukkTegning}
             onMarkørTrykk={håndterMarkørTrykk}
@@ -897,6 +1053,7 @@ export default function LokasjonerSkjerm() {
               if (valgtTegningId) settRotasjonMutation.mutate({ drawingId: valgtTegningId, grader });
             }}
           />
+          )
         ) : (
           <KartVisning />
         )}

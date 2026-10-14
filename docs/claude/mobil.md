@@ -517,6 +517,37 @@ skjema-hookene dekker SJA/avvik/RUH). Tjeneste: `services/dokumentSpeil.ts`.
 - Usynkronisert data prioriteres over server-data
 - Auto-synk ved nettverksovergang
 
+**Offline tegningsvisning (disk-cache, `fix/offline-tegning` 2026-10-13, RETUR 1 2026-10-14):**
+tegningsfilene ligger på disk (`sitedoc-tegninger/`, `offlineKlargjoring.ts`), ikke i SQLite.
+Viseren leser LOKAL kopi FØRST: `lokasjoner.tsx` resolver via
+`hentTegningKilde({fileUrl, mobilFileUrl}, erPaaNettet, apiUrl, tegningId)`
+→ **lokal fil som `file://`-sti** → **nett-URL** → **`offlineUtilgjengelig`**. Både `fileUrl` og
+ezdxf-`mobilFileUrl` caches og leses — `klargjørForOffline` laster begge, og treprikkmenyen i
+`lokasjoner.tsx` har «Forbered til offline» (denne tegningen), «Forbered alle i byggeplassen» +
+offline-status i headeren (`CloudCheck`/`CloudDownload`/`CloudOff`).
+**file://-lasting (RETUR 1 B):** lokal kopi leveres nå som `file://`-sti (ikke base64 data-URI).
+`TegningsVisning` skriver viser-HTML-en til cache-mappa (`skrivTegningHtml`) og laster WebView-en
+derfra med `allowingReadAccessToURL=TEGNING_CACHE_MAPPE` + `allowFileAccessFromFileURLs` + `allowFileAccess`,
+slik at `<img src="file://…">` og ezdxf-`fetch("file://…")` leser tegningen DIREKTE. Base64-veien
+holdt innholdet i 4–5 kopier (~380 MB transient for en fallplan-stor tegning) → kunne sprenge
+jetsam på eldre iPhone; file://-veien fjerner triplingen (WKWebView leser fila i sin egen pipeline,
+JS holder aldri bytene). `Image.prefetch` og den native lupa er fjernet for SVG/ezdxf (RN `<Image>`
+dekoder ikke SVG → tom lupe + bortkastet base64-kopi); raster beholder lupa.
+**Revisjon-nøkkel:** siste URL-ledd er et unikt UUID-filnavn pr. opplasting/konvertering
+(`upload.ts`, `dwgKonvertering.ts`), så en ny revisjon gir ny cache-nøkkel → gammel lokal kopi
+vises aldri som gjeldende.
+**Disk-opprydning (RETUR 1 A):** et manifest (`manifest.json`, `tegningId → {filer, forberedt,
+byggeplassId, sistBrukt}`) kobler filene til tegningen. `forberedTegning(ref, tegningId, byggeplassId)`
+og `klargjørForOffline` **sletter forrige revisjons filer** av samme tegning ved ny nedlasting
+(ellers ble hver revisjon liggende ~10–20 MB for alltid). Et **LRU-tak på 500 MB** (`_settCacheTak`
+for test) kaster eldste tegning eldst-først etter `sistBrukt`, men **skåner tegninger forberedt for
+den aktive byggeplassen** (så «Forbered byggeplass» ikke spiser seg selv). IFC har egen cache utenfor taket.
+Uten nett + ikke forberedt → `TegningsVisning` viser «Ikke tilgjengelig offline» (`CloudOff`), ikke
+brutt bilde. ⚠️ **Metadata-begrensning:** `tegning.hentMedId` (målestokk m.m.) er fortsatt live-query
+uten speil — en ikke-besøkt tegning på kald start offline mangler metadata → velgeren vises (ikke
+krasj). Tester: `offlineTegning.test.ts` (H1 flymodus-lokal file://, H2 ikke-forberedt, REV
+revisjon-opprydning, LRU-tak med aktiv-byggeplass-skåning).
+
 **Bakgrunnskø:**
 - Én fil av gangen, eksponentiell backoff (maks 5 forsøk)
 - Callback: `registrerCallback()` for URL-oppdateringer i sanntid

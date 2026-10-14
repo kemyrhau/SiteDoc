@@ -37,7 +37,7 @@ export function byggHtml(
   const tegningUrlJson = JSON.stringify(tegningUrl);
 
   return `<!DOCTYPE html>
-<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=50,user-scalable=yes">
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=50,user-scalable=yes">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   /* 🔴 RETUR 1 § 2: slå av iOS sin bilde-/tekstmeny og native bilde-dra, ellers
