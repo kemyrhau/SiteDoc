@@ -36,7 +36,6 @@ import {
   finnMalingTreff,
   finnNaermesteKant,
   settInnPunktPaaKant,
-  fjernPunkt,
   beregnSnap,
   type Punkt,
   type Utsnitt,
@@ -208,8 +207,6 @@ export function TegningsVisning({
   // er WebViewens målte dp-størrelse (for kant-flipp av lupa).
   const [lupe, setLupe] = useState<LupeData | null>(null);
   const [webViewStr, setWebViewStr] = useState<{ w: number; h: number } | null>(null);
-  // 🟢 RETUR 6 § 2: hjørne markert for fjerning (langt trykk i Flytt) → bekreft-modal.
-  const [fjernKandidat, setFjernKandidat] = useState<number | null>(null);
   // 90°-lås + snap + referanselinje (ordre 90-snap + GJENOPPTA). Snap PÅ som standard.
   const [ortho, setOrtho] = useState(false);
   const [snapPaa, setSnapPaa] = useState(true);
@@ -391,11 +388,6 @@ export function TegningsVisning({
   const håndterSettInnKant = useCallback((kantIndex: number, x: number, y: number) => {
     setMaleTilstand((prev) => settInnPunktPaaKant(prev, kantIndex, { x, y }));
   }, []);
-  const håndterFjernPunkt = useCallback(() => {
-    if (fjernKandidat == null) return;
-    setMaleTilstand((prev) => fjernPunkt(prev, fjernKandidat));
-    setFjernKandidat(null);
-  }, [fjernKandidat]);
   const håndterFerdig = useCallback(() => {
     setMaleTilstand((prev) => settFerdig(prev));
     setAktivtVerktoy("flytt");
@@ -617,10 +609,6 @@ export function TegningsVisning({
               håndterLeggTilPunkt(fp.x, fp.y, data.rectW, data.rectH);
               return;
             }
-            case "fjernPunkt":
-              // 🟢 RETUR 6 § 2: langt trykk på et hjørne i Flytt → bekreft fjerning.
-              if (typeof data.dragIdx === "number" && data.dragIdx >= 0) setFjernKandidat(data.dragIdx);
-              return;
             case "draPunkt":
               // Punktet er dratt live via `maledrag`; posisjonen er allerede anvendt.
               return;
@@ -907,7 +895,8 @@ export function TegningsVisning({
                 )}
                 {/* RETUR 5 § 3: piltastene er fjernet — lupa (RN-nativ, ved fingeren)
                     er presisjonsgrepet. Renest mulig UI. */}
-                {/* 🟢 RETUR 6 § 2: rediger-hint for en valgt figur i Flytt. */}
+                {/* Rediger-hint for en valgt figur i Flytt: sett inn hjørne på en kant.
+                    Fjern-hjørne via langt trykk er fjernet (2026-10-14). */}
                 {aktivtVerktoy === "flytt" && aktiv && aktiv.ferdig && (
                   <Text style={stiler.maleKilde}>{t("maaling.redigerHint")}</Text>
                 )}
@@ -961,24 +950,6 @@ export function TegningsVisning({
                   </Pressable>
                   <Pressable onPress={håndterSlettAlle} style={[stiler.modalKnapp, stiler.modalKnappSlett]}>
                     <Text style={[stiler.modalKnappTekst, { color: "#ffffff" }]}>{t("maaling.slettAlle")}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          </Modal>
-
-          {/* 🟢 RETUR 6 § 2: Fjern hjørne — bekreftelsesmodal (langt trykk på et punkt). */}
-          <Modal visible={fjernKandidat != null} transparent animationType="fade" onRequestClose={() => setFjernKandidat(null)}>
-            <View style={stiler.modalBakgrunn}>
-              <View style={stiler.modalKort}>
-                <Text style={stiler.modalTittel}>{t("maaling.fjernPunktTittel")}</Text>
-                <Text style={stiler.modalTekst}>{t("maaling.fjernPunktBekreft")}</Text>
-                <View style={stiler.modalKnapper}>
-                  <Pressable onPress={() => setFjernKandidat(null)} style={[stiler.modalKnapp, stiler.modalKnappAvbryt]}>
-                    <Text style={stiler.modalKnappTekst}>{t("handling.avbryt")}</Text>
-                  </Pressable>
-                  <Pressable onPress={håndterFjernPunkt} style={[stiler.modalKnapp, stiler.modalKnappSlett]}>
-                    <Text style={[stiler.modalKnappTekst, { color: "#ffffff" }]}>{t("maaling.fjernPunkt")}</Text>
                   </Pressable>
                 </View>
               </View>

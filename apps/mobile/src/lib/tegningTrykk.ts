@@ -52,7 +52,6 @@ export type TrykkHandling =
   | "opprett"
   | "settPunkt"
   | "draPunkt"
-  | "fjernPunkt"
   | "velgMaling";
 
 /** Et langt trykk er ≥ dette (ms). Under = kort trykk. */
@@ -64,9 +63,12 @@ export const LANGT_TRYKK_MS = 500;
  * - Knip (≥2 pekere) → `pan` (zoom, aldri commit). 🔴 Rotårsaken til RETUR 3 § 0
  *   (skjermlås + «måling forsvant») var at samme gest betydde fire ting; her er
  *   hvert verktøy entydig.
- * - **Flytt:** langt trykk på et hjørne (uten å dra) → `fjernPunkt` (RETUR 6 § 2);
- *   ellers dra et punkt (`draPunkt`), ellers velg en truffet måling (`velgMaling`),
- *   ellers panorér. **Setter ALDRI punkt.**
+ * - **Flytt:** nedtrykk på et punkt → dra det (`draPunkt`); et rent trykk på en
+ *   truffet måling → `velgMaling`; ellers panorér. **Setter ALDRI punkt.** Langt
+ *   trykk på et hjørne gjør INGENTING ekstra lenger (fjernet 2026-10-14, Kenneth-
+ *   telefontest): det «Fjern hjørne?»-trykket fjernet sist flyttede punkt og
+ *   avsluttet målingen utilsiktet. Langt trykk faller nå til `draPunkt` — uten
+ *   bevegelse endrer det ingenting.
  * - **Linjal/Polylinje/Areal:** `settPunkt`. **Drar ALDRI, velger ALDRI.**
  * - **Opprett:** rent trykk → `opprett` (markør + mal); bevegelse → `pan`.
  * - **Navigering:** kort trykk → `hint`, langt → `opprett`, bevegelse → `pan`.
@@ -76,11 +78,9 @@ export function avgjorTrykkHandling(verktoy: TegningVerktoy, gest: TrykkGest): T
 
   switch (verktoy) {
     case "flytt":
-      if (gest.nedPaaPunkt) {
-        // Langt trykk på et hjørne UTEN å dra → fjern-kandidat (RETUR 6 § 2).
-        if (!gest.flyttet && gest.varighetMs >= LANGT_TRYKK_MS) return "fjernPunkt";
-        return "draPunkt";
-      }
+      // Nedtrykk på et hjørne → dra det. Langt trykk uten bevegelse gjør ingenting
+      // (fjern-hjørne-gesten er fjernet, 2026-10-14) — et stille no-op draPunkt.
+      if (gest.nedPaaPunkt) return "draPunkt";
       if (!gest.flyttet && gest.traffMaling) return "velgMaling";
       return "pan";
     case "linjal":
