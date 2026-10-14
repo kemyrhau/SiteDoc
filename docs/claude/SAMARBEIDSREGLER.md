@@ -1086,6 +1086,48 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
   **Arver du det, skriv «umålt» ved siden av.** ⚠️ **Et navn fra en velskrevet melding leses som målt:**
   `dwgread` reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp — de virkelige binærene er
   `dwg2dxf` og `dwg2SVG`. **Gjelder begge veier.**
+### 🔴 /clear-REGELEN — agenten skal kunne tømmes når som helst (Kenneth-vedtak 2026-10-14)
+
+Kenneth kjører `/clear` på en agent **når den har levert en oppgave, eller når den passerer ~20 % kontekst**. Det er bare trygt hvis ingenting bor kun i chatten. **Tilstand som ikke står i en fil eller på origin, finnes ikke.**
+
+**1. Hver leveranse slutter med et SJEKKPUNKT.** Nederst i rapporten i `~/Documents/Programmering/SiteDoc/relay/inbox-orkestrator.md` (hovedtreets kopi, absolutt sti):
+```
+SJEKKPUNKT <Agent> <dato tid>
+Branch: <navn> @ <hash>   (verifisert: git ls-remote --heads origin <branch>)
+Worktree: <absolutt sti>
+Ordre: <innboksfil> § <overskrift>
+Status: levert / under arbeid / venter på <hva>
+Åpent: <ting som ikke er gjort, eller «ingenting»>
+Neste steg: <én setning, eller «vent på ordre»>
+```
+Står sjekkpunktet der, kan Kenneth kjøre `/clear` uten å spørre.
+
+**2. Midt i en oppgave.** Kenneth sender «Skriv SJEKKPUNKT». Agenten (a) committer og pusher pågående arbeid på **egen feature-branch** (WIP-commit er lov der, aldri på develop/main), (b) skriver sjekkpunktet med det den vet og har målt, inkludert halvferdige hypoteser merket som det, (c) svarer bare **«klar for clear»**. Ingen ny kode etter det svaret.
+
+**3. Etter `/clear`** limer Kenneth inn oppstartsmeldingen (§ under). Agenten leser i denne rekkefølgen og **sier ingenting før den har lest**:
+1. denne regelen
+2. halen av egen innboks, fra siste ORDRE/RETUR og ned
+3. sitt siste SJEKKPUNKT i `relay/inbox-orkestrator.md` (søk `SJEKKPUNKT <Agent>`)
+4. `git -C <worktree> status` + `git log -1`. Avviker treet fra sjekkpunktet, **meld avviket før du gjør noe**
+
+Deretter fortsetter den med «Neste steg», eller venter hvis det står «vent på ordre».
+
+**Oppstartsmelding (Kenneth limer inn etter /clear):**
+```
+Du er <Agent>. Les ~/Documents/Programmering/SiteDoc/docs/claude/SAMARBEIDSREGLER.md § /clear-REGELEN og følg punkt 3. Innboksen din: ~/Documents/Programmering/SiteDoc/relay/<innboksfil>.
+```
+
+**Innboks pr. agent** (orkestrator holder denne lista oppdatert når en ordre får ny fil):
+
+| Agent | Innboksfil |
+|---|---|
+| Dokgen | `inbox-dokgen-arbeidstegning-f1.md` |
+| Redesign | `inbox-redesign-docx-sok.md` |
+| Kontrollør | `inbox-kontrollor.md` |
+| Fabel | `inbox-fabel.md` |
+
+⚠️ **Det agenten ikke trenger etter /clear, skal den ikke lese.** Ikke hele innboksen, og ikke historikken. Ordren pluss sjekkpunktet er hele konteksten. Mangler noe der, er det sjekkpunktet som var dårlig, og det skal meldes.
+
 ## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
 
 **Miljøspørsmål besvares fra [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + sjekk-først — aldri ved å be Kenneth gjenta oppsett.** Kunnskapen om `.env`-filer, lokal DB og test-kjøring bor i repoet ([LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) → [lokal-dev.md](lokal-dev.md), [tests/e2e/README.md](../../tests/e2e/README.md), [dev-login-agent.md](dev-login-agent.md)). Compaction sletter agentens minne om at filene finnes — ikke filene.
