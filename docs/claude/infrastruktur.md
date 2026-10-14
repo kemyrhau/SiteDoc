@@ -82,7 +82,16 @@ tRPC kjører **in-process i web-containeren** for alt nettleseren trigger, så w
 
 - **Server (api):** `TEGNING_MOTOR=dxfviewer` slår på `genererDxfViewerArtefakter()` i `dwgKonvertering.ts` — krever samme `EZDXF_PYTHON`/`EZDXF_RENDER_PY` som ezdxf-motoren (uavhengig av `DWG_MOTOR`). Skriver `Drawing.dxfViewerFileUrl` (forenklet DXF, spike 0,5b: XDATA/extension-dicts/ubrukte blokker fjernet, koordinater avrundet ≤0,1 mm) + `Drawing.registerWorldUrl` (O1-register, rå DXF-verdenskoordinater) — begge `/uploads/`-URL-er, signert automatisk av den globale tRPC-middlewaren (`signerUploadsOutput.ts`, ingen eksplisitt kall trengt).
 - **Klient (web):** `NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer` er den FAKTISKE kill-switchen (build-time, samme to-var-mønster som `GIT_SHA`/`NEXT_PUBLIC_BUILD_SHA`) — server-flagget avgjør kun om NYE konverteringer produserer artefaktene. `tegninger/page.tsx` krever BEGGE (client-flagg PÅ + artefaktene finnes på raden) før den bruker `DxfViewerTegning`-komponenten (dynamic import, `ssr:false` — egen three.js-kopi ^0.186 lastes kun på tegningssiden, ikke globalt).
-- **Bygg-arg wiret i `docker-compose.test.yml` (ikke prod)**, `Dockerfile.web` har `ARG`/`ENV NEXT_PUBLIC_TEGNING_MOTOR` (samme mønster som `NEXT_PUBLIC_BUILD_SHA`). Bytt på test: sett `NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer` i shell-env før `docker compose build sitedoc-test-web` (bakes inn ved build, ikke recreate) OG legg til runtime-linja `TEGNING_MOTOR=dxfviewer` i **begge** `api-test.env` og `web-test.env` (append, aldri `>` — samme mønster som `DWG_MOTOR` over; web-containeren konverterer selv ved nettleser-opplasting, D-M2) + recreate begge containere.
+- **Begge flagg er wiret i `docker-compose.test.yml` som shell-variabler (ikke env-fil-append), kun test — prod uendret:**
+  - `TEGNING_MOTOR` (runtime) står i `environment:` på **begge** `sitedoc-test-api` og `sitedoc-test-web` (web konverterer selv ved nettleser-opplasting, D-M2) — `TEGNING_MOTOR: ${TEGNING_MOTOR:-}`, tom fallback = av.
+  - `NEXT_PUBLIC_TEGNING_MOTOR` (build-time) står i `sitedoc-test-web`s `build.args`, og `Dockerfile.web` har tilsvarende `ARG`/`ENV` (samme mønster som `NEXT_PUBLIC_BUILD_SHA`).
+  - **Bytt på test** (ingen env-fil-redigering på server nødvendig lenger):
+    ```sh
+    ssh -t server-ny "cd ~/stack/sitedoc && \
+      NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer sudo -E docker compose -f docker/docker-compose.test.yml build sitedoc-test-web && \
+      TEGNING_MOTOR=dxfviewer sudo -E docker compose -f docker/docker-compose.test.yml up -d sitedoc-test-api sitedoc-test-web"
+    ```
+    `sudo -E` er påkrevd begge steder — uten den arver ikke `sudo` shell-variablene, og flagget bakes/settes av uansett.
 - Default er av overalt. Ingen migrering trengs for å bytte (additive, nullable felt).
 
 ### 🔴 STYRENDE: env-filer overskrives — tre hendelser på fem dager (2026-08-13 → 08-18)

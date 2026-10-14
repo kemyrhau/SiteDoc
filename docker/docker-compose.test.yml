@@ -28,6 +28,12 @@ services:
       NORBERT_URL: "http://embed:3302"             # deler prod sin embed (statsløs modell-server)
       OVERSETTELSE_URL: "http://oversettelse:3303" # deler prod sin oversettelse
       PDF_URL: "http://pdf-render:3304"            # deler prod sin pdf-render (arkivmal-konverter)
+      # Arbeidstegning leveranse 1 (🟡 bak flagg, kun test): runtime-flagget som slår på
+      # genererDxfViewerArtefakter() i dwgKonvertering.ts (uavhengig av DWG_MOTOR). Tom
+      # fallback → av. Sett `TEGNING_MOTOR=dxfviewer` i shell-env og `up -d` på nytt
+      # (ingen rebuild trengs — dette er runtime, ikke build-arg). EZDXF_PYTHON/
+      # EZDXF_RENDER_PY er allerede baket inn i imaget (L9).
+      TEGNING_MOTOR: ${TEGNING_MOTOR:-}
     ports:
       - "127.0.0.1:3301:3301"
       - "127.0.0.1:3300:3300"   # test-web lytter her (deler api sitt nett-namespace)
@@ -48,10 +54,9 @@ services:
         NEXT_PUBLIC_BUILD_TID: ${BUILD_TID:-}
         # Arbeidstegning leveranse 1 (🟡 bak flagg, kun test): sett
         # `NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer` i shell-env FØR `docker compose build` for å
-        # bake inn klient-kill-switchen. Tom fallback → av (prod rammes aldri, egen fil).
-        # Husk i tillegg runtime-env TEGNING_MOTOR=dxfviewer i BÅDE api-test.env og
-        # web-test.env (server-side artefakt-generering, samme append-mønster som DWG_MOTOR
-        # i infrastruktur.md § DWG-motor) — build-argen over styrer kun klientbundelen.
+        # bake inn klient-kill-switchen (NEXT_PUBLIC_* er build-time, runtime er for sent).
+        # Tom fallback → av. Se også TEGNING_MOTOR i api-blokken (runtime, samme fil må
+        # settes der óg — web konverterer selv ved nettleser-opplasting, D-M2).
         NEXT_PUBLIC_TEGNING_MOTOR: ${NEXT_PUBLIC_TEGNING_MOTOR:-}
     image: sitedoc-test-web:latest
     container_name: sitedoc-test-web
@@ -66,6 +71,9 @@ services:
       NORBERT_URL: "http://embed:3302"
       OVERSETTELSE_URL: "http://oversettelse:3303"
       PDF_URL: "http://pdf-render:3304"
+      # Runtime-flagg, må matche api-blokkens TEGNING_MOTOR — web konverterer selv ved
+      # nettleser-opplasting (tRPC in-process, D-M2). Tom fallback → av.
+      TEGNING_MOTOR: ${TEGNING_MOTOR:-}
     # Read-only: web kjører tRPC in-process (arkivmal-sammenstillingen), og
     # `hentBildeBytesFraDisk` må LESE vedlegg fra disk. `:ro` gir lesetilgang
     # uten skriveflate. Arkiv-PDF skrives ikke til disk (vei 3b: retur i respons).
