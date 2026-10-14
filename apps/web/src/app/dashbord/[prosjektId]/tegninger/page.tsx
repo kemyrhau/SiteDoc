@@ -1756,8 +1756,11 @@ export default function TegningerSide() {
           </>
         )}
 
-        {/* Måleverktøy — kun for bilde-tegninger (PNG/JPG/SVG) */}
-        {erBilde && (
+        {/* Måleverktøy + 90°/referanse/snap — kun for bilde-tegninger (PNG/JPG/SVG).
+            RETUR 3 (orkestrator 2026-10-14): disse klikker mot SVG-DOM-en
+            (getBoundingClientRect/data-layer), som ikke finnes i dxf-viewer-grenens
+            three.js-canvas — samme mønster som zoom/rotasjon over. */}
+        {erBilde && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center rounded border border-gray-200">
@@ -1849,8 +1852,9 @@ export default function TegningerSide() {
           </>
         )}
 
-        {/* Klikkemodus — kun for DWG-konverterte SVG-tegninger */}
-        {erSvgFil && (
+        {/* Klikkemodus — kun for DWG-konverterte SVG-tegninger. Ikke for dxf-viewer-grenen
+            (RETUR 3): samme årsak som måleverktøyene over. */}
+        {erSvgFil && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center rounded border border-gray-200">
@@ -1890,8 +1894,10 @@ export default function TegningerSide() {
         )}
 
         {/* L2 lagfilter: hvilke markørtyper vises. Begge på = «begge». «Frie sjekklister»
-            er ikke et lag (rendres ikke på tegning i dag). */}
-        {(kontrollpunkter.length > 0 || markører.length > 0) && (
+            er ikke et lag (rendres ikke på tegning i dag). Ikke for dxf-viewer-grenen
+            (RETUR 3, samme årsak): markørene selv rendres kun i erBilde-grenen (linje
+            2390/2410), så filteret har ingenting å vise/skjule i dxf-viewer-canvaset. */}
+        {!brukDxfViewer && (kontrollpunkter.length > 0 || markører.length > 0) && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center gap-1">
@@ -1920,16 +1926,18 @@ export default function TegningerSide() {
         )}
 
         {/* Periodefilter på markørene (createdAt). Vises når tegningen HAR markører (ufiltrert), så
-            filteret er tilgjengelig selv når gjeldende periode skjuler alle. */}
-        {((oppgaveMarkører?.length ?? 0) + (kontrollpunktMarkører?.length ?? 0)) > 0 && (
+            filteret er tilgjengelig selv når gjeldende periode skjuler alle. Ikke for dxf-viewer-
+            grenen (RETUR 3): markørene filteret virker på, rendres ikke der. */}
+        {!brukDxfViewer && ((oppgaveMarkører?.length ?? 0) + (kontrollpunktMarkører?.length ?? 0)) > 0 && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <PeriodeFilter periode={periode} onEndre={setPeriode} />
           </>
         )}
 
-        {/* GPS-koordinater for georefererte tegninger */}
-        {transformasjon && (
+        {/* GPS-koordinater for georefererte tegninger. Avhenger av onMouseMove på SVG-wrapperen
+            (handleMuseBevegelse) — finnes ikke i dxf-viewer-grenen (RETUR 3), skjul til koblet. */}
+        {transformasjon && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <MapPin className="h-3.5 w-3.5 text-green-600" />
@@ -1945,7 +1953,9 @@ export default function TegningerSide() {
           </>
         )}
 
-        {!posisjonsvelgerAktiv && (
+        {/* RETUR 3 (orkestrator 2026-10-14): denne hinten løy i dxf-viewer-grenen — det finnes
+            ingen klikk-overlay der (samme årsak som måleverktøy/klikkemodus over). */}
+        {!posisjonsvelgerAktiv && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <span className="text-xs text-gray-400">
