@@ -79,6 +79,34 @@ describe("Offline-DB migreringer mot ekte SQLite (krav 3)", () => {
     expect(tabeller().length).toBe(forFor); // CREATE TABLE IF NOT EXISTS → ingen dobling
   });
 
+  it("RETUR 2: oppretter tegning_local + byggeplass_nav_local", () => {
+    const t = tabeller();
+    expect(t).toContain("tegning_local");
+    expect(t).toContain("byggeplass_nav_local");
+  });
+
+  it("RETUR 2 (OTA): ny migrering på eksisterende DB bevarer utkast/kø (ingen datatap)", () => {
+    // Simuler en eksisterende installasjon med lokalt utkast + en køoppføring.
+    holder.db.run(
+      "INSERT INTO sjekkliste_feltdata (id, sjekkliste_id, felt_verdier, sist_endret_lokalt) VALUES ('utkast-ota', 'sjekk-ota', '{\"a\":1}', 1234)",
+    );
+    holder.db.run(
+      "INSERT INTO opplastings_ko (id, objekt_id, vedlegg_id, lokal_sti, filnavn, mime_type, status, opprettet) VALUES ('ko-ota', 'o1', 'v1', '/lokal/x.jpg', 'x.jpg', 'image/jpeg', 'venter', 1234)",
+    );
+
+    // Ny OTA-utrulling kjører migreringene på nytt mot den EKSISTERENDE basen.
+    expect(() => kjorMigreringer()).not.toThrow();
+
+    // Eksisterende data står urørt ...
+    const utkast = holder.db.exec("SELECT felt_verdier FROM sjekkliste_feltdata WHERE id='utkast-ota'");
+    expect(utkast[0]?.values[0]?.[0]).toBe('{"a":1}');
+    const ko = holder.db.exec("SELECT status FROM opplastings_ko WHERE id='ko-ota'");
+    expect(ko[0]?.values[0]?.[0]).toBe("venter");
+    // ... og de nye tabellene finnes nå.
+    expect(tabeller()).toContain("tegning_local");
+    expect(tabeller()).toContain("byggeplass_nav_local");
+  });
+
   it("KRAV (c): en feltdata-rad UTEN sjekkliste-identitet avvises av ekte NOT NULL-constraint", () => {
     // Gyldig rad slipper gjennom.
     expect(() =>

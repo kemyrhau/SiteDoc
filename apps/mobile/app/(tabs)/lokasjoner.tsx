@@ -31,6 +31,7 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useNettverk } from "../../src/providers/NettverkProvider";
+import { useAuth } from "../../src/providers/AuthProvider";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import {
   forberedTegning,
@@ -38,6 +39,15 @@ import {
   hentTegningKilde,
   type TegningKilde,
 } from "../../src/services/offlineKlargjoring";
+import {
+  refreshTegningKatalog,
+  refreshByggeplassNavKatalog,
+  lagreTegningDetaljSpeil,
+  lagreTegningDetaljFraData,
+  hentTegningerLokalt,
+  hentTegningDetaljLokalt,
+  hentByggeplasserNavLokalt,
+} from "../../src/services/tegningKatalog";
 import { KartVisning } from "../../src/components/KartVisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør, GpsMarkør, Omrade } from "../../src/components/TegningsVisning";
@@ -138,6 +148,8 @@ export default function LokasjonerSkjerm() {
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId, erHeleProsjektet, settBygning, settSistTegning } = useByggeplass();
   const { erPaaNettet } = useNettverk();
+  const { bruker } = useAuth();
+  const brukerId = bruker?.id;
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
   // Offline tegningsvisning (ordre fix/offline-tegning): lokal kopi FØR nett.
@@ -179,10 +191,12 @@ export default function LokasjonerSkjerm() {
   // Sammenleggbart filterpanel (skjult som standard — renere skjerm).
   const [visFilter, setVisFilter] = useState(false);
 
-  // Hent alle bygninger for valgt prosjekt
+  // RETUR 2: server-spørringene kjøres KUN online. Offline (også kald start) faller
+  // vi tilbake på de lokale speilene under, så navigasjonen virker uten nett i stedet
+  // for å henge i evig spinner / vise falsk tomhet.
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId },
+    { enabled: !!valgtProsjektId && erPaaNettet },
   );
 
   // Hent tegninger for valgt prosjekt
@@ -191,13 +205,13 @@ export default function LokasjonerSkjerm() {
       projectId: valgtProsjektId!,
       ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}),
     },
-    { enabled: !!valgtProsjektId },
+    { enabled: !!valgtProsjektId && erPaaNettet },
   );
 
   // Hent detaljer for valgt tegning
   const valgtTegningQuery = trpc.tegning.hentMedId.useQuery(
     { id: valgtTegningId! },
-    { enabled: !!valgtTegningId },
+    { enabled: !!valgtTegningId && erPaaNettet },
   );
 
   // RETUR 2 (vedtak A): lagre/nullstill brukerens rotasjons-overstyring.
@@ -211,28 +225,98 @@ export default function LokasjonerSkjerm() {
   // Hent eksisterende oppgaver for valgt tegning
   const oppgaverQuery = trpc.oppgave.hentForTegning.useQuery(
     { drawingId: valgtTegningId! },
-    { enabled: !!valgtTegningId },
+    { enabled: !!valgtTegningId && erPaaNettet },
   );
 
   // Kontrollpunkt-markører for valgt tegning (paritet med web).
   const kontrollpunktQuery = trpc.kontrollplan.hentForTegning.useQuery(
     { drawingId: valgtTegningId! },
-    { enabled: !!valgtTegningId },
+    { enabled: !!valgtTegningId && erPaaNettet },
   );
 
   // Områder (soner/rom/etasjer) for valgt tegning.
   const omradeQuery = trpc.omrade.hentForTegning.useQuery(
     { tegningId: valgtTegningId! },
-    { enabled: !!valgtTegningId },
+    { enabled: !!valgtTegningId && erPaaNettet },
   );
 
-  // Cast data
-  const bygninger = (bygningQuery.data ?? []) as BygningData[];
-  const tegninger = (tegningQuery.data ?? []) as TegningData[];
-  const valgtTegningDetalj = valgtTegningQuery.data as TegningDetalj | undefined;
-  const eksisterendeOppgaver = (oppgaverQuery.data ?? []) as OppgaveMarkør[];
-  const kontrollpunktMarkører = (kontrollpunktQuery.data ?? []) as KontrollpunktMarkør[];
-  const tegningOmrader = (omradeQuery.data ?? []) as OmradeData[];
+  // Viewer-metadata fra lokalt speil når server ikke har svart (offline/kald start).
+  const detaljServer = valgtTegningQuery.data as unknown as TegningDetalj | undefined;
+  const detaljSpeil = useMemo(
+    () =>
+      !detaljServer && valgtTegningId && brukerId
+        ? hentTegningDetaljLokalt(valgtTegningId, brukerId)
+        : null,
+    [detaljServer, valgtTegningId, brukerId],
+  );
+
+  // Lokal tegningsliste (offline-fallback), byggeplass-scopet likt serveren
+  // (valgt byggeplass ELLER prosjekt-tegning). Mappes til TegningData-formen.
+  const tegningerLokalt = useMemo((): TegningData[] => {
+    if (!valgtProsjektId || !brukerId) return [];
+    return hentTegningerLokalt(valgtProsjektId, brukerId)
+      .filter((r) => !valgtBygningId || r.byggeplassId === valgtBygningId || r.byggeplassId == null)
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        drawingNumber: r.drawingNumber,
+        discipline: r.discipline,
+        floor: r.floor,
+        byggeplassId: r.byggeplassId,
+        fileUrl: r.fileUrl,
+        mobilFileUrl: r.mobilFileUrl,
+        fileType: r.fileType,
+        geoReference: undefined,
+        _count: { revisions: r.antallRevisjoner ?? 0 },
+      }));
+  }, [valgtProsjektId, brukerId, valgtBygningId, tegningQuery.data]);
+
+  const byggeplasserLokalt = useMemo((): BygningData[] => {
+    if (!valgtProsjektId || !brukerId) return [];
+    return hentByggeplasserNavLokalt(valgtProsjektId, brukerId).map((b) => ({
+      id: b.id,
+      name: b.name,
+      status: b.status ?? "",
+    }));
+  }, [valgtProsjektId, brukerId, bygningQuery.data]);
+
+  // Cast data — server når online/hentet, ellers lokalt speil (RETUR 2). Memoisert så
+  // identiteten er stabil (fallback-uttrykkene lager ellers nye arrays hver render →
+  // nedstrøms markør-memoer ville rekjørt i evig loop).
+  // `as unknown as` på tRPC-dataen (lean cast, TS2589) — den dype retur-typen tåler ikke
+  // en direkte `as`. Fallback til lokalt speil når server ikke har svart (offline).
+  // `as unknown as` i egne consts FØR komposisjon — den dype tRPC-retur-typen tåler verken
+  // direkte `as` eller å stå i en useMemo-deps-array (TS2589). React Query gir stabil
+  // data-referanse, så `?? lokal` (memoisert) er stabil nok for nedstrøms memoer.
+  const bygningerServer = bygningQuery.data as unknown as BygningData[] | undefined;
+  const tegningerServer = tegningQuery.data as unknown as TegningData[] | undefined;
+  const bygninger = bygningerServer ?? byggeplasserLokalt;
+  const tegninger = tegningerServer ?? tegningerLokalt;
+  const valgtTegningDetalj: TegningDetalj | undefined =
+    detaljServer ?? (detaljSpeil?.blob.detalj as TegningDetalj | undefined);
+  // Markørene: server når online, ellers fra detalj-speilet (offline). `as unknown as`
+  // på hver gren så unionen ikke tvinger dyp instansiering (TS2589).
+  const eksisterendeOppgaver = useMemo(
+    () =>
+      (oppgaverQuery.data as unknown as OppgaveMarkør[] | undefined) ??
+      (detaljSpeil?.blob.oppgaver as OppgaveMarkør[] | undefined) ??
+      [],
+    [oppgaverQuery.data, detaljSpeil],
+  );
+  const kontrollpunktMarkører = useMemo(
+    () =>
+      (kontrollpunktQuery.data as unknown as KontrollpunktMarkør[] | undefined) ??
+      (detaljSpeil?.blob.kontrollpunkter as KontrollpunktMarkør[] | undefined) ??
+      [],
+    [kontrollpunktQuery.data, detaljSpeil],
+  );
+  const tegningOmrader = useMemo(
+    () =>
+      (omradeQuery.data as unknown as OmradeData[] | undefined) ??
+      (detaljSpeil?.blob.omrader as OmradeData[] | undefined) ??
+      [],
+    [omradeQuery.data, detaljSpeil],
+  );
 
   // Auto-velg første bygning hvis ingen er valgt (og ingen dyplenke satte den).
   // MEN ikke når brukeren eksplisitt valgte «Hele prosjektet» — da ville dette
@@ -245,6 +329,27 @@ export default function LokasjonerSkjerm() {
   }, [valgtBygningId, erHeleProsjektet, bygninger, settBygning]);
 
   const lasterData = bygningQuery.isLoading || tegningQuery.isLoading;
+
+  // RETUR 2: skriv gjennom til offline-speilene ved ONLINE-besøk, så prosjektet virker
+  // fra kald start i flymodus neste gang (ikke bare mens økta er varm). Katalogen hentes
+  // for HELE prosjektet (ikke byggeplass-filtrert), så alle byggeplassers tegninger er med.
+  useEffect(() => {
+    if (!erPaaNettet || !valgtProsjektId || !brukerId) return;
+    if (tegningQuery.data) refreshTegningKatalog(trpcUtils.client, valgtProsjektId, brukerId).catch(() => {});
+    if (bygningQuery.data) refreshByggeplassNavKatalog(trpcUtils.client, valgtProsjektId, brukerId).catch(() => {});
+  }, [erPaaNettet, valgtProsjektId, brukerId, tegningQuery.data, bygningQuery.data, trpcUtils]);
+
+  // Write-through av viewer-metadata (hentMedId + markører) når en tegning åpnes online —
+  // fra allerede lastede data (ingen ekstra nettkall). Re-kjøres når markørene ankommer.
+  useEffect(() => {
+    if (!erPaaNettet || !valgtProsjektId || !brukerId || !valgtTegningId || !detaljServer) return;
+    lagreTegningDetaljFraData(valgtProsjektId, brukerId, valgtTegningId, {
+      detalj: detaljServer,
+      oppgaver: (oppgaverQuery.data ?? []) as unknown[],
+      kontrollpunkter: (kontrollpunktQuery.data ?? []) as unknown[],
+      omrader: (omradeQuery.data ?? []) as unknown[],
+    });
+  }, [erPaaNettet, valgtProsjektId, brukerId, valgtTegningId, detaljServer, oppgaverQuery.data, kontrollpunktQuery.data, omradeQuery.data]);
 
   // Finn valgt tegning fra listen
   const valgtTegning = useMemo(
@@ -483,8 +588,11 @@ export default function LokasjonerSkjerm() {
 
   // Offline-ref for valgt tegning (fileUrl + ezdxf-mobilvariant). mobilFileUrl er den
   // faktiske vis-fila for DWG — resolver + forberedelse følger den.
-  const detaljFileUrl = valgtTegningDetalj?.fileUrl ?? null;
-  const detaljMobilFileUrl = valgtTegningDetalj?.mobilFileUrl ?? null;
+  // RETUR 2: fil-URL-ene faller tilbake på LISTE-raden (tegning_local bærer dem) når
+  // detalj-speilet mangler offline — da resolver viseren fortsatt file:// (forberedt) eller
+  // «Ikke tilgjengelig offline», i stedet for å falle til kartet som om tegningen ikke fins.
+  const detaljFileUrl = valgtTegningDetalj?.fileUrl ?? valgtTegning?.fileUrl ?? null;
+  const detaljMobilFileUrl = valgtTegningDetalj?.mobilFileUrl ?? valgtTegning?.mobilFileUrl ?? null;
 
   // Resolver kilden viseren skal bruke: LOKAL KOPI FØRST (data-URI), ellers nett, ellers
   // «ikke tilgjengelig offline». Kjøres på tegningsbytte og når nett-status endres
@@ -522,6 +630,15 @@ export default function LokasjonerSkjerm() {
         valgtTegningId ?? undefined,
         valgtBygningId,
       );
+      // RETUR 2: lagre også METADATA lokalt (tegningsliste + byggeplass-liste +
+      // viewer-detaljen med markører), så tegningen kan åpnes fra kald start i flymodus.
+      if (valgtProsjektId && brukerId) {
+        await refreshTegningKatalog(trpcUtils.client, valgtProsjektId, brukerId).catch(() => {});
+        await refreshByggeplassNavKatalog(trpcUtils.client, valgtProsjektId, brukerId).catch(() => {});
+        if (valgtTegningId) {
+          await lagreTegningDetaljSpeil(trpcUtils.client, valgtProsjektId, brukerId, valgtTegningId).catch(() => {});
+        }
+      }
       const kilde = await hentTegningKilde(
         { fileUrl: detaljFileUrl, mobilFileUrl: detaljMobilFileUrl },
         erPaaNettet,
@@ -537,7 +654,7 @@ export default function LokasjonerSkjerm() {
       setForbereder(false);
       setTimeout(() => setOfflineMelding(null), 3500);
     }
-  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet, forbereder, t, valgtTegningId, valgtBygningId]);
+  }, [detaljFileUrl, detaljMobilFileUrl, erPaaNettet, forbereder, t, valgtTegningId, valgtBygningId, valgtProsjektId, brukerId, trpcUtils]);
 
   // Forbered ALLE tegningene i gjeldende byggeplass-filter for offline.
   const forberedByggeplass = useCallback(async () => {
@@ -550,8 +667,17 @@ export default function LokasjonerSkjerm() {
       setOfflineMelding(t("lokasjoner.offline.forbererAntall", { ferdig, total: liste.length }));
       try {
         await forberedTegning({ fileUrl: tg.fileUrl, mobilFileUrl: tg.mobilFileUrl ?? null }, tg.id, valgtBygningId);
+        // RETUR 2: lagre viewer-metadataen (hentMedId + markører) pr. tegning.
+        if (valgtProsjektId && brukerId) {
+          await lagreTegningDetaljSpeil(trpcUtils.client, valgtProsjektId, brukerId, tg.id).catch(() => {});
+        }
       } catch { /* enkeltfeil river ikke resten (krav 6) */ }
       ferdig++;
+    }
+    // RETUR 2: lagre tegningslista + byggeplass-lista for prosjektet (én gang).
+    if (valgtProsjektId && brukerId) {
+      await refreshTegningKatalog(trpcUtils.client, valgtProsjektId, brukerId).catch(() => {});
+      await refreshByggeplassNavKatalog(trpcUtils.client, valgtProsjektId, brukerId).catch(() => {});
     }
     // Oppdater status for den åpne tegningen etterpå.
     if (detaljFileUrl) {
@@ -560,7 +686,7 @@ export default function LokasjonerSkjerm() {
     setOfflineMelding(t("lokasjoner.offline.byggeplassFerdig", { antall: liste.length }));
     setForbereder(false);
     setTimeout(() => setOfflineMelding(null), 3500);
-  }, [tegninger, forbereder, detaljFileUrl, detaljMobilFileUrl, t, valgtBygningId]);
+  }, [tegninger, forbereder, detaljFileUrl, detaljMobilFileUrl, t, valgtBygningId, valgtProsjektId, brukerId, trpcUtils]);
 
   // Oppdater oppgave-/kontrollpunkt-markørene fra server.
   const oppdaterOppgaver = useCallback(() => {
@@ -778,7 +904,9 @@ export default function LokasjonerSkjerm() {
     );
   }
 
-  const visserTegning = !!valgtTegningId && !!valgtTegningDetalj?.fileUrl;
+  // Offline uten detalj-speil har vi fortsatt liste-radens fileUrl → vis viseren
+  // (file:// eller «Ikke tilgjengelig offline»), ikke kartet (RETUR 2).
+  const visserTegning = !!valgtTegningId && !!detaljFileUrl;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -1006,7 +1134,7 @@ export default function LokasjonerSkjerm() {
             // Lokal kopi FØRST (data-URI) → nett → utilgjengelig. Resolvert i effekten over.
             tegningUrl={tegningKilde.uri ?? ""}
             offlineUtilgjengelig={tegningKilde.offlineUtilgjengelig}
-            tegningNavn={valgtTegningDetalj!.name}
+            tegningNavn={valgtTegningDetalj?.name ?? valgtTegning?.name ?? ""}
             onLukk={håndterLukkTegning}
             onMarkørTrykk={håndterMarkørTrykk}
             markører={markører}

@@ -1,10 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
-import { MapPin, ChevronDown } from "lucide-react-native";
+import { MapPin, ChevronDown, CloudOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 import { useByggeplass } from "../kontekst/ByggeplassKontekst";
+import { useNettverk } from "../providers/NettverkProvider";
+import { useAuth } from "../providers/AuthProvider";
 import { trpc } from "../lib/trpc";
+import {
+  hentByggeplasserNavLokalt,
+  refreshByggeplassNavKatalog,
+} from "../services/tegningKatalog";
 import { ByggeplassVelgerModal } from "./timer-detalj/ByggeplassVelger";
 
 /**
@@ -28,18 +34,38 @@ export function ByggeplassChip() {
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId, erHeleProsjektet, settBygning, velgHeleProsjektet, gpsByggeplassId } =
     useByggeplass();
+  const { erPaaNettet } = useNettverk();
+  const { bruker } = useAuth();
+  const brukerId = bruker?.id;
+  const utils = trpc.useUtils();
   const [visVelger, setVisVelger] = useState(false);
 
+  // Offline-first (RETUR 2): spør bare serveren når vi er på nett. Offline leses
+  // byggeplass-lista fra den prosjekt-scopede nav-cachen (fylt av online-besøk +
+  // «Forbered til offline»), så standalone-prosjekter ikke lenger viser falsk
+  // «Ingen byggeplasser».
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId },
+    { enabled: !!valgtProsjektId && erPaaNettet },
   );
-  // Lean cast (TS2589) — samme mønster som hjem.tsx/lokasjoner.tsx.
-  const byggeplasser = (bygningQuery.data ?? []) as Array<{
-    id: string;
-    name: string;
-    number: number | null;
-  }>;
+
+  // Online-data → skriv gjennom til nav-cachen så offline virker ved neste kalde start.
+  useEffect(() => {
+    if (erPaaNettet && valgtProsjektId && brukerId && bygningQuery.data) {
+      refreshByggeplassNavKatalog(utils.client, valgtProsjektId, brukerId).catch(() => {});
+    }
+  }, [erPaaNettet, valgtProsjektId, brukerId, bygningQuery.data, utils]);
+
+  // Lokal nav-cache (offline-kilde + freshness-grunnlag).
+  const lokale = useMemo(
+    () => (valgtProsjektId && brukerId ? hentByggeplasserNavLokalt(valgtProsjektId, brukerId) : []),
+    [valgtProsjektId, brukerId, bygningQuery.status],
+  );
+
+  // Kilde: server når online + hentet, ellers lokal cache. Lean cast (TS2589).
+  const byggeplasser = (
+    erPaaNettet && bygningQuery.data ? bygningQuery.data : lokale
+  ) as Array<{ id: string; name: string; number: number | null }>;
 
   const valgt = useMemo(
     () => byggeplasser.find((b) => b.id === valgtBygningId) ?? null,
@@ -57,8 +83,8 @@ export function ByggeplassChip() {
   // Ingen prosjekt = ingen kontekst → ingen chip (byggeplass-innen-prosjekt).
   if (!valgtProsjektId) return null;
 
-  // A Krav 2: chippen skal ALDRI forsvinne stille. Laster → lastetilstand.
-  if (bygningQuery.isLoading) {
+  // A Krav 2: chippen skal ALDRI forsvinne stille. Laster (kun online) → lastetilstand.
+  if (erPaaNettet && bygningQuery.isLoading && byggeplasser.length === 0) {
     return (
       <View className="mx-4 mt-3 flex-row items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
         <ActivityIndicator size="small" color="#1e40af" />
@@ -66,12 +92,22 @@ export function ByggeplassChip() {
       </View>
     );
   }
-  // Lastet + tomt er en GYLDIG tilstand (prosjekt uten byggeplasser) → vis som tekst.
+  // Tomt: skill ÆRLIG mellom «online, finnes ingen» og «offline, ikke lagret» (RETUR 2).
+  // Et offline + ikke-lagret prosjekt skal ALDRI påstå at det ikke har byggeplasser.
   if (byggeplasser.length === 0) {
     return (
       <View className="mx-4 mt-3 flex-row items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-        <MapPin size={18} color="#9ca3af" />
-        <Text className="text-sm text-gray-500">{t("byggeplass.ingenPaaProsjekt")}</Text>
+        {erPaaNettet ? (
+          <>
+            <MapPin size={18} color="#9ca3af" />
+            <Text className="text-sm text-gray-500">{t("byggeplass.ingenPaaProsjekt")}</Text>
+          </>
+        ) : (
+          <>
+            <CloudOff size={18} color="#9ca3af" />
+            <Text className="flex-1 text-sm text-gray-500">{t("offline.ikkeLagret")}</Text>
+          </>
+        )}
       </View>
     );
   }
