@@ -77,6 +77,20 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // Innholds-hashet filnavn (scripts/build-dxf-worker.mjs) — trygt å cache
+        // for alltid, en ny build gir et nytt navn. `manifest.json` TREFFES IKKE
+        // av dette mønsteret med vilje — den endrer innhold (nytt hash-navn) ved
+        // hver build og må revalideres, ellers server en gammel klient opp en
+        // manifest som peker på en slettet fil.
+        source: "/workers/:file(dxf-viewer-worker\\..+\\.js)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
     ];
   },
   async redirects() {
