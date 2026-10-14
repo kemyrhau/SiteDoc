@@ -108,7 +108,17 @@ async function start() {
   // Fiks: komprimer ved OPPRINNELSEN (api), br/gzip etter klientens Accept-Encoding —
   // Cloudflare lar et allerede komprimert svar passere uendret. Global (gjelder
   // tRPC-JSON også, ikke bare `/uploads/`).
-  await server.register(compress, { global: true, encodings: ["br", "gzip"] });
+  // RETUR 5 (relay/inbox-dokgen-arbeidstegning-f1.md): default-regexen i
+  // @fastify/compress komprimerer ikke `image/vnd.dxf` (DXF-en serveres med denne
+  // typen av `bildeContentTypeFraMagic`-logikken under, ikke som `.dxf`-filendelse).
+  // customTypes utvider default-regexen (samme mønster, inkl. `text/event-stream`-
+  // unntaket for SSE) med `image/vnd.dxf`.
+  await server.register(compress, {
+    global: true,
+    encodings: ["br", "gzip"],
+    customTypes:
+      /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)|octet-stream(?:;|$)|^image\/vnd\.dxf(?:;|$)/u,
+  });
 
   // WebSocket for sanntids presence
   await server.register(websocket);

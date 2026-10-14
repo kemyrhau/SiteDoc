@@ -140,6 +140,10 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
         fjernContextLytter = null;
         viewer.Destroy?.();
         viewer = null;
+        // RETUR 5 (nit, Kontrollør-gate e08784f0): Destroy() frigjør GL-konteksten
+        // men fjerner ALDRI canvas-noden fra containeren — uten dette stabler hver
+        // re-entrant last()-runde (webglcontextrestored) en ekstra (GL-løs) canvas.
+        containerRef.current?.replaceChildren();
       }
       if (dxfBlobUrl) {
         URL.revokeObjectURL(dxfBlobUrl);
