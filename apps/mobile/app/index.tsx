@@ -1,9 +1,16 @@
 import { Redirect } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { useAuth } from "../src/providers/AuthProvider";
+import WebglSmoketest from "../src/devHarness/WebglSmoketest";
 
 export default function Index() {
   const { erInnlogget, laster } = useAuth();
+
+  // ENGANGS-RØYKTEST (mobil leveranse 1, arbeidstegning-f1): kun denne engangs-
+  // branchen, aldri satt i noe commit til develop/main. Se devHarness/WebglSmoketest.tsx.
+  if (process.env.EXPO_PUBLIC_WEBGL_SMOKETEST === "1") {
+    return <WebglSmoketest />;
+  }
 
   if (laster) {
     return (
