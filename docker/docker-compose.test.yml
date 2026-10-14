@@ -46,6 +46,13 @@ services:
         # så api og web kan aldri stemples ulikt. Se api-blokk for kommandoen.
         NEXT_PUBLIC_BUILD_SHA: ${GIT_SHA:-}
         NEXT_PUBLIC_BUILD_TID: ${BUILD_TID:-}
+        # Arbeidstegning leveranse 1 (🟡 bak flagg, kun test): sett
+        # `NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer` i shell-env FØR `docker compose build` for å
+        # bake inn klient-kill-switchen. Tom fallback → av (prod rammes aldri, egen fil).
+        # Husk i tillegg runtime-env TEGNING_MOTOR=dxfviewer i BÅDE api-test.env og
+        # web-test.env (server-side artefakt-generering, samme append-mønster som DWG_MOTOR
+        # i infrastruktur.md § DWG-motor) — build-argen over styrer kun klientbundelen.
+        NEXT_PUBLIC_TEGNING_MOTOR: ${NEXT_PUBLIC_TEGNING_MOTOR:-}
     image: sitedoc-test-web:latest
     container_name: sitedoc-test-web
     restart: always
