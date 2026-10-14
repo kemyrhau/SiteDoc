@@ -117,6 +117,31 @@ def _forenklet_rund_koordinater(tekst: str, desimaler: int) -> str:
     return resultat + "\n" if har_siste_linjeskift else resultat
 
 
+def _fjern_foreldrelose_dict_oppforinger(doc) -> int:
+    """libredwg skriver iblant «unstable» class-objekter (MATERIAL/TABLESTYLE/
+    MLEADERSTYLE — sett i konverteringslogg for enkelte Revit-DWG-er) som ender opp
+    som foreldreløse håndtak i en DXF DICTIONARY. ezdxf sin egen
+    `Dictionary.items()`/`.get()` returnerer da håndtak-STRENGEN i stedet for en
+    entitet («can be a handle string if the entity does not exist», dokumentert i
+    ezdxf/entities/dictionary.py) — og ezdxf sin EGEN `doc.saveas()`-skriving
+    (`_update_header_vars()`, som slår opp `materials.get("ByLayer").dxf.handle` for
+    $CMATERIAL) kræsjer da med `AttributeError: 'str' object has no attribute 'dxf'`.
+    Målt 2026-10-14 på fallplanen i test-miljøet (libredwg Docker-bygg, ikke
+    reprodusert med Homebrew-libredwg lokalt — selve kildefila er grensetilfellet,
+    ikke koden). Rydd ALLE slike foreldreløse oppføringer FØR skriving, så én korrupt
+    kildereferanse ikke tar ned hele artefakt-settet (register-world ville ellers gå
+    tapt sammen med den forenklede DXF-en, se kallested i dwgKonvertering.ts)."""
+    from ezdxf.entities import Dictionary
+    n = 0
+    for e in doc.entitydb.values():
+        if isinstance(e, Dictionary):
+            for navn, obj in list(e.items()):
+                if isinstance(obj, str):
+                    e.discard(navn)
+                    n += 1
+    return n
+
+
 def skriv_forenklet_dxf(kilde_dxf_sti: str, ut_sti: str) -> dict:
     """Leser DXF-en PÅ NYTT (upåvirket kopi) og skriver en forenklet variant:
     XDATA + extension-dicts fjernet, ubrukte blokkdefinisjoner slettet (sikret
@@ -146,6 +171,7 @@ def skriv_forenklet_dxf(kilde_dxf_sti: str, ut_sti: str) -> dict:
             slettet_blokker.append(navn)
         except Exception:
             pass  # i faktisk bruk (nested INSERT/layout/special) -> behold
+    foreldrelose_n = _fjern_foreldrelose_dict_oppforinger(doc)
     desimaler = _forenklet_desimaler(doc)
     tmp_sti = ut_sti + ".tmp"
     doc.saveas(tmp_sti)
@@ -157,7 +183,8 @@ def skriv_forenklet_dxf(kilde_dxf_sti: str, ut_sti: str) -> dict:
     import os
     os.remove(tmp_sti)
     return {"xdataStrippet": xdata_n, "extdictStrippet": extdict_n,
-            "blokkerSlettet": len(slettet_blokker), "desimaler": desimaler}
+            "blokkerSlettet": len(slettet_blokker), "desimaler": desimaler,
+            "foreldreloseDictOppforingerFjernet": foreldrelose_n}
 
 # ---------- felles objektmodell O1 (arbeidstegning-spec § 8) ----------
 # Revit BuiltInCategory -> norsk (målt AT-F6, arbeidstegning-spec.md § 1b).
