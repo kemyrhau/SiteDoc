@@ -407,6 +407,73 @@ async function ocrPdf(
 // PDF-prosessering
 // --------------------------------------------------------------------------
 
+/** Minimal form av pdf.js-sideproxyen `pagerender` får. */
+interface PdfSideProxy {
+  pageNumber?: number;
+  getTextContent(opts: {
+    normalizeWhitespace: boolean;
+    disableCombineTextItems: boolean;
+  }): Promise<{ items: Array<{ str: string; transform: number[] }> }>;
+}
+
+/**
+ * Henter tekst PR. SIDE via pdf-parse sin `pagerender`-opsjon.
+ *
+ * Tidligere ble sidene delt på form-feed (`\f`) i den sammenslåtte teksten
+ * (`resultat.text.split("\f")`), men pdf-parse v1 skiller sider med `\n\n` —
+ * ALDRI `\f` — så *alle* PDF-er havnet på «side 1» (prod-feil 2026-10-14).
+ * `pagerender` kalles én gang pr. side med pdf.js-sideproxyen, så vi fanger
+ * sann `pageNumber` direkte i stedet for å gjette sidegrenser i teksten.
+ * Tekstuttrekket er identisk med pdf-parse sin standard-render (samme
+ * Y-baserte linjeskift) — bare fanget pr. side i stedet for sammenslått.
+ */
+export async function ekstraherPdfSider(
+  buffer: Buffer,
+): Promise<{ sider: Array<{ side: number; tekst: string }>; antallSider: number }> {
+  // pdf-parse v1 — lib-filen direkte, IKKE pakkens index.js (se under / prod 2026-10-13).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
+    buf: Buffer,
+    opts?: { pagerender?: (side: PdfSideProxy) => Promise<string> },
+  ) => Promise<{ text: string; numpages: number }>;
+
+  const sider: Array<{ side: number; tekst: string }> = [];
+
+  const renderSide = async (pageData: PdfSideProxy): Promise<string> => {
+    const innhold = await pageData.getTextContent({
+      normalizeWhitespace: false,
+      disableCombineTextItems: false,
+    });
+    // Samme logikk som pdf-parse sin standard-render: nytt linjeskift når Y endrer seg.
+    let forrigeY: number | undefined;
+    let tekst = "";
+    for (const item of innhold.items) {
+      if (forrigeY === item.transform[5] || forrigeY === undefined) tekst += item.str;
+      else tekst += "\n" + item.str;
+      forrigeY = item.transform[5];
+    }
+    const sidenr =
+      typeof pageData.pageNumber === "number" && pageData.pageNumber > 0
+        ? pageData.pageNumber
+        : sider.length + 1;
+    sider.push({ side: sidenr, tekst });
+    return tekst; // pdf-parse bygger `ret.text` videre — ellers uendret oppførsel
+  };
+
+  const resultat = await pdfParse(buffer, { pagerender: renderSide });
+
+  sider.sort((a, b) => a.side - b.side);
+  let sideData = sider.map((s) => ({ side: s.side, tekst: s.tekst.trim() }));
+
+  // Robusthet: fanget `pagerender` ingenting (f.eks. side-feil), men pdf-parse
+  // fikk likevel ut tekst → behold den på side 1 framfor å miste alt.
+  if (sideData.length === 0 && resultat.text.trim()) {
+    sideData = [{ side: 1, tekst: resultat.text.trim() }];
+  }
+
+  return { sider: sideData, antallSider: resultat.numpages };
+}
+
 async function prosesserPdf(
   prisma: PrismaClient,
   documentId: string,
@@ -415,22 +482,10 @@ async function prosesserPdf(
   docType: string,
   filsti: string,
 ): Promise<Array<{ side: number; tekst: string }>> {
-  // pdf-parse v1 — lib-filen direkte, IKKE pakkens index.js: den kjører en debug-blokk når
-  // `module.parent` mangler (Next-bundling i web-containeren, der nettleser-opplasting
-  // prosesseres), og prøver å lese ./test/data/05-versions-space.pdf → ENOENT (prod 2026-10-13).
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string; numpages: number }>;
-  const resultat = await pdfParse(buffer);
-
-  const sider = resultat.text.split("\f").filter((s: string) => s.trim());
-  let sideData = sider.map((tekst: string, i: number) => ({
-    side: i + 1,
-    tekst: tekst.trim(),
-  }));
-
-  if (sideData.length === 0 && resultat.text.trim()) {
-    sideData.push({ side: 1, tekst: resultat.text.trim() });
-  }
+  // Tekst pr. side via pagerender (se ekstraherPdfSider). Erstatter det gamle
+  // `split("\f")` som gjorde alle PDF-er til «side 1» (prod-feil 2026-10-14).
+  const { sider: siderFraPdf, antallSider } = await ekstraherPdfSider(buffer);
+  let sideData = siderFraPdf;
 
   // OCR-fallback for skannede PDFer
   if (!harTilstrekkeligTekst(sideData)) {
@@ -439,7 +494,7 @@ async function prosesserPdf(
     const ocrSpråk = prosjekt?.sourceLanguage ?? "nb";
     console.log(`Skannet PDF oppdaget (${documentId}), kjører OCR (${ocrSpråk})...`);
     try {
-      sideData = await ocrPdf(filsti, resultat.numpages, ocrSpråk);
+      sideData = await ocrPdf(filsti, antallSider, ocrSpråk);
     } catch (err) {
       console.error(`OCR feilet for ${documentId}:`, err);
       // Fortsett med tom sideData — bedre enn å krasje
@@ -503,7 +558,7 @@ async function prosesserPdf(
   await prisma.ftdDocument.update({
     where: { id: documentId },
     data: {
-      pageCount: resultat.numpages ?? sideData.length,
+      pageCount: antallSider || sideData.length,
       wordCount: totalTekst.split(/\s+/).filter(Boolean).length,
     },
   });
@@ -1538,7 +1593,7 @@ async function prosesserCsv(
 // Chunking-hjelpefunksjoner
 // --------------------------------------------------------------------------
 
-function delTekstIChunks(
+export function delTekstIChunks(
   sideData: Array<{ side: number; tekst: string }>,
 ): Array<{
   chunkIndex: number;
