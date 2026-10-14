@@ -6,6 +6,10 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## 🔴 Hendelse 2026-10-14: prod uten database 11:37–15:51 (norsk tid)
+
+Under test-deploy `bac63017` (api+web bygget samtidig) startet Docker-tjenesten på nytt (`dockerd` 09:37:59 UTC). postgres (`unless-stopped`) fikk «fast shutdown» 09:37:46 og kom ikke tilbake, og det samme gjaldt `sitedoc-embed`/`sitedoc-oversettelse` (137) og `salsaklubb-postgres`. api/web/pdf-render (`always`) startet igjen, så `/version` svarte og skjulte bruddet. Oppdaget ved at test-migreringen fikk `P1001`. Tiltak: containerne startet manuelt, omstartsregel satt til `always` for postgres/embed/oversettelse, `deploy-test.sh` bygger api og web hver for seg, og runboken har fått en sjekk av delte tjenester etter deploy. ⚠️ Hvorfor dockerd startet på nytt er ikke fastslått (ingen OOM-linjer i journalen 09:36:30–09:37:59; automatiske oppdateringer 06:23 gjaldt bare kjernepakker).
+
 ## Prod-hotfixer 2026-10-13 (`66b36226` → `841dd4e5` → `f60d7fd1`): dokumentopplasting, kundefiler, PDF og embedding (LIVE)
 
 - `66b36226`: migrering `20261013120000_ftd_split_sources` (`ftd_documents.split_sources` manglet i prod siden schema-endring 31.03 uten migrering, så opplasting i Mapper feilet) + vakt `apps/api/src/skjema-migreringsdrift.test.ts`.

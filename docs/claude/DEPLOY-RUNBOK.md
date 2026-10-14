@@ -66,6 +66,14 @@ curl -s https://api-test.sitedoc.no/version
 
 **`gitSha` skal matche hashen fra steg 1.** Gjør den ikke det, stopp.
 
+🔴 **Delte tjenester skal fortsatt kjøre (hendelse 2026-10-14):** samtidig bygg av api+web tok ned Docker-tjenesten (`systemd: Started docker.service` 09:37:59 UTC). postgres/embed/oversettelse ble stoppet, og **prod var uten database i 4 t**. `deploy-test.sh` bygger nå api og web hver for seg (som prod). Etter hver deploy:
+
+```sh
+ssh -t server-ny "sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'postgres|embed|oversettelse|pdf-render'"
+```
+
+Alle skal stå «Up». Mangler én: `sudo docker start <navn>` før noe annet. Omstartsregel er satt til `always` for `postgres`, `sitedoc-embed` og `sitedoc-oversettelse` (Kenneth 2026-10-14, `docker update`). Rotårsaken til at Docker-tjenesten startet på nytt er ⚠️ ikke fastslått.
+
 🔴 **DWG-konverterer (DWG-1, etter full rebuild):** libredwg MÅ svare i BEGGE containere
 (tRPC kjører in-process i web, så web konverterer også):
 
