@@ -543,10 +543,31 @@ og `klargjørForOffline` **sletter forrige revisjons filer** av samme tegning ve
 for test) kaster eldste tegning eldst-først etter `sistBrukt`, men **skåner tegninger forberedt for
 den aktive byggeplassen** (så «Forbered byggeplass» ikke spiser seg selv). IFC har egen cache utenfor taket.
 Uten nett + ikke forberedt → `TegningsVisning` viser «Ikke tilgjengelig offline» (`CloudOff`), ikke
-brutt bilde. ⚠️ **Metadata-begrensning:** `tegning.hentMedId` (målestokk m.m.) er fortsatt live-query
-uten speil — en ikke-besøkt tegning på kald start offline mangler metadata → velgeren vises (ikke
-krasj). Tester: `offlineTegning.test.ts` (H1 flymodus-lokal file://, H2 ikke-forberedt, REV
+brutt bilde. Tester: `offlineTegning.test.ts` (H1 flymodus-lokal file://, H2 ikke-forberedt, REV
 revisjon-opprydning, LRU-tak med aktiv-byggeplass-skåning).
+
+**Metadata-speil for kald start i flymodus (RETUR 2, `fix/offline-tegning-2` 2026-10-14):** fila
+på disk var «foreldreløs» — navigasjonen (byggeplass-/tegningsliste + `tegning.hentMedId`) var
+live-query uten speil, så offline virket BARE for tegninger åpnet online i samme økt. Nå speiles
+metadataen lokalt (SQLite-katalog-mønster, `tegningKatalog.ts`):
+- `tegning_local` (tegningsliste, prosjekt+bruker-scopet, `revisjons_nokkel` = filcache-nøkkel),
+  `byggeplass_nav_local` (byggeplass-velger — PROSJEKT-scopet, dekker standalone der firma-scopet
+  `byggeplass_local` er tom), og `dokument_speil` med `dokument_type="tegning"` for viewer-blobben
+  (hentMedId + markører: oppgaver/kontrollpunkter/områder).
+- **Skrives** av «Forbered til offline» (lokasjoner/mer) OG write-through ved online-besøk
+  (`lokasjoner.tsx`/`tegninger.tsx`/`ByggeplassChip`). **Leses** offline via `hent*Lokalt` når
+  server-spørringene er av (`enabled: … && erPaaNettet`).
+- **Ærlige tomtilstander:** offline + ikke lagret viser «Ikke lagret for offline …»
+  (`offline.ikkeLagret`), aldri falsk «Ingen byggeplasser»/«Ingen tegninger». «Sist oppdatert …»
+  på offline-tegningslista. Hjem-banneret er nøytralt («Frakoblet – viser lagrede data»).
+- **Prosjekt-isolert + tømmes ved utlogging:** `userId`-synlighetsvakt + full-overskriving per
+  prosjekt (`id` er global PK); `tomTegningSpeil()` kalt fra `auth.loggUt`.
+- **OTA-trygt:** additive `CREATE TABLE IF NOT EXISTS` (ingen reinstall/datatap — testet i
+  `migreringer.test.ts`). Tester: `tegningKatalog.test.ts` (katalog/byggeplass/detalj-roundtrip,
+  synlighetsvakt, revisjonsnøkkel, logout-tømming).
+- ⚠️ **Avgrenset (listet, ikke speilet):** kontrollplan-skjermens egen liste + frittstående
+  markør-kilder utenfor tegning har samme live-query-mønster. Markørene vises nå offline via
+  tegning-detalj-speilet; egne kataloger for kontrollplan-skjermen er en egen leveranse ved behov.
 
 **Bakgrunnskø:**
 - Én fil av gangen, eksponentiell backoff (maks 5 forsøk)

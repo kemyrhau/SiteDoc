@@ -2,6 +2,7 @@ import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 import { AUTH_CONFIG, MICROSOFT_AUTH } from "../config/auth";
+import { tomTegningSpeil } from "./tegningKatalog";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -212,4 +213,7 @@ export async function loggUt(): Promise<void> {
   }
   await slettSessionToken();
   await slettBrukerData();
+  // RETUR 2: tøm tegning-/byggeplass-speilet ved utlogging/brukerbytte, så neste
+  // bruker på telefonen aldri ser forrige brukers offline-tegninger.
+  tomTegningSpeil();
 }
