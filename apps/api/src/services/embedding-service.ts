@@ -175,6 +175,117 @@ async function genererEmbeddings(
   }
 }
 
+// ---- Per-dokument embedding (automatisk etter prosessering + ved reprosessering) ----
+
+/**
+ * Resolver prosjektets embedding-innstillinger fra ai_sok_innstillinger.
+ * Defaulter til lokal NorBERT (768 dim) — samme som den manuelle løkka.
+ */
+export async function hentEmbeddingInnstillinger(
+  prisma: PrismaClient,
+  projectId: string,
+): Promise<EmbeddingInnstillinger> {
+  const rows = await prisma.$queryRaw<
+    Array<{ provider: string | null; apiKey: string | null; model: string | null }>
+  >`
+    SELECT embedding_provider AS "provider",
+           embedding_api_key AS "apiKey",
+           embedding_model AS "model"
+    FROM ai_sok_innstillinger
+    WHERE project_id = ${projectId}
+    LIMIT 1
+  `;
+  const rad = rows[0];
+  const provider = (rad?.provider ?? "local") as "local" | "openai";
+  return {
+    provider,
+    model: rad?.model ?? "norbert2",
+    apiKey: rad?.apiKey ?? undefined,
+    batchSize: provider === "local" ? 8 : 64,
+  };
+}
+
+/**
+ * Embed `pending`/`failed` chunks for ETT dokument via samme HTTP-vei som den manuelle
+ * løkka (`genererEmbeddings` → `kallNorBERT`/OpenAI). Erstatter den gamle Python-subprosessen
+ * i ftd-prosessering.ts, som i Docker-containerne aldri fant fila og stille hoppet over —
+ * chunkene ble stående `pending` for alltid (prod 2026-10-14).
+ *
+ * Feiler embedding-serveren, settes de berørte chunkene til `embeddingState='failed'` (synlig
+ * i fillista), IKKE stille tilbake til `pending`. Returnerer antall done/failed.
+ */
+export async function embeddDokumentChunks(
+  prisma: PrismaClient,
+  documentId: string,
+): Promise<{ done: number; failed: number }> {
+  const dok = await prisma.ftdDocument.findUnique({
+    where: { id: documentId },
+    select: { projectId: true },
+  });
+  if (!dok) return { done: 0, failed: 0 };
+
+  const innstillinger = await hentEmbeddingInnstillinger(prisma, dok.projectId);
+
+  const chunks = await prisma.ftdDocumentChunk.findMany({
+    where: { documentId, embeddingState: { in: ["pending", "failed"] } },
+    select: { id: true, chunkText: true },
+  });
+  if (chunks.length === 0) return { done: 0, failed: 0 };
+
+  const BATCH =
+    innstillinger.provider === "local"
+      ? Math.min(innstillinger.batchSize, 16)
+      : innstillinger.batchSize;
+
+  let done = 0;
+  let failed = 0;
+
+  for (let i = 0; i < chunks.length; i += BATCH) {
+    const batch = chunks.slice(i, i + BATCH);
+    const ider = batch.map((c) => c.id);
+    await prisma.ftdDocumentChunk.updateMany({
+      where: { id: { in: ider } },
+      data: { embeddingState: "processing" },
+    });
+
+    try {
+      const embeddings = await genererEmbeddings(
+        batch.map((c) => c.chunkText),
+        innstillinger,
+      );
+      for (let j = 0; j < batch.length; j++) {
+        const emb = embeddings[j];
+        if (!emb) {
+          await prisma.ftdDocumentChunk
+            .update({ where: { id: batch[j]!.id }, data: { embeddingState: "failed" } })
+            .catch(() => {});
+          failed++;
+          continue;
+        }
+        const vecStr = `[${emb.join(",")}]`;
+        await prisma.$executeRaw`
+          UPDATE ftd_document_chunks
+          SET embedding_vector = ${vecStr}::vector,
+              embedding_state = 'done'
+          WHERE id = ${batch[j]!.id}
+        `;
+        done++;
+      }
+    } catch (err) {
+      logg(`[EMBEDDING] Per-dok batch feilet (${documentId}): ${(err as Error)?.message ?? err}`);
+      // Synlig feilstatus — ikke stille 'pending'
+      await prisma.ftdDocumentChunk.updateMany({
+        where: { id: { in: ider } },
+        data: { embeddingState: "failed" },
+      });
+      failed += batch.length;
+    }
+  }
+
+  logg(`[EMBEDDING] Dokument ${documentId}: ${done} done, ${failed} failed`);
+  return { done, failed };
+}
+
 // ---- Recovery (fra embedding_service.py recover_stuck_processing) ----
 
 export async function recoveryStuckProcessing(

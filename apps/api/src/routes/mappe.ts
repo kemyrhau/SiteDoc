@@ -8,6 +8,7 @@ import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
 import { prosesserDokument } from "../services/ftd-prosessering";
+import { embeddDokumentChunks } from "../services/embedding-service";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
@@ -616,12 +617,13 @@ export const mappeRouter = router({
       if (docs.length === 0) return { dokumenter: [], mappeSprak: effektiv.languages };
       const docIds = docs.map((d) => d.id);
       const embeddingStats = await ctx.prisma.$queryRaw<
-        Array<{ documentId: string; totalt: bigint; embedded: bigint }>
+        Array<{ documentId: string; totalt: bigint; embedded: bigint; feilet: bigint }>
       >`
         SELECT
           document_id AS "documentId",
           COUNT(*) AS totalt,
-          COUNT(*) FILTER (WHERE embedding_state = 'done') AS embedded
+          COUNT(*) FILTER (WHERE embedding_state = 'done') AS embedded,
+          COUNT(*) FILTER (WHERE embedding_state = 'failed') AS feilet
         FROM ftd_document_chunks
         WHERE document_id IN (${Prisma.join(docIds)})
         GROUP BY document_id
@@ -630,7 +632,7 @@ export const mappeRouter = router({
       const statsMap = new Map(
         embeddingStats.map((s) => [
           s.documentId,
-          { totalt: Number(s.totalt), embedded: Number(s.embedded) },
+          { totalt: Number(s.totalt), embedded: Number(s.embedded), feilet: Number(s.feilet) },
         ]),
       );
 
@@ -689,6 +691,7 @@ export const mappeRouter = router({
           ...d,
           chunksTotalt: statsMap.get(d.id)?.totalt ?? 0,
           chunksEmbedded: statsMap.get(d.id)?.embedded ?? 0,
+          chunksEmbeddingFeilet: statsMap.get(d.id)?.feilet ?? 0,
           oversettelse: oversettStatusMap.get(d.id) ?? null,
         })),
         mappeSprak,
@@ -927,6 +930,101 @@ export const mappeRouter = router({
       triggerProsessering(doc.id);
 
       return doc;
+    }),
+
+  // Reprosesser ett dokument. Mangler søkbart innhold (0 chunks / `failed`) → full
+  // tekstuttrekk på nytt (idempotent; prosesserDokument sletter før ny kjøring).
+  // Har chunks men embedding er ufullstendig/feilet → kun re-embedding (unngår dyr
+  // re-ekstraksjon/OCR). Tilgang = prosjektmedlem, som opplasting.
+  reprosesserDokument: protectedProcedure
+    .input(z.object({ documentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+        select: { id: true, projectId: true, processingState: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
+
+      const chunkCount = await ctx.prisma.ftdDocumentChunk.count({
+        where: { documentId: doc.id },
+      });
+
+      if (chunkCount > 0 && doc.processingState === "completed") {
+        // Ekstraksjon ok — bare embedding mangler/feilet. Re-embed pending/failed.
+        embeddDokumentChunks(ctx.prisma, doc.id).catch((err) =>
+          console.error(`Re-embedding feilet for ${doc.id}:`, err),
+        );
+        return { ok: true, modus: "embedding" as const };
+      }
+
+      await ctx.prisma.ftdDocument.update({
+        where: { id: doc.id },
+        data: { processingState: "pending", processingError: null },
+      });
+      triggerProsessering(doc.id);
+      return { ok: true, modus: "full" as const };
+    }),
+
+  // Reprosesser alle dokumenter i en mappe som mangler søkbart innhold (0 chunks /
+  // `failed`) eller har ufullstendig/feilet embedding. Full re-ekstraksjon kun der det
+  // trengs; ellers kun re-embedding. Kjørende (pending/processing) og ikke-støttet
+  // format hoppes over. Tilgang = prosjektmedlem, som opplasting.
+  reprosesserMappe: protectedProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      const dokumenter = await ctx.prisma.ftdDocument.findMany({
+        where: {
+          folderId: input.folderId,
+          isActive: true,
+          processingState: { notIn: ["pending", "processing", "unsupported"] },
+        },
+        select: { id: true, processingState: true },
+      });
+      if (dokumenter.length === 0) return { ok: true, full: 0, embedding: 0 };
+
+      const ider = dokumenter.map((d) => d.id);
+      const stats = await ctx.prisma.$queryRaw<
+        Array<{ documentId: string; totalt: bigint; udone: bigint }>
+      >`
+        SELECT document_id AS "documentId",
+               COUNT(*) AS totalt,
+               COUNT(*) FILTER (WHERE embedding_state <> 'done') AS udone
+        FROM ftd_document_chunks
+        WHERE document_id IN (${Prisma.join(ider)})
+        GROUP BY document_id
+      `;
+      const statMap = new Map(
+        stats.map((s) => [s.documentId, { totalt: Number(s.totalt), udone: Number(s.udone) }]),
+      );
+
+      const fullIder: string[] = [];
+      let embedding = 0;
+      for (const d of dokumenter) {
+        const st = statMap.get(d.id);
+        const totalt = st?.totalt ?? 0;
+        const udone = st?.udone ?? 0;
+        if (totalt === 0 || d.processingState === "failed") {
+          fullIder.push(d.id); // mangler søkbart innhold → full re-ekstraksjon
+        } else if (udone > 0) {
+          embeddDokumentChunks(ctx.prisma, d.id).catch(() => {}); // kun re-embedding
+          embedding++;
+        }
+      }
+
+      if (fullIder.length > 0) {
+        await ctx.prisma.ftdDocument.updateMany({
+          where: { id: { in: fullIder } },
+          data: { processingState: "pending", processingError: null },
+        });
+        for (const id of fullIder) triggerProsessering(id);
+      }
+      return { ok: true, full: fullIder.length, embedding };
     }),
 
   settKontrakt: protectedProcedure

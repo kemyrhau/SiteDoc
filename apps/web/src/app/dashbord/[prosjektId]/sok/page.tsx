@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -32,11 +32,14 @@ export default function DokumentsokSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
+  // Dev-modus for presisjonsanalyse (?debug i URL) — viser score pr. metode (F.2).
+  const visScore = useSearchParams().has("debug");
 
   const [query, setQuery] = useState("");
   const [aktivtSok, setAktivtSok] = useState("");
   const [valgtTreffId, setValgtTreffId] = useState<string | null>(null);
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
+  const [valgtSide, setValgtSide] = useState<number | null>(null);
   const [modus, setModus] = useState<SokModus>("ai");
   const [nsFilter, setNsFilter] = useState<"ekskluder" | "alle" | string>("ekskluder");
   // string = dokument-ID for enkeltdokument-filter
@@ -110,6 +113,7 @@ export default function DokumentsokSide() {
       setAktivtSok(query.trim());
       setValgtTreffId(null);
       setValgtDokumentId(null);
+      setValgtSide(null);
     }
   };
 
@@ -218,9 +222,12 @@ export default function DokumentsokSide() {
           ) : aktivtSok ? (
             <TreffListe
               treff={visbareTreff ?? []}
-              onVelgTreff={(t) => {
-                setValgtTreffId(t.id);
-                setValgtDokumentId(t.documentId);
+              søkeord={aktivtSok}
+              visScore={visScore}
+              onVelgTreff={(tr) => {
+                setValgtTreffId(tr.id);
+                setValgtDokumentId(tr.documentId);
+                setValgtSide(tr.pageNumber ?? null);
               }}
               valgtId={valgtTreffId}
             />
@@ -234,7 +241,7 @@ export default function DokumentsokSide() {
         {/* Fulltekst-panel */}
         <div className="w-1/2 shrink-0 overflow-y-auto bg-gray-50 p-4">
           {valgtDokumentId ? (
-            <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} />
+            <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} scrollTilSide={valgtSide} />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
               {t("sok.klikkPaaTreff")}

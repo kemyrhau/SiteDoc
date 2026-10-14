@@ -8,6 +8,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import {
   verifiserProsjektmedlem,
   verifiserAdmin,
+  erSiteDocAdmin,
 } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import {
@@ -69,7 +70,7 @@ export const aiSokRouter = router({
         );
       }
 
-      return hybridSok(ctx.prisma, input.projectId, input.query, mappeIder, {
+      const treff = await hybridSok(ctx.prisma, input.projectId, input.query, mappeIder, {
         provider: innstillinger.embeddingProvider as "local" | "openai",
         apiKey: innstillinger.embeddingApiKey ?? undefined,
         model: innstillinger.embeddingModel,
@@ -78,6 +79,14 @@ export const aiSokRouter = router({
         dokumentIder: input.dokumentIder,
         ekskluderMappeIder: input.ekskluderMappeIder,
       });
+
+      // RETUR 1 R1: dev-score (score/cosineSim/reRankScore) er presisjons-diagnostikk, ikke
+      // bruker-innhold. Gaten ligger SERVER-side — scorene sendes kun når rollen er riktig,
+      // ikke bare skjult i klienten. `metode` beholdes (godkjent i E, vises for alle).
+      const visScore =
+        process.env.NODE_ENV === "development" || (await erSiteDocAdmin(ctx.userId));
+      if (visScore) return treff;
+      return treff.map(({ score: _s, cosineSim: _c, reRankScore: _r, ...rest }) => rest);
     }),
 
   /** Flerspråklig søk i dokumentblokker */
