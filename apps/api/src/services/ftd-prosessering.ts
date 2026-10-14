@@ -113,7 +113,15 @@ async function lagreSpecPoster(
 export async function prosesserDokument(
   prisma: PrismaClient,
   documentId: string,
+  opts: { bevarVedFeil?: boolean } = {},
 ): Promise<void> {
+  // Tvungen reekstraksjon (bevarVedFeil): behold eksisterende chunks/poster til
+  // ny ekstraksjon har lykkes, slik at et completed dokument ALDRI ender tomt om
+  // reekstraksjonen feiler. Mulig fordi ftd_document_chunks ikke har unik
+  // (document_id, chunk_index) — gamle og nye rader kan sameksistere i vinduet.
+  const { bevarVedFeil = false } = opts;
+  let gamleChunkIds: string[] | null = null;
+  let gamleSpecIds: string[] | null = null;
   try {
     // Concurrency guard: sett status til "processing" KUN hvis ikke allerede pågår
     const oppdatert = await prisma.ftdDocument.updateMany({
@@ -129,9 +137,19 @@ export async function prosesserDokument(
       return;
     }
 
-    // Atomisk sletting av eksisterende data før ny prosessering
-    await prisma.ftdSpecPost.deleteMany({ where: { documentId } });
-    await prisma.ftdDocumentChunk.deleteMany({ where: { documentId } });
+    if (bevarVedFeil) {
+      // Snapshot gamle rad-id-er; de slettes først når ny ekstraksjon har lykkes.
+      gamleChunkIds = (
+        await prisma.ftdDocumentChunk.findMany({ where: { documentId }, select: { id: true } })
+      ).map((c) => c.id);
+      gamleSpecIds = (
+        await prisma.ftdSpecPost.findMany({ where: { documentId }, select: { id: true } })
+      ).map((p) => p.id);
+    } else {
+      // Standardvei (ny opplasting / reparasjon): slett eksisterende data først.
+      await prisma.ftdSpecPost.deleteMany({ where: { documentId } });
+      await prisma.ftdDocumentChunk.deleteMany({ where: { documentId } });
+    }
 
     const dok = await prisma.ftdDocument.findUniqueOrThrow({
       where: { id: documentId },
@@ -187,6 +205,25 @@ export async function prosesserDokument(
         break;
     }
 
+    if (bevarVedFeil && gamleChunkIds) {
+      // Swap kun hvis ny ekstraksjon faktisk ga nye chunks. Gir den 0 (f.eks.
+      // tom/ødelagt fil), kaster vi → catch beholder de gamle chunkene.
+      const nyeAntall = await prisma.ftdDocumentChunk.count({
+        where: { documentId, id: { notIn: gamleChunkIds } },
+      });
+      if (nyeAntall === 0) {
+        throw new Error("Tvungen reekstraksjon ga 0 nye chunks — beholder eksisterende");
+      }
+      await prisma.$transaction([
+        prisma.ftdDocumentChunk.deleteMany({
+          where: { documentId, id: { in: gamleChunkIds } },
+        }),
+        prisma.ftdSpecPost.deleteMany({
+          where: { documentId, id: { in: gamleSpecIds ?? [] } },
+        }),
+      ]);
+    }
+
     const støttet = erStøttetFiltype(ext);
     await prisma.ftdDocument.update({
       where: { id: documentId },
@@ -215,12 +252,32 @@ export async function prosesserDokument(
     const melding =
       err instanceof Error ? err.message : "Ukjent prosesseringsfeil";
     console.error(`FTD prosessering feilet for ${documentId}:`, melding);
-    await prisma.ftdDocument
-      .update({
-        where: { id: documentId },
-        data: { processingState: "failed", processingError: melding },
-      })
-      .catch(() => {});
+    if (bevarVedFeil && gamleChunkIds) {
+      // Rull tilbake: fjern nye rader fra denne kjøringen, behold de gamle, og
+      // la dokumentet stå som completed (fortsatt søkbart) med synlig feilårsak.
+      await prisma.ftdDocumentChunk
+        .deleteMany({ where: { documentId, id: { notIn: gamleChunkIds } } })
+        .catch(() => {});
+      await prisma.ftdSpecPost
+        .deleteMany({ where: { documentId, id: { notIn: gamleSpecIds ?? [] } } })
+        .catch(() => {});
+      await prisma.ftdDocument
+        .update({
+          where: { id: documentId },
+          data: {
+            processingState: "completed",
+            processingError: `Tvungen reekstraksjon feilet (gamle treff beholdt): ${melding}`,
+          },
+        })
+        .catch(() => {});
+    } else {
+      await prisma.ftdDocument
+        .update({
+          where: { id: documentId },
+          data: { processingState: "failed", processingError: melding },
+        })
+        .catch(() => {});
+    }
   }
 }
 

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Spinner, Table } from "@sitedoc/ui";
+import { Spinner, Table, Modal } from "@sitedoc/ui";
 import {
   FolderOpen,
   FileText,
@@ -128,6 +128,7 @@ export default function MapperSide() {
   const { t } = useTranslation();
   const kanManageField = useKanManageField();
   const [visOversettelse, setVisOversettelse] = useState(false);
+  const [visReprosesserAlle, setVisReprosesserAlle] = useState(false);
   const { prosjektId } = useProsjekt();
   const { data: session } = useSession();
   const searchParams = useSearchParams();
@@ -273,6 +274,16 @@ export default function MapperSide() {
     },
   });
 
+  // Admin-knapp: tving full reekstraksjon av ALLE PDF-er i prosjektet (retter feil
+  // sidetall uten ny opplasting). Bulk-kjøringen i api er begrenset til 2 om gangen.
+  const reprosesserProsjektMut = trpc.mappe.reprosesserProsjekt.useMutation({
+    onSuccess: () => {
+      setVisReprosesserAlle(false);
+      if (valgtMappeId) utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId });
+      utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    },
+  });
+
   const handleFilValgt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const filer = e.target.files;
     if (!filer || filer.length === 0 || !valgtMappeId) return;
@@ -352,6 +363,46 @@ export default function MapperSide() {
       </Link>
     ) : null;
 
+  const reprosesserAlleKnapp = kanManageField ? (
+    <button
+      onClick={() => setVisReprosesserAlle(true)}
+      disabled={reprosesserProsjektMut.isPending}
+      className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+      title={t("mapper.reprosesserAllePdfHjelp")}
+    >
+      <RefreshCw className={`h-4 w-4 text-sitedoc-primary ${reprosesserProsjektMut.isPending ? "animate-spin" : ""}`} />
+      <span className="hidden sm:inline">{t("mapper.reprosesserAllePdf")}</span>
+    </button>
+  ) : null;
+
+  const reprosesserAlleModal = (
+    <Modal
+      open={visReprosesserAlle}
+      onClose={() => setVisReprosesserAlle(false)}
+      title={t("mapper.reprosesserAllePdf")}
+    >
+      <div className="p-5">
+        <p className="text-sm text-gray-600">{t("mapper.reprosesserAllePdfBekreft")}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            onClick={() => setVisReprosesserAlle(false)}
+            className="rounded border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            {t("handling.avbryt")}
+          </button>
+          <button
+            onClick={() => reprosesserProsjektMut.mutate({ projectId: prosjektId!, tvingReekstraksjon: true })}
+            disabled={reprosesserProsjektMut.isPending}
+            className="flex items-center gap-1.5 rounded bg-sitedoc-primary px-4 py-2 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+          >
+            {reprosesserProsjektMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {t("mapper.reprosesserAllePdf")}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+
   // Ingen mappe valgt — vis velkomstmelding
   if (!valgtMappeId) {
     return (
@@ -361,7 +412,13 @@ export default function MapperSide() {
         <p className="text-sm text-gray-400">
           {t("mapper.velgMappe")}
         </p>
-        {administrerMapperLenke && <div className="mt-4">{administrerMapperLenke}</div>}
+        {(administrerMapperLenke || reprosesserAlleKnapp) && (
+          <div className="mt-4 flex items-center gap-2">
+            {administrerMapperLenke}
+            {reprosesserAlleKnapp}
+          </div>
+        )}
+        {reprosesserAlleModal}
       </div>
     );
   }
@@ -456,6 +513,7 @@ export default function MapperSide() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
         {administrerMapperLenke}
+        {reprosesserAlleKnapp}
         {valgtMappeId && (
           <button
             onClick={() => setVisOversettelse((v) => !v)}
@@ -515,6 +573,8 @@ export default function MapperSide() {
         </div>
       </div>
       </SonetonetSidehode>
+
+      {reprosesserAlleModal}
 
       {opplastingStatus && (
         <div className="mb-2 rounded border bg-gray-50 px-3 py-2">
