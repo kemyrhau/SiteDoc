@@ -1685,36 +1685,45 @@ export default function TegningerSide() {
           </button>
         )}
 
-        {/* Zoom-kontroller */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={zoomUt}
-            disabled={zoom <= MIN_ZOOM}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
-            title="Zoom ut"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setZoom(STANDARD_ZOOM)}
-            className="min-w-[48px] rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-            title="Tilbakestill zoom"
-          >
-            {zoomProsent}%
-          </button>
-          <button
-            onClick={zoomInn}
-            disabled={zoom >= MAKS_ZOOM}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
-            title="Zoom inn"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-        </div>
+        {/* Zoom-kontroller — kun SVG-veien. Leveranse 1 (dxf-viewer) styrer zoom via
+            dxf-viewers egne OrbitControls (musehjul/pinch); %-tallet og knappene her er
+            ikke koblet til den kameraet og skal ikke vises som om de var (RETUR
+            orkestrator 2026-10-14: «ikke la dem stå døde»). Kommer tilbake koblet i en
+            senere leveranse (lag/klikk/måling, plan § 12). */}
+        {!brukDxfViewer && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={zoomUt}
+              disabled={zoom <= MIN_ZOOM}
+              className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
+              title="Zoom ut"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setZoom(STANDARD_ZOOM)}
+              className="min-w-[48px] rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              title="Tilbakestill zoom"
+            >
+              {zoomProsent}%
+            </button>
+            <button
+              onClick={zoomInn}
+              disabled={zoom >= MAKS_ZOOM}
+              className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
+              title="Zoom inn"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* RETUR 2 (vedtak A): rotasjon — kun for DWG→SVG. Auto-rotasjonen er bakt inn;
-            her vises etiketten + en manuell overstyring (90°-trinn / tilbake til auto). */}
-        {erSvgFil && (
+            her vises etiketten + en manuell overstyring (90°-trinn / tilbake til auto).
+            Ikke for dxf-viewer-grenen (RETUR orkestrator 2026-10-14): VEDTAK B viser
+            tegningen SOM TEGNET der, uten auto-rotasjon — etiketten «Rotert 40°
+            automatisk» ville løyet om det faktiske kameraet. */}
+        {erSvgFil && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center gap-1">
@@ -2225,7 +2234,14 @@ export default function TegningerSide() {
           // Leveranse 1: PARALLELL vei bak flagget, leser SAMME Drawing-rad (plan § 3).
           // Egen, isolert gren — markører/måling/lagpanel/klikk er leveranse 2/3/5,
           // ikke del av denne gaten (DoD: riktig startutsnitt i appens faktiske layout).
-          <div className="flex-1 overflow-hidden bg-gray-100">
+          <div
+            ref={containerRef}
+            className="flex-1 overflow-hidden bg-gray-100"
+            // RETUR (orkestrator 2026-10-14): samme definit-høyde-mekanisme som
+            // erBilde-grenen (tegningVisningshoyde.ts) — uten den er `flex-1` inert i
+            // den delte dashbord-layouten (<main> er display:block), og flaten kollapser
+            // til ~270 px / 0 px på smal viewport.
+          >
             <DxfViewerTegning
               dxfUrl={`/api${tegning.dxfViewerFileUrl}`}
               registerWorldUrl={`/api${tegning.registerWorldUrl}`}

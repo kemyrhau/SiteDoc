@@ -54,6 +54,53 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
   const containerRef = useRef<HTMLDivElement>(null);
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const viewerRef = useRef<any>(null);
+  const bygningRef = useRef<ReturnType<typeof beregnByggUtstrekning>>(null);
+  const fitZoomBaseRef = useRef<number | null>(null);
+
+  /** Kamera-fit til bygningsutstrekningen (eller hele DXF-en før registeret er lastet),
+   * for den GJELDENDE containerstørrelsen. Kalt ved første last OG fra ResizeObserver —
+   * RETUR (orkestrator 2026-10-14): container-høyden er 0 ved mount inntil den delte
+   * dashbord-layouten har satt en definit høyde (tegningVisningshoyde.ts), og kan endre
+   * seg senere (vindu/mobilpanel) — ett engangs-FitView holder ikke. */
+  function tilpassKamera(rect: DOMRectReadOnly | DOMRect) {
+    const viewer = viewerRef.current;
+    if (!viewer || rect.width <= 0 || rect.height <= 0) return;
+    viewer.SetSize(Math.round(rect.width), Math.round(rect.height));
+    const o = viewer.origin;
+    const bu = bygningRef.current;
+    const cam = viewer.camera;
+    if (bu) {
+      const uMinX = bu.x0 - o.x, uMaxX = bu.x1 - o.x, uMinY = bu.y0 - o.y, uMaxY = bu.y1 - o.y;
+      const margin = Math.max(uMaxX - uMinX, uMaxY - uMinY) * 0.02;
+      const width = uMaxX - uMinX + margin * 2;
+      const height = uMaxY - uMinY + margin * 2;
+      const aspect = rect.width / rect.height;
+      let finalWidth = width, finalHeight = height;
+      if (finalHeight * aspect > finalWidth) finalWidth = finalHeight * aspect;
+      else finalHeight = finalWidth / aspect;
+      const cx = (uMinX + uMaxX) / 2, cy = (uMinY + uMaxY) / 2;
+      cam.left = -finalWidth / 2; cam.right = finalWidth / 2;
+      cam.top = finalHeight / 2; cam.bottom = -finalHeight / 2;
+      cam.zoom = 1;
+      cam.position.set(cx, cy, 1);
+      cam.updateProjectionMatrix();
+      if (viewer.controls) { viewer.controls.target.set(cx, cy, 0); viewer.controls.update(); }
+    } else {
+      // Registeret er ikke lastet ennå (eller ugyldig) — hele DXF-ens extents, samme
+      // ramme som FØR registeret svarer.
+      const b = viewer.bounds;
+      viewer.FitView(b.minX - o.x, b.maxX - o.x, b.minY - o.y, b.maxY - o.y, 0.05);
+    }
+    if (viewer.controls && fitZoomBaseRef.current) {
+      const startBredde = viewer.camera.right - viewer.camera.left;
+      const forhold = startBredde / fitZoomBaseRef.current;
+      viewer.controls.minZoom = 0.5 * forhold;
+      viewer.controls.maxZoom = 50 * forhold;
+    }
+    viewer.Render();
+  }
 
   useEffect(() => {
     let kansellert = false;
@@ -67,14 +114,12 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
       if (!el) return;
       try {
         const { DxfViewer } = await import("dxf-viewer");
-        // DxfViewers konstruktor overskriver containerens inline style til
-        // position:relative UTEN høyde — mål rect FØR konstruksjon (samme funn
-        // som harness-v3-compare, spike 0,5b-bildebeviset).
-        const rect = el.getBoundingClientRect();
         viewer = new DxfViewer(el, { autoResize: false, colorCorrection: true, sceneOptions: { wireframeMesh: false } });
+        viewerRef.current = viewer;
+        bygningRef.current = null;
+        fitZoomBaseRef.current = null;
         await viewer.Load({ url: dxfUrl, fonts: ["/fonts/Arimo.ttf"] });
         if (kansellert) { viewer.Destroy?.(); return; }
-        viewer.SetSize(Math.round(rect.width), Math.round(rect.height));
         if (viewer.SetClearColor) viewer.SetClearColor(0xffffff);
 
         // VEDTAK B: ikke-georeferert DWG vises SOM TEGNET. R=0 ved last; brukerens
@@ -83,11 +128,19 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
         const rad = (R * Math.PI) / 180;
         viewer.camera.up.set(Math.sin(rad), Math.cos(rad), 0);
 
+        // Mål/sett størrelsen FØR FitView (aspekt-korrekt fit) — kan være 0 her
+        // (høyden settes av den delte dashbord-layouten i en annen komponent, se
+        // tegningVisningshoyde.ts), ResizeObserveren under retter det opp.
+        const initRect = el.getBoundingClientRect();
+        if (initRect.width > 0 && initRect.height > 0) {
+          viewer.SetSize(Math.round(initRect.width), Math.round(initRect.height));
+        }
+
         // viewer.bounds er RÅ DXF-verdenskoordinater, scenen er origin-forskjøvet —
         // FitView/SetView gjør ingen origin-trekk selv (bekreftet i bunten).
         const b = viewer.bounds, o = viewer.origin;
         viewer.FitView(b.minX - o.x, b.maxX - o.x, b.minY - o.y, b.maxY - o.y, 0.05);
-        const fitZoomBase = viewer.camera.right - viewer.camera.left;
+        fitZoomBaseRef.current = viewer.camera.right - viewer.camera.left;
 
         // Startutsnitt (RETUR, orkestrator 2026-10-13): regnes DIREKTE fra registerets
         // bygningsutstrekning (rutenett ekskludert), IKKE render.py sin SVG-startutsnitt-
@@ -95,33 +148,9 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
         const register = await fetch(registerWorldUrl).then((r) => r.json());
         if (kansellert) return;
         if (erGyldigRegisterVerden(register)) {
-          const bu = beregnByggUtstrekning(register);
-          if (bu) {
-            const uMinX = bu.x0 - o.x, uMaxX = bu.x1 - o.x, uMinY = bu.y0 - o.y, uMaxY = bu.y1 - o.y;
-            const margin = Math.max(uMaxX - uMinX, uMaxY - uMinY) * 0.02;
-            const cam = viewer.camera;
-            const width = uMaxX - uMinX + margin * 2;
-            const height = uMaxY - uMinY + margin * 2;
-            const aspect = rect.width / rect.height;
-            let finalWidth = width, finalHeight = height;
-            if (finalHeight * aspect > finalWidth) finalWidth = finalHeight * aspect;
-            else finalHeight = finalWidth / aspect;
-            const cx = (uMinX + uMaxX) / 2, cy = (uMinY + uMaxY) / 2;
-            cam.left = -finalWidth / 2; cam.right = finalWidth / 2;
-            cam.top = finalHeight / 2; cam.bottom = -finalHeight / 2;
-            cam.zoom = 1;
-            cam.position.set(cx, cy, 1);
-            cam.updateProjectionMatrix();
-            if (viewer.controls) { viewer.controls.target.set(cx, cy, 0); viewer.controls.update(); }
-          }
-          if (viewer.controls) {
-            const startBredde = viewer.camera.right - viewer.camera.left;
-            const forhold = startBredde / fitZoomBase;
-            viewer.controls.minZoom = 0.5 * forhold;
-            viewer.controls.maxZoom = 50 * forhold;
-          }
+          bygningRef.current = beregnByggUtstrekning(register);
         }
-        viewer.Render();
+        tilpassKamera(el.getBoundingClientRect());
         setLaster(false);
       } catch (e) {
         if (!kansellert) {
@@ -131,10 +160,28 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
       }
     }
     last();
+
+    // RETUR (orkestrator 2026-10-14): containerens høyde er 0 ved mount (den delte
+    // dashbord-layoutens høyde-effekt kjører i en annen komponent og settes FØR denne
+    // useEffect-en, men vinduet/panelet kan endre størrelse SENERE — mobilpanel tvunget
+    // synlig, vindu resizet, verktøylinje som vokser). Refit på HVER observerte endring,
+    // ikke bare ved mount.
+    const el = containerRef.current;
+    let ro: ResizeObserver | null = null;
+    if (el) {
+      ro = new ResizeObserver((entries) => {
+        const rect = entries[0]?.contentRect;
+        if (rect) tilpassKamera(rect);
+      });
+      ro.observe(el);
+    }
+
     return () => {
       kansellert = true;
+      ro?.disconnect();
       viewer?.Destroy?.();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dxfUrl, registerWorldUrl, rotasjonOverstyrt]);
 
   return (
