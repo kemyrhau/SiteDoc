@@ -169,7 +169,8 @@ export function TreffListe({ treff, onVelgTreff, valgtId, søkeord, visScore }: 
                     <span className="font-medium text-gray-600">{tr.sectionTitle}</span>
                   )}
                   {tr.chunkIndex != null && (
-                    <span className="text-gray-400">{t("ftdSok.chunk", { nr: tr.chunkIndex })}</span>
+                    // 1-indeksert for brukeren (chunkIndex er 0-basert i databasen).
+                    <span className="text-gray-400">{t("ftdSok.chunk", { nr: tr.chunkIndex + 1 })}</span>
                   )}
                   <span className="ml-auto"><MetodeBadge metode={tr.metode} /></span>
                 </div>
