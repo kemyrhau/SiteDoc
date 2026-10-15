@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -274,15 +274,47 @@ export default function MapperSide() {
     },
   });
 
-  // Admin-knapp: tving full reekstraksjon av ALLE PDF-er i prosjektet (retter feil
+  // Admin-knapp: tving full reekstraksjon av ALLE dokumenter i prosjektet (retter feil
   // sidetall uten ny opplasting). Bulk-kjøringen i api er begrenset til 2 om gangen.
   const reprosesserProsjektMut = trpc.mappe.reprosesserProsjekt.useMutation({
     onSuccess: () => {
       setVisReprosesserAlle(false);
       if (valgtMappeId) utils.mappe.hentDokumenter.invalidate({ folderId: valgtMappeId });
       utils.mappe.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      utils.mappe.reprosesseringStatus.invalidate({ projectId: prosjektId! });
     },
   });
+
+  // Samlet reprosesserings-status (prosjekt-nivå): driver fremdriftsteksten ved knappen
+  // og holder knappen deaktivert mens noe kjører — også etter sideoppdatering, siden
+  // `pågår` utledes fra DB-radene, ikke klient-state. Poller hvert 3. sek kun mens noe kjører.
+  const { data: reprosessStatus } = trpc.mappe.reprosesseringStatus.useQuery(
+    { projectId: prosjektId! },
+    {
+      enabled: !!prosjektId && kanManageField,
+      refetchInterval: (query: { state: { data: unknown } }) =>
+        ((query.state.data as { pågår?: number } | undefined)?.pågår ?? 0) > 0 ? 3000 : false,
+    },
+  );
+  const reprosessPågår = (reprosessStatus?.pågår ?? 0) > 0;
+
+  // Vis «Ferdig: X ok, Y feilet» kort etter at en kjøring går pågår→ferdig. Holdes i
+  // klient-state (transient kvittering); nullstilles når en ny kjøring starter.
+  const forrigePågår = useRef(false);
+  const [ferdigSammendrag, setFerdigSammendrag] = useState<{ ok: number; feilet: number } | null>(null);
+  useEffect(() => {
+    if (!reprosessStatus) return;
+    if (reprosessPågår) {
+      setFerdigSammendrag(null);
+      forrigePågår.current = true;
+      return;
+    }
+    if (forrigePågår.current) {
+      const ok = Math.max(0, reprosessStatus.totalt - reprosessStatus.feilet - reprosessStatus.ustøttet);
+      setFerdigSammendrag({ ok, feilet: reprosessStatus.feilet });
+    }
+    forrigePågår.current = false;
+  }, [reprosessPågår, reprosessStatus]);
 
   const handleFilValgt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const filer = e.target.files;
@@ -363,17 +395,40 @@ export default function MapperSide() {
       </Link>
     ) : null;
 
+  const reprosesserKjører = reprosesserProsjektMut.isPending || reprosessPågår;
   const reprosesserAlleKnapp = kanManageField ? (
     <button
       onClick={() => setVisReprosesserAlle(true)}
-      disabled={reprosesserProsjektMut.isPending}
+      disabled={reprosesserKjører}
       className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
       title={t("mapper.reprosesserAllePdfHjelp")}
     >
-      <RefreshCw className={`h-4 w-4 text-sitedoc-primary ${reprosesserProsjektMut.isPending ? "animate-spin" : ""}`} />
+      <RefreshCw className={`h-4 w-4 text-sitedoc-primary ${reprosesserKjører ? "animate-spin" : ""}`} />
       <span className="hidden sm:inline">{t("mapper.reprosesserAllePdf")}</span>
     </button>
   ) : null;
+
+  // Fremdrift/kvittering ved «Prosesser alle dokumenter på nytt». Vises så lenge noe
+  // kjører («Prosesserer N av M …»), og kort etterpå («Ferdig: X ok, Y feilet»).
+  const reprosesserFremdrift =
+    kanManageField && (reprosessPågår || ferdigSammendrag) ? (
+      <span className="flex items-center gap-1.5 text-sm text-gray-500">
+        {reprosessPågår ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-sitedoc-primary" />
+            {t("mapper.reprosessererFremdrift", {
+              ferdig: reprosessStatus?.ferdig ?? 0,
+              totalt: reprosessStatus?.totalt ?? 0,
+            })}
+          </>
+        ) : ferdigSammendrag ? (
+          t("mapper.reprosessererFerdig", {
+            ok: ferdigSammendrag.ok,
+            feilet: ferdigSammendrag.feilet,
+          })
+        ) : null}
+      </span>
+    ) : null;
 
   const reprosesserAlleModal = (
     <Modal
@@ -392,10 +447,10 @@ export default function MapperSide() {
           </button>
           <button
             onClick={() => reprosesserProsjektMut.mutate({ projectId: prosjektId!, tvingReekstraksjon: true })}
-            disabled={reprosesserProsjektMut.isPending}
+            disabled={reprosesserKjører}
             className="flex items-center gap-1.5 rounded bg-sitedoc-primary px-4 py-2 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
           >
-            {reprosesserProsjektMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {reprosesserKjører && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("mapper.reprosesserAllePdf")}
           </button>
         </div>
@@ -416,6 +471,7 @@ export default function MapperSide() {
           <div className="mt-4 flex items-center gap-2">
             {administrerMapperLenke}
             {reprosesserAlleKnapp}
+            {reprosesserFremdrift}
           </div>
         )}
         {reprosesserAlleModal}
@@ -512,6 +568,7 @@ export default function MapperSide() {
           </nav>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+        {reprosesserFremdrift}
         {administrerMapperLenke}
         {reprosesserAlleKnapp}
         {valgtMappeId && (

@@ -41,8 +41,94 @@ let _stoppSignal = false;
 
 const NORBERT_URL = process.env.NORBERT_URL ?? "http://127.0.0.1:3302";
 
+// ---- Robusthet: tidsavbrudd + klassifisering + nytt forsøk ----
+// Målt rotårsak (prod 2026-10-15): «Prosesser alle dokumenter på nytt» kjører 2 dokumenter
+// samtidig; embedding-tjenesten (NorBERT) ble forbigående overbelastet/traff timeout, og uten
+// nytt forsøk ble chunk-batchene stående `failed` (røde dokumenter) til manuelt ↻. Fiksen:
+// tidsavbrutt fetch + klassifisering (forbigående vs. permanent) + eksponentiell backoff.
+
+export const EMBEDDING_TIMEOUT_MS = 30_000;
+const EMBEDDING_RETRY_FORSØK = 3; // totalt antall forsøk (1 + 2 retry)
+const EMBEDDING_RETRY_BASE_MS = 500;
+
+/** Embedding-feil med klassifisering: `forbigående` styrer om et nytt forsøk er meningsfullt. */
+export class EmbeddingFeil extends Error {
+  forbigående: boolean;
+  status?: number;
+  constructor(message: string, forbigående: boolean, status?: number) {
+    super(message);
+    this.name = "EmbeddingFeil";
+    this.forbigående = forbigående;
+    this.status = status;
+  }
+}
+
+/** 429 (rate limit) og 5xx (server/overbelastning) er forbigående; øvrige 4xx er permanente. */
+function forbigåendeStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+/** Klassifiser en vilkårlig feil. Default = permanent (ikke retry) om vi ikke kjenner den igjen. */
+function erForbigående(err: unknown): boolean {
+  if (err instanceof EmbeddingFeil) return err.forbigående;
+  const status = (err as { status?: number } | undefined)?.status;
+  if (typeof status === "number") return forbigåendeStatus(status);
+  const navn = (err as Error | undefined)?.name ?? "";
+  const melding = (err as Error | undefined)?.message ?? "";
+  return (
+    /AbortError/i.test(navn) ||
+    /ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|network|timeout|socket|fetch failed|hang up/i.test(melding)
+  );
+}
+
+/** fetch med AbortController-tidsavbrudd. Timeout/nettverksfeil kastes som forbigående EmbeddingFeil. */
+async function fetchMedTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = EMBEDDING_TIMEOUT_MS,
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") {
+      throw new EmbeddingFeil(`Embedding-tidsavbrudd etter ${timeoutMs} ms`, true);
+    }
+    throw new EmbeddingFeil(
+      `Embedding-nettverksfeil: ${(err as Error)?.message ?? String(err)}`,
+      true,
+    );
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** Kjør `fn` med eksponentiell backoff. Retry bare på forbigående feil; permanente kastes straks. */
+async function medRetry<T>(
+  fn: () => Promise<T>,
+  baseMs = EMBEDDING_RETRY_BASE_MS,
+  forsøk = EMBEDDING_RETRY_FORSØK,
+): Promise<T> {
+  let sisteFeil: unknown;
+  for (let i = 0; i < forsøk; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      sisteFeil = err;
+      if (!erForbigående(err) || i === forsøk - 1) throw err;
+      const ventMs = baseMs * 2 ** i;
+      logg(
+        `[EMBEDDING] Forsøk ${i + 1}/${forsøk} feilet (forbigående), venter ${ventMs} ms: ${(err as Error)?.message ?? err}`,
+      );
+      await new Promise((r) => setTimeout(r, ventMs));
+    }
+  }
+  throw sisteFeil;
+}
+
 async function kallNorBERT(tekster: string[]): Promise<number[][]> {
-  const response = await fetch(`${NORBERT_URL}/embed`, {
+  const response = await fetchMedTimeout(`${NORBERT_URL}/embed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(tekster),
@@ -50,7 +136,11 @@ async function kallNorBERT(tekster: string[]): Promise<number[][]> {
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`NorBERT-server feilet (${response.status}): ${body.slice(0, 200)}`);
+    throw new EmbeddingFeil(
+      `NorBERT-server feilet (${response.status}): ${body.slice(0, 200)}`,
+      forbigåendeStatus(response.status),
+      response.status,
+    );
   }
 
   return (await response.json()) as number[][];
@@ -63,7 +153,7 @@ async function kallMultilingualE5(
   type: "passage" | "query" = "passage",
 ): Promise<number[][]> {
   const model = type === "query" ? "multilingual-e5-query" : "multilingual-e5-base";
-  const response = await fetch(`${NORBERT_URL}/embed/model`, {
+  const response = await fetchMedTimeout(`${NORBERT_URL}/embed/model`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model, texts: tekster }),
@@ -71,7 +161,11 @@ async function kallMultilingualE5(
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`E5-embedding feilet (${response.status}): ${body.slice(0, 200)}`);
+    throw new EmbeddingFeil(
+      `E5-embedding feilet (${response.status}): ${body.slice(0, 200)}`,
+      forbigåendeStatus(response.status),
+      response.status,
+    );
   }
 
   const data = (await response.json()) as { embeddings: number[][] };
@@ -103,7 +197,7 @@ export async function embeddNyeBlokker(
     const tekster = batch.map((b) => b.content);
 
     try {
-      const embeddings = await kallMultilingualE5(tekster, "passage");
+      const embeddings = await medRetry(() => kallMultilingualE5(tekster, "passage"));
 
       for (let j = 0; j < batch.length; j++) {
         const vektor = embeddings[j];
@@ -165,7 +259,7 @@ async function genererEmbeddings(
     return kallNorBERT(tekster);
   } else {
     if (!innstillinger.apiKey) {
-      throw new Error("OpenAI API-nøkkel mangler");
+      throw new EmbeddingFeil("OpenAI API-nøkkel mangler", false);
     }
     return genererOpenAIEmbeddings(
       tekster,
@@ -217,6 +311,7 @@ export async function hentEmbeddingInnstillinger(
 export async function embeddDokumentChunks(
   prisma: PrismaClient,
   documentId: string,
+  opts?: { retryBaseMs?: number },
 ): Promise<{ done: number; failed: number }> {
   const dok = await prisma.ftdDocument.findUnique({
     where: { id: documentId },
@@ -249,9 +344,9 @@ export async function embeddDokumentChunks(
     });
 
     try {
-      const embeddings = await genererEmbeddings(
-        batch.map((c) => c.chunkText),
-        innstillinger,
+      const embeddings = await medRetry(
+        () => genererEmbeddings(batch.map((c) => c.chunkText), innstillinger),
+        opts?.retryBaseMs,
       );
       for (let j = 0; j < batch.length; j++) {
         const emb = embeddings[j];

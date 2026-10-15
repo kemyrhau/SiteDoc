@@ -1169,6 +1169,45 @@ export const mappeRouter = router({
       return reparerDokumentSett({ projectId: input.projectId });
     }),
 
+  /**
+   * Samlet reprosesserings-status for et prosjekt — driver fremdriftsteksten ved
+   * «Prosesser alle dokumenter på nytt» og deaktiverer knappen mens noe kjører
+   * (overlever sideoppdatering, siden tilstanden utledes av DB-radene, ikke klient-state).
+   * `pågår` = dokumenter i pending/processing. `feilet` = røde dokumenter som IKKE kjører
+   * (failed, lagret feilårsak, eller minst én chunk med embedding `failed`). Disjunkte sett.
+   */
+  reprosesseringStatus: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const rows = await ctx.prisma.$queryRaw<
+        Array<{ totalt: bigint; pagar: bigint; feilet: bigint; ustottet: bigint }>
+      >`
+        SELECT COUNT(*) AS totalt,
+               COUNT(*) FILTER (WHERE d.processing_state IN ('pending', 'processing')) AS pagar,
+               COUNT(*) FILTER (WHERE d.processing_state = 'unsupported') AS ustottet,
+               COUNT(*) FILTER (
+                 WHERE d.processing_state NOT IN ('pending', 'processing')
+                   AND (
+                     d.processing_state = 'failed'
+                     OR d.processing_error IS NOT NULL
+                     OR EXISTS (
+                       SELECT 1 FROM ftd_document_chunks c
+                       WHERE c.document_id = d.id AND c.embedding_state = 'failed'
+                     )
+                   )
+               ) AS feilet
+        FROM ftd_documents d
+        WHERE d.project_id = ${input.projectId} AND d.is_active = true
+      `;
+      const r = rows[0];
+      const totalt = Number(r?.totalt ?? 0);
+      const pågår = Number(r?.pagar ?? 0);
+      const feilet = Number(r?.feilet ?? 0);
+      const ustøttet = Number(r?.ustottet ?? 0);
+      return { totalt, pågår, feilet, ustøttet, ferdig: totalt - pågår };
+    }),
+
   settKontrakt: protectedProcedure
     .input(
       z.object({
