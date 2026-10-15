@@ -58,6 +58,10 @@ Lønnsarter til sortering.txt
 # Playwright MCP-artefakter (snapshots/logger)
 .playwright-mcp/
 
+# dxf-viewer-worker-bunt — generert av apps/web/scripts/build-dxf-worker.mjs FØR
+# next dev/build/typecheck (innholds-hashet filnavn, aldri commitet)
+apps/web/public/workers/
+
 .claude/settings.local.json
 CLAUDE.local.md
 

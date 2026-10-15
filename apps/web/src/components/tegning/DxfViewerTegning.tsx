@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { RegisterVerden } from "@sitedoc/shared";
 import { erGyldigRegisterVerden } from "@sitedoc/shared";
 import { hentFilMedCache, usignertFilSti } from "@/lib/tegningFilCache";
+import { hentDxfWorkerFactory } from "@/lib/dxfWorkerFactory";
 
 /**
  * Leveranse 1 (TEGNING_MOTOR=dxfviewer): tegner forenklet DXF + O1-register direkte
@@ -26,6 +27,14 @@ import { hentFilMedCache, usignertFilSti } from "@/lib/tegningFilCache";
  * bygge scenen på nytt. Selve nedlastingen går via `hentFilMedCache` (klient-cache,
  * usignert nøkkel; signert URL brukes kun ved cache-bom) — SVAR RETUR 4: ikke rør
  * `hmac.ts`, cache på klienten i stedet.
+ *
+ * Worker-bunt (orkestrator 2026-10-15, "worker-bunt med esbuild, GODKJENT"): DXF-parsing
+ * flyttes av hovedtråden via `dxf-viewer`s `workerFactory`. Bunten er FRITTSTÅENDE —
+ * bygget av `scripts/build-dxf-worker.mjs` (esbuild) FØR next dev/build, IKKE Next sin
+ * egen webpack-worker-bundling (den native veien ga en manglende-chunk-defekt i en kald
+ * build). `hentDxfWorkerFactory()` leser `public/workers/manifest.json` for gjeldende
+ * hash-navn; svarer den ikke, eller feiler selve worker-lastingen (404/CSP), faller
+ * Load()-kallet under tilbake til hovedtråden med en konsollmelding — aldri blank flate.
  */
 
 export interface DxfViewerTegningProps {
@@ -158,12 +167,13 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
         // RETUR 4 punkt 1+3: hent fra klient-cache (usignert nøkkel) først; signert URL
         // brukes kun ved bom. Parallelt (ikke sekvensielt som før) — register-fetchen
         // venter ikke på at DXF-parsingen er ferdig.
-        const [dxfBlob, registerBlob] = await Promise.all([
+        const [dxfBlob, registerBlob, workerFactory] = await Promise.all([
           hentFilMedCache(usignertDxfSti, dxfUrlRef.current, (fase, mottatt, total) => {
             if (kansellert) return;
             setFremdriftProsent(fase === "nedlasting" && total ? Math.round((mottatt / total) * 100) : null);
           }),
           hentFilMedCache(usignertRegisterSti, registerWorldUrlRef.current),
+          hentDxfWorkerFactory(),
         ]);
         if (kansellert) return;
         dxfBlobUrl = URL.createObjectURL(dxfBlob);
@@ -197,7 +207,18 @@ export function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt }
           };
         }
 
-        await viewer.Load({ url: dxfBlobUrl, fonts: ["/fonts/Arimo.ttf"] });
+        // Krav fra GODKJENT-posten (relay/inbox-dokgen-arbeidstegning-f1.md):
+        // worker-veien er standard, men en 404/CSP-blokkert bunt skal ALDRI gi
+        // blank flate — ett forsøk til på hovedtråden (samme viewer, Load()
+        // nullstiller internt via Clear()), med en synlig konsollmelding.
+        try {
+          await viewer.Load({ url: dxfBlobUrl, fonts: ["/fonts/Arimo.ttf"], workerFactory: workerFactory ?? undefined });
+        } catch (workerErr) {
+          if (!workerFactory) throw workerErr;
+          console.warn("[dxf-viewer] worker-bunt feilet, faller tilbake til hovedtråden", workerErr);
+          if (kansellert) return;
+          await viewer.Load({ url: dxfBlobUrl, fonts: ["/fonts/Arimo.ttf"] });
+        }
         if (kansellert) { viewer.Destroy?.(); return; }
         if (viewer.SetClearColor) viewer.SetClearColor(0xffffff);
 
