@@ -6,6 +6,13 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## 🔴 Hendelse 2026-10-15 natt: prod-mobilappen fikk ingen data (ca. 23:30–02:20)
+
+- **Symptom:** etter release `f2d3e172` viste prod-appen «Frakoblet – viser lagrede data» og «Ingen byggeplasser på prosjektet» i alle prosjekter som ikke var forberedt offline. Web virket. Utlogging og innlogging hjalp ikke. Tilbakerulling av OTA til 12.10 (`06b36803` → `28950b8c`) hjalp heller ikke, og det pekte på serveren.
+- **Rotårsak:** global `@fastify/compress` (br/gzip) i api, lagt inn i arbeidstegning RETUR 4/5 (`29730afc`). Mobilappen går direkte mot api (web kjører tRPC in-process og ble ikke rammet). Komprimerte tRPC-svar ble ikke lest av appen. Hvorfor React Native ikke leste dem er ikke målt ennå. Test hadde samme feil fra 22:35, men den ble skjult av at testprosjektet var forberedt offline.
+- **Retting:** `e633c021`: komprimering AV som standard, på bare med `API_KOMPRIMERING=1`. Prod-hotfix `972afdaa` (+ pdfjs-dist-ekstraksjon `b62c4c90`). 14.10-OTA-en republisert (`927a7b8b`). Kenneth verifiserte på telefon: byggeplasser og tegninger laster, OTA `f2d3e172`.
+- **Hullet i gaten:** Kontrollør-gaten spurte «fungerer mobilappen uendret?», men den ble besvart ved kodelesing (SSE/Range/typer), ikke på en telefon mot et prosjekt UTEN offline-speil. **Lærdom:** en endring i svarformatet til api (komprimering, headere, serialisering) krever test i mobilappen mot et ikke-forberedt prosjekt før prod. Et forberedt prosjekt leser fra speilet og skjuler feilen.
+
 ## Prod-deploy 2026-10-14 kveld (`f2d3e172`, develop→main): offline-tegninger, dokumentsøk, PDF-sidetall/reekstraksjon (LIVE)
 
 - **Web/api:** dokumentsøk med DOCX, uthevet utdrag, side/seksjon, metode og gruppering (`44d2e913`). Riktige PDF-sidetall (`feca5bc4` ← `d3fb35bc`). «Prosesser alle PDF-er på nytt» med atomisk bytte og maks 2 samtidig, og «Prosesser på nytt» pr. dokument virker igjen (cuid) (`618dcdab` ← `5a454bbc`). br/gzip-komprimering i api, inkl. `image/vnd.dxf` (`29730afc`). Arbeidstegning leveranse 1 (dxf-viewer) er med, men **AV** i prod (bryteren finnes bare i test-compose).
