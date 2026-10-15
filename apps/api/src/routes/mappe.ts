@@ -78,8 +78,13 @@ async function tvingReekstraksjonAv(
   if (dokumenter.length === 0) return { ok: true, tvunget: 0 };
 
   const ider = dokumenter.map((d) => d.id);
+  // Forsvar i dybden (RETUR 2 2026-10-15): gjenta strandet-vakten PÅ selve reset-
+  // mutasjonen, ikke bare i findMany over. Et dokument som fikk et ferskt livstegn
+  // i vinduet mellom findMany og her (lever ennå) nullstilles da ALDRI — selv om
+  // UI-en ba om det. prosesserDokument-vakten (processingState != "processing") er
+  // siste port for de som likevel slipper gjennom som ferskt `processing`.
   await prisma.ftdDocument.updateMany({
-    where: { id: { in: ider } },
+    where: utenAktivtKjørendeWhere({ id: { in: ider } }),
     data: { processingState: "pending", processingError: null },
   });
   // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.
@@ -138,8 +143,10 @@ async function reparerDokumentSett(
   }
 
   if (fullIder.length > 0) {
+    // Forsvar i dybden (RETUR 2 2026-10-15): strandet-vakten gjentas på reset-
+    // mutasjonen, så et dokument med ferskt livstegn aldri nullstilles herfra.
     await prisma.ftdDocument.updateMany({
-      where: { id: { in: fullIder } },
+      where: utenAktivtKjørendeWhere({ id: { in: fullIder } }),
       data: { processingState: "pending", processingError: null },
     });
     // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.

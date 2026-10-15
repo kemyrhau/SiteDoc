@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { erStrandet, utenAktivtKjørendeWhere, STRANDET_MS } from "./reprosessering";
+import { describe, it, expect, vi } from "vitest";
+import {
+  erStrandet,
+  utenAktivtKjørendeWhere,
+  STRANDET_MS,
+  lagLivstegn,
+  LIVSTEGN_THROTTLE_MS,
+} from "./reprosessering";
 
 /**
  * RETUR 2026-10-15 (Kontrollør) punkt 1: et dokument som henger i `processing`
@@ -59,5 +65,61 @@ describe("utenAktivtKjørendeWhere", () => {
     expect((strandetGren!.processingState as { in: string[] }).in).toEqual(["pending", "processing"]);
     // Strandet-grensa er NAA - STRANDET_MS
     expect((strandetGren!.updatedAt as { lt: Date }).lt.getTime()).toBe(NAA - STRANDET_MS);
+  });
+});
+
+/**
+ * RETUR 2 2026-10-15 (Kontrollør) punkt 1: uten livstegn stod `updated_at` stille
+ * gjennom hele OCR-fasen, så en lovlig lang OCR ble feilklassifisert som strandet.
+ * `lagLivstegn` bumper `updated_at` throttlet (maks hvert LIVSTEGN_THROTTLE_MS) så
+ * en levende jobb aldri ser strandet ut, mens throttlingen hindrer DB-spam.
+ */
+describe("lagLivstegn", () => {
+  function lagSpionPrisma() {
+    const kall: Array<{ sql: string; verdier: unknown[] }> = [];
+    const $executeRaw = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
+      kall.push({ sql: strings.join("?"), verdier: values });
+      return Promise.resolve(1);
+    });
+    return { prisma: { $executeRaw }, kall };
+  }
+
+  it("første kall skriver livstegn; nytt kall innen throttle-vinduet skrives IKKE", async () => {
+    const { prisma, kall } = lagSpionPrisma();
+    let naa = 1_000_000;
+    const livstegn = lagLivstegn(prisma, "dok-1", () => naa);
+
+    await livstegn();
+    expect(kall).toHaveLength(1);
+
+    naa += LIVSTEGN_THROTTLE_MS - 1; // like under vinduet
+    await livstegn();
+    expect(kall).toHaveLength(1); // throttlet bort
+  });
+
+  it("etter throttle-vinduet skrives nytt livstegn", async () => {
+    const { prisma, kall } = lagSpionPrisma();
+    let naa = 1_000_000;
+    const livstegn = lagLivstegn(prisma, "dok-1", () => naa);
+
+    await livstegn();
+    naa += LIVSTEGN_THROTTLE_MS; // nøyaktig på vinduet (>= skriver)
+    await livstegn();
+    expect(kall).toHaveLength(2);
+  });
+
+  it("gjerder på processing_state='processing' og riktig id — gjenopplives aldri completed", async () => {
+    const { prisma, kall } = lagSpionPrisma();
+    const livstegn = lagLivstegn(prisma, "dok-42", () => 1_000_000);
+    await livstegn();
+    expect(kall[0]!.sql).toContain("processing_state = 'processing'");
+    expect(kall[0]!.sql).toContain("SET updated_at = now()");
+    expect(kall[0]!.verdier).toEqual(["dok-42"]);
+  });
+
+  it("svelger DB-feil — et tapt livstegn velter aldri prosesseringen", async () => {
+    const $executeRaw = vi.fn(() => Promise.reject(new Error("DB nede")));
+    const livstegn = lagLivstegn({ $executeRaw }, "dok-1", () => 1_000_000);
+    await expect(livstegn()).resolves.toBeUndefined();
   });
 });

@@ -24,9 +24,14 @@ async function lagDok(filename: string, state: string, alderMin: number): Promis
   dokIder.push(dok.id);
   // `updated_at` er @updatedAt (auto) — tving en fortid via rå SQL for å simulere
   // at dokumentet ikke har hatt fremdrift på `alderMin` minutter.
+  //
+  // `updated_at` er `timestamp WITHOUT time zone`, lagret/lest som UTC av Prisma.
+  // `now()` gir sesjonens tz, så vi skriver UTC-veggklokka (`now() AT TIME ZONE
+  // 'UTC'`) — ellers forskyves verdien med tz-offset og testen feiler utenfor en
+  // UTC-sesjon (målt i +02 lokalt 2026-10-16).
   await prisma.$executeRaw`
     UPDATE ftd_documents
-    SET updated_at = now() - ${alderMin} * interval '1 minute'
+    SET updated_at = (now() AT TIME ZONE 'UTC') - make_interval(mins => ${alderMin}::int)
     WHERE id = ${dok.id}
   `;
   return dok.id;
