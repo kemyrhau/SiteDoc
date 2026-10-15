@@ -129,6 +129,11 @@ cd ~/Documents/Programmering/SiteDoc && git diff --stat origin/develop HEAD | ta
 cd ~/Documents/Programmering/SiteDoc && git push origin main
 ```
 
+🔴 **Endrer releasen hvordan api svarer** (komprimering, headere, serialisering, CORS)? Da skal mobilappen
+være testet mot **test-api i et prosjekt som IKKE er forberedt offline** før prod. Et forberedt prosjekt
+leser fra speilet og skjuler feilen. Hendelse 2026-10-15: global komprimering ga prod-appen null data
+i tre timer, mens web virket (historikk-2026-10).
+
 ### Steg 4 — deploy
 
 ```sh
