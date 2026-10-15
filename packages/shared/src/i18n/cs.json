@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Každý dokument v projektu je znovu zpracován z uloženého souboru. To opraví nesprávná čísla stránek bez opětovného nahrání. Stávající prohledávatelný obsah je uchován, dokud nové zpracování neuspěje. Najednou běží maximálně dva dokumenty; stav jednotlivých dokumentů se zobrazí v seznamu souborů.",
   "mapper.reprosessererFremdrift": "Zpracovává se {{ferdig}} z {{totalt}}…",
   "mapper.reprosessererFerdig": "Hotovo: {{ok}} ok, {{feilet}} se nezdařilo",
+  "mapper.avbruttProsesser": "Přerušeno – znovu zpracovat",
   "mapper.administrerMapper": "Správa složek",
   "okonomi.tittel": "Ekonomika",
   "okonomi.kontrakt": "Smlouva:",

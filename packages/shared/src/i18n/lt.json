@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Kiekvienas projekto dokumentas iš naujo apdorojamas iš saugomo failo. Taip pataisomi neteisingi puslapių numeriai neįkeliant iš naujo. Esamas ieškomas turinys išsaugomas tol, kol pavyksta naujai apdoroti. Vienu metu vykdomi daugiausiai du dokumentai; kiekvieno dokumento būsena rodoma failų sąraše.",
   "mapper.reprosessererFremdrift": "Apdorojama {{ferdig}} iš {{totalt}}…",
   "mapper.reprosessererFerdig": "Atlikta: {{ok}} gerai, {{feilet}} nepavyko",
+  "mapper.avbruttProsesser": "Pertraukta – perdirbti",
   "mapper.administrerMapper": "Tvarkyti aplankus",
   "okonomi.tittel": "Ekonomika",
   "okonomi.kontrakt": "Sutartis:",

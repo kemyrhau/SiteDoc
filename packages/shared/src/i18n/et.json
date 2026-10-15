@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Iga projekti dokumenti töödeldakse salvestatud failist uuesti. See parandab valed leheküljenumbrid ilma uuesti üleslaadimiseta. Olemasolevat otsitavat sisu hoitakse alles, kuni uus töötlemine õnnestub. Korraga käitatakse maksimaalselt kahte dokumenti; dokumendi olek kuvatakse faililoendis.",
   "mapper.reprosessererFremdrift": "Töötlemine: {{ferdig}}/{{totalt}} …",
   "mapper.reprosessererFerdig": "Valmis: {{ok}} ok, {{feilet}} ebaõnnestus",
+  "mapper.avbruttProsesser": "Katkestatud – töötle uuesti",
   "mapper.administrerMapper": "Hallake kaustu",
   "okonomi.tittel": "Majandus",
   "okonomi.kontrakt": "Leping:",

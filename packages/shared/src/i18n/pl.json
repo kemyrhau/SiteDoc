@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Każdy dokument w projekcie jest przetwarzany ponownie z zapisanego pliku. To naprawia błędne numery stron bez ponownego przesyłania. Istniejąca treść, którą można przeszukiwać, jest zachowywana do momentu pomyślnego zakończenia nowego przetwarzania. Jednocześnie uruchamiane są maksymalnie dwa dokumenty; status poszczególnych dokumentów jest wyświetlany na liście plików.",
   "mapper.reprosessererFremdrift": "Przetwarzanie {{ferdig}} z {{totalt}}…",
   "mapper.reprosessererFerdig": "Gotowe: {{ok}} ok, {{feilet}} nie powiodło się",
+  "mapper.avbruttProsesser": "Przerwane – ponowne przetwarzanie",
   "mapper.administrerMapper": "Zarządzaj folderami",
   "okonomi.tittel": "Gospodarka",
   "okonomi.kontrakt": "Umowa:",

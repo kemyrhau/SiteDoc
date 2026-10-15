@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Every document in the project is reprocessed from the stored file. This fixes wrong page numbers without re-uploading. Existing searchable content is kept until the new processing succeeds. At most two documents run at a time; per-document status is shown in the file list.",
   "mapper.reprosessererFremdrift": "Processing {{ferdig}} of {{totalt}} …",
   "mapper.reprosessererFerdig": "Done: {{ok}} ok, {{feilet}} failed",
+  "mapper.avbruttProsesser": "Interrupted – reprocess",
   "mapper.administrerMapper": "Manage folders",
   "okonomi.tittel": "Economy",
   "okonomi.kontrakt": "Contract:",

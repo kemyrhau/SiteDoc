@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Varje dokument i projektet omarbetas från den lagrade filen. Detta fixar fel sidnummer utan att ladda upp igen. Befintligt sökbart innehåll behålls tills den nya bearbetningen lyckas. Högst två dokument körs åt gången; status per dokument visas i fillistan.",
   "mapper.reprosessererFremdrift": "Bearbetar {{ferdig}} av {{totalt}} …",
   "mapper.reprosessererFerdig": "Klart: {{ok}} ok, {{feilet}} misslyckades",
+  "mapper.avbruttProsesser": "Avbruten – ombearbetning",
   "mapper.administrerMapper": "Hantera mappar",
   "okonomi.tittel": "Ekonomi",
   "okonomi.kontrakt": "Kontrakt:",

@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Jokainen projektin dokumentti käsitellään uudelleen tallennetusta tiedostosta. Tämä korjaa väärät sivunumerot ilman uudelleenlatausta. Olemassa oleva haettava sisältö säilytetään, kunnes uusi käsittely onnistuu. Korkeintaan kaksi asiakirjaa suoritetaan kerralla; asiakirjakohtainen tila näkyy tiedostoluettelossa.",
   "mapper.reprosessererFremdrift": "Käsitellään {{ferdig}}/{{totalt}}…",
   "mapper.reprosessererFerdig": "Valmis: {{ok}} ok, {{feilet}} epäonnistui",
+  "mapper.avbruttProsesser": "Keskeytetty – uudelleenkäsittely",
   "mapper.administrerMapper": "Hallitse kansioita",
   "okonomi.tittel": "Talous",
   "okonomi.kontrakt": "Sopimus:",

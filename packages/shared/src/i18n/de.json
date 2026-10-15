@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Jedes Dokument im Projekt wird aus der gespeicherten Datei erneut verarbeitet. Dies behebt falsche Seitenzahlen ohne erneutes Hochladen. Vorhandener durchsuchbarer Inhalt bleibt erhalten, bis die neue Verarbeitung erfolgreich ist. Es werden höchstens zwei Dokumente gleichzeitig ausgeführt. Der Status pro Dokument wird in der Dateiliste angezeigt.",
   "mapper.reprosessererFremdrift": "Verarbeitung von {{ferdig}} von {{totalt}} …",
   "mapper.reprosessererFerdig": "Fertig: {{ok}} ok, {{feilet}} fehlgeschlagen",
+  "mapper.avbruttProsesser": "Unterbrochen – erneut verarbeiten",
   "mapper.administrerMapper": "Ordner verwalten",
   "okonomi.tittel": "Wirtschaft",
   "okonomi.kontrakt": "Vertrag:",

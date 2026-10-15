@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Çdo dokument në projekt ripërpunohet nga skedari i ruajtur. Kjo rregullon numrat e gabuar të faqeve pa u ngarkuar sërish. Përmbajtja ekzistuese e kërkueshme ruhet derisa përpunimi i ri të ketë sukses. Më së shumti dy dokumente ekzekutohen në të njëjtën kohë; statusi për çdo dokument shfaqet në listën e skedarëve.",
   "mapper.reprosessererFremdrift": "Po përpunohet {{ferdig}} nga {{totalt}}…",
   "mapper.reprosessererFerdig": "U krye: {{ok}} në rregull, {{feilet}} dështoi",
+  "mapper.avbruttProsesser": "Ndërprerë - ripërpunim",
   "mapper.administrerMapper": "Menaxho dosjet",
   "okonomi.tittel": "Ekonomia",
   "okonomi.kontrakt": "Kontrata:",

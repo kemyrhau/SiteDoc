@@ -117,7 +117,9 @@ async function medRetry<T>(
     } catch (err) {
       sisteFeil = err;
       if (!erForbigående(err) || i === forsøk - 1) throw err;
-      const ventMs = baseMs * 2 ** i;
+      // Eksponentiell backoff med jitter (0,5×–1,5×) — sprer gjentatte forsøk så
+      // 2 samtidige dokumenter ikke treffer NorBERT i takt og gjenskaper lasten.
+      const ventMs = Math.round(baseMs * 2 ** i * (0.5 + Math.random()));
       logg(
         `[EMBEDDING] Forsøk ${i + 1}/${forsøk} feilet (forbigående), venter ${ventMs} ms: ${(err as Error)?.message ?? err}`,
       );

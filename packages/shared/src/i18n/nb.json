@@ -1142,6 +1142,7 @@
   "mapper.reprosesserAllePdfBekreft": "Alle dokumenter i prosjektet prosesseres på nytt fra lagret fil. Det retter feil sidetall uten ny opplasting. Eksisterende søkbart innhold beholdes til ny prosessering lykkes. Maks to dokumenter kjører om gangen; status vises pr. dokument i fillista.",
   "mapper.reprosessererFremdrift": "Prosesserer {{ferdig}} av {{totalt}} …",
   "mapper.reprosessererFerdig": "Ferdig: {{ok}} ok, {{feilet}} feilet",
+  "mapper.avbruttProsesser": "Avbrutt – prosesser på nytt",
   "mapper.administrerMapper": "Administrer mapper",
   "okonomi.tittel": "Økonomi",
   "okonomi.kontrakt": "Kontrakt:",

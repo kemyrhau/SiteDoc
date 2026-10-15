@@ -65,7 +65,9 @@ function maaReprosesseres(rad: {
   processingState: string | null;
   chunksTotalt: number;
   chunksEmbedded: number;
+  strandet?: boolean;
 }): boolean {
+  if (rad.strandet) return true; // strandet (prosess-crash) → kan reprosesseres
   if (rad.processingState === "pending" || rad.processingState === "processing") return false;
   if (rad.processingState === "unsupported") return false;
   if (rad.processingState === "failed") return true;
@@ -518,6 +520,7 @@ export default function MapperSide() {
     chunksTotalt: number;
     chunksEmbedded: number;
     chunksEmbeddingFeilet: number;
+    strandet: boolean;
     oversettelse?: {
       tilgjengelig: string[];
       pågår: boolean;
@@ -819,7 +822,7 @@ export default function MapperSide() {
 }
 
 /** Embedding-statusindikator per dokument */
-function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; processingError: string | null; chunksTotalt: number; chunksEmbedded: number; chunksEmbeddingFeilet: number } }) {
+function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; processingError: string | null; chunksTotalt: number; chunksEmbedded: number; chunksEmbeddingFeilet: number; strandet: boolean } }) {
   const { t } = useTranslation();
   // Ikke-støttet filtype (gammelt .doc, .rtf osv.) — synlig status, ikke stille tomhet
   if (rad.processingState === "unsupported") {
@@ -843,6 +846,16 @@ function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; pr
   if (rad.chunksEmbeddingFeilet > 0) {
     return (
       <span title={`${t("mapper.embeddingFeilet")} (${rad.chunksEmbeddingFeilet}/${rad.chunksTotalt})`}>
+        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+      </span>
+    );
+  }
+
+  // Strandet: pending/processing uten fremdrift siste 15 min (prosess-crash) —
+  // rødt «Avbrutt», ikke evig grå spinner. Plukkes opp av «Prosesser alle …».
+  if (rad.strandet) {
+    return (
+      <span title={t("mapper.avbruttProsesser")}>
         <AlertCircle className="h-3.5 w-3.5 text-red-500" />
       </span>
     );
