@@ -70,7 +70,7 @@ export const aiSokRouter = router({
         );
       }
 
-      const treff = await hybridSok(ctx.prisma, input.projectId, input.query, mappeIder, {
+      const resultat = await hybridSok(ctx.prisma, input.projectId, input.query, mappeIder, {
         provider: innstillinger.embeddingProvider as "local" | "openai",
         apiKey: innstillinger.embeddingApiKey ?? undefined,
         model: innstillinger.embeddingModel,
@@ -85,8 +85,10 @@ export const aiSokRouter = router({
       // ikke bare skjult i klienten. `metode` beholdes (godkjent i E, vises for alle).
       const visScore =
         process.env.NODE_ENV === "development" || (await erSiteDocAdmin(ctx.userId));
-      if (visScore) return treff;
-      return treff.map(({ score: _s, cosineSim: _c, reRankScore: _r, ...rest }) => rest);
+      const treff = visScore
+        ? resultat.treff
+        : resultat.treff.map(({ score: _s, cosineSim: _c, reRankScore: _r, ...rest }) => rest);
+      return { treff, aiSøkUtilgjengelig: resultat.aiSøkUtilgjengelig };
     }),
 
   /** Flerspråklig søk i dokumentblokker */

@@ -93,13 +93,15 @@ export default function DokumentsokSide() {
   // Bestem hva som vises
   const aiAktiv = modus === "ai" && harEmbeddings;
   const aiFeilet = aiAktiv && !!aiError;
+  // Server falt til tekstsøk fordi embedding-tjenesten ikke svarte (timeout/NorBERT nede).
+  const aiUtilgjengelig = aiAktiv && !aiFeilet && !!aiTreff?.aiSøkUtilgjengelig;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let visbareTreff: any[] | undefined = leksTreff;
   let brukFallback = false;
 
-  if (aiAktiv && !aiFeilet && (aiTreff?.length ?? 0) > 0) {
-    visbareTreff = aiTreff;
+  if (aiAktiv && !aiFeilet && (aiTreff?.treff?.length ?? 0) > 0) {
+    visbareTreff = aiTreff!.treff;
   } else if (aiAktiv) {
     brukFallback = true;
   } else if (modus === "leksikalsk") {
@@ -201,7 +203,7 @@ export default function DokumentsokSide() {
         </div>
 
         {/* Fallback-varsel */}
-        {aktivtSok && brukFallback && (
+        {aktivtSok && (brukFallback || aiUtilgjengelig) && (
           <div className="mt-2 flex items-center gap-1.5 rounded bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
             {aiFeilet

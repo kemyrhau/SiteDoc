@@ -3,6 +3,15 @@
  * Portert fra Fil til database-kopi: src/services/ai_search.py
  */
 import { PrismaClient, Prisma } from "@sitedoc/db";
+import { fetchMedTimeout } from "./embedding-service";
+
+/**
+ * Query-embedding er INTERAKTIVT (bruker venter på søkeresultat), så timeouten er
+ * kort og det gjøres ingen retry — til forskjell fra batch-embedding under prosessering
+ * (`embedding-service.ts`, 30 s + backoff). Henger NorBERT, avbrytes kallet og `hybridSok`
+ * faller til rent tekstsøk med synlig merknad i stedet for å henge søket.
+ */
+const QUERY_EMBEDDING_TIMEOUT_MS = 8_000;
 
 // ---- Norske stoppord + søke-fraser ----
 
@@ -83,6 +92,16 @@ export interface HybridSokTreff {
   cosineSim?: number;
   reRankScore?: number;
   metode: SokMetode;
+}
+
+/**
+ * Resultat av hybridsøk. `aiSøkUtilgjengelig` er true når query-embeddingen feilet
+ * (timeout/nett/NorBERT nede) og `treff` derfor er rent tekstsøk — klienten viser da en
+ * synlig merknad i stedet for å presentere det som fullverdig AI-søk (stille tomhet).
+ */
+export interface HybridSokResultat {
+  treff: HybridSokTreff[];
+  aiSøkUtilgjengelig: boolean;
 }
 
 interface RåChunk {
@@ -187,12 +206,21 @@ function beregReRank(
 
 const NORBERT_URL = process.env.NORBERT_URL ?? "http://127.0.0.1:3302";
 
-async function encodeQueryLokal(query: string): Promise<number[]> {
-  const response = await fetch(`${NORBERT_URL}/embed`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify([query]),
-  });
+async function encodeQueryLokal(
+  query: string,
+  timeoutMs = QUERY_EMBEDDING_TIMEOUT_MS,
+): Promise<number[]> {
+  // Gjenbruk av batch-embeddingens `fetchMedTimeout`: AbortController-avbrudd + ett forsøk.
+  // Kaster EmbeddingFeil ved timeout/nettverksfeil, som fanges i `hybridSok` → tekstsøk-fallback.
+  const response = await fetchMedTimeout(
+    `${NORBERT_URL}/embed`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([query]),
+    },
+    timeoutMs,
+  );
 
   if (!response.ok) {
     throw new Error(`NorBERT-server feilet (${response.status})`);
@@ -221,9 +249,10 @@ async function encodeQuery(
   provider: "local" | "openai",
   apiKey?: string,
   model?: string,
+  timeoutMs?: number,
 ): Promise<number[]> {
   if (provider === "local") {
-    return encodeQueryLokal(query);
+    return encodeQueryLokal(query, timeoutMs);
   }
   if (!apiKey) throw new Error("OpenAI API-nøkkel mangler");
   return encodeQueryOpenAI(query, apiKey, model ?? "text-embedding-3-small");
@@ -245,8 +274,10 @@ export async function hybridSok(
     vekter?: Partial<SokVekter>;
     topK?: number;
     kandidatK?: number;
+    /** Overstyr query-embedding-timeout (ms). Brukes av tester; default 8 s. */
+    embeddingTimeoutMs?: number;
   },
-): Promise<HybridSokTreff[]> {
+): Promise<HybridSokResultat> {
   const provider = options.provider ?? "local";
   const vekter = { ...DEFAULT_VEKTER, ...options.vekter };
   const topK = options.topK ?? 20;
@@ -283,10 +314,18 @@ export async function hybridSok(
   // 1. Encode query → embedding
   let queryEmbedding: number[];
   try {
-    queryEmbedding = await encodeQuery(rensetQuery, provider, options.apiKey, options.model);
-  } catch (err) {
-    // Fallback: kun leksikalsk søk
-    return leksikalskSok(prisma, projectId, rensetQuery, mappeIder, topK);
+    queryEmbedding = await encodeQuery(
+      rensetQuery,
+      provider,
+      options.apiKey,
+      options.model,
+      options.embeddingTimeoutMs,
+    );
+  } catch (_err) {
+    // Embedding utilgjengelig (timeout/nett/NorBERT nede) → fall til rent tekstsøk,
+    // og flagg det så klienten viser synlig merknad i stedet for stille tomhet.
+    const treff = await leksikalskSok(prisma, projectId, rensetQuery, mappeIder, topK);
+    return { treff, aiSøkUtilgjengelig: true };
   }
 
   const vecStr = `[${queryEmbedding.join(",")}]`;
@@ -363,7 +402,7 @@ export async function hybridSok(
   }
 
   const alleChunks = [...chunkMap.values()];
-  if (alleChunks.length === 0) return [];
+  if (alleChunks.length === 0) return { treff: [], aiSøkUtilgjengelig: false };
 
   // Filtrer lav cosine similarity (økt terskel fra 0.15 til 0.30)
   const SIM_TERSKEL = 0.30;
@@ -371,7 +410,7 @@ export async function hybridSok(
     (c) => Number(c.cosineSim) >= SIM_TERSKEL || c.kilde === "leksikalsk" || c.kilde === "begge",
   );
 
-  if (filtrert.length === 0) return [];
+  if (filtrert.length === 0) return { treff: [], aiSøkUtilgjengelig: false };
 
   // 5. Beregn re-ranking signaler per chunk
   const simVerdier = filtrert.map((c) => Number(c.cosineSim));
@@ -437,7 +476,7 @@ export async function hybridSok(
 
   // Sorter globalt etter score
   resultater.sort((a, b) => b.score - a.score);
-  return resultater.slice(0, topK);
+  return { treff: resultater.slice(0, topK), aiSøkUtilgjengelig: false };
 }
 
 // ---- Fallback: rent leksikalsk søk (ingen embedding) ----
