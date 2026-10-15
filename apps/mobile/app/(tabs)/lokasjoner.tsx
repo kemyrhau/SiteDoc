@@ -32,7 +32,8 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useNettverk } from "../../src/providers/NettverkProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
-import { AUTH_CONFIG } from "../../src/config/auth";
+import { AUTH_CONFIG, erTestLoginAktiv } from "../../src/config/auth";
+import { DxfViewerTegningMobil } from "../../src/components/DxfViewerTegningMobil";
 import {
   forberedTegning,
   erTegningForberedt,
@@ -110,6 +111,10 @@ interface TegningDetalj {
   autoRotasjon?: number | null;
   rotasjonOverstyrt?: number | null;
   startutsnitt?: unknown;
+  // Mobil leveranse 2 (arbeidstegning-f1): satt når konverteringen har produsert
+  // dxf-viewer-artefakter. Begge eller ingen (dwgKonvertering.ts).
+  dxfViewerFileUrl?: string | null;
+  registerWorldUrl?: string | null;
 }
 
 interface OppgaveMarkør {
@@ -907,6 +912,12 @@ export default function LokasjonerSkjerm() {
   // Offline uten detalj-speil har vi fortsatt liste-radens fileUrl → vis viseren
   // (file:// eller «Ikke tilgjengelig offline»), ikke kartet (RETUR 2).
   const visserTegning = !!valgtTegningId && !!detaljFileUrl;
+  // Mobil leveranse 2 (arbeidstegning-f1): last+vis via dxf-viewer, UTEN
+  // markør-trykk/måling/GPS-plassering ennå (skjerm→verden-projeksjonen for
+  // det er egen leveranse) — samme reduksjon som webs `!brukDxfViewer`-grener.
+  // Samme bryter som leveranse 1 (erTestLoginAktiv), ingen ny EAS-variabel.
+  const brukDxfViewerMobil =
+    erTestLoginAktiv && !!valgtTegningDetalj?.dxfViewerFileUrl && !!valgtTegningDetalj?.registerWorldUrl;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -925,7 +936,7 @@ export default function LokasjonerSkjerm() {
         </Pressable>
         <View className="flex-row items-center gap-3">
           {/* Plasseringsmodus-toggle (kun når tegning vises) */}
-          {visserTegning && (
+          {visserTegning && !brukDxfViewerMobil && (
             <Pressable
               onPress={() => {
                 setPlasseringsmodus(!plasseringsmodus);
@@ -948,7 +959,7 @@ export default function LokasjonerSkjerm() {
           )}
           {/* Offline-status (kun når tegning vises): lagret ✓ · last ned · uten nett.
               Tapp for å forberede når på nett og ikke lagret. */}
-          {visserTegning && (
+          {visserTegning && !brukDxfViewerMobil && (
             <Pressable
               onPress={() => { if (!forberedt && erPaaNettet) void forberedDenne(); }}
               hitSlop={8}
@@ -973,7 +984,7 @@ export default function LokasjonerSkjerm() {
       </View>
 
       {/* Offline-forberedelse: liten status/fremdrift-stripe (forbereder/lagret/feilet). */}
-      {visserTegning && offlineMelding && (
+      {visserTegning && !brukDxfViewerMobil && offlineMelding && (
         <View className="flex-row items-center gap-2 bg-blue-50 px-4 py-2">
           {forbereder && <ActivityIndicator size="small" color="#1e40af" />}
           <Text className="flex-1 text-xs text-blue-700">{offlineMelding}</Text>
@@ -981,7 +992,7 @@ export default function LokasjonerSkjerm() {
       )}
 
       {/* GPS-status-banner (kun for georefererte tegninger med problemer) */}
-      {visserTegning && harGeoRef && gpsStatus === "ingen_tillatelse" && (
+      {visserTegning && !brukDxfViewerMobil && harGeoRef && gpsStatus === "ingen_tillatelse" && (
         <Pressable
           onPress={() => Linking.openSettings()}
           className="flex-row items-center justify-between bg-red-50 px-4 py-2"
@@ -997,34 +1008,34 @@ export default function LokasjonerSkjerm() {
           <MapPin size={16} color="#dc2626" />
         </Pressable>
       )}
-      {visserTegning && harGeoRef && gpsStatus === "ugyldig_georef" && (
+      {visserTegning && !brukDxfViewerMobil && harGeoRef && gpsStatus === "ugyldig_georef" && (
         <View className="flex-row items-center gap-2 bg-amber-50 px-4 py-2">
           <Text className="flex-1 text-xs text-amber-700">
             {t("lokasjoner.ugyldigGeoref")}
           </Text>
         </View>
       )}
-      {visserTegning && harGeoRef && gpsStatus === "feil" && (
+      {visserTegning && !brukDxfViewerMobil && harGeoRef && gpsStatus === "feil" && (
         <View className="flex-row items-center gap-2 bg-amber-50 px-4 py-2">
           <Text className="flex-1 text-xs text-amber-700">
             {t("lokasjoner.gpsUtilgjengelig")}
           </Text>
         </View>
       )}
-      {visserTegning && harGeoRef && gpsStatus === "venter" && (
+      {visserTegning && !brukDxfViewerMobil && harGeoRef && gpsStatus === "venter" && (
         <View className="flex-row items-center gap-2 bg-blue-50 px-4 py-2">
           <ActivityIndicator size="small" color="#1e40af" />
           <Text className="text-xs text-blue-700">{t("lokasjoner.henterGps")}</Text>
         </View>
       )}
-      {visserTegning && harGeoRef && gpsDebug && gpsStatus === "aktiv" && (
+      {visserTegning && !brukDxfViewerMobil && harGeoRef && gpsDebug && gpsStatus === "aktiv" && (
         <View className="bg-gray-100 px-4 py-1">
           <Text className="text-[10px] text-gray-500">{gpsDebug}</Text>
         </View>
       )}
 
       {/* Plasseringsmodus-banner */}
-      {visserTegning && plasseringsmodus && (
+      {visserTegning && !brukDxfViewerMobil && plasseringsmodus && (
         <View className="bg-amber-50 px-4 py-2">
           <View className="flex-row items-center justify-between">
             {markørPosisjon ? (
@@ -1070,7 +1081,7 @@ export default function LokasjonerSkjerm() {
       )}
 
       {/* Lag- og periodefilter (paritet med web-tegningssiden) — sammenleggbart, kun når tegning vises */}
-      {visserTegning && (
+      {visserTegning && !brukDxfViewerMobil && (
         <View className="border-b border-gray-200 bg-white">
           <Pressable
             onPress={() => setVisFilter((v) => !v)}
@@ -1124,7 +1135,14 @@ export default function LokasjonerSkjerm() {
             </Text>
           </View>
         ) : visserTegning ? (
-          kildeLaster || !tegningKilde ? (
+          brukDxfViewerMobil ? (
+            <DxfViewerTegningMobil
+              key={valgtTegningDetalj?.id}
+              dxfUrl={`/api${valgtTegningDetalj?.dxfViewerFileUrl}`}
+              registerWorldUrl={`/api${valgtTegningDetalj?.registerWorldUrl}`}
+              rotasjonOverstyrt={valgtTegningDetalj?.rotasjonOverstyrt ?? null}
+            />
+          ) : kildeLaster || !tegningKilde ? (
             // Mens lokal-kopi-resolveren jobber (les cache / bygg data-URI).
             <View className="flex-1 items-center justify-center bg-black">
               <ActivityIndicator size="large" color="#ffffff" />

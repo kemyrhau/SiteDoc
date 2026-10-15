@@ -1,22 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from "react-native";
-import { WebView, type WebViewMessageEvent } from "react-native-webview";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { ChevronLeft, RotateCcw } from "lucide-react-native";
 import { trpc } from "../src/lib/trpc";
-import { hentWebUrl, erTestLoginAktiv } from "../src/config/auth";
+import { erTestLoginAktiv } from "../src/config/auth";
+import {
+  DxfViewerTegningMobil,
+  type DxfViewerTegningMobilRef,
+} from "../src/components/DxfViewerTegningMobil";
 
 /**
  * Mobil leveranse 1 (arbeidstegning-f1): WebGL-i-WKWebView-røyktest, FØR noe
- * annet bygges (relay/inbox-orkestrator.md, "SVAR MOBILPLAN"). Rendrer den
- * EKTE `DxfViewerTegning`-komponenten (web) via `/dxf-viewer-smoketest`, inne
- * i RNs WebView — samme mønster som `IfcViewer.tsx` bruker for `/mobil-viewer`.
+ * annet bygges (relay/inbox-orkestrator.md, "SVAR MOBILPLAN"). WebView-
+ * oppkoblingen selv ligger i `DxfViewerTegningMobil` (delt med den ekte
+ * visningen i leveranse 2, `(tabs)/lokasjoner.tsx`) — denne skjermen legger
+ * kun på header + fps-resultatpanel, siden det er røyktestens formål.
  *
  * Bak samme bryter som dev-login (`erTestLoginAktiv`, EAS-profil `test`) —
  * IKKE en ny `EXPO_PUBLIC_*`-variabel: en ny variabel krever et nytt EAS-bygg
@@ -43,11 +41,8 @@ export default function DxfWebglDebugSkjerm() {
 }
 
 function DxfWebglDebugInnhold({ onTilbake }: { onTilbake: () => void }) {
-  const webViewRef = useRef<WebView>(null);
-  const [klarWeb, setKlarWeb] = useState(false);
-  const [sendt, setSendt] = useState(false);
+  const viewerRef = useRef<DxfViewerTegningMobilRef>(null);
   const [metrics, setMetrics] = useState<FpsMetrics | null>(null);
-  const [feil, setFeil] = useState<string | null>(null);
 
   const tegningerQuery = trpc.tegning.hentForProsjekt.useQuery({
     projectId: AGENT_TESTPROSJEKT_ID,
@@ -68,44 +63,7 @@ function DxfWebglDebugInnhold({ onTilbake }: { onTilbake: () => void }) {
     return liste.find((t) => !!t.dxfViewerFileUrl && !!t.registerWorldUrl) ?? null;
   }, [tegningerQuery.data]);
 
-  const sendStart = useCallback(() => {
-    if (!tegning) return;
-    webViewRef.current?.postMessage(
-      JSON.stringify({
-        type: "start",
-        dxfUrl: `/api${tegning.dxfViewerFileUrl}`,
-        registerWorldUrl: `/api${tegning.registerWorldUrl}`,
-        rotasjonOverstyrt: tegning.rotasjonOverstyrt ?? null,
-      }),
-    );
-    setSendt(true);
-  }, [tegning]);
-
-  const handleMessage = useCallback((event: WebViewMessageEvent) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === "klar") {
-        setKlarWeb(true);
-      } else if (msg.type === "metrics") {
-        setMetrics(msg);
-      } else if (msg.type === "feil") {
-        setFeil(msg.melding);
-      }
-    } catch {
-      /* Ignorer ugyldig JSON */
-    }
-  }, []);
-
-  // Så snart web-siden er klar OG tegningen er hentet: send start (kun én gang).
-  useEffect(() => {
-    if (klarWeb && tegning && !sendt) {
-      sendStart();
-    }
-  }, [klarWeb, tegning, sendt, sendStart]);
-
-  const beOmStatus = useCallback(() => {
-    webViewRef.current?.postMessage(JSON.stringify({ type: "rapporter" }));
-  }, []);
+  const beOmStatus = useCallback(() => viewerRef.current?.beOmStatus(), []);
 
   return (
     <View style={styles.container}>
@@ -120,42 +78,33 @@ function DxfWebglDebugInnhold({ onTilbake }: { onTilbake: () => void }) {
       </View>
 
       <View style={styles.content}>
-        <WebView
-          ref={webViewRef}
-          source={{ uri: `${hentWebUrl()}/dxf-viewer-smoketest` }}
-          style={styles.webview}
-          onMessage={handleMessage}
-          javaScriptEnabled
-          domStorageEnabled
-          allowsInlineMediaPlayback
-          originWhitelist={["*"]}
-        />
-
-        {(!klarWeb || tegningerQuery.isLoading) && (
+        {tegningerQuery.isLoading ? (
           <View style={styles.overlay}>
             <ActivityIndicator size="large" color="#1e40af" />
-            <Text style={styles.overlayText}>
-              {!klarWeb ? "Laster WebView…" : "Henter testtegning…"}
-            </Text>
+            <Text style={styles.overlayText}>Henter testtegning…</Text>
           </View>
-        )}
-
-        {!tegningerQuery.isLoading && !tegning && (
+        ) : !tegning ? (
           <View style={styles.overlay}>
             <Text style={styles.overlayText}>
               Fant ingen tegning med dxf-viewer-artefakter i Agent-testprosjekt.
             </Text>
           </View>
+        ) : (
+          <DxfViewerTegningMobil
+            ref={viewerRef}
+            dxfUrl={`/api${tegning.dxfViewerFileUrl}`}
+            registerWorldUrl={`/api${tegning.registerWorldUrl}`}
+            rotasjonOverstyrt={tegning.rotasjonOverstyrt ?? null}
+            onMetrics={setMetrics}
+          />
         )}
       </View>
 
       <View style={styles.resultPanel}>
         <Text selectable style={styles.resultText}>
-          {feil
-            ? `FEIL: ${feil}`
-            : metrics
-              ? `fps median ${metrics.fps.median} / lavest ${metrics.fps.lavest} (${metrics.prøver} prøver)`
-              : "Trykk ⟲ for status. Pinch/pan i flaten over for å belaste GPU-en."}
+          {metrics
+            ? `fps median ${metrics.fps.median} / lavest ${metrics.fps.lavest} (${metrics.prøver} prøver)`
+            : "Trykk ⟲ for status. Pinch/pan i flaten over for å belaste GPU-en."}
         </Text>
       </View>
     </View>
@@ -176,7 +125,6 @@ const styles = StyleSheet.create({
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "600" },
   headerBtn: { padding: 8, borderRadius: 8 },
   content: { flex: 1, position: "relative" },
-  webview: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(243,244,246,0.95)",
