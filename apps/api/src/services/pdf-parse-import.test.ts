@@ -3,23 +3,25 @@ import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
 /**
- * Prod 2026-10-13: PDF-prosessering i Mapper feilet med
- * «ENOENT: no such file or directory, open './test/data/05-versions-space.pdf'».
- * pdf-parse@1 sin index.js kjører en debug-blokk når `module.parent` mangler (bundlet i Next).
- * Vakt: ingen kode skal importere pakkens rot, bare `pdf-parse/lib/pdf-parse.js`.
+ * Vakt mot at `pdf-parse` (pdf.js v1.10.100, 2018) kommer tilbake i
+ * PDF-prosesseringen. To prod-/test-feil ligger bak:
+ *  - 2026-10-13: pdf-parse@1 sin index.js kjører en debug-blokk som åpner en
+ *    ikke-eksisterende testfil → «ENOENT … 05-versions-space.pdf».
+ *  - 2026-10-14: pdf-parse holder muterbar prosess-global tilstand → flere
+ *    PDF-er i samme langlevde api/web-prosess ga «bad XRef entry» + stille
+ *    sidetap (bulk-reekstraksjon). Se ftd-reekstraksjon-xref.test.ts.
+ * Begge er løst ved å bruke pdfjs-dist (re-entrant-trygt) i stedet.
  */
-describe("pdf-parse importeres uten debug-indeksen", () => {
-  it("ftd-prosessering bruker lib-stien", () => {
-    const kilde = readFileSync(join(__dirname, "ftd-prosessering.ts"), "utf8");
-    expect(kilde).not.toMatch(/require\(["']pdf-parse["']\)/);
-    expect(kilde).toMatch(/require\(["']pdf-parse\/lib\/pdf-parse\.js["']\)/);
+describe("ftd-prosessering bruker pdfjs-dist, ikke pdf-parse", () => {
+  const kilde = readFileSync(join(__dirname, "ftd-prosessering.ts"), "utf8");
+
+  it("importerer ikke pdf-parse i noen form", () => {
+    expect(kilde).not.toMatch(/require\(["']pdf-parse(\/[^"']*)?["']\)/);
+    expect(kilde).not.toMatch(/from ["']pdf-parse(\/[^"']*)?["']/);
+    expect(kilde).not.toMatch(/import\(["']pdf-parse(\/[^"']*)?["']\)/);
   });
 
-  it("lib-stien tolker en ekte PDF", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (b: Buffer) => Promise<{ numpages: number }>;
-    const pdf = readFileSync(join(__dirname, "..", "..", "..", "..", "docs", "redesign", "underlag-grensekrav-pdf-2026-09-06.pdf"));
-    const res = await pdfParse(pdf);
-    expect(res.numpages).toBeGreaterThan(0);
+  it("henter tekst pr. side via pdfjs-dist", () => {
+    expect(kilde).toMatch(/import\(["']pdfjs-dist["']\)/);
   });
 });

@@ -6,6 +6,14 @@ sist_verifisert_mot_kode: 2026-10-09
 
 # Historikk oktober 2026
 
+## Prod-deploy 2026-10-14 kveld (`f2d3e172`, develop→main): offline-tegninger, dokumentsøk, PDF-sidetall/reekstraksjon (LIVE)
+
+- **Web/api:** dokumentsøk med DOCX, uthevet utdrag, side/seksjon, metode og gruppering (`44d2e913`). Riktige PDF-sidetall (`feca5bc4` ← `d3fb35bc`). «Prosesser alle PDF-er på nytt» med atomisk bytte og maks 2 samtidig, og «Prosesser på nytt» pr. dokument virker igjen (cuid) (`618dcdab` ← `5a454bbc`). br/gzip-komprimering i api, inkl. `image/vnd.dxf` (`29730afc`). Arbeidstegning leveranse 1 (dxf-viewer) er med, men **AV** i prod (bryteren finnes bare i test-compose).
+- **Migrering:** `20261013220000_arbeidstegning_dxfviewer_urls` (to nullable kolonner, additiv).
+- **Mobil (OTA production):** offline-tegninger og byggeplasser med speil (`feca5bc4` ← `e22a995e`, verifisert av Kenneth på telefon). Langt trykk fjerner ikke lenger hjørne i måling (`618dcdab` ← `81ea1a1f`, Kenneth-vedtak).
+- **Verifisert:** Kenneth innlogget i prod: dokumentsøket virker.
+- ⚠️ **Kjent etter release:** `pdf-parse@1.1.1` har prosess-global tilstand. Flere PDF-er i samme prosess gir intermitterende «bad XRef entry» og stille feil sidetall (målt av Redesign). Hotfix `fix/reekstraksjon-xref` @ `b62c4c90` (pdfjs-dist) er til Kontrollør-gate. Reprosesser UNN-prosjektene på nytt etter hotfixen.
+
 ## 🔴 Hendelse 2026-10-14: prod uten database 11:37–15:51 (norsk tid)
 
 Under test-deploy `bac63017` (api+web bygget samtidig) startet Docker-tjenesten på nytt (`dockerd` 09:37:59 UTC). postgres (`unless-stopped`) fikk «fast shutdown» 09:37:46 og kom ikke tilbake, og det samme gjaldt `sitedoc-embed`/`sitedoc-oversettelse` (137) og `salsaklubb-postgres`. api/web/pdf-render (`always`) startet igjen, så `/version` svarte og skjulte bruddet. Oppdaget ved at test-migreringen fikk `P1001`. Tiltak: containerne startet manuelt, omstartsregel satt til `always` for postgres/embed/oversettelse, `deploy-test.sh` bygger api og web hver for seg, og runboken har fått en sjekk av delte tjenester etter deploy. ⚠️ Hvorfor dockerd startet på nytt er ikke fastslått (ingen OOM-linjer i journalen 09:36:30–09:37:59; automatiske oppdateringer 06:23 gjaldt bare kjernepakker).

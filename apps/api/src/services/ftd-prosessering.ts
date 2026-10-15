@@ -464,71 +464,63 @@ async function ocrPdf(
 // PDF-prosessering
 // --------------------------------------------------------------------------
 
-/** Minimal form av pdf.js-sideproxyen `pagerender` får. */
-interface PdfSideProxy {
-  pageNumber?: number;
-  getTextContent(opts: {
-    normalizeWhitespace: boolean;
-    disableCombineTextItems: boolean;
-  }): Promise<{ items: Array<{ str: string; transform: number[] }> }>;
+/** Minimal form av pdf.js sin tekst-item (vi leser bare `str` + `transform`). */
+interface PdfTekstItem {
+  str?: string;
+  transform?: number[];
 }
 
 /**
- * Henter tekst PR. SIDE via pdf-parse sin `pagerender`-opsjon.
+ * Henter tekst PR. SIDE via pdfjs-dist (`getDocument` + `page.getTextContent`).
  *
- * Tidligere ble sidene delt på form-feed (`\f`) i den sammenslåtte teksten
- * (`resultat.text.split("\f")`), men pdf-parse v1 skiller sider med `\n\n` —
- * ALDRI `\f` — så *alle* PDF-er havnet på «side 1» (prod-feil 2026-10-14).
- * `pagerender` kalles én gang pr. side med pdf.js-sideproxyen, så vi fanger
- * sann `pageNumber` direkte i stedet for å gjette sidegrenser i teksten.
- * Tekstuttrekket er identisk med pdf-parse sin standard-render (samme
- * Y-baserte linjeskift) — bare fanget pr. side i stedet for sammenslått.
+ * To feil er rettet her:
+ *  1. Sann `pageNumber` pr. side i stedet for å gjette sidegrenser i teksten.
+ *     (Den gamle `split("\f")`-strategien la ALLE PDF-er på «side 1» —
+ *     prod-feil 2026-10-14 — fordi pdf-parse v1 skiller sider med `\n\n`.)
+ *  2. Byttet FRA `pdf-parse@1.1.1` (som bundler pdf.js v1.10.100, 2018) TIL
+ *     den moderne pdfjs-dist 4.x som allerede brukes av
+ *     `ekstraherPdfMedPosisjoner`. Gamle pdf.js holder muterbar PROSESS-GLOBAL
+ *     tilstand: ett parse i en fersk prosess er stabilt, men flere PDF-er i
+ *     samme langlevde api/web-prosess (sekvensielt ELLER samtidig — som
+ *     bulk-reekstraksjonen) ødelegger hverandres tilstand og gir
+ *     intermitterende «bad XRef entry» + stille sidetap (test-feil 2026-10-14).
+ *     pdfjs-dist er re-entrant-trygt per `getDocument`. Se
+ *     `ftd-reekstraksjon-xref.test.ts`.
+ *
+ * Tekstuttrekket beholder samme Y-baserte linjeskift som før (nytt linjeskift
+ * når `transform[5]` endrer seg).
  */
 export async function ekstraherPdfSider(
   buffer: Buffer,
 ): Promise<{ sider: Array<{ side: number; tekst: string }>; antallSider: number }> {
-  // pdf-parse v1 — lib-filen direkte, IKKE pakkens index.js (se under / prod 2026-10-13).
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
-    buf: Buffer,
-    opts?: { pagerender?: (side: PdfSideProxy) => Promise<string> },
-  ) => Promise<{ text: string; numpages: number }>;
+  const { getDocument } = await import("pdfjs-dist");
+  // Egen kopi av bytene — getDocument tar eierskap over typed array-en.
+  const doc = await getDocument({ data: new Uint8Array(buffer), useSystemFonts: true }).promise;
+  const antallSider = doc.numPages;
 
   const sider: Array<{ side: number; tekst: string }> = [];
-
-  const renderSide = async (pageData: PdfSideProxy): Promise<string> => {
-    const innhold = await pageData.getTextContent({
-      normalizeWhitespace: false,
-      disableCombineTextItems: false,
-    });
-    // Samme logikk som pdf-parse sin standard-render: nytt linjeskift når Y endrer seg.
-    let forrigeY: number | undefined;
-    let tekst = "";
-    for (const item of innhold.items) {
-      if (forrigeY === item.transform[5] || forrigeY === undefined) tekst += item.str;
-      else tekst += "\n" + item.str;
-      forrigeY = item.transform[5];
+  try {
+    for (let p = 1; p <= antallSider; p++) {
+      const page = await doc.getPage(p);
+      const innhold = await page.getTextContent();
+      // Samme logikk som før: nytt linjeskift når Y (transform[5]) endrer seg.
+      let forrigeY: number | undefined;
+      let tekst = "";
+      for (const item of innhold.items) {
+        const el = item as PdfTekstItem;
+        if (el.str === undefined || !el.transform) continue;
+        const y = el.transform[5];
+        if (forrigeY === y || forrigeY === undefined) tekst += el.str;
+        else tekst += "\n" + el.str;
+        forrigeY = y;
+      }
+      sider.push({ side: p, tekst: tekst.trim() });
     }
-    const sidenr =
-      typeof pageData.pageNumber === "number" && pageData.pageNumber > 0
-        ? pageData.pageNumber
-        : sider.length + 1;
-    sider.push({ side: sidenr, tekst });
-    return tekst; // pdf-parse bygger `ret.text` videre — ellers uendret oppførsel
-  };
-
-  const resultat = await pdfParse(buffer, { pagerender: renderSide });
-
-  sider.sort((a, b) => a.side - b.side);
-  let sideData = sider.map((s) => ({ side: s.side, tekst: s.tekst.trim() }));
-
-  // Robusthet: fanget `pagerender` ingenting (f.eks. side-feil), men pdf-parse
-  // fikk likevel ut tekst → behold den på side 1 framfor å miste alt.
-  if (sideData.length === 0 && resultat.text.trim()) {
-    sideData = [{ side: 1, tekst: resultat.text.trim() }];
+  } finally {
+    await doc.destroy();
   }
 
-  return { sider: sideData, antallSider: resultat.numpages };
+  return { sider, antallSider };
 }
 
 async function prosesserPdf(

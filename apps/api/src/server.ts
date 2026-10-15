@@ -113,12 +113,20 @@ async function start() {
   // typen av `bildeContentTypeFraMagic`-logikken under, ikke som `.dxf`-filendelse).
   // customTypes utvider default-regexen (samme mønster, inkl. `text/event-stream`-
   // unntaket for SSE) med `image/vnd.dxf`.
-  await server.register(compress, {
-    global: true,
-    encodings: ["br", "gzip"],
-    customTypes:
-      /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)|octet-stream(?:;|$)|^image\/vnd\.dxf(?:;|$)/u,
-  });
+  // 🔴 PROD-HENDELSE 2026-10-15: etter release f2d3e172 fikk mobilappen (som går
+  // DIREKTE mot api, i motsetning til web) ikke lenger byggeplasser/tegninger/
+  // sjekklister — også med forrige app-kode (OTA rullet tilbake uten effekt). Eneste
+  // server-endring som rører svarformatet mot mobil var denne globale komprimeringen.
+  // Derfor AV som standard; slås på eksplisitt med API_KOMPRIMERING=1 når den er
+  // verifisert mot mobilappen (React Native) på test.
+  if (process.env.API_KOMPRIMERING === "1") {
+    await server.register(compress, {
+      global: true,
+      encodings: ["br", "gzip"],
+      customTypes:
+        /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)|octet-stream(?:;|$)|^image\/vnd\.dxf(?:;|$)/u,
+    });
+  }
 
   // WebSocket for sanntids presence
   await server.register(websocket);
