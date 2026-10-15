@@ -21,7 +21,11 @@ describe("ftd-prosessering bruker pdfjs-dist, ikke pdf-parse", () => {
     expect(kilde).not.toMatch(/import\(["']pdf-parse(\/[^"']*)?["']\)/);
   });
 
-  it("henter tekst pr. side via pdfjs-dist", () => {
-    expect(kilde).toMatch(/import\(["']pdfjs-dist["']\)/);
+  it("henter tekst pr. side via pdfjs-dist LEGACY-build (Node-målrettet, polyfiller Promise.withResolvers)", () => {
+    // 🔴 Node 20-nede 2026-10-15: standard-builden (`pdfjs-dist` bart) kaster
+    // «Promise.withResolvers is not a function» i prod (Node 20.20.2). Kun
+    // legacy-builden self-polyfiller. Se pdfjs-node20.test.ts.
+    expect(kilde).toMatch(/import\(["']pdfjs-dist\/legacy\/build\/pdf\.mjs["']\)/);
+    expect(kilde).not.toMatch(/import\(["']pdfjs-dist["']\)/);
   });
 });

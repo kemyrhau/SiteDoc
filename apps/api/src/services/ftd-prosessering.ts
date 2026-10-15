@@ -493,7 +493,9 @@ interface PdfTekstItem {
 export async function ekstraherPdfSider(
   buffer: Buffer,
 ): Promise<{ sider: Array<{ side: number; tekst: string }>; antallSider: number }> {
-  const { getDocument } = await import("pdfjs-dist");
+  // LEGACY-build: Node-målrettet, self-polyfiller `Promise.withResolvers` via
+  // core-js (mangler i Node < 21.7). Standard-builden kaster i prod (Node 20).
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // Egen kopi av bytene — getDocument tar eierskap over typed array-en.
   const doc = await getDocument({ data: new Uint8Array(buffer), useSystemFonts: true }).promise;
   const antallSider = doc.numPages;
@@ -2200,8 +2202,9 @@ interface SpecPostRad {
  * Grupperer tekstelementer etter y-posisjon (rad) og sorterer etter x (kolonne),
  * slik at tabellstrukturen bevares med mellomrom mellom kolonnene.
  */
-async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
-  const { getDocument } = await import("pdfjs-dist");
+export async function ekstraherPdfMedPosisjoner(buffer: Buffer): Promise<string> {
+  // LEGACY-build (se ekstraherPdfSider) — self-polyfiller Promise.withResolvers.
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const data = new Uint8Array(buffer);
   const doc = await getDocument({ data, useSystemFonts: true }).promise;
 
