@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Ei voitu valmistautua offline-tilassa",
   "lokasjoner.offline.forberedByggeplass": "Valmistele kaikki tällä sivustolla",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} piirustusta tallennettu offline-tilaan",
+  "lokasjoner.dxfViewerFeilet": "Yksityiskohtanäkymää ei voitu ladata – näyttää yksinkertaistetun piirustuksen",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS ei ole saatavilla",
   "lokasjoner.venterPaaGps": "Odotetaan GPS-sijaintia. Yritä hetken kuluttua uudelleen.",
   "lokasjoner.punktUtenSjekklisteTittel": "Ei vielä tarkistuslistaa",

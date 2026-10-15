@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Nevarēja sagatavoties bezsaistē",
   "lokasjoner.offline.forberedByggeplass": "Sagatavojiet visu šajā vietnē",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} zīmējumi saglabāti bezsaistē",
+  "lokasjoner.dxfViewerFeilet": "Nevarēja ielādēt detalizētu skatu — tiek rādīts vienkāršots zīmējums",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS nav pieejams",
   "lokasjoner.venterPaaGps": "Gaida GPS pozīciju. Drīzumā mēģiniet vēlreiz.",
   "lokasjoner.punktUtenSjekklisteTittel": "Vēl nav kontrolsaraksta",

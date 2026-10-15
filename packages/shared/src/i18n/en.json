@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Could not prepare offline",
   "lokasjoner.offline.forberedByggeplass": "Prepare all on this site",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} drawings saved offline",
+  "lokasjoner.dxfViewerFeilet": "Could not load detail view — showing simplified drawing",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS not available",
   "lokasjoner.venterPaaGps": "Waiting for GPS position. Try again shortly.",
   "lokasjoner.punktUtenSjekklisteTittel": "No checklist yet",

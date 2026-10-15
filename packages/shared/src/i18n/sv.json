@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Det gick inte att förbereda offline",
   "lokasjoner.offline.forberedByggeplass": "Förbered allt på denna sida",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} teckningar sparade offline",
+  "lokasjoner.dxfViewerFeilet": "Det gick inte att läsa in detaljvy — visar förenklad ritning",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS inte tillgänglig",
   "lokasjoner.venterPaaGps": "Väntar på GPS-position. Försök snart igen.",
   "lokasjoner.punktUtenSjekklisteTittel": "Ingen checklista ännu",

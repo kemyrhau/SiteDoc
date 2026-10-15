@@ -165,6 +165,11 @@ export default function LokasjonerSkjerm() {
   const [forberedt, setForberedt] = useState<boolean | null>(null);
   const [forbereder, setForbereder] = useState(false);
   const [offlineMelding, setOfflineMelding] = useState<string | null>(null);
+  // RETUR leveranse 2 (Kontrollør, punkt 2): WebView-last-feil/tidsgrense i
+  // DxfViewerTegningMobil faller hit ned til den eksisterende SVG-veien, i
+  // stedet for å la en evig spinner stå. Nullstilles når brukeren velger en
+  // annen tegning, så et nytt forsøk kan skje neste gang.
+  const [dxfViewerFeilet, setDxfViewerFeilet] = useState(false);
 
   const router = useRouter();
 
@@ -558,6 +563,11 @@ export default function LokasjonerSkjerm() {
     };
   }, [harGeoRef, geoRefStringifisert, valgtTegningId]);
 
+  // Ny tegning valgt: gi dxf-viewer-grenen et friskt forsøk (RETUR leveranse 2 punkt 2).
+  useEffect(() => {
+    setDxfViewerFeilet(false);
+  }, [valgtTegningId]);
+
   // Bygningsvelger — nedtrekksmeny (alltid én aktiv bygning)
   const visBygningsvelger = useCallback(() => {
     if (bygninger.length <= 1) return;
@@ -916,8 +926,24 @@ export default function LokasjonerSkjerm() {
   // markør-trykk/måling/GPS-plassering ennå (skjerm→verden-projeksjonen for
   // det er egen leveranse) — samme reduksjon som webs `!brukDxfViewer`-grener.
   // Samme bryter som leveranse 1 (erTestLoginAktiv), ingen ny EAS-variabel.
+  // RETUR leveranse 2 (Kontrollør, punkt 2): offline (eller en WebView-last-feil/
+  // -tidsgrense, se dxfViewerFeilet) skal ALDRI ta denne grenen — den krever nett
+  // for selve WebView-siden (`/dxf-viewer-smoketest`), og dxf-filene er ikke
+  // offline-cachet (F7, ute av scope). Faller til SVG/raster-veien under, som
+  // allerede håndterer offline ærlig (file:// lokal kopi eller «Ikke tilgjengelig
+  // offline», kommentaren over `visserTegning`).
   const brukDxfViewerMobil =
-    erTestLoginAktiv && !!valgtTegningDetalj?.dxfViewerFileUrl && !!valgtTegningDetalj?.registerWorldUrl;
+    erTestLoginAktiv &&
+    erPaaNettet &&
+    !dxfViewerFeilet &&
+    !!valgtTegningDetalj?.dxfViewerFileUrl &&
+    !!valgtTegningDetalj?.registerWorldUrl;
+
+  const håndterDxfViewerLastFeil = useCallback(() => {
+    setDxfViewerFeilet(true);
+    setOfflineMelding(t("lokasjoner.dxfViewerFeilet"));
+    setTimeout(() => setOfflineMelding(null), 3500);
+  }, [t]);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -1141,6 +1167,7 @@ export default function LokasjonerSkjerm() {
               dxfUrl={`/api${valgtTegningDetalj?.dxfViewerFileUrl}`}
               registerWorldUrl={`/api${valgtTegningDetalj?.registerWorldUrl}`}
               rotasjonOverstyrt={valgtTegningDetalj?.rotasjonOverstyrt ?? null}
+              onLastFeil={håndterDxfViewerLastFeil}
             />
           ) : kildeLaster || !tegningKilde ? (
             // Mens lokal-kopi-resolveren jobber (les cache / bygg data-URI).

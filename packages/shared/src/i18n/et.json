@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Võrguühenduseta ei saanud ette valmistada",
   "lokasjoner.offline.forberedByggeplass": "Valmistage kõik sellel saidil ette",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} joonist salvestati võrguühenduseta",
+  "lokasjoner.dxfViewerFeilet": "Detailvaadet ei saanud laadida – kuvatakse lihtsustatud joonis",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS pole saadaval",
   "lokasjoner.venterPaaGps": "Ootab GPS-i asukohta. Proovige varsti uuesti.",
   "lokasjoner.punktUtenSjekklisteTittel": "Kontrollnimekirja veel pole",
