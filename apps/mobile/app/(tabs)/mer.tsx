@@ -15,11 +15,13 @@ import {
   BarChart3,
   ClipboardCheck,
   Contact,
+  FlaskConical,
 } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { erTestLoginAktiv } from "../../src/config/auth";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
@@ -369,6 +371,18 @@ export default function MerSkjerm() {
             </View>
           </View>
         </View>
+
+        {/* DXF WebGL-røyktest (arbeidstegning-f1, mobil leveranse 1) — kun test-kanal,
+            samme bryter som dev-login (erTestLoginAktiv), ingen ny EAS-profil-variabel. */}
+        {erTestLoginAktiv && (
+          <View className="mt-6">
+            <MenyRad
+              ikon={FlaskConical}
+              tekst="🧪 DXF WebGL-røyktest"
+              onPress={() => router.push("/dxf-webgl-debug")}
+            />
+          </View>
+        )}
 
         {/* Logg ut */}
         <View className="mx-4 mt-6">

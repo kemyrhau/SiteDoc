@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Nie można przygotować offline",
   "lokasjoner.offline.forberedByggeplass": "Przygotuj wszystko na tej stronie",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} rysunki zapisane w trybie offline",
+  "lokasjoner.dxfViewerFeilet": "Nie można załadować widoku szczegółowego — pokazano uproszczony rysunek",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS niedostępny",
   "lokasjoner.venterPaaGps": "Oczekiwanie na pozycję GPS. Spróbuj ponownie wkrótce.",
   "lokasjoner.punktUtenSjekklisteTittel": "Nie ma jeszcze listy kontrolnej",

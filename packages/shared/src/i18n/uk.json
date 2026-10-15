@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Не вдалося підготуватися офлайн",
   "lokasjoner.offline.forberedByggeplass": "Готуйте все на цьому сайті",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} малюнків збережено офлайн",
+  "lokasjoner.dxfViewerFeilet": "Не вдалося завантажити детальний вигляд — показано спрощений малюнок",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS недоступний",
   "lokasjoner.venterPaaGps": "Очікування позиції GPS. Повторіть спробу незабаром.",
   "lokasjoner.punktUtenSjekklisteTittel": "Ще немає контрольного списку",

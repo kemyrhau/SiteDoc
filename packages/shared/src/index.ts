@@ -8,6 +8,7 @@ export * from "./annotering/lag";
 export * from "./annotering/bro";
 export * from "./tegning/strek-skalering";
 export * from "./tegning/startutsnitt-zoom";
+export * from "./tegning/kamera-projeksjon";
 export * from "./tegning/svg-sikkerhet";
 export * from "./tegning/konvertering-markor";
 export * from "./tegning/objektmodell";

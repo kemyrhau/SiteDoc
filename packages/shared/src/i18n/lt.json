@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Nepavyko pasiruošti neprisijungus",
   "lokasjoner.offline.forberedByggeplass": "Paruoškite viską šioje svetainėje",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} piešiniai išsaugoti neprisijungus",
+  "lokasjoner.dxfViewerFeilet": "Nepavyko įkelti detalaus rodinio – rodomas supaprastintas piešinys",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS nepasiekiamas",
   "lokasjoner.venterPaaGps": "Laukiama GPS padėties. Netrukus bandykite dar kartą.",
   "lokasjoner.punktUtenSjekklisteTittel": "Kontrolinio sąrašo dar nėra",

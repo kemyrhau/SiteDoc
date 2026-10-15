@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Impossible de préparer hors ligne",
   "lokasjoner.offline.forberedByggeplass": "Préparez tout sur ce site",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} dessins enregistrés hors connexion",
+  "lokasjoner.dxfViewerFeilet": "Impossible de charger la vue détaillée : affichage d'un dessin simplifié",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS non disponible",
   "lokasjoner.venterPaaGps": "En attente de la position GPS. Réessayez sous peu.",
   "lokasjoner.punktUtenSjekklisteTittel": "Pas encore de liste de contrôle",

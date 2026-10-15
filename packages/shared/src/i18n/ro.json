@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Nu s-a putut pregăti offline",
   "lokasjoner.offline.forberedByggeplass": "Pregătește totul pe acest site",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} desene salvate offline",
+  "lokasjoner.dxfViewerFeilet": "Nu s-a putut încărca vizualizarea detaliată — afișând desenul simplificat",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS nu este disponibil",
   "lokasjoner.venterPaaGps": "Se așteaptă poziția GPS. Încercați din nou în scurt timp.",
   "lokasjoner.punktUtenSjekklisteTittel": "Nicio listă de verificare încă",

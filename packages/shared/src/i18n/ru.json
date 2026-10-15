@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Не удалось подготовиться офлайн.",
   "lokasjoner.offline.forberedByggeplass": "Готовьте все на этом сайте",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} рисунков, сохраненных офлайн.",
+  "lokasjoner.dxfViewerFeilet": "Не удалось загрузить подробный вид — показан упрощенный чертеж.",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS недоступен",
   "lokasjoner.venterPaaGps": "Ожидание позиции GPS. Повторите попытку через некоторое время.",
   "lokasjoner.punktUtenSjekklisteTittel": "Контрольного списка пока нет",

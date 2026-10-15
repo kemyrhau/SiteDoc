@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Nuk mund të përgatitej jashtë linje",
   "lokasjoner.offline.forberedByggeplass": "Përgatitni të gjitha në këtë faqe",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} vizatime të ruajtura jashtë linje",
+  "lokasjoner.dxfViewerFeilet": "Pamja e detajeve nuk mund të ngarkohej — tregon vizatimin e thjeshtuar",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS nuk disponohet",
   "lokasjoner.venterPaaGps": "Në pritje të pozicionit GPS. Provo sërish së shpejti.",
   "lokasjoner.punktUtenSjekklisteTittel": "Nuk ka ende listë kontrolli",

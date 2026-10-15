@@ -3252,6 +3252,7 @@
   "lokasjoner.offline.feilet": "Nelze se připravit offline",
   "lokasjoner.offline.forberedByggeplass": "Připravte vše na tomto webu",
   "lokasjoner.offline.byggeplassFerdig": "{{antall}} nákresů uloženo offline",
+  "lokasjoner.dxfViewerFeilet": "Nelze načíst detailní pohled – zobrazuje zjednodušený výkres",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS není k dispozici",
   "lokasjoner.venterPaaGps": "Čekání na pozici GPS. Zkuste to za chvíli znovu.",
   "lokasjoner.punktUtenSjekklisteTittel": "Zatím žádný kontrolní seznam",
