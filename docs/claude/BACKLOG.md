@@ -78,6 +78,7 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **TZ i `reprosesseringStatus`** (`mappe.ts`): rå SQL er bare korrekt i en UTC-sesjon. Prod/test er UTC (ingen TZ-override i compose), men bør normaliseres.
 - **`aiSok.embeddingStatus`** viser 0/false for bakgrunns-embedding mens `ferdig` klatrer (Redesign 16.10).
 - **RN `onMessage` origin-sjekk** bruker `startsWith(hentWebUrl())`, som godtar `…sitedoc.no.annet-domene` hvis adressen mangler `/` til slutt. Sammenlign `new URL().origin` (lav risiko, WebView laster bare egen side).
+- **Indeks på `drawings.conversion_status`:** konverteringsarbeideren i api poller `pending` hvert 3 s og watchdogen hvert 60 s, uten indeks (seq scan). Billig så lenge `drawings` er liten. Legg en partial index (`where conversion_status in ('pending','converting')`) i neste migreringsrunde (Kontrollør 17.10).
 - **Query-embedding (søk) og `EMBEDDING_SAMTIDIG`:** web og api er to prosesser, så samtidigheten mot NorBERT er ≤ 2 × grensen. Default 2 holdt på test. Senk til 1 via env ved behov.
 
 ### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
