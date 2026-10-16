@@ -129,23 +129,90 @@ async function medRetry<T>(
   throw sisteFeil;
 }
 
-async function kallNorBERT(tekster: string[]): Promise<number[][]> {
-  const response = await fetchMedTimeout(`${NORBERT_URL}/embed`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(tekster),
-  });
+// ---- Prosess-global samtidighetsgrense mot NorBERT ----
+// Rotårsak (test 2026-10-16, 32 dok / ~190 chunks): batch-embedding fyres fire-and-forget pr.
+// dokument (ftd-prosessering.ts) UTENFOR kjørMedGrense(…,2), så antall samtidige HTTP-kall mot
+// NorBERT er ubundet → overbelastning → chunk-batcher blir `failed` tross retry. Fiks: én
+// prosess-global kø rundt selve batch-HTTP-kallene (kallNorBERT + kallMultilingualE5).
+//
+// Query-embedding i søket (ai-sok-service.ts: encodeQueryLokal/blokkSok) går BEVISST utenom
+// denne køen — egen kort sti med egen 8 s-timeout + tekstsøk-fallback — så et søk aldri står i
+// kø bak en stor embedding-jobb. Ett enkelt query-kall i tillegg til `maks` batch-kall er langt
+// under overbelastnings-terskelen.
+//
+// Kø-ventetid teller IKKE mot embedding-timeouten: slotten tas FØR fetchMedTimeout kalles, så
+// 30 s-timeren starter først når kallet faktisk kjører. Backoff mellom forsøk (medRetry) skjer
+// utenfor slotten, siden hvert forsøk kaller kallNorBERT på nytt og dermed re-akkvirerer.
+export const EMBEDDING_SAMTIDIG = Math.max(
+  1,
+  Number(process.env.EMBEDDING_SAMTIDIG ?? 2),
+);
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new EmbeddingFeil(
-      `NorBERT-server feilet (${response.status}): ${body.slice(0, 200)}`,
-      forbigåendeStatus(response.status),
-      response.status,
-    );
+/** Enkel tellende semafor (FIFO). Ingen ny pakke. */
+class Semafor {
+  private aktive = 0;
+  private kø: Array<() => void> = [];
+  constructor(private readonly maks: number) {}
+
+  /** Antall kall i flukt akkurat nå (for test/observasjon). */
+  get iFlukt(): number {
+    return this.aktive;
   }
 
-  return (await response.json()) as number[][];
+  async kjør<T>(fn: () => Promise<T>): Promise<T> {
+    await this.ta();
+    try {
+      return await fn();
+    } finally {
+      this.frigi();
+    }
+  }
+
+  private ta(): Promise<void> {
+    if (this.aktive < this.maks) {
+      this.aktive++;
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => this.kø.push(resolve));
+  }
+
+  private frigi(): void {
+    const neste = this.kø.shift();
+    if (neste) {
+      // Overfør slotten direkte til neste i kø (aktive forblir uendret).
+      neste();
+    } else {
+      this.aktive--;
+    }
+  }
+}
+
+const norbertKø = new Semafor(EMBEDDING_SAMTIDIG);
+
+/** Antall batch-embedding-kall i flukt mot NorBERT akkurat nå (test/observasjon). */
+export function embeddingKøIFlukt(): number {
+  return norbertKø.iFlukt;
+}
+
+async function kallNorBERT(tekster: string[]): Promise<number[][]> {
+  return norbertKø.kjør(async () => {
+    const response = await fetchMedTimeout(`${NORBERT_URL}/embed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tekster),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new EmbeddingFeil(
+        `NorBERT-server feilet (${response.status}): ${body.slice(0, 200)}`,
+        forbigåendeStatus(response.status),
+        response.status,
+      );
+    }
+
+    return (await response.json()) as number[][];
+  });
 }
 
 // ---- Multilingual E5 via HTTP-server (port 3302, /embed/model) ----
@@ -155,23 +222,25 @@ async function kallMultilingualE5(
   type: "passage" | "query" = "passage",
 ): Promise<number[][]> {
   const model = type === "query" ? "multilingual-e5-query" : "multilingual-e5-base";
-  const response = await fetchMedTimeout(`${NORBERT_URL}/embed/model`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, texts: tekster }),
+  return norbertKø.kjør(async () => {
+    const response = await fetchMedTimeout(`${NORBERT_URL}/embed/model`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model, texts: tekster }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new EmbeddingFeil(
+        `E5-embedding feilet (${response.status}): ${body.slice(0, 200)}`,
+        forbigåendeStatus(response.status),
+        response.status,
+      );
+    }
+
+    const data = (await response.json()) as { embeddings: number[][] };
+    return data.embeddings;
   });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new EmbeddingFeil(
-      `E5-embedding feilet (${response.status}): ${body.slice(0, 200)}`,
-      forbigåendeStatus(response.status),
-      response.status,
-    );
-  }
-
-  const data = (await response.json()) as { embeddings: number[][] };
-  return data.embeddings;
 }
 
 // ---- Blokk-embedding (bruker multilingual E5 for alle språk) ----
