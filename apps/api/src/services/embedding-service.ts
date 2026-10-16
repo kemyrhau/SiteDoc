@@ -82,7 +82,7 @@ function erForbigående(err: unknown): boolean {
 }
 
 /** fetch med AbortController-tidsavbrudd. Timeout/nettverksfeil kastes som forbigående EmbeddingFeil. */
-async function fetchMedTimeout(
+export async function fetchMedTimeout(
   url: string,
   init: RequestInit,
   timeoutMs = EMBEDDING_TIMEOUT_MS,
