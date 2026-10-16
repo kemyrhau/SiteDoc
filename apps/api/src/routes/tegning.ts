@@ -166,9 +166,9 @@ async function tegningHarMarkorer(prisma: PrismaClient, drawingId: string): Prom
 }
 
 /**
- * ÉN felles skriver for et fullført DWG/DXF-konverteringsresultat (D5/D6) — delt av
- * `startTegningKonvertering` (opprett/revisjon) og `provKonverteringIgjen`, så de to
- * kopiene ikke kan drifte fra hverandre.
+ * ÉN felles skriver for et fullført DWG/DXF-konverteringsresultat (D5/D6). RETUR 7:
+ * eneste kaller er nå `kjorRekonvertering` (arbeideren) — opplastingsveien
+ * (`startTegningKonvertering`) markerer kun `pending` og kaller aldri denne direkte.
  *
  *  1. Oppdaterer hovedtegningen: status, koordinatsystem, georeferanse, visnings-URL,
  *     bilde-dimensjoner og måling (`mmPrPiksel`/`scale`/`scaleKilde` rett fra tegningens
@@ -291,7 +291,7 @@ export function byggKonverteringMarkor(
 }
 
 // Eksportert for enhetstest (rotasjonOverstyrt bevares ved revisjon — test c). Kalles
-// ellers kun internt fra `startTegningKonvertering`/`provKonverteringIgjen`.
+// ellers kun internt fra `kjorRekonvertering` (arbeideren, RETUR 7).
 export async function anvendDwgResultat(
   prisma: PrismaClient,
   tegning: { id: string; name: string; projectId: string; byggeplassId: string | null },
@@ -436,12 +436,20 @@ export async function anvendDwgResultat(
 /**
  * Start bakgrunns-konvertering for en PERSISTERT tegning (fire-and-forget).
  *
- * Felles vei for `opprett` (R2) og `lastOppRevisjon` (R8) — én kilde for PDF→PNG,
- * DWG→SVG (+ layouts) og IFC-metadata, så ny revisjon aldri viser gammel PNG.
- * Kalleren har ALLEREDE satt synkron initial-tilstand (`conversionStatus`,
- * `originalFileUrl`, `fileType`, bilde-dimensjoner for bildetyper); denne gjør kun
- * det asynkrone tunge arbeidet og den endelige `update`-en når konverteringen er
- * ferdig. Feiler et steg → `conversionStatus = failed`, aldri en gjettet verdi.
+ * Felles vei for `opprett` (R2) og `lastOppRevisjon` (R8) — én kilde for PDF→PNG
+ * og IFC-metadata, så ny revisjon aldri viser gammel PNG. Kalleren har ALLEREDE
+ * satt synkron initial-tilstand (`conversionStatus`, `originalFileUrl`, `fileType`,
+ * bilde-dimensjoner for bildetyper); denne gjør kun det asynkrone tunge arbeidet
+ * og den endelige `update`-en når konverteringen er ferdig. Feiler et steg →
+ * `conversionStatus = failed`, aldri en gjettet verdi.
+ *
+ * RETUR 7 rekonverter (Kontrollør/orkestrator 2026-10-17): DWG/DXF konverteres
+ * IKKE lenger her. Kalleren har allerede satt raden til `pending` (uendret); denne
+ * funksjonen gjorde tidligere ALSO en inline `konverterDwg(...)` i samme prosess,
+ * uten å sette `converting` først — arbeideren (`tegningKonverteringPoll`, poll
+ * hvert 3 s) så den fortsatt-`pending` raden og tok den opp SAMTIDIG, altså to
+ * konverteringer av samme fil. Eneste vei nå: raden står `pending` til
+ * arbeideren i api plukker den opp, akkurat som ved rekonvertering/«prøv igjen».
  *
  * `brukerScale`: en allerede satt/bekreftet målestokk (brukerinput ved opplasting,
  * eller eksisterende `scale` ved revisjon). Er den satt, overskrives den ALDRI av
@@ -453,26 +461,8 @@ function startTegningKonvertering(
   fil: { fileUrl: string; fileType: string; brukerScale?: string | null },
 ): void {
   const filType = fil.fileType.toLowerCase();
-  const erDwgEllerDxf = filType === "dwg" || filType === "dxf";
   const erIfc = filType === "ifc";
   const erPdf = filType === "pdf";
-
-  // Start asynkron DWG/DXF-konvertering i bakgrunnen (D4: DXF går samme vei, uten dwg2dxf)
-  if (erDwgEllerDxf) {
-    const filSti = join(UPLOADS_DIR, fil.fileUrl.replace("/uploads/", ""));
-    konverterDwg(filSti, tegning.name, UPLOADS_DIR, filType)
-      .then((resultat) => anvendDwgResultat(prisma, tegning, resultat, fil.fileUrl))
-      .catch(async (err) => {
-        console.error(`[DWG] Konvertering feilet for tegning ${tegning.id}:`, err);
-        await prisma.drawing.update({
-          where: { id: tegning.id },
-          data: {
-            conversionStatus: "failed",
-            conversionError: err instanceof Error ? err.message : "Ukjent feil",
-          },
-        });
-      });
-  }
 
   // Parse IFC-metadata asynkront
   if (erIfc) {
@@ -820,9 +810,11 @@ export const tegningRouter = router({
         },
       });
 
-      // R2/R8: felles konverteringsvei (PDF→PNG, DWG→SVG+layouts, IFC-metadata).
-      // Initial-tilstand (conversionStatus/originalFileUrl/bilde-dim) er satt synkront
-      // i create over; helperen gjør det asynkrone arbeidet.
+      // R2/R8: felles konverteringsvei for PDF→PNG og IFC-metadata. Initial-tilstand
+      // (conversionStatus/originalFileUrl/bilde-dim) er satt synkront i create over;
+      // helperen gjør det asynkrone arbeidet for disse to typene. DWG/DXF gjør
+      // INGENTING her (RETUR 7) — raden står `pending` til arbeideren i api
+      // (`tegningKonverteringPoll`) plukker den opp, samme vei som rekonvertering.
       startTegningKonvertering(
         ctx.prisma,
         { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
@@ -981,9 +973,10 @@ export const tegningRouter = router({
         },
       });
 
-      // R8: start konvertering for den nye fila (delt vei med `opprett`). brukerScale =
-      // eksisterende målestokk → en kalibrert/manuell målestokk overskrives aldri av et
-      // nytt tittelfelt-forslag.
+      // R8: start konvertering for den nye fila (delt vei med `opprett`) — kun
+      // PDF/IFC (RETUR 7: DWG/DXF gjør ingenting her, se `startTegningKonvertering`).
+      // brukerScale = eksisterende målestokk → en kalibrert/manuell målestokk
+      // overskrives aldri av et nytt tittelfelt-forslag.
       startTegningKonvertering(
         ctx.prisma,
         { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
