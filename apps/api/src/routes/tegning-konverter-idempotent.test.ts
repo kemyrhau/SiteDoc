@@ -36,10 +36,14 @@ function lagCtx(eksisterende: Record<string, unknown>) {
   const prisma = {
     drawing: {
       findUniqueOrThrow: vi.fn().mockResolvedValue(eksisterende),
-      update: vi.fn(async (arg: { where: { id: string }; data: Record<string, unknown> }) => {
-        oppdateringer.push(arg);
-        return { id: arg.where.id, ...arg.data };
+      // RETUR 5: nullstillingen i `provKonverteringIgjen` går via `updateMany`, betinget
+      // på `updatedAt` (samme kappløps-vakt som `oppdaterAlleTegninger`). Disse testene
+      // gjelder ikke kappløpet — raden har ikke rørt seg, treffer alltid (count 1).
+      updateMany: vi.fn(async (arg: { where: { id: string }; data: Record<string, unknown> }) => {
+        oppdateringer.push({ where: { id: arg.where.id }, data: arg.data });
+        return { count: 1 };
       }),
+      findUnique: vi.fn().mockResolvedValue(eksisterende),
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
@@ -92,5 +96,18 @@ describe("provKonverteringIgjen — idempotent mens konvertering pågår", () =>
     const { ctx } = lagCtx(tegning("converting", 9));
     await tegningRouter.createCaller(ctx).provKonverteringIgjen({ id: TEGNING });
     expect(h.konverterDwg).not.toHaveBeenCalled();
+  });
+
+  it("RETUR 5 — kappløp: raden fullføres (annen kjøring) mellom lesing og merking → ingen ny jobb, gjeldende status returneres", async () => {
+    const { ctx } = lagCtx(tegning("failed"));
+    // Simulerer at raden har rørt seg (en annen kjøring tok/fullførte den) mellom vår
+    // `findUniqueOrThrow`-lesing og vårt betingede `updateMany` — betinget skriv treffer 0.
+    ctx.prisma.drawing.updateMany.mockResolvedValueOnce({ count: 0 });
+    ctx.prisma.drawing.findUnique.mockResolvedValueOnce({ conversionStatus: "done" });
+
+    const res = await tegningRouter.createCaller(ctx).provKonverteringIgjen({ id: TEGNING });
+
+    expect(h.konverterDwg).not.toHaveBeenCalled();
+    expect(res.status).toBe("done");
   });
 });

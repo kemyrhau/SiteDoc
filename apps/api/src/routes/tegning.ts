@@ -1103,11 +1103,21 @@ export const tegningRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: TEGNING_MANGLER_ORIGINALFIL_KODE });
       }
 
-      // Nullstill status
-      await ctx.prisma.drawing.update({
-        where: { id: input.id },
+      // Nullstill status — BETINGET på `updatedAt`-snapshotet over (RETUR 5, samme
+      // vakt som `oppdaterAlleTegninger`): rørte raden seg mellom lesingen og
+      // skrivingen (en annen kjøring tok/fullførte den i mellomtiden), skal denne
+      // klikken ALDRI starte en konkurrerende jobb eller overskrive resultatet.
+      const opptak = await ctx.prisma.drawing.updateMany({
+        where: { id: input.id, updatedAt: tegning.updatedAt },
         data: { conversionStatus: "pending", conversionError: null },
       });
+      if (opptak.count === 0) {
+        const fersk = await ctx.prisma.drawing.findUnique({
+          where: { id: input.id },
+          select: { conversionStatus: true },
+        });
+        return { status: fersk?.conversionStatus ?? tegning.conversionStatus };
+      }
 
       // Fire-and-forget (ett manuelt klikk, ikke gjennom batch-køen): svarer med én
       // gang, konverteringen kjører i bakgrunnen.
@@ -1228,12 +1238,26 @@ export const tegningRouter = router({
       // Synkront: sett alle til "pending" FØR vi returnerer, så
       // `rekonverteringStatus` straks viser riktig «pågår»-tall og knappen kan
       // deaktiveres med én gang (overlever sideoppdatering — DB, ikke klient-state).
-      await ctx.prisma.drawing.updateMany({
-        where: { id: { in: startbare.map((t) => t.id) } },
-        data: { conversionStatus: "pending", conversionError: null },
-      });
+      //
+      // RETUR 5 (kappløp målt): IKKE ett blindt bulk-kall lenger. Hver rad merkes
+      // BETINGET på sin egen `updatedAt`-snapshot (fra `kandidater`-lesingen over), i
+      // SAMME transaksjon. En rad som har rørt seg mellom lesingen og skrivingen her —
+      // en raskere konkurrerende kjøring (et annet «oppdater alle»-kall, et «prøv
+      // igjen»-klikk) har ALLEREDE fullført den og skrevet "done" — telles ikke som
+      // startet og får ALDRI en ny jobb her. Uten denne vakta ville den sene, blinde
+      // "sett alle til pending" overskrevet et "done" en annen jobb nettopp satte:
+      // konverteringen lykkes (synlig i loggen), men raden står likevel på pending.
+      const opptak = await ctx.prisma.$transaction(
+        startbare.map((t) =>
+          ctx.prisma.drawing.updateMany({
+            where: { id: t.id, updatedAt: t.updatedAt },
+            data: { conversionStatus: "pending", conversionError: null },
+          }),
+        ),
+      );
+      const tattOpp = startbare.filter((_t, i) => opptak[i]!.count > 0);
 
-      for (const t of startbare) {
+      for (const t of tattOpp) {
         void tegningRekonverteringKø.kjør(() =>
           kjorRekonvertering(ctx.prisma, {
             id: t.id,
@@ -1245,7 +1269,7 @@ export const tegningRouter = router({
         );
       }
 
-      return { startet: startbare.length, manglerOriginal };
+      return { startet: tattOpp.length, manglerOriginal };
     }),
 
   // Slett tegning. ADMIN-gatet + SLETTEVAKT (speiler omrade.slett): alle referanse-FK-ene er

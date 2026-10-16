@@ -54,18 +54,25 @@ function lagTegning(
   };
 }
 
-function lagCtx(tegninger: ReturnType<typeof lagTegning>[]) {
-  const updateManyKall: Array<{ where: unknown; data: Record<string, unknown> }> = [];
+/**
+ * `opptakFeilerFor`: id-er som skal MISTE kappløpet (simulerer en rad som har rørt seg
+ * siden `findMany`-snapshotet — en raskere konkurrerende kjøring har allerede tatt/
+ * fullført den). Disse id-ene får `{ count: 0 }` fra sitt `updateMany`-kall; resten `{ count: 1 }`
+ * (RETUR 5-vakta: `where: { id, updatedAt }`, se `oppdaterAlleTegninger`).
+ */
+function lagCtx(tegninger: ReturnType<typeof lagTegning>[], opptakFeilerFor: string[] = []) {
+  const updateManyKall: Array<{ where: { id: string; updatedAt?: Date }; data: Record<string, unknown> }> = [];
   const prisma = {
     drawing: {
       findMany: vi.fn().mockResolvedValue(tegninger),
-      updateMany: vi.fn(async (arg: { where: unknown; data: Record<string, unknown> }) => {
+      updateMany: vi.fn(async (arg: { where: { id: string; updatedAt?: Date }; data: Record<string, unknown> }) => {
         updateManyKall.push(arg);
-        return { count: 0 };
+        return { count: opptakFeilerFor.includes(arg.where.id) ? 0 : 1 };
       }),
       update: vi.fn().mockResolvedValue({}),
       findUnique: vi.fn().mockResolvedValue(null),
     },
+    $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   const ctx = { userId: "user-1", prisma } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -102,10 +109,14 @@ describe("oppdaterAlleTegninger", () => {
     // t-pdf-original har originalFileUrl (ikke null) som ikke er .dwg/.dxf: verken
     // startbar eller manglerOriginal — PDF er utenfor scope, telles ingen steder her.
     expect(res).toEqual({ startet: 2, manglerOriginal: 1 });
-    expect(updateManyKall).toHaveLength(1);
-    const idsSatt = (updateManyKall[0]!.where as { id: { in: string[] } }).id.in;
+    // RETUR 5: ett `updateMany`-kall PR. RAD (betinget på id+updatedAt), ikke ett bulk-kall.
+    expect(updateManyKall).toHaveLength(2);
+    const idsSatt = updateManyKall.map((k) => k.where.id);
     expect(idsSatt.sort()).toEqual(["t-ok-1", "t-ok-2"]);
-    expect(updateManyKall[0]!.data).toEqual({ conversionStatus: "pending", conversionError: null });
+    for (const kall of updateManyKall) {
+      expect(kall.data).toEqual({ conversionStatus: "pending", conversionError: null });
+      expect(kall.where.updatedAt).toBeInstanceOf(Date);
+    }
 
     // Gi de voidede Semafor-kallene en sjanse til å kjøre (mikrotask-tick).
     await vi.waitFor(() => expect(h.konverterDwg).toHaveBeenCalledTimes(2));
@@ -119,6 +130,33 @@ describe("oppdaterAlleTegninger", () => {
 
     expect(res).toEqual({ startet: 1, manglerOriginal: 0 });
     expect(updateManyKall).toHaveLength(1);
+  });
+
+  it("RETUR 5 — kappløp: en rad som fullføres (annen kjøring) mellom lesing og merking skrives ALDRI tilbake til pending, og får ingen ny jobb", async () => {
+    const tegninger = [
+      lagTegning("t-vinner"),
+      // Simulerer: en raskere konkurrerende kjøring (et annet «oppdater alle»-kall,
+      // eller «prøv igjen») har ALLEREDE tatt/fullført denne raden mellom vår
+      // `findMany`-lesing og vårt `updateMany` — raden har en annen `updatedAt` i DB nå
+      // enn snapshotet vi leste, så vårt betingede skriv treffer 0 rader.
+      lagTegning("t-tapte-kapplopet"),
+    ];
+    const { ctx, updateManyKall } = lagCtx(tegninger, ["t-tapte-kapplopet"]);
+
+    const res = await tegningRouter.createCaller(ctx).oppdaterAlleTegninger({ projectId: PROSJEKT });
+
+    // Kun raden som faktisk ble tatt opp telles som startet — IKKE begge startbare.
+    // Uten vakta (bulk `updateMany` på id-liste, ingen `updatedAt`-sjekk) ville dette
+    // vært `{ startet: 2, ... }` og en ny, konkurrerende jobb startet for
+    // "t-tapte-kapplopet" — nøyaktig kappløpet RETUR 5 målte (konvertering fullført i
+    // loggen, status likevel stående på pending etterpå).
+    expect(res).toEqual({ startet: 1, manglerOriginal: 0 });
+    expect(updateManyKall.map((k) => k.where.id).sort()).toEqual(["t-tapte-kapplopet", "t-vinner"]);
+    // Begge forsøkes merket (betinget) — men kun t-vinners betingede skriv traff (count 1).
+    // At bare ÉN rad telles i `startet` ovenfor beviser at taperen aldri fikk en ny jobb i
+    // køen (selve kø-kjøringen er dekket av `konverterDwg`-sjekken i testen over — delt
+    // semafor-singleton i denne fila er allerede varig oppbrukt fra den testen, derfor
+    // asserteres ikke `h.konverterDwg` her).
   });
 
   it("ingen startbare → ingen DB-skriving, startet=0", async () => {
