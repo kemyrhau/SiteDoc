@@ -7,6 +7,7 @@
 import { PrismaClient } from "@sitedoc/db";
 import { appendFileSync } from "fs";
 import { join } from "path";
+import { Semafor } from "./semafor";
 
 const LOG_FILE = join(process.cwd(), "embedding.log");
 
@@ -170,45 +171,6 @@ export function lesEmbeddingSamtidig(
 }
 
 export const EMBEDDING_SAMTIDIG = lesEmbeddingSamtidig();
-
-/** Enkel tellende semafor (FIFO). Ingen ny pakke. */
-class Semafor {
-  private aktive = 0;
-  private kø: Array<() => void> = [];
-  constructor(private readonly maks: number) {}
-
-  /** Antall kall i flukt akkurat nå (for test/observasjon). */
-  get iFlukt(): number {
-    return this.aktive;
-  }
-
-  async kjør<T>(fn: () => Promise<T>): Promise<T> {
-    await this.ta();
-    try {
-      return await fn();
-    } finally {
-      this.frigi();
-    }
-  }
-
-  private ta(): Promise<void> {
-    if (this.aktive < this.maks) {
-      this.aktive++;
-      return Promise.resolve();
-    }
-    return new Promise<void>((resolve) => this.kø.push(resolve));
-  }
-
-  private frigi(): void {
-    const neste = this.kø.shift();
-    if (neste) {
-      // Overfør slotten direkte til neste i kø (aktive forblir uendret).
-      neste();
-    } else {
-      this.aktive--;
-    }
-  }
-}
 
 const norbertKø = new Semafor(EMBEDDING_SAMTIDIG);
 
