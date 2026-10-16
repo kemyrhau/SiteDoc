@@ -33,7 +33,8 @@ import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useNettverk } from "../../src/providers/NettverkProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { AUTH_CONFIG, erTestLoginAktiv } from "../../src/config/auth";
-import { DxfViewerTegningMobil } from "../../src/components/DxfViewerTegningMobil";
+import { DxfViewerTegningMobil, type DxfViewerTegningMobilRef } from "../../src/components/DxfViewerTegningMobil";
+import { DxfMaleVerktoylinje } from "../../src/components/DxfMaleVerktoylinje";
 import {
   forberedTegning,
   erTegningForberedt,
@@ -170,6 +171,10 @@ export default function LokasjonerSkjerm() {
   // stedet for å la en evig spinner stå. Nullstilles når brukeren velger en
   // annen tegning, så et nytt forsøk kan skje neste gang.
   const [dxfViewerFeilet, setDxfViewerFeilet] = useState(false);
+  // Leveranse 3+4: måleverktøyet i WebGL-grenen — toolbar og WebView-bro, se
+  // DxfMaleVerktoylinje/DxfViewerTegningMobil sine filheadere for protokollen.
+  const dxfViewerRef = useRef<DxfViewerTegningMobilRef>(null);
+  const [dxfKanMale, setDxfKanMale] = useState(false);
 
   const router = useRouter();
 
@@ -1162,13 +1167,27 @@ export default function LokasjonerSkjerm() {
           </View>
         ) : visserTegning ? (
           brukDxfViewerMobil ? (
-            <DxfViewerTegningMobil
-              key={valgtTegningDetalj?.id}
-              dxfUrl={`/api${valgtTegningDetalj?.dxfViewerFileUrl}`}
-              registerWorldUrl={`/api${valgtTegningDetalj?.registerWorldUrl}`}
-              rotasjonOverstyrt={valgtTegningDetalj?.rotasjonOverstyrt ?? null}
-              onLastFeil={håndterDxfViewerLastFeil}
-            />
+            <View className="flex-1">
+              <DxfViewerTegningMobil
+                ref={dxfViewerRef}
+                key={valgtTegningDetalj?.id}
+                dxfUrl={`/api${valgtTegningDetalj?.dxfViewerFileUrl}`}
+                registerWorldUrl={`/api${valgtTegningDetalj?.registerWorldUrl}`}
+                rotasjonOverstyrt={valgtTegningDetalj?.rotasjonOverstyrt ?? null}
+                onLastFeil={håndterDxfViewerLastFeil}
+                onMaleKlarEndring={setDxfKanMale}
+              />
+              <DxfMaleVerktoylinje
+                kanMale={dxfKanMale}
+                onVerktoy={(v) => dxfViewerRef.current?.settMaleVerktoy(v)}
+                onOrtho={(på) => dxfViewerRef.current?.settMaleOrtho(på)}
+                onSnap={(på) => dxfViewerRef.current?.settMaleSnap(på)}
+                onFullfoer={() => dxfViewerRef.current?.fullfoerMaling()}
+                onGjenoppta={() => dxfViewerRef.current?.gjenopptaMaling()}
+                onSlettAktiv={() => dxfViewerRef.current?.slettAktivMaling()}
+                onSlettAlle={() => dxfViewerRef.current?.slettAlleMaalinger()}
+              />
+            </View>
           ) : kildeLaster || !tegningKilde ? (
             // Mens lokal-kopi-resolveren jobber (les cache / bygg data-URI).
             <View className="flex-1 items-center justify-center bg-black">

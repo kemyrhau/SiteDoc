@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DxfViewerTegning } from "@/components/tegning/DxfViewerTegning";
+import { DxfViewerTegning, type DxfViewerTegningRef } from "@/components/tegning/DxfViewerTegning";
+import type { TegningVerktoy } from "@sitedoc/shared";
 
 /**
  * Mobil leveranse 1 (arbeidstegning-f1, "SVAR MOBILPLAN" i
@@ -16,11 +17,20 @@ import { DxfViewerTegning } from "@/components/tegning/DxfViewerTegning";
  *   Inn (postMessage til vinduet):
  *     { type: "start", dxfUrl: string, registerWorldUrl: string, rotasjonOverstyrt: number | null }
  *     { type: "rapporter" }  — be om siste måling nå
+ *     { type: "maleVerktoy", verktoy: "flytt"|"linjal"|"polylinje"|"areal" }  — leveranse 3+4
+ *     { type: "maleOrtho", på: boolean }
+ *     { type: "maleSnap", på: boolean }
+ *     { type: "maleFullfoer" }     — Fullfør (polylinje)
+ *     { type: "maleGjenoppta" }    — Fortsett en ferdig måling
+ *     { type: "maleSlettAktiv" }
+ *     { type: "maleSlettAlle" }
  *
  *   Ut (postMessage fra vinduet — fanges av WebView.onMessage):
  *     { type: "klar" }
  *     { type: "metrics", fps: { median: number, lavest: number }, prøver: number }
  *     { type: "feil", melding: string }
+ *     { type: "maleKlar", kanMale: boolean }  — leveranse 3+4: $INSUNITS lest, RN kan
+ *                                                sperre/åpne måleknappene
  */
 
 interface StartMelding {
@@ -69,6 +79,7 @@ function useFpsMaaling() {
 export default function DxfViewerRøyktest() {
   const [melding, setMelding] = useState<StartMelding | null>(null);
   const prøverRef = useFpsMaaling();
+  const viewerRef = useRef<DxfViewerTegningRef>(null);
 
   useEffect(() => {
     function rapporter() {
@@ -83,6 +94,11 @@ export default function DxfViewerRøyktest() {
     }
 
     function håndter(e: MessageEvent) {
+      // RETUR leveranse 3+4 (Kontrollør, punkt 3): RN-bryggen (iOS WKWebView/Android)
+      // injiserer meldingen uten ekte avsender-origin (e.origin === "" på begge
+      // plattformer) — det godtas. En EKTE fremmed origin (f.eks. en innbygget
+      // cross-origin-underramme som når samme lytter) avvises.
+      if (e.origin && e.origin !== window.location.origin) return;
       try {
         const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
         if (!data || typeof data !== "object") return;
@@ -90,6 +106,20 @@ export default function DxfViewerRøyktest() {
           setMelding(data as StartMelding);
         } else if (data.type === "rapporter") {
           rapporter();
+        } else if (data.type === "maleVerktoy") {
+          viewerRef.current?.settVerktoy(data.verktoy as TegningVerktoy);
+        } else if (data.type === "maleOrtho") {
+          viewerRef.current?.settOrtho(!!data.på);
+        } else if (data.type === "maleSnap") {
+          viewerRef.current?.settSnap(!!data.på);
+        } else if (data.type === "maleFullfoer") {
+          viewerRef.current?.fullfoerAktiv();
+        } else if (data.type === "maleGjenoppta") {
+          viewerRef.current?.gjenopptaAktiv();
+        } else if (data.type === "maleSlettAktiv") {
+          viewerRef.current?.slettAktiv();
+        } else if (data.type === "maleSlettAlle") {
+          viewerRef.current?.slettAlle();
         }
       } catch {
         /* Ikke JSON for oss — ignorer */
@@ -117,9 +147,11 @@ export default function DxfViewerRøyktest() {
     <div style={{ position: "fixed", inset: 0, background: "#f3f4f6" }}>
       {melding ? (
         <DxfViewerTegning
+          ref={viewerRef}
           dxfUrl={melding.dxfUrl}
           registerWorldUrl={melding.registerWorldUrl}
           rotasjonOverstyrt={melding.rotasjonOverstyrt}
+          onMaleKlarEndring={(kanMale) => sendTilApp({ type: "maleKlar", kanMale })}
         />
       ) : (
         <div

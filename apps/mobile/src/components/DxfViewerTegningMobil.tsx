@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from "react-native-webview/lib/WebViewTypes";
+import type { TegningVerktoy } from "@sitedoc/shared";
 import { hentWebUrl } from "../config/auth";
 
 // RETUR leveranse 2 (Kontrollør, punkt 2): et NATIVT WebView-last-problem (offline
@@ -16,11 +17,16 @@ const LASTE_TIDSGRENSE_MS = 10000;
 /**
  * Mobil leveranse 2 (arbeidstegning-f1, "SVAR mobil leveranse 1 d5f90b1a" i
  * relay/inbox-orkestrator.md): "motor-last i appen uten lupe/måling" — ren
- * last+vis (pan/zoom fra dxf-viewers egne kontroller), INGEN markør-trykk,
- * måling eller GPS-overlegg ennå (skjerm→verden-projeksjonen for det er egen
- * leveranse). Delt mellom `(tabs)/lokasjoner.tsx` (ekte visning) og
- * `dxf-webgl-debug.tsx` (røyktest-skjermen fra leveranse 1), så WebView-
- * oppkoblingen ikke dupliseres.
+ * last+vis (pan/zoom fra dxf-viewers egne kontroller). Delt mellom
+ * `(tabs)/lokasjoner.tsx` (ekte visning) og `dxf-webgl-debug.tsx` (røyktest-
+ * skjermen fra leveranse 1), så WebView-oppkoblingen ikke dupliseres.
+ *
+ * Leveranse 3+4 ("POST: mobil leveranse 3+4, lupe og måling i dxf-viewer"):
+ * måling (Linjal/Polylinje/Areal/Snap) + lupe er bygget INN I `DxfViewerTegning`
+ * (web-komponenten, se dens filheader) — denne komponenten er bare en tynn
+ * postMessage-bro videre til web-siden (`settMaleVerktoy` m.fl. på refen).
+ * Markør-trykk/GPS-overlegg er FORTSATT ikke med (egen leveranse, skjules bak
+ * `!brukDxfViewerMobil` i `lokasjoner.tsx`).
  *
  * Rendrer `DxfViewerTegning` (ekte web-komponent) via den auth-frie
  * `/dxf-viewer-smoketest`-siden, samme postMessage-mønster som `IfcViewer.tsx`
@@ -38,16 +44,27 @@ export interface DxfViewerTegningMobilProps {
    * SVG-veien. Komponenten viser samtidig sin egen feil-overlegg (sideFeil under),
    * så debug-skjermen (som ikke har en SVG-vei å falle til) fortsatt viser feilen. */
   onLastFeil?: () => void;
+  /** Leveranse 3+4: kalt når måleverktøyet blir tilgjengelig/utilgjengelig ($INSUNITS lest). */
+  onMaleKlarEndring?: (kanMale: boolean) => void;
 }
 
 export interface DxfViewerTegningMobilRef {
   /** Be web-siden rapportere nåværende fps-måling (kun brukt av røyktest-skjermen). */
   beOmStatus: () => void;
+  /** Leveranse 3+4 — måleverktøyet, videresendt til web-siden via postMessage (se
+   * `dxf-viewer-smoketest/page.tsx`-filheaderen for protokollen). */
+  settMaleVerktoy: (v: TegningVerktoy) => void;
+  settMaleOrtho: (på: boolean) => void;
+  settMaleSnap: (på: boolean) => void;
+  fullfoerMaling: () => void;
+  gjenopptaMaling: () => void;
+  slettAktivMaling: () => void;
+  slettAlleMaalinger: () => void;
 }
 
 export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfViewerTegningMobilProps>(
   function DxfViewerTegningMobil(
-    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMetrics, onLastFeil },
+    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMetrics, onLastFeil, onMaleKlarEndring },
     ref,
   ) {
     const webViewRef = useRef<WebView>(null);
@@ -115,6 +132,11 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
 
     const handleMessage = useCallback(
       (event: WebViewMessageEvent) => {
+        // RETUR leveranse 3+4 (Kontrollør, punkt 3): `event.nativeEvent.url` er URL-en
+        // til rammen som postet meldingen — avvis alt som ikke kommer fra siden vi selv
+        // lastet (f.eks. en injisert underramme). Tom streng (noen Android-WebView-
+        // versjoner ved tidlig last) godtas, siden den ikke er en annen origin.
+        if (event.nativeEvent.url && !event.nativeEvent.url.startsWith(hentWebUrl())) return;
         try {
           const msg = JSON.parse(event.nativeEvent.data);
           if (msg.type === "klar") {
@@ -123,12 +145,14 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
             onMetrics?.(msg);
           } else if (msg.type === "feil") {
             setSideFeil(msg.melding);
+          } else if (msg.type === "maleKlar") {
+            onMaleKlarEndring?.(!!msg.kanMale);
           }
         } catch {
           /* Ignorer ugyldig JSON */
         }
       },
-      [onMetrics],
+      [onMetrics, onMaleKlarEndring],
     );
 
     useEffect(() => {
@@ -144,6 +168,13 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
 
     useImperativeHandle(ref, () => ({
       beOmStatus: () => webViewRef.current?.postMessage(JSON.stringify({ type: "rapporter" })),
+      settMaleVerktoy: (v) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleVerktoy", verktoy: v })),
+      settMaleOrtho: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleOrtho", på })),
+      settMaleSnap: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSnap", på })),
+      fullfoerMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleFullfoer" })),
+      gjenopptaMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleGjenoppta" })),
+      slettAktivMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSlettAktiv" })),
+      slettAlleMaalinger: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSlettAlle" })),
     }));
 
     const lastPaaNytt = useCallback(() => {
