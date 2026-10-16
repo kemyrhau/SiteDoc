@@ -585,35 +585,56 @@ async function kjorRekonvertering(
 }
 
 /**
- * Køvakt rundt `kjorRekonvertering` — KUN for batch-veien (`oppdaterAlleTegninger`), som
- * kjører gjennom `tegningRekonverteringKø` (maks 2 samtidig). RETUR 2 (Kontrollør/Kenneth,
- * feil 3): `Semafor` har INGEN tidsgrense — en jobb som henger (uansett årsak) holder sin
- * plass for alltid, og kø 3-9 ville stått bak den til evig tid, lenge forbi DB-sidens
- * `KONVERTERING_STRANDET_MS`-grense (den gjelder kun status-TOLKNING, ikke selve plassen).
- * Denne vakta gir opp Å VENTE på jobben ved samme grense og frigjør plassen til neste i
- * køen — jobben AVBRYTES ikke (det finnes ingen trygg kill-hook inn i `konverterDwg`), den
- * fortsetter i bakgrunnen og skriver sitt eget resultat (ferdig/failed) når den en gang
- * avslutter. `provKonverteringIgjen` (ett klikk, utenfor køen) trenger ikke denne vakta —
- * den holder ingen plass andre står bak.
+ * RETUR 3 (orkestrator/Kenneth 2026-10-16, rotårsak MÅLT, ikke antatt): Feil 1 fra RETUR 2
+ * («jobb 2 av 9 henger, tom logg, ingen prosess») var IKKE en hengende konvertering eller en
+ * semafor-bug. `docker inspect` viste `sitedoc-test-api` startet 18:08:09Z — 41 s inn i
+ * Kenneths batch (trigget 18:07:28Z) — med `restarts=0` (en vanlig `up -d` etter test-deploy,
+ * ikke et krasj). Omstarten tømte `tegningRekonverteringKø`s in-memory-tilstand og drepte alt
+ * kjørende arbeid øyeblikkelig: INGEN prosess (den døde med containeren), INGEN fersk logg
+ * (jobben finnes ikke mer), og radene ble stående i `pending` FOR ALLTID (ingen kode kjørte
+ * igjen for å rette dem opp). Reprodusert direkte mot test (samme kode, samme 9 tegninger,
+ * ingen omstart i veien): alle 9 ferdig på 4 min 41 s, ingen hang.
+ *
+ * `kjorRekonverteringMedKøvakt` (RETUR 2) er derfor FJERNET: en `setTimeout`-vakt i minnet dør
+ * sammen med resten av prosessen ved nøyaktig den hendelsen den skulle dekke, og den er en
+ * ekte oversubscription-risiko for den delte `Semafor`-KLASSEN (samme kode som NorBERT-køen)
+ * uten å løse noe her. Den egentlige fiksen er at API-en gjenopptar strandede rader selv ved
+ * HVER oppstart — se `gjenopptaStrandedeRekonverteringer` under, kalt fra `server.ts`.
  */
-export async function kjorRekonverteringMedKøvakt(
-  prisma: PrismaClient,
-  tegning: { id: string; name: string; projectId: string; byggeplassId: string | null; originalFileUrl: string },
-  køgrenseMs: number = KONVERTERING_STRANDET_MS,
-): Promise<void> {
-  const utfall = await Promise.race([
-    kjorRekonvertering(prisma, tegning).then(() => "ferdig" as const),
-    new Promise<"tidsavbrutt">((resolve) => {
-      // unref: en hengende jobb skal ikke holde prosessen (eller en testkjøring) i live
-      // bare på grunn av denne vaktetimeren.
-      setTimeout(() => resolve("tidsavbrutt"), køgrenseMs).unref?.();
-    }),
-  ]);
-  if (utfall === "tidsavbrutt") {
-    console.warn(
-      `[DWG] rekonvertering ${tegning.id} (${tegning.name}) henger forbi køgrensen (${køgrenseMs}ms) — frigjør semaforplass til neste i køen, jobben fortsetter i bakgrunnen`,
+
+/**
+ * Kjøres ved HVER api-oppstart (server.ts, samme mønster som embedding-chunk-recovery).
+ * Prosessen er akkurat startet — INGEN jobb i DENNE prosess-generasjonen kan være reelt
+ * «pågående» ennå, så enhver DWG/DXF-hovedtegning som står i `pending`/`converting` er per
+ * definisjon strandet fra forrige generasjon (omstart under en rekonvertering, jf. RETUR 3).
+ * Trygt å kjøre dem på nytt: originalfila ligger fortsatt på disk, og `anvendDwgResultat` er
+ * atomisk (gammel `fileUrl`/markører/georef/historikk står til den nye lykkes). Kjøres
+ * gjennom samme `tegningRekonverteringKø` (maks 2 samtidig) som batch-knappen, så en stor
+ * strandet-mengde ikke oversvømmer serveren rett etter oppstart.
+ */
+export async function gjenopptaStrandedeRekonverteringer(prisma: PrismaClient): Promise<number> {
+  const strandede = await prisma.drawing.findMany({
+    where: {
+      parentDrawingId: null,
+      conversionStatus: { in: ["pending", "converting"] },
+      originalFileUrl: { not: null },
+    },
+    select: { id: true, name: true, projectId: true, byggeplassId: true, originalFileUrl: true },
+  });
+  const rekonverterbare = strandede.filter((t) => erRekonverterbarOriginal(t.originalFileUrl));
+  for (const t of rekonverterbare) {
+    console.log(`[DWG] gjenopptar strandet rekonvertering ${t.id} (${t.name}) etter omstart`);
+    void tegningRekonverteringKø.kjør(() =>
+      kjorRekonvertering(prisma, {
+        id: t.id,
+        name: t.name,
+        projectId: t.projectId,
+        byggeplassId: t.byggeplassId,
+        originalFileUrl: t.originalFileUrl!,
+      }),
     );
   }
+  return rekonverterbare.length;
 }
 
 export const tegningRouter = router({
@@ -1214,7 +1235,7 @@ export const tegningRouter = router({
 
       for (const t of startbare) {
         void tegningRekonverteringKø.kjør(() =>
-          kjorRekonverteringMedKøvakt(ctx.prisma, {
+          kjorRekonvertering(ctx.prisma, {
             id: t.id,
             name: t.name,
             projectId: t.projectId,

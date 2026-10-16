@@ -263,6 +263,18 @@ async function start() {
       // Start eksport-worker (bygger dataeksport-arkiver asynkront + utløpsrydding)
       const { startEksportWorker } = await import("./services/eksport/eksport-worker");
       startEksportWorker(prisma);
+
+      // RETUR 3 rekonverter (orkestrator/Kenneth 2026-10-16): en api-omstart midt i
+      // «Oppdater alle tegninger» tømmer tegningskøens minnetilstand og lar rader stå i
+      // pending/converting FOR ALLTID (rotårsak til RETUR 2s «hengende jobb», målt med
+      // docker inspect). Hver oppstart er derfor en ny prosess-generasjon uten pågående
+      // arbeid — alt som står i pending/converting er per definisjon strandet fra forrige
+      // generasjon og trygt å starte på nytt (originalfil finnes, byttet er atomisk).
+      const { gjenopptaStrandedeRekonverteringer } = await import("./routes/tegning");
+      const gjenopptatt = await gjenopptaStrandedeRekonverteringer(prisma);
+      if (gjenopptatt > 0) {
+        server.log.info(`Tegning-rekonvertering recovery: ${gjenopptatt} strandede rader gjenopptatt etter omstart`);
+      }
     } catch {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }
