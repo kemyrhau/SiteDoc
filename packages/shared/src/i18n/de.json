@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Konvertiert alle DWG/DXF-Zeichnungen im Projekt mit der aktuellen Engine und derselben Revision erneut.",
   "tegninger.oppdaterAlleTegningerBekreft": "Dadurch werden alle DWG/DXF-Zeichnungen im Projekt mit der aktuellen Engine neu konvertiert. Markierungen, Drehung und Georeferenzierung bleiben erhalten. Dies kann einige Minuten dauern.",
   "tegninger.oppdatererFremdrift": "Aktualisierung von {{ferdig}} von {{totalt}} …",
+  "tegninger.oppdatererVisning": "Ansicht wird aktualisiert …",
   "tegninger.oppdatertFerdig": "Fertig: {{ok}} ok, {{feilet}} fehlgeschlagen",
   "tegninger.oppdaterAlleManglerOriginal": "Bei {{antall}} Zeichnungen fehlt die Originaldatei und sie wurden übersprungen – bitte erneut hochladen.",
   "tegninger.slettTegning": "Zeichnung löschen",

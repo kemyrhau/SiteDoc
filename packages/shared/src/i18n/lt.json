@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Iš naujo konvertuoja visus projekto DWG/DXF brėžinius su dabartiniu varikliu, naudojant tą pačią versiją.",
   "tegninger.oppdaterAlleTegningerBekreft": "Taip iš naujo konvertuojami visi projekto DWG/DXF brėžiniai naudojant dabartinį variklį. Išsaugomi žymekliai, pasukimas ir geografinės nuorodos. Tai gali užtrukti kelias minutes.",
   "tegninger.oppdatererFremdrift": "Atnaujinama {{ferdig}} iš {{totalt}}…",
+  "tegninger.oppdatererVisning": "Atnaujinamas rodinys…",
   "tegninger.oppdatertFerdig": "Atlikta: {{ok}} gerai, {{feilet}} nepavyko",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} piešinyje (-iuose) trūksta pradinio failo ir jie buvo praleisti. Įkelkite dar kartą.",
   "tegninger.slettTegning": "Ištrinti piešinį",

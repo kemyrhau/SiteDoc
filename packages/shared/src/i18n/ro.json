@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Reconvertește toate desenele DWG/DXF din proiect cu motorul curent, pe aceeași versiune.",
   "tegninger.oppdaterAlleTegningerBekreft": "Aceasta reconversie toate desenele DWG/DXF din proiect cu motorul curent. Markerii, rotația și georeferențiarea sunt păstrate. Acest lucru poate dura câteva minute.",
   "tegninger.oppdatererFremdrift": "Se actualizează {{ferdig}} din {{totalt}}...",
+  "tegninger.oppdatererVisning": "Se actualizează vizualizarea…",
   "tegninger.oppdatertFerdig": "Gata: {{ok}} ok, {{feilet}} a eșuat",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} desene lipsesc din fișierul original și au fost omise — vă rugăm să încărcați din nou.",
   "tegninger.slettTegning": "Ștergeți desenul",

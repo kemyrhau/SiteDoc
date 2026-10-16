@@ -72,6 +72,7 @@ interface DokumentflytRad {
 import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
+import { tegningVisningTilstand } from "@/lib/tegningRekonverteringVisning";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
 import { RedigerTegningModal } from "@/components/tegning/RedigerTegningModal";
 import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
@@ -1429,9 +1430,18 @@ export default function TegningerSide() {
   const fileUrl = tegning.fileUrl ? `/api${tegning.fileUrl}` : null;
   const fileType = tegning.fileType ?? "";
   const erBilde = ["png", "jpg", "jpeg", "svg"].includes(fileType);
-  const erDwgKonvertering = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
   const dwgFeilet = tegning.conversionStatus === "failed";
   const erUkonvertertDwg = fileType === "dwg"; // DWG kan ikke vises direkte i nettleser
+  // RETUR 2 rekonverter (Kontrollør/Kenneth, feil 2): se tegningRekonverteringVisning.ts —
+  // `erDwgKonvertering` dekker BÅDE førstegangskonvertering (ingenting å vise) OG
+  // rekonvertering av en tegning som ALLEREDE er konvertert (fileUrl/fileType er fortsatt
+  // FORRIGE vellykkede render til `anvendDwgResultat` lykkes). Rekonvertering skal vise den
+  // gamle visningen videre, ikke spinner/tom flate — kun førstegangskonvertering blokkerer.
+  const { erDwgKonvertering, harGyldigGammelVisning, visBlokkerendeKonvertering } = tegningVisningTilstand({
+    conversionStatus: tegning.conversionStatus,
+    erBilde,
+    brukDxfViewer,
+  });
   // Feilet/konvertert PDF beholder fileType="pdf" (feilveien flipper ikke typen) → banner-tekst
   // OG re-konverter-vei velges etter filtype (se konverteringBanner). `kanAdministrereOmrade`
   // (gruppe.hentMinTilgang.erAdmin) er admin-proxy for slett/re-konverter; serveren er porten.
@@ -1697,8 +1707,10 @@ export default function TegningerSide() {
           tegningsnummer={tegning.drawingNumber}
           tegningNavn={tegning.name}
         />
-        {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11). */}
-        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={erDwgKonvertering} />
+        {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11).
+            RETUR 2 rekonverter: under rekonvertering med gyldig gammel visning holder
+            den diskrete «Oppdaterer visning …»-linjen over — ikke dupliser meldingen her. */}
+        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={visBlokkerendeKonvertering} />
         <div className="flex-1" />
 
         {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
@@ -2037,13 +2049,21 @@ export default function TegningerSide() {
         )}
       </div>
 
-      {/* Konverteringsstatus — tekst per filtype (PDF vs DWG) */}
-      {erDwgKonvertering && !konvStoppet && (
+      {/* Konverteringsstatus — tekst per filtype (PDF vs DWG). Blokkerende KUN når det ikke
+          finnes noe å vise i mellomtiden (førstegangskonvertering/revisjon). */}
+      {visBlokkerendeKonvertering && !konvStoppet && (
         <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
           <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
           <span className="text-sm font-medium text-amber-800">
             {t(banner.konverteresNokkel)}
           </span>
+        </div>
+      )}
+      {/* RETUR 2 rekonverter: gammel visning står — kun en diskret linje, ikke spinner/tom flate. */}
+      {erDwgKonvertering && harGyldigGammelVisning && !konvStoppet && (
+        <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-6 py-1.5">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+          <span className="text-xs text-gray-500">{t("tegninger.oppdatererVisning")}</span>
         </div>
       )}
       {/* RETUR 1: hengende konvertering (> 10 min) — rømningsvei med «Prøv igjen». */}
@@ -2287,8 +2307,11 @@ export default function TegningerSide() {
         </div>
       )}
 
-      {/* Tegningsvisning med markører */}
-      {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
+      {/* Tegningsvisning med markører. RETUR 2 rekonverter (feil 2): under en
+          rekonvertering med en gyldig gammel visning (harGyldigGammelVisning) skal den
+          gamle filen fortsette å vises — kun førstegangskonvertering/revisjon (ingen fil
+          å falle tilbake på) blokkerer visningen. */}
+      {fileUrl && (!erDwgKonvertering || harGyldigGammelVisning) && !erUkonvertertDwg ? (
         brukDxfViewer && tegning.dxfViewerFileUrl && tegning.registerWorldUrl ? (
           // Leveranse 1: PARALLELL vei bak flagget, leser SAMME Drawing-rad (plan § 3).
           // Egen, isolert gren — markører/måling/lagpanel/klikk er leveranse 2/3/5,
@@ -2816,7 +2839,7 @@ export default function TegningerSide() {
         }
         konverteringMarkor={konvMarkor}
         erKonvertert={tegningErKonvertert}
-        konverterer={erDwgKonvertering}
+        konverterer={visBlokkerendeKonvertering}
       />
     </div>
   );

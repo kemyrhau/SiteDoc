@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Перетворює всі креслення DWG/DXF у проекті за допомогою поточного механізму в тій самій редакції.",
   "tegninger.oppdaterAlleTegningerBekreft": "Це повторно перетворює всі креслення DWG/DXF у проекті за допомогою поточного механізму. Маркери, обертання та географічна прив’язка збережені. Це може зайняти кілька хвилин.",
   "tegninger.oppdatererFremdrift": "Оновлення {{ferdig}} із {{totalt}}…",
+  "tegninger.oppdatererVisning": "Оновлення перегляду…",
   "tegninger.oppdatertFerdig": "Готово: {{ok}} добре, {{feilet}} не вдалося",
   "tegninger.oppdaterAlleManglerOriginal": "У {{antall}} малюнків відсутній оригінальний файл, тому їх було пропущено — завантажте знову.",
   "tegninger.slettTegning": "Видалити малюнок",

@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Reconvertit tous les dessins DWG/DXF du projet avec le moteur actuel, sur la même révision.",
   "tegninger.oppdaterAlleTegningerBekreft": "Cela reconvertit tous les dessins DWG/DXF du projet avec le moteur actuel. Les marqueurs, la rotation et le géoréférencement sont conservés. Cela peut prendre quelques minutes.",
   "tegninger.oppdatererFremdrift": "Mise à jour de {{ferdig}} de {{totalt}}…",
+  "tegninger.oppdatererVisning": "Mise à jour de la vue…",
   "tegninger.oppdatertFerdig": "Terminé : {{ok}} ok, {{feilet}} a échoué",
   "tegninger.oppdaterAlleManglerOriginal": "Il manque le fichier d'origine dans {{antall}} dessins ; ils ont été ignorés ; veuillez les télécharger à nouveau.",
   "tegninger.slettTegning": "Supprimer le dessin",

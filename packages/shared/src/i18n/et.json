@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Teisendab kõik projekti DWG/DXF joonised praeguse mootoriga sama redaktsiooni alusel.",
   "tegninger.oppdaterAlleTegningerBekreft": "See teisendab kõik projekti DWG/DXF joonised praeguse mootoriga uuesti. Markerid, pööramine ja georefereering on säilinud. Selleks võib kuluda mõni minut.",
   "tegninger.oppdatererFremdrift": "{{ferdig}} värskendamine {{totalt}}-st …",
+  "tegninger.oppdatererVisning": "Vaate värskendamine…",
   "tegninger.oppdatertFerdig": "Valmis: {{ok}} ok, {{feilet}} ebaõnnestus",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} joonis(t)el puudub algne fail ja need jäeti vahele – laadige uuesti üles.",
   "tegninger.slettTegning": "Kustuta joonis",

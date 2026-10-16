@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Atkārtoti pārvērš visus projekta DWG/DXF rasējumus ar pašreizējo dzinēju, tajā pašā versijā.",
   "tegninger.oppdaterAlleTegningerBekreft": "Tas pārvērš visus DWG/DXF rasējumus projektā ar pašreizējo dzinēju. Marķieri, rotācija un ģeoreference tiek saglabāta. Tas var ilgt dažas minūtes.",
   "tegninger.oppdatererFremdrift": "Notiek {{ferdig}} atjaunināšana no {{totalt}}…",
+  "tegninger.oppdatererVisning": "Notiek skata atjaunināšana…",
   "tegninger.oppdatertFerdig": "Gatavs: {{ok}} labi, {{feilet}} neizdevās",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} zīmējumam(-iem) trūkst oriģinālā faila, un tas tika izlaists — lūdzu, augšupielādējiet vēlreiz.",
   "tegninger.slettTegning": "Dzēst zīmējumu",

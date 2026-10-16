@@ -565,17 +565,54 @@ async function kjorRekonvertering(
   prisma: PrismaClient,
   tegning: { id: string; name: string; projectId: string; byggeplassId: string | null; originalFileUrl: string },
 ): Promise<void> {
+  // RETUR 2 rekonverter (Kontrollør/Kenneth, feil 1): «ferdig» logges allerede (linje under
+  // via anvendDwgResultat) og «feil» logges i catch — men INGEN logg fantes ved START. En
+  // jobb som henger FØR sitt første interne [DWG]-loggpunkt (f.eks. fast i libredwg/ezdxf-
+  // child-prosessen) var dermed usynlig i loggen. Logg start eksplisitt, uansett utfall.
+  console.log(`[DWG] start rekonvertering ${tegning.id} (${tegning.name})`);
   const filType = tegning.originalFileUrl.toLowerCase().endsWith(".dxf") ? "dxf" : "dwg";
   const filSti = join(UPLOADS_DIR, tegning.originalFileUrl.replace("/uploads/", ""));
   try {
     const resultat = await konverterDwg(filSti, tegning.name, UPLOADS_DIR, filType);
     await anvendDwgResultat(prisma, tegning, resultat, tegning.originalFileUrl);
   } catch (err) {
-    console.error(`[DWG] Re-konvertering feilet for ${tegning.id}:`, err);
+    console.error(`[DWG] feil ved rekonvertering ${tegning.id}:`, err);
     await prisma.drawing.update({
       where: { id: tegning.id },
       data: { conversionStatus: "failed", conversionError: err instanceof Error ? err.message : "Ukjent feil" },
     });
+  }
+}
+
+/**
+ * Køvakt rundt `kjorRekonvertering` — KUN for batch-veien (`oppdaterAlleTegninger`), som
+ * kjører gjennom `tegningRekonverteringKø` (maks 2 samtidig). RETUR 2 (Kontrollør/Kenneth,
+ * feil 3): `Semafor` har INGEN tidsgrense — en jobb som henger (uansett årsak) holder sin
+ * plass for alltid, og kø 3-9 ville stått bak den til evig tid, lenge forbi DB-sidens
+ * `KONVERTERING_STRANDET_MS`-grense (den gjelder kun status-TOLKNING, ikke selve plassen).
+ * Denne vakta gir opp Å VENTE på jobben ved samme grense og frigjør plassen til neste i
+ * køen — jobben AVBRYTES ikke (det finnes ingen trygg kill-hook inn i `konverterDwg`), den
+ * fortsetter i bakgrunnen og skriver sitt eget resultat (ferdig/failed) når den en gang
+ * avslutter. `provKonverteringIgjen` (ett klikk, utenfor køen) trenger ikke denne vakta —
+ * den holder ingen plass andre står bak.
+ */
+export async function kjorRekonverteringMedKøvakt(
+  prisma: PrismaClient,
+  tegning: { id: string; name: string; projectId: string; byggeplassId: string | null; originalFileUrl: string },
+  køgrenseMs: number = KONVERTERING_STRANDET_MS,
+): Promise<void> {
+  const utfall = await Promise.race([
+    kjorRekonvertering(prisma, tegning).then(() => "ferdig" as const),
+    new Promise<"tidsavbrutt">((resolve) => {
+      // unref: en hengende jobb skal ikke holde prosessen (eller en testkjøring) i live
+      // bare på grunn av denne vaktetimeren.
+      setTimeout(() => resolve("tidsavbrutt"), køgrenseMs).unref?.();
+    }),
+  ]);
+  if (utfall === "tidsavbrutt") {
+    console.warn(
+      `[DWG] rekonvertering ${tegning.id} (${tegning.name}) henger forbi køgrensen (${køgrenseMs}ms) — frigjør semaforplass til neste i køen, jobben fortsetter i bakgrunnen`,
+    );
   }
 }
 
@@ -1177,7 +1214,7 @@ export const tegningRouter = router({
 
       for (const t of startbare) {
         void tegningRekonverteringKø.kjør(() =>
-          kjorRekonvertering(ctx.prisma, {
+          kjorRekonverteringMedKøvakt(ctx.prisma, {
             id: t.id,
             name: t.name,
             projectId: t.projectId,

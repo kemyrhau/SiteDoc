@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Rikonverton të gjitha vizatimet DWG/DXF në projekt me motorin aktual, në të njëjtin rishikim.",
   "tegninger.oppdaterAlleTegningerBekreft": "Kjo rikonverton të gjitha vizatimet DWG/DXF në projekt me motorin aktual. Shënuesit, rrotullimi dhe gjeoreferencimi janë ruajtur. Kjo mund të zgjasë disa minuta.",
   "tegninger.oppdatererFremdrift": "Po përditëson {{ferdig}} nga {{totalt}}…",
+  "tegninger.oppdatererVisning": "Po përditëson pamjen…",
   "tegninger.oppdatertFerdig": "U krye: {{ok}} në rregull, {{feilet}} dështoi",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} vizatimeve u mungon skedari origjinal dhe u anashkaluan - ngarko sërish.",
   "tegninger.slettTegning": "Fshi vizatimin",

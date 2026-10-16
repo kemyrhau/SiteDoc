@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Znovu převede všechny výkresy DWG/DXF v projektu s aktuálním modulem ve stejné revizi.",
   "tegninger.oppdaterAlleTegningerBekreft": "Tím se znovu převedou všechny výkresy DWG/DXF v projektu s aktuálním modulem. Značky, rotace a georeferencování jsou zachovány. Může to trvat několik minut.",
   "tegninger.oppdatererFremdrift": "Aktualizace {{ferdig}} z {{totalt}}…",
+  "tegninger.oppdatererVisning": "Aktualizace zobrazení…",
   "tegninger.oppdatertFerdig": "Hotovo: {{ok}} ok, {{feilet}} se nezdařilo",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} nákresů chybí původní soubor a byly přeskočeny – nahrajte je prosím znovu.",
   "tegninger.slettTegning": "Smazat výkres",
