@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Muuntaa kaikki projektin DWG/DXF-piirustukset uudelleen nykyisellä moottorilla, samalla versiolla.",
   "tegninger.oppdaterAlleTegningerBekreft": "Tämä muuntaa kaikki projektin DWG/DXF-piirustukset uudelleen nykyisellä moottorilla. Merkit, kierto ja georeferenssi säilyvät. Tämä voi kestää muutaman minuutin.",
   "tegninger.oppdatererFremdrift": "Päivitetään {{ferdig}}/{{totalt}}…",
+  "tegninger.oppdatererVisning": "Päivitetään näkymää…",
   "tegninger.oppdatertFerdig": "Valmis: {{ok}} ok, {{feilet}} epäonnistui",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} piirroksesta puuttuu alkuperäinen tiedosto ja ne ohitettiin – lähetä uudelleen.",
   "tegninger.slettTegning": "Poista piirros",

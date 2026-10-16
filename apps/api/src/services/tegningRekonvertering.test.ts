@@ -1,18 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   erKonverteringStrandet,
   erKonverteringPågår,
   erRekonverterbarOriginal,
+  lagTegningLivstegn,
   KONVERTERING_STRANDET_MS,
+  TEGNING_LIVSTEGN_THROTTLE_MS,
 } from "./tegningRekonvertering";
 
 /**
- * Samme mønster som reprosessering.ts (erStrandet/STRANDET_MS), men for
- * `drawings.conversion_status` (pending/converting/done/failed/stale) i stedet
- * for `ftd_documents.processing_state`. En tegning som henger i pending/converting
- * etter prosess-crash skal regnes som strandet etter KONVERTERING_STRANDET_MS,
- * ellers blir «Oppdater alle tegninger»-knappen evig deaktivert (samme felle som
- * RETUR 2026-10-15 i reprosessering).
+ * RETUR 6 rekonverter (orkestrator 2026-10-16, DB-som-kø + én arbeider i api):
+ * `pending` er IKKE lenger en kortvarig mellomtilstand — en alltid-kjørende
+ * arbeider (poll hvert 3 s) garanterer at den blir plukket opp uansett alder, så
+ * den er ALDRI strandet. Kun `converting` (en rad arbeideren faktisk har tatt)
+ * kan være strandet, og kun uten livstegn — speiler reprosessering.ts sitt
+ * erStrandet/STRANDET_MS-mønster, men presist på hvilken status som teller.
  */
 
 const NAA = 1_000_000_000_000;
@@ -28,16 +30,16 @@ describe("erKonverteringStrandet", () => {
     ).toBe(true);
   });
 
-  it("gammel pending → strandet", () => {
+  it("gammel pending → ALDRI strandet (arbeideren drenerer den uansett alder)", () => {
     expect(
       erKonverteringStrandet("pending", new Date(NAA - KONVERTERING_STRANDET_MS - 1), NAA),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("nøyaktig på grensen → strandet (>=)", () => {
-    expect(erKonverteringStrandet("pending", new Date(NAA - KONVERTERING_STRANDET_MS), NAA)).toBe(
-      true,
-    );
+  it("nøyaktig på grensen (converting) → strandet (>=)", () => {
+    expect(
+      erKonverteringStrandet("converting", new Date(NAA - KONVERTERING_STRANDET_MS), NAA),
+    ).toBe(true);
   });
 
   it("done er aldri strandet, uansett alder", () => {
@@ -65,7 +67,13 @@ describe("erKonverteringPågår", () => {
     expect(erKonverteringPågår("converting", new Date(NAA - 1000), NAA)).toBe(true);
   });
 
-  it("strandet pending/converting → IKKE pågår (teller som feilet, ikke evig pågår)", () => {
+  it("gammel pending → FORTSATT pågår (aldri strandet)", () => {
+    expect(
+      erKonverteringPågår("pending", new Date(NAA - KONVERTERING_STRANDET_MS * 10), NAA),
+    ).toBe(true);
+  });
+
+  it("strandet converting → IKKE pågår (teller som feilet, ikke evig pågår)", () => {
     expect(
       erKonverteringPågår("converting", new Date(NAA - KONVERTERING_STRANDET_MS - 1), NAA),
     ).toBe(false);
@@ -74,6 +82,45 @@ describe("erKonverteringPågår", () => {
   it("done/failed → ikke pågår", () => {
     expect(erKonverteringPågår("done", new Date(NAA - 1000), NAA)).toBe(false);
     expect(erKonverteringPågår("failed", new Date(NAA - 1000), NAA)).toBe(false);
+  });
+});
+
+describe("lagTegningLivstegn", () => {
+  function fakePrisma() {
+    return { $executeRaw: vi.fn().mockResolvedValue(1) };
+  }
+
+  it("skriver livstegn ved første kall", async () => {
+    const prisma = fakePrisma();
+    const livstegn = lagTegningLivstegn(prisma, "t1", () => NAA);
+    await livstegn();
+    expect(prisma.$executeRaw).toHaveBeenCalledOnce();
+  });
+
+  it("throttler — ingen nytt skriv før TEGNING_LIVSTEGN_THROTTLE_MS har gått", async () => {
+    const prisma = fakePrisma();
+    let t = NAA;
+    const livstegn = lagTegningLivstegn(prisma, "t1", () => t);
+    await livstegn();
+    t += TEGNING_LIVSTEGN_THROTTLE_MS - 1;
+    await livstegn();
+    expect(prisma.$executeRaw).toHaveBeenCalledOnce();
+  });
+
+  it("skriver igjen etter at throttle-vinduet har gått", async () => {
+    const prisma = fakePrisma();
+    let t = NAA;
+    const livstegn = lagTegningLivstegn(prisma, "t1", () => t);
+    await livstegn();
+    t += TEGNING_LIVSTEGN_THROTTLE_MS;
+    await livstegn();
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it("feil i $executeRaw svelges, ikke kastes", async () => {
+    const prisma = { $executeRaw: vi.fn().mockRejectedValue(new Error("db nede")) };
+    const livstegn = lagTegningLivstegn(prisma, "t1", () => NAA);
+    await expect(livstegn()).resolves.toBeUndefined();
   });
 });
 

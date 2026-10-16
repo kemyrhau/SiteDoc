@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Återkonverterar alla DWG/DXF-ritningar i projektet med den aktuella motorn, på samma revision.",
   "tegninger.oppdaterAlleTegningerBekreft": "Detta konverterar alla DWG/DXF-ritningar i projektet med den aktuella motorn. Markörer, rotation och georeferenser bevaras. Detta kan ta några minuter.",
   "tegninger.oppdatererFremdrift": "Uppdaterar {{ferdig}} av {{totalt}} …",
+  "tegninger.oppdatererVisning": "Uppdaterar vyn …",
   "tegninger.oppdatertFerdig": "Klart: {{ok}} ok, {{feilet}} misslyckades",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} ritning(ar) saknar originalfilen och hoppades över — ladda upp igen.",
   "tegninger.slettTegning": "Ta bort ritning",

@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Восстанавливает все чертежи DWG/DXF в проекте с использованием текущего механизма в той же версии.",
   "tegninger.oppdaterAlleTegningerBekreft": "При этом все чертежи DWG/DXF в проекте будут преобразованы с использованием текущего движка. Маркеры, вращение и географическая привязка сохраняются. Это может занять несколько минут.",
   "tegninger.oppdatererFremdrift": "Обновление {{ferdig}} из {{totalt}}…",
+  "tegninger.oppdatererVisning": "Обновление представления…",
   "tegninger.oppdatertFerdig": "Готово: {{ok}} ок, {{feilet}} не удалось",
   "tegninger.oppdaterAlleManglerOriginal": "В рисунках {{antall}} отсутствует исходный файл, и они были пропущены. Пожалуйста, загрузите их еще раз.",
   "tegninger.slettTegning": "Удалить рисунок",

@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Konverterer alle DWG/DXF-tegninger i prosjektet på nytt med gjeldende motor, på samme revisjon.",
   "tegninger.oppdaterAlleTegningerBekreft": "Dette konverterer alle DWG/DXF-tegninger i prosjektet på nytt med gjeldende motor. Markører, rotasjon og georeferanse bevares. Handlingen kan ta noen minutter.",
   "tegninger.oppdatererFremdrift": "Oppdaterer {{ferdig}} av {{totalt}} …",
+  "tegninger.oppdatererVisning": "Oppdaterer visning …",
   "tegninger.oppdatertFerdig": "Ferdig: {{ok}} ok, {{feilet}} feilet",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} tegning(er) mangler original fil og ble hoppet over — last opp på nytt.",
   "tegninger.slettTegning": "Slett tegning",

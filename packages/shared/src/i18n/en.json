@@ -1686,6 +1686,7 @@
   "tegninger.oppdaterAlleTegningerHjelp": "Reconverts all DWG/DXF drawings in the project with the current engine, on the same revision.",
   "tegninger.oppdaterAlleTegningerBekreft": "This reconverts all DWG/DXF drawings in the project with the current engine. Markers, rotation, and georeferencing are preserved. This may take a few minutes.",
   "tegninger.oppdatererFremdrift": "Updating {{ferdig}} of {{totalt}} …",
+  "tegninger.oppdatererVisning": "Updating view …",
   "tegninger.oppdatertFerdig": "Done: {{ok}} ok, {{feilet}} failed",
   "tegninger.oppdaterAlleManglerOriginal": "{{antall}} drawing(s) are missing the original file and were skipped — please upload again.",
   "tegninger.slettTegning": "Delete drawing",
