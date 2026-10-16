@@ -7,7 +7,7 @@ import {
   LUPE_FORSTORRELSE,
   Z_LUPE,
   Z_MALELAG,
-} from "./lupe";
+} from "./lupe-geometri";
 
 describe("lupePlassering — forskjøvet opp/side + kant-flipp (RETUR 4 § 2)", () => {
   const B = 430, H = 932, D = LUPE_DIAMETER;

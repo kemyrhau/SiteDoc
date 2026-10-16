@@ -6,7 +6,7 @@ import {
   LANGT_TRYKK_MS,
   type TegningVerktoy,
   type TrykkGest,
-} from "./tegningTrykk";
+} from "./tegning-trykk";
 
 const gest = (o: Partial<TrykkGest> = {}): TrykkGest => ({
   varighetMs: 120,

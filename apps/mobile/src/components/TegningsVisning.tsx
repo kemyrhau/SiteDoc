@@ -45,8 +45,8 @@ import {
   type Maling,
   type MaleTilstand,
 } from "@sitedoc/shared/utils";
-import { avgjorTrykkHandling, type TegningVerktoy } from "../lib/tegningTrykk";
-import { lupePlassering, lupeBakgrunn, LUPE_DIAMETER, LUPE_FORSTORRELSE, LUPE_FORSKYVNING } from "../lib/lupe";
+import { avgjorTrykkHandling, type TegningVerktoy } from "@sitedoc/shared";
+import { lupePlassering, lupeBakgrunn, LUPE_DIAMETER, LUPE_FORSTORRELSE, LUPE_FORSKYVNING } from "@sitedoc/shared";
 import { skrivTegningHtml, TEGNING_CACHE_MAPPE } from "../services/offlineKlargjoring";
 
 /** Live lupe-data fra WebView-en (RETUR 5 § 2): finger i skjerm-dp + bilde-pct + vist bildestørrelse. */
