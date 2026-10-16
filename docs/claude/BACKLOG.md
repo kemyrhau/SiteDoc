@@ -72,6 +72,14 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 `TegningsVisning.tsx:788` viser lupen bare når `!erSvg` (RN `<Image>` kan ikke dekode SVG). Siden DWG ble SVG, har måling på DWG ingen lupe, og detaljene er dårligere enn på web. **Plan:** løses av dxf-viewer i mobilappen (Dokgen, neste etter RETUR 4), med lupe bygget i WebView-en.
 
+### 🟡 DOKUMENTSØK/TEGNING — småfunn fra gatene 2026-10-15/16 (ikke bestilt)
+
+- **DOCX/XLSX/CSV-livstegn:** bare ett innledende livstegn; en patologisk stor fil (>15 min) kan i teorien regnes som strandet (Kontrollør, `020a3b4b`).
+- **TZ i `reprosesseringStatus`** (`mappe.ts`): rå SQL er bare korrekt i en UTC-sesjon. Prod/test er UTC (ingen TZ-override i compose), men bør normaliseres.
+- **`aiSok.embeddingStatus`** viser 0/false for bakgrunns-embedding mens `ferdig` klatrer (Redesign 16.10).
+- **RN `onMessage` origin-sjekk** bruker `startsWith(hentWebUrl())`, som godtar `…sitedoc.no.annet-domene` hvis adressen mangler `/` til slutt. Sammenlign `new URL().origin` (lav risiko, WebView laster bare egen side).
+- **Query-embedding (søk) og `EMBEDDING_SAMTIDIG`:** web og api er to prosesser, så samtidigheten mot NorBERT er ≤ 2 × grensen. Default 2 holdt på test. Senk til 1 via env ved behov.
+
 ### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
 
 (1) radens timetall (skjult fradrag, `TimerSeksjon.tsx:1043-1060`) · (2) `rad.pauseMin` = avkrysningen, settes kun av GPS
