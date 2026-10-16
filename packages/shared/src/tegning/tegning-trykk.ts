@@ -9,6 +9,13 @@
 // EKSPLISITTE verktøy. Ett verktøy er aktivt om gangen, og verktøyet — ikke hvor/
 // hvor lenge fingeren lå — bestemmer hva gesten gjør. Punktet settes ved SLIPP
 // (touch-up), ikke ved nedtrykk, så brukeren kan justere mot lupa før slipp.
+//
+// Flyttet hit fra `apps/mobile/src/lib/tegningTrykk.ts` (mobil leveranse 3+4,
+// "POST: mobil leveranse 3+4, lupe og måling i dxf-viewer"): ren, DOM/RN-fri
+// avgjørelse — samme gest-til-handling-logikk gjelder for WebGL-måling i
+// `DxfViewerTegning.tsx` (web-komponent, kjøres av BÅDE web-dashbordet og mobil-
+// WebView-en), som for SVG-veiens `TegningsVisning.tsx`. Ingen endring i selve
+// logikken, kun flyttet for å unngå en duplisert kopi i web.
 
 /** Aktivt verktøy i tegningsvisningen. null-modellen («ingen verktøy») = navigering. */
 export type TegningVerktoy =

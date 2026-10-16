@@ -315,6 +315,7 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 
 | Hash | Flate | Før → Etter |
 |---|---|---|
+| `ea24bc2a` ← `020a3b4b`, `544f0125`; `5a31477b` ← `e452792c`; `d3ea5ce5` ← `4e18bc80` | **Web — dokumentsøk, reprosessering** | **Før:** «Prosesser alle PDF-er på nytt» gav mange røde dokumenter som måtte startes én og én, ingen samlet fremdrift, søket kunne henge når NorBERT ikke svarte. **Etter:** knappen heter «Prosesser alle dokumenter på nytt» (den gjorde alltid alt), viser «Prosesserer N av M» / «Ferdig: X ok, Y feilet», er deaktivert mens den kjører; embedding har timeout + nye forsøk og felles kø mot NorBERT; jobber som har hengt seg (>15 min uten livstegn) vises «Avbrutt»; søket faller til tekstsøk med synlig merknad. ✅ Bevist på test (32 dok, 0 røde, `relay/dokumentsok-bevis/12-*`, `13-*`). Reload: deploy |
 | `feca5bc4` ← `d3fb35bc` | **Web — dokumentsøk, PDF-sidetall** | **Før:** alle PDF-treff sto på «side 1» (pdf-parse skiller ikke sider med `\f`), og «avsnitt» var 0-indeksert. **Etter:** riktig side pr. treff for nye PDF-er; avsnitt 1-indeksert. Eksisterende PDF-er rettes først med reekstraksjon (`fix/pdf-reekstraksjon`, venter Kontrollør). Reload: deploy |
 
 ### 2026-10-10

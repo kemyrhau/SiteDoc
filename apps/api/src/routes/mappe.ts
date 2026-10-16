@@ -9,6 +9,7 @@ import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
 import { prosesserDokument } from "../services/ftd-prosessering";
 import { embeddDokumentChunks } from "../services/embedding-service";
+import { STRANDET_MS, erStrandet, utenAktivtKjørendeWhere } from "../services/reprosessering";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
@@ -71,18 +72,19 @@ async function tvingReekstraksjonAv(
   where: Prisma.FtdDocumentWhereInput,
 ): Promise<{ ok: true; tvunget: number }> {
   const dokumenter = await prisma.ftdDocument.findMany({
-    where: {
-      ...where,
-      isActive: true,
-      processingState: { notIn: ["pending", "processing", "unsupported"] },
-    },
+    where: utenAktivtKjørendeWhere(where),
     select: { id: true },
   });
   if (dokumenter.length === 0) return { ok: true, tvunget: 0 };
 
   const ider = dokumenter.map((d) => d.id);
+  // Forsvar i dybden (RETUR 2 2026-10-15): gjenta strandet-vakten PÅ selve reset-
+  // mutasjonen, ikke bare i findMany over. Et dokument som fikk et ferskt livstegn
+  // i vinduet mellom findMany og her (lever ennå) nullstilles da ALDRI — selv om
+  // UI-en ba om det. prosesserDokument-vakten (processingState != "processing") er
+  // siste port for de som likevel slipper gjennom som ferskt `processing`.
   await prisma.ftdDocument.updateMany({
-    where: { id: { in: ider } },
+    where: utenAktivtKjørendeWhere({ id: { in: ider } }),
     data: { processingState: "pending", processingError: null },
   });
   // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.
@@ -102,11 +104,7 @@ async function reparerDokumentSett(
   where: Prisma.FtdDocumentWhereInput,
 ): Promise<{ ok: true; full: number; embedding: number }> {
   const dokumenter = await prisma.ftdDocument.findMany({
-    where: {
-      ...where,
-      isActive: true,
-      processingState: { notIn: ["pending", "processing", "unsupported"] },
-    },
+    where: utenAktivtKjørendeWhere(where),
     select: { id: true, processingState: true },
   });
   if (dokumenter.length === 0) return { ok: true, full: 0, embedding: 0 };
@@ -132,16 +130,23 @@ async function reparerDokumentSett(
     const st = statMap.get(d.id);
     const totalt = st?.totalt ?? 0;
     const udone = st?.udone ?? 0;
-    if (totalt === 0 || d.processingState === "failed") {
-      fullIder.push(d.id); // mangler søkbart innhold → full re-ekstraksjon
+    // `pending`/`processing` som når hit er strandet (ferske er filtrert bort i
+    // where-et) → full re-ekstraksjon (nullstiller til pending først, så
+    // prosesserDokument-vakten slipper gjennom); ellers ville kun-embedding latt
+    // et strandet `processing`-dokument stå `processing` for alltid.
+    const strandet = d.processingState === "pending" || d.processingState === "processing";
+    if (totalt === 0 || d.processingState === "failed" || strandet) {
+      fullIder.push(d.id); // mangler søkbart innhold / strandet → full re-ekstraksjon
     } else if (udone > 0) {
       embeddingIder.push(d.id); // kun re-embedding
     }
   }
 
   if (fullIder.length > 0) {
+    // Forsvar i dybden (RETUR 2 2026-10-15): strandet-vakten gjentas på reset-
+    // mutasjonen, så et dokument med ferskt livstegn aldri nullstilles herfra.
     await prisma.ftdDocument.updateMany({
-      where: { id: { in: fullIder } },
+      where: utenAktivtKjørendeWhere({ id: { in: fullIder } }),
       data: { processingState: "pending", processingError: null },
     });
     // Maks REEKSTRAKSJON_SAMTIDIG om gangen — ikke alle i web-prosessen samtidig.
@@ -825,6 +830,9 @@ export const mappeRouter = router({
           chunksTotalt: statsMap.get(d.id)?.totalt ?? 0,
           chunksEmbedded: statsMap.get(d.id)?.embedded ?? 0,
           chunksEmbeddingFeilet: statsMap.get(d.id)?.feilet ?? 0,
+          // Strandet = pending/processing uten fremdrift siste 15 min (prosess-crash) →
+          // vises rødt «Avbrutt», ikke evig grå spinner.
+          strandet: erStrandet(d.processingState, d.updatedAt),
           oversettelse: oversettStatusMap.get(d.id) ?? null,
         })),
         mappeSprak,
@@ -1167,6 +1175,55 @@ export const mappeRouter = router({
         return { ok: true, full: res.tvunget, embedding: 0 };
       }
       return reparerDokumentSett({ projectId: input.projectId });
+    }),
+
+  /**
+   * Samlet reprosesserings-status for et prosjekt — driver fremdriftsteksten ved
+   * «Prosesser alle dokumenter på nytt» og deaktiverer knappen mens noe kjører
+   * (overlever sideoppdatering, siden tilstanden utledes av DB-radene, ikke klient-state).
+   * `pågår` = dokumenter i pending/processing. `feilet` = røde dokumenter som IKKE kjører
+   * (failed, lagret feilårsak, eller minst én chunk med embedding `failed`). Disjunkte sett.
+   */
+  reprosesseringStatus: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const rows = await ctx.prisma.$queryRaw<
+        Array<{ totalt: bigint; pagar: bigint; feilet: bigint; ustottet: bigint }>
+      >`
+        SELECT COUNT(*) AS totalt,
+               COUNT(*) FILTER (
+                 WHERE d.processing_state IN ('pending', 'processing')
+                   AND d.updated_at > now() - ${STRANDET_MS / 1000} * interval '1 second'
+               ) AS pagar,
+               COUNT(*) FILTER (WHERE d.processing_state = 'unsupported') AS ustottet,
+               COUNT(*) FILTER (
+                 WHERE (
+                   -- strandet: pending/processing uten fremdrift (prosess-crash)
+                   (d.processing_state IN ('pending', 'processing')
+                     AND d.updated_at <= now() - ${STRANDET_MS / 1000} * interval '1 second')
+                   OR
+                   -- ferdig, men feilet
+                   (d.processing_state NOT IN ('pending', 'processing')
+                     AND (
+                       d.processing_state = 'failed'
+                       OR d.processing_error IS NOT NULL
+                       OR EXISTS (
+                         SELECT 1 FROM ftd_document_chunks c
+                         WHERE c.document_id = d.id AND c.embedding_state = 'failed'
+                       )
+                     ))
+                 )
+               ) AS feilet
+        FROM ftd_documents d
+        WHERE d.project_id = ${input.projectId} AND d.is_active = true
+      `;
+      const r = rows[0];
+      const totalt = Number(r?.totalt ?? 0);
+      const pågår = Number(r?.pagar ?? 0);
+      const feilet = Number(r?.feilet ?? 0);
+      const ustøttet = Number(r?.ustottet ?? 0);
+      return { totalt, pågår, feilet, ustøttet, ferdig: totalt - pågår };
     }),
 
   settKontrakt: protectedProcedure

@@ -12,6 +12,13 @@
 // visuelle viewportet og rendres upålitelig). Fiks: `position: absolute` forankret
 // i sidekoordinater (pageX/pageY), som lever i samme lag som tegningen og følger
 // både scroll og zoom. Z-rekkefølgen under sikrer at lupa ligger ØVERST.
+//
+// Flyttet hit fra `apps/mobile/src/lib/lupe.ts` (mobil leveranse 3+4): `lupePlassering`
+// er ren tall-inn/tall-ut-geometri uten RN-avhengighet — WebGL-lupen i `DxfViewerTegning.tsx`
+// (web-komponent, kjøres i BÅDE web-dashbordet og mobil-WebView-en) gjenbruker den for
+// kant-flipp, men bygger sitt eget `drawImage()`-kildeutsnitt (canvas-piksler, ikke CSS
+// `background-position`-prosent som `lupeBakgrunn` under er skrevet for — RN-spesifikk,
+// uendret, bare flyttet med).
 
 /** Lupe-mål (punkter). ~100 pt diameter, ~3× forstørrelse, ~80 pt forskyvning. */
 export const LUPE_DIAMETER = 100;
