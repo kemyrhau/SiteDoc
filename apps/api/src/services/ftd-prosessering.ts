@@ -16,6 +16,7 @@ import { splittMalebrevPdf } from "./pdf-splitting";
 import { genererBlokker } from "./blokk-prosessering";
 import { embeddNyeBlokker, embeddDokumentChunks } from "./embedding-service";
 import { detekterSpraak } from "./spraak-deteksjon";
+import { lagLivstegn } from "./reprosessering";
 
 const execFileAsync = promisify(execFile);
 
@@ -137,6 +138,14 @@ export async function prosesserDokument(
       return;
     }
 
+    // Livstegn: bumper updated_at throttlet mens jobben kjører, slik at en lovlig
+    // lang OCR aldri feilklassifiseres som strandet (RETUR 2 2026-10-15). Første
+    // kall markerer ekstraksjons-fasen. (Embedding-fasen kjører FØRST etter at
+    // state er satt til `completed` nedenfor — den er derfor utenfor strandet-
+    // vinduet per konstruksjon, og trenger ikke livstegn.)
+    const livstegn = lagLivstegn(prisma, documentId);
+    await livstegn();
+
     if (bevarVedFeil) {
       // Snapshot gamle rad-id-er; de slettes først når ny ekstraksjon har lykkes.
       gamleChunkIds = (
@@ -166,7 +175,7 @@ export async function prosesserDokument(
 
     switch (ext) {
       case ".pdf": {
-        const sideData = await prosesserPdf(prisma, documentId, buffer, dok.projectId, dok.docType ?? "annet", filsti);
+        const sideData = await prosesserPdf(prisma, documentId, buffer, dok.projectId, dok.docType ?? "annet", filsti, livstegn);
         // Splitt målebrev per NS-kode hvis mappen har kontraktId (økonomi-mappe)
         if (dok.folderId && sideData.length > 0) {
           const mappe = await prisma.folder.findUnique({ where: { id: dok.folderId }, select: { kontraktId: true } });
@@ -405,12 +414,16 @@ async function ocrPdf(
   filsti: string,
   antallSider: number,
   spraak = "nb",
+  livstegn?: () => Promise<void>,
 ): Promise<Array<{ side: number; tekst: string }>> {
   const BATCH = 20;
   const sideData: Array<{ side: number; tekst: string }> = [];
   const { readdir } = await import("node:fs/promises");
 
   for (let start = 1; start <= antallSider; start += BATCH) {
+    // Livstegn pr. OCR-batch: det tyngste steget (tesseract 30 s/side) — uten dette
+    // blir en stor skannet PDF feilklassifisert som strandet etter 15 min.
+    await livstegn?.();
     const slutt = Math.min(start + BATCH - 1, antallSider);
     const tmpDir = await mkdtemp(join(tmpdir(), "sitedoc-ocr-"));
     try {
@@ -492,6 +505,7 @@ interface PdfTekstItem {
  */
 export async function ekstraherPdfSider(
   buffer: Buffer,
+  livstegn?: () => Promise<void>,
 ): Promise<{ sider: Array<{ side: number; tekst: string }>; antallSider: number }> {
   // LEGACY-build: Node-målrettet, self-polyfiller `Promise.withResolvers` via
   // core-js (mangler i Node < 21.7). Standard-builden kaster i prod (Node 20).
@@ -503,6 +517,8 @@ export async function ekstraherPdfSider(
   const sider: Array<{ side: number; tekst: string }> = [];
   try {
     for (let p = 1; p <= antallSider; p++) {
+      // Livstegn pr. side: holder store PDF-er «ferske» også i ren tekst-ekstraksjon.
+      await livstegn?.();
       const page = await doc.getPage(p);
       const innhold = await page.getTextContent();
       // Samme logikk som før: nytt linjeskift når Y (transform[5]) endrer seg.
@@ -532,10 +548,11 @@ async function prosesserPdf(
   projectId: string,
   docType: string,
   filsti: string,
+  livstegn?: () => Promise<void>,
 ): Promise<Array<{ side: number; tekst: string }>> {
   // Tekst pr. side via pagerender (se ekstraherPdfSider). Erstatter det gamle
   // `split("\f")` som gjorde alle PDF-er til «side 1» (prod-feil 2026-10-14).
-  const { sider: siderFraPdf, antallSider } = await ekstraherPdfSider(buffer);
+  const { sider: siderFraPdf, antallSider } = await ekstraherPdfSider(buffer, livstegn);
   let sideData = siderFraPdf;
 
   // OCR-fallback for skannede PDFer
@@ -545,13 +562,15 @@ async function prosesserPdf(
     const ocrSpråk = prosjekt?.sourceLanguage ?? "nb";
     console.log(`Skannet PDF oppdaget (${documentId}), kjører OCR (${ocrSpråk})...`);
     try {
-      sideData = await ocrPdf(filsti, antallSider, ocrSpråk);
+      sideData = await ocrPdf(filsti, antallSider, ocrSpråk, livstegn);
     } catch (err) {
       console.error(`OCR feilet for ${documentId}:`, err);
       // Fortsett med tom sideData — bedre enn å krasje
     }
   }
 
+  // Livstegn ved chunking-fasen (etter ev. lang OCR, før DB-skriving).
+  await livstegn?.();
   const chunks = delTekstIChunks(sideData);
 
   if (chunks.length > 0) {
