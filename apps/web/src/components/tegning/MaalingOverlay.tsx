@@ -1,5 +1,7 @@
 "use client";
 
+import { MAALING_FARGE_AKTIV, MAALING_FARGE_FERDIG } from "@sitedoc/shared";
+
 /**
  * Presentasjonell overlay for måleverktøyet i tegningsvisningen.
  *
@@ -36,8 +38,7 @@ interface MaalingOverlayProps {
 export function MaalingOverlay({ punkter, segmenter, fyll = false, aktiv = true, onPunktNed, onVelg, valgtIdx = null }: MaalingOverlayProps) {
   if (punkter.length === 0) return null;
   const punktStreng = punkter.map((p) => `${p.x},${p.y}`).join(" ");
-  // Aktiv = sitedoc-primary (#1e40af); inaktiv = slate-500 (#64748b).
-  const strek = aktiv ? "#1e40af" : "#64748b";
+  const strek = aktiv ? MAALING_FARGE_AKTIV : MAALING_FARGE_FERDIG;
   const fyllFarge = aktiv ? "rgba(30,64,175,0.15)" : "rgba(100,116,139,0.12)";
   const velgProps = onVelg
     ? { onClick: onVelg, style: { pointerEvents: "stroke" as const, cursor: "pointer" } }

@@ -10,6 +10,7 @@ export * from "./tegning/strek-skalering";
 export * from "./tegning/startutsnitt-zoom";
 export * from "./tegning/kamera-projeksjon";
 export * from "./tegning/maaling-verden";
+export * from "./tegning/maaling-farger";
 export * from "./tegning/tegning-trykk";
 export * from "./tegning/lupe-geometri";
 export * from "./tegning/svg-sikkerhet";

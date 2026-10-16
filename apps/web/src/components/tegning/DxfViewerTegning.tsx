@@ -37,6 +37,8 @@ import {
   avgjorTrykkHandling,
   skjermTilVerden,
   verdenTilSkjerm,
+  MAALING_FARGE_AKTIV,
+  MAALING_FARGE_FERDIG,
 } from "@sitedoc/shared";
 import { hentFilMedCache, usignertFilSti } from "@/lib/tegningFilCache";
 import { hentDxfWorkerFactory } from "@/lib/dxfWorkerFactory";
@@ -150,8 +152,6 @@ function kameraParametre(viewer: any, rotasjonGrader: number): DxfKameraParametr
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const FARGE_AKTIV = "#f97316";
-const FARGE_FERDIG = "#1e3a8a";
 
 function tegnEtikett(svg: SVGSVGElement, x: number, y: number, tekst: string) {
   const g = document.createElementNS(SVG_NS, "g");
@@ -180,7 +180,7 @@ function tegnMaling(
 ) {
   const punkterVerden = m.punkter.map(toVerden);
   const skjermPunkter = punkterVerden.map((p) => verdenTilSkjerm(p, k));
-  const farge = erAktiv ? FARGE_AKTIV : FARGE_FERDIG;
+  const farge = erAktiv ? MAALING_FARGE_AKTIV : MAALING_FARGE_FERDIG;
 
   if (skjermPunkter.length >= 2) {
     const lukket = m.verktoy === "areal" && m.ferdig;
@@ -283,6 +283,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   onMaleKlarEndringRef.current = onMaleKlarEndring;
   const idTellerRef = useRef(0);
   const gestRef = useRef<GestState>(nyGestState());
+  // Lupe-tegningen pr. pointermove throttles til rAF (RETUR leveranse 3+4) — canvas-til-
+  // canvas-kopien + React-rerender er billig pr. kall, men unødvendig oftere enn skjermen
+  // tegner. `lupeRafPending` holder bare siste posisjon; mellomliggende move-eventer slås
+  // sammen til én tegning pr. frame.
+  const lupeRafRef = useRef<number | null>(null);
+  const lupeRafPendingRef = useRef<{ skjermX: number; skjermY: number } | null>(null);
   // Imperativt speil av den reaktive målingstilstanden — lest av DOM-pointer-lytterne
   // (registrert ÉN gang pr. viewer-instans via last(), ikke ved hver render) for å
   // unngå stale closures uten å måtte re-registrere lytterne på hver tilstandsendring.
@@ -322,7 +328,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       c.setAttribute("cy", String(sp.skjermY));
       c.setAttribute("r", "7");
       c.setAttribute("fill", "none");
-      c.setAttribute("stroke", FARGE_AKTIV);
+      c.setAttribute("stroke", MAALING_FARGE_AKTIV);
       c.setAttribute("stroke-width", "2");
       svg.appendChild(c);
       if (forhand.vinkelrett) tegnEtikett(svg, sp.skjermX, sp.skjermY - 18, "90°");
@@ -368,7 +374,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     ctx.clip();
     ctx.drawImage(viewer.canvas, skjermX * dpr - s / 2, skjermY * dpr - s / 2, s, s, 0, 0, D, D);
     ctx.restore();
-    ctx.strokeStyle = "#1e3a8a";
+    ctx.strokeStyle = MAALING_FARGE_AKTIV;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(8, D / 2);
@@ -434,6 +440,11 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     g.modus = null;
     g.flyttIndex = -1;
     g.forhandsvisning = null;
+    if (lupeRafRef.current !== null) {
+      cancelAnimationFrame(lupeRafRef.current);
+      lupeRafRef.current = null;
+    }
+    lupeRafPendingRef.current = null;
     setLupeVisning(null);
     if (viewer?.controls) viewer.controls.enablePan = uiRef.current.verktoy === "flytt";
     tegnOverlegg();
@@ -496,8 +507,16 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     const skjermY = e.clientY - rect.top;
     if (Math.hypot(skjermX - g.startSkjerm.x, skjermY - g.startSkjerm.y) > 6) g.flyttet = true;
     oppdaterForhandsvisning(skjermX, skjermY);
-    setLupeVisning({ skjermX, skjermY });
-    tegnLupe(skjermX, skjermY);
+    lupeRafPendingRef.current = { skjermX, skjermY };
+    if (lupeRafRef.current === null) {
+      lupeRafRef.current = requestAnimationFrame(() => {
+        lupeRafRef.current = null;
+        const p = lupeRafPendingRef.current;
+        if (!p) return;
+        setLupeVisning(p);
+        tegnLupe(p.skjermX, p.skjermY);
+      });
+    }
   }
 
   function onPointerUp(e: PointerEvent) {

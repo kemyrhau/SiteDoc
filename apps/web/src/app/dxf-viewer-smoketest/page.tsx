@@ -94,6 +94,11 @@ export default function DxfViewerRøyktest() {
     }
 
     function håndter(e: MessageEvent) {
+      // RETUR leveranse 3+4 (Kontrollør, punkt 3): RN-bryggen (iOS WKWebView/Android)
+      // injiserer meldingen uten ekte avsender-origin (e.origin === "" på begge
+      // plattformer) — det godtas. En EKTE fremmed origin (f.eks. en innbygget
+      // cross-origin-underramme som når samme lytter) avvises.
+      if (e.origin && e.origin !== window.location.origin) return;
       try {
         const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
         if (!data || typeof data !== "object") return;

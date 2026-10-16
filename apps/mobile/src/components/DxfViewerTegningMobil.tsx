@@ -132,6 +132,11 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
 
     const handleMessage = useCallback(
       (event: WebViewMessageEvent) => {
+        // RETUR leveranse 3+4 (Kontrollør, punkt 3): `event.nativeEvent.url` er URL-en
+        // til rammen som postet meldingen — avvis alt som ikke kommer fra siden vi selv
+        // lastet (f.eks. en injisert underramme). Tom streng (noen Android-WebView-
+        // versjoner ved tidlig last) godtas, siden den ikke er en annen origin.
+        if (event.nativeEvent.url && !event.nativeEvent.url.startsWith(hentWebUrl())) return;
         try {
           const msg = JSON.parse(event.nativeEvent.data);
           if (msg.type === "klar") {
