@@ -3476,7 +3476,7 @@
   "flythjelp.handling.sendPaaNytt": "Verschiebt das Dokument wieder vorwärts: von Ihnen nach {{mottaker}}, nach der Korrektur.",
   "flythjelp.handling.lukk": "Nimmt das Dokument aus dem Fluss und markiert es für alle als „Geschlossen“ – niemand hält es mehr. Von hier aus kann es erneut geöffnet oder gelöscht werden; Close ist der Pfad zum Löschen. Administrative Aktion (Projekt-/Systemadministrator).",
   "flythjelp.handling.gjenapne": "Ruft ein geschlossenes Dokument wieder an den Anfang ab: Es wird beim Ersteller zu einem Entwurf, der bearbeitet und erneut gesendet werden kann.",
-  "flythjelp.handling.videresend": "Verschiebt das Dokument seitwärts: aus diesem Fluss heraus nach {{mottaker}} (Admin-Tool für Cross-Flow).",
+  "flythjelp.handling.videresend": "Verschiebt das Dokument seitlich zu einer Person oder einem anderen Fluss – der Status ändert sich nicht. Wenn Sie den Ablauf ändern, müssen Sie dies bestätigen, und der Empfänger sieht, wer ihn gesendet hat und warum.",
   "flythjelp.handling.slettTrukket": "Löscht das zurückgezogene Dokument dauerhaft. Der Fluss ist bereits gestoppt – keine anderen Parteien sind betroffen.",
   "flythjelp.handling.autoMottatt": "Dies geschieht automatisch in dem Moment, in dem das Dokument gesendet wird: Es wird sofort für den Empfänger als „Empfangen“ registriert. Deshalb gibt es keine Rollenwahl.",
   "flythjelp.fallback.nesteMottaker": "der nächste Empfänger im Fluss",

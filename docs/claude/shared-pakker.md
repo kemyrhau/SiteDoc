@@ -33,7 +33,7 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 
 - 15 språkfiler, like mange nøkler hver (tell `nb.json` ved behov). `en.json` er **master** (`generate.ts` oversetter fra engelsk for bedre presisjon på fagtermer). `nb.json` brukes for nøkkelrekkefølge.
 - `index.ts` — `STOETTEDE_SPRAAK` (15 språk med flagg: nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr, sq), `SpraakKode` type, `STANDARD_SPRAAK = "nb"`
-- `generate.ts` — CLI-script for auto-oversettelse via Google Translate (`google-translate-api-x`)
+- `generate.ts` — CLI-script for auto-oversettelse via Google Translate (`google-translate-api-x`). **Variabelvern (2026-10-16):** tjenesten oversetter ellers innholdet i `{{variabel}}` (f.eks. `{{side}}`→`{{côté}}`) så i18next ikke finner variabelen og brukeren ser `{{côté}}` rått — rotårsaken til 221 avvik. `gjenopprettVariabler()` setter hvert `{{…}}`-felt posisjonsvis tilbake til kildens (en) variabelnavn etter oversettelse; avvikende ANTALL felt logges høyt i stedet for å skjules. Vakt: `apps/web/src/__tests__/reprosessering-i18n-interpolasjon.test.ts` sammenligner `{{variabler}}` i alle 15 språk mot nb (fasit).
 
 #### Arbeidsflyt for ny i18n-nøkkel
 
