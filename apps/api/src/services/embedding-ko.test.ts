@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { embeddDokumentChunks, EMBEDDING_SAMTIDIG } from "./embedding-service";
+import {
+  embeddDokumentChunks,
+  EMBEDDING_SAMTIDIG,
+  lesEmbeddingSamtidig,
+} from "./embedding-service";
 
 /**
  * Felles NorBERT-kø (2026-10-16): batch-embedding fyres fire-and-forget pr. dokument utenfor
@@ -59,5 +63,37 @@ describe("embedding-kø — felles samtidighetsgrense mot NorBERT", () => {
     // … men alle jobbene ble faktisk kjørt (ett batch-kall pr. dokument, N dokumenter).
     expect(totaltKall).toBe(N);
     expect(res.every((r) => r.done === 2 && r.failed === 0)).toBe(true);
+  });
+});
+
+describe("lesEmbeddingSamtidig — ikke-numerisk verdi faller til default", () => {
+  it("ikke-numerisk (NaN) → default 2 med advarsel", () => {
+    const advar = vi.fn();
+    expect(lesEmbeddingSamtidig("to", advar)).toBe(2);
+    expect(advar).toHaveBeenCalledOnce();
+    expect(advar.mock.calls[0]?.[0]).toContain("EMBEDDING_SAMTIDIG");
+  });
+
+  it("0 og negativ → default 2 med advarsel (ville ellers låst køen)", () => {
+    const advar = vi.fn();
+    expect(lesEmbeddingSamtidig("0", advar)).toBe(2);
+    expect(lesEmbeddingSamtidig("-3", advar)).toBe(2);
+    expect(advar).toHaveBeenCalledTimes(2);
+  });
+
+  it("uoppgitt/tom → default 2 uten advarsel", () => {
+    const advar = vi.fn();
+    expect(lesEmbeddingSamtidig(undefined, advar)).toBe(2);
+    expect(lesEmbeddingSamtidig("", advar)).toBe(2);
+    expect(lesEmbeddingSamtidig("   ", advar)).toBe(2);
+    expect(advar).not.toHaveBeenCalled();
+  });
+
+  it("gyldig tall → brukes (gulvet til heltall), ingen advarsel", () => {
+    const advar = vi.fn();
+    expect(lesEmbeddingSamtidig("4", advar)).toBe(4);
+    expect(lesEmbeddingSamtidig("1", advar)).toBe(1);
+    expect(lesEmbeddingSamtidig("2.9", advar)).toBe(2);
+    expect(advar).not.toHaveBeenCalled();
   });
 });

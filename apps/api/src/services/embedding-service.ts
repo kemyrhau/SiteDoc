@@ -143,10 +143,33 @@ async function medRetry<T>(
 // Kø-ventetid teller IKKE mot embedding-timeouten: slotten tas FØR fetchMedTimeout kalles, så
 // 30 s-timeren starter først når kallet faktisk kjører. Backoff mellom forsøk (medRetry) skjer
 // utenfor slotten, siden hvert forsøk kaller kallNorBERT på nytt og dermed re-akkvirerer.
-export const EMBEDDING_SAMTIDIG = Math.max(
-  1,
-  Number(process.env.EMBEDDING_SAMTIDIG ?? 2),
-);
+const EMBEDDING_SAMTIDIG_DEFAULT = 2;
+
+/**
+ * Leser EMBEDDING_SAMTIDIG fra env. Default 2.
+ *
+ * ⚠️ En ikke-numerisk verdi (feilskrevet i compose, f.eks. `EMBEDDING_SAMTIDIG=to`) ga tidligere
+ * `Number(...)` = NaN, og `Math.max(1, NaN)` = NaN. Semaforen `this.aktive < NaN` er alltid usann
+ * → hvert embedding-kall køes for alltid (deadlock, ingen embedding skjer). `0`/negativ gir samme
+ * felle (`aktive < 0` alltid usann). Derfor: alt som ikke er et finitt tall ≥ 1 faller til default
+ * med en synlig advarsel i loggen, slik at en feilkonfig vises i stedet for å låse embedding stille.
+ */
+export function lesEmbeddingSamtidig(
+  rå: string | undefined = process.env.EMBEDDING_SAMTIDIG,
+  advar: (melding: string) => void = console.warn,
+): number {
+  if (rå == null || rå.trim() === "") return EMBEDDING_SAMTIDIG_DEFAULT;
+  const n = Number(rå);
+  if (!Number.isFinite(n) || n < 1) {
+    advar(
+      `[embedding] EMBEDDING_SAMTIDIG="${rå}" er ikke et gyldig tall ≥ 1 — faller til default ${EMBEDDING_SAMTIDIG_DEFAULT}.`,
+    );
+    return EMBEDDING_SAMTIDIG_DEFAULT;
+  }
+  return Math.floor(n);
+}
+
+export const EMBEDDING_SAMTIDIG = lesEmbeddingSamtidig();
 
 /** Enkel tellende semafor (FIFO). Ingen ny pakke. */
 class Semafor {
