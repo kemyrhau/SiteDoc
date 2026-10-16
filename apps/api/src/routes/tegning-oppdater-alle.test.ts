@@ -7,6 +7,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * telles i `manglerOriginal` i stedet for å feile (DoD-krav 5). Fremdrift er
  * utledet av `conversionStatus` (2a-mønster, ingen migrering, ingen in-memory-
  * status) — dekkes av `tegning-rekonverter-status.test.ts`, ikke her.
+ *
+ * RETUR 6 (orkestrator 2026-10-16, DB-som-kø): denne mutasjonen gjør BARE den
+ * atomiske markeringen til `pending` og returnerer — den starter ALDRI
+ * `konverterDwg` direkte lenger (målt: et nettleser-klikk kjører denne mutasjonen
+ * in-process i web-containeren, som aldri har hatt DWG-motoren tilgjengelig).
+ * Selve konverteringen kjøres av arbeideren (`tegningKonverteringPoll`,
+ * `tegning-konvertering-arbeider.test.ts`), ikke her.
  */
 
 const h = vi.hoisted(() => ({
@@ -22,7 +29,9 @@ vi.mock("../trpc/tilgangskontroll", () => ({
 }));
 
 vi.mock("../services/dwgKonvertering", () => ({
-  // Aldri resolve — vi måler kun hvilke tegninger som ble forsøkt startet.
+  // Skal ALDRI kalles av mutasjonen selv lenger (se modul-kommentar) — aldri
+  // resolve i tilfelle den likevel blir kalt, så en regresjon vises som en hengende
+  // test i stedet for et falskt grønt resultat.
   konverterDwg: (...a: unknown[]) => {
     h.konverterDwg(...a);
     return new Promise(() => {});
@@ -118,8 +127,8 @@ describe("oppdaterAlleTegninger", () => {
       expect(kall.where.updatedAt).toBeInstanceOf(Date);
     }
 
-    // Gi de voidede Semafor-kallene en sjanse til å kjøre (mikrotask-tick).
-    await vi.waitFor(() => expect(h.konverterDwg).toHaveBeenCalledTimes(2));
+    // RETUR 6: mutasjonen markerer BARE — den starter aldri konverteringen selv.
+    expect(h.konverterDwg).not.toHaveBeenCalled();
   });
 
   it("strandet pågår (eldre enn grensen) regnes IKKE som pågår → startes på nytt", async () => {

@@ -264,17 +264,16 @@ async function start() {
       const { startEksportWorker } = await import("./services/eksport/eksport-worker");
       startEksportWorker(prisma);
 
-      // RETUR 3 rekonverter (orkestrator/Kenneth 2026-10-16): en api-omstart midt i
-      // «Oppdater alle tegninger» tømmer tegningskøens minnetilstand og lar rader stå i
-      // pending/converting FOR ALLTID (rotårsak til RETUR 2s «hengende jobb», målt med
-      // docker inspect). Hver oppstart er derfor en ny prosess-generasjon uten pågående
-      // arbeid — alt som står i pending/converting er per definisjon strandet fra forrige
-      // generasjon og trygt å starte på nytt (originalfil finnes, byttet er atomisk).
-      const { gjenopptaStrandedeRekonverteringer } = await import("./routes/tegning");
-      const gjenopptatt = await gjenopptaStrandedeRekonverteringer(prisma);
-      if (gjenopptatt > 0) {
-        server.log.info(`Tegning-rekonvertering recovery: ${gjenopptatt} strandede rader gjenopptatt etter omstart`);
-      }
+      // RETUR 6 rekonverter (orkestrator 2026-10-16, DB-som-kø): web kjører tRPC
+      // in-process og har ALDRI DWG-motoren/semaforen tilgjengelig (målt i RETUR 4/6) —
+      // mutasjonene markerer bare `pending` i DB, og DENNE arbeideren (kun startet i
+      // api) er den ENE som faktisk kjører konverteringen. Erstatter/forenkler den
+      // tidligere engangs-oppstartsrecoveryen (`gjenopptaStrandedeRekonverteringer`):
+      // en `pending`-rad blir alltid plukket opp uansett alder, og en strandet
+      // `converting`-rad (arbeider som eide den, krasjet) settes tilbake til `pending`
+      // av arbeiderens egen watchdog — ikke bare ved oppstart.
+      const { startTegningKonverteringWorker } = await import("./routes/tegning");
+      startTegningKonverteringWorker(prisma);
     } catch {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }
