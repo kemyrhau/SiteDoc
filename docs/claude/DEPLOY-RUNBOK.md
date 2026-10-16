@@ -276,8 +276,10 @@ cd ~/Documents/Programmering/SiteDoc/apps/mobile && eas update --platform ios --
 **Test-kanalen setter API-URL-en INLINE:**
 
 ```sh
-cd ~/Documents/Programmering/SiteDoc/apps/mobile && EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no eas update --platform ios --channel test --clear-cache --message "<hva som er fikset>"
+cd ~/Documents/Programmering/SiteDoc/apps/mobile && EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no EXPO_PUBLIC_ENABLE_TEST_LOGIN=true eas update --platform ios --channel test --clear-cache --message "<hva som er fikset>"
 ```
+
+🔴 **`EXPO_PUBLIC_ENABLE_TEST_LOGIN=true` MÅ med på test-kanalen** (målt 2026-10-16): den står bare i `eas.json` → test-profilen, og den gjelder ikke OTA. Uten den slår hver test-OTA av test-innloggingen og alt bak `erTestLoginAktiv` (dxf-viewer i appen, røyktest-skjermen). Prod-kanalen skal ALDRI ha den.
 
 🔴 **Kanalen bestemmer hvilken APP som mottar — ikke hva bundelen peker på.** `eas update` kjører
 `expo export`, som baker `EXPO_PUBLIC_*` inn. Inline framfor fil, fordi en fil blir liggende.
