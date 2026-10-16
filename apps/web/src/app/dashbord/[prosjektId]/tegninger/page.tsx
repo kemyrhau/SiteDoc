@@ -54,6 +54,8 @@ import {
   beregnStrekVars,
   beregnStartutsnittZoom,
   svgViewBoxForhold,
+  erTegningDwgDxfOpphav,
+  TEGNING_MANGLER_ORIGINALFIL_KODE,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
@@ -473,6 +475,26 @@ export default function TegningerSide() {
   const provKonverteringIgjenMutation = trpc.tegning.provKonverteringIgjen.useMutation({
     onSuccess: () => {
       utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
+  // «Oppdater visning» (2026-10-16): samme server-prosedyre som «prøv konvertering
+  // igjen» over, men en EGEN mutasjonsinstans — knappen vises for ferdig-konverterte
+  // tegninger (backfill av dxf-viewer-artefakter), ikke bare feilede, og trenger sin
+  // egen vennlige feilmelding når originalfila mangler (DoD-krav 5), uten å påvirke
+  // retry-banneret over.
+  const [oppdaterVisningFeil, setOppdaterVisningFeil] = useState<string | null>(null);
+  const oppdaterVisningMutation = trpc.tegning.provKonverteringIgjen.useMutation({
+    onSuccess: () => {
+      setOppdaterVisningFeil(null);
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+    onError: (error: { message?: string }) => {
+      setOppdaterVisningFeil(
+        error.message === TEGNING_MANGLER_ORIGINALFIL_KODE
+          ? t("tegninger.manglerOriginalfil")
+          : t("tegninger.oppdaterVisningFeil"),
+      );
     },
   });
 
@@ -1968,6 +1990,27 @@ export default function TegningerSide() {
               Klikk i tegningen for å opprette
             </span>
           </>
+        )}
+
+        {/* «Oppdater visning» (2026-10-16): rekonverter denne tegningen med gjeldende
+            motor på SAMME revisjon (backfiller dxf-viewer-artefakter). Vises kun for
+            tegninger med DWG/DXF-opphav (samme regel som prosjekt-batchen og serverens
+            scope) — knappen skal aldri love noe for en PDF/bilde-tegning. */}
+        {kanAdministrereOmrade && erTegningDwgDxfOpphav(tegning) && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <button
+              onClick={() => { setOppdaterVisningFeil(null); oppdaterVisningMutation.mutate({ id: tegning.id }); }}
+              disabled={oppdaterVisningMutation.isPending}
+              className="flex items-center gap-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-sitedoc-primary disabled:opacity-50"
+              title={t("tegninger.oppdaterVisningHjelp")}
+            >
+              <RefreshCw className={`h-4 w-4 ${oppdaterVisningMutation.isPending ? "animate-spin" : ""}`} />
+            </button>
+          </>
+        )}
+        {oppdaterVisningFeil && (
+          <span className="text-xs text-red-600">{oppdaterVisningFeil}</span>
         )}
 
         {/* Rediger tegningsdetaljer + slett — kun admin. Rediger kobler de opprettelses-feltene

@@ -21,6 +21,20 @@ import {
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { konverterDwg, hentKonverteringKapasitet, roterProsentMarkor, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
+import {
+  erKonverteringPågår,
+  KONVERTERING_STRANDET_MS,
+  erRekonverterbarOriginal,
+  TEGNING_MANGLER_ORIGINALFIL_KODE,
+} from "../services/tegningRekonvertering";
+import { Semafor } from "../services/semafor";
+
+// «Oppdater alle tegninger» (2026-10-16): maks 2 DWG/DXF-konverteringer samtidig —
+// samme Semafor-klasse som NorBERT-køen (apps/api/src/services/semafor.ts), delt
+// i stedet for kopiert (orkestrator 2026-10-16). Prosess-global, ikke per-kall:
+// en batch og et manuelt enkelt-klikk kan begge kjøre, men batchen alene er
+// begrenset til 2 om gangen.
+const tegningRekonverteringKø = new Semafor(2);
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
@@ -538,6 +552,33 @@ function startTegningKonvertering(
   }
 }
 
+/**
+ * Kjør selve DWG/DXF-rekonverteringen fra en lagret original og skriv resultatet
+ * (eller `failed` ved kast). Kalleren har ALLEREDE satt `conversionStatus = "pending"`
+ * synkront FØR dette kalles, slik at statusen alltid er synlig med én gang — uansett
+ * om kalleren er `provKonverteringIgjen` (fire-and-forget, ett klikk) eller
+ * `oppdaterAlleTegninger` (kjørt ÉN av gangen gjennom `tegningRekonverteringKø`, maks
+ * 2 samtidig). Delt så de to veiene aldri kan drifte fra hverandre (samme grunn som
+ * `anvendDwgResultat` selv er delt).
+ */
+async function kjorRekonvertering(
+  prisma: PrismaClient,
+  tegning: { id: string; name: string; projectId: string; byggeplassId: string | null; originalFileUrl: string },
+): Promise<void> {
+  const filType = tegning.originalFileUrl.toLowerCase().endsWith(".dxf") ? "dxf" : "dwg";
+  const filSti = join(UPLOADS_DIR, tegning.originalFileUrl.replace("/uploads/", ""));
+  try {
+    const resultat = await konverterDwg(filSti, tegning.name, UPLOADS_DIR, filType);
+    await anvendDwgResultat(prisma, tegning, resultat, tegning.originalFileUrl);
+  } catch (err) {
+    console.error(`[DWG] Re-konvertering feilet for ${tegning.id}:`, err);
+    await prisma.drawing.update({
+      where: { id: tegning.id },
+      data: { conversionStatus: "failed", conversionError: err instanceof Error ? err.message : "Ukjent feil" },
+    });
+  }
+}
+
 export const tegningRouter = router({
   // Hent alle tegninger for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -994,16 +1035,14 @@ export const tegningRouter = router({
       // ALT pågår skal verken dobles eller avbrytes — men dør prosessen midt i, blir raden
       // stående på pending/converting for alltid, og uten rømningsvei kan tegningen aldri
       // konverteres igjen (stille felle). Derfor: fersk pending/converting avvises, men er
-      // statusen eldre enn 10 min (updatedAt; ezdxf-tidsavbruddet er 300 s) regnes den som
-      // død og vi faller gjennom og starter en ny konvertering.
-      const KONVERTERING_FRIST_MS = 10 * 60 * 1000;
-      const pågår = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
-      if (pågår && Date.now() - new Date(tegning.updatedAt).getTime() < KONVERTERING_FRIST_MS) {
+      // statusen strandet (ezdxf-tidsavbruddet er 300 s, god margin til KONVERTERING_STRANDET_MS)
+      // regnes den som død og vi faller gjennom og starter en ny konvertering.
+      if (erKonverteringPågår(tegning.conversionStatus, tegning.updatedAt)) {
         return { status: tegning.conversionStatus };
       }
 
-      if (!tegning.originalFileUrl) {
-        throw new Error("Denne tegningen har ingen original DWG-fil");
+      if (!erRekonverterbarOriginal(tegning.originalFileUrl)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: TEGNING_MANGLER_ORIGINALFIL_KODE });
       }
 
       // Nullstill status
@@ -1012,26 +1051,143 @@ export const tegningRouter = router({
         data: { conversionStatus: "pending", conversionError: null },
       });
 
-      // Start konvertering på nytt — filtype utledes av originalens endelse (dwg/dxf).
-      const original = tegning.originalFileUrl;
-      const filType = original.toLowerCase().endsWith(".dxf") ? "dxf" : "dwg";
-      const filSti = join(UPLOADS_DIR, original.replace("/uploads/", ""));
-      konverterDwg(filSti, tegning.name, UPLOADS_DIR, filType)
-        .then((resultat) => anvendDwgResultat(
-          ctx.prisma,
-          { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
-          resultat,
-          original,
-        ))
-        .catch(async (err) => {
-          console.error(`[DWG] Re-konvertering feilet for ${input.id}:`, err);
-          await ctx.prisma.drawing.update({
-            where: { id: input.id },
-            data: { conversionStatus: "failed", conversionError: err instanceof Error ? err.message : "Ukjent feil" },
-          });
-        });
+      // Fire-and-forget (ett manuelt klikk, ikke gjennom batch-køen): svarer med én
+      // gang, konverteringen kjører i bakgrunnen.
+      void kjorRekonvertering(ctx.prisma, {
+        id: tegning.id,
+        name: tegning.name,
+        projectId: tegning.projectId,
+        byggeplassId: tegning.byggeplassId,
+        originalFileUrl: tegning.originalFileUrl!,
+      });
 
       return { status: "pending" };
+    }),
+
+  // «Oppdater visning»/«Oppdater alle tegninger» (2026-10-16): samlet fremdrift,
+  // UTEN migrering — utledet av `conversionStatus`/`updatedAt` som ALLEREDE finnes
+  // på Drawing (samme 2a-mønster som `mappe.reprosesseringStatus`). Overlever
+  // sideoppdatering og er riktig på tvers av web/api (to prosesser), i motsetning
+  // til en in-memory-teller i ÉN av dem.
+  //
+  // Scope: kun HOVEDTEGNINGER (ikke layouts — de regenereres automatisk når
+  // forelderen rekonverteres), avgrenset til DWG/DXF-opphav. `original_file_url`
+  // er den direkte, entydige kilden (satt siden 10.10 og bevart gjennom revisjon/
+  // «prøv igjen»). For eldre tegninger uten arkivert original (før 10.10) finnes
+  // INGEN dedikert «opprinnelig filtype»-kolonne — PDF→PNG og DWG/DXF→SVG er de
+  // ENESTE to veiene som setter `conversion_status`, og de produserer alltid hhv.
+  // `png`/`svg` (aldri omvendt), så `file_type IN ('dwg','dxf','svg')` + ikke-null
+  // `conversion_status` identifiserer DWG/DXF-opphav uten feilmargin — ikke en
+  // gjetning på et ikke-unikt felt (dokumentert heuristikk, ikke stille antagelse).
+  rekonverteringStatus: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const rows = await ctx.prisma.$queryRaw<
+        Array<{ totalt: bigint; pagar: bigint; feilet: bigint; mangler_original: bigint }>
+      >`
+        SELECT COUNT(*) AS totalt,
+               COUNT(*) FILTER (
+                 WHERE d.conversion_status IN ('pending', 'converting')
+                   AND d.updated_at > now() - ${KONVERTERING_STRANDET_MS / 1000} * interval '1 second'
+               ) AS pagar,
+               COUNT(*) FILTER (
+                 WHERE d.conversion_status = 'failed'
+                   OR (
+                     d.conversion_status IN ('pending', 'converting')
+                     AND d.updated_at <= now() - ${KONVERTERING_STRANDET_MS / 1000} * interval '1 second'
+                   )
+               ) AS feilet,
+               COUNT(*) FILTER (WHERE d.original_file_url IS NULL) AS mangler_original
+        FROM drawings d
+        WHERE d.project_id = ${input.projectId}
+          AND d.parent_drawing_id IS NULL
+          AND (
+            lower(d.original_file_url) LIKE '%.dwg' OR lower(d.original_file_url) LIKE '%.dxf'
+            OR (
+              d.original_file_url IS NULL
+              AND d.conversion_status IS NOT NULL
+              AND d.file_type IN ('dwg', 'dxf', 'svg')
+            )
+          )
+      `;
+      const r = rows[0];
+      const totalt = Number(r?.totalt ?? 0);
+      const pågår = Number(r?.pagar ?? 0);
+      const feilet = Number(r?.feilet ?? 0);
+      const manglerOriginal = Number(r?.mangler_original ?? 0);
+      return { totalt, pågår, feilet, manglerOriginal, ferdig: totalt - pågår - feilet - manglerOriginal };
+    }),
+
+  // Admin-gatet batch: rekonverter ALLE DWG/DXF-tegninger i prosjektet fra lagret
+  // original, på SAMME revisjon (markører/rotasjonsoverstyring/georeferanse/
+  // historikk bevares av `anvendDwgResultat`, uendret av denne ordren). Kjøres
+  // gjennom `tegningRekonverteringKø` (maks 2 samtidig) — se `kjorRekonvertering`.
+  // Tegninger som ALLEREDE er ferske pending/converting hoppes over (unngår å
+  // doble en kjørende konvertering); tegninger uten original telles i
+  // `manglerOriginal` i stedet for å feile. Samme DWG/DXF-opphavs-scope som
+  // `rekonverteringStatus` over (se kommentaren der).
+  oppdaterAlleTegninger: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      const kandidater = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          parentDrawingId: null,
+          OR: [
+            { originalFileUrl: { not: null } },
+            {
+              originalFileUrl: null,
+              conversionStatus: { not: null },
+              fileType: { in: ["dwg", "dxf", "svg"] },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          projectId: true,
+          byggeplassId: true,
+          originalFileUrl: true,
+          conversionStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      const manglerOriginal = kandidater.filter((t) => !t.originalFileUrl).length;
+      const startbare = kandidater.filter(
+        (t) =>
+          erRekonverterbarOriginal(t.originalFileUrl) &&
+          !erKonverteringPågår(t.conversionStatus, t.updatedAt),
+      );
+
+      if (startbare.length === 0) {
+        return { startet: 0, manglerOriginal };
+      }
+
+      // Synkront: sett alle til "pending" FØR vi returnerer, så
+      // `rekonverteringStatus` straks viser riktig «pågår»-tall og knappen kan
+      // deaktiveres med én gang (overlever sideoppdatering — DB, ikke klient-state).
+      await ctx.prisma.drawing.updateMany({
+        where: { id: { in: startbare.map((t) => t.id) } },
+        data: { conversionStatus: "pending", conversionError: null },
+      });
+
+      for (const t of startbare) {
+        void tegningRekonverteringKø.kjør(() =>
+          kjorRekonvertering(ctx.prisma, {
+            id: t.id,
+            name: t.name,
+            projectId: t.projectId,
+            byggeplassId: t.byggeplassId,
+            originalFileUrl: t.originalFileUrl!,
+          }),
+        );
+      }
+
+      return { startet: startbare.length, manglerOriginal };
     }),
 
   // Slett tegning. ADMIN-gatet + SLETTEVAKT (speiler omrade.slett): alle referanse-FK-ene er
