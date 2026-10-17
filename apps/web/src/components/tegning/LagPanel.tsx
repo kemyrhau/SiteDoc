@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RegisterVerdenLagInfo } from "@sitedoc/shared";
+import { byggLagGrupper, type RegisterVerdenLagInfo } from "@sitedoc/shared";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 /**
@@ -11,6 +11,9 @@ import { ChevronDown, ChevronRight } from "lucide-react";
  * server-side, se `render.py` sin `tolk_lag_gruppe`/`lag_dominante_revit_kategorier`).
  * "Kontrollert" komponent: synligheten eies av kalleren (page.tsx, som også står
  * for husking pr. tegning pr. bruker, F2 § 3).
+ * Grupperingen (`byggLagGrupper`) er flyttet til `@sitedoc/shared` (RETUR F1+F2 web
+ * r2) slik at mobil-lagpanelet (`TegningLagPanel.tsx`) garantert viser samme
+ * gruppe-inndeling — IKKE en egen implementasjon her.
  */
 
 interface LagPanelProps {
@@ -23,39 +26,9 @@ interface LagPanelProps {
   onLukk: () => void;
 }
 
-interface Gruppe {
-  navn: string;
-  gruppeNavn: string;
-  lag: RegisterVerdenLagInfo[];
-  antallTotal: number;
-}
-
-// RETUR F1+F2 web r2 (Kenneth): "Andre" sto i FEM separate grupper (878/82/
-// 852/858/uten kode) fordi de har ulik rå `gruppe`-kode, selv om alle viser
-// samme gruppeNavn. Slå dem sammen under ÉN nøkkel uansett rå kode.
-const ANDRE_GRUPPENAVN = "Andre";
-
-function byggGrupper(laginventar: RegisterVerdenLagInfo[]): Gruppe[] {
-  const map = new Map<string, RegisterVerdenLagInfo[]>();
-  for (const li of laginventar) {
-    const noekkel = li.gruppeNavn === ANDRE_GRUPPENAVN ? ANDRE_GRUPPENAVN : li.gruppe;
-    const liste = map.get(noekkel) ?? [];
-    liste.push(li);
-    map.set(noekkel, liste);
-  }
-  return Array.from(map.entries())
-    .map(([navn, lag]) => ({
-      navn,
-      gruppeNavn: lag[0]?.gruppeNavn ?? navn,
-      lag,
-      antallTotal: lag.reduce((s, l) => s + l.antall, 0),
-    }))
-    .sort((a, b) => b.antallTotal - a.antallTotal);
-}
-
 export function LagPanel({ laginventar, synlighet, onSettLag, onSettGruppe, onBareDette, onAllePaa, onLukk }: LagPanelProps) {
   const { t } = useTranslation();
-  const grupper = useMemo(() => byggGrupper(laginventar), [laginventar]);
+  const grupper = useMemo(() => byggLagGrupper(laginventar), [laginventar]);
   const [apne, setApne] = useState<Set<string>>(() => new Set());
 
   function vekslApen(navn: string) {

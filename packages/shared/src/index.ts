@@ -19,4 +19,5 @@ export * from "./tegning/objektmodell";
 export * from "./tegning/hit-test-verden";
 export * from "./tegning/egenskapsfelt";
 export * from "./tegning/objekt-markering-farge";
+export * from "./tegning/lag-gruppering";
 export * from "./tegning/rekonvertering";

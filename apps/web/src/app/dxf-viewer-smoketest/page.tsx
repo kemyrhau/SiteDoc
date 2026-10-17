@@ -35,7 +35,19 @@ import type { TegningVerktoy, RegisterVerdenLagInfo, EgenskapsFelt } from "@site
  *                                                sperre/åpne måleknappene
  *     { type: "objektValgt", felt: EgenskapsFelt[] | null }  — F1: trykk på objekt
  *                                                               (utenfor målemodus)
- *     { type: "laginventarKlar", antall: number }  — F2: registeret er lastet
+ *     { type: "laginventarKlar", antall: number, laginventar: RegisterVerdenLagInfo[] }
+ *                                                — F2: registeret er lastet
+ *
+ *   Inn, F2 (postMessage til vinduet):
+ *     { type: "settLagSynlig", navn: string, synlig: boolean }  — lag av/på
+ *
+ * Mobilplanen (SJEKKPUNKT 2026-10-17, "mobilplanen er godkjent i sin helhet"):
+ * når siden lastes inne i RN sin WebView (`window.ReactNativeWebView` finnes),
+ * rendrer den IKKE sine egne flytende paneler (LagPanel/EgenskapsPanel/"Lag (N)"-
+ * knappen) — RN bygger native paneler (`TegningEgenskapsArk`/`TegningLagPanel`)
+ * drevet av `objektValgt`/`laginventarKlar`-meldingene, og siden er da en REN
+ * data-bro. Paneler under er bare for feilsøking i en vanlig nettleser (f.eks.
+ * åpnet direkte på Mac for å verifisere uten RN).
  */
 
 interface StartMelding {
@@ -81,6 +93,13 @@ function useFpsMaaling() {
   return prøverRef;
 }
 
+/** Beregnes ÉN gang: siden kjører enten i RN sin WKWebView (ren data-bro, se
+ * filheaderen) eller i en vanlig nettleser (viser egne feilsøkingspaneler). */
+function erIRnWebview(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!(window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+}
+
 export default function DxfViewerRøyktest() {
   const [melding, setMelding] = useState<StartMelding | null>(null);
   const prøverRef = useFpsMaaling();
@@ -88,6 +107,7 @@ export default function DxfViewerRøyktest() {
   const [laginventar, setLaginventar] = useState<RegisterVerdenLagInfo[] | null>(null);
   const [lagSynlighet, setLagSynlighet] = useState<Record<string, boolean>>({});
   const [lagpanelApent, setLagpanelApent] = useState(false);
+  const [rnBro] = useState(erIRnWebview);
   // F1-forarbeid for mobil-bunn-arket (RN): samme lokale egenskapspanel-visning
   // som LagPanel over — bar røyketest-visning, ikke ekstra scope.
   const [valgtObjektFelt, setValgtObjektFelt] = useState<EgenskapsFelt[] | null>(null);
@@ -131,6 +151,11 @@ export default function DxfViewerRøyktest() {
           viewerRef.current?.slettAktiv();
         } else if (data.type === "maleSlettAlle") {
           viewerRef.current?.slettAlle();
+        } else if (data.type === "settLagSynlig") {
+          const navn = String(data.navn ?? "");
+          const synlig = !!data.synlig;
+          viewerRef.current?.settLagSynlig(navn, synlig);
+          setLagSynlighet((s) => ({ ...s, [navn]: synlig }));
         }
       } catch {
         /* Ikke JSON for oss — ignorer */
@@ -169,7 +194,7 @@ export default function DxfViewerRøyktest() {
           }}
           onLaginventarKlar={(li) => {
             setLaginventar(li);
-            sendTilApp({ type: "laginventarKlar", antall: li?.length ?? 0 });
+            sendTilApp({ type: "laginventarKlar", antall: li?.length ?? 0, laginventar: li ?? [] });
           }}
         />
       ) : (
@@ -187,7 +212,7 @@ export default function DxfViewerRøyktest() {
           Venter på tegning-URL fra appen …
         </div>
       )}
-      {laginventar && (
+      {!rnBro && laginventar && (
         <button
           type="button"
           data-testid="lagpanel-knapp"
@@ -197,7 +222,7 @@ export default function DxfViewerRøyktest() {
           Lag ({laginventar.length})
         </button>
       )}
-      {lagpanelApent && laginventar && (
+      {!rnBro && lagpanelApent && laginventar && (
         <LagPanel
           laginventar={laginventar}
           synlighet={lagSynlighet}
@@ -231,7 +256,7 @@ export default function DxfViewerRøyktest() {
           onLukk={() => setLagpanelApent(false)}
         />
       )}
-      <EgenskapsPanel felt={valgtObjektFelt} onLukk={() => setValgtObjektFelt(null)} />
+      {!rnBro && <EgenskapsPanel felt={valgtObjektFelt} onLukk={() => setValgtObjektFelt(null)} />}
     </div>
   );
 }
