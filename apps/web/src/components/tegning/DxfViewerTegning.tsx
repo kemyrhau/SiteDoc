@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type {
   RegisterVerden,
   RegisterVerdenObjekt,
+  RegisterVerdenLagInfo,
   Punkt,
   MaleTilstand,
   Maling,
@@ -92,6 +93,9 @@ export interface DxfViewerTegningProps {
   /** F1: kalt med egenskapsfeltene for objektet under et trykk (utenfor målemodus),
    * eller `null` ved trykk i tomrom / når markeringen fjernes. */
   onObjektValgt?: (felt: EgenskapsFelt[] | null) => void;
+  /** F2: kalt når registeret er lastet, med laginventaret (gruppe/visningsnavn/
+   * antall allerede beregnet server-side). `null` ved ugyldig/manglende register. */
+  onLaginventarKlar?: (laginventar: RegisterVerdenLagInfo[] | null) => void;
 }
 
 /** Imperativ styring av måleverktøyet — samme mønster som `DxfViewerTegningMobil`s ref. */
@@ -107,6 +111,8 @@ export interface DxfViewerTegningRef {
   gjenopptaAktiv: () => void;
   slettAktiv: () => void;
   slettAlle: () => void;
+  /** F2: slå et DXF-lag av/på (dxf-viewers `ShowLayer`). `navn` = `RegisterVerdenLagInfo.navn`. */
+  settLagSynlig: (navn: string, synlig: boolean) => void;
 }
 
 // Samme midlertidige heuristikk som harness-v3 (orkestrator-godkjent MVP, plan § 6):
@@ -302,7 +308,7 @@ function nyGestState(): GestState {
 
 export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegningProps>(
   function DxfViewerTegning(
-    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMaleKlarEndring, onObjektValgt },
+    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMaleKlarEndring, onObjektValgt, onLaginventarKlar },
     ref,
   ) {
   const { t } = useTranslation();
@@ -346,6 +352,8 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   onMaleKlarEndringRef.current = onMaleKlarEndring;
   const onObjektValgtRef = useRef(onObjektValgt);
   onObjektValgtRef.current = onObjektValgt;
+  const onLaginventarKlarRef = useRef(onLaginventarKlar);
+  onLaginventarKlarRef.current = onLaginventarKlar;
   // F1: registeret + rbush-indeksen bygges ÉN gang ved innlasting (ikke pr. trykk, se
   // hit-test-verden.ts sin "rbush som første filter"-kommentar), og valgt objekt
   // speiles i en ref (tegnOverlegg() leser den imperativt, samme mønster som måling).
@@ -666,6 +674,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       gjenopptaAktiv: () => setMaleTilstand(gjenoppta),
       slettAktiv: () => setMaleTilstand(slettAktiv),
       slettAlle: () => setMaleTilstand(() => slettAlle()),
+      settLagSynlig: (navn: string, synlig: boolean) => {
+        const viewer = viewerRef.current;
+        if (!viewer?.ShowLayer) return;
+        viewer.ShowLayer(navn, synlig);
+        viewer.Render?.();
+      },
     }),
     [],
   );
@@ -873,9 +887,11 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
           // F1: registeret + bbox-indeksen bygges ÉN gang her, ikke pr. trykk.
           registerRef.current = register;
           bboxIndeksRef.current = byggBboxIndeks(register);
+          onLaginventarKlarRef.current?.(register.laginventar);
         } else {
           registerRef.current = null;
           bboxIndeksRef.current = null;
+          onLaginventarKlarRef.current?.(null);
         }
         valgtObjektRef.current = null;
         onObjektValgtRef.current?.(null); // ny tegning lastet -> forrige markering er ugyldig

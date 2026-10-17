@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DxfViewerTegning, type DxfViewerTegningRef } from "@/components/tegning/DxfViewerTegning";
-import type { TegningVerktoy } from "@sitedoc/shared";
+import { LagPanel } from "@/components/tegning/LagPanel";
+import type { TegningVerktoy, RegisterVerdenLagInfo } from "@sitedoc/shared";
 
 /**
  * Mobil leveranse 1 (arbeidstegning-f1, "SVAR MOBILPLAN" i
@@ -33,6 +34,7 @@ import type { TegningVerktoy } from "@sitedoc/shared";
  *                                                sperre/åpne måleknappene
  *     { type: "objektValgt", felt: EgenskapsFelt[] | null }  — F1: trykk på objekt
  *                                                               (utenfor målemodus)
+ *     { type: "laginventarKlar", antall: number }  — F2: registeret er lastet
  */
 
 interface StartMelding {
@@ -82,6 +84,9 @@ export default function DxfViewerRøyktest() {
   const [melding, setMelding] = useState<StartMelding | null>(null);
   const prøverRef = useFpsMaaling();
   const viewerRef = useRef<DxfViewerTegningRef>(null);
+  const [laginventar, setLaginventar] = useState<RegisterVerdenLagInfo[] | null>(null);
+  const [lagSynlighet, setLagSynlighet] = useState<Record<string, boolean>>({});
+  const [lagpanelApent, setLagpanelApent] = useState(false);
 
   useEffect(() => {
     function rapporter() {
@@ -155,6 +160,10 @@ export default function DxfViewerRøyktest() {
           rotasjonOverstyrt={melding.rotasjonOverstyrt}
           onMaleKlarEndring={(kanMale) => sendTilApp({ type: "maleKlar", kanMale })}
           onObjektValgt={(felt) => sendTilApp({ type: "objektValgt", felt })}
+          onLaginventarKlar={(li) => {
+            setLaginventar(li);
+            sendTilApp({ type: "laginventarKlar", antall: li?.length ?? 0 });
+          }}
         />
       ) : (
         <div
@@ -170,6 +179,50 @@ export default function DxfViewerRøyktest() {
         >
           Venter på tegning-URL fra appen …
         </div>
+      )}
+      {laginventar && (
+        <button
+          type="button"
+          data-testid="lagpanel-knapp"
+          onClick={() => setLagpanelApent((a) => !a)}
+          style={{ position: "absolute", left: 12, top: 12, zIndex: 20 }}
+        >
+          Lag ({laginventar.length})
+        </button>
+      )}
+      {lagpanelApent && laginventar && (
+        <LagPanel
+          laginventar={laginventar}
+          synlighet={lagSynlighet}
+          onSettLag={(navn, synlig) => {
+            viewerRef.current?.settLagSynlig(navn, synlig);
+            setLagSynlighet((s) => ({ ...s, [navn]: synlig }));
+          }}
+          onSettGruppe={(navnListe, synlig) => {
+            setLagSynlighet((s) => {
+              const neste = { ...s };
+              for (const navn of navnListe) {
+                viewerRef.current?.settLagSynlig(navn, synlig);
+                neste[navn] = synlig;
+              }
+              return neste;
+            });
+          }}
+          onBareDette={(navn) => {
+            const neste: Record<string, boolean> = {};
+            for (const li of laginventar) {
+              const synlig = li.navn === navn;
+              neste[li.navn] = synlig;
+              viewerRef.current?.settLagSynlig(li.navn, synlig);
+            }
+            setLagSynlighet(neste);
+          }}
+          onAllePaa={() => {
+            for (const li of laginventar) viewerRef.current?.settLagSynlig(li.navn, true);
+            setLagSynlighet({});
+          }}
+          onLukk={() => setLagpanelApent(false)}
+        />
       )}
     </div>
   );
