@@ -330,6 +330,89 @@ def bygg_objektregister(doc, msp, handles, lagmap):
     return objekter, elid_index
 
 
+def tolk_lag_gruppe(navn):
+    """F2 gruppe-NØKKEL fra lagnavn (fallback når laget ikke har en dominant Revit-
+    kategori, se lag_dominante_revit_kategorier()): NS 3451 (2-3 siffer, med/uten
+    A-prefiks), AIA/IFC-prefiks (A-/S-/P-/I-/Q-), SOSI (3-4 siffer + mellomrom).
+    Returnerer BARE koden/prefikset (ikke resten av navnet som tolk_lagnavn() —
+    ingen NS 3451-kode→tekst-oppslagstabell finnes i kodebasen i dag, så koden ER
+    etiketten til en slik tabell finnes). '' = ingen treff (kalleren faller til "Andre")."""
+    if not navn:
+        return ""
+    m = re.match(r"^(\d{3,4})\s+", navn)       # SOSI: "8250 Kum" -> "8250"
+    if m:
+        return m.group(1)
+    m = re.match(r"^A(\d{2,4})[_\- ]?", navn)  # "A24_innervegg" -> "24" (NS 3451 uten A)
+    if m:
+        return m.group(1)
+    m = re.match(r"^(\d{2,3})[-.\s]", navn)    # "242- Ikke-bærende..." -> "242"
+    if m:
+        return m.group(1)
+    m = re.match(r"^([ASPIQ])-", navn)         # AIA/IFC: "A-", "S-", "P-", "I-", "Q-"
+    if m:
+        return f"{m.group(1)}-"
+    return ""
+
+def lag_dominante_revit_kategorier(objekter):
+    """F2 B7: gruppe «Vegger» slår av lag A23/A24/A85 samtidig — kategorien kommer
+    fra Revit-XDATA PÅ OBJEKTENE, ikke fra lagnavnet, når XDATA finnes. Pr. lag:
+    mest frekvente kategori blant objektene MED elid (rene lag-DWG uten XDATA gir
+    ingen treff her og faller til tolk_lag_gruppe())."""
+    tellere = {}
+    for o in objekter.values():
+        if "elid" not in o:
+            continue
+        kat = o.get("kategori")
+        if not kat:
+            continue
+        c = tellere.setdefault(o["lag"], {})
+        c[kat] = c.get(kat, 0) + 1
+    return {lag: max(c.items(), key=lambda kv: kv[1])[0] for lag, c in tellere.items()}
+
+def beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat):
+    """AT-F10/A12/A14 (§7 pkt 17): for strek-/kurve-objekter uten egen tekst eller
+    blokkattributt på et RÅTT fag-internt system-lag (V3411, E556 — altså et lag
+    UTEN NS 3451/AIA/SOSI-prefiks-treff og uten Revit-XDATA-kategori, se
+    tolk_lag_gruppe()/lag_dominante_revit_kategorier()), finn nærmeste TEXT/MTEXT/
+    ATTRIB på et tekstlag (lagnavn med "(Tekst)") innen avstand = tekstens egen
+    høyde × 4. ALLTID tolket/merket som sådan — settes ALDRI som objektets egen
+    verdi. Ingen tekst innen grensen -> feltet utelates helt (A12 negativkontroll).
+
+    Lag-avgrensningen er MÅLT nødvendig (fallplanen, før denne ble lagt til): uten
+    den fikk ordinære vegglinjer og IFC-importert sanitærutstyr feilaktig en
+    tilfeldig nærliggende romtekst ("Sluse"/"TOAL.") som "nærmeste merking" — rene
+    NS 3451/AIA-lag har alltid EGEN kategori og skal aldri gjennom denne tolkningen.
+
+    Tekstlag-konvensjon varierer med fag (MÅLT): NS 3451-filer bruker parentes-
+    suffiks "(Tekst)"; MEP-filer (VB3-1074) bruker et DELT "-T"-lag pr. system
+    (V3411-V3416 sin tekst ligger samlet på "V341-T", ikke pr. geometrilag)."""
+    kandidater = [
+        t for t in tekster
+        if (("(tekst)" in (t.get("layer") or "").lower()) or (t.get("layer") or "").lower().endswith("-t"))
+        and (t.get("tekst") or "").strip() and (t.get("h") or 0) > 0
+    ]
+    if not kandidater:
+        return
+    for o in objekter_world.values():
+        if o.get("attr") or o.get("blokk") or o["dtype"] in ("TEXT", "MTEXT", "ATTRIB"):
+            continue
+        lag = o["lag"]
+        if lag in lag_dominant_kat or tolk_lag_gruppe(lag):
+            continue  # NS 3451/AIA/SOSI/XDATA-lag har egen kategori — ikke et "umerket" system-lag.
+        bb = o.get("bbox")
+        if not bb:
+            continue
+        cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
+        best, best_d = None, None
+        for t in kandidater:
+            grense = t["h"] * 4
+            d = math.hypot(cx - t["x"], cy - t["y"])
+            if d <= grense and (best_d is None or d < best_d):
+                best, best_d = t["tekst"].strip(), d
+        if best:
+            o["naermesteMerking"] = best
+
+
 def sett_minnetak(mem_mb: int) -> None:
     """Selvpålagt minnetak via RLIMIT_AS (unix). Ingen shell/ulimit trengs — en
     kundefil som sprenger taket dreper prosessen i stedet for serveren. No-op der
@@ -1096,6 +1179,7 @@ def main():
         "startutsnitt": startutsnitt,
         "tid_s": {"les": round(t_les,2), "tegn": round(t_tegn,2), "total": round(t_tot,2)},
     }
+    lag_dominant_kat = lag_dominante_revit_kategorier(reg_objekter) if trenger_register else {}
     if args.register_world:
         # Egne kopier av objektene (IKKE reg_objekter direkte) — --register under muterer
         # "bbox" (og fjerner attrMeta) på de samme dict-instansene til SVG-viewBox-koordinater;
@@ -1120,6 +1204,7 @@ def main():
                 # fra trykkpunktet, mens kledningens tette bbox feilaktig vant).
                 ow["geom"] = [[c for (x, y) in poly for c in (round(x), round(y))] for poly in segs]
             objekter_world[h] = ow
+        beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat)
         lag_antall_w = {}
         for o in objekter_world.values():
             lag_antall_w[o["lag"]] = lag_antall_w.get(o["lag"], 0) + 1
@@ -1129,6 +1214,7 @@ def main():
             laginventar_w.append({
                 "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
                 "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
+                "gruppe": lag_dominant_kat.get(navn) or tolk_lag_gruppe(navn) or "Andre",
             })
         register_world = {
             "fil": args.dxf,
@@ -1161,6 +1247,7 @@ def main():
             laginventar.append({
                 "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
                 "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
+                "gruppe": lag_dominant_kat.get(navn) or tolk_lag_gruppe(navn) or "Andre",
             })
         register = {
             "fil": args.dxf, "vbW": vbW, "vbH": vbH,

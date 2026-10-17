@@ -57,6 +57,10 @@ export interface RegisterVerdenObjekt {
    * polylinje [x0,y0,x1,y1,...] — treffetesten bruker denne (avstand punkt→segment/bue),
    * ikke bbox-kanten. Fravær (skravur/HATCH uten kontur) = treff kun via containment. */
   geom?: number[][];
+  /** F1 felt 5b (AT-F10/A12/A14): tolket nærmeste TEXT/MTEXT/ATTRIB på et tekstlag
+   * for rør/kabel uten egen tekst — ALDRI objektets egen verdi, alltid vist merket
+   * «(nærmeste merking)». Fravær = ingen tekst innen grensen (negativkontroll A12). */
+  naermesteMerking?: string;
 }
 
 export interface RegisterVerdenLagInfo {
@@ -67,6 +71,9 @@ export interface RegisterVerdenLagInfo {
   aci: number | null;
   ltype: string;
   lw: number | null;
+  /** F2-gruppe: dominant Revit-kategori blant lagets objekter når XDATA finnes,
+   * ellers NS 3451/AIA/SOSI-prefiks fra lagnavnet, ellers "Andre". */
+  gruppe: string;
 }
 
 export interface RegisterVerden {
