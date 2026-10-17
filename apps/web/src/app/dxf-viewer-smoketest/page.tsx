@@ -31,6 +31,8 @@ import type { TegningVerktoy } from "@sitedoc/shared";
  *     { type: "feil", melding: string }
  *     { type: "maleKlar", kanMale: boolean }  — leveranse 3+4: $INSUNITS lest, RN kan
  *                                                sperre/åpne måleknappene
+ *     { type: "objektValgt", felt: EgenskapsFelt[] | null }  — F1: trykk på objekt
+ *                                                               (utenfor målemodus)
  */
 
 interface StartMelding {
@@ -152,6 +154,7 @@ export default function DxfViewerRøyktest() {
           registerWorldUrl={melding.registerWorldUrl}
           rotasjonOverstyrt={melding.rotasjonOverstyrt}
           onMaleKlarEndring={(kanMale) => sendTilApp({ type: "maleKlar", kanMale })}
+          onObjektValgt={(felt) => sendTilApp({ type: "objektValgt", felt })}
         />
       ) : (
         <div

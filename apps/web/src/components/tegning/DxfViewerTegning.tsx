@@ -330,7 +330,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
 
   // --- Måling (leveranse 3+4) ---
   const [maleTilstand, setMaleTilstand] = useState<MaleTilstand>(TOM_MALETILSTAND);
-  const [verktoy, setVerktoy] = useState<TegningVerktoy>("flytt");
+  // F1-FUNN (verifisert lokalt, Playwright mot smoketest-siden): "flytt" som
+  // startverktøy ga ALDRI noen gest (onPointerDown returnerer tidlig når ingen
+  // aktiv måling finnes), så F1-trykk kunne umulig nås før toolbaren koblet et
+  // eksplisitt settVerktoy — som ikke finnes for denne grenen i page.tsx i dag.
+  // "navigering" er den naturlige default-tilstanden (ingen verktøy valgt).
+  const [verktoy, setVerktoy] = useState<TegningVerktoy>("navigering");
   const [ortho, setOrtho] = useState(false);
   const [snapPaa, setSnapPaa] = useState(true);
   const [mmPrVerdenEnhet, setMmPrVerdenEnhet] = useState<number | null>(null);
