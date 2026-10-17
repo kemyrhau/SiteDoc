@@ -57,7 +57,7 @@ import {
   erTegningDwgDxfOpphav,
   TEGNING_MANGLER_ORIGINALFIL_KODE,
 } from "@sitedoc/shared";
-import type { GeoReferanse } from "@sitedoc/shared";
+import type { GeoReferanse, EgenskapsFelt, RegisterVerdenLagInfo } from "@sitedoc/shared";
 
 interface DokumentflytMalRad {
   template: { id: string; name: string; category: string };
@@ -69,7 +69,7 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download, Layers } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { tegningVisningTilstand } from "@/lib/tegningRekonverteringVisning";
@@ -82,6 +82,9 @@ import { tilpassEzdxfSvg } from "@/lib/ezdxfSvgVisning";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
+import { EgenskapsPanel } from "@/components/tegning/EgenskapsPanel";
+import { LagPanel } from "@/components/tegning/LagPanel";
+import type { DxfViewerTegningRef } from "@/components/tegning/DxfViewerTegning";
 // Leveranse 1: dynamic+ssr:false — dxf-viewer drar med seg en EGEN three.js-kopi
 // (^0.186), som ikke skal lastes før tegningssiden faktisk bruker den (orkestrator-
 // vedtak 2026-10-13: to kopier akseptert, tegningssiden lazy-lastet).
@@ -284,6 +287,14 @@ export default function TegningerSide() {
 
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
+  // F1 (dxf-viewer-grenen, egen gren/state — SVG-veiens valgtElement over er uberørt).
+  const [dxfValgtObjektFelt, setDxfValgtObjektFelt] = useState<EgenskapsFelt[] | null>(null);
+  // F2 (dxf-viewer-grenen): laginventar fra registeret, husket synlighet pr. tegning
+  // pr. bruker (localStorage). `false` = skjult; fravær av nøkkel = synlig (default).
+  const [dxfLaginventar, setDxfLaginventar] = useState<RegisterVerdenLagInfo[] | null>(null);
+  const [dxfLagSynlighet, setDxfLagSynlighet] = useState<Record<string, boolean>>({});
+  const [dxfLagpanelApent, setDxfLagpanelApent] = useState(false);
+  const dxfViewerRef = useRef<DxfViewerTegningRef>(null);
 
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
@@ -359,6 +370,85 @@ export default function TegningerSide() {
     const status = tegning?.conversionStatus;
     setDwgPoller(status === "pending" || status === "converting");
   }, [tegning?.conversionStatus]);
+
+  // F2 (dxf-viewer-grenen): lagpanel-handlere. Husker synlighet pr. tegning pr.
+  // bruker på enheten (localStorage, nøkkel pr. drawingId — spec § 3 F2, Q4).
+  const dxfLagStorageKey = tegning ? `tegning-lag-${tegning.id}` : null;
+
+  const lagreDxfLagSynlighet = useCallback(
+    (neste: Record<string, boolean>) => {
+      setDxfLagSynlighet(neste);
+      if (!dxfLagStorageKey) return;
+      try {
+        window.localStorage.setItem(dxfLagStorageKey, JSON.stringify(neste));
+      } catch {
+        /* privat modus/full lagring — synligheten virker fortsatt denne økten */
+      }
+    },
+    [dxfLagStorageKey],
+  );
+
+  const handleDxfLaginventarKlar = useCallback(
+    (laginventar: RegisterVerdenLagInfo[] | null) => {
+      setDxfLaginventar(laginventar);
+      if (!laginventar || !dxfLagStorageKey) {
+        setDxfLagSynlighet({});
+        return;
+      }
+      let lagret: Record<string, boolean> = {};
+      try {
+        const raw = window.localStorage.getItem(dxfLagStorageKey);
+        if (raw) lagret = JSON.parse(raw);
+      } catch {
+        lagret = {};
+      }
+      setDxfLagSynlighet(lagret);
+      for (const [navn, synlig] of Object.entries(lagret)) {
+        if (synlig === false) dxfViewerRef.current?.settLagSynlig(navn, false);
+      }
+    },
+    [dxfLagStorageKey],
+  );
+
+  const handleDxfSettLag = useCallback(
+    (navn: string, synlig: boolean) => {
+      dxfViewerRef.current?.settLagSynlig(navn, synlig);
+      lagreDxfLagSynlighet({ ...dxfLagSynlighet, [navn]: synlig });
+    },
+    [dxfLagSynlighet, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfSettGruppe = useCallback(
+    (lagNavnListe: string[], synlig: boolean) => {
+      const neste = { ...dxfLagSynlighet };
+      for (const navn of lagNavnListe) {
+        dxfViewerRef.current?.settLagSynlig(navn, synlig);
+        neste[navn] = synlig;
+      }
+      lagreDxfLagSynlighet(neste);
+    },
+    [dxfLagSynlighet, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfBareDette = useCallback(
+    (navn: string) => {
+      if (!dxfLaginventar) return;
+      const neste: Record<string, boolean> = {};
+      for (const li of dxfLaginventar) {
+        const synlig = li.navn === navn;
+        neste[li.navn] = synlig;
+        dxfViewerRef.current?.settLagSynlig(li.navn, synlig);
+      }
+      lagreDxfLagSynlighet(neste);
+    },
+    [dxfLaginventar, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfAllePaa = useCallback(() => {
+    if (!dxfLaginventar) return;
+    for (const li of dxfLaginventar) dxfViewerRef.current?.settLagSynlig(li.navn, true);
+    lagreDxfLagSynlighet({});
+  }, [dxfLaginventar, lagreDxfLagSynlighet]);
 
   // Enkeltfil-nedlasting: originalfila (DWG/PDF slik den ble lastet opp), fallback
   // til den konverterte fila for rene bilder. `download`-attributtet gir filnavnet
@@ -2314,21 +2404,46 @@ export default function TegningerSide() {
       {fileUrl && (!erDwgKonvertering || harGyldigGammelVisning) && !erUkonvertertDwg ? (
         brukDxfViewer && tegning.dxfViewerFileUrl && tegning.registerWorldUrl ? (
           // Leveranse 1: PARALLELL vei bak flagget, leser SAMME Drawing-rad (plan § 3).
-          // Egen, isolert gren — markører/måling/lagpanel/klikk er leveranse 2/3/5,
-          // ikke del av denne gaten (DoD: riktig startutsnitt i appens faktiske layout).
+          // Egen, isolert gren. F1 (trykk → egenskaper) og F2 (lagpanel) er DENNE
+          // leveransen; markører er egen leveranse 5.
           <div
             ref={containerRef}
-            className="flex-1 overflow-hidden bg-gray-100"
+            className="relative flex-1 overflow-hidden bg-gray-100"
             // RETUR (orkestrator 2026-10-14): samme definit-høyde-mekanisme som
             // erBilde-grenen (tegningVisningshoyde.ts) — uten den er `flex-1` inert i
             // den delte dashbord-layouten (<main> er display:block), og flaten kollapser
             // til ~270 px / 0 px på smal viewport.
           >
             <DxfViewerTegning
+              ref={dxfViewerRef}
               dxfUrl={`/api${tegning.dxfViewerFileUrl}`}
               registerWorldUrl={`/api${tegning.registerWorldUrl}`}
               rotasjonOverstyrt={tegning.rotasjonOverstyrt ?? null}
+              onObjektValgt={setDxfValgtObjektFelt}
+              onLaginventarKlar={handleDxfLaginventarKlar}
             />
+            {dxfLaginventar && (
+              <button
+                type="button"
+                onClick={() => setDxfLagpanelApent((a) => !a)}
+                title={t("tegningsvelger.visLag")}
+                className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow hover:bg-gray-50"
+              >
+                <Layers className="h-4 w-4" />
+              </button>
+            )}
+            {dxfLagpanelApent && dxfLaginventar && (
+              <LagPanel
+                laginventar={dxfLaginventar}
+                synlighet={dxfLagSynlighet}
+                onSettLag={handleDxfSettLag}
+                onSettGruppe={handleDxfSettGruppe}
+                onBareDette={handleDxfBareDette}
+                onAllePaa={handleDxfAllePaa}
+                onLukk={() => setDxfLagpanelApent(false)}
+              />
+            )}
+            <EgenskapsPanel felt={dxfValgtObjektFelt} onLukk={() => setDxfValgtObjektFelt(null)} />
           </div>
         ) : erBilde ? (
           <div

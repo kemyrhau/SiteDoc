@@ -330,6 +330,311 @@ def bygg_objektregister(doc, msp, handles, lagmap):
     return objekter, elid_index
 
 
+def tolk_lag_gruppe(navn):
+    """F2 gruppe-NØKKEL fra lagnavn (fallback når laget ikke har en dominant Revit-
+    kategori, se lag_dominante_revit_kategorier()): NS 3451 (2-3 siffer, med/uten
+    A-prefiks), AIA/IFC-prefiks (A-/S-/P-/I-/Q-), SOSI (3-4 siffer + mellomrom).
+    Returnerer BARE koden/prefikset (ikke resten av navnet som tolk_lagnavn() —
+    ingen NS 3451-kode→tekst-oppslagstabell finnes i kodebasen i dag, så koden ER
+    etiketten til en slik tabell finnes). '' = ingen treff (kalleren faller til "Andre")."""
+    if not navn:
+        return ""
+    m = re.match(r"^(\d{3,4})\s+", navn)       # SOSI: "8250 Kum" -> "8250"
+    if m:
+        return m.group(1)
+    m = re.match(r"^A(\d{2,4})[_\- ]?", navn)  # "A24_innervegg" -> "24" (NS 3451 uten A)
+    if m:
+        return m.group(1)
+    m = re.match(r"^(\d{2,3})[-.\s]", navn)    # "242- Ikke-bærende..." -> "242"
+    if m:
+        return m.group(1)
+    m = re.match(r"^([ASPIQ])-", navn)         # AIA/IFC: "A-", "S-", "P-", "I-", "Q-"
+    if m:
+        return f"{m.group(1)}-"
+    return ""
+
+# NS 3451:2022 kode -> navn (Statsbygg PA 0802 TFM vedlegg 9.1, revisjon 5,
+# godkjent 17.02.2026 — offisiell bygningsdelstabell, hentet for RETUR F1+F2 web,
+# 2026-10-17: "Kenneth leser ikke koder"). Dekker hoveddel 2-7 (2- og 3-siffer).
+# IKKE ArchiCAD/Revit sine EGNE interne lagkoder i 80-89-serien (snittmarkør,
+# nettoareal, modullinjer m.m.) — disse har SAMME "NNN- "-mønster i lagnavnet
+# som ekte NS 3451-koder, men er IKKE en del av standarden (MÅLT på fallplanen:
+# "82-- Modullinjer", "852-...", "858-...", "862-..." — ekte NS 3451 stopper på
+# 79 Andre utendørs anlegg). Disse faller bevisst til "Andre" i gruppe_visningsnavn().
+NS3451_NAVN = {
+    "20": "Bygning, generelt",
+    "21": "Grunn og fundamenter", "211": "Klargjøring av tomt", "212": "Byggegrop",
+    "213": "Grunnforsterkning", "214": "Støttekonstruksjoner", "215": "Pelefundamentering",
+    "216": "Direkte fundamentering", "217": "Drenering", "218": "Utstyr og komplettering",
+    "219": "Andre deler av grunn og fundamenter",
+    "22": "Bærende konstruksjoner", "221": "Rammer", "222": "Søyler", "223": "Bjelker",
+    "224": "Avstivende konstruksjoner", "225": "Brannbeskyttelse av bærende konstruksjoner",
+    "226": "Kledning og overflate", "228": "Utstyr og komplettering for bærende konstruksjoner",
+    "229": "Andre deler av bærende konstruksjoner",
+    "23": "Yttervegger", "231": "Bærende yttervegger", "232": "Ikke-bærende yttervegger",
+    "233": "Glassfasader", "234": "Vinduer, dører, porter", "235": "Utvendig kledning og overflate",
+    "236": "Innvendig overflate", "237": "Solavskjerming", "238": "Utstyr og komplettering",
+    "239": "Andre deler av yttervegger",
+    "24": "Innervegger", "241": "Bærende innervegger", "242": "Ikke-bærende innervegger",
+    "243": "Systemvegger og glassfelt", "244": "Vinduer, dører, foldevegger", "245": "Skjørt",
+    "246": "Kledning og overflate", "248": "Utstyr og komplettering",
+    "249": "Andre deler av innervegger",
+    "25": "Dekker", "251": "Frittbærende dekker", "252": "Gulv på grunn, bunnplate",
+    "253": "Oppført gulv og påstøp", "254": "Systemgulv", "255": "Gulvoverflate",
+    "256": "Faste himlinger og overflatebehandling", "257": "Systemhimlinger",
+    "258": "Utstyr og komplettering", "259": "Andre deler av dekker",
+    "26": "Yttertak", "261": "Primærkonstruksjon for yttertak", "262": "Taktekning",
+    "263": "Glasstak, overlys, takluker, røykluker", "264": "Takoppbygg",
+    "265": "Gesimser, takrenner og nedløp", "266": "Himling og innvendig overflate",
+    "267": "Prefabrikerte takelementer", "268": "Utstyr og komplettering",
+    "269": "Andre deler av yttertak",
+    "27": "Fast inventar", "271": "Murte piper og ildsteder", "272": "Monteringsferdige ildsteder",
+    "273": "Kjøkkeninnredning", "274": "Innredning og garnityr for våtrom",
+    "275": "Skap og reoler", "276": "Sittebenker, stolrader, bord", "277": "Skilt og tavler",
+    "278": "Utstyr og komplettering", "279": "Annet fast inventar",
+    "28": "Trapper, balkonger m.m.", "281": "Innvendige trapper", "282": "Utvendige trapper",
+    "283": "Ramper", "284": "Balkonger og verandaer", "285": "Tribuner og amfier",
+    "286": "Baldakiner og skjermtak", "287": "Andre rekkverk, håndlister og fendere",
+    "288": "Utstyr og komplettering for trapper, balkonger m.m.",
+    "289": "Andre trapper, balkonger m.m.",
+    "29": "Andre bygningsmessige deler", "290": "Andre bygningsmessige deler",
+    "291": "Hull, tettinger",
+    "30": "VVS-installasjoner, generelt",
+    "31": "Sanitær", "310": "Sanitæranlegg", "311": "Bunnledninger for sanitærinstallasjoner",
+    "314": "Armaturer for sanitærinstallasjon", "315": "Utstyr for sanitærinstallasjon",
+    "316": "Isolasjon av sanitærinstallasjon",
+    "32": "Varme", "320": "Varmeanlegg", "321": "Bunnledninger for varmeinstallasjon",
+    "322": "Ledningsnett for varmeinstallasjon", "324": "Armaturer for varmeinstallasjon",
+    "325": "Utstyr for varmeinstallasjon", "326": "Isolasjon av varmeinstallasjon",
+    "329": "Annen varmeinstallasjon",
+    "33": "Brannslokking", "331": "Installasjon for manuell brannslokking med vann",
+    "332": "Installasjon for brannslokking med sprinkler",
+    "333": "Installasjon for brannslokking med vanntåke",
+    "334": "Installasjon for brannslokking med pulver",
+    "335": "Installasjon for brannslokking med gass",
+    "336": "Installasjon for brannslokking med skum", "337": "Brannslokking med håndslukker",
+    "339": "Andre deler av installasjoner for brannslokking",
+    "34": "Gass og trykkluft", "341": "Installasjon for gass til bygningsdrift",
+    "342": "Installasjon for gass til virksomhet", "343": "Installasjon for medisinske gasser",
+    "345": "Installasjon for trykkluft til virksomhet",
+    "346": "Installasjon for medisinsk trykkluft", "347": "Installasjon for vakuumanlegg",
+    "348": "Spesialavtrekk for gasser", "349": "Andre installasjoner til gass- og trykkluft",
+    "35": "Varmepumpe- og kuldeinstallasjoner",
+    "351": "Installasjoner for kjøling av kjølerom", "352": "Installasjoner for kjøling av fryserom",
+    "353": "Installasjoner til kjøling for virksomhet",
+    "354": "Installasjoner til kjøling og varme for industri og produksjon",
+    "355": "Installasjoner til kjøling for innenders idrettsbaner",
+    "356": "Installasjoner for oppvarming og kjøling i bygg",
+    "359": "Andre deler for varmepumpe- og kuldeinstallasjoner",
+    "36": "Luftbehandling", "360": "Luftbehandling", "364": "Utstyr for luftfordeling",
+    "365": "Utstyr for luftbehandling", "366": "Isolasjon av installasjon for luftbehandling",
+    "369": "Annet utstyr for luftbehandling",
+    "37": "Komfortkjøling", "370": "Komfortkjøleanlegg", "374": "Armatur for komfortkjøling",
+    "375": "Utstyr for komfortkjøling", "376": "Isolasjon av installasjon for komfortkjøling",
+    "379": "Annen komfortkjøling",
+    "38": "Vannbehandling", "381": "Installasjon for rensing av vann",
+    "382": "Installasjon for rensing av avløpsvann",
+    "383": "Installasjon for vannrensing til svømmebasseng",
+    "386": "Innendørs fontener og springvann", "389": "Annen vannbehandling",
+    "39": "Andre VVS-installasjoner", "390": "Andre VVS-installasjoner",
+    "40": "Elkraftinstallasjoner, generelt",
+    "41": "Basisinstallasjon for elkraft", "411": "Kabelføring for elkraftinstallasjoner",
+    "412": "Jording for elkraftinstallasjoner", "413": "Lynvern",
+    "414": "Systemer for elkrafttak", "419": "Andre basisinstallasjoner for elkraft",
+    "42": "Høyspent forsyning", "421": "Installasjoner for høyspent fordeling",
+    "422": "Nettstasjoner", "429": "Andre deler for høyspent forsyning",
+    "43": "Lavspent forsyning", "431": "Installasjoner for elkraftinntak",
+    "432": "Installasjoner for hovedfordeling", "433": "Elkraftfordeling til alminnelig forbruk",
+    "434": "Elkraftfordeling til driftstekniske installasjoner",
+    "435": "Elkraftfordeling til virksomhet", "436": "Elkraftfordeling til lading",
+    "439": "Andre deler for lavspent forsyning",
+    "44": "Lys", "442": "Belysning", "443": "Nødlys",
+    "449": "Andre deler for installasjoner til lys",
+    "45": "Elvarme", "450": "Elvarme", "452": "Varmeovner",
+    "453": "Varmeelementer for innebygging", "454": "Vannvarmere og elektrokjeler",
+    "459": "Annen elvarme",
+    "46": "Reservekraft", "461": "Elkraftaggregater", "462": "Avbruddsfri kraftforsyning",
+    "463": "Akkumulatoranlegg", "469": "Andre deler for reservekraftforsyning",
+    "47": "Lokal elkraftproduksjon", "471": "Solceller", "472": "Vindmøller",
+    "479": "Andre deler for lokal elkraftproduksjon",
+    "48": "Installasjon for elektrisk beskyttelse", "481": "Elektrisk korrosjonsbeskyttelse",
+    "482": "Elektrisk sikkerhet for forebygging mot uønskede hendelser",
+    "489": "Andre deler for installasjon for elektrisk beskyttelse",
+    "49": "Andre elkraftinstallasjoner", "490": "Andre elkraftinstallasjoner",
+    "50": "Ekom og automatisering, generelt",
+    "51": "Basisinstallasjoner for ekom og automatisering", "511": "Kabelføring",
+    "512": "Jording", "514": "Inntak for ekom og automatisering",
+    "515": "Fordelinger for ekom og automatisering",
+    "519": "Andre basisinstallasjoner for ekom og automatisering",
+    "52": "Integrert kommunikasjon", "520": "Integrert kommunikasjon", "521": "Kabling for IKT",
+    "522": "Nettutstyr", "523": "Sentralutstyr", "524": "Terminalutstyr",
+    "529": "Spredenett for eiendomsdrift",
+    "53": "Telefoni og personsøking", "532": "Telefoni", "533": "Nødkommunikasjon",
+    "534": "Porttelefoner", "535": "Høyttalende hustelefoner", "536": "Personsøking",
+    "539": "Andre deler for telefoni og personsøking",
+    "54": "Alarm- og signal", "542": "Brannalarm",
+    "543": "Adgangskontroll, innbrudds- og overfallsalarm", "544": "Pasientsignal",
+    "545": "Uranlegg og tidsregistrering", "546": "Alarm knyttet til bygning eller installasjon",
+    "549": "Andre deler for alarm og signal",
+    "55": "Lyd og bilde", "552": "Fellesantenne", "553": "Internfjernsyn",
+    "554": "Lyddistribusjonsanlegg", "555": "Lydanlegg", "556": "Bilde og AV",
+    "559": "Andre deler for lyd og bilde",
+    "56": "Automatisering", "562": "Sentral driftskontroll og automatisering",
+    "563": "Lokal automatisering", "564": "Installasjoner for buss-systemer",
+    "569": "Andre deler for automatisering",
+    "57": "Instrumentering", "570": "Instrumentering", "571": "Kabling for instrumentering",
+    "572": "Instrumentering for måling av mengde", "573": "Instrumentering for måling av trykk",
+    "574": "Instrumentering for måling av temperatur",
+    "575": "Instrumentering for måling av lengde", "576": "Instrumentering for måling av vekt",
+    "577": "Instrumentering for måling av elektriske størrelser",
+    "578": "Instrumentering for analyse", "579": "Annen instrumentering",
+    "59": "Andre installasjoner for ekom og automatisering",
+    "590": "Andre installasjoner for ekom og automatisering",
+    "60": "Andre installasjoner, generelt",
+    "61": "Prefabrikerte rom", "611": "Prefabrikerte kjølerom", "612": "Prefabrikerte fryserom",
+    "613": "Prefabrikerte baderom", "614": "Prefabrikerte skjermrom",
+    "615": "Prefabrikkerte moduler for sjakter og himlinger", "619": "Andre prefabrikerte rom",
+    "62": "Person- og varetransport", "621": "Heiser", "622": "Rulletrapper",
+    "623": "Rullebånd", "624": "Løftebord", "625": "Trappeheiser", "626": "Kraner",
+    "627": "Fasade- og takvask", "629": "Annen person- og varetransport",
+    "63": "Transportanlegg", "631": "Dokument og småvaretransportører",
+    "632": "Transportanlegg for tørr og løs masse",
+    "633": "Transportanlegg for drivstoff, olje og kjemikalier",
+    "634": "Selvgående transportører", "639": "Andre transportanlegg",
+    "64": "Lokal varmeproduksjon", "641": "Kogenerering – CHP", "642": "Solfanger",
+    "649": "Annen lokal varmeproduksjon",
+    "65": "Avfall og støvsuging", "651": "Utstyr for oppsamling og behandling av avfall",
+    "652": "Sentralstøvsuger", "653": "Pneumatisk søppeltransport",
+    "659": "Andre installasjoner for avfall og støvsuging",
+    "66": "Fastmontert spesialutrustning for virksomhet",
+    "660": "Utstyr for fastmontert spesialutrustning for virksomhet",
+    "67": "Løs spesialutrustning for virksomhet",
+    "670": "Utstyr for løs spesialutrustning for virksomhet",
+    "68": "Inventar", "680": "Deler til inventar",
+    "69": "Andre tekniske installasjoner", "690": "Andre tekniske installasjoner",
+    "70": "Utendørs, generelt",
+    "71": "Bearbeidet terreng", "711": "Grovplanert terreng", "712": "Drenering",
+    "713": "Forsterket grunn", "714": "Grøfter og groper for tekniske installasjoner",
+    "715": "Bergrom", "719": "Annen terrengbearbeiding",
+    "72": "Utendørs konstruksjoner", "721": "Utendørs støttemurer og andre murer",
+    "722": "Utendørs trapper, ramper, terrasser, platting i terreng",
+    "723": "Utendørs skjørtak, leskur m.m. som henger sammen med bygning",
+    "724": "Utendørs svømmebassenger m.m.", "725": "Utendørs gjerder, porter og bommer",
+    "726": "Utendørs kanaler og kulverter for tekniske installasjoner",
+    "727": "Utendørs kummer og tanker for tekniske installasjoner",
+    "729": "Andre utendørs konstruksjoner",
+    "73": "Utendørs røranlegg", "731": "Utendørs VA", "732": "Utendørs varme",
+    "733": "Utendørs brannslokking", "734": "Utendørs gassinstallasjon",
+    "735": "Utendørs kjøling for idrettsbaner", "736": "Utendørs luftbehandlingsanlegg",
+    "737": "Utendørs forsyningsanlegg for termisk energi",
+    "738": "Utendørs fontener og springvann", "739": "Andre utendørs røranlegg",
+    "74": "Utendørs elkraft", "742": "Utendørs høyspent forsyning",
+    "743": "Utendørs lavspent forsyning", "744": "Utendørs lys", "745": "Utendørs elvarme",
+    "746": "Utendørs reservekraft", "749": "Andre installasjoner for utendørs elkraft",
+    "75": "Utendørs ekom og automatisering", "752": "Utendørs integrert kommunikasjon",
+    "753": "Utendørs telefoni og personsøking", "754": "Utendørs alarm og signal",
+    "755": "Utendørs lyd og bilde", "756": "Utendørs automatisering",
+    "759": "Andre installasjoner for utendørs ekom og automatisering",
+    "76": "Veier og plasser", "761": "Veier", "762": "Plasser", "763": "Utendørs skilter",
+    "764": "Utendørs sikkerhetsrekkverk, avvisere, guard-rail m.m.",
+    "769": "Andre deler for veier og plasser",
+    "77": "Parker og grøntanlegg", "771": "Utendørs gressarealer", "772": "Utendørs beplantning",
+    "773": "Utendørs utstyr", "774": "Utendørs plasser for idrett og kultur",
+    "775": "Utendørs tribuner og amfier", "779": "Andre deler for park og grøntanlegg",
+    "78": "Utendørs infrastruktur",
+    "783": "Utendørs tilknytning til eksterne nett for vannforsyning, avløp og fjernvarme",
+    "784": "Utendørs tilknytning til eksternt elkraftnett",
+    "785": "Utendørs tilknytning til eksternt telenett",
+    "789": "Andre deler for utendørs infrastruktur",
+    "79": "Andre utendørs anlegg", "790": "Andre utendørs anlegg",
+}
+
+# AIA CAD Layer Guidelines-fagkode -> norsk. IFC-eksport-konvensjonen
+# "<fag>-<type>-<modifikator>-OTLN" (MÅLT på fallplanen: A-WALL/A-DOOR/A-FLOR/
+# A-ROOF/A-AREA/A-GENM/A-GLAZ = Arkitektur-elementer, S-COLS/S-STRS = søyler/
+# trapper (Konstruksjon), P-SANR = sanitærutstyr (VVS/rør, samsvarer med NS 3451
+# 315), I-WALL = interiørvegg (Interiør), Q-CASE = fast innredning/casework
+# (Utstyr) — sub-kodene bekrefter fagkoden). Alle fem bekreftet av Kenneth
+# (SVAR F1+F2 web r2, orkestrator 2026-10-17).
+AIA_FAG_NAVN = {
+    "A": "Arkitekt", "S": "Konstruksjon", "P": "VVS (rør)", "I": "Interiør", "Q": "Utstyr",
+}
+
+def gruppe_visningsnavn(kode, revit_kategori=None):
+    """F2 (RETUR F1+F2 web, orkestrator 2026-10-17): gruppenavn med NAVN — Kenneth
+    leser ikke rå koder. `kode` er `tolk_lag_gruppe()` sin returverdi, `revit_kategori`
+    er `lag_dominante_revit_kategorier()` sitt treff for laget (allerede
+    menneskelesbar norsk, f.eks. "Vegger" — brukes uendret når den finnes).
+    Ukjent/manglende kode -> "Andre" (selve koden vises fortsatt separat av UI-en
+    foran navnet i grått, se LagPanel.tsx — unngår duplisert kode i selve teksten)."""
+    if revit_kategori:
+        return revit_kategori
+    if not kode:
+        return "Andre"
+    if kode.endswith("-") and kode[:-1] in AIA_FAG_NAVN:
+        return AIA_FAG_NAVN[kode[:-1]]
+    return NS3451_NAVN.get(kode, "Andre")
+
+def lag_dominante_revit_kategorier(objekter):
+    """F2 B7: gruppe «Vegger» slår av lag A23/A24/A85 samtidig — kategorien kommer
+    fra Revit-XDATA PÅ OBJEKTENE, ikke fra lagnavnet, når XDATA finnes. Pr. lag:
+    mest frekvente kategori blant objektene MED elid (rene lag-DWG uten XDATA gir
+    ingen treff her og faller til tolk_lag_gruppe())."""
+    tellere = {}
+    for o in objekter.values():
+        if "elid" not in o:
+            continue
+        kat = o.get("kategori")
+        if not kat:
+            continue
+        c = tellere.setdefault(o["lag"], {})
+        c[kat] = c.get(kat, 0) + 1
+    return {lag: max(c.items(), key=lambda kv: kv[1])[0] for lag, c in tellere.items()}
+
+def beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat):
+    """AT-F10/A12/A14 (§7 pkt 17): for strek-/kurve-objekter uten egen tekst eller
+    blokkattributt på et RÅTT fag-internt system-lag (V3411, E556 — altså et lag
+    UTEN NS 3451/AIA/SOSI-prefiks-treff og uten Revit-XDATA-kategori, se
+    tolk_lag_gruppe()/lag_dominante_revit_kategorier()), finn nærmeste TEXT/MTEXT/
+    ATTRIB på et tekstlag (lagnavn med "(Tekst)") innen avstand = tekstens egen
+    høyde × 4. ALLTID tolket/merket som sådan — settes ALDRI som objektets egen
+    verdi. Ingen tekst innen grensen -> feltet utelates helt (A12 negativkontroll).
+
+    Lag-avgrensningen er MÅLT nødvendig (fallplanen, før denne ble lagt til): uten
+    den fikk ordinære vegglinjer og IFC-importert sanitærutstyr feilaktig en
+    tilfeldig nærliggende romtekst ("Sluse"/"TOAL.") som "nærmeste merking" — rene
+    NS 3451/AIA-lag har alltid EGEN kategori og skal aldri gjennom denne tolkningen.
+
+    Tekstlag-konvensjon varierer med fag (MÅLT): NS 3451-filer bruker parentes-
+    suffiks "(Tekst)"; MEP-filer (VB3-1074) bruker et DELT "-T"-lag pr. system
+    (V3411-V3416 sin tekst ligger samlet på "V341-T", ikke pr. geometrilag)."""
+    kandidater = [
+        t for t in tekster
+        if (("(tekst)" in (t.get("layer") or "").lower()) or (t.get("layer") or "").lower().endswith("-t"))
+        and (t.get("tekst") or "").strip() and (t.get("h") or 0) > 0
+    ]
+    if not kandidater:
+        return
+    for o in objekter_world.values():
+        if o.get("attr") or o.get("blokk") or o["dtype"] in ("TEXT", "MTEXT", "ATTRIB"):
+            continue
+        lag = o["lag"]
+        if lag in lag_dominant_kat or tolk_lag_gruppe(lag):
+            continue  # NS 3451/AIA/SOSI/XDATA-lag har egen kategori — ikke et "umerket" system-lag.
+        bb = o.get("bbox")
+        if not bb:
+            continue
+        cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
+        best, best_d = None, None
+        for t in kandidater:
+            grense = t["h"] * 4
+            d = math.hypot(cx - t["x"], cy - t["y"])
+            if d <= grense and (best_d is None or d < best_d):
+                best, best_d = t["tekst"].strip(), d
+        if best:
+            o["naermesteMerking"] = best
+
+
 def sett_minnetak(mem_mb: int) -> None:
     """Selvpålagt minnetak via RLIMIT_AS (unix). Ingen shell/ulimit trengs — en
     kundefil som sprenger taket dreper prosessen i stedet for serveren. No-op der
@@ -868,6 +1173,12 @@ def main():
         # blokker uten egen boundary).
         prim_handles = {p.handle for p in prims if p.handle} | {t.get("handle") for t in tekster if t.get("handle")}
         reg_objekter, reg_elidIndex = bygg_objektregister(doc, msp, prim_handles, lagmap_reg)
+        # F1 felt 5 (Tekst): frittstående TEXT/MTEXT sin egen tekst-innhold lagres ikke av
+        # bygg_objektregister() (den dekker kun ATTRIB via blokk-attributter/"attr") — uten
+        # dette ville F1-kortet ALDRI vise tekst-feltet for en ren TEXT/MTEXT-entitet.
+        for t in tekster:
+            if t.get("dtype") in ("TEXT", "MTEXT") and t.get("handle") in reg_objekter:
+                reg_objekter[t["handle"]]["tekst"] = t["tekst"]
 
     # emit. gruppering=farge: slå sammen per (farge,strek) -> få mega-paths (liten
     # fil, men dårlig panorerings-perf — hele pathen må re-rasteriseres). gruppering=ingen:
@@ -1096,6 +1407,7 @@ def main():
         "startutsnitt": startutsnitt,
         "tid_s": {"les": round(t_les,2), "tegn": round(t_tegn,2), "total": round(t_tot,2)},
     }
+    lag_dominant_kat = lag_dominante_revit_kategorier(reg_objekter) if trenger_register else {}
     if args.register_world:
         # Egne kopier av objektene (IKKE reg_objekter direkte) — --register under muterer
         # "bbox" (og fjerner attrMeta) på de samme dict-instansene til SVG-viewBox-koordinater;
@@ -1120,15 +1432,20 @@ def main():
                 # fra trykkpunktet, mens kledningens tette bbox feilaktig vant).
                 ow["geom"] = [[c for (x, y) in poly for c in (round(x), round(y))] for poly in segs]
             objekter_world[h] = ow
+        beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat)
         lag_antall_w = {}
         for o in objekter_world.values():
             lag_antall_w[o["lag"]] = lag_antall_w.get(o["lag"], 0) + 1
         laginventar_w = []
         for navn, ant in sorted(lag_antall_w.items(), key=lambda kv: -kv[1]):
             lm = lagmap_reg.get(navn, {})
+            _revit_kat = lag_dominant_kat.get(navn)
+            _gruppe_kode = tolk_lag_gruppe(navn)
             laginventar_w.append({
                 "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
                 "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
+                "gruppe": _revit_kat or _gruppe_kode or "Andre",
+                "gruppeNavn": gruppe_visningsnavn(_gruppe_kode, _revit_kat),
             })
         register_world = {
             "fil": args.dxf,
@@ -1158,9 +1475,13 @@ def main():
         laginventar = []
         for navn, ant in sorted(lag_antall.items(), key=lambda kv: -kv[1]):
             lm = lagmap_reg.get(navn, {})
+            _revit_kat = lag_dominant_kat.get(navn)
+            _gruppe_kode = tolk_lag_gruppe(navn)
             laginventar.append({
                 "navn": navn, "antall": ant, "visningsnavn": lm.get("desc") or tolk_lagnavn(navn) or navn,
                 "desc": lm.get("desc", ""), "aci": lm.get("aci"), "ltype": lm.get("ltype", ""), "lw": lm.get("lw"),
+                "gruppe": _revit_kat or _gruppe_kode or "Andre",
+                "gruppeNavn": gruppe_visningsnavn(_gruppe_kode, _revit_kat),
             })
         register = {
             "fil": args.dxf, "vbW": vbW, "vbH": vbH,

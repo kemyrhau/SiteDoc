@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from "react-native-webview/lib/WebViewTypes";
-import type { TegningVerktoy } from "@sitedoc/shared";
+import type { EgenskapsFelt, RegisterVerdenLagInfo, TegningVerktoy } from "@sitedoc/shared";
 import { hentWebUrl } from "../config/auth";
 
 // RETUR leveranse 2 (Kontrollør, punkt 2): et NATIVT WebView-last-problem (offline
@@ -31,6 +31,13 @@ const LASTE_TIDSGRENSE_MS = 10000;
  * Rendrer `DxfViewerTegning` (ekte web-komponent) via den auth-frie
  * `/dxf-viewer-smoketest`-siden, samme postMessage-mønster som `IfcViewer.tsx`
  * bruker for `/mobil-viewer`.
+ *
+ * Mobilplanen (F1+F2, "mobilplanen er godkjent i sin helhet", 2026-10-17): siden
+ * er nå en REN data-bro når den kjører i denne WebView-en (skrur av sine egne
+ * flytende paneler, se filheaderen i `dxf-viewer-smoketest/page.tsx`) — RN bygger
+ * native paneler (`TegningEgenskapsArk`/`TegningLagPanel` i `lokasjoner.tsx`)
+ * drevet av de nye `objektValgt`/`laginventarKlar`-meldingene videresendt her, og
+ * `settLagSynlig` på refen poster lag av/på tilbake samme vei.
  */
 
 export interface DxfViewerTegningMobilProps {
@@ -46,6 +53,10 @@ export interface DxfViewerTegningMobilProps {
   onLastFeil?: () => void;
   /** Leveranse 3+4: kalt når måleverktøyet blir tilgjengelig/utilgjengelig ($INSUNITS lest). */
   onMaleKlarEndring?: (kanMale: boolean) => void;
+  /** F1: kalt ved trykk på objekt utenfor målemodus (null = ingen/avmarkert). */
+  onObjektValgt?: (felt: EgenskapsFelt[] | null) => void;
+  /** F2: kalt når registeret er lastet og laginventaret er klart (null = ingen tegning). */
+  onLaginventarKlar?: (laginventar: RegisterVerdenLagInfo[] | null) => void;
 }
 
 export interface DxfViewerTegningMobilRef {
@@ -60,11 +71,13 @@ export interface DxfViewerTegningMobilRef {
   gjenopptaMaling: () => void;
   slettAktivMaling: () => void;
   slettAlleMaalinger: () => void;
+  /** F2: slå et DXF-lag av/på (dxf-viewers `ShowLayer`, via web-siden). */
+  settLagSynlig: (navn: string, synlig: boolean) => void;
 }
 
 export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfViewerTegningMobilProps>(
   function DxfViewerTegningMobil(
-    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMetrics, onLastFeil, onMaleKlarEndring },
+    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMetrics, onLastFeil, onMaleKlarEndring, onObjektValgt, onLaginventarKlar },
     ref,
   ) {
     const webViewRef = useRef<WebView>(null);
@@ -147,12 +160,16 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
             setSideFeil(msg.melding);
           } else if (msg.type === "maleKlar") {
             onMaleKlarEndring?.(!!msg.kanMale);
+          } else if (msg.type === "objektValgt") {
+            onObjektValgt?.(msg.felt ?? null);
+          } else if (msg.type === "laginventarKlar") {
+            onLaginventarKlar?.(msg.laginventar ?? null);
           }
         } catch {
           /* Ignorer ugyldig JSON */
         }
       },
-      [onMetrics, onMaleKlarEndring],
+      [onMetrics, onMaleKlarEndring, onObjektValgt, onLaginventarKlar],
     );
 
     useEffect(() => {
@@ -175,6 +192,8 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
       gjenopptaMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleGjenoppta" })),
       slettAktivMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSlettAktiv" })),
       slettAlleMaalinger: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSlettAlle" })),
+      settLagSynlig: (navn, synlig) =>
+        webViewRef.current?.postMessage(JSON.stringify({ type: "settLagSynlig", navn, synlig })),
     }));
 
     const lastPaaNytt = useCallback(() => {

@@ -24,9 +24,11 @@ import {
   CloudDownload,
   CloudCheck,
   CloudOff,
+  Layers,
 } from "lucide-react-native";
 import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
+import type { EgenskapsFelt, RegisterVerdenLagInfo } from "@sitedoc/shared";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
@@ -35,6 +37,9 @@ import { useAuth } from "../../src/providers/AuthProvider";
 import { AUTH_CONFIG, erTestLoginAktiv } from "../../src/config/auth";
 import { DxfViewerTegningMobil, type DxfViewerTegningMobilRef } from "../../src/components/DxfViewerTegningMobil";
 import { DxfMaleVerktoylinje } from "../../src/components/DxfMaleVerktoylinje";
+import { TegningEgenskapsArk } from "../../src/components/TegningEgenskapsArk";
+import { TegningLagPanel } from "../../src/components/TegningLagPanel";
+import { hentSkjulteLag, lagreSkjulteLag, byggSynlighetFraSkjulte, utledSkjulteLag } from "../../src/lib/lagSynlighetLagring";
 import {
   forberedTegning,
   erTegningForberedt,
@@ -175,6 +180,23 @@ export default function LokasjonerSkjerm() {
   // DxfMaleVerktoylinje/DxfViewerTegningMobil sine filheadere for protokollen.
   const dxfViewerRef = useRef<DxfViewerTegningMobilRef>(null);
   const [dxfKanMale, setDxfKanMale] = useState(false);
+  // F1+F2 (mobilplanen, "mobilplanen er godkjent i sin helhet", 2026-10-17): native
+  // RN-paneler drevet av DxfViewerTegningMobil sin bro — IKKE web-rendret paneler
+  // inni WebView-en (siden er en ren data-bro der, se filheaderne).
+  const [dxfValgtObjektFelt, setDxfValgtObjektFelt] = useState<EgenskapsFelt[] | null>(null);
+  const [dxfLaginventar, setDxfLaginventar] = useState<RegisterVerdenLagInfo[] | null>(null);
+  const [dxfLagSynlighet, setDxfLagSynlighet] = useState<Record<string, boolean>>({});
+  const [dxfLagpanelApent, setDxfLagpanelApent] = useState(false);
+
+  // Nullstill F1+F2-state når brukeren velger en annen tegning, så forrige
+  // tegnings objekt/lag ikke vises et øyeblikk mens den nye lastes (persistert
+  // synlighet lastes på nytt i handleDxfLaginventarKlar).
+  useEffect(() => {
+    setDxfValgtObjektFelt(null);
+    setDxfLaginventar(null);
+    setDxfLagSynlighet({});
+    setDxfLagpanelApent(false);
+  }, [valgtTegningId]);
 
   const router = useRouter();
 
@@ -950,6 +972,76 @@ export default function LokasjonerSkjerm() {
     setTimeout(() => setOfflineMelding(null), 3500);
   }, [t]);
 
+  // F2 (spec § 3, Q4): lagpanel-handlere. Husker synlighet pr. tegning pr. bruker
+  // PÅ ENHETEN (expo-secure-store, nøkkel pr. drawingId — se lagSynlighetLagring.ts
+  // for hvorfor ikke AsyncStorage). Samme struktur som web sin page.tsx, så de to
+  // flatene er lette å sammenligne.
+  const handleDxfLaginventarKlar = useCallback(
+    (laginventar: RegisterVerdenLagInfo[] | null) => {
+      setDxfLaginventar(laginventar);
+      const drawingId = valgtTegningDetalj?.id;
+      if (!laginventar || !drawingId) {
+        setDxfLagSynlighet({});
+        return;
+      }
+      void hentSkjulteLag(drawingId).then((skjulteLag) => {
+        setDxfLagSynlighet(byggSynlighetFraSkjulte(skjulteLag));
+        for (const navn of skjulteLag) dxfViewerRef.current?.settLagSynlig(navn, false);
+      });
+    },
+    [valgtTegningDetalj?.id],
+  );
+
+  const lagreDxfLagSynlighet = useCallback(
+    (neste: Record<string, boolean>) => {
+      setDxfLagSynlighet(neste);
+      const drawingId = valgtTegningDetalj?.id;
+      if (!drawingId) return;
+      void lagreSkjulteLag(drawingId, utledSkjulteLag(neste));
+    },
+    [valgtTegningDetalj?.id],
+  );
+
+  const handleDxfSettLag = useCallback(
+    (navn: string, synlig: boolean) => {
+      dxfViewerRef.current?.settLagSynlig(navn, synlig);
+      lagreDxfLagSynlighet({ ...dxfLagSynlighet, [navn]: synlig });
+    },
+    [dxfLagSynlighet, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfSettGruppe = useCallback(
+    (lagNavnListe: string[], synlig: boolean) => {
+      const neste = { ...dxfLagSynlighet };
+      for (const navn of lagNavnListe) {
+        dxfViewerRef.current?.settLagSynlig(navn, synlig);
+        neste[navn] = synlig;
+      }
+      lagreDxfLagSynlighet(neste);
+    },
+    [dxfLagSynlighet, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfBareDette = useCallback(
+    (navn: string) => {
+      if (!dxfLaginventar) return;
+      const neste: Record<string, boolean> = {};
+      for (const li of dxfLaginventar) {
+        const synlig = li.navn === navn;
+        neste[li.navn] = synlig;
+        dxfViewerRef.current?.settLagSynlig(li.navn, synlig);
+      }
+      lagreDxfLagSynlighet(neste);
+    },
+    [dxfLaginventar, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfAllePaa = useCallback(() => {
+    if (!dxfLaginventar) return;
+    for (const li of dxfLaginventar) dxfViewerRef.current?.settLagSynlig(li.navn, true);
+    lagreDxfLagSynlighet({});
+  }, [dxfLaginventar, lagreDxfLagSynlighet]);
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Blå header */}
@@ -1176,6 +1268,8 @@ export default function LokasjonerSkjerm() {
                 rotasjonOverstyrt={valgtTegningDetalj?.rotasjonOverstyrt ?? null}
                 onLastFeil={håndterDxfViewerLastFeil}
                 onMaleKlarEndring={setDxfKanMale}
+                onObjektValgt={setDxfValgtObjektFelt}
+                onLaginventarKlar={handleDxfLaginventarKlar}
               />
               <DxfMaleVerktoylinje
                 kanMale={dxfKanMale}
@@ -1186,6 +1280,31 @@ export default function LokasjonerSkjerm() {
                 onGjenoppta={() => dxfViewerRef.current?.gjenopptaMaling()}
                 onSlettAktiv={() => dxfViewerRef.current?.slettAktivMaling()}
                 onSlettAlle={() => dxfViewerRef.current?.slettAlleMaalinger()}
+              />
+              {/* F2: flytende lagpanel-knapp — motstykke til web sin "Lag (N)"-knapp,
+                  plassert til høyre så den ikke kolliderer med måle-toolbaren (venstre). */}
+              {dxfLaginventar && (
+                <Pressable
+                  onPress={() => setDxfLagpanelApent((a) => !a)}
+                  className="absolute right-2 top-2 flex-row items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5"
+                  testID="dxf-lagpanel-knapp"
+                >
+                  <Layers size={14} color="#1e3a8a" />
+                  <Text className="text-xs font-medium text-blue-900">
+                    {t("tegningsvelger.lag.tittel")} ({dxfLaginventar.length})
+                  </Text>
+                </Pressable>
+              )}
+              <TegningEgenskapsArk felt={dxfValgtObjektFelt} onLukk={() => setDxfValgtObjektFelt(null)} />
+              <TegningLagPanel
+                synlig={dxfLagpanelApent}
+                laginventar={dxfLaginventar ?? []}
+                synlighet={dxfLagSynlighet}
+                onSettLag={handleDxfSettLag}
+                onSettGruppe={handleDxfSettGruppe}
+                onBareDette={handleDxfBareDette}
+                onAllePaa={handleDxfAllePaa}
+                onLukk={() => setDxfLagpanelApent(false)}
               />
             </View>
           ) : kildeLaster || !tegningKilde ? (
