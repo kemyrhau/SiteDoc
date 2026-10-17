@@ -16,4 +16,5 @@ export * from "./tegning/lupe-geometri";
 export * from "./tegning/svg-sikkerhet";
 export * from "./tegning/konvertering-markor";
 export * from "./tegning/objektmodell";
+export * from "./tegning/hit-test-verden";
 export * from "./tegning/rekonvertering";
