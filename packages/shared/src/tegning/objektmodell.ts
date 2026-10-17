@@ -39,6 +39,8 @@ export interface RegisterVerdenObjekt {
   /** Egen posisjon/høyde/rotasjon pr. ATTRIB, i DXF-verdenskoordinater — INSERT-ens
    * samlede bbox dekker hele blokken, ikke der teksten faktisk sitter. */
   attrMeta?: Record<string, AttrMetaPunkt>;
+  /** F1 felt 5: egen tekst-innhold for frittstående TEXT/MTEXT (ATTRIB-tekst ligger i `attr`). */
+  tekst?: string;
   /** Materiale fra skravurmønster (kjent mapping). */
   materiale?: string;
   /** Rått skravurmønsternavn (ukjent mapping, ikke SOLID/FP_-nummer). */

@@ -951,6 +951,12 @@ def main():
         # blokker uten egen boundary).
         prim_handles = {p.handle for p in prims if p.handle} | {t.get("handle") for t in tekster if t.get("handle")}
         reg_objekter, reg_elidIndex = bygg_objektregister(doc, msp, prim_handles, lagmap_reg)
+        # F1 felt 5 (Tekst): frittstående TEXT/MTEXT sin egen tekst-innhold lagres ikke av
+        # bygg_objektregister() (den dekker kun ATTRIB via blokk-attributter/"attr") — uten
+        # dette ville F1-kortet ALDRI vise tekst-feltet for en ren TEXT/MTEXT-entitet.
+        for t in tekster:
+            if t.get("dtype") in ("TEXT", "MTEXT") and t.get("handle") in reg_objekter:
+                reg_objekter[t["handle"]]["tekst"] = t["tekst"]
 
     # emit. gruppering=farge: slå sammen per (farge,strek) -> få mega-paths (liten
     # fil, men dårlig panorerings-perf — hele pathen må re-rasteriseres). gruppering=ingen:
