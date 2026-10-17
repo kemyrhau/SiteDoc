@@ -7,7 +7,10 @@ ingen ezdxf-objekter, og er derfor testbare i isolasjon).
 Kjør: EZDXF_PYTHON pytest test_render_f2.py -v
 """
 
-from render import tolk_lag_gruppe, lag_dominante_revit_kategorier, beregn_naermeste_merking
+from render import (
+    tolk_lag_gruppe, lag_dominante_revit_kategorier, beregn_naermeste_merking,
+    gruppe_visningsnavn,
+)
 
 
 def test_tolk_lag_gruppe_ns3451():
@@ -29,6 +32,36 @@ def test_tolk_lag_gruppe_aia():
 def test_tolk_lag_gruppe_ingen_treff():
     # Rått fag-internt system-lag (MEP) — ingen NS 3451/AIA/SOSI-konvensjon.
     assert tolk_lag_gruppe("V3411") == ""
+
+
+def test_gruppe_visningsnavn_ns3451():
+    # MÅLT på fallplanen: lagnavnet "244- Vinduer_ dører_ foldevegger" gir
+    # gruppe-kode "244" via tolk_lag_gruppe() — navnet skal komme fra tabellen,
+    # ikke den rå koden (RETUR F1+F2 web, "Kenneth leser ikke koder").
+    assert gruppe_visningsnavn("244") == "Vinduer, dører, foldevegger"
+    assert gruppe_visningsnavn("231") == "Bærende yttervegger"
+
+
+def test_gruppe_visningsnavn_aia():
+    assert gruppe_visningsnavn("A-") == "Arkitekt"
+    assert gruppe_visningsnavn("P-") == "Rør"
+
+
+def test_gruppe_visningsnavn_revit_kategori_overstyrer():
+    # Revit-XDATA-kategorien er allerede menneskelesbar — brukes uendret, selv
+    # om lagnavnet OGSÅ matcher en NS 3451-kode.
+    assert gruppe_visningsnavn("242", revit_kategori="Vegger") == "Vegger"
+
+
+def test_gruppe_visningsnavn_ukjent_kode_faller_til_andre():
+    # MÅLT på fallplanen: "82-- Modullinjer" og "878- Annen overflate..." er
+    # ArchiCAD-interne lagkoder i 80-89-serien, IKKE NS 3451 (som stopper på 79).
+    assert gruppe_visningsnavn("82") == "Andre"
+    assert gruppe_visningsnavn("878") == "Andre"
+
+
+def test_gruppe_visningsnavn_ingen_kode():
+    assert gruppe_visningsnavn("") == "Andre"
 
 
 def test_lag_dominante_revit_kategorier_velger_mest_frekvent():

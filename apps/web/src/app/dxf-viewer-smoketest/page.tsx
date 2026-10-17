@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { DxfViewerTegning, type DxfViewerTegningRef } from "@/components/tegning/DxfViewerTegning";
 import { LagPanel } from "@/components/tegning/LagPanel";
-import type { TegningVerktoy, RegisterVerdenLagInfo } from "@sitedoc/shared";
+import { EgenskapsPanel } from "@/components/tegning/EgenskapsPanel";
+import type { TegningVerktoy, RegisterVerdenLagInfo, EgenskapsFelt } from "@sitedoc/shared";
 
 /**
  * Mobil leveranse 1 (arbeidstegning-f1, "SVAR MOBILPLAN" i
@@ -87,6 +88,9 @@ export default function DxfViewerRøyktest() {
   const [laginventar, setLaginventar] = useState<RegisterVerdenLagInfo[] | null>(null);
   const [lagSynlighet, setLagSynlighet] = useState<Record<string, boolean>>({});
   const [lagpanelApent, setLagpanelApent] = useState(false);
+  // F1-forarbeid for mobil-bunn-arket (RN): samme lokale egenskapspanel-visning
+  // som LagPanel over — bar røyketest-visning, ikke ekstra scope.
+  const [valgtObjektFelt, setValgtObjektFelt] = useState<EgenskapsFelt[] | null>(null);
 
   useEffect(() => {
     function rapporter() {
@@ -159,7 +163,10 @@ export default function DxfViewerRøyktest() {
           registerWorldUrl={melding.registerWorldUrl}
           rotasjonOverstyrt={melding.rotasjonOverstyrt}
           onMaleKlarEndring={(kanMale) => sendTilApp({ type: "maleKlar", kanMale })}
-          onObjektValgt={(felt) => sendTilApp({ type: "objektValgt", felt })}
+          onObjektValgt={(felt) => {
+            setValgtObjektFelt(felt);
+            sendTilApp({ type: "objektValgt", felt });
+          }}
           onLaginventarKlar={(li) => {
             setLaginventar(li);
             sendTilApp({ type: "laginventarKlar", antall: li?.length ?? 0 });
@@ -224,6 +231,7 @@ export default function DxfViewerRøyktest() {
           onLukk={() => setLagpanelApent(false)}
         />
       )}
+      <EgenskapsPanel felt={valgtObjektFelt} onLukk={() => setValgtObjektFelt(null)} />
     </div>
   );
 }

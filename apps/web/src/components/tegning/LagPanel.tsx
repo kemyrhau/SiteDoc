@@ -25,6 +25,7 @@ interface LagPanelProps {
 
 interface Gruppe {
   navn: string;
+  gruppeNavn: string;
   lag: RegisterVerdenLagInfo[];
   antallTotal: number;
 }
@@ -37,7 +38,12 @@ function byggGrupper(laginventar: RegisterVerdenLagInfo[]): Gruppe[] {
     map.set(li.gruppe, liste);
   }
   return Array.from(map.entries())
-    .map(([navn, lag]) => ({ navn, lag, antallTotal: lag.reduce((s, l) => s + l.antall, 0) }))
+    .map(([navn, lag]) => ({
+      navn,
+      gruppeNavn: lag[0]?.gruppeNavn ?? navn,
+      lag,
+      antallTotal: lag.reduce((s, l) => s + l.antall, 0),
+    }))
     .sort((a, b) => b.antallTotal - a.antallTotal);
 }
 
@@ -58,7 +64,7 @@ export function LagPanel({ laginventar, synlighet, onSettLag, onSettGruppe, onBa
   return (
     <div
       data-testid="lagpanel"
-      className="absolute right-3 top-3 z-10 max-h-[70vh] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+      className="absolute right-3 top-3 bottom-3 z-10 flex w-80 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
     >
       <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2">
         <span className="text-sm font-medium text-gray-900">{t("tegningsvelger.lag.tittel")}</span>
@@ -71,7 +77,7 @@ export function LagPanel({ laginventar, synlighet, onSettLag, onSettGruppe, onBa
           </button>
         </div>
       </div>
-      <div className="divide-y divide-gray-100">
+      <div className="flex-1 divide-y divide-gray-100 overflow-y-auto">
         {grupper.map((g) => {
           const alleAv = g.lag.every((l) => synlighet[l.navn] === false);
           const alleSynlig = g.lag.every((l) => synlighet[l.navn] !== false);
@@ -96,7 +102,10 @@ export function LagPanel({ laginventar, synlighet, onSettLag, onSettGruppe, onBa
                   onChange={(e) => onSettGruppe(g.lag.map((l) => l.navn), e.target.checked)}
                   className="h-4 w-4"
                 />
-                <span className="flex-1 truncate text-sm text-gray-900">{g.navn}</span>
+                <span className="flex-1 truncate text-sm text-gray-900">
+                  {g.navn !== g.gruppeNavn && <span className="text-gray-400">{g.navn} </span>}
+                  {g.gruppeNavn}
+                </span>
                 <span className="text-xs text-gray-400">{g.antallTotal}</span>
               </div>
               {apen && (

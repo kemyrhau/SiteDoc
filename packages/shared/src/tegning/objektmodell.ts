@@ -73,9 +73,14 @@ export interface RegisterVerdenLagInfo {
   aci: number | null;
   ltype: string;
   lw: number | null;
-  /** F2-gruppe: dominant Revit-kategori blant lagets objekter når XDATA finnes,
-   * ellers NS 3451/AIA/SOSI-prefiks fra lagnavnet, ellers "Andre". */
+  /** F2-gruppe (grupperingsnøkkel): dominant Revit-kategori blant lagets objekter
+   * når XDATA finnes, ellers NS 3451/AIA/SOSI-prefiks fra lagnavnet, ellers "Andre". */
   gruppe: string;
+  /** F2-visningsnavn (RETUR F1+F2 web, 2026-10-17): menneskelesbart navn for
+   * `gruppe` — Revit-kategorien selv, NS 3451-/AIA-tabellnavnet, eller "Andre"
+   * når koden er ukjent (SOSI, ArchiCAD-interne lagkoder). `gruppe` kan vises
+   * separat foran som rå kode (grå), se LagPanel.tsx. */
+  gruppeNavn: string;
 }
 
 export interface RegisterVerden {
