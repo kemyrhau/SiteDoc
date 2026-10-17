@@ -5,6 +5,7 @@ import { DxfViewerTegning, type DxfViewerTegningRef } from "@/components/tegning
 import { LagPanel } from "@/components/tegning/LagPanel";
 import { EgenskapsPanel } from "@/components/tegning/EgenskapsPanel";
 import type { TegningVerktoy, RegisterVerdenLagInfo, EgenskapsFelt } from "@sitedoc/shared";
+import { sendTilApp } from "./send-til-app";
 
 /**
  * Mobil leveranse 1 (arbeidstegning-f1, "SVAR MOBILPLAN" i
@@ -55,17 +56,6 @@ interface StartMelding {
   dxfUrl: string;
   registerWorldUrl: string;
   rotasjonOverstyrt: number | null;
-}
-
-function sendTilApp(data: Record<string, unknown>) {
-  try {
-    const rn = (window as unknown as { ReactNativeWebView?: { postMessage: (s: string) => void } })
-      .ReactNativeWebView;
-    if (rn) rn.postMessage(JSON.stringify(data));
-    window.parent?.postMessage(data, "*");
-  } catch {
-    /* RN-brua finnes ikke (f.eks. åpnet direkte i Mac-nettleser for feilsøking) */
-  }
 }
 
 /** Rullerende 2s fps-vindu — median/lavest, uavhengig av DxfViewerTegning sin egen render-loop
