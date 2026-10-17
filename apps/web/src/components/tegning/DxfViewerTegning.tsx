@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { useTranslation } from "react-i18next";
 import type {
   RegisterVerden,
+  RegisterVerdenObjekt,
   Punkt,
   MaleTilstand,
   Maling,
@@ -11,6 +12,7 @@ import type {
   VerdenPunkt,
   TegningVerktoy,
   TrykkGest,
+  EgenskapsFelt,
 } from "@sitedoc/shared";
 import {
   erGyldigRegisterVerden,
@@ -39,6 +41,10 @@ import {
   verdenTilSkjerm,
   MAALING_FARGE_AKTIV,
   MAALING_FARGE_FERDIG,
+  byggBboxIndeks,
+  hitTestWorld,
+  byggEgenskapsfelt,
+  OBJEKT_MARKERING_FARGE,
 } from "@sitedoc/shared";
 import { hentFilMedCache, usignertFilSti } from "@/lib/tegningFilCache";
 import { hentDxfWorkerFactory } from "@/lib/dxfWorkerFactory";
@@ -83,6 +89,9 @@ export interface DxfViewerTegningProps {
   rotasjonOverstyrt: number | null;
   /** Kalt når måleverktøyet blir tilgjengelig/utilgjengelig (ny `$INSUNITS` lest fra DXF-en). */
   onMaleKlarEndring?: (kanMale: boolean) => void;
+  /** F1: kalt med egenskapsfeltene for objektet under et trykk (utenfor målemodus),
+   * eller `null` ved trykk i tomrom / når markeringen fjernes. */
+  onObjektValgt?: (felt: EgenskapsFelt[] | null) => void;
 }
 
 /** Imperativ styring av måleverktøyet — samme mønster som `DxfViewerTegningMobil`s ref. */
@@ -219,13 +228,59 @@ function tegnMaling(
   }
 }
 
+/** F1: kontur-highlight for valgt objekt. Ekte geometri (samme `geom` hitTestWorld
+ * bruker) når den finnes; bbox-rektangel for flate/HATCH-objekter uten egen kontur;
+ * ett punkt (romtagg-attributtblokk uten linjeverk) tegnes som en liten sirkel. */
+function tegnHighlight(svg: SVGSVGElement, o: RegisterVerdenObjekt, k: DxfKameraParametre) {
+  const polyer: { verdenX: number; verdenY: number }[][] = [];
+  if (o.geom && o.geom.length) {
+    for (const flat of o.geom) {
+      const pts: VerdenPunkt[] = [];
+      for (let i = 0; i + 1 < flat.length; i += 2) pts.push({ verdenX: flat[i]!, verdenY: flat[i + 1]! });
+      if (pts.length) polyer.push(pts);
+    }
+  } else if (o.bbox) {
+    const [x0, y0, x1, y1] = o.bbox;
+    polyer.push([
+      { verdenX: x0, verdenY: y0 },
+      { verdenX: x1, verdenY: y0 },
+      { verdenX: x1, verdenY: y1 },
+      { verdenX: x0, verdenY: y1 },
+    ]);
+  }
+  for (const poly of polyer) {
+    if (poly.length === 1) {
+      const p = verdenTilSkjerm(poly[0]!, k);
+      const c = document.createElementNS(SVG_NS, "circle");
+      c.setAttribute("cx", String(p.skjermX));
+      c.setAttribute("cy", String(p.skjermY));
+      c.setAttribute("r", "9");
+      c.setAttribute("fill", "none");
+      c.setAttribute("stroke", OBJEKT_MARKERING_FARGE);
+      c.setAttribute("stroke-width", "3");
+      svg.appendChild(c);
+      continue;
+    }
+    const skjermPunkter = poly.map((p) => verdenTilSkjerm(p, k));
+    const lukket = o.bbox !== undefined && !(o.geom && o.geom.length);
+    const el = document.createElementNS(SVG_NS, lukket ? "polygon" : "polyline");
+    el.setAttribute("points", skjermPunkter.map((p) => `${p.skjermX},${p.skjermY}`).join(" "));
+    el.setAttribute("fill", "none");
+    el.setAttribute("stroke", OBJEKT_MARKERING_FARGE);
+    el.setAttribute("stroke-width", "3");
+    el.setAttribute("stroke-linecap", "round");
+    el.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(el);
+  }
+}
+
 interface GestState {
   aktiv: boolean;
   pointerId: number | null;
   startTid: number;
   startSkjerm: { x: number; y: number };
   flyttet: boolean;
-  modus: "nyttPunkt" | "flyttEksisterende" | null;
+  modus: "nyttPunkt" | "flyttEksisterende" | "observer" | null;
   flyttIndex: number;
   pekere: Set<number>;
   forhandsvisning: ReturnType<typeof beregnSnapVerden> | null;
@@ -246,7 +301,10 @@ function nyGestState(): GestState {
 }
 
 export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegningProps>(
-  function DxfViewerTegning({ dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMaleKlarEndring }, ref) {
+  function DxfViewerTegning(
+    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMaleKlarEndring, onObjektValgt },
+    ref,
+  ) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const overlaySvgRef = useRef<SVGSVGElement>(null);
@@ -281,6 +339,14 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   rotasjonOverstyrtRef.current = rotasjonOverstyrt ?? 0;
   const onMaleKlarEndringRef = useRef(onMaleKlarEndring);
   onMaleKlarEndringRef.current = onMaleKlarEndring;
+  const onObjektValgtRef = useRef(onObjektValgt);
+  onObjektValgtRef.current = onObjektValgt;
+  // F1: registeret + rbush-indeksen bygges ÉN gang ved innlasting (ikke pr. trykk, se
+  // hit-test-verden.ts sin "rbush som første filter"-kommentar), og valgt objekt
+  // speiles i en ref (tegnOverlegg() leser den imperativt, samme mønster som måling).
+  const registerRef = useRef<RegisterVerden | null>(null);
+  const bboxIndeksRef = useRef<ReturnType<typeof byggBboxIndeks> | null>(null);
+  const valgtObjektRef = useRef<RegisterVerdenObjekt | null>(null);
   const idTellerRef = useRef(0);
   const gestRef = useRef<GestState>(nyGestState());
   // Lupe-tegningen pr. pointermove throttles til rAF (RETUR leveranse 3+4) — canvas-til-
@@ -307,6 +373,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     for (const m of mt.malinger) {
       tegnMaling(svg, m, k, m.id === mt.aktivId, mmEnh);
     }
+    if (valgtObjektRef.current) tegnHighlight(svg, valgtObjektRef.current, k);
     const forhand = gestRef.current.forhandsvisning;
     if (forhand) {
       if (forhand.aksehjelpelinje) {
@@ -482,6 +549,20 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       if (!kanMaleVerden(mmEnh)) return;
       viewer.controls.enablePan = false;
       g.modus = "nyttPunkt";
+    } else if (v === "navigering") {
+      // F1 (trykk → egenskaper): KUN observasjon, ALDRI pointerCapture/enablePan-endring
+      // — OrbitControls skal fortsatt eie pan/zoom helt fritt. Trygt uten capture-triks:
+      // begge lyttere sitter PÅ SAMME canvas-node (ikke forelder/barn), og dxf-viewers
+      // interne stopPropagation() (bevist i harness-v3.html) stopper bare bubbling til
+      // FORELDRE-noder, ikke søsken-lyttere på samme element. avgjorTrykkHandling()
+      // avgjør ved SLIPP (uten bevegelse, kort varighet) om det var et "hint".
+      g.modus = "observer";
+      g.aktiv = true;
+      g.pointerId = e.pointerId;
+      g.startTid = performance.now();
+      g.startSkjerm = { x: skjermX, y: skjermY };
+      g.flyttet = false;
+      return;
     } else {
       return;
     }
@@ -506,6 +587,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     const skjermX = e.clientX - rect.left;
     const skjermY = e.clientY - rect.top;
     if (Math.hypot(skjermX - g.startSkjerm.x, skjermY - g.startSkjerm.y) > 6) g.flyttet = true;
+    if (g.modus === "observer") return; // F1-observasjon: ingen lupe/forhåndsvisning, kun bevegelse-terskel
     oppdaterForhandsvisning(skjermX, skjermY);
     lupeRafPendingRef.current = { skjermX, skjermY };
     if (lupeRafRef.current === null) {
@@ -541,6 +623,24 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       const index = g.flyttIndex;
       const punkt = fraVerden(forhand.punkt);
       setMaleTilstand((t) => flyttPunkt(t, index, punkt));
+    } else if (handling === "hint") {
+      // F1: trykk utenfor målemodus → identifiser objektet under trykkpunktet.
+      // g.startSkjerm er allerede canvas-relative CSS-px (satt i onPointerDown) —
+      // samme punkt som slippet skjedde nær (avgjorTrykkHandling krever <6px bevegelse).
+      const viewer = viewerRef.current;
+      const reg = registerRef.current;
+      const idx = bboxIndeksRef.current;
+      if (viewer?.camera && reg && idx) {
+        const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
+        const treff = hitTestWorld(
+          { skjermX: g.startSkjerm.x, skjermY: g.startSkjerm.y },
+          k,
+          reg,
+          idx,
+        );
+        valgtObjektRef.current = treff;
+        onObjektValgtRef.current?.(treff ? byggEgenskapsfelt(treff, uiRef.current.mmPrVerdenEnhet) : null);
+      }
     }
     avbrytGest();
   }
@@ -765,7 +865,15 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
         if (kansellert) return;
         if (erGyldigRegisterVerden(register)) {
           bygningRef.current = beregnByggUtstrekning(register);
+          // F1: registeret + bbox-indeksen bygges ÉN gang her, ikke pr. trykk.
+          registerRef.current = register;
+          bboxIndeksRef.current = byggBboxIndeks(register);
+        } else {
+          registerRef.current = null;
+          bboxIndeksRef.current = null;
         }
+        valgtObjektRef.current = null;
+        onObjektValgtRef.current?.(null); // ny tegning lastet -> forrige markering er ugyldig
         tilpassKamera(el.getBoundingClientRect());
         setLaster(false);
       } catch (e) {

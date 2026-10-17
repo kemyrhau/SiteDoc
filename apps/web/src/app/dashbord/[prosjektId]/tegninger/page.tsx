@@ -57,7 +57,7 @@ import {
   erTegningDwgDxfOpphav,
   TEGNING_MANGLER_ORIGINALFIL_KODE,
 } from "@sitedoc/shared";
-import type { GeoReferanse } from "@sitedoc/shared";
+import type { GeoReferanse, EgenskapsFelt } from "@sitedoc/shared";
 
 interface DokumentflytMalRad {
   template: { id: string; name: string; category: string };
@@ -82,6 +82,7 @@ import { tilpassEzdxfSvg } from "@/lib/ezdxfSvgVisning";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
+import { EgenskapsPanel } from "@/components/tegning/EgenskapsPanel";
 // Leveranse 1: dynamic+ssr:false — dxf-viewer drar med seg en EGEN three.js-kopi
 // (^0.186), som ikke skal lastes før tegningssiden faktisk bruker den (orkestrator-
 // vedtak 2026-10-13: to kopier akseptert, tegningssiden lazy-lastet).
@@ -284,6 +285,8 @@ export default function TegningerSide() {
 
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
+  // F1 (dxf-viewer-grenen, egen gren/state — SVG-veiens valgtElement over er uberørt).
+  const [dxfValgtObjektFelt, setDxfValgtObjektFelt] = useState<EgenskapsFelt[] | null>(null);
 
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
@@ -2314,11 +2317,11 @@ export default function TegningerSide() {
       {fileUrl && (!erDwgKonvertering || harGyldigGammelVisning) && !erUkonvertertDwg ? (
         brukDxfViewer && tegning.dxfViewerFileUrl && tegning.registerWorldUrl ? (
           // Leveranse 1: PARALLELL vei bak flagget, leser SAMME Drawing-rad (plan § 3).
-          // Egen, isolert gren — markører/måling/lagpanel/klikk er leveranse 2/3/5,
-          // ikke del av denne gaten (DoD: riktig startutsnitt i appens faktiske layout).
+          // Egen, isolert gren. F1 (trykk → egenskaper) og F2 (lagpanel) er DENNE
+          // leveransen; markører er egen leveranse 5.
           <div
             ref={containerRef}
-            className="flex-1 overflow-hidden bg-gray-100"
+            className="relative flex-1 overflow-hidden bg-gray-100"
             // RETUR (orkestrator 2026-10-14): samme definit-høyde-mekanisme som
             // erBilde-grenen (tegningVisningshoyde.ts) — uten den er `flex-1` inert i
             // den delte dashbord-layouten (<main> er display:block), og flaten kollapser
@@ -2328,7 +2331,9 @@ export default function TegningerSide() {
               dxfUrl={`/api${tegning.dxfViewerFileUrl}`}
               registerWorldUrl={`/api${tegning.registerWorldUrl}`}
               rotasjonOverstyrt={tegning.rotasjonOverstyrt ?? null}
+              onObjektValgt={setDxfValgtObjektFelt}
             />
+            <EgenskapsPanel felt={dxfValgtObjektFelt} onLukk={() => setDxfValgtObjektFelt(null)} />
           </div>
         ) : erBilde ? (
           <div
