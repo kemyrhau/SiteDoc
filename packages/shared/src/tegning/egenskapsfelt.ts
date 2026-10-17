@@ -36,6 +36,19 @@ export interface EgenskapsFelt {
 
 const FLATE_DTYPE = new Set(["HATCH", "SOLID"]);
 
+/** Dør/vindu-blokk (INSERT) — kjent AIA/IFC-konvensjon i blokknavnet. */
+const DOER_VINDU_BLOKK = /dør|door|window|vindu/i;
+
+/**
+ * RETUR F1+F2 web r2 (Kenneth): rått ArchiCAD-lagnavn bruker understrek der
+ * tegningen egentlig mener komma ("Vinduer_ dører_ foldevegger" -> "Vinduer,
+ * dører, foldevegger") — samme normalisering lagpanelets gruppenavn allerede
+ * viser via NS3451-tabellen. Trailing komma (understrek på slutten) fjernes.
+ */
+function renskUnderstrek(s: string): string {
+  return s.replace(/_+\s*/g, ", ").replace(/,\s*$/, "").trim();
+}
+
 function formatMm(mm: number): string {
   if (mm >= 1000) return `${(mm / 1000).toLocaleString("nb-NO", { maximumFractionDigits: 2 })} m`;
   return `${mm.toLocaleString("nb-NO", { maximumFractionDigits: 0 })} mm`;
@@ -54,10 +67,40 @@ function geomTilVerdenPunkter(flat: number[]): VerdenPunkt[] {
   return punkter;
 }
 
+/**
+ * Dør/vindu-bredde (RETUR F1+F2 web r2, Kenneth): et viste "Mål 42 mm" på en
+ * dør — `beregnMaal()` sitt `geom[0]` er for et INSERT bare det FØRSTE av
+ * flere oppsporede strek-segmenter (ofte en liten hjørne-tagg et par mm,
+ * ikke åpningsbredden). Foretrukket kilde: bredde-attributt/Revit-type når
+ * den finnes; ellers det LENGSTE segmentet i blokkens egen geometri (målt på
+ * fallplanen: de to diagonale "wall break"-linjene som spenner hele
+ * åpningen er lengst, korte tagger ved hver jamb er det ikke). Uten en
+ * pålitelig kilde vises ikke "Mål" — bedre enn et misvisende tall.
+ */
+function beregnDoerVinduBredde(o: RegisterVerdenObjekt, mmPr: number): string | null {
+  const breddeAttr = o.attr?.WIDTH ?? o.attr?.BREDDE;
+  if (breddeAttr) {
+    const tall = parseFloat(breddeAttr.replace(",", "."));
+    if (Number.isFinite(tall) && tall > 0) return formatMm(tall);
+  }
+  if (!o.geom || o.geom.length === 0) return null;
+  let lengste = 0;
+  for (const seg of o.geom) {
+    if (!seg || seg.length < 4) continue;
+    const lengdeMm = malVerdenPolylinjeMm(geomTilVerdenPunkter(seg), mmPr);
+    if (lengdeMm > lengste) lengste = lengdeMm;
+  }
+  return lengste > 0 ? formatMm(lengste) : null;
+}
+
 /** F1 felt 6: lengde (strek) eller areal (lukket flate), kun når `kanMaleVerden`. */
 function beregnMaal(o: RegisterVerdenObjekt, mmPrVerdenEnhet: number | null | undefined): string | null {
-  if (!kanMaleVerden(mmPrVerdenEnhet) || !o.geom || o.geom.length === 0) return null;
+  if (!kanMaleVerden(mmPrVerdenEnhet)) return null;
   const mmPr = mmPrVerdenEnhet as number;
+  if (o.dtype === "INSERT" && o.blokk && DOER_VINDU_BLOKK.test(o.blokk)) {
+    return beregnDoerVinduBredde(o, mmPr);
+  }
+  if (!o.geom || o.geom.length === 0) return null;
   const forsteLinje = o.geom[0];
   if (!forsteLinje || forsteLinje.length < 4) return null;
   const punkter = geomTilVerdenPunkter(forsteLinje);
@@ -81,7 +124,7 @@ export function byggEgenskapsfelt(
   const felt: EgenskapsFelt[] = [];
 
   // 1. Hva — kategori, med rå lagnavn som underverdi.
-  if (o.kategori) felt.push({ nokkel: "hva", verdi: o.kategori, underverdi: o.lag });
+  if (o.kategori) felt.push({ nokkel: "hva", verdi: renskUnderstrek(o.kategori), underverdi: o.lag });
 
   // 2. Type/størrelse — blokknavn + Revit type-id.
   const typeDeler = [o.blokk, o.typeId].filter((d): d is string => !!d);

@@ -30,12 +30,18 @@ interface Gruppe {
   antallTotal: number;
 }
 
+// RETUR F1+F2 web r2 (Kenneth): "Andre" sto i FEM separate grupper (878/82/
+// 852/858/uten kode) fordi de har ulik rå `gruppe`-kode, selv om alle viser
+// samme gruppeNavn. Slå dem sammen under ÉN nøkkel uansett rå kode.
+const ANDRE_GRUPPENAVN = "Andre";
+
 function byggGrupper(laginventar: RegisterVerdenLagInfo[]): Gruppe[] {
   const map = new Map<string, RegisterVerdenLagInfo[]>();
   for (const li of laginventar) {
-    const liste = map.get(li.gruppe) ?? [];
+    const noekkel = li.gruppeNavn === ANDRE_GRUPPENAVN ? ANDRE_GRUPPENAVN : li.gruppe;
+    const liste = map.get(noekkel) ?? [];
     liste.push(li);
-    map.set(li.gruppe, liste);
+    map.set(noekkel, liste);
   }
   return Array.from(map.entries())
     .map(([navn, lag]) => ({

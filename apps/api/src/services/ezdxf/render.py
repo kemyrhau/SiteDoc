@@ -552,13 +552,12 @@ NS3451_NAVN = {
 # AIA CAD Layer Guidelines-fagkode -> norsk. IFC-eksport-konvensjonen
 # "<fag>-<type>-<modifikator>-OTLN" (MÅLT på fallplanen: A-WALL/A-DOOR/A-FLOR/
 # A-ROOF/A-AREA/A-GENM/A-GLAZ = Arkitektur-elementer, S-COLS/S-STRS = søyler/
-# trapper (Konstruksjon), P-SANR = sanitærutstyr (Rør, samsvarer med NS 3451
+# trapper (Konstruksjon), P-SANR = sanitærutstyr (VVS/rør, samsvarer med NS 3451
 # 315), I-WALL = interiørvegg (Interiør), Q-CASE = fast innredning/casework
-# (Utstyr) — sub-kodene bekrefter fagkoden). Kun "A" -> "Arkitekt" er eksplisitt
-# bekreftet av Kenneth (RETUR F1+F2 web, 2026-10-17); S/P/I/Q er egen tolkning
-# fra AIA-standarden ut fra de observerte sub-kodene, ikke separat bekreftet.
+# (Utstyr) — sub-kodene bekrefter fagkoden). Alle fem bekreftet av Kenneth
+# (SVAR F1+F2 web r2, orkestrator 2026-10-17).
 AIA_FAG_NAVN = {
-    "A": "Arkitekt", "S": "Konstruksjon", "P": "Rør", "I": "Interiør", "Q": "Utstyr",
+    "A": "Arkitekt", "S": "Konstruksjon", "P": "VVS (rør)", "I": "Interiør", "Q": "Utstyr",
 }
 
 def gruppe_visningsnavn(kode, revit_kategori=None):

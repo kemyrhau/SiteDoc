@@ -43,8 +43,12 @@ def test_gruppe_visningsnavn_ns3451():
 
 
 def test_gruppe_visningsnavn_aia():
+    # Alle fem AIA-fagnavn bekreftet av Kenneth (SVAR F1+F2 web r2, 2026-10-17).
     assert gruppe_visningsnavn("A-") == "Arkitekt"
-    assert gruppe_visningsnavn("P-") == "Rør"
+    assert gruppe_visningsnavn("S-") == "Konstruksjon"
+    assert gruppe_visningsnavn("P-") == "VVS (rør)"
+    assert gruppe_visningsnavn("I-") == "Interiør"
+    assert gruppe_visningsnavn("Q-") == "Utstyr"
 
 
 def test_gruppe_visningsnavn_revit_kategori_overstyrer():

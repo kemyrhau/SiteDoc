@@ -97,6 +97,33 @@ describe("byggEgenskapsfelt", () => {
     expect(nokler(felt)).not.toContain("materiale");
   });
 
+  it("RETUR F1+F2 web r2: 'hva' normaliserer rått understrek-skilletegn (ArchiCAD-lagnavn)", () => {
+    const o = objekt({ id: "h13", kategori: "Vinduer_ dører_ foldevegger · 244" });
+    const felt = byggEgenskapsfelt(o);
+    expect(felt.find((f) => f.nokkel === "hva")?.verdi).toBe("Vinduer, dører, foldevegger · 244");
+  });
+
+  it("RETUR F1+F2 web r2: dør-INSERT måler bredden fra blokkens LENGSTE segment, ikke det første", () => {
+    const o = objekt({
+      id: "8D2D",
+      dtype: "INSERT",
+      blokk: "Simple Door Opening[557]",
+      // Kort jamb-tagg (12 enheter) FØRST, deretter den ekte åpningsbredden (1600 enheter).
+      geom: [
+        [0, 0, 0, 12],
+        [0, 0, 1600, 0],
+      ],
+    });
+    const felt = byggEgenskapsfelt(o, 1); // 1 mm pr. enhet
+    expect(felt.find((f) => f.nokkel === "mal")?.verdi).toBe("1,6 m");
+  });
+
+  it("RETUR F1+F2 web r2: dør uten geometri gir ikke et misvisende 'Mål'", () => {
+    const o = objekt({ id: "h14", dtype: "INSERT", blokk: "Door (Wall) 1159[1]" });
+    const felt = byggEgenskapsfelt(o, 1);
+    expect(felt.find((f) => f.nokkel === "mal")).toBeUndefined();
+  });
+
   it("A13: ATTRIB-blokk uten rom gir felt 'tekst' fra øvrige attributter", () => {
     const o = objekt({ id: "h12", blokk: "_E-0234B", attr: { TXT1: "LITT J76.2", TXT2: "R/TV" } });
     const felt = byggEgenskapsfelt(o);
