@@ -93,6 +93,13 @@ export interface RegisterVerden {
   /** Revit ElementId → liste av handles (ett element kan bestå av flere DXF-entiteter). */
   elidIndex: Record<string, string[]>;
   laginventar: RegisterVerdenLagInfo[];
+  /** Byggets dominante veggvinkel i RÅ DXF-verdenskoord, 0–90° (mod 90, ikke
+   * kvadrant-løst — se `render.py` sin `dominant_veggvinkel`). Brukt som fallback-
+   * referanse for 90°-låsen (`laasDetaljerVerden`) når ankeret ikke er snappet til
+   * en vegg/linje og det ikke finnes et forrige segment. `null` = for tynt/usikkert
+   * grunnlag (< 20 segmenter, eller ingen klar topp — se render.py sin 60 %-grense);
+   * klienten faller da tilbake til aksejevne akser (samme som før denne feltet fantes). */
+  dominantVeggvinkelGrader?: number | null;
 }
 
 /** O1 § 8 sin `kilde`-klassifisering, utledet (ikke lagret — se filkommentar). */

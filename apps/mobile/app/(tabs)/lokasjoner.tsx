@@ -39,7 +39,14 @@ import { DxfViewerTegningMobil, type DxfViewerTegningMobilRef } from "../../src/
 import { DxfMaleVerktoylinje } from "../../src/components/DxfMaleVerktoylinje";
 import { TegningEgenskapsArk } from "../../src/components/TegningEgenskapsArk";
 import { TegningLagPanel } from "../../src/components/TegningLagPanel";
-import { hentSkjulteLag, lagreSkjulteLag, byggSynlighetFraSkjulte, utledSkjulteLag } from "../../src/lib/lagSynlighetLagring";
+import {
+  hentSkjulteLag,
+  lagreSkjulteLag,
+  byggSynlighetFraSkjulte,
+  utledSkjulteLag,
+  hentPekerPaa,
+  lagrePekerPaa,
+} from "../../src/lib/lagSynlighetLagring";
 import {
   forberedTegning,
   erTegningForberedt,
@@ -180,6 +187,16 @@ export default function LokasjonerSkjerm() {
   // DxfMaleVerktoylinje/DxfViewerTegningMobil sine filheadere for protokollen.
   const dxfViewerRef = useRef<DxfViewerTegningMobilRef>(null);
   const [dxfKanMale, setDxfKanMale] = useState(false);
+  // Tillegg 3 (peker): huskes pr. bruker på enheten — GLOBAL (ikke pr. tegning,
+  // se lagSynlighetLagring.ts). Hydreres fra lagring ved mount; selve PUSHEN til
+  // WebView-en skjer i handleDxfLaginventarKlar under (det ER det eksisterende
+  // "broen er klar og har lastet en tegning"-signalet — ingen egen "klar"-callback
+  // finnes fra DxfViewerTegningMobil, og en blind push ved RN-mount kan tape
+  // meldingen hvis WebView-sidens message-lytter ikke er registrert ennå).
+  const [dxfPekerPaa, setDxfPekerPaa] = useState(false);
+  useEffect(() => {
+    void hentPekerPaa().then(setDxfPekerPaa);
+  }, []);
   // F1+F2 (mobilplanen, "mobilplanen er godkjent i sin helhet", 2026-10-17): native
   // RN-paneler drevet av DxfViewerTegningMobil sin bro — IKKE web-rendret paneler
   // inni WebView-en (siden er en ren data-bro der, se filheaderne).
@@ -979,6 +996,11 @@ export default function LokasjonerSkjerm() {
   const handleDxfLaginventarKlar = useCallback(
     (laginventar: RegisterVerdenLagInfo[] | null) => {
       setDxfLaginventar(laginventar);
+      // Tillegg 3 (peker): dette er det eksisterende signalet på at WebView-broen
+      // faktisk har en montert message-lytter (den har alt mottatt "start" og
+      // postet laginventaret tilbake) — trygt tidspunkt å speile den lagrede
+      // bryter-tilstanden inn, uansett om dxfPekerPaa er på eller av.
+      if (dxfPekerPaa) dxfViewerRef.current?.settMalePeker(true);
       const drawingId = valgtTegningDetalj?.id;
       if (!laginventar || !drawingId) {
         setDxfLagSynlighet({});
@@ -989,7 +1011,7 @@ export default function LokasjonerSkjerm() {
         for (const navn of skjulteLag) dxfViewerRef.current?.settLagSynlig(navn, false);
       });
     },
-    [valgtTegningDetalj?.id],
+    [valgtTegningDetalj?.id, dxfPekerPaa],
   );
 
   const lagreDxfLagSynlighet = useCallback(
@@ -1040,6 +1062,16 @@ export default function LokasjonerSkjerm() {
     if (!dxfLaginventar) return;
     for (const li of dxfLaginventar) dxfViewerRef.current?.settLagSynlig(li.navn, true);
     lagreDxfLagSynlighet({});
+  }, [dxfLaginventar, lagreDxfLagSynlighet]);
+
+  const handleDxfAlleAv = useCallback(() => {
+    if (!dxfLaginventar) return;
+    const neste: Record<string, boolean> = {};
+    for (const li of dxfLaginventar) {
+      neste[li.navn] = false;
+      dxfViewerRef.current?.settLagSynlig(li.navn, false);
+    }
+    lagreDxfLagSynlighet(neste);
   }, [dxfLaginventar, lagreDxfLagSynlighet]);
 
   return (
@@ -1276,6 +1308,12 @@ export default function LokasjonerSkjerm() {
                 onVerktoy={(v) => dxfViewerRef.current?.settMaleVerktoy(v)}
                 onOrtho={(på) => dxfViewerRef.current?.settMaleOrtho(på)}
                 onSnap={(på) => dxfViewerRef.current?.settMaleSnap(på)}
+                pekerPaa={dxfPekerPaa}
+                onPeker={(på) => {
+                  setDxfPekerPaa(på);
+                  dxfViewerRef.current?.settMalePeker(på);
+                  void lagrePekerPaa(på);
+                }}
                 onFullfoer={() => dxfViewerRef.current?.fullfoerMaling()}
                 onGjenoppta={() => dxfViewerRef.current?.gjenopptaMaling()}
                 onSlettAktiv={() => dxfViewerRef.current?.slettAktivMaling()}
@@ -1304,6 +1342,7 @@ export default function LokasjonerSkjerm() {
                 onSettGruppe={handleDxfSettGruppe}
                 onBareDette={handleDxfBareDette}
                 onAllePaa={handleDxfAllePaa}
+                onAlleAv={handleDxfAlleAv}
                 onLukk={() => setDxfLagpanelApent(false)}
               />
             </View>

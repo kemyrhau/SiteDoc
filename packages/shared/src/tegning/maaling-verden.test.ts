@@ -151,6 +151,41 @@ describe("laasDetaljerVerden — 90°-lås i verdensrom", () => {
     // Låst punkt skal ligge på linjen gjennom anker med 45°-retning: verdenY - 5 === verdenX - 5
     expect(d.punkt.verdenY - 5).toBeCloseTo(d.punkt.verdenX - 5, 6);
   });
+
+  // RETUR 2026-10-18 (Kenneths telefontest punkt 3): uten vegg-snap og uten forrige
+  // segment skal 90°-låsen følge BYGGETS dominante veggvinkel (render.py), ikke
+  // skjermaksene/DXF-ens rå X/Y — fallplanen har akkurat denne 40°-vinkelen.
+  it("en vegg på 40° (dominantVeggvinkelGrader): låst segment går langs eller vinkelrett på veggen", () => {
+    const anker: VerdenPunkt = { verdenX: 0, verdenY: 0 };
+    const grad40 = (40 * Math.PI) / 180;
+    // Kandidat nær PARALLELT med 40°-veggen.
+    const kandidatParallell: VerdenPunkt = {
+      verdenX: 10 * Math.cos(grad40) + 0.2,
+      verdenY: 10 * Math.sin(grad40) - 0.2,
+    };
+    const dPar = laasDetaljerVerden(anker, kandidatParallell, null, null, 40);
+    const vinkelPar = (Math.atan2(dPar.punkt.verdenY, dPar.punkt.verdenX) * 180) / Math.PI;
+    expect(Math.abs(((vinkelPar - 40 + 180) % 360) - 180)).toBeLessThanOrEqual(0.1);
+    expect(dPar.vinkelrett).toBe(false);
+
+    // Kandidat nær VINKELRETT på 40°-veggen (dvs. 130°).
+    const grad130 = (130 * Math.PI) / 180;
+    const kandidatPerp: VerdenPunkt = {
+      verdenX: 10 * Math.cos(grad130) - 0.2,
+      verdenY: 10 * Math.sin(grad130) + 0.2,
+    };
+    const dPerp = laasDetaljerVerden(anker, kandidatPerp, null, null, 40);
+    const vinkelPerp = (Math.atan2(dPerp.punkt.verdenY, dPerp.punkt.verdenX) * 180) / Math.PI;
+    expect(Math.abs(((vinkelPerp - 130 + 180) % 360) - 180)).toBeLessThanOrEqual(0.1);
+    expect(dPerp.vinkelrett).toBe(true);
+  });
+
+  it("uten dominantVeggvinkelGrader (fravær/null): faller tilbake til aksejevne akser (uendret oppførsel)", () => {
+    const anker: VerdenPunkt = { verdenX: 0, verdenY: 0 };
+    const kandidat: VerdenPunkt = { verdenX: 10, verdenY: 1 };
+    const d = laasDetaljerVerden(anker, kandidat, null, null, null);
+    expect(d.punkt.verdenY).toBeCloseTo(0, 9);
+  });
 });
 
 describe("snapTilPunktVerden / snapTil90LinjeVerden", () => {

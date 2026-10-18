@@ -23,10 +23,11 @@ interface LagPanelProps {
   onSettGruppe: (lagNavn: string[], synlig: boolean) => void;
   onBareDette: (navn: string) => void;
   onAllePaa: () => void;
+  onAlleAv: () => void;
   onLukk: () => void;
 }
 
-export function LagPanel({ laginventar, synlighet, onSettLag, onSettGruppe, onBareDette, onAllePaa, onLukk }: LagPanelProps) {
+export function LagPanel({ laginventar, synlighet, onSettLag, onSettGruppe, onBareDette, onAllePaa, onAlleAv, onLukk }: LagPanelProps) {
   const { t } = useTranslation();
   const grupper = useMemo(() => byggLagGrupper(laginventar), [laginventar]);
   const [apne, setApne] = useState<Set<string>>(() => new Set());
@@ -50,6 +51,9 @@ export function LagPanel({ laginventar, synlighet, onSettLag, onSettGruppe, onBa
         <div className="flex items-center gap-2">
           <button type="button" onClick={onAllePaa} className="text-xs font-medium text-sitedoc-primary hover:underline">
             {t("tegningsvelger.lag.allePaa")}
+          </button>
+          <button type="button" onClick={onAlleAv} className="text-xs font-medium text-sitedoc-primary hover:underline">
+            {t("tegningsvelger.lag.alleAv")}
           </button>
           <button type="button" onClick={onLukk} className="text-gray-400 hover:text-gray-600" aria-label={t("handling.lukk")}>
             ×

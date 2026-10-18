@@ -67,6 +67,8 @@ export interface DxfViewerTegningMobilRef {
   settMaleVerktoy: (v: TegningVerktoy) => void;
   settMaleOrtho: (på: boolean) => void;
   settMaleSnap: (på: boolean) => void;
+  /** Tillegg 3: fast trådkors + handlingsknapp i stedet for direkte trykk. */
+  settMalePeker: (på: boolean) => void;
   fullfoerMaling: () => void;
   gjenopptaMaling: () => void;
   slettAktivMaling: () => void;
@@ -188,6 +190,7 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
       settMaleVerktoy: (v) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleVerktoy", verktoy: v })),
       settMaleOrtho: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleOrtho", på })),
       settMaleSnap: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSnap", på })),
+      settMalePeker: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "malePeker", på })),
       fullfoerMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleFullfoer" })),
       gjenopptaMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleGjenoppta" })),
       slettAktivMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSlettAktiv" })),

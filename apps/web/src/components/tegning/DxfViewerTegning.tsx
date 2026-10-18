@@ -46,6 +46,7 @@ import {
   hitTestWorld,
   byggEgenskapsfelt,
   OBJEKT_MARKERING_FARGE,
+  erMaleVerktoy,
 } from "@sitedoc/shared";
 import { hentFilMedCache, usignertFilSti } from "@/lib/tegningFilCache";
 import { hentDxfWorkerFactory } from "@/lib/dxfWorkerFactory";
@@ -105,6 +106,8 @@ export interface DxfViewerTegningRef {
   settVerktoy: (v: TegningVerktoy) => void;
   settOrtho: (på: boolean) => void;
   settSnap: (på: boolean) => void;
+  /** Tillegg 3: fast trådkors + handlingsknapp i stedet for direkte trykk. */
+  settPeker: (på: boolean) => void;
   /** Fullfør (polylinje) — no-op hvis ingen aktiv påbegynt måling. */
   fullfoerAktiv: () => void;
   /** Fortsett en ferdig måling (åpne den aktive igjen for flere punkter). */
@@ -197,6 +200,36 @@ function tegnEtikett(svg: SVGSVGElement, x: number, y: number, tekst: string) {
   t.setAttribute("stroke", "#ffffff");
   t.setAttribute("stroke-width", "3");
   g.appendChild(t);
+  svg.appendChild(g);
+}
+
+/** Tillegg 3 (peker): fast trådkors midt på flaten — brukeren panorerer tegningen
+ * UNDER det i stedet for å flytte korset. Rent visuelt (ingen hit-test her). */
+function tegnPekerSikte(svg: SVGSVGElement, cx: number, cy: number) {
+  const g = document.createElementNS(SVG_NS, "g");
+  const sirkel = document.createElementNS(SVG_NS, "circle");
+  sirkel.setAttribute("cx", String(cx));
+  sirkel.setAttribute("cy", String(cy));
+  sirkel.setAttribute("r", "12");
+  sirkel.setAttribute("fill", "none");
+  sirkel.setAttribute("stroke", MAALING_FARGE_AKTIV);
+  sirkel.setAttribute("stroke-width", "1.5");
+  g.appendChild(sirkel);
+  for (const [x1, y1, x2, y2] of [
+    [cx - 20, cy, cx - 6, cy],
+    [cx + 6, cy, cx + 20, cy],
+    [cx, cy - 20, cx, cy - 6],
+    [cx, cy + 6, cx, cy + 20],
+  ]) {
+    const l = document.createElementNS(SVG_NS, "line");
+    l.setAttribute("x1", String(x1));
+    l.setAttribute("y1", String(y1));
+    l.setAttribute("x2", String(x2));
+    l.setAttribute("y2", String(y2));
+    l.setAttribute("stroke", MAALING_FARGE_AKTIV);
+    l.setAttribute("stroke-width", "1.5");
+    g.appendChild(l);
+  }
   svg.appendChild(g);
 }
 
@@ -358,6 +391,10 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   const [verktoy, setVerktoy] = useState<TegningVerktoy>("navigering");
   const [ortho, setOrtho] = useState(false);
   const [snapPaa, setSnapPaa] = useState(true);
+  // Tillegg 3 (Kenneth 2026-10-18, "ja, ta med pekeren" — funksjonsendring med
+  // hjemmel): fast trådkors midt på flaten + handlingsknapp, for presis plassering
+  // uten å dekke treffpunktet med fingeren. Se filheaderen for flyten.
+  const [pekerPaa, setPekerPaa] = useState(false);
   const [mmPrVerdenEnhet, setMmPrVerdenEnhet] = useState<number | null>(null);
   const [lupeVisning, setLupeVisning] = useState<{ skjermX: number; skjermY: number } | null>(null);
   const rotasjonOverstyrtRef = useRef(rotasjonOverstyrt ?? 0);
@@ -388,10 +425,18 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   // sammen til én tegning pr. frame.
   const lupeRafRef = useRef<number | null>(null);
   const lupeRafPendingRef = useRef<{ skjermX: number; skjermY: number } | null>(null);
+  // RETUR (Kenneths telefontest, tillegg 2 punkt 5): overlegget (måling + markering +
+  // lupe-sikte) må IKKE tegnes synkront inni dxf-viewers "viewChanged"-event — den
+  // fyres for HVER OrbitControls-change (kan være flere pr. skjermbilde ved en rask
+  // pinch), og en synkron SVG-ombygging pr. event kan komme ut av takt med WebGL-
+  // ramma når eventene kommer tettere enn skjermens rAF. rAF-koalesering (samme
+  // mønster som lupa over) garanterer nøyaktig ÉN overlegg-tegning pr. faktisk malt
+  // bilde, alltid med det NYESTE kameraet på tegnetidspunktet.
+  const overleggRafRef = useRef<number | null>(null);
   // Imperativt speil av den reaktive målingstilstanden — lest av DOM-pointer-lytterne
   // (registrert ÉN gang pr. viewer-instans via last(), ikke ved hver render) for å
   // unngå stale closures uten å måtte re-registrere lytterne på hver tilstandsendring.
-  const uiRef = useRef({ verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet });
+  const uiRef = useRef({ verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa });
 
   const tegnOverlegg = useCallback(() => {
     const svg = overlaySvgRef.current;
@@ -433,17 +478,31 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       svg.appendChild(c);
       if (forhand.vinkelrett) tegnEtikett(svg, sp.skjermX, sp.skjermY - 18, "90°");
     }
+    if (uiRef.current.pekerPaa) tegnPekerSikte(svg, k.canvasBredde / 2, k.canvasHoyde / 2);
   }, []);
 
+  /** rAF-koalesert wrapper om `tegnOverlegg` — se `overleggRafRef`-kommentaren.
+   * Flere kall innen samme bilde slås sammen til ett, og tegningen leser alltid
+   * kameraet SLIK DET ER på tegnetidspunktet (ikke ved event-tidspunktet). */
+  const tegnOverleggRaf = useCallback(() => {
+    if (overleggRafRef.current !== null) return;
+    overleggRafRef.current = requestAnimationFrame(() => {
+      overleggRafRef.current = null;
+      tegnOverlegg();
+    });
+  }, [tegnOverlegg]);
+
   useEffect(() => {
-    uiRef.current = { verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet };
+    uiRef.current = { verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa };
     tegnOverlegg();
     const viewer = viewerRef.current;
     if (viewer?.controls && gestRef.current.modus === null) {
-      viewer.controls.enablePan = verktoy === "flytt";
+      // Peker-modus: ALLTID fri panorering (plasseringen skjer via handlingsknappen,
+      // ikke ved trykk — se filheaderen) — uansett hvilket verktøy som er valgt.
+      viewer.controls.enablePan = pekerPaa || verktoy === "flytt";
     }
     onMaleKlarEndringRef.current?.(kanMaleVerden(mmPrVerdenEnhet));
-  }, [verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, tegnOverlegg]);
+  }, [verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa, tegnOverlegg]);
 
   function naerTerskel(p: Punkt, q: Punkt): boolean {
     const viewer = viewerRef.current;
@@ -520,6 +579,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       anker,
       forforrige,
       referanser,
+      dominantVeggvinkelGrader: registerRef.current?.dominantVeggvinkelGrader,
       ortho: orthoPaa,
       snap: snapPaaNaa,
       kamera: k,
@@ -546,12 +606,13 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     }
     lupeRafPendingRef.current = null;
     setLupeVisning(null);
-    if (viewer?.controls) viewer.controls.enablePan = uiRef.current.verktoy === "flytt";
+    if (viewer?.controls) viewer.controls.enablePan = uiRef.current.pekerPaa || uiRef.current.verktoy === "flytt";
     tegnOverlegg();
   }
 
   function onPointerDown(e: PointerEvent) {
     const g = gestRef.current;
+    if (uiRef.current.pekerPaa) return; // peker-modus: la OrbitControls eie ALLE gester
     g.pekere.add(e.pointerId);
     if (g.pekere.size > 1) {
       avbrytGest();
@@ -678,6 +739,40 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     avbrytGest();
   }
 
+  /** Tillegg 3 (peker): handlingsknappen utfører gjeldende verktøys handling PÅ
+   * TRÅDKORSETS faste skjermposisjon (midt på canvaset) — "Velg" (F1-identifisering)
+   * utenfor målemodus, "Sett punkt" (samme snap/90°-lås-pipeline som et vanlig
+   * trykk) i Linjal/Polylinje/Areal. Ingen gest/lupe involvert (se onPointerDown). */
+  function utforPekerHandling() {
+    const viewer = viewerRef.current;
+    if (!viewerKlar(viewer)) return;
+    const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
+    const skjermX = k.canvasBredde / 2;
+    const skjermY = k.canvasHoyde / 2;
+    const { verktoy: v, mmPrVerdenEnhet: mmEnh } = uiRef.current;
+
+    if (erMaleVerktoy(v) && kanMaleVerden(mmEnh)) {
+      oppdaterForhandsvisning(skjermX, skjermY);
+      const forhand = gestRef.current.forhandsvisning;
+      if (forhand) {
+        const punkt = fraVerden(forhand.punkt);
+        setMaleTilstand((t) => leggTilPunkt(t, punkt, (q) => naerTerskel(punkt, q)));
+      }
+      gestRef.current.forhandsvisning = null;
+      tegnOverlegg();
+      return;
+    }
+
+    const reg = registerRef.current;
+    const idx = bboxIndeksRef.current;
+    if (reg && idx) {
+      const treff = hitTestWorld({ skjermX, skjermY }, k, reg, idx);
+      valgtObjektRef.current = treff;
+      onObjektValgtRef.current?.(treff ? byggEgenskapsfelt(treff, mmEnh) : null);
+      tegnOverlegg();
+    }
+  }
+
   useImperativeHandle(
     ref,
     () => ({
@@ -690,6 +785,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       },
       settOrtho: (på: boolean) => setOrtho(på),
       settSnap: (på: boolean) => setSnapPaa(på),
+      settPeker: (på: boolean) => setPekerPaa(på),
       fullfoerAktiv: () => setMaleTilstand(settFerdig),
       gjenopptaAktiv: () => setMaleTilstand(gjenoppta),
       slettAktiv: () => setMaleTilstand(slettAktiv),
@@ -861,8 +957,11 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
           canvas.addEventListener("pointermove", onPointerMove);
           canvas.addEventListener("pointerup", onPointerUp);
           canvas.addEventListener("pointercancel", onPointerUp);
-          viewer.controls?.addEventListener("change", tegnOverlegg);
-          if (viewer.controls) viewer.controls.enablePan = uiRef.current.verktoy === "flytt";
+          // RETUR (tillegg 2 punkt 5): dxf-viewers EGNE "viewChanged" (ikke bare
+          // OrbitControls sin "change") — fyres også ved SetSize/ResizeObserver-fit,
+          // ikke kun bruker-gest. rAF-koalesert (se tegnOverleggRaf-kommentaren).
+          viewer.Subscribe("viewChanged", tegnOverleggRaf);
+          if (viewer.controls) viewer.controls.enablePan = uiRef.current.pekerPaa || uiRef.current.verktoy === "flytt";
           fjernCanvasLytter = () => {
             canvas.removeEventListener("webglcontextlost", paaContextTapt);
             canvas.removeEventListener("webglcontextrestored", paaContextGjenopprettet);
@@ -870,7 +969,11 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
             canvas.removeEventListener("pointermove", onPointerMove);
             canvas.removeEventListener("pointerup", onPointerUp);
             canvas.removeEventListener("pointercancel", onPointerUp);
-            viewer.controls?.removeEventListener("change", tegnOverlegg);
+            viewer.Unsubscribe("viewChanged", tegnOverleggRaf);
+            if (overleggRafRef.current !== null) {
+              cancelAnimationFrame(overleggRafRef.current);
+              overleggRafRef.current = null;
+            }
           };
         }
 
@@ -976,6 +1079,15 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     <div className="relative h-full w-full">
       <div ref={containerRef} className="absolute inset-0" />
       <svg ref={overlaySvgRef} className="pointer-events-none absolute inset-0" />
+      {pekerPaa && (
+        <button
+          type="button"
+          onClick={utforPekerHandling}
+          className="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[24px] rounded-full bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white shadow-lg"
+        >
+          {erMaleVerktoy(verktoy) ? t("maaling.settPunkt") : t("handling.velg")}
+        </button>
+      )}
       {lupeVisning && containerRef.current && (
         <canvas
           ref={lupeCanvasRef}

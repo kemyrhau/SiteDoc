@@ -23,6 +23,7 @@ import { sendTilApp } from "./send-til-app";
  *     { type: "maleVerktoy", verktoy: "flytt"|"linjal"|"polylinje"|"areal" }  — leveranse 3+4
  *     { type: "maleOrtho", på: boolean }
  *     { type: "maleSnap", på: boolean }
+ *     { type: "malePeker", på: boolean }  — tillegg 3: fast trådkors + handlingsknapp
  *     { type: "maleFullfoer" }     — Fullfør (polylinje)
  *     { type: "maleGjenoppta" }    — Fortsett en ferdig måling
  *     { type: "maleSlettAktiv" }
@@ -133,6 +134,8 @@ export default function DxfViewerRøyktest() {
           viewerRef.current?.settOrtho(!!data.på);
         } else if (data.type === "maleSnap") {
           viewerRef.current?.settSnap(!!data.på);
+        } else if (data.type === "malePeker") {
+          viewerRef.current?.settPeker(!!data.på);
         } else if (data.type === "maleFullfoer") {
           viewerRef.current?.fullfoerAktiv();
         } else if (data.type === "maleGjenoppta") {
@@ -242,6 +245,14 @@ export default function DxfViewerRøyktest() {
           onAllePaa={() => {
             for (const li of laginventar) viewerRef.current?.settLagSynlig(li.navn, true);
             setLagSynlighet({});
+          }}
+          onAlleAv={() => {
+            const neste: Record<string, boolean> = {};
+            for (const li of laginventar) {
+              neste[li.navn] = false;
+              viewerRef.current?.settLagSynlig(li.navn, false);
+            }
+            setLagSynlighet(neste);
           }}
           onLukk={() => setLagpanelApent(false)}
         />
