@@ -10,6 +10,7 @@ Kjør: EZDXF_PYTHON pytest test_render_f2.py -v
 from render import (
     tolk_lag_gruppe, lag_dominante_revit_kategorier, beregn_naermeste_merking,
     gruppe_visningsnavn, tolk_lagnavn, bygg_objektregister, layer_info_map,
+    er_arkicad_hjelpelinje,
 )
 
 
@@ -164,3 +165,50 @@ def test_bygg_objektregister_skralinjer2_er_isolasjon():
     obj = objekter[h.dxf.handle]
     assert "isol" not in obj["lag"].lower()
     assert obj["materiale"] == "Isolasjon"
+
+
+def test_er_arkicad_hjelpelinje_80_89_serie():
+    # RETUR isolasjon `7d5d6787` pkt 2: "Modullinjer · 82" og "Snittmarkør · 852" er
+    # MÅLT på EKTE fallplan-DXF å være ArchiCAD-interne 80-89-hjelpelinjer (28-125 m
+    # enkeltlinjer) — ikke NS 3451-bygningsdeler. Dekker begge kode-lengder (2 og 3
+    # siffer, samme hovedgruppe 80-89).
+    assert er_arkicad_hjelpelinje("82-- Modullinjer") is True
+    assert er_arkicad_hjelpelinje("852- Snittmarkør") is True
+    assert er_arkicad_hjelpelinje("858- Detaljer") is True
+    assert er_arkicad_hjelpelinje("862- Nettoareal") is True
+
+
+def test_er_arkicad_hjelpelinje_negativkontroll_ekte_bygningsdel():
+    # Ekte NS 3451-bygningsdel (23-serie) skal ALDRI flagges som hjelpelinje —
+    # regresjon mot at 80-89-sjekken ved en feil fanger alt med to/tre siffer.
+    assert er_arkicad_hjelpelinje("231- Bærende yttervegger (Skravur)") is False
+    assert er_arkicad_hjelpelinje("242- Ikke-bærende innervegger") is False
+    assert er_arkicad_hjelpelinje("") is False
+
+
+def test_bygg_objektregister_modullinje_faar_hjelpelinje_flagg():
+    import ezdxf
+
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    lag = "82-- Modullinjer"
+    doc.layers.add(lag)
+    ln = msp.add_line((0, 0), (1000, 0), dxfattribs={"layer": lag})
+    lagmap = layer_info_map(doc)
+    objekter, _ = bygg_objektregister(doc, msp, [ln.dxf.handle], lagmap)
+    obj = objekter[ln.dxf.handle]
+    assert obj.get("hjelpelinje") is True
+
+
+def test_bygg_objektregister_ekte_vegg_faar_ikke_hjelpelinje_flagg():
+    import ezdxf
+
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    lag = "231- Bærende yttervegger"
+    doc.layers.add(lag)
+    ln = msp.add_line((0, 0), (1000, 0), dxfattribs={"layer": lag})
+    lagmap = layer_info_map(doc)
+    objekter, _ = bygg_objektregister(doc, msp, [ln.dxf.handle], lagmap)
+    obj = objekter[ln.dxf.handle]
+    assert "hjelpelinje" not in obj

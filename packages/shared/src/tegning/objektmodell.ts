@@ -63,6 +63,12 @@ export interface RegisterVerdenObjekt {
    * for rør/kabel uten egen tekst — ALDRI objektets egen verdi, alltid vist merket
    * «(nærmeste merking)». Fravær = ingen tekst innen grensen (negativkontroll A12). */
   naermesteMerking?: string;
+  /** ArchiCAD/Revit sine EGNE 80-89-serie referanse-/annotasjonslag (Modullinjer,
+   * Snittmarkør, Detaljer, Nettoareal m.fl. — IKKE NS 3451-bygningsdeler, standarden
+   * stopper på 79, se render.py sin NS3451_NAVN-kommentar). RETUR isolasjon
+   * `7d5d6787` pkt 2: disse er ofte 28-125 m lange hjelpelinjer som ellers ALLTID
+   * vinner over isolasjon/flate i hit-test-verden.ts (laveste prioritet der). */
+  hjelpelinje?: boolean;
 }
 
 export interface RegisterVerdenLagInfo {

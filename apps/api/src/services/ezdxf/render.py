@@ -349,6 +349,8 @@ def bygg_objektregister(doc, msp, handles, lagmap):
         if not kat:
             kat = tolk_lagnavn(lag) or lag
         obj["kategori"] = kat
+        if er_arkicad_hjelpelinje(lag):
+            obj["hjelpelinje"] = True
         if h in insert_info:
             obj["blokk"] = insert_info[h]["navn"]
             if insert_info[h]["attr"]:
@@ -385,6 +387,22 @@ def bygg_objektregister(doc, msp, handles, lagmap):
             elid_index.setdefault(obj["elid"], []).append(h)
     return objekter, elid_index
 
+
+def er_arkicad_hjelpelinje(lag):
+    """ArchiCAD/Revit sine EGNE 80-89-serie referanse-/annotasjonslag (Modullinjer
+    82, Snittmarkør 852, Detaljer 858, Nettoareal 862 m.fl.) — IKKE NS 3451-
+    bygningsdeler (standarden stopper på 79, se NS3451_NAVN-kommentaren lenger
+    ned). RETUR isolasjon `7d5d6787` pkt 2 (målt på fallplanen): disse er ofte
+    28-125 m lange enkeltlinjer som ellers ALLTID vinner over isolasjon/flate i
+    klientens hit-test, selv om de bare er hjelpegeometri og ikke en bygningsdel."""
+    kode = tolk_lag_gruppe(lag)
+    if not kode or not kode[0].isdigit():
+        return False
+    try:
+        hoved = int(kode[:2])
+    except ValueError:
+        return False
+    return 80 <= hoved <= 89
 
 def tolk_lag_gruppe(navn):
     """F2 gruppe-NØKKEL fra lagnavn (fallback når laget ikke har en dominant Revit-
