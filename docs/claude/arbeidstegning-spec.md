@@ -1,9 +1,9 @@
 ---
 name: arbeidstegning-spec
-description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, § 8 felles objektmodell på tvers av 2D-tegning, IFC/3D og mobil (Kenneth-vedtak 2026-10-12), F11 georeferanse fra DWG (kart-CRS, ett fastpunkt à la Dalux, to punkter, 2D→IFC via IfcMapConversion, nord opp), elleve spørsmål til Kenneth (Q1–Q11 besvart); F11.7–F11.9 gjør georef fra fil til påstand med kilde, konfliktvarsel og justering mot fasit. Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
+description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, § 8 felles objektmodell på tvers av 2D-tegning, IFC/3D og mobil (Kenneth-vedtak 2026-10-12), F11 georeferanse fra DWG (kart-CRS, ett fastpunkt à la Dalux, to punkter, 2D→IFC via IfcMapConversion, nord opp), fjorten spørsmål til Kenneth (Q1–Q11 besvart); F11.7–F11.9 gjør georef fra fil til påstand med kilde, konfliktvarsel og justering mot fasit; § 9 gjenkjenning på tvers av CAD-standarder med firmakobling lag/mønster → type (Kenneth-hjemmel 2026-10-18). Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
 sist_verifisert_mot_kode: 2026-10-12
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 9, 2026-10-13 — ⚠️ F11 georeferanse er UTKAST TIL GATE (AT-G1–G14 målt; Q9–Q11 besvart; F11.7–F11.9: georef fra fil er påstand, konfliktvarsel, justering mot fasit). Ingenting under er bygget.
+status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 12, 2026-10-19 — ⚠️ UTKAST TIL GATE (RETUR 1 rettet: tykkelse fra geometri, frittstående prosjekter, kildetekst): § 9 gjenkjenning av lag/objekter på tvers av CAD-standarder (AT-K1–K8 målt; K1 rekkefølge + «Ukjent type», K2 aldri feil tall, K3 rapport, K4 prosjekt-/firmakobling = FUNKSJONSENDRING m/ Kenneth-hjemmel 18.10, K5 testkorpus; Q12–Q14 besvart 18.10). F11 rev. 9 fortsatt til gate. Ingenting under er bygget.
 ---
 
 # Arbeidstegning — DWG/DXF som verktøy, ikke bilde
@@ -138,7 +138,7 @@ er de Dokgens prøve måles mot.
 - Trykk/klikk på en strek, flate eller tekst viser et egenskapskort. **Hele objektet markeres**, ikke bare streken: alle
   elementer med samme Revit element-id (AT-F6), ellers samme blokk-instans, ellers bare det trufne elementet.
 - **Felt, i denne rekkefølgen, bare de som har verdi:**
-  1. **Hva** — Revit-kategori på norsk («Vegg», «Dør», «Vindu», «Himling», …) når XDATA finnes; ellers **lagets egen beskrivelse fra fila** når den finnes (AT-F14: «Innervegg IKKE bærende»); ellers tolket fra lagnavn: bygningsdel (NS 3451-kode + navn), objekttype (SOSI-kode + navn) eller IFC-kategori. Rå lagnavn alltid synlig under
+  1. **Hva** — (rekkefølge og sikkerhet presisert i **§ 9.2**; ukjent → «Ukjent type», aldri rått lagnavn som type) Revit-kategori på norsk («Vegg», «Dør», «Vindu», «Himling», …) når XDATA finnes; ellers **lagets egen beskrivelse fra fila** når den finnes (AT-F14: «Innervegg IKKE bærende»); ellers tolket fra lagnavn: bygningsdel (NS 3451-kode + navn), objekttype (SOSI-kode + navn) eller IFC-kategori. Rå lagnavn alltid synlig under
   2. **Type/størrelse** — fra blokknavn (familie + type + størrelse: «Focus-ID Hel · 10×21 M») eller Revit type-id
   3. **Rom/blokk** — blokknavn + attributter (`ROOM_NAME`, `ROOM_NUMBER`, …) når objektet er, eller ligger i, en blokk; romtekst (navn/nummer/areal) når objektet er en romtagg
   4. **Materiale** — skravurmønster oversatt («Betong_strukturell» → Betong), rå navn under; Revit `FP_n` vises ikke (bare nummer, uten mening)
@@ -169,7 +169,7 @@ er de Dokgens prøve måles mot.
 
 ### F2 — Lag/fag av og på · **MÅ** (web + mobil)
 
-- Lagpanel med to nivåer: **gruppe** → **rå lag** under. Gruppe = Revit-kategori når XDATA finnes («Vegger», «Dører/vinduer», «Akser», «Målsetting», «Tekst», «Himlinger»); ellers lagets beskrivelse fra fila som visningsnavn (AT-F14) gruppert på NS 3451-prefiks; ellers tolket fra lagnavn: NS 3451-prefiks (2–3 siffer, med eller uten «A»-prefiks og «-»/«_»), AIA/IFC-prefiks (`A-`/`S-`/`P-`/`I-`/`Q-`), SOSI-kode (3–4 siffer + mellomrom), suffiks «(Skravur)»/«(Tekst)»/«(Nye konstruksjoner)». Lag uten treff → gruppe «Andre» med rå navn.
+- Lagpanel med to nivåer: **gruppe** → **rå lag** under (gjenkjenningsrekkefølge og «Ukjent (N lag)» i **§ 9.2**). Gruppe = Revit-kategori når XDATA finnes («Vegger», «Dører/vinduer», «Akser», «Målsetting», «Tekst», «Himlinger»); ellers lagets beskrivelse fra fila som visningsnavn (AT-F14) gruppert på NS 3451-prefiks; ellers tolket fra lagnavn: NS 3451-prefiks (2–3 siffer, med eller uten «A»-prefiks og «-»/«_»), AIA/IFC-prefiks (`A-`/`S-`/`P-`/`I-`/`Q-`), SOSI-kode (3–4 siffer + mellomrom), suffiks «(Skravur)»/«(Tekst)»/«(Nye konstruksjoner)». Lag uten treff → gruppe «Andre» med rå navn.
 - Av/på pr. gruppe og pr. lag; «Bare dette»; «Alle på». Antall objekter pr. lag synlig.
 - Oppsettet huskes pr. tegning på enheten (Q4 avgjør om det skal deles).
 - **Akseptkriterier:**
@@ -371,6 +371,9 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q9 | **Ett fastpunkt uten nordpil (F11.1 F):** skal brukeren kunne bekrefte «aksene peker mot rutenett-nord» og få georef fra ett punkt (Dalux-modellen), eller kreve to punkter alltid? | **Tillat ett punkt med eksplisitt bekreftelse**, og vis nordpil + GPS-markør straks så en feil retning ses med én gang. To punkter forblir anbefalt vei for roterte nett |
 | Q10 | ~~Ingen IFC-fil finnes lokalt~~ 🟢 **Besvart 13.10:** Kenneth la `E3 3D-modell ARK.ifc` (HABU, shared coordinates) + punktsky i eksempelmappa (AT-G13–G14). IFC-en bærer georef via site-plassering, ikke `IfcMapConversion`; M5/M8 kan måles. Samme Q7-regel: ikke i git |
 | Q11 | **Punktskyen og IFC-en overlapper ikke** (AT-G14): skannet dekker 43 × 31 m rundt E 654 092 / N 7 735 922, IFC-tilbygget ligger ved E 654 052–654 075 / N 7 735 764. Er skannet av et annet bygg/område på Gimlevegen 70, eller er en av georeferansene feil (Revit shared coordinates, eller skannerens pose)? | **Avklar før M10 brukes som fasit.** Høyden stemmer (55–57 m), så kartsystemet er trolig riktig for begge; mest sannsynlig dekker skannet eksisterende bygg (riveplan A-82) og ikke tilbygget. Hvis du har et punkt du vet er felles (f.eks. et hjørne), sier det alt |
+| Q12 | ~~Prosjektadmin foreslår koblinger til firma-admin?~~ 🟢 **Besvart 18.10 (Kenneth):** koblingen gjelder en tegning i et prosjekt — det skal ikke firma-admin ta stilling til → prosjektadmin kobler direkte (prosjektkobling), firma-admin kan løfte til firmanivå. Ingen forslagsflyt | — |
+| Q13 | **Anvendelse på eksisterende tegninger:** koblinger anvendes **ved lesing** av registeret (gjelder alle tegninger straks, ingen rekonvertering) — eller ved rekonvertering (kø, maks 2 samtidig)? | **Ved lesing.** Ingen kø, ingen ventetid, gamle tegninger følger med, render.py røres ikke. Rekonvertering bare når kodens typeliste endres |
+| Q14 | **Typelista** (kategorier/materialer) er SiteDocs faste liste; firma kan ikke lage egne typer. Holder det, eller trenger firma egne typer («Fjernvarme-rør»)? | **Fast liste først.** Forhåndsdefinerte valg slår fritekst (CLAUDE.md); mangler en type, utvides lista i kode etter ønske. Egne firmatyper = KAN senere, krever egen O1-adapter |
 | Q8 | **Underlag (F10):** skal SiteDoc kunne legge VVS/EL-tegningen oppå ARK-tegningen når de deler koordinatramme, eller holder det å vise tilstanden «underlag mangler»? TB3/VB3 er ubrukelige alene (rør i tomrom) | **Ja, F10 som BØR rett etter F8.** Det er slik fagarbeideren leser et tegningssett; og rammen er alt felles i filene (AT-F12). Samme spørsmål gjelder AB3/VB3/TB3 i repoet som fixtures (eier?) — anbefaler samme regel som Q7 |
 
 ### 5a. Kenneth-svar 2026-10-12 — 🟢 alle åtte
@@ -389,6 +392,9 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q10 | 🟢 2026-10-13: IFC (`E3 3D-modell ARK.ifc`, HABU) + punktsky lagt i eksempelmappa (ikke i git) |
 | Q11 | 🟢 2026-10-13: **Annet bygg.** Punktskyen er eksisterende bygg; IFC er tilbygget som skal kobles til det; en del av det skannede bygget skal rives for tilkoblingen. ⚠️ **Avvik å måle:** da skal de to ligge inntil hverandre, men målt avstand er ~160 m (AT-G14). Én av georeferansene er trolig feil, eller E57-posen er lokal → M10 kan ikke brukes som fasit før avviket er forklart. **Kenneth 2026-10-13:** *«jeg tror IFC er feil georeferert … punktskyen stoler jeg 100 % at er rett»* → punktskyen er fasit (M10 gyldig), IFC-ens site-plassering regnes som feil |
 | D5-budsjett | 🟢 2026-10-13 (Kenneth «1 og 2»): **store tegninger** (fallplan 22 MB DXF) får et eget førstegangsbudsjett på ~3–6 s **med fremdriftsindikator**, og åpnes deretter fra cache/offline-kopi. ≤ 3 s gjelder fortsatt vanlige tegninger. Samtidig spike 0,5b: forenklet DXF (fjerne XDATA/ubrukte blokker/metadata viseren ikke trenger) — løser den budsjettet, bortfaller unntaket. **RETUR 4 (2026-10-14, `DxfViewerTegning.tsx`):** klient-cache (`tegningFilCache.ts`, Cache Storage, nøkkel = usignert `/uploads/`-sti, LRU 200 MB, tømmes ved utlogging) + fremdrift (MB/%) implementert — gjenåpning skal treffe cache og ta < 1 s. Rotårsak til ustabil fokusbytte funnet og rettet: `signerUploadsOutput`-middlewaren (hmac.ts) minter ny HMAC-signatur pr. `tegning.hentMedId`-kall (inkl. bakgrunnsrefetch ved vindu-fokus), og effektens avhengigheter leste tidligere den signerte strengen — reload ved hver refetch. Nøkkel nå den usignerte stien. Komprimering: `/api/uploads/*` var helt ukomprimert (målt 15,9 MB transfer = 15,9 MB dekodet) — `@fastify/compress` (br/gzip) lagt til i `apps/api/src/server.ts`. ⚠️ Ikke verifisert på test ennå (krever levende nettleser-sesjon). **Worker-bunt (orkestrator 2026-10-15, «worker-bunt med esbuild, GODKJENT»):** DXF-parsingen (`_FetchFonts`/`DxfScene.Build`) flyttet til egen tråd via `dxf-viewer`s `workerFactory` — en FRITTSTÅENDE bunt bygget av `apps/web/scripts/build-dxf-worker.mjs` (esbuild, devDependency, **lisens MIT**) FØR `next dev`/`build`/`typecheck`, aldri Next sin egen webpack-worker-bundling (den native veien ga en manglende-chunk-defekt i en kald build, se forrige sjekkpunkt). Output: innholds-hashet statisk fil i `public/workers/` + `manifest.json` som klienten leser (`hentDxfWorkerFactory()`). Feiler worker-lastingen (404/CSP) faller `DxfViewerTegning.tsx` tilbake til hovedtråden med en konsollmelding — **målt** (headless, samme fallplan.dxf): `Load()` rejecter etter 84 ms, retry på samme viewer fullfører på 2,4 s, ingen blank flate. **Hovedtråd-blokk** under selve lastingen: uten worker 304 ms (over 200 ms-målet), med worker 46,8 ms — lastetid praktisk talt uendret (hovedtråd 2420 ms vs worker 2433 ms). dxf-viewer selv er MPL-2.0 (uendret, allerede notert i harness-overlegget). |
+| Q12 | 🟢 2026-10-18: **Prosjektadmin kobler direkte i prosjektet, uten firma-admin.** «Snakker vi ikke om koblinger i en tegning i et prosjekt? → det skal ikke firmaadmin ta stilling til.» → to nivåer (prosjekt > firma), løft til firma er firma-admins valg |
+| Q13 | 🟢 2026-10-18: ok — anvend ved lesing, ikke rekonvertering |
+| Q14 | 🟢 2026-10-18: ok — fast typeliste først |
 | Rotasjon | 🟢 2026-10-13: **B** — ikke-georefererte DWG vises som tegnet i arbeidstegning-motoren (ingen automatisk kamerarotasjon); brukerens ⟳ beholdes. Georefererte: nord opp (F11.4). **Presisert 2026-10-13:** *«I utgangspunktet er tegninger laget med tekst og rotasjon i korrekt retning og trenger ikke ekstra rotasjon»* → visning som tegnet er standard; ⟳ er en sjelden brukerhandling; **valg C (egen motrotert tekst) bygges ikke** |
 
 ## 6. Hva Dokgens prøve må levere (gate for valg A/B — ikke bygging)
@@ -435,6 +441,15 @@ orkestrator/Kenneth på tallene; deretter bestilles F1/F2/F4 som første byggeor
 33. To kilder på samme byggeplass > 2 m fra hverandre (ment inntil) gir tilstand med avstand; HABU-IFC + punktsky → ~160 m (M11); 1,5 m → ingen (M15).
 34. Justering med to punktpar mot fasit lagres som overstyring kilde «manuell mot punktsky», fila uendret (sha256 før/etter), arvede DWG-er følger (M12, M13).
 35. «Fjern overstyring» gjenoppretter påstanden og varselet (M15).
+36. Objekt på lag uten kjent kode/beskrivelse/Revit får `kategori: null` + «Ukjent type» i kortet og «Ukjent (N lag)» i panelet (K1, K5); i dag vises rått lagnavn som type.
+37. `kategoriKilde`/`sikkerhet` finnes på hvert objekt i O1 og vises i kortet (§ 9.2).
+38. Dør-INSERT uten WIDTH/BREDDE og uten størrelse i blokknavn viser ingen bredde (K9); i dag lengste segment.
+39. Prosjektkobling `Skrålinjer_2 → isolasjon` slår inn på fallplanens 51 HATCH-objekter **uten rekonvertering**, bare i prosjektet, også i et frittstående prosjekt uten firma; etter løft bare i samme `organizationId` (K2, K4) — stille-tomhet-vakten; vanlig medlem får FORBIDDEN (K8).
+44. Isolasjonsbånd med to parallelle lange kanter viser tykkelse «målt fra geometri» (100 mm ± 2 på fallplanen); uregelmessig skravert flate viser ingen (K9).
+40. `konverteringRapport.gjenkjenning` finnes med andel/kilder/ukjente lag og mønstre (K7); i dag bare pr. entitetstype.
+41. AutoCAD-standardmønster `INSUL` → materiale isolasjon uten firmakobling (§ 9.2 pri 7); i dag `materialeRaa`.
+42. Korpus-manifest: test pr. fil som finnes lokalt, skip ellers; forventet kategori for «231- Bærende yttervegger» = vegg på fallplanen (§ 9.6).
+43. Revit-kategori vinner over kobling på kategori, kobling gjelder materiale på Revit-tegning (K3); prosjektkobling vinner over firmakobling (K8); konflikt listes i rapporten.
 
 ## 8. Felles objektmodell på tvers av 2D, IFC/3D og mobil · **MÅ** (Kenneth 2026-10-12 «ja»)
 
@@ -466,3 +481,127 @@ Felles er modellen og komponentene, ikke renderen.
 **Rekkefølge:** O1+O2 bygges med F1 (første byggeordre etter prøven) og tas i bruk i 3D-kortet i samme ordre, så det aldri finnes tre kort. O3 med F2. O4 med F5. IFC-panelet (L2) og mobil-IFC (L4) er egne små ordrer etter det, i 3D-sporet — spec-en her eier modellen, ikke 3D-renderen.
 
 **Hvilken fil oppdateres:** `web.md` § 3D-visning og `mobil.md` § IFC får henvisning til § 8 ved første byggeordre (DOC-MAP); avvikene i AT-I6 (meldingsnavn `cacheFragment`, `file://`) rettes i `mobil.md` i samme ordre.
+
+## 9. Gjenkjenning av lag og objekter på tvers av CAD-standarder (rev. 10, 2026-10-18)
+
+> Hjemmel: **Kenneth 2026-10-18 «ja»** — firma-admin kobler lag/mønster til type. Ordre: orkestrator 18.10 (`relay/inbox-fabel.md`
+> § POST: gjenkjenning av lag/objekter). Utløser: fallplanens **isolasjon** ligger som HATCH `Skrålinjer_2` på laget
+> «231- Bærende yttervegger (Skravur)», uten «isol» noe sted — navneheuristikk kan ikke finne den, fordi hver arkitekt har sin egen
+> CAD-standard. § 9 presiserer F1 felt 1/4 og F2 (gruppe) og § 8 O1 (`kategori`, `egenskaper[].tolket`).
+
+### 9.1 Målt utgangspunkt (develop `faf2be07`, 2026-10-18)
+
+| # | Fakta | Bevis |
+|---|---|---|
+| AT-K1 | **Prioritert tolkning finnes alt, server-side i render.py:** `kategori` = Revit-XDATA (`BUILTIN_CAT`, 17 kategorier; ukjent kode → «Kategori N») → `layer.description` → `tolk_lagnavn` (SOSI, A-prefiks, NS 3451, suffiks «(Skravur/Tekst/Nye konstruksjoner/Polylinje)» strippes) → **rått lagnavn**. `gruppe` via `tolk_lag_gruppe` (NS 3451/A-prefiks/SOSI/AIA), navn fra `NS3451_NAVN`/`AIA_FAG_NAVN`, ellers «Andre». **Ingen «Ukjent»-tilstand** — fallback er rått lagnavn som om det var en type | `render.py:191-204, :230-258, :298-304, :333-363, :559-590` |
+| AT-K2 | **Skravur → materiale:** `MATERIALE`-tabell med **4** mønstre (Betong_strukturell, Gips, Lettklinker, Trefiber); ukjente mønstre → `materialeRaa` (vist som tolket), unntatt `FP_*`/`SOLID` som skjules. Fallplanens `Skrålinjer_2` (isolasjon) og `Skrålinjer_1`/`Prikker_tett` ender som rå mønsternavn. Ingen AutoCAD-standardmønstre (INSUL, ANSI31/37, AR-CONC, BRICK, EARTH …) i tabellen | `render.py:199, :285, :315-317` |
+| AT-K3 | **Mål kan bli feil tall:** egenskapskortets «Mål» = lengden av første polylinje i `geom`, areal for HATCH/SOLID; for dør/vindu-INSERT brukes attributt WIDTH/BREDDE, **ellers lengste segment i blokken** — en gjetning. Tykkelse finnes ikke | `egenskapsfelt.ts:80-113` |
+| AT-K4 | **Ingen gjenkjenningsrapport:** `KonverteringRapport` = `parsetPrType/tegnetPrType/ikkeTegnet` + `markor`; render.py teller `objekter/lag/elid` til stdout, men `genererDxfViewerArtefakter` leser ikke stdout. `laginventar` (navn, antall, visningsnavn, desc, aci, ltype, lw, gruppe) finnes i registeret, ikke i DB. Markørlinja på tegningssiden er ikke admin-begrenset | `dwgKonvertering.ts:958-965, :2184-2205`; `render.py:1440-1449, :1475`; `tegning.ts:342`; `tegninger/page.tsx:1736` |
+| AT-K5 | **Lagpanelet viser tolket** (`gruppeNavn` + `visningsnavn`, rå kode i grått), gruppert av `byggLagGrupper` i shared; «Andre» slås sammen. Web og mobil bruker samme shared-funksjon | `lag-gruppering.ts:22-25`; `LagPanel.tsx:32-107`; `TegningLagPanel.tsx:45-126` |
+| AT-K6 | **Ingen firma-scopet CAD-konfigurasjon.** Mønster å gjenbruke: `Kompetansetype`/`Avdeling` (`@@unique([organizationId, navn])`), `Lonnsart` (`@@unique([organizationId, kode])`), skriving via `autoriserAdminForFirma` (sitedoc_admin eller firma-admin), UI under `/dashbord/firma/…` med `kanAdministrereFirma`-layout og `firma-nav.tsx`. Ingen «Tegninger»-side under firma | `schema.prisma:372, :2834, :2938`; `db-timer schema.prisma:22-50`; `tilgangskontroll.ts:306, :858`; `firma/layout.tsx:23`; `firma-nav.tsx:43-64` |
+| AT-K7 | **Migreringsmal for «stille tomhet»:** `20261002120000_byggeplass_geofence_kilde` (ADD COLUMN IF NOT EXISTS, backfill, CHECK i idempotent `DO $$`-blokk). Siste tegningsmigrering `20261013220000_arbeidstegning_dxfviewer_urls` er ren additiv | `packages/db/prisma/migrations/…` |
+| AT-K8 | **Tester:** 15 py-tester for `tolk_lag_gruppe`/`gruppe_visningsnavn`/dominant Revit-kategori/nærmeste merking; **0** for `bygg_objektregister`, `parse_revit_xdata`, `MATERIALE`; `egenskapsfelt.test.ts` 15, `lag-gruppering.test.ts` 4; ingen komponenttester for lagpanel/egenskapskort; **ingen fixture med navngitt skravurmønster** (`hatchDxf` mangler gruppekode 2) | `test_render_f2.py`; `egenskapsfelt.test.ts:32-38, :79`; `dwgKonvertering.test.ts:113` |
+
+**Konsekvens:** rekkefølgen i ordrens punkt 1 er i hovedsak bygget (AT-K1), men (a) ukjent blir aldri sagt høyt — rått lagnavn
+presenteres som type og lengste segment som mål (AT-K1/K3), (b) skravur dekker fire mønstre fra én fil (AT-K2), (c) ingen ser hvor
+mye som er gjenkjent (AT-K4), og (d) det finnes ingen måte å lære systemet firmaets egen standard (AT-K6).
+
+### 9.2 Regel K1 — Gjenkjenningsrekkefølge og sikkerhet · **MÅ** (reparasjon av F1/F2, presisering av O1)
+
+Hvert objekt får `kategori` + `kategoriKilde` + `sikkerhet` (`hoy | middels | lav | ukjent`) i O1, bestemt i denne rekkefølgen — første treff vinner, men **materiale** og **kategori** avgjøres hver for seg (en Revit-vegg kan ha ukjent skravur):
+
+| Pri | Kilde | Gir | Sikkerhet | Finnes i dag |
+|---|---|---|---|---|
+| 1 | **Revit-kategori** (XDATA kode 2, `BUILTIN_CAT`) | kategori | høy | ja (AT-K1) |
+| 2 | **Kobling** (§ 9.5: lag/mønster/blokk → type; prosjektkobling vinner over firmakobling) | kategori **når pri 1 mangler**; materiale **alltid** (Revit `FP_n` er meningsløs uten firmakobling) | høy (bekreftet av menneske) | nei |
+| 3 | **Lagbeskrivelse fra fila** (`layer.description`, POINT/AB3) | kategori | høy | ja |
+| 4 | **NS 3451-kode i lagnavn** (2–3 siffer, m/u «A»-prefiks) | kategori + gruppe | middels | ja |
+| 5 | **AIA/IFC-kode** (`A-WALL`, `P-SANR-FIXT`, `S-COLS` …) | kategori + gruppe | middels | ja (gruppe), kategori-navn delvis |
+| 6 | **SOSI-kode** i lagnavn («8250 Kum») | kategori | middels | ja |
+| 7 | **Skravurmønster** — AutoCAD-standard (`INSUL`→isolasjon, `ANSI31/32`→stål/betong-snitt, `AR-CONC`→betong, `AR-SAND`/`AR-B816`→mur, `BRICK`, `EARTH`, `GRAVEL`, `DOTS`, `SOLID`) + norske navn (dagens 4 + `Prikker_tett`/`Skrålinjer_*` **bare** via firmakobling) | materiale | middels | 4 mønstre |
+| 8 | **Geometri** — KAN, bare entydige tilfeller: lukket polylinje som omslutter en romtagg = rom; blokk med `ROOM_NAME` = romstempel. Aldri «to parallelle linjer = vegg» | kategori (rom) | lav | nei |
+| 9 | **Rått lagnavn** | **ingen kategori**: `kategori = null`, kortet viser **«Ukjent type»** + rå lagnavn og rå mønster | ukjent | i dag vises lagnavnet *som* type |
+
+- Lagpanelets gruppe følger samme rekkefølge; «Andre» blir **«Ukjent (N lag)»** med rå navn under, slik at det synes at noe ikke er gjenkjent.
+- Kortet viser alltid kilden i grått under «Hva» («fra Revit», «fra prosjektkobling», «fra firmakobling», «fra lagbeskrivelse», «fra NS 3451-kode», «fra skravur», «ukjent»). Tolkede felt er kursiv som i dag (AT-K5-mønsteret).
+- **Konflikt mellom kilder** (kobling sier isolasjon, Revit sier vegg) → Revit vinner for kategori, koblingen gjelder materiale, og rapporten (§ 9.4) lister konflikten.
+
+### 9.3 Regel K2 — Aldri feil tall · **MÅ** (reparasjon)
+
+- `kategori = null` (ukjent) → **ingen** mål, tykkelse eller type/størrelse på kortet (tykkelse krever kjent bånd/skravur, se under). Bare «Ukjent type», rå lagnavn, rå mønster, tekst i nærheten (tolket) og id. Ærlig tomt fremfor galt.
+- Mål vises bare når geometrien er entydig for kategorien: lengde for strek/polylinje (alle kategorier), areal for lukket flate/skravur, **bredde for dør/vindu bare fra attributt (WIDTH/BREDDE) eller blokknavn med «10x21M»-mønster** — **aldri lengste segment** (AT-K3 fjernes). **Tykkelse (RETUR 1, Kenneth 18.10 «isolasjon → tykkelse»): vises for bånd/skravur når geometrien er entydig** — to lange, parallelle kanter innenfor toleranse (vinkelrett avstand mellom båndets to lange kanter, slik Dokgen alt beregner i `fix/arbeidstegning-flytt-punkt`: 100 mm ± 2 på fallplanens isolasjon), merket «målt fra geometri». Er kantene ikke parallelle, båndet ikke langt nok, eller flaten lukket uten to dominerende kanter → ingen tykkelse. Samme regel som vegglengde langs lengste akse (alt bygget).
+- Tall som er tolket (nærmeste merking «15.TR», bredde fra blokknavn) merkes tolket; tall fra geometri merkes ikke.
+
+### 9.4 Regel K3 — Gjenkjenningsrapport pr. tegning og pr. prosjekt · **MÅ** (reparasjon/utvidelse av konverteringsrapporten)
+
+- `konverteringRapport.gjenkjenning` lagres ved konvertering (render.py-telling → TS, i dag kastet, AT-K4): `{ objekter, gjenkjent, andel, kilder: {revit, firmakobling, lagbeskrivelse, ns3451, aia, sosi, skravur, geometri, ukjent}, ukjenteLag: [{navn, antall}], ukjenteMonstre: [{navn, antall, lag}], ukjenteRevitKoder: [{kode, antall}], konflikter: [{lag|monster, kilde1, kilde2}] }`. `andel` = objekter med `kategori ≠ null` / objekter som ikke er tekst/mål/akser.
+- **Vises for admin** (prosjektadmin/firma-admin, `erProsjektLeder`/`kanAdministrereFirma`) på tegningssiden som én linje under markøren: «87 % gjenkjent · 3 ukjente lag · 2 ukjente mønstre» med utfold. Ikke for vanlige brukere (de ser «Ukjent type» på kortet, det holder).
+- **Samlet pr. prosjekt** (tegningslista, admin): sum over tegninger, listen av ukjente lag/mønstre på tvers, sortert på antall objekter — det er herfra firma-admin kobler (§ 9.5). **Samlet pr. firma** under `/dashbord/firma/tegninger` (ny side, § 9.5).
+- Rapporten regenereres når en firmakobling anvendes (§ 9.5), så tallet stiger synlig etter kobling.
+
+### 9.5 Regel K4 — Kobling lag/mønster/blokk → type, på prosjekt- og firmanivå · 🔴 **FUNKSJONSENDRING (Kenneth-hjemmel 2026-10-18)** · **MÅ**
+
+**Hva (rev. 11, Kenneth på Q12: «snakker vi ikke om koblinger i en tegning i et prosjekt? → det skal ikke firmaadmin ta stilling til»):** koblingen lages der tegningen er — i prosjektet, av **prosjektadmin**, og gjelder **straks** for prosjektets tegninger uten noen godkjenning. Eksempel: «`Skrålinjer_2` = isolasjon». **To nivåer:**
+- **Prosjektkobling** (`projectId` satt): prosjektadmin lager den fra rapporten på tegningen. Gjelder alle tegninger i prosjektet.
+- **Firmakobling** (`projectId` null): firma-admin lager den under `/dashbord/firma/tegninger`, eller **løfter** en prosjektkobling dit med ett klikk («Gjelder hele firmaet»). Gjelder alle firmaets prosjekter.
+- **Prosjektkobling vinner over firmakobling** når begge treffer samme nøkkel (prosjektet kjenner sine tegninger best); konflikten vises i rapporten.
+
+**Datamodell (ny tabell i `packages/db`, siden `Drawing` bor der; to-stegs-policy: ren additiv migrering, ingen eksisterende kolonne røres):**
+```
+model CadKobling {            // cad_koblinger
+  id             String   @id @default(uuid())
+  organizationId String?                        // firma-scope; null bare for prosjektkobling i frittstående prosjekt
+  projectId      String?                         // null = firmakobling; satt = prosjektkobling (svak FK)
+                                                 // CHECK: organization_id IS NOT NULL OR project_id IS NOT NULL
+  kildeType      String                          // "lag" | "monster" | "blokk"   (CHECK)
+  nokkel         String                          // rå nøkkel, lagret som skrevet; matches case-insensitivt og trimmet
+  maal           String                          // "kategori" | "materiale"       (CHECK)
+  type           String                          // kode fra felles typeliste (shared: KATEGORIER / MATERIALER), aldri fritekst
+  opphav         String                          // "prosjekt" | "firma" | "loftet_fra_prosjekt"
+  aktiv          Boolean  @default(true)
+  opprettetAv    String                          // userId
+  opprettetTid   DateTime @default(now())
+  fraTegningId   String?                         // hvor koblingen ble laget (sporbarhet), svak FK
+  @@index([organizationId, aktiv])
+  @@index([projectId, aktiv])
+}
+```
+- **Unikhet med nullbare kolonner** (Postgres regner NULL ≠ NULL): to **partielle unike indekser** i rå SQL i migreringen — firmakobling `(organization_id, kilde_type, nokkel, maal) WHERE project_id IS NULL` og prosjektkobling `(project_id, kilde_type, nokkel, maal) WHERE project_id IS NOT NULL`. Prisma `@@unique` alene holder ikke. **Frittstående prosjekter** (`organizationId = null`, gyldig permanent tilstand, CLAUDE.md § Organisasjonsmodellen): prosjektkobling lagres med `organizationId null` + `projectId` satt (CHECK over), og prosjektadmin kobler som i et firmaprosjekt. «Løft til firma» finnes ikke der (ingen firma). Flyttes prosjektet inn i et firma senere (permanent firmaoverføring), settes `organizationId` på prosjektkoblingene i samme transaksjon.
+- **Stille tomhet-regelen:** (a) backfill: ikke relevant — tabellen fødes tom med rette (ingen koblinger finnes før noen lager dem), og det **sies** i migreringens header; (b) DB-garanti: de to partielle unike indeksene; (c) **test som feiler når koblingen ikke slår inn**: etter at prosjektadmin lagrer «Skrålinjer_2 → isolasjon», må fallplanens register vise `materiale: "isolasjon"` på de 51 objektene — ellers rød (T39).
+- **Typeliste** = én shared-konstant (`packages/shared/src/tegning/typer.ts`: `KATEGORIER` = Revit-/NS 3451-kategoriene som alt finnes i render.py + «isolasjon», «rom», «utstyr», «rør», «kanal», «kabel» …; `MATERIALER` = betong, gips, lettklinker, tre, trefiber, stål, mur, isolasjon, jord, grus, glass …). Forhåndsdefinerte valg, ikke fritekst (CLAUDE.md UI-prinsipp). Utvidelse av lista = kodeendring, ikke firmadata.
+
+**Hvem:** prosjektkobling krever prosjektadmin (`ProjectMember.role = "admin"` via `erProsjektLeder`, eller firma-admin som arver); firmakobling og «løft til firma» krever `autoriserAdminForFirma` (sitedoc_admin eller firma-admin, som `Kompetansetype`). Ingen godkjenningsflyt, ingen forslag som venter (Q12). Vanlige medlemmer ser bare «Ukjent type».
+
+**Hvor i UI:**
+1. **Fra rapporten på tegningen/prosjektet** (§ 9.4): hver ukjent rad har «Koble til type …» → nedtrekk fra typelista (kategori eller materiale etter kildeType) → lagre = prosjektkobling, virker straks. SiteDoc **foreslår** øverst i nedtrekket når nøkkelen matcher kjente tokens (`insul|isol|iso` → isolasjon, `conc|betong` → betong, `brick|tegl|mur` → mur, `gips|gyp` → gips, `stål|steel|ansi3` → stål) eller når samme nøkkel alt er koblet i et annet firma (anonym statistikk, KAN). Forslag må bekreftes — aldri automatisk anvendt.
+2. **Firmaside `/dashbord/firma/tegninger`** (ny, i `firma-nav`): liste over firmakoblinger **og** prosjektkoblinger gruppert pr. prosjekt (nøkkel, kildeType, type, antall objekter som treffes, laget av/når, fra tegning), «Gjelder hele firmaet» (løft), rediger type, deaktiver (ikke slett — sporbarhet), søk. Samlet gjenkjenningsgrad pr. prosjekt. Prosjektadmin ser og redigerer prosjektets koblinger i prosjektets tegningsliste (admin-visning), ikke på firmasiden.
+
+**Hva skjer med eksisterende tegninger (Q13 🟢 ok):** koblingene **anvendes ved lesing** av registeret, server-side i `tegning.hentRegister` (ett oppslag pr. prosjekt + firma, cachet med versjonsstempel **`cadKoblingVersjon` på `Project`** — bumpes når prosjektets egne koblinger endres **og** når firmaets koblinger endres (bump alle firmaets prosjekter i samme transaksjon); frittstående prosjekter har dermed samme mekanisme uten `Organization`) — ikke ved rekonvertering. Da gjelder en ny kobling **alle firmaets tegninger med en gang**, inkludert gamle, uten kø eller rekonvertering; render.py røres ikke. Rapporten (§ 9.4) regenereres fra registeret ved samme lesning. Mobil-offline-kopier bærer prosjektets `cadKoblingVersjon` og hentes på nytt når den endres (F7). Rekonvertering trengs **bare** når typelista i render.py endres (kodeendring), ikke for firmadata.
+
+**Forhold til automatisk gjenkjenning:** kobling (prosjekt > firma) er pri 2 i § 9.2 — vinner over lagbeskrivelse, NS 3451, AIA, SOSI, skravur-standard og rått lagnavn; taper for Revit-kategori på *kategori* (objektdata fra kilden er sannere enn en firmaregel), men gjelder *materiale* også på Revit-tegninger (`FP_3` → isolasjon). Konflikt vises i rapporten, ingenting velges stille (samme prinsipp som F11.8).
+
+**Akseptkriterier (ekte filer):**
+- K1 Fallplan før kobling: de 51 HATCH `Skrålinjer_2`-objektene har `materiale: null`, `materialeRaa: "Skrålinjer_2"`, kortet viser «Materiale: ukjent (Skrålinjer_2)»; rapporten lister «Skrålinjer_2 · 51 objekter · lag 231- … (Skravur)». Veggen rundt beholder kategori «Bærende yttervegger · 231» (lagnavn-kode, middels).
+- K2 Prosjektadmin kobler `Skrålinjer_2 → isolasjon` fra rapporten (prosjektkobling) → **uten rekonvertering** viser kortet «Materiale: isolasjon (fra prosjektkobling)» på samme 51 objekter, rapporten går fra «2 ukjente mønstre» til «1», `andel` stiger; lagpanelet uendret (lag er kjent). Test T39 (feiler når koblingen ikke slår inn).
+- K3 Samme firma, annen tegning (HABU A-10-101, Revit): `FP_3`-skravur får materiale «fra firmakobling» når firmakoblingen `FP_3 → isolasjon` finnes; Revit-kategori «Vegg» beholdes selv om admin skulle koble laget `A23_yttervegg → isolasjon` (Revit vinner kategori) — konflikten vises i rapporten.
+- K4 Annet prosjekt i samme firma: prosjektkoblingen gjelder ikke der; etter «Gjelder hele firmaet» (firma-admin) gjelder den; annet firma: aldri (organizationId-isolasjon). Negativkontroller på begge. **Frittstående prosjekt** (`organizationId null`): prosjektadmin kobler `Skrålinjer_2 → isolasjon`, koblingen virker (`organizationId null`, `projectId` satt), «Gjelder hele firmaet» vises ikke; `cadKoblingVersjon` på `Project` bumpes.
+- K5 UTM32: «8250 Kum» → kategori «Kum» fra SOSI (middels); lag «XREF-ARK» → «Ukjent type», ingen mål.
+- K6 AB3-1071: `A2412` → «Innervegg IKKE bærende» fra lagbeskrivelse (høy) — ikke overstyrt av NS 3451-tolkning.
+- K7 Rapport: fallplan viser andel og listene for prosjektadmin; vanlig medlem ser ikke linja; prosjektsamling summerer tre tegninger.
+- K8 Prosjektkobling `Prikker_tett → betong` og firmakobling `Prikker_tett → mur` på samme nøkkel → prosjektet viser betong, rapporten lister konflikten; firmakobling gjelder i andre prosjekter. Vanlig medlem kan ikke lagre kobling (FORBIDDEN).
+- K9 «Aldri feil tall»: dør-blokk uten WIDTH-attributt og uten størrelse i navnet viser ingen bredde (i dag lengste segment). Fallplanens isolasjonsbånd (`Skrålinjer_2`) viser «Tykkelse 100 mm (målt fra geometri)» (± 2 mm); en skravert, uregelmessig flate (ikke bånd) viser ingen tykkelse — negativkontroll.
+
+### 9.6 Regel K5 — Testkorpus fra virkeligheten · **MÅ** (prosess, ikke kode i git)
+
+- Testtegninger fra ulike firmaer ligger **bare lokalt/på test** (`DWG eksempelfiler/`, Q7-regelen: aldri i git). I git ligger en **manifest** `apps/api/test-fixtures/dwg/korpus.json`: pr. fil `{ navn, sha256, kilde (ArchiCAD/Revit/POINT/landmåler), forventet: { andel ≥ x, lag: {"231- Bærende yttervegger": "vegg"}, monstre: {"Skrålinjer_2": null | "isolasjon (via kobling)"}, revitTag: true/false } }`. Testen kjører pr. fil som finnes lokalt, skipper rent ellers (aldri rød i CI uten filer).
+- **Hver feil fra virkeligheten blir en rad**: når Kenneth eller en kunde finner et objekt som er feil gjenkjent, legges fila (lokalt) + forventningen (i git) inn før fiksen — regresjon for alltid.
+- Startkorpus (alt målt i denne spec-en): fallplan (ArchiCAD-IFC-import), HABU ×7 (Revit, lokalt hos Kenneth), AB3/VB3/TB3 (POINT/AutoCAD 2004), Ålesund NTM6/UTM32 (landmåler). Forventningene står i AT-F1–F14 og K1–K9.
+
+### 9.7 Ordre
+
+| Ordre | Innhold | Gate | Hjemmel |
+|---|---|---|---|
+| **GJ-1 (reparasjon)** | § 9.2 kilde+sikkerhet i O1 og «Ukjent type» (render.py + egenskapsfelt + lagpanel «Ukjent (N)») · § 9.3 aldri feil tall · § 9.4 rapport i `konverteringRapport.gjenkjenning` + admin-linje på tegning + prosjektsamling · AutoCAD-standardmønstre i `MATERIALE` · § 9.6 manifest + skip-tester · T36–T38, T40–T42 | Kontrollør | ingen ny — presiserer F1/F2/O1 |
+| **GJ-2 (funksjonsendring)** | § 9.5 `CadKobling` (migrering m/ to partielle unike indekser + CHECK org/prosjekt, frittstående prosjekter, Zod, prosjektadmin-/firma-admin-tilgang), anvendelse ved lesing + `cadKoblingVersjon` på `Project`, kobling fra rapporten i prosjektet, «løft til firma», firmaside `/dashbord/firma/tegninger` · T39, T43 | Kontrollør; FUNKSJONSENDRINGER.md ved merge | Kenneth 18.10 «ja» |
+
+GJ-1 først (uten «Ukjent» finnes det ingenting å koble). Agent: Dokgen (eier render.py/register), redesign for firmasiden i GJ-2.
