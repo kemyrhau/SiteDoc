@@ -147,7 +147,21 @@ const formatMeter = (m: number) =>
 const formatAreal = (m2: number) =>
   `${m2.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`;
 
-/** Kamera-parametre for den delte skjerm↔verden-projeksjonen, lest rett fra dxf-viewer-instansen. */
+/** RETUR krasjretting (Kontrollør, orkestrator 2026-10-18): ÉN sentral klar-sjekk for
+ * ALT som leser scene/kamera fra en dxf-viewer-instans. `camera` settes i konstruktøren
+ * (alltid sann for en konstruert viewer), mens `bounds`/`origin` settes FØRST etter at
+ * `Load()` har fullført sin async worker-rundtur (node_modules kilde: DxfViewer.js:242-
+ * 243). Siden `last()` ALLTID bygger en FERSK `DxfViewer`-instans (aldri gjenbruk),
+ * selv-nullstiller denne sjekken korrekt pr. last — ingen egen ref/state kan komme ut
+ * av synk med viewer-objektet den speiler.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function viewerKlar(viewer: any): boolean {
+  return Boolean(viewer?.camera && viewer.bounds && viewer.origin);
+}
+
+/** Kamera-parametre for den delte skjerm↔verden-projeksjonen, lest rett fra dxf-viewer-instansen.
+ * Kalleren MÅ sjekke `viewerKlar(viewer)` FØRST — denne leser `viewer.origin` uten guard. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function kameraParametre(viewer: any, rotasjonGrader: number): DxfKameraParametre {
   const cam = viewer.camera;
@@ -354,6 +368,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   onObjektValgtRef.current = onObjektValgt;
   const onLaginventarKlarRef = useRef(onLaginventarKlar);
   onLaginventarKlarRef.current = onLaginventarKlar;
+  // RETUR krasjretting (Kontrollør, orkestrator 2026-10-18): "lag-API". `settLagSynlig`
+  // kalles imperativt fra UTSIDEN (RN-bunnark/web-lagpanel, bl.a. gjenopprettet lagvalg
+  // fra enhetens lagring RETT ETTER mount) og kan komme FØR Load() er ferdig. Fremfor å
+  // stille tape valget (ShowLayer no-op'er trygt på et ukjent lag, se vendor-kilden),
+  // legges det i kø og spilles av igjen når last() har kjørt viewerKlar()-sjekken OK.
+  const lagVentelisteRef = useRef<Map<string, boolean>>(new Map());
   // F1: registeret + rbush-indeksen bygges ÉN gang ved innlasting (ikke pr. trykk, se
   // hit-test-verden.ts sin "rbush som første filter"-kommentar), og valgt objekt
   // speiles i en ref (tegnOverlegg() leser den imperativt, samme mønster som måling).
@@ -376,7 +396,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   const tegnOverlegg = useCallback(() => {
     const svg = overlaySvgRef.current;
     const viewer = viewerRef.current;
-    if (!svg || !viewer?.camera) return;
+    if (!svg || !viewerKlar(viewer)) return;
     const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
     svg.setAttribute("width", String(k.canvasBredde));
     svg.setAttribute("height", String(k.canvasHoyde));
@@ -427,7 +447,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
 
   function naerTerskel(p: Punkt, q: Punkt): boolean {
     const viewer = viewerRef.current;
-    if (!viewer?.camera) return false;
+    if (!viewerKlar(viewer)) return false;
     const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
     const sp = verdenTilSkjerm(toVerden(p), k);
     const sq = verdenTilSkjerm(toVerden(q), k);
@@ -470,7 +490,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
 
   function oppdaterForhandsvisning(skjermX: number, skjermY: number) {
     const viewer = viewerRef.current;
-    if (!viewer?.camera) return;
+    if (!viewerKlar(viewer)) return;
     const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
     const kandidat = skjermTilVerden({ skjermX, skjermY }, k);
     const { maleTilstand: mt, ortho: orthoPaa, snapPaa: snapPaaNaa } = uiRef.current;
@@ -539,7 +559,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     }
     const viewer = viewerRef.current;
     const canvas = viewer?.canvas as HTMLCanvasElement | undefined;
-    if (!viewer?.camera || !canvas) return;
+    if (!viewerKlar(viewer) || !canvas) return;
     const rect = canvas.getBoundingClientRect();
     const skjermX = e.clientX - rect.left;
     const skjermY = e.clientY - rect.top;
@@ -643,7 +663,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       const viewer = viewerRef.current;
       const reg = registerRef.current;
       const idx = bboxIndeksRef.current;
-      if (viewer?.camera && reg && idx) {
+      if (viewerKlar(viewer) && reg && idx) {
         const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
         const treff = hitTestWorld(
           { skjermX: g.startSkjerm.x, skjermY: g.startSkjerm.y },
@@ -676,8 +696,13 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       slettAlle: () => setMaleTilstand(() => slettAlle()),
       settLagSynlig: (navn: string, synlig: boolean) => {
         const viewer = viewerRef.current;
-        if (!viewer?.ShowLayer) return;
-        viewer.ShowLayer(navn, synlig);
+        if (!viewerKlar(viewer)) {
+          // Load() ikke ferdig ennå (f.eks. gjenopprettet lagvalg rett etter mount,
+          // SVAR 2) — kø, spill av igjen i last() når viewerKlar() er sann.
+          lagVentelisteRef.current.set(navn, synlig);
+          return;
+        }
+        viewer.ShowLayer?.(navn, synlig);
         viewer.Render?.();
       },
     }),
@@ -691,15 +716,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
    * seg senere (vindu/mobilpanel) — ett engangs-FitView holder ikke. */
   function tilpassKamera(rect: DOMRectReadOnly | DOMRect) {
     const viewer = viewerRef.current;
-    // SVAR 3 (orkestrator 2026-10-18, root cause for 100 % mobil-krasj på cache-treff):
-    // ResizeObserver sitt FØRSTE varsel kan komme etter at viewer-instansen er bygget
-    // (viewerRef.current satt) men FØR viewer.Load() har satt scene.bounds/origin —
-    // worker-rundturen er async. Ved cache-treff + allerede lastet worker-bunt er dette
-    // vinduet bredt nok at varselet alltid lander der, og "else"-grenen under leser
-    // viewer.origin.x på undefined. Et ferskt nettverks-fetch holdt vinduet for kort til
-    // at det samme varselet traff viewer-objektet. last() kaller selv tilpassKamera() rett
-    // etter at Load() er ferdig, så hopp over her er aldri et tapt kamera-fit.
-    if (!viewer || !viewer.bounds || rect.width <= 0 || rect.height <= 0) return;
+    // SVAR 3 + RETUR krasjretting (orkestrator 2026-10-18, root cause for 100 % mobil-
+    // krasj på cache-treff): ResizeObserver sitt FØRSTE varsel (og flere andre kilder,
+    // se viewerKlar()-kommentaren) kan komme FØR viewer.Load() har satt scene.bounds/
+    // origin. last() kaller selv tilpassKamera() rett etter at Load() er ferdig, så
+    // hopp over her er aldri et tapt kamera-fit.
+    if (!viewerKlar(viewer) || rect.width <= 0 || rect.height <= 0) return;
     viewer.SetSize(Math.round(rect.width), Math.round(rect.height));
     const o = viewer.origin;
     const bu = bygningRef.current;
@@ -773,6 +795,8 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       setFeil(null);
       setFremdriftProsent(null);
       setMmPrVerdenEnhet(null);
+      // Lagvalg fra en EVENTUELL forrige (annen) tegning er irrelevant for den nye.
+      lagVentelisteRef.current.clear();
       const el = containerRef.current;
       if (!el) return;
       try {
@@ -903,6 +927,13 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
         }
         valgtObjektRef.current = null;
         onObjektValgtRef.current?.(null); // ny tegning lastet -> forrige markering er ugyldig
+        // RETUR krasjretting: spill av lagvalg som kom inn FØR viewerKlar() ble sann
+        // (settLagSynlig la dem i kø i stedet for å tape dem, se useImperativeHandle).
+        if (lagVentelisteRef.current.size > 0) {
+          for (const [navn, synlig] of lagVentelisteRef.current) viewer.ShowLayer?.(navn, synlig);
+          lagVentelisteRef.current.clear();
+          viewer.Render?.();
+        }
         tilpassKamera(el.getBoundingClientRect());
         setLaster(false);
       } catch (e) {

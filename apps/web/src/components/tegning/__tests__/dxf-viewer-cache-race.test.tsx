@@ -4,13 +4,20 @@ import { render, cleanup, act } from "@testing-library/react";
 
 // SVAR 3 (orkestrator 2026-10-18, relay/inbox-dokgen-arbeidstegning-f1.md): 100 % krasj
 // på Kenneths telefon på ALLE tegninger etter at de var cachet (Cache Storage, RETUR 4).
-// Rotårsak: ResizeObserver sitt FØRSTE varsel kan lande i vinduet mellom at
-// `viewerRef.current` settes (rett etter `new DxfViewer(...)`) og at `viewer.Load()`
-// har satt `scene.bounds`/`scene.origin` (async worker-rundtur) — et cache-treff gjør
-// vinduet frem til viewer-konstruksjon kort nok at ResizeObserverens engangs-initial-
-// varsel ALLTID lander der, i stedet for FØR viewer-instansen i det hele tatt finnes
-// (som ved et ferskt nettverks-fetch). Denne testen simulerer nøyaktig det race-
-// vinduet uten WebGL/ekte dxf-viewer-bunt — se DxfViewerTegning.tsx sin `tilpassKamera`.
+// Rotårsak: `viewer.bounds`/`viewer.origin` settes FØRST etter at `viewer.Load()` har
+// fullført en async worker-rundtur (node_modules kilde: DxfViewer.js:242-243), mens
+// `viewerRef.current` settes RETT ETTER konstruksjon. Et cache-treff (fil + worker-bunt
+// begge øyeblikkelige) gjør vinduet frem til viewer-konstruksjon kort nok at alt som
+// leser scene/kamera i det vinduet ALLTID treffer det, mot aldri ved et ferskt
+// nettverks-fetch (viewer fantes ikke ennå da varselet/effekten kom).
+//
+// RETUR krasjretting (Kontrollør, orkestrator 2026-10-18): guarden fantes først BARE i
+// `tilpassKamera` (ResizeObserver-varselet). `kameraParametre` leser `viewer.origin`
+// UTEN guard, og kalles ógså fra `tegnOverlegg()` via en `useEffect` som kjører hver
+// gang `mmPrVerdenEnhet` endres — satt fra en `dxfBlob.text().then(...)`-kjede som er
+// UAVHENGIG av `Load()`s timing. Andre test under speiler NØYAKTIG det Kontrollør målte
+// på `DxfViewerTegning.tsx:161` (`senterX: o.x + cam.position.x`) med en produksjonsform-
+// DXF (ekte `$INSUNITS`), uten noe ResizeObserver-varsel i det hele tatt.
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -34,6 +41,15 @@ const REGISTER_JSON = {
   laginventar: [],
 };
 
+// Produksjonsform-DXF-header (RETUR krasjretting punkt 2): ekte `$INSUNITS`-gruppekode-
+// par (9/$INSUNITS, 70/4), slik en virkelig forenklet DXF fra render.py alltid har —
+// IKKE en minimal tom fil. Trigger `setMmPrVerdenEnhet(1)` (insunitsTilMm(4) = 1 mm),
+// som får useEffect-en (dep: mmPrVerdenEnhet) til å kalle tegnOverlegg() UAVHENGIG av
+// Load()s/ResizeObserverens timing.
+const DXF_MED_INSUNITS = ["0", "SECTION", "2", "HEADER", "9", "$INSUNITS", "70", "4", "0", "ENDSEC", "0", "EOF"].join(
+  "\n",
+);
+
 vi.mock("@/lib/tegningFilCache", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../lib/tegningFilCache")>();
   return {
@@ -44,7 +60,7 @@ vi.mock("@/lib/tegningFilCache", async (importOriginal) => {
       if (usignertSti.includes("register")) {
         return new Blob([JSON.stringify(REGISTER_JSON)], { type: "application/json" });
       }
-      return new Blob(["0\nSECTION\n0\nENDSEC\n0\nEOF\n"], { type: "text/plain" });
+      return new Blob([DXF_MED_INSUNITS], { type: "text/plain" });
     }),
   };
 });
@@ -59,7 +75,7 @@ vi.mock("dxf-viewer", () => {
   class FakeDxfViewer {
     canvas: HTMLCanvasElement | undefined = undefined;
     controls: unknown = undefined;
-    camera = { up: { set: vi.fn() }, right: 1, left: -1 };
+    camera = { up: { set: vi.fn() }, right: 1, left: -1, top: 1, bottom: -1, zoom: 1, position: { x: 0, y: 0 } };
     bounds: { minX: number; minY: number; maxX: number; maxY: number } | undefined = undefined;
     origin: { x: number; y: number } | undefined = undefined;
     SetSize = vi.fn();
@@ -162,6 +178,44 @@ describe("DxfViewerTegning — ResizeObserver-varsel midt i Load() (cache-treff-
 
     // Load() fullfører etterpå (worker svarer) — komponenten skal laste helt ferdig
     // uten unntak, og det opprinnelige kamera-fitet (linje ~898 i komponenten) kjører.
+    await act(async () => {
+      viewer.__fullforLast();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(viewer.FitView).toHaveBeenCalled();
+  });
+
+  it("$INSUNITS-triggert tegnOverlegg()/kameraParametre() FØR Load() er ferdig krasjer IKKE (RETUR krasjretting punkt 2)", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dxfViewerMock = (await import("dxf-viewer")) as any;
+    const onMaleKlarEndring = vi.fn();
+
+    let krasjet: unknown = null;
+    try {
+      render(
+        <DxfViewerTegning
+          dxfUrl="https://x.test/fil3.dxf?sig=a"
+          registerWorldUrl="https://x.test/fil3-register.json?sig=a"
+          rotasjonOverstyrt={0}
+          onMaleKlarEndring={onMaleKlarEndring}
+        />,
+      );
+      // Ingen manuell ResizeObserver-triggering her — kun $INSUNITS-lesingen
+      // (`dxfBlob.text().then(...)` → setMmPrVerdenEnhet → useEffect → tegnOverlegg()
+      // → kameraParametre()) skal drive krasjen Kontrollør målte på linje ~161.
+      await flush();
+    } catch (e) {
+      krasjet = e;
+    }
+    expect(krasjet).toBeNull();
+
+    const viewer = dxfViewerMock.__instanser.at(-1);
+    expect(viewer.bounds).toBeUndefined(); // fortsatt FØR Load() er ferdig
+    // Beviser at $INSUNITS-veien faktisk kjørte i dette vinduet (ikke bare at
+    // ingenting skjedde): kanMaleVerden(insunitsTilMm(4)=1) => true.
+    expect(onMaleKlarEndring).toHaveBeenCalledWith(true);
+
     await act(async () => {
       viewer.__fullforLast();
       await Promise.resolve();
