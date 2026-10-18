@@ -450,6 +450,16 @@ export default function TegningerSide() {
     lagreDxfLagSynlighet({});
   }, [dxfLaginventar, lagreDxfLagSynlighet]);
 
+  const handleDxfAlleAv = useCallback(() => {
+    if (!dxfLaginventar) return;
+    const neste: Record<string, boolean> = {};
+    for (const li of dxfLaginventar) {
+      neste[li.navn] = false;
+      dxfViewerRef.current?.settLagSynlig(li.navn, false);
+    }
+    lagreDxfLagSynlighet(neste);
+  }, [dxfLaginventar, lagreDxfLagSynlighet]);
+
   // Enkeltfil-nedlasting: originalfila (DWG/PDF slik den ble lastet opp), fallback
   // til den konverterte fila for rene bilder. `download`-attributtet gir filnavnet
   // (tegningsnummer_revX.endelse); SignertLenke-åpneren fornyer utløpt signatur.
@@ -2440,6 +2450,7 @@ export default function TegningerSide() {
                 onSettGruppe={handleDxfSettGruppe}
                 onBareDette={handleDxfBareDette}
                 onAllePaa={handleDxfAllePaa}
+                onAlleAv={handleDxfAlleAv}
                 onLukk={() => setDxfLagpanelApent(false)}
               />
             )}

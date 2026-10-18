@@ -1447,6 +1447,17 @@ def main():
                 "gruppe": _revit_kat or _gruppe_kode or "Andre",
                 "gruppeNavn": gruppe_visningsnavn(_gruppe_kode, _revit_kat),
             })
+        # 90°-lås-fallback (RETUR 2026-10-18, Kenneths telefontest punkt 3): måleverktøyets
+        # ortho-lås skal følge BYGGETS veggvinkel i rå DXF-verdenskoord (samme rom som
+        # register_world under), IKKE skjermaksene — de to faller bare sammen når bygget
+        # er aksejevnt med DXF-ens egen X/Y, som fallplanen (40°) beviser at det ikke er.
+        # Uavhengig av `args.rotasjon`/`klipp` (de styrer kun den kasserte SVG-en over) —
+        # `segmenter` er alt lest rått, samme kildedata som den SVG-interne beregningen.
+        # Samme 60 %-konfidensterskel som SVG-veien (andel < 0.6 → for tynt grunnlag → null,
+        # klienten faller da tilbake til aksejevne akser, identisk med dagens oppførsel).
+        vegg_laas = dominant_veggvinkel(segmenter)
+        dominant_veggvinkel_grader = vegg_laas["grader"] if vegg_laas and vegg_laas["andel"] >= 0.6 else None
+
         register_world = {
             "fil": args.dxf,
             "koordsys": "dxf-verden (rå enheter fra fila, Y opp, INGEN rotasjon/flip/margin — "
@@ -1456,6 +1467,9 @@ def main():
                         "$INSUNITS=mm — se mmPrEnhet i --meta for andre enheter).",
             "antallObjekter": len(objekter_world), "antallLag": len(laginventar_w), "antallElid": len(reg_elidIndex),
             "objekter": objekter_world, "elidIndex": reg_elidIndex, "laginventar": laginventar_w,
+            # 0-90° (mod 90, ikke kvadrant-løst — ortho-låsen bruker parallell+vinkelrett,
+            # som allerede dekker alle fire kvadranter). null = for tynt/usikkert grunnlag.
+            "dominantVeggvinkelGrader": dominant_veggvinkel_grader,
         }
         with open(args.register_world, "w") as f: json.dump(register_world, f, ensure_ascii=False)
         meta["registerWorld"] = {"objekter": len(objekter_world), "lag": len(laginventar_w), "elid": len(reg_elidIndex)}

@@ -69,6 +69,28 @@ export async function lagreSkjulteLag(drawingId: string, skjulteLag: string[]): 
   }
 }
 
+// Tillegg 3 (peker, Kenneth 2026-10-18 "ja, ta med pekeren"): bryterens tilstand
+// huskes PR. BRUKER PÅ ENHETEN, ikke pr. tegning — samme lagringsmekanisme som
+// lagsynligheten over, men én GLOBAL nøkkel (ikke `lagringsnoekkel(drawingId)`).
+const PEKER_NOEKKEL = "sitedoc_tegning_peker_paa";
+
+export async function hentPekerPaa(): Promise<boolean> {
+  try {
+    return (await hentRaa(PEKER_NOEKKEL)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export async function lagrePekerPaa(paa: boolean): Promise<void> {
+  try {
+    if (paa) await lagreRaa(PEKER_NOEKKEL, "1");
+    else await slettRaa(PEKER_NOEKKEL);
+  } catch {
+    /* privat modus/full lagring — bryteren virker fortsatt denne økten */
+  }
+}
+
 /** Utleder `{navn: synlig}` fra en liste skjulte lagnavn, for å gi samme
  * `Record<string, boolean>`-form som lagpanel-komponentene (og web) bruker.
  * Fravær av nøkkel = synlig (default), som på web. */

@@ -26,6 +26,7 @@ export interface TegningLagPanelProps {
   onSettGruppe: (lagNavn: string[], synlig: boolean) => void;
   onBareDette: (navn: string) => void;
   onAllePaa: () => void;
+  onAlleAv: () => void;
   onLukk: () => void;
 }
 
@@ -37,6 +38,7 @@ export function TegningLagPanel({
   onSettGruppe,
   onBareDette,
   onAllePaa,
+  onAlleAv,
   onLukk,
 }: TegningLagPanelProps) {
   const { t } = useTranslation();
@@ -77,6 +79,9 @@ export function TegningLagPanel({
           <View style={stiler.headerKnapper}>
             <Pressable onPress={onAllePaa} hitSlop={8}>
               <Text style={stiler.allePaa}>{t("tegningsvelger.lag.allePaa")}</Text>
+            </Pressable>
+            <Pressable onPress={onAlleAv} hitSlop={8}>
+              <Text style={stiler.allePaa}>{t("tegningsvelger.lag.alleAv")}</Text>
             </Pressable>
             <Pressable onPress={onLukk} hitSlop={12} accessibilityLabel={t("handling.lukk")}>
               <X size={20} color="#6b7280" />
@@ -169,7 +174,12 @@ const stiler = StyleSheet.create({
   headerKnapper: { flexDirection: "row", alignItems: "center", gap: 14 },
   tittel: { fontSize: 14, fontWeight: "600", color: "#111827" },
   allePaa: { fontSize: 13, fontWeight: "500", color: "#1e40af" },
-  liste: { paddingHorizontal: 4 },
+  // `flex: 1` er nødvendig, ikke kosmetisk: `ark` sin `maxHeight` klipper kun
+  // UTSIDEN når innholdet er høyere enn 75 %. Uten denne arver ScrollView sin
+  // egen høyde fra INNHOLDET (ingen bundet rom å scrolle i), og rullingen
+  // "spretter tilbake" i stedet for å stå — de nederste lagene var derfor
+  // umulige å nå (RETUR 2026-10-18, Kenneths telefontest, punkt 1).
+  liste: { flex: 1, paddingHorizontal: 4 },
   gruppeBlokk: { borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
   gruppeRad: {
     flexDirection: "row",

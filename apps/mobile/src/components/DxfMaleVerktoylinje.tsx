@@ -8,6 +8,7 @@ import {
   VectorSquare,
   TriangleRight,
   Magnet,
+  Crosshair,
   Check,
   Plus,
   Trash2,
@@ -35,6 +36,10 @@ export interface DxfMaleVerktoylinjeProps {
   onVerktoy: (v: TegningVerktoy) => void;
   onOrtho: (på: boolean) => void;
   onSnap: (på: boolean) => void;
+  /** Tillegg 3 (peker): kontrollert av kalleren — tilstanden huskes pr. bruker
+   * på enheten (`lagSynlighetLagring.ts`), ikke lokal state her. */
+  pekerPaa: boolean;
+  onPeker: (på: boolean) => void;
   onFullfoer: () => void;
   onGjenoppta: () => void;
   onSlettAktiv: () => void;
@@ -46,13 +51,20 @@ export function DxfMaleVerktoylinje({
   onVerktoy,
   onOrtho,
   onSnap,
+  pekerPaa,
+  onPeker,
   onFullfoer,
   onGjenoppta,
   onSlettAktiv,
   onSlettAlle,
 }: DxfMaleVerktoylinjeProps) {
   const { t } = useTranslation();
-  const [verktoy, setVerktoyState] = useState<TegningVerktoy>("flytt");
+  // RETUR 2026-10-18 (Kenneths telefontest): underliggende web-motor defaulter til
+  // "navigering" (eneste modus som identifiserer objekt ved trykk — F1), ikke
+  // "flytt" (kun dra-eksisterende-punkt, se tegning-trykk.ts sin avgjorTrykkHandling).
+  // Lokal default her må matche, ellers viser Hånd-knappen seg aktiv mens trykk på
+  // dør/vegg ikke gjør noe — samme feil som ble rettet på web (DxfViewerTegning.tsx).
+  const [verktoy, setVerktoyState] = useState<TegningVerktoy>("navigering");
   const [ortho, setOrthoState] = useState(false);
   const [snapPaa, setSnapState] = useState(true);
 
@@ -61,12 +73,23 @@ export function DxfMaleVerktoylinje({
     onVerktoy(v);
   }
 
+  // Hånd-knappen er en TOGGLE mellom "flytt" (dra et plassert punkt) og "navigering"
+  // (trykk identifiserer objekt) — uten dette er "flytt" en blindvei: ingen annen
+  // knapp i denne baren fører tilbake til navigering.
+  function veksleFlytt() {
+    velg(verktoy === "flytt" ? "navigering" : "flytt");
+  }
+
   return (
     <View style={stiler.toolbar} pointerEvents="box-none">
       <View style={stiler.knappRad}>
-        <Pressable onPress={() => velg("flytt")} style={[stiler.knapp, verktoy === "flytt" && stiler.knappAktiv]}>
+        <Pressable onPress={veksleFlytt} style={[stiler.knapp, verktoy === "flytt" && stiler.knappAktiv]}>
           <Hand size={14} color={verktoy === "flytt" ? "#ffffff" : "#1e3a8a"} />
           <Text style={[stiler.knappTekst, verktoy === "flytt" && stiler.knappTekstAktiv]}>{t("maaling.verktoyFlytt")}</Text>
+        </Pressable>
+        <Pressable onPress={() => onPeker(!pekerPaa)} style={[stiler.knapp, pekerPaa && stiler.knappAktiv]}>
+          <Crosshair size={14} color={pekerPaa ? "#ffffff" : "#1e3a8a"} />
+          <Text style={[stiler.knappTekst, pekerPaa && stiler.knappTekstAktiv]}>{t("maaling.peker")}</Text>
         </Pressable>
         {([
           ["linjal", Ruler, t("maaling.verktoyLinjal")],
