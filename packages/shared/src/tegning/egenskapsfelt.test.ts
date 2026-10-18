@@ -192,4 +192,22 @@ describe("byggEgenskapsfelt", () => {
     // Materiale-feltet er uendret (vises fortsatt som vanlig).
     expect(felt.find((f) => f.nokkel === "materiale")?.verdi).toBe("Isolasjon");
   });
+
+  it("RETUR isolasjon `7d5d6787` pkt 1: tykkelse er vinkelrett avstand mellom lange kanter, robust mot skrå endeavslutning", () => {
+    // Parallellogram-formet isolasjonsbånd: de to lange kantene (y=0 og y=100) er
+    // nøyaktig 100 mm fra hverandre, men den ENE enden er skåret skrått (x=-80 ved
+    // y=100 i stedet for x=0) — akkurat slik et isolasjonsbånd kuttes skrått der
+    // det møter en annen bygningsdel. PCA korteste-akse (beregnAkslerMm, se testen
+    // over) ville gitt ~103,7 mm her (tilsvarer det målte avviket 104 vs. 100 mm i
+    // RETUR-posten), fordi det skrå snittet blåser opp variansen i tverretningen.
+    const o = objekt({
+      id: "isol2",
+      dtype: "HATCH",
+      materiale: "Isolasjon",
+      geom: [[0, 0, 1000, 0, 1000, 100, -80, 100]],
+    });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 100 mm");
+  });
 });

@@ -162,6 +162,49 @@ describe("hitTestWorld", () => {
     expect(treff?.id).toBe("PUNKT");
   });
 
+  it("RETUR isolasjon `7d5d6787` pkt 2: modullinje (tier 2) taper mot isolasjon (flate, tier 1)", () => {
+    const modullinje = objekt({
+      id: "MODULLINJE",
+      dtype: "LINE",
+      kategori: "Modullinjer · 82",
+      bbox: [950, 1950, 1050, 2050],
+      geom: [[950, 2000, 1050, 2000]],
+    });
+    const isolasjon = objekt({
+      id: "ISOLASJON",
+      dtype: "HATCH",
+      kategori: "Skravur",
+      bbox: [950, 1950, 1050, 2050],
+    });
+    const reg = register([modullinje, isolasjon]);
+    const idx = byggBboxIndeks(reg);
+    // Trykk rett på modullinja, inni isolasjonens flate — isolasjonen skal vinne,
+    // selv om modullinja er en ekte strek rett under trykkpunktet.
+    const treff = hitTestWorld(skjermVedOffset(0, 0), KAMERA, reg, idx);
+    expect(treff?.id).toBe("ISOLASJON");
+  });
+
+  it("RETUR isolasjon `7d5d6787` pkt 2: modullinje (tier 2) taper også mot ekte bygningsdel (tier 0)", () => {
+    const modullinje = objekt({
+      id: "MODULLINJE",
+      dtype: "LINE",
+      kategori: "Modullinjer · 82",
+      bbox: [990, 2000, 1010, 2000],
+      geom: [[990, 2000, 1010, 2000]],
+    });
+    const vegg = objekt({
+      id: "VEGG",
+      dtype: "LINE",
+      kategori: "Yttervegg",
+      bbox: [990, 2000, 1010, 2000],
+      geom: [[990, 2000, 1010, 2000]],
+    });
+    const reg = register([modullinje, vegg]);
+    const idx = byggBboxIndeks(reg);
+    const treff = hitTestWorld(skjermVedOffset(0, 0), KAMERA, reg, idx);
+    expect(treff?.id).toBe("VEGG");
+  });
+
   it("objekt uten geom faller tilbake til bbox-kant-avstand", () => {
     const uten = objekt({
       id: "UTEN_GEOM",

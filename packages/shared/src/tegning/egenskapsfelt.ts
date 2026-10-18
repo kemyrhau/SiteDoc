@@ -156,6 +156,63 @@ function beregnAkslerMm(punkter: VerdenPunkt[], mmPrVerdenEnhet: number): Lengde
   };
 }
 
+/** Konveks hull (Andrew's monotone chain), CCW, uten duplisert siste punkt. */
+function konvekstHull(punkter: VerdenPunkt[]): VerdenPunkt[] {
+  const pts = [...punkter].sort((a, b) => a.verdenX - b.verdenX || a.verdenY - b.verdenY);
+  const kryss = (o: VerdenPunkt, a: VerdenPunkt, b: VerdenPunkt): number =>
+    (a.verdenX - o.verdenX) * (b.verdenY - o.verdenY) - (a.verdenY - o.verdenY) * (b.verdenX - o.verdenX);
+  const nedre: VerdenPunkt[] = [];
+  for (const p of pts) {
+    while (nedre.length >= 2 && kryss(nedre[nedre.length - 2]!, nedre[nedre.length - 1]!, p) <= 0) nedre.pop();
+    nedre.push(p);
+  }
+  const ovre: VerdenPunkt[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i]!;
+    while (ovre.length >= 2 && kryss(ovre[ovre.length - 2]!, ovre[ovre.length - 1]!, p) <= 0) ovre.pop();
+    ovre.push(p);
+  }
+  nedre.pop();
+  ovre.pop();
+  return nedre.concat(ovre);
+}
+
+/**
+ * Minste bredde av en punktsky via konveks hull + "rotating calipers" (RETUR
+ * isolasjon `7d5d6787`, orkestrator 2026-10-18 pkt 1): PCA-korteste-akse i
+ * `beregnAkslerMm` blåses opp av isolasjonsbåndets skrå endeavslutninger (målt:
+ * 104 mm der Linjal ga 100 mm). Teoremet for konvekse polygon: minste bredde er
+ * ALLTID vinkelrett på en av kantene — projiser alle hullpunkter på hver kants
+ * normal, ta max-min pr. kant, returner minste. Robust mot skrå ender fordi
+ * minimum alltid oppstår langs de to lange, parallelle kantene, uansett hvordan
+ * endestykkene er skåret.
+ */
+function beregnMinimumBreddeMm(punkter: VerdenPunkt[], mmPrVerdenEnhet: number): number {
+  const hull = konvekstHull(punkter);
+  if (hull.length < 3) return 0;
+  let minBredde = Infinity;
+  for (let i = 0; i < hull.length; i++) {
+    const a = hull[i]!;
+    const b = hull[(i + 1) % hull.length]!;
+    const dx = b.verdenX - a.verdenX;
+    const dy = b.verdenY - a.verdenY;
+    const lengde = Math.hypot(dx, dy);
+    if (lengde === 0) continue;
+    const nx = -dy / lengde;
+    const ny = dx / lengde;
+    let projMin = Infinity;
+    let projMax = -Infinity;
+    for (const p of hull) {
+      const proj = p.verdenX * nx + p.verdenY * ny;
+      if (proj < projMin) projMin = proj;
+      if (proj > projMax) projMax = proj;
+    }
+    const bredde = projMax - projMin;
+    if (bredde < minBredde) minBredde = bredde;
+  }
+  return minBredde === Infinity ? 0 : minBredde * mmPrVerdenEnhet;
+}
+
 /** F1 felt 6: lengde (strek), tykkelse (isolasjon) eller areal (lukket flate), kun
  * når `kanMaleVerden`. `underverdi` brukes til å vise den ANDRE målestørrelsen når
  * begge er meningsfulle (isolasjon: lengde ved siden av tykkelsen). */
@@ -178,7 +235,8 @@ function beregnMaal(
   if (o.materiale === ER_ISOLASJON_MATERIALE) {
     const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
     if (allePunkter.length < 2) return null;
-    const { lengdeMm, tykkelseMm } = beregnAkslerMm(allePunkter, mmPr);
+    const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
+    const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
     if (tykkelseMm <= 0) return null;
     const underverdi = lengdeMm > 0 ? `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}` : undefined;
     return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi };
