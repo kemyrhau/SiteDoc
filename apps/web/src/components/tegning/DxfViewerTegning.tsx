@@ -691,7 +691,15 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
    * seg senere (vindu/mobilpanel) — ett engangs-FitView holder ikke. */
   function tilpassKamera(rect: DOMRectReadOnly | DOMRect) {
     const viewer = viewerRef.current;
-    if (!viewer || rect.width <= 0 || rect.height <= 0) return;
+    // SVAR 3 (orkestrator 2026-10-18, root cause for 100 % mobil-krasj på cache-treff):
+    // ResizeObserver sitt FØRSTE varsel kan komme etter at viewer-instansen er bygget
+    // (viewerRef.current satt) men FØR viewer.Load() har satt scene.bounds/origin —
+    // worker-rundturen er async. Ved cache-treff + allerede lastet worker-bunt er dette
+    // vinduet bredt nok at varselet alltid lander der, og "else"-grenen under leser
+    // viewer.origin.x på undefined. Et ferskt nettverks-fetch holdt vinduet for kort til
+    // at det samme varselet traff viewer-objektet. last() kaller selv tilpassKamera() rett
+    // etter at Load() er ferdig, så hopp over her er aldri et tapt kamera-fit.
+    if (!viewer || !viewer.bounds || rect.width <= 0 || rect.height <= 0) return;
     viewer.SetSize(Math.round(rect.width), Math.round(rect.height));
     const o = viewer.origin;
     const bu = bygningRef.current;
