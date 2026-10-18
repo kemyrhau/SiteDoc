@@ -22,17 +22,18 @@ import {
   leggTilPunkt,
   settFerdig,
   gjenoppta,
-  flyttPunkt,
+  flyttPunktIMaling,
   slettAktiv,
   slettAlle,
   aktivMaling,
+  velgMaling,
   insunitsTilMm,
   lesInsunitsFraDxfTekst,
   malVerdenMm,
   malVerdenArealMm2,
   kanMaleVerden,
   beregnSnapVerden,
-  finnNaermesteVerdenPunkt,
+  finnMalingTreffVerden,
   lupePlassering,
   LUPE_DIAMETER,
   LUPE_FORSTORRELSE,
@@ -144,6 +145,12 @@ function beregnByggUtstrekning(register: RegisterVerden) {
 // --- Måling: adapter mellom verdens-geometrien og den enhets-agnostiske Maling-modellen. ---
 const toVerden = (p: Punkt): VerdenPunkt => ({ verdenX: p.x, verdenY: p.y });
 const fraVerden = (p: VerdenPunkt): Punkt => ({ x: p.verdenX, y: p.verdenY });
+/** `finnMalingTreffVerden` tar en strukturell `{punkter: VerdenPunkt[]}[]` (ingen
+ * avhengighet til `Maling`-typen i maaling-verden.ts) — denne adapteren bevarer
+ * array-INDEKSEN 1:1 mot `malinger`, slik at kalleren kan slå opp `malinger[treff.
+ * malingIndex]` direkte på resultatet. */
+const malingerTilVerden = (malinger: Maling[]): { punkter: VerdenPunkt[] }[] =>
+  malinger.map((m) => ({ punkter: m.punkter.map(toVerden) }));
 
 const formatMeter = (m: number) =>
   `${m.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
@@ -334,7 +341,12 @@ interface GestState {
   startSkjerm: { x: number; y: number };
   flyttet: boolean;
   modus: "nyttPunkt" | "flyttEksisterende" | "observer" | null;
-  flyttIndex: number;
+  /** Hvilken måling `flyttEksisterende` traff (POST flytte målepunkter, orkestrator
+   * 2026-10-18 pkt 1: søket skjer på TVERS AV ALLE målinger, ikke bare den aktive). */
+  flyttMalingIndex: number | null;
+  /** Punktindeksen som dras, eller `null` = treffet var et SEGMENT (ikke et punkt) —
+   * da kan målingen velges, men ikke dras (se `avgjorTrykkHandling`). */
+  flyttIndex: number | null;
   pekere: Set<number>;
   forhandsvisning: ReturnType<typeof beregnSnapVerden> | null;
 }
@@ -347,11 +359,30 @@ function nyGestState(): GestState {
     startSkjerm: { x: 0, y: 0 },
     flyttet: false,
     modus: null,
-    flyttIndex: -1,
+    flyttMalingIndex: null,
+    flyttIndex: null,
     pekere: new Set(),
     forhandsvisning: null,
   };
 }
+
+/** Treffradius (skjerm-px) for Flytt-verktøyets direkte-trykk-søk etter et
+ * målepunkt/-segment, på tvers av alle målinger (uendret fra tidligere 18px). */
+const FLYTT_TREFF_PX = 18;
+/** Treffradius (skjerm-px) for pekerens (trådkors) søk — strammere enn direkte
+ * trykk (POST flytte målepunkter, orkestrator 2026-10-18 pkt 2: "innen ~12 px"). */
+const PEKER_PUNKT_TREFF_PX = 12;
+
+/** Peker-tilstanden for "Flytt punkt" (Tillegg, orkestrator 2026-10-18, pkt 2):
+ * "ingen" = normal Velg/Sett punkt-knapp. "naer" = trådkorset er innen
+ * `PEKER_PUNKT_TREFF_PX` av et punkt i Flytt-verktøyet (viser "Flytt punkt", ikke
+ * commitet ennå). "flytter" = brukeren har trykket "Flytt punkt" — punktet følger
+ * trådkorset til "Sett punkt" eller "Avbryt" trykkes. */
+type PekerFlyttTilstand =
+  | { status: "ingen" }
+  | { status: "naer"; malingIndex: number; punktIndex: number }
+  | { status: "flytter"; malingIndex: number; punktIndex: number };
+const PEKER_FLYTT_INGEN: PekerFlyttTilstand = { status: "ingen" };
 
 export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegningProps>(
   function DxfViewerTegning(
@@ -395,6 +426,9 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   // hjemmel): fast trådkors midt på flaten + handlingsknapp, for presis plassering
   // uten å dekke treffpunktet med fingeren. Se filheaderen for flyten.
   const [pekerPaa, setPekerPaa] = useState(false);
+  // Tillegg (flytte målepunkt med peker, orkestrator 2026-10-18 pkt 2): se
+  // `PekerFlyttTilstand`-kommentaren for de tre tilstandene.
+  const [pekerFlytt, setPekerFlytt] = useState<PekerFlyttTilstand>(PEKER_FLYTT_INGEN);
   const [mmPrVerdenEnhet, setMmPrVerdenEnhet] = useState<number | null>(null);
   const [lupeVisning, setLupeVisning] = useState<{ skjermX: number; skjermY: number } | null>(null);
   const rotasjonOverstyrtRef = useRef(rotasjonOverstyrt ?? 0);
@@ -436,13 +470,57 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   // Imperativt speil av den reaktive målingstilstanden — lest av DOM-pointer-lytterne
   // (registrert ÉN gang pr. viewer-instans via last(), ikke ved hver render) for å
   // unngå stale closures uten å måtte re-registrere lytterne på hver tilstandsendring.
-  const uiRef = useRef({ verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa });
+  const uiRef = useRef({ verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa, pekerFlytt });
+
+  /** Hvilket punkt dras akkurat nå — enten via direkte drag (`gestRef.modus ===
+   * "flyttEksisterende"`) ELLER via et pågående peker-"Flytt punkt" (`pekerFlytt.
+   * status === "flytter"`). `null` = ingen aktiv flytting. Begge stiene ender her
+   * slik at forhåndsvisning/snap/90°-lås er IDENTISK uansett innmating. */
+  function gjeldendeFlytt(): { malingIndex: number; punktIndex: number } | null {
+    const g = gestRef.current;
+    if (g.modus === "flyttEksisterende" && g.flyttMalingIndex != null && g.flyttIndex != null) {
+      return { malingIndex: g.flyttMalingIndex, punktIndex: g.flyttIndex };
+    }
+    const pf = uiRef.current.pekerFlytt;
+    return pf.status === "flytter" ? { malingIndex: pf.malingIndex, punktIndex: pf.punktIndex } : null;
+  }
 
   const tegnOverlegg = useCallback(() => {
     const svg = overlaySvgRef.current;
     const viewer = viewerRef.current;
     if (!svg || !viewerKlar(viewer)) return;
     const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
+
+    // Peker-"Flytt punkt" (Tillegg, orkestrator 2026-10-18 pkt 2): hold forhånds-
+    // visningen i takt med kameraet mens trådkorset holdes fast og tegningen
+    // panoreres under det — samme rAF-koalesering som driver DENNE funksjonen.
+    // "naer" (ingen commit ennå) oppdages HER av samme grunn: live "er trådkorset
+    // nær et punkt?"-sjekk mens brukeren panorerer, ikke bare ved knappetrykk.
+    if (uiRef.current.pekerPaa) {
+      const cx = k.canvasBredde / 2;
+      const cy = k.canvasHoyde / 2;
+      const pf = uiRef.current.pekerFlytt;
+      if (pf.status === "flytter") {
+        beregnForhandsvisningForSkjerm(cx, cy);
+      } else if (uiRef.current.verktoy === "flytt") {
+        const treff = finnMalingTreffVerden(malingerTilVerden(uiRef.current.maleTilstand.malinger), { skjermX: cx, skjermY: cy }, k, PEKER_PUNKT_TREFF_PX);
+        const naer: PekerFlyttTilstand =
+          treff && treff.punktIndex !== null
+            ? { status: "naer", malingIndex: treff.malingIndex, punktIndex: treff.punktIndex }
+            : PEKER_FLYTT_INGEN;
+        const endret =
+          naer.status !== pf.status ||
+          (naer.status === "naer" && pf.status === "naer" && (naer.malingIndex !== pf.malingIndex || naer.punktIndex !== pf.punktIndex));
+        if (endret) {
+          uiRef.current.pekerFlytt = naer;
+          setPekerFlytt(naer);
+        }
+      } else if (pf.status !== "ingen") {
+        uiRef.current.pekerFlytt = PEKER_FLYTT_INGEN;
+        setPekerFlytt(PEKER_FLYTT_INGEN);
+      }
+    }
+
     svg.setAttribute("width", String(k.canvasBredde));
     svg.setAttribute("height", String(k.canvasHoyde));
     while (svg.firstChild) svg.removeChild(svg.firstChild);
@@ -479,6 +557,10 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       if (forhand.vinkelrett) tegnEtikett(svg, sp.skjermX, sp.skjermY - 18, "90°");
     }
     if (uiRef.current.pekerPaa) tegnPekerSikte(svg, k.canvasBredde / 2, k.canvasHoyde / 2);
+    // `beregnForhandsvisningForSkjerm`/`gjeldendeFlytt` leser kun refs (uiRef/gestRef)
+    // og trenger ikke stå i avhengighetene for korrekthet — samme mønster som resten
+    // av filens imperative hjelpefunksjoner (naerTerskel, tegnLupe m.fl.).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** rAF-koalesert wrapper om `tegnOverlegg` — se `overleggRafRef`-kommentaren.
@@ -493,7 +575,15 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   }, [tegnOverlegg]);
 
   useEffect(() => {
-    uiRef.current = { verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa };
+    uiRef.current = { verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa, pekerFlytt };
+    // Forlater Flytt-verktøyet eller slår av peker midt i et pågående "Flytt punkt"
+    // → avbryt (punktet er aldri skrevet før "Sett punkt" committer — se
+    // `utforPekerHandling`, så det er ingenting å rulle tilbake, kun tilstanden).
+    if ((!pekerPaa || verktoy !== "flytt") && pekerFlytt.status !== "ingen") {
+      uiRef.current.pekerFlytt = PEKER_FLYTT_INGEN;
+      setPekerFlytt(PEKER_FLYTT_INGEN);
+      gestRef.current.forhandsvisning = null;
+    }
     tegnOverlegg();
     const viewer = viewerRef.current;
     if (viewer?.controls && gestRef.current.modus === null) {
@@ -502,7 +592,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       viewer.controls.enablePan = pekerPaa || verktoy === "flytt";
     }
     onMaleKlarEndringRef.current?.(kanMaleVerden(mmPrVerdenEnhet));
-  }, [verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa, tegnOverlegg]);
+  }, [verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa, pekerFlytt, tegnOverlegg]);
 
   function naerTerskel(p: Punkt, q: Punkt): boolean {
     const viewer = viewerRef.current;
@@ -547,18 +637,26 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     ctx.stroke();
   }
 
-  function oppdaterForhandsvisning(skjermX: number, skjermY: number) {
+  /**
+   * Beregner forhåndsvisningen (snap/90°-lås) for et skjermpunkt og lagrer den i
+   * `gestRef.current.forhandsvisning` — IKKE tegn selv (kalles fra inni
+   * `tegnOverlegg()` sin peker-"flytter"-gren, der et nytt tegne-kall ville
+   * rekursert). `oppdaterForhandsvisning` under er den vanlige wrapperen som
+   * BÅDE beregner og tegner, for de andre kall-stedene (direkte pointer-gester).
+   */
+  function beregnForhandsvisningForSkjerm(skjermX: number, skjermY: number) {
     const viewer = viewerRef.current;
     if (!viewerKlar(viewer)) return;
     const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
     const kandidat = skjermTilVerden({ skjermX, skjermY }, k);
     const { maleTilstand: mt, ortho: orthoPaa, snapPaa: snapPaaNaa } = uiRef.current;
     const g = gestRef.current;
+    const flytt = gjeldendeFlytt();
 
     const referanser: VerdenPunkt[] = [];
-    for (const m of mt.malinger) {
-      m.punkter.forEach((p, i) => {
-        if (g.modus === "flyttEksisterende" && m.id === mt.aktivId && i === g.flyttIndex) return;
+    for (let mi = 0; mi < mt.malinger.length; mi++) {
+      mt.malinger[mi]!.punkter.forEach((p, i) => {
+        if (flytt && mi === flytt.malingIndex && i === flytt.punktIndex) return;
         referanser.push(toVerden(p));
       });
     }
@@ -569,9 +667,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     if (g.modus === "nyttPunkt" && aktiv && !aktiv.ferdig && aktiv.punkter.length > 0) {
       anker = toVerden(aktiv.punkter[aktiv.punkter.length - 1]!);
       if (aktiv.punkter.length > 1) forforrige = toVerden(aktiv.punkter[aktiv.punkter.length - 2]!);
-    } else if (g.modus === "flyttEksisterende" && aktiv) {
-      if (g.flyttIndex > 0) anker = toVerden(aktiv.punkter[g.flyttIndex - 1]!);
-      if (g.flyttIndex > 1) forforrige = toVerden(aktiv.punkter[g.flyttIndex - 2]!);
+    } else if (flytt) {
+      const m = mt.malinger[flytt.malingIndex];
+      if (m) {
+        if (flytt.punktIndex > 0) anker = toVerden(m.punkter[flytt.punktIndex - 1]!);
+        if (flytt.punktIndex > 1) forforrige = toVerden(m.punkter[flytt.punktIndex - 2]!);
+      }
     }
 
     g.forhandsvisning = beregnSnapVerden({
@@ -586,6 +687,10 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       punktTolPx: 16,
       guideTolPx: 10,
     });
+  }
+
+  function oppdaterForhandsvisning(skjermX: number, skjermY: number) {
+    beregnForhandsvisningForSkjerm(skjermX, skjermY);
     tegnOverlegg();
   }
 
@@ -598,7 +703,8 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     g.aktiv = false;
     g.pointerId = null;
     g.modus = null;
-    g.flyttIndex = -1;
+    g.flyttMalingIndex = null;
+    g.flyttIndex = null;
     g.forhandsvisning = null;
     if (lupeRafRef.current !== null) {
       cancelAnimationFrame(lupeRafRef.current);
@@ -627,18 +733,20 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     const { verktoy: v, maleTilstand: mt, mmPrVerdenEnhet: mmEnh } = uiRef.current;
 
     if (v === "flytt") {
-      const aktiv = aktivMaling(mt);
-      if (!aktiv) return; // ingen aktiv måling å dra i — la OrbitControls panorere fritt
-      const idx = finnNaermesteVerdenPunkt(
-        aktiv.punkter.map(toVerden),
+      // POST flytte målepunkter (orkestrator 2026-10-18 pkt 1): søk PÅ TVERS AV
+      // ALLE målinger (ikke bare den aktive) — en tegning med flere ferdige
+      // målinger skal kunne dra/velge ALLE av dem, ikke bare den sist valgte.
+      const treff = finnMalingTreffVerden(
+        malingerTilVerden(mt.malinger),
         { skjermX, skjermY },
         kameraParametre(viewer, rotasjonOverstyrtRef.current),
-        18,
+        FLYTT_TREFF_PX,
       );
-      if (idx < 0) return; // bom — la OrbitControls panorere
+      if (!treff) return; // bom — la OrbitControls panorere fritt
       viewer.controls.enablePan = false;
       g.modus = "flyttEksisterende";
-      g.flyttIndex = idx;
+      g.flyttMalingIndex = treff.malingIndex;
+      g.flyttIndex = treff.punktIndex;
     } else if (v === "linjal" || v === "polylinje" || v === "areal") {
       if (!kanMaleVerden(mmEnh)) return;
       viewer.controls.enablePan = false;
@@ -667,9 +775,13 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     g.startTid = performance.now();
     g.startSkjerm = { x: skjermX, y: skjermY };
     g.flyttet = false;
-    oppdaterForhandsvisning(skjermX, skjermY);
-    setLupeVisning({ skjermX, skjermY });
-    tegnLupe(skjermX, skjermY);
+    // Et SEGMENT-treff i Flytt (ingen punkt å dra, kun velgMaling ved slipp) viser
+    // ingen lupe/forhåndsvisning — ingenting flyttes, en lupe ville vært misvisende.
+    if (!(v === "flytt" && g.flyttIndex === null)) {
+      oppdaterForhandsvisning(skjermX, skjermY);
+      setLupeVisning({ skjermX, skjermY });
+      tegnLupe(skjermX, skjermY);
+    }
   }
 
   function onPointerMove(e: PointerEvent) {
@@ -682,6 +794,9 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     const skjermY = e.clientY - rect.top;
     if (Math.hypot(skjermX - g.startSkjerm.x, skjermY - g.startSkjerm.y) > 6) g.flyttet = true;
     if (g.modus === "observer") return; // F1-observasjon: ingen lupe/forhåndsvisning, kun bevegelse-terskel
+    // Segment-treff i Flytt (se onPointerDown): ingen punkt å dra, ingen lupe/forhånds-
+    // visning underveis heller — kun velgMaling ved slipp.
+    if (g.modus === "flyttEksisterende" && g.flyttIndex === null) return;
     oppdaterForhandsvisning(skjermX, skjermY);
     lupeRafPendingRef.current = { skjermX, skjermY };
     if (lupeRafRef.current === null) {
@@ -705,7 +820,13 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       varighetMs,
       flyttet: g.flyttet,
       antallPekere: g.pekere.size + 1,
-      nedPaaPunkt: g.modus === "flyttEksisterende",
+      // POST flytte målepunkter (orkestrator 2026-10-18 pkt 1+3): nedPaaPunkt er
+      // kun sant for et EKTE punkt-treff (segment-treff → flyttIndex null), slik
+      // at avgjorTrykkHandling kan skille "kort trykk på punkt → velg målingen"
+      // fra "treff på et segment → velg målingen" (begge ender i velgMaling, men
+      // punkt-treffet kan OGSÅ bli en drag ved bevegelse/langt trykk).
+      nedPaaPunkt: g.modus === "flyttEksisterende" && g.flyttIndex !== null,
+      traffMaling: g.modus === "flyttEksisterende",
     };
     const handling = avgjorTrykkHandling(uiRef.current.verktoy, gest);
     const forhand = g.forhandsvisning;
@@ -713,10 +834,25 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     if (handling === "settPunkt" && forhand) {
       const punkt = fraVerden(forhand.punkt);
       setMaleTilstand((t) => leggTilPunkt(t, punkt, (q) => naerTerskel(punkt, q)));
-    } else if (handling === "draPunkt" && forhand && g.modus === "flyttEksisterende") {
-      const index = g.flyttIndex;
+    } else if (
+      handling === "draPunkt" &&
+      forhand &&
+      g.modus === "flyttEksisterende" &&
+      g.flyttMalingIndex != null &&
+      g.flyttIndex != null
+    ) {
+      // Fang indeksene i lokale const'er FØR setMaleTilstand — `avbrytGest()` under
+      // nullstiller `g.flyttIndex`/`g.flyttMalingIndex`, og en lukkening over `g`
+      // selv (i stedet for en snapshot-verdi) ville lest nullstilte verdier hvis
+      // React kjører oppdateringsfunksjonen etter at avbrytGest() har rukket kjøre.
+      const malingIndex = g.flyttMalingIndex;
+      const punktIndex = g.flyttIndex;
+      const id = uiRef.current.maleTilstand.malinger[malingIndex]?.id;
       const punkt = fraVerden(forhand.punkt);
-      setMaleTilstand((t) => flyttPunkt(t, index, punkt));
+      if (id) setMaleTilstand((t) => flyttPunktIMaling(t, id, punktIndex, punkt));
+    } else if (handling === "velgMaling" && g.flyttMalingIndex != null) {
+      const id = uiRef.current.maleTilstand.malinger[g.flyttMalingIndex]?.id;
+      if (id) setMaleTilstand((t) => velgMaling(t, id));
     } else if (handling === "hint") {
       // F1: trykk utenfor målemodus → identifiser objektet under trykkpunktet.
       // g.startSkjerm er allerede canvas-relative CSS-px (satt i onPointerDown) —
@@ -733,23 +869,50 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
           idx,
         );
         valgtObjektRef.current = treff;
-        onObjektValgtRef.current?.(treff ? byggEgenskapsfelt(treff, uiRef.current.mmPrVerdenEnhet) : null);
+        onObjektValgtRef.current?.(treff ? byggEgenskapsfelt(treff, uiRef.current.mmPrVerdenEnhet, t) : null);
       }
     }
     avbrytGest();
   }
 
+  function avbrytPekerFlytt() {
+    uiRef.current.pekerFlytt = PEKER_FLYTT_INGEN;
+    setPekerFlytt(PEKER_FLYTT_INGEN);
+    gestRef.current.forhandsvisning = null;
+    tegnOverlegg();
+  }
+
   /** Tillegg 3 (peker): handlingsknappen utfører gjeldende verktøys handling PÅ
    * TRÅDKORSETS faste skjermposisjon (midt på canvaset) — "Velg" (F1-identifisering)
    * utenfor målemodus, "Sett punkt" (samme snap/90°-lås-pipeline som et vanlig
-   * trykk) i Linjal/Polylinje/Areal. Ingen gest/lupe involvert (se onPointerDown). */
+   * trykk) i Linjal/Polylinje/Areal. Ingen gest/lupe involvert (se onPointerDown).
+   *
+   * Tillegg (flytte målepunkt med peker, orkestrator 2026-10-18 pkt 2): et pågående
+   * "Flytt punkt" (`pekerFlytt.status === "flytter"`) committes av DENNE SAMME
+   * knappen (teksten viser da "Sett punkt" — se JSX). Prioritet (pkt 1): et treff
+   * på en måling (punkt ELLER segment) sjekkes FØR objekt-identifisering.
+   */
   function utforPekerHandling() {
     const viewer = viewerRef.current;
     if (!viewerKlar(viewer)) return;
     const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
     const skjermX = k.canvasBredde / 2;
     const skjermY = k.canvasHoyde / 2;
-    const { verktoy: v, mmPrVerdenEnhet: mmEnh } = uiRef.current;
+    const { verktoy: v, mmPrVerdenEnhet: mmEnh, maleTilstand: mt, pekerFlytt: pf } = uiRef.current;
+
+    if (pf.status === "flytter") {
+      const forhand = gestRef.current.forhandsvisning;
+      const id = mt.malinger[pf.malingIndex]?.id;
+      if (forhand && id) {
+        const punkt = fraVerden(forhand.punkt);
+        setMaleTilstand((t) => flyttPunktIMaling(t, id, pf.punktIndex, punkt));
+      }
+      uiRef.current.pekerFlytt = PEKER_FLYTT_INGEN;
+      setPekerFlytt(PEKER_FLYTT_INGEN);
+      gestRef.current.forhandsvisning = null;
+      tegnOverlegg();
+      return;
+    }
 
     if (erMaleVerktoy(v) && kanMaleVerden(mmEnh)) {
       oppdaterForhandsvisning(skjermX, skjermY);
@@ -763,12 +926,32 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       return;
     }
 
+    const maleTreff = finnMalingTreffVerden(malingerTilVerden(mt.malinger), { skjermX, skjermY }, k, PEKER_PUNKT_TREFF_PX);
+    if (maleTreff) {
+      if (v === "flytt" && maleTreff.punktIndex !== null) {
+        const flytter: PekerFlyttTilstand = {
+          status: "flytter",
+          malingIndex: maleTreff.malingIndex,
+          punktIndex: maleTreff.punktIndex,
+        };
+        uiRef.current.pekerFlytt = flytter;
+        setPekerFlytt(flytter);
+        beregnForhandsvisningForSkjerm(skjermX, skjermY);
+        tegnOverlegg();
+        return;
+      }
+      const id = mt.malinger[maleTreff.malingIndex]?.id;
+      if (id) setMaleTilstand((t) => velgMaling(t, id));
+      tegnOverlegg();
+      return;
+    }
+
     const reg = registerRef.current;
     const idx = bboxIndeksRef.current;
     if (reg && idx) {
       const treff = hitTestWorld({ skjermX, skjermY }, k, reg, idx);
       valgtObjektRef.current = treff;
-      onObjektValgtRef.current?.(treff ? byggEgenskapsfelt(treff, mmEnh) : null);
+      onObjektValgtRef.current?.(treff ? byggEgenskapsfelt(treff, mmEnh, t) : null);
       tegnOverlegg();
     }
   }
@@ -1080,13 +1263,28 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       <div ref={containerRef} className="absolute inset-0" />
       <svg ref={overlaySvgRef} className="pointer-events-none absolute inset-0" />
       {pekerPaa && (
-        <button
-          type="button"
-          onClick={utforPekerHandling}
-          className="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[24px] rounded-full bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white shadow-lg"
-        >
-          {erMaleVerktoy(verktoy) ? t("maaling.settPunkt") : t("handling.velg")}
-        </button>
+        <div className="absolute left-1/2 top-1/2 flex translate-x-[-50%] translate-y-[24px] gap-2">
+          <button
+            type="button"
+            onClick={utforPekerHandling}
+            className="rounded-full bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white shadow-lg"
+          >
+            {pekerFlytt.status === "flytter" || erMaleVerktoy(verktoy)
+              ? t("maaling.settPunkt")
+              : pekerFlytt.status === "naer"
+                ? t("maaling.flyttPunkt")
+                : t("handling.velg")}
+          </button>
+          {pekerFlytt.status === "flytter" && (
+            <button
+              type="button"
+              onClick={avbrytPekerFlytt}
+              className="rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-lg"
+            >
+              {t("handling.avbryt")}
+            </button>
+          )}
+        </div>
       )}
       {lupeVisning && containerRef.current && (
         <canvas

@@ -15,6 +15,7 @@ import {
   filtrerSynligeVerdenPunkter,
   beregnSnapVerden,
   finnNaermesteVerdenPunkt,
+  finnMalingTreffVerden,
 } from "./maaling-verden";
 
 // Samme kamera-fixture som kamera-projeksjon.test.ts: symmetrisk boks, senter i
@@ -266,6 +267,38 @@ describe("finnNaermesteVerdenPunkt", () => {
   it("ingen punkt innen toleransen → -1", () => {
     const punkter: VerdenPunkt[] = [{ verdenX: 1000, verdenY: 2000 }];
     expect(finnNaermesteVerdenPunkt(punkter, { skjermX: 0, skjermY: 0 }, BASIS, 5)).toBe(-1);
+  });
+});
+
+describe("finnMalingTreffVerden — prioritet punkter foran segmenter, øverste måling vinner", () => {
+  it("treffer et SEGMENT (midt mellom to punkter, utenfor punkt-toleransen)", () => {
+    const malinger = [
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }, { verdenX: 1200, verdenY: 2000 }] }, // skjerm (400,300)-(600,300)
+    ];
+    const treff = finnMalingTreffVerden(malinger, { skjermX: 500, skjermY: 300 }, BASIS, 10);
+    expect(treff).toEqual({ malingIndex: 0, punktIndex: null });
+  });
+
+  it("et PUNKT vinner over et segment når begge er innen toleransen", () => {
+    const malinger = [
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }, { verdenX: 1200, verdenY: 2000 }] },
+    ];
+    const treff = finnMalingTreffVerden(malinger, { skjermX: 402, skjermY: 301 }, BASIS, 10);
+    expect(treff).toEqual({ malingIndex: 0, punktIndex: 0 });
+  });
+
+  it("sist-tegnet (øverste) måling vinner ved flere treff på samme sted", () => {
+    const malinger = [
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }] },
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }] },
+    ];
+    const treff = finnMalingTreffVerden(malinger, { skjermX: 400, skjermY: 300 }, BASIS, 10);
+    expect(treff).toEqual({ malingIndex: 1, punktIndex: 0 });
+  });
+
+  it("ingen treff innen toleransen → null", () => {
+    const malinger = [{ punkter: [{ verdenX: 1000, verdenY: 2000 }] }];
+    expect(finnMalingTreffVerden(malinger, { skjermX: 0, skjermY: 0 }, BASIS, 5)).toBeNull();
   });
 });
 

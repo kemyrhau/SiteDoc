@@ -93,41 +93,189 @@ function beregnDoerVinduBredde(o: RegisterVerdenObjekt, mmPr: number): string | 
   return lengste > 0 ? formatMm(lengste) : null;
 }
 
-/** F1 felt 6: lengde (strek) eller areal (lukket flate), kun når `kanMaleVerden`. */
-function beregnMaal(o: RegisterVerdenObjekt, mmPrVerdenEnhet: number | null | undefined): string | null {
+/** Isolasjonsobjekter (render.py: lag/HATCH-mønster inneholder "isol", ELLER
+ * HATCH-mønsternavnet står i MATERIALE-tabellen med verdien "Isolasjon" — f.eks.
+ * "Skrålinjer_2", verifisert mot EKTE fallplan-DXF der "isol" aldri forekommer,
+ * SVAR dda4110b 2026-10-18 — `materiale` settes EKSAKT til denne strengen) — for
+ * dem viser "Mål" TYKKELSEN, ikke lengden (POST flytte målepunkter, orkestrator
+ * 2026-10-18, pkt 4d). */
+const ER_ISOLASJON_MATERIALE = "Isolasjon";
+
+interface LengdeOgTykkelseMm {
+  lengdeMm: number;
+  tykkelseMm: number;
+}
+
+/**
+ * Lengste akse (hovedretning) og korteste akse (vinkelrett på den) for en sky av
+ * verdenspunkter, via PCA på kovariansmatrisen — robust uavhengig av DXF-ens
+ * rotasjon (en vegg på 40° måles like riktig som en aksejevn). `max-min`-utstrekning
+ * langs hver akse, i mm. < 2 punkter → begge 0.
+ */
+function beregnAkslerMm(punkter: VerdenPunkt[], mmPrVerdenEnhet: number): LengdeOgTykkelseMm {
+  if (punkter.length < 2) return { lengdeMm: 0, tykkelseMm: 0 };
+  const n = punkter.length;
+  let sx = 0;
+  let sy = 0;
+  for (const p of punkter) {
+    sx += p.verdenX;
+    sy += p.verdenY;
+  }
+  const mx = sx / n;
+  const my = sy / n;
+  let sxx = 0;
+  let sxy = 0;
+  let syy = 0;
+  for (const p of punkter) {
+    const dx = p.verdenX - mx;
+    const dy = p.verdenY - my;
+    sxx += dx * dx;
+    sxy += dx * dy;
+    syy += dy * dy;
+  }
+  const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const lang = { x: Math.cos(theta), y: Math.sin(theta) };
+  const kort = { x: -lang.y, y: lang.x };
+  let langMin = Infinity;
+  let langMax = -Infinity;
+  let kortMin = Infinity;
+  let kortMax = -Infinity;
+  for (const p of punkter) {
+    const dx = p.verdenX - mx;
+    const dy = p.verdenY - my;
+    const pLang = dx * lang.x + dy * lang.y;
+    const pKort = dx * kort.x + dy * kort.y;
+    if (pLang < langMin) langMin = pLang;
+    if (pLang > langMax) langMax = pLang;
+    if (pKort < kortMin) kortMin = pKort;
+    if (pKort > kortMax) kortMax = pKort;
+  }
+  return {
+    lengdeMm: (langMax - langMin) * mmPrVerdenEnhet,
+    tykkelseMm: (kortMax - kortMin) * mmPrVerdenEnhet,
+  };
+}
+
+/** Konveks hull (Andrew's monotone chain), CCW, uten duplisert siste punkt. */
+function konvekstHull(punkter: VerdenPunkt[]): VerdenPunkt[] {
+  const pts = [...punkter].sort((a, b) => a.verdenX - b.verdenX || a.verdenY - b.verdenY);
+  const kryss = (o: VerdenPunkt, a: VerdenPunkt, b: VerdenPunkt): number =>
+    (a.verdenX - o.verdenX) * (b.verdenY - o.verdenY) - (a.verdenY - o.verdenY) * (b.verdenX - o.verdenX);
+  const nedre: VerdenPunkt[] = [];
+  for (const p of pts) {
+    while (nedre.length >= 2 && kryss(nedre[nedre.length - 2]!, nedre[nedre.length - 1]!, p) <= 0) nedre.pop();
+    nedre.push(p);
+  }
+  const ovre: VerdenPunkt[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i]!;
+    while (ovre.length >= 2 && kryss(ovre[ovre.length - 2]!, ovre[ovre.length - 1]!, p) <= 0) ovre.pop();
+    ovre.push(p);
+  }
+  nedre.pop();
+  ovre.pop();
+  return nedre.concat(ovre);
+}
+
+/**
+ * Minste bredde av en punktsky via konveks hull + "rotating calipers" (RETUR
+ * isolasjon `7d5d6787`, orkestrator 2026-10-18 pkt 1): PCA-korteste-akse i
+ * `beregnAkslerMm` blåses opp av isolasjonsbåndets skrå endeavslutninger (målt:
+ * 104 mm der Linjal ga 100 mm). Teoremet for konvekse polygon: minste bredde er
+ * ALLTID vinkelrett på en av kantene — projiser alle hullpunkter på hver kants
+ * normal, ta max-min pr. kant, returner minste. Robust mot skrå ender fordi
+ * minimum alltid oppstår langs de to lange, parallelle kantene, uansett hvordan
+ * endestykkene er skåret.
+ */
+function beregnMinimumBreddeMm(punkter: VerdenPunkt[], mmPrVerdenEnhet: number): number {
+  const hull = konvekstHull(punkter);
+  if (hull.length < 3) return 0;
+  let minBredde = Infinity;
+  for (let i = 0; i < hull.length; i++) {
+    const a = hull[i]!;
+    const b = hull[(i + 1) % hull.length]!;
+    const dx = b.verdenX - a.verdenX;
+    const dy = b.verdenY - a.verdenY;
+    const lengde = Math.hypot(dx, dy);
+    if (lengde === 0) continue;
+    const nx = -dy / lengde;
+    const ny = dx / lengde;
+    let projMin = Infinity;
+    let projMax = -Infinity;
+    for (const p of hull) {
+      const proj = p.verdenX * nx + p.verdenY * ny;
+      if (proj < projMin) projMin = proj;
+      if (proj > projMax) projMax = proj;
+    }
+    const bredde = projMax - projMin;
+    if (bredde < minBredde) minBredde = bredde;
+  }
+  return minBredde === Infinity ? 0 : minBredde * mmPrVerdenEnhet;
+}
+
+/** F1 felt 6: lengde (strek), tykkelse (isolasjon) eller areal (lukket flate), kun
+ * når `kanMaleVerden`. `underverdi` brukes til å vise den ANDRE målestørrelsen når
+ * begge er meningsfulle (isolasjon: lengde ved siden av tykkelsen). */
+function beregnMaal(
+  o: RegisterVerdenObjekt,
+  mmPrVerdenEnhet: number | null | undefined,
+  t: (nokkel: string) => string,
+): { verdi: string; underverdi?: string } | null {
   if (!kanMaleVerden(mmPrVerdenEnhet)) return null;
   const mmPr = mmPrVerdenEnhet as number;
   if (o.dtype === "INSERT" && o.blokk && DOER_VINDU_BLOKK.test(o.blokk)) {
-    return beregnDoerVinduBredde(o, mmPr);
+    const bredde = beregnDoerVinduBredde(o, mmPr);
+    return bredde ? { verdi: bredde } : null;
   }
   if (!o.geom || o.geom.length === 0) return null;
-  const forsteLinje = o.geom[0];
-  if (!forsteLinje || forsteLinje.length < 4) return null;
-  const punkter = geomTilVerdenPunkter(forsteLinje);
-  if (FLATE_DTYPE.has(o.dtype)) {
-    const arealMm2 = malVerdenArealMm2(punkter, mmPr);
-    return arealMm2 > 0 ? formatM2(arealMm2) : null;
+  // Isolasjon FØR flate-arealet (RETTET, SVAR dda4110b 2026-10-18): isolasjonens
+  // HATCH-mønster ("Skrålinjer_2" m.fl., se MATERIALE-tabellen i render.py) har
+  // dtype "HATCH", som ellers havner i FLATE_DTYPE-arealgrenen under — isolasjon
+  // skal ALDRI vise areal, kun tykkelse. Sjekkes derfor FØRST, uavhengig av dtype.
+  if (o.materiale === ER_ISOLASJON_MATERIALE) {
+    const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
+    if (allePunkter.length < 2) return null;
+    const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
+    const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
+    if (tykkelseMm <= 0) return null;
+    const underverdi = lengdeMm > 0 ? `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}` : undefined;
+    return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi };
   }
-  const lengdeMm = malVerdenPolylinjeMm(punkter, mmPr);
-  return lengdeMm > 0 ? formatMm(lengdeMm) : null;
+  if (FLATE_DTYPE.has(o.dtype)) {
+    const forsteLinje = o.geom[0];
+    if (!forsteLinje || forsteLinje.length < 4) return null;
+    const punkter = geomTilVerdenPunkter(forsteLinje);
+    const arealMm2 = malVerdenArealMm2(punkter, mmPr);
+    return arealMm2 > 0 ? { verdi: formatM2(arealMm2) } : null;
+  }
+  // Alle punkter på tvers av ALLE segmenter i geom — `geom[0]` alene kan være en
+  // veggs korteste tverr-tagg (RETUR, Kenneths telefontest: "Mål 13 mm" på en vegg).
+  const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
+  if (allePunkter.length < 2) return null;
+  const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
+  return lengdeMm > 0 ? { verdi: formatMm(lengdeMm) } : null;
 }
 
 /**
  * O2 (§ 8): bygg egenskapsfelt fra et O1-objekt, i F1 § 3 sin feltrekkefølge — kun
  * feltene som faktisk har verdi. `mmPrVerdenEnhet` kommer fra tegningens skala
- * (samme kilde som måleverktøyet); uten den utelates felt 6 (Mål) helt.
+ * (samme kilde som måleverktøyet); uten den utelates felt 6 (Mål) helt. `t` brukes
+ * KUN for isolasjonens tykkelse/lengde-etiketter (pakken er ellers i18n-fri — samme
+ * `t`-callback-mønster som `grenseSjekk.ts`), ikke for de andre feltenes råverdier.
  */
 export function byggEgenskapsfelt(
   o: RegisterVerdenObjekt,
-  mmPrVerdenEnhet?: number | null,
+  mmPrVerdenEnhet: number | null | undefined,
+  t: (nokkel: string) => string,
 ): EgenskapsFelt[] {
   const felt: EgenskapsFelt[] = [];
 
   // 1. Hva — kategori, med rå lagnavn som underverdi.
   if (o.kategori) felt.push({ nokkel: "hva", verdi: renskUnderstrek(o.kategori), underverdi: o.lag });
 
-  // 2. Type/størrelse — blokknavn + Revit type-id.
-  const typeDeler = [o.blokk, o.typeId].filter((d): d is string => !!d);
+  // 2. Type/størrelse — blokknavn + Revit type-id. Anonyme AutoCAD-blokknavn
+  // ("*X976") skjules — Kenneth leser dem ikke som en identitet (RETUR, pkt 4b).
+  const typeDeler = [o.blokk, o.typeId].filter((d): d is string => !!d && !d.startsWith("*"));
   if (typeDeler.length) felt.push({ nokkel: "typeStorrelse", verdi: typeDeler.join(" · ") });
 
   // 3. Rom/blokk — ROOM_NAME/ROOM_NUMBER-attributter.
@@ -158,8 +306,8 @@ export function byggEgenskapsfelt(
   }
 
   // 6. Mål.
-  const maal = beregnMaal(o, mmPrVerdenEnhet);
-  if (maal) felt.push({ nokkel: "mal", verdi: maal });
+  const maal = beregnMaal(o, mmPrVerdenEnhet, t);
+  if (maal) felt.push({ nokkel: "mal", verdi: maal.verdi, underverdi: maal.underverdi });
 
   // 7. Status.
   if (o.status) felt.push({ nokkel: "status", verdi: o.status });

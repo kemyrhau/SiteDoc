@@ -21,6 +21,25 @@ function erFlateObjekt(o: RegisterVerdenObjekt): boolean {
   return FLATE_KATEGORI_NOKKELORD.some((n) => k.includes(n));
 }
 
+/** Modullinjer/akselinjer/Snittmarkør m.fl. (RETUR isolasjon `7d5d6787`, orkestrator
+ * 2026-10-18 pkt 2): ArchiCAD/Revit sine egne 80-89-serie hjelpelinjer er STREK
+ * (tier 0 i dag) og ligger ofte rett over en yttervegg og isolasjonsbåndet i den —
+ * uten denne regelen vinner hjelpelinja ALLTID over isolasjonen, og brukeren kan
+ * aldri velge isolasjonen der. Laveste prioritet (tier 2): taper mot BÅDE ekte
+ * bygningsdel-strek OG flate/isolasjon. Primærsignal er `o.hjelpelinje` (render.py
+ * sin `er_arkicad_hjelpelinje()`, kode-basert — "geometrisk akselinje-flagg" fra
+ * ordren); kategori-tekst-nøkkelord er et fallback for registre konvertert FØR
+ * flagget fantes (gamle cachede konverteringer uten `hjelpelinje`-feltet). Målt på
+ * EKTE fallplan-DXF: "Snittmarkør · 852"-objekter var 28-125 m enkeltlinjer som
+ * dominerte treffetesten over store deler av tegningen, nøyaktig som modullinjene. */
+const AKSELINJE_KATEGORI_NOKKELORD = ["modullinje", "akselinje", "aksellinje", "snittmarkør"];
+
+function erAkselinjeObjekt(o: RegisterVerdenObjekt): boolean {
+  if (o.hjelpelinje === true) return true;
+  const k = (o.kategori || "").toLowerCase();
+  return AKSELINJE_KATEGORI_NOKKELORD.some((n) => k.includes(n));
+}
+
 function avstandTilBboxKantPx(
   wx: number,
   wy: number,
@@ -132,11 +151,15 @@ export function byggBboxIndeks(register: RegisterVerden): RBush<BboxPost> {
  * Finn objektet under et skjermpunkt (F1 — akseptkriterier A1/A8/A12/A13 m.fl.).
  *
  * To-pass-skanning: 20 px toleranse først, deretter 20×20 = 400 px (telefon-finger /
- * lav zoom) — samme fallback som harness gate 3-telefon. Flate-objekter (HATCH/
- * skravur/kategori-nøkkelord) treffer KUN ved containment; strek/kontur bruker ekte
- * geometri-avstand når `geom` finnes (bbox-kant som fallback, f.eks. romtagg-
- * attributtblokker uten egen linjeverk). Ved nær-likhet (±4 px) vinner minste lokale
- * areal (dørsving mot veggkledning); ved klar forskjell (>4 px) vinner nærmest.
+ * lav zoom) — samme fallback som harness gate 3-telefon. Tre prioritetsnivåer (tier):
+ * 0 = ekte bygningsdel-strek, 1 = flate (HATCH/skravur/kategori-nøkkelord, treffer KUN
+ * ved containment), 2 = modullinjer/akselinjer (ArchiCAD/Revit sine egne hjelpelinjer —
+ * RETUR isolasjon `7d5d6787`: disse må IKKE vinne over isolasjon/flate, ellers kan
+ * brukeren aldri velge isolasjonen under dem). Strek/kontur bruker ekte geometri-
+ * avstand når `geom` finnes (bbox-kant som fallback, f.eks. romtagg-attributtblokker
+ * uten egen linjeverk). Ved nær-likhet (±4 px) vinner minste lokale areal (dørsving
+ * mot veggkledning); ved klar forskjell (>4 px) vinner nærmest — begge kun innad i
+ * samme tier.
  */
 export function hitTestWorld(
   skjerm: SkjermPunkt,
@@ -156,7 +179,7 @@ export function hitTestWorld(
       maxY: wy + tolWorld,
     });
     let best: RegisterVerdenObjekt | null = null;
-    let bestTier = 2;
+    let bestTier = 3;
     let bestAvstand = Infinity;
     let bestArea = Infinity;
     for (const item of kandidater) {
@@ -180,7 +203,7 @@ export function hitTestWorld(
       }
       if (!flate && !innenfor && avstandPx > tolPx) continue;
 
-      const tier = flate ? 1 : 0;
+      const tier = erAkselinjeObjekt(o) ? 2 : flate ? 1 : 0;
       const diff = avstandPx - bestAvstand;
       const bedre =
         tier < bestTier ||

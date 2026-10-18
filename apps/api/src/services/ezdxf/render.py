@@ -199,6 +199,14 @@ BUILTIN_CAT = {
 MATERIALE = {
     "Betong_strukturell": "Betong", "Gips": "Gips", "Lettklinker": "Lettklinker",
     "Trefiber": "Trefiber",
+    # Målt mot EKTE fallplan-DXF (orkestrator SVAR dda4110b, 2026-10-18): ARCHICAD/
+    # Revit-eksporten bruker INGEN "isol"-substreng noe sted. Isolasjonen i
+    # ytterveggene er HATCH-mønsteret "Skrålinjer_2" på laget
+    # "231- Bærende yttervegger (Skravur)" — verifisert med ezdxf (48 treff, KUN
+    # på yttervegg-skravurlag, aldri andre lag) og tykkelsen (PCA minste-akse)
+    # matcher en reell 104 mm isolasjonstykkelse (målt med Linjal i viewer, se
+    # relay/arbeidstegning-prove/mobil-r3/).
+    "Skrålinjer_2": "Isolasjon",
 }
 
 def parse_revit_xdata(e):
@@ -244,6 +252,15 @@ def tolk_lagnavn(navn):
     if m:
         rest = re.sub(r"\((Skravur|Tekst|Nye konstruksjoner|Polylinje)\)", "", m.group(2)).strip()
         return f"{rest} · {m.group(1)}"
+    # AIA/IFC "<fag>-<type>-..." uten NS 3451-kode (POST flytte målepunkter, orkestrator
+    # 2026-10-18, pkt 4c): "I-WALL-, -OTLN.IFC-standardImport" matchet INGEN av mønstrene
+    # over (ingen siffer etter fag-bokstaven) og falt rått igjennom til brukeren. Samme
+    # fag-bokstav som tolk_lag_gruppe()/AIA_FAG_NAVN, her beholdes i tillegg TYPE-koden.
+    m = re.match(r"^([ASPIQ])-([A-Z]+)", base)
+    if m:
+        tolket = tolk_aia_type(m.group(1), m.group(2))
+        if tolket:
+            return tolket
     return base
 
 def layer_info_map(doc):
@@ -258,6 +275,35 @@ def layer_info_map(doc):
             "desc": (getattr(lay, "description", "") or ""),
         }
     return ut
+
+def hatch_boundary_verden(e):
+    """HATCH-grensepunkter i rå DXF-verdenskoordinater, flate [x0,y0,x1,y1,...]-
+    lister pr. boundary-loop. KUN brukt for isolasjon (SVAR dda4110b 2026-10-18,
+    pkt 1): `segs_world_oppdater()` hopper med vilje over ALL flate-geometri
+    (HATCH/SOLID — "geometri er overflødig" for F1-treffetesten, som bruker
+    containment), men isolasjonens tykkelse (egenskapsfelt.ts `beregnMaal`) MÅ ha
+    `geom` for å PCA-måle bredden — uten den vises ingen tykkelse i det hele tatt
+    (målt: tom for alle 49 isolasjonsobjekter i fallplanen før denne funksjonen)."""
+    from ezdxf.entities import PolylinePath, EdgePath
+    polyer = []
+    try:
+        paths = e.paths
+    except Exception:
+        return polyer
+    for path in paths:
+        pts = []
+        if isinstance(path, PolylinePath):
+            pts = [(v[0], v[1]) for v in path.vertices]
+        elif isinstance(path, EdgePath):
+            for edge in path.edges:
+                for attr in ("start", "end"):
+                    v = getattr(edge, attr, None)
+                    if v is not None:
+                        pts.append((v[0], v[1]))
+        if len(pts) >= 2:
+            polyer.append([c for (x, y) in pts for c in (round(x), round(y))])
+    return polyer
+
 
 def bygg_objektregister(doc, msp, handles, lagmap):
     """O1 pr. handle som faktisk er tegnet. Kategori-prioritet (F1 felt 1):
@@ -303,16 +349,28 @@ def bygg_objektregister(doc, msp, handles, lagmap):
         if not kat:
             kat = tolk_lagnavn(lag) or lag
         obj["kategori"] = kat
+        if er_arkicad_hjelpelinje(lag):
+            obj["hjelpelinje"] = True
         if h in insert_info:
             obj["blokk"] = insert_info[h]["navn"]
             if insert_info[h]["attr"]:
                 obj["attr"] = insert_info[h]["attr"]
                 if insert_info[h]["attrMeta"]:
                     obj["attrMeta"] = insert_info[h]["attrMeta"]
-        if h in hatch_info:
+        # Isolasjon (POST flytte målepunkter, orkestrator 2026-10-18, pkt 4d): ingen
+        # kjent, enkelt mønsternavn på tvers av ARCHICAD/Revit-eksporter — identifiser
+        # bredt på "isol" i enten lagnavnet (polylinje/SOLID på en isolasjonslag) eller
+        # HATCH-mønsternavnet, FØR den vanlige MATERIALE-oppslaget. Klienten
+        # (egenskapsfelt.ts) bruker denne EKSAKTE strengen til å velge tykkelse
+        # fremfor lengde i "Mål"-feltet.
+        if "isol" in lag.lower():
+            obj["materiale"] = "Isolasjon"
+        elif h in hatch_info:
             pn = hatch_info[h]
             if pn in MATERIALE:
                 obj["materiale"] = MATERIALE[pn]
+            elif pn and "isol" in pn.lower():
+                obj["materiale"] = "Isolasjon"
             elif pn and not pn.startswith("FP_") and pn != "SOLID":
                 obj["materialeRaa"] = pn
         lt = e.dxf.get("linetype", "BYLAYER")
@@ -329,6 +387,22 @@ def bygg_objektregister(doc, msp, handles, lagmap):
             elid_index.setdefault(obj["elid"], []).append(h)
     return objekter, elid_index
 
+
+def er_arkicad_hjelpelinje(lag):
+    """ArchiCAD/Revit sine EGNE 80-89-serie referanse-/annotasjonslag (Modullinjer
+    82, Snittmarkør 852, Detaljer 858, Nettoareal 862 m.fl.) — IKKE NS 3451-
+    bygningsdeler (standarden stopper på 79, se NS3451_NAVN-kommentaren lenger
+    ned). RETUR isolasjon `7d5d6787` pkt 2 (målt på fallplanen): disse er ofte
+    28-125 m lange enkeltlinjer som ellers ALLTID vinner over isolasjon/flate i
+    klientens hit-test, selv om de bare er hjelpegeometri og ikke en bygningsdel."""
+    kode = tolk_lag_gruppe(lag)
+    if not kode or not kode[0].isdigit():
+        return False
+    try:
+        hoved = int(kode[:2])
+    except ValueError:
+        return False
+    return 80 <= hoved <= 89
 
 def tolk_lag_gruppe(navn):
     """F2 gruppe-NØKKEL fra lagnavn (fallback når laget ikke har en dominant Revit-
@@ -559,6 +633,25 @@ NS3451_NAVN = {
 AIA_FAG_NAVN = {
     "A": "Arkitekt", "S": "Konstruksjon", "P": "VVS (rør)", "I": "Interiør", "Q": "Utstyr",
 }
+
+# AIA CAD Layer Guidelines TYPE-kode -> norsk objekttype (POST flytte målepunkter,
+# orkestrator 2026-10-18, pkt 4c: "I-WALL -> tolk AIA-koden (I-WALL -> «Interiør –
+# vegg»)"). Dekker de syv typekodene bekreftet på fallplanen (se AIA_FAG_NAVN-
+# kommentaren) + DOOR/WIND som er nærliggende i samme konvensjon.
+AIA_TYPE_NAVN = {
+    "WALL": "vegg", "DOOR": "dør", "WIND": "vindu", "FLOR": "gulv", "ROOF": "tak",
+    "AREA": "areal", "GENM": "generisk modell", "GLAZ": "glass/fasade",
+    "COLS": "søyle", "STRS": "trapp", "SANR": "sanitærutstyr", "CASE": "fast innredning",
+}
+
+def tolk_aia_type(fag, type_kode):
+    """Fag + type -> «Fagnavn – objekttype» (tolk_lagnavn() sin AIA-gren). Ukjent
+    fag -> None (kalleren faller til rått lagnavn). Ukjent type -> bare fagnavnet."""
+    fagnavn = AIA_FAG_NAVN.get(fag)
+    if not fagnavn:
+        return None
+    typenavn = AIA_TYPE_NAVN.get(type_kode)
+    return f"{fagnavn} – {typenavn}" if typenavn else fagnavn
 
 def gruppe_visningsnavn(kode, revit_kategori=None):
     """F2 (RETUR F1+F2 web, orkestrator 2026-10-17): gruppenavn med NAVN — Kenneth
@@ -1431,6 +1524,15 @@ def main():
                 # mot DENNE, ikke bbox-kanten (var rotårsaken: dørsvingens union-bbox er langt
                 # fra trykkpunktet, mens kledningens tette bbox feilaktig vant).
                 ow["geom"] = [[c for (x, y) in poly for c in (round(x), round(y))] for poly in segs]
+            elif ow.get("materiale") == "Isolasjon":
+                # Isolasjon (SVAR dda4110b, pkt 1): HATCH-flater får ALDRI geom via
+                # reg_segs_world (se segs_world_oppdater) — uten dette unntaket viser
+                # panelet INGEN tykkelse for isolasjonsobjekter (geom mangler -> null).
+                ent = doc.entitydb.get(h)
+                if ent is not None:
+                    grense = hatch_boundary_verden(ent)
+                    if grense:
+                        ow["geom"] = grense
             objekter_world[h] = ow
         beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat)
         lag_antall_w = {}
