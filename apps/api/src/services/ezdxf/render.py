@@ -199,6 +199,14 @@ BUILTIN_CAT = {
 MATERIALE = {
     "Betong_strukturell": "Betong", "Gips": "Gips", "Lettklinker": "Lettklinker",
     "Trefiber": "Trefiber",
+    # Målt mot EKTE fallplan-DXF (orkestrator SVAR dda4110b, 2026-10-18): ARCHICAD/
+    # Revit-eksporten bruker INGEN "isol"-substreng noe sted. Isolasjonen i
+    # ytterveggene er HATCH-mønsteret "Skrålinjer_2" på laget
+    # "231- Bærende yttervegger (Skravur)" — verifisert med ezdxf (48 treff, KUN
+    # på yttervegg-skravurlag, aldri andre lag) og tykkelsen (PCA minste-akse)
+    # matcher en reell 104 mm isolasjonstykkelse (målt med Linjal i viewer, se
+    # relay/arbeidstegning-prove/mobil-r3/).
+    "Skrålinjer_2": "Isolasjon",
 }
 
 def parse_revit_xdata(e):
@@ -267,6 +275,35 @@ def layer_info_map(doc):
             "desc": (getattr(lay, "description", "") or ""),
         }
     return ut
+
+def hatch_boundary_verden(e):
+    """HATCH-grensepunkter i rå DXF-verdenskoordinater, flate [x0,y0,x1,y1,...]-
+    lister pr. boundary-loop. KUN brukt for isolasjon (SVAR dda4110b 2026-10-18,
+    pkt 1): `segs_world_oppdater()` hopper med vilje over ALL flate-geometri
+    (HATCH/SOLID — "geometri er overflødig" for F1-treffetesten, som bruker
+    containment), men isolasjonens tykkelse (egenskapsfelt.ts `beregnMaal`) MÅ ha
+    `geom` for å PCA-måle bredden — uten den vises ingen tykkelse i det hele tatt
+    (målt: tom for alle 49 isolasjonsobjekter i fallplanen før denne funksjonen)."""
+    from ezdxf.entities import PolylinePath, EdgePath
+    polyer = []
+    try:
+        paths = e.paths
+    except Exception:
+        return polyer
+    for path in paths:
+        pts = []
+        if isinstance(path, PolylinePath):
+            pts = [(v[0], v[1]) for v in path.vertices]
+        elif isinstance(path, EdgePath):
+            for edge in path.edges:
+                for attr in ("start", "end"):
+                    v = getattr(edge, attr, None)
+                    if v is not None:
+                        pts.append((v[0], v[1]))
+        if len(pts) >= 2:
+            polyer.append([c for (x, y) in pts for c in (round(x), round(y))])
+    return polyer
+
 
 def bygg_objektregister(doc, msp, handles, lagmap):
     """O1 pr. handle som faktisk er tegnet. Kategori-prioritet (F1 felt 1):
@@ -1469,6 +1506,15 @@ def main():
                 # mot DENNE, ikke bbox-kanten (var rotårsaken: dørsvingens union-bbox er langt
                 # fra trykkpunktet, mens kledningens tette bbox feilaktig vant).
                 ow["geom"] = [[c for (x, y) in poly for c in (round(x), round(y))] for poly in segs]
+            elif ow.get("materiale") == "Isolasjon":
+                # Isolasjon (SVAR dda4110b, pkt 1): HATCH-flater får ALDRI geom via
+                # reg_segs_world (se segs_world_oppdater) — uten dette unntaket viser
+                # panelet INGEN tykkelse for isolasjonsobjekter (geom mangler -> null).
+                ent = doc.entitydb.get(h)
+                if ent is not None:
+                    grense = hatch_boundary_verden(ent)
+                    if grense:
+                        ow["geom"] = grense
             objekter_world[h] = ow
         beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat)
         lag_antall_w = {}

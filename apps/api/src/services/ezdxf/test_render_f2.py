@@ -9,7 +9,7 @@ Kjør: EZDXF_PYTHON pytest test_render_f2.py -v
 
 from render import (
     tolk_lag_gruppe, lag_dominante_revit_kategorier, beregn_naermeste_merking,
-    gruppe_visningsnavn, tolk_lagnavn,
+    gruppe_visningsnavn, tolk_lagnavn, bygg_objektregister, layer_info_map,
 )
 
 
@@ -141,3 +141,26 @@ def test_tolk_lagnavn_ns3451_uendret_av_aia_grenen():
     # Regresjon: NS 3451-grenene (med siffer) skal fortsatt vinne over AIA-grenen.
     assert tolk_lagnavn("A24_innervegg") == "innervegg · 24"
     assert tolk_lagnavn("242- Ikke-bærende innervegger") == "Ikke-bærende innervegger · 242"
+
+
+def test_bygg_objektregister_skralinjer2_er_isolasjon():
+    # SVAR dda4110b (orkestrator 2026-10-18): verifisert mot EKTE fallplan-DXF
+    # (relay/arbeidstegning-prove/gate1/fallplan.dxf) med ezdxf — ingen "isol"-
+    # substreng forekommer noe sted i fila. Isolasjonen i ytterveggene er HATCH-
+    # mønsteret "Skrålinjer_2" på laget "231- Bærende yttervegger (Skravur)",
+    # KUN der (48/48 treff, aldri andre lag). Regresjonstest for MATERIALE-
+    # tabellens oppslag, ikke en antagelse om "isol" i navnet.
+    import ezdxf
+
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    lag = "231- Bærende yttervegger (Skravur)"
+    doc.layers.add(lag)
+    h = msp.add_hatch(dxfattribs={"layer": lag})
+    h.set_pattern_fill("Skrålinjer_2", scale=1.0)
+    h.paths.add_polyline_path([(0, 0), (100, 0), (100, 104), (0, 104)], is_closed=True)
+    lagmap = layer_info_map(doc)
+    objekter, _ = bygg_objektregister(doc, msp, [h.dxf.handle], lagmap)
+    obj = objekter[h.dxf.handle]
+    assert "isol" not in obj["lag"].lower()
+    assert obj["materiale"] == "Isolasjon"

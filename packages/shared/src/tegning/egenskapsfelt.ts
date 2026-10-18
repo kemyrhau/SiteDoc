@@ -93,9 +93,12 @@ function beregnDoerVinduBredde(o: RegisterVerdenObjekt, mmPr: number): string | 
   return lengste > 0 ? formatMm(lengste) : null;
 }
 
-/** Isolasjonsobjekter (render.py: lag/HATCH-mønster inneholder "isol" → `materiale`
- * settes EKSAKT til denne strengen) — for dem viser "Mål" TYKKELSEN, ikke lengden
- * (POST flytte målepunkter, orkestrator 2026-10-18, pkt 4d). */
+/** Isolasjonsobjekter (render.py: lag/HATCH-mønster inneholder "isol", ELLER
+ * HATCH-mønsternavnet står i MATERIALE-tabellen med verdien "Isolasjon" — f.eks.
+ * "Skrålinjer_2", verifisert mot EKTE fallplan-DXF der "isol" aldri forekommer,
+ * SVAR dda4110b 2026-10-18 — `materiale` settes EKSAKT til denne strengen) — for
+ * dem viser "Mål" TYKKELSEN, ikke lengden (POST flytte målepunkter, orkestrator
+ * 2026-10-18, pkt 4d). */
 const ER_ISOLASJON_MATERIALE = "Isolasjon";
 
 interface LengdeOgTykkelseMm {
@@ -168,6 +171,18 @@ function beregnMaal(
     return bredde ? { verdi: bredde } : null;
   }
   if (!o.geom || o.geom.length === 0) return null;
+  // Isolasjon FØR flate-arealet (RETTET, SVAR dda4110b 2026-10-18): isolasjonens
+  // HATCH-mønster ("Skrålinjer_2" m.fl., se MATERIALE-tabellen i render.py) har
+  // dtype "HATCH", som ellers havner i FLATE_DTYPE-arealgrenen under — isolasjon
+  // skal ALDRI vise areal, kun tykkelse. Sjekkes derfor FØRST, uavhengig av dtype.
+  if (o.materiale === ER_ISOLASJON_MATERIALE) {
+    const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
+    if (allePunkter.length < 2) return null;
+    const { lengdeMm, tykkelseMm } = beregnAkslerMm(allePunkter, mmPr);
+    if (tykkelseMm <= 0) return null;
+    const underverdi = lengdeMm > 0 ? `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}` : undefined;
+    return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi };
+  }
   if (FLATE_DTYPE.has(o.dtype)) {
     const forsteLinje = o.geom[0];
     if (!forsteLinje || forsteLinje.length < 4) return null;
@@ -179,12 +194,7 @@ function beregnMaal(
   // veggs korteste tverr-tagg (RETUR, Kenneths telefontest: "Mål 13 mm" på en vegg).
   const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
   if (allePunkter.length < 2) return null;
-  const { lengdeMm, tykkelseMm } = beregnAkslerMm(allePunkter, mmPr);
-  if (o.materiale === ER_ISOLASJON_MATERIALE) {
-    if (tykkelseMm <= 0) return null;
-    const underverdi = lengdeMm > 0 ? `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}` : undefined;
-    return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi };
-  }
+  const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
   return lengdeMm > 0 ? { verdi: formatMm(lengdeMm) } : null;
 }
 
