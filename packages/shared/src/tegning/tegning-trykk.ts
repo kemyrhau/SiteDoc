@@ -65,17 +65,27 @@ export type TrykkHandling =
 export const LANGT_TRYKK_MS = 500;
 
 /**
+ * Et langt trykk PÅ ET MÅLEPUNKT (Flytt-verktøyet) er ≥ dette (ms) — kortere enn
+ * `LANGT_TRYKK_MS` (POST flytte målepunkter, orkestrator 2026-10-18, pkt 3: "langt
+ * trykk (~300 ms) på et punkt + dra flytter det"). Egen konstant: de to tersklene
+ * har ulik semantikk (her: terskel for å COMMITTE en flytting; `LANGT_TRYKK_MS`:
+ * navigering sitt skille mellom hint og opprett) og skal kunne justeres uavhengig.
+ */
+export const LANGT_TRYKK_PUNKT_MS = 300;
+
+/**
  * Avgjør hva en gest skal gjøre ved slipp, gitt aktivt verktøy.
  *
  * - Knip (≥2 pekere) → `pan` (zoom, aldri commit). 🔴 Rotårsaken til RETUR 3 § 0
  *   (skjermlås + «måling forsvant») var at samme gest betydde fire ting; her er
  *   hvert verktøy entydig.
- * - **Flytt:** nedtrykk på et punkt → dra det (`draPunkt`); et rent trykk på en
- *   truffet måling → `velgMaling`; ellers panorér. **Setter ALDRI punkt.** Langt
- *   trykk på et hjørne gjør INGENTING ekstra lenger (fjernet 2026-10-14, Kenneth-
- *   telefontest): det «Fjern hjørne?»-trykket fjernet sist flyttede punkt og
- *   avsluttet målingen utilsiktet. Langt trykk faller nå til `draPunkt` — uten
- *   bevegelse endrer det ingenting.
+ * - **Flytt:** nedtrykk på et punkt + (bevegelse ELLER ≥`LANGT_TRYKK_PUNKT_MS`) →
+ *   dra det (`draPunkt`). Et KORT trykk uten bevegelse på et punkt → `velgMaling`
+ *   (markerer HELE målingen, flytter ikke — POST 2026-10-18 pkt 3: "Kort trykk på
+ *   et punkt markerer målingen, ikke objekt under"). Et trykk/dra på et SEGMENT
+ *   (ingen punkt-treff) → også `velgMaling` (panorering er uansett deaktivert for
+ *   hele gesten når et segment er truffet — se kalleren). Ellers panorér. **Setter
+ *   ALDRI nytt punkt.**
  * - **Linjal/Polylinje/Areal:** `settPunkt`. **Drar ALDRI, velger ALDRI.**
  * - **Opprett:** rent trykk → `opprett` (markør + mal); bevegelse → `pan`.
  * - **Navigering:** kort trykk → `hint`, langt → `opprett`, bevegelse → `pan`.
@@ -85,10 +95,11 @@ export function avgjorTrykkHandling(verktoy: TegningVerktoy, gest: TrykkGest): T
 
   switch (verktoy) {
     case "flytt":
-      // Nedtrykk på et hjørne → dra det. Langt trykk uten bevegelse gjør ingenting
-      // (fjern-hjørne-gesten er fjernet, 2026-10-14) — et stille no-op draPunkt.
-      if (gest.nedPaaPunkt) return "draPunkt";
-      if (!gest.flyttet && gest.traffMaling) return "velgMaling";
+      if (gest.nedPaaPunkt) {
+        if (gest.flyttet || gest.varighetMs >= LANGT_TRYKK_PUNKT_MS) return "draPunkt";
+        return "velgMaling"; // kort trykk uten bevegelse: velg målingen, ikke dra
+      }
+      if (gest.traffMaling) return "velgMaling"; // traff et segment (ikke et punkt)
       return "pan";
     case "linjal":
     case "polylinje":

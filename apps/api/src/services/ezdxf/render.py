@@ -244,6 +244,15 @@ def tolk_lagnavn(navn):
     if m:
         rest = re.sub(r"\((Skravur|Tekst|Nye konstruksjoner|Polylinje)\)", "", m.group(2)).strip()
         return f"{rest} · {m.group(1)}"
+    # AIA/IFC "<fag>-<type>-..." uten NS 3451-kode (POST flytte målepunkter, orkestrator
+    # 2026-10-18, pkt 4c): "I-WALL-, -OTLN.IFC-standardImport" matchet INGEN av mønstrene
+    # over (ingen siffer etter fag-bokstaven) og falt rått igjennom til brukeren. Samme
+    # fag-bokstav som tolk_lag_gruppe()/AIA_FAG_NAVN, her beholdes i tillegg TYPE-koden.
+    m = re.match(r"^([ASPIQ])-([A-Z]+)", base)
+    if m:
+        tolket = tolk_aia_type(m.group(1), m.group(2))
+        if tolket:
+            return tolket
     return base
 
 def layer_info_map(doc):
@@ -309,10 +318,20 @@ def bygg_objektregister(doc, msp, handles, lagmap):
                 obj["attr"] = insert_info[h]["attr"]
                 if insert_info[h]["attrMeta"]:
                     obj["attrMeta"] = insert_info[h]["attrMeta"]
-        if h in hatch_info:
+        # Isolasjon (POST flytte målepunkter, orkestrator 2026-10-18, pkt 4d): ingen
+        # kjent, enkelt mønsternavn på tvers av ARCHICAD/Revit-eksporter — identifiser
+        # bredt på "isol" i enten lagnavnet (polylinje/SOLID på en isolasjonslag) eller
+        # HATCH-mønsternavnet, FØR den vanlige MATERIALE-oppslaget. Klienten
+        # (egenskapsfelt.ts) bruker denne EKSAKTE strengen til å velge tykkelse
+        # fremfor lengde i "Mål"-feltet.
+        if "isol" in lag.lower():
+            obj["materiale"] = "Isolasjon"
+        elif h in hatch_info:
             pn = hatch_info[h]
             if pn in MATERIALE:
                 obj["materiale"] = MATERIALE[pn]
+            elif pn and "isol" in pn.lower():
+                obj["materiale"] = "Isolasjon"
             elif pn and not pn.startswith("FP_") and pn != "SOLID":
                 obj["materialeRaa"] = pn
         lt = e.dxf.get("linetype", "BYLAYER")
@@ -559,6 +578,25 @@ NS3451_NAVN = {
 AIA_FAG_NAVN = {
     "A": "Arkitekt", "S": "Konstruksjon", "P": "VVS (rør)", "I": "Interiør", "Q": "Utstyr",
 }
+
+# AIA CAD Layer Guidelines TYPE-kode -> norsk objekttype (POST flytte målepunkter,
+# orkestrator 2026-10-18, pkt 4c: "I-WALL -> tolk AIA-koden (I-WALL -> «Interiør –
+# vegg»)"). Dekker de syv typekodene bekreftet på fallplanen (se AIA_FAG_NAVN-
+# kommentaren) + DOOR/WIND som er nærliggende i samme konvensjon.
+AIA_TYPE_NAVN = {
+    "WALL": "vegg", "DOOR": "dør", "WIND": "vindu", "FLOR": "gulv", "ROOF": "tak",
+    "AREA": "areal", "GENM": "generisk modell", "GLAZ": "glass/fasade",
+    "COLS": "søyle", "STRS": "trapp", "SANR": "sanitærutstyr", "CASE": "fast innredning",
+}
+
+def tolk_aia_type(fag, type_kode):
+    """Fag + type -> «Fagnavn – objekttype» (tolk_lagnavn() sin AIA-gren). Ukjent
+    fag -> None (kalleren faller til rått lagnavn). Ukjent type -> bare fagnavnet."""
+    fagnavn = AIA_FAG_NAVN.get(fag)
+    if not fagnavn:
+        return None
+    typenavn = AIA_TYPE_NAVN.get(type_kode)
+    return f"{fagnavn} – {typenavn}" if typenavn else fagnavn
 
 def gruppe_visningsnavn(kode, revit_kategori=None):
     """F2 (RETUR F1+F2 web, orkestrator 2026-10-17): gruppenavn med NAVN — Kenneth

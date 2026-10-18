@@ -153,6 +153,25 @@ export function flyttPunkt(t: MaleTilstand, index: number, p: Punkt): MaleTilsta
   return { ...t, malinger: t.malinger.map((x) => (x.id === m.id ? { ...x, punkter } : x)) };
 }
 
+/**
+ * Flytt et punkt i EN SPESIFIKK måling, uansett om den er aktiv, og gjør den
+ * aktiv (POST flytte målepunkter, orkestrator 2026-10-18, pkt 1: målepunkter går
+ * foran objekter uansett hvilken måling som var aktiv da trykket traff). Generalisering
+ * av `flyttPunkt` (som kun virker på DEN AKTIVE målingen) — den beholdes uendret for
+ * eksisterende kallere (SVG-veien), denne brukes av dxf-viewer-grenens treff-på-
+ * tvers-av-alle-målinger.
+ */
+export function flyttPunktIMaling(t: MaleTilstand, malingId: string, index: number, p: Punkt): MaleTilstand {
+  const m = t.malinger.find((x) => x.id === malingId);
+  if (!m || index < 0 || index >= m.punkter.length) return t;
+  const punkter = m.punkter.slice();
+  punkter[index] = p;
+  return {
+    malinger: t.malinger.map((x) => (x.id === malingId ? { ...x, punkter } : x)),
+    aktivId: malingId,
+  };
+}
+
 /** Velg en eksisterende måling som aktiv (trykk på den). Ukjent id → uendret. */
 export function velgMaling(t: MaleTilstand, id: string): MaleTilstand {
   if (t.aktivId === id) return t;

@@ -416,3 +416,52 @@ export function finnNaermesteVerdenPunkt(
   }
   return best;
 }
+
+/** Avstand (skjerm-px) fra et skjermpunkt til et linjesegment (begge i skjermrom). */
+function avstandTilSkjermSegment(p: SkjermPunkt, a: SkjermPunkt, b: SkjermPunkt): number {
+  const dx = b.skjermX - a.skjermX;
+  const dy = b.skjermY - a.skjermY;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(p.skjermX - a.skjermX, p.skjermY - a.skjermY);
+  let tt = ((p.skjermX - a.skjermX) * dx + (p.skjermY - a.skjermY) * dy) / len2;
+  tt = Math.max(0, Math.min(1, tt));
+  return Math.hypot(p.skjermX - (a.skjermX + tt * dx), p.skjermY - (a.skjermY + tt * dy));
+}
+
+/** Ett treff fra `finnMalingTreffVerden`: hvilken måling, og ev. hvilket PUNKT. */
+export interface MaalingTreffVerden {
+  malingIndex: number;
+  /** Indeksen til punktet som ble truffet, eller `null` = traff et SEGMENT (ikke et punkt). */
+  punktIndex: number | null;
+}
+
+/**
+ * Nærmeste måling et skjermtrykk/trådkors traff, PÅ TVERS AV ALLE målinger (ikke
+ * kun den aktive) — punkter FØR segmenter, sist-tegnet (øverste) måling vinner ved
+ * flere treff. Brukt til prioritetsregelen "målepunkter (og målesegmenter) går
+ * ALLTID foran objekter" (POST flytte målepunkter, orkestrator 2026-10-18, pkt 1) —
+ * kalleren sjekker DENNE FØR `hitTestWorld` (objekt-identifisering). `null` = bom.
+ */
+export function finnMalingTreffVerden(
+  malinger: { punkter: VerdenPunkt[] }[],
+  skjermKandidat: SkjermPunkt,
+  k: DxfKameraParametre,
+  tolPx: number,
+): MaalingTreffVerden | null {
+  for (let mi = malinger.length - 1; mi >= 0; mi--) {
+    const pts = malinger[mi]!.punkter;
+    const skjermPts = pts.map((p) => verdenTilSkjerm(p, k));
+    for (let i = 0; i < skjermPts.length; i++) {
+      const s = skjermPts[i]!;
+      if (Math.hypot(s.skjermX - skjermKandidat.skjermX, s.skjermY - skjermKandidat.skjermY) <= tolPx) {
+        return { malingIndex: mi, punktIndex: i };
+      }
+    }
+    for (let i = 0; i + 1 < skjermPts.length; i++) {
+      if (avstandTilSkjermSegment(skjermKandidat, skjermPts[i]!, skjermPts[i + 1]!) <= tolPx) {
+        return { malingIndex: mi, punktIndex: null };
+      }
+    }
+  }
+  return null;
+}

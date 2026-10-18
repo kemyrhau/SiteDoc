@@ -47,6 +47,7 @@ export {
   settFerdig,
   gjenoppta,
   flyttPunkt,
+  flyttPunktIMaling,
   velgMaling,
   slettAktiv,
   slettAlle,

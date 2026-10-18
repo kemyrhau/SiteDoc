@@ -4,6 +4,7 @@ import {
   visLupeForGest,
   erMaleVerktoy,
   LANGT_TRYKK_MS,
+  LANGT_TRYKK_PUNKT_MS,
   type TegningVerktoy,
   type TrykkGest,
 } from "./tegning-trykk";
@@ -30,25 +31,32 @@ describe("avgjorTrykkHandling — eksplisitte verktøy (RETUR 3)", () => {
     }
   });
 
-  it("Flytt: nedtrykk på punkt → draPunkt; på måling → velgMaling; ellers pan", () => {
-    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true }))).toBe("draPunkt");
-    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, flyttet: true }))).toBe("draPunkt");
+  it("Flytt: kort trykk på punkt → velgMaling (markerer, flytter IKKE — POST 2026-10-18 pkt 3)", () => {
+    // Under LANGT_TRYKK_PUNKT_MS og ingen bevegelse: velg målingen, ikke drag.
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_PUNKT_MS - 1 }))).toBe(
+      "velgMaling",
+    );
+    // Bevegelse (selv kort trykk) → likevel en reell drag.
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, flyttet: true, varighetMs: 50 }))).toBe(
+      "draPunkt",
+    );
+    // På et SEGMENT (ikke et punkt) → velgMaling, uansett bevegelse (pan er deaktivert
+    // for hele gesten når et segment er truffet — se kalleren).
     expect(avgjorTrykkHandling("flytt", gest({ traffMaling: true }))).toBe("velgMaling");
-    // Traff måling men flyttet (pan over figuren) → pan, ikke velg.
-    expect(avgjorTrykkHandling("flytt", gest({ traffMaling: true, flyttet: true }))).toBe("pan");
+    expect(avgjorTrykkHandling("flytt", gest({ traffMaling: true, flyttet: true }))).toBe("velgMaling");
+    // Bom (ingen punkt, ingen måling) → pan.
     expect(avgjorTrykkHandling("flytt", gest())).toBe("pan");
   });
 
-  it("Flytt: langt trykk på et hjørne fjerner det IKKE lenger — alltid draPunkt (2026-10-14)", () => {
-    // Fjern-hjørne-gesten er borte (Kenneth-telefontest): langt + stille på et
-    // punkt gir draPunkt, ikke «fjernPunkt». Uten bevegelse er draPunkt et no-op,
-    // så punktlista endres ikke av et langt trykk.
-    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_MS }))).toBe("draPunkt");
+  it("Flytt: langt trykk (≥LANGT_TRYKK_PUNKT_MS) på et punkt committer en drag", () => {
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_PUNKT_MS }))).toBe(
+      "draPunkt",
+    );
     expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: 2000 }))).toBe("draPunkt");
-    // Langt MEN dratt → vanlig drag (brukeren flyttet punktet), som før.
-    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: 900, flyttet: true }))).toBe("draPunkt");
-    // Kort trykk på punkt → drag.
-    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: LANGT_TRYKK_MS - 1 }))).toBe("draPunkt");
+    // Langt OG dratt → fortsatt drag (ingen endring).
+    expect(avgjorTrykkHandling("flytt", gest({ nedPaaPunkt: true, varighetMs: 900, flyttet: true }))).toBe(
+      "draPunkt",
+    );
   });
 
   it("🔴 et trykk i måleverktøy DRAR aldri (og velger aldri) — setter punkt", () => {

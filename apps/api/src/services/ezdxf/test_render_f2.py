@@ -9,7 +9,7 @@ Kjør: EZDXF_PYTHON pytest test_render_f2.py -v
 
 from render import (
     tolk_lag_gruppe, lag_dominante_revit_kategorier, beregn_naermeste_merking,
-    gruppe_visningsnavn,
+    gruppe_visningsnavn, tolk_lagnavn,
 )
 
 
@@ -119,3 +119,25 @@ def test_naermeste_merking_ignorerer_objekt_med_egen_tekst():
     tekster = [{"tekst": "15.TR", "x": 0, "y": 0, "h": 2, "layer": "V341-T"}]
     beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat={})
     assert "naermesteMerking" not in objekter_world["h1"]
+
+
+def test_tolk_lagnavn_aia_type_kjent():
+    # POST flytte målepunkter, orkestrator 2026-10-18, pkt 4c: bug-eksempelet
+    # "I-WALL-, -OTLN.IFC-standardImport" falt rått igjennom før denne grenen fantes.
+    assert tolk_lagnavn("I-WALL-, -OTLN.IFC-standardImport") == "Interiør – vegg"
+    assert tolk_lagnavn("A-DOOR-FULL") == "Arkitekt – dør"
+    assert tolk_lagnavn("S-COLS") == "Konstruksjon – søyle"
+
+
+def test_tolk_lagnavn_aia_ukjent_type_faller_til_fagnavn():
+    assert tolk_lagnavn("A-XYZZY") == "Arkitekt"
+
+
+def test_tolk_lagnavn_aia_ukjent_fag_faller_til_raatt_navn():
+    assert tolk_lagnavn("X-WALL") == "X-WALL"
+
+
+def test_tolk_lagnavn_ns3451_uendret_av_aia_grenen():
+    # Regresjon: NS 3451-grenene (med siffer) skal fortsatt vinne over AIA-grenen.
+    assert tolk_lagnavn("A24_innervegg") == "innervegg · 24"
+    assert tolk_lagnavn("242- Ikke-bærende innervegger") == "Ikke-bærende innervegger · 242"
