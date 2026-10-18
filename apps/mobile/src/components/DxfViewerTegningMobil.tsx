@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "rea
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from "react-native-webview/lib/WebViewTypes";
 import type { EgenskapsFelt, RegisterVerdenLagInfo, TegningVerktoy } from "@sitedoc/shared";
-import { hentWebUrl } from "../config/auth";
+import { erTestLoginAktiv, hentWebUrl } from "../config/auth";
 
 // RETUR leveranse 2 (Kontrollør, punkt 2): et NATIVT WebView-last-problem (offline
 // nett-drop midt i last, DNS-feil, http-feilstatus) kommer ALDRI som en "feil"-
@@ -216,6 +216,13 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
           domStorageEnabled
           allowsInlineMediaPlayback
           originWhitelist={["*"]}
+          // RETUR F1+F2 mobil (orkestrator 2026-10-18, "SVAR 2"): render-krasjen i
+          // smoketest-siden er ikke lokalt pålitelig reproduserbar (vendor dxf-viewer-
+          // race, se relay/inbox-orkestrator.md) — ekte stack fra telefonens WKWebView
+          // krever Safari Web Inspector. Kun i test-bygg (samme gate som dev-login),
+          // ALDRI i prod (krever iOS 16.4+, og eksponerer WebView-innholdet for Safari
+          // på samme Mac som er koblet via USB — ufarlig i test, uønsket i prod).
+          webviewDebuggingEnabled={erTestLoginAktiv}
         />
 
         {!klarWeb && !sideFeil && (
