@@ -25,6 +25,13 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-19
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `ee884ff8` ← `b332bf9c`, `d92f4d30` ← `ac87caf9`/`ab4b6c78`/`72b05f02` | 🔴 **Arbeidstegning (dxf-viewer, KUN test bak `TEGNING_MOTOR`): peker og flytt punkt** | **Før:** et målepunkt ble flyttet med langt trykk + dra og en lupe ved fingeren. **Etter:** pekeren er eneste vei til å flytte punkt (langt trykk + dra og den gamle dra-lupen er fjernet). Pekeren har lupe ×3 over trådkorset mens kameraet beveger seg, prikk i treffpunktet og presisjonsdra med én finger i 1/3 fart (med to fingre går det i normal fart). iOS-tekstvalg og -lupe er slått av på pekerflaten. ⚠️ Lupens plassering og iOS-markeringen er ikke bekreftet på telefon ennå. Reload: test-deploy + bryter + OTA test | 🟢 Kenneth 2026-10-19 («pekeren zoomer … dras med større presisjon … prikk på treffpunktet»; «langt trykk + dra og lupen skal fjernes») |
+| samme | 🔴 **Arbeidstegning: målfelt i trykk-arket** | **Før:** dør viste 1,59 m (slagbue). Isolasjon viste areal eller feil tykkelse. Mål i én desimal. **Etter:** dørmål tas fra merkingen i dørblokkens «Dørstempel» (1 090×2 090 → 1,09 × 2,09). Lange smale objekter (L/B > 8, tykkelse ≥ 10 mm) viser tykkelse + lengde, *tolket*. Flater (HATCH/SOLID uten isolasjon) og rom beholder areal. Mål vises med to desimaler. | 🟢 Kenneth 2026-10-19 (telefontest + «ja» til innsnevring for rom/flater) |
+
 ### 2026-10-14
 
 | Hash | Flate | Før → Etter | Hjemmel |
