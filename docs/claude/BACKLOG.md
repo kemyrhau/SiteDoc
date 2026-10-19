@@ -5140,6 +5140,10 @@ Detaljsiden beholdes fullt funksjonell (sammenheng-prinsipp krever det). Reverse
 
 ## 2. Halvferdige features
 
+### 🟡 Arbeidstegning: snap og 90° mens man navigerer i Linjal/Polylinje/Areal (Kenneth 2026-10-19)
+I dag (`ee884ff8`) viser «Flytt punkt» med pekeren den stiplede 90°-linja og snap-ringen live, men «Sett punkt» i Linjal gjør det ikke. Der vises snap og 90° først etter at punktet er satt. Kenneth: «det ville vært den sannsynlige måten», men det er akseptabelt fordi Flytt kan brukes etterpå. Gjenbruk Flytt-logikken (én kilde). Bilder: `relay/arbeidstegning-prove/f1f2/kenneth/1910b/3-…` mot `4-…`. 🟡 PLANLAGT, ikke bestilt.
+
+
 ### 🔴 MÅ GJØRES 2026-09-10: serverhåndheving av `DokumentflytMedlem.kanRedigere`
 
 **Kenneth-vedtak 2026-09-10:** *«før opp 2 i backlogg som must do»* — etter at han gatet den
