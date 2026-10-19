@@ -170,6 +170,19 @@ function viewerKlar(viewer: any): boolean {
   return Boolean(viewer?.camera && viewer.bounds && viewer.origin);
 }
 
+/** Øyeblikksbilde av kameraet (absolutt verdensposisjon, ikke origin-relativ — origin
+ * kan i prinsippet endres mellom to `last()`-kall, posisjonen skal ikke). Brukt til å
+ * gjenopprette brukerens panorament/zoom etter en stille reload (RETUR ee884ff8 pkt 1). */
+interface KameraSnapshot {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  zoom: number;
+  posX: number;
+  posY: number;
+}
+
 /** Kamera-parametre for den delte skjerm↔verden-projeksjonen, lest rett fra dxf-viewer-instansen.
  * Kalleren MÅ sjekke `viewerKlar(viewer)` FØRST — denne leser `viewer.origin` uten guard. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1073,8 +1086,15 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
    * for den GJELDENDE containerstørrelsen. Kalt ved første last OG fra ResizeObserver —
    * RETUR (orkestrator 2026-10-14): container-høyden er 0 ved mount inntil den delte
    * dashbord-layouten har satt en definit høyde (tegningVisningshoyde.ts), og kan endre
-   * seg senere (vindu/mobilpanel) — ett engangs-FitView holder ikke. */
-  function tilpassKamera(rect: DOMRectReadOnly | DOMRect) {
+   * seg senere (vindu/mobilpanel) — ett engangs-FitView holder ikke.
+   *
+   * `gjenopprett` (RETUR ee884ff8, INNSNEVRET til pkt 1, orkestrator 2026-10-19):
+   * satt av `last()` når lasten er en STILLE RELOAD av SAMME fil (webglcontextrestored
+   * etter et GPU-kontekst-tap, bevist med WEBGL_lose_context mot ekte WebKit mot test —
+   * cache-treff, ingen nettverkskall, ingen synlig feil) — setter kameraet TILBAKE til
+   * nøyaktig der brukeren var, i stedet for å bygnings-fitte på nytt og kaste et pågående
+   * "Flytt punkt"-panorament på gulvet. */
+  function tilpassKamera(rect: DOMRectReadOnly | DOMRect, gjenopprett?: KameraSnapshot) {
     const viewer = viewerRef.current;
     // SVAR 3 + RETUR krasjretting (orkestrator 2026-10-18, root cause for 100 % mobil-
     // krasj på cache-treff): ResizeObserver sitt FØRSTE varsel (og flere andre kilder,
@@ -1084,29 +1104,41 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     if (!viewerKlar(viewer) || rect.width <= 0 || rect.height <= 0) return;
     viewer.SetSize(Math.round(rect.width), Math.round(rect.height));
     const o = viewer.origin;
-    const bu = bygningRef.current;
     const cam = viewer.camera;
-    if (bu) {
-      const uMinX = bu.x0 - o.x, uMaxX = bu.x1 - o.x, uMinY = bu.y0 - o.y, uMaxY = bu.y1 - o.y;
-      const margin = Math.max(uMaxX - uMinX, uMaxY - uMinY) * 0.02;
-      const width = uMaxX - uMinX + margin * 2;
-      const height = uMaxY - uMinY + margin * 2;
-      const aspect = rect.width / rect.height;
-      let finalWidth = width, finalHeight = height;
-      if (finalHeight * aspect > finalWidth) finalWidth = finalHeight * aspect;
-      else finalHeight = finalWidth / aspect;
-      const cx = (uMinX + uMaxX) / 2, cy = (uMinY + uMaxY) / 2;
-      cam.left = -finalWidth / 2; cam.right = finalWidth / 2;
-      cam.top = finalHeight / 2; cam.bottom = -finalHeight / 2;
-      cam.zoom = 1;
-      cam.position.set(cx, cy, 1);
+    if (gjenopprett) {
+      cam.left = gjenopprett.left; cam.right = gjenopprett.right;
+      cam.top = gjenopprett.top; cam.bottom = gjenopprett.bottom;
+      cam.zoom = gjenopprett.zoom;
+      cam.position.set(gjenopprett.posX - o.x, gjenopprett.posY - o.y, 1);
       cam.updateProjectionMatrix();
-      if (viewer.controls) { viewer.controls.target.set(cx, cy, 0); viewer.controls.update(); }
+      if (viewer.controls) {
+        viewer.controls.target.set(gjenopprett.posX - o.x, gjenopprett.posY - o.y, 0);
+        viewer.controls.update();
+      }
     } else {
-      // Registeret er ikke lastet ennå (eller ugyldig) — hele DXF-ens extents, samme
-      // ramme som FØR registeret svarer.
-      const b = viewer.bounds;
-      viewer.FitView(b.minX - o.x, b.maxX - o.x, b.minY - o.y, b.maxY - o.y, 0.05);
+      const bu = bygningRef.current;
+      if (bu) {
+        const uMinX = bu.x0 - o.x, uMaxX = bu.x1 - o.x, uMinY = bu.y0 - o.y, uMaxY = bu.y1 - o.y;
+        const margin = Math.max(uMaxX - uMinX, uMaxY - uMinY) * 0.02;
+        const width = uMaxX - uMinX + margin * 2;
+        const height = uMaxY - uMinY + margin * 2;
+        const aspect = rect.width / rect.height;
+        let finalWidth = width, finalHeight = height;
+        if (finalHeight * aspect > finalWidth) finalWidth = finalHeight * aspect;
+        else finalHeight = finalWidth / aspect;
+        const cx = (uMinX + uMaxX) / 2, cy = (uMinY + uMaxY) / 2;
+        cam.left = -finalWidth / 2; cam.right = finalWidth / 2;
+        cam.top = finalHeight / 2; cam.bottom = -finalHeight / 2;
+        cam.zoom = 1;
+        cam.position.set(cx, cy, 1);
+        cam.updateProjectionMatrix();
+        if (viewer.controls) { viewer.controls.target.set(cx, cy, 0); viewer.controls.update(); }
+      } else {
+        // Registeret er ikke lastet ennå (eller ugyldig) — hele DXF-ens extents, samme
+        // ramme som FØR registeret svarer.
+        const b = viewer.bounds;
+        viewer.FitView(b.minX - o.x, b.maxX - o.x, b.minY - o.y, b.maxY - o.y, 0.05);
+      }
     }
     if (viewer.controls && fitZoomBaseRef.current) {
       const startBredde = viewer.camera.right - viewer.camera.left;
@@ -1132,12 +1164,31 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     let viewer: any = null;
     let dxfBlobUrl: string | null = null;
     let fjernCanvasLytter: (() => void) | null = null;
+    // RETUR ee884ff8 pkt 1 (INNSNEVRET, orkestrator 2026-10-19): kameraet rett FØR en
+    // re-entrant `last()` (webglcontextrestored) ødelegger den gamle viewer-instansen.
+    // Delt med ALLE kall til `last()` i dette effekt-løpet (samme lukke som `viewer`) —
+    // en ekte ny tegning (effekt-deps endret) får en FRISK closure og null her, så
+    // bygnings-fit på en NY fil er uendret.
+    let sisteKamera: KameraSnapshot | null = null;
 
     async function last() {
       // Rydd en FORRIGE instans FØR en ny bygges — `last()` kan kalles re-entrant fra
       // `webglcontextrestored` (ikke bare ved et nytt effekt-løp), og uten dette stables
       // flere canvas i samme container (DxfViewer.appendChild fjerner aldri en gammel).
       if (viewer) {
+        if (viewerKlar(viewer)) {
+          const cam = viewer.camera;
+          const o = viewer.origin;
+          sisteKamera = {
+            left: cam.left,
+            right: cam.right,
+            top: cam.top,
+            bottom: cam.bottom,
+            zoom: cam.zoom,
+            posX: o.x + cam.position.x,
+            posY: o.y + cam.position.y,
+          };
+        }
         fjernCanvasLytter?.();
         fjernCanvasLytter = null;
         viewer.Destroy?.();
@@ -1301,7 +1352,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
           lagVentelisteRef.current.clear();
           viewer.Render?.();
         }
-        tilpassKamera(el.getBoundingClientRect());
+        tilpassKamera(el.getBoundingClientRect(), sisteKamera ?? undefined);
         setLaster(false);
       } catch (e) {
         if (!kansellert) {
