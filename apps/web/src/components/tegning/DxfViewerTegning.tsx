@@ -237,7 +237,58 @@ function tegnPekerSikte(svg: SVGSVGElement, cx: number, cy: number) {
     l.setAttribute("stroke-width", "1.5");
     g.appendChild(l);
   }
+  // Tillegg 3 pkt 3 (prikk i senter): eksakt treffpunkt — korsets linjer/ring viser
+  // RETNINGEN, men ikke det nøyaktige pikselet. Samme prikk gjentas i lupen
+  // (tegnPekerLupe) så begge peker på identisk punkt.
+  const prikk = document.createElementNS(SVG_NS, "circle");
+  prikk.setAttribute("cx", String(cx));
+  prikk.setAttribute("cy", String(cy));
+  prikk.setAttribute("r", "2");
+  prikk.setAttribute("fill", MAALING_FARGE_AKTIV);
+  g.appendChild(prikk);
   svg.appendChild(g);
+}
+
+/** Tillegg 3 pkt 1 (pekerlupe): ×3-forstørring av området UNDER trådkorset, kopiert
+ * fra WebGL-canvasen samme vei som `tegnLupe` (drag-lupen) — se dens kommentar for
+ * DPR-resonnementet. Forskjellen er plasseringen: denne ligger FAST over trådkorset
+ * (midt på flaten), ikke ved fingeren, så JSX-en under styrer `left`/`top` direkte
+ * i stedet for å gå via `lupePlassering` (som flipper side relativt til en finger). */
+function tegnPekerLupe(
+  canvas: HTMLCanvasElement | null,
+  viewer: { canvas?: HTMLCanvasElement; canvasWidth: number } | null,
+  skjermX: number,
+  skjermY: number,
+) {
+  const ctx = canvas?.getContext("2d");
+  if (!canvas || !viewer?.canvas || !ctx) return;
+  const D = LUPE_DIAMETER;
+  const dpr = viewer.canvas.width / viewer.canvasWidth;
+  const s = (D / LUPE_FORSTORRELSE) * dpr;
+  ctx.clearRect(0, 0, D, D);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(D / 2, D / 2, D / 2, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(viewer.canvas, skjermX * dpr - s / 2, skjermY * dpr - s / 2, s, s, 0, 0, D, D);
+  ctx.restore();
+  ctx.strokeStyle = MAALING_FARGE_AKTIV;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(8, D / 2);
+  ctx.lineTo(D - 8, D / 2);
+  ctx.moveTo(D / 2, 8);
+  ctx.lineTo(D / 2, D - 8);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(D / 2, D / 2, D / 2 - 1, 0, Math.PI * 2);
+  ctx.stroke();
+  // Samme prikk som i trådkorset (tegnPekerSikte) — eksakt treffpunkt.
+  ctx.fillStyle = MAALING_FARGE_AKTIV;
+  ctx.beginPath();
+  ctx.arc(D / 2, D / 2, 1.5, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function tegnMaling(
@@ -340,13 +391,11 @@ interface GestState {
   startTid: number;
   startSkjerm: { x: number; y: number };
   flyttet: boolean;
-  modus: "nyttPunkt" | "flyttEksisterende" | "observer" | null;
-  /** Hvilken måling `flyttEksisterende` traff (POST flytte målepunkter, orkestrator
-   * 2026-10-18 pkt 1: søket skjer på TVERS AV ALLE målinger, ikke bare den aktive). */
-  flyttMalingIndex: number | null;
-  /** Punktindeksen som dras, eller `null` = treffet var et SEGMENT (ikke et punkt) —
-   * da kan målingen velges, men ikke dras (se `avgjorTrykkHandling`). */
-  flyttIndex: number | null;
+  /** Tillegg 1 (SVAR orkestrator 2026-10-19: «langt trykk + dra og lupen skal
+   * fjernes» — pekeren er den ene veien til å flytte et punkt). "observerFlytt"
+   * = Flytt-verktøyet UTEN peker, nå REN observasjon som "observer" (F1): ingen
+   * capture/enablePan-endring, avgjøres ved SLIPP (se `onPointerUp`). */
+  modus: "nyttPunkt" | "observer" | "observerFlytt" | null;
   pekere: Set<number>;
   forhandsvisning: ReturnType<typeof beregnSnapVerden> | null;
 }
@@ -359,8 +408,6 @@ function nyGestState(): GestState {
     startSkjerm: { x: 0, y: 0 },
     flyttet: false,
     modus: null,
-    flyttMalingIndex: null,
-    flyttIndex: null,
     pekere: new Set(),
     forhandsvisning: null,
   };
@@ -372,6 +419,13 @@ const FLYTT_TREFF_PX = 18;
 /** Treffradius (skjerm-px) for pekerens (trådkors) søk — strammere enn direkte
  * trykk (POST flytte målepunkter, orkestrator 2026-10-18 pkt 2: "innen ~12 px"). */
 const PEKER_PUNKT_TREFF_PX = 12;
+
+/** Tillegg 3 pkt 2 (presisjonsdra): med pekeren på flytter ÉN finger tegningen med
+ * 1/3 av fingerens bevegelse (finjustering) — to fingre (pinch/pan) er UENDRET fart.
+ * `OrbitControls.panSpeed` er samme skalar for begge (node_modules/dxf-viewer sin
+ * `handleTouchMovePan`), så den justeres LIVE etter antall aktive pekere (se
+ * `oppdaterPekerPanSpeed`) i stedet for å gaffle kontrolleren. */
+const PEKER_PRESISJON_FAKTOR = 1 / 3;
 
 /** Peker-tilstanden for "Flytt punkt" (Tillegg, orkestrator 2026-10-18, pkt 2):
  * "ingen" = normal Velg/Sett punkt-knapp. "naer" = trådkorset er innen
@@ -431,6 +485,15 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   const [pekerFlytt, setPekerFlytt] = useState<PekerFlyttTilstand>(PEKER_FLYTT_INGEN);
   const [mmPrVerdenEnhet, setMmPrVerdenEnhet] = useState<number | null>(null);
   const [lupeVisning, setLupeVisning] = useState<{ skjermX: number; skjermY: number } | null>(null);
+  // Tillegg 3 pkt 1 (pekerlupe): synlig mens tegningen faktisk flyttes (satt av
+  // `varslePekerLupeBevegelse`, se der) ELLER mens et peker-"Flytt punkt" pågår
+  // (JSX OR'er inn `pekerFlytt.status === "flytter"` direkte — ingen egen flagg-
+  // kobling nødvendig). Kenneth valgte "skjul etter stillstand" (1 s) i ordren —
+  // begrunnelse: en fast lupe midt på flaten når brukeren bare har slått PÅ pekeren
+  // uten å gjøre noe, dekker treffpunktet unødig og er støy, se filheaderen.
+  const [pekerLupeBevegelse, setPekerLupeBevegelse] = useState(false);
+  const pekerLupeCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pekerLupeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rotasjonOverstyrtRef = useRef(rotasjonOverstyrt ?? 0);
   rotasjonOverstyrtRef.current = rotasjonOverstyrt ?? 0;
   const onMaleKlarEndringRef = useRef(onMaleKlarEndring);
@@ -472,15 +535,11 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   // unngå stale closures uten å måtte re-registrere lytterne på hver tilstandsendring.
   const uiRef = useRef({ verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa, pekerFlytt });
 
-  /** Hvilket punkt dras akkurat nå — enten via direkte drag (`gestRef.modus ===
-   * "flyttEksisterende"`) ELLER via et pågående peker-"Flytt punkt" (`pekerFlytt.
-   * status === "flytter"`). `null` = ingen aktiv flytting. Begge stiene ender her
-   * slik at forhåndsvisning/snap/90°-lås er IDENTISK uansett innmating. */
+  /** Hvilket punkt dras akkurat nå — kun via et pågående peker-"Flytt punkt"
+   * (`pekerFlytt.status === "flytter"`) siden Tillegg 1 (SVAR orkestrator
+   * 2026-10-19): direkte langt-trykk-dra er fjernet, pekeren er den ene veien.
+   * `null` = ingen aktiv flytting. */
   function gjeldendeFlytt(): { malingIndex: number; punktIndex: number } | null {
-    const g = gestRef.current;
-    if (g.modus === "flyttEksisterende" && g.flyttMalingIndex != null && g.flyttIndex != null) {
-      return { malingIndex: g.flyttMalingIndex, punktIndex: g.flyttIndex };
-    }
     const pf = uiRef.current.pekerFlytt;
     return pf.status === "flytter" ? { malingIndex: pf.malingIndex, punktIndex: pf.punktIndex } : null;
   }
@@ -556,7 +615,13 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       svg.appendChild(c);
       if (forhand.vinkelrett) tegnEtikett(svg, sp.skjermX, sp.skjermY - 18, "90°");
     }
-    if (uiRef.current.pekerPaa) tegnPekerSikte(svg, k.canvasBredde / 2, k.canvasHoyde / 2);
+    if (uiRef.current.pekerPaa) {
+      tegnPekerSikte(svg, k.canvasBredde / 2, k.canvasHoyde / 2);
+      // Tillegg 3 pkt 1: tegnes uansett (canvasen eksisterer kun i DOM-en når JSX-en
+      // viser den, se render-delen) — billig no-op via guard inni funksjonen selv
+      // når ref/viewer ikke er klare, samme mønster som resten av filen.
+      tegnPekerLupe(pekerLupeCanvasRef.current, viewer, k.canvasBredde / 2, k.canvasHoyde / 2);
+    }
     // `beregnForhandsvisningForSkjerm`/`gjeldendeFlytt` leser kun refs (uiRef/gestRef)
     // og trenger ikke stå i avhengighetene for korrekthet — samme mønster som resten
     // av filens imperative hjelpefunksjoner (naerTerskel, tegnLupe m.fl.).
@@ -570,6 +635,9 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     if (overleggRafRef.current !== null) return;
     overleggRafRef.current = requestAnimationFrame(() => {
       overleggRafRef.current = null;
+      // Tillegg 3 pkt 1: KUN denne stien (ekte "viewChanged", ikke verktøybytte
+      // osv.) teller som "tegningen flyttes" for lupe-synligheten.
+      if (uiRef.current.pekerPaa) varslePekerLupeBevegelse();
       tegnOverlegg();
     });
   }, [tegnOverlegg]);
@@ -591,6 +659,10 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       // ikke ved trykk — se filheaderen) — uansett hvilket verktøy som er valgt.
       viewer.controls.enablePan = pekerPaa || verktoy === "flytt";
     }
+    // Tillegg 3 pkt 2: forlater peker-modus med `panSpeed` stående på 1/3 (satt av
+    // et aktivt énfinger-trykk) ville lekket presisjonsfarten inn i vanlig
+    // Flytt-dra — nullstill eksplisitt i stedet for å stole på neste pointer-event.
+    if (viewer?.controls && !pekerPaa) viewer.controls.panSpeed = 1;
     onMaleKlarEndringRef.current?.(kanMaleVerden(mmPrVerdenEnhet));
   }, [verktoy, ortho, snapPaa, maleTilstand, mmPrVerdenEnhet, pekerPaa, pekerFlytt, tegnOverlegg]);
 
@@ -635,6 +707,30 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     ctx.beginPath();
     ctx.arc(D / 2, D / 2, D / 2 - 1, 0, Math.PI * 2);
     ctx.stroke();
+  }
+
+  /** Tillegg 3 pkt 1: marker at tegningen nettopp ble flyttet (viewChanged) — viser
+   * pekerlupen og starter/forlenger en ~1 s nedtelling til den skjules igjen. Kalt
+   * KUN fra viewChanged-stien (se `tegnOverleggRaf`), ikke fra `tegnOverlegg()`s
+   * andre kall-steder (verktøybytte osv.) — de er ikke "tegningen flyttes". */
+  function varslePekerLupeBevegelse() {
+    setPekerLupeBevegelse(true);
+    if (pekerLupeTimerRef.current) clearTimeout(pekerLupeTimerRef.current);
+    pekerLupeTimerRef.current = setTimeout(() => {
+      pekerLupeTimerRef.current = null;
+      setPekerLupeBevegelse(false);
+    }, 1000);
+  }
+
+  /** Tillegg 3 pkt 2: `panSpeed` er delt mellom OrbitControls' én- og tofinger-pan
+   * (se `PEKER_PRESISJON_FAKTOR`-kommentaren) — denne justerer den LIVE etter
+   * `gestRef.current.pekere` (holdt oppdatert av onPointerDown/onPointerUp selv i
+   * peker-modus, se der), slik at 1 finger alltid gir finjustert fart og 2+ alltid
+   * gir normal fart, uansett hvilken retning overgangen skjer (lagt til/fjernet). */
+  function oppdaterPekerPanSpeed() {
+    const viewer = viewerRef.current;
+    if (!viewer?.controls) return;
+    viewer.controls.panSpeed = gestRef.current.pekere.size <= 1 ? PEKER_PRESISJON_FAKTOR : 1;
   }
 
   /**
@@ -703,8 +799,6 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     g.aktiv = false;
     g.pointerId = null;
     g.modus = null;
-    g.flyttMalingIndex = null;
-    g.flyttIndex = null;
     g.forhandsvisning = null;
     if (lupeRafRef.current !== null) {
       cancelAnimationFrame(lupeRafRef.current);
@@ -718,7 +812,15 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
 
   function onPointerDown(e: PointerEvent) {
     const g = gestRef.current;
-    if (uiRef.current.pekerPaa) return; // peker-modus: la OrbitControls eie ALLE gester
+    if (uiRef.current.pekerPaa) {
+      // Tillegg 3 pkt 2: OrbitControls eier FORTSATT alle gester (ingen capture,
+      // ingen preventDefault) — kun antall aktive pekere spores her, for å sette
+      // `panSpeed` FØR OrbitControls' egen touchmove-håndtering leser den (se
+      // `oppdaterPekerPanSpeed`-kommentaren for rekkefølge-resonnementet).
+      g.pekere.add(e.pointerId);
+      oppdaterPekerPanSpeed();
+      return;
+    }
     g.pekere.add(e.pointerId);
     if (g.pekere.size > 1) {
       avbrytGest();
@@ -730,41 +832,30 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     const rect = canvas.getBoundingClientRect();
     const skjermX = e.clientX - rect.left;
     const skjermY = e.clientY - rect.top;
-    const { verktoy: v, maleTilstand: mt, mmPrVerdenEnhet: mmEnh } = uiRef.current;
+    const { verktoy: v, mmPrVerdenEnhet: mmEnh } = uiRef.current;
 
-    if (v === "flytt") {
-      // POST flytte målepunkter (orkestrator 2026-10-18 pkt 1): søk PÅ TVERS AV
-      // ALLE målinger (ikke bare den aktive) — en tegning med flere ferdige
-      // målinger skal kunne dra/velge ALLE av dem, ikke bare den sist valgte.
-      const treff = finnMalingTreffVerden(
-        malingerTilVerden(mt.malinger),
-        { skjermX, skjermY },
-        kameraParametre(viewer, rotasjonOverstyrtRef.current),
-        FLYTT_TREFF_PX,
-      );
-      if (!treff) return; // bom — la OrbitControls panorere fritt
-      viewer.controls.enablePan = false;
-      g.modus = "flyttEksisterende";
-      g.flyttMalingIndex = treff.malingIndex;
-      g.flyttIndex = treff.punktIndex;
-    } else if (v === "linjal" || v === "polylinje" || v === "areal") {
-      if (!kanMaleVerden(mmEnh)) return;
-      viewer.controls.enablePan = false;
-      g.modus = "nyttPunkt";
-    } else if (v === "navigering") {
-      // F1 (trykk → egenskaper): KUN observasjon, ALDRI pointerCapture/enablePan-endring
-      // — OrbitControls skal fortsatt eie pan/zoom helt fritt. Trygt uten capture-triks:
-      // begge lyttere sitter PÅ SAMME canvas-node (ikke forelder/barn), og dxf-viewers
-      // interne stopPropagation() (bevist i harness-v3.html) stopper bare bubbling til
-      // FORELDRE-noder, ikke søsken-lyttere på samme element. avgjorTrykkHandling()
-      // avgjør ved SLIPP (uten bevegelse, kort varighet) om det var et "hint".
-      g.modus = "observer";
+    if (v === "navigering" || v === "flytt") {
+      // F1 (trykk → egenskaper) OG Flytt UTEN peker (Tillegg 1, SVAR orkestrator
+      // 2026-10-19: «langt trykk + dra og lupen skal fjernes» — pekeren er den ene
+      // veien til å flytte et punkt): BEGGE er nå REN observasjon, ALDRI pointer-
+      // Capture/enablePan-endring — OrbitControls skal fortsatt eie pan/zoom helt
+      // fritt. Trygt uten capture-triks: begge lyttere sitter PÅ SAMME canvas-node
+      // (ikke forelder/barn), og dxf-viewers interne stopPropagation() (bevist i
+      // harness-v3.html) stopper bare bubbling til FORELDRE-noder, ikke søsken-
+      // lyttere på samme element. `onPointerUp` avgjør ved SLIPP (uten bevegelse)
+      // om det var et F1-"hint" (navigering) eller en måling som skal velges (flytt)
+      // — treffsøket skjer DER, ikke her, siden ingenting lenger kan dras.
+      g.modus = v === "navigering" ? "observer" : "observerFlytt";
       g.aktiv = true;
       g.pointerId = e.pointerId;
       g.startTid = performance.now();
       g.startSkjerm = { x: skjermX, y: skjermY };
       g.flyttet = false;
       return;
+    } else if (v === "linjal" || v === "polylinje" || v === "areal") {
+      if (!kanMaleVerden(mmEnh)) return;
+      viewer.controls.enablePan = false;
+      g.modus = "nyttPunkt";
     } else {
       return;
     }
@@ -775,13 +866,9 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     g.startTid = performance.now();
     g.startSkjerm = { x: skjermX, y: skjermY };
     g.flyttet = false;
-    // Et SEGMENT-treff i Flytt (ingen punkt å dra, kun velgMaling ved slipp) viser
-    // ingen lupe/forhåndsvisning — ingenting flyttes, en lupe ville vært misvisende.
-    if (!(v === "flytt" && g.flyttIndex === null)) {
-      oppdaterForhandsvisning(skjermX, skjermY);
-      setLupeVisning({ skjermX, skjermY });
-      tegnLupe(skjermX, skjermY);
-    }
+    oppdaterForhandsvisning(skjermX, skjermY);
+    setLupeVisning({ skjermX, skjermY });
+    tegnLupe(skjermX, skjermY);
   }
 
   function onPointerMove(e: PointerEvent) {
@@ -793,10 +880,9 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     const skjermX = e.clientX - rect.left;
     const skjermY = e.clientY - rect.top;
     if (Math.hypot(skjermX - g.startSkjerm.x, skjermY - g.startSkjerm.y) > 6) g.flyttet = true;
-    if (g.modus === "observer") return; // F1-observasjon: ingen lupe/forhåndsvisning, kun bevegelse-terskel
-    // Segment-treff i Flytt (se onPointerDown): ingen punkt å dra, ingen lupe/forhånds-
-    // visning underveis heller — kun velgMaling ved slipp.
-    if (g.modus === "flyttEksisterende" && g.flyttIndex === null) return;
+    // Ren observasjon (F1-navigering OG Flytt uten peker, Tillegg 1): ingen lupe/
+    // forhåndsvisning underveis — kun bevegelse-terskelen over, avgjort ved slipp.
+    if (g.modus === "observer" || g.modus === "observerFlytt") return;
     oppdaterForhandsvisning(skjermX, skjermY);
     lupeRafPendingRef.current = { skjermX, skjermY };
     if (lupeRafRef.current === null) {
@@ -813,20 +899,34 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   function onPointerUp(e: PointerEvent) {
     const g = gestRef.current;
     g.pekere.delete(e.pointerId);
+    if (uiRef.current.pekerPaa) oppdaterPekerPanSpeed(); // Tillegg 3 pkt 2: en finger løftet/lagt til
     if (!g.aktiv || e.pointerId !== g.pointerId) return;
+
+    // Tillegg 1 (SVAR orkestrator 2026-10-19): Flytt uten peker er nå ren
+    // observasjon (se onPointerDown) — treffsøket skjer FØRST her, ved slipp, og
+    // velger målingen (punkt ELLER segment) på et kort, ubevegd trykk. Flytter
+    // ALDRI noe — det er pekerens jobb alene nå (`pekerFlytt`/`utforPekerHandling`).
+    if (g.modus === "observerFlytt") {
+      if (!g.flyttet) {
+        const viewer = viewerRef.current;
+        if (viewerKlar(viewer)) {
+          const k = kameraParametre(viewer, rotasjonOverstyrtRef.current);
+          const mt = uiRef.current.maleTilstand;
+          const skjerm = { skjermX: g.startSkjerm.x, skjermY: g.startSkjerm.y };
+          const treff = finnMalingTreffVerden(malingerTilVerden(mt.malinger), skjerm, k, FLYTT_TREFF_PX);
+          const id = treff ? mt.malinger[treff.malingIndex]?.id : undefined;
+          if (id) setMaleTilstand((t) => velgMaling(t, id));
+        }
+      }
+      avbrytGest();
+      return;
+    }
 
     const varighetMs = performance.now() - g.startTid;
     const gest: TrykkGest = {
       varighetMs,
       flyttet: g.flyttet,
       antallPekere: g.pekere.size + 1,
-      // POST flytte målepunkter (orkestrator 2026-10-18 pkt 1+3): nedPaaPunkt er
-      // kun sant for et EKTE punkt-treff (segment-treff → flyttIndex null), slik
-      // at avgjorTrykkHandling kan skille "kort trykk på punkt → velg målingen"
-      // fra "treff på et segment → velg målingen" (begge ender i velgMaling, men
-      // punkt-treffet kan OGSÅ bli en drag ved bevegelse/langt trykk).
-      nedPaaPunkt: g.modus === "flyttEksisterende" && g.flyttIndex !== null,
-      traffMaling: g.modus === "flyttEksisterende",
     };
     const handling = avgjorTrykkHandling(uiRef.current.verktoy, gest);
     const forhand = g.forhandsvisning;
@@ -834,25 +934,6 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     if (handling === "settPunkt" && forhand) {
       const punkt = fraVerden(forhand.punkt);
       setMaleTilstand((t) => leggTilPunkt(t, punkt, (q) => naerTerskel(punkt, q)));
-    } else if (
-      handling === "draPunkt" &&
-      forhand &&
-      g.modus === "flyttEksisterende" &&
-      g.flyttMalingIndex != null &&
-      g.flyttIndex != null
-    ) {
-      // Fang indeksene i lokale const'er FØR setMaleTilstand — `avbrytGest()` under
-      // nullstiller `g.flyttIndex`/`g.flyttMalingIndex`, og en lukkening over `g`
-      // selv (i stedet for en snapshot-verdi) ville lest nullstilte verdier hvis
-      // React kjører oppdateringsfunksjonen etter at avbrytGest() har rukket kjøre.
-      const malingIndex = g.flyttMalingIndex;
-      const punktIndex = g.flyttIndex;
-      const id = uiRef.current.maleTilstand.malinger[malingIndex]?.id;
-      const punkt = fraVerden(forhand.punkt);
-      if (id) setMaleTilstand((t) => flyttPunktIMaling(t, id, punktIndex, punkt));
-    } else if (handling === "velgMaling" && g.flyttMalingIndex != null) {
-      const id = uiRef.current.maleTilstand.malinger[g.flyttMalingIndex]?.id;
-      if (id) setMaleTilstand((t) => velgMaling(t, id));
     } else if (handling === "hint") {
       // F1: trykk utenfor målemodus → identifiser objektet under trykkpunktet.
       // g.startSkjerm er allerede canvas-relative CSS-px (satt i onPointerDown) —
@@ -1252,6 +1333,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       fjernCanvasLytter?.();
       viewer?.Destroy?.();
       if (dxfBlobUrl) URL.revokeObjectURL(dxfBlobUrl);
+      if (pekerLupeTimerRef.current) clearTimeout(pekerLupeTimerRef.current);
     };
     // RETUR 4 punkt 1: avhengig av den USIGNERTE stien (stabil for samme fil), ikke
     // dxfUrl/registerWorldUrl (signert på nytt ved hver tRPC-refetch — se filheaderen).
@@ -1259,7 +1341,16 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   }, [usignertDxfSti, usignertRegisterSti, rotasjonOverstyrt, retryTeller]);
 
   return (
-    <div className="relative h-full w-full">
+    // Tillegg 2 (Kenneth 2026-10-19, bilde `ios-tekstlupe-velg.jpg`): langt trykk på
+    // «Velg» (peker) trigget iOS' innebygde tekstmarkerings-lupe/håndtak — WebKit
+    // tolket knappeteksten som markerbar. Dekker HELE flaten (canvas, SVG-overlegg,
+    // trådkors-knapp, lupe) fra samme rot — én kilde, ikke én regel pr. kontroll.
+    // `onContextMenu` dekker Android/desktop sin ekvivalente langt-trykk-meny.
+    <div
+      className="relative h-full w-full select-none"
+      style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none", touchAction: "manipulation" } as React.CSSProperties}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div ref={containerRef} className="absolute inset-0" />
       <svg ref={overlaySvgRef} className="pointer-events-none absolute inset-0" />
       {pekerPaa && (
@@ -1285,6 +1376,25 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
             </button>
           )}
         </div>
+      )}
+      {pekerPaa && (pekerLupeBevegelse || pekerFlytt.status === "flytter") && (
+        // Tillegg 3 pkt 1: FAST plassert over trådkorset (midt på flaten), ikke ved
+        // fingeren — derfor ingen `lupePlassering`-sideflipp her, kun et konstant
+        // oppover-offset fra senter (klemt mot toppkanten i stedet for å flippe).
+        <canvas
+          ref={pekerLupeCanvasRef}
+          width={LUPE_DIAMETER}
+          height={LUPE_DIAMETER}
+          className="pointer-events-none absolute rounded-full shadow-lg"
+          style={(() => {
+            const viewer = viewerRef.current;
+            const bredde = viewer?.canvasWidth ?? 0;
+            const hoyde = viewer?.canvasHeight ?? 0;
+            const left = bredde / 2 - LUPE_DIAMETER / 2;
+            const top = Math.max(4, hoyde / 2 - LUPE_FORSKYVNING - LUPE_DIAMETER);
+            return { left, top, width: LUPE_DIAMETER, height: LUPE_DIAMETER };
+          })()}
+        />
       )}
       {lupeVisning && containerRef.current && (
         <canvas

@@ -9,7 +9,7 @@
 // IFC-adapter mapper til SAMME `EgenskapsFelt`-type uten å endre den.
 
 import type { RegisterVerdenObjekt } from "./objektmodell";
-import { kanMaleVerden, malVerdenArealMm2, malVerdenPolylinjeMm } from "./maaling-verden";
+import { kanMaleVerden, malVerdenArealMm2 } from "./maaling-verden";
 import type { VerdenPunkt } from "./kamera-projeksjon";
 
 export type EgenskapsFeltNokkel =
@@ -49,8 +49,13 @@ function renskUnderstrek(s: string): string {
   return s.replace(/_+\s*/g, ", ").replace(/,\s*$/, "").trim();
 }
 
+/** Meter vises ALLTID med to desimaler (RETUR tillegg 2026-10-19: «Mål 6 m»
+ * mot Linjal 6,02 m — samme format som Linjal-verktøyet). Millimeter har
+ * ingen meningsfull desimal (registeret er allerede heltalls-mm). */
 function formatMm(mm: number): string {
-  if (mm >= 1000) return `${(mm / 1000).toLocaleString("nb-NO", { maximumFractionDigits: 2 })} m`;
+  if (mm >= 1000) {
+    return `${(mm / 1000).toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+  }
   return `${mm.toLocaleString("nb-NO", { maximumFractionDigits: 0 })} mm`;
 }
 
@@ -68,29 +73,108 @@ function geomTilVerdenPunkter(flat: number[]): VerdenPunkt[] {
 }
 
 /**
- * Dør/vindu-bredde (RETUR F1+F2 web r2, Kenneth): et viste "Mål 42 mm" på en
- * dør — `beregnMaal()` sitt `geom[0]` er for et INSERT bare det FØRSTE av
- * flere oppsporede strek-segmenter (ofte en liten hjørne-tagg et par mm,
- * ikke åpningsbredden). Foretrukket kilde: bredde-attributt/Revit-type når
- * den finnes; ellers det LENGSTE segmentet i blokkens egen geometri (målt på
- * fallplanen: de to diagonale "wall break"-linjene som spenner hele
- * åpningen er lengst, korte tagger ved hver jamb er det ikke). Uten en
- * pålitelig kilde vises ikke "Mål" — bedre enn et misvisende tall.
+ * Algebraisk sirkeltilpasning (Kåsa-metoden) til en punktsky. Brukes for
+ * dørens/vinduets slagbue (ARC) — `geom` har ingen egen bue-markering (RDP-
+ * forenklet til polylinje), så sirkelen må gjenkjennes fra formen. Returnerer
+ * radius i SAMME enhet som punktene, eller `null` når punktene ikke er
+ * sirkulære nok (RMS-avvik fra beste sirkel > 5 % av radiusen — skiller en
+ * ekte bue fra en nesten rett strek med noen få ekstra RDP-knekkpunkt).
  */
-function beregnDoerVinduBredde(o: RegisterVerdenObjekt, mmPr: number): string | null {
+function sirkelRadius(punkter: VerdenPunkt[]): number | null {
+  const n = punkter.length;
+  if (n < 5) return null;
+  let sx = 0;
+  let sy = 0;
+  for (const p of punkter) {
+    sx += p.verdenX;
+    sy += p.verdenY;
+  }
+  const mx = sx / n;
+  const my = sy / n;
+  let suu = 0;
+  let svv = 0;
+  let suv = 0;
+  let suuu = 0;
+  let svvv = 0;
+  let suvv = 0;
+  let svuu = 0;
+  for (const p of punkter) {
+    const u = p.verdenX - mx;
+    const v = p.verdenY - my;
+    suu += u * u;
+    svv += v * v;
+    suv += u * v;
+    suuu += u * u * u;
+    svvv += v * v * v;
+    suvv += u * v * v;
+    svuu += v * u * u;
+  }
+  const nevner = suu * svv - suv * suv;
+  if (Math.abs(nevner) < 1e-9) return null;
+  const hoyreUc = (suuu + suvv) / 2;
+  const hoyreVc = (svvv + svuu) / 2;
+  const uc = (hoyreUc * svv - hoyreVc * suv) / nevner;
+  const vc = (hoyreVc * suu - hoyreUc * suv) / nevner;
+  const r2 = uc * uc + vc * vc + (suu + svv) / n;
+  if (r2 <= 0) return null;
+  const r = Math.sqrt(r2);
+  let avvikKvadratSum = 0;
+  for (const p of punkter) {
+    const d = Math.hypot(p.verdenX - mx - uc, p.verdenY - my - vc);
+    const avvik = d - r;
+    avvikKvadratSum += avvik * avvik;
+  }
+  const rms = Math.sqrt(avvikKvadratSum / n);
+  return rms <= r * 0.05 ? r : null;
+}
+
+/**
+ * Dør/vindu-bredde PRIORITET 3: slagbuens (ARC) radius, "målt fra geometri"
+ * (RETUR tillegg, orkestrator 2026-10-19 — ERSTATTER den tidligere "lengste
+ * segment"-regelen: spec § 9.3 sier dette ALDRI skal brukes, en diagonal
+ * "wall break"-linje er ikke bredden). Segmenter med ≥5 punkter som
+ * `sirkelRadius()` godtar som en reell sirkel regnes som en svingbue.
+ * Dobbeldør: to separate buer i samme blokk -> summer de to STØRSTE radiene
+ * (ordrens regel) — små dekor-kurver er alltid mindre enn en reell dørsving.
+ */
+function beregnSlagbueRadiusMm(o: RegisterVerdenObjekt, mmPr: number): number {
+  if (!o.geom) return 0;
+  const radier: number[] = [];
+  for (const seg of o.geom) {
+    if (!seg || seg.length < 10) continue;
+    const r = sirkelRadius(geomTilVerdenPunkter(seg));
+    if (r !== null && r > 0) radier.push(r * mmPr);
+  }
+  if (radier.length === 0) return 0;
+  radier.sort((a, b) => b - a);
+  return radier.length === 1 ? radier[0]! : radier[0]! + radier[1]!;
+}
+
+/**
+ * Dør/vindu-mål (RETUR tillegg, orkestrator 2026-10-19 — ERSTATTER
+ * dørregelen i SVAR 6238de93): ny prioritet (1) bredde-attributt/Revit-type
+ * → (2) blokkens egen nestede dørmerking («1 090x2 090»-stempelet, lest i
+ * render.py, se `merkingBreddeMm`/`merkingHoydeMm` i objektmodellen) → (3)
+ * slagbuens radius → (4) ingenting. Kun (2) og (3) er inferert/tolket —
+ * attributtet er en ekte verdi fra tegningen.
+ */
+function beregnDoerVinduMaal(
+  o: RegisterVerdenObjekt,
+  mmPr: number,
+  t: (nokkel: string) => string,
+): { verdi: string; tolket?: boolean } | null {
   const breddeAttr = o.attr?.WIDTH ?? o.attr?.BREDDE;
   if (breddeAttr) {
     const tall = parseFloat(breddeAttr.replace(",", "."));
-    if (Number.isFinite(tall) && tall > 0) return formatMm(tall);
+    if (Number.isFinite(tall) && tall > 0) return { verdi: formatMm(tall) };
   }
-  if (!o.geom || o.geom.length === 0) return null;
-  let lengste = 0;
-  for (const seg of o.geom) {
-    if (!seg || seg.length < 4) continue;
-    const lengdeMm = malVerdenPolylinjeMm(geomTilVerdenPunkter(seg), mmPr);
-    if (lengdeMm > lengste) lengste = lengdeMm;
+  if (o.merkingBreddeMm && o.merkingHoydeMm) {
+    const bredde = `${t("tegningsvelger.egenskaper.bredde")} ${formatMm(o.merkingBreddeMm)}`;
+    const hoyde = `${t("tegningsvelger.egenskaper.hoyde")} ${formatMm(o.merkingHoydeMm)}`;
+    return { verdi: `${bredde} · ${hoyde} (${t("tegningsvelger.egenskaper.fraMerking")})`, tolket: true };
   }
-  return lengste > 0 ? formatMm(lengste) : null;
+  const radiusMm = beregnSlagbueRadiusMm(o, mmPr);
+  return radiusMm > 0 ? { verdi: formatMm(radiusMm), tolket: true } : null;
 }
 
 /** Isolasjonsobjekter (render.py: lag/HATCH-mønster inneholder "isol", ELLER
@@ -213,33 +297,62 @@ function beregnMinimumBreddeMm(punkter: VerdenPunkt[], mmPrVerdenEnhet: number):
   return minBredde === Infinity ? 0 : minBredde * mmPrVerdenEnhet;
 }
 
-/** F1 felt 6: lengde (strek), tykkelse (isolasjon) eller areal (lukket flate), kun
- * når `kanMaleVerden`. `underverdi` brukes til å vise den ANDRE målestørrelsen når
- * begge er meningsfulle (isolasjon: lengde ved siden av tykkelsen). */
+/** Et konvekst hull lengde/bredde > denne terskelen regnes som «langt og
+ * smalt» — viser Tykkelse+Lengde (calipers) uansett dtype/materiale (RETUR
+ * tillegg 2026-10-19, bildet `67abf924`: en bølge-/sikksakk-POLYLINE for
+ * isolasjon på et ordinært vegglag, ikke HATCH — "regelen skal gjelde
+ * formen, ikke typen"). */
+const BOLGELINJE_FORHOLD_TERSKEL = 8;
+
+/** Minste tykkelse (mm) for at Tykkelse skal vises i det hele tatt (SVAR orkestrator
+ * 2026-10-19: «vegger skal også vise tykkelse + lengde... Grense: tykkelse < 10 mm
+ * (enkel linje uten bredde) → ingen tykkelse»). Gjelder BÅDE den bekreftede
+ * isolasjon-materiale-klassifiseringen og formgjenkjenningen under — en nær-null
+ * tykkelse er aldri en meningsfull måling, uansett hvilken vei den ble funnet. */
+const TYKKELSE_MIN_MM = 10;
+
+/** F1 felt 6: lengde (strek), tykkelse (isolasjon/bølgelinje) eller areal (lukket
+ * flate), kun når `kanMaleVerden`. `underverdi` brukes til å vise den ANDRE
+ * målestørrelsen når begge er meningsfulle (tykkelse ved siden av lengden). */
 function beregnMaal(
   o: RegisterVerdenObjekt,
   mmPrVerdenEnhet: number | null | undefined,
   t: (nokkel: string) => string,
-): { verdi: string; underverdi?: string } | null {
+): { verdi: string; underverdi?: string; tolket?: boolean } | null {
   if (!kanMaleVerden(mmPrVerdenEnhet)) return null;
   const mmPr = mmPrVerdenEnhet as number;
   if (o.dtype === "INSERT" && o.blokk && DOER_VINDU_BLOKK.test(o.blokk)) {
-    const bredde = beregnDoerVinduBredde(o, mmPr);
-    return bredde ? { verdi: bredde } : null;
+    return beregnDoerVinduMaal(o, mmPr, t);
   }
   if (!o.geom || o.geom.length === 0) return null;
-  // Isolasjon FØR flate-arealet (RETTET, SVAR dda4110b 2026-10-18): isolasjonens
-  // HATCH-mønster ("Skrålinjer_2" m.fl., se MATERIALE-tabellen i render.py) har
-  // dtype "HATCH", som ellers havner i FLATE_DTYPE-arealgrenen under — isolasjon
-  // skal ALDRI vise areal, kun tykkelse. Sjekkes derfor FØRST, uavhengig av dtype.
+  // Isolasjon (kjent materiale) FØR flate-arealet (RETTET, SVAR dda4110b
+  // 2026-10-18): isolasjonens HATCH-mønster ("Skrålinjer_2" m.fl., se
+  // MATERIALE-tabellen i render.py) har dtype "HATCH", som ellers havner i
+  // FLATE_DTYPE-arealgrenen under — isolasjon skal ALDRI vise areal, kun
+  // tykkelse. Sjekkes derfor FØRST, uavhengig av dtype. Dette er en BEKREFTET
+  // klassifisering (ikke tolket) — i motsetning til formgjenkjenningen under.
   if (o.materiale === ER_ISOLASJON_MATERIALE) {
     const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
     if (allePunkter.length < 2) return null;
     const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
     const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
-    if (tykkelseMm <= 0) return null;
+    if (tykkelseMm < TYKKELSE_MIN_MM) return null;
     const underverdi = lengdeMm > 0 ? `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}` : undefined;
     return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi };
+  }
+  // Alle punkter på tvers av ALLE segmenter i geom — `geom[0]` alene kan være en
+  // veggs korteste tverr-tagg (RETUR, Kenneths telefontest: "Mål 13 mm" på en vegg).
+  const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
+  // Formgjenkjenning (tolket, IKKE en kjent klassifisering): langt og smalt
+  // konvekst omriss viser tykkelse+lengde uansett dtype — fanger isolasjon
+  // tegnet som vanlig linje/polyline, ikke bare HATCH med kjent mønsternavn.
+  if (allePunkter.length >= 3) {
+    const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
+    const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
+    if (tykkelseMm >= TYKKELSE_MIN_MM && lengdeMm / tykkelseMm > BOLGELINJE_FORHOLD_TERSKEL) {
+      const underverdi = `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}`;
+      return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi, tolket: true };
+    }
   }
   if (FLATE_DTYPE.has(o.dtype)) {
     const forsteLinje = o.geom[0];
@@ -248,9 +361,6 @@ function beregnMaal(
     const arealMm2 = malVerdenArealMm2(punkter, mmPr);
     return arealMm2 > 0 ? { verdi: formatM2(arealMm2) } : null;
   }
-  // Alle punkter på tvers av ALLE segmenter i geom — `geom[0]` alene kan være en
-  // veggs korteste tverr-tagg (RETUR, Kenneths telefontest: "Mål 13 mm" på en vegg).
-  const allePunkter = o.geom.flatMap((seg) => (seg && seg.length >= 4 ? geomTilVerdenPunkter(seg) : []));
   if (allePunkter.length < 2) return null;
   const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
   return lengdeMm > 0 ? { verdi: formatMm(lengdeMm) } : null;
@@ -307,7 +417,7 @@ export function byggEgenskapsfelt(
 
   // 6. Mål.
   const maal = beregnMaal(o, mmPrVerdenEnhet, t);
-  if (maal) felt.push({ nokkel: "mal", verdi: maal.verdi, underverdi: maal.underverdi });
+  if (maal) felt.push({ nokkel: "mal", verdi: maal.verdi, underverdi: maal.underverdi, tolket: maal.tolket });
 
   // 7. Status.
   if (o.status) felt.push({ nokkel: "status", verdi: o.status });
