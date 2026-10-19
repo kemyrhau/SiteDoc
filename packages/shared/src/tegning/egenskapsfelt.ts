@@ -304,6 +304,13 @@ function beregnMinimumBreddeMm(punkter: VerdenPunkt[], mmPrVerdenEnhet: number):
  * formen, ikke typen"). */
 const BOLGELINJE_FORHOLD_TERSKEL = 8;
 
+/** Minste tykkelse (mm) for at Tykkelse skal vises i det hele tatt (SVAR orkestrator
+ * 2026-10-19: «vegger skal også vise tykkelse + lengde... Grense: tykkelse < 10 mm
+ * (enkel linje uten bredde) → ingen tykkelse»). Gjelder BÅDE den bekreftede
+ * isolasjon-materiale-klassifiseringen og formgjenkjenningen under — en nær-null
+ * tykkelse er aldri en meningsfull måling, uansett hvilken vei den ble funnet. */
+const TYKKELSE_MIN_MM = 10;
+
 /** F1 felt 6: lengde (strek), tykkelse (isolasjon/bølgelinje) eller areal (lukket
  * flate), kun når `kanMaleVerden`. `underverdi` brukes til å vise den ANDRE
  * målestørrelsen når begge er meningsfulle (tykkelse ved siden av lengden). */
@@ -329,7 +336,7 @@ function beregnMaal(
     if (allePunkter.length < 2) return null;
     const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
     const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
-    if (tykkelseMm <= 0) return null;
+    if (tykkelseMm < TYKKELSE_MIN_MM) return null;
     const underverdi = lengdeMm > 0 ? `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}` : undefined;
     return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi };
   }
@@ -342,7 +349,7 @@ function beregnMaal(
   if (allePunkter.length >= 3) {
     const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
     const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
-    if (tykkelseMm > 0 && lengdeMm / tykkelseMm > BOLGELINJE_FORHOLD_TERSKEL) {
+    if (tykkelseMm >= TYKKELSE_MIN_MM && lengdeMm / tykkelseMm > BOLGELINJE_FORHOLD_TERSKEL) {
       const underverdi = `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}`;
       return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi, tolket: true };
     }

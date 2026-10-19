@@ -244,6 +244,24 @@ describe("byggEgenskapsfelt", () => {
     expect(felt.find((f) => f.nokkel === "mal")).toEqual({ nokkel: "mal", verdi: "60 mm" });
   });
 
+  it("SVAR orkestrator 2026-10-19: tykkelse under 10 mm (enkel linje uten bredde) gir vanlig lengde-Mål, ikke calipers", () => {
+    // Samme lang/smal-form som vegg-testen over (forhold 4000/8 = 500, godt over
+    // bølgelinje-terskelen), men tykkelsen (8 mm) er under TYKKELSE_MIN_MM — en
+    // strek uten reell bredde skal aldri vise en nær-null «tykkelse».
+    const o = objekt({
+      id: "tynnlinje",
+      dtype: "LINE",
+      geom: [
+        [0, 0, 0, 8],
+        [4000, 0, 4000, 8],
+        [0, 0, 4000, 0],
+        [0, 8, 4000, 8],
+      ],
+    });
+    const felt = bygg(o, 1);
+    expect(felt.find((f) => f.nokkel === "mal")).toEqual({ nokkel: "mal", verdi: "4,00 m" });
+  });
+
   it("RETUR tillegg 2026-10-19: bølgelinje-isolasjon på ordinært vegglag (ikke HATCH, intet materiale-felt) — formen avgjør, ikke dtype", () => {
     // Sikksakk-mønster (bildet 67abf924): en PLINE som vandrer fram og tilbake
     // på tvers av en 100 mm smal bane over 4000 mm lengde — samme konveks-hull-
