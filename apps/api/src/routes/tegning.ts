@@ -38,7 +38,9 @@ import { Semafor } from "../services/semafor";
 // `oppdaterAlleTegninger`) markerer bare DB og rører den IKKE, uansett om de kjører
 // i web- eller api-prosessen (se modul-kommentar i tegningRekonvertering.ts).
 const MAKS_SAMTIDIG_REKONVERTERING = 2;
-const tegningRekonverteringKø = new Semafor(MAKS_SAMTIDIG_REKONVERTERING);
+// Eksportert KUN for test-isolasjon (`.nullstill()` mellom tester) — produksjonskode
+// bruker den aldri utenfra. Se Semafor.nullstill og `fix/ustabil-api-test`.
+export const tegningRekonverteringKø = new Semafor(MAKS_SAMTIDIG_REKONVERTERING);
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
@@ -610,9 +612,15 @@ const TEGNING_WATCHDOG_INTERVALL_MS = 60_000;
  * `tegningKonverteringWatchdog` og plukkes opp igjen av NESTE poll, uten noe eget
  * oppstarts-steg.
  */
-export async function tegningKonverteringPoll(prisma: PrismaClient): Promise<void> {
+export async function tegningKonverteringPoll(prisma: PrismaClient): Promise<Array<Promise<void>>> {
+  // Fire-and-forget i produksjon: `startTegningKonverteringWorker` ignorerer returen og lar
+  // jobbene kjøre i bakgrunnen (poll-løkka skal returnere raskt). Returen finnes KUN for at
+  // tester kan avvente de startede jobbene deterministisk (`await Promise.all(...)`) i stedet
+  // for `vi.waitFor` på sanntid — sistnevnte ble ustabil under parallell turbo-last fordi
+  // sanntids-pollingen og 5 s-testgrensen slår inn før den utsultede jobben rekker å fullføre.
+  const startede: Array<Promise<void>> = [];
   const kapasitet = MAKS_SAMTIDIG_REKONVERTERING - tegningRekonverteringKø.iFlukt;
-  if (kapasitet <= 0) return;
+  if (kapasitet <= 0) return startede;
 
   const kandidater = await prisma.drawing.findMany({
     where: { conversionStatus: "pending" },
@@ -638,16 +646,19 @@ export async function tegningKonverteringPoll(prisma: PrismaClient): Promise<voi
     if (opptak.count === 0) continue;
 
     console.log(`[DWG] arbeider tar opp ${t.id} (${t.name})`);
-    void tegningRekonverteringKø.kjør(() =>
-      kjorRekonvertering(prisma, {
-        id: t.id,
-        name: t.name,
-        projectId: t.projectId,
-        byggeplassId: t.byggeplassId,
-        originalFileUrl: t.originalFileUrl!,
-      }),
+    startede.push(
+      tegningRekonverteringKø.kjør(() =>
+        kjorRekonvertering(prisma, {
+          id: t.id,
+          name: t.name,
+          projectId: t.projectId,
+          byggeplassId: t.byggeplassId,
+          originalFileUrl: t.originalFileUrl!,
+        }),
+      ),
     );
   }
+  return startede;
 }
 
 /**
