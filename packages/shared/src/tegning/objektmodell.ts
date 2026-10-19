@@ -69,6 +69,13 @@ export interface RegisterVerdenObjekt {
    * `7d5d6787` pkt 2: disse er ofte 28-125 m lange hjelpelinjer som ellers ALLTID
    * vinner over isolasjon/flate i hit-test-verden.ts (laveste prioritet der). */
   hjelpelinje?: boolean;
+  /** Dør/vindu bredde×høyde i mm, lest fra blokkens EGEN nestede «stempel»-
+   * tekst (render.py: `finn_dor_merking_fra_stempel` — ikke et nærmeste-
+   * tekst-søk, stempelet er en del av dørens/vinduets egen blokkdefinisjon).
+   * Prioritet 2 i dørmål-kjeden, se `egenskapsfelt.ts` sin
+   * `beregnDoerVinduMaal()`. Begge satt sammen, eller ingen av dem. */
+  merkingBreddeMm?: number;
+  merkingHoydeMm?: number;
 }
 
 export interface RegisterVerdenLagInfo {

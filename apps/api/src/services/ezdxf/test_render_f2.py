@@ -10,7 +10,7 @@ Kjør: EZDXF_PYTHON pytest test_render_f2.py -v
 from render import (
     tolk_lag_gruppe, lag_dominante_revit_kategorier, beregn_naermeste_merking,
     gruppe_visningsnavn, tolk_lagnavn, bygg_objektregister, layer_info_map,
-    er_arkicad_hjelpelinje,
+    er_arkicad_hjelpelinje, finn_dor_merking_fra_stempel,
 )
 
 
@@ -212,3 +212,36 @@ def test_bygg_objektregister_ekte_vegg_faar_ikke_hjelpelinje_flagg():
     objekter, _ = bygg_objektregister(doc, msp, [ln.dxf.handle], lagmap)
     obj = objekter[ln.dxf.handle]
     assert "hjelpelinje" not in obj
+
+
+def test_finn_dor_merking_fra_stempel_leser_bredde_og_hoyde():
+    # RETUR tillegg 2026-10-19 (Kenneths telefontest): verifisert mot EKTE
+    # fallplan.dxf at "Dør[563]" nester en INSERT av "Dørstempel[10]", som selv
+    # bærer bredde×høyde som to separate MTEXT-fragment: "1\xa0090" (bredde,
+    # intet prefiks) og "x2\xa0090" ("x"-prefiks markerer høyden). Bygget her
+    # fra bunnen (ikke den ekte fila) for en rask, isolert enhetstest.
+    import ezdxf
+
+    doc = ezdxf.new()
+    stempel = doc.blocks.new(name="Dørstempel[10]")
+    stempel.add_mtext("1\xa0090", dxfattribs={"char_height": 2.5})
+    stempel.add_mtext("x2\xa0090", dxfattribs={"char_height": 2.5})
+    dor = doc.blocks.new(name="Dør[563]")
+    dor.add_blockref("Dørstempel[10]", insert=(0, 0))
+    assert finn_dor_merking_fra_stempel("Dør[563]", doc) == (1090, 2090)
+
+
+def test_finn_dor_merking_fra_stempel_ingen_stempel_gir_none():
+    import ezdxf
+
+    doc = ezdxf.new()
+    dor = doc.blocks.new(name="Dør[1]")
+    dor.add_line((0, 0), (1000, 0))
+    assert finn_dor_merking_fra_stempel("Dør[1]", doc) is None
+
+
+def test_finn_dor_merking_fra_stempel_ukjent_blokk_gir_none():
+    import ezdxf
+
+    doc = ezdxf.new()
+    assert finn_dor_merking_fra_stempel("Finnes ikke", doc) is None

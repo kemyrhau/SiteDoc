@@ -29,7 +29,7 @@ Sikkerhet (Kontrollør-gate): prosessen settes under et minnetak (RLIMIT_AS,
 tidsavbrudd. Kundefila leses kun; ingenting skrives utenfor --ut og --meta.
 """
 from __future__ import annotations
-import argparse, json, math, sys, time, html
+import argparse, json, math, re, sys, time, html
 from dataclasses import dataclass
 
 import ezdxf
@@ -726,6 +726,68 @@ def beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat):
                 best, best_d = t["tekst"].strip(), d
         if best:
             o["naermesteMerking"] = best
+
+
+DOR_VINDU_BLOKK_RE = re.compile(r"dør|door|window|vindu", re.IGNORECASE)
+STEMPEL_BLOKK_RE = re.compile(r"stempel", re.IGNORECASE)
+STEMPEL_TALL_RE = re.compile(r"^([x×])?(\d+)$", re.IGNORECASE)
+
+def _stempel_mtext_tall(tekst):
+    """Ett stempel-sifferfragment: "1\xa0090" -> (False, 1090) = bredde,
+    "x2\xa0090" -> (True, 2090) = høyde ("x"-prefiks markerer det ANDRE
+    tallet, se finn_dor_merking_fra_stempel)."""
+    s = (tekst or "").replace("\xa0", "").replace(" ", "").strip()
+    m = STEMPEL_TALL_RE.match(s)
+    if not m:
+        return None
+    return (m.group(1) is not None, int(m.group(2)))
+
+_stempel_cache = {}
+
+def finn_dor_merking_fra_stempel(blokk_navn, doc):
+    """Dør/vindu-bredde PRIORITET 2 (RETUR tillegg, orkestrator 2026-10-19,
+    Kenneths telefontest: dørmerkingen "1 090x2 090" ved bladet). Dette er
+    IKKE et nærmeste-tekst-søk — verifisert mot fallplan.dxf: blokken
+    "Dør[563]" nester selv en INSERT av "Dørstempel[10]", som bærer to
+    MTEXT-fragment ("1\xa0090" og "x2\xa0090") — bredde×høyde er altså en del
+    av dørens EGEN blokkdefinisjon, entydig selv med flere dører tett i
+    tegningen. Cachet pr. blokknavn: ArchiCAD eksporterer hver dørinstans
+    som sin egen parametriske blokk, men flere instanser kan dele nøyaktig
+    samme blokknavn/mål."""
+    if blokk_navn in _stempel_cache:
+        return _stempel_cache[blokk_navn]
+    resultat = None
+    try:
+        blk = doc.blocks.get(blokk_navn)
+    except Exception:
+        blk = None
+    if blk is not None:
+        for e in blk:
+            if e.dxftype() != "INSERT" or not STEMPEL_BLOKK_RE.search(e.dxf.name or ""):
+                continue
+            try:
+                stempel_blk = doc.blocks.get(e.dxf.name)
+            except Exception:
+                continue
+            if stempel_blk is None:
+                continue
+            bredde = hoyde = None
+            for se in stempel_blk:
+                if se.dxftype() != "MTEXT":
+                    continue
+                tall = _stempel_mtext_tall(_ren_mtext(se.text))
+                if tall is None:
+                    continue
+                er_hoyde, verdi = tall
+                if er_hoyde:
+                    hoyde = verdi
+                else:
+                    bredde = verdi
+            if bredde and hoyde:
+                resultat = (bredde, hoyde)
+                break
+    _stempel_cache[blokk_navn] = resultat
+    return resultat
 
 
 def sett_minnetak(mem_mb: int) -> None:
@@ -1533,6 +1595,10 @@ def main():
                     grense = hatch_boundary_verden(ent)
                     if grense:
                         ow["geom"] = grense
+            if ow.get("dtype") == "INSERT" and ow.get("blokk") and DOR_VINDU_BLOKK_RE.search(ow["blokk"]):
+                merking = finn_dor_merking_fra_stempel(ow["blokk"], doc)
+                if merking:
+                    ow["merkingBreddeMm"], ow["merkingHoydeMm"] = merking
             objekter_world[h] = ow
         beregn_naermeste_merking(objekter_world, tekster, lag_dominant_kat)
         lag_antall_w = {}

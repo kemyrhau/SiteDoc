@@ -82,7 +82,7 @@ describe("byggEgenskapsfelt", () => {
     expect(utenSkala.find((f) => f.nokkel === "mal")).toBeUndefined();
 
     const medSkala = bygg(o, 1); // 1 mm pr. enhet -> 1000 mm = 1 m
-    expect(medSkala.find((f) => f.nokkel === "mal")?.verdi).toBe("1 m");
+    expect(medSkala.find((f) => f.nokkel === "mal")?.verdi).toBe("1,00 m");
   });
 
   it("felt 6 (mål): areal for flate (HATCH), ikke lengde", () => {
@@ -112,19 +112,82 @@ describe("byggEgenskapsfelt", () => {
     expect(felt.find((f) => f.nokkel === "hva")?.verdi).toBe("Vinduer, dører, foldevegger · 244");
   });
 
-  it("RETUR F1+F2 web r2: dør-INSERT måler bredden fra blokkens LENGSTE segment, ikke det første", () => {
+  it("RETUR tillegg 2026-10-19: dør-INSERT med kun rette segmenter (ingen bue, ingen attributt/merking) gir IKKE Mål — 'lengste segment' er fjernet (spec § 9.3 sier aldri)", () => {
     const o = objekt({
       id: "8D2D",
       dtype: "INSERT",
       blokk: "Simple Door Opening[557]",
-      // Kort jamb-tagg (12 enheter) FØRST, deretter den ekte åpningsbredden (1600 enheter).
       geom: [
         [0, 0, 0, 12],
         [0, 0, 1600, 0],
       ],
     });
     const felt = bygg(o, 1); // 1 mm pr. enhet
-    expect(felt.find((f) => f.nokkel === "mal")?.verdi).toBe("1,6 m");
+    expect(felt.find((f) => f.nokkel === "mal")).toBeUndefined();
+  });
+
+  it("RETUR tillegg 2026-10-19 pkt 1: dør-bredde PRIORITET 1 — WIDTH-attributt vinner over merking OG bue", () => {
+    const o = objekt({
+      id: "dor-attr",
+      dtype: "INSERT",
+      blokk: "Dør[1]",
+      attr: { WIDTH: "900" },
+      merkingBreddeMm: 1090,
+      merkingHoydeMm: 2090,
+    });
+    const felt = bygg(o, 1);
+    expect(felt.find((f) => f.nokkel === "mal")).toEqual({ nokkel: "mal", verdi: "900 mm" });
+  });
+
+  it("RETUR tillegg 2026-10-19 pkt 2: dør-bredde PRIORITET 2 — blokkens egen nestede dørmerking (Kenneths telefontest: «1 090x2 090»)", () => {
+    const o = objekt({
+      id: "AA09",
+      dtype: "INSERT",
+      blokk: "Dør[563]",
+      merkingBreddeMm: 1090,
+      merkingHoydeMm: 2090,
+    });
+    const felt = bygg(o, 1);
+    expect(felt.find((f) => f.nokkel === "mal")).toEqual({
+      nokkel: "mal",
+      verdi: "tegningsvelger.egenskaper.bredde 1,09 m · tegningsvelger.egenskaper.hoyde 2,09 m (tegningsvelger.egenskaper.fraMerking)",
+      tolket: true,
+    });
+  });
+
+  it("RETUR tillegg 2026-10-19 pkt 3: dør-bredde PRIORITET 3 — slagbuens (ARC) radius når verken attributt eller merking finnes", () => {
+    const radius = 900;
+    const flat: number[] = [];
+    for (let i = 0; i <= 8; i++) {
+      const vinkel = (i * Math.PI) / 2 / 8; // kvart sirkel, 9 punkter
+      flat.push(Math.round(radius * Math.cos(vinkel)), Math.round(radius * Math.sin(vinkel)));
+    }
+    const o = objekt({ id: "dor-bue", dtype: "INSERT", blokk: "Dør[999]", geom: [flat] });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    // Punktene er heltallsavrundet (samme konvensjon som render.py sitt register),
+    // så tilpasningen er ikke pikselnøyaktig — innenfor noen få mm av 900 holder.
+    expect(mal?.verdi).toMatch(/^(89[5-9]|90[0-5]) mm$/);
+    expect(mal?.tolket).toBe(true);
+  });
+
+  it("RETUR tillegg 2026-10-19 pkt 3: dobbeldør — to separate buer summeres", () => {
+    const bue = (radius: number): number[] => {
+      const flat: number[] = [];
+      for (let i = 0; i <= 8; i++) {
+        const vinkel = (i * Math.PI) / 2 / 8;
+        flat.push(Math.round(radius * Math.cos(vinkel)), Math.round(radius * Math.sin(vinkel)));
+      }
+      return flat;
+    };
+    const o = objekt({
+      id: "dobbeldor",
+      dtype: "INSERT",
+      blokk: "Dobbel dør[1]",
+      geom: [bue(900), bue(800).map((v, i) => v + (i % 2 === 0 ? 2000 : 0))],
+    });
+    const felt = bygg(o, 1);
+    expect(felt.find((f) => f.nokkel === "mal")?.verdi).toBe("1,70 m");
   });
 
   it("RETUR F1+F2 web r2: dør uten geometri gir ikke et misvisende 'Mål'", () => {
@@ -142,9 +205,10 @@ describe("byggEgenskapsfelt", () => {
   it("POST flytte målepunkter pkt 4a: vegg-lengde er LENGSTE AKSE over ALLE segmenter, ikke geom[0] alene", () => {
     // To korte tverr-tagger (13 enheter, symmetriske om midten) + to lange
     // langsgående "rails" (4000 enheter) — akkurat formen en dobbeltlinje-vegg
-    // eksporteres som. Før fiksen ga geom[0] (tverr-taggen) "Mål 13 mm" — bug-
-    // rapportens eksakte tall. Symmetrisk oppsett gir et EKSAKT PCA-svar (ingen
-    // flyttall-toleranse nødvendig i testen).
+    // eksporteres som. Forholdet 4000/13 = 307 > bølgelinje-terskelen (8), så
+    // RETUR tillegg 2026-10-19 sin formgjenkjenning slår inn og viser
+    // Tykkelse+Lengde (tolket) i stedet for bare lengden — samme PCA-tall som
+    // før (4 m), men nå med tykkelsen (13 mm) synlig ved siden av.
     const o = objekt({
       id: "vegg1",
       dtype: "LINE",
@@ -156,7 +220,50 @@ describe("byggEgenskapsfelt", () => {
       ],
     });
     const felt = bygg(o, 1); // 1 mm pr. enhet
-    expect(felt.find((f) => f.nokkel === "mal")?.verdi).toBe("4 m");
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 13 mm");
+    expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
+    expect(mal?.tolket).toBe(true);
+  });
+
+  it("RETUR tillegg 2026-10-19: kort/bred geometri (forhold ≤ 8) beholder vanlig lengde-Mål, ikke calipers", () => {
+    // Samme dobbeltlinje-form som over, men kort nok (60/13 ≈ 4,6) til at
+    // formen IKKE regnes som «langt og smalt» — vanlige kvadratiske/firkantede
+    // objekter skal ikke plutselig få en tykkelse-visning.
+    const o = objekt({
+      id: "kortvegg",
+      dtype: "LINE",
+      geom: [
+        [0, 0, 0, 13],
+        [60, 0, 60, 13],
+        [0, 0, 60, 0],
+        [0, 13, 60, 13],
+      ],
+    });
+    const felt = bygg(o, 1);
+    expect(felt.find((f) => f.nokkel === "mal")).toEqual({ nokkel: "mal", verdi: "60 mm" });
+  });
+
+  it("RETUR tillegg 2026-10-19: bølgelinje-isolasjon på ordinært vegglag (ikke HATCH, intet materiale-felt) — formen avgjør, ikke dtype", () => {
+    // Sikksakk-mønster (bildet 67abf924): en PLINE som vandrer fram og tilbake
+    // på tvers av en 100 mm smal bane over 4000 mm lengde — samme konveks-hull-
+    // bredde som et rett bånd ville gitt, selv om selve linjen krysser fram og
+    // tilbake underveis.
+    const sikksakk: number[] = [];
+    for (let i = 0; i <= 40; i++) {
+      const x = (i * 4000) / 40;
+      const y = i % 2 === 0 ? 0 : 100;
+      sikksakk.push(x, y);
+    }
+    const o = objekt({ id: "bolge1", dtype: "LWPOLYLINE", geom: [sikksakk] });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 100 mm");
+    expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
+    expect(mal?.tolket).toBe(true);
+    // Materiale-feltet er fortsatt fraværende — formgjenkjenningen krever IKKE
+    // en kjent HATCH/materiale-klassifisering.
+    expect(felt.find((f) => f.nokkel === "materiale")).toBeUndefined();
   });
 
   it("POST flytte målepunkter pkt 4b: anonymt AutoCAD-blokknavn ('*X976') skjules i typeStorrelse", () => {
@@ -188,7 +295,7 @@ describe("byggEgenskapsfelt", () => {
     const felt = bygg(o, 1);
     const mal = felt.find((f) => f.nokkel === "mal");
     expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 13 mm");
-    expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4 m");
+    expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
     // Materiale-feltet er uendret (vises fortsatt som vanlig).
     expect(felt.find((f) => f.nokkel === "materiale")?.verdi).toBe("Isolasjon");
   });
