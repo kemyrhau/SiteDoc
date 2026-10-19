@@ -64,4 +64,21 @@ describe("Semafor", () => {
     await sem.kjør(async () => { kjørte = true; });
     expect(kjørte).toBe(true);
   });
+
+  it("nullstill() frigir okkuperte slots (test-isolasjon: en jobb som aldri resolver blokkerer ikke neste test)", async () => {
+    const sem = new Semafor(1);
+    // En jobb som aldri resolver holder slotten for alltid (som de bevisste
+    // «aldri resolve»-konverteringene i tegning-arbeider-testene).
+    void sem.kjør(() => new Promise<void>(() => {}));
+    await Promise.resolve();
+    expect(sem.iFlukt).toBe(1);
+
+    sem.nullstill();
+    expect(sem.iFlukt).toBe(0);
+
+    // Etter nullstill skal en ny jobb kunne ta slotten umiddelbart.
+    let kjørte = false;
+    await sem.kjør(async () => { kjørte = true; });
+    expect(kjørte).toBe(true);
+  });
 });

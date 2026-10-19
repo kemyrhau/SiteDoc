@@ -14,10 +14,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * (c) en strandet `converting`-rad (ingen livstegn > grensen) settes tilbake til
  *     `pending` av watchdogen og fullføres ved neste poll.
  *
- * `vi.resetModules()` + dynamisk import pr. test: `tegningRekonverteringKø` (Semafor)
- * er en modul-singleton i tegning.ts — uten reset ville en «aldri resolve»-konvertering
- * i én test okkupert semafor-plassen for alle senere tester i fila (samme kjente
- * begrensning som dokumentert i tegning-oppdater-alle.test.ts).
+ * Teststabilitet (`fix/ustabil-api-test`, 2026-10-19): `tegningRekonverteringKø` (Semafor)
+ * er en modul-singleton i tegning.ts. Tidligere ble den isolert mellom tester med
+ * `vi.resetModules()` + dynamisk `await import("./tegning")` PR. TEST — men den re-importen
+ * av den store `tegning.ts`-modulen tok 5+ s under parallell turbo-last (vite re-transform
+ * under CPU-oversubscription) og sprengte 5 s-testgrensen (~2 av 8 turbo-kjøringer). Nå
+ * importeres modulen ÉN gang statisk, og singletonens tilstand nullstilles billig i
+ * `beforeEach` (`tegningRekonverteringKø.nullstill()`) — samme isolasjon uten re-import.
  */
 
 const h = vi.hoisted(() => ({ konverterDwg: vi.fn() }));
@@ -34,6 +37,9 @@ vi.mock("../services/dwgKonvertering", () => ({
   hentKonverteringKapasitet: vi.fn(),
   roterProsentMarkor: vi.fn(),
 }));
+
+import { tegningKonverteringPoll, tegningKonverteringWatchdog, tegningRekonverteringKø } from "./tegning";
+import { KONVERTERING_STRANDET_MS } from "../services/tegningRekonvertering";
 
 function lagResultat(overstyr: Record<string, unknown> = {}) {
   return {
@@ -133,23 +139,26 @@ function fakePrisma(rader: Rad[]) {
 describe("tegningKonverteringPoll + tegningKonverteringWatchdog", () => {
   beforeEach(() => {
     h.konverterDwg.mockReset();
-    vi.resetModules();
+    // Isolasjon uten re-import: nullstill singleton-semaforen (en «aldri resolve»-jobb i én
+    // test ville ellers holdt en slot okkupert for de neste). Se fil-kommentaren.
+    tegningRekonverteringKø.nullstill();
   });
 
   it("(a) rad markert pending uten egen arbeider i prosessen → plukkes opp og fullføres", async () => {
-    const { tegningKonverteringPoll } = await import("./tegning");
     const { prisma, butikk } = fakePrisma([lagRad("d1")]);
     h.konverterDwg.mockResolvedValue(lagResultat());
 
-    await tegningKonverteringPoll(prisma as never);
+    const jobber = await tegningKonverteringPoll(prisma as never);
     expect(butikk.get("d1")!.conversionStatus).toBe("converting");
 
-    await vi.waitFor(() => expect(butikk.get("d1")!.conversionStatus).toBe("done"));
+    // Avvent den startede jobben deterministisk (kun mikrotasker — `konverterDwg` er
+    // mocket og `anvendDwgResultat` har ingen sanntidstimere) i stedet for `vi.waitFor`.
+    await Promise.all(jobber);
+    expect(butikk.get("d1")!.conversionStatus).toBe("done");
     expect(h.konverterDwg).toHaveBeenCalledOnce();
   });
 
   it("(b) samtidig opptak av to arbeidere på samme rad → bare én vinner", async () => {
-    const { tegningKonverteringPoll } = await import("./tegning");
     const original = lagRad("d1");
     const { prisma, butikk } = fakePrisma([original]);
     h.konverterDwg.mockReturnValue(new Promise(() => {})); // aldri resolve i denne testen
@@ -171,8 +180,6 @@ describe("tegningKonverteringPoll + tegningKonverteringWatchdog", () => {
   });
 
   it("(c) strandet converting (ingen livstegn > grensen) → watchdog tilbake til pending → fullføres ved neste poll", async () => {
-    const { tegningKonverteringPoll, tegningKonverteringWatchdog } = await import("./tegning");
-    const { KONVERTERING_STRANDET_MS } = await import("../services/tegningRekonvertering");
     const gammel = new Date(Date.now() - KONVERTERING_STRANDET_MS - 1000);
     const { prisma, butikk } = fakePrisma([
       lagRad("d-strandet", { conversionStatus: "converting", updatedAt: gammel }),
@@ -182,12 +189,12 @@ describe("tegningKonverteringPoll + tegningKonverteringWatchdog", () => {
     await tegningKonverteringWatchdog(prisma as never);
     expect(butikk.get("d-strandet")!.conversionStatus).toBe("pending");
 
-    await tegningKonverteringPoll(prisma as never);
-    await vi.waitFor(() => expect(butikk.get("d-strandet")!.conversionStatus).toBe("done"));
+    const jobber = await tegningKonverteringPoll(prisma as never);
+    await Promise.all(jobber);
+    expect(butikk.get("d-strandet")!.conversionStatus).toBe("done");
   });
 
   it("friskt converting (livstegn innenfor grensen) → watchdog rører den IKKE", async () => {
-    const { tegningKonverteringWatchdog } = await import("./tegning");
     const fersk = new Date(Date.now() - 1000);
     const { prisma, butikk } = fakePrisma([lagRad("d-fersk", { conversionStatus: "converting", updatedAt: fersk })]);
 
@@ -196,7 +203,6 @@ describe("tegningKonverteringPoll + tegningKonverteringWatchdog", () => {
   });
 
   it("ingen pending-rader → ingen opptak, ingen konvertering startet", async () => {
-    const { tegningKonverteringPoll } = await import("./tegning");
     const { prisma } = fakePrisma([lagRad("d1", { conversionStatus: "done" })]);
 
     await tegningKonverteringPoll(prisma as never);
@@ -204,7 +210,6 @@ describe("tegningKonverteringPoll + tegningKonverteringWatchdog", () => {
   });
 
   it("full kapasitet (2 aktive) → poll claimer INGEN nye rader denne runden", async () => {
-    const { tegningKonverteringPoll } = await import("./tegning");
     const { prisma, butikk } = fakePrisma([lagRad("d1"), lagRad("d2"), lagRad("d3")]);
     h.konverterDwg.mockReturnValue(new Promise(() => {})); // ingen resolve → okkuperer begge slottene
 

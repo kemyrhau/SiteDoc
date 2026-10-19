@@ -30,6 +30,11 @@ vi.mock("../services/dwgKonvertering", () => ({
   roterProsentMarkor: vi.fn(),
 }));
 
+// Statisk import + singleton-reset i beforeEach i stedet for `vi.resetModules()` +
+// dynamisk re-import pr. test: re-importen av den store `tegning.ts` tok 5+ s under
+// parallell turbo-last og sprengte 5 s-testgrensen (`fix/ustabil-api-test`, 2026-10-19).
+import { tegningRouter, tegningKonverteringPoll, tegningRekonverteringKø } from "./tegning";
+
 function lagResultat(overstyr: Record<string, unknown> = {}) {
   return {
     mmPrPiksel: 10, scale: "1:100", scaleKilde: "dwg", imageWidth: 2000, imageHeight: 1500,
@@ -132,11 +137,10 @@ function fakePrisma() {
 describe("RETUR 7 — opplasting dobbel-konverteres IKKE av arbeideren", () => {
   beforeEach(() => {
     h.konverterDwg.mockReset();
-    vi.resetModules();
+    tegningRekonverteringKø.nullstill();
   });
 
   it("opprett (DWG) → arbeideren plukker opp ÉN gang, pending → converting → done", async () => {
-    const { tegningRouter, tegningKonverteringPoll } = await import("./tegning");
     const { prisma, butikk } = fakePrisma();
     h.konverterDwg.mockResolvedValue(lagResultat());
 
@@ -153,15 +157,16 @@ describe("RETUR 7 — opplasting dobbel-konverteres IKKE av arbeideren", () => {
     expect(h.konverterDwg).not.toHaveBeenCalled();
 
     // Arbeideren (allerede i gang i produksjon) poller og tar opp SAMME rad.
-    await tegningKonverteringPoll(prisma as never);
+    const jobber = await tegningKonverteringPoll(prisma as never);
     expect(butikk.get(svar.id)!.conversionStatus).toBe("converting");
 
-    await vi.waitFor(() => expect(butikk.get(svar.id)!.conversionStatus).toBe("done"));
+    // Deterministisk venting på jobben (ikke `vi.waitFor` på sanntid — ustabilt under last).
+    await Promise.all(jobber);
+    expect(butikk.get(svar.id)!.conversionStatus).toBe("done");
     expect(h.konverterDwg).toHaveBeenCalledOnce();
   });
 
   it("lastOppRevisjon (DXF) → arbeideren plukker opp ÉN gang, ingen inline-konvertering", async () => {
-    const { tegningRouter, tegningKonverteringPoll } = await import("./tegning");
     const { prisma, butikk } = fakePrisma();
     h.konverterDwg.mockResolvedValue(lagResultat());
 
@@ -209,8 +214,9 @@ describe("RETUR 7 — opplasting dobbel-konverteres IKKE av arbeideren", () => {
     expect(oppdatert.conversionStatus).toBe("pending");
     expect(h.konverterDwg).not.toHaveBeenCalled();
 
-    await tegningKonverteringPoll(prismaMedRevisjon as never);
-    await vi.waitFor(() => expect(butikk.get(eksisterende.id)!.conversionStatus).toBe("done"));
+    const jobber = await tegningKonverteringPoll(prismaMedRevisjon as never);
+    await Promise.all(jobber);
+    expect(butikk.get(eksisterende.id)!.conversionStatus).toBe("done");
     expect(h.konverterDwg).toHaveBeenCalledOnce();
   });
 });

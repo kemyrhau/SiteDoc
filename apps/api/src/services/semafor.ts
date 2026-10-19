@@ -41,4 +41,17 @@ export class Semafor {
       this.aktive--;
     }
   }
+
+  /**
+   * Nullstiller teller og kø. KUN for test-isolasjon: modul-singletonene
+   * (`tegningRekonverteringKø`, NorBERT-køen) gjenbrukes mellom tester i samme fil, og en
+   * test som bevisst lar en jobb aldri resolve ville ellers holdt en slot okkupert for de
+   * neste testene. Et billig alternativ til `vi.resetModules()` + re-import av den store
+   * `tegning.ts`-modulen pr. test, som ble en teststabilitets-felle: re-importen tok 5+ s
+   * under parallell turbo-last og sprengte 5 s-testgrensen (`fix/ustabil-api-test`).
+   */
+  nullstill(): void {
+    this.aktive = 0;
+    this.kø = [];
+  }
 }
