@@ -284,6 +284,75 @@ describe("byggEgenskapsfelt", () => {
     expect(felt.find((f) => f.nokkel === "materiale")).toBeUndefined();
   });
 
+  it("POST snevre inn formregelen 2026-10-19 (a): HATCH 1,5×15 m uten isolasjonsmateriale gir areal, ikke tykkelse", () => {
+    // Forhold 15000/1500 = 10, over BOLGELINJE_FORHOLD_TERSKEL — ville trigget
+    // formgjenkjenningen hvis den ikke hoppet over ekte flater (korridor/sal).
+    const o = objekt({
+      id: "flate-lang",
+      dtype: "HATCH",
+      geom: [[0, 0, 15000, 0, 15000, 1500, 0, 1500]],
+    });
+    const felt = bygg(o, 1);
+    expect(felt.find((f) => f.nokkel === "mal")?.verdi).toBe("22,50 m²");
+  });
+
+  it("POST snevre inn formregelen 2026-10-19 (b): rom (ROOM_NAME), langt og smalt, gir ikke tykkelse", () => {
+    // Samme lang/smal-geometri som bølgelinje-testen (forhold 4000/8=500), men
+    // merket med ROOM_NAME — en korridor har ingen tykkelse (spec § 9 K2).
+    const o = objekt({
+      id: "rom-korridor",
+      dtype: "LWPOLYLINE",
+      attr: { ROOM_NAME: "Korridor" },
+      geom: [
+        [0, 0, 0, 8],
+        [4000, 0, 4000, 8],
+        [0, 0, 4000, 0],
+        [0, 8, 4000, 8],
+      ],
+    });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("4,00 m");
+    expect(mal?.tolket).toBeUndefined();
+  });
+
+  it("POST snevre inn formregelen 2026-10-19 (c): bølgelinje-isolasjon på ordinært vegglag fortsatt tykkelse + lengde", () => {
+    // Negativkontroll for (a)/(b): den eksisterende bølgelinje-formen (ikke
+    // HATCH, ikke rom) skal fortsatt gå gjennom formgjenkjenningen uendret.
+    const sikksakk: number[] = [];
+    for (let i = 0; i <= 40; i++) {
+      const x = (i * 4000) / 40;
+      const y = i % 2 === 0 ? 0 : 100;
+      sikksakk.push(x, y);
+    }
+    const o = objekt({ id: "bolge-kontroll", dtype: "LWPOLYLINE", geom: [sikksakk] });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 100 mm");
+    expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
+    expect(mal?.tolket).toBe(true);
+  });
+
+  it("POST snevre inn formregelen 2026-10-19 (d): isolasjon-HATCH fortsatt tykkelse (isolasjonsgrenen uendret)", () => {
+    // Isolasjonsgrenen sjekkes FØR formgjenkjenningen og returnerer tidlig —
+    // skal ikke påvirkes av den nye FLATE_DTYPE-sperren.
+    const o = objekt({
+      id: "isol-hatch",
+      dtype: "HATCH",
+      materiale: "Isolasjon",
+      geom: [
+        [0, 0, 0, 13],
+        [4000, 0, 4000, 13],
+        [0, 0, 4000, 0],
+        [0, 13, 4000, 13],
+      ],
+    });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 13 mm");
+    expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
+  });
+
   it("POST flytte målepunkter pkt 4b: anonymt AutoCAD-blokknavn ('*X976') skjules i typeStorrelse", () => {
     const anonym = bygg(objekt({ id: "h15", blokk: "*X976" }));
     expect(anonym.find((f) => f.nokkel === "typeStorrelse")).toBeUndefined();

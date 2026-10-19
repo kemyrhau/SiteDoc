@@ -346,7 +346,18 @@ function beregnMaal(
   // Formgjenkjenning (tolket, IKKE en kjent klassifisering): langt og smalt
   // konvekst omriss viser tykkelse+lengde uansett dtype — fanger isolasjon
   // tegnet som vanlig linje/polyline, ikke bare HATCH med kjent mønsternavn.
-  if (allePunkter.length >= 3) {
+  // SNEVRET INN (orkestrator 2026-10-19, Kenneth-vedtak «ja»): grenen skal
+  // ALDRI overstyre en ekte flate eller et rom — en lang, smal korridor eller
+  // sal har ingen tykkelse, og det bryter spec § 9 K2 («aldri feil tall»).
+  // Hopper derfor over: (1) HATCH/SOLID som når hit IKKE er isolasjon
+  // (isolasjonsgrenen over fanger og returnerer den klassifiseringen alt —
+  // alt som er FLATE_DTYPE her er en ekte flate), og (2) rom
+  // (ROOM_NAME/ROOM_NUMBER-attributt, samme signal som felt 3 — eneste
+  // per-objekt romsignal O1 har i dag; `gruppe` er et lag-felt, ikke et
+  // objektfelt, og gir ingen slik klassifisering ennå).
+  const erFlateIkkeIsolasjon = FLATE_DTYPE.has(o.dtype);
+  const erRom = !!(o.attr?.ROOM_NAME || o.attr?.ROOM_NUMBER);
+  if (!erFlateIkkeIsolasjon && !erRom && allePunkter.length >= 3) {
     const { lengdeMm } = beregnAkslerMm(allePunkter, mmPr);
     const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
     if (tykkelseMm >= TYKKELSE_MIN_MM && lengdeMm / tykkelseMm > BOLGELINJE_FORHOLD_TERSKEL) {
