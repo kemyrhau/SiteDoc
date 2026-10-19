@@ -102,6 +102,16 @@ export function leggTilPunkt(
 }
 
 function punktTilMaling(m: Maling, p: Punkt, erNaer: (q: Punkt) => boolean): Maling {
+  // 🔴 TILLEGG (orkestrator 2026-10-20, "«Sett punkt» registrerer ikke trykk
+  // sikkert" pkt 3): et nytt punkt innenfor terskelen av FORRIGE punkt i den
+  // aktive målingen legges ikke til — et usikkert dobbelttrykk på samme sted
+  // (bruker uviss om første trykk registrerte, se knappefiksen i
+  // DxfViewerTegning.tsx) skal aldri gi en 0 m-linjal/ferdig eller et
+  // null-lengde-segment i polylinje/areal. Gjelder KUN siste punkt — areal sin
+  // lukking mot FØRSTE punkt (under) er en annen, uendret sjekk.
+  const sist = m.punkter[m.punkter.length - 1];
+  if (sist && erNaer(sist)) return m;
+
   if (m.verktoy === "linjal") {
     const punkter = [...m.punkter, p].slice(-2);
     return { ...m, punkter, ferdig: punkter.length >= 2 };
