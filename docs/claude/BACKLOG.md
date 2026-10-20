@@ -5140,6 +5140,9 @@ Detaljsiden beholdes fullt funksjonell (sammenheng-prinsipp krever det). Reverse
 
 ## 2. Halvferdige features
 
+### 🟡 Arbeidstegning: veggens totale tykkelse fra veggtype-merking (Kenneth 2026-10-20)
+Trykk på isolasjonen i en innervegg viser bare isolasjonens bredde (71 mm). Gips er tegnet som én linje uten bredde (`236`, PLINE), så geometrien sier ikke om gipsen er enkel eller dobbel (K2: aldri gjett). Veggens totale tykkelse og oppbygging finnes vanligvis i veggtype-merking eller -tabell på tegningen («IV1 …»). Den kan kobles via CadKobling (spec § 9 K4). **Neste:** Fabel tar det inn i arbeidstegning-spec (oppdage veggtype, koble merking til tabell og vise oppbyggingen). Bilder: `relay/arbeidstegning-prove/f1f2/kenneth/2010/2-…`, `3-…`. 🟡 PLANLAGT, ikke bestilt.
+
 ### 🟡 Arbeidstegning: snap og 90° mens man navigerer i Linjal/Polylinje/Areal (Kenneth 2026-10-19)
 I dag (`ee884ff8`) viser «Flytt punkt» med pekeren den stiplede 90°-linja og snap-ringen live, men «Sett punkt» i Linjal gjør det ikke. Der vises snap og 90° først etter at punktet er satt. Kenneth: «det ville vært den sannsynlige måten», men det er akseptabelt fordi Flytt kan brukes etterpå. Gjenbruk Flytt-logikken (én kilde). Bilder: `relay/arbeidstegning-prove/f1f2/kenneth/1910b/3-…` mot `4-…`. 🟡 PLANLAGT, ikke bestilt.
 
