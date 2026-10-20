@@ -274,8 +274,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     const eksisterendeData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
 
     // Append-only: lås felt som allerede har server-bekreftet verdi (delt kilde).
-    // Alltid fra server-data — usynket lokal kladd forblir redigerbar.
-    låsteFelterRef.current = beregnLaasteFelter(eksisterendeData);
+    // Alltid fra server-data — usynket lokal kladd forblir redigerbar. Draft
+    // (utkast) låser ingenting: felt låses FØRST etter sending (status ≠ "draft"),
+    // paritet med web-hooken (Vedtak B). Uten denne status-en ble et felt fylt i
+    // utkast låst så snart det var synket (befaring-feltfunn 2026-10-20).
+    låsteFelterRef.current = beregnLaasteFelter(eksisterendeData, oppgave.status);
 
     // Basis = serverens verdi pr. felt (grunnlag for kollisjons-deteksjon) — uansett init-gren.
     const serverBasis: Record<string, FeltVerdi> = {};
