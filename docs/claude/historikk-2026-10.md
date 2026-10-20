@@ -17,7 +17,7 @@ sist_verifisert_mot_kode: 2026-10-09
 
 - **Ute i prod:** «Oppdater visning» pr. tegning og «Oppdater alle tegninger» (`7125c773`), konvertering via DB-kø i api med atomisk opptak, livstegn og watchdog (`535060f3`), 221 i18n-variabelnavn rettet (`4f5d532a`), og duplikatpunkt-sperre i måling (`malinger.ts`, `1de102fe`).
 - **Bak bryteren `TEGNING_MOTOR` (av i prod):** arbeidstegning med dxf-viewer, F1/F2, peker, lupe, Flytt punkt, målfelt og Sett punkt-retting. Bryteren slås på i prod når markører, filtre og rotasjon finnes i den nye viseren og lagvalget på mobil ligger i SQLite.
-- **Ingen migreringer, ingen nye env-variabler.** Api `/version` = `03ebeec2` (Kenneth 2026-10-20). Prod-OTA ble gitt samtidig. ⚠️ Verifisering av OTA-en på telefonen og innlogget web er ikke meldt tilbake ennå.
+- **Ingen migreringer, ingen nye env-variabler.** Api `/version` = `03ebeec2` (Kenneth 2026-10-20). Prod-OTA publisert (Kenneth 2026-10-20).
 
 ## Prod-deploy 2026-10-14 kveld (`f2d3e172`, develop→main): offline-tegninger, dokumentsøk, PDF-sidetall/reekstraksjon (LIVE)
 
