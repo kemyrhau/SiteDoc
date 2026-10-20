@@ -263,6 +263,17 @@ async function start() {
       // Start eksport-worker (bygger dataeksport-arkiver asynkront + utløpsrydding)
       const { startEksportWorker } = await import("./services/eksport/eksport-worker");
       startEksportWorker(prisma);
+
+      // RETUR 6 rekonverter (orkestrator 2026-10-16, DB-som-kø): web kjører tRPC
+      // in-process og har ALDRI DWG-motoren/semaforen tilgjengelig (målt i RETUR 4/6) —
+      // mutasjonene markerer bare `pending` i DB, og DENNE arbeideren (kun startet i
+      // api) er den ENE som faktisk kjører konverteringen. Erstatter/forenkler den
+      // tidligere engangs-oppstartsrecoveryen (`gjenopptaStrandedeRekonverteringer`):
+      // en `pending`-rad blir alltid plukket opp uansett alder, og en strandet
+      // `converting`-rad (arbeider som eide den, krasjet) settes tilbake til `pending`
+      // av arbeiderens egen watchdog — ikke bare ved oppstart.
+      const { startTegningKonverteringWorker } = await import("./routes/tegning");
+      startTegningKonverteringWorker(prisma);
     } catch {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }

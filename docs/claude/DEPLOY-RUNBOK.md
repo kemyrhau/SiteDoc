@@ -267,6 +267,14 @@ cd ~/Documents/Programmering/SiteDoc && git status --short | head
 
 Er den ikke tom, får publiseringen en `*` etter commit-hashen — **da vet vi ikke hva som gikk ut.**
 
+### Steg 3b — installer etter lockfila
+
+```sh
+cd ~/Documents/Programmering/SiteDoc && pnpm install --frozen-lockfile
+```
+
+`eas update` bundler fra hovedtreets `node_modules`. Har develop fått en ny pakke siden sist (målt 2026-10-17: `rbush`), feiler Metro med «Unable to resolve module». Steget er raskt og trygt, siden det installerer eksakt det lockfila sier.
+
 ### Steg 4 — publiser
 
 ```sh

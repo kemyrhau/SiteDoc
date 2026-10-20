@@ -39,6 +39,8 @@ export interface RegisterVerdenObjekt {
   /** Egen posisjon/høyde/rotasjon pr. ATTRIB, i DXF-verdenskoordinater — INSERT-ens
    * samlede bbox dekker hele blokken, ikke der teksten faktisk sitter. */
   attrMeta?: Record<string, AttrMetaPunkt>;
+  /** F1 felt 5: egen tekst-innhold for frittstående TEXT/MTEXT (ATTRIB-tekst ligger i `attr`). */
+  tekst?: string;
   /** Materiale fra skravurmønster (kjent mapping). */
   materiale?: string;
   /** Rått skravurmønsternavn (ukjent mapping, ikke SOLID/FP_-nummer). */
@@ -57,6 +59,23 @@ export interface RegisterVerdenObjekt {
    * polylinje [x0,y0,x1,y1,...] — treffetesten bruker denne (avstand punkt→segment/bue),
    * ikke bbox-kanten. Fravær (skravur/HATCH uten kontur) = treff kun via containment. */
   geom?: number[][];
+  /** F1 felt 5b (AT-F10/A12/A14): tolket nærmeste TEXT/MTEXT/ATTRIB på et tekstlag
+   * for rør/kabel uten egen tekst — ALDRI objektets egen verdi, alltid vist merket
+   * «(nærmeste merking)». Fravær = ingen tekst innen grensen (negativkontroll A12). */
+  naermesteMerking?: string;
+  /** ArchiCAD/Revit sine EGNE 80-89-serie referanse-/annotasjonslag (Modullinjer,
+   * Snittmarkør, Detaljer, Nettoareal m.fl. — IKKE NS 3451-bygningsdeler, standarden
+   * stopper på 79, se render.py sin NS3451_NAVN-kommentar). RETUR isolasjon
+   * `7d5d6787` pkt 2: disse er ofte 28-125 m lange hjelpelinjer som ellers ALLTID
+   * vinner over isolasjon/flate i hit-test-verden.ts (laveste prioritet der). */
+  hjelpelinje?: boolean;
+  /** Dør/vindu bredde×høyde i mm, lest fra blokkens EGEN nestede «stempel»-
+   * tekst (render.py: `finn_dor_merking_fra_stempel` — ikke et nærmeste-
+   * tekst-søk, stempelet er en del av dørens/vinduets egen blokkdefinisjon).
+   * Prioritet 2 i dørmål-kjeden, se `egenskapsfelt.ts` sin
+   * `beregnDoerVinduMaal()`. Begge satt sammen, eller ingen av dem. */
+  merkingBreddeMm?: number;
+  merkingHoydeMm?: number;
 }
 
 export interface RegisterVerdenLagInfo {
@@ -67,6 +86,14 @@ export interface RegisterVerdenLagInfo {
   aci: number | null;
   ltype: string;
   lw: number | null;
+  /** F2-gruppe (grupperingsnøkkel): dominant Revit-kategori blant lagets objekter
+   * når XDATA finnes, ellers NS 3451/AIA/SOSI-prefiks fra lagnavnet, ellers "Andre". */
+  gruppe: string;
+  /** F2-visningsnavn (RETUR F1+F2 web, 2026-10-17): menneskelesbart navn for
+   * `gruppe` — Revit-kategorien selv, NS 3451-/AIA-tabellnavnet, eller "Andre"
+   * når koden er ukjent (SOSI, ArchiCAD-interne lagkoder). `gruppe` kan vises
+   * separat foran som rå kode (grå), se LagPanel.tsx. */
+  gruppeNavn: string;
 }
 
 export interface RegisterVerden {
@@ -79,6 +106,13 @@ export interface RegisterVerden {
   /** Revit ElementId → liste av handles (ett element kan bestå av flere DXF-entiteter). */
   elidIndex: Record<string, string[]>;
   laginventar: RegisterVerdenLagInfo[];
+  /** Byggets dominante veggvinkel i RÅ DXF-verdenskoord, 0–90° (mod 90, ikke
+   * kvadrant-løst — se `render.py` sin `dominant_veggvinkel`). Brukt som fallback-
+   * referanse for 90°-låsen (`laasDetaljerVerden`) når ankeret ikke er snappet til
+   * en vegg/linje og det ikke finnes et forrige segment. `null` = for tynt/usikkert
+   * grunnlag (< 20 segmenter, eller ingen klar topp — se render.py sin 60 %-grense);
+   * klienten faller da tilbake til aksejevne akser (samme som før denne feltet fantes). */
+  dominantVeggvinkelGrader?: number | null;
 }
 
 /** O1 § 8 sin `kilde`-klassifisering, utledet (ikke lagret — se filkommentar). */

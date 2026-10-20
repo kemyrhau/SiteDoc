@@ -54,8 +54,10 @@ import {
   beregnStrekVars,
   beregnStartutsnittZoom,
   svgViewBoxForhold,
+  erTegningDwgDxfOpphav,
+  TEGNING_MANGLER_ORIGINALFIL_KODE,
 } from "@sitedoc/shared";
-import type { GeoReferanse } from "@sitedoc/shared";
+import type { GeoReferanse, EgenskapsFelt, RegisterVerdenLagInfo } from "@sitedoc/shared";
 
 interface DokumentflytMalRad {
   template: { id: string; name: string; category: string };
@@ -67,9 +69,10 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download, Layers } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
+import { tegningVisningTilstand } from "@/lib/tegningRekonverteringVisning";
 import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
 import { RedigerTegningModal } from "@/components/tegning/RedigerTegningModal";
 import { RevisjonsListe } from "@/components/tegning/RevisjonsListe";
@@ -79,6 +82,9 @@ import { tilpassEzdxfSvg } from "@/lib/ezdxfSvgVisning";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
+import { EgenskapsPanel } from "@/components/tegning/EgenskapsPanel";
+import { LagPanel } from "@/components/tegning/LagPanel";
+import type { DxfViewerTegningRef } from "@/components/tegning/DxfViewerTegning";
 // Leveranse 1: dynamic+ssr:false — dxf-viewer drar med seg en EGEN three.js-kopi
 // (^0.186), som ikke skal lastes før tegningssiden faktisk bruker den (orkestrator-
 // vedtak 2026-10-13: to kopier akseptert, tegningssiden lazy-lastet).
@@ -281,6 +287,14 @@ export default function TegningerSide() {
 
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
+  // F1 (dxf-viewer-grenen, egen gren/state — SVG-veiens valgtElement over er uberørt).
+  const [dxfValgtObjektFelt, setDxfValgtObjektFelt] = useState<EgenskapsFelt[] | null>(null);
+  // F2 (dxf-viewer-grenen): laginventar fra registeret, husket synlighet pr. tegning
+  // pr. bruker (localStorage). `false` = skjult; fravær av nøkkel = synlig (default).
+  const [dxfLaginventar, setDxfLaginventar] = useState<RegisterVerdenLagInfo[] | null>(null);
+  const [dxfLagSynlighet, setDxfLagSynlighet] = useState<Record<string, boolean>>({});
+  const [dxfLagpanelApent, setDxfLagpanelApent] = useState(false);
+  const dxfViewerRef = useRef<DxfViewerTegningRef>(null);
 
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
@@ -356,6 +370,95 @@ export default function TegningerSide() {
     const status = tegning?.conversionStatus;
     setDwgPoller(status === "pending" || status === "converting");
   }, [tegning?.conversionStatus]);
+
+  // F2 (dxf-viewer-grenen): lagpanel-handlere. Husker synlighet pr. tegning pr.
+  // bruker på enheten (localStorage, nøkkel pr. drawingId — spec § 3 F2, Q4).
+  const dxfLagStorageKey = tegning ? `tegning-lag-${tegning.id}` : null;
+
+  const lagreDxfLagSynlighet = useCallback(
+    (neste: Record<string, boolean>) => {
+      setDxfLagSynlighet(neste);
+      if (!dxfLagStorageKey) return;
+      try {
+        window.localStorage.setItem(dxfLagStorageKey, JSON.stringify(neste));
+      } catch {
+        /* privat modus/full lagring — synligheten virker fortsatt denne økten */
+      }
+    },
+    [dxfLagStorageKey],
+  );
+
+  const handleDxfLaginventarKlar = useCallback(
+    (laginventar: RegisterVerdenLagInfo[] | null) => {
+      setDxfLaginventar(laginventar);
+      if (!laginventar || !dxfLagStorageKey) {
+        setDxfLagSynlighet({});
+        return;
+      }
+      let lagret: Record<string, boolean> = {};
+      try {
+        const raw = window.localStorage.getItem(dxfLagStorageKey);
+        if (raw) lagret = JSON.parse(raw);
+      } catch {
+        lagret = {};
+      }
+      setDxfLagSynlighet(lagret);
+      for (const [navn, synlig] of Object.entries(lagret)) {
+        if (synlig === false) dxfViewerRef.current?.settLagSynlig(navn, false);
+      }
+    },
+    [dxfLagStorageKey],
+  );
+
+  const handleDxfSettLag = useCallback(
+    (navn: string, synlig: boolean) => {
+      dxfViewerRef.current?.settLagSynlig(navn, synlig);
+      lagreDxfLagSynlighet({ ...dxfLagSynlighet, [navn]: synlig });
+    },
+    [dxfLagSynlighet, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfSettGruppe = useCallback(
+    (lagNavnListe: string[], synlig: boolean) => {
+      const neste = { ...dxfLagSynlighet };
+      for (const navn of lagNavnListe) {
+        dxfViewerRef.current?.settLagSynlig(navn, synlig);
+        neste[navn] = synlig;
+      }
+      lagreDxfLagSynlighet(neste);
+    },
+    [dxfLagSynlighet, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfBareDette = useCallback(
+    (navn: string) => {
+      if (!dxfLaginventar) return;
+      const neste: Record<string, boolean> = {};
+      for (const li of dxfLaginventar) {
+        const synlig = li.navn === navn;
+        neste[li.navn] = synlig;
+        dxfViewerRef.current?.settLagSynlig(li.navn, synlig);
+      }
+      lagreDxfLagSynlighet(neste);
+    },
+    [dxfLaginventar, lagreDxfLagSynlighet],
+  );
+
+  const handleDxfAllePaa = useCallback(() => {
+    if (!dxfLaginventar) return;
+    for (const li of dxfLaginventar) dxfViewerRef.current?.settLagSynlig(li.navn, true);
+    lagreDxfLagSynlighet({});
+  }, [dxfLaginventar, lagreDxfLagSynlighet]);
+
+  const handleDxfAlleAv = useCallback(() => {
+    if (!dxfLaginventar) return;
+    const neste: Record<string, boolean> = {};
+    for (const li of dxfLaginventar) {
+      neste[li.navn] = false;
+      dxfViewerRef.current?.settLagSynlig(li.navn, false);
+    }
+    lagreDxfLagSynlighet(neste);
+  }, [dxfLaginventar, lagreDxfLagSynlighet]);
 
   // Enkeltfil-nedlasting: originalfila (DWG/PDF slik den ble lastet opp), fallback
   // til den konverterte fila for rene bilder. `download`-attributtet gir filnavnet
@@ -473,6 +576,26 @@ export default function TegningerSide() {
   const provKonverteringIgjenMutation = trpc.tegning.provKonverteringIgjen.useMutation({
     onSuccess: () => {
       utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
+  // «Oppdater visning» (2026-10-16): samme server-prosedyre som «prøv konvertering
+  // igjen» over, men en EGEN mutasjonsinstans — knappen vises for ferdig-konverterte
+  // tegninger (backfill av dxf-viewer-artefakter), ikke bare feilede, og trenger sin
+  // egen vennlige feilmelding når originalfila mangler (DoD-krav 5), uten å påvirke
+  // retry-banneret over.
+  const [oppdaterVisningFeil, setOppdaterVisningFeil] = useState<string | null>(null);
+  const oppdaterVisningMutation = trpc.tegning.provKonverteringIgjen.useMutation({
+    onSuccess: () => {
+      setOppdaterVisningFeil(null);
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+    onError: (error: { message?: string }) => {
+      setOppdaterVisningFeil(
+        error.message === TEGNING_MANGLER_ORIGINALFIL_KODE
+          ? t("tegninger.manglerOriginalfil")
+          : t("tegninger.oppdaterVisningFeil"),
+      );
     },
   });
 
@@ -1407,9 +1530,18 @@ export default function TegningerSide() {
   const fileUrl = tegning.fileUrl ? `/api${tegning.fileUrl}` : null;
   const fileType = tegning.fileType ?? "";
   const erBilde = ["png", "jpg", "jpeg", "svg"].includes(fileType);
-  const erDwgKonvertering = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
   const dwgFeilet = tegning.conversionStatus === "failed";
   const erUkonvertertDwg = fileType === "dwg"; // DWG kan ikke vises direkte i nettleser
+  // RETUR 2 rekonverter (Kontrollør/Kenneth, feil 2): se tegningRekonverteringVisning.ts —
+  // `erDwgKonvertering` dekker BÅDE førstegangskonvertering (ingenting å vise) OG
+  // rekonvertering av en tegning som ALLEREDE er konvertert (fileUrl/fileType er fortsatt
+  // FORRIGE vellykkede render til `anvendDwgResultat` lykkes). Rekonvertering skal vise den
+  // gamle visningen videre, ikke spinner/tom flate — kun førstegangskonvertering blokkerer.
+  const { erDwgKonvertering, harGyldigGammelVisning, visBlokkerendeKonvertering } = tegningVisningTilstand({
+    conversionStatus: tegning.conversionStatus,
+    erBilde,
+    brukDxfViewer,
+  });
   // Feilet/konvertert PDF beholder fileType="pdf" (feilveien flipper ikke typen) → banner-tekst
   // OG re-konverter-vei velges etter filtype (se konverteringBanner). `kanAdministrereOmrade`
   // (gruppe.hentMinTilgang.erAdmin) er admin-proxy for slett/re-konverter; serveren er porten.
@@ -1675,8 +1807,10 @@ export default function TegningerSide() {
           tegningsnummer={tegning.drawingNumber}
           tegningNavn={tegning.name}
         />
-        {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11). */}
-        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={erDwgKonvertering} />
+        {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11).
+            RETUR 2 rekonverter: under rekonvertering med gyldig gammel visning holder
+            den diskrete «Oppdaterer visning …»-linjen over — ikke dupliser meldingen her. */}
+        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={visBlokkerendeKonvertering} />
         <div className="flex-1" />
 
         {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
@@ -1970,6 +2104,27 @@ export default function TegningerSide() {
           </>
         )}
 
+        {/* «Oppdater visning» (2026-10-16): rekonverter denne tegningen med gjeldende
+            motor på SAMME revisjon (backfiller dxf-viewer-artefakter). Vises kun for
+            tegninger med DWG/DXF-opphav (samme regel som prosjekt-batchen og serverens
+            scope) — knappen skal aldri love noe for en PDF/bilde-tegning. */}
+        {kanAdministrereOmrade && erTegningDwgDxfOpphav(tegning) && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <button
+              onClick={() => { setOppdaterVisningFeil(null); oppdaterVisningMutation.mutate({ id: tegning.id }); }}
+              disabled={oppdaterVisningMutation.isPending}
+              className="flex items-center gap-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-sitedoc-primary disabled:opacity-50"
+              title={t("tegninger.oppdaterVisningHjelp")}
+            >
+              <RefreshCw className={`h-4 w-4 ${oppdaterVisningMutation.isPending ? "animate-spin" : ""}`} />
+            </button>
+          </>
+        )}
+        {oppdaterVisningFeil && (
+          <span className="text-xs text-red-600">{oppdaterVisningFeil}</span>
+        )}
+
         {/* Rediger tegningsdetaljer + slett — kun admin. Rediger kobler de opprettelses-feltene
             til `tegning.oppdater` (bl.a. etasje, som flytter raden ut av «Uten etasje»). Slett
             åpner bekreftelsesmodal (ikke confirm()); serveren har slettevakt med tallet. */}
@@ -1994,13 +2149,21 @@ export default function TegningerSide() {
         )}
       </div>
 
-      {/* Konverteringsstatus — tekst per filtype (PDF vs DWG) */}
-      {erDwgKonvertering && !konvStoppet && (
+      {/* Konverteringsstatus — tekst per filtype (PDF vs DWG). Blokkerende KUN når det ikke
+          finnes noe å vise i mellomtiden (førstegangskonvertering/revisjon). */}
+      {visBlokkerendeKonvertering && !konvStoppet && (
         <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
           <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
           <span className="text-sm font-medium text-amber-800">
             {t(banner.konverteresNokkel)}
           </span>
+        </div>
+      )}
+      {/* RETUR 2 rekonverter: gammel visning står — kun en diskret linje, ikke spinner/tom flate. */}
+      {erDwgKonvertering && harGyldigGammelVisning && !konvStoppet && (
+        <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-6 py-1.5">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+          <span className="text-xs text-gray-500">{t("tegninger.oppdatererVisning")}</span>
         </div>
       )}
       {/* RETUR 1: hengende konvertering (> 10 min) — rømningsvei med «Prøv igjen». */}
@@ -2244,25 +2407,54 @@ export default function TegningerSide() {
         </div>
       )}
 
-      {/* Tegningsvisning med markører */}
-      {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
+      {/* Tegningsvisning med markører. RETUR 2 rekonverter (feil 2): under en
+          rekonvertering med en gyldig gammel visning (harGyldigGammelVisning) skal den
+          gamle filen fortsette å vises — kun førstegangskonvertering/revisjon (ingen fil
+          å falle tilbake på) blokkerer visningen. */}
+      {fileUrl && (!erDwgKonvertering || harGyldigGammelVisning) && !erUkonvertertDwg ? (
         brukDxfViewer && tegning.dxfViewerFileUrl && tegning.registerWorldUrl ? (
           // Leveranse 1: PARALLELL vei bak flagget, leser SAMME Drawing-rad (plan § 3).
-          // Egen, isolert gren — markører/måling/lagpanel/klikk er leveranse 2/3/5,
-          // ikke del av denne gaten (DoD: riktig startutsnitt i appens faktiske layout).
+          // Egen, isolert gren. F1 (trykk → egenskaper) og F2 (lagpanel) er DENNE
+          // leveransen; markører er egen leveranse 5.
           <div
             ref={containerRef}
-            className="flex-1 overflow-hidden bg-gray-100"
+            className="relative flex-1 overflow-hidden bg-gray-100"
             // RETUR (orkestrator 2026-10-14): samme definit-høyde-mekanisme som
             // erBilde-grenen (tegningVisningshoyde.ts) — uten den er `flex-1` inert i
             // den delte dashbord-layouten (<main> er display:block), og flaten kollapser
             // til ~270 px / 0 px på smal viewport.
           >
             <DxfViewerTegning
+              ref={dxfViewerRef}
               dxfUrl={`/api${tegning.dxfViewerFileUrl}`}
               registerWorldUrl={`/api${tegning.registerWorldUrl}`}
               rotasjonOverstyrt={tegning.rotasjonOverstyrt ?? null}
+              onObjektValgt={setDxfValgtObjektFelt}
+              onLaginventarKlar={handleDxfLaginventarKlar}
             />
+            {dxfLaginventar && (
+              <button
+                type="button"
+                onClick={() => setDxfLagpanelApent((a) => !a)}
+                title={t("tegningsvelger.visLag")}
+                className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow hover:bg-gray-50"
+              >
+                <Layers className="h-4 w-4" />
+              </button>
+            )}
+            {dxfLagpanelApent && dxfLaginventar && (
+              <LagPanel
+                laginventar={dxfLaginventar}
+                synlighet={dxfLagSynlighet}
+                onSettLag={handleDxfSettLag}
+                onSettGruppe={handleDxfSettGruppe}
+                onBareDette={handleDxfBareDette}
+                onAllePaa={handleDxfAllePaa}
+                onAlleAv={handleDxfAlleAv}
+                onLukk={() => setDxfLagpanelApent(false)}
+              />
+            )}
+            <EgenskapsPanel felt={dxfValgtObjektFelt} onLukk={() => setDxfValgtObjektFelt(null)} />
           </div>
         ) : erBilde ? (
           <div
@@ -2773,7 +2965,7 @@ export default function TegningerSide() {
         }
         konverteringMarkor={konvMarkor}
         erKonvertert={tegningErKonvertert}
-        konverterer={erDwgKonvertering}
+        konverterer={visBlokkerendeKonvertering}
       />
     </div>
   );

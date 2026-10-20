@@ -135,15 +135,29 @@ export interface LaasDetaljVerden {
 }
 
 /**
- * Kjernen i 90°-låsen i verdensrom — se `laasDetaljer` (maaling.ts) for presedensen
- * (parallelt/vinkelrett på referanselinje, ellers akser + vinkelrett på forrige
- * segment). Identisk logikk, ingen piksel-space-omregning (verdensrom er isotropt).
+ * Kjernen i 90°-låsen i verdensrom. Presedens for referanseretningen (RETUR
+ * 2026-10-18, Kenneths telefontest punkt 3 — orkestrators avgjørelse):
+ *   1. Ankeret er snappet til en vegg/linje (`referanse` satt) → lås parallelt/
+ *      vinkelrett på DEN linjen.
+ *   2. Ellers, finnes et forrige segment (`forforrige`, polylinje/areal fra
+ *      segment 2) → lås parallelt/vinkelrett på DET segmentet (0°/90° i forhold
+ *      til forrige, ikke byggets vinkel — en polylinje som følger en vinklet
+ *      veggrekke skal kunne svinge rent i hvert hjørne).
+ *   3. Ellers (første punkt, intet vegg-treff) → byggets DOMINANTE veggvinkel
+ *      (`dominantVeggvinkelGrader`, fra render.py, se objektmodell.ts), IKKE
+ *      skjermaksene/DXF-ens rå X/Y — de faller bare sammen når bygget selv er
+ *      aksejevnt med filens koordinatsystem, som fallplanens 40°-vinkel beviser
+ *      at det ikke alltid er. Mangler vinkelen (for tynt grunnlag) → 0°, identisk
+ *      med oppførselen FØR dette feltet fantes (aksejevne akser).
+ * Ingen piksel-space-omregning her (verdensrom er isotropt) — se `laasDetaljer`
+ * (maaling.ts) for den papir/prosent-baserte SØSTER-implementasjonen.
  */
 export function laasDetaljerVerden(
   anker: VerdenPunkt,
   kandidat: VerdenPunkt,
   forforrige?: VerdenPunkt | null,
   referanse?: ReferanselinjeVerden | null,
+  dominantVeggvinkelGrader?: number | null,
 ): LaasDetaljVerden {
   const v = vektor(anker, kandidat);
   const retninger: { d: Vektor2; perp: boolean }[] = [];
@@ -155,15 +169,19 @@ export function laasDetaljerVerden(
       retninger.push({ d: un, perp: false }); // parallelt med veggen
       retninger.push({ d: { dx: -un.dy, dy: un.dx }, perp: true }); // vinkelrett inn mot veggen
     }
+  } else if (forforrige) {
+    const u = vektor(forforrige, anker);
+    const len = Math.hypot(u.dx, u.dy);
+    if (len > 0) {
+      const un = { dx: u.dx / len, dy: u.dy / len };
+      retninger.push({ d: un, perp: false }); // 0°: fortsett rett fram
+      retninger.push({ d: { dx: -un.dy, dy: un.dx }, perp: true }); // 90°: vinkelrett på forrige
+    }
   }
   if (retninger.length === 0) {
-    retninger.push({ d: { dx: 1, dy: 0 }, perp: false });
-    retninger.push({ d: { dx: 0, dy: 1 }, perp: false });
-    if (forforrige) {
-      const u = vektor(forforrige, anker);
-      const len = Math.hypot(u.dx, u.dy);
-      if (len > 0) retninger.push({ d: { dx: -u.dy / len, dy: u.dx / len }, perp: true });
-    }
+    const rad = ((dominantVeggvinkelGrader ?? 0) * Math.PI) / 180;
+    retninger.push({ d: { dx: Math.cos(rad), dy: Math.sin(rad) }, perp: false });
+    retninger.push({ d: { dx: -Math.sin(rad), dy: Math.cos(rad) }, perp: true });
   }
 
   let best: VerdenPunkt = kandidat;
@@ -309,6 +327,10 @@ export interface SnapInnVerden {
   referanser: VerdenPunkt[];
   /** Valgt referanselinje — lås parallelt/vinkelrett på den i stedet for akser. */
   referanselinje?: ReferanselinjeVerden | null;
+  /** Byggets dominante veggvinkel (grader, RegisterVerden.dominantVeggvinkelGrader)
+   * — fallback-referanse når det ikke finnes referanselinje ELLER forrige segment.
+   * `null`/fravær → 0° (aksejevne akser, samme som før feltet fantes). */
+  dominantVeggvinkelGrader?: number | null;
   /** 90°-lås på? */
   ortho: boolean;
   /** Snap på? */
@@ -352,7 +374,7 @@ export function beregnSnapVerden(inn: SnapInnVerden): SnapResultatVerden {
 
   // 2) 90°-lås mot ankeret (akser eller valgt referanselinje).
   if (inn.ortho && inn.anker) {
-    const d = laasDetaljerVerden(inn.anker, inn.kandidat, inn.forforrige, inn.referanselinje);
+    const d = laasDetaljerVerden(inn.anker, inn.kandidat, inn.forforrige, inn.referanselinje, inn.dominantVeggvinkelGrader);
     return {
       punkt: d.punkt,
       traffPunkt: false,
@@ -393,4 +415,53 @@ export function finnNaermesteVerdenPunkt(
     }
   }
   return best;
+}
+
+/** Avstand (skjerm-px) fra et skjermpunkt til et linjesegment (begge i skjermrom). */
+function avstandTilSkjermSegment(p: SkjermPunkt, a: SkjermPunkt, b: SkjermPunkt): number {
+  const dx = b.skjermX - a.skjermX;
+  const dy = b.skjermY - a.skjermY;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(p.skjermX - a.skjermX, p.skjermY - a.skjermY);
+  let tt = ((p.skjermX - a.skjermX) * dx + (p.skjermY - a.skjermY) * dy) / len2;
+  tt = Math.max(0, Math.min(1, tt));
+  return Math.hypot(p.skjermX - (a.skjermX + tt * dx), p.skjermY - (a.skjermY + tt * dy));
+}
+
+/** Ett treff fra `finnMalingTreffVerden`: hvilken måling, og ev. hvilket PUNKT. */
+export interface MaalingTreffVerden {
+  malingIndex: number;
+  /** Indeksen til punktet som ble truffet, eller `null` = traff et SEGMENT (ikke et punkt). */
+  punktIndex: number | null;
+}
+
+/**
+ * Nærmeste måling et skjermtrykk/trådkors traff, PÅ TVERS AV ALLE målinger (ikke
+ * kun den aktive) — punkter FØR segmenter, sist-tegnet (øverste) måling vinner ved
+ * flere treff. Brukt til prioritetsregelen "målepunkter (og målesegmenter) går
+ * ALLTID foran objekter" (POST flytte målepunkter, orkestrator 2026-10-18, pkt 1) —
+ * kalleren sjekker DENNE FØR `hitTestWorld` (objekt-identifisering). `null` = bom.
+ */
+export function finnMalingTreffVerden(
+  malinger: { punkter: VerdenPunkt[] }[],
+  skjermKandidat: SkjermPunkt,
+  k: DxfKameraParametre,
+  tolPx: number,
+): MaalingTreffVerden | null {
+  for (let mi = malinger.length - 1; mi >= 0; mi--) {
+    const pts = malinger[mi]!.punkter;
+    const skjermPts = pts.map((p) => verdenTilSkjerm(p, k));
+    for (let i = 0; i < skjermPts.length; i++) {
+      const s = skjermPts[i]!;
+      if (Math.hypot(s.skjermX - skjermKandidat.skjermX, s.skjermY - skjermKandidat.skjermY) <= tolPx) {
+        return { malingIndex: mi, punktIndex: i };
+      }
+    }
+    for (let i = 0; i + 1 < skjermPts.length; i++) {
+      if (avstandTilSkjermSegment(skjermKandidat, skjermPts[i]!, skjermPts[i + 1]!) <= tolPx) {
+        return { malingIndex: mi, punktIndex: null };
+      }
+    }
+  }
+  return null;
 }

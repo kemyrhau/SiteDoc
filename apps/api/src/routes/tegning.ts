@@ -21,6 +21,26 @@ import {
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { konverterDwg, hentKonverteringKapasitet, roterProsentMarkor, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
+import {
+  erKonverteringPågår,
+  KONVERTERING_STRANDET_MS,
+  erRekonverterbarOriginal,
+  TEGNING_MANGLER_ORIGINALFIL_KODE,
+  lagTegningLivstegn,
+  TEGNING_LIVSTEGN_THROTTLE_MS,
+} from "../services/tegningRekonvertering";
+import { Semafor } from "../services/semafor";
+
+// RETUR 6 rekonverter (orkestrator 2026-10-16): maks 2 DWG/DXF-konverteringer
+// samtidig — samme Semafor-klasse som NorBERT-køen (apps/api/src/services/semafor.ts),
+// delt i stedet for kopiert. Eies NÅ ALENE av `tegningKonverteringPoll` (arbeideren
+// startet fra server.ts i api-prosessen) — mutasjonene (`provKonverteringIgjen`,
+// `oppdaterAlleTegninger`) markerer bare DB og rører den IKKE, uansett om de kjører
+// i web- eller api-prosessen (se modul-kommentar i tegningRekonvertering.ts).
+const MAKS_SAMTIDIG_REKONVERTERING = 2;
+// Eksportert KUN for test-isolasjon (`.nullstill()` mellom tester) — produksjonskode
+// bruker den aldri utenfra. Se Semafor.nullstill og `fix/ustabil-api-test`.
+export const tegningRekonverteringKø = new Semafor(MAKS_SAMTIDIG_REKONVERTERING);
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
@@ -148,9 +168,9 @@ async function tegningHarMarkorer(prisma: PrismaClient, drawingId: string): Prom
 }
 
 /**
- * ÉN felles skriver for et fullført DWG/DXF-konverteringsresultat (D5/D6) — delt av
- * `startTegningKonvertering` (opprett/revisjon) og `provKonverteringIgjen`, så de to
- * kopiene ikke kan drifte fra hverandre.
+ * ÉN felles skriver for et fullført DWG/DXF-konverteringsresultat (D5/D6). RETUR 7:
+ * eneste kaller er nå `kjorRekonvertering` (arbeideren) — opplastingsveien
+ * (`startTegningKonvertering`) markerer kun `pending` og kaller aldri denne direkte.
  *
  *  1. Oppdaterer hovedtegningen: status, koordinatsystem, georeferanse, visnings-URL,
  *     bilde-dimensjoner og måling (`mmPrPiksel`/`scale`/`scaleKilde` rett fra tegningens
@@ -273,7 +293,7 @@ export function byggKonverteringMarkor(
 }
 
 // Eksportert for enhetstest (rotasjonOverstyrt bevares ved revisjon — test c). Kalles
-// ellers kun internt fra `startTegningKonvertering`/`provKonverteringIgjen`.
+// ellers kun internt fra `kjorRekonvertering` (arbeideren, RETUR 7).
 export async function anvendDwgResultat(
   prisma: PrismaClient,
   tegning: { id: string; name: string; projectId: string; byggeplassId: string | null },
@@ -418,12 +438,20 @@ export async function anvendDwgResultat(
 /**
  * Start bakgrunns-konvertering for en PERSISTERT tegning (fire-and-forget).
  *
- * Felles vei for `opprett` (R2) og `lastOppRevisjon` (R8) — én kilde for PDF→PNG,
- * DWG→SVG (+ layouts) og IFC-metadata, så ny revisjon aldri viser gammel PNG.
- * Kalleren har ALLEREDE satt synkron initial-tilstand (`conversionStatus`,
- * `originalFileUrl`, `fileType`, bilde-dimensjoner for bildetyper); denne gjør kun
- * det asynkrone tunge arbeidet og den endelige `update`-en når konverteringen er
- * ferdig. Feiler et steg → `conversionStatus = failed`, aldri en gjettet verdi.
+ * Felles vei for `opprett` (R2) og `lastOppRevisjon` (R8) — én kilde for PDF→PNG
+ * og IFC-metadata, så ny revisjon aldri viser gammel PNG. Kalleren har ALLEREDE
+ * satt synkron initial-tilstand (`conversionStatus`, `originalFileUrl`, `fileType`,
+ * bilde-dimensjoner for bildetyper); denne gjør kun det asynkrone tunge arbeidet
+ * og den endelige `update`-en når konverteringen er ferdig. Feiler et steg →
+ * `conversionStatus = failed`, aldri en gjettet verdi.
+ *
+ * RETUR 7 rekonverter (Kontrollør/orkestrator 2026-10-17): DWG/DXF konverteres
+ * IKKE lenger her. Kalleren har allerede satt raden til `pending` (uendret); denne
+ * funksjonen gjorde tidligere ALSO en inline `konverterDwg(...)` i samme prosess,
+ * uten å sette `converting` først — arbeideren (`tegningKonverteringPoll`, poll
+ * hvert 3 s) så den fortsatt-`pending` raden og tok den opp SAMTIDIG, altså to
+ * konverteringer av samme fil. Eneste vei nå: raden står `pending` til
+ * arbeideren i api plukker den opp, akkurat som ved rekonvertering/«prøv igjen».
  *
  * `brukerScale`: en allerede satt/bekreftet målestokk (brukerinput ved opplasting,
  * eller eksisterende `scale` ved revisjon). Er den satt, overskrives den ALDRI av
@@ -435,26 +463,8 @@ function startTegningKonvertering(
   fil: { fileUrl: string; fileType: string; brukerScale?: string | null },
 ): void {
   const filType = fil.fileType.toLowerCase();
-  const erDwgEllerDxf = filType === "dwg" || filType === "dxf";
   const erIfc = filType === "ifc";
   const erPdf = filType === "pdf";
-
-  // Start asynkron DWG/DXF-konvertering i bakgrunnen (D4: DXF går samme vei, uten dwg2dxf)
-  if (erDwgEllerDxf) {
-    const filSti = join(UPLOADS_DIR, fil.fileUrl.replace("/uploads/", ""));
-    konverterDwg(filSti, tegning.name, UPLOADS_DIR, filType)
-      .then((resultat) => anvendDwgResultat(prisma, tegning, resultat, fil.fileUrl))
-      .catch(async (err) => {
-        console.error(`[DWG] Konvertering feilet for tegning ${tegning.id}:`, err);
-        await prisma.drawing.update({
-          where: { id: tegning.id },
-          data: {
-            conversionStatus: "failed",
-            conversionError: err instanceof Error ? err.message : "Ukjent feil",
-          },
-        });
-      });
-  }
 
   // Parse IFC-metadata asynkront
   if (erIfc) {
@@ -536,6 +546,163 @@ function startTegningKonvertering(
       }
     })();
   }
+}
+
+/**
+ * Kjør selve DWG/DXF-rekonverteringen fra en lagret original og skriv resultatet
+ * (eller `failed` ved kast). Kalleren — ENESTE kaller er `tegningKonverteringPoll` —
+ * har ALLEREDE satt `conversionStatus = "converting"` atomisk FØR dette kalles, slik
+ * at statusen alltid er synlig med én gang og «bare én vinner» ved samtidig opptak.
+ */
+async function kjorRekonvertering(
+  prisma: PrismaClient,
+  tegning: { id: string; name: string; projectId: string; byggeplassId: string | null; originalFileUrl: string },
+): Promise<void> {
+  // RETUR 2 rekonverter (Kontrollør/Kenneth, feil 1): «ferdig» logges allerede (linje under
+  // via anvendDwgResultat) og «feil» logges i catch — men INGEN logg fantes ved START. En
+  // jobb som henger FØR sitt første interne [DWG]-loggpunkt (f.eks. fast i libredwg/ezdxf-
+  // child-prosessen) var dermed usynlig i loggen. Logg start eksplisitt, uansett utfall.
+  console.log(`[DWG] start rekonvertering ${tegning.id} (${tegning.name})`);
+  const filType = tegning.originalFileUrl.toLowerCase().endsWith(".dxf") ? "dxf" : "dwg";
+  const filSti = join(UPLOADS_DIR, tegning.originalFileUrl.replace("/uploads/", ""));
+  // RETUR 6: livstegn mens konverteringen faktisk pågår (raden er allerede markert
+  // `converting` av arbeiderens atomiske opptak FØR denne kalles) — speiler
+  // reprosessering.ts. Uten dette ville en legitimt treg konvertering (observert 5–10+
+  // min) blitt feilklassifisert som strandet av watchdogen og startet på nytt samtidig
+  // som den opprinnelige fortsatt kjører.
+  const livstegn = lagTegningLivstegn(prisma, tegning.id);
+  const livstegnIntervall = setInterval(() => { void livstegn(); }, TEGNING_LIVSTEGN_THROTTLE_MS);
+  try {
+    const resultat = await konverterDwg(filSti, tegning.name, UPLOADS_DIR, filType);
+    await anvendDwgResultat(prisma, tegning, resultat, tegning.originalFileUrl);
+  } catch (err) {
+    console.error(`[DWG] feil ved rekonvertering ${tegning.id}:`, err);
+    await prisma.drawing.update({
+      where: { id: tegning.id },
+      data: { conversionStatus: "failed", conversionError: err instanceof Error ? err.message : "Ukjent feil" },
+    });
+  } finally {
+    clearInterval(livstegnIntervall);
+  }
+}
+
+const TEGNING_POLL_INTERVALL_MS = 3_000;
+const TEGNING_WATCHDOG_INTERVALL_MS = 60_000;
+
+/**
+ * RETUR 6 rekonverter (orkestrator 2026-10-16, avgjort): DB som kø, ÉN arbeider i api.
+ *
+ * Målt (RETUR 4/RETUR 6): et nettleser-klikk kjører tRPC in-process i WEB-containeren
+ * (`sitedoc-test-web`), et mobilklikk i API-containeren — to prosesser, og web har
+ * ALDRI hatt DWG-motoren/semaforen tilgjengelig. Tidligere versjoner (RETUR 2–5) la
+ * selve kjøringen (`void tegningRekonverteringKø.kjør(...)`) i MUTASJONEN, som derfor
+ * stille gjorde ingenting når kallet skjedde i web. Fiksen: mutasjonene
+ * (`provKonverteringIgjen`/`oppdaterAlleTegninger`) gjør BARE en atomisk markering til
+ * `pending` og returnerer — uansett hvilken prosess som mottok kallet. Denne funksjonen,
+ * startet KUN fra api sin `server.ts`, er den ENE arbeideren som faktisk kjører
+ * `konverterDwg`: poller `pending` hvert `TEGNING_POLL_INTERVALL_MS`, tar opp maks
+ * `MAKS_SAMTIDIG_REKONVERTERING` rader atomisk (betinget `updateMany`, «bare én
+ * vinner» ved samtidig opptak — to pollere, eller et «prøv igjen»-klikk i mellomtiden),
+ * og lar `kjorRekonvertering` skrive `done`/`failed`.
+ *
+ * Erstatter/forenkler den tidligere `gjenopptaStrandedeRekonverteringer` (kjørt kun ved
+ * oppstart): en `pending`-rad blir ALLTID plukket opp av denne løkka uansett hvor lenge
+ * den har ventet (ingen egen «gjenoppta etter omstart»-logikk nødvendig), og en strandet
+ * `converting`-rad (arbeideren som eide den døde) settes tilbake til `pending` av
+ * `tegningKonverteringWatchdog` og plukkes opp igjen av NESTE poll, uten noe eget
+ * oppstarts-steg.
+ */
+export async function tegningKonverteringPoll(prisma: PrismaClient): Promise<Array<Promise<void>>> {
+  // Fire-and-forget i produksjon: `startTegningKonverteringWorker` ignorerer returen og lar
+  // jobbene kjøre i bakgrunnen (poll-løkka skal returnere raskt). Returen finnes KUN for at
+  // tester kan avvente de startede jobbene deterministisk (`await Promise.all(...)`) i stedet
+  // for `vi.waitFor` på sanntid — sistnevnte ble ustabil under parallell turbo-last fordi
+  // sanntids-pollingen og 5 s-testgrensen slår inn før den utsultede jobben rekker å fullføre.
+  const startede: Array<Promise<void>> = [];
+  const kapasitet = MAKS_SAMTIDIG_REKONVERTERING - tegningRekonverteringKø.iFlukt;
+  if (kapasitet <= 0) return startede;
+
+  const kandidater = await prisma.drawing.findMany({
+    where: { conversionStatus: "pending" },
+    orderBy: { updatedAt: "asc" },
+    take: kapasitet,
+    select: { id: true, name: true, projectId: true, byggeplassId: true, originalFileUrl: true, updatedAt: true },
+  });
+
+  for (const t of kandidater) {
+    // Defensivt — mutasjonene markerer kun rekonverterbare rader `pending`, men en
+    // arbeider skal ALDRI forsøke `konverterDwg` på en rad uten gyldig original.
+    if (!erRekonverterbarOriginal(t.originalFileUrl)) {
+      console.warn(`[DWG] pending-rad ${t.id} uten rekonverterbar original — hopper over`);
+      continue;
+    }
+    // Atomisk opptak, betinget på snapshotet fra `findMany` over: en annen poll-runde
+    // (eller «prøv igjen»-klikk) som allerede har tatt/fullført raden treffer 0 rader —
+    // ingen dobbel jobb, «bare én vinner».
+    const opptak = await prisma.drawing.updateMany({
+      where: { id: t.id, conversionStatus: "pending", updatedAt: t.updatedAt },
+      data: { conversionStatus: "converting" },
+    });
+    if (opptak.count === 0) continue;
+
+    console.log(`[DWG] arbeider tar opp ${t.id} (${t.name})`);
+    startede.push(
+      tegningRekonverteringKø.kjør(() =>
+        kjorRekonvertering(prisma, {
+          id: t.id,
+          name: t.name,
+          projectId: t.projectId,
+          byggeplassId: t.byggeplassId,
+          originalFileUrl: t.originalFileUrl!,
+        }),
+      ),
+    );
+  }
+  return startede;
+}
+
+/**
+ * Setter en strandet `converting`-rad (arbeideren som eide den døde — restart/krasj,
+ * ingen livstegn siden `KONVERTERING_STRANDET_MS`) tilbake til `pending`. Ett
+ * bulk-`updateMany` er trygt: en rad som FAKTISK fortsatt kjører skriver livstegn hvert
+ * `TEGNING_LIVSTEGN_THROTTLE_MS` (godt under grensen) og treffes derfor aldri av
+ * `updatedAt < grense`.
+ */
+export async function tegningKonverteringWatchdog(prisma: PrismaClient): Promise<void> {
+  const grense = new Date(Date.now() - KONVERTERING_STRANDET_MS);
+  const strandet = await prisma.drawing.updateMany({
+    where: { conversionStatus: "converting", updatedAt: { lt: grense } },
+    data: { conversionStatus: "pending" },
+  });
+  if (strandet.count > 0) {
+    console.log(`[DWG] watchdog: ${strandet.count} strandet converting-rad(er) tilbake til pending`);
+  }
+}
+
+/** Startes ÉN gang fra api sin `server.ts` — se modul-kommentaren på `tegningKonverteringPoll`. */
+export function startTegningKonverteringWorker(prisma: PrismaClient): void {
+  console.log(`[DWG] tegning-konverterings-arbeider startet (maks ${MAKS_SAMTIDIG_REKONVERTERING} samtidig, poll ${TEGNING_POLL_INTERVALL_MS / 1000} s)`);
+
+  async function poll() {
+    try {
+      await tegningKonverteringPoll(prisma);
+    } catch (err) {
+      console.error("[DWG] poll-feil:", err);
+    }
+    setTimeout(poll, TEGNING_POLL_INTERVALL_MS);
+  }
+
+  async function watchdog() {
+    try {
+      await tegningKonverteringWatchdog(prisma);
+    } catch (err) {
+      console.error("[DWG] watchdog-feil:", err);
+    }
+    setTimeout(watchdog, TEGNING_WATCHDOG_INTERVALL_MS);
+  }
+
+  setTimeout(poll, 1_000);
+  setTimeout(watchdog, 5_000);
 }
 
 export const tegningRouter = router({
@@ -654,9 +821,11 @@ export const tegningRouter = router({
         },
       });
 
-      // R2/R8: felles konverteringsvei (PDF→PNG, DWG→SVG+layouts, IFC-metadata).
-      // Initial-tilstand (conversionStatus/originalFileUrl/bilde-dim) er satt synkront
-      // i create over; helperen gjør det asynkrone arbeidet.
+      // R2/R8: felles konverteringsvei for PDF→PNG og IFC-metadata. Initial-tilstand
+      // (conversionStatus/originalFileUrl/bilde-dim) er satt synkront i create over;
+      // helperen gjør det asynkrone arbeidet for disse to typene. DWG/DXF gjør
+      // INGENTING her (RETUR 7) — raden står `pending` til arbeideren i api
+      // (`tegningKonverteringPoll`) plukker den opp, samme vei som rekonvertering.
       startTegningKonvertering(
         ctx.prisma,
         { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
@@ -815,9 +984,10 @@ export const tegningRouter = router({
         },
       });
 
-      // R8: start konvertering for den nye fila (delt vei med `opprett`). brukerScale =
-      // eksisterende målestokk → en kalibrert/manuell målestokk overskrives aldri av et
-      // nytt tittelfelt-forslag.
+      // R8: start konvertering for den nye fila (delt vei med `opprett`) — kun
+      // PDF/IFC (RETUR 7: DWG/DXF gjør ingenting her, se `startTegningKonvertering`).
+      // brukerScale = eksisterende målestokk → en kalibrert/manuell målestokk
+      // overskrives aldri av et nytt tittelfelt-forslag.
       startTegningKonvertering(
         ctx.prisma,
         { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
@@ -994,44 +1164,174 @@ export const tegningRouter = router({
       // ALT pågår skal verken dobles eller avbrytes — men dør prosessen midt i, blir raden
       // stående på pending/converting for alltid, og uten rømningsvei kan tegningen aldri
       // konverteres igjen (stille felle). Derfor: fersk pending/converting avvises, men er
-      // statusen eldre enn 10 min (updatedAt; ezdxf-tidsavbruddet er 300 s) regnes den som
-      // død og vi faller gjennom og starter en ny konvertering.
-      const KONVERTERING_FRIST_MS = 10 * 60 * 1000;
-      const pågår = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
-      if (pågår && Date.now() - new Date(tegning.updatedAt).getTime() < KONVERTERING_FRIST_MS) {
+      // statusen strandet (ezdxf-tidsavbruddet er 300 s, god margin til KONVERTERING_STRANDET_MS)
+      // regnes den som død og vi faller gjennom og starter en ny konvertering.
+      if (erKonverteringPågår(tegning.conversionStatus, tegning.updatedAt)) {
         return { status: tegning.conversionStatus };
       }
 
-      if (!tegning.originalFileUrl) {
-        throw new Error("Denne tegningen har ingen original DWG-fil");
+      if (!erRekonverterbarOriginal(tegning.originalFileUrl)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: TEGNING_MANGLER_ORIGINALFIL_KODE });
       }
 
-      // Nullstill status
-      await ctx.prisma.drawing.update({
-        where: { id: input.id },
+      // Nullstill status — BETINGET på `updatedAt`-snapshotet over (RETUR 5, samme
+      // vakt som `oppdaterAlleTegninger`): rørte raden seg mellom lesingen og
+      // skrivingen (en annen kjøring tok/fullførte den i mellomtiden), skal denne
+      // klikken ALDRI starte en konkurrerende jobb eller overskrive resultatet.
+      const opptak = await ctx.prisma.drawing.updateMany({
+        where: { id: input.id, updatedAt: tegning.updatedAt },
         data: { conversionStatus: "pending", conversionError: null },
       });
-
-      // Start konvertering på nytt — filtype utledes av originalens endelse (dwg/dxf).
-      const original = tegning.originalFileUrl;
-      const filType = original.toLowerCase().endsWith(".dxf") ? "dxf" : "dwg";
-      const filSti = join(UPLOADS_DIR, original.replace("/uploads/", ""));
-      konverterDwg(filSti, tegning.name, UPLOADS_DIR, filType)
-        .then((resultat) => anvendDwgResultat(
-          ctx.prisma,
-          { id: tegning.id, name: tegning.name, projectId: tegning.projectId, byggeplassId: tegning.byggeplassId },
-          resultat,
-          original,
-        ))
-        .catch(async (err) => {
-          console.error(`[DWG] Re-konvertering feilet for ${input.id}:`, err);
-          await ctx.prisma.drawing.update({
-            where: { id: input.id },
-            data: { conversionStatus: "failed", conversionError: err instanceof Error ? err.message : "Ukjent feil" },
-          });
+      if (opptak.count === 0) {
+        const fersk = await ctx.prisma.drawing.findUnique({
+          where: { id: input.id },
+          select: { conversionStatus: true },
         });
+        return { status: fersk?.conversionStatus ?? tegning.conversionStatus };
+      }
 
+      // RETUR 6 (orkestrator 2026-10-16, DB-som-kø): BARE markering — denne mutasjonen
+      // kjører like ofte i WEB-prosessen (nettleser-klikk, in-process tRPC, målt i RETUR
+      // 4/6) som i api (mobil), og web har aldri hatt DWG-motoren eller semaforen
+      // tilgjengelig. Selve konverteringen startes KUN av arbeideren i api
+      // (`tegningKonverteringPoll`, startet fra `server.ts`), som poller `pending`.
       return { status: "pending" };
+    }),
+
+  // «Oppdater visning»/«Oppdater alle tegninger» (2026-10-16): samlet fremdrift,
+  // UTEN migrering — utledet av `conversionStatus`/`updatedAt` som ALLEREDE finnes
+  // på Drawing (samme 2a-mønster som `mappe.reprosesseringStatus`). Overlever
+  // sideoppdatering og er riktig på tvers av web/api (to prosesser), i motsetning
+  // til en in-memory-teller i ÉN av dem.
+  //
+  // Scope: kun HOVEDTEGNINGER (ikke layouts — de regenereres automatisk når
+  // forelderen rekonverteres), avgrenset til DWG/DXF-opphav. `original_file_url`
+  // er den direkte, entydige kilden (satt siden 10.10 og bevart gjennom revisjon/
+  // «prøv igjen»). For eldre tegninger uten arkivert original (før 10.10) finnes
+  // INGEN dedikert «opprinnelig filtype»-kolonne — PDF→PNG og DWG/DXF→SVG er de
+  // ENESTE to veiene som setter `conversion_status`, og de produserer alltid hhv.
+  // `png`/`svg` (aldri omvendt), så `file_type IN ('dwg','dxf','svg')` + ikke-null
+  // `conversion_status` identifiserer DWG/DXF-opphav uten feilmargin — ikke en
+  // gjetning på et ikke-unikt felt (dokumentert heuristikk, ikke stille antagelse).
+  rekonverteringStatus: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const rows = await ctx.prisma.$queryRaw<
+        Array<{ totalt: bigint; pagar: bigint; feilet: bigint; mangler_original: bigint }>
+      >`
+        SELECT COUNT(*) AS totalt,
+               COUNT(*) FILTER (
+                 WHERE d.conversion_status = 'pending'
+                   OR (
+                     d.conversion_status = 'converting'
+                     AND d.updated_at > now() - ${KONVERTERING_STRANDET_MS / 1000} * interval '1 second'
+                   )
+               ) AS pagar,
+               COUNT(*) FILTER (
+                 WHERE d.conversion_status = 'failed'
+                   OR (
+                     d.conversion_status = 'converting'
+                     AND d.updated_at <= now() - ${KONVERTERING_STRANDET_MS / 1000} * interval '1 second'
+                   )
+               ) AS feilet,
+               COUNT(*) FILTER (WHERE d.original_file_url IS NULL) AS mangler_original
+        FROM drawings d
+        WHERE d.project_id = ${input.projectId}
+          AND d.parent_drawing_id IS NULL
+          AND (
+            lower(d.original_file_url) LIKE '%.dwg' OR lower(d.original_file_url) LIKE '%.dxf'
+            OR (
+              d.original_file_url IS NULL
+              AND d.conversion_status IS NOT NULL
+              AND d.file_type IN ('dwg', 'dxf', 'svg')
+            )
+          )
+      `;
+      const r = rows[0];
+      const totalt = Number(r?.totalt ?? 0);
+      const pågår = Number(r?.pagar ?? 0);
+      const feilet = Number(r?.feilet ?? 0);
+      const manglerOriginal = Number(r?.mangler_original ?? 0);
+      return { totalt, pågår, feilet, manglerOriginal, ferdig: totalt - pågår - feilet - manglerOriginal };
+    }),
+
+  // Admin-gatet batch: rekonverter ALLE DWG/DXF-tegninger i prosjektet fra lagret
+  // original, på SAMME revisjon (markører/rotasjonsoverstyring/georeferanse/
+  // historikk bevares av `anvendDwgResultat`, uendret av denne ordren). Markerer
+  // BARE `pending` (RETUR 6, DB-som-kø) — arbeideren i api (`tegningKonverteringPoll`)
+  // kjører selve konverteringen, maks 2 samtidig.
+  // Tegninger som ALLEREDE er ferske pending/converting hoppes over (unngår å
+  // doble en kjørende konvertering); tegninger uten original telles i
+  // `manglerOriginal` i stedet for å feile. Samme DWG/DXF-opphavs-scope som
+  // `rekonverteringStatus` over (se kommentaren der).
+  oppdaterAlleTegninger: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      const kandidater = await ctx.prisma.drawing.findMany({
+        where: {
+          projectId: input.projectId,
+          parentDrawingId: null,
+          OR: [
+            { originalFileUrl: { not: null } },
+            {
+              originalFileUrl: null,
+              conversionStatus: { not: null },
+              fileType: { in: ["dwg", "dxf", "svg"] },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          projectId: true,
+          byggeplassId: true,
+          originalFileUrl: true,
+          conversionStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      const manglerOriginal = kandidater.filter((t) => !t.originalFileUrl).length;
+      const startbare = kandidater.filter(
+        (t) =>
+          erRekonverterbarOriginal(t.originalFileUrl) &&
+          !erKonverteringPågår(t.conversionStatus, t.updatedAt),
+      );
+
+      if (startbare.length === 0) {
+        return { startet: 0, manglerOriginal };
+      }
+
+      // Synkront: sett alle til "pending" FØR vi returnerer, så
+      // `rekonverteringStatus` straks viser riktig «pågår»-tall og knappen kan
+      // deaktiveres med én gang (overlever sideoppdatering — DB, ikke klient-state).
+      //
+      // RETUR 5 (kappløp målt): IKKE ett blindt bulk-kall lenger. Hver rad merkes
+      // BETINGET på sin egen `updatedAt`-snapshot (fra `kandidater`-lesingen over), i
+      // SAMME transaksjon. En rad som har rørt seg mellom lesingen og skrivingen her —
+      // en raskere konkurrerende kjøring (et annet «oppdater alle»-kall, et «prøv
+      // igjen»-klikk) har ALLEREDE fullført den og skrevet "done" — telles ikke som
+      // startet og får ALDRI en ny jobb her. Uten denne vakta ville den sene, blinde
+      // "sett alle til pending" overskrevet et "done" en annen jobb nettopp satte:
+      // konverteringen lykkes (synlig i loggen), men raden står likevel på pending.
+      const opptak = await ctx.prisma.$transaction(
+        startbare.map((t) =>
+          ctx.prisma.drawing.updateMany({
+            where: { id: t.id, updatedAt: t.updatedAt },
+            data: { conversionStatus: "pending", conversionError: null },
+          }),
+        ),
+      );
+      const tattOpp = startbare.filter((_t, i) => opptak[i]!.count > 0);
+
+      // RETUR 6 (orkestrator 2026-10-16, DB-som-kø): BARE markering, samme grunn som
+      // `provKonverteringIgjen` over — denne admin-batchen kjører i WEB-prosessen når
+      // Kenneth trykker i nettleseren (målt i RETUR 4/6). Arbeideren i api
+      // (`tegningKonverteringPoll`) poller `pending` og starter selve konverteringen.
+      return { startet: tattOpp.length, manglerOriginal };
     }),
 
   // Slett tegning. ADMIN-gatet + SLETTEVAKT (speiler omrade.slett): alle referanse-FK-ene er

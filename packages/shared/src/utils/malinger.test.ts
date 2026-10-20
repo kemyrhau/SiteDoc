@@ -211,12 +211,80 @@ describe("malinger — RETUR 6 § 1: auto-avslutt stoppet (polylinje) + areal ku
     t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
     t = leggTilPunkt(t, { x: 40, y: 10 }, naer(40, 10));
     t = leggTilPunkt(t, { x: 40, y: 40 }, naer(40, 40));
-    // Nær TREDJE punkt (ikke første) → nytt punkt, ikke lukk.
-    t = leggTilPunkt(t, { x: 41, y: 41 }, naer(41, 41));
+    // Nær et punkt som IKKE er siste ELLER første (midt-punkt 40,10) → nytt punkt.
+    t = leggTilPunkt(t, { x: 41, y: 10 }, naer(41, 10));
     expect(aktivMaling(t)?.ferdig).toBe(false);
     expect(aktivMaling(t)?.punkter).toHaveLength(4);
     // Nær FØRSTE punkt → lukk (den ene tillatte auto-avslutningen).
     t = leggTilPunkt(t, { x: 11, y: 10 }, naer(11, 10));
+    expect(aktivMaling(t)?.ferdig).toBe(true);
+  });
+});
+
+describe("malinger — TILLEGG (orkestrator 2026-10-20, «Sett punkt» pkt 3): ignorer duplikatpunkt", () => {
+  it("linjal: andre trykk nær samme sted gir IKKE 0 m eller ferdig", () => {
+    let t = startMaling(TOM_MALETILSTAND, "linjal", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    expect(aktivMaling(t)?.punkter).toHaveLength(1);
+    // Usikker på om trykket registrerte → trykker igjen rett ved samme sted.
+    t = leggTilPunkt(t, { x: 11, y: 11 }, naer(11, 11));
+    expect(aktivMaling(t)?.punkter).toHaveLength(1); // IKKE lagt til
+    expect(aktivMaling(t)?.ferdig).toBe(false); // IKKE 0 m / ferdig
+  });
+
+  it("polylinje: dobbelttrykk nær siste punkt ignoreres, men et ekte nytt punkt legges til", () => {
+    let t = startMaling(TOM_MALETILSTAND, "polylinje", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    t = leggTilPunkt(t, { x: 40, y: 10 }, naer(40, 10));
+    const duplikat = leggTilPunkt(t, { x: 41, y: 11 }, naer(41, 11)); // nær siste (40,10)
+    expect(duplikat).toBe(t); // uendret referanse, ignorert
+    expect(aktivMaling(duplikat)?.punkter).toHaveLength(2);
+    // Et punkt et godt stykke unna legges til som normalt.
+    t = leggTilPunkt(duplikat, { x: 70, y: 70 }, naer(70, 70));
+    expect(aktivMaling(t)?.punkter).toHaveLength(3);
+    expect(aktivMaling(t)?.ferdig).toBe(false);
+  });
+
+  it("areal: dobbelttrykk nær siste punkt ignoreres (lukker IKKE, legger IKKE til)", () => {
+    let t = startMaling(TOM_MALETILSTAND, "areal", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    t = leggTilPunkt(t, { x: 40, y: 10 }, naer(40, 10));
+    t = leggTilPunkt(t, { x: 40, y: 40 }, naer(40, 40));
+    const duplikat = leggTilPunkt(t, { x: 41, y: 41 }, naer(41, 41)); // nær siste (40,40)
+    expect(duplikat).toBe(t);
+    expect(aktivMaling(duplikat)?.punkter).toHaveLength(3);
+    expect(aktivMaling(duplikat)?.ferdig).toBe(false);
+  });
+
+  it("areal: lukking mot FØRSTE punkt virker fortsatt selv om siste punkt er langt unna", () => {
+    let t = startMaling(TOM_MALETILSTAND, "areal", "a");
+    t = leggTilPunkt(t, { x: 10, y: 10 }, naer(10, 10));
+    t = leggTilPunkt(t, { x: 40, y: 10 }, naer(40, 10));
+    t = leggTilPunkt(t, { x: 40, y: 40 }, naer(40, 40));
+    t = leggTilPunkt(t, { x: 11, y: 11 }, naer(11, 11)); // nær FØRSTE, langt fra siste
+    expect(aktivMaling(t)?.ferdig).toBe(true);
+    expect(aktivMaling(t)?.punkter).toHaveLength(3);
+  });
+});
+
+describe("malinger — TILLEGG (orkestrator 2026-10-20, «Sett punkt» pkt 4): polylinje avsluttes aldri av seg selv", () => {
+  it("mange trykk, inkludert nær-duplikater og nær-første-punkt, gjør ALDRI polylinjen ferdig", () => {
+    let t = startMaling(TOM_MALETILSTAND, "polylinje", "a");
+    const trykk = [
+      [10, 10],
+      [10, 11], // nær-duplikat av forrige → ignorert
+      [40, 10],
+      [41, 11], // nær-duplikat → ignorert
+      [40, 40],
+      [11, 11], // nær FØRSTE punkt (10,10) — kun areal lukker på dette, polylinje gjør det ALDRI
+      [70, 70],
+    ] as const;
+    for (const [x, y] of trykk) t = leggTilPunkt(t, { x, y }, naer(x, y));
+    expect(aktivMaling(t)?.ferdig).toBe(false);
+    // 7 trykk, 2 ignorert som duplikat → 5 reelle punkter.
+    expect(aktivMaling(t)?.punkter).toHaveLength(5);
+    // Avsluttes fortsatt bare eksplisitt (Fullfør).
+    t = settFerdig(t);
     expect(aktivMaling(t)?.ferdig).toBe(true);
   });
 });

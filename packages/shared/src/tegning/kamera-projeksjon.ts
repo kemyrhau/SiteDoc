@@ -82,6 +82,13 @@ export function skjermTilVerden(p: SkjermPunkt, k: DxfKameraParametre): VerdenPu
   return { verdenX: k.senterX + dx, verdenY: k.senterY + dy };
 }
 
+/** Piksler pr. DXF-verdensenhet ved gjeldende zoom — grunnlag for pikseltoleranser
+ * (trefftest F1, markørstørrelse) som skal være konstante på skjermen uavhengig av zoom. */
+export function pxPerVerdenhet(k: DxfKameraParametre): number {
+  const { halvW } = halvbredder(k);
+  return k.canvasBredde / (2 * halvW);
+}
+
 /** DXF-verdenskoordinat → skjermpunkt (canvas-piksler). Inversen av {@link skjermTilVerden}. */
 export function verdenTilSkjerm(p: VerdenPunkt, k: DxfKameraParametre): SkjermPunkt {
   const dx = p.verdenX - k.senterX;

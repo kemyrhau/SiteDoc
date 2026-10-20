@@ -102,6 +102,16 @@ export function leggTilPunkt(
 }
 
 function punktTilMaling(m: Maling, p: Punkt, erNaer: (q: Punkt) => boolean): Maling {
+  // 🔴 TILLEGG (orkestrator 2026-10-20, "«Sett punkt» registrerer ikke trykk
+  // sikkert" pkt 3): et nytt punkt innenfor terskelen av FORRIGE punkt i den
+  // aktive målingen legges ikke til — et usikkert dobbelttrykk på samme sted
+  // (bruker uviss om første trykk registrerte, se knappefiksen i
+  // DxfViewerTegning.tsx) skal aldri gi en 0 m-linjal/ferdig eller et
+  // null-lengde-segment i polylinje/areal. Gjelder KUN siste punkt — areal sin
+  // lukking mot FØRSTE punkt (under) er en annen, uendret sjekk.
+  const sist = m.punkter[m.punkter.length - 1];
+  if (sist && erNaer(sist)) return m;
+
   if (m.verktoy === "linjal") {
     const punkter = [...m.punkter, p].slice(-2);
     return { ...m, punkter, ferdig: punkter.length >= 2 };
@@ -151,6 +161,25 @@ export function flyttPunkt(t: MaleTilstand, index: number, p: Punkt): MaleTilsta
   const punkter = m.punkter.slice();
   punkter[index] = p;
   return { ...t, malinger: t.malinger.map((x) => (x.id === m.id ? { ...x, punkter } : x)) };
+}
+
+/**
+ * Flytt et punkt i EN SPESIFIKK måling, uansett om den er aktiv, og gjør den
+ * aktiv (POST flytte målepunkter, orkestrator 2026-10-18, pkt 1: målepunkter går
+ * foran objekter uansett hvilken måling som var aktiv da trykket traff). Generalisering
+ * av `flyttPunkt` (som kun virker på DEN AKTIVE målingen) — den beholdes uendret for
+ * eksisterende kallere (SVG-veien), denne brukes av dxf-viewer-grenens treff-på-
+ * tvers-av-alle-målinger.
+ */
+export function flyttPunktIMaling(t: MaleTilstand, malingId: string, index: number, p: Punkt): MaleTilstand {
+  const m = t.malinger.find((x) => x.id === malingId);
+  if (!m || index < 0 || index >= m.punkter.length) return t;
+  const punkter = m.punkter.slice();
+  punkter[index] = p;
+  return {
+    malinger: t.malinger.map((x) => (x.id === malingId ? { ...x, punkter } : x)),
+    aktivId: malingId,
+  };
 }
 
 /** Velg en eksisterende måling som aktiv (trykk på den). Ukjent id → uendret. */

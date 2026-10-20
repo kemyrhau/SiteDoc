@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DxfViewerTegning, type DxfViewerTegningRef } from "@/components/tegning/DxfViewerTegning";
-import type { TegningVerktoy } from "@sitedoc/shared";
+import { LagPanel } from "@/components/tegning/LagPanel";
+import { EgenskapsPanel } from "@/components/tegning/EgenskapsPanel";
+import type { TegningVerktoy, RegisterVerdenLagInfo, EgenskapsFelt } from "@sitedoc/shared";
+import { sendTilApp } from "./send-til-app";
 
 /**
  * Mobil leveranse 1 (arbeidstegning-f1, "SVAR MOBILPLAN" i
@@ -20,6 +23,7 @@ import type { TegningVerktoy } from "@sitedoc/shared";
  *     { type: "maleVerktoy", verktoy: "flytt"|"linjal"|"polylinje"|"areal" }  — leveranse 3+4
  *     { type: "maleOrtho", på: boolean }
  *     { type: "maleSnap", på: boolean }
+ *     { type: "malePeker", på: boolean }  — tillegg 3: fast trådkors + handlingsknapp
  *     { type: "maleFullfoer" }     — Fullfør (polylinje)
  *     { type: "maleGjenoppta" }    — Fortsett en ferdig måling
  *     { type: "maleSlettAktiv" }
@@ -31,6 +35,21 @@ import type { TegningVerktoy } from "@sitedoc/shared";
  *     { type: "feil", melding: string }
  *     { type: "maleKlar", kanMale: boolean }  — leveranse 3+4: $INSUNITS lest, RN kan
  *                                                sperre/åpne måleknappene
+ *     { type: "objektValgt", felt: EgenskapsFelt[] | null }  — F1: trykk på objekt
+ *                                                               (utenfor målemodus)
+ *     { type: "laginventarKlar", antall: number, laginventar: RegisterVerdenLagInfo[] }
+ *                                                — F2: registeret er lastet
+ *
+ *   Inn, F2 (postMessage til vinduet):
+ *     { type: "settLagSynlig", navn: string, synlig: boolean }  — lag av/på
+ *
+ * Mobilplanen (SJEKKPUNKT 2026-10-17, "mobilplanen er godkjent i sin helhet"):
+ * når siden lastes inne i RN sin WebView (`window.ReactNativeWebView` finnes),
+ * rendrer den IKKE sine egne flytende paneler (LagPanel/EgenskapsPanel/"Lag (N)"-
+ * knappen) — RN bygger native paneler (`TegningEgenskapsArk`/`TegningLagPanel`)
+ * drevet av `objektValgt`/`laginventarKlar`-meldingene, og siden er da en REN
+ * data-bro. Paneler under er bare for feilsøking i en vanlig nettleser (f.eks.
+ * åpnet direkte på Mac for å verifisere uten RN).
  */
 
 interface StartMelding {
@@ -38,17 +57,6 @@ interface StartMelding {
   dxfUrl: string;
   registerWorldUrl: string;
   rotasjonOverstyrt: number | null;
-}
-
-function sendTilApp(data: Record<string, unknown>) {
-  try {
-    const rn = (window as unknown as { ReactNativeWebView?: { postMessage: (s: string) => void } })
-      .ReactNativeWebView;
-    if (rn) rn.postMessage(JSON.stringify(data));
-    window.parent?.postMessage(data, "*");
-  } catch {
-    /* RN-brua finnes ikke (f.eks. åpnet direkte i Mac-nettleser for feilsøking) */
-  }
 }
 
 /** Rullerende 2s fps-vindu — median/lavest, uavhengig av DxfViewerTegning sin egen render-loop
@@ -76,10 +84,24 @@ function useFpsMaaling() {
   return prøverRef;
 }
 
+/** Beregnes ÉN gang: siden kjører enten i RN sin WKWebView (ren data-bro, se
+ * filheaderen) eller i en vanlig nettleser (viser egne feilsøkingspaneler). */
+function erIRnWebview(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!(window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+}
+
 export default function DxfViewerRøyktest() {
   const [melding, setMelding] = useState<StartMelding | null>(null);
   const prøverRef = useFpsMaaling();
   const viewerRef = useRef<DxfViewerTegningRef>(null);
+  const [laginventar, setLaginventar] = useState<RegisterVerdenLagInfo[] | null>(null);
+  const [lagSynlighet, setLagSynlighet] = useState<Record<string, boolean>>({});
+  const [lagpanelApent, setLagpanelApent] = useState(false);
+  const [rnBro] = useState(erIRnWebview);
+  // F1-forarbeid for mobil-bunn-arket (RN): samme lokale egenskapspanel-visning
+  // som LagPanel over — bar røyketest-visning, ikke ekstra scope.
+  const [valgtObjektFelt, setValgtObjektFelt] = useState<EgenskapsFelt[] | null>(null);
 
   useEffect(() => {
     function rapporter() {
@@ -112,6 +134,8 @@ export default function DxfViewerRøyktest() {
           viewerRef.current?.settOrtho(!!data.på);
         } else if (data.type === "maleSnap") {
           viewerRef.current?.settSnap(!!data.på);
+        } else if (data.type === "malePeker") {
+          viewerRef.current?.settPeker(!!data.på);
         } else if (data.type === "maleFullfoer") {
           viewerRef.current?.fullfoerAktiv();
         } else if (data.type === "maleGjenoppta") {
@@ -120,6 +144,11 @@ export default function DxfViewerRøyktest() {
           viewerRef.current?.slettAktiv();
         } else if (data.type === "maleSlettAlle") {
           viewerRef.current?.slettAlle();
+        } else if (data.type === "settLagSynlig") {
+          const navn = String(data.navn ?? "");
+          const synlig = !!data.synlig;
+          viewerRef.current?.settLagSynlig(navn, synlig);
+          setLagSynlighet((s) => ({ ...s, [navn]: synlig }));
         }
       } catch {
         /* Ikke JSON for oss — ignorer */
@@ -152,6 +181,14 @@ export default function DxfViewerRøyktest() {
           registerWorldUrl={melding.registerWorldUrl}
           rotasjonOverstyrt={melding.rotasjonOverstyrt}
           onMaleKlarEndring={(kanMale) => sendTilApp({ type: "maleKlar", kanMale })}
+          onObjektValgt={(felt) => {
+            setValgtObjektFelt(felt);
+            sendTilApp({ type: "objektValgt", felt });
+          }}
+          onLaginventarKlar={(li) => {
+            setLaginventar(li);
+            sendTilApp({ type: "laginventarKlar", antall: li?.length ?? 0, laginventar: li ?? [] });
+          }}
         />
       ) : (
         <div
@@ -168,6 +205,59 @@ export default function DxfViewerRøyktest() {
           Venter på tegning-URL fra appen …
         </div>
       )}
+      {!rnBro && laginventar && (
+        <button
+          type="button"
+          data-testid="lagpanel-knapp"
+          onClick={() => setLagpanelApent((a) => !a)}
+          style={{ position: "absolute", left: 12, top: 12, zIndex: 20 }}
+        >
+          Lag ({laginventar.length})
+        </button>
+      )}
+      {!rnBro && lagpanelApent && laginventar && (
+        <LagPanel
+          laginventar={laginventar}
+          synlighet={lagSynlighet}
+          onSettLag={(navn, synlig) => {
+            viewerRef.current?.settLagSynlig(navn, synlig);
+            setLagSynlighet((s) => ({ ...s, [navn]: synlig }));
+          }}
+          onSettGruppe={(navnListe, synlig) => {
+            setLagSynlighet((s) => {
+              const neste = { ...s };
+              for (const navn of navnListe) {
+                viewerRef.current?.settLagSynlig(navn, synlig);
+                neste[navn] = synlig;
+              }
+              return neste;
+            });
+          }}
+          onBareDette={(navn) => {
+            const neste: Record<string, boolean> = {};
+            for (const li of laginventar) {
+              const synlig = li.navn === navn;
+              neste[li.navn] = synlig;
+              viewerRef.current?.settLagSynlig(li.navn, synlig);
+            }
+            setLagSynlighet(neste);
+          }}
+          onAllePaa={() => {
+            for (const li of laginventar) viewerRef.current?.settLagSynlig(li.navn, true);
+            setLagSynlighet({});
+          }}
+          onAlleAv={() => {
+            const neste: Record<string, boolean> = {};
+            for (const li of laginventar) {
+              neste[li.navn] = false;
+              viewerRef.current?.settLagSynlig(li.navn, false);
+            }
+            setLagSynlighet(neste);
+          }}
+          onLukk={() => setLagpanelApent(false)}
+        />
+      )}
+      {!rnBro && <EgenskapsPanel felt={valgtObjektFelt} onLukk={() => setValgtObjektFelt(null)} />}
     </div>
   );
 }

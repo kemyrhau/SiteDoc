@@ -15,6 +15,7 @@ import {
   filtrerSynligeVerdenPunkter,
   beregnSnapVerden,
   finnNaermesteVerdenPunkt,
+  finnMalingTreffVerden,
 } from "./maaling-verden";
 
 // Samme kamera-fixture som kamera-projeksjon.test.ts: symmetrisk boks, senter i
@@ -151,6 +152,41 @@ describe("laasDetaljerVerden — 90°-lås i verdensrom", () => {
     // Låst punkt skal ligge på linjen gjennom anker med 45°-retning: verdenY - 5 === verdenX - 5
     expect(d.punkt.verdenY - 5).toBeCloseTo(d.punkt.verdenX - 5, 6);
   });
+
+  // RETUR 2026-10-18 (Kenneths telefontest punkt 3): uten vegg-snap og uten forrige
+  // segment skal 90°-låsen følge BYGGETS dominante veggvinkel (render.py), ikke
+  // skjermaksene/DXF-ens rå X/Y — fallplanen har akkurat denne 40°-vinkelen.
+  it("en vegg på 40° (dominantVeggvinkelGrader): låst segment går langs eller vinkelrett på veggen", () => {
+    const anker: VerdenPunkt = { verdenX: 0, verdenY: 0 };
+    const grad40 = (40 * Math.PI) / 180;
+    // Kandidat nær PARALLELT med 40°-veggen.
+    const kandidatParallell: VerdenPunkt = {
+      verdenX: 10 * Math.cos(grad40) + 0.2,
+      verdenY: 10 * Math.sin(grad40) - 0.2,
+    };
+    const dPar = laasDetaljerVerden(anker, kandidatParallell, null, null, 40);
+    const vinkelPar = (Math.atan2(dPar.punkt.verdenY, dPar.punkt.verdenX) * 180) / Math.PI;
+    expect(Math.abs(((vinkelPar - 40 + 180) % 360) - 180)).toBeLessThanOrEqual(0.1);
+    expect(dPar.vinkelrett).toBe(false);
+
+    // Kandidat nær VINKELRETT på 40°-veggen (dvs. 130°).
+    const grad130 = (130 * Math.PI) / 180;
+    const kandidatPerp: VerdenPunkt = {
+      verdenX: 10 * Math.cos(grad130) - 0.2,
+      verdenY: 10 * Math.sin(grad130) + 0.2,
+    };
+    const dPerp = laasDetaljerVerden(anker, kandidatPerp, null, null, 40);
+    const vinkelPerp = (Math.atan2(dPerp.punkt.verdenY, dPerp.punkt.verdenX) * 180) / Math.PI;
+    expect(Math.abs(((vinkelPerp - 130 + 180) % 360) - 180)).toBeLessThanOrEqual(0.1);
+    expect(dPerp.vinkelrett).toBe(true);
+  });
+
+  it("uten dominantVeggvinkelGrader (fravær/null): faller tilbake til aksejevne akser (uendret oppførsel)", () => {
+    const anker: VerdenPunkt = { verdenX: 0, verdenY: 0 };
+    const kandidat: VerdenPunkt = { verdenX: 10, verdenY: 1 };
+    const d = laasDetaljerVerden(anker, kandidat, null, null, null);
+    expect(d.punkt.verdenY).toBeCloseTo(0, 9);
+  });
 });
 
 describe("snapTilPunktVerden / snapTil90LinjeVerden", () => {
@@ -231,6 +267,38 @@ describe("finnNaermesteVerdenPunkt", () => {
   it("ingen punkt innen toleransen → -1", () => {
     const punkter: VerdenPunkt[] = [{ verdenX: 1000, verdenY: 2000 }];
     expect(finnNaermesteVerdenPunkt(punkter, { skjermX: 0, skjermY: 0 }, BASIS, 5)).toBe(-1);
+  });
+});
+
+describe("finnMalingTreffVerden — prioritet punkter foran segmenter, øverste måling vinner", () => {
+  it("treffer et SEGMENT (midt mellom to punkter, utenfor punkt-toleransen)", () => {
+    const malinger = [
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }, { verdenX: 1200, verdenY: 2000 }] }, // skjerm (400,300)-(600,300)
+    ];
+    const treff = finnMalingTreffVerden(malinger, { skjermX: 500, skjermY: 300 }, BASIS, 10);
+    expect(treff).toEqual({ malingIndex: 0, punktIndex: null });
+  });
+
+  it("et PUNKT vinner over et segment når begge er innen toleransen", () => {
+    const malinger = [
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }, { verdenX: 1200, verdenY: 2000 }] },
+    ];
+    const treff = finnMalingTreffVerden(malinger, { skjermX: 402, skjermY: 301 }, BASIS, 10);
+    expect(treff).toEqual({ malingIndex: 0, punktIndex: 0 });
+  });
+
+  it("sist-tegnet (øverste) måling vinner ved flere treff på samme sted", () => {
+    const malinger = [
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }] },
+      { punkter: [{ verdenX: 1000, verdenY: 2000 }] },
+    ];
+    const treff = finnMalingTreffVerden(malinger, { skjermX: 400, skjermY: 300 }, BASIS, 10);
+    expect(treff).toEqual({ malingIndex: 1, punktIndex: 0 });
+  });
+
+  it("ingen treff innen toleransen → null", () => {
+    const malinger = [{ punkter: [{ verdenX: 1000, verdenY: 2000 }] }];
+    expect(finnMalingTreffVerden(malinger, { skjermX: 0, skjermY: 0 }, BASIS, 5)).toBeNull();
   });
 });
 

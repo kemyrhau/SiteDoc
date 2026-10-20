@@ -21,6 +21,30 @@ import { parseOnlyFlag, finnUkjenteOnlyNokler } from "./generateArgs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Oversettelsestjenesten oversetter ofte innholdet i {{variabel}} (f.eks. {{side}}→{{côté}}),
+ * så i18next ikke lenger finner variabelen og brukeren ser «{{côté}}» rått. Dette var
+ * rotårsaken til de 221 avvikene som vakta (reprosessering-i18n-interpolasjon.test.ts) fanget.
+ *
+ * Rekkefølgen av {{...}}-felt bevares i praksis av oversettelsen — bare navnet forvanskes.
+ * Vi gjenoppretter derfor hvert felt posisjonsvis fra kilden (en). Avviker ANTALLET felt
+ * (tjenesten droppet eller doblet ett), logger vi det høyt i stedet for å skjule det —
+ * da fanger vakta det uansett, men meldingen peker rett på nøkkelen.
+ */
+function gjenopprettVariabler(kilde: string, oversatt: string, key: string, lang: string): string {
+  const kildeVars = [...kilde.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map((m) => m[1]!.trim());
+  if (kildeVars.length === 0) return oversatt;
+  const oversatteFelt = oversatt.match(/\{\{\s*[^}]+?\s*\}\}/g) ?? [];
+  if (oversatteFelt.length !== kildeVars.length) {
+    console.warn(
+      `  ⚠️ ${lang} ${key}: ${kildeVars.length} variabler i kilden, ${oversatteFelt.length} i oversettelsen — kan ikke gjenopprette trygt. Sjekk manuelt.`,
+    );
+    return oversatt;
+  }
+  let i = 0;
+  return oversatt.replace(/\{\{\s*[^}]+?\s*\}\}/g, () => `{{${kildeVars[i++]}}}`);
+}
+
 async function main() {
   const { default: translate } = await import("google-translate-api-x");
 
@@ -89,7 +113,8 @@ async function main() {
         const resultater = Array.isArray(oversatt) ? oversatt : [oversatt];
 
         batch.forEach(([key], j) => {
-          resultat[key] = resultater[j]?.text ?? tekster[j];
+          const raaOversatt = resultater[j]?.text ?? tekster[j]!;
+          resultat[key] = gjenopprettVariabler(en[key]!, raaOversatt, key, lang);
         });
       } catch (error) {
         console.error(`  Feil ved batch ${i}-${i + 50} for ${lang}:`, error);

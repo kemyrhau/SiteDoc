@@ -1,8 +1,8 @@
 "use client";
 
-import { SearchInput, Spinner } from "@sitedoc/ui";
+import { SearchInput, Spinner, Modal } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -13,6 +13,8 @@ import {
   Star,
   MapPin,
   Layers,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 interface Tegning {
@@ -139,6 +141,59 @@ export function TegningerPanel() {
       utils.bygning.hentForProsjekt.invalidate({ projectId: params.prosjektId });
     },
   });
+
+  // Samme admin-sjekk som tegningsdetaljen (`kanAdministrereOmrade`, gruppe.hentMinTilgang) —
+  // «Oppdater alle tegninger» er admin-gatet på serveren (verifiserAdmin), og knappen skal
+  // ikke vises til noen den uansett vil avvise for.
+  const { data: minTilgang } = trpc.gruppe.hentMinTilgang.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const erAdmin = minTilgang?.erAdmin ?? false;
+
+  const [visOppdaterAlleModal, setVisOppdaterAlleModal] = useState(false);
+
+  // «Oppdater alle tegninger» (2026-10-16): rekonverterer alle DWG/DXF-tegninger med
+  // gjeldende motor (backfiller dxf-viewer-artefakter på eksisterende tegninger).
+  const oppdaterAlleMutation = trpc.tegning.oppdaterAlleTegninger.useMutation({
+    onSuccess: () => {
+      setVisOppdaterAlleModal(false);
+      utils.tegning.rekonverteringStatus.invalidate({ projectId: params.prosjektId });
+    },
+  });
+
+  // Samlet fremdrift (prosjekt-nivå): utledet av `conversionStatus` på DB-raden (2a-mønster,
+  // samme som mappe.reprosesseringStatus) — overlever sideoppdatering, poller kun mens noe
+  // kjører. Henter også `manglerOriginal` (eldre tegninger uten arkivert original — kan ikke
+  // oppdateres, trenger ny opplasting).
+  const { data: rekonvertStatus } = trpc.tegning.rekonverteringStatus.useQuery(
+    { projectId: params.prosjektId },
+    {
+      enabled: !!params.prosjektId && erAdmin,
+      refetchInterval: (query: { state: { data: unknown } }) =>
+        ((query.state.data as { pågår?: number } | undefined)?.pågår ?? 0) > 0 ? 3000 : false,
+    },
+  );
+  const rekonvertPågår = (rekonvertStatus?.pågår ?? 0) > 0;
+  const rekonvertKjører = oppdaterAlleMutation.isPending || rekonvertPågår;
+
+  // «Ferdig: X ok, Y feilet» kort etter at en kjøring går pågår→ferdig (transient,
+  // nullstilles ved ny kjøring) — speiler mapper/page.tsx sin reprosesser-fremdrift.
+  const forrigeRekonvertPågår = useRef(false);
+  const [rekonvertFerdigSammendrag, setRekonvertFerdigSammendrag] = useState<{ ok: number; feilet: number } | null>(null);
+  useEffect(() => {
+    if (!rekonvertStatus) return;
+    if (rekonvertPågår) {
+      setRekonvertFerdigSammendrag(null);
+      forrigeRekonvertPågår.current = true;
+      return;
+    }
+    if (forrigeRekonvertPågår.current) {
+      const ok = Math.max(0, rekonvertStatus.totalt - rekonvertStatus.feilet - rekonvertStatus.manglerOriginal);
+      setRekonvertFerdigSammendrag({ ok, feilet: rekonvertStatus.feilet });
+    }
+    forrigeRekonvertPågår.current = false;
+  }, [rekonvertPågår, rekonvertStatus]);
 
   function toggleUtvid(nokkel: string) {
     setUtvidede((prev) => {
@@ -302,7 +357,76 @@ export function TegningerPanel() {
                 })}
           </p>
         )}
+
+        {/* «Oppdater alle tegninger» (2026-10-16): backfiller dxf-viewer-artefakter på
+            eksisterende DWG/DXF-tegninger med gjeldende konverteringsmotor. Admin-gatet
+            (samme nivå som Rediger/Slett i tegningsdetaljen), bekreftelse i modal (ikke
+            confirm()). Fremdrift utledet av DB — overlever sideoppdatering. */}
+        {erAdmin && (
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => setVisOppdaterAlleModal(true)}
+              disabled={rekonvertKjører}
+              className="flex items-center gap-1 self-start text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              title={t("tegninger.oppdaterAlleTegningerHjelp")}
+            >
+              <RefreshCw className={`h-3 w-3 ${rekonvertKjører ? "animate-spin" : ""}`} />
+              {t("tegninger.oppdaterAlleTegninger")}
+            </button>
+            {rekonvertPågår ? (
+              <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                <Loader2 className="h-3 w-3 animate-spin text-sitedoc-primary" />
+                {t("tegninger.oppdatererFremdrift", {
+                  ferdig: rekonvertStatus?.ferdig ?? 0,
+                  totalt: rekonvertStatus?.totalt ?? 0,
+                })}
+              </p>
+            ) : rekonvertFerdigSammendrag ? (
+              <p className="text-xs text-gray-500">
+                {t("tegninger.oppdatertFerdig", {
+                  ok: rekonvertFerdigSammendrag.ok,
+                  feilet: rekonvertFerdigSammendrag.feilet,
+                })}
+              </p>
+            ) : null}
+            {!rekonvertPågår && (rekonvertStatus?.manglerOriginal ?? 0) > 0 && (
+              <p className="text-xs text-amber-600">
+                {t("tegninger.oppdaterAlleManglerOriginal", {
+                  antall: rekonvertStatus!.manglerOriginal,
+                })}
+              </p>
+            )}
+          </div>
+        )}
       </div>
+
+      {erAdmin && (
+        <Modal
+          open={visOppdaterAlleModal}
+          onClose={() => setVisOppdaterAlleModal(false)}
+          title={t("tegninger.oppdaterAlleTegninger")}
+        >
+          <div className="p-5">
+            <p className="text-sm text-gray-600">{t("tegninger.oppdaterAlleTegningerBekreft")}</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setVisOppdaterAlleModal(false)}
+                className="rounded border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                {t("handling.avbryt")}
+              </button>
+              <button
+                onClick={() => oppdaterAlleMutation.mutate({ projectId: params.prosjektId })}
+                disabled={rekonvertKjører}
+                className="flex items-center gap-1.5 rounded bg-sitedoc-primary px-4 py-2 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+              >
+                {rekonvertKjører && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("tegninger.oppdaterAlleTegninger")}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       <div className="flex flex-col gap-0.5">
         {/* Alle byggeplasser */}

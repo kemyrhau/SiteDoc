@@ -2,8 +2,8 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from "react-native-webview/lib/WebViewTypes";
-import type { TegningVerktoy } from "@sitedoc/shared";
-import { hentWebUrl } from "../config/auth";
+import type { EgenskapsFelt, RegisterVerdenLagInfo, TegningVerktoy } from "@sitedoc/shared";
+import { erTestLoginAktiv, hentWebUrl } from "../config/auth";
 
 // RETUR leveranse 2 (Kontrollør, punkt 2): et NATIVT WebView-last-problem (offline
 // nett-drop midt i last, DNS-feil, http-feilstatus) kommer ALDRI som en "feil"-
@@ -31,6 +31,13 @@ const LASTE_TIDSGRENSE_MS = 10000;
  * Rendrer `DxfViewerTegning` (ekte web-komponent) via den auth-frie
  * `/dxf-viewer-smoketest`-siden, samme postMessage-mønster som `IfcViewer.tsx`
  * bruker for `/mobil-viewer`.
+ *
+ * Mobilplanen (F1+F2, "mobilplanen er godkjent i sin helhet", 2026-10-17): siden
+ * er nå en REN data-bro når den kjører i denne WebView-en (skrur av sine egne
+ * flytende paneler, se filheaderen i `dxf-viewer-smoketest/page.tsx`) — RN bygger
+ * native paneler (`TegningEgenskapsArk`/`TegningLagPanel` i `lokasjoner.tsx`)
+ * drevet av de nye `objektValgt`/`laginventarKlar`-meldingene videresendt her, og
+ * `settLagSynlig` på refen poster lag av/på tilbake samme vei.
  */
 
 export interface DxfViewerTegningMobilProps {
@@ -46,6 +53,10 @@ export interface DxfViewerTegningMobilProps {
   onLastFeil?: () => void;
   /** Leveranse 3+4: kalt når måleverktøyet blir tilgjengelig/utilgjengelig ($INSUNITS lest). */
   onMaleKlarEndring?: (kanMale: boolean) => void;
+  /** F1: kalt ved trykk på objekt utenfor målemodus (null = ingen/avmarkert). */
+  onObjektValgt?: (felt: EgenskapsFelt[] | null) => void;
+  /** F2: kalt når registeret er lastet og laginventaret er klart (null = ingen tegning). */
+  onLaginventarKlar?: (laginventar: RegisterVerdenLagInfo[] | null) => void;
 }
 
 export interface DxfViewerTegningMobilRef {
@@ -56,15 +67,19 @@ export interface DxfViewerTegningMobilRef {
   settMaleVerktoy: (v: TegningVerktoy) => void;
   settMaleOrtho: (på: boolean) => void;
   settMaleSnap: (på: boolean) => void;
+  /** Tillegg 3: fast trådkors + handlingsknapp i stedet for direkte trykk. */
+  settMalePeker: (på: boolean) => void;
   fullfoerMaling: () => void;
   gjenopptaMaling: () => void;
   slettAktivMaling: () => void;
   slettAlleMaalinger: () => void;
+  /** F2: slå et DXF-lag av/på (dxf-viewers `ShowLayer`, via web-siden). */
+  settLagSynlig: (navn: string, synlig: boolean) => void;
 }
 
 export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfViewerTegningMobilProps>(
   function DxfViewerTegningMobil(
-    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMetrics, onLastFeil, onMaleKlarEndring },
+    { dxfUrl, registerWorldUrl, rotasjonOverstyrt, onMetrics, onLastFeil, onMaleKlarEndring, onObjektValgt, onLaginventarKlar },
     ref,
   ) {
     const webViewRef = useRef<WebView>(null);
@@ -147,12 +162,16 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
             setSideFeil(msg.melding);
           } else if (msg.type === "maleKlar") {
             onMaleKlarEndring?.(!!msg.kanMale);
+          } else if (msg.type === "objektValgt") {
+            onObjektValgt?.(msg.felt ?? null);
+          } else if (msg.type === "laginventarKlar") {
+            onLaginventarKlar?.(msg.laginventar ?? null);
           }
         } catch {
           /* Ignorer ugyldig JSON */
         }
       },
-      [onMetrics, onMaleKlarEndring],
+      [onMetrics, onMaleKlarEndring, onObjektValgt, onLaginventarKlar],
     );
 
     useEffect(() => {
@@ -171,10 +190,13 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
       settMaleVerktoy: (v) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleVerktoy", verktoy: v })),
       settMaleOrtho: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleOrtho", på })),
       settMaleSnap: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSnap", på })),
+      settMalePeker: (på) => webViewRef.current?.postMessage(JSON.stringify({ type: "malePeker", på })),
       fullfoerMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleFullfoer" })),
       gjenopptaMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleGjenoppta" })),
       slettAktivMaling: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSlettAktiv" })),
       slettAlleMaalinger: () => webViewRef.current?.postMessage(JSON.stringify({ type: "maleSlettAlle" })),
+      settLagSynlig: (navn, synlig) =>
+        webViewRef.current?.postMessage(JSON.stringify({ type: "settLagSynlig", navn, synlig })),
     }));
 
     const lastPaaNytt = useCallback(() => {
@@ -197,6 +219,13 @@ export const DxfViewerTegningMobil = forwardRef<DxfViewerTegningMobilRef, DxfVie
           domStorageEnabled
           allowsInlineMediaPlayback
           originWhitelist={["*"]}
+          // RETUR F1+F2 mobil (orkestrator 2026-10-18, "SVAR 2"): render-krasjen i
+          // smoketest-siden er ikke lokalt pålitelig reproduserbar (vendor dxf-viewer-
+          // race, se relay/inbox-orkestrator.md) — ekte stack fra telefonens WKWebView
+          // krever Safari Web Inspector. Kun i test-bygg (samme gate som dev-login),
+          // ALDRI i prod (krever iOS 16.4+, og eksponerer WebView-innholdet for Safari
+          // på samme Mac som er koblet via USB — ufarlig i test, uønsket i prod).
+          webviewDebuggingEnabled={erTestLoginAktiv}
         />
 
         {!klarWeb && !sideFeil && (
