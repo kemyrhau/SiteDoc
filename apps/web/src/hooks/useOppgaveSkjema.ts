@@ -111,9 +111,9 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   // refen for settVerdi-guarden.
   const låsteFelter = useMemo(
     () =>
-      !oppgave || oppgave.status === "draft"
-        ? new Set<string>()
-        : beregnLaasteFelter((oppgave.data ?? {}) as Record<string, { verdi?: unknown }>),
+      oppgave
+        ? beregnLaasteFelter((oppgave.data ?? {}) as Record<string, { verdi?: unknown }>, oppgave.status)
+        : new Set<string>(),
     [oppgave],
   );
   låsteFelterRef.current = låsteFelter;

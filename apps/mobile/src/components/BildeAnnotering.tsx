@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable } from "react-native";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { View, Text, Pressable, Keyboard, Animated, Platform, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
@@ -40,6 +40,42 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>("arrow");
   const [erKlar, settErKlar] = useState(false);
   const webViewRef = useRef<WebView>(null);
+
+  // Tastatur-unnvikelse: når tekst skrives direkte på bildet (fabric.IText) åpner
+  // det native tastaturet seg og legger seg oppå nederste del av WebView-en, så
+  // tekstpunktet blir usynlig. Vi TRANSLATER WebView-en opp (ikke resize) — Fabric-
+  // canvasens pikselstørrelse er uendret, så annoteringskoordinatene holder; teksten
+  // havner der den ble plassert i bildets egne koordinater (befaring-feltfunn 2026-10-20).
+  const verktoylinjeHoyde = useRef(0);
+  const forskyvning = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const visHendelse = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const skjulHendelse = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const visAbo = Keyboard.addListener(visHendelse, (e) => {
+      const tastaturHoyde = e.endCoordinates?.height ?? 0;
+      // Overlapp = hvor langt tastaturet dekker inn i WebView-en. Under WebView-en
+      // ligger verktøylinja + sikker-sone, som tastaturet dekker uansett. Flytt opp
+      // akkurat så mye at WebView-bunnen klarer tastaturets overkant.
+      const overlapp = Math.max(0, tastaturHoyde - verktoylinjeHoyde.current - insets.bottom);
+      Animated.timing(forskyvning, {
+        toValue: -overlapp,
+        duration: e.duration || 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    const skjulAbo = Keyboard.addListener(skjulHendelse, (e) => {
+      Animated.timing(forskyvning, {
+        toValue: 0,
+        duration: e?.duration || 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => {
+      visAbo.remove();
+      skjulAbo.remove();
+    };
+  }, [forskyvning, insets.bottom]);
 
   const sendMelding = useCallback(
     (melding: Record<string, unknown>) => {
@@ -118,8 +154,8 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         </Pressable>
       </View>
 
-      {/* WebView med Fabric.js */}
-      <View className="flex-1">
+      {/* WebView med Fabric.js — Animated.View translateres opp når tastaturet vises */}
+      <Animated.View className="flex-1" style={{ transform: [{ translateY: forskyvning }] }}>
         <WebView
           ref={webViewRef}
           source={{ html: ANNOTERINGS_HTML }}
@@ -128,10 +164,15 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           onMessage={håndterMelding}
           allowFileAccess
         />
-      </View>
+      </Animated.View>
 
       {/* Verktøylinje */}
-      <View className="flex-row items-center justify-around bg-gray-900 px-4 py-3">
+      <View
+        className="flex-row items-center justify-around bg-gray-900 px-4 py-3"
+        onLayout={(e: LayoutChangeEvent) => {
+          verktoylinjeHoyde.current = e.nativeEvent.layout.height;
+        }}
+      >
         {VERKTOYER.map(({ id, ikon: Ikon, labelKey }) => (
           <Pressable
             key={id}
