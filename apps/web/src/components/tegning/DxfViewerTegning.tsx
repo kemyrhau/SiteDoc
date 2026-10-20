@@ -470,6 +470,16 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   const viewerRef = useRef<any>(null);
   const bygningRef = useRef<ReturnType<typeof beregnByggUtstrekning>>(null);
   const fitZoomBaseRef = useRef<number | null>(null);
+  /** Tillegg pkt 5 (orkestrator 2026-10-20): sann etter at DENNE viewer-instansen
+   * har fått sitt FØRSTE ekte kamera-oppsett (bygnings-fit ELLER gjenopprettet
+   * kontekst-tap-snapshot, se `tilpassKamera`). Resettes til usann hver gang en
+   * NY viewer bygges i `last()` (ny fil ELLER webglcontextrestored-reload).
+   * ResizeObserveren bruker flagget til å skille «dette er fortsatt del av den
+   * FØRSTE tilpasningen» (høyden kan være 0 ved mount, se ResizeObserver-
+   * kommentaren) fra «dette er en triviell resize av en ALLEREDE lastet
+   * tegning» (RN-verktøyraden som vises/forsvinner) — kun den FØRSTE skal
+   * bygnings-fitte, resten skal bare endre størrelse (se `justerStorrelseVedResize`). */
+  const forsteFitGjortRef = useRef(false);
   // Ferskeste SIGNERTE URL-er tilgjengelig for effekten uten å trigge et nytt effekt-løp
   // (se avhengighetene i useEffect under — kun den USIGNERTE stien trigger reload).
   const dxfUrlRef = useRef(dxfUrl);
@@ -507,6 +517,23 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
   const [pekerLupeBevegelse, setPekerLupeBevegelse] = useState(false);
   const pekerLupeCanvasRef = useRef<HTMLCanvasElement>(null);
   const pekerLupeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tillegg pkt 1 (orkestrator 2026-10-20): egen, liten gest-tilstand for
+  // trådkors-handlingsknappen («Velg»/«Sett punkt»/«Flytt punkt»/«Avbryt») —
+  // SE `onPekerKnappPointerUp`-kommentaren for hvorfor native `onClick` ikke er
+  // nok i ekte WebKit-touch. Separat fra `gestRef` (canvas-gestene) — knappen er
+  // et helt annet DOM-element.
+  const pekerKnappGestRef = useRef<{ pointerId: number | null; startX: number; startY: number }>({
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+  });
+  // Tillegg pkt 2 (orkestrator 2026-10-20): visuell kvittering (ring) når et punkt
+  // faktisk blir SATT — se `visPunktKvittering`.
+  const [punktKvittering, setPunktKvittering] = useState<{ skjermX: number; skjermY: number; id: number } | null>(
+    null,
+  );
+  const punktKvitteringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const punktKvitteringIdRef = useRef(0);
   const rotasjonOverstyrtRef = useRef(rotasjonOverstyrt ?? 0);
   rotasjonOverstyrtRef.current = rotasjonOverstyrt ?? 0;
   const onMaleKlarEndringRef = useRef(onMaleKlarEndring);
@@ -803,6 +830,60 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     tegnOverlegg();
   }
 
+  /** Tillegg pkt 2 (orkestrator 2026-10-20): PURT VISUELL kvittering (ingen tekst,
+   * ingen toast) når et punkt faktisk blir satt — en ring som pulserer ut og fader
+   * på ~300 ms ved punktet (Tailwinds `animate-ping`, se JSX). Kalles KUN av
+   * kallere som allerede har bekreftet at punktet ble LAGT TIL (ikke ignorert som
+   * duplikat, se `malinger.ts`-tillegget) — ingen kvittering på et no-op-trykk.
+   * Haptikk er IKKE lagt til: ingen WebView-postMessage-bro eller
+   * native-avhengighet (`expo-haptics`) finnes i dag — ikke "enkelt" per ordrens
+   * egen fallback-klausul ("ellers bare visuelt").
+   */
+  function visPunktKvittering(skjermX: number, skjermY: number) {
+    const id = ++punktKvitteringIdRef.current;
+    setPunktKvittering({ skjermX, skjermY, id });
+    if (punktKvitteringTimerRef.current) clearTimeout(punktKvitteringTimerRef.current);
+    punktKvitteringTimerRef.current = setTimeout(() => {
+      punktKvitteringTimerRef.current = null;
+      setPunktKvittering((p) => (p?.id === id ? null : p));
+    }, 300);
+  }
+
+  /** Tillegg pkt 1 (orkestrator 2026-10-20): native `onClick` på trådkors-
+   * handlingsknappen registrerte IKKE alltid et bevisst trykk i ekte WebKit-touch
+   * (Kenneths telefontest, «I for liten grad ble det markert et punkt når jeg
+   * trykket») — kjent WebView-oppførsel når et lite touchmove (noen få px) eller
+   * et nytt trykk mens kameraet fortsatt glir (OrbitControls damping) kansellerer
+   * den syntetiske klikk-hendelsen. Egen pointerdown/opp-sekvens med
+   * bevegelsestoleranse (samme mønster som canvas-gestene, se
+   * TrykkGest/avgjorTrykkHandling) + eksplisitt nullstilling av den native klikken
+   * (se `onPekerKnappClick`) gir NØYAKTIG én handling pr. bevisst trykk, uansett
+   * plattform-forsinkelse/ghost-click — ingen dobbeltfyring, ingen tapt trykk.
+   */
+  function onPekerKnappPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    pekerKnappGestRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY };
+  }
+
+  function onPekerKnappPointerUp(e: React.PointerEvent<HTMLButtonElement>, handling: () => void) {
+    const g = pekerKnappGestRef.current;
+    if (g.pointerId !== e.pointerId) return;
+    pekerKnappGestRef.current = { pointerId: null, startX: 0, startY: 0 };
+    if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > 10) return; // dratt → ikke et bevisst trykk
+    e.preventDefault();
+    handling();
+  }
+
+  /** Mus/touch utfører handlingen ALLEREDE i `onPekerKnappPointerUp` over — den
+   * påfølgende native klikken skal IKKE gjøre det én gang til (dobbeltfyring).
+   * Tastatur-aktivering (Enter/Space på en fokusert knapp) går IKKE via pointer-
+   * eventer og MÅ derfor utføres her — `e.detail === 0` er signaturen på en
+   * tastatur-/a11y-trigget klikk (mus/touch gir alltid `detail >= 1`).
+   */
+  function onPekerKnappClick(e: React.MouseEvent<HTMLButtonElement>, handling: () => void) {
+    if (e.detail === 0) handling();
+    else e.preventDefault();
+  }
+
   function avbrytGest() {
     const g = gestRef.current;
     const viewer = viewerRef.current;
@@ -946,7 +1027,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
 
     if (handling === "settPunkt" && forhand) {
       const punkt = fraVerden(forhand.punkt);
-      setMaleTilstand((t) => leggTilPunkt(t, punkt, (q) => naerTerskel(punkt, q)));
+      const t0 = uiRef.current.maleTilstand;
+      const neste = leggTilPunkt(t0, punkt, (q) => naerTerskel(punkt, q));
+      if (neste !== t0) {
+        setMaleTilstand(neste);
+        visPunktKvittering(g.startSkjerm.x, g.startSkjerm.y);
+      }
     } else if (handling === "hint") {
       // F1: trykk utenfor målemodus → identifiser objektet under trykkpunktet.
       // g.startSkjerm er allerede canvas-relative CSS-px (satt i onPointerDown) —
@@ -1000,6 +1086,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       if (forhand && id) {
         const punkt = fraVerden(forhand.punkt);
         setMaleTilstand((t) => flyttPunktIMaling(t, id, pf.punktIndex, punkt));
+        visPunktKvittering(skjermX, skjermY);
       }
       uiRef.current.pekerFlytt = PEKER_FLYTT_INGEN;
       setPekerFlytt(PEKER_FLYTT_INGEN);
@@ -1013,7 +1100,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       const forhand = gestRef.current.forhandsvisning;
       if (forhand) {
         const punkt = fraVerden(forhand.punkt);
-        setMaleTilstand((t) => leggTilPunkt(t, punkt, (q) => naerTerskel(punkt, q)));
+        const t0 = uiRef.current.maleTilstand;
+        const neste = leggTilPunkt(t0, punkt, (q) => naerTerskel(punkt, q));
+        if (neste !== t0) {
+          setMaleTilstand(neste);
+          visPunktKvittering(skjermX, skjermY);
+        }
       }
       gestRef.current.forhandsvisning = null;
       tegnOverlegg();
@@ -1156,6 +1248,32 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     }
     viewer.Render();
     tegnOverlegg();
+    forsteFitGjortRef.current = true;
+  }
+
+  /** Tillegg pkt 5 (orkestrator 2026-10-20): ResizeObserveren kalte FØR ALLTID
+   * `tilpassKamera()` uten snapshot ved HVER størrelsesendring — en bygnings-refit
+   * også for en triviell endring (RN-verktøyraden «+ Fortsett / Slett / Slett alle»
+   * som vises/forsvinner endrer WebView-høyden når en måling blir aktiv/ferdig,
+   * eller Flytt starter/slutter). `viewer.SetSize()` (dxf-viewer sin EGEN metode,
+   * node_modules-kilde `DxfViewer.js:182-208`: "Resize the canvas, keeping the
+   * current view centre and scale") gjør ALLEREDE riktig arbeid — feilen var at
+   * `tilpassKamera` kastet det bort igjen med en ny bygningsfit RETT ETTERPÅ.
+   * Denne funksjonen kaller BARE `SetSize` (pluss samme zoom-tak-justering som
+   * tilpassKamera alltid har gjort), og brukes av ResizeObserveren for ALT unntatt
+   * den FØRSTE tilpasningen pr. last (se `forsteFitGjortRef`). */
+  function justerStorrelseVedResize(rect: DOMRectReadOnly | DOMRect) {
+    const viewer = viewerRef.current;
+    if (!viewerKlar(viewer) || rect.width <= 0 || rect.height <= 0) return;
+    viewer.SetSize(Math.round(rect.width), Math.round(rect.height));
+    if (viewer.controls && fitZoomBaseRef.current) {
+      const startBredde = viewer.camera.right - viewer.camera.left;
+      const forhold = startBredde / fitZoomBaseRef.current;
+      viewer.controls.minZoom = 0.5 * forhold;
+      viewer.controls.maxZoom = 150 * forhold;
+    }
+    viewer.Render();
+    tegnOverlegg();
   }
 
   useEffect(() => {
@@ -1247,6 +1365,10 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
         viewerRef.current = viewer;
         bygningRef.current = null;
         fitZoomBaseRef.current = null;
+        // Tillegg pkt 5: ny viewer-instans → neste tilpassKamera()-kall (bygningsfit
+        // ELLER gjenopprett-restore, se der) er på nytt «den første» for DENNE
+        // instansen — ResizeObserveren skal bygnings-fitte til den er satt.
+        forsteFitGjortRef.current = false;
 
         // RETUR 4 punkt 2: tapt WebGL-kontekst (f.eks. en bakgrunnsfane Chrome reklamerer
         // GPU-minne fra) skal ALDRI gi en stille blank flate. "lost" viser feil+"Prøv
@@ -1373,7 +1495,12 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     if (el) {
       ro = new ResizeObserver((entries) => {
         const rect = entries[0]?.contentRect;
-        if (rect) tilpassKamera(rect);
+        if (!rect) return;
+        // Tillegg pkt 5: kun FØRSTE tilpasning pr. last bygnings-fitter (se
+        // forsteFitGjortRef-kommentaren) — alt etterpå er en triviell resize som
+        // skal beholde senter + målestokk, ikke kaste brukerens pan/zoom.
+        if (forsteFitGjortRef.current) justerStorrelseVedResize(rect);
+        else tilpassKamera(rect);
       });
       ro.observe(el);
     }
@@ -1385,6 +1512,7 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       viewer?.Destroy?.();
       if (dxfBlobUrl) URL.revokeObjectURL(dxfBlobUrl);
       if (pekerLupeTimerRef.current) clearTimeout(pekerLupeTimerRef.current);
+      if (punktKvitteringTimerRef.current) clearTimeout(punktKvitteringTimerRef.current);
     };
     // RETUR 4 punkt 1: avhengig av den USIGNERTE stien (stabil for samme fil), ikke
     // dxfUrl/registerWorldUrl (signert på nytt ved hver tRPC-refetch — se filheaderen).
@@ -1408,7 +1536,10 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
         <div className="absolute left-1/2 top-1/2 flex translate-x-[-50%] translate-y-[24px] gap-2">
           <button
             type="button"
-            onClick={utforPekerHandling}
+            onPointerDown={onPekerKnappPointerDown}
+            onPointerUp={(e) => onPekerKnappPointerUp(e, utforPekerHandling)}
+            onClick={(e) => onPekerKnappClick(e, utforPekerHandling)}
+            style={{ touchAction: "none" }}
             className="rounded-full bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white shadow-lg"
           >
             {pekerFlytt.status === "flytter" || erMaleVerktoy(verktoy)
@@ -1420,7 +1551,10 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
           {pekerFlytt.status === "flytter" && (
             <button
               type="button"
-              onClick={avbrytPekerFlytt}
+              onPointerDown={onPekerKnappPointerDown}
+              onPointerUp={(e) => onPekerKnappPointerUp(e, avbrytPekerFlytt)}
+              onClick={(e) => onPekerKnappClick(e, avbrytPekerFlytt)}
+              style={{ touchAction: "none" }}
               className="rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-lg"
             >
               {t("handling.avbryt")}
@@ -1465,6 +1599,24 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
             );
             return { left: pos.left, top: pos.top, width: LUPE_DIAMETER, height: LUPE_DIAMETER };
           })()}
+        />
+      )}
+      {punktKvittering && (
+        // Tillegg pkt 2: ring som pulserer ut og fader på ~300 ms — Tailwinds egen
+        // "ping"-keyframe (skala→2, opasitet→0), KUN varighet/én-gangs-kjøring
+        // overstyrt. Ingen tekst, ingen toast (ordrens eksplisitte krav).
+        <span
+          key={punktKvittering.id}
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full"
+          style={{
+            left: punktKvittering.skjermX,
+            top: punktKvittering.skjermY,
+            width: 16,
+            height: 16,
+            backgroundColor: MAALING_FARGE_AKTIV,
+            animationDuration: "300ms",
+            animationIterationCount: 1,
+          }}
         />
       )}
       {laster && (
