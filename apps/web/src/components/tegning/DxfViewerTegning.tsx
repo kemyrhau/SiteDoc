@@ -599,24 +599,32 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
       const cx = k.canvasBredde / 2;
       const cy = k.canvasHoyde / 2;
       const pf = uiRef.current.pekerFlytt;
-      if (pf.status === "flytter") {
+      const { verktoy: v, mmPrVerdenEnhet: mmEnh } = uiRef.current;
+      // Backlog 2026-10-19/20: Linjal/Polylinje/Areal skal vise snap-ring og
+      // 90°-hjelpelinja LIVE mens trådkorset navigeres, akkurat som Flytt punkt
+      // (grenen over) — ikke bare ved selve "Sett punkt"-trykket. Samme kall,
+      // samme anker-logikk i `beregnForhandsvisningForSkjerm` (se der).
+      if (pf.status === "flytter" || (erMaleVerktoy(v) && kanMaleVerden(mmEnh))) {
         beregnForhandsvisningForSkjerm(cx, cy);
-      } else if (uiRef.current.verktoy === "flytt") {
-        const treff = finnMalingTreffVerden(malingerTilVerden(uiRef.current.maleTilstand.malinger), { skjermX: cx, skjermY: cy }, k, PEKER_PUNKT_TREFF_PX);
-        const naer: PekerFlyttTilstand =
-          treff && treff.punktIndex !== null
-            ? { status: "naer", malingIndex: treff.malingIndex, punktIndex: treff.punktIndex }
-            : PEKER_FLYTT_INGEN;
-        const endret =
-          naer.status !== pf.status ||
-          (naer.status === "naer" && pf.status === "naer" && (naer.malingIndex !== pf.malingIndex || naer.punktIndex !== pf.punktIndex));
-        if (endret) {
-          uiRef.current.pekerFlytt = naer;
-          setPekerFlytt(naer);
+      } else {
+        if (gestRef.current.forhandsvisning) gestRef.current.forhandsvisning = null;
+        if (v === "flytt") {
+          const treff = finnMalingTreffVerden(malingerTilVerden(uiRef.current.maleTilstand.malinger), { skjermX: cx, skjermY: cy }, k, PEKER_PUNKT_TREFF_PX);
+          const naer: PekerFlyttTilstand =
+            treff && treff.punktIndex !== null
+              ? { status: "naer", malingIndex: treff.malingIndex, punktIndex: treff.punktIndex }
+              : PEKER_FLYTT_INGEN;
+          const endret =
+            naer.status !== pf.status ||
+            (naer.status === "naer" && pf.status === "naer" && (naer.malingIndex !== pf.malingIndex || naer.punktIndex !== pf.punktIndex));
+          if (endret) {
+            uiRef.current.pekerFlytt = naer;
+            setPekerFlytt(naer);
+          }
+        } else if (pf.status !== "ingen") {
+          uiRef.current.pekerFlytt = PEKER_FLYTT_INGEN;
+          setPekerFlytt(PEKER_FLYTT_INGEN);
         }
-      } else if (pf.status !== "ingen") {
-        uiRef.current.pekerFlytt = PEKER_FLYTT_INGEN;
-        setPekerFlytt(PEKER_FLYTT_INGEN);
       }
     }
 
@@ -800,7 +808,11 @@ export const DxfViewerTegning = forwardRef<DxfViewerTegningRef, DxfViewerTegning
     let anker: VerdenPunkt | null = null;
     let forforrige: VerdenPunkt | null = null;
     const aktiv = aktivMaling(mt);
-    if (g.modus === "nyttPunkt" && aktiv && !aktiv.ferdig && aktiv.punkter.length > 0) {
+    // `g.modus === "nyttPunkt"` ble tidligere brukt som vakt her, men den settes
+    // KUN i onPointerDowns direkte-drag-gren (aldri i peker/trådkors-modus, se
+    // kommentaren over kallestedet i `tegnOverlegg`) — ankeret skal gjelde i
+    // begge gestformer så lenge verktøyet faktisk plasserer målepunkter.
+    if (erMaleVerktoy(uiRef.current.verktoy) && aktiv && !aktiv.ferdig && aktiv.punkter.length > 0) {
       anker = toVerden(aktiv.punkter[aktiv.punkter.length - 1]!);
       if (aktiv.punkter.length > 1) forforrige = toVerden(aktiv.punkter[aktiv.punkter.length - 2]!);
     } else if (flytt) {
