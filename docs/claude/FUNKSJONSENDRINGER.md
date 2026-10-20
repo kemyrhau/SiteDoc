@@ -25,6 +25,13 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-20
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `35f62a9f` ← `d0524e3d` | 🔴 **Arbeidstegning (KUN test bak `TEGNING_MOTOR`): snap og 90° live i Linjal/Polylinje/Areal med pekeren** | **Før:** snap-ring og 90°-hjelpelinje vistes bare i «Flytt punkt». I måleverktøyene slo de inn først ved selve trykket. **Etter:** ringen og hjelpelinja vises live mens tegningen dras, også for første punkt, og «Sett punkt» legger punktet på målet. ⚠️ Ikke bekreftet på telefon ennå. | 🟢 Kenneth 2026-10-20 («bestill snap og 90° til dokgen nå») |
+| `22266d57` ← `b0ace0d1` | 🟢 **Mobil — oppgave/befaring (reparasjon, PROD via OTA)** | **Før:** «Fra tegning»-kortet kunne ikke trykkes, et utkast ble låst etter ut og inn, og tastaturet dekket bildet ved annotering. **Etter:** kortet åpner tegningen og setter eller flytter punktet (bare utkast). Utkast kan redigeres til det er sendt. Bildet skyves opp over tastaturet. Arbeidstegning: «Isolasjon 71 mm» i stedet for «Tykkelse» på isolasjon (`a9892446`). | Reparasjon (Kenneth-funn i prod 2026-10-20) |
+
 ### 2026-10-19
 
 | Hash | Flate | Før → Etter | Hjemmel |
