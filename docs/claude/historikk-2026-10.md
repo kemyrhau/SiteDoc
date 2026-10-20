@@ -13,6 +13,12 @@ sist_verifisert_mot_kode: 2026-10-09
 - **Retting:** `e633c021`: komprimering AV som standard, på bare med `API_KOMPRIMERING=1`. Prod-hotfix `972afdaa` (+ pdfjs-dist-ekstraksjon `b62c4c90`). 14.10-OTA-en republisert (`927a7b8b`). Kenneth verifiserte på telefon: byggeplasser og tegninger laster, OTA `f2d3e172`.
 - **Hullet i gaten:** Kontrollør-gaten spurte «fungerer mobilappen uendret?», men den ble besvart ved kodelesing (SSE/Range/typer), ikke på en telefon mot et prosjekt UTEN offline-speil. **Lærdom:** en endring i svarformatet til api (komprimering, headere, serialisering) krever test i mobilappen mot et ikke-forberedt prosjekt før prod. Et forberedt prosjekt leser fra speilet og skjuler feilen.
 
+## Prod-deploy 2026-10-20 (`03ebeec2`, develop→main): tegning-rekonvertering via DB-kø, i18n-interpolasjon, duplikatpunkt-sperre (LIVE, api)
+
+- **Ute i prod:** «Oppdater visning» pr. tegning og «Oppdater alle tegninger» (`7125c773`), konvertering via DB-kø i api med atomisk opptak, livstegn og watchdog (`535060f3`), 221 i18n-variabelnavn rettet (`4f5d532a`), og duplikatpunkt-sperre i måling (`malinger.ts`, `1de102fe`).
+- **Bak bryteren `TEGNING_MOTOR` (av i prod):** arbeidstegning med dxf-viewer, F1/F2, peker, lupe, Flytt punkt, målfelt og Sett punkt-retting. Bryteren slås på i prod når markører, filtre og rotasjon finnes i den nye viseren og lagvalget på mobil ligger i SQLite.
+- **Ingen migreringer, ingen nye env-variabler.** Api `/version` = `03ebeec2` (Kenneth 2026-10-20). Prod-OTA ble gitt samtidig. ⚠️ Verifisering av OTA-en på telefonen og innlogget web er ikke meldt tilbake ennå.
+
 ## Prod-deploy 2026-10-14 kveld (`f2d3e172`, develop→main): offline-tegninger, dokumentsøk, PDF-sidetall/reekstraksjon (LIVE)
 
 - **Web/api:** dokumentsøk med DOCX, uthevet utdrag, side/seksjon, metode og gruppering (`44d2e913`). Riktige PDF-sidetall (`feca5bc4` ← `d3fb35bc`). «Prosesser alle PDF-er på nytt» med atomisk bytte og maks 2 samtidig, og «Prosesser på nytt» pr. dokument virker igjen (cuid) (`618dcdab` ← `5a454bbc`). br/gzip-komprimering i api, inkl. `image/vnd.dxf` (`29730afc`). Arbeidstegning leveranse 1 (dxf-viewer) er med, men **AV** i prod (bryteren finnes bare i test-compose).
