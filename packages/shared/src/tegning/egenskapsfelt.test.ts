@@ -25,6 +25,30 @@ function bygg(o: RegisterVerdenObjekt, mmPr?: number | null): ReturnType<typeof 
   return byggEgenskapsfelt(o, mmPr ?? null, T);
 }
 
+/** RETUR `7f51e238` (orkestrator 2026-10-20): normalisert til lokal origo (min
+ * x/y trukket fra, rundet til hele mm) fra registeret i
+ * `relay/arbeidstegning-prove/gate1/fallplan.register-world.json`
+ * (objekter.<Id>.geom, utenfor git). Ingen absolutte kundekoordinater her —
+ * kun formen som beviser klassifiseringen. `AFF2_GEOM` er redusert til hvert
+ * 10. segment (31 av 305) — samme klassifisering (ingen enkelt-strek > 30 %,
+ * median langt under tykkelsen), bekreftet ved måling før reduksjon. De tre
+ * andre er beholdt i full lengde (allerede korte, eller — for `BECB` —
+ * nødvendige for selve edge-casen). Se describe-blokken «bølgelinje-detektor
+ * mot EKTE geometri». */
+const AFF2_GEOM: number[][] = [[3, 694, 0, 683], [549, 243, 547, 233], [234, 491, 223, 493], [780, 41, 769, 43], [562, 286, 544, 248], [261, 534, 243, 496], [808, 84, 790, 45], [529, 313, 495, 288], [164, 548, 168, 538], [711, 98, 715, 88], [407, 361, 398, 356], [149, 639, 144, 648], [695, 188, 691, 198], [407, 426, 418, 423], [125, 646, 134, 651], [671, 196, 680, 201], [365, 449, 367, 459], [64, 696, 30, 671], [611, 246, 577, 221], [337, 471, 340, 481], [67, 706, 62, 716], [613, 256, 609, 266], [316, 489, 325, 493], [52, 719, 62, 716], [598, 268, 609, 266], [303, 446, 301, 436], [27, 661, 31, 651], [574, 211, 578, 200], [325, 428, 316, 423], [42, 649, 31, 651], [589, 198, 578, 200]];
+
+const D19E_GEOM: number[][] = [[179, 313, 1283, 1417], [378, 554, 1481, 1658], [576, 795, 1680, 1899], [775, 1036, 1878, 2140], [973, 1277, 1857, 2161], [1172, 1518, 1834, 2180], [1370, 1759, 1810, 2199], [1569, 2000, 1787, 2218], [95, 17, 290, 212], [72, 36, 489, 453], [48, 55, 687, 694], [25, 75, 886, 935], [2, 94, 1084, 1176], [0, 96, 1764, 2237], [1880, 2142, 115, 0], [1764, 2237, 1880, 2142], [115, 0, 0, 96]];
+
+const D2BA_GEOM: number[][] = [[1979, 2497, 3083, 3601], [2177, 2738, 3208, 3769], [2376, 2979, 3185, 3788], [2575, 3220, 3162, 3808], [2773, 3461, 3139, 3827], [2972, 3702, 3115, 3846], [192, 329, 1296, 1433], [391, 570, 1495, 1674], [589, 811, 1693, 1915], [788, 1052, 1892, 2155], [986, 1293, 2090, 2396], [1185, 1534, 2289, 2637], [1383, 1775, 2487, 2878], [1582, 2015, 2686, 3119], [1780, 2256, 2884, 3360], [94, 18, 304, 228], [71, 38, 502, 469], [47, 57, 701, 710], [24, 76, 899, 951], [1, 95, 1098, 1192], [0, 96, 1860, 2353], [1860, 2353, 1956, 2469], [1956, 2469, 3100, 3858], [3216, 3763, 116, 0], [0, 96, 116, 0], [3216, 3763, 3100, 3858]];
+
+/** `BECB` — en vegg-blokk som INNEHOLDER sin egen isolasjon-bølgelinje blandet
+ * inn i SAMME geometri som veggomrisset (dumpet rå: de første ~100 segmentene
+ * er tenner identisk formet som i `AFF2`, de siste ~7 er veggens egne lange
+ * kant-strek). Edge case for bølgelinje-detektoren — se kommentaren ved
+ * `BOLGELINJE_DOMINERENDE_STREK_TERSKEL` i egenskapsfelt.ts. Beholdt i full
+ * lengde (normalisert) fordi hele den blandede strukturen ER edge-casen. */
+const BECB_GEOM: number[][] = [[2174, 110, 2295, 230], [2151, 129, 2272, 250], [2127, 148, 2248, 269], [2104, 167, 2225, 288], [2081, 186, 2202, 307], [2058, 205, 2178, 326], [2034, 225, 2155, 345], [2011, 244, 2132, 365], [1988, 263, 2109, 384], [1965, 282, 2085, 403], [1941, 301, 2062, 422], [1918, 320, 2039, 441], [1895, 340, 2016, 460], [1872, 359, 1992, 479], [1848, 378, 1969, 499], [1825, 397, 1946, 518], [1802, 416, 1923, 537], [1779, 435, 1899, 556], [1755, 455, 1876, 575], [1732, 474, 1853, 594], [1709, 493, 1830, 614], [1686, 512, 1806, 633], [1662, 531, 1783, 652], [1639, 550, 1760, 671], [1616, 570, 1737, 690], [1592, 589, 1713, 709], [1569, 608, 1690, 729], [1546, 627, 1667, 748], [1523, 646, 1643, 767], [1499, 665, 1620, 786], [1476, 685, 1597, 805], [1453, 704, 1574, 824], [1430, 723, 1550, 844], [1406, 742, 1527, 863], [1383, 761, 1504, 882], [1360, 780, 1481, 901], [1337, 800, 1457, 920], [1313, 819, 1434, 939], [1290, 838, 1411, 959], [1267, 857, 1388, 978], [1244, 876, 1364, 997], [1220, 895, 1341, 1016], [1197, 915, 1318, 1035], [1174, 934, 1295, 1054], [1151, 953, 1271, 1074], [1127, 972, 1248, 1093], [1104, 991, 1225, 1112], [1081, 1010, 1201, 1131], [1057, 1030, 1178, 1150], [1034, 1049, 1155, 1169], [1011, 1068, 1132, 1189], [988, 1087, 1108, 1208], [964, 1106, 1085, 1227], [941, 1125, 1062, 1246], [918, 1145, 1039, 1265], [895, 1164, 1015, 1284], [871, 1183, 992, 1304], [848, 1202, 969, 1323], [825, 1221, 946, 1342], [802, 1240, 922, 1361], [778, 1259, 899, 1380], [755, 1279, 876, 1399], [732, 1298, 853, 1419], [709, 1317, 829, 1438], [685, 1336, 806, 1457], [662, 1355, 783, 1476], [639, 1374, 760, 1495], [616, 1394, 736, 1514], [592, 1413, 713, 1534], [569, 1432, 690, 1553], [546, 1451, 666, 1572], [522, 1470, 643, 1591], [499, 1489, 620, 1610], [476, 1509, 597, 1629], [453, 1528, 573, 1649], [429, 1547, 550, 1668], [406, 1566, 527, 1687], [383, 1585, 504, 1706], [360, 1604, 480, 1725], [336, 1624, 457, 1744], [313, 1643, 434, 1764], [290, 1662, 411, 1783], [267, 1681, 387, 1802], [243, 1700, 364, 1821], [220, 1719, 341, 1840], [197, 1739, 318, 1859], [174, 1758, 294, 1879], [150, 1777, 271, 1898], [127, 1796, 248, 1917], [104, 1815, 225, 1936], [81, 1834, 201, 1955], [57, 1854, 178, 1974], [34, 1873, 155, 1994], [11, 1892, 131, 2013], [2290, 14, 2411, 135], [2267, 33, 2388, 154], [2244, 52, 2365, 173], [2221, 71, 2341, 192], [2197, 90, 2318, 211], [48, 1971, 108, 2032], [2307, 0, 2176, 108], [2176, 108, 0, 1901], [92, 2045, 2415, 131], [0, 1901, 54, 1967], [54, 1967, 38, 1979], [38, 1979, 92, 2045], [2415, 131, 2307, 0]];
+
 describe("byggEgenskapsfelt", () => {
   it("A1: vegg med kategori gir felt 'hva' med rå lagnavn under", () => {
     const o = objekt({ id: "h1", lag: "242- Ikke-bærende innervegger", kategori: "Ikke-bærende innervegger · 242" });
@@ -266,7 +290,8 @@ describe("byggEgenskapsfelt", () => {
     // Sikksakk-mønster (bildet 67abf924): en PLINE som vandrer fram og tilbake
     // på tvers av en 100 mm smal bane over 4000 mm lengde — samme konveks-hull-
     // bredde som et rett bånd ville gitt, selv om selve linjen krysser fram og
-    // tilbake underveis.
+    // tilbake underveis. RETUR 42219afc: bølgelinje-detektoren kjenner denne
+    // formen igjen (intet enkelt-strek dominerer lengden) → «Isolasjon».
     const sikksakk: number[] = [];
     for (let i = 0; i <= 40; i++) {
       const x = (i * 4000) / 40;
@@ -276,7 +301,7 @@ describe("byggEgenskapsfelt", () => {
     const o = objekt({ id: "bolge1", dtype: "LWPOLYLINE", geom: [sikksakk] });
     const felt = bygg(o, 1);
     const mal = felt.find((f) => f.nokkel === "mal");
-    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 100 mm");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.isolasjon 100 mm");
     expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
     expect(mal?.tolket).toBe(true);
     // Materiale-feltet er fortsatt fraværende — formgjenkjenningen krever IKKE
@@ -318,7 +343,8 @@ describe("byggEgenskapsfelt", () => {
 
   it("POST snevre inn formregelen 2026-10-19 (c): bølgelinje-isolasjon på ordinært vegglag fortsatt tykkelse + lengde", () => {
     // Negativkontroll for (a)/(b): den eksisterende bølgelinje-formen (ikke
-    // HATCH, ikke rom) skal fortsatt gå gjennom formgjenkjenningen uendret.
+    // HATCH, ikke rom) skal fortsatt gå gjennom formgjenkjenningen uendret
+    // (RETUR 42219afc: etiketten er nå «Isolasjon», se egen test-serie under).
     const sikksakk: number[] = [];
     for (let i = 0; i <= 40; i++) {
       const x = (i * 4000) / 40;
@@ -328,7 +354,7 @@ describe("byggEgenskapsfelt", () => {
     const o = objekt({ id: "bolge-kontroll", dtype: "LWPOLYLINE", geom: [sikksakk] });
     const felt = bygg(o, 1);
     const mal = felt.find((f) => f.nokkel === "mal");
-    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 100 mm");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.isolasjon 100 mm");
     expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
     expect(mal?.tolket).toBe(true);
   });
@@ -349,8 +375,139 @@ describe("byggEgenskapsfelt", () => {
     });
     const felt = bygg(o, 1);
     const mal = felt.find((f) => f.nokkel === "mal");
-    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 13 mm");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.isolasjon 13 mm");
     expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
+  });
+
+  it("Kenneth-vedtak 2026-10-20: kjent isolasjonsmateriale viser «Isolasjon», ikke «Tykkelse»", () => {
+    // Bakgrunn: Kenneth leste «Tykkelse 71 mm» under en innervegg som veggens
+    // tykkelse, mens tallet var isolasjonens bredde. Kjent materiale (HATCH-
+    // mønster/lagnavn klassifisert av render.py, se ER_ISOLASJON_MATERIALE)
+    // skal derfor hete «Isolasjon» i hovedverdien.
+    const o = objekt({
+      id: "isol-etikett",
+      dtype: "HATCH",
+      materiale: "Isolasjon",
+      geom: [
+        [0, 0, 0, 71],
+        [4000, 0, 4000, 71],
+        [0, 0, 4000, 0],
+        [0, 71, 4000, 71],
+      ],
+    });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.isolasjon 71 mm");
+    expect(mal?.tolket).toBeUndefined();
+  });
+
+  it("RETUR 42219afc: formgjenkjenning av en rett vegg-dobbeltlinje (ikke bølgelinje) beholder «Tykkelse»", () => {
+    // Samme vegg-dobbeltlinje som «vegg1»-testen: INGEN materiale-felt (ikke
+    // HATCH). Bølgelinje-detektoren skiller denne fra en isolasjon-bølgelinje
+    // via det dominerende enkelt-streket (de to 4000 mm-lange "railene" utgjør
+    // 100 % av lengden — langt over BOLGELINJE_DOMINERENDE_STREK_TERSKEL).
+    const o = objekt({
+      id: "vegg-ikke-isolasjon",
+      dtype: "LINE",
+      geom: [
+        [0, 0, 0, 13],
+        [4000, 0, 4000, 13],
+        [0, 0, 4000, 0],
+        [0, 13, 4000, 13],
+      ],
+    });
+    const felt = bygg(o, 1);
+    const mal = felt.find((f) => f.nokkel === "mal");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 13 mm");
+  });
+
+  describe("RETUR 42219afc/7f51e238: bølgelinje-detektor mot EKTE geometri (normalisert, se kommentar ved _GEOM-konstantene)", () => {
+    // Geometrien under er normalisert fra objektregisteret (samme fil
+    // orkestrator målte på, se SJEKKPUNKT) — ikke syntetisk. mmPr=1 fordi
+    // $INSUNITS=mm for denne fila (samme konvensjon som resten av filens tester
+    // mot ekte DXF-tall, jf. RETUR isolasjon `7d5d6787`).
+
+    it("Id AFF2 (Kenneths bilde `2-isolasjon-71mm.jpg`, 242-laget, anonym INSERT, INGEN materiale-felt) → «Isolasjon»", () => {
+      const o = objekt({
+        id: "AFF2",
+        lag: "242- Ikke-bærende innervegger(Nye konstruksjoner)",
+        dtype: "INSERT",
+        blokk: "*X0",
+        geom: AFF2_GEOM,
+      });
+      const felt = bygg(o, 1);
+      const mal = felt.find((f) => f.nokkel === "mal");
+      expect(mal?.verdi.startsWith("tegningsvelger.egenskaper.isolasjon ")).toBe(true);
+      expect(mal?.tolket).toBe(true);
+    });
+
+    it("Id D19E (ordinær vegg, I-WALL-OTLN) → «Tykkelse», ikke «Isolasjon»", () => {
+      const o = objekt({
+        id: "D19E",
+        lag: "I-WALL-____-OTLN.IFC-standardImport",
+        dtype: "INSERT",
+        blokk: "Vegg",
+        geom: D19E_GEOM,
+      });
+      const felt = bygg(o, 1);
+      const mal = felt.find((f) => f.nokkel === "mal");
+      expect(mal?.verdi.startsWith("tegningsvelger.egenskaper.tykkelse ")).toBe(true);
+    });
+
+    it("Id D2BA (ordinær vegg, I-WALL-OTLN) → «Tykkelse», ikke «Isolasjon»", () => {
+      const o = objekt({
+        id: "D2BA",
+        lag: "I-WALL-____-OTLN.IFC-standardImport",
+        dtype: "INSERT",
+        blokk: "Vegg",
+        geom: D2BA_GEOM,
+      });
+      const felt = bygg(o, 1);
+      const mal = felt.find((f) => f.nokkel === "mal");
+      expect(mal?.verdi.startsWith("tegningsvelger.egenskaper.tykkelse ")).toBe(true);
+    });
+
+    it("Id BECB (vegg-blokk MED egen isolasjon-bølgelinje blandet inn i omrisset) → fortsatt «Tykkelse»", () => {
+      // Edge case: blokken har hundrevis av isolasjon-tenner OG veggens egne
+      // lange kant-strek i SAMME geometri. Det lange kant-strekket (~94 % av
+      // lengden) dominerer fortsatt — korrekt "Tykkelse", ikke "Isolasjon".
+      // Målt tykkelse (171 mm) dekker HELE den blandede geometrien, ikke bare
+      // isolasjonstennene, så "Isolasjon" hadde vært en feil etikett her uansett.
+      const o = objekt({
+        id: "BECB",
+        lag: "I-WALL-____-OTLN.IFC-standardImport",
+        dtype: "INSERT",
+        blokk: "Vegg",
+        geom: BECB_GEOM,
+      });
+      const felt = bygg(o, 1);
+      const mal = felt.find((f) => f.nokkel === "mal");
+      expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 171 mm");
+    });
+
+    it("RETUR 7f51e238: syntetisk 10 m vegg × 150 mm med fem åpninger (6 biter pr. side) → fortsatt «Tykkelse», ikke «Isolasjon»", () => {
+      // Hver vegg-bit er 1000 mm, åpningene (dør/vindu) 800 mm: 6×1000 + 5×800 = 10000 mm.
+      // Ingen enkelt-strek overstiger 30 % av lengden (1000/10000 = 10 %), så den gamle
+      // regelen («ingen dominerende enkeltstrek») ville feilaktig gitt «Isolasjon» her.
+      // Medianstreket (1000 mm) er langt over 2 × tykkelsen (2 × 150 = 300 mm), som
+      // skiller en vegg-bit fra en isolasjonstann (på størrelse med bredden).
+      const bitGrenser: number[] = [];
+      let x = 0;
+      for (let i = 0; i < 6; i++) {
+        bitGrenser.push(x, x + 1000);
+        x += 1000 + 800;
+      }
+      const geom: number[][] = [];
+      for (let i = 0; i < bitGrenser.length; i += 2) {
+        const [x1, x2] = [bitGrenser[i]!, bitGrenser[i + 1]!];
+        geom.push([x1, 0, x2, 0]); // yttervegg
+        geom.push([x1, 150, x2, 150]); // innervegg
+      }
+      const o = objekt({ id: "vegg-med-aapninger", dtype: "LINE", geom });
+      const felt = bygg(o, 1);
+      const mal = felt.find((f) => f.nokkel === "mal");
+      expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 150 mm");
+    });
   });
 
   it("POST flytte målepunkter pkt 4b: anonymt AutoCAD-blokknavn ('*X976') skjules i typeStorrelse", () => {
@@ -381,7 +538,7 @@ describe("byggEgenskapsfelt", () => {
     });
     const felt = bygg(o, 1);
     const mal = felt.find((f) => f.nokkel === "mal");
-    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 13 mm");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.isolasjon 13 mm");
     expect(mal?.underverdi).toBe("tegningsvelger.egenskaper.lengde 4,00 m");
     // Materiale-feltet er uendret (vises fortsatt som vanlig).
     expect(felt.find((f) => f.nokkel === "materiale")?.verdi).toBe("Isolasjon");
@@ -402,6 +559,6 @@ describe("byggEgenskapsfelt", () => {
     });
     const felt = bygg(o, 1);
     const mal = felt.find((f) => f.nokkel === "mal");
-    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.tykkelse 100 mm");
+    expect(mal?.verdi).toBe("tegningsvelger.egenskaper.isolasjon 100 mm");
   });
 });

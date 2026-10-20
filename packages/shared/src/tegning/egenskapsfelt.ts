@@ -311,6 +311,105 @@ const BOLGELINJE_FORHOLD_TERSKEL = 8;
  * tykkelse er aldri en meningsfull måling, uansett hvilken vei den ble funnet. */
 const TYKKELSE_MIN_MM = 10;
 
+/**
+ * Bølgelinje-deteksjon (RETUR `42219afc`, orkestrator 2026-10-20): skiller en
+ * isolasjon-bølgelinje/sikksakk fra en ordinær vegg INNENFOR formgjenkjenningen
+ * (langt og smalt konvekst omriss, se `BOLGELINJE_FORHOLD_TERSKEL` over) — begge
+ * havner i samme gren, og `o.materiale` er alltid tomt der (isolasjonsgrenen med
+ * kjent HATCH-klassifisering har allerede returnert for ENHVER kjent isolasjon,
+ * og render.py setter kun materiale/materialeRaa for HATCH-entiteter, som denne
+ * grenen uansett utelater via `FLATE_DTYPE`) — signalet må derfor komme fra
+ * geometrien, ikke fra et felt.
+ *
+ * Målt på ekte geometri (`relay/arbeidstegning-prove/gate1/fallplan.register-world.json`,
+ * se SJEKKPUNKT): Kenneths isolasjon-bølgelinje (Id `AFF2`, 242-laget) består av
+ * ~300 korte, separate tenner — INGEN av dem utgjør mer enn ~4 % av objektets
+ * PCA-lengde. Fire ordinære vegger (Id `C127`/`D2BA`/`C9E4`/`D19E`, lag
+ * I-WALL-OTLN) har derimot ALLTID ett enkelt strek (selve vegglinjen/omrisset)
+ * som utgjør 96–100 % av lengden. Store, konsekvente gap — terskelen under
+ * ligger midt i det gapet, ikke på kanten.
+ *
+ * Vurdert og FORKASTET (målt, ikke antatt): det opprinnelige forslaget om å
+ * telle fortegnsskifter i tverravviket (projeksjon på tverraksen, sortert langs
+ * lengdeaksen) + et stilengde/lengde-forhold > 2,5. Dette skiller IKKE isolasjon
+ * fra vegg på ekte data: to av veggblokkene i fallplanen (Id `BECB`/`BFF3`)
+ * bygger inn SIN EGEN isolasjon-bølgelinje direkte i samme blokk-geometri som
+ * selve veggomrisset (verifisert ved å dumpe rå `geom`-segmenter: de første
+ * ~100 segmentene er identiske korte tenner som i `AFF2`, de siste ~7 er
+ * veggens egne lange kant-strek) — fortegnsskifter og stilengde domineres da
+ * av de hundrevis av tann-punktene og ser identisk ut som ren isolasjon,
+ * uansett terskel — testet og BEKREFTET feil (ville gitt «Isolasjon» på en
+ * vanlig vegg). Lengste-enkeltstrek-andelen plukker derimot OGSÅ opp det ene
+ * lange kant-strekket disse blandede blokkene har (andel ~0,94–1,0, altså over
+ * terskelen, SAMME utfall som de rene veggene) — verifisert mot den ekte
+ * implementasjonen at `BECB`/`BFF3` korrekt gir «Tykkelse 171 mm»/«Tykkelse
+ * 151 mm», ikke «Isolasjon», selv med isolasjon-tenner blandet inn i
+ * geometrien. Avgjørende er altså om NOE enkelt-strek dominerer lengden, ikke
+ * om tenner finnes et sted i objektet.
+ *
+ * RETUR `7f51e238` (orkestrator 2026-10-20): regelen over alene gir også
+ * «Isolasjon» for en lang vegg brutt opp av flere dør-/vindusåpninger (ingen
+ * av vegg-bitene dominerer 30 % av lengden). Se
+ * `BOLGELINJE_MEDIAN_TANN_TERSKEL_FAKTOR` under for tilleggskravet som skiller
+ * dette fra ekte isolasjonstenner.
+ */
+const BOLGELINJE_DOMINERENDE_STREK_TERSKEL = 0.3;
+
+/** Alle enkelt-strek-lengder (mm) mellom to NABOPUNKTER i SAMME `geom`-rad — altså
+ * reelle, sammenhengende linjestykker i tegningen. Rader i `o.geom` kan representere
+ * innbyrdes USAMMENHENGENDE strøk (se kommentaren ved `allePunkter` i `beregnMaal`),
+ * så avstanden mellom siste punkt i én rad og første punkt i neste er IKKE et
+ * ekte strek og skal ikke telle med. */
+function alleStrekLengderMm(geom: (number[] | null | undefined)[], mmPrVerdenEnhet: number): number[] {
+  const lengder: number[] = [];
+  for (const seg of geom) {
+    if (!seg || seg.length < 4) continue;
+    for (let i = 0; i + 3 < seg.length; i += 2) {
+      const dx = seg[i + 2]! - seg[i]!;
+      const dy = seg[i + 3]! - seg[i + 1]!;
+      lengder.push(Math.hypot(dx, dy) * mmPrVerdenEnhet);
+    }
+  }
+  return lengder;
+}
+
+function median(tall: number[]): number {
+  if (tall.length === 0) return 0;
+  const sortert = [...tall].sort((a, b) => a - b);
+  const m = Math.floor(sortert.length / 2);
+  return sortert.length % 2 === 0 ? (sortert[m - 1]! + sortert[m]!) / 2 : sortert[m]!;
+}
+
+/** En lang vegg brutt opp av flere dør-/vindusåpninger har også mange korte
+ * vegg-biter, og kan derfor feilaktig se ut som en bølgelinje på
+ * `BOLGELINJE_DOMINERENDE_STREK_TERSKEL` alene (RETUR `7f51e238`, orkestrator
+ * 2026-10-20: en 10 m vegg brutt opp av fem åpninger gir 6 biter pr. side, ingen
+ * over 30 % av lengden). Forskjellen fra ekte isolasjonstenner: tennene er på
+ * størrelse med BREDDEN (71 mm tykkelse → tenner typisk under ~45 mm), mens
+ * vegg-biter mellom åpninger er mye lengre enn veggtykkelsen (1000 mm biter mot
+ * 150 mm tykkelse). Krever derfor at medianlengden av strekene er innenfor denne
+ * faktoren av tykkelsen, ikke bare at ingen enkelt-strek dominerer. */
+const BOLGELINJE_MEDIAN_TANN_TERSKEL_FAKTOR = 2;
+
+/** Sant når (1) INGEN enkelt-strek i objektets geometri utgjør en dominerende andel
+ * av den PCA-lengden formgjenkjenningen alt har regnet ut (se
+ * `BOLGELINJE_DOMINERENDE_STREK_TERSKEL`), OG (2) de typiske strekene (median) er
+ * korte nok til å være tenner, ikke vegg-biter mellom åpninger (se
+ * `BOLGELINJE_MEDIAN_TANN_TERSKEL_FAKTOR`). */
+function erBolgelinje(
+  geom: (number[] | null | undefined)[],
+  lengdeMm: number,
+  tykkelseMm: number,
+  mmPrVerdenEnhet: number,
+): boolean {
+  if (lengdeMm <= 0) return false;
+  const strekLengderMm = alleStrekLengderMm(geom, mmPrVerdenEnhet);
+  const storsteStrekMm = strekLengderMm.reduce((m, d) => Math.max(m, d), 0);
+  if (storsteStrekMm / lengdeMm >= BOLGELINJE_DOMINERENDE_STREK_TERSKEL) return false;
+  const medianStrekMm = median(strekLengderMm);
+  return medianStrekMm <= BOLGELINJE_MEDIAN_TANN_TERSKEL_FAKTOR * tykkelseMm;
+}
+
 /** F1 felt 6: lengde (strek), tykkelse (isolasjon/bølgelinje) eller areal (lukket
  * flate), kun når `kanMaleVerden`. `underverdi` brukes til å vise den ANDRE
  * målestørrelsen når begge er meningsfulle (tykkelse ved siden av lengden). */
@@ -338,7 +437,10 @@ function beregnMaal(
     const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
     if (tykkelseMm < TYKKELSE_MIN_MM) return null;
     const underverdi = lengdeMm > 0 ? `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}` : undefined;
-    return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi };
+    // Kenneth-vedtak 2026-10-20: kjent isolasjonsmateriale (HATCH-mønster/lagnavn,
+    // se ER_ISOLASJON_MATERIALE over) viser "Isolasjon", ikke "Tykkelse" — en
+    // vegg-tykkelse og en isolasjonstykkelse er ikke samme spørsmål for brukeren.
+    return { verdi: `${t("tegningsvelger.egenskaper.isolasjon")} ${formatMm(tykkelseMm)}`, underverdi };
   }
   // Alle punkter på tvers av ALLE segmenter i geom — `geom[0]` alene kan være en
   // veggs korteste tverr-tagg (RETUR, Kenneths telefontest: "Mål 13 mm" på en vegg).
@@ -362,7 +464,14 @@ function beregnMaal(
     const tykkelseMm = beregnMinimumBreddeMm(allePunkter, mmPr);
     if (tykkelseMm >= TYKKELSE_MIN_MM && lengdeMm / tykkelseMm > BOLGELINJE_FORHOLD_TERSKEL) {
       const underverdi = `${t("tegningsvelger.egenskaper.lengde")} ${formatMm(lengdeMm)}`;
-      return { verdi: `${t("tegningsvelger.egenskaper.tykkelse")} ${formatMm(tykkelseMm)}`, underverdi, tolket: true };
+      // RETUR 42219afc (orkestrator 2026-10-20): Isolasjon-etikett når
+      // bølgelinje-deteksjonen (se erBolgelinje over) slår til — dekker Kenneths
+      // ekte tilfelle (bølgelinje-isolasjon på vegglag 242, ingen HATCH/materiale).
+      // Ellers "Tykkelse" som før (en ordinær vegg har et dominerende kant-strek).
+      const nokkel = erBolgelinje(o.geom, lengdeMm, tykkelseMm, mmPr)
+        ? "tegningsvelger.egenskaper.isolasjon"
+        : "tegningsvelger.egenskaper.tykkelse";
+      return { verdi: `${t(nokkel)} ${formatMm(tykkelseMm)}`, underverdi, tolket: true };
     }
   }
   if (FLATE_DTYPE.has(o.dtype)) {
