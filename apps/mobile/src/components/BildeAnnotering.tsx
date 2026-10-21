@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { View, Text, Pressable, Keyboard, Animated, Platform, type LayoutChangeEvent } from "react-native";
+import { View, Text, Pressable, Keyboard, Platform, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
@@ -13,10 +13,22 @@ import {
 } from "lucide-react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
-import { ANNOTERINGS_HTML } from "@sitedoc/shared";
+import { ANNOTERINGS_HTML, annoteringsflateHoyde } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../config/auth";
 
 type Verktoy = "arrow" | "circle" | "rect" | "draw" | "text";
+
+// Befaring-funn A (Kenneth 2026-10-21): bildet skal stå FAST, med og uten tastatur, forankret
+// rett under overskriftslinja. WebView-flaten får derfor en fast høyde der tastaturhøyden
+// ALLTID er reservert — da hopper bildet aldri. Overskriften har fast høyde (ingen måling som
+// kan gi et etter-mount-hopp), og vi legger ~16 pt luft over tastaturet (Kenneths tall).
+const HEADER_HOYDE = 52;
+const LUFT_OVER_TASTATUR = 16;
+// Reservert tastaturhøyde (full, inkl. prediktiv linje) når ingen måling finnes ennå.
+const STANDARD_TASTATUR = Platform.OS === "ios" ? 336 : 300;
+// Siste MÅLTE tastaturhøyde — caches på modulnivå så neste annoteringsøkt treffer enda bedre.
+// Oppdateres av lytteren UTEN å endre den pågående øktas flate (unngår hopp midt i økta).
+let sisteMalteTastaturHoyde: number | null = null;
 
 interface BildeAnnoteringProps {
   bildeUri: string;
@@ -37,45 +49,34 @@ const VERKTOYER: { id: Verktoy; ikon: typeof ArrowUpRight; labelKey: string }[] 
 export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoteringProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { height: vindusHoyde } = useWindowDimensions();
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>("arrow");
   const [erKlar, settErKlar] = useState(false);
   const webViewRef = useRef<WebView>(null);
 
-  // Tastatur-unnvikelse: når tekst skrives direkte på bildet (fabric.IText) åpner
-  // det native tastaturet seg og legger seg oppå nederste del av WebView-en, så
-  // tekstpunktet blir usynlig. Vi TRANSLATER WebView-en opp (ikke resize) — Fabric-
-  // canvasens pikselstørrelse er uendret, så annoteringskoordinatene holder; teksten
-  // havner der den ble plassert i bildets egne koordinater (befaring-feltfunn 2026-10-20).
-  const verktoylinjeHoyde = useRef(0);
-  const forskyvning = useRef(new Animated.Value(0)).current;
+  // Befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon. Flatehøyden beregnes ÉN gang
+  // ved mount — tastaturhøyden reserveres ALLTID — så bildet står stille enten tastaturet er
+  // fremme eller ikke. Vi translaterer/skalerer ikke lenger WebView-en når tastaturet kommer;
+  // det native tastaturet legger seg over den reserverte sonen nederst (verktøylinje + svart
+  // felt), aldri over bildet. Reservasjonen fanges i en ref så en senere måling ikke endrer
+  // den PÅGÅENDE øktas flate (det ville vært et hopp).
+  const reservertTastaturRef = useRef(sisteMalteTastaturHoyde ?? STANDARD_TASTATUR);
+  const flateHoyde = annoteringsflateHoyde({
+    vindusHoyde,
+    insetTop: insets.top,
+    headerHoyde: HEADER_HOYDE,
+    tastaturHoyde: reservertTastaturRef.current,
+    hjelpelinjeHoyde: LUFT_OVER_TASTATUR,
+  });
 
+  // Lytt KUN for å cache den målte tastaturhøyden til neste økt — endrer ikke flaten nå.
   useEffect(() => {
-    const visHendelse = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const skjulHendelse = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const visAbo = Keyboard.addListener(visHendelse, (e) => {
-      const tastaturHoyde = e.endCoordinates?.height ?? 0;
-      // Overlapp = hvor langt tastaturet dekker inn i WebView-en. Under WebView-en
-      // ligger verktøylinja + sikker-sone, som tastaturet dekker uansett. Flytt opp
-      // akkurat så mye at WebView-bunnen klarer tastaturets overkant.
-      const overlapp = Math.max(0, tastaturHoyde - verktoylinjeHoyde.current - insets.bottom);
-      Animated.timing(forskyvning, {
-        toValue: -overlapp,
-        duration: e.duration || 250,
-        useNativeDriver: true,
-      }).start();
+    const abo = Keyboard.addListener("keyboardDidShow", (e) => {
+      const h = e.endCoordinates?.height ?? 0;
+      if (h > 0) sisteMalteTastaturHoyde = h;
     });
-    const skjulAbo = Keyboard.addListener(skjulHendelse, (e) => {
-      Animated.timing(forskyvning, {
-        toValue: 0,
-        duration: e?.duration || 200,
-        useNativeDriver: true,
-      }).start();
-    });
-    return () => {
-      visAbo.remove();
-      skjulAbo.remove();
-    };
-  }, [forskyvning, insets.bottom]);
+    return () => abo.remove();
+  }, []);
 
   const sendMelding = useCallback(
     (melding: Record<string, unknown>) => {
@@ -136,8 +137,9 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         paddingBottom: insets.bottom,
       }}
     >
-      {/* Header */}
-      <View className="flex-row items-center justify-between bg-gray-900 px-6 py-3">
+      {/* Header — fast høyde (befaring-funn A): alltid synlig, aldri dekket av tastaturet,
+          og flaten under beregnes mot denne faste høyden så bildet ikke hopper. */}
+      <View className="flex-row items-center justify-between bg-gray-900 px-6" style={{ height: HEADER_HOYDE }}>
         <Pressable onPress={onAvbryt} hitSlop={16} className="min-w-[60px] py-2">
           <Text className="text-base text-gray-400">{t("handling.avbryt")}</Text>
         </Pressable>
@@ -154,8 +156,10 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         </Pressable>
       </View>
 
-      {/* WebView med Fabric.js — Animated.View translateres opp når tastaturet vises */}
-      <Animated.View className="flex-1" style={{ transform: [{ translateY: forskyvning }] }}>
+      {/* WebView med Fabric.js — FAST høyde (befaring-funn A): bildet forankres rett under
+          header og står stille med og uten tastatur. Tastaturet legger seg over den reserverte
+          sonen nederst (spacer + verktøylinje), aldri over bildet. */}
+      <View style={{ height: flateHoyde }}>
         <WebView
           ref={webViewRef}
           source={{ html: ANNOTERINGS_HTML }}
@@ -164,15 +168,13 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           onMessage={håndterMelding}
           allowFileAccess
         />
-      </Animated.View>
+      </View>
+
+      {/* Svart fyll ned til verktøylinja — denne sonen dekkes av tastaturet når det er fremme. */}
+      <View className="flex-1 bg-black" />
 
       {/* Verktøylinje */}
-      <View
-        className="flex-row items-center justify-around bg-gray-900 px-4 py-3"
-        onLayout={(e: LayoutChangeEvent) => {
-          verktoylinjeHoyde.current = e.nativeEvent.layout.height;
-        }}
-      >
+      <View className="flex-row items-center justify-around bg-gray-900 px-4 py-3">
         {VERKTOYER.map(({ id, ikon: Ikon, labelKey }) => (
           <Pressable
             key={id}

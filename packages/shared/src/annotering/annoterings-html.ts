@@ -34,7 +34,11 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; touch-action: none; }
-  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  /* Bildet forankres ØVERST (ikke sentrert), rett under overskriftslinja på RN-siden —
+     befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon, aldri sentrert bort fra
+     overskriften. Horisontalt sentrert. RN gir WebView-en en fast høyde (reservert
+     tastatur), så bildet står stille med og uten tastatur. */
+  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
   canvas { display: block; }
 </style>
 </head>
@@ -49,6 +53,11 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var aktivtVerktoy = 'arrow';
   var startPunkt = null;
   var forhandsvisning = null;
+  // Tekstverktøy (befaring-funn C2, Kenneth 2026-10-21): skille et rent TRYKK på en
+  // eksisterende tekst (→ rediger, markør på slutten) fra en DRA (→ flytt). Målet og
+  // startpunktet huskes fra mouse:down til mouse:up.
+  var tekstNedMål = null;
+  var tekstNedPunkt = null;
   // Farger og basis-tall interpoleres fra @sitedoc/shared lag.ts (én kilde, samme
   // mønster som bro-betingelsene). Strek/font vokser SUB-LINEÆRT (kvadratrot) med
   // canvas-bredden fra referanse-canvas (mobil ~390px) — lineær ble for tykk på stor
@@ -95,6 +104,12 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       isDrawingMode: false,
     });
 
+    // Befaring-funn C2 (Kenneth 2026-10-21): større treffflate for å plukke/redigere en
+    // eksisterende tekst (minst ~44 pt). targetFindTolerance utvider treffsonen rundt
+    // objektene med 22 px på hver side (≈44 px total) uten per-piksel-leting.
+    canvas.targetFindTolerance = 22;
+    canvas.perPixelTargetFind = false;
+
     canvas.freeDrawingBrush.color = STREK_FARGE;
     canvas.freeDrawingBrush.width = strekBredde();
 
@@ -111,7 +126,15 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       // 'i-text' (ny) eller 'text' (eldre lag) — samme skille som settFlyttbar.
       if (aktivtVerktoy === 'text') {
         var mål = opt.target;
-        if (mål && (mål.type === 'text' || mål.type === 'i-text')) return;
+        if (mål && (mål.type === 'text' || mål.type === 'i-text')) {
+          // Befaring-funn C2: la Fabric eie en eventuell DRA (flytting), men husk målet +
+          // nedpunktet så mouse:up kan skille et rent trykk (→ rediger) fra en dra (→ flytt).
+          var tpMål = canvas.getPointer(opt.e);
+          tekstNedMål = mål;
+          tekstNedPunkt = { x: tpMål.x, y: tpMål.y };
+          canvas.setActiveObject(mål);
+          return;
+        }
         var tp = canvas.getPointer(opt.e);
         lagTekst(tp.x, tp.y);
         return;
@@ -136,6 +159,27 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     });
 
     canvas.on('mouse:up', function(opt) {
+      // Befaring-funn C2: tekst som ble trykket/dratt i Tekst-verktøyet. Rent trykk (ingen
+      // bevegelse) → åpne for redigering med markøren på SLUTTEN. Dra → Fabric har allerede
+      // flyttet objektet, ikke åpne redigering. Målet huskes fra mouse:down.
+      if (tekstNedMål) {
+        var tMål = tekstNedMål; tekstNedMål = null;
+        var up = canvas.getPointer(opt.e);
+        var beveget = tekstNedPunkt && Math.sqrt(
+          (up.x - tekstNedPunkt.x) * (up.x - tekstNedPunkt.x) +
+          (up.y - tekstNedPunkt.y) * (up.y - tekstNedPunkt.y)) > 5;
+        tekstNedPunkt = null;
+        if (!beveget) {
+          canvas.setActiveObject(tMål);
+          tMål.enterEditing();
+          var n = (tMål.text || '').length;
+          tMål.setSelectionStart(n);
+          tMål.setSelectionEnd(n);
+          if (tMål.hiddenTextarea) tMål.hiddenTextarea.focus();
+          canvas.renderAll();
+        }
+        return;
+      }
       if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
       if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
       var pointer = canvas.getPointer(opt.e);

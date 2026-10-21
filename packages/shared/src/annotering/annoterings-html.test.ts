@@ -134,13 +134,32 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
   // eksisterende tekst (som åpnes for redigering). Treff på pil/sirkel/firkant lager ny
   // tekst; velging hører til Flytt. Den gamle «if (opt.target) return» — som drepte klikket
   // på ETHVERT objekt (også former) — skal være borte.
-  it("tekstverktøy: klikk på form lager tekst, kun eksisterende tekst åpner redigering", () => {
+  it("tekstverktøy: klikk på form lager tekst, treff på eksisterende tekst håndteres (ikke dødt klikk)", () => {
     // Skillet er nøyaktig type-testen settFlyttbar bruker (i-text ny, text eldre lag).
     expect(ANNOTERINGS_HTML).toContain(
-      "if (mål && (mål.type === 'text' || mål.type === 'i-text')) return;",
+      "if (mål && (mål.type === 'text' || mål.type === 'i-text')) {",
     );
     // Den gamle brede vakten som drepte klikket på enhver form er borte.
     expect(ANNOTERINGS_HTML).not.toContain("if (opt.target) return;");
+  });
+
+  // BEFARING-FUNN C2 (Kenneth 2026-10-21) — etterredigering av tekst.
+  it("tekstverktøy: trykk på eksisterende tekst åpner redigering med markør på slutten", () => {
+    // Nedtrykk husker målet; mouse:up skiller trykk fra dra og entrer redigering.
+    expect(ANNOTERINGS_HTML).toContain("tekstNedMål = mål;");
+    expect(ANNOTERINGS_HTML).toContain("tMål.enterEditing();");
+    // Markøren settes til slutten (ingen seleksjon av hele teksten).
+    expect(ANNOTERINGS_HTML).toContain("tMål.setSelectionStart(n);");
+    expect(ANNOTERINGS_HTML).toContain("tMål.setSelectionEnd(n);");
+  });
+
+  it("tekstverktøy: dra flytter teksten (trykk-vs-dra-skille), så den fortsatt kan flyttes", () => {
+    // Bevegelse > 5 px tolkes som dra (Fabric har flyttet objektet) — da entres IKKE redigering.
+    expect(ANNOTERINGS_HTML).toContain("var beveget = tekstNedPunkt");
+  });
+
+  it("større treffflate for tekst (minst ~44 pt): targetFindTolerance satt", () => {
+    expect(ANNOTERINGS_HTML).toContain("canvas.targetFindTolerance = 22;");
   });
 
   // TOM-TEKST-VAKT ved LAGRING — garanti ved konstruksjon: en tom IText som ble stående
