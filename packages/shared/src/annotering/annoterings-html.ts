@@ -26,7 +26,26 @@ import {
   ANNOTERING_PILHODE_FAKTOR,
 } from "./lag";
 
-export const ANNOTERINGS_HTML = `<!DOCTYPE html>
+// Flate-anker for bildet i annoteringsflaten (befaring-funn A + orkestrator-SVAR
+// dc6b8090, Kenneth 2026-10-21):
+//   "senter" — bildet vertikalt sentrert (align-items: center). WEB-STANDARDEN;
+//              web har ikke tastaturproblemet og skal stå uendret.
+//   "topp"   — bildet forankret ØVERST (align-items: flex-start), rett under
+//              overskriftslinja. KUN mobil, der RN reserverer tastaturhøyden og
+//              bildet må stå fast rett under overskriften.
+export type AnnoteringsAnker = "topp" | "senter";
+
+/**
+ * Bygger den delte annoterings-HTML-en. `anker` styrer KUN den vertikale
+ * forankringen av bildet i flaten (`#canvas-container align-items`); all
+ * tegnelogikk er identisk. Standard er "senter" slik at web (og enhver fremtidig
+ * konsument) får dagens sentrerte oppførsel uten å sende noe. Bare mobil sender
+ * "topp".
+ */
+export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string {
+  const anker: AnnoteringsAnker = opts?.anker ?? "senter";
+  const flateJustering = anker === "topp" ? "flex-start" : "center";
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -34,7 +53,14 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; touch-action: none; }
-  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  /* Vertikal forankring styres av anker-parameteren:
+     - "topp" (mobil): bildet forankres ØVERST, rett under overskriftslinja —
+       befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon, aldri sentrert
+       bort fra overskriften. RN gir WebView-en fast høyde (reservert tastatur),
+       så bildet står stille med og uten tastatur.
+     - "senter" (web, standard): bildet vertikalt sentrert — web har ikke
+       tastaturproblemet og skal stå uendret. Horisontalt alltid sentrert. */
+  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: ${flateJustering}; justify-content: center; }
   canvas { display: block; }
 </style>
 </head>
@@ -49,6 +75,11 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var aktivtVerktoy = 'arrow';
   var startPunkt = null;
   var forhandsvisning = null;
+  // Tekstverktøy (befaring-funn C2, Kenneth 2026-10-21): skille et rent TRYKK på en
+  // eksisterende tekst (→ rediger, markør på slutten) fra en DRA (→ flytt). Målet og
+  // startpunktet huskes fra mouse:down til mouse:up.
+  var tekstNedMål = null;
+  var tekstNedPunkt = null;
   // Farger og basis-tall interpoleres fra @sitedoc/shared lag.ts (én kilde, samme
   // mønster som bro-betingelsene). Strek/font vokser SUB-LINEÆRT (kvadratrot) med
   // canvas-bredden fra referanse-canvas (mobil ~390px) — lineær ble for tykk på stor
@@ -95,6 +126,12 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       isDrawingMode: false,
     });
 
+    // Befaring-funn C2 (Kenneth 2026-10-21): større treffflate for å plukke/redigere en
+    // eksisterende tekst (minst ~44 pt). targetFindTolerance utvider treffsonen rundt
+    // objektene med 22 px på hver side (≈44 px total) uten per-piksel-leting.
+    canvas.targetFindTolerance = 22;
+    canvas.perPixelTargetFind = false;
+
     canvas.freeDrawingBrush.color = STREK_FARGE;
     canvas.freeDrawingBrush.width = strekBredde();
 
@@ -111,7 +148,15 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       // 'i-text' (ny) eller 'text' (eldre lag) — samme skille som settFlyttbar.
       if (aktivtVerktoy === 'text') {
         var mål = opt.target;
-        if (mål && (mål.type === 'text' || mål.type === 'i-text')) return;
+        if (mål && (mål.type === 'text' || mål.type === 'i-text')) {
+          // Befaring-funn C2: la Fabric eie en eventuell DRA (flytting), men husk målet +
+          // nedpunktet så mouse:up kan skille et rent trykk (→ rediger) fra en dra (→ flytt).
+          var tpMål = canvas.getPointer(opt.e);
+          tekstNedMål = mål;
+          tekstNedPunkt = { x: tpMål.x, y: tpMål.y };
+          canvas.setActiveObject(mål);
+          return;
+        }
         var tp = canvas.getPointer(opt.e);
         lagTekst(tp.x, tp.y);
         return;
@@ -136,6 +181,27 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     });
 
     canvas.on('mouse:up', function(opt) {
+      // Befaring-funn C2: tekst som ble trykket/dratt i Tekst-verktøyet. Rent trykk (ingen
+      // bevegelse) → åpne for redigering med markøren på SLUTTEN. Dra → Fabric har allerede
+      // flyttet objektet, ikke åpne redigering. Målet huskes fra mouse:down.
+      if (tekstNedMål) {
+        var tMål = tekstNedMål; tekstNedMål = null;
+        var up = canvas.getPointer(opt.e);
+        var beveget = tekstNedPunkt && Math.sqrt(
+          (up.x - tekstNedPunkt.x) * (up.x - tekstNedPunkt.x) +
+          (up.y - tekstNedPunkt.y) * (up.y - tekstNedPunkt.y)) > 5;
+        tekstNedPunkt = null;
+        if (!beveget) {
+          canvas.setActiveObject(tMål);
+          tMål.enterEditing();
+          var n = (tMål.text || '').length;
+          tMål.setSelectionStart(n);
+          tMål.setSelectionEnd(n);
+          if (tMål.hiddenTextarea) tMål.hiddenTextarea.focus();
+          canvas.renderAll();
+        }
+        return;
+      }
       if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
       if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
       var pointer = canvas.getPointer(opt.e);
@@ -479,3 +545,8 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 </script>
 </body>
 </html>`;
+}
+
+// Bakoverkompatibel standard: sentrert flate ("senter"). Web bruker denne direkte
+// (uendret oppførsel). Mobil kaller `lagAnnoteringsHtml({ anker: "topp" })`.
+export const ANNOTERINGS_HTML = lagAnnoteringsHtml();

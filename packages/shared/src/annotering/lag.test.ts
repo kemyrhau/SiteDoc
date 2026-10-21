@@ -84,10 +84,10 @@ describe("strek/font/kontrast skalerer SUB-LINEÆRT med canvas-bredden (FUNN 2 �
     expect(web).toBeCloseTo(5.18, 1); // ~5,2px på 1163px (lineær ga ~9px)
   });
 
-  it("font skalerer sub-lineært: 14px på mobil, ~24px på web (ikke ~42px)", () => {
-    expect(skalertFont(MOBIL)).toBe(14);
+  it("font skalerer sub-lineært: 21px på mobil (hevet fra 14, befaring-funn C), ~36px på web", () => {
+    expect(skalertFont(MOBIL)).toBe(21);
     expect(skalertFont(WEB) / skalertFont(MOBIL)).toBeCloseTo(SQRT, 10);
-    expect(skalertFont(WEB)).toBeCloseTo(24.2, 1);
+    expect(skalertFont(WEB)).toBeCloseTo(36.3, 1);
   });
 
   it("kontrastkant er en ANDEL av streken (0,3 per side), ikke et fast tillegg", () => {
@@ -98,7 +98,7 @@ describe("strek/font/kontrast skalerer SUB-LINEÆRT med canvas-bredden (FUNN 2 �
   });
 
   it("tekst-outline er en andel av fonten (0,1)", () => {
-    expect(skalertTekstKant(MOBIL)).toBeCloseTo(1.4, 5);
+    expect(skalertTekstKant(MOBIL)).toBeCloseTo(2.1, 5); // 21 × 0,1
     expect(skalertTekstKant(WEB) / skalertFont(WEB)).toBeCloseTo(0.1, 5);
   });
 
@@ -178,8 +178,8 @@ describe("alle formtyper får hvit kontrastkant, ikke bare tekst (FUNN 4, KRAV c
     const mobil = tekstKontrastStil(MOBIL);
     const web = tekstKontrastStil(WEB);
     expect(mobil.paintFirst).toBe("stroke");
-    expect(mobil.fontSize).toBe(14);
-    expect(mobil.hvitKant).toBeCloseTo(1.4, 5); // 14 × 0,1
+    expect(mobil.fontSize).toBe(21);
+    expect(mobil.hvitKant).toBeCloseTo(2.1, 5); // 21 × 0,1
     expect(web.fontSize).toBeGreaterThan(mobil.fontSize);
     expect(web.hvitKant).toBeGreaterThan(mobil.hvitKant);
   });

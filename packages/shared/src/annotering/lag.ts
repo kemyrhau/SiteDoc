@@ -66,8 +66,11 @@ function somTall(v: unknown, standard: number): number {
 export const ANNOTERING_REFERANSE_BREDDE = 390;
 /** Rød strekbredde på referanse-canvas. */
 export const ANNOTERING_BASIS_STREK = 3;
-/** Tekst-fontstørrelse på referanse-canvas. */
-export const ANNOTERING_BASIS_FONT = 14;
+/** Tekst-fontstørrelse på referanse-canvas. Hevet 14 → 21 (≈1,5×) 2026-10-21 (Kenneth,
+ *  befaring-funn C: annoteringstekst var for liten). Skalerer fortsatt sub-lineært med
+ *  canvas-bredden, og eksporteres i originaloppløsning, så den leses likt på skjerm og i PDF.
+ *  Lagrede annoteringer beholder sin egen lagrede fontSize — kun NY tekst bruker 21. */
+export const ANNOTERING_BASIS_FONT = 21;
 /** Hvit kontrastkant per side som ANDEL av den røde streken (ikke fast tillegg). */
 export const ANNOTERING_KONTRAST_FRAKSJON = 0.3;
 /** Tekst-outline som ANDEL av fontstørrelsen. */

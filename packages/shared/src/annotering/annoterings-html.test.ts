@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ANNOTERINGS_HTML } from "./annoterings-html";
+import { ANNOTERINGS_HTML, lagAnnoteringsHtml } from "./annoterings-html";
 import { FABRIC_CDN_STI } from "./lag";
 
 /**
@@ -134,13 +134,32 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
   // eksisterende tekst (som åpnes for redigering). Treff på pil/sirkel/firkant lager ny
   // tekst; velging hører til Flytt. Den gamle «if (opt.target) return» — som drepte klikket
   // på ETHVERT objekt (også former) — skal være borte.
-  it("tekstverktøy: klikk på form lager tekst, kun eksisterende tekst åpner redigering", () => {
+  it("tekstverktøy: klikk på form lager tekst, treff på eksisterende tekst håndteres (ikke dødt klikk)", () => {
     // Skillet er nøyaktig type-testen settFlyttbar bruker (i-text ny, text eldre lag).
     expect(ANNOTERINGS_HTML).toContain(
-      "if (mål && (mål.type === 'text' || mål.type === 'i-text')) return;",
+      "if (mål && (mål.type === 'text' || mål.type === 'i-text')) {",
     );
     // Den gamle brede vakten som drepte klikket på enhver form er borte.
     expect(ANNOTERINGS_HTML).not.toContain("if (opt.target) return;");
+  });
+
+  // BEFARING-FUNN C2 (Kenneth 2026-10-21) — etterredigering av tekst.
+  it("tekstverktøy: trykk på eksisterende tekst åpner redigering med markør på slutten", () => {
+    // Nedtrykk husker målet; mouse:up skiller trykk fra dra og entrer redigering.
+    expect(ANNOTERINGS_HTML).toContain("tekstNedMål = mål;");
+    expect(ANNOTERINGS_HTML).toContain("tMål.enterEditing();");
+    // Markøren settes til slutten (ingen seleksjon av hele teksten).
+    expect(ANNOTERINGS_HTML).toContain("tMål.setSelectionStart(n);");
+    expect(ANNOTERINGS_HTML).toContain("tMål.setSelectionEnd(n);");
+  });
+
+  it("tekstverktøy: dra flytter teksten (trykk-vs-dra-skille), så den fortsatt kan flyttes", () => {
+    // Bevegelse > 5 px tolkes som dra (Fabric har flyttet objektet) — da entres IKKE redigering.
+    expect(ANNOTERINGS_HTML).toContain("var beveget = tekstNedPunkt");
+  });
+
+  it("større treffflate for tekst (minst ~44 pt): targetFindTolerance satt", () => {
+    expect(ANNOTERINGS_HTML).toContain("canvas.targetFindTolerance = 22;");
   });
 
   // TOM-TEKST-VAKT ved LAGRING — garanti ved konstruksjon: en tom IText som ble stående
@@ -156,6 +175,33 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).toContain("objekter.filter(function(o) { return !erTomTekst(o); }).map(");
     // Hendelses-ryddingen er fortsatt der (utelukker ikke vakten).
     expect(ANNOTERINGS_HTML).toContain("text:editing:exited");
+  });
+
+  // BEFARING — flate-anker (SVAR dc6b8090, Kenneth 2026-10-21): web skal stå UENDRET
+  // (sentrert); bare mobil forankrer øverst. Standarden er "senter", så web (som bruker
+  // ANNOTERINGS_HTML / lagAnnoteringsHtml() uten argument) aldri ved et uhell flyttes til topp.
+  it("web-standarden er 'senter' — align-items: center uten argument", () => {
+    expect(lagAnnoteringsHtml()).toContain("align-items: center;");
+    expect(lagAnnoteringsHtml()).not.toContain("align-items: flex-start;");
+    // Eksplisitt "senter" gir samme resultat som default.
+    expect(lagAnnoteringsHtml({ anker: "senter" })).toContain("align-items: center;");
+    // Den bakoverkompatible konstanten web importerer ER default-en (senter).
+    expect(ANNOTERINGS_HTML).toContain("align-items: center;");
+    expect(ANNOTERINGS_HTML).not.toContain("align-items: flex-start;");
+  });
+
+  it("mobil-ankeret 'topp' gir align-items: flex-start (forankret øverst)", () => {
+    expect(lagAnnoteringsHtml({ anker: "topp" })).toContain("align-items: flex-start;");
+    expect(lagAnnoteringsHtml({ anker: "topp" })).not.toContain("align-items: center;");
+  });
+
+  it("anker endrer KUN forankringen — all tegnelogikk er identisk i begge flater", () => {
+    // Fjerner vi align-items-linja fra begge, skal resten av HTML-en være bit-identisk.
+    const utenAnker = (html: string) =>
+      html.replace(/align-items: (flex-start|center);/, "align-items: X;");
+    expect(utenAnker(lagAnnoteringsHtml({ anker: "topp" }))).toBe(
+      utenAnker(lagAnnoteringsHtml({ anker: "senter" })),
+    );
   });
 
   // FUNN 2 (forrige runde, bevart) — forhåndsvisning under draget.
