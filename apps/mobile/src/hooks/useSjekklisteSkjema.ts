@@ -9,7 +9,7 @@ import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { useAuth } from "../providers/AuthProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, bevarOriginalUrl, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -31,6 +31,11 @@ export interface Vedlegg {
   // Løpende bildenummer per dokument, tildelt ved opptak (kun type "bilde").
   // Dokgen leser dette; mangler det, faller den tilbake til dokumentrekkefølge.
   bildeNr?: number;
+  // Ikke-destruktiv annotering (funn d, Kenneth 2026-10-21): den opprinnelige SERVER-URL-en
+  // før første annotering, bevart så visningen aldri står uten en gyldig kilde om den
+  // annoterte URL-en blir utilgjengelig. Settes ÉN gang (web har samme felt). Mangler på
+  // vedlegg lagd før funn d, og på vedlegg som aldri er annotert.
+  originalUrl?: string;
 }
 
 export interface FeltVerdi {
@@ -642,7 +647,16 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           [objektId]: {
             ...nåværende,
             vedlegg: nåværende.vedlegg.map((v) =>
-              v.id === vedleggId ? { ...v, url: nyUrl, filnavn: nyttFilnavn } : v,
+              v.id === vedleggId
+                ? {
+                    ...v,
+                    url: nyUrl,
+                    filnavn: nyttFilnavn,
+                    // Ikke-destruktivt (funn d): bevar den opprinnelige server-URL-en så visningen
+                    // aldri står uten kilde om den annoterte URL-en blir utilgjengelig.
+                    originalUrl: bevarOriginalUrl(v.originalUrl, v.url),
+                  }
+                : v,
             ),
           },
         };

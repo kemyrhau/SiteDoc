@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   erLokalVedleggUrl,
+  erServerVedleggUrl,
+  bevarOriginalUrl,
+  vedleggEndret,
   harLokaltVedlegg,
   sammenstillMedLokaleVedlegg,
   utelatFeltMedLokaleVedlegg,
@@ -13,6 +16,84 @@ describe("erLokalVedleggUrl", () => {
     expect(erLokalVedleggUrl("/uploads/privat/abc.jpg")).toBe(false);
     expect(erLokalVedleggUrl("https://api.sitedoc.no/uploads/x.jpg")).toBe(false);
     expect(erLokalVedleggUrl(undefined)).toBe(false);
+  });
+});
+
+describe("erServerVedleggUrl", () => {
+  it("/uploads/ og http(s) er server-URL-er, lokale filer er ikke", () => {
+    expect(erServerVedleggUrl("/uploads/privat/abc.jpg")).toBe(true);
+    expect(erServerVedleggUrl("/uploads/privat/abc.jpg?sig=xyz")).toBe(true);
+    expect(erServerVedleggUrl("https://api.sitedoc.no/uploads/x.jpg")).toBe(true);
+    expect(erServerVedleggUrl("file:///var/mobile/IMG_1.jpg")).toBe(false);
+    expect(erServerVedleggUrl("/var/mobile/IMG_1.jpg")).toBe(false);
+    expect(erServerVedleggUrl(undefined)).toBe(false);
+  });
+});
+
+// Funn d (Kenneth 2026-10-21): annotering skal være ikke-destruktiv. Den opprinnelige
+// SERVER-URL-en bevares som originalUrl første gang et server-vedlegg annoteres, slik at
+// visningen aldri står uten gyldig kilde om den annoterte URL-en blir utilgjengelig.
+describe("bevarOriginalUrl — ikke-destruktiv annotering", () => {
+  it("bevarer server-originalen når et server-vedlegg annoteres første gang", () => {
+    expect(bevarOriginalUrl(undefined, "/uploads/privat/orig.jpg?sig=a")).toBe(
+      "/uploads/privat/orig.jpg?sig=a",
+    );
+  });
+  it("bevarer INGEN original når gjeldende url er en lokal fil (ikke en trygg reserve)", () => {
+    expect(bevarOriginalUrl(undefined, "file:///var/mobile/IMG_1.jpg")).toBeUndefined();
+  });
+  it("beholder den FØRSTE bevarte originalen ved re-annotering", () => {
+    // Andre annotering: gjeldende url er nå den forrige annoterte fila, men originalUrl står fast.
+    expect(
+      bevarOriginalUrl("/uploads/privat/orig.jpg", "file:///var/mobile/annotert_2.jpg"),
+    ).toBe("/uploads/privat/orig.jpg");
+    expect(
+      bevarOriginalUrl("/uploads/privat/orig.jpg", "/uploads/privat/annotert_1.jpg"),
+    ).toBe("/uploads/privat/orig.jpg");
+  });
+});
+
+// Godkjent-lås (Kenneth-vedtak 2026-10-21): server avviser vedlegg-endring på en avsluttet
+// rapport. Sammenligningen er på id+filnavn, så ren URL-resignering ikke slår ut som endring.
+describe("vedleggEndret — identitet/filnavn, ikke URL-signatur", () => {
+  const v = (id: string, filnavn: string, url: string) => ({ id, filnavn, url, type: "bilde" });
+
+  it("ulik URL-signatur på samme vedlegg er IKKE en endring", () => {
+    const a = [v("1", "foto.jpg", "/uploads/privat/foto.jpg?sig=aaa")];
+    const b = [v("1", "foto.jpg", "/uploads/privat/foto.jpg?sig=bbb")];
+    expect(vedleggEndret(a, b)).toBe(false);
+  });
+  it("annotering (nytt filnavn) ER en endring", () => {
+    const a = [v("1", "foto.jpg", "/uploads/privat/foto.jpg")];
+    const b = [v("1", "annotert_123.jpg", "/uploads/privat/annotert_123.jpg")];
+    expect(vedleggEndret(a, b)).toBe(true);
+  });
+  it("sletting og tillegg ER endringer", () => {
+    const a = [v("1", "foto.jpg", "/u/a"), v("2", "foto2.jpg", "/u/b")];
+    expect(vedleggEndret(a, [v("1", "foto.jpg", "/u/a")])).toBe(true); // slettet
+    expect(vedleggEndret([v("1", "foto.jpg", "/u/a")], a)).toBe(true); // lagt til
+  });
+  it("tom/manglende liste håndteres", () => {
+    expect(vedleggEndret(undefined, undefined)).toBe(false);
+    expect(vedleggEndret([], undefined)).toBe(false);
+    expect(vedleggEndret(undefined, [v("1", "foto.jpg", "/u/a")])).toBe(true);
+  });
+  it("rekkefølge (omstokking) er IKKE en endring (sortert sett)", () => {
+    const a = [v("1", "a.jpg", "/u/a"), v("2", "b.jpg", "/u/b")];
+    const b = [v("2", "b.jpg", "/u/b"), v("1", "a.jpg", "/u/a")];
+    expect(vedleggEndret(a, b)).toBe(false);
+  });
+  it("tar hele feltobjektet: topp-nivå-vedlegg fanges, verdi-endring alene ikke", () => {
+    const før = { verdi: "x", vedlegg: [v("1", "foto.jpg", "/u/a")] };
+    const etterVerdi = { verdi: "y", vedlegg: [v("1", "foto.jpg", "/u/a?sig=z")] };
+    const etterAnnotert = { verdi: "x", vedlegg: [v("1", "annotert_9.jpg", "/u/ann")] };
+    expect(vedleggEndret(før, etterVerdi)).toBe(false); // kun verdi + sig endret
+    expect(vedleggEndret(før, etterAnnotert)).toBe(true); // vedlegg annotert
+  });
+  it("fanger repeater-nestede vedlegg", () => {
+    const før = { verdi: [{ _radId: "r1", felter: { b: { vedlegg: [v("9", "r.jpg", "/u/r")] } } }] };
+    const etter = { verdi: [{ _radId: "r1", felter: { b: { vedlegg: [v("9", "annotert_r.jpg", "/u/r2")] } } }] };
+    expect(vedleggEndret(før, etter)).toBe(true);
   });
 });
 

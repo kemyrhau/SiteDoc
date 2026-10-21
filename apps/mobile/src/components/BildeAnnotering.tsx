@@ -57,6 +57,9 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
   const { height: vindusHoyde } = useWindowDimensions();
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>("arrow");
   const [erKlar, settErKlar] = useState(false);
+  // Frys-fiks (orkestrator 2026-10-21): vis «Lagrer …» og deaktiver knappen FØR eksporten,
+  // så brukeren ser at appen jobber mens den synkrone toDataURL kjører i WebView-en.
+  const [lagrer, settLagrer] = useState(false);
   const webViewRef = useRef<WebView>(null);
 
   // Befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon. Flatehøyden beregnes ÉN gang
@@ -119,8 +122,15 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           });
           sendMelding({ type: "settBilde", bildeUrl: `data:image/jpeg;base64,${base64}` });
         } else if (data.type === "ferdig" && data.dataUrl) {
+          // Dev-logg av eksportstørrelse + tid (orkestrator iv) — gir Kenneths telefontest tall.
+          if (__DEV__) {
+            console.log(
+              `[annotering] eksport: ${data.bytes} byte (q${data.kvalitet}), ${data.eksportMs} ms`,
+            );
+          }
           const base64Data = (data.dataUrl as string).split(",")[1];
           // .jpg — annoteringen eksporteres nå som JPEG (annoterings-html.ts), ikke PNG.
+          // writeAsStringAsync er asynkron (native dekoding) → blokkerer ikke JS-tråden/navigeringen.
           const filsti = `${FileSystem.cacheDirectory}annotert_${Date.now()}.jpg`;
           await FileSystem.writeAsStringAsync(filsti, base64Data, {
             encoding: FileSystem.EncodingType.Base64,
@@ -128,7 +138,8 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           onFerdig(filsti);
         }
       } catch {
-        // Ignorer ugyldig melding
+        // Ignorer ugyldig melding — nullstill «Lagrer …» så knappen ikke blir stående låst.
+        settLagrer(false);
       }
     },
     [bildeUri, sendMelding, onFerdig],
@@ -150,13 +161,17 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         </Pressable>
         <Text className="text-base font-semibold text-white">{t("annotering.tittel")}</Text>
         <Pressable
-          onPress={() => sendMelding({ type: "lagre" })}
-          disabled={!erKlar}
+          onPress={() => {
+            if (!erKlar || lagrer) return;
+            settLagrer(true);
+            sendMelding({ type: "lagre" });
+          }}
+          disabled={!erKlar || lagrer}
           hitSlop={16}
           className="min-w-[60px] items-end py-2"
         >
-          <Text className={`text-base font-semibold ${erKlar ? "text-blue-400" : "text-gray-600"}`}>
-            {t("handling.ferdig")}
+          <Text className={`text-base font-semibold ${erKlar && !lagrer ? "text-blue-400" : "text-gray-600"}`}>
+            {lagrer ? t("handling.lagrer") : t("handling.ferdig")}
           </Text>
         </Pressable>
       </View>

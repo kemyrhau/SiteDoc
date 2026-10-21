@@ -9,7 +9,7 @@ import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, bevarOriginalUrl, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -640,7 +640,16 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           [objektId]: {
             ...nåværende,
             vedlegg: nåværende.vedlegg.map((v) =>
-              v.id === vedleggId ? { ...v, url: nyUrl, filnavn: nyttFilnavn } : v,
+              v.id === vedleggId
+                ? {
+                    ...v,
+                    url: nyUrl,
+                    filnavn: nyttFilnavn,
+                    // Ikke-destruktivt (funn d): bevar den opprinnelige server-URL-en så visningen
+                    // aldri står uten kilde om den annoterte URL-en blir utilgjengelig.
+                    originalUrl: bevarOriginalUrl(v.originalUrl, v.url),
+                  }
+                : v,
             ),
           },
         };

@@ -41,7 +41,7 @@ import {
   Scale,
   ChevronRight,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -715,6 +715,10 @@ export default function OppgaveDetalj() {
       (hmsAktivPosisjon == null && oppgave.status === "responded"));
   // Offline (speil-render) er ALLTID lesemodus, uansett rettighet/HMS-gren (LES-vedtaket).
   const leseModus = offlineModus ? true : erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21): på en avsluttet rapport (approved/
+  // closed/cancelled) kan vedlegg ikke annoteres/erstattes/slettes — også for admin. Skiller
+  // seg fra leseModus (som admin omgår); styrer KUN tilbehøret, ikke feltverdien.
+  const vedleggLaast = TERMINALE_DOKUMENTSTATUSER.has(oppgave.status);
 
   // Tegningspunkt kan kun settes/flyttes i utkast: serveren (oppgave.oppdater) avviser
   // metadata-endring etter sending (append-only), kun `subject` slipper forbi. Visning
@@ -1092,6 +1096,7 @@ export default function OppgaveDetalj() {
               onErstattVedlegg={(vId, nyUrl, nyttFilnavn) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn)}
               onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
+              vedleggLaast={vedleggLaast}
               oppgaveIdForKo={oppgave.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}

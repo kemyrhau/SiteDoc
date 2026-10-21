@@ -16,6 +16,72 @@ export function erLokalVedleggUrl(u: unknown): boolean {
   return typeof u === "string" && (u.startsWith("file://") || u.startsWith("/var/"));
 }
 
+/** En server-URL (varig lagret på server), motsatt av en lokal fil på enheten. Enten en
+ *  `/uploads/…`-sti (signert eller rå) eller en absolutt `http(s)`-URL. */
+export function erServerVedleggUrl(u: unknown): boolean {
+  return typeof u === "string" && (u.startsWith("/uploads/") || u.startsWith("http"));
+}
+
+/** Samle (id, filnavn) for ETHVERT vedlegg-lignende objekt (har `id` + `url`-streng) hvor enn
+ *  det ligger i et felt-tre — topp-nivå ELLER repeater-/attachments-nestet. Samme node-deteksjon
+ *  som serverens `settUrlPaaVedlegg`. */
+function samleVedleggIdFilnavn(node: unknown, ut: Array<[string, string]>): void {
+  if (Array.isArray(node)) {
+    for (const n of node) samleVedleggIdFilnavn(n, ut);
+    return;
+  }
+  if (node !== null && typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    if (typeof o.id === "string" && typeof o.url === "string") {
+      ut.push([o.id, typeof o.filnavn === "string" ? o.filnavn : ""]);
+    }
+    for (const v of Object.values(o)) samleVedleggIdFilnavn(v, ut);
+  }
+}
+
+/**
+ * Stabil signatur for alle vedlegg i et felt (eller en vedleggsliste) — SETTET av (`id`,
+ * `filnavn`), sortert. IKKE `url`: en server-URL får/mister sin `?sig=`-signatur ved re-henting
+ * uten at vedlegget er endret, så URL ville gitt falske «endret»-utslag. Rekkefølge ignoreres
+ * (sortert) så en ren omstokking ikke slår ut. Annotering bytter alltid `filnavn` (`annotert_…`),
+ * sletting fjerner en id, tillegg gir en ny id — alle fanges av id+filnavn-settet. Rekursiv, så
+ * den dekker både topp-nivå-vedlegg og repeater-nestede.
+ */
+export function vedleggSignatur(felt: unknown): string {
+  const ut: Array<[string, string]> = [];
+  samleVedleggIdFilnavn(felt, ut);
+  ut.sort((a, b) => (a[0] + " " + a[1]).localeCompare(b[0] + " " + b[1]));
+  return JSON.stringify(ut);
+}
+
+/** Er vedleggene i to felt (eller vedleggslister) forskjellige i identitet/filnavn (tillegg,
+ *  sletting eller erstatning/annotering)? Brukes server-side til å avvise vedlegg-endring på en
+ *  godkjent rapport (Kenneth-vedtak 2026-10-21) uten å slå ut på ren URL-resignering eller
+ *  omstokking. */
+export function vedleggEndret(gammel: unknown, ny: unknown): boolean {
+  return vedleggSignatur(gammel) !== vedleggSignatur(ny);
+}
+
+/**
+ * Ikke-destruktiv erstatning ved annotering (funn d, Kenneth 2026-10-21): behold den
+ * opprinnelige SERVER-URL-en som `originalUrl` første gang et server-vedlegg annoteres, slik at
+ * visningen aldri står igjen uten en gyldig kilde om den annoterte URL-en blir utilgjengelig
+ * (rå-privat uten signatur, eller lokalfil slettet etter opplasting → «Kunne ikke laste»).
+ *
+ * - Er `gjeldendeUrl` en lokal fil (originalen ikke lastet opp ennå), bevares INGEN original: en
+ *   lokal sti er ikke en trygg reserve, og den annoterte fila inneholder alt originalen har.
+ * - Første bevarte original beholdes ved re-annotering (`eksisterendeOriginalUrl` vinner).
+ *
+ * Returnerer URL-en som skal lagres i `originalUrl` (eller `undefined` når ingen bevares).
+ */
+export function bevarOriginalUrl(
+  eksisterendeOriginalUrl: string | undefined,
+  gjeldendeUrl: string,
+): string | undefined {
+  if (eksisterendeOriginalUrl) return eksisterendeOriginalUrl;
+  return erServerVedleggUrl(gjeldendeUrl) ? gjeldendeUrl : undefined;
+}
+
 /** Har noden (felt-verdi-tre) minst ett vedlegg med lokal URL? Rekursiv — dekker
  *  topp-nivå-vedlegg OG vedlegg inne i repeater-rader. */
 export function harLokaltVedlegg(node: unknown): boolean {
