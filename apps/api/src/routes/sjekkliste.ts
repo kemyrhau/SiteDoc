@@ -39,7 +39,8 @@ import { byggTransferSnapshot } from "../services/transfer-snapshot";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
-import { settUrlPaaVedlegg } from "../services/vedleggUrl";
+import { settUrlPaaVedlegg, finnVedleggFilnavn } from "../services/vedleggUrl";
+import { TERMINALE_DOKUMENTSTATUSER, vedleggEndret } from "@sitedoc/shared";
 
 // Felttyper der verdi er fritekst som skal oversettes
 const FRITEKST_TYPER = new Set(["text_field"]);
@@ -820,6 +821,23 @@ export const sjekklisteRouter = router({
       // Serverlås: avvis skriving når gjeldende signaturrunde er avsluttet (SJA-lås).
       await verifiserRundeIkkeLaast(ctx.prisma, { checklistId: input.id });
 
+      // Godkjent-lås på VEDLEGG (Kenneth-vedtak 2026-10-21, funksjonsendring): på en avsluttet
+      // rapport (approved/closed/cancelled) kan vedlegg ikke annoteres, erstattes eller slettes.
+      // Sjekkliste er ikke append-only, så vi vokter vedlegg (topp-nivå OG repeater-nestet) via
+      // id/filnavn-settet — ren URL-resignering/omstokking slår ikke ut. INGEN admin-bypass:
+      // endring krever Gjenåpne til draft. Verdi-redigering er utenfor dette vedtaket (uendret).
+      if (TERMINALE_DOKUMENTSTATUSER.has(sjekkliste.status)) {
+        const lagretData = (sjekkliste.data ?? {}) as Record<string, unknown>;
+        for (const [feltId, innFelt] of Object.entries(input.data)) {
+          if (vedleggEndret(lagretData[feltId], innFelt)) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Vedlegg på en godkjent rapport kan ikke endres — gjenåpne rapporten først",
+            });
+          }
+        }
+      }
+
       // Guard (funn d): et finalisert dokument har frosset værsnapshot ved signering.
       // Vær-køen (VaerKoProvider) kan komme online ETTER finalisering og forsøke å synke
       // et snapshot — det skal aldri overskrive den finaliserte verdien. Slipp øvrige felt
@@ -1025,6 +1043,26 @@ export const sjekklisteRouter = router({
           where: { id: input.id },
           select: { data: true },
         });
+        // Godkjent-lås på VEDLEGG (Kenneth-vedtak 2026-10-21): på en avsluttet rapport kan
+        // vedlegg ikke legges til eller erstattes/annoteres via URL-patchen. NYTT vedlegg (ikke
+        // funnet) og ERSTATNING (endret filnavn) avvises; ren URL-fullføring av et eksisterende
+        // vedlegg (samme filnavn) slippes gjennom. Ingen admin-bypass — endring krever Gjenåpne.
+        if (TERMINALE_DOKUMENTSTATUSER.has(sjekkliste.status)) {
+          const eksisterendeFilnavn = finnVedleggFilnavn(fersk.data ?? {}, input.vedleggId);
+          if (eksisterendeFilnavn === null) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Vedlegg kan ikke legges til på en godkjent rapport — gjenåpne rapporten først",
+            });
+          }
+          if (input.filnavn !== undefined && input.filnavn !== eksisterendeFilnavn) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Vedlegg på en godkjent rapport kan ikke erstattes — gjenåpne rapporten først",
+            });
+          }
+        }
+
         // Dyp kopi — vi muterer og skriver tilbake i én transaksjon.
         const data = JSON.parse(JSON.stringify(fersk.data ?? {})) as Record<
           string,

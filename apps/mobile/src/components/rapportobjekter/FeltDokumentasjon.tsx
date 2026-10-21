@@ -16,6 +16,7 @@ import { BildeAnnotering } from "../BildeAnnotering";
 import { KameraModal } from "../KameraModal";
 import { TegningsSkjermbilde } from "../TegningsSkjermbilde";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
+import { erServerVedleggUrl } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../../config/auth";
 
 // Et vedlegg med lokal URL er ikke lastet opp ennå (køen har ikke gitt det en
@@ -368,11 +369,20 @@ export function FeltDokumentasjon({
             // (funn C). KUN visning: v.url (det som persisteres) er urørt.
             const erRaaPrivat =
               v.url.startsWith("/uploads/privat/") && !v.url.includes("sig=");
+            // Funn d (Kenneth 2026-10-21): i rå-privat-vinduet er lokalfila ofte alt
+            // slettet (slettes så snart opplasting er bekreftet) → lokalBildeSti ga en
+            // DØD sti og «Kunne ikke laste». Har vi den bevarte server-originalen, vis
+            // den i stedet — aldri en død lokal sti når en server-URL finnes. Først når
+            // ingen server-original er bevart (nytatt bilde) brukes lokalfila, som da
+            // fortsatt lever.
+            const raaPrivatReserve = erServerVedleggUrl(v.originalUrl)
+              ? (v.originalUrl!.startsWith("/") ? `${AUTH_CONFIG.apiUrl}${v.originalUrl}` : v.originalUrl!)
+              : lokalBildeSti(v.filnavn);
             // Lokal fil → vis direkte, server-relativ → full URL
             const bildeUrl = v.url.startsWith("file://") || v.url.startsWith("/var/")
               ? v.url
               : erRaaPrivat
-                ? lokalBildeSti(v.filnavn)
+                ? raaPrivatReserve
                 : v.url.startsWith("/")
                   ? `${AUTH_CONFIG.apiUrl}${v.url}`
                   : v.url;

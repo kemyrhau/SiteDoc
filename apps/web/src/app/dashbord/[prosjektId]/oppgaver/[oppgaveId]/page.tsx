@@ -13,7 +13,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsFlytStripe } from "@/components/HmsFlytStripe";
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, formaterNummer } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, formaterNummer, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -568,6 +568,10 @@ export default function OppgaveDetaljSide() {
       aktivPosisjon === 1 ||
       (aktivPosisjon == null && oppgave?.status === "responded"));
   const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21): på en avsluttet rapport (approved/
+  // closed/cancelled) kan vedlegg ikke annoteres/erstattes/slettes — også for admin. Styrer
+  // KUN tilbehøret, ikke feltverdien.
+  const vedleggLaast = TERMINALE_DOKUMENTSTATUSER.has(oppgave?.status ?? "");
 
   // Behandler-leddets navn til HMS-flyt-stripa = siste flyt-ledd (gruppe/faggruppe/person).
   const hmsBehandlerNavn = useMemo<string | null>(() => {
@@ -1069,6 +1073,7 @@ export default function OppgaveDetaljSide() {
                   onFjernVedlegg={(id) => fjernVedlegg(objekt.id, id)}
                   onOppdaterVedlegg={(id, patch) => oppdaterVedlegg(objekt.id, id, patch)}
                   leseModus={leseModus}
+                  vedleggLaast={vedleggLaast}
                   nestingNivå={nestingNivå}
                   valideringsfeil={valideringsfeil[objekt.id]}
                   prosjektId={params.prosjektId}

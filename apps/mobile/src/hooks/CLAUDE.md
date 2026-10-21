@@ -19,6 +19,35 @@ enn å flytte.**
 som rendres gjennom disse to. **En fiks i begge dekker derfor HMS automatisk** — ikke let etter en
 tredje hook.
 
+🟢 **Ikke-destruktiv annotering (funn d, 2026-10-21)** — mobil matcher nå web: `erstattVedlegg`
+bevarer den opprinnelige SERVER-URL-en som `Vedlegg.originalUrl` (via `bevarOriginalUrl` i
+`@sitedoc/shared`), satt ÉN gang. Visningen (`FeltDokumentasjon`) faller tilbake til `originalUrl`
+— aldri en død lokal sti — når den annoterte URL-en er rå-privat/utilgjengelig. Lokal original
+(ikke opplastet) bevares bevisst IKKE (ikke en trygg reserve). Web hadde dette fra før
+(`annotering-lag.ts`); mobil-typen manglet feltene.
+
+🔴 **Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21, funksjonsendring)** — på en avsluttet
+rapport (`TERMINALE_DOKUMENTSTATUSER` = approved/closed/cancelled) kan vedlegg IKKE
+annoteres/erstattes/slettes, **heller ikke av admin**. Godkjent er strengere enn sendt; endring
+krever Gjenåpne. Håndheving i to lag: **server** (`oppgave`/`sjekkliste.oppdaterData` avviser
+vedlegg-endring via `vedleggEndret`; `settVedleggUrl` avviser nytt vedlegg / filnavn-endring via
+`finnVedleggFilnavn`), **klient** (`vedleggLaast`-prop til `FeltWrapper` → tilbehør-lesemodus; egen
+fra `leseModus` som admin omgår). Topp-nivå-vedlegg dekkes på alle fire flater; repeater-nestede
+vedlegg dekkes av serveren (og for oppgave også av append-only via `verdiLeseModus`).
+
+🔴 **Permanent avvisning gir ingen retry (RETUR 75282ec4).** Blir en rapport `approved` MENS en
+annotering-opplasting pågår, kaller opplastingskøen `settVedleggUrlIDokument` + `planleggLagring`
+når den fullfører → `oppdaterData` møter godkjent-låsen og kaster `FORBIDDEN`. Den generiske
+`catch` i `lagreIntern` skilte før ikke permanente avvisninger fra nettfeil → auto-retry-effekten
+(`useEffect([erPaaNettet, erInitialisert, synkStatus])`) prøvde i det uendelige. Nå klassifiserer
+`klassifiserLagreFeil` (`utils/lagreFeil.ts`) feilen: `permanent` (FORBIDDEN/BAD_REQUEST fra vakten)
+→ avansér `basisRef` for de avviste feltene (ikke dirty → ingen retry), behold lokal fil, vis ÉN
+`godkjentLaastVarsel`-melding; `transient` (nett/5xx/401) → `lokalt_lagret`, retry som før. Gjelder
+begge hooks. **Galleri-bilder** (`bilde.ts`, `Image`-tabellen) er ikke `data`-JSON-vedlegg, men
+henger på samme rapport — `opprettFor*`/`slettMedUrl` voktes nå av `krevRedigerbarDokumentstatus`
+(`apps/api/src/services/galleriStatusVakt.ts`) på terminal status. Køens galleri-opprett-vei
+retrier ikke (fire-and-forget `return` på `!ok`), så den trenger ingen klient-fiks.
+
 ### Append-only felt-låsing (delt kilde) — KUN oppgave
 
 **Gjelder oppgave, IKKE sjekkliste** (vedtatt 2026-07-16, spec `dokumentflyt.md § 2`): oppgave = append-only fra opprettelse; sjekkliste = redigerbar for den som har ballen + admin/registrator. `04f6d295` slo på låsen for alle fire hooks — feil for sjekkliste (et innsendt tallfelt ble permanent låst, også for admin) → fjernet fra sjekkliste-hookene igjen (`fix/sjekkliste-ikke-append-only`).

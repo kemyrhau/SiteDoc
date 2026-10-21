@@ -5,6 +5,7 @@ import { byggTilgangsFilter } from "../trpc/tilgangskontroll";
 import { signerBilder } from "../utils/vedleggSignering";
 import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { kanoniserForSletting } from "../utils/hmac";
+import { krevRedigerbarDokumentstatus } from "../services/galleriStatusVakt";
 
 /**
  * S1 Fase 1b myk validering (STEG 2): bilder skal lastes opp til uploads/privat/.
@@ -159,6 +160,8 @@ export const bildeRouter = router({
         include: { template: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, sjekkliste.template.projectId);
+      // Godkjent-lås: ingen nye bilder på en avsluttet rapport (Kenneth-vedtak 2026-10-21).
+      krevRedigerbarDokumentstatus(sjekkliste.status);
       advarVedApenBildeSti(input.fileUrl, "opprettForSjekkliste");
 
       const felter = {
@@ -209,6 +212,8 @@ export const bildeRouter = router({
         throw new Error("Oppgaven mangler mal-tilknytning");
       }
       await verifiserProsjektmedlem(ctx.userId, oppgave.template.projectId);
+      // Godkjent-lås: ingen nye bilder på en avsluttet rapport (Kenneth-vedtak 2026-10-21).
+      krevRedigerbarDokumentstatus(oppgave.status);
       advarVedApenBildeSti(input.fileUrl, "opprettForOppgave");
 
       const felter = {
@@ -264,6 +269,20 @@ export const bildeRouter = router({
       // HELE `/uploads/` signeres ved emisjon (Fase 1b), passerer alle vedlegg-
       // URL-er denne veien signert. Vernet er testet (bilde-slett-signert.test.ts).
       const renUrl = kanoniserForSletting(input.fileUrl);
+      // Godkjent-lås (Kenneth-vedtak 2026-10-21): et bilde som henger på en avsluttet
+      // rapport kan ikke slettes. Les statusen til dokumentet(ene) treffet tilhører FØR
+      // slettingen — treffer ÉN av dem en terminal rapport, avvises hele kallet (ingen
+      // delvis sletting). Rør bildet ingen rapport (begge null, lager ingen i dag), passerer det.
+      const treff = await ctx.prisma.image.findMany({
+        where: { fileUrl: renUrl },
+        select: {
+          checklist: { select: { status: true } },
+          task: { select: { status: true } },
+        },
+      });
+      for (const bilde of treff) {
+        krevRedigerbarDokumentstatus(bilde.checklist?.status ?? bilde.task?.status);
+      }
       const resultat = await ctx.prisma.image.deleteMany({
         where: { fileUrl: renUrl },
       });

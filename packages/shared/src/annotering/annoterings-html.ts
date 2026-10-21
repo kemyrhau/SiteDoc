@@ -197,7 +197,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
           var n = (tMål.text || '').length;
           tMål.setSelectionStart(n);
           tMål.setSelectionEnd(n);
-          if (tMål.hiddenTextarea) tMål.hiddenTextarea.focus();
+          klargjørTekstTastatur(tMål);
           canvas.renderAll();
         }
         return;
@@ -359,6 +359,17 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // rett i redigeringsmodus. Ingen modal, ingen meldingsrunde over broen — brukeren ser
   // teksten slik sluttproduktet blir, mens han skriver. Hvit outline (paintFirst 'stroke')
   // gir samme kontrast som formene. Tom tekst ved avsluttet redigering fjernes (se init).
+  // Befaring-funn (Kenneth 2026-10-21, BHO4): stor forbokstav automatisk etter punktum.
+  // Fabric lager en skjult <textarea> ved enterEditing() — den driver det native tastaturet.
+  // autocapitalize='sentences' slår på setning-stor-forbokstav på iOS/Android-tastaturet.
+  // Kalles overalt redigering startes (ny tekst OG trykk-for-å-redigere en eksisterende).
+  function klargjørTekstTastatur(obj) {
+    if (obj && obj.hiddenTextarea) {
+      obj.hiddenTextarea.setAttribute('autocapitalize', 'sentences');
+      obj.hiddenTextarea.focus();
+    }
+  }
+
   function lagTekst(x, y) {
     var tekstObj = new fabric.IText('', {
       left: x,
@@ -385,7 +396,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     objekter.push(tekstObj);
     canvas.setActiveObject(tekstObj);
     tekstObj.enterEditing();
-    if (tekstObj.hiddenTextarea) tekstObj.hiddenTextarea.focus();
+    klargjørTekstTastatur(tekstObj);
     canvas.renderAll();
   }
 
@@ -488,40 +499,73 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     }
   };
 
+  // Eksport-komprimering (frys-fiks, orkestrator-vedtak 2026-10-21): «Ferdig» frøs fordi en
+  // q0.92-eksport av et 1920px-bilde ga en base64-melding på 1–2 MB som krysset WebView-broen
+  // og ble parset/skrevet SYNKRONT på RN-JS-tråden. Husregelen (CLAUDE.md) er ≤300–400 KB før
+  // opplasting — samme mål som bilde.ts. Vi starter på q0.8 og senker trinnvis til ≤400 KB.
+  // 🔴 LESBARHET: q under ~0,9 kan flippe JPEG-koderen til chroma-subsampling (4:2:0) som gjør
+  // tynne røde streker mindre skarpe (målt 2026-08-26 på Chromium: strek-feil 105 mot 11 ved
+  // 4:4:4). Avveiningen er orkestratorens eksplisitte valg (frys/størrelse > maks skarphet);
+  // VERIFISERES på Kenneths telefon at røde streker fortsatt er lesbare. Går det ikke, heves
+  // START-kvaliteten (én verdi under) mot større fil.
+  var MAKS_EKSPORT_BYTES = 400 * 1024;
+  var EKSPORT_KVALITETER = [0.8, 0.7, 0.6, 0.5];
+
+  // base64-lengde → omtrentlige byte (4 tegn = 3 byte, minus '='-padding).
+  function base64Bytes(dataUrl) {
+    var komma = dataUrl.indexOf(',');
+    var b64 = komma >= 0 ? dataUrl.substring(komma + 1) : dataUrl;
+    if (!b64.length) return 0;
+    var padding = b64.charAt(b64.length - 1) === '=' ? (b64.charAt(b64.length - 2) === '=' ? 2 : 1) : 0;
+    return Math.floor(b64.length * 3 / 4) - padding;
+  }
+
   window.lagre = function() {
     canvas.discardActiveObject();
-    canvas.renderAll();
-    // Eksporter i originaloppløsning (input er alt ≤1920px komprimert vedlegg, så multiplier
-    // over-oppløser ikke). JPEG, IKKE PNG: PNG q1 av et foto blir 3–4 MB (tapsfri re-koding);
-    // JPEG q0.92 gir ~1 MB (~4× mindre) — målt 2026-08-26 (BACKLOG-772). Hvit bakgrunn fordi
-    // JPEG mangler alpha. q0.92 (over Chromiums 4:4:4-terskel ~0.9): lavere q flipper til
-    // chroma-subsampling (4:2:0) som gjør 3px røde streker uleselige (målt strek-feil 105 mot
-    // 11 ved 4:4:4). Lesbarhet > filstørrelse (ordren).
-    var multiplier = originalBredde > 0 ? (originalBredde / canvas.width) : 1;
+    // Hvit bakgrunn fordi JPEG mangler alpha. Settes FØR eksport.
     canvas.backgroundColor = '#ffffff';
     canvas.renderAll();
-    var dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: multiplier });
+    // requestAnimationFrame: la WebView tegne ferdig — og RN rekke å vise «Lagrer …» og
+    // deaktivere knappen — FØR den SYNKRONE toDataURL som re-renderer hele canvaset i full
+    // oppløsning og blokkerer tråden. Uten dette fryser UI-et uten et «jobber»-signal.
+    requestAnimationFrame(function() {
+      var start = (window.performance && performance.now) ? performance.now() : 0;
+      // Eksporter i originaloppløsning (input er alt ≤1920px komprimert vedlegg, så multiplier
+      // over-oppløser ikke). JPEG, IKKE PNG: PNG q1 av et foto blir 3–4 MB (BACKLOG-772).
+      var multiplier = originalBredde > 0 ? (originalBredde / canvas.width) : 1;
+      var dataUrl = '';
+      var bytes = 0;
+      var kvalitet = 0;
+      for (var qi = 0; qi < EKSPORT_KVALITETER.length; qi++) {
+        kvalitet = EKSPORT_KVALITETER[qi];
+        dataUrl = canvas.toDataURL({ format: 'jpeg', quality: kvalitet, multiplier: multiplier });
+        bytes = base64Bytes(dataUrl);
+        if (bytes <= MAKS_EKSPORT_BYTES) break;
+      }
+      var eksportMs = ((window.performance && performance.now) ? performance.now() : 0) - start;
 
-    // Tom-tekst-vakt ved LAGRING (garanti ved konstruksjon): filtrer bort enhver tom
-    // IText FØR serialisering. text:editing:exited-ryddingen over holder lerretet rent
-    // underveis, men fyrer ALDRI hvis enterEditing() feilet — da blir den tomme boksen
-    // stående i objekter og ville ellers serialiseres inn i laget og lagres (usynlig,
-    // tom, permanent — stille tomhet i LAGRET data, forbudt i CLAUDE.md). Vakten her er
-    // uavhengig av hvorfor redigeringen feilet. Tekst er 'i-text' (ny) eller 'text' (eldre
-    // lag) — samme skille som settFlyttbar/mouse:down.
-    function erTomTekst(o) {
-      return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());
-    }
-    // Annotasjonslaget UT sammen med den utflatede JPEG-en (tre-artefakt-modellen):
-    // objektene som DATA (uten bakgrunnsbildet — det er originalen, lagret separat),
-    // pluss canvas-dimensjonene og Fabric-versjonen (redigerbarhet + framtidssikring).
-    var lag = {
-      fabricVersion: fabric.version,
-      bredde: canvas.width,
-      hoyde: canvas.height,
-      objekter: objekter.filter(function(o) { return !erTomTekst(o); }).map(function(o) { return o.toObject(); }),
-    };
-    postTilVert({ type: 'ferdig', dataUrl: dataUrl, lag: lag });
+      // Tom-tekst-vakt ved LAGRING (garanti ved konstruksjon): filtrer bort enhver tom
+      // IText FØR serialisering. text:editing:exited-ryddingen over holder lerretet rent
+      // underveis, men fyrer ALDRI hvis enterEditing() feilet — da blir den tomme boksen
+      // stående i objekter og ville ellers serialiseres inn i laget og lagres (usynlig,
+      // tom, permanent — stille tomhet i LAGRET data, forbudt i CLAUDE.md). Vakten her er
+      // uavhengig av hvorfor redigeringen feilet. Tekst er 'i-text' (ny) eller 'text' (eldre
+      // lag) — samme skille som settFlyttbar/mouse:down.
+      function erTomTekst(o) {
+        return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());
+      }
+      // Annotasjonslaget UT sammen med den utflatede JPEG-en (tre-artefakt-modellen):
+      // objektene som DATA (uten bakgrunnsbildet — det er originalen, lagret separat),
+      // pluss canvas-dimensjonene og Fabric-versjonen (redigerbarhet + framtidssikring).
+      var lag = {
+        fabricVersion: fabric.version,
+        bredde: canvas.width,
+        hoyde: canvas.height,
+        objekter: objekter.filter(function(o) { return !erTomTekst(o); }).map(function(o) { return o.toObject(); }),
+      };
+      // bytes/kvalitet/eksportMs følger med så RN kan logge størrelse+tid i dev (orkestrator iv).
+      postTilVert({ type: 'ferdig', dataUrl: dataUrl, lag: lag, bytes: bytes, kvalitet: kvalitet, eksportMs: Math.round(eksportMs) });
+    });
   };
 
   function håndterVertMelding(e) {

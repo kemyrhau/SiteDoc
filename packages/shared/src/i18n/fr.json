@@ -893,6 +893,7 @@
   "handling.lukk": "Fermer",
   "kollisjon.notat.tittel": "C'est noté – le champ était déjà rempli",
   "kollisjon.varsel.tekst": "Votre valeur sur le(s) champ(s) {{antall}} n'a pas pu écraser une valeur déjà présente. Il est enregistré sous forme de note par champ, avec nom et heure – rien n’est perdu. Celui qui détient le ballon peut le faire entrer.",
+  "godkjentLaast.varsel.tekst": "Le rapport est approuvé – la modification n'a pas été enregistrée. Rouvrez le rapport pour le modifier.",
   "handling.ferdig": "Fait",
   "handling.sok": "Recherche",
   "handling.eksporter": "Exporter",

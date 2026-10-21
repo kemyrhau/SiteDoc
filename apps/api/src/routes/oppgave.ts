@@ -14,6 +14,7 @@ import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/share
 import { grenseNaadd } from "@sitedoc/shared";
 import { harFeltVerdi } from "@sitedoc/shared";
 import { erRaaUploadsUrl } from "@sitedoc/shared";
+import { TERMINALE_DOKUMENTSTATUSER, vedleggEndret } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
@@ -138,7 +139,7 @@ import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
-import { settUrlPaaVedlegg } from "../services/vedleggUrl";
+import { settUrlPaaVedlegg, finnVedleggFilnavn } from "../services/vedleggUrl";
 
 const FRITEKST_TYPER = new Set(["text_field"]);
 
@@ -881,6 +882,24 @@ export const oppgaveRouter = router({
         }
       }
 
+      // Godkjent-lås på VEDLEGG (Kenneth-vedtak 2026-10-21, funksjonsendring): på en avsluttet
+      // rapport (approved/closed/cancelled) kan vedlegg ikke annoteres, erstattes eller slettes
+      // — godkjent er strengere enn sendt. `verdi` dekkes alt av append-only-vakten over
+      // (repeater-vedlegg ligger i `verdi` og fanges der); her vokter vi TOPP-NIVÅ-vedlegg som
+      // ellers slipper gjennom fordi `verdi` er uendret. INGEN admin-bypass — endring krever
+      // Gjenåpne til draft. Sendt/mottatt beholder dagens oppførsel (ikke terminal).
+      if (TERMINALE_DOKUMENTSTATUSER.has(oppgave.status)) {
+        const lagretData = (oppgave.data ?? {}) as Record<string, unknown>;
+        for (const [feltId, innFelt] of Object.entries(input.data)) {
+          if (vedleggEndret(lagretData[feltId], innFelt)) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Vedlegg på en godkjent rapport kan ikke endres — gjenåpne rapporten først",
+            });
+          }
+        }
+      }
+
       // Guard (funn d): et finalisert dokument har frosset værsnapshot ved signering.
       // Vær-køen (VaerKoProvider) kan komme online ETTER finalisering og forsøke å synke
       // et snapshot — det skal aldri overskrive den finaliserte verdien. Slipp øvrige felt
@@ -1081,6 +1100,28 @@ export const oppgaveRouter = router({
           where: { id: input.id },
           select: { data: true },
         });
+        // Godkjent-lås på VEDLEGG (Kenneth-vedtak 2026-10-21, funksjonsendring): på en
+        // avsluttet rapport (approved/closed/cancelled) kan vedlegg ikke legges til eller
+        // erstattes/annoteres via URL-patchen heller. Et NYTT vedlegg (ikke funnet) og en
+        // ERSTATNING (endret filnavn, f.eks. annotert_…) avvises; en ren URL-fullføring av
+        // et eksisterende vedlegg (samme filnavn — en legitim opplasting startet før
+        // godkjenning) slippes gjennom. Ingen admin-bypass — endring krever Gjenåpne.
+        if (TERMINALE_DOKUMENTSTATUSER.has(oppgave.status)) {
+          const eksisterendeFilnavn = finnVedleggFilnavn(fersk.data ?? {}, input.vedleggId);
+          if (eksisterendeFilnavn === null) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Vedlegg kan ikke legges til på en godkjent rapport — gjenåpne rapporten først",
+            });
+          }
+          if (input.filnavn !== undefined && input.filnavn !== eksisterendeFilnavn) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Vedlegg på en godkjent rapport kan ikke erstattes — gjenåpne rapporten først",
+            });
+          }
+        }
+
         // Dyp kopi — vi muterer og skriver tilbake i én transaksjon.
         const data = JSON.parse(JSON.stringify(fersk.data ?? {})) as Record<
           string,

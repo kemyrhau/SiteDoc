@@ -41,7 +41,7 @@ import {
   Scale,
   ChevronRight,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -447,6 +447,8 @@ export default function OppgaveDetalj() {
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner,
+    godkjentLaastVarsel,
+    avvisGodkjentLaastVarsel,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -715,6 +717,10 @@ export default function OppgaveDetalj() {
       (hmsAktivPosisjon == null && oppgave.status === "responded"));
   // Offline (speil-render) er ALLTID lesemodus, uansett rettighet/HMS-gren (LES-vedtaket).
   const leseModus = offlineModus ? true : erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21): på en avsluttet rapport (approved/
+  // closed/cancelled) kan vedlegg ikke annoteres/erstattes/slettes — også for admin. Skiller
+  // seg fra leseModus (som admin omgår); styrer KUN tilbehøret, ikke feltverdien.
+  const vedleggLaast = TERMINALE_DOKUMENTSTATUSER.has(oppgave.status);
 
   // Tegningspunkt kan kun settes/flyttes i utkast: serveren (oppgave.oppdater) avviser
   // metadata-endring etter sending (append-only), kun `subject` slipper forbi. Visning
@@ -1018,6 +1024,19 @@ export default function OppgaveDetalj() {
           </View>
         )}
 
+        {/* Godkjent-lås-varsel: en vedlegg-endring ble permanent avvist (rapporten er
+            godkjent). Vises ÉN gang; endringen beholdes lokalt men lagres aldri. */}
+        {godkjentLaastVarsel && (
+          <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
+            <Text className="flex-1 text-sm text-red-800">
+              {t("godkjentLaast.varsel.tekst")}
+            </Text>
+            <Pressable onPress={avvisGodkjentLaastVarsel} hitSlop={8}>
+              <Text className="text-xs font-medium text-red-700">{t("handling.lukk")}</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Malobjekter */}
         <UtfyllingSeksjoner
           objekter={objekter}
@@ -1092,6 +1111,7 @@ export default function OppgaveDetalj() {
               onErstattVedlegg={(vId, nyUrl, nyttFilnavn) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn)}
               onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
+              vedleggLaast={vedleggLaast}
               oppgaveIdForKo={oppgave.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}
