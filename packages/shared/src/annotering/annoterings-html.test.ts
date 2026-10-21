@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ANNOTERINGS_HTML } from "./annoterings-html";
+import { ANNOTERINGS_HTML, lagAnnoteringsHtml } from "./annoterings-html";
 import { FABRIC_CDN_STI } from "./lag";
 
 /**
@@ -175,6 +175,33 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).toContain("objekter.filter(function(o) { return !erTomTekst(o); }).map(");
     // Hendelses-ryddingen er fortsatt der (utelukker ikke vakten).
     expect(ANNOTERINGS_HTML).toContain("text:editing:exited");
+  });
+
+  // BEFARING — flate-anker (SVAR dc6b8090, Kenneth 2026-10-21): web skal stå UENDRET
+  // (sentrert); bare mobil forankrer øverst. Standarden er "senter", så web (som bruker
+  // ANNOTERINGS_HTML / lagAnnoteringsHtml() uten argument) aldri ved et uhell flyttes til topp.
+  it("web-standarden er 'senter' — align-items: center uten argument", () => {
+    expect(lagAnnoteringsHtml()).toContain("align-items: center;");
+    expect(lagAnnoteringsHtml()).not.toContain("align-items: flex-start;");
+    // Eksplisitt "senter" gir samme resultat som default.
+    expect(lagAnnoteringsHtml({ anker: "senter" })).toContain("align-items: center;");
+    // Den bakoverkompatible konstanten web importerer ER default-en (senter).
+    expect(ANNOTERINGS_HTML).toContain("align-items: center;");
+    expect(ANNOTERINGS_HTML).not.toContain("align-items: flex-start;");
+  });
+
+  it("mobil-ankeret 'topp' gir align-items: flex-start (forankret øverst)", () => {
+    expect(lagAnnoteringsHtml({ anker: "topp" })).toContain("align-items: flex-start;");
+    expect(lagAnnoteringsHtml({ anker: "topp" })).not.toContain("align-items: center;");
+  });
+
+  it("anker endrer KUN forankringen — all tegnelogikk er identisk i begge flater", () => {
+    // Fjerner vi align-items-linja fra begge, skal resten av HTML-en være bit-identisk.
+    const utenAnker = (html: string) =>
+      html.replace(/align-items: (flex-start|center);/, "align-items: X;");
+    expect(utenAnker(lagAnnoteringsHtml({ anker: "topp" }))).toBe(
+      utenAnker(lagAnnoteringsHtml({ anker: "senter" })),
+    );
   });
 
   // FUNN 2 (forrige runde, bevart) — forhåndsvisning under draget.

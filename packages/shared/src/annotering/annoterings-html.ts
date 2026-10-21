@@ -26,7 +26,26 @@ import {
   ANNOTERING_PILHODE_FAKTOR,
 } from "./lag";
 
-export const ANNOTERINGS_HTML = `<!DOCTYPE html>
+// Flate-anker for bildet i annoteringsflaten (befaring-funn A + orkestrator-SVAR
+// dc6b8090, Kenneth 2026-10-21):
+//   "senter" — bildet vertikalt sentrert (align-items: center). WEB-STANDARDEN;
+//              web har ikke tastaturproblemet og skal stå uendret.
+//   "topp"   — bildet forankret ØVERST (align-items: flex-start), rett under
+//              overskriftslinja. KUN mobil, der RN reserverer tastaturhøyden og
+//              bildet må stå fast rett under overskriften.
+export type AnnoteringsAnker = "topp" | "senter";
+
+/**
+ * Bygger den delte annoterings-HTML-en. `anker` styrer KUN den vertikale
+ * forankringen av bildet i flaten (`#canvas-container align-items`); all
+ * tegnelogikk er identisk. Standard er "senter" slik at web (og enhver fremtidig
+ * konsument) får dagens sentrerte oppførsel uten å sende noe. Bare mobil sender
+ * "topp".
+ */
+export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string {
+  const anker: AnnoteringsAnker = opts?.anker ?? "senter";
+  const flateJustering = anker === "topp" ? "flex-start" : "center";
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -34,11 +53,14 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; touch-action: none; }
-  /* Bildet forankres ØVERST (ikke sentrert), rett under overskriftslinja på RN-siden —
-     befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon, aldri sentrert bort fra
-     overskriften. Horisontalt sentrert. RN gir WebView-en en fast høyde (reservert
-     tastatur), så bildet står stille med og uten tastatur. */
-  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
+  /* Vertikal forankring styres av anker-parameteren:
+     - "topp" (mobil): bildet forankres ØVERST, rett under overskriftslinja —
+       befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon, aldri sentrert
+       bort fra overskriften. RN gir WebView-en fast høyde (reservert tastatur),
+       så bildet står stille med og uten tastatur.
+     - "senter" (web, standard): bildet vertikalt sentrert — web har ikke
+       tastaturproblemet og skal stå uendret. Horisontalt alltid sentrert. */
+  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: ${flateJustering}; justify-content: center; }
   canvas { display: block; }
 </style>
 </head>
@@ -523,3 +545,8 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 </script>
 </body>
 </html>`;
+}
+
+// Bakoverkompatibel standard: sentrert flate ("senter"). Web bruker denne direkte
+// (uendret oppførsel). Mobil kaller `lagAnnoteringsHtml({ anker: "topp" })`.
+export const ANNOTERINGS_HTML = lagAnnoteringsHtml();

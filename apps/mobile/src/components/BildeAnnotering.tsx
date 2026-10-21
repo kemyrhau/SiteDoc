@@ -13,8 +13,13 @@ import {
 } from "lucide-react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
-import { ANNOTERINGS_HTML, annoteringsflateHoyde } from "@sitedoc/shared";
+import { lagAnnoteringsHtml, annoteringsflateHoyde } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../config/auth";
+
+// Mobil forankrer bildet ØVERST (befaring-funn A): fast posisjon rett under
+// overskriften, bildet står stille med og uten tastatur. Web bruker standarden
+// "senter" (SVAR dc6b8090 — web uendret). HTML-en er statisk; bygges én gang.
+const MOBIL_ANNOTERINGS_HTML = lagAnnoteringsHtml({ anker: "topp" });
 
 type Verktoy = "arrow" | "circle" | "rect" | "draw" | "text";
 
@@ -162,7 +167,7 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
       <View style={{ height: flateHoyde }}>
         <WebView
           ref={webViewRef}
-          source={{ html: ANNOTERINGS_HTML }}
+          source={{ html: MOBIL_ANNOTERINGS_HTML }}
           style={{ flex: 1 }}
           scrollEnabled={false}
           onMessage={håndterMelding}
