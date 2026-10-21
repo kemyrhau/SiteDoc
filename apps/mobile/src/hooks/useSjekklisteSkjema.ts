@@ -8,6 +8,7 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { useAuth } from "../providers/AuthProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
+import { klassifiserLagreFeil } from "../utils/lagreFeil";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
 import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, bevarOriginalUrl, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
@@ -93,6 +94,9 @@ export interface UseSjekklisteSkjemaResultat {
   /** Felt som nettopp fikk en kollisjons-tilføyelse (live-varsel); tømmes av `avvisKollisjoner`. */
   sisteKollisjoner: { feltId: string }[];
   avvisKollisjoner: () => void;
+  /** Godkjent-låsen avviste en vedlegg-endring permanent (ingen retry); vis ÉN melding. */
+  godkjentLaastVarsel: boolean;
+  avvisGodkjentLaastVarsel: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -221,6 +225,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // skal oppdages mot det serveren faktisk hadde da klienten sist var synket.
   const basisRef = useRef<Record<string, FeltVerdi>>({});
   const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
+  const [godkjentLaastVarsel, settGodkjentLaastVarsel] = useState(false);
 
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
@@ -514,8 +519,19 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
         skrivTilSQLite(sjekklisteId, data, true);
         settSynkStatus("synkronisert");
       } catch (feil) {
-        console.warn("[LAGRE] Server-lagring feilet:", feil);
-        settSynkStatus("lokalt_lagret");
+        if (klassifiserLagreFeil(feil) === "permanent") {
+          // Godkjent-lås (eller annen vakt-avvisning): forespørselen kan ALDRI lykkes.
+          // Avansér basis for de avviste feltene så de ikke er dirty → ingen ny retry.
+          // Behold lokal data (SQLite + annotert fil) urørt. Vis ÉN melding.
+          for (const id of sendteIder) basisRef.current[id] = data[id];
+          settHarEndringer(false);
+          settSynkStatus("synkronisert");
+          settGodkjentLaastVarsel(true);
+        } else {
+          // Nett-/transientfeil — data er trygg i SQLite, retry neste online-tick.
+          console.warn("[LAGRE] Server-lagring feilet:", feil);
+          settSynkStatus("lokalt_lagret");
+        }
       }
     } else {
       settSynkStatus("lokalt_lagret");
@@ -755,6 +771,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner: () => settSisteKollisjoner([]),
+    godkjentLaastVarsel,
+    avvisGodkjentLaastVarsel: () => settGodkjentLaastVarsel(false),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

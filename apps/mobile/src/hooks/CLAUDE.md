@@ -35,6 +35,19 @@ vedlegg-endring via `vedleggEndret`; `settVedleggUrl` avviser nytt vedlegg / fil
 fra `leseModus` som admin omgår). Topp-nivå-vedlegg dekkes på alle fire flater; repeater-nestede
 vedlegg dekkes av serveren (og for oppgave også av append-only via `verdiLeseModus`).
 
+🔴 **Permanent avvisning gir ingen retry (RETUR 75282ec4).** Blir en rapport `approved` MENS en
+annotering-opplasting pågår, kaller opplastingskøen `settVedleggUrlIDokument` + `planleggLagring`
+når den fullfører → `oppdaterData` møter godkjent-låsen og kaster `FORBIDDEN`. Den generiske
+`catch` i `lagreIntern` skilte før ikke permanente avvisninger fra nettfeil → auto-retry-effekten
+(`useEffect([erPaaNettet, erInitialisert, synkStatus])`) prøvde i det uendelige. Nå klassifiserer
+`klassifiserLagreFeil` (`utils/lagreFeil.ts`) feilen: `permanent` (FORBIDDEN/BAD_REQUEST fra vakten)
+→ avansér `basisRef` for de avviste feltene (ikke dirty → ingen retry), behold lokal fil, vis ÉN
+`godkjentLaastVarsel`-melding; `transient` (nett/5xx/401) → `lokalt_lagret`, retry som før. Gjelder
+begge hooks. **Galleri-bilder** (`bilde.ts`, `Image`-tabellen) er ikke `data`-JSON-vedlegg, men
+henger på samme rapport — `opprettFor*`/`slettMedUrl` voktes nå av `krevRedigerbarDokumentstatus`
+(`apps/api/src/services/galleriStatusVakt.ts`) på terminal status. Køens galleri-opprett-vei
+retrier ikke (fire-and-forget `return` på `!ok`), så den trenger ingen klient-fiks.
+
 ### Append-only felt-låsing (delt kilde) — KUN oppgave
 
 **Gjelder oppgave, IKKE sjekkliste** (vedtatt 2026-07-16, spec `dokumentflyt.md § 2`): oppgave = append-only fra opprettelse; sjekkliste = redigerbar for den som har ballen + admin/registrator. `04f6d295` slo på låsen for alle fire hooks — feil for sjekkliste (et innsendt tallfelt ble permanent låst, også for admin) → fjernet fra sjekkliste-hookene igjen (`fix/sjekkliste-ikke-append-only`).

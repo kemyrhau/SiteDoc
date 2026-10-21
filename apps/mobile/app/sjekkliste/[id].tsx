@@ -531,6 +531,8 @@ export default function SjekklisteUtfylling() {
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner,
+    godkjentLaastVarsel,
+    avvisGodkjentLaastVarsel,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -1007,6 +1009,19 @@ export default function SjekklisteUtfylling() {
             </Text>
             <Pressable onPress={avvisKollisjoner} hitSlop={8}>
               <Text className="text-xs font-medium text-amber-700">{t("handling.lukk")}</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Godkjent-lås-varsel: en vedlegg-endring ble permanent avvist (rapporten er
+            godkjent). Vises ÉN gang; endringen beholdes lokalt men lagres aldri. */}
+        {godkjentLaastVarsel && (
+          <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
+            <Text className="flex-1 text-sm text-red-800">
+              {t("godkjentLaast.varsel.tekst")}
+            </Text>
+            <Pressable onPress={avvisGodkjentLaastVarsel} hitSlop={8}>
+              <Text className="text-xs font-medium text-red-700">{t("handling.lukk")}</Text>
             </Pressable>
           </View>
         )}

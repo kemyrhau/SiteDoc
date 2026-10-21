@@ -7,6 +7,7 @@ import { oppgaveFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
+import { klassifiserLagreFeil } from "../utils/lagreFeil";
 import { useAuth } from "../providers/AuthProvider";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
 import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, bevarOriginalUrl, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
@@ -69,6 +70,9 @@ export interface UseOppgaveSkjemaResultat {
   /** Felt som nettopp fikk en kollisjons-tilføyelse (live-varsel); tømmes av `avvisKollisjoner`. */
   sisteKollisjoner: { feltId: string }[];
   avvisKollisjoner: () => void;
+  /** Godkjent-låsen avviste en vedlegg-endring permanent (ingen retry); vis ÉN melding. */
+  godkjentLaastVarsel: boolean;
+  avvisGodkjentLaastVarsel: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -192,6 +196,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   // endre et utfylt felt blir en tilføyelse på serveren.
   const basisRef = useRef<Record<string, FeltVerdi>>({});
   const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
+  const [godkjentLaastVarsel, settGodkjentLaastVarsel] = useState(false);
 
   // Append-only: felt som hadde server-bekreftet verdi ved init er låst.
   // Beregnes ALLTID fra server-data, aldri fra lokal usynkronisert SQLite-verdi.
@@ -503,9 +508,19 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
         // Marker som synkronisert i SQLite
         skrivTilSQLite(oppgaveId, data, true);
         settSynkStatus("synkronisert");
-      } catch {
-        // Server feilet — data er trygg i SQLite
-        settSynkStatus("lokalt_lagret");
+      } catch (feil) {
+        if (klassifiserLagreFeil(feil) === "permanent") {
+          // Godkjent-lås (eller annen vakt-avvisning): forespørselen kan ALDRI lykkes.
+          // Avansér basis for de avviste feltene så de ikke er dirty → ingen ny retry.
+          // Behold lokal data (SQLite + annotert fil) urørt. Vis ÉN melding.
+          for (const id of sendteIder) basisRef.current[id] = data[id];
+          settHarEndringer(false);
+          settSynkStatus("synkronisert");
+          settGodkjentLaastVarsel(true);
+        } else {
+          // Nett-/transientfeil — data er trygg i SQLite, retry neste online-tick.
+          settSynkStatus("lokalt_lagret");
+        }
       }
     }
   }, [oppgaveId, erPaaNettet, oppdaterDataMutasjon, utils]);
@@ -752,6 +767,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner: () => settSisteKollisjoner([]),
+    godkjentLaastVarsel,
+    avvisGodkjentLaastVarsel: () => settGodkjentLaastVarsel(false),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

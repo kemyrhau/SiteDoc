@@ -893,6 +893,7 @@
   "handling.lukk": "Sule",
   "kollisjon.notat.tittel": "Märkus – väli oli juba täidetud",
   "kollisjon.varsel.tekst": "Teie väärtus väljal {{antall}} ei saanud juba olemasolevat väärtust üle kirjutada. See salvestatakse välja poolt märkmena koos nime ja ajaga – midagi ei lähe kaduma. Kes palli hoiab, saab selle sisse viia.",
+  "godkjentLaast.varsel.tekst": "Aruanne on kinnitatud – muudatust ei salvestatud. Muutmiseks avage aruanne uuesti.",
   "handling.ferdig": "Valmis",
   "handling.sok": "Otsi",
   "handling.eksporter": "Ekspordi",
