@@ -5140,6 +5140,12 @@ Detaljsiden beholdes fullt funksjonell (sammenheng-prinsipp krever det). Reverse
 
 ## 2. Halvferdige features
 
+### 🟡 Galleri: omsortering (`bilde.oppdaterRekkefolge`) er ikke låst på godkjent rapport (Kontrollør 2026-10-21)
+Godkjent-låsen (`3e81941c`) dekker opprett, slett og annotering, men ikke `sortOrder`. Rekkefølgen kan påvirke PDF-en. Lav risiko. Ta den med neste gang `bilde.ts` røres, med samme `krevRedigerbarDokumentstatus`.
+
+### 🟡 Annotering: IText → Textbox (flytte markør, dra bredde, bryting) (Kenneth 2026-10-21)
+Bestilt hos Redesign som egen runde etter at frysrettingen er bekreftet på telefon.
+
 ### 🟡 Mobil: 9 eslint-feil i `apps/mobile/app/oppgave/[id].tsx` (Kontrollør 2026-10-20)
 Fantes før `fix/befaring-feltfunn` (identiske på develop `a9892446`). Teknisk gjeld. Ryddes neste gang fila røres.
 
