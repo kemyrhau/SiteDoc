@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ANNOTERINGS_HTML, lagAnnoteringsHtml } from "./annoterings-html";
 import { FABRIC_CDN_STI } from "./lag";
+import { TEKST_TAP_TERSKEL } from "./plassering";
 
 /**
  * Tegnelogikken bor i en HTML-streng (kan ikke enhets-testes med canvas), så disse
@@ -218,9 +219,9 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).toContain("tekstNedIEditing = !!mål.isEditing;");
     // Var det alt i redigering → returner uten å røre markøren.
     expect(ANNOTERINGS_HTML).toContain("if (varIEditing) {");
-    // Ellers: enterEditing + markør der man trykket.
-    expect(ANNOTERINGS_HTML).toContain("tMål.enterEditing();");
-    expect(ANNOTERINGS_HTML).toContain("tMål.setCursorByClick(opt.e);");
+    // Ellers: åpne redigering via den delte hjelperen (markør der man trykket; RETUR 5965e37b
+    // flyttet enterEditing + setCursorByClick inn i apneTekstForRedigering).
+    expect(ANNOTERINGS_HTML).toContain("apneTekstForRedigering(tMål, opt.e)");
   });
 
   // DEL 1 (c) — dra flytter teksten. Trykk-vs-dra-skille + klemming innenfor bildet. Starter
@@ -293,5 +294,52 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).toContain("forhandsvisning");
     expect(ANNOTERINGS_HTML).toContain("byggForm(aktivtVerktoy, startPunkt, pointer)");
     expect(ANNOTERINGS_HTML).toContain("canvas.remove(forhandsvisning)");
+  });
+
+  // ── RETUR 5965e37b (Kenneth 2026-10-22, PROD STOPPET): frys + ikke-redigerbar tekst ──
+  // Tegnelogikken bor i en streng → vi vokter at fiks-mønstrene FINNES. Beslutnings-logikken
+  // (trykk vs. dra, verktøy-agnostisk) er enhets-testet i plassering.test.ts (tvillingen).
+  describe("RETUR 5965e37b — frys-pin + verktøy-agnostisk tap-til-rediger", () => {
+    it("låser visningsporten (position:fixed) mot WKWebViews tastatur-scroll (frysen)", () => {
+      expect(ANNOTERINGS_HTML).toContain("html, body { position: fixed;");
+    });
+
+    it("scroll-pinnen tilbakestiller til (0,0) og lytter på visualViewport", () => {
+      expect(ANNOTERINGS_HTML).toContain("window.scrollTo(0, 0)");
+      expect(ANNOTERINGS_HTML).toContain("window.visualViewport.addEventListener('scroll', pinnViewport)");
+      expect(ANNOTERINGS_HTML).toContain("window.visualViewport.addEventListener('resize', pinnViewport)");
+      expect(ANNOTERINGS_HTML).toContain("monterScrollPin()");
+    });
+
+    it("et trykk på en tekst i et TEGNE-verktøy armer en kandidat (ikke bare Tekst-verktøyet)", () => {
+      // Kandidaten armes i mouse:down-grenen etter at startPunkt er satt (tegne-verktøy).
+      expect(ANNOTERINGS_HTML).toContain("tekstTapKandidat = dmål;");
+    });
+
+    it("mouse:up skiller trykk (< TEKST_TAP_TERSKEL → rediger) fra dra (→ tegn formen)", () => {
+      expect(ANNOTERINGS_HTML).toContain("if (flyttLengde < TEKST_TAP_TERSKEL) {");
+      // Terskel-konstanten er interpolert fra plassering.ts (tvilling), ikke hardkodet.
+      expect(ANNOTERINGS_HTML).toContain(`var TEKST_TAP_TERSKEL = ${TEKST_TAP_TERSKEL};`);
+    });
+
+    it("tekst-treff dekker både ny textbox og gammel i-text/text (prod-annotering åpnes)", () => {
+      expect(ANNOTERINGS_HTML).toContain(
+        "dmål.type === 'text' || dmål.type === 'i-text' || dmål.type === 'textbox'",
+      );
+    });
+
+    it("ÉN robust enter-editing-vei: setCursorByClick i try/catch med markør-på-slutten fallback", () => {
+      expect(ANNOTERINGS_HTML).toContain("function apneTekstForRedigering(o, evt)");
+      expect(ANNOTERINGS_HTML).toContain("try { o.setCursorByClick(evt); plassert = true; } catch");
+      // Begge trykk-veiene (Tekst-verktøy + verktøy-agnostisk) bruker samme hjelper.
+      expect(ANNOTERINGS_HTML).toContain("apneTekstForRedigering(tMål, opt.e)");
+      expect(ANNOTERINGS_HTML).toContain("apneTekstForRedigering(kTekst, opt.e)");
+    });
+
+    it("tekst er alltid evented, men selectable bare i select/text (dra fra tekst tegner formen)", () => {
+      expect(ANNOTERINGS_HTML).toContain(
+        "o.set({ evented: true, selectable: (aktivtVerktoy === 'select' || aktivtVerktoy === 'text') });",
+      );
+    });
   });
 });

@@ -122,3 +122,49 @@ export function klemTekstboksPosisjon(p: {
     top: Math.max(marg, Math.min(p.top, maksTop)),
   };
 }
+
+// ── Tap-vs-dra på en tekst (RETUR 5965e37b, Kenneth 2026-10-22) ───────────────────
+//
+// Regresjon fra Textbox-migreringen: en «avsluttet» tekst kunne ikke lenger treffes for
+// redigering, og tap-til-rediger var dessuten bundet til Tekst-verktøyet. Kenneths krav
+// (orkestrator-GO 2026-10-22): et TRYKK (bevegelse < TEKST_TAP_TERSKEL, som «Sett punkt»)
+// på en tekst åpner den for redigering i ALLE verktøy; et DRA som starter på en tekst
+// tegner fortsatt pil/sirkel/firkant/frihånd (ellers kan man ikke tegne fra en etikett).
+// 'draw' og 'select' eies av Fabric (frihånd / flytt), så der rører vi ikke tapet.
+//
+// 🔴 TESTBAR KILDE. `annoterings-html.ts` inliner nøyaktig samme betingelse i mouse:up
+// (HTML-strengen kan ikke importere). Endres regelen her, endres den der.
+
+/** Terskel (canvas-piksler) for å skille et trykk fra et dra på en tekst. */
+export const TEKST_TAP_TERSKEL = 10;
+
+/** Er objekttypen en tekst-annotering — ny `Textbox` eller eldre `i-text`/`text`-lag? */
+export function erTekstType(objType: string | null | undefined): boolean {
+  return objType === "textbox" || objType === "i-text" || objType === "text";
+}
+
+/**
+ * Skal et trykk/dra på et objekt åpne teksten for redigering? Sann bare når objektet er en
+ * tekst, verktøyet ikke er Fabric-eid (`draw`/`select`) og bevegelsen er under tap-terskelen
+ * (et dra skal i stedet tegne formen). `beveget` er true når flyttelengden ≥ TEKST_TAP_TERSKEL.
+ */
+export function skalTekstTapRedigere(p: {
+  objType: string | null | undefined;
+  aktivtVerktoy: string;
+  beveget: boolean;
+}): boolean {
+  if (!erTekstType(p.objType)) return false;
+  if (p.aktivtVerktoy === "draw" || p.aktivtVerktoy === "select") return false;
+  if (p.beveget) return false;
+  return true;
+}
+
+/**
+ * Skal en tekst være Fabric-flyttbar (`selectable`) i et gitt verktøy? Tekst er ALLTID
+ * `evented` (så tap-til-rediger ser treffet), men bare selectable i `select` (flytt) og
+ * `text` (Del 1 «dra flytter»). I tegneverktøyene er den IKKE selectable, så et dra som
+ * starter på en tekst tegner formen i stedet for at Fabric plukker opp teksten.
+ */
+export function tekstErSelectableIVerktoy(aktivtVerktoy: string): boolean {
+  return aktivtVerktoy === "select" || aktivtVerktoy === "text";
+}
