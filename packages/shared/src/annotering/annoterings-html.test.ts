@@ -137,15 +137,33 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).not.toContain("left: cx - radius"); // gammel hjørne-forskyvning borte
   });
 
-  // FUNN 1 — tekst skrives DIREKTE på canvas (IText), ingen modal, ingen meldingsrunde.
-  it("tekst legges som IText og går rett i redigering — ingen bro-melding", () => {
-    expect(ANNOTERINGS_HTML).toContain("new fabric.IText('',");
+  // DEL 1 (Kenneth 2026-10-22) — tekst skrives DIREKTE på canvas som fabric.Textbox
+  // (ikke IText): Textbox har en fast bredde og bryter teksten etter den, så lange
+  // setninger holder seg innenfor bildet (bilde 10-funnet). Ingen modal, ingen bro-melding.
+  it("tekst legges som Textbox med bredde og går rett i redigering — ingen bro-melding", () => {
+    expect(ANNOTERINGS_HTML).toContain("new fabric.Textbox('',");
+    // Bredden settes fra trykkpunktet (TVILLING tekstboksStandardBredde): canvas.width − x − marg.
+    expect(ANNOTERINGS_HTML).toContain("var bredde = tekstboksBredde(x);");
+    expect(ANNOTERINGS_HTML).toContain("width: bredde,");
     expect(ANNOTERINGS_HTML).toContain("enterEditing()");
+    // IText skal ikke lenger brukes for NY tekst (gamle lag gjenskapes som i-text, men
+    // konstruktøren er borte).
+    expect(ANNOTERINGS_HTML).not.toContain("new fabric.IText(");
     // KRAV c.1: ingen tekstmelding krysser broen lenger.
     expect(ANNOTERINGS_HTML).not.toContain("tekstInput");
     expect(ANNOTERINGS_HTML).not.toContain("redigerTekst");
     // Tom tekst ved avsluttet redigering fjernes på canvas (ikke over broen).
     expect(ANNOTERINGS_HTML).toContain("text:editing:exited");
+  });
+
+  // DEL 1 (d) — bredde-håndtak: kun ml/mr synlige, høyde følger teksten (lockScalingY).
+  it("tekstboks har bare bredde-håndtak (ml/mr), låst høyde og rotasjon", () => {
+    expect(ANNOTERINGS_HTML).toContain("ml: true, mr: true,");
+    expect(ANNOTERINGS_HTML).toContain("tl: false, tr: false, bl: false, br: false, mt: false, mb: false, mtr: false,");
+    expect(ANNOTERINGS_HTML).toContain("lockScalingY: true,");
+    expect(ANNOTERINGS_HTML).toContain("lockRotation: true,");
+    // Stor touch-treffflate på håndtaket (≥44 pt).
+    expect(ANNOTERINGS_HTML).toContain("touchCornerSize: 44,");
   });
 
   // KRAV c.3 (falsk-positiv) — den gamle meldingsveien er BORTE, ikke bare ubrukt.
@@ -159,41 +177,59 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
   // tekst; velging hører til Flytt. Den gamle «if (opt.target) return» — som drepte klikket
   // på ETHVERT objekt (også former) — skal være borte.
   it("tekstverktøy: klikk på form lager tekst, treff på eksisterende tekst håndteres (ikke dødt klikk)", () => {
-    // Skillet er nøyaktig type-testen settFlyttbar bruker (i-text ny, text eldre lag).
+    // Skillet dekker nå alle tre tekst-typene (textbox ny, i-text/text eldre lag).
     expect(ANNOTERINGS_HTML).toContain(
-      "if (mål && (mål.type === 'text' || mål.type === 'i-text')) {",
+      "if (mål && (mål.type === 'text' || mål.type === 'i-text' || mål.type === 'textbox')) {",
     );
     // Den gamle brede vakten som drepte klikket på enhver form er borte.
     expect(ANNOTERINGS_HTML).not.toContain("if (opt.target) return;");
   });
 
-  // BEFARING-FUNN C2 (Kenneth 2026-10-21) — etterredigering av tekst.
-  it("tekstverktøy: trykk på eksisterende tekst åpner redigering med markør på slutten", () => {
-    // Nedtrykk husker målet; mouse:up skiller trykk fra dra og entrer redigering.
+  // DEL 1 (a) — markøren kan flyttes. Rotårsaken var at mouse:up tvang markøren til slutten
+  // HVER gang man trykket, også under redigering. Nå: trykk mens teksten ALT redigerer → la
+  // Fabric beholde markøren (setCursorByClick); rent trykk på en tekst som ikke redigerte →
+  // åpne redigering og sett markøren DER man trykket.
+  it("tekstverktøy: markøren tvinges ikke til slutten under redigering", () => {
+    // Nedtrykk husker målet OG om det alt redigerte.
     expect(ANNOTERINGS_HTML).toContain("tekstNedMål = mål;");
+    expect(ANNOTERINGS_HTML).toContain("tekstNedIEditing = !!mål.isEditing;");
+    // Var det alt i redigering → returner uten å røre markøren.
+    expect(ANNOTERINGS_HTML).toContain("if (varIEditing) {");
+    // Ellers: enterEditing + markør der man trykket.
     expect(ANNOTERINGS_HTML).toContain("tMål.enterEditing();");
-    // Markøren settes til slutten (ingen seleksjon av hele teksten).
-    expect(ANNOTERINGS_HTML).toContain("tMål.setSelectionStart(n);");
-    expect(ANNOTERINGS_HTML).toContain("tMål.setSelectionEnd(n);");
+    expect(ANNOTERINGS_HTML).toContain("tMål.setCursorByClick(opt.e);");
   });
 
-  it("tekstverktøy: dra flytter teksten (trykk-vs-dra-skille), så den fortsatt kan flyttes", () => {
-    // Bevegelse > 5 px tolkes som dra (Fabric har flyttet objektet) — da entres IKKE redigering.
+  // DEL 1 (c) — dra flytter teksten. Trykk-vs-dra-skille + klemming innenfor bildet. Starter
+  // man å dra en tekst som redigerer, avsluttes redigeringen så gesten blir en flytt.
+  it("tekstverktøy: dra flytter teksten og klemmes innenfor bildet", () => {
     expect(ANNOTERINGS_HTML).toContain("var beveget = tekstNedPunkt");
+    // Dra → klem posisjonen innenfor bildet (aldri utenfor).
+    expect(ANNOTERINGS_HTML).toContain("klemTekstboksObjekt(tMål);");
+    // Start av dra på en tekst som redigerer → avslutt redigering.
+    expect(ANNOTERINGS_HTML).toContain("tekstNedMål.exitEditing();");
+    // Flytt-klemming også live under draget og etter bredde-endring.
+    expect(ANNOTERINGS_HTML).toContain("canvas.on('object:moving'");
+    expect(ANNOTERINGS_HTML).toContain("canvas.on('object:modified'");
   });
 
   it("større treffflate for tekst (minst ~44 pt): targetFindTolerance satt", () => {
     expect(ANNOTERINGS_HTML).toContain("canvas.targetFindTolerance = 22;");
   });
 
-  // TOM-TEKST-VAKT ved LAGRING — garanti ved konstruksjon: en tom IText som ble stående
+  // DEL 1 bakoverkompat — gammel i-text åpnes uendret; gjenskapte textbox får håndtak på nytt.
+  it("gjenskaper lagrede textbox-objekter med håndtak (toObject lagrer dem ikke)", () => {
+    expect(ANNOTERINGS_HTML).toContain("if (o.type === 'textbox') klargjørTekstboks(o);");
+  });
+
+  // TOM-TEKST-VAKT ved LAGRING — garanti ved konstruksjon: en tom tekst som ble stående
   // fordi enterEditing() feilet (editing:exited fyrte aldri) skal IKKE serialiseres inn i
   // laget. Filtreres i window.lagre FØR objekter.map(toObject). editing:exited-ryddingen
   // beholdes (holder lerretet rent underveis) — de to utelukker ikke hverandre.
-  it("filtrerer bort tom IText ved lagring, før serialisering", () => {
-    // Predikatet dekker begge tekst-typene (i-text ny, text eldre lag) + tom/whitespace.
+  it("filtrerer bort tom tekst ved lagring, før serialisering", () => {
+    // Predikatet dekker alle tre tekst-typene (textbox ny, i-text/text eldre lag) + tom/whitespace.
     expect(ANNOTERINGS_HTML).toContain(
-      "return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());",
+      "return (o.type === 'i-text' || o.type === 'text' || o.type === 'textbox') && (!o.text || !o.text.trim());",
     );
     // Filteret ligger PÅ serialiseringen, ikke bare i hendelsen.
     expect(ANNOTERINGS_HTML).toContain("objekter.filter(function(o) { return !erTomTekst(o); }).map(");
