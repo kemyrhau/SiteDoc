@@ -30,6 +30,7 @@ sources: cowork
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
 | `640a71b4` | 🔴 **Annotering (mobil + web via delt motor): tekstrute og kamera** | **Før:** teksten var én linje uten bredde som gikk ut over bildekanten. Markøren hoppet til slutten, og teksten kunne ikke dras eller endre bredde. I kameraet måtte man gå ut for å annotere. **Etter:** tekstrute med bryting, bredde fra trykkpunktet til bildekanten og håndtak for bredden. Markøren flyttes fritt, og dra flytter teksten. Kameraet har en miniatyrstripe med øktens bilder, og trykk annoterer uten å forlate kameraet. Re-annotering tegner oppå (tidligere annotering er innbrent). Web får samme tekstrute. ⚠️ Ikke bekreftet på telefon. | 🟢 Kenneth 2026-10-21/22 |
+| `020d687c` | Annotering (mobil + web via delt motor): trykk på tekst | **Før:** en avsluttet tekst kunne bare åpnes igjen med «Tekst» valgt, og tekstruten frøs når den brøt til 3+ linjer (regresjon fra `640a71b4`, aldri i prod). **Etter:** et trykk (< 10 px) på en tekst åpner den for redigering i alle verktøy; et dra som starter på en tekst tegner fortsatt formen. Lerretet ligger fast mens man skriver. | Kenneth på telefon 22.10 09:56 (bilde 12); trykk/dra-regelen orkestrator-presisering |
 
 ### 2026-10-21
 
