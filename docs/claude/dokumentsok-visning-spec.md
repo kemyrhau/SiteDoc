@@ -3,7 +3,7 @@ name: dokumentsok-visning-spec
 description: Spesifikasjon for visning av treff i dokumentsøket (/sok) — rangering, utsnitt til venstre, markering, høyre rute med fokus på valgt treff. Målt mot develop 2f156820 (re-målt 2026-10-22; første måling 5b86d8f0 14.10) etter sidetall-fiksen. S1–S6 merket reparasjon/funksjonsendring, akseptkriterier på testdokumentene i «Dokumentsøk-bevis», ordre SØK-1 (reparasjon) → SØK-2 (hjemmel), tester som skal feile. Inkluderer ett sikkerhetsfunn (hentDokumentChunks uten medlemskapssjekk).
 sist_verifisert_mot_kode: 2026-10-22
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: ⚠️ UTKAST TIL GATE (2026-10-14, § 1 re-målt 2026-10-22 mot `2f156820` etter `544f0125`) — ingenting under er bygget. Q1–Q3 til Kenneth (hjemmel for S3/S1b/S5).
+status: ⚠️ UTKAST TIL GATE (2026-10-14, § 1 re-målt 2026-10-22 mot `2f156820` etter `544f0125`) — ingenting under er bygget. Q1–Q3 besvart 2026-10-22: hjemmel for S1b og S3; filnavn-klem venter på måling.
 ---
 
 # Dokumentsøk — visning av treff
@@ -87,7 +87,7 @@ AI-søk, utsnitt fra starten av avsnittet, scroll til første forekomst på side
 
 - Leksikalsk kandidatuttak sorteres med `ts_rank(...) DESC` **før** `LIMIT 300` (S-M2). ILIKE-fallbacken i Tekstsøk sorteres på rank/antall forekomster, ikke filnavn (S-M9).
 - `bm25Weight`/`qualityWeight`: **fjernes** fra service og Zod (ubrukt, S-M3) — eller tas i bruk med måling; anbefaling fjern (ingen måling finnes).
-- Filnavn-bonusen (maks 0,45) kan overstyre tekstlikhet; den klemmes til maks 0,15 totalt inntil en måling på ekte prosjekt viser noe annet (BØR, Q3).
+- Filnavn-bonusen (maks 0,45) kan overstyre tekstlikhet; 🟡 klem til maks 0,15 er UTSATT (Q3, 2026-10-22: vent på måling på ekte prosjekt).
 - `leksikalskSok`-fallback respekterer `dokumentIder`/`ekskluderMappeIder` (S-M9). Filteret sendes også til `ftdSok.sokDokumenter` (S-M8).
 - **Akseptkriterier:**
   - D1 Enhetstest på SQL-en: leksikalsk spørring inneholder `ORDER BY` før `LIMIT`; 301 syntetiske chunks der den beste er nr. 301 → den kommer med.
@@ -117,7 +117,7 @@ AI-søk, utsnitt fra starten av avsnittet, scroll til første forekomst på side
 | Ordre | Innhold | Gate | Hjemmel |
 |---|---|---|---|
 | **SØK-1 (reparasjon, nå)** | S6a først (sikkerhet) · S1a · S2 · S4 · S5 · S6c + tester T1–T9 | Kontrollør (regel 10) | ingen ny hjemmel — retter designet Kenneth beskrev 14.10 |
-| **SØK-2 (funksjonsendring)** | S3 flere treff pr. dokument · S1b forrige/neste · evt. S4 filnavn-klem | Kontrollør | Kenneth Q1–Q3 |
+| **SØK-2 (funksjonsendring)** | S3 flere treff pr. dokument · S1b forrige/neste (filnavn-klem utsatt, Q3) | Kontrollør | 🟢 hjemmel Q1+Q2 2026-10-22 |
 
 Begge er web + api, ingen schema, ingen migrering. Agent: redesign (eier dokumentsøk-flaten, jf. `inbox-redesign-docx-sok.md`).
 
@@ -131,9 +131,9 @@ Begge er web + api, ingen schema, ingen migrering. Agent: redesign (eier dokumen
 
 | # | Spørsmål | Anbefaling |
 |---|---|---|
-| Q1 | S1b forrige/neste forekomst i høyre rute (ny knapp + tast) — ta med i SØK-2? | **Ja.** Det er slik en leser finner alle steder i et 40-siders dokument; uten den må han scrolle |
-| Q2 | S3 flere treff pr. dokument i AI-søk (i dag ett). Endrer tellingen «N treff i M dokumenter» synlig | **Ja.** «Treffene rangeres best til dårligst» forutsetter at alle treff vises. Tak 5 pr. dokument + «vis flere» holder lista kort |
-| Q3 | Filnavn-bonus maks 0,45 → klem til 0,15 nå, eller vent på måling? | **Vent på måling** på et ekte prosjekt (A.Markussen) før formelen røres; S4 fjerner bare det som er ubrukt |
+| Q1 | S1b forrige/neste forekomst i høyre rute (ny knapp + tast) — ta med i SØK-2? | 🟢 2026-10-22 Kenneth: **Ja** (anbefalingen). **Ja.** Det er slik en leser finner alle steder i et 40-siders dokument; uten den må han scrolle |
+| Q2 | S3 flere treff pr. dokument i AI-søk (i dag ett). Endrer tellingen «N treff i M dokumenter» synlig | 🟢 2026-10-22 Kenneth: **Ja**, tak 5 + «vis flere» (anbefalingen). **Ja.** «Treffene rangeres best til dårligst» forutsetter at alle treff vises. Tak 5 pr. dokument + «vis flere» holder lista kort |
+| Q3 | Filnavn-bonus maks 0,45 → klem til 0,15 nå, eller vent på måling? | 🟢 2026-10-22 Kenneth: **Vent** (anbefalingen) — ingen klem i SØK-2. **Vent på måling** på et ekte prosjekt (A.Markussen) før formelen røres; S4 fjerner bare det som er ubrukt |
 
 ## 6. Tester som skal FEILE i dag (DoD)
 
