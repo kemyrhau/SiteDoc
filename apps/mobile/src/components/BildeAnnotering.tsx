@@ -101,9 +101,9 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
     [sendMelding],
   );
 
-  // Tekst skrives nå DIREKTE på bildet (fabric.IText i den delte HTML-en) — ingen modal,
+  // Tekst skrives nå DIREKTE på bildet (fabric.Textbox i den delte HTML-en) — ingen modal,
   // ingen tekstInput/plasserTekst-meldinger over broen. WebView-tastaturet åpnes når
-  // IText går i redigering.
+  // tekstboksen går i redigering.
   const håndterMelding = useCallback(
     async (e: WebViewMessageEvent) => {
       try {

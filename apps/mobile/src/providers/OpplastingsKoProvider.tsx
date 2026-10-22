@@ -13,6 +13,7 @@ import {
 import { lastOppFil, OpplastingFeil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
 import { registrerBildeIDatabase, patchVedleggUrl } from "../services/bildeRegistrering";
+import { oppforingerAaKansellere, skalSkriveVedleggUrl, type KoOppforingRef } from "../utils/koDedup";
 import { useNettverk } from "./NettverkProvider";
 import { AUTH_CONFIG } from "../config/auth";
 
@@ -487,6 +488,33 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             await slettLokaltBilde(oppforing.lokalSti);
             oppdaterTellere();
           } else {
+            // Kappløp-vern (2026-10-22): er dette en FORELDET oppføring — finnes en NYERE
+            // oppføring for samme vedlegg (en annotering lagt til etterpå)? Da skal URL-en
+            // IKKE skrives; den nyeste vinner. Rydd bort den overflødige lokalfila og la
+            // annoteringen skrive når den fullfører. (Dekker vinduet der originalen alt var
+            // «laster_opp» da annoteringen kom og derfor ikke ble kansellert ved innlegging.)
+            const alleForVedlegg: KoOppforingRef[] = db
+              .select({
+                id: opplastingsKo.id,
+                vedleggId: opplastingsKo.vedleggId,
+                status: opplastingsKo.status,
+                opprettet: opplastingsKo.opprettet,
+              })
+              .from(opplastingsKo)
+              .where(eq(opplastingsKo.vedleggId, oppforing.vedleggId))
+              .all()
+              .map((r) => ({ id: r.id, vedleggId: r.vedleggId ?? "", status: r.status ?? "", opprettet: r.opprettet ?? 0 }));
+            const egen: KoOppforingRef = {
+              id: oppforing.id,
+              vedleggId: oppforing.vedleggId,
+              status: "fullfort",
+              opprettet: oppforing.opprettet ?? 0,
+            };
+            if (!skalSkriveVedleggUrl(egen, alleForVedlegg)) {
+              console.log("[KØ] Kappløp-vern: hopper over URL-skriving for foreldet oppføring (nyere annotering finnes):", oppforing.filnavn);
+              await slettLokaltBilde(oppforing.lokalSti);
+              oppdaterTellere();
+            } else {
             // Registrer bildet i server-databasen (images-tabellen)
             registrerBildeIDatabase({
               sjekklisteId: oppforing.sjekklisteId,
@@ -546,6 +574,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             }
 
             oppdaterTellere();
+            } // slutt kappløp-vern: skalSkriveVedleggUrl-gren
           }
 
           // Uansett suksess-gren: prosesser neste (etter finally, når flagget er false).
@@ -636,6 +665,34 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
       }
 
       console.log("[KØ] Legger i kø:", oppforing.filnavn, "sjekkliste:", oppforing.sjekklisteId, "oppgave:", oppforing.oppgaveId, "sti:", oppforing.lokalSti.slice(-50));
+
+      // Kappløp-vern (2026-10-22): annoterer brukeren et kamerabilde før originalen er
+      // lastet opp, deler de to oppføringene vedleggId. Kanseller ikke-fullførte,
+      // ikke-pågående oppføringer for samme vedlegg FØR den nye settes inn, så den nyeste
+      // (annoteringen) vinner. Pågående håndteres av skrive-vakten ved fullføring.
+      try {
+        const eksisterende: KoOppforingRef[] = db
+          .select({
+            id: opplastingsKo.id,
+            vedleggId: opplastingsKo.vedleggId,
+            status: opplastingsKo.status,
+            opprettet: opplastingsKo.opprettet,
+          })
+          .from(opplastingsKo)
+          .where(eq(opplastingsKo.vedleggId, oppforing.vedleggId))
+          .all()
+          .map((r) => ({ id: r.id, vedleggId: r.vedleggId ?? "", status: r.status ?? "", opprettet: r.opprettet ?? 0 }));
+        const kanseller = oppforingerAaKansellere(oppforing.vedleggId, eksisterende);
+        for (const id of kanseller) {
+          db.delete(opplastingsKo).where(eq(opplastingsKo.id, id)).run();
+        }
+        if (kanseller.length) {
+          console.log(`[KØ] Kappløp-vern: kansellerte ${kanseller.length} eldre oppføring(er) for vedlegg ${oppforing.vedleggId}`);
+        }
+      } catch (f) {
+        console.warn("[KØ] Kappløp-dedup feilet (ikke-kritisk):", f);
+      }
+
       try {
         db.insert(opplastingsKo)
           .values({

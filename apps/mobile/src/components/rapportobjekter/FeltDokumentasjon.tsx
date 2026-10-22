@@ -146,15 +146,18 @@ export function FeltDokumentasjon({
         gpsLng,
         gpsAktivert: gpsLat != null,
       });
+      // Del 2/3 (kamera): returner vedleggId så kameraøkta kan koble en etterfølgende
+      // annotering til NØYAKTIG dette vedlegget (ikke-destruktiv erstatning, samme ID).
+      return vedleggId;
     } catch (e) {
       const melding = e instanceof Error ? e.message : "Ukjent feil";
       console.error("Bildehåndtering feilet:", melding);
+      return undefined;
     }
   }, [sjekklisteId, oppgaveIdForKo, objektId]);
 
-  const håndterKameraBilde = useCallback((uri: string) => {
-    // Kameraet forblir åpent — prosesser bildet i bakgrunnen
-    (async () => {
+  const håndterKameraBilde = useCallback(
+    async (uri: string): Promise<{ vedleggId: string; uri: string } | null> => {
       try {
         // GPS ble startet da kameraet åpnet — hent resultatet (allerede klart eller nesten klart)
         const gpsPromise = gpsPromiseRef.current ?? hentGps();
@@ -164,12 +167,43 @@ export function FeltDokumentasjon({
         ]);
         // Kamerabilde: opptak = nå. Enhets-GPS er riktig kilde her (bildet tas i
         // dette øyeblikket på dette stedet) — kamera-veien er bevisst uendret.
-        await håndterBilde(komprimert.uri, gps?.lat, gps?.lng, new Date().toISOString());
+        const vedleggId = await håndterBilde(komprimert.uri, gps?.lat, gps?.lng, new Date().toISOString());
+        // Del 2/3: gi kameraøkta vedleggId + den komprimerte lokalstien, så miniatyren
+        // kan vises og en annotering kobles til riktig vedlegg.
+        return vedleggId ? { vedleggId, uri: komprimert.uri } : null;
       } catch (e) {
         console.error("Kamerabilde feilet:", e);
+        return null;
       }
-    })();
-  }, [håndterBilde]);
+    },
+    [håndterBilde],
+  );
+
+  // Del 2/3 (kamera): annoterer brukeren et bilde inne i kameraet, erstattes vedlegget
+  // ikke-destruktivt via SAMME vei som annoterings-modalen (onErstattVedlegg + kø med
+  // samme vedleggId). Kappløp-vernet i opplastingskøen sikrer at annoteringen vinner selv
+  // om originalen ennå ikke er ferdig opplastet.
+  const håndterAnnoterKameraBilde = useCallback(
+    async (vedleggId: string, annotertUri: string) => {
+      if (!onErstattVedlegg) return;
+      const filnavn = `annotert_${Date.now()}.jpg`;
+      const lokalSti = await lagreLokaltBilde(annotertUri, filnavn);
+      onErstattVedlegg(vedleggId, lokalSti, filnavn);
+      const filstorrelse = await hentFilstorrelse(lokalSti);
+      await leggIKoRef.current({
+        sjekklisteId,
+        oppgaveId: oppgaveIdForKo,
+        objektId,
+        vedleggId,
+        lokalSti,
+        filnavn,
+        mimeType: "image/jpeg",
+        filstorrelse,
+        gpsAktivert: false,
+      });
+    },
+    [onErstattVedlegg, sjekklisteId, oppgaveIdForKo, objektId],
+  );
 
   const håndterVelgFil = useCallback(async () => {
     try {
@@ -577,6 +611,7 @@ export function FeltDokumentasjon({
       <KameraModal
         synlig={visKamera}
         onBilde={håndterKameraBilde}
+        onAnnoterBilde={håndterAnnoterKameraBilde}
         onLukk={() => settVisKamera(false)}
       />
 

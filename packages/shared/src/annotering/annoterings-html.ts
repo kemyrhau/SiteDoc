@@ -25,6 +25,7 @@ import {
   ANNOTERING_TEKST_KANT_FRAKSJON,
   ANNOTERING_PILHODE_FAKTOR,
 } from "./lag";
+import { TEKSTBOKS_MARG, TEKSTBOKS_MIN_BREDDE } from "./plassering";
 
 // Flate-anker for bildet i annoteringsflaten (befaring-funn A + orkestrator-SVAR
 // dc6b8090, Kenneth 2026-10-21):
@@ -80,6 +81,9 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // startpunktet huskes fra mouse:down til mouse:up.
   var tekstNedMål = null;
   var tekstNedPunkt = null;
+  // Var tekstboksen ALT i redigering da brukeren trykket? Avgjør i mouse:up om vi skal la
+  // Fabrics markør-plassering stå (ja) eller åpne redigering på nytt (nei).
+  var tekstNedIEditing = false;
   // Farger og basis-tall interpoleres fra @sitedoc/shared lag.ts (én kilde, samme
   // mønster som bro-betingelsene). Strek/font vokser SUB-LINEÆRT (kvadratrot) med
   // canvas-bredden fra referanse-canvas (mobil ~390px) — lineær ble for tykk på stor
@@ -93,7 +97,36 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   var KONTRAST_FRAKSJON = ${ANNOTERING_KONTRAST_FRAKSJON};
   var TEKST_KANT_FRAKSJON = ${ANNOTERING_TEKST_KANT_FRAKSJON};
   var PILHODE_FAKTOR = ${ANNOTERING_PILHODE_FAKTOR};
+  // Tekstboks-geometri (Del 1, Kenneth 2026-10-22). 🔴 TVILLING av tekstboksStandardBredde/
+  // klemTekstboksPosisjon i @sitedoc/shared plassering.ts — de to er enhets-testbare, denne
+  // inlinede kopien er det ikke. Endres formelen der, endres den her.
+  var TEKSTBOKS_MARG = ${TEKSTBOKS_MARG};
+  var TEKSTBOKS_MIN_BREDDE = ${TEKSTBOKS_MIN_BREDDE};
   var objekter = [];
+
+  // Bredden til en ny tekstboks: fra trykkpunktet til høyre kant minus marg, klemt mot
+  // minBredde og flatens bredde (TVILLING: tekstboksStandardBredde).
+  function tekstboksBredde(trykkX) {
+    var cw = canvas ? canvas.width : 0;
+    var fraTrykk = cw - trykkX - TEKSTBOKS_MARG;
+    var maksIFlate = Math.max(0, cw - 2 * TEKSTBOKS_MARG);
+    var onsket = Math.max(TEKSTBOKS_MIN_BREDDE, fraTrykk);
+    return Math.max(0, Math.min(onsket, maksIFlate));
+  }
+
+  // Klem en tekstboks' hjørne innenfor bildet (TVILLING: klemTekstboksPosisjon). Bruker
+  // objektets utflatede bredde/høyde (getScaledWidth/Height) så den aldri havner utenfor.
+  function klemTekstboksObjekt(o) {
+    if (!canvas) return;
+    var marg = TEKSTBOKS_MARG;
+    var bredde = o.getScaledWidth ? o.getScaledWidth() : (o.width || 0);
+    var hoyde = o.getScaledHeight ? o.getScaledHeight() : (o.height || 0);
+    var maksLeft = canvas.width - marg - bredde;
+    var maksTop = canvas.height - marg - hoyde;
+    var nyLeft = Math.max(marg, Math.min(o.left || 0, maksLeft));
+    var nyTop = Math.max(marg, Math.min(o.top || 0, maksTop));
+    if (nyLeft !== o.left || nyTop !== o.top) { o.set({ left: nyLeft, top: nyTop }); o.setCoords(); }
+  }
 
   function naaSkala() { return (canvas && canvas.width > 0) ? Math.sqrt(canvas.width / REFERANSE_BREDDE) : 1; }
   function strekBredde() { return BASIS_STREK * naaSkala(); }
@@ -145,16 +178,18 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       // ikke tekstverktøyet; et treff på en form skal derfor lage NY tekst oppå den, ikke
       // plukke den opp. Før døde klikket stille på ethvert opt.target (rammeboksen dekker
       // mer enn den synlige streken → man traff noe uten å kunne vite det). Tekst er
-      // 'i-text' (ny) eller 'text' (eldre lag) — samme skille som settFlyttbar.
+      // 'textbox' (ny) eller 'i-text'/'text' (eldre lag) — samme skille som settFlyttbar.
       if (aktivtVerktoy === 'text') {
         var mål = opt.target;
-        if (mål && (mål.type === 'text' || mål.type === 'i-text')) {
-          // Befaring-funn C2: la Fabric eie en eventuell DRA (flytting), men husk målet +
-          // nedpunktet så mouse:up kan skille et rent trykk (→ rediger) fra en dra (→ flytt).
+        if (mål && (mål.type === 'text' || mål.type === 'i-text' || mål.type === 'textbox')) {
+          // Del 1 (Kenneth 2026-10-22): husk målet, nedpunktet og om det ALT redigerte, så
+          // mouse:up kan skille rent trykk (→ rediger) fra dra (→ flytt). La Fabric eie
+          // klikket — markør-flytting hvis det redigerte, ellers oppsett av flytt-transform.
+          // Vi tvinger IKKE setActiveObject/markør her (det var (a)-/(c)-rotårsaken).
           var tpMål = canvas.getPointer(opt.e);
           tekstNedMål = mål;
           tekstNedPunkt = { x: tpMål.x, y: tpMål.y };
-          canvas.setActiveObject(mål);
+          tekstNedIEditing = !!mål.isEditing;
           return;
         }
         var tp = canvas.getPointer(opt.e);
@@ -170,6 +205,24 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     // og fjernes ved mouse:up. Felles mangel web+mobil — begge fikk den ved at den
     // bor i den delte HTML-en.
     canvas.on('mouse:move', function(opt) {
+      // Del 1: begynner brukeren å DRA en tekst som redigerer, avslutt redigeringen så
+      // draget flytter boksen (ellers fanger den skjulte textarea-en gesten som tekst-
+      // markering — Kenneth: «tekst kan ikke flyttes»). Start flytt-transformen manuelt i
+      // samme gest så det føles sømløst; faller tilbake til «neste dra flytter» hvis den
+      // interne API-en mangler.
+      if (aktivtVerktoy === 'text' && tekstNedMål && tekstNedIEditing) {
+        var mp = canvas.getPointer(opt.e);
+        if (tekstNedPunkt && Math.sqrt(
+          (mp.x - tekstNedPunkt.x) * (mp.x - tekstNedPunkt.x) +
+          (mp.y - tekstNedPunkt.y) * (mp.y - tekstNedPunkt.y)) > 6) {
+          tekstNedMål.exitEditing();
+          tekstNedIEditing = false;
+          canvas.setActiveObject(tekstNedMål);
+          if (canvas._setupCurrentTransform) {
+            canvas._setupCurrentTransform(opt.e, tekstNedMål, true);
+          }
+        }
+      }
       if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select' || aktivtVerktoy === 'text') return;
       var pointer = canvas.getPointer(opt.e);
       var mdx = pointer.x - startPunkt.x;
@@ -186,20 +239,35 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       // flyttet objektet, ikke åpne redigering. Målet huskes fra mouse:down.
       if (tekstNedMål) {
         var tMål = tekstNedMål; tekstNedMål = null;
+        var varIEditing = tekstNedIEditing; tekstNedIEditing = false;
         var up = canvas.getPointer(opt.e);
         var beveget = tekstNedPunkt && Math.sqrt(
           (up.x - tekstNedPunkt.x) * (up.x - tekstNedPunkt.x) +
           (up.y - tekstNedPunkt.y) * (up.y - tekstNedPunkt.y)) > 5;
         tekstNedPunkt = null;
-        if (!beveget) {
-          canvas.setActiveObject(tMål);
-          tMål.enterEditing();
+        if (beveget) {
+          // Dra → Fabric har flyttet boksen. Klem den innenfor bildet (aldri utenfor).
+          klemTekstboksObjekt(tMål);
+          canvas.renderAll();
+          return;
+        }
+        if (varIEditing) {
+          // Rent trykk mens teksten ALT redigerte: Fabric plasserte markøren ved trykket
+          // (setCursorByClick). IKKE overstyr — å tvinge markøren til slutten var (a)-rotårsaken.
+          return;
+        }
+        // Rent trykk på en tekst som ikke redigerte → åpne redigering, markør DER han trykket.
+        canvas.setActiveObject(tMål);
+        tMål.enterEditing();
+        if (tMål.setCursorByClick) {
+          tMål.setCursorByClick(opt.e);
+        } else {
           var n = (tMål.text || '').length;
           tMål.setSelectionStart(n);
           tMål.setSelectionEnd(n);
-          klargjørTekstTastatur(tMål);
-          canvas.renderAll();
         }
+        klargjørTekstTastatur(tMål);
+        canvas.renderAll();
         return;
       }
       if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
@@ -212,7 +280,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       var avstand = Math.sqrt(dx * dx + dy * dy);
 
       if (avstand < 5) {
-        // Tekst håndteres i mouse:down (IText direkte på canvas) — ingen tap-logikk her.
+        // Tekst håndteres i mouse:down/up (Textbox direkte på canvas) — ingen tap-logikk her.
         startPunkt = null;
         return;
       }
@@ -236,7 +304,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       settFlyttbar(path, aktivtVerktoy === 'select');
     });
 
-    // Avsluttet tekstredigering uten innhold → fjern den tomme IText-en (erstatter den
+    // Avsluttet tekstredigering uten innhold → fjern den tomme tekstboksen (erstatter den
     // gamle «tom tekst = slett»-logikken som gikk over broen). Dette er IKKE stille
     // tomhet: krav 1 garanterer at hvert tekst-klikk gir en synlig følge (boksen dukker
     // opp med markør ved opprettelse), så brukeren SÅ den. Forsvinner den etterpå, er det
@@ -251,6 +319,13 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         canvas.renderAll();
       }
     });
+
+    // Del 1: hold tekstbokser innenfor bildet under dra (object:moving) og etter en
+    // bredde-endring (object:modified — ml/mr-håndtaket flytter venstre kant). Klemmingen
+    // er TVILLING av klemTekstboksPosisjon i plassering.ts.
+    function erTekst(o) { return o && (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text'); }
+    canvas.on('object:moving', function(e) { if (erTekst(e.target)) klemTekstboksObjekt(e.target); });
+    canvas.on('object:modified', function(e) { if (erTekst(e.target)) klemTekstboksObjekt(e.target); });
 
     postTilVert({ type: 'klar' });
   }
@@ -355,7 +430,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     }
   }
 
-  // Tekst skrives DIREKTE på bildet: en fabric.IText legges der brukeren klikker og går
+  // Tekst skrives DIREKTE på bildet: en fabric.Textbox legges der brukeren klikker og går
   // rett i redigeringsmodus. Ingen modal, ingen meldingsrunde over broen — brukeren ser
   // teksten slik sluttproduktet blir, mens han skriver. Hvit outline (paintFirst 'stroke')
   // gir samme kontrast som formene. Tom tekst ved avsluttet redigering fjernes (se init).
@@ -370,10 +445,41 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     }
   }
 
+  // Del 1 (Kenneth 2026-10-22): felles oppsett for en tekstboks' interaksjon — KUN
+  // bredde-håndtakene (ml/mr) synlige (Kenneth: «endre bredden»), høyde følger teksten
+  // (lockScalingY) og ingen rotasjon. Stor treffflate på håndtakene for touch (≥44 pt).
+  // Kalles både ved ny tekst OG ved gjenskaping av et lagret textbox-objekt.
+  function klargjørTekstboks(o) {
+    o.set({
+      hasControls: true,
+      hasBorders: true,
+      borderColor: '#3b82f6',
+      cornerColor: '#3b82f6',
+      cornerStyle: 'circle',
+      cornerSize: 14,
+      touchCornerSize: 44,
+      transparentCorners: false,
+      lockRotation: true,
+      lockScalingY: true,
+      lockScalingFlip: true,
+    });
+    // Bare midt-venstre/-høyre (bredde). Fabric Textbox konverterer en ml/mr-dra til
+    // ENDRET width (ikke scaleX), så teksten bryter på nytt etter den nye bredden.
+    o.setControlsVisibility({
+      tl: false, tr: false, bl: false, br: false, mt: false, mb: false, mtr: false,
+      ml: true, mr: true,
+    });
+  }
+
   function lagTekst(x, y) {
-    var tekstObj = new fabric.IText('', {
+    // Del 1: fabric.Textbox (ikke IText) — har en fast bredde og bryter teksten etter den,
+    // så lange setninger holder seg innenfor bildet (bilde 10-funnet). Bredden settes fra
+    // trykkpunktet til høyre kant minus marg; hjørnet klemmes innenfor bildet.
+    var bredde = tekstboksBredde(x);
+    var tekstObj = new fabric.Textbox('', {
       left: x,
       top: y,
+      width: bredde,
       fontSize: fontStr(),
       fontWeight: 'bold',
       fill: STREK_FARGE,
@@ -384,13 +490,9 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       editable: true,
       selectable: true,
       evented: true,
-      hasControls: false,
-      hasBorders: true,
-      borderColor: '#3b82f6',
-      lockRotation: true,
-      lockScalingX: true,
-      lockScalingY: true,
     });
+    klargjørTekstboks(tekstObj);
+    klemTekstboksObjekt(tekstObj);
 
     canvas.add(tekstObj);
     objekter.push(tekstObj);
@@ -420,9 +522,9 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // Gjør ETT gjeninnlastet objekt flyttbart eller låst avhengig av modus. Tekst er
   // alltid flyttbar (som ved tegning). Kalles ved lag-innlasting og ved verktøybytte.
   function settFlyttbar(o, flyttbar) {
-    // Tekst (fabric.IText → type 'i-text', eldre lag kan ha 'text') er alltid interaktiv
-    // så den kan flyttes og redigeres uansett verktøy.
-    if (o.type === 'text' || o.type === 'i-text') return;
+    // Tekst (fabric.Textbox → 'textbox'; eldre lag 'i-text' eller 'text') er alltid
+    // interaktiv så den kan flyttes og redigeres uansett verktøy.
+    if (o.type === 'text' || o.type === 'i-text' || o.type === 'textbox') return;
     o.set({ selectable: flyttbar, evented: flyttbar });
   }
 
@@ -466,6 +568,10 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
           fabric.util.enlivenObjects(lag.objekter, function(gjenskapte) {
             gjenskapte.forEach(function(o) {
               reskalerObjekt(o, ratio);
+              // Del 1: en gjenskapt tekstboks må få kontroll-synlighet og locks på nytt
+              // (toObject() lagrer dem ikke) så bredde-håndtaket virker etter gjenåpning.
+              // Eldre 'i-text'/'text' åpnes uendret (ingen håndtak, som før).
+              if (o.type === 'textbox') klargjørTekstboks(o);
               settFlyttbar(o, aktivtVerktoy === 'select');
               canvas.add(o);
               objekter.push(o);
@@ -549,10 +655,10 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       // underveis, men fyrer ALDRI hvis enterEditing() feilet — da blir den tomme boksen
       // stående i objekter og ville ellers serialiseres inn i laget og lagres (usynlig,
       // tom, permanent — stille tomhet i LAGRET data, forbudt i CLAUDE.md). Vakten her er
-      // uavhengig av hvorfor redigeringen feilet. Tekst er 'i-text' (ny) eller 'text' (eldre
+      // uavhengig av hvorfor redigeringen feilet. Tekst er 'textbox' (ny) eller 'i-text'/'text' (eldre
       // lag) — samme skille som settFlyttbar/mouse:down.
       function erTomTekst(o) {
-        return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());
+        return (o.type === 'i-text' || o.type === 'text' || o.type === 'textbox') && (!o.text || !o.text.trim());
       }
       // Annotasjonslaget UT sammen med den utflatede JPEG-en (tre-artefakt-modellen):
       // objektene som DATA (uten bakgrunnsbildet — det er originalen, lagret separat),

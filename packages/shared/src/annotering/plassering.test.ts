@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { annoteringsflateHoyde, annoteringsbildeFit } from "./plassering";
+import {
+  annoteringsflateHoyde,
+  annoteringsbildeFit,
+  tekstboksStandardBredde,
+  klemTekstboksPosisjon,
+  TEKSTBOKS_MARG,
+  TEKSTBOKS_MIN_BREDDE,
+} from "./plassering";
 
 /**
  * Vokter vedtaket (Kenneth 2026-10-21): bildet har ÉN fast plassering med og uten tastatur,
@@ -63,5 +70,67 @@ describe("annoteringsbildeFit — sideforhold bevart, øvre kant forankret", () 
       visningsHoyde: 1200,
       bundetAv: "bredde",
     });
+  });
+});
+
+/**
+ * Vokter Del 1 (Kenneth 2026-10-22): tekstboksen får en bredde fra trykkpunktet til
+ * bildets høyre kant minus marg, så teksten bryter på bildet (bilde 10-funnet: IText
+ * brøt aldri og gikk ut over kanten).
+ */
+describe("tekstboksStandardBredde — trykkpunkt til høyre kant minus marg", () => {
+  const CANVAS = 390;
+
+  it("strekker fra trykkpunktet til høyre marg i normaltilfellet", () => {
+    // Trykk på x=100 → bredden når akkurat til canvasBredde - marg.
+    expect(tekstboksStandardBredde(100, CANVAS, TEKSTBOKS_MARG)).toBe(CANVAS - 100 - TEKSTBOKS_MARG);
+    // left + bredde = høyre marg: 100 + 282 = 382 = 390 - 8. Teksten bryter innenfor kanten.
+    expect(100 + tekstboksStandardBredde(100, CANVAS)).toBe(CANVAS - TEKSTBOKS_MARG);
+  });
+
+  it("klemmer til minBredde når trykket er helt ute ved høyre kant (ingen negativ bredde)", () => {
+    expect(tekstboksStandardBredde(385, CANVAS)).toBe(TEKSTBOKS_MIN_BREDDE);
+  });
+
+  it("blir aldri bredere enn flaten mellom margene tillater", () => {
+    // Trykk helt til venstre (x=0): fraTrykk ville vært 382, men maks i flate er 390-2·8 = 374.
+    expect(tekstboksStandardBredde(0, CANVAS)).toBe(CANVAS - 2 * TEKSTBOKS_MARG);
+  });
+
+  it("tåler en veldig smal canvas uten å gå negativ", () => {
+    expect(tekstboksStandardBredde(10, 20)).toBe(Math.max(0, 20 - 2 * TEKSTBOKS_MARG));
+  });
+});
+
+/**
+ * Vokter Del 1 (Kenneth 2026-10-22): «teksten skal aldri havne utenfor bildet» — ved
+ * opprettelse, dra og bredde-endring klemmes boksens hjørne innenfor margene.
+ */
+describe("klemTekstboksPosisjon — boksen holdes innenfor bildet", () => {
+  const felles = { bredde: 100, hoyde: 40, canvasBredde: 390, canvasHoyde: 520, marg: TEKSTBOKS_MARG };
+
+  it("lar en boks godt innenfor stå urørt", () => {
+    expect(klemTekstboksPosisjon({ ...felles, left: 50, top: 60 })).toEqual({ left: 50, top: 60 });
+  });
+
+  it("skyver en boks som stikker ut til høyre innover", () => {
+    // left 350 + bredde 100 = 450 > 390-8 → maksLeft = 390-8-100 = 282.
+    expect(klemTekstboksPosisjon({ ...felles, left: 350, top: 60 }).left).toBe(282);
+  });
+
+  it("skyver en boks som stikker ut nederst oppover", () => {
+    // top 500 + hoyde 40 = 540 > 520-8 → maksTop = 520-8-40 = 472.
+    expect(klemTekstboksPosisjon({ ...felles, left: 50, top: 500 }).top).toBe(472);
+  });
+
+  it("klemmer negativ posisjon til margen (øvre venstre hjørne synlig)", () => {
+    expect(klemTekstboksPosisjon({ ...felles, left: -30, top: -30 })).toEqual({
+      left: TEKSTBOKS_MARG,
+      top: TEKSTBOKS_MARG,
+    });
+  });
+
+  it("lar margen vinne når boksen er bredere enn flaten", () => {
+    expect(klemTekstboksPosisjon({ ...felles, bredde: 500, left: 100, top: 60 }).left).toBe(TEKSTBOKS_MARG);
   });
 });

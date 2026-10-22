@@ -61,3 +61,64 @@ export function annoteringsbildeFit(
     bundetAv: skalaBredde <= skalaHoyde ? "bredde" : "hoyde",
   };
 }
+
+// ── Tekstboks-geometri (Del 1, Kenneth 2026-10-22: IText → Textbox) ──────────────
+//
+// Kenneth-funn (bilde 10, BHO4): den gamle `fabric.IText` hadde ingen bredde og brøt
+// aldri — teksten vokste rett forbi bildets høyre kant («linjeskift slutter ikke ved
+// enden … fordi vinduet ikke starter ved kant»). Vedtaket er `fabric.Textbox` med en
+// EKSPLISITT bredde satt ved opprettelse: fra trykkpunktet til bildets høyre kant minus
+// en marg, så teksten bryter på bildet og aldri havner utenfor.
+//
+// 🔴 Disse funksjonene er den TESTBARE kilden. `annoterings-html.ts` inliner nøyaktig
+// samme formler i `lagTekst`/`object:moving` (HTML-strengen kan ikke importere). Endres
+// formelen her, endres den der.
+
+/** Standard marg (canvas-piksler) mellom en tekstboks og bildekanten. */
+export const TEKSTBOKS_MARG = 8;
+/** Minste tekstboks-bredde (canvas-piksler) — en boks helt inntil høyre kant blir ikke smalere. */
+export const TEKSTBOKS_MIN_BREDDE = 60;
+
+/**
+ * Standardbredden til en ny tekstboks: fra trykkpunktet (`trykkX`) til bildets høyre kant
+ * minus `marg`, slik at `trykkX + bredde === canvasBredde - marg` i normaltilfellet og
+ * teksten bryter akkurat innenfor kanten. Klemmes så den aldri blir smalere enn `minBredde`
+ * og aldri bredere enn hele flaten tillater (`canvasBredde - 2·marg`) — et trykk helt ute
+ * ved høyre kant gir en smal boks, ikke en negativ bredde.
+ */
+export function tekstboksStandardBredde(
+  trykkX: number,
+  canvasBredde: number,
+  marg: number = TEKSTBOKS_MARG,
+  minBredde: number = TEKSTBOKS_MIN_BREDDE,
+): number {
+  const fraTrykk = canvasBredde - trykkX - marg;
+  const maksIFlate = Math.max(0, canvasBredde - 2 * marg);
+  const onsket = Math.max(minBredde, fraTrykk);
+  return Math.max(0, Math.min(onsket, maksIFlate));
+}
+
+/**
+ * Klem en tekstboks' øvre venstre hjørne (`left`/`top`) slik at boksen aldri havner utenfor
+ * bildet — Kenneths krav «teksten skal aldri havne utenfor bildet», både ved opprettelse,
+ * ved dra (flytt) og etter bredde-endring. Størrelsen (`bredde`/`hoyde`) er den aktuelle
+ * utflatede boksstørrelsen i canvas-piksler. Når boksen er bredere/høyere enn flaten mellom
+ * margene, vinner øvre/venstre marg (boksen kan ikke få plass, men toppen forblir synlig).
+ */
+export function klemTekstboksPosisjon(p: {
+  left: number;
+  top: number;
+  bredde: number;
+  hoyde: number;
+  canvasBredde: number;
+  canvasHoyde: number;
+  marg?: number;
+}): { left: number; top: number } {
+  const marg = p.marg ?? TEKSTBOKS_MARG;
+  const maksLeft = p.canvasBredde - marg - p.bredde;
+  const maksTop = p.canvasHoyde - marg - p.hoyde;
+  return {
+    left: Math.max(marg, Math.min(p.left, maksLeft)),
+    top: Math.max(marg, Math.min(p.top, maksTop)),
+  };
+}
