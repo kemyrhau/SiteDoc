@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable } from "react-native";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { View, Text, Pressable, Keyboard, Platform, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
@@ -13,10 +13,27 @@ import {
 } from "lucide-react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
-import { ANNOTERINGS_HTML } from "@sitedoc/shared";
+import { lagAnnoteringsHtml, annoteringsflateHoyde } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../config/auth";
 
+// Mobil forankrer bildet ØVERST (befaring-funn A): fast posisjon rett under
+// overskriften, bildet står stille med og uten tastatur. Web bruker standarden
+// "senter" (SVAR dc6b8090 — web uendret). HTML-en er statisk; bygges én gang.
+const MOBIL_ANNOTERINGS_HTML = lagAnnoteringsHtml({ anker: "topp" });
+
 type Verktoy = "arrow" | "circle" | "rect" | "draw" | "text";
+
+// Befaring-funn A (Kenneth 2026-10-21): bildet skal stå FAST, med og uten tastatur, forankret
+// rett under overskriftslinja. WebView-flaten får derfor en fast høyde der tastaturhøyden
+// ALLTID er reservert — da hopper bildet aldri. Overskriften har fast høyde (ingen måling som
+// kan gi et etter-mount-hopp), og vi legger ~16 pt luft over tastaturet (Kenneths tall).
+const HEADER_HOYDE = 52;
+const LUFT_OVER_TASTATUR = 16;
+// Reservert tastaturhøyde (full, inkl. prediktiv linje) når ingen måling finnes ennå.
+const STANDARD_TASTATUR = Platform.OS === "ios" ? 336 : 300;
+// Siste MÅLTE tastaturhøyde — caches på modulnivå så neste annoteringsøkt treffer enda bedre.
+// Oppdateres av lytteren UTEN å endre den pågående øktas flate (unngår hopp midt i økta).
+let sisteMalteTastaturHoyde: number | null = null;
 
 interface BildeAnnoteringProps {
   bildeUri: string;
@@ -37,9 +54,37 @@ const VERKTOYER: { id: Verktoy; ikon: typeof ArrowUpRight; labelKey: string }[] 
 export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoteringProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { height: vindusHoyde } = useWindowDimensions();
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>("arrow");
   const [erKlar, settErKlar] = useState(false);
+  // Frys-fiks (orkestrator 2026-10-21): vis «Lagrer …» og deaktiver knappen FØR eksporten,
+  // så brukeren ser at appen jobber mens den synkrone toDataURL kjører i WebView-en.
+  const [lagrer, settLagrer] = useState(false);
   const webViewRef = useRef<WebView>(null);
+
+  // Befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon. Flatehøyden beregnes ÉN gang
+  // ved mount — tastaturhøyden reserveres ALLTID — så bildet står stille enten tastaturet er
+  // fremme eller ikke. Vi translaterer/skalerer ikke lenger WebView-en når tastaturet kommer;
+  // det native tastaturet legger seg over den reserverte sonen nederst (verktøylinje + svart
+  // felt), aldri over bildet. Reservasjonen fanges i en ref så en senere måling ikke endrer
+  // den PÅGÅENDE øktas flate (det ville vært et hopp).
+  const reservertTastaturRef = useRef(sisteMalteTastaturHoyde ?? STANDARD_TASTATUR);
+  const flateHoyde = annoteringsflateHoyde({
+    vindusHoyde,
+    insetTop: insets.top,
+    headerHoyde: HEADER_HOYDE,
+    tastaturHoyde: reservertTastaturRef.current,
+    hjelpelinjeHoyde: LUFT_OVER_TASTATUR,
+  });
+
+  // Lytt KUN for å cache den målte tastaturhøyden til neste økt — endrer ikke flaten nå.
+  useEffect(() => {
+    const abo = Keyboard.addListener("keyboardDidShow", (e) => {
+      const h = e.endCoordinates?.height ?? 0;
+      if (h > 0) sisteMalteTastaturHoyde = h;
+    });
+    return () => abo.remove();
+  }, []);
 
   const sendMelding = useCallback(
     (melding: Record<string, unknown>) => {
@@ -77,8 +122,15 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           });
           sendMelding({ type: "settBilde", bildeUrl: `data:image/jpeg;base64,${base64}` });
         } else if (data.type === "ferdig" && data.dataUrl) {
+          // Dev-logg av eksportstørrelse + tid (orkestrator iv) — gir Kenneths telefontest tall.
+          if (__DEV__) {
+            console.log(
+              `[annotering] eksport: ${data.bytes} byte (q${data.kvalitet}), ${data.eksportMs} ms`,
+            );
+          }
           const base64Data = (data.dataUrl as string).split(",")[1];
           // .jpg — annoteringen eksporteres nå som JPEG (annoterings-html.ts), ikke PNG.
+          // writeAsStringAsync er asynkron (native dekoding) → blokkerer ikke JS-tråden/navigeringen.
           const filsti = `${FileSystem.cacheDirectory}annotert_${Date.now()}.jpg`;
           await FileSystem.writeAsStringAsync(filsti, base64Data, {
             encoding: FileSystem.EncodingType.Base64,
@@ -86,7 +138,8 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           onFerdig(filsti);
         }
       } catch {
-        // Ignorer ugyldig melding
+        // Ignorer ugyldig melding — nullstill «Lagrer …» så knappen ikke blir stående låst.
+        settLagrer(false);
       }
     },
     [bildeUri, sendMelding, onFerdig],
@@ -100,35 +153,45 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         paddingBottom: insets.bottom,
       }}
     >
-      {/* Header */}
-      <View className="flex-row items-center justify-between bg-gray-900 px-6 py-3">
+      {/* Header — fast høyde (befaring-funn A): alltid synlig, aldri dekket av tastaturet,
+          og flaten under beregnes mot denne faste høyden så bildet ikke hopper. */}
+      <View className="flex-row items-center justify-between bg-gray-900 px-6" style={{ height: HEADER_HOYDE }}>
         <Pressable onPress={onAvbryt} hitSlop={16} className="min-w-[60px] py-2">
           <Text className="text-base text-gray-400">{t("handling.avbryt")}</Text>
         </Pressable>
         <Text className="text-base font-semibold text-white">{t("annotering.tittel")}</Text>
         <Pressable
-          onPress={() => sendMelding({ type: "lagre" })}
-          disabled={!erKlar}
+          onPress={() => {
+            if (!erKlar || lagrer) return;
+            settLagrer(true);
+            sendMelding({ type: "lagre" });
+          }}
+          disabled={!erKlar || lagrer}
           hitSlop={16}
           className="min-w-[60px] items-end py-2"
         >
-          <Text className={`text-base font-semibold ${erKlar ? "text-blue-400" : "text-gray-600"}`}>
-            {t("handling.ferdig")}
+          <Text className={`text-base font-semibold ${erKlar && !lagrer ? "text-blue-400" : "text-gray-600"}`}>
+            {lagrer ? t("handling.lagrer") : t("handling.ferdig")}
           </Text>
         </Pressable>
       </View>
 
-      {/* WebView med Fabric.js */}
-      <View className="flex-1">
+      {/* WebView med Fabric.js — FAST høyde (befaring-funn A): bildet forankres rett under
+          header og står stille med og uten tastatur. Tastaturet legger seg over den reserverte
+          sonen nederst (spacer + verktøylinje), aldri over bildet. */}
+      <View style={{ height: flateHoyde }}>
         <WebView
           ref={webViewRef}
-          source={{ html: ANNOTERINGS_HTML }}
+          source={{ html: MOBIL_ANNOTERINGS_HTML }}
           style={{ flex: 1 }}
           scrollEnabled={false}
           onMessage={håndterMelding}
           allowFileAccess
         />
       </View>
+
+      {/* Svart fyll ned til verktøylinja — denne sonen dekkes av tastaturet når det er fremme. */}
+      <View className="flex-1 bg-black" />
 
       {/* Verktøylinje */}
       <View className="flex-row items-center justify-around bg-gray-900 px-4 py-3">

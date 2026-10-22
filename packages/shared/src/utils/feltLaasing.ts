@@ -124,12 +124,21 @@ interface LagretFelt {
  * Beregn settet av objekt-IDer som er låst for verdi-endring (append-only):
  * felt som allerede har en server-bekreftet, ikke-tom verdi. Kommentar og
  * vedlegg låses ikke og skal håndteres separat i hooken.
+ *
+ * Draft (utkast, aldri sendt) låser INGENTING: den som har ballen redigerer fritt
+ * til dokumentet sendes (Vedtak B). Append-only-låsen slår inn FØRST etter sending
+ * (status ≠ "draft"). Draft-gaten bor her, i den delte kilden, nettopp så ingen
+ * hook kan glemme den — web gatet den inline, mobil gjorde det ikke, og et felt
+ * fylt i utkast ble låst så snart verdien var server-bekreftet (befaring-feltfunn
+ * 2026-10-20). `status` er valgfri for bakoverkompatibilitet; utelates den gates
+ * ikke på draft (kaller må da selv sikre at låsen ikke kjøres på utkast).
  */
 export function beregnLaasteFelter(
   serverData: Record<string, LagretFelt | undefined> | null | undefined,
+  status?: string,
 ): Set<string> {
   const laaste = new Set<string>();
-  if (!serverData) return laaste;
+  if (!serverData || status === "draft") return laaste;
   for (const [objektId, felt] of Object.entries(serverData)) {
     if (felt && harFeltVerdi(felt.verdi)) laaste.add(objektId);
   }

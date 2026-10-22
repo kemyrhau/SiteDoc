@@ -37,3 +37,33 @@ export function settUrlPaaVedlegg(
   }
   return false;
 }
+
+/**
+ * Finn filnavnet til vedlegget med `id === vedleggId` hvor enn det ligger i data-treet
+ * (topp-nivå ELLER repeater-/attachments-nestet). `null` når vedlegget ikke finnes; `""`
+ * når det finnes uten filnavn.
+ *
+ * Brukes av godkjent-låsen (Kenneth-vedtak 2026-10-21) i `settVedleggUrl` til å skille et
+ * NYTT vedlegg (ikke funnet → forbudt å legge til på godkjent) og en ERSTATNING (endret
+ * filnavn → annotering, forbudt) fra en ren URL-fullføring (samme filnavn → en legitim
+ * opplasting fra før godkjenning som slippes gjennom).
+ */
+export function finnVedleggFilnavn(node: unknown, vedleggId: string): string | null {
+  if (Array.isArray(node)) {
+    for (const n of node) {
+      const f = finnVedleggFilnavn(n, vedleggId);
+      if (f !== null) return f;
+    }
+    return null;
+  }
+  if (node !== null && typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    if (o.id === vedleggId) return typeof o.filnavn === "string" ? o.filnavn : "";
+    for (const v of Object.values(o)) {
+      const f = finnVedleggFilnavn(v, vedleggId);
+      if (f !== null) return f;
+    }
+    return null;
+  }
+  return null;
+}

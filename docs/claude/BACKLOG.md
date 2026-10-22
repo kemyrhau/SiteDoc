@@ -4097,6 +4097,8 @@ WHERE datname = 'sitedoc_test' AND state = 'idle'
 
 Bygg images **sekvensielt** (`build` per tjeneste, så `up -d`) i stedet for parallell `up -d --build`, + ressurs-headroom → unngå OOM-toppen som utløser daemon-blip + container-kaskade. **`restart: unless-stopped` er allerede på plass på alle 10 tjenester (verifisert live 2026-07-11)** — den er IKKE oppfølgeren: `unless-stopped` restarter ikke containere som alt var exited da daemonen kom tilbake etter OOM/crash, så reell forebygging er å unngå OOM-toppen, ikke restart-policy. Den manuelle post-deploy-sjekken fanger tilfellet inntil videre. Bakgrunn: en **test**-re-deploy (`docker-compose.test.yml up -d --build`) ga OOM (embed/oversettelse exit 137) + docker-daemon-blip som kaskaderte og tok ned **prod** (`postgres` er delt → `sitedoc-api`/`web` + salsaklubb + ml alle nede samtidig) → prod nede ~24 min. Post-deploy-verifisering + recovery-rekkefølge: [DOCKER-NOTES § Post-deploy: verifiser at ALLE containere er oppe](../../docker/DOCKER-NOTES.md).
 
+**Tillegg 2026-10-21 (hendelsen 14.10, årsak målt av Fabel):** utløseren var ikke OOM, men en krasj i `dockerd` 29.6.1 selv (`concurrent map iteration and map write` i buildkit idet et bygg startet). `always` ble satt 14.10 bare på SiteDocs delte tjenester; `salsaklubb` og `sendfil` sto igjen med `unless-stopped`, ble aldri startet og var nede 14.–21.10. Oppfølgere, i rekkefølge: (1) `restart: always` i compose-filene i Sendfil- og Tromsosalsaklubb-repoene + `docker update --restart always salsaklubb salsaklubb-postgres sendfil` (Kenneth, sudo) · (2) `"live-restore": true` i `/etc/docker/daemon.json` i et planlagt vindu · (3) oppgradér docker-ce når en nyere versjon enn 29.6.1 finnes — søk 21.10 fant ingen rapport som matcher stacktracen, bare beslektede fikser i buildx 0.30.1, så oppgradering er ikke garantert fiks · (4) en enkel ekstern oppe-sjekk av sitedoc.online og sendfil.sitedoc.site, siden ingenting i dag sier fra når de faller.
+
 ### 🟡 `deploy-test.sh --exclude apps/mobile` bryter frozen-lockfile ved mobil-dep-endring (2026-07-13)
 
 `deploy-test.sh` ekskluderer HELE `apps/mobile` (for å slippe ~3 GB mobil-kontekst) men synker root `pnpm-lock.yaml`. Når en mobil-dep endres (`expo-application` i footer-commit `2bbf9169`) får serveren fersk lockfile + STALE `apps/mobile/package.json` → Docker-bygget `pnpm install --frozen-lockfile` feiler med `ERR_PNPM_OUTDATED_LOCKFILE` (workspace-sjekken validerer alle package.json mot lockfila, også mobil selv om api/web-bygget ikke bruker mobil-kilden). Rammet ORDRE-2-deployen 2026-07-13; workaround = targeted `rsync ~/…/apps/mobile/package.json server-ny:stack/sitedoc/apps/mobile/package.json` + rebuild. **Fiks:** ekskludér kun mobil-BLOATEN (`apps/mobile/node_modules`, `apps/mobile/.expo`, `apps/mobile/.turbo`) i stedet for hele `apps/mobile` — da synkes package.json + kilde (små), bloaten ikke. Sjekk samme mønster i prod-deploy-scriptet.
@@ -5140,9 +5142,17 @@ Detaljsiden beholdes fullt funksjonell (sammenheng-prinsipp krever det). Reverse
 
 ## 2. Halvferdige features
 
-### 🟡 Arbeidstegning: snap og 90° mens man navigerer i Linjal/Polylinje/Areal (Kenneth 2026-10-19)
-I dag (`ee884ff8`) viser «Flytt punkt» med pekeren den stiplede 90°-linja og snap-ringen live, men «Sett punkt» i Linjal gjør det ikke. Der vises snap og 90° først etter at punktet er satt. Kenneth: «det ville vært den sannsynlige måten», men det er akseptabelt fordi Flytt kan brukes etterpå. Gjenbruk Flytt-logikken (én kilde). Bilder: `relay/arbeidstegning-prove/f1f2/kenneth/1910b/3-…` mot `4-…`. 🟡 PLANLAGT, ikke bestilt.
+### 🟡 Galleri: omsortering (`bilde.oppdaterRekkefolge`) er ikke låst på godkjent rapport (Kontrollør 2026-10-21)
+Godkjent-låsen (`3e81941c`) dekker opprett, slett og annotering, men ikke `sortOrder`. Rekkefølgen kan påvirke PDF-en. Lav risiko. Ta den med neste gang `bilde.ts` røres, med samme `krevRedigerbarDokumentstatus`.
 
+### 🟡 Annotering: IText → Textbox (flytte markør, dra bredde, bryting) (Kenneth 2026-10-21)
+Bestilt hos Redesign som egen runde etter at frysrettingen er bekreftet på telefon.
+
+### 🟡 Mobil: 9 eslint-feil i `apps/mobile/app/oppgave/[id].tsx` (Kontrollør 2026-10-20)
+Fantes før `fix/befaring-feltfunn` (identiske på develop `a9892446`). Teknisk gjeld. Ryddes neste gang fila røres.
+
+### 🟡 Arbeidstegning: veggens totale tykkelse fra veggtype-merking (Kenneth 2026-10-20)
+Trykk på isolasjonen i en innervegg viser bare isolasjonens bredde (71 mm). Gips er tegnet som én linje uten bredde (`236`, PLINE), så geometrien sier ikke om gipsen er enkel eller dobbel (K2: aldri gjett). Veggens totale tykkelse og oppbygging finnes vanligvis i veggtype-merking eller -tabell på tegningen («IV1 …»). Den kan kobles via CadKobling (spec § 9 K4). **Neste:** Fabel tar det inn i arbeidstegning-spec (oppdage veggtype, koble merking til tabell og vise oppbyggingen). Bilder: `relay/arbeidstegning-prove/f1f2/kenneth/2010/2-…`, `3-…`. 🟡 PLANLAGT, ikke bestilt.
 
 ### 🔴 MÅ GJØRES 2026-09-10: serverhåndheving av `DokumentflytMedlem.kanRedigere`
 

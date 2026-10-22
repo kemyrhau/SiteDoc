@@ -25,6 +25,20 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-21
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `3e81941c` | 🔴 **Oppgave og sjekkliste, web + mobil + api: godkjent rapport = bare visning av bilder** | **Før:** feltvedlegg og galleribilder på en godkjent, lukket eller kansellert rapport kunne annoteres, erstattes, legges til og slettes. **Etter:** serveren avviser det, og klienten skjuler handlingene. Endring krever «Gjenåpne». Sendt og mottatt er uendret. En endring som var lagt i kø før godkjenning, avvises med én melding og prøves ikke på nytt. Omsortering av galleriet er ikke låst (BACKLOG). | 🟢 Kenneth 2026-10-21 («enig, kun visning på godkjent») |
+| `3e81941c` ← `21459f40`, `0b9eb770` | 🟢 **Mobil: annotering (reparasjon + Kenneth-ønsker)** | **Før:** tastaturet dekket bildet, og «Ferdig» kunne fryse appen og la bildet peke på en død lokal fil. **Etter:** bildet står fast under overskriften. Eksporten er ≤ 400 KB og ikke-blokkerende, og originalen beholdes til den nye fila er lastet opp. Teksten er 18 (før 14) med stor forbokstav etter punktum. Trykk på tekst redigerer. Web er uendret. ⚠️ Ikke bekreftet på telefon. | Reparasjon + Kenneth 2026-10-21 (tekststørrelse, autostor) |
+
+### 2026-10-20
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `35f62a9f` ← `d0524e3d` | 🔴 **Arbeidstegning (KUN test bak `TEGNING_MOTOR`): snap og 90° live i Linjal/Polylinje/Areal med pekeren** | **Før:** snap-ring og 90°-hjelpelinje vistes bare i «Flytt punkt». I måleverktøyene slo de inn først ved selve trykket. **Etter:** ringen og hjelpelinja vises live mens tegningen dras, også for første punkt, og «Sett punkt» legger punktet på målet. ⚠️ Ikke bekreftet på telefon ennå. | 🟢 Kenneth 2026-10-20 («bestill snap og 90° til dokgen nå») |
+| `22266d57` ← `b0ace0d1` | 🟢 **Mobil — oppgave/befaring (reparasjon, PROD via OTA)** | **Før:** «Fra tegning»-kortet kunne ikke trykkes, et utkast ble låst etter ut og inn, og tastaturet dekket bildet ved annotering. **Etter:** kortet åpner tegningen og setter eller flytter punktet (bare utkast). Utkast kan redigeres til det er sendt. Bildet skyves opp over tastaturet. Arbeidstegning: «Isolasjon 71 mm» i stedet for «Tykkelse» på isolasjon (`a9892446`). | Reparasjon (Kenneth-funn i prod 2026-10-20) |
+
 ### 2026-10-19
 
 | Hash | Flate | Før → Etter | Hjemmel |

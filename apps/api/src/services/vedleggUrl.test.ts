@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { settUrlPaaVedlegg } from "./vedleggUrl";
+import { settUrlPaaVedlegg, finnVedleggFilnavn } from "./vedleggUrl";
 
 // Delt kjerne for `sjekkliste.settVedleggUrl` og `oppgave.settVedleggUrl` (funn C).
 // Samme form for Checklist.data og Task.data — repeater-formen ({ _radId, felter })
@@ -68,5 +68,28 @@ describe("settUrlPaaVedlegg", () => {
     expect(truffet).toBe(true);
     expect((data.a as { vedlegg: Array<{ url: string }> }).vedlegg[0]!.url).toBe("/uploads/privat/a.jpg");
     expect((data.b as { vedlegg: Array<{ url: string }> }).vedlegg[0]!.url).toBe("/uploads/privat/a.jpg");
+  });
+});
+
+// Godkjent-lås (Kenneth-vedtak 2026-10-21): settVedleggUrl skiller NYTT vedlegg (null) og
+// ERSTATNING (endret filnavn) fra en ren URL-fullføring (samme filnavn) via dette oppslaget.
+describe("finnVedleggFilnavn", () => {
+  it("finner filnavnet på et topp-nivå-vedlegg", () => {
+    const data = { felt1: { vedlegg: [{ id: "v1", url: "/u/a", filnavn: "foto.jpg" }] } };
+    expect(finnVedleggFilnavn(data, "v1")).toBe("foto.jpg");
+  });
+  it("finner filnavnet nestet i en repeater-rad", () => {
+    const data = {
+      rep: { verdi: [{ _radId: "r1", felter: { b: { vedlegg: [{ id: "v9", url: "/u/r", filnavn: "r.jpg" }] } } }] },
+    };
+    expect(finnVedleggFilnavn(data, "v9")).toBe("r.jpg");
+  });
+  it("null når vedlegget ikke finnes (→ nytt vedlegg, forbudt på godkjent)", () => {
+    const data = { felt1: { vedlegg: [{ id: "v1", url: "/u/a", filnavn: "foto.jpg" }] } };
+    expect(finnVedleggFilnavn(data, "ukjent")).toBeNull();
+  });
+  it("tom streng når vedlegget finnes uten filnavn", () => {
+    const data = { felt1: { vedlegg: [{ id: "v1", url: "/u/a" }] } };
+    expect(finnVedleggFilnavn(data, "v1")).toBe("");
   });
 });

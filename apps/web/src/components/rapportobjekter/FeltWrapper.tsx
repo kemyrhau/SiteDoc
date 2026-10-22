@@ -24,6 +24,10 @@ interface FeltWrapperProps {
   onFjernVedlegg: (vedleggId: string) => void;
   onOppdaterVedlegg?: (vedleggId: string, patch: Partial<Vedlegg>) => void;
   leseModus?: boolean;
+  // Godkjent-lås (Kenneth-vedtak 2026-10-21): vedlegg-tilbehøret (annoter/erstatt/slett/last opp)
+  // er skrivebeskyttet på en avsluttet rapport (approved/closed/cancelled), også for admin.
+  // Gjelder KUN tilbehøret — feltverdien styres fortsatt av verdi-lesemodus. Bildene vises.
+  vedleggLaast?: boolean;
   nestingNivå?: number;
   valideringsfeil?: string;
   prosjektId?: string;
@@ -56,6 +60,7 @@ export function FeltWrapper({
   onFjernVedlegg,
   onOppdaterVedlegg,
   leseModus,
+  vedleggLaast,
   nestingNivå = 0,
   valideringsfeil,
   prosjektId,
@@ -171,7 +176,9 @@ export function FeltWrapper({
           drawing_position/location; repeater vises read-only kun når det finnes data. */}
       {(() => {
         const harData = !!kommentar?.trim() || (vedlegg?.length ?? 0) > 0;
-        const tv = tilbehorVisning(objekt.type, !!leseModus, harData);
+        // Godkjent-lås (vedleggLaast): tilbehøret er skrivebeskyttet på avsluttet rapport —
+        // slår inn i tilbehør-lesemodus, uten å røre feltverdiens egen lesemodus.
+        const tv = tilbehorVisning(objekt.type, !!leseModus || !!vedleggLaast, harData);
         return tv.vis ? (
           <FeltDokumentasjon
             kommentar={kommentar}

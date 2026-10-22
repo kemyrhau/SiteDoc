@@ -210,6 +210,25 @@ Gjelder tunnel `sitedoc-ny` på ny server (mekanikken er identisk med den gamle)
   5. `sudo systemctl restart cloudflared` + verifiser med `curl -sI https://<host>`
 - **Felle:** `cloudflared tunnel route dns <id> <host>` sier «already configured» selv om edge ikke ruterer dit — sjekker kun CNAME, ikke remote tunnel-config. For hostnames utenfor cert-sonen: bruk Cloudflare-dashboard (jf. salsaklubb `.online`-lærdom).
 
+### Sonen sitedoc.no bærer også TeamHunt (Cloudflare Pages, 2026-10-20)
+
+`teamhunt.sitedoc.no` er **ikke** en tunnel-ingress og har ingenting på server-ny. Det er et
+Cloudflare Pages-prosjekt `teamhunt` i samme Cloudflare-konto, koblet til GitHub-repoet
+`kemyrhau/teamhunt` (privat), innhold = mappa `design/nettside/` (statisk støtteside +
+personvernerklæring for iPhone-appen TeamHunt, ingen JS, ingen kall mot SiteDoc eller Supabase).
+Pages la selv inn CNAME `teamhunt` → `teamhunt.pages.dev` (proxied) i DNS-sonen. **Ikke rydd bort
+recorden som ukjent.** Målt 2026-10-20: `https://teamhunt.sitedoc.no/` og `/personvern/` svarer
+200, http → 301 https, `/personvern` → 308 `/personvern/`. Production branch er `design/nettside`
+til mappa er merget til Teamhunts `develop`; da byttes den i Pages → Settings → Builds.
+Vedtak (Kenneth 2026-10-20): Pages i stedet for nginx på server-ny, fordi nginx-varianten
+ville rørt tunnel-configen som serverer sitedoc.no prod.
+
+**E-post for sonen ligger hos Domeneshop, ikke Cloudflare** (målt 2026-10-20: MX
+`mx.domeneshop.no`, SPF `include:_spf.domeneshop.no`). 🔴 **Slå aldri på Cloudflare Email
+Routing for sitedoc.no** — det bytter MX for hele sonen og stopper all eksisterende post.
+Kontaktadressen `teamhunt@sitedoc.no` (brukt på støttesiden og i personvernerklæringen)
+opprettes som videresending i Domeneshops panel. 🟡 Ikke målt at den finnes (2026-10-20).
+
 ### Klient-IP gjennom Cloudflare Tunnel
 
 Cloudflare Tunnel sender IKKE klient-IP i `X-Forwarded-For`. I stedet brukes `Cf-Connecting-Ip`-headeren (blokkert mot spoofing av Cloudflare-edge — verifisert med HTTP 403 ved override-forsøk).

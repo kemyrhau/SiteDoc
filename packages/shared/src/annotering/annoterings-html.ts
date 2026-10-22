@@ -26,7 +26,26 @@ import {
   ANNOTERING_PILHODE_FAKTOR,
 } from "./lag";
 
-export const ANNOTERINGS_HTML = `<!DOCTYPE html>
+// Flate-anker for bildet i annoteringsflaten (befaring-funn A + orkestrator-SVAR
+// dc6b8090, Kenneth 2026-10-21):
+//   "senter" — bildet vertikalt sentrert (align-items: center). WEB-STANDARDEN;
+//              web har ikke tastaturproblemet og skal stå uendret.
+//   "topp"   — bildet forankret ØVERST (align-items: flex-start), rett under
+//              overskriftslinja. KUN mobil, der RN reserverer tastaturhøyden og
+//              bildet må stå fast rett under overskriften.
+export type AnnoteringsAnker = "topp" | "senter";
+
+/**
+ * Bygger den delte annoterings-HTML-en. `anker` styrer KUN den vertikale
+ * forankringen av bildet i flaten (`#canvas-container align-items`); all
+ * tegnelogikk er identisk. Standard er "senter" slik at web (og enhver fremtidig
+ * konsument) får dagens sentrerte oppførsel uten å sende noe. Bare mobil sender
+ * "topp".
+ */
+export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string {
+  const anker: AnnoteringsAnker = opts?.anker ?? "senter";
+  const flateJustering = anker === "topp" ? "flex-start" : "center";
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -34,7 +53,14 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; touch-action: none; }
-  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  /* Vertikal forankring styres av anker-parameteren:
+     - "topp" (mobil): bildet forankres ØVERST, rett under overskriftslinja —
+       befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon, aldri sentrert
+       bort fra overskriften. RN gir WebView-en fast høyde (reservert tastatur),
+       så bildet står stille med og uten tastatur.
+     - "senter" (web, standard): bildet vertikalt sentrert — web har ikke
+       tastaturproblemet og skal stå uendret. Horisontalt alltid sentrert. */
+  #canvas-container { width: 100vw; height: 100vh; display: flex; align-items: ${flateJustering}; justify-content: center; }
   canvas { display: block; }
 </style>
 </head>
@@ -49,6 +75,11 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var aktivtVerktoy = 'arrow';
   var startPunkt = null;
   var forhandsvisning = null;
+  // Tekstverktøy (befaring-funn C2, Kenneth 2026-10-21): skille et rent TRYKK på en
+  // eksisterende tekst (→ rediger, markør på slutten) fra en DRA (→ flytt). Målet og
+  // startpunktet huskes fra mouse:down til mouse:up.
+  var tekstNedMål = null;
+  var tekstNedPunkt = null;
   // Farger og basis-tall interpoleres fra @sitedoc/shared lag.ts (én kilde, samme
   // mønster som bro-betingelsene). Strek/font vokser SUB-LINEÆRT (kvadratrot) med
   // canvas-bredden fra referanse-canvas (mobil ~390px) — lineær ble for tykk på stor
@@ -95,6 +126,12 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       isDrawingMode: false,
     });
 
+    // Befaring-funn C2 (Kenneth 2026-10-21): større treffflate for å plukke/redigere en
+    // eksisterende tekst (minst ~44 pt). targetFindTolerance utvider treffsonen rundt
+    // objektene med 22 px på hver side (≈44 px total) uten per-piksel-leting.
+    canvas.targetFindTolerance = 22;
+    canvas.perPixelTargetFind = false;
+
     canvas.freeDrawingBrush.color = STREK_FARGE;
     canvas.freeDrawingBrush.width = strekBredde();
 
@@ -111,7 +148,15 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       // 'i-text' (ny) eller 'text' (eldre lag) — samme skille som settFlyttbar.
       if (aktivtVerktoy === 'text') {
         var mål = opt.target;
-        if (mål && (mål.type === 'text' || mål.type === 'i-text')) return;
+        if (mål && (mål.type === 'text' || mål.type === 'i-text')) {
+          // Befaring-funn C2: la Fabric eie en eventuell DRA (flytting), men husk målet +
+          // nedpunktet så mouse:up kan skille et rent trykk (→ rediger) fra en dra (→ flytt).
+          var tpMål = canvas.getPointer(opt.e);
+          tekstNedMål = mål;
+          tekstNedPunkt = { x: tpMål.x, y: tpMål.y };
+          canvas.setActiveObject(mål);
+          return;
+        }
         var tp = canvas.getPointer(opt.e);
         lagTekst(tp.x, tp.y);
         return;
@@ -136,6 +181,27 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     });
 
     canvas.on('mouse:up', function(opt) {
+      // Befaring-funn C2: tekst som ble trykket/dratt i Tekst-verktøyet. Rent trykk (ingen
+      // bevegelse) → åpne for redigering med markøren på SLUTTEN. Dra → Fabric har allerede
+      // flyttet objektet, ikke åpne redigering. Målet huskes fra mouse:down.
+      if (tekstNedMål) {
+        var tMål = tekstNedMål; tekstNedMål = null;
+        var up = canvas.getPointer(opt.e);
+        var beveget = tekstNedPunkt && Math.sqrt(
+          (up.x - tekstNedPunkt.x) * (up.x - tekstNedPunkt.x) +
+          (up.y - tekstNedPunkt.y) * (up.y - tekstNedPunkt.y)) > 5;
+        tekstNedPunkt = null;
+        if (!beveget) {
+          canvas.setActiveObject(tMål);
+          tMål.enterEditing();
+          var n = (tMål.text || '').length;
+          tMål.setSelectionStart(n);
+          tMål.setSelectionEnd(n);
+          klargjørTekstTastatur(tMål);
+          canvas.renderAll();
+        }
+        return;
+      }
       if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
       if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
       var pointer = canvas.getPointer(opt.e);
@@ -293,6 +359,17 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   // rett i redigeringsmodus. Ingen modal, ingen meldingsrunde over broen — brukeren ser
   // teksten slik sluttproduktet blir, mens han skriver. Hvit outline (paintFirst 'stroke')
   // gir samme kontrast som formene. Tom tekst ved avsluttet redigering fjernes (se init).
+  // Befaring-funn (Kenneth 2026-10-21, BHO4): stor forbokstav automatisk etter punktum.
+  // Fabric lager en skjult <textarea> ved enterEditing() — den driver det native tastaturet.
+  // autocapitalize='sentences' slår på setning-stor-forbokstav på iOS/Android-tastaturet.
+  // Kalles overalt redigering startes (ny tekst OG trykk-for-å-redigere en eksisterende).
+  function klargjørTekstTastatur(obj) {
+    if (obj && obj.hiddenTextarea) {
+      obj.hiddenTextarea.setAttribute('autocapitalize', 'sentences');
+      obj.hiddenTextarea.focus();
+    }
+  }
+
   function lagTekst(x, y) {
     var tekstObj = new fabric.IText('', {
       left: x,
@@ -319,7 +396,7 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     objekter.push(tekstObj);
     canvas.setActiveObject(tekstObj);
     tekstObj.enterEditing();
-    if (tekstObj.hiddenTextarea) tekstObj.hiddenTextarea.focus();
+    klargjørTekstTastatur(tekstObj);
     canvas.renderAll();
   }
 
@@ -422,40 +499,73 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     }
   };
 
+  // Eksport-komprimering (frys-fiks, orkestrator-vedtak 2026-10-21): «Ferdig» frøs fordi en
+  // q0.92-eksport av et 1920px-bilde ga en base64-melding på 1–2 MB som krysset WebView-broen
+  // og ble parset/skrevet SYNKRONT på RN-JS-tråden. Husregelen (CLAUDE.md) er ≤300–400 KB før
+  // opplasting — samme mål som bilde.ts. Vi starter på q0.8 og senker trinnvis til ≤400 KB.
+  // 🔴 LESBARHET: q under ~0,9 kan flippe JPEG-koderen til chroma-subsampling (4:2:0) som gjør
+  // tynne røde streker mindre skarpe (målt 2026-08-26 på Chromium: strek-feil 105 mot 11 ved
+  // 4:4:4). Avveiningen er orkestratorens eksplisitte valg (frys/størrelse > maks skarphet);
+  // VERIFISERES på Kenneths telefon at røde streker fortsatt er lesbare. Går det ikke, heves
+  // START-kvaliteten (én verdi under) mot større fil.
+  var MAKS_EKSPORT_BYTES = 400 * 1024;
+  var EKSPORT_KVALITETER = [0.8, 0.7, 0.6, 0.5];
+
+  // base64-lengde → omtrentlige byte (4 tegn = 3 byte, minus '='-padding).
+  function base64Bytes(dataUrl) {
+    var komma = dataUrl.indexOf(',');
+    var b64 = komma >= 0 ? dataUrl.substring(komma + 1) : dataUrl;
+    if (!b64.length) return 0;
+    var padding = b64.charAt(b64.length - 1) === '=' ? (b64.charAt(b64.length - 2) === '=' ? 2 : 1) : 0;
+    return Math.floor(b64.length * 3 / 4) - padding;
+  }
+
   window.lagre = function() {
     canvas.discardActiveObject();
-    canvas.renderAll();
-    // Eksporter i originaloppløsning (input er alt ≤1920px komprimert vedlegg, så multiplier
-    // over-oppløser ikke). JPEG, IKKE PNG: PNG q1 av et foto blir 3–4 MB (tapsfri re-koding);
-    // JPEG q0.92 gir ~1 MB (~4× mindre) — målt 2026-08-26 (BACKLOG-772). Hvit bakgrunn fordi
-    // JPEG mangler alpha. q0.92 (over Chromiums 4:4:4-terskel ~0.9): lavere q flipper til
-    // chroma-subsampling (4:2:0) som gjør 3px røde streker uleselige (målt strek-feil 105 mot
-    // 11 ved 4:4:4). Lesbarhet > filstørrelse (ordren).
-    var multiplier = originalBredde > 0 ? (originalBredde / canvas.width) : 1;
+    // Hvit bakgrunn fordi JPEG mangler alpha. Settes FØR eksport.
     canvas.backgroundColor = '#ffffff';
     canvas.renderAll();
-    var dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: multiplier });
+    // requestAnimationFrame: la WebView tegne ferdig — og RN rekke å vise «Lagrer …» og
+    // deaktivere knappen — FØR den SYNKRONE toDataURL som re-renderer hele canvaset i full
+    // oppløsning og blokkerer tråden. Uten dette fryser UI-et uten et «jobber»-signal.
+    requestAnimationFrame(function() {
+      var start = (window.performance && performance.now) ? performance.now() : 0;
+      // Eksporter i originaloppløsning (input er alt ≤1920px komprimert vedlegg, så multiplier
+      // over-oppløser ikke). JPEG, IKKE PNG: PNG q1 av et foto blir 3–4 MB (BACKLOG-772).
+      var multiplier = originalBredde > 0 ? (originalBredde / canvas.width) : 1;
+      var dataUrl = '';
+      var bytes = 0;
+      var kvalitet = 0;
+      for (var qi = 0; qi < EKSPORT_KVALITETER.length; qi++) {
+        kvalitet = EKSPORT_KVALITETER[qi];
+        dataUrl = canvas.toDataURL({ format: 'jpeg', quality: kvalitet, multiplier: multiplier });
+        bytes = base64Bytes(dataUrl);
+        if (bytes <= MAKS_EKSPORT_BYTES) break;
+      }
+      var eksportMs = ((window.performance && performance.now) ? performance.now() : 0) - start;
 
-    // Tom-tekst-vakt ved LAGRING (garanti ved konstruksjon): filtrer bort enhver tom
-    // IText FØR serialisering. text:editing:exited-ryddingen over holder lerretet rent
-    // underveis, men fyrer ALDRI hvis enterEditing() feilet — da blir den tomme boksen
-    // stående i objekter og ville ellers serialiseres inn i laget og lagres (usynlig,
-    // tom, permanent — stille tomhet i LAGRET data, forbudt i CLAUDE.md). Vakten her er
-    // uavhengig av hvorfor redigeringen feilet. Tekst er 'i-text' (ny) eller 'text' (eldre
-    // lag) — samme skille som settFlyttbar/mouse:down.
-    function erTomTekst(o) {
-      return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());
-    }
-    // Annotasjonslaget UT sammen med den utflatede JPEG-en (tre-artefakt-modellen):
-    // objektene som DATA (uten bakgrunnsbildet — det er originalen, lagret separat),
-    // pluss canvas-dimensjonene og Fabric-versjonen (redigerbarhet + framtidssikring).
-    var lag = {
-      fabricVersion: fabric.version,
-      bredde: canvas.width,
-      hoyde: canvas.height,
-      objekter: objekter.filter(function(o) { return !erTomTekst(o); }).map(function(o) { return o.toObject(); }),
-    };
-    postTilVert({ type: 'ferdig', dataUrl: dataUrl, lag: lag });
+      // Tom-tekst-vakt ved LAGRING (garanti ved konstruksjon): filtrer bort enhver tom
+      // IText FØR serialisering. text:editing:exited-ryddingen over holder lerretet rent
+      // underveis, men fyrer ALDRI hvis enterEditing() feilet — da blir den tomme boksen
+      // stående i objekter og ville ellers serialiseres inn i laget og lagres (usynlig,
+      // tom, permanent — stille tomhet i LAGRET data, forbudt i CLAUDE.md). Vakten her er
+      // uavhengig av hvorfor redigeringen feilet. Tekst er 'i-text' (ny) eller 'text' (eldre
+      // lag) — samme skille som settFlyttbar/mouse:down.
+      function erTomTekst(o) {
+        return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());
+      }
+      // Annotasjonslaget UT sammen med den utflatede JPEG-en (tre-artefakt-modellen):
+      // objektene som DATA (uten bakgrunnsbildet — det er originalen, lagret separat),
+      // pluss canvas-dimensjonene og Fabric-versjonen (redigerbarhet + framtidssikring).
+      var lag = {
+        fabricVersion: fabric.version,
+        bredde: canvas.width,
+        hoyde: canvas.height,
+        objekter: objekter.filter(function(o) { return !erTomTekst(o); }).map(function(o) { return o.toObject(); }),
+      };
+      // bytes/kvalitet/eksportMs følger med så RN kan logge størrelse+tid i dev (orkestrator iv).
+      postTilVert({ type: 'ferdig', dataUrl: dataUrl, lag: lag, bytes: bytes, kvalitet: kvalitet, eksportMs: Math.round(eksportMs) });
+    });
   };
 
   function håndterVertMelding(e) {
@@ -479,3 +589,8 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 </script>
 </body>
 </html>`;
+}
+
+// Bakoverkompatibel standard: sentrert flate ("senter"). Web bruker denne direkte
+// (uendret oppførsel). Mobil kaller `lagAnnoteringsHtml({ anker: "topp" })`.
+export const ANNOTERINGS_HTML = lagAnnoteringsHtml();

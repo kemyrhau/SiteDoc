@@ -15,6 +15,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { ModalFlate } from "../../src/components/ModalFlate";
+import { TegningsVisning } from "../../src/components/TegningsVisning";
+import type { Markør } from "../../src/components/TegningsVisning";
+import { AUTH_CONFIG } from "../../src/config/auth";
 import { EksportPdfForhandsvisning } from "../../src/components/EksportPdfForhandsvisning";
 import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import { useNettverk } from "../../src/providers/NettverkProvider";
@@ -36,8 +39,9 @@ import {
   Share2,
   Eye,
   Scale,
+  ChevronRight,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -106,6 +110,12 @@ export default function OppgaveDetalj() {
   const [visTittelModal, settVisTittelModal] = useState(false);
   const [visBeskrivelseModal, settVisBeskrivelseModal] = useState(false);
   const [visDialogModal, settVisDialogModal] = useState(false);
+  // Tegningspunkt-redigering: åpne tegningen fra «Fra tegning»-kortet og sette/flytte
+  // punktet (befaring-feltfunn 2026-10-20). Temp-posisjon settes fra lagret punkt ved
+  // åpning, overskrives ved trykk, lagres via oppgave.oppdater.
+  const [visTegningModal, settVisTegningModal] = useState(false);
+  const [tegningTempPosX, settTegningTempPosX] = useState<number | null>(null);
+  const [tegningTempPosY, settTegningTempPosY] = useState<number | null>(null);
   const [tittelUtkast, settTittelUtkast] = useState("");
   const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
   const [dialogTekst, settDialogTekst] = useState("");
@@ -132,7 +142,12 @@ export default function OppgaveDetalj() {
   // eslint-disable-next-line
   const oppgaveDetalj = (detaljQuery.isSuccess ? detaljQuery.data : detaljSpeil?.dokument) as {
     transfers?: Transfer[];
-    drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
+    // fileUrl/imageWidth/imageHeight følger allerede med fra serveren (drawing-relasjonen
+    // inkluderes uten select) — kun typingen manglet dem, derfor kunne ikke punktet åpnes.
+    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
     lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
     lokasjonFritekst?: string | null;
     omradeId?: string | null;
@@ -432,6 +447,8 @@ export default function OppgaveDetalj() {
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner,
+    godkjentLaastVarsel,
+    avvisGodkjentLaastVarsel,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -700,6 +717,16 @@ export default function OppgaveDetalj() {
       (hmsAktivPosisjon == null && oppgave.status === "responded"));
   // Offline (speil-render) er ALLTID lesemodus, uansett rettighet/HMS-gren (LES-vedtaket).
   const leseModus = offlineModus ? true : erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21): på en avsluttet rapport (approved/
+  // closed/cancelled) kan vedlegg ikke annoteres/erstattes/slettes — også for admin. Skiller
+  // seg fra leseModus (som admin omgår); styrer KUN tilbehøret, ikke feltverdien.
+  const vedleggLaast = TERMINALE_DOKUMENTSTATUSER.has(oppgave.status);
+
+  // Tegningspunkt kan kun settes/flyttes i utkast: serveren (oppgave.oppdater) avviser
+  // metadata-endring etter sending (append-only), kun `subject` slipper forbi. Visning
+  // av punktet er alltid tillatt; redigering gates derfor på draft + online, ikke leseModus
+  // (en mottaker i «received»/«in_progress» kan ellers ikke flytte oppretters punkt).
+  const kanRedigerePunkt = !offlineModus && oppgave.status === "draft";
 
   // Sjekkliste-referanse
   const sjekklisteNummer = oppgave.checklist
@@ -900,18 +927,40 @@ export default function OppgaveDetalj() {
           </Pressable>
         )}
 
-        {/* Tegning-kobling */}
-        {oppgave.drawing && (
-          <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
-            <MapPin size={18} color="#7c3aed" />
-            <View className="flex-1">
-              <Text className="text-xs font-medium text-purple-600">{t("oppgave.fraTegning")}</Text>
-              <Text className="text-sm text-purple-800">
-                {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}
-              </Text>
-            </View>
-          </View>
-        )}
+        {/* Tegning-kobling — trykkbar når tegningen kan vises: åpner tegningen for å
+            sette/flytte punktet (den som har ballen) eller se det (lesemodus). */}
+        {oppgave.drawing && (() => {
+          const kanÅpne = !!oppgaveDetalj?.drawing?.fileUrl;
+          const Kort = kanÅpne ? Pressable : View;
+          return (
+            <Kort
+              className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4"
+              {...(kanÅpne
+                ? {
+                    onPress: () => {
+                      settTegningTempPosX(oppgaveDetalj?.positionX ?? null);
+                      settTegningTempPosY(oppgaveDetalj?.positionY ?? null);
+                      settVisTegningModal(true);
+                    },
+                  }
+                : {})}
+            >
+              <MapPin size={18} color="#7c3aed" />
+              <View className="flex-1">
+                <Text className="text-xs font-medium text-purple-600">{t("oppgave.fraTegning")}</Text>
+                <Text className="text-sm text-purple-800">
+                  {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}
+                </Text>
+                {kanÅpne && (
+                  <Text className="mt-0.5 text-xs text-purple-500">
+                    {kanRedigerePunkt ? t("oppgave.settPunktHint") : t("oppgave.sePunktHint")}
+                  </Text>
+                )}
+              </View>
+              {kanÅpne && <ChevronRight size={18} color="#a78bfa" />}
+            </Kort>
+          );
+        })()}
 
         {/* Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» — paritet med web/PDF. Vises
             når omfanget er byggeplass (uten tegning); et eksplisitt svar, aldri et tomt felt. */}
@@ -971,6 +1020,19 @@ export default function OppgaveDetalj() {
             </Text>
             <Pressable onPress={avvisKollisjoner} hitSlop={8}>
               <Text className="text-xs font-medium text-amber-700">{t("handling.lukk")}</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Godkjent-lås-varsel: en vedlegg-endring ble permanent avvist (rapporten er
+            godkjent). Vises ÉN gang; endringen beholdes lokalt men lagres aldri. */}
+        {godkjentLaastVarsel && (
+          <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
+            <Text className="flex-1 text-sm text-red-800">
+              {t("godkjentLaast.varsel.tekst")}
+            </Text>
+            <Pressable onPress={avvisGodkjentLaastVarsel} hitSlop={8}>
+              <Text className="text-xs font-medium text-red-700">{t("handling.lukk")}</Text>
             </Pressable>
           </View>
         )}
@@ -1049,6 +1111,7 @@ export default function OppgaveDetalj() {
               onErstattVedlegg={(vId, nyUrl, nyttFilnavn) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn)}
               onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
+              vedleggLaast={vedleggLaast}
               oppgaveIdForKo={oppgave.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}
@@ -1400,6 +1463,63 @@ export default function OppgaveDetalj() {
               className="flex-1 px-4 py-3 text-base text-gray-900"
             />
           </KeyboardAvoidingView>
+        </ModalFlate>
+      </Modal>
+
+      {/* Tegningspunkt-modal: sett/flytt punktet på den tildelte tegningen. Åpnes kun
+          når tegningen har en visbar fil (kanÅpne-vakten på kortet). onTrykk er aktiv
+          bare utenfor lesemodus, så lesemodus ser punktet uten å kunne flytte det. */}
+      <Modal visible={visTegningModal} animationType="slide" onRequestClose={() => settVisTegningModal(false)}>
+        <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
+          {(() => {
+            const filUrl = oppgaveDetalj?.drawing?.fileUrl;
+            if (!filUrl) return null;
+            const tegningUrl = filUrl.startsWith("http") ? filUrl : `${AUTH_CONFIG.apiUrl}${filUrl}`;
+            const markører: Markør[] =
+              tegningTempPosX != null && tegningTempPosY != null
+                ? [{ id: "pos", x: tegningTempPosX, y: tegningTempPosY, farge: "#ef4444" }]
+                : [];
+            return (
+              <View className="flex-1">
+                <TegningsVisning
+                  tegningUrl={tegningUrl}
+                  tegningNavn={
+                    oppgave.drawing?.drawingNumber
+                      ? `${oppgave.drawing.drawingNumber} ${oppgave.drawing.name}`
+                      : oppgave.drawing?.name ?? t("oppgave.punktITegning")
+                  }
+                  onLukk={() => settVisTegningModal(false)}
+                  onTrykk={
+                    kanRedigerePunkt
+                      ? (posX, posY) => {
+                          settTegningTempPosX(posX);
+                          settTegningTempPosY(posY);
+                        }
+                      : undefined
+                  }
+                  markører={markører}
+                />
+                {kanRedigerePunkt && (
+                  <View className="flex-row items-center justify-end border-t border-gray-200 bg-white px-5 py-4">
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => {
+                        oppdaterMutasjon.mutate({
+                          id: id!,
+                          positionX: tegningTempPosX,
+                          positionY: tegningTempPosY,
+                        });
+                        settVisTegningModal(false);
+                      }}
+                      className="rounded-lg bg-blue-700 px-6 py-2.5"
+                    >
+                      <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
         </ModalFlate>
       </Modal>
     </SafeAreaView>

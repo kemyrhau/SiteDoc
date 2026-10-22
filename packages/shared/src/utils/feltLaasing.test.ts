@@ -67,4 +67,17 @@ describe("beregnLaasteFelter", () => {
     expect(beregnLaasteFelter(undefined).size).toBe(0);
     expect(beregnLaasteFelter({}).size).toBe(0);
   });
+
+  // befaring-feltfunn 2026-10-20: i utkast skal et felt med lagret verdi forbli
+  // redigerbart — låsen slår inn FØRST etter sending. Mobil manglet draft-gaten.
+  it("draft (utkast) låser ingenting selv med server-bekreftet verdi", () => {
+    const data = { a: { verdi: "OK" }, e: { verdi: ["valgt"] } };
+    expect(beregnLaasteFelter(data, "draft").size).toBe(0);
+  });
+
+  it("ikke-draft låser felt med verdi (sendt → låst som før)", () => {
+    const data = { a: { verdi: "OK" }, b: { verdi: "" } };
+    expect([...beregnLaasteFelter(data, "received")].sort()).toEqual(["a"]);
+    expect([...beregnLaasteFelter(data, "responded")].sort()).toEqual(["a"]);
+  });
 });
