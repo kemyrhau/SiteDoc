@@ -5152,7 +5152,7 @@ Bestilt hos Redesign som egen runde etter at frysrettingen er bekreftet på tele
 Fantes før `fix/befaring-feltfunn` (identiske på develop `a9892446`). Teknisk gjeld. Ryddes neste gang fila røres.
 
 ### 🟡 Arbeidstegning: veggens totale tykkelse fra veggtype-merking (Kenneth 2026-10-20)
-Trykk på isolasjonen i en innervegg viser bare isolasjonens bredde (71 mm). Gips er tegnet som én linje uten bredde (`236`, PLINE), så geometrien sier ikke om gipsen er enkel eller dobbel (K2: aldri gjett). Veggens totale tykkelse og oppbygging finnes vanligvis i veggtype-merking eller -tabell på tegningen («IV1 …»). Den kan kobles via CadKobling (spec § 9 K4). **Neste:** Fabel tar det inn i arbeidstegning-spec (oppdage veggtype, koble merking til tabell og vise oppbyggingen). Bilder: `relay/arbeidstegning-prove/f1f2/kenneth/2010/2-…`, `3-…`. 🟡 PLANLAGT, ikke bestilt.
+Trykk på isolasjonen i en innervegg viser bare isolasjonens bredde (71 mm, `a9892446`). **Spec skrevet 2026-10-22 (Fabel):** [arbeidstegning-spec.md § 9.7 K6](arbeidstegning-spec.md), AT-V1–V6 målt. Notatet 20.10 («gips er tegnet som én linje uten bredde») var feil: fallplanen tegner gipsen som to HATCH `Gips` à 12,5 mm på hver side av isolasjonen, så veggen er 120 mm med dobbel gips — målbart fra geometrien (K6.1 pri 4). HABU: veggtype-id i XDATA kode 5, navn + lagoppbygging i prosjektets IFC (`IfcWallType.Tag`, 367 mm Yttervegg 198+48). Ingen fil i korpuset har veggtype-merking eller -tabell. Ordre GJ-3 (reparasjon: IFC-veggtyper + bånd-stabling, etter GJ-1) og GJ-4 (funksjonsendring: `Veggtype`-tabell + nye koblingsnøkler, Q15). 🟡 Ikke bestilt.
 
 ### 🔴 MÅ GJØRES 2026-09-10: serverhåndheving av `DokumentflytMedlem.kanRedigere`
 
