@@ -148,6 +148,9 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   }
 
   function init() {
+    // Installer tastatur-overstyringen FØR noen tekst kan gå i redigering (se funksjonen).
+    installerTekstTastaturFiks();
+
     var container = document.getElementById('canvas-container');
     var w = container.clientWidth;
     var h = container.clientHeight;
@@ -436,11 +439,34 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // gir samme kontrast som formene. Tom tekst ved avsluttet redigering fjernes (se init).
   // Befaring-funn (Kenneth 2026-10-21, BHO4): stor forbokstav automatisk etter punktum.
   // Fabric lager en skjult <textarea> ved enterEditing() — den driver det native tastaturet.
-  // autocapitalize='sentences' slår på setning-stor-forbokstav på iOS/Android-tastaturet.
-  // Kalles overalt redigering startes (ny tekst OG trykk-for-å-redigere en eksisterende).
+  // 🔴 RETUR (Kenneth 2026-10-22): å sette autocapitalize ETTER enterEditing virket IKKE.
+  // Rotårsak målt i Fabric 5.3.1: initHiddenTextarea() setter autocapitalize='off', og
+  // enterEditing() FOKUSERER textarea'en i neste linje (fabric.js:28791–28792). iOS/WebView
+  // leser autocapitalize i FOKUS-øyeblikket; å endre attributtet etterpå og re-fokusere et
+  // alt-fokusert felt er en no-op og når aldri tastaturet. Vi overstyrer derfor
+  // initHiddenTextarea slik at attributtene er riktige FØR Fabric fokuserer. Overstyringen
+  // ligger på fabric.IText.prototype og dekker både Textbox (ny tekst, arver fra IText) og
+  // gjenåpnet gammel IText. Installeres én gang pr. side.
+  function installerTekstTastaturFiks() {
+    if (!fabric.IText || fabric.IText.prototype.__sitedocTastaturFiks) return;
+    var original = fabric.IText.prototype.initHiddenTextarea;
+    fabric.IText.prototype.initHiddenTextarea = function() {
+      original.apply(this, arguments);
+      if (this.hiddenTextarea) {
+        // 'sentences' = stor forbokstav ved start og etter punktum (iOS-verdi).
+        this.hiddenTextarea.setAttribute('autocapitalize', 'sentences');
+        this.hiddenTextarea.setAttribute('autocorrect', 'on');
+        this.hiddenTextarea.setAttribute('spellcheck', 'true');
+      }
+    };
+    fabric.IText.prototype.__sitedocTastaturFiks = true;
+  }
+
+  // Sikrer at tastaturet faktisk kommer opp når redigering startes (ny tekst OG
+  // trykk-for-å-redigere). Attributtene settes av overstyringen over FØR fokus; her
+  // re-fokuseres bare for å vekke tastaturet om det ikke alt er oppe.
   function klargjørTekstTastatur(obj) {
     if (obj && obj.hiddenTextarea) {
-      obj.hiddenTextarea.setAttribute('autocapitalize', 'sentences');
       obj.hiddenTextarea.focus();
     }
   }

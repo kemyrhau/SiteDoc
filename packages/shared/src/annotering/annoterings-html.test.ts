@@ -34,8 +34,31 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
   // Befaring (Kenneth 2026-10-21, BHO4): stor forbokstav automatisk etter punktum.
   it("tekst-tastaturet har autocapitalize='sentences' (stor forbokstav etter punktum)", () => {
     expect(ANNOTERINGS_HTML).toContain("setAttribute('autocapitalize', 'sentences')");
-    // Settes der redigering startes (ny tekst OG trykk-for-å-redigere via samme hjelper).
-    expect(ANNOTERINGS_HTML).toContain("klargjørTekstTastatur");
+  });
+
+  // RETUR (Kenneth 2026-10-22): autocapitalize virket IKKE fordi den ble satt ETTER
+  // enterEditing() hadde fokusert textarea'en (iOS leser attributtet ved fokus). Fiksen
+  // overstyrer fabric.IText.prototype.initHiddenTextarea så attributtene står FØR Fabric
+  // fokuserer. Testen vokter at (a) overstyringen finnes og installeres, og (b) den
+  // wrapper den opprinnelige metoden (kaller original før den setter attributtene).
+  it("overstyrer initHiddenTextarea så autocapitalize settes FØR Fabric fokuserer", () => {
+    expect(ANNOTERINGS_HTML).toContain(
+      "fabric.IText.prototype.initHiddenTextarea = function()"
+    );
+    expect(ANNOTERINGS_HTML).toContain("original.apply(this, arguments)");
+    // Installeres én gang, og kalles fra init() før noen tekst kan redigeres.
+    expect(ANNOTERINGS_HTML).toContain("installerTekstTastaturFiks()");
+    expect(ANNOTERINGS_HTML).toContain("__sitedocTastaturFiks");
+    // Attributtet settes PÅ hiddenTextarea INNI overstyringen — altså før enterEditing
+    // sin focus()-linje. Rekkefølge-sjekk: override-definisjonen kommer før klargjør-focus.
+    const idxOverride = ANNOTERINGS_HTML.indexOf(
+      "fabric.IText.prototype.initHiddenTextarea = function()"
+    );
+    const idxAttr = ANNOTERINGS_HTML.indexOf(
+      "setAttribute('autocapitalize', 'sentences')"
+    );
+    expect(idxOverride).toBeGreaterThan(-1);
+    expect(idxAttr).toBeGreaterThan(idxOverride);
   });
 
   it("laster Fabric fra den pinnede CDN-stien (én kilde for stien)", () => {
