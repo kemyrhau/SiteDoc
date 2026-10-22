@@ -25,6 +25,12 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-22
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `640a71b4` | 🔴 **Annotering (mobil + web via delt motor): tekstrute og kamera** | **Før:** teksten var én linje uten bredde som gikk ut over bildekanten. Markøren hoppet til slutten, og teksten kunne ikke dras eller endre bredde. I kameraet måtte man gå ut for å annotere. **Etter:** tekstrute med bryting, bredde fra trykkpunktet til bildekanten og håndtak for bredden. Markøren flyttes fritt, og dra flytter teksten. Kameraet har en miniatyrstripe med øktens bilder, og trykk annoterer uten å forlate kameraet. Re-annotering tegner oppå (tidligere annotering er innbrent). Web får samme tekstrute. ⚠️ Ikke bekreftet på telefon. | 🟢 Kenneth 2026-10-21/22 |
+
 ### 2026-10-21
 
 | Hash | Flate | Før → Etter | Hjemmel |
