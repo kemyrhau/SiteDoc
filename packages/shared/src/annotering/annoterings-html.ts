@@ -25,7 +25,7 @@ import {
   ANNOTERING_TEKST_KANT_FRAKSJON,
   ANNOTERING_PILHODE_FAKTOR,
 } from "./lag";
-import { TEKSTBOKS_MARG, TEKSTBOKS_MIN_BREDDE } from "./plassering";
+import { TEKSTBOKS_MARG, TEKSTBOKS_MIN_BREDDE, TEKST_TAP_TERSKEL } from "./plassering";
 
 // Flate-anker for bildet i annoteringsflaten (befaring-funn A + orkestrator-SVAR
 // dc6b8090, Kenneth 2026-10-21):
@@ -53,7 +53,13 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #000; overflow: hidden; touch-action: none; }
+  /* Frys-fiks (RETUR 5965e37b): lås visningsporten. WKWebView scroller markøren «synlig»
+     når tastaturet vises, men hele lerretet ligger alt OVER tastaturet (RN reserverer
+     tastaturhøyden), så enhver scroll dytter bare teksten ut av syne. position:fixed +
+     scroll-pin-lytteren (JS) hindrer det. Annoteringen har ingen pan/zoom, så ingenting
+     annet trenger å scrolle. */
+  html, body { position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
+  body { background: #000; touch-action: none; }
   /* Vertikal forankring styres av anker-parameteren:
      - "topp" (mobil): bildet forankres ØVERST, rett under overskriftslinja —
        befaring-funn A (Kenneth 2026-10-21): fast bildeposisjon, aldri sentrert
@@ -84,6 +90,11 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // Var tekstboksen ALT i redigering da brukeren trykket? Avgjør i mouse:up om vi skal la
   // Fabrics markør-plassering stå (ja) eller åpne redigering på nytt (nei).
   var tekstNedIEditing = false;
+  // RETUR 5965e37b (Kenneth 2026-10-22): et TRYKK på en tekst skal åpne redigering i ALLE
+  // verktøy, ikke bare Tekst. I et tegne-verktøy armer vi en kandidat ved mouse:down og lar
+  // mouse:up skille trykk (< TEKST_TAP_TERSKEL → rediger) fra dra (→ tegn formen som før).
+  var tekstTapKandidat = null;
+  var tekstTapPunkt = null;
   // Farger og basis-tall interpoleres fra @sitedoc/shared lag.ts (én kilde, samme
   // mønster som bro-betingelsene). Strek/font vokser SUB-LINEÆRT (kvadratrot) med
   // canvas-bredden fra referanse-canvas (mobil ~390px) — lineær ble for tykk på stor
@@ -102,7 +113,11 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // inlinede kopien er det ikke. Endres formelen der, endres den her.
   var TEKSTBOKS_MARG = ${TEKSTBOKS_MARG};
   var TEKSTBOKS_MIN_BREDDE = ${TEKSTBOKS_MIN_BREDDE};
+  // Trykk-vs-dra-terskel (canvas-piksler). TVILLING: TEKST_TAP_TERSKEL i plassering.ts.
+  var TEKST_TAP_TERSKEL = ${TEKST_TAP_TERSKEL};
   var objekter = [];
+  // Dev-signal: er WKWebViews tastatur-scroll korrigert minst én gang (frys-funnet)?
+  var harMeldtScrollKorrigert = false;
 
   // Bredden til en ny tekstboks: fra trykkpunktet til høyre kant minus marg, klemt mot
   // minBredde og flatens bredde (TVILLING: tekstboksStandardBredde).
@@ -199,8 +214,17 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         lagTekst(tp.x, tp.y);
         return;
       }
+      // Tegne-verktøy (pil/sirkel/firkant): start en mulig form-drag …
       var pointer = canvas.getPointer(opt.e);
       startPunkt = { x: pointer.x, y: pointer.y };
+      // … men arm samtidig et TRYKK-på-tekst (RETUR 5965e37b). Teksten er evented, men ikke
+      // selectable i tegne-verktøy (settFlyttbar), så Fabric plukker den ikke opp — vi avgjør
+      // trykk vs. dra i mouse:up. TVILLING: skalTekstTapRedigere/erTekstType i plassering.ts.
+      var dmål = opt.target;
+      if (dmål && (dmål.type === 'text' || dmål.type === 'i-text' || dmål.type === 'textbox')) {
+        tekstTapKandidat = dmål;
+        tekstTapPunkt = { x: pointer.x, y: pointer.y };
+      }
     });
 
     // Forhåndsvisning under draget: samme bygger som endelig form, lagt på canvas
@@ -260,18 +284,26 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
           return;
         }
         // Rent trykk på en tekst som ikke redigerte → åpne redigering, markør DER han trykket.
-        canvas.setActiveObject(tMål);
-        tMål.enterEditing();
-        if (tMål.setCursorByClick) {
-          tMål.setCursorByClick(opt.e);
-        } else {
-          var n = (tMål.text || '').length;
-          tMål.setSelectionStart(n);
-          tMål.setSelectionEnd(n);
-        }
-        klargjørTekstTastatur(tMål);
-        canvas.renderAll();
+        apneTekstForRedigering(tMål, opt.e);
         return;
+      }
+      // RETUR 5965e37b: tekst truffet i et TEGNE-verktøy. Trykk (< TEKST_TAP_TERSKEL) → åpne
+      // redigering uansett verktøy; dra → fall gjennom og tegn formen som før. TVILLING:
+      // skalTekstTapRedigere i plassering.ts.
+      if (tekstTapKandidat) {
+        var kTekst = tekstTapKandidat; tekstTapKandidat = null;
+        var upK = canvas.getPointer(opt.e);
+        var flyttLengde = tekstTapPunkt ? Math.sqrt(
+          (upK.x - tekstTapPunkt.x) * (upK.x - tekstTapPunkt.x) +
+          (upK.y - tekstTapPunkt.y) * (upK.y - tekstTapPunkt.y)) : 0;
+        tekstTapPunkt = null;
+        if (flyttLengde < TEKST_TAP_TERSKEL) {
+          if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
+          startPunkt = null;
+          apneTekstForRedigering(kTekst, opt.e);
+          return;
+        }
+        // Dra fra en tekst → tegn formen (fall gjennom til form-finaliseringen under).
       }
       if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
       if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
@@ -330,7 +362,32 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     canvas.on('object:moving', function(e) { if (erTekst(e.target)) klemTekstboksObjekt(e.target); });
     canvas.on('object:modified', function(e) { if (erTekst(e.target)) klemTekstboksObjekt(e.target); });
 
+    monterScrollPin();
+
     postTilVert({ type: 'klar' });
+  }
+
+  // Frys-fiks (RETUR 5965e37b): nøytralisér WKWebViews «scroll markøren synlig»-oppførsel når
+  // tastaturet vises. Hele lerretet ligger alt over tastaturet (RN reserverer tastaturhøyden),
+  // så en scroll ≠ 0 er alltid feil — den dytter teksten ut av syne mens den skjulte textarea-en
+  // fortsetter å motta tastetrykk (= «teksten frøs og forsvant, men fortsatte å skrive»). Vi
+  // tilbakestiller til (0,0). Annoteringen har ingen pan/zoom, så ingenting legitimt scroller.
+  function pinnViewport() {
+    if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+    var se = document.scrollingElement || document.documentElement;
+    if (se && se.scrollTop) se.scrollTop = 0;
+    if (!harMeldtScrollKorrigert) {
+      harMeldtScrollKorrigert = true;
+      // Dev-signal så Kenneths telefontest kan bekrefte at WKWebView forsøkte å scrolle.
+      postTilVert({ type: 'scrollKorrigert' });
+    }
+  }
+  function monterScrollPin() {
+    window.addEventListener('scroll', pinnViewport, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('scroll', pinnViewport);
+      window.visualViewport.addEventListener('resize', pinnViewport);
+    }
   }
 
   // Alle formene bygges som gruppe [hvit halo (bak), rød strek (foran)]. Den hvite er
@@ -471,6 +528,25 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     }
   }
 
+  // RETUR 5965e37b: ÉN kjent-god vei inn i redigering (gjenoppretter prod 8c741180). Brukes
+  // av både Tekst-verktøyets trykk og det verktøy-agnostiske trykket. setCursorByClick
+  // (markør der du trykket) var en mistenkt i regresjonen — pakket i try/catch med markør-på-
+  // slutten som fallback, så redigering ALLTID åpner selv om markør-plasseringen feiler.
+  function apneTekstForRedigering(o, evt) {
+    canvas.setActiveObject(o);
+    o.enterEditing();
+    var plassert = false;
+    if (evt && o.setCursorByClick) {
+      try { o.setCursorByClick(evt); plassert = true; } catch (e) { plassert = false; }
+    }
+    if (!plassert) {
+      var n = (o.text || '').length;
+      if (o.setSelectionStart) { o.setSelectionStart(n); o.setSelectionEnd(n); }
+    }
+    klargjørTekstTastatur(o);
+    canvas.renderAll();
+  }
+
   // Del 1 (Kenneth 2026-10-22): felles oppsett for en tekstboks' interaksjon — KUN
   // bredde-håndtakene (ml/mr) synlige (Kenneth: «endre bredden»), høyde følger teksten
   // (lockScalingY) og ingen rotasjon. Stor treffflate på håndtakene for touch (≥44 pt).
@@ -548,9 +624,15 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // Gjør ETT gjeninnlastet objekt flyttbart eller låst avhengig av modus. Tekst er
   // alltid flyttbar (som ved tegning). Kalles ved lag-innlasting og ved verktøybytte.
   function settFlyttbar(o, flyttbar) {
-    // Tekst (fabric.Textbox → 'textbox'; eldre lag 'i-text' eller 'text') er alltid
-    // interaktiv så den kan flyttes og redigeres uansett verktøy.
-    if (o.type === 'text' || o.type === 'i-text' || o.type === 'textbox') return;
+    // Tekst (fabric.Textbox → 'textbox'; eldre lag 'i-text'/'text') er ALLTID evented, så et
+    // trykk åpner redigering uansett verktøy (RETUR 5965e37b). Men Fabric-FLYTTBAR (selectable)
+    // bare i Velg og Tekst; i tegne-verktøyene er den ikke selectable, så et dra som starter på
+    // en tekst tegner formen i stedet for at Fabric plukker opp teksten. TVILLING:
+    // tekstErSelectableIVerktoy i plassering.ts.
+    if (o.type === 'text' || o.type === 'i-text' || o.type === 'textbox') {
+      o.set({ evented: true, selectable: (aktivtVerktoy === 'select' || aktivtVerktoy === 'text') });
+      return;
+    }
     o.set({ selectable: flyttbar, evented: flyttbar });
   }
 

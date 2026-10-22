@@ -136,6 +136,10 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
             encoding: FileSystem.EncodingType.Base64,
           });
           onFerdig(filsti);
+        } else if (data.type === "scrollKorrigert") {
+          // Frys-fiks (RETUR 5965e37b): WKWebView forsøkte å scrolle lerretet ved tastaturet;
+          // scroll-pinnen tilbakestilte det. Dev-signal gir Kenneths telefontest en bekreftelse.
+          if (__DEV__) console.log("[annotering] WKWebView-scroll korrigert (frys-pin aktiv)");
         }
       } catch {
         // Ignorer ugyldig melding — nullstill «Lagrer …» så knappen ikke blir stående låst.
@@ -185,6 +189,11 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           source={{ html: MOBIL_ANNOTERINGS_HTML }}
           style={{ flex: 1 }}
           scrollEnabled={false}
+          // Frys-fiks (RETUR 5965e37b): hindre at WKWebView insetter/scroller for tastaturet.
+          // Flaten ligger alt over tastaturet (reservert høyde), så enhver scroll dyttet bare
+          // teksten ut av syne. Scroll-pinnen i HTML-en fanger resten (visualViewport).
+          automaticallyAdjustContentInsets={false}
+          contentInsetAdjustmentBehavior="never"
           onMessage={håndterMelding}
           allowFileAccess
         />

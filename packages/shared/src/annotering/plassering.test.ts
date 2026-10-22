@@ -4,6 +4,9 @@ import {
   annoteringsbildeFit,
   tekstboksStandardBredde,
   klemTekstboksPosisjon,
+  skalTekstTapRedigere,
+  erTekstType,
+  tekstErSelectableIVerktoy,
   TEKSTBOKS_MARG,
   TEKSTBOKS_MIN_BREDDE,
 } from "./plassering";
@@ -132,5 +135,64 @@ describe("klemTekstboksPosisjon — boksen holdes innenfor bildet", () => {
 
   it("lar margen vinne når boksen er bredere enn flaten", () => {
     expect(klemTekstboksPosisjon({ ...felles, bredde: 500, left: 100, top: 60 }).left).toBe(TEKSTBOKS_MARG);
+  });
+});
+
+/**
+ * RETUR 5965e37b (Kenneth 2026-10-22, PROD STOPPET): en avsluttet tekst kunne ikke åpnes
+ * igjen etter Textbox-migreringen, og tap-til-rediger var bundet til Tekst-verktøyet.
+ * Vedtak (orkestrator-GO): et TRYKK (< TEKST_TAP_TERSKEL) på en tekst redigerer i ALLE
+ * verktøy; et DRA fra en tekst tegner fortsatt formen. Både ny `textbox` og gammel
+ * `i-text`/`text` fra prod skal åpnes.
+ */
+describe("erTekstType — ny Textbox og eldre i-text/text", () => {
+  it("kjenner igjen textbox, i-text og text", () => {
+    expect(erTekstType("textbox")).toBe(true);
+    expect(erTekstType("i-text")).toBe(true);
+    expect(erTekstType("text")).toBe(true);
+  });
+  it("er usann for former og tomt treff", () => {
+    expect(erTekstType("group")).toBe(false); // pil/sirkel/firkant er grupper
+    expect(erTekstType("path")).toBe(false); // frihånd
+    expect(erTekstType(null)).toBe(false);
+    expect(erTekstType(undefined)).toBe(false);
+  });
+});
+
+describe("skalTekstTapRedigere — trykk redigerer, dra tegner", () => {
+  it("TRYKK på en textbox redigerer i Pil-verktøyet (verktøy-agnostisk tap)", () => {
+    expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "arrow", beveget: false })).toBe(true);
+  });
+  it("DRA fra en textbox i Pil-verktøyet tegner (redigerer IKKE)", () => {
+    expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "arrow", beveget: true })).toBe(false);
+  });
+  it("gammel i-text fra prod åpnes med trykk (sirkel-verktøyet)", () => {
+    expect(skalTekstTapRedigere({ objType: "i-text", aktivtVerktoy: "circle", beveget: false })).toBe(true);
+  });
+  it("eldre text-lag åpnes med trykk (firkant-verktøyet)", () => {
+    expect(skalTekstTapRedigere({ objType: "text", aktivtVerktoy: "rect", beveget: false })).toBe(true);
+  });
+  it("trykk i Tekst-verktøyet redigerer også", () => {
+    expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "text", beveget: false })).toBe(true);
+  });
+  it("Fabric eier frihånd (draw) og flytt (select) — ingen tap-redigering der", () => {
+    expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "draw", beveget: false })).toBe(false);
+    expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "select", beveget: false })).toBe(false);
+  });
+  it("en form (ikke tekst) redigeres aldri", () => {
+    expect(skalTekstTapRedigere({ objType: "group", aktivtVerktoy: "arrow", beveget: false })).toBe(false);
+  });
+});
+
+describe("tekstErSelectableIVerktoy — tekst Fabric-flyttbar bare i select/text", () => {
+  it("selectable i Velg og Tekst (flytt / dra-flytt)", () => {
+    expect(tekstErSelectableIVerktoy("select")).toBe(true);
+    expect(tekstErSelectableIVerktoy("text")).toBe(true);
+  });
+  it("IKKE selectable i tegneverktøyene (dra fra tekst tegner formen)", () => {
+    expect(tekstErSelectableIVerktoy("arrow")).toBe(false);
+    expect(tekstErSelectableIVerktoy("circle")).toBe(false);
+    expect(tekstErSelectableIVerktoy("rect")).toBe(false);
+    expect(tekstErSelectableIVerktoy("draw")).toBe(false);
   });
 });
