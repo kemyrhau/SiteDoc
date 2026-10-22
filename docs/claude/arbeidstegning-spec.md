@@ -396,7 +396,7 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q12 | 🟢 2026-10-18: **Prosjektadmin kobler direkte i prosjektet, uten firma-admin.** «Snakker vi ikke om koblinger i en tegning i et prosjekt? → det skal ikke firmaadmin ta stilling til.» → to nivåer (prosjekt > firma), løft til firma er firma-admins valg |
 | Q13 | 🟢 2026-10-18: ok — anvend ved lesing, ikke rekonvertering |
 | Q14 | 🟢 2026-10-18: ok — fast typeliste først |
-| Q15 | 🟡 2026-10-22: ikke besvart (GJ-4 venter) |
+| Q15 | 🟢 2026-10-22: **Ja, men geometri og IFC først** (Kenneth: «ja, bygg geometri og IFC først»). GJ-3 (K6.3 pkt. 1 + 4) før GJ-4 (veggtypetabell + kobling, pkt. 2–3), som har hjemmel og bygges når en fil med merking kommer |
 | Rotasjon | 🟢 2026-10-13: **B** — ikke-georefererte DWG vises som tegnet i arbeidstegning-motoren (ingen automatisk kamerarotasjon); brukerens ⟳ beholdes. Georefererte: nord opp (F11.4). **Presisert 2026-10-13:** *«I utgangspunktet er tegninger laget med tekst og rotasjon i korrekt retning og trenger ikke ekstra rotasjon»* → visning som tegnet er standard; ⟳ er en sjelden brukerhandling; **valg C (egen motrotert tekst) bygges ikke** |
 
 ## 6. Hva Dokgens prøve må levere (gate for valg A/B — ikke bygging)
