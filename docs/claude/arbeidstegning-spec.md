@@ -3,7 +3,7 @@ name: arbeidstegning-spec
 description: Produktspesifikasjon for arbeidstegning — DWG/DXF som verktøy på byggeplassen, ikke som bilde. Brukerhistorier (fagarbeider, bas, prosjektleder), ni funksjoner merket MÅ/BØR/KAN med akseptkriterier som kan kjøres på Kenneths tretten ekte filer (tre ARK/utomhus + sju Revit-tegninger fra HABU + et sykehus-sett: ARK-underlag, medisinske gasser, tele/elektro), avgrensning, § 8 felles objektmodell på tvers av 2D-tegning, IFC/3D og mobil (Kenneth-vedtak 2026-10-12), F11 georeferanse fra DWG (kart-CRS, ett fastpunkt à la Dalux, to punkter, 2D→IFC via IfcMapConversion, nord opp), fjorten spørsmål til Kenneth (Q1–Q11 besvart); F11.7–F11.9 gjør georef fra fil til påstand med kilde, konfliktvarsel og justering mot fasit; § 9 gjenkjenning på tvers av CAD-standarder med firmakobling lag/mønster → type (Kenneth-hjemmel 2026-10-18). Teknisk vei (A: ezdxf-SVG + egenskapsregister · B: DXF på klient) velges IKKE her — den avgjøres av Dokgens målte prøve mot § 3.
 sist_verifisert_mot_kode: 2026-10-12
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 12, 2026-10-19 — ⚠️ UTKAST TIL GATE (RETUR 1 rettet: tykkelse fra geometri, frittstående prosjekter, kildetekst): § 9 gjenkjenning av lag/objekter på tvers av CAD-standarder (AT-K1–K8 målt; K1 rekkefølge + «Ukjent type», K2 aldri feil tall, K3 rapport, K4 prosjekt-/firmakobling = FUNKSJONSENDRING m/ Kenneth-hjemmel 18.10, K5 testkorpus; Q12–Q14 besvart 18.10). F11 rev. 9 fortsatt til gate. Ingenting under er bygget.
+status: 🟢 VEDTATT (Q1–Q8 besvart 2026-10-12) · rev. 13, 2026-10-22 (§ 9.7 K6 veggtype: AT-V1–V6 målt, GJ-3/GJ-4, Q15) · rev. 12, 2026-10-19 — ⚠️ UTKAST TIL GATE (RETUR 1 rettet: tykkelse fra geometri, frittstående prosjekter, kildetekst): § 9 gjenkjenning av lag/objekter på tvers av CAD-standarder (AT-K1–K8 målt; K1 rekkefølge + «Ukjent type», K2 aldri feil tall, K3 rapport, K4 prosjekt-/firmakobling = FUNKSJONSENDRING m/ Kenneth-hjemmel 18.10, K5 testkorpus; Q12–Q14 besvart 18.10). F11 rev. 9 fortsatt til gate. Ingenting under er bygget.
 ---
 
 # Arbeidstegning — DWG/DXF som verktøy, ikke bilde
@@ -374,6 +374,7 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q12 | ~~Prosjektadmin foreslår koblinger til firma-admin?~~ 🟢 **Besvart 18.10 (Kenneth):** koblingen gjelder en tegning i et prosjekt — det skal ikke firma-admin ta stilling til → prosjektadmin kobler direkte (prosjektkobling), firma-admin kan løfte til firmanivå. Ingen forslagsflyt | — |
 | Q13 | **Anvendelse på eksisterende tegninger:** koblinger anvendes **ved lesing** av registeret (gjelder alle tegninger straks, ingen rekonvertering) — eller ved rekonvertering (kø, maks 2 samtidig)? | **Ved lesing.** Ingen kø, ingen ventetid, gamle tegninger følger med, render.py røres ikke. Rekonvertering bare når kodens typeliste endres |
 | Q14 | **Typelista** (kategorier/materialer) er SiteDocs faste liste; firma kan ikke lage egne typer. Holder det, eller trenger firma egne typer («Fjernvarme-rør»)? | **Fast liste først.** Forhåndsdefinerte valg slår fritekst (CLAUDE.md); mangler en type, utvides lista i kode etter ønske. Egne firmatyper = KAN senere, krever egen O1-adapter |
+| Q15 | **Veggtype (§ 9.7 K6.3 pkt. 2–3):** prosjektadmin registrerer veggtyper (kode, navn, lag med materiale og tykkelse) på prosjekt/firma og kobler Revit type-id eller merking («IV1») til dem — ny flate. IFC-veien (pkt. 1) og geometri-stabelen (pkt. 4) trenger ingen hjemmel. | **Ja til begge, men bygg pkt. 1 + 4 først (GJ-3):** de svarer på fallplanen og HABU uten ny UI; tabellen (GJ-4) er først nyttig når en fil med merking kommer (AT-V1). |
 | Q8 | **Underlag (F10):** skal SiteDoc kunne legge VVS/EL-tegningen oppå ARK-tegningen når de deler koordinatramme, eller holder det å vise tilstanden «underlag mangler»? TB3/VB3 er ubrukelige alene (rør i tomrom) | **Ja, F10 som BØR rett etter F8.** Det er slik fagarbeideren leser et tegningssett; og rammen er alt felles i filene (AT-F12). Samme spørsmål gjelder AB3/VB3/TB3 i repoet som fixtures (eier?) — anbefaler samme regel som Q7 |
 
 ### 5a. Kenneth-svar 2026-10-12 — 🟢 alle åtte
@@ -395,6 +396,7 @@ bygging. F8 og F9 er små når F1/F5 finnes (element-id ligger alt i objektrefer
 | Q12 | 🟢 2026-10-18: **Prosjektadmin kobler direkte i prosjektet, uten firma-admin.** «Snakker vi ikke om koblinger i en tegning i et prosjekt? → det skal ikke firmaadmin ta stilling til.» → to nivåer (prosjekt > firma), løft til firma er firma-admins valg |
 | Q13 | 🟢 2026-10-18: ok — anvend ved lesing, ikke rekonvertering |
 | Q14 | 🟢 2026-10-18: ok — fast typeliste først |
+| Q15 | 🟡 2026-10-22: ikke besvart (GJ-4 venter) |
 | Rotasjon | 🟢 2026-10-13: **B** — ikke-georefererte DWG vises som tegnet i arbeidstegning-motoren (ingen automatisk kamerarotasjon); brukerens ⟳ beholdes. Georefererte: nord opp (F11.4). **Presisert 2026-10-13:** *«I utgangspunktet er tegninger laget med tekst og rotasjon i korrekt retning og trenger ikke ekstra rotasjon»* → visning som tegnet er standard; ⟳ er en sjelden brukerhandling; **valg C (egen motrotert tekst) bygges ikke** |
 
 ## 6. Hva Dokgens prøve må levere (gate for valg A/B — ikke bygging)
@@ -597,11 +599,119 @@ model CadKobling {            // cad_koblinger
 - **Hver feil fra virkeligheten blir en rad**: når Kenneth eller en kunde finner et objekt som er feil gjenkjent, legges fila (lokalt) + forventningen (i git) inn før fiksen — regresjon for alltid.
 - Startkorpus (alt målt i denne spec-en): fallplan (ArchiCAD-IFC-import), HABU ×7 (Revit, lokalt hos Kenneth), AB3/VB3/TB3 (POINT/AutoCAD 2004), Ålesund NTM6/UTM32 (landmåler). Forventningene står i AT-F1–F14 og K1–K9.
 
-### 9.7 Ordre
+### 9.7 Regel K6 — Veggtype og oppbygging: total tykkelse, lag for lag (rev. 13, 2026-10-22) · **MÅ** (presisering av K2/F1; K6.3 pkt. 2–3 🔴 FUNKSJONSENDRING, Q15)
+
+> Utløser: **Kenneth 2026-10-20** trykket på isolasjonen i en innervegg (242) i fallplanen og fikk «Tykkelse 71 mm»: *«Er det med
+> eller uten gipsplatene den er kledd med? Er det enkel eller dobbel gips? Gips er vanligvis 13 mm.»* Bilder
+> `relay/arbeidstegning-prove/f1f2/kenneth/2010/2-isolasjon-71mm.jpg` og `3-gips-linje.png`. Ordre: orkestrator 22.10
+> (`relay/inbox-fabel.md` § POST veggtype), Kenneth «ja» til spec. BACKLOG § «Arbeidstegning: veggens totale tykkelse fra veggtype-merking».
+
+**Målt 2026-10-22** (ezdxf 1.4.5 på `dwg2dxf -y`-DXF i `relay/arbeidstegning-prove/gate1/` og `dxf-b/`; HABU A-30-100/A-40-100 konvertert på nytt
+fra `DWG eksempelfiler/`; IFC `DWG eksempelfiler/E3 3D-modell ARK.ifc`; skript i Fabels scratchpad `veggtype/`):
+
+| # | Fakta | Bevis |
+|---|---|---|
+| AT-V1 | **Ingen veggtype-merking og ingen veggtypetabell i korpuset.** 0 TEXT/MTEXT/ATTRIB som matcher «IV1»/«YV2»/«V1»-mønster, 0 `ACAD_TABLE`, 0 tegnforklaringsblokker — i fallplan (24 074 ent.), AB3/VB3/TB3, HABU A-10-101/A-30-100/A-40-100. Eneste «ISOL.»-tekst er to romtekster på AB3-lag `ROMNR`. 🟡 Merking + tabell er vanlig på større prosjekter, men finnes ikke i noen av de tretten filene — veien via merking (K6.1 pri 3) kan ikke måles før en slik fil kommer (K5: inn i korpuset når den dukker opp) | `maal.py` 22.10: 0 treff i alle seks DXF |
+| AT-V2 | 🟢 **Fallplanen (ArchiCAD) tegner veggen lag for lag — geometrien bærer svaret.** Isolasjonen Kenneth trykket på (`AFF2`) er en anonym blokk `*X1089` med 305 LINE på lag «242- Ikke-bærende innervegger (Skravur)(Nye konstruksjoner)», bånd **70,0 mm** × 1 075 mm. På hver side ligger **to HATCH `Gips` à 12,5 mm** som deler kanter (offset ±35 → ±47,5 → ±60), og ytterst én PLINE på «236- Innvendig kledning og overflate» (= `B00C`, det Kenneth trykket på i bilde 3; linje uten bredde). Veggen er **12,5 + 12,5 + 70 + 12,5 + 12,5 = 120 mm, dobbel gips på begge sider** — og det står ikke skrevet noe sted i fila. Hele 242-(Skravur)-laget: 154 HATCH `Gips` (bånd 12–15 mm), 15 HATCH `Prikker_tett` (107 mm), 41 anonyme linjeblokker (isolasjon; bånd 70–113 mm) | `aff2c.py`: offset −60,3/−47,8/−35,3/+34,7/+47,2/+59,7; `fall242.py` |
+| AT-V3 | **ArchiCAD-isolasjonen har ikke noe mønsternavn.** Fyllet er eksportert som linjer i en anonym blokk (`*X957`…`*X1089`, ett navn pr. instans) på «(Skravur)»-laget, med seks vinkler og ujevn avstand — ingen signatur å nøkle på. K4-nøklene `monster` og `blokk` treffer den ikke, og laget alene skiller ikke isolasjonen fra Gips-skravurene på samme lag. Den trenger en egen nøkkel: **«linjeblokk på lag X»** (K6.3 pkt. 2) | `aff2c.py`: vinkler 75°/26°/36°/111°/115°/170°, avstand 4,3/1,6/7,4 mm |
+| AT-V4 | 🟢 **HABU (Revit): veggtype-id finnes i hver strek, navnet gjør det ikke.** XDATA `REVIT` kode 5 på vegg-entiteter (kat −2000011): A-10-101 har fire type-id-er (556257: 142 ent./9 elementer · 341721: 92/13 · 338346: 49/9 · 700392: 42/2); A-30-100 tre, A-40-100 tre. Ingen tekst, blokk eller lag i DWG-ene bærer typenavnet. Veggkode-taggen finnes som blokk `aart_veggkode 2mm - type_brannklasse-339875` på lag `A24-K_koder vegg` (kat −2005011), **men er sju streker uten tekst/attributt** — innholdet forsvant i eksporten. Én instans i A-10-101 | `habu2.py`; XDATA `{1070 1, 1000 '872333'}{1070 5, 1000 '339875'}{1070 2, 1000 '-2005011'}` |
+| AT-V5 | 🟢 **Prosjektets IFC bærer både navn og oppbygging, nøklet på samme type-id.** `IfcWallType.Tag` = Revit type-id (341721 «Basic Wall:Innervegg 150», 338346 «Innervegg 100», 556257 «Yttervegg 198+48», 700392 «Innervegg 198+48 2»); `IfcWallStandardCase.Tag` = element-id (727699 ↔ XDATA kode 1, AT-F6). `IfcMaterialLayerSet` gir lagene: «Yttervegg 198+48» = **367 mm** (Liggende kledning 20 + Lufting 70 + Stender isolert 198 + 48 + OSB 18 + Gips hvit 13); «Innervegg 198+48 2» = 308 mm (Gips 13 + OSB 18 + Stender 198 + 48 + OSB 18 + Gips 13); «Innervegg 150»/«100» = ett lag «Default Wall» 150/100 (oppbygging ikke modellert). 81 vegger; 74 med layerset-usage, 7 med bare type | `ifc.py`; IFC `#527`, `#28227`, `#28296`, `#42820` |
+| AT-V6 | **I dag:** IFC parses bare i nettleseren (AT-I1); serveren leser prosjekt/etasjer/GPS med regex til `Drawing.ifcMetadata`. Ingen leser `IFCWALLTYPE`/`IFCMATERIALLAYERSET`, og ingen kobler 2D-XDATA kode 5 til noe (XDATA leses ikke, AT-M9). AB3/VB3/TB3 (POINT/AutoCAD 2004): vegger er enkeltstreker uten bånd, mønster eller type — bare K6.1 pri 3 kan noen gang svare der | `ifcMetadata.ts:7-9`; `schema.prisma:949`; `render.py` 0 treff `xdata` |
+
+**Konsekvens:** Kenneths spørsmål har tre ulike svar etter kilde: i fallplanen står svaret i geometrien (AT-V2) og ingen steder i
+tekst; i HABU står det i IFC-en, nøklet på en id DWG-en alt bærer (AT-V4/V5); i AB3 finnes det ikke. Ingen av de tretten filene har
+merking eller tabell (AT-V1). Dagens kort svarer «71 mm» uten å si at det er ett lag av fem. BACKLOG-notatet 20.10 («gips er tegnet som
+én linje uten bredde») var feil for fallplanen: gipsen *er* tegnet som 12,5 mm-bånd; linjen Kenneth traff (236) er overflatelinjen.
+
+#### K6.1 Rekkefølge for veggtype (første treff gir *type*; tykkelse og lag følger kilden; materiale pr. bånd følger K1/K4 som før)
+
+| Pri | Kilde | Gir | Sikkerhet | Målt |
+|---|---|---|---|---|
+| 1 | **Revit type-id (XDATA kode 5) → IFC på samme byggeplass** (`IfcWallType.Tag` = type-id, lag fra `IfcMaterialLayerSet`) | navn, lag for lag, total | høy | AT-V4/V5 |
+| 2 | **Kobling type-id → veggtype** (K4, ny `kildeType "revittype"`, nøkkel = type-id) — når IFC mangler, eller typen har ett «Default»-lag | navn, lag, total (registrert) | høy (menneske) | 🟡 ikke målt — ingen fil krever det ennå |
+| 3 | **Merking i tegningen** («IV1», «YV2», tag-blokk-attributt) nærmest veggen → **veggtypetabell** på prosjekt/firma (K6.3 pkt. 3) | navn, lag, total (registrert) | middels (nærmeste tekst, som «15.TR» i K2) | 🟡 ikke målt — 0 forekomster i korpuset (AT-V1) |
+| 4 | **Geometri: stabel av parallelle bånd** — bånd (HATCH, linjeblokk, SOLID) som deler kant med det trufne båndet langs samme akse, samlet til én stabel; materiale pr. bånd fra K1 pri 7 (mønster) eller K4; bånd uten begge forblir «ukjent» | total mellom ytterste kanter, lagliste med tykkelser | **målt** (ingen tolkning) | AT-V2: 120 mm = gips 12,5 ×2 · ukjent 70 · gips 12,5 ×2 |
+| 5 | **Ingen** | bare det trufne båndet som i dag | ukjent | AB3/VB3/TB3 |
+
+- **Aldri gjett (K2):** ingen «13 mm gips» som standardverdi, ingen «enkel» fordi vi bare ser én linje. Et bånd uten mønster og uten
+  kobling listes som «ukjent 70 mm». En linje uten bredde (236-PLINE, bilde 3) er **ikke** et lag og får ikke tykkelse.
+- Pri 1 og 4 kan begge finnes (Revit-vegg tegnet med skravurbånd): pri 1 gir type og lag; pri 4 brukes som kontroll og vises bare ved
+  avvik > 5 mm mellom IFC-total og målt total («IFC: 367 mm · tegnet: 360 mm»), og avviket går i rapporten (K3).
+- Pri 3 er en *tolkning* (nærmeste tekst) og vises med «(tolket)» som andre nærmeste-merkinger (K2); to merkinger like nær → ingen.
+
+#### K6.2 Hva kortet viser (F1 felt 2 «Mål» utvides; § 8 O1 får `vegg?: { type, kilde, total, lag: [{ materiale, tykkelse, kilde }] }`)
+
+1. **Linje 1:** «Vegg: Innervegg 198+48 2 · 308 mm» (pri 1–3) eller «Vegg 120 mm (målt fra geometri)» (pri 4). Kilde i grått som i K1:
+   «fra IFC», «fra prosjektkobling», «fra firmakobling», «fra veggtypetabell», «målt fra geometri».
+2. **Linje 2, utfoldbar «Oppbygging»:** lagene i rekkefølge fra den siden brukeren trykket: «gips 12,5 · gips 12,5 · **ukjent 70** ◀ · gips
+   12,5 · gips 12,5». Det trufne båndet er markert. Et ukjent bånd har «Koble til type …» for prosjektadmin (K4) rett i lista.
+3. **Linje 3:** dagens svar for det trufne elementet («Tykkelse 70 mm · isolasjon») beholdes, så ingenting forsvinner.
+4. Pri 5: kortet som i dag. Deler et annet bånd kant med det trufne uten at stabelen kan lukkes (bare ett nabobånd, ingen ytterkant),
+   vises «Ett lag — veggens oppbygging er ikke kjent».
+5. Web og mobil samme felt (§ 8 O1); offline (F7) bærer `vegg` i registeret som alt annet; IFC-typer følger `cadKoblingVersjon`-mekanismen
+   (K4) så en IFC lastet opp senere slår inn uten rekonvertering.
+
+#### K6.3 Datagrunnlag — fire deler, to er funksjonsendring
+
+1. **IFC → veggtyper på serveren (utvidelse av `ifcMetadata`, ingen ny UI):** ved IFC-opplasting leses `IFCWALLTYPE` (Name, Tag),
+   `IFCMATERIALLAYERSET`/`IFCMATERIALLAYER`/`IFCMATERIAL`, `IFCRELASSOCIATESMATERIAL`/`IFCMATERIALLAYERSETUSAGE` og `IFCRELDEFINESBYTYPE`
+   med samme linje-regex-tilnærming som i dag (ingen web-ifc på server) til `Drawing.ifcMetadata.veggtyper: { [typeId]: { navn, total,
+   lag: [{ materiale, tykkelse }] } }` + `elementTyper: { [elementId]: typeId }` (dekker de 7 veggene uten layerset-usage, AT-V5).
+   Anvendes **ved lesing** i `tegning.hentRegister` som K4: for hver 2D-tegning på byggeplassen med XDATA kode 5 slås typen opp i
+   byggeplassens IFC-er. Krever at render.py skriver XDATA kode 1/2/**5** i registeret (GJ-1 tar kode 1/2; kode 5 legges til der).
+   *Reparasjon/presisering — ingen ny flate.*
+2. **`CadKobling` (§ 9.5) utvides** med `kildeType "revittype"` (nøkkel = type-id) og `"linjeblokk"` (nøkkel = lagnavn; treffer **bare**
+   anonyme `*X`-blokker som består av linjer på det laget, AT-V3 — aldri HATCH på samme lag). `maal` får verdien `"veggtype"` ved siden av
+   kategori/materiale, med `type` = id i veggtypetabellen. Samme prosjekt > firma-regel og samme partielle unike indekser.
+   🔴 *Funksjonsendring* (ny nøkkeltype prosjektadmin kan velge) — dekkes av Q15.
+3. **Veggtypetabell (ny tabell i `packages/db`):** `Veggtype { id, organizationId?, projectId?, kode («IV1»), navn, lag: Json
+   [{ materiale (fra `MATERIALER`), tykkelse }], total (beregnet ved lagring), aktiv, opprettetAv, opprettetTid }` med CHECK org/prosjekt
+   og partiell unik `(projectId, kode) WHERE project_id IS NOT NULL` / `(organizationId, kode) WHERE project_id IS NULL` (samme mønster
+   som K4). Registreres av prosjektadmin fra kortet («Koble til type … → Ny veggtype») og som egen fane under `/dashbord/firma/tegninger`
+   (K4-siden); «Gjelder hele firmaet» løfter som for koblinger. Forhåndsdefinerte materialer (nedtrekk), tykkelse i mm (tall), aldri fritekst.
+   **Stille tomhet:** tabellen fødes tom med rette (sies i migreringens header); DB-garanti over; **test som feiler når en registrert kode
+   ikke slår inn** (T46). 🟡 Kan ikke måles på korpuset før en fil med merking finnes (AT-V1) — T46/V7 bruker en syntetisk DXF-fixture med
+   TEXT «IV1» ved en vegg, som eneste unntak fra K5 (merket slik i manifestet). 🔴 *Funksjonsendring* — Q15.
+4. **Bånd-stabling (pri 4) er ren geometri i render.py/registeret** (*reparasjon*, presisering av K2 «tykkelse fra geometri»): naboskap =
+   parallell innen 1°, delt kant innen 1 mm, overlapp langs aksen ≥ 50 % av det korteste båndet; stabelen lukkes når ytterste bånd på hver
+   side ikke har flere naboer. Alle bånd i stabelen peker på samme `vegg` (de fem i AT-V2). Linjer uten bredde deltar ikke.
+
+#### K6.4 Akseptkriterier (ekte filer, pluss én syntetisk for pri 3)
+
+- V1 Fallplan `AFF2`: kortet viser «Vegg 120 mm (målt fra geometri)», oppbygging «gips 12,5 · gips 12,5 · ukjent 70 ◀ · gips 12,5 · gips
+  12,5»; trykk på en av Gips-skravurene gir samme stabel med annet bånd markert; trykk på 236-PLINE `B00C` gir **ingen** vegg og ingen
+  tykkelse (linje uten bredde). Toleranse ± 1 mm pr. bånd.
+- V2 Fallplan etter prosjektkobling `linjeblokk «242- Ikke-bærende innervegger (Skravur)(Nye konstruksjoner)» → isolasjon` (K4): «ukjent 70»
+  blir «isolasjon 70 (fra prosjektkobling)» på alle 41 linjeblokker; de 154 Gips-skravurene på samme lag beholder gips (nøkkelen treffer ikke HATCH).
+- V3 HABU A-10-101 + `E3 3D-modell ARK.ifc` på samme byggeplass: vegg 727699 → «Vegg: Yttervegg 198+48 · 367 mm (fra IFC)», oppbygging
+  seks lag som i AT-V5; en vegg av type 341721 → «Innervegg 150 · 150 mm (fra IFC)» med ett lag «Default Wall 150» og teksten
+  «oppbygging ikke modellert i IFC» — ikke gjettet gips.
+- V4 HABU uten IFC på byggeplassen: samme vegg → ingen veggtype; kortet som i dag + «Koble til type …» for prosjektadmin. Etter kobling
+  `revittype 556257 → Veggtype «YV1»` (registrert 367 mm) vises «YV1 … (fra prosjektkobling)». Lastes IFC opp etterpå vinner IFC (pri 1),
+  koblingen beholdes, og avvik > 5 mm mellom de to listes i rapporten (K3).
+- V5 HABU A-30-100 (snitt): samme element-id som i plan gir samme veggtype uten ny kobling (F8).
+- V6 AB3-1071: innervegg `A2412` (enkeltstreker) → ingen tykkelse, ingen oppbygging, ingen feilmelding, kortet som i dag.
+- V7 Syntetisk fixture `veggmerke.dxf` (TEXT «IV1» 300 mm fra en lukket 120 mm-polylinje): uten tabell → «Merking IV1 (tolket) — veggtype
+  ikke registrert»; med `Veggtype IV1` på prosjektet → «Vegg: IV1 · 120 mm (fra veggtypetabell)»; to tekster like nær → ingen merking.
+- V8 Negativkontroller: ingen «13», «gips» eller «enkel/dobbel» i noe kort uten målt bånd eller registrert kilde; to bånd som ikke deler
+  kant (3 mm mellomrom) stables ikke; vanlig medlem kan ikke lagre veggtype (FORBIDDEN).
+
+#### K6.5 Tester som skal feile i dag
+
+- **T44** register fallplan: `AFF2.vegg.total === 120`, `vegg.lag.length === 5`, `vegg.lag[2].materiale === null` (i dag: `vegg` finnes ikke).
+- **T45** `ifcMetadata` på HABU-IFC: `veggtyper["556257"].total === 367`, `.lag.length === 6`; `veggtyper["341721"].lag.length === 1`;
+  `elementTyper["727699"] === "556257"` (i dag: feltene finnes ikke).
+- **T46** veggtypetabell: `Veggtype { kode: "IV1" }` på prosjektet → fixture-veggen får `vegg.kilde === "veggtypetabell"`; uten rad →
+  `vegg === null` (feiler når koblingen ikke slår inn — stille tomhet (c)).
+- **T47** egenskapsfelt: `B00C` (PLINE, bredde 0) → ingen `vegg`, ingen tykkelse; `vegg === null` + ukjent kategori → ingen mål i feltlista.
+
+### 9.8 Ordre
 
 | Ordre | Innhold | Gate | Hjemmel |
 |---|---|---|---|
 | **GJ-1 (reparasjon)** | § 9.2 kilde+sikkerhet i O1 og «Ukjent type» (render.py + egenskapsfelt + lagpanel «Ukjent (N)») · § 9.3 aldri feil tall · § 9.4 rapport i `konverteringRapport.gjenkjenning` + admin-linje på tegning + prosjektsamling · AutoCAD-standardmønstre i `MATERIALE` · § 9.6 manifest + skip-tester · T36–T38, T40–T42 | Kontrollør | ingen ny — presiserer F1/F2/O1 |
 | **GJ-2 (funksjonsendring)** | § 9.5 `CadKobling` (migrering m/ to partielle unike indekser + CHECK org/prosjekt, frittstående prosjekter, Zod, prosjektadmin-/firma-admin-tilgang), anvendelse ved lesing + `cadKoblingVersjon` på `Project`, kobling fra rapporten i prosjektet, «løft til firma», firmaside `/dashbord/firma/tegninger` · T39, T43 | Kontrollør; FUNKSJONSENDRINGER.md ved merge | Kenneth 18.10 «ja» |
+| **GJ-3 (reparasjon)** | § 9.7 K6.3 pkt. 1 + 4: XDATA kode 5 i registeret, `ifcMetadata.veggtyper`/`elementTyper` fra IFC (regex), oppslag ved lesing i `hentRegister`, bånd-stabling i render.py, kortets linje 1–3 for pri 1 og 4 · T44, T45, T47 · V1, V3, V5, V6, V8 | Kontrollør | ingen ny — presiserer K2/F1 |
+| **GJ-4 (funksjonsendring)** | § 9.7 K6.3 pkt. 2 + 3: `kildeType "revittype"`/`"linjeblokk"` + `maal "veggtype"` i `CadKobling`, tabell `Veggtype` (migrering, partielle unike indekser, Zod, prosjektadmin/firma-admin), «Ny veggtype» fra kortet og fane på `/dashbord/firma/tegninger`, pri 2–3 i kortet · T46 · V2, V4, V7 | Kontrollør; FUNKSJONSENDRINGER.md ved merge | 🟡 Q15 — venter Kenneth |
 
-GJ-1 først (uten «Ukjent» finnes det ingenting å koble). Agent: Dokgen (eier render.py/register), redesign for firmasiden i GJ-2.
+GJ-1 først (uten «Ukjent» finnes det ingenting å koble), deretter GJ-3 (trenger registeret fra GJ-1), så GJ-2, og GJ-4 sist (trenger `CadKobling` fra GJ-2). Agent: Dokgen (eier render.py/register/ifcMetadata), redesign for firmasiden i GJ-2/GJ-4.
