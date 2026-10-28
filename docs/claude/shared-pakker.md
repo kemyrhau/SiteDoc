@@ -41,6 +41,7 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 - Data utenfor komponenter (arrays, configs): `labelKey` i stedet for `label`, kall `t()` ved rendering.
 - **Gjelder også ikke-JSX:** arknavn i Excel-eksport, PDF-overskrifter og filnavn er synlige strenger og skal gjennom `t()`. `addWorksheet("Per prosjekt")` slapp unna i ett år fordi flaten ikke er JSX.
 - **Bruk alltid `--only <dine nøkler>`** når du kjører generatoren for egne nøkler (`pnpm dlx tsx src/i18n/generate.ts --only seksjon.dinNøkkel,seksjon.annen`) — uten flagget genereres alle manglende nøkler, og du drar med deg annen drift inn i din egen diff. Ukjent nøkkel → generatoren stopper og navngir den. Endrer du en eksisterende nøkkel: se «Retter du en ENGELSK kildestreng» under.
+- **i18n-diagnostikk:** Mangler en nøkkel i ett språk men finnes i et annet: grep `*.ts`/`*.tsx` først. Brukes den ikke i koden, er den en relikvi som slettes fra alle språk — ikke en manglende oversettelse.
 
 #### Arbeidsflyt for ny i18n-nøkkel
 

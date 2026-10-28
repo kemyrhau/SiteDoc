@@ -21,7 +21,6 @@ sist_verifisert_mot_kode: 2026-05-16
 | Presens-påstand skrives i docs (systemet «gjør» noe) / dokumentasjons-standard endres | `dokumentasjons-standard.md` (referanse eller markør kreves) |
 | Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
 | Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
-| Ny Cowork-økt trenger arbeidsmåte (kontroll-laget) | `COWORK-KONTROLL-VEILEDER.md` (+ `kontroll-claude-veileder.md`) |
 | **Skal se/teste en endring før test-deploy** (localhost) | `lokal-dev.md` |
 | **Localhost virker ikke** — `AccessDenied`, `psql: command not found`, tom lokal DB | `lokal-dev.md` § 2 Feilsøking |
 | **Lokal test-data må oppdateres** (DB bak test / etter migrering) | `lokal-dev.md` § 3 |

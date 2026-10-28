@@ -12,7 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-10-28
-- 2026-10-28 — **`CLAUDE.md` renset 40 397 → 12 540 tegn** (branch `docs/rens-claudemd`, docs-only, Fabel): nytt tak 15 000 tegn (⚠️ TVIL — Kenneth vedtar). Innhold flyttet med markør «flyttet fra CLAUDE.md 2026-10-28» til `arkitektur.md` (§ Roller, § Modul-plassering, § Schema- og migreringsregler), `deploy-detaljer.md` (§ Deploy-fakta), `dokumentasjons-standard.md` (§ Dokumentasjons-disiplin + python-måling), `shared-pakker.md` (§ i18n-krav), `tooltip-hjelpetekst-veileder.md` (§ 5 husstil pr./per), `timer.md` (lønnsart-grense), `terminologi.md` (godkjenner-rolle). `DOC-MAP.md` § Regel peker nå til SAMARBEIDSREGLER § 6. Fem TVIL-punkter i leveransen. Telling uendret.
+- 2026-10-28 — **`CLAUDE.md` renset 40 397 → ~12 700 tegn** (branch `docs/rens-claudemd`, docs-only, Fabel): nytt tak 15 000 tegn (Kenneth-vedtak 28.10). Runde 2: `kontroll-claude-veileder.md` + `COWORK-KONTROLL-VEILEDER.md` arkivert (✅ 7→6, 📦 6→8, totalt 55→56; COWORK var aldri registrert), DOC-MAP-rad «Ny Cowork-økt» slettet, i18n-diagnostikk-regel hjem i `shared-pakker.md`. Innhold flyttet med markør «flyttet fra CLAUDE.md 2026-10-28» til `arkitektur.md` (§ Roller, § Modul-plassering, § Schema- og migreringsregler), `deploy-detaljer.md` (§ Deploy-fakta), `dokumentasjons-standard.md` (§ Dokumentasjons-disiplin + python-måling), `shared-pakker.md` (§ i18n-krav), `tooltip-hjelpetekst-veileder.md` (§ 5 husstil pr./per), `timer.md` (lønnsart-grense), `terminologi.md` (godkjenner-rolle). `DOC-MAP.md` § Regel peker nå til SAMARBEIDSREGLER § 6. Fem TVIL-punkter i leveransen. Telling uendret.
 - 2026-10-28 — **`SAMARBEIDSREGLER.md` renset** (branch `docs/rens-samarbeidsregler`, docs-only): 1836 → 486 linjer; dobbeltbetydninger (merge-eier, nudge-eier, gate-eier, alvorlighetsskala, STATUS-AKTUELT-skribent) samlet til én regel hver; CLAUDE.md § Sesjonstart/Commit + push oppdatert til § 0b.
 - 2026-10-22 — **`dokumentsok-visning-spec.md` § 1 re-målt mot develop `2f156820`** (branch `docs/design-dokumentsok-visning-spec`, rebaset): linjenumre oppdatert, S-M13 ny (query-embedding-timeout 8 s + `aiSøkUtilgjengelig`-flagg fra `544f0125`), alle tolv funn fortsatt gyldige inkl. 🔴 S-M12. Q1–Q3 fortsatt åpne.
 - 2026-10-22 — **`arbeidstegning-spec.md` rev. 13 — § 9.7 K6 veggtype og oppbygging** (branch `docs/design-arbeidstegning-veggtype`, ⚠️ UTKAST TIL GATE, Q15): AT-V1–V6 målt (fallplanen tegner veggen lag for lag: gips 12,5 ×2 · isolasjon 70 · gips 12,5 ×2 = 120 mm, ingen tekst sier det; HABU har type-id i XDATA kode 5 og navn + lag i IFC `IfcWallType.Tag`; ingen merking/tabell i noen av 13 filer), K6.1 rekkefølge IFC → kobling → merking → bånd-stabel → ingen, K6.2 kortet, K6.3 fire deler (to funksjonsendring), V1–V8, T44–T47, ordre GJ-3/GJ-4. BACKLOG-punktet rettet (gips er bånd, ikke linje). Telling uendret.
@@ -274,13 +274,13 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 
 | Status | Antall |
 |---|---:|
-| ✅ Verifisert mot kode | 7 |
+| ✅ Verifisert mot kode | 6 |
 | ⚠️ Drift identifisert | 4 |
 | 🔄 Under arbeid | 17 |
 | ❌ Ikke screenet | 21 |
 | ✔️ Ferdig brukt (lukket) | 3 |
-| 📦 Arkivert | 6 |
-| **Totalt** | **55** |
+| 📦 Arkivert | 8 |
+| **Totalt** | **56** |
 
 ---
 
@@ -294,7 +294,6 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | fase-0-beslutninger.md | 2026-05-12 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e). **§ T (T.1–T.6) tilføyd 2026-05-11 (`1d819ff4`)** — Timer-modul arkitektur-redesign, deployet prod 2026-05-12 (PR 1A–2C). **§ T.10 (2026-06-08):** Ikke-prosjekt-tid (Alt C) + oppmøtested + reise-regelsett — T.2 IKKE gjenåpnet |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament. K(2026-06-08): to-produkt-isolasjonsmodell (§ 0) — prosjektmodul=projectId / firmamodul=organizationId |
 | SITEDOC-CLAUDE-VEILEDER.md | 2026-05-03 | **Meta-fil:** Sesjonsoppstart-veileder for Opus |
-| kontroll-claude-veileder.md | 2026-06-08 | **Meta-fil:** Arbeidsmåte for kontroll-Claude (verifiseringslaget over Opus). Indeksert i CLAUDE.md. Se `parallell-arbeid-lock.md` (repo-rot). K(2026-06-08): § 10 Docs-/commit-/push-rutine (dual-review-gate; CLAUDE.md auto-commit reconciliert + peker hit) |
 | eas-build-veileder.md | 2026-06-12 | **Meta-fil:** EAS iOS-bygg-veileder — credentials (App Store Connect API-nøkkel + 2FA-felle), profiler (`test` → api-test), enhet-registrering, app variants. Skrevet fersk under R4 mobil-enhet-verifisering; prosessen utført + verifisert samme dag. Indeksert i CLAUDE.md + DOC-MAP |
 | ny-server-veileder.md | 2026-06-10 | **Meta-fil:** Drift-runbook for server-ny (Docker) — deploy-mekanikk, kommunikasjon, gjenoppretting; rollback til gammel PM2/WSL beskrevet. Indeksert i DOC-MAP (ikke CLAUDE.md-tabell pga 40k-grense). Rad tilføyd + telling-reconciliert 2026-07-06 |
 | dev-login-agent.md | 2026-07-06 | **Meta-fil:** Dev-only test-innlogging for agent-/simulator-testing (test-miljø) — endepunkt, header, testbrukere, sikkerhetsgrense. Indeksert i DOC-MAP. Rad tilføyd 2026-07-06 |
@@ -386,6 +385,8 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | entreprise-faggruppe-rapport.md | (eldre) | Faggruppe-rename-rapport → [docs/arkiv/](../arkiv/). Faggruppe-rename ferdig på prod (kun alias-rydding gjenstår) |
 | faggruppe-rename-plan.md | (eldre) | Faggruppe-rename-plan → [docs/arkiv/](../arkiv/). Plan utført; faggruppe-CRUD-konsolidering deployet 2026-05-05 |
 | infrastruktur-moduler.md | (eldre) | Modul-infrastruktur-spec → [docs/arkiv/](../arkiv/). Innhold dekt av arkitektur-syntese.md § 6 + service-lag-mønster |
+| kontroll-claude-veileder.md | 2026-10-28 | Arbeidsmåte for kontroll-Claude (cowork-laget, utgikk 30.09) → [docs/arkiv/](../arkiv/). Erstattet av SAMARBEIDSREGLER.md § 0b (orkestrator). Kenneth-vedtak 28.10 |
+| COWORK-KONTROLL-VEILEDER.md | 2026-10-28 | Cowork-kontrollrollens veileder (aldri registrert her før) → [docs/arkiv/](../arkiv/). Erstattet av SAMARBEIDSREGLER.md. Kenneth-vedtak 28.10 |
 
 ---
 

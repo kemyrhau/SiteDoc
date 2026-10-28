@@ -143,7 +143,7 @@ utlogging — vurder hvilke andre `*_local`-tabeller som bærer brukerdata. **Ik
 | `annotering.redigerTekst` | 🔴 **0** | 15 |
 | `annotering.tekstPlaceholder` | 🔴 **0** | 15 |
 
-🔴 **De skal SLETTES, ikke oversettes.** Husregelen i CLAUDE.md § i18n-diagnostikk finnes fordi noen
+🔴 **De skal SLETTES, ikke oversettes.** Husregelen i `shared-pakker.md` § i18n-krav (i18n-diagnostikk, flyttet fra CLAUDE.md 2026-10-28) finnes fordi noen
 prøvde å FYLLE relikvier: *«finnes nøkkelen ikke i `*.ts`/`*.tsx`, er det en relikvi som skal slettes,
 ikke en bug som skal fylles.»* ⚠️ **En foreldreløs nøkkel er umulig å skille fra en manglende
 oversettelse seks uker senere** — og da fyller noen den med en oversettelse av noe som ikke finnes.

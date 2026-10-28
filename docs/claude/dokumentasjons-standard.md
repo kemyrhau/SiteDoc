@@ -348,7 +348,7 @@ Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn
 
 ### CLAUDE.md-taket måles med python, ikke `wc -m`
 
-Taket (se CLAUDE.md § Dokumentasjon) måles slik:
+Taket er **15 000 tegn** (Kenneth-vedtak 2026-10-28, tidligere 40 960; CLAUDE.md § Ufravikelige regler) og måles slik:
 
 ```sh
 python3 -c "print(len(open('CLAUDE.md',encoding='utf-8').read()))"
