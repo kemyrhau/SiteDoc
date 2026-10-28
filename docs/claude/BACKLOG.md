@@ -1755,6 +1755,12 @@ egen liten runde), ikke merges. **Branchen er eneste bærer av innholdet — ikk
 🔴 **Denne oppføringen finnes for å STOPPE den agenten.** Ser du en rar oversettelse: **det er
 kjent, det er målt, og det skal ikke fikses stykkevis.**
 
+**Rotårsak målt 2026-10-28 (orkestrator):** `packages/shared/src/i18n/generate.ts:107-112` sender bare den nakne
+engelske teksten til Google Translate i bolker à 50 — uten nøkkelnavn, skjerm eller om det er knapp/status.
+Google kan ikke ta imot kontekst. Løsningsretning når saken tas: kontekst-oversettelse (nøkkel + bruksted + type)
+via språkmodell, etter en måling av flertydige korte nøkler. **Kenneth 2026-10-28:** *«jeg er klar over
+kvalitetsproblemet»* — fortsatt utsatt; *«det er konteksten som må oversettes»*, ikke ord for ord.
+
 **Målt av cowork 2026-09-09** — samme norske tekst oversatt ULIKT på ulike nøkler:
 
 | | Antall |
