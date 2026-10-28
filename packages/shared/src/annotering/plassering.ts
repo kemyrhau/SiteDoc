@@ -139,6 +139,32 @@ export function klemTekstboksPosisjon(p: {
 /** Terskel (canvas-piksler) for å skille et trykk fra et dra på en tekst. */
 export const TEKST_TAP_TERSKEL = 10;
 
+/**
+ * Trykk-vs-dra-terskel for TOUCH (canvas-px; på mobil er canvas-px = CSS-px = pt). RETUR velg-alle
+ * (Kenneth på telefon 2026-10-28): en fingertupp vingler under et trykk, og med musens 10 px ble et
+ * trykk som vinglet ≥ 10 px et DRA — «trykk på kanten tegner ny sirkel», og formen kunne ikke velges
+ * (målt med CDP-touch i iPhone 13-skalering). 22 = halvparten av minste treffflate (44 pt), samme tall
+ * som `FORM_TREFF_TOLERANSE`. Mus beholder `TEKST_TAP_TERSKEL` (web uendret).
+ */
+export const TRYKK_TERSKEL_TOUCH = 22;
+
+/** Kom gesten fra en finger? Fabric 5 gir TouchEvent (`touchstart`/`touchend`); PointerEvent som reserve. */
+export function erTouchHendelse(e: { type?: string; pointerType?: string } | null | undefined): boolean {
+  if (!e) return false;
+  if (typeof e.type === "string" && e.type.indexOf("touch") === 0) return true;
+  return e.pointerType === "touch";
+}
+
+/** Trykk-terskelen for gesten: touch 22 px, mus 10 px. */
+export function trykkTerskel(erTouch: boolean): number {
+  return erTouch ? TRYKK_TERSKEL_TOUCH : TEKST_TAP_TERSKEL;
+}
+
+/** Er gesten et DRA (største avstand fra nedtrykket ≥ terskelen for inndataen)? */
+export function erGestBeveget(p: { maksAvstand: number; erTouch: boolean }): boolean {
+  return p.maksAvstand >= trykkTerskel(p.erTouch);
+}
+
 /** Er objekttypen en tekst-annotering — ny `Textbox` eller eldre `i-text`/`text`-lag? */
 export function erTekstType(objType: string | null | undefined): boolean {
   return objType === "textbox" || objType === "i-text" || objType === "text";

@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { ANNOTERINGS_HTML, lagAnnoteringsHtml } from "./annoterings-html";
 import { FABRIC_CDN_STI } from "./lag";
-import { TEKST_TAP_TERSKEL, FORM_TREFF_TOLERANSE } from "./plassering";
+import {
+  TEKST_TAP_TERSKEL,
+  TRYKK_TERSKEL_TOUCH,
+  FORM_TREFF_TOLERANSE,
+  erTouchHendelse,
+  trykkTerskel,
+} from "./plassering";
 
 /**
  * Tegnelogikken bor i en HTML-streng (kan ikke enhets-testes med canvas), så disse
@@ -316,8 +322,9 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
       expect(ANNOTERINGS_HTML).toContain("tekstTapKandidat = dmål;");
     });
 
-    it("mouse:up skiller trykk (< TEKST_TAP_TERSKEL → rediger) fra dra (→ tegn formen)", () => {
-      expect(ANNOTERINGS_HTML).toContain("if (flyttLengde < TEKST_TAP_TERSKEL) {");
+    it("mouse:up skiller trykk (< terskel for inndataen → rediger) fra dra (→ tegn formen)", () => {
+      // RETUR velg-alle: terskelen følger inndataen (touch 22 / mus 10), se blokken under.
+      expect(ANNOTERINGS_HTML).toContain("if (flyttLengde < gTerskel) {");
       // Terskel-konstanten er interpolert fra plassering.ts (tvilling), ikke hardkodet.
       expect(ANNOTERINGS_HTML).toContain(`var TEKST_TAP_TERSKEL = ${TEKST_TAP_TERSKEL};`);
     });
@@ -416,6 +423,46 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     it("gjenåpnede former får håndtak (klargjørForm) og web-«Flytt» er beholdt", () => {
       expect(ANNOTERINGS_HTML).toContain("if (o.type === 'textbox') klargjørTekstboks(o); else klargjørForm(o);");
       expect(ANNOTERINGS_HTML).toContain("canvas.selection = iVelg;");
+    });
+  });
+
+  // ── RETUR velg-alle (Kenneth på telefon 2026-10-28) ── et vinglete fingertrykk ble et dra.
+  // Ekte touch-veien (CDP-touch, iPhone 13-skalering) er testet i tests/e2e/annotering/trykk-touch.spec.ts.
+  describe("RETUR velg-alle — trykk-terskelen følger inndataen (touch 22 px, mus 10 px)", () => {
+    const script = () => ANNOTERINGS_HTML.match(/<script>\n([\s\S]*?)<\/script>/)![1]!;
+    const inlineFunksjon = (navn: string) => {
+      const m = script().match(new RegExp(`  function ${navn}\\([\\s\\S]*?\\n  }\\n|  function ${navn}\\(.*\\}\\n`));
+      expect(m, navn).not.toBeNull();
+      return m![0];
+    };
+
+    it("touch-terskelen er interpolert fra plassering.ts (tvilling), ikke hardkodet", () => {
+      expect(ANNOTERINGS_HTML).toContain(`var TRYKK_TERSKEL_TOUCH = ${TRYKK_TERSKEL_TOUCH};`);
+    });
+
+    it("inline erTouchHendelse/trykkTerskel gir samme svar som tvillingene", () => {
+      const kilde =
+        `var TEKST_TAP_TERSKEL = ${TEKST_TAP_TERSKEL}; var TRYKK_TERSKEL_TOUCH = ${TRYKK_TERSKEL_TOUCH};\n` +
+        inlineFunksjon("erTouchHendelse") + inlineFunksjon("trykkTerskel") +
+        "return { erTouchHendelse: erTouchHendelse, trykkTerskel: trykkTerskel };";
+      const inline = new Function(kilde)() as { erTouchHendelse: typeof erTouchHendelse; trykkTerskel: typeof trykkTerskel };
+      const hendelser = [
+        { type: "touchstart" }, { type: "touchend" }, { type: "mousedown" }, { type: "pointerdown", pointerType: "touch" },
+        { type: "pointerdown", pointerType: "mouse" }, {}, null,
+      ];
+      for (const e of hendelser) expect(inline.erTouchHendelse(e), JSON.stringify(e)).toBe(erTouchHendelse(e));
+      for (const t of [true, false]) expect(inline.trykkTerskel(t)).toBe(trykkTerskel(t));
+    });
+
+    it("gesten husker om den kom fra en finger, og mouse:up måler mot terskelen for inndataen", () => {
+      expect(ANNOTERINGS_HTML).toContain("gestErTouch = erTouchHendelse(opt.e);");
+      expect(ANNOTERINGS_HTML).toContain("var gTerskel = trykkTerskel(gestErTouch);");
+      expect(ANNOTERINGS_HTML).toContain("var gBeveget = gestMaks >= gTerskel;");
+      expect(ANNOTERINGS_HTML).not.toContain("var gBeveget = gestMaks >= TEKST_TAP_TERSKEL;");
+    });
+
+    it("et fingertrykk under terskelen tegner aldri en mini-form (mus beholder 5 px)", () => {
+      expect(ANNOTERINGS_HTML).toContain("if (avstand < 5 || (gErTouch && !gBeveget)) {");
     });
   });
 });

@@ -16,6 +16,11 @@ import {
   objektTrykkHandling,
   angreSisteHandling,
   FORM_TREFF_TOLERANSE,
+  TEKST_TAP_TERSKEL,
+  TRYKK_TERSKEL_TOUCH,
+  erTouchHendelse,
+  trykkTerskel,
+  erGestBeveget,
   type FormGeometri,
   type AngreHandling,
 } from "./plassering";
@@ -393,5 +398,35 @@ describe("angreSisteHandling — angrer siste HANDLING (flytt/størrelse/erstatt
     const r = angreSisteHandling([], []);
     expect(r.effekt).toBeNull();
     expect(r.objekter).toEqual([]);
+  });
+});
+
+describe("erGestBeveget — touch har egen trykk-terskel (RETUR velg-alle, Kenneth på telefon 2026-10-28)", () => {
+  // Målt med CDP-touch i iPhone 13-skalering (canvas-px = CSS-px): et trykk på sirkelkanten som
+  // vinglet 10 px eller mer ble et DRA → ny sirkel. Fingeren skal få samme slingringsmonn som treffet.
+  it("touch: vingling opp til 21 px er et trykk, 22 px er et dra", () => {
+    for (const v of [0, 6, 10, 12, 18, 21]) expect(erGestBeveget({ maksAvstand: v, erTouch: true }), `${v}`).toBe(false);
+    expect(erGestBeveget({ maksAvstand: 22, erTouch: true })).toBe(true);
+    expect(erGestBeveget({ maksAvstand: 40, erTouch: true })).toBe(true);
+  });
+
+  it("mus er uendret: 10 px er et dra (web)", () => {
+    expect(erGestBeveget({ maksAvstand: 9, erTouch: false })).toBe(false);
+    expect(erGestBeveget({ maksAvstand: 10, erTouch: false })).toBe(true);
+    expect(trykkTerskel(false)).toBe(TEKST_TAP_TERSKEL);
+  });
+
+  it("touch-terskelen = treff-toleransen (halve minste treffflate, 44 pt)", () => {
+    expect(TRYKK_TERSKEL_TOUCH).toBe(FORM_TREFF_TOLERANSE);
+    expect(trykkTerskel(true)).toBe(TRYKK_TERSKEL_TOUCH);
+  });
+
+  it("erTouchHendelse: Fabric 5 gir TouchEvent; PointerEvent med pointerType touch som reserve", () => {
+    expect(erTouchHendelse({ type: "touchstart" })).toBe(true);
+    expect(erTouchHendelse({ type: "touchend" })).toBe(true);
+    expect(erTouchHendelse({ type: "pointerdown", pointerType: "touch" })).toBe(true);
+    expect(erTouchHendelse({ type: "mousedown" })).toBe(false);
+    expect(erTouchHendelse({ type: "pointerdown", pointerType: "mouse" })).toBe(false);
+    expect(erTouchHendelse(null)).toBe(false);
   });
 });
