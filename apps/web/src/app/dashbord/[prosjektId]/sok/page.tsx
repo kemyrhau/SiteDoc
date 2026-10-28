@@ -243,7 +243,7 @@ export default function DokumentsokSide() {
         {/* Fulltekst-panel */}
         <div className="w-1/2 shrink-0 overflow-y-auto bg-gray-50 p-4">
           {valgtDokumentId ? (
-            <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} scrollTilSide={valgtSide} />
+            <Fulltekst prosjektId={prosjektId} documentId={valgtDokumentId} søkeord={aktivtSok} scrollTilSide={valgtSide} />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
               {t("sok.klikkPaaTreff")}

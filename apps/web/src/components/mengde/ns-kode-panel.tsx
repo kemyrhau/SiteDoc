@@ -18,7 +18,7 @@ export function NsKodePanel({ nsKode, prosjektId }: NsKodePanelProps) {
 
   // Fallback: søk i nsCode-felt (fra GAB/budsjett-import)
   const { data: nsChunks } = trpc.ftdSok.nsChunks.useQuery(
-    { nsCode: nsKode! },
+    { projectId: prosjektId, nsCode: nsKode! },
     { enabled: !!nsKode && (!standardChunks || standardChunks.length === 0) },
   );
 

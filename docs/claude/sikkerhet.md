@@ -193,8 +193,29 @@ Eies av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling
 ### 8b. 🟠 `tegning.opprett` lagrer klient-levert `fileUrl` uten validering (funn 2026-10-10, Kontrollør)
 `fileUrl: z.string()` (`apps/api/src/routes/tegning.ts:525`) lagres rått. Ble utnyttbart i ny zip-rute via `diskSti()` (`apps/api/src/services/eksport/felles.ts:9-11`, naiv `join`) — **blokkert i gate**, sinken herdet i `b57d462b` (`felles.ts:18-31`, resolve + `startsWith(rot+sep)`). 🟡 PLANLAGT: valider at `fileUrl` er en `/uploads/`-sti fra egen opplasting ved `opprett` (kilden), ikke bare ved sinken. Seks kallere av `diskSti` i api — dekkes av sink-herdingen. Samme rotårsak: en `.txt`-`fileUrl` kan gi navnekollisjon med `MANGLER.txt` i zip (kosmetisk, Kontrollør 2026-10-10) — lukkes av kilde-valideringen.
 
-### 🔴 8d. `ftdSok.hentDokumentChunks` uten prosjektsjekk (funn 2026-10-14, Fabel; re-målt 2026-10-22)
-`apps/api/src/routes/ftdSok.ts:138-145` tar `documentId` og returnerer alle chunks uten medlemskapssjekk: en innlogget bruker kan lese tekstinnholdet i et annet prosjekts dokument med bare id-en. Krever innlogging og kjent id. Ordre SØK-1 S6a (2026-10-22, `relay/inbox-redesign-sok1.md`), spec `dokumentsok-visning-spec.md` § 3 S6. Status: åpen.
+### ✅ 8d. `ftdSok.hentDokumentChunks` uten prosjektsjekk (funn 2026-10-14, Fabel; re-målt 2026-10-22; 🟢 FIKSET på `fix/sok1-visning`, SØK-1 S6a — venter Kontrollør-gate/merge)
+Tok `documentId` og returnerte alle chunks uten medlemskapssjekk: en innlogget bruker kunne lese tekstinnholdet i et annet prosjekts dokument med bare id-en. Ordre SØK-1 S6a (2026-10-22, `relay/inbox-redesign-sok1.md`), spec `dokumentsok-visning-spec.md` § 3 S6.
+- **Fiks** (`apps/api/src/routes/ftdSok.ts`, `hentDokumentChunks`): input krever `projectId` → `verifiserProsjektmedlem` → dokumentet slås opp med `{ id, projectId }` (annet prosjekts id → `NOT_FOUND`) → mappetilgang som i `sokDokumenter` (`hentTilgjengeligeMappeIder`, lukket mappe → `FORBIDDEN`).
+- **Test:** `apps/api/src/routes/ftdSok-tilgang.test.ts` (F1 FORBIDDEN uten medlemskap, F2 medlem får chunks, kryss-prosjekt NOT_FOUND, lukket mappe FORBIDDEN) — rød på develop før fiksen.
+
+### ✅ 8d-2. `ftdSok.nsChunks` uten prosjektsjekk (funn 2026-10-22, Redesign under SØK-1-planen; 🟢 FIKSET samme branch)
+Tok `nsCode` og returnerte chunks med den koden **på tvers av alle prosjekter**. Eneste kaller (`apps/web/src/components/mengde/ns-kode-panel.tsx`) hadde allerede `prosjektId`. **Fiks:** input krever `projectId` → `verifiserProsjektmedlem` → `where: { nsCode, document: { projectId } }`. Test i samme fil (FORBIDDEN uten medlemskap; spørringen avgrenset til prosjektet).
+
+**Folketelling `ftdSok.ts` + `aiSok.ts` (SØK-1, 2026-10-28)** — prosedyrer som tar dokument-, chunk-, mappe- eller NS-id:
+
+| Prosedyre | Id-input | Vakt |
+|---|---|---|
+| `ftdSok.sokDokumenter` | `projectId` (+ nye `dokumentIder`/`ekskluderMappeIder`, SØK-1 S4) | fantes: `verifiserProsjektmedlem` + mappetilgang; id-filtrene står innenfor `d.project_id = projectId` |
+| `ftdSok.hentDokumentChunks` | `documentId` | **lagt til** (8d) |
+| `ftdSok.nsKoder` | `projectId` | fantes |
+| `ftdSok.nsChunks` | `nsCode` | **lagt til** (8d-2) |
+| `ftdSok.nsStandardSok` | `projectId`, `nsKode` | fantes |
+| `ftdSok.nsKoderMedDok` | `projectId`, `nsKoder` | fantes |
+| `aiSok.sok` | `projectId`, `dokumentIder`, `ekskluderMappeIder` | fantes: `verifiserProsjektmedlem` + mappetilgang; alle SQL-er i `hybridSok`/`leksikalskSok` har `d.project_id = projectId`, så fremmede id-er gir 0 treff |
+| `aiSok.blokkSok` | `projectId` | fantes |
+| `aiSok.hentReferanseDokumenter` | `projectId` | fantes |
+| `aiSok.embeddingStatus` | `projectId` | fantes |
+| `aiSok.genererEmbeddings` / `stoppEmbeddings` / `hentInnstillinger` / `oppdaterInnstillinger` | `projectId` | fantes: `verifiserAdmin`. ⚠️ `stoppEmbeddings` stopper en **global** kjøring (`stoppEmbeddingGenerering()` uten prosjekt) — en prosjektadmin kan stoppe et annet prosjekts generering. Ikke lekkasje av data; ikke rettet i SØK-1 |
 
 ### ✅ 8c. ezdxf-SVG-visningen stolte 100 % på at markupen var render.py-generert (herding 2026-10-11, `fix/ezdxf-xss-vern`)
 Web beholdt SVG-ens egen `<style>` når den så `data-motor="ezdxf"` **i fila**, og mobil injiserte markupen rått via `innerHTML` i en WebView. DOMPurify saniterer ikke CSS, og mobil har ingen DOMPurify. Trygt i dag (render.py `html.escape`-er tekst/lag og skriver en fast `<style>`), men ingen sperre ved drift i render.py, en ny motor, eller en forfalsket SVG. Opplasting av SVG er dessuten ikke klient-tillatt (`ACCEPT` uten `.svg`), men `upload.ts:72` er en **blokkliste** — en direkte `.svg`-POST lagres med `fileType="svg"`. Herdet:

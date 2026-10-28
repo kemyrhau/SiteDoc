@@ -6,17 +6,18 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface FulltekstProps {
+  prosjektId: string;
   documentId: string | null;
   søkeord?: string;
   /** Sidenummer det skal scrolles til (valgt treff). 0/null = ingen scroll. */
   scrollTilSide?: number | null;
 }
 
-export function Fulltekst({ documentId, søkeord, scrollTilSide }: FulltekstProps) {
+export function Fulltekst({ prosjektId, documentId, søkeord, scrollTilSide }: FulltekstProps) {
   const { t } = useTranslation();
   const beholderRef = useRef<HTMLDivElement>(null);
   const { data: chunks, isLoading } = trpc.ftdSok.hentDokumentChunks.useQuery(
-    { documentId: documentId! },
+    { projectId: prosjektId, documentId: documentId! },
     { enabled: !!documentId },
   );
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontroll";
@@ -135,11 +136,30 @@ export const ftdSokRouter = router({
       );
     }),
 
+  /**
+   * Hele dokumentteksten til høyre rute i søket. S6a (sikkerhet.md § 8d): krever medlemskap
+   * i prosjektet, at dokumentet tilhører DET prosjektet (ellers kunne et medlem i A lese en
+   * documentId fra B), og mappetilgang som i `sokDokumenter`.
+   */
   hentDokumentChunks: protectedProcedure
-    .input(z.object({ documentId: z.string() }))
+    .input(z.object({ projectId: z.string().uuid(), documentId: z.string() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const dokument = await ctx.prisma.ftdDocument.findFirst({
+        where: { id: input.documentId, projectId: input.projectId },
+        select: { id: true, folderId: true },
+      });
+      if (!dokument) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke i prosjektet" });
+      }
+      if (dokument.folderId) {
+        const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
+        if (mappeIder !== null && !mappeIder.includes(dokument.folderId)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Ingen tilgang til mappen" });
+        }
+      }
       return ctx.prisma.ftdDocumentChunk.findMany({
-        where: { documentId: input.documentId },
+        where: { documentId: dokument.id },
         orderBy: { chunkIndex: "asc" },
       });
     }),
@@ -165,11 +185,13 @@ export const ftdSokRouter = router({
       return chunks.map((c) => c.nsCode!);
     }),
 
+  /** S6a (sikkerhet.md § 8d nr. 2): nsCode-oppslag var tidligere på tvers av prosjekter. */
   nsChunks: protectedProcedure
-    .input(z.object({ nsCode: z.string() }))
+    .input(z.object({ projectId: z.string().uuid(), nsCode: z.string() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.ftdDocumentChunk.findMany({
-        where: { nsCode: input.nsCode },
+        where: { nsCode: input.nsCode, document: { projectId: input.projectId } },
         include: {
           document: { select: { filename: true } },
         },
