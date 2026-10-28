@@ -57,6 +57,19 @@ som et tiltak. **Kenneth 2026-09-28:** *«du skriver masse regler, men du følge
 🟢 **Konsekvensen, som gjelder fra nå:** en ny regel skrives ikke — den erstatter en eksisterende,
 eller den skrives ikke. **Og en hendelseslogg hører i STATUS-AKTUELT eller historikk, aldri her.**
 
+## § 0b — ARBEIDSFORM FRA 2026-10-28: orkestrator kjører agentene selv (Kenneth-vedtak)
+
+> **Kenneth 2026-10-28:** *«kan vi ordne det slik at du selv relayer til fabel og agenter. sjekker svarene. jeg beholder selv all kommunikasjon med server og bygg»* · *«husk at alle agenter må clear etter hver handling»* · *«se hvordan teamhunt kjører sitt område. jeg ønsker at du gjør det samme»*
+
+**Overstyrer** alt i denne fila som sier at Kenneth limer, relayer eller er eneste kanal mellom øktene (§ Meldingsflyt første linje, § Ordreformat om nudge-blokker til Kenneth, regel 14). Innboks-reglene (regel 11, § /clear-REGELEN) står uendret — de er grunnen til at dette virker.
+
+1. **Orkestrator starter agentene som side-økter under seg** (`start_session`, slik Jaktleder gjør i Teamhunt), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre — Redesign `SiteDoc-redesign`, Kontrollør `SiteDoc-gate`, Dokgen `SiteDoc-dokgen`, Fabel `SiteDoc-design`. **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
+2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (regel 11). Orkestrator sender nudgen selv (`send_message`, fast nudge-form fra § /clear-REGELEN) og leser leveransen nederst i `relay/inbox-orkestrator.md`.
+3. **/clear etter hver handling:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). En subagent er ny pr. oppgave og trenger ingen tømming.
+4. **Kontrollør er alltid en egen økt/subagent**, aldri den som bygde koden.
+5. **Kenneth beholder:** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg — deploy, OTA, EAS, `sudo`, migreringer. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
+6. Kenneth får ikke lenger nudger å lime. Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
+
 ## Cowork ved sesjonsstart — les dette før du sier noe
 
 ### Coworks rolle (Kenneth 2026-08-20)
@@ -82,7 +95,7 @@ eller den skrives ikke. **Og en hendelseslogg hører i STATUS-AKTUELT eller hist
 cowork blir manglende oversikt hos ham.
 
 **Arbeidsdelingen:** fabel designer · cowork orkestrerer · kode-agentene koder · Kenneth
-kjører alt og relayer. Kenneth er eneste kanal mellom øktene.
+kjører server og bygg. Fra 2026-10-28 relayer orkestrator selv (§ 0b).
 
 ### 🔴 ARBEIDSFORM: ett plan-spor og ett funn-spor (Kenneth-vedtak 2026-08-31)
 
@@ -661,9 +674,9 @@ hverandre → jeg vet aldri hvem du egentlig mener»*). Overskriften er `### →
 | Agentnavn | Kjører i | Rolle | Innboks |
 |---|---|---|---|
 | **Fabel** | Claude-appen (Desktop-økt «Fabel»), tre `SiteDoc-design` | plan- og spec-eier | `relay/inbox-fabel.md` |
-| **Kontrollør** | terminal, tre `SiteDoc-gate` (fra 2026-10-06; før det delte den `SiteDoc-design` med Fabel) | kodegate før merge | `relay/inbox-kontrollor.md` |
-| **Redesign** | terminal, `SiteDoc-redesign` | utvikler | `relay/inbox-redesign-*.md` |
-| **Dokgen** | terminal, `SiteDoc-dokgen` | utvikler | `relay/inbox-dokgen-*.md` |
+| **Kontrollør** | side-økt/subagent under orkestrator (§ 0b), tre `SiteDoc-gate` | kodegate før merge | `relay/inbox-kontrollor.md` |
+| **Redesign** | side-økt/subagent under orkestrator (§ 0b), `SiteDoc-redesign` | utvikler | `relay/inbox-redesign-*.md` |
+| **Dokgen** | side-økt/subagent under orkestrator (§ 0b), `SiteDoc-dokgen` | utvikler | `relay/inbox-dokgen-*.md` |
 | **Kontrollplan** | terminal, `SiteDoc-kontrollplan` | utvikler | `relay/inbox-kontrollplan-*.md` |
 
 Fabel og Kontrollør er to ulike agenter i hvert sitt tre. **`design` = Fabel, `gate` = Kontrollør** (Kenneth 2026-10-06). Skriv aldri et mappenavn som mottaker.
@@ -1013,7 +1026,7 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 
 ## Meldingsflyt (ufravikelig)
 
-**Alle ordrer går via Kenneth — han limer, han ser alt. Ingen agent instruerer en annen direkte.**
+**Fra 2026-10-28 (§ 0b): orkestrator sender ordrene selv; Kenneth ser alle øktene i sidepanelet. Ingen agent utenom orkestrator instruerer en annen.**
 
 *Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
 
