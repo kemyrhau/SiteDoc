@@ -165,7 +165,7 @@ export const ftdSokRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const dokument = await ctx.prisma.ftdDocument.findFirst({
-        where: { id: input.documentId, projectId: input.projectId },
+        where: { id: input.documentId, projectId: input.projectId, isActive: true },
         select: { id: true, folderId: true },
       });
       if (!dokument) {
@@ -204,13 +204,24 @@ export const ftdSokRouter = router({
       return chunks.map((c) => c.nsCode!);
     }),
 
-  /** S6a (sikkerhet.md § 8d nr. 2): nsCode-oppslag var tidligere på tvers av prosjekter. */
+  /**
+   * S6a (sikkerhet.md § 8d nr. 2): nsCode-oppslag var tidligere på tvers av prosjekter. Samme
+   * mappetilgang og `isActive` som søket — ellers leser et medlem tekst fra en lukket mappe.
+   */
   nsChunks: protectedProcedure
     .input(z.object({ projectId: z.string().uuid(), nsCode: z.string() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
       return ctx.prisma.ftdDocumentChunk.findMany({
-        where: { nsCode: input.nsCode, document: { projectId: input.projectId } },
+        where: {
+          nsCode: input.nsCode,
+          document: {
+            projectId: input.projectId,
+            isActive: true,
+            ...(mappeIder === null ? {} : { OR: [{ folderId: null }, { folderId: { in: mappeIder } }] }),
+          },
+        },
         include: {
           document: { select: { filename: true } },
         },
@@ -228,6 +239,12 @@ export const ftdSokRouter = router({
     )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // S6a: samme mappetilgang som sokDokumenter (lukket mappe → ikke i svaret).
+      const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
+      const mappeKlausul =
+        mappeIder === null
+          ? Prisma.empty
+          : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
       // Søk i chunks fra dokumenter med "3420" i filnavnet
       return ctx.prisma.$queryRaw<Array<{
         id: string;
@@ -242,6 +259,7 @@ export const ftdSokRouter = router({
           AND d.is_active = true
           AND d.filename LIKE '%3420%'
           AND c.chunk_text ILIKE ${"%" + input.nsKode + "%"}
+          ${mappeKlausul}
         ORDER BY d.filename, c.chunk_index
         LIMIT 20
       `;

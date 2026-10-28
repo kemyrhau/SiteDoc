@@ -171,12 +171,17 @@ export const aiSokRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // S6a: filnavn/mappenavn i mapper brukeren ikke har tilgang til skal ikke listes.
+      const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
 
       // Finn mapper som inneholder NS/standard-dokumenter
       const nsDokumenter = await ctx.prisma.ftdDocument.findMany({
         where: {
           projectId: input.projectId,
           isActive: true,
+          ...(mappeIder === null
+            ? {}
+            : { AND: [{ OR: [{ folderId: null }, { folderId: { in: mappeIder } }] }] }),
           OR: [
             { filename: { contains: "3420" } },
             { filename: { contains: "8405" } },
