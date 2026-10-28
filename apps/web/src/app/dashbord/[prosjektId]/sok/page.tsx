@@ -39,7 +39,9 @@ export default function DokumentsokSide() {
   const [aktivtSok, setAktivtSok] = useState("");
   const [valgtTreffId, setValgtTreffId] = useState<string | null>(null);
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
-  const [valgtSide, setValgtSide] = useState<number | null>(null);
+  // S1a: høyre rute fokuserer på valgt CHUNK (ikke side) — virker også for DOCX uten sidetall.
+  const [valgtChunkIndex, setValgtChunkIndex] = useState<number | null>(null);
+  const [valgtSemantiskSetning, setValgtSemantiskSetning] = useState<string | null>(null);
   const [modus, setModus] = useState<SokModus>("ai");
   const [nsFilter, setNsFilter] = useState<"ekskluder" | "alle" | string>("ekskluder");
   // string = dokument-ID for enkeltdokument-filter
@@ -86,7 +88,8 @@ export default function DokumentsokSide() {
   // Leksikalsk søk — kjør ALLTID ved aktivt søk (brukes som fallback)
   const { data: leksTreff, isLoading: leksLaster } =
     trpc.ftdSok.sokDokumenter.useQuery(
-      { projectId: prosjektId, query: aktivtSok },
+      // S4/D2: samme filter som AI-søket — Tekstsøk og fallback ignorerte det før.
+      { projectId: prosjektId, query: aktivtSok, ...sokFilter },
       { enabled: !!prosjektId && aktivtSok.length > 0 },
     );
 
@@ -115,7 +118,8 @@ export default function DokumentsokSide() {
       setAktivtSok(query.trim());
       setValgtTreffId(null);
       setValgtDokumentId(null);
-      setValgtSide(null);
+      setValgtChunkIndex(null);
+      setValgtSemantiskSetning(null);
     }
   };
 
@@ -229,7 +233,10 @@ export default function DokumentsokSide() {
               onVelgTreff={(tr) => {
                 setValgtTreffId(tr.id);
                 setValgtDokumentId(tr.documentId);
-                setValgtSide(tr.pageNumber ?? null);
+                setValgtChunkIndex(tr.chunkIndex ?? null);
+                setValgtSemantiskSetning(
+                  tr.metode === "semantisk" ? (tr.semantiskSetning ?? null) : null,
+                );
               }}
               valgtId={valgtTreffId}
             />
@@ -243,7 +250,13 @@ export default function DokumentsokSide() {
         {/* Fulltekst-panel */}
         <div className="w-1/2 shrink-0 overflow-y-auto bg-gray-50 p-4">
           {valgtDokumentId ? (
-            <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} scrollTilSide={valgtSide} />
+            <Fulltekst
+              prosjektId={prosjektId}
+              documentId={valgtDokumentId}
+              søkeord={aktivtSok}
+              valgtChunkIndex={valgtChunkIndex}
+              semantiskSetning={valgtSemantiskSetning}
+            />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
               {t("sok.klikkPaaTreff")}

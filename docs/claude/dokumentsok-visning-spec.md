@@ -3,7 +3,7 @@ name: dokumentsok-visning-spec
 description: Spesifikasjon for visning av treff i dokumentsøket (/sok) — rangering, utsnitt til venstre, markering, høyre rute med fokus på valgt treff. Målt mot develop 2f156820 (re-målt 2026-10-22; første måling 5b86d8f0 14.10) etter sidetall-fiksen. S1–S6 merket reparasjon/funksjonsendring, akseptkriterier på testdokumentene i «Dokumentsøk-bevis», ordre SØK-1 (reparasjon) → SØK-2 (hjemmel), tester som skal feile. Inkluderer ett sikkerhetsfunn (hentDokumentChunks uten medlemskapssjekk).
 sist_verifisert_mot_kode: 2026-10-22
 eier: fabel (plan-eier) — orkestrator gater spec; kode-ordrer gates av Kontrollør (§ 0 én gate)
-status: ⚠️ UTKAST TIL GATE (2026-10-14, § 1 re-målt 2026-10-22 mot `2f156820` etter `544f0125`) — ingenting under er bygget. Q1–Q3 besvart 2026-10-22: hjemmel for S1b og S3; filnavn-klem venter på måling.
+status: ⚠️ SØK-1 (S6a, S1a, S2, S4, S5, S6c + T1–T9) bygget på branch `fix/sok1-visning` 2026-10-28, venter Kontrollør-gate/merge — SØK-2 (S3, S1b) ikke bygget. Spec-tekst 2026-10-14, § 1 re-målt 2026-10-22 mot `2f156820` etter `544f0125`. Q1–Q3 besvart 2026-10-22: hjemmel for S1b og S3; filnavn-klem venter på måling.
 ---
 
 # Dokumentsøk — visning av treff

@@ -49,9 +49,7 @@ export interface SokVekter {
   latency: number;
   phraseWeight: number;
   termWeight: number;
-  qualityWeight: number;
   headingWeight: number;
-  bm25Weight: number;
   pageposWeight: number;
 }
 
@@ -61,11 +59,15 @@ export const DEFAULT_VEKTER: SokVekter = {
   latency: 0.2,
   phraseWeight: 0.10,
   termWeight: 0.05,
-  qualityWeight: 0.03,
   headingWeight: 0.08,
-  bm25Weight: 0.06,
   pageposWeight: 0.01,
 };
+
+// Sentinel-markører rundt treff fra ts_headline. Svært usannsynlige i dokumenttekst;
+// klienten splitter på disse og rendrer <mark>. Se apps/web/src/components/ftd-sok/utsnitt.ts.
+export const HL_START = "❰HL❱"; // ❰HL❱
+export const HL_STOP = "❰/HL❱"; // ❰/HL❱
+export const HEADLINE_OPTS = `StartSel=${HL_START}, StopSel=${HL_STOP}, MaxWords=32, MinWords=12, ShortWord=2, HighlightAll=FALSE`;
 
 /** Søkemetode som ga treffet — vises som badge i trefflista. */
 export type SokMetode = "semantisk" | "tekst" | "begge";
@@ -92,6 +94,13 @@ export interface HybridSokTreff {
   cosineSim?: number;
   reRankScore?: number;
   metode: SokMetode;
+  /** ts_headline-utdrag (sentinler) for treff med ordtreff ("tekst"/"begge"). Null for "semantisk". */
+  utdrag: string | null;
+  /**
+   * S5: setningen i chunken som best forklarer et rent semantisk treff (term-overlapp, se
+   * `finnBesteSetning`). Null når metoden ikke er "semantisk", eller ingen setning har overlapp.
+   */
+  semantiskSetning: string | null;
 }
 
 /**
@@ -258,6 +267,91 @@ async function encodeQuery(
   return encodeQueryOpenAI(query, apiKey, model ?? "text-embedding-3-small");
 }
 
+// ---- S5: beste setning for semantiske treff ----
+
+/** Ord-start-treff (æøå-sikkert; `\b` i JS kjenner ikke æøå). */
+function harOrdStart(tekst: string, fragment: string): boolean {
+  const esc = fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}`, "u").test(tekst);
+}
+
+// Forkortelser som ender på punktum uten å avslutte setningen (husstil «pr.», jf. CLAUDE.md § Språk).
+const FORKORTELSER = new Set([
+  "pr", "ca", "kr", "nr", "jf", "iht", "evt", "inkl", "ekskl", "osv", "dvs", "mv", "stk",
+  "bl.a", "f.eks", "m.m", "m.v", "o.l", "ref", "pkt", "kap", "tlf", "mill", "mrd",
+]);
+
+/** Del tekst i setninger: grense = linjeskift, eller [.!?] + mellomrom — men ikke etter en forkortelse. */
+function delISetninger(tekst: string): string[] {
+  const ut: string[] = [];
+  for (const linje of tekst.split(/\n+/)) {
+    let start = 0;
+    for (const m of linje.matchAll(/[.!?]\s+/g)) {
+      const slutt = m.index! + 1;
+      const sisteOrd = linje.slice(start, slutt - 1).split(/\s+/).pop()?.toLowerCase() ?? "";
+      if (m[0][0] === "." && FORKORTELSER.has(sisteOrd)) continue;
+      ut.push(linje.slice(start, slutt));
+      start = m.index! + m[0].length;
+    }
+    ut.push(linje.slice(start));
+  }
+  return ut.map((x) => x.trim()).filter((x) => x.length > 0);
+}
+
+/**
+ * Finn setningen i en chunk som best forklarer hvorfor et rent semantisk treff kom opp, uten ny
+ * modell: score = 2 × fraser i setningen + 1 × termer som ord-start + 0,5 × termer (≥ 5 tegn) der
+ * en stamme (termen minus 2 siste tegn, min. 4) står som ord-start. Høyest vinner, likt → tidligste.
+ * Ingen setning med score > 0 → null (klienten viser da utsnitt fra start uten markering — ikke en
+ * tilfeldig setning). Returnert setning er en eksakt delstreng av `chunkText`.
+ */
+export function finnBesteSetning(
+  chunkText: string,
+  termer: string[],
+  fraser: string[],
+): string | null {
+  const setninger = delISetninger(chunkText);
+  let beste: string | null = null;
+  let besteScore = 0;
+  for (const setning of setninger) {
+    const lower = setning.toLowerCase();
+    let score = 0;
+    for (const f of fraser) if (lower.includes(f)) score += 2;
+    for (const t of termer) {
+      if (harOrdStart(lower, t)) score += 1;
+      else if (t.length >= 5 && harOrdStart(lower, t.slice(0, Math.max(4, t.length - 2)))) score += 0.5;
+    }
+    if (score > besteScore) {
+      besteScore = score;
+      beste = setning;
+    }
+  }
+  return beste;
+}
+
+/**
+ * Legg ts_headline-utdrag på treff med ordtreff (én spørring for hele resultatsettet, ikke for
+ * 300 kandidater). Samme headline-oppsett som Tekstsøk → samme utsnittslogikk i begge moduser (S2).
+ */
+async function leggPaaHeadline(
+  prisma: PrismaClient,
+  treff: HybridSokTreff[],
+  query: string,
+): Promise<void> {
+  const ider = treff.filter((t) => t.metode !== "semantisk").map((t) => t.id);
+  if (ider.length === 0) return;
+  const rader = await prisma.$queryRaw<Array<{ id: string; utdrag: string | null }>>`
+    SELECT c.id,
+           ts_headline('norwegian', c.chunk_text, plainto_tsquery('norwegian', ${query}), ${HEADLINE_OPTS}) AS utdrag
+    FROM ftd_document_chunks c
+    WHERE c.id IN (${Prisma.join(ider)})
+  `;
+  const perId = new Map(rader.map((r) => [r.id, r.utdrag]));
+  for (const t of treff) {
+    if (t.metode !== "semantisk") t.utdrag = perId.get(t.id) ?? null;
+  }
+}
+
 // ---- Hybrid søk ----
 
 export async function hybridSok(
@@ -324,7 +418,10 @@ export async function hybridSok(
   } catch (_err) {
     // Embedding utilgjengelig (timeout/nett/NorBERT nede) → fall til rent tekstsøk,
     // og flagg det så klienten viser synlig merknad i stedet for stille tomhet.
-    const treff = await leksikalskSok(prisma, projectId, rensetQuery, mappeIder, topK);
+    const treff = await leksikalskSok(prisma, projectId, rensetQuery, mappeIder, topK, {
+      dokumentIder: options.dokumentIder,
+      ekskluderMappeIder: options.ekskluderMappeIder,
+    });
     return { treff, aiSøkUtilgjengelig: true };
   }
 
@@ -382,6 +479,7 @@ export async function hybridSok(
       ${mappeKlausul}
       ${dokKlausul}
       ${ekskluderKlausul}
+    ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${rensetQuery})) DESC, c.id
     LIMIT ${kandidatK}
   `;
 
@@ -455,6 +553,7 @@ export async function hybridSok(
 
   const resultater: HybridSokTreff[] = [];
   for (const [_dokId, s] of bestPerDok) {
+    const metode = kildeTilMetode(s.chunk.kilde);
     resultater.push({
       id: s.chunk.id,
       documentId: s.chunk.documentId,
@@ -470,13 +569,18 @@ export async function hybridSok(
       score: s.score,
       cosineSim: s.cosineSim,
       reRankScore: s.reRankScore,
-      metode: kildeTilMetode(s.chunk.kilde),
+      metode,
+      utdrag: null,
+      semantiskSetning:
+        metode === "semantisk" ? finnBesteSetning(s.chunk.chunkText, termer, fraser) : null,
     });
   }
 
   // Sorter globalt etter score
   resultater.sort((a, b) => b.score - a.score);
-  return { treff: resultater.slice(0, topK), aiSøkUtilgjengelig: false };
+  const treff = resultater.slice(0, topK);
+  await leggPaaHeadline(prisma, treff, rensetQuery);
+  return { treff, aiSøkUtilgjengelig: false };
 }
 
 // ---- Fallback: rent leksikalsk søk (ingen embedding) ----
@@ -487,13 +591,21 @@ async function leksikalskSok(
   query: string,
   mappeIder: string[] | null,
   limit: number,
+  filter: { dokumentIder?: string[]; ekskluderMappeIder?: string[] } = {},
 ): Promise<HybridSokTreff[]> {
   const mappeKlausul =
     mappeIder === null
       ? Prisma.empty
       : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+  // S4: fallbacken respekterer samme dokumentfilter som hybridsøket (S-M9).
+  const dokKlausul = filter.dokumentIder?.length
+    ? Prisma.sql`AND d.id IN (${Prisma.join(filter.dokumentIder)})`
+    : Prisma.empty;
+  const ekskluderKlausul = filter.ekskluderMappeIder?.length
+    ? Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id NOT IN (${Prisma.join(filter.ekskluderMappeIder)}))`
+    : Prisma.empty;
 
-  let treff = await prisma.$queryRaw<Omit<HybridSokTreff, "metode">[]>`
+  const treff = await prisma.$queryRaw<Omit<HybridSokTreff, "metode" | "utdrag" | "semantiskSetning">[]>`
     SELECT DISTINCT ON (c.document_id)
       c.id,
       c.document_id AS "documentId",
@@ -513,11 +625,20 @@ async function leksikalskSok(
       AND d.is_active = true
       AND c.search_vector @@ plainto_tsquery('norwegian', ${query})
       ${mappeKlausul}
+      ${dokKlausul}
+      ${ekskluderKlausul}
     ORDER BY c.document_id, score DESC
   `;
 
   treff.sort((a, b) => b.score - a.score);
-  return treff.slice(0, limit).map((t) => ({ ...t, metode: "tekst" as const }));
+  const resultat: HybridSokTreff[] = treff.slice(0, limit).map((t) => ({
+    ...t,
+    metode: "tekst" as const,
+    utdrag: null,
+    semantiskSetning: null,
+  }));
+  await leggPaaHeadline(prisma, resultat, query);
+  return resultat;
 }
 
 // ---- Flerspråklig blokk-søk ----

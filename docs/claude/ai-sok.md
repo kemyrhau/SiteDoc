@@ -83,6 +83,17 @@ Dropdown i søk-UI med tre nivåer:
 
 Fanger automatisk opp filer med `3420`, `8405`, `8406`, `8407`, `ns-`, `NS ` i filnavnet.
 
+Filteret sendes til **både** `aiSok.sok` og `ftdSok.sokDokumenter` (`dokumentIder`/`ekskluderMappeIder`, `sok/page.tsx`), og embedding-fallbacken `leksikalskSok` respekterer det (`ai-sok-service.ts`). Før SØK-1 gjaldt det bare AI-søket (spec S-M8/S-M9). ⚠️ Branch `fix/sok1-visning`, venter gate/merge.
+
+## Visning av treff (SØK-1, spec `dokumentsok-visning-spec.md` S1a/S2/S4/S5)
+
+⚠️ Branch `fix/sok1-visning`, venter Kontrollør-gate og merge. Tester: `apps/api/src/services/ai-sok-rangering.test.ts`, `apps/api/src/routes/ftdSok-filter.test.ts`, `apps/api/src/routes/ftdSok-tilgang.test.ts`, `apps/web/src/components/ftd-sok/__tests__/{utsnitt.test.ts,fulltekst-scroll.test.tsx}`.
+
+- **Utsnitt til venstre** — én funksjon for begge moduser: `byggUtsnitt` (`apps/web/src/components/ftd-sok/utsnitt.ts`). Rent semantisk treff → vindu rundt `semantiskSetning` med lilla stiplet stil; ellers server-`ts_headline` (AI-treff med ordtreff får den nå også, via `leggPaaHeadline` i `ai-sok-service.ts`, én spørring for topK); ellers vindu på ~32 ord rundt første søkeord; ellers starten + «…». «…» der utsnittet er kuttet. `sectionTitle` fjernes fra starten av utsnittet (står som etikett). Etikett «side N» **eller** «avsnitt N» (`posisjonsEtikett`), aldri begge.
+- **Høyre rute** (`fulltekst.tsx`) — hver chunk har anker `data-chunk=<chunkIndex>`; valgt treff scroller dit (`finnScrollMål`, `scroll-mt-24`), også DOCX uten sidetall. Ordtreff i valgt chunk markeres `MARK_VALGT_KLASSE` (amber + ramme), øvrige `MARK_KLASSE` (gul). Sidehode `ftdSok.sideHode`.
+- **Semantiske treff** — `finnBesteSetning` (`ai-sok-service.ts`): setning med flest ordstart-treff på søketermer (frase ×2, term ×1, stamme ×0,5), likt → tidligste, ingen overlapp → `null` (utsnitt fra start, ingen markering). Setningsdeling hopper over forkortelser («pr.», «ca.», «jf.» …). Ingen ny modell. «Begge»/«tekst» får alltid gult, aldri semantisk stil.
+- **Rangering** — leksikalsk kandidatuttak i `hybridSok` har `ORDER BY ts_rank(...) DESC, c.id` før `LIMIT kandidatK`. ILIKE-fallbacken i `ftdSok.sokDokumenter` rangerer på antall ikke-overlappende forekomster av søkestrengen i chunken (`(length(lower(tekst)) − length(replace(lower(tekst), q, ''))) / length(q)`), likhet → filnavn, chunkIndex, id. `bm25Weight`/`qualityWeight` fjernet (ubrukt). Filnavn-bonusen uendret (Q3: vent på måling).
+
 ## OCR-kvalitet
 
 - **CamelCase-splitting:** "StorgataNord" → "Storgata Nord" (ved chunking)
