@@ -57,6 +57,62 @@ describe("reskalerLagObjekt — koordinat-normalisering på tvers av skjermstør
     expect(ut.path).toEqual([["M", 0, 0]]);
   });
 
+  // Velg alle objekter (2026-10-28): en form brukeren har skalert får strokeUniform, og da
+  // følger streken IKKE scaleX. Da MÅ strokeWidth skaleres med ratio ved gjenåpning på en
+  // annen skjerm — ellers blir streken feil tykkelse. Gamle objekter UTEN strokeUniform skal
+  // reskaleres nøyaktig som før (ingen strokeWidth-endring).
+  describe("strokeUniform — streken skaleres med ratio bare for brukerskalerte objekter", () => {
+    it("objekt UTEN strokeUniform (gammel annotering) rører ikke strokeWidth", () => {
+      const ut = reskalerLagObjekt({ left: 10, top: 10, scaleX: 1, scaleY: 1, strokeWidth: 4 }, 2);
+      expect(ut.strokeWidth).toBe(4);
+      expect(ut.scaleX).toBe(2);
+    });
+
+    it("frihånd MED strokeUniform ganger strokeWidth med ratio", () => {
+      const ut = reskalerLagObjekt(
+        { type: "path", left: 10, top: 10, scaleX: 1, scaleY: 1, strokeUniform: true, strokeWidth: 4 },
+        2,
+      );
+      expect(ut.strokeWidth).toBe(8);
+      expect(ut.scaleX).toBe(2);
+    });
+
+    it("gruppe: bare barn med strokeUniform får strokeWidth skalert, øvrige står", () => {
+      const obj = {
+        type: "group",
+        left: 0,
+        top: 0,
+        scaleX: 1,
+        scaleY: 1,
+        objects: [
+          { type: "circle", strokeUniform: true, strokeWidth: 3, stroke: "#fff" },
+          { type: "circle", strokeWidth: 2, stroke: "#ef4444" },
+        ],
+      };
+      const ut = reskalerLagObjekt(obj, 3) as unknown as { objects: Array<{ strokeWidth: number }> };
+      expect(ut.objects[0]!.strokeWidth).toBe(9);
+      expect(ut.objects[1]!.strokeWidth).toBe(2);
+    });
+
+    it("gruppe uten noen strokeUniform-barn beholder samme objects-referanse-verdier (uendret)", () => {
+      const obj = {
+        type: "group",
+        left: 0,
+        top: 0,
+        scaleX: 1,
+        scaleY: 1,
+        objects: [{ type: "rect", strokeWidth: 2, stroke: "#ef4444" }],
+      };
+      const ut = reskalerLagObjekt(obj, 2) as unknown as { objects: Array<{ strokeWidth: number }> };
+      expect(ut.objects[0]!.strokeWidth).toBe(2);
+    });
+
+    it("ratio 1 lar et strokeUniform-objekt stå helt urørt (ingen drift ved samme bredde)", () => {
+      const obj = { type: "path", left: 10, top: 10, scaleX: 2, scaleY: 2, strokeUniform: true, strokeWidth: 4 };
+      expect(reskalerLagObjekt(obj, 1)).toEqual(obj);
+    });
+  });
+
   it("FABRIC_CDN_STI er pinnet til CDN-stien HTML-en laster (én kilde for stien)", () => {
     expect(FABRIC_CDN_STI).toBe("5.3.1");
   });
@@ -293,5 +349,57 @@ describe("pilLinjeSenterOrigo: hvit og rød pil-linje deler anker (KRAV 2 — ko
     const a = pilLinjeSenterOrigo(fra, slutt);
     const b = pilLinjeSenterOrigo(fra, slutt);
     expect(a).toEqual(b);
+  });
+});
+
+/**
+ * Velg alle objekter (2026-10-28): en form som brukeren har skalert får `strokeUniform`, og
+ * da følger streken ikke `scaleX`. Ved gjenåpning på en annen skjerm må `strokeWidth` derfor
+ * gangas med ratio. Krav (orkestrator-GO): gamle annoteringer UTEN strokeUniform skal
+ * reskaleres nøyaktig som før — utseendet uendret.
+ */
+describe("reskalerLagObjekt — strokeUniform (velg alle objekter)", () => {
+  // Gruppe slik den ligger i prod-lag fra 8c741180: [hvit halo, rød strek], ingen strokeUniform.
+  const gammelSirkel = {
+    type: "group",
+    left: 100,
+    top: 80,
+    scaleX: 1,
+    scaleY: 1,
+    objects: [
+      { type: "circle", radius: 40, stroke: "#ffffff", strokeWidth: 9 },
+      { type: "circle", radius: 40, stroke: "#ef4444", strokeWidth: 5 },
+    ],
+  };
+
+  it("gammel gruppe uten strokeUniform reskaleres som før (barna urørt, samme objekt-referanse)", () => {
+    const ut = reskalerLagObjekt(gammelSirkel, 2);
+    expect(ut).toEqual({ ...gammelSirkel, left: 200, top: 160, scaleX: 2, scaleY: 2 });
+    // Barna er ikke engang kopiert — streken følger gruppeskalaen akkurat som før.
+    expect(ut.objects).toBe(gammelSirkel.objects);
+  });
+
+  it("gammel frihånd-sti uten strokeUniform: strokeWidth uendret (følger scaleX som før)", () => {
+    const ut = reskalerLagObjekt({ type: "path", strokeWidth: 5, scaleX: 1, scaleY: 1 }, 3);
+    expect(ut.strokeWidth).toBe(5);
+    expect(ut.scaleX).toBe(3);
+  });
+
+  it("strokeUniform-barn i en gruppe får strokeWidth × ratio (samme utseende på ny skjerm)", () => {
+    const skalert = {
+      ...gammelSirkel,
+      scaleX: 1.5,
+      objects: gammelSirkel.objects.map((b) => ({ ...b, strokeUniform: true })),
+    };
+    const ut = reskalerLagObjekt(skalert, 0.5);
+    const barn = ut.objects as { strokeWidth: number; strokeUniform: boolean }[];
+    expect(barn[0]!.strokeWidth).toBe(4.5);
+    expect(barn[1]!.strokeWidth).toBe(2.5);
+    expect(ut.scaleX).toBe(0.75);
+  });
+
+  it("strokeUniform-sti får strokeWidth × ratio", () => {
+    const ut = reskalerLagObjekt({ type: "path", strokeWidth: 6, strokeUniform: true }, 2);
+    expect(ut.strokeWidth).toBe(12);
   });
 });

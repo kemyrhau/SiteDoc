@@ -25,7 +25,12 @@ import {
   ANNOTERING_TEKST_KANT_FRAKSJON,
   ANNOTERING_PILHODE_FAKTOR,
 } from "./lag";
-import { TEKSTBOKS_MARG, TEKSTBOKS_MIN_BREDDE, TEKST_TAP_TERSKEL } from "./plassering";
+import {
+  TEKSTBOKS_MARG,
+  TEKSTBOKS_MIN_BREDDE,
+  TEKST_TAP_TERSKEL,
+  FORM_TREFF_TOLERANSE,
+} from "./plassering";
 
 // Flate-anker for bildet i annoteringsflaten (befaring-funn A + orkestrator-SVAR
 // dc6b8090, Kenneth 2026-10-21):
@@ -116,6 +121,29 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // Trykk-vs-dra-terskel (canvas-piksler). TVILLING: TEKST_TAP_TERSKEL i plassering.ts.
   var TEKST_TAP_TERSKEL = ${TEKST_TAP_TERSKEL};
   var objekter = [];
+  // ── Velg alle objekter (Kenneth 2026-10-28) ── trykk på en form velger den, dra på det
+  // valgte flytter, dra i håndtak endrer, dra fra en ikke-valgt form tegner, trykk på tomt
+  // fjerner valget. Beslutningen er TVILLING av objektTrykkHandling i plassering.ts.
+  // Treff mot formens STREK (TVILLING avstandTilForm), toleranse = FORM_TREFF_TOLERANSE.
+  var FORM_TREFF_TOLERANSE = ${FORM_TREFF_TOLERANSE};
+  // Angre-stakk (TVILLING angreSisteHandling): {lagt-til}, {endret, for}, {erstattet}.
+  var historikk = [];
+  // Gestens øyeblikksbilde, satt i mouse:down:before og nullstilt i mouse:up.
+  var valgtVedStart = null;
+  var gestStart = null;
+  var gestMaks = 0;
+  var gestTraffValgt = false;
+  var gestTraffHandtak = false;
+  var formKandidat = null;
+  var formKandidatPunkt = null;
+  var drawKandidat = null;
+  var stiIGest = null;
+  // Vakt mot at vår egen start av frihånd (intern Fabric-API) kaller mouse:down på nytt.
+  var iProgrammatiskNed = false;
+  // Tilstand før en flytt/størrelse-endring (fanget i before:transform) for angre.
+  var forTilstand = null;
+  // Pågående dra i et pil-endepunkt: {gammel, nyFra, nyTil, strek, forh}.
+  var pilDra = null;
   // Dev-signal: er WKWebViews tastatur-scroll korrigert minst én gang (frys-funnet)?
   var harMeldtScrollKorrigert = false;
 
@@ -186,10 +214,57 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     canvas.freeDrawingBrush.color = STREK_FARGE;
     canvas.freeDrawingBrush.width = strekBredde();
 
+    // Velg alle objekter: øyeblikksbilde av gesten FØR Fabric rører valget (Fabric fjerner
+    // valget i sin egen mouse:down når trykket ikke treffer det valgte objektet).
+    canvas.on('mouse:down:before', function(opt) {
+      if (iProgrammatiskNed) return;
+      valgtVedStart = canvas.getActiveObject() || null;
+      var bp = canvas.getPointer(opt.e);
+      gestStart = { x: bp.x, y: bp.y };
+      gestMaks = 0;
+      gestTraffValgt = false;
+      gestTraffHandtak = false;
+      formKandidat = null;
+      formKandidatPunkt = null;
+      drawKandidat = null;
+      stiIGest = null;
+    });
+
     canvas.on('mouse:down', function(opt) {
-      // 'draw' = frihånd (Fabric eier dragen). 'select' = flytt eksisterende
-      // objekt (Fabric eier selection/drag) — vi skal IKKE lage en ny form.
-      if (aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
+      if (iProgrammatiskNed) return;
+      // Reserve hvis mouse:down:before ikke fyrte (gesten må ha et startpunkt for trykk vs. dra).
+      if (!gestStart) {
+        var gs = canvas.getPointer(opt.e);
+        gestStart = { x: gs.x, y: gs.y };
+        gestMaks = 0;
+      }
+      // 'select' = web-«Flytt» (Fabric eier valg/flytt/marquee) — vi skal IKKE lage en ny form.
+      if (aktivtVerktoy === 'select') return;
+      // Gesten startet på det VALGTE objektet (kroppen eller et håndtak): Fabric eier draget
+      // (flytt / endre størrelse / pil-endepunkt). En valgt TEKST går videre til tekst-logikken
+      // under (dra fra redigering = flytt, Del 1), unntatt i Frihånd der det ikke finnes en.
+      if (valgtVedStart && opt.target === valgtVedStart && opt.transform &&
+          (!erTekstObj(valgtVedStart) || aktivtVerktoy === 'draw')) {
+        gestTraffValgt = true;
+        gestTraffHandtak = !!opt.transform.corner;
+        forberedTransform(opt.transform);
+        return;
+      }
+      // Frihånd: Fabric tegner selv (isDrawingMode). Vi husker hva gesten startet på, så
+      // mouse:up kan gjøre et TRYKK om til velg/rediger (og fjerne et ev. mikrostrøk).
+      if (aktivtVerktoy === 'draw') {
+        var pdr = canvas.getPointer(opt.e);
+        drawKandidat = finnTreff(pdr, true);
+        // Noe var valgt → tegnemodus var av under nedtrykket. Start frihånd i SAMME gest via
+        // Fabrics interne _onMouseDownInDrawingMode. Mangler den, fjerner første dra bare
+        // valget (godtatt fallback).
+        if (valgtVedStart && !canvas._isCurrentlyDrawing && typeof canvas._onMouseDownInDrawingMode === 'function') {
+          canvas.isDrawingMode = true;
+          iProgrammatiskNed = true;
+          try { canvas._onMouseDownInDrawingMode(opt.e); } finally { iProgrammatiskNed = false; }
+        }
+        return;
+      }
       // 'text' = skriv rett på bildet. Regel (Kenneth 2026-09-30): et klikk oppretter
       // ALLTID tekst — UNNTATT når det treffer en eksisterende TEKST, som da åpnes for
       // redigering (Fabric eier klikket). Å velge en pil/sirkel/firkant hører til Flytt,
@@ -211,6 +286,16 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
           return;
         }
         var tp = canvas.getPointer(opt.e);
+        // Velg alle objekter (a): trykk på en forms STREK velger formen; et dra derfra lager
+        // tekst som før. Avgjøres i mouse:up. Trykk INNE i formen (langt fra streken) lager tekst.
+        var tf = finnTreff(tp, false);
+        if (tf) {
+          formKandidat = tf;
+          formKandidatPunkt = { x: tp.x, y: tp.y };
+          return;
+        }
+        // En valgt FORM: trykket fjerner valget (Fabric har alt gjort det) — ingen ny tekst.
+        if (valgtVedStart && !erTekstObj(valgtVedStart)) return;
         lagTekst(tp.x, tp.y);
         return;
       }
@@ -224,6 +309,9 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       if (dmål && (dmål.type === 'text' || dmål.type === 'i-text' || dmål.type === 'textbox')) {
         tekstTapKandidat = dmål;
         tekstTapPunkt = { x: pointer.x, y: pointer.y };
+      } else {
+        // Velg alle objekter: et trykk på en forms strek velger den (mouse:up); et dra tegner.
+        formKandidat = finnTreff(pointer, false);
       }
     });
 
@@ -232,6 +320,13 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     // og fjernes ved mouse:up. Felles mangel web+mobil — begge fikk den ved at den
     // bor i den delte HTML-en.
     canvas.on('mouse:move', function(opt) {
+      // Største avstand fra nedtrykket i gesten — et frihåndsstrøk som ender der det startet
+      // er likevel et dra, ikke et trykk.
+      if (gestStart) {
+        var gp = canvas.getPointer(opt.e);
+        var gd = Math.sqrt((gp.x - gestStart.x) * (gp.x - gestStart.x) + (gp.y - gestStart.y) * (gp.y - gestStart.y));
+        if (gd > gestMaks) gestMaks = gd;
+      }
       // Del 1: begynner brukeren å DRA en tekst som redigerer, avslutt redigeringen så
       // draget flytter boksen (ellers fanger den skjulte textarea-en gesten som tekst-
       // markering — Kenneth: «tekst kan ikke flyttes»). Start flytt-transformen manuelt i
@@ -261,6 +356,49 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     });
 
     canvas.on('mouse:up', function(opt) {
+      // Velg alle objekter: les og nullstill gestens øyeblikksbilde.
+      var gBeveget = gestMaks >= TEKST_TAP_TERSKEL;
+      var gValgt = valgtVedStart;
+      var gTraffValgt = gestTraffValgt;
+      var gFormKandidat = formKandidat;
+      var gFormPunkt = formKandidatPunkt;
+      var gDrawKandidat = drawKandidat;
+      var gSti = stiIGest;
+      gestStart = null; gestMaks = 0; gestTraffValgt = false; gestTraffHandtak = false;
+      formKandidat = null; formKandidatPunkt = null; drawKandidat = null; stiIGest = null;
+      valgtVedStart = null;
+      // Pil-endepunkt: bytt inn den nye pila ETTER at Fabric har avsluttet transformen.
+      if (pilDra) setTimeout(fullforPilDra, 0);
+      forTilstand = null;
+      // Gesten startet på det valgte objektet: Fabric har flyttet/endret (angre: object:modified).
+      if (gTraffValgt) return;
+      if (aktivtVerktoy === 'select') return;
+      if (aktivtVerktoy === 'draw') {
+        // Dobbel sikring: et strøk som er større enn terskelen er et dra, uansett målingen over.
+        if (gSti && !gBeveget && gSti.getBoundingRect) {
+          var sb = gSti.getBoundingRect(true, true);
+          if (Math.max(sb.width, sb.height) - (gSti.strokeWidth || 0) >= TEKST_TAP_TERSKEL) gBeveget = true;
+        }
+        var dh = objektTrykkHandling({
+          treffType: typeAv(gDrawKandidat), aktivtVerktoy: aktivtVerktoy, beveget: gBeveget,
+          traffValgt: false, traffHandtak: false, valgtType: typeAv(gValgt),
+        });
+        // Et trykk som velger/redigerer/fjerner valg skal ikke etterlate en prikk.
+        if (dh !== 'tegn' && gSti) fjernMikrostrok(gSti);
+        if (dh === 'rediger-tekst') apneTekstForRedigering(gDrawKandidat, opt.e);
+        else if (dh === 'velg') velgObjekt(gDrawKandidat);
+        canvas.renderAll();
+        return;
+      }
+      if (aktivtVerktoy === 'text' && gFormKandidat) {
+        var th = objektTrykkHandling({
+          treffType: 'form', aktivtVerktoy: aktivtVerktoy, beveget: gBeveget,
+          traffValgt: false, traffHandtak: false, valgtType: typeAv(gValgt),
+        });
+        if (th === 'velg') velgObjekt(gFormKandidat);
+        else if (gFormPunkt) lagTekst(gFormPunkt.x, gFormPunkt.y);
+        return;
+      }
       // Befaring-funn C2: tekst som ble trykket/dratt i Tekst-verktøyet. Rent trykk (ingen
       // bevegelse) → åpne for redigering med markøren på SLUTTEN. Dra → Fabric har allerede
       // flyttet objektet, ikke åpne redigering. Målet huskes fra mouse:down.
@@ -305,6 +443,19 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         }
         // Dra fra en tekst → tegn formen (fall gjennom til form-finaliseringen under).
       }
+      // Velg alle objekter: TRYKK på en forms strek → velg formen; dra → tegn ny form.
+      if (gFormKandidat) {
+        var fh = objektTrykkHandling({
+          treffType: 'form', aktivtVerktoy: aktivtVerktoy, beveget: gBeveget,
+          traffValgt: false, traffHandtak: false, valgtType: typeAv(gValgt),
+        });
+        if (fh === 'velg') {
+          if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
+          startPunkt = null;
+          velgObjekt(gFormKandidat);
+          return;
+        }
+      }
       if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
       if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
       var pointer = canvas.getPointer(opt.e);
@@ -322,7 +473,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
 
       // Drag-operasjon — tekst skal IKKE trigges her
       var form = byggForm(aktivtVerktoy, startPunkt, endPunkt);
-      if (form) { canvas.add(form); objekter.push(form); canvas.renderAll(); }
+      if (form) { canvas.add(form); objekter.push(form); historikk.push({ type: 'lagt-til', obj: form }); canvas.renderAll(); }
 
       startPunkt = null;
     });
@@ -336,6 +487,9 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     canvas.on('path:created', function(e) {
       var path = e.path;
       objekter.push(path);
+      historikk.push({ type: 'lagt-til', obj: path });
+      // Husk strøket i gesten: var det egentlig et TRYKK (velg/rediger), fjerner mouse:up det.
+      stiIGest = path;
       settFlyttbar(path, aktivtVerktoy === 'select');
     });
 
@@ -360,7 +514,32 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     // er TVILLING av klemTekstboksPosisjon i plassering.ts.
     function erTekst(o) { return o && (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text'); }
     canvas.on('object:moving', function(e) { if (erTekst(e.target)) klemTekstboksObjekt(e.target); });
-    canvas.on('object:modified', function(e) { if (erTekst(e.target)) klemTekstboksObjekt(e.target); });
+    canvas.on('object:modified', function(e) {
+      var mo = e.target;
+      // Pil-endepunkt: den gamle pila erstattes (mouse:up) — ikke registrer den som «endret».
+      if (pilDra && mo === pilDra.gammel) return;
+      if (erTekst(mo)) klemTekstboksObjekt(mo);
+      // Angre omfatter flytt og størrelse (punkt 6): tilstanden FØR transformen.
+      if (forTilstand && forTilstand.obj === mo) {
+        historikk.push({ type: 'endret', obj: mo, for: forTilstand.tilstand });
+      }
+      forTilstand = null;
+    });
+
+    // Velg alle objekter: tilstanden før en transform (angre) + strek konstant ved skalering.
+    canvas.on('before:transform', function(e) { if (e && e.transform) forberedTransform(e.transform); });
+
+    // Bare det valgte objektet er Fabric-aktivt (resten låst), og frihånd-modus er av mens
+    // noe er valgt — ellers ville Fabric tegne i stedet for å flytte det valgte.
+    function etterValgEndring() {
+      if (aktivtVerktoy !== 'select') {
+        objekter.forEach(function(o) { if (!erTekstObj(o)) settFlyttbar(o, false); });
+      }
+      oppdaterTegnemodus();
+    }
+    canvas.on('selection:created', etterValgEndring);
+    canvas.on('selection:updated', etterValgEndring);
+    canvas.on('selection:cleared', etterValgEndring);
 
     monterScrollPin();
 
@@ -394,9 +573,11 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // (strek + 2×kontrastkant) bred, så den stikker en kontrastkant ut på hver side —
   // rødt mot rød murvegg/mørk asfalt forsvinner ellers (Kenneth-funn). Kanten skaleres
   // med canvas som strek og tekst; 2px på 1163px-canvas er usynlig.
-  function byggPil(fra, til) {
-    var s = strekBredde();
-    var k = kontrastKant();
+  // strekOverride: når en eksisterende pil bygges på nytt (endepunkt-dra) beholdes dens
+  // egen strek, så tykkelsen ikke endres (gammel pil fra en annen skjermbredde).
+  function byggPil(fra, til, strekOverride) {
+    var s = strekOverride || strekBredde();
+    var k = strekOverride ? strekOverride * KONTRAST_FRAKSJON : kontrastKant();
     var dx = til.x - fra.x;
     var dy = til.y - fra.y;
     var vinkel = Math.atan2(dy, dx);
@@ -598,10 +779,327 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
 
     canvas.add(tekstObj);
     objekter.push(tekstObj);
+    historikk.push({ type: 'lagt-til', obj: tekstObj });
     canvas.setActiveObject(tekstObj);
     tekstObj.enterEditing();
     klargjørTekstTastatur(tekstObj);
     canvas.renderAll();
+  }
+
+  // ══ Velg alle objekter (Kenneth 2026-10-28) ═══════════════════════════════════════
+  function erTekstObj(o) { return !!o && (o.type === 'textbox' || o.type === 'i-text' || o.type === 'text'); }
+  function typeAv(o) { return !o ? null : (erTekstObj(o) ? 'tekst' : 'form'); }
+
+  // TVILLING av objektTrykkHandling i plassering.ts (testet der).
+  function objektTrykkHandling(p) {
+    if (p.aktivtVerktoy === 'select') return 'ingen';
+    if (p.traffHandtak) return 'endre';
+    if (p.traffValgt) return p.beveget ? 'flytt' : 'ingen';
+    if (p.beveget) return 'tegn';
+    if (p.treffType === 'tekst') return 'rediger-tekst';
+    if (p.treffType === 'form') return 'velg';
+    if (p.valgtType === 'form') return 'fjern-valg';
+    if (p.valgtType === 'tekst' && p.aktivtVerktoy !== 'text') return 'fjern-valg';
+    if (p.aktivtVerktoy === 'text' || p.aktivtVerktoy === 'draw') return 'tegn';
+    return 'ingen';
+  }
+
+  // TVILLING av avstandTilLinjestykke/avstandTilForm i plassering.ts (testet der).
+  function avstandTilLinjestykke(p, a, b) {
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var len2 = dx * dx + dy * dy;
+    if (len2 === 0) return Math.sqrt((p.x - a.x) * (p.x - a.x) + (p.y - a.y) * (p.y - a.y));
+    var t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+    var qx = a.x + t * dx, qy = a.y + t * dy;
+    return Math.sqrt((p.x - qx) * (p.x - qx) + (p.y - qy) * (p.y - qy));
+  }
+  function lokaltPunkt(p, cx, cy, vinkel) {
+    var dx = p.x - cx, dy = p.y - cy;
+    if (!vinkel) return { x: dx, y: dy };
+    var r = -vinkel * Math.PI / 180;
+    return { x: dx * Math.cos(r) - dy * Math.sin(r), y: dx * Math.sin(r) + dy * Math.cos(r) };
+  }
+  function avstandTilForm(p, g) {
+    if (g.type === 'linje') return avstandTilLinjestykke(p, g.fra, g.til);
+    if (g.type === 'sti') {
+      var pk = g.punkter;
+      if (!pk.length) return Infinity;
+      if (pk.length === 1) return Math.sqrt((p.x - pk[0].x) * (p.x - pk[0].x) + (p.y - pk[0].y) * (p.y - pk[0].y));
+      var min = Infinity;
+      for (var i = 1; i < pk.length; i++) min = Math.min(min, avstandTilLinjestykke(p, pk[i - 1], pk[i]));
+      return min;
+    }
+    var q;
+    if (g.type === 'ellipse') {
+      q = lokaltPunkt(p, g.cx, g.cy, g.vinkel);
+      var rx = Math.abs(g.rx), ry = Math.abs(g.ry);
+      if (rx === 0 || ry === 0) return avstandTilLinjestykke(q, { x: -rx, y: -ry }, { x: rx, y: ry });
+      var d = Math.sqrt(q.x * q.x + q.y * q.y);
+      if (d === 0) return Math.min(rx, ry);
+      var k = Math.sqrt((q.x / rx) * (q.x / rx) + (q.y / ry) * (q.y / ry));
+      return d * Math.abs(1 - 1 / k);
+    }
+    q = lokaltPunkt(p, g.cx, g.cy, g.vinkel);
+    var hx = Math.abs(g.bredde) / 2, hy = Math.abs(g.hoyde) / 2;
+    var ax = Math.abs(q.x), ay = Math.abs(q.y);
+    if (ax <= hx && ay <= hy) return Math.min(hx - ax, hy - ay);
+    var ux = Math.max(ax - hx, 0), uy = Math.max(ay - hy, 0);
+    return Math.sqrt(ux * ux + uy * uy);
+  }
+
+  // Hvilken form er objektet? Grupper avgjøres av det SISTE barnet (TVILLING formTypeFraBarn):
+  // [halo, strek] for sirkel/firkant, [linje, hode, linje, hode] for pil. Gamle prod-grupper
+  // har samme struktur.
+  function formType(o) {
+    if (!o || erTekstObj(o)) return null;
+    if (o.type === 'path') return 'sti';
+    if (o.type === 'group' && o._objects && o._objects.length) {
+      var siste = o._objects[o._objects.length - 1].type;
+      if (siste === 'triangle') return 'pil';
+      if (siste === 'circle') return 'sirkel';
+      if (siste === 'rect') return 'firkant';
+    }
+    return 'ukjent';
+  }
+
+  // Pilens hale og spiss i canvas-koordinater, utledet fra den RØDE linja (barn 2) og det
+  // røde hodet (barn 3) gjennom gruppematrisen — virker også på gamle og skalerte piler.
+  // null = uventet struktur → pila får fallback-håndtak (flytt + proporsjonal skalering).
+  function pilEndepunkter(o) {
+    var b = o && o._objects;
+    if (!b || b.length !== 4 || b[2].type !== 'line' || b[3].type !== 'triangle') return null;
+    if (!b[2].calcLinePoints) return null;
+    var m = o.calcTransformMatrix();
+    var lc = b[2].getCenterPoint();
+    var lp = b[2].calcLinePoints();
+    return {
+      fra: fabric.util.transformPoint(new fabric.Point(lc.x + lp.x1, lc.y + lp.y1), m),
+      til: fabric.util.transformPoint(b[3].getCenterPoint(), m),
+    };
+  }
+
+  // Den synlige strekbredden til en eksisterende pil (beholdes når den bygges på nytt).
+  function pilStrek(g) {
+    var l = g._objects && g._objects[2];
+    if (!l || !l.strokeWidth) return strekBredde();
+    if (l.strokeUniform) return l.strokeWidth;
+    return l.strokeWidth * (Math.abs(g.scaleX || 1) + Math.abs(g.scaleY || 1)) / 2;
+  }
+
+  // Formens geometri i canvas-koordinater (input til avstandTilForm).
+  function formGeometri(o) {
+    var ft = formType(o);
+    var m = o.calcTransformMatrix();
+    if (ft === 'pil') {
+      var ep = pilEndepunkter(o);
+      if (ep) return { type: 'linje', fra: ep.fra, til: ep.til };
+    }
+    if (ft === 'sirkel' || ft === 'firkant') {
+      var b = o._objects[o._objects.length - 1];
+      var c = fabric.util.transformPoint(b.getCenterPoint(), m);
+      var sx = Math.abs((o.scaleX || 1) * (b.scaleX || 1));
+      var sy = Math.abs((o.scaleY || 1) * (b.scaleY || 1));
+      if (ft === 'sirkel') return { type: 'ellipse', cx: c.x, cy: c.y, rx: b.radius * sx, ry: b.radius * sy, vinkel: o.angle || 0 };
+      return { type: 'rektangel', cx: c.x, cy: c.y, bredde: b.width * sx, hoyde: b.height * sy, vinkel: o.angle || 0 };
+    }
+    if (ft === 'sti' && o.path && o.path.length) {
+      var off = o.pathOffset || { x: 0, y: 0 };
+      var pk = [];
+      o.path.forEach(function(cmd) {
+        if (cmd.length >= 3) {
+          pk.push(fabric.util.transformPoint(new fabric.Point(cmd[cmd.length - 2] - off.x, cmd[cmd.length - 1] - off.y), m));
+        }
+      });
+      return { type: 'sti', punkter: pk };
+    }
+    var br = o.getBoundingRect(true, true);
+    return { type: 'rektangel', cx: br.left + br.width / 2, cy: br.top + br.height / 2, bredde: br.width, hoyde: br.height, vinkel: 0 };
+  }
+
+  // Øverste objekt som treffes av trykket. Former treffes på STREKEN (ikke rammeboksen);
+  // tekst (bare når medTekst — Frihånd, der Fabric ikke leter etter mål) på rammeboksen.
+  function finnTreff(p, medTekst) {
+    var t = FORM_TREFF_TOLERANSE;
+    for (var i = objekter.length - 1; i >= 0; i--) {
+      var o = objekter[i];
+      if (erTekstObj(o)) {
+        if (!medTekst) continue;
+        var tb = o.getBoundingRect(true, true);
+        if (p.x >= tb.left - t && p.x <= tb.left + tb.width + t && p.y >= tb.top - t && p.y <= tb.top + tb.height + t) return o;
+        continue;
+      }
+      if (avstandTilForm(p, formGeometri(o)) <= t) return o;
+    }
+    return null;
+  }
+
+  // Frihånd-modus bare når ingenting er valgt — ellers ville Fabric tegne i stedet for å
+  // flytte/endre det valgte objektet.
+  function oppdaterTegnemodus() {
+    if (!canvas) return;
+    canvas.isDrawingMode = (aktivtVerktoy === 'draw' && !canvas.getActiveObject());
+  }
+
+  // Endepunkt-håndtak på pila: dra en ende → pila bygges på nytt med byggPil (hodet beholder
+  // formen, streken tykkelsen). Mens draget pågår vises en forhåndsvisning og den gamle skjules.
+  function lagPilKontroll(ende) {
+    return new fabric.Control({
+      actionName: 'pilEnde',
+      cursorStyle: 'crosshair',
+      positionHandler: function(dim, finalMatrix, o) {
+        var pt = null;
+        if (pilDra && pilDra.gammel === o) pt = (ende === 'fra') ? pilDra.nyFra : pilDra.nyTil;
+        if (!pt) { var ep = pilEndepunkter(o); pt = ep ? ep[ende] : { x: 0, y: 0 }; }
+        var vpt = (o.canvas && o.canvas.viewportTransform) || [1, 0, 0, 1, 0, 0];
+        return fabric.util.transformPoint(new fabric.Point(pt.x, pt.y), vpt);
+      },
+      actionHandler: function(eventData, transform, x, y) {
+        return dragPilEnde(transform.target, ende, x, y);
+      },
+      render: fabric.controlsUtils && fabric.controlsUtils.renderCircleControl,
+    });
+  }
+  function dragPilEnde(g, ende, x, y) {
+    if (!pilDra || pilDra.gammel !== g) {
+      var ep = pilEndepunkter(g);
+      if (!ep) return false;
+      pilDra = { gammel: g, nyFra: ep.fra, nyTil: ep.til, strek: pilStrek(g), forh: null };
+    }
+    if (ende === 'fra') pilDra.nyFra = { x: x, y: y }; else pilDra.nyTil = { x: x, y: y };
+    if (pilDra.forh) canvas.remove(pilDra.forh);
+    pilDra.forh = byggPil(pilDra.nyFra, pilDra.nyTil, pilDra.strek);
+    canvas.add(pilDra.forh);
+    g.set('opacity', 0);
+    return true;
+  }
+  // Kjøres etter at Fabric har avsluttet transformen (setTimeout fra mouse:up): den nye pila
+  // tar den gamles plass i objekter og på lerretet (samme lag-rekkefølge). Angre bytter tilbake.
+  function fullforPilDra() {
+    var d = pilDra;
+    pilDra = null;
+    if (!d) return;
+    d.gammel.set('opacity', 1);
+    if (!d.forh) { canvas.renderAll(); return; }
+    var ny = d.forh;
+    canvas.remove(ny);
+    var idx = objekter.indexOf(d.gammel);
+    var ci = canvas.getObjects().indexOf(d.gammel);
+    if (idx < 0 || ci < 0) { canvas.renderAll(); return; }
+    canvas.discardActiveObject();
+    canvas.remove(d.gammel);
+    canvas.insertAt(ny, ci);
+    objekter[idx] = ny;
+    historikk.push({ type: 'erstattet', gammel: d.gammel, ny: ny });
+    velgObjekt(ny);
+  }
+
+  // Håndtak på telefon i samme stil som tekstboksen: synlig 14, treffflate 44 (≥ 44 pt), ingen
+  // rotasjon. Sirkel/firkant: 8 håndtak (bredde/høyde — sirkel kan bli oval). Frihånd: 4
+  // hjørner (proporsjonal). Pil: to endepunkter. I web-«Flytt» (select) beholdes Fabrics
+  // standardhåndtak med rotasjon, som før.
+  function klargjørForm(o) {
+    if (!o || erTekstObj(o)) return;
+    var iVelg = aktivtVerktoy === 'select';
+    if (Object.prototype.hasOwnProperty.call(o, 'controls')) delete o.controls;
+    o.set({
+      hasControls: true,
+      hasBorders: true,
+      borderColor: '#3b82f6',
+      cornerColor: '#3b82f6',
+      cornerStyle: 'circle',
+      cornerSize: 14,
+      touchCornerSize: 44,
+      transparentCorners: false,
+      lockScalingFlip: true,
+      lockRotation: !iVelg,
+    });
+    if (iVelg) {
+      o.setControlsVisibility({ tl: true, tr: true, bl: true, br: true, ml: true, mr: true, mt: true, mb: true, mtr: true });
+      return;
+    }
+    var ft = formType(o);
+    if (ft === 'pil' && fabric.Control && pilEndepunkter(o)) {
+      o.controls = { fra: lagPilKontroll('fra'), til: lagPilKontroll('til') };
+      o.set({ hasBorders: false });
+      return;
+    }
+    if (ft === 'pil' || ft === 'sti') {
+      o.setControlsVisibility({ tl: true, tr: true, bl: true, br: true, ml: false, mr: false, mt: false, mb: false, mtr: false });
+      return;
+    }
+    o.setControlsVisibility({ tl: true, tr: true, bl: true, br: true, ml: true, mr: true, mt: true, mb: true, mtr: false });
+  }
+
+  function velgObjekt(o) {
+    if (!o) return;
+    klargjørForm(o);
+    o.set({ selectable: true, evented: true });
+    canvas.setActiveObject(o);
+    oppdaterTegnemodus();
+    canvas.renderAll();
+  }
+
+  // Strek konstant ved skalering (punkt 5): første gang en form skaleres, brettes gjeldende
+  // skala inn i strokeWidth og strokeUniform slås på — utseendet er uendret i øyeblikket, og
+  // videre skalering endrer ikke streken. Gamle objekter berøres ikke før de skaleres.
+  function gjorStrekUniform(o) {
+    var s = (Math.abs(o.scaleX || 1) + Math.abs(o.scaleY || 1)) / 2;
+    var barn = o._objects || [o];
+    barn.forEach(function(b) {
+      if (b.strokeUniform || !b.stroke || !b.strokeWidth) return;
+      var bs = (b === o) ? 1 : (Math.abs(b.scaleX || 1) + Math.abs(b.scaleY || 1)) / 2;
+      b.set({ strokeWidth: b.strokeWidth * s * bs, strokeUniform: true });
+    });
+    if (o._objects) o.objectCaching = false;
+    o.dirty = true;
+  }
+
+  var TILSTAND_FELT = ['left', 'top', 'scaleX', 'scaleY', 'angle', 'flipX', 'flipY', 'skewX', 'skewY', 'width', 'height'];
+  function tilstandAv(o) {
+    var t = {};
+    TILSTAND_FELT.forEach(function(f) { t[f] = o[f]; });
+    t.barn = (o._objects || [o]).map(function(b) { return { strokeWidth: b.strokeWidth, strokeUniform: !!b.strokeUniform }; });
+    return t;
+  }
+  function settTilstand(o, t) {
+    var p = {};
+    TILSTAND_FELT.forEach(function(f) { p[f] = t[f]; });
+    o.set(p);
+    (o._objects || [o]).forEach(function(b, i) {
+      var bt = t.barn && t.barn[i];
+      if (bt) b.set({ strokeWidth: bt.strokeWidth, strokeUniform: bt.strokeUniform });
+    });
+    if (erTekstObj(o) && o.initDimensions) o.initDimensions();
+    o.dirty = true;
+    o.setCoords();
+  }
+
+  // Kalles når en transform starter (before:transform, med mouse:down som reserve).
+  function forberedTransform(tr) {
+    var o = tr && tr.target;
+    if (!o) return;
+    if (!(forTilstand && forTilstand.obj === o)) forTilstand = { obj: o, tilstand: tilstandAv(o) };
+    if (!erTekstObj(o) && typeof tr.action === 'string' && tr.action.indexOf('scale') === 0) gjorStrekUniform(o);
+  }
+
+  function fjernFraLerret(o) {
+    if (canvas.getActiveObject() === o) canvas.discardActiveObject();
+    canvas.remove(o);
+  }
+  function byttPaaLerret(ut, inn) {
+    var ci = canvas.getObjects().indexOf(ut);
+    fjernFraLerret(ut);
+    inn.set('opacity', 1);
+    settFlyttbar(inn, aktivtVerktoy === 'select');
+    if (ci >= 0) canvas.insertAt(inn, ci); else canvas.add(inn);
+  }
+  // Et frihånd-mikrostrøk fra et TRYKK (velg/rediger) skal ikke bli liggende.
+  function fjernMikrostrok(sti) {
+    var i = objekter.indexOf(sti);
+    if (i >= 0) objekter.splice(i, 1);
+    var hi = historikk.length - 1;
+    if (hi >= 0 && historikk[hi].obj === sti) historikk.pop();
+    canvas.remove(sti);
   }
 
   // Lagre originalt bildestørrelse for eksport i korrekt oppløsning
@@ -618,6 +1116,16 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       scaleX: (typeof o.scaleX === 'number' ? o.scaleX : 1) * ratio,
       scaleY: (typeof o.scaleY === 'number' ? o.scaleY : 1) * ratio,
     });
+    // strokeUniform (velg alle objekter): streken følger ikke scaleX → gang strokeWidth med
+    // ratio, så utseendet blir som før. Objekter uten strokeUniform (alle gamle) er uendret.
+    if (o.strokeUniform && typeof o.strokeWidth === 'number') o.set('strokeWidth', o.strokeWidth * ratio);
+    if (o._objects) {
+      var harUniform = false;
+      o._objects.forEach(function(b) {
+        if (b.strokeUniform && typeof b.strokeWidth === 'number') { b.set('strokeWidth', b.strokeWidth * ratio); harUniform = true; }
+      });
+      if (harUniform) o.objectCaching = false;
+    }
     o.setCoords();
   }
 
@@ -633,7 +1141,10 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       o.set({ evented: true, selectable: (aktivtVerktoy === 'select' || aktivtVerktoy === 'text') });
       return;
     }
-    o.set({ selectable: flyttbar, evented: flyttbar });
+    // Velg alle objekter: det VALGTE objektet er alltid aktivt (Fabric flytter/endrer det);
+    // de andre er låst, så et dra som starter på dem tegner en ny form (regel 3).
+    var kan = !!flyttbar || (!!canvas && o === canvas.getActiveObject());
+    o.set({ selectable: kan, evented: kan });
   }
 
   window.settBilde = function(bildeUrl, lag) {
@@ -679,7 +1190,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
               // Del 1: en gjenskapt tekstboks må få kontroll-synlighet og locks på nytt
               // (toObject() lagrer dem ikke) så bredde-håndtaket virker etter gjenåpning.
               // Eldre 'i-text'/'text' åpnes uendret (ingen håndtak, som før).
-              if (o.type === 'textbox') klargjørTekstboks(o);
+              if (o.type === 'textbox') klargjørTekstboks(o); else klargjørForm(o);
               settFlyttbar(o, aktivtVerktoy === 'select');
               canvas.add(o);
               objekter.push(o);
@@ -700,15 +1211,42 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
     // Marquee-selection og objekt-flytting kun i Velg-modus; ellers låst så
     // tegne-verktøyene ikke plukker opp et objekt i stedet for å tegne.
     canvas.selection = iVelg;
-    objekter.forEach(function(o) { settFlyttbar(o, iVelg); });
+    objekter.forEach(function(o) { settFlyttbar(o, iVelg); klargjørForm(o); });
     if (!iVelg) canvas.discardActiveObject();
+    oppdaterTegnemodus();
     canvas.renderAll();
   };
 
+  // Angre = siste HANDLING (opprettelse, flytt, størrelse, pil-endepunkt). TVILLING av
+  // angreSisteHandling i plassering.ts: handlinger på objekter som er borte hoppes over; tom
+  // stakk faller tilbake til den gamle oppførselen (fjern siste objekt, også fra lagret lag).
   window.angre = function() {
+    while (historikk.length > 0) {
+      var h = historikk.pop();
+      if (h.type === 'lagt-til') {
+        var ai = objekter.indexOf(h.obj);
+        if (ai < 0) continue;
+        objekter.splice(ai, 1);
+        fjernFraLerret(h.obj);
+        canvas.renderAll();
+        return;
+      }
+      if (h.type === 'endret') {
+        if (objekter.indexOf(h.obj) < 0) continue;
+        settTilstand(h.obj, h.for);
+        canvas.renderAll();
+        return;
+      }
+      var bi = objekter.indexOf(h.ny);
+      if (bi < 0) continue;
+      objekter[bi] = h.gammel;
+      byttPaaLerret(h.ny, h.gammel);
+      canvas.renderAll();
+      return;
+    }
     if (objekter.length > 0) {
       var siste = objekter.pop();
-      canvas.remove(siste);
+      fjernFraLerret(siste);
       canvas.renderAll();
     }
   };

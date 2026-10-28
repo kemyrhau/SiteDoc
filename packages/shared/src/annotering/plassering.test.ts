@@ -9,6 +9,15 @@ import {
   tekstErSelectableIVerktoy,
   TEKSTBOKS_MARG,
   TEKSTBOKS_MIN_BREDDE,
+  avstandTilLinjestykke,
+  avstandTilForm,
+  trefferForm,
+  formTypeFraBarn,
+  objektTrykkHandling,
+  angreSisteHandling,
+  FORM_TREFF_TOLERANSE,
+  type FormGeometri,
+  type AngreHandling,
 } from "./plassering";
 
 /**
@@ -175,8 +184,10 @@ describe("skalTekstTapRedigere — trykk redigerer, dra tegner", () => {
   it("trykk i Tekst-verktøyet redigerer også", () => {
     expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "text", beveget: false })).toBe(true);
   });
-  it("Fabric eier frihånd (draw) og flytt (select) — ingen tap-redigering der", () => {
-    expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "draw", beveget: false })).toBe(false);
+  it("trykk i Frihånd (draw) redigerer nå også — «uansett verktøy» (Kenneth 2026-10-28)", () => {
+    expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "draw", beveget: false })).toBe(true);
+  });
+  it("Fabric eier flytt (select) — ingen tap-redigering der", () => {
     expect(skalTekstTapRedigere({ objType: "textbox", aktivtVerktoy: "select", beveget: false })).toBe(false);
   });
   it("en form (ikke tekst) redigeres aldri", () => {
@@ -194,5 +205,193 @@ describe("tekstErSelectableIVerktoy — tekst Fabric-flyttbar bare i select/text
     expect(tekstErSelectableIVerktoy("circle")).toBe(false);
     expect(tekstErSelectableIVerktoy("rect")).toBe(false);
     expect(tekstErSelectableIVerktoy("draw")).toBe(false);
+  });
+});
+
+// ── Velg alle objekter (Kenneth 2026-10-28) ────────────────────────────────────────
+//
+// Vokter regelen: trykk på en forms STREK (ikke rammeboksen) velger den i alle verktøy,
+// dra tegner som før, trykk på tomt fjerner valget. Treff måles mot streken med 22 px
+// toleranse — et trykk midt i en stor sirkel/firkant skal IKKE plukke den opp.
+
+describe("avstandTilLinjestykke — korteste avstand til et segment", () => {
+  it("punkt rett over midten av et horisontalt segment = den vinkelrette avstanden", () => {
+    expect(avstandTilLinjestykke({ x: 50, y: 10 }, { x: 0, y: 0 }, { x: 100, y: 0 })).toBe(10);
+  });
+  it("punkt utenfor endepunktet klemmes til endepunktet (ikke til linja forlenget)", () => {
+    expect(avstandTilLinjestykke({ x: 130, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 })).toBe(30);
+  });
+  it("degenerert segment (a === b) = avstand til punktet", () => {
+    expect(avstandTilLinjestykke({ x: 3, y: 4 }, { x: 0, y: 0 }, { x: 0, y: 0 })).toBe(5);
+  });
+});
+
+describe("avstandTilForm / trefferForm — treff mot streken, ikke rammeboksen", () => {
+  it("pil: måles til linjestykket hale→spiss", () => {
+    const g: FormGeometri = { type: "linje", fra: { x: 0, y: 0 }, til: { x: 100, y: 0 } };
+    expect(avstandTilForm({ x: 50, y: 5 }, g)).toBe(5);
+    expect(trefferForm({ x: 50, y: 5 }, g)).toBe(true);
+    expect(trefferForm({ x: 50, y: 40 }, g)).toBe(false);
+  });
+
+  it("sirkel: |avstand til senter − r|; trykk MIDT inni treffer ikke, på streken treffer", () => {
+    const g: FormGeometri = { type: "ellipse", cx: 100, cy: 100, rx: 50, ry: 50 };
+    // Midt i en stor sirkel: 50 px fra streken → ikke treff (plan: «trykk midt i stor sirkel skal ikke plukke den opp»)
+    expect(avstandTilForm({ x: 100, y: 100 }, g)).toBe(50);
+    expect(trefferForm({ x: 100, y: 100 }, g)).toBe(false);
+    // På streken
+    expect(avstandTilForm({ x: 150, y: 100 }, g)).toBeCloseTo(0, 6);
+    expect(trefferForm({ x: 150, y: 100 }, g)).toBe(true);
+    // Rett innenfor toleransen
+    expect(trefferForm({ x: 150 - FORM_TREFF_TOLERANSE + 1, y: 100 }, g)).toBe(true);
+    expect(trefferForm({ x: 150 - FORM_TREFF_TOLERANSE - 1, y: 100 }, g)).toBe(false);
+  });
+
+  it("oval (rx ≠ ry) regnes radielt", () => {
+    const g: FormGeometri = { type: "ellipse", cx: 0, cy: 0, rx: 80, ry: 40 };
+    expect(avstandTilForm({ x: 80, y: 0 }, g)).toBeCloseTo(0, 6);
+    expect(avstandTilForm({ x: 0, y: 40 }, g)).toBeCloseTo(0, 6);
+  });
+
+  it("firkant: avstand til nærmeste kant; trykk midt inni er langt fra streken", () => {
+    const g: FormGeometri = { type: "rektangel", cx: 100, cy: 100, bredde: 200, hoyde: 100 };
+    // Senteret: min(100, 50) = 50 fra nærmeste kant → ikke treff
+    expect(avstandTilForm({ x: 100, y: 100 }, g)).toBe(50);
+    expect(trefferForm({ x: 100, y: 100 }, g)).toBe(false);
+    // På en kant
+    expect(avstandTilForm({ x: 100, y: 50 }, g)).toBe(0);
+    // Utenfor et hjørne (3-4-5)
+    expect(avstandTilForm({ x: 203, y: 154 }, g)).toBe(5);
+  });
+
+  it("frihånd (sti): minste avstand til stiens segmenter", () => {
+    const g: FormGeometri = { type: "sti", punkter: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] };
+    expect(avstandTilForm({ x: 50, y: 7 }, g)).toBe(7);
+    expect(avstandTilForm({ x: 107, y: 50 }, g)).toBe(7);
+    // Tynn strek treffes innen 22 px
+    expect(trefferForm({ x: 50, y: 20 }, g)).toBe(true);
+  });
+
+  it("rotert firkant (vinkel) måles i objektets egne akser", () => {
+    const g: FormGeometri = { type: "rektangel", cx: 0, cy: 0, bredde: 100, hoyde: 20, vinkel: 90 };
+    // Etter 90°-rotasjon ligger den lange kanten langs y-aksen; et punkt på x = 10 er utenfor halvhøyden (10)
+    expect(avstandTilForm({ x: 10, y: 0 }, g)).toBe(0);
+  });
+});
+
+describe("formTypeFraBarn — siste barn avgjør (gamle prod-grupper gjenkjennes likt)", () => {
+  it("pil = siste barn triangle", () => {
+    expect(formTypeFraBarn(["line", "triangle", "line", "triangle"])).toBe("pil");
+  });
+  it("sirkel = siste barn circle", () => {
+    expect(formTypeFraBarn(["circle", "circle"])).toBe("sirkel");
+  });
+  it("firkant = siste barn rect", () => {
+    expect(formTypeFraBarn(["rect", "rect"])).toBe("firkant");
+  });
+  it("ukjent ellers", () => {
+    expect(formTypeFraBarn(["path"])).toBe("ukjent");
+    expect(formTypeFraBarn([])).toBe("ukjent");
+  });
+});
+
+describe("objektTrykkHandling — trykk velger, dra tegner, håndtak endrer (alle verktøy)", () => {
+  const base = { aktivtVerktoy: "arrow", beveget: false, traffValgt: false, traffHandtak: false, valgtType: null as "tekst" | "form" | null };
+
+  it("TRYKK på en forms strek → velg (i et tegneverktøy)", () => {
+    expect(objektTrykkHandling({ ...base, treffType: "form" })).toBe("velg");
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "circle", treffType: "form" })).toBe("velg");
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "rect", treffType: "form" })).toBe("velg");
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "draw", treffType: "form" })).toBe("velg");
+  });
+  it("TRYKK på en tekst → rediger-tekst", () => {
+    expect(objektTrykkHandling({ ...base, treffType: "tekst" })).toBe("rediger-tekst");
+  });
+  it("DRA fra et ikke-valgt objekt → tegn (pil fra en etikett går fortsatt)", () => {
+    expect(objektTrykkHandling({ ...base, treffType: "tekst", beveget: true })).toBe("tegn");
+    expect(objektTrykkHandling({ ...base, treffType: "form", beveget: true })).toBe("tegn");
+  });
+  it("DRA som starter på det VALGTE objektet → flytt", () => {
+    expect(objektTrykkHandling({ ...base, treffType: null, traffValgt: true, beveget: true, valgtType: "form" })).toBe("flytt");
+  });
+  it("TRYKK (uten bevegelse) på det valgte objektet → ingen (ikke utilsiktet flytt)", () => {
+    expect(objektTrykkHandling({ ...base, treffType: null, traffValgt: true, beveget: false, valgtType: "form" })).toBe("ingen");
+  });
+  it("DRA i et håndtak → endre (størrelse)", () => {
+    expect(objektTrykkHandling({ ...base, treffType: null, traffHandtak: true, beveget: true, valgtType: "form" })).toBe("endre");
+  });
+  it("TRYKK på tomt område med en valgt FORM → fjern-valg", () => {
+    expect(objektTrykkHandling({ ...base, treffType: null, valgtType: "form" })).toBe("fjern-valg");
+  });
+  it("TRYKK på tomt i Tekst-verktøyet lager NY tekst selv om en tekst er valgt", () => {
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "text", treffType: null, valgtType: "tekst" })).toBe("tegn");
+  });
+  it("TRYKK på tomt med valgt tekst i et ANNET verktøy → fjern-valg", () => {
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "arrow", treffType: null, valgtType: "tekst" })).toBe("fjern-valg");
+  });
+  it("TRYKK på tomt i Frihånd uten valg → tegn (prikk som før)", () => {
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "draw", treffType: null, valgtType: null })).toBe("tegn");
+  });
+  it("select (web-«Flytt») eies helt av Fabric → ingen", () => {
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "select", treffType: "form" })).toBe("ingen");
+    expect(objektTrykkHandling({ ...base, aktivtVerktoy: "select", treffType: null, traffHandtak: true, beveget: true, valgtType: "form" })).toBe("ingen");
+  });
+});
+
+describe("angreSisteHandling — angrer siste HANDLING (flytt/størrelse/erstatt), ikke bare opprettelse", () => {
+  type O = { id: string };
+  const a: O = { id: "a" };
+  const b: O = { id: "b" };
+
+  it("lagt-til → fjerner objektet", () => {
+    const stakk: AngreHandling<O, number>[] = [{ type: "lagt-til", obj: a }];
+    const r = angreSisteHandling(stakk, [a, b]);
+    expect(r.objekter).toEqual([b]);
+    expect(r.effekt).toEqual({ type: "fjern", obj: a });
+    expect(r.stakk).toEqual([]);
+  });
+
+  it("endret (flytt/størrelse) → gjenoppretter tilstanden, objektet blir værende", () => {
+    const stakk: AngreHandling<O, number>[] = [{ type: "endret", obj: a, for: 42 }];
+    const r = angreSisteHandling(stakk, [a, b]);
+    expect(r.objekter).toEqual([a, b]);
+    expect(r.effekt).toEqual({ type: "gjenopprett", obj: a, tilstand: 42 });
+  });
+
+  it("erstattet (pil-endepunkt) → bytter ny tilbake til gammel på samme plass", () => {
+    const ny: O = { id: "ny" };
+    const stakk: AngreHandling<O, number>[] = [{ type: "erstattet", gammel: a, ny }];
+    const r = angreSisteHandling(stakk, [ny, b]);
+    expect(r.objekter).toEqual([a, b]);
+    expect(r.effekt).toEqual({ type: "bytt", ut: ny, inn: a });
+  });
+
+  it("flytt → angre → tilbake: tilstanden som gjenopprettes er den fra FØR flyttingen", () => {
+    const stakk: AngreHandling<O, { left: number }>[] = [{ type: "endret", obj: a, for: { left: 10 } }];
+    const r = angreSisteHandling(stakk, [a]);
+    expect(r.effekt).toMatchObject({ type: "gjenopprett", tilstand: { left: 10 } });
+  });
+
+  it("hopper over handlinger på objekter som ikke lenger finnes (tom tekst ryddet bort)", () => {
+    const borte: O = { id: "borte" };
+    const stakk: AngreHandling<O, number>[] = [
+      { type: "lagt-til", obj: a },
+      { type: "lagt-til", obj: borte },
+    ];
+    const r = angreSisteHandling(stakk, [a]); // borte er ikke i objekter
+    expect(r.effekt).toEqual({ type: "fjern", obj: a });
+    expect(r.stakk).toEqual([]); // begge poppet
+  });
+
+  it("tom stakk → faller tilbake til gammel oppførsel (fjern siste objekt, også lastet lag)", () => {
+    const r = angreSisteHandling([], [a, b]);
+    expect(r.objekter).toEqual([a]);
+    expect(r.effekt).toEqual({ type: "fjern", obj: b });
+  });
+
+  it("alt tomt → ingen effekt", () => {
+    const r = angreSisteHandling([], []);
+    expect(r.effekt).toBeNull();
+    expect(r.objekter).toEqual([]);
   });
 });

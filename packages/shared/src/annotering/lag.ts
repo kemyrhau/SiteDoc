@@ -252,6 +252,12 @@ export function tekstKontrastStil(canvasBredde: number): {
  * størrelse for ALLE Fabric-objekttyper (gruppe/pil, sirkel, firkant, frihånd, tekst),
  * så vi slipper per-type-logikk.
  *
+ * `strokeUniform` (velg alle objekter, 2026-10-28): en form som er skalert av brukeren får
+ * `strokeUniform: true`, og da følger streken IKKE `scaleX`. For at utseendet skal være
+ * det samme på en annen skjerm, gangas `strokeWidth` med ratio for slike objekter — på
+ * objektet selv (frihånd) og på gruppebarna (pil/sirkel/firkant). Objekter UTEN
+ * `strokeUniform` (alle gamle annoteringer) reskaleres nøyaktig som før.
+ *
  * 🔴 TVILLING: identisk formel er inlinet i `annoterings-html.ts` (`settBilde` med
  * lag). HTML-strengen kan ikke importere denne funksjonen; endres formelen her, skal
  * den endres begge steder. Denne kopien er den testbare — HTML-en er ikke enhets-testbar.
@@ -260,11 +266,26 @@ export function reskalerLagObjekt(
   obj: Record<string, unknown>,
   ratio: number,
 ): Record<string, unknown> {
-  return {
+  const ut: Record<string, unknown> = {
     ...obj,
     left: somTall(obj.left, 0) * ratio,
     top: somTall(obj.top, 0) * ratio,
     scaleX: somTall(obj.scaleX, 1) * ratio,
     scaleY: somTall(obj.scaleY, 1) * ratio,
   };
+  if (obj.strokeUniform === true && typeof obj.strokeWidth === "number") {
+    ut.strokeWidth = obj.strokeWidth * ratio;
+  }
+  if (Array.isArray(obj.objects) && obj.objects.some(erUniformStrek)) {
+    ut.objects = obj.objects.map((barn: unknown) =>
+      erUniformStrek(barn) ? { ...barn, strokeWidth: barn.strokeWidth * ratio } : barn,
+    );
+  }
+  return ut;
+}
+
+function erUniformStrek(o: unknown): o is Record<string, unknown> & { strokeWidth: number } {
+  if (typeof o !== "object" || o === null) return false;
+  const r = o as Record<string, unknown>;
+  return r.strokeUniform === true && typeof r.strokeWidth === "number";
 }
