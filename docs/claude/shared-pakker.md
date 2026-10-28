@@ -35,6 +35,14 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 - `index.ts` — `STOETTEDE_SPRAAK` (15 språk med flagg: nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr, sq), `SpraakKode` type, `STANDARD_SPRAAK = "nb"`
 - `generate.ts` — CLI-script for auto-oversettelse via Google Translate (`google-translate-api-x`). **Variabelvern (2026-10-16):** tjenesten oversetter ellers innholdet i `{{variabel}}` (f.eks. `{{side}}`→`{{côté}}`) så i18next ikke finner variabelen og brukeren ser `{{côté}}` rått — rotårsaken til 221 avvik. `gjenopprettVariabler()` setter hvert `{{…}}`-felt posisjonsvis tilbake til kildens (en) variabelnavn etter oversettelse; avvikende ANTALL felt logges høyt i stedet for å skjules. Vakt: `apps/web/src/__tests__/reprosessering-i18n-interpolasjon.test.ts` sammenligner `{{variabler}}` i alle 15 språk mot nb (fasit).
 
+#### i18n-krav (flyttet fra CLAUDE.md 2026-10-28)
+
+- Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Nøkkelformat `seksjon.noekkel`; gjenbruk eksisterende (`handling.lagre`, `tabell.navn`).
+- Data utenfor komponenter (arrays, configs): `labelKey` i stedet for `label`, kall `t()` ved rendering.
+- **Gjelder også ikke-JSX:** arknavn i Excel-eksport, PDF-overskrifter og filnavn er synlige strenger og skal gjennom `t()`. `addWorksheet("Per prosjekt")` slapp unna i ett år fordi flaten ikke er JSX.
+- **Bruk alltid `--only <dine nøkler>`** når du kjører generatoren for egne nøkler (`pnpm dlx tsx src/i18n/generate.ts --only seksjon.dinNøkkel,seksjon.annen`) — uten flagget genereres alle manglende nøkler, og du drar med deg annen drift inn i din egen diff. Ukjent nøkkel → generatoren stopper og navngir den. Endrer du en eksisterende nøkkel: se «Retter du en ENGELSK kildestreng» under.
+- **i18n-diagnostikk:** Mangler en nøkkel i ett språk men finnes i et annet: grep `*.ts`/`*.tsx` først. Brukes den ikke i koden, er den en relikvi som slettes fra alle språk — ikke en manglende oversettelse.
+
 #### Arbeidsflyt for ny i18n-nøkkel
 
 1. Legg til nøkkel i **både** `nb.json` og `en.json`. `en.json` er master — generate.ts oversetter fra engelsk, så engelsk fagterm må være presis.
