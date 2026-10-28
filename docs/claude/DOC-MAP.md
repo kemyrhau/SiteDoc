@@ -53,7 +53,8 @@ sist_verifisert_mot_kode: 2026-05-16
 ## Regel
 
 Ingen PR-commit uten at riktig doc er oppdatert i samme commit. Se også
-[CLAUDE.md § Funksjonsendrings-commits](../../CLAUDE.md) — status-dokumenter
-som oppdateres i egen commit etterpå blir glemt eller drifter.
+[SAMARBEIDSREGLER § 6](SAMARBEIDSREGLER.md) og
+[dokumentasjons-standard § Dokumentasjons-disiplin](dokumentasjons-standard.md) — status-dokumenter
+som oppdateres i en glemt oppfølger-commit drifter.
 
 Ved tvil om hvor noe dokumenteres: les denne tabellen først.

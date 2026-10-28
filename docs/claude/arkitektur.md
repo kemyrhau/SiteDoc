@@ -364,3 +364,54 @@ Sentrale ytelsesindekser:
 - `document_transfers`: `(project_id, sender_id)`, `(project_id, recipient_user_id)`
 - `dokumentflyt_medlemmer`: `(dokumentflyt_id, rolle)`
 - `project_members`: `(project_id, er_firmaansvarlig)`
+
+## Roller og tilgangsnivåer (flyttet fra CLAUDE.md 2026-10-28)
+
+To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | `user`) og `ProjectMember.role` (`admin` | `member`). Kapabiliteter på ProjectMember (boolean-felter) gir spesifikke tilleggs-rettigheter uten å endre rolle.
+
+| Nivå | DB-verdi | Arver | Beskyttelse |
+|------|----------|-------|-------------|
+| **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
+| **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter, UTEN ProjectMember-rad | `verifiserOrganisasjonTilgang()` |
+| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `harProsjektTilgang()` |
+| **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `harProsjektTilgang()` |
+
+**Kapabilitets-felter på ProjectMember** (boolean, eksplisitt opt-in):
+- `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang i `erProsjektLeder`.
+- `erFirmaansvarlig` — flyt-relatert ansvar (eksisterende felt).
+
+**`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`. `company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.
+
+**Kritiske regler:**
+- Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
+- Firma-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
+- API-nøkler sendes **ALDRI** til klienten — returner kun `harNøkkel: boolean`
+- Firmaoverføring (standalone → Organization) er **permanent** — krever superadmin + firmaadmin-godkjenning
+
+**Organisasjonsmodellen — to spor:**
+- **Standalone** (`organizationId = null`) — gyldig permanent tilstand, ikke en mangel
+- **Under Organization (firma)** — firma-admin har innsyn, integrasjoner og firmamoduler tilgjengelig
+
+**Kryssorg-deling:**
+- Deaktivert som standard (`eksternDeling = false` på Project)
+- Kun push, aldri pull — sender initierer
+- Varsling ≠ deling — RUH gir varsel med metadata, ikke dokumentet
+- Ingen duplikater — dokument bor alltid hos eier-org
+
+## Modul-plassering (flyttet fra CLAUDE.md 2026-10-28)
+
+Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-skjemaer. Delt auth via eksisterende next-auth sessions-tabell. Nye modulers tabeller skal ALDRI inn i `packages/db`.
+
+- **Integrert i web-appen** (enklest): `apps/web/src/app/<modul>/` + `packages/db-<modul>/`. Ingen egen DNS, port eller deploy. Maskin bruker dette mønsteret.
+- **Isolert app** (når modulen trenger separat skalering, tilgang eller deploy): `apps/<modul>/` + `packages/db-<modul>/` + egen DNS. Foreløpig bruker ingen moduler dette — Timer ble bygget integrert (api-routere + `db-timer` + web/mobil-ruter), ikke som egen app.
+
+## Schema- og migreringsregler (flyttet fra CLAUDE.md 2026-10-28)
+
+- Alle database-endringer via Prisma-migreringer (`pnpm db:migrate`, prosjektets Prisma — ikke global `npx prisma`).
+- **ALDRI slett eksisterende data** — migreringer må bevare brukere, medlemskap og prosjektdata (bruk ALTER/RENAME/INSERT, ikke DROP+CREATE).
+- **To-stegs migrations-policy** (ufravikelig fra 2026-04-26):
+  1. Aldri slett kolonner i én migrering. Steg 1: legg til ny kolonne (nullable). Steg 2: migrer data. Steg 3: NEXT release setter NOT NULL eller dropper gammel
+  2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet
+  3. Cross-package-FK håndteres som svake String-felt uten Prisma `@relation` (etablert mønster i `db-maskin`)
+- **Migrasjons-backfill-disiplin** (ufravikelig fra 2026-05-26): Aldri hardkode én enkelt verdi på alle rader uten eksplisitt WHERE som matcher felt utover `domain` — bruk `prefix`/`name`/diskriminerende felt (`UPDATE ... WHERE prefix='SJA' SET subdomain='sja'` per kjent verdi, ikke én generisk default). Lærdom 2026-05-26 (HMS-mal-backfill traff SJA/RUH-maler) + oppfølger-fiks: se git-historikk.
+- **Stille tomhet er forbudt** (ufravikelig fra 2026-09-10, Kenneth-vedtak): En ny kolonne eller koblingstabell som bærer **identitet eller kobling** krever tre ting i SAMME release, ellers skal den ikke bygges: **(a) backfill** av alle eksisterende rader — en kolonne som fødes tom er en felle fra dag én · **(b) DB-garanti** mot duplikat/tvetydighet (unik eller partial unique index), slik at ingen leser må gjette · **(c) en test som FEILER når feltet er tomt** der det skal ha verdi. Krav (c) er det avgjørende — de tre sakene under ble alle funnet ved at Kenneth så noe rart på skjermen, ikke av systemet. **Utled aldri identitet fra en ikke-unik egenskap** (`find()` på et flagg flere rader deler) — det er gjetting med pen syntaks. Lærdom 2026-09-10, tre saker på tre dager: `users.ny_navigasjon` (flagg overlevde utrullingen, 10 identiske verdier, null lesere) · `group_faggrupper` (skrivevei fjernet `e14f2aa0` 23.03, tom i 22/22 prosjekter i et halvt år, ingen alarm) · HMS-gruppe-deteksjon (to grupper bar `domains:["hms"]`, `find()` plukket vilkårlig).

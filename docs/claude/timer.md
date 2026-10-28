@@ -1816,6 +1816,7 @@ Inntil REST API er på plass, utforskes tre kortsiktige spor (i prioritert rekke
 
 ### Premiss for integrasjon
 
+- **Lønnsart-grense — regnskap eier kobling og satser** (flyttet fra CLAUDE.md 2026-10-28): SiteDoc leverer default lønnsart-numre (redigerbare per firma); lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
 - **All godkjenning skjer i SiteDoc.** Proadm mottar kun ferdig godkjente timer, tillegg og utlegg. Ingen godkjenningsflyt eller statusoppdateringer tilbake fra Proadm — kun valideringsfeil.
 - Overføringen er i praksis **envei sendende**, og **enveis hentende** for masterdata (prosjekter, ansatte, lønnsarter, endringer).
 
