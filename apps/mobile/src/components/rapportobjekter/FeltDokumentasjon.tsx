@@ -571,7 +571,10 @@ export function FeltDokumentasjon({
       <Modal visible={!!annoteringBilde} animationType="slide" presentationStyle="fullScreen">
         {annoteringBilde && (
           <BildeAnnotering
-            bildeUri={annoteringBilde}
+            // Levende URL (RETUR svart gjenåpning): rett etter opplasting er vedleggets URL rå
+            // (401); når data er hentet på nytt bærer valgtVedlegg den signerte — BildeAnnotering
+            // laster den da. Øyeblikksbildet er reserve hvis vedlegget skulle forsvinne.
+            bildeUri={valgtVedlegg?.url ?? annoteringBilde}
             onFerdig={async (annotert) => {
               settAnnoteringBilde(null);
               if (valgtVedleggId && onErstattVedlegg) {

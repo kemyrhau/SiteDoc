@@ -3387,6 +3387,8 @@
   "felt.tegning": "Малювання",
   "felt.annoter": "Анотуйте",
   "annotering.tittel": "Додайте анотацію до зображення",
+  "annotering.lasterBilde": "Завантаження зображення…",
+  "annotering.bildeFeil": "Не вдалося відкрити зображення. Закрийте та повторіть спробу через мить.",
   "annotering.verktoy.pil": "Стрілка",
   "annotering.verktoy.sirkel": "Коло",
   "annotering.verktoy.firkant": "Прямокутник",

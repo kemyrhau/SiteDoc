@@ -3387,6 +3387,8 @@
   "felt.tegning": "Desen",
   "felt.annoter": "Adnota",
   "annotering.tittel": "Adnotă imaginea",
+  "annotering.lasterBilde": "Se încarcă imaginea…",
+  "annotering.bildeFeil": "Imaginea nu a putut fi deschisă. Închideți și încercați din nou peste un moment.",
   "annotering.verktoy.pil": "Săgeată",
   "annotering.verktoy.sirkel": "Cerc",
   "annotering.verktoy.firkant": "Dreptunghi",

@@ -465,4 +465,20 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
       expect(ANNOTERINGS_HTML).toContain("if (avstand < 5 || (gErTouch && !gBeveget)) {");
     });
   });
+
+  // ── RETUR svart gjenåpning (2026-10-28) ── et bilde som ikke lar seg dekode ga et stille svart
+  // lerret. Ekte WebView-vei (RN-bro simulert): tests/e2e/annotering/gjenaapning.spec.ts.
+  describe("RETUR svart gjenåpning — HTML-en melder bildeLastet/bildeFeil til verten", () => {
+    it("feilet eller tomt bilde → bildeFeil, ingen videre oppsett", () => {
+      expect(ANNOTERINGS_HTML).toContain("fabric.Image.fromURL(bildeUrl, function(img, erFeil) {");
+      expect(ANNOTERINGS_HTML).toContain("if (erFeil || !img || !img.width || !img.height) {");
+      expect(ANNOTERINGS_HTML).toContain("postTilVert({ type: 'bildeFeil' });");
+    });
+
+    it("bildeLastet sendes først når bakgrunnen (og ev. lagrede objekter) er lagt på", () => {
+      expect(ANNOTERINGS_HTML.match(/postTilVert\(\{ type: 'bildeLastet' \}\);/g)).toHaveLength(2);
+      // Oppfølger: et lag Fabric ikke kan gjenskape skal aldri låse flaten på «Laster bildet …».
+      expect(ANNOTERINGS_HTML).toContain("} catch (e) {\n            meldLastet();\n          }");
+    });
+  });
 });

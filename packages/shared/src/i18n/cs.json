@@ -3387,6 +3387,8 @@
   "felt.tegning": "Výkres",
   "felt.annoter": "Opatřit poznámkami",
   "annotering.tittel": "Komentovat obrázek",
+  "annotering.lasterBilde": "Načítání obrázku…",
+  "annotering.bildeFeil": "Obrázek nelze otevřít. Zavřete a zkuste to znovu za chvíli.",
   "annotering.verktoy.pil": "Šipka",
   "annotering.verktoy.sirkel": "Kruh",
   "annotering.verktoy.firkant": "Obdélník",

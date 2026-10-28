@@ -40,7 +40,10 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
   const { t } = useTranslation();
   // Åpnes et eksisterende lag: start i Flytt-modus (rediger). Ellers Pil (tegn).
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>(lag ? "select" : "arrow");
+  // Ferdig er aktiv først når bildet faktisk er lastet (bildeLastet fra HTML-en). RETUR svart
+  // gjenåpning: feiler hentingen eller dekodingen, vises en forståelig feil — aldri en svart flate.
   const [erKlar, settErKlar] = useState(false);
+  const [bildeFeil, settBildeFeil] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const sendMelding = useCallback((melding: Record<string, unknown>) => {
@@ -62,8 +65,11 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
       } catch {
         return;
       }
-      if (data.type === "klar") {
+      if (data.type === "bildeLastet") {
         settErKlar(true);
+      } else if (data.type === "bildeFeil") {
+        settBildeFeil(true);
+      } else if (data.type === "klar") {
         // Hent bildet på web-siden og send som data-URL (unngår canvas-taint;
         // speiler mobilens nedlasting → base64). Same-origin /api/uploads-proxy
         // sender auth-cookie automatisk. Sender laget med (redigerbar gjenåpning),
@@ -73,6 +79,7 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
             const respons = await fetch(byggBildeSrc(bildeUrl));
             if (!respons.ok) {
               console.error("Annotering: bildehenting feilet:", respons.statusText);
+              settBildeFeil(true);
               return;
             }
             const blob = await respons.blob();
@@ -86,6 +93,7 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
             leser.readAsDataURL(blob);
           } catch (feil) {
             console.error("Annotering: bildehenting feilet:", feil);
+            settBildeFeil(true);
           }
         })();
       } else if (data.type === "ferdig" && typeof data.dataUrl === "string") {
@@ -137,6 +145,13 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
           sandbox="allow-scripts"
           className="h-full w-full border-0"
         />
+        {!erKlar && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black px-8">
+            <span className={`text-center text-base ${bildeFeil ? "text-white" : "text-gray-400"}`}>
+              {bildeFeil ? t("annotering.bildeFeil") : t("annotering.lasterBilde")}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Verktøylinje */}

@@ -13,6 +13,7 @@ import {
 import { lastOppFil, OpplastingFeil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
 import { registrerBildeIDatabase, patchVedleggUrl } from "../services/bildeRegistrering";
+import { fullforVedleggUrl } from "../lib/vedleggFullforing";
 import { oppforingerAaKansellere, skalSkriveVedleggUrl, type KoOppforingRef } from "../utils/koDedup";
 import { useNettverk } from "./NettverkProvider";
 import { AUTH_CONFIG } from "../config/auth";
@@ -534,44 +535,31 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
             const dokumentId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
 
-            // Oppdater vedlegg-URL i feltdata (SQLite — samme-install-kilde)
-            const sqliteOk = oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
-
-            // Publiser til aktive hooks (live URL-oppdatering når skjermen er montert)
-            publiserFullfort(
-              dokumentId,
-              dokumentType,
-              oppforing.objektId,
-              oppforing.vedleggId,
-              resultat.fileUrl,
-            );
-
-            // Funn C: skriv den varige URL-en til server-JSON-en direkte — også når
-            // skjermen er demontert (da når publiserFullfort aldri hooken, og
-            // korreksjonen ville blitt liggende kun i SQLite, som viskes ved
-            // reinstall). Best-effort: tåler at prod-API-et ikke har prosedyren ennå.
-            // Gjelder BEGGE dokumenttyper — samme delte patch, prosedyre velges på type.
-            let serverOk = false;
-            if (dokumentId) {
-              serverOk = await patchVedleggUrl({
-                dokumentType,
-                dokumentId,
-                objektId: oppforing.objektId,
-                vedleggId: oppforing.vedleggId,
-                url: resultat.fileUrl,
-                filnavn: resultat.fileName,
-              });
-            }
-
-            // 🔴 Slett aldri lokalfila før erstatningen er persistert et sted som
-            // overlever behovet: server (reinstall-sikkert) ELLER SQLite
-            // (samme-install). Feiler begge — behold fila, så raden fortsatt viser
-            // det lokale bildet og ingenting går tapt.
-            if (sqliteOk || serverOk) {
-              await slettLokaltBilde(oppforing.lokalSti);
-            } else {
-              console.warn("[KØ] URL ikke persistert (SQLite+server feilet) — beholder lokalfil:", oppforing.filnavn);
-            }
+            // SQLite (samme-install) → server-JSON (Funn C: også når skjermen er demontert, da
+            // når publiserFullfort aldri hooken) → publiser → slett lokalfil. Rekkefølgen bor i
+            // fullforVedleggUrl (testet): publiser først ETTER server-patchen, ellers kan en
+            // annotering åpnet i vinduet refetche før serveren har stien (oppfølger RETUR svart
+            // gjenåpning). Gjelder BEGGE dokumenttyper — samme delte patch, prosedyre velges på type.
+            await fullforVedleggUrl({
+              harDokument: !!dokumentId,
+              oppdaterSqlite: () =>
+                oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl),
+              patchServer: () =>
+                patchVedleggUrl({
+                  dokumentType,
+                  dokumentId,
+                  objektId: oppforing.objektId,
+                  vedleggId: oppforing.vedleggId,
+                  url: resultat.fileUrl,
+                  filnavn: resultat.fileName,
+                }),
+              publiser: () =>
+                publiserFullfort(dokumentId, dokumentType, oppforing.objektId, oppforing.vedleggId, resultat.fileUrl),
+              slettLokal: () => slettLokaltBilde(oppforing.lokalSti),
+              // Feiler begge — behold fila, så raden fortsatt viser det lokale bildet.
+              beholdLokal: () =>
+                console.warn("[KØ] URL ikke persistert (SQLite+server feilet) — beholder lokalfil:", oppforing.filnavn),
+            });
 
             oppdaterTellere();
             } // slutt kappløp-vern: skalSkriveVedleggUrl-gren
