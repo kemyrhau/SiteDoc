@@ -109,6 +109,7 @@ describe("T2 — valgt chunks markeringer er sterkere enn øvrige", () => {
     spionerScroll();
     const { container } = render(<Fulltekst prosjektId="p" documentId="d" valgtChunkIndex={null} />);
     expect(container.textContent).toContain("Side 3");
+    expect(container.textContent).not.toContain("footerSide");
   });
 });
 
