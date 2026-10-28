@@ -28,9 +28,7 @@ const vekterSchema = z.object({
   latency: z.number().min(0).max(1).optional(),
   phraseWeight: z.number().min(0).max(1).optional(),
   termWeight: z.number().min(0).max(1).optional(),
-  qualityWeight: z.number().min(0).max(1).optional(),
   headingWeight: z.number().min(0).max(1).optional(),
-  bm25Weight: z.number().min(0).max(1).optional(),
   pageposWeight: z.number().min(0).max(1).optional(),
 });
 
