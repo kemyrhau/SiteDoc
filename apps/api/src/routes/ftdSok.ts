@@ -4,6 +4,7 @@ import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
+import { mappeKlausulSql, byggMappeTilgangsFilter } from "../services/mappe-filter";
 import { HEADLINE_OPTS } from "../services/ai-sok-service";
 
 export interface SokTreff {
@@ -49,10 +50,7 @@ export const ftdSokRouter = router({
       );
 
       // Fulltekstsøk med tsvector (norsk stemming + ranking)
-      const mappeKlausul =
-        mappeIder === null
-          ? Prisma.empty
-          : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+      const mappeKlausul = mappeKlausulSql(mappeIder);
       const dokKlausul = input.dokumentIder?.length
         ? Prisma.sql`AND d.id IN (${Prisma.join(input.dokumentIder)})`
         : Prisma.empty;
@@ -219,7 +217,7 @@ export const ftdSokRouter = router({
           document: {
             projectId: input.projectId,
             isActive: true,
-            ...(mappeIder === null ? {} : { OR: [{ folderId: null }, { folderId: { in: mappeIder } }] }),
+            ...byggMappeTilgangsFilter(mappeIder),
           },
         },
         include: {
@@ -241,10 +239,7 @@ export const ftdSokRouter = router({
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       // S6a: samme mappetilgang som sokDokumenter (lukket mappe → ikke i svaret).
       const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
-      const mappeKlausul =
-        mappeIder === null
-          ? Prisma.empty
-          : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+      const mappeKlausul = mappeKlausulSql(mappeIder);
       // Søk i chunks fra dokumenter med "3420" i filnavnet
       return ctx.prisma.$queryRaw<Array<{
         id: string;

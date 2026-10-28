@@ -4,6 +4,7 @@
  */
 import { PrismaClient, Prisma } from "@sitedoc/db";
 import { fetchMedTimeout } from "./embedding-service";
+import { mappeKlausulSql } from "./mappe-filter";
 
 /**
  * Query-embedding er INTERAKTIVT (bruker venter på søkeresultat), så timeouten er
@@ -390,10 +391,7 @@ export async function hybridSok(
   );
 
   // Mappefilter
-  const mappeKlausul =
-    mappeIder === null
-      ? Prisma.empty
-      : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+  const mappeKlausul = mappeKlausulSql(mappeIder);
 
   // Dokumentfilter (kun søk i bestemte dokumenter)
   const dokKlausul = options.dokumentIder?.length
@@ -593,10 +591,7 @@ async function leksikalskSok(
   limit: number,
   filter: { dokumentIder?: string[]; ekskluderMappeIder?: string[] } = {},
 ): Promise<HybridSokTreff[]> {
-  const mappeKlausul =
-    mappeIder === null
-      ? Prisma.empty
-      : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+  const mappeKlausul = mappeKlausulSql(mappeIder);
   // S4: fallbacken respekterer samme dokumentfilter som hybridsøket (S-M9).
   const dokKlausul = filter.dokumentIder?.length
     ? Prisma.sql`AND d.id IN (${Prisma.join(filter.dokumentIder)})`
@@ -687,10 +682,7 @@ export async function blokkSok(
 
   const vecStr = `[${queryVec.join(",")}]`;
 
-  const mappeKlausul =
-    mappeIder === null
-      ? Prisma.empty
-      : Prisma.sql`AND d.folder_id IN (${Prisma.join(mappeIder)})`;
+  const mappeKlausul = mappeKlausulSql(mappeIder);
 
   // Søk i blokker på brukerens språk
   const treff = await prisma.$queryRaw<BlokkSokTreff[]>`

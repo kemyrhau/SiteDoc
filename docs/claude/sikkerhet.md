@@ -215,6 +215,13 @@ Tok `nsCode` og returnerte chunks med den koden **på tvers av alle prosjekter**
 | `aiSok.blokkSok` | `projectId` | fantes |
 | `aiSok.hentReferanseDokumenter` | `projectId` | medlem fantes; **mappetilgang lagt til** (filnavn/mappenavn i lukkede mapper listes ikke, RETUR gate `2c8dd50e`) |
 | `aiSok.embeddingStatus` | `projectId` | fantes |
+
+**Mappetilgang — firma-admin og tom liste (2026-10-28, `fix/sok-firmaadmin-mapper`)** — regelen bor ett sted:
+- `hentTilgjengeligeMappeIder` (`apps/api/src/services/folder-tilgang.ts`) gir `null` (alle mapper) til firma-admin i prosjektets firma via det delte bypass-predikatet `erFirmaAdminForProsjekt`, sjekket før medlemsraden. Firma-admin fra et annet firma faller gjennom og får `[]`. Før fikk en firma-admin uten medlemsrad `[]` og 500 i søket.
+- Filteret kommer fra `apps/api/src/services/mappe-filter.ts`: `mappeKlausulSql` (rå SQL) og `byggMappeTilgangsFilter` (Prisma-where). `null` gir ingen klausul. `[]` gir bare dokumenter uten mappe (`d.folder_id IS NULL`). Før kastet `Prisma.join([])` og ga 500.
+- Alle kallsteder bruker de to hjelperne: `ftdSok.sokDokumenter`, `nsStandardSok` og `nsChunks`, `ai-sok-service` `hybridSok`, `leksikalskSok` og `blokkSok`, `aiSok.hentReferanseDokumenter` og `mengde.hentDokumenter`.
+- `blokkSok` og `mengde` tok før ikke med dokumenter uten mappe for vanlige medlemmer. Nå gjør de det, som de andre søkene. Ingen får tilgang til noe nytt, fordi de samme dokumentene alt var synlige for dem i `sokDokumenter`.
+- Tester: `folder-tilgang.test.ts` og `routes/sok-mappetilgang.test.ts`.
 | `aiSok.genererEmbeddings` / `stoppEmbeddings` / `hentInnstillinger` / `oppdaterInnstillinger` | `projectId` | fantes: `verifiserAdmin`. ⚠️ `stoppEmbeddings` stopper en **global** kjøring (`stoppEmbeddingGenerering()` uten prosjekt) — en prosjektadmin kan stoppe et annet prosjekts generering. Ikke lekkasje av data; ikke rettet i SØK-1 |
 
 ### ✅ 8c. ezdxf-SVG-visningen stolte 100 % på at markupen var render.py-generert (herding 2026-10-11, `fix/ezdxf-xss-vern`)
