@@ -17,11 +17,11 @@ import { lagAnnoteringsHtml, annoteringsflateHoyde } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../config/auth";
 import { trpc } from "../lib/trpc";
 import { lastAnnoteringsbilde } from "../lib/annoteringsKilde";
+import { lagFornyer, type Fornyer } from "../lib/fornyer";
 
 // RETUR svart gjenåpning: en rå/utløpt server-URL fornyes ved å hente data på nytt (samme
-// mekanisme som AutentisertBilde). Gir ikke det en signert URL innen fristen, vises en feil.
-const MAKS_FORNYELSER = 3;
-const FORNY_FRIST_MS = 8_000;
+// mekanisme som AutentisertBilde). Fornyeren invaliderer på timer (hvert 2,5 s, maks 3 — lib/fornyer.ts);
+// gir ingen av forsøkene en signert URL, vises en feil.
 
 /** Bildets tilstand i flaten. Ferdig er bare aktiv når bildet faktisk er lastet. */
 type BildeStatus = "laster" | "fornyer" | "klar" | "feil";
@@ -73,8 +73,17 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
   const [bildeStatus, settBildeStatus] = useState<BildeStatus>("laster");
   const erKlar = bildeStatus === "klar";
   const webViewKlarRef = useRef(false);
-  const fornyelserRef = useRef(0);
   const utils = trpc.useUtils();
+  const utilsRef = useRef(utils);
+  utilsRef.current = utils;
+  const fornyerRef = useRef<Fornyer | null>(null);
+  if (!fornyerRef.current) {
+    fornyerRef.current = lagFornyer({
+      invalider: () => void utilsRef.current.invalidate(),
+      onGiOpp: () => settBildeStatus((s) => (s === "fornyer" ? "feil" : s)),
+    });
+  }
+  useEffect(() => () => fornyerRef.current?.stopp(), []);
   // Frys-fiks (orkestrator 2026-10-21): vis «Lagrer …» og deaktiver knappen FØR eksporten,
   // så brukeren ser at appen jobber mens den synkrone toDataURL kjører i WebView-en.
   const [lagrer, settLagrer] = useState(false);
@@ -132,24 +141,27 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           lesBase64: (sti) => FileSystem.readAsStringAsync(sti, { encoding: FileSystem.EncodingType.Base64 }),
         });
         if (r.ok) {
+          fornyerRef.current?.stopp();
           settBildeStatus("laster");
           sendMelding({ type: "settBilde", bildeUrl: r.dataUrl });
           return;
         }
-        if (r.grunn === "trengerSignatur" && fornyelserRef.current < MAKS_FORNYELSER) {
-          fornyelserRef.current += 1;
+        if (r.grunn === "trengerSignatur") {
+          // Fortsatt rå/utløpt: fornyeren holder på (eller startes). Tellingen nullstilles ikke.
           settBildeStatus("fornyer");
-          void utils.invalidate();
+          fornyerRef.current?.start();
           return;
         }
+        fornyerRef.current?.stopp();
         if (__DEV__) console.log(`[annotering] bildet kunne ikke lastes: ${r.grunn}${r.status ? ` (${r.status})` : ""}`);
         settBildeStatus("feil");
       } catch (feil) {
         if (__DEV__) console.log("[annotering] bildehenting feilet:", feil);
+        fornyerRef.current?.stopp();
         settBildeStatus("feil");
       }
     },
-    [sendMelding, utils],
+    [sendMelding],
   );
 
   // Tekst skrives nå DIREKTE på bildet (fabric.Textbox i den delte HTML-en) — ingen modal,
@@ -201,13 +213,6 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
     // Bare når URI-en endres; lastBilde selv styrer status.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bildeUri]);
-
-  // Kom det ingen signert URL innen fristen → synlig feil (ikke evig «laster»).
-  useEffect(() => {
-    if (bildeStatus !== "fornyer") return;
-    const frist = setTimeout(() => settBildeStatus((s) => (s === "fornyer" ? "feil" : s)), FORNY_FRIST_MS);
-    return () => clearTimeout(frist);
-  }, [bildeStatus]);
 
   return (
     <View
