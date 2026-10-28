@@ -25,6 +25,12 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-28
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `6afa50d8` | 🔴 **Annotering (mobil + web via delt motor): velg, flytt og endre størrelse på alle objekter** | **Før:** bare tekst kunne velges med et trykk. Sirkel, firkant, pil og frihånd kunne bare flyttes i web-«Flytt», og angre fjernet alltid siste objekt. **Etter:** et trykk nær streken velger formen i alle verktøy. Dra på en valgt form flytter den, og dra i håndtakene endrer størrelsen med samme strektykkelse. Dra fra en form som ikke er valgt, tegner en ny. (a) I Tekst velger et trykk på streken formen, mens et trykk inne i formen lager ny tekst. (b) Sirkel kan bli oval. (c) Trykk på tekst redigerer også i Frihånd. (d) Angre tar siste handling, også flytt og størrelse. Pil endres ved å dra endepunktene. Web-«Flytt» er beholdt, men håndtakene er runde og blå, og en form kan ikke lenger speilvendes ved å dra et håndtak forbi motsatt kant (`lockScalingFlip`). Gamle annoteringer åpnes og eksporteres byte-identisk. ⚠️ Ikke bekreftet på telefon. | 🟢 Kenneth GO 2026-10-28 (a–d); speilvending: Kontrollør-vilkår, meldt Kenneth 28.10 |
+
 ### 2026-10-22
 
 | Hash | Flate | Før → Etter | Hjemmel |
