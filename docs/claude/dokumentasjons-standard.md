@@ -348,6 +348,8 @@ Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn
 
 ### CLAUDE.md-taket måles med python, ikke `wc -m`
 
+🟢 **Håndhevet av test:** `packages/shared/src/claudemd-tak.test.ts:14-21` (kodepunkter, lik python `len()`) feiler `pnpm test` over taket.
+
 Taket er **15 000 tegn** (Kenneth-vedtak 2026-10-28, tidligere 40 960; CLAUDE.md § Ufravikelige regler) og måles slik:
 
 ```sh
