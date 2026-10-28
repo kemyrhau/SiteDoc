@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { feltKartFraRad, settVedleggUrlIDokument, settOriginalUrlIDokument } from "./repeaterRad";
+import { feltKartFraRad, settVedleggUrlIDokument, settOriginalUrlIDokument, flatUtOriginaler } from "./repeaterRad";
 
 describe("feltKartFraRad", () => {
   it("pakker ut `felter` fra produksjonsformen", () => {
@@ -69,5 +69,23 @@ describe("settOriginalUrlIDokument", () => {
   it("annen originalUrl enn lokalstien: urørt (samme referanse)", () => {
     const fv = { a: { vedlegg: [{ id: "v1", url: "u", originalUrl: "/uploads/privat/o.jpg" }] } };
     expect(settOriginalUrlIDokument(fv, "v1", lokal, "/uploads/privat/x.jpg")).toBe(fv);
+  });
+});
+
+describe("flatUtOriginaler (RETUR M1)", () => {
+  const LAG = { fabricVersion: "5.3.0", bredde: 390, hoyde: 520, objekter: [] };
+  it("fjerner originalUrl + annotering der originalen ikke kan bli oppe — topp-nivå og repeater, url beholdes", () => {
+    const fv = {
+      a: { vedlegg: [{ id: "v1", url: "file:///a.jpg", originalUrl: "file:///o.jpg", annotering: LAG }] },
+      r: { verdi: [{ _radId: "x", felter: { b: { vedlegg: [{ id: "v2", url: "u", originalUrl: "file:///o.jpg", annotering: LAG }] } } }] },
+    };
+    const ut = flatUtOriginaler(fv, (u) => u === "file:///o.jpg");
+    expect(ut.a.vedlegg[0]).toEqual({ id: "v1", url: "file:///a.jpg" });
+    expect(ut.r.verdi[0]!.felter.b.vedlegg[0]).toEqual({ id: "v2", url: "u" });
+  });
+
+  it("annen original: urørt (samme referanse)", () => {
+    const fv = { a: { vedlegg: [{ id: "v1", url: "u", originalUrl: "/uploads/privat/o.jpg", annotering: LAG }] } };
+    expect(flatUtOriginaler(fv, (u) => u === "file:///o.jpg")).toBe(fv);
   });
 });

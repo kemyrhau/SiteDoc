@@ -51,13 +51,13 @@ type VedleggEndring = (v: Record<string, unknown>) => Record<string, unknown> | 
 
 function endreIListe(
   liste: unknown,
-  vedleggId: string,
+  vedleggId: string | null,
   endre: VedleggEndring,
 ): { liste: unknown; endret: boolean } {
   if (!Array.isArray(liste)) return { liste, endret: false };
   let endret = false;
   const ny = (liste as VedleggListe).map((v) => {
-    if (v && typeof v === "object" && v.id === vedleggId) {
+    if (v && typeof v === "object" && (vedleggId === null || v.id === vedleggId)) {
       const nyV = endre(v);
       if (nyV === null) return v;
       endret = true;
@@ -102,10 +102,29 @@ export function settOriginalUrlIDokument<T extends Record<string, unknown>>(
   );
 }
 
-/** Felles traversering (topp-nivå + repeater-rader, begge radformer) for vedlegg-endringer. */
+/**
+ * Flat ut vedlegg hvis `originalUrl` ikke lenger kan bli en server-original (RETUR M1,
+ * Kontrollør 2026-10-28): en LOKAL original hvis fil mangler eller hvis opplasting har gitt opp
+ * eller er borte. `originalUrl` og `annotering` fjernes, så feltet (med det annoterte bildet og
+ * kommentaren) ikke holdes unna serveren for alltid. Vedlegget blir flatt, som før laget fantes.
+ * Gjelder alle vedlegg i dokumentet; samme referanse når ingenting ble flatet ut.
+ */
+export function flatUtOriginaler<T extends Record<string, unknown>>(
+  feltVerdier: T,
+  skalFlates: (originalUrl: string) => boolean,
+): T {
+  return endreVedleggIDokument(feltVerdier, null, (v) => {
+    if (typeof v.originalUrl !== "string" || !skalFlates(v.originalUrl)) return null;
+    const { originalUrl: _o, annotering: _a, ...flatt } = v;
+    return flatt;
+  });
+}
+
+/** Felles traversering (topp-nivå + repeater-rader, begge radformer) for vedlegg-endringer.
+ *  `vedleggId` null = alle vedlegg. */
 function endreVedleggIDokument<T extends Record<string, unknown>>(
   feltVerdier: T,
-  vedleggId: string,
+  vedleggId: string | null,
   endre: VedleggEndring,
 ): T {
   let endretNoe = false;

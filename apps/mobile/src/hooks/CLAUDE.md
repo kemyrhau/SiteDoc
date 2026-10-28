@@ -29,8 +29,10 @@ bevarer den opprinnelige SERVER-URL-en som `Vedlegg.originalUrl` (via `bevarOrig
 🟢 **Redigerbar annotering (2026-10-28)** — `erstattVedlegg` tar en valgfri `AnnoteringsFelter`
 (`{originalUrl, annotering}` fra `lib/annoteringLagring.ts`) og bruker `erstattetVedlegg`. Med lag
 kan `originalUrl` være en LOKAL sti (originalen ikke oppe ennå); opplastings-callbacken bytter den
-via `settOriginalUrlIDokument` når køen er ferdig med originalen (`opplasting.kunOriginal`). Begge
-hooks gjør det likt — rør aldri én alene.
+via `anvendOpplasting` (`lib/originalOpplasting.ts`) når køen er ferdig med originalen
+(`hendelse: "original"`), eller flater vedlegget ut når originalen er tapt (`"originalTapt"`, RETUR M1).
+Callbacken returnerer om skjermen tok hendelsen — køen sletter ikke originalens lokalfil før SQLite
+eller en montert skjerm har tatt den. Begge hooks gjør det likt — rør aldri én alene.
 
 🔴 **Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21, funksjonsendring)** — på en avsluttet
 rapport (`TERMINALE_DOKUMENTSTATUSER` = approved/closed/cancelled) kan vedlegg IKKE

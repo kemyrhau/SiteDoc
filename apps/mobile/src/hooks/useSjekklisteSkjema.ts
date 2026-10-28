@@ -10,8 +10,9 @@ import { useAuth } from "../providers/AuthProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { klassifiserLagreFeil } from "../utils/lagreFeil";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, settOriginalUrlIDokument, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg,  erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
+import { anvendOpplasting } from "../lib/originalOpplasting";
 import type { DokumentRettighet, AnnoteringsLag } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -403,20 +404,18 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   useEffect(() => {
     const avregistrer = registrerCallback(
       (dokumentId, dokumentType, _objektId, vedleggId, serverUrl, opplasting) => {
-        if (dokumentType !== "sjekkliste" || dokumentId !== sjekklisteId) return;
+        if (dokumentType !== "sjekkliste" || dokumentId !== sjekklisteId) return false;
 
-        // Kanonisk vedlegg-URL-oppdatering (topp-nivå + repeater-rader, begge
-        // radformer). Den gamle hånd-traverseringen her traff ALDRI repeater-
-        // vedlegg i `{ _radId, felter }`-form → «Kunne ikke laste» til man gikk
-        // ut og inn. Se `@sitedoc/shared` repeaterRad.ts.
-        // En foreldet oppføring (originalen etter en annotering) skriver ALDRI url — bare en lokal
-        // originalUrl som peker på nettopp den fila (redigerbar annotering, 2026-10-28).
-        settFeltVerdier((prev) => {
-          const medUrl = opplasting?.kunOriginal ? prev : settVedleggUrlIDokument(prev, vedleggId, serverUrl);
-          return opplasting ? settOriginalUrlIDokument(medUrl, vedleggId, opplasting.lokalSti, serverUrl) : medUrl;
-        });
+        // Kanonisk vedlegg-oppdatering (topp-nivå + repeater-rader, begge radformer — se
+        // `@sitedoc/shared` repeaterRad.ts). Én regel for SQLite og skjerm: `anvendOpplasting`
+        // (url, en lokal originalUrl som byttes, eller utflating når originalen er tapt).
+        // Returverdien sier om skjermen tok hendelsen: køen sletter ikke en originals lokalfil
+        // før SQLite eller en montert skjerm har tatt server-URL-en (RETUR M1).
+        const tok = anvendOpplasting(feltVerdierRef.current, vedleggId, serverUrl, opplasting) !== feltVerdierRef.current;
+        settFeltVerdier((prev) => anvendOpplasting(prev, vedleggId, serverUrl, opplasting));
         // Trigger server-synk slik at oppdatert URL lagres i PostgreSQL
         planleggLagringRef.current?.();
+        return tok;
       },
     );
     return avregistrer;
