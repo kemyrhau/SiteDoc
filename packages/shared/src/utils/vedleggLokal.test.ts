@@ -98,6 +98,15 @@ describe("vedleggEndret — identitet/filnavn, ikke URL-signatur", () => {
 });
 
 describe("harLokaltVedlegg", () => {
+  it("lokal originalUrl (original ikke lastet opp) teller som lokalt — feltet holdes tilbake", () => {
+    expect(
+      harLokaltVedlegg({ vedlegg: [{ id: "v", url: "/uploads/privat/a.jpg", originalUrl: "file:///doc/o.jpg" }] }),
+    ).toBe(true);
+    expect(
+      harLokaltVedlegg({ vedlegg: [{ id: "v", url: "/uploads/privat/a.jpg", originalUrl: "/uploads/privat/o.jpg" }] }),
+    ).toBe(false);
+  });
+
   it("finner lokalt vedlegg på topp-nivå-felt", () => {
     const felt = { verdi: null, vedlegg: [{ type: "bilde", url: "file:///x.jpg" }] };
     expect(harLokaltVedlegg(felt)).toBe(true);

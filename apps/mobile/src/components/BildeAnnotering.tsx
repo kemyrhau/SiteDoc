@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import {
+  MousePointer2,
   ArrowUpRight,
   Circle,
   Square,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
-import { lagAnnoteringsHtml, annoteringsflateHoyde } from "@sitedoc/shared";
+import { lagAnnoteringsHtml, annoteringsflateHoyde, type AnnoteringsLag } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../config/auth";
 import { trpc } from "../lib/trpc";
 import { lastAnnoteringsbilde } from "../lib/annoteringsKilde";
@@ -31,7 +32,7 @@ type BildeStatus = "laster" | "fornyer" | "klar" | "feil";
 // "senter" (SVAR dc6b8090 — web uendret). HTML-en er statisk; bygges én gang.
 const MOBIL_ANNOTERINGS_HTML = lagAnnoteringsHtml({ anker: "topp" });
 
-type Verktoy = "arrow" | "circle" | "rect" | "draw" | "text";
+type Verktoy = "select" | "arrow" | "circle" | "rect" | "draw" | "text";
 
 // Befaring-funn A (Kenneth 2026-10-21): bildet skal stå FAST, med og uten tastatur, forankret
 // rett under overskriftslinja. WebView-flaten får derfor en fast høyde der tastaturhøyden
@@ -51,13 +52,19 @@ interface BildeAnnoteringProps {
    * opplasting) byttes ut med den signerte når data er hentet på nytt — da lastes den.
    */
   bildeUri: string;
-  onFerdig: (annotertBildeUri: string) => void;
+  /** Lagret lag (redigerbar annotering, 2026-10-28): objektene legges på `bildeUri` (originalen)
+   *  og kan velges, flyttes, endres og slettes. Uten lag: tegn oppå bildet som før. */
+  lag?: AnnoteringsLag;
+  onFerdig: (annotertBildeUri: string, lag: AnnoteringsLag) => void;
   onAvbryt: () => void;
 }
 
 // labelKey (ikke label): arrayet lever utenfor komponenten, så t() kalles ved
 // rendering — i18n-standarden for data utenfor komponenter.
+// «Flytt» først, som web: et lagret lag åpnes i Flytt — trykk velger et objekt og dra flytter
+// det, uten fare for å tegne en ny form ved et bom-trykk.
 const VERKTOYER: { id: Verktoy; ikon: typeof ArrowUpRight; labelKey: string }[] = [
+  { id: "select", ikon: MousePointer2, labelKey: "annotering.verktoy.flytt" },
   { id: "arrow", ikon: ArrowUpRight, labelKey: "annotering.verktoy.pil" },
   { id: "circle", ikon: Circle, labelKey: "annotering.verktoy.sirkel" },
   { id: "rect", ikon: Square, labelKey: "annotering.verktoy.firkant" },
@@ -65,11 +72,12 @@ const VERKTOYER: { id: Verktoy; ikon: typeof ArrowUpRight; labelKey: string }[] 
   { id: "text", ikon: Type, labelKey: "annotering.verktoy.tekst" },
 ];
 
-export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoteringProps) {
+export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt }: BildeAnnoteringProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { height: vindusHoyde } = useWindowDimensions();
-  const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>("arrow");
+  const startVerktoy: Verktoy = lag ? "select" : "arrow";
+  const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>(startVerktoy);
   const [bildeStatus, settBildeStatus] = useState<BildeStatus>("laster");
   const erKlar = bildeStatus === "klar";
   const webViewKlarRef = useRef(false);
@@ -143,7 +151,8 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         if (r.ok) {
           fornyerRef.current?.stopp();
           settBildeStatus("laster");
-          sendMelding({ type: "settBilde", bildeUrl: r.dataUrl });
+          sendMelding({ type: "settBilde", bildeUrl: r.dataUrl, lag: lag ?? null });
+          sendMelding({ type: "velgVerktoy", verktoy: startVerktoy });
           return;
         }
         if (r.grunn === "trengerSignatur") {
@@ -161,7 +170,7 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         settBildeStatus("feil");
       }
     },
-    [sendMelding],
+    [sendMelding, lag, startVerktoy],
   );
 
   // Tekst skrives nå DIREKTE på bildet (fabric.Textbox i den delte HTML-en) — ingen modal,
@@ -193,7 +202,7 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           await FileSystem.writeAsStringAsync(filsti, base64Data, {
             encoding: FileSystem.EncodingType.Base64,
           });
-          onFerdig(filsti);
+          onFerdig(filsti, data.lag as AnnoteringsLag);
         } else if (data.type === "scrollKorrigert") {
           // Frys-fiks (RETUR 5965e37b): WKWebView forsøkte å scrolle lerretet ved tastaturet;
           // scroll-pinnen tilbakestilte det. Dev-signal gir Kenneths telefontest en bekreftelse.

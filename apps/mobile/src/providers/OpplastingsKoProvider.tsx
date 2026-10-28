@@ -15,6 +15,14 @@ import { slettLokaltBilde } from "../services/lokalBilde";
 import { registrerBildeIDatabase, patchVedleggUrl } from "../services/bildeRegistrering";
 import { fullforVedleggUrl } from "../lib/vedleggFullforing";
 import { oppforingerAaKansellere, skalSkriveVedleggUrl, type KoOppforingRef } from "../utils/koDedup";
+import {
+  anvendOpplasting,
+  erLevendeOppforing,
+  flatUtForeldreloseOriginaler,
+  kanSletteForeldetFil,
+  type FullfortOpplasting,
+  type SqliteUtfall,
+} from "../lib/originalOpplasting";
 import { useNettverk } from "./NettverkProvider";
 import { AUTH_CONFIG } from "../config/auth";
 
@@ -35,6 +43,9 @@ export interface NyKoOppforing {
   gpsLat?: number;
   gpsLng?: number;
   gpsAktivert?: boolean;
+  /** Redigerbar annotering (2026-10-28): lokalstien til originalen laget er tegnet på. Den
+   *  oppføringen kanselleres ikke av denne — originalen må opp og blir `originalUrl`. */
+  beholdLokalSti?: string;
 }
 
 type OpplastingFullfortCallback = (
@@ -43,7 +54,10 @@ type OpplastingFullfortCallback = (
   objektId: string,
   vedleggId: string,
   serverUrl: string,
-) => void;
+  opplasting?: FullfortOpplasting,
+  // Returnerer true når skjermen tok hendelsen (vedlegget fantes i dens tilstand). Køen sletter
+  // ikke en originals lokalfil før SQLite eller en montert skjerm har tatt server-URL-en.
+) => boolean | void;
 
 // Funn #2: dedikert callback for tillegg-vedlegg (separat fra den typede
 // sjekkliste/oppgave-callbacken over) — så UI kan oppdatere «venter på
@@ -172,10 +186,19 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const publiserFullfort = useCallback(
-    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", objektId: string, vedleggId: string, serverUrl: string) => {
+    (
+      dokumentId: string,
+      dokumentType: "sjekkliste" | "oppgave",
+      objektId: string,
+      vedleggId: string,
+      serverUrl: string,
+      opplasting?: FullfortOpplasting,
+    ): boolean => {
+      let tatt = false;
       for (const cb of callbacksRef.current) {
-        cb(dokumentId, dokumentType, objektId, vedleggId, serverUrl);
+        if (cb(dokumentId, dokumentType, objektId, vedleggId, serverUrl, opplasting) === true) tatt = true;
       }
+      return tatt;
     },
     [],
   );
@@ -242,82 +265,99 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   // overlever ikke reinstall, men er den kilden visningen leser samme-install, og
   // et `false` betyr at korreksjonen ikke landet noe sted lokalt).
   const oppdaterFeltdataVedlegg = useCallback(
-    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", vedleggId: string, serverUrl: string): boolean => {
+    (
+      dokumentId: string,
+      dokumentType: "sjekkliste" | "oppgave",
+      vedleggId: string,
+      serverUrl: string,
+      opplasting?: FullfortOpplasting,
+    ): SqliteUtfall => {
       const db = hentDatabase();
-      if (!db) return false;
+      if (!db) return "ukjent";
 
       // Hent riktig tabell basert på dokumenttype
       const rader = dokumentType === "sjekkliste"
         ? db.select().from(sjekklisteFeltdata).where(eq(sjekklisteFeltdata.sjekklisteId, dokumentId)).all()
         : db.select().from(oppgaveFeltdata).where(eq(oppgaveFeltdata.oppgaveId, dokumentId)).all();
 
-      if (rader.length === 0) return false;
+      if (rader.length === 0) return "ukjent";
 
       const rad = rader[0]!;
       try {
-        const feltVerdier = JSON.parse(rad.feltVerdier) as Record<
-          string,
-          { vedlegg?: Array<{ id: string; url: string }> }
-        >;
-
-        let endret = false;
-        for (const feltId of Object.keys(feltVerdier)) {
-          const felt = feltVerdier[feltId];
-
-          // Søk i toppnivå-vedlegg
-          if (felt?.vedlegg) {
-            for (const v of felt.vedlegg) {
-              if (v.id === vedleggId) {
-                v.url = serverUrl;
-                endret = true;
-              }
-            }
-          }
-
-          // Søk i repeater-data (nestet i verdi-arrayen)
-          const verdi = (felt as Record<string, unknown> | undefined)?.verdi;
-          if (Array.isArray(verdi)) {
-            for (const raaRad of verdi as Array<Record<string, unknown>>) {
-              // Rad-id (2026-08-22): ny form { _radId, felter } eller gammel naken Record.
-              // Muterer vedlegg-url IN PLACE → hent det faktiske felt-map-objektet i begge former.
-              const rad = (raaRad && typeof raaRad === "object" && "felter" in raaRad
-                ? (raaRad as { felter: unknown }).felter
-                : raaRad) as Record<string, { vedlegg?: Array<{ id: string; url: string }> }>;
-              for (const barnId of Object.keys(rad)) {
-                const barn = rad[barnId];
-                if (!barn?.vedlegg) continue;
-                for (const v of barn.vedlegg) {
-                  if (v.id === vedleggId) {
-                    v.url = serverUrl;
-                    endret = true;
-                  }
-                }
-              }
-            }
-          }
-        }
+        const feltVerdier = JSON.parse(rad.feltVerdier) as Record<string, unknown>;
+        // Kanonisk traversering (topp-nivå + repeater-rader, begge radformer) — samme funksjoner
+        // som skjema-hookene. Returnerer samme referanse når ingenting er endret.
+        const ny = anvendOpplasting(feltVerdier, vedleggId, serverUrl, opplasting);
+        const endret = ny !== feltVerdier;
 
         if (endret) {
           if (dokumentType === "sjekkliste") {
             db.update(sjekklisteFeltdata)
-              .set({ feltVerdier: JSON.stringify(feltVerdier), erSynkronisert: false })
+              .set({ feltVerdier: JSON.stringify(ny), erSynkronisert: false })
               .where(eq(sjekklisteFeltdata.id, rad.id))
               .run();
           } else {
             db.update(oppgaveFeltdata)
-              .set({ feltVerdier: JSON.stringify(feltVerdier), erSynkronisert: false })
+              .set({ feltVerdier: JSON.stringify(ny), erSynkronisert: false })
               .where(eq(oppgaveFeltdata.id, rad.id))
               .run();
           }
         }
-        return endret;
+        return endret ? "endret" : "uendret";
       } catch (feil) {
         console.warn("Kunne ikke oppdatere feltdata-vedlegg:", feil);
-        return false;
+        return "ukjent";
       }
     },
     [],
   );
+
+  // RETUR M1: en LOKAL `originalUrl` uten levende køoppføring (fil manglet, opplasting gitt opp,
+  // oppføring borte) flates ut i SQLite og på en montert skjerm — ellers holdes hele feltet unna
+  // serveren for alltid. Kjøres ved oppstart og når en oppføring forkastes eller gir opp.
+  const ryddForeldreloseOriginaler = useCallback(() => {
+    const db = hentDatabase();
+    if (!db) return;
+    try {
+      const levende = new Set(
+        db
+          .select({ lokalSti: opplastingsKo.lokalSti, status: opplastingsKo.status, forsok: opplastingsKo.forsok })
+          .from(opplastingsKo)
+          .all()
+          .filter((r) => erLevendeOppforing(r.status, r.forsok ?? 0, MAKS_FORSOK))
+          .map((r) => r.lokalSti),
+      );
+      const kilder = [
+        { type: "sjekkliste" as const, rader: db.select().from(sjekklisteFeltdata).all().map((r) => ({ id: r.id, dokId: r.sjekklisteId, felt: r.feltVerdier })) },
+        { type: "oppgave" as const, rader: db.select().from(oppgaveFeltdata).all().map((r) => ({ id: r.id, dokId: r.oppgaveId, felt: r.feltVerdier })) },
+      ];
+      for (const { type, rader } of kilder) {
+        for (const rad of rader) {
+          if (!rad.felt.includes("originalUrl")) continue;
+          const { feltVerdier, tapte } = flatUtForeldreloseOriginaler(
+            JSON.parse(rad.felt) as Record<string, unknown>,
+            levende,
+          );
+          if (tapte.length === 0) continue;
+          const tabell = type === "sjekkliste" ? sjekklisteFeltdata : oppgaveFeltdata;
+          db.update(tabell)
+            .set({ feltVerdier: JSON.stringify(feltVerdier), erSynkronisert: false })
+            .where(eq(tabell.id, rad.id))
+            .run();
+          console.warn("[KØ] Original kom aldri opp — annotert bilde flates ut så feltet når serveren:", tapte.length);
+          for (const lokalSti of tapte) {
+            publiserFullfort(rad.dokId, type, "", "", "", { lokalSti, hendelse: "originalTapt" });
+          }
+        }
+      }
+    } catch (f) {
+      console.warn("[KØ] Opprydding av originaler feilet (ikke-kritisk):", f);
+    }
+  }, [publiserFullfort]);
+
+  useEffect(() => {
+    ryddForeldreloseOriginaler();
+  }, [ryddForeldreloseOriginaler]);
 
   const prosesserNeste = useCallback(async () => {
     console.log("[KØ] prosesserNeste kalt, erPaaNettet:", erPaaNettet, "prosesserer:", prosessererRef.current);
@@ -416,6 +456,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           .run();
         nesteForsokRef.current.delete(oppforing.id);
         oppdaterTellere();
+        ryddForeldreloseOriginaler();
         // Fila mangler → hopp til neste (rekursjon etter finally, når flagget er false).
         skalFortsetteMedNeste = true;
       } else {
@@ -513,7 +554,26 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             };
             if (!skalSkriveVedleggUrl(egen, alleForVedlegg)) {
               console.log("[KØ] Kappløp-vern: hopper over URL-skriving for foreldet oppføring (nyere annotering finnes):", oppforing.filnavn);
-              await slettLokaltBilde(oppforing.lokalSti);
+              // Redigerbar annotering (2026-10-28): var dette originalen et lag er tegnet på, peker
+              // vedleggets `originalUrl` på lokalfila — bytt den til server-URL-en (aldri `url`).
+              // Server-JSON-en får den med neste lagring av feltet; settVedleggUrl kan bare `url`.
+              const dokType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
+              const dokId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
+              const original: FullfortOpplasting = { lokalSti: oppforing.lokalSti, hendelse: "original" };
+              const iSqlite: SqliteUtfall = dokId
+                ? oppdaterFeltdataVedlegg(dokId, dokType, oppforing.vedleggId, resultat.fileUrl, original)
+                : "ukjent";
+              const skjermTok = dokId
+                ? publiserFullfort(dokId, dokType, oppforing.objektId, oppforing.vedleggId, resultat.fileUrl, original)
+                : false;
+              // M1: lokalfila slettes ikke før SQLite eller en montert skjerm har tatt server-URL-en.
+              // Vet vi ikke (ingen SQLite-rad, skjermen lukket), beholdes fila; oppryddingen flater
+              // da ut vedlegget i stedet for å la det peke på en død sti.
+              if (kanSletteForeldetFil(iSqlite, skjermTok)) {
+                await slettLokaltBilde(oppforing.lokalSti);
+              } else {
+                console.warn("[KØ] Original lastet opp, men ingen tok URL-en — beholder lokalfil:", oppforing.filnavn);
+              }
               oppdaterTellere();
             } else {
             // Registrer bildet i server-databasen (images-tabellen)
@@ -535,6 +595,9 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
             const dokumentId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
 
+            // Byttes også en lokal originalUrl som peker på samme fil (annotert før originalen
+            // rakk å bli vurdert som foreldet — vinduet mellom Ferdig og innleggingen i køen).
+            const opplastet: FullfortOpplasting = { lokalSti: oppforing.lokalSti, hendelse: "fullfort" };
             // SQLite (samme-install) → server-JSON (Funn C: også når skjermen er demontert, da
             // når publiserFullfort aldri hooken) → publiser → slett lokalfil. Rekkefølgen bor i
             // fullforVedleggUrl (testet): publiser først ETTER server-patchen, ellers kan en
@@ -543,7 +606,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             await fullforVedleggUrl({
               harDokument: !!dokumentId,
               oppdaterSqlite: () =>
-                oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl),
+                oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl, opplastet) === "endret",
               patchServer: () =>
                 patchVedleggUrl({
                   dokumentType,
@@ -553,8 +616,9 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
                   url: resultat.fileUrl,
                   filnavn: resultat.fileName,
                 }),
-              publiser: () =>
-                publiserFullfort(dokumentId, dokumentType, oppforing.objektId, oppforing.vedleggId, resultat.fileUrl),
+              publiser: () => {
+                publiserFullfort(dokumentId, dokumentType, oppforing.objektId, oppforing.vedleggId, resultat.fileUrl, opplastet);
+              },
               slettLokal: () => slettLokaltBilde(oppforing.lokalSti),
               // Feiler begge — behold fila, så raden fortsatt viser det lokale bildet.
               beholdLokal: () =>
@@ -586,6 +650,8 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
               .set({ status: "feilet", forsok, feilmelding: melding })
               .where(eq(opplastingsKo.id, oppforing.id))
               .run();
+            // Gitt opp: var dette en original et lag er tegnet på, flates vedlegget ut (M1).
+            if (forsok >= MAKS_FORSOK) ryddForeldreloseOriginaler();
           } else {
             // Nett: tilbake til 'venter' (alltid re-spørrbar, aldri permanent).
             // `forsok` vokser kun for backoff + synliggjøring av vedvarende feil (D).
@@ -617,7 +683,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     if (skalFortsetteMedNeste) {
       prosesserNeste().catch((f) => console.error("[KØ] Neste etter håndtert oppføring feilet:", f));
     }
-  }, [erPaaNettet, oppdaterTellere, oppdaterFeltdataVedlegg, publiserFullfort, fullforTilleggVedlegg, fullforUtleggVedlegg]);
+  }, [erPaaNettet, oppdaterTellere, oppdaterFeltdataVedlegg, publiserFullfort, fullforTilleggVedlegg, fullforUtleggVedlegg, ryddForeldreloseOriginaler]);
 
   // Start/stopp prosessering basert på nettverkstilstand
   useEffect(() => {
@@ -665,12 +731,19 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             vedleggId: opplastingsKo.vedleggId,
             status: opplastingsKo.status,
             opprettet: opplastingsKo.opprettet,
+            lokalSti: opplastingsKo.lokalSti,
           })
           .from(opplastingsKo)
           .where(eq(opplastingsKo.vedleggId, oppforing.vedleggId))
           .all()
-          .map((r) => ({ id: r.id, vedleggId: r.vedleggId ?? "", status: r.status ?? "", opprettet: r.opprettet ?? 0 }));
-        const kanseller = oppforingerAaKansellere(oppforing.vedleggId, eksisterende);
+          .map((r) => ({
+            id: r.id,
+            vedleggId: r.vedleggId ?? "",
+            status: r.status ?? "",
+            opprettet: r.opprettet ?? 0,
+            lokalSti: r.lokalSti,
+          }));
+        const kanseller = oppforingerAaKansellere(oppforing.vedleggId, eksisterende, oppforing.beholdLokalSti);
         for (const id of kanseller) {
           db.delete(opplastingsKo).where(eq(opplastingsKo.id, id)).run();
         }

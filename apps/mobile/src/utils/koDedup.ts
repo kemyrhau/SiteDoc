@@ -21,6 +21,8 @@ export interface KoOppforingRef {
   status: string;
   /** `opprettet`-tidsstempel (ms). Nyere = høyere. */
   opprettet: number;
+  /** Lokal fil oppføringen laster opp. Trengs bare for `beholdLokalSti`. */
+  lokalSti?: string;
 }
 
 /** En oppføring som pågår akkurat nå kan ikke trygt slettes (den er lest inn i minnet). */
@@ -32,14 +34,22 @@ const FULLFORT = "fullfort";
  * settes inn: alle eksisterende for samme vedlegg som verken er fullført eller pågår. Den
  * vanligste er en original som fortsatt venter i kø når brukeren annoterer bildet. Pågående
  * («laster_opp») røres ikke her — `skalSkriveVedleggUrl` hindrer at den vinner ved fullføring.
+ * `beholdLokalSti`: originalen til en redigerbar annotering kanselleres ikke.
  */
 export function oppforingerAaKansellere(
   vedleggId: string,
   eksisterende: KoOppforingRef[],
+  beholdLokalSti?: string,
 ): string[] {
   return eksisterende
     .filter(
-      (o) => o.vedleggId === vedleggId && o.status !== FULLFORT && o.status !== PAGAAR,
+      (o) =>
+        o.vedleggId === vedleggId &&
+        o.status !== FULLFORT &&
+        o.status !== PAGAAR &&
+        // Redigerbar annotering (2026-10-28): originalen som laget er tegnet på skal opp — den
+        // blir `originalUrl` når den er ferdig (skriver aldri `url`, se skalSkriveVedleggUrl).
+        (beholdLokalSti === undefined || o.lokalSti !== beholdLokalSti),
     )
     .map((o) => o.id);
 }

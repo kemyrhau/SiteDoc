@@ -18,6 +18,7 @@ import { TegningsSkjermbilde } from "../TegningsSkjermbilde";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import { erServerVedleggUrl } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../../config/auth";
+import { annoteringsApning, byggMobilAnnotering, type AnnoteringsFelter } from "../../lib/annoteringLagring";
 
 // Et vedlegg med lokal URL er ikke lastet opp ennå (køen har ikke gitt det en
 // server-URL). Speiler `erLokalUrl` i useSjekklisteSkjema.
@@ -31,7 +32,7 @@ interface FeltDokumentasjonProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
-  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string) => void;
+  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string, annotering?: AnnoteringsFelter) => void;
   onFlyttVedlegg?: (vedleggId: string, retning: "opp" | "ned") => void;
   leseModus?: boolean;
   sjekklisteId?: string;
@@ -282,7 +283,7 @@ export function FeltDokumentasjon({
 
   const håndterAnnoter = useCallback(() => {
     if (!valgtVedlegg || valgtVedlegg.type !== "bilde") return;
-    settAnnoteringBilde(valgtVedlegg.url);
+    settAnnoteringBilde(annoteringsApning(valgtVedlegg).kilde);
   }, [valgtVedlegg]);
 
   return (
@@ -574,15 +575,22 @@ export function FeltDokumentasjon({
             // Levende URL (RETUR svart gjenåpning): rett etter opplasting er vedleggets URL rå
             // (401); når data er hentet på nytt bærer valgtVedlegg den signerte — BildeAnnotering
             // laster den da. Øyeblikksbildet er reserve hvis vedlegget skulle forsvinne.
-            bildeUri={valgtVedlegg?.url ?? annoteringBilde}
-            onFerdig={async (annotert) => {
+            // Redigerbar annotering (2026-10-28): med lag åpnes ORIGINALEN og laget legges på den;
+            // uten lag det innbrente bildet (annotert før laget fantes). Kilden følger vedlegget
+            // levende, så en rå URL byttes med den signerte når data er hentet på nytt.
+            bildeUri={valgtVedlegg ? annoteringsApning(valgtVedlegg).kilde : annoteringBilde}
+            lag={valgtVedlegg ? annoteringsApning(valgtVedlegg).lag : undefined}
+            onFerdig={async (annotert, lag) => {
               settAnnoteringBilde(null);
-              if (valgtVedleggId && onErstattVedlegg) {
+              if (valgtVedlegg && valgtVedleggId && onErstattVedlegg) {
                 // Erstatt original med annotert bilde (unngår duplikat). .jpg — annoteringen
                 // eksporteres nå som JPEG (annoterings-html.ts), ikke PNG (BACKLOG-772).
                 const filnavn = `annotert_${Date.now()}.jpg`;
                 const lokalSti = await lagreLokaltBilde(annotert, filnavn);
-                onErstattVedlegg(valgtVedleggId, lokalSti, filnavn);
+                // Laget + originalen lagres som på web; en lokal original (ikke oppe ennå) holdes i
+                // køen og blir originalUrl når den er lastet opp.
+                const { felter, beholdLokalSti } = byggMobilAnnotering(valgtVedlegg, lokalSti, lag);
+                onErstattVedlegg(valgtVedleggId, lokalSti, filnavn, felter);
                 // Legg i opplastingskø med samme vedlegg-ID
                 const filstorrelse = await hentFilstorrelse(lokalSti);
                 await leggIKoRef.current({
@@ -595,6 +603,7 @@ export function FeltDokumentasjon({
                   mimeType: "image/jpeg",
                   filstorrelse,
                   gpsAktivert: false,
+                  beholdLokalSti,
                 });
                 settValgtVedleggId(null);
               } else {

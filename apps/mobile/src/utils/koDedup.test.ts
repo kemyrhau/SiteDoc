@@ -27,6 +27,12 @@ describe("oppforingerAaKansellere — originalen kanselleres når annoteringen l
     expect(oppforingerAaKansellere("V", [pagaar])).toEqual([]);
   });
 
+  it("redigerbar annotering: originalen laget er tegnet på (beholdLokalSti) kanselleres IKKE — en tidligere annotering gjør", () => {
+    const orig: KoOppforingRef = { ...original, lokalSti: "file:///o.jpg" };
+    const forrigeAnnotering: KoOppforingRef = { id: "b", vedleggId: "V", status: "venter", opprettet: 200, lokalSti: "file:///a1.jpg" };
+    expect(oppforingerAaKansellere("V", [orig, forrigeAnnotering], "file:///o.jpg")).toEqual(["b"]);
+  });
+
   it("rører IKKE en alt fullført oppføring", () => {
     const fullfort: KoOppforingRef = { ...original, status: "fullfort" };
     expect(oppforingerAaKansellere("V", [fullfort])).toEqual([]);

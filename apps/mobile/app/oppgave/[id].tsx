@@ -1108,7 +1108,7 @@ export default function OppgaveDetalj() {
               onEndreKommentar={(k) => settKommentar(objekt.id, k)}
               onLeggTilVedlegg={(v) => leggTilVedlegg(objekt.id, v)}
               onFjernVedlegg={(vId) => fjernVedlegg(objekt.id, vId)}
-              onErstattVedlegg={(vId, nyUrl, nyttFilnavn) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn)}
+              onErstattVedlegg={(vId, nyUrl, nyttFilnavn, annotering) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn, annotering)}
               onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
               vedleggLaast={vedleggLaast}

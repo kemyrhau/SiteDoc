@@ -10,7 +10,9 @@ import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signer
 import { klassifiserLagreFeil } from "../utils/lagreFeil";
 import { useAuth } from "../providers/AuthProvider";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, bevarOriginalUrl, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg,  erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
+import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
+import { anvendOpplasting } from "../lib/originalOpplasting";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -77,7 +79,7 @@ export interface UseOppgaveSkjemaResultat {
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
-  erstattVedlegg: (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string) => void;
+  erstattVedlegg: (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string, annotering?: AnnoteringsFelter) => void;
   flyttVedlegg: (objektId: string, vedleggId: string, retning: "opp" | "ned") => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
   /** Append-only: felt med server-bekreftet verdi er låst for verdi-endring */
@@ -399,15 +401,19 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   // Lytt på opplastingsfullføringer — oppdater vedlegg-URL i minnet
   useEffect(() => {
     const avregistrer = registrerCallback(
-      (dokumentId, dokumentType, _objektId, vedleggId, serverUrl) => {
-        if (dokumentType !== "oppgave" || dokumentId !== oppgaveId) return;
+      (dokumentId, dokumentType, _objektId, vedleggId, serverUrl, opplasting) => {
+        if (dokumentType !== "oppgave" || dokumentId !== oppgaveId) return false;
 
-        // Kanonisk vedlegg-URL-oppdatering (topp-nivå + repeater-rader, begge
-        // radformer). Den gamle hånd-traverseringen traff ALDRI repeater-vedlegg
-        // i `{ _radId, felter }`-form. Se `@sitedoc/shared` repeaterRad.ts.
-        settFeltVerdier((prev) => settVedleggUrlIDokument(prev, vedleggId, serverUrl));
+        // Kanonisk vedlegg-oppdatering (topp-nivå + repeater-rader, begge radformer — se
+        // `@sitedoc/shared` repeaterRad.ts). Én regel for SQLite og skjerm: `anvendOpplasting`
+        // (url, en lokal originalUrl som byttes, eller utflating når originalen er tapt).
+        // Returverdien sier om skjermen tok hendelsen: køen sletter ikke en originals lokalfil
+        // før SQLite eller en montert skjerm har tatt server-URL-en (RETUR M1).
+        const tok = anvendOpplasting(feltVerdierRef.current, vedleggId, serverUrl, opplasting) !== feltVerdierRef.current;
+        settFeltVerdier((prev) => anvendOpplasting(prev, vedleggId, serverUrl, opplasting));
         // Trigger server-synk slik at oppdatert URL lagres i PostgreSQL
         planleggLagringRef.current?.();
+        return tok;
       },
     );
     return avregistrer;
@@ -647,24 +653,16 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   );
 
   const erstattVedlegg = useCallback(
-    (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string) => {
+    (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string, annotering?: AnnoteringsFelter) => {
       settFeltVerdier((prev) => {
         const nåværende = prev[objektId] ?? TOM_FELTVERDI;
         return {
           ...prev,
           [objektId]: {
             ...nåværende,
+            // Ikke-destruktivt (funn d) + lag og original fra annoteringsflaten (2026-10-28).
             vedlegg: nåværende.vedlegg.map((v) =>
-              v.id === vedleggId
-                ? {
-                    ...v,
-                    url: nyUrl,
-                    filnavn: nyttFilnavn,
-                    // Ikke-destruktivt (funn d): bevar den opprinnelige server-URL-en så visningen
-                    // aldri står uten kilde om den annoterte URL-en blir utilgjengelig.
-                    originalUrl: bevarOriginalUrl(v.originalUrl, v.url),
-                  }
-                : v,
+              v.id === vedleggId ? erstattetVedlegg(v, nyUrl, nyttFilnavn, annotering) : v,
             ),
           },
         };

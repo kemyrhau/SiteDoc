@@ -6,7 +6,7 @@ export { vaerkodeTilTekst, finnVaerTimeIndeks, byggVaerSnapshot } from "./vaer";
 export type { VaerHourly, VaerSnapshot } from "./vaer";
 export { nesteBildeNr, nummererRepeaterBilder, leggTilVedleggIRad } from "./bildeNr";
 export { erLokalVedleggUrl, erServerVedleggUrl, bevarOriginalUrl, vedleggSignatur, vedleggEndret, harLokaltVedlegg, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg } from "./vedleggLokal";
-export { feltKartFraRad, medFeltKart, settVedleggUrlIDokument } from "./repeaterRad";
+export { feltKartFraRad, medFeltKart, settVedleggUrlIDokument, settOriginalUrlIDokument, flatUtOriginaler } from "./repeaterRad";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
 export { hentStatusHandlinger, hentPosisjonFiltrertHandlinger } from "./statusHandlinger";
