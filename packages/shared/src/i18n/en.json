@@ -3387,6 +3387,8 @@
   "felt.tegning": "Drawing",
   "felt.annoter": "Annotate",
   "annotering.tittel": "Annotate image",
+  "annotering.lasterBilde": "Loading image …",
+  "annotering.bildeFeil": "The image could not be opened. Close and try again in a moment.",
   "annotering.verktoy.pil": "Arrow",
   "annotering.verktoy.sirkel": "Circle",
   "annotering.verktoy.firkant": "Rectangle",

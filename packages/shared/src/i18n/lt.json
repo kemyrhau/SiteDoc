@@ -3387,6 +3387,8 @@
   "felt.tegning": "Piešimas",
   "felt.annoter": "Anotuoti",
   "annotering.tittel": "Komentuoti vaizdą",
+  "annotering.lasterBilde": "Įkeliamas vaizdas…",
+  "annotering.bildeFeil": "Vaizdo atidaryti nepavyko. Uždarykite ir po akimirkos bandykite dar kartą.",
   "annotering.verktoy.pil": "Rodyklė",
   "annotering.verktoy.sirkel": "Apskritimas",
   "annotering.verktoy.firkant": "Stačiakampis",

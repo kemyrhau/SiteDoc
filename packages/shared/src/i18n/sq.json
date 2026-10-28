@@ -3387,6 +3387,8 @@
   "felt.tegning": "Vizatim",
   "felt.annoter": "Shëno",
   "annotering.tittel": "Shëno imazhin",
+  "annotering.lasterBilde": "Po ngarkohet imazhi…",
+  "annotering.bildeFeil": "Imazhi nuk mund të hapej. Mbylle dhe provo sërish pas një momenti.",
   "annotering.verktoy.pil": "Shigjeta",
   "annotering.verktoy.sirkel": "Rretho",
   "annotering.verktoy.firkant": "Drejtkëndësh",

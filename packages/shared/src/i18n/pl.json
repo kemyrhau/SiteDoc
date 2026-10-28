@@ -3387,6 +3387,8 @@
   "felt.tegning": "Rysunek",
   "felt.annoter": "Komentować",
   "annotering.tittel": "Dodaj komentarz do obrazu",
+  "annotering.lasterBilde": "Ładowanie obrazu…",
+  "annotering.bildeFeil": "Nie można otworzyć obrazu. Zamknij i spróbuj ponownie za chwilę.",
   "annotering.verktoy.pil": "Strzałka",
   "annotering.verktoy.sirkel": "Koło",
   "annotering.verktoy.firkant": "Prostokąt",

@@ -3387,6 +3387,8 @@
   "felt.tegning": "Dessin",
   "felt.annoter": "Annoter",
   "annotering.tittel": "Annoter l'image",
+  "annotering.lasterBilde": "Chargement de l'image…",
+  "annotering.bildeFeil": "L'image n'a pas pu être ouverte. Fermez et réessayez dans un instant.",
   "annotering.verktoy.pil": "Flèche",
   "annotering.verktoy.sirkel": "Cercle",
   "annotering.verktoy.firkant": "Rectangle",

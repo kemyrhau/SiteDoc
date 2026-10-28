@@ -3387,6 +3387,8 @@
   "felt.tegning": "Рисунок",
   "felt.annoter": "Аннотировать",
   "annotering.tittel": "Аннотировать изображение",
+  "annotering.lasterBilde": "Загрузка изображения…",
+  "annotering.bildeFeil": "Изображение не удалось открыть. Закройте и повторите попытку через минуту.",
   "annotering.verktoy.pil": "Стрелка",
   "annotering.verktoy.sirkel": "Круг",
   "annotering.verktoy.firkant": "Прямоугольник",

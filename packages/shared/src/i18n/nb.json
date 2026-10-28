@@ -3387,6 +3387,8 @@
   "felt.tegning": "Tegning",
   "felt.annoter": "Annoter",
   "annotering.tittel": "Annoter bilde",
+  "annotering.lasterBilde": "Laster bildet …",
+  "annotering.bildeFeil": "Bildet kunne ikke åpnes. Lukk og prøv igjen om litt.",
   "annotering.verktoy.pil": "Pil",
   "annotering.verktoy.sirkel": "Sirkel",
   "annotering.verktoy.firkant": "Firkant",

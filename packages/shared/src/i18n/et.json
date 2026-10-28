@@ -3387,6 +3387,8 @@
   "felt.tegning": "Joonistamine",
   "felt.annoter": "Annoteerida",
   "annotering.tittel": "Märkige pilt",
+  "annotering.lasterBilde": "Pildi laadimine …",
+  "annotering.bildeFeil": "Pilti ei saanud avada. Sulgege ja proovige hetke pärast uuesti.",
   "annotering.verktoy.pil": "Nool",
   "annotering.verktoy.sirkel": "Ring",
   "annotering.verktoy.firkant": "Ristkülik",

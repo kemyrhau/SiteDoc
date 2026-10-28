@@ -1167,7 +1167,14 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   }
 
   window.settBilde = function(bildeUrl, lag) {
-    fabric.Image.fromURL(bildeUrl, function(img) {
+    fabric.Image.fromURL(bildeUrl, function(img, erFeil) {
+      // RETUR svart gjenåpning (2026-10-28): et bilde som ikke lar seg dekode (f.eks. et 401-svar
+      // sendt som data-URL) ga før et helt svart lerret uten feil. Nå meldes det til verten, som
+      // viser en forståelig feil. Et bilde uten mål regnes også som feil (ellers skala = Infinity).
+      if (erFeil || !img || !img.width || !img.height) {
+        postTilVert({ type: 'bildeFeil' });
+        return;
+      }
       originalBredde = img.width;
       originalHoyde = img.height;
 
@@ -1215,9 +1222,11 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
               objekter.push(o);
             });
             canvas.renderAll();
+            postTilVert({ type: 'bildeLastet' });
           });
         } else {
           canvas.renderAll();
+          postTilVert({ type: 'bildeLastet' });
         }
       });
     });

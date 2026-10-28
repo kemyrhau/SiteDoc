@@ -3387,6 +3387,8 @@
   "felt.tegning": "Zeichnung",
   "felt.annoter": "Kommentieren",
   "annotering.tittel": "Bild kommentieren",
+  "annotering.lasterBilde": "Bild wird geladen …",
+  "annotering.bildeFeil": "Das Bild konnte nicht geöffnet werden. Schließen Sie und versuchen Sie es gleich noch einmal.",
   "annotering.verktoy.pil": "Pfeil",
   "annotering.verktoy.sirkel": "Kreis",
   "annotering.verktoy.firkant": "Rechteck",

@@ -15,6 +15,16 @@ import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
 import { lagAnnoteringsHtml, annoteringsflateHoyde } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../config/auth";
+import { trpc } from "../lib/trpc";
+import { lastAnnoteringsbilde } from "../lib/annoteringsKilde";
+
+// RETUR svart gjenåpning: en rå/utløpt server-URL fornyes ved å hente data på nytt (samme
+// mekanisme som AutentisertBilde). Gir ikke det en signert URL innen fristen, vises en feil.
+const MAKS_FORNYELSER = 3;
+const FORNY_FRIST_MS = 8_000;
+
+/** Bildets tilstand i flaten. Ferdig er bare aktiv når bildet faktisk er lastet. */
+type BildeStatus = "laster" | "fornyer" | "klar" | "feil";
 
 // Mobil forankrer bildet ØVERST (befaring-funn A): fast posisjon rett under
 // overskriften, bildet står stille med og uten tastatur. Web bruker standarden
@@ -36,6 +46,10 @@ const STANDARD_TASTATUR = Platform.OS === "ios" ? 336 : 300;
 let sisteMalteTastaturHoyde: number | null = null;
 
 interface BildeAnnoteringProps {
+  /**
+   * Bildet som annoteres. Kan endre seg mens flaten er åpen: en rå server-URL (rett etter
+   * opplasting) byttes ut med den signerte når data er hentet på nytt — da lastes den.
+   */
   bildeUri: string;
   onFerdig: (annotertBildeUri: string) => void;
   onAvbryt: () => void;
@@ -56,7 +70,11 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
   const insets = useSafeAreaInsets();
   const { height: vindusHoyde } = useWindowDimensions();
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>("arrow");
-  const [erKlar, settErKlar] = useState(false);
+  const [bildeStatus, settBildeStatus] = useState<BildeStatus>("laster");
+  const erKlar = bildeStatus === "klar";
+  const webViewKlarRef = useRef(false);
+  const fornyelserRef = useRef(0);
+  const utils = trpc.useUtils();
   // Frys-fiks (orkestrator 2026-10-21): vis «Lagrer …» og deaktiver knappen FØR eksporten,
   // så brukeren ser at appen jobber mens den synkrone toDataURL kjører i WebView-en.
   const [lagrer, settLagrer] = useState(false);
@@ -101,6 +119,39 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
     [sendMelding],
   );
 
+  // Hent bildet og send det til WebView-en. Kilden avgjøres i lastAnnoteringsbilde (testet): lokal
+  // fil leses, gyldig-signert server-URL lastes ned MED statussjekk, rå/utløpt URL fornyes først.
+  const lastBilde = useCallback(
+    async (uri: string) => {
+      try {
+        const r = await lastAnnoteringsbilde(uri, {
+          apiUrl: AUTH_CONFIG.apiUrl,
+          cacheDir: FileSystem.cacheDirectory ?? "",
+          finnes: async (sti) => (await FileSystem.getInfoAsync(sti)).exists,
+          lastNed: (url, tilSti) => FileSystem.downloadAsync(url, tilSti),
+          lesBase64: (sti) => FileSystem.readAsStringAsync(sti, { encoding: FileSystem.EncodingType.Base64 }),
+        });
+        if (r.ok) {
+          settBildeStatus("laster");
+          sendMelding({ type: "settBilde", bildeUrl: r.dataUrl });
+          return;
+        }
+        if (r.grunn === "trengerSignatur" && fornyelserRef.current < MAKS_FORNYELSER) {
+          fornyelserRef.current += 1;
+          settBildeStatus("fornyer");
+          void utils.invalidate();
+          return;
+        }
+        if (__DEV__) console.log(`[annotering] bildet kunne ikke lastes: ${r.grunn}${r.status ? ` (${r.status})` : ""}`);
+        settBildeStatus("feil");
+      } catch (feil) {
+        if (__DEV__) console.log("[annotering] bildehenting feilet:", feil);
+        settBildeStatus("feil");
+      }
+    },
+    [sendMelding, utils],
+  );
+
   // Tekst skrives nå DIREKTE på bildet (fabric.Textbox i den delte HTML-en) — ingen modal,
   // ingen tekstInput/plasserTekst-meldinger over broen. WebView-tastaturet åpnes når
   // tekstboksen går i redigering.
@@ -109,18 +160,13 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
       try {
         const data = JSON.parse(e.nativeEvent.data);
         if (data.type === "klar") {
-          settErKlar(true);
-          let lokalSti = bildeUri;
-          // Server-URL → last ned til lokal fil først
-          if (bildeUri.startsWith("/") || bildeUri.startsWith("http")) {
-            const fullUrl = bildeUri.startsWith("/") ? `${AUTH_CONFIG.apiUrl}${bildeUri}` : bildeUri;
-            lokalSti = `${FileSystem.cacheDirectory}annoterings_kilde_${Date.now()}.jpg`;
-            await FileSystem.downloadAsync(fullUrl, lokalSti);
-          }
-          const base64 = await FileSystem.readAsStringAsync(lokalSti, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          sendMelding({ type: "settBilde", bildeUrl: `data:image/jpeg;base64,${base64}` });
+          webViewKlarRef.current = true;
+          await lastBilde(bildeUri);
+        } else if (data.type === "bildeLastet") {
+          settBildeStatus("klar");
+        } else if (data.type === "bildeFeil") {
+          // Bildet lot seg ikke dekode i WebView-en — aldri et stille svart lerret.
+          settBildeStatus("feil");
         } else if (data.type === "ferdig" && data.dataUrl) {
           // Dev-logg av eksportstørrelse + tid (orkestrator iv) — gir Kenneths telefontest tall.
           if (__DEV__) {
@@ -146,8 +192,22 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
         settLagrer(false);
       }
     },
-    [bildeUri, sendMelding, onFerdig],
+    [bildeUri, onFerdig, lastBilde],
   );
+
+  // En fornyet (signert) URL fra kallstedet mens vi venter → last den.
+  useEffect(() => {
+    if (webViewKlarRef.current && bildeStatus === "fornyer") void lastBilde(bildeUri);
+    // Bare når URI-en endres; lastBilde selv styrer status.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bildeUri]);
+
+  // Kom det ingen signert URL innen fristen → synlig feil (ikke evig «laster»).
+  useEffect(() => {
+    if (bildeStatus !== "fornyer") return;
+    const frist = setTimeout(() => settBildeStatus((s) => (s === "fornyer" ? "feil" : s)), FORNY_FRIST_MS);
+    return () => clearTimeout(frist);
+  }, [bildeStatus]);
 
   return (
     <View
@@ -197,6 +257,18 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           onMessage={håndterMelding}
           allowFileAccess
         />
+        {/* RETUR svart gjenåpning: flaten er aldri svart uten forklaring. Mens bildet hentes står
+            «Laster bildet …»; feiler det, en forståelig feil (Ferdig er deaktivert til bildet er lastet). */}
+        {bildeStatus !== "klar" && (
+          <View
+            pointerEvents="none"
+            className="absolute inset-0 items-center justify-center bg-black px-8"
+          >
+            <Text className={`text-center text-base ${bildeStatus === "feil" ? "text-white" : "text-gray-400"}`}>
+              {bildeStatus === "feil" ? t("annotering.bildeFeil") : t("annotering.lasterBilde")}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Svart fyll ned til verktøylinja — denne sonen dekkes av tastaturet når det er fremme. */}

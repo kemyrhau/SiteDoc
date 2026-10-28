@@ -3387,6 +3387,8 @@
   "felt.tegning": "Ritning",
   "felt.annoter": "Kommentera",
   "annotering.tittel": "Anteckna bild",
+  "annotering.lasterBilde": "Laddar bild …",
+  "annotering.bildeFeil": "Bilden kunde inte öppnas. Stäng och försök igen om ett ögonblick.",
   "annotering.verktoy.pil": "Pil",
   "annotering.verktoy.sirkel": "Cirkel",
   "annotering.verktoy.firkant": "Rektangel",

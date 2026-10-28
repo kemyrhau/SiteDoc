@@ -3387,6 +3387,8 @@
   "felt.tegning": "Piirustus",
   "felt.annoter": "Merkitse",
   "annotering.tittel": "Merkitse kuva",
+  "annotering.lasterBilde": "Ladataan kuvaa…",
+  "annotering.bildeFeil": "Kuvaa ei voitu avata. Sulje ja yritä hetken kuluttua uudelleen.",
   "annotering.verktoy.pil": "Nuoli",
   "annotering.verktoy.sirkel": "Ympyrä",
   "annotering.verktoy.firkant": "Suorakulmio",
