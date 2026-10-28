@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ANNOTERINGS_HTML, lagAnnoteringsHtml } from "./annoterings-html";
 import { FABRIC_CDN_STI } from "./lag";
-import { TEKST_TAP_TERSKEL } from "./plassering";
+import { TEKST_TAP_TERSKEL, FORM_TREFF_TOLERANSE } from "./plassering";
 
 /**
  * Tegnelogikken bor i en HTML-streng (kan ikke enhets-testes med canvas), så disse
@@ -340,6 +340,82 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
       expect(ANNOTERINGS_HTML).toContain(
         "o.set({ evented: true, selectable: (aktivtVerktoy === 'select' || aktivtVerktoy === 'text') });",
       );
+    });
+  });
+
+  // ── Velg alle objekter (Kenneth 2026-10-28) ── beslutningslogikken er enhets-testet i
+  // plassering.test.ts (tvillingene); her vokter vi at HTML-en bruker dem og at koden er gyldig.
+  describe("Velg alle objekter — trykk velger, dra på valgt flytter, håndtak endrer", () => {
+    it("inline-JS-en er gyldig syntaks (en backtick eller dollar-klamme i en kommentar ville brekke den)", () => {
+      const m = ANNOTERINGS_HTML.match(/<script>\n([\s\S]*?)<\/script>/);
+      expect(m).not.toBeNull();
+      expect(() => new Function(m![1]!)).not.toThrow();
+    });
+
+    it("treff-toleransen er interpolert fra plassering.ts (tvilling), ikke hardkodet", () => {
+      expect(ANNOTERINGS_HTML).toContain(`var FORM_TREFF_TOLERANSE = ${FORM_TREFF_TOLERANSE};`);
+    });
+
+    it("inliner tvillingene objektTrykkHandling og avstandTilForm", () => {
+      expect(ANNOTERINGS_HTML).toContain("function objektTrykkHandling(p)");
+      expect(ANNOTERINGS_HTML).toContain("function avstandTilForm(p, g)");
+      expect(ANNOTERINGS_HTML).toContain("if (p.valgtType === 'form') return 'fjern-valg';");
+    });
+
+    it("former treffes på streken via finnTreff/formGeometri (ikke rammeboksen)", () => {
+      expect(ANNOTERINGS_HTML).toContain("if (avstandTilForm(p, formGeometri(o)) <= t) return o;");
+    });
+
+    it("gesten starter på det valgte objektet → Fabric eier draget (flytt/håndtak)", () => {
+      expect(ANNOTERINGS_HTML).toContain("canvas.on('mouse:down:before'");
+      expect(ANNOTERINGS_HTML).toContain("if (valgtVedStart && opt.target === valgtVedStart && opt.transform &&");
+    });
+
+    it("bare det valgte objektet er aktivt; frihånd-modus av mens noe er valgt", () => {
+      expect(ANNOTERINGS_HTML).toContain("var kan = !!flyttbar || (!!canvas && o === canvas.getActiveObject());");
+      expect(ANNOTERINGS_HTML).toContain("canvas.isDrawingMode = (aktivtVerktoy === 'draw' && !canvas.getActiveObject());");
+      expect(ANNOTERINGS_HTML).toContain("canvas.on('selection:cleared', etterValgEndring);");
+    });
+
+    it("håndtak på telefon: synlig 14, treffflate 44, ingen rotasjon utenfor web-«Flytt»", () => {
+      expect(ANNOTERINGS_HTML).toContain("function klargjørForm(o)");
+      expect(ANNOTERINGS_HTML).toContain("lockRotation: !iVelg,");
+      expect(ANNOTERINGS_HTML).toContain(
+        "o.setControlsVisibility({ tl: true, tr: true, bl: true, br: true, ml: true, mr: true, mt: true, mb: true, mtr: false });",
+      );
+    });
+
+    it("pil: to endepunkt-håndtak som bygger pila på nytt med byggPil (og beholder streken)", () => {
+      expect(ANNOTERINGS_HTML).toContain("o.controls = { fra: lagPilKontroll('fra'), til: lagPilKontroll('til') };");
+      expect(ANNOTERINGS_HTML).toContain("pilDra.forh = byggPil(pilDra.nyFra, pilDra.nyTil, pilDra.strek);");
+      expect(ANNOTERINGS_HTML).toContain("historikk.push({ type: 'erstattet', gammel: d.gammel, ny: ny });");
+    });
+
+    it("frihånd: trykk fjerner mikrostrøket; dra fra valg starter strøket i samme gest", () => {
+      expect(ANNOTERINGS_HTML).toContain("if (dh !== 'tegn' && gSti) fjernMikrostrok(gSti);");
+      expect(ANNOTERINGS_HTML).toContain("canvas._onMouseDownInDrawingMode(opt.e)");
+    });
+
+    it("strek konstant ved skalering: strokeUniform med gjeldende skala brettet inn", () => {
+      expect(ANNOTERINGS_HTML).toContain("b.set({ strokeWidth: b.strokeWidth * s * bs, strokeUniform: true });");
+      expect(ANNOTERINGS_HTML).toContain("tr.action.indexOf('scale') === 0) gjorStrekUniform(o);");
+    });
+
+    it("reskalering: strokeUniform-objekter får strokeWidth × ratio (tvilling reskalerLagObjekt)", () => {
+      expect(ANNOTERINGS_HTML).toContain(
+        "if (o.strokeUniform && typeof o.strokeWidth === 'number') o.set('strokeWidth', o.strokeWidth * ratio);",
+      );
+    });
+
+    it("angre omfatter flytt og størrelse (endret-handling fra before:transform/object:modified)", () => {
+      expect(ANNOTERINGS_HTML).toContain("canvas.on('before:transform'");
+      expect(ANNOTERINGS_HTML).toContain("historikk.push({ type: 'endret', obj: mo, for: forTilstand.tilstand });");
+      expect(ANNOTERINGS_HTML).toContain("settTilstand(h.obj, h.for);");
+    });
+
+    it("gjenåpnede former får håndtak (klargjørForm) og web-«Flytt» er beholdt", () => {
+      expect(ANNOTERINGS_HTML).toContain("if (o.type === 'textbox') klargjørTekstboks(o); else klargjørForm(o);");
+      expect(ANNOTERINGS_HTML).toContain("canvas.selection = iVelg;");
     });
   });
 });
