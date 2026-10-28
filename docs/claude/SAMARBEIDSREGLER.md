@@ -1,9 +1,12 @@
-# Samarbeidsregler — roller, meldingsflyt, commit-orden
+# Samarbeidsregler — roller, meldingsflyt, gate og merge
 
-> Fasit for hvem gjør hva på tvers av Cowork-økter på SiteDoc. Formål:
-> unngå kollisjon mellom kode-økter + holde orden på commits. Detaljerte
-> kjøreregler i [parallell-arbeid-lock.md]. **Les ved SESJONSSTART** — ikke
-> først når du skal instruere noen.
+> Fasit for hvem gjør hva mellom agentøktene på SiteDoc. **Les § 0 og § 0b ved sesjonsstart**, deretter
+> tavla i [STATUS-AKTUELT.md](STATUS-AKTUELT.md). Treoversikt og frossen sone: [parallell-arbeid-lock.md](parallell-arbeid-lock.md).
+>
+> **Navn:** *orkestrator* er rollen som tidligere het «cowork» og «kontroll-Claude». *Fabel* er rollen som en
+> periode (18.09–06.10) het «design». Eldre filer, ordrer og historikk bruker de gamle navnene; reglene her
+> gjelder rollen uansett navn. *Renset 2026-10-28: historikk og motstridende eldre ordlyd er fjernet — git
+> har historien.*
 
 ## § 0 — KENNETHS FORVENTNINGER (2026-09-28)
 
@@ -29,361 +32,273 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
 - 🔴 **Spør når Kenneth er uklar.** *«ikke gjett hva jeg sier for så å kode i vei → forstå
   grunnleggende hensikt, spør meg når min tolkning kan gå flere veier eller har flere betydninger.»*
 - 🔴 **FØLG MASTERPLANEN I TILLEGG TIL Å FIKSE FEIL SOM OPPDAGES.** *(Kenneth 2026-09-30.)*
-  ⚠️ **Feltfunn skal ikke fortrenge planen — begge spor går.** **Måling samme dag: 80 commits på
-  develop siste tre døgn ga 2 `feat` mot 13 `docs(samarbeid)`, og ni merge-runder gikk til ÉN
-  funksjon.** 🔴 **En uke der planen ikke flyttet seg, er en uke som skal forklares — ikke en uke
-  som forsvinner i fikser.**
+  Feltfunn skal ikke fortrenge planen — begge spor går (§ 3). En uke der planen ikke flyttet seg, skal
+  forklares.
 - 🔴 **ÉN GATE, ÉN MELDING, INGEN SMÅTURER — hver runde koster Kenneth usage** *(Kenneth 2026-10-06/07).*
-  1. **Én gate pr. leveranse, hos bestilleren.** Mal → Fabel (innhold + teknikk på agentens regel 10-tall). Kode-ordre
-     fra orkestrator → Kontrollør. Den som ikke bestilte, gater ikke; orkestrator merger mekanisk på «klar for merge».
-  2. **Gate i én melding:** GATET, eller én komplett vilkårsliste. Ny runde kun når et vilkår ikke er lukket.
+  1. **Én gate pr. leveranse, hos bestilleren** (§ 5). Mal/spec → Fabel. Kode → Kontrollør. Den som ikke
+     bestilte, gater ikke; orkestrator merger mekanisk på «klar for merge».
+  2. **Gate i én melding:** GODKJENT, eller én komplett vilkårsliste. Ny runde kun når et vilkår ikke er lukket.
   3. **Mål aldri det samme to ganger.** `fil:linje` er målt — stikkprøv bare påstander uten referanse.
   4. **Regel 10 re-kjøres uavhengig bare der feil koster lønn/data** (migrering, `syncBatch`, attestering, eksport).
-  5. **Bestilleren skriver rett i `relay/inbox-<agent>.md`**, orkestrator i kopi med «merge uten ny gate».
+  5. **Bestilleren skriver posten i `relay/inbox-<agent>.md`**; orkestrator får kopi og sender nudgen (§ 2).
   6. **Ingen kvitteringer, ingen egen runde for premisser/sitater** — de går i neste reelle ordre. `git log` er kvitteringen.
   **Testen før hver melding:** *fører den til at noen skriver kode eller merger nå?* Nei → ikke send.
 
-### Hvorfor § 0 finnes
-
-**Målt 2026-09-28:** denne fila var 136 797 tegn og 78 overskrifter, hvorav **52 % var
-hendelseslogger** — historien om da noe gikk galt, ikke regelen. `docs/` var 480 filer og
-6 591 862 tegn. ⚠️ **Taket på 40 960 tegn fantes kun på `CLAUDE.md`, som er 0,6 % av massen.**
-
-🔴 **Cowork hadde skrevet fem nye regler på ett døgn og brutt to av dem samme dag.** Å konvertere
-hver feil til en paragraf er ikke å endre oppførsel — det er å gjøre fila uleselig mens det ser ut
-som et tiltak. **Kenneth 2026-09-28:** *«du skriver masse regler, men du følger dem ikke»* og
-*«du får kun lov til å forbedre regler.»*
-
-🟢 **Konsekvensen, som gjelder fra nå:** en ny regel skrives ikke — den erstatter en eksisterende,
-eller den skrives ikke. **Og en hendelseslogg hører i STATUS-AKTUELT eller historikk, aldri her.**
+**Om nye regler:** en ny regel erstatter en eksisterende, eller den skrives ikke. Hendelseslogger hører i
+STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun lov til å forbedre regler.»)*
 
 ## § 0b — ARBEIDSFORM FRA 2026-10-28: orkestrator kjører agentene selv (Kenneth-vedtak)
 
 > **Kenneth 2026-10-28:** *«kan vi ordne det slik at du selv relayer til fabel og agenter. sjekker svarene. jeg beholder selv all kommunikasjon med server og bygg»* · *«husk at alle agenter må clear etter hver handling»* · *«se hvordan teamhunt kjører sitt område. jeg ønsker at du gjør det samme»*
 
-**Overstyrer** alt i denne fila som sier at Kenneth limer, relayer eller er eneste kanal mellom øktene (§ Meldingsflyt første linje, § Ordreformat om nudge-blokker til Kenneth, regel 14). Innboks-reglene (regel 11, § /clear-REGELEN) står uendret — de er grunnen til at dette virker.
-
-1. **Orkestrator starter agentene som side-økter under seg** (`start_session`, slik Jaktleder gjør i Teamhunt), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre — Redesign `SiteDoc-redesign`, Kontrollør `SiteDoc-gate`, Dokgen `SiteDoc-dokgen`, Fabel `SiteDoc-design`. **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
-2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (regel 11). Orkestrator sender nudgen selv (`send_message`, fast nudge-form fra § /clear-REGELEN) og leser leveransen nederst i `relay/inbox-orkestrator.md`.
+1. **Orkestrator starter agentene som side-økter under seg** (`start_session`, slik Jaktleder gjør i Teamhunt), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre (§ 1). **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
+2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (§ 2). Orkestrator sender nudgen selv (`send_message`, fast form i § 2) og leser leveransen nederst i `relay/inbox-orkestrator.md`.
 3. **/clear etter hver handling:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). En subagent er ny pr. oppgave og trenger ingen tømming.
 4. **Kontrollør er alltid en egen økt/subagent**, aldri den som bygde koden.
-5. **Kenneth beholder:** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg — deploy, OTA, EAS, `sudo`, migreringer. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
-6. Kenneth får ikke lenger nudger å lime. Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
+5. **Kenneth beholder:** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg — deploy, OTA, EAS, `sudo`, migreringer, push til `main`. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
+6. **Kenneth limer ingenting.** Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
 
-## Cowork ved sesjonsstart — les dette før du sier noe
+## § 1 — Roller
 
-### Coworks rolle (Kenneth 2026-08-20)
+| Agent | Tre | Gjør | Gjør aldri |
+|---|---|---|---|
+| **Orkestrator** | hovedtreet `SiteDoc` (relay, lesing) + `SiteDoc-merge` (merge, docs-commits) | Skriver kode-ordrer, kontrollerer Fabels plan mot kode før den blir ordre, sender alle nudger, leser leveranser, merger og pusher `develop`, fører tavla, STATUS-AKTUELT og [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md), gir Kenneth deploy-kommandoer | Skriver plan/design · gater kode den selv har skrevet · kjører `sudo`/deploy/OTA/EAS/migrering |
+| **Fabel** | `SiteDoc-design` (Desktop-økt «Fabel») | **Eier planen og designet** — modell, lagdeling, beslutningsliste, specs *(Kenneth-vedtak 2026-10-01)*. Skriver mal-ordrer og gater maler. Pusher egne `docs/design-<emne>`-brancher fra `origin/develop` | Merger · pusher `develop` · gater kode |
+| **Kontrollør** | `SiteDoc-gate` | Uavhengig gate av kode-leveranser mot faktisk kode før merge. Stående ordre: `relay/inbox-kontrollor.md` | Skriver kode · merger |
+| **Redesign**, **Dokgen** | `SiteDoc-redesign`, `SiteDoc-dokgen` | Koder én oppgave på egen branch, pusher egen branch, leverer med SJEKKPUNKT | Pusher `develop`/`main` · rører filer ordren ikke gir dem |
+| **Kenneth** | — | Beslutninger, server, deploy, OTA, EAS, `sudo`, migreringer, push til `main` | Limer nudger (§ 0b.6) |
 
-> *«Cowork er nå bindeleddet. Du styrer merge og deploy, holder orden på hvem gjør hva, har
-> oversikt over pågående aktiviteter, kontrollerer kritiske vurderinger mot kode før vi
-> iverksetter. Du er min orkestrator. Jeg gjør heller ingenting uten at du er informert.»*
+- **Agentnavn, aldri mappenavn**, når noen omtales eller adresseres (Kenneth 2026-10-06). `SiteDoc-design` = Fabel, `SiteDoc-gate` = Kontrollør.
+- **Sovende trær** (`SiteDoc-kontrollplan`, `SiteDoc-mal`, `SiteDoc-simulator`) har ingen fast agent. Orkestrator kan starte en rolle der ved behov; den følger reglene for utviklere og får rad på tavla.
+- 🔴 **Tavla i [STATUS-AKTUELT § TAVLA](STATUS-AKTUELT.md) er eneste register over hvilke agenter som finnes nå.** Tabellen over sier hva en rolle *har lov til*; tavla sier hvem som er der. Ordre gitt ⇒ rad skrives i samme handling. Merget og ryddet ⇒ raden fjernes. Tavla tømmes aldri ved rundeslutt. Føres fra måling (`git worktree list`, `git log origin/develop`), aldri fra hukommelse. Skriver Kenneth «tavla», svarer orkestrator med aktive rader: agent · branch · alder · venter på · hvem har ballen.
+- **Hvem avgjør ved uenighet:** Fabel — plan, design, tekst, malinnhold. Orkestrator — ordre, merge, rekkefølge, timing, kollisjoner. Kenneth — alt som endrer hva som bygges (innhold, skjema, rettigheter, prod) og grensesaker. **Maks én runde** mellom Fabel og orkestrator; deretter én melding til Kenneth med begge standpunkt, hva hver har målt, og rangert anbefaling.
+- **Orkestrator beslutter arbeidsledelse selv** — hvem, hvilket tre, hvilken rekkefølge, om en ordre skal skrives. Spørsmål til Kenneth er beslutninger i siste kolonne over, ikke arbeidsledelse.
 
-**Cowork skal:**
+## § 2 — Meldingsflyt (ufravikelig)
 
-- **Styre merge og deploy** — rekkefølge, gates, hva som går til test og prod når.
-- **Holde orden på hvem gjør hva** — statustavla er coworks ansvar, ikke Kenneths.
-- **Ha oversikt over pågående aktiviteter** — også de som venter på svar utenfra.
-- **Kontrollere kritiske vurderinger mot kode før iverksetting** — ikke stole på rapporter,
-  heller ikke sine egne antakelser.
-- **Være tydelig på hvilken ordre som går til hvem** — hvilken agent, hvilket worktree,
-  hvilken branch. Eller til fabel, hvis det er design.
-- **Foreslå effektivt arbeid** — gjerne parallelle spor når oppgavene er uavhengige. Si
-  eksplisitt når noe *kan* kjøre samtidig, og når noe *må* vente på noe annet.
-- **Gi gode råd** — rangere alternativer og anbefale ett, ikke liste muligheter.
+### Kanalen er innboksfila
 
-**Kenneth gjør ingenting uten at cowork er informert.** Det betyr at manglende oversikt hos
-cowork blir manglende oversikt hos ham.
+- 🔴 **Ingen oppgave uten POST i `relay/inbox-<agent>.md` FØR nudgen sendes** (regel 11). En nudge alene overlever ikke /clear.
+- 🔴 **Kanalen er HOVEDTREETS kopi med absolutt sti:** `~/Documents/Programmering/SiteDoc/relay/…`. `relay/` er gitignorert (`.gitignore:68`), følger ikke med en branch og synkes ikke mellom trær — skrevet relativt i et annet tre lander det der ingen leser.
+- **Nye poster føyes til NEDERST, bare nederst.** Leseren leser halen.
+- **Leveranser og SJEKKPUNKT** skrives nederst i `relay/inbox-orkestrator.md` med overskrift `## [dato] fra <Agent> → orkestrator: …`.
+- **Beslutninger hører i et repo-dokument, ikke i `relay/`** — særlig «ikke fjern dette»-vedtak. Relay er arbeidssedler.
+- **Innboksene ryddes av orkestrator:** avsluttede poster til `relay/arkiv/<innboks>-til-<dato>.md` ved prod-deploy eller når en innboks passerer ~300 linjer; øverst står en peker til arkivet.
+- **Endres et filnavn**, føres det gamle navnet som DØDT i innboksen.
 
-**Arbeidsdelingen:** fabel designer · cowork orkestrerer · kode-agentene koder · Kenneth
-kjører server og bygg. Fra 2026-10-28 relayer orkestrator selv (§ 0b).
+### Hvem skriver hva — én regel
 
-### 🔴 ARBEIDSFORM: ett plan-spor og ett funn-spor (Kenneth-vedtak 2026-08-31)
+- **Bestilleren skriver posten** i mottakerens innboks: orkestrator for kode-ordrer, Fabel for mal-ordrer og spec-spørsmål. Fabel gir orkestrator kopi i `inbox-orkestrator.md` med **branch + hash** på docs-branchen og filene ordren rører.
+- **Orkestrator sender alle nudger** (§ 0b.2). Ingen annen agent nudger, og Kenneth limer ingenting. Orkestrator har dermed alltid sett hvilke filer en ordre rører før den går ut (kollisjonskartet, § 6).
+- **En ordre peker bare på committede filer på origin**, med hash (`git show origin/<branch>:<sti>` virker uten merge). Avsender verifiserer med `git ls-remote --heads origin <branch>` FØR hashen meldes — **tomt svar = branchen finnes ikke = ingen hash meldes.**
 
-> **Kenneth 2026-08-31:** *«Nå er vi mer opptatt av hva som er gjort enn å lukke oppgaver i
-> masterplanen.»*
+### Fast nudge-form
 
-**Belegget, målt samme dag:** ni runder merget. **Tre** berørte masterplanen (REG fase 2, O12,
-modul-resolveren). De seks andre var feltfunn, en regresjon vi selv innførte, og opprydding
-etter oss selv. Dagen var ikke bortkastet — prod-fella låste piloten ute av mobilens viktigste
-flate — men **planen beveget seg nesten ikke**, og ingenting i arbeidsformen la merke til det.
+```
+Du er <Agent>. Innboks: ~/Documents/Programmering/SiteDoc/relay/<fil>. Er du nettopp tømt: følg § /clear-REGELEN punkt C i docs/claude/SAMARBEIDSREGLER.md først. Ny post: «<overskrift i innboksen>».
+```
 
-🔴 **A — FAST FORDELING: én agent på planen, én på funn.**
+Nudgen bærer aldri innhold som ikke står i posten.
 
-**Plan-agenten har alltid neste masterplan-punkt.** Den røres ikke av feltfunn.
-**Funn-agenten tar det som kommer fra felt.** Er det ingenting, tar den fra BACKLOG.
+### En sendt ordre er frosset
 
-⚠️ **Uten dette kjører begge agentene reaktivt så snart noe haster, og planen står stille et helt døgn
-uten at noen merker det.**
+- Når nudgen er sendt, endres ikke posten stille. Endring går som ny post med `TILLEGG til ordren om X` eller `ERSTATTER ordren om X` i overskriften.
+- **Ingen ny ordre som hviler på et ubesvart svar.** «Ferdigskrevet» og «sendt» er to tilstander.
+- **Spør aldri en agent om noe som ble lagt til etter at den startet** — den kan ikke svare riktig.
+- **Hver post er selvstendig.** Aldri «som i forrige ordre» eller «steg 2–4» uten at stegene står der.
 
-🔴 **Cowork skal si eksplisitt hvilket spor en ordre hører til**, i tavla og i ordrens
-første linje. En ordre uten spor er som regel et feltfunn som har snik-prioritert seg.
+### /clear-REGELEN — agenten skal kunne tømmes når som helst (Kenneth-vedtak 2026-10-14)
 
-🔴 **B — FELTFUNN SAMLES; de blir ikke ordrer på minuttet.**
+Orkestrator tømmer en agent etter hver levert handling (§ 0b.3). Det er bare trygt hvis ingenting bor kun i chatten. **Tilstand som ikke står i en fil eller på origin, finnes ikke.**
 
-**Kenneth melder som før.** Cowork fører funnet i en liste med alvorlighet — **og skriver
-ikke ordre med det samme.**
+#### A. Orkestrator: posten må kunne utføres av en agent som husker null
 
-| Alvorlighet | Betyr | Handling |
+Minstekrav (full mal i § 4 Ordre-anatomi): **hva og hvorfor** · **utgangspunkt** (branch/hash, miljø/test-hash) · **data** (prosjekt/fil ved navn; innlogging via [dev-login-agent.md](dev-login-agent.md) + bruker) · **DoD** · **hvor svaret skal** (`relay/inbox-orkestrator.md` + SJEKKPUNKT).
+
+#### B. Agenten: SJEKKPUNKT ved hver leveranse
+
+Nederst i `~/Documents/Programmering/SiteDoc/relay/inbox-orkestrator.md`:
+```
+SJEKKPUNKT <Agent> <dato tid>
+Branch: <navn> @ <hash>   (verifisert: git ls-remote --heads origin <branch>)
+Worktree: <absolutt sti>
+Ordre: <innboksfil> § <overskrift>
+Status: levert / under arbeid / venter på <hva>
+Kunnskap å ta med: <det du lærte som ikke står i ordren: testdata, ID-er, innlogging, kjørende prosesser, fallgruver>
+Åpent: <det som ikke er gjort, eller «ingenting»>
+Neste steg: <én setning, eller «vent på ordre»>
+```
+- Midt i en oppgave: commit og push pågående arbeid på **egen feature-branch** (WIP-commit lov der, aldri på develop/main), skriv SJEKKPUNKT, svar **«klar for clear»**.
+- 🔴 **«Kunnskap å ta med» er feltet som gjør /clear trygt** — også prosesser som lever videre (tunneler, dev-servere, installerte bygg), så neste økt ikke bygger dem på nytt.
+
+#### C. Agenten etter /clear: les før du gjør noe
+
+1. Denne regelen.
+2. Posten nudgen navngir, i egen innboks (søk på overskriften). Finnes den ikke: **STOPP og meld «posten finnes ikke»**.
+3. Siste `SJEKKPUNKT <Agent>` i `relay/inbox-orkestrator.md`.
+4. `git -C <worktree> status` + `git log -1`. Avviker treet fra sjekkpunktet: **meld avviket før du gjør noe.**
+
+Les ikke hele innboksen. Mangler noe, var posten eller sjekkpunktet dårlig — meld det.
+
+**Innboksfiler:** `inbox-<agent>-<emne>.md` pr. oppdrag (Redesign, Dokgen); `inbox-kontrollor.md` og `inbox-fabel.md` faste. Den gjeldende fila står i nudgen.
+
+## § 3 — Til Kenneth og arbeidsform
+
+### Fremdrift, ikke dialog (Kenneth-vedtak 2026-09-26)
+
+> *«du er den som skal foreslå neste oppgave og gi ordrer. JEG ER IKKE INTERESSERT I DIALOG. kun fremdrift.»*
+
+- 🔴 **Orkestrator BESLUTTER og gir ordre.** Spørsmål til Kenneth kun når beslutningen faktisk er hans (§ 1).
+- **En anbefaling kommer med handlingen som utfører den** i samme melding.
+- **Et forbehold er konkret eller utelates.** Kan det måles bort (én spørring), mål det før meldingen sendes.
+- **Er valget Kenneths:** navngi konflikten og konsekvensen av hvert alternativ i konkrete ord.
+
+### Spørsmål: samle, ikke drypp
+
+Tenk ferdig, mål det som kan måles, still **ett** spørsmål med nok kontekst til ett svar. Rangér alternativer
+og anbefal ett. **Kontrollspørsmål:** blir noe galt hvis ingen svarer? Nei → det er en beslutning orkestrator tar.
+Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det ingenting, skriv `Krever svar: ingenting`.
+
+### Kommandoer til Kenneth (server, deploy, OTA, EAS)
+
+- **Bash-blokka inneholder KUN kommandoen.** Steg-nummer, maskin, runbok-referanse, forventet utfall og advarsler står i prosa rundt.
+- **Deploy-kommandoer kun fra [DEPLOY-RUNBOK.md](DEPLOY-RUNBOK.md)** — aldri skrevet fra hukommelsen.
+- **Si hvilken maskin** ved hvert skifte Mac ↔ `server-ny`; aldri begge i samme blokk.
+- **POSIX/BSD-flagg** (Macen har BSD-verktøy): unngå `xargs -a` · `sed -i` uten argument · `grep -P` · `date -d` · `readlink -f` · `stat -c`. En slettende/endrende kommando følges av en telling som avslører om ingenting skjedde.
+- **Hver melding er selvstendig** — aldri «kjør blokken fra forrige melding».
+- **Nummerert rekkefølge** med forventet resultat pr. steg; orkestrator verifiserer mot forventningen før neste steg.
+- **Skjermbilder eller klikk-test fra Kenneth:** følg [skjermbilde-forespoersel.md](skjermbilde-forespoersel.md) — limbar URL, nummererte steg, forventning pr. bilde.
+- **`git checkout -B` gis én gang** — gjentatt tilbakestiller den branchen og kaster commits.
+
+### Plan-spor og funn-spor (Kenneth-vedtak 2026-08-31)
+
+- **Plan-sporet** har alltid neste masterplan-punkt og røres ikke av feltfunn. **Funn-sporet** tar feltfunn; er det tomt, BACKLOG. Hver ordre og tavle-rad sier hvilket spor.
+- **Feltfunn samles** — de blir ikke ordrer på minuttet. **Én skala** for både prioritet og deploy:
+
+| Merke | Betyr | Handling |
 |---|---|---|
-| 🔴 **Blokkerer** | Bruker kommer ikke videre, data går tapt, eller flaten er ubrukelig | **Avbryter plan-sporet.** Ordre skrives nå |
-| 🟡 **Skjemmer** | Virker, men irriterer eller forvirrer | Til funn-sporet, tas i tur |
-| 🔵 **Notert** | Observasjon uten smerte i dag | BACKLOG |
+| 🔴 | Bruker kommer ikke videre, data tapes, regresjon fra merget arbeid, eller noe Kenneth venter på | Avbryter plan-sporet. Ordre nå, deploy nå |
+| 🟡 | Virker, men skjemmer · rydding · teknisk gjeld · i18n | Funn-sporet i tur. Samles til neste 🔴-deploy |
+| 🔵 | Observasjon uten smerte i dag | BACKLOG |
 
-**Kontrollspørsmålet før noe avbryter planen:** *kommer noen ikke videre uten dette?*
+  **Kontrollspørsmål før noe avbryter planen:** *kommer noen ikke videre uten dette?* Merket står i ordrens første linje.
+- **Målestokken er piloten:** [REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Rekkefølge (50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan). ⚠️ `docs/redesign/MASTERPLAN.md` har samme tittel og er utdatert — sjekk datoen.
 
-🔴 **Hvorfor dette er vanskelig og må stå skrevet:** Kenneth er både finneren, gaten og
-relayet. Når han oppdager noe, har han nettopp kjent smerten — da føles alt akutt. **Det er
-coworks jobb å holde skalaen**, ikke Kenneths.
-
-**Konsekvens for tavla.**
-
-STATUS-AKTUELT skal vise **hvilket spor** hver agent kjører, og masterplanen skal ha en linje
-med **hva som faktisk ble lukket** siste uke. Uten det tallet gjentar 31.08 seg uten at noen
-ser det før det er kveld.
-
-### 🔴 MERGE-AGENTEN SKAL BEMANNES — Kenneth kjører kun det som krever passord (vedtak 2026-09-01)
-
-> **Kenneth 2026-09-01, etter en dag med ~40 git-blokker:** *«Mange av disse kan gjøres av en
-> Opus. Hvorfor er det slik at jeg gjør dette? Alt jeg trenger å gate direkte er deploys — som
-> krever passord. På en måte er det mer effektivt om en Opus gjør dette og løser selv problemer.»*
-
-**Han har rett, og rollen sto allerede i denne fila** (§ Commit-orden: merge eies av
-«kontroll-Claude/Kenneth fra `SiteDoc-merge`»). Treet finnes. Det ble bare aldri bemannet — cowork
-ga Kenneth kjedene i stedet. 🔴 **Cowork skal opprette merge-agenten ved sesjonsstart, på lik
-linje med andre agenter, og føre raden på tavla.**
-
-#### Hvem gjør hva
-
-| Handling | Hvem |
-|---|---|
-| 🔴 **EIE PLANEN OG DESIGNET** — modell, lagdeling, beslutningsliste | **fabel** *(Kenneth-vedtak 2026-10-01)*. **Orkestrator skriver ikke planen; han GATER den mot kode.** ⚠️ **Hvorfor:** orkestratoren overtok designrollen da cowork ble faset ut, og eide dermed både planen og utførelsen. **Målt 2026-10-01: fabels KS fant seks hull i orkestratorens plan, fire i klassen «feil lønn» — og ett av dem hadde orkestratoren MÅLT selv uten å føre det inn.** Det er samme kollaps som kontrollørrollen ble innført for å reparere, bare på designsiden. 🔴 **Gjelder planen og designet. Kode-ordrer, gating og merge er uendret orkestratorens** |
-| Gate koden mot faktisk kode før merge | **orkestrator** — delegeres ALDRI |
-| 🔴 **Uavhengig kontroll av risikobærende diff** før merge | **kontrollør** i `SiteDoc-design` — *(Kenneth-vedtak 2026-09-30)*. **Skriver ikke kode, merger ikke.** Kalles inn på auth, `/uploads/`, token, migreringer med nytt identitetsfelt, delt logikk med tvilling og fredet område. **Ikke** på docs, i18n eller ren formatering. ⚠️ **Grunnen er strukturell:** fram til 30.09 bestilte cowork og design gatet — begge avvikene på mobilens token-vakt ble funnet av det andre hodet. Orkestratoren skriver nå ordren, gater og merger; å kontrollere utfallet av sin egen ordre er svakere ved konstruksjon, ikke av uoppmerksomhet. Stående ordre: `relay/inbox-kontrollor.md` |
-| `fetch` · `merge --no-ff` · `push merge-restart:develop` · `merge-base`-verifisering · branch-opprydding | **merge-agent** i `SiteDoc-merge` |
-| `pnpm install` · `prisma generate` ×4 · web build · mobil typecheck · `pnpm test` | **merge-agent** |
-| Docs-commits i hovedtreet | **merge-agent**, som én operasjon: `add` → `commit` → `pull --rebase` → `push` |
-| `sudo docker` (test og prod), `deploy-test.sh`, EAS-bygg | 🔴 **Kenneth** — krever TTY og passord |
-| Prod-deploy, push til `main` | 🔴 **Kenneth**, på eksplisitt ordre |
-| Produktbeslutninger, gates i UI, relay mellom agenter | 🔴 **Kenneth** |
-
-**Cowork gir merge-agenten branch + hash + merge-melding. Agenten kjører kjeden, verifiserer,
-rydder og melder ÉTT svar tilbake** — ikke seks blokker Kenneth skal lime.
-
-🔴 **Mekanikken står ALLEREDE beskrevet — den gjentas ikke her.** Denne seksjonen sier bare *hvem
-som utfører*. Kommandoene selv har én kilde hver, og de skal ikke kopieres hit:
-
-| Hva | Hvor mekanikken bor |
-|---|---|
-| Den selv-gatende merge-kjeden (`rev-parse` → `! merge-base` → `reset` → `merge --no-ff` → `push merge-restart:develop`) | § Commit-orden → «Gaten skal ligge i kommandoen» |
-| Hvorfor `SiteDoc-merge` aldri kan stå på `develop` | § Commit-orden, samme sted |
-| Verifisering mot agentens hash, ikke merge-commitens | § Commit-orden → «Verifiser mergen mot agentens hash» |
-| Branch-opprydding (detach → `-d` → remote-slett) | § Opus-livssyklus **fase 4-mekanikk** |
-| Regel 10 + `prisma generate`-forsteget | § Commit-orden → **Regel 10** |
-| Deploy-kommandoene | [deploy-detaljer.md](deploy-detaljer.md) — **aldri skriv dem på nytt et annet sted** |
-
-Drifter en av dem, rettes den **der den står**, ikke her.
-
-#### 🔴 Fem fences merge-agenten alltid bærer
-
-1. **Aldri `main`. Aldri prod. Aldri `deploy-test.sh` eller noe med `sudo`.**
-2. **Aldri force-push. Aldri `git branch -D`** — kun `-d`, som nekter på umerget arbeid.
-3. **Aldri merge en branch cowork ikke har navngitt**, og aldri uten hashen cowork oppga.
-4. 🔴 **Aldri arbeide i hovedtreet `SiteDoc` uten at det er en docs-commit-operasjon.** Cowork
-   redigerer docs der; en `pull --rebase` midt i det stoppet Kenneth to ganger 01.09. Er treet
-   dirty av docs cowork nettopp skrev: commit dem som del av operasjonen, ikke stash dem bort.
-5. **Er noe uventet — konflikt, avvist push, rødt bygg — STOPP og meld.** Ikke improviser rundt
-   det. En merge som «ble løst underveis» er en merge ingen har gatet.
-
-- 🔴 **Docs-commit og merge er et kappløp.** **Merge-agenten skal aldri committe docs i et tre cowork
-  samtidig merger i.** ⚠️ **Rekkefølgen er: merge ferdig → docs-commit. Ikke omvendt, og ikke samtidig.**
-- 🔴 **Ryddesteget detacher agenter som jobber.** **`git worktree remove` / branch-sletting på et tre en
-  agent står i, river grunnen under ham.** 🔴 **Mål `git worktree list` og tavla FØR rydding, og rydd aldri
-  et tre som står på tavla.** ⚠️ **Årsaken var coworks egen ordre, ikke agentens feil.**
-### 🔴 FEM MÅLTE FEILKLASSER — reglene, ikke fortellingen (2026-09-03/04)
-
-**Alle fem hadde samme form: en påstand ble ført videre uten at kilden ble sjekket.**
-
-1. 🔴 **En branch som ikke er rebaset, tester halv kode.** **Se § Arbeidsrutiner pkt 2 — regelen om å måle
-   premisset bor der, med alle tre anvendelsene.**
-2. 🔴 **Byggnummer, profil og distribusjon leses fra kilden:** `eas build:list` **og** App Store Connect.
-   ⚠️ **Er de uenige, står BEGGE målingene i loggen til noen har målt hvorfor.** **Ingen velges bort for å få
-   en ryddig fortelling.**
-3. 🔴 **Produksjonsformen testes FØRST.** **En grønn test mot en datastruktur produksjonen ikke bruker, måler
-   ingenting.** Legacy-former i egen navngitt bakoverkompatibilitet-blokk, og én linje i testfila om hvilken
-   form som er produksjonens. **Kanonisk traversering: `@sitedoc/shared/utils/repeaterRad.ts` med tvilling i
-   `packages/pdf/src/arkivmal/repeaterRad.ts` — ikke lag en tredje.**
-4. 🔴 **Simulatoren er ikke telefonen.** **En flate som handler om timing, nett eller WebView-livssyklus er
-   IKKE verifisert før den er sett på fysisk enhet.** 🟢 **Sløyfen er kode → `r` i Metro → ekte telefon, uten
-   byggkvote.**
-5. 🔴 **Mildne aldri et funn til noe mindre enn utfallet brukeren opplever.** **En endring er ikke levert før
-   noen som IKKE vet hva som ble endret, kan finne den.** **Verifiseringsordrer skal be om HVOR noe ble funnet
-   og HVOR MANGE TRYKK det tok — ikke bare om det virker.**
 ### 🔴 DEPLOY KOSTER KENNETHS TID — MERGE GJØR IKKE (vedtak 2026-09-10)
 
-> **Kenneth 2026-09-10:** *«vi gater mange små fikser med deploys som tar mye tid → kan vi gjøre
-> mer hver gang vi deployer for å øke produksjonen»* · *«kan vi også jobbe med noe mens vi
-> deployer for å holde tempo oppe?»*
+- Hver deploy/OTA koster Kenneth ~20 min. **Samle 🟡** til neste 🔴; uten 🔴 deployes samlepakken når Kenneth sier fra. Oppgi hva kommandoen bærer og hvem som venter.
+- **Mens Kenneth deployer:** orkestrator merger ikke (hash-guarden i `deploy-test.sh` feiler hvis develop flytter seg) før `/version` bekrefter hashen. Utviklere bygger videre på egne brancher; orkestrator skriver ordrer og gater. **Orkestrator venter ikke på deploy før neste ordre.**
+- **`/version` FØR hver kjede som avhenger av en deploy** (`curl -s https://api-test.sitedoc.no/version`). En seed eller test mot gammelt image måler ingenting.
+- Ingenting blir liggende gatet-men-ikke-deployet uten en grunn ført i STATUS-AKTUELT.
 
-**Målt samme dag: fem web-deploys og tre OTA-er på ett døgn.** Hver deploy koster Kenneth synk,
-script, `ssh -t`, passord og verifisering — over en time totalt.
-🔴 **Bare to av de fem hastet.** De tre andre var rydding som ikke blokkerte noe.
+## § 4 — Ordrer
 
-🔴 **A — cowork merker HVER ordre 🔴 eller 🟡 fra start.**
+### Mål premisset (ufravikelig)
 
-| Merke | Betyr | Deploy |
+- **Før du skriver en ordre:** mål premisset i koden — også for et sidefunn. En velskrevet agentrapport er ikke en måling.
+- **På en innkommende rapport:** den er input, ikke fasit. Relé, rapport og SJEKKPUNKT er input.
+- **Før du ber noen teste:** branchen er rebaset på `origin/develop`, og `git merge-base --is-ancestor <fiks> <bygget som kjører>` er sant. Aldri bestill verifisering av kode som ikke er deployet.
+- **Påstanden kommer fra verktøyet som eier svaret:** `pnpm lint` for lint, hele funksjonen (lest fra toppen) for kontrollflyt, hele skrivestien for «skjer dette». Et `sed`-vindu eller et grep-treff er ikke en måling. For dyrt å måle → skriv «ikke målt».
+- **Et binærnavn, en filsti eller `fil:linje` måles av den som skriver det inn** — arvet: skriv «umålt».
+- **Miljø-påstander måles mot maskinen** (`lsof`, `ps`, `git worktree list`), ikke mot docs. Kommandoer i docs kjøres minst én gang før de føres.
+- **Miljø/DB/test-oppsett:** les [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + `ls .env*` først; spør Kenneth kun om den ene variabelen som faktisk mangler.
+- **Verktøyrapporter (Aikido o.l.) vurderer deklarerte versjoner** — sjekk resolved versjon før noe kalles eksponering.
+
+### Ordre-anatomi
+
+```
+[0. SPOR + MERKE]          Plan/funn · 🔴/🟡 · REPARASJON eller FUNKSJONSENDRING + hjemmel (§ 5).
+[1. HVA SOM ER GJORT]      Hasher + hva de gjorde. Hindrer at økta gjentar landet arbeid.
+[2. OPPGAVE]               Hva og hvorfor. Data, innlogging, utgangspunkt (branch/hash).
+[3. UFRAVIKELIG]           Tre + branch + filer den eier + de tre linjene under.
+[4. FORVENTET OUTPUT]      DoD. Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
+[5. SVAR]                  relay/inbox-orkestrator.md + SJEKKPUNKT.
+```
+
+**De tre linjene, ordrett i blokk 3:**
+- «Denne ordren er **input, ikke fasit** — mål premisset selv. **SI DET, ikke gjett.**»
+- «**Sjekk treets alder før du melder et fravær**» — `git fetch` først; test på commit-hash, aldri branchnavn.
+- «**Fjerner du en funksjon ordren ikke nevner: STOPP og meld**» (§ 5).
+
+**Faste krav i ordren når de gjelder:**
+- **Steg 0 — BACKLOG-grep** med minst to søkeformer (funksjonsnavn + symptom). Treff refereres (`§<linje>`); null treff skrives. BACKLOG er ikke fasit — et treff betyr «mål dette».
+- **Paritetsmatrise** (§ 5) når funksjonen gjelder dokumenttyper eller flater.
+- **Funksjonsinventar** når ordren rører en eksisterende kodevei: hver funksjon kodeveien bærer, med vedtak BEVARES/ENDRES.
+- **Delt logikk navngis** (§ 6).
+- **Verifisering:** navngi **handlingen** som trigger kodeveien, og **hvem** som verifiserer: *et tall eller en regel* → funksjonstest, ingen nettleser · *et utseende* → Kenneth (ikke automatiser et blikk) · *en flyt agenten ikke kan nå* → si det i rapporten («dette kunne jeg ikke se» er en gyldig leveranse). Ber ordren om å finne noe: be om HVOR det ble funnet og HVOR MANGE TRYKK det tok.
+- **Bevis agenten kan levere.** Bevis som krever utstyr agenten ikke har, bestilles ikke av den.
+- **Mobil:** verifiseres med tester + Kenneth på telefon; simulator kreves ikke. Timing, nett og WebView-livssyklus er ikke verifisert før sett på fysisk enhet (sløyfen er kode → `r` i Metro → telefon, uten byggkvote). Skjermbilder kun når spørsmålet er visuelt — det er bildene som er dyre.
+
+### Tolkning av bestillinger
+
+- 🔴 **«Sjekkliste» betyr ofte «dokument»** (Kenneth 2026-09-04): sier Kenneth «sjekkliste» om en funksjon, gjelder den sjekkliste, oppgave og HMS med mindre noe er spesifikt for én. Tvil → ett spørsmål.
+- **Testplan med forventet utfall pr. steg** utledet fra kode før test — ellers har observasjonen ingenting å måles mot. Funn mater både kode og plan.
+
+## § 5 — Funksjoner: hva som bevares, hva som krever Kenneth
+
+### 🔴 LUKKER HULL vs ENDRER FUNKSJON — Kenneths kontrollflate (Kenneth-vedtak 2026-09-27)
+
+> «jeg trenger å fange opp det som endrer funksjoner → jeg trenger ikke bruke tid på hull og
+> forbedringer uten funksjonsendring»
+
+**Testen er om INTENSJONEN endres, ikke om brukeren merker noe.**
+
+| Spørsmål | Svar | Klassifisering |
 |---|---|---|
-| 🔴 | Funn fra Kenneths egen testing · regresjon fra merget arbeid · noe som blokkerer ham | **Deploy nå** |
-| 🟡 | Rydding · teknisk gjeld · i18n · refaktorering · fikser ingen venter på | **Samles til neste 🔴** |
+| Var det meningen at dette skulle virke, og gjorde det ikke? | ja | 🟢 **REPARASJON** |
+| Bringer vi koden tilbake til noe Kenneth har sagt/spesifisert? | ja | 🟢 **REPARASJON** |
+| Bytter vi én intensjon mot en annen? | ja | 🔴 **FUNKSJONSENDRING** |
+| Endrer opplevelsen seg uten at det var en del av planen? | ja | 🔴 **FUNKSJONSENDRING** |
 
-🔴 **Merket står i ordrens topplinje, så Kenneth ser om den kommer til å kreve en deploy av ham.**
+**Presedenser (Kenneth 2026-09-27):** P2002 stille feil → melding = 🟢 reparasjon · signaturlevetid 24 t → 15 min =
+🔴 funksjonsendring, *selv om det var planlagt* (planlagt gir hjemmel, fritar ikke fra registeret) · PSI partiell unik
+indeks = 🟢 reparasjon (rettet en misforståelse av opprinnelig beskjed). **Feiltilfeller teller som funksjon.**
 
-**Kommer det ingen 🔴 på en dag, deployes samlepakken når Kenneth sier fra** — ikke fordi noe
-haster, men fordi den ikke skal bli for stor å diagnostisere.
+🔴 **Intensjon teller BARE hvis den er skrevet ned FØR endringen** — beslutning fra Kenneth, spec eller styrende
+dokument, **med referanse i ordren.** Ingen skriftlig intensjon → **FUNKSJONSENDRING som standard.**
+«Produktvalget er tatt» i en Fabel-ordre er ikke hjemmel: **Fabel foreslår; Kenneth beslutter.**
 
-⚠️ **Prisen er reell:** når en samlepakke brekker, er det flere runder å lete blant.
-🟢 **Motvekten er regel 10-gaten på hver merge** — den har hittil fanget alt. **Derfor melder
-merge-agenten alltid tallene.**
+**Løypa — gaten ligger på ordre-tidspunktet, ikke før merge:**
+1. **Orkestrator klassifiserer hver ordre** og skriver det i ordren.
+2. **En funksjonsendrings-ordre sendes ikke før den navngir hjemmelen** (beslutning + dato). Finnes ingen: til Kenneth
+   først, én kort blokk — **hva brukeren ser i dag · hva han ser etterpå · hvorfor.** Svar: ja, nei eller «endre».
+3. **Orkestrator fører [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md) ved merge** — funksjonsendringer (krevde ja) og
+   reparasjoner med synlig virkning (til orientering).
 
-🔴 **B — deploy blokkerer KUN merge-agenten.**
+Sikkerhetsendringer er ikke unntatt: fjerner de noe brukeren kunne, er det funksjonsendring.
 
-`deploy-test.sh` har en hash-guard som feiler hvis develop flytter seg under kjøring.
+### 🔴 KODEN ER ALDRI FROSSET — det er FUNKSJONENE vi bevarer (Kenneth-vedtak 2026-09-04)
 
-| Mens Kenneth deployer | |
+> *«Koden er aldri frosset → det er funksjonene vi må bevare → funksjoner som er feil må vi korrigere → men jeg vil ha
+> tilbakemelding dersom vi fjerner funksjoner som ikke har vært diskutert.»*
+
+1. **Ingen kode er fredet.** Et «ikke rør den» gjelder det brukeren opplever, ikke implementasjonen.
+2. **Er funksjonen feil, skal den korrigeres** — bevaring gjelder det som er riktig, ikke det som er gammelt.
+3. 🔴 **Fjerner du en funksjon som ikke har vært diskutert — STOPP og meld FØR levering.** «Ingen klient gjør dette i
+   dag» er en observasjon, ikke en garanti. Tom tabell eller null kallere er ofte halvferdig vedtatt funksjon — sjekk
+   `git log -S`, spec og fallback før noe kalles dødt.
+
+| Bevares (hvis riktig) | Fritt å endre |
 |---|---|
-| **Merge-agent** | 🔴 **står stille** til `/version` bekrefter hashen |
-| **Kode-agenter** | 🟢 **bygger videre** — egne brancher, rører ikke develop |
-| **Cowork** | 🟢 skriver ordrer, måler, gater |
+| Det brukeren ser og gjør | Hvor verdien kommer fra |
+| Antall trykk, rekkefølge, hva som huskes | Datastruktur, kontekst, cache-strategi |
+| At funksjonen finnes og virker | Robusthet, avgrensning, testdekning |
 
-🔴 **Cowork skal IKKE vente på deploy før neste ordre gis.** **Det er coworks flaskehals, ikke Kenneths.**
+En refaktorering som fjerner et trykk brukeren var vant til, har brutt fredningen selv om ingen funksjon forsvant.
+**Ordrer som rører fredet område** navngir filene som bærer dagens atferd, krever at agenten sier hvilke han rørte, og
+peker på regresjonstestene.
 
-### Arbeidsrutiner for en fersk cowork (lærdommer 2026-08-13 → 08-20)
+### Snudd vedtak og vedtak i fila
 
-**1. Statustavla først.** Se seksjonen under. Uten den vet du ikke hvem som finnes.
-
-🔴 **2. MÅL PREMISSET — tre anvendelser, én regel.** **Mål før du konkluderer, også når konklusjonen
-føles åpenbar.**
-
-- 🔴 **Før du ber noen TESTE noe.** **Rebas branchen på `origin/develop` FØR testforespørselen**, og sjekk
-  `merge-base --is-ancestor <fiks> <bygget som kjører>`. ⚠️ **Uten det tester noen «to halve verdier»:** én med
-  den nye funksjonen og de gamle feilene, én med fiksene og uten funksjonen.
-- 🔴 **Før du SKRIVER en ordre.** **Mål premisset i koden først — også for et sidefunn.** ⚠️ **En velskrevet
-  agentrapport er ikke en måling.**
-- 🔴 **På en INNKOMMENDE rapport.** **Den er input, ikke fasit.**
-
-🔴 **Og de to linjene «mål premisset selv» + «SI DET, ikke gjett» skal stå i HVER ordre.** 🟢 **Det er de som
-gjør at et feil premiss fanges før kode skrives, ikke etter.**
-
-**3. Verifiser mot git, ikke mot statusfiler eller agentrapporter.**
-`git merge-base --is-ancestor origin/<branch> origin/develop` er sannheten om hva som er
-merget. «PUSHET» i en statusfil er en påstand.
-
-**4. Gaten skal ligge i kommandoen, ikke i prosaen rundt.** «Sjekk først, kjør så» ble
-hoppet over tre ganger. Skriv én kjede med `&&` som avbryter seg selv.
-
-**5. Aldri merge-kommando i samme melding som nudgen som ber agenten pushe.** Skjedde fire
-ganger. Vent på hashen.
-
-**6. Ordrefila skal være selvstendig.** En agent har ingen samtalehistorikk. Refererer du
-«steg 2–4», må stegene stå i fila.
-
-**7. Rapporter fra verktøy vurderer ofte deklarerte verdier, ikke kjørende.** Aikido flagget
-`next ^14.2.0` som critical; prod kjørte allerede 14.2.35. Sjekk resolved versjon før du
-kaller noe en eksponering.
-
-**8. Ikke gi tekniske instrukser du ikke har slått opp.** Cowork ga en `.env.production`-
-instruks fra hukommelsen uten `--clear`, og kostet tre EAS-bygg.
-
-**9. Spørsmål til fabel skrives i repoet samtidig som de stilles.** Ellers lever de bare i
-en chat og forsvinner ved compact.
-
-**10. Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den avgjør
-ikke hva systemet gjør. Det gjelder også denne fila.
-
-**10c. Simulator-ordrer: be om TEKST-verifisering** (Kenneth 2026-08-26). Det er
-**skjermbildene** som er dyre, ikke simulatoren — den har vært brukt i månedsvis uten
-problemer på tekstbasert verifisering. Én skjermbilde-tung runde brukte **46 % av Kenneths
-ukebudsjett på én time** (50+ bilder à ~1000–1500 tokens).
-
-Full regel i [simulator-opus-oppkobling.md § handoff](simulator-opus-oppkobling.md). Kort:
-`idb ui describe-all` + Metro-logg er beviset; skjermbilde kun når SPØRSMÅLET er visuelt
-(blør en strek, er lerretet svart). Ordren skal si hvilket punkt som er hva — sier den det
-ikke, fotograferer agenten alt.
-
-🔴 **Aldri be om verifisering av kode som ikke er deployet.** Annoteringstesten ble bestilt før
-fiksen var merget; hele runden gikk mot gammel kode og måtte gjentas. Sjekk
-`merge-base --is-ancestor <fiks> <bygget som kjører>` FØR ordren skrives.
-
-**10e. 🔴 Les funksjonen FRA TOPPEN — et `sed`-vindu er ikke en måling** (2026-08-31, tre
-brudd på én dag, alle av cowork, alle fanget av agentene).
-
-| Feil | Hva cowork gjorde | Hva som var sant |
-|---|---|---|
-| «Firmataket leses aldri» | `sed -n '40,75p' moduleGate.ts` → så `projectModule.findFirst` | Firmatak-sjekken lå på **linje 36**, fire linjer over vinduet. Filens toppkommentar sa det rett ut |
-| «16 lint-brudd» | `grep -c "import.*SafeAreaView"` | 23 brudd — 7 unused-var i tillegg. **Lint ble aldri kjørt** |
-| «Sammenligningen mangler i sjekkliste» | Leste ikke hele skrivestien | `likForDiff` på linje 757, og **bedre** enn den cowork ba om å kopiere |
-
-**Fellesnevner: et stedfortredertall ble rapportert som en måling.** Et grep-treff er ikke en
-lint-kjøring. Et vindu er ikke en funksjon. En linje er ikke en sti.
-
-**Regelen:** skal en påstand inn i en ordre eller et vedtak, må den komme fra **verktøyet som
-eier svaret** — `pnpm lint` for lint, hele funksjonen for kontrollflyt, hele skrivestien for
-«skjer dette». Er det for dyrt å måle ordentlig, skriv **«ikke målt»** i ordren i stedet for
-et tall.
-
-🟢 **Alle tre ble fanget før kode ble skrevet, fordi ordrene bar de to linjene fra pkt 2.**
-
-**10b. Et sidefunn er en påstand — gate det som alt annet før det blir en ordre.** Cowork
-gjorde to ordrer av uverifiserte premisser 2026-08-26: oppgave-PDF på mobil (serveren
-implementerer det ikke — `arkiv.ts:51` kaster) og «merge telles som falsk konflikt» (telleren
-leses av ingen; brukertallet kommer fra en DB-telling merge aldri setter). Begge kom fra
-agentrapporter cowork stolte på fordi de var velskrevne. Agenten oppdaget det selv i begge
-tilfeller — men da var runden brukt. **Pkt 2 gjelder også sidefunn.**
-
-**10d. Avslutt og gjenåpne agenter mellom oppgaver — og skriv til fil, så det er gratis**
-(Kenneth 2026-08-26). Hver handling en agent gjør, leser hele samtalen på nytt først. En økt
-som har gått i timevis leser hundre tusen ord før hvert trykk; en fersk økt leser nesten
-ingenting. **Regningen er kontekstens tykkelse ganget med antall handlinger** — det er derfor
-forbruket kan løpe mens prosentangivelsen står stille. Prosenten er tykkelsen, ikke antall
-lesninger.
-
-Det som gjør det trygt å avslutte, er **filene** — men hvilken fil avgjør hva som overlever:
-
-- **Ordrer hører i `relay/inbox-*.md`.** Det er arbeidssedler; en fersk økt leser seg opp
-  på sekunder.
-- 🔴 **Beslutninger hører i et repo-dokument. `relay/` er GITIGNORERT** og forsvinner med
-  agenten. Det gjelder særlig «ikke fjern dette»-vedtak — «Inviter ny person» blir stående,
-  aggregat-arkene består, `skalEksporteres` er ferdig, ID-kolonnene er koblingsnøkkel,
-  `canLogin` og `status` skal ikke konsolideres. Alle fem er ting noen ellers rydder bort i
-  god tro.
-
-### 🔴 «SJEKKLISTE» I EN BESTILLING BETYR OFTE «DOKUMENT» (Kenneth 2026-09-04)
-
-> **Kenneth 2026-09-04:** *«Det er et generelt problem at jeg sier sjekklister for funksjoner som
-> er generelle for sjekkliste/oppgave/HMS.»*
-
-**Standardtolkningen snus:** når Kenneth sier «sjekkliste» om en funksjon, **antar cowork at den
-gjelder alle dokumenttyper** — sjekkliste, oppgave og HMS — med mindre noe er spesifikt for én.
-Er det tvil, er det ett spørsmål, ikke en antakelse.
-
-**Fire målte tilfeller på fire dager, alle samme form:**
-
-| Funksjon | Bygget for | Manglet i |
-|---|---|---|
-| Lokasjonsgaten (`showLocation`) | sjekkliste | oppgave — funnet 04.09, rettet i `ea66590b` |
-| Lesbar endringslogg | sjekkliste | oppgave hadde rå `JSON.stringify` (eget funn, åpent) |
-| Arkiv-PDF (`arkiv.rendr`) | sjekkliste | oppgave kaster; HMS uavklart — se BACKLOG |
-| EXIF-opptakstid i web | sjekkliste-detalj | `RapportObjektVisning` (oppgave + utskrift) viser fortsatt `opprettet` |
-
-**Ingen av dem var uenighet om hva som skulle bygges.** Hver gang traff koden bestillingens
-ordlyd, og bommet på intensjonen.
+- 🔴 **Et SNUDD vedtak rettes DER DET STO**, med en ⚠️-blokk (snudd av hvem, når, hvorfor) og det gamle synlig under.
+  Den som leser det gamle først, bygger det forkastede.
+- 🔴 **Før du endrer en komponent: les vedtakene som står som kommentarer i den fila, og navngi i svaret hvilke som
+  gjelder** (Kenneth-vedtak 2026-09-29). Står vedtaket ikke der koden bor, er funnet at det står på feil sted.
 
 ### 🔴 PARITET GJELDER TO AKSER — dokumenttype OG flate (Kenneth 2026-09-04)
 
-> **Kenneth 2026-09-04:** *«Ta med web og app på mobil → det skal være felles.»*
-
-Paritetsregelen (`retningslinjer/ui-standarder.md`) dekket mal/UI/PDF. **Kenneth utvider den til
-begge akser, eksplisitt.** En funksjon er ikke levert før den finnes i hver rute den logisk hører
-hjemme i:
+Enhver ordre for en dokumentfunksjon fyller ut matrisen. Hver rute er ✅ (bygges), ❌ (gjelder ikke — med grunn) eller
+⚠️ (finnes ikke i dag — eget funn). **Tomme ruter er ikke tillatt.**
 
 | | Web | Mobil-app | Arkiv-PDF |
 |---|---|---|---|
@@ -391,1447 +306,181 @@ hjemme i:
 | **Oppgave** | | | |
 | **HMS** (avvik/SJA/RUH) | | | |
 
-🔴 **Operativt krav til enhver ordre: fyll ut denne matrisen.** Hver rute er ✅ (bygges), ❌ (gjelder
-ikke — med grunn) eller ⚠️ (finnes ikke i dag — eget funn). **Tomme ruter er ikke tillatt** — en tom
-rute er noe ingen har tatt stilling til, og det er nøyaktig slik alle fire tilfellene over oppsto.
-
-«Kun sjekkliste, kun web» er et gyldig svar. Men det skal være et **valg**, ikke noe som følger av
-at bestillingen tilfeldigvis nevnte én type på én flate.
-
-**Mobil er ikke en andrerangs flate her.** Pilotens målestokk er *«50 ansatte, mobil viktigst»*
-(REDESIGN-MASTERPLAN § Rekkefølge). En funksjon som kun finnes i web er, for A.Markussens
-anleggsarbeidere, en funksjon som ikke finnes.
-
-🔴 **Men paritet er ikke likhet — mobil får det som hører i felt** (Kenneth 2026-09-04).
-
-> **Kenneth 2026-09-04:** *«I den grad det er hensiktsmessig at vi gjør via app på mobil →
-> avanserte funksjoner overlater vi til web.»*
-
-**Skillet er hvor arbeidet faktisk skjer, ikke hvor vanskelig det er å bygge:**
+**Paritet er ikke likhet — mobil får det som hører i felt** (*«avanserte funksjoner overlater vi til web»*):
 
 | Hører på MOBIL — feltarbeid | Hører i WEB — kontorarbeid |
 |---|---|
 | Registrere observasjon, avvik, RUH | Bygge og redigere maler |
 | Ta bilde, sette pin, velge tegning | Firmaadministrasjon, malarkiv, moduloppsett |
 | Fylle ut og sende dokument | Rapportering, analyse, eksport-oppsett |
-| Se og kontrollere eget arbeid | Attestering i volum, kolonnevalg, bulk-operasjoner |
+| Se og kontrollere eget arbeid | Attestering i volum, kolonnevalg, bulk |
 
-🔴 **`❌ gjelder ikke` er derfor et RIKTIG svar for mobil på avanserte funksjoner** — men det skal
-begrunnes med *hvor arbeidet skjer*, ikke med at det ble for tungt å bygge. «Vi rakk ikke mobil» er
-ikke samme sak som «dette gjøres ikke i felt».
+`❌` for mobil begrunnes med *hvor arbeidet skjer* (anleggsarbeider med hansker, i regn), ikke med at det ble tungt å
+bygge. Ulik leveringsvei (OTA vs prod-deploy) betyr ulik timing, ikke ulikt omfang.
 
-**Prøven:** ville en anleggsarbeider med hansker, i regn, gjort dette på en telefon? Er svaret nei,
-hører det i web. Er svaret ja, er mobil ikke valgfritt.
+## § 6 — Gate og merge (Commit-orden)
 
-⚠️ **Leveringsveien er ikke en unnskyldning for å hoppe over en rute.** Mobil når brukeren via
-`eas update` (minutter, ingen byggkvote); web og server-rendret PDF krever prod-deploy. **Ulik
-leveringsvei betyr ulik TIMING, ikke ulikt omfang.** Bygg alle rutene; deploy dem i den takten
-veiene tillater.
+### Hvem gater hva — én gate pr. leveranse
 
-### 🔴 KODEN ER ALDRI FROSSET — det er FUNKSJONENE vi bevarer (Kenneth-vedtak 2026-09-04)
-
-> **Kenneth 2026-09-04:** *«Vi må tilpasse for å gjøre koden sterkere og mer robust, samtidig som
-> vi leverer funksjonene som lever i den.»*
->
-> *«Koden er aldri frosset → det er funksjonene vi må bevare → funksjoner som er feil må vi
-> korrigere → men jeg vil ha tilbakemelding dersom vi fjerner funksjoner som ikke har vært
-> diskutert.»*
-
-Tre regler, i denne rekkefølgen:
-
-1. **Ingen kode er fredet.** Et *«ikke rør den»* fra Kenneth gjelder det brukeren opplever, ikke
-   implementasjonen under. Er mekanismen svak, skal den forbedres.
-2. **Er funksjonen feil, skal den korrigeres** — ikke vernes fordi den har stått lenge. Bevaring
-   gjelder det som er riktig, ikke det som er gammelt.
-3. 🔴 **Fjerner du en funksjon som ikke har vært diskutert — STOPP og meld.** Ikke etterpå, ikke i
-   en fotnote i leveransen. Dette er det operative kravet, og det er Kenneths eneste betingelse
-   for at punkt 1 og 2 skal gjelde fritt.
-
-**Hva punkt 3 betyr i praksis:** oppdager du under arbeidet at en kodevei bærer en funksjon ordren
-ikke nevner, er den ikke «utenfor scope å beholde». Den er et funn. Meld den, og la cowork eller
-Kenneth avgjøre — også når den ser ubrukt ut. Særlig da: *«ingen klient gjør dette i dag» er en
-observasjon, ikke en garanti.*
-
-**Verktøyet finnes allerede og skal brukes bredere: funksjonsinventar.** Fabels AM4-ordre lister
-`modul.ts`-seedingens syv linjer med et eksplisitt vedtak per linje (alle BEVART, med
-presisering). Det mønsteret hører i **enhver ordre som rører en eksisterende kodevei** — ikke bare
-de store. Da er «fjernet ved uhell» umulig ved konstruksjon i stedet for avhengig av at noen
-husker.
-
-**Utløst av en ekte konflikt 04.09.** Kenneth fredet repeater-lokasjonen 28.08: *«Uansett hva
-målingen sier om mekanismen bak (kobling eller sesjonstilstand), skal dagens oppførsel bevares.»*
-Samme mann bestilte L9 (sticky tegning) 04.09 — og L9 kan ikke bygges uten å røre nettopp den
-mekanismen. Målingen viste hvorfor det er riktig: dagens «sticky» kommer fra `aktivTegning` i
-`ByggeplassKontekst`, en **sesjonstilstand som virker på tvers av dokumenter** og kan peke på feil
-byggeplass.
-
-**Regelen som følger, og som gjelder alle fredninger:**
-
-| Bevares (hvis riktig) | Fritt å endre |
-|---|---|
-| Det brukeren ser og gjør — rad 2 lander på rad 1s tegning | Hvor verdien kommer fra |
-| Antall trykk, rekkefølge, hva som huskes | Datastruktur, kontekst, cache-strategi |
-| At funksjonen finnes og virker | Robusthet, prosjekt-/dokumentavgrensning, testdekning |
-
-🔴 **Det motsatte er også sant:** en refaktorering som gjør koden penere og samtidig fjerner et
-trykk brukeren var vant til, har **brutt** fredningen — selv om ingen funksjon forsvant.
-
-**Krav til ordrer som rører fredet område:** navngi filene som bærer dagens atferd, krev at
-agenten sier hvilke han rørte, og pek på regresjonstestene. Står de ikke i ordren, er «atferden er
-bevart» en påstand ingen har målt.
-
-🔴 **Et SNUDD vedtak rettes DER DET STO — ikke bare der det ble snudd.**
-(Kenneth 2026-08-28: *«en alvorlig risiko er at vi om en uke starter å endre tilbake på noe
-som virker til noe som ikke virker — fjerner funksjoner vi har måttet legge til
-underveis.»*)
-
-Når vi endrer mening midt i en runde, skriver vi det nye vedtaket der det ble tatt — og
-lar det gamle stå uendret et annet sted. Den som leser det gamle først, bygger det
-forkastede.
-
-**To ekte tilfeller funnet 2026-08-28:**
-- `designnotat-nytt-prosjekt-innhold` bar Kenneth-vedtaket «medlemskopi som avhuking»;
-  `designnotat-registreringsmodellen` hadde erstattet det samme dag. Den første sa
-  ingenting. Ordren som krevde avhukingen lå fortsatt klar til relay.
-- Mal-klikket hadde **tre** posisjoner på to dager (eksporter → anvend → anvend+last ned,
-  og arkivering som neste). Faseplanen hadde én av dem.
-
-**Regelen:** rett originalen med en ⚠️-blokk som sier at vedtaket er snudd, av hvem, når
-og hvorfor — og **behold det gamle vedtaket synlig under**. Slett det aldri; da mister
-neste leser begrunnelsen for at vi ikke går tilbake.
-
-🔴 **Det dyre overlever et exit — kunnskapen om at det står der gjør det ikke.** SSH-tunneler,
-installerte simulator-bygg, kjørende dev-servere og genererte `node_modules` er prosesser og
-filer på Kenneths maskin; de dør ikke med agent-økta. Det som forsvinner er at noen VET at de
-lever. En fersk økt som ikke får vite det, bygger på nytt — og et Release-sim-bygg kostet tre
-forsøk 27.08 da Hermes-fella slo til. **Derfor: siste handling før exit er en «Tilstand
-etterlatt»-blokk i ordrefila** med hva som står oppe, hva som er slettet, og hva som må
-gjenskapes. Uten den er et exit ikke gratis, det er bare usynlig dyrt.
-
-Særlig verdt å starte ferskt **før en simulator-runde** — den gjør mange handlinger etter
-hverandre, og da teller tykkelsen ekstra.
-
-**11. Skriv ordren til fil FØR du gir nudgen.** Mekanismen står i § Meldingsflyt; det som
-mangler er disiplinen. Praksisen var etablert (45 `relay/inbox-*`-filer 28.07–20.08) og
-**falt bort 20. august**, samme dag coworks rolle ble omdefinert. Fra da av levde hver ordre
-kun i en chat-melding, og **tre gikk tapt på ett døgn** — kontrollplans utlegg-sweep,
-dokgens maskin-rettelse og GDPR-kartleggingen. Agentene sto ledige og ventet på noe som lå
-hos cowork. En fil overlever både compact og glemt liming.
-
-**12. `/version` FØR hver kjede som avhenger av en deploy** (lærdom 2026-08-25/26). Tre
-runder gikk tapt på at en seed kjørte mot gammelt image: seeden kjører i containeren, så
-deploy er en hard forutsetning, ikke et valgfritt steg. `curl -s
-https://api-test.sitedoc.no/version` svarer på ett sekund. Byggstempelet ble laget for
-akkurat dette spørsmålet og fylles nå av `deploy-test.sh` (koblet 2026-08-25 — det hadde
-aldri vært det). Kommer bygget ut med alt `CACHED`, også `COPY . .`, nådde koden ikke fram.
-
-**13. Målestokken for prioritering er piloten, ikke backloggens lengde.**
-`docs/redesign/REDESIGN-MASTERPLAN.md` § Målestokk: *«…pilotfrist ~sept 2026 (50 ansatte,
-mobil viktigst)»*. Kenneth 2026-08-26: funksjonelt produkt først, GDPR og lovkrav så godt vi
-kan — i den rekkefølgen.
-🔴 **To filer har samme tittel og samme «opprettet 2026-07-12»:**
-`REDESIGN-MASTERPLAN.md` (justert 2026-08-20, GJELDENDE) og `MASTERPLAN.md` (14.08,
-utdatert). Cowork leste feil fil og bygde en hel prioritering på den. Sjekk datoen i
-`## Rekkefølge`-overskriften.
-
-**14. Den som skriver en ordre lager nudgen i sin EGEN melding — cowork svarer KUN «kan
-relayes» eller «vent».** Da finnes det alltid nøyaktig **én kjent nudge**, og ingen kan tro
-at den andre har sendt den. «Kan relayes» er samtidig **gaten fra § design pkt 2** — cowork
-sier den først når han har sett hvilke filer ordren rører. Regelen supplerer 11 (ordren til
-fil FØR nudgen): fila overlever, og nudge-eierskapet er nå entydig.
-
-Utløst 2026-09-18: KD2-nudgen ble skrevet av cowork, limt til feil økt, og cowork førte
-«mal-Opus jobber med KD2» på tavla uten å måle. Design målte og fant worktreet urørt.
-
-⚠️ **Unntak for sjekklistemaler:** på maløypa gjelder ikke denne nudge-eierskaps-regelen — design og
-mal-Opus går direkte, og cowork får kopi i `inbox-cowork.md`, ikke gate-i-forkant. Se § MALØYPE (i § design).
-Gjelder kun maler; for redesign-sporet står regel 14 uendret.
-
-### Lesekart — hva cowork må vite for å ha regien
-
-| Spørsmål | Kilde |
-|---|---|
-| Hvem jobber med hva nå, og hvem er blokkert? | `relay/status/*.md` (les **alle**, ikke siste) + `relay/inbox-cowork.md` |
-| Hva er levert, hva pågår, hva er i prod? | [STATUS-AKTUELT.md](STATUS-AKTUELT.md) |
-| Hva har fabel vedtatt og hvilke gatekrav gjelder? | `docs/redesign/` — vedtaks- og gate-filene ligger der, be aldri Kenneth lime dem inn |
-| Hva er faktisk pushet/merget? | `git branch -r`, `git merge-base --is-ancestor <sha> develop` — ikke statusfilene |
-| Ligger det ucommittet arbeid? | `git status` i hovedtreet |
-| Testdata og testbrukere for verifisering | `tests/e2e/mal-*.ts`, `tests/e2e/l16-setup.ts`, whitelist i `apps/api/src/routes/dev-login.ts` |
-| Hvilken doc skal oppdateres ved en endring? | [DOC-MAP.md](DOC-MAP.md) |
-| Deploy-kommandoer | [deploy-detaljer.md](deploy-detaljer.md) — **aldri skriv dem på nytt et annet sted** |
-| Strategisk planlegging / teknisk gjeld | [BACKLOG.md](BACKLOG.md) — kun da |
-
-### 🔴 Statustavla er første handling — før du sier noe
-
-Les tavla øverst i [STATUS-AKTUELT.md](STATUS-AKTUELT.md): hvem sitter i hvilket worktree,
-på hvilken branch, hva de gjør, hva de venter på.
-
-**Kenneth har ikke den oversikten.** Han relayer til fire terminaler og kan ikke gjette hvem
-«agenten som gjorde kartleggingen» er. Hver ordre skal navngi **agent, worktree og branch**:
-
-```
-HVEM: kontrollplan · HVOR: ~/Documents/Programmering/SiteDoc-kontrollplan
-BRANCH: fix/synlighet-vern (ny fra develop) · NÅR: nå
-```
-
-**Oppdater tavla når noe endrer seg** — ordre gitt, branch merget, agent ledig. Ikke bare
-når Kenneth spør.
-
-⚠️ **`relay/status/*.md` drifter og skal ikke stoles på.** Målt 2026-08-20: `mobil-device`
-sa «FERDIG» fra forrige uke, `utlegg` sa «BLOKKERT» på noe som var merget. Verifiser mot
-git: `git merge-base --is-ancestor origin/<branch> origin/develop`.
-
-> Kenneth 2026-08-20: *«jeg syns du er meget svak på fordeling av oppgaver — hvem gjør hva
-> når. Det virker som om du mener jeg har like god oversikt på detaljkommunikasjon som du
-> har.»* Og: *«jeg sliter med dette hver gang du compacter — så jobber du perfekt den siste
-> lille tiden før du compacter igjen.»*
-
-### 🔴 LUKKER HULL vs ENDRER FUNKSJON — Kenneths kontrollflate (Kenneth-vedtak 2026-09-27)
-
-> «jeg trenger å fange opp det som endrer funksjoner → jeg trenger ikke bruke tid på hull og
-> forbedringer uten funksjonsendring»
-
-**Bakgrunn:** 27.09 landet 39 merger, 10 av dem kode. **Fem endret noe en bruker ser, og tre av dem
-hadde ingen beslutning fra Kenneth bak seg.** ⚠️ **Ingen av dem var gale — men Kenneth fikk ikke se
-dem.** **Funn-sporet skilte ikke mellom å lukke et hull og å endre en funksjon**, og ordrene Kenneth
-leste handlet om mekanikk, ikke om hva brukeren ville oppleve annerledes.
-
-#### 🔴 DEFINISJONEN — den er Kenneths, og den er skarpere enn «merker brukeren det?»
-
-**Testen er ikke om brukeren merker noe. Testen er om INTENSJONEN endres.**
-
-| Spørsmål | Svar | Klassifisering |
+| Leveranse | Gate | Klarsignal |
 |---|---|---|
-| Var det meningen at dette skulle virke, og gjorde det ikke? | ja | 🟢 **REPARASJON** |
-| Bringer vi koden tilbake til noe du har sagt/spesifisert? | ja | 🟢 **REPARASJON** |
-| Bytter vi én intensjon mot en annen? | ja | 🔴 **FUNKSJONSENDRING** |
-| Endrer opplevelsen seg uten at det var en del av planen? | ja | 🔴 **FUNKSJONSENDRING** |
-
-**Kenneths tre presedenser, ordrett (2026-09-27):**
-
-- **P2002-meldingen** — før: stille feil. Etter: melding. 🟢 **REPARASJON.** *«hvis det var meningen at
-  dette skulle virke → da er det ikke en funksjonsendring.»*
-- **Signaturlevetid 24 t → 15 min** 🔴 **FUNKSJONSENDRING.** *«vi endrer signaturen fra 24→15.»*
-  ⚠️ **Merk: 15 min var PLANLAGT hele veien.** **At noe er planlagt gir det hjemmel — det fritar det
-  ikke fra registeret.**
-- **PSI partiell unik indeks** — blokkerer nå en andre prosjektnivå-PSI. 🟢 **REPARASJON.** *«dersom
-  endringen fører til en endring av opplevelsen for brukeren uten at dette var en del av planen [er det
-  funksjonsendring]. men hvis vi fikser dette fordi noen har misforstått min opprinnelige beskjed → da
-  er dette ikke en endring av funksjon.»*
-
-#### 🔴 SMUTTHULLET — og guarden som lukker det
-
-**Kan en agent påstå «dette var alltid meningen», tømmer registeret seg selv.** ⚠️ **Det er ikke
-teoretisk: alle tre endringene uten hjemmel 27.09 kan argumenteres som reparasjon.**
-
-🔴 **Intensjon teller BARE hvis den er skrevet ned FØR endringen** — en beslutning fra Kenneth, en
-spec, eller et styrende dokument, **med referanse i ordren.** Finnes ingen skriftlig intensjon, er
-endringen en **FUNKSJONSENDRING som standard.**
-
-🔴 **«Produktvalget er tatt» i en designordre er IKKE en hjemmel.** Målt 27.09:
-`ordre-prefiks-paakrevd-design-2026-09-26.md` skriver «Produktvalget er tatt — prefiks skal være
-PÅKREVD», men `grunnlag`-feltet er «coworks veikartlegging + SQL-målinger». **Design foreslår; Kenneth
-beslutter.**
-
-#### Løypa — gaten ligger på ORDRE-tidspunktet, ikke før merge
-
-🔴 **Før merge er arbeidet gjort, og da blir Kenneths innvending dyr for agenten.**
-
-1. **Cowork klassifiserer hver ordre** — reparasjon eller funksjonsendring — og skriver det i ordren.
-2. **En funksjonsendrings-ordre sendes ikke før den navngir hjemmelen** (beslutning + dato).
-   Finnes ingen: den går til Kenneth **først**, som én kort blokk — **hva brukeren ser i dag · hva han
-   ser etterpå · hvorfor.** Kenneth svarer ja, nei eller «endre».
-3. **Cowork fører [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md) ved merge**, aldri i ettertid.
-   **To seksjoner:** funksjonsendringer (krevde ja) og reparasjoner med synlig virkning (til
-   orientering, ingen godkjenning).
-
-🟢 **Reparasjoner går like fort som før.** ⚠️ **Prisen er reell: med denne regelen ville minst fire av
-27.09-mergene stoppet hos Kenneth før ordren gikk ut.** **Det er den samme prisen som å ha oversikt.**
-
-⚠️ **Feiltilfeller teller som funksjon.** Hvordan systemet oppfører seg når noe går galt, er noe
-brukeren opplever.
-
-#### 🔴 LES VEDTAKENE SOM STÅR I FILA — og navngi dem i svaret (Kenneth-vedtak 2026-09-29)
-
-🔴 **Før du endrer en komponent: les vedtakene som alt står som kommentarer i den fila, og navngi i
-svaret hvilke som gjelder endringen din.**
-
-**Målt belegg, og det er derfor regelen er så smal:** 🔴 **`TrafikklysObjekt.tsx:36` bar et Fabel-vedtak
-— «navnet vises ALLTID ved fargen (s/h + fargeblind), ikke i tooltip».** ⚠️ **Dokgen redigerte nettopp
-den fila og la forklaringen i en `title=`-tooltip.** **Vedtaket sto fire linjer over koden han endret.**
-
-🟢 **Koster ett søk. Fanges av leseren i gaten, ikke av brukeren i felt.**
-
-⚠️ **Regelen gjelder vedtak i FILA — ikke en plikt til å lese hele repoet.** **Er vedtaket ikke skrevet
-der koden bor, er det ikke agentens feil at han ikke fant det; da er funnet at vedtaket står på feil
-sted.**
-
-### Ordreformat til Kenneth: hvem → gjør hva → når
-
-🔴 **AGENTNAVN, ALDRI MAPPENAVN, over hver nudge** (Kenneth 2026-10-06: *«du bruker to navn → kontrollør og fabel om
-hverandre → jeg vet aldri hvem du egentlig mener»*). Overskriften er `### → <Agentnavn>`, ett navn pr. agent:
-
-| Agentnavn | Kjører i | Rolle | Innboks |
-|---|---|---|---|
-| **Fabel** | Claude-appen (Desktop-økt «Fabel»), tre `SiteDoc-design` | plan- og spec-eier | `relay/inbox-fabel.md` |
-| **Kontrollør** | side-økt/subagent under orkestrator (§ 0b), tre `SiteDoc-gate` | kodegate før merge | `relay/inbox-kontrollor.md` |
-| **Redesign** | side-økt/subagent under orkestrator (§ 0b), `SiteDoc-redesign` | utvikler | `relay/inbox-redesign-*.md` |
-| **Dokgen** | side-økt/subagent under orkestrator (§ 0b), `SiteDoc-dokgen` | utvikler | `relay/inbox-dokgen-*.md` |
-| **Kontrollplan** | terminal, `SiteDoc-kontrollplan` | utvikler | `relay/inbox-kontrollplan-*.md` |
-
-Fabel og Kontrollør er to ulike agenter i hvert sitt tre. **`design` = Fabel, `gate` = Kontrollør** (Kenneth 2026-10-06). Skriv aldri et mappenavn som mottaker.
-
-Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,
-og **rekkefølgen** hvis noe avhenger av noe annet. Kenneth skal kunne kopiere og
-kjøre uten å tolke.
-
-- **Bash som ren, kopierbar blokk.** Oppsett (worktree, branch) før nudge-tekst.
-  **Aldri git-kommandoer inne i en nudge** — Kenneth kjører dem da i sin egen
-  terminal i stedet for å gi dem til agenten.
-- **Nudge-tekst er det agenten skal lese**, formulert ferdig — ikke et referat
-  Kenneth må skrive om.
-- **Ikke gi merge-kommandoen i samme melding som nudgen** som ber agenten pushe.
-  Verifiser `git branch -r` først.
-- **Rekkefølge når noe avhenger:** «X først, fordi Y trenger resultatet.» Er de
-  uavhengige, si det — da kan flere agenter kjøre parallelt.
-
-🔴 **NUDGEN SKAL BÆRE MÅLET — ikke bare ordrefila** (Kenneth 2026-08-26). Ligger
-ordren i `relay/inbox-*.md`, står worktreet der — men Kenneth limer **nudgen**,
-ikke fila. Uten mottaker i første linje kan han lime til feil terminal, og *«da
-blir jeg plaget med masse forespørsler jeg må svare ja/nei på»*.
-
-**Form:** første linje er destinasjonen, alene.
-
-```
-→ SiteDoc-dokgen
-Les ~/Documents/Programmering/SiteDoc/relay/inbox-<navn>.md og kjør den.
-```
-
-Samme prinsipp som «si hvilken maskin kommandoen kjøres på»: den som limer skal
-aldri måtte utlede hvor noe hører hjemme.
-
-🔴 **UTVIDET 2026-09-02 — gjelder ALT Kenneth skal lime, ikke bare nudger.**
-
-> **Kenneth 2026-09-02:** *«Når du lager en ordre jeg gater — husk å si hvem den er til. Det er
-> lurt, og jeg reduserer faren for å gate feil.»*
-
-Regelen over dekket **nudger**. Cowork fulgte den der, men ga **svar-blokker** til agenter uten
-destinasjon — klarsignaler («Ja, commit og push …»), beslutninger på agentspørsmål, tillegg til
-en løpende ordre. De ser like limbare ut, og Kenneth må gjette hvilken terminal de hører til.
-
-**Hver blokk som skal limes starter med destinasjonen, alene på første linje:**
-
-```
-→ SiteDoc-dokgen
-Ja — commit og push …
-```
-
-🔴 **PRESISERING av formen over — hver limbar blokk ligger i sin egen fenced kodeblokk.**
-Destinasjonen på første linje sier *hvor* den skal; kodeblokken gir Kenneth kopiknappen som
-får den *dit* uten at han markerer tekst for hånd. Én kodeblokk pr. mottaker — aldri to
-mottakere i samme blokk. Løpende tekst med `→ SiteDoc-x` på første linje oppfyller regelen
-bokstavelig, men tvinger fram manuell markering; det teller ikke som fulgt.
-
-🔴 **PRESISERING av streken — venter cowork på et svar fra Kenneth, får det en egen merket
-overskrift.** Streken samler alt som er til Kenneth, men bolken rommer både status han bare
-skal vite og valg som venter på ham. Skill dem: det cowork trenger svar på står under en
-tydelig **«KREVER SVAR»**-overskrift, atskilt fra status og funn. Er det ingenting som venter,
-skal det STÅ — `Krever svar: ingenting` — så han slipper å lese hele bolken for å finne det ut.
-**En tom «krever svar»-seksjon er informasjon**, ikke noe som utelates.
-
-🔴 **Og alt som er til Kenneth selv skal stå UNDER en tydelig strek**, ikke blandet inn i samme
-melding. Det skjedde 2026-09-01: et klarsignal til dokgen sto over avsnitt om merge-agenten og
-deploy som var til Kenneth. Han limte hele meldingen og måtte spørre om det var feil.
-
-🔴 **Destinasjonen står UTENFOR kodeblokken, ikke inne i den** (omgjort 2026-09-24).
-
-> **Kenneth 2026-09-24:** *«hvorfor skriver du til hvem og ordren i samme kopierbart objekt → det gjør at jeg må treffe nøyaktig med musen når jeg skal kopiere»*
-
-🔴 **Ny form: destinasjonen er en overskrift OVER blokken, i vanlig tekst. Kodeblokken inneholder KUN det agenten skal lese.**
-
-```
-**→ SiteDoc-dokgen**
-
-​```
-# Ordre: …
-​```
-```
-
-**Begge hensyn er oppfylt:** Kenneth ser mottakeren like tydelig, og kopiknappen gir ren tekst. **Det gamle vedtaket (destinasjon på første linje inne i fencen) er dermed opphevet** — det står bevart over fordi begrunnelsen for mottaker-merkingen fortsatt gjelder; kun plasseringen er endret.
-
-#### 🔴 TO BLOKKTYPER, TO REGLER — terminal-kommando er ikke en agent-ordre (Kenneth 2026-09-24)
-
-> **Kenneth:** *«du må skille på terminal ordre og agent ordrer → en ordre i terminal som inneholder til hvem og hvorfor er støy, de må stå utenfor.»*
-
-| Blokktype | Hva som skal INN i fencen | Hva som skal UT |
-|---|---|---|
-| **Terminal-kommando** (Kenneth kjører i et skall) | 🔴 **KUN kommandoen.** Ingenting annet | Mottaker · steg-nummer · «Kjør på Macen» · runbok-referanse · forventet utfall · advarsler — **alt i prosa rundt blokken** |
-| **Agent-ordre** (Kenneth limer i en agents chat) | **Hele ordren** — bakgrunn, krav, utenfor-tabell, gate, forventet output. **Agenten skal lese det** | Kun destinasjonen (`→ SiteDoc-<navn>`), som overskrift over |
-
-**Prøven er hvem som leser blokken.** Leser et *skall* den, er alt som ikke er kjørbart søppel. Leser en *agent* den, er forklaringen halve verdien.
-
-**Målt samme dag:** cowork skrev `Steg 1 av 6. Synk og les hashen. DEPLOY-RUNBOK § 1.` inne i en bash-blokk under prod-deployen. Kenneth limte den i terminalen.
-
-🔴 **Og det generelle poenget, som Kenneth formulerte:** *«det er lov å vurdere konteksten til en regel.»* Regelen om destinasjon på første linje var skrevet for agent-ordrer og ble anvendt mekanisk på bash. **En regel som anvendes uten å spørre hva den var til for, produserer nye problemer i stedet for å løse gamle.**
-
-**To ordrer til SAMME agent før den første er relayet — merk hvilken som gjelder**
-(Kenneth 2026-08-25). Rekker ikke Kenneth å sende den første, kan han ikke vite om den
-andre er et *tillegg* eller en *ny retning*. Skjedde tre ganger 2026-08-25; verste utfall
-var at dokgen bygde om etter en eldre melding cowork allerede hadde godkjent bort.
-
-Ikke et regime — et lite problem som håndteres når det oppstår. Må noe likevel ut før
-svar, skriv `TILLEGG til ordren om X` eller `ERSTATTER ordren om X` i første linje. Og
-cowork spør ikke om lov til å sende; cowork skriver ordren.
-
-🔴 **`git checkout -B <branch>` gis ÉN gang — aldri gjentatt** (lærdom 2026-08-31).
-Regelen over sier at gjentakelse er gratis og leting er dyrt. **Det gjelder ikke `-B`.**
-`-B` *tilbakestiller* en eksisterende branch til startpunktet.
-
-Cowork ga `git checkout -B fix/tegningsposisjon-felle origin/develop` i to påfølgende
-meldinger. Kenneth kjørte den første, kontrollplan committet `dace662f`, og så kjørte han den
-andre — som flyttet branchen tilbake og kastet commiten ut av den lokale ref-en. Agenten fant
-et tre der arbeidet hans så ut til å være borte.
-
-Det gikk bra fordi han **hadde pushet** (origin holdt commiten) og fordi han rebaset i stedet
-for å gjette. Uten push hadde runden vært tapt.
-
-**Skal oppsettet gjentas etter at arbeidet er startet:** `git checkout <branch>` uten `-B`,
-eller `git fetch && git status` for å se hvor treet står. `-B` hører kun til fase 1 (ÅPNE).
-
-🔴 **Aldri referer til en kommando i en tidligere melding** (Kenneth 2026-08-20:
-*«slutt å referere til blokker i forrige melding — du gir alle kommandoer tydelig»*).
-Formuleringer som «kjør merge-blokken fra forrige melding», «blokken over» eller «som
-nevnt tidligere» tvinger Kenneth til å scrolle og lete, og i en lang økt treffer han
-feil blokk. **Hver melding skal være selvstendig:** står kommandoen i meldingen, kan
-den kjøres derfra. Er den lang og allerede gitt — skriv den ut på nytt. Gjentakelse
-koster ingenting; leting koster en runde og kan gi feil kommando.
-
-Samme regel gjelder ordrer til agenter: nudgen skal inneholde alt agenten trenger, ikke
-peke tilbake på en tidligere ordre.
-
-🔴 **Si hvilken maskin kommandoen kjøres på — hver gang vi veksler.** Etter en `ssh -t
-server-ny`-blokk står Kenneth igjen på serveren, ikke på Macen. Neste Mac-kommando må
-derfor innledes med `exit` (eller gis som `ssh`-fri blokk med eksplisitt «på Macen:»).
-Målt 2026-08-20: en `cd ~/Documents/Programmering/SiteDoc` ble kjørt på server-ny og
-feilet med «No such file or directory» fordi forrige blokk var en server-sesjon.
-
-Praktisk: server-kommandoer og Mac-kommandoer skal aldri stå i samme blokk uten at
-skiftet er markert.
-
-### 🔴 EN RELAYET ORDRE ER FROSSET — og ordrer stables ikke (Kenneth-vedtak 2026-09-06)
-
-> **Kenneth:** *«Når du relayer en kommando til en agent og lager en ny kommando uten at jeg har
-> gitt deg svaret på første — da risikerer vi dette. Det kan være så enkelt at vi jobber med noe
-> annet som tar tid; jeg lar den som er ferdig vente til vi er klare til å ta den, spesielt dersom
-> ordrene krever at jeg må teste eller tenke meg om hva jeg bør svare.»*
-
-**Kenneth er ikke en kanal — han er en kø med egen takt.** Han kan holde en ferdig agent tilbake
-fordi han står i noe annet, eller fordi ordren krever testing eller ettertanke.
-
-| Regel | Konsekvens |
-|---|---|
-| **En relayet ordre er FROSSET** | I det Kenneth limer den, er den ute av coworks hender. Endring går som **ny fil** eller **egen tilleggsmelding han relayer separat** — aldri stille redigering av et dokument i bevegelse |
-| **Ingen ny ordre som hviler på et ubesvart svar** | Skriv den ferdig, la den ligge. **«Ferdigskrevet» og «gitt» er to tilstander** — tavla skal skille dem (jf. § Statustavla) |
-| **Spør aldri en agent om noe cowork la til etter at han startet** | Han kan ikke svare riktig, og han bruker en runde på å måle seg fram til at spørsmålet var feil stilt |
-
-**Målt samme dag:** cowork redigerte trafikklys-tillegget inn i `inbox-mal-endringsvern.md` etter
-at ordren var relayet, og spurte så kontrollplan om han «hadde dem med». Agenten målte fila, fant
-setningen som førte trafikklys som eget funn, og svarte at de ikke var bestilt. **Han hadde rett;
-spørsmålet var umulig å svare riktig på.** Samme klasse som de fem foreldede ordrefilene — en
-ordre som ikke lenger stemmer med virkeligheten, denne gangen fordi cowork selv flyttet den.
-
-### 🔴 KENNETH VIL HA FREMDRIFT, IKKE DIALOG (Kenneth-vedtak 2026-09-26)
-
-> **Kenneth:** *«du er den som skal foreslå neste oppgave og gi ordrer. JEG ER IKKE INTERESSERT I DIALOG. kun fremdrift. hvis jeg skal delegere oppgaven til design, så gjør jeg det.»*
-> *«din anbefaling drukner i masse svada om målinger som betaler seg på første forsøk. jeg er IKKE interessert i småprat.»*
-
-**Fire krav, alle brutt i samme melding 2026-09-26:**
-
-| Krav | Bruddet |
-|---|---|
-| 🔴 **Cowork BESLUTTER og gir ordre.** Spørsmål til Kenneth kun når beslutningen faktisk er hans | Cowork la «skal Gjenåpne kreve begrunnelse?» til Kenneth. Det var et produktvalg cowork hadde grunnlag for å ta — agenten hadde alt målt begge alternativene |
-| 🔴 **En anbefaling kommer ALLTID med kommandoen som utfører den** | Cowork ga tre alternativer og en anbefaling, og null limbar blokk. Kenneth måtte be om ordren |
-| 🔴 **Ingen småprat rundt anbefalingen** | «Målingen betalte for seg selv på første forsøk» er selvros som drukner budskapet |
-| 🔴 **Et forbehold skal være KONKRET eller utelates** | Cowork skrev «hvor ofte gjenåpnes dokumenter i praksis? Du kjenner arbeidsflyten». Kenneth: *«hvilken arbeidsflyt skal jeg forstå mot hvor ofte et dokument gjenåpnes? og i hvilken kontekst? jeg kan ikke forstå konsekvensen av en beslutning basert på denne vage beskrivelsen»*. **Han hadde rett: bruksfrekvensen var noe cowork kunne MÅLT med én spørring, ikke noe Kenneth skulle gjette** |
-
-🔴 **Regelen, operativt:** når cowork står mellom alternativer — **velg**, begrunn i én setning som kan etterprøves, og lever ordren i samme melding. **Er valget virkelig Kenneths** (rettigheter, skjema, penger, prod-risiko, produktretning), skal konflikten stå **tydelig navngitt** med konsekvensen av hvert alternativ i konkrete ord — ikke «det avhenger av arbeidsflyten din».
-
-⚠️ **Og et forbehold cowork kan måle bort, skal måles bort før meldingen sendes.** «Dette kan endre svaret, men jeg vet ikke» er ikke et forbehold — det er en umålt påstand.
-
-### Spørsmål: samle, ikke drypp
-
-Mange små avklaringer koster Kenneth mer enn de sparer. Tenk ferdig, mål det som
-kan måles, og still **ett** spørsmål med nok kontekst til at det kan besvares én
-gang. Når du presenterer alternativer: rangér dem og forklar hvorfor du anbefaler
-ett. Spør når det er nødvendig — ikke for å dekke deg.
-
-**Kontrollspørsmål før du spør:** blir noe galt hvis ingen svarer? Er svaret nei,
-er det ikke et spørsmål — det er en beslutning cowork skal ta.
-
-## Roller
-
-| Rolle | Ansvar | Kjører kommandoer | Kode/branch |
-|-------|--------|-------------------|-------------|
-| **Kenneth** | ⚠️ **Endret 2026-09-01:** kjører ikke lenger *alle* kommandoer — kun det som krever **TTY/passord** (`sudo docker` test+prod, `deploy-test.sh`, EAS-bygg, push til `main`), pluss produktbeslutninger, UI-gates og relay mellom økter. Git-mekanikk, bygg og tester er flyttet til merge-agenten. Koder ikke. | Ja — det som krever passord | — |
-| **merge-agent** | Utfører commit-orden cowork har gatet: merge til develop fra `SiteDoc-merge`, `merge-base`-verifisering, branch-opprydding, regel 10-bygget, docs-commits. **Hender, ikke dømmekraft** — gater aldri selv, merger aldri en branch cowork ikke har navngitt. Fem fences i § MERGE-AGENTEN. | Ja (git/bygg, aldri `sudo`) | `merge-restart` |
-| **cowork** | Eier **commit-orden** + tverr-koordinering: merge-rekkefølge, regel 9/10-håndheving, prod-løp, konfliktvakt (frossen sone), BACKLOG, deploy-disiplin. Skriver timer/PSI-kode + gate-verifiserer. Gir Kenneth kommandoer. **Alt som lander på develop/main passerer cowork.** | Nei (gir Kenneth) | pipeline + timer |
-| **design (tidligere fabel)** | Eier redesignet. Skriver ordre til kode-agenter (hva kodes, designkrav, akseptkriterier) og leverer dem via `Fra fabel/til-repo-*`, designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering. **Rører aldri git-koreografi.** | Nei | redesign-retning |
-| **kode-agent** (oppgavenavngitt) | Koder ÉN oppgave i ETT worktree på EGEN branch. Får ordre fra cowork via `relay/inbox-<navn>.md`, eller fra fabel via `docs/redesign/`. Pusher egen branch, **aldri develop**. Rører ikke frossen sone (nav/layout). | Ja (egen branch) | egen feature-branch |
-| **verifiserings-agent** | Verifiserer i nettleser eller simulator. **Rapporterer funn — konkluderer ikke om årsak.** Skriver ikke kode. | Nei/begrenset | — |
-
-> 🔴 **Agentene er DYNAMISKE — tabellen over beskriver roller, ikke instanser (Kenneth 2026-08-20).**
->
-> Tabellen het tidligere `redesign-Opus` / `develop-Opus` / `Opus web`. **Ingen agent har
-> hett det på uker.** I praksis navngis de etter oppgave — `dokgen`, `mobil-device`,
-> `kontrollplan`, `utlegg`, `mobilverify`, `app-felt` — og de opprettes og avsluttes
-> løpende.
->
-> Kenneth: *«dette beskriver et statisk prosjekt, ikke et prosjekt i bevegelse. Jeg sier vi
-> må rydde worktrees, og vi rydder `redesign-Opus`, `develop-Opus`, `Opus web`. Jeg sitter
-> her og tror at vi fremdeles har kontroll — uvitende om at cowork akkurat mistet den.»*
->
-> **Derfor: [STATUS-AKTUELT § Statustavle](STATUS-AKTUELT.md) er det eneste registeret over
-> hvilke agenter som finnes.** Står ikke agenten på tavla, finnes den ikke. Denne tabellen
-> sier hva en agent *har lov til*; tavla sier hvem som er der *nå*.
->
-> **Ved oppretting:** legg raden på tavla i samme handling som du skriver ordren.
-> **Ved avslutning:** fjern raden, og rydd worktreet (`git worktree remove` /
-> detach på `origin/develop`). En agent uten rad er en agent ingen har oversikt over.
-| **simulator-Opus** | Verifiserer på iOS-simulator (Metro @ develop) OG web. Kjører idb/simctl lokalt; leser test-DB via tunnel. Rapporterer observasjoner med kandidatmengde — konkluderer ikke om kode-atferd uten kodeverifisering. Skriver ikke produktkode; docs-endringer rutes via cowork. | Ja (simulator/lokalt) | — |
-
-> ### 🔴 design — rollen etter Fabel (Kenneth-vedtak 2026-09-18)
->
-> Fabel forsvant 2026-09-17. Rollen heter nå **design** (som agentene ellers heter etter oppgaven: `mal`, `dokgen`,
-> `kontrollplan`). Design har samme ansvar som fabel hadde — eier designet, skriver designnotater, vedtak og
-> ordrer, designgater — **pluss** ordrene og innholdsgaten for sjekklistemalene (MAL-METODE). Forskjellen er at
-> design har skrivetilgang. Omtal rollen som «design», ikke med pronomen. Nye filer fra design har `-design-` i
-> navnet; eldre `-fabel-`-filer beholder navnet sitt.
->
-> **1. Design jobber som de andre agentene.** Eget worktree `~/Documents/Programmering/SiteDoc-design` på basen
-> `design-base`. Hver leveranse (designnotat, ordre, tillegg, docs-endring) committes på en egen branch
-> `docs/design-<emne>` laget fra **`origin/develop`** (ikke fra `design-base`) og pushes. **Merge-agenten merger**
-> etter samme regler som for alle andre. Design pusher aldri `develop`, merger aldri, deployer aldri. Force-push kun
-> på egen branch etter rebase, og bare med Kenneths ok. **Ingen løse filer i hovedtreet fra design** — hovedtreet er
-> Kenneths og coworks.
->
-> **2. Ingen ordre relayes uten at cowork har sett hvilke filer den rører.** Ordrer peker bare på committede filer.
-> Design melder branch + hash; **cowork merger ordre-branchen før relay — ikke som formalitet, men fordi cowork er
-> den eneste som holder kollisjonskartet** over hvem som er i hvilke filer. (Målt 2026-09-18: tre agenter hadde
-> ærend i `nb.json` samtidig; cowork sekvenserte dem.) Nudgen navngir fila med sti i repoet.
->
-> > ⚠️ **Unntak for sjekklistemaler:** på maløypa merges ordre-branchen **ikke** før relay — mal-Opus leser den fra
-> > designs pushede branch. Se § MALØYPE nedenfor. Gjelder kun maler; for redesign-sporet står pkt 2 uendret.
->
-> **3. Egen innboks: `relay/inbox-design.md`.** Erstatter `inbox-fabel.md`. Cowork appender dit etter
-> KONVENSJON-reglene, og Kenneth nudger med én linje: «les
-> `/Users/kennethmyrhaug/Documents/Programmering/SiteDoc/relay/inbox-design.md`». Design skriver til
-> `inbox-cowork.md` og til agentenes innbokser på samme måte. Kenneth limer ikke hele meldinger.
->
-> **4. Faste gate-ord.**
->
-> | Ord | Betyr | Slipper videre? |
-> |---|---|---|
-> | «Innhold godkjent» | Teksten stemmer med ordren | Nei |
-> | «Designgatet – klar for merge» | Design er ferdig | **Ja** — cowork tar teknisk gate og merge-timing |
-> | «Avvik: …» | Ett konkret avvik som må rettes | Nei |
->
-> Agenter kan committe og pushe egen branch når som helst. **Merge skjer bare etter «klar for merge».**
->
-> **5. Ordrer rangerer, og ber bare om bevis agenten kan levere.** Hver ordre skiller obligatorisk fra valgfritt.
-> Bevis som krever utstyr agenten ikke har (innlogget nettleser, simulator), bestilles ikke av den agenten. For
-> maler gjelder tekstbevis (MAL-METODE §6a).
->
-> **6. Uenighet mellom design og cowork: maks én runde, så Kenneth.**
->
-> | Hvem avgjør | Hva |
-> |---|---|
-> | **Design** | Design, tekst, malinnhold |
-> | **Cowork** | Merge, rekkefølge, timing, kollisjoner |
-> | **Kenneth** | Alt som endrer hva som bygges: innhold, skjema, rettigheter — og grensesaker |
->
-> Den ene melder uenighet, den andre svarer **én gang**. Er vi fortsatt uenige, går saken til Kenneth i **én
-> melding** med begge standpunktene, hva hver har målt, og en rangert anbefaling. Ingen avgjør stille, og Kenneth
-> skal ikke måtte lese en tråd. (Presedens 2026-09-17: `domain` vs `subdomain` — design hadde målt tre ting cowork
-> ikke hadde sjekket; det fungerte fordi Kenneth så begge sider.)
-
-> ### 🔴 MALØYPE — sjekklistemaler går design ↔ mal-Opus direkte (Kenneth-vedtak 2026-09-18)
->
-> **Gjelder KUN sjekklistemaler.** Redesign-sporet er uendret — der står § design pkt 2 og meldingsflyt regel 14 som før.
->
-> > **Kenneth 2026-09-18:** *«du og mal må kommunisere dere imellom — når arbeidet er inne og godkjent sendes
-> > arbeidet til cowork for å oppdatere alle statuser.»*
->
-> **1. Design og mal-Opus går direkte.** Ordre, spørsmål, avvik og tekstbevis-gate flyter mellom de to uten
-> mellomledd. Mal-Opus leser ordren fra designs **pushede** docs-branch med
-> `git show origin/docs/design-<emne>:<sti>` — ordren trenger **ikke** merges før den gis.
->
-> **2. Kenneth trengs bare til to ting:** SQL mot test (krever TTY) og innholdsbeslutninger.
->
-> **3. Ved «Designgatet – klar for merge» får cowork ÉN melding** med mal-branch, hash, filer og docs-branch.
-> Cowork merger **begge** og oppdaterer tavla, MAL-PLAN og status.
->
-> > 🔴 **En pushet branch er IKKE et klarsignal — gate-MELDINGEN utløser merge, ikke branchens eksistens.**
-> > Merge skjer først når ordene «Designgatet – klar for merge» står i `relay/inbox-cowork.md` for nøyaktig
-> > den branchen. Er design taus om en pushet branch, er den ikke gatet. 🔴 **Gjelder også når cowork har målt
-> > branchen på origin — måling beviser at den finnes, ikke at den er godkjent.**
-> > **Begrunnelse:** `0ab36a84` merget runde E ugatet fordi coworks ordre bygde på at branchen fantes, ikke på
-> > en gate-melding — og la feil ordlyd («per 1000» i stedet for husstilens «pr. 1000») inn i develop. Ingen
-> > skade, fordi SQL-en ikke var kjørt — men det var flaks, ikke system.
->
-> **4. Kollisjonskartet består — cowork får kopi, ikke veto-i-forkant.** Når design gir mal-Opus en ordre, får
-> cowork en kopi i `inbox-cowork.md` med filene ordren rører **og hash-en på docs-branchen**. Cowork kan si stopp;
-> ingen venter på ja.
->
-> > 🔴 **Kopien skal bære HASH, ikke bare branchnavn.** Force-pusher design docs-branchen etter at mal-Opus har lest
-> > den, leser mal-Opus noe annet enn det cowork fikk kopi av — og vetoet hviler da på feil fil.
->
-> **🔴 KONSEKVENS — coworks rolle på maløypa går fra GATE til VAKTHOLD.** Ingen venter på et ja, så en kollisjon
-> lander hvis cowork ikke leser `inbox-cowork.md`. Det er en bevisst avveining, ikke en forglemmelse — og den skal
-> stå skrevet, ikke være en stilltiende forventning.
->
-> **Dette erstatter, KUN for maløypa:** § design pkt 2 (cowork merger ordre-branchen før relay) og meldingsflyt
-> regel 14 (nudge-eierskap). Begge beholdes uendret for redesign-sporet.
-
-### 🔴 «redesign-Opus» i en design-ordre (tidligere fabel) = et worktree COWORK klargjør (Kenneth 2026-09-04)
-
-> **Kenneth 2026-09-04:** *«Det refereres til redesign fra fabel — du må i din dokumentasjon
-> forstå det slik: cowork gater ordren til et worktree som cowork har klargjort for å utføre
-> oppgaven.»*
-
-Designs ordrer er adressert «til redesign-Opus (relayes av Kenneth)». **Det er en rolle, ikke en
-instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har hett
-«redesign-Opus» på uker.
-
-**Hva det betyr i praksis, og hva cowork gjorde feil 04.09:**
-
-- Cowork skal **ikke lete etter** en agent med det navnet, og skal ikke vente på at noen andre
-  tildeler ordren. **Cowork velger worktree, klargjør branchen, gater ordren mot kode og skriver
-  tavle-raden.** Det er hele coworks jobb i den kjeden.
-- 🔴 **Mangler fabels ordrefil, skriver cowork den** — så lenge grunnlaget er gatet. Er
-  designnotatet vedtatt og tilleggene verifisert, finnes alt som trengs. Å vente på en fil er
-  ventetid uten verdi.
-  **Målt tilfelle:** 04.09 leverte fabel `TILLEGG-ordre-lokasjonomfang-L9` til en hovedordre som
-  ikke fantes i repoet eller i noen leveransepakke. Cowork stoppet og ba om den — men
-  designnotatet var vedtatt av Kenneth samme kveld, og tillegget var gatet. Ordren kunne vært
-  skrevet med det samme.
-- **Grensen består:** fabel eier *designet* — hva som skal bygges, akseptkriterier, designlås.
-  Cowork eier *utførelsen* — hvem, hvor, hvilken branch, i hvilken rekkefølge, og gating mot
-  faktisk kode før noe relayes. Cowork oppfinner ikke designbeslutninger; cowork skriver ned dem
-  som allerede er tatt.
-  🔴 **Brutt 2026-09-15:** cowork spurte Kenneth *«skal jeg skrive ordren for 1?»* etter at
-  rangeringen var gjort og alternativ 1 var åpenbart (null nye tester, elleve eksisterende
-  slås på). **Arbeidsfordeling og ordre-rekkefølge er ikke Kenneths gate.** Spørsmål til
-  Kenneth skal være gate-spørsmål — innhold, skjema, design — ikke arbeidsledelse. Er
-  rangeringen gjort og valget åpenbart: skriv ordren, meld den.
-
-## Meldingsflyt (ufravikelig)
-
-**Fra 2026-10-28 (§ 0b): orkestrator sender ordrene selv; Kenneth ser alle øktene i sidepanelet. Ingen agent utenom orkestrator instruerer en annen.**
-
-*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
-
-- fabel → kode-/verifiseringsagent: formuleres ferdig av fabel, leveres via
-  `Fra fabel/til-repo-*`, Kenneth relayer.
-- cowork → kode-/verifiseringsagent: formuleres ferdig av cowork i
-  `relay/inbox-<navn>.md`, Kenneth relayer.
-- Kommandoer (git/build/sudo/deploy): formuleres til Kenneth, som kjører.
-
-### 🔴 Innboksfilen er kanalen — direktemeldinger er kun varsler (Kenneth 2026-09-23)
-
-- **Innboksene ryddes av orkestrator** (Kenneth 2026-10-06): avsluttede meldinger flyttes til `relay/arkiv/<innboks>-til-<dato>.md`, ved hver prod-deploy og når en innboks passerer ~300 linjer. Bare åpne ordrer og leveranser blir stående, og øverst står en peker til arkivet.
-
-**Bakgrunn:** design sendte ordreinnhold som direktemeldinger mens filene lå **upushet**, meldte hasher som ikke fantes på origin, og byttet filnavn uten å føre det i innboksen. Cowork gjorde samme feilklasse den andre veien: påsto at brancher var «amendet» uten å ha målt det — sannheten var at de aldri var pushet. **To uklare kanaler samtidig gir fire feil av samme rot.** Alle fire ville blitt fanget av ett `ls-remote` før hashen ble meldt.
-
-- **Innboksfilen (`relay/inbox-<navn>.md`) er kanalen. Branch + filnavn er innholdet. Direktemeldinger (nudger, bro-meldinger) er kun varsler** — de bærer aldri sannheten alene.
-- **Ingenting finnes for en agent før cowork har merget til develop.** En branch som finnes lokalt eller er «levert» finnes ikke i mottakerens worktree.
-- 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
-- **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
-- 🔴 **NYE POSTER FØYES TIL NEDERST, og bare nederst** (presisering 2026-09-30). `inbox-cowork.md` er 7 000 linjer; ingen leser hele. **Cowork leser halen.** Skriver én agent øverst og en annen nederst, blir halve innboksen usynlig — og leseren tror avsenderen ikke har skrevet. **Målt 2026-09-30:** kontrollplan skrev to leveranser øverst med `[agent → cowork]`-prefiks, design føyde til nederst. **Cowork leste halen, så ikke kontrollplans poster, og fortalte både ham og dokgen at de ikke hadde meldt fra. Feilen var coworks; fella var de to konvensjonene.** Prefikset `[agent → cowork]` er nyttig og beholdes — **plasseringen er det som er fast.**
-- 🔴 **`relay/` er GITIGNORERT** (`.gitignore:68`) — **filene følger ikke med en branch og synkes ikke mellom arbeidstrær.** Hver agent har sin egen `relay/`-kopi i sitt worktree. **Kanalen er HOVEDTREETS kopi:** `~/Documents/Programmering/SiteDoc/relay/…`, med absolutt sti. Skriver du til `relay/…` relativt i ditt eget tre, lander det et sted ingen andre leser.
-
-#### 🔴 Cowork STADFESTER gaten i merge-ordren — merge skal aldri be om å sjekke den (2026-09-24)
-
-**Merge-agenten kan ikke lese `relay/inbox-cowork.md`.** Den er coworks kanal. En merge-ordre som sier *«merg KUN hvis design har gatet den — står ingen gate i inbox: hopp over»* ber derfor om en verifisering agenten ikke har noen måte å utføre.
-
-🔴 **Regelen:** cowork **stadfester** gaten i ordren, med sitat og linjenummer — *«Designgatet, inbox-cowork.md:3370»* — eller skriver at den **mangler** og gir ingen merge-kommando i det hele tatt. **En betingelse mottakeren ikke kan prøve, er ikke en gate. Den er en forventning.**
-
-⚠️ **Generaliseringen er den nyttige:** et krav skal kunne oppfylles av den som får det. Kan mottakeren ikke måle betingelsen selv, må avsenderen ha målt den — ellers er kravet dekorasjon, som `cmd | grep | tail`-gaten som alltid returnerte 0.
-
-🔴 **Det følger tre ting av setningen over, og cowork brøt alle tre 2026-09-27/28.** **Historiene står i
-[STATUS-AKTUELT](STATUS-AKTUELT.md); her står bare kravet:**
-
-- **Hver hash i en ordre er verifisert på origin først** (`git ls-remote --heads origin <branch>`).
-  🔴 **Be aldri Kenneth pushe en branch cowork fortsatt skriver på.**
-- **Forventede gate-tall kommer fra leverandørens rapport på DEN branchen ordren gjelder** — aldri fra
-  en annen branch, aldri som anslag.
-- **Gaten skal være I HÅNDEN før merge-ordren skrives.** Gate-forespørsel og merge-ordre går ikke i
-  samme melding — Kenneth relayer til fire terminaler og kan ikke vite at blokk 2 forutsetter svar på
-  blokk 1. ⚠️ **Merges den før gaten, kan design finne et ekte hull som da alt står på develop.**
-- **Hver merge-ordre bærer en forutsetningslinje som gjør den idempotent:**
-  `git merge-base --is-ancestor <hash> origin/develop && echo "ALT MERGET — STOPP"`. **En duplisert
-  ordre skal stoppe seg selv, ikke koste mottakeren en runde på å bevise at avsenderen gjentok seg.**
-
-- 🔴 **En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien** — ikke «åpne skjermen og se om
-  det virker», men «gjør DETTE, som får koden til å kjøre». **Finn hvilken prosedyre som kaller det som er
-  fikset, og hva brukeren må GJØRE for å nå den.** ⚠️ **Står det ikke i ordren, er «det virker» en
-  observasjon om cache, ikke om fiksen.**
-- 🔴 **Og den skal navngi HVEM som verifiserer.** Utelates det, antar agenten at det er ham — og da bygger
-  han et apparat. **Målt to ganger 2026-09-29: coworks «verifiser på benken» sendte redesign inn i
-  Playwright-harnesser, 33 og 31 minutter, begge ganger uten resultat.** ⚠️ **Første gang manglet det at
-  benken ikke fantes; andre gang at «på benken» betyr at KENNETH ser.**
-  **Tre kategorier, og ordren skal si hvilken:**
-  - **Et TALL eller en REGEL** → funksjonstest. **Ingen nettleser.** Forholdet hode:strek er matematikk og
-    måles ikke ved å klikke.
-  - **Et UTSEENDE** — tykkelse, kontrast, plassering, «ser det riktig ut» → **Kenneth, på benken eller i
-    appen.** 🔴 **Ikke automatiser et blikk.** Et verktøy som viser ham resultatet raskere er riktig; et
-    verktøy som later som det er ham, er ikke.
-  - **En FLYT agenten ikke kan nå** — opplasting, innlogging, enhet → **si det i rapporten i stedet for å
-    la gaten bære det.** 🟢 **«Dette kunne jeg ikke se» er en gyldig leveranse.**
-- 🔴 **Meld og mål på COMMIT-HASH, aldri på branchnavn.** `--is-ancestor origin/<branch>` feiler med
-  exit≠0 når refen er slettet, og **en feilende kommando er umulig å skille fra et ekte «nei»**. Riktig
-  form: `git merge-base --is-ancestor <hash> origin/develop`. ⚠️ **Navnet er for mennesker, hashen er det
-  som kan måles.**
-- 🔴 **Kommandoer Kenneth skal kjøre holder seg til POSIX-flagg.** **Hans Mac har BSD-verktøy; en
-  sandkasse-testet kommando er prøvd i et annet verktøysett.** Vanligste feller: `xargs -a` · `sed -i` uten
-  argument · `grep -P` · `date -d` · `readlink -f` · `stat -c`. 🔴 **Og en slettende eller endrende kommando
-  skal ALLTID følges av en telling som ville avslørt at ingenting skjedde.**
-- 🔴 **Et binærnavn, en filsti eller et `fil:linje` måles av den som skriver det inn — aldri arvet.**
-  **Arver du det, skriv «umålt» ved siden av.** ⚠️ **Et navn fra en velskrevet melding leses som målt:**
-  `dwgread` reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp — de virkelige binærene er
-  `dwg2dxf` og `dwg2SVG`. **Gjelder begge veier.**
-### 🔴 /clear-REGELEN — agenten skal kunne tømmes når som helst (Kenneth-vedtak 2026-10-14, skjerpet samme kveld)
-
-Kenneth kjører `/clear` på en agent **når den har skrevet et SJEKKPUNKT**: etter en levert oppgave, eller når han ber om det ved ~20 % kontekst. Det er bare trygt hvis ingenting bor kun i chatten. **Tilstand som ikke står i en fil eller på origin, finnes ikke.**
-
-**Målt 2026-10-14, første kveld:** orkestrator sendte en oppgave («ta UI-bevis for reekstraksjonen») BARE som nudge. Kenneth tømte Redesign og limte inn nudgen. Agenten visste ikke hvilken PDF, hvilket prosjekt eller hvor rapporten skulle, og begynte å lete fra null. **To feil: ordren fantes ikke i fil, og regelen krevde to meldinger etter /clear.** Begge er rettet under.
-
-#### A. Orkestrator: ordre i fil, nudge selvforklarende
-
-1. **Ingen oppgave uten POST i innboksfila.** Gjelder også små oppgaver som «ta et bilde». Posten skal kunne utføres av en agent som husker NULL:
-   - **Hva og hvorfor:** én setning.
-   - **Utgangspunkt:** branch/hash og miljø (test-hash).
-   - **Data:** konkret prosjekt/fil/tegning ved navn. Hvordan agenten logger inn: peker til `docs/claude/dev-login-agent.md` + bruker.
-   - **DoD:** hva som skal vises eller måles.
-   - **Hvor svaret skal:** `relay/inbox-orkestrator.md` + SJEKKPUNKT.
-2. **Hver nudge har ÉN fast form** og virker likt om agenten er tømt eller ikke:
-   ```
-   Du er <Agent>. Innboks: ~/Documents/Programmering/SiteDoc/relay/<fil>. Er du nettopp tømt: følg § /clear-REGELEN punkt C i docs/claude/SAMARBEIDSREGLER.md først. Ny post: «<overskrift i innboksen>».
-   ```
-   Nudgen bærer aldri innhold som ikke står i posten. **Kenneth trenger aldri en egen oppstartsmelding.**
-
-#### B. Agenten: SJEKKPUNKT før Kenneth kan tømme
-
-Hver leveranse, og hver gang Kenneth skriver «Skriv SJEKKPUNKT», slutter med dette nederst i `~/Documents/Programmering/SiteDoc/relay/inbox-orkestrator.md` (hovedtreets kopi, absolutt sti):
-```
-SJEKKPUNKT <Agent> <dato tid>
-Branch: <navn> @ <hash>   (verifisert: git ls-remote --heads origin <branch>)
-Worktree: <absolutt sti>
-Ordre: <innboksfil> § <overskrift>
-Status: levert / under arbeid / venter på <hva>
-Kunnskap å ta med: <det du lærte som ikke står i ordren: testdata du laget, ID-er, innlogging, fallgruver>
-Åpent: <det som ikke er gjort, eller «ingenting»>
-Neste steg: <én setning, eller «vent på ordre»>
-```
-- Midt i en oppgave: commit og push pågående arbeid på **egen feature-branch** (WIP-commit er lov der, aldri på develop/main), skriv SJEKKPUNKT, og svar bare **«klar for clear»**. Ingen ny kode etter det.
-- 🔴 **«Kunnskap å ta med» er feltet som gjør /clear trygt.** Testdokumenter du lastet opp, prosjekt-ID-er og hvilken bruker som virket. Det du ellers måtte lete fram på nytt, skal stå her.
-
-#### C. Agenten etter /clear: les før du gjør noe
-
-1. Denne regelen.
-2. Posten nudgen navngir, i egen innboks (søk på overskriften). Finnes den ikke: **STOPP og meld «posten finnes ikke»**. Ikke gjett ut fra nudgen.
-3. Siste `SJEKKPUNKT <Agent>` i `relay/inbox-orkestrator.md`, inkludert «Kunnskap å ta med».
-4. `git -C <worktree> status` + `git log -1`. Avviker treet fra sjekkpunktet: **meld avviket før du gjør noe.**
-
-Les ikke hele innboksen eller historikken. Posten pluss sjekkpunktet er hele konteksten. Mangler noe, er det posten eller sjekkpunktet som var dårlig, og det skal meldes (det er en feil å rette, ikke å jobbe rundt).
-
-**Innboks pr. agent** (orkestrator holder lista oppdatert):
-
-| Agent | Innboksfil |
-|---|---|
-| Dokgen | `inbox-dokgen-arbeidstegning-f1.md` |
-| Redesign | `inbox-redesign-docx-sok.md` |
-| Kontrollør | `inbox-kontrollor.md` |
-| Fabel | `inbox-fabel.md` |
-
-## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
-
-**Miljøspørsmål besvares fra [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + sjekk-først — aldri ved å be Kenneth gjenta oppsett.** Kunnskapen om `.env`-filer, lokal DB og test-kjøring bor i repoet ([LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) → [lokal-dev.md](lokal-dev.md), [tests/e2e/README.md](../../tests/e2e/README.md), [dev-login-agent.md](dev-login-agent.md)). Compaction sletter agentens minne om at filene finnes — ikke filene.
-
-Før noen agent ber Kenneth om miljøoppsett: (1) `ls` etter `.env*` på kjente steder + les det som finnes, (2) les LOKALT-OPPSETT.md + relevant dyp-doc, (3) spør KUN om den ENE variabelen som faktisk mangler. Aldri «opprett .env» / «gi meg DATABASE_URL» før det er lett — samme feilklasse som flytmodellen (sannhet i samtalen, ikke i kilden).
-
-## Commit-orden — én eier: cowork
-
-All merge-koreografi går gjennom cowork:
-- **Rekkefølge:** timer og redesign treffer ikke develop samtidig uten build-gate mellom — én verifisert ting om gangen.
-- **Regel 9:** `redesign/navigasjon → develop` alltid `--no-ff` (synlige, revertbare grenser).
-- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck) **OG grønt `npx turbo run typecheck --force` fra rot (exit 0, alle pakker fullført)**. 🟢 **Utvidet 2026-10-02 (`fix/shared-typecheck`):** typecheck-leddet er nå `turbo run typecheck` — ti pakker med `tsc --noEmit` i ett kall (api · db · db-maskin · db-timer · db-varelager · pdf · ui · shared · web · mobil), ikke lenger bare `mobile typecheck`. Det lukker hullet der `packages/shared` aldri ble typesjekket (se § GATE-TALL). Web build beholdes — det fanger `.next/types` og transitiv api-drift som `tsc` alene ikke ser.
-
-  > 🔴 **HULL MÅLT 2026-09-24 — `next build` typesjekker IKKE testfiler.** Kontrollplan meldte at `tsc --noEmit` i `apps/web` var rød mens gaten var grønn; merge-agenten **bekreftet det på ren `origin/develop` (`4c5a02cb`)** etter `pnpm install` + fire `prisma generate`, så det var kodens tilstand og ikke treets:
-  >
-  > ```
-  > tsc exit=1
-  > src/lib/__tests__/bibliotek-mal.test.ts(25,14): error TS2532: Object is possibly 'undefined'.
-  > src/lib/__tests__/bibliotek-mal.test.ts(26,14): error TS2532: Object is possibly 'undefined'.
-  > ```
-  >
-  > **Årsaken:** `next build` typesjekker **byggegrafen**. `src/lib/__tests__/*` er ikke i den, selv om `apps/web/tsconfig.json` inkluderer `**/*.ts`. **Typedrift i web-testfiler har derfor vært usynlig for gaten.**
-  >
-  > 🔴 **Gaten utvides med et tredje ledd:**
-  > ```sh
-  > pnpm --filter @sitedoc/web exec tsc --noEmit > /tmp/tsc.log 2>&1; echo "tsc exit=$?"; tail -15 /tmp/tsc.log
-  > ```
-  > **Alle tre skal ha `exit=0`.** ⚠️ **Dette er ikke redundans:** de tre måler ulike ting — `next build` måler byggegrafen, `mobile typecheck` måler mobil, `tsc --noEmit` måler alt i web-prosjektet inkludert tester.
-  >
-  > 🟢 **Og fangsten er metodisk verdt å merke seg:** hullet ble funnet av en agent som meldte en rød tsc han ikke hadde forårsaket, framfor å ignorere den som «ikke min». **En gate man ikke har målt, er en påstand** — det gjaldt `cmd | grep | tail` i august, og det gjaldt denne i september. Mobil-gaten er nå blokkerende — baseline ble ryddet 2026-07-30 (`fba830da`, branch `fix/mobil-typecheck-groenn`).
-
-  > **Kjør `prisma generate` for de 4 db-pakkene FØR gaten** (`db`, `db-timer`, `db-maskin`, `db-varelager`) — ellers rapporterer tsc 400+ falske «implicit any»-feil fra ugenererte Prisma-klienter (`.prisma/*-client`), som maskerer de reelle. I Docker-deployen bakes generate inn; lokalt/i gaten er det et eksplisitt forsteg.
-  >
-  > ✅ **MÅLT 2026-09-02 — web-halvdelen dekker `apps/api`, også ruter web aldri kaller.**
-  > Negativ kontroll (merge-agent): en bevisst typefeil injisert i
-  > `apps/api/src/routes/mannskap.ts:267` — en PSI-rute web ikke importerer direkte — gjorde
-  > `pnpm --filter @sitedoc/web build` **rød** (`exit=1`, «Type 'string' is not assignable to
-  > type 'number'»). `next build` typesjekker api-kilden transitivt gjennom `AppRouter`-
-  > importkjeden. Feilen revertert, tre rent.
-  >
-  > **Konsekvens:** regel 10 har **ikke** et hull for backend-logikk, og et eget
-  > `@sitedoc/api typecheck` er **ikke påkrevd** for dekning. Det gir raskere tilbakemelding når
-  > en runde tungt rører api — kjør det gjerne da, men vit at det er hastighet, ikke dekning.
-  > *(Bakgrunn: kontrollplan antok 2026-09-02 at web-bygget ikke nådde rutene hans. Målingen
-  > motbeviste det. Påstanden er nå avgjort — ikke re-litigér den.)*
-  >
-  > 🔴 **Utvidet 2026-08-30 — gjelder `web build`, ikke bare mobil-typecheck.** Notatet sa
-  > «før mobil-typecheck», og det leses som at web-bygget er upåvirket. Det er feil:
-  > `next build` typesjekker `apps/api` gjennom importkjeden, så en stale klient feller
-  > web-bygget også. Målt samme dag: gaten på develop etter tre merger feilet med
-  > `'prosjektTilgang' does not exist in type 'OrganizationMemberSelect'` — feltet fantes i
-  > schemaet, klienten i hovedtreet var fra før migreringen.
-  >
-  > 🔴 **Gaten kan feile på TREETS tilstand, ikke kodens — to lag, i denne rekkefølgen:**
-  > 1. `Module not found` på en pakke som står i `pnpm-lock.yaml` → `node_modules` er bak
-  >    lockfilen. **Kjør `pnpm install`**, ikke en kodejakt. (Målt 2026-08-30:
-  >    `@tanstack/react-virtual` kom inn fra et annet worktree med `86a91047`.)
-  > 2. `does not exist in type '<Modell>Select'` → Prisma-klienten er bak schemaet.
-  >    **Kjør generate for alle fire.**
-  >
-  > **Fast forsteg i enhver gate som kjøres rett etter en merge:**
-  > ```sh
-  > cd ~/Documents/Programmering/SiteDoc && pnpm install && \
-  > for p in db db-timer db-maskin db-varelager; do pnpm --filter @sitedoc/$p exec prisma generate; done
-  > ```
-  > Uten det bruker økta to runder på å oppdage at koden var i orden hele tiden. Det skjedde
-  > både 2026-08-28 (blokkerte prod-releasen) og 2026-08-30 — samme feilklasse, to ganger på
-  > tre dager, fordi forsteget sto beskrevet for smalt.
-  >
-  > ⚠️ **Historikk (hvorfor gaten finnes):** Regelen gatet KUN web til 2026-07-16, og mobil råtnet i skyggen — `@sitedoc/mobile typecheck` var **rød på ren develop** (11 ekte feil, bl.a. `erstattVedlegg` returnert av begge mobil-hookene men ikke deklarert i interfacene). Ingen visste, fordi gaten aldri spurte. Ryddet 2026-07-30 (`fba830da`) → mobil-gaten er nå blokkerende, ikke bare baseline-sammenligning.
-- **Worktree per spor:** aldri to økter i samme arbeidstre.
-- **Prod:** aldri uten Kenneths eksplisitte ordre; rett branch rsynca; migreringer gated.
-
-> **Design-godkjenning (akseptkriterium):** en redesign-UI-endring (flagg-på) er **ikke lukket** før **fabel har designgodkjent mot skjermbilder** fra en verifiserings-agent — aldri på typecheck/`next build` alene. Build-gaten (regel 10) sikrer at det *bygger*; design-godkjenningen sikrer at det *ser riktig ut*. Begge kreves.
-
-### 🔴 Merge-kjeden SKAL bære gaten (lærdom 2026-08-22)
-
-Regel 10 fantes, men cowork kjørte `pnpm test` som siste port før deploy i to dager. **`pnpm test`
-kjører vitest, ikke tsc.** Kjeden gikk grønn og deployet inn i en kompileringsfeil
-(`setSlettFeil` etterlatt etter en konfliktopprydding); Docker-bygget fanget den etter tre
-minutter og en TTY, i stedet for tre sekunder lokalt.
-
-**Gaten skal stå i selve kommandokjeden Kenneth limer inn**, ikke i hukommelsen til den som
-skriver den.
-
-🔴 **Rettet 2026-08-23 — kjeden over var DEKORATIV i to dager.** Den opprinnelige formen var:
-
-```bash
-pnpm typecheck 2>&1 | grep -E "error|Tasks:" | tail -5 && \   # ← exit-koden er tail sin: ALLTID 0
-pnpm test 2>&1 | grep -E "FAIL|Test Files|Tests " && \        # ← grep matcher «Test Files» uansett
-./deploy-test.sh
-```
-
-I bash er exit-koden for en pipe **siste ledds** kode, ikke den feilende kommandoens. `tail`
-lykkes alltid, og `grep` lykkes så lenge mønsteret finnes i output — som «Test Files» gjør også
-når tester er røde. **Begge leddene returnerte 0 uansett utfall, og `&& ./deploy-test.sh` kjørte
-alltid.** Regelen ble skrevet for å fikse nøyaktig denne feilklassen og bar den selv; cowork ga
-kjeden videre hele 23.08 uten å måle den. Ironien er poenget: *en gate man ikke har målt, er en
-påstand.*
-
-**Riktig form — eksplisitt exit-kode, ingen pipe mellom kommandoen og gaten:**
-
-```bash
-cd ~/Documents/Programmering/SiteDoc && \
-pnpm typecheck > /tmp/tc.log 2>&1;   echo "typecheck exit=$?"; tail -5 /tmp/tc.log
-pnpm test      > /tmp/test.log 2>&1; echo "test exit=$?";      grep -E "Test Files|Tests |FAIL" /tmp/test.log | tail -5
-```
-
-Går gaten grønt (begge `exit=0`), se [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md) — `deploy-test.sh <hash>` (hash-argumentet er påkrevd; scriptet avbryter uten det).
-
-Trengs én selv-avbrytende kjede, må `set -o pipefail` stå først — uten den propagerer ingen
-pipe feilkoden:
-
-```bash
-set -o pipefail && cd ~/Documents/Programmering/SiteDoc && \
-pnpm typecheck 2>&1 | tail -5 && pnpm test 2>&1 | tail -5
-```
-
-Går gaten grønt, se [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md).
-
-**Generell regel:** en `&&`-kjede der leddene inneholder `|` gater ikke uten `pipefail`. Skriver
-du en gate, mål at den faktisk stopper — kjør den mot noe som feiler før du stoler på den.
-
-**Beslektet lærdom samme dag:** `grep` er case-sensitivt. Cowork brukte `grep -c "slettFeil"`
-som bevis på at en opprydding var komplett — det gjenværende kallet het `setSlettFeil`, med
-stor S, og traff ikke mønsteret. **Et grep-treff på null er ikke bevis for fravær.** Bruk `-i`
-når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dette fortsatt».
-
-### 🔴 GATE-TALL SKAL SI HVA SOM KJØRTE (Kenneth/fabel 2026-09-15)
-
-🟢 **HULL I REGEL 10 SELV LUKKET 2026-10-02 (`fix/shared-typecheck`): `packages/shared`
-typesjekkes nå.** Fram til da var de tre byggeleddene web tsc, mobil tsc og web build —
-**ingen av dem kjørte `tsc` i shared**, enda shared importeres av web, mobil, api OG pdf.
-shared har ikke noe byggeledd som rører den (`pnpm` bygger den ikke; web/mobil konsumerer
-kilden direkte), så typedrift der var usynlig. **Funnet av en agent på eget initiativ, ikke
-av gaten** — et ledd ingen kjører drifter fritt.
-
-**Målt på ren develop: 33 feil.** 30 i testfiler + 🔴 **3 i KILDEN — `signertBildePolicy.ts`,
-som styrer utløp av signerte `/uploads/`-URL-er.** Alle 33 var latente, aldri før kjørt.
-
-**Fiksen rørte IKKE logikk.** De 3 kildefeilene (`TS2304` manglende globaler) ble løst med
-`"types": ["node"]` i `packages/shared/tsconfig.json` (+ `@types/node` devDep) — Node ≥18 er
-én av shared sine tre runtimes, og `ReturnType<typeof setTimeout>` i kilden absorberer
-node-typen uendret. `signertBildePolicy.ts` er **urørt** (0 endringer). De 30 testfeilene
-(`noUncheckedIndexedAccess`) ble rettet i TESTENE med `!`, aldri ved å svekke kildetyper —
-ingen `any`/`@ts-ignore`/`as unknown as`.
-
-🔴 **Regelen (ufravikelig):** typecheck-leddet i gaten er **`npx turbo run typecheck --force`
-fra rot**, og rapporten bærer **«N vellykket · N total»** fra siste turbo-linje. «6 vellykket»
-er ikke full dekning — turbo stopper på første røde pakke, så et lavt tall betyr at resten
-aldri kjørte (slik shared skjulte web + mobil før fiksen).
-
-🔴 **NESTE LATENTE HULL (målt 2026-10-02, IKKE fikset): `tests/e2e` (`@sitedoc/e2e`) har
-intet `typecheck`-script.** Turbo teller den som no-op-suksess (derav «11 total» mot 10
-reelle `tsc`-kjøringer), men e2e-TS typesjekkes aldri — samme klasse hull som shared var.
-Bestill eget ledd hvis e2e-drift skal fanges.
-
-🔴 **PRESISERING 2026-09-30 — `apps/web`s `tsc --noEmit` kan melde FALSKE feil fra foreldet
-`.next/types`.** Målt ved mergen av `21064640`: to `TS2307` på
-`.next/types/app/dashbord/[prosjektId]/maler/layout.ts`, som pekte på en `layout.js` som ikke
-finnes — katalogen har bare `page.tsx`. **Null feil utenfor `.next/`.** Etter at byggeleddet
-regenererte katalogen: **exit 0.**
-
-**Regelen:** står `tsc` rødt, **skill feil i `.next/` fra feil i `src/` før du melder tallet** —
-`npx tsc --noEmit 2>&1 | grep -v '^\.next/'`. Er alle feilene i `.next/`, kjør byggeleddet
-først og mål på nytt. ⚠️ **Dette går BEGGE veier: et rødt ledd kan være foreldet output, og et
-grønt ledd dekker fortsatt ikke `.test.tsx` — `next build` typesjekker dem ikke.** De tre
-byggeleddene dekker fremdeles ikke hverandre.
-
-Cowork brukte «488 grønne api-tester» som merge-grunnlag i en uke. Så ble det målt:
-**25 av 66 testfiler mocker Prisma**, og de eneste testene som beviser noe mot ekte DB
-eller ekte flyt — 4 integrasjonsfiler (17 tester) og 7 e2e-spec-er — var **ekskludert fra
-CI**. `apps/api/vitest.config.ts` filtrerte bort `*.integration.test.ts`; e2e kjørte kun
-manuelt.
-
-Verst: `firmaarkiv-unik-indeks.integration.test.ts` ble skrevet i runde 95 for å oppfylle
-«stille tomhet»-kravet (b). **Den hadde aldri kjørt. Kvitteringen «grønn» var aldri sann.**
-
-#### 🔴 UTVIDELSE 2026-09-30 — de tre byggeleddene dekker IKKE hverandre. Målt.
-
-**`tsc --noEmit` på web sto RØDT på develop i over et døgn** mens hver gate rapporterte
-grønt. Årsaken er målt av redesign, ikke gjettet:
-
-> «`apps/web` sin `tsc --noEmit` ble ikke kjørt separat — «typecheck web+mobil rent» stammet
-> fra **mobile** typecheck (grønn) lest som dekning for begge.»
-
-🔴 **Og mekanismen som gjorde det usynlig er generell: `next build` typesjekker ikke
-`.test.tsx`.** Byggeleddet var altså ekte grønt samtidig som `tsc --noEmit` var ekte rødt —
-på en testfil. **Ingen av de to andre leddene kan avsløre det.**
-
-**Derfor, ufravikelig:**
-
-- 🔴 **`tsc --noEmit` kjøres EKSPLISITT per app.** Aldri utledet av `build`, aldri av den
-  andre appens typecheck. «Typecheck rent» uten app-navn er ikke en kvittering.
-- 🔴 **Rapporten bærer den ORDRETTE siste linja fra hver kommando**, ikke et sammendrag.
-  «Rent», «grønn» og «ingen feil» er tolkninger; exit-koden og linja er målingen.
-- ⚠️ **`turbo run test` uten `--force` er CACHE, ikke en kjøring.** Målt samme dag: 7/7
-  oppgaver på **1,8 sekunder** ble meldt som gate-tall for 2 400 tester. Kjøretiden i
-  rapporten er selv en kontroll — er den urimelig kort, er tallene gjenbrukt.
-
-🟢 **Coworks andel:** cowork stadfestet den grønne rapporten uten å be om leddet separat.
-**Stadfesting er en kontroll, ikke en videreformidling.**
-
-🔴 **Fem tall uten fordeling er ikke lenger gyldig kvittering.** Gate-tall skal oppgis som:
-
-    unit-mock: <n> · unit-ren: <n> · integrasjon: <n> · e2e: <n>
-
-- **«unit-mock»** = filen mocker Prisma (`vi.mock` på prisma/`@sitedoc/db`/`PrismaClient`).
-  Den måler vakten, ikke dataen.
-- 🔴 **«Stille tomhet er forbudt» krav (c) — en test som FEILER når feltet er tomt — kan
-  ALDRI oppfylles av en mocket test.** Kvitteres kravet med mock, er kvitteringen «delvis —
-  mock», og det skal stå på tavla til integrasjonstesten finnes.
-- **Klarer du ikke skille maskinelt: meld hvordan du telte, og hva som er usikkert. Ikke gjett.**
-
-**Cowork eier merge-timing og deploy — da eier cowork også at tallet bak «grønn» betyr noe.**
-Mål signalet du selv forvalter, før du stoler på det.
-
-- 🔴 **Gate-tall skal komme fra `pnpm exec turbo run test --force` fra ROT.** **Et FULL TURBO-treff er
-  ikke en gate-kjøring** — ser du «FULL TURBO», er tallene ikke ferske. 🔴 **Gaten er en observasjon, ikke
-  et oppslag:** et cache-treff gir riktige tall, men beviser ikke at testene kjørte på ditt tre.
-### 🔴 EN NEGATIV ASSERTION ER IKKE BEVIST FØR TRE TING ER VIST (design/cowork/kontrollplan 2026-09-27)
-
-**En `not.toMatch`/`not.toContain` som aldri har vært rød er ikke en test — den er en tillatelse.**
-⚠️ **Den passerer også når den er skrevet feil, og da er den verre enn ingen test: den ser ut som et
-vern.**
-
-**Tre krav, alle tre, før en negativ vakt regnes som levert:**
-
-**1. 🔴 Den skal ha vært RØD — og rødheten tas i en ENGANGSFIL, aldri i den ekte.**
-
-**En negativ assertion gjøres bare rød ved at det forbudte innholdet finnes der testen leser.**
-🔴 **Skriv det ALDRI inn i den ekte fila for å demonstrere.** ⚠️ **Ett glemt steg, og demonstrasjonen
-er blitt produksjonskoden.** **Bruk en engangsfil eller engangskatalog med et navn som ikke kan
-forveksles med noe ekte, og slett den.**
-
-**Kvittering — og et rent arbeidstre er IKKE nok:**
+| Kode (alle kode-ordrer) | **Kontrollør** | «GODKJENT – klar for merge» eller «Avvik: …» |
+| Mal (seed/innhold) | **Fabel** (innhold + teknikk på agentens regel 10-tall) | «klar for merge» |
+| Docs-only fra Fabel | Fabels melding er klarsignalet; orkestrator sjekker mekanisk at diffen bare er docs | «klar for merge» |
+
+- 🔴 **Gate-MELDINGEN utløser merge, ikke branchens eksistens.** En pushet branch uten klarsignal for nøyaktig den
+  hashen er ikke gatet — også når orkestrator har målt at den finnes.
+- **Orkestrator stadfester gaten i merge-commit-meldingen eller tavla** med kilde (`inbox-orkestrator.md:<linje>`).
+  Mangler den, merges ikke.
+- Utseende på en UI-endring verifiseres av Kenneth før deploy (ikke av en ekstra gate). Fabel gater ikke koden på nytt.
+- **Etter «klar for merge» er branchen FROSSET:** ny push krever ny hash meldt, og ny gate for den hashen.
+- **Agenten pusher sin egen feature-branch** så snart egen gate er grønn. Rebase pushes med `--force-with-lease`, aldri
+  `--force`, aldri mot `develop`/`main`. `git fetch && git rebase origin/develop` rett før push; diffen skal være kun egne filer.
+
+### Regel 9 og regel 10
+
+- **Regel 9:** merge til `develop` alltid `--no-ff`.
+- **Regel 10 — ingen merge uten grønt på alle ledd, kjørt i merge-treet etter mergen:**
+  1. **Forsteg:** `pnpm install` + `prisma generate` for `db`, `db-timer`, `db-maskin`, `db-varelager`. Uten det gir
+     `Module not found` (node_modules bak lockfila) og `does not exist in type '<Modell>Select'` (klient bak schema)
+     falske røde.
+  2. `npx turbo run typecheck --force` fra rot — **«N successful, N total» med like tall.** Lavt N betyr at turbo
+     stoppet på første røde pakke.
+  3. `pnpm --filter @sitedoc/web exec tsc --noEmit` **eksplisitt** — `next build` typesjekker ikke testfiler, og
+     mobilens typecheck dekker ikke web. Falske `TS2307` i `.next/types/` skilles ut (`grep -v '^\.next/'`); er alle
+     feilene der, kjør byggeleddet og mål på nytt.
+  4. `pnpm --filter @sitedoc/web build` — **kaldt** når web-filer er rørt
+     (`rm -f apps/web/tsconfig.tsbuildinfo && rm -rf apps/web/.next`): inkrementell build kan skjule TS2589 som
+     Docker-bygget avviser. `tsc` stopper på første TS2589 — kjør til grønt. Web build dekker `apps/api` transitivt
+     (målt 2026-09-02); eget api-typecheck er hastighet, ikke dekning.
+  5. `pnpm exec turbo run test --force` fra **rot** — «N successful, N total» like tall. «FULL TURBO» eller urimelig
+     kort kjøretid = cache, ikke kjøring.
+- **Rapporten bærer den ordrette siste linja fra hver kommando** og test-fordelingen
+  `unit-mock: <n> · unit-ren: <n> · integrasjon: <n> · e2e: <n>`. «Rent» uten app-navn er ikke en kvittering. Krav (c) i
+  «stille tomhet er forbudt» kan aldri oppfylles av en mocket test — kvitteres som «delvis — mock».
+- ⚠️ **Kjent hull:** `tests/e2e` har intet `typecheck`-script (turbo teller no-op som suksess). Bestilles eget ledd hvis
+  e2e-drift skal fanges.
+
+### Gaten skal ligge i kommandoen
+
+- 🔴 **Aldri en pipe som gate.** `cmd | grep | tail` returnerer `tail` sin kode — alltid 0. Bruk eksplisitt
+  `> log 2>&1; echo "exit=$?"`, eller `set -o pipefail` først. Sammenlign tall maskinelt
+  (`grep -E "Tasks:" | awk '{exit !($2==$4)}'`), ikke bare finn linja.
+- **Mål at en ny gate stopper** — kjør den mot noe som feiler før du stoler på den. Et grep-treff på null er ikke bevis
+  for fravær (kasus!); kompilatoren og databasen er fasit.
+
+### Merge-kjeden (orkestrator, `SiteDoc-merge`)
+
+`SiteDoc-merge` står detached på `origin/develop` og bærer aldri egne commits ([parallell-arbeid-lock.md](parallell-arbeid-lock.md)
+§ Worktrees). Verifiser at treet finnes (`git worktree list`) før merge; gjenoppretting står i samme fil.
 
 ```sh
-comm -13 <(git ls-tree --name-only origin/develop <katalog>/ | sort) \
-         <(git ls-tree --name-only origin/<branch> <katalog>/ | sort)
+cd ~/Documents/Programmering/SiteDoc-merge && git fetch --prune origin && \
+test "$(git rev-parse origin/<branch>)" = "<hash>" && \
+! git merge-base --is-ancestor <hash> origin/develop && \
+git checkout -q --detach origin/develop && \
+git merge --no-ff <hash> -m "merge: <branch> -> develop (<hva>; <gate-kilde>)"
+# regel 10 her — så:
+git push origin HEAD:develop
 ```
 
-🔴 **Tomt utdata beviser at engangsfila ikke ble committet. `git status` beviser bare at den ikke
-ligger igjen lokalt.** **Verifiser på origin, ikke i treet.**
+- Linje 2 stopper hvis hashen ikke er branchens tipp; linje 3 hvis den alt er i develop (duplisert ordre stopper seg selv).
+- **Push avvist** (develop flyttet seg): `reset --hard origin/develop`, merg på nytt, kjør regel 10 på nytt, push. Aldri force.
+- **Uventet — konflikt, migrering/`schema.prisma` som ordren ikke nevner, rødt ledd: STOPP og meld.** En merge som
+  «ble løst underveis» er en merge ingen har gatet.
+- **Verifiser mot agentens hash, ikke merge-commitens:** `git merge-base --is-ancestor <agentens-hash> origin/develop`.
+- **Merge nr. 2 av brancher fra samme base:** verifiser resultatet mot `origin/develop..HEAD`, ikke `develop..branch`.
+  `git diff develop..branch` viser ikke hva branchen gjorde — bruk tre punktum eller diff mot `merge-base`.
+- **Docs-commits** (STATUS-AKTUELT, FUNKSJONSENDRINGER, tavla) gjøres i samme tre **etter** mergen, aldri samtidig.
+  STATUS-AKTUELT, tavla og FUNKSJONSENDRINGER har én skribent: orkestrator. Agenten fører egne spec-filer, BACKLOG-lukking
+  og STATUS.md i sin egen commit; orkestrator sjekker at berørt STATUS/BACKLOG-linje er i commit-settet før merge, og
+  leser innholdet på begge sider — en ren merge av to statusfiler kan flette motstridende påstander uten konflikt.
+- **Migrering og seed kjøres aldri** i merge-kjeden — det er Kenneths, ved deploy.
+- **Hovedtreet `SiteDoc`:** orkestrator kjører bare `git fetch` der, aldri `pull`/merge/commit (stale `ORIG_HEAD.lock`
+  fire ganger 09.–10.09). `pull --ff-only` der er Kenneths steg i [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md). Stale
+  `.lock`: diagnostiser (prosess? alder?) og meld før den fjernes.
+- **Status-påstander har kilde:** «pushet», «deployet», «klar for X» bærer hash eller dato. Berører diffen et område med en ❌-markør, re-verifiseres markøren i samme commit-sett ([dokumentasjons-standard.md § 11b](dokumentasjons-standard.md)).
 
-**2. 🔴 Bevis-formen velges etter hvilken VARIANT risikoen kommer i — ikke etter hvilken som er
-lettest å skrive.**
+### Rydding etter merge (Opus-livssyklus fase 4)
 
-**Er det flere måter å skrive det forbudte på, skal beviset bruke den formen risikoen faktisk
-ankommer i.** 🟢 **Da beviser samme kjøring to ting: at vakten ikke er vakuøs, OG at den dekker den
-farlige varianten.**
+```sh
+git -C <agentens tre> checkout --detach origin/develop
+git -C ~/Documents/Programmering/SiteDoc-merge branch -d <branch>     # -d, aldri -D
+git -C ~/Documents/Programmering/SiteDoc-merge push origin --delete <branch>
+```
 
-**Presedens:** vakten mot at `psi_prosjektniva_unik` droppes skulle dekke både
-`DROP INDEX IF EXISTS "…"` og bar `DROP INDEX "…"`. **Design foreslo `IF EXISTS`-formen som
-rød-bevis. Kontrollplan brukte den bare formen — den Prisma autogenererer.** ⚠️ **Designs forslag
-ville passert med en vakt som ikke dekket drift-veien.**
+- 🔴 **Mål `git worktree list` og tavla før rydding; rydd aldri et tre en agent står i**, og slett aldri `SiteDoc-merge`.
+- Før du berger noe som ser tapt ut: `git log -S` og `merge-base --is-ancestor` — en «tapt» leveranse er oftest merget
+  under et annet navn.
+- **Inventar ved hver lukking:** `git -C ~/Documents/Programmering/SiteDoc worktree list` + `git status --porcelain` og
+  `git stash list` i hvert tre. Et tre, en fil eller en stash ingen vet om, er et funn.
+- **Hver økt som produserer en fil, får en git-vei for den i ordren** (docs-branch). En rapport som ikke committes,
+  finnes ikke.
 
-**3. 🔴 Den skal ha en FALSK-POSITIV-sjekk: vis at vakten IKKE fyrer på den legitime setningen.**
+## § 6b — Kjøreregler fra målte feilklasser
 
-⚠️ **At en vakt fyrer, beviser ikke at den fyrer på det RIKTIGE.** **En for bred regex gjør hver
-legitim endring rød, og da blir vakten slettet av den neste som møter den.**
+### Kollisjonssjekken gjelder ORDRER, ikke bare arbeidstrær
 
-**Presedens:** samme sak. **Vakten er `/DROP INDEX (IF EXISTS )?"psi_prosjektniva_unik"/`, og
-CREATE-linja i samme migrering inneholder både `INDEX` og navnet.** 🟢 **Sjekken viste 0 treff på
-CREATE-linja — det er den som skiller «fyrer» fra «fyrer riktig».**
+Før to ordrer går ut parallelt:
+```sh
+comm -12 <(git diff --name-only origin/develop...origin/<branch-a> | sort) \
+         <(git diff --name-only origin/develop...origin/<branch-b> | sort)
+```
+- 🔴 **`git merge-tree` har gitt 0 konfliktmarkører på ekte konflikt** — belegget er en ekte prøvemerge i et engangstre.
+- **Delte ressurser filoverlapp ikke fanger:** i18n-generatoren (aldri to parallelt — konflikt i 15 filer) ·
+  `localhost:3100/3001` (én dev-server; sjekk `cwd` på pid-en; drep etter bruk) · delte komponenter bak ulike sider
+  (sjekk hva sidene *importerer*) · statusfilene (STATUS-AKTUELT/STATUS.md/BACKLOG) · nettleseren.
+- **Nettleser:** egen headless nettleser + dev-login ([mcp-playwright-simulator-oppsett.md](mcp-playwright-simulator-oppsett.md)).
+  Et verktøy som styrer Kenneths egen Chrome brukes ikke uten at han har sagt ja; to økter aldri samtidig. Foretrekk
+  render-test (jsdom) når den beviser det samme.
 
-**Kilde:** `fix/psi-prosjektniva-unik` (`f7d872eb` → `05e8aff6`), gatet 2026-09-27. **Punkt 1 og 2
-kom fra cowork og kontrollplan, punkt 3 fra design** — tre sider av samme spørsmål: hva skiller en
-vakt fra en tillatelse.
-
-### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
-
-**Kenneth tester på `test.sitedoc.no` → databasen heter `sitedoc_test`.** `-d sitedoc` er
-PRODUKSJON. Regelen sto i CLAUDE.md hele tiden; cowork brukte den ikke.
-
-Kostnaden 2026-08-23: cowork målte «Kenneths oppgaver» mot prod, fant tre rader uten
-tegning og posisjon, og konkluderte at lokasjonsarven var brutt. De tre radene var fra
-**26. mars** og aldri rørt. Kontrollplan bygget en hel feilsøkingsrunde på det premisset.
-Riktig måling mot `sitedoc_test` viste at arven virket hele tiden — feilen var i
-visningen.
-
-**To krav til enhver DB-måling som skal si noe om det Kenneth nettopp gjorde:**
-
-1. `-d sitedoc_test` med mindre spørsmålet uttrykkelig gjelder produksjon (kundepåvirkning,
-   datavolum, migrerings-risiko).
-2. **Ta alltid med `created_at` i utvalget.** Da er det synlig at radene er fra en annen tid
-   enn arbeidet, i stedet for at man leser dem som ferske.
-
-### 🔴 `as unknown as` skjuler manglende felt
-
-🔴 **Når en verdi «forsvinner» uten feilmelding: mistenk casten før logikken.** **Erstatt `as unknown as` med
-en typet hjelper som leser fra den rå kilden — da sier kompilatoren fra neste gang.**
-
-⚠️ **Og et grep-treff på null er ikke bevis for fravær. Kompilatoren og databasen er fasit, ikke
-søkemønsteret.**
-### 🔴 En kommentar som lover mer enn koden holder
-
-🔴 **Skriver du «KUN X» i en kommentar, skal konstruksjonen HÅNDHEVE X — ikke dokumentere en intensjon.**
-
-- **Prisma:** `select`, aldri `include`, når kommentaren avgrenser.
-- **Bash:** `set -o pipefail` eller eksplisitt `exit=$?` — 🔴 **aldri en pipe som gate.** `cmd | grep | tail`
-  returnerer `tail` sin kode, altså alltid 0.
-
-⚠️ **Hvorfor det ikke bare er slurv: en kommentar som overdriver leses som en GARANTI av neste leser, og da
-slutter noen å måle.** 🟢 **Sterkeste form er en garanti ved konstruksjon** — som svak FK uten `@relation`,
-der feilen er umulig i stedet for frarådet. **Da er kommentaren en observasjon, ikke et løfte.**
 ### 🔴 DELT LOGIKK SKAL NAVNGIS I ORDREN — ellers fødes den femte kopien (2026-09-06)
 
-**Regelen:** enhver ordre som lar en flate **lese eller tolke mal-config** skal **navngi den
-delte kilden i `@sitedoc/shared`**. Finnes den ikke der — er **utpakking til shared et eget,
-gatet trinn i ordren**, før funksjonaliteten bygges.
+Enhver ordre som lar en flate lese eller tolke mal-config **navngir den delte kilden i `@sitedoc/shared`** (fil + funksjon).
+Finnes den ikke: **trinn 0** pakker den ut og sletter de gamle kopiene i samme trinn. En ny kopi senere er ordrebrudd.
+Sanksjonert tvilling (`@sitedoc/pdf`, null avhengigheter) krever paritetstest som kjører begge på samme inndata
+(mønster `85c8ecd5`). Kanonisk repeater-traversering: `@sitedoc/shared/utils/repeaterRad.ts` med tvilling i
+`packages/pdf/src/arkivmal/repeaterRad.ts` — ikke lag en tredje. *Hvorfor:* kopier driver fra hverandre, og en resolver
+som normaliserer annerledes enn visningen gir stille feil i dokumenter byggherren mottar.
 
-**Mekanismen, ikke bare prinsippet** (regler uten mekanisme utføres ikke):
+### 🔴 EN NEGATIV ASSERTION ER IKKE BEVIST FØR TRE TING ER VIST (2026-09-27)
 
-1. **Cowork navngir kilden i ordren.** Ikke «bruk den delte funksjonen» — filnavn og
-   funksjonsnavn.
-2. **Finnes den ikke: trinn 0.** Utpakkingen gates for seg, og ordren sier eksplisitt at de
-   gamle kopiene **slettes i samme trinn** — ikke «importeres etter hvert».
-3. **En ny kopi i senere trinn er ordre-brudd**, ikke en skjønnssak.
-4. **Sanksjonert tvilling krever paritetstest.** `@sitedoc/pdf` har dokumenterte
-   null-avhengigheter og skal speile — men speilet får en test som kjører begge
-   implementasjonene på samme inndata og krever likt svar (mønster: `85c8ecd5`).
+En `not.toMatch`/`not.toContain` som aldri har vært rød, er en tillatelse, ikke en test.
+1. **Den har vært RØD — i en engangsfil, aldri i den ekte.** Kvittering på origin, ikke i treet:
+   `comm -13 <(git ls-tree --name-only origin/develop <kat>/ | sort) <(git ls-tree --name-only origin/<branch> <kat>/ | sort)` → tomt.
+2. **Rød-beviset bruker varianten risikoen faktisk kommer i** (f.eks. bar `DROP INDEX` som Prisma genererer, ikke bare `IF EXISTS`).
+3. **Falsk-positiv-sjekk:** vis at vakten ikke fyrer på den legitime setningen.
 
-🔴 **Mønsteret, målt fire ganger på ett døgn 05/06.09:**
+### Produksjonsformen, kildene og databasen
 
-| Kopi-klasse | Antall | Ryddet i |
-|---|---|---|
-| Endringslogg-generatoren | 3 håndspeilede skrivestier | `315f2515` |
-| `TILBEHOR_REN_FJERNING` | 2 sett (web 4 typer, mobil 5) | `85c8ecd5` |
-| PDF-tvillingen `signaturVerdi` | 2, uten vakt | paritetstest `53890c1b` |
-| `normaliserOpsjon` | **4** — web, PDF, og to lokale funksjoner i mobilkomponenter | trinn 0 i `feat/grenseresolver` |
-| Byggeplass-filteret | **9 → 1**, to former (4 via tegning m/3 ødelagte, 5 direkte) | `byggeplassFilter.ts` (`apps/api/src/services/`) |
+- **Produksjonsformen testes FØRST.** En grønn test mot en datastruktur produksjonen ikke bruker, måler ingenting.
+  Legacy-former i egen navngitt bakoverkompatibilitet-blokk.
+- **Byggnummer, profil og distribusjon leses fra kilden** (`eas build:list` og App Store Connect). Er de uenige, står
+  begge målingene til noen har målt hvorfor.
+- **Mål mot riktig database:** Kenneth tester på `test.sitedoc.no` → `-d sitedoc_test`. `-d sitedoc` er PROD og brukes
+  bare når spørsmålet gjelder prod. Ta alltid med `created_at` i utvalget.
+- **Mildne aldri et funn** til noe mindre enn det brukeren opplever. En endring er ikke levert før noen som ikke vet hva
+  som ble endret, kan finne den.
 
-**Årsaken er alltid den samme:** delt logikk **fødes i en komponent** fordi den trengtes der
-først, og **kopieres når neste flate trenger den** — fordi det er billigere i øyeblikket enn å
-pakke den ut.
+### Kode som lyver
 
-**Hvorfor det ikke er kosmetikk:** `normaliserOpsjon` skulle bære variant-matching i
-grense-resolveren. Matcher resolveren med én normalisering mens en flate **viser** opsjonene med
-en annen, løses grensen mot en verdi brukeren ikke ser — **stille feil i et dokument byggherren
-mottar.** Kopiene er ikke like lenge.
+- 🔴 **`as unknown as` skjuler manglende felt.** Forsvinner en verdi uten feil: mistenk casten. Erstatt med en typet
+  hjelper som leser fra rå kilde.
+- 🔴 **En kommentar som sier «KUN X» skal håndheves av konstruksjonen** — Prisma `select`, ikke `include`; bash
+  `pipefail`/`exit=$?`. Sterkest er garanti ved konstruksjon.
 
-*(Fabel foreslo regelen etter den fjerde; formuleringen er coworks.)*
+### Diverse
 
-### 🔴 Kollisjonssjekken gjelder ORDRER, ikke bare arbeidstrær (2026-08-23)
+- **Aldri commit** `tests/e2e/*-state.json` (Playwright storage-state med session-cookies).
+- **Sandkasse:** en økt i Linux-sandkasse uten Mac-stiene ser alle trær som `prunable` — bedøm ikke worktree-tilstand derfra.
 
-Cowork ga dokgen og kontrollplan hver sin ordre samme kveld — «tillegg/utlegg i dagskortet» og
-«URL-tilstand + ekspander-knapper». De hørtes uavhengige ut. De delte **17 filer**, inkludert
-`attestering/page.tsx` og `SeddelKort.tsx`, som begge restrukturerte. Resultatet var en semantisk
-konflikt som måtte løses ved rebase.
+## § 7 — Exit-spørsmålene (ved avsluttet oppdrag)
 
-**Før to ordrer sendes ut parallelt, kjør sjekken — den tar sekunder:**
+En rapport svarer på det den lette etter. Ved avsluttet oppdrag (ikke hver småleveranse) svarer agenten i leveransen:
 
-```sh
-comm -12 <(git diff --name-only origin/develop..origin/<branch-a> | sort) \
-         <(git diff --name-only origin/develop..origin/<branch-b> | sort)
-```
-
-- 🔴 **`git merge-tree` lyver.** **To ganger på to dager ga den 0 konfliktmarkører på en ekte konflikt.**
-  🔴 **Belegget er en EKTE prøvemerge i et engangsklon** — ikke `merge-tree`.
-### 🔴 Statustavla har ÉN skribent: cowork (vedtatt 2026-08-22)
-
-**Agentene skriver ikke lenger i `STATUS-AKTUELT.md`.** De rapporterer i leveransen sin — som
-de allerede gjør, grundig — og cowork fører det inn ved merge.
-
-**Hvorfor:** fire merge-konflikter i statustavla på én dag, alle trivielle, alle kostet en
-runde. Årsaken var ikke slurv: hver agent følger regelen om å føre eget arbeid inn, og alle
-skriver på samme sted — nederst i «Pågående arbeid». Riktig oppførsel, feil resultat.
-
-Agentene beholder doc-plikten på **sine egne spec-filer** i `docs/claude/`, der de er eneste
-skribent. Det er kun den delte tavla som får én eier.
-
-Så lenge disse holdes vet Kenneth at develop er ren. «Går dette bra?» har én kilde: cowork.
-
-## Cowork leveranse-ansvar (ordre 2026-07-14)
-
-Fire regler skjerper cowork sitt ansvar. Ved motstrid rapporteres de kolliderende reglene til Kenneth **før** endring — løses aldri stille.
-
-1. **Leveranse til prod + EAS.** cowork eier koordineringen av at alle gatede commits/merges/alt faktisk arbeid **når** produksjon og EAS-bygg. Ingenting blir liggende gatet-men-ikke-deployet uten en eksplisitt grunn ført i STATUS-AKTUELT. **EAS-kvote spores i STATUS-AKTUELT § EAS-byggteller** (bygg # + dato, nullstilles den 1. hver måned); ved **12 bygg/mnd** stopper cowork opp + sjekker klar-tilstand + flagger i status før nytt bygg fyres. *(Grense: selve prod-deployen og EAS-fyringen utløses fortsatt kun på Kenneths eksplisitte go — kvote-gaten på EAS består. cowork sikrer klar-tilstand + flagger stopp; Kenneth trykker avtrekkeren.)*
-2. **Kommandoformat.** Alle terminalkommandoer som krever Kenneths TTY leveres i strukturert, nummerert rekkefølge — kopierbar blokk, forventet resultat per steg. Kenneth kjører + melder tilbake; cowork verifiserer mot forventningen før neste steg. *(Utvider meldingsflyt-regelen «kommandoer formuleres til Kenneth».)*
-3. **Bygg utenfor redesign.** cowork har hovedansvar for alle bygg/leveranser utenfor redesignets domene, samt all merge-timing og deploy. En agent som jobber på fabels ordre eier sitt eget spor. *(Skjerper eksisterende cowork-rad «eier resten + merge-timing + deploy».)*
-4. **Koden sjekkes alltid.** Gate skjer mot **faktisk kode / git-objekt** — aldri på beskrivelse alene. Verifiser mot koden før beslutning/gate. *(Presisering av en generell gate-regel cowork allerede følger — kode-sjekken er det som avdekker avvik; ikke en ny skjerping.)*
-
-   **Utvidet 2026-07-15 — regelen gjelder mer enn kode.** Fem brudd på én dag, alle samme form: *påstand uten måling*. Hver gang var det en kommando som rettet feilen, aldri resonnementet.
-   - **Miljø-påstander måles mot maskinen**, ikke mot docs eller hukommelse. Verktøyene er `lsof`, `ps`, `docker ps`, `git worktree list`, `git merge-base`. «Lokal DB finnes» (fra en stale doc-linje), «ingen postgres finnes» (fra manglende CLI) og «arbeidstreet er prunable» (sandkasse-artefakt) var alle feil — og alle ville kostet en runde hvis de ikke ble målt.
-   - **Kommandoer i docs kjøres minst én gang før de føres.** `pnpm dev --filter web` sto i CLAUDE.md § Kommandoer — fila hver økt leser først — og hadde aldri virket (pakken heter `@sitedoc/web`). Ingen hadde prøvd den.
-   - **En påstand arvet fra en annen økt er ikke verifisert før den er målt selv.** «Nøkkelen er arvet fra gamle `KoordinatKart`» gikk fra redesigns exit-rapport rett inn i BACKLOG; `git log` motbeviste den på ett sekund (fila finnes ikke i historikken — nøkkelen kom fra en Claude-økt i mars). **Relé, rapport og exit er input, ikke fasit.** Særlig når de er velskrevne.
-
-## Gate-disiplin: docs-delta + lukking ved kilde (2026-07-14)
-
-Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: docs speiler tilstand i merge-øyeblikket, ikke «etterpå».
-
-1. **Docs-delta i merge-gaten.** Ingen merge til develop uten at berørt STATUS/BACKLOG-linje er i samme commit-sett. Coworks gate-sjekkliste får et fast punkt — «docs-delta til stede? hvilke linjer?» — og svaret føres i gate-rapporten, så fravær er *synlig*, ikke stille. (Gjelder funksjonsendrings-merges; rene rule-/governance-docs-commits er selv sitt delta.)
-2. **Lukking skjer der saken står.** Den som lukker en sak (gate PASS, grønn fangst, DoD) fører lukkingen i BACKLOG/STATUS i SAMME melding/commit — aldri «etterpå». En fiks som berører en kjent BACKLOG-post MÅ referere posten; coworks gate sjekker det. (Blocker #2-driften oppsto nettopp fordi F4-2 løste den uten å røre BACKLOG-posten.)
-3. **Status-påstander har kilde.** Linjer i STATUS som hevder tilstand («pushet», «deployet», «klar for X») skal bære commit-hash eller dato. En påstand uten kilde behandles som mistenkt stale — det gjør re-utledning billig og drift synlig ved lesing. *(Anvendelse av «presens krever referanse» ([dokumentasjons-standard.md](dokumentasjons-standard.md)) på deploy-tilstand — samme prinsipp, spisset mot STATUS-påstander.)*
-
-4. **Fravær-påstander re-verifiseres ved berøring** (fabel-presisering 2026-07-16). Berører diffen et område som er navngitt i en ❌-markør, skal markøren re-verifiseres eller strykes i SAMME commit-sett. ❌ + dato + hash gjør råten detekterbar, ikke detektert — uten trigger blir rettelsen en stale linje med tidsstempel. Full regel + de fem påstandene dette gjelder i dag: [dokumentasjons-standard.md § 11b](dokumentasjons-standard.md).
-
-**Håndhevelse:** cowork sjekker 1–4 i hver merge-gate (fast punkt i gate-rapporten). fabels exit-protokoll kjører dokumentasjonssync ved hver Opus-exit og verifiserer at 1–2 er fulgt i rundene siden sist — ikke bare at innholdet stemmer.
-
-## Seks-leddssløyfen — vedtatt arbeidsmetode (Kenneth 2026-07-18)
-
-**Kenneth-vedtatt standard for kommende saker.** Kom ut av A-3a/A-3b-runden, som endte i «svært sterke forbedringer» — og belegget er at **de tyngste funnene (N1 perspektiv-status, N3 tre-node-grafen, de syv designbeslutningene) kom fra test-leddene, ikke fra planleggingen.** En plan overlever ikke møtet med kjørende kode og en bruker som klikker; sløyfen fanger det planen ikke kunne vite.
-
-| Ledd | Hvem | Hva |
-|---|---|---|
-| 1. Plan | fabel | Design/ordre med mål |
-| 2. Gate mot kode | **cowork** | Verifiser planens premisser mot kode; ved avvik korrigér planen FØR bygging (REGEL 0 + §11-familien) |
-| 3. Kode | Opus | Bygg mot den gatede planen |
-| 4. Testplan | **cowork (eierskap)** | Lag testplan med **forventet utfall per steg** utledet fra kode — så avvik kan måles, ikke gjettes |
-| 5. Test | web-Opus | Utfør på test, kaptrer skjermbilder + logg, rapportér ordrett |
-| 6. Utbedring | fabel + cowork | Funn → korriger kode OG plan; nye funn mater neste sak |
-
-**Testplan-leddet (4) eies av cowork** (fabel-krav): forventet-kolonnen må komme fra kodemåling, ellers har man ingenting å måle observasjonen mot. Se [test-veileder-dokumentflyt-2026-07-18.md](delplaner/test-veileder-dokumentflyt-2026-07-18.md) som referanse-form.
-
-**B-2 og A-3b kjøres etter denne sløyfen** når N3-valget er tatt.
-
-## Dokument-eierskap: fabel leverer, cowork plasserer (vedtatt 2026-07-21)
-
-*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
-
-**Problemet:** fire ganger 2026-07-21 skrev fabel «ført i `delplaner/…`» om dokumenter som ikke fantes i repoet. Fabel har **kun lesetilgang** til repo-mappen — han kan verifisere plassering, ikke utføre den. Konsekvensen var at repoet lå ett relay bak, og at ordrer viste til stier ingen Opus kunne lese.
-
-| Flate | Rolle |
-|---|---|
-| **Designprosjektet** | Fabels arbeidsflate + mockup-kilde (`.dc.html`, `verifisering/*`-logger) |
-| **Repoet** | **Kanonisk for alt en Opus skal lese.** Én sannhet |
-
-**Regelen:**
-
-1. Fabel leverer innhold merket **`TIL REPO: <sti>`**.
-2. **Cowork plasserer og eier stien.**
-3. Fabel skriver **aldri** «ført i repo» — kun **«levert til plassering»**.
-4. Fabel **leser repoet etterpå** for å verifisere. Det gjør ordningen selvkontrollerende.
-
-**Praktisk:** finnes fabels fil på disk, be Kenneth om stien og bruk `cp` i stedet for avskrift. **Avskrift kan drifte; en filkopi kan ikke.**
-
-## Tavle-binding — commit-gaten (vedtatt 2026-07-21, etter andre svikt)
-
-> **Livssyklusen under er riktig og beholdes uendret. Dette avsnittet er det som mangler: en mekanisme som gjør at den faktisk kjøres.**
->
-> **Andre svikt, samme form (2026-07-21):** fem Opus-økter kjørte samme dag (kode/sak1+spor2+sak2 · mobil/TegningsCapture · web/testing · CI · A-3b). **Null tavle-rader ble skrevet.** Cowork produserte 18 delplan-dokumenter og rørte ikke tavla én gang. Kenneth måtte selv avslutte to økter fordi ingen fulgte opp status, og en exit-synk avdekket sju dokumenter som påsto at merget arbeid var «ikke startet». Dokumentet forutsa nøyaktig dette 2026-07-16: *«En regel uten mekanisme utføres ikke.»* Tavla var mekanismen for fase 1–4, men **ingenting var mekanismen for tavla.**
-
-**Rotårsak:** tavla avhenger av at cowork *husker*. Alt annet som virker i dette repoet er bundet til en commit, der git gjør bruddet synlig.
-
-### De to bindingene
-
-| Binding | Regel | Hvorfor den holder |
-|---|---|---|
-| **B1 — Ordre ⇒ rad** | En ordrefil i `docs/claude/delplaner/` og dens tavle-rad committes **i SAMME commit**. Ordre uten rad = ufullstendig commit, samme klasse som kode uten docs. | Cowork kan ikke skrive en ordre uten å passere gaten. Ingen ordre = ingen økt. |
-| **B2 — Merge ⇒ rad-fjerning + status** | Merge-commiten som lander en økts branch fjerner **i SAMME commit** øktas tavle-rad og oppdaterer ordrefilens `status:`-linje. | Merge er det eneste tidspunktet der en økt beviselig er ferdig, og cowork er alltid den som gjør den. |
-
-**Konsekvens av B2:** de sju stale statusene 2026-07-21 var umulige å produsere. Hver av dem oppsto fordi merge og status-oppdatering var to hendelser, og bare den første skjedde.
-
-### Kenneths kontrollflate — ett ord
-
-Kenneth skriver **«tavla»**. Cowork svarer med aktive rader, hver med: økt · branch · alder i dager · hva den venter på · hvem ballen ligger hos. **Ingen aktive rader = svar «tavla er tom».**
-
-Dette er tiltenkt Kenneths sikkerhetsnett når B1/B2 svikter en tredje gang — ikke hans ansvar å huske. Svikter tavla igjen **med** disse bindingene på plass, er ikke svaret en tredje regel: da er det formen som er feil, og mekanismen skal erstattes, ikke forsterkes.
-
-### Én ting til — økter uten branch
-
-Test-økter (web-Opus, simulator-Opus) leverer rapporter, ikke commits, så B2 utløses aldri for dem. **De lukkes når testplanen de kjører får status «KJØRT»** — samme commit-binding, annen utløser. En testplan uten utfall er en åpen økt.
-
-## Opus-livssyklus — fire faser (vedtatt 2026-07-16)
-
-**Bakgrunn:** regelen om statustavle sto her fra 2026-07-06 og ble aldri utført. 2026-07-16 kostet det nesten en økts arbeid: to økter fikk samme branch-navn (`docs/status-aktuelt-oppbrudd`), og den ene slettet den mens den andre skulle bruke den — ren flaks at rekkefølgen reddet det. Samme kveld fikk to økter samme arbeidstre (`SiteDoc-oppfolgere`), så auditens tre flyttet seg under den mens den kjørte. **En regel uten mekanisme utføres ikke. Tavla er mekanismen — den virker fordi Kenneth ser den, ikke fordi den er en regel.**
-
-| Fase | Hva skjer | Hvem |
-|---|---|---|
-| **1. ÅPNE** | Rad i tavla **før** økta åpnes: navn · arbeidstre · branch · filer den eier · dato. Ingen to rader deler arbeidstre eller fil. Branch-navn prefikses per spor → kollisjon umulig ved konstruksjon, ikke ved disiplin. **Kjør kollisjons-sjekken under.** | cowork skriver raden, Kenneth åpner |
-
-**Kollisjons-sjekk før hver tavle-rad — fire delte ressurser filoverlapp IKKE fanger** (2026-07-16; de tre første målt før de rakk å koste noe, den fjerde etter at den kostet):
-
-1. **i18n-generatoren.** To økter som begge legger nøkler kjører `generate.ts` mot 13 språk. **Aldri parallelt** — det gir garantert konflikt i 15 filer, ikke i de to de redigerte. Fabel-krav.
-2. **`localhost:3100/3001`.** Dev-serveren er ÉN. Trenger to økter kjørende app samtidig, må den ene bruke test — eller vente. (Og en dev-server kan servere fra et helt ANNET tre enn økta tror den tester; sjekk `cwd` på pid-en.)
-3. **Delte komponenter bak ulike sider.** Filoverlapp på side-nivå fanger ikke at to sider rendrer samme komponent. Målt eksempel: `sjekklistemaler/[id]` og `oppgavemaler/[id]` bruker begge `MalBygger` — én økt eide sidene, en annen skulle bygge inn i komponenten. Sjekk hva sidene *importerer*, ikke bare hvilke filer de er.
-> 📸 **Ber du Kenneth om skjermbilder eller klikk-testing:** følg [skjermbilde-forespoersel.md](skjermbilde-forespoersel.md). Limbar URL · nummererte steg · nøyaktig hva som klikkes · hva som forventes i hvert bilde. Uten forventning er han kamera-operatør, ikke verifisør — og uten URL bruker han tid på å lete.
-
-5. **🔴 Kenneths nettleser.** `chrome-devtools-mcp` kjører med `--isolated=false --channel=stable` og `playwright-mcp` med `--extension` — **begge styrer Kenneths faktiske Chrome, ikke en skjult sandkasse.** Navigeringer, cookie-injisering og klikk skjer synlig i vinduet han sitter i.
-
-   **Målt 2026-07-21:** A-3b-Opus kjørte browser-verifisering i den tro at den var isolert. Kenneth meldte «siden blinker veldig fort» — det var Fast Refresh + «Throttling navigation»-loop fra automatiseringen, i hans eget vindu. Økta stoppet, drepte dev-serveren, fant rotårsaken selv og ryddet all testdata.
-
-   **Regel:** en Opus som vil verifisere i nettleser skal **spørre Kenneth først**, og oppgi hvilken URL og hvor mange steg. Foretrekk alltid en isolert render-test (jsdom) når den kan bevise det samme. **To økter kan aldri kjøre browser-automatisering samtidig** — det er én nettleser.
-
-6. **Lokal dev-server (`localhost:3100`/`3001`).** Én instans. Starter en økt den fra sitt worktre, kan Kenneth ha en fane pekt mot en helt annen kodebase enn han tror. Drep alltid serveren etter bruk og meld fra at den er drept.
-
-4. **Statusfilene: `STATUS-AKTUELT.md` · `STATUS.md` · `BACKLOG.md`.** Den mest forutsigbare kollisjonen som finnes, og den manglet på lista til den slo til. **Hver** funksjonsendring MÅ røre dem (CLAUDE.md § Funksjonsendrings-commits) — så to økter som leverer kode kolliderer der per definisjon. **Cowork redigerer dem ikke mens en økt er mid-leveranse.** Må det gjøres, eier cowork oppryddingen i merge-en, ikke Opus.
-
-> ⚠️ **En ren merge er ikke en riktig merge — git fletter tekst, ikke sannhet** (målt 2026-07-16, `2f014f6e`).
->
-> Cowork redigerte `STATUS.md`/`BACKLOG.md` mens M-3a del 2 kjørte, og ordren cowork selv skrev sendte del 2 inn i de samme filene. Innholdet var en ekte motsigelse: del 2 skrev «antall uendret 67», cowork skrev «TALLET ER UPÅLITELIG — disk har 76».
->
-> `STATUS.md` ga tekstkonflikt — **det var flaks**: begge punktlistene landet på samme linje. Hadde de ligget tre fra hverandre, ville git flettet plettfritt og sendt begge påstandene til `develop`. `BACKLOG.md` fikk nettopp den behandlingen: ren auto-merge, null varsel.
->
-> **Konfliktmarkører er ikke gaten.** Les innholdet på begge sider av hver merge som rører en statusfil.
-| **2. LEVER** | Commit til feature-branch + `git push -u origin feat/x`. **Aldri push til `develop`.** Meld hash. | Opus |
-| **3. EXIT** | Fast spørsmålsrunde — **ikke valgfri**. Se § Exit-runde. | cowork spør, Opus svarer |
-
-> ⚠️ **«Exit» er tvetydig — skriv aldri «exit X» i en aksjonsblokk.** Her betyr EXIT *fase 3* (spørsmålsrunden). I dagligtale betyr det *fase 4* (lukk vinduet). 2026-07-16 skrev cowork «Så exit develop-Opus» øverst med selve exit-teksten nederst; Kenneth var i ferd med å lukke økta **uten** å kjøre runden — og fanget det selv. Bruk «**send exit-runden til X**» (fase 3) og «**lukk X**» (fase 4). Mister vi runden, mister vi det som har gitt mest: den fanget 🔴 4c, Norkart-nøkkelen og tre hull i coworks egne ordrer.
-| **4. LUKK** | Merge → **park treet detached** → slett branchen **lokalt OG på origin** → **fjern treet hvis det er utenfor det faste settet** → **kjør inventaret (under)** → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
-
-**Inventaret — én kommando, kjøres ved HVER økt-lukking:**
-
-```sh
-cd ~/Documents/Programmering
-for d in SiteDoc SiteDoc-deploy SiteDoc-develop SiteDoc-merge; do
-  printf "%-18s" "$d"
-  printf " branch=%-14s endret=%-4s ikke-i-develop=%s\n" \
-    "$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null)" \
-    "$(git -C "$d" status --porcelain 2>/dev/null | wc -l | tr -d ' ')" \
-    "$(git -C "$d" log --oneline origin/develop..HEAD 2>/dev/null | wc -l | tr -d ' ')"
-done
-git -C SiteDoc worktree list
-git -C SiteDoc stash list
-```
-
-**Forventet:** fire trær · `endret=0` overalt · ingen stash. **Alt annet er et funn.** Et femte tre, en untracked fil, eller en stash betyr at noe ble opprettet uten at noen vet hva det er.
-
-> ⚠️ **Hvorfor steget finnes: opprettelse er ugatet, sletting er det ikke** (målt 2026-07-17). `CLAUDE.md` sier «spør alltid før du sletter filer eller mapper», og den håndheves strukturelt — Kenneth kjører hver kommando. **Ingen regel finnes for å opprette.** Resultat: åtte arbeidstrær vokste fram, og tre leveranser lå foreldreløse i 5 uker, 6 dager og 5 uker.
->
-> **Alle tre ble funnet ved tilfeldighet** — én fordi `git worktree remove` nektet på et dirty tre, én fordi Kenneth spurte hvorfor den ikke var søkbar i Finder, én fordi cowork lette etter noe annet. **Ingen prosess fant noen av dem.** Inventaret er billig og svarer selv; det hadde fanget trærne ved to og en foreldreløs fil etter én økt.
-
-> ⚠️ **«Ingen commits» gjelder kode — aldri leveranser** (fabel-regel 2026-07-17). **Hver økt som produserer en fil, får en git-vei for den i ordren** — docs-branch eller Kenneth-relay. En lese-økt skriver ikke kode; den skriver rapporter, og en rapport som ikke committes finnes ikke for noen andre enn maskinen den ligger på.
->
-> **Belegg — tre foreldreløse leveranser funnet på tolv timer, alle fra samme klausul:** fase-M-forarbeidets tre rå-vedlegg (beviskilden matrisen `fd0ee7a2` sto på — untracked i repo-rota) · `plan-testflight-38.md` (22 KB, seks dager, Kenneth spurte selv hvorfor den ikke var søkbar) · `kode-doc-avvik.md` (18 KB, fem uker, funnet **kun** fordi `git worktree remove` nektet på et dirty tre). Ingen av dem gikk tapt — alle tre ble funnet ved tilfeldighet.
->
-> **Fase 4 har nå feilet på samme måte to ganger:** 86 merged branches på origin (remote-steget manglet) og seks arbeidstrær utenfor det faste settet (tre-steget manglet). Begge fordi steget var en intensjon i stedet for en linje i sjekklisten. **Det faste tre-settet står i [parallell-arbeid-lock.md](parallell-arbeid-lock.md)** — et femte tre krever en tavle-rad for å eksistere.
-
-**Fase 4-mekanikk (lærdom 2026-07-16 — regelen feilet på første anvendelse):** `git branch -d` **nekter** å slette en branch et arbeidstre holder («cannot delete branch … used by worktree at …»). Treet må frigjøres først, og det kan **ikke** sjekke ut `develop` — `SiteDoc-merge` holder den, og git nekter samme branch i to trær. Riktig sekvens:
-
-```sh
-cd <arbeidstre> && git checkout --detach origin/develop
-cd ~/Documents/Programmering/SiteDoc-merge
-git branch -d <branch>
-git push origin --delete <branch>
-```
-
-Første linje frigjør branchen. `git branch -d` er **-d, aldri -D** — den skal nekte hvis noe er umerget. Siste linje er **remote-steget**, og det er nytt: fase 4 hadde det aldri, og resultatet var **86 merged feature-branches liggende på origin** da hullet ble målt 2026-07-16. Uten linje 4 vokser de videre.
-
-**Et ledig arbeidstre skal stå detached på `origin/develop`.** Da er branchen fri, treet er klart for neste økt uten oppsett, og fase 1 trenger kun `git checkout -B <ny-branch> origin/develop`.
-
-**Samme begrensning gjelder selve mergen (lærdom 2026-08-15 — cowork ga `checkout develop` tre ganger).** `SiteDoc-merge` kan aldri stå på `develop`, så merge-treet arbeider på `merge-restart` og pusher den dit:
-
-```sh
-cd ~/Documents/Programmering/SiteDoc-merge
-git fetch origin && git reset --hard origin/develop   # IKKE checkout develop
-git merge --no-ff origin/<branch> -m "merge: …"
-git push origin merge-restart:develop                 # IKKE push develop
-```
-
-**Gaten skal ligge i kommandoen, ikke i prosaen rundt (lærdom 2026-08-15 — «sjekk først, kjør så» ble hoppet over tre ganger).** Skriv én kjede som avbryter seg selv:
-
-```sh
-cd ~/Documents/Programmering/SiteDoc-merge && git fetch origin && \
-git rev-parse --verify origin/<branch> >/dev/null 2>&1 && \
-! git merge-base --is-ancestor origin/<branch> origin/develop && \
-git reset --hard origin/develop && \
-git merge --no-ff origin/<branch> -m "merge: …" && \
-git push origin merge-restart:develop
-# ← agenten stopper HER. Deploy er Kenneths: se DEPLOY-RUNBOK § 1
-```
-
-Linje 2 stopper hvis branchen ikke er pushet, linje 3 hvis den allerede er i develop. Uten dem bygger Kenneth uendret kode i seks minutter og tror knappen er på test.
-
-🔴 **Kjeden stopper ved `push origin merge-restart:develop` — der slutter merge-agentens jobb**
-(§ MERGE-AGENTEN, fence 1). `deploy-test.sh` og alt med `sudo` er Kenneths, alltid — kommandoløypa
-bor i [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md). Deployer agenten selv, har den sendt ut noe ingen har gatet.
-
-**Verifiser mergen mot agentens hash — ikke mot merge-commitens (2026-08-16).** Merge-commiten får alltid en **ny** hash; den skal ikke matche den agenten melder. Merge-commiten *peker på* agentens commit, den erstatter den ikke. Kenneth kunne derfor ikke selv se om en merge tok med arbeidet. Én kommando svarer:
-
-```sh
-cd ~/Documents/Programmering/SiteDoc && git fetch origin
-git merge-base --is-ancestor <agentens-hash> origin/develop && echo "JA — i develop" || echo "NEI"
-```
-
-Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferdig. Samme kommando avdekket at utlegg sto blokkert i to dager på arbeid som allerede lå i develop.
-
-`git push origin develop` fra merge-treet pusher den utdaterte kopien i hovedtreet og avvises som non-fast-forward. Etterpå: `cd ~/…/SiteDoc && git pull --ff-only`, deretter deploy per [deploy-detaljer.md § TEST-deploy — lim-klar](deploy-detaljer.md). **Viser bygget alt `CACHED`, også `COPY . .`, nådde koden aldri serveren** — mergen eller rsync feilet, les output på nytt før du bygger igjen.
-
-**Er tavla tom, lever ingen økter.** Det er hele poenget: kontrollflaten er lesbar for Kenneth uten å spørre noen.
-
-> ⚠️ **Regelen feilet på første anvendelse — cowork laget aldri raden** (2026-07-16). M-3a del 2 kjørte en hel kveld, bygde 42 filer og ble merget to ganger mens tavla sa «*(ingen aktive)*». Kenneth kunne lest kontrollflaten sin og konkludert at ingenting kjørte.
->
-> **Fase 1 er ikke «lag raden når du rekker det» — den er før vinduet åpnes.** Raden er billigst å skrive i det ordren formuleres; da har cowork allerede arbeidstre, branch og fil-eierskap i hodet. Skrives den ikke da, skrives den aldri: økta leverer, og en tavle-rad for noe som er ferdig føles overflødig — så hullet lukker seg selv uten at noen merker at kontrollflaten var blind imens.
->
-> Dette er tredje regel cowork skrev og selv brøt innen 48 timer (STATUS-vedlikehold på egen merge `fd0ee7a2`; kollisjons-sjekken uten statusfilene; tavla). **Mønsteret er ikke at reglene er dårlige — det er at de skrives raskere enn de internaliseres.** En regel uten et sted den tvinges fram er en intensjon.
-
-### Ordre-anatomi — mal, ikke hensikt (vedtatt 2026-07-16)
-
-**Bakgrunn:** ordre-formatet som fanget **fire av coworks ti feil** 2026-07-15/16 fantes kun i coworks hode. Det er Norkart-mønsteret: kanalen finnes, den ble ikke brukt, og kunnskapen dør med økta. En gate kan sjekke en **mal**; den kan ikke sjekke «skriv gode ordrer».
-
-**Coworks ordre-mal — seks blokker, kopierbar:**
-
-```
-[1. HVA SOM ER GJORT]      Hasher + hva de gjorde. Hindrer at økta gjentar landet arbeid.
-[2. HVA SOM GJENSTÅR]      Den faktiske oppgaven + åpne tråder uten eier.
-[3. OPPGAVE / SPØRSMÅL]    Ved exit: de fire spørsmålene ORDRETT (se under), ikke omskrevet.
-[4. UFRAVIKELIG]           Arbeidstre + branch + filer den eier (ingen deling!) + de fire linjene under.
-[5. FORVENTET OUTPUT]      Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
-[6. OPPRYDDING]            Hvem sletter branchen. Vanligvis cowork — økta gjør ingenting.
-```
-
-**🔴 Steg 0 — grep BACKLOG før kravene skrives (Kenneth-vedtak 2026-09-11).**
-Før cowork formulerer ett eneste krav (blokk 3 over): `grep -n -i "<sakens nøkkelord>"
-docs/claude/BACKLOG.md`. **Minst to søkeformer** — funksjonsnavnet og symptomet, siden saken
-like gjerne kan stå oppført under den ene som den andre.
-**Treff refereres eksplisitt i ordren** (`§<linje>`, dato, markør), enten som
-«denne ordren lukker §X» eller «§X er målt foreldet, se under».
-**Null treff skrives også** — «BACKLOG-grep: ingen treff på `<ord1>`/`<ord2>`» — slik at
-neste leser vet at det ble gjort, ikke bare glemt.
-⚠️ **BACKLOG er ikke fasit — koden er.** Et treff betyr «mål dette», ikke «dette er sant».
-**Tre rader har vist seg ferdigbygget ved måling** (reise-terskel 09.09, P2-begrunnelse
-09.09, mobil-PSI §220 11.09). **Steget hindrer at cowork bestiller noe umulig eller
-allerede levert — det erstatter ikke målingen.**
-
-**Bakgrunn (2026-09-11):** to hendelser samme dag — et i18n-funn ble meldt «står ingen steder»
-mens det sto i `shared-pakker.md:46`, og et mobil-test-krav ble skrevet uoppfyllbart fordi
-BACKLOG §153 (2026-09-07) alt slo fast at `apps/mobile` mangler test-runner. Begge fanget av
-agentene, ikke av cowork. Ett grep-kall hadde spart en analyserunde.
-
-**🔴 Kald web-bygg når web-filer er rørt (lærdom 2026-09-12).**
-`apps/web/tsconfig.json` har `"incremental": true`. **En lokal `pnpm --filter
-@sitedoc/web build` gjenbruker `tsconfig.tsbuildinfo` og kan være grønn på kode
-Docker-byggen avviser** — det skjedde på `109f7d2e`, der TS2589 først dukket opp i
-deploy-byggen etter at to agenter hadde meldt grønt.
-**Rører ordren filer i `apps/web`, skal gaten kjøres kaldt:**
-```sh
-rm -f apps/web/tsconfig.tsbuildinfo apps/web/.next/cache/.tsbuildinfo && rm -rf apps/web/.next
-pnpm --filter @sitedoc/web build
-```
-⚠️ **`tsc` stopper på FØRSTE TS2589.** **Kjør kaldt iterativt til grønn** — på `a4036ede`
-dukket det andre stedet (`:132`) først opp da det første (`:181`) var fikset.
-🟢 **Negativ kontroll er billig her:** kald bygg på den ødelagte koden skal reprodusere
-feilen. Gjør den ikke det, har du målt cachen og ikke årsaken.
-
-**De fire virksomme linjene — skal stå ORDRETT i ufravikelig-blokka:**
-
-| Linje | Hva den fanget 2026-07-15/16 |
-|---|---|
-| «Din rapport/ordre er **input, ikke fasit** — mål premisset selv.» | Spor 4 motbeviste D's «mengde er neppe alene» ved måling. Spor A fanget at coworks telling motsa registerets egen regel. |
-| 🔴 «**Sjekk treets alder før du melder et fravær.**» *(lagt til 2026-09-02)* | Se § under — «det finnes ikke» og «treet mitt er gammelt» ser helt like ut |
-
-- 🔴 **Før du BERGER noe som ser tapt ut: mål om det allerede er levert.** **En «tapt» leveranse er oftest
-  merget under et annet navn.** **Sjekk `git log -S` og `merge-base --is-ancestor` før du ber noen skrive den
-  på nytt.**
-- 🔴 **`git diff develop..branch` viser IKKE hva branchen gjorde.** **Bruk TRE punktum** — `develop...branch`
-  — **eller diff mot `merge-base`.** ⚠️ **To punktum blander inn alt develop har fått siden, og gir falske
-  funn på en branch som bare er gammel.**
-- 🔴 **«Finnes ikke» og «treet mitt er gammelt» ser helt like ut.** **Et tomt svar fra git betyr ikke at noe
-  mangler — det kan betyr at du ikke har hentet.** 🔴 **`git fetch` før du konkluderer, og test på COMMIT-HASH,
-  aldri på branchnavn: en ryddet branch og «ikke merget» gir samme tomme svar.**
-### Exit-runde — fire spørsmål (ufravikelig)
-
-En Opus' rapport svarer på det den **lette etter**. Exit-runden henter det som ikke hadde en kategori. 2026-07-15/16 fanget den fire funn ingenting annet fant — inkludert 🔴 4c (lønns-nært) og Norkart-nøkkelens ukjente eierskap, som hadde ligget uoppdaget i fire måneder.
-
-1. **Hva så du som ikke passet i noen kategori?** Alt utenfor bøttene dine er usynlig i rapporten.
-2. **Hva forkastet du som støy?** Særlig hvis du strammet en heuristikk underveis — hva røk med?
+1. **Hva så du som ikke passet i noen kategori?**
+2. **Hva forkastet du som støy?** Særlig om en heuristikk ble strammet underveis.
 3. **Hvilke filer/flater føltes feil uten at du kunne bevise det?** Merk som mistanke, ikke funn.
 4. **Hvilke av funnene dine mistenker du har søsken du ikke rakk?**
 
 Svar merket som usikkerhet er nyttige. En gjetning ført som funn er ikke.
-
-## 🔴 Kjøreregler fra målte feil — verifiser, og vit hvor filene bor
-
-> ⚠️ **Tavla tømmes ALDRI ved rundeslutt.** Den er registeret over hvilke agenter som finnes; rader legges til
-> og fjernes per agent. Se [§ Statustavla er første handling](#-statustavla-er-første-handling--før-du-sier-noe).
-
-**Statusfiler er agentens siste kjente tilstand — ikke sannheten om repoet.**
-
-- 🔴 **«PUSHET» er en påstand.** Verifiser med `git ls-remote --heads origin <branch>` **før** merge-kommandoen
-  gis. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.**
-- 🔴 **En `BLOKKERT`-status kan være utløpt.** Sjekk med `git merge-base --is-ancestor <sha> origin/develop`.
-  ⚠️ **Agenten kan ikke se develop; cowork må løsne den.**
-- 🔴 **Verifiser agentens kodepåstand mot koden** — ikke mot at den klinger riktig.
-- 🔴 **Sesjonsstart: `git status` i hovedtreet.** **Søk i repoet før du ber om noe** — ucommittet arbeid der er
-  én `git checkout` unna å forsvinne.
-- 🔴 **Sandkasse-fella:** cowork kjører bash i en Linux-sandkasse uten Mac-stiene montert. **`git worktree
-  list` derfra merker ALLE trær `prunable`, også de som er i bruk.** Ikke bedøm worktree-tilstand derfra.
-- 🔴 **`relay/` finnes KUN i hovedtreet.** Mappa er gitignored og følger aldri med til et worktree. **Gi alltid
-  full sti:** `~/Documents/Programmering/SiteDoc/relay/inbox-<navn>.md`.
-- 🔴 **Aldri commit** `tests/e2e/*-state.json` — Playwright storage-state med session-cookies.
