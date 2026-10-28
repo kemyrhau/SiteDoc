@@ -7,8 +7,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | Fil | Innhold |
 |-----|---------|
 | [docs/claude/SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) | **Veileder Opus:** sesjonsoppstart-veileder — vis ved sesjon-start |
-| [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Veileder kontroll-Claude:** arbeidsmåte for verifiseringslaget over Opus — les `parallell-arbeid-lock.md` først |
-| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — les § 0 KENNETHS FORVENTNINGER FØRST:** fakta ikke gjetning · mål fra koden før beslutning · belys konsekvens · kort svar · gi anbefaling · spør ved uklarhet, ikke gjett. **En regel som ikke tjener § 0 slettes.** Deretter roller, ordreformat, merge-mekanikk. Ordrer bor i `relay/inbox-<navn>.md`. Tavla i STATUS-AKTUELT er agentregisteret |
+| [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Eldre veileder for orkestrator-rollen** (tidl. kontroll-Claude). Ved motstrid gjelder SAMARBEIDSREGLER |
+| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — les § 0 KENNETHS FORVENTNINGER FØRST:** fakta ikke gjetning · mål fra koden før beslutning · belys konsekvens · kort svar · gi anbefaling · spør ved uklarhet, ikke gjett. **En regel som ikke tjener § 0 slettes.** § 0b arbeidsform: orkestrator kjører agentene selv. Deretter roller, meldingsflyt, gate og merge. Ordrer bor i `relay/inbox-<navn>.md`. Tavla i STATUS-AKTUELT er agentregisteret |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/FUNKSJONSENDRINGER.md](docs/claude/FUNKSJONSENDRINGER.md) | **🔴 KENNETHS KONTROLLFLATE:** merger som endret det brukeren ser. Funksjonsendring krever hjemmel FØR ordren sendes; reparasjon føres til orientering |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
@@ -85,7 +85,7 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - Ved tvil: still kontrollspørsmål før handling
 
 **Spør alltid før du:**
-- Pusher til `main`/prod eller gjør force-push/destruktiv push (vanlige `develop`-commits dekkes av dual-review-gaten — se § Commit + push)
+- Pusher til `main`/prod eller gjør force-push/destruktiv push (merge til `develop` eies av orkestrator etter gate — se § Commit + push)
 - Endrer eller forkaster pågående PRs
 - Kjører destruktive git-operasjoner (reset --hard, force push, branch-sletting)
 - Endrer database-skjema eller kjører migreringer
@@ -173,7 +173,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 **Deploy-sekvens:**
 
 > ⚠️ **Server + deploy (server-ny, Docker, fra 2026-06-10) — to guardrails hver sesjon trenger:**
-> 1. Gjeldende server = **`server-ny`**. Opus/kontroll-Claude kan **ikke** `sudo` (ikke-interaktivt) → **Kenneth kjører alle `sudo docker`-steg via `! ssh -t server-ny ...`** (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n`. Native `git`/`rsync` kan Opus kjøre.
+> 1. Gjeldende server = **`server-ny`**. Ingen agent kan `sudo` (ikke-interaktivt) → **Kenneth kjører alle `sudo docker`-steg via `! ssh -t server-ny ...`** (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n`. Native `git`/`rsync` kan agentene kjøre.
 > 2. **`ssh sitedoc` → Kenspill = GAMMEL (legacy) server — IKKE for deploy/verifisering.**
 >
 > Server/host-mapping, env-filkart og rollback: [infrastruktur.md](docs/claude/infrastruktur.md) + [DOCKER-NOTES.md](docker/DOCKER-NOTES.md). Branching, mobil reload-tabell, tRPC env-konsekvens: [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
@@ -318,7 +318,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 → Se [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md)
 
 **Sesjonstart:**
-- 🔴 **COWORK LESER [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) FØRST — før den sier noe.** Ufravikelig, gjelder også etter compact. Den bærer coworks rolle som orkestrator, statustavle-plikten, ordreformatet og merge-eierskapet. **Uten den gir cowork Kenneth beslutninger som er coworks egne** — målt to ganger 06.09: «venter gate» på noe cowork selv skulle gatet, og «når du vil at han skal rebase» på en ren timing-beslutning. Deretter: tavla øverst i STATUS-AKTUELT, som sier hvem som sitter hvor.
+- 🔴 **ORKESTRATOR LESER [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) § 0 + § 0b FØRST — før den sier noe.** Ufravikelig, også etter compact/clear. Uten den gir orkestrator Kenneth beslutninger som er orkestratorens egne. Deretter: tavla øverst i STATUS-AKTUELT. En agent som nettopp er tømt, følger § /clear-REGELEN punkt C.
 - Les [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) eksplisitt ved behov
 - Les [BACKLOG.md](docs/claude/BACKLOG.md) kun ved strategisk planlegging
 
@@ -338,12 +338,8 @@ Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn
 
 Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlikehold** og **YAML-header på docs/claude/-filer** — er konkrete uttrykk for dette prinsippet.
 
-- **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og be om brukerens godkjenning. Ikke anta — still kontrollspørsmål ved tvil
-- **Todolist ved komplekse oppgaver:** Når Opus analyserer eller implementerer oppgaver med flere steg eller ukjente avhengigheter, skal han lage en eksplisitt todolist FØR han starter. Listen oppdateres underveis og rapporteres til Claude ved ferdigstillelse. Format:
-  - [ ] Steg 1
-  - [x] Steg 2 (ferdig)
-
-  Dette sikrer at Claude kan følge fremdrift og flagge avvik fra plan.
+- **Beskriv løsningen først:** Før kodeendringer, beskriv den logiske løsningen med ord og få godkjenning — i agentøkter fra bestilleren (orkestrator), som sender funksjonsendringer uten hjemmel videre til Kenneth ([SAMARBEIDSREGLER § 5](docs/claude/SAMARBEIDSREGLER.md)). Ikke anta — still kontrollspørsmål ved tvil
+- **Todolist ved komplekse oppgaver:** Ved flere steg eller ukjente avhengigheter lages en eksplisitt todolist (`- [ ]`/`- [x]`) FØR start, oppdateres underveis og står i leveransen, så bestilleren kan flagge avvik fra plan.
 - **ALDRI bruk "entreprise"/"enterprise"** i ny kode, UI-strenger eller dokumentasjon. Bruk **faggruppe** (UI/variabelnavn) eller **Faggruppe** (Prisma-modell). Se [terminologi.md](docs/claude/terminologi.md)
 - **Attestering ≠ Godkjenning** (ufravikelig låst 2026-04-26):
   - **Attestering** = arbeider får lønn for registrert tid → Timer-modul, mobil-UI, lønnseksport
@@ -370,11 +366,11 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - **Proadm-integrasjon:** all godkjenning skjer i SiteDoc. Proadm mottar kun ferdig godkjente timer/tillegg/utlegg — ingen godkjenningsflyt eller statusoppdateringer tilbake. Detaljer i [docs/claude/timer.md](docs/claude/timer.md)
 - **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (redigerbare per firma); lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
 - **SmartDok maskin-eksport:** Format, navne-matching, 7600-konvensjon og Vegvesen-prioritet i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Implementasjon planlagt etter Blokk C.
-- **Commit + push:** Opus pusher sin egen feature-branch (`git push -u origin feat/x`) så snart egen gate er grønn (bygg + tester), uten å vente på klarsignal. Aldri `develop` eller `main`. Rebase på egen feature-branch pushes med `--force-with-lease` — aldri `--force`, og aldri mot `develop`/`main`. 🔴 Etter at «klar for merge» er gitt, er branchen FROSSET: ingen ny push uten å melde ny hash først. Merge til `develop` skjer bare etter at designgaten (der den gjelder) og coworks tekniske gate har gitt klarsignal. **Merge til `develop` og push av `develop` eies av kontroll-Claude/Kenneth** fra `SiteDoc-merge`; det er der merge-orden bestemmes. **Treet er detached og slettes lett — verifiser at det finnes (`git worktree list`) FØR du gir en merge-kommando; gjenopprettings-bash i [parallell-arbeid-lock.md § Gjenopprett merge-treet](docs/claude/parallell-arbeid-lock.md).** Orkestrator relayer selv ([SAMARBEIDSREGLER § 0b](docs/claude/SAMARBEIDSREGLER.md)). Full rutine: [kontroll-claude-veileder.md § 10](docs/claude/kontroll-claude-veileder.md).
+- **Commit + push:** Agenten pusher sin egen feature-branch (`git push -u origin feat/x`) så snart egen gate er grønn — aldri `develop` eller `main`; rebase pushes med `--force-with-lease`, aldri `--force`. 🔴 Etter «klar for merge» er branchen FROSSET: ny push krever ny hash meldt. **Merge og push av `develop` eies av orkestrator** fra `SiteDoc-merge`, etter én gate pr. leveranse (kode → Kontrollør, mal → Fabel). Verifiser at treet finnes (`git worktree list`) før merge; gjenoppretting i [parallell-arbeid-lock.md](docs/claude/parallell-arbeid-lock.md). Full rutine: [SAMARBEIDSREGLER § 6](docs/claude/SAMARBEIDSREGLER.md).
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Prod-verifisering må alltid gjøres som innlogget bruker** (vedtatt 2026-05-02): `curl -sI`/HTTP 200 bekrefter kun at serveren svarer, ikke at data er intakt. Etter prod-deploy: verifiser i nettleser som innlogget at prosjekter/moduler/kritiske ruter laster. Anonym «Ingen prosjekter» er IKKE godkjent verifisering.
 - **Status-dokumenter i SAMME commit** (ufravikelig, 2026-05-02) — aldri egen oppfølger-commit (den blir glemt og drifter):
-  - **Funksjonsendring** (feature, modul-runde, deploy, schema, vesentlig refactor) → `STATUS-AKTUELT.md` med runde/miljø/hash. Trivielt (typo, formatting) er unntatt.
+  - **Funksjonsendring** (feature, modul-runde, deploy, schema, vesentlig refactor) → `STATUS-AKTUELT.md` med runde/miljø/hash, ført av orkestrator i merge-settet (eneste skribent; agenten melder runde/hash i leveransen). Trivielt (typo, formatting) er unntatt.
   - **Fil i `docs/claude/` endrer status** (verifisert / drift / under arbeid / ferdig / opprettet / arkivert) → [STATUS.md](docs/claude/STATUS.md), tre felter samtidig: dato (linje 14), tellinger ✅/⚠️ (linje 21-22), tagger + seksjons-flytting på berørte rader.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
