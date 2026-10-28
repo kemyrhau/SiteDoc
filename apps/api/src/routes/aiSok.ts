@@ -11,6 +11,7 @@ import {
   erSiteDocAdmin,
 } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
+import { byggMappeTilgangsFilter } from "../services/mappe-filter";
 import {
   hybridSok,
   blokkSok,
@@ -179,9 +180,7 @@ export const aiSokRouter = router({
         where: {
           projectId: input.projectId,
           isActive: true,
-          ...(mappeIder === null
-            ? {}
-            : { AND: [{ OR: [{ folderId: null }, { folderId: { in: mappeIder } }] }] }),
+          AND: [byggMappeTilgangsFilter(mappeIder)],
           OR: [
             { filename: { contains: "3420" } },
             { filename: { contains: "8405" } },
