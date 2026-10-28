@@ -46,17 +46,22 @@ export function medFeltKart(rad: unknown, nyttKart: Record<string, unknown>): un
 
 type VedleggListe = Array<{ id?: string; url?: unknown } & Record<string, unknown>>;
 
-function settUrlIListe(
+/** Endring av ett vedlegg: ny versjon, eller `null` = la vedlegget stå urørt. */
+type VedleggEndring = (v: Record<string, unknown>) => Record<string, unknown> | null;
+
+function endreIListe(
   liste: unknown,
   vedleggId: string,
-  nyUrl: string,
+  endre: VedleggEndring,
 ): { liste: unknown; endret: boolean } {
   if (!Array.isArray(liste)) return { liste, endret: false };
   let endret = false;
   const ny = (liste as VedleggListe).map((v) => {
     if (v && typeof v === "object" && v.id === vedleggId) {
+      const nyV = endre(v);
+      if (nyV === null) return v;
       endret = true;
-      return { ...v, url: nyUrl };
+      return nyV;
     }
     return v;
   });
@@ -77,6 +82,32 @@ export function settVedleggUrlIDokument<T extends Record<string, unknown>>(
   vedleggId: string,
   nyUrl: string,
 ): T {
+  return endreVedleggIDokument(feltVerdier, vedleggId, (v) => ({ ...v, url: nyUrl }));
+}
+
+/**
+ * Bytt en LOKAL `originalUrl` til server-URL-en når originalen er lastet opp (redigerbar
+ * annotering på mobil, 2026-10-28): ble bildet annotert før originalen var oppe, peker
+ * `originalUrl` på lokalfila, og `url` er alt den annoterte. Byttes KUN når `originalUrl`
+ * fortsatt er nettopp `lokalSti` — ellers står vedlegget urørt (samme referanse).
+ */
+export function settOriginalUrlIDokument<T extends Record<string, unknown>>(
+  feltVerdier: T,
+  vedleggId: string,
+  lokalSti: string,
+  serverUrl: string,
+): T {
+  return endreVedleggIDokument(feltVerdier, vedleggId, (v) =>
+    v.originalUrl === lokalSti ? { ...v, originalUrl: serverUrl } : null,
+  );
+}
+
+/** Felles traversering (topp-nivå + repeater-rader, begge radformer) for vedlegg-endringer. */
+function endreVedleggIDokument<T extends Record<string, unknown>>(
+  feltVerdier: T,
+  vedleggId: string,
+  endre: VedleggEndring,
+): T {
   let endretNoe = false;
   const ut: Record<string, unknown> = { ...feltVerdier };
 
@@ -85,7 +116,7 @@ export function settVedleggUrlIDokument<T extends Record<string, unknown>>(
     if (!felt || typeof felt !== "object") continue;
 
     // 1. Topp-nivå-vedlegg på feltet.
-    const topp = settUrlIListe(felt.vedlegg, vedleggId, nyUrl);
+    const topp = endreIListe(felt.vedlegg, vedleggId, endre);
     let feltEndret = topp.endret;
     let nyVerdi = felt.verdi;
 
@@ -99,7 +130,7 @@ export function settVedleggUrlIDokument<T extends Record<string, unknown>>(
         for (const barnId of Object.keys(nyttKart)) {
           const barn = nyttKart[barnId] as { vedlegg?: unknown } | undefined;
           if (!barn || typeof barn !== "object") continue;
-          const r = settUrlIListe(barn.vedlegg, vedleggId, nyUrl);
+          const r = endreIListe(barn.vedlegg, vedleggId, endre);
           if (r.endret) {
             nyttKart[barnId] = { ...barn, vedlegg: r.liste };
             radEndret = true;

@@ -23,8 +23,14 @@ tredje hook.
 bevarer den opprinnelige SERVER-URL-en som `Vedlegg.originalUrl` (via `bevarOriginalUrl` i
 `@sitedoc/shared`), satt ÉN gang. Visningen (`FeltDokumentasjon`) faller tilbake til `originalUrl`
 — aldri en død lokal sti — når den annoterte URL-en er rå-privat/utilgjengelig. Lokal original
-(ikke opplastet) bevares bevisst IKKE (ikke en trygg reserve). Web hadde dette fra før
+(ikke opplastet) bevares IKKE ved kamera-annotering (ikke en trygg reserve). Web hadde dette fra før
 (`annotering-lag.ts`); mobil-typen manglet feltene.
+
+🟢 **Redigerbar annotering (2026-10-28)** — `erstattVedlegg` tar en valgfri `AnnoteringsFelter`
+(`{originalUrl, annotering}` fra `lib/annoteringLagring.ts`) og bruker `erstattetVedlegg`. Med lag
+kan `originalUrl` være en LOKAL sti (originalen ikke oppe ennå); opplastings-callbacken bytter den
+via `settOriginalUrlIDokument` når køen er ferdig med originalen (`opplasting.kunOriginal`). Begge
+hooks gjør det likt — rør aldri én alene.
 
 🔴 **Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21, funksjonsendring)** — på en avsluttet
 rapport (`TERMINALE_DOKUMENTSTATUSER` = approved/closed/cancelled) kan vedlegg IKKE

@@ -1,39 +1,7 @@
-// Rene hjelpere for web-annoteringens tre-artefakt-modell. Skilt ut fra
-// FeltDokumentasjon så korrektheten (original bevart, gjenåpne på original,
-// bakoverkompat) er enhets-testbar uten å drive React/iframe.
-import type { AnnoteringsLag } from "@sitedoc/shared";
-import type { Vedlegg } from "./typer";
-
-/**
- * Kilden en annotering skal ÅPNES mot: alltid originalen, aldri den utflatede
- * JPEG-en (ellers brennes annoteringene inn på nytt for hvert redigeringsledd).
- * Førstegangs annotering: `originalUrl` finnes ikke ennå → `url` ER originalen.
- */
-export function annoteringsKilde(vedlegg: Pick<Vedlegg, "url" | "originalUrl">): string {
-  return vedlegg.originalUrl ?? vedlegg.url;
-}
-
-/** Har vedlegget et redigerbart lag? Bakover: mobil-/historisk-annoterte mangler det. */
-export function erAnnotert(vedlegg: Pick<Vedlegg, "annotering">): boolean {
-  return vedlegg.annotering != null;
-}
-
-/**
- * Bygg patch-en som lagres etter en annotering. 🔴 `originalUrl` settes ÉN gang
- * (ved første annotering) og bevares deretter — re-annotering peker fortsatt på det
- * EKTE originalfotoet, ikke forrige utflatede versjon. `url` blir den nye JPEG-en.
- */
-export function byggAnnoteringsPatch(
-  eksisterende: Pick<Vedlegg, "url" | "originalUrl">,
-  nyUrl: string,
-  lag: AnnoteringsLag,
-): Pick<Vedlegg, "url" | "originalUrl" | "annotering"> {
-  return {
-    url: nyUrl,
-    originalUrl: eksisterende.originalUrl ?? eksisterende.url,
-    annotering: lag,
-  };
-}
+// Rene hjelpere for web-annoteringens tre-artefakt-modell, testbare uten React/iframe.
+// Reglene for kilde/patch bor i `@sitedoc/shared` (`annotering/vedlegg.ts`) — mobil bruker de
+// samme fra 2026-10-28, så et lag laget på den ene flaten åpnes likt på den andre.
+export { annoteringsKilde, erAnnotert, byggAnnoteringsPatch } from "@sitedoc/shared";
 
 /**
  * Konverter en data-URL (HTML-en eksporterer `data:image/jpeg;base64,...`) til Blob
