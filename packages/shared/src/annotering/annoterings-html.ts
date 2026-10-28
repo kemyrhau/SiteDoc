@@ -29,6 +29,7 @@ import {
   TEKSTBOKS_MARG,
   TEKSTBOKS_MIN_BREDDE,
   TEKST_TAP_TERSKEL,
+  TRYKK_TERSKEL_TOUCH,
   FORM_TREFF_TOLERANSE,
 } from "./plassering";
 
@@ -120,6 +121,15 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   var TEKSTBOKS_MIN_BREDDE = ${TEKSTBOKS_MIN_BREDDE};
   // Trykk-vs-dra-terskel (canvas-piksler). TVILLING: TEKST_TAP_TERSKEL i plassering.ts.
   var TEKST_TAP_TERSKEL = ${TEKST_TAP_TERSKEL};
+  // Touch-terskel (RETUR velg-alle): en finger vingler; musens 10 px gjorde trykk om til dra.
+  // TVILLING: TRYKK_TERSKEL_TOUCH / erTouchHendelse / trykkTerskel / erGestBeveget i plassering.ts.
+  var TRYKK_TERSKEL_TOUCH = ${TRYKK_TERSKEL_TOUCH};
+  function erTouchHendelse(e) {
+    if (!e) return false;
+    if (typeof e.type === 'string' && e.type.indexOf('touch') === 0) return true;
+    return e.pointerType === 'touch';
+  }
+  function trykkTerskel(erTouch) { return erTouch ? TRYKK_TERSKEL_TOUCH : TEKST_TAP_TERSKEL; }
   var objekter = [];
   // ── Velg alle objekter (Kenneth 2026-10-28) ── trykk på en form velger den, dra på det
   // valgte flytter, dra i håndtak endrer, dra fra en ikke-valgt form tegner, trykk på tomt
@@ -132,6 +142,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   var valgtVedStart = null;
   var gestStart = null;
   var gestMaks = 0;
+  var gestErTouch = false;
   var gestTraffValgt = false;
   var gestTraffHandtak = false;
   var formKandidat = null;
@@ -222,6 +233,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       var bp = canvas.getPointer(opt.e);
       gestStart = { x: bp.x, y: bp.y };
       gestMaks = 0;
+      gestErTouch = erTouchHendelse(opt.e);
       gestTraffValgt = false;
       gestTraffHandtak = false;
       formKandidat = null;
@@ -237,6 +249,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         var gs = canvas.getPointer(opt.e);
         gestStart = { x: gs.x, y: gs.y };
         gestMaks = 0;
+        gestErTouch = erTouchHendelse(opt.e);
       }
       // 'select' = web-«Flytt» (Fabric eier valg/flytt/marquee) — vi skal IKKE lage en ny form.
       if (aktivtVerktoy === 'select') return;
@@ -349,7 +362,8 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       var pointer = canvas.getPointer(opt.e);
       var mdx = pointer.x - startPunkt.x;
       var mdy = pointer.y - startPunkt.y;
-      if (Math.sqrt(mdx * mdx + mdy * mdy) < 5) return;
+      // Ingen forhåndsvisning for et vinglete fingertrykk (blafring før valget).
+      if (Math.sqrt(mdx * mdx + mdy * mdy) < (gestErTouch ? TRYKK_TERSKEL_TOUCH : 5)) return;
       if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
       var forh = byggForm(aktivtVerktoy, startPunkt, pointer);
       if (forh) { forhandsvisning = forh; canvas.add(forh); canvas.renderAll(); }
@@ -357,14 +371,17 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
 
     canvas.on('mouse:up', function(opt) {
       // Velg alle objekter: les og nullstill gestens øyeblikksbilde.
-      var gBeveget = gestMaks >= TEKST_TAP_TERSKEL;
+      // Terskelen følger inndataen: touch 22 px, mus 10 px (TVILLING erGestBeveget).
+      var gTerskel = trykkTerskel(gestErTouch);
+      var gBeveget = gestMaks >= gTerskel;
+      var gErTouch = gestErTouch;
       var gValgt = valgtVedStart;
       var gTraffValgt = gestTraffValgt;
       var gFormKandidat = formKandidat;
       var gFormPunkt = formKandidatPunkt;
       var gDrawKandidat = drawKandidat;
       var gSti = stiIGest;
-      gestStart = null; gestMaks = 0; gestTraffValgt = false; gestTraffHandtak = false;
+      gestStart = null; gestMaks = 0; gestErTouch = false; gestTraffValgt = false; gestTraffHandtak = false;
       formKandidat = null; formKandidatPunkt = null; drawKandidat = null; stiIGest = null;
       valgtVedStart = null;
       // Pil-endepunkt: bytt inn den nye pila ETTER at Fabric har avsluttet transformen.
@@ -377,7 +394,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         // Dobbel sikring: et strøk som er større enn terskelen er et dra, uansett målingen over.
         if (gSti && !gBeveget && gSti.getBoundingRect) {
           var sb = gSti.getBoundingRect(true, true);
-          if (Math.max(sb.width, sb.height) - (gSti.strokeWidth || 0) >= TEKST_TAP_TERSKEL) gBeveget = true;
+          if (Math.max(sb.width, sb.height) - (gSti.strokeWidth || 0) >= gTerskel) gBeveget = true;
         }
         var dh = objektTrykkHandling({
           treffType: typeAv(gDrawKandidat), aktivtVerktoy: aktivtVerktoy, beveget: gBeveget,
@@ -435,7 +452,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
           (upK.x - tekstTapPunkt.x) * (upK.x - tekstTapPunkt.x) +
           (upK.y - tekstTapPunkt.y) * (upK.y - tekstTapPunkt.y)) : 0;
         tekstTapPunkt = null;
-        if (flyttLengde < TEKST_TAP_TERSKEL) {
+        if (flyttLengde < gTerskel) {
           if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
           startPunkt = null;
           apneTekstForRedigering(kTekst, opt.e);
@@ -465,7 +482,9 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       var dy = endPunkt.y - startPunkt.y;
       var avstand = Math.sqrt(dx * dx + dy * dy);
 
-      if (avstand < 5) {
+      // Et vinglete fingertrykk (under touch-terskelen) er et trykk, ikke en mini-form: på tomt
+      // område fjerner det bare valget (regel 4). Mus beholder 5 px-grensen (web uendret).
+      if (avstand < 5 || (gErTouch && !gBeveget)) {
         // Tekst håndteres i mouse:down/up (Textbox direkte på canvas) — ingen tap-logikk her.
         startPunkt = null;
         return;
