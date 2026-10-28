@@ -67,3 +67,24 @@ test("gjenåpning med lagret lag → bildeLastet etter at objektene er lagt på"
   await send(page, await gyldigJpeg(page), lag);
   await expect.poll(() => meldingstyper(page), { timeout: 3000 }).toContain("bildeLastet");
 });
+
+test("lag med ukjent objekttype → bildet vises likevel og bildeLastet sendes (ingen evig «Laster bildet …»)", async ({ page }) => {
+  // Oppfølger (Kontrollør-gate 483e7057): Fabric kastet i enlivenObjects («reading 'fromObject'»)
+  // før bildeLastet → web stod for alltid på «Laster bildet …» med Ferdig av. Rød på 483e7057.
+  await åpne(page);
+  const lag = {
+    fabricVersion: "5.3.1",
+    bredde: 390,
+    hoyde: 292,
+    objekter: [{ type: "finnesIkke", left: 10, top: 10 }],
+  };
+  await send(page, await gyldigJpeg(page), lag);
+  await expect.poll(() => meldingstyper(page), { timeout: 3000 }).toContain("bildeLastet");
+  expect(await meldingstyper(page)).not.toContain("bildeFeil");
+  const harBakgrunn = await page.evaluate(() => {
+    const c = document.getElementById("c") as HTMLCanvasElement;
+    const px = c.getContext("2d")!.getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data;
+    return px[3] > 0 && (px[0] + px[1] + px[2]) > 0;
+  });
+  expect(harBakgrunn).toBe(true);
+});

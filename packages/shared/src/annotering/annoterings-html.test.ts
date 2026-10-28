@@ -477,6 +477,8 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
 
     it("bildeLastet sendes først når bakgrunnen (og ev. lagrede objekter) er lagt på", () => {
       expect(ANNOTERINGS_HTML.match(/postTilVert\(\{ type: 'bildeLastet' \}\);/g)).toHaveLength(2);
+      // Oppfølger: et lag Fabric ikke kan gjenskape skal aldri låse flaten på «Laster bildet …».
+      expect(ANNOTERINGS_HTML).toContain("} catch (e) {\n            meldLastet();\n          }");
     });
   });
 });

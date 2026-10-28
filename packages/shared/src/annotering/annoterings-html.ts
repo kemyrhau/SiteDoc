@@ -1210,20 +1210,36 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         // Velg-verktøyet slår på flytting.
         if (lag && lag.objekter && lag.objekter.length && fabric.util && fabric.util.enlivenObjects) {
           var ratio = lag.bredde > 0 ? (canvas.width / lag.bredde) : 1;
-          fabric.util.enlivenObjects(lag.objekter, function(gjenskapte) {
-            gjenskapte.forEach(function(o) {
-              reskalerObjekt(o, ratio);
-              // Del 1: en gjenskapt tekstboks må få kontroll-synlighet og locks på nytt
-              // (toObject() lagrer dem ikke) så bredde-håndtaket virker etter gjenåpning.
-              // Eldre 'i-text'/'text' åpnes uendret (ingen håndtak, som før).
-              if (o.type === 'textbox') klargjørTekstboks(o); else klargjørForm(o);
-              settFlyttbar(o, aktivtVerktoy === 'select');
-              canvas.add(o);
-              objekter.push(o);
-            });
+          // Oppfølger RETUR svart gjenåpning (Kontrollør): et lag Fabric ikke kan gjenskape (f.eks.
+          // ukjent objekttype → «reading 'fromObject'») kastet før bildeLastet → web sto evig på
+          // «Laster bildet …» med Ferdig av. Nå: bildet vises uten objektene og bildeLastet sendes
+          // (som før lag-meldingene fantes). Objekter som alt var lagt på, blir stående.
+          var lagMeldt = false;
+          var meldLastet = function() {
+            if (lagMeldt) return;
+            lagMeldt = true;
             canvas.renderAll();
             postTilVert({ type: 'bildeLastet' });
-          });
+          };
+          try {
+            fabric.util.enlivenObjects(lag.objekter, function(gjenskapte) {
+              try {
+                gjenskapte.forEach(function(o) {
+                  reskalerObjekt(o, ratio);
+                  // Del 1: en gjenskapt tekstboks må få kontroll-synlighet og locks på nytt
+                  // (toObject() lagrer dem ikke) så bredde-håndtaket virker etter gjenåpning.
+                  // Eldre 'i-text'/'text' åpnes uendret (ingen håndtak, som før).
+                  if (o.type === 'textbox') klargjørTekstboks(o); else klargjørForm(o);
+                  settFlyttbar(o, aktivtVerktoy === 'select');
+                  canvas.add(o);
+                  objekter.push(o);
+                });
+              } catch (e) { /* ugyldig objekt i laget: vis det som lot seg gjenskape */ }
+              meldLastet();
+            });
+          } catch (e) {
+            meldLastet();
+          }
         } else {
           canvas.renderAll();
           postTilVert({ type: 'bildeLastet' });
