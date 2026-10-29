@@ -299,6 +299,7 @@ function UtleggVedleggBilde({
     <View className="relative">
       {uri && (
         <AutentisertBilde
+          fornyKilde="utleggVedlegg"
           uri={uri}
           className="h-20 w-20 rounded-lg bg-gray-100"
           fallback={<BildeFallback className="h-20 w-20" />}

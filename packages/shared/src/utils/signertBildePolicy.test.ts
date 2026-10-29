@@ -7,6 +7,7 @@ import {
   lesExpFraUrl,
   erUtloptSignatur,
   lagInvalideringsDebounce,
+  lagNokkelDebounce,
 } from "./signertBildePolicy";
 
 /**
@@ -81,6 +82,52 @@ describe("lagInvalideringsDebounce — femti feil = én invalidering", () => {
     trigger(spion); // ny burst
     vi.advanceTimersByTime(100);
     expect(spion).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("lagNokkelDebounce — smal invalidering (Hjem-frys 2026-10-29)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("koalescerer til ÉN utførelse med unionen av stiene, uten duplikater", () => {
+    vi.useFakeTimers();
+    const utfor = vi.fn();
+    const d = lagNokkelDebounce(utfor, 100);
+    d.abonner();
+    d.planlegg([["sjekkliste", "hentMedId"]]);
+    d.planlegg([["sjekkliste", "hentMedId"], ["oppgave", "hentMedId"]]);
+    vi.advanceTimersByTime(100);
+    expect(utfor).toHaveBeenCalledTimes(1);
+    expect(utfor.mock.calls[0]![0]).toEqual([["sjekkliste", "hentMedId"], ["oppgave", "hentMedId"]]);
+  });
+
+  it("🔴 en tom sti (= «alle») planlegges aldri", () => {
+    vi.useFakeTimers();
+    const utfor = vi.fn();
+    const d = lagNokkelDebounce(utfor, 100);
+    d.abonner();
+    d.planlegg([[]]);
+    vi.advanceTimersByTime(100);
+    expect(utfor).not.toHaveBeenCalled();
+  });
+
+  it("🔴 når siste abonnent avmeldes, ryddes timeren — ingen invalidering etter at skjermen er forlatt", () => {
+    vi.useFakeTimers();
+    const utfor = vi.fn();
+    const d = lagNokkelDebounce(utfor, 100);
+    const av1 = d.abonner();
+    const av2 = d.abonner();
+    d.planlegg([["sjekkliste", "hentMedId"]]);
+    av1();
+    av1(); // dobbel avmelding teller ikke to ganger
+    vi.advanceTimersByTime(50);
+    av2();
+    vi.advanceTimersByTime(100);
+    expect(utfor).not.toHaveBeenCalled();
+    // Ny abonnent etterpå starter blankt.
+    d.abonner();
+    d.planlegg([["oppgave", "hentMedId"]]);
+    vi.advanceTimersByTime(100);
+    expect(utfor.mock.calls[0]![0]).toEqual([["oppgave", "hentMedId"]]);
   });
 });
 

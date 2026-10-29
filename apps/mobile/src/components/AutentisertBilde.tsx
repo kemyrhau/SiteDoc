@@ -1,23 +1,31 @@
 import { Image, type ImageProps } from "react-native";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { hentSessionToken } from "../services/auth";
-import { trpc } from "../lib/trpc";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
   byggBildeKilde,
   bildeRenderTilstand,
   erServerUpload,
+  fornyelsesStier,
   vurderBildeFornyelse,
   type BildeKilde,
+  type FornyKilde,
 } from "../lib/bildeKilde";
-import { lagInvalideringsDebounce } from "@sitedoc/shared";
+import { lagNokkelDebounce } from "@sitedoc/shared";
 
 /**
- * Modul-nivå debounce, delt av ALLE AutentisertBilde-instanser (som webs
- * `SignertBilde`). En skjerm full av utløpte bilder koalescerer derfor til ÉN
- * tRPC-invalidering pr. forsøksnivå, ikke femti. Hver instans planlegger sitt eget
- * forsøk gjennom denne — vinduet slår dem sammen.
+ * Modul-nivå debounce, delt av ALLE AutentisertBilde-instanser. En skjerm full av
+ * utløpte bilder koalescerer til ÉN invalidering pr. forsøksnivå — og den invaliderer
+ * KUN stiene bildenes kilde gir (`fornyelsesStier`), aldri alle queries (Hjem-frys
+ * 2026-10-29). Klienten settes av den sist monterte instansen (det finnes én).
  */
-const planleggInvalidering = lagInvalideringsDebounce();
+let queryKlient: QueryClient | null = null;
+const fornyelse = lagNokkelDebounce((stier) => {
+  for (const sti of stier) {
+    // tRPC v11-nøkkel er `[sti[], {input, type}]` — `[sti]` prefiks-matcher alle inputs.
+    void queryKlient?.invalidateQueries({ queryKey: [[...sti]] });
+  }
+});
 
 /**
  * AutentisertBilde — native <Image> som bærer Bearer-token når URI-en er en
@@ -36,8 +44,8 @@ const planleggInvalidering = lagInvalideringsDebounce();
  * ikke token og monteres umiddelbart (ingen venting, samme opplevelse som før).
  *
  * Selvfornyelse (krav 3b): feiler bildet fordi den signerte URL-en er UTLØPT (401),
- * invalideres tRPC-queriene DEBOUNCET, så kallstedets query refetcher og gir en fersk
- * signert URI — samme mekanisme som webs `SignertBilde`, samme delte regel i
+ * invalideres kallstedets tRPC-queries (`fornyKilde` → `fornyelsesStier`) DEBOUNCET, så
+ * kallstedets query refetcher og gir en fersk signert URI — samme mekanisme som webs `SignertBilde`, samme delte regel i
  * `@sitedoc/shared`. Maks TRE forsøk med backoff; en 404 (slettet fil, gyldig
  * signatur) gjenforsøkes ALDRI — ellers evig løkke / selvpåført DoS. Beslutningen bor
  * i `vurderBildeFornyelse`; her holdes kun tellingen, timerne og terminaltilstanden.
@@ -55,10 +63,21 @@ export type AutentisertBildeProps = Omit<ImageProps, "source"> & {
    * rendres `null` som før — bakoverkompatibelt. Rendres ALDRI mens token hentes.
    */
   fallback?: ReactNode;
+  /**
+   * Hvilken query bildets signerte URL kommer fra — påkrevd, så fornyelsen aldri faller
+   * tilbake til å invalidere alt. Se `fornyelsesStier`.
+   */
+  fornyKilde: FornyKilde;
 };
 
-export function AutentisertBilde({ uri, fallback, onError, ...rest }: AutentisertBildeProps) {
-  const utils = trpc.useUtils();
+export function AutentisertBilde({ uri, fallback, fornyKilde, onError, ...rest }: AutentisertBildeProps) {
+  const queryClient = useQueryClient();
+  // Monterte bilder holder fornyelsen i live. Forlates skjermen (siste avmonteres), ryddes
+  // en ventende invalidering — den ville bare hentet andre skjermers data på nytt.
+  useEffect(() => {
+    queryKlient = queryClient;
+    return fornyelse.abonner();
+  }, [queryClient]);
   // Lokale/tredjeparts-URI-er kan monteres synkront; kun server-URI-er venter på token.
   const [kilde, setKilde] = useState<BildeKilde | null>(() =>
     erServerUpload(uri) ? null : { uri },
@@ -121,8 +140,8 @@ export function AutentisertBilde({ uri, fallback, onError, ...rest }: Autentiser
         forsokRef.current = beslutning.nyttForsok;
         // Debouncet invalidering: femti samtidige feil på samme forsøksnivå gir ÉN
         // refetch. Forsøk 1 umiddelbart (kun koalescering), forsøk 2/3 etter backoff
-        // så ett dekningsdropp på dårlig 4G får tid til å løse seg.
-        const planlegg = () => planleggInvalidering(() => void utils.invalidate());
+        // så ett dekningsdropp på dårlig 4G får tid til å løse seg. Kun kildens stier.
+        const planlegg = () => fornyelse.planlegg(fornyelsesStier(fornyKilde));
         if (beslutning.ventMs === 0) {
           planlegg();
         } else {
