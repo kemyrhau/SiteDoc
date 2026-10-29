@@ -7,7 +7,7 @@ import { oppgaveFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { klassifiserLagreFeil } from "../utils/lagreFeil";
+import { avvisningsVarsel, klassifiserLagreFeil, type AvvisningsVarsel } from "../utils/lagreFeil";
 import { useAuth } from "../providers/AuthProvider";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
 import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
@@ -74,8 +74,9 @@ export interface UseOppgaveSkjemaResultat {
   sisteKollisjoner: { feltId: string }[];
   avvisKollisjoner: () => void;
   /** Godkjent-låsen avviste en vedlegg-endring permanent (ingen retry); vis ÉN melding. */
-  godkjentLaastVarsel: boolean;
-  avvisGodkjentLaastVarsel: () => void;
+  /** Melding ved permanent avvisning (i18n-nøkkel), eller null. Godkjent-teksten bare på avsluttet dokument. */
+  avvisningVarsel: AvvisningsVarsel | null;
+  lukkAvvisningVarsel: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -199,7 +200,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   // endre et utfylt felt blir en tilføyelse på serveren.
   const basisRef = useRef<Record<string, FeltVerdi>>({});
   const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
-  const [godkjentLaastVarsel, settGodkjentLaastVarsel] = useState(false);
+  const [avvisningVarsel, settAvvisningVarsel] = useState<AvvisningsVarsel | null>(null);
 
   // Append-only: felt som hadde server-bekreftet verdi ved init er låst.
   // Beregnes ALLTID fra server-data, aldri fra lokal usynkronisert SQLite-verdi.
@@ -269,6 +270,9 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     : offlineModus
       ? (speil!.dokument as OppgaveData)
       : undefined;
+  // Status ved avvisningen avgjør meldingen (ORDRE 6); ref så lagreIntern ikke bytter identitet.
+  const statusRef = useRef<string | undefined>(undefined);
+  statusRef.current = oppgave?.status;
 
   const alleObjekter = useMemo(
     () => (oppgave?.template?.objects ?? []) as RapportObjekt[],
@@ -519,7 +523,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           for (const id of sendteIder) basisRef.current[id] = data[id];
           settHarEndringer(false);
           settSynkStatus("synkronisert");
-          settGodkjentLaastVarsel(true);
+          settAvvisningVarsel(avvisningsVarsel(statusRef.current));
         } else {
           // Nett-/transientfeil — data er trygg i SQLite, retry neste online-tick.
           settSynkStatus("lokalt_lagret");
@@ -762,8 +766,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner: () => settSisteKollisjoner([]),
-    godkjentLaastVarsel,
-    avvisGodkjentLaastVarsel: () => settGodkjentLaastVarsel(false),
+    avvisningVarsel,
+    lukkAvvisningVarsel: () => settAvvisningVarsel(null),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

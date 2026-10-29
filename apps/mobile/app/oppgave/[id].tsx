@@ -448,8 +448,8 @@ export default function OppgaveDetalj() {
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner,
-    godkjentLaastVarsel,
-    avvisGodkjentLaastVarsel,
+    avvisningVarsel,
+    lukkAvvisningVarsel,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -1027,14 +1027,14 @@ export default function OppgaveDetalj() {
           </View>
         )}
 
-        {/* Godkjent-lås-varsel: en vedlegg-endring ble permanent avvist (rapporten er
-            godkjent). Vises ÉN gang; endringen beholdes lokalt men lagres aldri. */}
-        {godkjentLaastVarsel && (
+        {/* Avvisningsvarsel: en endring ble permanent avvist av serveren. Godkjent-teksten bare på
+            avsluttet dokument, ellers en nøytral tekst (ORDRE 6). Vises ÉN gang; endringen beholdes lokalt. */}
+        {avvisningVarsel && (
           <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
             <Text className="flex-1 text-sm text-red-800">
-              {t("godkjentLaast.varsel.tekst")}
+              {t(avvisningVarsel)}
             </Text>
-            <Pressable onPress={avvisGodkjentLaastVarsel} hitSlop={8}>
+            <Pressable onPress={lukkAvvisningVarsel} hitSlop={8}>
               <Text className="text-xs font-medium text-red-700">{t("handling.lukk")}</Text>
             </Pressable>
           </View>

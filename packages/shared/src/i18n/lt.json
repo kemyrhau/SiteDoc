@@ -894,6 +894,7 @@
   "kollisjon.notat.tittel": "Pažymima – laukas jau užpildytas",
   "kollisjon.varsel.tekst": "Jūsų vertė {{antall}} lauke (-uose) negalėjo perrašyti jau esančios vertės. Laukelis išsaugo kaip užrašą su pavadinimu ir laiku – nieko neprarandama. Kas laiko kamuolį, gali jį perkelti.",
   "godkjentLaast.varsel.tekst": "Ataskaita patvirtinta – pakeitimas neišsaugotas. Norėdami redaguoti, iš naujo atidarykite ataskaitą.",
+  "lagreAvvist.varsel.tekst": "Serveris atmetė pakeitimą ir jis nebuvo išsaugotas – kiti jo nemato. Tai tik šiame įrenginyje. Jei tai pasikartos, susisiekite su projekto administratoriumi.",
   "handling.ferdig": "Atlikta",
   "handling.sok": "Ieškoti",
   "handling.eksporter": "Eksportuoti",

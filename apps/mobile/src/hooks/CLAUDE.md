@@ -55,7 +55,7 @@ når den fullfører → `oppdaterData` møter godkjent-låsen og kaster `FORBIDD
 (`useEffect([erPaaNettet, erInitialisert, synkStatus])`) prøvde i det uendelige. Nå klassifiserer
 `klassifiserLagreFeil` (`utils/lagreFeil.ts`) feilen: `permanent` (FORBIDDEN/BAD_REQUEST fra vakten)
 → avansér `basisRef` for de avviste feltene (ikke dirty → ingen retry), behold lokal fil, vis ÉN
-`godkjentLaastVarsel`-melding; `transient` (nett/5xx/401) → `lokalt_lagret`, retry som før. Gjelder
+`avvisningVarsel`-melding (ORDRE 6: `avvisningsVarsel(status)` — godkjent-teksten bare på terminal status, ellers `lagreAvvist.varsel.tekst`); `transient` (nett/5xx/401) → `lokalt_lagret`, retry som før. Gjelder
 begge hooks. **Galleri-bilder** (`bilde.ts`, `Image`-tabellen) er ikke `data`-JSON-vedlegg, men
 henger på samme rapport — `opprettFor*`/`slettMedUrl` voktes nå av `krevRedigerbarDokumentstatus`
 (`apps/api/src/services/galleriStatusVakt.ts`) på terminal status. Køens galleri-opprett-vei

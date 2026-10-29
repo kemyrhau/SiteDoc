@@ -894,6 +894,7 @@
   "kollisjon.notat.tittel": "Notert – feltet var alt fylt",
   "kollisjon.varsel.tekst": "Verdien din på {{antall}} felt kunne ikke overskrive en verdi som alt sto der. Den er lagret som et notat ved feltet, med navn og tidspunkt – ingenting er borte. Den som har ballen kan flytte den inn.",
   "godkjentLaast.varsel.tekst": "Rapporten er godkjent – endringen ble ikke lagret. Gjenåpne rapporten for å endre.",
+  "lagreAvvist.varsel.tekst": "Endringen ble avvist av serveren og er ikke lagret – andre ser den ikke. Den ligger bare på denne enheten. Kontakt prosjektadministrator hvis det skjer igjen.",
   "handling.ferdig": "Ferdig",
   "handling.sok": "Søk",
   "handling.eksporter": "Eksporter",

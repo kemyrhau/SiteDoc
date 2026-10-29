@@ -894,6 +894,7 @@
   "kollisjon.notat.tittel": "Noted – the field was already filled",
   "kollisjon.varsel.tekst": "Your value on {{antall}} field(s) could not overwrite a value already there. It is saved as a note by the field, with name and time – nothing is lost. Whoever holds the ball can move it in.",
   "godkjentLaast.varsel.tekst": "The report is approved – the change was not saved. Reopen the report to edit.",
+  "lagreAvvist.varsel.tekst": "The server rejected the change and it was not saved – others can't see it. It is only on this device. Contact the project administrator if it happens again.",
   "handling.ferdig": "Done",
   "handling.sok": "Search",
   "handling.eksporter": "Export",
