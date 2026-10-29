@@ -16,16 +16,24 @@ import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
 import { lagAnnoteringsHtml, annoteringsflateHoyde, type AnnoteringsLag } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../config/auth";
-import { trpc } from "../lib/trpc";
-import { lastAnnoteringsbilde } from "../lib/annoteringsKilde";
+import { useQueryClient } from "@tanstack/react-query";
+import { lastAnnoteringsbilde, velgAnnoteringsKilde } from "../lib/annoteringsKilde";
+import { invaliderFornyelse, type FornyKilde } from "../lib/bildeKilde";
+import {
+  ANNOTERING_LASTE_TIDSGRENSE_MS,
+  annoteringsUtfallLogg,
+  skalLagreForFornyelse,
+  statusEtterTidsgrense,
+  type BildeStatus,
+} from "../lib/annoteringsStatus";
+import { useSkjemaLagring } from "../kontekst/SkjemaLagringKontekst";
 import { lagFornyer, type Fornyer } from "../lib/fornyer";
 
 // RETUR svart gjenåpning: en rå/utløpt server-URL fornyes ved å hente data på nytt (samme
 // mekanisme som AutentisertBilde). Fornyeren invaliderer på timer (hvert 2,5 s, maks 3 — lib/fornyer.ts);
-// gir ingen av forsøkene en signert URL, vises en feil.
-
-/** Bildets tilstand i flaten. Ferdig er bare aktiv når bildet faktisk er lastet. */
-type BildeStatus = "laster" | "fornyer" | "klar" | "feil";
+// gir ingen av forsøkene en signert URL, vises en feil. ORDRE 3: fornyelsen invaliderer bare
+// kildens stier (`fornyKilde`), aldri alle queries — tre globale runder hentet Hjem, innboks og
+// listene på nytt mens editoren ventet.
 
 // Mobil forankrer bildet ØVERST (befaring-funn A): fast posisjon rett under
 // overskriften, bildet står stille med og uten tastatur. Web bruker standarden
@@ -56,6 +64,8 @@ interface BildeAnnoteringProps {
    *  og kan velges, flyttes, endres og slettes. Uten lag: tegn oppå bildet som før. */
   lag?: AnnoteringsLag;
   onFerdig: (annotertBildeUri: string, lag: AnnoteringsLag) => void;
+  /** Hvilken query bildets signerte URL kommer fra — fornyelsen invaliderer bare den. */
+  fornyKilde: FornyKilde;
   onAvbryt: () => void;
 }
 
@@ -72,7 +82,7 @@ const VERKTOYER: { id: Verktoy; ikon: typeof ArrowUpRight; labelKey: string }[] 
   { id: "text", ikon: Type, labelKey: "annotering.verktoy.tekst" },
 ];
 
-export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt }: BildeAnnoteringProps) {
+export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt, fornyKilde }: BildeAnnoteringProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { height: vindusHoyde } = useWindowDimensions();
@@ -81,17 +91,30 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt }: BildeAnno
   const [bildeStatus, settBildeStatus] = useState<BildeStatus>("laster");
   const erKlar = bildeStatus === "klar";
   const webViewKlarRef = useRef(false);
-  const utils = trpc.useUtils();
-  const utilsRef = useRef(utils);
-  utilsRef.current = utils;
+  const queryClient = useQueryClient();
+  const queryClientRef = useRef(queryClient);
+  queryClientRef.current = queryClient;
+  const fornyKildeRef = useRef(fornyKilde);
+  fornyKildeRef.current = fornyKilde;
+  // F1b: skjemaets lagring (null utenfor skjema). Ref, så lastBilde ikke bytter identitet.
+  const skjemaLagring = useSkjemaLagring();
+  const skjemaLagringRef = useRef(skjemaLagring);
+  skjemaLagringRef.current = skjemaLagring;
   const fornyerRef = useRef<Fornyer | null>(null);
   if (!fornyerRef.current) {
     fornyerRef.current = lagFornyer({
-      invalider: () => void utilsRef.current.invalidate(),
+      invalider: () => invaliderFornyelse(queryClientRef.current, fornyKildeRef.current),
       onGiOpp: () => settBildeStatus((s) => (s === "fornyer" ? "feil" : s)),
     });
   }
   useEffect(() => () => fornyerRef.current?.stopp(), []);
+  // F1c: «laster» har en frist — står den ute (WebView-en svarer aldri, nedlastingen henger),
+  // vises feilen i stedet for en evig spinner. Fornyeren har sin egen frist.
+  useEffect(() => {
+    if (bildeStatus !== "laster") return;
+    const t = setTimeout(() => settBildeStatus(statusEtterTidsgrense), ANNOTERING_LASTE_TIDSGRENSE_MS);
+    return () => clearTimeout(t);
+  }, [bildeStatus]);
   // Frys-fiks (orkestrator 2026-10-21): vis «Lagrer …» og deaktiver knappen FØR eksporten,
   // så brukeren ser at appen jobber mens den synkrone toDataURL kjører i WebView-en.
   const [lagrer, settLagrer] = useState(false);
@@ -141,6 +164,7 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt }: BildeAnno
   const lastBilde = useCallback(
     async (uri: string) => {
       try {
+        const kildeType = velgAnnoteringsKilde(uri, AUTH_CONFIG.apiUrl).type;
         const r = await lastAnnoteringsbilde(uri, {
           apiUrl: AUTH_CONFIG.apiUrl,
           cacheDir: FileSystem.cacheDirectory ?? "",
@@ -148,6 +172,8 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt }: BildeAnno
           lastNed: (url, tilSti) => FileSystem.downloadAsync(url, tilSti),
           lesBase64: (sti) => FileSystem.readAsStringAsync(sti, { encoding: FileSystem.EncodingType.Base64 }),
         });
+        // Også utenfor __DEV__: neste telefonrunde skal si hvilken gren som slo til (ORDRE 3).
+        console.warn(annoteringsUtfallLogg(kildeType, r));
         if (r.ok) {
           fornyerRef.current?.stopp();
           settBildeStatus("laster");
@@ -158,13 +184,19 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt }: BildeAnno
         if (r.grunn === "trengerSignatur") {
           // Fortsatt rå/utløpt: fornyeren holder på (eller startes). Tellingen nullstilles ikke.
           settBildeStatus("fornyer");
+          // F1b: send ventende autolagring først, så serveren har den rå stien og refetchen
+          // faktisk kan signere den. Én gang pr. fornyelse; aldri på lest/låst dokument.
+          const sl = skjemaLagringRef.current;
+          if (sl && skalLagreForFornyelse({ kanRedigere: sl.kanRedigere, fornyerAktiv: !!fornyerRef.current?.aktiv() })) {
+            await sl.lagre().catch(() => {});
+          }
           fornyerRef.current?.start();
           return;
         }
         fornyerRef.current?.stopp();
-        if (__DEV__) console.log(`[annotering] bildet kunne ikke lastes: ${r.grunn}${r.status ? ` (${r.status})` : ""}`);
         settBildeStatus("feil");
       } catch (feil) {
+        console.warn("[annotering] bilde: unntak");
         if (__DEV__) console.log("[annotering] bildehenting feilet:", feil);
         fornyerRef.current?.stopp();
         settBildeStatus("feil");

@@ -571,6 +571,7 @@ export function FeltDokumentasjon({
             // levende, så en rå URL byttes med den signerte når data er hentet på nytt.
             bildeUri={valgtVedlegg ? annoteringsApning(valgtVedlegg).kilde : annoteringBilde}
             lag={valgtVedlegg ? annoteringsApning(valgtVedlegg).lag : undefined}
+            fornyKilde="dokument"
             onFerdig={async (annotert, lag) => {
               settAnnoteringBilde(null);
               if (valgtVedlegg && valgtVedleggId && onErstattVedlegg) {

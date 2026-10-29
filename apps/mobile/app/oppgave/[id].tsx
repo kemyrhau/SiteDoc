@@ -57,6 +57,7 @@ import { useAuth } from "../../src/providers/AuthProvider";
 import { hentDokumentSpeil } from "../../src/services/dokumentSpeil";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
+import { SkjemaLagringProvider } from "../../src/kontekst/SkjemaLagringKontekst";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { trpc } from "../../src/lib/trpc";
 import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
@@ -734,6 +735,8 @@ export default function OppgaveDetalj() {
     : null;
 
   return (
+    // Annoteringseditoren sender ventende lagring før den fornyer en rå original (ORDRE 3, F1b).
+    <SkjemaLagringProvider value={{ kanRedigere: !leseModus && !vedleggLaast, lagre }}>
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
       {/* Header */}
       <View className="bg-sitedoc-blue">
@@ -1523,5 +1526,6 @@ export default function OppgaveDetalj() {
         </ModalFlate>
       </Modal>
     </SafeAreaView>
+    </SkjemaLagringProvider>
   );
 }
