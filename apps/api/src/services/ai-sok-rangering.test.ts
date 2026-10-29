@@ -148,6 +148,22 @@ describe("T8 / S5 — semantiske treff får beste setning, ordtreff får headlin
   it("stamme-treff: «forsinkelser» finner «forsinkelse» (æøå-sikker ordstart)", () => {
     expect(finnBesteSetning(DAGMULKT_CHUNK, ["forsinkelser"], [])).toMatch(/^Ved forsinkelse/);
   });
+
+  // Låsetester (relay 29.10, «S5 markeres ikke»): hypotesen «setningen har normaliserte mellomrom,
+  // chunk-teksten har \n/\t → klientens indexOf = -1» er avkreftet. delISetninger deler bare på \n og
+  // trimmer, så setningen er alltid en eksakt delstreng — også med \t inni. Målt rotårsak var null (neste test).
+  it("låsetest: setningen er eksakt delstreng av chunkText også med \\t inni og \\n rundt (klientens indexOf ≥ 0)", () => {
+    const tekst = "a)\tOmfang og\tprisgrunnlag.  Post omfatter gatevarme.\n\nDagmulkt\tpr.\tkalenderdag.\n";
+    const setning = finnBesteSetning(tekst, ["dagmulkt"], []);
+    expect(setning).toBe("Dagmulkt\tpr.\tkalenderdag.");
+    expect(tekst.indexOf(setning!)).toBeGreaterThanOrEqual(0);
+  });
+
+  it("målt Røstbakken «dagmulkt» (test e8aac60a, gab-chunk 1036): chunk uten ordet → null, ingen setning å markere", () => {
+    const gab1036 =
+      "Valgfritt\n$DRIFTS- OG VEDLIKEHOLDSDOKUMENTASJON\na)\tOmfang og prisgrunnlag\n\nPost omfatter gatevarmneanlegg (teknisk rom og utendørs anlegg)\n\n- Protokoller over egenkontroller og innregulering.\n- Komplett FDV-dokumentasjon.\n";
+    expect(finnBesteSetning(gab1036, ["dagmulkt"], [])).toBeNull();
+  });
 });
 
 describe("F1b — mikro-chunker utelates fra semantiske kandidater (relay 29.10, Røstbakken «dagmulkt»)", () => {

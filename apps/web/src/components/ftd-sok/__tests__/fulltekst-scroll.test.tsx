@@ -23,7 +23,7 @@ vi.mock("@/lib/trpc", () => ({
 }));
 vi.mock("@/components/SignertLenke", () => ({ useSignertLenkeApner: () => () => undefined }));
 
-import { Fulltekst, MARK_KLASSE, MARK_VALGT_KLASSE, RULLE_MARG } from "../fulltekst";
+import { Fulltekst, MARK_KLASSE, MARK_VALGT_KLASSE, RULLE_MARG, VALGT_AVSNITT_KLASSE } from "../fulltekst";
 import { TreffListe } from "../treff-liste";
 
 beforeAll(async () => {
@@ -196,6 +196,75 @@ describe("T8 høyre rute — semantisk setning markert i valgt chunk", () => {
     expect(sem?.textContent).toBe("Ved forsinkelse påløper dagmulkt pr. kalenderdag.");
     expect(sem?.querySelector("mark")).toBeNull();
     expect(container.textContent).toContain("semantisk treff");
+  });
+});
+
+/**
+ * Hel-avsnitt-markering (relay 29.10, Røstbakken «dagmulkt»). Målt på test `e8aac60a` via `aiSok.sok`:
+ * alle ni treff kom med `semantiskSetning: null` — ingen av chunkene inneholder ordet eller stammen, så
+ * `finnBesteSetning` (ai-sok-service.ts) gir null og S5 har ingenting å markere. Høyre rute stod da helt
+ * umarkert etter rulling. Nå får valgt `[data-chunk]` egen klasse uansett setning/ordtreff.
+ * Rød før: `VALGT_AVSNITT_KLASSE` fantes ikke, og ingen chunk hadde klasse.
+ */
+describe("Hel-avsnitt-markering — valgt chunk får bakgrunn + strek i venstre kant", () => {
+  // Chunk 1036 = avsnitt 1037 i trefflista (1-indeksert). Teksten er den målte gab-chunken på test.
+  const GAB_1036: Chunk[] = [
+    {
+      id: "a",
+      chunkIndex: 1036,
+      pageNumber: null,
+      sectionTitle: null,
+      chunkText: "Valgfritt\n$DRIFTS- OG VEDLIKEHOLDSDOKUMENTASJON\na)\tOmfang og prisgrunnlag\n\nPost omfatter gatevarmneanlegg (teknisk rom og utendørs anlegg)\n",
+    },
+    { id: "b", chunkIndex: 1037, pageNumber: null, sectionTitle: null, chunkText: "Protokoller over egenkontroller og innregulering.\n" },
+  ];
+  const klasser = VALGT_AVSNITT_KLASSE.split(" ");
+  const harAvsnittsklasse = (el: Element | null) => !!el && klasser.every((k) => el.classList.contains(k));
+  const markerte = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll("[data-chunk]"))
+      .filter((el) => harAvsnittsklasse(el))
+      .map((el) => el.getAttribute("data-chunk"));
+
+  it("rent semantisk treff uten setning og uten ordtreff: valgt chunk markert, naboen ikke", () => {
+    chunks = GAB_1036;
+    spionerScroll();
+    const { container } = render(
+      <Fulltekst prosjektId="p" documentId="d" søkeord="dagmulkt" valgtChunkIndex={1036} semantiskSetning={null} />,
+    );
+    expect(harAvsnittsklasse(container.querySelector('[data-chunk="1036"]'))).toBe(true);
+    expect(harAvsnittsklasse(container.querySelector('[data-chunk="1037"]'))).toBe(false);
+    expect(container.querySelectorAll("mark")).toHaveLength(0);
+    expect(container.querySelector('[data-semantisk="true"]')).toBeNull();
+  });
+
+  it("bare ett avsnitt markert om gangen; markeringen følger valgtChunkIndex", () => {
+    chunks = GAB_1036;
+    spionerScroll();
+    const { container, rerender } = render(
+      <Fulltekst prosjektId="p" documentId="d" søkeord="dagmulkt" valgtChunkIndex={1036} />,
+    );
+    expect(markerte(container)).toEqual(["1036"]);
+    rerender(<Fulltekst prosjektId="p" documentId="d" søkeord="dagmulkt" valgtChunkIndex={1037} />);
+    expect(markerte(container)).toEqual(["1037"]);
+    rerender(<Fulltekst prosjektId="p" documentId="d" søkeord="dagmulkt" valgtChunkIndex={null} />);
+    expect(markerte(container)).toEqual([]);
+  });
+
+  it("ordtreff: valgt chunk har avsnittsklasse OG sterk <mark>; chunken er fortsatt inline (flyten i whitespace-pre-wrap brytes ikke)", () => {
+    chunks = PDF_SIDE3;
+    spionerScroll();
+    const { container } = render(
+      <Fulltekst prosjektId="p" documentId="d" søkeord="vernerunde" valgtChunkIndex={5} />,
+    );
+    const valgt = container.querySelector('[data-chunk="5"]')!;
+    expect(valgt.tagName).toBe("SPAN");
+    expect(harAvsnittsklasse(valgt)).toBe(true);
+    expect(valgt.querySelector("mark")?.className).toBe(MARK_VALGT_KLASSE);
+    expect(harAvsnittsklasse(container.querySelector('[data-chunk="4"]'))).toBe(false);
+    // Inline + clone: bakgrunn og venstre strek på hvert linjefragment, ikke `block` (ville gitt linjeskift
+    // ved hver chunk-grense). Palettfarge (sitedoc-secondary), ikke gul/amber (ordtreff) eller lilla (S5).
+    expect(VALGT_AVSNITT_KLASSE).toContain("box-decoration-clone");
+    expect(VALGT_AVSNITT_KLASSE).not.toMatch(/\bblock\b|yellow|amber|purple/);
   });
 });
 
