@@ -54,7 +54,7 @@ AI-søk, utsnitt fra starten av avsnittet, scroll til første forekomst på side
 
 ### S1 — Høyre rute: fokus på valgt treff · **MÅ**
 
-- **S1a (reparasjon):** ved klikk på et treff scroller høyre rute til **den valgte chunken** (`data-chunk=<chunkIndex>`), ikke første `<mark>` på siden; chunken plasseres i øvre tredjedel av ruta. Gjelder også DOCX (`pageNumber` null) — scroll på chunk, ikke side. Den valgte chunkens markeringer får **sterkere farge** (f.eks. `bg-amber-300` + ramme) enn øvrige forekomster (`bg-yellow-200`). Valg i venstre liste og fokus i høyre rute er alltid samme chunk.
+- **S1a (reparasjon):** ved klikk på et treff scroller høyre rute til **den valgte chunken** (`data-chunk=<chunkIndex>`), ikke første `<mark>` på siden; chunken plasseres i øvre tredjedel av ruta. Gjelder også DOCX (`pageNumber` null) — scroll på chunk, ikke side. Den valgte chunkens markeringer får **sterkere farge** (f.eks. `bg-amber-300` + ramme) enn øvrige forekomster (`bg-yellow-200`). Valg i venstre liste og fokus i høyre rute er alltid samme chunk. **F3 (reparasjon, relay 2026-10-29, branch `fix/sok-visning`):** rullingen skjer KUN i høyre rute (`rullTilChunk` → `scrollTo` på `[data-rullebeholder]`, aldri `scrollIntoView`), og siden måler egen høyde til bunnen av `main` (`useHoydeTilBunn`) fordi `h-full` løste til auto under prosjekt-layouten — målt 29.10: `main` rullet søkefeltet ut av syne, siden var 174 892 px. Ruter har `min-w-0 break-words`.
 - **S1b (funksjonsendring, Q1):** «Forrige/neste forekomst» i høyre rute (knapper + `↑/↓`-tast), teller «3 av 7», hopper mellom alle `<mark>` i dokumentet og oppdaterer valgt treff i venstre liste når forekomsten tilhører en annen chunk.
 - Sidehodet får egen i18n-nøkkel (`ftdSok.sideHode`), ikke timer-rapportens (S-M10). DOCX får ingen sidehode (riktig i dag) men chunk-ankre.
 - **Akseptkriterier:**
@@ -147,3 +147,4 @@ Begge er web + api, ingen schema, ingen migrering. Agent: redesign (eier dokumen
 8. Semantisk treff har markert setning (E1); «begge» → gult (E2).
 9. `hentDokumentChunks` uten medlemskap → FORBIDDEN (F1).
 10. (SØK-2) AI-søk gir 3 chunks for ett dokument (C1); forrige/neste teller «2 av N» (A3).
+11. (Reparasjoner relay 2026-10-29, `fix/sok-visning`) F3: valgt chunk ruller bare `[data-rullebeholder]`, `scrollIntoView` kalles aldri (`fulltekst-scroll.test.tsx` «F3 — forfedre rulles ikke»); sidehøyde = `main`-bunn − sidetopp (`useHoydeTilBunn.test.ts`). F2: gab-chunker uten RTF/GUID/kontrollord og uten 1000-tegns ord (`gab-chunker.test.ts`). F1b: rent semantisk kandidat under 20 tegn utelates, ordtreff beholdes (`ai-sok-rangering.test.ts` «F1b»).

@@ -23,7 +23,7 @@ vi.mock("@/lib/trpc", () => ({
 }));
 vi.mock("@/components/SignertLenke", () => ({ useSignertLenkeApner: () => () => undefined }));
 
-import { Fulltekst, MARK_KLASSE, MARK_VALGT_KLASSE } from "../fulltekst";
+import { Fulltekst, MARK_KLASSE, MARK_VALGT_KLASSE, RULLE_MARG } from "../fulltekst";
 import { TreffListe } from "../treff-liste";
 
 beforeAll(async () => {
@@ -53,23 +53,60 @@ const PDF_SIDE3: Chunk[] = [
   { id: "b", chunkIndex: 5, pageNumber: 3, sectionTitle: null, chunkText: "SJA skal utføres før risikofylt arbeid. Funn fra vernerunde føres i avvikslogg." },
 ];
 
+/**
+ * F3 (relay 29.10): `scrollIntoView` rullet ALLE forfedre — også `main` (overflow-y-auto uten synlig
+ * rullefelt for siden) — så søkefeltet og trefflista forsvant. Rullingen skal kun skje i
+ * `[data-rullebeholder]` (høyre rute) via beholderens egen `scrollTo`.
+ * jsdom har ingen layout: geometrien stubbes — beholderen står på 100 px, chunk N på 100 + N·500 px.
+ * Rød før: `RULLE_MARG` fantes ikke, og scrollIntoView ble kalt på chunk-ankeret.
+ */
+const BEHOLDER_TOPP = 100;
+const chunkTopp = (n: number) => BEHOLDER_TOPP + n * 500;
+const forventetRull = (n: number) => chunkTopp(n) - BEHOLDER_TOPP - RULLE_MARG;
+
+const originalGbcr = Element.prototype.getBoundingClientRect;
+const originalScrollTo = Element.prototype.scrollTo;
+const originalScrollIntoView = Element.prototype.scrollIntoView;
+afterEach(() => {
+  Element.prototype.getBoundingClientRect = originalGbcr;
+  Element.prototype.scrollTo = originalScrollTo;
+  Element.prototype.scrollIntoView = originalScrollIntoView;
+});
+
+function rect(top: number): DOMRect {
+  return { top, bottom: top + 10, left: 0, right: 0, width: 0, height: 10, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+}
+
 function spionerScroll() {
-  const mål: Element[] = [];
-  // jsdom har ikke scrollIntoView — definer en spion som husker målet.
+  const scrollIntoView: Element[] = [];
+  const scrollTo: Array<{ el: Element; top: number | undefined }> = [];
   Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
-    mål.push(this);
+    scrollIntoView.push(this);
   });
-  return mål;
+  Element.prototype.scrollTo = vi.fn(function (this: Element, arg?: ScrollToOptions | number) {
+    scrollTo.push({ el: this, top: typeof arg === "number" ? arg : arg?.top });
+  }) as Element["scrollTo"];
+  Element.prototype.getBoundingClientRect = function (this: Element) {
+    const n = this.getAttribute("data-chunk");
+    if (n != null) return rect(chunkTopp(Number(n)));
+    if (this.hasAttribute("data-rullebeholder")) return rect(BEHOLDER_TOPP);
+    return rect(0);
+  };
+  return { scrollIntoView, scrollTo };
+}
+
+function renderIRute(ui: React.ReactElement) {
+  return render(<div data-rullebeholder="">{ui}</div>);
 }
 
 describe("T1 — høyre rute scroller til valgt chunk", () => {
   it("PDF: målet er chunk 5 (andre forekomst på side 3), ikke første <mark> på siden", () => {
     chunks = PDF_SIDE3;
-    const mål = spionerScroll();
-    render(<Fulltekst prosjektId="p" documentId="d" søkeord="vernerunde" valgtChunkIndex={5} />);
-    expect(mål).toHaveLength(1);
-    expect(mål[0]!.getAttribute("data-chunk")).toBe("5");
-    expect(mål[0]!.tagName).not.toBe("MARK");
+    const { scrollTo } = spionerScroll();
+    renderIRute(<Fulltekst prosjektId="p" documentId="d" søkeord="vernerunde" valgtChunkIndex={5} />);
+    expect(scrollTo).toHaveLength(1);
+    expect(scrollTo[0]!.top).toBe(forventetRull(5));
+    expect(scrollTo[0]!.top).not.toBe(forventetRull(4));
   });
 
   it("DOCX (pageNumber null): scroller likevel til chunken", () => {
@@ -77,16 +114,37 @@ describe("T1 — høyre rute scroller til valgt chunk", () => {
       { id: "a", chunkIndex: 0, pageNumber: null, sectionTitle: null, chunkText: "Innledning om prosjektet. " },
       { id: "b", chunkIndex: 3, pageNumber: null, sectionTitle: "3. Frostsikring", chunkText: "Frostsikring av grunnmur." },
     ];
-    const mål = spionerScroll();
-    render(<Fulltekst prosjektId="p" documentId="d" søkeord="frostsikring" valgtChunkIndex={3} />);
-    expect(mål.map((m) => m.getAttribute("data-chunk"))).toEqual(["3"]);
+    const { scrollTo } = spionerScroll();
+    renderIRute(<Fulltekst prosjektId="p" documentId="d" søkeord="frostsikring" valgtChunkIndex={3} />);
+    expect(scrollTo.map((s) => s.top)).toEqual([forventetRull(3)]);
   });
 
   it("A4: valgt chunk uten <mark> (semantisk) → scroller til chunken, ingen feil", () => {
     chunks = PDF_SIDE3;
-    const mål = spionerScroll();
-    render(<Fulltekst prosjektId="p" documentId="d" søkeord="bot" valgtChunkIndex={4} />);
-    expect(mål[0]!.getAttribute("data-chunk")).toBe("4");
+    const { scrollTo } = spionerScroll();
+    renderIRute(<Fulltekst prosjektId="p" documentId="d" søkeord="bot" valgtChunkIndex={4} />);
+    expect(scrollTo[0]!.top).toBe(forventetRull(4));
+  });
+});
+
+describe("F3 — forfedre rulles ikke", () => {
+  it("scrollIntoView kalles aldri; kun [data-rullebeholder] får scrollTo", () => {
+    chunks = PDF_SIDE3;
+    const { scrollIntoView, scrollTo } = spionerScroll();
+    renderIRute(<Fulltekst prosjektId="p" documentId="d" søkeord="vernerunde" valgtChunkIndex={5} />);
+    expect(scrollIntoView).toHaveLength(0);
+    expect(scrollTo).toHaveLength(1);
+    expect(scrollTo[0]!.el.hasAttribute("data-rullebeholder")).toBe(true);
+  });
+
+  it("uten [data-rullebeholder] rulles Fulltekst sin egen beholder — aldri document/main", () => {
+    chunks = PDF_SIDE3;
+    const { scrollIntoView, scrollTo } = spionerScroll();
+    render(<Fulltekst prosjektId="p" documentId="d" søkeord="vernerunde" valgtChunkIndex={5} />);
+    expect(scrollIntoView).toHaveLength(0);
+    expect(scrollTo).toHaveLength(1);
+    expect(scrollTo[0]!.el.tagName).toBe("DIV");
+    expect(scrollTo[0]!.el.querySelector('[data-chunk="5"]')).not.toBeNull();
   });
 });
 

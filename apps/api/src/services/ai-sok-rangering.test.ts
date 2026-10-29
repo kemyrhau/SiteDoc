@@ -149,3 +149,20 @@ describe("T8 / S5 — semantiske treff får beste setning, ordtreff får headlin
     expect(finnBesteSetning(DAGMULKT_CHUNK, ["forsinkelser"], [])).toMatch(/^Ved forsinkelse/);
   });
 });
+
+describe("F1b — mikro-chunker utelates fra semantiske kandidater (relay 29.10, Røstbakken «dagmulkt»)", () => {
+  // Målt: chunken «— | |» (5 tegn) fikk cos 0,906 og lå øverst, mens ordentlige avsnitt lå på 0,30–0,36.
+  it("rent semantisk kandidat under MIN_CHUNK_TEGN forsvinner; ordtreff i kort chunk beholdes", async () => {
+    stubEmbedding();
+    const { prisma } = lagPrisma({
+      vektor: [rad("mikro", "— | |", 0.906), rad("c1", DAGMULKT_CHUNK, 0.35)],
+      leksikalsk: [{ ...rad("kort", "Dagmulkt NS 8405", 0), documentId: "dok-kort" }],
+      headline: [{ id: "kort", utdrag: "❰HL❱Dagmulkt❰/HL❱ NS 8405" }],
+    });
+    const { treff } = await hybridSok(prisma, "p1", "dagmulkt", null, {});
+    const ider = treff.map((t) => t.id);
+    expect(ider).not.toContain("mikro");
+    expect(ider).toContain("c1");
+    expect(ider).toContain("kort");
+  });
+});

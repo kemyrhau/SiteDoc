@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { useHoydeTilBunn } from "@/hooks/useHoydeTilBunn";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type SokModus = "ai" | "leksikalsk";
@@ -30,6 +31,8 @@ function kortFilnavn(filnavn: string): string {
 export default function DokumentsokSide() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
+  // F3: prosjekt-layouten gir siden auto-høyde, så `h-full` virker ikke — siden måler plassen i `main` selv.
+  const { ref: sideRef, style: sideStil } = useHoydeTilBunn<HTMLDivElement>();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
   // Dev-modus for presisjonsanalyse (?debug i URL) — viser score pr. metode (F.2).
@@ -124,7 +127,7 @@ export default function DokumentsokSide() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={sideRef} style={sideStil} className="flex h-full w-full min-w-0 flex-col">
       {/* Toppseksjon */}
       <SonetonetSidehode sone="prosjekt" className="mb-4">
         <div className="flex items-center gap-2">
@@ -220,7 +223,7 @@ export default function DokumentsokSide() {
       {/* Resultater */}
       <div className="flex min-h-0 flex-1">
         {/* Treffliste */}
-        <div className="w-1/2 shrink-0 overflow-y-auto border-r p-4">
+        <div className="w-1/2 min-w-0 shrink-0 overflow-y-auto break-words border-r p-4">
           {isLoading ? (
             <div className="py-8 text-center text-sm text-gray-400">
               {t("sok.soeker")}
@@ -247,8 +250,8 @@ export default function DokumentsokSide() {
           )}
         </div>
 
-        {/* Fulltekst-panel */}
-        <div className="w-1/2 shrink-0 overflow-y-auto bg-gray-50 p-4">
+        {/* Fulltekst-panel — data-rullebeholder: Fulltekst ruller bare denne ruta (F3) */}
+        <div data-rullebeholder="" className="w-1/2 min-w-0 shrink-0 overflow-y-auto break-words bg-gray-50 p-4">
           {valgtDokumentId ? (
             <Fulltekst
               prosjektId={prosjektId}
