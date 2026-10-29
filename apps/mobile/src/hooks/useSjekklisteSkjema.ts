@@ -8,7 +8,7 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { useAuth } from "../providers/AuthProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { klassifiserLagreFeil } from "../utils/lagreFeil";
+import { avvisningsVarsel, klassifiserLagreFeil, type AvvisningsVarsel } from "../utils/lagreFeil";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
 import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
@@ -101,8 +101,9 @@ export interface UseSjekklisteSkjemaResultat {
   sisteKollisjoner: { feltId: string }[];
   avvisKollisjoner: () => void;
   /** Godkjent-låsen avviste en vedlegg-endring permanent (ingen retry); vis ÉN melding. */
-  godkjentLaastVarsel: boolean;
-  avvisGodkjentLaastVarsel: () => void;
+  /** Melding ved permanent avvisning (i18n-nøkkel), eller null. Godkjent-teksten bare på avsluttet dokument. */
+  avvisningVarsel: AvvisningsVarsel | null;
+  lukkAvvisningVarsel: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -231,7 +232,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // skal oppdages mot det serveren faktisk hadde da klienten sist var synket.
   const basisRef = useRef<Record<string, FeltVerdi>>({});
   const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
-  const [godkjentLaastVarsel, settGodkjentLaastVarsel] = useState(false);
+  const [avvisningVarsel, settAvvisningVarsel] = useState<AvvisningsVarsel | null>(null);
 
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
@@ -295,6 +296,9 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     : offlineModus
       ? (speil!.dokument as SjekklisteData)
       : undefined;
+  // Status ved avvisningen avgjør meldingen (ORDRE 6); ref så lagreIntern ikke bytter identitet.
+  const statusRef = useRef<string | undefined>(undefined);
+  statusRef.current = sjekkliste?.status;
 
   const alleObjekter = useMemo(
     () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],
@@ -531,7 +535,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           for (const id of sendteIder) basisRef.current[id] = data[id];
           settHarEndringer(false);
           settSynkStatus("synkronisert");
-          settGodkjentLaastVarsel(true);
+          settAvvisningVarsel(avvisningsVarsel(statusRef.current));
         } else {
           // Nett-/transientfeil — data er trygg i SQLite, retry neste online-tick.
           console.warn("[LAGRE] Server-lagring feilet:", feil);
@@ -768,8 +772,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner: () => settSisteKollisjoner([]),
-    godkjentLaastVarsel,
-    avvisGodkjentLaastVarsel: () => settGodkjentLaastVarsel(false),
+    avvisningVarsel,
+    lukkAvvisningVarsel: () => settAvvisningVarsel(null),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

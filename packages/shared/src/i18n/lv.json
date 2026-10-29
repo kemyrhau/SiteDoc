@@ -894,6 +894,7 @@
   "kollisjon.notat.tittel": "Atzīmēts – lauks jau bija aizpildīts",
   "kollisjon.varsel.tekst": "Jūsu vērtība {{antall}} laukā(-os) nevarēja pārrakstīt jau esošo vērtību. Tas tiek saglabāts kā piezīme pie lauka, ar nosaukumu un laiku – nekas nav zaudēts. Tas, kurš tur bumbu, var to pārvietot.",
   "godkjentLaast.varsel.tekst": "Pārskats ir apstiprināts – izmaiņas netika saglabātas. Atkārtoti atveriet pārskatu, lai to rediģētu.",
+  "lagreAvvist.varsel.tekst": "Serveris noraidīja izmaiņas, un tās netika saglabātas – citi tās nevar redzēt. Tas ir tikai šajā ierīcē. Ja tas atkārtojas, sazinieties ar projekta administratoru.",
   "handling.ferdig": "Gatavs",
   "handling.sok": "Meklēt",
   "handling.eksporter": "Eksportēt",

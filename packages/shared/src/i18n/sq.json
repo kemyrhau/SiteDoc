@@ -894,6 +894,7 @@
   "kollisjon.notat.tittel": "Vihet re - fusha ishte e mbushur tashmë",
   "kollisjon.varsel.tekst": "Vlera juaj në {{antall}} fushë(at) nuk mund të mbishkruante një vlerë tashmë atje. Ruhet si shënim nga fusha, me emër dhe kohë - asgjë nuk humbet. Kushdo që mban topin mund ta lëvizë atë brenda.",
   "godkjentLaast.varsel.tekst": "Raporti është miratuar - ndryshimi nuk u ruajt. Rihap raportin për ta modifikuar.",
+  "lagreAvvist.varsel.tekst": "Serveri e refuzoi ndryshimin dhe ai nuk u ruajt - të tjerët nuk mund ta shohin atë. Është vetëm në këtë pajisje. Kontaktoni administratorin e projektit nëse ndodh përsëri.",
   "handling.ferdig": "U krye",
   "handling.sok": "Kërko",
   "handling.eksporter": "Eksporto",
