@@ -8,13 +8,43 @@
  *
  * Kjent begrensning: hele RTF-blokker (`{\rtf…}`) hoppes over, ikke konverteres. Rentekst-varianten
  * av posten ligger som regel i et eget segment ved siden av.
+ *
+ * To rensinger: `rensGabPostLegacy` er den gamle kjeden fra `prosesserGab` uendret (post-beskrivelsene
+ * i `FtdPost.beskrivelse` skal være byte for byte som før — Kontrollør-gate 2, 29.10). `rensGabSegment`
+ * er chunk-rensingen og beholder linjeskift/tab fra `\par`/`\tab`. Låsetest i `gab-chunker.test.ts`.
  */
 /* eslint-disable no-control-regex -- binær GAB-fil: null-byte og kontrolltegn er bevisst del av mønstrene */
 
 /** Øvre grense for lagret chunk-tekst (`FtdDocumentChunk.chunkText`). */
 const MAKS_LAGRET = 5000;
 
-/** Renser ett null-skilt segment. `null` når segmentet er GUID, RTF-blokk, kontrollkoder eller uten ord. */
+/**
+ * Gammel post-rensing, flyttet ordrett fra `prosesserGab` (ekstraTekst). Brukes BARE for
+ * `FtdPost.beskrivelse`. Kontrollkode-strippen fjerner også `\n` og `\t` fra `\par`/`\tab`,
+ * mens mellomrommet etter kontrollordet står — derfor «Graving\par Dybde» → «Graving Dybde».
+ * Ikke endre uten ny hjemmel: låsetesten feiler.
+ */
+export function rensGabPostLegacy(seg: string): string | null {
+  const renset = seg.trim();
+  if (renset.length < 4) return null;
+  if (/^\$[0-9a-f-]{36}/.test(renset)) return null;
+  if (/^\{\\rtf/.test(renset)) return null;
+  if (!/[a-zA-ZæøåÆØÅ]{2,}/.test(renset)) return null;
+  if (/^[\x00-\x1f]/.test(renset)) return null;
+  const ren = renset
+    .replace(/\\par\b/g, "\n")
+    .replace(/\\tab\b/g, "\t")
+    .replace(/\\'([0-9a-f]{2})/gi, (_m, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\[a-z]+\d*\s?/g, "")
+    .replace(/[{}]/g, "")
+    .replace(/[\x00-\x1f\x7f-\x9f]/g, "") // Fjern kontrollkoder (fjerner også \n og \t)
+    .replace(/[^\x20-\x7eæøåÆØÅéèêëàáâãäöüïîìíñçÉÈÊËÀÁÂÃÄÖÜÏÎÌÍÑÇ\n\t]/g, "")
+    .trim();
+  if (ren.length >= 4 && /[a-zA-ZæøåÆØÅ]{2,}/.test(ren)) return ren;
+  return null;
+}
+
+/** Chunk-rensing av ett null-skilt segment. `null` når segmentet er GUID, RTF-blokk, kontrollkoder eller uten ord. */
 export function rensGabSegment(seg: string): string | null {
   const renset = seg.trim();
   if (renset.length < 4) return null;

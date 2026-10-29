@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byggGabChunker, rensGabSegment } from "./gab-chunker";
+import { byggGabChunker, rensGabPostLegacy, rensGabSegment } from "./gab-chunker";
 
 /**
  * F2 (relay 29.10, Røstbakken «2025.04.03 - Storgata nord.gab»): chunk-sløyfen i `prosesserGab`
@@ -52,6 +52,18 @@ describe("F2 — gab-chunker bygges av renset tekst", () => {
     expect(rensGabSegment("12 34")).toBeNull();
     expect(rensGabSegment(GUID)).toBeNull();
     expect(rensGabSegment(RTF_BLOKK)).toBeNull();
+  });
+
+  it("låsetest R1: post-beskrivelsen renses byte for byte som før (\\par og \\tab blir mellomrom)", () => {
+    // Kontrollør-gate 2 (29.10): post-veien skal ikke endre atferd. Gammel kjede strippet \n og \t
+    // fra \par/\tab og lot mellomrommet etter kontrollordet stå. Chunk-rensingen beholder linjeskiftet.
+    const seg = "Graving av grøft\\par Dybde 1,2 m\\tab ca.";
+    expect(rensGabPostLegacy(seg)).toBe("Graving av grøft Dybde 1,2 m ca.");
+    expect(rensGabSegment(seg)).toBe("Graving av grøft\nDybde 1,2 m\tca.");
+    // Samme forkastingsregler som før
+    expect(rensGabPostLegacy(GUID)).toBeNull();
+    expect(rensGabPostLegacy(RTF_BLOKK)).toBeNull();
+    expect(rensGabPostLegacy("— | |")).toBeNull();
   });
 
   it("lange tekster deles i flere chunker, ingen over 5000 tegn", () => {

@@ -17,7 +17,7 @@ import { genererBlokker } from "./blokk-prosessering";
 import { embeddNyeBlokker, embeddDokumentChunks } from "./embedding-service";
 import { detekterSpraak } from "./spraak-deteksjon";
 import { lagLivstegn } from "./reprosessering";
-import { byggGabChunker, rensGabSegment } from "./gab-chunker";
+import { byggGabChunker, rensGabPostLegacy } from "./gab-chunker";
 
 const execFileAsync = promisify(execFile);
 
@@ -1414,11 +1414,13 @@ async function prosesserGab(
     const nesteStart = mi + 1 < matcher.length ? matcher[mi + 1]!.start : m.end + 5000;
     const mellomrom = tekst.slice(m.end, Math.min(nesteStart, m.end + 5000));
 
-    // Ekstraher lesbare tekstsegmenter (splitt på null-bytes) — samme rensing som søke-chunkene (F2)
+    // Ekstraher lesbare tekstsegmenter (splitt på null-bytes). Gammel rensing beholdt uendret:
+    // post-beskrivelsen skal være byte for byte som før (låsetest i gab-chunker.test.ts).
+    // Søke-chunkene bruker den nye rensingen i byggGabChunker (F2).
     const ekstraTekst: string[] = [];
     // eslint-disable-next-line no-control-regex -- binær GAB-fil, null-byte er segmentskille
     for (const seg of mellomrom.split(/\x00+/)) {
-      const ren = rensGabSegment(seg);
+      const ren = rensGabPostLegacy(seg);
       if (ren) ekstraTekst.push(ren);
     }
 
