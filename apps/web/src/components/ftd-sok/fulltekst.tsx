@@ -22,6 +22,18 @@ interface FulltekstProps {
 export const MARK_KLASSE = "rounded bg-yellow-200 px-0.5";
 export const MARK_VALGT_KLASSE = "rounded bg-amber-300 px-0.5 ring-1 ring-amber-500";
 
+/**
+ * Hel-avsnitt-markering (relay 29.10): valgt chunk får svak bakgrunn og en strek i venstre kant — uansett
+ * om S5-setningen finnes. Målt på test (`e8aac60a`, Røstbakken «dagmulkt»): rent semantiske treff kom med
+ * `semantiskSetning: null` (chunken inneholder ikke ordet), så høyre rute stod helt umarkert etter rulling.
+ * Chunken er et inline <span> i en `whitespace-pre-wrap`-blokk: `display:block` ville lagt linjeskift ved
+ * hver chunk-grense (PDF-chunker deles midt i setninger etter overlapp-kapping). Derfor inline +
+ * `box-decoration-clone`, så bakgrunn, venstre strek (inset-skygge) og padding tegnes på hvert linjefragment.
+ * Farge: `sitedoc-secondary` #3b82f6 (ui-standarder.md § Fargepalett) — ikke gul (ordtreff), ikke lilla (S5).
+ */
+export const VALGT_AVSNITT_KLASSE =
+  "box-decoration-clone bg-sitedoc-secondary/10 pl-1 shadow-[inset_3px_0_0_0_#3b82f6]";
+
 /** Scroll-målet for valgt treff: chunk-ankeret, aldri første <mark> på siden (S1a/T1). */
 export function finnScrollMål(beholder: ParentNode | null, valgtChunkIndex: number | null | undefined): Element | null {
   if (!beholder || valgtChunkIndex == null) return null;
@@ -134,7 +146,7 @@ export function Fulltekst({ prosjektId, documentId, søkeord, valgtChunkIndex, s
             {s.segmenter.map((seg) => {
               const erValgt = seg.chunkIndex === valgtChunkIndex;
               return (
-                <span key={seg.chunkIndex} data-chunk={seg.chunkIndex}>
+                <span key={seg.chunkIndex} data-chunk={seg.chunkIndex} className={erValgt ? VALGT_AVSNITT_KLASSE : undefined}>
                   <ChunkTekst
                     tekst={seg.tekst}
                     søkeord={søkeord}
@@ -168,6 +180,9 @@ function ChunkTekst({
 }) {
   const vanlig = (x: string) =>
     søkeord ? <HighlightTekst tekst={x} søkeord={søkeord} markKlasse={markKlasse} /> : x;
+  // Setningen fra `finnBesteSetning` er alltid en eksakt delstreng av chunk-teksten (låsetest i
+  // ai-sok-rangering.test.ts), så indexOf trenger ingen mellomrom-toleranse. null → ingen S5-markering
+  // (målt 29.10: chunken inneholder ikke søkeordet); hel-avsnitt-markeringen på <span data-chunk> står uansett.
   const pos = semantiskSetning ? tekst.indexOf(semantiskSetning) : -1;
   if (!semantiskSetning || pos < 0) return <>{vanlig(tekst)}</>;
   return (
