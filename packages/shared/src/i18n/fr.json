@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Cliquez sur un résultat pour afficher le contenu du document.",
   "sok.fallbackVarsel": "Recherche AI ​​indisponible – affichage de la recherche de texte.",
   "sok.fallbackVarselFeilet": "La recherche AI ​​a échoué – affichant la recherche de texte à la place.",
+  "sok.ingenOrdtreff": "Aucun document ne contient le mot « {{ord}} ». Affichage de {{antall}} passages avec un contenu similaire.",
   "sok.soeker": "Recherche...",
   "dashbord.prosjekter": "Projets",
   "dashbord.sokProsjekter": "Rechercher des projets...",

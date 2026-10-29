@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Klicka på ett resultat för att se dokumentinnehållet.",
   "sok.fallbackVarsel": "AI-sökning inte tillgänglig — visar textsökning.",
   "sok.fallbackVarselFeilet": "AI-sökning misslyckades – visar textsökning istället.",
+  "sok.ingenOrdtreff": "Inga dokument innehåller ordet \"{{ord}}\". Visar {{antall}} stycken med liknande innehåll.",
   "sok.soeker": "Sökande...",
   "dashbord.prosjekter": "Projekt",
   "dashbord.sokProsjekter": "Sök efter projekt...",

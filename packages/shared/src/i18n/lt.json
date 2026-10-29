@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Spustelėkite rezultatą, kad peržiūrėtumėte dokumento turinį.",
   "sok.fallbackVarsel": "AI paieška negalima – rodoma teksto paieška.",
   "sok.fallbackVarselFeilet": "AI paieška nepavyko – vietoj jos rodoma teksto paieška.",
+  "sok.ingenOrdtreff": "Jokiuose dokumentuose nėra žodžio „{{ord}}“. Rodoma {{antall}} panašaus turinio ištraukų.",
   "sok.soeker": "Ieškoma...",
   "dashbord.prosjekter": "Projektai",
   "dashbord.sokProsjekter": "Ieškoti projektų...",

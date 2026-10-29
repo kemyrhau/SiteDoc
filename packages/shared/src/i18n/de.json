@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Klicken Sie auf ein Ergebnis, um den Dokumentinhalt anzuzeigen.",
   "sok.fallbackVarsel": "KI-Suche nicht verfügbar – Textsuche wird angezeigt.",
   "sok.fallbackVarselFeilet": "Die KI-Suche ist fehlgeschlagen. Stattdessen wird die Textsuche angezeigt.",
+  "sok.ingenOrdtreff": "Keine Dokumente enthalten das Wort „{{ord}}“. Es werden {{antall}} Passagen mit ähnlichem Inhalt angezeigt.",
   "sok.soeker": "Suche...",
   "dashbord.prosjekter": "Projekte",
   "dashbord.sokProsjekter": "Projekte suchen...",

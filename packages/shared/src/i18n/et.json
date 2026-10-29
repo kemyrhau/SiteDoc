@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Dokumendi sisu vaatamiseks klõpsake tulemusel.",
   "sok.fallbackVarsel": "AI otsing pole saadaval – kuvatakse tekstiotsing.",
   "sok.fallbackVarselFeilet": "AI otsing ebaõnnestus – selle asemel kuvatakse tekstiotsing.",
+  "sok.ingenOrdtreff": "Ükski dokument ei sisalda sõna „{{ord}}”. Kuvatakse {{antall}} sarnase sisuga lõiku.",
   "sok.soeker": "Otsimine...",
   "dashbord.prosjekter": "Projektid",
   "dashbord.sokProsjekter": "Otsi projekte...",

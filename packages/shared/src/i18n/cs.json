@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Kliknutím na výsledek zobrazíte obsah dokumentu.",
   "sok.fallbackVarsel": "Vyhledávání AI není k dispozici – zobrazuje se textové vyhledávání.",
   "sok.fallbackVarselFeilet": "Vyhledávání AI se nezdařilo – místo toho se zobrazuje textové vyhledávání.",
+  "sok.ingenOrdtreff": "Žádné dokumenty neobsahují slovo „{{ord}}“. Zobrazeno {{antall}} pasáží s podobným obsahem.",
   "sok.soeker": "Hledání...",
   "dashbord.prosjekter": "Projekty",
   "dashbord.sokProsjekter": "Hledat projekty...",

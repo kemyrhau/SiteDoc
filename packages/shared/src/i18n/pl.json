@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Kliknij wynik, aby wyświetlić treść dokumentu.",
   "sok.fallbackVarsel": "Wyszukiwanie AI niedostępne — wyświetla wyszukiwanie tekstowe.",
   "sok.fallbackVarselFeilet": "Wyszukiwanie AI nie powiodło się — zamiast tego wyświetla się wyszukiwanie tekstowe.",
+  "sok.ingenOrdtreff": "Żaden dokument nie zawiera słowa „{{ord}}”. Wyświetlanie {{antall}} fragmentów o podobnej treści.",
   "sok.soeker": "Badawczy...",
   "dashbord.prosjekter": "Projektowanie",
   "dashbord.sokProsjekter": "Wyszukaj projekty...",
