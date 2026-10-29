@@ -37,6 +37,7 @@ import {
   type Sortering,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
 import { MedUtheving, formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
+import { useListeLogg } from "../../src/hooks/useListeLogg";
 
 /** «Sist hentet»-tidspunkt (Unix ms) → «dd.mm.åååå kl. hh:mm» (offline-banner). */
 function formaterTidspunkt(ms: number): string {
@@ -87,6 +88,7 @@ export default function SjekklisteListe() {
     },
     { enabled: !!valgtProsjektId },
   );
+  useListeLogg(sjekklisteQuery, "sjekklister");
 
   // Offline-lesing (Offline-sjekklister fase 1, 2026-09-11). MED nett og et
   // bekreftet server-svar er serveren autoritativ — like fersk som før (krav 6

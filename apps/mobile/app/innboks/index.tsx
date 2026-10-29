@@ -39,6 +39,7 @@ import {
   type DokumentRad,
   type Sortering,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
+import { useListeLogg } from "../../src/hooks/useListeLogg";
 
 // Samme definisjon av «aktivt» som hjem-innboksen (hjem.tsx). Endres den, endres
 // begge fra samme sted — denne skjermen ER hjem-innboksen utfoldet.
@@ -82,6 +83,7 @@ export default function InnboksListe() {
     },
     { enabled: !!valgtProsjektId },
   );
+  useListeLogg(sjekklisteQuery, "innboks");
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },

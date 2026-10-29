@@ -199,5 +199,15 @@ export function invaliderFornyelse(
   klient: { invalidateQueries: (filter: { queryKey: unknown[] }) => unknown },
   kilde: FornyKilde,
 ): void {
-  for (const sti of fornyelsesStier(kilde)) void klient.invalidateQueries({ queryKey: [[...sti]] });
+  const stier = fornyelsesStier(kilde);
+  console.warn(fornyelseLogg("editor", stier));
+  for (const sti of stier) void klient.invalidateQueries({ queryKey: [[...sti]] });
+}
+
+/**
+ * Logglinje når en fornyer invaliderer (ORDRE 5, 2026-10-29): én `console.warn` også utenfor
+ * `__DEV__`, så telefonloggen viser hva som hentes på nytt. Bare stiene, aldri URL-er.
+ */
+export function fornyelseLogg(hvem: "editor" | "bilde", stier: readonly InvalideringsSti[]): string {
+  return `[annotering] fornyer (${hvem}) invaliderer ${stier.map((s) => s.join(".")).join(", ")}`;
 }
