@@ -9,6 +9,7 @@ import {
   bevarOriginalUrl,
   byggAnnoteringsPatch,
   erLokalVedleggUrl,
+  raaUploadsSti,
   type AnnoteringsLag,
 } from "@sitedoc/shared";
 import type { Vedlegg } from "../hooks/useSjekklisteSkjema";
@@ -50,6 +51,12 @@ export function byggMobilAnnotering(
   };
 }
 
+/** `originalUrl` lagres alltid rå: vedlegget kan komme fra visningskopien (signert), og en
+ *  `?exp=&sig=`-URL avvises av serveren for hele feltet (ORDRE 5, KD11). Lokal og ekstern står. */
+function raaOriginal(url: string | undefined): string | undefined {
+  return url === undefined ? undefined : (raaUploadsSti(url) as string);
+}
+
 /**
  * Vedlegget etter en ikke-destruktiv erstatning. Med `felter` (annoteringsflaten): laget og
  * originalen derfra. Uten (kamera-annotering, som ikke har lag): bevar server-originalen som før
@@ -67,11 +74,11 @@ export function erstattetVedlegg(
       ...uten,
       url: nyUrl,
       filnavn: nyttFilnavn,
-      originalUrl: felter.originalUrl,
+      originalUrl: raaOriginal(felter.originalUrl),
       ...(felter.annotering ? { annotering: felter.annotering } : {}),
     };
   }
-  return { ...uten, url: nyUrl, filnavn: nyttFilnavn, originalUrl: bevarOriginalUrl(v.originalUrl, v.url) };
+  return { ...uten, url: nyUrl, filnavn: nyttFilnavn, originalUrl: raaOriginal(bevarOriginalUrl(v.originalUrl, v.url)) };
 }
 
 /**

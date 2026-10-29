@@ -10,9 +10,10 @@ import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signer
 import { klassifiserLagreFeil } from "../utils/lagreFeil";
 import { useAuth } from "../providers/AuthProvider";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg,  erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
 import { anvendOpplasting } from "../lib/originalOpplasting";
+import { lagreUtvalg } from "../lib/lagreUtvalg";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -450,7 +451,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   const lagreIntern = useCallback(async () => {
     if (!oppgaveId) return;
 
-    const data = feltVerdierRef.current;
+    // Rensede data (ORDRE 5): signerte `/uploads/`-URL-er avvises av serveren for hele feltet.
+    const { data, sendes: utenLokale } = lagreUtvalg(feltVerdierRef.current, basisRef.current);
 
     // 1. Skriv til SQLite umiddelbart (alltid suksess)
     skrivTilSQLite(oppgaveId, data, false);
@@ -464,11 +466,6 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     //    basis + `base`. Utelat felt med fortsatt-lokale vedlegg (file://) — de skal aldri
     //    lande på server; køen skriver den varige server-URL-en via `settVedleggUrl`.
     if (erPaaNettet) {
-      const norm = (fv: FeltVerdi | undefined) =>
-        JSON.stringify({ verdi: fv?.verdi ?? null, kommentar: fv?.kommentar ?? "", vedlegg: fv?.vedlegg ?? [] });
-      const dirty = Object.keys(data).filter((id) => norm(data[id]) !== norm(basisRef.current[id]));
-      const dirtyData = Object.fromEntries(dirty.map((id) => [id, data[id]]));
-      const utenLokale = utelatFeltMedLokaleVedlegg(dirtyData);
       const sendteIder = Object.keys(utenLokale);
 
       if (sendteIder.length === 0) {

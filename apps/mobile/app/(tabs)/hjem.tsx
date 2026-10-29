@@ -42,6 +42,7 @@ import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHj
 import { HjemTimerChip } from "../../src/components/HjemTimerChip";
 import { MannskapInnsjekkKort } from "../../src/components/MannskapInnsjekkKort";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { useListeLogg } from "../../src/hooks/useListeLogg";
 
 const AKTIVE_STATUSER = ["sent", "received", "in_progress"];
 
@@ -178,6 +179,7 @@ export default function HjemSkjerm() {
     },
     { enabled: !!valgtProsjektId },
   );
+  useListeLogg(sjekklisteQuery, "hjem");
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },

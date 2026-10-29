@@ -76,3 +76,30 @@ describe("kamera-annotering lagrer laget (telefontest 2026-10-29, funn 1c)", () 
     expect(byggKameraAnnotering(undefined, "file:///doc/annotert_1.jpg", LAG)).toEqual({ felter: undefined, beholdLokalSti: undefined });
   });
 });
+
+// ORDRE 5 (2026-10-29): skjemaet viser visningskopien med SIGNERTE URL-er (`hentFeltVerdi`), og
+// mobil fyller `feltVerdier` fra den signerte `hentMedId`-responsen. `originalUrl` ble da lagret med
+// `?exp=&sig=`, serveren avviste hele feltet (BAD_REQUEST, KD11), og annoteringen nådde aldri serveren.
+describe("originalUrl lagres alltid rå", () => {
+  const signert = "/uploads/privat/o.jpg?exp=1761780000000&sig=abc123";
+  const vist: Vedlegg = { ...server, url: signert };
+
+  it("annotering fra et signert vedlegg i visningen gir rå originalUrl", () => {
+    const { felter } = byggMobilAnnotering(vist, "file:///doc/annotert_1.jpg", LAG);
+    const ny = erstattetVedlegg(vist, "file:///doc/annotert_1.jpg", "annotert_1.jpg", felter);
+    expect(ny.originalUrl).toBe("/uploads/privat/o.jpg");
+    expect(ny.annotering).toEqual(LAG);
+  });
+
+  it("kamera-annotering uten lag bevarer en signert server-original rå", () => {
+    const ny = erstattetVedlegg(vist, "file:///doc/k.jpg", "k.jpg");
+    expect(ny.originalUrl).toBe("/uploads/privat/o.jpg");
+  });
+
+  it("lokal og ekstern original røres ikke", () => {
+    const lokal = erstattetVedlegg(server, "file:///doc/a.jpg", "a.jpg", { originalUrl: "file:///doc/o.jpg", annotering: LAG });
+    expect(lokal.originalUrl).toBe("file:///doc/o.jpg");
+    const ekstern = erstattetVedlegg(server, "file:///doc/a.jpg", "a.jpg", { originalUrl: "https://x.no/b.jpg?sig=1", annotering: LAG });
+    expect(ekstern.originalUrl).toBe("https://x.no/b.jpg?sig=1");
+  });
+});

@@ -17,6 +17,7 @@ import {
   vurderBildeFornyelse,
   fornyelsesStier,
   invaliderFornyelse,
+  fornyelseLogg,
   type FornyKilde,
 } from "./bildeKilde";
 import { lagInvalideringsDebounce, SIGNERT_BILDE_DEBOUNCE_MS } from "@sitedoc/shared";
@@ -269,5 +270,14 @@ describe("🔴 invaliderFornyelse — annoteringseditoren fornyer smalt (ORDRE 3
       { queryKey: [["psi", "hentMedObjekter"]] },
     ]);
     expect(kall.some((f) => f === undefined)).toBe(false);
+  });
+});
+
+// ORDRE 5 (2026-10-29): hver invalidering fra en fornyer logges med stiene, aldri URL-er.
+describe("fornyelseLogg", () => {
+  it("navngir stiene og hvem som fornyet", () => {
+    expect(fornyelseLogg("bilde", [["sjekkliste", "hentMedId"], ["psi", "hentMedObjekter"]])).toBe(
+      "[annotering] fornyer (bilde) invaliderer sjekkliste.hentMedId, psi.hentMedObjekter",
+    );
   });
 });
