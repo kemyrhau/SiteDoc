@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emneVisning } from "./emneVisning";
+import { emneLagring, emneVisning } from "./emneVisning";
 
 /**
  * Rød-først (ordre opprett-uten-modal, § 7): emnet skal inn i dokumentet på mobil,
@@ -37,5 +37,32 @@ describe("emneVisning — emne-feltets tilstand på mobil-detaljskjermen", () =>
     expect(v).toEqual({ modus: "tomt-lesemodus" });
     // Kjernen i § 7: feltet HAR en synlig tilstand når det er tomt — aldri usynlig.
     expect(v).not.toBeNull();
+  });
+});
+
+/**
+ * Rød-først (telefonfunn 2026-10-29): emnet ble bare lagret med «Lagre»-knappen. Retur på
+ * tastaturet og å forlate feltet skal også lagre — men bare når noe er endret, og aldri
+ * ved «Avbryt».
+ */
+describe("emneLagring — når et emne-utkast lagres", () => {
+  it("retur og forlat lagrer et endret utkast, renset", () => {
+    expect(emneLagring("retur", "  Fasade nord ", null)).toEqual({ lagre: true, verdi: "Fasade nord" });
+    expect(emneLagring("forlat", "Rom 576", "Rom 575")).toEqual({ lagre: true, verdi: "Rom 576" });
+    expect(emneLagring("lagre", "Rom 576", null)).toEqual({ lagre: true, verdi: "Rom 576" });
+  });
+
+  it("🔴 avbryt lagrer aldri, heller ikke et endret utkast", () => {
+    expect(emneLagring("avbryt", "Noe nytt", "Gammelt")).toEqual({ lagre: false });
+  });
+
+  it("uendret utkast lagres ikke (ingen dobbeltlagring når retur og blur fyrer etter hverandre)", () => {
+    expect(emneLagring("forlat", "Fasade nord", "Fasade nord")).toEqual({ lagre: false });
+    expect(emneLagring("forlat", " Fasade nord ", "Fasade nord")).toEqual({ lagre: false });
+    expect(emneLagring("retur", "", null)).toEqual({ lagre: false });
+  });
+
+  it("tømt utkast fjerner emnet", () => {
+    expect(emneLagring("forlat", "   ", "Fasade nord")).toEqual({ lagre: true, verdi: null });
   });
 });

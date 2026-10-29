@@ -25,3 +25,28 @@ export function emneVisning(emne: string | null, leseModus: boolean): EmneVisnin
   }
   return leseModus ? { modus: "tomt-lesemodus" } : { modus: "tomt-redigerbar" };
 }
+
+/**
+ * Hvordan redigeringen av emnet avsluttes (telefonfunn 2026-10-29: emnet ble bare lagret
+ * med den lille «Lagre»-knappen — retur på tastaturet og å forlate feltet mistet teksten).
+ * Web lagrer på Enter (`EmneVelger`).
+ */
+export type EmneAvslutning = "lagre" | "retur" | "forlat" | "avbryt";
+
+export type EmneLagring = { lagre: false } | { lagre: true; verdi: string | null };
+
+/**
+ * Skal utkastet lagres? Lagrer bare når den rensede verdien avviker fra lagret `emne`
+ * (ingen dobbeltlagring når retur og blur fyrer etter hverandre, ingen mutasjon når
+ * ingenting er endret). «Avbryt» lagrer aldri. Tomt utkast = fjern emnet (`null`).
+ */
+export function emneLagring(
+  avslutning: EmneAvslutning,
+  utkast: string,
+  emne: string | null,
+): EmneLagring {
+  if (avslutning === "avbryt") return { lagre: false };
+  const verdi = utkast.trim() === "" ? null : utkast.trim();
+  const lagret = emne?.trim() ? emne.trim() : null;
+  return verdi === lagret ? { lagre: false } : { lagre: true, verdi };
+}
