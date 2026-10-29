@@ -285,6 +285,8 @@ Kompakt flytvisning. Viser alle ledd med ● på aktiv boks. Aktiv boks-format: 
 ### DokumentHandlingsmeny — Posisjon-basert logikk
 Handlingsknapper basert på brukerens **posisjon i flyten** (`apps/web/src/components/DokumentHandlingsmeny.tsx`).
 
+«+ kommentar»-knappen ved siden av handlingene er ren tekst: plusset står i `statushandling.leggTilKommentar` på alle 15 språk, så knappen har ikke et Plus-ikon i tillegg (det ga «+ + kommentar», rettet 2026-10-29, test i `dokument-handlingsmeny-kvittering.test.tsx`).
+
 **Knapper per status:**
 
 | Status | Første/midtre boks | Siste boks (godkjenner) |

@@ -448,6 +448,7 @@ export default function DokumentLeser() {
             >
               {zoomBilde && (
                 <AutentisertBilde
+                  fornyKilde="mappeDokument"
                   uri={zoomBilde}
                   style={{ width: skjermBredde, height: skjermBredde }}
                   resizeMode="contain"
@@ -561,6 +562,7 @@ function BlokkRenderer({
             activeOpacity={0.8}
           >
             <AutentisertBilde
+              fornyKilde="mappeDokument"
               uri={bildeUrl}
               style={{ width: bredde, height: bredde * 0.75, borderRadius: 8 }}
               resizeMode="contain"

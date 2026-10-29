@@ -432,6 +432,7 @@ export function FeltDokumentasjon({
                 {v.type === "bilde" ? (
                   <View className="h-[72px] w-[72px]">
                     <AutentisertBilde
+                      fornyKilde="dokument"
                       uri={bildeUrl}
                       className={`h-[72px] w-[72px] rounded-lg ${
                         erValgt ? "border-2 border-blue-500" : ""

@@ -12,7 +12,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, type Ref, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Tooltip } from "@sitedoc/ui";
 import {
   hentStatusHandlinger,
@@ -810,9 +810,9 @@ export function DokumentHandlingsmeny({
         ) : (
           <button
             onClick={() => setVisKommentar(true)}
-            className="flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600"
+            className="flex items-center rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600"
           >
-            <Plus className="h-3 w-3" />
+            {/* Plusset står i i18n-teksten på alle 15 språk — et Plus-ikon i tillegg ga «+ + kommentar». */}
             {t("statushandling.leggTilKommentar")}
           </button>
         )

@@ -474,6 +474,9 @@ export {
   lesExpFraUrl,
   erUtloptSignatur,
   lagInvalideringsDebounce,
+  lagNokkelDebounce,
+  type InvalideringsSti,
+  type NokkelDebounce,
 } from "./signertBildePolicy";
 
 export {
