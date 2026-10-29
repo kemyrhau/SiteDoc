@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter } from "lucide-react";
+import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
+import { ingenOrdtreff } from "@/components/ftd-sok/ingen-ordtreff";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useHoydeTilBunn } from "@/hooks/useHoydeTilBunn";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -115,6 +116,8 @@ export default function DokumentsokSide() {
   }
 
   const isLoading = aiAktiv ? aiLaster && leksLaster : leksLaster;
+  // F1a: alle treff er rent semantiske — ordet finnes ikke i noe dokument, lista er vektornaboer.
+  const visIngenOrdtreff = !isLoading && !brukFallback && !aiUtilgjengelig && ingenOrdtreff(visbareTreff);
 
   const handleSok = () => {
     if (query.trim()) {
@@ -216,6 +219,14 @@ export default function DokumentsokSide() {
             {aiFeilet
               ? t("sok.fallbackVarselFeilet")
               : t("sok.fallbackVarsel")}
+          </div>
+        )}
+
+        {/* F1a: ingen ordtreff — alle treff er semantiske naboer */}
+        {aktivtSok && visIngenOrdtreff && (
+          <div className="mt-2 flex items-center gap-1.5 rounded bg-gray-100 px-3 py-1.5 text-xs text-gray-600">
+            <Info className="h-3.5 w-3.5 flex-shrink-0" />
+            {t("sok.ingenOrdtreff", { ord: aktivtSok, antall: visbareTreff?.length ?? 0 })}
           </div>
         )}
       </div>

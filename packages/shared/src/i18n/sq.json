@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Klikoni një rezultat për të parë përmbajtjen e dokumentit.",
   "sok.fallbackVarsel": "Kërkimi i AI nuk është i disponueshëm - tregon kërkimin e tekstit.",
   "sok.fallbackVarselFeilet": "Kërkimi i AI dështoi - në vend të tij shfaqet kërkimi i tekstit.",
+  "sok.ingenOrdtreff": "Asnjë dokument nuk përmban fjalën \"{{ord}}\". Duke shfaqur {{antall}} pasazhe me përmbajtje të ngjashme.",
   "sok.soeker": "Po kërkon...",
   "dashbord.prosjekter": "Projektet",
   "dashbord.sokProsjekter": "Kërko projekte...",

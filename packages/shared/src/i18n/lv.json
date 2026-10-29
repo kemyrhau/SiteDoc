@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Noklikšķiniet uz rezultāta, lai skatītu dokumenta saturu.",
   "sok.fallbackVarsel": "AI meklēšana nav pieejama — tiek rādīta teksta meklēšana.",
   "sok.fallbackVarselFeilet": "AI meklēšana neizdevās — tā vietā tiek rādīta teksta meklēšana.",
+  "sok.ingenOrdtreff": "Nevienā dokumentā nav vārdu “{{ord}}”. Tiek rādīti {{antall}} fragmenti ar līdzīgu saturu.",
   "sok.soeker": "Notiek meklēšana...",
   "dashbord.prosjekter": "Projekti",
   "dashbord.sokProsjekter": "Meklēt projektus...",

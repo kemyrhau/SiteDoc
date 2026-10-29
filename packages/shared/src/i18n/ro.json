@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Faceți clic pe un rezultat pentru a vedea conținutul documentului.",
   "sok.fallbackVarsel": "Căutare AI indisponibilă — afișează căutarea text.",
   "sok.fallbackVarselFeilet": "Căutarea AI nu a reușit - afișând în schimb căutarea text.",
+  "sok.ingenOrdtreff": "Niciun document nu conține cuvântul „{{ord}}”. Se afișează {{antall}} pasaje cu conținut similar.",
   "sok.soeker": "Se caută...",
   "dashbord.prosjekter": "Proiecte",
   "dashbord.sokProsjekter": "Cauta proiecte...",

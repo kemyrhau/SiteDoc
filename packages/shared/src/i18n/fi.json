@@ -1486,6 +1486,7 @@
   "sok.klikkPaaTreff": "Napsauta tulosta nähdäksesi asiakirjan sisällön.",
   "sok.fallbackVarsel": "AI-haku ei ole käytettävissä – näyttää tekstihaun.",
   "sok.fallbackVarselFeilet": "AI-haku epäonnistui – näytetään sen sijaan tekstihaku.",
+  "sok.ingenOrdtreff": "Yksikään asiakirjoista ei sisällä sanaa \"{{ord}}\". Näytetään {{antall}} samansisältöistä kohtaa.",
   "sok.soeker": "Haetaan...",
   "dashbord.prosjekter": "Projektit",
   "dashbord.sokProsjekter": "Hae projekteja...",
