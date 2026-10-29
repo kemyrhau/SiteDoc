@@ -21,10 +21,15 @@ tredje hook.
 
 🟢 **Ikke-destruktiv annotering (funn d, 2026-10-21)** — mobil matcher nå web: `erstattVedlegg`
 bevarer den opprinnelige SERVER-URL-en som `Vedlegg.originalUrl` (via `bevarOriginalUrl` i
-`@sitedoc/shared`), satt ÉN gang. Visningen (`FeltDokumentasjon`) faller tilbake til `originalUrl`
-— aldri en død lokal sti — når den annoterte URL-en er rå-privat/utilgjengelig. Lokal original
-(ikke opplastet) bevares IKKE ved kamera-annotering (ikke en trygg reserve). Web hadde dette fra før
-(`annotering-lag.ts`); mobil-typen manglet feltene.
+`@sitedoc/shared`), satt ÉN gang. Web hadde dette fra før (`annotering-lag.ts`); mobil-typen
+manglet feltene.
+🔴 **Miniatyren viser ALDRI `originalUrl` for et annotert vedlegg** (telefontest 2026-10-29): den
+gamle reserven i rå-vinduet viste originalen — det uannoterte bildet, og rå (401) når bildet ble tatt
+og annotert i samme økt. Kilden avgjøres nå i `lib/miniatyrKilde.ts` (testet): annotert → den rå
+`url` til `AutentisertBilde`, som fornyer selv; uten annotering → lokalfila som før. «Kunne ikke
+laste» er `AutentisertBilde`s `fallback` (kun terminaltilstand) — ikke lenger et klebrig merke pr.
+vedlegg satt ved første `onError`, som hindret fornyelsen. Kamera-annotering lagrer laget og en
+lokal original som skjemaet (`byggKameraAnnotering`).
 
 🟢 **Redigerbar annotering (2026-10-28)** — `erstattVedlegg` tar en valgfri `AnnoteringsFelter`
 (`{originalUrl, annotering}` fra `lib/annoteringLagring.ts`) og bruker `erstattetVedlegg`. Med lag

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnnoteringsLag } from "@sitedoc/shared";
-import { annoteringsApning, byggMobilAnnotering, erstattetVedlegg } from "./annoteringLagring";
+import { annoteringsApning, byggKameraAnnotering, byggMobilAnnotering, erstattetVedlegg } from "./annoteringLagring";
 import type { Vedlegg } from "../hooks/useSjekklisteSkjema";
 
 // Redigerbar annotering på mobil (Kenneth 2026-10-28): før sendte mobil `settBilde` uten lag og
@@ -54,5 +54,25 @@ describe("Gjenåpning gir objektene", () => {
   it("offline før opplastingen er ferdig: den lokale originalen åpnes med laget", () => {
     const lokal: Vedlegg = { ...server, url: "file:///doc/annotert_1.jpg", originalUrl: "file:///doc/bilde_1.jpg", annotering: LAG };
     expect(annoteringsApning(lokal).kilde).toBe("file:///doc/bilde_1.jpg");
+  });
+});
+
+describe("kamera-annotering lagrer laget (telefontest 2026-10-29, funn 1c)", () => {
+  it("bilde tatt i økta (lokal original): laget + lokal original, originalen holdes i køen", () => {
+    const lokal: Vedlegg = { ...server, url: "file:///doc/bilde_1.jpg" };
+    const { felter, beholdLokalSti } = byggKameraAnnotering(lokal, "file:///doc/annotert_1.jpg", LAG);
+    expect(felter).toEqual({ originalUrl: "file:///doc/bilde_1.jpg", annotering: LAG });
+    expect(beholdLokalSti).toBe("file:///doc/bilde_1.jpg");
+  });
+
+  it("annotert på nytt i kameraet: originalen står fast og det nye laget lagres", () => {
+    const annotert: Vedlegg = { ...server, url: "file:///doc/annotert_1.jpg", originalUrl: "file:///doc/bilde_1.jpg", annotering: LAG };
+    const nyttLag = { ...LAG, objekter: [{ type: "rect" }] };
+    const { felter } = byggKameraAnnotering(annotert, "file:///doc/annotert_2.jpg", nyttLag);
+    expect(felter).toEqual({ originalUrl: "file:///doc/bilde_1.jpg", annotering: nyttLag });
+  });
+
+  it("vedlegget finnes ikke: lagres uten lag som før", () => {
+    expect(byggKameraAnnotering(undefined, "file:///doc/annotert_1.jpg", LAG)).toEqual({ felter: undefined, beholdLokalSti: undefined });
   });
 });

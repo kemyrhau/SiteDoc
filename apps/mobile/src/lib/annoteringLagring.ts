@@ -73,3 +73,18 @@ export function erstattetVedlegg(
   }
   return { ...uten, url: nyUrl, filnavn: nyttFilnavn, originalUrl: bevarOriginalUrl(v.originalUrl, v.url) };
 }
+
+/**
+ * Annotering inne i kameraet (telefontest 2026-10-29, funn 1c): samme lagring som i skjemaet — laget
+ * og originalen lagres, og en lokal original holdes i køen. Før kalte kameraveien `erstattetVedlegg`
+ * uten felter, så laget gikk tapt og markeringene ble innbrent. Finnes ikke vedlegget i skjemaet
+ * (skulle ikke skje), lagres bildet uten lag som før.
+ */
+export function byggKameraAnnotering(
+  v: Pick<Vedlegg, "url" | "originalUrl" | "annotering"> | undefined,
+  lokalSti: string,
+  lag: AnnoteringsLag | undefined,
+): { felter: AnnoteringsFelter | undefined; beholdLokalSti: string | undefined } {
+  if (!v || !lag) return { felter: undefined, beholdLokalSti: undefined };
+  return byggMobilAnnotering(v, lokalSti, lag);
+}
