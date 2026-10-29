@@ -502,8 +502,13 @@ export async function hybridSok(
 
   // Filtrer lav cosine similarity (økt terskel fra 0.15 til 0.30)
   const SIM_TERSKEL = 0.30;
+  // F1b (relay 29.10): rent semantiske mikro-chunker («— | |» fikk sim 0.906 på «dagmulkt») er støy —
+  // for korte til å bety noe. Ordtreff (leksikalsk/begge) beholdes uansett lengde.
+  const MIN_CHUNK_TEGN = 20;
   const filtrert = alleChunks.filter(
-    (c) => Number(c.cosineSim) >= SIM_TERSKEL || c.kilde === "leksikalsk" || c.kilde === "begge",
+    (c) =>
+      (Number(c.cosineSim) >= SIM_TERSKEL || c.kilde === "leksikalsk" || c.kilde === "begge") &&
+      !(c.kilde === "vektor" && c.chunkText.trim().length < MIN_CHUNK_TEGN),
   );
 
   if (filtrert.length === 0) return { treff: [], aiSøkUtilgjengelig: false };

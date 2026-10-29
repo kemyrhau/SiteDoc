@@ -17,6 +17,7 @@ import { genererBlokker } from "./blokk-prosessering";
 import { embeddNyeBlokker, embeddDokumentChunks } from "./embedding-service";
 import { detekterSpraak } from "./spraak-deteksjon";
 import { lagLivstegn } from "./reprosessering";
+import { byggGabChunker, rensGabPostLegacy } from "./gab-chunker";
 
 const execFileAsync = promisify(execFile);
 
@@ -1413,31 +1414,14 @@ async function prosesserGab(
     const nesteStart = mi + 1 < matcher.length ? matcher[mi + 1]!.start : m.end + 5000;
     const mellomrom = tekst.slice(m.end, Math.min(nesteStart, m.end + 5000));
 
-    // Ekstraher lesbare tekstsegmenter (splitt på null-bytes)
-    const segmenter = mellomrom.split(/\x00+/);
+    // Ekstraher lesbare tekstsegmenter (splitt på null-bytes). Gammel rensing beholdt uendret:
+    // post-beskrivelsen skal være byte for byte som før (låsetest i gab-chunker.test.ts).
+    // Søke-chunkene bruker den nye rensingen i byggGabChunker (F2).
     const ekstraTekst: string[] = [];
-    for (const seg of segmenter) {
-      const renset = seg.trim();
-      if (renset.length < 4) continue;
-      // Hopp over GUIDs, binære blokker, RTF-markup
-      if (/^\$[0-9a-f-]{36}/.test(renset)) continue;
-      if (/^\{\\rtf/.test(renset)) continue;
-      if (!/[a-zA-ZæøåÆØÅ]{2,}/.test(renset)) continue;
-      // Hopp over korte kontrollsekvenser
-      if (/^[\x00-\x1f]/.test(renset)) continue;
-      // Rens RTF-rester og binære tegn
-      const ren = renset
-        .replace(/\\par\b/g, "\n")
-        .replace(/\\tab\b/g, "\t")
-        .replace(/\\'([0-9a-f]{2})/gi, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
-        .replace(/\\[a-z]+\d*\s?/g, "")
-        .replace(/[{}]/g, "")
-        .replace(/[\x00-\x1f\x7f-\x9f]/g, "") // Fjern kontrollkoder
-        .replace(/[^\x20-\x7eæøåÆØÅéèêëàáâãäöüïîìíñçÉÈÊËÀÁÂÃÄÖÜÏÎÌÍÑÇ\n\t]/g, "") // Kun printbare tegn
-        .trim();
-      if (ren.length >= 4 && /[a-zA-ZæøåÆØÅ]{2,}/.test(ren)) {
-        ekstraTekst.push(ren);
-      }
+    // eslint-disable-next-line no-control-regex -- binær GAB-fil, null-byte er segmentskille
+    for (const seg of mellomrom.split(/\x00+/)) {
+      const ren = rensGabPostLegacy(seg);
+      if (ren) ekstraTekst.push(ren);
     }
 
     // Kombiner header-beskrivelse med ekstra tekst
@@ -1506,22 +1490,9 @@ async function prosesserGab(
     });
   }
 
-  // Lag chunks for søk (samle lesbare strenger)
-  const chunks: string[] = [];
-  let currentChunk = "";
-  const lines = tekst.split(/\x00+/).filter((s) => s.length > 3);
-  for (const line of lines) {
-    const clean = line.replace(/[\x00-\x1f]/g, " ").trim();
-    if (!clean || clean.length < 3) continue;
-    // Bare ASCII/Latin-1 tekst
-    if (!/[a-zA-ZæøåÆØÅ]/.test(clean)) continue;
-    currentChunk += clean + "\n";
-    if (currentChunk.length > MAKS_CHUNK) {
-      chunks.push(currentChunk);
-      currentChunk = "";
-    }
-  }
-  if (currentChunk) chunks.push(currentChunk);
+  // Lag chunks for søk av rensede segmenter — F2 (relay 29.10): tidligere gikk RTF, GUID-er og
+  // kontrollord-rekker rett inn i chunkene. Eksisterende dokumenter må reprosesseres for å få effekt.
+  const chunks = byggGabChunker(tekst, MAKS_CHUNK);
 
   // Lagre chunks
   if (chunks.length > 0) {

@@ -28,6 +28,21 @@ export function finnScrollMål(beholder: ParentNode | null, valgtChunkIndex: num
   return beholder.querySelector(`[data-chunk="${valgtChunkIndex}"]`);
 }
 
+/** Luft over valgt chunk når ruta rulles (tidligere `scroll-mt-24`). */
+export const RULLE_MARG = 96;
+
+/**
+ * F3 (relay 29.10): rull KUN nærmeste `[data-rullebeholder]` (høyre rute i søkesiden), ellers egen
+ * beholder. `scrollIntoView` rullet alle forfedre — også `main` — så søkefelt og treffliste forsvant.
+ */
+export function rullTilChunk(egenBeholder: HTMLElement | null, valgtChunkIndex: number | null | undefined): void {
+  const mål = finnScrollMål(egenBeholder, valgtChunkIndex);
+  if (!mål || !egenBeholder) return;
+  const beholder = egenBeholder.closest<HTMLElement>("[data-rullebeholder]") ?? egenBeholder;
+  const top = mål.getBoundingClientRect().top - beholder.getBoundingClientRect().top + beholder.scrollTop - RULLE_MARG;
+  beholder.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
+
 interface Segment {
   chunkIndex: number;
   tekst: string;
@@ -41,9 +56,9 @@ export function Fulltekst({ prosjektId, documentId, søkeord, valgtChunkIndex, s
     { enabled: !!documentId },
   );
 
-  // Scroll til valgt chunk; `scroll-mt-24` på ankeret legger den i øvre del av ruta.
+  // Rull høyre rute til valgt chunk (F3: aldri forfedrene).
   useEffect(() => {
-    finnScrollMål(beholderRef.current, valgtChunkIndex)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    rullTilChunk(beholderRef.current, valgtChunkIndex);
   }, [valgtChunkIndex, documentId, chunks]);
 
   // Sammenhengende tekst pr. side med overlapp fjernet, men hver chunk beholder sitt eget anker.
@@ -114,11 +129,12 @@ export function Fulltekst({ prosjektId, documentId, søkeord, valgtChunkIndex, s
               {s.sectionTitle && <span className="ml-2">· {s.sectionTitle}</span>}
             </div>
           )}
-          <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+          {/* min-w-0 + break-words (F3): gab-chunker kan ha tusentegns ord uten mellomrom. */}
+          <div className="min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-700">
             {s.segmenter.map((seg) => {
               const erValgt = seg.chunkIndex === valgtChunkIndex;
               return (
-                <span key={seg.chunkIndex} data-chunk={seg.chunkIndex} className="scroll-mt-24">
+                <span key={seg.chunkIndex} data-chunk={seg.chunkIndex}>
                   <ChunkTekst
                     tekst={seg.tekst}
                     søkeord={søkeord}
