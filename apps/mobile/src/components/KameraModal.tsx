@@ -5,14 +5,19 @@ import { Accelerometer } from "expo-sensors";
 import { X, Timer, Flashlight, FlashlightOff, Pencil } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import type { AnnoteringsLag } from "@sitedoc/shared";
 import { BildeAnnotering } from "./BildeAnnotering";
 
 /** Et bilde tatt i denne kameraøkta — kobling til vedlegget + stien som vises/annoteres. */
 interface OktBilde {
   vedleggId: string;
-  /** Lokal sti som vises i miniatyren og åpnes i annoteringen (annotert versjon etter redigering). */
+  /** Lokal sti som vises i miniatyren (annotert versjon etter redigering). */
   uri: string;
+  /** Originalen (det tatte bildet). Med lag åpnes den, og laget legges på — som i skjemaet. */
+  originalUri: string;
   annotert: boolean;
+  /** Laget fra forrige annotering i økta: åpnes redigerbart (funn 1c, 2026-10-29). */
+  lag?: AnnoteringsLag;
 }
 
 interface KameraModalProps {
@@ -21,7 +26,7 @@ interface KameraModalProps {
    *  eller null hvis noe feilet. */
   onBilde: (uri: string) => Promise<{ vedleggId: string; uri: string } | null>;
   /** Annoterer et bilde tatt i økta — erstatter vedlegget ikke-destruktivt (samme vedleggId). */
-  onAnnoterBilde: (vedleggId: string, annotertUri: string) => Promise<void>;
+  onAnnoterBilde: (vedleggId: string, annotertUri: string, lag?: AnnoteringsLag) => Promise<void>;
   onLukk: () => void;
 }
 
@@ -130,7 +135,7 @@ export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraM
         // umiddelbar feedback; stripen fylles straks etter.
         onBildeRef.current(foto.uri).then((res) => {
           if (res) {
-            settØktBilder((prev) => [{ vedleggId: res.vedleggId, uri: res.uri, annotert: false }, ...prev]);
+            settØktBilder((prev) => [{ vedleggId: res.vedleggId, uri: res.uri, originalUri: res.uri, annotert: false }, ...prev]);
           }
         });
       }
@@ -197,17 +202,17 @@ export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraM
   // Del 2: «Ferdig» i annoteringen → erstatt vedlegget ikke-destruktivt, oppdater miniatyren
   // til den annoterte versjonen og gå tilbake til kameraet.
   const håndterAnnoterFerdig = useCallback(
-    async (annotertUri: string) => {
+    async (annotertUri: string, lag: AnnoteringsLag) => {
       const mål = annoterMål;
       settAnnoterMål(null);
       if (!mål) return;
       settØktBilder((prev) =>
         prev.map((b) =>
-          b.vedleggId === mål.vedleggId ? { ...b, uri: annotertUri, annotert: true } : b,
+          b.vedleggId === mål.vedleggId ? { ...b, uri: annotertUri, annotert: true, lag } : b,
         ),
       );
       try {
-        await onAnnoterBilde(mål.vedleggId, annotertUri);
+        await onAnnoterBilde(mål.vedleggId, annotertUri, lag);
       } catch (e) {
         console.error("Annoter kamerabilde feilet:", e);
       }
@@ -442,7 +447,9 @@ export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraM
         {annoterMål && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}>
             <BildeAnnotering
-              bildeUri={annoterMål.uri}
+              // Med lag: originalen + laget (redigerbart, som i skjemaet). Uten: bildet slik det er.
+              bildeUri={annoterMål.lag ? annoterMål.originalUri : annoterMål.uri}
+              lag={annoterMål.lag}
               onFerdig={håndterAnnoterFerdig}
               onAvbryt={() => settAnnoterMål(null)}
             />
