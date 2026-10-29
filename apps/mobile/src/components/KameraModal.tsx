@@ -6,19 +6,8 @@ import { X, Timer, Flashlight, FlashlightOff, Pencil } from "lucide-react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import type { AnnoteringsLag } from "@sitedoc/shared";
+import { bekreftOpptak, kanAnnoteres, leggTilVentende, type OktBilde } from "../lib/kameraStripe";
 import { BildeAnnotering } from "./BildeAnnotering";
-
-/** Et bilde tatt i denne kameraøkta — kobling til vedlegget + stien som vises/annoteres. */
-interface OktBilde {
-  vedleggId: string;
-  /** Lokal sti som vises i miniatyren (annotert versjon etter redigering). */
-  uri: string;
-  /** Originalen (det tatte bildet). Med lag åpnes den, og laget legges på — som i skjemaet. */
-  originalUri: string;
-  annotert: boolean;
-  /** Laget fra forrige annotering i økta: åpnes redigerbart (funn 1c, 2026-10-29). */
-  lag?: AnnoteringsLag;
-}
 
 interface KameraModalProps {
   synlig: boolean;
@@ -122,21 +111,22 @@ export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraM
         useNativeDriver: true,
       }).start();
 
+      const t0 = Date.now();
       const foto = await cameraRef.current.takePictureAsync({
         quality: 1,
       });
+      // Funn 5 (telefontest 2026-10-29): låsen frigis rett etter opptaket — før holdt den gjennom
+      // runAfterInteractions (blitz-animasjonen), så neste trykk ble slukt.
+      tarBilde.current = false;
       if (foto?.uri) {
-        // Vent til interaksjoner er ferdige før bildebehandling
-        await new Promise<void>((resolve) => {
-          InteractionManager.runAfterInteractions(() => resolve());
-        });
-        // Prosesser i bakgrunnen og legg bildet i miniatyrstripen når vedleggId er klart —
-        // blokker IKKE neste bildetaking (rask serie bevares). Flash-animasjonen gir
-        // umiddelbar feedback; stripen fylles straks etter.
+        if (__DEV__) console.log(`[kamera] opptak ${Date.now() - t0} ms`);
+        // Funn 4: miniatyren vises STRAKS med det tatte bildet; behandlingen (komprimering, GPS,
+        // lagring, kø) går i bakgrunnen og bekrefter den når vedlegget er registrert.
+        const nokkel = `${t0}-${Math.random().toString(36).slice(2, 8)}`;
+        settØktBilder((prev) => leggTilVentende(prev, nokkel, foto.uri));
         onBildeRef.current(foto.uri).then((res) => {
-          if (res) {
-            settØktBilder((prev) => [{ vedleggId: res.vedleggId, uri: res.uri, originalUri: res.uri, annotert: false }, ...prev]);
-          }
+          if (__DEV__) console.log(`[kamera] registrert ${Date.now() - t0} ms etter trykk`);
+          settØktBilder((prev) => bekreftOpptak(prev, nokkel, res));
         });
       }
     } catch (e) {
@@ -205,10 +195,10 @@ export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraM
     async (annotertUri: string, lag: AnnoteringsLag) => {
       const mål = annoterMål;
       settAnnoterMål(null);
-      if (!mål) return;
+      if (!mål || !kanAnnoteres(mål)) return;
       settØktBilder((prev) =>
         prev.map((b) =>
-          b.vedleggId === mål.vedleggId ? { ...b, uri: annotertUri, annotert: true, lag } : b,
+          b.nokkel === mål.nokkel ? { ...b, uri: annotertUri, annotert: true, lag } : b,
         ),
       );
       try {
@@ -383,9 +373,11 @@ export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraM
             >
               {øktBilder.map((b) => (
                 <Pressable
-                  key={b.vedleggId}
-                  onPress={() => settAnnoterMål(b)}
-                  className="relative h-14 w-14 overflow-hidden rounded-lg border border-white/40"
+                  key={b.nokkel}
+                  // Annotering først når vedlegget er registrert (kameraStripe.kanAnnoteres).
+                  onPress={() => kanAnnoteres(b) && settAnnoterMål(b)}
+                  disabled={!kanAnnoteres(b)}
+                  className={`relative h-14 w-14 overflow-hidden rounded-lg border border-white/40 ${kanAnnoteres(b) ? "" : "opacity-60"}`}
                   hitSlop={4}
                 >
                   <Image source={{ uri: b.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />

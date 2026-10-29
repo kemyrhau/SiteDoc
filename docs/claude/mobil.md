@@ -99,7 +99,7 @@ Klikk-budsjett: **Send 3 → 2 taps** (primær → bekreft), **hvem-har-ballen 0
 
 ## Bildehåndtering
 
-**Kameraflyt:** kamera åpnes + GPS startes parallelt → bilde tas → komprimering + GPS-resultat hentes → lokal lagring → filmrull → bakgrunnskø → server.
+**Kameraflyt:** kamera åpnes + GPS startes parallelt → bilde tas → komprimering + GPS-resultat hentes → lokal lagring → filmrull → bakgrunnskø → server. Miniatyren i kameraets stripe vises **straks** med det tatte bildet (`lib/kameraStripe.ts`, telefontest 2026-10-29) og bekreftes når vedlegget er registrert. Annotering i stripa åpnes først da, fordi originalens kørad må ligge før annoteringens (kappløpsvernet i `koDedup`). Derfor venter registreringen fortsatt på GPS (opptil 5 s High + 5 s Balanced innendørs), men brukeren ser det ikke. Utløserlåsen frigis rett etter `takePictureAsync`. `__DEV__`-logg `[kamera]` gir ms for opptak, komprimering, GPS og registrering.
 
 **GPS-strategi:**
 - GPS-henting starter **samtidig** med kameraåpning (`gpsPromiseRef`) — posisjon er klar når bildet tas

@@ -153,9 +153,18 @@ export function FeltDokumentasjon({
       try {
         // GPS ble startet da kameraet åpnet — hent resultatet (allerede klart eller nesten klart)
         const gpsPromise = gpsPromiseRef.current ?? hentGps();
+        // Dev-logg pr. steg (telefontest 2026-10-29, funn 4/5): GPS venter opptil 5 s på High
+        // innendørs før Balanced — tallene viser hvor tiden går. Miniatyren i kameraet venter ikke.
+        const t0 = Date.now();
         const [komprimert, gps] = await Promise.all([
-          komprimer(uri),
-          gpsPromise,
+          komprimer(uri).then((k) => {
+            if (__DEV__) console.log(`[kamera] komprimert ${Date.now() - t0} ms`);
+            return k;
+          }),
+          gpsPromise.then((g) => {
+            if (__DEV__) console.log(`[kamera] gps ${Date.now() - t0} ms (${g ? "fix" : "ingen"})`);
+            return g;
+          }),
         ]);
         // Kamerabilde: opptak = nå. Enhets-GPS er riktig kilde her (bildet tas i
         // dette øyeblikket på dette stedet) — kamera-veien er bevisst uendret.
