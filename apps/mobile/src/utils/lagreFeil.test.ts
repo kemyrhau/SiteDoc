@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { klassifiserLagreFeil } from "./lagreFeil";
+import { avvisningsVarsel, klassifiserLagreFeil } from "./lagreFeil";
 
 /**
  * RETUR 75282ec4, gate-punkt b: en godkjent-lås-avvisning (`FORBIDDEN`) skal IKKE
@@ -49,5 +49,28 @@ describe("klassifiserLagreFeil", () => {
   it("null/undefined → transient (ingen informasjon = anta forbigående)", () => {
     expect(klassifiserLagreFeil(null)).toBe("transient");
     expect(klassifiserLagreFeil(undefined)).toBe("transient");
+  });
+});
+
+// ORDRE 6 (Kenneth 2026-10-29, funksjonsendring): KD11 hadde status Mottatt, men viste «Rapporten er
+// godkjent». Godkjent-teksten gjelder bare avsluttet rapport; andre permanente avvisninger får en
+// nøytral tekst.
+describe("avvisningsVarsel", () => {
+  it.each(["approved", "closed", "cancelled"])("terminal status %s → godkjent-teksten", (status) => {
+    expect(avvisningsVarsel(status)).toBe("godkjentLaast.varsel.tekst");
+  });
+
+  it.each(["draft", "sent", "received", "in_progress", "responded", "dismissed", undefined])(
+    "ikke-terminal status %s → nøytral avvisningstekst",
+    (status) => {
+      expect(avvisningsVarsel(status)).toBe("lagreAvvist.varsel.tekst");
+    },
+  );
+
+  it("både BAD_REQUEST og FORBIDDEN er permanente, så teksten avgjøres av status alene", () => {
+    for (const code of ["BAD_REQUEST", "FORBIDDEN"]) {
+      expect(klassifiserLagreFeil({ data: { code } })).toBe("permanent");
+    }
+    expect(avvisningsVarsel("received")).toBe("lagreAvvist.varsel.tekst");
   });
 });

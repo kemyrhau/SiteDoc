@@ -1,14 +1,21 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { View, Text, Pressable, Modal, Animated, InteractionManager } from "react-native";
+import { View, Text, Pressable, Modal, Animated, InteractionManager, Image, ScrollView } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
-import { X, Timer, Flashlight, FlashlightOff } from "lucide-react-native";
+import { X, Timer, Flashlight, FlashlightOff, Pencil } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import type { AnnoteringsLag } from "@sitedoc/shared";
+import { bekreftOpptak, kanAnnoteres, leggTilVentende, type OktBilde } from "../lib/kameraStripe";
+import { BildeAnnotering } from "./BildeAnnotering";
 
 interface KameraModalProps {
   synlig: boolean;
-  onBilde: (uri: string) => void;
+  /** Tar bildet, legger det til som vedlegg og returnerer koblingen (vedleggId + lokal sti),
+   *  eller null hvis noe feilet. */
+  onBilde: (uri: string) => Promise<{ vedleggId: string; uri: string } | null>;
+  /** Annoterer et bilde tatt i økta — erstatter vedlegget ikke-destruktivt (samme vedleggId). */
+  onAnnoterBilde: (vedleggId: string, annotertUri: string, lag?: AnnoteringsLag) => Promise<void>;
   onLukk: () => void;
 }
 
@@ -39,13 +46,16 @@ function orienteringTilGrader(orientering: Orientering): number {
   }
 }
 
-export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
+export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraModalProps) {
   const { t } = useTranslation();
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
   const [tillatelse, spørOmTillatelse] = useCameraPermissions();
   const tarBilde = useRef(false);
-  const [antallTatt, settAntallTatt] = useState(0);
+  // Del 3: bildene tatt i denne økta (nyeste først) — miniatyrstripe + annoter-kobling.
+  const [øktBilder, settØktBilder] = useState<OktBilde[]>([]);
+  // Del 2: bildet som annoteres akkurat nå (åpner BildeAnnotering oppå kameraet), eller null.
+  const [annoterMål, settAnnoterMål] = useState<OktBilde | null>(null);
   const [zoom, setZoom] = useState(0);
   const [kameraLayout, setKameraLayout] = useState({ bredde: 0, hoyde: 0 });
   const flashOpacity = useRef(new Animated.Value(0)).current;
@@ -101,16 +111,23 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
         useNativeDriver: true,
       }).start();
 
+      const t0 = Date.now();
       const foto = await cameraRef.current.takePictureAsync({
         quality: 1,
       });
+      // Funn 5 (telefontest 2026-10-29): låsen frigis rett etter opptaket — før holdt den gjennom
+      // runAfterInteractions (blitz-animasjonen), så neste trykk ble slukt.
+      tarBilde.current = false;
       if (foto?.uri) {
-        settAntallTatt((n) => n + 1);
-        // Vent til interaksjoner er ferdige før bildebehandling
-        await new Promise<void>((resolve) => {
-          InteractionManager.runAfterInteractions(() => resolve());
+        if (__DEV__) console.log(`[kamera] opptak ${Date.now() - t0} ms`);
+        // Funn 4: miniatyren vises STRAKS med det tatte bildet; behandlingen (komprimering, GPS,
+        // lagring, kø) går i bakgrunnen og bekrefter den når vedlegget er registrert.
+        const nokkel = `${t0}-${Math.random().toString(36).slice(2, 8)}`;
+        settØktBilder((prev) => leggTilVentende(prev, nokkel, foto.uri));
+        onBildeRef.current(foto.uri).then((res) => {
+          if (__DEV__) console.log(`[kamera] registrert ${Date.now() - t0} ms etter trykk`);
+          settØktBilder((prev) => bekreftOpptak(prev, nokkel, res));
         });
-        onBildeRef.current(foto.uri);
       }
     } catch (e) {
       console.error("taBildeNå feilet:", e);
@@ -151,7 +168,8 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
   // Resett state når kameraet lukkes
   useEffect(() => {
     if (!synlig) {
-      settAntallTatt(0);
+      settØktBilder([]);
+      settAnnoterMål(null);
       setZoom(0);
       setLykt(false);
       setNedtelling(0);
@@ -170,6 +188,27 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
       onLukk();
     });
   }, [onLukk]);
+
+  // Del 2: «Ferdig» i annoteringen → erstatt vedlegget ikke-destruktivt, oppdater miniatyren
+  // til den annoterte versjonen og gå tilbake til kameraet.
+  const håndterAnnoterFerdig = useCallback(
+    async (annotertUri: string, lag: AnnoteringsLag) => {
+      const mål = annoterMål;
+      settAnnoterMål(null);
+      if (!mål || !kanAnnoteres(mål)) return;
+      settØktBilder((prev) =>
+        prev.map((b) =>
+          b.nokkel === mål.nokkel ? { ...b, uri: annotertUri, annotert: true, lag } : b,
+        ),
+      );
+      try {
+        await onAnnoterBilde(mål.vedleggId, annotertUri, lag);
+      } catch (e) {
+        console.error("Annoter kamerabilde feilet:", e);
+      }
+    },
+    [annoterMål, onAnnoterBilde],
+  );
 
   // Beregn 5:4 crop-guide basert på kameravisningens faktiske layout
   const { bredde, hoyde } = kameraLayout;
@@ -313,19 +352,9 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
             </View>
           )}
 
-          {/* Bildeteller — roterer med enhetens orientering */}
-          {antallTatt > 0 && (
-            <Animated.View
-              style={[
-                { position: "absolute", right: 16, zIndex: 10, top: insets.top + 12 },
-                uiRotasjon,
-              ]}
-            >
-              <View className="rounded-full bg-blue-600 px-3 py-1.5">
-                <Text className="text-sm font-semibold text-white">{antallTatt}</Text>
-              </View>
-            </Animated.View>
-          )}
+          {/* Del 3 (Kenneth 2026-10-22): miniatyrstripe erstatter bildetelleren «1» —
+              bildene tatt i økta, NYESTE FØRST. Trykk åpner «Annoter bilde» for det bildet;
+              annoterte bilder viser den annoterte versjonen + en liten rediger-markør. */}
         </View>
 
         {/* Zoomknapper + Utløserknapp */}
@@ -333,6 +362,33 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
           className="items-center justify-center bg-black px-4"
           style={{ paddingBottom: insets.bottom + 4, paddingTop: 4 }}
         >
+          {/* Miniatyrstripe — over zoomvelgeren (Del 2+3). Urotert: hvert bilde bærer sin
+              egen orientering. */}
+          {øktBilder.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="mb-3 max-h-16 w-full"
+              contentContainerStyle={{ gap: 8, paddingHorizontal: 4, alignItems: "center" }}
+            >
+              {øktBilder.map((b) => (
+                <Pressable
+                  key={b.nokkel}
+                  // Annotering først når vedlegget er registrert (kameraStripe.kanAnnoteres).
+                  onPress={() => kanAnnoteres(b) && settAnnoterMål(b)}
+                  disabled={!kanAnnoteres(b)}
+                  className={`relative h-14 w-14 overflow-hidden rounded-lg border border-white/40 ${kanAnnoteres(b) ? "" : "opacity-60"}`}
+                  hitSlop={4}
+                >
+                  <Image source={{ uri: b.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                  {/* Rediger-markør: trykk åpner annotering (på nytt hvis alt annotert). */}
+                  <View className={`absolute bottom-0 right-0 items-center justify-center rounded-tl-md p-0.5 ${b.annotert ? "bg-blue-600" : "bg-black/60"}`}>
+                    <Pencil size={11} color="#ffffff" />
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
           {/* Zoomknapper — roterer med enhetens orientering */}
           <Animated.View style={[{ marginBottom: 64, flexDirection: "row", alignItems: "center", gap: 8 }, uiRotasjon]}>
             {ZOOM_NIVÅER.map((nivå) => {
@@ -376,6 +432,22 @@ export function KameraModal({ synlig, onBilde, onLukk }: KameraModalProps) {
             )}
           </View>
         </View>
+
+        {/* Del 2: annotering oppå kameraet — samme komponent som feltvedlegg-annoteringen
+            (ingen kopi). «Ferdig» erstatter vedlegget og går tilbake til kameraet; «Avbryt»
+            lukker uten endring. Kameraet forblir montert under, så man er straks tilbake. */}
+        {annoterMål && (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}>
+            <BildeAnnotering
+              // Med lag: originalen + laget (redigerbart, som i skjemaet). Uten: bildet slik det er.
+              bildeUri={annoterMål.lag ? annoterMål.originalUri : annoterMål.uri}
+              lag={annoterMål.lag}
+              fornyKilde="dokument"
+              onFerdig={håndterAnnoterFerdig}
+              onAvbryt={() => settAnnoterMål(null)}
+            />
+          </View>
+        )}
       </View>
       ) : null}
     </Modal>

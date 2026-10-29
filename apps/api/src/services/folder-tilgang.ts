@@ -1,4 +1,5 @@
 import { prisma } from "@sitedoc/db";
+import { erFirmaAdminForProsjekt } from "../trpc/tilgangskontroll";
 
 /**
  * Returnerer liste med folder-IDer brukeren har tilgang til.
@@ -14,6 +15,12 @@ export async function hentTilgjengeligeMappeIder(
     select: { role: true },
   });
   if (bruker?.role === "sitedoc_admin") return null;
+
+  // Firma-admin i prosjektets firma ser alt (Kenneth 2026-10-28) — samme bypass-predikat som
+  // verifiserProsjektmedlem/verifiserAdmin. Før medlemsraden: en firma-admin uten medlemsrad fikk
+  // `[]` (og 500 i søket), og en med medlemsrad behandles som admin overalt ellers.
+  // Firma-admin fra et ANNET firma faller gjennom (ingen medlemsrad → `[]`).
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return null;
 
   // 2. Sjekk prosjektmedlemskap og rolle
   const medlem = await prisma.projectMember.findUnique({
@@ -162,14 +169,4 @@ function harDirekteTilgang(
       return true;
     return false;
   });
-}
-
-/**
- * Bygger Prisma WHERE-filter for FtdDocument basert på mappetilgang.
- */
-export function byggMappeTilgangsFilter(
-  mappeIder: string[] | null,
-): Record<string, unknown> {
-  if (mappeIder === null) return {}; // Admin — ingen filter
-  return { folderId: { in: mappeIder } };
 }

@@ -4,11 +4,7 @@ import { Fragment } from "react";
 import { FileText, ExternalLink, Brain, BookOpen, Layers } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSignertLenkeApner } from "@/components/SignertLenke";
-import { HighlightTekst } from "./fulltekst";
-
-// Må matche HL_START/HL_STOP i apps/api/src/routes/ftdSok.ts (ts_headline-sentinler).
-const HL_START = "❰HL❱";
-const HL_STOP = "❰/HL❱";
+import { byggUtsnitt, posisjonsEtikett, SEMANTISK_KLASSE, type UtsnittDel } from "./utsnitt";
 
 interface Treff {
   id: string;
@@ -22,6 +18,7 @@ interface Treff {
   docType: string | null;
   folderId: string | null;
   utdrag?: string | null;
+  semantiskSetning?: string | null;
   metode?: "tekst" | "semantisk" | "begge";
   // Scoring (dev-modus): hybrid har score/cosineSim/reRankScore, leksikalsk har rank
   score?: number;
@@ -53,28 +50,52 @@ function ScoreLinje({ tr }: { tr: Treff }) {
   );
 }
 
-/** Rendrer utdraget: server-uthevet (ts_headline-sentinler) hvis det finnes, ellers klient-highlight. */
+/** Rendrer utsnittet (delt logikk i `utsnitt.ts`): gult = ordtreff, stiplet lilla = semantisk setning. */
+export function UtsnittVisning({ deler }: { deler: UtsnittDel[] }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {deler.map((d, i) =>
+        d.type === "treff" ? (
+          <mark key={i} className="rounded bg-yellow-200 px-0.5">{d.tekst}</mark>
+        ) : d.type === "semantisk" ? (
+          <span key={i} className={SEMANTISK_KLASSE} title={t("ftdSok.semantiskTreff")}>
+            {d.tekst}
+          </span>
+        ) : (
+          <Fragment key={i}>{d.tekst}</Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
 function Utdrag({ tr, søkeord }: { tr: Treff; søkeord: string }) {
-  if (tr.utdrag && tr.utdrag.includes(HL_START)) {
-    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const deler = tr.utdrag.split(new RegExp(`(${esc(HL_START)}|${esc(HL_STOP)})`));
-    let inne = false;
-    return (
-      <>
-        {deler.map((d, i) => {
-          if (d === HL_START) { inne = true; return null; }
-          if (d === HL_STOP) { inne = false; return null; }
-          return inne ? (
-            <mark key={i} className="rounded bg-yellow-200 px-0.5">{d}</mark>
-          ) : (
-            <Fragment key={i}>{d}</Fragment>
-          );
-        })}
-      </>
-    );
-  }
-  const tekst = (tr.utdrag ?? tr.chunkText).slice(0, 240);
-  return <HighlightTekst tekst={tekst} søkeord={søkeord} />;
+  return (
+    <UtsnittVisning
+      deler={byggUtsnitt({
+        chunkText: tr.chunkText,
+        søkeord,
+        utdrag: tr.utdrag,
+        semantiskSetning: tr.semantiskSetning,
+        sectionTitle: tr.sectionTitle,
+        metode: tr.metode,
+      })}
+    />
+  );
+}
+
+/** Posisjon: «side N» når sidetall finnes, ellers «avsnitt N» — aldri begge (S2). */
+function Posisjon({ tr }: { tr: Treff }) {
+  const { t } = useTranslation();
+  const pos = posisjonsEtikett(tr.pageNumber, tr.chunkIndex);
+  if (!pos) return null;
+  return pos.type === "side" ? (
+    <span>{t("ftdSok.side", { side: pos.nr })}</span>
+  ) : (
+    // 1-indeksert for brukeren (chunkIndex er 0-basert i databasen).
+    <span className="text-gray-400">{t("ftdSok.chunk", { nr: pos.nr })}</span>
+  );
 }
 
 /** Badge som viser hvilken søkemetode som ga treffet. */
@@ -162,16 +183,10 @@ export function TreffListe({ treff, onVelgTreff, valgtId, søkeord, visScore }: 
               >
                 {/* Plassering + metode */}
                 <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
-                  {tr.pageNumber != null && tr.pageNumber > 0 && (
-                    <span>{t("ftdSok.side", { side: tr.pageNumber })}</span>
-                  )}
                   {tr.sectionTitle && (
                     <span className="font-medium text-gray-600">{tr.sectionTitle}</span>
                   )}
-                  {tr.chunkIndex != null && (
-                    // 1-indeksert for brukeren (chunkIndex er 0-basert i databasen).
-                    <span className="text-gray-400">{t("ftdSok.chunk", { nr: tr.chunkIndex + 1 })}</span>
-                  )}
+                  <Posisjon tr={tr} />
                   <span className="ml-auto"><MetodeBadge metode={tr.metode} /></span>
                 </div>
                 <div className="line-clamp-3 text-xs leading-relaxed text-gray-700">

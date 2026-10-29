@@ -83,12 +83,15 @@ export function bevarOriginalUrl(
 }
 
 /** Har noden (felt-verdi-tre) minst ett vedlegg med lokal URL? Rekursiv — dekker
- *  topp-nivå-vedlegg OG vedlegg inne i repeater-rader. */
+ *  topp-nivå-vedlegg OG vedlegg inne i repeater-rader. En lokal `originalUrl` teller også
+ *  (redigerbar annotering 2026-10-28: originalen er ikke lastet opp ennå) — en død enhets-sti
+ *  skal aldri til server, verken som `url` eller som `originalUrl`. */
 export function harLokaltVedlegg(node: unknown): boolean {
   if (Array.isArray(node)) return node.some(harLokaltVedlegg);
   if (node !== null && typeof node === "object") {
     const o = node as Record<string, unknown>;
     if (erLokalVedleggUrl(o.url)) return true;
+    if (typeof o.url === "string" && erLokalVedleggUrl(o.originalUrl)) return true;
     return Object.values(o).some(harLokaltVedlegg);
   }
   return false;

@@ -13,7 +13,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Ny arkitektur-/designbeslutning | `fase-0-beslutninger.md` |
 | Feature deployet til prod | `STATUS.md` (prod-deploys) + `historikk-YYYY-MM.md` — fjernes fra STATUS-AKTUELT.md |
 | PR merget til develop | `STATUS-AKTUELT.md` § Pågående arbeid (maks 3 aktive) |
-| 🔴 **Merge endret noe brukeren SER, KLIKKER eller LESER** | `FUNKSJONSENDRINGER.md` — føres av cowork **ved merge**, aldri i ettertid. To seksjoner: funksjonsendring (krevde hjemmel fra Kenneth **før** ordren ble sendt) eller reparasjon med synlig virkning (til orientering). **Klassifisering + smutthull-guard: [SAMARBEIDSREGLER § LUKKER HULL vs ENDRER FUNKSJON](SAMARBEIDSREGLER.md)** |
+| 🔴 **Merge endret noe brukeren SER, KLIKKER eller LESER** | `FUNKSJONSENDRINGER.md` — føres av orkestrator **ved merge**, aldri i ettertid. To seksjoner: funksjonsendring (krevde hjemmel fra Kenneth **før** ordren ble sendt) eller reparasjon med synlig virkning (til orientering). **Klassifisering + smutthull-guard: [SAMARBEIDSREGLER § LUKKER HULL vs ENDRER FUNKSJON](SAMARBEIDSREGLER.md)** |
 | Ny planlagt/deprioritert oppgave | `BACKLOG.md` (ikke STATUS-AKTUELT.md) |
 | Halvferdig feature parkeres | `BACKLOG.md` |
 | Ny prosess-/arbeidsregel | `CLAUDE.md` |
@@ -21,7 +21,6 @@ sist_verifisert_mot_kode: 2026-05-16
 | Presens-påstand skrives i docs (systemet «gjør» noe) / dokumentasjons-standard endres | `dokumentasjons-standard.md` (referanse eller markør kreves) |
 | Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
 | Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
-| Ny Cowork-økt trenger arbeidsmåte (kontroll-laget) | `COWORK-KONTROLL-VEILEDER.md` (+ `kontroll-claude-veileder.md`) |
 | **Skal se/teste en endring før test-deploy** (localhost) | `lokal-dev.md` |
 | **Localhost virker ikke** — `AccessDenied`, `psql: command not found`, tom lokal DB | `lokal-dev.md` § 2 Feilsøking |
 | **Lokal test-data må oppdateres** (DB bak test / etter migrering) | `lokal-dev.md` § 3 |
@@ -53,7 +52,8 @@ sist_verifisert_mot_kode: 2026-05-16
 ## Regel
 
 Ingen PR-commit uten at riktig doc er oppdatert i samme commit. Se også
-[CLAUDE.md § Funksjonsendrings-commits](../../CLAUDE.md) — status-dokumenter
-som oppdateres i egen commit etterpå blir glemt eller drifter.
+[SAMARBEIDSREGLER § 6](SAMARBEIDSREGLER.md) og
+[dokumentasjons-standard § Dokumentasjons-disiplin](dokumentasjons-standard.md) — status-dokumenter
+som oppdateres i en glemt oppfølger-commit drifter.
 
 Ved tvil om hvor noe dokumenteres: les denne tabellen først.

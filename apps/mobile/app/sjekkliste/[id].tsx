@@ -31,6 +31,7 @@ import { useNettverk } from "../../src/providers/NettverkProvider";
 import { hentDokumentSpeil } from "../../src/services/dokumentSpeil";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
+import { SkjemaLagringProvider } from "../../src/kontekst/SkjemaLagringKontekst";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
@@ -531,8 +532,8 @@ export default function SjekklisteUtfylling() {
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner,
-    godkjentLaastVarsel,
-    avvisGodkjentLaastVarsel,
+    avvisningVarsel,
+    lukkAvvisningVarsel,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -808,6 +809,8 @@ export default function SjekklisteUtfylling() {
           : lokasjonTekst;
 
   return (
+    // Annoteringseditoren sender ventende lagring før den fornyer en rå original (ORDRE 3, F1b).
+    <SkjemaLagringProvider value={{ kanRedigere: !leseModus && !vedleggLaast, lagre }}>
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
       {/* Header */}
       <View className="bg-sitedoc-blue">
@@ -1013,14 +1016,14 @@ export default function SjekklisteUtfylling() {
           </View>
         )}
 
-        {/* Godkjent-lås-varsel: en vedlegg-endring ble permanent avvist (rapporten er
-            godkjent). Vises ÉN gang; endringen beholdes lokalt men lagres aldri. */}
-        {godkjentLaastVarsel && (
+        {/* Avvisningsvarsel: en endring ble permanent avvist av serveren. Godkjent-teksten bare på
+            avsluttet dokument, ellers en nøytral tekst (ORDRE 6). Vises ÉN gang; endringen beholdes lokalt. */}
+        {avvisningVarsel && (
           <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3">
             <Text className="flex-1 text-sm text-red-800">
-              {t("godkjentLaast.varsel.tekst")}
+              {t(avvisningVarsel)}
             </Text>
-            <Pressable onPress={avvisGodkjentLaastVarsel} hitSlop={8}>
+            <Pressable onPress={lukkAvvisningVarsel} hitSlop={8}>
               <Text className="text-xs font-medium text-red-700">{t("handling.lukk")}</Text>
             </Pressable>
           </View>
@@ -1153,7 +1156,7 @@ export default function SjekklisteUtfylling() {
               onEndreKommentar={(k) => settKommentar(objekt.id, k)}
               onLeggTilVedlegg={(v) => leggTilVedlegg(objekt.id, v)}
               onFjernVedlegg={(vId) => fjernVedlegg(objekt.id, vId)}
-              onErstattVedlegg={(vId, nyUrl, nyttFilnavn) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn)}
+              onErstattVedlegg={(vId, nyUrl, nyttFilnavn, annotering) => erstattVedlegg(objekt.id, vId, nyUrl, nyttFilnavn, annotering)}
               onFlyttVedlegg={(vId, retning) => flyttVedlegg(objekt.id, vId, retning)}
               leseModus={leseModus}
               vedleggLaast={vedleggLaast}
@@ -1666,5 +1669,6 @@ export default function SjekklisteUtfylling() {
         }}
       />
     </SafeAreaView>
+    </SkjemaLagringProvider>
   );
 }

@@ -64,6 +64,14 @@ describe("annotering: tre-artefakt-modellen (original bevart)", () => {
     expect(erAnnotert(flatt)).toBe(false); // ingen «kan redigeres»-indikator
   });
 
+  it("TEST 4b — mobil-annotert med originalUrl men UTEN lag: web åpner det innbrente bildet, ikke originalen", () => {
+    // Før 2026-10-28 åpnet web originalen her → markeringene forsvant uten lag å gjenskape dem.
+    const flatt: Vedlegg = { ...original, url: "/uploads/privat/innbrent.jpg", originalUrl: original.url };
+    expect(annoteringsKilde(flatt)).toBe(flatt.url);
+    // Annoteres det, forblir det flatt: et lag tegnet på det innbrente bildet lagres ikke.
+    expect(byggAnnoteringsPatch(flatt, "/uploads/privat/ny.jpg", LAG).annotering).toBeUndefined();
+  });
+
   it("TEST 3 — dataUrlTilBlob bevarer JPEG-MIME (aldri PNG)", () => {
     const blob = dataUrlTilBlob("data:image/jpeg;base64," + btoa("ABC"));
     expect(blob.type).toBe("image/jpeg");

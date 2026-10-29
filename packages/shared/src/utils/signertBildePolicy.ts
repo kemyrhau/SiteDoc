@@ -129,3 +129,60 @@ export function lagInvalideringsDebounce(
     }, vindu);
   };
 }
+
+/** En tRPC-sti, f.eks. `["sjekkliste", "hentMedId"]`. Prefiks-matcher alle inputs på stien. */
+export type InvalideringsSti = readonly string[];
+
+export interface NokkelDebounce {
+  /** Planlegg invalidering av `stier`. Kall innen samme vindu slås sammen (union). */
+  planlegg: (stier: readonly InvalideringsSti[]) => void;
+  /** Meld på en visning. Returnerer avmelding; når siste melder seg av, ryddes timeren. */
+  abonner: () => () => void;
+}
+
+/**
+ * Som `lagInvalideringsDebounce`, men SMAL (Hjem-frys 2026-10-29): kallet bærer HVILKE
+ * stier som skal invalideres, og vinduet fyrer `utfor` med unionen — aldri «alle». Før
+ * kalte mobilens `AutentisertBilde` `utils.invalidate()` uten filter, så ett bilde i
+ * fornyelse hentet alle monterte lister på nytt (Hjem fryste mens tunge svar ble tolket).
+ *
+ * `abonner` teller monterte bilder. Går tallet til 0, ryddes timeren og de ventende
+ * stiene: ingen invalidering fyrer etter at skjermen med bildene er forlatt.
+ */
+export function lagNokkelDebounce(
+  utfor: (stier: InvalideringsSti[]) => void,
+  vindu: number = SIGNERT_BILDE_DEBOUNCE_MS,
+): NokkelDebounce {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const ventende = new Map<string, InvalideringsSti>();
+  let abonnenter = 0;
+  const rydd = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    ventende.clear();
+  };
+  return {
+    planlegg(stier) {
+      for (const s of stier) {
+        if (s.length > 0) ventende.set(s.join("."), s);
+      }
+      if (timer !== null || ventende.size === 0) return;
+      timer = setTimeout(() => {
+        timer = null;
+        const alle = [...ventende.values()];
+        ventende.clear();
+        utfor(alle);
+      }, vindu);
+    },
+    abonner() {
+      abonnenter += 1;
+      let aktiv = true;
+      return () => {
+        if (!aktiv) return;
+        aktiv = false;
+        abonnenter -= 1;
+        if (abonnenter === 0) rydd();
+      };
+    },
+  };
+}

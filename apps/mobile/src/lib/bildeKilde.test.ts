@@ -15,6 +15,10 @@ import {
   origin,
   stiForFornyelse,
   vurderBildeFornyelse,
+  fornyelsesStier,
+  invaliderFornyelse,
+  fornyelseLogg,
+  type FornyKilde,
 } from "./bildeKilde";
 import { lagInvalideringsDebounce, SIGNERT_BILDE_DEBOUNCE_MS } from "@sitedoc/shared";
 
@@ -225,5 +229,55 @@ describe("🔴 KRAV (c)-4: koalescering — tre bilder samtidig → ÉN invalide
     planlegg(spion);
     vi.advanceTimersByTime(SIGNERT_BILDE_DEBOUNCE_MS);
     expect(spion).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("🔴 fornyelsesStier — smal fornyelse, aldri «alle» (Hjem-frys 2026-10-29)", () => {
+  const KILDER: FornyKilde[] = ["dokument", "mappeDokument", "tilleggVedlegg", "utleggVedlegg"];
+
+  it("hver kilde gir minst én sti, og ingen sti er tom (tom = invalider alt)", () => {
+    for (const k of KILDER) {
+      const stier = fornyelsesStier(k);
+      expect(stier.length).toBeGreaterThan(0);
+      for (const s of stier) expect(s.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("et dokumentbilde rører aldri Hjems lister (hentForProsjekt)", () => {
+    const alle = KILDER.flatMap((k) => fornyelsesStier(k).map((s) => s.join(".")));
+    expect(alle.some((s) => s.endsWith("hentForProsjekt"))).toBe(false);
+    expect(fornyelsesStier("dokument").map((s) => s.join("."))).toEqual([
+      "sjekkliste.hentMedId",
+      "oppgave.hentMedId",
+      "psi.hentMedObjekter",
+    ]);
+  });
+
+  it("dagsseddel-vedlegg fornyes via sin egen signerings-query", () => {
+    expect(fornyelsesStier("tilleggVedlegg")).toEqual([["timer", "dagsseddel", "signerTilleggVedlegg"]]);
+    expect(fornyelsesStier("utleggVedlegg")).toEqual([["timer", "dagsseddel", "signerUtleggVedlegg"]]);
+    expect(fornyelsesStier("mappeDokument")).toEqual([["mappe", "hentDokumentBlokker"]]);
+  });
+});
+
+describe("🔴 invaliderFornyelse — annoteringseditoren fornyer smalt (ORDRE 3, funn 1+2)", () => {
+  it("invaliderer hver av kildens stier som prefiks-nøkkel, og aldri uten filter", () => {
+    const kall: unknown[] = [];
+    invaliderFornyelse({ invalidateQueries: (f?: unknown) => kall.push(f) }, "dokument");
+    expect(kall).toEqual([
+      { queryKey: [["sjekkliste", "hentMedId"]] },
+      { queryKey: [["oppgave", "hentMedId"]] },
+      { queryKey: [["psi", "hentMedObjekter"]] },
+    ]);
+    expect(kall.some((f) => f === undefined)).toBe(false);
+  });
+});
+
+// ORDRE 5 (2026-10-29): hver invalidering fra en fornyer logges med stiene, aldri URL-er.
+describe("fornyelseLogg", () => {
+  it("navngir stiene og hvem som fornyet", () => {
+    expect(fornyelseLogg("bilde", [["sjekkliste", "hentMedId"], ["psi", "hentMedObjekter"]])).toBe(
+      "[annotering] fornyer (bilde) invaliderer sjekkliste.hentMedId, psi.hentMedObjekter",
+    );
   });
 });

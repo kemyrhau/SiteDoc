@@ -285,6 +285,8 @@ Kompakt flytvisning. Viser alle ledd med ● på aktiv boks. Aktiv boks-format: 
 ### DokumentHandlingsmeny — Posisjon-basert logikk
 Handlingsknapper basert på brukerens **posisjon i flyten** (`apps/web/src/components/DokumentHandlingsmeny.tsx`).
 
+«+ kommentar»-knappen ved siden av handlingene er ren tekst: plusset står i `statushandling.leggTilKommentar` på alle 15 språk, så knappen har ikke et Plus-ikon i tillegg (det ga «+ + kommentar», rettet 2026-10-29, test i `dokument-handlingsmeny-kvittering.test.tsx`).
+
 **Knapper per status:**
 
 | Status | Første/midtre boks | Siste boks (godkjenner) |
@@ -363,9 +365,9 @@ Web-flaten kan annotere bilder — verktøy pil/sirkel/firkant/frihånd/tekst + 
 - `Vedlegg.originalUrl` = bevart originalfoto, satt ÉN gang ved første annotering, deretter uendret (bevis).
 - `Vedlegg.annotering` = Fabric-laget som DATA (`AnnoteringsLag`) — objektene, canvas-dims og Fabric-versjonen. Lar annoteringen gjenåpnes og REDIGERES (pilen flyttes, ikke tegnes på nytt).
 
-Lagres via `oppdaterVedlegg` (in-place patch i `useSjekklisteSkjema`/`useOppgaveSkjema`/`RepeaterObjekt` — **aldri** fjern+legg-til, som ville slettet originalfila). Utflatet JPEG lastes opp som en NY fil (`/api/upload?privat=1`); `url` peker på den, `originalUrl` på originalen. Rene hjelpere + tester: `annotering-lag.ts` (+ `__tests__/annotering-lag.test.ts`, `feltdokumentasjon-annotering.test.tsx`). Koordinat-normalisering (lag laget på én skjermstørrelse åpnet på en annen) i `@sitedoc/shared` `reskalerLagObjekt` (tvilling inlinet i HTML-en).
+Lagres via `oppdaterVedlegg` (in-place patch i `useSjekklisteSkjema`/`useOppgaveSkjema`/`RepeaterObjekt` — **aldri** fjern+legg-til, som ville slettet originalfila). Utflatet JPEG lastes opp som en NY fil (`/api/upload?privat=1`); `url` peker på den, `originalUrl` på originalen. Kilde- og patch-reglene bor i `@sitedoc/shared` `annotering/vedlegg.ts` (delt med mobil fra 2026-10-28) og re-eksporteres fra `annotering-lag.ts` (+ `__tests__/annotering-lag.test.ts`, `feltdokumentasjon-annotering.test.tsx`). Koordinat-normalisering (lag laget på én skjermstørrelse åpnet på en annen) i `@sitedoc/shared` `reskalerLagObjekt` (tvilling inlinet i HTML-en).
 
-⚠️ **Bakover:** bilder annotert PÅ MOBIL (eller før denne runden) har `url` men intet lag → vises som flatt bilde, ikke redigerbart, ingen «kan redigeres»-indikator. Mobilens egen lag-runde kommer separat (offline-kø-risiko holdt utenfor denne gaten).
+⚠️ **Bakover:** bilder annotert på mobil før 2026-10-28 (eller før web-runden) har `url` men intet lag → vises som flatt bilde, ikke redigerbart. 🔴 Fra 2026-10-28 åpnes et slikt bilde på `url` (det innbrente) **også når det har en `originalUrl`** — før åpnet web originalen, og markeringene forsvant uten lag å gjenskape dem (`annoteringsKilde`, test 4b). Lag laget på mobil åpnes redigerbart på web, og omvendt (`tests/e2e/annotering/lag-paa-tvers.spec.ts`).
 
 ## Signert filservering — selvfornyelse (S1 Fase 1b)
 

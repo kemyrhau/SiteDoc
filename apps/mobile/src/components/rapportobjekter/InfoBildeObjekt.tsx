@@ -24,6 +24,7 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
     <>
       <TouchableOpacity onPress={() => setZoom(true)} className="my-3 items-center" activeOpacity={0.8}>
         <AutentisertBilde
+          fornyKilde="dokument"
           uri={fullUrl}
           style={{ width: bredde, height: bredde * 0.65, borderRadius: 8 }}
           resizeMode="contain"
@@ -55,6 +56,7 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
               bouncesZoom
             >
               <AutentisertBilde
+                fornyKilde="dokument"
                 uri={fullUrl}
                 style={{ width: skjermBredde, height: skjermBredde }}
                 resizeMode="contain"

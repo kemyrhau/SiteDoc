@@ -81,6 +81,14 @@ Riktig sjekk for en `packages/pdf`-leveranse er **kilden, aldri kompilatet**, i 
 — hele arkivmalen bor i `packages/pdf`, og det er api som rendrer. Kommandoen: [DEPLOY-RUNBOK.md
 § 2 steg 5b](DEPLOY-RUNBOK.md).
 
+## Deploy-fakta flyttet fra CLAUDE.md (2026-10-28)
+
+- **Ingen automatikk deployer noe sted.** Push til `develop` deployer IKKE til test; test oppdateres kun når Kenneth kjører `./deploy-test.sh` ([DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md)). Bekreftet 2026-07-07: ingen deployende CI/cron/hook/webhook ([BACKLOG](BACKLOG.md)).
+- **En test-CI finnes** (`.github/workflows/ci.yml`): kjører `pnpm test` + mobil-typecheck på PR og push til `develop`, men deployer ikke. Kjør `pnpm test` fra **rot** før merge — pakke-typecheck fanger ikke drift mellom pakker.
+- **Etter Prisma schema-endring (lærdom 2026-05-26):** `prisma generate` for alle fire db-pakker er bakt inn i `Dockerfile.api`/`Dockerfile.web`, så rekkefølgen er **build → migrate deploy → up**. Kjør aldri et frittstående `prisma generate` på server — det havner ikke i det kjørende imaget.
+- **Aldri `-p` for api/web:** containerne ligger i tre ulike compose-prosjekter; ingen enkelt `-p` adopterer alle. Lærdom 2026-07-20: CLAUDE.md-indeksen sa `-p docker` og førte en økt feil. Mekanikk: [DOCKER-NOTES.md](../../docker/DOCKER-NOTES.md).
+- **Sudo:** ingen agent kan `sudo` ikke-interaktivt → Kenneth kjører alle `sudo docker`-steg via `! ssh -t server-ny ...` (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n`. Native `git`/`rsync` kan agentene kjøre.
+
 ## Worktree-deploy (parallell-arbeid)
 
 Flere git-worktrees deler samme repo (se [parallell-arbeid-lock.md](parallell-arbeid-lock.md)). **Prod-deploy kjøres ALLTID fra `../SiteDoc-deploy` (branch `main`)** — aldri fra det delte redesign-treet (`…/SiteDoc`, `redesign/navigasjon`) eller develop-treet. rsync-kilden må være riktig branch, ellers bygges feil kode (prod/test/redesign deler build-kontekst på server-ny).

@@ -21,10 +21,23 @@ tredje hook.
 
 🟢 **Ikke-destruktiv annotering (funn d, 2026-10-21)** — mobil matcher nå web: `erstattVedlegg`
 bevarer den opprinnelige SERVER-URL-en som `Vedlegg.originalUrl` (via `bevarOriginalUrl` i
-`@sitedoc/shared`), satt ÉN gang. Visningen (`FeltDokumentasjon`) faller tilbake til `originalUrl`
-— aldri en død lokal sti — når den annoterte URL-en er rå-privat/utilgjengelig. Lokal original
-(ikke opplastet) bevares bevisst IKKE (ikke en trygg reserve). Web hadde dette fra før
-(`annotering-lag.ts`); mobil-typen manglet feltene.
+`@sitedoc/shared`), satt ÉN gang. Web hadde dette fra før (`annotering-lag.ts`); mobil-typen
+manglet feltene.
+🔴 **Miniatyren viser ALDRI `originalUrl` for et annotert vedlegg** (telefontest 2026-10-29): den
+gamle reserven i rå-vinduet viste originalen — det uannoterte bildet, og rå (401) når bildet ble tatt
+og annotert i samme økt. Kilden avgjøres nå i `lib/miniatyrKilde.ts` (testet): annotert → den rå
+`url` til `AutentisertBilde`, som fornyer selv; uten annotering → lokalfila som før. «Kunne ikke
+laste» er `AutentisertBilde`s `fallback` (kun terminaltilstand) — ikke lenger et klebrig merke pr.
+vedlegg satt ved første `onError`, som hindret fornyelsen. Kamera-annotering lagrer laget og en
+lokal original som skjemaet (`byggKameraAnnotering`).
+
+🟢 **Redigerbar annotering (2026-10-28)** — `erstattVedlegg` tar en valgfri `AnnoteringsFelter`
+(`{originalUrl, annotering}` fra `lib/annoteringLagring.ts`) og bruker `erstattetVedlegg`. Med lag
+kan `originalUrl` være en LOKAL sti (originalen ikke oppe ennå); opplastings-callbacken bytter den
+via `anvendOpplasting` (`lib/originalOpplasting.ts`) når køen er ferdig med originalen
+(`hendelse: "original"`), eller flater vedlegget ut når originalen er tapt (`"originalTapt"`, RETUR M1).
+Callbacken returnerer om skjermen tok hendelsen — køen sletter ikke originalens lokalfil før SQLite
+eller en montert skjerm har tatt den. Begge hooks gjør det likt — rør aldri én alene.
 
 🔴 **Godkjent-lås på vedlegg (Kenneth-vedtak 2026-10-21, funksjonsendring)** — på en avsluttet
 rapport (`TERMINALE_DOKUMENTSTATUSER` = approved/closed/cancelled) kan vedlegg IKKE
@@ -42,7 +55,7 @@ når den fullfører → `oppdaterData` møter godkjent-låsen og kaster `FORBIDD
 (`useEffect([erPaaNettet, erInitialisert, synkStatus])`) prøvde i det uendelige. Nå klassifiserer
 `klassifiserLagreFeil` (`utils/lagreFeil.ts`) feilen: `permanent` (FORBIDDEN/BAD_REQUEST fra vakten)
 → avansér `basisRef` for de avviste feltene (ikke dirty → ingen retry), behold lokal fil, vis ÉN
-`godkjentLaastVarsel`-melding; `transient` (nett/5xx/401) → `lokalt_lagret`, retry som før. Gjelder
+`avvisningVarsel`-melding (ORDRE 6: `avvisningsVarsel(status)` — godkjent-teksten bare på terminal status, ellers `lagreAvvist.varsel.tekst`); `transient` (nett/5xx/401) → `lokalt_lagret`, retry som før. Gjelder
 begge hooks. **Galleri-bilder** (`bilde.ts`, `Image`-tabellen) er ikke `data`-JSON-vedlegg, men
 henger på samme rapport — `opprettFor*`/`slettMedUrl` voktes nå av `krevRedigerbarDokumentstatus`
 (`apps/api/src/services/galleriStatusVakt.ts`) på terminal status. Køens galleri-opprett-vei

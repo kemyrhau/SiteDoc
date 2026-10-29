@@ -11,6 +11,7 @@ import {
   erSiteDocAdmin,
 } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
+import { byggMappeTilgangsFilter } from "../services/mappe-filter";
 import {
   hybridSok,
   blokkSok,
@@ -28,9 +29,7 @@ const vekterSchema = z.object({
   latency: z.number().min(0).max(1).optional(),
   phraseWeight: z.number().min(0).max(1).optional(),
   termWeight: z.number().min(0).max(1).optional(),
-  qualityWeight: z.number().min(0).max(1).optional(),
   headingWeight: z.number().min(0).max(1).optional(),
-  bm25Weight: z.number().min(0).max(1).optional(),
   pageposWeight: z.number().min(0).max(1).optional(),
 });
 
@@ -173,12 +172,15 @@ export const aiSokRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // S6a: filnavn/mappenavn i mapper brukeren ikke har tilgang til skal ikke listes.
+      const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
 
       // Finn mapper som inneholder NS/standard-dokumenter
       const nsDokumenter = await ctx.prisma.ftdDocument.findMany({
         where: {
           projectId: input.projectId,
           isActive: true,
+          AND: [byggMappeTilgangsFilter(mappeIder)],
           OR: [
             { filename: { contains: "3420" } },
             { filename: { contains: "8405" } },

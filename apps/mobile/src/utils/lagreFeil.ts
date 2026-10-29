@@ -1,3 +1,5 @@
+import { TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
+
 /**
  * Klassifiser en kastet `oppdaterData`-feil: er den PERMANENT (serveren vil ALDRI
  * godta forespørselen) eller TRANSIENT (nett/5xx — en retry kan lykkes)?
@@ -27,4 +29,18 @@ export function klassifiserLagreFeil(feil: unknown): LagreFeilType {
     return "permanent";
   }
   return "transient";
+}
+
+/** i18n-nøkkelen for meldingen ved en permanent avvisning. */
+export type AvvisningsVarsel = "godkjentLaast.varsel.tekst" | "lagreAvvist.varsel.tekst";
+
+/**
+ * Hvilken melding en permanent avvisning gir (ORDRE 6, Kenneth 2026-10-29 — funksjonsendring).
+ * Godkjent-teksten bare når dokumentet faktisk er avsluttet (`TERMINALE_DOKUMENTSTATUSER`); før viste
+ * KD11 (status Mottatt) «Rapporten er godkjent» for en BAD_REQUEST. Alt annet får en nøytral tekst.
+ */
+export function avvisningsVarsel(status: string | undefined): AvvisningsVarsel {
+  return status !== undefined && TERMINALE_DOKUMENTSTATUSER.has(status)
+    ? "godkjentLaast.varsel.tekst"
+    : "lagreAvvist.varsel.tekst";
 }

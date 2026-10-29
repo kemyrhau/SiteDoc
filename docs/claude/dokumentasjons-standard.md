@@ -333,3 +333,27 @@ Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk
 ⚠️ UTKAST / ikke-bygget-markør, `:536` ble omformulert fra faktum til antakelse,
 `:263` fikk navngitt migrering + presisering om at fallbacken velger *posisjon*,
 ikke *betydning*.
+
+## Dokumentasjons-disiplin (flyttet fra CLAUDE.md 2026-10-28)
+
+Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn er usynlige.
+
+- **Kode + docs i samme commit:** Når kode eller funksjonalitet bygges, oppdateres relevant fil i `docs/claude/` i SAMME commit. Aldri «docs senere». Hvilken fil: [DOC-MAP.md](DOC-MAP.md).
+- **Beslutninger skrives inn umiddelbart** i riktig sannhetskilde, ikke etter at de er glemt.
+- **Verifisering mot kode FØR beslutning:** Beslutninger om ny kode tas etter at gjeldende kode er bekreftet — dokumentet kan ha drift; koden er fasit.
+- **Hjemløse beslutninger fanges før arkivering:** Når en `docs/claude/`-fil arkiveres eller slettes, sjekkes den først for unikt innhold som mangler i aktive filer, og det overføres FØR fila flyttes.
+- **Arkitektur-anker først:** Spørsmål om modul-typologi (prosjekt- vs firmamodul, hvilket nivå funksjonalitet hører til) sjekkes mot [terminologi.md § 0 Tre nivåer](terminologi.md) først. Andre dokumenter reconcileres mot anker, ikke omvendt.
+- **Todolist ved komplekse oppgaver:** Ved flere steg eller ukjente avhengigheter lages en eksplisitt todolist (`- [ ]`/`- [x]`) FØR start, oppdateres underveis og står i leveransen, så bestilleren kan flagge avvik fra plan.
+- **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](oppryddings-plan-2026-04-28.md). Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent`.
+
+### CLAUDE.md-taket måles med python, ikke `wc -m`
+
+🟢 **Håndhevet av test:** `packages/shared/src/claudemd-tak.test.ts:14-21` (kodepunkter, lik python `len()`) feiler `pnpm test` over taket.
+
+Taket er **15 000 tegn** (Kenneth-vedtak 2026-10-28, tidligere 40 960; CLAUDE.md § Ufravikelige regler) og måles slik:
+
+```sh
+python3 -c "print(len(open('CLAUDE.md',encoding='utf-8').read()))"
+```
+
+⚠️ **`wc -m` teller BYTE når locale ikke er UTF-8** — og i dette prosjektets skall er `LANG`/`LC_ALL` tomme. Målt 2026-09-26: «sjø» + linjeskift = 4 tegn, men `wc -c` OG `wc -m` svarer begge 5. Samme fil gir da ulikt svar på ulike maskiner — regelen blir maskinavhengig. (`LC_ALL=en_US.UTF-8 wc -m` virker også, men degraderer stille der den locale mangler.) Æ, ø, å og emoji er to byte hver, så et byte-tall gir falske brudd.

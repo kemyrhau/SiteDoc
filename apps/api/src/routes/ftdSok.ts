@@ -1,8 +1,11 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
+import { mappeKlausulSql, byggMappeTilgangsFilter } from "../services/mappe-filter";
+import { HEADLINE_OPTS } from "../services/ai-sok-service";
 
 export interface SokTreff {
   id: string;
@@ -23,11 +26,8 @@ export interface SokTreff {
   metode: "tekst";
 }
 
-// Sentinel-markører rundt treff fra ts_headline. Svært usannsynlige i dokumenttekst;
-// klienten splitter på disse og rendrer <mark>. Se treff-liste.tsx.
-export const HL_START = "❰HL❱"; // ❰HL❱
-export const HL_STOP = "❰/HL❱"; // ❰/HL❱
-const HEADLINE_OPTS = `StartSel=${HL_START}, StopSel=${HL_STOP}, MaxWords=32, MinWords=12, ShortWord=2, HighlightAll=FALSE`;
+// Sentinel-markørene og headline-oppsettet deles med AI-søket (samme utsnitt i begge moduser, S2).
+export { HL_START, HL_STOP } from "../services/ai-sok-service";
 
 export const ftdSokRouter = router({
   sokDokumenter: protectedProcedure
@@ -36,6 +36,9 @@ export const ftdSokRouter = router({
         projectId: z.string().uuid(),
         query: z.string().min(1),
         limit: z.number().default(40),
+        // S4: samme dokumentfilter som aiSok.sok (S-M8). Står innenfor d.project_id-filteret.
+        dokumentIder: z.array(z.string()).optional(),
+        ekskluderMappeIder: z.array(z.string()).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -47,10 +50,13 @@ export const ftdSokRouter = router({
       );
 
       // Fulltekstsøk med tsvector (norsk stemming + ranking)
-      const mappeKlausul =
-        mappeIder === null
-          ? Prisma.empty
-          : Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id IN (${Prisma.join(mappeIder)}))`;
+      const mappeKlausul = mappeKlausulSql(mappeIder);
+      const dokKlausul = input.dokumentIder?.length
+        ? Prisma.sql`AND d.id IN (${Prisma.join(input.dokumentIder)})`
+        : Prisma.empty;
+      const ekskluderKlausul = input.ekskluderMappeIder?.length
+        ? Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id NOT IN (${Prisma.join(input.ekskluderMappeIder)}))`
+        : Prisma.empty;
 
       // Flere treff pr. dokument (opptil MAKS_PR_DOK), så UI kan gruppere dem under
       // dokumentet. ts_headline gir et utdrag med søkeord uthevet via sentinel-markører.
@@ -84,6 +90,8 @@ export const ftdSokRouter = router({
             AND d.is_active = true
             AND c.search_vector @@ plainto_tsquery('norwegian', ${input.query})
             ${mappeKlausul}
+            ${dokKlausul}
+            ${ekskluderKlausul}
         ) t
         WHERE t.rn <= 5
         ORDER BY t.rank DESC
@@ -92,7 +100,10 @@ export const ftdSokRouter = router({
 
       // Fallback til ILIKE hvis tsvector gir 0 treff (delord, forkortelser).
       // Ingen ts_headline her (tsquery matcher ikke) — klienten highlighter utdraget.
+      // S4/D4: rangert på antall forekomster av søkestrengen i chunken (ikke-overlappende,
+      // store/små bokstaver likt), ikke på filnavn. Likhet → filnavn, avsnitt, id (deterministisk).
       if (rader.length === 0) {
+        const qLower = input.query.toLowerCase();
         rader = await ctx.prisma.$queryRaw<RåTreff[]>`
           SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
                  t."sectionTitle", t."nsCode", t.filename, t."fileUrl", t."docType",
@@ -110,18 +121,25 @@ export const ftdSokRouter = router({
               d.file_url AS "fileUrl",
               d.doc_type AS "docType",
               d.folder_id AS "folderId",
-              1.0 AS rank,
+              ((length(lower(c.chunk_text)) - length(replace(lower(c.chunk_text), ${qLower}, '')))
+                / length(${qLower}))::float AS rank,
               NULL::text AS utdrag,
-              ROW_NUMBER() OVER (PARTITION BY c.document_id ORDER BY c.chunk_index ASC) AS rn
+              ROW_NUMBER() OVER (
+                PARTITION BY c.document_id
+                ORDER BY (length(lower(c.chunk_text)) - length(replace(lower(c.chunk_text), ${qLower}, ''))) DESC,
+                         c.chunk_index ASC
+              ) AS rn
             FROM ftd_document_chunks c
             JOIN ftd_documents d ON d.id = c.document_id
             WHERE d.project_id = ${input.projectId}
               AND d.is_active = true
               AND c.chunk_text ILIKE ${"%" + input.query + "%"}
               ${mappeKlausul}
+              ${dokKlausul}
+              ${ekskluderKlausul}
           ) t
           WHERE t.rn <= 5
-          ORDER BY t.filename ASC, t.rank DESC
+          ORDER BY t.rank DESC, t.filename ASC, t."chunkIndex" ASC, t.id ASC
           LIMIT ${input.limit}
         `;
       }
@@ -135,11 +153,30 @@ export const ftdSokRouter = router({
       );
     }),
 
+  /**
+   * Hele dokumentteksten til høyre rute i søket. S6a (sikkerhet.md § 8d): krever medlemskap
+   * i prosjektet, at dokumentet tilhører DET prosjektet (ellers kunne et medlem i A lese en
+   * documentId fra B), og mappetilgang som i `sokDokumenter`.
+   */
   hentDokumentChunks: protectedProcedure
-    .input(z.object({ documentId: z.string() }))
+    .input(z.object({ projectId: z.string().uuid(), documentId: z.string() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const dokument = await ctx.prisma.ftdDocument.findFirst({
+        where: { id: input.documentId, projectId: input.projectId, isActive: true },
+        select: { id: true, folderId: true },
+      });
+      if (!dokument) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke i prosjektet" });
+      }
+      if (dokument.folderId) {
+        const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
+        if (mappeIder !== null && !mappeIder.includes(dokument.folderId)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Ingen tilgang til mappen" });
+        }
+      }
       return ctx.prisma.ftdDocumentChunk.findMany({
-        where: { documentId: input.documentId },
+        where: { documentId: dokument.id },
         orderBy: { chunkIndex: "asc" },
       });
     }),
@@ -165,11 +202,24 @@ export const ftdSokRouter = router({
       return chunks.map((c) => c.nsCode!);
     }),
 
+  /**
+   * S6a (sikkerhet.md § 8d nr. 2): nsCode-oppslag var tidligere på tvers av prosjekter. Samme
+   * mappetilgang og `isActive` som søket — ellers leser et medlem tekst fra en lukket mappe.
+   */
   nsChunks: protectedProcedure
-    .input(z.object({ nsCode: z.string() }))
+    .input(z.object({ projectId: z.string().uuid(), nsCode: z.string() }))
     .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
       return ctx.prisma.ftdDocumentChunk.findMany({
-        where: { nsCode: input.nsCode },
+        where: {
+          nsCode: input.nsCode,
+          document: {
+            projectId: input.projectId,
+            isActive: true,
+            ...byggMappeTilgangsFilter(mappeIder),
+          },
+        },
         include: {
           document: { select: { filename: true } },
         },
@@ -187,6 +237,9 @@ export const ftdSokRouter = router({
     )
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // S6a: samme mappetilgang som sokDokumenter (lukket mappe → ikke i svaret).
+      const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
+      const mappeKlausul = mappeKlausulSql(mappeIder);
       // Søk i chunks fra dokumenter med "3420" i filnavnet
       return ctx.prisma.$queryRaw<Array<{
         id: string;
@@ -201,6 +254,7 @@ export const ftdSokRouter = router({
           AND d.is_active = true
           AND d.filename LIKE '%3420%'
           AND c.chunk_text ILIKE ${"%" + input.nsKode + "%"}
+          ${mappeKlausul}
         ORDER BY d.filename, c.chunk_index
         LIMIT 20
       `;

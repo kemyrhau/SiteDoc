@@ -63,3 +63,9 @@ Regelen i § 3 gjelder ALL handlingstekst i SiteDoc, ikke bare flyt-matrisen: ha
 - **Flyt-matrisens handlings-hjelpetekster:** liten — i18n-nøkler fra tabellen over + Tooltip v2 på Handling-kolonnen. Kan gå i samme runde som Tooltip v2, eller med `title=` som midlertidig bro hvis Kenneth vil ha tekstene ut før v2 (frarådes på mobil).
 - **Mikrotekst-standarden (§ 3a):** null egen kloss — går inn i veilederen og håndheves i ordre-DoD (nye handlingstekster) + opportunistisk oppgradering.
 - Rekkefølge: Tooltip v2 først, tekstene rett etter. Ingenting blokkerer A-3b.
+
+## 5. Husstil: «pr.» vs «per» (Kenneth-vedtak 2026-08-24, flyttet fra CLAUDE.md 2026-10-28)
+
+Som preposisjon i en **sats eller enhet** skrives **`pr.`** med punktum: «450 kr pr. time», «pris pr. stk.». Det er riksmåls- og forretningskonvensjonen målgruppen bruker. *(Språkrådet anbefaler «per» fullt ut; husstilen følger kundene, ikke anbefalingen — valget er tatt bevisst.)* **Unntak:** latinske uttrykk beholder «per» (*per capita*).
+
+🔴 **Som grupperings-etikett skal ordet ikke brukes i det hele tatt.** Skriv **«Etter prosjekt»**, ikke «Per prosjekt» — «Per» er også et fornavn, og forvekslingen er konkret (Per Berg står i attesteringslista rett under etiketten). «Etter …» er entydig og omgår hele per/pr.-spørsmålet.

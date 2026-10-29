@@ -2,10 +2,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
-import {
-  hentTilgjengeligeMappeIder,
-  byggMappeTilgangsFilter,
-} from "../services/folder-tilgang";
+import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
+import { byggMappeTilgangsFilter } from "../services/mappe-filter";
 import { prisma } from "@sitedoc/db";
 import { prosesserDokument } from "../services/ftd-prosessering";
 // Fire-and-forget dokumentprosessering, in-process. Tidligere gikk dette via et

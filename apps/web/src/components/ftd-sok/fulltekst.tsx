@@ -4,37 +4,79 @@ import { useMemo, useEffect, useRef } from "react";
 import { FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { SEMANTISK_KLASSE } from "./utsnitt";
 
 interface FulltekstProps {
+  prosjektId: string;
   documentId: string | null;
   søkeord?: string;
-  /** Sidenummer det skal scrolles til (valgt treff). 0/null = ingen scroll. */
-  scrollTilSide?: number | null;
+  /**
+   * chunkIndex til valgt treff (S1a): høyre rute scroller til `[data-chunk=N]` og markerer den
+   * chunkens ordtreff sterkere. null = ingen scroll. Virker også uten sidetall (DOCX).
+   */
+  valgtChunkIndex?: number | null;
+  /** S5: setningen som forklarer et rent semantisk valgt treff — markeres i valgt chunk. */
+  semantiskSetning?: string | null;
 }
 
-export function Fulltekst({ documentId, søkeord, scrollTilSide }: FulltekstProps) {
+export const MARK_KLASSE = "rounded bg-yellow-200 px-0.5";
+export const MARK_VALGT_KLASSE = "rounded bg-amber-300 px-0.5 ring-1 ring-amber-500";
+
+/**
+ * Hel-avsnitt-markering (relay 29.10): valgt chunk får svak bakgrunn og en strek i venstre kant — uansett
+ * om S5-setningen finnes. Målt på test (`e8aac60a`, Røstbakken «dagmulkt»): rent semantiske treff kom med
+ * `semantiskSetning: null` (chunken inneholder ikke ordet), så høyre rute stod helt umarkert etter rulling.
+ * Chunken er et inline <span> i en `whitespace-pre-wrap`-blokk: `display:block` ville lagt linjeskift ved
+ * hver chunk-grense (PDF-chunker deles midt i setninger etter overlapp-kapping). Derfor inline +
+ * `box-decoration-clone`, så bakgrunn, venstre strek (inset-skygge) og padding tegnes på hvert linjefragment.
+ * Farge: `sitedoc-secondary` #3b82f6 (ui-standarder.md § Fargepalett) — ikke gul (ordtreff), ikke lilla (S5).
+ */
+export const VALGT_AVSNITT_KLASSE =
+  "box-decoration-clone bg-sitedoc-secondary/10 pl-1 shadow-[inset_3px_0_0_0_#3b82f6]";
+
+/** Scroll-målet for valgt treff: chunk-ankeret, aldri første <mark> på siden (S1a/T1). */
+export function finnScrollMål(beholder: ParentNode | null, valgtChunkIndex: number | null | undefined): Element | null {
+  if (!beholder || valgtChunkIndex == null) return null;
+  return beholder.querySelector(`[data-chunk="${valgtChunkIndex}"]`);
+}
+
+/** Luft over valgt chunk når ruta rulles (tidligere `scroll-mt-24`). */
+export const RULLE_MARG = 96;
+
+/**
+ * F3 (relay 29.10): rull KUN nærmeste `[data-rullebeholder]` (høyre rute i søkesiden), ellers egen
+ * beholder. `scrollIntoView` rullet alle forfedre — også `main` — så søkefelt og treffliste forsvant.
+ */
+export function rullTilChunk(egenBeholder: HTMLElement | null, valgtChunkIndex: number | null | undefined): void {
+  const mål = finnScrollMål(egenBeholder, valgtChunkIndex);
+  if (!mål || !egenBeholder) return;
+  const beholder = egenBeholder.closest<HTMLElement>("[data-rullebeholder]") ?? egenBeholder;
+  const top = mål.getBoundingClientRect().top - beholder.getBoundingClientRect().top + beholder.scrollTop - RULLE_MARG;
+  beholder.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
+
+interface Segment {
+  chunkIndex: number;
+  tekst: string;
+}
+
+export function Fulltekst({ prosjektId, documentId, søkeord, valgtChunkIndex, semantiskSetning }: FulltekstProps) {
   const { t } = useTranslation();
   const beholderRef = useRef<HTMLDivElement>(null);
   const { data: chunks, isLoading } = trpc.ftdSok.hentDokumentChunks.useQuery(
-    { documentId: documentId! },
+    { projectId: prosjektId, documentId: documentId! },
     { enabled: !!documentId },
   );
 
-  // Scroll til valgt treff når det velges (reader-støtte innen panelet): finn sidens
-  // blokk, og rull til første uthevede treff (<mark>) i den — ikke bare toppen av siden.
+  // Rull høyre rute til valgt chunk (F3: aldri forfedrene).
   useEffect(() => {
-    if (scrollTilSide == null) return;
-    const sideEl = beholderRef.current?.querySelector(`[data-side="${scrollTilSide}"]`);
-    if (!sideEl) return;
-    const mark = sideEl.querySelector("mark") ?? sideEl;
-    mark.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [scrollTilSide, documentId, chunks]);
+    rullTilChunk(beholderRef.current, valgtChunkIndex);
+  }, [valgtChunkIndex, documentId, chunks]);
 
-  // Bygg sammenhengende tekst per side, fjern overlapp
+  // Sammenhengende tekst pr. side med overlapp fjernet, men hver chunk beholder sitt eget anker.
   const sider = useMemo(() => {
     if (!chunks || chunks.length === 0) return [];
 
-    // Grupper chunks per side
     const perSide = new Map<number, typeof chunks>();
     for (const c of chunks) {
       const side = c.pageNumber ?? 0;
@@ -43,33 +85,23 @@ export function Fulltekst({ documentId, søkeord, scrollTilSide }: FulltekstProp
       perSide.set(side, arr);
     }
 
-    const result: Array<{ side: number; tekst: string; sectionTitle: string | null }> = [];
+    const result: Array<{ side: number; segmenter: Segment[]; sectionTitle: string | null }> = [];
 
     for (const [side, sideChunks] of perSide) {
-      // Sorter på chunkIndex
       sideChunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
 
-      // Slå sammen tekst og fjern overlapp
-      let sammenslått = "";
+      const segmenter: Segment[] = [];
+      let forrige = "";
       for (const chunk of sideChunks) {
-        const tekst = chunk.chunkText;
-        if (sammenslått.length === 0) {
-          sammenslått = tekst;
-        } else {
-          // Finn overlapp: sjekk om starten av denne chunken overlapper med slutten av forrige
-          const overlapp = finnOverlapp(sammenslått, tekst);
-          sammenslått += tekst.slice(overlapp);
-        }
+        // Overlapp: starten av denne chunken gjentar slutten av forrige → kapp den bort.
+        const tekst = forrige ? chunk.chunkText.slice(finnOverlapp(forrige, chunk.chunkText)) : chunk.chunkText;
+        segmenter.push({ chunkIndex: chunk.chunkIndex, tekst });
+        forrige = chunk.chunkText;
       }
 
-      result.push({
-        side,
-        tekst: sammenslått.trim(),
-        sectionTitle: sideChunks[0]?.sectionTitle ?? null,
-      });
+      result.push({ side, segmenter, sectionTitle: sideChunks[0]?.sectionTitle ?? null });
     }
 
-    // Sorter på sidenummer
     result.sort((a, b) => a.side - b.side);
     return result;
   }, [chunks]);
@@ -83,9 +115,7 @@ export function Fulltekst({ documentId, søkeord, scrollTilSide }: FulltekstProp
   }
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-gray-400">Laster dokumentinnhold...</div>
-    );
+    return <div className="text-sm text-gray-400">{t("ftdSok.lasterInnhold")}</div>;
   }
 
   if (sider.length === 0) {
@@ -104,19 +134,68 @@ export function Fulltekst({ documentId, søkeord, scrollTilSide }: FulltekstProp
         </div>
       )}
       {sider.map((s) => (
-        <div key={s.side} data-side={s.side} className="scroll-mt-2">
+        <div key={s.side} data-side={s.side}>
           {s.side > 0 && (
             <div className="mb-1 text-xs text-gray-400">
-              {t("firma.timer.rapport.pdf.footerSide")} {s.side}
+              {t("ftdSok.sideHode", { side: s.side })}
               {s.sectionTitle && <span className="ml-2">· {s.sectionTitle}</span>}
             </div>
           )}
-          <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
-            {søkeord ? <HighlightTekst tekst={s.tekst} søkeord={søkeord} /> : s.tekst}
+          {/* min-w-0 + break-words (F3): gab-chunker kan ha tusentegns ord uten mellomrom. */}
+          <div className="min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-700">
+            {s.segmenter.map((seg) => {
+              const erValgt = seg.chunkIndex === valgtChunkIndex;
+              return (
+                <span key={seg.chunkIndex} data-chunk={seg.chunkIndex} className={erValgt ? VALGT_AVSNITT_KLASSE : undefined}>
+                  <ChunkTekst
+                    tekst={seg.tekst}
+                    søkeord={søkeord}
+                    markKlasse={erValgt ? MARK_VALGT_KLASSE : MARK_KLASSE}
+                    semantiskSetning={erValgt ? semantiskSetning : null}
+                    semantiskEtikett={t("ftdSok.semantiskTreff")}
+                  />
+                </span>
+              );
+            })}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+/** Tekst i én chunk: ordtreff markert, og ev. den semantiske setningen med egen stil (S5). */
+function ChunkTekst({
+  tekst,
+  søkeord,
+  markKlasse,
+  semantiskSetning,
+  semantiskEtikett,
+}: {
+  tekst: string;
+  søkeord?: string;
+  markKlasse: string;
+  semantiskSetning?: string | null;
+  semantiskEtikett: string;
+}) {
+  const vanlig = (x: string) =>
+    søkeord ? <HighlightTekst tekst={x} søkeord={søkeord} markKlasse={markKlasse} /> : x;
+  // Setningen fra `finnBesteSetning` er alltid en eksakt delstreng av chunk-teksten (låsetest i
+  // ai-sok-rangering.test.ts), så indexOf trenger ingen mellomrom-toleranse. null → ingen S5-markering
+  // (målt 29.10: chunken inneholder ikke søkeordet); hel-avsnitt-markeringen på <span data-chunk> står uansett.
+  const pos = semantiskSetning ? tekst.indexOf(semantiskSetning) : -1;
+  if (!semantiskSetning || pos < 0) return <>{vanlig(tekst)}</>;
+  return (
+    <>
+      {vanlig(tekst.slice(0, pos))}
+      <span className="mr-1 rounded bg-purple-100 px-1 align-middle text-[10px] font-medium text-purple-700">
+        {semantiskEtikett}
+      </span>
+      <span data-semantisk="true" className={SEMANTISK_KLASSE}>
+        {semantiskSetning}
+      </span>
+      {vanlig(tekst.slice(pos + semantiskSetning.length))}
+    </>
   );
 }
 
@@ -133,7 +212,15 @@ function finnOverlapp(a: string, b: string): number {
 }
 
 /** Highlight søkeord i tekst */
-export function HighlightTekst({ tekst, søkeord }: { tekst: string; søkeord: string }) {
+export function HighlightTekst({
+  tekst,
+  søkeord,
+  markKlasse = MARK_KLASSE,
+}: {
+  tekst: string;
+  søkeord: string;
+  markKlasse?: string;
+}) {
   const termer = søkeord
     .toLowerCase()
     .split(/\s+/)
@@ -154,7 +241,7 @@ export function HighlightTekst({ tekst, søkeord }: { tekst: string; søkeord: s
           (t) => del.toLowerCase() === t,
         );
         return erMatch ? (
-          <mark key={i} className="rounded bg-yellow-200 px-0.5">
+          <mark key={i} className={markKlasse}>
             {del}
           </mark>
         ) : (

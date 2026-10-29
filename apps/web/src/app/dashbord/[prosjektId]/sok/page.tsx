@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter } from "lucide-react";
+import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
+import { ingenOrdtreff } from "@/components/ftd-sok/ingen-ordtreff";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { useHoydeTilBunn } from "@/hooks/useHoydeTilBunn";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type SokModus = "ai" | "leksikalsk";
@@ -30,6 +32,8 @@ function kortFilnavn(filnavn: string): string {
 export default function DokumentsokSide() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
+  // F3: prosjekt-layouten gir siden auto-høyde, så `h-full` virker ikke — siden måler plassen i `main` selv.
+  const { ref: sideRef, style: sideStil } = useHoydeTilBunn<HTMLDivElement>();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
   // Dev-modus for presisjonsanalyse (?debug i URL) — viser score pr. metode (F.2).
@@ -39,7 +43,9 @@ export default function DokumentsokSide() {
   const [aktivtSok, setAktivtSok] = useState("");
   const [valgtTreffId, setValgtTreffId] = useState<string | null>(null);
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
-  const [valgtSide, setValgtSide] = useState<number | null>(null);
+  // S1a: høyre rute fokuserer på valgt CHUNK (ikke side) — virker også for DOCX uten sidetall.
+  const [valgtChunkIndex, setValgtChunkIndex] = useState<number | null>(null);
+  const [valgtSemantiskSetning, setValgtSemantiskSetning] = useState<string | null>(null);
   const [modus, setModus] = useState<SokModus>("ai");
   const [nsFilter, setNsFilter] = useState<"ekskluder" | "alle" | string>("ekskluder");
   // string = dokument-ID for enkeltdokument-filter
@@ -86,7 +92,8 @@ export default function DokumentsokSide() {
   // Leksikalsk søk — kjør ALLTID ved aktivt søk (brukes som fallback)
   const { data: leksTreff, isLoading: leksLaster } =
     trpc.ftdSok.sokDokumenter.useQuery(
-      { projectId: prosjektId, query: aktivtSok },
+      // S4/D2: samme filter som AI-søket — Tekstsøk og fallback ignorerte det før.
+      { projectId: prosjektId, query: aktivtSok, ...sokFilter },
       { enabled: !!prosjektId && aktivtSok.length > 0 },
     );
 
@@ -109,18 +116,21 @@ export default function DokumentsokSide() {
   }
 
   const isLoading = aiAktiv ? aiLaster && leksLaster : leksLaster;
+  // F1a: alle treff er rent semantiske — ordet finnes ikke i noe dokument, lista er vektornaboer.
+  const visIngenOrdtreff = !isLoading && !brukFallback && !aiUtilgjengelig && ingenOrdtreff(visbareTreff);
 
   const handleSok = () => {
     if (query.trim()) {
       setAktivtSok(query.trim());
       setValgtTreffId(null);
       setValgtDokumentId(null);
-      setValgtSide(null);
+      setValgtChunkIndex(null);
+      setValgtSemantiskSetning(null);
     }
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={sideRef} style={sideStil} className="flex h-full w-full min-w-0 flex-col">
       {/* Toppseksjon */}
       <SonetonetSidehode sone="prosjekt" className="mb-4">
         <div className="flex items-center gap-2">
@@ -211,12 +221,20 @@ export default function DokumentsokSide() {
               : t("sok.fallbackVarsel")}
           </div>
         )}
+
+        {/* F1a: ingen ordtreff — alle treff er semantiske naboer */}
+        {aktivtSok && visIngenOrdtreff && (
+          <div className="mt-2 flex items-center gap-1.5 rounded bg-gray-100 px-3 py-1.5 text-xs text-gray-600">
+            <Info className="h-3.5 w-3.5 flex-shrink-0" />
+            {t("sok.ingenOrdtreff", { ord: aktivtSok, antall: visbareTreff?.length ?? 0 })}
+          </div>
+        )}
       </div>
 
       {/* Resultater */}
       <div className="flex min-h-0 flex-1">
         {/* Treffliste */}
-        <div className="w-1/2 shrink-0 overflow-y-auto border-r p-4">
+        <div className="w-1/2 min-w-0 shrink-0 overflow-y-auto break-words border-r p-4">
           {isLoading ? (
             <div className="py-8 text-center text-sm text-gray-400">
               {t("sok.soeker")}
@@ -229,7 +247,10 @@ export default function DokumentsokSide() {
               onVelgTreff={(tr) => {
                 setValgtTreffId(tr.id);
                 setValgtDokumentId(tr.documentId);
-                setValgtSide(tr.pageNumber ?? null);
+                setValgtChunkIndex(tr.chunkIndex ?? null);
+                setValgtSemantiskSetning(
+                  tr.metode === "semantisk" ? (tr.semantiskSetning ?? null) : null,
+                );
               }}
               valgtId={valgtTreffId}
             />
@@ -240,10 +261,16 @@ export default function DokumentsokSide() {
           )}
         </div>
 
-        {/* Fulltekst-panel */}
-        <div className="w-1/2 shrink-0 overflow-y-auto bg-gray-50 p-4">
+        {/* Fulltekst-panel — data-rullebeholder: Fulltekst ruller bare denne ruta (F3) */}
+        <div data-rullebeholder="" className="w-1/2 min-w-0 shrink-0 overflow-y-auto break-words bg-gray-50 p-4">
           {valgtDokumentId ? (
-            <Fulltekst documentId={valgtDokumentId} søkeord={aktivtSok} scrollTilSide={valgtSide} />
+            <Fulltekst
+              prosjektId={prosjektId}
+              documentId={valgtDokumentId}
+              søkeord={aktivtSok}
+              valgtChunkIndex={valgtChunkIndex}
+              semantiskSetning={valgtSemantiskSetning}
+            />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
               {t("sok.klikkPaaTreff")}

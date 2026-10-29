@@ -7,6 +7,7 @@ import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, 
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
+import type { AnnoteringsLag } from "@sitedoc/shared";
 import { komprimer, hentGps, velgBilder } from "../../services/bilde";
 import { formatOpptakKort } from "../../utils/dato";
 import { lastOppFil } from "../../services/opplasting";
@@ -16,8 +17,9 @@ import { BildeAnnotering } from "../BildeAnnotering";
 import { KameraModal } from "../KameraModal";
 import { TegningsSkjermbilde } from "../TegningsSkjermbilde";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
-import { erServerVedleggUrl } from "@sitedoc/shared";
 import { AUTH_CONFIG } from "../../config/auth";
+import { annoteringsApning, byggKameraAnnotering, byggMobilAnnotering, type AnnoteringsFelter } from "../../lib/annoteringLagring";
+import { miniatyrKilde } from "../../lib/miniatyrKilde";
 
 // Et vedlegg med lokal URL er ikke lastet opp ennå (køen har ikke gitt det en
 // server-URL). Speiler `erLokalUrl` i useSjekklisteSkjema.
@@ -31,7 +33,7 @@ interface FeltDokumentasjonProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
-  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string) => void;
+  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string, annotering?: AnnoteringsFelter) => void;
   onFlyttVedlegg?: (vedleggId: string, retning: "opp" | "ned") => void;
   leseModus?: boolean;
   sjekklisteId?: string;
@@ -63,18 +65,6 @@ export function FeltDokumentasjon({
   const [visKamera, settVisKamera] = useState(false);
   const gpsPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(null);
   const [valgtVedleggId, settValgtVedleggId] = useState<string | null>(null);
-  // Funn C (req 3): bilder som ikke lar seg laste (død file://-sti etter
-  // reinstall, eller 401/404) skal vise «finnes, kunne ikke lastes» — aldri en
-  // tom ramme som leses som tapt arbeid.
-  const [feiletVedlegg, settFeiletVedlegg] = useState<Set<string>>(new Set());
-  const markerFeilet = useCallback((vedleggId: string) => {
-    settFeiletVedlegg((prev) => {
-      if (prev.has(vedleggId)) return prev;
-      const ny = new Set(prev);
-      ny.add(vedleggId);
-      return ny;
-    });
-  }, []);
   const [visKommentarModal, settVisKommentarModal] = useState(false);
   const [lokalKommentar, settLokalKommentar] = useState("");
   const { valgtProsjektId } = useProsjekt();
@@ -93,6 +83,8 @@ export function FeltDokumentasjon({
   onLeggTilVedleggRef.current = onLeggTilVedlegg;
   const leggIKoRef = useRef(leggIKo);
   leggIKoRef.current = leggIKo;
+  const vedleggRef = useRef(vedlegg);
+  vedleggRef.current = vedlegg;
 
   const håndterBilde = useCallback(async (bildeUri: string, gpsLat?: number, gpsLng?: number, opptakTidspunkt?: string | null) => {
     try {
@@ -146,30 +138,78 @@ export function FeltDokumentasjon({
         gpsLng,
         gpsAktivert: gpsLat != null,
       });
+      // Del 2/3 (kamera): returner vedleggId så kameraøkta kan koble en etterfølgende
+      // annotering til NØYAKTIG dette vedlegget (ikke-destruktiv erstatning, samme ID).
+      return vedleggId;
     } catch (e) {
       const melding = e instanceof Error ? e.message : "Ukjent feil";
       console.error("Bildehåndtering feilet:", melding);
+      return undefined;
     }
   }, [sjekklisteId, oppgaveIdForKo, objektId]);
 
-  const håndterKameraBilde = useCallback((uri: string) => {
-    // Kameraet forblir åpent — prosesser bildet i bakgrunnen
-    (async () => {
+  const håndterKameraBilde = useCallback(
+    async (uri: string): Promise<{ vedleggId: string; uri: string } | null> => {
       try {
         // GPS ble startet da kameraet åpnet — hent resultatet (allerede klart eller nesten klart)
         const gpsPromise = gpsPromiseRef.current ?? hentGps();
+        // Dev-logg pr. steg (telefontest 2026-10-29, funn 4/5): GPS venter opptil 5 s på High
+        // innendørs før Balanced — tallene viser hvor tiden går. Miniatyren i kameraet venter ikke.
+        const t0 = Date.now();
         const [komprimert, gps] = await Promise.all([
-          komprimer(uri),
-          gpsPromise,
+          komprimer(uri).then((k) => {
+            if (__DEV__) console.log(`[kamera] komprimert ${Date.now() - t0} ms`);
+            return k;
+          }),
+          gpsPromise.then((g) => {
+            if (__DEV__) console.log(`[kamera] gps ${Date.now() - t0} ms (${g ? "fix" : "ingen"})`);
+            return g;
+          }),
         ]);
         // Kamerabilde: opptak = nå. Enhets-GPS er riktig kilde her (bildet tas i
         // dette øyeblikket på dette stedet) — kamera-veien er bevisst uendret.
-        await håndterBilde(komprimert.uri, gps?.lat, gps?.lng, new Date().toISOString());
+        const vedleggId = await håndterBilde(komprimert.uri, gps?.lat, gps?.lng, new Date().toISOString());
+        // Del 2/3: gi kameraøkta vedleggId + den komprimerte lokalstien, så miniatyren
+        // kan vises og en annotering kobles til riktig vedlegg.
+        return vedleggId ? { vedleggId, uri: komprimert.uri } : null;
       } catch (e) {
         console.error("Kamerabilde feilet:", e);
+        return null;
       }
-    })();
-  }, [håndterBilde]);
+    },
+    [håndterBilde],
+  );
+
+  // Del 2/3 (kamera): annoterer brukeren et bilde inne i kameraet, erstattes vedlegget
+  // ikke-destruktivt via SAMME vei som annoterings-modalen (onErstattVedlegg + kø med
+  // samme vedleggId). Kappløp-vernet i opplastingskøen sikrer at annoteringen vinner selv
+  // om originalen ennå ikke er ferdig opplastet.
+  // Funn 1c (telefontest 2026-10-29): laget og originalen lagres som i skjemaet (byggKameraAnnotering,
+  // testet). Vedlegget leses fra ref — callbacken skal være stabil så KameraModal ikke re-rendres.
+  const håndterAnnoterKameraBilde = useCallback(
+    async (vedleggId: string, annotertUri: string, lag?: AnnoteringsLag) => {
+      if (!onErstattVedlegg) return;
+      const filnavn = `annotert_${Date.now()}.jpg`;
+      const lokalSti = await lagreLokaltBilde(annotertUri, filnavn);
+      const v = vedleggRef.current.find((x) => x.id === vedleggId);
+      const { felter, beholdLokalSti } = byggKameraAnnotering(v, lokalSti, lag);
+      onErstattVedlegg(vedleggId, lokalSti, filnavn, felter);
+      const filstorrelse = await hentFilstorrelse(lokalSti);
+      await leggIKoRef.current({
+        sjekklisteId,
+        oppgaveId: oppgaveIdForKo,
+        objektId,
+        vedleggId,
+        lokalSti,
+        filnavn,
+        mimeType: "image/jpeg",
+        filstorrelse,
+        gpsAktivert: false,
+        beholdLokalSti,
+      });
+    },
+    [onErstattVedlegg, sjekklisteId, oppgaveIdForKo, objektId],
+  );
 
   const håndterVelgFil = useCallback(async () => {
     try {
@@ -248,7 +288,7 @@ export function FeltDokumentasjon({
 
   const håndterAnnoter = useCallback(() => {
     if (!valgtVedlegg || valgtVedlegg.type !== "bilde") return;
-    settAnnoteringBilde(valgtVedlegg.url);
+    settAnnoteringBilde(annoteringsApning(valgtVedlegg).kilde);
   }, [valgtVedlegg]);
 
   return (
@@ -363,29 +403,11 @@ export function FeltDokumentasjon({
         >
           {vedlegg.map((v) => {
             const erValgt = v.id === valgtVedleggId;
-            // Rå privat server-URL (uten sig=) 401-er i visning: opplastingen er
-            // ferdig, men server-data med signert URL er ikke refetchet ennå. Vis
-            // lokalfila i mellomtiden — den lever til persistering er bekreftet
-            // (funn C). KUN visning: v.url (det som persisteres) er urørt.
-            const erRaaPrivat =
-              v.url.startsWith("/uploads/privat/") && !v.url.includes("sig=");
-            // Funn d (Kenneth 2026-10-21): i rå-privat-vinduet er lokalfila ofte alt
-            // slettet (slettes så snart opplasting er bekreftet) → lokalBildeSti ga en
-            // DØD sti og «Kunne ikke laste». Har vi den bevarte server-originalen, vis
-            // den i stedet — aldri en død lokal sti når en server-URL finnes. Først når
-            // ingen server-original er bevart (nytatt bilde) brukes lokalfila, som da
-            // fortsatt lever.
-            const raaPrivatReserve = erServerVedleggUrl(v.originalUrl)
-              ? (v.originalUrl!.startsWith("/") ? `${AUTH_CONFIG.apiUrl}${v.originalUrl}` : v.originalUrl!)
-              : lokalBildeSti(v.filnavn);
-            // Lokal fil → vis direkte, server-relativ → full URL
-            const bildeUrl = v.url.startsWith("file://") || v.url.startsWith("/var/")
-              ? v.url
-              : erRaaPrivat
-                ? raaPrivatReserve
-                : v.url.startsWith("/")
-                  ? `${AUTH_CONFIG.apiUrl}${v.url}`
-                  : v.url;
+            // Rå privat server-URL (uten sig=) 401-er i visning til data er refetchet. Kilden
+            // avgjøres i miniatyrKilde (testet): et annotert vedlegg viser alltid det annoterte
+            // bildet (aldri originalen), og AutentisertBilde fornyer en rå URL selv. KUN visning:
+            // v.url (det som persisteres) er urørt.
+            const bildeUrl = miniatyrKilde(v, AUTH_CONFIG.apiUrl, lokalBildeSti(v.filnavn));
             // Opptaks-tid UNDER hvert bilde (Kenneth-vedtak 2026-09-04). Nøkkel-
             // tilstedeværelse skiller som i dokgen: undefined = vedlegg lagd før
             // feltet → vis historisk `opprettet`; null/"" = nytt bilde uten EXIF →
@@ -407,27 +429,31 @@ export function FeltDokumentasjon({
                 }}
               >
                 <View className="w-[72px]">
-                {v.type === "bilde" && feiletVedlegg.has(v.id) ? (
-                  // Req 3: vedlegget finnes, men URL-en er død — vis det tydelig.
-                  <View
-                    className={`h-[72px] w-[72px] items-center justify-center rounded-lg bg-gray-100 px-1 ${
-                      erValgt ? "border-2 border-blue-500" : "border border-gray-300"
-                    }`}
-                  >
-                    <ImageOff size={20} color="#9ca3af" />
-                    <Text className="mt-1 text-center text-[9px] text-gray-500" numberOfLines={2}>
-                      {t("felt.vedleggKunneIkkeLastes")}
-                    </Text>
-                  </View>
-                ) : v.type === "bilde" ? (
+                {v.type === "bilde" ? (
                   <View className="h-[72px] w-[72px]">
                     <AutentisertBilde
+                      fornyKilde="dokument"
                       uri={bildeUrl}
                       className={`h-[72px] w-[72px] rounded-lg ${
                         erValgt ? "border-2 border-blue-500" : ""
                       }`}
                       resizeMode="cover"
-                      onError={() => markerFeilet(v.id)}
+                      // Funn C (req 3): et bilde som ikke lar seg laste vises som «finnes, kunne
+                      // ikke lastes» — men KUN i terminaltilstand (taket nådd, 404, død lokal sti).
+                      // Før satte første onError et klebrig merke pr. vedlegg, så en rå/utløpt URL
+                      // aldri fikk fornye seg (telefontest 2026-10-29). Ny uri nullstiller.
+                      fallback={
+                        <View
+                          className={`h-[72px] w-[72px] items-center justify-center rounded-lg bg-gray-100 px-1 ${
+                            erValgt ? "border-2 border-blue-500" : "border border-gray-300"
+                          }`}
+                        >
+                          <ImageOff size={20} color="#9ca3af" />
+                          <Text className="mt-1 text-center text-[9px] text-gray-500" numberOfLines={2}>
+                            {t("felt.vedleggKunneIkkeLastes")}
+                          </Text>
+                        </View>
+                      }
                     />
                     {/* Løpende bildenummer — refererbart i tekst («se bilde 07») */}
                     {v.bildeNr != null && (
@@ -537,15 +563,26 @@ export function FeltDokumentasjon({
       <Modal visible={!!annoteringBilde} animationType="slide" presentationStyle="fullScreen">
         {annoteringBilde && (
           <BildeAnnotering
-            bildeUri={annoteringBilde}
-            onFerdig={async (annotert) => {
+            // Levende URL (RETUR svart gjenåpning): rett etter opplasting er vedleggets URL rå
+            // (401); når data er hentet på nytt bærer valgtVedlegg den signerte — BildeAnnotering
+            // laster den da. Øyeblikksbildet er reserve hvis vedlegget skulle forsvinne.
+            // Redigerbar annotering (2026-10-28): med lag åpnes ORIGINALEN og laget legges på den;
+            // uten lag det innbrente bildet (annotert før laget fantes). Kilden følger vedlegget
+            // levende, så en rå URL byttes med den signerte når data er hentet på nytt.
+            bildeUri={valgtVedlegg ? annoteringsApning(valgtVedlegg).kilde : annoteringBilde}
+            lag={valgtVedlegg ? annoteringsApning(valgtVedlegg).lag : undefined}
+            fornyKilde="dokument"
+            onFerdig={async (annotert, lag) => {
               settAnnoteringBilde(null);
-              if (valgtVedleggId && onErstattVedlegg) {
+              if (valgtVedlegg && valgtVedleggId && onErstattVedlegg) {
                 // Erstatt original med annotert bilde (unngår duplikat). .jpg — annoteringen
                 // eksporteres nå som JPEG (annoterings-html.ts), ikke PNG (BACKLOG-772).
                 const filnavn = `annotert_${Date.now()}.jpg`;
                 const lokalSti = await lagreLokaltBilde(annotert, filnavn);
-                onErstattVedlegg(valgtVedleggId, lokalSti, filnavn);
+                // Laget + originalen lagres som på web; en lokal original (ikke oppe ennå) holdes i
+                // køen og blir originalUrl når den er lastet opp.
+                const { felter, beholdLokalSti } = byggMobilAnnotering(valgtVedlegg, lokalSti, lag);
+                onErstattVedlegg(valgtVedleggId, lokalSti, filnavn, felter);
                 // Legg i opplastingskø med samme vedlegg-ID
                 const filstorrelse = await hentFilstorrelse(lokalSti);
                 await leggIKoRef.current({
@@ -558,6 +595,7 @@ export function FeltDokumentasjon({
                   mimeType: "image/jpeg",
                   filstorrelse,
                   gpsAktivert: false,
+                  beholdLokalSti,
                 });
                 settValgtVedleggId(null);
               } else {
@@ -577,6 +615,7 @@ export function FeltDokumentasjon({
       <KameraModal
         synlig={visKamera}
         onBilde={håndterKameraBilde}
+        onAnnoterBilde={håndterAnnoterKameraBilde}
         onLukk={() => settVisKamera(false)}
       />
 

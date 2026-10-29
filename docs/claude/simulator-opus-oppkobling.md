@@ -279,4 +279,4 @@ går til cowork; produkt-/designvalg går videre til Kenneth via cowork.
 - [dev-login-agent.md](dev-login-agent.md) — auth-endepunkt, whitelist, secret, testbrukere
 - [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md) — spinner/henge-rotårsak (AAAA/IPv6)
 - [mcp-playwright-simulator-oppsett.md](mcp-playwright-simulator-oppsett.md) — web-verktøy (Kenneths Chrome), ikke simulator
-- [COWORK-KONTROLL-VEILEDER.md](../../COWORK-KONTROLL-VEILEDER.md) — kontroll-rollens arbeidsmåte (cowork-siden)
+- [COWORK-KONTROLL-VEILEDER.md](../arkiv/COWORK-KONTROLL-VEILEDER.md) — kontroll-rollens arbeidsmåte (cowork-siden; 📦 arkivert 2026-10-28, cowork utgikk 30.09)

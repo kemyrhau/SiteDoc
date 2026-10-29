@@ -8,10 +8,13 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { useAuth } from "../providers/AuthProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { klassifiserLagreFeil } from "../utils/lagreFeil";
+import { avvisningsVarsel, klassifiserLagreFeil, type AvvisningsVarsel } from "../utils/lagreFeil";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, bevarOriginalUrl, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
-import type { DokumentRettighet } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
+import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
+import { anvendOpplasting } from "../lib/originalOpplasting";
+import { lagreUtvalg } from "../lib/lagreUtvalg";
+import type { DokumentRettighet, AnnoteringsLag } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -37,6 +40,9 @@ export interface Vedlegg {
   // annoterte URL-en blir utilgjengelig. Settes ÉN gang (web har samme felt). Mangler på
   // vedlegg lagd før funn d, og på vedlegg som aldri er annotert.
   originalUrl?: string;
+  // Annoteringslaget (redigerbar annotering, 2026-10-28) — samme felt og form som web. Mangler på
+  // vedlegg som er annotert før dette (de åpnes innbrent) og på vedlegg som aldri er annotert.
+  annotering?: AnnoteringsLag;
 }
 
 export interface FeltVerdi {
@@ -95,13 +101,14 @@ export interface UseSjekklisteSkjemaResultat {
   sisteKollisjoner: { feltId: string }[];
   avvisKollisjoner: () => void;
   /** Godkjent-låsen avviste en vedlegg-endring permanent (ingen retry); vis ÉN melding. */
-  godkjentLaastVarsel: boolean;
-  avvisGodkjentLaastVarsel: () => void;
+  /** Melding ved permanent avvisning (i18n-nøkkel), eller null. Godkjent-teksten bare på avsluttet dokument. */
+  avvisningVarsel: AvvisningsVarsel | null;
+  lukkAvvisningVarsel: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
-  erstattVedlegg: (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string) => void;
+  erstattVedlegg: (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string, annotering?: AnnoteringsFelter) => void;
   flyttVedlegg: (objektId: string, vedleggId: string, retning: "opp" | "ned") => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
   valideringsfeil: Record<string, string>;
@@ -225,7 +232,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // skal oppdages mot det serveren faktisk hadde da klienten sist var synket.
   const basisRef = useRef<Record<string, FeltVerdi>>({});
   const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
-  const [godkjentLaastVarsel, settGodkjentLaastVarsel] = useState(false);
+  const [avvisningVarsel, settAvvisningVarsel] = useState<AvvisningsVarsel | null>(null);
 
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
@@ -289,6 +296,9 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     : offlineModus
       ? (speil!.dokument as SjekklisteData)
       : undefined;
+  // Status ved avvisningen avgjør meldingen (ORDRE 6); ref så lagreIntern ikke bytter identitet.
+  const statusRef = useRef<string | undefined>(undefined);
+  statusRef.current = sjekkliste?.status;
 
   const alleObjekter = useMemo(
     () => (sjekkliste?.template?.objects ?? []) as RapportObjekt[],
@@ -398,16 +408,19 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // Lytt på opplastingsfullføringer — oppdater vedlegg-URL i minnet
   useEffect(() => {
     const avregistrer = registrerCallback(
-      (dokumentId, dokumentType, _objektId, vedleggId, serverUrl) => {
-        if (dokumentType !== "sjekkliste" || dokumentId !== sjekklisteId) return;
+      (dokumentId, dokumentType, _objektId, vedleggId, serverUrl, opplasting) => {
+        if (dokumentType !== "sjekkliste" || dokumentId !== sjekklisteId) return false;
 
-        // Kanonisk vedlegg-URL-oppdatering (topp-nivå + repeater-rader, begge
-        // radformer). Den gamle hånd-traverseringen her traff ALDRI repeater-
-        // vedlegg i `{ _radId, felter }`-form → «Kunne ikke laste» til man gikk
-        // ut og inn. Se `@sitedoc/shared` repeaterRad.ts.
-        settFeltVerdier((prev) => settVedleggUrlIDokument(prev, vedleggId, serverUrl));
+        // Kanonisk vedlegg-oppdatering (topp-nivå + repeater-rader, begge radformer — se
+        // `@sitedoc/shared` repeaterRad.ts). Én regel for SQLite og skjerm: `anvendOpplasting`
+        // (url, en lokal originalUrl som byttes, eller utflating når originalen er tapt).
+        // Returverdien sier om skjermen tok hendelsen: køen sletter ikke en originals lokalfil
+        // før SQLite eller en montert skjerm har tatt server-URL-en (RETUR M1).
+        const tok = anvendOpplasting(feltVerdierRef.current, vedleggId, serverUrl, opplasting) !== feltVerdierRef.current;
+        settFeltVerdier((prev) => anvendOpplasting(prev, vedleggId, serverUrl, opplasting));
         // Trigger server-synk slik at oppdatert URL lagres i PostgreSQL
         planleggLagringRef.current?.();
+        return tok;
       },
     );
     return avregistrer;
@@ -449,7 +462,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     if (lagrerNaaRef.current) return; // Forhindre concurrent saves
     lagrerNaaRef.current = true;
 
-    const data = feltVerdierRef.current;
+    // Rensede data (ORDRE 5): signerte `/uploads/`-URL-er avvises av serveren for hele feltet.
+    const { data, sendes: utenLokale } = lagreUtvalg(feltVerdierRef.current, basisRef.current);
 
     // 1. Skriv til SQLite umiddelbart (alltid suksess)
     skrivTilSQLite(sjekklisteId, data, false);
@@ -464,11 +478,6 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     if (erPaaNettet) {
       // Dirty-scopet: send KUN felt som avviker fra server-basis + `base` (antatt gammel
       // verdi). Diff på {verdi,kommentar,vedlegg}. Utelat felt med lokale vedlegg.
-      const norm = (fv: FeltVerdi | undefined) =>
-        JSON.stringify({ verdi: fv?.verdi ?? null, kommentar: fv?.kommentar ?? "", vedlegg: fv?.vedlegg ?? [] });
-      const dirty = Object.keys(data).filter((id) => norm(data[id]) !== norm(basisRef.current[id]));
-      const dirtyData = Object.fromEntries(dirty.map((id) => [id, data[id]]));
-      const utenLokale = utelatFeltMedLokaleVedlegg(dirtyData);
       const sendteIder = Object.keys(utenLokale);
 
       if (sendteIder.length === 0) {
@@ -526,7 +535,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           for (const id of sendteIder) basisRef.current[id] = data[id];
           settHarEndringer(false);
           settSynkStatus("synkronisert");
-          settGodkjentLaastVarsel(true);
+          settAvvisningVarsel(avvisningsVarsel(statusRef.current));
         } else {
           // Nett-/transientfeil — data er trygg i SQLite, retry neste online-tick.
           console.warn("[LAGRE] Server-lagring feilet:", feil);
@@ -655,24 +664,16 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   );
 
   const erstattVedlegg = useCallback(
-    (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string) => {
+    (objektId: string, vedleggId: string, nyUrl: string, nyttFilnavn: string, annotering?: AnnoteringsFelter) => {
       settFeltVerdier((prev) => {
         const nåværende = prev[objektId] ?? TOM_FELTVERDI;
         return {
           ...prev,
           [objektId]: {
             ...nåværende,
+            // Ikke-destruktivt (funn d) + lag og original fra annoteringsflaten (2026-10-28).
             vedlegg: nåværende.vedlegg.map((v) =>
-              v.id === vedleggId
-                ? {
-                    ...v,
-                    url: nyUrl,
-                    filnavn: nyttFilnavn,
-                    // Ikke-destruktivt (funn d): bevar den opprinnelige server-URL-en så visningen
-                    // aldri står uten kilde om den annoterte URL-en blir utilgjengelig.
-                    originalUrl: bevarOriginalUrl(v.originalUrl, v.url),
-                  }
-                : v,
+              v.id === vedleggId ? erstattetVedlegg(v, nyUrl, nyttFilnavn, annotering) : v,
             ),
           },
         };
@@ -771,8 +772,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     hentTilfoyelser,
     sisteKollisjoner,
     avvisKollisjoner: () => settSisteKollisjoner([]),
-    godkjentLaastVarsel,
-    avvisGodkjentLaastVarsel: () => settGodkjentLaastVarsel(false),
+    avvisningVarsel,
+    lukkAvvisningVarsel: () => settAvvisningVarsel(null),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

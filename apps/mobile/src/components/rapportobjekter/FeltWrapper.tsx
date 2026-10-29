@@ -1,3 +1,4 @@
+import type { AnnoteringsFelter } from "../../lib/annoteringLagring";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe } from "lucide-react-native";
@@ -24,7 +25,7 @@ interface FeltWrapperProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
-  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string) => void;
+  onErstattVedlegg?: (vedleggId: string, nyUrl: string, nyttFilnavn: string, annotering?: AnnoteringsFelter) => void;
   onFlyttVedlegg?: (vedleggId: string, retning: "opp" | "ned") => void;
   leseModus?: boolean;
   // Godkjent-lås (Kenneth-vedtak 2026-10-21): vedlegg-tilbehøret (annoter/erstatt/slett/last opp)

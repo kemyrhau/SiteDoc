@@ -14,6 +14,7 @@ import {
   SIGNERT_BILDE_MAKS_FORSOK,
   backoffForsokMs,
   erUtloptSignatur,
+  type InvalideringsSti,
 } from "@sitedoc/shared";
 import { AUTH_CONFIG, hentWebUrl } from "../config/auth";
 
@@ -156,4 +157,57 @@ export function bildeRenderTilstand(harKilde: boolean, feilet: boolean): BildeRe
   if (feilet) return "terminal";
   if (!harKilde) return "laster";
   return "vis";
+}
+
+/**
+ * Hvor kommer bildets signerte URL fra? Avgjør HVILKE queries en fornyelse invaliderer
+ * (Hjem-frys 2026-10-29). Før kalte `AutentisertBilde` `utils.invalidate()` uten filter:
+ * ett bilde i fornyelse hentet alle monterte lister på nytt — også Hjems tunge
+ * sjekkliste-/oppgavelister i bakgrunnsfanen — og Hjem fryste mens svarene ble tolket.
+ *
+ *  - `dokument`        → rapportobjekter (felt-vedlegg, info-bilde) i sjekkliste, oppgave
+ *                        (inkl. HMS) og PSI. Kun den åpne skjermens query er montert, så
+ *                        prosedyre-stien uten input treffer bildets eget dokument.
+ *  - `mappeDokument`   → bildeblokker i et mappedokument (`dokument/[id]`).
+ *  - `tilleggVedlegg` / `utleggVedlegg` → dagsseddelens egne signerings-queries.
+ */
+export type FornyKilde = "dokument" | "mappeDokument" | "tilleggVedlegg" | "utleggVedlegg";
+
+const FORNY_STIER: Record<FornyKilde, readonly InvalideringsSti[]> = {
+  dokument: [
+    ["sjekkliste", "hentMedId"],
+    ["oppgave", "hentMedId"],
+    ["psi", "hentMedObjekter"],
+  ],
+  mappeDokument: [["mappe", "hentDokumentBlokker"]],
+  tilleggVedlegg: [["timer", "dagsseddel", "signerTilleggVedlegg"]],
+  utleggVedlegg: [["timer", "dagsseddel", "signerUtleggVedlegg"]],
+};
+
+/** tRPC-stiene en fornyelse fra `kilde` invaliderer. Aldri tom, aldri en tom sti (= «alle»). */
+export function fornyelsesStier(kilde: FornyKilde): readonly InvalideringsSti[] {
+  return FORNY_STIER[kilde];
+}
+
+/**
+ * Invalider kildens stier — én prefiks-nøkkel pr. sti, aldri `invalidateQueries()` uten filter.
+ * tRPC v11-nøkkelen er `[sti[], {input, type}]`, så `[sti]` treffer alle inputs på stien. Brukt av
+ * annoteringseditorens fornyer (ORDRE 3): den invaliderte alt, så tre fornyelsesforsøk hentet
+ * Hjem, innboks og listene på nytt mens editoren ventet.
+ */
+export function invaliderFornyelse(
+  klient: { invalidateQueries: (filter: { queryKey: unknown[] }) => unknown },
+  kilde: FornyKilde,
+): void {
+  const stier = fornyelsesStier(kilde);
+  console.warn(fornyelseLogg("editor", stier));
+  for (const sti of stier) void klient.invalidateQueries({ queryKey: [[...sti]] });
+}
+
+/**
+ * Logglinje når en fornyer invaliderer (ORDRE 5, 2026-10-29): én `console.warn` også utenfor
+ * `__DEV__`, så telefonloggen viser hva som hentes på nytt. Bare stiene, aldri URL-er.
+ */
+export function fornyelseLogg(hvem: "editor" | "bilde", stier: readonly InvalideringsSti[]): string {
+  return `[annotering] fornyer (${hvem}) invaliderer ${stier.map((s) => s.join(".")).join(", ")}`;
 }
