@@ -109,3 +109,11 @@ describe("Ende-til-ende: DokumentHandlingsmeny-klikk → StatusBadge-kvittering"
     expect(screen.queryByText("Besvart ✓")).toBeNull();
   });
 });
+
+describe("«+ kommentar»-knappen (telefonfunn 2026-10-29: «+ + kommentar»)", () => {
+  it("🔴 ett pluss: plusset står i teksten, knappen har ikke et ikon i tillegg", () => {
+    render(<I18nextProvider i18n={i18n}><Harness status="responded" minRolle="godkjenner" /></I18nextProvider>);
+    const knapp = screen.getByText("+ kommentar").closest("button")!;
+    expect(knapp.querySelector("svg")).toBeNull();
+  });
+});
