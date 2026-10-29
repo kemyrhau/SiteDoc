@@ -188,3 +188,16 @@ const FORNY_STIER: Record<FornyKilde, readonly InvalideringsSti[]> = {
 export function fornyelsesStier(kilde: FornyKilde): readonly InvalideringsSti[] {
   return FORNY_STIER[kilde];
 }
+
+/**
+ * Invalider kildens stier — én prefiks-nøkkel pr. sti, aldri `invalidateQueries()` uten filter.
+ * tRPC v11-nøkkelen er `[sti[], {input, type}]`, så `[sti]` treffer alle inputs på stien. Brukt av
+ * annoteringseditorens fornyer (ORDRE 3): den invaliderte alt, så tre fornyelsesforsøk hentet
+ * Hjem, innboks og listene på nytt mens editoren ventet.
+ */
+export function invaliderFornyelse(
+  klient: { invalidateQueries: (filter: { queryKey: unknown[] }) => unknown },
+  kilde: FornyKilde,
+): void {
+  for (const sti of fornyelsesStier(kilde)) void klient.invalidateQueries({ queryKey: [[...sti]] });
+}

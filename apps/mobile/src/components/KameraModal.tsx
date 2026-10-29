@@ -442,6 +442,7 @@ export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraM
               // Med lag: originalen + laget (redigerbart, som i skjemaet). Uten: bildet slik det er.
               bildeUri={annoterMål.lag ? annoterMål.originalUri : annoterMål.uri}
               lag={annoterMål.lag}
+              fornyKilde="dokument"
               onFerdig={håndterAnnoterFerdig}
               onAvbryt={() => settAnnoterMål(null)}
             />
