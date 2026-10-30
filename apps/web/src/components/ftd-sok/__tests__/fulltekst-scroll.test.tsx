@@ -23,7 +23,15 @@ vi.mock("@/lib/trpc", () => ({
 }));
 vi.mock("@/components/SignertLenke", () => ({ useSignertLenkeApner: () => () => undefined }));
 
-import { Fulltekst, MARK_KLASSE, MARK_VALGT_KLASSE, RULLE_MARG, VALGT_AVSNITT_KLASSE } from "../fulltekst";
+import {
+  Fulltekst,
+  MARK_KLASSE,
+  MARK_VALGT_KLASSE,
+  RULLE_MARG,
+  VALGT_AVSNITT_BLOKK_KLASSE,
+  VALGT_AVSNITT_KLASSE,
+  velgAvsnittsklasse,
+} from "../fulltekst";
 import { TreffListe } from "../treff-liste";
 
 beforeAll(async () => {
@@ -218,8 +226,11 @@ describe("Hel-avsnitt-markering — valgt chunk får bakgrunn + strek i venstre 
     },
     { id: "b", chunkIndex: 1037, pageNumber: null, sectionTitle: null, chunkText: "Protokoller over egenkontroller og innregulering.\n" },
   ];
-  const klasser = VALGT_AVSNITT_KLASSE.split(" ");
-  const harAvsnittsklasse = (el: Element | null) => !!el && klasser.every((k) => el.classList.contains(k));
+  const harKlassene = (el: Element | null, klasse: string) =>
+    !!el && klasse.split(" ").every((k) => el.classList.contains(k));
+  // Gab-chunker slutter alltid med linjeskift → blokk-ramme. PDF-chunk kuttet midt i setning → inline.
+  const harAvsnittsklasse = (el: Element | null) =>
+    harKlassene(el, VALGT_AVSNITT_BLOKK_KLASSE) || harKlassene(el, VALGT_AVSNITT_KLASSE);
   const markerte = (container: HTMLElement) =>
     Array.from(container.querySelectorAll("[data-chunk]"))
       .filter((el) => harAvsnittsklasse(el))
@@ -237,6 +248,37 @@ describe("Hel-avsnitt-markering — valgt chunk får bakgrunn + strek i venstre 
     expect(container.querySelector('[data-semantisk="true"]')).toBeNull();
   });
 
+  /**
+   * Blokk-ramme (relay 30.10, Kenneth «Ja, 1 og 2»): med inline + `box-decoration-clone` ble strek og bakgrunn
+   * tegnet pr. linjefragment (26 striper for chunk 1036, løse streker på tomme linjer — Kontrollør M1).
+   * Et helt avsnitt (chunk-tekst som slutter med `\n`) får nå ÉN ramme som `block`; det avsluttende
+   * linjeskiftet tas ut så rammen ikke får en tom linje nederst.
+   * Rød før: `VALGT_AVSNITT_BLOKK_KLASSE`/`velgAvsnittsklasse` fantes ikke, gab-chunken fikk inline-klassen.
+   */
+  it("gab-chunk (slutter med linjeskift): ÉN blokk-ramme, ikke clone pr. linjefragment; linjeskiftet til slutt tas ut", () => {
+    chunks = GAB_1036;
+    spionerScroll();
+    const { container } = render(
+      <Fulltekst prosjektId="p" documentId="d" søkeord="dagmulkt" valgtChunkIndex={1036} semantiskSetning={null} />,
+    );
+    const valgt = container.querySelector('[data-chunk="1036"]')!;
+    expect(harKlassene(valgt, VALGT_AVSNITT_BLOKK_KLASSE)).toBe(true);
+    expect(valgt.classList.contains("box-decoration-clone")).toBe(false);
+    expect(valgt.textContent).toBe(GAB_1036[0]!.chunkText.replace(/\n$/, ""));
+    // Naboen beholder teksten sin uendret (linjeskiftet står), så flyten etter rammen er som før
+    expect(container.querySelector('[data-chunk="1037"]')!.textContent).toBe(GAB_1036[1]!.chunkText);
+    expect(VALGT_AVSNITT_BLOKK_KLASSE).toMatch(/\bblock\b/);
+    expect(VALGT_AVSNITT_BLOKK_KLASSE).toMatch(/border-l-\[3px\] border-sitedoc-secondary/);
+    expect(VALGT_AVSNITT_BLOKK_KLASSE).toMatch(/rounded-r-md/);
+    expect(VALGT_AVSNITT_BLOKK_KLASSE).not.toMatch(/clone|yellow|amber|purple/);
+  });
+
+  it("velgAvsnittsklasse: linjeskift til slutt → blokk, ellers inline-fallback", () => {
+    expect(velgAvsnittsklasse("Hele avsnittet.\n")).toBe(VALGT_AVSNITT_BLOKK_KLASSE);
+    expect(velgAvsnittsklasse("Kontraktssummen er fast og ")).toBe(VALGT_AVSNITT_KLASSE);
+    expect(velgAvsnittsklasse("Siste setning uten linjeskift.")).toBe(VALGT_AVSNITT_KLASSE);
+  });
+
   it("bare ett avsnitt markert om gangen; markeringen følger valgtChunkIndex", () => {
     chunks = GAB_1036;
     spionerScroll();
@@ -250,7 +292,7 @@ describe("Hel-avsnitt-markering — valgt chunk får bakgrunn + strek i venstre 
     expect(markerte(container)).toEqual([]);
   });
 
-  it("ordtreff: valgt chunk har avsnittsklasse OG sterk <mark>; chunken er fortsatt inline (flyten i whitespace-pre-wrap brytes ikke)", () => {
+  it("ordtreff i PDF-chunk kuttet midt i setning: avsnittsklasse OG sterk <mark>; inline-fallback (flyten i whitespace-pre-wrap brytes ikke)", () => {
     chunks = PDF_SIDE3;
     spionerScroll();
     const { container } = render(
@@ -258,11 +300,13 @@ describe("Hel-avsnitt-markering — valgt chunk får bakgrunn + strek i venstre 
     );
     const valgt = container.querySelector('[data-chunk="5"]')!;
     expect(valgt.tagName).toBe("SPAN");
-    expect(harAvsnittsklasse(valgt)).toBe(true);
+    expect(harKlassene(valgt, VALGT_AVSNITT_KLASSE)).toBe(true);
+    expect(harKlassene(valgt, VALGT_AVSNITT_BLOKK_KLASSE)).toBe(false);
+    expect(valgt.textContent).toBe(PDF_SIDE3[1]!.chunkText);
     expect(valgt.querySelector("mark")?.className).toBe(MARK_VALGT_KLASSE);
     expect(harAvsnittsklasse(container.querySelector('[data-chunk="4"]'))).toBe(false);
     // Inline + clone: bakgrunn og venstre strek på hvert linjefragment, ikke `block` (ville gitt linjeskift
-    // ved hver chunk-grense). Palettfarge (sitedoc-secondary), ikke gul/amber (ordtreff) eller lilla (S5).
+    // ved chunk-grensen midt i setningen). Palettfarge (sitedoc-secondary), ikke gul/amber (ordtreff) eller lilla (S5).
     expect(VALGT_AVSNITT_KLASSE).toContain("box-decoration-clone");
     expect(VALGT_AVSNITT_KLASSE).not.toMatch(/\bblock\b|yellow|amber|purple/);
   });

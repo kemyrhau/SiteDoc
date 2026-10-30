@@ -60,24 +60,51 @@ export function rensGabSegment(seg: string): string | null {
     .replace(/[{}]/g, "")
     .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "") // kontrollkoder, men behold \t og \n fra \tab/\par
     .replace(/[^\x20-\x7eæøåÆØÅéèêëàáâãäöüïîìíñçÉÈÊËÀÁÂÃÄÖÜÏÎÌÍÑÇ\n\t]/g, "")
+    // Rens 2 (relay 30.10, Kenneth-hjemmel «Ja, 1 og 2»), målt i «Storgata nord.gab» (1037 chunker):
+    // «03Q» 1134 ganger (330 linjer alene, resten linjeslutt: «tegninger. 03Q», «Teknisk rom03Q»,
+    // «Tilstandsklasse 203Q» — tallet skal stå), «From CodeItem» 256 hele linjer, mal-plassholdere
+    // «[[DATO]]»/«[[TOTAL_SUM]]», enkeltstående «[»/«]», og opptil 11 linjeskift på rad.
+    .replace(/^[ \t]*(?:03Q|From CodeItem|\[|\]|\[\[[A-ZÆØÅ0-9_]+\]\])[ \t]*(?:\n|$)/gm, "") // hele linjer
+    .replace(/\[\[[A-ZÆØÅ0-9_]+\]\]/g, "") // plassholdere inne i linjer (kun STORE bokstaver — «[[» i binærsøppel røres ikke)
+    .replace(/[ \t]*03Q[ \t]*$/gm, "") // «03Q» ved linjeslutt; «03Q» midt i linje («03Qq», «Kode 03QA») røres ikke
+    .replace(/[ \t]+$/gm, "") // etterslep pr. linje, så «\n \n» teller som tomme linjer
+    .replace(/\n{3,}/g, "\n\n") // ≥3 linjeskift → ett tomt avsnitt
     .trim();
   if (ren.length < 4 || !/[a-zA-ZæøåÆØÅ]{2,}/.test(ren)) return null;
   return ren;
+}
+
+/**
+ * Mal-/forsidesegment: rått segment med mal-plassholder («[[DATO]]», «[[TOTAL_SUM]]» …). Slike
+ * segmenter (forsiden «DEL III - Mengdebeskrivelse / Storgata nord / Tromsø kommune», anbudsskjemaet)
+ * skal stå som egen chunk, ikke limes inn i siste post (målt: chunk 1036 i Storgata nord).
+ * Antakelse: forsidelinjene ligger i samme null-skilte segment som plassholderen (segmentgrensene i
+ * Storgata-fila er ikke målt lokalt — fila finnes bare på test).
+ */
+export function erMalSegment(seg: string): boolean {
+  return /\[\[[A-ZÆØÅ0-9_]+\]\]/.test(seg);
 }
 
 /** Bygger søke-chunker av en GAB-fil (latin1-streng): rensede segmenter samlet opp til `maksChunk` tegn. */
 export function byggGabChunker(tekst: string, maksChunk = 1500): string[] {
   const chunker: string[] = [];
   let gjeldende = "";
+  const flush = () => {
+    if (gjeldende) chunker.push(gjeldende.slice(0, MAKS_LAGRET));
+    gjeldende = "";
+  };
   for (const seg of tekst.split(/\x00+/)) {
     const ren = rensGabSegment(seg);
     if (!ren) continue;
-    gjeldende += ren + "\n";
-    if (gjeldende.length > maksChunk) {
-      chunker.push(gjeldende.slice(0, MAKS_LAGRET));
-      gjeldende = "";
+    if (erMalSegment(seg)) {
+      // Egen chunk for malen: flush posten før, malen alene, start ny etter.
+      flush();
+      chunker.push((ren + "\n").slice(0, MAKS_LAGRET));
+      continue;
     }
+    gjeldende += ren + "\n";
+    if (gjeldende.length > maksChunk) flush();
   }
-  if (gjeldende) chunker.push(gjeldende.slice(0, MAKS_LAGRET));
+  flush();
   return chunker;
 }
