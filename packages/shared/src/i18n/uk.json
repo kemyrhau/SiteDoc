@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "текст",
   "annotering.verktoy.flytt": "рухатися",
   "annotering.angre": "Скасувати",
+  "annotering.slett": "Видалити",
+  "annotering.slettHjelp": "Знімає виділення із зображення. Ніхто інший не побачить зміни, доки ви не торкнетеся «Готово». Скасувати повертає його назад.",
   "annotering.kanRedigeres": "Анотований — редагований",
   "felt.lasterOppFil": "Завантаження файлу...",
   "felt.behandlerBilde": "Обробка фотографії {{ferdig}} із {{total}}...",

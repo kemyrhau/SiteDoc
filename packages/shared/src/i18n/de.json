@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Text",
   "annotering.verktoy.flytt": "Bewegen",
   "annotering.angre": "Rückgängig machen",
+  "annotering.slett": "Löschen",
+  "annotering.slettHjelp": "Entfernt die Auswahl aus dem Bild. Niemand sonst sieht die Änderung, bis Sie auf „Fertig“ tippen. Mit „Rückgängig“ wird es zurückgesetzt.",
   "annotering.kanRedigeres": "Kommentiert – editierbar",
   "felt.lasterOppFil": "Datei wird hochgeladen...",
   "felt.behandlerBilde": "Foto {{ferdig}} von {{total}} wird verarbeitet...",

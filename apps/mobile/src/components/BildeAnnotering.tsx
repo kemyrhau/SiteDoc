@@ -11,6 +11,7 @@ import {
   Pencil,
   Type,
   Undo2,
+  Trash2,
 } from "lucide-react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
@@ -89,6 +90,8 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt, fornyKilde 
   const startVerktoy: Verktoy = lag ? "select" : "arrow";
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>(startVerktoy);
   const [bildeStatus, settBildeStatus] = useState<BildeStatus>("laster");
+  // Antall valgte objekter i motoren (`valg`-meldingen). Søppelbøtta vises bare når > 0.
+  const [antallValgt, settAntallValgt] = useState(0);
   const erKlar = bildeStatus === "klar";
   const webViewKlarRef = useRef(false);
   const queryClient = useQueryClient();
@@ -216,6 +219,8 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt, fornyKilde 
           await lastBilde(bildeUri);
         } else if (data.type === "bildeLastet") {
           settBildeStatus("klar");
+        } else if (data.type === "valg") {
+          settAntallValgt(typeof data.antall === "number" ? data.antall : 0);
         } else if (data.type === "bildeFeil") {
           // Bildet lot seg ikke dekode i WebView-en — aldri et stille svart lerret.
           settBildeStatus("feil");
@@ -313,6 +318,20 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt, fornyKilde 
               {bildeStatus === "feil" ? t("annotering.bildeFeil") : t("annotering.lasterBilde")}
             </Text>
           </View>
+        )}
+        {/* Slett (ORDRE 8, Kenneth 30.10): rund rød søppelbøtte nede til høyre på bildet, bare
+            når noe er valgt. Sletter alle valgte; Angre legger dem tilbake. Ingen modal. */}
+        {antallValgt > 0 && bildeStatus === "klar" && (
+          <Pressable
+            onPress={() => sendMelding({ type: "slettValgt" })}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("annotering.slett")}
+            accessibilityHint={t("annotering.slettHjelp")}
+            className="absolute bottom-4 right-4 h-12 w-12 items-center justify-center rounded-full bg-red-600"
+          >
+            <Trash2 size={22} color="#ffffff" />
+          </Pressable>
         )}
       </View>
 

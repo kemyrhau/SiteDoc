@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Teksts",
   "annotering.verktoy.flytt": "Pārvietot",
   "annotering.angre": "Atsaukt",
+  "annotering.slett": "Dzēst",
+  "annotering.slettHjelp": "Noņem attēla atlasi. Neviens cits neredzēs izmaiņas, kamēr nepieskarsities Gatavs. Atsaukt to ievieto atpakaļ.",
   "annotering.kanRedigeres": "Anotēts — rediģējams",
   "felt.lasterOppFil": "Notiek faila augšupielāde...",
   "felt.behandlerBilde": "Notiek fotoattēla apstrāde {{ferdig}} no {{total}}...",

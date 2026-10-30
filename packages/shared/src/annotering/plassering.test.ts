@@ -15,6 +15,7 @@ import {
   formTypeFraBarn,
   objektTrykkHandling,
   angreSisteHandling,
+  slettValgte,
   FORM_TREFF_TOLERANSE,
   TEKST_TAP_TERSKEL,
   TRYKK_TERSKEL_TOUCH,
@@ -428,5 +429,60 @@ describe("erGestBeveget — touch har egen trykk-terskel (RETUR velg-alle, Kenne
     expect(erTouchHendelse({ type: "mousedown" })).toBe(false);
     expect(erTouchHendelse({ type: "pointerdown", pointerType: "mouse" })).toBe(false);
     expect(erTouchHendelse(null)).toBe(false);
+  });
+});
+
+describe("🔴 slettValgte + angre — Slett fjerner det valgte, én Angre legger alt tilbake (ORDRE 8)", () => {
+  type O = { id: string };
+  const a: O = { id: "a" };
+  const b: O = { id: "b" };
+  const c: O = { id: "c" };
+  const d: O = { id: "d" };
+
+  it("ett valgt → fjernes, og handlingen husker plassen", () => {
+    const r = slettValgte([a, b, c], [b]);
+    expect(r.objekter).toEqual([a, c]);
+    expect(r.handling).toEqual({ type: "fjernet", elementer: [{ obj: b, indeks: 1 }] });
+  });
+
+  it("slett ett → angre → tilbake på samme indeks", () => {
+    const r = slettValgte([a, b, c], [b]);
+    const angret = angreSisteHandling<O, never>([r.handling!], r.objekter);
+    expect(angret.objekter).toEqual([a, b, c]);
+    expect(angret.effekt).toEqual({ type: "gjeninnsett", elementer: [{ obj: b, indeks: 1 }] });
+    expect(angret.stakk).toEqual([]);
+  });
+
+  it("flervalg med hull (valgt i vilkårlig rekkefølge) → én angre gir original rekkefølge", () => {
+    const r = slettValgte([a, b, c, d], [d, b]);
+    expect(r.objekter).toEqual([a, c]);
+    expect(r.handling!.elementer.map((e) => e.indeks)).toEqual([1, 3]);
+    const angret = angreSisteHandling<O, never>([r.handling!], r.objekter);
+    expect(angret.objekter).toEqual([a, b, c, d]);
+  });
+
+  it("slett → tegn ny → angre fjerner den nye først, neste angre legger det slettede tilbake", () => {
+    const r = slettValgte([a, b], [a]);
+    const ny: O = { id: "ny" };
+    const stakk: AngreHandling<O, never>[] = [r.handling!, { type: "lagt-til", obj: ny }];
+    const første = angreSisteHandling(stakk, [...r.objekter, ny]);
+    expect(første.objekter).toEqual([b]);
+    const andre = angreSisteHandling(første.stakk, første.objekter);
+    expect(andre.objekter).toEqual([a, b]);
+  });
+
+  it("tomt valg, eller valgte som ikke finnes → ingen handling, lista uendret", () => {
+    expect(slettValgte([a, b], [])).toEqual({ objekter: [a, b], handling: null });
+    expect(slettValgte([a, b], [c])).toEqual({ objekter: [a, b], handling: null });
+  });
+
+  it("angre av fjernet hoppes over når objektene alt er tilbake", () => {
+    const stakk: AngreHandling<O, never>[] = [
+      { type: "lagt-til", obj: c },
+      { type: "fjernet", elementer: [{ obj: a, indeks: 0 }] },
+    ];
+    const r = angreSisteHandling(stakk, [a, b, c]);
+    expect(r.effekt).toEqual({ type: "fjern", obj: c });
+    expect(r.objekter).toEqual([a, b]);
   });
 });

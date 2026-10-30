@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Text",
   "annotering.verktoy.flytt": "Pohyb",
   "annotering.angre": "Vrátit zpět",
+  "annotering.slett": "Vymazat",
+  "annotering.slettHjelp": "Odebere výběr z obrázku. Nikdo jiný změnu neuvidí, dokud neklepnete na Hotovo. Undo to vrátí.",
   "annotering.kanRedigeres": "Anotované – upravitelné",
   "felt.lasterOppFil": "Nahrávání souboru...",
   "felt.behandlerBilde": "Zpracovávání fotografie {{ferdig}} z {{total}}...",
