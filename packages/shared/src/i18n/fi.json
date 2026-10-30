@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Teksti",
   "annotering.verktoy.flytt": "Liikkua",
   "annotering.angre": "Kumoa",
+  "annotering.slett": "Poistaa",
+  "annotering.slettHjelp": "Poistaa valinnan kuvasta. Kukaan muu ei näe muutosta, ennen kuin napautat Valmis. Kumoa palauttaa sen.",
   "annotering.kanRedigeres": "Annotoitu – muokattavissa",
   "felt.lasterOppFil": "Ladataan tiedostoa...",
   "felt.behandlerBilde": "Käsitellään kuvaa {{ferdig}}/{{total}}...",

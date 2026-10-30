@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Tekst",
   "annotering.verktoy.flytt": "Liiguta",
   "annotering.angre": "Võta tagasi",
+  "annotering.slett": "Kustuta",
+  "annotering.slettHjelp": "Eemaldab pildilt valiku. Keegi teine ​​ei näe muudatust enne, kui puudutate valikut Valmis. Undo paneb selle tagasi.",
   "annotering.kanRedigeres": "Annoteeritud – muudetav",
   "felt.lasterOppFil": "Faili üleslaadimine...",
   "felt.behandlerBilde": "Foto {{ferdig}} töötlemine {{total}}-st...",

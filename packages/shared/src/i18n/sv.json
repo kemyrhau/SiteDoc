@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Text",
   "annotering.verktoy.flytt": "Flytta",
   "annotering.angre": "Ångra",
+  "annotering.slett": "Radera",
+  "annotering.slettHjelp": "Tar bort markeringen från bilden. Ingen annan ser ändringen förrän du trycker på Klar. Ångra sätter tillbaka den.",
   "annotering.kanRedigeres": "Kommenterad – redigerbar",
   "felt.lasterOppFil": "Laddar upp fil...",
   "felt.behandlerBilde": "Bearbetar foto {{ferdig}} av {{total}}...",

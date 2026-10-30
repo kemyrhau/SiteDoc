@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Text",
   "annotering.verktoy.flytt": "Mişcare",
   "annotering.angre": "Anula",
+  "annotering.slett": "Şterge",
+  "annotering.slettHjelp": "Elimină selecția din imagine. Nimeni altcineva nu vede modificarea până când atingeți Terminat. Undo îl pune înapoi.",
   "annotering.kanRedigeres": "Adnotat — editabil",
   "felt.lasterOppFil": "Se încarcă fișierul...",
   "felt.behandlerBilde": "Se procesează fotografia {{ferdig}} din {{total}}...",

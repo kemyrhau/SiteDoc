@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Teksti",
   "annotering.verktoy.flytt": "Lëvizni",
   "annotering.angre": "Zhbër",
+  "annotering.slett": "Fshije",
+  "annotering.slettHjelp": "Heq përzgjedhjen nga fotografia. Askush tjetër nuk e sheh ndryshimin derisa të prekni \"U krye\". Zhbëj e kthen atë.",
   "annotering.kanRedigeres": "Shënim - i modifikueshëm",
   "felt.lasterOppFil": "Skedari po ngarkohet...",
   "felt.behandlerBilde": "Po përpunohet fotografia {{ferdig}} nga {{total}}...",

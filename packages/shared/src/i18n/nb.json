@@ -3398,6 +3398,8 @@
   "annotering.verktoy.tekst": "Tekst",
   "annotering.verktoy.flytt": "Flytt",
   "annotering.angre": "Angre",
+  "annotering.slett": "Slett",
+  "annotering.slettHjelp": "Fjerner det valgte fra bildet. Ingen andre ser endringen før du trykker Ferdig. Angre legger det tilbake.",
   "annotering.kanRedigeres": "Annotert — kan redigeres",
   "felt.lasterOppFil": "Laster opp fil...",
   "felt.behandlerBilde": "Behandler bilde {{ferdig}} av {{total}}...",
