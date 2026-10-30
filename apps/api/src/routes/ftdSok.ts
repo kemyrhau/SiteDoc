@@ -5,7 +5,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { mappeKlausulSql, byggMappeTilgangsFilter } from "../services/mappe-filter";
-import { HEADLINE_OPTS } from "../services/ai-sok-service";
+import { HEADLINE_OPTS, maksPrDokFor } from "../services/ai-sok-service";
 
 export interface SokTreff {
   id: string;
@@ -24,6 +24,8 @@ export interface SokTreff {
   utdrag: string | null;
   /** Søkemetode — fulltekst gir alltid "tekst". */
   metode: "tekst";
+  /** SØK-2: antall treff-chunks i dokumentet totalt (før taket pr. dokument). */
+  antallIDok?: number;
 }
 
 // Sentinel-markørene og headline-oppsettet deles med AI-søket (samme utsnitt i begge moduser, S2).
@@ -60,11 +62,17 @@ export const ftdSokRouter = router({
 
       // Flere treff pr. dokument (opptil MAKS_PR_DOK), så UI kan gruppere dem under
       // dokumentet. ts_headline gir et utdrag med søkeord uthevet via sentinel-markører.
+      // SØK-2: `antallIDok` = alle treff-chunks i dokumentet (COUNT OVER, før rn-taket) så UI kan vise
+      // «Vis N flere». Ett dokument i filteret = «vis flere i dette dokumentet» → ingen tak pr. dok.
+      const maksPrDok = maksPrDokFor(input.dokumentIder);
+      const rnKlausul = Number.isFinite(maksPrDok)
+        ? Prisma.sql`WHERE t.rn <= ${maksPrDok}`
+        : Prisma.empty;
       type RåTreff = Omit<SokTreff, "metode">;
       let rader = await ctx.prisma.$queryRaw<RåTreff[]>`
         SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
                t."sectionTitle", t."nsCode", t.filename, t."fileUrl", t."docType",
-               t."folderId", t.rank, t.utdrag
+               t."folderId", t.rank, t.utdrag, t."antallIDok"
         FROM (
           SELECT
             c.id,
@@ -83,7 +91,8 @@ export const ftdSokRouter = router({
             ROW_NUMBER() OVER (
               PARTITION BY c.document_id
               ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) DESC
-            ) AS rn
+            ) AS rn,
+            COUNT(*) OVER (PARTITION BY c.document_id)::int AS "antallIDok"
           FROM ftd_document_chunks c
           JOIN ftd_documents d ON d.id = c.document_id
           WHERE d.project_id = ${input.projectId}
@@ -93,7 +102,7 @@ export const ftdSokRouter = router({
             ${dokKlausul}
             ${ekskluderKlausul}
         ) t
-        WHERE t.rn <= 5
+        ${rnKlausul}
         ORDER BY t.rank DESC
         LIMIT ${input.limit}
       `;
@@ -107,7 +116,7 @@ export const ftdSokRouter = router({
         rader = await ctx.prisma.$queryRaw<RåTreff[]>`
           SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
                  t."sectionTitle", t."nsCode", t.filename, t."fileUrl", t."docType",
-                 t."folderId", t.rank, t.utdrag
+                 t."folderId", t.rank, t.utdrag, t."antallIDok"
           FROM (
             SELECT
               c.id,
@@ -128,7 +137,8 @@ export const ftdSokRouter = router({
                 PARTITION BY c.document_id
                 ORDER BY (length(lower(c.chunk_text)) - length(replace(lower(c.chunk_text), ${qLower}, ''))) DESC,
                          c.chunk_index ASC
-              ) AS rn
+              ) AS rn,
+              COUNT(*) OVER (PARTITION BY c.document_id)::int AS "antallIDok"
             FROM ftd_document_chunks c
             JOIN ftd_documents d ON d.id = c.document_id
             WHERE d.project_id = ${input.projectId}
@@ -138,7 +148,7 @@ export const ftdSokRouter = router({
               ${dokKlausul}
               ${ekskluderKlausul}
           ) t
-          WHERE t.rn <= 5
+          ${rnKlausul}
           ORDER BY t.rank DESC, t.filename ASC, t."chunkIndex" ASC, t.id ASC
           LIMIT ${input.limit}
         `;
