@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { FileText, ExternalLink, Brain, BookOpen, Layers } from "lucide-react";
+import { FileText, ExternalLink, Brain, BookOpen, Layers, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSignertLenkeApner } from "@/components/SignertLenke";
 import { byggUtsnitt, posisjonsEtikett, SEMANTISK_KLASSE, type UtsnittDel } from "./utsnitt";
@@ -25,8 +25,13 @@ interface Treff {
   cosineSim?: number;
   reRankScore?: number;
   rank?: number;
+  /** SØK-2: antall treff-chunks i dokumentet totalt (server). Vist > tak → «Vis N flere». */
+  antallIDok?: number;
   [key: string]: unknown;
 }
+
+/** SØK-2: porsjon pr. «Vis N flere»-klikk; gjentatte klikk til `antallIDok` er nådd. */
+export const VIS_FLERE_PORSJON = 20;
 
 interface TreffListeProps {
   treff: Treff[];
@@ -35,6 +40,10 @@ interface TreffListeProps {
   søkeord: string;
   /** Vis score pr. metode (dev-modus, ?debug i URL) — F.2 presisjonsanalyse. */
   visScore?: boolean;
+  /** SØK-2 «Vis N flere»: hent neste porsjon for dokumentet (`vist` = rader som alt vises). */
+  onVisFlere?: (documentId: string, vist: number) => void;
+  /** documentId som henter flere nå (knappen deaktiveres). */
+  lasterFlereFor?: string | null;
 }
 
 /** Dev-modus: kompakt score-linje pr. treff. */
@@ -117,7 +126,7 @@ function MetodeBadge({ metode }: { metode?: Treff["metode"] }) {
   );
 }
 
-export function TreffListe({ treff, onVelgTreff, valgtId, søkeord, visScore }: TreffListeProps) {
+export function TreffListe({ treff, onVelgTreff, valgtId, søkeord, visScore, onVisFlere, lasterFlereFor }: TreffListeProps) {
   const { t } = useTranslation();
   // Hook FØR den tidlige returnen under (Rules of Hooks).
   const apneLenke = useSignertLenkeApner(treff.map((tr) => tr.fileUrl));
@@ -151,16 +160,28 @@ export function TreffListe({ treff, onVelgTreff, valgtId, søkeord, visScore }: 
       <div className="text-xs text-gray-500">
         {t("ftdSok.antallTreffIDok", { treff: treff.length, dok: grupper.length })}
       </div>
-      {grupper.map((g) => (
+      {grupper.map((g) => {
+        // SØK-2 Treffliste A: serveren gir inntil 5 rader pr. dokument i første søk og `antallIDok` = totalt.
+        // «Vis N flere» henter neste porsjon (VIS_FLERE_PORSJON) til alt vises; knappen forsvinner da.
+        const vist = g.treff.length;
+        const antallIDok = Math.max(vist, ...g.treff.map((tr) => tr.antallIDok ?? 0));
+        const flere = antallIDok - vist;
+        return (
         <div key={g.documentId} className="rounded border">
           {/* Dokument-hode */}
           <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-2">
             <FileText className="h-4 w-4 shrink-0 text-gray-400" />
             <span className="flex-1 truncate text-sm font-medium" title={g.filename}>{g.filename}</span>
-            {g.treff.length > 1 && (
+            {flere > 0 ? (
               <span className="text-[11px] text-gray-400">
-                {t("ftdSok.antallTreffDok", { antall: g.treff.length })}
+                {t("ftdSok.antallTreffAv", { vist, antall: antallIDok })}
               </span>
+            ) : (
+              vist > 1 && (
+                <span className="text-[11px] text-gray-400">
+                  {t("ftdSok.antallTreffDok", { antall: vist })}
+                </span>
+              )
             )}
             <button
               onClick={() => åpneOriginal(g.treff[0]!)}
@@ -195,9 +216,22 @@ export function TreffListe({ treff, onVelgTreff, valgtId, søkeord, visScore }: 
                 {visScore && <ScoreLinje tr={tr} />}
               </button>
             ))}
+            {flere > 0 && onVisFlere && (
+              <button
+                type="button"
+                data-vis-flere={g.documentId}
+                disabled={lasterFlereFor === g.documentId}
+                onClick={() => onVisFlere(g.documentId, vist)}
+                className="flex w-full items-center justify-center gap-1 px-3 py-1.5 text-xs text-sitedoc-primary hover:bg-gray-50 disabled:opacity-50"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+                {t("ftdSok.visFlere", { antall: Math.min(VIS_FLERE_PORSJON, flere) })}
+              </button>
+            )}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

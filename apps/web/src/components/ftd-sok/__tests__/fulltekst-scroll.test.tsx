@@ -25,6 +25,7 @@ vi.mock("@/components/SignertLenke", () => ({ useSignertLenkeApner: () => () => 
 
 import {
   Fulltekst,
+  finnOverlapp,
   MARK_KLASSE,
   MARK_VALGT_KLASSE,
   RULLE_MARG,
@@ -339,5 +340,74 @@ describe("T4 i trefflista — side XOR avsnitt", () => {
     expect(rader[0]!.textContent).not.toContain("avsnitt");
     expect(rader[1]!.textContent).toContain("avsnitt 4");
     expect(rader[1]!.textContent).not.toMatch(/side \d/);
+  });
+});
+
+/**
+ * SØK-2 M3 (dokumentsok-visning-spec § 4): valgt chunk vises HEL — overlappet (chunkerens `OVERLAPP = 100`)
+ * kappes fra forgjengerens hale i stedet for fra valgt chunks start, så S5-setningen i overlapp-fragmentet
+ * havner inne i blokk-rammen. Sidens samlede tekst er uendret.
+ * Rød før: valgt chunk ble alltid `slice(ov)`, så `[data-semantisk]` lå i `[data-chunk=0]` (utenfor rammen)
+ * eller ble ikke funnet (indexOf på kappet tekst).
+ */
+describe("SØK-2 M3 — valgt chunk vises hel, forgjengeren kappes", () => {
+  const FRAGMENT = "Ved forsinkelse påløper dagmulkt pr. kalenderdag inntil overtakelse har funnet sted, jf. NS 8405.";
+  const HALE = "Dette er avslutningen på første avsnitt som fyller opp. ".repeat(3) + FRAGMENT;
+  const chunk0 = "Innledning om kontrakten. " + HALE + "\n";
+  // chunk 1 starter med de siste 100 tegnene av chunk 0 (chunkerens overlapp), så ny tekst.
+  const overlapp = chunk0.slice(-100);
+  const chunk1 = overlapp + "\n\nSluttoppgjør skal leveres innen to måneder etter overtakelse.\n";
+  const S5 = FRAGMENT;
+
+  function sett() {
+    chunks = [
+      { id: "a", chunkIndex: 0, pageNumber: 1, sectionTitle: null, chunkText: chunk0 },
+      { id: "b", chunkIndex: 1, pageNumber: 1, sectionTitle: null, chunkText: chunk1 },
+    ];
+    spionerScroll();
+  }
+
+  it("finnOverlapp finner nøyaktig 100 tegn (chunkerens OVERLAPP) — låsetest for 200-taket", () => {
+    expect(overlapp.length).toBe(100);
+    expect(finnOverlapp(chunk0, chunk1)).toBe(100);
+    expect(FRAGMENT.length).toBeLessThan(100);
+    expect(overlapp.endsWith(FRAGMENT + "\n")).toBe(true);
+  });
+
+  it("valgtChunkIndex=1: S5-setningen ligger i [data-chunk=1] (inne i rammen), chunk 0 ender før fragmentet", () => {
+    sett();
+    const { container } = render(
+      <Fulltekst prosjektId="p" documentId="d" søkeord="bot forsinkelse" valgtChunkIndex={1} semantiskSetning={S5} />,
+    );
+    const sem = container.querySelector('[data-semantisk="true"]');
+    expect(sem).not.toBeNull();
+    expect(sem!.closest('[data-chunk="1"]')).not.toBeNull();
+    const c0 = container.querySelector('[data-chunk="0"]')!;
+    expect(c0.textContent).not.toContain(FRAGMENT);
+    expect(c0.textContent!.length).toBe(chunk0.length - 100);
+    const c1 = container.querySelector('[data-chunk="1"]')!;
+    expect(c1.textContent).toContain(FRAGMENT);
+    expect(c1.className).toBe(VALGT_AVSNITT_BLOKK_KLASSE);
+  });
+
+  it("sidens samlede tekst er identisk uansett hvilken chunk som er valgt", () => {
+    sett();
+    const a = render(<Fulltekst prosjektId="p" documentId="d" søkeord="" valgtChunkIndex={0} />);
+    const tekst0 = a.container.querySelector("[data-side]")!.textContent;
+    cleanup();
+    const b = render(<Fulltekst prosjektId="p" documentId="d" søkeord="" valgtChunkIndex={1} />);
+    const tekst1 = b.container.querySelector("[data-side]")!.textContent;
+    // Blokk-rammen stripper kun det avsluttende linjeskiftet i valgt chunk — normaliser bort det.
+    expect(tekst0!.replace(/\n/g, "")).toBe(tekst1!.replace(/\n/g, ""));
+    expect(tekst1).toContain(FRAGMENT);
+    expect(tekst1!.split(FRAGMENT).length - 1).toBe(1);
+  });
+
+  it("valgtChunkIndex=0 (ingen forgjenger): chunk 0 hel, chunk 1 kappet som før", () => {
+    sett();
+    const { container } = render(<Fulltekst prosjektId="p" documentId="d" søkeord="" valgtChunkIndex={0} />);
+    const c1 = container.querySelector('[data-chunk="1"]')!;
+    expect(c1.textContent!.startsWith("\n\nSluttoppgjør")).toBe(true);
+    expect(c1.textContent).not.toContain(FRAGMENT);
   });
 });

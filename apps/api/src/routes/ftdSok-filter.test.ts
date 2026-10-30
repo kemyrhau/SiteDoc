@@ -71,4 +71,23 @@ describe("ftdSok.sokDokumenter — S4", () => {
     expect(ilike).toMatch(/ORDER BY t\.rank DESC, t\.filename ASC, t\."chunkIndex" ASC, t\.id ASC/);
     expect(ilike).not.toMatch(/ORDER BY t\.filename ASC, t\.rank DESC/);
   });
+
+  it("SØK-2: begge spørringer har COUNT(*) OVER (antallIDok) og rn-tak 5; ett dokument i filteret → intet rn-tak", async () => {
+    const { caller, fanget } = lagCaller();
+    await caller.sokDokumenter({ projectId: PROSJEKT, query: "dagmulkt" });
+    expect(fanget).toHaveLength(2);
+    for (const q of fanget) {
+      expect(q.sql).toMatch(/COUNT\(\*\) OVER \(PARTITION BY c\.document_id\)::int AS "antallIDok"/);
+      expect(q.sql).toMatch(/t\."antallIDok"/);
+      expect(q.sql).toMatch(/WHERE t\.rn <= \?/);
+      expect(q.values).toContain(5);
+    }
+
+    const { caller: c2, fanget: f2 } = lagCaller();
+    await c2.sokDokumenter({ projectId: PROSJEKT, query: "dagmulkt", dokumentIder: ["dok-ref"] });
+    for (const q of f2) {
+      expect(q.sql).not.toMatch(/t\.rn <=/);
+      expect(q.sql).toMatch(/ROW_NUMBER\(\)/);
+    }
+  });
 });

@@ -102,6 +102,48 @@ export interface HybridSokTreff {
    * `finnBesteSetning`). Null når metoden ikke er "semantisk", eller ingen setning har overlapp.
    */
   semantiskSetning: string | null;
+  /**
+   * SØK-2: antall treff-chunks i dokumentet totalt (før taket pr. dokument). Additivt felt —
+   * klienten viser «Vis N flere» når `antallIDok` overstiger antall rader den har for dokumentet.
+   */
+  antallIDok?: number;
+}
+
+/** SØK-2: tak på antall treff-chunks pr. dokument i et vanlig søk. */
+export const MAKS_PR_DOK = 5;
+
+/**
+ * SØK-2: ett dokument i `dokumentIder` betyr «vis flere i dette dokumentet» (klikk på «Vis N flere»
+ * eller enkeltdok-filter). Da gjelder ikke taket pr. dokument — `topK`/`limit` styrer alene.
+ */
+export function maksPrDokFor(dokumentIder: string[] | undefined): number {
+  return dokumentIder?.length === 1 ? Number.POSITIVE_INFINITY : MAKS_PR_DOK;
+}
+
+/**
+ * SØK-2: grupperer scorede chunks til en flat treffliste. Dokumentene rangeres på sin beste chunk;
+ * innenfor dokumentet kommer chunkene i score-rekkefølge, inntil `maksPrDok` stykker. `topK` teller
+ * chunks (ikke dokumenter). Ren funksjon — testes direkte.
+ */
+export function grupperTreff<T extends { chunk: { documentId: string }; score: number }>(
+  scored: T[],
+  options: { maksPrDok: number; topK: number },
+): Array<T & { antallIDok: number }> {
+  const sortert = [...scored].sort((a, b) => b.score - a.score);
+  const perDok = new Map<string, T[]>();
+  for (const s of sortert) {
+    const liste = perDok.get(s.chunk.documentId);
+    if (liste) liste.push(s);
+    else perDok.set(s.chunk.documentId, [s]);
+  }
+  const flat: Array<T & { antallIDok: number }> = [];
+  for (const liste of perDok.values()) {
+    const antallIDok = liste.length;
+    for (const s of liste.slice(0, options.maksPrDok)) {
+      flat.push({ ...s, antallIDok });
+    }
+  }
+  return flat.slice(0, options.topK);
 }
 
 /**
@@ -377,6 +419,7 @@ export async function hybridSok(
   const vekter = { ...DEFAULT_VEKTER, ...options.vekter };
   const topK = options.topK ?? 20;
   const kandidatK = options.kandidatK ?? 300;
+  const maksPrDok = maksPrDokFor(options.dokumentIder);
 
   // Rens naturlig-språk fra query
   const rensetQuery = rensQuery(query);
@@ -419,6 +462,7 @@ export async function hybridSok(
     const treff = await leksikalskSok(prisma, projectId, rensetQuery, mappeIder, topK, {
       dokumentIder: options.dokumentIder,
       ekskluderMappeIder: options.ekskluderMappeIder,
+      maksPrDok,
     });
     return { treff, aiSøkUtilgjengelig: true };
   }
@@ -545,19 +589,15 @@ export async function hybridSok(
     reRankScore: reRankVerdier[i] ?? 0,
   }));
 
-  // 8. Dedup per dokument — maks 1 best-scored chunk per dokument
-  const bestPerDok = new Map<string, (typeof scoredChunks)[0]>();
-  for (const s of scoredChunks) {
-    const existing = bestPerDok.get(s.chunk.documentId);
-    if (!existing || s.score > existing.score) {
-      bestPerDok.set(s.chunk.documentId, s);
-    }
-  }
+  // 8. SØK-2: gruppér pr. dokument — inntil MAKS_PR_DOK chunks pr. dok (ingen tak ved ett dokument i
+  // filteret), dokumentrekkefølge = beste chunk, topK teller chunks. Merk: `antallIDok` teller blant
+  // kandidatene (kandidatK pr. kilde), ikke hele dokumentet.
+  const grupperte = grupperTreff(scoredChunks, { maksPrDok: maksPrDok, topK });
 
-  const resultater: HybridSokTreff[] = [];
-  for (const [_dokId, s] of bestPerDok) {
+  const treff: HybridSokTreff[] = [];
+  for (const s of grupperte) {
     const metode = kildeTilMetode(s.chunk.kilde);
-    resultater.push({
+    treff.push({
       id: s.chunk.id,
       documentId: s.chunk.documentId,
       chunkText: s.chunk.chunkText,
@@ -576,12 +616,10 @@ export async function hybridSok(
       utdrag: null,
       semantiskSetning:
         metode === "semantisk" ? finnBesteSetning(s.chunk.chunkText, termer, fraser) : null,
+      antallIDok: s.antallIDok,
     });
   }
 
-  // Sorter globalt etter score
-  resultater.sort((a, b) => b.score - a.score);
-  const treff = resultater.slice(0, topK);
   await leggPaaHeadline(prisma, treff, rensetQuery);
   return { treff, aiSøkUtilgjengelig: false };
 }
@@ -594,7 +632,7 @@ async function leksikalskSok(
   query: string,
   mappeIder: string[] | null,
   limit: number,
-  filter: { dokumentIder?: string[]; ekskluderMappeIder?: string[] } = {},
+  filter: { dokumentIder?: string[]; ekskluderMappeIder?: string[]; maksPrDok?: number } = {},
 ): Promise<HybridSokTreff[]> {
   const mappeKlausul = mappeKlausulSql(mappeIder);
   // S4: fallbacken respekterer samme dokumentfilter som hybridsøket (S-M9).
@@ -604,34 +642,50 @@ async function leksikalskSok(
   const ekskluderKlausul = filter.ekskluderMappeIder?.length
     ? Prisma.sql`AND (d.folder_id IS NULL OR d.folder_id NOT IN (${Prisma.join(filter.ekskluderMappeIder)}))`
     : Prisma.empty;
+  // SØK-2: inntil maksPrDok chunks pr. dokument (ROW_NUMBER), ikke én (DISTINCT ON). Ingen tak ved
+  // ett dokument i filteret (Infinity → ingen rn-klausul).
+  const maksPrDok = filter.maksPrDok ?? maksPrDokFor(filter.dokumentIder);
+  const rnKlausul = Number.isFinite(maksPrDok)
+    ? Prisma.sql`WHERE t.rn <= ${maksPrDok}`
+    : Prisma.empty;
 
   const treff = await prisma.$queryRaw<Omit<HybridSokTreff, "metode" | "utdrag" | "semantiskSetning">[]>`
-    SELECT DISTINCT ON (c.document_id)
-      c.id,
-      c.document_id AS "documentId",
-      c.chunk_text AS "chunkText",
-      c.chunk_index AS "chunkIndex",
-      c.page_number AS "pageNumber",
-      c.section_title AS "sectionTitle",
-      c.ns_code AS "nsCode",
-      d.filename,
-      d.file_url AS "fileUrl",
-      d.doc_type AS "docType",
-      d.folder_id AS "folderId",
-      ts_rank(c.search_vector, plainto_tsquery('norwegian', ${query}))::float AS score
-    FROM ftd_document_chunks c
-    JOIN ftd_documents d ON d.id = c.document_id
-    WHERE d.project_id = ${projectId}
-      AND d.is_active = true
-      AND c.search_vector @@ plainto_tsquery('norwegian', ${query})
-      ${mappeKlausul}
-      ${dokKlausul}
-      ${ekskluderKlausul}
-    ORDER BY c.document_id, score DESC
+    SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber", t."sectionTitle",
+      t."nsCode", t.filename, t."fileUrl", t."docType", t."folderId", t.score, t."antallIDok"
+    FROM (
+      SELECT
+        c.id,
+        c.document_id AS "documentId",
+        c.chunk_text AS "chunkText",
+        c.chunk_index AS "chunkIndex",
+        c.page_number AS "pageNumber",
+        c.section_title AS "sectionTitle",
+        c.ns_code AS "nsCode",
+        d.filename,
+        d.file_url AS "fileUrl",
+        d.doc_type AS "docType",
+        d.folder_id AS "folderId",
+        ts_rank(c.search_vector, plainto_tsquery('norwegian', ${query}))::float AS score,
+        ROW_NUMBER() OVER (
+          PARTITION BY c.document_id
+          ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${query})) DESC, c.chunk_index ASC
+        ) AS rn,
+        COUNT(*) OVER (PARTITION BY c.document_id)::int AS "antallIDok"
+      FROM ftd_document_chunks c
+      JOIN ftd_documents d ON d.id = c.document_id
+      WHERE d.project_id = ${projectId}
+        AND d.is_active = true
+        AND c.search_vector @@ plainto_tsquery('norwegian', ${query})
+        ${mappeKlausul}
+        ${dokKlausul}
+        ${ekskluderKlausul}
+    ) t
+    ${rnKlausul}
+    ORDER BY t.score DESC, t."documentId" ASC, t.rn ASC
+    LIMIT ${limit}
   `;
 
-  treff.sort((a, b) => b.score - a.score);
-  const resultat: HybridSokTreff[] = treff.slice(0, limit).map((t) => ({
+  const resultat: HybridSokTreff[] = treff.map((t) => ({
     ...t,
     metode: "tekst" as const,
     utdrag: null,
