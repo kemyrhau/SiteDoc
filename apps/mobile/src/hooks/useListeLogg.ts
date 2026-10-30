@@ -20,7 +20,7 @@ export function useListeLogg(
       feilet: query.isError,
     });
     startRef.current = start;
-    if (linje) console.warn(linje);
+    if (linje && __DEV__) console.warn(linje);
     // Bare overgangen henter/ikke henter skal gi en linje; data og feil leses ved slutt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [henter, sted]);

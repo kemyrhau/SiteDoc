@@ -1,6 +1,6 @@
 // Logg for sjekklistelistas henting (ORDRE 5, 2026-10-29): spinneren i lista etter KD11 kunne ikke
-// måles i kode. Én `console.warn` ved start og slutt, med varighet og utfall — som annoteringsloggen
-// fra gate 1 også utenfor `__DEV__`. Aldri URL-er eller persondata, bare antall rader.
+// måles i kode. Én `console.warn` ved start og slutt, med varighet og utfall. Skrives bare i
+// `__DEV__` (M2, 2026-10-30). Aldri URL-er eller persondata, bare antall rader.
 
 export interface ListeLoggInn {
   henter: boolean;
