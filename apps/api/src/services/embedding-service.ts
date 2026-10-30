@@ -37,6 +37,11 @@ export interface EmbeddingStatus {
 
 let _prosesserer = false;
 let _stoppSignal = false;
+/**
+ * Prosjektet den pågående kjøringen gjelder. Stoppen sjekkes mot dette (ORDRE 7 A3,
+ * 2026-10-30): før stoppet admin i ett prosjekt kjøringen uansett hvilket prosjekt den gjaldt.
+ */
+let _aktivtProsjekt: string | null = null;
 
 // ---- NorBERT via HTTP-server (persistent Python-prosess på port 3302) ----
 
@@ -468,6 +473,7 @@ export async function startEmbeddingGenerering(
 
   _prosesserer = true;
   _stoppSignal = false;
+  _aktivtProsjekt = projectId;
   let generert = 0;
   let feilet = 0;
 
@@ -558,6 +564,7 @@ export async function startEmbeddingGenerering(
   } finally {
     _prosesserer = false;
     _stoppSignal = false;
+    _aktivtProsjekt = null;
   }
 
   logg(
@@ -566,8 +573,14 @@ export async function startEmbeddingGenerering(
   return { generert, feilet };
 }
 
-export function stoppEmbeddingGenerering(): void {
+/**
+ * Stopp kjøringen for `projectId` etter pågående batch. Gjelder kjøringen et annet prosjekt
+ * (eller kjører ingenting), skjer ingenting og `false` returneres.
+ */
+export function stoppEmbeddingGenerering(projectId: string): boolean {
+  if (!_prosesserer || _aktivtProsjekt !== projectId) return false;
   _stoppSignal = true;
+  return true;
 }
 
 export function erEmbeddingAktiv(): boolean {
