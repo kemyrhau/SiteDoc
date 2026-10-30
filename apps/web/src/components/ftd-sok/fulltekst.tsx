@@ -26,13 +26,26 @@ export const MARK_VALGT_KLASSE = "rounded bg-amber-300 px-0.5 ring-1 ring-amber-
  * Hel-avsnitt-markering (relay 29.10): valgt chunk får svak bakgrunn og en strek i venstre kant — uansett
  * om S5-setningen finnes. Målt på test (`e8aac60a`, Røstbakken «dagmulkt»): rent semantiske treff kom med
  * `semantiskSetning: null` (chunken inneholder ikke ordet), så høyre rute stod helt umarkert etter rulling.
- * Chunken er et inline <span> i en `whitespace-pre-wrap`-blokk: `display:block` ville lagt linjeskift ved
- * hver chunk-grense (PDF-chunker deles midt i setninger etter overlapp-kapping). Derfor inline +
- * `box-decoration-clone`, så bakgrunn, venstre strek (inset-skygge) og padding tegnes på hvert linjefragment.
+ *
+ * To varianter (blokk-ramme, relay 30.10, Kenneth-hjemmel «Ja, 1 og 2»):
+ * - **Blokk** når chunk-teksten slutter med linjeskift (hele avsnitt — gab-chunker avslutter alltid med `\n`):
+ *   ÉN ramme med venstre strek, bakgrunn, avrundet høyre hjørne og padding. Med inline + clone ble strek og
+ *   bakgrunn tegnet pr. linjefragment — 26 striper for 376 tegn, løse streker på tomme linjer, bakgrunn bare
+ *   over tekstbredden (Kontrollør M1, målt `relay/sok-visning/dagmulkt-ramme-A-B-C.png`).
+ * - **Inline** (fallback) når chunken er kuttet midt i en setning (PDF-chunker etter overlapp-kapping):
+ *   `display:block` ville gitt linjeskift ved chunk-grensen, så bakgrunn/strek males pr. linjefragment med
+ *   `box-decoration-clone`.
  * Farge: `sitedoc-secondary` #3b82f6 (ui-standarder.md § Fargepalett) — ikke gul (ordtreff), ikke lilla (S5).
  */
 export const VALGT_AVSNITT_KLASSE =
   "box-decoration-clone bg-sitedoc-secondary/10 pl-1 shadow-[inset_3px_0_0_0_#3b82f6]";
+export const VALGT_AVSNITT_BLOKK_KLASSE =
+  "block my-1 rounded-r-md border-l-[3px] border-sitedoc-secondary bg-sitedoc-secondary/10 px-2.5 py-1.5";
+
+/** Blokk-ramme når chunken er et helt avsnitt (slutter med linjeskift), ellers inline-fallback. */
+export function velgAvsnittsklasse(tekst: string): string {
+  return tekst.endsWith("\n") ? VALGT_AVSNITT_BLOKK_KLASSE : VALGT_AVSNITT_KLASSE;
+}
 
 /** Scroll-målet for valgt treff: chunk-ankeret, aldri første <mark> på siden (S1a/T1). */
 export function finnScrollMål(beholder: ParentNode | null, valgtChunkIndex: number | null | undefined): Element | null {
@@ -145,10 +158,13 @@ export function Fulltekst({ prosjektId, documentId, søkeord, valgtChunkIndex, s
           <div className="min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-700">
             {s.segmenter.map((seg) => {
               const erValgt = seg.chunkIndex === valgtChunkIndex;
+              const klasse = erValgt ? velgAvsnittsklasse(seg.tekst) : undefined;
+              // Blokk-rammen avslutter linjen selv; det avsluttende linjeskiftet ville gitt en tom linje i rammen.
+              const tekst = klasse === VALGT_AVSNITT_BLOKK_KLASSE ? seg.tekst.replace(/\n$/, "") : seg.tekst;
               return (
-                <span key={seg.chunkIndex} data-chunk={seg.chunkIndex} className={erValgt ? VALGT_AVSNITT_KLASSE : undefined}>
+                <span key={seg.chunkIndex} data-chunk={seg.chunkIndex} className={klasse}>
                   <ChunkTekst
-                    tekst={seg.tekst}
+                    tekst={tekst}
                     søkeord={søkeord}
                     markKlasse={erValgt ? MARK_VALGT_KLASSE : MARK_KLASSE}
                     semantiskSetning={erValgt ? semantiskSetning : null}
