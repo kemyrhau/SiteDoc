@@ -200,13 +200,14 @@ export function invaliderFornyelse(
   kilde: FornyKilde,
 ): void {
   const stier = fornyelsesStier(kilde);
-  console.warn(fornyelseLogg("editor", stier));
+  // Diagnose bare i utvikling (M2): `typeof`-vakt fordi lib-testene kjører uten RN-globalen.
+  if (typeof __DEV__ !== "undefined" && __DEV__) console.warn(fornyelseLogg("editor", stier));
   for (const sti of stier) void klient.invalidateQueries({ queryKey: [[...sti]] });
 }
 
 /**
- * Logglinje når en fornyer invaliderer (ORDRE 5, 2026-10-29): én `console.warn` også utenfor
- * `__DEV__`, så telefonloggen viser hva som hentes på nytt. Bare stiene, aldri URL-er.
+ * Logglinje når en fornyer invaliderer (ORDRE 5, 2026-10-29): én `console.warn` i `__DEV__`
+ * (M2, 2026-10-30: ikke i prod), som viser hva som hentes på nytt. Bare stiene, aldri URL-er.
  */
 export function fornyelseLogg(hvem: "editor" | "bilde", stier: readonly InvalideringsSti[]): string {
   return `[annotering] fornyer (${hvem}) invaliderer ${stier.map((s) => s.join(".")).join(", ")}`;

@@ -22,7 +22,7 @@ import { lagNokkelDebounce } from "@sitedoc/shared";
  */
 let queryKlient: QueryClient | null = null;
 const fornyelse = lagNokkelDebounce((stier) => {
-  console.warn(fornyelseLogg("bilde", stier));
+  if (__DEV__) console.warn(fornyelseLogg("bilde", stier));
   for (const sti of stier) {
     // tRPC v11-nøkkel er `[sti[], {input, type}]` — `[sti]` prefiks-matcher alle inputs.
     void queryKlient?.invalidateQueries({ queryKey: [[...sti]] });

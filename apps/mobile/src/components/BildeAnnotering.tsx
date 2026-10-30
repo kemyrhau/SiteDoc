@@ -172,8 +172,8 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt, fornyKilde 
           lastNed: (url, tilSti) => FileSystem.downloadAsync(url, tilSti),
           lesBase64: (sti) => FileSystem.readAsStringAsync(sti, { encoding: FileSystem.EncodingType.Base64 }),
         });
-        // Også utenfor __DEV__: neste telefonrunde skal si hvilken gren som slo til (ORDRE 3).
-        console.warn(annoteringsUtfallLogg(kildeType, r));
+        // Diagnose: hvilken gren som slo til (ORDRE 3). Bare i utvikling (M2).
+        if (__DEV__) console.warn(annoteringsUtfallLogg(kildeType, r));
         if (r.ok) {
           fornyerRef.current?.stopp();
           settBildeStatus("laster");
@@ -196,7 +196,6 @@ export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt, fornyKilde 
         fornyerRef.current?.stopp();
         settBildeStatus("feil");
       } catch (feil) {
-        console.warn("[annotering] bilde: unntak");
         if (__DEV__) console.log("[annotering] bildehenting feilet:", feil);
         fornyerRef.current?.stopp();
         settBildeStatus("feil");
