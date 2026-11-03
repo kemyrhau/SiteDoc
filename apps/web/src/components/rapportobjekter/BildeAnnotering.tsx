@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUpRight, Circle, Square, Pencil, Type, Undo2, MousePointer2 } from "lucide-react";
+import { ArrowUpRight, Circle, Square, Pencil, Type, Undo2, MousePointer2, Trash2 } from "lucide-react";
 import { ANNOTERINGS_HTML, type AnnoteringsLag } from "@sitedoc/shared";
 import { byggBildeSrc } from "@/components/SignertBilde";
 
@@ -44,6 +44,8 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
   // gjenåpning: feiler hentingen eller dekodingen, vises en forståelig feil — aldri en svart flate.
   const [erKlar, settErKlar] = useState(false);
   const [bildeFeil, settBildeFeil] = useState(false);
+  // Antall valgte objekter i motoren (`valg`-meldingen). Søppelbøtta vises bare når > 0.
+  const [antallValgt, settAntallValgt] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const sendMelding = useCallback((melding: Record<string, unknown>) => {
@@ -69,6 +71,8 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
         settErKlar(true);
       } else if (data.type === "bildeFeil") {
         settBildeFeil(true);
+      } else if (data.type === "valg") {
+        settAntallValgt(typeof data.antall === "number" ? data.antall : 0);
       } else if (data.type === "klar") {
         // Hent bildet på web-siden og send som data-URL (unngår canvas-taint;
         // speiler mobilens nedlasting → base64). Same-origin /api/uploads-proxy
@@ -151,6 +155,19 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
               {bildeFeil ? t("annotering.bildeFeil") : t("annotering.lasterBilde")}
             </span>
           </div>
+        )}
+        {/* Slett (ORDRE 8, Kenneth 30.10): rund rød søppelbøtte nede til høyre på bildet, bare
+            når noe er valgt. Sletter alle valgte; Angre legger dem tilbake. Ingen modal. */}
+        {antallValgt > 0 && erKlar && (
+          <button
+            type="button"
+            onClick={() => sendMelding({ type: "slettValgt" })}
+            title={t("annotering.slettHjelp")}
+            aria-label={t("annotering.slett")}
+            className="absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-600 hover:bg-red-700"
+          >
+            <Trash2 size={22} color="#ffffff" />
+          </button>
         )}
       </div>
 

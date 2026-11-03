@@ -136,7 +136,8 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
   // fjerner valget. Beslutningen er TVILLING av objektTrykkHandling i plassering.ts.
   // Treff mot formens STREK (TVILLING avstandTilForm), toleranse = FORM_TREFF_TOLERANSE.
   var FORM_TREFF_TOLERANSE = ${FORM_TREFF_TOLERANSE};
-  // Angre-stakk (TVILLING angreSisteHandling): {lagt-til}, {endret, for}, {erstattet}.
+  // Angre-stakk (TVILLING angreSisteHandling): {lagt-til}, {endret, for}, {erstattet},
+  // {fjernet, elementer:[{obj, indeks, lerretIndeks}]} (Slett, TVILLING slettValgte).
   var historikk = [];
   // Gestens øyeblikksbilde, satt i mouse:down:before og nullstilt i mouse:up.
   var valgtVedStart = null;
@@ -555,6 +556,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         objekter.forEach(function(o) { if (!erTekstObj(o)) settFlyttbar(o, false); });
       }
       oppdaterTegnemodus();
+      meldValg();
     }
     canvas.on('selection:created', etterValgEndring);
     canvas.on('selection:updated', etterValgEndring);
@@ -1281,6 +1283,18 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         canvas.renderAll();
         return;
       }
+      if (h.type === 'fjernet') {
+        var borte = h.elementer.filter(function(e) { return objekter.indexOf(e.obj) < 0; });
+        if (borte.length === 0) continue;
+        borte.forEach(function(e) {
+          objekter.splice(Math.min(e.indeks, objekter.length), 0, e.obj);
+          settFlyttbar(e.obj, aktivtVerktoy === 'select');
+          var li = e.lerretIndeks;
+          if (li >= 0 && li <= canvas.getObjects().length) canvas.insertAt(e.obj, li); else canvas.add(e.obj);
+        });
+        canvas.renderAll();
+        return;
+      }
       var bi = objekter.indexOf(h.ny);
       if (bi < 0) continue;
       objekter[bi] = h.gammel;
@@ -1293,6 +1307,35 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
       fjernFraLerret(siste);
       canvas.renderAll();
     }
+  };
+
+  // Slett-knappen (ORDRE 8): verten viser søppelbøtta bare når noe er valgt.
+  function meldValg() {
+    postTilVert({ type: 'valg', antall: canvas ? canvas.getActiveObjects().length : 0 });
+  }
+
+  // Slett alle valgte i ÉN handling, så én Angre legger alle tilbake. TVILLING av slettValgte i
+  // plassering.ts (stigende indeks); her huskes også plassen på lerretet for lag-rekkefølgen.
+  window.slettValgt = function() {
+    var aktiv = canvas.getActiveObject();
+    // En tekst i redigering avsluttes først; er den tom, rydder text:editing:exited den bort.
+    if (aktiv && aktiv.isEditing) aktiv.exitEditing();
+    var valgte = canvas.getActiveObjects().slice();
+    // Flervalg (ActiveSelection) løses opp først, så objektene får tilbake egne koordinater.
+    canvas.discardActiveObject();
+    var lerret = canvas.getObjects();
+    var elementer = valgte
+      .map(function(o) { return { obj: o, indeks: objekter.indexOf(o), lerretIndeks: lerret.indexOf(o) }; })
+      .filter(function(e) { return e.indeks >= 0; })
+      .sort(function(x, y) { return x.indeks - y.indeks; });
+    elementer.forEach(function(e) {
+      objekter.splice(objekter.indexOf(e.obj), 1);
+      canvas.remove(e.obj);
+    });
+    if (elementer.length > 0) historikk.push({ type: 'fjernet', elementer: elementer });
+    oppdaterTegnemodus();
+    canvas.renderAll();
+    meldValg();
   };
 
   // Eksport-komprimering (frys-fiks, orkestrator-vedtak 2026-10-21): «Ferdig» frøs fordi en
@@ -1371,6 +1414,7 @@ export function lagAnnoteringsHtml(opts?: { anker?: AnnoteringsAnker }): string 
         case 'settBilde': settBilde(data.bildeUrl, data.lag); break;
         case 'velgVerktoy': velgVerktoy(data.verktoy); break;
         case 'angre': angre(); break;
+        case 'slettValgt': slettValgt(); break;
         case 'lagre': lagre(); break;
       }
     } catch(err) {}

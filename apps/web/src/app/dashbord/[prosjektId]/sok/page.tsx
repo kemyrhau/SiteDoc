@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { TreffListe } from "@/components/ftd-sok/treff-liste";
+import { TreffListe, VIS_FLERE_PORSJON } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
 import { ingenOrdtreff } from "@/components/ftd-sok/ingen-ordtreff";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -104,16 +104,103 @@ export default function DokumentsokSide() {
   const aiUtilgjengelig = aiAktiv && !aiFeilet && !!aiTreff?.aiSøkUtilgjengelig;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let visbareTreff: any[] | undefined = leksTreff;
+  let grunnTreff: any[] | undefined = leksTreff;
   let brukFallback = false;
 
   if (aiAktiv && !aiFeilet && (aiTreff?.treff?.length ?? 0) > 0) {
-    visbareTreff = aiTreff!.treff;
+    grunnTreff = aiTreff!.treff;
   } else if (aiAktiv) {
     brukFallback = true;
   } else if (modus === "leksikalsk") {
-    visbareTreff = leksTreff;
+    grunnTreff = leksTreff;
   }
+
+  // SØK-2 «Vis N flere»: serveren gir inntil 5 rader pr. dokument i første søk (`antallIDok` = totalt).
+  // Neste porsjon hentes fra SAMME endepunkt med `dokumentIder: [docId]` (ett dokument → intet tak pr. dok)
+  // og `topK`/`limit` = vist + porsjon; radene erstatter dokumentets rader i lista. Nullstilles ved nytt søk.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [utvidet, setUtvidet] = useState<Record<string, any[]>>({});
+  const [lasterFlereFor, setLasterFlereFor] = useState<string | null>(null);
+  const utils = trpc.useUtils();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const visbareTreff: any[] | undefined = useMemo(() => {
+    if (!grunnTreff) return grunnTreff;
+    if (Object.keys(utvidet).length === 0) return grunnTreff;
+    const sett = new Set<string>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ut: any[] = [];
+    for (const tr of grunnTreff) {
+      const ekstra = utvidet[tr.documentId];
+      if (!ekstra) {
+        ut.push(tr);
+        continue;
+      }
+      if (sett.has(tr.documentId)) continue;
+      sett.add(tr.documentId);
+      ut.push(...ekstra);
+    }
+    return ut;
+  }, [grunnTreff, utvidet]);
+
+  const brukLeksikalsk = brukFallback || !aiAktiv;
+  const visFlere = useCallback(
+    async (documentId: string, vist: number) => {
+      if (!aktivtSok || lasterFlereFor) return;
+      setLasterFlereFor(documentId);
+      try {
+        const antall = vist + VIS_FLERE_PORSJON;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let rader: any[];
+        if (brukLeksikalsk) {
+          rader = await utils.ftdSok.sokDokumenter.fetch({
+            projectId: prosjektId,
+            query: aktivtSok,
+            dokumentIder: [documentId],
+            limit: antall,
+          });
+        } else {
+          const svar = await utils.aiSok.sok.fetch({
+            projectId: prosjektId,
+            query: aktivtSok,
+            dokumentIder: [documentId],
+            topK: antall,
+          });
+          rader = svar.treff;
+        }
+        if (rader.length > 0) setUtvidet((u) => ({ ...u, [documentId]: rader }));
+      } finally {
+        setLasterFlereFor(null);
+      }
+    },
+    [aktivtSok, lasterFlereFor, brukLeksikalsk, utils, prosjektId],
+  );
+
+  // SØK-2 forrige/neste: dokumentets treff-chunks i lista (nav-enhet for rent semantiske dokumenter) …
+  const treffChunkIndekser = useMemo(() => {
+    if (!valgtDokumentId || !visbareTreff) return [];
+    const s = new Set<number>();
+    for (const tr of visbareTreff) {
+      if (tr.documentId === valgtDokumentId && tr.chunkIndex != null) s.add(tr.chunkIndex);
+    }
+    return [...s].sort((a, b) => a - b);
+  }, [visbareTreff, valgtDokumentId]);
+
+  // … og synk tilbake: forekomsten ligger i en chunk som er treff i lista → velg raden; ellers behold
+  // valgt rad, flytt bare blokk-rammen (valgtChunkIndex). S5-setningen følger raden (null utenfor lista).
+  const velgForekomst = useCallback(
+    (chunkIndex: number) => {
+      setValgtChunkIndex(chunkIndex);
+      const rad = visbareTreff?.find((tr) => tr.documentId === valgtDokumentId && tr.chunkIndex === chunkIndex);
+      if (rad) {
+        setValgtTreffId(rad.id);
+        setValgtSemantiskSetning(rad.metode === "semantisk" ? (rad.semantiskSetning ?? null) : null);
+      } else {
+        setValgtSemantiskSetning(null);
+      }
+    },
+    [visbareTreff, valgtDokumentId],
+  );
 
   const isLoading = aiAktiv ? aiLaster && leksLaster : leksLaster;
   // F1a: alle treff er rent semantiske — ordet finnes ikke i noe dokument, lista er vektornaboer.
@@ -126,6 +213,7 @@ export default function DokumentsokSide() {
       setValgtDokumentId(null);
       setValgtChunkIndex(null);
       setValgtSemantiskSetning(null);
+      setUtvidet({});
     }
   };
 
@@ -253,6 +341,8 @@ export default function DokumentsokSide() {
                 );
               }}
               valgtId={valgtTreffId}
+              onVisFlere={visFlere}
+              lasterFlereFor={lasterFlereFor}
             />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">
@@ -261,8 +351,13 @@ export default function DokumentsokSide() {
           )}
         </div>
 
-        {/* Fulltekst-panel — data-rullebeholder: Fulltekst ruller bare denne ruta (F3) */}
-        <div data-rullebeholder="" className="w-1/2 min-w-0 shrink-0 overflow-y-auto break-words bg-gray-50 p-4">
+        {/* Fulltekst-panel — data-rullebeholder: Fulltekst ruller bare denne ruta (F3).
+            tabIndex=0 (SØK-2): ↑/↓ mellom forekomster virker kun når fokus er i ruta — aldri globalt. */}
+        <div
+          data-rullebeholder=""
+          tabIndex={0}
+          className="w-1/2 min-w-0 shrink-0 overflow-y-auto break-words bg-gray-50 p-4 outline-none"
+        >
           {valgtDokumentId ? (
             <Fulltekst
               prosjektId={prosjektId}
@@ -270,6 +365,8 @@ export default function DokumentsokSide() {
               søkeord={aktivtSok}
               valgtChunkIndex={valgtChunkIndex}
               semantiskSetning={valgtSemantiskSetning}
+              treffChunkIndekser={treffChunkIndekser}
+              onVelgForekomst={velgForekomst}
             />
           ) : (
             <div className="py-8 text-center text-sm text-gray-400">

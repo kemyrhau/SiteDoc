@@ -155,8 +155,8 @@ export const aiSokRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
-      stoppEmbeddingGenerering();
-      return { stoppet: true };
+      // Bare kjøringen for dette prosjektet stoppes; andre prosjekters kjøring går videre.
+      return { stoppet: stoppEmbeddingGenerering(input.projectId) };
     }),
 
   /** Hent embedding-status (antall chunks, ferdig, ventende) */

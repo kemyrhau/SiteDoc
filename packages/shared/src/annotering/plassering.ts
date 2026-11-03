@@ -371,15 +371,46 @@ export function objektTrykkHandling(p: {
 // objektlista. `O` er objektet (Fabric-objekt i HTML-en), `S` en øyeblikkstilstand
 // (posisjon/skala før en flytt/størrelse-endring).
 
+/** Et slettet objekt og plassen det hadde i objektlista (= lag-rekkefølgen). */
+export interface FjernetElement<O> {
+  obj: O;
+  indeks: number;
+}
+
 export type AngreHandling<O, S> =
   | { type: "lagt-til"; obj: O }
   | { type: "endret"; obj: O; for: S }
-  | { type: "erstattet"; gammel: O; ny: O };
+  | { type: "erstattet"; gammel: O; ny: O }
+  | { type: "fjernet"; elementer: FjernetElement<O>[] };
 
 export type AngreEffekt<O, S> =
   | { type: "fjern"; obj: O }
   | { type: "gjenopprett"; obj: O; tilstand: S }
-  | { type: "bytt"; ut: O; inn: O };
+  | { type: "bytt"; ut: O; inn: O }
+  | { type: "gjeninnsett"; elementer: FjernetElement<O>[] };
+
+/**
+ * Slett-knappen (ORDRE 8, Kenneth 2026-10-30): fjern ALLE valgte objekter i én handling, så én
+ * Angre legger alle tilbake. Elementene huskes med indeksen de hadde, stigende, slik at
+ * gjeninnsetting i den rekkefølgen gir original lag-rekkefølge. Valgte som ikke finnes i lista
+ * ignoreres; er ingenting igjen å slette, gis ingen handling. TVILLING: `slettValgt` i
+ * annoterings-html.ts.
+ */
+export function slettValgte<O>(
+  objekter: readonly O[],
+  valgte: readonly O[],
+): { objekter: O[]; handling: { type: "fjernet"; elementer: FjernetElement<O>[] } | null } {
+  const elementer = valgte
+    .map((obj) => ({ obj, indeks: objekter.indexOf(obj) }))
+    .filter((e) => e.indeks >= 0)
+    .sort((x, y) => x.indeks - y.indeks);
+  if (elementer.length === 0) return { objekter: objekter.slice(), handling: null };
+  const fjernes = new Set(elementer.map((e) => e.obj));
+  return {
+    objekter: objekter.filter((o) => !fjernes.has(o)),
+    handling: { type: "fjernet", elementer },
+  };
+}
 
 /**
  * Angre siste handling. Handlinger på objekter som ikke lenger finnes (f.eks. en tom tekst
@@ -403,6 +434,13 @@ export function angreSisteHandling<O, S>(
     if (h.type === "endret") {
       if (obj.indexOf(h.obj) < 0) continue;
       return { stakk: s, objekter: obj, effekt: { type: "gjenopprett", obj: h.obj, tilstand: h.for } };
+    }
+    if (h.type === "fjernet") {
+      // Legg tilbake de som fortsatt er borte, stigende indeks → original rekkefølge.
+      const borte = h.elementer.filter((e) => obj.indexOf(e.obj) < 0);
+      if (borte.length === 0) continue;
+      for (const e of borte) obj.splice(Math.min(e.indeks, obj.length), 0, e.obj);
+      return { stakk: s, objekter: obj, effekt: { type: "gjeninnsett", elementer: borte } };
     }
     const i = obj.indexOf(h.ny);
     if (i < 0) continue;

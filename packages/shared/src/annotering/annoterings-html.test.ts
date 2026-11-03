@@ -481,4 +481,28 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
       expect(ANNOTERINGS_HTML).toContain("} catch (e) {\n            meldLastet();\n          }");
     });
   });
+
+  describe("🔴 Slett-knappen (ORDRE 8) — tvilling av slettValgte/angreSisteHandling", () => {
+    it("motoren melder valget til verten ved hver valgendring", () => {
+      expect(ANNOTERINGS_HTML).toContain("postTilVert({ type: 'valg', antall: canvas ? canvas.getActiveObjects().length : 0 });");
+      expect(ANNOTERINGS_HTML).toContain("oppdaterTegnemodus();\n      meldValg();");
+    });
+
+    it("verten kan be om sletting av det valgte", () => {
+      expect(ANNOTERINGS_HTML).toContain("case 'slettValgt': slettValgt(); break;");
+      expect(ANNOTERINGS_HTML).toContain("window.slettValgt = function() {");
+    });
+
+    it("alle valgte slettes i ÉN handling, stigende indeks (som slettValgte)", () => {
+      expect(ANNOTERINGS_HTML).toContain("var valgte = canvas.getActiveObjects().slice();");
+      expect(ANNOTERINGS_HTML).toContain(".sort(function(x, y) { return x.indeks - y.indeks; });");
+      expect(ANNOTERINGS_HTML).toContain("historikk.push({ type: 'fjernet', elementer: elementer });");
+    });
+
+    it("angre av fjernet legger tilbake på samme plass i lista og på lerretet", () => {
+      expect(ANNOTERINGS_HTML).toContain("if (h.type === 'fjernet') {");
+      expect(ANNOTERINGS_HTML).toContain("objekter.splice(Math.min(e.indeks, objekter.length), 0, e.obj);");
+      expect(ANNOTERINGS_HTML).toContain("canvas.insertAt(e.obj, li)");
+    });
+  });
 });

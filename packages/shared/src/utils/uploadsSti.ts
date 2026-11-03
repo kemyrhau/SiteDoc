@@ -41,9 +41,10 @@ export function erForgiftetUploadsUrl(url: unknown): url is string {
  * Reduser en forgiftet (`sig=`-bærende) `/uploads/`-URL til den RÅ stien (dropp hele
  * query-strengen — for `/uploads/` er den kun `?exp=&sig=`). Motsatt av emisjons-
  * signeringen. Alt annet (rå `/uploads/`, ekstern, `data:`, `file://`) slipper uendret
- * gjennom. Brukes på SKRIVE-veien: web seeder `feltVerdier` fra den signerte queryen,
- * så en URL kan være signert i lokal state — den skal ALLTID strippes før persistering
- * (mobil holder `feltVerdier` rå med vilje; web stripper i stedet ved utsendelse).
+ * gjennom. Brukes på SKRIVE-veien: både web og mobil seeder `feltVerdier` fra den signerte
+ * queryen, så en URL kan være signert i lokal state — den skal ALLTID strippes før
+ * persistering. Web stripper ved utsendelse; mobil stripper i `lagreUtvalg`
+ * (`apps/mobile/src/lib/lagreUtvalg.ts`) før SQLite og server.
  */
 export function raaUploadsSti(url: unknown): unknown {
   if (!erForgiftetUploadsUrl(url)) return url;

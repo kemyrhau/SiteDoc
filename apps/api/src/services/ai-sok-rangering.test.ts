@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Prisma, type PrismaClient } from "@sitedoc/db";
-import { hybridSok, finnBesteSetning, DEFAULT_VEKTER } from "./ai-sok-service";
+import { hybridSok, finnBesteSetning, DEFAULT_VEKTER, grupperTreff, MAKS_PR_DOK } from "./ai-sok-service";
 
 /**
  * SØK-1 (dokumentsok-visning-spec § 6): T5 (D1), T6 (S-M9 fallback-filter), T7 (D3), T8 server-del (E1/E2).
@@ -43,7 +43,8 @@ function lagPrisma(svar: { vektor?: unknown[]; leksikalsk?: unknown[]; headline?
     fanget.push({ sql: q.sql, values: q.values });
     if (q.sql.includes("<=>")) return svar.vektor ?? [];
     if (q.sql.includes("ts_headline")) return svar.headline ?? [];
-    if (q.sql.includes("DISTINCT ON")) return svar.fallback ?? [];
+    // SØK-2: fallbacken kjennes på ROW_NUMBER (før: DISTINCT ON).
+    if (q.sql.includes("ROW_NUMBER")) return svar.fallback ?? [];
     return svar.leksikalsk ?? [];
   });
   return { prisma: { $queryRaw } as unknown as PrismaClient, fanget };
@@ -89,7 +90,7 @@ describe("T6 — leksikalskSok-fallbacken respekterer dokumentfilteret", () => {
       ekskluderMappeIder: ["ns-mappe"],
     });
     expect(res.aiSøkUtilgjengelig).toBe(true);
-    const fallback = fanget.find((x) => x.sql.includes("DISTINCT ON"))!;
+    const fallback = fanget.find((x) => x.sql.includes("ROW_NUMBER"))!;
     expect(fallback.sql).toMatch(/AND d\.id IN \(\?\)/);
     expect(fallback.sql).toMatch(/d\.folder_id NOT IN \(\?\)/);
     expect(fallback.values).toContain("dok-x");
@@ -180,5 +181,114 @@ describe("F1b — mikro-chunker utelates fra semantiske kandidater (relay 29.10,
     expect(ider).not.toContain("mikro");
     expect(ider).toContain("c1");
     expect(ider).toContain("kort");
+  });
+});
+
+describe("SØK-2 C1–C3 — flere treff pr. dokument (dokumentsok-visning-spec § 5)", () => {
+  const iDok = (id: string, dok: string, tekst: string, sim: number, chunkIndex = 1) => ({
+    ...rad(id, tekst, sim),
+    documentId: dok,
+    chunkIndex,
+  });
+
+  it("C1 ✗: tre chunks fra ett dokument over terskel → 3 treff under samme documentId", async () => {
+    stubEmbedding();
+    const { prisma } = lagPrisma({
+      vektor: [
+        iDok("a", "dok-1", `${DAGMULKT_CHUNK} A`, 0.9, 1),
+        iDok("b", "dok-1", `${DAGMULKT_CHUNK} B`, 0.8, 2),
+        iDok("c", "dok-1", `${DAGMULKT_CHUNK} C`, 0.7, 3),
+      ],
+    });
+    const { treff } = await hybridSok(prisma, "p1", "dagmulkt", null, {});
+    expect(treff).toHaveLength(3);
+    expect(new Set(treff.map((t) => t.documentId))).toEqual(new Set(["dok-1"]));
+    expect(treff.map((t) => t.id)).toEqual(["a", "b", "c"]);
+    expect(treff.every((t) => t.antallIDok === 3)).toBe(true);
+  });
+
+  it("C2: dokument rangeres på beste chunk, ikke sum av chunks", async () => {
+    stubEmbedding();
+    const { prisma } = lagPrisma({
+      vektor: [
+        iDok("x1", "dok-x", `${DAGMULKT_CHUNK} X1`, 0.95, 1),
+        iDok("y1", "dok-y", `${DAGMULKT_CHUNK} Y1`, 0.6, 1),
+        iDok("y2", "dok-y", `${DAGMULKT_CHUNK} Y2`, 0.6, 2),
+        iDok("y3", "dok-y", `${DAGMULKT_CHUNK} Y3`, 0.6, 3),
+      ],
+    });
+    const { treff } = await hybridSok(prisma, "p1", "dagmulkt", null, {});
+    expect(treff[0]!.documentId).toBe("dok-x");
+    expect(treff.slice(1).every((t) => t.documentId === "dok-y")).toBe(true);
+  });
+
+  it("C3: 7 chunks i ett dok → 5 ut, antallIDok = 7; topK teller chunks", async () => {
+    stubEmbedding();
+    const sju = Array.from({ length: 7 }, (_, i) =>
+      iDok(`s${i}`, "dok-s", `${DAGMULKT_CHUNK} ${i}`, 0.9 - i * 0.05, i),
+    );
+    const { prisma } = lagPrisma({ vektor: sju });
+    const { treff } = await hybridSok(prisma, "p1", "dagmulkt", null, {});
+    expect(treff).toHaveLength(MAKS_PR_DOK);
+    expect(treff.every((t) => t.antallIDok === 7)).toBe(true);
+
+    const { prisma: p2 } = lagPrisma({ vektor: sju });
+    const { treff: topp3 } = await hybridSok(p2, "p1", "dagmulkt", null, { topK: 3 });
+    expect(topp3).toHaveLength(3);
+  });
+
+  it("ett dokument i dokumentIder («Vis flere») → intet tak pr. dok, topK styrer", async () => {
+    stubEmbedding();
+    const sju = Array.from({ length: 7 }, (_, i) =>
+      iDok(`s${i}`, "dok-s", `${DAGMULKT_CHUNK} ${i}`, 0.9 - i * 0.05, i),
+    );
+    const { prisma } = lagPrisma({ vektor: sju });
+    const { treff } = await hybridSok(prisma, "p1", "dagmulkt", null, { dokumentIder: ["dok-s"], topK: 25 });
+    expect(treff).toHaveLength(7);
+  });
+
+  it("fallback-SQL (leksikalskSok) bruker ROW_NUMBER + COUNT OVER, ikke DISTINCT ON ✗; rn-tak 5 / intet tak ved ett dok", async () => {
+    stubEmbedding(false);
+    const { prisma, fanget } = lagPrisma({});
+    await hybridSok(prisma, "p1", "dagmulkt", null, {});
+    const fb = fanget.find((x) => x.sql.includes("ROW_NUMBER"))!;
+    expect(fb.sql).not.toContain("DISTINCT ON");
+    expect(fb.sql).toMatch(/COUNT\(\*\) OVER \(PARTITION BY c\.document_id\)/);
+    expect(fb.sql).toMatch(/WHERE t\.rn <= \?/);
+    expect(fb.values).toContain(MAKS_PR_DOK);
+
+    const { prisma: p2, fanget: f2 } = lagPrisma({});
+    await hybridSok(p2, "p1", "dagmulkt", null, { dokumentIder: ["dok-s"] });
+    const fb2 = f2.find((x) => x.sql.includes("ROW_NUMBER"))!;
+    expect(fb2.sql).not.toMatch(/t\.rn <=/);
+  });
+});
+
+describe("SØK-2 grupperTreff — ren funksjon", () => {
+  const s = (id: string, dok: string, score: number) => ({ chunk: { id, documentId: dok }, score });
+
+  it("dokumentrekkefølge = beste chunk; chunks i score-rekkefølge; antallIDok teller alle", () => {
+    const ut = grupperTreff(
+      [s("b2", "B", 0.5), s("a1", "A", 0.9), s("b1", "B", 0.7), s("a2", "A", 0.3), s("c1", "C", 0.8)],
+      { maksPrDok: 5, topK: 20 },
+    );
+    expect(ut.map((x) => x.chunk.id)).toEqual(["a1", "a2", "c1", "b1", "b2"]);
+    expect(ut.map((x) => x.antallIDok)).toEqual([2, 2, 1, 2, 2]);
+  });
+
+  it("tak pr. dok kappes, antallIDok beholder totalen; topK teller chunks", () => {
+    const inn = Array.from({ length: 7 }, (_, i) => s(`d${i}`, "D", 1 - i * 0.1));
+    const ut = grupperTreff([...inn, s("e1", "E", 0.05)], { maksPrDok: 5, topK: 20 });
+    expect(ut.map((x) => x.chunk.id)).toEqual(["d0", "d1", "d2", "d3", "d4", "e1"]);
+    expect(ut[0]!.antallIDok).toBe(7);
+    expect(grupperTreff(inn, { maksPrDok: 5, topK: 2 })).toHaveLength(2);
+    expect(grupperTreff(inn, { maksPrDok: Number.POSITIVE_INFINITY, topK: 20 })).toHaveLength(7);
+  });
+
+  it("stabil: likt score beholder innsendt rekkefølge; input muteres ikke", () => {
+    const inn = [s("x", "X", 0.5), s("y", "Y", 0.5), s("z", "Z", 0.5)];
+    const kopi = [...inn];
+    expect(grupperTreff(inn, { maksPrDok: 5, topK: 20 }).map((x) => x.chunk.id)).toEqual(["x", "y", "z"]);
+    expect(inn).toEqual(kopi);
   });
 });
