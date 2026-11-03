@@ -259,7 +259,8 @@ Ruten sjekket bare at kalleren er firma_admin i `input.organizationId`, ikke at 
 Ruten sjekket medlemskap i `input.projectId`, men slo opp blokken på `blokkId` alene. Et medlem i A kunne lese kildeteksten til en blokk i B, eller i en mappe medlemmet ikke har tilgang til.
 - **Fiks** (`apps/api/src/routes/modul.ts`, `sammenlignOversettelse`): blokkens dokument må ha `projectId === input.projectId` (ellers NOT_FOUND), og dokumentets mappe må være i `hentTilgjengeligeMappeIder` (ellers FORBIDDEN) — samme mønster som `ftdSok.hentDokumentChunks` (§ 8d).
 - **Test:** `apps/api/src/routes/modul-sammenlign-tilgang.test.ts` (rød før fiksen: 3 av 4).
-- 🔴 **Åpent (samme klasse, ikke i ordren):** `modul.reOversettDokument` sletter og lager oversatte blokker for vilkårlig `documentId` uten å sjekke at dokumentet tilhører `input.projectId`.
+- ✅ **`modul.reOversettDokument`** (ordre (3), Kenneth «Ja, samme branch») slettet og køet oversatte blokker for vilkårlig `documentId` — fikset med samme sjekk før noe slettes. Begge rutene går via den lokale helperen `krevFtdDokumentTilgang` i `modul.ts`. Test: `modul-reoversett-tilgang.test.ts` (rød før fiksen: 4 av 4).
+- Gjennomgått resten av `modul.ts`: ingen andre ruter tar `documentId`/`blokkId`. 🔴 **Annen klasse, åpent:** `aktiver`, `deaktiver`, `oppdaterOversettelsesInnstillinger` og motorvalget i `reOversettDokument` (skriver `ProjectModule.config`) krever bare `verifiserProsjektmedlem`, ikke admin. `reOversettDokument` tømmer også `translationCache` globalt på innholds-hash (påvirker bare ytelse i andre prosjekter, ingen lekkasje).
 
 ### ✅ 8j. `organisasjon.hentForProsjekt` uten tilgangssjekk (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
 Ruten returnerte hele `Organization`-raden for et vilkårlig `projectId` til enhver innlogget bruker, og valgte en tilfeldig `ProjectOrganization`-rad (kunne være et deltakerfirma).
