@@ -255,6 +255,12 @@ Ruten sjekket bare at kalleren er firma_admin i `input.organizationId`, ikke at 
 - **UI:** web `dashbord/oppsett/produksjon/box/page.tsx` skjuler «Rediger tilgang» i mappemenyen når `gruppe.hentMinFlytInfo().erAdmin` er `false`. Mobil har ingen tilgangsredigering.
 - **Test:** `apps/api/src/routes/mappe-settilgang.test.ts` (rød før fiksen: 3 av 3).
 
+### ✅ 8i. `modul.sammenlignOversettelse` leste blokker på tvers av prosjekter (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+Ruten sjekket medlemskap i `input.projectId`, men slo opp blokken på `blokkId` alene. Et medlem i A kunne lese kildeteksten til en blokk i B, eller i en mappe medlemmet ikke har tilgang til.
+- **Fiks** (`apps/api/src/routes/modul.ts`, `sammenlignOversettelse`): blokkens dokument må ha `projectId === input.projectId` (ellers NOT_FOUND), og dokumentets mappe må være i `hentTilgjengeligeMappeIder` (ellers FORBIDDEN) — samme mønster som `ftdSok.hentDokumentChunks` (§ 8d).
+- **Test:** `apps/api/src/routes/modul-sammenlign-tilgang.test.ts` (rød før fiksen: 3 av 4).
+- 🔴 **Åpent (samme klasse, ikke i ordren):** `modul.reOversettDokument` sletter og lager oversatte blokker for vilkårlig `documentId` uten å sjekke at dokumentet tilhører `input.projectId`.
+
 ### ✅ 8c. ezdxf-SVG-visningen stolte 100 % på at markupen var render.py-generert (herding 2026-10-11, `fix/ezdxf-xss-vern`)
 Web beholdt SVG-ens egen `<style>` når den så `data-motor="ezdxf"` **i fila**, og mobil injiserte markupen rått via `innerHTML` i en WebView. DOMPurify saniterer ikke CSS, og mobil har ingen DOMPurify. Trygt i dag (render.py `html.escape`-er tekst/lag og skriver en fast `<style>`), men ingen sperre ved drift i render.py, en ny motor, eller en forfalsket SVG. Opplasting av SVG er dessuten ikke klient-tillatt (`ACCEPT` uten `.svg`), men `upload.ts:72` er en **blokkliste** — en direkte `.svg`-POST lagres med `fileType="svg"`. Herdet:
 - **Web motorvalg fra serverens markør, ikke fila:** `erEzdxfMotor = lesKonverteringMarkor(...).motor === "ezdxf"` (`tegninger/page.tsx`). En forfalsket SVG kan bære `data-motor="ezdxf"`, men får aldri server-markøren (`konverteringRapport.markor.motor`, skrevet kun av render.py/pdf) → behandles som «egen» → `<style>` strippes.

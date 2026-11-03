@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
 import { verifiserProsjektmedlem, verifiserOrganisasjonTilgang } from "../trpc/tilgangskontroll";
 import { effektivTilstand, FIRMAMODUL_SLUGS } from "../services/modul";
+import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 
 /**
  * Seeder HMS-spesifikk infrastruktur når hms-avvik-modulen aktiveres:
@@ -528,14 +530,24 @@ export const modulRouter = router({
         where: { id: input.blokkId },
         select: { content: true, language: true, sourceBlockId: true, documentId: true },
       });
-      if (!blokk) throw new Error("Blokk ikke funnet");
-
-      // Hent dokumentets kildespråk
-      const dok = await ctx.prisma.ftdDocument.findUnique({
-        where: { id: blokk.documentId },
-        select: { sourceLanguage: true },
-      });
-      const sourceLang = dok?.sourceLanguage ?? "nb";
+      // Blokken må tilhøre et dokument i input-prosjektet og en mappe brukeren har tilgang til —
+      // ellers leser et medlem i A kildeteksten i B (sikkerhet.md § 8i).
+      const dok = blokk
+        ? await ctx.prisma.ftdDocument.findUnique({
+            where: { id: blokk.documentId },
+            select: { sourceLanguage: true, projectId: true, folderId: true },
+          })
+        : null;
+      if (!blokk || !dok || dok.projectId !== input.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Blokk ikke funnet" });
+      }
+      if (dok.folderId) {
+        const mappeIder = await hentTilgjengeligeMappeIder(ctx.userId, input.projectId);
+        if (mappeIder !== null && !mappeIder.includes(dok.folderId)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Ingen tilgang til mappen" });
+        }
+      }
+      const sourceLang = dok.sourceLanguage ?? "nb";
 
       // Hent kildetekst (original)
       let kildeTekst: string;
