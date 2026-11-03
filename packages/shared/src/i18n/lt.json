@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Pasiūlymas iš mobiliojo, laukiama darbuotojo pasirinkimo",
   "timer.forslagValg.lesevisningHjelp": "Kad galėtumėte patvirtinti, darbuotojas turi pasirinkti kompiuterį arba mobilųjį. Dienos kortelę galite palaukti arba grąžinti.",
   "timer.forslagValg.attesterBlokkert": "Darbuotojas nepasirinko kompiuterio ir mobiliojo – palaukite arba grąžinkite dienos kortelę",
-  "timer.forslagValg.pille": "Mobilusis pasiūlymas"
+  "timer.forslagValg.pille": "Mobilusis pasiūlymas",
+  "sokMobil.omfangAlle": "Visi",
+  "sokMobil.omfangMapper": "Aplankai",
+  "sokMobil.omfangSjekklister": "Kontroliniai sąrašai",
+  "sokMobil.omfangOppgaver": "Užduotys",
+  "sokMobil.placeholder": "Ieškokite aplankų, kontrolinių sąrašų ir užduočių",
+  "sokMobil.minstToTegn": "Įveskite bent 2 simbolius ir bakstelėkite Ieškoti",
+  "sokMobil.mapperKreverNett": "Neprisijungus – norint ieškoti aplankų, reikalingas ryšys",
+  "sokMobil.kreverNettKort": "aplankams reikalingas ryšys",
+  "sokMobil.lagretVersjon": "išsaugota versija · paskutinį kartą gauta {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "išsaugota versija",
+  "sokMobil.visAlle": "Rodyti visus {{antall}}",
+  "sokMobil.aapneDokumentet": "Atidaryti dokumentą"
 }

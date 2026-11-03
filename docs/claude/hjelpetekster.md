@@ -54,3 +54,16 @@ comm -23 \
 
 `HjelpKnapp` (eksportert fra `apps/web/src/components/hjelp/HjelpModal.tsx`) er
 kilden — er den importert og rendret på siden, har siden `?`-hjelp.
+
+## Mobil: Søk (`apps/mobile/app/sok/index.tsx`)
+
+Mobilappen har ingen `?`-komponent ennå (ingen `HjelpKnapp` i `apps/mobile`); teksten under er vedtatt
+hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
+
+- **Hva er dette?** Søk i hele prosjektet fra ett felt. Skriv minst to tegn og trykk Søk.
+- **Alle · Mapper · Sjekklister · Oppgaver:** «Alle» viser treff fra alle tre, med de ti første i hver gruppe.
+  Trykk på en gruppe for å se alle treffene der.
+- **Mapper** søker i teksten inni dokumentene. Trykk et treff for å lese stedet i dokumentet; pilene går mellom
+  treffene, og «Åpne dokumentet» viser hele fila. Krever nett.
+- **Sjekklister og oppgaver** søker på nummer, tittel og mal — ikke på det som er fylt ut. Uten nett søkes den
+  lagrede versjonen på telefonen (for eksempel finner Ola oppgave «OPP12» selv i kjelleren uten dekning).

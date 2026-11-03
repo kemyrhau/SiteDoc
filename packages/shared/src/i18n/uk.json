@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Пропозиція з мобільного, чекаю на вибір працівника",
   "timer.forslagValg.lesevisningHjelp": "Працівник повинен вибрати між ПК і мобільним, перш ніж ви зможете схвалити. Ви можете почекати або повернути денну картку.",
   "timer.forslagValg.attesterBlokkert": "Працівник не вибрав між ПК і мобільним — чекай або повертай денну картку",
-  "timer.forslagValg.pille": "Мобільна пропозиція"
+  "timer.forslagValg.pille": "Мобільна пропозиція",
+  "sokMobil.omfangAlle": "все",
+  "sokMobil.omfangMapper": "Папки",
+  "sokMobil.omfangSjekklister": "Контрольні списки",
+  "sokMobil.omfangOppgaver": "завдання",
+  "sokMobil.placeholder": "Пошук папок, контрольних списків і завдань",
+  "sokMobil.minstToTegn": "Введіть принаймні 2 символи та натисніть Пошук",
+  "sokMobil.mapperKreverNett": "Офлайн – для пошуку папок потрібне з’єднання",
+  "sokMobil.kreverNettKort": "папки потребують підключення",
+  "sokMobil.lagretVersjon": "збережена версія · востаннє отримано {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "збережена версія",
+  "sokMobil.visAlle": "Показати все {{antall}}",
+  "sokMobil.aapneDokumentet": "відкритий документ"
 }

@@ -752,7 +752,7 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 
 **Flere oppgaver pr. felt (C, 2026-10-07):** Et felt kan ha FLERE oppgaver — hver vises som en egen blå chip, og `+Oppgave` blir stående ved siden av (erstattes ikke), så ett felt kan utløse flere oppgaver. Datamodellen tillot dette alt (`Task.checklistFieldId` ikke unik, ingen server-sjekk); kun klienten begrenset til én. `FeltWrapper` tar nå `oppgaver: {id, nummer?}[]` (ikke `oppgaveNummer`/`oppgaveId`), og speiler repeater-radenes chip-mønster (`RepeaterObjekt.tsx`). Repeater-radene er uendret (per-rad `radOppgaver`).
 
-## 🟢 Mobilens dokumentsøk er LISTESØK, ikke innholdssøk (Kenneth-vedtak 2026-09-06)
+## 🟢 Mobilens dokumentsøk er LISTESØK, ikke innholdssøk (Kenneth-vedtak 2026-09-06, utvidet 2026-11-03)
 
 > **Kenneth, etter å ha testet sheetet på test:** *«Egentlig — fritekstsøk inni dokumenter
 > hører til web-flaten. App er ok slik den står nå.»*
@@ -768,6 +768,23 @@ produktet har allerede en flate for det: **Dokumentsøk** med embedding og hybri
 
 ⚠️ **Ikke meld dette som en mangel.** Endres vedtaket, er innholdssøk på mobil en egen sak med
 egen kostnadsmåling.
+
+**Utvidet 2026-11-03 (Kenneth, spec-sok-mobil rev. 2 § 10): innholdssøk i FTD-dokumenter.** Søke-ikonet i
+Mapper-hodet (`app/(tabs)/boks.tsx`) åpner `app/sok/index.tsx`: ett felt + omfangsvelger «Alle · Mapper ·
+Sjekklister · Oppgaver» (standard «Alle», seksjoner Mapper → Sjekklister → Oppgaver, maks 10 rader pr. seksjon).
+
+- **Mapper** = innholdssøk i serverens indeks, samme motor som web: `aiSok.sok` når embeddings finnes, ellers/ved
+  feil/0 treff `ftdSok.sokDokumenter`; referansemapper filtreres bort; «Vis N flere» pr. dokument. Telefonen laster
+  ingen dokumenter for å søke. **Krever nett** — offline vises «Frakoblet – søk i mapper krever nettilkobling» og
+  siste treff fra React Query-cachen (`offlineFirst`).
+- **Sjekklister og oppgaver** er fortsatt **listesøk** (vedtaket over står): sjekklister via `filtrerOgSorter`,
+  oppgaver via `sokIOppgaver` (`src/components/sok/oppgaveSok.ts`: prefiks+nummer · tittel · beskrivelse · malnavn
+  · utfører-faggruppe). Offline leses lokal katalog (`velgOfflineListeKilde`) med «lagret versjon · sist hentet
+  hh:mm». Lokal oppgavekatalog (`oppgave_local`) har ingen beskrivelse — offline treffer ikke beskrivelsen.
+- **Leseren** `app/sok/[dokumentId].tsx` viser dokumentets chunks (`ftdSok.hentDokumentChunks`) med amber ramme på
+  valgt treff, gule søkeord og ▲▼ «n av m»; «Åpne dokumentet» går til `/dokument/[id]`. Ren logikk i
+  `src/components/sok/sokLogikk.ts` (testet), utsnitt delt med web i `packages/shared/src/sok/utsnitt.ts`.
+- **Utenfor:** innholdssøk i `Checklist.data`/`Task.data` (egen sak, spec § 9.2) og omfangsvelger på web.
 
 ## 🟢 Dokumentflyt på mobil er LESEVISNING — og det er etter design (målt 2026-09-06)
 

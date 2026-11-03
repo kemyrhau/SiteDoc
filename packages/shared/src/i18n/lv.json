@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Ieteikums no mobilā, gaida darbinieka izvēli",
   "timer.forslagValg.lesevisningHjelp": "Lai jūs varētu apstiprināt, darbiniekam ir jāizvēlas starp datoru vai mobilo. Dienas karti vari pagaidīt vai atdot.",
   "timer.forslagValg.attesterBlokkert": "Darbinieks nav izvēlējies starp datoru vai mobilo — pagaidiet vai atdodiet dienas karti",
-  "timer.forslagValg.pille": "Mobilais ieteikums"
+  "timer.forslagValg.pille": "Mobilais ieteikums",
+  "sokMobil.omfangAlle": "Visi",
+  "sokMobil.omfangMapper": "Mapes",
+  "sokMobil.omfangSjekklister": "Kontrolsaraksti",
+  "sokMobil.omfangOppgaver": "Uzdevumi",
+  "sokMobil.placeholder": "Meklējiet mapes, kontrolsarakstus un uzdevumus",
+  "sokMobil.minstToTegn": "Ievadiet vismaz 2 rakstzīmes un pieskarieties Meklēt",
+  "sokMobil.mapperKreverNett": "Bezsaistē — lai meklētu mapes, ir nepieciešams savienojums",
+  "sokMobil.kreverNettKort": "mapēm ir nepieciešams savienojums",
+  "sokMobil.lagretVersjon": "saglabātā versija · pēdējo reizi ielādēts {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "saglabātā versija",
+  "sokMobil.visAlle": "Rādīt visu {{antall}}",
+  "sokMobil.aapneDokumentet": "Atvērt dokumentu"
 }

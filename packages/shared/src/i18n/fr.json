@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Suggestion depuis le mobile, en attente du choix du travailleur",
   "timer.forslagValg.lesevisningHjelp": "Le travailleur doit choisir entre PC et mobile avant que vous puissiez approuver. Vous pouvez attendre ou rendre la carte journalière.",
   "timer.forslagValg.attesterBlokkert": "Le travailleur n'a pas choisi entre PC et mobile : attendez ou rendez la carte journalière",
-  "timer.forslagValg.pille": "Suggestions mobiles"
+  "timer.forslagValg.pille": "Suggestions mobiles",
+  "sokMobil.omfangAlle": "Toute",
+  "sokMobil.omfangMapper": "Dossiers",
+  "sokMobil.omfangSjekklister": "Listes de contrôle",
+  "sokMobil.omfangOppgaver": "Tâches",
+  "sokMobil.placeholder": "Rechercher des dossiers, des listes de contrôle et des tâches",
+  "sokMobil.minstToTegn": "Tapez au moins 2 caractères et appuyez sur Rechercher",
+  "sokMobil.mapperKreverNett": "Hors ligne : la recherche de dossiers nécessite une connexion",
+  "sokMobil.kreverNettKort": "les dossiers nécessitent une connexion",
+  "sokMobil.lagretVersjon": "version enregistrée · dernière récupération {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "version enregistrée",
+  "sokMobil.visAlle": "Afficher tout {{antall}}",
+  "sokMobil.aapneDokumentet": "Ouvrir le document"
 }

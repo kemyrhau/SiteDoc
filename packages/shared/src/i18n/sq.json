@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Sugjerim nga celulari, në pritje të zgjedhjes së punëtorit",
   "timer.forslagValg.lesevisningHjelp": "Punonjësi duhet të zgjedhë midis kompjuterit dhe celularit përpara se të aprovoni. Mund të prisni ose të ktheni kartën e ditës.",
   "timer.forslagValg.attesterBlokkert": "Punonjësi nuk ka zgjedhur mes kompjuterit dhe celularit — prisni ose ktheni kartën e ditës",
-  "timer.forslagValg.pille": "Sugjerim celular"
+  "timer.forslagValg.pille": "Sugjerim celular",
+  "sokMobil.omfangAlle": "Të gjitha",
+  "sokMobil.omfangMapper": "Dosjet",
+  "sokMobil.omfangSjekklister": "Listat e kontrollit",
+  "sokMobil.omfangOppgaver": "Detyrat",
+  "sokMobil.placeholder": "Kërkoni dosje, lista kontrolli dhe detyra",
+  "sokMobil.minstToTegn": "Shkruani të paktën 2 karaktere dhe prekni Kërko",
+  "sokMobil.mapperKreverNett": "Jashtë linje – kërkimi i dosjeve kërkon një lidhje",
+  "sokMobil.kreverNettKort": "dosjet kërkojnë një lidhje",
+  "sokMobil.lagretVersjon": "versioni i ruajtur · marrë për herë të fundit {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "versioni i ruajtur",
+  "sokMobil.visAlle": "Shfaq të gjitha {{antall}}",
+  "sokMobil.aapneDokumentet": "Hap dokumentin"
 }

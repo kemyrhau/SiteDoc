@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Folder, FolderOpen, FileText, ChevronRight, ArrowLeft } from "lucide-react-native";
+import { Folder, FolderOpen, FileText, ChevronRight, ArrowLeft, Search } from "lucide-react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
@@ -157,6 +157,15 @@ export default function BoksSkjerm() {
             </Text>
           )}
         </View>
+        {/* Mobilsøk (spec-sok-mobil § 1 A): push, så mappestien bevares ved retur. */}
+        <TouchableOpacity
+          onPress={() => router.push("/sok")}
+          className="ml-2 rounded-lg p-1.5"
+          accessibilityLabel={t("sok.tittel")}
+          hitSlop={8}
+        >
+          <Search size={22} color="#374151" />
+        </TouchableOpacity>
       </View>
 
       {erLaster ? (

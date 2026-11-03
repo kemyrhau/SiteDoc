@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Návrh z mobilu, čeká se na volbu pracovníka",
   "timer.forslagValg.lesevisningHjelp": "Před schválením si musí pracovník vybrat mezi počítačem a mobilním zařízením. Můžete počkat nebo denní kartu vrátit.",
   "timer.forslagValg.attesterBlokkert": "Pracovník si nevybral mezi počítačem a mobilním zařízením – počkejte nebo vraťte denní kartu",
-  "timer.forslagValg.pille": "Mobilní návrh"
+  "timer.forslagValg.pille": "Mobilní návrh",
+  "sokMobil.omfangAlle": "Vše",
+  "sokMobil.omfangMapper": "Složky",
+  "sokMobil.omfangSjekklister": "Kontrolní seznamy",
+  "sokMobil.omfangOppgaver": "Úkoly",
+  "sokMobil.placeholder": "Prohledávejte složky, kontrolní seznamy a úkoly",
+  "sokMobil.minstToTegn": "Zadejte alespoň 2 znaky a klepněte na Hledat",
+  "sokMobil.mapperKreverNett": "Offline – prohledávání složek vyžaduje připojení",
+  "sokMobil.kreverNettKort": "složky vyžadují připojení",
+  "sokMobil.lagretVersjon": "uložená verze · naposledy načteno {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "uložená verze",
+  "sokMobil.visAlle": "Zobrazit vše {{antall}}",
+  "sokMobil.aapneDokumentet": "Otevřete dokument"
 }
