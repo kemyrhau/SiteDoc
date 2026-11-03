@@ -372,6 +372,12 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
 
+### 2026-11-03
+
+| Hash | Flate | Før → Etter |
+|---|---|---|
+| `a1edf23f` (merge `05fef47f`) | **Mobil — farge `sitedoc-primary`** | **Før:** fargen var ikke definert i mobilens tailwind-config. 43 klassebruk ble droppet stille, så blant annet «Vis N treff» i filterarket, valgt sorteringsbrikke, EmneFelt, DatoVelgerFelt, HMS-behandling, quiz, PSI og maskin hadde usynlige knapper og brikker. **Etter:** de vises blå (`#1e40af`, samme som `sitedoc-blue`). ⚪ Ikke sett på telefon. Reload: OTA |
+
 ### 2026-10-14
 
 | Hash | Flate | Før → Etter |
