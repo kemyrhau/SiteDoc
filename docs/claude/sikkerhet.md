@@ -237,7 +237,7 @@ Ruten sjekket bare at kalleren er firma_admin i `input.organizationId`, ikke at 
 - **Mobil:** `app/dokument/[id].tsx` og `app/(tabs)/boks.tsx` viser lås og `mapper.ingenTilgang` ved `FORBIDDEN` i stedet for «Ikke funnet» eller en tom liste. Web skjuler lukkede mapper i klienten (`beregnSynligeMapper`) og har ingen egen visning.
 - **Test:** `apps/api/src/routes/mappe-dokumenttilgang.test.ts` (rød før fiksen: 5 av 10).
 - **Åpne funn fra gjennomgangen (ikke fikset, venter ordre):**
-  - 🔴 `mappe.settTilgang` krever bare `verifiserProsjektmedlem`. Ethvert medlem kan sette `accessMode="inherit"` eller endre listen og dermed åpne en lukket mappe for seg selv, som omgår fiksen over. Anbefaling: krev `verifiserAdmin`. Det er en funksjonsendring.
+  - ✅ `mappe.settTilgang` krevde bare `verifiserProsjektmedlem` — fikset, se § 8h.
   - 🟠 `modul.sammenlignOversettelse` (`apps/api/src/routes/modul.ts`) leser blokktekst fra `blokkId` uten å sjekke at blokken hører til `input.projectId`. Med kjent UUID kan tekst leses på tvers av prosjekter og firmaer.
   - 🟡 Resten av `mappe.ts` har bare prosjektporten og leverer metadata eller skriver i lukkede mapper: `hentForProsjekt` (alle mappenavn og tellinger), `hentTilgang`, `opprett`, `oppdater`, `slett`, språk- og oversettelsesrutene, `slettDokument`, `lastOppDokument`, `reprosesser*`, `settKontrakt` og `splittDokumenter`. Ingen av dem leverer innhold eller fil.
   - 🟡 `hentDokumentBlokker` leser også blokker fra inaktive (soft-slettede) dokumenter.
@@ -248,6 +248,12 @@ Ruten sjekket bare at kalleren er firma_admin i `input.organizationId`, ikke at 
 - **Konsekvens:** firma-admin i et deltakerfirma får tilgang som vanlig medlem (medlemsrad, grupper, mappetilgang, `kanAttestere`). Prod 2026-11-03: 8 prosjekter, ingen uten eier, ingen deltakerkoblinger — ingen bruker mister tilgang i dag.
 - **Urørt:** `prosjektTilhørerFirmaWhere` (eier ∪ kobling, firma-nivå timer/prosjektvelger) og firma-nivå-lister som `organisasjon.hentProsjekter` — de gir ikke prosjekt-admin.
 - **Test:** `apps/api/src/trpc/firmaadmin-eierfirma.test.ts` (rød før fiksen: 4 av 8; negativkontroll: admin i eierfirmaet slipper). `tilgangskontroll.test.ts` og `dokumentflyt-slett-adminvakt.test.ts` mocker nå eierfirmaet i stedet for koblingen.
+
+### ✅ 8h. Ethvert prosjektmedlem kunne endre mappetilgang (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle» = hjemlet funksjonsendring; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+`mappe.settTilgang` krevde bare `verifiserProsjektmedlem`. Et medlem kunne sette `accessMode="inherit"` eller skrive seg selv inn i listen og dermed åpne en lukket mappe — som omgikk § 8f.
+- **Fiks** (`apps/api/src/routes/mappe.ts`, `settTilgang`): krever `verifiserAdmin` (prosjektadmin, firma-admin i eierfirmaet, sitedoc_admin). `settTilgang` er eneste rute som skriver `accessMode`/`FolderAccess`; `oppdater` endrer bare navn, `opprett` gir standard `inherit`, og ingen rute flytter mapper.
+- **UI:** web `dashbord/oppsett/produksjon/box/page.tsx` skjuler «Rediger tilgang» i mappemenyen når `gruppe.hentMinFlytInfo().erAdmin` er `false`. Mobil har ingen tilgangsredigering.
+- **Test:** `apps/api/src/routes/mappe-settilgang.test.ts` (rød før fiksen: 3 av 3).
 
 ### ✅ 8c. ezdxf-SVG-visningen stolte 100 % på at markupen var render.py-generert (herding 2026-10-11, `fix/ezdxf-xss-vern`)
 Web beholdt SVG-ens egen `<style>` når den så `data-motor="ezdxf"` **i fila**, og mobil injiserte markupen rått via `innerHTML` i en WebView. DOMPurify saniterer ikke CSS, og mobil har ingen DOMPurify. Trygt i dag (render.py `html.escape`-er tekst/lag og skriver en fast `<style>`), men ingen sperre ved drift i render.py, en ny motor, eller en forfalsket SVG. Opplasting av SVG er dessuten ikke klient-tillatt (`ACCEPT` uten `.svg`), men `upload.ts:72` er en **blokkliste** — en direkte `.svg`-POST lagres med `fileType="svg"`. Herdet:

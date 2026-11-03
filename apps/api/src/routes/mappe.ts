@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
@@ -887,7 +887,8 @@ export const mappeRouter = router({
       return mappe;
     }),
 
-  // Sett tilgang for en mappe (erstatter alle oppføringer)
+  // Sett tilgang for en mappe (erstatter alle oppføringer). Krever prosjektadmin: et medlem
+  // kunne ellers åpne en lukket mappe for seg selv (sikkerhet.md § 8f/8h).
   settTilgang: protectedProcedure
     .input(settMappeTilgangSchema)
     .mutation(async ({ ctx, input }) => {
@@ -895,7 +896,7 @@ export const mappeRouter = router({
         where: { id: input.folderId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+      await verifiserAdmin(ctx.userId, mappe.projectId);
       return ctx.prisma.$transaction(async (tx) => {
         await tx.folder.update({
           where: { id: input.folderId },
