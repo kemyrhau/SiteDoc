@@ -8,6 +8,8 @@
 - **`InteractionManager.runAfterInteractions`:** MÅ brukes etter kamera/picker lukkes
 - **Lukkeknapp i modaler/fullskjerm:** ALLTID i en header-bar under SafeAreaView — ALDRI absolutt posisjonert (havner under notch/Dynamic Island). Standard: `<X size={22} color="#ffffff" />` med `hitSlop={12}` i en `flex-row items-center px-4 py-3` View. Se `PdfForhandsvisning.tsx` som referanse.
 
+- **Farger (`apps/mobile/tailwind.config.ts`):** `sitedoc-header`, `sitedoc-header-dark`, `sitedoc-blue`, `sitedoc-blue-light` og `sitedoc-primary` (= `#1e40af`, samme som `sitedoc-blue`; lagt til 2026-11-03 — før det droppet NativeWind `bg-/text-/border-sitedoc-primary` stille, så f.eks. «Vis N treff» i filterarket var usynlig). Ny `sitedoc-*`-klasse krever oppføring her, ellers blir den stille borte.
+
 ## Opprettelsesflyt
 
 `OpprettDokumentModal` — brukes for både sjekklister og oppgaver.
