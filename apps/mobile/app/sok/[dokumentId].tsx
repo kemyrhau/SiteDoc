@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { ForekomstRad } from "../../src/components/sok/ForekomstRad";
-import { byggLeser, nesteEnhet, type LeserChunk } from "../../src/components/sok/sokLogikk";
+import { byggLeser, nesteEnhet, startEnhet, type LeserChunk } from "../../src/components/sok/sokLogikk";
 
 /**
  * Chunk-leser for et Mapper-treff (spec-sok-mobil rev. 2 § 3): dokumentets tekst pr. side med overlapp fjernet,
@@ -18,6 +18,7 @@ export default function SokLeser() {
   const { t } = useTranslation();
   const router = useRouter();
   const { valgtProsjektId } = useProsjekt();
+  const insets = useSafeAreaInsets();
   const p = useLocalSearchParams<{ dokumentId: string; chunk?: string; q?: string; filnavn?: string; treff?: string }>();
   const dokumentId = p.dokumentId;
   const q = p.q ?? "";
@@ -48,6 +49,14 @@ export default function SokLeser() {
     () => (leser.forekomster.length > 0 ? leser.forekomster : treffChunks.map((chunkIndex) => ({ chunkIndex }))),
     [leser.forekomster, treffChunks],
   );
+
+  // R2: telleren starter på valgt treff (første enhet i valgt chunk), som web liste-klikk — ikke dokumentets start.
+  const harSattStart = useRef(false);
+  useEffect(() => {
+    if (harSattStart.current || !chunks) return;
+    harSattStart.current = true;
+    settAktiv(startEnhet(enheter, startChunk));
+  }, [chunks, enheter, startChunk]);
 
   // Rulle-mål: y pr. side + y pr. segment i siden.
   const scrollRef = useRef<ScrollView>(null);
@@ -85,7 +94,7 @@ export default function SokLeser() {
   const aktivForekomst = leser.forekomster.length > 0 ? aktiv : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
+    <View className="flex-1 bg-white" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <View className="flex-row items-center gap-2 bg-sitedoc-blue px-4 py-3">
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel={t("handling.tilbake")}>
           <ArrowLeft size={22} color="#ffffff" />
@@ -151,6 +160,6 @@ export default function SokLeser() {
         onNeste={() => gåTil(1)}
         onÅpneDokument={() => router.push(`/dokument/${dokumentId}`)}
       />
-    </SafeAreaView>
+    </View>
   );
 }

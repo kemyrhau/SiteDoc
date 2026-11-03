@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Search, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -55,6 +55,7 @@ export default function SokSkjerm() {
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
+  const insets = useSafeAreaInsets();
 
   const [tekst, settTekst] = useState("");
   const [aktivtSok, settAktivtSok] = useState("");
@@ -109,9 +110,10 @@ export default function SokSkjerm() {
     aiAntall: aiSvar?.treff.length ?? 0,
     aiSøkUtilgjengelig: !!aiSvar?.aiSøkUtilgjengelig,
   });
-  const grunnTreff = (motor === "ai" ? aiSvar?.treff : leksTreff) ?? [];
-  const mappeTreff = useMemo(() => flettUtvidet(grunnTreff, utvidet), [grunnTreff, utvidet]);
-  const mapperLaster = søkerMapper && erPaaNettet && leksQuery.isLoading;
+  const grunnTreff = motor === "ai" ? aiSvar?.treff : leksTreff;
+  const mappeTreff = useMemo(() => flettUtvidet(grunnTreff ?? [], utvidet), [grunnTreff, utvidet]);
+  // Med embeddings venter vi også på AI-svaret, så tekst-treff ikke vises og byttes ut (blink).
+  const mapperLaster = søkerMapper && erPaaNettet && (leksQuery.isLoading || (harEmbeddings && aiQuery.isLoading));
 
   const utils = trpc.useUtils();
   const visFlere = useCallback(
@@ -217,8 +219,10 @@ export default function SokSkjerm() {
     [modus.sjekklister, modus.oppgaver, valgtProsjektId, brukerId],
   );
 
+  const mappeDokumenter = useMemo(() => grupperPerDokument(mappeTreff).length, [mappeTreff]);
+  // Mapper telles i dokumenter, samme enhet som grupperingen og «Vis alle N».
   const antall: Record<Kilde, number> = {
-    mapper: søkerMapper ? mappeTreff.length : 0,
+    mapper: søkerMapper && !mapperLaster ? mappeDokumenter : 0,
     sjekklister: sjekklisteTreff.length,
     oppgaver: oppgaveTreff.length,
   };
@@ -255,7 +259,7 @@ export default function SokSkjerm() {
 
   const renderSeksjon = (k: Kilde) => {
     if (k === "mapper") {
-      const antallDok = grupperPerDokument(mappeTreff).length;
+      const antallDok = mappeDokumenter;
       return (
         <KildeSeksjon
           key={k}
@@ -270,12 +274,12 @@ export default function SokSkjerm() {
                 : null
           }
         >
-          {!erAlle && mappeTreff.length > 0 ? (
+          {!erAlle && mappeTreff.length > 0 && !mapperLaster ? (
             <Text className="px-4 pb-1.5 text-xs text-gray-500">
               {t("ftdSok.antallTreffIDok", { treff: mappeTreff.length, dok: antallDok })}
             </Text>
           ) : null}
-          {mappeTreff.length > 0 ? (
+          {mappeTreff.length > 0 && !mapperLaster ? (
             <TreffListe
               treff={mappeTreff}
               søkeord={aktivtSok}
@@ -332,7 +336,7 @@ export default function SokSkjerm() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <View className="flex-row items-center gap-2 bg-sitedoc-blue px-4 py-2.5">
         <View className="flex-1 flex-row items-center rounded-lg bg-white px-3 py-2">
           <Search size={16} color="#9ca3af" />
@@ -382,6 +386,6 @@ export default function SokSkjerm() {
           {seksjoner.map(renderSeksjon)}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }

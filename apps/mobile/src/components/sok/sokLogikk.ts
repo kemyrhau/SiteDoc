@@ -232,3 +232,10 @@ export function nesteEnhet(aktiv: number | null, retning: 1 | -1, antall: number
   if (aktiv == null) return retning === 1 ? 0 : antall - 1;
   return (aktiv + retning + antall) % antall;
 }
+
+/** Startenhet ved åpning fra treffliste: første enhet i valgt chunk (som web liste-klikk), ellers «–». */
+export function startEnhet(enheter: Array<{ chunkIndex: number }>, startChunk: number | null): number | null {
+  if (startChunk == null) return null;
+  const i = enheter.findIndex((e) => e.chunkIndex === startChunk);
+  return i === -1 ? null : i;
+}

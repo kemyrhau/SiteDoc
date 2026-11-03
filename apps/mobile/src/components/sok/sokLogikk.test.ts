@@ -10,6 +10,7 @@ import {
   flettUtvidet,
   byggLeser,
   nesteEnhet,
+  startEnhet,
   MAKS_RADER_ALLE,
   type KildeModus,
   type Kilde,
@@ -159,5 +160,20 @@ describe("nesteEnhet — ▲▼ med rundgang (som web)", () => {
     expect(nesteEnhet(null, 1, 3)).toBe(0);
     expect(nesteEnhet(null, -1, 3)).toBe(2);
     expect(nesteEnhet(null, 1, 0)).toBeNull();
+  });
+});
+
+describe("startEnhet — ▲▼ starter ved valgt treff (som web liste-klikk)", () => {
+  const enheter = [{ chunkIndex: 0 }, { chunkIndex: 3 }, { chunkIndex: 3 }, { chunkIndex: 7 }];
+
+  it("første enhet i valgt chunk, ikke dokumentets første", () => {
+    expect(startEnhet(enheter, 3)).toBe(1);
+    expect(startEnhet(enheter, 7)).toBe(3);
+  });
+
+  it("valgt chunk uten enhet eller uten valgt chunk gir «–» (null)", () => {
+    expect(startEnhet(enheter, 5)).toBeNull();
+    expect(startEnhet(enheter, null)).toBeNull();
+    expect(startEnhet([], 3)).toBeNull();
   });
 });
