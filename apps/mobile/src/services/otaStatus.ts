@@ -55,8 +55,12 @@ export interface Innsetter {
  * Bunnmarg mens linja vises: linja tar home-indikator-marginen selv, og
  * navigatoren over (fanelinja, skjermer) får `bottom: 0` — ellers dobbel marg.
  * Uten linje er navigatorens innsetter urørt.
+ *
+ * `modal` er ALLTID de rå innsetterne: en RN-`<Modal>` dekker hele skjermen, også
+ * linja, så modalinnhold må ha full bunnmarg selv mens navigatoren har 0
+ * (RETUR 1). Leses via `useModalInnsetter()`.
  */
 export function fordelBunnInnsetter(innsetter: Innsetter, linjeSynlig: boolean) {
-  if (!linjeSynlig) return { navigator: innsetter, linjeBunn: 0 };
-  return { navigator: { ...innsetter, bottom: 0 }, linjeBunn: innsetter.bottom };
+  if (!linjeSynlig) return { navigator: innsetter, modal: innsetter, linjeBunn: 0 };
+  return { navigator: { ...innsetter, bottom: 0 }, modal: innsetter, linjeBunn: innsetter.bottom };
 }

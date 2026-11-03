@@ -842,6 +842,13 @@ native-modul, `app.config.js` uendret (`checkAutomatically: "ON_LOAD"`, `fallbac
   får navigatoren `bottom: 0` i `SafeAreaInsetsContext` og linja tar home-indikator-margen selv (summen er lik;
   ingen dobbel eller manglende bunnmarg). Fanelinja (`@react-navigation/bottom-tabs`) leser innsetter fra den
   konteksten; `SafeAreaProviderCompat` pakker ikke inn på nytt når konteksten finnes.
+- **Modaler får rå innsetter (RETUR 1).** Konteksten går gjennom RN-`<Modal>`, men en modal dekker hele skjermen —
+  også linja. `MedOtaLinje` legger derfor `ModalInnsetterKontekst` (`src/components/ModalInnsetter.tsx`) med de RÅ
+  innsetterne over overstyringen, og modalinnhold leser `useModalInnsetter()`: `ModalFlate`, `KameraModal`,
+  `BildeAnnotering`, `TegningPosisjonObjekt`. Skjermer i navigatoren beholder `useSafeAreaInsets()` (får `bottom: 0`
+  korrekt, linja ligger under). Native `SafeAreaView` leser ikke JS-konteksten og er upåvirket. Låst av
+  `fordelBunnInnsetter`-testen (`modal ≠ navigator`) og `src/components/modal-innsetter-vakt.test.ts` (ingen fil med
+  `<Modal` eller kjent modalinnhold kaller `useSafeAreaInsets()` direkte).
 - **Status under Mer:** `VersjonsFooter visOtaStatus` (`app/(tabs)/mer.tsx`); innloggingsskjermens footer er uendret.
 - **Dev-flagg:** `EXPO_PUBLIC_OTA_DEMO=1` (kun `__DEV__`) tvinger status «klar», slik at linja og bunnmargen kan
   sjekkes uten ekte OTA.

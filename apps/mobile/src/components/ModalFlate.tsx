@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInnsetter } from "./ModalInnsetter";
 
 type Kant = "top" | "bottom";
 
 /**
- * Rot-flate for modal-innhold. Padder fra useSafeAreaInsets(), IKKE fra <SafeAreaView>.
+ * Rot-flate for modal-innhold. Padder fra useModalInnsetter() (rå safe-area-innsetter,
+ * også mens OTA-linja har nullet navigatorens bunn), IKKE fra <SafeAreaView>.
  *
  * Bakgrunn (målt 2026-08-31, iPhone 16 Plus / iOS 18.4): inne i en RN <Modal> gir
  * useSafeAreaInsets() riktige tall (top=59 / bottom=34), men <SafeAreaView> anvender
@@ -26,7 +27,7 @@ export function ModalFlate({
   kanter?: readonly Kant[];
   className?: string;
 }) {
-  const insets = useSafeAreaInsets();
+  const insets = useModalInnsetter();
   return (
     <View
       className={className}

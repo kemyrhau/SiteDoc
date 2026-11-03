@@ -3,7 +3,7 @@ import { View, Text, Pressable, Modal, Animated, InteractionManager, Image, Scro
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
 import { X, Timer, Flashlight, FlashlightOff, Pencil } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInnsetter } from "./ModalInnsetter";
 import { useTranslation } from "react-i18next";
 import type { AnnoteringsLag } from "@sitedoc/shared";
 import { bekreftOpptak, kanAnnoteres, leggTilVentende, type OktBilde } from "../lib/kameraStripe";
@@ -49,7 +49,7 @@ function orienteringTilGrader(orientering: Orientering): number {
 export function KameraModal({ synlig, onBilde, onAnnoterBilde, onLukk }: KameraModalProps) {
   const { t } = useTranslation();
   const cameraRef = useRef<CameraView>(null);
-  const insets = useSafeAreaInsets();
+  const insets = useModalInnsetter();
   const [tillatelse, spørOmTillatelse] = useCameraPermissions();
   const tarBilde = useRef(false);
   // Del 3: bildene tatt i denne økta (nyeste først) — miniatyrstripe + annoter-kobling.

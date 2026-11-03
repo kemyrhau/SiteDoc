@@ -59,12 +59,18 @@ describe("skalSjekke", () => {
 describe("fordelBunnInnsetter", () => {
   const innsetter = { top: 47, right: 0, bottom: 34, left: 0 };
   it("uten linje: navigatoren beholder bunnmargen, linja har ingen", () => {
-    expect(fordelBunnInnsetter(innsetter, false)).toEqual({ navigator: innsetter, linjeBunn: 0 });
+    expect(fordelBunnInnsetter(innsetter, false)).toEqual({ navigator: innsetter, modal: innsetter, linjeBunn: 0 });
   });
   it("med linje: margen flyttes til linja — summen er den samme (ingen dobbel, ingen manglende)", () => {
     const { navigator, linjeBunn } = fordelBunnInnsetter(innsetter, true);
     expect(navigator).toEqual({ ...innsetter, bottom: 0 });
     expect(linjeBunn).toBe(34);
     expect(navigator.bottom + linjeBunn).toBe(innsetter.bottom);
+  });
+  it("med linje: modalinnhold får FULL bunnmarg — modal dekker linja (RETUR 1)", () => {
+    const { navigator, modal } = fordelBunnInnsetter(innsetter, true);
+    expect(modal).toEqual(innsetter);
+    expect(modal.bottom).toBe(34);
+    expect(modal.bottom).not.toBe(navigator.bottom);
   });
 });

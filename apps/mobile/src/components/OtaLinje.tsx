@@ -4,6 +4,7 @@ import { SafeAreaInsetsContext, useSafeAreaInsets } from "react-native-safe-area
 import { useTranslation } from "react-i18next";
 import { useOta } from "../providers/OtaProvider";
 import { fordelBunnInnsetter } from "../services/otaStatus";
+import { ModalInnsetterKontekst } from "./ModalInnsetter";
 
 /**
  * «Ny versjon er klar · Oppdater» nederst i appen (ota-varsel 2026-11-03).
@@ -12,19 +13,24 @@ import { fordelBunnInnsetter } from "../services/otaStatus";
  * safe-area-konteksten (fanelinja leser den derfra) og linja tar
  * home-indikator-marginen selv — se `fordelBunnInnsetter`. Ingen lukk-knapp;
  * linja forsvinner når den nye versjonen er tatt i bruk.
+ *
+ * `ModalInnsetterKontekst` bærer de RÅ innsetterne forbi overstyringen: en
+ * `<Modal>` dekker også linja, så modalinnhold trenger full bunnmarg.
  */
 export function MedOtaLinje({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const { status, oppdater } = useOta();
   const innsetter = useSafeAreaInsets();
   const synlig = status === "klar";
-  const { navigator, linjeBunn } = fordelBunnInnsetter(innsetter, synlig);
+  const { navigator, modal, linjeBunn } = fordelBunnInnsetter(innsetter, synlig);
 
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaInsetsContext.Provider value={navigator}>
-        <View style={{ flex: 1 }}>{children}</View>
-      </SafeAreaInsetsContext.Provider>
+      <ModalInnsetterKontekst.Provider value={modal}>
+        <SafeAreaInsetsContext.Provider value={navigator}>
+          <View style={{ flex: 1 }}>{children}</View>
+        </SafeAreaInsetsContext.Provider>
+      </ModalInnsetterKontekst.Provider>
       {synlig && (
         <Pressable
           onPress={oppdater}
