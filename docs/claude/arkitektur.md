@@ -386,6 +386,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
 - Firma-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
 - En firma-admin kan bare koble prosjekter **firmaet selv eier** til firmaet: `organisasjon.leggTilProsjekt` krever `project.primaryOrganizationId === organizationId` (prosjekt uten eier avvises). Grunnen er at en `ProjectOrganization`-rad gir firma-admin-bypass (`erFirmaAdminForProsjekt`) i alle prosjekt-porter. Andre firmaer kobles bare av sitedoc_admin (`admin.tilknyttProsjekt`). Se [sikkerhet.md § 8e](sikkerhet.md)
+- Hver rute som leverer dokumentinnhold eller fil, sjekker mappetilgang (`hentTilgjengeligeMappeIder`) etter prosjektporten. Det gjelder søket (`ftdSok`, `aiSok`) og dokumentvisningen i `mappe.ts` (`hentDokumenter`, `hentDokumenterMedSpraak`, `hentDokumentBlokker`). Se [sikkerhet.md § 8f](sikkerhet.md)
 - API-nøkler sendes **ALDRI** til klienten — returner kun `harNøkkel: boolean`
 - Firmaoverføring (standalone → Organization) er **permanent** — krever superadmin + firmaadmin-godkjenning
 

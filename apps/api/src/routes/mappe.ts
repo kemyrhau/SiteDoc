@@ -3,8 +3,10 @@ import { Prisma, prisma } from "@sitedoc/db";
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
 import { router, protectedProcedure } from "../trpc/trpc";
+import { TRPCError } from "@trpc/server";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
 import { prosesserDokument } from "../services/ftd-prosessering";
@@ -162,6 +164,24 @@ async function reparerDokumentSett(
   return { ok: true, full: fullIder.length, embedding: embeddingIder.length };
 }
 
+/**
+ * Lesetilgang til innholdet i en mappe: prosjektmedlemskap + mappetilgang, samme mønster som
+ * `ftdSok.hentDokumentChunks`. Brukes av rutene som leverer dokumentinnhold eller `fileUrl`
+ * (firmagrense punkt 3, 2026-11-03). Dokument uten mappe har bare prosjektporten.
+ */
+async function verifiserMappeLesetilgang(
+  userId: string,
+  projectId: string,
+  folderId: string | null,
+): Promise<void> {
+  await verifiserProsjektmedlem(userId, projectId);
+  if (!folderId) return;
+  const mappeIder = await hentTilgjengeligeMappeIder(userId, projectId);
+  if (mappeIder !== null && !mappeIder.includes(folderId)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen tilgang til mappen" });
+  }
+}
+
 export const mappeRouter = router({
   // Hent alle mapper for et prosjekt (flat liste med parentId + tilgangsoppføringer)
   hentForProsjekt: protectedProcedure
@@ -264,7 +284,7 @@ export const mappeRouter = router({
         where: { id: input.folderId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+      await verifiserMappeLesetilgang(ctx.userId, mappe.projectId, input.folderId);
 
       // Resolve effektive målspråk via arv
       const alleMapper = await ctx.prisma.folder.findMany({
@@ -324,11 +344,12 @@ export const mappeRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const dok = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+      const dok = await ctx.prisma.ftdDocument.findUnique({
         where: { id: input.documentId },
-        select: { projectId: true, filename: true, fileUrl: true, sourceLanguage: true },
+        select: { projectId: true, folderId: true, filename: true, fileUrl: true, sourceLanguage: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, dok.projectId);
+      if (!dok) throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke" });
+      await verifiserMappeLesetilgang(ctx.userId, dok.projectId, dok.folderId);
 
       const blokker = await ctx.prisma.ftdDocumentBlock.findMany({
         where: { documentId: input.documentId, language: input.language },
@@ -734,7 +755,7 @@ export const mappeRouter = router({
         where: { id: input.folderId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+      await verifiserMappeLesetilgang(ctx.userId, mappe.projectId, input.folderId);
 
       // Resolve effektive målspråk via arv
       const alleMapper = await ctx.prisma.folder.findMany({
