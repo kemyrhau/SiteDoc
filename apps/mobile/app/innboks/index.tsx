@@ -8,7 +8,7 @@ import {
   RefreshControl,
   TextInput,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   ArrowLeft,
@@ -16,7 +16,6 @@ import {
   ListTodo,
   Search,
   SlidersHorizontal,
-  X,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,18 +26,20 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
+import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
 import {
   MedUtheving,
   formaterNummer,
 } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import {
-  antallAktiveFilter,
   byggAlternativer,
   filtrerOgSorter,
-  FILTER_KOLONNER,
   type DokumentRad,
-  type Sortering,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
+import {
+  useAktiveFilter,
+  useDokumentlisteFilter,
+} from "../../src/components/dokumentliste/useDokumentlisteFilter";
 import { useListeLogg } from "../../src/hooks/useListeLogg";
 
 // Samme definisjon av «aktivt» som hjem-innboksen (hjem.tsx). Endres den, endres
@@ -53,24 +54,39 @@ export default function InnboksListe() {
   const { valgtBygningId } = useByggeplass();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const [statusFilter, settStatusFilter] = useState<string | null>(null);
-  const [søkeAktiv, settSøkeAktiv] = useState(false);
-  const [søketekst, settSøketekst] = useState("");
-  const [filterVerdier, settFilterVerdier] = useState<Record<string, string>>({});
-  const [sortering, settSortering] = useState<Sortering>("nyeste");
-  const [visSheet, settVisSheet] = useState(false);
+  const {
+    søkeAktiv,
+    settSøkeAktiv,
+    søketekst,
+    settSøketekst,
+    søkerNaa,
+    søkeTokens,
+    filterVerdier: råFilter,
+    sortering,
+    settSortering,
+    periode,
+    settPeriode,
+    visSheet,
+    settVisSheet,
+    ballenBrukerNett,
+    settFilter,
+    fjernChip,
+    nullstillFilter,
+  } = useDokumentlisteFilter(valgtProsjektId);
 
-  useEffect(() => {
-    // Prosjektbytte nullstiller søk/filter/sortering (fabel-designlås pkt 6).
-    settSøkeAktiv(false);
-    settSøketekst("");
-    settFilterVerdier({});
-    settSortering("nyeste");
-    settStatusFilter(null);
-  }, [valgtProsjektId]);
+  // Status nullstilles også ved prosjektbytte (hooken eier resten).
+  useEffect(() => settStatusFilter(null), [valgtProsjektId]);
 
-  const søkerNaa = søkeAktiv && søketekst.trim().length > 0;
+  // Innboksen leser kun serverrader (React Query, ingen lokal katalog), så
+  // «ballen» kan brukes når brukerens flyt-identitet er kjent (på nett).
+  const { filterVerdier, antallFilter, aktiveChips } = useAktiveFilter(
+    råFilter,
+    periode,
+    ballenBrukerNett,
+  );
 
   // Gjenbruker de to eksisterende per-type-kallene (som hjem-innboksen) — ingen
   // eget endepunkt. Under søk droppes byggeplass for sjekklister så hele
@@ -125,62 +141,17 @@ export default function InnboksListe() {
   );
 
   const synlige = useMemo(
-    () => filtrerOgSorter(etterStatus, filterVerdier, søkerNaa ? søketekst : "", sortering),
-    [etterStatus, filterVerdier, søkerNaa, søketekst, sortering],
+    () =>
+      filtrerOgSorter(etterStatus, filterVerdier, søkerNaa ? søketekst : "", sortering, {
+        periode,
+        bruker: ballenBrukerNett,
+      }),
+    [etterStatus, filterVerdier, søkerNaa, søketekst, sortering, periode, ballenBrukerNett],
   );
 
-  const antallFilter = antallAktiveFilter(filterVerdier);
   const totalt = aktive.length;
   const laster = sjekklisteQuery.isLoading || oppgaveQuery.isLoading;
   const refresher = sjekklisteQuery.isRefetching || oppgaveQuery.isRefetching;
-
-  const søkeTokens = useMemo(
-    () => (søkerNaa ? søketekst.trim().split(/\s+/).filter((tk) => tk.length >= 2) : []),
-    [søkerNaa, søketekst],
-  );
-
-  const aktiveChips = useMemo(() => {
-    const chips: { kolId: string; value: string; label: string }[] = [];
-    for (const kolId of FILTER_KOLONNER) {
-      const v = filterVerdier[kolId];
-      if (!v) continue;
-      for (const del of v.split(",").filter(Boolean)) {
-        const label =
-          kolId === "frist"
-            ? t(
-                del === "forfalt"
-                  ? "dokumentsok.fristForfalt"
-                  : del === "har_frist"
-                    ? "dokumentsok.fristHarFrist"
-                    : "dokumentsok.fristIngenFrist",
-              )
-            : del;
-        chips.push({ kolId, value: del, label });
-      }
-    }
-    return chips;
-  }, [filterVerdier, t]);
-
-  const settFilter = useCallback((kolId: string, verdi: string) => {
-    settFilterVerdier((forrige) => {
-      const neste = { ...forrige };
-      if (verdi) neste[kolId] = verdi;
-      else delete neste[kolId];
-      return neste;
-    });
-  }, []);
-
-  const fjernChip = useCallback((kolId: string, value: string) => {
-    settFilterVerdier((forrige) => {
-      const gjenvaerende = (forrige[kolId] ?? "").split(",").filter((x) => x && x !== value);
-      const neste = { ...forrige };
-      if (gjenvaerende.length) neste[kolId] = gjenvaerende.join(",");
-      else delete neste[kolId];
-      return neste;
-    });
-  }, []);
-
-  const nullstillFilter = useCallback(() => settFilterVerdier({}), []);
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries();
@@ -228,7 +199,7 @@ export default function InnboksListe() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header — søkefeltet ERSTATTER header-raden (samme mønster som sjekklistelista). */}
       {søkeAktiv ? (
         <View className="flex-row items-center gap-2 bg-sitedoc-blue px-4 py-2.5">
@@ -292,27 +263,13 @@ export default function InnboksListe() {
 
       {/* Fjernbare filter-chips + «Viser N av M». */}
       {antallFilter > 0 && (
-        <View className="border-b border-gray-100 bg-white px-4 py-2">
-          <View className="flex-row flex-wrap gap-1.5">
-            {aktiveChips.map((chip) => (
-              <Pressable
-                key={`${chip.kolId}:${chip.value}`}
-                onPress={() => fjernChip(chip.kolId, chip.value)}
-                className="flex-row items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1"
-              >
-                <Text className="text-xs font-medium text-sitedoc-primary">{chip.label}</Text>
-                <X size={12} color="#1e40af" />
-              </Pressable>
-            ))}
-          </View>
-          <Text className="mt-1.5 text-xs text-gray-500">
-            {t("dokumentsok.viserAvTotalt", { synlige: synlige.length, totalt })}
-            {" — "}
-            <Text className="font-semibold text-sitedoc-primary" onPress={nullstillFilter}>
-              {t("dokumentsok.nullstillFilter")}
-            </Text>
-          </Text>
-        </View>
+        <AktiveFilterChips
+          chips={aktiveChips}
+          synlige={synlige.length}
+          totalt={totalt}
+          onFjern={fjernChip}
+          onNullstill={nullstillFilter}
+        />
       )}
 
       {laster ? (
@@ -351,7 +308,10 @@ export default function InnboksListe() {
         onSettSortering={settSortering}
         onNullstill={nullstillFilter}
         onLukk={() => settVisSheet(false)}
+        periode={periode}
+        onSettPeriode={settPeriode}
+        visBallen={!!ballenBrukerNett}
       />
-    </SafeAreaView>
+    </View>
   );
 }

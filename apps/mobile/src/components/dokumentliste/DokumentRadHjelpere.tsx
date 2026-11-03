@@ -20,6 +20,11 @@ export function formaterOfflineTidspunkt(ms: number): string {
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} kl. ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** Kort dato for listeradene («2. nov»), f.eks. opprettet-datoen under statusmerket. */
+export function formaterKortDato(d: Date | string): string {
+  return new Date(d).toLocaleDateString("nb-NO", { day: "numeric", month: "short" });
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

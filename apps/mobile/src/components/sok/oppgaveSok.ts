@@ -2,7 +2,7 @@ import { matchScore, normaliserSok, synonymerFor } from "@sitedoc/shared";
 
 /**
  * Listesøk i oppgaver for mobilsøket (spec-sok-mobil rev. 2 § 9.1). Samme form som sjekklistenes `sokeNorm`
- * (dokumentlisteFilter.ts): prefiks+nummer · tittel · beskrivelse · malnavn · utfører-faggruppe + synonymer,
+ * (dokumentlisteFilter.ts): prefiks+nummer · tittel · emne · beskrivelse · malnavn · utfører-faggruppe + synonymer,
  * rangert med delt `matchScore`. `Task.data` søkes ikke (innholdssøk er egen sak, § 9.2).
  *
  * Offline-katalogen (`oppgave_local`) har ingen beskrivelseskolonne — lokale rader har `description: null`
@@ -15,6 +15,7 @@ export interface OppgaveSokRad {
   status: string;
   number?: number | null;
   description?: string | null;
+  subject?: string | null;
   template?: { name: string; prefix?: string | null } | null;
   utforerFaggruppe?: { name: string } | null;
 }
@@ -23,6 +24,7 @@ function sokeNorm(rad: OppgaveSokRad): string {
   const rå = [
     rad.template?.prefix && rad.number != null ? `${rad.template.prefix}${rad.number}` : null,
     rad.title,
+    rad.subject,
     rad.description,
     rad.template?.name,
     rad.utforerFaggruppe?.name,

@@ -768,6 +768,14 @@ export const oppgaveLocal = sqliteTable("oppgave_local", {
   templatePrefix: text("template_prefix"),
   templateSubdomain: text("template_subdomain"), // kontraktssak-markering (subdomain="kontrakt")
   utforerFaggruppeNavn: text("utforer_faggruppe_navn"),
+  // Filter-mobil D1 (2026-11-03): filterarkets felt offline (ALTER ADD COLUMN, nullable).
+  subject: text("subject"),
+  bestillerNavn: text("bestiller_navn"),
+  recipientUserNavn: text("recipient_user_navn"),
+  recipientGroupNavn: text("recipient_group_navn"),
+  drawingNavn: text("drawing_navn"),
+  dokumentflytNavn: text("dokumentflyt_navn"),
+  bestillerFaggruppeNavn: text("bestiller_faggruppe_navn"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness (krav 7)
 });
 

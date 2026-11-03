@@ -8,9 +8,9 @@ import {
   RefreshControl,
   TextInput,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, Search, SlidersHorizontal, WifiOff, X } from "lucide-react-native";
+import { ArrowLeft, Plus, Search, SlidersHorizontal, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { velgOfflineListeKilde } from "@sitedoc/shared";
@@ -28,15 +28,22 @@ import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
+import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
 import {
-  antallAktiveFilter,
+  ballenBrukerForKilde,
   byggAlternativer,
   filtrerOgSorter,
-  FILTER_KOLONNER,
   type DokumentRad,
-  type Sortering,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
-import { MedUtheving, formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
+import {
+  useAktiveFilter,
+  useDokumentlisteFilter,
+} from "../../src/components/dokumentliste/useDokumentlisteFilter";
+import {
+  MedUtheving,
+  formaterKortDato,
+  formaterNummer,
+} from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import { useListeLogg } from "../../src/hooks/useListeLogg";
 
 /** «Sist hentet»-tidspunkt (Unix ms) → «dd.mm.åååå kl. hh:mm» (offline-banner). */
@@ -55,29 +62,35 @@ export default function SjekklisteListe() {
   const brukerId = bruker?.id;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const [visVelger, settVisVelger] = useState(false);
   const [statusFilter, settStatusFilter] = useState<string | null>(null);
 
-  // Dokumentsøk + filter + sortering (dokumentliste-nivå-tilstand). Overlever
-  // navigasjon inn/ut av et dokument (skjermen forblir montert i stacken);
-  // nullstilles ved prosjektbytte (effekt under).
-  const [søkeAktiv, settSøkeAktiv] = useState(false);
-  const [søketekst, settSøketekst] = useState("");
-  const [filterVerdier, settFilterVerdier] = useState<Record<string, string>>({});
-  const [sortering, settSortering] = useState<Sortering>("nyeste");
-  const [visSheet, settVisSheet] = useState(false);
+  // Dokumentsøk + filter + sortering + periode (dokumentliste-nivå-tilstand,
+  // nullstilles ved prosjektbytte — se hooken).
+  const {
+    søkeAktiv,
+    settSøkeAktiv,
+    søketekst,
+    settSøketekst,
+    søkerNaa,
+    søkeTokens,
+    filterVerdier: råFilter,
+    sortering,
+    settSortering,
+    periode,
+    settPeriode,
+    visSheet,
+    settVisSheet,
+    ballenBrukerNett,
+    settFilter,
+    fjernChip,
+    nullstillFilter,
+  } = useDokumentlisteFilter(valgtProsjektId);
 
-  useEffect(() => {
-    // Bytte av prosjekt nullstiller søk/filter/sortering (fabel-designlås pkt 6).
-    settSøkeAktiv(false);
-    settSøketekst("");
-    settFilterVerdier({});
-    settSortering("nyeste");
-    settStatusFilter(null);
-  }, [valgtProsjektId]);
-
-  const søkerNaa = søkeAktiv && søketekst.trim().length > 0;
+  // Status nullstilles også ved prosjektbytte (hooken eier resten).
+  useEffect(() => settStatusFilter(null), [valgtProsjektId]);
 
   // Søk overstyrer byggeplassfilteret: søker man, hentes HELE prosjektet så et
   // dokument aldri er usynlig pga. valgt kontekst (fabel-designlås pkt 3).
@@ -117,6 +130,10 @@ export default function SjekklisteListe() {
 
   const sjekklister = kilde === "server" ? serverData : lokaleRader;
 
+  // «Ballen» kun på serverrader (lokale rader mangler bestiller-/mottaker-id-ene).
+  const ballenBruker = ballenBrukerForKilde(ballenBrukerNett, kilde);
+  const { filterVerdier, antallFilter, aktiveChips } = useAktiveFilter(råFilter, periode, ballenBruker);
+
   // «Sist hentet»-tid for dette PROSJEKTET (krav 7) — kun relevant når vi viser
   // lokale rader. Prosjektets eget stempel, ikke et globalt fei-tidspunkt.
   const sistHentet = useMemo(
@@ -147,61 +164,15 @@ export default function SjekklisteListe() {
   );
 
   const synlige = useMemo(
-    () => filtrerOgSorter(etterStatus, filterVerdier, søkerNaa ? søketekst : "", sortering),
-    [etterStatus, filterVerdier, søkerNaa, søketekst, sortering],
+    () =>
+      filtrerOgSorter(etterStatus, filterVerdier, søkerNaa ? søketekst : "", sortering, {
+        periode,
+        bruker: ballenBruker,
+      }),
+    [etterStatus, filterVerdier, søkerNaa, søketekst, sortering, periode, ballenBruker],
   );
 
-  const antallFilter = antallAktiveFilter(filterVerdier);
   const totalt = sjekklister?.length ?? 0;
-
-  const søkeTokens = useMemo(
-    () => (søkerNaa ? søketekst.trim().split(/\s+/).filter((tk) => tk.length >= 2) : []),
-    [søkerNaa, søketekst],
-  );
-
-  // Fjernbare filter-chips over lista (fabel-designlås pkt 6).
-  const aktiveChips = useMemo(() => {
-    const chips: { kolId: string; value: string; label: string }[] = [];
-    for (const kolId of FILTER_KOLONNER) {
-      const v = filterVerdier[kolId];
-      if (!v) continue;
-      for (const del of v.split(",").filter(Boolean)) {
-        const label =
-          kolId === "frist"
-            ? t(
-                del === "forfalt"
-                  ? "dokumentsok.fristForfalt"
-                  : del === "har_frist"
-                    ? "dokumentsok.fristHarFrist"
-                    : "dokumentsok.fristIngenFrist",
-              )
-            : del;
-        chips.push({ kolId, value: del, label });
-      }
-    }
-    return chips;
-  }, [filterVerdier, t]);
-
-  const settFilter = useCallback((kolId: string, verdi: string) => {
-    settFilterVerdier((forrige) => {
-      const neste = { ...forrige };
-      if (verdi) neste[kolId] = verdi;
-      else delete neste[kolId];
-      return neste;
-    });
-  }, []);
-
-  const fjernChip = useCallback((kolId: string, value: string) => {
-    settFilterVerdier((forrige) => {
-      const gjenvaerende = (forrige[kolId] ?? "").split(",").filter((x) => x && x !== value);
-      const neste = { ...forrige };
-      if (gjenvaerende.length) neste[kolId] = gjenvaerende.join(",");
-      else delete neste[kolId];
-      return neste;
-    });
-  }, []);
-
-  const nullstillFilter = useCallback(() => settFilterVerdier({}), []);
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries();
@@ -233,6 +204,9 @@ export default function SjekklisteListe() {
               {nummer ? <Text className="text-sm font-bold text-gray-900">{nummer} </Text> : null}
               <MedUtheving tekst={item.title} tokens={søkeTokens} className="flex-1 text-sm text-gray-900" />
             </View>
+            {item.subject?.trim() ? (
+              <MedUtheving tekst={item.subject.trim()} tokens={søkeTokens} className="mt-0.5 text-xs text-gray-700" />
+            ) : null}
             {undertekst ? (
               <MedUtheving tekst={undertekst} tokens={søkeTokens} className="mt-0.5 text-xs text-gray-500" />
             ) : null}
@@ -248,7 +222,12 @@ export default function SjekklisteListe() {
               </Text>
             ) : null}
           </View>
-          <StatusMerkelapp status={item.status} />
+          <View className="items-end">
+            <StatusMerkelapp status={item.status} />
+            <Text className="mt-1 text-[11px] text-gray-400">
+              {t("dokumentsok.opprettetDato", { dato: formaterKortDato(item.createdAt) })}
+            </Text>
+          </View>
         </Pressable>
       );
     },
@@ -256,7 +235,7 @@ export default function SjekklisteListe() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header — søkefeltet ERSTATTER header-raden (fabel-mockup panel 2). */}
       {søkeAktiv ? (
         <View className="flex-row items-center gap-2 bg-sitedoc-blue px-4 py-2.5">
@@ -330,27 +309,13 @@ export default function SjekklisteListe() {
 
       {/* Fjernbare filter-chips + «Viser N av M» — aldri usynlig AT lista er filtrert. */}
       {antallFilter > 0 && (
-        <View className="border-b border-gray-100 bg-white px-4 py-2">
-          <View className="flex-row flex-wrap gap-1.5">
-            {aktiveChips.map((chip) => (
-              <Pressable
-                key={`${chip.kolId}:${chip.value}`}
-                onPress={() => fjernChip(chip.kolId, chip.value)}
-                className="flex-row items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1"
-              >
-                <Text className="text-xs font-medium text-sitedoc-primary">{chip.label}</Text>
-                <X size={12} color="#1e40af" />
-              </Pressable>
-            ))}
-          </View>
-          <Text className="mt-1.5 text-xs text-gray-500">
-            {t("dokumentsok.viserAvTotalt", { synlige: synlige.length, totalt })}
-            {" — "}
-            <Text className="font-semibold text-sitedoc-primary" onPress={nullstillFilter}>
-              {t("dokumentsok.nullstillFilter")}
-            </Text>
-          </Text>
-        </View>
+        <AktiveFilterChips
+          chips={aktiveChips}
+          synlige={synlige.length}
+          totalt={totalt}
+          onFjern={fjernChip}
+          onNullstill={nullstillFilter}
+        />
       )}
 
       {/* Offline-banner: viser lagrede sjekklister + «sist hentet» (krav 6 rad 2
@@ -410,6 +375,9 @@ export default function SjekklisteListe() {
         onSettSortering={settSortering}
         onNullstill={nullstillFilter}
         onLukk={() => settVisSheet(false)}
+        periode={periode}
+        onSettPeriode={settPeriode}
+        visBallen={!!ballenBruker}
       />
 
       <OpprettVelger
@@ -422,6 +390,6 @@ export default function SjekklisteListe() {
         }}
         onLukk={() => settVisVelger(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
