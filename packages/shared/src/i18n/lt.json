@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "išsaugota versija · paskutinį kartą gauta {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "išsaugota versija",
   "sokMobil.visAlle": "Rodyti visus {{antall}}",
-  "sokMobil.aapneDokumentet": "Atidaryti dokumentą"
+  "sokMobil.aapneDokumentet": "Atidaryti dokumentą",
+  "ota.nyVersjonKlar": "Nauja versija paruošta",
+  "ota.oppdater": "Atnaujinti",
+  "ota.oppdatert": "Naujausia",
+  "ota.sjekker": "Tikrinama, ar yra naujinių…",
+  "ota.lasterNed": "Atsisiunčiama nauja versija…",
+  "ota.klarTrykk": "Paruošta nauja versija – bakstelėkite, kad atnaujintumėte",
+  "ota.seEtter": "Patikrinkite, ar nėra atnaujinimų",
+  "ota.frakoblet": "Neprisijungęs – tikrins, ar nėra naujinimų, kai būsite prisijungę"
 }

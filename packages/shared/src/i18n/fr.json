@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "version enregistrée · dernière récupération {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "version enregistrée",
   "sokMobil.visAlle": "Afficher tout {{antall}}",
-  "sokMobil.aapneDokumentet": "Ouvrir le document"
+  "sokMobil.aapneDokumentet": "Ouvrir le document",
+  "ota.nyVersjonKlar": "Une nouvelle version est prête",
+  "ota.oppdater": "Mise à jour",
+  "ota.oppdatert": "À jour",
+  "ota.sjekker": "Vérification des mises à jour…",
+  "ota.lasterNed": "Téléchargement de la nouvelle version…",
+  "ota.klarTrykk": "Nouvelle version prête – appuyez pour mettre à jour",
+  "ota.seEtter": "Vérifier les mises à jour",
+  "ota.frakoblet": "Hors ligne : vérifiera les mises à jour lorsque vous serez en ligne"
 }

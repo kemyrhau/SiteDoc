@@ -399,7 +399,7 @@ export default function MerSkjerm() {
           </Pressable>
         </View>
 
-        <VersjonsFooter className="mt-6 mb-2" />
+        <VersjonsFooter className="mt-6 mb-2" visOtaStatus />
       </ScrollView>
 
       {/* Språkvelger-modal */}

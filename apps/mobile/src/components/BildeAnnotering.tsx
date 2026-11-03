@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { View, Text, Pressable, Keyboard, Platform, useWindowDimensions } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInnsetter } from "./ModalInnsetter";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import {
@@ -85,7 +85,7 @@ const VERKTOYER: { id: Verktoy; ikon: typeof ArrowUpRight; labelKey: string }[] 
 
 export function BildeAnnotering({ bildeUri, lag, onFerdig, onAvbryt, fornyKilde }: BildeAnnoteringProps) {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
+  const insets = useModalInnsetter();
   const { height: vindusHoyde } = useWindowDimensions();
   const startVerktoy: Verktoy = lag ? "select" : "arrow";
   const [aktivtVerktoy, settAktivtVerktoy] = useState<Verktoy>(startVerktoy);

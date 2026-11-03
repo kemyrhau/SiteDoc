@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "versiune salvată · ultima preluată {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "versiunea salvată",
   "sokMobil.visAlle": "Afișați toate {{antall}}",
-  "sokMobil.aapneDokumentet": "Deschideți documentul"
+  "sokMobil.aapneDokumentet": "Deschideți documentul",
+  "ota.nyVersjonKlar": "O nouă versiune este gata",
+  "ota.oppdater": "Actualizare",
+  "ota.oppdatert": "La zi",
+  "ota.sjekker": "Se verifică actualizările...",
+  "ota.lasterNed": "Se descarcă versiunea nouă...",
+  "ota.klarTrykk": "Versiune nouă gata – atingeți pentru a actualiza",
+  "ota.seEtter": "Verificați actualizările",
+  "ota.frakoblet": "Offline - va verifica actualizările când sunteți online"
 }

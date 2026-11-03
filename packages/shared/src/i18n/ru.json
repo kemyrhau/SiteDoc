@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "сохраненная версия · последняя загрузка {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "сохраненная версия",
   "sokMobil.visAlle": "Показать все {{antall}}",
-  "sokMobil.aapneDokumentet": "Открыть документ"
+  "sokMobil.aapneDokumentet": "Открыть документ",
+  "ota.nyVersjonKlar": "Новая версия готова",
+  "ota.oppdater": "Обновлять",
+  "ota.oppdatert": "До настоящего времени",
+  "ota.sjekker": "Проверяем наличие обновлений…",
+  "ota.lasterNed": "Скачиваем новую версию…",
+  "ota.klarTrykk": "Новая версия готова – нажмите, чтобы обновить",
+  "ota.seEtter": "Проверьте наличие обновлений",
+  "ota.frakoblet": "Офлайн – будет проверять наличие обновлений, когда вы онлайн."
 }

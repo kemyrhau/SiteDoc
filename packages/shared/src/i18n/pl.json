@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "zapisana wersja · ostatnio pobrana {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "zapisana wersja",
   "sokMobil.visAlle": "Pokaż wszystko {{antall}}",
-  "sokMobil.aapneDokumentet": "Otwórz dokument"
+  "sokMobil.aapneDokumentet": "Otwórz dokument",
+  "ota.nyVersjonKlar": "Nowa wersja jest gotowa",
+  "ota.oppdater": "Aktualizacja",
+  "ota.oppdatert": "Aktualne",
+  "ota.sjekker": "Sprawdzam dostępność aktualizacji…",
+  "ota.lasterNed": "Pobieram nową wersję…",
+  "ota.klarTrykk": "Nowa wersja gotowa – kliknij, aby zaktualizować",
+  "ota.seEtter": "Sprawdź aktualizacje",
+  "ota.frakoblet": "Offline – sprawdzi dostępność aktualizacji, gdy będziesz online"
 }

@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "saglabātā versija · pēdējo reizi ielādēts {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "saglabātā versija",
   "sokMobil.visAlle": "Rādīt visu {{antall}}",
-  "sokMobil.aapneDokumentet": "Atvērt dokumentu"
+  "sokMobil.aapneDokumentet": "Atvērt dokumentu",
+  "ota.nyVersjonKlar": "Jauna versija ir gatava",
+  "ota.oppdater": "Atjaunināt",
+  "ota.oppdatert": "Aktuāli",
+  "ota.sjekker": "Notiek atjauninājumu pārbaude…",
+  "ota.lasterNed": "Notiek jaunas versijas lejupielāde…",
+  "ota.klarTrykk": "Jaunā versija ir gatava — pieskarieties, lai atjauninātu",
+  "ota.seEtter": "Pārbaudiet, vai nav atjauninājumu",
+  "ota.frakoblet": "Bezsaistē — pārbaudīs atjauninājumus, kad būsit tiešsaistē"
 }

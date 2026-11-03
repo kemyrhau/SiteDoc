@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-
 import { trpc, opprettTrpcKlient } from "../lib/trpc";
 import { DatabaseProvider } from "./DatabaseProvider";
 import { NettverkProvider } from "./NettverkProvider";
+import { OtaProvider } from "./OtaProvider";
 import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
 import { VaerKoProvider } from "./VaerKoProvider";
 import { AuthProvider } from "./AuthProvider";
@@ -77,6 +78,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           <NettverkProvider>
+            <OtaProvider>
             <OpplastingsKoProvider>
               <VaerKoProvider>
               <AuthProvider>
@@ -92,6 +94,7 @@ export function Providers({ children }: { children: ReactNode }) {
               </AuthProvider>
               </VaerKoProvider>
             </OpplastingsKoProvider>
+            </OtaProvider>
           </NettverkProvider>
         </QueryClientProvider>
       </trpc.Provider>

@@ -349,6 +349,26 @@ tar nå minutter og koster null byggkvote.**
 av dem trengte en ny binær — de trengte bare en vei til telefonen. `expo-updates` er den veien:
 en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også for testerne.
 
+### Appen varsler selv om ny versjon (ota-varsel 2026-11-03)
+
+Før dette ble en ny OTA lastet ned i stillhet og tatt i bruk først ved neste *kalde* oppstart —
+brukeren måtte starte appen to ganger og fikk aldri vite at den var oppdatert. Nå
+(`apps/mobile/src/providers/OtaProvider.tsx`, ingen endring i `app.config.js` eller `runtimeVersion`):
+
+- **Sjekk:** ved oppstart og hver gang appen kommer i forgrunnen, høyst én gang per 5 min og kun på
+  nett. Ny versjon lastes ned i bakgrunnen.
+- **Det brukeren ser:** når nedlastingen er ferdig, en blå linje nederst i appen, under fanelinja:
+  **«Ny versjon er klar · Oppdater»**. Et trykk tar den nye versjonen i bruk med én gang
+  (`reloadAsync()`). Appen bytter **aldri** versjon uten trykket — pågående utfylling går ikke tapt.
+  Ingen lukk-knapp; linja forsvinner når den nye versjonen kjører.
+- **Under Mer** (versjonslinja): «Oppdatert» + lenken «Se etter oppdatering» / «Ser etter
+  oppdatering …» / «Laster ned ny versjon …» / «Ny versjon klar – trykk for å oppdatere» /
+  «Frakoblet – ser etter oppdatering når du er på nett». Ingen feilmeldinger — feil svelges stille.
+- **Dev / Expo Go** (`Updates.isEnabled === false`): ingenting vises.
+
+For testeren betyr det: etter `eas update` åpner man appen (eller henter den fram fra bakgrunnen),
+venter til linja kommer, og trykker «Oppdater». Hashen under Mer bekrefter at den nye bundelen kjører.
+
 ### 🔴 OTA-logg — hva som ligger på telefonen NÅ (cowork vedlikeholder)
 
 **Regelen, samme som for bygg: LES, ikke regn ut.** Sannhetskilden er
@@ -427,7 +447,8 @@ Publiseres det til bare én kanal, spriker flatene.
   (`eas fingerprint:generate`), men policyen brukes ikke.
 - `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: "ON_LOAD"` — **offline-first er
   ufravikelig.** Appen starter alltid umiddelbart fra cachet bundle og henter en ev. oppdatering i
-  bakgrunnen; ingen nett → oppstart som før, uten forsinkelse eller feilmelding.
+  bakgrunnen; ingen nett → oppstart som før, uten forsinkelse eller feilmelding. Oppdateringen tas i bruk når
+  brukeren trykker «Oppdater» i linja nederst (se «Appen varsler selv» over), ellers ved neste kalde oppstart.
 - **Én kanal pr. `eas.json`-profil** (`development`/`preview`/`test`/`production`). En
   `preview`-oppdatering kan aldri nå et produksjonsbygg.
 - `VersjonsFooter` viser kjørende `Updates.updateId` (7 tegn) ved siden av byggets commit — når
