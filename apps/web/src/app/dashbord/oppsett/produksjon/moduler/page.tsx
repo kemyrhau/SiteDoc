@@ -89,6 +89,13 @@ export default function ModulerSide() {
   );
   const aktiveModuler = aktiveModulerRaw as unknown as ProjectModuleRad[] | undefined;
 
+  // Modulstyring krever prosjektadmin (samme kilde som «Rediger tilgang»).
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const erProsjektAdmin = minFlytInfo?.erAdmin ?? false;
+
   const utils = trpc.useUtils();
 
   const aktiverMutation = trpc.modul.aktiver.useMutation({
@@ -237,7 +244,7 @@ export default function ModulerSide() {
               )}
 
               {/* Oversettelsesinnstillinger — inline i kortet */}
-              {erAktiv && modul.slug === "oversettelse" && prosjektId && (
+              {erAktiv && modul.slug === "oversettelse" && prosjektId && erProsjektAdmin && (
                 <div className="mb-4">
                   <OversettelsesInnstillinger prosjektId={prosjektId} />
                 </div>
@@ -250,8 +257,8 @@ export default function ModulerSide() {
                 </div>
               )}
 
-              {/* Handling */}
-              {erAktiv ? (
+              {/* Handling — kun prosjektadmin */}
+              {!erProsjektAdmin ? null : erAktiv ? (
                 <button
                   onClick={() => setBekreftDeaktivering({ slug: modul.slug, navn: modul.navn })}
                   disabled={erPending}
