@@ -8,6 +8,7 @@ import { PeriodeFilter } from "../PeriodeFilter";
 import {
   SORTERINGER,
   type DokumentAlternativer,
+  visFilterKolonne,
   type Sortering,
 } from "./dokumentlisteFilter";
 import { filterEtikett, FRIST_NOEKKEL } from "./filterEtikett";
@@ -96,8 +97,7 @@ export function FilterOgSorteringSheet({
   const alleLabel = (kolId: NedtrekkKol) =>
     kolId === "tegning" ? t("dokumentsok.alleTegninger") : t("dokumentsok.alle");
 
-  // Adaptivt: under to ulike verdier er filteret meningsløst — med mindre det alt er satt.
-  const vis = (kolId: string, alt: VelgerAlternativ[]) => alt.length >= 2 || !!filterVerdier[kolId];
+  const vis = (kolId: string, alt: VelgerAlternativ[]) => visFilterKolonne(kolId, alt, filterVerdier);
 
   const valgte = (kolId: string) => new Set((filterVerdier[kolId] ?? "").split(",").filter(Boolean));
   const toggle = (kolId: string, value: string) => {

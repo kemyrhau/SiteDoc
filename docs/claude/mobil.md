@@ -266,7 +266,7 @@ const { t } = useTranslation();
 | `opplastings_ko` | Bakgrunnskø for filopplasting |
 | `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11; `user_id` + lesefilter lagt til fase 2 2026-10-03) |
 | `oppgave_local` | Offline-katalog for oppgave**lista** (read-only mirror, 2026-10-03) |
-| `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03) |
+| `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03; filterkolonner 2026-11-03) |
 | `dokument_speil` | Offline-speil av **hele dokumentet** (`hentMedId`-JSON) for LESING uten nett (fase 2 2026-10-03). Nøklet (dokumentType, id, userId); signaturer strippet |
 
 **Offline dokumentlister (fase 1):** list-skjermene leste før rett på tRPC uten fallback → tom liste
@@ -789,7 +789,7 @@ Sjekklister · Oppgaver» (standard «Alle», seksjoner Mapper → Sjekklister �
   `src/components/sok/sokLogikk.ts` (testet), utsnitt delt med web i `packages/shared/src/sok/utsnitt.ts`.
 - **Utenfor:** innholdssøk i `Checklist.data`/`Task.data` (egen sak, spec § 9.2) og omfangsvelger på web.
 
-## Filter, sortering og søk i sjekkliste-, oppgave- og innbokslista (filter-mobil 2026-11-03)
+## Filter, sortering og søk i sjekkliste-, oppgave-, innboks- og HMS-lista (filter-mobil / filter-hms 2026-11-03)
 
 Sjekkliste-, oppgave- og innbokslista (`app/sjekkliste/index.tsx`, `app/oppgave/index.tsx`,
 `app/innboks/index.tsx`) deler samme maskineri — ingen API-endring, kun data API-et allerede sender. Innboksen
@@ -823,7 +823,14 @@ har ikke prioritet og leser alltid serverrader:
   bruker ELLER gruppe → to kolonner). Skrevet av `oppgaveKatalog.ts`; additiv `ALTER ADD COLUMN` i
   `migreringer.ts` (PRAGMA-sjekk, ingen data slettes), testet mot eksisterende database uten kolonnene
   (`migreringer.oppgaveLocal.test.ts`). Gamle rader har NULL til neste katalog-refresh.
-- **HMS-lista** har ikke dette maskineriet (utenfor).
+- **HMS-lista (filter-hms 2026-11-03)** `app/hms/index.tsx` bruker samme maskineri. Alternativene bygges fra
+  aktiv fane; prioritet bare i avvik/RUH (`harPrioritet`, `filterForFane` i `src/components/dokumentliste/hmsListe.ts`
+  — et prioritetsfilter satt i avvik tømmer ikke SJA). Statusfilteret nullstilles ved fanebytte; søk/filter/sortering
+  står. `recipientGroupId` utledes fra `recipientGroup.id` (`tilHmsDokumentRad`) for «ballen hos meg» (kun
+  serverrader). Emne/prioritet/tegning/utførende faggruppe krever API-et fra samme leveranse (additiv select i
+  `hms.hentDokumenter`); mot eldre API mangler feltene og filtrene skjules via vis-regelen (`visFilterKolonne`,
+  låst i `hmsListe.test.ts`). Offline: `hms_local` fikk 9 tekstkolonner (`HMS_LOCAL_FILTERKOLONNER` i
+  `migreringer.ts`, additiv ALTER, testet i `migreringer.hmsLocal.test.ts`), skrevet av `hmsKatalog.ts`.
 
 ## 🟢 Dokumentflyt på mobil er LESEVISNING — og det er etter design (målt 2026-09-06)
 

@@ -1269,4 +1269,33 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] filterkolonner på oppgave_local feilet", e);
   }
+
+  // Filter-hms (2026-11-03) — samme grep på hms_local: filterarket, emnesøket og
+  // radvisningen (emne, prioritet, frist) i HMS-lista virker offline. Additiv ALTER ADD
+  // COLUMN (nullable, ingen backfill: full-overskrives ved neste refresh). Idempotent.
+  try {
+    const kolonner = db.getAllSync("PRAGMA table_info(hms_local)") as Array<{
+      name: string;
+    }>;
+    for (const navn of HMS_LOCAL_FILTERKOLONNER) {
+      if (!kolonner.find((k) => k.name === navn)) {
+        db.execSync(`ALTER TABLE hms_local ADD COLUMN ${navn} TEXT`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] filterkolonner på hms_local feilet", e);
+  }
 }
+
+/** Filter-hms (2026-11-03): tekstkolonnene hms_local får for filterarket offline. */
+export const HMS_LOCAL_FILTERKOLONNER = [
+  "subject",
+  "priority",
+  "due_date",
+  "bestiller_navn",
+  "recipient_user_navn",
+  "recipient_group_navn",
+  "drawing_navn",
+  "dokumentflyt_navn",
+  "utforer_faggruppe_navn",
+] as const;

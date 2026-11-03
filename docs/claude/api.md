@@ -215,6 +215,11 @@ Eksisterende filter (admin → null; HMS-gruppe-medlem → null; ellers privat-p
 - Prosjekt-brede dokumenter (`null`) inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
 - Eksisterende Task-`OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten Prisma-OR-konflikt.
 
+**Filterfelt på `hms.hentDokumenter` (filter-hms, 2026-11-03):** additiv select for mobilens HMS-filterark —
+Task: `subject`, `priority`, `drawing.name` (ved siden av `drawing.byggeplassId`), `utforerFaggruppe.name`;
+Checklist: `subject`, `drawing.name`, `utforerFaggruppe.name`. Ingen ny prosedyre, tilgangssjekk eller skjemaendring.
+Låst av `apps/api/src/routes/hms-hentdokumenter-filterfelt.test.ts`.
+
 **Audit-spor:** `hentFirmaOversikt` logger til `console.log` for hver oppslag. Activity-tabell-integrasjon krever schema-beslutning om null-projectId-policy og er ikke prioritert ennå.
 
 ## Impersonering audit (`ImpersonationAudit`-tabell, 2026-05-28)
