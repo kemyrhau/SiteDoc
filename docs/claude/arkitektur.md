@@ -144,12 +144,12 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `hentBrukerFaggruppeIder(userId, projectId)` | Returnerer `string[]` eller `null` (admin) |
 | `byggTilgangsFilter(userId, projectId)` | Prisma WHERE-filter, `null` for admin |
 | `verifiserFaggruppeTilhorighet(userId, faggruppeId)` | FORBIDDEN hvis ikke tilhører (admin-bypass) |
-| `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin. company_admin med riktig org arver admin uten ProjectMember-rad |
+| `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin. firma_admin i prosjektets eierfirma (`primaryOrganizationId`) arver admin uten ProjectMember-rad — deltakerfirma gjør ikke |
 | `verifiserAdminEllerFirmaansvarlig(userId, projectId)` | Returnerer `{ erAdmin: boolean }`. Admin → true, firmaansvarlig → false. Vanlig member → FORBIDDEN. Brukes for invitasjoner |
-| `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem. company_admin med riktig org arver tilgang uten ProjectMember-rad |
+| `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem. firma_admin i prosjektets eierfirma arver tilgang uten ProjectMember-rad — deltakerfirma gjør ikke |
 | `verifiserOrganisasjonTilgang(userId, organisationId)` | FORBIDDEN hvis bruker ikke tilhører organisasjonen. company_admin uten organizationId = ugyldig |
 | `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Faggruppe + fagområde-tilgang. bestillerId/utforerId nullable for HMS |
-| `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. `sitedoc_admin`, prosjekt-admin, og `firma_admin` på koblet `ProjectOrganization` får alle PERMISSIONS — uavhengig av ProjectMember-rad (fix `c22a345d` 2026-05-28 speilet `verifiserAdmin`-mønster) |
+| `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. `sitedoc_admin`, prosjekt-admin, og `firma_admin` i prosjektets eierfirma (`primaryOrganizationId`, ikke koblede deltakerfirmaer — [sikkerhet.md § 8g](sikkerhet.md)) får alle PERMISSIONS — uavhengig av ProjectMember-rad (fix `c22a345d` 2026-05-28 speilet `verifiserAdmin`-mønster) |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
 | `verifiserRetningsrett(userId, projectId, medlemmer, aktivPosisjon, nyStatus, fraStatus)` | POSISJON-basert autorisasjon for statusovergang (403 ved mismatch). Erstattet rolle×status-matrisen `verifiserFlytRolle` i fase 3.4 (`tilgangskontroll.ts:808`) |
 | `harFirmaHmsTilgang(userId, organizationId)` | `true` for sitedoc_admin, firma-admin, eller bruker med `"hms_ansvarlig"` i `OrganizationMember.firmaRoller`. Trinn 1 av firma-HMS-dashboard (2026-05-29) |
@@ -385,7 +385,8 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
 - Firma-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
-- En firma-admin kan bare koble prosjekter **firmaet selv eier** til firmaet: `organisasjon.leggTilProsjekt` krever `project.primaryOrganizationId === organizationId` (prosjekt uten eier avvises). Grunnen er at en `ProjectOrganization`-rad gir firma-admin-bypass (`erFirmaAdminForProsjekt`) i alle prosjekt-porter. Andre firmaer kobles bare av sitedoc_admin (`admin.tilknyttProsjekt`). Se [sikkerhet.md § 8e](sikkerhet.md)
+- En firma-admin kan bare koble prosjekter **firmaet selv eier** til firmaet: `organisasjon.leggTilProsjekt` krever `project.primaryOrganizationId === organizationId` (prosjekt uten eier avvises). Andre firmaer kobles bare av sitedoc_admin (`admin.tilknyttProsjekt`). Se [sikkerhet.md § 8e](sikkerhet.md)
+- Firma-admin-bypassen (`erFirmaAdminForProsjekt`) gjelder **kun eierfirmaet** (`Project.primaryOrganizationId`); eier `null` gir ingen bypass. En `ProjectOrganization`-rad for et deltakerfirma gir ingen admin-rett — firma-admin der er vanlig medlem. Ingen rute skal ha egen kobling-bypass (`gruppe.hentMinFlytInfo` og `dagsseddel.erProsjektLeder` bruker predikatet). Se [sikkerhet.md § 8g](sikkerhet.md)
 - Hver rute som leverer dokumentinnhold eller fil, sjekker mappetilgang (`hentTilgjengeligeMappeIder`) etter prosjektporten. Det gjelder søket (`ftdSok`, `aiSok`) og dokumentvisningen i `mappe.ts` (`hentDokumenter`, `hentDokumenterMedSpraak`, `hentDokumentBlokker`). Se [sikkerhet.md § 8f](sikkerhet.md)
 - API-nøkler sendes **ALDRI** til klienten — returner kun `harNøkkel: boolean`
 - Firmaoverføring (standalone → Organization) er **permanent** — krever superadmin + firmaadmin-godkjenning

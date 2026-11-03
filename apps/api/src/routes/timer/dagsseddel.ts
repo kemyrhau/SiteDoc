@@ -13,6 +13,7 @@ import {
   resolverOrgForEgenTimeføring,
   verifiserAnsattIFirma,
   erAnsattIFirma,
+  erFirmaAdminForProsjekt,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
@@ -127,7 +128,7 @@ function erRedigerbar(status: string): boolean {
 /**
  * Sjekk om bruker kan godkjenne dagssedler for et prosjekt.
  * Leder = ProjectMember.role="admin" ELLER ProjectMember.kanAttestere=true,
- * eller sitedoc_admin / firma-admin i prosjektets firma.
+ * eller sitedoc_admin / firma-admin i prosjektets eierfirma (ikke deltakerfirma).
  * (Boolean-kapabilitet vedtatt 2026-05-02 — erstatter "project_manager"-rolle.)
  */
 async function erProsjektLeder(userId: string, projectId: string): Promise<boolean> {
@@ -138,19 +139,7 @@ async function erProsjektLeder(userId: string, projectId: string): Promise<boole
   if (!bruker) return false;
   if (bruker.role === "sitedoc_admin") return true;
 
-  const brukerOrgId = await hentBrukersOrg(userId);
-  if (brukerOrgId) {
-    const orgProsjekt = await prisma.projectOrganization.findFirst({
-      where: { organizationId: brukerOrgId, projectId },
-    });
-    if (orgProsjekt) {
-      const member = await prisma.organizationMember.findUnique({
-        where: { userId_organizationId: { userId, organizationId: brukerOrgId } },
-        select: { firmaRoller: true },
-      });
-      if (member?.firmaRoller.includes("firma_admin")) return true;
-    }
-  }
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return true;
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
