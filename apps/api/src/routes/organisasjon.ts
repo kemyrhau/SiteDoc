@@ -439,6 +439,18 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
+      // Firmagrense (2026-11-03): bare prosjekter firmaet selv eier. Uten denne kunne admin i A
+      // koble Bs prosjekt til A, og koblingen gjør `erFirmaAdminForProsjekt` sann i alle
+      // prosjekt-porter. Prosjekt uten eier og ukjent prosjekt avvises likt (ingen eksistens-lekk).
+      // Kobling av andre firmaer går via `admin.tilknyttProsjekt` (sitedoc_admin).
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+      if (!prosjekt || prosjekt.primaryOrganizationId !== orgId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Prosjektet eies ikke av firmaet" });
+      }
+
       return ctx.prisma.projectOrganization.upsert({
         where: {
           projectId_organizationId: {
