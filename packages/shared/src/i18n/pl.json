@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Sugestia z telefonu komórkowego, oczekuje na wybór pracownika",
   "timer.forslagValg.lesevisningHjelp": "Zanim zatwierdzisz, pracownik musi wybrać pomiędzy komputerem stacjonarnym a telefonem komórkowym. Możesz poczekać lub zwrócić kartę jednodniową.",
   "timer.forslagValg.attesterBlokkert": "Pracownik nie wybrał między komputerem stacjonarnym a telefonem komórkowym — poczekaj lub zwróć kartę jednodniową",
-  "timer.forslagValg.pille": "Sugestia mobilna"
+  "timer.forslagValg.pille": "Sugestia mobilna",
+  "sokMobil.omfangAlle": "Wszystko",
+  "sokMobil.omfangMapper": "Lornetka składana",
+  "sokMobil.omfangSjekklister": "Listy kontrolne",
+  "sokMobil.omfangOppgaver": "Zadania",
+  "sokMobil.placeholder": "Przeszukuj foldery, listy kontrolne i zadania",
+  "sokMobil.minstToTegn": "Wpisz co najmniej 2 znaki i dotknij Szukaj",
+  "sokMobil.mapperKreverNett": "Offline – przeszukiwanie folderów wymaga połączenia",
+  "sokMobil.kreverNettKort": "foldery wymagają połączenia",
+  "sokMobil.lagretVersjon": "zapisana wersja · ostatnio pobrana {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "zapisana wersja",
+  "sokMobil.visAlle": "Pokaż wszystko {{antall}}",
+  "sokMobil.aapneDokumentet": "Otwórz dokument"
 }

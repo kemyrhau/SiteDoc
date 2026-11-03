@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Suggestion from mobile, awaiting the worker's choice",
   "timer.forslagValg.lesevisningHjelp": "The worker must choose between PC and mobile before you can approve. You can wait or return the day card.",
   "timer.forslagValg.attesterBlokkert": "The worker hasn't chosen between PC and mobile — wait or return the day card",
-  "timer.forslagValg.pille": "Mobile suggestion"
+  "timer.forslagValg.pille": "Mobile suggestion",
+  "sokMobil.omfangAlle": "All",
+  "sokMobil.omfangMapper": "Folders",
+  "sokMobil.omfangSjekklister": "Checklists",
+  "sokMobil.omfangOppgaver": "Tasks",
+  "sokMobil.placeholder": "Search folders, checklists and tasks",
+  "sokMobil.minstToTegn": "Type at least 2 characters and tap Search",
+  "sokMobil.mapperKreverNett": "Offline – searching folders requires a connection",
+  "sokMobil.kreverNettKort": "folders require a connection",
+  "sokMobil.lagretVersjon": "saved version · last fetched {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "saved version",
+  "sokMobil.visAlle": "Show all {{antall}}",
+  "sokMobil.aapneDokumentet": "Open document"
 }

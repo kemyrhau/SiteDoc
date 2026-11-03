@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Vorschlag vom Handy, der auf die Wahl des Arbeitnehmers wartet",
   "timer.forslagValg.lesevisningHjelp": "Der Mitarbeiter muss zwischen PC und Mobilgerät wählen, bevor Sie die Genehmigung erteilen können. Sie können warten oder die Tageskarte zurückgeben.",
   "timer.forslagValg.attesterBlokkert": "Der Arbeitnehmer hat sich nicht zwischen PC und Mobilgerät entschieden – warten oder die Tageskarte zurückgeben",
-  "timer.forslagValg.pille": "Mobiler Vorschlag"
+  "timer.forslagValg.pille": "Mobiler Vorschlag",
+  "sokMobil.omfangAlle": "Alle",
+  "sokMobil.omfangMapper": "Ordner",
+  "sokMobil.omfangSjekklister": "Checklisten",
+  "sokMobil.omfangOppgaver": "Aufgaben",
+  "sokMobil.placeholder": "Durchsuchen Sie Ordner, Checklisten und Aufgaben",
+  "sokMobil.minstToTegn": "Geben Sie mindestens zwei Zeichen ein und tippen Sie auf Suchen",
+  "sokMobil.mapperKreverNett": "Offline – für die Suche nach Ordnern ist eine Verbindung erforderlich",
+  "sokMobil.kreverNettKort": "Ordner erfordern eine Verbindung",
+  "sokMobil.lagretVersjon": "gespeicherte Version · zuletzt abgerufen {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "gespeicherte Version",
+  "sokMobil.visAlle": "Alle anzeigen {{antall}}",
+  "sokMobil.aapneDokumentet": "Dokument öffnen"
 }

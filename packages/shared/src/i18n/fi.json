@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Ehdotus matkapuhelimesta, odottaa työntekijän valintaa",
   "timer.forslagValg.lesevisningHjelp": "Työntekijän on valittava tietokoneen tai matkapuhelimen välillä, ennen kuin voit hyväksyä. Voit odottaa tai palauttaa päiväkortin.",
   "timer.forslagValg.attesterBlokkert": "Työntekijä ei ole valinnut tietokoneen ja mobiilin välillä – odota tai palauta päiväkortti",
-  "timer.forslagValg.pille": "Mobiiliehdotus"
+  "timer.forslagValg.pille": "Mobiiliehdotus",
+  "sokMobil.omfangAlle": "Kaikki",
+  "sokMobil.omfangMapper": "Kansiot",
+  "sokMobil.omfangSjekklister": "Tarkistuslistat",
+  "sokMobil.omfangOppgaver": "Tehtävät",
+  "sokMobil.placeholder": "Hae kansioita, tarkistuslistoja ja tehtäviä",
+  "sokMobil.minstToTegn": "Kirjoita vähintään 2 merkkiä ja napauta Hae",
+  "sokMobil.mapperKreverNett": "Offline – kansioiden etsiminen vaatii yhteyden",
+  "sokMobil.kreverNettKort": "kansiot vaativat yhteyden",
+  "sokMobil.lagretVersjon": "tallennettu versio · haettu viimeksi {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "tallennettu versio",
+  "sokMobil.visAlle": "Näytä kaikki {{antall}}",
+  "sokMobil.aapneDokumentet": "Avaa asiakirja"
 }

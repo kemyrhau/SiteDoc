@@ -140,6 +140,10 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `utm33TilLatLng()` — UTM sone 33N → WGS84
 - `parserKoordinater(tekst)` — UTM33, DMS, desimal
 
+### Søk-utsnitt (`packages/shared/src/sok/`)
+
+`utsnitt.ts` — ren logikk for treffutsnitt og ordmarkering i FTD-søket, delt av web (`apps/web/src/components/ftd-sok/`, re-eksport) og mobilsøket (`apps/mobile/src/components/sok/`): `byggUtsnitt`, `posisjonsEtikett`, `finnOverlapp`, `delOppTermer`, `søkeTermer`. Test: `utsnitt.test.ts`. Detaljer: [ai-sok.md](ai-sok.md), [mobil.md](mobil.md).
+
 ### Bildeannotering (`packages/shared/src/annotering/`)
 
 Tegnemotoren for bildeannotering bor her som ÉN delt kilde — web og mobil deler den (mønster som `@sitedoc/pdf`: HTML-streng i en delt pakke).

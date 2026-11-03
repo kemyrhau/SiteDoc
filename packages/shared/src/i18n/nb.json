@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Forslag fra mobil, venter på arbeiderens valg",
   "timer.forslagValg.lesevisningHjelp": "Arbeideren må velge mellom PC og mobil før du kan attestere. Du kan avvente eller returnere sedelen.",
   "timer.forslagValg.attesterBlokkert": "Arbeideren har ikke valgt mellom PC og mobil — avvent eller returner sedelen",
-  "timer.forslagValg.pille": "Forslag fra mobil"
+  "timer.forslagValg.pille": "Forslag fra mobil",
+  "sokMobil.omfangAlle": "Alle",
+  "sokMobil.omfangMapper": "Mapper",
+  "sokMobil.omfangSjekklister": "Sjekklister",
+  "sokMobil.omfangOppgaver": "Oppgaver",
+  "sokMobil.placeholder": "Søk i mapper, sjekklister og oppgaver",
+  "sokMobil.minstToTegn": "Skriv minst 2 tegn og trykk Søk",
+  "sokMobil.mapperKreverNett": "Frakoblet – søk i mapper krever nettilkobling",
+  "sokMobil.kreverNettKort": "mapper krever nett",
+  "sokMobil.lagretVersjon": "lagret versjon · sist hentet {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "lagret versjon",
+  "sokMobil.visAlle": "Vis alle {{antall}}",
+  "sokMobil.aapneDokumentet": "Åpne dokumentet"
 }

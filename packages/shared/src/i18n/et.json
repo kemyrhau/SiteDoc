@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Soovitus mobiilist, ootab töötaja valikut",
   "timer.forslagValg.lesevisningHjelp": "Enne heakskiitmist peab töötaja valima arvuti või mobiiltelefoni vahel. Päevakaardi võid oodata või tagastada.",
   "timer.forslagValg.attesterBlokkert": "Töötaja pole valinud arvuti ja mobiili vahel – oodake või tagastage päevakaart",
-  "timer.forslagValg.pille": "Mobiilisoovitus"
+  "timer.forslagValg.pille": "Mobiilisoovitus",
+  "sokMobil.omfangAlle": "Kõik",
+  "sokMobil.omfangMapper": "Kaustad",
+  "sokMobil.omfangSjekklister": "Kontrollnimekirjad",
+  "sokMobil.omfangOppgaver": "Ülesanded",
+  "sokMobil.placeholder": "Otsige kaustu, kontrollnimekirju ja ülesandeid",
+  "sokMobil.minstToTegn": "Sisestage vähemalt kaks tähemärki ja puudutage valikut Otsi",
+  "sokMobil.mapperKreverNett": "Võrguühenduseta – kaustade otsimine nõuab ühendust",
+  "sokMobil.kreverNettKort": "kaustad nõuavad ühendust",
+  "sokMobil.lagretVersjon": "salvestatud versioon · viimati toodud {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "salvestatud versioon",
+  "sokMobil.visAlle": "Kuva kõik {{antall}}",
+  "sokMobil.aapneDokumentet": "Ava dokument"
 }

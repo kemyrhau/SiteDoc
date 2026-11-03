@@ -5180,5 +5180,17 @@
   "timer.forslagValg.venter": "Förslag från mobil, i väntan på arbetarens val",
   "timer.forslagValg.lesevisningHjelp": "Arbetaren måste välja mellan PC och mobil innan du kan godkänna. Du kan vänta eller lämna tillbaka dagkortet.",
   "timer.forslagValg.attesterBlokkert": "Arbetaren har inte valt mellan PC och mobil — vänta eller lämna tillbaka dagkortet",
-  "timer.forslagValg.pille": "Mobilförslag"
+  "timer.forslagValg.pille": "Mobilförslag",
+  "sokMobil.omfangAlle": "Alla",
+  "sokMobil.omfangMapper": "Mappar",
+  "sokMobil.omfangSjekklister": "Checklistor",
+  "sokMobil.omfangOppgaver": "Uppgifter",
+  "sokMobil.placeholder": "Sök i mappar, checklistor och uppgifter",
+  "sokMobil.minstToTegn": "Skriv minst två tecken och tryck på Sök",
+  "sokMobil.mapperKreverNett": "Offline – sökning efter mappar kräver en anslutning",
+  "sokMobil.kreverNettKort": "mappar kräver en anslutning",
+  "sokMobil.lagretVersjon": "sparad version · senast hämtad {{tid}}",
+  "sokMobil.lagretVersjonUtenTid": "sparad version",
+  "sokMobil.visAlle": "Visa alla {{antall}}",
+  "sokMobil.aapneDokumentet": "Öppna dokumentet"
 }
