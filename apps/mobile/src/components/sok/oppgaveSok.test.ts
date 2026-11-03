@@ -12,6 +12,7 @@ function rad(over: Partial<OppgaveSokRad> & { id: string }): OppgaveSokRad {
     status: "draft",
     number: null,
     description: null,
+    subject: null,
     template: null,
     utforerFaggruppe: null,
     ...over,
@@ -34,6 +35,11 @@ describe("sokIOppgaver", () => {
 
   it("treffer prefiks+nummer", () => {
     expect(ider(sokIOppgaver(RADER, "OPP12"))).toEqual(["a"]);
+  });
+
+  it("treffer emne (filter-mobil)", () => {
+    const rader = [...RADER, rad({ id: "e", title: "Befaring", subject: "Fuktmåling bad" })];
+    expect(ider(sokIOppgaver(rader, "fuktmåling"))).toEqual(["e"]);
   });
 
   it("treffer beskrivelse", () => {

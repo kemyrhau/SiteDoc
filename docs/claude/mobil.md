@@ -779,13 +779,43 @@ Sjekklister · Oppgaver» (standard «Alle», seksjoner Mapper → Sjekklister �
   ingen dokumenter for å søke. **Krever nett** — offline vises «Frakoblet – søk i mapper krever nettilkobling» og
   siste treff fra React Query-cachen (`offlineFirst`).
 - **Sjekklister og oppgaver** er fortsatt **listesøk** (vedtaket over står): sjekklister via `filtrerOgSorter`,
-  oppgaver via `sokIOppgaver` (`src/components/sok/oppgaveSok.ts`: prefiks+nummer · tittel · beskrivelse · malnavn
-  · utfører-faggruppe). Offline leses lokal katalog (`velgOfflineListeKilde`) med «lagret versjon · sist hentet
+  oppgaver via `sokIOppgaver` (`src/components/sok/oppgaveSok.ts`: prefiks+nummer · tittel · emne · beskrivelse ·
+  malnavn · utfører-faggruppe). Offline leses lokal katalog (`velgOfflineListeKilde`) med «lagret versjon · sist hentet
   hh:mm». Lokal oppgavekatalog (`oppgave_local`) har ingen beskrivelse — offline treffer ikke beskrivelsen.
 - **Leseren** `app/sok/[dokumentId].tsx` viser dokumentets chunks (`ftdSok.hentDokumentChunks`) med amber ramme på
   valgt treff, gule søkeord og ▲▼ «n av m»; «Åpne dokumentet» går til `/dokument/[id]`. Ren logikk i
   `src/components/sok/sokLogikk.ts` (testet), utsnitt delt med web i `packages/shared/src/sok/utsnitt.ts`.
 - **Utenfor:** innholdssøk i `Checklist.data`/`Task.data` (egen sak, spec § 9.2) og omfangsvelger på web.
+
+## Filter, sortering og søk i sjekkliste- og oppgavelista (filter-mobil 2026-11-03)
+
+Begge lister (`app/sjekkliste/index.tsx`, `app/oppgave/index.tsx`) deler samme maskineri — ingen API-endring,
+kun data `hentForProsjekt` allerede sender:
+
+- **Tilstand:** `useDokumentlisteFilter(prosjektId)` (`src/components/dokumentliste/useDokumentlisteFilter.ts`) holder
+  søk, filterverdier, sortering, opprettet-periode og ark-synlighet; nullstilles ved prosjektbytte. Chip-raden over
+  lista er `AktiveFilterChips.tsx` («Viser N av M — nullstill filter»).
+- **Logikk:** `filtrerOgSorter(rader, søk, filter, sortering, {periode, bruker})` i `dokumentlisteFilter.ts` (ren,
+  vitest). Sorteringer (`SORTERINGER`): nyeste · eldste · sist endret · frist (uten frist sist) · nummer · emne ·
+  navn. Filterkolonner (`FILTER_KOLONNER`): emne (inkl. «Uten emne»), mal, prioritet (kun oppgaver), frist
+  (har frist / ingen frist / forfalt), opprettet av (`bestiller`), mottaker/ansvarlig, bestiller- og
+  utførerfaggruppe, tegning, dokumentflyt, «ballen hos meg». Opprettet-periode via `innenforPeriode` fra
+  `@sitedoc/shared`.
+- **Arket** `FilterOgSorteringSheet.tsx`: «Ballen hos meg»-bryter øverst, sortering, deretter seksjonene
+  HVA · NÅR · HVEM · HVOR. Adaptivt: et filter vises bare når lista har ≥ 2 ulike verdier (eller filteret er satt).
+  Forhåndsdefinerte valg (chips/nedtrekk), ingen fritekst.
+- **Utenfor arket (D2):** status-chips, `ByggeplassChip` og oppgavelistas segment alle/oppgaver/kontrakt. Under søk
+  skjules byggeplass-chipen og søket går på tvers av byggeplasser (som sjekklistene).
+- **«Ballen hos meg» offline (D3):** krever `gruppe.hentMinFlytInfo` (brukerens grupper). Offline skjules bryteren
+  og et satt ballen-filter ignoreres (telles ikke).
+- **Radene** viser emne og opprettelsesdato («opprettet 3. nov.»). Oppgaverad-typen leser `bestiller` (tidligere
+  feilaktig `creator`, som API-et aldri sendte).
+- **Offline (D1):** `oppgave_local` fikk 7 tekstkolonner — `subject`, `bestiller_navn`, `recipient_user_navn`,
+  `recipient_group_navn`, `drawing_navn`, `dokumentflyt_navn`, `bestiller_faggruppe_navn` (6 begreper; mottaker er
+  bruker ELLER gruppe → to kolonner). Skrevet av `oppgaveKatalog.ts`; additiv `ALTER ADD COLUMN` i
+  `migreringer.ts` (PRAGMA-sjekk, ingen data slettes), testet mot eksisterende database uten kolonnene
+  (`migreringer.oppgaveLocal.test.ts`). Gamle rader har NULL til neste katalog-refresh.
+- **HMS-lista** har ikke dette maskineriet (utenfor).
 
 ## 🟢 Dokumentflyt på mobil er LESEVISNING — og det er etter design (målt 2026-09-06)
 

@@ -67,3 +67,18 @@ hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
   treffene, og «Åpne dokumentet» viser hele fila. Krever nett.
 - **Sjekklister og oppgaver** søker på nummer, tittel og mal — ikke på det som er fylt ut. Uten nett søkes den
   lagrede versjonen på telefonen (for eksempel finner Ola oppgave «OPP12» selv i kjelleren uten dekning).
+
+## Mobil: Filter og sortering i sjekkliste- og oppgavelista (`FilterOgSorteringSheet.tsx`)
+
+Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når mobil får hjelpe-ikon.
+
+- **Hva er dette?** Snevre inn og ordne lista. Bare valg som finnes i lista vises.
+- **Ballen hos meg:** viser bare dokumenter der du eller gruppa di har ballen nå. Krever nett — uten dekning er
+  bryteren skjult.
+- **Sortering:** nyeste, eldste, sist endret, frist (de uten frist sist), nummer, emne eller navn.
+- **Hva:** emne (også «Uten emne»), mal og — for oppgaver — prioritet.
+- **Når:** frist (har frist, ingen frist, forfalt) og når dokumentet ble opprettet.
+- **Hvem:** hvem som opprettet det, mottaker/ansvarlig, bestiller- og utførerfaggruppe.
+- **Hvor:** tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
+- Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
+
