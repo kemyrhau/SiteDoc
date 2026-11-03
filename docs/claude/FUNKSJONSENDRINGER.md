@@ -25,6 +25,12 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-11-03
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `d76d9d27` (merge `525c84e8`) | Tilgang: firma-admin og mapper, web + mobil | **Før:** firma-admin i *ethvert* firma koblet til prosjektet (UE, konsulent, byggherre) hadde full admin uten medlemsrad: alle mapper, eksport, livssyklus, tillatelser, Timer-prosjektleder/attestering. Ethvert medlem kunne endre mappetilgang («Rediger tilgang») og åpne lukkede mapper. Dokumentvisningen sjekket ikke mappetilgang. **Etter:** bare admin i prosjektets **eierfirma** har den automatiske tilgangen; deltakerfirmaets admin får tilgang som vanlig medlem. «Rediger tilgang» er skjult på web for alle som ikke er prosjektadmin, og serveren avviser endringen. Mobil: mappe eller dokument uten tilgang viser lås og «ingen tilgang» i stedet for tom liste/«ikke funnet». «Eier-firma» i oppsett viser alltid eierfirmaet (før: tilfeldig koblet firma). Firma-admin kan bare koble prosjekter firmaet eier (ingen UI). ⚪ Prod 03.11: 0 deltakerkoblinger, ingen mister tilgang i dag. ⚪ Ikke verifisert på test/telefon ennå. | Kenneth 03.11: «Tette leggTilProsjekt? → ja», «Mappetilgang …: Fiks», «firmaadmin/prosjektadmin … der firma eier prosjektet», «Ja, alle», «Ja, samme branch» |
+
 ### 2026-10-28
 
 | Hash | Flate | Før → Etter | Hjemmel |

@@ -224,13 +224,13 @@ Tok `nsCode` og returnerte chunks med den koden **på tvers av alle prosjekter**
 - Tester: `folder-tilgang.test.ts` og `routes/sok-mappetilgang.test.ts`.
 | `aiSok.genererEmbeddings` / `stoppEmbeddings` / `hentInnstillinger` / `oppdaterInnstillinger` | `projectId` | fantes: `verifiserAdmin`. ⚠️ `stoppEmbeddings` stopper en **global** kjøring (`stoppEmbeddingGenerering()` uten prosjekt) — en prosjektadmin kan stoppe et annet prosjekts generering. Ikke lekkasje av data; ikke rettet i SØK-1 |
 
-### ✅ 8e. `organisasjon.leggTilProsjekt` koblet fremmede prosjekter til eget firma (måling 2026-11-03, Kontrollør; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+### ✅ 8e. `organisasjon.leggTilProsjekt` koblet fremmede prosjekter til eget firma (måling 2026-11-03, Kontrollør; 🟢 FIKSET, merget til develop `525c84e8` (Kontrollør GODKJENT `d76d9d27`))
 Ruten sjekket bare at kalleren er firma_admin i `input.organizationId`, ikke at prosjektet tilhører firmaet. En `ProjectOrganization`-rad er nøkkelen i `erFirmaAdminForProsjekt` (`tilgangskontroll.ts`), som er bypass i `verifiserProsjektmedlem`, `verifiserAdmin`, `hentTilgjengeligeMappeIder` m.fl. Admin i firma A kunne dermed koble firma Bs prosjekt til A og få full lese- og admintilgang i det, også søket.
 - **Fiks** (`apps/api/src/routes/organisasjon.ts`, `leggTilProsjekt`): etter `verifiserFirmaAdmin` kreves `project.primaryOrganizationId === orgId`, ellers `FORBIDDEN`. Prosjekt uten eier (`null`) og ukjent prosjekt avvises likt, så ruten avslører ikke om id-en finnes. Kobling av andre firmaer går via `admin.tilknyttProsjekt` (sitedoc_admin), som ikke er endret.
 - **Test:** `apps/api/src/routes/organisasjon-firmaisolering.test.ts` (rød på develop før fiksen; fem negativkontroller grønne før og etter).
 - Ingen klient kaller `organisasjon.leggTilProsjekt`, så fiksen endrer ingen UI.
 
-### ✅ 8f. Dokumentvisningen i `mappe.ts` sjekket ikke mappetilgang (måling 2026-11-03, Kontrollør; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+### ✅ 8f. Dokumentvisningen i `mappe.ts` sjekket ikke mappetilgang (måling 2026-11-03, Kontrollør; 🟢 FIKSET, merget til develop `525c84e8` (Kontrollør GODKJENT `d76d9d27`))
 `mappe.hentDokumenter`, `hentDokumenterMedSpraak` og `hentDokumentBlokker` sjekket bare `verifiserProsjektmedlem`. Et medlem kunne lese dokumentlisten (med `fileUrl`, som signeres ved emisjon og dermed gir filen), overskrifter og hele blokkteksten fra en mappe hen ikke har tilgang til. Søket (`ftdSok`/`aiSok`) hadde allerede mappetilgang (§ 8d).
 - **Fiks** (`apps/api/src/routes/mappe.ts`, hjelperen `verifiserMappeLesetilgang`): medlemskap, deretter `hentTilgjengeligeMappeIder`. Mappe utenfor lista gir `FORBIDDEN`, og `null` (admin) slipper alt. `hentDokumentBlokker` slår opp dokumentet først: ukjent id gir `NOT_FOUND`, dokument uten mappe krever bare medlemskap (som `ftdSok.hentDokumentChunks`). Rutene tar ingen `projectId`, så et fremmed prosjekts id gir `FORBIDDEN` fra prosjektporten og ikke `NOT_FOUND`.
 - **`/uploads/`:** filen er signatur-kun (HMAC), og URL-en signeres bare i svaret til den som består porten (`signerUploadsOutput`). Porten i ruten er dermed porten til filen.
@@ -238,31 +238,31 @@ Ruten sjekket bare at kalleren er firma_admin i `input.organizationId`, ikke at 
 - **Test:** `apps/api/src/routes/mappe-dokumenttilgang.test.ts` (rød før fiksen: 5 av 10).
 - **Åpne funn fra gjennomgangen (ikke fikset, venter ordre):**
   - ✅ `mappe.settTilgang` krevde bare `verifiserProsjektmedlem` — fikset, se § 8h.
-  - 🟠 `modul.sammenlignOversettelse` (`apps/api/src/routes/modul.ts`) leser blokktekst fra `blokkId` uten å sjekke at blokken hører til `input.projectId`. Med kjent UUID kan tekst leses på tvers av prosjekter og firmaer.
+  - ✅ `modul.sammenlignOversettelse` leste blokktekst fra `blokkId` uten prosjektsjekk — fikset, se § 8i.
   - 🟡 Resten av `mappe.ts` har bare prosjektporten og leverer metadata eller skriver i lukkede mapper: `hentForProsjekt` (alle mappenavn og tellinger), `hentTilgang`, `opprett`, `oppdater`, `slett`, språk- og oversettelsesrutene, `slettDokument`, `lastOppDokument`, `reprosesser*`, `settKontrakt` og `splittDokumenter`. Ingen av dem leverer innhold eller fil.
   - 🟡 `hentDokumentBlokker` leser også blokker fra inaktive (soft-slettede) dokumenter.
 
-### ✅ 8g. Firma-admin-bypassen gjaldt alle koblede firmaer, ikke bare eierfirmaet (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+### ✅ 8g. Firma-admin-bypassen gjaldt alle koblede firmaer, ikke bare eierfirmaet (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET, merget til develop `525c84e8` (Kontrollør GODKJENT `d76d9d27`))
 `erFirmaAdminForProsjekt` løp gjennom alle `ProjectOrganization`-rader. En firma-admin i et deltakerfirma (UE, konsulent, byggherre) fikk dermed full admin på prosjektet uten medlemsrad: alle prosjekt-porter, tillatelser, eksport, livssyklus og mappetilgang. `gruppe.hentMinFlytInfo` og `dagsseddel.erProsjektLeder` (timer-attestering) hadde hver sin kopi av samme kobling-bypass.
 - **Fiks** (`apps/api/src/trpc/tilgangskontroll.ts`, `erFirmaAdminForProsjekt`): leser `Project.primaryOrganizationId` og spør `erFirmaAdmin` mot eierfirmaet alene. Eier `null` eller ukjent prosjekt gir `false`. `gruppe.hentMinFlytInfo` og `timer/dagsseddel.ts` `erProsjektLeder` bruker nå predikatet i stedet for egne kopier.
 - **Konsekvens:** firma-admin i et deltakerfirma får tilgang som vanlig medlem (medlemsrad, grupper, mappetilgang, `kanAttestere`). Prod 2026-11-03: 8 prosjekter, ingen uten eier, ingen deltakerkoblinger — ingen bruker mister tilgang i dag.
 - **Urørt:** `prosjektTilhørerFirmaWhere` (eier ∪ kobling, firma-nivå timer/prosjektvelger) og firma-nivå-lister som `organisasjon.hentProsjekter` — de gir ikke prosjekt-admin.
 - **Test:** `apps/api/src/trpc/firmaadmin-eierfirma.test.ts` (rød før fiksen: 4 av 8; negativkontroll: admin i eierfirmaet slipper). `tilgangskontroll.test.ts` og `dokumentflyt-slett-adminvakt.test.ts` mocker nå eierfirmaet i stedet for koblingen.
 
-### ✅ 8h. Ethvert prosjektmedlem kunne endre mappetilgang (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle» = hjemlet funksjonsendring; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+### ✅ 8h. Ethvert prosjektmedlem kunne endre mappetilgang (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle» = hjemlet funksjonsendring; 🟢 FIKSET, merget til develop `525c84e8` (Kontrollør GODKJENT `d76d9d27`))
 `mappe.settTilgang` krevde bare `verifiserProsjektmedlem`. Et medlem kunne sette `accessMode="inherit"` eller skrive seg selv inn i listen og dermed åpne en lukket mappe — som omgikk § 8f.
 - **Fiks** (`apps/api/src/routes/mappe.ts`, `settTilgang`): krever `verifiserAdmin` (prosjektadmin, firma-admin i eierfirmaet, sitedoc_admin). `settTilgang` er eneste rute som skriver `accessMode`/`FolderAccess`; `oppdater` endrer bare navn, `opprett` gir standard `inherit`, og ingen rute flytter mapper.
 - **UI:** web `dashbord/oppsett/produksjon/box/page.tsx` skjuler «Rediger tilgang» i mappemenyen når `gruppe.hentMinFlytInfo().erAdmin` er `false`. Mobil har ingen tilgangsredigering.
 - **Test:** `apps/api/src/routes/mappe-settilgang.test.ts` (rød før fiksen: 3 av 3).
 
-### ✅ 8i. `modul.sammenlignOversettelse` leste blokker på tvers av prosjekter (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+### ✅ 8i. `modul.sammenlignOversettelse` leste blokker på tvers av prosjekter (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET, merget til develop `525c84e8` (Kontrollør GODKJENT `d76d9d27`))
 Ruten sjekket medlemskap i `input.projectId`, men slo opp blokken på `blokkId` alene. Et medlem i A kunne lese kildeteksten til en blokk i B, eller i en mappe medlemmet ikke har tilgang til.
 - **Fiks** (`apps/api/src/routes/modul.ts`, `sammenlignOversettelse`): blokkens dokument må ha `projectId === input.projectId` (ellers NOT_FOUND), og dokumentets mappe må være i `hentTilgjengeligeMappeIder` (ellers FORBIDDEN) — samme mønster som `ftdSok.hentDokumentChunks` (§ 8d).
 - **Test:** `apps/api/src/routes/modul-sammenlign-tilgang.test.ts` (rød før fiksen: 3 av 4).
 - ✅ **`modul.reOversettDokument`** (ordre (3), Kenneth «Ja, samme branch») slettet og køet oversatte blokker for vilkårlig `documentId` — fikset med samme sjekk før noe slettes. Begge rutene går via den lokale helperen `krevFtdDokumentTilgang` i `modul.ts`. Test: `modul-reoversett-tilgang.test.ts` (rød før fiksen: 4 av 4).
 - Gjennomgått resten av `modul.ts`: ingen andre ruter tar `documentId`/`blokkId`. 🔴 **Annen klasse, åpent:** `aktiver`, `deaktiver`, `oppdaterOversettelsesInnstillinger` og motorvalget i `reOversettDokument` (skriver `ProjectModule.config`) krever bare `verifiserProsjektmedlem`, ikke admin. `reOversettDokument` tømmer også `translationCache` globalt på innholds-hash (påvirker bare ytelse i andre prosjekter, ingen lekkasje).
 
-### ✅ 8j. `organisasjon.hentForProsjekt` uten tilgangssjekk (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET på `fix/firmagrense` — venter Kontrollør-gate/merge)
+### ✅ 8j. `organisasjon.hentForProsjekt` uten tilgangssjekk (måling 2026-11-03, Kontrollør; Kenneth «Ja, alle»; 🟢 FIKSET, merget til develop `525c84e8` (Kontrollør GODKJENT `d76d9d27`))
 Ruten returnerte hele `Organization`-raden for et vilkårlig `projectId` til enhver innlogget bruker, og valgte en tilfeldig `ProjectOrganization`-rad (kunne være et deltakerfirma).
 - **Fiks** (`apps/api/src/routes/organisasjon.ts`, `hentForProsjekt`): krever `verifiserProsjektmedlem` (medlem, sitedoc_admin, firma-admin i eierfirmaet) og returnerer `Project.primaryOrganization`. Svarformen er uendret (`Organization | null`).
 - **Kallere** (bare web, ingen på mobil): `dashbord/oppsett/firma/page.tsx`, `OppsettSidemeny.tsx`, `lib/innstillinger-kort.tsx` — alle bruker svaret som «eierfirma», og alle kjører i prosjektkontekst der brukeren er medlem.
