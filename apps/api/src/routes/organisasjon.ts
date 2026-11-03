@@ -8,6 +8,7 @@ import {
   harFirmaHmsTilgang,
   hentBrukersOrg,
   verifiserOrganisasjonTilgang,
+  verifiserProsjektmedlem,
 } from "../trpc/tilgangskontroll";
 import {
   syncProjektModulerPaaAktiver,
@@ -226,15 +227,17 @@ export const organisasjonRouter = router({
     return { ...org, aktiveFirmamoduler };
   }),
 
-  // Hent organisasjon tilknyttet et prosjekt (via ProjectOrganization)
+  // Hent prosjektets eierfirma (`primaryOrganization`). Krever prosjektmedlemskap — ikke en
+  // vilkårlig `ProjectOrganization`-rad, som kan være et deltakerfirma (sikkerhet.md § 8j).
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const orgProject = await ctx.prisma.projectOrganization.findFirst({
-        where: { projectId: input.projectId },
-        include: { organization: true },
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { primaryOrganization: true },
       });
-      return orgProject?.organization ?? null;
+      return prosjekt?.primaryOrganization ?? null;
     }),
 
   // Hent organisasjon med ID (kun firmaadmin).
