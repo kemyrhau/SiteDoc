@@ -421,7 +421,8 @@ function MappeTreRad({
   onLeggTilUndermappe: (parentId: string) => void;
   onGiNyttNavn: (id: string, navn: string) => void;
   onSlett: (id: string) => void;
-  onRedigerTilgang: (id: string, navn: string) => void;
+  /** Utelatt for ikke-admin: `mappe.settTilgang` krever prosjektadmin. */
+  onRedigerTilgang?: (id: string, navn: string) => void;
   onKobleTilKontrakt: (id: string, navn: string, kontraktId: string | null) => void;
   onRedigerSpraak: (id: string, navn: string, languages: string[]) => void;
 }) {
@@ -479,11 +480,13 @@ function MappeTreRad({
                 ikon: <FolderPlus className="h-4 w-4 text-gray-400" />,
                 onClick: () => onLeggTilUndermappe(mappe.id),
               },
-              {
-                label: t("mappeoppsett.redigerTilgang"),
-                ikon: <Shield className="h-4 w-4 text-blue-400" />,
-                onClick: () => onRedigerTilgang(mappe.id, mappe.name),
-              },
+              ...(onRedigerTilgang
+                ? [{
+                    label: t("mappeoppsett.redigerTilgang"),
+                    ikon: <Shield className="h-4 w-4 text-blue-400" />,
+                    onClick: () => onRedigerTilgang(mappe.id, mappe.name),
+                  }]
+                : []),
               {
                 label: mappe.kontraktId ? "Fjern kontrakt-kobling" : t("mappeoppsett.kobleTilKontrakt"),
                 ikon: <FileArchive className={`h-4 w-4 ${mappe.kontraktId ? "text-amber-400" : "text-blue-400"}`} />,
@@ -1092,6 +1095,13 @@ export default function BoxSide() {
   const [tilgangMappe, setTilgangMappe] = useState<{ id: string; navn: string } | null>(null);
   const [visImportModal, setVisImportModal] = useState(false);
 
+  // Tilgangsredigering er admin-only (server: verifiserAdmin i mappe.settTilgang)
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const erProsjektAdmin = minFlytInfo?.erAdmin ?? false;
+
   // Hent mappestruktur
   const { data: mapper, isLoading } = trpc.mappe.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -1294,7 +1304,7 @@ export default function BoxSide() {
                 onLeggTilUndermappe={handleLeggTilUndermappe}
                 onGiNyttNavn={handleGiNyttNavn}
                 onSlett={setSlettMappeId}
-                onRedigerTilgang={handleRedigerTilgang}
+                onRedigerTilgang={erProsjektAdmin ? handleRedigerTilgang : undefined}
                 onKobleTilKontrakt={handleKobleTilKontrakt}
                 onRedigerSpraak={handleRedigerSpraak}
               />

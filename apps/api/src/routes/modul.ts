@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
-import type { Prisma } from "@sitedoc/db";
+import type { Prisma, PrismaClient } from "@sitedoc/db";
 import { verifiserProsjektmedlem, verifiserOrganisasjonTilgang } from "../trpc/tilgangskontroll";
 import { effektivTilstand, FIRMAMODUL_SLUGS } from "../services/modul";
+import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 
 /**
  * Seeder HMS-spesifikk infrastruktur når hms-avvik-modulen aktiveres:
@@ -147,6 +149,32 @@ async function seedHmsModulOmradet(
       update: {},
     });
   }
+}
+
+/**
+ * Kaster NOT_FOUND når FTD-dokumentet ikke finnes i `projectId`, og FORBIDDEN når det ligger i en
+ * mappe brukeren ikke har tilgang til. Samme mønster som `ftdSok.hentDokumentChunks` (sikkerhet.md § 8d/8i).
+ */
+async function krevFtdDokumentTilgang(
+  prisma: PrismaClient,
+  userId: string,
+  projectId: string,
+  documentId: string,
+) {
+  const dok = await prisma.ftdDocument.findUnique({
+    where: { id: documentId },
+    select: { sourceLanguage: true, projectId: true, folderId: true },
+  });
+  if (!dok || dok.projectId !== projectId) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke i prosjektet" });
+  }
+  if (dok.folderId) {
+    const mappeIder = await hentTilgjengeligeMappeIder(userId, projectId);
+    if (mappeIder !== null && !mappeIder.includes(dok.folderId)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Ingen tilgang til mappen" });
+    }
+  }
+  return dok;
 }
 
 export const modulRouter = router({
@@ -528,14 +556,11 @@ export const modulRouter = router({
         where: { id: input.blokkId },
         select: { content: true, language: true, sourceBlockId: true, documentId: true },
       });
-      if (!blokk) throw new Error("Blokk ikke funnet");
-
-      // Hent dokumentets kildespråk
-      const dok = await ctx.prisma.ftdDocument.findUnique({
-        where: { id: blokk.documentId },
-        select: { sourceLanguage: true },
-      });
-      const sourceLang = dok?.sourceLanguage ?? "nb";
+      // Blokken må tilhøre et dokument i input-prosjektet og en mappe brukeren har tilgang til —
+      // ellers leser et medlem i A kildeteksten i B (sikkerhet.md § 8i).
+      if (!blokk) throw new TRPCError({ code: "NOT_FOUND", message: "Blokk ikke funnet" });
+      const dok = await krevFtdDokumentTilgang(ctx.prisma, ctx.userId, input.projectId, blokk.documentId);
+      const sourceLang = dok.sourceLanguage ?? "nb";
 
       // Hent kildetekst (original)
       let kildeTekst: string;
@@ -573,6 +598,8 @@ export const modulRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // Dokumentet må tilhøre input-prosjektet og en tilgjengelig mappe før noe slettes (§ 8i).
+      await krevFtdDokumentTilgang(ctx.prisma, ctx.userId, input.projectId, input.documentId);
       await ctx.prisma.ftdDocumentBlock.deleteMany({
         where: { documentId: input.documentId, language: input.targetLang },
       });
