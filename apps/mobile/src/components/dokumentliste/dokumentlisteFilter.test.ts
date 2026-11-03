@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   antallAktiveFilter,
+  ballenBrukerForKilde,
   byggAlternativer,
   filtrerOgSorter,
   UTEN_EMNE,
+  utenUbruktBallen,
   type DokumentRad,
 } from "./dokumentlisteFilter";
 
@@ -111,6 +113,7 @@ describe("filtre", () => {
       rad({ id: "forfalt", dueDate: iso(2) }),
       rad({ id: "ferdig", dueDate: iso(2), status: "approved" }),
       rad({ id: "lukket", dueDate: iso(2), status: "closed" }),
+      rad({ id: "avbrutt", dueDate: iso(2), status: "cancelled" }),
       rad({ id: "fremtid", dueDate: iso(-2) }),
       rad({ id: "uten" }),
     ];
@@ -151,6 +154,27 @@ describe("filtre", () => {
   it("ballen hos meg ignoreres uten bruker (offline)", () => {
     const rader = [rad({ id: "a" }), rad({ id: "b" })];
     expect(filtrerOgSorter(rader, { ballen: "1" }, "", "nummer")).toHaveLength(2);
+  });
+
+  it("R1: lokal kilde + ballen satt → filteret ignoreres, lista er ikke tom og bryteren skjules", () => {
+    const nett = { userId: "u1", gruppeIder: ["g1"] };
+    // Lokale rader (offline-katalogen) bærer ingen bestiller-/mottaker-id-er.
+    const lokale = [rad({ id: "l1" }), rad({ id: "l2" })];
+    const bruker = ballenBrukerForKilde(nett, "lokal");
+    expect(bruker).toBeNull(); // visBallen={!!bruker} → bryteren skjult
+    const fv = utenUbruktBallen({ ballen: "1" }, bruker);
+    expect(fv).toEqual({});
+    expect(antallAktiveFilter(fv)).toBe(0);
+    expect(ider(filtrerOgSorter(lokale, fv, "", "nummer", { bruker }))).toEqual(["l1", "l2"]);
+  });
+
+  it("R1: serverkilde beholder ballen-brukeren og filteret", () => {
+    const nett = { userId: "u1", gruppeIder: [] };
+    const bruker = ballenBrukerForKilde(nett, "server");
+    expect(bruker).toBe(nett);
+    const rader = [rad({ id: "min", recipientUserId: "u1" }), rad({ id: "annen", recipientUserId: "u2" })];
+    const fv = utenUbruktBallen({ ballen: "1" }, bruker);
+    expect(ider(filtrerOgSorter(rader, fv, "", "nummer", { bruker }))).toEqual(["min"]);
   });
 
   it("trakt-telleren teller nye filtre og aktiv periode", () => {

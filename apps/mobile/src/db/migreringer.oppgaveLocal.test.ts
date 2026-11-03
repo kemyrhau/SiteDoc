@@ -15,7 +15,7 @@ const holder = vi.hoisted(() => ({
     run: (sql: string, params?: unknown[]) => void;
     exec(sql: string): Array<{ columns: string[]; values: unknown[][] }>;
   },
-  shim: null as unknown,
+  shim: null as unknown as { execSync: (sql: string) => void; [k: string]: unknown },
 }));
 
 vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
@@ -103,8 +103,14 @@ describe("D1: oppgave_local-kolonner på eksisterende database", () => {
     expect(rad[0]?.values[0]).toEqual(["Gammel oppgave", "high", null]);
   });
 
-  it("er idempotent — andre kjøring feiler ikke og dobler ingenting", () => {
-    expect(() => kjorMigreringer()).not.toThrow();
+  it("er idempotent — andre kjøring kjører ingen ALTER mot oppgave_local", () => {
+    // Måler PRAGMA-sjekken direkte: en duplikat-ALTER kaster i SQLite, men migreringens
+    // try/catch svelger den, så «kaster ikke» alene beviser ingenting (Kontrollør M1).
+    const spion = vi.spyOn(holder.shim, "execSync");
+    kjorMigreringer();
+    const alters = spion.mock.calls.filter(([sql]) => /ALTER TABLE oppgave_local/i.test(String(sql)));
+    spion.mockRestore();
+    expect(alters).toEqual([]);
     expect(kolonner().filter((k) => k === "subject")).toHaveLength(1);
     expect(holder.db.exec("SELECT COUNT(*) FROM oppgave_local")[0]?.values[0]?.[0]).toBe(1);
   });

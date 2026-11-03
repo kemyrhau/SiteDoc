@@ -6,6 +6,7 @@ import {
   matchScore,
   normaliserSok,
   synonymerFor,
+  TERMINALE_DOKUMENTSTATUSER,
   type HarBallenBruker,
   type Periode,
   type TabellFilterConfig,
@@ -141,9 +142,32 @@ export function lagFilterConfig(bruker?: HarBallenBruker | null): TabellFilterCo
     },
     hentFrist: (rad) => ({
       dueDate: rad.dueDate ?? null,
-      ferdig: rad.status === "approved" || rad.status === "closed",
+      // Avsluttet (inkl. avbrutt) er aldri forfalt — samme sett som flytrollene.
+      ferdig: TERMINALE_DOKUMENTSTATUSER.has(rad.status),
     }),
   };
+}
+
+/**
+ * «Ballen hos meg» gjelder bare serverrader. Lokale rader (offline-katalogen) mangler
+ * bestiller-/mottaker-id-ene, så `beregnHarBallen` ville gitt false for alle og lista
+ * blitt stille tom — også med nett, så lenge serversvaret ikke er bekreftet.
+ */
+export function ballenBrukerForKilde(
+  bruker: HarBallenBruker | null,
+  kilde: string,
+): HarBallenBruker | null {
+  return kilde === "server" ? bruker : null;
+}
+
+/** Fjerner et satt ballen-filter når det ikke kan brukes, så telleren ikke lyver. */
+export function utenUbruktBallen(
+  filterVerdier: Record<string, string>,
+  bruker: HarBallenBruker | null,
+): Record<string, string> {
+  if (bruker || !filterVerdier.ballen) return filterVerdier;
+  const { ballen: _ballen, ...rest } = filterVerdier;
+  return rest;
 }
 
 /** Config uten bruker («ballen hos meg» ignoreres). */

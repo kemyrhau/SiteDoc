@@ -30,11 +30,15 @@ import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
 import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
 import {
+  ballenBrukerForKilde,
   byggAlternativer,
   filtrerOgSorter,
   type DokumentRad,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
-import { useDokumentlisteFilter } from "../../src/components/dokumentliste/useDokumentlisteFilter";
+import {
+  useAktiveFilter,
+  useDokumentlisteFilter,
+} from "../../src/components/dokumentliste/useDokumentlisteFilter";
 import {
   MedUtheving,
   formaterKortDato,
@@ -72,16 +76,14 @@ export default function SjekklisteListe() {
     settSøketekst,
     søkerNaa,
     søkeTokens,
-    filterVerdier,
+    filterVerdier: råFilter,
     sortering,
     settSortering,
     periode,
     settPeriode,
     visSheet,
     settVisSheet,
-    ballenBruker,
-    antallFilter,
-    aktiveChips,
+    ballenBrukerNett,
     settFilter,
     fjernChip,
     nullstillFilter,
@@ -127,6 +129,10 @@ export default function SjekklisteListe() {
   });
 
   const sjekklister = kilde === "server" ? serverData : lokaleRader;
+
+  // «Ballen» kun på serverrader (lokale rader mangler bestiller-/mottaker-id-ene).
+  const ballenBruker = ballenBrukerForKilde(ballenBrukerNett, kilde);
+  const { filterVerdier, antallFilter, aktiveChips } = useAktiveFilter(råFilter, periode, ballenBruker);
 
   // «Sist hentet»-tid for dette PROSJEKTET (krav 7) — kun relevant når vi viser
   // lokale rader. Prosjektets eget stempel, ikke et globalt fei-tidspunkt.

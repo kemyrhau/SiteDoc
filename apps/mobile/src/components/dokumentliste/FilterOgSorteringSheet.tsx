@@ -2,16 +2,15 @@ import { useState, type ReactElement } from "react";
 import { View, Text, Pressable, Modal, ScrollView, Switch } from "react-native";
 import { ChevronDown } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import type { Periode } from "@sitedoc/shared";
 import { EnkeltvelgerModal, type VelgerAlternativ } from "./EnkeltvelgerModal";
 import { PeriodeFilter } from "../PeriodeFilter";
 import {
   SORTERINGER,
-  UTEN_EMNE,
   type DokumentAlternativer,
   type Sortering,
 } from "./dokumentlisteFilter";
+import { filterEtikett, FRIST_NOEKKEL } from "./filterEtikett";
 
 type NedtrekkKol =
   | "emne"
@@ -32,19 +31,6 @@ const SORTERING_NOEKKEL: Record<Sortering, string> = {
   navn: "dokumentsok.sorteringNavn",
 };
 
-export const PRIORITET_NOEKKEL: Record<string, string> = {
-  low: "prioritet.lav",
-  medium: "prioritet.middels",
-  high: "prioritet.hoey",
-  critical: "prioritet.kritisk",
-};
-
-const FRIST_NOEKKEL: Record<string, string> = {
-  forfalt: "dokumentsok.fristForfalt",
-  har_frist: "dokumentsok.fristHarFrist",
-  ingen_frist: "dokumentsok.fristIngenFrist",
-};
-
 const NEDTREKK_TITTEL: Record<NedtrekkKol, string> = {
   emne: "tabell.emne",
   mal: "tabell.mal",
@@ -54,15 +40,6 @@ const NEDTREKK_TITTEL: Record<NedtrekkKol, string> = {
   utforerFaggruppe: "tabell.utforerFaggruppe",
   tegning: "tabell.tegning",
 };
-
-/** Synlig etikett for én filterverdi (chipsene over lista og nedtrekkene i arket). */
-export function filterEtikett(kolId: string, verdi: string, t: TFunction): string {
-  if (kolId === "ballen") return t("dokumentsok.ballenHosMeg");
-  if (kolId === "emne" && verdi === UTEN_EMNE) return t("dokumentsok.utenEmne");
-  if (kolId === "frist") return FRIST_NOEKKEL[verdi] ? t(FRIST_NOEKKEL[verdi]) : verdi;
-  if (kolId === "prioritet") return PRIORITET_NOEKKEL[verdi] ? t(PRIORITET_NOEKKEL[verdi]) : verdi;
-  return verdi;
-}
 
 /**
  * Filter- og sorterings-sheet (fabel-mockup panel 3, utvidet filter-mobil

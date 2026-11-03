@@ -33,17 +33,19 @@ import {
   formaterNummer,
   formaterOfflineTidspunkt,
 } from "../../src/components/dokumentliste/DokumentRadHjelpere";
-import {
-  FilterOgSorteringSheet,
-  PRIORITET_NOEKKEL,
-} from "../../src/components/dokumentliste/FilterOgSorteringSheet";
+import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
+import { PRIORITET_NOEKKEL } from "../../src/components/dokumentliste/filterEtikett";
 import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
 import {
+  ballenBrukerForKilde,
   byggAlternativer,
   filtrerOgSorter,
   type DokumentRad,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
-import { useDokumentlisteFilter } from "../../src/components/dokumentliste/useDokumentlisteFilter";
+import {
+  useAktiveFilter,
+  useDokumentlisteFilter,
+} from "../../src/components/dokumentliste/useDokumentlisteFilter";
 
 const PRIORITETS_FARGE: Record<string, string> = {
   low: "text-gray-500",
@@ -86,16 +88,14 @@ export default function OppgaveListe() {
     settSøketekst,
     søkerNaa,
     søkeTokens,
-    filterVerdier,
+    filterVerdier: råFilter,
     sortering,
     settSortering,
     periode,
     settPeriode,
     visSheet,
     settVisSheet,
-    ballenBruker,
-    antallFilter,
-    aktiveChips,
+    ballenBrukerNett,
     settFilter,
     fjernChip,
     nullstillFilter,
@@ -139,6 +139,10 @@ export default function OppgaveListe() {
   });
 
   const oppgaver = kilde === "server" ? serverData : lokaleRader;
+
+  // «Ballen» kun på serverrader (lokale rader mangler bestiller-/mottaker-id-ene).
+  const ballenBruker = ballenBrukerForKilde(ballenBrukerNett, kilde);
+  const { filterVerdier, antallFilter, aktiveChips } = useAktiveFilter(råFilter, periode, ballenBruker);
 
   // «Sist hentet»-tid for dette PROSJEKTET — kun når vi viser lokale rader.
   const sistHentet = useMemo(
