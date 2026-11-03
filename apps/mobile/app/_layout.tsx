@@ -9,12 +9,14 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Providers } from "../src/providers";
 import { useAuth } from "../src/providers/AuthProvider";
+import { MedOtaLinje } from "../src/components/OtaLinje";
 
 export default function RotLayout() {
   return (
     <Providers>
       <StatusBar style="light" />
       <AuthGate />
+      <MedOtaLinje>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="logg-inn" />
@@ -29,6 +31,7 @@ export default function RotLayout() {
         <Stack.Screen name="tegning-3d" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="live-view" options={{ animation: "slide_from_right" }} />
       </Stack>
+      </MedOtaLinje>
     </Providers>
   );
 }

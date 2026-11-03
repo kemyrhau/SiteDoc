@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "versioni i ruajtur · marrë për herë të fundit {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "versioni i ruajtur",
   "sokMobil.visAlle": "Shfaq të gjitha {{antall}}",
-  "sokMobil.aapneDokumentet": "Hap dokumentin"
+  "sokMobil.aapneDokumentet": "Hap dokumentin",
+  "ota.nyVersjonKlar": "Një version i ri është gati",
+  "ota.oppdater": "Përditëso",
+  "ota.oppdatert": "Të përditësuar",
+  "ota.sjekker": "Po kontrollon për përditësime…",
+  "ota.lasterNed": "Po shkarkohet versioni i ri…",
+  "ota.klarTrykk": "Versioni i ri gati – trokit për përditësim",
+  "ota.seEtter": "Kontrolloni për përditësime",
+  "ota.frakoblet": "Offline – do të kontrollojë për përditësime kur të jeni në linjë"
 }

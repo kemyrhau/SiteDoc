@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "lagret versjon · sist hentet {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "lagret versjon",
   "sokMobil.visAlle": "Vis alle {{antall}}",
-  "sokMobil.aapneDokumentet": "Åpne dokumentet"
+  "sokMobil.aapneDokumentet": "Åpne dokumentet",
+  "ota.nyVersjonKlar": "Ny versjon er klar",
+  "ota.oppdater": "Oppdater",
+  "ota.oppdatert": "Oppdatert",
+  "ota.sjekker": "Ser etter oppdatering …",
+  "ota.lasterNed": "Laster ned ny versjon …",
+  "ota.klarTrykk": "Ny versjon klar – trykk for å oppdatere",
+  "ota.seEtter": "Se etter oppdatering",
+  "ota.frakoblet": "Frakoblet – ser etter oppdatering når du er på nett"
 }

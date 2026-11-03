@@ -5203,5 +5203,13 @@
   "sokMobil.lagretVersjon": "salvestatud versioon · viimati toodud {{tid}}",
   "sokMobil.lagretVersjonUtenTid": "salvestatud versioon",
   "sokMobil.visAlle": "Kuva kõik {{antall}}",
-  "sokMobil.aapneDokumentet": "Ava dokument"
+  "sokMobil.aapneDokumentet": "Ava dokument",
+  "ota.nyVersjonKlar": "Uus versioon on valmis",
+  "ota.oppdater": "Värskenda",
+  "ota.oppdatert": "Ajakohane",
+  "ota.sjekker": "Värskenduste otsimine …",
+  "ota.lasterNed": "Uue versiooni allalaadimine…",
+  "ota.klarTrykk": "Uus versioon on valmis – värskendamiseks puudutage",
+  "ota.seEtter": "Kontrollige värskendusi",
+  "ota.frakoblet": "Võrguühenduseta – kontrollib värskendusi, kui olete võrgus"
 }
