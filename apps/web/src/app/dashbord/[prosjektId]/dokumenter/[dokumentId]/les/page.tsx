@@ -44,6 +44,18 @@ export default function DokumentLeser() {
     { enabled: !!sammenlignBlokk && språk !== "nb" },
   );
 
+  // Medlemmer re-oversetter med lagret motor; bytte av motor krever prosjektadmin.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const { data: oversettInnst } = trpc.modul.hentOversettelsesInnstillinger.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!sammenlignBlokk },
+  );
+  const kanReOversette = (motor: string) =>
+    (minFlytInfo?.erAdmin ?? false) || motor === (oversettInnst?.motor ?? "opus-mt");
+
   // Re-oversett mutation
   const reOversettMut = trpc.modul.reOversettDokument.useMutation({
     onSuccess: () => {
@@ -268,7 +280,7 @@ export default function DokumentLeser() {
                             <span className="text-xs font-semibold text-gray-700">{r.navn}</span>
                             {r.feil ? (
                               <span className="text-[10px] text-red-500">{r.feil.slice(0, 60)}</span>
-                            ) : (
+                            ) : !kanReOversette(r.motor) ? null : (
                               <button
                                 onClick={() => {
                                   reOversettMut.mutate({

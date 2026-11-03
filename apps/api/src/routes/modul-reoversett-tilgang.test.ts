@@ -51,7 +51,7 @@ function lagCaller(dok: { projectId: string; folderId: string | null } | null) {
   return { caller, blokkSlett };
 }
 
-const INPUT = { projectId: PROSJEKT_A, documentId: DOK, targetLang: "en", motor: "google" as const };
+const INPUT = { projectId: PROSJEKT_A, documentId: DOK, targetLang: "en", motor: "opus-mt" as const }; // lagret standardmotor — motorbytte krever admin (modul-admin.test.ts)
 
 beforeEach(() => {
   verifiserProsjektmedlem.mockReset().mockResolvedValue(undefined);
