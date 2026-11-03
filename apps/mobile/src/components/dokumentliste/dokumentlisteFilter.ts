@@ -17,7 +17,7 @@ import type { VelgerAlternativ } from "./EnkeltvelgerModal";
  * Dokumentliste-filter for mobil (dokumentsøk-mobil trinn 1). Bygger på det DELTE
  * filterpredikatet (`@sitedoc/shared/tabellFilter`, trinn 0) og den DELTE
  * søkemotoren (`sokMatch`) — «to flater, én filterkilde». Dekker sjekkliste- og
- * oppgavelista (filter-mobil 2026-11-03); HMS-lista er utenfor.
+ * oppgavelista (filter-mobil 2026-11-03) og HMS-lista (filter-hms 2026-11-03).
  */
 
 export interface DokumentRad {
@@ -212,6 +212,19 @@ export function byggAlternativer(rader: DokumentRad[]): DokumentAlternativer {
       label: p,
     })),
   };
+}
+
+/**
+ * Adaptivt (arket): under to ulike verdier er et filter meningsløst og skjules — med
+ * mindre det alt er satt. Gir også toleranse mot eldre API: mangler feltet i svaret,
+ * blir alternativene færre enn to og filteret forsvinner stille.
+ */
+export function visFilterKolonne(
+  kolId: string,
+  alt: VelgerAlternativ[],
+  filterVerdier: Record<string, string>,
+): boolean {
+  return alt.length >= 2 || !!filterVerdier[kolId];
 }
 
 /** Søke-indeks for en rad: alle søkbare felt + synonymer (delt søkemotor). */

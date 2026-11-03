@@ -115,7 +115,13 @@ const TASK_SELECT = {
   // lar mobilens offline-katalog utlede den effektive byggeplassen og scope lokalt likt
   // serveren. Additivt — ingen ny prosedyre/tilgangssjekk. Grunn select (ingen dyp
   // relasjon) → ingen TS2589-risiko (jf. signaturliste-kommentaren over).
-  drawing: { select: { byggeplassId: true } },
+  drawing: { select: { byggeplassId: true, name: true } },
+  // Filter i mobilens HMS-liste (filter-hms 2026-11-03): emne, prioritet, tegning og
+  // utførende faggruppe — samme felt som oppgave-/sjekklistelista filtrerer på.
+  // Additivt, grunne relasjoner (ingen TS2589-risiko), ingen ny tilgangssjekk.
+  subject: true,
+  priority: true,
+  utforerFaggruppe: { select: { name: true } },
   template: {
     select: {
       id: true,
@@ -148,6 +154,10 @@ const CHECKLIST_SELECT = {
   // Offline-speil (mobil, 2026-10-03): Checklist har byggeplassId direkte
   // (byggeplassFilterDirekte). Scalar — ingen TS2589-risiko.
   byggeplassId: true,
+  // Filter i mobilens HMS-liste (filter-hms 2026-11-03) — se TASK_SELECT. SJA har ingen prioritet.
+  subject: true,
+  drawing: { select: { name: true } },
+  utforerFaggruppe: { select: { name: true } },
   template: {
     select: {
       id: true,

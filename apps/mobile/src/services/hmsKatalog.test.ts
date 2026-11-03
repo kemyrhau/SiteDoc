@@ -81,9 +81,9 @@ function checklist(over: { id: string; byggeplassId?: string | null }) {
 }
 
 function lagKlient(svar: {
-  avvik?: ReturnType<typeof task>[];
-  sja?: ReturnType<typeof checklist>[];
-  ruh?: ReturnType<typeof task>[];
+  avvik?: Array<Record<string, unknown>>;
+  sja?: Array<Record<string, unknown>>;
+  ruh?: Array<Record<string, unknown>>;
 }) {
   return {
     hms: {
@@ -227,6 +227,57 @@ describe("refreshHmsKatalog + lesere", () => {
     expect(bp2.sja.map((x) => x.id)).toEqual(["sja-los"]);
     // Hele prosjektet: alt.
     expect(tellHmsLokalt("p1", U)).toBe(5);
+  });
+
+  it("filter-hms: filterfeltene speiles og leses tilbake for alle tre fanene", async () => {
+    const filterfelt = {
+      subject: "Fallsikring",
+      dueDate: "2026-11-10T00:00:00.000Z",
+      bestiller: { name: "Kari" },
+      recipientUser: { name: "Ola" },
+      recipientGroup: { name: "HMS-gruppa" },
+      dokumentflyt: { name: "HMS-flyt" },
+      utforerFaggruppe: { name: "Stillas" },
+    };
+    await refreshHmsKatalog(
+      lagKlient({
+        avvik: [{ ...task({ id: "a1", byggeplassId: "bp1" }), ...filterfelt, priority: "high", drawing: { byggeplassId: "bp1", name: "Plan 1" } }],
+        ruh: [{ ...task({ id: "r1" }), ...filterfelt, priority: "low" }],
+        // SJA: ingen prioritet; tegning bare med navn — byggeplass kommer fra byggeplassId.
+        sja: [{ ...checklist({ id: "s1", byggeplassId: "bp2" }), ...filterfelt, drawing: { name: "Snitt A" } }],
+      }),
+      "p1",
+      U,
+    );
+    const dok = hentHmsLokalt("p1", U);
+    expect(dok.avvik[0]).toMatchObject({
+      subject: "Fallsikring",
+      priority: "high",
+      dueDate: "2026-11-10T00:00:00.000Z",
+      createdAt: "2026-10-01T08:00:00.000Z",
+      bestiller: { name: "Kari" },
+      recipientUser: { name: "Ola" },
+      recipientGroup: { name: "HMS-gruppa" },
+      drawing: { name: "Plan 1" },
+      dokumentflyt: { name: "HMS-flyt" },
+      utforerFaggruppe: { name: "Stillas" },
+    });
+    expect(dok.ruh[0]).toMatchObject({ priority: "low", drawing: null });
+    expect(dok.sja[0]).toMatchObject({ subject: "Fallsikring", priority: null, drawing: { name: "Snitt A" } });
+    // SJA med tegning scopes fortsatt på egen byggeplassId, ikke på tegningen.
+    expect(hentHmsLokalt("p1", U, "bp2").sja.map((x) => x.id)).toEqual(["s1"]);
+    expect(hentHmsLokalt("p1", U, "bp1").sja).toEqual([]);
+  });
+
+  it("filter-hms: eldre API uten filterfeltene gir null-felt, ikke feil", async () => {
+    await refreshHmsKatalog(
+      lagKlient({ avvik: [task({ id: "a1" })], sja: [checklist({ id: "s1" })] }),
+      "p1",
+      U,
+    );
+    const dok = hentHmsLokalt("p1", U);
+    expect(dok.avvik[0]).toMatchObject({ subject: null, priority: null, dueDate: null, drawing: null, utforerFaggruppe: null });
+    expect(dok.sja[0]).toMatchObject({ subject: null, priority: null, drawing: null });
   });
 
   it("hentSistOppdatert gir prosjektets stempel, null når ikke cachet", async () => {
