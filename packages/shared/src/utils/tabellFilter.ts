@@ -23,6 +23,11 @@ export interface TabellFilterConfig<T> {
    * Kjente kolonner returnerer "" for tom verdi — aldri `undefined`.
    */
   hentVerdi: (rad: T, kolId: string) => string | undefined;
+  /**
+   * Flerverdi-kolonne (f.eks. «Utfylt av» = alle i endringsloggen): raden matcher når
+   * MINST én av verdiene er valgt. `undefined` = ikke en flerverdi-kolonne → `hentVerdi`.
+   */
+  hentFlereVerdier?: (rad: T, kolId: string) => string[] | undefined;
   /** Dynamiske mal-felt: kolId på formen `felt:<objektId>`. */
   hentFeltVerdi?: (rad: T, objektId: string) => string;
   /** «frist»-kolonnen: multiselect forfalt / har_frist / ingen_frist. */
@@ -68,6 +73,12 @@ export function radMatcherFilter<T>(
 
     if (kolId === "frist" && config.hentFrist) {
       if (!matcherFristFilter(config.hentFrist(rad), valgteSet)) return false;
+      continue;
+    }
+
+    const flere = config.hentFlereVerdier?.(rad, kolId);
+    if (flere !== undefined) {
+      if (!flere.some((v) => valgteSet.has(v))) return false;
       continue;
     }
 

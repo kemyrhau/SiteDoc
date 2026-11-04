@@ -704,6 +704,11 @@ export const sjekklisteLocal = sqliteTable("sjekkliste_local", {
   bestillerNavn: text("bestiller_navn"),
   // Metadata S-pakke B-1 (2026-11-04): område-filteret offline (ALTER ADD COLUMN, nullable).
   omradeNavn: text("omrade_navn"),
+  // Metadata M-pakke B-2/B-4 (2026-11-04): JSON fra hentForProsjekt (`statushendelser`,
+  // `utfylling`) for person-/periodefilter og «sendt»-sortering offline. NULL = eldre API;
+  // tekststrengen "null" i utfylling = endringslogg av i malen.
+  statushendelser: text("statushendelser"),
+  utfylling: text("utfylling"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — katalog-freshness (krav 7)
 });
 
@@ -780,6 +785,9 @@ export const oppgaveLocal = sqliteTable("oppgave_local", {
   bestillerFaggruppeNavn: text("bestiller_faggruppe_navn"),
   // Metadata S-pakke B-1 (2026-11-04): område-filteret offline (ALTER ADD COLUMN, nullable).
   omradeNavn: text("omrade_navn"),
+  // Metadata M-pakke B-2/B-4 (2026-11-04): se sjekkliste_local.
+  statushendelser: text("statushendelser"),
+  utfylling: text("utfylling"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness (krav 7)
 });
 

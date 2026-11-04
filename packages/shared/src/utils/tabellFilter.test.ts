@@ -150,3 +150,25 @@ describe("filtrerRader", () => {
     ]);
   });
 });
+
+describe("hentFlereVerdier (B-4: «Utfylt av» = alle i loggen)", () => {
+  type R = { id: string; utfylt: string[] | null };
+  const cfg: TabellFilterConfig<R> = {
+    hentVerdi: () => undefined,
+    hentFlereVerdier: (r, kolId) => (kolId === "utfyltAv" ? (r.utfylt ?? []) : undefined),
+  };
+  const rader: R[] = [
+    { id: "a", utfylt: ["Ola", "Kari"] },
+    { id: "b", utfylt: ["Per"] },
+    { id: "c", utfylt: null },
+  ];
+
+  it("treffer når minst én i loggen er valgt — ikke bare den siste", () => {
+    expect(filtrerRader(rader, { utfyltAv: "Ola" }, cfg).map((r) => r.id)).toEqual(["a"]);
+    expect(filtrerRader(rader, { utfyltAv: "Kari,Per" }, cfg).map((r) => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("rad uten logg (null) treffer aldri et aktivt filter", () => {
+    expect(filtrerRader(rader, { utfyltAv: "Ola,Per" }, cfg).map((r) => r.id)).not.toContain("c");
+  });
+});

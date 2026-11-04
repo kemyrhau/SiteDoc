@@ -90,14 +90,40 @@ export function erUgyldigIntervall(periode: Periode): boolean {
   );
 }
 
-/** Hvilket tidsstempel periodefilteret i dokumentlistene treffer (B-0, metadata-spec § 2). */
-export type PeriodeFelt = "opprettet" | "endret";
+/**
+ * Hvilket tidsstempel periodefilteret i dokumentlistene treffer (B-0, metadata-spec § 2).
+ * sendt/godkjent/lukket (B-2) leser `statushendelser` fra liste-API-et.
+ */
+export type PeriodeFelt = "opprettet" | "endret" | "sendt" | "godkjent" | "lukket";
+
+/** Feltene som krever `statushendelser` fra API-et — skjules når et eldre API ikke leverer dem. */
+export const STATUS_PERIODEFELT: readonly PeriodeFelt[] = ["sendt", "godkjent", "lukket"];
+
+type HendelseVed = { ved: string } | null | undefined;
+
+export interface PeriodeRad {
+  createdAt: string | Date;
+  updatedAt?: string | Date | null;
+  statushendelser?: { sendt: HendelseVed; godkjent: HendelseVed; lukket: HendelseVed } | null;
+}
+
+/** Tidsstempelet periodefilteret ser på for raden, eller null når steget ikke har skjedd. */
+export function periodeDato(rad: PeriodeRad, felt: PeriodeFelt): string | Date | null {
+  switch (felt) {
+    case "endret": return rad.updatedAt ?? null;
+    case "sendt": return rad.statushendelser?.sendt?.ved ?? null;
+    case "godkjent": return rad.statushendelser?.godkjent?.ved ?? null;
+    case "lukket": return rad.statushendelser?.lukket?.ved ?? null;
+    default: return rad.createdAt;
+  }
+}
 
 /**
  * Filtrerer rader på en periode mot valgt tidsstempel (`createdAt` = opprettet, `updatedAt` =
- * endret). «alle» er ingen grense. Rad uten dato faller utenfor en aktiv periode.
+ * endret, `statushendelser.*.ved` = sendt/godkjent/lukket). «alle» er ingen grense. Rad uten
+ * dato (f.eks. ikke godkjent ennå) faller utenfor en aktiv periode.
  */
-export function filtrerPaaPeriode<T extends { createdAt: string | Date; updatedAt?: string | Date | null }>(
+export function filtrerPaaPeriode<T extends PeriodeRad>(
   rader: T[],
   periode: Periode,
   felt: PeriodeFelt = "opprettet",
@@ -106,7 +132,7 @@ export function filtrerPaaPeriode<T extends { createdAt: string | Date; updatedA
   const { fra, til } = effektiveGrenser(periode);
   if (!fra && !til) return rader;
   return rader.filter((r) => {
-    const verdi = felt === "endret" ? r.updatedAt : r.createdAt;
+    const verdi = periodeDato(r, felt);
     if (!verdi) return false;
     return innenforPeriode(new Date(verdi), fra, til);
   });

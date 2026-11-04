@@ -3,24 +3,36 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Calendar } from "lucide-react";
-import { PERIODE_NOEKKEL, type Periode, type PeriodeFelt } from "@sitedoc/shared";
+import { PERIODE_NOEKKEL, STATUS_PERIODEFELT, type Periode, type PeriodeFelt } from "@sitedoc/shared";
 import { PeriodeFilter } from "@/components/PeriodeFilter";
 
 /**
  * B-0 (metadata-spec § 2): periodefilter for dokumentlistene (sjekklister, oppgaver) — velg om
  * perioden gjelder opprettet (`createdAt`) eller sist endret (`updatedAt`), deretter det delte
  * `PeriodeFilter`. Knappen er markert når perioden er aktiv (alt annet enn «alle»).
+ * M-pakke B-2: `statusFelt` legger til sendt/godkjent/lukket — bare når API-et leverer
+ * `statushendelser`, ellers skjules valgene stille.
  */
+
+const FELT_NOKKEL: Record<PeriodeFelt, string> = {
+  opprettet: "periodeFilter.opprettet",
+  endret: "periodeFilter.endret",
+  sendt: "periodeFilter.sendt",
+  godkjent: "periodeFilter.godkjent",
+  lukket: "periodeFilter.lukket",
+};
 export function DokumentPeriodeFilter({
   periode,
   felt,
   onEndrePeriode,
   onEndreFelt,
+  statusFelt = false,
 }: {
   periode: Periode;
   felt: PeriodeFelt;
   onEndrePeriode: (p: Periode) => void;
   onEndreFelt: (f: PeriodeFelt) => void;
+  statusFelt?: boolean;
 }) {
   const { t } = useTranslation();
   const [apen, setApen] = useState(false);
@@ -36,7 +48,8 @@ export function DokumentPeriodeFilter({
     return () => document.removeEventListener("mousedown", lukk);
   }, [apen]);
 
-  const feltTekst = felt === "endret" ? t("periodeFilter.endret") : t("periodeFilter.opprettet");
+  const feltTekst = t(FELT_NOKKEL[felt]);
+  const felter: PeriodeFelt[] = statusFelt ? ["opprettet", "endret", ...STATUS_PERIODEFELT] : ["opprettet", "endret"];
 
   return (
     <div className="relative" ref={ref}>
@@ -54,7 +67,7 @@ export function DokumentPeriodeFilter({
       {apen && (
         <div className="absolute left-0 top-full z-20 mt-1 w-max max-w-[90vw] rounded-md border border-gray-200 bg-white p-2 shadow-lg">
           <div className="mb-2 inline-flex overflow-hidden rounded-md border border-gray-200">
-            {(["opprettet", "endret"] as const).map((f) => (
+            {felter.map((f) => (
               <button
                 key={f}
                 type="button"
@@ -64,7 +77,7 @@ export function DokumentPeriodeFilter({
                   felt === f ? "bg-sitedoc-primary text-white" : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                {f === "endret" ? t("periodeFilter.endret") : t("periodeFilter.opprettet")}
+                {t(FELT_NOKKEL[f])}
               </button>
             ))}
           </div>

@@ -14,6 +14,7 @@ import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, 
 import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
+import { berikMedMetadata } from "../services/dokumentMetadata";
 import { medNummerRetry } from "../utils/nummerRetry";
 import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import {
@@ -240,7 +241,8 @@ export const sjekklisteRouter = router({
           ...(tilgangsFilter ?? {}),
         },
         include: {
-          template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
+          // parentId: M-pakke B-3 — signaturtelling følger betinget synlighet (erObjektSynlig).
+          template: { include: { objects: { select: { id: true, label: true, type: true, config: true, parentId: true } } } },
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
           bestiller: true,
@@ -296,8 +298,10 @@ export const sjekklisteRouter = router({
         },
         orderBy: { updatedAt: "desc" },
       });
+      // M-pakke (B-2/B-3/B-4): sendt/godkjent/lukket, sist utfylt av, signaturstatus.
+      const beriket = await berikMedMetadata(ctx.prisma, "checklist", sjekklister);
       // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (liste-vei).
-      return signerDataRader(sjekklister);
+      return signerDataRader(beriket);
     }),
 
   // Hent én sjekkliste med alle detaljer (online-visning — stempler lest-kvittering)

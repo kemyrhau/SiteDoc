@@ -2,12 +2,13 @@ import { useState, type ReactElement } from "react";
 import { View, Text, Pressable, Modal, ScrollView, Switch } from "react-native";
 import { ChevronDown } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import type { Periode } from "@sitedoc/shared";
+import type { PeriodeFelt } from "@sitedoc/shared";
 import { EnkeltvelgerModal, type VelgerAlternativ } from "./EnkeltvelgerModal";
 import { PeriodeFilter } from "../PeriodeFilter";
 import {
   MAKS_SORTERNIVAAER,
   type DokumentAlternativer,
+  type ListePeriode,
   visFilterKolonne,
   type SorterNokkel,
   type Sortering,
@@ -22,7 +23,11 @@ type NedtrekkKol =
   | "ansvarlig"
   | "bestillerFaggruppe"
   | "utforerFaggruppe"
-  | "tegning";
+  | "tegning"
+  | "sendtAv"
+  | "godkjentAv"
+  | "lukketAv"
+  | "utfyltAv";
 
 const NEDTREKK_TITTEL: Record<NedtrekkKol, string> = {
   emne: "tabell.emne",
@@ -32,6 +37,18 @@ const NEDTREKK_TITTEL: Record<NedtrekkKol, string> = {
   bestillerFaggruppe: "tabell.bestillerFaggruppe",
   utforerFaggruppe: "tabell.utforerFaggruppe",
   tegning: "tabell.tegning",
+  sendtAv: "tabell.sendtAv",
+  godkjentAv: "tabell.godkjentAv",
+  lukketAv: "tabell.lukketAv",
+  utfyltAv: "tabell.utfyltAv",
+};
+
+const PERIODEFELT_NOEKKEL: Record<PeriodeFelt, string> = {
+  opprettet: "periodeFilter.opprettet",
+  endret: "periodeFilter.endret",
+  sendt: "periodeFilter.sendt",
+  godkjent: "periodeFilter.godkjent",
+  lukket: "periodeFilter.lukket",
 };
 
 /**
@@ -70,9 +87,9 @@ export function FilterOgSorteringSheet({
   onTrykkSortering: (nokkel: SorterNokkel) => void;
   onNullstill: () => void;
   onLukk: () => void;
-  /** Opprettet-periode. Utelatt = feltet vises ikke. */
-  periode?: Periode;
-  onSettPeriode?: (p: Periode) => void;
+  /** Periode (opprettet eller statusdato, M-pakke). Utelatt = feltet vises ikke. */
+  periode?: ListePeriode;
+  onSettPeriode?: (p: ListePeriode) => void;
   /** «Ballen hos meg» — kun når brukerens grupper er kjent (på nett). */
   visBallen?: boolean;
   /** Prioritet-chips — kun oppgaver. */
@@ -89,6 +106,10 @@ export function FilterOgSorteringSheet({
     bestillerFaggruppe: alternativer.bestillerFaggruppe,
     utforerFaggruppe: alternativer.utforerFaggruppe,
     tegning: alternativer.tegning,
+    sendtAv: alternativer.sendtAv,
+    godkjentAv: alternativer.godkjentAv,
+    lukketAv: alternativer.lukketAv,
+    utfyltAv: alternativer.utfyltAv,
   };
   const alleLabel = (kolId: NedtrekkKol) =>
     kolId === "tegning" ? t("dokumentsok.alleTegninger") : t("dokumentsok.alle");
@@ -158,7 +179,14 @@ export function FilterOgSorteringSheet({
 
   const visPrio = visPrioritet && vis("prioritet", alternativer.prioritet);
   const visHva = vis("emne", nedtrekkAlt.emne) || vis("mal", alternativer.mal) || visPrio;
-  const hvemKol: NedtrekkKol[] = ["opprettetAv", "ansvarlig", "bestillerFaggruppe", "utforerFaggruppe"];
+  // M-pakke B-2/B-4: hvem sendte/godkjente/lukket/fylte ut. Eldre API → tomme lister → skjules stille.
+  const hvemKol: NedtrekkKol[] = [
+    "opprettetAv", "ansvarlig", "bestillerFaggruppe", "utforerFaggruppe",
+    "sendtAv", "godkjentAv", "lukketAv", "utfyltAv",
+  ];
+  // Periodens datofelt: «Opprettet» + statusdatoene lista har data for (ingen ved eldre API).
+  const periodefelt: PeriodeFelt[] = ["opprettet", ...alternativer.statusPeriodefelt];
+  const aktivtFelt = periode?.felt ?? "opprettet";
   const visHvem = hvemKol.some((k) => vis(k, nedtrekkAlt[k]));
   const visFlyt = vis("dokumentflyt", alternativer.dokumentflyt);
   // B-1: område som chips. Eldre API uten feltet gir < 2 alternativer → skjules stille.
@@ -241,8 +269,19 @@ export function FilterOgSorteringSheet({
           </View>
           {periode && onSettPeriode && (
             <View className="mb-4 gap-1.5">
-              <Text className="text-xs font-semibold text-gray-500">{t("tabell.opprettet")}</Text>
-              <PeriodeFilter periode={periode} onEndre={onSettPeriode} />
+              {periodefelt.length > 1 ? (
+                <View className="flex-row flex-wrap gap-1.5">
+                  {periodefelt.map((f) =>
+                    chip(`felt-${f}`, t(PERIODEFELT_NOEKKEL[f]), aktivtFelt === f, () =>
+                      onSettPeriode({ ...periode, felt: f }),
+                    ),
+                  )}
+                </View>
+              ) : (
+                <Text className="text-xs font-semibold text-gray-500">{t("tabell.opprettet")}</Text>
+              )}
+              {/* PeriodeFilter kjenner ikke feltet — det bæres videre her. */}
+              <PeriodeFilter periode={periode} onEndre={(p) => onSettPeriode({ ...p, felt: periode.felt })} />
             </View>
           )}
 

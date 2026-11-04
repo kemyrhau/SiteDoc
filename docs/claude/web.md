@@ -197,6 +197,17 @@ Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
   `apps/web/src/lib/omradeFilter.ts` (`omradeFilterAlternativer` + `visOmradeFilter`: vises bare når lista har minst ett
   område). Krever omrade-include i `sjekkliste/oppgave.hentForProsjekt` (låst av `hentForProsjekt-omrade.test.ts`); mot
   eldre API er alle verdier tomme og filteret skjules.
+- **Metadata M-pakke (`feat/metadata-m-pakke`, 2026-11-04) — B-2/B-3/B-4:** valgbare kolonner (av som standard, gruppe
+  `kolonne.hvemOgNaar` i kolonnevelgeren) i `sjekklister/page.tsx` og `oppgaver/page.tsx`: «Sendt av/Sendt»,
+  «Godkjent av/Godkjent», «Lukket av/Lukket», «Sist utfylt av/Sist utfylt», «Signatur». Felles kolonnedefinisjoner i
+  `components/DokumentMetadataKolonner.tsx` (`METADATA_KOLONNE_IDER`, `byggMetadataKolonner`), rene hjelpere i
+  `lib/dokumentMetadata.ts` (celle-tekst, filterverdi, adaptive personlister, `signaturSorterVerdi`: komplett først,
+  så mest signert, uten signaturfelt sist). Person-kolonnene er filtrerbare; «Sist utfylt av»-filteret («Utfylt av»)
+  treffer alle i endringsloggen via `hentFlereVerdier` i `@sitedoc/shared` `tabellFilter.ts`. Signatur filtreres på
+  Signert / Mangler / Uten signaturfelt (`signaturFilter.*`). `utfylling === null` (endringslogg av i malen) → «—» med
+  tooltip `metadata.endringsloggAv`. `DokumentPeriodeFilter` får `statusFelt` (sendt/godkjent/lukket) når lista har
+  `statushendelser`; datoen hentes av `periodeDato` (`utils/periode.ts`). Mot eldre API mangler feltene → personlister
+  tomme, statusfeltene skjules. Test: `lib/__tests__/dokumentMetadata.test.ts`.
 - **B-5 tegningsmetadata i `TegningerPanel`:** hver rad får en metalinje «Rev. B · Godkjent · DWG · Utgitt 03.11.2026»
   (bare delene som finnes; `tegningMetaTekst` i `tegningListeFilter.ts`, datoen i UI-språket). Kildeformat = filendelsen i `originalFileUrl` (`utledKildeformat`), siden `fileType`
   overskrives til svg/png etter konvertering. Under søkefeltet ligger adaptive nedtrekk for status, kildeformat og

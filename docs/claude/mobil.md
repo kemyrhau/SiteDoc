@@ -872,6 +872,16 @@ har ikke prioritet og leser alltid serverrader:
   `sjekkliste_local` og `oppgave_local` (`OMRADE_LOCAL_TABELLER`, additiv ALTER, `migreringer.omradeLocal.test.ts`),
   skrevet av `sjekklisteKatalog.ts`/`oppgaveKatalog.ts`. Eldre API uten omrade-include → `null` → filteret skjules
   stille via vis-regelen (låst i `dokumentlisteFilter.test.ts`).
+- **Hvem og når (metadata M-pakke B-2/B-4, 2026-11-04):** under HVEM får arket nedtrekkene «Sendt av», «Godkjent av»,
+  «Lukket av» og «Utfylt av» (`sendtAv`/`godkjentAv`/`lukketAv`/`utfyltAv` i `FILTER_KOLONNER`; «Utfylt av» treffer alle
+  i endringsloggen via `hentFlereVerdier`). Under NÅR velges periodens datofelt med chips — «Opprettet» +
+  `statusPeriodefelt` (sendt/godkjent/lukket som lista har data for) — og `ListePeriode` (`Periode & { felt }`) bærer
+  valget; filtreringen bruker delt `periodeDato`, chipen over lista sier feltet («Sendt: Siste uke»). Sorteringen får
+  «Sendt» (synkende, ikke sendt sist), vist bare når en rad er sendt. Offline: tekstkolonnene `statushendelser` og
+  `utfylling` (JSON) på `sjekkliste_local`/`oppgave_local` (`METADATA_LOCAL_KOLONNER`, additiv ALTER,
+  `migreringer.metadataLocal.test.ts`), skrevet/lest av `services/dokumentMetadataLokal.ts` — NULL = eldre API
+  (feltet utelates), tekst `"null"` = endringslogg av. Eldre API → tomme lister → filtrene, statusfeltene og
+  «Sendt»-sorteringen skjules stille (låst i `dokumentlisteFilter.test.ts`). Signatur (B-3) er ikke på mobil.
 
 ## OTA-varsel: «Ny versjon er klar · Oppdater» (ota-varsel 2026-11-03)
 

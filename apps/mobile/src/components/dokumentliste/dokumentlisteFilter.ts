@@ -5,11 +5,16 @@ import {
   innenforPeriode,
   matchScore,
   normaliserSok,
+  periodeDato,
+  STATUS_PERIODEFELT,
   synonymerFor,
   TERMINALE_DOKUMENTSTATUSER,
   type HarBallenBruker,
   type Periode,
+  type PeriodeFelt,
+  type Statushendelser,
   type TabellFilterConfig,
+  type Utfylling,
 } from "@sitedoc/shared";
 import type { VelgerAlternativ } from "./EnkeltvelgerModal";
 
@@ -46,10 +51,17 @@ export interface DokumentRad {
   bestillerUserId?: string | null;
   recipientUserId?: string | null;
   recipientGroupId?: string | null;
+  /** B-2 (M-pakke): sendt/godkjent/lukket med hvem og når. Mangler i eldre API-svar. */
+  statushendelser?: Statushendelser | null;
+  /** B-4 (M-pakke): sist utfylt av + alle i endringsloggen; `null` = logg av i malen. */
+  utfylling?: Utfylling | null;
 }
 
+/** Periode med valgt datofelt (M-pakke: opprettet eller sendt/godkjent/lukket). Uten felt = opprettet. */
+export type ListePeriode = Periode & { felt?: PeriodeFelt };
+
 /** Sorteringsnøklene (flernivå-sortering 2026-11-04) — rekkefølgen arket viser dem i. */
-export type SorterNokkel = "opprettet" | "endret" | "frist" | "nummer" | "emne" | "navn";
+export type SorterNokkel = "opprettet" | "endret" | "sendt" | "frist" | "nummer" | "emne" | "navn";
 export type Retning = "stigende" | "synkende";
 export interface SorterNivaa {
   nokkel: SorterNokkel;
@@ -58,12 +70,13 @@ export interface SorterNivaa {
 /** 0–3 nivåer i prioritert rekkefølge. `[]` = standardsortering (opprettet, nyeste først). */
 export type Sortering = SorterNivaa[];
 
-export const SORTER_NOKLER: SorterNokkel[] = ["opprettet", "endret", "frist", "nummer", "emne", "navn"];
+export const SORTER_NOKLER: SorterNokkel[] = ["opprettet", "endret", "sendt", "frist", "nummer", "emne", "navn"];
 export const MAKS_SORTERNIVAAER = 3;
 /** Retningen en nøkkel får ved første trykk — tidspunkt nyeste først, resten stigende. */
 export const STARTRETNING: Record<SorterNokkel, Retning> = {
   opprettet: "synkende",
   endret: "synkende",
+  sendt: "synkende",
   frist: "stigende",
   nummer: "stigende",
   emne: "stigende",
@@ -90,14 +103,15 @@ export function trykkSorteringsbrikke(sortering: Sortering, nokkel: SorterNokkel
 }
 
 /**
- * Nøklene arket viser (adaptivt): opprettet/endret/navn alltid; frist, nummer og
- * emne bare når minst én rad har verdi. En valgt nøkkel vises alltid (kan fjernes).
+ * Nøklene arket viser (adaptivt): opprettet/endret/navn alltid; sendt, frist, nummer og
+ * emne bare når minst én rad har verdi (sendt mangler i eldre API → skjules stille). En valgt nøkkel vises alltid (kan fjernes).
  */
 export function tilgjengeligeSorteringer(rader: DokumentRad[], sortering: Sortering): SorterNokkel[] {
   const harData: Record<SorterNokkel, boolean> = {
     opprettet: true,
     endret: true,
     navn: true,
+    sendt: rader.some((r) => !!r.statushendelser?.sendt),
     frist: rader.some((r) => !!r.dueDate),
     nummer: rader.some((r) => r.number != null),
     emne: rader.some((r) => !!r.subject?.trim()),
@@ -119,7 +133,18 @@ export const FILTER_KOLONNER = [
   "tegning",
   "omrade",
   "dokumentflyt",
+  "sendtAv",
+  "godkjentAv",
+  "lukketAv",
+  "utfyltAv",
 ] as const;
+
+/** B-2: person-filtrene → statussteget de leser. */
+const STEG_FOR_KOL: Record<string, "sendt" | "godkjent" | "lukket"> = {
+  sendtAv: "sendt",
+  godkjentAv: "godkjent",
+  lukketAv: "lukket",
+};
 
 /**
  * Intern verdi for «Uten emne». Det delte predikatet hopper over tom filterverdi,
@@ -130,9 +155,9 @@ export const UTEN_EMNE = "__uten_emne__";
 /** Prioritet i fast rekkefølge (lav → kritisk), ikke alfabetisk. */
 const PRIORITET_REKKEFOLGE = ["low", "medium", "high", "critical"];
 
-/** Tilleggsvalg som ikke er likhetsfiltre: opprettet-periode og «ballen hos meg». */
+/** Tilleggsvalg som ikke er likhetsfiltre: periode (med datofelt) og «ballen hos meg». */
 export interface EkstraFilter {
-  periode?: Periode;
+  periode?: ListePeriode;
   /** Innlogget bruker. Uten bruker (offline) ignoreres «ballen hos meg». */
   bruker?: HarBallenBruker | null;
 }
@@ -193,10 +218,19 @@ export function lagFilterConfig(bruker?: HarBallenBruker | null): TabellFilterCo
           return rad.drawing?.name ?? "";
         case "omrade":
           return rad.omrade?.navn ?? "";
+        case "sendtAv":
+        case "godkjentAv":
+        case "lukketAv":
+          return rad.statushendelser?.[STEG_FOR_KOL[kolId]!]?.av.navn ?? "";
         default:
           return undefined;
       }
     },
+    // B-4: «Utfylt av» treffer alle i endringsloggen, ikke bare den siste.
+    hentFlereVerdier: (rad, kolId) =>
+      kolId === "utfyltAv"
+        ? (rad.utfylling?.alle ?? []).map((p) => p.navn).filter((n): n is string => !!n)
+        : undefined,
     hentFrist: (rad) => ({
       dueDate: rad.dueDate ?? null,
       // Avsluttet (inkl. avbrutt) er aldri forfalt — samme sett som flytrollene.
@@ -243,6 +277,13 @@ export interface DokumentAlternativer {
   utforerFaggruppe: VelgerAlternativ[];
   /** Prioritetskoder i fast rekkefølge (etikett settes av arket). */
   prioritet: VelgerAlternativ[];
+  /** B-2/B-4: personer som har sendt/godkjent/lukket/fylt ut. */
+  sendtAv: VelgerAlternativ[];
+  godkjentAv: VelgerAlternativ[];
+  lukketAv: VelgerAlternativ[];
+  utfyltAv: VelgerAlternativ[];
+  /** B-2: periodefeltene lista har data for (tom ved eldre API → bare «Opprettet»). */
+  statusPeriodefelt: PeriodeFelt[];
 }
 
 /** Unike, sorterte alternativer per nedtrekk — bygget klientside fra hele lista
@@ -270,6 +311,11 @@ export function byggAlternativer(rader: DokumentRad[]): DokumentAlternativer {
       value: p,
       label: p,
     })),
+    sendtAv: unik(rader.map((r) => r.statushendelser?.sendt?.av.navn)),
+    godkjentAv: unik(rader.map((r) => r.statushendelser?.godkjent?.av.navn)),
+    lukketAv: unik(rader.map((r) => r.statushendelser?.lukket?.av.navn)),
+    utfyltAv: unik(rader.flatMap((r) => (r.utfylling?.alle ?? []).map((p) => p.navn))),
+    statusPeriodefelt: STATUS_PERIODEFELT.filter((f) => rader.some((r) => !!r.statushendelser?.[f as "sendt"])),
   };
 }
 
@@ -317,7 +363,7 @@ function tomSist<V>(a: V | null | undefined, b: V | null | undefined, cmp: (x: V
 }
 
 /**
- * Full pipeline: filtrer (delt predikat) → opprettet-periode → søk (delt motor,
+ * Full pipeline: filtrer (delt predikat) → periode (valgt datofelt, delt `periodeDato`) → søk (delt motor,
  * overstyrer sortering med relevans) → sorter. `søketekst` tom = ingen søk.
  */
 export function filtrerOgSorter(
@@ -330,7 +376,11 @@ export function filtrerOgSorter(
   let filtrert = filtrerRader(rader, filterVerdier, lagFilterConfig(ekstra.bruker));
   if (ekstra.periode && ekstra.periode.hurtigvalg !== "alle") {
     const { fra, til } = effektiveGrenser(ekstra.periode);
-    filtrert = filtrert.filter((r) => innenforPeriode(new Date(r.createdAt), fra, til));
+    const felt = ekstra.periode.felt ?? "opprettet";
+    filtrert = filtrert.filter((r) => {
+      const dato = periodeDato(r, felt);
+      return dato != null && innenforPeriode(new Date(dato), fra, til);
+    });
   }
 
   const q = normaliserSok(søketekst.trim());
@@ -355,6 +405,8 @@ function verdi(r: DokumentRad, nokkel: SorterNokkel): number | string | null {
       return tid(r.createdAt);
     case "endret":
       return tid(r.updatedAt);
+    case "sendt":
+      return r.statushendelser?.sendt ? tid(r.statushendelser.sendt.ved) : null;
     case "frist":
       return r.dueDate ? tid(r.dueDate) : null;
     case "nummer":
