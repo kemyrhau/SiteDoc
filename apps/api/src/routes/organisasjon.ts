@@ -72,6 +72,30 @@ async function berikMedFirmamoduler(
   }));
 }
 
+/**
+ * Legger `erAnsatt` på hvert firma: aktiv OrganizationMember-rad for brukeren —
+ * samme regel som `erAnsattIFirma` (tilgangskontroll.ts), uten admin-bypass. Én
+ * spørring for alle firmaene. Mobil bruker svaret til å si «ikke ansatt» i stedet
+ * for å skrive en sedel serveren aldri vil ta imot.
+ */
+async function berikMedAnsattStatus<T extends { id: string }>(
+  db: typeof prisma,
+  userId: string,
+  orgs: T[],
+): Promise<Array<T & { erAnsatt: boolean }>> {
+  if (orgs.length === 0) return [];
+  const aktive = await db.organizationMember.findMany({
+    where: {
+      userId,
+      organizationId: { in: orgs.map((o) => o.id) },
+      status: "aktiv",
+    },
+    select: { organizationId: true },
+  });
+  const ansattI = new Set(aktive.map((m) => m.organizationId));
+  return orgs.map((o) => ({ ...o, erAnsatt: ansattI.has(o.id) }));
+}
+
 export const organisasjonRouter = router({
   // Hent alle organisasjoner (for firma-dropdown i admin)
   hentAlle: protectedProcedure.query(async ({ ctx }) => {
@@ -148,7 +172,11 @@ export const organisasjonRouter = router({
         select: { id: true, name: true, erKunde: true },
         orderBy: { name: "asc" },
       });
-      return berikMedFirmamoduler(ctx.prisma, orgs);
+      return berikMedAnsattStatus(
+        ctx.prisma,
+        ctx.userId,
+        await berikMedFirmamoduler(ctx.prisma, orgs),
+      );
     }
 
     const medlemskap = await ctx.prisma.organizationMember.findMany({
@@ -174,7 +202,11 @@ export const organisasjonRouter = router({
         select: { id: true, name: true, erKunde: true },
         orderBy: { name: "asc" },
       });
-      return berikMedFirmamoduler(ctx.prisma, orgs);
+      return berikMedAnsattStatus(
+        ctx.prisma,
+        ctx.userId,
+        await berikMedFirmamoduler(ctx.prisma, orgs),
+      );
     }
 
     const orgs = await ctx.prisma.organization.findMany({
@@ -182,7 +214,11 @@ export const organisasjonRouter = router({
       select: { id: true, name: true, erKunde: true },
       orderBy: { name: "asc" },
     });
-    return berikMedFirmamoduler(ctx.prisma, orgs);
+    return berikMedAnsattStatus(
+        ctx.prisma,
+        ctx.userId,
+        await berikMedFirmamoduler(ctx.prisma, orgs),
+      );
   }),
 
   // Opprett ny organisasjon (skall-firma; erKunde faller til default false).

@@ -245,6 +245,8 @@ export type DagsforslagDag = {
   normSnapshot: NormSnapshot | null;
   /** Tidsrom der en play-rad vek for en overlappende manuell rad. */
   vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
+  /** Arbeidsrader som ble hoppet over fordi lønnsarten manglet (aldri gjettet). */
+  raderDroppetUtenLonnsart: number;
   rader: DagsforslagRad[];
 };
 
@@ -710,6 +712,7 @@ function beregnSegment(a: {
     normStatus: a.effektiv?.normStatus ?? null,
     normSnapshot: a.effektiv?.normSnapshot ?? null,
     vekForOverlapp: [],
+    raderDroppetUtenLonnsart: 0,
     rader: [],
   };
   // Blokkert → ingen append (speiler den tidlige `blokkertSendt`-returen: 0
@@ -735,6 +738,7 @@ function beregnSegment(a: {
 
   const rader: DagsforslagRad[] = [];
   const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
+  let raderDroppetUtenLonnsart = 0;
   const eksisterendeTidsrom = eksisterende.eksisterendeRader;
 
   // Auto-fordeling normaltid/overtid (per dag). Overtid velges strukturert på
@@ -773,7 +777,11 @@ function beregnSegment(a: {
           : (velgOvertidLonnsart(a.alleLonnsarter, vindu.overtidsnivaa)?.id ??
             null);
       // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden over.
-      if (!lonnsartId) continue;
+      // Telles, så Slutt dag kan si «mangler lønnsart» i stedet for «for kort».
+      if (!lonnsartId) {
+        raderDroppetUtenLonnsart++;
+        continue;
+      }
       // 1b: play viker for overlappende manuell rad. Berøring i endepunkt teller
       // ikke. Ved treff settes IKKE play-raden inn; tidsrommet samles for varsel.
       if (
@@ -857,7 +865,7 @@ function beregnSegment(a: {
     });
   }
 
-  return { ...base, vekForOverlapp, rader };
+  return { ...base, vekForOverlapp, raderDroppetUtenLonnsart, rader };
 }
 
 /** Utfallet av å anvende forslaget (returneres av `anvendDagsforslag`). */
@@ -878,6 +886,13 @@ export type AnvendDagsforslagResultat = {
    * (begge har `startSheetId == null`).
    */
   prosjektUkjent: boolean;
+  /**
+   * Brukeren er ikke ansatt i firmaet → ingen sedel er skrevet (`startSheetId`
+   * null). Vinner over alle andre utfall; dagen står åpen.
+   */
+  ikkeAnsatt: boolean;
+  /** Minst én arbeidsrad ble hoppet over fordi lønnsarten manglet. */
+  manglerLonnsart: boolean;
 };
 
 /**
@@ -892,12 +907,18 @@ export type AnvendDagsforslagResultat = {
  *  - `kildeManglet` (`startSheetId == null`): db/prosjekt/aktivitet manglet →
  *    ingen sedel, ingen rader. I dag forsvinner dagen STILT; nå står den åpen
  *    OG brukeren varsles (ellers er en forsvunnet dag verre enn en blokkert).
+ *  - `ikkeAnsatt`: brukeren er ikke ansatt i firmaet → ingen sedel skrives (den
+ *    kunne aldri synkes). Dagen står åpen.
+ * `manglerLonnsart` lukker dagen som `forKort`: sedelen finnes, (d)-banneret
+ * på sedelen sier hva som mangler.
  */
 export type SluttDagHandling =
   | { type: "suksess"; sheetId: string }
   | { type: "blokkertSendt"; sheetId: string }
   | { type: "playVek"; sheetId: string; intervaller: string }
   | { type: "forKort"; sheetId: string; preFylt: boolean }
+  | { type: "manglerLonnsart"; sheetId: string }
+  | { type: "ikkeAnsatt" }
   | { type: "kildeManglet" }
   | { type: "prosjektUkjent" };
 
@@ -906,19 +927,21 @@ export function skalMarkereAvsluttet(handling: SluttDagHandling): boolean {
   return (
     handling.type === "suksess" ||
     handling.type === "playVek" ||
-    handling.type === "forKort"
+    handling.type === "forKort" ||
+    handling.type === "manglerLonnsart"
   );
 }
 
 /**
- * Avgjør «Slutt dag»-handlingen fra anvend-utfallet. Prioritet speiler dagens
- * varsel-rekkefølge (blokkertSendt → vekForOverlapp → ingenRader), med
- * `kildeManglet` (null sedel) løftet øverst — det er det stumme utfallet H7
- * gir en stemme.
+ * Avgjør «Slutt dag»-handlingen fra anvend-utfallet. Prioritet: ikkeAnsatt →
+ * null sedel (prosjektUkjent/kildeManglet) → blokkertSendt → vekForOverlapp →
+ * ingenRader med droppet lønnsart (manglerLonnsart) → ingenRader (forKort).
+ * «Ikke ansatt» vinner fordi ingen annen melding hjelper brukeren da.
  */
 export function avgjorSluttDagHandling(
   resultat: AnvendDagsforslagResultat,
 ): SluttDagHandling {
+  if (resultat.ikkeAnsatt) return { type: "ikkeAnsatt" };
   const sheetId = resultat.startSheetId;
   if (sheetId == null) {
     // §2: prosjektet kunne ikke velges → egen melding («velg prosjekt, prøv
@@ -936,6 +959,10 @@ export function avgjorSluttDagHandling(
       .map((v) => `${v.fraTid}–${v.tilTid}`)
       .join(", ");
     return { type: "playVek", sheetId, intervaller };
+  }
+  // 0 rader fordi lønnsarten manglet — ikke «for kort».
+  if (resultat.ingenRader && resultat.manglerLonnsart) {
+    return { type: "manglerLonnsart", sheetId };
   }
   // F-c: økta førte 0 rader (for kort etter pause/runding).
   if (resultat.ingenRader) {

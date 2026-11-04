@@ -526,6 +526,8 @@ function lagResultat(
     harEksisterendeRader: false,
     vekForOverlapp: [],
     prosjektUkjent: false,
+    ikkeAnsatt: false,
+    manglerLonnsart: false,
     ...over,
   };
 }
@@ -591,5 +593,44 @@ describe("H7 — avgjorSluttDagHandling: dagen lukkes kun når skrivingen lyktes
       }),
     );
     expect(h.type).toBe("blokkertSendt");
+  });
+});
+
+describe("Ikke ansatt / mangler lønnsart (ordre 2026-11-04 (8))", () => {
+  it("🔴 (a) ikkeAnsatt: eget utfall, dagen står ÅPEN, slår blokkertSendt og ingenRader", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({
+        startSheetId: null,
+        ikkeAnsatt: true,
+        blokkertSendt: true,
+        ingenRader: true,
+      }),
+    );
+    expect(h).toEqual({ type: "ikkeAnsatt" });
+    expect(skalMarkereAvsluttet(h)).toBe(false);
+  });
+
+  it("🔴 (b) 0 rader fordi lønnsarten manglet → manglerLonnsart (ikke forKort), dagen lukkes", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({ ingenRader: true, manglerLonnsart: true }),
+    );
+    expect(h).toEqual({ type: "manglerLonnsart", sheetId: "sedel-1" });
+    expect(skalMarkereAvsluttet(h)).toBe(true);
+  });
+
+  it("manglerLonnsart med rader ført (bare overtid droppet) → suksess som før", () => {
+    const h = avgjorSluttDagHandling(lagResultat({ manglerLonnsart: true }));
+    expect(h.type).toBe("suksess");
+  });
+
+  it("🔴 (b) motoren teller rader droppet uten standard-lønnsart; drop-atferden er uendret", () => {
+    const f = beregnDagsforslag(lagInput({ standardLonnsartId: null }));
+    expect(arbeidsTimer(f)).toBe(0);
+    expect(f.datoer[0].raderDroppetUtenLonnsart).toBeGreaterThan(0);
+  });
+
+  it("(c) regresjon: med standard-lønnsart droppes ingenting", () => {
+    const f = beregnDagsforslag(lagInput());
+    expect(f.datoer[0].raderDroppetUtenLonnsart).toBe(0);
   });
 });
