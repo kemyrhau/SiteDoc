@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Dziennik zmian jest wyłączony w szablonie — nie wiadomo, kto go wypełnił",
   "signaturFilter.signert": "Podpisano",
   "signaturFilter.mangler": "Brak podpisu",
-  "signaturFilter.uten": "Brak pola podpisu"
+  "signaturFilter.uten": "Brak pola podpisu",
+  "tabell.sjaSignert": "{{antall}} podpisał"
 }

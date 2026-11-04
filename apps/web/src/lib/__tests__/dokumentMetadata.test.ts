@@ -17,33 +17,49 @@ const rader: MetadataRad[] = [
   {
     statushendelser: { sendt: h("Ola"), godkjent: h("Kari"), lukket: null },
     utfylling: { sist: h("Kari"), alle: [{ id: "u-Ola", navn: "Ola" }, { id: "u-Kari", navn: "Kari" }] },
-    signatur: { kreves: 2, signert: 2, komplett: true },
+    signatur: { felt: { kreves: 2, signert: 2, komplett: true }, sja: null },
   },
   {
     statushendelser: { sendt: h("Per"), godkjent: null, lukket: null },
     utfylling: null,
-    signatur: { kreves: 3, signert: 1, komplett: false },
+    signatur: { felt: { kreves: 3, signert: 1, komplett: false }, sja: null },
   },
   { statushendelser: { sendt: null, godkjent: null, lukket: null }, utfylling: { sist: null, alle: [] }, signatur: null },
 ];
 
 describe("signatur", () => {
-  it("tekst: ✓ komplett, m/n mangler, — uten felt", () => {
-    expect(rader.map((r) => signaturTekst(r.signatur))).toEqual(["✓", "1/3", "—"]);
+  const sjaTekst = (n: number) => `${n} signert`;
+  const felt = (signert: number, kreves: number) => ({ felt: { kreves, signert, komplett: kreves > 0 && signert >= kreves }, sja: null });
+  const sja = (n: number) => ({ felt: null, sja: n });
+
+  it("malfelt: ✓ komplett, m/n mangler, — uten felt", () => {
+    expect(rader.map((r) => signaturTekst(r.signatur, sjaTekst))).toEqual(["✓", "1/3", "—"]);
   });
 
-  it("kategori for filteret Signert / Mangler / Uten signaturfelt", () => {
+  it("SJA: bare antall — 3 signert av 5 deltakere gir «3 signert», ikke «3/5»; 0 gir «—»", () => {
+    expect(signaturTekst(sja(3), sjaTekst)).toBe("3 signert");
+    expect(signaturTekst(sja(0), sjaTekst)).toBe("—");
+  });
+
+  it("malfelt + SJA: én kort tekst, tallene slås ikke sammen", () => {
+    expect(signaturTekst({ felt: { kreves: 2, signert: 1, komplett: false }, sja: 3 }, sjaTekst)).toBe("1/2 · 3 signert");
+    expect(signaturTekst({ felt: { kreves: 1, signert: 1, komplett: true }, sja: 0 }, sjaTekst)).toBe("✓");
+  });
+
+  it("kategori: malfelt styrer; rent SJA er Signert ved ≥ 1, ellers Mangler", () => {
     expect(rader.map((r) => signaturKategori(r.signatur))).toEqual(["signert", "mangler", "uten"]);
     expect(metadataFilterVerdi(rader[1]!, "signatur")).toBe("mangler");
+    expect(signaturKategori(sja(1))).toBe("signert");
+    expect(signaturKategori(sja(0))).toBe("mangler");
+    expect(signaturKategori({ felt: { kreves: 2, signert: 1, komplett: false }, sja: 5 })).toBe("mangler");
   });
 
-  it("stigende sortering: komplett først, så mest signert, uten felt sist", () => {
-    const mye = { kreves: 4, signert: 3, komplett: false };
-    const lite = { kreves: 4, signert: 1, komplett: false };
-    const sortert = [null, lite, { kreves: 1, signert: 1, komplett: true }, mye].sort(
+  it("stigende sortering er deterministisk: komplett, SJA flest først, mangler mest signert først, uten sist", () => {
+    const sortert = [null, felt(1, 4), sja(2), felt(1, 1), sja(0), felt(3, 4), sja(5)].sort(
       (a, b) => signaturSorterVerdi(a) - signaturSorterVerdi(b),
     );
-    expect(sortert.map(signaturTekst)).toEqual(["✓", "3/4", "1/4", "—"]);
+    expect(sortert.map((s) => signaturTekst(s, sjaTekst))).toEqual(["✓", "5 signert", "2 signert", "3/4", "1/4", "—", "—"]);
+    expect(signaturSorterVerdi(sja(0))).toBeLessThan(signaturSorterVerdi(null));
   });
 });
 

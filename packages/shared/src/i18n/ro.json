@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Jurnalul de modificări este dezactivat în șablon - nu se știe cine l-a completat",
   "signaturFilter.signert": "Semnat",
   "signaturFilter.mangler": "Lipsește semnătura",
-  "signaturFilter.uten": "Fără câmp de semnătură"
+  "signaturFilter.uten": "Fără câmp de semnătură",
+  "tabell.sjaSignert": "{{antall}} a semnat"
 }

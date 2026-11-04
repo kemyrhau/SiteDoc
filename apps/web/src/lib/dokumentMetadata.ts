@@ -21,26 +21,44 @@ export const DATO_KOLONNER: Record<string, Steg> = { sendtDato: "sendt", godkjen
 
 export type Signaturkategori = "signert" | "mangler" | "uten";
 
-/** «✓» når komplett, «m/n» når det mangler, «—» uten signaturfelt. */
-export function signaturTekst(s: DokumentSignaturstatus | null | undefined): string {
+/**
+ * Malfelt: «✓» når komplett, «m/n» når det mangler. SJA: bare antallet signerte, uten «av N»
+ * (en SJA sier ikke på forhånd hvem som skal signere). Begge: «m/n · N signert». SJA med 0
+ * signert legger ikke til noe; uten noe å vise: «—». `sjaTekst` lager «N signert» via t().
+ */
+export function signaturTekst(
+  s: DokumentSignaturstatus | null | undefined,
+  sjaTekst: (antall: number) => string,
+): string {
   if (!s) return "—";
-  if (s.komplett) return "✓";
-  return `${s.signert}/${s.kreves}`;
-}
-
-export function signaturKategori(s: DokumentSignaturstatus | null | undefined): Signaturkategori {
-  if (!s) return "uten";
-  return s.komplett ? "signert" : "mangler";
+  const deler: string[] = [];
+  if (s.felt) deler.push(s.felt.komplett ? "✓" : `${s.felt.signert}/${s.felt.kreves}`);
+  if (s.sja) deler.push(sjaTekst(s.sja));
+  return deler.length > 0 ? deler.join(" · ") : "—";
 }
 
 /**
- * Stigende sortering gir komplett først, så de som mangler (mest signert først), og til slutt
- * dokumenter uten signaturfelt.
+ * Filterkategori. Signert/Mangler gjelder malfeltene når dokumentet har dem; et rent
+ * SJA-dokument er «Signert» med minst én signatur, ellers «Mangler signatur».
+ */
+export function signaturKategori(s: DokumentSignaturstatus | null | undefined): Signaturkategori {
+  if (!s) return "uten";
+  if (s.felt) return s.felt.komplett ? "signert" : "mangler";
+  return (s.sja ?? 0) >= 1 ? "signert" : "mangler";
+}
+
+/**
+ * Stigende sortering: komplette malfelt først, så rene SJA-dokumenter med signaturer (flest
+ * først), så de som mangler (mest signert først), og til slutt dokumenter uten signaturfelt.
  */
 export function signaturSorterVerdi(s: DokumentSignaturstatus | null | undefined): number {
   if (!s) return 3;
-  if (s.komplett) return 0;
-  return 2 - (s.kreves > 0 ? s.signert / s.kreves : 0);
+  if (s.felt) {
+    if (s.felt.komplett) return 0;
+    return 2 - (s.felt.kreves > 0 ? s.felt.signert / s.felt.kreves : 0);
+  }
+  const n = s.sja ?? 0;
+  return n >= 1 ? 0.5 / n : 2;
 }
 
 export function hendelseNavn(rad: MetadataRad, steg: Steg): string {

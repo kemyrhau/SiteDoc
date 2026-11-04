@@ -186,9 +186,11 @@ aktive `dokumentDeltaker`. Reduksjonene er rene funksjoner i `@sitedoc/shared` `
 - `statushendelser` `{ sendt, godkjent, lukket }` (hver `{ av: {id, navn}, ved } | null`): sendt = eldste `draft → sent|received`; godkjent/lukket = nyeste overgang dit.
   **Gjenåpning:** godkjent vises bare når `terminal` er godkjent eller lukket, lukket bare når `terminal` er lukket.
 - `utfylling` `{ sist, alle }`; `null` når endringsloggen er av i malen (UI viser «—» + forklaring).
-- `signatur` `{ kreves, signert, komplett } | null`: synlige, ikke-betingede signaturfelt på toppnivå (repeater-felt og
-  betinget skjulte felt kreves ikke); SJA følger telleregelen i `signaturliste.ts` (krevd-ny teller ikke) — uten runde
-  gir det `0/n` med aktive deltakere. `null` = ingen signaturfelt.
+- `signatur` `{ felt, sja } | null` (`beregnDokumentSignatur`, kildene holdes adskilt — Kenneth 04.11):
+  `felt` `{ kreves, signert, komplett } | null` = synlige, ikke-betingede malfelt `signature` på toppnivå
+  (repeater-felt og betinget skjulte felt kreves ikke); `sja` `number | null` = signert + bekreftet i siste SJA-runde
+  (telleregelen i `signaturliste.ts`, krevd-ny teller ikke), uten «av N» og 0 uten runde. `null` = verken signaturfelt
+  eller signaturliste.
 
 Låst i `apps/api/src/routes/hentForProsjekt-metadata.test.ts` og `packages/shared/src/utils/dokumentMetadata.test.ts`.
 

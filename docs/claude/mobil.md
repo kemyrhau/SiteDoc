@@ -881,7 +881,7 @@ har ikke prioritet og leser alltid serverrader:
   `utfylling` (JSON) på `sjekkliste_local`/`oppgave_local` (`METADATA_LOCAL_KOLONNER`, additiv ALTER,
   `migreringer.metadataLocal.test.ts`), skrevet/lest av `services/dokumentMetadataLokal.ts` — NULL = eldre API
   (feltet utelates), tekst `"null"` = endringslogg av. Eldre API → tomme lister → filtrene, statusfeltene og
-  «Sendt»-sorteringen skjules stille (låst i `dokumentlisteFilter.test.ts`). Signatur (B-3) er ikke på mobil.
+  «Sendt»-sorteringen skjules stille (låst i `dokumentlisteFilter.test.ts`). Signatur (B-3) er ikke på mobil (SJA vises som antall uten «av N» på web, 04.11).
 
 ## OTA-varsel: «Ny versjon er klar · Oppdater» (ota-varsel 2026-11-03)
 

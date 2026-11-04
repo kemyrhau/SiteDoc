@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Regjistri i ndryshimeve është çaktivizuar në shabllon - nuk dihet se kush e ka plotësuar atë",
   "signaturFilter.signert": "Nënshkruar",
   "signaturFilter.mangler": "Mungon nënshkrimi",
-  "signaturFilter.uten": "Nuk ka fushë nënshkrimi"
+  "signaturFilter.uten": "Nuk ka fushë nënshkrimi",
+  "tabell.sjaSignert": "{{antall}} nënshkruar"
 }

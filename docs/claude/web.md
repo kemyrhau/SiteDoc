@@ -201,10 +201,13 @@ Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
   `kolonne.hvemOgNaar` i kolonnevelgeren) i `sjekklister/page.tsx` og `oppgaver/page.tsx`: «Sendt av/Sendt»,
   «Godkjent av/Godkjent», «Lukket av/Lukket», «Sist utfylt av/Sist utfylt», «Signatur». Felles kolonnedefinisjoner i
   `components/DokumentMetadataKolonner.tsx` (`METADATA_KOLONNE_IDER`, `byggMetadataKolonner`), rene hjelpere i
-  `lib/dokumentMetadata.ts` (celle-tekst, filterverdi, adaptive personlister, `signaturSorterVerdi`: komplett først,
-  så mest signert, uten signaturfelt sist). Person-kolonnene er filtrerbare; «Sist utfylt av»-filteret («Utfylt av»)
+  `lib/dokumentMetadata.ts` (celle-tekst, filterverdi, adaptive personlister, `signaturSorterVerdi`: komplette malfelt
+  først, så rene SJA-dokumenter med signaturer (flest først), så de som mangler (mest signert først), uten
+  signaturfelt sist). Signaturcella: malfelt «✓»/«m/n», SJA bare «N signert» (`tabell.sjaSignert`, aldri «av N» —
+  Kenneth 04.11), begge «m/n · N signert», SJA med 0 signert legger ikke til noe. Person-kolonnene er filtrerbare; «Sist utfylt av»-filteret («Utfylt av»)
   treffer alle i endringsloggen via `hentFlereVerdier` i `@sitedoc/shared` `tabellFilter.ts`. Signatur filtreres på
-  Signert / Mangler / Uten signaturfelt (`signaturFilter.*`). `utfylling === null` (endringslogg av i malen) → «—» med
+  Signert / Mangler / Uten signaturfelt (`signaturFilter.*`); malfeltene styrer kategorien, et rent SJA-dokument er
+  Signert med minst én signatur, ellers Mangler. `utfylling === null` (endringslogg av i malen) → «—» med
   tooltip `metadata.endringsloggAv`. `DokumentPeriodeFilter` får `statusFelt` (sendt/godkjent/lukket) når lista har
   `statushendelser`; datoen hentes av `periodeDato` (`utils/periode.ts`). Mot eldre API mangler feltene → personlister
   tomme, statusfeltene skjules. Test: `lib/__tests__/dokumentMetadata.test.ts`.

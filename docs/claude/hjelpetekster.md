@@ -108,8 +108,11 @@ brukes når de får hjelpe-ikon.
   lukket-dato.
 - **Sist utfylt av:** viser «—» når endringsloggen er slått av i malen (holde musa over forklarer hvorfor). Filteret
   «Utfylt av» treffer alle som har fylt ut noe, ikke bare den siste.
-- **Signatur:** «✓» når alle signaturer er på plass, «2/3» når noen mangler, «—» når dokumentet ikke har
-  signaturfelt. Filtrer på Signert, Mangler signatur eller Uten signaturfelt; sortering gir komplette først.
+- **Signatur:** for signaturfelt i malen: «✓» når alle er signert, «2/3» når noen mangler. For SJA vises bare hvor
+  mange som har signert, for eksempel «3 signert» — en SJA sier ikke på forhånd hvem som skal signere. Har dokumentet
+  begge, står det «2/3 · 3 signert». «—» når ingen har signert eller dokumentet ikke har signaturfelt. Filtrer på
+  Signert, Mangler signatur eller Uten signaturfelt (en SJA regnes som signert når minst én har signert); sortering
+  gir komplette først.
 - **Tegningslista:** hver tegning viser revisjon, status, opprinnelig filformat (DWG, PDF …) og utgivelsesdato når de
   finnes. Under søket kan du snevre inn på status, filformat og georeferanse — bare valg som finnes i lista vises.
   Byggeplasser uten treff skjules mens et filter er satt.

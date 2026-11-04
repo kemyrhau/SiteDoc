@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Le journal des modifications est désactivé dans le modèle – on ne sait pas qui l'a rempli",
   "signaturFilter.signert": "Signé",
   "signaturFilter.mangler": "Signature manquante",
-  "signaturFilter.uten": "Pas de champ de signature"
+  "signaturFilter.uten": "Pas de champ de signature",
+  "tabell.sjaSignert": "{{antall}} signé"
 }
