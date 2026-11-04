@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Protokol změn je v šabloně vypnutý – není známo, kdo jej vyplnil",
   "signaturFilter.signert": "Podepsaný",
   "signaturFilter.mangler": "Chybí podpis",
-  "signaturFilter.uten": "Žádné pole pro podpis"
+  "signaturFilter.uten": "Žádné pole pro podpis",
+  "tabell.sjaSignert": "{{antall}} podepsáno"
 }

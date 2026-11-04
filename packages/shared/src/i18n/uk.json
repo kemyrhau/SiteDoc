@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "В шаблоні вимкнено журнал змін — невідомо хто його заповнював",
   "signaturFilter.signert": "Підписано",
   "signaturFilter.mangler": "Відсутній підпис",
-  "signaturFilter.uten": "Немає поля для підпису"
+  "signaturFilter.uten": "Немає поля для підпису",
+  "tabell.sjaSignert": "{{antall}} підписав"
 }

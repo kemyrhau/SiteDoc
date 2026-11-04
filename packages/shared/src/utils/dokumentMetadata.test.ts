@@ -94,42 +94,43 @@ describe("beregnDokumentSignatur (B-3)", () => {
 
   it("malfelt: teller felt med verdi, legacy data-URL inkludert", () => {
     const r = beregnDokumentSignatur([sig("s1"), sig("s2"), sig("s3")], { s1: signert, s2: { verdi: "data:image/png;base64,BBB" } }, null, 0);
-    expect(r).toEqual({ kreves: 3, signert: 2, komplett: false });
+    expect(r).toEqual({ felt: { kreves: 3, signert: 2, komplett: false }, sja: null });
   });
 
   it("alle signert → komplett", () => {
-    expect(beregnDokumentSignatur([sig("s1")], { s1: signert }, null, 0)).toEqual({ kreves: 1, signert: 1, komplett: true });
+    expect(beregnDokumentSignatur([sig("s1")], { s1: signert }, null, 0)).toEqual({ felt: { kreves: 1, signert: 1, komplett: true }, sja: null });
   });
 
   it("betinget skjult signaturfelt kreves ikke", () => {
     const forelder = { id: "f", type: "list_single", config: { conditionActive: true, conditionValues: ["Ja"] }, parentId: null };
     const r = beregnDokumentSignatur([forelder, sig("s1", "f")], { f: { verdi: "Nei" } }, null, 0);
-    expect(r).toEqual({ kreves: 0, signert: 0, komplett: false });
+    expect(r).toEqual({ felt: { kreves: 0, signert: 0, komplett: false }, sja: null });
   });
 
   it("signaturfelt i repeater telles ikke", () => {
     const rep = { id: "r", type: "repeater", config: {}, parentId: null };
-    expect(beregnDokumentSignatur([rep, sig("s1", "r"), sig("s2")], { s2: signert }, null, 0)).toEqual({ kreves: 1, signert: 1, komplett: true });
+    expect(beregnDokumentSignatur([rep, sig("s1", "r"), sig("s2")], { s2: signert }, null, 0)).toEqual({ felt: { kreves: 1, signert: 1, komplett: true }, sja: null });
   });
 
-  it("SJA: avsluttet runde bruker frosset antall; signert + bekreftet teller", () => {
-    const liste = { id: "l", type: "signature_list", config: {}, parentId: null };
-    const r = beregnDokumentSignatur(
-      [liste],
-      {},
-      { rundeNr: 2, avsluttet: true, antallSignert: 3, antallBekreftet: 1, antallDeltakere: 5 },
-      9,
-    );
-    expect(r).toEqual({ kreves: 5, signert: 4, komplett: false });
+  const liste = { id: "l", type: "signature_list", config: {}, parentId: null };
+
+  it("SJA: bare antall signert, aldri «av N» — 3 signert av 5 deltakere gir 3, ikke 3/5", () => {
+    const r = beregnDokumentSignatur([liste], {}, { rundeNr: 1, avsluttet: false, antallSignert: 2, antallBekreftet: 1, antallDeltakere: null }, 5);
+    expect(r).toEqual({ felt: null, sja: 3 });
+    expect(r).not.toHaveProperty("kreves");
   });
 
-  it("SJA: åpen runde bruker aktive deltakere; uten runde kreves aktive, signert 0", () => {
-    const liste = { id: "l", type: "signature_list", config: {}, parentId: null };
-    expect(beregnDokumentSignatur([liste], {}, { rundeNr: 1, avsluttet: false, antallSignert: 2, antallDeltakere: null }, 2)).toEqual({
-      kreves: 2,
-      signert: 2,
-      komplett: true,
-    });
-    expect(beregnDokumentSignatur([liste], {}, null, 4)).toEqual({ kreves: 4, signert: 0, komplett: false });
+  it("SJA: avsluttet runde teller signert + bekreftet; krevd-ny er allerede trukket ut", () => {
+    const r = beregnDokumentSignatur([liste], {}, { rundeNr: 2, avsluttet: true, antallSignert: 3, antallBekreftet: 1, antallDeltakere: 5 }, 9);
+    expect(r).toEqual({ felt: null, sja: 4 });
+  });
+
+  it("SJA uten runde → 0 signert, ikke «0/n»", () => {
+    expect(beregnDokumentSignatur([liste], {}, null, 4)).toEqual({ felt: null, sja: 0 });
+  });
+
+  it("malfelt og SJA holdes adskilt — tallene slås ikke sammen", () => {
+    const r = beregnDokumentSignatur([sig("s1"), sig("s2"), liste], { s1: signert }, { rundeNr: 1, avsluttet: false, antallSignert: 4, antallDeltakere: null }, 6);
+    expect(r).toEqual({ felt: { kreves: 2, signert: 1, komplett: false }, sja: 4 });
   });
 });

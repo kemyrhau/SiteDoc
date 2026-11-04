@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Muutosloki on poistettu käytöstä mallissa – ei tiedetä, kuka sen täytti",
   "signaturFilter.signert": "Allekirjoitettu",
   "signaturFilter.mangler": "Allekirjoitus puuttuu",
-  "signaturFilter.uten": "Ei allekirjoituskenttää"
+  "signaturFilter.uten": "Ei allekirjoituskenttää",
+  "tabell.sjaSignert": "{{antall}} allekirjoitti"
 }

@@ -47,7 +47,7 @@ export interface MetadataKolDef<T> {
 const tom = <span className="text-gray-300">—</span>;
 
 export function byggMetadataKolonner<T extends MetadataRad>(
-  t: (nokkel: string) => string,
+  t: (nokkel: string, opsjoner?: { antall: number }) => string,
   formaterDato: (dato: string | null) => string,
   filter: Record<string, { value: string; label: string }[]>,
 ): Record<string, MetadataKolDef<T>> {
@@ -104,7 +104,7 @@ export function byggMetadataKolonner<T extends MetadataRad>(
       if (kat === "uten") return tom;
       return (
         <span className={`text-xs font-medium ${kat === "signert" ? "text-green-700" : "text-amber-700"}`}>
-          {signaturTekst(rad.signatur)}
+          {signaturTekst(rad.signatur, (antall) => t("tabell.sjaSignert", { antall }))}
         </span>
       );
     },

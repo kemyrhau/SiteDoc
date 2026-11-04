@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Izmaiņu žurnāls veidnē ir izslēgts — nav zināms, kas to aizpildīja",
   "signaturFilter.signert": "Parakstīts",
   "signaturFilter.mangler": "Trūkst paraksta",
-  "signaturFilter.uten": "Nav paraksta lauka"
+  "signaturFilter.uten": "Nav paraksta lauka",
+  "tabell.sjaSignert": "{{antall}} parakstījis"
 }

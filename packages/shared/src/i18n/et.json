@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Muudatuste logi on mallis välja lülitatud – teadmata, kes selle täitis",
   "signaturFilter.signert": "Allkirjastatud",
   "signaturFilter.mangler": "Allkiri puudub",
-  "signaturFilter.uten": "Allkirjavälja pole"
+  "signaturFilter.uten": "Allkirjavälja pole",
+  "tabell.sjaSignert": "{{antall}} allkirjastas"
 }

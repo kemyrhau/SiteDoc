@@ -115,20 +115,32 @@ export function reduserUtfylling(
   };
 }
 
-export interface DokumentSignaturstatus {
+/** Malfeltene `signature`: hvem som skal signere er kjent på forhånd. */
+export interface MalfeltSignatur {
   kreves: number;
   signert: number;
   komplett: boolean;
 }
 
 /**
- * Signaturstatus for ett dokument, eller `null` når malen ikke har signaturfelt.
+ * Signaturstatus for ett dokument. Kildene holdes ADSKILT (Kenneth 04.11, ORDRE 6):
+ * - `felt`: malfeltene `signature` — «m/n» eller «✓». `null` når malen ikke har slike felt.
+ * - `sja`: antall signerte i siste SJA-runde (`signature_list`), uten «av N» — en SJA sier
+ *   ikke på forhånd hvem som skal signere; folk signerer fortløpende. `null` uten signaturliste.
+ */
+export interface DokumentSignaturstatus {
+  felt: MalfeltSignatur | null;
+  sja: number | null;
+}
+
+/**
+ * Signaturstatus for ett dokument, eller `null` når malen verken har signaturfelt eller
+ * signaturliste.
  * - Malfelt `signature`: kreves = synlige signaturfelt (betinget skjulte felt teller
  *   ikke — samme `erObjektSynlig` som skjerm og arkiv); signert = de med verdi i `data`.
  *   Signaturfelt inne i en repeater telles ikke (verdien bor i repeater-radene).
- * - `signature_list` (SJA-runder): samme `beregnSignaturStatus` som brikka i dokumentet,
- *   så «X av Y» aldri divergerer mellom liste og dokument. Uten runde: av = aktive deltakere.
- * Summen av begge kildene; komplett = kreves > 0 og signert ≥ kreves.
+ * - `signature_list` (SJA): signert + bekreftet i siste runde, samme telleregel som
+ *   `beregnSignaturStatus` (krevd-ny teller ikke). Ingen runde → 0. Ingen «kreves».
  */
 export function beregnDokumentSignatur(
   objekter: readonly SynlighetsObjekt[],
@@ -141,30 +153,24 @@ export function beregnDokumentSignatur(
   const alle = objekter as SynlighetsObjekt[];
   const forelderType = new Map(objekter.map((o) => [o.id, o.type]));
 
-  let harFelt = false;
+  let malfelt: MalfeltSignatur | null = null;
   let kreves = 0;
   let signert = 0;
   for (const o of objekter) {
-    if (o.type === "signature") {
-      harFelt = true;
-      if (o.parentId && forelderType.get(o.parentId) === "repeater") continue;
-      if (!erObjektSynlig(o, alle, hentVerdi)) continue;
-      kreves += 1;
-      if (lesSignaturVerdi(hentVerdi(o.id))) signert += 1;
-    }
+    if (o.type !== "signature") continue;
+    malfelt = { kreves: 0, signert: 0, komplett: false };
+    if (o.parentId && forelderType.get(o.parentId) === "repeater") continue;
+    if (!erObjektSynlig(o, alle, hentVerdi)) continue;
+    kreves += 1;
+    if (lesSignaturVerdi(hentVerdi(o.id))) signert += 1;
   }
+  if (malfelt) malfelt = { kreves, signert, komplett: kreves > 0 && signert >= kreves };
+
+  let sja: number | null = null;
   if (objekter.some((o) => o.type === "signature_list")) {
-    harFelt = true;
-    if (sjaRunde) {
-      const s = beregnSignaturStatus(sjaRunde, aktiveDeltakere);
-      kreves += s.av;
-      signert += Math.min(s.signert + s.bekreftet, s.av);
-    } else {
-      // Ingen runde startet: brikka sier «ikke tatt i bruk», men for lista mangler
-      // alle aktive deltakere signatur («0/n»), ikke «uten signaturfelt».
-      kreves += aktiveDeltakere;
-    }
+    const s = beregnSignaturStatus(sjaRunde, aktiveDeltakere);
+    sja = s.signert + s.bekreftet;
   }
-  if (!harFelt) return null;
-  return { kreves, signert, komplett: kreves > 0 && signert >= kreves };
+  if (!malfelt && sja === null) return null;
+  return { felt: malfelt, sja };
 }

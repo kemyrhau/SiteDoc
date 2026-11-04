@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Ändringsloggen är avstängd i mallen — okänt vem som fyllt i den",
   "signaturFilter.signert": "Signerad",
   "signaturFilter.mangler": "Signatur saknas",
-  "signaturFilter.uten": "Inget signaturfält"
+  "signaturFilter.uten": "Inget signaturfält",
+  "tabell.sjaSignert": "{{antall}} signerade"
 }

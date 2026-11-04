@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Das Änderungsprotokoll ist in der Vorlage deaktiviert – unbekannt, wer es ausgefüllt hat",
   "signaturFilter.signert": "Unterzeichnet",
   "signaturFilter.mangler": "Fehlende Signatur",
-  "signaturFilter.uten": "Kein Signaturfeld"
+  "signaturFilter.uten": "Kein Signaturfeld",
+  "tabell.sjaSignert": "{{antall}} signiert"
 }

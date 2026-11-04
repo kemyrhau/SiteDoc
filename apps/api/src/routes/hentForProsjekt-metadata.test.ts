@@ -121,8 +121,8 @@ describe.each([
     expect(d2!.statushendelser.sendt?.av.id).toBe("u-kari");
     expect(d2!.statushendelser.godkjent).toBeNull();
     expect(d2!.utfylling).toBeNull();
-    // Siste runde (nr. 2) er åpen: av = 2 aktive, krevd-ny teller ikke → 1/2.
-    expect(d2!.signatur).toEqual({ kreves: 2, signert: 1, komplett: false });
+    // SJA: bare antall signert i siste runde (nr. 2), krevd-ny teller ikke → 1, ingen «av N».
+    expect(d2!.signatur).toEqual({ felt: null, sja: 1 });
   });
 
   it("tom liste gjør ingen ekstra spørringer", async () => {

@@ -457,6 +457,7 @@ export type {
   UtfyltGruppe,
   Utfylling,
   DokumentSignaturstatus,
+  MalfeltSignatur,
 } from "./dokumentMetadata";
 
 export { normaliserOpsjon } from "./opsjon";

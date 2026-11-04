@@ -5253,5 +5253,6 @@
   "metadata.endringsloggAv": "Change log is turned off in the template — unknown who filled it in",
   "signaturFilter.signert": "Signed",
   "signaturFilter.mangler": "Missing signature",
-  "signaturFilter.uten": "No signature field"
+  "signaturFilter.uten": "No signature field",
+  "tabell.sjaSignert": "{{antall}} signed"
 }
