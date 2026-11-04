@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Mappar",
   "sokMobil.omfangSjekklister": "Checklistor",
   "sokMobil.omfangOppgaver": "Uppgifter",
-  "sokMobil.placeholder": "Sök i mappar, checklistor och uppgifter",
+  "sokMobil.placeholder": "Sök i mappar, checklistor, uppgifter och HSE",
   "sokMobil.minstToTegn": "Skriv minst två tecken och tryck på Sök",
   "sokMobil.mapperKreverNett": "Offline – sökning efter mappar kräver en anslutning",
   "sokMobil.kreverNettKort": "mappar kräver en anslutning",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "fallande",
   "dokumentsok.sorteringDeretter": ", sedan ",
   "dokumentsok.sorteringHjelp": "Peka igen för att vända · tredje knacken tar bort",
-  "dokumentsok.nullstillSortering": "Återställ sorteringen"
+  "dokumentsok.nullstillSortering": "Återställ sorteringen",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Sök ”{{q}}” i hela projektet",
+  "sokMobil.placeholderOppgaver": "Sök i uppgifter",
+  "sokMobil.placeholderSjekklister": "Sök i checklistor",
+  "sokMobil.placeholderHms": "Sök i HSE"
 }

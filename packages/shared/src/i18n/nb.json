@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Mapper",
   "sokMobil.omfangSjekklister": "Sjekklister",
   "sokMobil.omfangOppgaver": "Oppgaver",
-  "sokMobil.placeholder": "Søk i mapper, sjekklister og oppgaver",
+  "sokMobil.placeholder": "Søk i mapper, sjekklister, oppgaver og HMS",
   "sokMobil.minstToTegn": "Skriv minst 2 tegn og trykk Søk",
   "sokMobil.mapperKreverNett": "Frakoblet – søk i mapper krever nettilkobling",
   "sokMobil.kreverNettKort": "mapper krever nett",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "synkende",
   "dokumentsok.sorteringDeretter": ", deretter ",
   "dokumentsok.sorteringHjelp": "Trykk igjen for å snu · tredje trykk fjerner",
-  "dokumentsok.nullstillSortering": "Nullstill sortering"
+  "dokumentsok.nullstillSortering": "Nullstill sortering",
+  "sokMobil.omfangHms": "HMS",
+  "sokMobil.sokIHeleProsjektet": "Søk «{{q}}» i hele prosjektet",
+  "sokMobil.placeholderOppgaver": "Søk i oppgaver",
+  "sokMobil.placeholderSjekklister": "Søk i sjekklister",
+  "sokMobil.placeholderHms": "Søk i HMS"
 }

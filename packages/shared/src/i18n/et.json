@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Kaustad",
   "sokMobil.omfangSjekklister": "Kontrollnimekirjad",
   "sokMobil.omfangOppgaver": "Ülesanded",
-  "sokMobil.placeholder": "Otsige kaustu, kontrollnimekirju ja ülesandeid",
+  "sokMobil.placeholder": "Otsi kaustadest, kontrollnimekirjadest, ülesannetest ja HSE-st",
   "sokMobil.minstToTegn": "Sisestage vähemalt kaks tähemärki ja puudutage valikut Otsi",
   "sokMobil.mapperKreverNett": "Võrguühenduseta – kaustade otsimine nõuab ühendust",
   "sokMobil.kreverNettKort": "kaustad nõuavad ühendust",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "laskuv",
   "dokumentsok.sorteringDeretter": ", seejärel ",
   "dokumentsok.sorteringHjelp": "Tagurdamiseks puudutage uuesti · Kolmas puudutus eemaldab",
-  "dokumentsok.nullstillSortering": "Lähtesta sortimine"
+  "dokumentsok.nullstillSortering": "Lähtesta sortimine",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Otsi „{{q}}“ kogu projektist",
+  "sokMobil.placeholderOppgaver": "Otsi ülesannetest",
+  "sokMobil.placeholderSjekklister": "Otsi kontrollnimekirjadest",
+  "sokMobil.placeholderHms": "Otsi HSE-st"
 }

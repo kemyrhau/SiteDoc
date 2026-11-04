@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Mapes",
   "sokMobil.omfangSjekklister": "Kontrolsaraksti",
   "sokMobil.omfangOppgaver": "Uzdevumi",
-  "sokMobil.placeholder": "Meklējiet mapes, kontrolsarakstus un uzdevumus",
+  "sokMobil.placeholder": "Meklēt mapēs, kontrolsarakstos, uzdevumos un HSE",
   "sokMobil.minstToTegn": "Ievadiet vismaz 2 rakstzīmes un pieskarieties Meklēt",
   "sokMobil.mapperKreverNett": "Bezsaistē — lai meklētu mapes, ir nepieciešams savienojums",
   "sokMobil.kreverNettKort": "mapēm ir nepieciešams savienojums",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "lejupejoša",
   "dokumentsok.sorteringDeretter": ", pēc tam ",
   "dokumentsok.sorteringHjelp": "Pieskarieties vēlreiz, lai apgrieztu atpakaļ. · Trešais pieskāriens tiek noņemts",
-  "dokumentsok.nullstillSortering": "Atiestatīt kārtošanu"
+  "dokumentsok.nullstillSortering": "Atiestatīt kārtošanu",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Meklēt “{{q}}” visā projektā",
+  "sokMobil.placeholderOppgaver": "Meklēt uzdevumos",
+  "sokMobil.placeholderSjekklister": "Meklēt kontrolsarakstos",
+  "sokMobil.placeholderHms": "Meklēt HSE"
 }

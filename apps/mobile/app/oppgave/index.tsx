@@ -27,6 +27,7 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { ProsjektSokRad } from "../../src/components/sok/ProsjektSokRad";
 import {
   MedUtheving,
   formaterKortDato,
@@ -271,7 +272,7 @@ export default function OppgaveListe() {
             <TextInput
               value={søketekst}
               onChangeText={settSøketekst}
-              placeholder={t("dokumentsok.sokPlaceholder")}
+              placeholder={t("sokMobil.placeholderOppgaver")}
               placeholderTextColor="#9ca3af"
               className="ml-2 flex-1 py-0 text-sm text-gray-900"
               autoFocus
@@ -310,6 +311,9 @@ export default function OppgaveListe() {
 
       {/* F2: global byggeplass-chip — skjules under søk (søk treffer hele prosjektet). */}
       {!søkerNaa && <ByggeplassChip />}
+
+      {/* Søkeinngang B: listesøket er uendret; raden tar teksten med til prosjektsøket. */}
+      {søkeAktiv && <ProsjektSokRad kilde="oppgaver" tekst={søketekst} />}
 
       {/* Kontraktssak-segment (tavle 4): chip-rad Alle · Oppgaver · Kontrakt. Vises kun når
           prosjektet har en kontraktssak-mal. Tallene er antall etter status-filteret. */}

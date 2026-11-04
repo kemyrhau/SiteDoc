@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Kansiot",
   "sokMobil.omfangSjekklister": "Tarkistuslistat",
   "sokMobil.omfangOppgaver": "Tehtävät",
-  "sokMobil.placeholder": "Hae kansioita, tarkistuslistoja ja tehtäviä",
+  "sokMobil.placeholder": "Hae kansioista, tarkistuslistoista, tehtävistä ja HSE:stä",
   "sokMobil.minstToTegn": "Kirjoita vähintään 2 merkkiä ja napauta Hae",
   "sokMobil.mapperKreverNett": "Offline – kansioiden etsiminen vaatii yhteyden",
   "sokMobil.kreverNettKort": "kansiot vaativat yhteyden",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "laskeva",
   "dokumentsok.sorteringDeretter": ", sitten ",
   "dokumentsok.sorteringHjelp": "Napauta uudelleen peruuttaaksesi · kolmas napautus poistaa",
-  "dokumentsok.nullstillSortering": "Nollaa lajittelu"
+  "dokumentsok.nullstillSortering": "Nollaa lajittelu",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Hae \"{{q}}\" koko projektista",
+  "sokMobil.placeholderOppgaver": "Hae tehtävistä",
+  "sokMobil.placeholderSjekklister": "Hae tarkistuslistoista",
+  "sokMobil.placeholderHms": "Hae HSE:stä"
 }

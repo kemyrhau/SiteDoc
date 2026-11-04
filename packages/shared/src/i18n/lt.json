@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Aplankai",
   "sokMobil.omfangSjekklister": "Kontroliniai sąrašai",
   "sokMobil.omfangOppgaver": "Užduotys",
-  "sokMobil.placeholder": "Ieškokite aplankų, kontrolinių sąrašų ir užduočių",
+  "sokMobil.placeholder": "Ieškoti aplankuose, kontroliniuose sąrašuose, užduotyse ir HSE",
   "sokMobil.minstToTegn": "Įveskite bent 2 simbolius ir bakstelėkite Ieškoti",
   "sokMobil.mapperKreverNett": "Neprisijungus – norint ieškoti aplankų, reikalingas ryšys",
   "sokMobil.kreverNettKort": "aplankams reikalingas ryšys",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "nusileidžiantis",
   "dokumentsok.sorteringDeretter": ", tada ",
   "dokumentsok.sorteringHjelp": "Palieskite dar kartą, kad atsuktumėte atgal · trečias bakstelėjimas pašalinamas",
-  "dokumentsok.nullstillSortering": "Iš naujo nustatyti rūšiavimą"
+  "dokumentsok.nullstillSortering": "Iš naujo nustatyti rūšiavimą",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Ieškoti „{{q}}“ visame projekte",
+  "sokMobil.placeholderOppgaver": "Ieškoti užduotyse",
+  "sokMobil.placeholderSjekklister": "Ieškoti kontroliniuose sąrašuose",
+  "sokMobil.placeholderHms": "Ieškoti HSE"
 }

@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Папки",
   "sokMobil.omfangSjekklister": "Контрольні списки",
   "sokMobil.omfangOppgaver": "завдання",
-  "sokMobil.placeholder": "Пошук папок, контрольних списків і завдань",
+  "sokMobil.placeholder": "Пошук у папках, контрольних списках, завданнях і HSE",
   "sokMobil.minstToTegn": "Введіть принаймні 2 символи та натисніть Пошук",
   "sokMobil.mapperKreverNett": "Офлайн – для пошуку папок потрібне з’єднання",
   "sokMobil.kreverNettKort": "папки потребують підключення",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "спадання",
   "dokumentsok.sorteringDeretter": ", потім ",
   "dokumentsok.sorteringHjelp": "Торкніться знову, щоб повернути назад · третє торкання видаляє",
-  "dokumentsok.nullstillSortering": "Скинути сортування"
+  "dokumentsok.nullstillSortering": "Скинути сортування",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Шукати «{{q}}» у всьому проєкті",
+  "sokMobil.placeholderOppgaver": "Пошук у завданнях",
+  "sokMobil.placeholderSjekklister": "Пошук у контрольних списках",
+  "sokMobil.placeholderHms": "Пошук у HSE"
 }

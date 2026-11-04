@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Lornetka składana",
   "sokMobil.omfangSjekklister": "Listy kontrolne",
   "sokMobil.omfangOppgaver": "Zadania",
-  "sokMobil.placeholder": "Przeszukuj foldery, listy kontrolne i zadania",
+  "sokMobil.placeholder": "Szukaj w folderach, listach kontrolnych, zadaniach i BHP",
   "sokMobil.minstToTegn": "Wpisz co najmniej 2 znaki i dotknij Szukaj",
   "sokMobil.mapperKreverNett": "Offline – przeszukiwanie folderów wymaga połączenia",
   "sokMobil.kreverNettKort": "foldery wymagają połączenia",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "malejąco",
   "dokumentsok.sorteringDeretter": ", następnie ",
   "dokumentsok.sorteringHjelp": "Stuknij ponownie, aby cofnąć · trzecie dotknięcie usuwa",
-  "dokumentsok.nullstillSortering": "Zresetuj sortowanie"
+  "dokumentsok.nullstillSortering": "Zresetuj sortowanie",
+  "sokMobil.omfangHms": "BHP",
+  "sokMobil.sokIHeleProsjektet": "Szukaj „{{q}}” w całym projekcie",
+  "sokMobil.placeholderOppgaver": "Szukaj w zadaniach",
+  "sokMobil.placeholderSjekklister": "Szukaj w listach kontrolnych",
+  "sokMobil.placeholderHms": "Szukaj w BHP"
 }

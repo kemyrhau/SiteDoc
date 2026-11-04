@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Foldere",
   "sokMobil.omfangSjekklister": "Liste de verificare",
   "sokMobil.omfangOppgaver": "Sarcini",
-  "sokMobil.placeholder": "Căutați dosare, liste de verificare și sarcini",
+  "sokMobil.placeholder": "Caută în dosare, liste de verificare, sarcini și HSE",
   "sokMobil.minstToTegn": "Introduceți cel puțin 2 caractere și atingeți Căutare",
   "sokMobil.mapperKreverNett": "Offline – căutarea dosarelor necesită o conexiune",
   "sokMobil.kreverNettKort": "folderele necesită o conexiune",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "descendent",
   "dokumentsok.sorteringDeretter": ", apoi ",
   "dokumentsok.sorteringHjelp": "Atingeți din nou pentru a inversa · a treia atingere elimină",
-  "dokumentsok.nullstillSortering": "Resetați sortarea"
+  "dokumentsok.nullstillSortering": "Resetați sortarea",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Caută „{{q}}” în tot proiectul",
+  "sokMobil.placeholderOppgaver": "Caută în sarcini",
+  "sokMobil.placeholderSjekklister": "Caută în liste de verificare",
+  "sokMobil.placeholderHms": "Caută în HSE"
 }

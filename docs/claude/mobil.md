@@ -789,6 +789,21 @@ Sjekklister · Oppgaver» (standard «Alle», seksjoner Mapper → Sjekklister �
   `src/components/sok/sokLogikk.ts` (testet), utsnitt delt med web i `packages/shared/src/sok/utsnitt.ts`.
 - **Utenfor:** innholdssøk i `Checklist.data`/`Task.data` (egen sak, spec § 9.2) og omfangsvelger på web.
 
+**Søkeinnganger (spec-sok-innganger, ORDRE 2026-11-04, branch `feat/sok-innganger`):** ⚠️ ikke merget.
+- **HMS som femte kilde:** omfangsvelgeren er «Alle · Mapper · Sjekklister · Oppgaver · HMS» (`KILDE_REKKEFOLGE`,
+  HMS sist i «Alle»). Kilden er `hms.hentDokumenter` uten byggeplass (søk = hele prosjektet), offline `hentHmsLokalt`
+  med samme kildevalg og «lagret versjon»-merknad som de andre listene. De tre fanene flates ut (`flatHmsRader`);
+  hver rad får fane-etikett (Avvik/SJA/RUH) og åpner samme rute som HMS-lista (`hmsRute`: SJA → sjekkliste,
+  avvik/RUH → oppgave). Listesøk med `filtrerOgSorter`, ingen API-endring.
+- **Rute-parametre:** `/sok?omfang=…&q=…` (`tolkSokParametre`): kilden forhåndsvelges og teksten fylles inn; med
+  ≥ 2 tegn søkes det med en gang. Ukjent/manglende omfang → «Alle». Leses kun ved første visning.
+- **B — i lista:** når søkefeltet i oppgave-, sjekkliste- eller HMS-lista har tekst, vises raden
+  «Søk «q» i hele prosjektet ›» under feltet (`src/components/sok/ProsjektSokRad.tsx`, `visProsjektSokRad` /
+  `prosjektSokParametre`). Listesøket selv er uendret (filter, status, sortering gjelder). Raden åpner `/sok` med
+  listas kilde valgt. Listefeltene har kildeegen plassholder («Søk i oppgaver» / «… sjekklister» / «… HMS»).
+- **C1 — Hjem:** søke-ikon i Hjem-hodet ved «+» (`app/(tabs)/hjem.tsx`) åpner `/sok` på «Alle».
+- Innboksen har ingen B-rad (urørt). Tester: `sokLogikk.test.ts` (parametre, B-rad, HMS-seksjon/telling).
+
 ## Filter, sortering og søk i sjekkliste-, oppgave-, innboks- og HMS-lista (filter-mobil / filter-hms 2026-11-03)
 
 Sjekkliste-, oppgave- og innbokslista (`app/sjekkliste/index.tsx`, `app/oppgave/index.tsx`,

@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Folders",
   "sokMobil.omfangSjekklister": "Checklists",
   "sokMobil.omfangOppgaver": "Tasks",
-  "sokMobil.placeholder": "Search folders, checklists and tasks",
+  "sokMobil.placeholder": "Search folders, checklists, tasks and HSE",
   "sokMobil.minstToTegn": "Type at least 2 characters and tap Search",
   "sokMobil.mapperKreverNett": "Offline – searching folders requires a connection",
   "sokMobil.kreverNettKort": "folders require a connection",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "descending",
   "dokumentsok.sorteringDeretter": ", then ",
   "dokumentsok.sorteringHjelp": "Tap again to reverse · third tap removes",
-  "dokumentsok.nullstillSortering": "Reset sorting"
+  "dokumentsok.nullstillSortering": "Reset sorting",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Search “{{q}}” in the whole project",
+  "sokMobil.placeholderOppgaver": "Search tasks",
+  "sokMobil.placeholderSjekklister": "Search checklists",
+  "sokMobil.placeholderHms": "Search HSE"
 }
