@@ -274,6 +274,35 @@ export function bildeOpptakTid(b: { opptakTidspunkt?: string | null; opprettet?:
   return formaterDatoTidPunkt(b.opptakTidspunkt);
 }
 
+/**
+ * Løpenummer-teller for HELE dokumentet (ordre 2026-11-04 (2)): én instans pr.
+ * `byggInnhold`-kjøring, tråd gjennom felt → repeater → radkort i render-rekkefølge.
+ * Muterbar så hver renderer kan rykke den uten å returnere `nesteNr`.
+ */
+export interface BildeTeller {
+  neste: number;
+}
+
+export function nyBildeTeller(): BildeTeller {
+  return { neste: 1 };
+}
+
+/**
+ * Bildetekst «Bilde 01 · 03.11.2026 09:56» (HTML-escapet). Lagret `bildeNr` fra appen
+ * har forrang — den er alt dokument-løpende (`nesteBildeNr` i @sitedoc/shared) og er
+ * nummeret brukeren ser på miniatyren. Mangler den (arkiverte bilder), brukes tellerens
+ * nummer. Telleren rykker ett hakk pr. bilde uansett, så fallback følger render-rekkefølgen.
+ */
+export function bildeMerke(
+  b: { bildeNr?: number; opptakTidspunkt?: string | null; opprettet?: string },
+  teller: BildeTeller,
+): string {
+  const visNr = b.bildeNr ?? teller.neste;
+  teller.neste += 1;
+  const tid = bildeOpptakTid(b);
+  return `Bilde ${String(visNr).padStart(2, "0")}${tid ? ` · ${esc(tid)}` : ""}`;
+}
+
 /** Formater dato kort (f.eks. "03.04.2026") */
 export function formaterDatoKort(v: unknown): string {
   if (!v) return "";

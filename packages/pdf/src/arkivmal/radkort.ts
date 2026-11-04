@@ -15,7 +15,8 @@
  * verifiseringslogg).
  */
 
-import { esc, fullBildeUrl, bildeOpptakTid, harMeningsfullLabel } from "../hjelpere";
+import { esc, fullBildeUrl, harMeningsfullLabel, bildeMerke, nyBildeTeller } from "../hjelpere";
+import type { BildeTeller } from "../hjelpere";
 import { byggDetaljUtsnitt } from "../tegning";
 import { skalarCelle, byggUtenforRaderBlokk } from "./repeater";
 import { normaliserRad } from "../typer";
@@ -75,20 +76,15 @@ export function repeaterErRik(objekt: TreObjekt): boolean {
 }
 
 /** Bildeblokk: to og to i full bredde, sideforhold bevart, bildetekst under. */
-function byggBildeblokk(vedlegg: Vedlegg[] | undefined): string {
+function byggBildeblokk(vedlegg: Vedlegg[] | undefined, teller: BildeTeller): string {
   const bilder = Array.isArray(vedlegg) ? vedlegg.filter(erBilde) : [];
   if (bilder.length === 0) return "";
-  // «Bilde 01 · tid» — løpenr fra appen (null-padet), dokumentrekkefølge som
+  // «Bilde 01 · tid» — løpenr fra appen (null-padet), dokumenttelleren som
   // fallback. IKKE filnavnet: `IMG_<epoch>.jpg` er internt og utgår (vedtak
   // 2026-08-16); søster-rendereren byggBilderader (repeater.ts) gjør det samme.
-  let nr = 1;
   const kort = bilder
     .map((b) => {
-      const visNr = b.bildeNr ?? nr;
-      nr += 1;
-      const tidTekst = bildeOpptakTid(b);
-      const tid = tidTekst ? ` · ${esc(tidTekst)}` : "";
-      const tekst = `Bilde ${String(visNr).padStart(2, "0")}${tid}`;
+      const tekst = bildeMerke(b, teller);
       return `<div class="ark-radkort-bilde"><img src="${esc(fullBildeUrl(b.url, ""))}" /><div class="ark-radkort-bildetekst">${tekst}</div></div>`;
     })
     .join("");
@@ -111,7 +107,7 @@ function byggMerknad(felt: FeltVerdi | undefined): string {
     : "";
 }
 
-function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number): string {
+function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number, teller: BildeTeller): string {
   // Funn 2026-09-04: et felt i malen er navnløst MED VILJE — «_» er systemets
   // plassholder for tomt navn, ikke en datafeil. Sammenhengen over feltet
   // (f.eks. posisjon i tegning) bærer betydningen, så en etikett ville vært støy.
@@ -146,7 +142,7 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
     innhold =
       rader.length === 0
         ? `<div class="felt-verdi"><span class="tom">Ingen rader</span></div>`
-        : `<div class="ark-radkort-nested">${byggRadkortRader(barn, rader, dybde + 1)}</div>`;
+        : `<div class="ark-radkort-nested">${byggRadkortRader(barn, rader, dybde + 1, teller)}</div>`;
   } else if (barn.type === "attachments") {
     innhold = ""; // bildene rendres av bildeblokken under
   } else {
@@ -160,13 +156,13 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
     ...(Array.isArray(felt?.vedlegg) ? felt!.vedlegg : []),
     ...(barn.type === "attachments" && Array.isArray(felt?.verdi) ? (felt!.verdi as Vedlegg[]) : []),
   ];
-  const bildeblokk = byggBildeblokk(feltBilder);
+  const bildeblokk = byggBildeblokk(feltBilder, teller);
 
   return `<div class="ark-radkort-felt">${label}${innhold}</div>${bildeblokk}`;
 }
 
 /** Radkortene for én repeater (uten seksjonshode — kalles av byggRadkort + nesting). */
-function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number): string {
+function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number, teller: BildeTeller): string {
   const barn = objekt.children ?? [];
   return rader
     .map((rad, idx) => {
@@ -181,20 +177,28 @@ function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number): strin
         `<span class="ark-radkort-tittel">${esc(objekt.label)} — rad ${radnr}</span>` +
         markorTekst +
         `</div>`;
-      const felter = barn.map((b) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde)).join("");
+      const felter = barn.map((b) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde, teller)).join("");
       return `<div class="ark-radkort">${header}<div class="ark-radkort-kropp">${felter}</div></div>`;
     })
     .join("");
 }
 
 /** Rik repeater som radkort (seksjonshode + ett kort per rad). Tom → «Ingen rader registrert». */
-export function byggRadkort(objekt: TreObjekt, verdi: unknown, label: string, objektFelt?: FeltVerdi): string {
+export function byggRadkort(
+  objekt: TreObjekt,
+  verdi: unknown,
+  label: string,
+  objektFelt?: FeltVerdi,
+  teller: BildeTeller = nyBildeTeller(),
+): string {
   const rader = Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : [];
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk «Registrert utenfor rader» rett over kortene (tom → "").
-  const blokk = byggUtenforRaderBlokk(objektFelt, 1);
+  // Dokumenttelleren fortsetter fra feltene foran (ordre 2026-11-04 (2)).
+  const blokk = byggUtenforRaderBlokk(objektFelt, teller.neste);
+  teller.neste = blokk.nesteNr;
   if (rader.length === 0) {
     return `${heading}${blokk.html}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
   }
-  return `${heading}${blokk.html}${byggRadkortRader(objekt, rader, 0)}`;
+  return `${heading}${blokk.html}${byggRadkortRader(objekt, rader, 0, teller)}`;
 }

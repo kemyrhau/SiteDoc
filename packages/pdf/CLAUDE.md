@@ -28,6 +28,15 @@ Motoren (Playwright `page.pdf`) bor i den interne **pdf-render-containeren**; de
   css-filer (aldri `.kommentar`). 🔴 Hardkodet nb — arkiv-PDF har intet locale-lag (i18n er egen BACKLOG-sak).
   `TilfoyelsePdf` er strukturell kopiklasse av `apps/api/src/services/kollisjonsmerge.ts#Tilfoyelse` (kilden
   som skriver den); pdf importerer bevisst verken api eller shared.
+- **Felt-blokk og bildenummer (ordre 2026-11-04 (2)):** `renderFelt` (`felt.ts`) bygger label →
+  verdi → bilder → tilføyelser → kommentar → filer (teksten før bildene). Svarteksten `.felt-verdi` er
+  12px i arkiv-CSS-en (brødtekst 10.5px). Hvert bilde får bildetekst under seg, `.ark-bilde-tekst`
+  «Bilde 01 · 03.11.2026 09:56», via `bildeMerke` (`hjelpere.ts`; tid fra `bildeOpptakTid`, tre
+  tilstander: opptakTidspunkt → opprettet → «Tidspunkt ikke tilgjengelig»). ÉN `BildeTeller` pr.
+  `byggInnhold`-kjøring tres gjennom `renderFelt`, `byggRepeaterTabell`, `byggRadkort` (inkl. F7
+  objektnivå-blokken) og nestede seksjoner — løpenummeret går over hele dokumentet i render-rekkefølge.
+  Lagret `bildeNr` fra appen har forrang (det er alt dokument-løpende: `nesteBildeNr` i
+  `@sitedoc/shared/utils/bildeNr.ts`); telleren er fallback. Test: `arkivmal/bildenummer.test.ts`.
 - `timer-rapport.ts` — timer-rapport-dokument (firmatopp + sammendrag + detaljtabeller). Overskrifter injiseres oversatt (`TimerRapportTekster`) — ingen i18n i pakken.
 - `hjelpere.ts` — `esc`, `formaterDato` m.fl.
 

@@ -410,6 +410,20 @@ Verdien er at brukeren kan skrive «se bilde 07» i teksten mens han er på
 befaring — et nummer som oppstår ved rendering finnes ikke når teksten skrives.
 Rører ikke PDF-laget og kan tas av en mobil-agent når som helst.
 
+> **Måling 2026-11-04:** appen tildeler nå `bildeNr` ved opptak, dokument-løpende
+> (`packages/shared/src/utils/bildeNr.ts#nesteBildeNr`, brukt av alle fire skjema-hooks).
+> Nummeret følger opptaksrekkefølge, ikke nødvendigvis render-rekkefølge.
+
+### PDF: tekst før bilder + løpende bildenummer ✅ LEVERT (`feat/pdf-tekst-for-bilder`, 2026-11-04)
+
+Ordre 2026-11-04 (2). Felt-blokka i `packages/pdf/src/felt.ts` er label → verdi → bilder →
+tilføyelser → kommentar → filer. `.felt-verdi` er 12px (`arkivmal/arkiv-css.ts`). Hvert bilde har
+bildetekst «Bilde NN · dato tid» (`bildeMerke`, `hjelpere.ts`) — samme stil som repeaterne
+(`.ark-bilde-tekst`); `.bilde-nr`-hjørnemerket er fjernet fra arkiv-CSS-en. Én `BildeTeller` pr.
+`byggInnhold` gir ett løpenummer for hele dokumentet (felt, tabell-repeater, radkort, F7-blokk);
+lagret `bildeNr` har forrang. Test: `arkivmal/bildenummer.test.ts`. Ingen API-, migrerings- eller
+mobil-endring (nye parametre har standardverdi).
+
 ## Avhengighetskart
 
 ```
