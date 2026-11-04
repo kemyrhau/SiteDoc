@@ -64,7 +64,7 @@ hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
   Hjem og i Mapper, eller fra raden «Søk … i hele prosjektet» under søkefeltet i oppgave-, sjekkliste- og HMS-lista
   (da er lista du kom fra valgt, og teksten er tatt med).
 - **Alle · Mapper · Sjekklister · Oppgaver · HMS:** «Alle» viser treff fra alle fem, med de ti første i hver gruppe.
-  Trykk på en gruppe for å se alle treffene der. ⚠️ HMS og inngangene ligger på `feat/sok-innganger`, ikke merget.
+  Trykk på en gruppe for å se alle treffene der.
 - **Mapper** søker i teksten inni dokumentene. Trykk et treff for å lese stedet i dokumentet; pilene går mellom
   treffene, og «Åpne dokumentet» viser hele fila. Krever nett.
 - **Sjekklister og oppgaver** søker på nummer, tittel og mal — ikke på det som er fylt ut. Uten nett søkes den

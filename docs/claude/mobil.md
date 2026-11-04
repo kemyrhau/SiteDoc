@@ -789,7 +789,7 @@ Sjekklister · Oppgaver» (standard «Alle», seksjoner Mapper → Sjekklister �
   `src/components/sok/sokLogikk.ts` (testet), utsnitt delt med web i `packages/shared/src/sok/utsnitt.ts`.
 - **Utenfor:** innholdssøk i `Checklist.data`/`Task.data` (egen sak, spec § 9.2) og omfangsvelger på web.
 
-**Søkeinnganger (spec-sok-innganger, ORDRE 2026-11-04, branch `feat/sok-innganger`):** ⚠️ ikke merget.
+**Søkeinnganger (spec-sok-innganger, ORDRE 2026-11-04, `aa1f3213`, merge `6a4b278e`):**
 - **HMS som femte kilde:** omfangsvelgeren er «Alle · Mapper · Sjekklister · Oppgaver · HMS» (`KILDE_REKKEFOLGE`,
   HMS sist i «Alle»). Kilden er `hms.hentDokumenter` uten byggeplass (søk = hele prosjektet), offline `hentHmsLokalt`
   med samme kildevalg og «lagret versjon»-merknad som de andre listene. De tre fanene flates ut (`flatHmsRader`);
