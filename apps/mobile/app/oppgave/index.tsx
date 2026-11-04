@@ -40,6 +40,7 @@ import {
   ballenBrukerForKilde,
   byggAlternativer,
   filtrerOgSorter,
+  tilgjengeligeSorteringer,
   type DokumentRad,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
 import {
@@ -90,7 +91,8 @@ export default function OppgaveListe() {
     søkeTokens,
     filterVerdier: råFilter,
     sortering,
-    settSortering,
+    trykkSortering,
+    nullstillSortering,
     periode,
     settPeriode,
     visSheet,
@@ -362,13 +364,15 @@ export default function OppgaveListe() {
         </Pressable>
       </View>
 
-      {antallFilter > 0 && (
+      {(antallFilter > 0 || sortering.length > 0) && (
         <AktiveFilterChips
           chips={aktiveChips}
           synlige={synlige.length}
           totalt={totalt}
           onFjern={fjernChip}
           onNullstill={nullstillFilter}
+          sortering={sortering}
+          onNullstillSortering={nullstillSortering}
         />
       )}
 
@@ -426,7 +430,8 @@ export default function OppgaveListe() {
         sortering={sortering}
         antallTreff={synlige.length}
         onSettFilter={settFilter}
-        onSettSortering={settSortering}
+        sorteringsnokler={tilgjengeligeSorteringer(oppgaver ?? [], sortering)}
+        onTrykkSortering={trykkSortering}
         onNullstill={nullstillFilter}
         onLukk={() => settVisSheet(false)}
         periode={periode}

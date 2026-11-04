@@ -46,10 +46,62 @@ export interface DokumentRad {
   recipientGroupId?: string | null;
 }
 
-export type Sortering = "nyeste" | "eldste" | "endret" | "frist" | "nummer" | "emne" | "navn";
+/** Sorteringsnøklene (flernivå-sortering 2026-11-04) — rekkefølgen arket viser dem i. */
+export type SorterNokkel = "opprettet" | "endret" | "frist" | "nummer" | "emne" | "navn";
+export type Retning = "stigende" | "synkende";
+export interface SorterNivaa {
+  nokkel: SorterNokkel;
+  retning: Retning;
+}
+/** 0–3 nivåer i prioritert rekkefølge. `[]` = standardsortering (opprettet, nyeste først). */
+export type Sortering = SorterNivaa[];
 
-/** Sorteringene i den rekkefølgen arket viser dem. */
-export const SORTERINGER: Sortering[] = ["nyeste", "eldste", "endret", "frist", "nummer", "emne", "navn"];
+export const SORTER_NOKLER: SorterNokkel[] = ["opprettet", "endret", "frist", "nummer", "emne", "navn"];
+export const MAKS_SORTERNIVAAER = 3;
+/** Retningen en nøkkel får ved første trykk — tidspunkt nyeste først, resten stigende. */
+export const STARTRETNING: Record<SorterNokkel, Retning> = {
+  opprettet: "synkende",
+  endret: "synkende",
+  frist: "stigende",
+  nummer: "stigende",
+  emne: "stigende",
+  navn: "stigende",
+};
+
+/**
+ * Trykk på en sorteringsbrikke: ny nøkkel legges til som neste nivå (maks 3 —
+ * ellers uendret), valgt nøkkel med startretning snus, snudd nøkkel fjernes og
+ * nivåene under rykker opp. Syklus: legg til → snu → fjern.
+ */
+export function trykkSorteringsbrikke(sortering: Sortering, nokkel: SorterNokkel): Sortering {
+  const i = sortering.findIndex((n) => n.nokkel === nokkel);
+  if (i === -1) {
+    if (sortering.length >= MAKS_SORTERNIVAAER) return sortering;
+    return [...sortering, { nokkel, retning: STARTRETNING[nokkel] }];
+  }
+  const nivaa = sortering[i]!;
+  if (nivaa.retning === STARTRETNING[nokkel]) {
+    const snudd: Retning = nivaa.retning === "stigende" ? "synkende" : "stigende";
+    return sortering.map((n, j) => (j === i ? { nokkel, retning: snudd } : n));
+  }
+  return sortering.filter((_, j) => j !== i);
+}
+
+/**
+ * Nøklene arket viser (adaptivt): opprettet/endret/navn alltid; frist, nummer og
+ * emne bare når minst én rad har verdi. En valgt nøkkel vises alltid (kan fjernes).
+ */
+export function tilgjengeligeSorteringer(rader: DokumentRad[], sortering: Sortering): SorterNokkel[] {
+  const harData: Record<SorterNokkel, boolean> = {
+    opprettet: true,
+    endret: true,
+    navn: true,
+    frist: rader.some((r) => !!r.dueDate),
+    nummer: rader.some((r) => r.number != null),
+    emne: rader.some((r) => !!r.subject?.trim()),
+  };
+  return SORTER_NOKLER.filter((k) => harData[k] || sortering.some((n) => n.nokkel === k));
+}
 
 /** Filter-kolonner sheetet styrer (status + byggeplass hører IKKE hit — fabel). */
 export const FILTER_KOLONNER = [
@@ -284,26 +336,54 @@ export function filtrerOgSorter(
       .map((x) => x.rad);
   }
 
-  const tid = (d: Date | string) => new Date(d).getTime();
-  return [...filtrert].sort((a, b) => {
-    switch (sortering) {
-      case "eldste":
-        return tid(a.createdAt) - tid(b.createdAt);
-      case "endret":
-        return tid(b.updatedAt) - tid(a.updatedAt);
-      case "frist":
-        return tomSist(a.dueDate, b.dueDate, (x, y) => tid(x) - tid(y));
-      case "nummer":
-        return tomSist(a.number, b.number, (x, y) => x - y);
-      case "emne":
-        return tomSist(a.subject?.trim(), b.subject?.trim(), (x, y) => x.localeCompare(y, "nb"));
-      case "navn":
-        return a.title.localeCompare(b.title, "nb");
-      case "nyeste":
-      default:
-        return tid(b.createdAt) - tid(a.createdAt);
-    }
+  return [...filtrert].sort((a, b) => sammenlignRader(a, b, sortering));
+}
+
+const tid = (d: Date | string) => new Date(d).getTime();
+
+/** Stigende sammenligning for én nøkkel; tom verdi gir `null` (håndteres av `sammenlignNivaa`). */
+function verdi(r: DokumentRad, nokkel: SorterNokkel): number | string | null {
+  switch (nokkel) {
+    case "opprettet":
+      return tid(r.createdAt);
+    case "endret":
+      return tid(r.updatedAt);
+    case "frist":
+      return r.dueDate ? tid(r.dueDate) : null;
+    case "nummer":
+      return r.number ?? null;
+    case "emne":
+      return r.subject?.trim() || null;
+    case "navn":
+      return r.title;
+  }
+}
+
+/** Ett nivå: retningen gir fortegnet, men tom verdi havner sist i begge retninger. */
+function sammenlignNivaa(a: DokumentRad, b: DokumentRad, { nokkel, retning }: SorterNivaa): number {
+  return tomSist(verdi(a, nokkel), verdi(b, nokkel), (x, y) => {
+    const cmp = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "nb");
+    return retning === "stigende" ? cmp : -cmp;
   });
+}
+
+const STANDARDSORTERING: Sortering = [{ nokkel: "opprettet", retning: "synkende" }];
+/** Fast, skjult hale: nummer, deretter id — nummer gjentas på tvers av maler (AVV-3/SJA-3). */
+const HALE: SorterNivaa = { nokkel: "nummer", retning: "stigende" };
+
+/**
+ * Flernivå-komparator: nivåene i rekkefølge (første ulikhet vinner), deretter
+ * nummer ↑ og id, slik at like rader alltid får samme rekkefølge uansett
+ * rekkefølgen de kom inn i. `[]` = opprettet, nyeste først.
+ */
+export function sammenlignRader(a: DokumentRad, b: DokumentRad, sortering: Sortering): number {
+  for (const nivaa of sortering.length ? sortering : STANDARDSORTERING) {
+    const r = sammenlignNivaa(a, b, nivaa);
+    if (r !== 0) return r;
+  }
+  const r = sammenlignNivaa(a, b, HALE);
+  if (r !== 0) return r;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 /** Antall aktive filter-egenskaper (trakt-telleren «▼ N») — status/byggeplass teller ikke. */

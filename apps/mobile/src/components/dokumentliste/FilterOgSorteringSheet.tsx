@@ -6,11 +6,13 @@ import type { Periode } from "@sitedoc/shared";
 import { EnkeltvelgerModal, type VelgerAlternativ } from "./EnkeltvelgerModal";
 import { PeriodeFilter } from "../PeriodeFilter";
 import {
-  SORTERINGER,
+  MAKS_SORTERNIVAAER,
   type DokumentAlternativer,
   visFilterKolonne,
+  type SorterNokkel,
   type Sortering,
 } from "./dokumentlisteFilter";
+import { brikkeA11y, brikkeEtikett } from "./sorteringEtikett";
 import { filterEtikett, FRIST_NOEKKEL } from "./filterEtikett";
 
 type NedtrekkKol =
@@ -21,16 +23,6 @@ type NedtrekkKol =
   | "bestillerFaggruppe"
   | "utforerFaggruppe"
   | "tegning";
-
-const SORTERING_NOEKKEL: Record<Sortering, string> = {
-  nyeste: "dokumentsok.sorteringNyeste",
-  eldste: "dokumentsok.sorteringEldste",
-  endret: "dokumentsok.sorteringEndret",
-  frist: "dokumentsok.sorteringFrist",
-  nummer: "dokumentsok.sorteringNummer",
-  emne: "dokumentsok.sorteringEmne",
-  navn: "dokumentsok.sorteringNavn",
-};
 
 const NEDTREKK_TITTEL: Record<NedtrekkKol, string> = {
   emne: "tabell.emne",
@@ -55,9 +47,10 @@ export function FilterOgSorteringSheet({
   alternativer,
   filterVerdier,
   sortering,
+  sorteringsnokler,
   antallTreff,
   onSettFilter,
-  onSettSortering,
+  onTrykkSortering,
   onNullstill,
   onLukk,
   periode,
@@ -69,9 +62,12 @@ export function FilterOgSorteringSheet({
   alternativer: DokumentAlternativer;
   filterVerdier: Record<string, string>;
   sortering: Sortering;
+  /** Nøklene lista har data for (`tilgjengeligeSorteringer`). */
+  sorteringsnokler: SorterNokkel[];
   antallTreff: number;
   onSettFilter: (kolId: string, verdi: string) => void;
-  onSettSortering: (s: Sortering) => void;
+  /** Trykk på en sorteringsbrikke — lista sorteres om straks. */
+  onTrykkSortering: (nokkel: SorterNokkel) => void;
   onNullstill: () => void;
   onLukk: () => void;
   /** Opprettet-periode. Utelatt = feltet vises ikke. */
@@ -107,15 +103,19 @@ export function FilterOgSorteringSheet({
     onSettFilter(kolId, Array.from(neste).join(","));
   };
 
-  const chip = (key: string, label: string, valgt: boolean, onTrykk: () => void) => (
+  const chip = (key: string, label: string, valgt: boolean, onTrykk: () => void, dempet = false, a11y?: string) => (
     <Pressable
       key={key}
       onPress={onTrykk}
-      className={`rounded-full px-3 py-1.5 ${valgt ? "bg-sitedoc-primary" : "border border-gray-300"}`}
+      disabled={dempet}
+      accessibilityLabel={a11y}
+      accessibilityState={{ selected: valgt, disabled: dempet }}
+      className={`rounded-full px-3 py-1.5 ${valgt ? "bg-sitedoc-primary" : "border border-gray-300"} ${dempet ? "opacity-40" : ""}`}
     >
       <Text className={`text-xs ${valgt ? "text-white" : "text-gray-700"}`}>{label}</Text>
     </Pressable>
   );
+  const fullt = sortering.length >= MAKS_SORTERNIVAAER;
 
   const nedtrekk = (kolId: NedtrekkKol) => {
     const v = filterVerdier[kolId];
@@ -192,10 +192,19 @@ export function FilterOgSorteringSheet({
           )}
 
           {seksjon(t("dokumentsok.sortering"))}
+          <Text className="-mt-1 mb-2 text-xs text-gray-500">{t("dokumentsok.sorteringHjelp")}</Text>
           <View className="mb-4 flex-row flex-wrap gap-1.5">
-            {SORTERINGER.map((s) =>
-              chip(s, t(SORTERING_NOEKKEL[s]), sortering === s, () => onSettSortering(s)),
-            )}
+            {sorteringsnokler.map((k) => {
+              const valgt = sortering.some((n) => n.nokkel === k);
+              return chip(
+                k,
+                brikkeEtikett(sortering, k, t),
+                valgt,
+                () => onTrykkSortering(k),
+                fullt && !valgt,
+                brikkeA11y(sortering, k, t),
+              );
+            })}
           </View>
 
           {visHva && (

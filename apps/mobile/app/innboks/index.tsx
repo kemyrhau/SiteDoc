@@ -34,6 +34,7 @@ import {
 import {
   byggAlternativer,
   filtrerOgSorter,
+  tilgjengeligeSorteringer,
   type DokumentRad,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
 import {
@@ -66,7 +67,8 @@ export default function InnboksListe() {
     søkeTokens,
     filterVerdier: råFilter,
     sortering,
-    settSortering,
+    trykkSortering,
+    nullstillSortering,
     periode,
     settPeriode,
     visSheet,
@@ -262,13 +264,15 @@ export default function InnboksListe() {
       </View>
 
       {/* Fjernbare filter-chips + «Viser N av M». */}
-      {antallFilter > 0 && (
+      {(antallFilter > 0 || sortering.length > 0) && (
         <AktiveFilterChips
           chips={aktiveChips}
           synlige={synlige.length}
           totalt={totalt}
           onFjern={fjernChip}
           onNullstill={nullstillFilter}
+          sortering={sortering}
+          onNullstillSortering={nullstillSortering}
         />
       )}
 
@@ -305,7 +309,8 @@ export default function InnboksListe() {
         sortering={sortering}
         antallTreff={synlige.length}
         onSettFilter={settFilter}
-        onSettSortering={settSortering}
+        sorteringsnokler={tilgjengeligeSorteringer(aktive, sortering)}
+        onTrykkSortering={trykkSortering}
         onNullstill={nullstillFilter}
         onLukk={() => settVisSheet(false)}
         periode={periode}

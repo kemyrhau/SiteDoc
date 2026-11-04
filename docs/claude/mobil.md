@@ -801,12 +801,24 @@ har ikke prioritet og leser alltid serverrader:
   filter, teller og chips. Chip-raden over lista er `AktiveFilterChips.tsx` («Viser N av M — nullstill filter»);
   etikettene kommer fra `filterEtikett.ts` (ren, vitest) — interne verdier som `__uten_emne__` vises aldri rått.
 - **Logikk:** `filtrerOgSorter(rader, søk, filter, sortering, {periode, bruker})` i `dokumentlisteFilter.ts` (ren,
-  vitest). Sorteringer (`SORTERINGER`): nyeste · eldste · sist endret · frist (uten frist sist) · nummer · emne ·
-  navn. Filterkolonner (`FILTER_KOLONNER`): emne (inkl. «Uten emne»), mal, prioritet (kun oppgaver), frist
+  vitest). Filterkolonner (`FILTER_KOLONNER`): emne (inkl. «Uten emne»), mal, prioritet (kun oppgaver), frist
   (har frist / ingen frist / forfalt — avsluttede, godkjente og avbrutte teller ikke som forfalt,
   `TERMINALE_DOKUMENTSTATUSER`), opprettet av (`bestiller`), mottaker/ansvarlig, bestiller- og
   utførerfaggruppe, tegning, dokumentflyt, «ballen hos meg». Opprettet-periode via `innenforPeriode` fra
   `@sitedoc/shared`.
+- **Flernivå-sortering (2026-11-04):** `Sortering` = liste av `{nokkel, retning}`, opptil `MAKS_SORTERNIVAAER` (3).
+  Nøkler (`SORTER_NOKLER`): opprettet · sist endret · frist · nummer · emne · navn, med startretning i
+  `STARTRETNING` (tid ↓, resten ↑). `sammenlignRader` tar nivåene i rekkefølge (tomme verdier sist i begge
+  retninger), deretter en fast skjult hale nummer ↑ og id — stabil rekkefølge selv når nummer gjentas på tvers av
+  maler. `[]` = opprettet ↓ (som før). Brikke-syklus `trykkSorteringsbrikke`: legg til → snu → fjern (nivåene under
+  flytter opp); ved 3 nivåer er uvalgte brikker dempet og et trykk endrer ingenting. Lista sorteres om straks;
+  «Vis N treff» lukker bare arket. Adaptivt (`tilgjengeligeSorteringer`): opprettet/endret/navn alltid,
+  frist/nummer/emne bare når minst én rad har verdi, valgt nøkkel alltid. Etiketter i `sorteringEtikett.ts`
+  («1 · Frist ↑», skjermleser «Frist, nivå 1, stigende»). Aktiv sortering vises som egen brikke først i
+  `AktiveFilterChips` («Frist ↑, deretter Nummer ↓»); trykk nullstiller til `[]`. «Nullstill filter» rører ikke
+  sorteringen, trakt-telleren teller den ikke, og «Viser N av M» vises bare med aktive filtre. Søk overstyrer
+  sorteringen med relevans. Sorteringen lagres ikke (minne pr. liste, nullstilles ved prosjektbytte). Søkesiden
+  (`app/sok/index.tsx`) bruker `[]`.
 - **Arket** `FilterOgSorteringSheet.tsx`: «Ballen hos meg»-bryter øverst, sortering, deretter seksjonene
   HVA · NÅR · HVEM · HVOR. Adaptivt: et filter vises bare når lista har ≥ 2 ulike verdier (eller filteret er satt).
   Forhåndsdefinerte valg (chips/nedtrekk), ingen fritekst.
