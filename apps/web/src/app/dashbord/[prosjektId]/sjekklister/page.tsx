@@ -17,6 +17,7 @@ import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/Kolonne
 import { faggruppeNavn } from "@/lib/sjekkliste-faggruppe";
 import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type Periode, type PeriodeFelt } from "@sitedoc/shared";
 import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
+import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
 
 // --- Typer ---
 
@@ -530,7 +531,7 @@ export default function SjekklisteSide() {
       mal: bygg(data.map((s) => s.template.name)),
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
-      omrade: bygg(data.map((s) => s.omrade?.navn)),
+      omrade: omradeFilterAlternativer(data),
       tegning: bygg(data.map((s) => s.drawing?.name)),
       dokumentflyt: bygg(data.map((s) => s.dokumentflyt?.name)),
       flyt: bygg(data.map((s) => hentFlytLedd(s))),
@@ -771,7 +772,7 @@ export default function SjekklisteSide() {
       omrade: { id: "omrade", header: t("tabell.omrade"), celle: (rad) => rad.omrade?.navn
         ? <span className="text-xs text-gray-600">{rad.omrade.navn}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.omrade?.navn ?? "",
-        filtrerbar: (dynamiskFilter.omrade?.length ?? 0) > 0, filterAlternativer: dynamiskFilter.omrade ?? [] },
+        filtrerbar: visOmradeFilter(dynamiskFilter.omrade), filterAlternativer: dynamiskFilter.omrade ?? [] },
       tegning: { id: "tegning", header: t("tabell.tegning"), celle: (rad) => rad.drawing?.name
         ? <span className="text-xs text-gray-600">{rad.drawing.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [] },

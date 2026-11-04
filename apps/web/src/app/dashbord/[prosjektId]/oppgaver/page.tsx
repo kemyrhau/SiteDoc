@@ -15,6 +15,7 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
 
 // --- Typer ---
 
@@ -552,7 +553,7 @@ export default function OppgaverSide() {
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
-      omrade: bygg(oppgaver.map((o) => o.omrade?.navn)),
+      omrade: omradeFilterAlternativer(oppgaver),
       tegning: bygg(oppgaver.map((o) => o.drawing?.name)),
       prioritet: PRIORITETER.map((p) => ({ value: p.value, label: t(p.labelKey) })),
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
@@ -867,7 +868,7 @@ export default function OppgaverSide() {
       omrade: { id: "omrade", header: t("tabell.omrade"), celle: (rad) => rad.omrade?.navn
         ? <span className="text-xs text-gray-600">{rad.omrade.navn}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.omrade?.navn ?? "",
-        filtrerbar: (dynamiskFilter.omrade?.length ?? 0) > 0, filterAlternativer: dynamiskFilter.omrade ?? [] },
+        filtrerbar: visOmradeFilter(dynamiskFilter.omrade), filterAlternativer: dynamiskFilter.omrade ?? [] },
       tegning: {
         id: "tegning", header: t("tabell.tegning"),
         celle: (rad) => rad.drawing?.name

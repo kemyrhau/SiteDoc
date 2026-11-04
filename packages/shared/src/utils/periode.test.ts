@@ -49,6 +49,10 @@ describe("innenforPeriode", () => {
   it("dato før fra → ute", () => {
     expect(innenforPeriode(new Date("2026-03-09T12:00:00"), fra, til)).toBe(false);
   });
+  it("grense: siste millisekund av til-dagen er inne, midnatt dagen etter er ute", () => {
+    expect(innenforPeriode(new Date("2026-03-12T23:59:59.999"), fra, til)).toBe(true);
+    expect(innenforPeriode(new Date("2026-03-13T00:00:00.000"), fra, til)).toBe(false);
+  });
   it("dato etter til-dagen → ute", () => {
     expect(innenforPeriode(new Date("2026-03-14T00:00:00"), fra, til)).toBe(false);
   });

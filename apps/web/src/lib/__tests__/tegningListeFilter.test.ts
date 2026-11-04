@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   filtrerTegningerPaaMetadata,
   tegningFilterAlternativer,
+  tegningMetaTekst,
   visTegningFilter,
   TOMT_TEGNING_FILTER,
 } from "../tegningListeFilter";
@@ -52,5 +53,29 @@ describe("tegningslista B-5 — alternativer", () => {
 
   it("et satt filter vises selv med færre enn to valg", () => {
     expect(visTegningFilter(["godkjent"], "godkjent")).toBe(true);
+  });
+});
+
+describe("tegningMetaTekst", () => {
+  // Stub: nøkkel + interpolerte verdier, så testen ser hva som sendes til t().
+  const t = (k: string, o?: Record<string, unknown>) => (o ? `${k}(${Object.values(o).join(",")})` : k);
+
+  it("setter sammen rev, status, kildeformat og utgitt-dato i fast rekkefølge", () => {
+    const tekst = tegningMetaTekst(
+      { revision: "C", status: "godkjent", originalFileUrl: "/uploads/a.dwg", fileType: "svg", issuedAt: "2026-11-03T12:00:00Z" },
+      t,
+      "nb",
+    );
+    expect(tekst).toBe("tegninger.rev(C) · tegninger.statusGodkjent · DWG · tegninger.utgittDato(3.11.2026)");
+  });
+
+  it("datoen følger UI-språket, ikke hardkodet nb-NO", () => {
+    const tg = { issuedAt: "2026-11-03T12:00:00Z" };
+    expect(tegningMetaTekst(tg, t, "en-US")).toBe("tegninger.utgittDato(11/3/2026)");
+    expect(tegningMetaTekst(tg, t, "nb")).toBe("tegninger.utgittDato(3.11.2026)");
+  });
+
+  it("tomme felt og ugyldig dato utelates", () => {
+    expect(tegningMetaTekst({ issuedAt: "tull" }, t, "nb")).toBe("");
   });
 });

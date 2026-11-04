@@ -191,11 +191,14 @@ Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
 **Metadata S-pakke (`feat/metadata-s-pakke`, 2026-11-04):**
 - **B-0 periodefilter:** `DokumentPeriodeFilter.tsx` i verktøylinja på `sjekklister/page.tsx` og `oppgaver/page.tsx` —
   velg felt (opprettet / endret) og hurtigvalg. Filtreringen er klient-side via `filtrerPaaPeriode`
-  (`@sitedoc/shared` `utils/periode.ts`); ingen API-endring.
-- **B-1 område:** kolonnen `tabell.omrade` (`rad.omrade?.navn`) i begge listene, filtrerbar via `Table`. Krever
-  omrade-include i `sjekkliste/oppgave.hentForProsjekt`; mot eldre API er alle verdier tomme og filteret skjules.
+  (`@sitedoc/shared` `utils/periode.ts`); ingen API-endring. Til-datoen er inklusiv hele dagen; midnatt dagen etter er
+  utenfor (`innenforPeriode`, `>=`).
+- **B-1 område:** kolonnen `tabell.omrade` (`rad.omrade?.navn`) i begge listene, filtrerbar via `Table`. Regelen ligger i
+  `apps/web/src/lib/omradeFilter.ts` (`omradeFilterAlternativer` + `visOmradeFilter`: vises bare når lista har minst ett
+  område). Krever omrade-include i `sjekkliste/oppgave.hentForProsjekt` (låst av `hentForProsjekt-omrade.test.ts`); mot
+  eldre API er alle verdier tomme og filteret skjules.
 - **B-5 tegningsmetadata i `TegningerPanel`:** hver rad får en metalinje «Rev. B · Godkjent · DWG · Utgitt 03.11.2026»
-  (bare delene som finnes). Kildeformat = filendelsen i `originalFileUrl` (`utledKildeformat`), siden `fileType`
+  (bare delene som finnes; `tegningMetaTekst` i `tegningListeFilter.ts`, datoen i UI-språket). Kildeformat = filendelsen i `originalFileUrl` (`utledKildeformat`), siden `fileType`
   overskrives til svg/png etter konvertering. Under søkefeltet ligger adaptive nedtrekk for status, kildeformat og
   georeferanse (`apps/web/src/lib/tegningListeFilter.ts`): et nedtrekk vises bare når tegningene har ≥ 2 ulike verdier
   eller filteret er satt. Med aktivt filter skjules byggeplasser uten treff, også ved navnetreff. Data kommer fra

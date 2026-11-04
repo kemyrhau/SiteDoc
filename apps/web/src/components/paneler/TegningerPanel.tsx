@@ -5,11 +5,12 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { TEGNING_STATUS_NOEKKEL, utledKildeformat } from "@sitedoc/shared";
+import { TEGNING_STATUS_NOEKKEL } from "@sitedoc/shared";
 import {
   filtrerTegningerPaaMetadata,
   tegningFilterAktivt,
   tegningFilterAlternativer,
+  tegningMetaTekst,
   visTegningFilter,
   TOMT_TEGNING_FILTER,
   type GeorefValg,
@@ -132,28 +133,11 @@ function tegningVisningstekst(t: Tegning): string {
   return t.drawingNumber || t.name;
 }
 
-/** B-5: «Rev. B · Godkjent · DWG · Utgitt 03.11.2026» — bare delene som finnes. */
-function tegningMetaTekst(tg: Tegning, t: (k: string, o?: Record<string, unknown>) => string): string {
-  const deler: string[] = [];
-  if (tg.revision) deler.push(t("tegninger.rev", { rev: tg.revision }));
-  const statusNoekkel = tg.status ? (TEGNING_STATUS_NOEKKEL as Record<string, string>)[tg.status] : undefined;
-  if (statusNoekkel) deler.push(t(statusNoekkel));
-  const kf = utledKildeformat(tg.originalFileUrl, tg.fileType);
-  if (kf) deler.push(kf.toUpperCase());
-  if (tg.issuedAt) {
-    const dato = new Date(tg.issuedAt);
-    if (!Number.isNaN(dato.getTime())) {
-      deler.push(t("tegninger.utgittDato", { dato: dato.toLocaleDateString("nb-NO") }));
-    }
-  }
-  return deler.join(" · ");
-}
-
 export function TegningerPanel() {
   const params = useParams<{ prosjektId: string }>();
   const [sok, setSok] = useState("");
   const [filter, setFilter] = useState<TegningFilter>(TOMT_TEGNING_FILTER);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [utvidede, setUtvidede] = useState<Set<string>>(new Set());
   const { aktivByggeplass, velgByggeplass, standardTegning, settStandardTegning, aktivTegning, settAktivTegning } =
     useByggeplass();
@@ -633,7 +617,7 @@ export function TegningerPanel() {
                                 standardTegning?.id === tegning.id;
                               const erAktivTegning =
                                 aktivTegning?.id === tegning.id;
-                              const meta = tegningMetaTekst(tegning, t);
+                              const meta = tegningMetaTekst(tegning, t, i18n.language || "nb");
                               return (
                                 <button
                                   key={tegning.id}

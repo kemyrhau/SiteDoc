@@ -71,12 +71,12 @@ export function effektiveGrenser(periode: Periode): { fra: Date | null; til: Dat
 
 /**
  * Er en dato innenfor perioden? `til` er inklusiv HELE til-dagen (mønster fra Bilder-siden:
- * `til + 1 døgn`). Åpen ende når en grense er null. Merk: `fra > til` gir tom (ingen dato passerer
+ * `til + 1 døgn`, eksklusiv — midnatt dagen etter er utenfor). Åpen ende når en grense er null. Merk: `fra > til` gir tom (ingen dato passerer
  * begge testene) — det er meningen, jf. hint-en i UI-en.
  */
 export function innenforPeriode(dato: Date, fra: Date | null, til: Date | null): boolean {
   if (fra && dato < fra) return false;
-  if (til && dato > new Date(til.getTime() + DØGN_MS)) return false;
+  if (til && dato >= new Date(til.getTime() + DØGN_MS)) return false;
   return true;
 }
 

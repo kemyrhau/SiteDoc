@@ -1,4 +1,4 @@
-import { DRAWING_STATUSES, utledKildeformat } from "@sitedoc/shared";
+import { DRAWING_STATUSES, TEGNING_STATUS_NOEKKEL, utledKildeformat } from "@sitedoc/shared";
 
 /**
  * Metadata S-pakke B-5: filter for tegningslista (web `TegningerPanel`). Status,
@@ -71,4 +71,36 @@ export function tegningFilterAlternativer(tegninger: TegningMetadataRad[]): Tegn
 /** Synlig når det finnes noe å velge mellom, eller filteret alt er satt. */
 export function visTegningFilter(alternativer: string[], verdi: string): boolean {
   return alternativer.length >= 2 || !!verdi;
+}
+
+export interface TegningMetaRad {
+  revision?: string | null;
+  status?: string | null;
+  issuedAt?: string | Date | null;
+  fileType?: string | null;
+  originalFileUrl?: string | null;
+}
+
+/**
+ * B-5: «Rev. B · Godkjent · DWG · Utgitt 03.11.2026» — bare delene som finnes. Datoen formateres
+ * med UI-språket (`sprak` = `i18n.language`), som resten av web.
+ */
+export function tegningMetaTekst(
+  tg: TegningMetaRad,
+  t: (k: string, o?: Record<string, unknown>) => string,
+  sprak: string,
+): string {
+  const deler: string[] = [];
+  if (tg.revision) deler.push(t("tegninger.rev", { rev: tg.revision }));
+  const statusNoekkel = tg.status ? (TEGNING_STATUS_NOEKKEL as Record<string, string>)[tg.status] : undefined;
+  if (statusNoekkel) deler.push(t(statusNoekkel));
+  const kf = utledKildeformat(tg.originalFileUrl, tg.fileType);
+  if (kf) deler.push(kf.toUpperCase());
+  if (tg.issuedAt) {
+    const dato = new Date(tg.issuedAt);
+    if (!Number.isNaN(dato.getTime())) {
+      deler.push(t("tegninger.utgittDato", { dato: dato.toLocaleDateString(sprak) }));
+    }
+  }
+  return deler.join(" · ");
 }
