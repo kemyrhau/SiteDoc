@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Rechercher « {{q}} » dans tout le projet",
   "sokMobil.placeholderOppgaver": "Rechercher dans les tâches",
   "sokMobil.placeholderSjekklister": "Rechercher dans les listes de contrôle",
-  "sokMobil.placeholderHms": "Rechercher dans HSE"
+  "sokMobil.placeholderHms": "Rechercher dans HSE",
+  "periodeFilter.periode": "Période",
+  "periodeFilter.opprettet": "Créé",
+  "periodeFilter.endret": "Modifié",
+  "tabell.omrade": "Zone",
+  "tegninger.filterAlleStatuser": "Tous les statuts",
+  "tegninger.filterAlleFormater": "Tous les formats",
+  "tegninger.filterGeorefAlle": "Géoréférencé ou non",
+  "tegninger.georeferanse": "Géoréférence",
+  "tegninger.ikkeGeoreferert": "Non géoréférencé",
+  "tegninger.kildeformat": "Format source",
+  "tegninger.utgittDato": "Publié {{dato}}"
 }

@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Kërko „{{q}}“ në të gjithë projektin",
   "sokMobil.placeholderOppgaver": "Kërko në detyra",
   "sokMobil.placeholderSjekklister": "Kërko në listat e kontrollit",
-  "sokMobil.placeholderHms": "Kërko në HSE"
+  "sokMobil.placeholderHms": "Kërko në HSE",
+  "periodeFilter.periode": "Periudha",
+  "periodeFilter.opprettet": "Krijuar",
+  "periodeFilter.endret": "I modifikuar",
+  "tabell.omrade": "Zona",
+  "tegninger.filterAlleStatuser": "Të gjitha statuset",
+  "tegninger.filterAlleFormater": "Të gjitha formatet",
+  "tegninger.filterGeorefAlle": "Gjeoreferencuar apo jo",
+  "tegninger.georeferanse": "Gjeoreferencë",
+  "tegninger.ikkeGeoreferert": "Jo gjeoreferencuar",
+  "tegninger.kildeformat": "Formati i burimit",
+  "tegninger.utgittDato": "Lëshuar {{dato}}"
 }

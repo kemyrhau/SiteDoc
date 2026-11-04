@@ -2,6 +2,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { tegningLocal, byggeplassNavLocal, dokumentSpeil } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import { utledKildeformat } from "@sitedoc/shared";
 
 /* ============================================================================
  *  Tegning-katalog-cache (offline-navigasjon, RETUR 2 2026-10-14)
@@ -44,6 +45,9 @@ export interface TegningLokalRad {
   fileUrl: string | null;
   mobilFileUrl: string | null;
   antallRevisjoner: number | null;
+  revision: string | null;
+  status: string | null;
+  kildeformat: string | null;
   sistOppdatert: number;
 }
 
@@ -58,6 +62,11 @@ interface RaTegning {
   fileUrl?: string | null;
   mobilFileUrl?: string | null;
   _count?: { revisions?: number } | null;
+  revision?: string | null;
+  status?: string | null;
+  originalFileUrl?: string | null;
+  /** B-5: utledet på server; eldre API mangler feltet → utledes lokalt. */
+  kildeformat?: string | null;
 }
 
 /**
@@ -97,6 +106,9 @@ export async function refreshTegningKatalog(
         mobilFileUrl: r.mobilFileUrl ?? null,
         revisjonsNokkel: revisjonsNokkelFor(r.fileUrl ?? null, r.mobilFileUrl ?? null),
         antallRevisjoner: r._count?.revisions ?? null,
+        revision: r.revision ?? null,
+        status: r.status ?? null,
+        kildeformat: r.kildeformat ?? utledKildeformat(r.originalFileUrl, r.fileType),
         sistOppdatert: naa,
       })
       .run();
@@ -125,6 +137,9 @@ export function hentTegningerLokalt(projectId: string, userId: string): TegningL
       fileUrl: r.fileUrl,
       mobilFileUrl: r.mobilFileUrl,
       antallRevisjoner: r.antallRevisjoner,
+      revision: r.revision,
+      status: r.status,
+      kildeformat: r.kildeformat,
       sistOppdatert: r.sistOppdatert,
     }));
 }

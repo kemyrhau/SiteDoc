@@ -32,6 +32,8 @@ export interface DokumentRad {
   template?: { name: string; prefix?: string | null } | null;
   byggeplass?: { name: string } | null;
   drawing?: { name: string | null } | null;
+  /** B-1 (metadata-spec): område (sone/rom/etasje/trasé). Mangler i eldre API-svar. */
+  omrade?: { navn: string } | null;
   dokumentflyt?: { name: string } | null;
   recipientUser?: { name: string | null } | null;
   recipientGroup?: { name: string | null } | null;
@@ -115,6 +117,7 @@ export const FILTER_KOLONNER = [
   "bestillerFaggruppe",
   "utforerFaggruppe",
   "tegning",
+  "omrade",
   "dokumentflyt",
 ] as const;
 
@@ -188,6 +191,8 @@ export function lagFilterConfig(bruker?: HarBallenBruker | null): TabellFilterCo
           return formaterAnsvarlig(rad);
         case "tegning":
           return rad.drawing?.name ?? "";
+        case "omrade":
+          return rad.omrade?.navn ?? "";
         default:
           return undefined;
       }
@@ -230,6 +235,7 @@ export interface DokumentAlternativer {
   mal: VelgerAlternativ[];
   ansvarlig: VelgerAlternativ[];
   tegning: VelgerAlternativ[];
+  omrade: VelgerAlternativ[];
   /** Emner som finnes + «Uten emne» (UTEN_EMNE, etikett satt av arket) når noen rad mangler emne. */
   emne: VelgerAlternativ[];
   opprettetAv: VelgerAlternativ[];
@@ -252,6 +258,7 @@ export function byggAlternativer(rader: DokumentRad[]): DokumentAlternativer {
     mal: unik(rader.map((r) => r.template?.name)),
     ansvarlig: unik(rader.map((r) => formaterAnsvarlig(r))),
     tegning: unik(rader.map((r) => r.drawing?.name)),
+    omrade: unik(rader.map((r) => r.omrade?.navn)),
     emne: [
       ...unik(rader.map((r) => r.subject?.trim())),
       ...(rader.some((r) => !r.subject?.trim()) ? [{ value: UTEN_EMNE, label: "" }] : []),

@@ -702,6 +702,8 @@ export const sjekklisteLocal = sqliteTable("sjekkliste_local", {
   recipientUserNavn: text("recipient_user_navn"),
   recipientGroupNavn: text("recipient_group_navn"),
   bestillerNavn: text("bestiller_navn"),
+  // Metadata S-pakke B-1 (2026-11-04): område-filteret offline (ALTER ADD COLUMN, nullable).
+  omradeNavn: text("omrade_navn"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — katalog-freshness (krav 7)
 });
 
@@ -776,6 +778,8 @@ export const oppgaveLocal = sqliteTable("oppgave_local", {
   drawingNavn: text("drawing_navn"),
   dokumentflytNavn: text("dokumentflyt_navn"),
   bestillerFaggruppeNavn: text("bestiller_faggruppe_navn"),
+  // Metadata S-pakke B-1 (2026-11-04): område-filteret offline (ALTER ADD COLUMN, nullable).
+  omradeNavn: text("omrade_navn"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness (krav 7)
 });
 
@@ -883,6 +887,10 @@ export const tegningLocal = sqliteTable("tegning_local", {
   mobilFileUrl: text("mobil_file_url"),
   revisjonsNokkel: text("revisjons_nokkel"), // siste URL-ledd (UUID) = filcache-nøkkel
   antallRevisjoner: integer("antall_revisjoner"),
+  // B-5 (2026-11-04): metadata i raden; null for katalog lagret før kolonnene fantes
+  revision: text("revision"),
+  status: text("status"),
+  kildeformat: text("kildeformat"), // dwg/dxf/pdf … utledet av originalFileUrl
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — katalog-freshness
 });
 

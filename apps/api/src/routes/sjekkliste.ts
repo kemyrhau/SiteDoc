@@ -246,6 +246,8 @@ export const sjekklisteRouter = router({
           bestiller: true,
           byggeplass: { select: { id: true, name: true, number: true } },
           drawing: { select: { id: true, name: true, floor: true } },
+          // B-1 (metadata-spec): område for kolonne/filter i listene (web + mobil).
+          omrade: { select: { id: true, navn: true, type: true } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
           dokumentflyt: {

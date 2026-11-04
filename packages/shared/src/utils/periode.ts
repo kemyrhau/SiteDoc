@@ -89,3 +89,25 @@ export function erUgyldigIntervall(periode: Periode): boolean {
     periode.fra > periode.til
   );
 }
+
+/** Hvilket tidsstempel periodefilteret i dokumentlistene treffer (B-0, metadata-spec § 2). */
+export type PeriodeFelt = "opprettet" | "endret";
+
+/**
+ * Filtrerer rader på en periode mot valgt tidsstempel (`createdAt` = opprettet, `updatedAt` =
+ * endret). «alle» er ingen grense. Rad uten dato faller utenfor en aktiv periode.
+ */
+export function filtrerPaaPeriode<T extends { createdAt: string | Date; updatedAt?: string | Date | null }>(
+  rader: T[],
+  periode: Periode,
+  felt: PeriodeFelt = "opprettet",
+): T[] {
+  if (periode.hurtigvalg === "alle") return rader;
+  const { fra, til } = effektiveGrenser(periode);
+  if (!fra && !til) return rader;
+  return rader.filter((r) => {
+    const verdi = felt === "endret" ? r.updatedAt : r.createdAt;
+    if (!verdi) return false;
+    return innenforPeriode(new Date(verdi), fra, til);
+  });
+}

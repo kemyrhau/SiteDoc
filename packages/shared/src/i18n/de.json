@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Im gesamten Projekt nach „{{q}}“ suchen",
   "sokMobil.placeholderOppgaver": "Aufgaben durchsuchen",
   "sokMobil.placeholderSjekklister": "Checklisten durchsuchen",
-  "sokMobil.placeholderHms": "HSE durchsuchen"
+  "sokMobil.placeholderHms": "HSE durchsuchen",
+  "periodeFilter.periode": "Zeitraum",
+  "periodeFilter.opprettet": "Erstellt",
+  "periodeFilter.endret": "Geändert",
+  "tabell.omrade": "Bereich",
+  "tegninger.filterAlleStatuser": "Alle Status",
+  "tegninger.filterAlleFormater": "Alle Formate",
+  "tegninger.filterGeorefAlle": "Georeferenziert oder nicht",
+  "tegninger.georeferanse": "Georeferenz",
+  "tegninger.ikkeGeoreferert": "Nicht georeferenziert",
+  "tegninger.kildeformat": "Quellformat",
+  "tegninger.utgittDato": "Ausgestellt {{dato}}"
 }

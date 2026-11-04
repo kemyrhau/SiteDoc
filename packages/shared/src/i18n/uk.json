@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Шукати «{{q}}» у всьому проєкті",
   "sokMobil.placeholderOppgaver": "Пошук у завданнях",
   "sokMobil.placeholderSjekklister": "Пошук у контрольних списках",
-  "sokMobil.placeholderHms": "Пошук у HSE"
+  "sokMobil.placeholderHms": "Пошук у HSE",
+  "periodeFilter.periode": "Крапка",
+  "periodeFilter.opprettet": "Створено",
+  "periodeFilter.endret": "Змінено",
+  "tabell.omrade": "Площа",
+  "tegninger.filterAlleStatuser": "Всі статуси",
+  "tegninger.filterAlleFormater": "Всі формати",
+  "tegninger.filterGeorefAlle": "З геоприв'язкою чи ні",
+  "tegninger.georeferanse": "Геореференція",
+  "tegninger.ikkeGeoreferert": "Без геоприв'язки",
+  "tegninger.kildeformat": "Вихідний формат",
+  "tegninger.utgittDato": "Видано {{dato}}"
 }

@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Søk «{{q}}» i hele prosjektet",
   "sokMobil.placeholderOppgaver": "Søk i oppgaver",
   "sokMobil.placeholderSjekklister": "Søk i sjekklister",
-  "sokMobil.placeholderHms": "Søk i HMS"
+  "sokMobil.placeholderHms": "Søk i HMS",
+  "periodeFilter.periode": "Periode",
+  "periodeFilter.opprettet": "Opprettet",
+  "periodeFilter.endret": "Endret",
+  "tabell.omrade": "Område",
+  "tegninger.filterAlleStatuser": "Alle statuser",
+  "tegninger.filterAlleFormater": "Alle formater",
+  "tegninger.filterGeorefAlle": "Georeferert og ikke",
+  "tegninger.georeferanse": "Georeferanse",
+  "tegninger.ikkeGeoreferert": "Ikke georeferert",
+  "tegninger.kildeformat": "Kildeformat",
+  "tegninger.utgittDato": "Utgitt {{dato}}"
 }

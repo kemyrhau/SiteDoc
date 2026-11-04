@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Hae \"{{q}}\" koko projektista",
   "sokMobil.placeholderOppgaver": "Hae tehtävistä",
   "sokMobil.placeholderSjekklister": "Hae tarkistuslistoista",
-  "sokMobil.placeholderHms": "Hae HSE:stä"
+  "sokMobil.placeholderHms": "Hae HSE:stä",
+  "periodeFilter.periode": "Kausi",
+  "periodeFilter.opprettet": "Luotu",
+  "periodeFilter.endret": "Muokattu",
+  "tabell.omrade": "Alue",
+  "tegninger.filterAlleStatuser": "Kaikki tilat",
+  "tegninger.filterAlleFormater": "Kaikki muodot",
+  "tegninger.filterGeorefAlle": "Maantieteellinen tai ei",
+  "tegninger.georeferanse": "Geoviittaus",
+  "tegninger.ikkeGeoreferert": "Ei geoviittausta",
+  "tegninger.kildeformat": "Lähdemuoto",
+  "tegninger.utgittDato": "Myönnetty {{dato}}"
 }

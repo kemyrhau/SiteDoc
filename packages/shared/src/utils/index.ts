@@ -264,8 +264,9 @@ export {
   effektiveGrenser,
   innenforPeriode,
   erUgyldigIntervall,
+  filtrerPaaPeriode,
 } from "./periode";
-export type { Periode, PeriodeHurtigvalg } from "./periode";
+export type { Periode, PeriodeHurtigvalg, PeriodeFelt } from "./periode";
 export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
 export { velgOfflineListeKilde, velgDokumentVisning, velgHjemProsjektVisning } from "./offlineListe";
 export type {
@@ -484,3 +485,4 @@ export {
   byggTegningNedlastingsnavn,
   unikNedlastingsnavn,
 } from "./tegningNedlasting";
+export { utledKildeformat, TEGNING_STATUS_NOEKKEL } from "./kildeformat";

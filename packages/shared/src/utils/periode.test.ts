@@ -6,6 +6,7 @@ import {
   innenforPeriode,
   erUgyldigIntervall,
   grenserForHurtigvalg,
+  filtrerPaaPeriode,
   type Periode,
 } from "./periode";
 
@@ -67,5 +68,30 @@ describe("erUgyldigIntervall", () => {
   });
   it("ikke-egendefinert → aldri ugyldig", () => {
     expect(erUgyldigIntervall({ hurtigvalg: "alle", fra: null, til: null })).toBe(false);
+  });
+});
+
+describe("filtrerPaaPeriode (B-0 web: opprettet/endret)", () => {
+  const rader = [
+    { id: "a", createdAt: "2026-01-10T10:00:00", updatedAt: "2026-03-05T10:00:00" },
+    { id: "b", createdAt: "2026-03-01T10:00:00", updatedAt: "2026-03-01T10:00:00" },
+  ];
+  const mars: Periode = { hurtigvalg: "egendefinert", fra: new Date("2026-03-01T00:00:00"), til: new Date("2026-03-31T00:00:00") };
+
+  it("opprettet treffer createdAt", () => {
+    expect(filtrerPaaPeriode(rader, mars, "opprettet").map((r) => r.id)).toEqual(["b"]);
+  });
+
+  it("endret treffer updatedAt — gammel rad endret i mars er med", () => {
+    expect(filtrerPaaPeriode(rader, mars, "endret").map((r) => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("«alle» og åpen egendefinert slipper alt gjennom", () => {
+    expect(filtrerPaaPeriode(rader, { hurtigvalg: "alle", fra: null, til: null })).toHaveLength(2);
+    expect(filtrerPaaPeriode(rader, { hurtigvalg: "egendefinert", fra: null, til: null })).toHaveLength(2);
+  });
+
+  it("rad uten endret-dato faller utenfor en aktiv periode", () => {
+    expect(filtrerPaaPeriode([{ id: "c", createdAt: "2026-03-02T10:00:00", updatedAt: null }], mars, "endret")).toEqual([]);
   });
 });

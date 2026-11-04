@@ -571,6 +571,11 @@ metadataen lokalt (SQLite-katalog-mønster, `tegningKatalog.ts`):
 - **Skrives** av «Forbered til offline» (lokasjoner/mer) OG write-through ved online-besøk
   (`lokasjoner.tsx`/`tegninger.tsx`/`ByggeplassChip`). **Leses** offline via `hent*Lokalt` når
   server-spørringene er av (`enabled: … && erPaaNettet`).
+- **Tegningsraden (metadata S-pakke B-5, 2026-11-04)** i `app/(tabs)/tegninger.tsx` viser «Godkjent · Rev. B · DWG»
+  (`radMetaTekst`): status og revisjon når de finnes, deretter kildeformat (`kildeformat` fra API, ellers
+  `utledKildeformat`), ellers filtype som før. Ikke filterark på tegninger (spec § 5 pkt. 8). Offline: `tegning_local`
+  fikk `revision`, `status`, `kildeformat` (`TEGNING_META_KOLONNER`, additiv ALTER, `migreringer.tegningMeta.test.ts`);
+  gamle rader har NULL til neste katalog-refresh.
 - **Ærlige tomtilstander:** offline + ikke lagret viser «Ikke lagret for offline …»
   (`offline.ikkeLagret`), aldri falsk «Ingen byggeplasser»/«Ingen tegninger». «Sist oppdatert …»
   på offline-tegningslista. Hjem-banneret er nøytralt («Frakoblet – viser lagrede data»).
@@ -862,6 +867,11 @@ har ikke prioritet og leser alltid serverrader:
   `hms.hentDokumenter`); mot eldre API mangler feltene og filtrene skjules via vis-regelen (`visFilterKolonne`,
   låst i `hmsListe.test.ts`). Offline: `hms_local` fikk 9 tekstkolonner (`HMS_LOCAL_FILTERKOLONNER` i
   `migreringer.ts`, additiv ALTER, testet i `migreringer.hmsLocal.test.ts`), skrevet av `hmsKatalog.ts`.
+- **Område (metadata S-pakke B-1, 2026-11-04):** sjekkliste- og oppgavelista får områdefilter under HVOR
+  (`omrade` i `dokumentlisteFilter.ts`, chips i `FilterOgSorteringSheet.tsx`). Offline: `omrade_navn` på
+  `sjekkliste_local` og `oppgave_local` (`OMRADE_LOCAL_TABELLER`, additiv ALTER, `migreringer.omradeLocal.test.ts`),
+  skrevet av `sjekklisteKatalog.ts`/`oppgaveKatalog.ts`. Eldre API uten omrade-include → `null` → filteret skjules
+  stille via vis-regelen (låst i `dokumentlisteFilter.test.ts`).
 
 ## OTA-varsel: «Ny versjon er klar · Oppdater» (ota-varsel 2026-11-03)
 
