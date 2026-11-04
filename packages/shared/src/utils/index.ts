@@ -265,8 +265,10 @@ export {
   innenforPeriode,
   erUgyldigIntervall,
   filtrerPaaPeriode,
+  periodeDato,
+  STATUS_PERIODEFELT,
 } from "./periode";
-export type { Periode, PeriodeHurtigvalg, PeriodeFelt } from "./periode";
+export type { Periode, PeriodeHurtigvalg, PeriodeFelt, PeriodeRad } from "./periode";
 export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
 export { velgOfflineListeKilde, velgDokumentVisning, velgHjemProsjektVisning } from "./offlineListe";
 export type {
@@ -446,6 +448,16 @@ export function statusKreverBegrunnelse(nyStatus: string, fraStatus?: string): b
 
 export { beregnSignaturStatus, delSignertManko } from "./signaturliste";
 export type { SignaturChipStatus, SisteRundeSammendrag, SignaturStatus } from "./signaturliste";
+
+export { reduserStatushendelser, reduserUtfylling, beregnDokumentSignatur } from "./dokumentMetadata";
+export type {
+  Statushendelse,
+  Statushendelser,
+  StatusTransferRad,
+  UtfyltGruppe,
+  Utfylling,
+  DokumentSignaturstatus,
+} from "./dokumentMetadata";
 
 export { normaliserOpsjon } from "./opsjon";
 

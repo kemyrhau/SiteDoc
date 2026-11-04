@@ -18,6 +18,8 @@ import { faggruppeNavn } from "@/lib/sjekkliste-faggruppe";
 import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type Periode, type PeriodeFelt } from "@sitedoc/shared";
 import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
 import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
+import { metadataFilterAlternativer, metadataFilterVerdi, metadataFlereVerdier, type MetadataRad } from "@/lib/dokumentMetadata";
+import { METADATA_KOLONNE_IDER, METADATA_NAVN_NOKKEL, byggMetadataKolonner } from "@/components/DokumentMetadataKolonner";
 
 // --- Typer ---
 
@@ -44,7 +46,7 @@ interface MalObjekt {
   config: Record<string, unknown> | null;
 }
 
-interface SjekklisteRad {
+interface SjekklisteRad extends MetadataRad {
   id: string;
   title: string;
   subject: string | null;
@@ -117,7 +119,7 @@ interface KolonneParam {
   id: string;
   navnKey?: string;
   navn?: string;
-  gruppe: "kolonner" | "posisjon" | "verdier";
+  gruppe: "kolonner" | "posisjon" | "metadata" | "verdier";
   fast?: boolean;
 }
 
@@ -145,6 +147,9 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "omrade", navnKey: "tabell.omrade", gruppe: "posisjon" },
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
+
+// Metadata M-pakke: hvem og når + signatur — valgbare, av som standard.
+const METADATA_KOLONNER: KolonneParam[] = METADATA_KOLONNE_IDER.map((id) => ({ id, navnKey: METADATA_NAVN_NOKKEL[id], gruppe: "metadata" }));
 
 const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "dokumentflyt", "flyt", "bygning", "frist"]);
 
@@ -493,7 +498,7 @@ export default function SjekklisteSide() {
     return map;
   }, [dokumentflyter, sjekklister]);
 
-  const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
+  const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter], [verdiFelter]);
 
   // Grupper for den delte kolonnevelgeren (faste kolonner utelates — de er alltid på).
   const kolonneVelgerGrupper = useMemo<KolonneVelgerGruppe[]>(() => {
@@ -501,6 +506,7 @@ export default function SjekklisteSide() {
     return [
       { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => !k.fast).map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "metadata", navn: t("kolonne.hvemOgNaar"), felter: METADATA_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.map((k) => ({ id: k.id, navn: oversett(k) })) },
     ].filter((g) => g.felter.length > 0);
   }, [verdiFelter, t]);
@@ -541,6 +547,7 @@ export default function SjekklisteSide() {
         { value: "forfalt", label: t("kontrollplan.statusForfalt") },
       ],
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
+      ...metadataFilterAlternativer(data),
     };
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
@@ -549,6 +556,9 @@ export default function SjekklisteSide() {
     }
     return filter;
   }, [sjekklister, verdiFelter, t, objektTyper, navneLookup]);
+
+  // B-2: sendt/godkjent/lukket i periodevelgeren bare når API-et leverer statushendelser.
+  const harStatushendelser = useMemo(() => (sjekklister ?? []).some((s) => s.statushendelser != null), [sjekklister]);
 
   // Filtrer
   const filtrerte = useMemo(() => {
@@ -617,9 +627,10 @@ export default function SjekklisteSide() {
           case "tegning": return s.drawing?.name ?? "";
           case "dokumentflyt": return s.dokumentflyt?.name ?? "";
           case "flyt": return hentFlytLedd(s);
-          default: return undefined;
+          default: return metadataFilterVerdi(s, kolId);
         }
       },
+      hentFlereVerdier: metadataFlereVerdier,
       hentFeltVerdi: (s, oid) => hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup),
       hentFrist: (s) => ({
         dueDate: s.dueDate,
@@ -776,6 +787,7 @@ export default function SjekklisteSide() {
       tegning: { id: "tegning", header: t("tabell.tegning"), celle: (rad) => rad.drawing?.name
         ? <span className="text-xs text-gray-600">{rad.drawing.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [] },
+      ...byggMetadataKolonner<SjekklisteRad>(t, formaterDato, dynamiskFilter),
     };
     // Dynamiske verdier
     for (const felt of verdiFelter) {
@@ -788,7 +800,7 @@ export default function SjekklisteSide() {
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0, filterAlternativer: dynamiskFilter[felt.id] ?? [],
       };
     }
-    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter];
+    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter];
     const resultat: KolDef[] = [];
     for (const k of rekkefølge) { const def = defs[k.id]; if (aktiveKolonner.has(k.id) && def) resultat.push(def); }
     return resultat;
@@ -835,6 +847,7 @@ export default function SjekklisteSide() {
             felt={periodeFelt}
             onEndrePeriode={setPeriode}
             onEndreFelt={setPeriodeFelt}
+            statusFelt={harStatushendelser}
           />
           {/* Kontrollplan-skille: hører til planen / kommer i tillegg (relasjon, ingen nytt felt) */}
           <div className="inline-flex items-center rounded-md border border-gray-200 overflow-hidden">

@@ -6,8 +6,8 @@ Alle routere i `apps/api/src/routes/`:
 |--------|-----------|
 | `prosjekt` | hentMine, hentAlle (filtrert på medlemskap), hentMedId, opprett (auto-admin, auto-tilknytt firma), opprettTestprosjekt (m/standardgrupper+moduler), oppdater |
 | `faggruppe` | hentForProsjekt, hentMedId, opprett, oppdater, kopier, settAnsvarlig, slett. _Note: montert også som `entreprise`-alias (bakoverkompat for mobil) — samme `faggruppeRouter`. «entreprise» er forbudt i ny kode._ |
-| `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter, inkluderer `omrade { navn }` — metadata B-1), hentMedId (m/changeLog), opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData (m/automatisk endringslogg), endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
-| `oppgave` | hentForProsjekt (m/statusfilter, inkluderer `omrade { navn }` — metadata B-1), hentForTegning (markører per tegning), hentMedId (m/template.objects+kommentarer), hentForSjekkliste, hentKommentarer, leggTilKommentar, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
+| `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter, inkluderer `omrade { navn }` — metadata B-1; hver rad får additivt `statushendelser`, `utfylling`, `signatur` via `berikMedMetadata` — metadata M-pakke), hentMedId (m/changeLog), opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData (m/automatisk endringslogg), endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
+| `oppgave` | hentForProsjekt (m/statusfilter, inkluderer `omrade { navn }` — metadata B-1; additivt `statushendelser`, `utfylling`, `signatur` — metadata M-pakke), hentForTegning (markører per tegning), hentMedId (m/template.objects+kommentarer), hentForSjekkliste, hentKommentarer, leggTilKommentar, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
 | `byggeplass` | hentForFirma (R4: member-lesbar firma-byggeplass-liste for reisetid-matrise-cache, firma-scopet via `project.primaryOrganizationId`), hentForProsjekt (m/valgfri type-filter; drawings-select har `revision`, `status`, `issuedAt`, `originalFileUrl` for B-5), hentMedId, opprett (m/type), oppdater, beregnGeofence, settGeofence, publiser, hentSletteSammendrag, slett. _Note: montert også som `bygning`-alias (bakoverkompat) — samme `byggeplassRouter`._ |
 | `tegning` | hentForProsjekt (m/filtre; hver rad får additivt `kildeformat` = `utledKildeformat(originalFileUrl, fileType)` — metadata B-5), hentForBygning, hentMedId, opprett (m/asynkron DWG-konvertering + layout-splitting, IFC-metadatautvinning), oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, hentKonverteringsStatus, provKonverteringIgjen (m/layout-splitting), rekonverteringStatus (prosjekt-aggregat, 2a-mønster, ingen migrering), oppdaterAlleTegninger (admin-batch, maks 2 samtidig), slett |
@@ -173,6 +173,24 @@ Alle planlagte fase 2-oppgaver er ferdigstilt eller bevisst utsatt.
 1. **Retroaktiv revalidering** — automatisk revalidering fremover når nota importeres midt i kjeden. Løsning beskrevet: oppdater mengdeForrige/verdiForrige på påfølgende FtdNotaPost-rader, kjør kontrollerAkkumulering() på nytt. Implementeres når reelt behov oppstår.
 2. **Mva per post** — krever parser-utvidelse og skjemaendring. Proadm-kildedata har kun mva i header, ikke per rad. Egen oppgave.
 3. **Avviksanalyse-fane** — rapport over enhetsprisendringer og akkumuleringsavvik på tvers av perioder.
+
+## Dokumentmetadata i listene (metadata M-pakke B-2/B-3/B-4, 2026-11-04)
+
+`sjekkliste.hentForProsjekt` og `oppgave.hentForProsjekt` beriker hver rad via `berikMedMetadata`
+(`apps/api/src/services/dokumentMetadata.ts`) — alternativ U + L i spec-metadata-filter.md, **ingen migrering**.
+Fast antall ekstra spørringer pr. liste (ikke N+1): `documentTransfer` (avgrenset til lista og
+`toStatus ∈ sent/received/approved/closed`), `*ChangeLog.groupBy([dokId, userId])` kun for maler med
+`enableChangeLog`, ett `user`-oppslag for navn, og — kun når lista har SJA (`signature_list`) — `signaturRunde` +
+aktive `dokumentDeltaker`. Reduksjonene er rene funksjoner i `@sitedoc/shared` `utils/dokumentMetadata.ts`:
+
+- `statushendelser` `{ sendt, godkjent, lukket }` (hver `{ av: {id, navn}, ved } | null`): sendt = eldste `draft → sent|received`; godkjent/lukket = nyeste overgang dit.
+  **Gjenåpning:** godkjent vises bare når `terminal` er godkjent eller lukket, lukket bare når `terminal` er lukket.
+- `utfylling` `{ sist, alle }`; `null` når endringsloggen er av i malen (UI viser «—» + forklaring).
+- `signatur` `{ kreves, signert, komplett } | null`: synlige, ikke-betingede signaturfelt på toppnivå (repeater-felt og
+  betinget skjulte felt kreves ikke); SJA følger telleregelen i `signaturliste.ts` (krevd-ny teller ikke) — uten runde
+  gir det `0/n` med aktive deltakere. `null` = ingen signaturfelt.
+
+Låst i `apps/api/src/routes/hentForProsjekt-metadata.test.ts` og `packages/shared/src/utils/dokumentMetadata.test.ts`.
 
 ## Auth-nivåer
 

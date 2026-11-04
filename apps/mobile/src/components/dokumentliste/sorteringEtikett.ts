@@ -4,6 +4,7 @@ import type { Retning, SorterNokkel, Sortering } from "./dokumentlisteFilter";
 export const SORTERING_NOEKKEL: Record<SorterNokkel, string> = {
   opprettet: "dokumentsok.sorteringOpprettet",
   endret: "dokumentsok.sorteringEndret",
+  sendt: "dokumentsok.sorteringSendt",
   frist: "dokumentsok.sorteringFrist",
   nummer: "dokumentsok.sorteringNummer",
   emne: "dokumentsok.sorteringEmne",

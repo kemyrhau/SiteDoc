@@ -7,6 +7,7 @@ import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
+import { berikMedMetadata } from "../services/dokumentMetadata";
 import { medNummerRetry } from "../utils/nummerRetry";
 import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -269,7 +270,8 @@ export const oppgaveRouter = router({
           ...(tilgangsFilter ?? {}),
         },
         include: {
-          template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
+          // parentId: M-pakke B-3 — signaturtelling følger betinget synlighet (erObjektSynlig).
+          template: { include: { objects: { select: { id: true, label: true, type: true, config: true, parentId: true } } } },
           bestiller: true,
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
@@ -321,8 +323,10 @@ export const oppgaveRouter = router({
         },
         orderBy: { updatedAt: "desc" },
       });
+      // M-pakke (B-2/B-3/B-4): sendt/godkjent/lukket, sist utfylt av, signaturstatus.
+      const beriket = await berikMedMetadata(ctx.prisma, "task", oppgaver);
       // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (liste-vei).
-      return signerDataRader(oppgaver);
+      return signerDataRader(beriket);
     }),
 
   // Hent oppgavemarkører for en tegning

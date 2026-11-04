@@ -16,6 +16,8 @@ import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
 import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
+import { metadataFilterAlternativer, metadataFilterVerdi, metadataFlereVerdier, type MetadataRad } from "@/lib/dokumentMetadata";
+import { METADATA_KOLONNE_IDER, METADATA_NAVN_NOKKEL, byggMetadataKolonner } from "@/components/DokumentMetadataKolonner";
 
 // --- Typer ---
 
@@ -36,7 +38,7 @@ type MalFlytStatus =
   | { type: "flere"; kandidater: FlytKandidat[] }
   | { type: "ingen" };
 
-interface OppgaveRad {
+interface OppgaveRad extends MetadataRad {
   id: string;
   title: string;
   subject: string | null;
@@ -130,7 +132,7 @@ interface KolonneParam {
   id: string;
   navn: string;
   navnKey?: string;
-  gruppe: "kolonner" | "posisjon" | "verdier";
+  gruppe: "kolonner" | "posisjon" | "metadata" | "verdier";
   fast?: boolean;
 }
 
@@ -158,6 +160,9 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "omrade", navn: "Område", navnKey: "tabell.omrade", gruppe: "posisjon" },
   { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
+
+// Metadata M-pakke: hvem og når + signatur — valgbare, av som standard.
+const METADATA_KOLONNER: KolonneParam[] = METADATA_KOLONNE_IDER.map((id) => ({ id, navn: id, navnKey: METADATA_NAVN_NOKKEL[id], gruppe: "metadata" }));
 
 const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
 
@@ -485,6 +490,7 @@ export default function OppgaverSide() {
     return [
       { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => k.navn && !k.fast).map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "metadata", navn: t("kolonne.hvemOgNaar"), felter: METADATA_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.map((k) => ({ id: k.id, navn: oversett(k) })) },
     ].filter((g) => g.felter.length > 0);
   }, [verdiFelter, t]);
@@ -518,7 +524,7 @@ export default function OppgaverSide() {
     return map;
   }, [dokumentflyter, oppgaver]);
 
-  const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
+  const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter], [verdiFelter]);
 
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
   // Fase 4: aktiv boks fra posisjon (server-fakta), ikke recipient-heuristikk.
@@ -557,6 +563,7 @@ export default function OppgaverSide() {
       tegning: bygg(oppgaver.map((o) => o.drawing?.name)),
       prioritet: PRIORITETER.map((p) => ({ value: p.value, label: t(p.labelKey) })),
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
+      ...metadataFilterAlternativer(oppgaver),
     };
 
     // Verdier fra data-JSON
@@ -571,6 +578,9 @@ export default function OppgaverSide() {
 
     return filter;
   }, [oppgaver, verdiFelter, t, objektTyper, navneLookup]);
+
+  // B-2: sendt/godkjent/lukket i periodevelgeren bare når API-et leverer statushendelser.
+  const harStatushendelser = useMemo(() => (oppgaver ?? []).some((o) => o.statushendelser != null), [oppgaver]);
 
   // Filtrer data
   const filtrerte = useMemo(() => {
@@ -630,9 +640,10 @@ export default function OppgaverSide() {
           case "omrade": return o.omrade?.navn ?? "";
           case "tegning": return o.drawing?.name ?? "";
           case "flyt": return hentFlytLedd(o);
-          default: return undefined;
+          default: return metadataFilterVerdi(o, kolId);
         }
       },
+      hentFlereVerdier: metadataFlereVerdier,
       hentFeltVerdi: (o, oid) => hentFeltVerdi(o, oid, objektTyper.get(oid), navneLookup),
       hentFrist: (o) => ({
         dueDate: o.dueDate,
@@ -877,6 +888,7 @@ export default function OppgaverSide() {
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [],
       },
+      ...byggMetadataKolonner<OppgaveRad>(t, formaterDato, dynamiskFilter),
     };
 
     // Dynamiske verdier-kolonner
@@ -898,7 +910,7 @@ export default function OppgaverSide() {
     }
 
     // Bygg sortert array fra aktive kolonner
-    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter];
+    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter];
     const resultat: KolDef[] = [];
     for (const k of rekkefølge) {
       const def = defs[k.id];
@@ -991,6 +1003,7 @@ export default function OppgaverSide() {
             felt={periodeFelt}
             onEndrePeriode={setPeriode}
             onEndreFelt={setPeriodeFelt}
+            statusFelt={harStatushendelser}
           />
 
           {/* Aktive filter-tags */}

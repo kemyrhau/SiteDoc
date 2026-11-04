@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
-import { PERIODE_NOEKKEL, type Periode } from "@sitedoc/shared";
-import { FILTER_KOLONNER, UTEN_EMNE } from "./dokumentlisteFilter";
+import { PERIODE_NOEKKEL } from "@sitedoc/shared";
+import { FILTER_KOLONNER, UTEN_EMNE, type ListePeriode } from "./dokumentlisteFilter";
 
 export const PRIORITET_NOEKKEL: Record<string, string> = {
   low: "prioritet.lav",
@@ -15,7 +15,7 @@ export const FRIST_NOEKKEL: Record<string, string> = {
   ingen_frist: "dokumentsok.fristIngenFrist",
 };
 
-/** Pseudo-kolonne for opprettet-perioden i chip-raden (ikke et likhetsfilter). */
+/** Pseudo-kolonne for perioden (opprettet eller statusdato) i chip-raden (ikke et likhetsfilter). */
 export const PERIODE_CHIP = "__periode__";
 
 /** Synlig etikett for én filterverdi (chipsene over lista og nedtrekkene i arket). */
@@ -40,7 +40,7 @@ export interface AktivChip {
  */
 export function byggAktiveChips(
   filterVerdier: Record<string, string>,
-  periode: Periode | undefined,
+  periode: ListePeriode | undefined,
   t: TFunction,
 ): AktivChip[] {
   const chips: AktivChip[] = [];
@@ -55,7 +55,8 @@ export function byggAktiveChips(
     chips.push({
       kolId: PERIODE_CHIP,
       value: periode.hurtigvalg,
-      label: `${t("tabell.opprettet")}: ${t(PERIODE_NOEKKEL[periode.hurtigvalg])}`,
+      // M-pakke: chipen sier hvilket datofelt perioden gjelder («Sendt: Siste 7 dager»).
+      label: `${t(periode.felt && periode.felt !== "opprettet" ? `periodeFilter.${periode.felt}` : "tabell.opprettet")}: ${t(PERIODE_NOEKKEL[periode.hurtigvalg])}`,
     });
   }
   return chips;

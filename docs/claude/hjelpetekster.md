@@ -79,14 +79,17 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når 
 - Gjelder sjekklister, oppgaver og innboksen (innboksen har ikke prioritet).
 - **Ballen hos meg:** viser bare dokumenter der du eller gruppa di har ballen nå. Krever nett og at lista er hentet
   fra serveren — uten dekning, eller mens lista viser den lagrede versjonen, er bryteren skjult.
-- **Sortering:** opprettet, sist endret, frist, nummer, emne eller navn — frist, nummer og emne vises bare når lista
-  har slike verdier. Trykk en brikke for å sortere på den; trykk igjen for å snu retningen, tredje trykk fjerner den.
+- **Sortering:** opprettet, sist endret, sendt, frist, nummer, emne eller navn — sendt, frist, nummer og emne vises
+  bare når lista har slike verdier. Trykk en brikke for å sortere på den; trykk igjen for å snu retningen, tredje trykk fjerner den.
   Velg opptil tre for å sortere videre innenfor like verdier («Frist ↑, deretter Nummer ↓»). Dokumenter uten verdi
   havner sist. Hjelpelinja i arket: «Trykk igjen for å snu · tredje trykk fjerner». Aktiv sortering vises som egen
   brikke over lista; trykk den for å gå tilbake til nyeste først. Under søk sorteres treffene etter relevans.
 - **Hva:** emne (også «Uten emne»), mal og — for oppgaver — prioritet.
-- **Når:** frist (har frist, ingen frist, forfalt — avsluttede og avbrutte regnes ikke som forfalt) og når dokumentet ble opprettet.
-- **Hvem:** hvem som opprettet det, mottaker/ansvarlig, bestiller- og utførerfaggruppe.
+- **Når:** frist (har frist, ingen frist, forfalt — avsluttede og avbrutte regnes ikke som forfalt) og periode. Velg
+  først hvilken dato perioden gjelder — opprettet, sendt, godkjent eller lukket (bare datoene lista har) — så tidsrom.
+  Chipen over lista sier hvilken, f.eks. «Sendt: Siste uke». (M-pakke 2026-11-04)
+- **Hvem:** hvem som opprettet det, mottaker/ansvarlig, bestiller- og utførerfaggruppe, og hvem som sendte, godkjente,
+  lukket eller fylte ut. «Utfylt av» treffer alle som har fylt ut noe i dokumentet, ikke bare den siste.
 - **Hvor:** område, tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
 - Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
 
@@ -99,6 +102,14 @@ brukes når de får hjelpe-ikon.
   valget, f.eks. «Endret: Siste uke».
 - **Område:** kolonnen viser området dokumentet er plassert i på tegningen. Filtrer i kolonnehodet; filteret vises bare
   når lista har områder.
+- **Hvem og når** (M-pakke 2026-11-04, slås på i kolonnevelgeren): «Sendt av/Sendt», «Godkjent av/Godkjent»,
+  «Lukket av/Lukket», «Sist utfylt av/Sist utfylt» og «Signatur». Gjenåpnes et dokument, vises godkjent og lukket bare
+  så lenge dokumentet faktisk står som godkjent eller lukket. Periode-knappen kan også se på sendt-, godkjent- og
+  lukket-dato.
+- **Sist utfylt av:** viser «—» når endringsloggen er slått av i malen (holde musa over forklarer hvorfor). Filteret
+  «Utfylt av» treffer alle som har fylt ut noe, ikke bare den siste.
+- **Signatur:** «✓» når alle signaturer er på plass, «2/3» når noen mangler, «—» når dokumentet ikke har
+  signaturfelt. Filtrer på Signert, Mangler signatur eller Uten signaturfelt; sortering gir komplette først.
 - **Tegningslista:** hver tegning viser revisjon, status, opprinnelig filformat (DWG, PDF …) og utgivelsesdato når de
   finnes. Under søket kan du snevre inn på status, filformat og georeferanse — bare valg som finnes i lista vises.
   Byggeplasser uten treff skjules mens et filter er satt.
