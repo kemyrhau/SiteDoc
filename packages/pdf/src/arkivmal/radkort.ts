@@ -15,7 +15,7 @@
  * verifiseringslogg).
  */
 
-import { esc, fullBildeUrl, harMeningsfullLabel, bildeMerke, nyBildeTeller } from "../hjelpere";
+import { esc, fullBildeUrl, harMeningsfullLabel, bildeMerke, nyBildeTeller, samleBildeNr } from "../hjelpere";
 import type { BildeTeller } from "../hjelpere";
 import { byggDetaljUtsnitt } from "../tegning";
 import { skalarCelle, byggUtenforRaderBlokk } from "./repeater";
@@ -189,14 +189,13 @@ export function byggRadkort(
   verdi: unknown,
   label: string,
   objektFelt?: FeltVerdi,
-  teller: BildeTeller = nyBildeTeller(),
+  teller: BildeTeller = nyBildeTeller(samleBildeNr([verdi, objektFelt])),
 ): string {
   const rader = Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : [];
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk «Registrert utenfor rader» rett over kortene (tom → "").
   // Dokumenttelleren fortsetter fra feltene foran (ordre 2026-11-04 (2)).
-  const blokk = byggUtenforRaderBlokk(objektFelt, teller.neste);
-  teller.neste = blokk.nesteNr;
+  const blokk = byggUtenforRaderBlokk(objektFelt, teller);
   if (rader.length === 0) {
     return `${heading}${blokk.html}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
   }

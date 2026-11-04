@@ -36,7 +36,10 @@ Motoren (Playwright `page.pdf`) bor i den interne **pdf-render-containeren**; de
   `byggInnhold`-kjøring tres gjennom `renderFelt`, `byggRepeaterTabell`, `byggRadkort` (inkl. F7
   objektnivå-blokken) og nestede seksjoner — løpenummeret går over hele dokumentet i render-rekkefølge.
   Lagret `bildeNr` fra appen har forrang (det er alt dokument-løpende: `nesteBildeNr` i
-  `@sitedoc/shared/utils/bildeNr.ts`); telleren er fallback. Test: `arkivmal/bildenummer.test.ts`.
+  `@sitedoc/shared/utils/bildeNr.ts`); telleren er fallback. **RETUR 1:** `samleBildeNr` (`hjelpere.ts`,
+  lokal rekursiv gange — ingen avhengighet til shared) samler alle lagrede nummer i dokumentet som
+  `teller.reservert`; fallback hopper over dem, så blandede dokumenter (gamle bilder uten nummer + nye
+  med) aldri viser samme nummer to ganger. Test: `arkivmal/bildenummer.test.ts`.
 - `timer-rapport.ts` — timer-rapport-dokument (firmatopp + sammendrag + detaljtabeller). Overskrifter injiseres oversatt (`TimerRapportTekster`) — ingen i18n i pakken.
 - `hjelpere.ts` — `esc`, `formaterDato` m.fl.
 

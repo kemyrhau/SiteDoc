@@ -13,20 +13,21 @@
 import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
 import { byggRadkort, repeaterErRik } from "./radkort";
-import { nyBildeTeller } from "../hjelpere";
+import { nyBildeTeller, samleBildeNr } from "../hjelpere";
 import type { BildeTeller } from "../hjelpere";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
 
 /**
  * `teller` = dokumentets løpende bildenummer (ordre 2026-11-04 (2)): ÉN teller for hele
  * dokumentet, tråd gjennom felt, nestede seksjoner og repeatere i render-rekkefølge.
- * Toppkallet lager den; rekursjonen sender samme instans videre.
+ * Toppkallet lager den med alle lagrede `bildeNr` i `data` som reserverte (RETUR 1);
+ * rekursjonen sender samme instans videre.
  */
 export function byggInnhold(
   objekter: TreObjekt[],
   data: Record<string, FeltVerdi>,
   config: PdfConfig,
-  teller: BildeTeller = nyBildeTeller(),
+  teller: BildeTeller = nyBildeTeller(samleBildeNr(data)),
 ): string {
   let html = "";
   for (const objekt of objekter) {

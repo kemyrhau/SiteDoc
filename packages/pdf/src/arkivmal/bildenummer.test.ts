@@ -133,6 +133,67 @@ describe("løpenummer for hele dokumentet", () => {
   });
 });
 
+describe("RETUR 1 — reserverte nummer og nestet seksjon", () => {
+  const fA = obj({ id: "fA", type: "text_field", label: "Felt A" });
+  const fB = obj({ id: "fB", type: "text_field", label: "Felt B" });
+  const fC = obj({ id: "fC", type: "text_field", label: "Felt C" });
+
+  it("R1: fallback hopper over lagret bildeNr — gammelt dokument + nytt nummerert bilde gir unike nummer", () => {
+    const data: Record<string, FeltVerdi> = {
+      fA: fv("a", [bilde({ bildeNr: 4 })]),
+      fB: fv("b", [bilde(), bilde()]),
+      fC: fv("c", [bilde()]),
+    };
+    const nr = nummer(byggInnhold([fA, fB, fC], data, CFG));
+    expect(nr).toEqual(["04", "01", "02", "03"]);
+    expect(new Set(nr).size).toBe(nr.length);
+  });
+
+  it("R1: fallback som når et reservert nummer hopper over det (02 lagret → 01, 03, 04)", () => {
+    const data: Record<string, FeltVerdi> = {
+      fA: fv("a", [bilde({ bildeNr: 2 })]),
+      fB: fv("b", [bilde(), bilde()]),
+      fC: fv("c", [bilde()]),
+    };
+    const nr = nummer(byggInnhold([fA, fB, fC], data, CFG));
+    expect(nr).toEqual(["02", "01", "03", "04"]);
+    expect(new Set(nr).size).toBe(nr.length);
+  });
+
+  it("R1: reservasjon samles også fra repeater-rader, attachments-verdier og objektnivå-vedlegg", () => {
+    const tabell = obj({
+      id: "r",
+      type: "repeater",
+      label: "Rader",
+      children: [obj({ id: "k", type: "text_field", label: "K" })],
+    });
+    const att = obj({ id: "att", type: "attachments", label: "Vedlegg" });
+    const data: Record<string, FeltVerdi> = {
+      fA: fv("a", [bilde(), bilde()]),
+      r: fv([{ k: fv("rad", [bilde({ bildeNr: 2 })]) }], [bilde({ bildeNr: 1 })]),
+      att: fv([bilde({ bildeNr: 3 }), bilde()]),
+    };
+    // Lagret: 1 (objektnivå), 2 (rad), 3 (attachments) → fallback for fA blir 04, 05; siste vedlegg 06.
+    const nr = nummer(byggInnhold([fA, tabell, att], data, CFG));
+    expect(nr).toEqual(["04", "05", "01", "02", "03", "06"]);
+    expect(new Set(nr).size).toBe(nr.length);
+  });
+
+  it("R2: nestet seksjon — barnas bilder fortsetter fra feltene foran", () => {
+    const seksjon = obj({
+      id: "s",
+      type: "heading",
+      label: "Seksjon",
+      children: [obj({ id: "barn", type: "text_field", label: "Barn" })],
+    });
+    const data: Record<string, FeltVerdi> = {
+      fA: fv("a", [bilde(), bilde()]),
+      barn: fv("b", [bilde()]),
+    };
+    expect(nummer(byggInnhold([fA, seksjon], data, CFG))).toEqual(["01", "02", "03"]);
+  });
+});
+
 describe("større svartekst", () => {
   it(".felt-verdi er 12px i arkiv-CSS-en", () => {
     expect(hentArkivCss()).toMatch(/\.felt-verdi\{[^}]*font-size:12px/);

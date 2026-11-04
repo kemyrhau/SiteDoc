@@ -5,7 +5,7 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller } from "./hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller, samleBildeNr } from "./hjelpere";
 import type { BildeTeller } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
@@ -24,13 +24,13 @@ import { byggSignaturListe } from "./arkivmal/signaturliste";
  * Renderer et enkelt felt (rapportobjekt + verdi) til HTML-streng.
  * Rekkefølge: label → verdi → bilder → tilføyelser → kommentar → fil-vedlegg.
  * `teller` er dokumentets løpende bildenummer (byggInnhold eier én pr. dokument);
- * utelatt → egen teller fra 01 (enkeltfelt-kall).
+ * utelatt → egen teller fra 01 med feltets lagrede nummer reservert (enkeltfelt-kall).
  */
 export function renderFelt(
   objekt: TreObjekt,
   felt: FeltVerdi | undefined,
   config: PdfConfig,
-  teller: BildeTeller = nyBildeTeller(),
+  teller: BildeTeller = nyBildeTeller(samleBildeNr(felt)),
 ): string {
   const { type, label } = objekt;
   const verdi = felt?.verdi;

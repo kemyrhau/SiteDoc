@@ -421,7 +421,9 @@ tilføyelser → kommentar → filer. `.felt-verdi` er 12px (`arkivmal/arkiv-css
 bildetekst «Bilde NN · dato tid» (`bildeMerke`, `hjelpere.ts`) — samme stil som repeaterne
 (`.ark-bilde-tekst`); `.bilde-nr`-hjørnemerket er fjernet fra arkiv-CSS-en. Én `BildeTeller` pr.
 `byggInnhold` gir ett løpenummer for hele dokumentet (felt, tabell-repeater, radkort, F7-blokk);
-lagret `bildeNr` har forrang. Test: `arkivmal/bildenummer.test.ts`. Ingen API-, migrerings- eller
+lagret `bildeNr` har forrang, og fallback hopper over alle lagrede nummer i dokumentet
+(`samleBildeNr` → `teller.reservert`, RETUR 1) så blandede dokumenter får unike nummer. Den døde
+`.bilde-nr`-regelen er også fjernet fra legacy `css.ts`. Test: `arkivmal/bildenummer.test.ts`. Ingen API-, migrerings- eller
 mobil-endring (nye parametre har standardverdi).
 
 ## Avhengighetskart

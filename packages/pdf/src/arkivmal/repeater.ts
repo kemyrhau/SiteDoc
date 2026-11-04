@@ -12,7 +12,7 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller } from "../hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller, samleBildeNr } from "../hjelpere";
 import type { BildeTeller } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
@@ -162,16 +162,17 @@ const F7_MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direk
  */
 export function byggUtenforRaderBlokk(
   objektFelt: FeltVerdi | undefined,
-  startNr: number,
+  startNr: number | BildeTeller,
 ): { html: string; nesteNr: number } {
+  // Tall = eget kall (F7-tester); teller = dokumenttelleren med reservasjoner (RETUR 1).
+  const teller: BildeTeller = typeof startNr === "number" ? { neste: startNr, reservert: new Set() } : startNr;
   const kommentar = objektFelt?.kommentar?.trim() ?? "";
   const alle = Array.isArray(objektFelt?.vedlegg) ? (objektFelt!.vedlegg as Vedlegg[]) : [];
   const bilder = alle.filter(erBilde);
   const antallIkkeBilder = alle.length - bilder.length;
   if (!kommentar && bilder.length === 0 && antallIkkeBilder === 0) {
-    return { html: "", nesteNr: startNr };
+    return { html: "", nesteNr: teller.neste };
   }
-  const teller: BildeTeller = { neste: startNr };
   const celler = bilder.map((b) => {
     const merke = bildeMerke(b, teller);
     // A4-kvittering (2026-08-22): IKKE tvungen 4:3-ramme. `.ark-bilde-img` er den DELTE
@@ -199,7 +200,7 @@ export function byggRepeaterTabell(
   verdi: unknown,
   label: string,
   objektFelt?: FeltVerdi,
-  teller: BildeTeller = nyBildeTeller(),
+  teller: BildeTeller = nyBildeTeller(samleBildeNr([verdi, objektFelt])),
 ): string {
   const barn = objekt.children ?? [];
   // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
@@ -208,8 +209,7 @@ export function byggRepeaterTabell(
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk FØRST (forbruker bildeNr før radene). Tom blokk → "".
   // Dokumenttelleren fortsetter fra feltene foran (ordre 2026-11-04 (2)).
-  const blokk = byggUtenforRaderBlokk(objektFelt, teller.neste);
-  teller.neste = blokk.nesteNr;
+  const blokk = byggUtenforRaderBlokk(objektFelt, teller);
 
   if (rader.length === 0) {
     // Case (a): objektnivå-innhold + 0 rader → blokk + «Ingen rader registrert».
