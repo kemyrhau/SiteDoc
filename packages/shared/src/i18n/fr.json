@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Dossiers",
   "sokMobil.omfangSjekklister": "Listes de contrôle",
   "sokMobil.omfangOppgaver": "Tâches",
-  "sokMobil.placeholder": "Rechercher des dossiers, des listes de contrôle et des tâches",
+  "sokMobil.placeholder": "Rechercher dans les dossiers, listes de contrôle, tâches et HSE",
   "sokMobil.minstToTegn": "Tapez au moins 2 caractères et appuyez sur Rechercher",
   "sokMobil.mapperKreverNett": "Hors ligne : la recherche de dossiers nécessite une connexion",
   "sokMobil.kreverNettKort": "les dossiers nécessitent une connexion",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "descendante",
   "dokumentsok.sorteringDeretter": ", puis ",
   "dokumentsok.sorteringHjelp": "Appuyez à nouveau pour inverser · le troisième appui supprime",
-  "dokumentsok.nullstillSortering": "Réinitialiser le tri"
+  "dokumentsok.nullstillSortering": "Réinitialiser le tri",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Rechercher « {{q}} » dans tout le projet",
+  "sokMobil.placeholderOppgaver": "Rechercher dans les tâches",
+  "sokMobil.placeholderSjekklister": "Rechercher dans les listes de contrôle",
+  "sokMobil.placeholderHms": "Rechercher dans HSE"
 }

@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Dosjet",
   "sokMobil.omfangSjekklister": "Listat e kontrollit",
   "sokMobil.omfangOppgaver": "Detyrat",
-  "sokMobil.placeholder": "Kërkoni dosje, lista kontrolli dhe detyra",
+  "sokMobil.placeholder": "Kërko në dosje, lista kontrolli, detyra dhe HSE",
   "sokMobil.minstToTegn": "Shkruani të paktën 2 karaktere dhe prekni Kërko",
   "sokMobil.mapperKreverNett": "Jashtë linje – kërkimi i dosjeve kërkon një lidhje",
   "sokMobil.kreverNettKort": "dosjet kërkojnë një lidhje",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "duke zbritur",
   "dokumentsok.sorteringDeretter": ", pastaj ",
   "dokumentsok.sorteringHjelp": "Prekni sërish për ta kthyer mbrapsht · prekja e tretë hiqet",
-  "dokumentsok.nullstillSortering": "Rivendos klasifikimin"
+  "dokumentsok.nullstillSortering": "Rivendos klasifikimin",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Kërko „{{q}}“ në të gjithë projektin",
+  "sokMobil.placeholderOppgaver": "Kërko në detyra",
+  "sokMobil.placeholderSjekklister": "Kërko në listat e kontrollit",
+  "sokMobil.placeholderHms": "Kërko në HSE"
 }

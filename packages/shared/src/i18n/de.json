@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Ordner",
   "sokMobil.omfangSjekklister": "Checklisten",
   "sokMobil.omfangOppgaver": "Aufgaben",
-  "sokMobil.placeholder": "Durchsuchen Sie Ordner, Checklisten und Aufgaben",
+  "sokMobil.placeholder": "Ordner, Checklisten, Aufgaben und HSE durchsuchen",
   "sokMobil.minstToTegn": "Geben Sie mindestens zwei Zeichen ein und tippen Sie auf Suchen",
   "sokMobil.mapperKreverNett": "Offline – für die Suche nach Ordnern ist eine Verbindung erforderlich",
   "sokMobil.kreverNettKort": "Ordner erfordern eine Verbindung",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "absteigend",
   "dokumentsok.sorteringDeretter": ", dann ",
   "dokumentsok.sorteringHjelp": "Zum Umkehren erneut tippen. Durch drittes Antippen wird die Funktion entfernt",
-  "dokumentsok.nullstillSortering": "Sortierung zurücksetzen"
+  "dokumentsok.nullstillSortering": "Sortierung zurücksetzen",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Im gesamten Projekt nach „{{q}}“ suchen",
+  "sokMobil.placeholderOppgaver": "Aufgaben durchsuchen",
+  "sokMobil.placeholderSjekklister": "Checklisten durchsuchen",
+  "sokMobil.placeholderHms": "HSE durchsuchen"
 }

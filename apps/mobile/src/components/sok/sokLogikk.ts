@@ -1,21 +1,59 @@
 import { delOppTermer, finnOverlapp, velgOfflineListeKilde } from "@sitedoc/shared";
+import type { HmsFane } from "../dokumentliste/hmsListe";
 
 /**
  * Ren logikk bak mobilsøket (spec-sok-mobil rev. 2): omfang og offline-matrise (§ 9), motorvalg for Mapper
  * (§ 6), gruppering pr. dokument (§ 2) og chunk-leseren (§ 3). Ingen React/RN her — testes i node.
  */
 
-export type Omfang = "alle" | "mapper" | "sjekklister" | "oppgaver";
+export type Omfang = "alle" | "mapper" | "sjekklister" | "oppgaver" | "hms";
 export type Kilde = Exclude<Omfang, "alle">;
 
 /** Rekkefølgen i «Alle»: mapper er nytt og hovedmålet; listene finnes alt andre steder (§ 9.4). */
-export const KILDE_REKKEFOLGE: Kilde[] = ["mapper", "sjekklister", "oppgaver"];
+export const KILDE_REKKEFOLGE: Kilde[] = ["mapper", "sjekklister", "oppgaver", "hms"];
 
 /** Maks listerader pr. seksjon i «Alle»; «Vis alle N» velger kilden alene. */
 export const MAKS_RADER_ALLE = 10;
 
 /** «Vis N flere» henter vist + porsjon fra samme endepunkt (som web `VIS_FLERE_PORSJON`). */
 export const VIS_FLERE_PORSJON = 20;
+
+const GYLDIGE_OMFANG: readonly Omfang[] = ["alle", ...KILDE_REKKEFOLGE];
+
+type RuteParam = string | string[] | undefined;
+const førsteVerdi = (v: RuteParam): string => (Array.isArray(v) ? v[0] ?? "" : v ?? "");
+
+/** Rute-parametrene til `/sok` (søkeinnganger): ukjent omfang faller til «alle», manglende tekst til "". */
+export function tolkSokParametre(p: { omfang?: RuteParam; q?: RuteParam }): { omfang: Omfang; q: string } {
+  const omfang = førsteVerdi(p.omfang);
+  return {
+    omfang: (GYLDIGE_OMFANG as readonly string[]).includes(omfang) ? (omfang as Omfang) : "alle",
+    q: førsteVerdi(p.q),
+  };
+}
+
+/** B-raden «Søk «q» i hele prosjektet» under listesøket vises bare når feltet har tekst. */
+export function visProsjektSokRad(tekst: string): boolean {
+  return tekst.trim().length > 0;
+}
+
+/** Parametrene B-raden åpner `/sok` med: listas egen kilde forhåndsvalgt, teksten tatt med. */
+export function prosjektSokParametre(kilde: Kilde, tekst: string): { omfang: Kilde; q: string } {
+  return { omfang: kilde, q: tekst.trim() };
+}
+
+/** HMS-kilden søker på tvers av fanene; hver rad beholder fanen sin (etikett + rute). */
+export function flatHmsRader<T>(
+  svar: { avvik: T[]; sja: T[]; ruh: T[] } | undefined,
+): Array<T & { fane: HmsFane }> {
+  if (!svar) return [];
+  return (["avvik", "sja", "ruh"] as const).flatMap((fane) => svar[fane].map((r) => ({ ...r, fane })));
+}
+
+/** Samme rute som HMS-lista: SJA er sjekkliste, avvik/RUH er oppgave. */
+export function hmsRute(fane: HmsFane): "sjekkliste" | "oppgave" {
+  return fane === "sja" ? "sjekkliste" : "oppgave";
+}
 
 export function kilderFor(omfang: Omfang): Kilde[] {
   return omfang === "alle" ? KILDE_REKKEFOLGE : [omfang];

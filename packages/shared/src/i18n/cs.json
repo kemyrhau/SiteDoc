@@ -5194,7 +5194,7 @@
   "sokMobil.omfangMapper": "Složky",
   "sokMobil.omfangSjekklister": "Kontrolní seznamy",
   "sokMobil.omfangOppgaver": "Úkoly",
-  "sokMobil.placeholder": "Prohledávejte složky, kontrolní seznamy a úkoly",
+  "sokMobil.placeholder": "Hledat ve složkách, kontrolních seznamech, úkolech a HSE",
   "sokMobil.minstToTegn": "Zadejte alespoň 2 znaky a klepněte na Hledat",
   "sokMobil.mapperKreverNett": "Offline – prohledávání složek vyžaduje připojení",
   "sokMobil.kreverNettKort": "složky vyžadují připojení",
@@ -5217,5 +5217,10 @@
   "dokumentsok.sorteringSynkende": "klesající",
   "dokumentsok.sorteringDeretter": ", poté ",
   "dokumentsok.sorteringHjelp": "Dalším klepnutím se vrátíte zpět · třetí klepnutí se odstraní",
-  "dokumentsok.nullstillSortering": "Obnovit řazení"
+  "dokumentsok.nullstillSortering": "Obnovit řazení",
+  "sokMobil.omfangHms": "HSE",
+  "sokMobil.sokIHeleProsjektet": "Vyhledejte „{{q}}“ v celém projektu",
+  "sokMobil.placeholderOppgaver": "Hledat v úkolech",
+  "sokMobil.placeholderSjekklister": "Hledat v kontrolních seznamech",
+  "sokMobil.placeholderHms": "Hledat v HSE"
 }

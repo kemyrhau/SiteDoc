@@ -27,6 +27,7 @@ import {
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { ProsjektSokRad } from "../../src/components/sok/ProsjektSokRad";
 import { HmsMalVelger, type HmsMal, type HmsSubdomain } from "../../src/components/HmsMalVelger";
 import {
   MedUtheving,
@@ -307,7 +308,7 @@ export default function HmsListe() {
             <TextInput
               value={søketekst}
               onChangeText={settSøketekst}
-              placeholder={t("dokumentsok.sokPlaceholder")}
+              placeholder={t("sokMobil.placeholderHms")}
               placeholderTextColor="#9ca3af"
               className="ml-2 flex-1 py-0 text-sm text-gray-900"
               autoFocus
@@ -344,6 +345,9 @@ export default function HmsListe() {
 
       {/* Global byggeplass-chip (filtrerer lista serverside) — skjules under søk. */}
       {!søkerNaa && <ByggeplassChip />}
+
+      {/* Søkeinngang B: listesøket er uendret; raden tar teksten med til prosjektsøket. */}
+      {søkeAktiv && <ProsjektSokRad kilde="hms" tekst={søketekst} />}
 
       {/* Subdomain-faner */}
       <View className="flex-row gap-2 border-b border-gray-200 bg-white px-4 py-2">

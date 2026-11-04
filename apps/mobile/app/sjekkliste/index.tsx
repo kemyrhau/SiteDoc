@@ -27,6 +27,7 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { ProsjektSokRad } from "../../src/components/sok/ProsjektSokRad";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
 import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
 import {
@@ -246,7 +247,7 @@ export default function SjekklisteListe() {
             <TextInput
               value={søketekst}
               onChangeText={settSøketekst}
-              placeholder={t("dokumentsok.sokPlaceholder")}
+              placeholder={t("sokMobil.placeholderSjekklister")}
               placeholderTextColor="#9ca3af"
               className="ml-2 flex-1 py-0 text-sm text-gray-900"
               autoFocus
@@ -285,6 +286,9 @@ export default function SjekklisteListe() {
 
       {/* Global byggeplass-chip — skjules under søk (søk treffer hele prosjektet). */}
       {!søkerNaa && <ByggeplassChip />}
+
+      {/* Søkeinngang B: listesøket er uendret; raden tar teksten med til prosjektsøket. */}
+      {søkeAktiv && <ProsjektSokRad kilde="sjekklister" tekst={søketekst} />}
 
       {/* Status-trakt (chips) + filter-trakt (Excel-mønster: nøytral / fylt m/teller). */}
       <View className="flex-row items-center border-b border-gray-100 bg-white">
