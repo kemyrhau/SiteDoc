@@ -990,6 +990,8 @@
   "kolonne.verdier": "Valori",
   "kolonne.velgParameter": "Selectați coloanele",
   "kolonne.hvemOgNaar": "Cine și când",
+  "kolonne.flytt": "Mutați coloana {{navn}}",
+  "kolonne.fjern": "Eliminați {{navn}}",
   "prioritet.lav": "Scăzut",
   "prioritet.middels": "Mediu",
   "prioritet.hoey": "Ridicat",

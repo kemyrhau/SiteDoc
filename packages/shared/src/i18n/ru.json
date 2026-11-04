@@ -990,6 +990,8 @@
   "kolonne.verdier": "Ценности",
   "kolonne.velgParameter": "Выберите столбцы",
   "kolonne.hvemOgNaar": "Кто и когда",
+  "kolonne.flytt": "Переместить столбец {{navn}}",
+  "kolonne.fjern": "Удалить {{navn}}",
   "prioritet.lav": "Низкий",
   "prioritet.middels": "Середина",
   "prioritet.hoey": "Высокий",

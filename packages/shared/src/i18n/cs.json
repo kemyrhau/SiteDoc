@@ -990,6 +990,8 @@
   "kolonne.verdier": "Hodnoty",
   "kolonne.velgParameter": "Vyberte sloupce",
   "kolonne.hvemOgNaar": "Kdo a kdy",
+  "kolonne.flytt": "Přesunout sloupec {{navn}}",
+  "kolonne.fjern": "Odebrat {{navn}}",
   "prioritet.lav": "Nízký",
   "prioritet.middels": "Střední",
   "prioritet.hoey": "Vysoký",

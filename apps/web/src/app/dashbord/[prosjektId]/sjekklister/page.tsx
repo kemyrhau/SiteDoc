@@ -14,6 +14,7 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { FlyttbareKolonner, renderFlyttbartHode } from "@/components/FlyttbareKolonner";
 import { faggruppeNavn } from "@/lib/sjekkliste-faggruppe";
 import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type Periode, type PeriodeFelt } from "@sitedoc/shared";
 import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
@@ -251,15 +252,6 @@ export default function SjekklisteSide() {
   const [flytSteg, setFlytSteg] = useState<{ malId: string; kandidater: FlytKandidat[] } | null>(null);
   const [valgtFlytId, setValgtFlytId] = useState<string | null>(null);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
-  const {
-    aktiveKolonner, kolonneBredder,
-    handleToggleKolonne, handleBreddeEndring,
-  } = useTabelloppsett({
-    liste: "sjekklister",
-    standardKolonner: STANDARD_AKTIVE,
-    migrerNokkel: "sitedoc-sjekkliste-kolonner-v6",
-    migrerBreddeNokkel: "sitedoc-sjekkliste-bredder-v1",
-  });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
 
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -499,12 +491,25 @@ export default function SjekklisteSide() {
   }, [dokumentflyter, sjekklister]);
 
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter], [verdiFelter]);
+  // Standardrekkefølgen (for oppsett lagret før kolonner kunne flyttes). Hooken står her
+  // fordi den trenger verdi-kolonnene fra malene.
+  const kanoniskRekkefolge = useMemo(() => alleKolonner.map((k) => k.id), [alleKolonner]);
+  const {
+    aktiveKolonner, kolonneRekkefolge, kolonneBredder,
+    handleToggleKolonne, handleRekkefolgeEndring, handleBreddeEndring,
+  } = useTabelloppsett({
+    liste: "sjekklister",
+    standardKolonner: STANDARD_AKTIVE,
+    kanoniskRekkefolge,
+    migrerNokkel: "sitedoc-sjekkliste-kolonner-v6",
+    migrerBreddeNokkel: "sitedoc-sjekkliste-bredder-v1",
+  });
 
-  // Grupper for den delte kolonnevelgeren (faste kolonner utelates — de er alltid på).
+  // Grupper for den delte kolonnevelgeren. Faste kolonner er låst: kan flyttes, ikke fjernes.
   const kolonneVelgerGrupper = useMemo<KolonneVelgerGruppe[]>(() => {
     const oversett = (p: KolonneParam) => (p.navnKey ? t(p.navnKey) : (p.navn ?? p.id));
     return [
-      { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => !k.fast).map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k), laast: k.fast })) },
       { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "metadata", navn: t("kolonne.hvemOgNaar"), felter: METADATA_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.map((k) => ({ id: k.id, navn: oversett(k) })) },
@@ -800,11 +805,9 @@ export default function SjekklisteSide() {
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0, filterAlternativer: dynamiskFilter[felt.id] ?? [],
       };
     }
-    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter];
-    const resultat: KolDef[] = [];
-    for (const k of rekkefølge) { const def = defs[k.id]; if (aktiveKolonner.has(k.id) && def) resultat.push(def); }
-    return resultat;
-  }, [aktiveKolonner, dynamiskFilter, verdiFelter, t]);
+    // Aktive kolonner i brukerens rekkefølge (useTabelloppsett er eneste kilde).
+    return kolonneRekkefolge.map((id) => defs[id]).filter((def): def is KolDef => !!def);
+  }, [kolonneRekkefolge, dynamiskFilter, verdiFelter, t]);
 
   const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);
 
@@ -825,6 +828,11 @@ export default function SjekklisteSide() {
               aktive={aktiveKolonner}
               onToggle={handleToggleKolonne}
               grupper={kolonneVelgerGrupper}
+              sorterbar
+              rekkefolge={kolonneRekkefolge}
+              onRekkefolgeEndring={handleRekkefolgeEndring}
+              flyttTekst={(navn) => t("kolonne.flytt", { navn })}
+              fjernTekst={(navn) => t("kolonne.fjern", { navn })}
               sokPlaceholder={t("sjekklister.sokPlaceholder")}
               nullstillTekst={t("handling.nullstill")}
               okTekst={t("handling.ok")}
@@ -920,12 +928,15 @@ export default function SjekklisteSide() {
         <EmptyState title={t("sjekklister.ingen")} description={t("sjekklister.ingenBeskrivelse")}
           action={<Button onClick={åpneMalVelger}>{t("sjekklister.opprett")}</Button>} />
       ) : (
-        <Table<SjekklisteRad>
-          kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
-          onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
-          tomMelding={t("sjekklister.ingenMatcherFilter")} velgbar valgteRader={valgte} onValgEndring={setValgte}
-          filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring}
-          kolonneBredder={kolonneBredder} onKolonneBreddeEndring={handleBreddeEndring} />
+        <FlyttbareKolonner kolonneIder={kolonneDefinisjoner.map((k) => k.id)} rekkefolge={kolonneRekkefolge} onRekkefolgeEndring={handleRekkefolgeEndring}>
+          <Table<SjekklisteRad>
+            kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
+            onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
+            tomMelding={t("sjekklister.ingenMatcherFilter")} velgbar valgteRader={valgte} onValgEndring={setValgte}
+            filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring}
+            kolonneBredder={kolonneBredder} onKolonneBreddeEndring={handleBreddeEndring}
+            renderKolonneHode={renderFlyttbartHode((navn) => t("kolonne.flytt", { navn }))} />
+        </FlyttbareKolonner>
       )}
 
       <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title={t("sjekklister.slettTittel")}>

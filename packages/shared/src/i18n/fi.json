@@ -990,6 +990,8 @@
   "kolonne.verdier": "Arvot",
   "kolonne.velgParameter": "Valitse sarakkeet",
   "kolonne.hvemOgNaar": "Kuka ja milloin",
+  "kolonne.flytt": "Siirrä sarake {{navn}}",
+  "kolonne.fjern": "Poista {{navn}}",
   "prioritet.lav": "Matala",
   "prioritet.middels": "Keskikokoinen",
   "prioritet.hoey": "Korkea",

@@ -990,6 +990,8 @@
   "kolonne.verdier": "Verdier",
   "kolonne.velgParameter": "Velg parameter",
   "kolonne.hvemOgNaar": "Hvem og når",
+  "kolonne.flytt": "Flytt kolonnen {{navn}}",
+  "kolonne.fjern": "Fjern {{navn}}",
   "prioritet.lav": "Lav",
   "prioritet.middels": "Middels",
   "prioritet.hoey": "Høy",

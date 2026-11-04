@@ -269,7 +269,8 @@ Ingen skjemamodal med felter — kun (evt.) mal-velger. Emne/beskrivelse/lokasjo
 
 Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 
-**Velg parameter** — modal med søkefelt og tre grupper:
+**Velg parameter** — `KolonneVelger` i `sorterbar`-modus (2026-11-04): valgte kolonner øverst som dra-liste, så
+tilgjengelige kolonner som avhukinger. Prefix, Nr og Status er låst (flyttbare, ikke fjernbare). Gruppene:
 - **Kolonner**: Prefix, Løpenummer, Tittel, Status, Flyt, Emne, Ansvarlig, Opprettet av, Entrepriser, Mal, Datoer
 - **Posisjon**: Byggeplass, Etasje, Tegning (separate kolonner)
 - **Verdier**: Dynamiske felt fra malenes `ReportObject`-er (`list_single`, `traffic_light`, `integer`, `decimal`, `text_field`, `person`, `signature`, `calculation`, etc.)
@@ -285,7 +286,18 @@ Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 
 **Sortering**: Klikk header for å sortere opp/ned.
 
-**Lagring**: `useTabelloppsett` hook — aktive kolonner og bredder lagres i database per bruker (`User.tabelloppsett` JSON). Debounced saving (800ms). Migrering fra localStorage automatisk.
+**Flytte kolonner** (2026-11-04): grep-håndtak til venstre i hver overskrift (`components/FlyttbareKolonner.tsx`,
+dnd-kit `horizontalListSortingStrategy` + `KeyboardSensor`). `@sitedoc/ui` `Table` har ingen dnd-kit; den tar en
+valgfri `renderKolonneHode`-render-prop (`KolonneHode` med ferdige th-props og innhold), og web pakker `<Table>` i
+`<FlyttbareKolonner>`. Håndtaket stopper klikk, så sortering, bredde-dragning og filterikonet virker som før.
+Avkrysningskolonnen (`velgbar`) er ikke en kolonne og står alltid først.
+
+**Lagring**: `useTabelloppsett` hook — aktive kolonner, rekkefølge og bredder lagres i database per bruker
+(`User.tabelloppsett` JSON, ingen migrering). Én kilde til rekkefølgen: hodet og velgeren kaller begge
+`handleRekkefolgeEndring`. `kolonner: string[]` er visningsrekkefølgen når `rekkefolge: true`; oppsett uten flagget
+(lagret før 04.11, også migrert fra localStorage) vises i sidens standardrekkefølge (`kanoniskRekkefolge`). Påslått
+kolonne havner sist; «Nullstill» lagrer standardkolonnene uten flagg. Logikk: `lib/kolonneRekkefolge.ts`. Debounced
+saving (800ms).
 
 ## Standardemner (EMNE_KATEGORIER)
 

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, GripVertical, Search, X } from "lucide-react";
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 /**
@@ -51,12 +51,17 @@ interface KolonneVelgerProps {
   /** Gjeldende rekkefølge (kun aktive kolonner, i visningsrekkefølge). */
   rekkefolge?: string[];
   onRekkefolgeEndring?: (ny: string[]) => void;
+  /** aria-label for grep-håndtaket i sorterbar modus (via t()). Standard: «Flytt kolonne». */
+  flyttTekst?: (navn: string) => string;
+  /** aria-label for fjern-knappen i sorterbar modus (via t()). Standard: «Fjern {navn}». */
+  fjernTekst?: (navn: string) => string;
 }
 
 function SorterbarRad({
-  felt, onFjern,
+  felt, onFjern, flyttTekst, fjernTekst,
 }: {
   felt: KolonneVelgerFelt; onFjern: (id: string) => void;
+  flyttTekst?: (navn: string) => string; fjernTekst?: (navn: string) => string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: felt.id });
   const style = {
@@ -75,7 +80,7 @@ function SorterbarRad({
         className="cursor-grab touch-none text-gray-400 hover:text-gray-600 active:cursor-grabbing"
         {...attributes}
         {...listeners}
-        aria-label="Flytt kolonne"
+        aria-label={flyttTekst ? flyttTekst(felt.navn) : "Flytt kolonne"}
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
@@ -87,7 +92,7 @@ function SorterbarRad({
           type="button"
           onClick={() => onFjern(felt.id)}
           className="text-gray-400 hover:text-gray-700"
-          aria-label={`Fjern ${felt.navn}`}
+          aria-label={fjernTekst ? fjernTekst(felt.navn) : `Fjern ${felt.navn}`}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -98,12 +103,15 @@ function SorterbarRad({
 
 export function KolonneVelger({
   apen, onLukk, aktive, onToggle, grupper, sokPlaceholder, nullstillTekst, okTekst, sokIngenTekst,
-  sorterbar, rekkefolge, onRekkefolgeEndring,
+  sorterbar, rekkefolge, onRekkefolgeEndring, flyttTekst, fjernTekst,
 }: KolonneVelgerProps) {
   const [sok, setSok] = useState("");
   const [apneGrupper, setApneGrupper] = useState<Set<string>>(new Set(grupper.map((g) => g.id)));
   const ref = useRef<HTMLDivElement>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     function handleKlikk(e: MouseEvent) {
@@ -169,6 +177,8 @@ export function KolonneVelger({
             sensors={sensors}
             handleDragEnd={handleDragEnd}
             sokIngenTekst={sokIngenTekst}
+            flyttTekst={flyttTekst}
+            fjernTekst={fjernTekst}
           />
         ) : (
           grupper
@@ -209,7 +219,7 @@ export function KolonneVelger({
 }
 
 function SorterbarInnhold({
-  alleFelter, feltVedId, aktive, rekkefolge, onToggle, treff, sensors, handleDragEnd, sokIngenTekst,
+  alleFelter, feltVedId, aktive, rekkefolge, onToggle, treff, sensors, handleDragEnd, sokIngenTekst, flyttTekst, fjernTekst,
 }: {
   alleFelter: KolonneVelgerFelt[];
   feltVedId: Map<string, KolonneVelgerFelt>;
@@ -220,6 +230,8 @@ function SorterbarInnhold({
   sensors: ReturnType<typeof useSensors>;
   handleDragEnd: (e: DragEndEvent) => void;
   sokIngenTekst?: string;
+  flyttTekst?: (navn: string) => string;
+  fjernTekst?: (navn: string) => string;
 }) {
   // Aktive kolonner i rekkefølge (draggbare), så tilgjengelige kolonner (avhukinger).
   const aktiveFelter = rekkefolge
@@ -233,7 +245,7 @@ function SorterbarInnhold({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={aktiveFelter.map((f) => f.id)} strategy={verticalListSortingStrategy}>
           {aktiveFelter.map((felt) => (
-            <SorterbarRad key={felt.id} felt={felt} onFjern={onToggle} />
+            <SorterbarRad key={felt.id} felt={felt} onFjern={onToggle} flyttTekst={flyttTekst} fjernTekst={fjernTekst} />
           ))}
         </SortableContext>
       </DndContext>
