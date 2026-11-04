@@ -27,6 +27,8 @@ sources: cowork
 
 ### 2026-11-04
 
+**Prod-deploy `d3bdaac9`** (Kenneth «Ja, prod» 04.11): innhold = develop `8a11dae6`; prod-OTA `eb90ad61`. Alt under 2026-11-04 og 2026-11-03 som var på develop, er nå i prod.
+
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
 | `61004eb1` (merge `d7599ae1`) | Sortering i oppgave-, sjekkliste-, innboks- og HMS-lista, mobil | **Før:** én sortering om gangen. «Nyeste først» og «Eldste» var egne brikker, og alle 7 brikkene vistes alltid. **Etter:** opptil 3 sorteringsnivåer. Første trykk legger til nivå (nummer på brikken, «1 · Frist ↑»), neste snur retningen, og tredje fjerner nivået. Ved 3 nivåer er de øvrige brikkene dempet. Like verdier avgjøres av neste nivå og til slutt av nummer. Lista sorteres straks. «Opprettet» er én brikke med retning. Frist/nummer/emne vises bare når lista har slike verdier. Aktiv sortering vises som chip i lista («Frist ↑, deretter Nummer ↓») med ×. Valget huskes ikke ved prosjektbytte, som før. ⚪ Ikke verifisert på telefon. Web uendret. | Kenneth 04.11: «Kun en sortering av gangen. Det er for lite», «ja» til forslag (likhet → neste nivå, sortering på trykk) |
