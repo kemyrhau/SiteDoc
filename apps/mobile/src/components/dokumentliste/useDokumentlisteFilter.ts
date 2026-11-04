@@ -3,14 +3,21 @@ import { useTranslation } from "react-i18next";
 import type { HarBallenBruker, Periode } from "@sitedoc/shared";
 import { trpc } from "../../lib/trpc";
 import { useNettverk } from "../../providers/NettverkProvider";
-import { antallAktiveFilter, utenUbruktBallen, type Sortering } from "./dokumentlisteFilter";
+import {
+  antallAktiveFilter,
+  trykkSorteringsbrikke,
+  utenUbruktBallen,
+  type SorterNokkel,
+  type Sortering,
+} from "./dokumentlisteFilter";
 import { byggAktiveChips, PERIODE_CHIP } from "./filterEtikett";
 
 export const PERIODE_ALLE: Periode = { hurtigvalg: "alle", fra: null, til: null };
 
 /**
  * Listetilstand for søk + filter + sortering + opprettet-periode i sjekkliste-,
- * oppgave- og innbokslista (filter-mobil 2026-11-03). Overlever navigasjon inn/ut
+ * oppgave-, innboks- og HMS-lista (filter-mobil 2026-11-03). Sorteringen er
+ * flernivå (opptil 3, 2026-11-04) og holdes bare i minnet, som før. Overlever navigasjon inn/ut
  * av et dokument (skjermen forblir montert); nullstilles ved prosjektbytte.
  * `ballenBrukerNett` er brukerens flyt-identitet når nettet er oppe; lista avgjør
  * selv om den kan brukes (`ballenBrukerForKilde` — krever serverrader) og sender
@@ -22,7 +29,7 @@ export function useDokumentlisteFilter(prosjektId: string | null | undefined) {
   const [søkeAktiv, settSøkeAktiv] = useState(false);
   const [søketekst, settSøketekst] = useState("");
   const [filterVerdier, settFilterVerdier] = useState<Record<string, string>>({});
-  const [sortering, settSortering] = useState<Sortering>("nyeste");
+  const [sortering, settSortering] = useState<Sortering>([]);
   const [periode, settPeriode] = useState<Periode>(PERIODE_ALLE);
   const [visSheet, settVisSheet] = useState(false);
 
@@ -31,7 +38,7 @@ export function useDokumentlisteFilter(prosjektId: string | null | undefined) {
     settSøkeAktiv(false);
     settSøketekst("");
     settFilterVerdier({});
-    settSortering("nyeste");
+    settSortering([]);
     settPeriode(PERIODE_ALLE);
   }, [prosjektId]);
 
@@ -74,6 +81,12 @@ export function useDokumentlisteFilter(prosjektId: string | null | undefined) {
     });
   }, []);
 
+  const trykkSortering = useCallback((nokkel: SorterNokkel) => {
+    settSortering((forrige) => trykkSorteringsbrikke(forrige, nokkel));
+  }, []);
+
+  const nullstillSortering = useCallback(() => settSortering([]), []);
+
   const nullstillFilter = useCallback(() => {
     settFilterVerdier({});
     settPeriode(PERIODE_ALLE);
@@ -88,7 +101,8 @@ export function useDokumentlisteFilter(prosjektId: string | null | undefined) {
     søkeTokens,
     filterVerdier,
     sortering,
-    settSortering,
+    trykkSortering,
+    nullstillSortering,
     periode,
     settPeriode,
     visSheet,

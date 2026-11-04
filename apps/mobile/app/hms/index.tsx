@@ -41,6 +41,7 @@ import {
   ballenBrukerForKilde,
   byggAlternativer,
   filtrerOgSorter,
+  tilgjengeligeSorteringer,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
 import {
   filterForFane,
@@ -94,7 +95,8 @@ export default function HmsListe() {
     søkeTokens,
     filterVerdier: råFilter,
     sortering,
-    settSortering,
+    trykkSortering,
+    nullstillSortering,
     periode,
     settPeriode,
     visSheet,
@@ -391,13 +393,15 @@ export default function HmsListe() {
         </Pressable>
       </View>
 
-      {antallFilter > 0 && (
+      {(antallFilter > 0 || sortering.length > 0) && (
         <AktiveFilterChips
           chips={aktiveChips}
           synlige={synlige.length}
           totalt={aktivListe.length}
           onFjern={fjernChip}
           onNullstill={nullstillFilter}
+          sortering={sortering}
+          onNullstillSortering={nullstillSortering}
         />
       )}
 
@@ -458,7 +462,8 @@ export default function HmsListe() {
         sortering={sortering}
         antallTreff={synlige.length}
         onSettFilter={settFilter}
-        onSettSortering={settSortering}
+        sorteringsnokler={tilgjengeligeSorteringer(aktivListe, sortering)}
+        onTrykkSortering={trykkSortering}
         onNullstill={nullstillFilter}
         onLukk={() => settVisSheet(false)}
         periode={periode}

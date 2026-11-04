@@ -33,6 +33,7 @@ import {
   ballenBrukerForKilde,
   byggAlternativer,
   filtrerOgSorter,
+  tilgjengeligeSorteringer,
   type DokumentRad,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
 import {
@@ -78,7 +79,8 @@ export default function SjekklisteListe() {
     søkeTokens,
     filterVerdier: råFilter,
     sortering,
-    settSortering,
+    trykkSortering,
+    nullstillSortering,
     periode,
     settPeriode,
     visSheet,
@@ -308,13 +310,15 @@ export default function SjekklisteListe() {
       </View>
 
       {/* Fjernbare filter-chips + «Viser N av M» — aldri usynlig AT lista er filtrert. */}
-      {antallFilter > 0 && (
+      {(antallFilter > 0 || sortering.length > 0) && (
         <AktiveFilterChips
           chips={aktiveChips}
           synlige={synlige.length}
           totalt={totalt}
           onFjern={fjernChip}
           onNullstill={nullstillFilter}
+          sortering={sortering}
+          onNullstillSortering={nullstillSortering}
         />
       )}
 
@@ -372,7 +376,8 @@ export default function SjekklisteListe() {
         sortering={sortering}
         antallTreff={synlige.length}
         onSettFilter={settFilter}
-        onSettSortering={settSortering}
+        sorteringsnokler={tilgjengeligeSorteringer(sjekklister ?? [], sortering)}
+        onTrykkSortering={trykkSortering}
         onNullstill={nullstillFilter}
         onLukk={() => settVisSheet(false)}
         periode={periode}

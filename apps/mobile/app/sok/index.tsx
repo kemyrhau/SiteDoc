@@ -195,7 +195,7 @@ export default function SokSkjerm() {
   const sjekklisteTreff = useMemo(() => {
     if (!søkerSjekklister) return [];
     const rader = modus.sjekklister === "server" ? sjekklisteServer ?? [] : sjekklisteLokal;
-    return filtrerOgSorter(rader, {}, aktivtSok, "nyeste");
+    return filtrerOgSorter(rader, {}, aktivtSok, []);
   }, [søkerSjekklister, modus.sjekklister, sjekklisteServer, sjekklisteLokal, aktivtSok]);
 
   const oppgaveTreff = useMemo(() => {
