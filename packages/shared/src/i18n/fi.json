@@ -892,6 +892,7 @@
   "handling.avvis": "Hylätä",
   "handling.lukk": "Lähellä",
   "kollisjon.notat.tittel": "Huomioi – kenttä oli jo täytetty",
+  "kollisjon.notat.kompleksVerdi": "(kompleksiarvo)",
   "kollisjon.varsel.tekst": "Arvosi kentässä {{antall}} ei voinut korvata olemassa olevaa arvoa. Kenttä tallentaa sen muistiinpanoksi, jossa on nimi ja aika – mitään ei häviä. Kuka pitää palloa, voi siirtää sen sisään.",
   "godkjentLaast.varsel.tekst": "Raportti on hyväksytty – muutosta ei tallennettu. Avaa raportti uudelleen muokataksesi sitä.",
   "lagreAvvist.varsel.tekst": "Palvelin hylkäsi muutoksen, eikä sitä tallennettu – muut eivät näe sitä. Se on vain tässä laitteessa. Ota yhteyttä projektin ylläpitäjään, jos se toistuu.",

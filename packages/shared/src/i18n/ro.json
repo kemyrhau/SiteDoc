@@ -892,6 +892,7 @@
   "handling.avvis": "Respinge",
   "handling.lukk": "Aproape",
   "kollisjon.notat.tittel": "Notat – câmpul a fost deja completat",
+  "kollisjon.notat.kompleksVerdi": "(valoare complexă)",
   "kollisjon.varsel.tekst": "Valoarea dvs. de pe câmpurile {{antall}} nu a putut suprascrie o valoare care există deja. Se salvează sub formă de notă de câmp, cu nume și oră – nu se pierde nimic. Cine deține mingea o poate muta înăuntru.",
   "godkjentLaast.varsel.tekst": "Raportul este aprobat – modificarea nu a fost salvată. Redeschideți raportul pentru a edita.",
   "lagreAvvist.varsel.tekst": "Serverul a respins modificarea și nu a fost salvată – alții nu o pot vedea. Este doar pe acest dispozitiv. Contactați administratorul proiectului dacă se întâmplă din nou.",

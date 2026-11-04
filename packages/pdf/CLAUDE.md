@@ -40,6 +40,15 @@ Motoren (Playwright `page.pdf`) bor i den interne **pdf-render-containeren**; de
   lokal rekursiv gange — ingen avhengighet til shared) samler alle lagrede nummer i dokumentet som
   `teller.reservert`; fallback hopper over dem, så blandede dokumenter (gamle bilder uten nummer + nye
   med) aldri viser samme nummer to ganger. Test: `arkivmal/bildenummer.test.ts`.
+- **Opprydding (ordre 2026-11-04 (3)):** *P1* — radkortets bildeblokk (`byggBildeblokk`, `radkort.ts`)
+  dropper sin «Bilder»-overskrift når feltet er `attachments` med meningsfull label (labelen ER
+  overskriften; ÉN overskrift). Attachments uten label beholder «Bilder»; skalarfelt med egne bilder får
+  label + «Bilder». `byggBilderader` (tabellform) har ingen egen overskrift. *P2* — `bildeMerke` bruker
+  samme vakt som `samleBildeNr`: bare positivt heltall er lagret nummer; `null`/0 → fallback (ga «Bilde
+  null»). *P3* — vær-tekst er trukket ut til `formaterVaerTekst` (`hjelpere.ts`), brukt av vær-feltet
+  (`felt.ts`) og av `formaterTilfoyelseVerdi`: en tapt vær-verdi (`{temp, conditions, wind,
+  precipitation, kilde, status}`) vises som feltet selv; tom → «(tom verdi)»; «(kompleks verdi)» er bare
+  siste fallback. Tester: `bildenummer.test.ts` + `tilfoyelser.test.ts`.
 - `timer-rapport.ts` — timer-rapport-dokument (firmatopp + sammendrag + detaljtabeller). Overskrifter injiseres oversatt (`TimerRapportTekster`) — ingen i18n i pakken.
 - `hjelpere.ts` — `esc`, `formaterDato` m.fl.
 

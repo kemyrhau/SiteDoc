@@ -418,6 +418,8 @@ Logo, prosjektnummer · prosjektnavn, lokasjon · tegning, dato med klokkeslett,
 
 **Layout-prinsipp:** Feltlabel+verdi i `print-no-break` (ubrytbar). Vedlegg (`FeltVedlegg`) utenfor `print-no-break` — bildegrid kan brytes naturlig over sider.
 
+**Kollisjonsnotat (`rapportobjekter/TilfoyelseNotat.tsx`):** tapte offline-kollisjonsverdier vises under feltet. `tilfoyelseVerdiTekst(verdi, t)` viser en tapt vær-verdi slik `VaerObjekt` viser den (`vaerOppsummering` i `rapportobjekter/vaerTekst.ts`, delt kilde); tom → `felt.ingenVaerdata`; ukjent objekt → `kollisjon.notat.kompleksVerdi` (ordre 2026-11-04 (3) P3). Test: `TilfoyelseNotat.test.ts`.
+
 ### Batch-utskrift
 `/dashbord/[prosjektId]/sjekklister/skriv-ut?ider=id1,id2,...` — flere sjekklister på én utskrift med `print-sideskift` mellom. Maks 10 parallelle queries. Bruker `PrintHeader`-komponent (ikke inline header).
 

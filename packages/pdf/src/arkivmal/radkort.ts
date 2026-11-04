@@ -75,8 +75,12 @@ export function repeaterErRik(objekt: TreObjekt): boolean {
   );
 }
 
-/** Bildeblokk: to og to i full bredde, sideforhold bevart, bildetekst under. */
-function byggBildeblokk(vedlegg: Vedlegg[] | undefined, teller: BildeTeller): string {
+/**
+ * Bildeblokk: to og to i full bredde, sideforhold bevart, bildetekst under.
+ * `medOverskrift` = false når feltet selv alt har overskrift for bildene (attachments
+ * med meningsfull label) — ÉN overskrift, feltets egen vinner (ordre 2026-11-04 (3) P1).
+ */
+function byggBildeblokk(vedlegg: Vedlegg[] | undefined, teller: BildeTeller, medOverskrift = true): string {
   const bilder = Array.isArray(vedlegg) ? vedlegg.filter(erBilde) : [];
   if (bilder.length === 0) return "";
   // «Bilde 01 · tid» — løpenr fra appen (null-padet), dokumenttelleren som
@@ -90,7 +94,8 @@ function byggBildeblokk(vedlegg: Vedlegg[] | undefined, teller: BildeTeller): st
     .join("");
   // Egen klasse (ikke .ark-radkort-felt): bildeblokken KAN brytes mellom rekker
   // (Gate pkt 7), mens hvert enkeltbilde holdes samlet (.ark-radkort-bilde).
-  return `<div class="ark-radkort-bildefelt"><div class="ark-radkort-label">Bilder</div><div class="ark-radkort-bilder">${kort}</div></div>`;
+  const overskrift = medOverskrift ? `<div class="ark-radkort-label">Bilder</div>` : "";
+  return `<div class="ark-radkort-bildefelt">${overskrift}<div class="ark-radkort-bilder">${kort}</div></div>`;
 }
 
 /** Ett felt i radkortet: label + verdi (per type), + ev. bildeblokk hos feltet. */
@@ -156,7 +161,9 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
     ...(Array.isArray(felt?.vedlegg) ? felt!.vedlegg : []),
     ...(barn.type === "attachments" && Array.isArray(felt?.verdi) ? (felt!.verdi as Vedlegg[]) : []),
   ];
-  const bildeblokk = byggBildeblokk(feltBilder, teller);
+  // Attachments-felt med egen label: labelen ER bildeoverskriften. Uten meningsfull
+  // label beholdes «Bilder»; skalarfelt med egne bilder får label + «Bilder» (to ulike ting).
+  const bildeblokk = byggBildeblokk(feltBilder, teller, !(barn.type === "attachments" && meningsfull));
 
   return `<div class="ark-radkort-felt">${label}${innhold}</div>${bildeblokk}`;
 }
