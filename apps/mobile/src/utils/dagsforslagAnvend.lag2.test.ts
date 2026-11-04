@@ -37,6 +37,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { anvendDagsforslag } from "./dagsforslagAnvend";
+import { avgjorSluttDagHandling } from "./dagsforslag";
 import type { Dagsforslag } from "./dagsforslag";
 import type { ReiseRegelSnapshot, NormSnapshot } from "@sitedoc/shared";
 
@@ -95,6 +96,7 @@ function forslag(): Dagsforslag {
         normStatus: "server",
         normSnapshot: NORM,
         vekForOverlapp: [],
+        raderDroppetUtenLonnsart: 0,
         rader: [
           {
             projectId: "p1",
@@ -173,6 +175,7 @@ describe("anvendDagsforslag — L2-B skriver sporet (gate c)", () => {
   it("🔴 (c) reise-raden lagres MED alle etappe-felt + V8-vindu i sheet_timer_local", () => {
     const resultat = anvendDagsforslag(anvendDb(), forslag(), {
       userId: "u1",
+      erAnsatt: null,
       orgId: "o1",
       nyId: () => `rad-${teller++}`,
       naa: () => 1000,
@@ -211,6 +214,7 @@ describe("anvendDagsforslag — L2-B skriver sporet (gate c)", () => {
   it("🔴 (c) sedelen lagres med normStatus + normSnapshot (B5)", () => {
     const resultat = anvendDagsforslag(anvendDb(), forslag(), {
       userId: "u1",
+      erAnsatt: null,
       orgId: "o1",
       nyId: () => `rad-${teller++}`,
       naa: () => 1000,
@@ -225,6 +229,45 @@ describe("anvendDagsforslag — L2-B skriver sporet (gate c)", () => {
     expect(JSON.parse(sedel!.normSnapshot!)).toMatchObject({
       dagsnorm: 8,
       normKilde: "fast",
+    });
+  });
+});
+
+describe("anvendDagsforslag — ikke ansatt / mangler lønnsart (ordre 2026-11-04 (8))", () => {
+  function ctx(erAnsatt: boolean | null) {
+    return {
+      userId: "u1",
+      erAnsatt,
+      orgId: "o1",
+      nyId: () => `rad-${teller++}`,
+      naa: () => 1000,
+    };
+  }
+
+  it("🔴 (a) erAnsatt=false: ingen sedel skrives, utfall ikkeAnsatt", () => {
+    const resultat = anvendDagsforslag(anvendDb(), forslag(), ctx(false));
+    expect(resultat).toMatchObject({ startSheetId: null, ikkeAnsatt: true, ingenRader: true });
+    expect(db().select().from(dagsseddelLocal).all()).toHaveLength(0);
+    expect(db().select().from(sheetTimerLocal).all()).toHaveLength(0);
+    expect(avgjorSluttDagHandling(resultat).type).toBe("ikkeAnsatt");
+  });
+
+  it("(d) erAnsatt=null (ukjent): sedelen skrives som før", () => {
+    const resultat = anvendDagsforslag(anvendDb(), forslag(), ctx(null));
+    expect(resultat.ikkeAnsatt).toBe(false);
+    expect(resultat.startSheetId).not.toBeNull();
+    expect(db().select().from(dagsseddelLocal).all()).toHaveLength(1);
+  });
+
+  it("🔴 (b) alle arbeidsrader droppet for manglende lønnsart → manglerLonnsart, sedelen finnes", () => {
+    const f = forslag();
+    f.datoer[0].rader = [];
+    f.datoer[0].raderDroppetUtenLonnsart = 1;
+    const resultat = anvendDagsforslag(anvendDb(), f, ctx(true));
+    expect(resultat).toMatchObject({ ingenRader: true, manglerLonnsart: true });
+    expect(avgjorSluttDagHandling(resultat)).toEqual({
+      type: "manglerLonnsart",
+      sheetId: resultat.startSheetId,
     });
   });
 });

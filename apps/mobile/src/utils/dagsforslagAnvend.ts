@@ -32,6 +32,11 @@ export function anvendDagsforslag(
   ctx: {
     userId: string;
     orgId: string;
+    /**
+     * Ansatt i `orgId`? `false` → ingen sedel skrives (serveren ville nektet den
+     * for alltid). `null` = ukjent (aldri hentet) → skriv som før; serveren er porten.
+     */
+    erAnsatt: boolean | null;
     nyId: () => string;
     naa: () => number;
   },
@@ -41,6 +46,20 @@ export function anvendDagsforslag(
   let totalRader = 0;
   let harEksisterendeRader = false;
   const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
+  let manglerLonnsart = false;
+
+  if (ctx.erAnsatt === false) {
+    return {
+      startSheetId: null,
+      blokkertSendt: false,
+      ingenRader: true,
+      harEksisterendeRader: false,
+      vekForOverlapp: [],
+      prosjektUkjent: false,
+      ikkeAnsatt: true,
+      manglerLonnsart: false,
+    };
+  }
 
   // Ingen utledet prosjekt/aktivitet → ingenting å skrive (manuell flyt).
   // `prosjektUkjent` bæres videre så kalleren skiller «velg prosjekt» fra
@@ -53,6 +72,8 @@ export function anvendDagsforslag(
       harEksisterendeRader: false,
       vekForOverlapp: [],
       prosjektUkjent: forslag.prosjektUkjent,
+      ikkeAnsatt: false,
+      manglerLonnsart: false,
     };
   }
 
@@ -88,6 +109,7 @@ export function anvendDagsforslag(
       blokkertSendt = true;
       continue;
     }
+    if (d.raderDroppetUtenLonnsart > 0) manglerLonnsart = true;
 
     // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
     // den nye økten. Rad-innsettingen under bruker sedel-id → appender rader.
@@ -142,6 +164,8 @@ export function anvendDagsforslag(
     harEksisterendeRader,
     vekForOverlapp,
     prosjektUkjent: false,
+    ikkeAnsatt: false,
+    manglerLonnsart,
   };
 }
 

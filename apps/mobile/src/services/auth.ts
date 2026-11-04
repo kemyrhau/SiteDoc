@@ -8,6 +8,11 @@ WebBrowser.maybeCompleteAuthSession();
 
 const SESSION_TOKEN_KEY = "sitedoc_session_token";
 const USER_DATA_KEY = "sitedoc_user_data";
+/**
+ * JSON-liste over firma-id-er brukeren er ansatt i (FirmaKontekst skriver den). Bor her
+ * så utlogging kan slette den uten å importere FirmaKontekst (som importerer trpc → auth).
+ */
+export const ANSATT_FIRMA_KEY = "sitedoc_ansatt_firmaer";
 
 export interface BrukerData {
   id: string;
@@ -69,6 +74,10 @@ export async function hentBrukerData(): Promise<BrukerData | null> {
   } catch {
     return null;
   }
+}
+
+export async function slettLagretAnsattListe(): Promise<void> {
+  await slettVerdi(ANSATT_FIRMA_KEY);
 }
 
 export async function slettBrukerData(): Promise<void> {
@@ -213,6 +222,9 @@ export async function loggUt(): Promise<void> {
   }
   await slettSessionToken();
   await slettBrukerData();
+  // Ansatt-listen tilhører brukeren — ellers får neste bruker (offline) forrige
+  // brukers liste og en falsk «ikke ansatt».
+  await slettLagretAnsattListe();
   // RETUR 2: tøm tegning-/byggeplass-speilet ved utlogging/brukerbytte, så neste
   // bruker på telefonen aldri ser forrige brukers offline-tegninger.
   tomTegningSpeil();
