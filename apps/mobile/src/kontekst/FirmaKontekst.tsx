@@ -9,10 +9,10 @@ import {
 import type { ReactNode } from "react";
 import { Platform } from "react-native";
 import { trpc } from "../lib/trpc";
+import { useAuth } from "../providers/AuthProvider";
+import { ANSATT_FIRMA_KEY } from "../services/auth";
 
 const VALGT_FIRMA_KEY = "sitedoc_valgt_firma";
-/** JSON-liste over firma-id-er brukeren er ansatt i (siste vellykkede henting). */
-const ANSATT_FIRMA_KEY = "sitedoc_ansatt_firmaer";
 
 async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
@@ -153,8 +153,17 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
       }
     }
     lastLagretFirma();
-    hentLagretAnsattListe().then(setLagretAnsattListe).catch(() => {});
   }, []);
+
+  // Ansatt-listen følger brukeren: last på nytt ved mount og hver gang brukeren byttes
+  // eller logger ut (`loggUt` har da slettet nøkkelen), så forrige brukers liste aldri
+  // gir en falsk «ikke ansatt».
+  const { bruker } = useAuth();
+  const brukerId = bruker?.id ?? null;
+  useEffect(() => {
+    setLagretAnsattListe(null);
+    hentLagretAnsattListe().then(setLagretAnsattListe).catch(() => {});
+  }, [brukerId]);
 
   // Persister ansatt-firmaene når hentingen lyktes — så Slutt dag og sedelen vet
   // svaret offline. Bare når API-et faktisk sender feltet (eldre API = ukjent).

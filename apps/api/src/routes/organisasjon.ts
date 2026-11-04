@@ -215,10 +215,10 @@ export const organisasjonRouter = router({
       orderBy: { name: "asc" },
     });
     return berikMedAnsattStatus(
-        ctx.prisma,
-        ctx.userId,
-        await berikMedFirmamoduler(ctx.prisma, orgs),
-      );
+      ctx.prisma,
+      ctx.userId,
+      await berikMedFirmamoduler(ctx.prisma, orgs),
+    );
   }),
 
   // Opprett ny organisasjon (skall-firma; erKunde faller til default false).

@@ -14,8 +14,14 @@ vi.mock("expo-secure-store", () => ({
   deleteItemAsync: async (k: string) => void lager.delete(k),
 }));
 vi.mock("../lib/trpc", () => ({ trpc: {} }));
+vi.mock("../providers/AuthProvider", () => ({ useAuth: () => ({ bruker: null }) }));
+vi.mock("expo-auth-session", () => ({}));
+vi.mock("expo-web-browser", () => ({ maybeCompleteAuthSession: () => {} }));
+vi.mock("../config/auth", () => ({ AUTH_CONFIG: { apiUrl: "http://api.test" }, MICROSOFT_AUTH: {} }));
+vi.mock("../services/tegningKatalog", () => ({ tomTegningSpeil: () => {} }));
 
 import { erAnsattI, hentLagretAnsattStatus } from "./FirmaKontekst";
+import { ANSATT_FIRMA_KEY, loggUt } from "../services/auth";
 
 beforeEach(() => lager.clear());
 
@@ -51,5 +57,22 @@ describe("hentLagretAnsattStatus", () => {
     expect(await hentLagretAnsattStatus("o1")).toBeNull();
     lager.set("sitedoc_ansatt_firmaer", "{ikke json");
     expect(await hentLagretAnsattStatus("o1")).toBeNull();
+  });
+});
+
+describe("utlogging — ansatt-listen følger brukeren (RETUR dom 22)", () => {
+  it("🔴 etter loggUt er lagret ansatt-status ukjent, ikke forrige brukers liste", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}")));
+    lager.set("sitedoc_session_token", "tok");
+    lager.set(ANSATT_FIRMA_KEY, JSON.stringify(["o1"]));
+    expect(await hentLagretAnsattStatus("o1")).toBe(true);
+    expect(await hentLagretAnsattStatus("o2")).toBe(false);
+
+    await loggUt();
+
+    expect(lager.has(ANSATT_FIRMA_KEY)).toBe(false);
+    expect(await hentLagretAnsattStatus("o1")).toBeNull();
+    expect(await hentLagretAnsattStatus("o2")).toBeNull();
+    vi.unstubAllGlobals();
   });
 });
