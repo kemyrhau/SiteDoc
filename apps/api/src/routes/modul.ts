@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
-import type { Prisma } from "@sitedoc/db";
-import { verifiserProsjektmedlem, verifiserOrganisasjonTilgang } from "../trpc/tilgangskontroll";
+import type { Prisma, PrismaClient } from "@sitedoc/db";
+import { verifiserProsjektmedlem, verifiserAdmin, verifiserOrganisasjonTilgang } from "../trpc/tilgangskontroll";
 import { effektivTilstand, FIRMAMODUL_SLUGS } from "../services/modul";
+import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 
 /**
  * Seeder HMS-spesifikk infrastruktur når hms-avvik-modulen aktiveres:
@@ -149,6 +151,32 @@ async function seedHmsModulOmradet(
   }
 }
 
+/**
+ * Kaster NOT_FOUND når FTD-dokumentet ikke finnes i `projectId`, og FORBIDDEN når det ligger i en
+ * mappe brukeren ikke har tilgang til. Samme mønster som `ftdSok.hentDokumentChunks` (sikkerhet.md § 8d/8i).
+ */
+async function krevFtdDokumentTilgang(
+  prisma: PrismaClient,
+  userId: string,
+  projectId: string,
+  documentId: string,
+) {
+  const dok = await prisma.ftdDocument.findUnique({
+    where: { id: documentId },
+    select: { sourceLanguage: true, projectId: true, folderId: true },
+  });
+  if (!dok || dok.projectId !== projectId) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke i prosjektet" });
+  }
+  if (dok.folderId) {
+    const mappeIder = await hentTilgjengeligeMappeIder(userId, projectId);
+    if (mappeIder !== null && !mappeIder.includes(dok.folderId)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Ingen tilgang til mappen" });
+    }
+  }
+  return dok;
+}
+
 export const modulRouter = router({
   // Hent aktive moduler for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -218,14 +246,14 @@ export const modulRouter = router({
       return Object.fromEntries(par) as Record<string, boolean>;
     }),
 
-  // Aktiver en modul — oppretter maler og rapportobjekter automatisk
+  // Aktiver en modul — oppretter maler og rapportobjekter automatisk. Krever prosjektadmin (sikkerhet.md § 8i).
   aktiver: protectedProcedure
     .input(z.object({
       projectId: z.string().uuid(),
       moduleSlug: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const modulDef = PROSJEKT_MODULER.find((m) => m.slug === input.moduleSlug);
       if (!modulDef) {
         throw new Error(`Ukjent modul: ${input.moduleSlug}`);
@@ -427,14 +455,14 @@ export const modulRouter = router({
       });
     }),
 
-  // Deaktiver en modul (beholder malene — de kan ha data)
+  // Deaktiver en modul (beholder malene — de kan ha data). Krever prosjektadmin.
   deaktiver: protectedProcedure
     .input(z.object({
       projectId: z.string().uuid(),
       moduleSlug: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       // Sjekk om andre aktive moduler avhenger av denne
       const avhengige = PROSJEKT_MODULER.filter(
@@ -487,7 +515,7 @@ export const modulRouter = router({
       };
     }),
 
-  // Oppdater oversettelsesinnstillinger (kun firmaadmin/prosjektadmin)
+  // Oppdater oversettelsesinnstillinger (prosjektadmin, firma-admin i eierfirmaet eller sitedoc_admin)
   oppdaterOversettelsesInnstillinger: protectedProcedure
     .input(z.object({
       projectId: z.string().uuid(),
@@ -495,7 +523,7 @@ export const modulRouter = router({
       apiKey: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const config: Record<string, string> = { motor: input.motor };
       if (input.apiKey && input.apiKey !== "••••••••") {
         config.apiKey = input.apiKey;
@@ -528,14 +556,11 @@ export const modulRouter = router({
         where: { id: input.blokkId },
         select: { content: true, language: true, sourceBlockId: true, documentId: true },
       });
-      if (!blokk) throw new Error("Blokk ikke funnet");
-
-      // Hent dokumentets kildespråk
-      const dok = await ctx.prisma.ftdDocument.findUnique({
-        where: { id: blokk.documentId },
-        select: { sourceLanguage: true },
-      });
-      const sourceLang = dok?.sourceLanguage ?? "nb";
+      // Blokken må tilhøre et dokument i input-prosjektet og en mappe brukeren har tilgang til —
+      // ellers leser et medlem i A kildeteksten i B (sikkerhet.md § 8i).
+      if (!blokk) throw new TRPCError({ code: "NOT_FOUND", message: "Blokk ikke funnet" });
+      const dok = await krevFtdDokumentTilgang(ctx.prisma, ctx.userId, input.projectId, blokk.documentId);
+      const sourceLang = dok.sourceLanguage ?? "nb";
 
       // Hent kildetekst (original)
       let kildeTekst: string;
@@ -573,6 +598,16 @@ export const modulRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // Dokumentet må tilhøre input-prosjektet og en tilgjengelig mappe før noe slettes (§ 8i).
+      await krevFtdDokumentTilgang(ctx.prisma, ctx.userId, input.projectId, input.documentId);
+      // Motorvalget er prosjektets innstilling: medlemmer re-oversetter med lagret motor,
+      // bytte av motor krever admin — sjekkes før noe slettes.
+      const modul = await ctx.prisma.projectModule.findUnique({
+        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+      });
+      const config = (modul?.config ?? {}) as Record<string, string>;
+      const byttMotor = input.motor !== (config.motor ?? "opus-mt");
+      if (byttMotor) await verifiserAdmin(ctx.userId, input.projectId);
       await ctx.prisma.ftdDocumentBlock.deleteMany({
         where: { documentId: input.documentId, language: input.targetLang },
       });
@@ -593,16 +628,13 @@ export const modulRouter = router({
         create: { id: `${input.documentId}-${input.targetLang}`, documentId: input.documentId, targetLang: input.targetLang, status: "pending", blocksTotal: blokker.length },
         update: { status: "pending", blocksDone: 0, error: null, blocksTotal: blokker.length },
       });
-      // Oppdater motor
-      const modul = await ctx.prisma.projectModule.findUnique({
-        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
-      });
-      const config = (modul?.config ?? {}) as Record<string, string>;
-      config.motor = input.motor;
-      await ctx.prisma.projectModule.update({
-        where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
-        data: { config },
-      });
+      if (byttMotor) {
+        config.motor = input.motor;
+        await ctx.prisma.projectModule.update({
+          where: { projectId_moduleSlug: { projectId: input.projectId, moduleSlug: "oversettelse" } },
+          data: { config },
+        });
+      }
       return { status: "queued", blokker: blokker.length };
     }),
 });

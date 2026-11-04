@@ -145,6 +145,28 @@ describe("refreshOppgaveKatalog + lesere", () => {
     expect(rader[0].template?.prefix).toBe("OPG");
   });
 
+  it("D1: filterfeltene (emne, opprettet av, mottaker, tegning, flyt, bestillerfaggruppe) speiles og leses tilbake", async () => {
+    const r = {
+      ...serverOppgave({ id: "o1", drawingId: "d1" }),
+      subject: "Fukt bad",
+      bestiller: { name: "Kari" },
+      bestillerFaggruppe: { name: "Byggherre" },
+      recipientUser: { name: "Ola" },
+      recipientGroup: { name: "Rørleggere" },
+      dokumentflyt: { name: "Hovedflyt" },
+      drawing: { name: "A-101", byggeplass: null },
+    };
+    await refreshOppgaveKatalog(lagKlient([r]), "p1", U);
+    const [lokal] = hentOppgaverLokalt("p1", U);
+    expect(lokal.subject).toBe("Fukt bad");
+    expect(lokal.bestiller?.name).toBe("Kari");
+    expect(lokal.bestillerFaggruppe?.name).toBe("Byggherre");
+    expect(lokal.recipientUser?.name).toBe("Ola");
+    expect(lokal.recipientGroup?.name).toBe("Rørleggere");
+    expect(lokal.drawing?.name).toBe("A-101");
+    expect(lokal.dokumentflyt?.name).toBe("Hovedflyt");
+  });
+
   it("refresh er idempotent (full overskriving, ingen duplikater)", async () => {
     await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1", U);
     await refreshOppgaveKatalog(lagKlient([serverOppgave({ id: "o1" })]), "p1", U);

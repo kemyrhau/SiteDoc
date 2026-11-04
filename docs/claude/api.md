@@ -19,7 +19,7 @@ Alle routere i `apps/api/src/routes/`:
 | `gruppe` | hentMineTillatelser, hentMinTilgang, hentForProsjekt, opprettStandardgrupper, opprett, oppdater, slett, leggTilMedlem (m/invitasjon), fjernMedlem, oppdaterEntrepriser, oppdaterDomener |
 | `invitasjon` | hentForProsjekt, validerToken, aksepter, sendPaNytt, trekkTilbake |
 | `vaer` | hentVaerdata (Open-Meteo proxy: latitude, longitude, dato → temperatur, værkode, vind) |
-| `modul` | hentForProsjekt, aktiver (oppretter maler+objekter automatisk), deaktiver (soft-deactivate) |
+| `modul` | hentForProsjekt, aktiver (oppretter maler+objekter automatisk), deaktiver (soft-deactivate), hent/oppdaterOversettelsesInnstillinger, sammenlignOversettelse, reOversettDokument. aktiver/deaktiver/oppdaterOversettelsesInnstillinger og motorbytte i reOversettDokument krever `verifiserAdmin` (sikkerhet.md § 8i) |
 | `organisasjon` | hentMin, hentForProsjekt (firma via OrganizationProject), hentMedId, hentProsjekter, hentBrukere, oppdater (m/organizationId for sitedoc_admin), leggTilProsjekt, fjernProsjekt |
 | `mobilAuth` | byttToken (public, OAuth→sesjon), verifiser (m/tokenrotasjon), loggUt (sletter sesjon) |
 | `bilde` | hentForProsjekt (alle bilder via sjekklister + oppgaver, m/tilgangsfilter, inkl. parent+tegningsdata), opprettForSjekkliste |
@@ -75,7 +75,7 @@ Alle routere i `apps/api/src/routes/`:
 
 **Modulavhengighet:** Økonomi (`okonomi`) krever Dokumentsøk (`dokumentsok`). Auto-aktiveres. Deaktivering blokkeres.
 
-**Dokumentsøk:** Tilgjengelig for alle prosjekter (ingen modulkrav). Tilgangskontroll via `hentTilgjengeligeMappeIder()`. Firma-admin i prosjektets firma ser alle mapper. Filteret kommer fra `services/mappe-filter.ts`, der en tom mappeliste gir bare dokumenter uten mappe og aldri 500 ([sikkerhet.md § 8d](sikkerhet.md)). Dedup per dokument (DISTINCT ON document_id). NS 3420-standarddokumentasjon søkbar via `nsStandardSok` (ILIKE i NS 3420-chunks). Gul prikk (●) i økonomi-tabell der split-dokumentasjon finnes (sjekker undermapper "Post {kode}").
+**Dokumentsøk:** Tilgjengelig for alle prosjekter (ingen modulkrav). Tilgangskontroll via `hentTilgjengeligeMappeIder()`. Firma-admin i prosjektets eierfirma (`primaryOrganizationId`) ser alle mapper ([sikkerhet.md § 8g](sikkerhet.md)). Filteret kommer fra `services/mappe-filter.ts`, der en tom mappeliste gir bare dokumenter uten mappe og aldri 500 ([sikkerhet.md § 8d](sikkerhet.md)). Dedup per dokument (DISTINCT ON document_id). NS 3420-standarddokumentasjon søkbar via `nsStandardSok` (ILIKE i NS 3420-chunks). Gul prikk (●) i økonomi-tabell der split-dokumentasjon finnes (sjekker undermapper "Post {kode}").
 
 ## Økonomi — A-nota importlogikk
 
@@ -188,7 +188,7 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 - `mengde.oppdaterDokument`: `verifiserProsjektmedlem` + kontraktisolering (kontraktId må tilhøre samme prosjekt)
 - `admin.*integrasjon*`: `verifiserSiteDocAdmin` (kun superadmin, aldri company_admin). API-nøkler returneres aldri — kun `harNøkkel: boolean`
 - `company_admin`-fallback i `verifiserProsjektmedlem`/`verifiserAdmin`: sjekker `OrganizationProject`-kobling, hindrer kryssorg-tilgang
-- `gruppe.hentMineTillatelser` → `hentBrukerTillatelser`: speiler `verifiserAdmin`-mønsteret (fix `c22a345d` 2026-05-28). Returnerer alle `PERMISSIONS` for `sitedoc_admin`, prosjekt-admin, og `firma_admin` på koblet `ProjectOrganization` — **uavhengig av om ProjectMember-rad finnes**. Tidligere asymmetri: firma-admin med `ProjectMember.role = "member"` i eget prosjekt fikk kun gruppe-permissions, mens `verifiserAdmin` ga full tilgang. Treffer 8+ UI-callsites som leser `tillatelser?.includes("manage_field")` (oppsett-sidebar, maler, tegninger, `OpprettOppgaveModal`)
+- `gruppe.hentMineTillatelser` → `hentBrukerTillatelser`: speiler `verifiserAdmin`-mønsteret (fix `c22a345d` 2026-05-28). Returnerer alle `PERMISSIONS` for `sitedoc_admin`, prosjekt-admin, og `firma_admin` i prosjektets eierfirma (`primaryOrganizationId`, [sikkerhet.md § 8g](sikkerhet.md)) — **uavhengig av om ProjectMember-rad finnes**. Tidligere asymmetri: firma-admin med `ProjectMember.role = "member"` i eget prosjekt fikk kun gruppe-permissions, mens `verifiserAdmin` ga full tilgang. Treffer 8+ UI-callsites som leser `tillatelser?.includes("manage_field")` (oppsett-sidebar, maler, tegninger, `OpprettOppgaveModal`)
 - `eksternKostObjekt.list`: bruker `krevBrukersOrg(ctx.userId)` og filtrerer på `organizationId` — **firma-isolert, ikke prosjekt-isolert**. Designvalg: ECO er firma-bredt synlig på tvers av firmaets prosjekter (Proadm-import lager dem firma-globalt). Bruker som sender `projectId` for et prosjekt de ikke er medlem av (men er i samme firma) får fortsatt resultatet. Bevisst — ikke en manglende sjekk
 
 ## Firma-HMS-tilgang (Trinn 1–3 av firma-HMS-dashboard, 2026-05-29)
@@ -214,6 +214,11 @@ Eksisterende filter (admin → null; HMS-gruppe-medlem → null; ellers privat-p
 - Checklist (SJA, RUH): `OR: [{ byggeplassId }, { byggeplassId: null }]` — Checklist har feltet direkte.
 - Prosjekt-brede dokumenter (`null`) inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
 - Eksisterende Task-`OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten Prisma-OR-konflikt.
+
+**Filterfelt på `hms.hentDokumenter` (filter-hms, 2026-11-03):** additiv select for mobilens HMS-filterark —
+Task: `subject`, `priority`, `drawing.name` (ved siden av `drawing.byggeplassId`), `utforerFaggruppe.name`;
+Checklist: `subject`, `drawing.name`, `utforerFaggruppe.name`. Ingen ny prosedyre, tilgangssjekk eller skjemaendring.
+Låst av `apps/api/src/routes/hms-hentdokumenter-filterfelt.test.ts`.
 
 **Audit-spor:** `hentFirmaOversikt` logger til `console.log` for hver oppslag. Activity-tabell-integrasjon krever schema-beslutning om null-projectId-policy og er ikke prioritert ennå.
 

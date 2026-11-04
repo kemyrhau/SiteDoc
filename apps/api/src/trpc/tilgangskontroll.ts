@@ -432,7 +432,12 @@ export async function kanOppretteProsjekt(
 }
 
 /**
- * Er bruker firma-admin på NOEN organisasjon koblet til prosjektet?
+ * Er bruker firma-admin i prosjektets EIERFIRMA (`Project.primaryOrganizationId`)?
+ *
+ * Firmagrense punkt 2 (A) (Kenneth 2026-11-03, «Ja, alle»): bypassen gjelder bare
+ * eierfirmaet. En `ProjectOrganization`-rad for et deltakerfirma gir ingen admin-rett —
+ * firma-admin der får tilgang som vanlig medlem (medlemsrad, grupper, mappetilgang).
+ * Prosjekt uten eier (`null`) gir aldri bypass.
  *
  * Delt bypass-predikat (fabel-presedens 2026-08-15: ett felles bypass-sett for
  * alle porter). Erstatter den identiske `projectOrganization`-løkken som lå
@@ -449,14 +454,12 @@ export async function erFirmaAdminForProsjekt(
   userId: string,
   projectId: string,
 ): Promise<boolean> {
-  const orgKoblinger = await prisma.projectOrganization.findMany({
-    where: { projectId },
-    select: { organizationId: true },
+  const prosjekt = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { primaryOrganizationId: true },
   });
-  for (const { organizationId } of orgKoblinger) {
-    if (await erFirmaAdmin(userId, organizationId)) return true;
-  }
-  return false;
+  if (!prosjekt?.primaryOrganizationId) return false;
+  return erFirmaAdmin(userId, prosjekt.primaryOrganizationId);
 }
 
 /**

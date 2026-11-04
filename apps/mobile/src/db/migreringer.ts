@@ -1243,4 +1243,59 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_byggeplass_nav_local_project
       ON byggeplass_nav_local(project_id, user_id);
   `);
+
+  // Filter-mobil D1 (2026-11-03) — tekstkolonner på oppgave_local så filterarket og
+  // emnesøket virker offline: emne, opprettet av, mottaker (bruker/gruppe), tegning,
+  // dokumentflyt og bestillerfaggruppe. Additiv ALTER ADD COLUMN (nullable, ingen
+  // backfill: katalogen er en mirror som full-overskrives ved neste refresh). Ingen
+  // data slettes. Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync("PRAGMA table_info(oppgave_local)") as Array<{
+      name: string;
+    }>;
+    for (const navn of [
+      "subject",
+      "bestiller_navn",
+      "recipient_user_navn",
+      "recipient_group_navn",
+      "drawing_navn",
+      "dokumentflyt_navn",
+      "bestiller_faggruppe_navn",
+    ]) {
+      if (!kolonner.find((k) => k.name === navn)) {
+        db.execSync(`ALTER TABLE oppgave_local ADD COLUMN ${navn} TEXT`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] filterkolonner på oppgave_local feilet", e);
+  }
+
+  // Filter-hms (2026-11-03) — samme grep på hms_local: filterarket, emnesøket og
+  // radvisningen (emne, prioritet, frist) i HMS-lista virker offline. Additiv ALTER ADD
+  // COLUMN (nullable, ingen backfill: full-overskrives ved neste refresh). Idempotent.
+  try {
+    const kolonner = db.getAllSync("PRAGMA table_info(hms_local)") as Array<{
+      name: string;
+    }>;
+    for (const navn of HMS_LOCAL_FILTERKOLONNER) {
+      if (!kolonner.find((k) => k.name === navn)) {
+        db.execSync(`ALTER TABLE hms_local ADD COLUMN ${navn} TEXT`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] filterkolonner på hms_local feilet", e);
+  }
 }
+
+/** Filter-hms (2026-11-03): tekstkolonnene hms_local får for filterarket offline. */
+export const HMS_LOCAL_FILTERKOLONNER = [
+  "subject",
+  "priority",
+  "due_date",
+  "bestiller_navn",
+  "recipient_user_navn",
+  "recipient_group_navn",
+  "drawing_navn",
+  "dokumentflyt_navn",
+  "utforer_faggruppe_navn",
+] as const;

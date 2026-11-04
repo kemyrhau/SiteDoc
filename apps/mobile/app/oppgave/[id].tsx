@@ -1006,7 +1006,7 @@ export default function OppgaveDetalj() {
         {(oppgave as { template?: { showSubject?: boolean } }).template?.showSubject !== false && (
           <View className="rounded-lg bg-white px-4 py-3">
             <EmneFelt
-              emne={(oppgave as { subject?: string | null }).subject ?? null}
+              emne={oppgave.subject ?? null}
               forslag={(oppgave as { template?: { subjects?: string[] } }).template?.subjects ?? []}
               leseModus={leseModus}
               onLagre={(emne) => oppdaterMutasjon.mutate({ id: oppgave.id, subject: emne })}

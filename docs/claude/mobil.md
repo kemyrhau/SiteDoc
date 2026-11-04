@@ -8,6 +8,8 @@
 - **`InteractionManager.runAfterInteractions`:** MÅ brukes etter kamera/picker lukkes
 - **Lukkeknapp i modaler/fullskjerm:** ALLTID i en header-bar under SafeAreaView — ALDRI absolutt posisjonert (havner under notch/Dynamic Island). Standard: `<X size={22} color="#ffffff" />` med `hitSlop={12}` i en `flex-row items-center px-4 py-3` View. Se `PdfForhandsvisning.tsx` som referanse.
 
+- **Farger (`apps/mobile/tailwind.config.ts`):** `sitedoc-header`, `sitedoc-header-dark`, `sitedoc-blue`, `sitedoc-blue-light` og `sitedoc-primary` (= `#1e40af`, samme som `sitedoc-blue`; lagt til 2026-11-03 — før det droppet NativeWind `bg-/text-/border-sitedoc-primary` stille, så f.eks. «Vis N treff» i filterarket var usynlig). Ny `sitedoc-*`-klasse krever oppføring her, ellers blir den stille borte.
+
 ## Opprettelsesflyt
 
 `OpprettDokumentModal` — brukes for både sjekklister og oppgaver.
@@ -33,6 +35,7 @@
 - 🟢 **Annoteringseditoren fornyer smalt** (ORDRE 3, telefon 74d447fa 2026-10-29): `BildeAnnotering` krever også `fornyKilde`, og fornyeren (`lib/fornyer.ts`) kaller `invaliderFornyelse` (`lib/bildeKilde.ts`) — aldri `utils.invalidate()`. Før hentet tre fornyelsesforsøk alle monterte lister på nytt, og lista bak sto med spinner. Før fornyeren starter sendes ventende autolagring via `SkjemaLagringKontekst` (levert av `sjekkliste/[id]` og `oppgave/[id]`; `skalLagreForFornyelse` i `lib/annoteringsStatus.ts`): en rå `originalUrl` kan bare signeres når serveren har den. Ikke på lest eller låst dokument, og én gang pr. fornyelse. «Laster bildet …» har en frist på 15 s (`ANNOTERING_LASTE_TIDSGRENSE_MS`) og gir så «Bildet kunne ikke åpnes». Utfallet av `lastAnnoteringsbilde` logges med `console.warn` også i produksjon — grunn og kildetype, aldri URL-en. 🟡 Er det annoterte bildet selv fortsatt lokalt (i køen), holdes feltet utenfor lagringen (`utelatFeltMedLokaleVedlegg`), og fornyelsen kan da ikke lykkes før opplastingen er ferdig.
 - 🟢 **Autolagring sender aldri signerte URL-er** (ORDRE 5, KD11 2026-10-29): `feltVerdier` kan bære `/uploads/`-URL-er med `?exp=&sig=` — init fyller dem fra den signerte `hentMedId`-responsen, og annoteringen bygde `originalUrl` fra visningskopien (`hentFeltVerdi`, regresjon fra `777f85f7`). Serveren avviser slike URL-er for hele feltet (`avvisForgiftetVedleggIData`, BAD_REQUEST), og klienten viste da godkjent-varselet og lagret aldri feltet. Nå renser `lagreUtvalg` (`lib/lagreUtvalg.ts`, begge hooks) dataene med `raaVedleggIData` før SQLite og server, og diffen mot basis normaliseres på begge sider; rader som alt er forgiftet i SQLite leges ved neste lagring. `erstattetVedlegg` (`lib/annoteringLagring.ts`) lagrer `originalUrl` rå. Diagnoselogg (`console.warn`, bare i `__DEV__` siden M2 2026-10-30, også `annoteringsUtfallLogg` i `BildeAnnotering`): `[liste]` når `sjekkliste.hentForProsjekt` starter og slutter på sjekklister, Hjem og innboks (`hooks/useListeLogg.ts`, `lib/listeLogg.ts`), og `[annotering] fornyer (editor|bilde) invaliderer …` når en fornyer invaliderer (`fornyelseLogg`, `lib/bildeKilde.ts`). Aldri URL-er eller persondata.
 - 🟢 **Sannferdig avvisningsmelding** (ORDRE 6, Kenneth 2026-10-29 — funksjonsendring): en permanent avvist lagring (`klassifiserLagreFeil` → `permanent`, uendret: ingen retry) viser godkjent-teksten (`godkjentLaast.varsel.tekst`) **bare** når dokumentet er avsluttet (`TERMINALE_DOKUMENTSTATUSER`). Ellers vises `lagreAvvist.varsel.tekst`: «Endringen ble avvist av serveren og er ikke lagret – andre ser den ikke. Den ligger bare på denne enheten. Kontakt prosjektadministrator hvis det skjer igjen.» Valget gjøres av `avvisningsVarsel(status)` (`utils/lagreFeil.ts`) med dokumentets status ved avvisningen; begge hooks eksponerer `avvisningVarsel` (i18n-nøkkel eller null) + `lukkAvvisningVarsel`, og `sjekkliste/[id]` og `oppgave/[id]` viser den.
+- 🟢 **Emne vises igjen på oppgaver** (ordre 2026-11-03 (5)): `useOppgaveSkjema` ga oppgaveskjermen en håndskrevet feltliste uten `subject`, så `EmneFelt` viste alltid «Legg til emne» selv om emnet var lagret. Feltlista bor nå i `tilOppgaveVisning` (`src/lib/oppgaveVisning.ts`, testet) og tar med `subject`; `UseOppgaveSkjemaResultat["oppgave"]` bærer feltet, så cast-en i `oppgave/[id].tsx` er fjernet. Offline-speilet lagrer hele serversvaret og har `subject`. 🟡 `template.showSubject`/`template.subjects` leses fortsatt via cast i `[id].tsx` — kun type-hull, dataene følger med `template`.
 - 🟢 **Emne lagres på retur og når feltet forlates** (telefonfunn 2026-10-29): `EmneFelt` lagret bare med «Lagre»-knappen. Nå lagres også ved retur (`onSubmitEditing`, `returnKeyType="done"`) og blur, som web lagrer på Enter. `emneLagring` (`utils/emneVisning.ts`, testet) lagrer bare når utkastet avviker fra lagret emne, og aldri ved «Avbryt». Avbryt og forslag merker blur-en som ikke-lagrende i `onPressIn`. Gjelder sjekkliste og oppgave. 🟡 En mislykket emne-lagring offline går ikke i synk-køen (`oppdater`-mutasjonen viser feilvarsel).
 - **Offline:** annoteres et bilde før originalen er lastet opp, blir `originalUrl` lokalstien, og originalens køoppføring kanselleres ikke (`beholdLokalSti`, `utils/koDedup.ts`). Når den er oppe, bytter køen `originalUrl` (aldri `url`) til server-URL-en i SQLite og i skjemaet (`settOriginalUrlIDokument`, `OpplastingsKoProvider`). Feltet holdes utenfor server-payloaden så lenge `originalUrl` er lokal (`harLokaltVedlegg`). ⚠️ Er skjermen lukket når originalen blir ferdig, får server-JSON-en laget og originalen først ved neste lagring av feltet (`settVedleggUrl` patcher bare `url`).
 - **Sikring (RETUR M1, Kontrollør 2026-10-28)** — `lib/originalOpplasting.ts`: originalens lokalfil slettes ikke før SQLite eller en montert skjerm har tatt server-URL-en (`kanSletteForeldetFil`; hook-callbacken returnerer om den tok hendelsen). Kommer originalen aldri opp (fil mangler og oppføringen forkastes, hard feil på `MAKS_FORSOK`, eller oppføringen er borte), flater `ryddForeldreloseOriginaler` i `OpplastingsKoProvider` ut vedlegget (`originalUrl` + `annotering` fjernes, `flatUtOriginaler` i `@sitedoc/shared`) i SQLite og på en montert skjerm. Da når det annoterte bildet og kommentaren serveren som før laget fantes. Kjøres ved oppstart og ved de to hendelsene.
@@ -263,7 +266,7 @@ const { t } = useTranslation();
 | `opplastings_ko` | Bakgrunnskø for filopplasting |
 | `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11; `user_id` + lesefilter lagt til fase 2 2026-10-03) |
 | `oppgave_local` | Offline-katalog for oppgave**lista** (read-only mirror, 2026-10-03) |
-| `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03) |
+| `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03; filterkolonner 2026-11-03) |
 | `dokument_speil` | Offline-speil av **hele dokumentet** (`hentMedId`-JSON) for LESING uten nett (fase 2 2026-10-03). Nøklet (dokumentType, id, userId); signaturer strippet |
 
 **Offline dokumentlister (fase 1):** list-skjermene leste før rett på tRPC uten fallback → tom liste
@@ -752,7 +755,7 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 
 **Flere oppgaver pr. felt (C, 2026-10-07):** Et felt kan ha FLERE oppgaver — hver vises som en egen blå chip, og `+Oppgave` blir stående ved siden av (erstattes ikke), så ett felt kan utløse flere oppgaver. Datamodellen tillot dette alt (`Task.checklistFieldId` ikke unik, ingen server-sjekk); kun klienten begrenset til én. `FeltWrapper` tar nå `oppgaver: {id, nummer?}[]` (ikke `oppgaveNummer`/`oppgaveId`), og speiler repeater-radenes chip-mønster (`RepeaterObjekt.tsx`). Repeater-radene er uendret (per-rad `radOppgaver`).
 
-## 🟢 Mobilens dokumentsøk er LISTESØK, ikke innholdssøk (Kenneth-vedtak 2026-09-06)
+## 🟢 Mobilens dokumentsøk er LISTESØK, ikke innholdssøk (Kenneth-vedtak 2026-09-06, utvidet 2026-11-03)
 
 > **Kenneth, etter å ha testet sheetet på test:** *«Egentlig — fritekstsøk inni dokumenter
 > hører til web-flaten. App er ok slik den står nå.»*
@@ -768,6 +771,106 @@ produktet har allerede en flate for det: **Dokumentsøk** med embedding og hybri
 
 ⚠️ **Ikke meld dette som en mangel.** Endres vedtaket, er innholdssøk på mobil en egen sak med
 egen kostnadsmåling.
+
+**Utvidet 2026-11-03 (Kenneth, spec-sok-mobil rev. 2 § 10): innholdssøk i FTD-dokumenter.** Søke-ikonet i
+Mapper-hodet (`app/(tabs)/boks.tsx`) åpner `app/sok/index.tsx`: ett felt + omfangsvelger «Alle · Mapper ·
+Sjekklister · Oppgaver» (standard «Alle», seksjoner Mapper → Sjekklister → Oppgaver, maks 10 rader pr. seksjon).
+
+- **Mapper** = innholdssøk i serverens indeks, samme motor som web: `aiSok.sok` når embeddings finnes, ellers/ved
+  feil/0 treff `ftdSok.sokDokumenter`; referansemapper filtreres bort; «Vis N flere» pr. dokument. Telefonen laster
+  ingen dokumenter for å søke. **Krever nett** — offline vises «Frakoblet – søk i mapper krever nettilkobling» og
+  siste treff fra React Query-cachen (`offlineFirst`).
+- **Sjekklister og oppgaver** er fortsatt **listesøk** (vedtaket over står): sjekklister via `filtrerOgSorter`,
+  oppgaver via `sokIOppgaver` (`src/components/sok/oppgaveSok.ts`: prefiks+nummer · tittel · emne · beskrivelse ·
+  malnavn · utfører-faggruppe). Offline leses lokal katalog (`velgOfflineListeKilde`) med «lagret versjon · sist hentet
+  hh:mm». Lokal oppgavekatalog (`oppgave_local`) har ingen beskrivelse — offline treffer ikke beskrivelsen.
+- **Leseren** `app/sok/[dokumentId].tsx` viser dokumentets chunks (`ftdSok.hentDokumentChunks`) med amber ramme på
+  valgt treff, gule søkeord og ▲▼ «n av m»; «Åpne dokumentet» går til `/dokument/[id]`. Ren logikk i
+  `src/components/sok/sokLogikk.ts` (testet), utsnitt delt med web i `packages/shared/src/sok/utsnitt.ts`.
+- **Utenfor:** innholdssøk i `Checklist.data`/`Task.data` (egen sak, spec § 9.2) og omfangsvelger på web.
+
+## Filter, sortering og søk i sjekkliste-, oppgave-, innboks- og HMS-lista (filter-mobil / filter-hms 2026-11-03)
+
+Sjekkliste-, oppgave- og innbokslista (`app/sjekkliste/index.tsx`, `app/oppgave/index.tsx`,
+`app/innboks/index.tsx`) deler samme maskineri — ingen API-endring, kun data API-et allerede sender. Innboksen
+har ikke prioritet og leser alltid serverrader:
+
+- **Tilstand:** `useDokumentlisteFilter(prosjektId)` (`src/components/dokumentliste/useDokumentlisteFilter.ts`) holder
+  søk, filterverdier, sortering, opprettet-periode og ark-synlighet; nullstilles ved prosjektbytte.
+  `useAktiveFilter(filter, periode, bruker)` (samme fil) kalles etter at lista kjenner kilden og gir effektive
+  filter, teller og chips. Chip-raden over lista er `AktiveFilterChips.tsx` («Viser N av M — nullstill filter»);
+  etikettene kommer fra `filterEtikett.ts` (ren, vitest) — interne verdier som `__uten_emne__` vises aldri rått.
+- **Logikk:** `filtrerOgSorter(rader, søk, filter, sortering, {periode, bruker})` i `dokumentlisteFilter.ts` (ren,
+  vitest). Filterkolonner (`FILTER_KOLONNER`): emne (inkl. «Uten emne»), mal, prioritet (kun oppgaver), frist
+  (har frist / ingen frist / forfalt — avsluttede, godkjente og avbrutte teller ikke som forfalt,
+  `TERMINALE_DOKUMENTSTATUSER`), opprettet av (`bestiller`), mottaker/ansvarlig, bestiller- og
+  utførerfaggruppe, tegning, dokumentflyt, «ballen hos meg». Opprettet-periode via `innenforPeriode` fra
+  `@sitedoc/shared`.
+- **Flernivå-sortering (2026-11-04):** `Sortering` = liste av `{nokkel, retning}`, opptil `MAKS_SORTERNIVAAER` (3).
+  Nøkler (`SORTER_NOKLER`): opprettet · sist endret · frist · nummer · emne · navn, med startretning i
+  `STARTRETNING` (tid ↓, resten ↑). `sammenlignRader` tar nivåene i rekkefølge (tomme verdier sist i begge
+  retninger), deretter en fast skjult hale nummer ↑ og id — stabil rekkefølge selv når nummer gjentas på tvers av
+  maler. `[]` = opprettet ↓ (som før). Brikke-syklus `trykkSorteringsbrikke`: legg til → snu → fjern (nivåene under
+  flytter opp); ved 3 nivåer er uvalgte brikker dempet og et trykk endrer ingenting. Lista sorteres om straks;
+  «Vis N treff» lukker bare arket. Adaptivt (`tilgjengeligeSorteringer`): opprettet/endret/navn alltid,
+  frist/nummer/emne bare når minst én rad har verdi, valgt nøkkel alltid. Etiketter i `sorteringEtikett.ts`
+  («1 · Frist ↑», skjermleser «Frist, nivå 1, stigende»). Aktiv sortering vises som egen brikke først i
+  `AktiveFilterChips` («Frist ↑, deretter Nummer ↓»); trykk nullstiller til `[]`. «Nullstill filter» rører ikke
+  sorteringen, trakt-telleren teller den ikke, og «Viser N av M» vises bare med aktive filtre. Søk overstyrer
+  sorteringen med relevans. Sorteringen lagres ikke (minne pr. liste, nullstilles ved prosjektbytte). Søkesiden
+  (`app/sok/index.tsx`) bruker `[]`.
+- **Arket** `FilterOgSorteringSheet.tsx`: «Ballen hos meg»-bryter øverst, sortering, deretter seksjonene
+  HVA · NÅR · HVEM · HVOR. Adaptivt: et filter vises bare når lista har ≥ 2 ulike verdier (eller filteret er satt).
+  Forhåndsdefinerte valg (chips/nedtrekk), ingen fritekst.
+- **Utenfor arket (D2):** status-chips, `ByggeplassChip` og oppgavelistas segment alle/oppgaver/kontrakt. Under søk
+  skjules byggeplass-chipen og søket går på tvers av byggeplasser (som sjekklistene).
+- **«Ballen hos meg» offline (D3):** krever `gruppe.hentMinFlytInfo` (brukerens grupper) OG serverrader — lokale
+  rader mangler mottaker-/bestiller-id. `ballenBrukerForKilde(bruker, kilde)` gir `null` når lista leser lokalt
+  (offline eller server ubekreftet); da skjules bryteren og et satt ballen-filter ignoreres (`utenUbruktBallen`,
+  telles ikke).
+- **Radene** viser emne og opprettelsesdato («opprettet 3. nov.»). Oppgaverad-typen leser `bestiller` (tidligere
+  feilaktig `creator`, som API-et aldri sendte).
+- **Offline (D1):** `oppgave_local` fikk 7 tekstkolonner — `subject`, `bestiller_navn`, `recipient_user_navn`,
+  `recipient_group_navn`, `drawing_navn`, `dokumentflyt_navn`, `bestiller_faggruppe_navn` (6 begreper; mottaker er
+  bruker ELLER gruppe → to kolonner). Skrevet av `oppgaveKatalog.ts`; additiv `ALTER ADD COLUMN` i
+  `migreringer.ts` (PRAGMA-sjekk, ingen data slettes), testet mot eksisterende database uten kolonnene
+  (`migreringer.oppgaveLocal.test.ts`). Gamle rader har NULL til neste katalog-refresh.
+- **HMS-lista (filter-hms 2026-11-03)** `app/hms/index.tsx` bruker samme maskineri. Alternativene bygges fra
+  aktiv fane; prioritet bare i avvik/RUH (`harPrioritet`, `filterForFane` i `src/components/dokumentliste/hmsListe.ts`
+  — et prioritetsfilter satt i avvik tømmer ikke SJA). Statusfilteret nullstilles ved fanebytte; søk/filter/sortering
+  står. `recipientGroupId` utledes fra `recipientGroup.id` (`tilHmsDokumentRad`) for «ballen hos meg» (kun
+  serverrader). Emne/prioritet/tegning/utførende faggruppe krever API-et fra samme leveranse (additiv select i
+  `hms.hentDokumenter`); mot eldre API mangler feltene og filtrene skjules via vis-regelen (`visFilterKolonne`,
+  låst i `hmsListe.test.ts`). Offline: `hms_local` fikk 9 tekstkolonner (`HMS_LOCAL_FILTERKOLONNER` i
+  `migreringer.ts`, additiv ALTER, testet i `migreringer.hmsLocal.test.ts`), skrevet av `hmsKatalog.ts`.
+
+## OTA-varsel: «Ny versjon er klar · Oppdater» (ota-varsel 2026-11-03)
+
+Brukerflate og testerinstruks: [eas-build-veileder.md § Appen varsler selv](eas-build-veileder.md). Ingen ny
+native-modul, `app.config.js` uendret (`checkAutomatically: "ON_LOAD"`, `fallbackToCacheTimeout: 0`, runtime `1`).
+
+- **`OtaProvider`** (`src/providers/OtaProvider.tsx`, inni `NettverkProvider` i `providers/index.tsx`): leser
+  `Updates.useUpdates()` og sjekker ved montering, ved AppState `active` og når nettet kommer tilbake —
+  `checkForUpdateAsync` → `fetchUpdateAsync`. `oppdater()` kaller `reloadAsync()` og brukes KUN ved trykk.
+  Feil svelges, men logges med `console.warn` i `__DEV__`. `Updates.isEnabled === false` → status `av`, ingen kall.
+- **Ren logikk** (`src/services/otaStatus.ts`, testet i `otaStatus.test.ts`): `utledOtaStatus` (prioritet
+  av > klar > laster > sjekker > frakoblet > oppdatert — nedlastet versjon er klar også offline),
+  `skalSjekke` (struping 5 min; «Se etter oppdatering» går forbi, men ikke innen 10 s) og `fordelBunnInnsetter`.
+- **Linja** (`MedOtaLinje`, `src/components/OtaLinje.tsx`) omslutter `<Stack>` i `app/_layout.tsx` og ligger som
+  søsken UNDER navigatoren — den tar egen plass og dekker aldri fanelinja eller lagre-knapper. Mens linja vises
+  får navigatoren `bottom: 0` i `SafeAreaInsetsContext` og linja tar home-indikator-margen selv (summen er lik;
+  ingen dobbel eller manglende bunnmarg). Fanelinja (`@react-navigation/bottom-tabs`) leser innsetter fra den
+  konteksten; `SafeAreaProviderCompat` pakker ikke inn på nytt når konteksten finnes.
+- **Modaler får rå innsetter (RETUR 1).** Konteksten går gjennom RN-`<Modal>`, men en modal dekker hele skjermen —
+  også linja. `MedOtaLinje` legger derfor `ModalInnsetterKontekst` (`src/components/ModalInnsetter.tsx`) med de RÅ
+  innsetterne over overstyringen, og modalinnhold leser `useModalInnsetter()`: `ModalFlate`, `KameraModal`,
+  `BildeAnnotering`, `TegningPosisjonObjekt`. Skjermer i navigatoren beholder `useSafeAreaInsets()` (får `bottom: 0`
+  korrekt, linja ligger under). Native `SafeAreaView` leser ikke JS-konteksten og er upåvirket. Låst av
+  `fordelBunnInnsetter`-testen (`modal ≠ navigator`) og `src/components/modal-innsetter-vakt.test.ts` (ingen fil med
+  `<Modal` eller kjent modalinnhold kaller `useSafeAreaInsets()` direkte).
+- **Status under Mer:** `VersjonsFooter visOtaStatus` (`app/(tabs)/mer.tsx`); innloggingsskjermens footer er uendret.
+- **Dev-flagg:** `EXPO_PUBLIC_OTA_DEMO=1` (kun `__DEV__`) tvinger status «klar», slik at linja og bunnmargen kan
+  sjekkes uten ekte OTA.
 
 ## 🟢 Dokumentflyt på mobil er LESEVISNING — og det er etter design (målt 2026-09-06)
 

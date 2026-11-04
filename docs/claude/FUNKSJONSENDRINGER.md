@@ -25,6 +25,24 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-11-04
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `61004eb1` (merge `d7599ae1`) | Sortering i oppgave-, sjekkliste-, innboks- og HMS-lista, mobil | **Før:** én sortering om gangen. «Nyeste først» og «Eldste» var egne brikker, og alle 7 brikkene vistes alltid. **Etter:** opptil 3 sorteringsnivåer. Første trykk legger til nivå (nummer på brikken, «1 · Frist ↑»), neste snur retningen, og tredje fjerner nivået. Ved 3 nivåer er de øvrige brikkene dempet. Like verdier avgjøres av neste nivå og til slutt av nummer. Lista sorteres straks. «Opprettet» er én brikke med retning. Frist/nummer/emne vises bare når lista har slike verdier. Aktiv sortering vises som chip i lista («Frist ↑, deretter Nummer ↓») med ×. Valget huskes ikke ved prosjektbytte, som før. ⚪ Ikke verifisert på telefon. Web uendret. | Kenneth 04.11: «Kun en sortering av gangen. Det er for lite», «ja» til forslag (likhet → neste nivå, sortering på trykk) |
+
+### 2026-11-03
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `658eae4f` (merge `f41afed2`) | HMS-lista, mobil (+ `hms.hentDokumenter`) | **Før:** HMS-lista hadde faner (avvik/SJA/RUH), statusfilter og byggeplass-chip, men ikke søk, sortering eller filterark. Radene viste ikke emne. **Etter:** samme filterark, sortering og søk som oppgavelista. Alternativene bygges fra fanen, og prioritet finnes bare for avvik og RUH. Radene viser emne og opprettelsesdato. API-et sender i tillegg emne, prioritet, tegning og utførende faggruppe. Filtrene virker offline (nye lokale kolonner). Mot gammelt API skjules filtrene for de nye feltene. ⚪ Krever API-deploy til test før OTA. Ikke verifisert på telefon. | Kenneth 03.11: «filter trengs i hms også», «A, som anbefalt» |
+| `fd6a39df` ← `4b45fc9f` (merge `420b8417`) | OTA-oppdatering, mobil | **Før:** ny versjon ble lastet ned i stillhet og tatt i bruk først ved andre kalde oppstart, og brukeren visste ikke når appen var oppdatert. **Etter:** appen ser etter oppdatering ved oppstart og når den kommer i forgrunnen (høyst hvert 5. min). Når en ny versjon er lastet ned, vises linja «Ny versjon er klar · Oppdater» nederst, og et trykk laster den straks. Den lastes aldri uten trykk. Under Mer vises status i klartekst og «Se etter oppdatering». Modaler beholder full bunnmarg mens linja vises. ⚪ Ikke verifisert på telefon. | Kenneth 03.11: «Kan vi forbedre ota oppdateringer med et varsel …» + «ok» til forslag 1–4 |
+| `09d92321` (merge `316e347f`) | Filter, sortering og søk i listene, mobil | **Før:** oppgavelista hadde bare status- og byggeplass-chips, uten søk eller sortering. Sjekklister og innboks kunne sorteres på nyeste/eldste/navn og filtreres på dokumentflyt, mal, ansvarlig, tegning og frist. **Etter:** oppgave-, sjekkliste- og innboksliste har samme filterark: sortering på opprettet, sist endret, frist, nummer, emne og navn; filter på emne (inkl. «Uten emne»), mal, prioritet (oppgaver), frist (forfalt/har/ingen), opprettet-periode, opprettet av, ansvarlig, faggrupper, tegning og dokumentflyt, samt «Ballen hos meg» (kun med svar fra server). Radene viser emne og opprettelsesdato. Oppgavesøket finner emne. Oppgavefiltrene virker offline (nye lokale kolonner). ⚪ Ikke verifisert på telefon. | Kenneth 03.11: «Ja, som anbefalt» (D1–D3) og «Innboks får filtrene» |
+| `05e39efd` (merge `5297ab97`) | Emne på oppgaver, mobil | **Før:** emnet ble lagret på oppgaver, men mobilen viste alltid «Legg til emne» etterpå (feltet `subject` falt ut i `useOppgaveSkjema`). **Etter:** lagret emne vises på oppgaven, også offline fra speilet. Sjekklister var ikke berørt. ⚪ Ikke verifisert på telefon. | Kenneth 03.11: «ja, den må ut» (feilretting) |
+| `b0b8f2e6` (merge `bbf6af49`) | Prosjektmoduler og oversettelse, web + mobil | **Før:** ethvert prosjektmedlem kunne aktivere/deaktivere prosjektmoduler, endre oversettelsesinnstillinger (motor, API-nøkkel) og bytte motor via «Re-oversett». **Etter:** bare prosjektadmin (og eierfirma-admin, sitedoc_admin) kan dette; vanlige medlemmer ser ikke «Legg til»/«Deaktiver» eller oversettelsesinnstillingene på modulsiden. «Re-oversett» i dokumentleseren (web + mobil): medlem kan bare bruke prosjektets lagrede motor. ⚪ Eierfirma-admin med vanlig medlemsrad ser ikke knappene, selv om serveren tillater det (samme som «Rediger tilgang»). ⚪ Ikke verifisert på test/telefon. | Kenneth 03.11: «Ja, senere branch» (modulaktivering krever prosjektadmin) |
+| `8e59f83e` (merge `7350f049`) | Mobil dokumentsøk | **Før:** mobilappen hadde bare listesøk i sjekklister (lokalt); ikke innholdssøk i mapper, og ikke søk i oppgaver. **Etter:** søkeikon øverst i Dokumenter-fanen åpner egen søkeskjerm med valg «Alle · Mapper · Sjekklister · Oppgaver» (standard Alle; seksjoner pr. kilde, trykk på seksjonshodet viser bare den). Mapper = innholdssøk som web (AI eller tekst, gruppert pr. dokument, «Vis N flere»); trykk på treff åpner en leser med valgt avsnitt i ramme og ▲▼ «k av m» fra valgt forekomst; «Åpne dokumentet» viser fila. Sjekklister og oppgaver søkes lokalt og virker uten nett. Uten nett: «søk i mapper krever nettilkobling», siste treffliste beholdes. ⚪ Offline oppgavesøk treffer ikke beskrivelse (lokal kopi har den ikke). ⚪ Ikke sett på telefon ennå. Web uendret. | Kenneth 03.11: «Søk i mobilappen …», spec rev. 2 vedtatt («Ja, alle») |
+| `d76d9d27` (merge `525c84e8`) | Tilgang: firma-admin og mapper, web + mobil | **Før:** firma-admin i *ethvert* firma koblet til prosjektet (UE, konsulent, byggherre) hadde full admin uten medlemsrad: alle mapper, eksport, livssyklus, tillatelser, Timer-prosjektleder/attestering. Ethvert medlem kunne endre mappetilgang («Rediger tilgang») og åpne lukkede mapper. Dokumentvisningen sjekket ikke mappetilgang. **Etter:** bare admin i prosjektets **eierfirma** har den automatiske tilgangen; deltakerfirmaets admin får tilgang som vanlig medlem. «Rediger tilgang» er skjult på web for alle som ikke er prosjektadmin, og serveren avviser endringen. Mobil: mappe eller dokument uten tilgang viser lås og «ingen tilgang» i stedet for tom liste/«ikke funnet». «Eier-firma» i oppsett viser alltid eierfirmaet (før: tilfeldig koblet firma). Firma-admin kan bare koble prosjekter firmaet eier (ingen UI). ⚪ Prod 03.11: 0 deltakerkoblinger, ingen mister tilgang i dag. ⚪ Ikke verifisert på test/telefon ennå. | Kenneth 03.11: «Tette leggTilProsjekt? → ja», «Mappetilgang …: Fiks», «firmaadmin/prosjektadmin … der firma eier prosjektet», «Ja, alle», «Ja, samme branch» |
+
 ### 2026-10-28
 
 | Hash | Flate | Før → Etter | Hjemmel |
@@ -361,6 +379,12 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 ---
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
+
+### 2026-11-03
+
+| Hash | Flate | Før → Etter |
+|---|---|---|
+| `a1edf23f` (merge `05fef47f`) | **Mobil — farge `sitedoc-primary`** | **Før:** fargen var ikke definert i mobilens tailwind-config. 43 klassebruk ble droppet stille, så blant annet «Vis N treff» i filterarket, valgt sorteringsbrikke, EmneFelt, DatoVelgerFelt, HMS-behandling, quiz, PSI og maskin hadde usynlige knapper og brikker. **Etter:** de vises blå (`#1e40af`, samme som `sitedoc-blue`). ⚪ Ikke sett på telefon. Reload: OTA |
 
 ### 2026-10-14
 

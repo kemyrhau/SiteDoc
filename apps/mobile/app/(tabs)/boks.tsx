@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Folder, FolderOpen, FileText, ChevronRight, ArrowLeft } from "lucide-react-native";
+import { Folder, FolderOpen, FileText, ChevronRight, ArrowLeft, Lock, Search } from "lucide-react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
@@ -56,7 +56,7 @@ export default function BoksSkjerm() {
     { enabled: !!valgtProsjektId },
   );
 
-  const { data: dokumentData, isLoading: dokumenterLaster } = trpc.mappe.hentDokumenter.useQuery(
+  const { data: dokumentData, isLoading: dokumenterLaster, error: dokumentFeil } = trpc.mappe.hentDokumenter.useQuery(
     { folderId: åpenMappe?.id ?? "" },
     { enabled: !!åpenMappe },
   );
@@ -157,11 +157,27 @@ export default function BoksSkjerm() {
             </Text>
           )}
         </View>
+        {/* Mobilsøk (spec-sok-mobil § 1 A): push, så mappestien bevares ved retur. */}
+        <TouchableOpacity
+          onPress={() => router.push("/sok")}
+          className="ml-2 rounded-lg p-1.5"
+          accessibilityLabel={t("sok.tittel")}
+          hitSlop={8}
+        >
+          <Search size={22} color="#374151" />
+        </TouchableOpacity>
       </View>
 
       {erLaster ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
+        </View>
+      ) : åpenMappe && barneMapper.length === 0 && dokumentFeil?.data?.code === "FORBIDDEN" ? (
+        // Mappe uten tilgang (firmagrense punkt 3): serveren avviser innholdet. Har mappen
+        // undermapper, vises de som før (en undermappe kan ha egen tilgang).
+        <View className="flex-1 items-center justify-center px-8">
+          <Lock size={40} color="#d1d5db" />
+          <Text className="mt-3 text-center text-sm text-gray-500">{t("mapper.ingenTilgang")}</Text>
         </View>
       ) : listeData.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">

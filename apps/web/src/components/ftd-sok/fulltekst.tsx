@@ -4,6 +4,7 @@ import { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import { FileText, ChevronUp, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { finnOverlapp, delOppTermer } from "@sitedoc/shared";
 import { SEMANTISK_KLASSE } from "./utsnitt";
 
 interface FulltekstProps {
@@ -91,36 +92,8 @@ export function rullTilChunk(
   beholder.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
-/**
- * SØK-2 M3: finn antall tegn som overlapper mellom slutten av a og starten av b. Taket 200 ≥ chunkerens
- * `OVERLAPP = 100` (ftd-prosessering.ts) — låst med test, ikke med import mellom api og web.
- */
-export function finnOverlapp(a: string, b: string): number {
-  const maks = Math.min(200, a.length, b.length);
-  for (let len = maks; len >= 20; len--) {
-    const slutt = a.slice(-len);
-    const start = b.slice(0, len);
-    if (slutt === start) return len;
-  }
-  return 0;
-}
-
-/** Søketermer slik `HighlightTekst` markerer dem: ord lengre enn 2 tegn, uavhengig av store/små bokstaver. */
-function markeringsTermer(søkeord: string | undefined): string[] {
-  return (søkeord ?? "")
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 2);
-}
-
-/** Del tekst i vanlige biter og ordtreff — én kilde for både <mark>-rendering og forekomst-tellingen. */
-export function delOppTermer(tekst: string, søkeord: string | undefined): Array<{ tekst: string; erMatch: boolean }> {
-  const termer = markeringsTermer(søkeord);
-  if (termer.length === 0) return [{ tekst, erMatch: false }];
-  const escaped = termer.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const regex = new RegExp(`(${escaped.join("|")})`, "gi");
-  return tekst.split(regex).map((del) => ({ tekst: del, erMatch: termer.some((t) => del.toLowerCase() === t) }));
-}
+// SØK-2 M3-overlapp og ordtreff-oppdeling deles med mobilsøket (`@sitedoc/shared`, sok/utsnitt.ts).
+export { finnOverlapp, delOppTermer };
 
 /** Én bit av en chunk slik den tegnes: vanlig tekst, ordforekomst (nummerert i dokumentrekkefølge), S5-etikett/-setning. */
 export type ChunkDel =

@@ -13,21 +13,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const userFindUnique = vi.fn();
 const memberFindUnique = vi.fn();
-const orgFindMany = vi.fn();
+/** Prosjektets eierfirma (`primaryOrganizationId`) — firma-admin-bypassen leser kun dette. */
+const eierOrg = vi.fn();
 const orgMemberFindUnique = vi.fn();
 
 vi.mock("@sitedoc/db", () => ({
   prisma: {
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
     projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
-    projectOrganization: { findMany: (...a: unknown[]) => orgFindMany(...a) },
     organizationMember: { findUnique: (...a: unknown[]) => orgMemberFindUnique(...a) },
-    // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) leser prosjektets eier-firma
-    // i alle prosjekt-porter. Standalone (primaryOrganizationId=null) er valgt BEVISST her
-    // for å no-op-e gaten og isolere admin-logikken disse scenariene tester.
+    // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) og erFirmaAdminForProsjekt
+    // (firmagrense 2026-11-03) leser begge prosjektets eier-firma. Standalone (null) er
+    // standard; firmaadmin-scenariene setter eierfirmaet der brukeren er firma_admin.
     // ⚠️ Ansettelses-gaten selv (deaktivert ansatt → FORBIDDEN) er dermed IKKE dekket av
     // denne fila — den fortjener egne tester (registreringsmodell fase 1, kan FRATA tilgang).
-    project: { findUnique: () => Promise.resolve({ primaryOrganizationId: null }) },
+    project: { findUnique: () => Promise.resolve({ primaryOrganizationId: eierOrg() ?? null }) },
   },
 }));
 
@@ -58,7 +58,7 @@ function lagCaller(del: ReturnType<typeof vi.fn>) {
 beforeEach(() => {
   userFindUnique.mockReset();
   memberFindUnique.mockReset();
-  orgFindMany.mockReset();
+  eierOrg.mockReset().mockReturnValue(null);
   orgMemberFindUnique.mockReset();
 });
 
@@ -66,7 +66,7 @@ describe("dokumentflyt.slett — admin-gate (verifiserAdmin)", () => {
   it("prosjektmedlem UTEN adminrolle → FORBIDDEN, ikke slettet", async () => {
     userFindUnique.mockResolvedValue({ role: "user" });
     memberFindUnique.mockResolvedValue({ role: "member" });
-    orgFindMany.mockResolvedValue([]); // ingen org → ingen firmaadmin-fallback
+    eierOrg.mockReturnValue(null); // ingen eierfirma → ingen firmaadmin-fallback
     const del = vi.fn();
 
     await expect(lagCaller(del).slett({ id: FLYT, projectId: PROSJEKT })).rejects.toMatchObject({
@@ -87,7 +87,7 @@ describe("dokumentflyt.slett — admin-gate (verifiserAdmin)", () => {
   it("firmaadmin UTEN ProjectMember-rad → slipper (beviser riktig hjelper: firmaadmin-fallback)", async () => {
     userFindUnique.mockResolvedValue({ role: "company_admin" }); // ikke sitedoc_admin
     memberFindUnique.mockResolvedValue(null); // INGEN medlemsrad — en medlem.role-sjekk ville avvist
-    orgFindMany.mockResolvedValue([{ organizationId: "org-1" }]);
+    eierOrg.mockReturnValue("org-1"); // firma_admin i EIERFIRMAET
     orgMemberFindUnique.mockResolvedValue({ firmaRoller: ["firma_admin"] });
     const del = vi.fn().mockResolvedValue({ id: FLYT });
 
@@ -107,7 +107,7 @@ const ID = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 function scenarioMedlem() {
   userFindUnique.mockResolvedValue({ role: "user" });
   memberFindUnique.mockResolvedValue({ role: "member" });
-  orgFindMany.mockResolvedValue([]); // ingen org → ingen firmaadmin-fallback
+  eierOrg.mockReturnValue(null); // ingen eierfirma → ingen firmaadmin-fallback
 }
 function scenarioProsjektadmin() {
   userFindUnique.mockResolvedValue({ role: "user" });
@@ -116,7 +116,7 @@ function scenarioProsjektadmin() {
 function scenarioFirmaadmin() {
   userFindUnique.mockResolvedValue({ role: "company_admin" }); // ikke sitedoc_admin
   memberFindUnique.mockResolvedValue(null); // INGEN medlemsrad
-  orgFindMany.mockResolvedValue([{ organizationId: "org-1" }]);
+  eierOrg.mockReturnValue("org-1"); // firma_admin i EIERFIRMAET
   orgMemberFindUnique.mockResolvedValue({ firmaRoller: ["firma_admin"] });
 }
 

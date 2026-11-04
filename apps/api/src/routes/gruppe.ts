@@ -13,7 +13,7 @@ import {
   verifiserAdmin,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
-  hentBrukersOrg,
+  erFirmaAdminForProsjekt,
   hentProsjektRolleNivaa,
   erGruppeansvarlig,
 } from "../trpc/tilgangskontroll";
@@ -48,24 +48,12 @@ export const gruppeRouter = router({
       });
 
       if (!medlem) {
-        // firma-admin uten ProjectMember-rad — se alt
-        const brukerOrgId = await hentBrukersOrg(ctx.userId);
-        if (brukerOrgId) {
-          const orgProsjekt = await ctx.prisma.projectOrganization.findFirst({
-            where: { organizationId: brukerOrgId, projectId: input.projectId },
-          });
-          if (orgProsjekt) {
-            const member = await ctx.prisma.organizationMember.findUnique({
-              where: { userId_organizationId: { userId: ctx.userId, organizationId: brukerOrgId } },
-              select: { firmaRoller: true },
-            });
-            if (member?.firmaRoller.includes("firma_admin")) {
-              // Kloss 2 (Kenneth-vedtak 2026-07-23): firma-admin er IKKE et flyt-admin-nivå →
-              // adminNiva:null (flyt-menyen behandler dem som vanlig deltaker, fjerner fantom-
-              // menyvalget). erAdmin beholdes true for prosjekt-synlighet/redigering (uendret).
-              return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, adminNiva: null, moduler: alleGruppeModuler };
-            }
-          }
+        // Firma-admin i eierfirmaet uten ProjectMember-rad — se alt (deltakerfirma: nei).
+        if (await erFirmaAdminForProsjekt(ctx.userId, input.projectId)) {
+          // Kloss 2 (Kenneth-vedtak 2026-07-23): firma-admin er IKKE et flyt-admin-nivå →
+          // adminNiva:null (flyt-menyen behandler dem som vanlig deltaker, fjerner fantom-
+          // menyvalget). erAdmin beholdes true for prosjekt-synlighet/redigering (uendret).
+          return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, adminNiva: null, moduler: alleGruppeModuler };
         }
         throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem" });
       }

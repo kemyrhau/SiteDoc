@@ -1,95 +1,167 @@
-import { useState } from "react";
-import { View, Text, Pressable, Modal, ScrollView } from "react-native";
+import { useState, type ReactElement } from "react";
+import { View, Text, Pressable, Modal, ScrollView, Switch } from "react-native";
 import { ChevronDown } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import type { Periode } from "@sitedoc/shared";
 import { EnkeltvelgerModal, type VelgerAlternativ } from "./EnkeltvelgerModal";
-import type { Sortering } from "./dokumentlisteFilter";
+import { PeriodeFilter } from "../PeriodeFilter";
+import {
+  MAKS_SORTERNIVAAER,
+  type DokumentAlternativer,
+  visFilterKolonne,
+  type SorterNokkel,
+  type Sortering,
+} from "./dokumentlisteFilter";
+import { brikkeA11y, brikkeEtikett } from "./sorteringEtikett";
+import { filterEtikett, FRIST_NOEKKEL } from "./filterEtikett";
 
-type Alternativer = {
-  dokumentflyt: VelgerAlternativ[];
-  mal: VelgerAlternativ[];
-  ansvarlig: VelgerAlternativ[];
-  tegning: VelgerAlternativ[];
+type NedtrekkKol =
+  | "emne"
+  | "mal"
+  | "opprettetAv"
+  | "ansvarlig"
+  | "bestillerFaggruppe"
+  | "utforerFaggruppe"
+  | "tegning";
+
+const NEDTREKK_TITTEL: Record<NedtrekkKol, string> = {
+  emne: "tabell.emne",
+  mal: "tabell.mal",
+  opprettetAv: "tabell.opprettetAv",
+  ansvarlig: "tabell.ansvarlig",
+  bestillerFaggruppe: "tabell.bestillerFaggruppe",
+  utforerFaggruppe: "tabell.utforerFaggruppe",
+  tegning: "tabell.tegning",
 };
 
-type ApentNedtrekk = "mal" | "ansvarlig" | "tegning" | "frist" | null;
-
 /**
- * Filter- og sorterings-sheet (fabel-mockup panel 3). Delvis flate: trykk-utenfor
- * lukker. Egenskapssettet speiler webs kolonner (dokumentflyt · emne/mal ·
- * ansvarlig · tidsfrist · tegning) + sortering. Status og byggeplass er BEVISST
- * ikke her (statuschippene ER status-trakten; byggeplass bor i kontekstvelgeren).
+ * Filter- og sorterings-sheet (fabel-mockup panel 3, utvidet filter-mobil
+ * 2026-11-03). Delvis flate: trykk-utenfor lukker. Seksjoner: «ballen hos meg»
+ * (kun på nett) · sortering · HVA · NÅR · HVEM · HVOR. Adaptivt: et filter vises
+ * bare når lista har minst to ulike verdier (eller filteret allerede er satt).
+ * Status og byggeplass er BEVISST ikke her (statuschippene ER status-trakten;
+ * byggeplass bor i kontekstvelgeren).
  */
 export function FilterOgSorteringSheet({
   synlig,
   alternativer,
   filterVerdier,
   sortering,
+  sorteringsnokler,
   antallTreff,
   onSettFilter,
-  onSettSortering,
+  onTrykkSortering,
   onNullstill,
   onLukk,
+  periode,
+  onSettPeriode,
+  visBallen = false,
+  visPrioritet = false,
 }: {
   synlig: boolean;
-  alternativer: Alternativer;
+  alternativer: DokumentAlternativer;
   filterVerdier: Record<string, string>;
   sortering: Sortering;
+  /** Nøklene lista har data for (`tilgjengeligeSorteringer`). */
+  sorteringsnokler: SorterNokkel[];
   antallTreff: number;
   onSettFilter: (kolId: string, verdi: string) => void;
-  onSettSortering: (s: Sortering) => void;
+  /** Trykk på en sorteringsbrikke — lista sorteres om straks. */
+  onTrykkSortering: (nokkel: SorterNokkel) => void;
   onNullstill: () => void;
   onLukk: () => void;
+  /** Opprettet-periode. Utelatt = feltet vises ikke. */
+  periode?: Periode;
+  onSettPeriode?: (p: Periode) => void;
+  /** «Ballen hos meg» — kun når brukerens grupper er kjent (på nett). */
+  visBallen?: boolean;
+  /** Prioritet-chips — kun oppgaver. */
+  visPrioritet?: boolean;
 }) {
   const { t } = useTranslation();
-  const [apent, setApent] = useState<ApentNedtrekk>(null);
+  const [apent, setApent] = useState<NedtrekkKol | null>(null);
 
-  const fristAlternativer: VelgerAlternativ[] = [
-    { value: "forfalt", label: t("dokumentsok.fristForfalt") },
-    { value: "har_frist", label: t("dokumentsok.fristHarFrist") },
-    { value: "ingen_frist", label: t("dokumentsok.fristIngenFrist") },
-  ];
+  const nedtrekkAlt: Record<NedtrekkKol, VelgerAlternativ[]> = {
+    emne: alternativer.emne.map((a) => ({ value: a.value, label: filterEtikett("emne", a.value, t) })),
+    mal: alternativer.mal,
+    opprettetAv: alternativer.opprettetAv,
+    ansvarlig: alternativer.ansvarlig,
+    bestillerFaggruppe: alternativer.bestillerFaggruppe,
+    utforerFaggruppe: alternativer.utforerFaggruppe,
+    tegning: alternativer.tegning,
+  };
+  const alleLabel = (kolId: NedtrekkKol) =>
+    kolId === "tegning" ? t("dokumentsok.alleTegninger") : t("dokumentsok.alle");
 
-  const valgteFlyt = new Set(
-    (filterVerdier.dokumentflyt ?? "").split(",").filter(Boolean),
-  );
-  const toggleFlyt = (value: string) => {
-    const neste = new Set(valgteFlyt);
+  const vis = (kolId: string, alt: VelgerAlternativ[]) => visFilterKolonne(kolId, alt, filterVerdier);
+
+  const valgte = (kolId: string) => new Set((filterVerdier[kolId] ?? "").split(",").filter(Boolean));
+  const toggle = (kolId: string, value: string) => {
+    const neste = valgte(kolId);
     if (neste.has(value)) neste.delete(value);
     else neste.add(value);
-    onSettFilter("dokumentflyt", Array.from(neste).join(","));
+    onSettFilter(kolId, Array.from(neste).join(","));
   };
 
-  const etikett = (kolId: string, alle: string, alt: VelgerAlternativ[]) => {
-    const v = filterVerdier[kolId];
-    if (!v) return alle;
-    return alt.find((a) => a.value === v)?.label ?? v;
-  };
-
-  const Nedtrekk = ({
-    label,
-    verdi,
-    aktiv,
-    onTrykk,
-  }: {
-    label: string;
-    verdi: string;
-    aktiv: boolean;
-    onTrykk: () => void;
-  }) => (
-    <View className="flex-1 gap-1.5">
-      <Text className="text-xs font-semibold text-gray-500">{label}</Text>
-      <Pressable
-        onPress={onTrykk}
-        className="flex-row items-center justify-between rounded-lg border border-gray-200 px-3 py-2"
-      >
-        <Text className={aktiv ? "text-sm text-gray-900" : "text-sm text-gray-400"} numberOfLines={1}>
-          {verdi}
-        </Text>
-        <ChevronDown size={16} color="#9ca3af" />
-      </Pressable>
-    </View>
+  const chip = (key: string, label: string, valgt: boolean, onTrykk: () => void, dempet = false, a11y?: string) => (
+    <Pressable
+      key={key}
+      onPress={onTrykk}
+      disabled={dempet}
+      accessibilityLabel={a11y}
+      accessibilityState={{ selected: valgt, disabled: dempet }}
+      className={`rounded-full px-3 py-1.5 ${valgt ? "bg-sitedoc-primary" : "border border-gray-300"} ${dempet ? "opacity-40" : ""}`}
+    >
+      <Text className={`text-xs ${valgt ? "text-white" : "text-gray-700"}`}>{label}</Text>
+    </Pressable>
   );
+  const fullt = sortering.length >= MAKS_SORTERNIVAAER;
+
+  const nedtrekk = (kolId: NedtrekkKol) => {
+    const v = filterVerdier[kolId];
+    const verdi = v ? nedtrekkAlt[kolId].find((a) => a.value === v)?.label ?? v : alleLabel(kolId);
+    return (
+      <View key={kolId} className="flex-1 gap-1.5">
+        <Text className="text-xs font-semibold text-gray-500">{t(NEDTREKK_TITTEL[kolId])}</Text>
+        <Pressable
+          onPress={() => setApent(kolId)}
+          className="flex-row items-center justify-between rounded-lg border border-gray-200 px-3 py-2"
+        >
+          <Text className={v ? "text-sm text-gray-900" : "text-sm text-gray-400"} numberOfLines={1}>
+            {verdi}
+          </Text>
+          <ChevronDown size={16} color="#9ca3af" />
+        </Pressable>
+      </View>
+    );
+  };
+
+  /** Synlige nedtrekk, to og to side om side. */
+  const nedtrekkRader = (kolIder: NedtrekkKol[]) => {
+    const synlige = kolIder.filter((k) => vis(k, nedtrekkAlt[k]));
+    const rader: ReactElement[] = [];
+    for (let i = 0; i < synlige.length; i += 2) {
+      const par = synlige.slice(i, i + 2);
+      rader.push(
+        <View key={par.join()} className="mb-3 flex-row gap-2">
+          {par.map(nedtrekk)}
+          {par.length === 1 && <View className="flex-1" />}
+        </View>,
+      );
+    }
+    return rader;
+  };
+
+  const seksjon = (tittel: string) => (
+    <Text className="mb-2 mt-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">{tittel}</Text>
+  );
+
+  const visPrio = visPrioritet && vis("prioritet", alternativer.prioritet);
+  const visHva = vis("emne", nedtrekkAlt.emne) || vis("mal", alternativer.mal) || visPrio;
+  const hvemKol: NedtrekkKol[] = ["opprettetAv", "ansvarlig", "bestillerFaggruppe", "utforerFaggruppe"];
+  const visHvem = hvemKol.some((k) => vis(k, nedtrekkAlt[k]));
+  const visFlyt = vis("dokumentflyt", alternativer.dokumentflyt);
+  const visHvor = vis("tegning", alternativer.tegning) || visFlyt;
 
   return (
     <Modal visible={synlig} transparent animationType="slide" onRequestClose={onLukk}>
@@ -108,101 +180,95 @@ export function FilterOgSorteringSheet({
           </Pressable>
         </View>
 
-        <ScrollView style={{ maxHeight: 460 }} keyboardShouldPersistTaps="handled">
-          {/* Dokumentflyt — multi-chips */}
-          <View className="mb-4 gap-1.5">
-            <Text className="text-xs font-semibold text-gray-500">
-              {t("tabell.dokumentflyt")}
-            </Text>
+        <ScrollView style={{ maxHeight: 520 }} keyboardShouldPersistTaps="handled">
+          {visBallen && (
+            <View className="mb-4 flex-row items-center justify-between rounded-lg bg-blue-50 px-3 py-2">
+              <Text className="text-sm font-medium text-gray-900">{t("dokumentsok.ballenHosMeg")}</Text>
+              <Switch
+                value={filterVerdier.ballen === "1"}
+                onValueChange={(paa) => onSettFilter("ballen", paa ? "1" : "")}
+              />
+            </View>
+          )}
+
+          {seksjon(t("dokumentsok.sortering"))}
+          <Text className="-mt-1 mb-2 text-xs text-gray-500">{t("dokumentsok.sorteringHjelp")}</Text>
+          <View className="mb-4 flex-row flex-wrap gap-1.5">
+            {sorteringsnokler.map((k) => {
+              const valgt = sortering.some((n) => n.nokkel === k);
+              return chip(
+                k,
+                brikkeEtikett(sortering, k, t),
+                valgt,
+                () => onTrykkSortering(k),
+                fullt && !valgt,
+                brikkeA11y(sortering, k, t),
+              );
+            })}
+          </View>
+
+          {visHva && (
+            <>
+              {seksjon(t("dokumentsok.seksjonHva"))}
+              {nedtrekkRader(["emne", "mal"])}
+              {visPrio && (
+                <View className="mb-4 gap-1.5">
+                  <Text className="text-xs font-semibold text-gray-500">{t("tabell.prioritet")}</Text>
+                  <View className="flex-row flex-wrap gap-1.5">
+                    {alternativer.prioritet.map((a) =>
+                      chip(a.value, filterEtikett("prioritet", a.value, t), valgte("prioritet").has(a.value), () =>
+                        toggle("prioritet", a.value),
+                      ),
+                    )}
+                  </View>
+                </View>
+              )}
+            </>
+          )}
+
+          {seksjon(t("dokumentsok.seksjonNaar"))}
+          <View className="mb-3 gap-1.5">
+            <Text className="text-xs font-semibold text-gray-500">{t("tabell.tidsfrist")}</Text>
             <View className="flex-row flex-wrap gap-1.5">
-              {alternativer.dokumentflyt.map((a) => {
-                const valgt = valgteFlyt.has(a.value);
-                return (
-                  <Pressable
-                    key={a.value}
-                    onPress={() => toggleFlyt(a.value)}
-                    className={`rounded-full px-3 py-1.5 ${
-                      valgt ? "bg-sitedoc-primary" : "border border-gray-300"
-                    }`}
-                  >
-                    <Text className={`text-xs ${valgt ? "text-white" : "text-gray-700"}`}>
-                      {a.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              {alternativer.dokumentflyt.length === 0 && (
-                <Text className="text-xs text-gray-400">{t("dokumentsok.alle")}</Text>
+              {Object.keys(FRIST_NOEKKEL).map((f) =>
+                chip(f, filterEtikett("frist", f, t), filterVerdier.frist === f, () =>
+                  onSettFilter("frist", filterVerdier.frist === f ? "" : f),
+                ),
               )}
             </View>
           </View>
-
-          {/* Emne / mal */}
-          <View className="mb-4">
-            <Nedtrekk
-              label={t("dokumentsok.emneMal")}
-              verdi={etikett("mal", t("dokumentsok.alle"), alternativer.mal)}
-              aktiv={!!filterVerdier.mal}
-              onTrykk={() => setApent("mal")}
-            />
-          </View>
-
-          {/* Ansvarlig + Tidsfrist side om side */}
-          <View className="mb-4 flex-row gap-2">
-            <Nedtrekk
-              label={t("tabell.ansvarlig")}
-              verdi={etikett("ansvarlig", t("dokumentsok.alle"), alternativer.ansvarlig)}
-              aktiv={!!filterVerdier.ansvarlig}
-              onTrykk={() => setApent("ansvarlig")}
-            />
-            <Nedtrekk
-              label={t("tabell.tidsfrist")}
-              verdi={etikett("frist", t("dokumentsok.alle"), fristAlternativer)}
-              aktiv={!!filterVerdier.frist}
-              onTrykk={() => setApent("frist")}
-            />
-          </View>
-
-          {/* Tilknyttet tegning */}
-          <View className="mb-4">
-            <Nedtrekk
-              label={t("tabell.tegning")}
-              verdi={etikett("tegning", t("dokumentsok.alleTegninger"), alternativer.tegning)}
-              aktiv={!!filterVerdier.tegning}
-              onTrykk={() => setApent("tegning")}
-            />
-          </View>
-
-          {/* Sortering — enkelt-chips */}
-          <View className="mb-2 gap-1.5">
-            <Text className="text-xs font-semibold text-gray-500">
-              {t("dokumentsok.sortering")}
-            </Text>
-            <View className="flex-row flex-wrap gap-1.5">
-              {(
-                [
-                  ["nyeste", t("dokumentsok.sorteringNyeste")],
-                  ["eldste", t("dokumentsok.sorteringEldste")],
-                  ["navn", t("dokumentsok.sorteringNavn")],
-                ] as const
-              ).map(([verdi, label]) => {
-                const valgt = sortering === verdi;
-                return (
-                  <Pressable
-                    key={verdi}
-                    onPress={() => onSettSortering(verdi)}
-                    className={`rounded-full px-3 py-1.5 ${
-                      valgt ? "bg-sitedoc-primary" : "border border-gray-300"
-                    }`}
-                  >
-                    <Text className={`text-xs ${valgt ? "text-white" : "text-gray-700"}`}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          {periode && onSettPeriode && (
+            <View className="mb-4 gap-1.5">
+              <Text className="text-xs font-semibold text-gray-500">{t("tabell.opprettet")}</Text>
+              <PeriodeFilter periode={periode} onEndre={onSettPeriode} />
             </View>
-          </View>
+          )}
+
+          {visHvem && (
+            <>
+              {seksjon(t("dokumentsok.seksjonHvem"))}
+              {nedtrekkRader(hvemKol)}
+            </>
+          )}
+
+          {visHvor && (
+            <>
+              {seksjon(t("dokumentsok.seksjonHvor"))}
+              {nedtrekkRader(["tegning"])}
+              {visFlyt && (
+                <View className="mb-2 gap-1.5">
+                  <Text className="text-xs font-semibold text-gray-500">{t("tabell.dokumentflyt")}</Text>
+                  <View className="flex-row flex-wrap gap-1.5">
+                    {alternativer.dokumentflyt.map((a) =>
+                      chip(a.value, a.label, valgte("dokumentflyt").has(a.value), () =>
+                        toggle("dokumentflyt", a.value),
+                      ),
+                    )}
+                  </View>
+                </View>
+              )}
+            </>
+          )}
         </ScrollView>
 
         <Pressable
@@ -215,44 +281,14 @@ export function FilterOgSorteringSheet({
         </Pressable>
       </View>
 
-      {/* Nedtrekk-velgere (enkelt-select, byggeplass-velger-mønster) */}
-      {apent === "mal" && (
+      {/* Nedtrekk-velger (enkelt-select, byggeplass-velger-mønster) */}
+      {apent && (
         <EnkeltvelgerModal
-          tittel={t("dokumentsok.emneMal")}
-          alternativer={alternativer.mal}
-          valgt={filterVerdier.mal ?? ""}
-          alleLabel={t("dokumentsok.alle")}
-          onVelg={(v) => { onSettFilter("mal", v); setApent(null); }}
-          onLukk={() => setApent(null)}
-        />
-      )}
-      {apent === "ansvarlig" && (
-        <EnkeltvelgerModal
-          tittel={t("tabell.ansvarlig")}
-          alternativer={alternativer.ansvarlig}
-          valgt={filterVerdier.ansvarlig ?? ""}
-          alleLabel={t("dokumentsok.alle")}
-          onVelg={(v) => { onSettFilter("ansvarlig", v); setApent(null); }}
-          onLukk={() => setApent(null)}
-        />
-      )}
-      {apent === "tegning" && (
-        <EnkeltvelgerModal
-          tittel={t("tabell.tegning")}
-          alternativer={alternativer.tegning}
-          valgt={filterVerdier.tegning ?? ""}
-          alleLabel={t("dokumentsok.alleTegninger")}
-          onVelg={(v) => { onSettFilter("tegning", v); setApent(null); }}
-          onLukk={() => setApent(null)}
-        />
-      )}
-      {apent === "frist" && (
-        <EnkeltvelgerModal
-          tittel={t("tabell.tidsfrist")}
-          alternativer={fristAlternativer}
-          valgt={filterVerdier.frist ?? ""}
-          alleLabel={t("dokumentsok.alle")}
-          onVelg={(v) => { onSettFilter("frist", v); setApent(null); }}
+          tittel={t(NEDTREKK_TITTEL[apent])}
+          alternativer={nedtrekkAlt[apent]}
+          valgt={filterVerdier[apent] ?? ""}
+          alleLabel={alleLabel(apent)}
+          onVelg={(v) => { onSettFilter(apent, v); setApent(null); }}
           onLukk={() => setApent(null)}
         />
       )}

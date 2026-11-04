@@ -349,6 +349,26 @@ tar nå minutter og koster null byggkvote.**
 av dem trengte en ny binær — de trengte bare en vei til telefonen. `expo-updates` er den veien:
 en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også for testerne.
 
+### Appen varsler selv om ny versjon (ota-varsel 2026-11-03)
+
+Før dette ble en ny OTA lastet ned i stillhet og tatt i bruk først ved neste *kalde* oppstart —
+brukeren måtte starte appen to ganger og fikk aldri vite at den var oppdatert. Nå
+(`apps/mobile/src/providers/OtaProvider.tsx`, ingen endring i `app.config.js` eller `runtimeVersion`):
+
+- **Sjekk:** ved oppstart og hver gang appen kommer i forgrunnen, høyst én gang per 5 min og kun på
+  nett. Ny versjon lastes ned i bakgrunnen.
+- **Det brukeren ser:** når nedlastingen er ferdig, en blå linje nederst i appen, under fanelinja:
+  **«Ny versjon er klar · Oppdater»**. Et trykk tar den nye versjonen i bruk med én gang
+  (`reloadAsync()`). Appen bytter **aldri** versjon uten trykket — pågående utfylling går ikke tapt.
+  Ingen lukk-knapp; linja forsvinner når den nye versjonen kjører.
+- **Under Mer** (versjonslinja): «Oppdatert» + lenken «Se etter oppdatering» / «Ser etter
+  oppdatering …» / «Laster ned ny versjon …» / «Ny versjon klar – trykk for å oppdatere» /
+  «Frakoblet – ser etter oppdatering når du er på nett». Ingen feilmeldinger — feil svelges stille.
+- **Dev / Expo Go** (`Updates.isEnabled === false`): ingenting vises.
+
+For testeren betyr det: etter `eas update` åpner man appen (eller henter den fram fra bakgrunnen),
+venter til linja kommer, og trykker «Oppdater». Hashen under Mer bekrefter at den nye bundelen kjører.
+
 ### 🔴 OTA-logg — hva som ligger på telefonen NÅ (cowork vedlikeholder)
 
 **Regelen, samme som for bygg: LES, ikke regn ut.** Sannhetskilden er
@@ -366,7 +386,9 @@ hvorfor — den erstatter ikke kommandoen.
 
 | Dato | Runtime | Commit | Kanal | Innhold |
 |---|---|---|---|---|
-| **2026-10-30** | `1` | **`4364a15f`** ⚠️`*` | **production** | ✅ **GJELDENDE I PROD.** Update group `0e88a2eb-33ee-4956-a589-1d962a1f0a2f`, iOS update `01a18a2e…`. Release-commit på `main`, innhold = develop `90231db2`. `*` = usporet `.claude/launch.json` i hovedtreet, ikke kode. Publisert i samme runde som prod-deployen. Ingen migreringer. Telefonen er ikke verifisert ennå: Mer skal vise `4364a15f`. **Hva testeren merker:** KD11 lagres igjen · sannferdig melding ved avvist lagring («godkjent» bare på avsluttet rapport) · annotert bilde åpnes uten å bli svart · Hjem fryser ikke etter sjekkliste · redigerbare annoteringslag på mobil. ⚠️ Mellomliggende prod-OTA-er (bl.a. 22.10, `8c741180`) er ikke ført her. Sjekk `eas update:list --branch production`. Erstatter siste publisering før 30.10 |
+| **2026-11-04 ~00:0x** | `1` | **`22fa324d`** ⚠️`*` | **test** | ✅ **GJELDENDE PÅ TEST.** Update group `78965b4d-b553-4d6a-b78f-0b7c07f9254e`, iOS update `01a1a3b7-6a10-767e-87f2-d89d7198e271`. Innhold: OTA-varsel («Ny versjon er klar · Oppdater» + status under Mer), HMS-filter, farge `sitedoc-primary`. Fyrt etter API-deploy til test `22fa324d` (HMS-feltene måtte ut først). Forrige test-OTA: `01a1a36c` (`50417247`, filter i listene, 2026-11-03, ikke ført her da). ⚪ Ikke verifisert på telefon ennå. |
+| **2026-11-03** | `1` | **`0d99e11c`** ⚠️`*` | **production** | ✅ **GJELDENDE I PROD.** Update group `c11cf61e-2f64-44bc-9e9a-1ec333434290`, iOS update `01a1a2c4-66cb-7af6-b4ac-457d64dabd51`. Release-commit på `main`, innhold = develop `63a3ef65`. `*` = usporet `.claude/launch.json` i hovedtreet, ikke kode. Publisert i samme runde som prod-deployen (api `/version` `0d99e11c`, bygget 18:27Z). Ingen migreringer. Telefonen er ikke verifisert ennå: Mer skal vise `0d99e11c`. **Hva testeren merker:** rund rød søppelbøtte i annotering sletter det valgte, Angre legger det tilbake · diagnoseloggen skrives bare i utviklingsmodus. Erstatter `4364a15f` |
+| **2026-10-30** | `1` | **`4364a15f`** ⚠️`*` | **production** | ~~GJELDENDE I PROD~~ — erstattet av `0d99e11c` 2026-11-03. Update group `0e88a2eb-33ee-4956-a589-1d962a1f0a2f`, iOS update `01a18a2e…`. Release-commit på `main`, innhold = develop `90231db2`. `*` = usporet `.claude/launch.json` i hovedtreet, ikke kode. Publisert i samme runde som prod-deployen. Ingen migreringer. Telefonen er ikke verifisert ennå: Mer skal vise `4364a15f`. **Hva testeren merker:** KD11 lagres igjen · sannferdig melding ved avvist lagring («godkjent» bare på avsluttet rapport) · annotert bilde åpnes uten å bli svart · Hjem fryser ikke etter sjekkliste · redigerbare annoteringslag på mobil. ⚠️ Mellomliggende prod-OTA-er (bl.a. 22.10, `8c741180`) er ikke ført her. Sjekk `eas update:list --branch production`. Erstatter siste publisering før 30.10 |
 | **2026-10-12 kveld** | `1` | **`56a9072a`** (innhold = `1e6cb861`) | **production** | ~~GJELDENDE I PROD~~ — erstattet (se over). **Verifisert på telefon** (Mer viste først `1e6cb861`, deretter `56a9072a`). ⚠️ **Publisert to ganger**: først fra `main` `1e6cb861`, deretter fra `develop` `56a9072a` fordi orkestrator ga publisering og `git checkout develop` i samme melding og begge ble kjørt. `git diff 56a9072a 1e6cb861` er tom → identisk kode; begge med `.env.production`, bundel målt til kun `https://api.sitedoc.no`. Server `main` `1e6cb861` (bygget 20:35Z), migrering `20261011120000_tegning_mobil_fil_url`. **Hva testeren merker:** startutsnitt i begge akser, ny visningsmodul (`tegning-webview-html.ts`), XSS-herding av inline-SVG. Lærdom: én kommando pr. melding ved OTA. Erstatter `83a8d53f` |
 | **2026-10-10 kveld** | `1` | **`83a8d53f`** | **production** | ~~GJELDENDE I PROD~~ — erstattet 2026-10-12. **Verifisert på telefon** (Kenneth: telefonen viser `83a8d53f`). Publisert i samme runde som prod-deployen (`main` `83a8d53f`, bygget 19:35Z), etter tre additive migreringer. Bundel målt til kun `https://api.sitedoc.no`, ingen `.env` i hovedtreet. **Hva testeren merker:** timer følger valgt firma («Mitt firma»), sperre med forklaring når man ikke er ansatt · tegningsvisning (snap kun til synlige punkter, DWG-strek). Erstatter `64de37bd` |
 | **2026-10-09 natt** | `1` | **`64de37bd`** | **production** | ~~GJELDENDE I PROD~~ — erstattet av `83a8d53f` 2026-10-10. **Verifisert på telefon** (Mer viser `64de37bd`). Publisert i samme runde som prod-deployen (`main` `64de37bd`, bygget 00:21Z), etter migreringene `20261008120000_tegningsserie` + `20261008130000_dwg_layout_kobling`. **Hva testeren merker:** V20-M (mobilen regner pause som web, låst visning viser matpause-bæreren) · 90°-lås, referanselinje og snap i måling. ⚠️ DWG retur 2 og snap-retur 1 er IKKE med. Erstatter `de1582ae` |
@@ -426,7 +448,8 @@ Publiseres det til bare én kanal, spriker flatene.
   (`eas fingerprint:generate`), men policyen brukes ikke.
 - `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: "ON_LOAD"` — **offline-first er
   ufravikelig.** Appen starter alltid umiddelbart fra cachet bundle og henter en ev. oppdatering i
-  bakgrunnen; ingen nett → oppstart som før, uten forsinkelse eller feilmelding.
+  bakgrunnen; ingen nett → oppstart som før, uten forsinkelse eller feilmelding. Oppdateringen tas i bruk når
+  brukeren trykker «Oppdater» i linja nederst (se «Appen varsler selv» over), ellers ved neste kalde oppstart.
 - **Én kanal pr. `eas.json`-profil** (`development`/`preview`/`test`/`production`). En
   `preview`-oppdatering kan aldri nå et produksjonsbygg.
 - `VersjonsFooter` viser kjørende `Updates.updateId` (7 tegn) ved siden av byggets commit — når

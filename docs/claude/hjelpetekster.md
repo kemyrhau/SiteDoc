@@ -54,3 +54,36 @@ comm -23 \
 
 `HjelpKnapp` (eksportert fra `apps/web/src/components/hjelp/HjelpModal.tsx`) er
 kilden — er den importert og rendret på siden, har siden `?`-hjelp.
+
+## Mobil: Søk (`apps/mobile/app/sok/index.tsx`)
+
+Mobilappen har ingen `?`-komponent ennå (ingen `HjelpKnapp` i `apps/mobile`); teksten under er vedtatt
+hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
+
+- **Hva er dette?** Søk i hele prosjektet fra ett felt. Skriv minst to tegn og trykk Søk.
+- **Alle · Mapper · Sjekklister · Oppgaver:** «Alle» viser treff fra alle tre, med de ti første i hver gruppe.
+  Trykk på en gruppe for å se alle treffene der.
+- **Mapper** søker i teksten inni dokumentene. Trykk et treff for å lese stedet i dokumentet; pilene går mellom
+  treffene, og «Åpne dokumentet» viser hele fila. Krever nett.
+- **Sjekklister og oppgaver** søker på nummer, tittel og mal — ikke på det som er fylt ut. Uten nett søkes den
+  lagrede versjonen på telefonen (for eksempel finner Ola oppgave «OPP12» selv i kjelleren uten dekning).
+
+## Mobil: Filter og sortering i sjekkliste-, oppgave-, innboks- og HMS-lista (`FilterOgSorteringSheet.tsx`)
+
+Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når mobil får hjelpe-ikon.
+
+- **Hva er dette?** Snevre inn og ordne lista. Bare valg som finnes i lista vises.
+- Gjelder sjekklister, oppgaver og innboksen (innboksen har ikke prioritet).
+- **Ballen hos meg:** viser bare dokumenter der du eller gruppa di har ballen nå. Krever nett og at lista er hentet
+  fra serveren — uten dekning, eller mens lista viser den lagrede versjonen, er bryteren skjult.
+- **Sortering:** opprettet, sist endret, frist, nummer, emne eller navn — frist, nummer og emne vises bare når lista
+  har slike verdier. Trykk en brikke for å sortere på den; trykk igjen for å snu retningen, tredje trykk fjerner den.
+  Velg opptil tre for å sortere videre innenfor like verdier («Frist ↑, deretter Nummer ↓»). Dokumenter uten verdi
+  havner sist. Hjelpelinja i arket: «Trykk igjen for å snu · tredje trykk fjerner». Aktiv sortering vises som egen
+  brikke over lista; trykk den for å gå tilbake til nyeste først. Under søk sorteres treffene etter relevans.
+- **Hva:** emne (også «Uten emne»), mal og — for oppgaver — prioritet.
+- **Når:** frist (har frist, ingen frist, forfalt — avsluttede og avbrutte regnes ikke som forfalt) og når dokumentet ble opprettet.
+- **Hvem:** hvem som opprettet det, mottaker/ansvarlig, bestiller- og utførerfaggruppe.
+- **Hvor:** tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
+- Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
+

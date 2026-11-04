@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Modal, ActivityIndicator } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useModalInnsetter } from "../ModalInnsetter";
 import { Target, X, Check } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
@@ -58,7 +58,7 @@ export function TegningPosisjonObjekt({
   // useSafeAreaInsets måler riktig topp/bunn inne i presentationStyle="fullScreen";
   // <SafeAreaView edges> anvender 0 der (simulator-målt 2026-08-31), derfor padder vi
   // fra hooken på en vanlig View. Kun målt for DENNE modalen — se BACKLOG-spor.
-  const insets = useSafeAreaInsets();
+  const insets = useModalInnsetter();
   const [modalÅpen, setModalÅpen] = useState(false);
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(posisjon?.drawingId ?? null);

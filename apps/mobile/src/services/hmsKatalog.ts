@@ -30,15 +30,27 @@ type TrpcKlient = ReturnType<typeof trpc.useUtils>["client"];
 
 export type HmsKategori = "avvik" | "sja" | "ruh";
 
-/** HmsRad-kompatibel form (index.tsx caster til HmsRad). */
+/** DokumentRad-kompatibel form (index.tsx caster til HmsRad). Mangler id-ene for
+ *  «ballen hos meg» — den gjelder bare serverrader (ballenBrukerForKilde). */
 export interface HmsLokalRad {
   id: string;
   title: string;
   status: string;
   number: number | null;
+  createdAt: string;
   updatedAt: string;
   template: { name: string; prefix: string | null } | null;
   bestillerFaggruppe: { name: string } | null;
+  // Filter-hms (2026-11-03): filterarkets felt.
+  subject: string | null;
+  priority: string | null;
+  dueDate: string | null;
+  bestiller: { name: string } | null;
+  recipientUser: { name: string } | null;
+  recipientGroup: { name: string } | null;
+  drawing: { name: string } | null;
+  dokumentflyt: { name: string } | null;
+  utforerFaggruppe: { name: string } | null;
 }
 
 export interface HmsLokalDokumenter {
@@ -58,8 +70,17 @@ interface ServerHmsRad {
   template: { name: string; prefix: string | null } | null;
   bestillerFaggruppe: { name: string } | null;
   // Task (avvik/ruh): byggeplass via tegning. Checklist (sja): byggeplassId direkte.
-  drawing?: { byggeplassId: string | null } | null;
+  // Filter-hms: begge har tegningsnavn. Feltene er valgfrie — gammelt API mangler dem.
+  drawing?: { byggeplassId?: string | null; name?: string | null } | null;
   byggeplassId?: string | null;
+  subject?: string | null;
+  priority?: string | null; // kun Task
+  dueDate?: Date | string | null;
+  bestiller?: { name: string | null } | null;
+  recipientUser?: { name: string | null } | null;
+  recipientGroup?: { name: string | null } | null;
+  dokumentflyt?: { name: string } | null;
+  utforerFaggruppe?: { name: string } | null;
 }
 
 function tilIso(v: Date | string | null | undefined): string {
@@ -67,9 +88,13 @@ function tilIso(v: Date | string | null | undefined): string {
   return typeof v === "string" ? new Date(v).toISOString() : v.toISOString();
 }
 
-/** Utledet effektiv byggeplass: Task → drawing.byggeplassId, Checklist → byggeplassId. */
+/**
+ * Utledet effektiv byggeplass: Task → drawing.byggeplassId, Checklist → byggeplassId.
+ * Skiller på `byggeplassId`-nøkkelen (bare Checklist har den), ikke på `drawing` — fra
+ * filter-hms har også SJA `drawing` (kun navn).
+ */
 function effektivByggeplass(r: ServerHmsRad): string | null {
-  return r.drawing !== undefined ? r.drawing?.byggeplassId ?? null : r.byggeplassId ?? null;
+  return "byggeplassId" in r ? r.byggeplassId ?? null : r.drawing?.byggeplassId ?? null;
 }
 
 /**
@@ -122,6 +147,15 @@ export async function refreshHmsKatalog(
           templateName: r.template?.name ?? null,
           templatePrefix: r.template?.prefix ?? null,
           bestillerFaggruppeNavn: r.bestillerFaggruppe?.name ?? null,
+          subject: r.subject ?? null,
+          priority: r.priority ?? null,
+          dueDate: r.dueDate ? tilIso(r.dueDate) : null,
+          bestillerNavn: r.bestiller?.name ?? null,
+          recipientUserNavn: r.recipientUser?.name ?? null,
+          recipientGroupNavn: r.recipientGroup?.name ?? null,
+          drawingNavn: r.drawing?.name ?? null,
+          dokumentflytNavn: r.dokumentflyt?.name ?? null,
+          utforerFaggruppeNavn: r.utforerFaggruppe?.name ?? null,
           sistOppdatert: naa,
         })
         .run();
@@ -153,10 +187,21 @@ function tilRad(r: typeof hmsLocal.$inferSelect): HmsLokalRad {
     title: r.title,
     status: r.status,
     number: r.number,
+    createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     template: r.templateName != null ? { name: r.templateName, prefix: r.templatePrefix } : null,
     bestillerFaggruppe:
       r.bestillerFaggruppeNavn != null ? { name: r.bestillerFaggruppeNavn } : null,
+    subject: r.subject,
+    priority: r.priority,
+    dueDate: r.dueDate,
+    bestiller: r.bestillerNavn != null ? { name: r.bestillerNavn } : null,
+    recipientUser: r.recipientUserNavn != null ? { name: r.recipientUserNavn } : null,
+    recipientGroup: r.recipientGroupNavn != null ? { name: r.recipientGroupNavn } : null,
+    drawing: r.drawingNavn != null ? { name: r.drawingNavn } : null,
+    dokumentflyt: r.dokumentflytNavn != null ? { name: r.dokumentflytNavn } : null,
+    utforerFaggruppe:
+      r.utforerFaggruppeNavn != null ? { name: r.utforerFaggruppeNavn } : null,
   };
 }
 

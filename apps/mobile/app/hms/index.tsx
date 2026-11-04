@@ -7,10 +7,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  TextInput,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, WifiOff } from "lucide-react-native";
+import { ArrowLeft, Plus, Search, SlidersHorizontal, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { velgOfflineListeKilde } from "@sitedoc/shared";
@@ -28,22 +29,39 @@ import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { HmsMalVelger, type HmsMal, type HmsSubdomain } from "../../src/components/HmsMalVelger";
 import {
+  MedUtheving,
+  formaterKortDato,
   formaterNummer,
   formaterOfflineTidspunkt,
 } from "../../src/components/dokumentliste/DokumentRadHjelpere";
+import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
+import { PRIORITET_NOEKKEL } from "../../src/components/dokumentliste/filterEtikett";
+import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
+import {
+  ballenBrukerForKilde,
+  byggAlternativer,
+  filtrerOgSorter,
+  tilgjengeligeSorteringer,
+} from "../../src/components/dokumentliste/dokumentlisteFilter";
+import {
+  filterForFane,
+  harPrioritet,
+  tilHmsDokumentRad,
+  type HmsRad,
+} from "../../src/components/dokumentliste/hmsListe";
+import {
+  useAktiveFilter,
+  useDokumentlisteFilter,
+} from "../../src/components/dokumentliste/useDokumentlisteFilter";
 
 const FANER: HmsSubdomain[] = ["avvik", "sja", "ruh"];
 
-// Cast-type for å unngå TS2589 (excessively deep type instantiation)
-interface HmsRad {
-  id: string;
-  title: string;
-  status: string;
-  number?: number | null;
-  updatedAt: Date | string;
-  template?: { name: string; prefix?: string | null } | null;
-  bestillerFaggruppe?: { name: string } | null;
-}
+const PRIORITETS_FARGE: Record<string, string> = {
+  low: "text-gray-500",
+  medium: "text-blue-600",
+  high: "text-orange-600",
+  critical: "text-red-600",
+};
 
 interface HmsDokumenter {
   avvik: HmsRad[];
@@ -59,14 +77,43 @@ export default function HmsListe() {
   const { bruker } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const [fane, settFane] = useState<HmsSubdomain>("avvik");
   const [statusFilter, settStatusFilter] = useState<string | null>(null);
   const [visMalVelger, settVisMalVelger] = useState(false);
 
-  // Byggeplass serverside via global aktiv byggeplass. Fane + status klientside.
+  // Dokumentsøk + filter + sortering + periode (filter-hms 2026-11-03) — samme hook som
+  // oppgave-/sjekklistelista, nullstilles ved prosjektbytte. Beholdes ved fanebytte;
+  // statusfilteret nullstilles ved fanebytte som før.
+  const {
+    søkeAktiv,
+    settSøkeAktiv,
+    søketekst,
+    settSøketekst,
+    søkerNaa,
+    søkeTokens,
+    filterVerdier: råFilter,
+    sortering,
+    trykkSortering,
+    nullstillSortering,
+    periode,
+    settPeriode,
+    visSheet,
+    settVisSheet,
+    ballenBrukerNett,
+    settFilter,
+    fjernChip,
+    nullstillFilter,
+  } = useDokumentlisteFilter(valgtProsjektId);
+
+  // Byggeplass serverside via global aktiv byggeplass. Søk overstyrer byggeplassen
+  // (hele prosjektet), som i oppgavelista. Fane, status, filter og søk klientside.
   const dokQuery = trpc.hms.hentDokumenter.useQuery(
-    { projectId: valgtProsjektId!, byggeplassId: valgtBygningId ?? undefined },
+    {
+      projectId: valgtProsjektId!,
+      byggeplassId: søkerNaa ? undefined : valgtBygningId ?? undefined,
+    },
     { enabled: !!valgtProsjektId },
   );
 
@@ -74,7 +121,7 @@ export default function HmsListe() {
   // HELE datasettet (alle tre kategorier), ikke per fane — serveren leverer dem
   // i ett kall. MED nett + bekreftet svar er serveren autoritativ; lokal er KUN
   // fallback. Lokal scope speiler server-spørringens byggeplass-scope.
-  const bygg = valgtBygningId ?? undefined;
+  const bygg = søkerNaa ? undefined : valgtBygningId ?? undefined;
   const brukerId = bruker?.id;
   const serverDok = dokQuery.data as HmsDokumenter | undefined;
 
@@ -111,8 +158,17 @@ export default function HmsListe() {
 
   const aktivListe = useMemo<HmsRad[]>(() => {
     if (!dok) return [];
-    return dok[fane] ?? [];
+    return (dok[fane] ?? []).map(tilHmsDokumentRad);
   }, [dok, fane]);
+
+  // Prioritet finnes bare på avvik/RUH. «Ballen» kun på serverrader.
+  const visPrioritet = harPrioritet(fane);
+  const ballenBruker = ballenBrukerForKilde(ballenBrukerNett, kilde);
+  const faneFilter = useMemo(() => filterForFane(råFilter, fane), [råFilter, fane]);
+  const { filterVerdier, antallFilter, aktiveChips } = useAktiveFilter(faneFilter, periode, ballenBruker);
+
+  // Alternativer fra hele (status-uavhengige) fanen — adaptivt per fane.
+  const alternativer = useMemo(() => byggAlternativer(aktivListe), [aktivListe]);
 
   const tilgjengeligeStatuser = useMemo(
     () => Array.from(new Set(aktivListe.map((d) => d.status))),
@@ -123,8 +179,15 @@ export default function HmsListe() {
     statusFilter && tilgjengeligeStatuser.includes(statusFilter) ? statusFilter : null;
 
   const synlige = useMemo(
-    () => (effektivStatus ? aktivListe.filter((d) => d.status === effektivStatus) : aktivListe),
-    [aktivListe, effektivStatus],
+    () =>
+      filtrerOgSorter(
+        effektivStatus ? aktivListe.filter((d) => d.status === effektivStatus) : aktivListe,
+        filterVerdier,
+        søkerNaa ? søketekst : "",
+        sortering,
+        { periode, bruker: ballenBruker },
+      ) as HmsRad[],
+    [aktivListe, effektivStatus, filterVerdier, søkerNaa, søketekst, sortering, periode, ballenBruker],
   );
 
   const opprettOppgave = trpc.oppgave.opprett.useMutation({
@@ -181,9 +244,12 @@ export default function HmsListe() {
         // Undertrykk mal-navnet når det er identisk med tittelen (unngå dobbeltnavn).
         item.template?.name === item.title ? null : item.template?.name,
         item.bestillerFaggruppe?.name,
+        item.dueDate ? formaterKortDato(item.dueDate) : null,
       ]
         .filter(Boolean)
         .join(" · ");
+      // Prioritet bare på avvik/RUH, og bare når serveren sender den (eldre API: ingen).
+      const prioritet = visPrioritet ? item.priority ?? "" : "";
       // SJA er sjekkliste, avvik/RUH er oppgave.
       const rute = fane === "sja" ? "sjekkliste" : "oppgave";
 
@@ -193,40 +259,91 @@ export default function HmsListe() {
           className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3"
         >
           <View className="flex-1 pr-2">
-            <Text className="text-sm text-gray-900" numberOfLines={1}>
-              {nummer ? <Text className="font-bold">{nummer} </Text> : null}
-              {item.title}
-            </Text>
-            {undertekst ? (
-              <Text className="mt-0.5 text-xs text-gray-500" numberOfLines={1}>
-                {undertekst}
-              </Text>
+            <View className="flex-row items-center gap-1">
+              {nummer ? <Text className="text-sm font-bold text-gray-900">{nummer}</Text> : null}
+              <MedUtheving
+                tekst={item.title}
+                tokens={søkeTokens}
+                className="flex-1 text-sm text-gray-900"
+              />
+            </View>
+            {item.subject?.trim() ? (
+              <MedUtheving tekst={item.subject.trim()} tokens={søkeTokens} className="mt-0.5 text-xs text-gray-700" />
+            ) : null}
+            {prioritet || undertekst ? (
+              <View className="mt-0.5 flex-row items-center gap-2">
+                {prioritet ? (
+                  <Text className={`text-xs font-medium ${PRIORITETS_FARGE[prioritet] ?? "text-gray-500"}`}>
+                    {PRIORITET_NOEKKEL[prioritet] ? t(PRIORITET_NOEKKEL[prioritet]) : prioritet}
+                  </Text>
+                ) : null}
+                {undertekst ? (
+                  <Text className="flex-1 text-xs text-gray-500" numberOfLines={1}>
+                    {prioritet ? `· ${undertekst}` : undertekst}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
           </View>
-          <StatusMerkelapp status={item.status} />
+          <View className="items-end">
+            <StatusMerkelapp status={item.status} />
+            <Text className="mt-1 text-[11px] text-gray-400">
+              {t("dokumentsok.opprettetDato", { dato: formaterKortDato(item.createdAt) })}
+            </Text>
+          </View>
         </Pressable>
       );
     },
-    [router, fane],
+    [router, fane, t, søkeTokens, visPrioritet],
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
-        <View className="flex-row items-center">
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <ArrowLeft size={22} color="#ffffff" />
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      {/* Header — søkefeltet ERSTATTER header-raden (som oppgavelista). */}
+      {søkeAktiv ? (
+        <View className="flex-row items-center gap-2 bg-sitedoc-blue px-4 py-2.5">
+          <View className="flex-1 flex-row items-center rounded-lg bg-white px-3 py-2">
+            <Search size={16} color="#9ca3af" />
+            <TextInput
+              value={søketekst}
+              onChangeText={settSøketekst}
+              placeholder={t("dokumentsok.sokPlaceholder")}
+              placeholderTextColor="#9ca3af"
+              className="ml-2 flex-1 py-0 text-sm text-gray-900"
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+          </View>
+          <Pressable
+            onPress={() => { settSøkeAktiv(false); settSøketekst(""); }}
+            hitSlop={10}
+          >
+            <Text className="text-sm text-white">{t("handling.avbryt")}</Text>
           </Pressable>
-          <Text className="ml-3 text-lg font-semibold text-white">{t("hms.tittel")}</Text>
         </View>
-        <Pressable onPress={() => settVisMalVelger(true)} hitSlop={12}>
-          <Plus size={24} color="#ffffff" />
-        </Pressable>
-      </View>
+      ) : (
+        <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
+          <View className="flex-row items-center">
+            <Pressable onPress={() => router.back()} hitSlop={12}>
+              <ArrowLeft size={22} color="#ffffff" />
+            </Pressable>
+            <Text className="ml-3 text-lg font-semibold text-white">{t("hms.tittel")}</Text>
+          </View>
+          <View className="flex-row items-center gap-4">
+            <Pressable onPress={() => settSøkeAktiv(true)} hitSlop={12}>
+              <Search size={22} color="#ffffff" />
+            </Pressable>
+            <Pressable onPress={() => settVisMalVelger(true)} hitSlop={12}>
+              <Plus size={24} color="#ffffff" />
+            </Pressable>
+          </View>
+        </View>
+      )}
 
-      {/* Global byggeplass-chip (filtrerer lista serverside) */}
-      <ByggeplassChip />
+      {/* Global byggeplass-chip (filtrerer lista serverside) — skjules under søk. */}
+      {!søkerNaa && <ByggeplassChip />}
 
       {/* Subdomain-faner */}
       <View className="flex-row gap-2 border-b border-gray-200 bg-white px-4 py-2">
@@ -253,12 +370,40 @@ export default function HmsListe() {
         })}
       </View>
 
-      {/* Status-filter — kun statuser som finnes i aktiv fane */}
-      <StatusFilterRad
-        statuser={tilgjengeligeStatuser}
-        valgt={effektivStatus}
-        onVelg={settStatusFilter}
-      />
+      {/* Status-filter (kun statuser i aktiv fane) + filter-trakt (nøytral / fylt m/teller). */}
+      <View className="flex-row items-center border-b border-gray-100 bg-white">
+        <View className="flex-1">
+          <StatusFilterRad
+            statuser={tilgjengeligeStatuser}
+            valgt={effektivStatus}
+            onVelg={settStatusFilter}
+          />
+        </View>
+        <Pressable
+          onPress={() => settVisSheet(true)}
+          hitSlop={8}
+          className={`mr-3 flex-row items-center gap-1 rounded-full px-3 py-1.5 ${
+            antallFilter > 0 ? "bg-sitedoc-primary" : "border border-gray-300"
+          }`}
+        >
+          <SlidersHorizontal size={14} color={antallFilter > 0 ? "#ffffff" : "#374151"} />
+          {antallFilter > 0 && (
+            <Text className="text-xs font-semibold text-white">{antallFilter}</Text>
+          )}
+        </Pressable>
+      </View>
+
+      {(antallFilter > 0 || sortering.length > 0) && (
+        <AktiveFilterChips
+          chips={aktiveChips}
+          synlige={synlige.length}
+          totalt={aktivListe.length}
+          onFjern={fjernChip}
+          onNullstill={nullstillFilter}
+          sortering={sortering}
+          onNullstillSortering={nullstillSortering}
+        />
+      )}
 
       {/* Offline-banner: viser lagrede HMS-dokumenter + «sist hentet». */}
       {tilstand === "lokal" && (
@@ -283,25 +428,26 @@ export default function HmsListe() {
           data={synlige}
           keyExtractor={(item) => item.id}
           renderItem={renderElement}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl refreshing={dokQuery.isRefetching} onRefresh={onRefresh} />
           }
           ListEmptyComponent={
             <View className="items-center px-8 pt-20">
-              {!effektivStatus && tilstand === "lokal-tom" ? (
+              {søkerNaa ? (
+                <Text className="text-base text-gray-500">{t("dokumentsok.ingenTreff")}</Text>
+              ) : effektivStatus || antallFilter > 0 ? (
+                <Text className="text-base text-gray-500">{t("tom.ingenMatcherFilter")}</Text>
+              ) : tilstand === "lokal-tom" ? (
                 <Text className="text-base text-gray-500">
                   {t("offline.ikkeSynkronisertDok")}
                 </Text>
               ) : (
                 <>
-                  <Text className="text-base text-gray-500">
-                    {effektivStatus ? t("tom.ingenMatcherFilter") : t(`hms.tom.${fane}`)}
+                  <Text className="text-base text-gray-500">{t(`hms.tom.${fane}`)}</Text>
+                  <Text className="mt-1 text-center text-sm text-gray-400">
+                    {t(`hms.tom.${fane}Beskrivelse`)}
                   </Text>
-                  {!effektivStatus ? (
-                    <Text className="mt-1 text-center text-sm text-gray-400">
-                      {t(`hms.tom.${fane}Beskrivelse`)}
-                    </Text>
-                  ) : null}
                 </>
               )}
             </View>
@@ -309,11 +455,28 @@ export default function HmsListe() {
         />
       )}
 
+      <FilterOgSorteringSheet
+        synlig={visSheet}
+        alternativer={alternativer}
+        filterVerdier={filterVerdier}
+        sortering={sortering}
+        antallTreff={synlige.length}
+        onSettFilter={settFilter}
+        sorteringsnokler={tilgjengeligeSorteringer(aktivListe, sortering)}
+        onTrykkSortering={trykkSortering}
+        onNullstill={nullstillFilter}
+        onLukk={() => settVisSheet(false)}
+        periode={periode}
+        onSettPeriode={settPeriode}
+        visBallen={!!ballenBruker}
+        visPrioritet={visPrioritet}
+      />
+
       <HmsMalVelger
         synlig={visMalVelger}
         onVelg={håndterMal}
         onLukk={() => settVisMalVelger(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 }

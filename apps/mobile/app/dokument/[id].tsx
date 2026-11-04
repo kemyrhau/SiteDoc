@@ -14,7 +14,7 @@ import { AutentisertBilde } from "../../src/components/AutentisertBilde";
 import { BildeFallback } from "../../src/components/BildeFallback";
 import { useLocalSearchParams, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Download, FileText, Check, X, Plus, RefreshCw } from "lucide-react-native";
+import { ArrowLeft, Download, FileText, Check, X, Plus, RefreshCw, Lock } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
 import { hentWebUrl } from "../../src/config/auth";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -48,7 +48,7 @@ export default function DokumentLeser() {
   const [sammenlignModus, setSammenlignModus] = useState(false);
   const [sammenlignBlokk, setSammenlignBlokk] = useState<{ id: string; content: string } | null>(null);
 
-  const { data, isLoading, refetch } = trpc.mappe.hentDokumentBlokker.useQuery(
+  const { data, isLoading, refetch, error } = trpc.mappe.hentDokumentBlokker.useQuery(
     { documentId: id ?? "", language: språk },
     { enabled: !!id },
   );
@@ -96,6 +96,18 @@ export default function DokumentLeser() {
     },
   });
 
+  // Medlemmer re-oversetter med lagret motor; bytte av motor krever prosjektadmin.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const { data: oversettInnst } = trpc.modul.hentOversettelsesInnstillinger.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!sammenlignBlokk && !!prosjektId },
+  );
+  const kanReOversette = (motor: string) =>
+    (minFlytInfo?.erAdmin ?? false) || motor === (oversettInnst?.motor ?? "opus-mt");
+
   // Re-oversett hele dokumentet med valgt motor (fra sammenlign-arket)
   const reOversettMut = trpc.modul.reOversettDokument.useMutation({
     onSuccess: () => {
@@ -123,6 +135,19 @@ export default function DokumentLeser() {
         />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Dokument i mappe uten tilgang (firmagrense punkt 3) — egen melding, ikke «ikke klar».
+  if (error?.data?.code === "FORBIDDEN") {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <Header tittel={t("dokument.dokument")} onTilbake={() => router.back()} />
+        <View className="flex-1 items-center justify-center px-6">
+          <Lock size={48} color="#d1d5db" />
+          <Text className="mt-4 text-center text-sm text-gray-500">{t("mapper.ingenTilgang")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -375,7 +400,7 @@ export default function DokumentLeser() {
                         <Text className="text-xs font-semibold text-gray-700">{r.navn}</Text>
                         {r.feil ? (
                           <Text className="text-[10px] text-red-500">{r.feil.slice(0, 40)}</Text>
-                        ) : (
+                        ) : !kanReOversette(r.motor) ? null : (
                           <TouchableOpacity
                             onPress={() =>
                               reOversettMut.mutate({

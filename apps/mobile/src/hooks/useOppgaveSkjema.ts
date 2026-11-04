@@ -14,6 +14,7 @@ import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepea
 import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
 import { anvendOpplasting } from "../lib/originalOpplasting";
 import { lagreUtvalg } from "../lib/lagreUtvalg";
+import { tilOppgaveVisning } from "../lib/oppgaveVisning";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -55,6 +56,7 @@ export interface UseOppgaveSkjemaResultat {
     priority: string;
     description: string | null;
     number: number | null;
+    subject: string | null;
     template: {
       id: string;
       name: string;
@@ -745,21 +747,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   const erRedigerbar = !offlineModus && rettighet !== "leser";
 
   return {
-    oppgave: oppgave
-      ? {
-          id: oppgave.id,
-          title: oppgave.title,
-          status: oppgave.status,
-          priority: oppgave.priority,
-          description: oppgave.description,
-          number: oppgave.number,
-          template: oppgave.template,
-          bestillerFaggruppe: oppgave.bestillerFaggruppe,
-          utforerFaggruppe: oppgave.utforerFaggruppe,
-          drawing: oppgave.drawing,
-          checklist: oppgave.checklist,
-        }
-      : undefined,
+    oppgave: oppgave ? tilOppgaveVisning(oppgave) : undefined,
     // Spinner kun mens vi faktisk venter online uten speil (ellers evig spinner uten nett).
     erLaster: oppgaveQuery.isLoading && !offlineModus && !offlineIkkeLastet,
     hentFeltVerdi,

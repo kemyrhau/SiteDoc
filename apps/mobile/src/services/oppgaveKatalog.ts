@@ -21,7 +21,8 @@ import type { trpc } from "../lib/trpc";
  *  prosjektet). Serverens tilgangsfilter + HMS-eksklusjon (domain ≠ hms) er
  *  allerede anvendt → radene er en tro kopi av det brukeren ville sett online.
  *
- *  Bærer KUN det lista viser/filtrerer på (målt mot app/oppgave/index.tsx) —
+ *  Bærer KUN det lista viser/filtrerer på (målt mot app/oppgave/index.tsx og
+ *  filterarket, filter-mobil D1 2026-11-03) —
  *  ALDRI `data`/vedlegg (ingen URL-er). Synkes aldri opp.
  * ============================================================================ */
 
@@ -40,6 +41,13 @@ export interface OppgaveLokalRad {
   updatedAt: string;
   template: { name: string; prefix: string | null; subdomain: string | null } | null;
   utforerFaggruppe: { name: string } | null;
+  subject: string | null;
+  bestiller: { name: string | null } | null;
+  bestillerFaggruppe: { name: string } | null;
+  recipientUser: { name: string | null } | null;
+  recipientGroup: { name: string | null } | null;
+  drawing: { name: string | null } | null;
+  dokumentflyt: { name: string } | null;
 }
 
 /** Normaliser Date | string | null → ISO-streng (Prisma-datoer over tRPC). */
@@ -79,7 +87,13 @@ export async function refreshOppgaveKatalog(
     updatedAt: Date | string;
     template: { name: string; prefix: string | null; subdomain: string | null } | null;
     utforerFaggruppe: { name: string } | null;
-    drawing: { byggeplass: { id: string } | null } | null;
+    subject?: string | null;
+    bestiller?: { name: string | null } | null;
+    bestillerFaggruppe?: { name: string } | null;
+    recipientUser?: { name: string | null } | null;
+    recipientGroup?: { name: string | null } | null;
+    dokumentflyt?: { name: string } | null;
+    drawing: { name?: string | null; byggeplass: { id: string } | null } | null;
   }>;
 
   const naa = Date.now();
@@ -107,6 +121,13 @@ export async function refreshOppgaveKatalog(
         templatePrefix: r.template?.prefix ?? null,
         templateSubdomain: r.template?.subdomain ?? null,
         utforerFaggruppeNavn: r.utforerFaggruppe?.name ?? null,
+        subject: r.subject ?? null,
+        bestillerNavn: r.bestiller?.name ?? null,
+        recipientUserNavn: r.recipientUser?.name ?? null,
+        recipientGroupNavn: r.recipientGroup?.name ?? null,
+        drawingNavn: r.drawing?.name ?? null,
+        dokumentflytNavn: r.dokumentflyt?.name ?? null,
+        bestillerFaggruppeNavn: r.bestillerFaggruppe?.name ?? null,
         sistOppdatert: naa,
       })
       .run();
@@ -169,6 +190,14 @@ export function hentOppgaverLokalt(
         : null,
     utforerFaggruppe:
       r.utforerFaggruppeNavn != null ? { name: r.utforerFaggruppeNavn } : null,
+    subject: r.subject,
+    bestiller: r.bestillerNavn != null ? { name: r.bestillerNavn } : null,
+    bestillerFaggruppe:
+      r.bestillerFaggruppeNavn != null ? { name: r.bestillerFaggruppeNavn } : null,
+    recipientUser: r.recipientUserNavn != null ? { name: r.recipientUserNavn } : null,
+    recipientGroup: r.recipientGroupNavn != null ? { name: r.recipientGroupNavn } : null,
+    drawing: r.drawingNavn != null ? { name: r.drawingNavn } : null,
+    dokumentflyt: r.dokumentflytNavn != null ? { name: r.dokumentflytNavn } : null,
   }));
 }
 

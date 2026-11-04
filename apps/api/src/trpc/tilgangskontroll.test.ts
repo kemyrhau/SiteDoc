@@ -7,29 +7,31 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Kjører UTEN DB (prisma mocket), i motsetning til *.integration.test.ts. Beviser at
  * ekstraksjonen er atferdsbevarende der typecheck ikke kan: en invertert boolsk ville
  * bestått typecheck men åpnet fem porter samtidig. To assertions:
- *   - firma-admin i en org KOBLET til prosjektet   → true  (bypass slår inn)
- *   - firma-admin kun i en ANNEN org (ikke koblet) → false (gjennomfall, ingen bypass)
+ *   - firma-admin i prosjektets EIERFIRMA            → true  (bypass slår inn)
+ *   - firma-admin kun i en ANNEN org (ikke eier)    → false (gjennomfall, ingen bypass)
+ * Deltakerfirma (koblet, ikke eier) og eier=null dekkes i firmaadmin-eierfirma.test.ts.
  *
  * Kjør: cd apps/api && npx vitest run src/trpc/tilgangskontroll.test.ts
  */
 
-const findMany = vi.fn();
+/** Prosjektets eierfirma (`primaryOrganizationId`); null = standalone. */
+const eierOrg = vi.fn();
+const prosjektFindUnique = vi.fn(() => Promise.resolve({ primaryOrganizationId: eierOrg() ?? null }));
 const findUnique = vi.fn();
 const userFindUnique = vi.fn();
 const memberFindUnique = vi.fn();
 
 vi.mock("@sitedoc/db", () => ({
   prisma: {
-    projectOrganization: { findMany: (...a: unknown[]) => findMany(...a) },
     organizationMember: { findUnique: (...a: unknown[]) => findUnique(...a) },
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
     projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
     // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) kjøres først i
-    // verifiserRetningsrett. Standalone (primaryOrganizationId=null) er valgt BEVISST her
-    // for å no-op-e gaten og isolere Lukk-guard-/retningsretts-logikken.
+    // verifiserRetningsrett. Standalone (eierOrg=null) er standard for å no-op-e gaten og
+    // isolere Lukk-guard-/retningsretts-logikken; firma-admin-testene setter eierfirmaet.
     // ⚠️ Ansettelses-gaten selv (deaktivert ansatt → FORBIDDEN) er dermed IKKE dekket av
     // denne fila — den fortjener egne tester (registreringsmodell fase 1, kan FRATA tilgang).
-    project: { findUnique: () => Promise.resolve({ primaryOrganizationId: null }) },
+    project: { findUnique: (...a: unknown[]) => prosjektFindUnique(...(a as [])) },
   },
 }));
 
@@ -39,35 +41,36 @@ import type { RaFlytMedlem } from "@sitedoc/shared";
 
 const USER = "user-1";
 const PROJECT = "prosjekt-1";
-const KOBLET_ORG = "org-koblet";
+const EIER_ORG = "org-eier";
 const ANNEN_ORG = "org-annen";
 
 describe("erFirmaAdminForProsjekt — delt bypass-predikat", () => {
   beforeEach(() => {
-    findMany.mockReset();
+    eierOrg.mockReset().mockReturnValue(null);
+    prosjektFindUnique.mockClear();
     findUnique.mockReset();
   });
 
-  it("firma-admin i en org KOBLET til prosjektet → true (bypass slår inn)", async () => {
-    // Prosjektet er koblet til KOBLET_ORG.
-    findMany.mockResolvedValue([{ organizationId: KOBLET_ORG }]);
-    // Bruker er firma_admin i den koblede orgen.
+  it("firma-admin i prosjektets EIERFIRMA → true (bypass slår inn)", async () => {
+    // Prosjektet eies av EIER_ORG.
+    eierOrg.mockReturnValue(EIER_ORG);
+    // Bruker er firma_admin i eierfirmaet.
     findUnique.mockImplementation(({ where }: { where: { userId_organizationId: { organizationId: string } } }) =>
       Promise.resolve(
-        where.userId_organizationId.organizationId === KOBLET_ORG
+        where.userId_organizationId.organizationId === EIER_ORG
           ? { firmaRoller: ["firma_admin"] }
           : null,
       ),
     );
 
     expect(await erFirmaAdminForProsjekt(USER, PROJECT)).toBe(true);
-    expect(findMany).toHaveBeenCalledWith({ where: { projectId: PROJECT }, select: { organizationId: true } });
+    expect(prosjektFindUnique).toHaveBeenCalledWith({ where: { id: PROJECT }, select: { primaryOrganizationId: true } });
   });
 
-  it("firma-admin kun i en ANNEN org (ikke koblet til prosjektet) → false (gjennomfall)", async () => {
-    // Prosjektet er koblet til KOBLET_ORG — der bruker IKKE er firma-admin.
-    findMany.mockResolvedValue([{ organizationId: KOBLET_ORG }]);
-    // Bruker er firma_admin, men bare i en ANNEN org som prosjektet ikke er koblet til.
+  it("firma-admin kun i en ANNEN org (ikke eier av prosjektet) → false (gjennomfall)", async () => {
+    // Prosjektet eies av EIER_ORG — der bruker IKKE er firma-admin.
+    eierOrg.mockReturnValue(EIER_ORG);
+    // Bruker er firma_admin, men bare i en ANNEN org som ikke eier prosjektet.
     findUnique.mockImplementation(({ where }: { where: { userId_organizationId: { organizationId: string } } }) =>
       Promise.resolve(
         where.userId_organizationId.organizationId === ANNEN_ORG
@@ -176,16 +179,17 @@ describe("autoriserAdminForFirma — deaktivert ansettelse mister firma-admin (2
 
 describe("verifiserKanEksportere — firma-admin-only (Kenneth-vedtak 2026-09-06)", () => {
   beforeEach(() => {
-    findMany.mockReset();
+    eierOrg.mockReset().mockReturnValue(null);
+    prosjektFindUnique.mockClear();
     findUnique.mockReset();
     userFindUnique.mockReset();
-    // Prosjektet er koblet til KOBLET_ORG (samme oppsett som over).
-    findMany.mockResolvedValue([{ organizationId: KOBLET_ORG }]);
+    // Prosjektet eies av EIER_ORG (samme oppsett som over).
+    eierOrg.mockReturnValue(EIER_ORG);
   });
 
   it("🔴 prosjektadmin (ikke firma-admin) får FORBIDDEN", async () => {
     userFindUnique.mockResolvedValue({ role: "user" }); // ikke sitedoc_admin
-    // Prosjektadmin er admin på ProjectMember, men IKKE firma_admin i noen koblet org.
+    // Prosjektadmin er admin på ProjectMember, men IKKE firma_admin i eierfirmaet.
     findUnique.mockResolvedValue({ firmaRoller: [] });
 
     await expect(verifiserKanEksportere(USER, PROJECT)).rejects.toMatchObject({
@@ -193,11 +197,11 @@ describe("verifiserKanEksportere — firma-admin-only (Kenneth-vedtak 2026-09-06
     });
   });
 
-  it("firma-admin på prosjektets org slipper gjennom", async () => {
+  it("firma-admin i prosjektets eierfirma slipper gjennom", async () => {
     userFindUnique.mockResolvedValue({ role: "user" });
     findUnique.mockImplementation(({ where }: { where: { userId_organizationId: { organizationId: string } } }) =>
       Promise.resolve(
-        where.userId_organizationId.organizationId === KOBLET_ORG
+        where.userId_organizationId.organizationId === EIER_ORG
           ? { firmaRoller: ["firma_admin"] }
           : null,
       ),
@@ -210,7 +214,7 @@ describe("verifiserKanEksportere — firma-admin-only (Kenneth-vedtak 2026-09-06
     userFindUnique.mockResolvedValue({ role: "sitedoc_admin" });
 
     await expect(verifiserKanEksportere(USER, PROJECT)).resolves.toBeUndefined();
-    expect(findMany).not.toHaveBeenCalled(); // kortslutter før org-sjekk
+    expect(findUnique).not.toHaveBeenCalled(); // kortslutter før org-sjekk
   });
 });
 
