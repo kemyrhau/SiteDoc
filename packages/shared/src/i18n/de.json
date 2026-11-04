@@ -990,6 +990,8 @@
   "kolonne.verdier": "Werte",
   "kolonne.velgParameter": "Wählen Sie Spalten aus",
   "kolonne.hvemOgNaar": "Wer und wann",
+  "kolonne.flytt": "Spalte verschieben {{navn}}",
+  "kolonne.fjern": "{{navn}} entfernen",
   "prioritet.lav": "Niedrig",
   "prioritet.middels": "Medium",
   "prioritet.hoey": "Hoch",

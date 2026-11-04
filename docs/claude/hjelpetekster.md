@@ -102,6 +102,9 @@ brukes når de får hjelpe-ikon.
   valget, f.eks. «Endret: Siste uke».
 - **Område:** kolonnen viser området dokumentet er plassert i på tegningen. Filtrer i kolonnehodet; filteret vises bare
   når lista har områder.
+- **Kolonner** (2026-11-04): dra i håndtaket ⋮⋮ til venstre i en kolonneoverskrift for å flytte kolonnen, eller dra
+  i lista øverst i «Velg parameter». Rekkefølgen huskes for deg. En kolonne du slår på, havner sist. «Nullstill» gir
+  standardkolonnene i standardrekkefølge. Avkrysningsruta står alltid først.
 - **Hvem og når** (M-pakke 2026-11-04, slås på i kolonnevelgeren): «Sendt av/Sendt», «Godkjent av/Godkjent»,
   «Lukket av/Lukket», «Sist utfylt av/Sist utfylt» og «Signatur». Gjenåpnes et dokument, vises godkjent og lukket bare
   så lenge dokumentet faktisk står som godkjent eller lukket. Periode-knappen kan også se på sendt-, godkjent- og

@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { effektivRekkefolge, vekslKolonne, type LagretKolonner } from "@/lib/kolonneRekkefolge";
 
 interface Tabelloppsett {
   kolonner: string[];
+  /** true = `kolonner` er visningsrekkefølgen (se lib/kolonneRekkefolge.ts). */
+  rekkefolge?: boolean;
   bredder: Record<string, number>;
   sortering: { kolonne: string; retning: "asc" | "desc" } | null;
 }
@@ -12,6 +15,8 @@ interface Tabelloppsett {
 interface UseTabelloppsettParams {
   liste: string;
   standardKolonner: Set<string>;
+  /** Sidens standardrekkefølge for alle kolonner; brukes for oppsett lagret uten rekkefølge. */
+  kanoniskRekkefolge: readonly string[];
   /** localStorage-nøkkel for migrering av eksisterende innstillinger */
   migrerNokkel?: string;
   migrerBreddeNokkel?: string;
@@ -20,10 +25,12 @@ interface UseTabelloppsettParams {
 /**
  * Hook for å laste/lagre kolonneinnstillinger fra API (med localStorage-fallback).
  * Debouncer API-kall med 800ms for å unngå spam ved drag-resize.
+ * Én kilde til kolonne-rekkefølgen: tabellhodet og «Velg parameter» skriver begge hit.
  */
 export function useTabelloppsett({
   liste,
   standardKolonner,
+  kanoniskRekkefolge,
   migrerNokkel,
   migrerBreddeNokkel,
 }: UseTabelloppsettParams) {
@@ -37,7 +44,7 @@ export function useTabelloppsett({
 
   // Migrer fra localStorage ved første lasting
   const [initialisert, setInitialisert] = useState(false);
-  const [aktiveKolonner, setAktiveKolonner] = useState<Set<string>>(standardKolonner);
+  const [lagretKolonner, setLagretKolonner] = useState<LagretKolonner>({ kolonner: standardArr });
   const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>({});
   const [sortering, setSortering] = useState<{ kolonne: string; retning: "asc" | "desc" } | null>(null);
 
@@ -46,16 +53,16 @@ export function useTabelloppsett({
     if (isLoading || initialisert) return;
 
     if (serverOppsett) {
-      setAktiveKolonner(new Set(serverOppsett.kolonner));
+      setLagretKolonner({ kolonner: serverOppsett.kolonner, rekkefolge: serverOppsett.rekkefolge });
       setKolonneBredder(serverOppsett.bredder ?? {});
       setSortering(serverOppsett.sortering as { kolonne: string; retning: "asc" | "desc" } | null ?? null);
     } else if (typeof window !== "undefined") {
-      // Fallback: migrer fra localStorage
+      // Fallback: migrer fra localStorage (gammelt Set → standardrekkefølge)
       try {
         if (migrerNokkel) {
           const lagret = localStorage.getItem(migrerNokkel);
           if (lagret) {
-            setAktiveKolonner(new Set(JSON.parse(lagret) as string[]));
+            setLagretKolonner({ kolonner: JSON.parse(lagret) as string[] });
             localStorage.removeItem(migrerNokkel);
           }
         }
@@ -69,7 +76,14 @@ export function useTabelloppsett({
       } catch { /* ignorer */ }
     }
     setInitialisert(true);
-  }, [isLoading, serverOppsett, initialisert, migrerNokkel, migrerBreddeNokkel, standardArr]);
+  }, [isLoading, serverOppsett, initialisert, migrerNokkel, migrerBreddeNokkel]);
+
+  /** Aktive kolonner i visningsrekkefølge. */
+  const kolonneRekkefolge = useMemo(
+    () => effektivRekkefolge(lagretKolonner, kanoniskRekkefolge),
+    [lagretKolonner, kanoniskRekkefolge],
+  );
+  const aktiveKolonner = useMemo(() => new Set(kolonneRekkefolge), [kolonneRekkefolge]);
 
   // Debounced lagring til API
   const lagreMutation = trpc.bruker.lagreTabelloppsett.useMutation();
@@ -87,32 +101,34 @@ export function useTabelloppsett({
   }, [liste, lagreMutation]);
 
   const oppdaterOgLagre = useCallback((
-    nyeKolonner?: Set<string>,
+    nyeKolonner?: LagretKolonner,
     nyeBredder?: Record<string, number>,
-    nySortering?: { kolonne: string; retning: "asc" | "desc" } | null,
   ) => {
-    const k = nyeKolonner ?? aktiveKolonner;
+    const k = nyeKolonner ?? lagretKolonner;
     const b = nyeBredder ?? kolonneBredder;
-    const s = nySortering !== undefined ? nySortering : sortering;
-    sisteOppsett.current = { kolonner: [...k], bredder: b, sortering: s };
+    sisteOppsett.current = { kolonner: k.kolonner, rekkefolge: k.rekkefolge, bredder: b, sortering };
     lagreTilServer();
-  }, [aktiveKolonner, kolonneBredder, sortering, lagreTilServer]);
+  }, [lagretKolonner, kolonneBredder, sortering, lagreTilServer]);
+
+  /** Ny visningsrekkefølge for de aktive kolonnene (fra tabellhodet eller velgeren). */
+  const handleRekkefolgeEndring = useCallback((ny: string[]) => {
+    const neste = { kolonner: ny, rekkefolge: true };
+    setLagretKolonner(neste);
+    oppdaterOgLagre(neste);
+  }, [oppdaterOgLagre]);
 
   const handleToggleKolonne = useCallback((id: string) => {
     if (id === "__reset__") {
-      setAktiveKolonner(new Set(standardKolonner));
+      // Standard: standardkolonnene i sidens standardrekkefølge.
+      const standard = { kolonner: standardArr };
+      setLagretKolonner(standard);
       setKolonneBredder({});
-      sisteOppsett.current = { kolonner: standardArr, bredder: {}, sortering };
-      lagreTilServer();
+      oppdaterOgLagre(standard, {});
       return;
     }
-    setAktiveKolonner((prev) => {
-      const ny = new Set(prev);
-      ny.has(id) ? ny.delete(id) : ny.add(id);
-      oppdaterOgLagre(ny);
-      return ny;
-    });
-  }, [standardKolonner, standardArr, sortering, lagreTilServer, oppdaterOgLagre]);
+    // En kolonne som slås på, havner sist.
+    handleRekkefolgeEndring(vekslKolonne(kolonneRekkefolge, id));
+  }, [standardArr, oppdaterOgLagre, handleRekkefolgeEndring, kolonneRekkefolge]);
 
   const handleBreddeEndring = useCallback((bredder: Record<string, number>) => {
     setKolonneBredder(bredder);
@@ -121,9 +137,11 @@ export function useTabelloppsett({
 
   return {
     aktiveKolonner,
+    kolonneRekkefolge,
     kolonneBredder,
     sortering,
     handleToggleKolonne,
+    handleRekkefolgeEndring,
     handleBreddeEndring,
     erLastet: initialisert,
   };

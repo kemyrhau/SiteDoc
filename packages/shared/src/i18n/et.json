@@ -990,6 +990,8 @@
   "kolonne.verdier": "Väärtused",
   "kolonne.velgParameter": "Valige veerud",
   "kolonne.hvemOgNaar": "Kes ja millal",
+  "kolonne.flytt": "Teisalda veerg {{navn}}",
+  "kolonne.fjern": "Eemalda {{navn}}",
   "prioritet.lav": "Madal",
   "prioritet.middels": "Keskmine",
   "prioritet.hoey": "Kõrge",

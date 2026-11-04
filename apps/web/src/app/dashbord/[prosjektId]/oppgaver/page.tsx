@@ -15,6 +15,7 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { FlyttbareKolonner, renderFlyttbartHode } from "@/components/FlyttbareKolonner";
 import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
 import { metadataFilterAlternativer, metadataFilterVerdi, metadataFlereVerdier, type MetadataRad } from "@/lib/dokumentMetadata";
 import { METADATA_KOLONNE_IDER, METADATA_NAVN_NOKKEL, byggMetadataKolonner } from "@/components/DokumentMetadataKolonner";
@@ -244,15 +245,6 @@ export default function OppgaverSide() {
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
-  const {
-    aktiveKolonner, kolonneBredder,
-    handleToggleKolonne, handleBreddeEndring,
-  } = useTabelloppsett({
-    liste: "oppgaver",
-    standardKolonner: STANDARD_AKTIVE,
-    migrerNokkel: "sitedoc-oppgave-kolonner-v5",
-    migrerBreddeNokkel: "sitedoc-oppgave-bredder-v1",
-  });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [mineOppgaver, setMineOppgaver] = useState(false);
   // B-0 (metadata-spec): periodefilter på opprettet/endret — samme delte logikk som mobilens filterark.
@@ -484,11 +476,11 @@ export default function OppgaverSide() {
     return [...sett.values()].sort((a, b) => a.navn.localeCompare(b.navn, "nb-NO"));
   }, [oppgaver]);
 
-  // Grupper for den delte kolonnevelgeren (faste kolonner utelates — de er alltid på).
+  // Grupper for den delte kolonnevelgeren. Faste kolonner er låst: kan flyttes, ikke fjernes.
   const kolonneVelgerGrupper = useMemo<KolonneVelgerGruppe[]>(() => {
     const oversett = (p: KolonneParam) => (p.navnKey ? t(p.navnKey) : p.navn);
     return [
-      { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => k.navn && !k.fast).map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => k.navn).map((k) => ({ id: k.id, navn: oversett(k), laast: k.fast })) },
       { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "metadata", navn: t("kolonne.hvemOgNaar"), felter: METADATA_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.map((k) => ({ id: k.id, navn: oversett(k) })) },
@@ -525,6 +517,19 @@ export default function OppgaverSide() {
   }, [dokumentflyter, oppgaver]);
 
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter], [verdiFelter]);
+  // Standardrekkefølgen (for oppsett lagret før kolonner kunne flyttes). Hooken står her
+  // fordi den trenger verdi-kolonnene fra malene.
+  const kanoniskRekkefolge = useMemo(() => alleKolonner.map((k) => k.id), [alleKolonner]);
+  const {
+    aktiveKolonner, kolonneRekkefolge, kolonneBredder,
+    handleToggleKolonne, handleRekkefolgeEndring, handleBreddeEndring,
+  } = useTabelloppsett({
+    liste: "oppgaver",
+    standardKolonner: STANDARD_AKTIVE,
+    kanoniskRekkefolge,
+    migrerNokkel: "sitedoc-oppgave-kolonner-v5",
+    migrerBreddeNokkel: "sitedoc-oppgave-bredder-v1",
+  });
 
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
   // Fase 4: aktiv boks fra posisjon (server-fakta), ikke recipient-heuristikk.
@@ -909,15 +914,9 @@ export default function OppgaverSide() {
       };
     }
 
-    // Bygg sortert array fra aktive kolonner
-    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter];
-    const resultat: KolDef[] = [];
-    for (const k of rekkefølge) {
-      const def = defs[k.id];
-      if (aktiveKolonner.has(k.id) && def) resultat.push(def);
-    }
-    return resultat;
-  }, [aktiveKolonner, dynamiskFilter, verdiFelter, t]);
+    // Aktive kolonner i brukerens rekkefølge (useTabelloppsett er eneste kilde).
+    return kolonneRekkefolge.map((id) => defs[id]).filter((def): def is KolDef => !!def);
+  }, [kolonneRekkefolge, dynamiskFilter, verdiFelter, t]);
 
   // Aktive filter for visning
   const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);
@@ -980,6 +979,11 @@ export default function OppgaverSide() {
               aktive={aktiveKolonner}
               onToggle={handleToggleKolonne}
               grupper={kolonneVelgerGrupper}
+              sorterbar
+              rekkefolge={kolonneRekkefolge}
+              onRekkefolgeEndring={handleRekkefolgeEndring}
+              flyttTekst={(navn) => t("kolonne.flytt", { navn })}
+              fjernTekst={(navn) => t("kolonne.fjern", { navn })}
               sokPlaceholder={t("oppgaver.sokPlaceholder")}
               nullstillTekst={t("handling.nullstill")}
               okTekst={t("handling.ok")}
@@ -1046,17 +1050,24 @@ export default function OppgaverSide() {
           action={<Button onClick={åpneMalVelger}>{t("oppgaver.opprett")}</Button>}
         />
       ) : (
-        <Table<OppgaveRad>
-          kolonner={kolonneDefinisjoner}
-          data={synligeRader}
-          radNokkel={(rad) => rad.id}
-          onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
-          tomMelding={t("oppgaver.ingenMatcherFilter")}
-          filterVerdier={filterVerdier}
-          onFilterEndring={handleFilterEndring}
-          kolonneBredder={kolonneBredder}
-          onKolonneBreddeEndring={handleBreddeEndring}
-        />
+        <FlyttbareKolonner
+          kolonneIder={kolonneDefinisjoner.map((k) => k.id)}
+          rekkefolge={kolonneRekkefolge}
+          onRekkefolgeEndring={handleRekkefolgeEndring}
+        >
+          <Table<OppgaveRad>
+            kolonner={kolonneDefinisjoner}
+            data={synligeRader}
+            radNokkel={(rad) => rad.id}
+            onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
+            tomMelding={t("oppgaver.ingenMatcherFilter")}
+            filterVerdier={filterVerdier}
+            onFilterEndring={handleFilterEndring}
+            kolonneBredder={kolonneBredder}
+            onKolonneBreddeEndring={handleBreddeEndring}
+            renderKolonneHode={renderFlyttbartHode((navn) => t("kolonne.flytt", { navn }))}
+          />
+        </FlyttbareKolonner>
       )}
 
       <Modal

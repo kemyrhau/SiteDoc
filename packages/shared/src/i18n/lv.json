@@ -990,6 +990,8 @@
   "kolonne.verdier": "Vērtības",
   "kolonne.velgParameter": "Atlasiet kolonnas",
   "kolonne.hvemOgNaar": "Kurš un kad",
+  "kolonne.flytt": "Pārvietot kolonnu {{navn}}",
+  "kolonne.fjern": "Noņemt {{navn}}",
   "prioritet.lav": "Zems",
   "prioritet.middels": "Vidēja",
   "prioritet.hoey": "Augsts",

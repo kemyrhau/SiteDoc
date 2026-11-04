@@ -990,6 +990,8 @@
   "kolonne.verdier": "Цінності",
   "kolonne.velgParameter": "Виберіть стовпці",
   "kolonne.hvemOgNaar": "Хто і коли",
+  "kolonne.flytt": "Перемістити стовпець {{navn}}",
+  "kolonne.fjern": "Видалити {{navn}}",
   "prioritet.lav": "Низький",
   "prioritet.middels": "Середній",
   "prioritet.hoey": "Високий",

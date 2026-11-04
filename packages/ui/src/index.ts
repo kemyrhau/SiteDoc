@@ -10,5 +10,5 @@ export { Modal } from "./modal";
 export { EmptyState } from "./empty-state";
 export { Tooltip } from "./tooltip";
 export { SidebarIkon } from "./sidebar-ikon";
-export { Table } from "./table";
+export { Table, type KolonneHode } from "./table";
 export { SearchInput } from "./search-input";

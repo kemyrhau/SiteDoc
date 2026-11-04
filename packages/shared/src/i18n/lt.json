@@ -990,6 +990,8 @@
   "kolonne.verdier": "Vertybės",
   "kolonne.velgParameter": "Pasirinkite stulpelius",
   "kolonne.hvemOgNaar": "Who and when",
+  "kolonne.flytt": "Perkelti stulpelį {{navn}}",
+  "kolonne.fjern": "Pašalinti {{navn}}",
   "prioritet.lav": "Žemas",
   "prioritet.middels": "Vidutinis",
   "prioritet.hoey": "Aukštas",

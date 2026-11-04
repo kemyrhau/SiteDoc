@@ -990,6 +990,8 @@
   "kolonne.verdier": "vlerat",
   "kolonne.velgParameter": "Zgjidhni kolonat",
   "kolonne.hvemOgNaar": "Kush dhe kur",
+  "kolonne.flytt": "Zhvendos kolonën {{navn}}",
+  "kolonne.fjern": "Hiq {{navn}}",
   "prioritet.lav": "E ulët",
   "prioritet.middels": "E mesme",
   "prioritet.hoey": "Lartë",

@@ -3,7 +3,10 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { SPRAAK_KODER } from "@sitedoc/shared";
 
 const tabellOppsettSchema = z.object({
+  // Aktive kolonner. Med `rekkefolge: true` er lista også visningsrekkefølgen (fra 04.11);
+  // uten flagget er den et gammelt Set som vises i sidens standardrekkefølge.
   kolonner: z.array(z.string()),
+  rekkefolge: z.boolean().optional(),
   bredder: z.record(z.string(), z.number()).optional(),
   sortering: z.object({
     kolonne: z.string(),
@@ -65,7 +68,7 @@ export const brukerRouter = router({
       });
       const oppsett = bruker?.tabelloppsett as Record<string, unknown> | null;
       if (!oppsett || !oppsett[input.liste]) return null;
-      return oppsett[input.liste] as { kolonner: string[]; bredder?: Record<string, number>; sortering?: { kolonne: string; retning: string } | null };
+      return oppsett[input.liste] as { kolonner: string[]; rekkefolge?: boolean; bredder?: Record<string, number>; sortering?: { kolonne: string; retning: string } | null };
     }),
 
   // Lagre tabelloppsett for en spesifikk liste

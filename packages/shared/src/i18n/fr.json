@@ -990,6 +990,8 @@
   "kolonne.verdier": "Valeurs",
   "kolonne.velgParameter": "Sélectionner des colonnes",
   "kolonne.hvemOgNaar": "Qui et quand",
+  "kolonne.flytt": "Déplacer la colonne {{navn}}",
+  "kolonne.fjern": "Supprimer {{navn}}",
   "prioritet.lav": "Faible",
   "prioritet.middels": "Moyen",
   "prioritet.hoey": "Haut",

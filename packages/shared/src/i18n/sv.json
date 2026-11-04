@@ -990,6 +990,8 @@
   "kolonne.verdier": "Värderingar",
   "kolonne.velgParameter": "Välj kolumner",
   "kolonne.hvemOgNaar": "Vem och när",
+  "kolonne.flytt": "Flytta kolumn {{navn}}",
+  "kolonne.fjern": "Ta bort {{navn}}",
   "prioritet.lav": "Låg",
   "prioritet.middels": "Medium",
   "prioritet.hoey": "Hög",

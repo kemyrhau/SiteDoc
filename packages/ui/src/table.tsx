@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { Fragment, useState, useMemo, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 
 interface KolonneDef<T> {
   id: string;
@@ -51,6 +51,24 @@ interface TableProps<T> {
   kolonneBredder?: Record<string, number>;
   /** Callback når bruker endrer kolonnebredde */
   onKolonneBreddeEndring?: (bredder: Record<string, number>) => void;
+  /**
+   * Erstatter `<th>` i hodet, for eksempel for å gjøre kolonnene flyttbare (dnd-kit bor i
+   * apps/web, ikke her). Må rendre en `<th>` med `thProps` og `innhold`.
+   */
+  renderKolonneHode?: (hode: KolonneHode) => ReactNode;
+}
+
+/** Det `renderKolonneHode` får: ferdige `<th>`-props og innholdet (tittel, sorterpil, filter, bredde-håndtak). */
+export interface KolonneHode {
+  kolonneId: string;
+  header: string;
+  thProps: {
+    ref: (el: HTMLTableCellElement | null) => void;
+    className: string;
+    style: CSSProperties;
+    onClick?: () => void;
+  };
+  innhold: ReactNode;
 }
 
 function IndeterminateCheckbox({
@@ -230,6 +248,7 @@ export function Table<T>({
   onFilterEndring,
   kolonneBredder,
   onKolonneBreddeEndring,
+  renderKolonneHode,
 }: TableProps<T>) {
   const [sorterKolonne, setSorterKolonne] = useState<string | null>(null);
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
@@ -359,16 +378,16 @@ export function Table<T>({
             {kolonner.map((kol) => {
               const lagretBredde = kolonneBredder?.[kol.id];
               const stilBredde = lagretBredde ? `${lagretBredde}px` : (kol.bredde ?? `${DEFAULT_KOLONNE_BREDDE_PX}px`);
-              return (
-                <th
-                  key={kol.id}
-                  ref={(el) => { thRefs.current[kol.id] = el; }}
-                  className={`relative px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 ${
-                    kol.sorterbar ? "cursor-pointer select-none hover:text-gray-700" : ""
-                  }`}
-                  style={{ width: stilBredde }}
-                  onClick={kol.sorterbar ? () => handleSorter(kol.id) : undefined}
-                >
+              const thProps: KolonneHode["thProps"] = {
+                ref: (el) => { thRefs.current[kol.id] = el; },
+                className: `relative px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 ${
+                  kol.sorterbar ? "cursor-pointer select-none hover:text-gray-700" : ""
+                }`,
+                style: { width: stilBredde },
+                onClick: kol.sorterbar ? () => handleSorter(kol.id) : undefined,
+              };
+              const innhold = (
+                <>
                   <span className="flex min-w-0 items-center gap-0.5">
                     <span className="truncate">{kol.header}</span>
                     {kol.sorterbar && sorterKolonne === kol.id && (
@@ -393,6 +412,14 @@ export function Table<T>({
                     }`}
                     style={{ width: "3px" }}
                   />
+                </>
+              );
+              if (renderKolonneHode) {
+                return <Fragment key={kol.id}>{renderKolonneHode({ kolonneId: kol.id, header: kol.header, thProps, innhold })}</Fragment>;
+              }
+              return (
+                <th key={kol.id} {...thProps}>
+                  {innhold}
                 </th>
               );
             })}
