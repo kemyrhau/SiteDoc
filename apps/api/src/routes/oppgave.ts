@@ -274,6 +274,8 @@ export const oppgaveRouter = router({
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
           drawing: { select: { id: true, name: true, floor: true, byggeplass: { select: { id: true, name: true } } } },
+          // B-1 (metadata-spec): område for kolonne/filter i listene (web + mobil).
+          omrade: { select: { id: true, navn: true, type: true } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
           dokumentflyt: {

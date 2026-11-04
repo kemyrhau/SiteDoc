@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Caută „{{q}}” în tot proiectul",
   "sokMobil.placeholderOppgaver": "Caută în sarcini",
   "sokMobil.placeholderSjekklister": "Caută în liste de verificare",
-  "sokMobil.placeholderHms": "Caută în HSE"
+  "sokMobil.placeholderHms": "Caută în HSE",
+  "periodeFilter.periode": "Perioadă",
+  "periodeFilter.opprettet": "Creat",
+  "periodeFilter.endret": "Modificat",
+  "tabell.omrade": "Zonă",
+  "tegninger.filterAlleStatuser": "Toate stările",
+  "tegninger.filterAlleFormater": "Toate formatele",
+  "tegninger.filterGeorefAlle": "Georeferențiat sau nu",
+  "tegninger.georeferanse": "Georeferință",
+  "tegninger.ikkeGeoreferert": "Nu georeferențiat",
+  "tegninger.kildeformat": "Format sursă",
+  "tegninger.utgittDato": "A emis {{dato}}"
 }

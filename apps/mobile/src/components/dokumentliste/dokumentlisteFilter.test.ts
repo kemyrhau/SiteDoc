@@ -7,6 +7,7 @@ import {
   STARTRETNING,
   UTEN_EMNE,
   utenUbruktBallen,
+  visFilterKolonne,
   type DokumentRad,
   type Retning,
   type SorterNokkel,
@@ -188,5 +189,28 @@ describe("filtre", () => {
     expect(antallAktiveFilter({ emne: "Bad", prioritet: "high", ballen: "1" })).toBe(3);
     expect(antallAktiveFilter({}, { hurtigvalg: "uke", fra: null, til: null })).toBe(1);
     expect(antallAktiveFilter({}, { hurtigvalg: "alle", fra: null, til: null })).toBe(0);
+  });
+});
+
+describe("B-1 område", () => {
+  const rader = [
+    rad({ id: "a", omrade: { navn: "Plan 2" } }),
+    rad({ id: "b", omrade: { navn: "Tak" } }),
+    rad({ id: "c" }),
+  ];
+
+  it("filtrerer på områdenavn", () => {
+    expect(ider(filtrerOgSorter(rader, { omrade: "Tak" }, "", nivaa("nummer")))).toEqual(["b"]);
+  });
+
+  it("alternativer: unike områdenavn, rader uten område gir ingen verdi", () => {
+    expect(byggAlternativer(rader).omrade.map((a) => a.value).sort()).toEqual(["Plan 2", "Tak"]);
+  });
+
+  it("eldre API uten område (alle null) → filteret skjules", () => {
+    const alt = byggAlternativer([rad({ id: "x" }), rad({ id: "y" })]).omrade;
+    expect(alt).toEqual([]);
+    expect(visFilterKolonne("omrade", alt, {})).toBe(false);
+    expect(visFilterKolonne("omrade", byggAlternativer(rader).omrade, {})).toBe(true);
   });
 });

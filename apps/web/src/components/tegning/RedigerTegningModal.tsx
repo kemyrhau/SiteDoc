@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Input, Select, Textarea, Button } from "@sitedoc/ui";
-import { DRAWING_DISCIPLINES, DRAWING_TYPES, DRAWING_STATUSES, type DrawingStatus } from "@sitedoc/shared";
+import { DRAWING_DISCIPLINES, DRAWING_TYPES, DRAWING_STATUSES, TEGNING_STATUS_NOEKKEL } from "@sitedoc/shared";
 import {
   byggRedigerTegningInput,
   type RedigerTegningFelt,
@@ -23,16 +23,6 @@ import type { KonverteringMarkor } from "@/lib/konverteringMarkor";
  *  - `revision` → egen revisjonsflyt (`lastOppRevisjon` bygger historikk).
  *  - `issuedAt` → revisjonsflyten eier den. `byggeplassId` → byggeplass-oppsettet eier den.
  */
-
-/** Statusverdiene leses fra enumet (`DRAWING_STATUSES`); labelen kommer fra i18n per verdi. */
-const STATUS_NOKKEL: Record<DrawingStatus, string> = {
-  utkast: "tegninger.statusUtkast",
-  delt: "tegninger.statusDelt",
-  under_behandling: "tegninger.statusUnderBehandling",
-  godkjent: "tegninger.statusGodkjent",
-  for_bygging: "tegninger.statusForBygging",
-  som_bygget: "tegninger.statusSomBygget",
-};
 
 /** Bare feltene flaten leser/skriver — unngår kobling til hele Drawing-typen. */
 export interface RedigerbarTegning {
@@ -155,7 +145,7 @@ export function RedigerTegningModal({
             value={felt.status}
             onChange={(e) => oppdater("status", e.target.value)}
             placeholder={t("tegninger.velgStatus")}
-            options={DRAWING_STATUSES.map((s) => ({ value: s, label: t(STATUS_NOKKEL[s]) }))}
+            options={DRAWING_STATUSES.map((s) => ({ value: s, label: t(TEGNING_STATUS_NOEKKEL[s]) }))}
           />
           <Input
             label={t("tegninger.feltOpphav")}

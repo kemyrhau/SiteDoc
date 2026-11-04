@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Meklēt “{{q}}” visā projektā",
   "sokMobil.placeholderOppgaver": "Meklēt uzdevumos",
   "sokMobil.placeholderSjekklister": "Meklēt kontrolsarakstos",
-  "sokMobil.placeholderHms": "Meklēt HSE"
+  "sokMobil.placeholderHms": "Meklēt HSE",
+  "periodeFilter.periode": "Periods",
+  "periodeFilter.opprettet": "Izveidots",
+  "periodeFilter.endret": "Pārveidots",
+  "tabell.omrade": "Apgabals",
+  "tegninger.filterAlleStatuser": "Visi statusi",
+  "tegninger.filterAlleFormater": "Visi formāti",
+  "tegninger.filterGeorefAlle": "Ģeoreference vai nē",
+  "tegninger.georeferanse": "Ģeoreference",
+  "tegninger.ikkeGeoreferert": "Nav ģeogrāfiski norādīts",
+  "tegninger.kildeformat": "Avota formāts",
+  "tegninger.utgittDato": "Izdots {{dato}}"
 }

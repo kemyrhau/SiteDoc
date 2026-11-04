@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Otsi „{{q}}“ kogu projektist",
   "sokMobil.placeholderOppgaver": "Otsi ülesannetest",
   "sokMobil.placeholderSjekklister": "Otsi kontrollnimekirjadest",
-  "sokMobil.placeholderHms": "Otsi HSE-st"
+  "sokMobil.placeholderHms": "Otsi HSE-st",
+  "periodeFilter.periode": "Periood",
+  "periodeFilter.opprettet": "Loodud",
+  "periodeFilter.endret": "Muudetud",
+  "tabell.omrade": "Piirkond",
+  "tegninger.filterAlleStatuser": "Kõik olekud",
+  "tegninger.filterAlleFormater": "Kõik formaadid",
+  "tegninger.filterGeorefAlle": "Georefereeritud või mitte",
+  "tegninger.georeferanse": "Geoviite",
+  "tegninger.ikkeGeoreferert": "Pole geograafiliselt viidatud",
+  "tegninger.kildeformat": "Lähtevorming",
+  "tegninger.utgittDato": "Välja antud {{dato}}"
 }

@@ -15,7 +15,9 @@ import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
 import { faggruppeNavn } from "@/lib/sjekkliste-faggruppe";
-import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
+import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type Periode, type PeriodeFelt } from "@sitedoc/shared";
+import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
+import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
 
 // --- Typer ---
 
@@ -59,6 +61,7 @@ interface SjekklisteRad {
   utforerFaggruppe: { name: string } | null;
   byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
+  omrade?: { id: string; navn: string; type: string } | null;
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
   bestillerUserId?: string;
@@ -139,6 +142,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
 const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "bygning", navnKey: "tabell.bygning", gruppe: "posisjon" },
   { id: "etasje", navnKey: "tabell.etasje", gruppe: "posisjon" },
+  { id: "omrade", navnKey: "tabell.omrade", gruppe: "posisjon" },
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
@@ -227,6 +231,9 @@ export default function SjekklisteSide() {
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
   const [mineOppgaver, setMineOppgaver] = useState(false);
+  // B-0 (metadata-spec): periodefilter på opprettet/endret — samme delte logikk som mobilens filterark.
+  const [periode, setPeriode] = useState<Periode>({ hurtigvalg: "alle", fra: null, til: null });
+  const [periodeFelt, setPeriodeFelt] = useState<PeriodeFelt>("opprettet");
   // Kontrollplan-skille: "" = alle · "plan" = hører til kontrollplanen · "tillegg" = kommer i tillegg.
   const [planKoblingFilter, setPlanKoblingFilter] = useState<"" | "plan" | "tillegg">("");
   // D7: av = filtrer lista på aktiv byggeplass (default); på = «Hele prosjektet».
@@ -524,6 +531,7 @@ export default function SjekklisteSide() {
       mal: bygg(data.map((s) => s.template.name)),
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
+      omrade: omradeFilterAlternativer(data),
       tegning: bygg(data.map((s) => s.drawing?.name)),
       dokumentflyt: bygg(data.map((s) => s.dokumentflyt?.name)),
       flyt: bygg(data.map((s) => hentFlytLedd(s))),
@@ -605,6 +613,7 @@ export default function SjekklisteSide() {
           case "mal": return s.template.name;
           case "bygning": return s.byggeplass?.name ?? "";
           case "etasje": return s.drawing?.floor ?? "";
+          case "omrade": return s.omrade?.navn ?? "";
           case "tegning": return s.drawing?.name ?? "";
           case "dokumentflyt": return s.dokumentflyt?.name ?? "";
           case "flyt": return hentFlytLedd(s);
@@ -617,8 +626,9 @@ export default function SjekklisteSide() {
         ferdig: s.status === "approved" || s.status === "closed",
       }),
     });
+    resultat = filtrerPaaPeriode(resultat, periode, periodeFelt);
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, byggeplassFilterAv]);
+  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, byggeplassFilterAv, periode, periodeFelt]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -757,6 +767,12 @@ export default function SjekklisteSide() {
       etasje: { id: "etasje", header: t("tabell.etasje"), celle: (rad) => rad.drawing?.floor
         ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.floor ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.etasje ?? [] },
+      // B-1: område (sone/rom/etasje/trasé). Filter kun når data har områder — et
+      // eldre API uten feltet gir tom liste, og filteret skjules stille.
+      omrade: { id: "omrade", header: t("tabell.omrade"), celle: (rad) => rad.omrade?.navn
+        ? <span className="text-xs text-gray-600">{rad.omrade.navn}</span> : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.omrade?.navn ?? "",
+        filtrerbar: visOmradeFilter(dynamiskFilter.omrade), filterAlternativer: dynamiskFilter.omrade ?? [] },
       tegning: { id: "tegning", header: t("tabell.tegning"), celle: (rad) => rad.drawing?.name
         ? <span className="text-xs text-gray-600">{rad.drawing.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [] },
@@ -814,6 +830,12 @@ export default function SjekklisteSide() {
           >
             {t("filter.mineOppgaver")}
           </button>
+          <DokumentPeriodeFilter
+            periode={periode}
+            felt={periodeFelt}
+            onEndrePeriode={setPeriode}
+            onEndreFelt={setPeriodeFelt}
+          />
           {/* Kontrollplan-skille: hører til planen / kommer i tillegg (relasjon, ingen nytt felt) */}
           <div className="inline-flex items-center rounded-md border border-gray-200 overflow-hidden">
             {([

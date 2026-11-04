@@ -87,6 +87,18 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når 
 - **Hva:** emne (også «Uten emne»), mal og — for oppgaver — prioritet.
 - **Når:** frist (har frist, ingen frist, forfalt — avsluttede og avbrutte regnes ikke som forfalt) og når dokumentet ble opprettet.
 - **Hvem:** hvem som opprettet det, mottaker/ansvarlig, bestiller- og utførerfaggruppe.
-- **Hvor:** tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
+- **Hvor:** område, tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
 - Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
 
+## Web: Periode og område i sjekkliste- og oppgavelista, metadata i tegningslista (metadata S-pakke 2026-11-04)
+
+Sidene `sjekklister/page.tsx`, `oppgaver/page.tsx` og `TegningerPanel` har ingen `?`-komponent ennå; vedtatt tekst,
+brukes når de får hjelpe-ikon.
+
+- **Periode:** velg om du vil se på når dokumentet ble *opprettet* eller sist *endret*, og velg tidsrom. Knappen viser
+  valget, f.eks. «Endret: Siste uke».
+- **Område:** kolonnen viser området dokumentet er plassert i på tegningen. Filtrer i kolonnehodet; filteret vises bare
+  når lista har områder.
+- **Tegningslista:** hver tegning viser revisjon, status, opprinnelig filformat (DWG, PDF …) og utgivelsesdato når de
+  finnes. Under søket kan du snevre inn på status, filformat og georeferanse — bare valg som finnes i lista vises.
+  Byggeplasser uten treff skjules mens et filter er satt.

@@ -18,6 +18,7 @@ import {
   finnMalestokkFraTekst,
   finnTegningsnummer,
   finnTegningstype,
+  utledKildeformat,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { konverterDwg, hentKonverteringKapasitet, roterProsentMarkor, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
@@ -720,7 +721,7 @@ export const tegningRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const { projectId, discipline, status, byggeplassId, floor } = input;
-      return ctx.prisma.drawing.findMany({
+      const rader = await ctx.prisma.drawing.findMany({
         where: {
           projectId,
           ...(discipline ? { discipline } : {}),
@@ -736,6 +737,8 @@ export const tegningRouter = router({
         },
         orderBy: [{ discipline: "asc" }, { drawingNumber: "asc" }, { name: "asc" }],
       });
+      // B-5: kildeformat (dwg/dxf/pdf/ifc/…) — `fileType` er overskrevet etter konvertering.
+      return rader.map((r) => ({ ...r, kildeformat: utledKildeformat(r.originalFileUrl, r.fileType) }));
     }),
 
   // Hent tegninger for en byggeplass

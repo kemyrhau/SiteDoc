@@ -5,7 +5,8 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
-import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
+import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type Periode, type PeriodeFelt } from "@sitedoc/shared";
+import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
@@ -14,6 +15,7 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
 
 // --- Typer ---
 
@@ -50,6 +52,7 @@ interface OppgaveRad {
   bestillerFaggruppe: { name: string } | null;
   utforerFaggruppe: { name: string } | null;
   drawing: { name: string; floor: string | null; byggeplass: { id: string; name: string } | null } | null;
+  omrade?: { id: string; navn: string; type: string } | null;
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
   bestillerUserId?: string;
@@ -152,6 +155,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
 const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "bygning", navn: "Bygning", navnKey: "tabell.bygning", gruppe: "posisjon" },
   { id: "etasje", navn: "Etasje", navnKey: "tabell.etasje", gruppe: "posisjon" },
+  { id: "omrade", navn: "Område", navnKey: "tabell.omrade", gruppe: "posisjon" },
   { id: "tegning", navn: "Tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
@@ -246,6 +250,9 @@ export default function OppgaverSide() {
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [mineOppgaver, setMineOppgaver] = useState(false);
+  // B-0 (metadata-spec): periodefilter på opprettet/endret — samme delte logikk som mobilens filterark.
+  const [periode, setPeriode] = useState<Periode>({ hurtigvalg: "alle", fra: null, til: null });
+  const [periodeFelt, setPeriodeFelt] = useState<PeriodeFelt>("opprettet");
   // Kontraktssak-segment (tavle 1): lever i komponent-tilstand (økt) — ikke localStorage, ikke DB.
   const [segment, setSegment] = useState<"alle" | "oppgaver" | "kontrakt">("alle");
   // Oppgave-opprett tar kun drawingId (oppgave.opprett har ikke byggeplassId —
@@ -546,6 +553,7 @@ export default function OppgaverSide() {
       mal: bygg(oppgaver.map((o) => o.template?.name)),
       bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
+      omrade: omradeFilterAlternativer(oppgaver),
       tegning: bygg(oppgaver.map((o) => o.drawing?.name)),
       prioritet: PRIORITETER.map((p) => ({ value: p.value, label: t(p.labelKey) })),
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
@@ -619,6 +627,7 @@ export default function OppgaverSide() {
           case "mal": return o.template?.name ?? "";
           case "bygning": return o.drawing?.byggeplass?.name ?? "";
           case "etasje": return o.drawing?.floor ?? "";
+          case "omrade": return o.omrade?.navn ?? "";
           case "tegning": return o.drawing?.name ?? "";
           case "flyt": return hentFlytLedd(o);
           default: return undefined;
@@ -630,8 +639,9 @@ export default function OppgaverSide() {
         ferdig: o.status === "approved" || o.status === "closed",
       }),
     });
+    resultat = filtrerPaaPeriode(resultat, periode, periodeFelt);
     return resultat;
-  }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier, mineOppgaver, minFlytInfo]);
+  }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier, mineOppgaver, minFlytInfo, periode, periodeFelt]);
 
   // Kontraktssak-segment (tavle 1): tallene er antall ETTER øvrige aktive filtre
   // (utledet av `filtrerte`), og Oppgaver + Kontraktssaker = Alle. Selve segmentet
@@ -853,6 +863,12 @@ export default function OppgaverSide() {
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.floor ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.etasje ?? [],
       },
+      // B-1: område (sone/rom/etasje/trasé). Filter kun når data har områder — et
+      // eldre API uten feltet gir tom liste, og filteret skjules stille.
+      omrade: { id: "omrade", header: t("tabell.omrade"), celle: (rad) => rad.omrade?.navn
+        ? <span className="text-xs text-gray-600">{rad.omrade.navn}</span> : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.omrade?.navn ?? "",
+        filtrerbar: visOmradeFilter(dynamiskFilter.omrade), filterAlternativer: dynamiskFilter.omrade ?? [] },
       tegning: {
         id: "tegning", header: t("tabell.tegning"),
         celle: (rad) => rad.drawing?.name
@@ -970,6 +986,12 @@ export default function OppgaverSide() {
           >
             {t("filter.mineOppgaver")}
           </button>
+          <DokumentPeriodeFilter
+            periode={periode}
+            felt={periodeFelt}
+            onEndrePeriode={setPeriode}
+            onEndreFelt={setPeriodeFelt}
+          />
 
           {/* Aktive filter-tags */}
           {aktiveFilter.map(([kolId, verdi]) => {

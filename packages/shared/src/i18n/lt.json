@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Ieškoti „{{q}}“ visame projekte",
   "sokMobil.placeholderOppgaver": "Ieškoti užduotyse",
   "sokMobil.placeholderSjekklister": "Ieškoti kontroliniuose sąrašuose",
-  "sokMobil.placeholderHms": "Ieškoti HSE"
+  "sokMobil.placeholderHms": "Ieškoti HSE",
+  "periodeFilter.periode": "Laikotarpis",
+  "periodeFilter.opprettet": "Sukurta",
+  "periodeFilter.endret": "Modifikuota",
+  "tabell.omrade": "Plotas",
+  "tegninger.filterAlleStatuser": "Visos būsenos",
+  "tegninger.filterAlleFormater": "Visi formatai",
+  "tegninger.filterGeorefAlle": "Su geografine nuoroda ar ne",
+  "tegninger.georeferanse": "Georeference",
+  "tegninger.ikkeGeoreferert": "Nėra geografinės nuorodos",
+  "tegninger.kildeformat": "Šaltinio formatas",
+  "tegninger.utgittDato": "Išduotas {{dato}}"
 }

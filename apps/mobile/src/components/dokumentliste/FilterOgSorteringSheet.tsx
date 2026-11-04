@@ -161,7 +161,9 @@ export function FilterOgSorteringSheet({
   const hvemKol: NedtrekkKol[] = ["opprettetAv", "ansvarlig", "bestillerFaggruppe", "utforerFaggruppe"];
   const visHvem = hvemKol.some((k) => vis(k, nedtrekkAlt[k]));
   const visFlyt = vis("dokumentflyt", alternativer.dokumentflyt);
-  const visHvor = vis("tegning", alternativer.tegning) || visFlyt;
+  // B-1: område som chips. Eldre API uten feltet gir < 2 alternativer → skjules stille.
+  const visOmrade = vis("omrade", alternativer.omrade);
+  const visHvor = vis("tegning", alternativer.tegning) || visOmrade || visFlyt;
 
   return (
     <Modal visible={synlig} transparent animationType="slide" onRequestClose={onLukk}>
@@ -255,6 +257,16 @@ export function FilterOgSorteringSheet({
             <>
               {seksjon(t("dokumentsok.seksjonHvor"))}
               {nedtrekkRader(["tegning"])}
+              {visOmrade && (
+                <View className="mb-2 gap-1.5">
+                  <Text className="text-xs font-semibold text-gray-500">{t("tabell.omrade")}</Text>
+                  <View className="flex-row flex-wrap gap-1.5">
+                    {alternativer.omrade.map((a) =>
+                      chip(a.value, a.label, valgte("omrade").has(a.value), () => toggle("omrade", a.value)),
+                    )}
+                  </View>
+                </View>
+              )}
               {visFlyt && (
                 <View className="mb-2 gap-1.5">
                   <Text className="text-xs font-semibold text-gray-500">{t("tabell.dokumentflyt")}</Text>

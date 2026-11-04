@@ -5,6 +5,17 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
+import { TEGNING_STATUS_NOEKKEL } from "@sitedoc/shared";
+import {
+  filtrerTegningerPaaMetadata,
+  tegningFilterAktivt,
+  tegningFilterAlternativer,
+  tegningMetaTekst,
+  visTegningFilter,
+  TOMT_TEGNING_FILTER,
+  type GeorefValg,
+  type TegningFilter,
+} from "@/lib/tegningListeFilter";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import {
   Building2,
@@ -25,6 +36,11 @@ interface Tegning {
   fileType: string | null;
   floor: string | null;
   geoReference: unknown;
+  // B-5: metadata i lista. Valgfrie — eldre API uten feltene skjuler dem stille.
+  revision?: string | null;
+  status?: string | null;
+  issuedAt?: string | Date | null;
+  originalFileUrl?: string | null;
 }
 
 interface BygningMedTegninger {
@@ -120,7 +136,8 @@ function tegningVisningstekst(t: Tegning): string {
 export function TegningerPanel() {
   const params = useParams<{ prosjektId: string }>();
   const [sok, setSok] = useState("");
-  const { t } = useTranslation();
+  const [filter, setFilter] = useState<TegningFilter>(TOMT_TEGNING_FILTER);
+  const { t, i18n } = useTranslation();
   const [utvidede, setUtvidede] = useState<Set<string>>(new Set());
   const { aktivByggeplass, velgByggeplass, standardTegning, settStandardTegning, aktivTegning, settAktivTegning } =
     useByggeplass();
@@ -257,8 +274,23 @@ export function TegningerPanel() {
   }
 
   const sokLower = sok.toLowerCase();
+  const filterAktivt = tegningFilterAktivt(filter);
 
-  // Filtrer bygninger og grupper basert på søk
+  // B-5: valgene i filteret utledes av tegningene som faktisk finnes (uten IFC).
+  const alternativer = useMemo(
+    () =>
+      tegningFilterAlternativer(
+        ((bygninger ?? []) as unknown as BygningMedTegninger[]).flatMap((b) =>
+          b.drawings.filter((tg) => tg.fileType?.toLowerCase() !== "ifc"),
+        ),
+      ),
+    [bygninger],
+  );
+  const visStatus = visTegningFilter(alternativer.status, filter.status);
+  const visFormat = visTegningFilter(alternativer.kildeformat, filter.kildeformat);
+  const visGeoref = alternativer.georef || !!filter.georef;
+
+  // Filtrer bygninger og grupper basert på søk + metadatafilter
   const filtrerte: FiltrertBygning[] = useMemo(() => {
     if (!bygninger) return [];
     const resultat: FiltrertBygning[] = [];
@@ -270,17 +302,19 @@ export function TegningerPanel() {
 
       // Filtrer bort IFC-filer (vises i 3D-visning, ikke tegningsvisning)
       const utenIfc = bygning.drawings.filter((t) => t.fileType?.toLowerCase() !== "ifc");
-      const filtrerTegninger = sok
-        ? utenIfc.filter((t) => tegningMatcherSok(t, sokLower))
-        : utenIfc;
+      const filtrerTegninger = filtrerTegningerPaaMetadata(
+        sok ? utenIfc.filter((t) => tegningMatcherSok(t, sokLower)) : utenIfc,
+        filter,
+      );
 
-      if (!bygningMatch && filtrerTegninger.length === 0) continue;
+      // Aktivt metadatafilter: byggeplasser uten treff skjules, også ved navnetreff.
+      if ((!bygningMatch || filterAktivt) && filtrerTegninger.length === 0) continue;
 
       const grupper = grupperTegningerIBygning(filtrerTegninger);
       resultat.push({ ...bygning, filtrerteGrupper: grupper });
     }
     return resultat;
-  }, [bygninger, sok, sokLower]);
+  }, [bygninger, sok, sokLower, filter, filterAktivt]);
 
   // Auto-utvid aktiv bygning og etasje med standardtegning
   if (aktivByggeplass && !utvidede.has(aktivByggeplass.id)) {
@@ -336,6 +370,53 @@ export function TegningerPanel() {
         onChange={setSok}
         placeholder={t("tegninger.sokLokasjoner")}
       />
+
+      {(visStatus || visFormat || visGeoref) && (
+        <div className="flex flex-wrap gap-1.5">
+          {visStatus && (
+            <select
+              value={filter.status}
+              onChange={(e) => setFilter((f) => ({ ...f, status: e.target.value }))}
+              aria-label={t("tabell.status")}
+              className={`rounded border px-1.5 py-1 text-xs ${filter.status ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}
+            >
+              <option value="">{t("tegninger.filterAlleStatuser")}</option>
+              {alternativer.status.map((s) => (
+                <option key={s} value={s}>
+                  {t((TEGNING_STATUS_NOEKKEL as Record<string, string>)[s] ?? s)}
+                </option>
+              ))}
+            </select>
+          )}
+          {visFormat && (
+            <select
+              value={filter.kildeformat}
+              onChange={(e) => setFilter((f) => ({ ...f, kildeformat: e.target.value }))}
+              aria-label={t("tegninger.kildeformat")}
+              className={`rounded border px-1.5 py-1 text-xs ${filter.kildeformat ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}
+            >
+              <option value="">{t("tegninger.filterAlleFormater")}</option>
+              {alternativer.kildeformat.map((kf) => (
+                <option key={kf} value={kf}>
+                  {kf.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          )}
+          {visGeoref && (
+            <select
+              value={filter.georef}
+              onChange={(e) => setFilter((f) => ({ ...f, georef: e.target.value as GeorefValg }))}
+              aria-label={t("tegninger.georeferanse")}
+              className={`rounded border px-1.5 py-1 text-xs ${filter.georef ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}
+            >
+              <option value="">{t("tegninger.filterGeorefAlle")}</option>
+              <option value="ja">{t("3d.georeferert")}</option>
+              <option value="nei">{t("tegninger.ikkeGeoreferert")}</option>
+            </select>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <button
@@ -536,6 +617,7 @@ export function TegningerPanel() {
                                 standardTegning?.id === tegning.id;
                               const erAktivTegning =
                                 aktivTegning?.id === tegning.id;
+                              const meta = tegningMetaTekst(tegning, t, i18n.language || "nb");
                               return (
                                 <button
                                   key={tegning.id}
@@ -575,8 +657,15 @@ export function TegningerPanel() {
                                       }`}
                                     />
                                   </span>
-                                  <span className="truncate text-left flex-1">
-                                    {tegningVisningstekst(tegning)}
+                                  <span className="min-w-0 flex-1 text-left">
+                                    <span className="block truncate">
+                                      {tegningVisningstekst(tegning)}
+                                    </span>
+                                    {meta && (
+                                      <span className="block truncate text-[10px] text-gray-400" title={meta}>
+                                        {meta}
+                                      </span>
+                                    )}
                                   </span>
                                   {tegning.geoReference != null && (
                                     <span className="text-[10px] text-green-700 bg-green-100 rounded px-1 shrink-0">

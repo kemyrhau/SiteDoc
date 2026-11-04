@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Искать «{{q}}» во всем проекте",
   "sokMobil.placeholderOppgaver": "Поиск по задачам",
   "sokMobil.placeholderSjekklister": "Поиск по контрольным спискам",
-  "sokMobil.placeholderHms": "Поиск по HSE"
+  "sokMobil.placeholderHms": "Поиск по HSE",
+  "periodeFilter.periode": "Период",
+  "periodeFilter.opprettet": "Созданный",
+  "periodeFilter.endret": "Модифицированный",
+  "tabell.omrade": "Область",
+  "tegninger.filterAlleStatuser": "Все статусы",
+  "tegninger.filterAlleFormater": "Все форматы",
+  "tegninger.filterGeorefAlle": "С географической привязкой или нет",
+  "tegninger.georeferanse": "Географическая привязка",
+  "tegninger.ikkeGeoreferert": "Без географической привязки",
+  "tegninger.kildeformat": "Исходный формат",
+  "tegninger.utgittDato": "Выдано {{dato}}"
 }

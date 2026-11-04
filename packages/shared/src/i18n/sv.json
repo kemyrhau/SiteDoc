@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Sök ”{{q}}” i hela projektet",
   "sokMobil.placeholderOppgaver": "Sök i uppgifter",
   "sokMobil.placeholderSjekklister": "Sök i checklistor",
-  "sokMobil.placeholderHms": "Sök i HSE"
+  "sokMobil.placeholderHms": "Sök i HSE",
+  "periodeFilter.periode": "Period",
+  "periodeFilter.opprettet": "Created",
+  "periodeFilter.endret": "Modified",
+  "tabell.omrade": "Area",
+  "tegninger.filterAlleStatuser": "All statuses",
+  "tegninger.filterAlleFormater": "All formats",
+  "tegninger.filterGeorefAlle": "Georeferenced or not",
+  "tegninger.georeferanse": "Georeference",
+  "tegninger.ikkeGeoreferert": "Not georeferenced",
+  "tegninger.kildeformat": "Source format",
+  "tegninger.utgittDato": "Issued {{dato}}"
 }

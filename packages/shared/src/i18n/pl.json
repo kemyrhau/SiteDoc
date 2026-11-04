@@ -5223,5 +5223,16 @@
   "sokMobil.sokIHeleProsjektet": "Szukaj „{{q}}” w całym projekcie",
   "sokMobil.placeholderOppgaver": "Szukaj w zadaniach",
   "sokMobil.placeholderSjekklister": "Szukaj w listach kontrolnych",
-  "sokMobil.placeholderHms": "Szukaj w BHP"
+  "sokMobil.placeholderHms": "Szukaj w BHP",
+  "periodeFilter.periode": "Okres",
+  "periodeFilter.opprettet": "Stworzony",
+  "periodeFilter.endret": "Zmodyfikowany",
+  "tabell.omrade": "Obszar",
+  "tegninger.filterAlleStatuser": "Wszystkie statusy",
+  "tegninger.filterAlleFormater": "Wszystkie formaty",
+  "tegninger.filterGeorefAlle": "Georeferencyjne lub nie",
+  "tegninger.georeferanse": "Georeferencja",
+  "tegninger.ikkeGeoreferert": "Brak georeferencji",
+  "tegninger.kildeformat": "Format źródłowy",
+  "tegninger.utgittDato": "Wydano {{dato}}"
 }

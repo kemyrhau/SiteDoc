@@ -47,6 +47,7 @@ export interface OppgaveLokalRad {
   recipientUser: { name: string | null } | null;
   recipientGroup: { name: string | null } | null;
   drawing: { name: string | null } | null;
+  omrade: { navn: string } | null;
   dokumentflyt: { name: string } | null;
 }
 
@@ -94,6 +95,7 @@ export async function refreshOppgaveKatalog(
     recipientGroup?: { name: string | null } | null;
     dokumentflyt?: { name: string } | null;
     drawing: { name?: string | null; byggeplass: { id: string } | null } | null;
+    omrade?: { navn: string } | null;
   }>;
 
   const naa = Date.now();
@@ -126,6 +128,8 @@ export async function refreshOppgaveKatalog(
         recipientUserNavn: r.recipientUser?.name ?? null,
         recipientGroupNavn: r.recipientGroup?.name ?? null,
         drawingNavn: r.drawing?.name ?? null,
+        // B-1: eldre API uten omrade-include → null (filteret skjules da).
+        omradeNavn: r.omrade?.navn ?? null,
         dokumentflytNavn: r.dokumentflyt?.name ?? null,
         bestillerFaggruppeNavn: r.bestillerFaggruppe?.name ?? null,
         sistOppdatert: naa,
@@ -197,6 +201,7 @@ export function hentOppgaverLokalt(
     recipientUser: r.recipientUserNavn != null ? { name: r.recipientUserNavn } : null,
     recipientGroup: r.recipientGroupNavn != null ? { name: r.recipientGroupNavn } : null,
     drawing: r.drawingNavn != null ? { name: r.drawingNavn } : null,
+    omrade: r.omradeNavn != null ? { navn: r.omradeNavn } : null,
     dokumentflyt: r.dokumentflytNavn != null ? { name: r.dokumentflytNavn } : null,
   }));
 }

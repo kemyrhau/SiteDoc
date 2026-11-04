@@ -37,6 +37,7 @@ export interface SjekklisteLokalRad {
   template: { name: string; prefix: string | null } | null;
   byggeplass: { name: string } | null;
   drawing: { name: string | null } | null;
+  omrade: { navn: string } | null;
   dokumentflyt: { name: string } | null;
   recipientUser: { name: string | null } | null;
   recipientGroup: { name: string | null } | null;
@@ -97,6 +98,8 @@ export async function refreshSjekklisteKatalog(
         templatePrefix: r.template?.prefix ?? null,
         utforerFaggruppeNavn: r.utforerFaggruppe?.name ?? null,
         drawingNavn: r.drawing?.name ?? null,
+        // B-1: eldre API uten omrade-include → null (filteret skjules da).
+        omradeNavn: r.omrade?.navn ?? null,
         dokumentflytNavn: r.dokumentflyt?.name ?? null,
         recipientUserNavn: r.recipientUser?.name ?? null,
         recipientGroupNavn: r.recipientGroup?.name ?? null,
@@ -168,6 +171,7 @@ export function hentSjekklisterLokalt(
         : null,
     byggeplass: r.byggeplassId != null ? { name: r.byggeplassNavn ?? "" } : null,
     drawing: r.drawingNavn != null ? { name: r.drawingNavn } : null,
+    omrade: r.omradeNavn != null ? { navn: r.omradeNavn } : null,
     dokumentflyt: r.dokumentflytNavn != null ? { name: r.dokumentflytNavn } : null,
     recipientUser:
       r.recipientUserNavn != null ? { name: r.recipientUserNavn } : null,
