@@ -85,6 +85,10 @@ Klikk-budsjett: **Send 3 → 2 taps** (primær → bekreft), **hvem-har-ballen 0
 ### Rettighetsbasert UI
 `useOppgaveSkjema(id, rettighetInput?)` og `useSjekklisteSkjema(id, rettighetInput?)` — valgfri `rettighetInput` med `utledDokumentRettighet()`. Uten param → gammel status-basert logikk.
 
+## Kollisjonsnotat i utfylling
+
+`TilfoyelseNotat` (`components/rapportobjekter/`) viser tapte offline-kollisjonsverdier under feltet. Teksten bygges av `tilfoyelseVerdiTekst(verdi, t)` i den rene fila `tilfoyelseTekst.ts`: en tapt vær-verdi vises med `formaterVaerTekst` (`vaerTekst.ts` — samme funksjon som `VaerObjekt` bruker); tom → `felt.ingenVaerdata`; ukjent objekt → `kollisjon.notat.kompleksVerdi` (ordre 2026-11-04 (3) P3). Test: `tilfoyelseTekst.test.ts`.
+
 ## Oppgave-utfylling
 
 `useOppgaveSkjema`-hook i `apps/mobile/src/hooks/useOppgaveSkjema.ts`. Identisk med sjekkliste-utfylling:

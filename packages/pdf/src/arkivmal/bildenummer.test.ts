@@ -194,6 +194,42 @@ describe("RETUR 1 — reserverte nummer og nestet seksjon", () => {
   });
 });
 
+describe("ordre (3) — opprydding", () => {
+  // «Gjør rik»-feltet (tomt attachments-barn) gjør repeateren til radkort; dets egen label telles ikke.
+  const overskrifter = (html: string) =>
+    [...html.matchAll(/class="ark-radkort-label">([^<]*)</g)].map((m) => m[1]).filter((l) => l !== "Gjør rik");
+  const rik = (barn: TreObjekt) =>
+    obj({ id: "rk", type: "repeater", label: "Befaring", children: [obj({ id: "v", type: "attachments", label: "Gjør rik" }), barn] });
+
+  it("P1: attachments i radkort har ÉN overskrift — feltets egen label", () => {
+    const html = byggInnhold([rik(obj({ id: "att", type: "attachments", label: "Bilder" }))], { rk: fv([{ att: fv([bilde()]) }]) }, CFG);
+    expect(overskrifter(html)).toEqual(["Bilder"]);
+  });
+
+  it("P1: attachments uten meningsfull label beholder «Bilder» som eneste overskrift", () => {
+    const html = byggInnhold([rik(obj({ id: "att", type: "attachments", label: "_" }))], { rk: fv([{ att: fv([bilde()]) }]) }, CFG);
+    expect(overskrifter(html)).toEqual(["Bilder"]);
+  });
+
+  it("P1: skalarfelt med egne bilder beholder label + «Bilder» (ikke dobbel)", () => {
+    const html = byggInnhold([rik(obj({ id: "t", type: "text_field", label: "Funn" }))], { rk: fv([{ t: fv("riss", [bilde()]) }]) }, CFG);
+    expect(overskrifter(html)).toEqual(["Funn", "Bilder"]);
+  });
+
+  it("P1: tabell-repeaterens bilderad har ingen ekstra «Bilder»-overskrift", () => {
+    const tabell = obj({ id: "r", type: "repeater", label: "Rader", children: [obj({ id: "k", type: "text_field", label: "K" })] });
+    const html = byggInnhold([tabell], { r: fv([{ k: fv("rad", [bilde()]) }]) }, CFG);
+    expect(html).not.toMatch(/>Bilder</);
+  });
+
+  it("P2: lagret bildeNr null → fallback-nummer, aldri «Bilde null»", () => {
+    const f = obj({ id: "f", type: "text_field", label: "Felt" });
+    const html = renderFelt(f, fv("x", [bilde({ bildeNr: null }), bilde()]), CFG);
+    expect(html).not.toContain("Bilde null");
+    expect(nummer(html)).toEqual(["01", "02"]);
+  });
+});
+
 describe("større svartekst", () => {
   it(".felt-verdi er 12px i arkiv-CSS-en", () => {
     expect(hentArkivCss()).toMatch(/\.felt-verdi\{[^}]*font-size:12px/);

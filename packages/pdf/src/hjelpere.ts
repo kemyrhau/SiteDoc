@@ -3,7 +3,7 @@
  * Null avhengigheter — kun TypeScript-strenger.
  */
 
-import type { GrenseSnapshot, TilfoyelsePdf } from "./typer";
+import type { GrenseSnapshot, TilfoyelsePdf, VaerVerdi } from "./typer";
 
 /**
  * Fast tidssone for alle instant→tekst-formaterere her.
@@ -205,6 +205,24 @@ export function formaterDatoTidPunkt(v: unknown): string {
 /** Overskrift på tilføyelses-blokka — hardkodet nb (arkiv-PDF har intet locale-lag). */
 const TILFOYELSE_OVERSKRIFT = "Også registrert — feltet hadde allerede verdien over";
 
+/**
+ * Vær-verdi → «4 °C, Lettskyet, Vind 3 m/s, Nedbør 1.2 mm» (uescapet; "" når tom).
+ * Én kilde for vær-feltet (`felt.ts`) og en vær-tilføyelse (`formaterTilfoyelseVerdi`).
+ */
+export function formaterVaerTekst(v: VaerVerdi): string {
+  const deler: string[] = [];
+  if (v.temp) deler.push(v.temp);
+  if (v.conditions) deler.push(v.conditions);
+  if (v.wind) deler.push(`Vind ${v.wind}`);
+  if (v.precipitation && v.precipitation !== "0 mm") deler.push(`Nedbør ${v.precipitation}`);
+  return deler.join(", ");
+}
+
+/** Vær-formet objekt: lagret vær-verdi (`{temp, conditions, wind, precipitation, kilde, status}`). */
+function erVaerVerdi(o: object): o is VaerVerdi {
+  return ["temp", "conditions", "wind", "precipitation", "kilde", "status"].some((k) => k in o);
+}
+
 /** En tapt verdis tekst → lesbar streng (aldri base64-dump / rå JSON i dokumentet). */
 function formaterTilfoyelseVerdi(v: unknown): string {
   if (v === null || v === undefined || v === "") return "(tom verdi)";
@@ -225,6 +243,8 @@ function formaterTilfoyelseVerdi(v: unknown): string {
     const o = v as { verdi?: unknown; filnavn?: unknown };
     if (o.verdi != null && typeof o.verdi !== "object") return esc(String(o.verdi));
     if (typeof o.filnavn === "string") return esc(o.filnavn);
+    // Vær-tilføyelse vises som vær-feltet selv (ordre (3) P3).
+    if (erVaerVerdi(o)) return esc(formaterVaerTekst(o) || "(tom verdi)");
     return esc("(kompleks verdi)");
   }
   return esc(String(v));
@@ -315,11 +335,13 @@ export function samleBildeNr(verdi: unknown, ut: Set<number> = new Set()): Set<n
  * neste LEDIGE nummer (reserverte hoppes over), i render-rekkefølge.
  */
 export function bildeMerke(
-  b: { bildeNr?: number; opptakTidspunkt?: string | null; opprettet?: string },
+  b: { bildeNr?: number | null; opptakTidspunkt?: string | null; opprettet?: string },
   teller: BildeTeller,
 ): string {
+  // Samme vakt som samleBildeNr: bare et positivt heltall er et lagret nummer.
+  // `null`/0/ugyldig → fallback (ordre (3) P2 — lagret `null` ga «Bilde null»).
   let visNr = b.bildeNr;
-  if (visNr === undefined) {
+  if (typeof visNr !== "number" || !Number.isInteger(visNr) || visNr <= 0) {
     while (teller.reservert.has(teller.neste)) teller.neste += 1;
     visNr = teller.neste;
     teller.neste += 1;

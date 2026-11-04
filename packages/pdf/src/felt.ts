@@ -5,7 +5,7 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller, samleBildeNr } from "./hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser, formaterVaerTekst, bildeMerke, nyBildeTeller, samleBildeNr } from "./hjelpere";
 import type { BildeTeller } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
@@ -139,15 +139,10 @@ export function renderFelt(
       break;
 
     case "weather": {
-      const v = (verdi as VaerVerdi) ?? {};
-      const deler: string[] = [];
-      if (v.temp) deler.push(v.temp);
-      if (v.conditions) deler.push(v.conditions);
-      if (v.wind) deler.push(`Vind ${v.wind}`);
-      if (v.precipitation && v.precipitation !== "0 mm") deler.push(`Nedbør ${v.precipitation}`);
+      const tekst = formaterVaerTekst((verdi as VaerVerdi) ?? {});
       // Tomt/venter/ikke_registrert vær → «Ikke registrert» (vedtak 2026-08-16 punkt 3):
       // et manglende snapshot er en opplysning, ikke en systemfeil. Aldri «dagens vær».
-      verdiHtml = deler.length > 0 ? esc(deler.join(", ")) : `<span class="tom">Ikke registrert</span>`;
+      verdiHtml = tekst ? esc(tekst) : `<span class="tom">Ikke registrert</span>`;
       break;
     }
 

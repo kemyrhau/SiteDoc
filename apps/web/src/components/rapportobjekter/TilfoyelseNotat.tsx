@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { Tilfoyelse } from "./typer";
+import { vaerOppsummering, erVaerVerdi } from "./vaerTekst";
 
 function formaterTilfoyelseTid(iso: string): string {
   const d = new Date(iso);
@@ -9,19 +11,21 @@ function formaterTilfoyelseTid(iso: string): string {
 }
 
 /**
- * Lesbar tekst for en tapende kollisjonsverdi. Skalar → som den er; array → komma-liste.
+ * Lesbar tekst for en tapende kollisjonsverdi. Skalar → som den er; array → komma-liste;
+ * vær-objekt → slik vær-feltet selv vises (ordre 2026-11-04 (3) P3).
  * Defensivt: en tapende celleverdi er nå en skalar (repeater-kollisjon festes pr. celle),
  * men skulle et objekt likevel nå hit, vis en lesbar markør — aldri rå JSON på skjerm.
  */
-export function tilfoyelseVerdiTekst(verdi: unknown): string {
+export function tilfoyelseVerdiTekst(verdi: unknown, t: TFunction): string {
   if (verdi == null) return "";
   if (typeof verdi === "string" || typeof verdi === "number" || typeof verdi === "boolean") return String(verdi);
-  if (Array.isArray(verdi)) return verdi.map((v) => tilfoyelseVerdiTekst(v)).filter(Boolean).join(", ");
+  if (Array.isArray(verdi)) return verdi.map((v) => tilfoyelseVerdiTekst(v, t)).filter(Boolean).join(", ");
   if (typeof verdi === "object") {
     const v = verdi as { verdi?: unknown; filnavn?: unknown };
     if (v.verdi != null && typeof v.verdi !== "object") return String(v.verdi);
     if (typeof v.filnavn === "string") return v.filnavn;
-    return "(kompleks verdi)";
+    if (erVaerVerdi(v)) return vaerOppsummering(v) || t("felt.ingenVaerdata");
+    return t("kollisjon.notat.kompleksVerdi");
   }
   return String(verdi);
 }
@@ -42,7 +46,7 @@ export function TilfoyelseNotat({ tilfoyelser }: { tilfoyelser: Tilfoyelse[] | u
       <div className="mt-1 flex flex-col gap-1.5">
         {tilfoyelser.map((til, i) => (
           <div key={`${til.tidspunkt}-${i}`} className="border-l-2 border-amber-300 pl-2">
-            <p className="text-sm text-gray-800">{tilfoyelseVerdiTekst(til.verdi)}</p>
+            <p className="text-sm text-gray-800">{tilfoyelseVerdiTekst(til.verdi, t)}</p>
             <p className="text-[11px] text-amber-700">
               {til.brukerNavn}
               {til.tidspunkt ? ` · ${formaterTilfoyelseTid(til.tidspunkt)}` : ""}

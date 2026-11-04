@@ -1,13 +1,8 @@
 import { Cloud } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
+import { vaerOppsummering, type VaerVerdi } from "./vaerTekst";
 
-interface VaerVerdi {
-  temp?: string;
-  conditions?: string;
-  wind?: string;
-  kilde?: "manuell" | "automatisk";
-}
 
 export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();
@@ -25,12 +20,6 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
 
   // Kompakt oppsummering i utfyllingsmodus
   if (!leseModus) {
-    const deler = [
-      vaerVerdi.temp,
-      vaerVerdi.conditions,
-      vaerVerdi.wind ? `${vaerVerdi.wind}` : undefined,
-    ].filter(Boolean);
-
     return (
       <div className="flex flex-col gap-1.5">
         {vaerVerdi.kilde === "automatisk" && (
@@ -40,7 +29,7 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
           </div>
         )}
         {harData ? (
-          <p className="text-sm text-gray-700">{deler.join(" · ")}</p>
+          <p className="text-sm text-gray-700">{vaerOppsummering(vaerVerdi)}</p>
         ) : (
           <p className="text-sm italic text-gray-400">{t("felt.ingenVaerdata")}</p>
         )}
