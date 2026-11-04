@@ -274,6 +274,60 @@ export function bildeOpptakTid(b: { opptakTidspunkt?: string | null; opprettet?:
   return formaterDatoTidPunkt(b.opptakTidspunkt);
 }
 
+/**
+ * Løpenummer-teller for HELE dokumentet (ordre 2026-11-04 (2)): én instans pr.
+ * `byggInnhold`-kjøring, tråd gjennom felt → repeater → radkort i render-rekkefølge.
+ * Muterbar så hver renderer kan rykke den uten å returnere `nesteNr`.
+ * `reservert` = alle lagrede `bildeNr` i dokumentet (RETUR 1): fallback-nummeret hopper
+ * over dem, så et gammelt dokument som får ett nytt nummerert bilde aldri viser samme
+ * nummer to ganger.
+ */
+export interface BildeTeller {
+  neste: number;
+  reservert: Set<number>;
+}
+
+export function nyBildeTeller(reservert: Iterable<number> = []): BildeTeller {
+  return { neste: 1, reservert: new Set(reservert) };
+}
+
+/**
+ * Samler alle lagrede `bildeNr` i en verdi (FeltVerdi-map, enkelt FeltVerdi, vedlegg-liste,
+ * repeater-rader …) ved å gå rekursivt gjennom objekter og lister. Generisk med vilje:
+ * bilder ligger i `vedlegg`, i `attachments`-verdier og i repeater-rader på vilkårlig dybde,
+ * og `bildeNr` bæres bare av bilder. Lokal gange — pakken avhenger ikke av @sitedoc/shared.
+ */
+export function samleBildeNr(verdi: unknown, ut: Set<number> = new Set()): Set<number> {
+  if (Array.isArray(verdi)) {
+    for (const v of verdi) samleBildeNr(v, ut);
+  } else if (verdi !== null && typeof verdi === "object") {
+    const nr = (verdi as { bildeNr?: unknown }).bildeNr;
+    if (typeof nr === "number" && Number.isInteger(nr) && nr > 0) ut.add(nr);
+    for (const v of Object.values(verdi)) samleBildeNr(v, ut);
+  }
+  return ut;
+}
+
+/**
+ * Bildetekst «Bilde 01 · 03.11.2026 09:56» (HTML-escapet). Lagret `bildeNr` fra appen
+ * har forrang — den er alt dokument-løpende (`nesteBildeNr` i @sitedoc/shared) og er
+ * nummeret brukeren ser på miniatyren. Mangler den (arkiverte bilder), brukes tellerens
+ * neste LEDIGE nummer (reserverte hoppes over), i render-rekkefølge.
+ */
+export function bildeMerke(
+  b: { bildeNr?: number; opptakTidspunkt?: string | null; opprettet?: string },
+  teller: BildeTeller,
+): string {
+  let visNr = b.bildeNr;
+  if (visNr === undefined) {
+    while (teller.reservert.has(teller.neste)) teller.neste += 1;
+    visNr = teller.neste;
+    teller.neste += 1;
+  }
+  const tid = bildeOpptakTid(b);
+  return `Bilde ${String(visNr).padStart(2, "0")}${tid ? ` · ${esc(tid)}` : ""}`;
+}
+
 /** Formater dato kort (f.eks. "03.04.2026") */
 export function formaterDatoKort(v: unknown): string {
   if (!v) return "";
