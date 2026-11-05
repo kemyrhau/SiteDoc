@@ -4148,7 +4148,7 @@ I dag deler alle fire Prisma-klientene samme URL, så `connection_limit` kan ikk
 
 **Kilde:** Kenneth 2026-11-05 (video om nattlig backup ≠ katastrofe-beredskap). **I dag:** ingen automatisk backup. `deploy-prod.sh` tar ingen dump (`DEPLOY-RUNBOK.md:535`); dump tas manuelt før store deployer (`docker/DOCKER-NOTES.md:124`) og ligger på samme server (`~/backup/`, `infrastruktur.md:178`). Uploads (~1,4 GB, delt prod/test) og server-env har ingen jevnlig backup. Ingen restore er testet som katastrofe-øvelse. **Utløser:** før første ekte kunde i prod — restore-testen (punkt 1) kan tas nå.
 
-1. **Restore-test (først, billigst):** dump prod → gjenopprett i egen skrape-database på server-ny → sammenlign radtall på nøkkeltabeller → mål tiden (gir faktisk RTO) → slett skrape-databasen. Gjentas hvert kvartal og etter hver backup-endring. Datert resultat føres i `infrastruktur.md`.
+1. ✅ **Utført 2026-11-05, bestått** (restore på 11,2 s, 6396 = 6396 rader, se [infrastruktur.md § Backup og restore-test](infrastruktur.md)). **Restore-test (først, billigst):** dump prod → gjenopprett i egen skrape-database på server-ny → sammenlign radtall på nøkkeltabeller → mål tiden (gir faktisk RTO) → slett skrape-databasen. Gjentas hvert kvartal og etter hver backup-endring. Datert resultat føres i `infrastruktur.md`.
 2. **Vedta RPO/RTO** (hvor mye data kan vi miste / hvor lenge kan vi være nede). Forslag: RPO ≤ 15 min, RTO ≤ 4 t for prod.
 3. **Automatisk dump (cron)** av `sitedoc` daglig, med oppbevaring (f.eks. 7 daglige + 4 ukentlige) og varsel når en dump mangler eller er unormalt liten.
 4. **Point-in-time recovery:** WAL-arkivering (pgBackRest eller wal-g) — lukker gapet mellom nattlige dumper. Krever postgres-restart → planlegges sammen med «Postgres er utunet».

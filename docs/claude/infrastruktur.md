@@ -196,6 +196,19 @@ db-navn, `-c`-vs-`-lc`) bor i [docker/DOCKER-NOTES.md § Deploy-mekanikk](../../
 3. **pgBouncer** på sikt → antall stacker slutter å påvirke taket.
 4. **Egen `DATABASE_URL` per db-pakke** → differensiert pooling.
 
+## Backup og restore-test
+
+**Plan og gjenstående punkter:** [BACKLOG § Backup og gjenoppretting](BACKLOG.md). I dag finnes ingen automatisk backup.
+
+**Restore-test 2026-11-05 (prod `sitedoc`, server-ny) — bestått:**
+- Databasen er 49 MB; dumpen (`pg_dump -Fc`) er 13,6 MB og tok **2,5 s**.
+- Gjenoppretting i en **egen engangs-container** med samme image som prod (`pgvector/pgvector:pg16`), ikke i prod-klyngen: `sitedoc`-rollen mangler CREATEDB med vilje, og en tom container simulerer «server tapt» bedre. `pg_restore --no-owner --no-privileges` tok **11,2 s**, uten feil.
+- Radtall over alle tabeller i alle skjemaer: **6396 = 6396**.
+- Container og dumpfiler ble slettet etterpå.
+- **Hva det betyr:** selve databasegjenopprettingen tar sekunder. RTO bestemmes av alt rundt den: ny server, env-filer, uploads (~1,4 GB uten backup), images og tunnel. RPO er i dag ubegrenset, fordi det ikke tas jevnlige dumper.
+- **Sidefunn:** disken er 81 % full (94 GB ledig). Serveren melder «System restart required», og swap-bruken er 58 %.
+- **Gjentas** hvert kvartal og etter hver endring i backup-oppsettet. Fremgangsmåten: dump i prod-containeren → `docker cp` ut og inn i engangs-containeren → `pg_restore` → sammenlign radtall → `docker rm -f` og slett dumpene. Den skal inn i gjenopprettings-runboken (BACKLOG punkt 8).
+
 ## Cloudflare Tunnel — viktig
 
 Gjelder tunnel `sitedoc-ny` på ny server (mekanikken er identisk med den gamle):
