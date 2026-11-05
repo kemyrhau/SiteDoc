@@ -121,10 +121,15 @@ function scenarioFirmaadmin() {
 }
 
 function permissivPrisma() {
-  return {
+  const prisma: Record<string, unknown> = {
     // D-vakten (fjernMedlem/oppdaterRoller) og slett-vernet teller dokumenter → 0 slipper gjennom.
-    checklist: { count: vi.fn().mockResolvedValue(0) },
-    task: { count: vi.fn().mockResolvedValue(0) },
+    checklist: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
+    task: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
+    // Myk fjernMedlem (L1): oppslag, aktør, transaksjon og Activity-logg.
+    projectMember: { findFirst: vi.fn().mockResolvedValue(null) },
+    user: { findUnique: vi.fn().mockResolvedValue({ name: "Admin" }) },
+    activity: { create: vi.fn().mockResolvedValue({}) },
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
     dokumentflyt: {
       create: vi.fn().mockResolvedValue({ id: FLYT }),
       update: vi.fn().mockResolvedValue({ id: FLYT }),
@@ -141,8 +146,15 @@ function permissivPrisma() {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "m", dokumentflytId: FLYT, rolle: "registrator", steg: 1 }),
       updateMany: vi.fn().mockResolvedValue({}),
       update: vi.fn().mockResolvedValue({ id: "m" }),
+      findFirst: vi.fn().mockResolvedValue({
+        id: "m", dokumentflytId: FLYT, rolle: "registrator", steg: 1, erHovedansvarlig: false,
+        projectMemberId: null, groupId: null, faggruppeId: null, projectMember: null,
+      }),
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
     },
   };
+  return prisma;
 }
 
 function lagCallerMed(prisma: unknown) {

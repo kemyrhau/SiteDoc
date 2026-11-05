@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} pasirašė",
   "feil.ingenKontaktServer": "Nepavyko pasiekti serverio. Iš naujo įkelkite puslapį ir bandykite dar kartą.",
   "feil.loggetUt": "Esate atsijungęs. Iš naujo įkelkite puslapį, kad prisijungtumėte.",
-  "personNavn.visPersonkort": "Rodyti asmens kortelę {{navn}}"
+  "personNavn.visPersonkort": "Rodyti asmens kortelę {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Pašalinti {{navn}} iš {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} atidaryti dokumentai yra su {{navn}}. Jie lieka {{rolle}} žingsnyje.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Naujas pagrindinis atsakingas asmuo",
+  "dokumentflyt.fjernMedlem.erstatter": "Pakeitimas",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} yra vienintelis {{rolle}}. Pasirinkite, kas perims.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Išimkite be pakeitimo",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Pašalinkite ir perkelkite {{antall}} dokumentus",
+  "dokumentflyt.fjernMedlem.loggStaar": "Žurnalas išsaugo pavadinimą viskam, ką padarė {{navn}}.",
+  "dokumentflyt.leddTomt": "Nėra aktyvių narių – pasirinkite, kas turėtų atlikti šį žingsnį."
 }

@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} signerade",
   "feil.ingenKontaktServer": "Kunde inte nå servern. Ladda om sidan och försök igen.",
   "feil.loggetUt": "Du är utloggad. Ladda om sidan för att logga in.",
-  "personNavn.visPersonkort": "Visa personkort för {{navn}}"
+  "personNavn.visPersonkort": "Visa personkort för {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Ta bort {{navn}} från {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} öppna dokument är med {{navn}}. De stannar i steget {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Ny huvudansvarig",
+  "dokumentflyt.fjernMedlem.erstatter": "Ersättning",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} är den enda i {{rolle}}. Välj vem som tar över.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Ta bort utan att ersätta",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Ta bort och flytta {{antall}} dokument",
+  "dokumentflyt.fjernMedlem.loggStaar": "Loggen behåller namnet på allt {{navn}} har gjort.",
+  "dokumentflyt.leddTomt": "Inga aktiva medlemmar – välj vem som ska hålla detta steg."
 }

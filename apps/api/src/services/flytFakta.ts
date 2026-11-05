@@ -98,7 +98,9 @@ export async function hentFlytMedlemmer(
 ): Promise<RaFlytMedlem[]> {
   if (!dokumentflytId) return [];
   const medlemmer = await db.dokumentflytMedlem.findMany({
-    where: { dokumentflytId },
+    // Kun aktive ledd-medlemmer (= aktivtMedlemWhere i tilgangskontroll; ikke importert her for å
+    // holde tjenesten fri for prisma-singletonen): avsluttede skal ikke rute eller holde ballen.
+    where: { dokumentflytId, periodeSlutt: null },
     select: {
       steg: true,
       klassifisering: true,

@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} allkirjastas",
   "feil.ingenKontaktServer": "Serveriga ei õnnestunud ühendust saada. Laadige leht uuesti ja proovige uuesti.",
   "feil.loggetUt": "Olete välja logitud. Sisselogimiseks laadige leht uuesti.",
-  "personNavn.visPersonkort": "Kuva {{navn}} inimese kaart"
+  "personNavn.visPersonkort": "Kuva {{navn}} inimese kaart",
+  "dokumentflyt.fjernMedlem.tittel": "Kas eemaldada {{navn}} grupist {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} avatud dokumenti on kasutajaga {{navn}}. Nad jäävad {{rolle}} sammu.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Uus esmane vastutaja",
+  "dokumentflyt.fjernMedlem.erstatter": "Asendamine",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} on ainuke mängus {{rolle}}. Valige, kes üle võtab.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Eemaldage ilma asendamiseta",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Eemaldage ja teisaldage {{antall}} dokumenti",
+  "dokumentflyt.fjernMedlem.loggStaar": "Logi säilitab nime kõigel, mida {{navn}} on teinud.",
+  "dokumentflyt.leddTomt": "Aktiivseid liikmeid pole – valige, kes peaks seda sammu tegema."
 }

@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} parakstījis",
   "feil.ingenKontaktServer": "Nevarēja sasniegt serveri. Atkārtoti ielādējiet lapu un mēģiniet vēlreiz.",
   "feil.loggetUt": "Jūs esat izrakstījies. Lai pierakstītos, atkārtoti ielādējiet lapu.",
-  "personNavn.visPersonkort": "Rādīt personas karti {{navn}}"
+  "personNavn.visPersonkort": "Rādīt personas karti {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Vai noņemt {{navn}} no {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} atvērtie dokumenti ir ar {{navn}}. Viņi paliek {{rolle}} solī.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Jauns galvenais atbildīgais",
+  "dokumentflyt.fjernMedlem.erstatter": "Aizstāšana",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} ir vienīgais {{rolle}}. Izvēlieties, kurš pārņems.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Noņemiet bez nomaiņas",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Noņemiet un pārvietojiet {{antall}} dokumentus",
+  "dokumentflyt.fjernMedlem.loggStaar": "Žurnālā tiek saglabāts nosaukums visam, ko {{navn}} ir izdarījis.",
+  "dokumentflyt.leddTomt": "Nav aktīvu dalībnieku — izvēlieties, kam veikt šo soli."
 }

@@ -5,6 +5,14 @@ import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, 
 import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 
 /**
+ * Aktivt flytmedlemskap: `DokumentflytMedlem.periodeSlutt = null`. «Fjern» fra et flytledd
+ * avslutter raden (periodeSlutt = nå) i stedet for å slette den (L1, Kenneth 2026-11-05), så
+ * ALLE lesestier som bygger ledd, ruting, «Hos» eller ballen spør med denne — ellers telles
+ * avsluttede medlemmer fortsatt i leddet. Spread inn i `where` (`{ ...aktivtMedlemWhere, … }`).
+ */
+export const aktivtMedlemWhere = { periodeSlutt: null } as const;
+
+/**
  * Boolean-sjekk: er brukeren `sitedoc_admin`? For steder der rollen skal GATE hva som
  * sendes i responsen (ikke en tilgangsport som kaster) — f.eks. dev-score pr. metode i
  * dokumentsøket (RETUR 1 R1). Returnerer false for anonym/ukjent bruker.
@@ -1270,7 +1278,7 @@ async function hentFlytIderForMedlem(
   if (groupIder.length > 0) orBindinger.push({ groupId: { in: groupIder } });
 
   const medlemskap = await prisma.dokumentflytMedlem.findMany({
-    where: { periodeSlutt: null, OR: orBindinger },
+    where: { ...aktivtMedlemWhere, OR: orBindinger },
     select: { dokumentflytId: true },
   });
   return [...new Set(medlemskap.map((m) => m.dokumentflytId))];
@@ -1331,7 +1339,7 @@ export async function hentBrukersOpprettFlytMedlemskap(
   if (gruppeIder.length > 0) orBindinger.push({ groupId: { in: gruppeIder } });
 
   const medlemskap = await prisma.dokumentflytMedlem.findMany({
-    where: { periodeSlutt: null, rolle: "registrator", OR: orBindinger },
+    where: { ...aktivtMedlemWhere, rolle: "registrator", OR: orBindinger },
     select: { dokumentflytId: true },
   });
   return [...new Set(medlemskap.map((m) => m.dokumentflytId))];

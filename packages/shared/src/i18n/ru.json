@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} подписан",
   "feil.ingenKontaktServer": "Не удалось связаться с сервером. Перезагрузите страницу и повторите попытку.",
   "feil.loggetUt": "Вы вышли из системы. Перезагрузите страницу, чтобы войти.",
-  "personNavn.visPersonkort": "Показать карточку человека для {{navn}}"
+  "personNavn.visPersonkort": "Показать карточку человека для {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Удалить {{navn}} из {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} открытые документы с помощью {{navn}}. Они остаются на шаге {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Новый главный ответственный",
+  "dokumentflyt.fjernMedlem.erstatter": "Замена",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} — единственный в {{rolle}}. Выберите, кто возьмет на себя управление.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Удалить без замены",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Удалить и переместить {{antall}} документов",
+  "dokumentflyt.fjernMedlem.loggStaar": "В журнале сохраняется имя всего, что сделал {{navn}}.",
+  "dokumentflyt.leddTomt": "Нет активных участников — выберите, кто должен провести этот шаг."
 }

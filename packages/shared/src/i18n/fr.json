@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} signé",
   "feil.ingenKontaktServer": "Impossible d'atteindre le serveur. Actualisez la page et réessayez.",
   "feil.loggetUt": "Vous êtes déconnecté. Actualisez la page pour vous connecter.",
-  "personNavn.visPersonkort": "Afficher la carte de personne pour {{navn}}"
+  "personNavn.visPersonkort": "Afficher la carte de personne pour {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Supprimer {{navn}} de {{rolle}} ?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} les documents ouverts sont avec {{navn}}. Ils restent à l'étape {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Nouveau responsable principal",
+  "dokumentflyt.fjernMedlem.erstatter": "Remplacement",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} est le seul à {{rolle}}. Choisissez qui prend le relais.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Supprimer sans remplacement",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Supprimer et déplacer {{antall}} documents",
+  "dokumentflyt.fjernMedlem.loggStaar": "Le journal conserve le nom de tout ce que {{navn}} a fait.",
+  "dokumentflyt.leddTomt": "Aucun membre actif – choisissez qui doit organiser cette étape."
 }

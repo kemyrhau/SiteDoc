@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} nënshkruar",
   "feil.ingenKontaktServer": "Nuk arrita dot te serveri. Ringarko faqen dhe provo sërish.",
   "feil.loggetUt": "Jeni dalë nga llogaria. Rifresko faqen për t'u identifikuar.",
-  "personNavn.visPersonkort": "Trego kartën e personit për {{navn}}"
+  "personNavn.visPersonkort": "Trego kartën e personit për {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Të hiqet {{navn}} nga {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} dokumente të hapura janë me {{navn}}. Ata qëndrojnë në hapin {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Përgjegjës i ri kryesor",
+  "dokumentflyt.fjernMedlem.erstatter": "Zëvendësimi",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} është i vetmi në {{rolle}}. Zgjidhni kush e merr përsipër.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Hiqeni pa zëvendësim",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Hiqni dhe zhvendosni {{antall}} dokumente",
+  "dokumentflyt.fjernMedlem.loggStaar": "Regjistri ruan emrin në gjithçka që ka bërë {{navn}}.",
+  "dokumentflyt.leddTomt": "Nuk ka anëtarë aktiv - zgjidhni se kush duhet ta mbajë këtë hap."
 }

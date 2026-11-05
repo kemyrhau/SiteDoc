@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} signert",
   "feil.ingenKontaktServer": "Fikk ikke kontakt med serveren. Last siden på nytt og prøv igjen.",
   "feil.loggetUt": "Du er logget ut. Last siden på nytt for å logge inn.",
-  "personNavn.visPersonkort": "Vis personkort for {{navn}}"
+  "personNavn.visPersonkort": "Vis personkort for {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Fjern {{navn}} fra {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} åpne dokumenter ligger hos {{navn}}. De blir liggende i leddet {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Ny hovedansvarlig",
+  "dokumentflyt.fjernMedlem.erstatter": "Erstatter",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} er den eneste i {{rolle}}. Velg hvem som overtar.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Fjern uten erstatter",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Fjern og flytt {{antall}} dokumenter",
+  "dokumentflyt.fjernMedlem.loggStaar": "Loggen beholder navnet på alt {{navn}} har gjort.",
+  "dokumentflyt.leddTomt": "Ingen aktive medlemmer — velg hvem som skal ha leddet."
 }

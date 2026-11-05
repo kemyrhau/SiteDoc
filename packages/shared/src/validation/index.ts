@@ -393,5 +393,8 @@ export const addDokumentflytMedlemSchema = z
 export const removeDokumentflytMedlemSchema = z.object({
   id: z.string().uuid(),
   projectId: z.string().uuid(),
+  // Hvem som overtar leddet og ballen (prosjektmedlem-id). Utelatt = første gjenværende
+  // person i leddet; null = ingen (leddet blir tomt eller står uten hovedansvarlig).
+  nyHovedansvarligPmId: z.string().uuid().nullable().optional(),
 });
 
