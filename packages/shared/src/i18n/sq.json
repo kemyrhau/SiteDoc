@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "Një faqe në ditë. Të gjitha projektet, makineritë, udhëtimet dhe shpenzimet në të njëjtën faqe.",
   "firma.innstillinger.timeforing.prosjektkort": "Karta e projektit",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Një kartë për projekt. Pasqyra e ditës tregon projektin, sitin, punën, makinën, udhëtimin dhe mallrat.",
-  "firma.innstillinger.timeforing.hjelp": "Ndërrimi ndryshon vetëm mënyrën se si punonjësit e shohin dhe hyjnë në ditën. Orari i regjistruar, vërtetimi dhe baza e listës së pagave mbeten të njëjta. Zbatohet nga hera tjetër që hapet aplikacioni.",
+  "firma.innstillinger.timeforing.hjelp": "Ndërrimi zbatohet për hyrjen e kohës në ueb: punonjësit shohin një kartë për projekt në vend të kartës së ditës. Aplikacioni shfaq ende kartën e ditës. Orari i regjistruar, vërtetimi dhe baza e listës së pagave mbeten të njëjta.",
   "firma.innstillinger.tilgangTimer.tittel": "Qasja në kohëmatës - e paracaktuar",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Cilët punonjës mund të regjistrojnë fletë kohore në një projekt të ri si parazgjedhje. Mund të anashkalohet për projekt.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Qasja në konsumin e materialit - e paracaktuar",

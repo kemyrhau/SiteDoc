@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "Üks leht päevas. Kõik projektid, masinad, reisid ja kulud ühel lehel.",
   "firma.innstillinger.timeforing.prosjektkort": "Projekti kaart",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Üks kaart projekti kohta. Päeva ülevaates on projekt, töökoht, töö, masin, reisimine ja kaup.",
-  "firma.innstillinger.timeforing.hjelp": "Vahetamine muudab ainult seda, kuidas töötajad päeva näevad ja sisestavad. Registreeritud tunnid, atesteerimine ja palgaarvestus jäävad samaks. Kehtib alates järgmisest rakenduse avamisest.",
+  "firma.innstillinger.timeforing.hjelp": "Üleminek kehtib aja sisestamisel veebis: töötajad näevad päevakaardi asemel ühte kaarti projekti kohta. Rakendus näitab endiselt päevakaarti. Registreeritud tunnid, atesteerimine ja palgaarvestus jäävad samaks.",
   "firma.innstillinger.tilgangTimer.tittel": "Taimeri juurdepääs – vaikimisi",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Millised töötajad saavad vaikimisi uuele projektile tööaja tabeleid registreerida. Saab iga projekti kohta alistada.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Materjalitarbimise juurdepääs – vaikimisi",

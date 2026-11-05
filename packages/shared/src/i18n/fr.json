@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "Une page par jour. Tous les projets, machines, déplacements et dépenses sur la même page.",
   "firma.innstillinger.timeforing.prosjektkort": "Fiche de projet",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Une carte par projet. L'aperçu du jour montre le projet, le chantier, le travail, la machine, les déplacements et les marchandises.",
-  "firma.innstillinger.timeforing.hjelp": "Le changement modifie uniquement la façon dont les employés voient et saisissent la journée. Les heures enregistrées, l'attestation et la base de paie restent les mêmes. S'applique à partir de la prochaine ouverture de l'application.",
+  "firma.innstillinger.timeforing.hjelp": "Le changement s'applique à la saisie des temps sur le web : les salariés voient une carte par projet au lieu de la carte journalière. L'application affiche toujours la carte journalière. Les heures enregistrées, l'attestation et la base de paie restent les mêmes.",
   "firma.innstillinger.tilgangTimer.tittel": "Accès par minuterie – par défaut",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Quels employés peuvent enregistrer des feuilles de temps sur un nouveau projet par défaut. Peut être remplacé par projet.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Accès à la consommation de matières — par défaut",

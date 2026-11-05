@@ -864,6 +864,7 @@ export default function DagsseddelDetaljSide() {
             beskrivelse: sheet.beskrivelse ?? null,
           }}
           normTimer={normTimer}
+          erReturnert={sheet.status === "returned"}
           kanSlette={
             sheet.status === "draft" ||
             (sheet.status === "returned" && !sheet.attestertVed)
@@ -1286,6 +1287,7 @@ function ProsjektkortSamleside({
   kanLeggeTilKort,
   ramme,
   normTimer,
+  erReturnert,
   kanSlette,
   sender,
   sletter,
@@ -1317,6 +1319,7 @@ function ProsjektkortSamleside({
     beskrivelse: string | null;
   };
   normTimer: number | null;
+  erReturnert: boolean;
   kanSlette: boolean;
   sender: boolean;
   sletter: boolean;
@@ -1554,7 +1557,10 @@ function ProsjektkortSamleside({
             >
               <Button onClick={onSend} disabled={sender || timerRader.length === 0}>
                 <Send className="mr-1 h-4 w-4" />
-                {t("timer.prosjektkort.sendDagen", { timer: formatTimer(dagSum) })}
+                {/* Returnert sedel: samme tekst som dagskortets «Send på nytt». */}
+                {erReturnert
+                  ? t("timer.detalj.sendPaaNytt")
+                  : t("timer.prosjektkort.sendDagen", { timer: formatTimer(dagSum) })}
               </Button>
             </KnappMedForklaring>
           </div>

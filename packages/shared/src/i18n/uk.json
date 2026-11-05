@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "Одна сторінка на день. Усі проекти, машини, подорожі та витрати на одній сторінці.",
   "firma.innstillinger.timeforing.prosjektkort": "Картка проекту",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Одна картка на проект. Огляд дня показує проект, сайт, роботу, машину, подорожі та товари.",
-  "firma.innstillinger.timeforing.hjelp": "Перехід змінює лише те, як співробітники бачать і входять у день. Графік роботи, атестація та нарахування заробітної плати залишаються без змін. Застосовується з наступного відкриття програми.",
+  "firma.innstillinger.timeforing.hjelp": "Перемикач стосується введення часу в Інтернеті: співробітники бачать одну картку для кожного проекту замість картки дня. The app still shows the day card. Графік роботи, атестація та нарахування заробітної плати залишаються без змін.",
   "firma.innstillinger.tilgangTimer.tittel": "Доступ за таймером — за замовчуванням",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Які працівники можуть за замовчуванням реєструвати табель у новому проекті. Можна перевизначати для кожного проекту.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Доступ до споживання матеріалів — за замовчуванням",

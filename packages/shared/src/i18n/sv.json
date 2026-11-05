@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "En sida per dag. Alla projekt, maskiner, resor och utgifter på samma sida.",
   "firma.innstillinger.timeforing.prosjektkort": "Projektkort",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Ett kort per projekt. Dagens översikt visar projekt, plats, arbete, maskin, resor och varor.",
-  "firma.innstillinger.timeforing.hjelp": "Att byta ändrar bara hur anställda ser och anger dagen. Registrerade timmar, attest och löneunderlag förblir oförändrade. Gäller från nästa gång appen öppnas.",
+  "firma.innstillinger.timeforing.hjelp": "Bytet gäller för tidsinmatning på webben: anställda ser ett kort per projekt istället för dagkortet. Appen visar fortfarande dagkortet. Registrerade timmar, attest och löneunderlag förblir oförändrade.",
   "firma.innstillinger.tilgangTimer.tittel": "Timeråtkomst — standard",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Vilka anställda kan registrera tidrapporter på ett nytt projekt som standard. Kan åsidosättas per projekt.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Tillgång till materialförbrukning — standard",

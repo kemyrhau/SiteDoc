@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "Viena lapa dienā. Visi projekti, mašīnas, ceļojumi un izdevumi vienā lapā.",
   "firma.innstillinger.timeforing.prosjektkort": "Projekta karte",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Viena karte vienam projektam. Dienas pārskats parāda projektu, vietu, darbu, mašīnu, ceļojumus un preces.",
-  "firma.innstillinger.timeforing.hjelp": "Pārslēgšanās maina tikai to, kā darbinieki redz un ievada dienu. Reģistrētās stundas, atestācijas un algas bāze paliek nemainīga. Attiecas no nākamās lietotnes atvēršanas reizes.",
+  "firma.innstillinger.timeforing.hjelp": "Slēdzis attiecas uz laika ievadi tīmeklī: darbinieki redz vienu karti vienam projektam, nevis dienas karti. Lietotne joprojām parāda dienas karti. Reģistrētās stundas, atestācijas un algas bāze paliek nemainīga.",
   "firma.innstillinger.tilgangTimer.tittel": "Taimera piekļuve — noklusējuma",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Kuri darbinieki pēc noklusējuma var reģistrēt darba laika uzskaites tabulas jaunam projektam. Var ignorēt katram projektam.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Piekļuve materiāla patēriņam — noklusējuma",

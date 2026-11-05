@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "One page per day. All projects, machines, travel and expenses on the same page.",
   "firma.innstillinger.timeforing.prosjektkort": "Project card",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "One card per project. The day's overview shows project, site, work, machine, travel and goods.",
-  "firma.innstillinger.timeforing.hjelp": "Switching only changes how employees see and enter the day. Registered hours, attestation and payroll basis stay the same. Applies from the next time the app is opened.",
+  "firma.innstillinger.timeforing.hjelp": "The switch applies to time entry on the web: employees see one card per project instead of the day card. The app still shows the day card. Registered hours, attestation and payroll basis stay the same.",
   "firma.innstillinger.tilgangTimer.tittel": "Timer access — default",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Which employees can register timesheets on a new project by default. Can be overridden per project.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Material consumption access — default",

@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "Jedna strona dziennie. Wszystkie projekty, maszyny, podróże i wydatki na tej samej stronie.",
   "firma.innstillinger.timeforing.prosjektkort": "Karta projektu",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Jedna karta na projekt. Przegląd dnia przedstawia projekt, miejsce, pracę, maszynę, podróże i towary.",
-  "firma.innstillinger.timeforing.hjelp": "Zmiana zmienia jedynie sposób, w jaki pracownicy widzą dzień i wchodzą w jego życie. Godziny rejestracyjne, zaświadczenia i podstawa płac pozostają takie same. Obowiązuje od następnego otwarcia aplikacji.",
+  "firma.innstillinger.timeforing.hjelp": "Zmiana dotyczy wprowadzania czasu w Internecie: pracownicy widzą jedną kartę na projekt zamiast karty dziennej. Aplikacja nadal wyświetla kartę dnia. Godziny rejestracyjne, zaświadczenia i podstawa płac pozostają takie same.",
   "firma.innstillinger.tilgangTimer.tittel": "Dostęp timera — domyślny",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Którzy pracownicy mogą domyślnie rejestrować karty czasu pracy w nowym projekcie. Można zastąpić dla każdego projektu.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Dostęp do zużycia materiału — domyślny",

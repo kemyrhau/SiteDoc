@@ -1994,7 +1994,7 @@
   "firma.innstillinger.timeforing.dagskortBeskrivelse": "Yksi sivu päivässä. Kaikki projektit, koneet, matkat ja kulut samalla sivulla.",
   "firma.innstillinger.timeforing.prosjektkort": "Projektikortti",
   "firma.innstillinger.timeforing.prosjektkortBeskrivelse": "Yksi kortti projektia kohden. Päivän yleiskatsauksessa näkyy projekti, työmaa, työ, kone, matka ja tavarat.",
-  "firma.innstillinger.timeforing.hjelp": "Vaihtaminen muuttaa vain sitä, miten työntekijät näkevät ja syövät päivän. Ilmoitetut tunnit, todistus ja palkkaperusteet pysyvät ennallaan. Voimassa, kun sovellus avataan seuraavan kerran.",
+  "firma.innstillinger.timeforing.hjelp": "Vaihto koskee ajansyöttöä verkossa: työntekijät näkevät yhden kortin projektia kohden päiväkortin sijaan. Sovellus näyttää edelleen päiväkortin. Ilmoitetut tunnit, todistus ja palkkaperusteet pysyvät ennallaan.",
   "firma.innstillinger.tilgangTimer.tittel": "Ajastinkäyttö – oletusarvo",
   "firma.innstillinger.tilgangTimer.beskrivelse": "Ketkä työntekijät voivat oletusarvoisesti rekisteröidä työaikalomakkeet uuteen projektiin. Voidaan ohittaa projektikohtaisesti.",
   "firma.innstillinger.tilgangVareforbruk.tittel": "Materiaalinkulutuksen käyttöoikeus — oletusarvo",

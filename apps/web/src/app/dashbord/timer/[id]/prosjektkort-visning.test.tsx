@@ -101,9 +101,9 @@ const sheet = {
   ],
 };
 
-function rendre(modus: string | undefined) {
+function rendre(modus: string | undefined, overstyr: Partial<typeof sheet> = {}) {
   h.data = {
-    "timer.dagsseddel.hentMedId": sheet,
+    "timer.dagsseddel.hentMedId": { ...sheet, ...overstyr },
     "prosjekt.hentForTimer": [
       { id: "p1", name: "Skole", internalProjectNumber: "2041" },
       { id: "p2", name: "Barnehage", internalProjectNumber: "2050" },
@@ -147,5 +147,24 @@ describe("timer-sedel — visningsmodus", () => {
     expect(html).not.toContain("timer.summering");
     expect(html).not.toContain("timer.leggTilProsjekt");
     expect(html).not.toContain("timer.detalj.sendTilLeder");
+  });
+
+  it("dagskortets Detaljer-seksjon er skjult i prosjektkort-modus", () => {
+    expect(rendre("dagskort")).toContain("timer.detalj.detaljer");
+    expect(rendre("prosjektkort")).not.toContain("timer.detalj.detaljer");
+  });
+
+  it("reise vises i bunnlinja bare når den er > 0", () => {
+    expect(rendre("prosjektkort")).not.toContain("timer.prosjektkort.sumReise");
+    const medReise = rendre("prosjektkort", {
+      timer: [sheet.timer[0]!, { ...sheet.timer[1]!, erReise: true }],
+    });
+    expect(medReise).toContain("timer.prosjektkort.sumReise{&quot;timer&quot;:&quot;4&quot;}");
+  });
+
+  it("returnert sedel: knappen sier «Send på nytt» som i dagskortet", () => {
+    const html = rendre("prosjektkort", { status: "returned" });
+    expect(html).toContain("timer.detalj.sendPaaNytt");
+    expect(html).not.toContain("timer.prosjektkort.sendDagen");
   });
 });
