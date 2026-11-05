@@ -20,7 +20,8 @@ const orgMemberFindUnique = vi.fn();
 vi.mock("@sitedoc/db", () => ({
   prisma: {
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
-    projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
+    // L2: tilgangsportene slår opp aktivt medlem med findFirst (aktivtProsjektmedlemWhere).
+    projectMember: { findFirst: (...a: unknown[]) => memberFindUnique(...a) },
     organizationMember: { findUnique: (...a: unknown[]) => orgMemberFindUnique(...a) },
     // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) og erFirmaAdminForProsjekt
     // (firmagrense 2026-11-03) leser begge prosjektets eier-firma. Standalone (null) er

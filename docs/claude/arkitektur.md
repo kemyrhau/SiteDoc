@@ -139,6 +139,8 @@ Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`
 
 Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 
+**Tilgang følger aktivt medlemskap (L2a, 2026-11-05):** alle portene i tabellen under slår opp prosjektmedlemmet med `hentAktivtProsjektmedlem` / `aktivtProsjektmedlemWhere(userId, projectId)` (`findFirst` med `periodeSlutt: null`), og faggruppe- og gruppekoblingene (`faggruppeKoblinger`, `groupMemberships`, `projectGroupMember`) filtreres med `aktivtMedlemWhere`. En avsluttet rad står igjen i tabellen, men gir ingen tilgang. Firmaansvarlig-lista i `verifiserDokumentTilgang`/`byggTilgangsFilter` bruker `aktivAnsattIFirmaWhere` (`services/ansatt.ts`). **B4:** innsender-/mottakergrenen i `avgjorDokumentTilgang` (`packages/shared`) og `byggTilgangsFilter` gir tilgang bare når dokumentet ikke har flyt, når brukeren fortsatt står i flyten, eller når brukeren er melder på en HMS-melding. Fjernet fra flyten = dokumentet er borte, også for den som sendte det inn. `verifiserHmsHandling` krever aktivt prosjektmedlem (eller firma-admin i eierfirmaet) for `tilfoyInformasjon`/`sendInn`. Tester: `apps/api/src/trpc/tilgang-aktivt-medlemskap.test.ts`, L2-radene i `packages/shared/src/utils/tilgangsmatrise.test.ts`. Rundt 150 andre lesesteder bruker fortsatt `findUnique` uten periodefilter; de ryddes i L2b.
+
 | Funksjon | Beskrivelse |
 |----------|-------------|
 | `hentBrukerFaggruppeIder(userId, projectId)` | Returnerer `string[]` eller `null` (admin) |

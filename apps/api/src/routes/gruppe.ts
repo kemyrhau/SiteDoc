@@ -16,6 +16,8 @@ import {
   erFirmaAdminForProsjekt,
   hentProsjektRolleNivaa,
   erGruppeansvarlig,
+  aktivtMedlemWhere,
+  aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
 
 export const gruppeRouter = router({
@@ -34,11 +36,12 @@ export const gruppeRouter = router({
         return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, adminNiva: "sitedoc" as const, moduler: alleGruppeModuler };
       }
 
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
         include: {
-          faggruppeKoblinger: { select: { faggruppeId: true } },
+          faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
           groupMemberships: {
+            where: aktivtMedlemWhere,
             select: {
               groupId: true,
               group: { select: { modules: true } },

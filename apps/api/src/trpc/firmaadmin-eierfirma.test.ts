@@ -57,7 +57,8 @@ const { EIER, DELTAKER, PROSJEKT, UTEN_EIER, USER, tilstand, prismaMock } = vi.h
       findMany: vi.fn(async () => [{ organizationId: tilstand.adminI }]),
     },
     // Ingen medlemsrad: bypassen er eneste vei inn.
-    projectMember: { findUnique: vi.fn(async () => null) },
+    // L2: hentMinFlytInfo slår opp aktivt medlem med findFirst (aktivtProsjektmedlemWhere).
+    projectMember: { findFirst: vi.fn(async () => null) },
   };
   return { EIER, DELTAKER, PROSJEKT, UTEN_EIER, USER, tilstand, prismaMock };
 });

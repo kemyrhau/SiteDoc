@@ -558,9 +558,8 @@ export const dokumentflytRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
-        where: { id: input.id },
-      });
+      // L2 M1: avsluttet rad (periodeSlutt satt) eller rad i annet prosjekt → NOT_FOUND.
+      const medlem = await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
 
       // Fjern hovedansvarlig fra andre i samme dokumentflyt+rolle+steg
       if (input.erHovedansvarlig) {
@@ -570,6 +569,7 @@ export const dokumentflytRouter = router({
             rolle: medlem.rolle,
             steg: medlem.steg,
             erHovedansvarlig: true,
+            ...aktivtMedlemWhere,
           },
           data: { erHovedansvarlig: false },
         });
@@ -593,9 +593,8 @@ export const dokumentflytRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
-        where: { id: input.id },
-      });
+      // L2 M1: avsluttet rad (periodeSlutt satt) eller rad i annet prosjekt → NOT_FOUND.
+      const medlem = await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
 
       // Fjern hovedansvarlig fra alle andre i samme dokumentflyt + rolle
       await ctx.prisma.dokumentflytMedlem.updateMany({
@@ -603,6 +602,7 @@ export const dokumentflytRouter = router({
           dokumentflytId: medlem.dokumentflytId,
           rolle: medlem.rolle,
           steg: medlem.steg,
+          ...aktivtMedlemWhere,
         },
         data: {
           erHovedansvarlig: false,
@@ -637,6 +637,7 @@ export const dokumentflytRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
       return ctx.prisma.dokumentflytMedlem.update({
         where: { id: input.id },
         data: { kanRedigere: input.kanRedigere },
