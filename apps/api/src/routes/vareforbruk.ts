@@ -2,7 +2,11 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { verifiserProsjektmedlem, aktivtProsjektmedlemWhere } from "../trpc/tilgangskontroll";
+import {
+  verifiserProsjektmedlem,
+  aktivtProsjektmedlemWhere,
+  verifiserOrganisasjonTilgang,
+} from "../trpc/tilgangskontroll";
 import {
   krevVarelagerAktivert,
   VarelagerModulIkkeAktivertError,
@@ -142,6 +146,47 @@ async function validerVareTilhoererFirma(
 }
 
 export const vareforbrukRouter = router({
+  // Prosjektkort L1 (2026-11-05): innlogget brukers eget vareforbruk for én
+  // dato på tvers av firmaets prosjekter — Varer-kolonnen på prosjektkortet.
+  // Firma-isolert (kun prosjekter med primaryOrganizationId = firmaet) og
+  // bruker-isolert (registrertAvUserId = ctx.userId). Kun lesing.
+  hentMineForDato: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        dato: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Forventet YYYY-MM-DD"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+
+      const prosjekter = await prisma.project.findMany({
+        where: { primaryOrganizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (prosjekter.length === 0) return [];
+
+      const rader = await ctx.prismaVarelager.vareforbruk.findMany({
+        where: {
+          registrertAvUserId: ctx.userId,
+          dato: new Date(input.dato),
+          projectId: { in: prosjekter.map((p) => p.id) },
+        },
+        select: {
+          id: true,
+          projectId: true,
+          byggeplassId: true,
+          dagsseddelId: true,
+          antall: true,
+          vare: { select: { id: true, navn: true, enhet: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      return rader.map((r) => ({ ...r, antall: Number(r.antall) }));
+    }),
+
   list: protectedProcedure
     .input(
       z.object({

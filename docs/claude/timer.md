@@ -74,6 +74,7 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | `OrganizationSetting.tillattSelvAttestering` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default true) | Selv-attestering-policy |
 | `OrganizationSetting.timerLockEtterDager` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, Int? null = ingen alders-grense; status styrer låsing per Variant A) | Status-basert låsing |
 | `OrganizationSetting.tidsrundingMinutter` | ✅ Tilføyd 2026-05-12 (T.5, PR 1A commit `862c70c3`, Int? @default(15)) — støttede verdier: 15, 30, 60, null (ingen avrunding) | T.5: Tidsrunding ved timer-registrering |
+| `OrganizationSetting.timerRegistreringsmodus` | 🟡 Tilføyd 2026-11-05 (Prosjektkort L1, `feat/prosjektkort-l1`, `schema.prisma:488`, String @default("dagskort")) — `dagskort` \| `prosjektkort`; kun admin skriver (`organisasjon.oppdaterSetting`), alle medlemmer leser via `hentArbeidstidDefaults`. Migrering `20261105120000_timer_registreringsmodus` — **ikke kjørt** mot test/prod | Prosjektkort L1: visningsmodus for web-sedelen |
 | `Organization.harTimerModul` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default false) — midlertidig modul-flagg, samme mønster som `harMaskinModul` |
 | `apps/api/src/services/timer/moduleGate.ts` | ✅ Opprettet 2026-05-01 — `erTimerAktivert` + `krevTimerAktivert` |
 | `modulProcedure('timer')` i tRPC | ❌ Ikke implementert | Forutsetter fullstendig modul-gateway (per A.4) |
@@ -595,6 +596,19 @@ Utstyr-velgeren oppfyller kravet om søk på **både maskinnummer og -navn** (in
 **Delt sannhetskilde (2026-07-05):** regelen bor nå i **`packages/shared/src/utils/maskinKapasitet.ts`** (`beregnMaskinBrudd` / `overstigerMaskinTak` / `maskinBucketKapasitet`, `EPSILON_MASKIN_TIMER`, `maskinBucketNokkel`). **Server delegerer hit** (kun Decimal→number-konvertering igjen); **klienten kaller samme funksjon** → ingen divergens mulig.
 
 **Proaktiv UI (b+disable, 2026-07-05):** maskin-modalen (web `MaskinRadDialog` + mobil `MaskinRadModal`) viser inline kapasitet-linje «Arbeid i gruppen: X t · maskin så langt: Y t · ledig: Z t», som blir rød og **disabler Lagre** når inntastet verdi vil overskride taket — feilen surfaces før lagre, ikke etter. Kapasiteten beregnes reaktivt for gjeldende (projectId, ecoId), også når bruker bytter prosjekt/ECO i modalen (web: fra hele sedelen i minne; mobil: SQLite-spørring på current bucket). Eksisterende ikke-blokkerende advarsler (attestering per-rad + mobil `EcoBucket`-sumindikator) er rutet gjennom samme helper; mobil-sumindikatoren inkluderer nå pause (var utelatt tidligere).
+
+### Prosjektkort L1 — visningsmodus for web-sedelen — 🟡 `feat/prosjektkort-l1` (2026-11-05, ikke merget)
+
+Spec: `relay/prosjektkort/spec-prosjektkort.md` (vedtak 1–10, Kenneth «ok for 1-10»).
+
+- **Modell A — kun visning.** Prosjektkort er en visningsmodus over samme `DailySheet`: samme rader, samme mutasjoner, samme innsending, attestering og lønnsgrunnlag. Ingen ny lagring og ingen endring i eksisterende tRPC-kontrakter.
+- **Firmavalg:** `OrganizationSetting.timerRegistreringsmodus` (`dagskort` default \| `prosjektkort`). Settes under Firma → Innstillinger → «Timeføring» (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`); slår inn ved neste lasting. Ukjent/manglende verdi leses som dagskort (`lesTimerModus`, `apps/web/src/lib/prosjektkort.ts`).
+- **Dagskort uendret:** i dagskort-modus er markupen byte-identisk med develop (målt med render av begge versjoner, samme data). Prosjektkort-flaten er gated med `prosjektkortModus` i `apps/web/src/app/dashbord/timer/[id]/page.tsx`.
+- **Samleside (`ProsjektkortSamleside`, `page.tsx:1275`):** «Prosjektkort (N)», ett kort pr. prosjekt med «nr — navn», byggeplass og kolonnene Arbeid / Maskin / Varer / Reise («—» når tom). Kortet åpnes på plass og viser dagskortets `ProsjektGruppe` med `iKort` (ECO-bøtter, timer, maskin), VARE-linjer og lenkene «+ Timer · + Maskin · + Tillegg/Utlegg». Under: «+ Nytt prosjektkort», «Dagens ramme · fra–til · pause N min (bæres av …)» med «Endre» (`RedigerHeaderDialog`), og bunnlinja «Sum i dag X t av Y t · maskin · reise» med Slett og «Send dagen (X t)». Er sedelen returnert, sier knappen «Send på nytt» (samme nøkkel som dagskortet, `timer.detalj.sendPaaNytt`). Reise vises i bunnlinja kun når > 0. Innstillingens hjelpetekst sier at byttet gjelder web, og at appen fortsatt viser dagskort (L1).
+- **Tall (`apps/web/src/lib/prosjektkort.ts`):** erstattede rader (`attestertStatus = "erstattet"`) telles aldri. Arbeid = timer uten `erReise`, Reise = timer med `erReise`, Maskin = maskinrader. Varer: én enhet gir summert mengde, ulike enheter gir antall linjer. Sum i dag = Σ kortenes arbeid + reise. Byggeplass: rad uten egen arver sedelens; én gir navnet, flere gir «N byggeplasser», ingen gir tomt. Trafikklys-prikken bruker samme regel som dagskortets topp-sum.
+- **Varer:** ny `vareforbruk.hentMineForDato` (kun lesing, egne linjer for firma + dato, `apps/api/src/routes/vareforbruk.ts:153`). Ingen «+ Vareforbruk» i L1.
+- **Raddialog:** i prosjektkort-modus er prosjektet låst til kortets (`laastProsjekt`), og overlapp-meldingen navngir det andre kortet (`timer.feil.overlappKort`).
+- **Ikke i L1:** mobil, pivot, attestering, lønnseksport, GPS, syncBatch.
 
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 

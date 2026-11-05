@@ -940,6 +940,8 @@ function StandardArbeidstidSeksjon() {
   // B6 v3 (V16): dagsnorm-kilde. B3 (V6): pausevinduets referanse.
   const [normKilde, setNormKilde] = useState<string>("fast");
   const [pauseReferanse, setPauseReferanse] = useState<string>("ankomst");
+  // Prosjektkort L1: visningsmodus for timeføring (dagskort | prosjektkort).
+  const [modus, setModus] = useState<"dagskort" | "prosjektkort">("dagskort");
   const [skitten, setSkitten] = useState(false);
 
   useEffect(() => {
@@ -954,6 +956,7 @@ function StandardArbeidstidSeksjon() {
       setArbeidstidVarsel(String(setting.arbeidstidVarselTimer));
       setNormKilde(setting.normKilde ?? "fast");
       setPauseReferanse(setting.pauseReferanse ?? "ankomst");
+      setModus(setting.timerRegistreringsmodus === "prosjektkort" ? "prosjektkort" : "dagskort");
       setSkitten(false);
     }
   }, [setting]);
@@ -982,6 +985,7 @@ function StandardArbeidstidSeksjon() {
         arbeidstidVarselTimer: Number(arbeidstidVarsel),
         normKilde: normKilde as "fast" | "kalender",
         pauseReferanse: pauseReferanse as "fastStart" | "ankomst",
+        timerRegistreringsmodus: modus,
       },
       { onSuccess: () => setSkitten(false) },
     );
@@ -1167,6 +1171,58 @@ function StandardArbeidstidSeksjon() {
         </select>
         <p className="mt-1 text-xs text-gray-500">
           {t("firma.innstillinger.standardArbeidstid.pauseReferanseHjelp")}
+        </p>
+      </div>
+
+      {/* Prosjektkort L1: visningsmodus for timeføring. Bare visning — timer,
+          attestering og lønnsgrunnlag er de samme i begge moduser. */}
+      <div className="mt-5 border-t border-gray-100 pt-4">
+        <div className="mb-2 flex items-center gap-1.5">
+          <span className="text-xs font-medium text-gray-700">
+            {t("firma.innstillinger.timeforing.tittel")}
+          </span>
+          <span title={t("firma.innstillinger.timeforing.hjelpIkon")}>
+            <HelpCircle
+              className="h-3.5 w-3.5 text-gray-400"
+              aria-label={t("firma.innstillinger.timeforing.hjelpIkon")}
+            />
+          </span>
+        </div>
+        <div role="radiogroup" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {(["dagskort", "prosjektkort"] as const).map((verdi) => {
+            const valgt = modus === verdi;
+            return (
+              <label
+                key={verdi}
+                className={`flex cursor-pointer gap-2.5 rounded-lg border p-3 ${
+                  valgt ? "border-sitedoc-primary bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="timerRegistreringsmodus"
+                  value={verdi}
+                  checked={valgt}
+                  onChange={() => {
+                    setModus(verdi);
+                    setSkitten(true);
+                  }}
+                  className="mt-0.5 accent-sitedoc-primary"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-900">
+                    {t(`firma.innstillinger.timeforing.${verdi}`)}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-gray-600">
+                    {t(`firma.innstillinger.timeforing.${verdi}Beskrivelse`)}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          {t("firma.innstillinger.timeforing.hjelp")}
         </p>
       </div>
 
