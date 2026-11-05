@@ -5258,5 +5258,6 @@
   "signaturFilter.uten": "Fără câmp de semnătură",
   "tabell.sjaSignert": "{{antall}} a semnat",
   "feil.ingenKontaktServer": "Nu s-a putut ajunge la server. Reîncărcați pagina și încercați din nou.",
-  "feil.loggetUt": "Ești deconectat. Reîncărcați pagina pentru a vă conecta."
+  "feil.loggetUt": "Ești deconectat. Reîncărcați pagina pentru a vă conecta.",
+  "personNavn.visPersonkort": "Afișați cardul de persoană pentru {{navn}}"
 }

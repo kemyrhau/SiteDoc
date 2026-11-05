@@ -35,6 +35,7 @@ import type { DokumentflytMedlemData } from "../_components/dokumentflyt-kompone
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
+import { PersonNavn } from "@/components/PersonNavn";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -1054,7 +1055,7 @@ function FlytBoks({
                         />
                       )}
                       <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
-                      {gm.navn}
+                      <PersonNavn prosjektId={prosjektId} navn={gm.navn} projectMemberId={gm.projectMemberId} />
                     </div>
                   );
                 })}
@@ -1076,7 +1077,9 @@ function FlytBoks({
           <div key={m.id} className="group/medlem mb-0.5 flex items-center gap-1.5 text-sm">
             {renderHovedansvarligPrikk(m)}
             <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
-            <span className="flex-1 text-gray-700">{personNavn ?? "—"}</span>
+            <span className="flex min-w-0 flex-1 text-gray-700">
+              <PersonNavn prosjektId={prosjektId} navn={personNavn} projectMemberId={m.projectMember?.id} />
+            </span>
             {grupperNavn.length > 0 && (
               <span className="text-[11px] text-gray-400">
                 · {grupperNavn.join(", ")}

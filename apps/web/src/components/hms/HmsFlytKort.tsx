@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Users, User, AlertTriangle, ArrowRight, X } from "lucide-react";
 import { HmsBehandlerHandlinger } from "./HmsBehandlerHandlinger";
 import { finnHmsGruppe, type HmsGruppe } from "./hms-utils";
+import { PersonNavn } from "@/components/PersonNavn";
 
 /**
  * HMS-flyten i dokumentflyt-oppsettet (Ordre 2.1 §4 synlighet + §1 melder-regel + §2
@@ -48,6 +49,7 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
     .filter((m) => m.projectMember && !firmaUserIder.has(m.projectMember.user.id))
     .map((m) => ({
       gruppeMedlemId: m.id,
+      projectMemberId: m.projectMember!.id,
       navn: m.projectMember!.user.name,
     }));
 
@@ -107,7 +109,7 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
           {(firmaAnsvarlige ?? []).map((f) => (
             <div key={f.userId} className="mb-0.5 flex items-center gap-1.5 text-sm text-gray-700">
               <User className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-              <span className="flex-1 truncate">{f.navn ?? f.epost}</span>
+              <PersonNavn prosjektId={prosjektId} navn={f.navn} userId={f.userId} epost={f.epost} />
               <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
                 {t("hms.flyt.fraFirma")}
               </span>
@@ -118,7 +120,7 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
           {prosjektTillegg.map((p) => (
             <div key={p.gruppeMedlemId} className="group/pt mb-0.5 flex items-center gap-1.5 text-sm text-gray-700">
               <Users className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              <span className="flex-1 truncate">{p.navn ?? "—"}</span>
+              <PersonNavn prosjektId={prosjektId} navn={p.navn} projectMemberId={p.projectMemberId} />
               <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
                 {t("hms.flyt.lagtTilIProsjektet")}
               </span>

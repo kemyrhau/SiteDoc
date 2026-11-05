@@ -5258,5 +5258,6 @@
   "signaturFilter.uten": "Allkirjavälja pole",
   "tabell.sjaSignert": "{{antall}} allkirjastas",
   "feil.ingenKontaktServer": "Serveriga ei õnnestunud ühendust saada. Laadige leht uuesti ja proovige uuesti.",
-  "feil.loggetUt": "Olete välja logitud. Sisselogimiseks laadige leht uuesti."
+  "feil.loggetUt": "Olete välja logitud. Sisselogimiseks laadige leht uuesti.",
+  "personNavn.visPersonkort": "Kuva {{navn}} inimese kaart"
 }

@@ -5258,5 +5258,6 @@
   "signaturFilter.uten": "Nuk ka fushë nënshkrimi",
   "tabell.sjaSignert": "{{antall}} nënshkruar",
   "feil.ingenKontaktServer": "Nuk arrita dot te serveri. Ringarko faqen dhe provo sërish.",
-  "feil.loggetUt": "Jeni dalë nga llogaria. Rifresko faqen për t'u identifikuar."
+  "feil.loggetUt": "Jeni dalë nga llogaria. Rifresko faqen për t'u identifikuar.",
+  "personNavn.visPersonkort": "Trego kartën e personit për {{navn}}"
 }
