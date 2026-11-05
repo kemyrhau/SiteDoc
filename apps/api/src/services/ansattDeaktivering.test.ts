@@ -714,6 +714,24 @@ describe("Ordre (11) — HMS-ballen ved deaktivering", () => {
     }
   });
 
+  it("🔴 ikke-HMS-sak på Ledd 2 hos personen flyttes IKKE til HMS-gruppa (dom 34, M1)", async () => {
+    hmsVerden();
+    // Vanlig sak (malens domene «bygg») på Ledd 2, gruppa «Bygg», personen har ballen.
+    const byggSak = hmsSak("b-bygg", P_X, X, { recipientGroupId: "g-1" });
+    (byggSak.template as { domain: string }).domain = "bygg";
+    db.tabeller.checklist!.push(byggSak);
+    await deaktiver();
+    const etter = sak("checklist", "b-bygg");
+    expect(etter.recipientGroupId).toBe("g-1"); // aldri g-hms
+    expect(overforinger("checklistId", "b-bygg").map((d) => d.comment)).not.toContain(
+      nb["hms.historikk.ansattDeaktivert"],
+    );
+    const hmsPayload = sisteActivity("hms_ansvarlig_deaktivert").payload as { sjekklister: string[] };
+    expect(hmsPayload.sjekklister).not.toContain("b-bygg");
+    // Den vanlige saken følger M3 (til innsender) som før ordre (11).
+    expect(etter.recipientUserId).toBe(K);
+  });
+
   it("🔴 (d) recipientGroupId er urørt", async () => {
     hmsVerden();
     await deaktiver();

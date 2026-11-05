@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import {
+  byggeplassErEndret,
   byggeplasserForProsjekt,
   velgStandardByggeplass,
   type ByggeplassValg,
@@ -40,7 +41,7 @@ export function useRadByggeplass(args: {
     kandidater,
     byggeplassId,
     setByggeplassId,
-    endret: erNy || byggeplassId !== opprinnelig,
+    endret: byggeplassErEndret({ erNy, opprinnelig, byggeplassId }),
   };
 }
 

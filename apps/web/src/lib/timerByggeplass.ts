@@ -31,3 +31,24 @@ export function velgStandardByggeplass(args: {
   if (finnes(toppbar)) return toppbar;
   return null;
 }
+
+/**
+ * Ordre (12) B — «utelatt = urørt». En ny rad sender alltid byggeplassen; en
+ * eksisterende rad bare når brukeren har endret den, så en byggeplass satt på mobil
+ * ikke overskrives av en web-redigering av et annet felt.
+ */
+export function byggeplassErEndret(args: {
+  erNy: boolean;
+  opprinnelig: string | null;
+  byggeplassId: string | null;
+}): boolean {
+  return args.erNy || args.byggeplassId !== args.opprinnelig;
+}
+
+/** Feltet i mutasjonens payload: med når endret, ellers utelatt (ikke null). */
+export function byggeplassPayload(bp: {
+  endret: boolean;
+  byggeplassId: string | null;
+}): { byggeplassId?: string | null } {
+  return bp.endret ? { byggeplassId: bp.byggeplassId } : {};
+}

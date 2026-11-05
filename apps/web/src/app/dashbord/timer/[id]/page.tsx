@@ -32,7 +32,7 @@ import {
   RadByggeplassFelt,
   useRadByggeplass,
 } from "@/components/timer/RadByggeplassFelt";
-import type { ByggeplassValg } from "@/lib/timerByggeplass";
+import { byggeplassPayload, type ByggeplassValg } from "@/lib/timerByggeplass";
 import {
   maskinBucketKapasitet,
   overstigerMaskinTak,
@@ -2250,7 +2250,7 @@ function TimerRadDialog({
         // V20/PK3: radens matpause — server validerer timetallet mot denne.
         pauseMin: radPauseMin,
         // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
-        ...(bp.endret ? { byggeplassId: bp.byggeplassId } : {}),
+        ...byggeplassPayload(bp),
       });
     } else {
       // P1 (maskin-i-rad): dual-mutasjon. Per-kall onSuccess fanger tNum +
@@ -3840,7 +3840,7 @@ function MaskinRadDialog({
       fraTid: fraTid || null,
       tilTid: tilTid || null,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
-      ...(bp.endret ? { byggeplassId: bp.byggeplassId } : {}),
+      ...byggeplassPayload(bp),
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });

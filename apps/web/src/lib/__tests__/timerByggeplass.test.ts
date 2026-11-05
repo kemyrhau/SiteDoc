@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   byggeplasserForProsjekt,
   velgStandardByggeplass,
+  byggeplassErEndret,
+  byggeplassPayload,
 } from "../timerByggeplass";
 
 const A1 = { id: "a1", projectId: "A", name: "Lab 16" };
@@ -44,5 +46,45 @@ describe("byggeplass per timer-rad (ordre 10)", () => {
     expect(
       velgStandardByggeplass({ gjeldende: "a1", kandidater: [A1, A2], toppbar: "a2" }),
     ).toBe("a1");
+  });
+});
+
+/**
+ * Ordre (12) B — «utelatt = urørt» på klientsiden: redigering av en eksisterende rad
+ * sender byggeplassId KUN når brukeren har endret den. Fjernes betingelsen, sender
+ * web null/gammel verdi og overskriver byggeplassen mobilen satte.
+ */
+describe("byggeplassErEndret / byggeplassPayload (ordre 12 B)", () => {
+  it("🔴 eksisterende rad, uendret byggeplass → feltet utelates i payloaden", () => {
+    const endret = byggeplassErEndret({ erNy: false, opprinnelig: "bp-1", byggeplassId: "bp-1" });
+    expect(endret).toBe(false);
+    const payload = byggeplassPayload({ endret, byggeplassId: "bp-1" });
+    expect(payload).toEqual({});
+    expect("byggeplassId" in payload).toBe(false);
+  });
+
+  it("🔴 eksisterende rad uten byggeplass, uendret → utelatt (ikke null)", () => {
+    const endret = byggeplassErEndret({ erNy: false, opprinnelig: null, byggeplassId: null });
+    expect(byggeplassPayload({ endret, byggeplassId: null })).toEqual({});
+  });
+
+  it("eksisterende rad, endret eller tømt → sendes", () => {
+    expect(
+      byggeplassPayload({
+        endret: byggeplassErEndret({ erNy: false, opprinnelig: "bp-1", byggeplassId: "bp-2" }),
+        byggeplassId: "bp-2",
+      }),
+    ).toEqual({ byggeplassId: "bp-2" });
+    expect(
+      byggeplassPayload({
+        endret: byggeplassErEndret({ erNy: false, opprinnelig: "bp-1", byggeplassId: null }),
+        byggeplassId: null,
+      }),
+    ).toEqual({ byggeplassId: null });
+  });
+
+  it("ny rad sender alltid, også null", () => {
+    const endret = byggeplassErEndret({ erNy: true, opprinnelig: null, byggeplassId: null });
+    expect(byggeplassPayload({ endret, byggeplassId: null })).toEqual({ byggeplassId: null });
   });
 });

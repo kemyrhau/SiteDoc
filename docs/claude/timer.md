@@ -1011,9 +1011,13 @@ Timer- og maskinrader i web-dagsseddelen (`apps/web/src/app/dashbord/timer/[id]/
 
 **Server:** `tilfoyTimerRad`, `oppdaterTimerRad`, `maskin.tilfoy` og `maskin.oppdater` validerer `byggeplassId` mot **radens** `projectId` via `krevByggeplassIProsjekt` (`apps/api/src/routes/timer/byggeplass-rad.ts`) → `BAD_REQUEST` ellers. `null`/utelatt er gyldig (A.30). Oppdatering: utelatt = urørt, `null` = tøm.
 
+**Øvrige skriveveier (ordre (12), 2026-11-05):** `forsonDagskort`, `redigerSedelRader`, `splittRad`/`splittRadEier` (via `validerSplittFelles`) og `opprett` (sedel med `projectId` og byggeplass) avviser byggeplass fra et annet prosjekt med samme `BAD_REQUEST`, før noe skrives — `krevByggeplasserIProsjekt` slår opp alle radene i én spørring. **`syncBatch` avviser ikke** (en avvist sedel ville blokkert mobilens offline-kø): `lagByggeplassVasker` lagrer byggeplass utenfor radens prosjekt som `null` (prosjektet beholdes), også på sedelhodet og i forslags-veiene, og serveren logger `[timer_byggeplass_grense]`. En rad med fremmed byggeplass arver ikke sedelhodets byggeplass. Sedelhode uten kjent prosjekt har ingen grense å måle mot og står urørt; `oppdater` på sedelhodet har heller ingen prosjektgrense (hodet har ikke prosjekt). `redigerSedelRader` er full erstatning, og `forsonDagskort` nuller byggeplass på oppdaterte rader når feltet er utelatt — «utelatt = urørt» gjelder de interaktive rad-mutasjonene.
+
 **Bakoverkompatibilitet:** redigering sender `byggeplassId` bare når brukeren har endret feltet, så en verdi mobilen har satt overskrives ikke. Mobil-synk (`syncBatch`) og attestering (`redigerSedelRader`) er urørt. Ingen skjemaendring, ingen GPS i web. Erstatter BACKLOG ⑤ på rad-nivå; toppbar-velgeren i prosjekt-timerlista er fortsatt av.
 
-**Tester:** `apps/api/src/routes/timer/byggeplass-rad.test.ts` (4 🔴 avvisning + 2 hjelper), `apps/web/src/lib/__tests__/timerByggeplass.test.ts` (5, 3 🔴).
+**Klient:** `byggeplassErEndret` + `byggeplassPayload` (`apps/web/src/lib/timerByggeplass.ts`) avgjør om `byggeplassId` sendes ved redigering — uendret felt utelates (ikke `null`).
+
+**Tester:** `apps/api/src/routes/timer/byggeplass-rad.test.ts` (16: avvisning i alle skriveveier, utelatt = urørt på server, hjelpere), `apps/api/src/routes/timer/timer-lag2-sync.test.ts` (syncBatch-vasking: batchen fullfører, byggeplass `null`, logg), `apps/web/src/lib/__tests__/timerByggeplass.test.ts` (9, utelatt = urørt på klient).
 
 ## Hjelpetekster (?-ikonet) — alle timer-sider
 

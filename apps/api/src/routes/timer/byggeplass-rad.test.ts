@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 const findFirstByggeplass = vi.fn();
+const findManyByggeplass = vi.fn();
 
 vi.mock("../../trpc/tilgangskontroll", () => ({
   verifiserProsjekterTilhørerFirma: vi.fn().mockResolvedValue(undefined),
@@ -33,7 +34,10 @@ vi.mock("@sitedoc/db", () => ({
     organizationSetting: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
     reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
-    byggeplass: { findFirst: (...a: unknown[]) => findFirstByggeplass(...a) },
+    byggeplass: {
+      findFirst: (...a: unknown[]) => findFirstByggeplass(...a),
+      findMany: (...a: unknown[]) => findManyByggeplass(...a),
+    },
   },
 }));
 vi.mock("@sitedoc/db-maskin", () => ({
@@ -41,7 +45,11 @@ vi.mock("@sitedoc/db-maskin", () => ({
 }));
 
 import { dagsseddelRouter } from "./dagsseddel";
-import { krevByggeplassIProsjekt } from "./byggeplass-rad";
+import {
+  krevByggeplassIProsjekt,
+  krevByggeplasserIProsjekt,
+  lagByggeplassVasker,
+} from "./byggeplass-rad";
 
 const USER = "user-1";
 const ORG = "11111111-1111-1111-1111-111111111111";
@@ -52,11 +60,14 @@ const AKTIVITET = "55555555-5555-5555-5555-555555555555";
 const RAD = "66666666-6666-6666-6666-666666666666";
 const UTSTYR = "77777777-7777-7777-7777-777777777777";
 const BYGGEPLASS_B = "88888888-8888-8888-8888-888888888888"; // hører til prosjekt B
+const PROSJEKT_B = "99999999-9999-9999-9999-999999999999";
+const RAD2 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
 beforeEach(() => {
   vi.clearAllMocks();
   // Byggeplassen finnes ikke under radens prosjekt (A).
   findFirstByggeplass.mockResolvedValue(null);
+  findManyByggeplass.mockResolvedValue([{ id: BYGGEPLASS_B, projectId: PROSJEKT_B }]);
 });
 
 function lagCtx() {
@@ -73,12 +84,28 @@ function lagCtx() {
   const timerUpdate = vi.fn();
   const maskinCreate = vi.fn();
   const maskinUpdate = vi.fn();
+  // Interaktiv transaksjon: rad-skriving + hode-synk (PK6) går via tx.
+  const transaction = vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
+    fn({
+      sheetTimer: {
+        update: timerUpdate,
+        aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
+      },
+      dailySheet: { update: vi.fn().mockResolvedValue({}) },
+    }),
+  );
+  const upsert = vi.fn();
   const ctx = {
     userId: USER,
     req: { log: { info: vi.fn(), warn: vi.fn() } },
-    prisma: {},
+    prisma: {
+      organizationSetting: {
+        findUnique: vi.fn().mockResolvedValue({ tillattRedigerVedAttestering: true }),
+      },
+    },
     prismaTimer: {
-      dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet) },
+      $transaction: transaction,
+      dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), upsert },
       lonnsart: {
         findFirst: vi.fn().mockResolvedValue({ id: LONNSART, satsEnhet: "per_time" }),
       },
@@ -87,6 +114,7 @@ function lagCtx() {
         findUnique: vi.fn().mockResolvedValue({
           id: RAD, sheetId: SHEET, projectId: PROSJEKT_A, lonnsartId: LONNSART, timer: 4,
         }),
+        findMany: vi.fn().mockResolvedValue([]),
         create: timerCreate,
         update: timerUpdate,
       },
@@ -94,12 +122,13 @@ function lagCtx() {
         findUnique: vi.fn().mockResolvedValue({
           id: RAD, sheetId: SHEET, projectId: PROSJEKT_A, vehicleId: UTSTYR, timer: 4,
         }),
+        findMany: vi.fn().mockResolvedValue([]),
         create: maskinCreate,
         update: maskinUpdate,
       },
     },
   };
-  return { ctx, timerCreate, timerUpdate, maskinCreate, maskinUpdate };
+  return { ctx, sheet, timerCreate, timerUpdate, maskinCreate, maskinUpdate, transaction, upsert };
 }
 
 // createCaller-typen er for dyp til å uttrykke mock-ctx; samme grep som de andre testene.
@@ -167,5 +196,129 @@ describe("krevByggeplassIProsjekt", () => {
   it("byggeplass under radens prosjekt passerer", async () => {
     findFirstByggeplass.mockResolvedValue({ id: BYGGEPLASS_B });
     await expect(krevByggeplassIProsjekt(BYGGEPLASS_B, PROSJEKT_A)).resolves.toBeUndefined();
+  });
+});
+
+describe("byggeplass-grense i de øvrige skriveveiene (ordre 12)", () => {
+  const timerRad = {
+    projectId: PROSJEKT_A, byggeplassId: BYGGEPLASS_B,
+    lonnsartId: LONNSART, aktivitetId: AKTIVITET,
+    fraTid: "07:00", tilTid: "11:00", timer: 4,
+  };
+
+  it("🔴 forsonDagskort: ny rad med byggeplass fra annet prosjekt avvises, ingen transaksjon", async () => {
+    const { ctx, transaction } = lagCtx();
+    await expect(
+      caller(ctx).forsonDagskort({ sheetId: SHEET, oppdateringer: [], nyeRader: [timerRad] }),
+    ).rejects.toThrow(AVVIST);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("🔴 forsonDagskort: oppdatering med byggeplass fra annet prosjekt avvises", async () => {
+    const { ctx, transaction } = lagCtx();
+    await expect(
+      caller(ctx).forsonDagskort({
+        sheetId: SHEET, oppdateringer: [{ id: RAD, ...timerRad }], nyeRader: [],
+      }),
+    ).rejects.toThrow(AVVIST);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("🔴 redigerSedelRader: timer- og maskinrad med fremmed byggeplass avvises, ingen transaksjon", async () => {
+    for (const nyeRader of [
+      { timer: [{ originalId: null, ...timerRad }], tillegg: [], maskin: [] },
+      {
+        timer: [], tillegg: [],
+        maskin: [{ originalId: null, projectId: PROSJEKT_A, vehicleId: UTSTYR, byggeplassId: BYGGEPLASS_B, timer: 2 }],
+      },
+    ]) {
+      const { ctx, sheet, transaction } = lagCtx();
+      sheet.status = "sent";
+      await expect(
+        caller(ctx).redigerSedelRader({ sheetId: SHEET, nyeRader }),
+      ).rejects.toThrow(AVVIST);
+      expect(transaction).not.toHaveBeenCalled();
+    }
+  });
+
+  it("🔴 splittRadEier: ny splitt-rad med fremmed byggeplass avvises, ingen transaksjon", async () => {
+    const { ctx, transaction } = lagCtx();
+    await expect(
+      caller(ctx).splittRadEier({
+        radType: "timer", radId: RAD,
+        nyeRader: [
+          { ...timerRad, byggeplassId: null, timer: 2, tilTid: "09:00" },
+          { ...timerRad, timer: 2, fraTid: "09:00" },
+        ],
+      }),
+    ).rejects.toThrow(AVVIST);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("🔴 opprett: sedel med prosjekt og byggeplass fra annet prosjekt avvises før lagring", async () => {
+    const { ctx, upsert } = lagCtx();
+    await expect(
+      caller(ctx).opprett({
+        clientUuid: RAD2, aktivitetId: AKTIVITET, dato: "2026-11-05",
+        projectId: PROSJEKT_A, byggeplassId: BYGGEPLASS_B,
+        startAt: "2026-11-05T07:00:00Z", endAt: "2026-11-05T15:00:00Z",
+      }),
+    ).rejects.toThrow(AVVIST);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("krevByggeplasserIProsjekt / lagByggeplassVasker", () => {
+  it("én spørring for alle rader; null/utelatt passerer uten oppslag", async () => {
+    await expect(
+      krevByggeplasserIProsjekt([{ projectId: PROSJEKT_A }, { projectId: PROSJEKT_A, byggeplassId: null }]),
+    ).resolves.toBeUndefined();
+    expect(findManyByggeplass).not.toHaveBeenCalled();
+  });
+
+  it("byggeplass under radens prosjekt passerer", async () => {
+    await expect(
+      krevByggeplasserIProsjekt([{ projectId: PROSJEKT_B, byggeplassId: BYGGEPLASS_B }]),
+    ).resolves.toBeUndefined();
+  });
+
+  it("vaskeren gir byggeplassen kun for riktig prosjekt, ellers null (også ukjent id)", async () => {
+    const vask = await lagByggeplassVasker([BYGGEPLASS_B, null, BYGGEPLASS_B]);
+    expect(findManyByggeplass).toHaveBeenCalledTimes(1);
+    expect(vask(BYGGEPLASS_B, PROSJEKT_B)).toBe(BYGGEPLASS_B);
+    expect(vask(BYGGEPLASS_B, PROSJEKT_A)).toBeNull();
+    expect(vask(BYGGEPLASS_B, null)).toBeNull();
+    expect(vask(RAD2, PROSJEKT_B)).toBeNull();
+    expect(vask(null, PROSJEKT_B)).toBeNull();
+  });
+});
+
+/**
+ * Ordre (12), B — «utelatt = urørt»: en oppdatering som ikke sender byggeplassId skal la
+ * radens eksisterende byggeplass stå. Klienten (web) sender feltet bare når brukeren
+ * har endret det; serveren må på sin side ikke tolke utelatt som null.
+ */
+describe("oppdaterTimerRad — utelatt byggeplassId er urørt (ordre 12 B)", () => {
+  it("🔴 uten byggeplassId: update-dataen har ikke feltet, og ingen oppslag gjøres", async () => {
+    const { ctx, timerUpdate } = lagCtx();
+    timerUpdate.mockResolvedValue({ id: RAD });
+    await caller(ctx).oppdaterTimerRad({
+      id: RAD, beskrivelse: "Ny tekst", fraTid: "07:00", tilTid: "11:00",
+    });
+    expect(timerUpdate).toHaveBeenCalledTimes(1);
+    const data = (timerUpdate.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+    expect(data.beskrivelse).toBe("Ny tekst");
+    expect(data).not.toHaveProperty("byggeplassId");
+    expect(findFirstByggeplass).not.toHaveBeenCalled();
+  });
+
+  it("eksplisitt null fjerner byggeplassen (gyldig tilstand, A.30)", async () => {
+    const { ctx, timerUpdate } = lagCtx();
+    timerUpdate.mockResolvedValue({ id: RAD });
+    await caller(ctx).oppdaterTimerRad({
+      id: RAD, byggeplassId: null, fraTid: "07:00", tilTid: "11:00",
+    });
+    const data = (timerUpdate.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+    expect(data.byggeplassId).toBeNull();
   });
 });
