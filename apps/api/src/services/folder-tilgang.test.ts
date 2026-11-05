@@ -8,13 +8,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { user, projectMember, folder, erFirmaAdminForProsjekt } = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
-  projectMember: { findUnique: vi.fn() },
+  projectMember: { findFirst: vi.fn() },
   folder: { findMany: vi.fn() },
   erFirmaAdminForProsjekt: vi.fn(),
 }));
 
 vi.mock("@sitedoc/db", () => ({ prisma: { user, projectMember, folder } }));
-vi.mock("../trpc/tilgangskontroll", () => ({ erFirmaAdminForProsjekt }));
+vi.mock("../trpc/tilgangskontroll", () => ({
+  erFirmaAdminForProsjekt,
+  aktivtMedlemWhere: { periodeSlutt: null },
+  aktivtProsjektmedlemWhere: (userId: string, projectId: string) => ({ userId, projectId, periodeSlutt: null }),
+}));
 
 import { hentTilgjengeligeMappeIder } from "./folder-tilgang";
 
@@ -23,7 +27,7 @@ const LUKKET_MAPPE = { id: "m1", parentId: null, accessMode: "custom", accessEnt
 
 beforeEach(() => {
   user.findUnique.mockReset().mockResolvedValue({ role: "company_admin" });
-  projectMember.findUnique.mockReset().mockResolvedValue(null);
+  projectMember.findFirst.mockReset().mockResolvedValue(null);
   folder.findMany.mockReset().mockResolvedValue([LUKKET_MAPPE]);
   erFirmaAdminForProsjekt.mockReset().mockResolvedValue(false);
 });
@@ -37,7 +41,7 @@ describe("hentTilgjengeligeMappeIder — firma-admin", () => {
 
   it("firma-admin i prosjektets firma MED vanlig medlemsrad → null (admin, som i verifiserAdmin)", async () => {
     erFirmaAdminForProsjekt.mockResolvedValue(true);
-    projectMember.findUnique.mockResolvedValue({ role: "member", faggruppeKoblinger: [], groupMemberships: [] });
+    projectMember.findFirst.mockResolvedValue({ role: "member", faggruppeKoblinger: [], groupMemberships: [] });
     expect(await hentTilgjengeligeMappeIder("fa", PROSJEKT)).toBeNull();
   });
 
@@ -47,7 +51,7 @@ describe("hentTilgjengeligeMappeIder — firma-admin", () => {
 
   it("vanlig medlem uten tilgang til noen mapper → []", async () => {
     user.findUnique.mockResolvedValue({ role: "user" });
-    projectMember.findUnique.mockResolvedValue({ role: "member", faggruppeKoblinger: [], groupMemberships: [] });
+    projectMember.findFirst.mockResolvedValue({ role: "member", faggruppeKoblinger: [], groupMemberships: [] });
     expect(await hentTilgjengeligeMappeIder("u", PROSJEKT)).toEqual([]);
   });
 });

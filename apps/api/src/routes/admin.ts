@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma, krypter } from "@sitedoc/db";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { seedStandardProsjektoppsett } from "../services/prosjektSeed";
-import { hentBrukersOrg } from "../trpc/tilgangskontroll";
+import { hentBrukersOrg, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { importerKatalog } from "../services/katalog/importerKatalog";
 import { seedManglendeKatalog } from "../services/seed";
 import { IKKE_SLETTET } from "../utils/softDelete";
@@ -563,7 +563,7 @@ export const adminRouter = router({
         ctx.prisma.task.count({ where: fgFilter }),
         ctx.prisma.reportTemplate.count({ where: { projectId: input.projectId } }),
         ctx.prisma.faggruppe.count({ where: { projectId: input.projectId } }),
-        ctx.prisma.projectMember.count({ where: { projectId: input.projectId } }),
+        ctx.prisma.projectMember.count({ where: { projectId: input.projectId, ...aktivtMedlemWhere } }),
         ctx.prisma.drawing.count({ where: { projectId: input.projectId } }),
         ctx.prisma.folder.count({ where: { projectId: input.projectId } }),
       ]);

@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Search name, email or phone …",
   "kontakter.ingenKontakter": "No contacts on the project yet.",
   "kontakter.ingenTreff": "No contacts match your search.",
+  "kontakter.visTidligere": "Visa tidigare medlemmar",
+  "kontakter.sluttet": "Slutade {{dato}}",
   "kontakter.utenFaggruppe": "Without discipline group",
   "kontakter.rolleAdmin": "Administrator",
   "kontakter.rolleMedlem": "Member",

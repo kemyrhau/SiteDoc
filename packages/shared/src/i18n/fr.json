@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Rechercher un nom, un email ou un téléphone…",
   "kontakter.ingenKontakter": "Aucun contact sur le projet pour l'instant.",
   "kontakter.ingenTreff": "Aucun contact ne correspond à votre recherche.",
+  "kontakter.visTidligere": "Afficher les anciens membres",
+  "kontakter.sluttet": "Terminé {{dato}}",
   "kontakter.utenFaggruppe": "Sans groupe de discipline",
   "kontakter.rolleAdmin": "Administratrice",
   "kontakter.rolleMedlem": "Membre",

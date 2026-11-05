@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Пошук імені, електронної пошти чи телефону…",
   "kontakter.ingenKontakter": "Контактів по проекту ще немає.",
   "kontakter.ingenTreff": "Жоден контакт не відповідає вашому пошуку.",
+  "kontakter.visTidligere": "Показати колишніх учасників",
+  "kontakter.sluttet": "Завершено {{dato}}",
   "kontakter.utenFaggruppe": "Без дисциплінарної групи",
   "kontakter.rolleAdmin": "Адміністратор",
   "kontakter.rolleMedlem": "Член",

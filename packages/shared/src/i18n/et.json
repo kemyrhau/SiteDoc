@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Otsi nime, meili või telefoninumbrit…",
   "kontakter.ingenKontakter": "Projekti kohta pole veel kontakte.",
   "kontakter.ingenTreff": "Ükski kontakt ei vasta teie otsingule.",
+  "kontakter.visTidligere": "Näita endisi liikmeid",
+  "kontakter.sluttet": "Lõppes {{dato}}",
   "kontakter.utenFaggruppe": "Ilma distsipliinirühmata",
   "kontakter.rolleAdmin": "Administraator",
   "kontakter.rolleMedlem": "liige",

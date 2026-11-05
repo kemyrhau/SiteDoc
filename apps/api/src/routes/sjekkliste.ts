@@ -32,6 +32,7 @@ import {
   finnBrukersBoks,
   kanByttFlyt,
   aktivtMedlemWhere,
+  aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { IKKE_SLETTET } from "../utils/softDelete";
@@ -2120,8 +2121,8 @@ export const sjekklisteRouter = router({
         where: { id: ctx.userId },
         select: { role: true },
       });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, projectId),
       });
       const erAdmin = bruker.role === "sitedoc_admin" || medlem?.role === "admin";
 
@@ -2139,11 +2140,11 @@ export const sjekklisteRouter = router({
             where: {
               userId: input.nyEierUserId,
               projectId,
-              faggruppeKoblinger: { some: { faggruppeId: sjekkliste.bestillerFaggruppeId } },
+              faggruppeKoblinger: { some: { faggruppeId: sjekkliste.bestillerFaggruppeId, ...aktivtMedlemWhere } },
             },
           })
         : await ctx.prisma.projectMember.findFirst({
-            where: { userId: input.nyEierUserId, projectId },
+            where: { userId: input.nyEierUserId, projectId, ...aktivtMedlemWhere },
           });
 
       if (!nyEierMedlem) {
@@ -2178,8 +2179,8 @@ export const sjekklisteRouter = router({
       const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
 
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true, name: true } });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
       });
       const erProjektAdmin = bruker?.role === "sitedoc_admin" || medlem?.role === "admin";
 

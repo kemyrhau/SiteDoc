@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Ieškokite vardo, el. pašto ar telefono…",
   "kontakter.ingenKontakter": "Kol kas kontaktų dėl projekto nėra.",
   "kontakter.ingenTreff": "Nėra jūsų paiešką atitinkančių kontaktų.",
+  "kontakter.visTidligere": "Rodyti buvusius narius",
+  "kontakter.sluttet": "Baigėsi {{dato}}",
   "kontakter.utenFaggruppe": "Be drausmės grupės",
   "kontakter.rolleAdmin": "Administratorius",
   "kontakter.rolleMedlem": "narys",

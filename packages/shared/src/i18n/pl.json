@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Wyszukaj imię i nazwisko, adres e-mail lub telefon…",
   "kontakter.ingenKontakter": "Brak kontaktów w sprawie projektu.",
   "kontakter.ingenTreff": "Żadne kontakty nie pasują do Twojego wyszukiwania.",
+  "kontakter.visTidligere": "Pokaż byłych członków",
+  "kontakter.sluttet": "Zakończono {{dato}}",
   "kontakter.utenFaggruppe": "Bez grupy dyscyplinarnej",
   "kontakter.rolleAdmin": "Administrator",
   "kontakter.rolleMedlem": "Członek",

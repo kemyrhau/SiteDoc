@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
-import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { tolkPsiOpprettFeil } from "./psi-feil";
 
@@ -56,7 +56,7 @@ export const psiRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektIkkeFrosset(ctx.userId, input.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: input.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: input.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin kan opprette PSI" });
 
@@ -231,7 +231,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
 
@@ -251,7 +251,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
 
@@ -268,7 +268,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
       return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { active: false } });
@@ -281,7 +281,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
       return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { active: true } });
@@ -294,7 +294,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
       return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { guestMessage: input.guestMessage } });
@@ -307,7 +307,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
       return ctx.prisma.psi.update({
@@ -326,7 +326,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
 
@@ -419,7 +419,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
       await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
 
@@ -650,7 +650,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
       await verifiserProsjektIkkeFrosset(ctx.userId, kildePsi.projectId);
 
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: kildePsi.projectId, role: "admin" },
+        where: { userId: ctx.userId, projectId: kildePsi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
 

@@ -1,5 +1,5 @@
 import { prisma } from "@sitedoc/db";
-import { erFirmaAdminForProsjekt } from "../trpc/tilgangskontroll";
+import { erFirmaAdminForProsjekt, aktivtMedlemWhere, aktivtProsjektmedlemWhere } from "../trpc/tilgangskontroll";
 
 /**
  * Returnerer liste med folder-IDer brukeren har tilgang til.
@@ -23,11 +23,12 @@ export async function hentTilgjengeligeMappeIder(
   if (await erFirmaAdminForProsjekt(userId, projectId)) return null;
 
   // 2. Sjekk prosjektmedlemskap og rolle
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
       groupMemberships: {
+        where: aktivtMedlemWhere,
         include: {
           group: { select: { id: true, slug: true } },
         },

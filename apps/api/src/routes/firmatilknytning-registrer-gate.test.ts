@@ -24,6 +24,8 @@ vi.mock("../trpc/tilgangskontroll", () => ({
   hentBrukersFlytMedlemskap: vi.fn(),
   hentBrukersOpprettFlytMedlemskap: vi.fn(),
   autoriserAdminForFirma: vi.fn(),
+  aktivtMedlemWhere: { periodeSlutt: null },
+  aktivtProsjektmedlemWhere: (userId: string, projectId: string) => ({ userId, projectId, periodeSlutt: null }),
 }));
 
 vi.mock("@sitedoc/db", () => ({ prisma: {} }));

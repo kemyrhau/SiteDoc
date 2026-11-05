@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Kërkoni emrin, emailin ose telefonin…",
   "kontakter.ingenKontakter": "Ende nuk ka kontakte për projektin.",
   "kontakter.ingenTreff": "Asnjë kontakt nuk përputhet me kërkimin tuaj.",
+  "kontakter.visTidligere": "Trego anëtarët e mëparshëm",
+  "kontakter.sluttet": "Përfundoi {{dato}}",
   "kontakter.utenFaggruppe": "Pa grup disipline",
   "kontakter.rolleAdmin": "Administratori",
   "kontakter.rolleMedlem": "Anëtar",

@@ -33,6 +33,7 @@ import {
   finnBrukersBoks,
   kanByttFlyt,
   aktivtMedlemWhere,
+  aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
@@ -2293,8 +2294,8 @@ export const oppgaveRouter = router({
         where: { id: ctx.userId },
         select: { role: true },
       });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, projectId),
       });
       const erAdmin = bruker.role === "sitedoc_admin" || medlem?.role === "admin";
 
@@ -2310,7 +2311,7 @@ export const oppgaveRouter = router({
         where: {
           userId: input.nyEierUserId,
           projectId,
-          ...(oppgave.bestillerFaggruppeId ? { faggruppeKoblinger: { some: { faggruppeId: oppgave.bestillerFaggruppeId } } } : {}),
+          ...(oppgave.bestillerFaggruppeId ? { faggruppeKoblinger: { some: { faggruppeId: oppgave.bestillerFaggruppeId, ...aktivtMedlemWhere } } } : {}),
         },
       });
 
@@ -2348,8 +2349,8 @@ export const oppgaveRouter = router({
 
       // Sjekk om bruker er prosjektadmin
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true, name: true } });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
       });
       const erProjektAdmin = bruker?.role === "sitedoc_admin" || medlem?.role === "admin";
 
