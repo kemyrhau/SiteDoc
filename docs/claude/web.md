@@ -115,6 +115,21 @@ Dialogene viser `error.message` rått. Derfor oversettes to feiltyper ett sted, 
 
 Alle andre feil slipper gjennom uendret. Det gjelder også serverens egne meldinger når feilen har tRPC-`data`/`shape`. Vakt: `src/lib/__tests__/klientfeil.test.ts` kjører hele kjeden mot falsk fetch.
 
+### Personnavn i dokumentflyt: e-post og personkort (2026-11-05)
+
+To personer kan ha samme navn. Personnavnene i dokumentflyt-oppsettet bruker derfor `PersonNavn` ([PersonNavn.tsx](../../apps/web/src/components/PersonNavn.tsx)). Det gjelder rollekolonnenes enkeltpersoner, personene i en utvidet gruppe og HMS-flytens behandlerliste ([HmsFlytKort.tsx](../../apps/web/src/components/hms/HmsFlytKort.tsx)).
+
+- **Hover** viser e-posten via `Tooltip` fra `@sitedoc/ui`.
+- **Klikk** åpner `PersonKort` (slide-over med bakteppe, samme kort som på Kontakter-siden). Kortet viser e-post, firma og faggruppe.
+  - Medlemmet slås opp i `medlem.hentForProsjekt` på `projectMemberId`, ellers på `userId`. Det er samme cache som siden har fra før.
+  - Kortets øvrige data og admin-gaten (`gruppe.hentMinFlytInfo.erAdmin`) hentes først når kortet åpnes.
+  - Det er ingen API-endring.
+- **Ikke prosjektmedlem:** firmaets HMS-ansvarlige som ikke er medlem av prosjektet, får bare e-post på hover. De har ingen knapp, fordi det ikke finnes noe kort.
+- **Grupper og faggrupper** rendres som før.
+- **Knappene på raden** (hovedansvarlig, redigerer, ×, «Legg til») er uendret. Klikk i navnet eller kortet bobler ikke videre til raden.
+
+Vakt: `src/components/__tests__/person-navn.test.tsx`.
+
 ## Flerspråklig støtte (i18n)
 
 **Teknologi:** `i18next` + `react-i18next`, initialisert i `apps/web/src/lib/i18n.ts`

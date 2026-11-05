@@ -5258,5 +5258,6 @@
   "signaturFilter.uten": "Ei allekirjoituskenttää",
   "tabell.sjaSignert": "{{antall}} allekirjoitti",
   "feil.ingenKontaktServer": "Palvelimeen ei saada yhteyttä. Lataa sivu uudelleen ja yritä uudelleen.",
-  "feil.loggetUt": "Olet kirjautunut ulos. Lataa sivu uudelleen kirjautuaksesi sisään."
+  "feil.loggetUt": "Olet kirjautunut ulos. Lataa sivu uudelleen kirjautuaksesi sisään.",
+  "personNavn.visPersonkort": "Näytä henkilökortti {{navn}}"
 }

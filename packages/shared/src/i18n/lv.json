@@ -5258,5 +5258,6 @@
   "signaturFilter.uten": "Nav paraksta lauka",
   "tabell.sjaSignert": "{{antall}} parakstījis",
   "feil.ingenKontaktServer": "Nevarēja sasniegt serveri. Atkārtoti ielādējiet lapu un mēģiniet vēlreiz.",
-  "feil.loggetUt": "Jūs esat izrakstījies. Lai pierakstītos, atkārtoti ielādējiet lapu."
+  "feil.loggetUt": "Jūs esat izrakstījies. Lai pierakstītos, atkārtoti ielādējiet lapu.",
+  "personNavn.visPersonkort": "Rādīt personas karti {{navn}}"
 }

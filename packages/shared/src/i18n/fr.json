@@ -5258,5 +5258,6 @@
   "signaturFilter.uten": "Pas de champ de signature",
   "tabell.sjaSignert": "{{antall}} signé",
   "feil.ingenKontaktServer": "Impossible d'atteindre le serveur. Actualisez la page et réessayez.",
-  "feil.loggetUt": "Vous êtes déconnecté. Actualisez la page pour vous connecter."
+  "feil.loggetUt": "Vous êtes déconnecté. Actualisez la page pour vous connecter.",
+  "personNavn.visPersonkort": "Afficher la carte de personne pour {{navn}}"
 }

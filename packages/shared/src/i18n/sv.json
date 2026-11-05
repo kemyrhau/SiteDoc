@@ -5258,5 +5258,6 @@
   "signaturFilter.uten": "Inget signaturfält",
   "tabell.sjaSignert": "{{antall}} signerade",
   "feil.ingenKontaktServer": "Kunde inte nå servern. Ladda om sidan och försök igen.",
-  "feil.loggetUt": "Du är utloggad. Ladda om sidan för att logga in."
+  "feil.loggetUt": "Du är utloggad. Ladda om sidan för att logga in.",
+  "personNavn.visPersonkort": "Visa personkort för {{navn}}"
 }
