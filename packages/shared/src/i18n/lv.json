@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Notiek ietekmēto projektu iegūšana…",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} nav neviena uzņēmuma projekta dalībnieks.",
   "firma.ansatte.deaktiver.berorte": "Noņemts no {{prosjekter}} projekta(-iem) un {{ledd}} plūsmas soļa(-iem). Dokumenti, kas gaida {{navn}}, tiks pārvietoti uz nākamo personu šajā darbībā.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} dokuments(-i), kas gaida(-i) {{navn}} ārpus personu plūsmas, atgriežas pie iesniedzēja. Ja iesniedzēja vairs nav projektā, dokuments paliek bez adresāta.",
   "firma.ansatte.deaktiver.aleneTittel": "Darbības, kurās {{navn}} ir vienatnē — dokumenti paliek kopā ar šo darbību, līdz izvēlaties jaunu personu plūsmas iestatījumos:",
   "firma.ansatte.deaktiver.beholdesTittel": "Saglabāts, jo {{navn}} ir nodarbināts citā uzņēmumā:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "otrs uzņēmums piedalās projektā",

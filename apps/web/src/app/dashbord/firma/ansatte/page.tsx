@@ -383,12 +383,14 @@ function DeaktiverModal({
 interface Forhandsvisning {
   prosjekter: Array<{ id: string; navn: string }>;
   antallFlytledd: number;
+  antallTilInnsender: number;
   alene: Array<{ prosjektNavn: string; flytNavn: string }>;
   hoppetOver: Array<{ id: string; navn: string; grunn: string }>;
 }
 
-// Oppsummering i DeaktiverModal (spec § 3.2): berørte prosjekter og flytledd, ledd der
-// personen står alene (ballen blir liggende på leddet), og prosjekter som beholdes fordi
+// Oppsummering i DeaktiverModal (spec § 3.2): berørte prosjekter og flytledd, dokumenter som
+// går til innsender (M3), ledd der personen står alene (ballen blir liggende på leddet), og
+// prosjekter som beholdes fordi
 // personen er ansatt i et annet firma (Kenneths vilkår).
 function DeaktiverOppsummering({
   navn,
@@ -415,6 +417,9 @@ function DeaktiverOppsummering({
               ledd: data.antallFlytledd,
             })}
       </p>
+      {data.antallTilInnsender > 0 && (
+        <p>{t("firma.ansatte.deaktiver.tilInnsender", { navn, antall: data.antallTilInnsender })}</p>
+      )}
       {data.alene.length > 0 && (
         <div className="rounded-md bg-amber-50 px-3 py-2 text-amber-800">
           <p>{t("firma.ansatte.deaktiver.aleneTittel", { navn })}</p>

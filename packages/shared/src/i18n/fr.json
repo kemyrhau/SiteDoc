@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Récupération des projets concernés…",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} n'est membre d'aucun des projets de l'entreprise.",
   "firma.ansatte.deaktiver.berorte": "Supprimé du(des) projet(s) {{prosjekter}} et de la(des) étape(s) de flux {{ledd}}. Les documents en attente de {{navn}} sont transférés à la personne suivante dans l'étape.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} document(s) en attente sur {{navn}} en dehors d'un flux de personne retournent à l'émetteur. Si l'émetteur ne fait plus partie du projet, le document reste sans destinataire.",
   "firma.ansatte.deaktiver.aleneTittel": "Étapes où {{navn}} est seul : les documents restent avec l'étape jusqu'à ce que vous choisissiez une nouvelle personne dans la configuration du flux :",
   "firma.ansatte.deaktiver.beholdesTittel": "Conservé car {{navn}} est employé par une autre entreprise :",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "l'autre entreprise participe au projet",

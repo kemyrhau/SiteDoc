@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Henter berørte prosjekter …",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} er ikke medlem i noen av firmaets prosjekter.",
   "firma.ansatte.deaktiver.berorte": "Fjernes fra {{prosjekter}} prosjekt(er) og {{ledd}} flytledd. Dokumenter som venter på {{navn}}, går til neste person i leddet.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} dokument(er) som venter på {{navn}} utenom en personflyt, går tilbake til innsenderen. Er innsenderen ikke lenger med i prosjektet, står dokumentet uten mottaker.",
   "firma.ansatte.deaktiver.aleneTittel": "Ledd der {{navn}} står alene — dokumentene blir liggende på leddet til du velger en ny person i flytoppsettet:",
   "firma.ansatte.deaktiver.beholdesTittel": "Beholdes fordi {{navn}} er ansatt i et annet firma:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "det andre firmaet deltar i prosjektet",

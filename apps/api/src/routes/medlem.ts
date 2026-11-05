@@ -14,7 +14,9 @@ import {
   avsluttProsjektmedlem,
   gjenapneEllerOpprettFlytbinding,
   gjenapneEllerOpprettProsjektmedlem,
+  hentMedlemIProsjekt,
   loggMedlemsendring,
+  verifiserIderIProsjekt,
 } from "../services/prosjektmedlemskap";
 import {
   avsluttMedlemskapForPerson,
@@ -239,6 +241,9 @@ export const medlemRouter = router({
           message: "Krever administrator- eller firmaansvarlig-rettighet",
         });
       }
+
+      // M6: flyt og gruppe har eget kryss-prosjekt-vern lenger ned; faggruppene manglet det.
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: input.faggruppeIder });
 
       // Firmaansvarlig-begrensninger (fra leggTil): kun eget firma, ingen admin-opprettelse,
       // og en eksisterende bruker må tilhøre samme firma (per B.7).
@@ -483,13 +488,13 @@ export const medlemRouter = router({
       }
 
       return ctx.prisma.$transaction(async (tx) => {
-        const { avsluttet, flyt } = await avsluttProsjektmedlem(tx, medlem);
+        const { avsluttet, flyt, mottaker } = await avsluttProsjektmedlem(tx, { ...medlem, projectId: input.projectId });
         await loggMedlemsendring(tx, ctx, {
           projectId: input.projectId,
           targetType: "prosjekt_medlem",
           targetId: medlem.id,
           action: "prosjektmedlem_avsluttet",
-          payload: { userId: medlem.userId, flyt },
+          payload: { userId: medlem.userId, flyt, mottaker },
         });
         return avsluttet;
       });
@@ -506,6 +511,7 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
 
       return ctx.prisma.projectMember.update({
         where: { id: input.id },
@@ -538,8 +544,9 @@ export const medlemRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
+      const { id: medlemId } = await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
       const medlem = await ctx.prisma.projectMember.findUniqueOrThrow({
-        where: { id: input.id },
+        where: { id: medlemId },
         include: { user: true },
       });
 
@@ -857,6 +864,8 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.projectMemberId, input.projectId);
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: [input.faggruppeId] });
 
       return ctx.prisma.faggruppeKobling.upsert({
         where: {
@@ -892,6 +901,7 @@ export const medlemRouter = router({
           projectMemberId: input.projectMemberId,
           faggruppeId: input.faggruppeId,
           projectMember: { projectId: input.projectId },
+          faggruppe: { projectId: input.projectId },
           ...aktivtMedlemWhere,
         },
         select: { id: true },
@@ -942,6 +952,7 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
       return ctx.prisma.projectMember.update({
         where: { id: input.id },
         data: { erFirmaansvarlig: input.erFirmaansvarlig },
@@ -962,6 +973,7 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
       return ctx.prisma.projectMember.update({
         where: { id: input.id },
         data: { kanAttestere: input.kanAttestere },
@@ -1054,6 +1066,8 @@ export const medlemRouter = router({
         });
       }
 
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: input.faggruppeIder });
+
       // Et tidligere medlem gjenåpnes på samme rad (L2b B8); bare de valgte faggruppene åpnes.
       return ctx.prisma.$transaction(async (tx) => {
         const { id } = await gjenapneEllerOpprettProsjektmedlem(tx, {
@@ -1135,6 +1149,8 @@ export const medlemRouter = router({
           message: "Prosjektet har ikke et eier-firma å hente ansatte fra",
         });
       }
+
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: input.faggruppeIder });
 
       const res = await sikreProsjektmedlemmer(ctx.prisma, {
         projectId: input.projectId,

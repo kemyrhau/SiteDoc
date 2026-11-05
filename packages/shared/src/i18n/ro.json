@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Se preiau proiectele afectate...",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} nu este membru al niciunui proiect al companiei.",
   "firma.ansatte.deaktiver.berorte": "Eliminat(e) din {{prosjekter}} proiect(e) și din {{ledd}} etape de flux. Documentele care așteaptă pe {{navn}} sunt mutate la următoarea persoană din pas.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} document(e) care așteaptă pe {{navn}} în afara unui flux de persoane se întorc la persoana care trimite. Dacă cel care depune nu se mai află în proiect, documentul rămâne fără destinatar.",
   "firma.ansatte.deaktiver.aleneTittel": "Pași în care {{navn}} este singur — documentele rămân cu pasul până când alegeți o persoană nouă în configurarea fluxului:",
   "firma.ansatte.deaktiver.beholdesTittel": "Păstrat deoarece {{navn}} este angajat de o altă companie:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "cealaltă companie participă la proiect",

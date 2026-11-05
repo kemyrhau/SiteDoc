@@ -624,6 +624,14 @@ export const organisasjonRouter = router({
     .input(z.object({ userId: z.string().uuid(), organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      // Samme medlemssjekk som settAnsattStatus — ellers røper hoppetOver ansettelser i andre firmaer.
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
+        select: { id: true },
+      });
+      if (!member) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Brukeren tilhører ikke firmaet" });
+      }
       return forhandsvisDeaktivering(ctx.prisma, { userId: input.userId, organizationId: orgId });
     }),
 

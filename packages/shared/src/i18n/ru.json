@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Получение затронутых проектов…",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} не участвует ни в одном из проектов компании.",
   "firma.ansatte.deaktiver.berorte": "Удален из проектов {{prosjekter}} и шагов потока {{ledd}}. Документы, ожидающие {{navn}}, передаются следующему пользователю на этапе.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} документы, ожидающие {{navn}} вне потока пользователей, возвращаются отправителю. Если отправителя больше нет в проекте, документ остается без получателя.",
   "firma.ansatte.deaktiver.aleneTittel": "Шаги, где {{navn}} один — документы остаются с этим шагом, пока вы не выберете нового человека в настройке потока:",
   "firma.ansatte.deaktiver.beholdesTittel": "Сохранено, поскольку {{navn}} работает в другой компании:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "другая компания принимает участие в проекте",
