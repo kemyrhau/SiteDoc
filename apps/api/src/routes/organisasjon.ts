@@ -31,6 +31,7 @@ import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 import { recomputeMatriseIBakgrunn } from "../services/reisetidMatrise";
 import { UOPPNAAELIG } from "../services/rute-service";
+import { flyttHmsSakerVedRollefjerning, tellHmsSakerHosPerson } from "../services/hmsAnsvarlig";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -748,6 +749,22 @@ export const organisasjonRouter = router({
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(({ ctx, input }) => harFirmaHmsTilgang(ctx.userId, input.organizationId)),
 
+  // Ordre (9): antall åpne HMS-saker personen har ballen i, til fjern-modalen (kun firmaadmin).
+  // Krever ansettelse i firmaet, som settFirmaHmsAnsvarlig (dom (29) M2-mønsteret).
+  forhandsvisFjernHmsAnsvarlig: protectedProcedure
+    .input(z.object({ userId: z.string().uuid(), organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
+        select: { id: true },
+      });
+      if (!member) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Brukeren tilhører ikke firmaet" });
+      }
+      return { antallApne: await tellHmsSakerHosPerson(ctx.prisma, { organizationId: orgId, userId: input.userId }) };
+    }),
+
   // Sett eller fjern hms_ansvarlig-rollen for en bruker (kun firmaadmin).
   // Speil av settFirmaAdmin — skriver til OrganizationMember.firmaRoller.
   // Trinn 1 av firma-HMS-dashboard (2026-05-29).
@@ -794,9 +811,17 @@ export const organisasjonRouter = router({
           data: { firmaRoller: [...member.firmaRoller, "hms_ansvarlig"] },
         });
       } else if (!input.harTilgang && har) {
-        await ctx.prisma.organizationMember.update({
-          where: { id: member.id },
-          data: { firmaRoller: member.firmaRoller.filter((r) => r !== "hms_ansvarlig") },
+        // Ordre (9), A: åpne HMS-saker personen fikk ballen i via rollen blir liggende på leddet.
+        await ctx.prisma.$transaction(async (tx) => {
+          await tx.organizationMember.update({
+            where: { id: member.id },
+            data: { firmaRoller: member.firmaRoller.filter((r) => r !== "hms_ansvarlig") },
+          });
+          await flyttHmsSakerVedRollefjerning(
+            tx,
+            { userId: ctx.userId, ipAddress: ctx.ipAddress, userAgent: ctx.userAgent },
+            { organizationId: orgId, userId: input.userId },
+          );
         });
       }
       return { ok: true };

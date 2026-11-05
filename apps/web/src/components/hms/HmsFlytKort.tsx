@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { Users, User, AlertTriangle, ArrowRight, X } from "lucide-react";
 import { HmsBehandlerHandlinger } from "./HmsBehandlerHandlinger";
 import { finnHmsGruppe, type HmsGruppe } from "./hms-utils";
 import { PersonNavn } from "@/components/PersonNavn";
+import { FjernHmsAnsvarligModal } from "./FjernHmsAnsvarligModal";
 
 /**
  * HMS-flyten i dokumentflyt-oppsettet (Ordre 2.1 §4 synlighet + §1 melder-regel + §2
@@ -15,8 +17,10 @@ import { PersonNavn } from "@/components/PersonNavn";
  *  - Melder (§1): «Følger kontaktlisten · N» — ren avlesning av det eksisterende
  *    null-medlem-leddet (alle prosjektkontakter, nye arver uten handling). Redigerbare
  *    unntak er gatet ut til egen skjema-ordre.
- *  - Behandler (§2): firmaets HMS-ansvarlige (fra firma, read-only) + prosjekt-tillegg
- *    (lagt til i prosjektet via HMS-gruppa). Kilden merkes tydelig. Tomt → 0-medlem-varsel.
+ *  - Behandler (§2): firmaets HMS-ansvarlige (fra firma) + prosjekt-tillegg (lagt til i
+ *    prosjektet via HMS-gruppa). Kilden merkes tydelig. Tomt → 0-medlem-varsel.
+ *    Ordre (9): firma-admin i firmaet som ga rollen kan fjerne den herfra (modal, gjelder
+ *    hele firmaet); andre ser hvor rollen settes. Prosjekt-tillegg har alltid synlig X.
  *
  * Selv-innkapslet (henter egne data) så touchen i dokumentflyt/page.tsx blir minimal.
  */
@@ -27,6 +31,9 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
   const { data: grupper } = trpc.gruppe.hentForProsjekt.useQuery({ projectId: prosjektId });
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery({ projectId: prosjektId });
   const { data: firmaAnsvarlige } = trpc.gruppe.hentHmsAnsvarlige.useQuery({ projectId: prosjektId });
+  const [fjernFirma, setFjernFirma] = useState<
+    { userId: string; navn: string; organizationId: string; organisasjonNavn: string } | null
+  >(null);
 
   const fjernMedlem = trpc.gruppe.fjernMedlem.useMutation({
     onSuccess: () => {
@@ -105,20 +112,33 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
               skal ikke feillede mot firma-oversikten (org-gatet, egen flate). */}
           <p className="mb-1.5 text-[10.5px] leading-snug text-gray-500">{t("hms.flyt.behandlerPaProsjekt")}</p>
 
-          {/* Firma-kilde (read-only) */}
+          {/* Firma-kilde: fjernes bare av firma-admin i firmaet som ga rollen */}
           {(firmaAnsvarlige ?? []).map((f) => (
             <div key={f.userId} className="mb-0.5 flex items-center gap-1.5 text-sm text-gray-700">
               <User className="h-3.5 w-3.5 shrink-0 text-amber-500" />
               <PersonNavn prosjektId={prosjektId} navn={f.navn} userId={f.userId} epost={f.epost} />
-              <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
+              <span
+                className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700"
+                title={f.kanFjerne ? undefined : t("hms.flyt.settesAvFirmaAdmin")}
+              >
                 {t("hms.flyt.fraFirma")}
               </span>
+              {f.kanFjerne && (
+                <button
+                  onClick={() => setFjernFirma({ userId: f.userId, navn: f.navn ?? f.epost, organizationId: f.organizationId, organisasjonNavn: f.organisasjonNavn })}
+                  className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                  title={t("hms.flyt.fjernFraFirma", { firma: f.organisasjonNavn })}
+                  aria-label={t("hms.flyt.fjernFraFirma", { firma: f.organisasjonNavn })}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
           ))}
 
           {/* Prosjekt-tillegg (kan fjernes) */}
           {prosjektTillegg.map((p) => (
-            <div key={p.gruppeMedlemId} className="group/pt mb-0.5 flex items-center gap-1.5 text-sm text-gray-700">
+            <div key={p.gruppeMedlemId} className="mb-0.5 flex items-center gap-1.5 text-sm text-gray-700">
               <Users className="h-3.5 w-3.5 shrink-0 text-gray-400" />
               <PersonNavn prosjektId={prosjektId} navn={p.navn} projectMemberId={p.projectMemberId} />
               <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500">
@@ -126,8 +146,9 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
               </span>
               <button
                 onClick={() => fjernMedlem.mutate({ id: p.gruppeMedlemId, projectId: prosjektId })}
-                className="shrink-0 rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-red-100 hover:text-red-600 group-hover/pt:opacity-100"
+                className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-red-100 hover:text-red-600"
                 title={t("handling.fjern")}
+                aria-label={t("handling.fjern")}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -142,6 +163,12 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
 
         <p className="mt-2 text-[11px] leading-relaxed text-gray-400">{t("hms.flyt.forklaring")}</p>
       </div>
+
+      <FjernHmsAnsvarligModal
+        ansvarlig={fjernFirma}
+        onClose={() => setFjernFirma(null)}
+        onFjernet={() => utils.gruppe.hentHmsAnsvarlige.invalidate({ projectId: prosjektId })}
+      />
     </div>
   );
 }
