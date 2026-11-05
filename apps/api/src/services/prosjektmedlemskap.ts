@@ -213,6 +213,27 @@ export async function sikreAktivMottaker(
   return { recipientUserId: null, omdirigert: "ingen" };
 }
 
+/**
+ * Dom (30) M1: HMS-løpet (Besvar/Returner/Gjenåpne) ruter ballen og e-posten tilbake til melderen.
+ * Begge går gjennom M3-regelen — en avsluttet melder får verken ballen eller e-post, selv om
+ * L2a lar melderen lese egen melding. `mottaker` er rutingens mottaker med sikret person
+ * (gruppen beholdes); `epostTil` er melderen hvis aktiv, ellers null.
+ */
+export async function sikreHmsMottakere<M extends { recipientUserId: string | null }>(
+  db: Db,
+  args: { projectId: string; bestillerUserId: string; mottaker: M | null },
+): Promise<{ mottaker: M | null; omdirigert: MottakerOmdirigering | null; epostTil: string | null }> {
+  const ruting = args.mottaker?.recipientUserId
+    ? await sikreAktivMottaker(db, { ...args, recipientUserId: args.mottaker.recipientUserId })
+    : null;
+  const epost = await sikreAktivMottaker(db, { ...args, recipientUserId: args.bestillerUserId });
+  return {
+    mottaker: args.mottaker && ruting ? { ...args.mottaker, recipientUserId: ruting.recipientUserId } : args.mottaker,
+    omdirigert: ruting?.omdirigert ?? null,
+    epostTil: epost.recipientUserId,
+  };
+}
+
 /** Linjen som legges i dokumenthistorikken (DocumentTransfer.comment) når mottakeren ble byttet. */
 export function omdirigeringsNotat(omdirigert: MottakerOmdirigering | null): string | null {
   if (omdirigert === "innsender") return "Mottakeren er ikke lenger med i prosjektet — sendt til innsender";
