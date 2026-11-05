@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, inviteProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import type { Prisma } from "@sitedoc/db";
 import { REISE_LONNSART_REGEX } from "@sitedoc/shared";
 import {
   autoriserAdminForFirma,
@@ -19,6 +20,12 @@ import {
   hentAktiveFirmamoduler,
 } from "../services/firmamodul";
 import { seedFirmamodulKatalog } from "../services/seed";
+import {
+  avsluttMedlemskapForPerson,
+  forhandsvisDeaktivering,
+  gjenapneMedlemskapFraPayload,
+  lesDeaktiveringsPayload,
+} from "../services/ansattDeaktivering";
 import { provisjonerNyAnsattIProsjekter } from "../services/prosjektTilgangEvaluator";
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
@@ -303,7 +310,7 @@ export const organisasjonRouter = router({
       include: {
         project: {
           include: {
-            members: { select: { id: true } },
+            members: { where: aktivtMedlemWhere, select: { id: true } },
             faggrupper: { select: { id: true } },
           },
         },
@@ -611,10 +618,20 @@ export const organisasjonRouter = router({
       return { ok: true };
     }),
 
+  // L3: hva en deaktivering vil avslutte (DeaktiverModal). Leser bare — samme utvalg som
+  // settAnsattStatus bruker, inkludert prosjektene som skånes etter vilkåret.
+  forhandsvisDeaktivering: protectedProcedure
+    .input(z.object({ userId: z.string().uuid(), organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      return forhandsvisDeaktivering(ctx.prisma, { userId: input.userId, organizationId: orgId });
+    }),
+
   // Deaktiver / aktiver en ansatt (registreringsmodell fase 1, 2026-08-28).
-  // Deaktivering er ÉN reversibel fakta på OrganizationMember.status — tilgangen
-  // nektes ved porten (tilgangskontroll.ts: krevAktivAnsettelse + hentBrukersOrg-
-  // filter). Ingenting personen har ført/opprettet røres; reaktivering = én skriving.
+  // Status er porten (tilgangskontroll.ts: krevAktivAnsettelse + hentBrukersOrg-filter).
+  // L3 (hybrid): deaktivering avslutter også medlemskapene i firmaets prosjekter med
+  // Kenneths vilkår (services/ansattDeaktivering.ts); reaktivering gjenåpner de samme radene.
+  // Det personen har ført/opprettet røres ikke.
   // Speiler settFirmaAdmin sitt mønster (firmaadmin-only, sitedoc_admin skjermet).
   settAnsattStatus: protectedProcedure
     .input(
@@ -664,36 +681,53 @@ export const organisasjonRouter = router({
       const nyStatus = input.aktiv ? "aktiv" : "deaktivert";
       if (member.status === nyStatus) return { ok: true }; // idempotent
 
-      await ctx.prisma.organizationMember.update({
-        where: { id: member.id },
-        data: {
-          status: nyStatus,
-          deaktivertVed: input.aktiv ? null : new Date(),
-          deaktivertAvUserId: input.aktiv ? null : ctx.userId,
-        },
+      const aktor = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { name: true },
       });
 
-      // Varig spor («når mistet han tilgang», hvem gjorde det) i den purpose-built
-      // Activity-tabellen — gjenbruk av eksisterende audit-modell, ikke nytt
-      // loggsystem. Row-feltene over holder nåtilstand for lista.
-      const aktor = ctx.userId
-        ? await ctx.prisma.user.findUnique({
-            where: { id: ctx.userId },
-            select: { name: true },
-          })
-        : null;
-      await ctx.prisma.activity.create({
-        data: {
-          actorUserId: ctx.userId,
-          actorNavnSnapshot: aktor?.name ?? null,
-          organizationId: orgId,
-          targetType: "organization_member",
-          targetId: member.id,
-          action: input.aktiv ? "ansatt_aktivert" : "ansatt_deaktivert",
-          payload: { targetUserId: input.userId, targetNavn: member.user.name },
-          ipAddress: ctx.ipAddress,
-          userAgent: ctx.userAgent,
-        },
+      // L3: status og prosjektmedlemskapene endres i samme transaksjon. Deaktivering avslutter
+      // medlemskapene personen har i kraft av firmaet (payload = rad-idene); reaktivering
+      // gjenåpner nøyaktig radene fra siste deaktivering.
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.organizationMember.update({
+          where: { id: member.id },
+          data: {
+            status: nyStatus,
+            deaktivertVed: input.aktiv ? null : new Date(),
+            deaktivertAvUserId: input.aktiv ? null : ctx.userId,
+          },
+        });
+
+        let payload: Prisma.InputJsonValue;
+        if (input.aktiv) {
+          const siste = await tx.activity.findFirst({
+            where: { targetType: "organization_member", targetId: member.id, action: "ansatt_deaktivert" },
+            orderBy: { createdAt: "desc" },
+            select: { payload: true },
+          });
+          const forrige = lesDeaktiveringsPayload(siste?.payload);
+          const gjenapnet = forrige ? await gjenapneMedlemskapFraPayload(tx, forrige) : null;
+          payload = { targetUserId: input.userId, targetNavn: member.user.name, ...(gjenapnet ?? {}) };
+        } else {
+          const avsluttet = await avsluttMedlemskapForPerson(tx, { userId: input.userId, organizationId: orgId });
+          payload = { ...avsluttet, targetNavn: member.user.name } as unknown as Prisma.InputJsonValue;
+        }
+
+        // Varig spor («når mistet han tilgang», hvem gjorde det, hvilke rader) i Activity.
+        await tx.activity.create({
+          data: {
+            actorUserId: ctx.userId,
+            actorNavnSnapshot: aktor?.name ?? null,
+            organizationId: orgId,
+            targetType: "organization_member",
+            targetId: member.id,
+            action: input.aktiv ? "ansatt_aktivert" : "ansatt_deaktivert",
+            payload,
+            ipAddress: ctx.ipAddress,
+            userAgent: ctx.userAgent,
+          },
+        });
       });
 
       return { ok: true };

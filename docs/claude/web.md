@@ -89,6 +89,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/firma                               -> Firma-admin (oversikt + integrasjonsstatus)
 /dashbord/firma/prosjekter                    -> Firmaets prosjekter
 /dashbord/firma/brukere                       -> Firmaets brukere (rolleskifte user↔company_admin)
+/dashbord/firma/ansatte                       -> Ansatte (registreringsmodellen). `DeaktiverModal` viser `DeaktiverOppsummering` fra `organisasjon.forhandsvisDeaktivering` (L3, 2026-11-05): prosjekter som avsluttes, flytledd og ledd der personen er alene, og prosjekter som hoppes over med grunn
 /dashbord/firma/fakturering                   -> Fakturering (placeholder)
 /dashbord/firma/innstillinger                 -> Innstillinger (redigerbar firmainformasjon + ?-hjelp)
 ```

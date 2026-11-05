@@ -31,6 +31,9 @@ export const prosjektRouter = router({
   hentMine: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid().optional(), inkluderFrosne: z.boolean().optional() }).optional())
     .query(async ({ ctx, input }) => {
+      // L3: mobilens katalog skal speile porten (krevAktivAnsettelse) — prosjekter eid av et
+      // firma der ansettelsen er deaktivert, er borte selv om medlemsraden er skånet.
+      const deaktiverteOrgIder = await hentDeaktiverteOrgIder(ctx.userId!);
       const where: Prisma.ProjectWhereInput = {
         members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
         // FL: navigasjon skjuler frosne prosjekter; timer-flater (mobil dagsseddel-
@@ -39,13 +42,16 @@ export const prosjektRouter = router({
         ...(input?.organizationId
           ? { primaryOrganizationId: input.organizationId }
           : {}),
+        ...(deaktiverteOrgIder.length > 0
+          ? { NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }
+          : {}),
       };
       return ctx.prisma.project.findMany({
         where,
         orderBy: { updatedAt: "desc" },
         include: {
           faggrupper: true,
-          _count: { select: { members: true } },
+          _count: { select: { members: { where: aktivtMedlemWhere } } },
         },
       });
     }),
@@ -74,7 +80,7 @@ export const prosjektRouter = router({
         orderBy: [{ type: "asc" }, { updatedAt: "desc" }],
         include: {
           faggrupper: true,
-          _count: { select: { members: true } },
+          _count: { select: { members: { where: aktivtMedlemWhere } } },
         },
       });
     }),
@@ -93,9 +99,9 @@ export const prosjektRouter = router({
       // allerede uten interne (de har ingen ProjectMember-rader); type-filteret
       // er nødvendig for sitedoc_admin-grenen (tomt filter / org-filter).
       //
-      // Deaktivert ansettelse (fase 1 registreringsmodell): ProjectMember-radene
-      // ryddes bevisst ikke, så member-scopet ville fortsatt vist gamle prosjekter
-      // brukeren ikke lenger kan åpne. Ekskluder prosjekter eid av org der
+      // Deaktivert ansettelse: L3 avslutter ProjectMember-radene i firmaets
+      // prosjekter, men rader skånet av vilkåret og deaktiveringer fra før L3 står
+      // åpne — member-scopet ville da vist prosjekter brukeren ikke kan åpne. Ekskluder prosjekter eid av org der
       // ansettelsen er deaktivert — speiler krevAktivAnsettelse ved porten.
       const deaktiverteOrgIder = erSitedocAdmin
         ? []
@@ -121,7 +127,7 @@ export const prosjektRouter = router({
         orderBy: { createdAt: "desc" },
         include: {
           faggrupper: true,
-          _count: { select: { members: true } },
+          _count: { select: { members: { where: aktivtMedlemWhere } } },
         },
       });
     }),

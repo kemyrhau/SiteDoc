@@ -253,8 +253,9 @@ model OrganizationMember {
   avdelingId         String?   @map("avdeling_id")
   // Ansettelsesstatus (registreringsmodell fase 1, 2026-08-28). "aktiv" | "deaktivert".
   // String (ikke DB-enum) som ansattRolle/firmaRoller — utvidbar uten migrasjon.
-  // Deaktivering er ÉN reversibel fakta lest ved porten (tilgangskontroll.ts:
-  // krevAktivAnsettelse + hentBrukersOrg-filter) — IKKE N periodeSlutt-skrivinger.
+  // Status er porten (tilgangskontroll.ts: krevAktivAnsettelse + hentBrukersOrg-filter).
+  // Hybrid (L3): periodeSlutt på medlemskapene i firmaets prosjekter speiler den
+  // (services/ansattDeaktivering.ts) — rad-idene i Activity, reaktivering gjenåpner dem.
   // deaktivertAvUserId er String? uten @relation (A.3-mønster) → audit-spor bevart
   // ved User-sletting. Varig historikk («når mistet han tilgang») ligger i Activity.
   //

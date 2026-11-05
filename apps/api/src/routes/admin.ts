@@ -351,7 +351,7 @@ export const adminRouter = router({
             createdAt: true,
             updatedAt: true,
             trialExpiresAt: true,
-            members: { select: { id: true } },
+            members: { where: aktivtMedlemWhere, select: { id: true } },
           },
         }),
       ]);
