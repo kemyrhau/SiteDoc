@@ -480,6 +480,12 @@ model OrganizationSetting {
   // arbeidsstart (etter reisen) — legger aldri pausen i en reise. "fastStart" =
   // fra firmaets sesongjusterte starttid. Default "ankomst".
   pauseReferanse  String @default("ankomst") @map("pause_referanse")
+  // Prosjektkort L1 (2026-11-05): firmaets visningsmodus for timeføring.
+  // "dagskort" = én side pr. dag (som før). "prosjektkort" = ett kort pr.
+  // prosjekt over SAMME DailySheet (modell A) — ingen ny sedel, ingen status
+  // pr. kort. Bare visning; timer/attestering/lønnsgrunnlag er uendret.
+  // Default "dagskort", ingen backfill (alle firmaer står der i dag).
+  timerRegistreringsmodus String @default("dagskort") @map("timer_registreringsmodus")
 
   // Auto-prosjektadmin (B Kloss 2b, 2026-07-24) — løser hierarki-invarianten
   // (firma-admin ≥ prosjektadmin i eget firma) via MEDLEMSKAP, ikke flyt-nivå.

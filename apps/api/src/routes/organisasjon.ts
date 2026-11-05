@@ -1238,6 +1238,8 @@ export const organisasjonRouter = router({
           reiseOverTerskelType: true,
           reisetidTellerOvertid: true,
           reiseLonnsartId: true,
+          // Prosjektkort L1: visningsmodus for sedelen (dagskort | prosjektkort).
+          timerRegistreringsmodus: true,
         },
       });
       // Avstandsbånd (2026-09-11): mobilens offline-resolver (`hentReiseLonnsartId`)
@@ -1349,6 +1351,9 @@ export const organisasjonRouter = router({
         // "kalender" = sesongutledet. B3 (V6): pausevinduets referanse.
         normKilde: z.enum(["fast", "kalender"]).optional(),
         pauseReferanse: z.enum(["fastStart", "ankomst"]).optional(),
+        // Prosjektkort L1 (2026-11-05): visningsmodus for timeføring. Bare
+        // firma-admin skriver (verifiserFirmaAdmin under). Slår inn umiddelbart.
+        timerRegistreringsmodus: z.enum(["dagskort", "prosjektkort"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
