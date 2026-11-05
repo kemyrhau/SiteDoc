@@ -14,6 +14,7 @@ import {
   verifiserAnsattIFirma,
   erAnsattIFirma,
   erFirmaAdminForProsjekt,
+  aktivtProsjektmedlemWhere,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
@@ -141,8 +142,8 @@ async function erProsjektLeder(userId: string, projectId: string): Promise<boole
 
   if (await erFirmaAdminForProsjekt(userId, projectId)) return true;
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     select: { role: true, kanAttestere: true },
   });
   return medlem?.role === "admin" || medlem?.kanAttestere === true;

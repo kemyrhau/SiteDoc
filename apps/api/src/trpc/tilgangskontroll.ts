@@ -3,6 +3,7 @@ import { prisma } from "@sitedoc/db";
 import type { Prisma } from "@sitedoc/db";
 import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, erAvsenderledd, erMedlemAvFlyt } from "@sitedoc/shared";
 import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
+import { aktivAnsattIFirmaWhere } from "../services/ansatt";
 
 /**
  * Aktivt flytmedlemskap: `DokumentflytMedlem.periodeSlutt = null`. «Fjern» fra et flytledd
@@ -11,6 +12,20 @@ import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
  * avsluttede medlemmer fortsatt i leddet. Spread inn i `where` (`{ ...aktivtMedlemWhere, … }`).
  */
 export const aktivtMedlemWhere = { periodeSlutt: null } as const;
+
+/**
+ * Aktivt prosjektmedlemskap (L2, Kenneth 2026-11-05 B1–B10): `ProjectMember.periodeSlutt = null`.
+ * Alle tilgangsporter slår opp medlemmet med denne — en avsluttet rad gir ingen tilgang, selv
+ * om den står igjen for historikk. Erstatter `findUnique({ userId_projectId })`.
+ */
+export function aktivtProsjektmedlemWhere(userId: string, projectId: string) {
+  return { userId, projectId, ...aktivtMedlemWhere };
+}
+
+/** Aktivt prosjektmedlem (uten relasjoner), eller null. Se `aktivtProsjektmedlemWhere`. */
+export async function hentAktivtProsjektmedlem(userId: string, projectId: string) {
+  return prisma.projectMember.findFirst({ where: aktivtProsjektmedlemWhere(userId, projectId) });
+}
 
 /**
  * Boolean-sjekk: er brukeren `sitedoc_admin`? For steder der rollen skal GATE hva som
@@ -162,10 +177,10 @@ export async function hentBrukerFaggruppeIder(
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
     },
   });
 
@@ -208,7 +223,8 @@ export async function verifiserFaggruppeTilhorighet(
   const kobling = await prisma.faggruppeKobling.findFirst({
     where: {
       faggruppeId,
-      projectMember: { userId },
+      ...aktivtMedlemWhere,
+      projectMember: { userId, ...aktivtMedlemWhere },
     },
   });
 
@@ -219,13 +235,8 @@ export async function verifiserFaggruppeTilhorighet(
       select: { projectId: true },
     });
     if (faggruppe) {
-      const medlem = await prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: {
-            userId,
-            projectId: faggruppe.projectId,
-          },
-        },
+      const medlem = await prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(userId, faggruppe.projectId),
       });
       if (medlem?.role === "admin") return;
 
@@ -518,11 +529,12 @@ export async function erHmsAdmin(
   userId: string,
   projectId: string,
 ): Promise<boolean> {
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     select: {
       role: true,
       groupMemberships: {
+        where: aktivtMedlemWhere,
         select: { group: { select: { domains: true } } },
       },
     },
@@ -594,6 +606,20 @@ export async function verifiserHmsHandling(
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
   const erÅpenBehandling = status === "sent" || status === "received" || status === "responded";
+
+  // L2: melderens handlinger krever aktivt prosjektmedlemskap (firma-admin uten rad slipper
+  // som før). Lesing av egen melding er uberørt — den følger melder-prinsippet i hms.ts.
+  // Behandler-handlingene under går via erHmsAdmin, som selv slår opp aktivt medlem.
+  if (
+    (handling === "tilfoyInformasjon" || handling === "sendInn") &&
+    !(await hentAktivtProsjektmedlem(userId, projectId)) &&
+    !(await erFirmaAdminForProsjekt(userId, projectId))
+  ) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Du er ikke lenger medlem av dette prosjektet",
+    });
+  }
 
   if (handling === "tilfoyInformasjon") {
     if (bestillerUserId === userId && erÅpenBehandling) {
@@ -667,8 +693,8 @@ export async function verifiserAdmin(
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
   });
 
   if (medlem?.role === "admin") return;
@@ -727,8 +753,8 @@ export async function verifiserProsjektmedlem(
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
   });
 
   if (medlem) return;
@@ -939,8 +965,8 @@ export async function hentProsjektRolleNivaa(
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
   });
 
   if (medlem?.role === "admin") return { erAdmin: true, erFirmaansvarlig: false };
@@ -975,13 +1001,13 @@ export async function erGruppeansvarlig(
   projectId: string,
   groupId: string,
 ): Promise<boolean> {
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     select: { id: true },
   });
   if (!medlem) return false;
   const gm = await prisma.projectGroupMember.findFirst({
-    where: { groupId, projectMemberId: medlem.id, isAdmin: true },
+    where: { groupId, projectMemberId: medlem.id, isAdmin: true, ...aktivtMedlemWhere },
     select: { id: true },
   });
   return !!gm;
@@ -1015,11 +1041,12 @@ export async function verifiserDokumentTilgang(
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
       groupMemberships: {
+        where: aktivtMedlemWhere,
         include: {
           group: {
             include: {
@@ -1075,7 +1102,7 @@ export async function verifiserDokumentTilgang(
     const brukerOrgId = await hentBrukersOrg(userId);
     if (brukerOrgId) {
       firmaUserIder = (await prisma.organizationMember.findMany({
-        where: { organizationId: brukerOrgId },
+        where: aktivAnsattIFirmaWhere(brukerOrgId),
         select: { userId: true },
       })).map((m) => m.userId);
 
@@ -1167,11 +1194,11 @@ export async function verifiserDokumentTilgang(
  */
 export async function byggFlytBruker(userId: string, projectId: string): Promise<FlytBruker> {
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
-      groupMemberships: { select: { groupId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
+      groupMemberships: { where: aktivtMedlemWhere, select: { groupId: true } },
     },
   });
   return {
@@ -1202,11 +1229,11 @@ export async function verifiserRetningsrett(
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
-      groupMemberships: { select: { groupId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
+      groupMemberships: { where: aktivtMedlemWhere, select: { groupId: true } },
     },
   });
   if (!medlem) {
@@ -1292,12 +1319,12 @@ export async function hentBrukersFlytMedlemskap(
   userId: string,
   projectId: string,
 ): Promise<string[]> {
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     select: {
       id: true,
-      faggruppeKoblinger: { select: { faggruppeId: true } },
-      groupMemberships: { select: { groupId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
+      groupMemberships: { where: aktivtMedlemWhere, select: { groupId: true } },
     },
   });
   if (!medlem) return [];
@@ -1322,12 +1349,12 @@ export async function hentBrukersOpprettFlytMedlemskap(
   userId: string,
   projectId: string,
 ): Promise<string[]> {
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     select: {
       id: true,
-      faggruppeKoblinger: { select: { faggruppeId: true } },
-      groupMemberships: { select: { groupId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
+      groupMemberships: { where: aktivtMedlemWhere, select: { groupId: true } },
     },
   });
   if (!medlem) return [];
@@ -1356,11 +1383,12 @@ export async function byggTilgangsFilter(
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
       groupMemberships: {
+        where: aktivtMedlemWhere,
         include: {
           group: {
             include: {
@@ -1390,7 +1418,7 @@ export async function byggTilgangsFilter(
     const brukerOrgId = await hentBrukersOrg(userId);
     if (brukerOrgId) {
       const firmaUserIder = (await prisma.organizationMember.findMany({
-        where: { organizationId: brukerOrgId },
+        where: aktivAnsattIFirmaWhere(brukerOrgId),
         select: { userId: true },
       })).map((m) => m.userId);
 
@@ -1414,8 +1442,14 @@ export async function byggTilgangsFilter(
   // rettighetsutvidelse — begge grupper kan allerede åpne dokumentet via detalj-
   // gaten; dette gjør bare lista konsistent. HMS-lista AND-er dessuten
   // byggHmsSynlighetsFilter på toppen (uendret).
-  orBetingelser.push({ bestillerUserId: userId });
-  orBetingelser.push({ recipientUserId: userId });
+  // B4 (L2, 2026-11-05): grenen gjelder bare dokumenter uten flyt (+ HMS-melder). Dokumenter
+  // MED flyt nås via flyt-medlemskapet under — fjernet fra flyten = borte fra lista, som i
+  // avgjorDokumentTilgang (erPart && (ingen flyt || i flyten || HMS-melder)).
+  orBetingelser.push({
+    bestillerUserId: userId,
+    OR: [{ dokumentflytId: null }, { template: { domain: "hms" } }],
+  });
+  orBetingelser.push({ recipientUserId: userId, dokumentflytId: null });
 
   // Direkte faggruppe-tilgang (alle domener)
   const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
@@ -1497,10 +1531,11 @@ export async function hentBrukerTillatelser(
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
       groupMemberships: {
+        where: aktivtMedlemWhere,
         include: {
           group: { select: { permissions: true } },
         },
@@ -1790,11 +1825,11 @@ export async function hentBrukerProsjektTilgang(
     await krevAktivAnsettelse(userId, projectId);
     await verifiserProsjektIkkeFrosset(userId, projectId);
   }
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
-      groupMemberships: { select: { groupId: true } },
+      faggruppeKoblinger: { where: aktivtMedlemWhere, select: { faggruppeId: true } },
+      groupMemberships: { where: aktivtMedlemWhere, select: { groupId: true } },
     },
   });
   if (!medlem) {

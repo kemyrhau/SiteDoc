@@ -20,6 +20,7 @@ import {
   hentBrukersFlytMedlemskap,
   hentBrukersOpprettFlytMedlemskap,
   autoriserAdminForFirma,
+  aktivtMedlemWhere,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -382,6 +383,7 @@ export const medlemRouter = router({
               projectMemberId: projectMember.id,
               rolle: binding.rolle,
               steg: binding.steg,
+              ...aktivtMedlemWhere,
             },
             select: { id: true },
           });

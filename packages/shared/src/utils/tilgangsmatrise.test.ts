@@ -66,9 +66,15 @@ function avgjorDokumentTilgangReferanse(f: TilgangsFakta): TilgangsResultat {
 
   // :573–580 — innsender/mottaker: bruker er bestiller eller direkte mottaker
   if (harParter) {
-    if (
+    // B4 (L2, Kenneth-vedtak 2026-11-05) — BEVISST endring av referansen: grenen krever
+    // aktivt flytmedlemskap, unntatt dokument uten flyt og HMS-melder.
+    const erPart =
       (f.bestillerUserId && f.bestillerUserId === f.userId) ||
-      (f.recipientUserId && f.recipientUserId === f.userId)
+      (f.recipientUserId && f.recipientUserId === f.userId);
+    const erHmsMelder = f.templateDomain === "hms" && f.bestillerUserId === f.userId;
+    if (
+      erPart &&
+      (!f.dokumentflytId || f.flytIder.includes(f.dokumentflytId) || erHmsMelder)
     ) {
       return { tillat: true, grunn: "innsender-mottaker" };
     }
@@ -381,6 +387,75 @@ export const MATRISE: MatriseRad[] = [
   {
     navn: "privat HMS uten annen tilgang → avvis",
     fakta: fakta({ templateDomain: "hms", templateHmsSynlighet: "skjult" }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+
+  // — L2: tilgang følger aktivt medlemskap (Kenneth B1–B10, 2026-11-05) ———————
+  // Avsluttede rader (periodeSlutt satt) filtreres bort i datalaget
+  // (aktivtProsjektmedlemWhere / aktivtMedlemWhere i tilgangskontroll.ts) — her er de fraværende.
+  {
+    navn: "L2: fjernet fra flyt (flytId ikke i flytIder), ingen annen binding → avvis",
+    fakta: fakta({ harDokument: true, dokumentflytId: "flyt-1", flytIder: [] }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "L2: avsluttet prosjektmedlem (ingen aktiv ProjectMember-rad) → avvis, også eget dokument",
+    fakta: fakta({ erMedlem: false, harDokument: true, bestillerUserId: "u-selv" }),
+    forventet: { tillat: false, grunn: "ikke-medlem" },
+  },
+  {
+    navn: "L2: fjernet fra faggruppe (avsluttet kobling fraværende) → avvis",
+    fakta: fakta({ harDokument: true, bestillerFaggruppeId: "fg-1", direkteFaggruppeIder: [] }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "L2: fjernet fra gruppe (avsluttet gruppemedlemskap fraværende) → avvis",
+    fakta: fakta({ harDokument: true, templateDomain: "bygg", gruppeMedlemskap: [] }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "L2: HMS-melder etter fjerning fra flyten → beholder tilgang (melder-prinsippet)",
+    fakta: fakta({
+      harDokument: true,
+      bestillerUserId: "u-selv",
+      dokumentflytId: "flyt-hms",
+      flytIder: [],
+      templateDomain: "hms",
+      templateHmsSynlighet: "skjult",
+    }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "L2: dokument uten flyt, egen innsending → beholder tilgang",
+    fakta: fakta({ harDokument: true, bestillerUserId: "u-selv", dokumentflytId: null, flytIder: [] }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "🔴 L2 B4: innsender etter flytfjerning → mister tilgang",
+    fakta: fakta({ harDokument: true, bestillerUserId: "u-selv", dokumentflytId: "flyt-1", flytIder: [] }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "🔴 L2 B4: mottaker etter flytfjerning → mister tilgang",
+    fakta: fakta({ harDokument: true, recipientUserId: "u-selv", dokumentflytId: "flyt-1", flytIder: [] }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "L2 B4: innsender som fortsatt står i flyten → tillat via innsender-grenen",
+    fakta: fakta({ harDokument: true, bestillerUserId: "u-selv", dokumentflytId: "flyt-1", flytIder: ["flyt-1"] }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "L2 B4: HMS-mottaker (ikke melder) etter flytfjerning → mister tilgang",
+    fakta: fakta({
+      harDokument: true,
+      recipientUserId: "u-selv",
+      bestillerUserId: "u-annen",
+      dokumentflytId: "flyt-hms",
+      flytIder: [],
+      templateDomain: "hms",
+      templateHmsSynlighet: "skjult",
+    }),
     forventet: { tillat: false, grunn: "ingen-tilgang" },
   },
 

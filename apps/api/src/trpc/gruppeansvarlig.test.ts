@@ -19,7 +19,8 @@ const groupMemberFindFirst = vi.fn();
 
 vi.mock("@sitedoc/db", () => ({
   prisma: {
-    projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
+    // L2: tilgangsportene slår opp aktivt medlem med findFirst (aktivtProsjektmedlemWhere).
+    projectMember: { findFirst: (...a: unknown[]) => memberFindUnique(...a) },
     projectGroupMember: { findFirst: (...a: unknown[]) => groupMemberFindFirst(...a) },
   },
 }));
