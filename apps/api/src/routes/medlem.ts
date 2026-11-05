@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@sitedoc/db";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
@@ -15,6 +16,11 @@ import {
   gjenapneEllerOpprettProsjektmedlem,
   loggMedlemsendring,
 } from "../services/prosjektmedlemskap";
+import {
+  avsluttMedlemskapForPerson,
+  gjenapneMedlemskapFraPayload,
+  lesDeaktiveringsPayload,
+} from "../services/ansattDeaktivering";
 import {
   verifiserAdmin,
   verifiserAdminEllerFirmaansvarlig,
@@ -749,11 +755,22 @@ export const medlemRouter = router({
       }
       const harTil = await ctx.prisma.organizationMember.findUnique({
         where: { userId_organizationId: { userId, organizationId: input.tilOrganizationId } },
-        select: { id: true },
+        select: { id: true, status: true },
       });
+      const aktor = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
 
       await ctx.prisma.$transaction(async (tx) => {
+        let action: string;
+        let payload: Prisma.InputJsonValue;
         if (input.modus === "feilregistrering") {
+          // Feilregistrering: personen var aldri i fra-firmaet — ingen ansettelse å avslutte,
+          // og prosjektmedlemskapene røres ikke (ved tvil avsluttes ingenting).
+          action = "ansatt_firma_rettet";
+          payload = {
+            targetUserId: userId,
+            fraOrganizationId: input.fraOrganizationId,
+            tilOrganizationId: input.tilOrganizationId,
+          };
           // Erstatt: raden var feil. Har personen alt en rad i til-firmaet, fjern den
           // FEILFØRTE raden (unik (userId, organizationId) tillater ikke to rader — og
           // den riktige finnes alt). Ellers flytt raden til riktig firma, reaktiver.
@@ -782,7 +799,45 @@ export const medlemRouter = router({
             create: { userId, organizationId: input.tilOrganizationId, ansattRolle: "ansatt", firmaRoller: [] },
             update: { status: "aktiv", deaktivertVed: null, deaktivertAvUserId: null },
           });
+
+          // L3: firmabytte = deaktivering i fra-firmaet. Medlemskapene i fra-firmaets
+          // prosjekter avsluttes med Kenneths vilkår — prosjekter der til-firmaet er eier
+          // eller deltaker skånes (a). Var personen tidligere deaktivert i til-firmaet,
+          // gjenåpnes radene fra den deaktiveringen, som ved settAnsattStatus(aktiv).
+          let gjenapnetITil: Awaited<ReturnType<typeof gjenapneMedlemskapFraPayload>> | null = null;
+          if (harTil?.status === "deaktivert") {
+            const siste = await tx.activity.findFirst({
+              where: { targetType: "organization_member", targetId: harTil.id, action: "ansatt_deaktivert" },
+              orderBy: { createdAt: "desc" },
+              select: { payload: true },
+            });
+            const forrige = lesDeaktiveringsPayload(siste?.payload);
+            if (forrige) gjenapnetITil = await gjenapneMedlemskapFraPayload(tx, forrige);
+          }
+          const avsluttet = await avsluttMedlemskapForPerson(tx, { userId, organizationId: input.fraOrganizationId });
+          action = "ansatt_deaktivert";
+          payload = {
+            ...avsluttet,
+            aarsak: "firmabytte",
+            tilOrganizationId: input.tilOrganizationId,
+            ...(gjenapnetITil ? { gjenapnetITil } : {}),
+          } as unknown as Prisma.InputJsonValue;
         }
+
+        await tx.activity.create({
+          data: {
+            actorUserId: ctx.userId,
+            actorNavnSnapshot: aktor?.name ?? null,
+            organizationId: input.fraOrganizationId,
+            projectId: input.projectId,
+            targetType: "organization_member",
+            targetId: fraMedlemskap.id,
+            action,
+            payload,
+            ipAddress: ctx.ipAddress,
+            userAgent: ctx.userAgent,
+          },
+        });
       });
 
       return { ok: true };

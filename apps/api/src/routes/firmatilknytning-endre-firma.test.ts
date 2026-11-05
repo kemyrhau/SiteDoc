@@ -24,9 +24,16 @@ vi.mock("../trpc/tilgangskontroll", () => ({
 
 vi.mock("@sitedoc/db", () => ({ prisma: {} }));
 vi.mock("../services/epost", () => ({ sendInvitasjonsEpost: vi.fn() }));
+// L3: selve avslutningen testes mot minne-Prisma i services/ansattDeaktivering.test.ts.
+vi.mock("../services/ansattDeaktivering", () => ({
+  avsluttMedlemskapForPerson: vi.fn().mockResolvedValue({ prosjekter: [], hoppetOver: [] }),
+  gjenapneMedlemskapFraPayload: vi.fn(),
+  lesDeaktiveringsPayload: vi.fn().mockReturnValue(null),
+}));
 
 import { medlemRouter } from "./medlem";
 import { verifiserAdmin, autoriserAdminForFirma } from "../trpc/tilgangskontroll";
+import { avsluttMedlemskapForPerson } from "../services/ansattDeaktivering";
 
 const PROSJEKT = "11111111-1111-1111-1111-111111111111";
 const MEDLEM = "22222222-2222-2222-2222-222222222222";
@@ -55,7 +62,11 @@ function lagPrisma(opts: {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ id: MEDLEM, userId: BRUKER, projectId: PROSJEKT }),
     },
     organization: { findUnique: orgFindUnique },
-    user: { findUniqueOrThrow: vi.fn().mockResolvedValue({ role: rolle }) },
+    user: {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ role: rolle }),
+      findUnique: vi.fn().mockResolvedValue({ name: "Kaller" }),
+    },
+    activity: { create: vi.fn().mockResolvedValue({}), findFirst: vi.fn().mockResolvedValue(null) },
     organizationMember: {
       findUnique: omFindUnique,
       update: vi.fn().mockResolvedValue({}),
@@ -130,6 +141,11 @@ describe("medlem.endreFirma — de to hendelsene", () => {
       data: { status: "deaktivert" },
     });
     expect(om.upsert).toHaveBeenCalledOnce();
+    // L3: medlemskapene i fra-firmaets prosjekter avsluttes, og hendelsen logges.
+    expect(avsluttMedlemskapForPerson).toHaveBeenCalledWith(p, { userId: BRUKER, organizationId: FRA });
+    expect((p.activity as { create: ReturnType<typeof vi.fn> }).create.mock.calls[0]![0]).toMatchObject({
+      data: { action: "ansatt_deaktivert", targetId: "om-fra", organizationId: FRA },
+    });
   });
 
   it("feilregistrering uten til-rad → gammel rad FLYTTES til nytt firma (samme id)", async () => {
@@ -142,6 +158,11 @@ describe("medlem.endreFirma — de to hendelsene", () => {
       data: { organizationId: TIL, status: "aktiv" },
     });
     expect(om.delete).not.toHaveBeenCalled();
+    // Feilregistrering avslutter ingen prosjektmedlemskap (ved tvil avsluttes ingenting).
+    expect(avsluttMedlemskapForPerson).not.toHaveBeenCalled();
+    expect((p.activity as { create: ReturnType<typeof vi.fn> }).create.mock.calls[0]![0]).toMatchObject({
+      data: { action: "ansatt_firma_rettet" },
+    });
   });
 
   it("feilregistrering NÅR til-rad finnes → feilført rad slettes (unngår duplikat)", async () => {

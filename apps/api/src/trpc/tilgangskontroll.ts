@@ -45,8 +45,11 @@ export async function erSiteDocAdmin(userId: string | null): Promise<boolean> {
  * Nekt prosjekttilgang når brukerens ansettelse i prosjektets EIER-firma er
  * deaktivert (registreringsmodell fase 1, 2026-08-28).
  *
- * Deaktivering er ÉN reversibel fakta på `OrganizationMember.status`, lest ved
- * porten — ikke N `periodeSlutt`-skrivinger. Kalles i hver prosjekt-port ETTER
+ * Hybrid (L3, ordre 2026-11-05 (6)): `OrganizationMember.status` er PORTEN — den eneste
+ * sannheten tilgangen avgjøres på. `periodeSlutt` på personens medlemskap i firmaets
+ * prosjekter SPEILER den (settAnsattStatus/endreFirma → services/ansattDeaktivering.ts,
+ * med Kenneths vilkår for personer ansatt i et annet firma), slik at flytoppsett, lister og
+ * historikk ser det samme. Reaktivering gjenåpner radene fra Activity-payloaden. Kalles i hver prosjekt-port ETTER
  * sitedoc_admin-bypass (som beholder tilgang) men FØR firma-admin-bypass (en
  * deaktivert firma_admin skal ikke slippe inn via erFirmaAdminForProsjekt).
  *
@@ -93,10 +96,11 @@ export async function krevAktivAnsettelse(
 /**
  * Org-ID-ene der brukeren har en DEAKTIVERT ansettelse (registreringsmodell fase 1).
  *
- * Prosjekt-lister scoper på ProjectMember-eksistens, og de radene ryddes bevisst
- * IKKE ved deaktivering. Uten dette ville en deaktivert ansatt fortsatt SE (men ikke
- * kunne åpne) sine gamle prosjekter — lista må derfor ekskludere prosjekter eid av
- * en org der ansettelsen er deaktivert. Guest-tilgang på annet firmas prosjekt (ingen
+ * Prosjekt-lister scoper på aktivt ProjectMember. Deaktivering avslutter radene i
+ * firmaets prosjekter (L3), men skåner rader etter Kenneths vilkår (annet aktivt firma
+ * deltar / lagt til etter ny ansettelse) — og eldre deaktiveringer (før L3) har ingen
+ * avsluttede rader. Status er porten, så lista må fortsatt ekskludere prosjekter eid av
+ * en org der ansettelsen er deaktivert (hentAlle, hentSistBrukte og hentMine). Guest-tilgang på annet firmas prosjekt (ingen
  * OrganizationMember-rad i eier-org) er upåvirket.
  */
 export async function hentDeaktiverteOrgIder(userId: string): Promise<string[]> {

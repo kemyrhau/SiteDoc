@@ -60,8 +60,11 @@ await verifiserTillatelse(ctx.userId, projectId, "manage_field");
 
 ## Ansettelses-guard (registreringsmodell fase 1, 2026-08-28)
 
-Deaktivering av en ansatt er ÉN reversibel fakta på `OrganizationMember.status`
-(`"aktiv"` | `"deaktivert"`), lest **ved porten** — ikke N `periodeSlutt`-skrivinger.
+Deaktivering av en ansatt er **hybrid** (L3, ordre 2026-11-05 (6)): `OrganizationMember.status`
+(`"aktiv"` | `"deaktivert"`) er **porten** og avgjør tilgangen. `periodeSlutt` på personens
+medlemskap i firmaets prosjekter **speiler** den — skrevet av `settAnsattStatus`/`endreFirma`
+via `services/ansattDeaktivering.ts` (vilkår for annet aktivt firma, payload i Activity,
+reaktivering gjenåpner de samme radene).
 
 - `krevAktivAnsettelse(userId, projectId)` — kaster FORBIDDEN når brukeren er ansatt
   i prosjektets **eier-firma** (`Project.primaryOrganizationId`) og status er
@@ -72,9 +75,9 @@ Deaktivering av en ansatt er ÉN reversibel fakta på `OrganizationMember.status
 - `hentBrukersOrg` filtrerer på `status:"aktiv"` → dekker hele firma-nivå-medlemsveien
   (inkl. timeføring via `krevBrukersOrg`) på én linje. Bonus: løser multi-org rent til
   det aktive firmaet.
-- `hentDeaktiverteOrgIder(userId)` — brukt av `prosjekt.hentAlle`/`hentSistBrukte` for å
-  skjule prosjekter eid av org der ansettelsen er deaktivert (ProjectMember-radene
-  ryddes bevisst ikke, så member-scopet ville ellers vist ikke-åpnbare prosjekter).
+- `hentDeaktiverteOrgIder(userId)` — brukt av `prosjekt.hentAlle`/`hentSistBrukte`/`hentMine` for å
+  skjule prosjekter eid av org der ansettelsen er deaktivert (rader skånet av vilkåret
+  og deaktiveringer fra før L3 står åpne, så member-scopet ville ellers vist ikke-åpnbare prosjekter).
 - Deaktivering-mutasjon: `organisasjon.settAnsattStatus` (firmaadmin-only, lockout-guard
   på egen rad, sitedoc_admin skjermet). Varig spor i `Activity` (`action:
   "ansatt_deaktivert"|"ansatt_aktivert"`, `targetType:"organization_member"`).
