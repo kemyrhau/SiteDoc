@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "What is time registration?",
   "timer.hjelpBeskrivelse": "Time registration lets employees on the construction site record work hours, overtime, travel time, machine usage, materials and expenses — all collected in one daily timesheet per workday.",
   "timer.hjelpDagsseddel": "The Timesheet",
-  "timer.hjelpDagsseddelTekst": "One timesheet per workday collects everything: work hours are automatically split into normal time and overtime based on the daily norm (7.5h). Supplements like overtime meals, night and weekend supplements are automatically suggested based on rules.",
+  "timer.hjelpDagsseddelTekst": "One timesheet per workday collects everything: work hours are automatically split into normal time and overtime based on the daily norm (7.5h). Supplements like overtime meals, night and weekend supplements are automatically suggested based on rules. Each hour and machine row can be linked to a site location on the project; the site location selected in the top bar is preselected, and the choice can be cleared.",
   "timer.hjelpGodkjenning": "Approval",
   "timer.hjelpGodkjenningTekst": "The manager sees all employees' timesheets and approves or rejects. Approved timesheets cannot be modified. Expenses with receipt photos are approved simultaneously.",
   "timer.hjelpEksport": "Export",

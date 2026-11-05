@@ -22,6 +22,7 @@ import {
   maksForSatsEnhet,
   takFeilmelding,
 } from "./rad-tak";
+import { krevByggeplassIProsjekt } from "./byggeplass-rad";
 import {
   hentErReiseKontekst,
   hentErReiseForLonnsarter,
@@ -2008,6 +2009,8 @@ export const dagsseddelRouter = router({
 
       // Fase 1b: firma-grense på rad-projectId (lukker cross-firma-lekkasje).
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      // Ordre (10): byggeplassen må høre til radens prosjekt.
+      await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
 
       // §2.D: vehicleId (maskinvedlikehold-kostnadsbærer) må tilhøre firmaet.
       if (input.vehicleId) {
@@ -2119,6 +2122,9 @@ export const dagsseddelRouter = router({
         tilTid: z.string().nullable().optional(),
         // V20/PK3: radens matpause (se tilfoyTimerRad).
         pauseMin: z.number().int().min(0).optional(),
+        // Ordre (10): byggeplass per rad. Utelatt = urørt (web sender kun ved
+        // endring, så mobilens byggeplass overskrives ikke); null = tøm.
+        byggeplassId: z.string().uuid().nullable().optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2191,6 +2197,11 @@ export const dagsseddelRouter = router({
       }
       if (input.fraTid !== undefined) data.fraTid = input.fraTid;
       if (input.tilTid !== undefined) data.tilTid = input.tilTid;
+      if (input.byggeplassId !== undefined) {
+        // Ordre (10): mot radens prosjekt — projectId endres ikke her.
+        await krevByggeplassIProsjekt(input.byggeplassId, rad.projectId);
+        data.byggeplassId = input.byggeplassId;
+      }
 
       // T7-4b: valider post-state. Reduksjon av timer eller flytting til
       // annen ECO kan få maskin-totalen til å overstige.
@@ -7088,6 +7099,8 @@ export const dagsseddelRouter = router({
         // §2.D: vehicleId (maskin-kostnadsbærer) må tilhøre firmaet. Svak FK
         // mot Equipment (db-maskin) → org-isolasjon håndheves i app-lag.
         await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
+        // Ordre (10): byggeplassen må høre til radens prosjekt.
+        await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
 
         // T7-4b: valider post-state.
         const naa = await hentRaderForValidering(
@@ -7145,6 +7158,8 @@ export const dagsseddelRouter = router({
           // var glemt. Symmetri med SheetTimer.oppdater (T.4 PR 2).
           fraTid: z.string().nullable().optional(),
           tilTid: z.string().nullable().optional(),
+          // Ordre (10): som oppdaterTimerRad — utelatt = urørt, null = tøm.
+          byggeplassId: z.string().uuid().nullable().optional(),
         }).superRefine(refineFraForTil),
       )
       .mutation(async ({ ctx, input }) => {
@@ -7182,6 +7197,10 @@ export const dagsseddelRouter = router({
         }
         if (input.fraTid !== undefined) data.fraTid = input.fraTid;
         if (input.tilTid !== undefined) data.tilTid = input.tilTid;
+        if (input.byggeplassId !== undefined) {
+          await krevByggeplassIProsjekt(input.byggeplassId, rad.projectId);
+          data.byggeplassId = input.byggeplassId;
+        }
 
         // T7-4b: valider post-state. Endring av timer eller ECO på maskin
         // kan bryte sum(maskin) ≤ sum(timer)-invariant.

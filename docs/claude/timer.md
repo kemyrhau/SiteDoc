@@ -995,6 +995,26 @@ EXISTS` i `migreringer.ts`). Speiler tillegg-mønsteret tett.
 - Attesteres samtidig med dagsseddelen — ikke egen godkjenningsflyt. **Attestering
   ≠ godkjenning** (CLAUDE.md, låst 2026-04-26).
 
+## Byggeplass per rad (web) — ordre (10)
+
+**Status:** implementert på `feat/web-timer-byggeplass` (2026-11-05), ikke merget. Hjemmel Kenneth 05.11.
+
+Timer- og maskinrader i web-dagsseddelen (`apps/web/src/app/dashbord/timer/[id]/page.tsx`, `TimerRadDialog` + `MaskinRadDialog`) har et adaptivt byggeplassfelt rett etter prosjekt-/maskinvelgeren (`apps/web/src/components/timer/RadByggeplassFelt.tsx`):
+
+- **0 byggeplasser** på radens prosjekt → feltet er skjult.
+- **1 byggeplass** → settes automatisk og vises som tekst.
+- **≥ 2** → nedtrekk med «Ingen byggeplass» + kandidatene.
+
+**Forhåndsvalg (ny rad):** toppbarens byggeplass (`useByggeplass().aktivByggeplass`) hvis den hører til radens prosjekt, ellers tomt; valget kan tømmes. **Prosjektbytte** i dialogen nullstiller en byggeplass som ikke hører til det nye prosjektet. Regelen er ren logikk i `apps/web/src/lib/timerByggeplass.ts` (`velgStandardByggeplass`, `byggeplasserForProsjekt`). Kandidatene hentes med `bygning.hentForFirma` (tilgjengelig for arbeidere).
+
+**Radlinja** viser byggeplassnavnet bak radtypen, f.eks. «Prosjekttimer · Lab 16».
+
+**Server:** `tilfoyTimerRad`, `oppdaterTimerRad`, `maskin.tilfoy` og `maskin.oppdater` validerer `byggeplassId` mot **radens** `projectId` via `krevByggeplassIProsjekt` (`apps/api/src/routes/timer/byggeplass-rad.ts`) → `BAD_REQUEST` ellers. `null`/utelatt er gyldig (A.30). Oppdatering: utelatt = urørt, `null` = tøm.
+
+**Bakoverkompatibilitet:** redigering sender `byggeplassId` bare når brukeren har endret feltet, så en verdi mobilen har satt overskrives ikke. Mobil-synk (`syncBatch`) og attestering (`redigerSedelRader`) er urørt. Ingen skjemaendring, ingen GPS i web. Erstatter BACKLOG ⑤ på rad-nivå; toppbar-velgeren i prosjekt-timerlista er fortsatt av.
+
+**Tester:** `apps/api/src/routes/timer/byggeplass-rad.test.ts` (4 🔴 avvisning + 2 hjelper), `apps/web/src/lib/__tests__/timerByggeplass.test.ts` (5, 3 🔴).
+
 ## Hjelpetekster (?-ikonet) — alle timer-sider
 
 Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side i SiteDoc ha hjelpetekst tilgjengelig via ?-ikonet øverst til høyre. For timer-modulen gjelder dette ALLE sider — bygges samtidig med siden, oppdateres når siden endres.
@@ -1003,7 +1023,7 @@ Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side
 
 | Side | Hjelpetekst skal dekke |
 |------|------------------------|
-| `/timer/min-tid` (dagsseddel) | Hva er en dagsseddel, lønnsart-valg, hvordan koble til Underprosjekt, signering |
+| `/timer/min-tid` (dagsseddel) | Hva er en dagsseddel, lønnsart-valg, hvordan koble til Underprosjekt, signering, byggeplass per rad (forhåndsvalgt fra toppbaren, kan tømmes) |
 | `/timer/oppsett/underprosjekter` | Hva er Underprosjekt, forskjell mellom Proadm-importert vs. SiteDoc-avledet, åpen/lukket-status |
 | `/timer/oppsett/lonnsarter` | Hva er en lønnsart, kobling til Poweroffice-kode, fravær-flag |
 | `/timer/oppsett/tillegg` | Skifttillegg, beredskap, automatiske vs. manuelle tillegg |

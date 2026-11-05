@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Çfarë është regjistrimi në kohë?",
   "timer.hjelpBeskrivelse": "Regjistrimi në kohë i lejon punonjësit në kantierin e ndërtimit të regjistrojnë orët e punës, orarin jashtë orarit, kohën e udhëtimit, përdorimin e makinerive, materialet dhe shpenzimet — të gjitha të mbledhura në një fletë kohore ditore për ditë pune.",
   "timer.hjelpDagsseddel": "Fleta kohore",
-  "timer.hjelpDagsseddelTekst": "Një fletë orare për ditë pune mbledh gjithçka: orët e punës ndahen automatikisht në kohë normale dhe jashtë orarit bazuar në normën ditore (7,5 orë). Suplementet si vaktet jashtë orarit, suplementet e natës dhe të fundjavës sugjerohen automatikisht bazuar në rregulla.",
+  "timer.hjelpDagsseddelTekst": "Një fletë orare për ditë pune mbledh gjithçka: orët e punës ndahen automatikisht në kohë normale dhe jashtë orarit bazuar në normën ditore (7,5 orë). Suplementet si vaktet jashtë orarit, suplementet e natës dhe të fundjavës sugjerohen automatikisht bazuar në rregulla. Çdo orë dhe rresht makinerie mund të lidhet me një vendndodhje në projekt; vendndodhja e faqes së zgjedhur në shiritin e sipërm është parazgjedhur dhe zgjedhja mund të pastrohet.",
   "timer.hjelpGodkjenning": "Miratimi",
   "timer.hjelpGodkjenningTekst": "Menaxheri sheh të gjitha fletët e punës së punonjësve dhe miraton ose refuzon. Fletët kohore të miratuara nuk mund të modifikohen. Shpenzimet me foto dëftese miratohen njëkohësisht.",
   "timer.hjelpEksport": "Eksporto",

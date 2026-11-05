@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Qu'est-ce que l'enregistrement du temps ?",
   "timer.hjelpBeskrivelse": "L'enregistrement du temps permet aux employés sur le chantier d'enregistrer les heures de travail, les heures supplémentaires, le temps de déplacement, l'utilisation des machines, les matériaux et les dépenses, le tout collecté dans une feuille de temps quotidienne par jour de travail.",
   "timer.hjelpDagsseddel": "La feuille de temps",
-  "timer.hjelpDagsseddelTekst": "One timesheet per workday collects everything: work hours are automatically split into normal time and overtime based on the daily norm (7.5h). Les suppléments tels que les repas supplémentaires, les suppléments de nuit et de week-end sont automatiquement suggérés en fonction de règles.",
+  "timer.hjelpDagsseddelTekst": "Une feuille de temps par journée de travail rassemble tout : les heures de travail sont automatiquement réparties entre temps normal et heures supplémentaires sur la base de la norme journalière (7h30). Les suppléments tels que les repas supplémentaires, les suppléments de nuit et de week-end sont automatiquement suggérés en fonction de règles. Chaque ligne d'heure et de machine peut être liée à un emplacement de site sur le projet ; l'emplacement du site sélectionné dans la barre supérieure est présélectionné et le choix peut être effacé.",
   "timer.hjelpGodkjenning": "Approbation",
   "timer.hjelpGodkjenningTekst": "Le responsable voit les feuilles de temps de tous les employés et approuve ou rejette. Les feuilles de temps approuvées ne peuvent pas être modifiées. Les dépenses avec photos du reçu sont approuvées simultanément.",
   "timer.hjelpEksport": "Exporter",

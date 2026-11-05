@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Mis on aja registreerimine?",
   "timer.hjelpBeskrivelse": "Aja registreerimine võimaldab töötajatel ehitusplatsil registreerida töötunde, ületunde, sõiduaega, masinakasutust, materjale ja kulusid – kõik see kogutakse ühele igapäevasele tööajalehele tööpäeva kohta.",
   "timer.hjelpDagsseddel": "Tööajatabel",
-  "timer.hjelpDagsseddelTekst": "Ühele tööajalehele tööpäeva kohta kogutakse kõik: töötunnid jagunevad päevanormi (7,5h) alusel automaatselt normaalajaks ja ületundideks. Reeglite alusel soovitatakse automaatselt toidulisandeid, nagu ületunnid, õhtused ja nädalavahetuse toidulisandid.",
+  "timer.hjelpDagsseddelTekst": "Tööpäeva kohta üks töötunnitabel kogub kõik: töötunnid jagunevad automaatselt normaal- ja ületundideks päevanormi (7,5h) alusel. Reeglite alusel soovitatakse automaatselt toidulisandeid, nagu ületunnid, õhtused ja nädalavahetuse toidulisandid. Iga tunni ja masinarea saab linkida projekti saidi asukohaga; ülemisel ribal valitud saidi asukoht on eelvalitud ja valiku saab tühistada.",
   "timer.hjelpGodkjenning": "Heakskiit",
   "timer.hjelpGodkjenningTekst": "Juht näeb kõigi töötajate tööaja tabeleid ja kiidab heaks või lükkab tagasi. Heakskiidetud ajatabeleid ei saa muuta. Kviitungifotodega kulud kinnitatakse samaaegselt.",
   "timer.hjelpEksport": "Ekspordi",

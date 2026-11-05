@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Kas ir laika reģistrācija?",
   "timer.hjelpBeskrivelse": "Laika reģistrēšana ļauj darbiniekiem būvlaukumā reģistrēt darba stundas, virsstundas, brauciena laiku, mašīnu izmantošanu, materiālus un izdevumus — tas viss tiek apkopots vienā darba laika uzskaitē par katru darba dienu.",
   "timer.hjelpDagsseddel": "Darba laika uzskaite",
-  "timer.hjelpDagsseddelTekst": "Viena darba laika uzskaite katru darba dienu apkopo visu: darba stundas tiek automātiski sadalītas parastajā laikā un virsstundās, pamatojoties uz dienas normu (7,5h). Papildinājumi, piemēram, virsstundu maltītes, nakts un nedēļas nogales piemaksas, tiek automātiski ieteiktas, pamatojoties uz noteikumiem.",
+  "timer.hjelpDagsseddelTekst": "Viena darba laika uzskaite katru darba dienu apkopo visu: darba stundas tiek automātiski sadalītas parastajā laikā un virsstundās, pamatojoties uz dienas normu (7,5h). Papildinājumi, piemēram, virsstundu maltītes, nakts un nedēļas nogales piemaksas, tiek automātiski ieteiktas, pamatojoties uz noteikumiem. Katru stundu un mašīnas rindu var saistīt ar vietas atrašanās vietu projektā; augšējā joslā atlasītā vietnes atrašanās vieta ir iepriekš atlasīta, un izvēli var notīrīt.",
   "timer.hjelpGodkjenning": "Apstiprināšana",
   "timer.hjelpGodkjenningTekst": "Vadītājs redz visu darbinieku darba laika uzskaites tabulas un apstiprina vai noraida. Apstiprinātās laika uzskaites tabulas nevar mainīt. Izdevumi ar čeku fotogrāfijām tiek apstiprināti vienlaicīgi.",
   "timer.hjelpEksport": "Eksportēt",
