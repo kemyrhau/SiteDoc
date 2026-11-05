@@ -1,4 +1,5 @@
 import { prisma } from "@sitedoc/db";
+import { aktivtMedlemWhere, aktivtProsjektmedlemWhere } from "../trpc/tilgangskontroll";
 
 /**
  * Utled senderRolle basert på dokumentstatus og brukerens tillatelser.
@@ -44,7 +45,7 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
   const tillatelser = await prisma.projectGroup.findMany({
     where: {
       projectId: input.projektId,
-      members: { some: { projectMember: { userId: input.senderId } } },
+      members: { some: { ...aktivtMedlemWhere, projectMember: { userId: input.senderId, ...aktivtMedlemWhere } } },
     },
     select: { permissions: true },
   });
@@ -52,8 +53,8 @@ export async function byggTransferSnapshot(input: SnapshotInput): Promise<Transf
   const erRegistrator = alleTillatelser.includes("create_checklists") || alleTillatelser.includes("create_tasks");
 
   // Sjekk om sender er admin
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId: input.senderId, projectId: input.projektId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(input.senderId, input.projektId),
   });
   const bruker = await prisma.user.findUnique({ where: { id: input.senderId }, select: { role: true } });
   const erAdmin = bruker?.role === "sitedoc_admin" || medlem?.role === "admin";

@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Søk navn, e-post eller telefon …",
   "kontakter.ingenKontakter": "Ingen kontakter på prosjektet ennå.",
   "kontakter.ingenTreff": "Ingen kontakter matcher søket.",
+  "kontakter.visTidligere": "Vis tidligere medlemmer",
+  "kontakter.sluttet": "Sluttet {{dato}}",
   "kontakter.utenFaggruppe": "Uten faggruppe",
   "kontakter.rolleAdmin": "Administrator",
   "kontakter.rolleMedlem": "Medlem",

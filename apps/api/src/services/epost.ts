@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import type { PrismaClient } from "@sitedoc/db";
+import { aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 
 let _resend: Resend | null = null;
 
@@ -178,7 +179,8 @@ export async function hentMottakerEposter(
     }
   } else if (opts.recipientGroupId) {
     const gruppemedlemmer = await prisma.projectGroupMember.findMany({
-      where: { groupId: opts.recipientGroupId },
+      // Bare aktive: fjernet fra gruppen eller prosjektet (periodeSlutt satt) får ikke e-post.
+      where: { groupId: opts.recipientGroupId, ...aktivtMedlemWhere, projectMember: aktivtMedlemWhere },
       select: { projectMember: { select: { user: { select: { id: true, email: true } } } } },
     });
     for (const gm of gruppemedlemmer) {

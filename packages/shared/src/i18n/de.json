@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Suchen Sie nach Name, E-Mail oder Telefon …",
   "kontakter.ingenKontakter": "Noch keine Kontakte zum Projekt.",
   "kontakter.ingenTreff": "Keine Kontakte entsprechen Ihrer Suche.",
+  "kontakter.visTidligere": "Ehemalige Mitglieder anzeigen",
+  "kontakter.sluttet": "Beendet {{dato}}",
   "kontakter.utenFaggruppe": "Ohne Disziplingruppe",
   "kontakter.rolleAdmin": "Administratorin",
   "kontakter.rolleMedlem": "Mitglied",

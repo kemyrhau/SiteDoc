@@ -19,6 +19,7 @@ import {
   aktivtMedlemWhere,
   aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
+import { gjenapneEllerOpprettProsjektmedlem, loggMedlemsendring } from "../services/prosjektmedlemskap";
 
 export const gruppeRouter = router({
   // Hent innlogget brukers flyt-info (for utledMinRolle)
@@ -106,10 +107,11 @@ export const gruppeRouter = router({
         };
       }
 
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
         include: {
           groupMemberships: {
+            where: aktivtMedlemWhere,
             include: {
               group: { select: { permissions: true, domains: true } },
             },
@@ -153,11 +155,13 @@ export const gruppeRouter = router({
         where: { projectId: input.projectId },
         include: {
           members: {
+            // Bare aktive gruppemedlemmer hos aktive prosjektmedlemmer (L2b).
+            where: { ...aktivtMedlemWhere, projectMember: aktivtMedlemWhere },
             include: {
               projectMember: {
                 include: {
                   user: true,
-                  faggruppeKoblinger: { include: { faggruppe: true } },
+                  faggruppeKoblinger: { where: aktivtMedlemWhere, include: { faggruppe: true } },
                 },
               },
             },
@@ -266,11 +270,13 @@ export const gruppeRouter = router({
         },
         include: {
           members: {
+            // Bare aktive gruppemedlemmer hos aktive prosjektmedlemmer (L2b).
+            where: { ...aktivtMedlemWhere, projectMember: aktivtMedlemWhere },
             include: {
               projectMember: {
                 include: {
                   user: true,
-                  faggruppeKoblinger: { include: { faggruppe: true } },
+                  faggruppeKoblinger: { where: aktivtMedlemWhere, include: { faggruppe: true } },
                 },
               },
             },
@@ -321,9 +327,10 @@ export const gruppeRouter = router({
       // hentProsjektRolleNivaa kjører ansettelses-/frysevaktene (kaster ved behov)
       // uten å kaste på «ikke admin», så gruppeansvarlig slipper gjennom.
       const { erAdmin } = await hentProsjektRolleNivaa(ctx.userId!, input.projectId);
-      const gm = await ctx.prisma.projectGroupMember.findUnique({
-        where: { id: input.id },
-        select: { groupId: true },
+      // Aktiv rad i dette prosjektet — en avsluttet rad eller annet prosjekt gir NOT_FOUND.
+      const gm = await ctx.prisma.projectGroupMember.findFirst({
+        where: { id: input.id, group: { projectId: input.projectId }, ...aktivtMedlemWhere },
+        select: { groupId: true, projectMemberId: true },
       });
       if (!gm) throw new TRPCError({ code: "NOT_FOUND" });
       if (!erAdmin && !(await erGruppeansvarlig(ctx.userId!, input.projectId, gm.groupId))) {
@@ -333,8 +340,20 @@ export const gruppeRouter = router({
         });
       }
 
-      return ctx.prisma.projectGroupMember.delete({
-        where: { id: input.id },
+      // Myk (L2b B8): raden avsluttes og står som historikk; meldMegInn/registrer gjenåpner den.
+      return ctx.prisma.$transaction(async (tx) => {
+        const avsluttet = await tx.projectGroupMember.update({
+          where: { id: input.id },
+          data: { periodeSlutt: new Date() },
+        });
+        await loggMedlemsendring(tx, ctx, {
+          projectId: input.projectId,
+          targetType: "gruppe_medlem",
+          targetId: input.id,
+          action: "gruppemedlem_avsluttet",
+          payload: { groupId: gm.groupId, projectMemberId: gm.projectMemberId },
+        });
+        return avsluttet;
       });
     }),
 
@@ -448,7 +467,12 @@ export const gruppeRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
       const medlem = await ctx.prisma.projectGroupMember.findFirst({
-        where: { groupId: input.groupId, projectMemberId: input.projectMemberId },
+        where: {
+          groupId: input.groupId,
+          projectMemberId: input.projectMemberId,
+          group: { projectId: input.projectId },
+          ...aktivtMedlemWhere,
+        },
       });
       if (!medlem) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.prisma.projectGroupMember.update({
@@ -462,11 +486,25 @@ export const gruppeRouter = router({
     .input(z.object({ groupId: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: input.projectId },
+        where: { userId: ctx.userId, projectId: input.projectId, ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "NOT_FOUND" });
-      return ctx.prisma.projectGroupMember.deleteMany({
-        where: { groupId: input.groupId, projectMemberId: medlem.id },
+      // Myk (L2b B8): aktiv rad avsluttes; `count` som før (deleteMany-formen).
+      const rad = await ctx.prisma.projectGroupMember.findFirst({
+        where: { groupId: input.groupId, projectMemberId: medlem.id, ...aktivtMedlemWhere },
+        select: { id: true },
+      });
+      if (!rad) return { count: 0 };
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.projectGroupMember.update({ where: { id: rad.id }, data: { periodeSlutt: new Date() } });
+        await loggMedlemsendring(tx, ctx, {
+          projectId: input.projectId,
+          targetType: "gruppe_medlem",
+          targetId: rad.id,
+          action: "gruppemedlem_avsluttet",
+          payload: { groupId: input.groupId, projectMemberId: medlem.id, selv: true },
+        });
+        return { count: 1 };
       });
     }),
 
@@ -494,27 +532,23 @@ export const gruppeRouter = router({
 
       // Finn eller opprett kallerens ProjectMember — firma-admin/sitedoc_admin kan
       // mangle rad (de arver prosjekttilgang uten ProjectMember). En behandler MÅ
-      // ha en ProjectMember å knytte gruppemedlemskapet til.
-      let projectMember = await ctx.prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: { userId: ctx.userId, projectId: input.projectId },
-        },
-      });
-      if (!projectMember) {
-        projectMember = await ctx.prisma.projectMember.create({
-          data: { userId: ctx.userId, projectId: input.projectId, role: "member" },
+      // ha en ProjectMember å knytte gruppemedlemskapet til. En avsluttet rad gjenåpnes (L2b B8).
+      return ctx.prisma.$transaction(async (tx) => {
+        const projectMember = await gjenapneEllerOpprettProsjektmedlem(tx, {
+          userId: ctx.userId,
+          projectId: input.projectId,
+          role: "member",
         });
-      }
-
-      return ctx.prisma.projectGroupMember.upsert({
-        where: {
-          groupId_projectMemberId: {
-            groupId: input.groupId,
-            projectMemberId: projectMember.id,
+        return tx.projectGroupMember.upsert({
+          where: {
+            groupId_projectMemberId: {
+              groupId: input.groupId,
+              projectMemberId: projectMember.id,
+            },
           },
-        },
-        update: {},
-        create: { groupId: input.groupId, projectMemberId: projectMember.id },
+          update: { periodeSlutt: null },
+          create: { groupId: input.groupId, projectMemberId: projectMember.id },
+        });
       });
     }),
 });

@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Vyhledejte jméno, e-mail nebo telefon…",
   "kontakter.ingenKontakter": "V projektu zatím nejsou žádné kontakty.",
   "kontakter.ingenTreff": "Vašemu vyhledávání neodpovídají žádné kontakty.",
+  "kontakter.visTidligere": "Zobrazit bývalé členy",
+  "kontakter.sluttet": "Ukončeno {{dato}}",
   "kontakter.utenFaggruppe": "Bez disciplinární skupiny",
   "kontakter.rolleAdmin": "Správce",
   "kontakter.rolleMedlem": "Člen",

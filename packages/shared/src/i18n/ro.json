@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Căutați nume, e-mail sau telefon...",
   "kontakter.ingenKontakter": "Încă nu există persoane de contact în proiect.",
   "kontakter.ingenTreff": "Nicio persoană de contact nu corespunde căutării dvs.",
+  "kontakter.visTidligere": "Afișați foștilor membri",
+  "kontakter.sluttet": "S-a încheiat {{dato}}",
   "kontakter.utenFaggruppe": "Fără grup de disciplină",
   "kontakter.rolleAdmin": "Administrator",
   "kontakter.rolleMedlem": "Membru",

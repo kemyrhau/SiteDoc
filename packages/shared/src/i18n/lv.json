@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Meklēt vārdu, e-pastu vai tālruni…",
   "kontakter.ingenKontakter": "Pagaidām nav kontaktu par projektu.",
   "kontakter.ingenTreff": "Neviena kontaktpersona neatbilst jūsu meklēšanas vaicājumam.",
+  "kontakter.visTidligere": "Parādiet bijušos dalībniekus",
+  "kontakter.sluttet": "Beigās {{dato}}",
   "kontakter.utenFaggruppe": "Bez disciplīnas grupas",
   "kontakter.rolleAdmin": "Administrators",
   "kontakter.rolleMedlem": "Biedrs",

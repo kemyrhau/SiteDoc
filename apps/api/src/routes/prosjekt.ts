@@ -13,6 +13,8 @@ import {
   kanOppretteProsjekt,
   prosjektTilhørerFirmaWhere,
   resolverOrgFraInput,
+  aktivtProsjektmedlemWhere,
+  aktivtMedlemWhere,
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
@@ -30,7 +32,7 @@ export const prosjektRouter = router({
     .input(z.object({ organizationId: z.string().uuid().optional(), inkluderFrosne: z.boolean().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const where: Prisma.ProjectWhereInput = {
-        members: { some: { userId: ctx.userId } },
+        members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
         // FL: navigasjon skjuler frosne prosjekter; timer-flater (mobil dagsseddel-
         // katalog) opt-er inn via inkluderFrosne — timer er utenfor frysen.
         ...(input?.inkluderFrosne ? {} : { status: "active" }),
@@ -104,7 +106,7 @@ export const prosjektRouter = router({
           : { type: "kunde" }
         : {
             type: "kunde",
-            members: { some: { userId: ctx.userId } },
+            members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
             // FL (Kenneth-vedtak 2026-09-06): frosne prosjekter (avsluttet/arkivert/
             // deaktivert) er borte for vanlige brukere. Firma-admin finner dem i
             // firmalisten (organisasjon.hentProsjekter), ikke her — to steder å se det
@@ -175,7 +177,7 @@ export const prosjektRouter = router({
         id: { in: distinkte },
         type: "kunde",
         ...(input?.organizationId ? { primaryOrganizationId: input.organizationId } : {}),
-        ...(erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } }, status: "active" }),
+        ...(erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } }, status: "active" }),
         ...(deaktiverteOrgIder.length > 0
           ? { NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }
           : {}),
@@ -203,9 +205,10 @@ export const prosjektRouter = router({
         include: {
           faggrupper: true,
           members: {
+            where: aktivtMedlemWhere,
             include: {
               user: true,
-              faggruppeKoblinger: { include: { faggruppe: true } },
+              faggruppeKoblinger: { where: aktivtMedlemWhere, include: { faggruppe: true } },
             },
           },
           templates: true,
@@ -733,8 +736,8 @@ export const prosjektRouter = router({
         select: { role: true },
       });
       if (bruker?.role !== "sitedoc_admin") {
-        const medlem = await ctx.prisma.projectMember.findUnique({
-          where: { userId_projectId: { userId: ctx.userId!, projectId: input.id } },
+        const medlem = await ctx.prisma.projectMember.findFirst({
+          where: aktivtProsjektmedlemWhere(ctx.userId!, input.id),
           select: { id: true },
         });
         if (!medlem && !(await erFirmaAdminForProsjekt(ctx.userId!, input.id))) {

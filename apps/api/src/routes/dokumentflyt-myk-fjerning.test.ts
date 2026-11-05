@@ -330,3 +330,36 @@ describe("forhandsvisFjerning", () => {
     expect(prisma.checklist.updateMany).not.toHaveBeenCalled();
   });
 });
+
+describe("M1 — avsluttet flytmedlem kan ikke endres (L2b)", () => {
+  /**
+   * Raden står med periodeSlutt. Mocken svarer som Prisma: findFirst med periodefilter finner den
+   * ikke, mens findUnique/findUniqueOrThrow (uten filter) gjør det. Gjeninnføres findUniqueOrThrow
+   * i prosedyren, slipper kallet gjennom — og testen blir rød.
+   */
+  function prismaMedAvsluttet() {
+    const prisma = prismaMed();
+    const avsluttet = { id: MEDLEM, dokumentflytId: FLYT, rolle: "godkjenner", steg: 3, periodeSlutt: new Date("2026-11-01") };
+    prisma.dokumentflytMedlem.findFirst.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
+      "periodeSlutt" in where ? null : avsluttet,
+    );
+    Object.assign(prisma.dokumentflytMedlem, {
+      findUnique: vi.fn().mockResolvedValue(avsluttet),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(avsluttet),
+    });
+    return prisma;
+  }
+
+  const kall: Array<[string, (c: ReturnType<typeof lagCaller>) => Promise<unknown>]> = [
+    ["settHovedansvarlig", (c) => c.settHovedansvarlig({ id: MEDLEM, projectId: PROSJEKT, erHovedansvarlig: true })],
+    ["settGruppeHovedansvarlig", (c) => c.settGruppeHovedansvarlig({ id: MEDLEM, projectId: PROSJEKT, hovedansvarligPersonId: PM_ANNE })],
+    ["settKanRedigere", (c) => c.settKanRedigere({ id: MEDLEM, projectId: PROSJEKT, kanRedigere: true })],
+  ];
+
+  it.each(kall)("🔴 %s på avsluttet rad → NOT_FOUND, ingenting endret", async (_navn, k) => {
+    const prisma = prismaMedAvsluttet();
+    await expect(k(lagCaller(prisma))).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(prisma.dokumentflytMedlem.update).not.toHaveBeenCalled();
+    expect(prisma.dokumentflytMedlem.updateMany).not.toHaveBeenCalled();
+  });
+});

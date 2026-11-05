@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, aktivtProsjektmedlemWhere } from "../trpc/tilgangskontroll";
 import {
   krevVarelagerAktivert,
   VarelagerModulIkkeAktivertError,
@@ -72,8 +72,8 @@ async function krevTilgangPolicy(
   });
   if (bruker?.role === "sitedoc_admin") return;
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     select: { id: true },
   });
   if (!medlem) {

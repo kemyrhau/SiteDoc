@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Поиск по имени, адресу электронной почты или телефону…",
   "kontakter.ingenKontakter": "Контактов по проекту пока нет.",
   "kontakter.ingenTreff": "Нет контактов, соответствующих вашему запросу.",
+  "kontakter.visTidligere": "Показать бывших участников",
+  "kontakter.sluttet": "Завершено {{dato}}",
   "kontakter.utenFaggruppe": "Без дисциплинарной группы",
   "kontakter.rolleAdmin": "Администратор",
   "kontakter.rolleMedlem": "Член",

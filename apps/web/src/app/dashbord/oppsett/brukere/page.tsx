@@ -73,7 +73,7 @@ function ChipListe({ chips }: { chips: Array<{ id: string; name: string; color?:
 }
 
 function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -90,6 +90,8 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   const [filterFaggrupper, setFilterFaggrupper] = useState<string[]>([]);
   const [filterGrupper, setFilterGrupper] = useState<string[]>([]);
   const [filterFirma, setFilterFirma] = useState<string[]>([]);
+  // B6 (L2b): avsluttede medlemmer er skjult som standard; bryteren henter dem med.
+  const [visTidligere, setVisTidligere] = useState(false);
 
   const [valgtMedlemId, setValgtMedlemId] = useState<string | null>(null);
   const [fokusBrukergruppe, setFokusBrukergruppe] = useState(false);
@@ -103,7 +105,10 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
 
   const [forslag, setForslag] = useState<Forslag | null>(null);
 
-  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery({ projectId: prosjektId }, { enabled: !!prosjektId });
+  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: prosjektId, inkluderTidligere: visTidligere },
+    { enabled: !!prosjektId },
+  );
   const { data: alleFaggrupper } = trpc.faggruppe.hentForProsjekt.useQuery({ projectId: prosjektId }, { enabled: !!prosjektId });
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: prosjektId }, { enabled: !!prosjektId });
   const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery({ projectId: prosjektId }, { enabled: !!prosjektId });
@@ -131,7 +136,9 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
     },
   });
 
-  const kontakter = (medlemmer ?? []) as KontaktMedlem[];
+  const alleKontakter = (medlemmer ?? []) as KontaktMedlem[];
+  // Alt utenom selve tabellen regnes på aktive medlemmer — tidligere medlemmer vises bare.
+  const kontakter = useMemo(() => alleKontakter.filter((m) => !m.periodeSlutt), [alleKontakter]);
   const grupperListe = (dbGrupper ?? []) as unknown as DbGruppe[];
   const faggrupperListe = (alleFaggrupper ?? []) as Array<{ id: string; name: string; color: string | null }>;
   const flyterListe = (dokumentflyter ?? []) as unknown as Dokumentflyt[];
@@ -185,7 +192,7 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   }, [grupperListe]);
 
   const filtrerteKontakter = useMemo(() => {
-    let res = kontakter.filter((m) => m.user);
+    let res = (visTidligere ? alleKontakter : kontakter).filter((m) => m.user);
     if (filterNavn) {
       const s = filterNavn.toLowerCase();
       res = res.filter((m) =>
@@ -205,7 +212,7 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
       res = res.filter((m) => filterGrupper.some((gid) => (gruppeUserIder.get(gid) ?? new Set<string>()).has(m.user!.id)));
     }
     return res;
-  }, [kontakter, filterNavn, filterFirma, filterFaggrupper, filterGrupper, gruppeUserIder]);
+  }, [visTidligere, alleKontakter, kontakter, filterNavn, filterFirma, filterFaggrupper, filterGrupper, gruppeUserIder]);
 
   const valgtMedlem = valgtMedlemId ? kontakter.find((m) => m.id === valgtMedlemId) ?? null : null;
 
@@ -420,6 +427,15 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
                 visTom={harAktivtFilter}
                 kolonner={3}
               />
+              <label className="mt-2 inline-flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={visTidligere}
+                  onChange={(e) => setVisTidligere(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                {t("kontakter.visTidligere")}
+              </label>
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -437,7 +453,18 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
                 <tbody className="divide-y divide-gray-100">
                   {filtrerteKontakter.length === 0 ? (
                     <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">{kontakter.length === 0 ? t("kontakter.ingenKontakter") : t("kontakter.ingenTreff")}</td></tr>
-                  ) : filtrerteKontakter.map((m) => (
+                  ) : filtrerteKontakter.map((m) => m.periodeSlutt ? (
+                    // Tidligere medlem: kun lesing — personkortet redigerer aktive medlemskap.
+                    <tr key={m.id} className="text-gray-400">
+                      <td className="whitespace-nowrap px-4 py-2.5">{m.user!.name ?? "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5">{m.user!.email}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5">{m.user!.phone ?? "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5">{m.user!.organization?.name ?? "—"}</td>
+                      <td colSpan={2} className="whitespace-nowrap px-4 py-2.5 text-xs">
+                        {t("kontakter.sluttet", { dato: new Date(m.periodeSlutt).toLocaleDateString(i18n.language) })}
+                      </td>
+                    </tr>
+                  ) : (
                     <tr key={m.id} onClick={() => aapnePerson(m.id)} className="cursor-pointer hover:bg-gray-50">
                       <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
                         <div className="flex items-center gap-1.5">

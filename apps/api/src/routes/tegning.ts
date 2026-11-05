@@ -20,7 +20,7 @@ import {
   finnTegningstype,
   utledKildeformat,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin, aktivtProsjektmedlemWhere } from "../trpc/tilgangskontroll";
 import { konverterDwg, hentKonverteringKapasitet, roterProsentMarkor, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
 import {
   erKonverteringPågår,
@@ -1381,8 +1381,8 @@ export const tegningRouter = router({
       // Kun sitedoc_admin eller prosjektadmin
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
       if (bruker?.role !== "sitedoc_admin") {
-        const medlem = await ctx.prisma.projectMember.findUnique({
-          where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        const medlem = await ctx.prisma.projectMember.findFirst({
+          where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
         });
         if (medlem?.role !== "admin") {
           return { startet: 0, melding: "Kun admin kan starte re-konvertering" };
@@ -1485,8 +1485,8 @@ export const tegningRouter = router({
       // Samme tilgang som rekonverter-knappen: sitedoc_admin eller prosjektadmin.
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
       if (bruker?.role !== "sitedoc_admin") {
-        const medlem = await ctx.prisma.projectMember.findUnique({
-          where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+        const medlem = await ctx.prisma.projectMember.findFirst({
+          where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
         });
         if (medlem?.role !== "admin") {
           return { totalt: 0, oppdatert: 0, utenGrunnlag: 0, melding: "Kun admin kan hente målegrunnlag" };

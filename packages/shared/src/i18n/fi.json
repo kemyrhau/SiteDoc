@@ -216,6 +216,8 @@
   "kontakter.sokPlaceholder": "Hae nimellä, sähköpostilla tai puhelinnumerolla…",
   "kontakter.ingenKontakter": "Projektiin ei ole vielä otettu yhteyttä.",
   "kontakter.ingenTreff": "Yhteystiedot eivät vastaa hakuasi.",
+  "kontakter.visTidligere": "Näytä entiset jäsenet",
+  "kontakter.sluttet": "Ended {{dato}}",
   "kontakter.utenFaggruppe": "Ilman kurinpitoryhmää",
   "kontakter.rolleAdmin": "Järjestelmänvalvoja",
   "kontakter.rolleMedlem": "Jäsen",

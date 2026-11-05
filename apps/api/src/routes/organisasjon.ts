@@ -9,6 +9,7 @@ import {
   hentBrukersOrg,
   verifiserOrganisasjonTilgang,
   verifiserProsjektmedlem,
+  aktivtMedlemWhere,
 } from "../trpc/tilgangskontroll";
 import {
   syncProjektModulerPaaAktiver,
@@ -187,7 +188,7 @@ export const organisasjonRouter = router({
     if (medlemskap.length === 0) {
       const prosjekter = await ctx.prisma.project.findMany({
         where: {
-          members: { some: { userId: ctx.userId } },
+          members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
           primaryOrganizationId: { not: null },
         },
         select: { primaryOrganizationId: true },

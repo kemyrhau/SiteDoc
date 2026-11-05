@@ -12,10 +12,13 @@ import {
 import { verifiserProsjektmedlem, verifiserAdmin, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { sikreProsjektmedlemmer, aktivAnsattIFirmaWhere } from "../services/ansatt";
 import {
+  FLYTMEDLEM_SELECT,
+  avsluttFlytmedlem,
   finnApneDokumenterHosMedlem,
-  flyttBallFraMedlem,
+  hentGjenvarendeILeddet,
+  pekerFor,
+  tellAndreBindingerILeddet,
   tellApneDokumenterPaaSteg,
-  type MedlemPeker,
 } from "../services/flytFjerning";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import type { PrismaClient, Prisma } from "@sitedoc/db";
@@ -268,6 +271,16 @@ export const dokumentflytRouter = router({
         },
         group: { select: { id: true, name: true } },
       } as const;
+      // En person må være aktivt prosjektmedlem — et avsluttet medlem bindes ikke inn (L2b).
+      if (data.projectMemberId) {
+        const pm = await ctx.prisma.projectMember.findFirst({
+          where: { id: data.projectMemberId, projectId, ...aktivtMedlemWhere },
+          select: { id: true },
+        });
+        if (!pm) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Personen er ikke medlem av prosjektet" });
+        }
+      }
       // Gjenlegging av en fjernet binding gjenåpner raden (unik-nøkkelen står) i stedet for ny rad.
       const avsluttet = await ctx.prisma.dokumentflytMedlem.findFirst({
         where: {
@@ -477,7 +490,7 @@ export const dokumentflytRouter = router({
       let nyUserId: string | null = null;
       if (nyPmId) {
         const ny = await ctx.prisma.projectMember.findFirst({
-          where: { id: nyPmId, projectId: input.projectId },
+          where: { id: nyPmId, projectId: input.projectId, ...aktivtMedlemWhere },
           select: { userId: true },
         });
         if (!ny) {
@@ -492,34 +505,12 @@ export const dokumentflytRouter = router({
       const aktor = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
 
       return ctx.prisma.$transaction(async (tx) => {
-        const fjernet = await tx.dokumentflytMedlem.update({
-          where: { id: medlem.id },
-          data: { periodeSlutt: new Date(), erHovedansvarlig: false, hovedansvarligPersonId: null },
-        });
-
-        if (nyPmId) {
-          const ledd = { dokumentflytId: medlem.dokumentflytId, rolle: medlem.rolle, steg: medlem.steg };
-          await tx.dokumentflytMedlem.updateMany({
-            where: { ...ledd, ...aktivtMedlemWhere },
-            data: { erHovedansvarlig: false, hovedansvarligPersonId: null },
-          });
-          const finnes = await tx.dokumentflytMedlem.findFirst({
-            where: { ...ledd, projectMemberId: nyPmId },
-            select: { id: true },
-          });
-          if (finnes) {
-            await tx.dokumentflytMedlem.update({
-              where: { id: finnes.id },
-              data: { periodeSlutt: null, erHovedansvarlig: true },
-            });
-          } else {
-            await tx.dokumentflytMedlem.create({
-              data: { ...ledd, projectMemberId: nyPmId, erHovedansvarlig: true },
-            });
-          }
-        }
-
-        const dokumentIder = await flyttBallFraMedlem(tx, peker, nyUserId);
+        const { fjernet, dokumentIder } = await avsluttFlytmedlem(
+          tx,
+          medlem,
+          peker,
+          nyPmId && nyUserId ? { pmId: nyPmId, userId: nyUserId } : null,
+        );
 
         await tx.activity.create({
           data: {
@@ -651,82 +642,10 @@ type Db = PrismaClient | Prisma.TransactionClient;
 async function hentAktivtFlytmedlem(db: Db, id: string, projectId: string) {
   const medlem = await db.dokumentflytMedlem.findFirst({
     where: { id, dokumentflyt: { projectId }, ...aktivtMedlemWhere },
-    select: {
-      id: true,
-      dokumentflytId: true,
-      rolle: true,
-      steg: true,
-      groupId: true,
-      projectMemberId: true,
-      erHovedansvarlig: true,
-      projectMember: { select: { userId: true } },
-    },
+    select: FLYTMEDLEM_SELECT,
   });
   if (!medlem) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Flytmedlemmet finnes ikke (eller er allerede fjernet)" });
   }
   return medlem;
-}
-
-type AktivtFlytmedlem = Awaited<ReturnType<typeof hentAktivtFlytmedlem>>;
-
-/** Står personen i flere ledd i samme flyt, gjelder ballflyttingen bare dokumenter på dette steget. */
-async function pekerFor(db: Db, medlem: AktivtFlytmedlem): Promise<MedlemPeker> {
-  const userId = medlem.projectMember?.userId ?? null;
-  let kunSteg: number | null = null;
-  if (medlem.projectMemberId) {
-    const andreLedd = await db.dokumentflytMedlem.count({
-      where: {
-        dokumentflytId: medlem.dokumentflytId,
-        projectMemberId: medlem.projectMemberId,
-        id: { not: medlem.id },
-        ...aktivtMedlemWhere,
-      },
-    });
-    if (andreLedd > 0) kunSteg = medlem.steg;
-  }
-  return { dokumentflytId: medlem.dokumentflytId, userId, groupId: medlem.groupId, kunSteg };
-}
-
-/** Andre aktive personer i samme ledd (flyt + rolle + steg), hovedansvarlig først. */
-async function hentGjenvarendeILeddet(db: Db, medlem: AktivtFlytmedlem) {
-  const rader = await db.dokumentflytMedlem.findMany({
-    where: {
-      dokumentflytId: medlem.dokumentflytId,
-      rolle: medlem.rolle,
-      steg: medlem.steg,
-      id: { not: medlem.id },
-      projectMemberId: { not: null },
-      ...aktivtMedlemWhere,
-    },
-    select: {
-      projectMemberId: true,
-      erHovedansvarlig: true,
-      projectMember: { select: { user: { select: { name: true, email: true } } } },
-    },
-    orderBy: [{ erHovedansvarlig: "desc" }, { createdAt: "asc" }],
-  });
-  return rader.flatMap((r) =>
-    r.projectMemberId
-      ? [{
-          projectMemberId: r.projectMemberId,
-          navn: r.projectMember?.user?.name ?? r.projectMember?.user?.email ?? "",
-          erHovedansvarlig: r.erHovedansvarlig,
-        }]
-      : [],
-  );
-}
-
-/** Gruppe-/faggruppe-bindinger som blir stående i leddet (leddet er da ikke tomt). */
-function tellAndreBindingerILeddet(db: Db, medlem: AktivtFlytmedlem): Promise<number> {
-  return db.dokumentflytMedlem.count({
-    where: {
-      dokumentflytId: medlem.dokumentflytId,
-      rolle: medlem.rolle,
-      steg: medlem.steg,
-      id: { not: medlem.id },
-      projectMemberId: null,
-      ...aktivtMedlemWhere,
-    },
-  });
 }

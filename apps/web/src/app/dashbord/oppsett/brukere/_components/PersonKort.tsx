@@ -38,6 +38,8 @@ export interface KontaktMedlem {
   role: string;
   erFirmaansvarlig: boolean;
   kanAttestere: boolean;
+  /** Satt = tidligere medlem (myk fjerning, L2b). Kun med når listen ber om tidligere. */
+  periodeSlutt?: string | Date | null;
   user: {
     id: string;
     name: string | null;
