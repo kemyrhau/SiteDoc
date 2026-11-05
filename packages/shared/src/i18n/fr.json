@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Signé",
   "signaturFilter.mangler": "Signature manquante",
   "signaturFilter.uten": "Pas de champ de signature",
-  "tabell.sjaSignert": "{{antall}} signé"
+  "tabell.sjaSignert": "{{antall}} signé",
+  "feil.ingenKontaktServer": "Impossible d'atteindre le serveur. Actualisez la page et réessayez.",
+  "feil.loggetUt": "Vous êtes déconnecté. Actualisez la page pour vous connecter."
 }

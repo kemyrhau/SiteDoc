@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Подписано",
   "signaturFilter.mangler": "Отсутствует подпись",
   "signaturFilter.uten": "Нет поля для подписи",
-  "tabell.sjaSignert": "{{antall}} подписан"
+  "tabell.sjaSignert": "{{antall}} подписан",
+  "feil.ingenKontaktServer": "Не удалось связаться с сервером. Перезагрузите страницу и повторите попытку.",
+  "feil.loggetUt": "Вы вышли из системы. Перезагрузите страницу, чтобы войти."
 }

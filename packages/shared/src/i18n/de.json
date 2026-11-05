@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Unterzeichnet",
   "signaturFilter.mangler": "Fehlende Signatur",
   "signaturFilter.uten": "Kein Signaturfeld",
-  "tabell.sjaSignert": "{{antall}} signiert"
+  "tabell.sjaSignert": "{{antall}} signiert",
+  "feil.ingenKontaktServer": "Der Server konnte nicht erreicht werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
+  "feil.loggetUt": "Sie sind abgemeldet. Laden Sie die Seite neu, um sich anzumelden."
 }

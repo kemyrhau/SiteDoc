@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Signed",
   "signaturFilter.mangler": "Missing signature",
   "signaturFilter.uten": "No signature field",
-  "tabell.sjaSignert": "{{antall}} signed"
+  "tabell.sjaSignert": "{{antall}} signed",
+  "feil.ingenKontaktServer": "Could not reach the server. Reload the page and try again.",
+  "feil.loggetUt": "You are signed out. Reload the page to sign in."
 }

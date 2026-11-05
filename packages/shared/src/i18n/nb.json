@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Signert",
   "signaturFilter.mangler": "Mangler signatur",
   "signaturFilter.uten": "Uten signaturfelt",
-  "tabell.sjaSignert": "{{antall}} signert"
+  "tabell.sjaSignert": "{{antall}} signert",
+  "feil.ingenKontaktServer": "Fikk ikke kontakt med serveren. Last siden på nytt og prøv igjen.",
+  "feil.loggetUt": "Du er logget ut. Last siden på nytt for å logge inn."
 }
