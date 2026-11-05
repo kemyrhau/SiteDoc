@@ -85,7 +85,7 @@ function lagVerden(model: Model, opts: { status?: string; bestiller?: string; ak
     },
     user: { findUnique: vi.fn().mockResolvedValue({ name: "Aktør", role: "user" }) },
     dokumentflyt: {
-      findUniqueOrThrow: vi.fn().mockResolvedValue({ id: FLYT, name: "Flyt", faggruppeId: "fg-ny", faggruppe: { id: "fg-ny", name: "Ny" } }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ id: FLYT, projectId: PROSJEKT, name: "Flyt", faggruppeId: "fg-ny", faggruppe: { id: "fg-ny", name: "Ny" } }),
     },
     dokumentflytMedlem: { findFirst: vi.fn().mockResolvedValue(null) },
     documentTransfer: { create: transfer },
