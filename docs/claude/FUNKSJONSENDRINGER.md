@@ -25,6 +25,10 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-11-05
+
+**Prod-deploy `d13dbc9b`** (Kenneth «Ja, forbered prod» 05.11): innhold = develop `3a992e94`; prod-OTA `47b8e6bb`. Alle rader datert 2026-11-05 i tabellen under (dokumentflyt L1–L3, M3/M6, flytt/HMS-mottaker m.m.) er nå i prod. Verifisert innlogget på sitedoc.no: prosjektlista, «Vis tidligere medlemmer», fjern-modal uten blokk (UNN – avbrutt, ingen endring).
+
 ### 2026-11-04
 
 **Prod-deploy `d3bdaac9`** (Kenneth «Ja, prod» 04.11): innhold = develop `8a11dae6`; prod-OTA `eb90ad61`. Alt under 2026-11-04 og 2026-11-03 som var på develop, er nå i prod.
