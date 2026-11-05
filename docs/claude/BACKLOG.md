@@ -4144,6 +4144,21 @@ Ikke drop-in med Prisma: krever `directUrl` i alle fire `schema.prisma` (develop
 
 I dag deler alle fire Prisma-klientene samme URL, så `connection_limit` kan ikke differensieres. Kun kjerne + timer er varme; maskin/varelager sløser halve api-ens tak. Egen URL per db-pakke → differensiert pooling (forutsetning for kvote-veikartet over).
 
+### 🔴 Backup og gjenoppretting (katastrofe-beredskap) — før første ekte kunde
+
+**Kilde:** Kenneth 2026-11-05 (video om nattlig backup ≠ katastrofe-beredskap). **I dag:** ingen automatisk backup. `deploy-prod.sh` tar ingen dump (`DEPLOY-RUNBOK.md:535`); dump tas manuelt før store deployer (`docker/DOCKER-NOTES.md:124`) og ligger på samme server (`~/backup/`, `infrastruktur.md:178`). Uploads (~1,4 GB, delt prod/test) og server-env har ingen jevnlig backup. Ingen restore er testet som katastrofe-øvelse. **Utløser:** før første ekte kunde i prod — restore-testen (punkt 1) kan tas nå.
+
+1. **Restore-test (først, billigst):** dump prod → gjenopprett i egen skrape-database på server-ny → sammenlign radtall på nøkkeltabeller → mål tiden (gir faktisk RTO) → slett skrape-databasen. Gjentas hvert kvartal og etter hver backup-endring. Datert resultat føres i `infrastruktur.md`.
+2. **Vedta RPO/RTO** (hvor mye data kan vi miste / hvor lenge kan vi være nede). Forslag: RPO ≤ 15 min, RTO ≤ 4 t for prod.
+3. **Automatisk dump (cron)** av `sitedoc` daglig, med oppbevaring (f.eks. 7 daglige + 4 ukentlige) og varsel når en dump mangler eller er unormalt liten.
+4. **Point-in-time recovery:** WAL-arkivering (pgBackRest eller wal-g) — lukker gapet mellom nattlige dumper. Krever postgres-restart → planlegges sammen med «Postgres er utunet».
+5. **Offsite + kryptert kopi:** dumper og WAL ut av server-ny (f.eks. R2/B2), kryptert. Samme boks = ingen backup ved disk-/serverbrann.
+6. **Uploads-backup:** jevnlig synk av uploads offsite (eller via objektlager-planen i `delplaner/fillagring-sikkerhet-ordre-2026-08-07.md` S2, med versjonering).
+7. **Server-env:** kryptert kopi av `docker/env/*.env` utenfor serveren (nøkkelhåndteringsreglene gjelder — aldri i git).
+8. **Gjenopprettings-runbok** i `DEPLOY-RUNBOK.md`: steg for steg fra «server tapt» til «innlogget og verifisert», inkl. hvem som gjør hva.
+
+Erstatter/omfatter «Prod-dumper ligger løst i `~`» (under) og `ny-server-migrering-plan.md:158` (utsatt `pg_dump`-cron).
+
 ### 🟢 Postgres er utunet
 
 `shared_buffers=128MB` (default) på 16 GB-maskin; swap-bruk 18 %. Ingen `command:`-override i `~/stack/postgres/docker-compose.yml`. Tuning-runde krever restart — ikke i forbifarten.
