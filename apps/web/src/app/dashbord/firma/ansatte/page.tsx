@@ -342,7 +342,12 @@ function DeaktiverModal({
           <p className="text-sm text-gray-700">
             {t("firma.ansatte.deaktiver.hva", { navn })}
           </p>
-          <DeaktiverOppsummering navn={navn} data={forhandsvis.data} laster={forhandsvis.isLoading} />
+          <DeaktiverOppsummering
+            navn={navn}
+            data={forhandsvis.data}
+            laster={forhandsvis.isLoading}
+            feilet={forhandsvis.isError}
+          />
           <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-500">
             {t("firma.ansatte.deaktiver.ikke")}
           </p>
@@ -384,6 +389,7 @@ interface Forhandsvisning {
   prosjekter: Array<{ id: string; navn: string }>;
   antallFlytledd: number;
   antallTilInnsender: number;
+  antallHmsSaker: number;
   alene: Array<{ prosjektNavn: string; flytNavn: string }>;
   hoppetOver: Array<{ id: string; navn: string; grunn: string }>;
 }
@@ -396,12 +402,18 @@ function DeaktiverOppsummering({
   navn,
   data,
   laster,
+  feilet,
 }: {
   navn: string;
   data: Forhandsvisning | undefined;
   laster: boolean;
+  feilet: boolean;
 }) {
   const { t } = useTranslation();
+  // M2 (dom 32): en feilet forhåndsvisning sies tydelig; Avbryt/lukk står alltid.
+  if (feilet) {
+    return <p className="text-sm text-red-500">{t("firma.ansatte.deaktiver.feil")}</p>;
+  }
   if (laster) {
     return <p className="text-sm text-gray-400">{t("firma.ansatte.deaktiver.laster")}</p>;
   }
@@ -419,6 +431,9 @@ function DeaktiverOppsummering({
       </p>
       {data.antallTilInnsender > 0 && (
         <p>{t("firma.ansatte.deaktiver.tilInnsender", { navn, antall: data.antallTilInnsender })}</p>
+      )}
+      {data.antallHmsSaker > 0 && (
+        <p>{t("firma.ansatte.deaktiver.hmsSaker", { navn, antall: data.antallHmsSaker })}</p>
       )}
       {data.alene.length > 0 && (
         <div className="rounded-md bg-amber-50 px-3 py-2 text-amber-800">

@@ -106,6 +106,16 @@ det får hjelpe-ikon.
 - **Lagt til i prosjektet:** behandlere som bare gjelder dette prosjektet. X-en står alltid synlig, også på nettbrett,
   og fjerner personen bare fra prosjektets HMS-gruppe.
 
+## Web: Deaktiver ansatt (`firma/ansatte/page.tsx`, `DeaktiverModal`, ordre 2026-11-05 (11))
+
+Modalen har ingen `?`-komponent; vedtatt tekst, brukes når den får hjelpe-ikon.
+
+- **Deaktiver:** personen mister tilgangen til firmaets prosjekter. Oppsummeringen viser hvilke prosjekter og
+  flytledd som berøres, og hvor mange dokumenter som går tilbake til innsenderen. Har personen ballen i åpne
+  HMS-saker, blir sakene liggende hos HMS-behandlerne i prosjektet, og historikken viser hvorfor. Aktiveres
+  personen igjen, får personen ikke sakene tilbake.
+- **Feil:** kan ikke oppsummeringen hentes, står det, og du kan lukke og prøve igjen.
+
 ## Web: Periode og område i sjekkliste- og oppgavelista, metadata i tegningslista (metadata S-pakke 2026-11-04)
 
 Sidene `sjekklister/page.tsx`, `oppgaver/page.tsx` og `TegningerPanel` har ingen `?`-komponent ennå; vedtatt tekst,

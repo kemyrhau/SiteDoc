@@ -1,13 +1,17 @@
 import type { Prisma } from "@sitedoc/db";
+import { nb } from "@sitedoc/shared";
 import { aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { APENT_DOKUMENT_WHERE } from "./flytFjerning";
 import { loggMedlemsendring } from "./prosjektmedlemskap";
 
 type Db = Prisma.TransactionClient;
 
-/** Historikklinja på hver sak sweepen flytter. */
-export const HMS_ROLLE_FJERNET_KOMMENTAR =
-  "HMS-ansvarlig-rollen er fjernet i firmaet — saken ligger hos prosjektets HMS-behandlere";
+/**
+ * Historikklinja på hver sak sweepen flytter. Teksten bor i i18n (nb lagres — API-et har ingen
+ * server-i18n, og `DocumentTransfer.comment` er fritekst), ordre (11) svar A.
+ */
+export const HMS_ROLLE_FJERNET_KOMMENTAR = nb["hms.historikk.rolleFjernet"];
+export const HMS_ANSATT_DEAKTIVERT_KOMMENTAR = nb["hms.historikk.ansattDeaktivert"];
 
 /**
  * Ordre (9): åpne HMS-saker der personen har ballen som behandler i prosjektene firma-rollen
@@ -26,6 +30,16 @@ function hmsSakerHosPersonWhere(organizationId: string, userId: string) {
 
 type Sak = { id: string; status: string; recipientGroupId: string | null; template: { projectId: string } };
 
+type Utvalg = {
+  organizationId: string;
+  userId: string;
+  /**
+   * Ordre (11): prosjektmedlemskap som avsluttes i samme transaksjon (deaktivering). De gir ikke
+   * «beholdt tilgang» — personen er HMS-behandler der bare til transaksjonen er ferdig.
+   */
+  avsluttesProjectMemberIder?: string[];
+};
+
 /**
  * Sakene som mister personpekeren når rollen fjernes: prosjekter der personen fortsatt er
  * HMS-behandler uten firma-rollen (prosjekt-admin eller aktivt medlem av en HMS-gruppe — de to
@@ -34,7 +48,7 @@ type Sak = { id: string; status: string; recipientGroupId: string | null; templa
  */
 async function finnSakerSomFlyttes(
   db: Db,
-  args: { organizationId: string; userId: string },
+  args: Utvalg,
 ): Promise<{ sjekklister: Sak[]; oppgaver: Sak[] }> {
   const where = hmsSakerHosPersonWhere(args.organizationId, args.userId);
   const select = { id: true, status: true, recipientGroupId: true, template: { select: { projectId: true } } };
@@ -49,7 +63,12 @@ async function finnSakerSomFlyttes(
   if (prosjektIder.length === 0) return { sjekklister: [], oppgaver: [] };
 
   const medlemskap = await db.projectMember.findMany({
-    where: { userId: args.userId, projectId: { in: prosjektIder }, ...aktivtMedlemWhere },
+    where: {
+      userId: args.userId,
+      projectId: { in: prosjektIder },
+      ...aktivtMedlemWhere,
+      ...(args.avsluttesProjectMemberIder?.length ? { id: { notIn: args.avsluttesProjectMemberIder } } : {}),
+    },
     select: {
       projectId: true,
       role: true,
@@ -68,14 +87,21 @@ async function finnSakerSomFlyttes(
   return { sjekklister: sjekklister.filter(flyttes), oppgaver: oppgaver.filter(flyttes) };
 }
 
+/** Id-ene sweepen vil treffe — forhåndsvisningene teller dem (samme utvalg som sweepen). */
+export async function hmsSakIderSomFlyttes(db: Db, args: Utvalg): Promise<string[]> {
+  const { sjekklister, oppgaver } = await finnSakerSomFlyttes(db, args);
+  return [...sjekklister, ...oppgaver].map((s) => s.id);
+}
+
 /** Antall til fjern-modalen for firma-HMS-ansvarlig — samme utvalg som sweepen. */
 export async function tellHmsSakerHosPerson(
   db: Db,
   args: { organizationId: string; userId: string },
 ): Promise<number> {
-  const { sjekklister, oppgaver } = await finnSakerSomFlyttes(db, args);
-  return sjekklister.length + oppgaver.length;
+  return (await hmsSakIderSomFlyttes(db, args)).length;
 }
+
+type Ctx = { userId: string; ipAddress: string | null; userAgent: string | null };
 
 /**
  * Ordre (9), A (Kenneth via orkestrator 2026-11-05): når firma-rollen fjernes, mister personen
@@ -83,10 +109,36 @@ export async function tellHmsSakerHosPerson(
  * urørt), hver sak får en historikklinje, og hvert berørt prosjekt får Activity
  * `hms_ansvarlig_fjernet`. Kjøres i samme transaksjon som rolleendringen.
  */
-export async function flyttHmsSakerVedRollefjerning(
+export function flyttHmsSakerVedRollefjerning(
   tx: Db,
-  ctx: { userId: string; ipAddress: string | null; userAgent: string | null },
+  ctx: Ctx,
   args: { organizationId: string; userId: string },
+): Promise<{ sjekklister: string[]; oppgaver: string[] }> {
+  return flyttHmsSaker(tx, ctx, args, { kommentar: HMS_ROLLE_FJERNET_KOMMENTAR, action: "hms_ansvarlig_fjernet" });
+}
+
+/**
+ * Ordre (11), A (Kenneth 2026-11-05): når den ansatte deaktiveres i firmaet, flyttes HMS-ballen
+ * på samme måte som ved rollefjerning — samme utvalg (firmaets prosjekter, ikke saker personen
+ * har via et annet firma), personpekeren null, HMS-gruppa urørt, historikklinje og Activity
+ * `hms_ansvarlig_deaktivert`. Medlemskapene deaktiveringen avslutter regnes ikke som beholdt
+ * tilgang. Kjøres i deaktiveringens transaksjon FØR medlemskapene avsluttes, så M3 (til
+ * innsender) aldri ser sakene: de blir hos HMS-gruppa i stedet for å gå til melderen.
+ * Reaktivering gir ikke personpekeren tilbake.
+ */
+export function flyttHmsSakerVedDeaktivering(
+  tx: Db,
+  ctx: Ctx,
+  args: Utvalg,
+): Promise<{ sjekklister: string[]; oppgaver: string[] }> {
+  return flyttHmsSaker(tx, ctx, args, { kommentar: HMS_ANSATT_DEAKTIVERT_KOMMENTAR, action: "hms_ansvarlig_deaktivert" });
+}
+
+async function flyttHmsSaker(
+  tx: Db,
+  ctx: Ctx,
+  args: Utvalg,
+  spor: { kommentar: string; action: string },
 ): Promise<{ sjekklister: string[]; oppgaver: string[] }> {
   const { sjekklister, oppgaver } = await finnSakerSomFlyttes(tx, args);
 
@@ -102,7 +154,7 @@ export async function flyttHmsSakerVedRollefjerning(
     recipientGroupId: s.recipientGroupId,
     fromStatus: s.status,
     toStatus: s.status,
-    comment: HMS_ROLLE_FJERNET_KOMMENTAR,
+    comment: spor.kommentar,
   });
   for (const s of sjekklister) await tx.documentTransfer.create({ data: { checklistId: s.id, ...historikk(s) } });
   for (const s of oppgaver) await tx.documentTransfer.create({ data: { taskId: s.id, ...historikk(s) } });
@@ -120,7 +172,7 @@ export async function flyttHmsSakerVedRollefjerning(
       projectId,
       targetType: "hms_ansvarlig",
       targetId: args.userId,
-      action: "hms_ansvarlig_fjernet",
+      action: spor.action,
       payload: { organizationId: args.organizationId, ...saker },
     });
   }

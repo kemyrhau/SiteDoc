@@ -22,6 +22,7 @@ import {
 import { seedFirmamodulKatalog } from "../services/seed";
 import {
   avsluttMedlemskapForPerson,
+  finnBerorteProsjekter,
   forhandsvisDeaktivering,
   gjenapneMedlemskapFraPayload,
   lesDeaktiveringsPayload,
@@ -31,7 +32,11 @@ import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 import { recomputeMatriseIBakgrunn } from "../services/reisetidMatrise";
 import { UOPPNAAELIG } from "../services/rute-service";
-import { flyttHmsSakerVedRollefjerning, tellHmsSakerHosPerson } from "../services/hmsAnsvarlig";
+import {
+  flyttHmsSakerVedDeaktivering,
+  flyttHmsSakerVedRollefjerning,
+  tellHmsSakerHosPerson,
+} from "../services/hmsAnsvarlig";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -719,6 +724,14 @@ export const organisasjonRouter = router({
           const gjenapnet = forrige ? await gjenapneMedlemskapFraPayload(tx, forrige) : null;
           payload = { targetUserId: input.userId, targetNavn: member.user.name, ...(gjenapnet ?? {}) };
         } else {
+          // Ordre (11): HMS-ballen flyttes FØR medlemskapene avsluttes — sakene blir hos HMS-gruppa
+          // med historikklinje, i stedet for at M3 sender dem til melderen.
+          const { berorte } = await finnBerorteProsjekter(tx, { userId: input.userId, organizationId: orgId });
+          await flyttHmsSakerVedDeaktivering(tx, ctx, {
+            organizationId: orgId,
+            userId: input.userId,
+            avsluttesProjectMemberIder: berorte.map((b) => b.projectMemberId),
+          });
           const avsluttet = await avsluttMedlemskapForPerson(tx, { userId: input.userId, organizationId: orgId });
           payload = { ...avsluttet, targetNavn: member.user.name } as unknown as Prisma.InputJsonValue;
         }
