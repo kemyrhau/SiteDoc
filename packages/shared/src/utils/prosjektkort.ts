@@ -1,9 +1,10 @@
 /**
- * Prosjektkort L1 (2026-11-05): rene utledninger for samlesiden i
+ * Prosjektkort L1/L2 (2026-11-05): rene utledninger for samlesiden i
  * prosjektkort-modus. Kortet er en VISNING over samme `DailySheet` (modell A) —
  * ingen ny lagring. Tallene her følger spec-prosjektkort § 3.1: erstattede rader
  * (`attestertStatus = "erstattet"`, attestørens korreksjon har tatt over) telles
- * aldri, reise skilles fra arbeid via `erReise`.
+ * aldri, reise skilles fra arbeid via `erReise`. Delt mellom web og mobil (L2)
+ * så kortsummene er identiske på begge flater.
  */
 
 export type TimerModus = "dagskort" | "prosjektkort";

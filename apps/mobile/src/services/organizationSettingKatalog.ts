@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { organizationSettingLocal } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import { lesTimerModus, type TimerModus } from "@sitedoc/shared";
 
 /* ============================================================================
  *  OrganizationSetting-katalog-cache (T4-d 2026-05-16)
@@ -81,6 +82,8 @@ export async function refreshOrganizationSettingKatalog(
       // overtid). Drizzle-feltet fjernet — skrives ikke her. SQLite-kolonnen
       // står (to-stegs); server kan fortsatt returnere feltet, det ignoreres.
       reiseLonnsartId: setting.reiseLonnsartId ?? null,
+      // Prosjektkort L2: ukjent verdi (eldre server) → dagskort.
+      timerRegistreringsmodus: lesTimerModus(setting.timerRegistreringsmodus),
       sistOppdatert: naa,
     })
     .run();
@@ -101,4 +104,14 @@ export function hentOrganizationSettingLokalt(organizationId: string) {
     .where(eq(organizationSettingLocal.organizationId, organizationId))
     .all();
   return rader[0] ?? null;
+}
+
+/**
+ * Prosjektkort L2: firmaets timeføringsmodus fra lokal cache. Offline gjelder
+ * siste cachede verdi; mangler cachen (aldri hentet) → dagskort.
+ */
+export function lesTimerModusLokalt(organizationId: string): TimerModus {
+  return lesTimerModus(
+    hentOrganizationSettingLokalt(organizationId)?.timerRegistreringsmodus,
+  );
 }

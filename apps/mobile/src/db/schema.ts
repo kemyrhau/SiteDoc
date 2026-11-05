@@ -636,6 +636,11 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   // (V1: reisetid er ALDRI overtid). Drizzle-feltet fjernet så ingen leser kan
   // dra det inn; SQLite-KOLONNEN står (to-stegs — droppes i senere release).
   reiseLonnsartId: text("reise_lonnsart_id"),
+  // Prosjektkort L2 (2026-11-05) — "dagskort" | "prosjektkort". Tilføyes
+  // idempotent via ALTER. Les via lesTimerModusLokalt (ukjent → dagskort).
+  timerRegistreringsmodus: text("timer_registreringsmodus")
+    .notNull()
+    .default("dagskort"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
 

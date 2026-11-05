@@ -58,7 +58,7 @@ import {
   sumIDag,
   trafikklysSone,
   utledKortByggeplass,
-} from "@/lib/prosjektkort";
+} from "@sitedoc/shared";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
 
