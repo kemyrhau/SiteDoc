@@ -54,6 +54,8 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-29 · develop `230f2b64` ← `fix/annotering-raa-url-og-pil` `0a91dd4a`. Deployet til test (bygget 22:11) og testet av Kenneth. 🔴 **Prod er fortsatt `eb9071f2` fra 24.09.**
 
+**Sist ført: 2026-11-05 · test kjører `e795fd8d` (bygget 19:03, `/version` kontrollert).** Bærer ordre 10 (byggeplass per timer-/maskin-rad i web, merge `6638abd8`) og ordre 11 (HMS-ballen blir hos HMS-gruppa ved deaktivering, merge `616d0248`). Verifisert i nettleser på test: timerad — 0 byggeplasser skjult, 1 satt automatisk, 2+ nedtrekk; toppbar-byggeplass forhåndsvalgt kun i eget prosjekt; prosjektbytte nullstiller; uendret lagring beholder byggeplass; radlinje viser «· navn». HMS — X med «Fra firma» på flytkortet for firma-admin, fjern-modal og fjerning virker, deaktiver-modal viser prosjekter/flytledd (HMS-saklinje kun ved > 0, ikke testet med saker). Testdata etterpå: HMS-rolle og HMS-modul i Agent Bygger bygg slått av igjen; én timerad (7,5 t, Bygg B12) står i kmy sin kladd 07.08.
+
 **STATUS 2026-09-30 (kveld) — ført fra måling: `git worktree list` + ancestor-sjekk på hver hash.**
 
 🔴 **Tre bemannede spor, ikke seks (Kenneth-vedtak 2026-09-30).** Seks trær finnes og skal
