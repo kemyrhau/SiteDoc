@@ -72,6 +72,17 @@ describe("DeaktiverModal — forhåndsvisningen feilet", () => {
   });
 });
 
+describe("DeaktiverModal — forhåndsvisningen laster (ordre 13, M3)", () => {
+  it("🔴 Deaktiver er IKKE sperret av lastingen — bare feil og pågående lagring sperrer", () => {
+    query = { data: undefined, isLoading: true, isError: false };
+    vis();
+    const knapp = deaktiverKnapp();
+    expect((knapp as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(knapp);
+    expect(mutate).toHaveBeenCalledWith({ userId: "u-1", organizationId: "o-1", aktiv: false });
+  });
+});
+
 describe("DeaktiverModal — forhåndsvisningen lastet", () => {
   it("Deaktiver er aktiv og sender deaktiveringen", () => {
     query = {
