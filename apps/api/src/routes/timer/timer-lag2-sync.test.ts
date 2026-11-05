@@ -24,6 +24,9 @@ const AKTIVITET = "55555555-5555-5555-5555-555555555555";
 const REISE_LONNSART = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const ORDINAER_LONNSART = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const KONTOR = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+const ANNET_PROSJEKT = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+const BYGGEPLASS_EGEN = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"; // under PROSJEKT
+const BYGGEPLASS_FREMMED = "ffffffff-ffff-ffff-ffff-ffffffffffff"; // under ANNET_PROSJEKT
 
 vi.mock("../../trpc/tilgangskontroll", () => ({
   verifiserProsjekterTilhørerFirma: vi.fn().mockResolvedValue(undefined),
@@ -47,12 +50,14 @@ const kjerne = vi.hoisted(() => ({
   settingFindUnique: vi.fn(),
   grenseFindMany: vi.fn(),
   matriseFindMany: vi.fn(),
+  byggeplassFindMany: vi.fn(),
 }));
 vi.mock("@sitedoc/db", () => ({
   prisma: {
     organizationSetting: { findUnique: kjerne.settingFindUnique },
     organizationReiseGrense: { findMany: kjerne.grenseFindMany },
     reisetidMatrise: { findMany: kjerne.matriseFindMany },
+    byggeplass: { findMany: kjerne.byggeplassFindMany },
   },
 }));
 
@@ -163,6 +168,10 @@ beforeEach(() => {
   kjerne.settingFindUnique.mockResolvedValue({ reiseLonnsartId: REISE_LONNSART });
   kjerne.grenseFindMany.mockResolvedValue([]);
   kjerne.matriseFindMany.mockResolvedValue([]);
+  kjerne.byggeplassFindMany.mockResolvedValue([
+    { id: BYGGEPLASS_EGEN, projectId: PROSJEKT },
+    { id: BYGGEPLASS_FREMMED, projectId: ANNET_PROSJEKT },
+  ]);
 });
 
 describe("syncBatch — lagrer reise-sporet (C1) + utleder flagget (presisering 2)", () => {
@@ -248,5 +257,51 @@ describe("syncBatch — lagrer reise-sporet (C1) + utleder flagget (presisering 
     )!;
     expect(ugyldig.resultat).toBe("avvist");
     expect(gyldig.resultat).toBe("ok");
+  });
+});
+
+/**
+ * Ordre (12): syncBatch avviser IKKE en rad med byggeplass fra et annet prosjekt — en
+ * avvist sedel ville ligge i mobilens offline-kø for alltid. Raden lagres med
+ * byggeplass null (prosjektet beholdes) og serveren logger. Rød først: før ordren ble
+ * byggeplassen lagret ukontrollert.
+ */
+describe("syncBatch — byggeplass utenfor radens prosjekt (ordre 12)", () => {
+  it("🔴 (b) fremmed byggeplass på raden → batchen fullfører, raden lagres med byggeplass null", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { ctx } = lagCtx();
+    const res = await dagsseddelRouter.createCaller(ctx).syncBatch({
+      sedler: [sedelMed({ projectId: PROSJEKT, byggeplassId: BYGGEPLASS_FREMMED })],
+    });
+    expect(res.resultater[0]!.resultat).toBe("ok");
+    expect(sisteCreateMany).toHaveLength(1);
+    expect(sisteCreateMany[0]!.byggeplassId).toBeNull();
+    expect(sisteCreateMany[0]!.projectId).toBe(PROSJEKT);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("timer_byggeplass_grense"));
+    warn.mockRestore();
+  });
+
+  it("🔴 fremmed byggeplass på sedelhodet arves ikke av raden; hodet lagres med null", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { ctx, txMock } = lagCtx();
+    const sedel = { ...sedelMed({ projectId: PROSJEKT }), byggeplassId: BYGGEPLASS_FREMMED };
+    const res = await dagsseddelRouter.createCaller(ctx).syncBatch({ sedler: [sedel] });
+    expect(res.resultater[0]!.resultat).toBe("ok");
+    expect(sisteCreateMany[0]!.byggeplassId).toBeNull();
+    expect(txMock.dailySheet.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ byggeplassId: null }) }),
+    );
+    warn.mockRestore();
+  });
+
+  it("byggeplass under radens prosjekt beholdes (også arvet fra sedelen)", async () => {
+    const { ctx, txMock } = lagCtx();
+    const sedel = { ...sedelMed({ projectId: PROSJEKT }), byggeplassId: BYGGEPLASS_EGEN };
+    const res = await dagsseddelRouter.createCaller(ctx).syncBatch({ sedler: [sedel] });
+    expect(res.resultater[0]!.resultat).toBe("ok");
+    expect(sisteCreateMany[0]!.byggeplassId).toBe(BYGGEPLASS_EGEN);
+    expect(txMock.dailySheet.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ byggeplassId: BYGGEPLASS_EGEN }) }),
+    );
   });
 });

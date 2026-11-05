@@ -22,7 +22,11 @@ import {
   maksForSatsEnhet,
   takFeilmelding,
 } from "./rad-tak";
-import { krevByggeplassIProsjekt } from "./byggeplass-rad";
+import {
+  krevByggeplassIProsjekt,
+  krevByggeplasserIProsjekt,
+  lagByggeplassVasker,
+} from "./byggeplass-rad";
 import {
   hentErReiseKontekst,
   hentErReiseForLonnsarter,
@@ -1466,6 +1470,8 @@ async function validerSplittFelles(
     input.nyeRader.map((r) => r.projectId),
     sheet.organizationId,
   );
+  // Ordre (12): byggeplassen må høre til radens prosjekt (tillegg-rader har ingen).
+  await krevByggeplasserIProsjekt(input.nyeRader);
   // Maskin-splitt tar nye vehicleId fra input — org-valider hver unik mot
   // firmaets maskinregister. Timer-splitt arver original-radens vehicleId.
   if (input.radType === "maskin") {
@@ -1785,6 +1791,9 @@ export const dagsseddelRouter = router({
       // prosjekt-referanse ikke etterlater en sedel uten rad.
       if (input.projectId) {
         await verifiserProsjekterTilhørerFirma([input.projectId], orgId);
+        // Ordre (12): første rad får sedelens byggeplass — den må høre til radens
+        // prosjekt. Sjekket før upserten, så en avvist sedel ikke blir liggende.
+        await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
       }
 
       const dato = new Date(input.dato);
@@ -2444,6 +2453,8 @@ export const dagsseddelRouter = router({
         Array.from(new Set(alleRader.map((r) => r.projectId))),
         sheet.organizationId,
       );
+      // Ordre (12): byggeplassen må høre til radens prosjekt (samme grense som ordre 10).
+      await krevByggeplasserIProsjekt(alleRader);
       const lonnsartIder = Array.from(new Set(alleRader.map((r) => r.lonnsartId)));
       const aktivitetIder = Array.from(new Set(alleRader.map((r) => r.aktivitetId)));
       const [lonnsartTreff, aktivitetTreff] = await Promise.all([
@@ -4535,6 +4546,8 @@ export const dagsseddelRouter = router({
         ],
         sheet.organizationId,
       );
+      // Ordre (12): byggeplassen må høre til radens prosjekt (samme grense som ordre 10).
+      await krevByggeplasserIProsjekt([...input.nyeRader.timer, ...input.nyeRader.maskin]);
 
       // §2.D: org-valider alle rad-vehicleId (maskin-kostnadsbærer) mot firmaets
       // maskinregister — timer-rad (nullable) + maskin-rad (påkrevd), samme
@@ -6248,6 +6261,56 @@ export const dagsseddelRouter = router({
             orgId,
           );
 
+          // Ordre (12): byggeplassen må høre til radens prosjekt. Synken avviser ALDRI
+          // på dette — en avvist sedel blokkerer mobilens offline-kø. Byggeplass utenfor
+          // radens prosjekt lagres som null (prosjektet beholdes) og logges. Kartene
+          // bygges fra payloaden FØR vaskingen under, så en rad med fremmed byggeplass
+          // blir null og ikke arver sedelens byggeplass.
+          const vaskByggeplass = await lagByggeplassVasker([
+            lokal.byggeplassId,
+            ...lokal.timer.map((t) => t.byggeplassId),
+          ]);
+          let byggeplassVasket = 0;
+          const vaskTell = (b: string | null | undefined, p: string | null): string | null => {
+            const v = vaskByggeplass(b, p);
+            if (b && !v) byggeplassVasket++;
+            return v;
+          };
+          const syncTimerByggeplass = new Map(
+            lokal.timer.map((t) => [
+              t.id,
+              vaskTell(t.byggeplassId ?? lokal.byggeplassId, radProsjekt(t.projectId)),
+            ]),
+          );
+          const syncMaskinByggeplass = new Map(
+            lokal.maskiner.map((m) => [
+              m.id,
+              vaskTell(lokal.byggeplassId, radProsjekt(m.projectId)),
+            ]),
+          );
+          // Forslags-veiene (V19) lagrer payloadens egne byggeplass-felt — vask dem
+          // på stedet. Sedelhodet holdes innenfor sedelens prosjekter; en sedel uten
+          // kjent prosjekt (tom, uten sedel-prosjekt) har ingen grense å måle mot.
+          for (const t of lokal.timer) {
+            if (t.byggeplassId) t.byggeplassId = vaskByggeplass(t.byggeplassId, radProsjekt(t.projectId));
+          }
+          const sedelProsjekter = Array.from(
+            new Set([...alleRadProsjekt, lokal.projectId].filter((p): p is string => !!p)),
+          );
+          if (
+            lokal.byggeplassId &&
+            sedelProsjekter.length > 0 &&
+            !sedelProsjekter.some((p) => vaskByggeplass(lokal.byggeplassId, p))
+          ) {
+            lokal.byggeplassId = null;
+            byggeplassVasket++;
+          }
+          if (byggeplassVasket > 0) {
+            console.warn(
+              `[timer_byggeplass_grense] sedel=${lokal.clientUuid} felt=${byggeplassVasket}: byggeplass utenfor radens prosjekt lagret som null (ordre 12)`,
+            );
+          }
+
           // §2.D: valider alle rad-vehicleId (maskin-kostnadsbærer) mot firmaets
           // maskinregister — timer-rad (nullable) + maskin-rad (påkrevd). Samlet
           // pr. unik ID for å unngå N oppslag.
@@ -6383,8 +6446,9 @@ export const dagsseddelRouter = router({
           // navngitt feil (SYNC-1) — resten av batchen går gjennom. Utenfor tx:
           // rene oppslag, ingen skriving.
           const reiseResultat = await byggReiseFelterForSynk(
-            lokal.timer,
-            lokal.byggeplassId ?? null,
+            // Ordre (12): vasket byggeplass pr. rad (arv fra sedelen er alt løst opp).
+            lokal.timer.map((t) => ({ ...t, byggeplassId: syncTimerByggeplass.get(t.id) ?? null })),
+            null,
             erReiseKtx,
             lonnsartNavnMap,
             gyldigeOppmotesteder,
@@ -6463,7 +6527,7 @@ export const dagsseddelRouter = router({
                 serverVersjon: t.serverVersjon ?? null,
                 endretLokalt: t.endretLokalt,
                 projectId: radProsjekt(t.projectId),
-                byggeplassId: t.byggeplassId ?? lokal.byggeplassId ?? null,
+                byggeplassId: syncTimerByggeplass.get(t.id) ?? null,
                 lonnsartId: t.lonnsartId,
                 aktivitetId: t.aktivitetId,
                 externalCostObjectId: t.externalCostObjectId ?? null,
@@ -6745,7 +6809,8 @@ export const dagsseddelRouter = router({
                     // F3: per-rad byggeplass overstyrer sedel-nivå; null → arv
                     // fra dagskortet (sedel-verdien). Bakoverkompat: eldre klient
                     // sender ikke feltet → t.byggeplassId undefined → sedel-nivå.
-                    byggeplassId: t.byggeplassId ?? lokal.byggeplassId ?? null,
+                    // Ordre (12): oppløst og vasket mot radens prosjekt over.
+                    byggeplassId: syncTimerByggeplass.get(t.id) ?? null,
                     lonnsartId: t.lonnsartId,
                     aktivitetId: t.aktivitetId,
                     externalCostObjectId: t.externalCostObjectId ?? null,
@@ -6797,7 +6862,7 @@ export const dagsseddelRouter = router({
                   sheetTimerId: m.sheetTimerId ?? null,
                   projectId: radProsjekt(m.projectId)!,
                   externalCostObjectId: m.externalCostObjectId ?? null,
-                  byggeplassId: lokal.byggeplassId ?? null,
+                  byggeplassId: syncMaskinByggeplass.get(m.id) ?? null,
                   vehicleId: m.vehicleId,
                   timer: m.timer,
                   mengde: m.mengde ?? null,
