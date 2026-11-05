@@ -89,6 +89,8 @@ import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
 import { SplittRadModal } from "./SplittRadModal";
 import { KnappMedForklaring } from "../KnappMedForklaring";
+import { useProsjektkortModus } from "./prosjektkortKontekst";
+import { kortModusVisning } from "../../lib/prosjektkortMobil";
 
 /** P1 (maskin-i-rad): valgfri maskin fra timerrad-modalens maskin-seksjon.
  *  null = ingen maskin valgt (ingen sheet_machine-rad skrives). */
@@ -976,6 +978,7 @@ function ByggeplassLinjeTekst({
   byggeplassInfo: { navn: string | null; arvet: boolean } | null;
 }) {
   const { t } = useTranslation();
+  const kortVisning = kortModusVisning(useProsjektkortModus());
   return (
     <Text className="flex-1 text-xs text-gray-500" numberOfLines={1}>
       {prosjektNavn}
@@ -986,7 +989,7 @@ function ByggeplassLinjeTekst({
         >
           {byggeplassInfo.navn ?? t("byggeplassVelger.velg")}
           {byggeplassInfo.arvet
-            ? ` (${t("timer.byggeplass.fraDagskort")})`
+            ? ` (${t(kortVisning.fra)})`
             : ""}
         </Text>
       ) : (
@@ -1072,6 +1075,7 @@ function TimerRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const kortVisning = kortModusVisning(useProsjektkortModus());
   // T.5 + pause-synk: hent firma-innstillinger fra lokal cache.
   //   - tidsrundingMinutter: null = ingen runding
   //   - pauseMin: matpausens lengde (standardPauseMin, default 30), brukt til
@@ -1623,7 +1627,7 @@ function TimerRadModal({
                 {valgtByggeplassNavn ??
                   (valgtByggeplassId
                     ? t("byggeplassVelger.velg")
-                    : t("timer.byggeplass.arvFraDagskort"))}
+                    : t(kortVisning.arvFra))}
               </Text>
             </Pressable>
           </View>
@@ -2243,6 +2247,8 @@ function ProsjektByggeplassVelgerModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // Prosjektkort L2: kortets prosjekt er låst — kun byggeplass kan velges.
+  const kortVisning = kortModusVisning(useProsjektkortModus());
   const { favorittIder, toggleFavoritt } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
@@ -2369,6 +2375,7 @@ function ProsjektByggeplassVelgerModal({
         {/* Prosjekt-rad — trykk ekspanderer prosjektlista inline. */}
         <Pressable
           onPress={() => setVisProsjektListe((v) => !v)}
+          disabled={kortVisning.prosjektLaast}
           className="flex-row items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3"
         >
           <View className="flex-1">
@@ -2381,13 +2388,15 @@ function ProsjektByggeplassVelgerModal({
                 : lokaltProjectId}
             </Text>
           </View>
-          <ChevronDown
-            size={20}
-            color="#6b7280"
-            style={{
-              transform: [{ rotate: visProsjektListe ? "180deg" : "0deg" }],
-            }}
-          />
+          {!kortVisning.prosjektLaast && (
+            <ChevronDown
+              size={20}
+              color="#6b7280"
+              style={{
+                transform: [{ rotate: visProsjektListe ? "180deg" : "0deg" }],
+              }}
+            />
+          )}
         </Pressable>
 
         {visProsjektListe ? (
@@ -2451,7 +2460,7 @@ function ProsjektByggeplassVelgerModal({
               }`}
             >
               <Text className="flex-1 text-base text-gray-700">
-                {t("timer.byggeplass.arvFraDagskort")}
+                {t(kortVisning.arvFra)}
               </Text>
               {valgtByggeplassId == null && <Check size={18} color="#1e40af" />}
             </Pressable>
@@ -2495,7 +2504,7 @@ function ProsjektByggeplassVelgerModal({
                         faktisk peker på. Ren visning — ingen logikkendring. */}
                     {sedelByggeplassId != null && item.id === sedelByggeplassId && (
                       <Text className="text-xs text-gray-500">
-                        {t("timer.byggeplass.arvesFraDagskort")}
+                        {t(kortVisning.arvesFra)}
                       </Text>
                     )}
                   </View>

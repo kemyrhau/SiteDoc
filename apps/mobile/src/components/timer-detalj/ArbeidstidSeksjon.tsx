@@ -132,7 +132,7 @@ function Felt({ label, verdi }: { label: string; verdi: string }) {
 /*  RedigerArbeidstidModal                                              */
 /* ------------------------------------------------------------------ */
 
-function RedigerArbeidstidModal({
+export function RedigerArbeidstidModal({
   sheetId,
   dato,
   startAt,

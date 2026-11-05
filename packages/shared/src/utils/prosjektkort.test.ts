@@ -7,7 +7,7 @@ import {
   sumIDag,
   trafikklysSone,
   utledKortByggeplass,
-} from "../prosjektkort";
+} from "./prosjektkort";
 
 const t = (
   timer: number | string,

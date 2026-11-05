@@ -722,6 +722,17 @@ export function kjorMigreringer() {
         `ALTER TABLE organization_setting_local ADD COLUMN reise_terskel_m INTEGER`,
       );
     }
+    // Prosjektkort L2 (2026-11-05) — firmaets timeføringsmodus, cachet så
+    // samlesiden velges offline. Default 'dagskort' = uendret visning til
+    // første vellykkede henting.
+    if (!kolonner.find((k) => k.name === "timer_registreringsmodus")) {
+      console.log(
+        "[MIG] Legger til timer_registreringsmodus på organization_setting_local",
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN timer_registreringsmodus TEXT NOT NULL DEFAULT 'dagskort'`,
+      );
+    }
   } catch (e) {
     console.warn(
       "[MIG] Kunne ikke utvide organization_setting_local:",

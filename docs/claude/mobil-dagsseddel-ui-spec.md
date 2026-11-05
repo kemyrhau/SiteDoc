@@ -371,6 +371,28 @@ På fersk test-build, fysisk enhet:
 
 ---
 
+## 7b. Prosjektkort-modus (L2) — 🟡 `feat/prosjektkort-l2` (2026-11-06, ikke merget)
+
+Gjelder bare når firmaets `timerRegistreringsmodus = prosjektkort` (cachet lokalt, `lesTimerModusLokalt`; ukjent/offline uten cache → dagskort). Dagskort-layouten over (§ 2–§ 3) er uendret. Spec: `relay/prosjektkort/spec-prosjektkort.md` § 4.2/§ 4.3/§ 7; detalj i [timer.md § Prosjektkort L2](timer.md).
+
+```
+┌─────────────────────────────────────────────┐
+│  ‹ Dagsseddel — 16. apr 2026      [status]   │
+│  2 prosjektkort · 9,5 t i dag                │
+│  ┌ E6 Kvænangsfjellet · Byggeplass A    ›  ┐ │  ← kort → timer/[id]/kort/[projectId]
+│  │ [Arbeid 7,5 t] [Maskin 3 t] [Reise 1 t] │ │
+│  └─────────────────────────────────────────┘ │
+│  [+ Nytt prosjektkort]                       │
+│  ┆ Dagens ramme 07:00–16:00 · 30 min  Endre ┆ │  ← stiplet; arv-kilde for byggeplass
+│  ▸ Sum i dag 9,5 t av 7,5 t · maskin · reise │  ← blå sumlinje
+│  [Send dagen (9,5 t)]   [Slett dagsseddel]   │
+└─────────────────────────────────────────────┘
+```
+
+- Blå sedel-boks og «Arbeidstid i dag»-seksjonen vises ikke i kortmodus; «Dagens ramme» tar over begge (`ProsjektkortSamleside.tsx`).
+- Kortskjermen bruker dagskortets `ProsjektGruppe` med prosjektet låst (`ProsjektkortKontekst`); arv-teksten heter «fra dagen».
+- Vareforbruk vises som ren lesing på kortskjermen, kun på nett.
+
 ## 8. Ut av scope (ikke i denne spec'en)
 
 - GPS-drevet prosjekt-/innsjekk-automatikk (se [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md) — egne beslutninger, juridisk sign-off gjenstår).
