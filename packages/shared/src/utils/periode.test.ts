@@ -6,6 +6,7 @@ import {
   innenforPeriode,
   erUgyldigIntervall,
   grenserForHurtigvalg,
+  filtrerPaaPeriode,
   type Periode,
 } from "./periode";
 
@@ -48,6 +49,10 @@ describe("innenforPeriode", () => {
   it("dato før fra → ute", () => {
     expect(innenforPeriode(new Date("2026-03-09T12:00:00"), fra, til)).toBe(false);
   });
+  it("grense: siste millisekund av til-dagen er inne, midnatt dagen etter er ute", () => {
+    expect(innenforPeriode(new Date("2026-03-12T23:59:59.999"), fra, til)).toBe(true);
+    expect(innenforPeriode(new Date("2026-03-13T00:00:00.000"), fra, til)).toBe(false);
+  });
   it("dato etter til-dagen → ute", () => {
     expect(innenforPeriode(new Date("2026-03-14T00:00:00"), fra, til)).toBe(false);
   });
@@ -67,5 +72,49 @@ describe("erUgyldigIntervall", () => {
   });
   it("ikke-egendefinert → aldri ugyldig", () => {
     expect(erUgyldigIntervall({ hurtigvalg: "alle", fra: null, til: null })).toBe(false);
+  });
+});
+
+describe("filtrerPaaPeriode (B-0 web: opprettet/endret)", () => {
+  const rader = [
+    { id: "a", createdAt: "2026-01-10T10:00:00", updatedAt: "2026-03-05T10:00:00" },
+    { id: "b", createdAt: "2026-03-01T10:00:00", updatedAt: "2026-03-01T10:00:00" },
+  ];
+  const mars: Periode = { hurtigvalg: "egendefinert", fra: new Date("2026-03-01T00:00:00"), til: new Date("2026-03-31T00:00:00") };
+
+  it("opprettet treffer createdAt", () => {
+    expect(filtrerPaaPeriode(rader, mars, "opprettet").map((r) => r.id)).toEqual(["b"]);
+  });
+
+  it("endret treffer updatedAt — gammel rad endret i mars er med", () => {
+    expect(filtrerPaaPeriode(rader, mars, "endret").map((r) => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("«alle» og åpen egendefinert slipper alt gjennom", () => {
+    expect(filtrerPaaPeriode(rader, { hurtigvalg: "alle", fra: null, til: null })).toHaveLength(2);
+    expect(filtrerPaaPeriode(rader, { hurtigvalg: "egendefinert", fra: null, til: null })).toHaveLength(2);
+  });
+
+  it("rad uten endret-dato faller utenfor en aktiv periode", () => {
+    expect(filtrerPaaPeriode([{ id: "c", createdAt: "2026-03-02T10:00:00", updatedAt: null }], mars, "endret")).toEqual([]);
+  });
+});
+
+describe("filtrerPaaPeriode (B-2: sendt/godkjent/lukket)", () => {
+  const mars: Periode = { hurtigvalg: "egendefinert", fra: new Date("2026-03-01T00:00:00"), til: new Date("2026-03-31T00:00:00") };
+  const hendelse = (ved: string) => ({ av: { id: "u", navn: "Ola" }, ved });
+  const rader = [
+    { id: "a", createdAt: "2026-01-01T10:00:00", statushendelser: { sendt: hendelse("2026-03-02T10:00:00"), godkjent: null, lukket: null } },
+    { id: "b", createdAt: "2026-03-01T10:00:00", statushendelser: { sendt: hendelse("2026-02-01T10:00:00"), godkjent: hendelse("2026-03-10T10:00:00"), lukket: null } },
+    { id: "c", createdAt: "2026-03-01T10:00:00" },
+  ];
+
+  it("sendt treffer statushendelser.sendt.ved, ikke createdAt", () => {
+    expect(filtrerPaaPeriode(rader, mars, "sendt").map((r) => r.id)).toEqual(["a"]);
+  });
+
+  it("godkjent: bare rader med godkjent-hendelse i perioden; rad uten metadata faller ut", () => {
+    expect(filtrerPaaPeriode(rader, mars, "godkjent").map((r) => r.id)).toEqual(["b"]);
+    expect(filtrerPaaPeriode(rader, mars, "lukket")).toEqual([]);
   });
 });

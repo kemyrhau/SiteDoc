@@ -20,7 +20,8 @@ const orgMemberFindUnique = vi.fn();
 vi.mock("@sitedoc/db", () => ({
   prisma: {
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
-    projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
+    // L2: tilgangsportene slår opp aktivt medlem med findFirst (aktivtProsjektmedlemWhere).
+    projectMember: { findFirst: (...a: unknown[]) => memberFindUnique(...a) },
     organizationMember: { findUnique: (...a: unknown[]) => orgMemberFindUnique(...a) },
     // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) og erFirmaAdminForProsjekt
     // (firmagrense 2026-11-03) leser begge prosjektets eier-firma. Standalone (null) er
@@ -121,10 +122,15 @@ function scenarioFirmaadmin() {
 }
 
 function permissivPrisma() {
-  return {
+  const prisma: Record<string, unknown> = {
     // D-vakten (fjernMedlem/oppdaterRoller) og slett-vernet teller dokumenter → 0 slipper gjennom.
-    checklist: { count: vi.fn().mockResolvedValue(0) },
-    task: { count: vi.fn().mockResolvedValue(0) },
+    checklist: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
+    task: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
+    // Myk fjernMedlem (L1): oppslag, aktør, transaksjon og Activity-logg.
+    projectMember: { findFirst: vi.fn().mockResolvedValue(null) },
+    user: { findUnique: vi.fn().mockResolvedValue({ name: "Admin" }) },
+    activity: { create: vi.fn().mockResolvedValue({}) },
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
     dokumentflyt: {
       create: vi.fn().mockResolvedValue({ id: FLYT }),
       update: vi.fn().mockResolvedValue({ id: FLYT }),
@@ -141,8 +147,15 @@ function permissivPrisma() {
       findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "m", dokumentflytId: FLYT, rolle: "registrator", steg: 1 }),
       updateMany: vi.fn().mockResolvedValue({}),
       update: vi.fn().mockResolvedValue({ id: "m" }),
+      findFirst: vi.fn().mockResolvedValue({
+        id: "m", dokumentflytId: FLYT, rolle: "registrator", steg: 1, erHovedansvarlig: false,
+        projectMemberId: null, groupId: null, faggruppeId: null, projectMember: null,
+      }),
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
     },
   };
+  return prisma;
 }
 
 function lagCallerMed(prisma: unknown) {

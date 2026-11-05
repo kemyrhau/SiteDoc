@@ -226,6 +226,7 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 | **WebView-innhold (mobil-viewer)** | Deploy + restart | «Deployet til test — restart Expo med `--clear`» |
 | **API-endringer** | Deploy | «Deployet til test — shake → Reload» |
 | **Native modul / config** | Ny build | «Trenger ny EAS-build» |
+| **JS ut til TestFlight-appen** | OTA ([DEPLOY-RUNBOK § 3](DEPLOY-RUNBOK.md)) | «Åpne appen → «Ny versjon er klar · Oppdater» → trykk Oppdater (ev. Mer → «Se etter oppdatering»)». Ikke tving-lukk |
 
 **Regel:** Etter HVER commit som påvirker mobil, skriv eksplisitt: «**Reload:** [metode]»
 

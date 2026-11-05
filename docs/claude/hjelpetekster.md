@@ -60,13 +60,16 @@ kilden — er den importert og rendret på siden, har siden `?`-hjelp.
 Mobilappen har ingen `?`-komponent ennå (ingen `HjelpKnapp` i `apps/mobile`); teksten under er vedtatt
 hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
 
-- **Hva er dette?** Søk i hele prosjektet fra ett felt. Skriv minst to tegn og trykk Søk.
-- **Alle · Mapper · Sjekklister · Oppgaver:** «Alle» viser treff fra alle tre, med de ti første i hver gruppe.
+- **Hva er dette?** Søk i hele prosjektet fra ett felt. Skriv minst to tegn og trykk Søk. Åpnes fra søke-ikonet på
+  Hjem og i Mapper, eller fra raden «Søk … i hele prosjektet» under søkefeltet i oppgave-, sjekkliste- og HMS-lista
+  (da er lista du kom fra valgt, og teksten er tatt med).
+- **Alle · Mapper · Sjekklister · Oppgaver · HMS:** «Alle» viser treff fra alle fem, med de ti første i hver gruppe.
   Trykk på en gruppe for å se alle treffene der.
 - **Mapper** søker i teksten inni dokumentene. Trykk et treff for å lese stedet i dokumentet; pilene går mellom
   treffene, og «Åpne dokumentet» viser hele fila. Krever nett.
 - **Sjekklister og oppgaver** søker på nummer, tittel og mal — ikke på det som er fylt ut. Uten nett søkes den
   lagrede versjonen på telefonen (for eksempel finner Ola oppgave «OPP12» selv i kjelleren uten dekning).
+- **HMS** søker i avvik, SJA og RUH samtidig; hvert treff viser hvilken type det er. Også uten nett.
 
 ## Mobil: Filter og sortering i sjekkliste-, oppgave-, innboks- og HMS-lista (`FilterOgSorteringSheet.tsx`)
 
@@ -76,14 +79,43 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når 
 - Gjelder sjekklister, oppgaver og innboksen (innboksen har ikke prioritet).
 - **Ballen hos meg:** viser bare dokumenter der du eller gruppa di har ballen nå. Krever nett og at lista er hentet
   fra serveren — uten dekning, eller mens lista viser den lagrede versjonen, er bryteren skjult.
-- **Sortering:** opprettet, sist endret, frist, nummer, emne eller navn — frist, nummer og emne vises bare når lista
-  har slike verdier. Trykk en brikke for å sortere på den; trykk igjen for å snu retningen, tredje trykk fjerner den.
+- **Sortering:** opprettet, sist endret, sendt, frist, nummer, emne eller navn — sendt, frist, nummer og emne vises
+  bare når lista har slike verdier. Trykk en brikke for å sortere på den; trykk igjen for å snu retningen, tredje trykk fjerner den.
   Velg opptil tre for å sortere videre innenfor like verdier («Frist ↑, deretter Nummer ↓»). Dokumenter uten verdi
   havner sist. Hjelpelinja i arket: «Trykk igjen for å snu · tredje trykk fjerner». Aktiv sortering vises som egen
   brikke over lista; trykk den for å gå tilbake til nyeste først. Under søk sorteres treffene etter relevans.
 - **Hva:** emne (også «Uten emne»), mal og — for oppgaver — prioritet.
-- **Når:** frist (har frist, ingen frist, forfalt — avsluttede og avbrutte regnes ikke som forfalt) og når dokumentet ble opprettet.
-- **Hvem:** hvem som opprettet det, mottaker/ansvarlig, bestiller- og utførerfaggruppe.
-- **Hvor:** tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
+- **Når:** frist (har frist, ingen frist, forfalt — avsluttede og avbrutte regnes ikke som forfalt) og periode. Velg
+  først hvilken dato perioden gjelder — opprettet, sendt, godkjent eller lukket (bare datoene lista har) — så tidsrom.
+  Chipen over lista sier hvilken, f.eks. «Sendt: Siste uke». (M-pakke 2026-11-04)
+- **Hvem:** hvem som opprettet det, mottaker/ansvarlig, bestiller- og utførerfaggruppe, og hvem som sendte, godkjente,
+  lukket eller fylte ut. «Utfylt av» treffer alle som har fylt ut noe i dokumentet, ikke bare den siste.
+- **Hvor:** område, tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
 - Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
 
+## Web: Periode og område i sjekkliste- og oppgavelista, metadata i tegningslista (metadata S-pakke 2026-11-04)
+
+Sidene `sjekklister/page.tsx`, `oppgaver/page.tsx` og `TegningerPanel` har ingen `?`-komponent ennå; vedtatt tekst,
+brukes når de får hjelpe-ikon.
+
+- **Periode:** velg om du vil se på når dokumentet ble *opprettet* eller sist *endret*, og velg tidsrom. Knappen viser
+  valget, f.eks. «Endret: Siste uke».
+- **Område:** kolonnen viser området dokumentet er plassert i på tegningen. Filtrer i kolonnehodet; filteret vises bare
+  når lista har områder.
+- **Kolonner** (2026-11-04): dra i håndtaket ⋮⋮ til venstre i en kolonneoverskrift for å flytte kolonnen, eller dra
+  i lista øverst i «Velg parameter». Rekkefølgen huskes for deg. En kolonne du slår på, havner sist. «Nullstill» gir
+  standardkolonnene i standardrekkefølge. Avkrysningsruta står alltid først.
+- **Hvem og når** (M-pakke 2026-11-04, slås på i kolonnevelgeren): «Sendt av/Sendt», «Godkjent av/Godkjent»,
+  «Lukket av/Lukket», «Sist utfylt av/Sist utfylt» og «Signatur». Gjenåpnes et dokument, vises godkjent og lukket bare
+  så lenge dokumentet faktisk står som godkjent eller lukket. Periode-knappen kan også se på sendt-, godkjent- og
+  lukket-dato.
+- **Sist utfylt av:** viser «—» når endringsloggen er slått av i malen (holde musa over forklarer hvorfor). Filteret
+  «Utfylt av» treffer alle som har fylt ut noe, ikke bare den siste.
+- **Signatur:** for signaturfelt i malen: «✓» når alle er signert, «2/3» når noen mangler. For SJA vises bare hvor
+  mange som har signert, for eksempel «3 signert» — en SJA sier ikke på forhånd hvem som skal signere. Har dokumentet
+  begge, står det «2/3 · 3 signert». «—» når ingen har signert eller dokumentet ikke har signaturfelt. Filtrer på
+  Signert, Mangler signatur eller Uten signaturfelt (en SJA regnes som signert når minst én har signert); sortering
+  gir komplette først.
+- **Tegningslista:** hver tegning viser revisjon, status, opprinnelig filformat (DWG, PDF …) og utgivelsesdato når de
+  finnes. Under søket kan du snevre inn på status, filformat og georeferanse — bare valg som finnes i lista vises.
+  Byggeplasser uten treff skjules mens et filter er satt.

@@ -41,7 +41,7 @@ export function aktivAnsattIFirmaWhere(
 export interface SikreMedlemmerResultat {
   /** userId → projectMemberId for hver GYLDIG bruker (opprettet eller allerede medlem). */
   projectMemberIdByUserId: Map<string, string>;
-  /** Antall nye ProjectMember-rader opprettet. */
+  /** Antall nye ProjectMember-rader opprettet, eller avsluttede gjenåpnet. */
   lagtTil: number;
   /** Antall som allerede var medlem (uendret). */
   alleredeMedlem: number;
@@ -55,8 +55,8 @@ export interface SikreMedlemmerResultat {
  *
  * Validerer HVER userId mot `aktivAnsattIFirmaWhere(organizationId)` — en deaktivert
  * eller ikke-brukbar person (eller fra annet firma) legges ALDRI til, uansett hva
- * klienten sendte. Idempotent: eksisterende medlemmer røres ikke, faggruppe-koblinger
- * upsertes. Returnerer projectMemberId for hver gyldig bruker + tellinger til kvittering.
+ * klienten sendte. Idempotent: aktive medlemmer røres ikke, avsluttede gjenåpnes (L2b B8),
+ * faggruppe-koblinger upsertes (og gjenåpnes). Returnerer projectMemberId for hver gyldig bruker + tellinger til kvittering.
  */
 export async function sikreProsjektmedlemmer(
   tx: TxClient,
@@ -91,21 +91,29 @@ export async function sikreProsjektmedlemmer(
   const gyldigeIder = new Set(gyldige.map((m) => m.userId));
   result.ugyldige = unikeUserIds.filter((id) => !gyldigeIder.has(id));
 
-  // Eksisterende medlemskap slås opp samlet (ingen N+1).
+  // Eksisterende medlemskap slås opp samlet (ingen N+1) — også avsluttede: én rad per
+  // person og prosjekt, så et tidligere medlem gjenåpnes på samme rad (L2b B8).
   const eksisterende = await tx.projectMember.findMany({
     where: { projectId: params.projectId, userId: { in: [...gyldigeIder] } },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, periodeSlutt: true },
   });
-  const medlemIdByUser = new Map(
-    eksisterende
-      .filter((m): m is { id: string; userId: string } => m.userId !== null)
-      .map((m) => [m.userId, m.id]),
+  const medlemByUser = new Map(
+    eksisterende.flatMap((m) => (m.userId !== null ? [[m.userId, m] as const] : [])),
   );
 
   for (const userId of gyldigeIder) {
-    const eksisterendeId = medlemIdByUser.get(userId);
-    if (eksisterendeId) {
-      result.alleredeMedlem += 1;
+    const rad = medlemByUser.get(userId);
+    if (rad) {
+      const eksisterendeId = rad.id;
+      if (rad.periodeSlutt) {
+        await tx.projectMember.update({
+          where: { id: rad.id },
+          data: { periodeSlutt: null, role },
+        });
+        result.lagtTil += 1;
+      } else {
+        result.alleredeMedlem += 1;
+      }
       result.projectMemberIdByUserId.set(userId, eksisterendeId);
       // Legg til evt. nye faggruppe-koblinger på det eksisterende medlemmet.
       for (const fid of faggruppeIder) {
@@ -114,7 +122,7 @@ export async function sikreProsjektmedlemmer(
             projectMemberId_faggruppeId: { projectMemberId: eksisterendeId, faggruppeId: fid },
           },
           create: { projectMemberId: eksisterendeId, faggruppeId: fid },
-          update: {},
+          update: { periodeSlutt: null },
         });
       }
       continue;

@@ -64,7 +64,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/prosjekter, /dashbord/prosjekter/[id]/* -> Legacy-rutetre (K9-opprydding): server-redirects til kanonisk /dashbord/[prosjektId]/* (Toppmeny.tsx slettet — var død kode). Redirects beholdes til redesign er utrullet
 /dashbord/oppsett/ai-sok                     -> AI-søk innstillinger: embedding-status, generer/stopp, NorBERT/OpenAI modellvalg, LLM-konfig, recall/precision/latency sliders
 /dashbord/oppsett                             -> Innstillinger
-/dashbord/oppsett/brukere                     -> Kontakttabell med grupper (default kollapsert). Sticky header: «+ Ny gruppe» + «Inviter ny» (inline form med fornavn/etternavn/e-post/telefon/firma). Modul-badges direkte klikkbare for toggle (sjekklister/oppgaver/tegninger/3D). Firma-dropdown i redigeringsvisning (endrer organizationId på brukernivå, inkl. «+ Nytt firma»). Firmaansvarlig via rolle-dropdown. Skjold: blått=Admin, gult=Firmaansvarlig. Legg til person i gruppe via custom dropdown (ikke native select). HjelpKnapp øverst til høyre
+/dashbord/oppsett/brukere                     -> Kontakttabell med grupper (default kollapsert). Sticky header: «+ Ny gruppe» + «Inviter ny» (inline form med fornavn/etternavn/e-post/telefon/firma). Modul-badges direkte klikkbare for toggle (sjekklister/oppgaver/tegninger/3D). Firma-dropdown i redigeringsvisning (endrer organizationId på brukernivå, inkl. «+ Nytt firma»). Firmaansvarlig via rolle-dropdown. Skjold: blått=Admin, gult=Firmaansvarlig. Tidligere medlemmer (myk fjerning, L2b) er skjult; avkrysningen «Vis tidligere medlemmer» under filteret tar dem med som grå rader med «Sluttet {dato}», ikke klikkbare (`page.tsx`, `medlem.hentForProsjekt` `inkluderTidligere`). Legg til person i gruppe via custom dropdown (ikke native select). HjelpKnapp øverst til høyre
 /dashbord/oppsett/brukere/tillatelser         -> Tillatelsesmatrise (read-only)
 /dashbord/oppsett/lokasjoner                  -> Lokasjonsliste med georeferanse
 /dashbord/oppsett/produksjon                   -> Produksjon-oversikt (tidligere field/)
@@ -89,6 +89,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/firma                               -> Firma-admin (oversikt + integrasjonsstatus)
 /dashbord/firma/prosjekter                    -> Firmaets prosjekter
 /dashbord/firma/brukere                       -> Firmaets brukere (rolleskifte user↔company_admin)
+/dashbord/firma/ansatte                       -> Ansatte (registreringsmodellen). `DeaktiverModal` viser `DeaktiverOppsummering` fra `organisasjon.forhandsvisDeaktivering` (L3, 2026-11-05): prosjekter som avsluttes, flytledd og ledd der personen er alene, og prosjekter som hoppes over med grunn, og hvor mange dokumenter som går tilbake til innsender (M3, `firma.ansatte.deaktiver.tilInnsender`)
 /dashbord/firma/fakturering                   -> Fakturering (placeholder)
 /dashbord/firma/innstillinger                 -> Innstillinger (redigerbar firmainformasjon + ?-hjelp)
 ```
@@ -103,6 +104,42 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 - `useAktivSeksjon()` — Utleder seksjon fra pathname
 - `useVerktoylinje(handlinger)` — Registrerer handlinger per side med auto-cleanup
 - `useAutoVaer(...)` — Auto-henter værdata fra Open-Meteo
+
+### Feiltekst i tRPC-klienten (2026-11-05)
+
+Dialogene viser `error.message` rått. Derfor oversettes to feiltyper ett sted, i `klientfeilLink` ([klientfeil.ts](../../apps/web/src/lib/klientfeil.ts)). Linken ligger først i lenkekjeden i `opprettTrpcKlient` ([trpc.ts](../../apps/web/src/lib/trpc.ts)). Ingen visning endres, og det kommer ingen toast eller banner.
+
+| Tilfelle | Gjenkjennes ved | Tekst |
+|---|---|---|
+| Ingen kontakt | fetch-`TypeError` («Failed to fetch» / «Load failed» / «NetworkError when attempting to fetch resource»), eller 502/503/504 uten tRPC-kropp (`res.json()` gir `SyntaxError`) | `feil.ingenKontaktServer` |
+| Sesjon utløpt | tRPC-kode `UNAUTHORIZED` | `feil.loggetUt` |
+
+Alle andre feil slipper gjennom uendret. Det gjelder også serverens egne meldinger når feilen har tRPC-`data`/`shape`. Vakt: `src/lib/__tests__/klientfeil.test.ts` kjører hele kjeden mot falsk fetch.
+
+### Personnavn i dokumentflyt: e-post og personkort (2026-11-05)
+
+To personer kan ha samme navn. Personnavnene i dokumentflyt-oppsettet bruker derfor `PersonNavn` ([PersonNavn.tsx](../../apps/web/src/components/PersonNavn.tsx)). Det gjelder rollekolonnenes enkeltpersoner, personene i en utvidet gruppe og HMS-flytens behandlerliste ([HmsFlytKort.tsx](../../apps/web/src/components/hms/HmsFlytKort.tsx)).
+
+- **Hover** viser e-posten via `Tooltip` fra `@sitedoc/ui`.
+- **Klikk** åpner `PersonKort` (slide-over med bakteppe, samme kort som på Kontakter-siden). Kortet viser e-post, firma og faggruppe.
+  - Medlemmet slås opp i `medlem.hentForProsjekt` på `projectMemberId`, ellers på `userId`. Det er samme cache som siden har fra før.
+  - Kortets øvrige data og admin-gaten (`gruppe.hentMinFlytInfo.erAdmin`) hentes først når kortet åpnes.
+  - Det er ingen API-endring.
+- **Ikke prosjektmedlem:** firmaets HMS-ansvarlige som ikke er medlem av prosjektet, får bare e-post på hover. De har ingen knapp, fordi det ikke finnes noe kort.
+- **Grupper og faggrupper** rendres som før.
+- **Knappene på raden** (hovedansvarlig, redigerer, ×, «Legg til») er uendret. Klikk i navnet eller kortet bobler ikke videre til raden.
+
+### Fjerning fra dokumentflyt: bekreftelse og tomt ledd (L1, 2026-11-05)
+
+×-knappen på et flytmedlem åpner `FjernMedlemModal` ([FjernMedlemModal.tsx](../../apps/web/src/app/dashbord/oppsett/produksjon/_components/FjernMedlemModal.tsx)). Den henter `dokumentflyt.forhandsvisFjerning` og sender `fjernMedlem`. Fjerningen er myk: raden avsluttes, loggen står.
+
+- **A** — andre i leddet, ingen åpne dokumenter: bare bekreft. `nyHovedansvarligPmId` utelates; serveren velger bare ny hovedansvarlig hvis den fjernede var det.
+- **B** — andre i leddet, åpne dokumenter: velg ny hovedansvarlig blant gjenværende (leddets hovedansvarlig er forhåndsvalgt). Knappen viser antallet som flyttes.
+- **C** — eneste i leddet: velg erstatter blant prosjektmedlemmer utenfor leddet. Med åpne dokumenter er erstatter påkrevd; uten kan leddet stå tomt via «Fjern uten erstatter» (sender `null`, B10).
+
+Et ledd uten medlemmer viser en gul stripe (`dokumentflyt.leddTomt`) for flytadmin i `FlytBoks` ([page.tsx](../../apps/web/src/app/dashbord/oppsett/produksjon/dokumentflyt/page.tsx)). Vakt: `_components/__tests__/fjern-medlem-modal.test.tsx`.
+
+Vakt: `src/components/__tests__/person-navn.test.tsx`.
 
 ## Flerspråklig støtte (i18n)
 
@@ -188,6 +225,37 @@ Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
 - `BilderPanel` — Visningsmodus-toggle (liste/tegning) + tegningsvelger med byggeplass/etasje-tre
 - `MapperPanel` — Klikkbar mappestruktur med søk
 
+**Metadata S-pakke (`feat/metadata-s-pakke`, 2026-11-04):**
+- **B-0 periodefilter:** `DokumentPeriodeFilter.tsx` i verktøylinja på `sjekklister/page.tsx` og `oppgaver/page.tsx` —
+  velg felt (opprettet / endret) og hurtigvalg. Filtreringen er klient-side via `filtrerPaaPeriode`
+  (`@sitedoc/shared` `utils/periode.ts`); ingen API-endring. Til-datoen er inklusiv hele dagen; midnatt dagen etter er
+  utenfor (`innenforPeriode`, `>=`).
+- **B-1 område:** kolonnen `tabell.omrade` (`rad.omrade?.navn`) i begge listene, filtrerbar via `Table`. Regelen ligger i
+  `apps/web/src/lib/omradeFilter.ts` (`omradeFilterAlternativer` + `visOmradeFilter`: vises bare når lista har minst ett
+  område). Krever omrade-include i `sjekkliste/oppgave.hentForProsjekt` (låst av `hentForProsjekt-omrade.test.ts`); mot
+  eldre API er alle verdier tomme og filteret skjules.
+- **Metadata M-pakke (`feat/metadata-m-pakke`, 2026-11-04) — B-2/B-3/B-4:** valgbare kolonner (av som standard, gruppe
+  `kolonne.hvemOgNaar` i kolonnevelgeren) i `sjekklister/page.tsx` og `oppgaver/page.tsx`: «Sendt av/Sendt»,
+  «Godkjent av/Godkjent», «Lukket av/Lukket», «Sist utfylt av/Sist utfylt», «Signatur». Felles kolonnedefinisjoner i
+  `components/DokumentMetadataKolonner.tsx` (`METADATA_KOLONNE_IDER`, `byggMetadataKolonner`), rene hjelpere i
+  `lib/dokumentMetadata.ts` (celle-tekst, filterverdi, adaptive personlister, `signaturSorterVerdi`: komplette malfelt
+  først, så rene SJA-dokumenter med signaturer (flest først), så de som mangler (mest signert først), uten
+  signaturfelt sist). Signaturcella: malfelt «✓»/«m/n», SJA bare «N signert» (`tabell.sjaSignert`, aldri «av N» —
+  Kenneth 04.11), begge «m/n · N signert», SJA med 0 signert legger ikke til noe. Person-kolonnene er filtrerbare; «Sist utfylt av»-filteret («Utfylt av»)
+  treffer alle i endringsloggen via `hentFlereVerdier` i `@sitedoc/shared` `tabellFilter.ts`. Signatur filtreres på
+  Signert / Mangler / Uten signaturfelt (`signaturFilter.*`); malfeltene styrer kategorien, et rent SJA-dokument er
+  Signert med minst én signatur, ellers Mangler. `utfylling === null` (endringslogg av i malen) → «—» med
+  tooltip `metadata.endringsloggAv`. `DokumentPeriodeFilter` får `statusFelt` (sendt/godkjent/lukket) når lista har
+  `statushendelser`; datoen hentes av `periodeDato` (`utils/periode.ts`). Mot eldre API mangler feltene → personlister
+  tomme, statusfeltene skjules. Test: `lib/__tests__/dokumentMetadata.test.ts`.
+- **B-5 tegningsmetadata i `TegningerPanel`:** hver rad får en metalinje «Rev. B · Godkjent · DWG · Utgitt 03.11.2026»
+  (bare delene som finnes; `tegningMetaTekst` i `tegningListeFilter.ts`, datoen i UI-språket). Kildeformat = filendelsen i `originalFileUrl` (`utledKildeformat`), siden `fileType`
+  overskrives til svg/png etter konvertering. Under søkefeltet ligger adaptive nedtrekk for status, kildeformat og
+  georeferanse (`apps/web/src/lib/tegningListeFilter.ts`): et nedtrekk vises bare når tegningene har ≥ 2 ulike verdier
+  eller filteret er satt. Med aktivt filter skjules byggeplasser uten treff, også ved navnetreff. Data kommer fra
+  `bygning.hentForProsjekt` (select utvidet med `revision`, `status`, `issuedAt`, `originalFileUrl`). Status-etikettene
+  deles med `RedigerTegningModal` via `TEGNING_STATUS_NOEKKEL`. B-6 (tegningsfilter på mobil) er ikke med.
+
 ## Malbygger
 
 Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`, `DropSone`, `DraggbartFelt`, `FeltKonfigurasjon`, `BetingelseBjelke`, `TreprikkMeny`.
@@ -238,7 +306,8 @@ Ingen skjemamodal med felter — kun (evt.) mal-velger. Emne/beskrivelse/lokasjo
 
 Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 
-**Velg parameter** — modal med søkefelt og tre grupper:
+**Velg parameter** — `KolonneVelger` i `sorterbar`-modus (2026-11-04): valgte kolonner øverst som dra-liste, så
+tilgjengelige kolonner som avhukinger. Prefix, Nr og Status er låst (flyttbare, ikke fjernbare). Gruppene:
 - **Kolonner**: Prefix, Løpenummer, Tittel, Status, Flyt, Emne, Ansvarlig, Opprettet av, Entrepriser, Mal, Datoer
 - **Posisjon**: Byggeplass, Etasje, Tegning (separate kolonner)
 - **Verdier**: Dynamiske felt fra malenes `ReportObject`-er (`list_single`, `traffic_light`, `integer`, `decimal`, `text_field`, `person`, `signature`, `calculation`, etc.)
@@ -254,7 +323,18 @@ Oppgave- og sjekkliste-lister bruker konfigurerbar tabellvisning med:
 
 **Sortering**: Klikk header for å sortere opp/ned.
 
-**Lagring**: `useTabelloppsett` hook — aktive kolonner og bredder lagres i database per bruker (`User.tabelloppsett` JSON). Debounced saving (800ms). Migrering fra localStorage automatisk.
+**Flytte kolonner** (2026-11-04): grep-håndtak til venstre i hver overskrift (`components/FlyttbareKolonner.tsx`,
+dnd-kit `horizontalListSortingStrategy` + `KeyboardSensor`). `@sitedoc/ui` `Table` har ingen dnd-kit; den tar en
+valgfri `renderKolonneHode`-render-prop (`KolonneHode` med ferdige th-props og innhold), og web pakker `<Table>` i
+`<FlyttbareKolonner>`. Håndtaket stopper klikk, så sortering, bredde-dragning og filterikonet virker som før.
+Avkrysningskolonnen (`velgbar`) er ikke en kolonne og står alltid først.
+
+**Lagring**: `useTabelloppsett` hook — aktive kolonner, rekkefølge og bredder lagres i database per bruker
+(`User.tabelloppsett` JSON, ingen migrering). Én kilde til rekkefølgen: hodet og velgeren kaller begge
+`handleRekkefolgeEndring`. `kolonner: string[]` er visningsrekkefølgen når `rekkefolge: true`; oppsett uten flagget
+(lagret før 04.11, også migrert fra localStorage) vises i sidens standardrekkefølge (`kanoniskRekkefolge`). Påslått
+kolonne havner sist; «Nullstill» lagrer standardkolonnene uten flagg. Logikk: `lib/kolonneRekkefolge.ts`. Debounced
+saving (800ms).
 
 ## Standardemner (EMNE_KATEGORIER)
 
@@ -417,6 +497,8 @@ Logo, prosjektnummer · prosjektnavn, lokasjon · tegning, dato med klokkeslett,
 **FeltRad:** Tomme felt (`tom=true`) returnerer `null` — kun utfylte felt vises i utskrift.
 
 **Layout-prinsipp:** Feltlabel+verdi i `print-no-break` (ubrytbar). Vedlegg (`FeltVedlegg`) utenfor `print-no-break` — bildegrid kan brytes naturlig over sider.
+
+**Kollisjonsnotat (`rapportobjekter/TilfoyelseNotat.tsx`):** tapte offline-kollisjonsverdier vises under feltet. `tilfoyelseVerdiTekst(verdi, t)` viser en tapt vær-verdi slik `VaerObjekt` viser den (`vaerOppsummering` i `rapportobjekter/vaerTekst.ts`, delt kilde); tom → `felt.ingenVaerdata`; ukjent objekt → `kollisjon.notat.kompleksVerdi` (ordre 2026-11-04 (3) P3). Test: `TilfoyelseNotat.test.ts`.
 
 ### Batch-utskrift
 `/dashbord/[prosjektId]/sjekklister/skriv-ut?ider=id1,id2,...` — flere sjekklister på én utskrift med `print-sideskift` mellom. Maks 10 parallelle queries. Bruker `PrintHeader`-komponent (ikke inline header).

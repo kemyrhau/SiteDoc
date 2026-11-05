@@ -2,6 +2,7 @@ import { eq, and, or, isNull, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { sjekklisteLocal } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import { metadataFraLokal, metadataTilLokal, type MetadataFelt } from "./dokumentMetadataLokal";
 
 /* ============================================================================
  *  Sjekkliste-katalog-cache (Offline-sjekklister fase 1, 2026-09-11)
@@ -25,7 +26,7 @@ import type { trpc } from "../lib/trpc";
 type TrpcKlient = ReturnType<typeof trpc.useUtils>["client"];
 
 /** DokumentRad-kompatibel form (index.tsx caster til DokumentRad). */
-export interface SjekklisteLokalRad {
+export interface SjekklisteLokalRad extends MetadataFelt {
   id: string;
   title: string;
   status: string;
@@ -37,6 +38,7 @@ export interface SjekklisteLokalRad {
   template: { name: string; prefix: string | null } | null;
   byggeplass: { name: string } | null;
   drawing: { name: string | null } | null;
+  omrade: { navn: string } | null;
   dokumentflyt: { name: string } | null;
   recipientUser: { name: string | null } | null;
   recipientGroup: { name: string | null } | null;
@@ -97,6 +99,10 @@ export async function refreshSjekklisteKatalog(
         templatePrefix: r.template?.prefix ?? null,
         utforerFaggruppeNavn: r.utforerFaggruppe?.name ?? null,
         drawingNavn: r.drawing?.name ?? null,
+        // B-1: eldre API uten omrade-include → null (filteret skjules da).
+        omradeNavn: r.omrade?.navn ?? null,
+        // M-pakke B-2/B-4: eldre API uten feltene → NULL (filtrene skjules da).
+        ...metadataTilLokal(r),
         dokumentflytNavn: r.dokumentflyt?.name ?? null,
         recipientUserNavn: r.recipientUser?.name ?? null,
         recipientGroupNavn: r.recipientGroup?.name ?? null,
@@ -168,6 +174,8 @@ export function hentSjekklisterLokalt(
         : null,
     byggeplass: r.byggeplassId != null ? { name: r.byggeplassNavn ?? "" } : null,
     drawing: r.drawingNavn != null ? { name: r.drawingNavn } : null,
+    omrade: r.omradeNavn != null ? { navn: r.omradeNavn } : null,
+    ...metadataFraLokal(r),
     dokumentflyt: r.dokumentflytNavn != null ? { name: r.dokumentflytNavn } : null,
     recipientUser:
       r.recipientUserNavn != null ? { name: r.recipientUserNavn } : null,

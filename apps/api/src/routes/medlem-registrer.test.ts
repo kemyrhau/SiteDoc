@@ -57,6 +57,8 @@ function lagPrisma(overstyr: Record<string, unknown> = {}) {
     },
     dokumentflyt: { findMany: vi.fn().mockResolvedValue([{ id: FLYT }]) },
     projectGroup: { findMany: vi.fn().mockResolvedValue([{ id: GRUPPE }]) },
+    // M6: alle faggruppe-id-er i input hører til prosjektet.
+    faggruppe: { count: vi.fn(({ where }: { where: { id: { in: string[] } } }) => Promise.resolve(where.id.in.length)) },
     account: { findFirst: vi.fn().mockResolvedValue(null) },
     projectInvitation: {
       findFirst: vi.fn().mockResolvedValue(null),
@@ -155,15 +157,15 @@ describe("medlem.registrer — idempotens ved dobbelttrykk", () => {
         create: vi.fn(),
       },
       dokumentflytMedlem: {
-        findFirst: vi.fn().mockResolvedValue({ id: "finnes-dfm" }),
+        findFirst: vi.fn().mockResolvedValue({ id: "finnes-dfm", periodeSlutt: null }),
         create: vi.fn(),
       },
       account: { findFirst: vi.fn().mockResolvedValue({ id: "acc-1" }) },
     });
-    // projectMember.findUnique: 1. (i tx) finnes → {id}; 2. (retur) → raden
+    // projectMember.findUnique: 1. (i tx) finnes og er aktiv → {id}; 2. (retur) → raden
     (p.projectMember as { findUnique: ReturnType<typeof vi.fn> }).findUnique = vi
       .fn()
-      .mockResolvedValueOnce({ id: "pm-1" })
+      .mockResolvedValueOnce({ id: "pm-1", periodeSlutt: null })
       .mockResolvedValue({ id: "pm-1", user: {}, faggruppeKoblinger: [] });
     const caller = lagCaller(p);
 

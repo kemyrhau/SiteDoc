@@ -316,6 +316,11 @@ function DeaktiverModal({
     onSuccess: () => onSuksess(),
   });
   const navn = bruker.name ?? t("firma.ansatte.utenNavn");
+  // L3: hva deaktiveringen avslutter — samme utvalg som settAnsattStatus bruker.
+  const forhandsvis = trpc.organisasjon.forhandsvisDeaktivering.useQuery({
+    userId: bruker.id,
+    organizationId,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -337,6 +342,7 @@ function DeaktiverModal({
           <p className="text-sm text-gray-700">
             {t("firma.ansatte.deaktiver.hva", { navn })}
           </p>
+          <DeaktiverOppsummering navn={navn} data={forhandsvis.data} laster={forhandsvis.isLoading} />
           <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-500">
             {t("firma.ansatte.deaktiver.ikke")}
           </p>
@@ -370,6 +376,74 @@ function DeaktiverModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface Forhandsvisning {
+  prosjekter: Array<{ id: string; navn: string }>;
+  antallFlytledd: number;
+  antallTilInnsender: number;
+  alene: Array<{ prosjektNavn: string; flytNavn: string }>;
+  hoppetOver: Array<{ id: string; navn: string; grunn: string }>;
+}
+
+// Oppsummering i DeaktiverModal (spec § 3.2): berørte prosjekter og flytledd, dokumenter som
+// går til innsender (M3), ledd der personen står alene (ballen blir liggende på leddet), og
+// prosjekter som beholdes fordi
+// personen er ansatt i et annet firma (Kenneths vilkår).
+function DeaktiverOppsummering({
+  navn,
+  data,
+  laster,
+}: {
+  navn: string;
+  data: Forhandsvisning | undefined;
+  laster: boolean;
+}) {
+  const { t } = useTranslation();
+  if (laster) {
+    return <p className="text-sm text-gray-400">{t("firma.ansatte.deaktiver.laster")}</p>;
+  }
+  if (!data) return null;
+  return (
+    <div className="space-y-2 text-sm text-gray-700">
+      <p>
+        {data.prosjekter.length === 0
+          ? t("firma.ansatte.deaktiver.ingenProsjekter", { navn })
+          : t("firma.ansatte.deaktiver.berorte", {
+              navn,
+              prosjekter: data.prosjekter.length,
+              ledd: data.antallFlytledd,
+            })}
+      </p>
+      {data.antallTilInnsender > 0 && (
+        <p>{t("firma.ansatte.deaktiver.tilInnsender", { navn, antall: data.antallTilInnsender })}</p>
+      )}
+      {data.alene.length > 0 && (
+        <div className="rounded-md bg-amber-50 px-3 py-2 text-amber-800">
+          <p>{t("firma.ansatte.deaktiver.aleneTittel", { navn })}</p>
+          <ul className="mt-1 list-disc pl-5">
+            {data.alene.map((l, i) => (
+              <li key={i}>
+                {l.prosjektNavn} · {l.flytNavn}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {data.hoppetOver.length > 0 && (
+        <div>
+          <p>{t("firma.ansatte.deaktiver.beholdesTittel", { navn })}</p>
+          <ul className="mt-1 list-disc pl-5 text-gray-500">
+            {data.hoppetOver.map((h) => (
+              <li key={h.id}>
+                {h.navn} — {t(`firma.ansatte.deaktiver.grunn.${h.grunn}`)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

@@ -35,6 +35,7 @@ import {
   hentTegningSistOppdatert,
 } from "../../src/services/tegningKatalog";
 import { aapneTegning } from "../../src/lib/tegningNavigasjon";
+import { TEGNING_STATUS_NOEKKEL, utledKildeformat } from "@sitedoc/shared";
 
 type Modus = "2d" | "3d" | "2d3d";
 
@@ -44,6 +45,10 @@ interface TegningRad {
   drawingNumber: string | null;
   fileType: string | null;
   revision: string | null;
+  // B-5: valgfrie — eldre API uten feltene gir bare filtype som før
+  status?: string | null;
+  kildeformat?: string | null;
+  originalFileUrl?: string | null;
   byggeplass: { id: string; name: string } | null;
 }
 
@@ -59,6 +64,17 @@ function ikonForFiltype(fileType: string | null): LucideIcon {
 
 function filtypeEtikett(fileType: string | null): string {
   return (fileType ?? "").toUpperCase() || "—";
+}
+
+/** B-5: «Godkjent · Rev. B · DWG» — kildeformat (opprinnelig fil) foran konvertert filtype. */
+function radMetaTekst(item: TegningRad, t: (k: string, o?: Record<string, unknown>) => string): string {
+  const deler: string[] = [];
+  const statusNoekkel = item.status ? (TEGNING_STATUS_NOEKKEL as Record<string, string>)[item.status] : undefined;
+  if (statusNoekkel) deler.push(t(statusNoekkel));
+  if (item.revision) deler.push(t("tegninger.rev", { rev: item.revision }));
+  const kf = item.kildeformat ?? utledKildeformat(item.originalFileUrl, item.fileType);
+  deler.push(kf ? kf.toUpperCase() : filtypeEtikett(item.fileType));
+  return deler.join(" · ");
 }
 
 export default function TegningerTab() {
@@ -108,7 +124,9 @@ export default function TegningerTab() {
         name: r.name,
         drawingNumber: r.drawingNumber,
         fileType: r.fileType,
-        revision: null,
+        revision: r.revision,
+        status: r.status,
+        kildeformat: r.kildeformat,
         byggeplass: r.byggeplassId
           ? { id: r.byggeplassId, name: navn.get(r.byggeplassId) ?? "" }
           : null,
@@ -372,10 +390,7 @@ export default function TegningerTab() {
                     {item.name}
                   </Text>
                   <Text className="mt-0.5 text-xs text-gray-400">
-                    {filtypeEtikett(item.fileType)}
-                    {item.revision
-                      ? ` · ${t("tegninger.rev", { rev: item.revision })}`
-                      : ""}
+                    {radMetaTekst(item, t)}
                   </Text>
                   {/* Filtrert visning: byggeplass-løse tegninger merkes «Hele
                       prosjektet» (grå). Selve byggeplassens tegninger er hjemme →

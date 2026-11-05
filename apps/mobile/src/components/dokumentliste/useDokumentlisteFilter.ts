@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { HarBallenBruker, Periode } from "@sitedoc/shared";
+import type { HarBallenBruker } from "@sitedoc/shared";
 import { trpc } from "../../lib/trpc";
 import { useNettverk } from "../../providers/NettverkProvider";
 import {
@@ -9,10 +9,11 @@ import {
   utenUbruktBallen,
   type SorterNokkel,
   type Sortering,
+  type ListePeriode,
 } from "./dokumentlisteFilter";
 import { byggAktiveChips, PERIODE_CHIP } from "./filterEtikett";
 
-export const PERIODE_ALLE: Periode = { hurtigvalg: "alle", fra: null, til: null };
+export const PERIODE_ALLE: ListePeriode = { hurtigvalg: "alle", fra: null, til: null };
 
 /**
  * Listetilstand for søk + filter + sortering + opprettet-periode i sjekkliste-,
@@ -30,7 +31,7 @@ export function useDokumentlisteFilter(prosjektId: string | null | undefined) {
   const [søketekst, settSøketekst] = useState("");
   const [filterVerdier, settFilterVerdier] = useState<Record<string, string>>({});
   const [sortering, settSortering] = useState<Sortering>([]);
-  const [periode, settPeriode] = useState<Periode>(PERIODE_ALLE);
+  const [periode, settPeriode] = useState<ListePeriode>(PERIODE_ALLE);
   const [visSheet, settVisSheet] = useState(false);
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export function useDokumentlisteFilter(prosjektId: string | null | undefined) {
  */
 export function useAktiveFilter(
   filterVerdier: Record<string, string>,
-  periode: Periode,
+  periode: ListePeriode,
   bruker: HarBallenBruker | null,
 ) {
   const { t } = useTranslation();

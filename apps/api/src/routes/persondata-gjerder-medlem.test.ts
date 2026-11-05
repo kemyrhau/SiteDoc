@@ -24,6 +24,8 @@ vi.mock("../trpc/tilgangskontroll", () => ({
   hentBrukersOrg: vi.fn().mockResolvedValue(null),
   hentBrukersFlytMedlemskap: vi.fn(),
   hentBrukersOpprettFlytMedlemskap: vi.fn(),
+  aktivtMedlemWhere: { periodeSlutt: null },
+  aktivtProsjektmedlemWhere: (userId: string, projectId: string) => ({ userId, projectId, periodeSlutt: null }),
 }));
 
 vi.mock("@sitedoc/db", () => ({ prisma: {} }));
@@ -50,6 +52,8 @@ function lagPrisma(overstyr: Record<string, unknown> = {}) {
         })
         .mockResolvedValue({ id: MEDLEM, user: {}, faggruppeKoblinger: [] }),
       update: vi.fn().mockResolvedValue({ id: MEDLEM }),
+      // M6: medlemmet finnes i prosjektet.
+      findFirst: vi.fn().mockResolvedValue({ id: MEDLEM, userId: BRUKER }),
     },
     project: {
       findUniqueOrThrow: vi

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Search, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
@@ -10,20 +10,25 @@ import { useNettverk } from "../../src/providers/NettverkProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { hentSjekklisterLokalt, hentSistOppdatertLokalt } from "../../src/services/sjekklisteKatalog";
 import { hentOppgaverLokalt, hentSistOppdatertOppgaveLokalt } from "../../src/services/oppgaveKatalog";
+import { hentHmsLokalt, hentSistOppdatertHmsLokalt } from "../../src/services/hmsKatalog";
 import { filtrerOgSorter, type DokumentRad } from "../../src/components/dokumentliste/dokumentlisteFilter";
+import { tilHmsDokumentRad, type HmsFane, type HmsRad } from "../../src/components/dokumentliste/hmsListe";
 import { OmfangVelger } from "../../src/components/sok/OmfangVelger";
 import { KildeSeksjon } from "../../src/components/sok/KildeSeksjon";
 import { TreffListe } from "../../src/components/sok/TreffListe";
 import { ListeTreffRad } from "../../src/components/sok/ListeTreffRad";
 import { sokIOppgaver, type OppgaveSokRad } from "../../src/components/sok/oppgaveSok";
 import {
+  flatHmsRader,
   flettUtvidet,
   grupperPerDokument,
+  hmsRute,
   kildeModus,
   kilderFor,
   seksjonsUtvalg,
   synligeSeksjoner,
   tellelinje,
+  tolkSokParametre,
   velgMappeMotor,
   MAKS_RADER_ALLE,
   VIS_FLERE_PORSJON,
@@ -35,6 +40,13 @@ import type { MappeTreff } from "../../src/components/sok/typer";
 
 const MIN_TEGN = 2;
 
+const SEKSJONSNAVN: Record<Kilde, string> = {
+  mapper: "sokMobil.omfangMapper",
+  sjekklister: "sokMobil.omfangSjekklister",
+  oppgaver: "sokMobil.omfangOppgaver",
+  hms: "sokMobil.omfangHms",
+};
+
 /** «sist hentet hh:mm» (spec § 9.3) — dagens dato er underforstått i en søkeøkt. */
 function klokkeslett(ms: number): string {
   const d = new Date(ms);
@@ -42,8 +54,12 @@ function klokkeslett(ms: number): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+type HmsSvar = { avvik: HmsRad[]; sja: HmsRad[]; ruh: HmsRad[] };
+
 /**
- * Mobilsøk MVP (spec-sok-mobil rev. 2). Ett felt + omfangsvelger «Alle · Mapper · Sjekklister · Oppgaver».
+ * Mobilsøk MVP (spec-sok-mobil rev. 2). Ett felt + omfangsvelger «Alle · Mapper · Sjekklister · Oppgaver · HMS».
+ * Søkeinnganger (spec-sok-innganger, B + C1): rute-parametrene `omfang` og `q` forhåndsvelger kilde og tekst;
+ * med minst 2 tegn søkes det med en gang.
  * Mapper = FTD-innholdssøk (AI når embeddings finnes, ellers tekstsøk — som web `sok/page.tsx`), krever nett.
  * Sjekklister/oppgaver = klientsøk over listenes egne kilder (server, eller lokal katalog offline).
  * Skjermen blir stående i stacken når et treff åpnes, så søket er intakt ved retur.
@@ -57,9 +73,12 @@ export default function SokSkjerm() {
   const brukerId = bruker?.id;
   const insets = useSafeAreaInsets();
 
-  const [tekst, settTekst] = useState("");
-  const [aktivtSok, settAktivtSok] = useState("");
-  const [omfang, settOmfang] = useState<Omfang>("alle");
+  const parametre = useLocalSearchParams<{ omfang?: string; q?: string }>();
+  // Leses kun ved første visning: senere endringer i feltet/velgeren eies av skjermen.
+  const [start] = useState(() => tolkSokParametre(parametre));
+  const [tekst, settTekst] = useState(start.q);
+  const [aktivtSok, settAktivtSok] = useState(() => (start.q.trim().length >= MIN_TEGN ? start.q.trim() : ""));
+  const [omfang, settOmfang] = useState<Omfang>(start.omfang);
   const [utvidet, settUtvidet] = useState<Record<string, MappeTreff[]>>({});
   const [lasterFlereFor, settLasterFlereFor] = useState<string | null>(null);
 
@@ -76,6 +95,7 @@ export default function SokSkjerm() {
   const søkerMapper = harSok && kilder.includes("mapper");
   const søkerSjekklister = harSok && kilder.includes("sjekklister");
   const søkerOppgaver = harSok && kilder.includes("oppgaver");
+  const søkerHms = harSok && kilder.includes("hms");
 
   // ---- Mapper (spec § 6): samme motorregel og standardfilter som web ----
   const { data: embeddingStatus } = trpc.aiSok.embeddingStatus.useQuery(
@@ -176,6 +196,21 @@ export default function SokSkjerm() {
     [søkerOppgaver, valgtProsjektId, brukerId, oppgaveQuery.status],
   );
 
+  // ---- HMS: alle tre faner i ett kall, uten byggeplass (som HMS-lista under søk) ----
+  const hmsQuery = trpc.hms.hentDokumenter.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: søkerHms },
+  );
+  const hmsServer = useMemo(() => flatHmsRader(hmsQuery.data as HmsSvar | undefined), [hmsQuery.data]);
+  const hmsLokal = useMemo(
+    () =>
+      søkerHms && valgtProsjektId && brukerId
+        ? flatHmsRader(hentHmsLokalt(valgtProsjektId, brukerId, undefined) as HmsSvar)
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [søkerHms, valgtProsjektId, brukerId, hmsQuery.status],
+  );
+
   const modus: Record<Kilde, KildeModus> = {
     mapper: kildeModus("mapper", { erPaaNettet, serverBekreftet: false, serverAntall: 0, lokalAntall: 0 }),
     sjekklister: kildeModus("sjekklister", {
@@ -189,6 +224,12 @@ export default function SokSkjerm() {
       serverBekreftet: oppgaveQuery.isSuccess,
       serverAntall: oppgaveServer?.length ?? 0,
       lokalAntall: oppgaveLokal.length,
+    }),
+    hms: kildeModus("hms", {
+      erPaaNettet,
+      serverBekreftet: hmsQuery.isSuccess,
+      serverAntall: hmsServer.length,
+      lokalAntall: hmsLokal.length,
     }),
   };
 
@@ -204,6 +245,12 @@ export default function SokSkjerm() {
     return sokIOppgaver(rader, aktivtSok);
   }, [søkerOppgaver, modus.oppgaver, oppgaveServer, oppgaveLokal, aktivtSok]);
 
+  const hmsTreff = useMemo(() => {
+    if (!søkerHms) return [];
+    const rader = (modus.hms === "server" ? hmsServer : hmsLokal).map((r) => ({ ...tilHmsDokumentRad(r), fane: r.fane }));
+    return filtrerOgSorter(rader, {}, aktivtSok, []) as Array<HmsRad & { fane: HmsFane }>;
+  }, [søkerHms, modus.hms, hmsServer, hmsLokal, aktivtSok]);
+
   // «lagret versjon · sist hentet hh:mm» pr. listekilde når den leser lokal katalog.
   const sistHentet = useMemo(
     () => ({
@@ -215,8 +262,12 @@ export default function SokSkjerm() {
         modus.oppgaver === "lokal" && valgtProsjektId && brukerId
           ? hentSistOppdatertOppgaveLokalt(valgtProsjektId, brukerId)
           : null,
+      hms:
+        modus.hms === "lokal" && valgtProsjektId && brukerId
+          ? hentSistOppdatertHmsLokalt(valgtProsjektId, brukerId)
+          : null,
     }),
-    [modus.sjekklister, modus.oppgaver, valgtProsjektId, brukerId],
+    [modus.sjekklister, modus.oppgaver, modus.hms, valgtProsjektId, brukerId],
   );
 
   const mappeDokumenter = useMemo(() => grupperPerDokument(mappeTreff).length, [mappeTreff]);
@@ -225,6 +276,7 @@ export default function SokSkjerm() {
     mapper: søkerMapper && !mapperLaster ? mappeDokumenter : 0,
     sjekklister: sjekklisteTreff.length,
     oppgaver: oppgaveTreff.length,
+    hms: hmsTreff.length,
   };
   const seksjoner = synligeSeksjoner(omfang, antall, modus);
   const telling = tellelinje(omfang, antall, modus);
@@ -234,10 +286,11 @@ export default function SokSkjerm() {
 
   const listeLaster =
     (søkerSjekklister && sjekklisteQuery.isLoading && sjekklisteLokal.length === 0 && erPaaNettet) ||
-    (søkerOppgaver && oppgaveQuery.isLoading && oppgaveLokal.length === 0 && erPaaNettet);
+    (søkerOppgaver && oppgaveQuery.isLoading && oppgaveLokal.length === 0 && erPaaNettet) ||
+    (søkerHms && hmsQuery.isLoading && hmsLokal.length === 0 && erPaaNettet);
   const laster = mapperLaster || listeLaster;
 
-  const lagretMerknad = (k: "sjekklister" | "oppgaver"): string | null => {
+  const lagretMerknad = (k: Exclude<Kilde, "mapper">): string | null => {
     if (modus[k] !== "lokal") return null;
     const ms = sistHentet[k];
     return ms != null
@@ -246,7 +299,7 @@ export default function SokSkjerm() {
   };
 
   const seksjonsTittel = (k: Kilde): string => {
-    const navn = t(k === "mapper" ? "sokMobil.omfangMapper" : k === "sjekklister" ? "sokMobil.omfangSjekklister" : "sokMobil.omfangOppgaver");
+    const navn = t(SEKSJONSNAVN[k]);
     return `${navn} (${antall[k]})`;
   };
 
@@ -306,6 +359,32 @@ export default function SokSkjerm() {
             <Text className="px-4 py-3 text-sm text-gray-500">{t("ftdSok.ingenTreff")}</Text>
           ) : null}
           {visAlleKnapp(k, antallDok, Math.min(antallDok, MAKS_RADER_ALLE))}
+        </KildeSeksjon>
+      );
+    }
+    if (k === "hms") {
+      const utvalg = seksjonsUtvalg(hmsTreff, omfang);
+      return (
+        <KildeSeksjon
+          key={k}
+          tittel={seksjonsTittel(k)}
+          visOverskrift={erAlle}
+          onVelgKilde={() => settOmfang(k)}
+          merknad={lagretMerknad(k)}
+        >
+          {utvalg.rader.map((rad) => (
+            <ListeTreffRad
+              key={rad.id}
+              rad={rad}
+              tokens={tokens}
+              etikett={t(`hms.tabs.${rad.fane}`)}
+              onPress={() => router.push(`/${hmsRute(rad.fane)}/${rad.id}`)}
+            />
+          ))}
+          {!erAlle && hmsTreff.length === 0 && !listeLaster ? (
+            <Text className="px-4 py-3 text-sm text-gray-500">{t("ftdSok.ingenTreff")}</Text>
+          ) : null}
+          {visAlleKnapp(k, utvalg.totalt, utvalg.rader.length)}
         </KildeSeksjon>
       );
     }

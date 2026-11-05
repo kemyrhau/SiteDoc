@@ -162,17 +162,6 @@ export function hentCss(config?: Partial<PdfConfig>): string {
     max-height: ${maksHoyde}px;
     background: #f9fafb;
   }
-  .bilde-nr {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    background: rgba(0,0,0,0.6);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 3px;
-  }
 
   /* Repeater */
   .repeater-rad {

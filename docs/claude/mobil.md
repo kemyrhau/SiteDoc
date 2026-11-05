@@ -85,6 +85,10 @@ Klikk-budsjett: **Send 3 → 2 taps** (primær → bekreft), **hvem-har-ballen 0
 ### Rettighetsbasert UI
 `useOppgaveSkjema(id, rettighetInput?)` og `useSjekklisteSkjema(id, rettighetInput?)` — valgfri `rettighetInput` med `utledDokumentRettighet()`. Uten param → gammel status-basert logikk.
 
+## Kollisjonsnotat i utfylling
+
+`TilfoyelseNotat` (`components/rapportobjekter/`) viser tapte offline-kollisjonsverdier under feltet. Teksten bygges av `tilfoyelseVerdiTekst(verdi, t)` i den rene fila `tilfoyelseTekst.ts`: en tapt vær-verdi vises med `formaterVaerTekst` (`vaerTekst.ts` — samme funksjon som `VaerObjekt` bruker); tom → `felt.ingenVaerdata`; ukjent objekt → `kollisjon.notat.kompleksVerdi` (ordre 2026-11-04 (3) P3). Test: `tilfoyelseTekst.test.ts`.
+
 ## Oppgave-utfylling
 
 `useOppgaveSkjema`-hook i `apps/mobile/src/hooks/useOppgaveSkjema.ts`. Identisk med sjekkliste-utfylling:
@@ -567,6 +571,11 @@ metadataen lokalt (SQLite-katalog-mønster, `tegningKatalog.ts`):
 - **Skrives** av «Forbered til offline» (lokasjoner/mer) OG write-through ved online-besøk
   (`lokasjoner.tsx`/`tegninger.tsx`/`ByggeplassChip`). **Leses** offline via `hent*Lokalt` når
   server-spørringene er av (`enabled: … && erPaaNettet`).
+- **Tegningsraden (metadata S-pakke B-5, 2026-11-04)** i `app/(tabs)/tegninger.tsx` viser «Godkjent · Rev. B · DWG»
+  (`radMetaTekst`): status og revisjon når de finnes, deretter kildeformat (`kildeformat` fra API, ellers
+  `utledKildeformat`), ellers filtype som før. Ikke filterark på tegninger (spec § 5 pkt. 8). Offline: `tegning_local`
+  fikk `revision`, `status`, `kildeformat` (`TEGNING_META_KOLONNER`, additiv ALTER, `migreringer.tegningMeta.test.ts`);
+  gamle rader har NULL til neste katalog-refresh.
 - **Ærlige tomtilstander:** offline + ikke lagret viser «Ikke lagret for offline …»
   (`offline.ikkeLagret`), aldri falsk «Ingen byggeplasser»/«Ingen tegninger». «Sist oppdatert …»
   på offline-tegningslista. Hjem-banneret er nøytralt («Frakoblet – viser lagrede data»).
@@ -789,6 +798,21 @@ Sjekklister · Oppgaver» (standard «Alle», seksjoner Mapper → Sjekklister �
   `src/components/sok/sokLogikk.ts` (testet), utsnitt delt med web i `packages/shared/src/sok/utsnitt.ts`.
 - **Utenfor:** innholdssøk i `Checklist.data`/`Task.data` (egen sak, spec § 9.2) og omfangsvelger på web.
 
+**Søkeinnganger (spec-sok-innganger, ORDRE 2026-11-04, `aa1f3213`, merge `6a4b278e`):**
+- **HMS som femte kilde:** omfangsvelgeren er «Alle · Mapper · Sjekklister · Oppgaver · HMS» (`KILDE_REKKEFOLGE`,
+  HMS sist i «Alle»). Kilden er `hms.hentDokumenter` uten byggeplass (søk = hele prosjektet), offline `hentHmsLokalt`
+  med samme kildevalg og «lagret versjon»-merknad som de andre listene. De tre fanene flates ut (`flatHmsRader`);
+  hver rad får fane-etikett (Avvik/SJA/RUH) og åpner samme rute som HMS-lista (`hmsRute`: SJA → sjekkliste,
+  avvik/RUH → oppgave). Listesøk med `filtrerOgSorter`, ingen API-endring.
+- **Rute-parametre:** `/sok?omfang=…&q=…` (`tolkSokParametre`): kilden forhåndsvelges og teksten fylles inn; med
+  ≥ 2 tegn søkes det med en gang. Ukjent/manglende omfang → «Alle». Leses kun ved første visning.
+- **B — i lista:** når søkefeltet i oppgave-, sjekkliste- eller HMS-lista har tekst, vises raden
+  «Søk «q» i hele prosjektet ›» under feltet (`src/components/sok/ProsjektSokRad.tsx`, `visProsjektSokRad` /
+  `prosjektSokParametre`). Listesøket selv er uendret (filter, status, sortering gjelder). Raden åpner `/sok` med
+  listas kilde valgt. Listefeltene har kildeegen plassholder («Søk i oppgaver» / «… sjekklister» / «… HMS»).
+- **C1 — Hjem:** søke-ikon i Hjem-hodet ved «+» (`app/(tabs)/hjem.tsx`) åpner `/sok` på «Alle».
+- Innboksen har ingen B-rad (urørt). Tester: `sokLogikk.test.ts` (parametre, B-rad, HMS-seksjon/telling).
+
 ## Filter, sortering og søk i sjekkliste-, oppgave-, innboks- og HMS-lista (filter-mobil / filter-hms 2026-11-03)
 
 Sjekkliste-, oppgave- og innbokslista (`app/sjekkliste/index.tsx`, `app/oppgave/index.tsx`,
@@ -843,6 +867,21 @@ har ikke prioritet og leser alltid serverrader:
   `hms.hentDokumenter`); mot eldre API mangler feltene og filtrene skjules via vis-regelen (`visFilterKolonne`,
   låst i `hmsListe.test.ts`). Offline: `hms_local` fikk 9 tekstkolonner (`HMS_LOCAL_FILTERKOLONNER` i
   `migreringer.ts`, additiv ALTER, testet i `migreringer.hmsLocal.test.ts`), skrevet av `hmsKatalog.ts`.
+- **Område (metadata S-pakke B-1, 2026-11-04):** sjekkliste- og oppgavelista får områdefilter under HVOR
+  (`omrade` i `dokumentlisteFilter.ts`, chips i `FilterOgSorteringSheet.tsx`). Offline: `omrade_navn` på
+  `sjekkliste_local` og `oppgave_local` (`OMRADE_LOCAL_TABELLER`, additiv ALTER, `migreringer.omradeLocal.test.ts`),
+  skrevet av `sjekklisteKatalog.ts`/`oppgaveKatalog.ts`. Eldre API uten omrade-include → `null` → filteret skjules
+  stille via vis-regelen (låst i `dokumentlisteFilter.test.ts`).
+- **Hvem og når (metadata M-pakke B-2/B-4, 2026-11-04):** under HVEM får arket nedtrekkene «Sendt av», «Godkjent av»,
+  «Lukket av» og «Utfylt av» (`sendtAv`/`godkjentAv`/`lukketAv`/`utfyltAv` i `FILTER_KOLONNER`; «Utfylt av» treffer alle
+  i endringsloggen via `hentFlereVerdier`). Under NÅR velges periodens datofelt med chips — «Opprettet» +
+  `statusPeriodefelt` (sendt/godkjent/lukket som lista har data for) — og `ListePeriode` (`Periode & { felt }`) bærer
+  valget; filtreringen bruker delt `periodeDato`, chipen over lista sier feltet («Sendt: Siste uke»). Sorteringen får
+  «Sendt» (synkende, ikke sendt sist), vist bare når en rad er sendt. Offline: tekstkolonnene `statushendelser` og
+  `utfylling` (JSON) på `sjekkliste_local`/`oppgave_local` (`METADATA_LOCAL_KOLONNER`, additiv ALTER,
+  `migreringer.metadataLocal.test.ts`), skrevet/lest av `services/dokumentMetadataLokal.ts` — NULL = eldre API
+  (feltet utelates), tekst `"null"` = endringslogg av. Eldre API → tomme lister → filtrene, statusfeltene og
+  «Sendt»-sorteringen skjules stille (låst i `dokumentlisteFilter.test.ts`). Signatur (B-3) er ikke på mobil (SJA vises som antall uten «av N» på web, 04.11).
 
 ## OTA-varsel: «Ny versjon er klar · Oppdater» (ota-varsel 2026-11-03)
 

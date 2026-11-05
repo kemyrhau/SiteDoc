@@ -12,6 +12,11 @@ import {
   nesteEnhet,
   startEnhet,
   MAKS_RADER_ALLE,
+  tolkSokParametre,
+  visProsjektSokRad,
+  prosjektSokParametre,
+  flatHmsRader,
+  hmsRute,
   type KildeModus,
   type Kilde,
 } from "./sokLogikk";
@@ -19,8 +24,8 @@ import {
 /** Mobilsøk MVP — ren logikk bak søkeskjermen og chunk-leseren (spec-sok-mobil rev. 2 § 2, § 3, § 6, § 9). */
 
 describe("omfang → kilder (§ 9.4 A)", () => {
-  it("«Alle» gir Mapper → Sjekklister → Oppgaver, ellers én kilde", () => {
-    expect(kilderFor("alle")).toEqual(["mapper", "sjekklister", "oppgaver"]);
+  it("«Alle» gir Mapper → Sjekklister → Oppgaver → HMS, ellers én kilde", () => {
+    expect(kilderFor("alle")).toEqual(["mapper", "sjekklister", "oppgaver", "hms"]);
     expect(kilderFor("sjekklister")).toEqual(["sjekklister"]);
   });
 });
@@ -34,7 +39,7 @@ describe("kildeModus — offline-matrisen (§ 9.3)", () => {
   });
 
   it("Sjekklister/oppgaver: server-svar med nett, lokal katalog uten", () => {
-    for (const k of ["sjekklister", "oppgaver"] as const) {
+    for (const k of ["sjekklister", "oppgaver", "hms"] as const) {
       expect(kildeModus(k, { erPaaNettet: true, ...liste })).toBe("server");
       expect(kildeModus(k, { erPaaNettet: false, ...liste })).toBe("lokal");
     }
@@ -46,9 +51,9 @@ describe("kildeModus — offline-matrisen (§ 9.3)", () => {
 });
 
 describe("seksjoner og tellelinje", () => {
-  const antall = (m: number, s: number, o: number): Record<Kilde, number> => ({ mapper: m, sjekklister: s, oppgaver: o });
-  const online: Record<Kilde, KildeModus> = { mapper: "server", sjekklister: "server", oppgaver: "server" };
-  const offline: Record<Kilde, KildeModus> = { mapper: "krever-nett", sjekklister: "lokal", oppgaver: "lokal" };
+  const antall = (m: number, s: number, o: number, h = 0): Record<Kilde, number> => ({ mapper: m, sjekklister: s, oppgaver: o, hms: h });
+  const online: Record<Kilde, KildeModus> = { mapper: "server", sjekklister: "server", oppgaver: "server", hms: "server" };
+  const offline: Record<Kilde, KildeModus> = { mapper: "krever-nett", sjekklister: "lokal", oppgaver: "lokal", hms: "lokal" };
 
   it("«Alle» skjuler tomme seksjoner", () => {
     expect(synligeSeksjoner("alle", antall(7, 0, 1), online)).toEqual(["mapper", "oppgaver"]);
@@ -69,6 +74,13 @@ describe("seksjoner og tellelinje", () => {
   it("tellelinje online summerer kildene i omfanget", () => {
     expect(tellelinje("alle", antall(7, 3, 1), online)).toEqual({ treff: 11, mapperKreverNett: false });
     expect(tellelinje("sjekklister", antall(7, 3, 1), online)).toEqual({ treff: 3, mapperKreverNett: false });
+  });
+
+  it("HMS er egen seksjon sist i «Alle» og telles med", () => {
+    expect(synligeSeksjoner("alle", antall(1, 0, 2, 3), online)).toEqual(["mapper", "oppgaver", "hms"]);
+    expect(synligeSeksjoner("alle", antall(1, 1, 1, 0), online)).not.toContain("hms");
+    expect(tellelinje("alle", antall(1, 0, 2, 3), online)).toEqual({ treff: 6, mapperKreverNett: false });
+    expect(tellelinje("hms", antall(1, 0, 2, 3), offline)).toEqual({ treff: 3, mapperKreverNett: false });
   });
 
   it("maks 10 rader pr. seksjon i «Alle», alle i enkelt omfang", () => {
@@ -175,5 +187,57 @@ describe("startEnhet — ▲▼ starter ved valgt treff (som web liste-klikk)", 
     expect(startEnhet(enheter, 5)).toBeNull();
     expect(startEnhet(enheter, null)).toBeNull();
     expect(startEnhet([], 3)).toBeNull();
+  });
+});
+
+describe("tolkSokParametre — /sok?omfang=&q= (søkeinnganger)", () => {
+  it("gyldig omfang og tekst tas imot; tekst trimmes ikke bort innvendig", () => {
+    expect(tolkSokParametre({ omfang: "oppgaver", q: "rekkverk" })).toEqual({ omfang: "oppgaver", q: "rekkverk" });
+    expect(tolkSokParametre({ omfang: "hms", q: "fall fra høyde" })).toEqual({ omfang: "hms", q: "fall fra høyde" });
+  });
+
+  it("ugyldig, tomt eller manglende omfang → «alle»", () => {
+    expect(tolkSokParametre({ omfang: "tegninger", q: "x" }).omfang).toBe("alle");
+    expect(tolkSokParametre({ omfang: "", q: "x" }).omfang).toBe("alle");
+    expect(tolkSokParametre({}).omfang).toBe("alle");
+    expect(tolkSokParametre({}).q).toBe("");
+  });
+
+  it("liste-parametre (string[]) tas ikke for gitt: første verdi brukes", () => {
+    expect(tolkSokParametre({ omfang: ["sjekklister", "mapper"], q: ["a b", "c"] })).toEqual({ omfang: "sjekklister", q: "a b" });
+  });
+});
+
+describe("prosjektsøk-raden (B) i listene", () => {
+  it("vises bare når søkefeltet har tekst", () => {
+    expect(visProsjektSokRad("")).toBe(false);
+    expect(visProsjektSokRad("   ")).toBe(false);
+    expect(visProsjektSokRad("r")).toBe(true);
+  });
+
+  it("åpner /sok med listas kilde forhåndsvalgt og teksten trimmet", () => {
+    expect(prosjektSokParametre("oppgaver", "  rekkverk ")).toEqual({ omfang: "oppgaver", q: "rekkverk" });
+    expect(prosjektSokParametre("hms", "fall")).toEqual({ omfang: "hms", q: "fall" });
+  });
+
+  it("rundtur: parametrene raden lager, tolkes tilbake uendret", () => {
+    expect(tolkSokParametre(prosjektSokParametre("sjekklister", "brann"))).toEqual({ omfang: "sjekklister", q: "brann" });
+  });
+});
+
+describe("HMS-kilden: tre faner flatet ut med fane og rute", () => {
+  it("avvik, SJA, RUH i fane-rekkefølge, hver rad merket med fane", () => {
+    const r = flatHmsRader({ avvik: [{ id: "a" }], sja: [{ id: "s" }], ruh: [{ id: "r1" }, { id: "r2" }] });
+    expect(r.map((x) => [x.id, x.fane])).toEqual([["a", "avvik"], ["s", "sja"], ["r1", "ruh"], ["r2", "ruh"]]);
+  });
+
+  it("SJA åpnes som sjekkliste, avvik/RUH som oppgave (som HMS-lista)", () => {
+    expect(hmsRute("sja")).toBe("sjekkliste");
+    expect(hmsRute("avvik")).toBe("oppgave");
+    expect(hmsRute("ruh")).toBe("oppgave");
+  });
+
+  it("manglende svar gir tom liste", () => {
+    expect(flatHmsRader(undefined)).toEqual([]);
   });
 });

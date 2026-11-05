@@ -76,7 +76,9 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 /* Innhold — generiske felt (felt.ts-output), stylet i arkiv-uttrykk */
 .felt-blokk{margin-top:10px}
 .felt-label{font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:${f.graa};margin-bottom:2px}
-.felt-verdi{color:${f.celletekst}}
+/* Svarteksten 12px (ordre 2026-11-04 (2)) — løftet over label/kommentar (9–9.5px) og
+   brødteksten (10.5px) så svaret er det man leser først. Gjelder også radkortets verdier. */
+.felt-verdi{color:${f.celletekst};font-size:12px}
 .tom{color:${f.svak}}
 .tekst-verdi{color:${f.celletekst}}
 .kommentar{font-size:9.5px;color:${f.graa};margin-top:2px}
@@ -105,7 +107,6 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .bilde-rutenett{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
 .bilde-kort{flex:1;min-width:45%;border:1px solid ${f.radLinje};padding:8px 10px;position:relative}
 .bilde-img{max-width:100%;height:auto;display:block}
-.bilde-nr{position:absolute;top:4px;right:6px;font-size:9px;color:${f.svak}}
 
 /* Repeater-bilder (vedtak 2026-08-15) — full spaltebredde i egen <tr> rett under
    raden, 1fr 1fr-grid (2 stående per rekke). Hver rekke er sin egen <tr>: den

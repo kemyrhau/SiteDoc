@@ -102,6 +102,7 @@ import {
   type ForsonetServerRad,
 } from "../../src/lib/forsoningSpeil";
 import { useReLesVedSynk } from "../../src/hooks/useReLesVedSynk";
+import { useFirma } from "../../src/kontekst/FirmaKontekst";
 
 /** Felt-settet `forsonDagskort` tar for en rad (uten id = ny rad). */
 type ForsonRad = {
@@ -507,6 +508,14 @@ export default function DagsseddelDetalj() {
   // auto-genereringen kan ikke gjette lønnsart, så arbeids-rader droppes
   // (`genererForslag` :723-gate). Surface i stedet for stille 0 — aldri tapt,
   // aldri feil lønn. Arbeider fører timer manuelt med riktig lønnsart.
+  // Ikke ansatt i sedelens firma → serveren nekter den. Rødt banner vinner over
+  // (d) og overtid-banneret (de peker på lønnsart-konfig, som ikke er problemet).
+  // `null` = ukjent → bannerne som før.
+  const { firmaer, erAnsattIFirma } = useFirma();
+  const ikkeAnsatt = erAnsattIFirma(sedel?.organizationId) === false;
+  const ikkeAnsattFirmanavn =
+    firmaer.find((f) => f.id === sedel?.organizationId)?.name ?? "";
+
   const manglerStandardLonnsart = useMemo(() => {
     if (!sedel?.autoGenerert) return false;
     return hentStandardLonnsartLokalt(sedel.organizationId) == null;
@@ -1117,10 +1126,21 @@ export default function DagsseddelDetalj() {
           </View>
         ) : null}
 
+        {ikkeAnsatt && (
+          <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b91c1c" />
+              <Text className="flex-1 text-sm text-red-900">
+                {t("timer.ikkeAnsatt", { firma: ikkeAnsattFirmanavn })}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* (d): firmaet mangler standard-lønnsart → auto-rader kunne ikke føres.
             Surface tydelig (aldri stille 0) — arbeider fører manuelt m/ riktig
             lønnsart. Ingen gjetting = ingen feil lønn. */}
-        {manglerStandardLonnsart && erRedigerbar && (
+        {manglerStandardLonnsart && erRedigerbar && !ikkeAnsatt && (
           <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
             <View className="flex-row items-center gap-2">
               <AlertTriangle size={16} color="#b91c1c" />
@@ -1137,7 +1157,7 @@ export default function DagsseddelDetalj() {
         {/* ③a: firmaet mangler overtid-lønnsart → overtid utover normaltid ble
             ikke ført automatisk (aldri feil-match). Amber = konfig-nudge, ikke
             kritisk: normaltiden er ført; arbeider fører evt. overtid manuelt. */}
-        {manglerOvertidLonnsart && erRedigerbar && (
+        {manglerOvertidLonnsart && erRedigerbar && !ikkeAnsatt && (
           <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <View className="flex-row items-center gap-2">
               <AlertTriangle size={16} color="#b45309" />

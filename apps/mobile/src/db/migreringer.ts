@@ -1285,7 +1285,60 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] filterkolonner på hms_local feilet", e);
   }
+
+  // Metadata S-pakke B-1 (2026-11-04) — områdenavn på sjekkliste_local og oppgave_local så
+  // område-filteret virker offline. Additiv ALTER ADD COLUMN (nullable, ingen backfill:
+  // katalogene full-overskrives ved neste refresh). Ingen data slettes. Idempotent via PRAGMA.
+  for (const tabell of OMRADE_LOCAL_TABELLER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === "omrade_navn")) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN omrade_navn TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] omrade_navn på ${tabell} feilet`, e);
+    }
+  }
+
+  // Metadata M-pakke B-2/B-4 (2026-11-04) — `statushendelser` og `utfylling` (JSON) på
+  // sjekkliste_local og oppgave_local så person-/periodefilteret og «sendt»-sorteringen virker
+  // offline. Additiv, nullable, ingen backfill (full-overskrives ved neste refresh). Idempotent.
+  for (const tabell of OMRADE_LOCAL_TABELLER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      for (const kol of METADATA_LOCAL_KOLONNER) {
+        if (!kolonner.find((k) => k.name === kol)) {
+          db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} TEXT`);
+        }
+      }
+    } catch (e) {
+      console.warn(`[MIG] metadata-kolonner på ${tabell} feilet`, e);
+    }
+  }
+
+  // Metadata S-pakke B-5 (2026-11-04) — revisjon, status og kildeformat på tegning_local så
+  // tegningsraden viser det samme offline som online. Additiv, nullable, ingen backfill
+  // (katalogen full-overskrives ved neste refresh). Idempotent via PRAGMA.
+  try {
+    const kolonner = db.getAllSync("PRAGMA table_info(tegning_local)") as Array<{ name: string }>;
+    for (const kol of TEGNING_META_KOLONNER) {
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE tegning_local ADD COLUMN ${kol} TEXT`);
+      }
+    }
+  } catch (e) {
+    console.warn("[MIG] metadata-kolonner på tegning_local feilet", e);
+  }
 }
+
+/** Metadata S-pakke B-5: kolonner som legges til `tegning_local`. */
+export const TEGNING_META_KOLONNER = ["revision", "status", "kildeformat"] as const;
+
+/** Metadata M-pakke B-2/B-4: JSON-kolonner på sjekkliste_local og oppgave_local. */
+export const METADATA_LOCAL_KOLONNER = ["statushendelser", "utfylling"] as const;
+
+/** Metadata S-pakke B-1: lokale katalogtabeller som får `omrade_navn` (og M-pakkens kolonner). */
+export const OMRADE_LOCAL_TABELLER = ["sjekkliste_local", "oppgave_local"] as const;
 
 /** Filter-hms (2026-11-03): tekstkolonnene hms_local får for filterarket offline. */
 export const HMS_LOCAL_FILTERKOLONNER = [

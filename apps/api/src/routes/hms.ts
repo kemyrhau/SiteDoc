@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
+import { aktivtMedlemWhere, aktivtProsjektmedlemWhere, byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { terminalFraStatus, avledetStatus } from "../services/flytFakta";
 import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
@@ -33,8 +33,8 @@ async function byggHmsSynlighetsFilter(
   });
   if (bruker?.role === "sitedoc_admin") return null;
 
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
     select: { id: true },
   });
   if (!medlem) {
@@ -77,6 +77,7 @@ const FLYT_SELECT = {
       id: true,
       name: true,
       medlemmer: {
+        where: aktivtMedlemWhere,
         select: {
           id: true,
           rolle: true,

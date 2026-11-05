@@ -14,8 +14,13 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { FlyttbareKolonner, renderFlyttbartHode } from "@/components/FlyttbareKolonner";
 import { faggruppeNavn } from "@/lib/sjekkliste-faggruppe";
-import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
+import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type Periode, type PeriodeFelt } from "@sitedoc/shared";
+import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
+import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
+import { metadataFilterAlternativer, metadataFilterVerdi, metadataFlereVerdier, type MetadataRad } from "@/lib/dokumentMetadata";
+import { METADATA_KOLONNE_IDER, METADATA_NAVN_NOKKEL, byggMetadataKolonner } from "@/components/DokumentMetadataKolonner";
 
 // --- Typer ---
 
@@ -42,7 +47,7 @@ interface MalObjekt {
   config: Record<string, unknown> | null;
 }
 
-interface SjekklisteRad {
+interface SjekklisteRad extends MetadataRad {
   id: string;
   title: string;
   subject: string | null;
@@ -59,6 +64,7 @@ interface SjekklisteRad {
   utforerFaggruppe: { name: string } | null;
   byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
+  omrade?: { id: string; navn: string; type: string } | null;
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
   bestillerUserId?: string;
@@ -114,7 +120,7 @@ interface KolonneParam {
   id: string;
   navnKey?: string;
   navn?: string;
-  gruppe: "kolonner" | "posisjon" | "verdier";
+  gruppe: "kolonner" | "posisjon" | "metadata" | "verdier";
   fast?: boolean;
 }
 
@@ -139,8 +145,12 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
 const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "bygning", navnKey: "tabell.bygning", gruppe: "posisjon" },
   { id: "etasje", navnKey: "tabell.etasje", gruppe: "posisjon" },
+  { id: "omrade", navnKey: "tabell.omrade", gruppe: "posisjon" },
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
+
+// Metadata M-pakke: hvem og når + signatur — valgbare, av som standard.
+const METADATA_KOLONNER: KolonneParam[] = METADATA_KOLONNE_IDER.map((id) => ({ id, navnKey: METADATA_NAVN_NOKKEL[id], gruppe: "metadata" }));
 
 const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "dokumentflyt", "flyt", "bygning", "frist"]);
 
@@ -227,6 +237,9 @@ export default function SjekklisteSide() {
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
   const [mineOppgaver, setMineOppgaver] = useState(false);
+  // B-0 (metadata-spec): periodefilter på opprettet/endret — samme delte logikk som mobilens filterark.
+  const [periode, setPeriode] = useState<Periode>({ hurtigvalg: "alle", fra: null, til: null });
+  const [periodeFelt, setPeriodeFelt] = useState<PeriodeFelt>("opprettet");
   // Kontrollplan-skille: "" = alle · "plan" = hører til kontrollplanen · "tillegg" = kommer i tillegg.
   const [planKoblingFilter, setPlanKoblingFilter] = useState<"" | "plan" | "tillegg">("");
   // D7: av = filtrer lista på aktiv byggeplass (default); på = «Hele prosjektet».
@@ -239,15 +252,6 @@ export default function SjekklisteSide() {
   const [flytSteg, setFlytSteg] = useState<{ malId: string; kandidater: FlytKandidat[] } | null>(null);
   const [valgtFlytId, setValgtFlytId] = useState<string | null>(null);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
-  const {
-    aktiveKolonner, kolonneBredder,
-    handleToggleKolonne, handleBreddeEndring,
-  } = useTabelloppsett({
-    liste: "sjekklister",
-    standardKolonner: STANDARD_AKTIVE,
-    migrerNokkel: "sitedoc-sjekkliste-kolonner-v6",
-    migrerBreddeNokkel: "sitedoc-sjekkliste-bredder-v1",
-  });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
 
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
@@ -486,14 +490,28 @@ export default function SjekklisteSide() {
     return map;
   }, [dokumentflyter, sjekklister]);
 
-  const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
+  const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...METADATA_KOLONNER, ...verdiFelter], [verdiFelter]);
+  // Standardrekkefølgen (for oppsett lagret før kolonner kunne flyttes). Hooken står her
+  // fordi den trenger verdi-kolonnene fra malene.
+  const kanoniskRekkefolge = useMemo(() => alleKolonner.map((k) => k.id), [alleKolonner]);
+  const {
+    aktiveKolonner, kolonneRekkefolge, kolonneBredder,
+    handleToggleKolonne, handleRekkefolgeEndring, handleBreddeEndring,
+  } = useTabelloppsett({
+    liste: "sjekklister",
+    standardKolonner: STANDARD_AKTIVE,
+    kanoniskRekkefolge,
+    migrerNokkel: "sitedoc-sjekkliste-kolonner-v6",
+    migrerBreddeNokkel: "sitedoc-sjekkliste-bredder-v1",
+  });
 
-  // Grupper for den delte kolonnevelgeren (faste kolonner utelates — de er alltid på).
+  // Grupper for den delte kolonnevelgeren. Faste kolonner er låst: kan flyttes, ikke fjernes.
   const kolonneVelgerGrupper = useMemo<KolonneVelgerGruppe[]>(() => {
     const oversett = (p: KolonneParam) => (p.navnKey ? t(p.navnKey) : (p.navn ?? p.id));
     return [
-      { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => !k.fast).map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k), laast: k.fast })) },
       { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "metadata", navn: t("kolonne.hvemOgNaar"), felter: METADATA_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
       { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.map((k) => ({ id: k.id, navn: oversett(k) })) },
     ].filter((g) => g.felter.length > 0);
   }, [verdiFelter, t]);
@@ -524,6 +542,7 @@ export default function SjekklisteSide() {
       mal: bygg(data.map((s) => s.template.name)),
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
+      omrade: omradeFilterAlternativer(data),
       tegning: bygg(data.map((s) => s.drawing?.name)),
       dokumentflyt: bygg(data.map((s) => s.dokumentflyt?.name)),
       flyt: bygg(data.map((s) => hentFlytLedd(s))),
@@ -533,6 +552,7 @@ export default function SjekklisteSide() {
         { value: "forfalt", label: t("kontrollplan.statusForfalt") },
       ],
       status: STATUS_ALTERNATIVER.map((s) => ({ value: s.value, label: t(s.labelKey) })),
+      ...metadataFilterAlternativer(data),
     };
     for (const felt of verdiFelter) {
       const objektId = felt.id.replace("felt:", "");
@@ -541,6 +561,9 @@ export default function SjekklisteSide() {
     }
     return filter;
   }, [sjekklister, verdiFelter, t, objektTyper, navneLookup]);
+
+  // B-2: sendt/godkjent/lukket i periodevelgeren bare når API-et leverer statushendelser.
+  const harStatushendelser = useMemo(() => (sjekklister ?? []).some((s) => s.statushendelser != null), [sjekklister]);
 
   // Filtrer
   const filtrerte = useMemo(() => {
@@ -605,20 +628,23 @@ export default function SjekklisteSide() {
           case "mal": return s.template.name;
           case "bygning": return s.byggeplass?.name ?? "";
           case "etasje": return s.drawing?.floor ?? "";
+          case "omrade": return s.omrade?.navn ?? "";
           case "tegning": return s.drawing?.name ?? "";
           case "dokumentflyt": return s.dokumentflyt?.name ?? "";
           case "flyt": return hentFlytLedd(s);
-          default: return undefined;
+          default: return metadataFilterVerdi(s, kolId);
         }
       },
+      hentFlereVerdier: metadataFlereVerdier,
       hentFeltVerdi: (s, oid) => hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup),
       hentFrist: (s) => ({
         dueDate: s.dueDate,
         ferdig: s.status === "approved" || s.status === "closed",
       }),
     });
+    resultat = filtrerPaaPeriode(resultat, periode, periodeFelt);
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, byggeplassFilterAv]);
+  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, byggeplassFilterAv, periode, periodeFelt]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -757,9 +783,16 @@ export default function SjekklisteSide() {
       etasje: { id: "etasje", header: t("tabell.etasje"), celle: (rad) => rad.drawing?.floor
         ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.floor ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.etasje ?? [] },
+      // B-1: område (sone/rom/etasje/trasé). Filter kun når data har områder — et
+      // eldre API uten feltet gir tom liste, og filteret skjules stille.
+      omrade: { id: "omrade", header: t("tabell.omrade"), celle: (rad) => rad.omrade?.navn
+        ? <span className="text-xs text-gray-600">{rad.omrade.navn}</span> : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.omrade?.navn ?? "",
+        filtrerbar: visOmradeFilter(dynamiskFilter.omrade), filterAlternativer: dynamiskFilter.omrade ?? [] },
       tegning: { id: "tegning", header: t("tabell.tegning"), celle: (rad) => rad.drawing?.name
         ? <span className="text-xs text-gray-600">{rad.drawing.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.drawing?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.tegning ?? [] },
+      ...byggMetadataKolonner<SjekklisteRad>(t, formaterDato, dynamiskFilter),
     };
     // Dynamiske verdier
     for (const felt of verdiFelter) {
@@ -772,11 +805,9 @@ export default function SjekklisteSide() {
         filtrerbar: (dynamiskFilter[felt.id]?.length ?? 0) > 0, filterAlternativer: dynamiskFilter[felt.id] ?? [],
       };
     }
-    const rekkefølge = [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter];
-    const resultat: KolDef[] = [];
-    for (const k of rekkefølge) { const def = defs[k.id]; if (aktiveKolonner.has(k.id) && def) resultat.push(def); }
-    return resultat;
-  }, [aktiveKolonner, dynamiskFilter, verdiFelter, t]);
+    // Aktive kolonner i brukerens rekkefølge (useTabelloppsett er eneste kilde).
+    return kolonneRekkefolge.map((id) => defs[id]).filter((def): def is KolDef => !!def);
+  }, [kolonneRekkefolge, dynamiskFilter, verdiFelter, t]);
 
   const aktiveFilter = Object.entries(filterVerdier).filter(([_, v]) => v);
 
@@ -797,6 +828,11 @@ export default function SjekklisteSide() {
               aktive={aktiveKolonner}
               onToggle={handleToggleKolonne}
               grupper={kolonneVelgerGrupper}
+              sorterbar
+              rekkefolge={kolonneRekkefolge}
+              onRekkefolgeEndring={handleRekkefolgeEndring}
+              flyttTekst={(navn) => t("kolonne.flytt", { navn })}
+              fjernTekst={(navn) => t("kolonne.fjern", { navn })}
               sokPlaceholder={t("sjekklister.sokPlaceholder")}
               nullstillTekst={t("handling.nullstill")}
               okTekst={t("handling.ok")}
@@ -814,6 +850,13 @@ export default function SjekklisteSide() {
           >
             {t("filter.mineOppgaver")}
           </button>
+          <DokumentPeriodeFilter
+            periode={periode}
+            felt={periodeFelt}
+            onEndrePeriode={setPeriode}
+            onEndreFelt={setPeriodeFelt}
+            statusFelt={harStatushendelser}
+          />
           {/* Kontrollplan-skille: hører til planen / kommer i tillegg (relasjon, ingen nytt felt) */}
           <div className="inline-flex items-center rounded-md border border-gray-200 overflow-hidden">
             {([
@@ -885,12 +928,15 @@ export default function SjekklisteSide() {
         <EmptyState title={t("sjekklister.ingen")} description={t("sjekklister.ingenBeskrivelse")}
           action={<Button onClick={åpneMalVelger}>{t("sjekklister.opprett")}</Button>} />
       ) : (
-        <Table<SjekklisteRad>
-          kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
-          onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
-          tomMelding={t("sjekklister.ingenMatcherFilter")} velgbar valgteRader={valgte} onValgEndring={setValgte}
-          filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring}
-          kolonneBredder={kolonneBredder} onKolonneBreddeEndring={handleBreddeEndring} />
+        <FlyttbareKolonner kolonneIder={kolonneDefinisjoner.map((k) => k.id)} rekkefolge={kolonneRekkefolge} onRekkefolgeEndring={handleRekkefolgeEndring}>
+          <Table<SjekklisteRad>
+            kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
+            onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
+            tomMelding={t("sjekklister.ingenMatcherFilter")} velgbar valgteRader={valgte} onValgEndring={setValgte}
+            filterVerdier={filterVerdier} onFilterEndring={handleFilterEndring}
+            kolonneBredder={kolonneBredder} onKolonneBreddeEndring={handleBreddeEndring}
+            renderKolonneHode={renderFlyttbartHode((navn) => t("kolonne.flytt", { navn }))} />
+        </FlyttbareKolonner>
       )}
 
       <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title={t("sjekklister.slettTittel")}>

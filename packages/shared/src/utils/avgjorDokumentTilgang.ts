@@ -103,10 +103,17 @@ export function avgjorDokumentTilgang(f: TilgangsFakta): TilgangsResultat {
   }
 
   // Innsender/mottaker: bruker er bestiller eller direkte mottaker
+  // B4 (L2, Kenneth 2026-11-05): grenen gjelder bare så lenge personen står i dokumentets
+  // flyt — fjernet fra flyten = ute, også for egne dokumenter. Unntak: dokument uten flyt,
+  // og HMS-melding der brukeren er melder (melder-prinsippet).
   if (harParter) {
-    if (
+    const erPart =
       (f.bestillerUserId && f.bestillerUserId === f.userId) ||
-      (f.recipientUserId && f.recipientUserId === f.userId)
+      (f.recipientUserId && f.recipientUserId === f.userId);
+    const erHmsMelder = f.templateDomain === "hms" && f.bestillerUserId === f.userId;
+    if (
+      erPart &&
+      (!f.dokumentflytId || f.flytIder.includes(f.dokumentflytId) || erHmsMelder)
     ) {
       return { tillat: true, grunn: "innsender-mottaker" };
     }

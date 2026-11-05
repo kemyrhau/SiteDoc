@@ -66,6 +66,11 @@ export const byggeplassRouter = router({
               fileType: true,
               floor: true,
               geoReference: true,
+              // B-5: metadata for tegningslista (web TegningerPanel).
+              revision: true,
+              status: true,
+              issuedAt: true,
+              originalFileUrl: true,
             },
             orderBy: [
               { discipline: "asc" },

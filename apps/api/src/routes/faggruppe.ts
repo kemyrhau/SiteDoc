@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createFaggruppeSchema, copyFaggruppeSchema } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
 export const faggruppeRouter = router({
@@ -16,6 +16,8 @@ export const faggruppeRouter = router({
         include: {
           ansvarlig: { select: { id: true, name: true, email: true } },
           faggruppeKoblinger: {
+            // Bare aktive koblinger hos aktive prosjektmedlemmer (L2b).
+            where: { ...aktivtMedlemWhere, projectMember: aktivtMedlemWhere },
             include: {
               projectMember: {
                 include: { user: true },
@@ -51,6 +53,8 @@ export const faggruppeRouter = router({
         include: {
           project: true,
           faggruppeKoblinger: {
+            // Bare aktive koblinger hos aktive prosjektmedlemmer (L2b).
+            where: { ...aktivtMedlemWhere, projectMember: aktivtMedlemWhere },
             include: {
               projectMember: {
                 include: { user: true },

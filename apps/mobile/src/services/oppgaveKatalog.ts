@@ -2,6 +2,7 @@ import { eq, and, or, isNull, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { oppgaveLocal } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import { metadataFraLokal, metadataTilLokal, type MetadataFelt } from "./dokumentMetadataLokal";
 
 /* ============================================================================
  *  Oppgave-katalog-cache (Offline-liste fase 1 for oppgaver/HMS, 2026-10-03)
@@ -29,7 +30,7 @@ import type { trpc } from "../lib/trpc";
 type TrpcKlient = ReturnType<typeof trpc.useUtils>["client"];
 
 /** OppgaveRad-kompatibel form (index.tsx caster til OppgaveRad). */
-export interface OppgaveLokalRad {
+export interface OppgaveLokalRad extends MetadataFelt {
   id: string;
   title: string;
   status: string;
@@ -47,6 +48,7 @@ export interface OppgaveLokalRad {
   recipientUser: { name: string | null } | null;
   recipientGroup: { name: string | null } | null;
   drawing: { name: string | null } | null;
+  omrade: { navn: string } | null;
   dokumentflyt: { name: string } | null;
 }
 
@@ -94,7 +96,8 @@ export async function refreshOppgaveKatalog(
     recipientGroup?: { name: string | null } | null;
     dokumentflyt?: { name: string } | null;
     drawing: { name?: string | null; byggeplass: { id: string } | null } | null;
-  }>;
+    omrade?: { navn: string } | null;
+  } & MetadataFelt>;
 
   const naa = Date.now();
 
@@ -126,6 +129,10 @@ export async function refreshOppgaveKatalog(
         recipientUserNavn: r.recipientUser?.name ?? null,
         recipientGroupNavn: r.recipientGroup?.name ?? null,
         drawingNavn: r.drawing?.name ?? null,
+        // B-1: eldre API uten omrade-include → null (filteret skjules da).
+        omradeNavn: r.omrade?.navn ?? null,
+        // M-pakke B-2/B-4: eldre API uten feltene → NULL (filtrene skjules da).
+        ...metadataTilLokal(r),
         dokumentflytNavn: r.dokumentflyt?.name ?? null,
         bestillerFaggruppeNavn: r.bestillerFaggruppe?.name ?? null,
         sistOppdatert: naa,
@@ -197,6 +204,8 @@ export function hentOppgaverLokalt(
     recipientUser: r.recipientUserNavn != null ? { name: r.recipientUserNavn } : null,
     recipientGroup: r.recipientGroupNavn != null ? { name: r.recipientGroupNavn } : null,
     drawing: r.drawingNavn != null ? { name: r.drawingNavn } : null,
+    omrade: r.omradeNavn != null ? { navn: r.omradeNavn } : null,
+    ...metadataFraLokal(r),
     dokumentflyt: r.dokumentflytNavn != null ? { name: r.dokumentflytNavn } : null,
   }));
 }

@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Building2,
   WifiOff,
+  Search,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -343,9 +344,19 @@ export default function HjemSkjerm() {
           </View>
           <ChevronDown size={20} color="#ffffff" />
         </Pressable>
-        <Pressable onPress={håndterPluss} className="rounded-full bg-white/20 p-2">
-          <Plus size={20} color="#ffffff" />
-        </Pressable>
+        <View className="flex-row items-center gap-2">
+          {/* Søkeinngang C1 (spec-sok-innganger): prosjektsøket på «Alle», push så Hjem står igjen ved retur. */}
+          <Pressable
+            onPress={() => router.push("/sok")}
+            className="rounded-full bg-white/20 p-2"
+            accessibilityLabel={t("sok.tittel")}
+          >
+            <Search size={20} color="#ffffff" />
+          </Pressable>
+          <Pressable onPress={håndterPluss} className="rounded-full bg-white/20 p-2">
+            <Plus size={20} color="#ffffff" />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView

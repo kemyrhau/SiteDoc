@@ -7,9 +7,10 @@ const OMFANG: Array<{ id: Omfang; nøkkel: string }> = [
   { id: "mapper", nøkkel: "sokMobil.omfangMapper" },
   { id: "sjekklister", nøkkel: "sokMobil.omfangSjekklister" },
   { id: "oppgaver", nøkkel: "sokMobil.omfangOppgaver" },
+  { id: "hms", nøkkel: "sokMobil.omfangHms" },
 ];
 
-/** Omfangsvelger (spec-sok-mobil § 9.4 A): fire chips under feltet, ett valg om gangen, samme stil som oppgave-segmentene. */
+/** Omfangsvelger (spec-sok-mobil § 9.4 A): fem chips under feltet, ett valg om gangen, samme stil som oppgave-segmentene. */
 export function OmfangVelger({ valgt, onVelg }: { valgt: Omfang; onVelg: (o: Omfang) => void }) {
   const { t } = useTranslation();
   return (

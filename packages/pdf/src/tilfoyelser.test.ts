@@ -130,3 +130,29 @@ describe("tilføyelse inne i repeater (arkiv-tabellcelle)", () => {
     expect(html).not.toContain("tilfoyelse");
   });
 });
+
+describe("vær-tilføyelse (ordre (3) P3)", () => {
+  const VAER = felt("w", "weather", "Vær");
+  const fv = (tilVerdi: unknown): FeltVerdi => ({
+    verdi: { temp: "4 °C", conditions: "Lettskyet", kilde: "automatisk" },
+    kommentar: "",
+    vedlegg: [],
+    tilfoyelser: [til(tilVerdi, "Ola Nordmann", "2026-11-03T09:30:00Z")],
+  });
+
+  it("vær-objekt vises som feltet selv (temp, forhold, vind, nedbør) — ikke «(kompleks verdi)»", () => {
+    const html = renderFelt(VAER, fv({ temp: "6 °C", conditions: "Regn", wind: "5 m/s", precipitation: "1.2 mm", kilde: "manuell" }), config);
+    expect(html).toContain("6 °C, Regn, Vind 5 m/s, Nedbør 1.2 mm");
+    expect(html).not.toContain("kompleks verdi");
+  });
+
+  it("vær uten data → «(tom verdi)»", () => {
+    const html = renderFelt(VAER, fv({ status: "venter" }), config);
+    expect(html).toContain("(tom verdi)");
+  });
+
+  it("ukjent objekt faller fortsatt til «(kompleks verdi)»", () => {
+    const html = renderFelt(VAER, fv({ noe: { dypt: 1 } }), config);
+    expect(html).toContain("(kompleks verdi)");
+  });
+});

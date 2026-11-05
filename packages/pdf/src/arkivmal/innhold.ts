@@ -13,12 +13,21 @@
 import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
 import { byggRadkort, repeaterErRik } from "./radkort";
+import { nyBildeTeller, samleBildeNr } from "../hjelpere";
+import type { BildeTeller } from "../hjelpere";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
 
+/**
+ * `teller` = dokumentets løpende bildenummer (ordre 2026-11-04 (2)): ÉN teller for hele
+ * dokumentet, tråd gjennom felt, nestede seksjoner og repeatere i render-rekkefølge.
+ * Toppkallet lager den med alle lagrede `bildeNr` i `data` som reserverte (RETUR 1);
+ * rekursjonen sender samme instans videre.
+ */
 export function byggInnhold(
   objekter: TreObjekt[],
   data: Record<string, FeltVerdi>,
   config: PdfConfig,
+  teller: BildeTeller = nyBildeTeller(samleBildeNr(data)),
 ): string {
   let html = "";
   for (const objekt of objekter) {
@@ -29,16 +38,16 @@ export function byggInnhold(
       // F7: send hele FeltVerdi (ikke bare .verdi) så objektnivå-kommentar/vedlegg
       // (festet på repeateren uten «Legg til rad») kan rendres i «Registrert utenfor rader».
       html += repeaterErRik(objekt)
-        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id])
-        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id]);
+        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id], teller)
+        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id], teller);
       continue;
     }
     // D2 (tegningsutsnitt) + D3 (instruksjonstyper) er FOLDET inn i renderFelt (2026-08-24) —
     // felt.ts-frysen ble opphevet, så intercept-i-innhold.ts trengs ikke lenger.
-    html += renderFelt(objekt, data[objekt.id], config);
+    html += renderFelt(objekt, data[objekt.id], config, teller);
     // Nestede seksjoner: render barn etter overskriften.
     if (objekt.children && objekt.children.length > 0) {
-      html += byggInnhold(objekt.children, data, config);
+      html += byggInnhold(objekt.children, data, config, teller);
     }
   }
   return html;

@@ -37,6 +37,8 @@ eller `sheet_machines` kan gjøres uten å lese alle tre dokumentene.
 Spesielt viktig fordi Timer er eier — endringer i Timer-schema rir
 oppstrøms til Vareforbruk- og Maskin-integrasjon.
 
+**Prosjektmedlemskap (L2a, 2026-11-05):** `verifiserProsjektmedlem` og `erProsjektLeder` (`apps/api/src/routes/timer/dagsseddel.ts`) krever aktivt prosjektmedlemskap (`periodeSlutt: null`); se [timer.md § Tilgangsstyring](timer.md).
+
 **Bakgrunn for regelen:** Aktivitet/maskinbruk/vareforbruk-konflikten i kveld
 2026-05-02 (Maskintimer-aktivitet vs `sheet_machines` vs `Vareforbruk`) viste
 at modulgrenser er klare i isolerte spec-er men UKLARE når dagsseddelen er

@@ -25,7 +25,8 @@ vi.mock("@sitedoc/db", () => ({
   prisma: {
     organizationMember: { findUnique: (...a: unknown[]) => findUnique(...a) },
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
-    projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
+    // L2: tilgangsportene slår opp aktivt medlem med findFirst (aktivtProsjektmedlemWhere).
+    projectMember: { findFirst: (...a: unknown[]) => memberFindUnique(...a) },
     // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) kjøres først i
     // verifiserRetningsrett. Standalone (eierOrg=null) er standard for å no-op-e gaten og
     // isolere Lukk-guard-/retningsretts-logikken; firma-admin-testene setter eierfirmaet.

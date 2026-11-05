@@ -36,9 +36,10 @@ export async function autoLeggFirmaAdmins(
   // "av" / ingen innstilling = dagens oppførsel (kun oppretteren).
   if (setting?.autoProsjektAdmin !== "alle_firma_admins") return;
 
-  // Firma-admins for DENNE org (aldri cross-org).
+  // Firma-admins for DENNE org (aldri cross-org). L3: bare aktive ansettelser — en
+  // deaktivert firma-admin skal ikke legges inn i nye prosjekter.
   const firmaAdmins = await tx.organizationMember.findMany({
-    where: { organizationId, firmaRoller: { has: "firma_admin" } },
+    where: { organizationId, status: "aktiv", firmaRoller: { has: "firma_admin" } },
     select: { userId: true },
   });
   if (firmaAdmins.length === 0) return;

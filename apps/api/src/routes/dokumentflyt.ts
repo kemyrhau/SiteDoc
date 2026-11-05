@@ -9,17 +9,26 @@ import {
   removeDokumentflytMedlemSchema,
   oppdaterRollerSchema,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { sikreProsjektmedlemmer, aktivAnsattIFirmaWhere } from "../services/ansatt";
+import {
+  FLYTMEDLEM_SELECT,
+  avsluttFlytmedlem,
+  finnApneDokumenterHosMedlem,
+  hentGjenvarendeILeddet,
+  pekerFor,
+  tellAndreBindingerILeddet,
+  tellApneDokumenterPaaSteg,
+} from "../services/flytFjerning";
 import { IKKE_SLETTET } from "../utils/softDelete";
-import type { PrismaClient } from "@sitedoc/db";
+import type { PrismaClient, Prisma } from "@sitedoc/db";
 
 /**
- * Teller IKKE-slettede dokumenter (sjekklister + oppgaver) bundet til en flyt. Delt av slett-vernet
- * OG ledd-vernet (fjernMedlem/oppdaterRoller): en flyt med aktive dokumenter kan verken SLETTES
- * eller TØMMES for ledd — begge etterlater dokumentene uten flytstruktur, i stillhet (samme skade,
- * ulike dører). Papirkurv (KUN_SLETTET) holdes utenfor per ordre. Godkjenning/KontrollplanPunkt
- * telles IKKE her (meldt som utvidelse, likt slett-vernet).
+ * Teller IKKE-slettede dokumenter (sjekklister + oppgaver) bundet til en flyt — slett-vernet: en
+ * flyt med dokumenter kan ikke SLETTES (de ville stått uten flytstruktur, i stillhet). Papirkurv
+ * (KUN_SLETTET) holdes utenfor per ordre. Godkjenning/KontrollplanPunkt telles IKKE her (meldt som
+ * utvidelse). Ledd-vernet (oppdaterRoller) teller i stedet åpne dokumenter på stegene som
+ * forsvinner (`tellApneDokumenterPaaSteg`); person-fjerning har ingen sperre (L1, B1).
  */
 async function tellFlytDokumenter(prisma: PrismaClient, dokumentflytId: string): Promise<number> {
   const [sjekklister, oppgaver] = await Promise.all([
@@ -48,6 +57,8 @@ function validerRegistratorForst(roller: Array<{ rolle: string }>): void {
 const dokumentflytInclude = {
   faggruppe: { select: { id: true, name: true, color: true } },
   medlemmer: {
+    // Avsluttede medlemskap (periodeSlutt satt) vises ikke i oppsettet — historikken er loggen.
+    where: aktivtMedlemWhere,
     include: {
       faggruppe: { select: { id: true, name: true, color: true } },
       projectMember: {
@@ -177,23 +188,39 @@ export const dokumentflytRouter = router({
         .map((r) => r.rolle)
         .filter((rolle) => !nyeRolleNavn.has(rolle));
 
-      // Ledd-vern (D, Kenneth-vedtak 2026-08-22): å FJERNE en rolle sletter DokumentflytMedlem for
-      // det leddet → dokumentene i flyten mister leddet sitt, i stillhet (samme skade som å slette
-      // flyten, som er vernet). Blokker rolle-fjerning når flyten har aktive dokumenter. Å LEGGE TIL
-      // eller endre etiketter er trygt og forblir tillatt (derfor bare når fjernedeRoller > 0).
+      // Ledd-vern (D, Kenneth-vedtak 2026-08-22; B2 2026-11-05): et ledd som forsvinner kan ikke
+      // rutes — et dokument som står der ville miste leddet sitt. Sperren teller derfor bare ÅPNE
+      // dokumenter som står på de fjernede stegene (ikke alle i flyten). Medlemmene avsluttes mykt
+      // (periodeSlutt), ikke slettes. Å LEGGE TIL eller endre etiketter er alltid tillatt.
       if (fjernedeRoller.length > 0) {
-        const antall = await tellFlytDokumenter(ctx.prisma, input.id);
+        const berorte = await ctx.prisma.dokumentflytMedlem.findMany({
+          where: { dokumentflytId: input.id, rolle: { in: fjernedeRoller }, ...aktivtMedlemWhere },
+          select: { steg: true, groupId: true, projectMember: { select: { userId: true } } },
+        });
+        // Steg = medlemmenes steg + rollens posisjon i rekka (ledd uten medlemmer har bare posisjonen).
+        const steg = new Set<number>(berorte.map((m) => m.steg));
+        gamleRoller.forEach((r, i) => {
+          if (fjernedeRoller.includes(r.rolle)) steg.add(i + 1);
+        });
+        const antall = await tellApneDokumenterPaaSteg(ctx.prisma, {
+          dokumentflytId: input.id,
+          steg: [...steg],
+          userIder: berorte.flatMap((m) => (m.projectMember?.userId ? [m.projectMember.userId] : [])),
+          groupIder: berorte.flatMap((m) => (m.groupId ? [m.groupId] : [])),
+        });
         if (antall > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Flyten har ${antall} aktivt dokument${antall === 1 ? "" : "er"} som bruker leddene. Du kan ikke fjerne en rolle nå — flytt eller lukk dokumentene først.`,
+            message: `${antall} åpn${antall === 1 ? "t dokument står" : "e dokumenter står"} på leddet du vil fjerne. Send dem videre eller lukk dem først.`,
           });
         }
-        await ctx.prisma.dokumentflytMedlem.deleteMany({
+        await ctx.prisma.dokumentflytMedlem.updateMany({
           where: {
             dokumentflytId: input.id,
             rolle: { in: fjernedeRoller },
+            ...aktivtMedlemWhere,
           },
+          data: { periodeSlutt: new Date() },
         });
       }
 
@@ -234,19 +261,52 @@ export const dokumentflytRouter = router({
     .input(addDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
-      const { projectId: _projectId, ...data } = input;
-      return ctx.prisma.dokumentflytMedlem.create({
-        data,
-        include: {
-          faggruppe: { select: { id: true, name: true, color: true } },
-          projectMember: {
-            include: {
-              user: { select: { id: true, name: true, email: true } },
-            },
+      const { projectId, ...data } = input;
+      const include = {
+        faggruppe: { select: { id: true, name: true, color: true } },
+        projectMember: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
           },
-          group: { select: { id: true, name: true } },
         },
+        group: { select: { id: true, name: true } },
+      } as const;
+      // En person må være aktivt prosjektmedlem — et avsluttet medlem bindes ikke inn (L2b).
+      if (data.projectMemberId) {
+        const pm = await ctx.prisma.projectMember.findFirst({
+          where: { id: data.projectMemberId, projectId, ...aktivtMedlemWhere },
+          select: { id: true },
+        });
+        if (!pm) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Personen er ikke medlem av prosjektet" });
+        }
+      }
+      // Gjenlegging av en fjernet binding gjenåpner raden (unik-nøkkelen står) i stedet for ny rad.
+      const avsluttet = await ctx.prisma.dokumentflytMedlem.findFirst({
+        where: {
+          dokumentflytId: data.dokumentflytId,
+          dokumentflyt: { projectId },
+          faggruppeId: data.faggruppeId ?? null,
+          projectMemberId: data.projectMemberId ?? null,
+          groupId: data.groupId ?? null,
+          rolle: data.rolle,
+          steg: data.steg,
+          periodeSlutt: { not: null },
+        },
+        select: { id: true },
       });
+      if (avsluttet) {
+        return ctx.prisma.dokumentflytMedlem.update({
+          where: { id: avsluttet.id },
+          data: {
+            periodeSlutt: null,
+            kanRedigere: data.kanRedigere,
+            låsesEtterPasseringer: data.låsesEtterPasseringer ?? null,
+          },
+          include,
+        });
+      }
+      return ctx.prisma.dokumentflytMedlem.create({ data, include });
     }),
 
   // Batch: legg firmaets ansatte (ev. en hel avdeling, ekspandert klient-side til
@@ -286,6 +346,7 @@ export const dokumentflytRouter = router({
         where: {
           dokumentflytId: input.dokumentflytId,
           projectMember: { userId: { not: null } },
+          ...aktivtMedlemWhere,
         },
         select: { rolle: true, projectMember: { select: { userId: true } } },
       });
@@ -331,24 +392,36 @@ export const dokumentflytRouter = router({
 
       // Bind hver gyldig person til rollen — hopp over dem som allerede står i
       // nøyaktig denne rollen på dette steget (idempotent, ingen duplikat-ledd).
+      // En avsluttet binding gjenåpnes (unik-nøkkelen står igjen etter myk fjerning).
       const projectMemberIds = [...res.projectMemberIdByUserId.values()];
+      const eksisterende = await ctx.prisma.dokumentflytMedlem.findMany({
+        where: {
+          dokumentflytId: input.dokumentflytId,
+          rolle: input.rolle,
+          steg: input.steg,
+          projectMemberId: { in: projectMemberIds },
+        },
+        select: { id: true, projectMemberId: true, periodeSlutt: true },
+      });
       const alleredeBundet = new Set(
-        (
-          await ctx.prisma.dokumentflytMedlem.findMany({
-            where: {
-              dokumentflytId: input.dokumentflytId,
-              rolle: input.rolle,
-              steg: input.steg,
-              projectMemberId: { in: projectMemberIds },
-            },
-            select: { projectMemberId: true },
-          })
-        ).map((m) => m.projectMemberId),
+        eksisterende.filter((m) => m.periodeSlutt === null).map((m) => m.projectMemberId),
+      );
+      const avsluttet = new Map(
+        eksisterende.filter((m) => m.periodeSlutt !== null).map((m) => [m.projectMemberId, m.id]),
       );
 
       let bundet = 0;
       for (const pmId of projectMemberIds) {
         if (alleredeBundet.has(pmId)) continue;
+        const gjenapneId = avsluttet.get(pmId);
+        if (gjenapneId) {
+          await ctx.prisma.dokumentflytMedlem.update({
+            where: { id: gjenapneId },
+            data: { periodeSlutt: null },
+          });
+          bundet += 1;
+          continue;
+        }
         await ctx.prisma.dokumentflytMedlem.create({
           data: {
             dokumentflytId: input.dokumentflytId,
@@ -368,26 +441,100 @@ export const dokumentflytRouter = router({
       };
     }),
 
-  // Fjern medlem fra dokumentflyt
+  // Forhåndsvisning til bekreftelsesmodalen: hvor mange åpne dokumenter har ballen hos medlemmet,
+  // og hvem andre står i leddet (kandidater til ny hovedansvarlig).
+  forhandsvisFjerning: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+      const medlem = await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
+      const [dokumenter, gjenvarende] = await Promise.all([
+        finnApneDokumenterHosMedlem(ctx.prisma, await pekerFor(ctx.prisma, medlem)),
+        hentGjenvarendeILeddet(ctx.prisma, medlem),
+      ]);
+      return {
+        antallApne: dokumenter.sjekklister.length + dokumenter.oppgaver.length,
+        gjenvarende: gjenvarende.map((m) => ({
+          projectMemberId: m.projectMemberId,
+          navn: m.navn,
+          erHovedansvarlig: m.erHovedansvarlig,
+        })),
+        andreILeddet: gjenvarende.length + (await tellAndreBindingerILeddet(ctx.prisma, medlem)),
+      };
+    }),
+
+  // Fjern medlem fra dokumentflyt — myk avslutning (L1, B1/B7/B10). Raden står med periodeSlutt,
+  // så loggen og en senere gjenlegging (gjenåpning) har den. Ballen på åpne dokumenter hos
+  // medlemmet flyttes til leddets nye hovedansvarlig, eller til leddet selv når det blir tomt.
   fjernMedlem: protectedProcedure
     .input(removeDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
-      // Ledd-vern (D): å fjerne et flytmedlem tømmer leddet for det medlemmet → dokumentene mister
-      // (deler av) leddet sitt, i stillhet. Blokker når flyten har aktive dokumenter. Hent medlemmets
-      // flyt for å telle (input bærer bare medlem-id).
-      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
-        where: { id: input.id },
-        select: { dokumentflytId: true },
-      });
-      const antall = await tellFlytDokumenter(ctx.prisma, medlem.dokumentflytId);
-      if (antall > 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Flyten har ${antall} aktivt dokument${antall === 1 ? "" : "er"} som bruker leddene. Du kan ikke fjerne et medlem nå — flytt eller lukk dokumentene først.`,
-        });
+      const medlem = await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
+
+      const peker = await pekerFor(ctx.prisma, medlem);
+
+      // Ny hovedansvarlig: oppgitt (må være medlem av prosjektet), ellers — bare når den som
+      // fjernes var hovedansvarlig eller har åpne dokumenter — første gjenværende person i
+      // leddet. `null` = ingen erstatter; leddets hovedansvarlig røres da ikke.
+      let nyPmId: string | null;
+      if (input.nyHovedansvarligPmId !== undefined) {
+        nyPmId = input.nyHovedansvarligPmId;
+      } else {
+        const apne = await finnApneDokumenterHosMedlem(ctx.prisma, peker);
+        const trengerNy = medlem.erHovedansvarlig || apne.sjekklister.length + apne.oppgaver.length > 0;
+        nyPmId = trengerNy
+          ? (await hentGjenvarendeILeddet(ctx.prisma, medlem))[0]?.projectMemberId ?? null
+          : null;
       }
-      return ctx.prisma.dokumentflytMedlem.delete({ where: { id: input.id } });
+      let nyUserId: string | null = null;
+      if (nyPmId) {
+        const ny = await ctx.prisma.projectMember.findFirst({
+          where: { id: nyPmId, projectId: input.projectId, ...aktivtMedlemWhere },
+          select: { userId: true },
+        });
+        if (!ny) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ny hovedansvarlig er ikke medlem av prosjektet" });
+        }
+        if (nyPmId === medlem.projectMemberId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Velg en annen enn den som fjernes" });
+        }
+        nyUserId = ny.userId;
+      }
+
+      const aktor = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const { fjernet, dokumentIder } = await avsluttFlytmedlem(
+          tx,
+          medlem,
+          peker,
+          nyPmId && nyUserId ? { pmId: nyPmId, userId: nyUserId } : null,
+        );
+
+        await tx.activity.create({
+          data: {
+            actorUserId: ctx.userId,
+            actorNavnSnapshot: aktor?.name ?? null,
+            projectId: input.projectId,
+            targetType: "dokumentflyt_medlem",
+            targetId: medlem.id,
+            action: "flytmedlem_avsluttet",
+            payload: {
+              dokumentflytId: medlem.dokumentflytId,
+              medlemId: medlem.id,
+              userId: medlem.projectMember?.userId ?? null,
+              groupId: medlem.groupId,
+              nyHovedansvarligPmId: nyPmId,
+              dokumentIder,
+            },
+            ipAddress: ctx.ipAddress,
+            userAgent: ctx.userAgent,
+          },
+        });
+
+        return fjernet;
+      });
     }),
 
   // Sett/fjern hovedansvarlig for et medlem
@@ -402,9 +549,8 @@ export const dokumentflytRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
-        where: { id: input.id },
-      });
+      // L2 M1: avsluttet rad (periodeSlutt satt) eller rad i annet prosjekt → NOT_FOUND.
+      const medlem = await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
 
       // Fjern hovedansvarlig fra andre i samme dokumentflyt+rolle+steg
       if (input.erHovedansvarlig) {
@@ -414,6 +560,7 @@ export const dokumentflytRouter = router({
             rolle: medlem.rolle,
             steg: medlem.steg,
             erHovedansvarlig: true,
+            ...aktivtMedlemWhere,
           },
           data: { erHovedansvarlig: false },
         });
@@ -437,9 +584,8 @@ export const dokumentflytRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
-        where: { id: input.id },
-      });
+      // L2 M1: avsluttet rad (periodeSlutt satt) eller rad i annet prosjekt → NOT_FOUND.
+      const medlem = await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
 
       // Fjern hovedansvarlig fra alle andre i samme dokumentflyt + rolle
       await ctx.prisma.dokumentflytMedlem.updateMany({
@@ -447,6 +593,7 @@ export const dokumentflytRouter = router({
           dokumentflytId: medlem.dokumentflytId,
           rolle: medlem.rolle,
           steg: medlem.steg,
+          ...aktivtMedlemWhere,
         },
         data: {
           erHovedansvarlig: false,
@@ -481,9 +628,24 @@ export const dokumentflytRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentAktivtFlytmedlem(ctx.prisma, input.id, input.projectId);
       return ctx.prisma.dokumentflytMedlem.update({
         where: { id: input.id },
         data: { kanRedigere: input.kanRedigere },
       });
     }),
 });
+
+type Db = PrismaClient | Prisma.TransactionClient;
+
+/** Aktivt flytmedlem, scopet til prosjektet via flyten (ellers NOT_FOUND). */
+async function hentAktivtFlytmedlem(db: Db, id: string, projectId: string) {
+  const medlem = await db.dokumentflytMedlem.findFirst({
+    where: { id, dokumentflyt: { projectId }, ...aktivtMedlemWhere },
+    select: FLYTMEDLEM_SELECT,
+  });
+  if (!medlem) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Flytmedlemmet finnes ikke (eller er allerede fjernet)" });
+  }
+  return medlem;
+}

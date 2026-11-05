@@ -12,7 +12,8 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, bildeOpptakTid, byggGrenseVerdi, byggTilfoyelser } from "../hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller, samleBildeNr } from "../hjelpere";
+import type { BildeTeller } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
 import { normaliserRad } from "../typer";
@@ -161,22 +162,19 @@ const F7_MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direk
  */
 export function byggUtenforRaderBlokk(
   objektFelt: FeltVerdi | undefined,
-  startNr: number,
+  startNr: number | BildeTeller,
 ): { html: string; nesteNr: number } {
+  // Tall = eget kall (F7-tester); teller = dokumenttelleren med reservasjoner (RETUR 1).
+  const teller: BildeTeller = typeof startNr === "number" ? { neste: startNr, reservert: new Set() } : startNr;
   const kommentar = objektFelt?.kommentar?.trim() ?? "";
   const alle = Array.isArray(objektFelt?.vedlegg) ? (objektFelt!.vedlegg as Vedlegg[]) : [];
   const bilder = alle.filter(erBilde);
   const antallIkkeBilder = alle.length - bilder.length;
   if (!kommentar && bilder.length === 0 && antallIkkeBilder === 0) {
-    return { html: "", nesteNr: startNr };
+    return { html: "", nesteNr: teller.neste };
   }
-  let nr = startNr;
   const celler = bilder.map((b) => {
-    const visNr = b.bildeNr ?? nr;
-    nr += 1;
-    let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
-    const tidTekst = bildeOpptakTid(b);
-    if (tidTekst) merke += ` · ${esc(tidTekst)}`;
+    const merke = bildeMerke(b, teller);
     // A4-kvittering (2026-08-22): IKKE tvungen 4:3-ramme. `.ark-bilde-img` er den DELTE
     // radbilde-primitiven (object-fit:contain, bildeforhold ALLTID bevart, aldri oppskalert
     // — fabels radkort-designlås). Fasitens «Bilde 4:3 (mobilformat)» er en plassholder-
@@ -194,7 +192,7 @@ export function byggUtenforRaderBlokk(
     ? `<div class="vedlegg-teller">${antallIkkeBilder} vedlegg uten forhåndsvisning</div>`
     : "";
   const html = `<div class="ark-utenfor-rader"><div class="ark-utenfor-merke">${F7_MERKE}</div>${kommentarHtml}${grid}${filteller}</div>`;
-  return { html, nesteNr: nr };
+  return { html, nesteNr: teller.neste };
 }
 
 export function byggRepeaterTabell(
@@ -202,6 +200,7 @@ export function byggRepeaterTabell(
   verdi: unknown,
   label: string,
   objektFelt?: FeltVerdi,
+  teller: BildeTeller = nyBildeTeller(samleBildeNr([verdi, objektFelt])),
 ): string {
   const barn = objekt.children ?? [];
   // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
@@ -209,7 +208,8 @@ export function byggRepeaterTabell(
 
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk FØRST (forbruker bildeNr før radene). Tom blokk → "".
-  const blokk = byggUtenforRaderBlokk(objektFelt, 1);
+  // Dokumenttelleren fortsetter fra feltene foran (ordre 2026-11-04 (2)).
+  const blokk = byggUtenforRaderBlokk(objektFelt, teller);
 
   if (rader.length === 0) {
     // Case (a): objektnivå-innhold + 0 rader → blokk + «Ingen rader registrert».
@@ -220,7 +220,6 @@ export function byggRepeaterTabell(
   // «#» + én kolonne per barn — bildecellen spenner hele bredden.
   const kolonnespenn = 1 + barn.length;
   // Løpenummer fortsetter FRA objektnivå-blokken (F7: objektbilder først på siden).
-  let bildeNr = blokk.nesteNr;
   const kropp = rader
     .map((rad, idx) => {
       const celler = barn
@@ -240,9 +239,7 @@ export function byggRepeaterTabell(
         })
         .join("");
       const datarad = `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;
-      const { html, nesteNr } = byggBilderader(bilderIRad(barn, rad), bildeNr, kolonnespenn);
-      bildeNr = nesteNr;
-      return datarad + html;
+      return datarad + byggBilderader(bilderIRad(barn, rad), teller, kolonnespenn);
     })
     .join("");
 
@@ -265,23 +262,17 @@ ${blokk.html}
  * avoid` som holder hele blokken samlet). Merking under hvert bilde: løpenr +
  * tidsstempel, i liten tekst (vedtak 2026-08-16: filnavnet er internt og utgår).
  * Nummeret leses fra `bildeNr` (tildelt i appen ved opptak); mangler det, faller
- * vi tilbake til dokumentrekkefølge (`startNr`+). Ingen bilder → ingen rad.
+ * vi tilbake til dokumenttelleren (bildeMerke). Ingen bilder → ingen rad.
  */
 function byggBilderader(
   bilder: Vedlegg[],
-  startNr: number,
+  teller: BildeTeller,
   kolonnespenn: number,
-): { html: string; nesteNr: number } {
-  if (bilder.length === 0) return { html: "", nesteNr: startNr };
+): string {
+  if (bilder.length === 0) return "";
 
-  let nr = startNr;
   const celler = bilder.map((b) => {
-    // Lagret bildeNr fra appen har forrang; ellers dokumentrekkefølge (fallback).
-    const visNr = b.bildeNr ?? nr;
-    nr += 1;
-    let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
-    const tidTekst = bildeOpptakTid(b);
-    if (tidTekst) merke += ` · ${esc(tidTekst)}`;
+    const merke = bildeMerke(b, teller);
     return (
       `<div class="ark-bilde">` +
         `<img class="ark-bilde-img" src="${esc(b.url)}" alt="">` +
@@ -298,5 +289,5 @@ function byggBilderader(
         `</td></tr>`,
     );
   }
-  return { html: rekker.join(""), nesteNr: nr };
+  return rekker.join("");
 }

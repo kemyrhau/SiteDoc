@@ -15,6 +15,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("../trpc/tilgangskontroll", () => ({
   verifiserProsjektmedlem: vi.fn().mockResolvedValue(undefined),
   verifiserAdmin: vi.fn().mockResolvedValue(undefined),
+  aktivtMedlemWhere: { periodeSlutt: null },
 }));
 
 import { dokumentflytRouter } from "./dokumentflyt";

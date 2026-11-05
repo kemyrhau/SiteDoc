@@ -7,6 +7,7 @@ import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
+import { berikMedMetadata } from "../services/dokumentMetadata";
 import { medNummerRetry } from "../utils/nummerRetry";
 import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -31,6 +32,8 @@ import {
   hentBrukerProsjektTilgang,
   finnBrukersBoks,
   kanByttFlyt,
+  aktivtMedlemWhere,
+  aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
@@ -137,6 +140,7 @@ function hentProjectId(oppgave: {
 }
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
+import { medOmdirigeringsNotat, sikreAktivMottaker, sikreHmsMottakere } from "../services/prosjektmedlemskap";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
 import { settUrlPaaVedlegg, finnVedleggFilnavn } from "../services/vedleggUrl";
@@ -269,11 +273,14 @@ export const oppgaveRouter = router({
           ...(tilgangsFilter ?? {}),
         },
         include: {
-          template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
+          // parentId: M-pakke B-3 — signaturtelling følger betinget synlighet (erObjektSynlig).
+          template: { include: { objects: { select: { id: true, label: true, type: true, config: true, parentId: true } } } },
           bestiller: true,
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
           drawing: { select: { id: true, name: true, floor: true, byggeplass: { select: { id: true, name: true } } } },
+          // B-1 (metadata-spec): område for kolonne/filter i listene (web + mobil).
+          omrade: { select: { id: true, navn: true, type: true } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
           dokumentflyt: {
@@ -281,6 +288,7 @@ export const oppgaveRouter = router({
               id: true,
               name: true,
               medlemmer: {
+                where: aktivtMedlemWhere,
                 select: {
                   id: true,
                   rolle: true,
@@ -319,8 +327,10 @@ export const oppgaveRouter = router({
         },
         orderBy: { updatedAt: "desc" },
       });
+      // M-pakke (B-2/B-3/B-4): sendt/godkjent/lukket, sist utfylt av, signaturstatus.
+      const beriket = await berikMedMetadata(ctx.prisma, "task", oppgaver);
       // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (liste-vei).
-      return signerDataRader(oppgaver);
+      return signerDataRader(beriket);
     }),
 
   // Hent oppgavemarkører for en tegning
@@ -667,6 +677,7 @@ export const oppgaveRouter = router({
         if (!erHms && input.dokumentflytId) {
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: input.dokumentflytId,
               rolle: "utforer",
               erHovedansvarlig: true,
@@ -1335,6 +1346,7 @@ export const oppgaveRouter = router({
           bundet: true,
           faggruppe: { select: { id: true, name: true, color: true } },
           medlemmer: {
+            where: aktivtMedlemWhere,
             select: {
               steg: true,
               rolle: true,
@@ -1491,6 +1503,7 @@ export const oppgaveRouter = router({
         if (recipientGroupId && oppgave.dokumentflytId) {
           const gruppemedlem = await ctx.prisma.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: oppgave.dokumentflytId,
               groupId: recipientGroupId,
               erHovedansvarlig: true,
@@ -1551,6 +1564,7 @@ export const oppgaveRouter = router({
               projectId,
               medlemmer: {
                 some: {
+                  ...aktivtMedlemWhere,
                   OR: [
                     { projectMemberId: tilgang.projectMemberId },
                     ...(tilgang.gruppeIder.size > 0
@@ -1591,6 +1605,7 @@ export const oppgaveRouter = router({
         if (flytBytteData) {
           const hovedansvarlig = await ctx.prisma.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: flytBytteData.dokumentflytId,
               rolle: "utforer",
               erHovedansvarlig: true,
@@ -1609,6 +1624,15 @@ export const oppgaveRouter = router({
         if (!effektivRecipientUserId && !effektivRecipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
+
+        // Ordre (7a): en mottaker som ikke lenger er med i prosjektet (f.eks. fra mobilens
+        // offline-kø) avvises ikke — innsender tar ballen, ellers står den uten personmottaker.
+        const sikretVideresending = await sikreAktivMottaker(ctx.prisma, {
+          projectId,
+          recipientUserId: effektivRecipientUserId,
+          bestillerUserId: oppgave.bestillerUserId,
+        });
+        effektivRecipientUserId = sikretVideresending.recipientUserId;
 
         const gammelFaggruppeNavn = oppgave.utforerFaggruppe?.name ?? "Ukjent";
         const nyEier = await utledNyEier(effektivRecipientUserId, effektivRecipientGroupId);
@@ -1653,7 +1677,7 @@ export const oppgaveRouter = router({
               senderId: ctx.userId,
               fromStatus: oppgave.status,
               toStatus: oppgave.status,
-              comment: kommentar,
+              comment: medOmdirigeringsNotat(kommentar, sikretVideresending.omdirigert),
               recipientUserId: effektivRecipientUserId,
               recipientGroupId: effektivRecipientGroupId,
               ...snapshot,
@@ -1714,7 +1738,26 @@ export const oppgaveRouter = router({
         fraStatus: oppgave.status,
         aapner,
       });
-      const nyMottaker = ruting.mottaker; // null = behold gjeldende (E2/E3 no-op, terminal, E5)
+      // Ordre (7a): personmottakeren fra rutingen (f.eks. Besvar tilbake til bestiller) må være
+      // aktivt medlem — ellers M3-regelen. Samme for e-postmottakeren ved terminal status.
+      const sikretRuting = ruting.mottaker?.recipientUserId
+        ? await sikreAktivMottaker(ctx.prisma, {
+            projectId,
+            recipientUserId: ruting.mottaker.recipientUserId,
+            bestillerUserId: oppgave.bestillerUserId,
+          })
+        : null;
+      const nyMottaker = ruting.mottaker && sikretRuting
+        ? { ...ruting.mottaker, recipientUserId: sikretRuting.recipientUserId }
+        : ruting.mottaker; // null = behold gjeldende (E2/E3 no-op, terminal, E5)
+      const terminalVarsel = !nyMottaker && ["approved", "rejected", "dismissed"].includes(input.nyStatus);
+      const sikretEpost = terminalVarsel && input.recipientUserId
+        ? await sikreAktivMottaker(ctx.prisma, {
+            projectId,
+            recipientUserId: input.recipientUserId,
+            bestillerUserId: oppgave.bestillerUserId,
+          })
+        : null;
 
       let eierOppdatering: { eierUserId: string } | Record<string, never> = {};
       if (nyMottaker) {
@@ -1758,7 +1801,7 @@ export const oppgaveRouter = router({
             senderId: ctx.userId,
             fromStatus: oppgave.status,
             toStatus: input.nyStatus,
-            comment: input.kommentar,
+            comment: medOmdirigeringsNotat(input.kommentar, sikretRuting?.omdirigert ?? null),
             ...(nyMottaker ? {
               recipientUserId: nyMottaker.recipientUserId,
               recipientGroupId: nyMottaker.recipientGroupId,
@@ -1785,8 +1828,10 @@ export const oppgaveRouter = router({
       // Varsle ny mottaker (posisjon-utledet) ved send/besvar; terminal varsles som før.
       if (nyMottaker) {
         void varsle(false, nyMottaker);
-      } else if (["approved", "rejected", "dismissed"].includes(input.nyStatus)) {
-        void varsle(false);
+      } else if (terminalVarsel) {
+        void varsle(false, sikretEpost
+          ? { recipientUserId: sikretEpost.recipientUserId, recipientGroupId: input.recipientGroupId }
+          : undefined);
       }
 
       return resultat;
@@ -1831,6 +1876,12 @@ export const oppgaveRouter = router({
         naaPos: oppgave.aktivPosisjon,
         bestillerUserId: oppgave.bestillerUserId,
       });
+      // Dom (30) M1: avsluttet melder får verken ballen eller e-post (M3-regelen).
+      const hmsMottakere = await sikreHmsMottakere(ctx.prisma, {
+        projectId: oppgave.template!.projectId,
+        bestillerUserId: oppgave.bestillerUserId,
+        mottaker: hmsRuting.mottaker,
+      });
 
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
@@ -1841,8 +1892,8 @@ export const oppgaveRouter = router({
             retning: hmsRuting.retning,
             terminal: hmsRuting.terminal,
             sendt: hmsRuting.sendt,
-            ...(hmsRuting.mottaker
-              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+            ...(hmsMottakere.mottaker
+              ? { recipientUserId: hmsMottakere.mottaker.recipientUserId, recipientGroupId: hmsMottakere.mottaker.recipientGroupId }
               : {}),
           },
         });
@@ -1852,7 +1903,7 @@ export const oppgaveRouter = router({
             senderId: ctx.userId,
             fromStatus: oppgave.status,
             toStatus: "responded",
-            comment: input.begrunnelse,
+            comment: medOmdirigeringsNotat(input.begrunnelse, hmsMottakere.omdirigert),
           },
         });
         return oppdatert;
@@ -1867,7 +1918,7 @@ export const oppgaveRouter = router({
         projectId: oppgave.template!.projectId,
         prosjektNavn: oppgave.template!.project?.name ?? "",
         avsenderId: ctx.userId,
-        recipientUserId: oppgave.bestillerUserId,
+        recipientUserId: hmsMottakere.epostTil,
         kommentar: input.begrunnelse,
       });
 
@@ -1911,6 +1962,12 @@ export const oppgaveRouter = router({
         naaPos: oppgave.aktivPosisjon,
         bestillerUserId: oppgave.bestillerUserId,
       });
+      // Dom (30) M1: avsluttet melder får verken ballen eller e-post (M3-regelen).
+      const hmsMottakere = await sikreHmsMottakere(ctx.prisma, {
+        projectId: oppgave.template!.projectId,
+        bestillerUserId: oppgave.bestillerUserId,
+        mottaker: hmsRuting.mottaker,
+      });
 
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
@@ -1921,8 +1978,8 @@ export const oppgaveRouter = router({
             retning: hmsRuting.retning,
             terminal: hmsRuting.terminal,
             sendt: hmsRuting.sendt,
-            ...(hmsRuting.mottaker
-              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+            ...(hmsMottakere.mottaker
+              ? { recipientUserId: hmsMottakere.mottaker.recipientUserId, recipientGroupId: hmsMottakere.mottaker.recipientGroupId }
               : {}),
           },
         });
@@ -1932,7 +1989,7 @@ export const oppgaveRouter = router({
             senderId: ctx.userId,
             fromStatus: oppgave.status,
             toStatus: "responded",
-            comment: input.sporsmaal,
+            comment: medOmdirigeringsNotat(input.sporsmaal, hmsMottakere.omdirigert),
           },
         });
         return oppdatert;
@@ -1947,7 +2004,7 @@ export const oppgaveRouter = router({
         projectId: oppgave.template!.projectId,
         prosjektNavn: oppgave.template!.project?.name ?? "",
         avsenderId: ctx.userId,
-        recipientUserId: oppgave.bestillerUserId,
+        recipientUserId: hmsMottakere.epostTil,
         kommentar: input.sporsmaal,
       });
 
@@ -1994,6 +2051,12 @@ export const oppgaveRouter = router({
         return oppdatert;
       });
 
+      // Dom (30) M1: e-post til melderen bare hvis melderen fortsatt er aktivt medlem.
+      const { epostTil } = await sikreHmsMottakere(ctx.prisma, {
+        projectId: oppgave.template!.projectId,
+        bestillerUserId: oppgave.bestillerUserId,
+        mottaker: null,
+      });
       await sendHmsVarsel(ctx.prisma, {
         dokumentId: oppgave.id,
         tittel: oppgave.title,
@@ -2002,7 +2065,7 @@ export const oppgaveRouter = router({
         projectId: oppgave.template!.projectId,
         prosjektNavn: oppgave.template!.project?.name ?? "",
         avsenderId: ctx.userId,
-        recipientUserId: oppgave.bestillerUserId,
+        recipientUserId: epostTil,
         kommentar: input.kommentar?.trim() || undefined,
       });
 
@@ -2050,6 +2113,12 @@ export const oppgaveRouter = router({
         naaPos: oppgave.aktivPosisjon,
         bestillerUserId: oppgave.bestillerUserId,
       });
+      // Dom (30) M1: avsluttet melder får verken ballen eller e-post (M3-regelen).
+      const hmsMottakere = await sikreHmsMottakere(ctx.prisma, {
+        projectId: oppgave.template!.projectId,
+        bestillerUserId: oppgave.bestillerUserId,
+        mottaker: hmsRuting.mottaker,
+      });
 
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
@@ -2060,8 +2129,8 @@ export const oppgaveRouter = router({
             retning: hmsRuting.retning,
             terminal: null,
             sendt: hmsRuting.sendt,
-            ...(hmsRuting.mottaker
-              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+            ...(hmsMottakere.mottaker
+              ? { recipientUserId: hmsMottakere.mottaker.recipientUserId, recipientGroupId: hmsMottakere.mottaker.recipientGroupId }
               : {}),
           },
         });
@@ -2071,7 +2140,7 @@ export const oppgaveRouter = router({
             senderId: ctx.userId,
             fromStatus: oppgave.status,
             toStatus: "responded",
-            comment: input.kommentar?.trim() || "Gjenåpnet",
+            comment: medOmdirigeringsNotat(input.kommentar?.trim() || "Gjenåpnet", hmsMottakere.omdirigert),
           },
         });
         return oppdatert;
@@ -2085,7 +2154,7 @@ export const oppgaveRouter = router({
         projectId: oppgave.template!.projectId,
         prosjektNavn: oppgave.template!.project?.name ?? "",
         avsenderId: ctx.userId,
-        recipientUserId: oppgave.bestillerUserId,
+        recipientUserId: hmsMottakere.epostTil,
         kommentar: input.kommentar?.trim() || undefined,
       });
 
@@ -2280,8 +2349,8 @@ export const oppgaveRouter = router({
         where: { id: ctx.userId },
         select: { role: true },
       });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, projectId),
       });
       const erAdmin = bruker.role === "sitedoc_admin" || medlem?.role === "admin";
 
@@ -2297,7 +2366,7 @@ export const oppgaveRouter = router({
         where: {
           userId: input.nyEierUserId,
           projectId,
-          ...(oppgave.bestillerFaggruppeId ? { faggruppeKoblinger: { some: { faggruppeId: oppgave.bestillerFaggruppeId } } } : {}),
+          ...(oppgave.bestillerFaggruppeId ? { faggruppeKoblinger: { some: { faggruppeId: oppgave.bestillerFaggruppeId, ...aktivtMedlemWhere } } } : {}),
         },
       });
 
@@ -2328,6 +2397,28 @@ export const oppgaveRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Prosjektgrense først: både dokumentet og den nye flyten må høre til input.projectId, ellers
+      // vurderes rettigheter og mottaker mot feil prosjekt. Deling av f.eks. RUH på tvers av firmaer
+      // er en egen fremtidig mekanisme (firmatilknytning + lesing), ikke flytting mellom prosjekter.
+      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          utforerFaggruppe: { select: { name: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
+          template: { select: { projectId: true } },
+        },
+      });
+      if (hentProjectId(oppgave) !== input.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke i prosjektet" });
+      }
+      const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+        where: { id: input.nyDokumentflytId },
+        include: { faggruppe: { select: { id: true, name: true } } },
+      });
+      if (nyFlyt.projectId !== input.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentflyten finnes ikke i prosjektet" });
+      }
+
       // Verifiser admin eller registrator
       const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
       const _erAdmin = tillatelser.has("create_checklists") && tillatelser.has("create_tasks");
@@ -2335,8 +2426,8 @@ export const oppgaveRouter = router({
 
       // Sjekk om bruker er prosjektadmin
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true, name: true } });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
       });
       const erProjektAdmin = bruker?.role === "sitedoc_admin" || medlem?.role === "admin";
 
@@ -2344,25 +2435,11 @@ export const oppgaveRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin og registratorer kan flytte dokumenter" });
       }
 
-      // Hent oppgaven
-      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
-        where: { id: input.id },
-        include: {
-          utforerFaggruppe: { select: { name: true } },
-        },
-      });
-
       // Verifiser status
       const tillattStatus = ["draft", "sent", "received", "in_progress"];
       if (!tillattStatus.includes(oppgave.status)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Kan ikke flytte dokumenter med status: " + oppgave.status });
       }
-
-      // Hent ny dokumentflyt
-      const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
-        where: { id: input.nyDokumentflytId },
-        include: { faggruppe: { select: { id: true, name: true } } },
-      });
 
       if (!nyFlyt.faggruppeId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler faggruppe" });
@@ -2372,6 +2449,13 @@ export const oppgaveRouter = router({
       const nyFaggruppeNavn = nyFlyt.faggruppe?.name ?? "Ukjent";
       const brukerNavn = bruker?.name ?? "Ukjent";
 
+      // Ordre (7a): mottaker fra en gammel medlemsliste → innsender (M3-regelen), ellers ingen person.
+      const sikret = await sikreAktivMottaker(ctx.prisma, {
+        projectId: input.projectId,
+        recipientUserId: input.recipientUserId,
+        bestillerUserId: oppgave.bestillerUserId,
+      });
+
       return ctx.prisma.$transaction(async (tx) => {
         // Oppdater oppgaven
         await tx.task.update({
@@ -2379,7 +2463,7 @@ export const oppgaveRouter = router({
           data: {
             dokumentflytId: input.nyDokumentflytId,
             utforerFaggruppeId: nyFlyt.faggruppeId!,
-            recipientUserId: input.recipientUserId ?? null,
+            recipientUserId: sikret.recipientUserId,
           },
         });
 
@@ -2388,11 +2472,11 @@ export const oppgaveRouter = router({
           data: {
             taskId: input.id,
             senderId: ctx.userId,
-            recipientUserId: input.recipientUserId,
+            recipientUserId: sikret.recipientUserId ?? undefined,
             recipientGroupId: input.recipientGroupId,
             fromStatus: oppgave.status,
             toStatus: oppgave.status,
-            comment: `Flyttet av ${brukerNavn} fra ${gammelFaggruppeNavn} til ${nyFaggruppeNavn}`,
+            comment: medOmdirigeringsNotat(`Flyttet av ${brukerNavn} fra ${gammelFaggruppeNavn} til ${nyFaggruppeNavn}`, sikret.omdirigert),
             senderEnterpriseName: gammelFaggruppeNavn,
             recipientEnterpriseName: nyFaggruppeNavn,
             dokumentflytName: nyFlyt.name,

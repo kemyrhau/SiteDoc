@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@sitedoc/db";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
@@ -10,6 +11,19 @@ import { TRPCError } from "@trpc/server";
 import { sendInvitasjonsEpost } from "../services/epost";
 import { aktivAnsattIFirmaWhere, sikreProsjektmedlemmer } from "../services/ansatt";
 import {
+  avsluttProsjektmedlem,
+  gjenapneEllerOpprettFlytbinding,
+  gjenapneEllerOpprettProsjektmedlem,
+  hentMedlemIProsjekt,
+  loggMedlemsendring,
+  verifiserIderIProsjekt,
+} from "../services/prosjektmedlemskap";
+import {
+  avsluttMedlemskapForPerson,
+  gjenapneMedlemskapFraPayload,
+  lesDeaktiveringsPayload,
+} from "../services/ansattDeaktivering";
+import {
   verifiserAdmin,
   verifiserAdminEllerFirmaansvarlig,
   hentProsjektRolleNivaa,
@@ -20,12 +34,15 @@ import {
   hentBrukersFlytMedlemskap,
   hentBrukersOpprettFlytMedlemskap,
   autoriserAdminForFirma,
+  aktivtMedlemWhere,
+  aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
   // Hent alle medlemmer for et prosjekt
+  // Avsluttede medlemmer (periodeSlutt satt, L2b B6) skjules med mindre `inkluderTidligere`.
   hentForProsjekt: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
+    .input(z.object({ projectId: z.string().uuid(), inkluderTidligere: z.boolean().default(false) }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
@@ -39,7 +56,7 @@ export const medlemRouter = router({
       const primaryOrgId = prosjekt?.primaryOrganizationId ?? null;
 
       const medlemmer = await ctx.prisma.projectMember.findMany({
-        where: { projectId: input.projectId },
+        where: { projectId: input.projectId, ...(input.inkluderTidligere ? {} : aktivtMedlemWhere) },
         include: {
           user: {
             select: {
@@ -72,7 +89,11 @@ export const medlemRouter = router({
       // Multi-org-regel: vis brukerens EGET firma — (1) membership som matcher
       // prosjektets eier-org (intern ansatt), ellers (2) første membership
       // deterministisk (ekstern UE viser sitt eget firma). Ingen → null → «—».
-      return medlemmer.map((m) => {
+      return medlemmer.map((raa) => {
+        // Et aktivt medlem viser bare aktive faggrupper; et tidligere medlem viser de det hadde.
+        const m = raa.periodeSlutt
+          ? raa
+          : { ...raa, faggruppeKoblinger: raa.faggruppeKoblinger.filter((k) => k.periodeSlutt === null) };
         if (!m.user) return { ...m, user: null };
         const { organizationMembers, ...userRest } = m.user;
         // Nyeste-aktive-regel (firmatilknytning krav 2, 2026-09-10): en firmabytte
@@ -115,15 +136,11 @@ export const medlemRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: {
-            userId: ctx.userId,
-            projectId: input.projectId,
-          },
-        },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
         include: {
           faggruppeKoblinger: {
+            where: aktivtMedlemWhere,
             include: { faggruppe: true },
           },
         },
@@ -224,6 +241,9 @@ export const medlemRouter = router({
           message: "Krever administrator- eller firmaansvarlig-rettighet",
         });
       }
+
+      // M6: flyt og gruppe har eget kryss-prosjekt-vern lenger ned; faggruppene manglet det.
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: input.faggruppeIder });
 
       // Firmaansvarlig-begrensninger (fra leggTil): kun eget firma, ingen admin-opprettelse,
       // og en eksisterende bruker må tilhøre samme firma (per B.7).
@@ -343,14 +363,12 @@ export const medlemRouter = router({
         }
 
         // 3. Finn/opprett ProjectMember (idempotent — dobbelttrykk gir ikke to rader).
-        let projectMember = await tx.projectMember.findUnique({
-          where: { userId_projectId: { userId: user.id, projectId: input.projectId } },
+        //    En avsluttet rad gjenåpnes (L2b B8) — én rad per person og prosjekt.
+        const projectMember = await gjenapneEllerOpprettProsjektmedlem(tx, {
+          userId: user.id,
+          projectId: input.projectId,
+          role: input.role,
         });
-        if (!projectMember) {
-          projectMember = await tx.projectMember.create({
-            data: { userId: user.id, projectId: input.projectId, role: input.role },
-          });
-        }
 
         // 4. Faggruppe-koblinger (upsert — idempotent).
         for (const faggruppeId of input.faggruppeIder) {
@@ -359,7 +377,7 @@ export const medlemRouter = router({
               projectMemberId_faggruppeId: { projectMemberId: projectMember.id, faggruppeId },
             },
             create: { projectMemberId: projectMember.id, faggruppeId },
-            update: {},
+            update: { periodeSlutt: null },
           });
         }
 
@@ -370,31 +388,18 @@ export const medlemRouter = router({
               groupId_projectMemberId: { groupId, projectMemberId: projectMember.id },
             },
             create: { groupId, projectMemberId: projectMember.id },
-            update: {},
+            update: { periodeSlutt: null },
           });
         }
 
-        // 6. Flyt-roller — idempotent: hopp over ledd som allerede finnes (rolle+steg).
+        // 6. Flyt-roller — idempotent: aktivt ledd står, avsluttet ledd gjenåpnes (rolle+steg).
         for (const binding of input.flytBindinger) {
-          const finnes = await tx.dokumentflytMedlem.findFirst({
-            where: {
-              dokumentflytId: binding.dokumentflytId,
-              projectMemberId: projectMember.id,
-              rolle: binding.rolle,
-              steg: binding.steg,
-            },
-            select: { id: true },
+          await gjenapneEllerOpprettFlytbinding(tx, {
+            dokumentflytId: binding.dokumentflytId,
+            projectMemberId: projectMember.id,
+            rolle: binding.rolle,
+            steg: binding.steg,
           });
-          if (!finnes) {
-            await tx.dokumentflytMedlem.create({
-              data: {
-                dokumentflytId: binding.dokumentflytId,
-                projectMemberId: projectMember.id,
-                rolle: binding.rolle,
-                steg: binding.steg,
-              },
-            });
-          }
         }
 
         return {
@@ -461,19 +466,37 @@ export const medlemRouter = router({
         where: { id: resultat.projectMemberId },
         include: {
           user: true,
-          faggruppeKoblinger: { include: { faggruppe: true } },
+          faggruppeKoblinger: { where: aktivtMedlemWhere, include: { faggruppe: true } },
         },
       });
     }),
 
-  // Fjern medlem fra prosjekt (krever admin)
+  // Fjern medlem fra prosjekt (krever admin). Myk (L2b B8): raden får periodeSlutt og
+  // står igjen som historikk; faggruppe-, gruppe- og flytkoblinger avsluttes sammen med den,
+  // og ballen i flytene flyttes etter B7 (punkt 5). Ny innmelding gjenåpner samme rad.
   fjern: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.projectMember.delete({
-        where: { id: input.id },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: { id: input.id, projectId: input.projectId, ...aktivtMedlemWhere },
+        select: { id: true, userId: true },
+      });
+      if (!medlem) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Medlemmet finnes ikke (eller er allerede fjernet)" });
+      }
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const { avsluttet, flyt, mottaker } = await avsluttProsjektmedlem(tx, { ...medlem, projectId: input.projectId });
+        await loggMedlemsendring(tx, ctx, {
+          projectId: input.projectId,
+          targetType: "prosjekt_medlem",
+          targetId: medlem.id,
+          action: "prosjektmedlem_avsluttet",
+          payload: { userId: medlem.userId, flyt, mottaker },
+        });
+        return avsluttet;
       });
     }),
 
@@ -488,13 +511,14 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
 
       return ctx.prisma.projectMember.update({
         where: { id: input.id },
         data: { role: input.role },
         include: {
           user: true,
-          faggruppeKoblinger: { include: { faggruppe: true } },
+          faggruppeKoblinger: { where: aktivtMedlemWhere, include: { faggruppe: true } },
         },
       });
     }),
@@ -520,8 +544,9 @@ export const medlemRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
+      const { id: medlemId } = await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
       const medlem = await ctx.prisma.projectMember.findUniqueOrThrow({
-        where: { id: input.id },
+        where: { id: medlemId },
         include: { user: true },
       });
 
@@ -613,7 +638,7 @@ export const medlemRouter = router({
         where: { id: input.id },
         include: {
           user: true,
-          faggruppeKoblinger: { include: { faggruppe: true } },
+          faggruppeKoblinger: { where: aktivtMedlemWhere, include: { faggruppe: true } },
         },
       });
     }),
@@ -628,7 +653,7 @@ export const medlemRouter = router({
       await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
 
       const medlemmer = await ctx.prisma.projectMember.findMany({
-        where: { projectId: input.projectId },
+        where: { projectId: input.projectId, ...aktivtMedlemWhere },
         select: {
           user: {
             select: {
@@ -737,11 +762,22 @@ export const medlemRouter = router({
       }
       const harTil = await ctx.prisma.organizationMember.findUnique({
         where: { userId_organizationId: { userId, organizationId: input.tilOrganizationId } },
-        select: { id: true },
+        select: { id: true, status: true },
       });
+      const aktor = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
 
       await ctx.prisma.$transaction(async (tx) => {
+        let action: string;
+        let payload: Prisma.InputJsonValue;
         if (input.modus === "feilregistrering") {
+          // Feilregistrering: personen var aldri i fra-firmaet — ingen ansettelse å avslutte,
+          // og prosjektmedlemskapene røres ikke (ved tvil avsluttes ingenting).
+          action = "ansatt_firma_rettet";
+          payload = {
+            targetUserId: userId,
+            fraOrganizationId: input.fraOrganizationId,
+            tilOrganizationId: input.tilOrganizationId,
+          };
           // Erstatt: raden var feil. Har personen alt en rad i til-firmaet, fjern den
           // FEILFØRTE raden (unik (userId, organizationId) tillater ikke to rader — og
           // den riktige finnes alt). Ellers flytt raden til riktig firma, reaktiver.
@@ -770,7 +806,45 @@ export const medlemRouter = router({
             create: { userId, organizationId: input.tilOrganizationId, ansattRolle: "ansatt", firmaRoller: [] },
             update: { status: "aktiv", deaktivertVed: null, deaktivertAvUserId: null },
           });
+
+          // L3: firmabytte = deaktivering i fra-firmaet. Medlemskapene i fra-firmaets
+          // prosjekter avsluttes med Kenneths vilkår — prosjekter der til-firmaet er eier
+          // eller deltaker skånes (a). Var personen tidligere deaktivert i til-firmaet,
+          // gjenåpnes radene fra den deaktiveringen, som ved settAnsattStatus(aktiv).
+          let gjenapnetITil: Awaited<ReturnType<typeof gjenapneMedlemskapFraPayload>> | null = null;
+          if (harTil?.status === "deaktivert") {
+            const siste = await tx.activity.findFirst({
+              where: { targetType: "organization_member", targetId: harTil.id, action: "ansatt_deaktivert" },
+              orderBy: { createdAt: "desc" },
+              select: { payload: true },
+            });
+            const forrige = lesDeaktiveringsPayload(siste?.payload);
+            if (forrige) gjenapnetITil = await gjenapneMedlemskapFraPayload(tx, forrige);
+          }
+          const avsluttet = await avsluttMedlemskapForPerson(tx, { userId, organizationId: input.fraOrganizationId });
+          action = "ansatt_deaktivert";
+          payload = {
+            ...avsluttet,
+            aarsak: "firmabytte",
+            tilOrganizationId: input.tilOrganizationId,
+            ...(gjenapnetITil ? { gjenapnetITil } : {}),
+          } as unknown as Prisma.InputJsonValue;
         }
+
+        await tx.activity.create({
+          data: {
+            actorUserId: ctx.userId,
+            actorNavnSnapshot: aktor?.name ?? null,
+            organizationId: input.fraOrganizationId,
+            projectId: input.projectId,
+            targetType: "organization_member",
+            targetId: fraMedlemskap.id,
+            action,
+            payload,
+            ipAddress: ctx.ipAddress,
+            userAgent: ctx.userAgent,
+          },
+        });
       });
 
       return { ok: true };
@@ -790,6 +864,8 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.projectMemberId, input.projectId);
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: [input.faggruppeId] });
 
       return ctx.prisma.faggruppeKobling.upsert({
         where: {
@@ -802,16 +878,13 @@ export const medlemRouter = router({
           projectMemberId: input.projectMemberId,
           faggruppeId: input.faggruppeId,
         },
-        update: {},
+        update: { periodeSlutt: null },
       });
     }),
 
-  // Fjern et prosjektmedlem fra en faggruppe (fjerner FaggruppeKobling).
-  // Trygt hard-delete: FaggruppeKobling har ingen barn-relasjoner (schema.prisma:682-683),
-  // dokumenter peker på Faggruppe og ikke på koblingen (Checklist/Task/Godkjenning),
-  // og person-direkte flytbindinger ligger i egne DokumentflytMedlem-rader. Ingen blir
-  // foreldreløse — personen mister kun sin egen tilgang til faggruppens dokumenter (Lag 2,
-  // som leser koblingens eksistens, ikke periodeSlutt). Målt 2026-09-08.
+  // Fjern et prosjektmedlem fra en faggruppe. Myk (L2b B8): koblingen får periodeSlutt og
+  // står som historikk; tilgangen faller bort fordi Lag 2 bare leser aktive koblinger (L2a).
+  // leggTilFaggruppe gjenåpner samme rad.
   fjernFraFaggruppe: protectedProcedure
     .input(
       z.object({
@@ -823,13 +896,33 @@ export const medlemRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      return ctx.prisma.faggruppeKobling.delete({
+      const kobling = await ctx.prisma.faggruppeKobling.findFirst({
         where: {
-          projectMemberId_faggruppeId: {
-            projectMemberId: input.projectMemberId,
-            faggruppeId: input.faggruppeId,
-          },
+          projectMemberId: input.projectMemberId,
+          faggruppeId: input.faggruppeId,
+          projectMember: { projectId: input.projectId },
+          faggruppe: { projectId: input.projectId },
+          ...aktivtMedlemWhere,
         },
+        select: { id: true },
+      });
+      if (!kobling) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Medlemmet er ikke i faggruppen" });
+      }
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const avsluttet = await tx.faggruppeKobling.update({
+          where: { id: kobling.id },
+          data: { periodeSlutt: new Date() },
+        });
+        await loggMedlemsendring(tx, ctx, {
+          projectId: input.projectId,
+          targetType: "faggruppe_kobling",
+          targetId: kobling.id,
+          action: "faggruppekobling_avsluttet",
+          payload: { projectMemberId: input.projectMemberId, faggruppeId: input.faggruppeId },
+        });
+        return avsluttet;
       });
     }),
 
@@ -859,6 +952,7 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
       return ctx.prisma.projectMember.update({
         where: { id: input.id },
         data: { erFirmaansvarlig: input.erFirmaansvarlig },
@@ -879,6 +973,7 @@ export const medlemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      await hentMedlemIProsjekt(ctx.prisma, input.id, input.projectId);
       return ctx.prisma.projectMember.update({
         where: { id: input.id },
         data: { kanAttestere: input.kanAttestere },
@@ -901,7 +996,7 @@ export const medlemRouter = router({
       if (!prosjekt.primaryOrganizationId) return [];
 
       const eksisterende = await ctx.prisma.projectMember.findMany({
-        where: { projectId: input.projectId, userId: { not: null } },
+        where: { projectId: input.projectId, userId: { not: null }, ...aktivtMedlemWhere },
         select: { userId: true },
       });
       const eksisterendeIder = eksisterende
@@ -960,10 +1055,8 @@ export const medlemRouter = router({
       }
 
       // Idempotent: avvis hvis allerede medlem.
-      const eksisterende = await ctx.prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: { userId: input.userId, projectId: input.projectId },
-        },
+      const eksisterende = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(input.userId, input.projectId),
         select: { id: true },
       });
       if (eksisterende) {
@@ -973,22 +1066,30 @@ export const medlemRouter = router({
         });
       }
 
-      const nyMedlem = await ctx.prisma.projectMember.create({
-        data: {
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: input.faggruppeIder });
+
+      // Et tidligere medlem gjenåpnes på samme rad (L2b B8); bare de valgte faggruppene åpnes.
+      return ctx.prisma.$transaction(async (tx) => {
+        const { id } = await gjenapneEllerOpprettProsjektmedlem(tx, {
           userId: input.userId,
           projectId: input.projectId,
           role: input.role,
-          faggruppeKoblinger: {
-            create: input.faggruppeIder.map((fid) => ({ faggruppeId: fid })),
+        });
+        for (const faggruppeId of input.faggruppeIder) {
+          await tx.faggruppeKobling.upsert({
+            where: { projectMemberId_faggruppeId: { projectMemberId: id, faggruppeId } },
+            create: { projectMemberId: id, faggruppeId },
+            update: { periodeSlutt: null },
+          });
+        }
+        return tx.projectMember.findUniqueOrThrow({
+          where: { id },
+          include: {
+            user: true,
+            faggruppeKoblinger: { where: aktivtMedlemWhere, include: { faggruppe: true } },
           },
-        },
-        include: {
-          user: true,
-          faggruppeKoblinger: { include: { faggruppe: true } },
-        },
+        });
       });
-
-      return nyMedlem;
     }),
 
   // Aktive avdelinger i prosjektets eier-firma, med antall AKTIVE brukbare ansatte
@@ -1048,6 +1149,8 @@ export const medlemRouter = router({
           message: "Prosjektet har ikke et eier-firma å hente ansatte fra",
         });
       }
+
+      await verifiserIderIProsjekt(ctx.prisma, input.projectId, { faggruppeIder: input.faggruppeIder });
 
       const res = await sikreProsjektmedlemmer(ctx.prisma, {
         projectId: input.projectId,

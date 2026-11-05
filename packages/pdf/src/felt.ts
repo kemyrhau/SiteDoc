@@ -5,7 +5,8 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser } from "./hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser, formaterVaerTekst, bildeMerke, nyBildeTeller, samleBildeNr } from "./hjelpere";
+import type { BildeTeller } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
 // arkivmal-overgangen), så den er nå ren server/arkiv-renderer. Intercept-i-innhold.ts droppet;
@@ -21,12 +22,15 @@ import { byggSignaturListe } from "./arkivmal/signaturliste";
 
 /**
  * Renderer et enkelt felt (rapportobjekt + verdi) til HTML-streng.
- * Inkluderer label, verdi, bilder, kommentar og fil-vedlegg.
+ * Rekkefølge: label → verdi → bilder → tilføyelser → kommentar → fil-vedlegg.
+ * `teller` er dokumentets løpende bildenummer (byggInnhold eier én pr. dokument);
+ * utelatt → egen teller fra 01 med feltets lagrede nummer reservert (enkeltfelt-kall).
  */
 export function renderFelt(
   objekt: TreObjekt,
   felt: FeltVerdi | undefined,
   config: PdfConfig,
+  teller: BildeTeller = nyBildeTeller(samleBildeNr(felt)),
 ): string {
   const { type, label } = objekt;
   const verdi = felt?.verdi;
@@ -135,15 +139,10 @@ export function renderFelt(
       break;
 
     case "weather": {
-      const v = (verdi as VaerVerdi) ?? {};
-      const deler: string[] = [];
-      if (v.temp) deler.push(v.temp);
-      if (v.conditions) deler.push(v.conditions);
-      if (v.wind) deler.push(`Vind ${v.wind}`);
-      if (v.precipitation && v.precipitation !== "0 mm") deler.push(`Nedbør ${v.precipitation}`);
+      const tekst = formaterVaerTekst((verdi as VaerVerdi) ?? {});
       // Tomt/venter/ikke_registrert vær → «Ikke registrert» (vedtak 2026-08-16 punkt 3):
       // et manglende snapshot er en opplysning, ikke en systemfeil. Aldri «dagens vær».
-      verdiHtml = deler.length > 0 ? esc(deler.join(", ")) : `<span class="tom">Ikke registrert</span>`;
+      verdiHtml = tekst ? esc(tekst) : `<span class="tom">Ikke registrert</span>`;
       break;
     }
 
@@ -164,7 +163,7 @@ export function renderFelt(
     case "attachments": {
       // Frittstående vedlegg-felt (ikke per-felt-vedlegg)
       const vedleggListe = Array.isArray(verdi)
-        ? (verdi as Array<{ id?: string; url?: string; filnavn?: string; type?: string }>)
+        ? (verdi as Array<{ id?: string; url?: string; filnavn?: string; type?: string; bildeNr?: number; opptakTidspunkt?: string | null; opprettet?: string }>)
         : [];
       if (vedleggListe.length === 0) {
         // Opt-in (arkivmal): tomt vedleggsfelt skjules ikke — byggherre skal se
@@ -178,9 +177,9 @@ export function renderFelt(
       let html = `<div class="felt-blokk"><div class="felt-label">${esc(label)}</div>`;
       if (bilder.length > 0) {
         html += `<div class="bilde-rutenett">`;
-        bilder.forEach((b, idx) => {
+        bilder.forEach((b) => {
           const src = fullBildeUrl(b.url ?? "", config.bildeBaseUrl);
-          html += `<div class="bilde-kort"><img src="${esc(src)}" class="bilde-img" /><div class="bilde-nr">${idx + 1}</div></div>`;
+          html += `<div class="bilde-kort"><img src="${esc(src)}" class="bilde-img" /><div class="ark-bilde-tekst">${bildeMerke(b, teller)}</div></div>`;
         });
         html += `</div>`;
       }
@@ -203,7 +202,7 @@ export function renderFelt(
         repeaterHtml += `<div class="repeater-rad"><div class="repeater-nr">${idx + 1}. ${esc(label)}</div>`;
         for (const b of barn) {
           const bFelt = rad[b.id] as FeltVerdi | undefined;
-          repeaterHtml += renderFelt(b, bFelt, config);
+          repeaterHtml += renderFelt(b, bFelt, config, teller);
         }
         repeaterHtml += `</div>`;
       });
@@ -223,7 +222,8 @@ export function renderFelt(
         : esc(typeof verdi === "object" ? JSON.stringify(verdi) : String(verdi));
   }
 
-  // Bygg felt-blokk: label → bilder → verdi → kommentar → filer
+  // Bygg felt-blokk: label → verdi → bilder → tilføyelser → kommentar → filer
+  // (ordre 2026-11-04 (2): svaret leses før bildene som dokumenterer det).
   const bilder = (felt?.vedlegg ?? []).filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn));
   const filer = (felt?.vedlegg ?? []).filter((v) => !bilder.includes(v));
   const maksHoyde = config.maksbildeHoyde ?? 260;
@@ -231,25 +231,25 @@ export function renderFelt(
   let html = `<div class="felt-blokk">`;
   html += `<div class="felt-label">${esc(label)}</div>`;
 
-  // Bilder i 2-kolonners rutenett med nummerering
-  if (bilder.length > 0) {
-    html += `<div class="bilde-rutenett">`;
-    bilder.forEach((b, idx) => {
-      const src = fullBildeUrl(b.url, config.bildeBaseUrl);
-      html += `<div class="bilde-kort">`;
-      html += `<img src="${esc(src)}" class="bilde-img" style="max-height:${maksHoyde}px;" />`;
-      html += `<div class="bilde-nr">${idx + 1}</div>`;
-      html += `</div>`;
-    });
-    html += `</div>`;
-  }
-
   // Verdi/tekst
   if (verdiHtml) {
     html += `<div class="felt-verdi">${verdiHtml}</div>`;
   }
 
-  // Tilføyelser (tapte offline-kollisjonsverdier) — ETTER verdi, FØR kommentar.
+  // Bilder i 2-kolonners rutenett, bildetekst «Bilde NN · tid» under hvert bilde
+  if (bilder.length > 0) {
+    html += `<div class="bilde-rutenett">`;
+    bilder.forEach((b) => {
+      const src = fullBildeUrl(b.url, config.bildeBaseUrl);
+      html += `<div class="bilde-kort">`;
+      html += `<img src="${esc(src)}" class="bilde-img" style="max-height:${maksHoyde}px;" />`;
+      html += `<div class="ark-bilde-tekst">${bildeMerke(b, teller)}</div>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Tilføyelser (tapte offline-kollisjonsverdier) — ETTER verdi og bilder, FØR kommentar.
   html += byggTilfoyelser(felt?.tilfoyelser);
 
   // Kommentar

@@ -3,7 +3,7 @@
  * Null avhengigheter — kun TypeScript-strenger.
  */
 
-import type { GrenseSnapshot, TilfoyelsePdf } from "./typer";
+import type { GrenseSnapshot, TilfoyelsePdf, VaerVerdi } from "./typer";
 
 /**
  * Fast tidssone for alle instant→tekst-formaterere her.
@@ -205,6 +205,24 @@ export function formaterDatoTidPunkt(v: unknown): string {
 /** Overskrift på tilføyelses-blokka — hardkodet nb (arkiv-PDF har intet locale-lag). */
 const TILFOYELSE_OVERSKRIFT = "Også registrert — feltet hadde allerede verdien over";
 
+/**
+ * Vær-verdi → «4 °C, Lettskyet, Vind 3 m/s, Nedbør 1.2 mm» (uescapet; "" når tom).
+ * Én kilde for vær-feltet (`felt.ts`) og en vær-tilføyelse (`formaterTilfoyelseVerdi`).
+ */
+export function formaterVaerTekst(v: VaerVerdi): string {
+  const deler: string[] = [];
+  if (v.temp) deler.push(v.temp);
+  if (v.conditions) deler.push(v.conditions);
+  if (v.wind) deler.push(`Vind ${v.wind}`);
+  if (v.precipitation && v.precipitation !== "0 mm") deler.push(`Nedbør ${v.precipitation}`);
+  return deler.join(", ");
+}
+
+/** Vær-formet objekt: lagret vær-verdi (`{temp, conditions, wind, precipitation, kilde, status}`). */
+function erVaerVerdi(o: object): o is VaerVerdi {
+  return ["temp", "conditions", "wind", "precipitation", "kilde", "status"].some((k) => k in o);
+}
+
 /** En tapt verdis tekst → lesbar streng (aldri base64-dump / rå JSON i dokumentet). */
 function formaterTilfoyelseVerdi(v: unknown): string {
   if (v === null || v === undefined || v === "") return "(tom verdi)";
@@ -225,6 +243,8 @@ function formaterTilfoyelseVerdi(v: unknown): string {
     const o = v as { verdi?: unknown; filnavn?: unknown };
     if (o.verdi != null && typeof o.verdi !== "object") return esc(String(o.verdi));
     if (typeof o.filnavn === "string") return esc(o.filnavn);
+    // Vær-tilføyelse vises som vær-feltet selv (ordre (3) P3).
+    if (erVaerVerdi(o)) return esc(formaterVaerTekst(o) || "(tom verdi)");
     return esc("(kompleks verdi)");
   }
   return esc(String(v));
@@ -272,6 +292,62 @@ export function bildeOpptakTid(b: { opptakTidspunkt?: string | null; opprettet?:
     return "Tidspunkt ikke tilgjengelig";
   }
   return formaterDatoTidPunkt(b.opptakTidspunkt);
+}
+
+/**
+ * Løpenummer-teller for HELE dokumentet (ordre 2026-11-04 (2)): én instans pr.
+ * `byggInnhold`-kjøring, tråd gjennom felt → repeater → radkort i render-rekkefølge.
+ * Muterbar så hver renderer kan rykke den uten å returnere `nesteNr`.
+ * `reservert` = alle lagrede `bildeNr` i dokumentet (RETUR 1): fallback-nummeret hopper
+ * over dem, så et gammelt dokument som får ett nytt nummerert bilde aldri viser samme
+ * nummer to ganger.
+ */
+export interface BildeTeller {
+  neste: number;
+  reservert: Set<number>;
+}
+
+export function nyBildeTeller(reservert: Iterable<number> = []): BildeTeller {
+  return { neste: 1, reservert: new Set(reservert) };
+}
+
+/**
+ * Samler alle lagrede `bildeNr` i en verdi (FeltVerdi-map, enkelt FeltVerdi, vedlegg-liste,
+ * repeater-rader …) ved å gå rekursivt gjennom objekter og lister. Generisk med vilje:
+ * bilder ligger i `vedlegg`, i `attachments`-verdier og i repeater-rader på vilkårlig dybde,
+ * og `bildeNr` bæres bare av bilder. Lokal gange — pakken avhenger ikke av @sitedoc/shared.
+ */
+export function samleBildeNr(verdi: unknown, ut: Set<number> = new Set()): Set<number> {
+  if (Array.isArray(verdi)) {
+    for (const v of verdi) samleBildeNr(v, ut);
+  } else if (verdi !== null && typeof verdi === "object") {
+    const nr = (verdi as { bildeNr?: unknown }).bildeNr;
+    if (typeof nr === "number" && Number.isInteger(nr) && nr > 0) ut.add(nr);
+    for (const v of Object.values(verdi)) samleBildeNr(v, ut);
+  }
+  return ut;
+}
+
+/**
+ * Bildetekst «Bilde 01 · 03.11.2026 09:56» (HTML-escapet). Lagret `bildeNr` fra appen
+ * har forrang — den er alt dokument-løpende (`nesteBildeNr` i @sitedoc/shared) og er
+ * nummeret brukeren ser på miniatyren. Mangler den (arkiverte bilder), brukes tellerens
+ * neste LEDIGE nummer (reserverte hoppes over), i render-rekkefølge.
+ */
+export function bildeMerke(
+  b: { bildeNr?: number | null; opptakTidspunkt?: string | null; opprettet?: string },
+  teller: BildeTeller,
+): string {
+  // Samme vakt som samleBildeNr: bare et positivt heltall er et lagret nummer.
+  // `null`/0/ugyldig → fallback (ordre (3) P2 — lagret `null` ga «Bilde null»).
+  let visNr = b.bildeNr;
+  if (typeof visNr !== "number" || !Number.isInteger(visNr) || visNr <= 0) {
+    while (teller.reservert.has(teller.neste)) teller.neste += 1;
+    visNr = teller.neste;
+    teller.neste += 1;
+  }
+  const tid = bildeOpptakTid(b);
+  return `Bilde ${String(visNr).padStart(2, "0")}${tid ? ` · ${esc(tid)}` : ""}`;
 }
 
 /** Formater dato kort (f.eks. "03.04.2026") */

@@ -14,6 +14,7 @@ import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, 
 import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
+import { berikMedMetadata } from "../services/dokumentMetadata";
 import { medNummerRetry } from "../utils/nummerRetry";
 import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import {
@@ -30,12 +31,15 @@ import {
   hentBrukerProsjektTilgang,
   finnBrukersBoks,
   kanByttFlyt,
+  aktivtMedlemWhere,
+  aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
+import { medOmdirigeringsNotat, sikreAktivMottaker, sikreHmsMottakere } from "../services/prosjektmedlemskap";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
@@ -240,12 +244,15 @@ export const sjekklisteRouter = router({
           ...(tilgangsFilter ?? {}),
         },
         include: {
-          template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
+          // parentId: M-pakke B-3 — signaturtelling følger betinget synlighet (erObjektSynlig).
+          template: { include: { objects: { select: { id: true, label: true, type: true, config: true, parentId: true } } } },
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
           bestiller: true,
           byggeplass: { select: { id: true, name: true, number: true } },
           drawing: { select: { id: true, name: true, floor: true } },
+          // B-1 (metadata-spec): område for kolonne/filter i listene (web + mobil).
+          omrade: { select: { id: true, navn: true, type: true } },
           recipientUser: { select: { id: true, name: true } },
           recipientGroup: { select: { id: true, name: true } },
           dokumentflyt: {
@@ -253,6 +260,7 @@ export const sjekklisteRouter = router({
               id: true,
               name: true,
               medlemmer: {
+                where: aktivtMedlemWhere,
                 select: {
                   id: true,
                   rolle: true,
@@ -294,8 +302,10 @@ export const sjekklisteRouter = router({
         },
         orderBy: { updatedAt: "desc" },
       });
+      // M-pakke (B-2/B-3/B-4): sendt/godkjent/lukket, sist utfylt av, signaturstatus.
+      const beriket = await berikMedMetadata(ctx.prisma, "checklist", sjekklister);
       // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (liste-vei).
-      return signerDataRader(sjekklister);
+      return signerDataRader(beriket);
     }),
 
   // Hent én sjekkliste med alle detaljer (online-visning — stempler lest-kvittering)
@@ -589,6 +599,7 @@ export const sjekklisteRouter = router({
         if (effektivFlytId) {
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: effektivFlytId,
               rolle: "utforer",
               erHovedansvarlig: true,
@@ -1227,6 +1238,7 @@ export const sjekklisteRouter = router({
           bundet: true,
           faggruppe: { select: { id: true, name: true, color: true } },
           medlemmer: {
+            where: aktivtMedlemWhere,
             select: {
               steg: true,
               rolle: true,
@@ -1391,6 +1403,7 @@ export const sjekklisteRouter = router({
         if (recipientGroupId && sjekkliste.dokumentflytId) {
           const gruppemedlem = await ctx.prisma.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: sjekkliste.dokumentflytId,
               groupId: recipientGroupId,
               erHovedansvarlig: true,
@@ -1451,6 +1464,7 @@ export const sjekklisteRouter = router({
               projectId,
               medlemmer: {
                 some: {
+                  ...aktivtMedlemWhere,
                   OR: [
                     { projectMemberId: tilgang.projectMemberId },
                     ...(tilgang.gruppeIder.size > 0
@@ -1491,6 +1505,7 @@ export const sjekklisteRouter = router({
         if (flytBytteData) {
           const hovedansvarlig = await ctx.prisma.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: flytBytteData.dokumentflytId,
               rolle: "utforer",
               erHovedansvarlig: true,
@@ -1509,6 +1524,15 @@ export const sjekklisteRouter = router({
         if (!effektivRecipientUserId && !effektivRecipientGroupId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
+
+        // Ordre (7a): en mottaker som ikke lenger er med i prosjektet (f.eks. fra mobilens
+        // offline-kø) avvises ikke — innsender tar ballen, ellers står den uten personmottaker.
+        const sikretVideresending = await sikreAktivMottaker(ctx.prisma, {
+          projectId,
+          recipientUserId: effektivRecipientUserId,
+          bestillerUserId: sjekkliste.bestillerUserId,
+        });
+        effektivRecipientUserId = sikretVideresending.recipientUserId;
 
         const gammelFaggruppeNavn = sjekkliste.utforerFaggruppe?.name ?? "Ukjent";
 
@@ -1555,7 +1579,7 @@ export const sjekklisteRouter = router({
               senderId: ctx.userId,
               fromStatus: sjekkliste.status,
               toStatus: sjekkliste.status,
-              comment: kommentar,
+              comment: medOmdirigeringsNotat(kommentar, sikretVideresending.omdirigert),
               recipientUserId: effektivRecipientUserId,
               recipientGroupId: effektivRecipientGroupId,
               ...snapshot,
@@ -1616,7 +1640,26 @@ export const sjekklisteRouter = router({
         fraStatus: sjekkliste.status,
         aapner,
       });
-      const nyMottaker = ruting.mottaker; // null = behold gjeldende (E2/E3 no-op, terminal, E5)
+      // Ordre (7a): personmottakeren fra rutingen (f.eks. Besvar tilbake til bestiller) må være
+      // aktivt medlem — ellers M3-regelen. Samme for e-postmottakeren ved terminal status.
+      const sikretRuting = ruting.mottaker?.recipientUserId
+        ? await sikreAktivMottaker(ctx.prisma, {
+            projectId,
+            recipientUserId: ruting.mottaker.recipientUserId,
+            bestillerUserId: sjekkliste.bestillerUserId,
+          })
+        : null;
+      const nyMottaker = ruting.mottaker && sikretRuting
+        ? { ...ruting.mottaker, recipientUserId: sikretRuting.recipientUserId }
+        : ruting.mottaker; // null = behold gjeldende (E2/E3 no-op, terminal, E5)
+      const terminalVarsel = !nyMottaker && ["approved", "rejected", "dismissed"].includes(input.nyStatus);
+      const sikretEpost = terminalVarsel && input.recipientUserId
+        ? await sikreAktivMottaker(ctx.prisma, {
+            projectId,
+            recipientUserId: input.recipientUserId,
+            bestillerUserId: sjekkliste.bestillerUserId,
+          })
+        : null;
 
       // Ny eier følger ny mottaker (person direkte, gruppe → hovedansvarlig).
       let eierOppdatering: { eierUserId: string } | Record<string, never> = {};
@@ -1661,7 +1704,7 @@ export const sjekklisteRouter = router({
             senderId: ctx.userId,
             fromStatus: sjekkliste.status,
             toStatus: input.nyStatus,
-            comment: input.kommentar,
+            comment: medOmdirigeringsNotat(input.kommentar, sikretRuting?.omdirigert ?? null),
             ...(nyMottaker ? {
               recipientUserId: nyMottaker.recipientUserId,
               recipientGroupId: nyMottaker.recipientGroupId,
@@ -1688,8 +1731,10 @@ export const sjekklisteRouter = router({
       // Varsle ny mottaker (posisjon-utledet) ved send/besvar; terminal varsles som før.
       if (nyMottaker) {
         void varsle(false, nyMottaker);
-      } else if (["approved", "rejected", "dismissed"].includes(input.nyStatus)) {
-        void varsle(false);
+      } else if (terminalVarsel) {
+        void varsle(false, sikretEpost
+          ? { recipientUserId: sikretEpost.recipientUserId, recipientGroupId: input.recipientGroupId }
+          : undefined);
       }
 
       return resultat;
@@ -1732,6 +1777,12 @@ export const sjekklisteRouter = router({
         naaPos: sjekkliste.aktivPosisjon,
         bestillerUserId: sjekkliste.bestillerUserId,
       });
+      // Dom (30) M1: avsluttet melder får verken ballen eller e-post (M3-regelen).
+      const hmsMottakere = await sikreHmsMottakere(ctx.prisma, {
+        projectId: sjekkliste.template.projectId,
+        bestillerUserId: sjekkliste.bestillerUserId,
+        mottaker: hmsRuting.mottaker,
+      });
 
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
@@ -1742,8 +1793,8 @@ export const sjekklisteRouter = router({
             retning: hmsRuting.retning,
             terminal: hmsRuting.terminal,
             sendt: hmsRuting.sendt,
-            ...(hmsRuting.mottaker
-              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+            ...(hmsMottakere.mottaker
+              ? { recipientUserId: hmsMottakere.mottaker.recipientUserId, recipientGroupId: hmsMottakere.mottaker.recipientGroupId }
               : {}),
           },
         });
@@ -1753,7 +1804,7 @@ export const sjekklisteRouter = router({
             senderId: ctx.userId,
             fromStatus: sjekkliste.status,
             toStatus: "responded",
-            comment: input.begrunnelse,
+            comment: medOmdirigeringsNotat(input.begrunnelse, hmsMottakere.omdirigert),
           },
         });
         return oppdatert;
@@ -1768,7 +1819,7 @@ export const sjekklisteRouter = router({
         projectId: sjekkliste.template.projectId,
         prosjektNavn: sjekkliste.template.project.name,
         avsenderId: ctx.userId,
-        recipientUserId: sjekkliste.bestillerUserId,
+        recipientUserId: hmsMottakere.epostTil,
         kommentar: input.begrunnelse,
       });
 
@@ -1815,6 +1866,12 @@ export const sjekklisteRouter = router({
         return oppdatert;
       });
 
+      // Dom (30) M1: e-post til melderen bare hvis melderen fortsatt er aktivt medlem.
+      const { epostTil } = await sikreHmsMottakere(ctx.prisma, {
+        projectId: sjekkliste.template.projectId,
+        bestillerUserId: sjekkliste.bestillerUserId,
+        mottaker: null,
+      });
       await sendHmsVarsel(ctx.prisma, {
         dokumentId: sjekkliste.id,
         tittel: sjekkliste.title,
@@ -1823,7 +1880,7 @@ export const sjekklisteRouter = router({
         projectId: sjekkliste.template.projectId,
         prosjektNavn: sjekkliste.template.project.name,
         avsenderId: ctx.userId,
-        recipientUserId: sjekkliste.bestillerUserId,
+        recipientUserId: epostTil,
         kommentar: input.kommentar?.trim() || undefined,
       });
 
@@ -1871,6 +1928,12 @@ export const sjekklisteRouter = router({
         naaPos: sjekkliste.aktivPosisjon,
         bestillerUserId: sjekkliste.bestillerUserId,
       });
+      // Dom (30) M1: avsluttet melder får verken ballen eller e-post (M3-regelen).
+      const hmsMottakere = await sikreHmsMottakere(ctx.prisma, {
+        projectId: sjekkliste.template.projectId,
+        bestillerUserId: sjekkliste.bestillerUserId,
+        mottaker: hmsRuting.mottaker,
+      });
 
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
@@ -1881,8 +1944,8 @@ export const sjekklisteRouter = router({
             retning: hmsRuting.retning,
             terminal: null,
             sendt: hmsRuting.sendt,
-            ...(hmsRuting.mottaker
-              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+            ...(hmsMottakere.mottaker
+              ? { recipientUserId: hmsMottakere.mottaker.recipientUserId, recipientGroupId: hmsMottakere.mottaker.recipientGroupId }
               : {}),
           },
         });
@@ -1892,7 +1955,7 @@ export const sjekklisteRouter = router({
             senderId: ctx.userId,
             fromStatus: sjekkliste.status,
             toStatus: "responded",
-            comment: input.kommentar?.trim() || "Gjenåpnet",
+            comment: medOmdirigeringsNotat(input.kommentar?.trim() || "Gjenåpnet", hmsMottakere.omdirigert),
           },
         });
         return oppdatert;
@@ -1906,7 +1969,7 @@ export const sjekklisteRouter = router({
         projectId: sjekkliste.template.projectId,
         prosjektNavn: sjekkliste.template.project.name,
         avsenderId: ctx.userId,
-        recipientUserId: sjekkliste.bestillerUserId,
+        recipientUserId: hmsMottakere.epostTil,
         kommentar: input.kommentar?.trim() || undefined,
       });
 
@@ -2107,8 +2170,8 @@ export const sjekklisteRouter = router({
         where: { id: ctx.userId },
         select: { role: true },
       });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, projectId),
       });
       const erAdmin = bruker.role === "sitedoc_admin" || medlem?.role === "admin";
 
@@ -2126,11 +2189,11 @@ export const sjekklisteRouter = router({
             where: {
               userId: input.nyEierUserId,
               projectId,
-              faggruppeKoblinger: { some: { faggruppeId: sjekkliste.bestillerFaggruppeId } },
+              faggruppeKoblinger: { some: { faggruppeId: sjekkliste.bestillerFaggruppeId, ...aktivtMedlemWhere } },
             },
           })
         : await ctx.prisma.projectMember.findFirst({
-            where: { userId: input.nyEierUserId, projectId },
+            where: { userId: input.nyEierUserId, projectId, ...aktivtMedlemWhere },
           });
 
       if (!nyEierMedlem) {
@@ -2160,13 +2223,34 @@ export const sjekklisteRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Prosjektgrense først: både dokumentet og den nye flyten må høre til input.projectId, ellers
+      // vurderes rettigheter og mottaker mot feil prosjekt. Deling av f.eks. RUH på tvers av firmaer
+      // er en egen fremtidig mekanisme (firmatilknytning + lesing), ikke flytting mellom prosjekter.
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          utforerFaggruppe: { select: { name: true } },
+          template: { select: { projectId: true } },
+        },
+      });
+      if (sjekkliste.template.projectId !== input.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke i prosjektet" });
+      }
+      const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+        where: { id: input.nyDokumentflytId },
+        include: { faggruppe: { select: { id: true, name: true } } },
+      });
+      if (nyFlyt.projectId !== input.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentflyten finnes ikke i prosjektet" });
+      }
+
       // Verifiser admin eller registrator
       const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
       const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
 
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true, name: true } });
-      const medlem = await ctx.prisma.projectMember.findUnique({
-        where: { userId_projectId: { userId: ctx.userId, projectId: input.projectId } },
+      const medlem = await ctx.prisma.projectMember.findFirst({
+        where: aktivtProsjektmedlemWhere(ctx.userId, input.projectId),
       });
       const erProjektAdmin = bruker?.role === "sitedoc_admin" || medlem?.role === "admin";
 
@@ -2174,25 +2258,11 @@ export const sjekklisteRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin og registratorer kan flytte dokumenter" });
       }
 
-      // Hent sjekklisten
-      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
-        where: { id: input.id },
-        include: {
-          utforerFaggruppe: { select: { name: true } },
-        },
-      });
-
       // Verifiser status
       const tillattStatus = ["draft", "sent", "received", "in_progress"];
       if (!tillattStatus.includes(sjekkliste.status)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Kan ikke flytte dokumenter med status: " + sjekkliste.status });
       }
-
-      // Hent ny dokumentflyt
-      const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
-        where: { id: input.nyDokumentflytId },
-        include: { faggruppe: { select: { id: true, name: true } } },
-      });
 
       if (!nyFlyt.faggruppeId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten mangler faggruppe" });
@@ -2202,13 +2272,20 @@ export const sjekklisteRouter = router({
       const nyFaggruppeNavn = nyFlyt.faggruppe?.name ?? "Ukjent";
       const brukerNavn = bruker?.name ?? "Ukjent";
 
+      // Ordre (7a): mottaker fra en gammel medlemsliste → innsender (M3-regelen), ellers ingen person.
+      const sikret = await sikreAktivMottaker(ctx.prisma, {
+        projectId: input.projectId,
+        recipientUserId: input.recipientUserId,
+        bestillerUserId: sjekkliste.bestillerUserId,
+      });
+
       return ctx.prisma.$transaction(async (tx) => {
         await tx.checklist.update({
           where: { id: input.id },
           data: {
             dokumentflytId: input.nyDokumentflytId,
             utforerFaggruppeId: nyFlyt.faggruppeId!,
-            recipientUserId: input.recipientUserId ?? null,
+            recipientUserId: sikret.recipientUserId,
           },
         });
 
@@ -2216,11 +2293,11 @@ export const sjekklisteRouter = router({
           data: {
             checklistId: input.id,
             senderId: ctx.userId,
-            recipientUserId: input.recipientUserId,
+            recipientUserId: sikret.recipientUserId ?? undefined,
             recipientGroupId: input.recipientGroupId,
             fromStatus: sjekkliste.status,
             toStatus: sjekkliste.status,
-            comment: `Flyttet av ${brukerNavn} fra ${gammelFaggruppeNavn} til ${nyFaggruppeNavn}`,
+            comment: medOmdirigeringsNotat(`Flyttet av ${brukerNavn} fra ${gammelFaggruppeNavn} til ${nyFaggruppeNavn}`, sikret.omdirigert),
             senderEnterpriseName: gammelFaggruppeNavn,
             recipientEnterpriseName: nyFaggruppeNavn,
             dokumentflytName: nyFlyt.name,

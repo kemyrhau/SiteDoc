@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * D — ledd-vern på fjernMedlem + oppdaterRoller (en flyt med aktive dokumenter kan ikke tømmes for
- * ledd; samme skade som å slette den) og E — registrator må stå i første ledd ved lagring.
- * Kenneth-vedtak 2026-08-22. Kjører de EKTE prosedyrene; verifiserAdmin passerer via sitedoc_admin.
+ * D — ledd-vern på oppdaterRoller (et ledd som forsvinner med åpne dokumenter på seg kan ikke
+ * fjernes; B2 2026-11-05: teller bare åpne dokumenter på stegene) og E — registrator må stå i første
+ * ledd ved lagring. Kenneth-vedtak 2026-08-22. Person-fjerning har ingen sperre lenger (B1) — dekket
+ * i dokumentflyt-myk-fjerning.test.ts. Kjører de EKTE prosedyrene; verifiserAdmin passerer via
+ * sitedoc_admin.
  */
 
 const userFindUnique = vi.fn();
@@ -24,7 +26,6 @@ import { dokumentflytRouter } from "./dokumentflyt";
 
 const FLYT = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const PROSJEKT = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
-const MEDLEM = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 
 beforeEach(() => {
   userFindUnique.mockReset();
@@ -49,7 +50,7 @@ function lagCaller(prisma: any) {
   return dokumentflytRouter.createCaller(ctx);
 }
 
-function prismaMed(opts: { docs?: number; eksisterendeRoller?: Array<{ rolle: string }>; medlemFlytId?: string }) {
+function prismaMed(opts: { docs?: number; eksisterendeRoller?: Array<{ rolle: string }> }) {
   const docs = opts.docs ?? 0;
   return {
     checklist: { count: vi.fn().mockResolvedValue(docs) },
@@ -60,37 +61,45 @@ function prismaMed(opts: { docs?: number; eksisterendeRoller?: Array<{ rolle: st
       findUniqueOrThrow: vi.fn().mockResolvedValue({ roller: opts.eksisterendeRoller ?? [] }),
     },
     dokumentflytMedlem: {
-      findUniqueOrThrow: vi.fn().mockResolvedValue({ dokumentflytId: opts.medlemFlytId ?? FLYT }),
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       deleteMany: vi.fn().mockResolvedValue({}),
-      delete: vi.fn().mockResolvedValue({ id: MEDLEM }),
     },
   };
 }
 
-describe("D — ledd-vern (fjernMedlem)", () => {
-  it("flyt med aktive dokumenter → BAD_REQUEST, medlemmet IKKE fjernet", async () => {
-    const prisma = prismaMed({ docs: 2 });
-    await expect(
-      lagCaller(prisma).fjernMedlem({ id: MEDLEM, projectId: PROSJEKT }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    expect(prisma.dokumentflytMedlem.delete).not.toHaveBeenCalled();
-  });
-
-  it("tom flyt → medlemmet fjernes", async () => {
-    const prisma = prismaMed({ docs: 0 });
-    await lagCaller(prisma).fjernMedlem({ id: MEDLEM, projectId: PROSJEKT });
-    expect(prisma.dokumentflytMedlem.delete).toHaveBeenCalledWith({ where: { id: MEDLEM } });
-  });
-});
-
 describe("D — ledd-vern (oppdaterRoller)", () => {
-  it("FJERNER en rolle mens flyten har dokumenter → BAD_REQUEST", async () => {
-    // Eksisterende: [registrator, godkjenner]; ny: [registrator] → godkjenner fjernes.
+  it("FJERNER en rolle med åpne dokumenter på steget → BAD_REQUEST, ingen avslutning", async () => {
+    // Eksisterende: [registrator, godkjenner]; ny: [registrator] → godkjenner (steg 2) fjernes.
     const prisma = prismaMed({ docs: 3, eksisterendeRoller: [{ rolle: "registrator" }, { rolle: "godkjenner" }] });
     await expect(
       lagCaller(prisma).oppdaterRoller({ id: FLYT, projectId: PROSJEKT, roller: [{ rolle: "registrator" }] }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(prisma.dokumentflytMedlem.updateMany).not.toHaveBeenCalled();
     expect(prisma.dokumentflytMedlem.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("🔴 B2: tellingen gjelder ÅPNE dokumenter på det fjernede steget, ikke hele flyten", async () => {
+    const prisma = prismaMed({ docs: 0, eksisterendeRoller: [{ rolle: "registrator" }, { rolle: "godkjenner" }] });
+    prisma.dokumentflytMedlem.findMany.mockResolvedValue([
+      { steg: 2, groupId: null, projectMember: { userId: "u-godkjenner" } },
+    ]);
+    await lagCaller(prisma).oppdaterRoller({ id: FLYT, projectId: PROSJEKT, roller: [{ rolle: "registrator" }] });
+    const where = prisma.checklist.count.mock.calls[0]![0].where;
+    expect(where.dokumentflytId).toBe(FLYT);
+    expect(where.status).toEqual({ notIn: ["closed", "approved", "cancelled"] });
+    expect(where.deletedAt).toBeNull();
+    expect(where.OR).toContainEqual({ aktivPosisjon: { in: [2] } });
+    expect(where.OR).toContainEqual({ aktivPosisjon: null, recipientUserId: { in: ["u-godkjenner"] } });
+  });
+
+  it("🔴 B2: rolle uten åpne dokumenter → medlemmene avsluttes mykt (periodeSlutt), ikke slettet", async () => {
+    const prisma = prismaMed({ docs: 0, eksisterendeRoller: [{ rolle: "registrator" }, { rolle: "godkjenner" }] });
+    await lagCaller(prisma).oppdaterRoller({ id: FLYT, projectId: PROSJEKT, roller: [{ rolle: "registrator" }] });
+    expect(prisma.dokumentflytMedlem.deleteMany).not.toHaveBeenCalled();
+    const arg = prisma.dokumentflytMedlem.updateMany.mock.calls[0]![0];
+    expect(arg.where).toMatchObject({ dokumentflytId: FLYT, rolle: { in: ["godkjenner"] }, periodeSlutt: null });
+    expect(arg.data.periodeSlutt).toBeInstanceOf(Date);
   });
 
   it("LEGGER TIL en rolle (ingen fjerning) med dokumenter → tillatt", async () => {

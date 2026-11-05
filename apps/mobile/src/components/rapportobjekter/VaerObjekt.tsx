@@ -2,26 +2,8 @@ import { View, Text, TextInput, Pressable } from "react-native";
 import { Cloud, CloudOff, Pencil } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import type { RapportObjektProps } from "./typer";
-
-interface VaerVerdi {
-  temp?: string;
-  conditions?: string;
-  wind?: string;
-  precipitation?: string;
-  kilde?: "manuell" | "automatisk";
-  status?: "venter";
-}
-
-function formaterVaerTekst(v: VaerVerdi, t: TFunction): string {
-  const deler: string[] = [];
-  if (v.temp) deler.push(v.temp);
-  if (v.conditions) deler.push(v.conditions.toLowerCase());
-  if (v.wind) deler.push(t("felt.vaerVindVerdi", { verdi: v.wind }));
-  if (v.precipitation && v.precipitation !== "0 mm") deler.push(t("felt.vaerNedborVerdi", { verdi: v.precipitation }));
-  return deler.join(", ");
-}
+import { formaterVaerTekst, type VaerVerdi } from "./vaerTekst";
 
 export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();

@@ -35,6 +35,8 @@ import type { DokumentflytMedlemData } from "../_components/dokumentflyt-kompone
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
+import { PersonNavn } from "@/components/PersonNavn";
+import { FjernMedlemModal } from "../_components/FjernMedlemModal";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -823,13 +825,8 @@ function FlytBoks({
     onError: mutFeil.onError,
   });
 
-  const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
-    onSuccess: () => {
-      mutFeil.nullstill();
-      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
-    },
-    onError: mutFeil.onError,
-  });
+  // Fjerning går via bekreftelsesmodalen (myk avslutning, ballen flyttes — L1).
+  const [fjernes, setFjernes] = useState<{ id: string; navn: string } | null>(null);
 
   const settGruppeHovedansvarligMutation = trpc.dokumentflyt.settGruppeHovedansvarlig.useMutation({
     onSuccess: () => {
@@ -981,6 +978,13 @@ function FlytBoks({
         )}
       </div>
 
+      {/* B10: tomt ledd — samme tilstand som en nyopprettet rolle uten medlemmer. */}
+      {erFlytAdmin && medlemmer.length === 0 && (
+        <div className="mb-1 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+          {t("dokumentflyt.leddTomt")}
+        </div>
+      )}
+
       {/* Grupper — klikkbar for å se medlemmer */}
       {gruppeMedlemmer.map((m) => {
         const gruppeId = m.group?.id;
@@ -1013,7 +1017,7 @@ function FlytBoks({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
+                    setFjernes({ id: m.id, navn: m.group?.name ?? "" });
                   }}
                   className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
                   title={t("handling.fjern")}
@@ -1054,7 +1058,7 @@ function FlytBoks({
                         />
                       )}
                       <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
-                      {gm.navn}
+                      <PersonNavn prosjektId={prosjektId} navn={gm.navn} projectMemberId={gm.projectMemberId} />
                     </div>
                   );
                 })}
@@ -1076,7 +1080,9 @@ function FlytBoks({
           <div key={m.id} className="group/medlem mb-0.5 flex items-center gap-1.5 text-sm">
             {renderHovedansvarligPrikk(m)}
             <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
-            <span className="flex-1 text-gray-700">{personNavn ?? "—"}</span>
+            <span className="flex min-w-0 flex-1 text-gray-700">
+              <PersonNavn prosjektId={prosjektId} navn={personNavn} projectMemberId={m.projectMember?.id} />
+            </span>
             {grupperNavn.length > 0 && (
               <span className="text-[11px] text-gray-400">
                 · {grupperNavn.join(", ")}
@@ -1087,7 +1093,7 @@ function FlytBoks({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
+                  setFjernes({ id: m.id, navn: personNavn ?? "" });
                 }}
                 className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
                 title={t("handling.fjern")}
@@ -1116,6 +1122,17 @@ function FlytBoks({
       </div>
 
       <MutasjonsFeil melding={mutFeil.feil} />
+
+      <FjernMedlemModal
+        medlem={fjernes}
+        prosjektId={prosjektId}
+        rolleNavn={tittel}
+        kandidaterUtenfor={alleMedlemmer
+          .filter((pm) => !enkeltpersoner.some((m) => m.projectMember?.id === pm.id))
+          .map((pm) => ({ id: pm.id, navn: pm.user.name ?? pm.user.email }))}
+        onClose={() => setFjernes(null)}
+        onFjernet={handleLagtTil}
+      />
 
       {/* Inviter ny person modal */}
       <InviterNyMedlemModal

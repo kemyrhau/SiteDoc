@@ -14,7 +14,7 @@ import {
   lonnsartLocal,
 } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
-import { useFirma } from "../kontekst/FirmaKontekst";
+import { useFirma, hentLagretAnsattStatus } from "../kontekst/FirmaKontekst";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 import { useByggeplass } from "../kontekst/ByggeplassKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
@@ -64,7 +64,7 @@ export function StartSluttDagKort() {
   const router = useRouter();
   const utils = trpc.useUtils();
   const { bruker } = useAuth();
-  const { valgtFirmaId } = useFirma();
+  const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
   // F4: timer-utkast defaulter byggeplass GPS → global kontekst → ingen.
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
@@ -132,9 +132,14 @@ export function StartSluttDagKort() {
         sisteSegmentKilde,
       });
       const forslag = beregnDagsforslag(input);
+      // Ikke ansatt → ingen sedel (serveren ville nektet den for alltid). Fersk
+      // kontekst først, ellers sist lagrede svar; null = ukjent → som før.
+      const erAnsatt =
+        erAnsattIValgtFirma ?? (await hentLagretAnsattStatus(orgId));
       const resultat = anvendDagsforslag(db, forslag, {
         userId: bruker.id,
         orgId,
+        erAnsatt,
         nyId: randomUUID,
         naa: Date.now,
       });
@@ -207,6 +212,23 @@ export function StartSluttDagKort() {
             t(handling.preFylt ? "timer.forKort.preFyltMelding" : "timer.forKort.melding"),
           );
           break;
+        case "manglerLonnsart":
+          // Arbeidsrader droppet fordi lønnsarten mangler — ikke «for kort».
+          // Sedelen viser (d)-banneret; dagen er lukket.
+          router.push(`/timer/${handling.sheetId}`);
+          Alert.alert(
+            t("timer.manglerLonnsart.tittel"),
+            t("timer.manglerLonnsart.hjelp"),
+          );
+          break;
+        case "ikkeAnsatt":
+          // Ingen sedel skrevet; dagen står ÅPEN. Ingen navigasjon — det finnes
+          // ingen sedel å vise, og manuell opprettelse ville møtt samme sperre.
+          Alert.alert(
+            t("timer.kildeManglet.tittel"),
+            t("timer.ikkeAnsatt", { firma: valgtFirma?.name ?? "" }),
+          );
+          break;
         case "kildeManglet":
           // Prosjekt/aktivitet kunne ikke utledes offline → ingen sedel. Dagen
           // står ÅPEN (H7) og brukeren varsles — ellers forsvinner dagen stumt.
@@ -230,7 +252,7 @@ export function StartSluttDagKort() {
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler, utils]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, valgtFirma?.name, erAnsattIValgtFirma, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler, utils]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som

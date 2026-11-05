@@ -5,8 +5,10 @@ import {
   byggAlternativer,
   filtrerOgSorter,
   STARTRETNING,
+  tilgjengeligeSorteringer,
   UTEN_EMNE,
   utenUbruktBallen,
+  visFilterKolonne,
   type DokumentRad,
   type Retning,
   type SorterNokkel,
@@ -188,5 +190,73 @@ describe("filtre", () => {
     expect(antallAktiveFilter({ emne: "Bad", prioritet: "high", ballen: "1" })).toBe(3);
     expect(antallAktiveFilter({}, { hurtigvalg: "uke", fra: null, til: null })).toBe(1);
     expect(antallAktiveFilter({}, { hurtigvalg: "alle", fra: null, til: null })).toBe(0);
+  });
+});
+
+describe("B-1 område", () => {
+  const rader = [
+    rad({ id: "a", omrade: { navn: "Plan 2" } }),
+    rad({ id: "b", omrade: { navn: "Tak" } }),
+    rad({ id: "c" }),
+  ];
+
+  it("filtrerer på områdenavn", () => {
+    expect(ider(filtrerOgSorter(rader, { omrade: "Tak" }, "", nivaa("nummer")))).toEqual(["b"]);
+  });
+
+  it("alternativer: unike områdenavn, rader uten område gir ingen verdi", () => {
+    expect(byggAlternativer(rader).omrade.map((a) => a.value).sort()).toEqual(["Plan 2", "Tak"]);
+  });
+
+  it("eldre API uten område (alle null) → filteret skjules", () => {
+    const alt = byggAlternativer([rad({ id: "x" }), rad({ id: "y" })]).omrade;
+    expect(alt).toEqual([]);
+    expect(visFilterKolonne("omrade", alt, {})).toBe(false);
+    expect(visFilterKolonne("omrade", byggAlternativer(rader).omrade, {})).toBe(true);
+  });
+});
+
+describe("M-pakke B-2/B-4 — hvem og når", () => {
+  const h = (navn: string, dagerSiden: number) => ({ av: { id: `u-${navn}`, navn }, ved: iso(dagerSiden) });
+  const tomme = { sendt: null, godkjent: null, lukket: null };
+  const rader = [
+    rad({
+      id: "a",
+      createdAt: iso(30),
+      statushendelser: { sendt: h("Ola", 2), godkjent: h("Kari", 1), lukket: null },
+      utfylling: { sist: h("Kari", 3), alle: [{ id: "u-Ola", navn: "Ola" }, { id: "u-Kari", navn: "Kari" }] },
+    }),
+    rad({ id: "b", createdAt: iso(2), statushendelser: { ...tomme, sendt: h("Per", 20) }, utfylling: null }),
+    rad({ id: "c", createdAt: iso(1), statushendelser: tomme, utfylling: { sist: null, alle: [] } }),
+  ];
+
+  it("person-filtrene leser riktig statussteg", () => {
+    expect(ider(filtrerOgSorter(rader, { sendtAv: "Per" }, "", nivaa("nummer")))).toEqual(["b"]);
+    expect(ider(filtrerOgSorter(rader, { godkjentAv: "Kari" }, "", nivaa("nummer")))).toEqual(["a"]);
+  });
+
+  it("«Utfylt av» treffer alle i endringsloggen, ikke bare den siste", () => {
+    expect(ider(filtrerOgSorter(rader, { utfyltAv: "Ola" }, "", nivaa("nummer")))).toEqual(["a"]);
+    expect(byggAlternativer(rader).utfyltAv.map((a) => a.value).sort()).toEqual(["Kari", "Ola"]);
+  });
+
+  it("periode på sendt-dato i stedet for opprettet", () => {
+    const uke = { hurtigvalg: "uke" as const, fra: null, til: null };
+    expect(ider(filtrerOgSorter(rader, {}, "", nivaa("nummer"), { periode: uke })).sort()).toEqual(["b", "c"]);
+    expect(ider(filtrerOgSorter(rader, {}, "", nivaa("nummer"), { periode: { ...uke, felt: "sendt" } }))).toEqual(["a"]);
+  });
+
+  it("sortering «sendt»: nyeste først, ikke sendt sist", () => {
+    expect(ider(filtrerOgSorter(rader, {}, "", nivaa("sendt")))).toEqual(["a", "b", "c"]);
+  });
+
+  it("eldre API uten feltene → personfiltre, statusdatoer og «sendt» skjules stille", () => {
+    const gamle = [rad({ id: "x" }), rad({ id: "y" })];
+    const alt = byggAlternativer(gamle);
+    expect([alt.sendtAv, alt.godkjentAv, alt.lukketAv, alt.utfyltAv]).toEqual([[], [], [], []]);
+    expect(alt.statusPeriodefelt).toEqual([]);
+    expect(tilgjengeligeSorteringer(gamle, [])).not.toContain("sendt");
+    expect(byggAlternativer(rader).statusPeriodefelt).toEqual(["sendt", "godkjent"]);
+    expect(tilgjengeligeSorteringer(rader, [])).toContain("sendt");
   });
 });

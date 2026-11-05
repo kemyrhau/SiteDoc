@@ -26,7 +26,8 @@ vi.mock("@sitedoc/db", () => ({
   prisma: {
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
     project: { findUnique: (...a: unknown[]) => projectFindUnique(...a) },
-    projectMember: { findUnique: (...a: unknown[]) => projectMemberFindUnique(...a) },
+    // L2: tilgangsportene slår opp aktivt medlem med findFirst (aktivtProsjektmedlemWhere).
+    projectMember: { findFirst: (...a: unknown[]) => projectMemberFindUnique(...a) },
     organizationMember: {
       findUnique: (...a: unknown[]) => orgMemberFindUnique(...a),
       findMany: (...a: unknown[]) => orgMemberFindMany(...a),

@@ -299,7 +299,12 @@ aktiv da OTA ble leveringsvei 04.09, funnet 07.09).
 ### Steg 5 — les Commit-linja, verifiser på telefon
 
 **Ingen asterisk etter hashen.** Ideelt matcher den prod-API-ets `gitSha`.
-**Tving appen helt lukket to–tre ganger** — tredje gangen var den som traff 06.09.
+**Bruk oppdateringen i appen — ikke tving den lukket.** Appen ser etter ny versjon ved oppstart, når den
+kommer i forgrunnen og når nettet kommer tilbake, maks hvert 5. min (`OtaProvider.tsx:46-66`,
+`OTA_STRUPING_MS` i `services/otaStatus.ts:37`). Den laster ned selv og viser «Ny versjon er klar · Oppdater».
+Trykk **Oppdater** (`Updates.reloadAsync`, `OtaProvider.tsx:72-75`). Ingen varsel? **Mer → «Se etter
+oppdatering»** sjekker med en gang, uten strupingen. Bekreft deretter `<hash> · OTA <id>` under Mer.
+Tving-lukk to–tre ganger (praksis fra 06.09) er nødutvei bare når varselet aldri kommer.
 **Prosjektlista er tellingen.**
 
 ### Steg 6 — før ny rad i OTA-loggen
