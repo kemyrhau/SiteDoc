@@ -1426,6 +1426,21 @@ språk, mens knappene som utfører signeringen ikke gjør det.
 🟢 **Mønsteret finnes:** dokgen brukte `i18n.getFixedT(spraak)` for feilmeldingen i `2ee6e343` —
 i18n-nøkler bundet til gjestens språk. **Resten av chrome-en kan følge samme vei.**
 
+### 🟡 RUH FRA INNLEID FIRMA SKAL OGSÅ TELLE HOS DET FIRMAET (Kenneth 2026-11-05, «Senere»)
+
+**Scenario:** Firma A leier inn Firma B på et prosjekt. Firma B oppretter en RUH i prosjektet til A.
+RUH-en skal samtidig tilhøre Firma B på firmanivå og inngå i B sin statistikk og interne
+behandlingsrutiner.
+
+**Avgrensning (orkestrator 05.11):** dette er **ikke** flytting mellom prosjekter. Prosjektgrensen
+i `sjekkliste.flytt`/`oppgave.flytt` (ordre 8, dom (30) flagg 4) står. Det trengs en egen
+firmatilknytning på dokumentet (f.eks. innsenders firma) og en lese-/statistikkflate på firmanivå.
+Det må sees sammen med § Kryssorg-deling (`eksternDeling`, «kun push, aldri pull») og
+kryssprosjekt-deling (UE deler sjekklister til HE).
+
+**Neste steg når den tas:** spec fra Fabel FØR kode. Avklar hvem som eier dokumentet, hva B ser
+(innhold eller bare telling) og persondata-gjerder.
+
 ### 🟡 CLAUDE.md § Admin-arkitektur hører i en detalj-fil — men Kryssorg-deling har ingen hjem
 
 **Målt av dokgen 2026-09-09** under duplikat-gjennomgangen av CLAUDE.md.
