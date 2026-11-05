@@ -29,6 +29,11 @@ import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import {
+  RadByggeplassFelt,
+  useRadByggeplass,
+} from "@/components/timer/RadByggeplassFelt";
+import type { ByggeplassValg } from "@/lib/timerByggeplass";
+import {
   maskinBucketKapasitet,
   overstigerMaskinTak,
   DEFAULT_PAUSE_ETTER_TIMER,
@@ -185,6 +190,16 @@ export default function DagsseddelDetaljSide() {
   const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery(
     { organizationId: sheet?.organizationId ?? undefined },
     { enabled: !!sheet?.organizationId },
+  );
+  // Ordre (10): byggeplass per rad. hentForFirma (som mobil) er tilgjengelig for
+  // arbeidere; dialogene filtrerer på radens prosjekt.
+  const { data: byggeplasser } = trpc.bygning.hentForFirma.useQuery(
+    { organizationId: sheet?.organizationId ?? "" },
+    { enabled: !!sheet?.organizationId },
+  );
+  const byggeplassNavn = useMemo(
+    () => new Map((byggeplasser ?? []).map((b) => [b.id, b.name])),
+    [byggeplasser],
   );
 
   // Maskin-fra-til (2026-05-17): orgSetting brukes som fallback når en
@@ -741,6 +756,7 @@ export default function DagsseddelDetaljSide() {
               erRedigerbar={erRedigerbar}
               pauseMin={sheet.pauseMin}
               pauseVisning={pauseVisning}
+              byggeplassNavn={byggeplassNavn}
               onTilfoyTimer={(ecoId) => {
                 // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter),
                 // ellers dagens effektive start. «Fortsett der du slapp» på hele
@@ -885,6 +901,7 @@ export default function DagsseddelDetaljSide() {
           organizationId={sheet.organizationId}
           projectId={aktivModal.projectId}
           prosjekter={prosjekterForVelger}
+          byggeplasser={byggeplasser}
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
@@ -956,6 +973,7 @@ export default function DagsseddelDetaljSide() {
         <MaskinRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
+          byggeplasser={byggeplasser}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           defaultFraTid={aktivModal.defaultFraTid ?? null}
           defaultTilTid={aktivModal.defaultTilTid ?? null}
@@ -1155,6 +1173,7 @@ function ProsjektGruppe({
   erRedigerbar,
   pauseMin,
   pauseVisning,
+  byggeplassNavn,
   onTilfoyTimer,
   onLeggTil,
   onRedigerTimer,
@@ -1175,6 +1194,8 @@ function ProsjektGruppe({
   pauseMin: number;
   // V20/PK3: pause-kontekst for rad-listas kryss-visning.
   pauseVisning: PauseVisning;
+  // Ordre (10): byggeplass-id → navn for radlinja.
+  byggeplassNavn: Map<string, string>;
   // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
   // fra/til-prefill (siste rads tilTid).
   onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
@@ -1228,6 +1249,7 @@ function ProsjektGruppe({
             erRedigerbar={erRedigerbar}
             pauseMin={pauseMin}
             pauseVisning={pauseVisning}
+            byggeplassNavn={byggeplassNavn}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
@@ -1297,6 +1319,7 @@ function EcoGruppe({
   erRedigerbar,
   pauseMin,
   pauseVisning,
+  byggeplassNavn,
   onTilfoyTimer,
   onRedigerTimer,
   onRedigerMaskin,
@@ -1310,6 +1333,7 @@ function EcoGruppe({
   erRedigerbar: boolean;
   pauseMin: number;
   pauseVisning: PauseVisning;
+  byggeplassNavn: Map<string, string>;
   onTilfoyTimer: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
@@ -1374,6 +1398,7 @@ function EcoGruppe({
                 rader={timer}
                 erRedigerbar={erRedigerbar}
                 pauseVisning={pauseVisning}
+                byggeplassNavn={byggeplassNavn}
                 onRediger={onRedigerTimer}
                 onSplitt={onSplittTimer}
               />
@@ -1385,6 +1410,7 @@ function EcoGruppe({
               <RaderMaskinKompakt
                 rader={maskin}
                 erRedigerbar={erRedigerbar}
+                byggeplassNavn={byggeplassNavn}
                 onRediger={onRedigerMaskin}
                 onSplitt={onSplittMaskin}
               />
@@ -1443,6 +1469,7 @@ function RaderTimer({
   rader,
   erRedigerbar,
   pauseVisning,
+  byggeplassNavn,
   onRediger,
   onSplitt,
 }: {
@@ -1450,6 +1477,7 @@ function RaderTimer({
   erRedigerbar: boolean;
   // V20/PK3: dagens pause-kontekst → kryss/tom avkrysning pr. rad.
   pauseVisning: PauseVisning;
+  byggeplassNavn: Map<string, string>;
   onRediger: (rad: TimerRad) => void;
   onSplitt: (rad: TimerRad) => void;
 }) {
@@ -1498,6 +1526,10 @@ function RaderTimer({
             <div>
               <p className="text-sm font-medium text-gray-900">
                 {lonnsart?.navn ?? "—"}
+                {/* Ordre (10): «Prosjekttimer · Lab 16». */}
+                {rad.byggeplassId && byggeplassNavn.has(rad.byggeplassId)
+                  ? ` · ${byggeplassNavn.get(rad.byggeplassId)}`
+                  : ""}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
               {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt
@@ -1670,11 +1702,13 @@ function RaderTillegg({
 function RaderMaskinKompakt({
   rader,
   erRedigerbar,
+  byggeplassNavn,
   onRediger,
   onSplitt,
 }: {
   rader: MaskinRad[];
   erRedigerbar: boolean;
+  byggeplassNavn: Map<string, string>;
   onRediger: (rad: MaskinRad) => void;
   onSplitt: (rad: MaskinRad) => void;
 }) {
@@ -1722,6 +1756,9 @@ function RaderMaskinKompakt({
                     {t("timer.maskinSeksjon.merke")}
                   </span>
                   {equipmentMap.get(rad.vehicleId) ?? "—"}
+                  {rad.byggeplassId && byggeplassNavn.has(rad.byggeplassId)
+                    ? ` · ${byggeplassNavn.get(rad.byggeplassId)}`
+                    : ""}
                 </p>
                 {rad.mengde !== null && rad.mengde !== undefined && (
                   <p className="text-xs text-gray-500">
@@ -1775,6 +1812,7 @@ function TimerRadDialog({
   organizationId,
   projectId,
   prosjekter,
+  byggeplasser,
   defaultAktivitetId,
   defaultEcoId,
   rad,
@@ -1794,6 +1832,7 @@ function TimerRadDialog({
   organizationId: string;
   projectId: string;
   prosjekter: ProsjektRef[];
+  byggeplasser: readonly ByggeplassValg[] | undefined;
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
@@ -1871,6 +1910,8 @@ function TimerRadDialog({
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({
     projectId: valgtProjectId,
   });
+  // Ordre (10): følger valgt prosjekt — prosjektbytte nullstiller ugyldig valg.
+  const bp = useRadByggeplass({ byggeplasser, projectId: valgtProjectId, rad });
 
   // T.10 / §2.D: maskinvelger for kostnadsbærer ved maskinvedlikehold. Hentes
   // kun for interne prosjekter (verksted). Tom liste / inaktiv maskin-modul →
@@ -2208,6 +2249,8 @@ function TimerRadDialog({
         tilTid: tilTid || null,
         // V20/PK3: radens matpause — server validerer timetallet mot denne.
         pauseMin: radPauseMin,
+        // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
+        ...(bp.endret ? { byggeplassId: bp.byggeplassId } : {}),
       });
     } else {
       // P1 (maskin-i-rad): dual-mutasjon. Per-kall onSuccess fanger tNum +
@@ -2228,6 +2271,7 @@ function TimerRadDialog({
           tilTid: tilTid || null,
           // V20/PK3: radens matpause (auto-bærer for ny rad, PK2).
           pauseMin: radPauseMin,
+          byggeplassId: bp.byggeplassId,
         },
         {
           onSuccess: () => {
@@ -2239,6 +2283,7 @@ function TimerRadDialog({
                 externalCostObjectId: ecoId,
                 vehicleId: maskinVehicleId,
                 timer: tNum,
+                byggeplassId: bp.byggeplassId,
                 mengde: maskinMengde ? parseFloat(maskinMengde) : null,
                 enhet: maskinEnhet || null,
                 fraTid: fraTid || null,
@@ -2290,6 +2335,11 @@ function TimerRadDialog({
             ))}
           </select>
         </div>
+        <RadByggeplassFelt
+          kandidater={bp.kandidater}
+          verdi={bp.byggeplassId}
+          onEndre={bp.setByggeplassId}
+        />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
@@ -3549,6 +3599,7 @@ function UtleggRadDialog({
 function MaskinRadDialog({
   sheetId,
   projectId,
+  byggeplasser,
   defaultEcoId,
   defaultFraTid,
   defaultTilTid,
@@ -3564,6 +3615,7 @@ function MaskinRadDialog({
 }: {
   sheetId: string;
   projectId: string;
+  byggeplasser: readonly ByggeplassValg[] | undefined;
   defaultEcoId?: string | null;
   // Maskin-fra-til (2026-05-17): forslag fra parent basert på timer-rader
   // i bucket (Alt D — sammenheng-prinsipp). null hvis bucket er tom og
@@ -3602,6 +3654,8 @@ function MaskinRadDialog({
   // T7-4c: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-
   // gruppe som arbeidstimer (T.7 låst 2026-05-16).
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
+  // Ordre (10): samme regel som timer-raden.
+  const bp = useRadByggeplass({ byggeplasser, projectId, rad });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
   // Bolk (g): prefill gyldig kun når begge tider finnes OG fra < til.
@@ -3785,6 +3839,8 @@ function MaskinRadDialog({
       // Maskin-fra-til (2026-05-17): tom streng → null (felt er valgfrie).
       fraTid: fraTid || null,
       tilTid: tilTid || null,
+      // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
+      ...(bp.endret ? { byggeplassId: bp.byggeplassId } : {}),
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
@@ -3815,6 +3871,11 @@ function MaskinRadDialog({
             bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
           />
         </div>
+        <RadByggeplassFelt
+          kandidater={bp.kandidater}
+          verdi={bp.byggeplassId}
+          onEndre={bp.setByggeplassId}
+        />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}

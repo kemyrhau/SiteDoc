@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Vad är tidsregistrering?",
   "timer.hjelpBeskrivelse": "Tidsregistrering låter anställda på byggarbetsplatsen registrera arbetstimmar, övertid, restid, maskinanvändning, material och utgifter – allt samlat i en daglig tidrapport per arbetsdag.",
   "timer.hjelpDagsseddel": "Tidrapporten",
-  "timer.hjelpDagsseddelTekst": "En tidrapport per arbetsdag samlar allt: arbetstimmar delas automatiskt upp i normal tid och övertid baserat på den dagliga normen (7,5 timmar). Tillägg som övertidsmåltider, natt- och helgtillägg föreslås automatiskt baserat på regler.",
+  "timer.hjelpDagsseddelTekst": "En tidrapport per arbetsdag samlar allt: arbetstimmar delas automatiskt upp i normal tid och övertid baserat på den dagliga normen (7,5 timmar). Tillägg som övertidsmåltider, natt- och helgtillägg föreslås automatiskt baserat på regler. Varje timme och maskinrad kan kopplas till en plats på projektet; platsplatsen som valts i den övre raden är förvald och valet kan rensas.",
   "timer.hjelpGodkjenning": "Godkännande",
   "timer.hjelpGodkjenningTekst": "Chefen ser alla medarbetares tidrapporter och godkänner eller avslår. Godkända tidrapporter kan inte ändras. Kostnader med kvittobilder godkänns samtidigt.",
   "timer.hjelpEksport": "Exportera",

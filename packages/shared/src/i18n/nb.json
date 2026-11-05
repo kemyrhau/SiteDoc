@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Hva er timeregistrering?",
   "timer.hjelpBeskrivelse": "Timeregistrering lar ansatte på byggeplassen registrere arbeidstimer, overtid, reisetid, maskinbruk, materialer og utlegg — alt samlet i én dagsseddel per arbeidsdag.",
   "timer.hjelpDagsseddel": "Dagsseddelen",
-  "timer.hjelpDagsseddelTekst": "Én dagsseddel per arbeidsdag samler alt: arbeidstimer fordeles automatisk på normaltid og overtid basert på dagsnorm (7,5t). Tillegg som overtidsmat, nattillegg og helgetillegg foreslås automatisk basert på regler.",
+  "timer.hjelpDagsseddelTekst": "Én dagsseddel per arbeidsdag samler alt: arbeidstimer fordeles automatisk på normaltid og overtid basert på dagsnorm (7,5t). Tillegg som overtidsmat, nattillegg og helgetillegg foreslås automatisk basert på regler. Hver timer- og maskinrad kan knyttes til en byggeplass på prosjektet; toppbarens byggeplass forhåndsvelges, og valget kan tømmes.",
   "timer.hjelpGodkjenning": "Godkjenning",
   "timer.hjelpGodkjenningTekst": "Leder ser alle ansattes dagssedler og godkjenner eller avviser. Godkjente sedler kan ikke endres. Utlegg med kvitteringsbilder godkjennes samtidig.",
   "timer.hjelpEksport": "Eksport",

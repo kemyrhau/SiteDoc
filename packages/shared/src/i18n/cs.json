@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Co je registrace času?",
   "timer.hjelpBeskrivelse": "Registrace času umožňuje zaměstnancům na staveništi zaznamenávat pracovní hodiny, přesčasy, dobu cestování, využití strojů, materiály a výdaje – to vše shromážděné v jednom denním výkazu za pracovní den.",
   "timer.hjelpDagsseddel": "Časový rozvrh",
-  "timer.hjelpDagsseddelTekst": "Jeden časový rozvrh za pracovní den shromažďuje vše: pracovní doba je automaticky rozdělena na normální čas a přesčasy na základě denní normy (7,5 hodiny). Příplatky jako přesčasová jídla, noční a víkendové příplatky jsou automaticky navrhovány na základě pravidel.",
+  "timer.hjelpDagsseddelTekst": "Jeden časový rozvrh za pracovní den shromažďuje vše: pracovní doba je automaticky rozdělena na normální čas a přesčasy na základě denní normy (7,5 hodiny). Příplatky jako přesčasová jídla, noční a víkendové příplatky jsou automaticky navrhovány na základě pravidel. Každou hodinu a řádek stroje lze propojit s umístěním pracoviště v projektu; umístění webu vybrané v horní liště je předem vybráno a výběr lze zrušit.",
   "timer.hjelpGodkjenning": "Schválení",
   "timer.hjelpGodkjenningTekst": "Manažer vidí pracovní výkazy všech zaměstnanců a schvaluje nebo zamítá. Schválené časové rozvrhy nelze upravovat. Výdaje s fotkami účtenek se schvalují současně.",
   "timer.hjelpEksport": "Vývozní",

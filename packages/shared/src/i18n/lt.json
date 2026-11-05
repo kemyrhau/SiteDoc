@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Kas yra laiko registracija?",
   "timer.hjelpBeskrivelse": "Laiko registravimas leidžia darbuotojams statybvietėje registruoti darbo valandas, viršvalandžius, kelionės laiką, mašinos naudojimą, medžiagas ir išlaidas – visa tai surenkama į vieną darbo laiko apskaitos žiniaraštį per darbo dieną.",
   "timer.hjelpDagsseddel": "Darbo laiko apskaitos žiniaraštis",
-  "timer.hjelpDagsseddelTekst": "Vienas darbo laiko apskaitos žiniaraštis per darbo dieną surenka viską: darbo valandos automatiškai skirstomos į normalų laiką ir viršvalandžius pagal dienos normą (7,5 val.). Papildai, tokie kaip viršvalandžių maitinimas, naktiniai ir savaitgaliniai papildai, automatiškai siūlomi pagal taisykles.",
+  "timer.hjelpDagsseddelTekst": "Vienas darbo laiko apskaitos žiniaraštis per darbo dieną surenka viską: darbo valandos automatiškai skirstomos į normalų laiką ir viršvalandžius pagal dienos normą (7,5 val.). Papildai, tokie kaip viršvalandžių maitinimas, naktiniai ir savaitgaliniai papildai, automatiškai siūlomi pagal taisykles. Kiekviena valanda ir mašinos eilutė gali būti susieta su projekto vietos vieta; viršutinėje juostoje pasirinkta svetainės vieta yra iš anksto pasirinkta ir pasirinkimas gali būti panaikintas.",
   "timer.hjelpGodkjenning": "Patvirtinimas",
   "timer.hjelpGodkjenningTekst": "Vadovas mato visų darbuotojų darbo laiko apskaitos žiniaraščius ir patvirtina arba atmeta. Patvirtintų darbo laiko apskaitos žiniaraščių keisti negalima. Išlaidos su kvito nuotraukomis tvirtinamos vienu metu.",
   "timer.hjelpEksport": "Eksportuoti",

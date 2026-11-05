@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Co to jest rejestracja czasu?",
   "timer.hjelpBeskrivelse": "Rejestracja czasu pracy pozwala pracownikom na budowie rejestrować godziny pracy, nadgodziny, czas podróży, wykorzystanie maszyn, materiały i wydatki – wszystko to gromadzone w jednym dziennym arkuszu czasu pracy dla każdego dnia roboczego.",
   "timer.hjelpDagsseddel": "Karta czasu pracy",
-  "timer.hjelpDagsseddelTekst": "Wszystko gromadzi się w jednym arkuszu czasu pracy na dzień roboczy: godziny pracy są automatycznie dzielone na czas normalny i nadgodziny w oparciu o normę dzienną (7,5 godz.). Dodatki, takie jak posiłki w godzinach nadliczbowych, dodatki nocne i weekendowe, są automatycznie sugerowane w oparciu o zasady.",
+  "timer.hjelpDagsseddelTekst": "Wszystko gromadzi się w jednym arkuszu czasu pracy na dzień roboczy: godziny pracy są automatycznie dzielone na czas normalny i nadgodziny w oparciu o normę dzienną (7,5 godz.). Dodatki, takie jak posiłki w godzinach nadliczbowych, dodatki nocne i weekendowe, są automatycznie sugerowane w oparciu o zasady. Każdą godzinę i rząd maszyn można powiązać z lokalizacją w projekcie; lokalizacja witryny wybrana na górnym pasku jest wstępnie wybrana i wybór można wyczyścić.",
   "timer.hjelpGodkjenning": "Aprobata",
   "timer.hjelpGodkjenningTekst": "Menedżer widzi karty czasu pracy wszystkich pracowników i zatwierdza je lub odrzuca. Zatwierdzonych grafików nie można modyfikować. Wydatki ze zdjęciami paragonowymi zatwierdzane są jednocześnie.",
   "timer.hjelpEksport": "Eksport",

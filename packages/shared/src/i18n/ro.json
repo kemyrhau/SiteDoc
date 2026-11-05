@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Ce este înregistrarea oră?",
   "timer.hjelpBeskrivelse": "Înregistrarea timpului permite angajaților de pe șantier să înregistreze orele de lucru, orele suplimentare, timpul de călătorie, utilizarea mașinilor, materialele și cheltuielile - toate colectate într-o singură foaie de pontaj zilnică pe zi de lucru.",
   "timer.hjelpDagsseddel": "Foaia de pontaj",
-  "timer.hjelpDagsseddelTekst": "O singură foaie de pontaj pe zi de lucru colectează totul: orele de lucru sunt împărțite automat în timp normal și ore suplimentare în funcție de norma zilnică (7,5 ore). Suplimentele precum mesele suplimentare, suplimentele de noapte și de weekend sunt sugerate automat pe baza regulilor.",
+  "timer.hjelpDagsseddelTekst": "O foaie de pontaj pe zi de lucru colectează totul: orele de lucru sunt împărțite automat în timp normal și ore suplimentare, în funcție de norma zilnică (7,5 ore). Suplimentele precum mesele suplimentare, suplimentele de noapte și de weekend sunt sugerate automat pe baza regulilor. Fiecare oră și rând de mașini pot fi conectate la o locație a site-ului din proiect; locația site-ului selectată în bara de sus este preselectată, iar alegerea poate fi ștearsă.",
   "timer.hjelpGodkjenning": "Aprobare",
   "timer.hjelpGodkjenningTekst": "Managerul vede toate foile de pontaj ale angajaților și aprobă sau respinge. Foile de pontaj aprobate nu pot fi modificate. Cheltuielile cu fotografii de chitanță sunt aprobate simultan.",
   "timer.hjelpEksport": "Export",

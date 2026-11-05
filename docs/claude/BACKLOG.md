@@ -4735,7 +4735,7 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-f
 - **② ✅ GJORT** — `list`-retur beriker hver sedel med `prosjektIder` (distinct `projectId` på tvers av timer-/maskin-/tillegg-rader). `mine/page.tsx` utleder prosjekt-kolonne + «antall prosjekter» fra dette (ikke lenger `rad.projectId` som ikke finnes).
 - **③ ✅ GJORT** — web-opprett er nå **dato-only**: `opprett`-input droppet `projectId`, auth bruker org-tilgang (`krevBrukersOrg` + `krevTimerAktivert`) i stedet for `verifiserProsjektmedlem`; prosjekt-velgeren + geo-forslag fjernet fra `ny/page.tsx`. Prosjekt legges per rad på detalj-siden. Fjerner den misvisende velgeren og kilden til P2002-forvirringen (`@@unique([userId, dato])` består — én sedel per dato er korrekt).
 - **④ 🟡 FORBLIR FASE 4/E** — auto-forslag/auto-utkast av prosjekt i web (PSI-innsjekk + GPS-hook) er ikke bygd; avhenger av Fase 4 Mannskap/PSI (se «Retning»).
-- **⑤ ✅ verifisert tilsiktet** — byggeplass-velger bevisst deaktivert i web-timer.
+- **⑤ ✅ verifisert tilsiktet** — byggeplass-velger bevisst deaktivert i web-timer. **Delvis erstattet 2026-11-05 (ordre 10):** web-dagsseddelen har nå byggeplass per timer-/maskin-rad (`RadByggeplassFelt.tsx`, se [timer.md § Byggeplass per rad (web)](timer.md#byggeplass-per-rad-web--ordre-10)); toppbar-velgeren i prosjekt-timerlista er fortsatt av.
 
 **Verifiserte funn (2026-07-05, mot kode — pre-fix; ①②③ fikset interim samme dag, se «Interim-status» over):**
 
@@ -4743,7 +4743,7 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-f
 - **② ✅ (var 🟡) «Mine timer» (`mine/page.tsx`) leste `rad.projectId` fra DailySheet (finnes ikke) — nå fikset (se «Interim-status» over).** `list`-retur (`:497-501`) spredte `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kastet dem). **Interim-fiks 2026-07-05:** `list` beriker hver sedel med `prosjektIder`; `mine/page.tsx` utleder kolonnen fra det.
 - **③ ✅ (var 🔴) «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) hadde misvisende prosjekt-velger + var P2002-kollisjonskilde — nå fikset (se «Interim-status» over).** `opprett` (`dagsseddel.ts:549`) tok `projectId` som påkrevd input, men brukte den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagret den aldri; sedelen ble opprettet tom. Prosjektvalget valgte altså ingenting reelt. **Interim-fiks 2026-07-05:** web-opprett er nå dato-only (org-tilgang i stedet for prosjektmedlem-sjekk).
 - **④ 🟡 Ingen forslag/auto-utkast i web:** «intelligent timeføring» (`genererForslag`) er mobil-only — bekreftet ingen web-motpart.
-- **⑤ ❓→✅ Byggeplass-velger deaktivert i web-timer — verifisert tilsiktet:** `[prosjektId]/timer/page.tsx:47` kaller eksplisitt `useToppbarFiltre({ byggeplass: false })`. Bevisst, ikke hull. Asymmetri består: `DailySheet` har `byggeplassId` men ikke `projectId`.
+- **⑤ ❓→✅ Byggeplass-velger deaktivert i web-timer — verifisert tilsiktet:** `[prosjektId]/timer/page.tsx:47` kaller eksplisitt `useToppbarFiltre({ byggeplass: false })`. Bevisst, ikke hull. Asymmetri består: `DailySheet` har `byggeplassId` men ikke `projectId`. **Erstattet for rad-nivå 2026-11-05 (ordre 10):** byggeplass velges nå per rad i web-dagsseddelen — se timer.md § Byggeplass per rad (web).
 
 **Retning (PSI-drevet, Fase-4-avhengig) — lovforankret:**
 

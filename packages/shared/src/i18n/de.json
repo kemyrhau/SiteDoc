@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Was ist eine Zeiterfassung?",
   "timer.hjelpBeskrivelse": "Mit der Zeiterfassung können Mitarbeiter auf der Baustelle Arbeitsstunden, Überstunden, Reisezeit, Maschinennutzung, Materialien und Ausgaben erfassen – alles gesammelt in einer täglichen Arbeitszeittabelle pro Arbeitstag.",
   "timer.hjelpDagsseddel": "Die Arbeitszeittabelle",
-  "timer.hjelpDagsseddelTekst": "Ein Stundenzettel pro Arbeitstag erfasst alles: Die Arbeitsstunden werden automatisch auf Basis der Tagesnorm (7,5h) in Normalzeit und Überstunden aufgeteilt. Zuschläge wie Überstundenverpflegung, Nacht- und Wochenendzuschläge werden anhand von Regeln automatisch vorgeschlagen.",
+  "timer.hjelpDagsseddelTekst": "Ein Stundenzettel pro Arbeitstag erfasst alles: Die Arbeitsstunden werden automatisch auf Basis der Tagesnorm (7,5h) in Normalzeit und Überstunden aufgeteilt. Zuschläge wie Überstundenverpflegung, Nacht- und Wochenendzuschläge werden anhand von Regeln automatisch vorgeschlagen. Jede Stunde und jede Maschinenzeile kann mit einem Standort im Projekt verknüpft werden. Der in der oberen Leiste ausgewählte Standortstandort ist vorab ausgewählt und die Auswahl kann gelöscht werden.",
   "timer.hjelpGodkjenning": "Genehmigung",
   "timer.hjelpGodkjenningTekst": "Der Manager sieht die Stundenzettel aller Mitarbeiter und genehmigt oder lehnt sie ab. Genehmigte Stundenzettel können nicht geändert werden. Spesen mit Belegfotos werden gleichzeitig genehmigt.",
   "timer.hjelpEksport": "Export",

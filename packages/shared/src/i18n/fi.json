@@ -333,7 +333,7 @@
   "timer.hjelpTittel": "Mitä ajan rekisteröinti on?",
   "timer.hjelpBeskrivelse": "Ajan rekisteröinnin avulla rakennustyömaalla olevat työntekijät kirjaavat työtunnit, ylityöt, matka-ajat, koneen käytön, materiaalit ja kulut – kaikki kerätään yhteen päivittäiseen tuntilomakkeeseen työpäivää kohti.",
   "timer.hjelpDagsseddel": "Työaikalomake",
-  "timer.hjelpDagsseddelTekst": "Yhdellä tuntilomakkeella per työpäivä kerätään kaiken: työtunnit jaetaan automaattisesti normaaliaikaan ja ylitöihin päivänormin (7,5h) perusteella. Lisäravinteet, kuten ylityöateriat, yö- ja viikonloppulisät, ehdotetaan automaattisesti sääntöjen perusteella.",
+  "timer.hjelpDagsseddelTekst": "Yhdellä tuntilomakkeella per työpäivä kerätään kaiken: työtunnit jaetaan automaattisesti normaaliaikaan ja ylitöihin päivänormin (7,5h) perusteella. Lisäravinteet, kuten ylityöateriat, yö- ja viikonloppulisät, ehdotetaan automaattisesti sääntöjen perusteella. Jokainen tunti ja konerivi voidaan linkittää projektin sijaintiin; yläpalkissa valittu sivuston sijainti on esivalittu, ja valinta voidaan tyhjentää.",
   "timer.hjelpGodkjenning": "Hyväksyminen",
   "timer.hjelpGodkjenningTekst": "Esimies näkee kaikkien työntekijöiden työaikalomakkeet ja hyväksyy tai hylkää. Hyväksyttyjä työaikaraportteja ei voi muuttaa. Kuittikuvien kulut hyväksytään samanaikaisesti.",
   "timer.hjelpEksport": "Viedä",
