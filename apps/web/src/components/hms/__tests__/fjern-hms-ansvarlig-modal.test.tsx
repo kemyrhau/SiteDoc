@@ -9,12 +9,17 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
  */
 
 let antallApne = 0;
+let feilet = false;
 const mutate = vi.fn();
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     organisasjon: {
-      forhandsvisFjernHmsAnsvarlig: { useQuery: () => ({ data: { antallApne }, isLoading: false }) },
+      forhandsvisFjernHmsAnsvarlig: { useQuery: () =>
+        feilet
+          ? { data: undefined, isLoading: false, isError: true }
+          : { data: { antallApne }, isLoading: false, isError: false },
+      },
       settFirmaHmsAnsvarlig: { useMutation: () => ({ mutate, isPending: false }) },
     },
   },
@@ -38,7 +43,10 @@ import { FjernHmsAnsvarligModal } from "../FjernHmsAnsvarligModal";
 
 const ANSVARLIG = { userId: "u-1", navn: "Kari", organizationId: "org-1", organisasjonNavn: "Firma AS" };
 
-beforeEach(() => mutate.mockReset());
+beforeEach(() => {
+  mutate.mockReset();
+  feilet = false;
+});
 afterEach(cleanup);
 
 describe("FjernHmsAnsvarligModal", () => {
@@ -64,6 +72,17 @@ describe("FjernHmsAnsvarligModal", () => {
     render(<FjernHmsAnsvarligModal ansvarlig={ANSVARLIG} onClose={() => {}} onFjernet={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "handling.fjern" }));
     expect(mutate).toHaveBeenCalledWith({ userId: "u-1", organizationId: "org-1", harTilgang: false });
+  });
+
+  it("🔴 (e) M2: feilet forhåndsvisning → feiltekst og Lukk, ingen evig spinner og ingen Fjern", () => {
+    feilet = true;
+    const onClose = vi.fn();
+    render(<FjernHmsAnsvarligModal ansvarlig={ANSVARLIG} onClose={onClose} onFjernet={() => {}} />);
+    expect(screen.getByText("hms.fjernAnsvarlig.feil")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "handling.fjern" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "handling.lukk" }));
+    expect(onClose).toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it("Avbryt → lukker uten å fjerne", () => {

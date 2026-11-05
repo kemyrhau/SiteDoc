@@ -1,6 +1,7 @@
 import type { Prisma } from "@sitedoc/db";
 import { aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { avsluttProsjektmedlem, tellRestdokumenterHosPerson } from "./prosjektmedlemskap";
+import { hmsSakIderSomFlyttes } from "./hmsAnsvarlig";
 import {
   FLYTMEDLEM_SELECT,
   hentGjenvarendeILeddet,
@@ -273,6 +274,11 @@ export async function forhandsvisDeaktivering(
   args: { userId: string; organizationId: string },
 ) {
   const { berorte, hoppetOver } = await finnBerorteProsjekter(db, args);
+  // Ordre (11): HMS-saker som blir hos HMS-gruppa — samme utvalg som sweepen i settAnsattStatus.
+  const hmsSaker = await hmsSakIderSomFlyttes(db, {
+    ...args,
+    avsluttesProjectMemberIder: berorte.map((b) => b.projectMemberId),
+  });
   const flytrader = berorte.length === 0
     ? []
     : await db.dokumentflytMedlem.findMany({
@@ -308,12 +314,14 @@ export async function forhandsvisDeaktivering(
       projectId: b.projectId,
       userId: args.userId,
       flyterMedPeker,
+      unntatt: hmsSaker,
     });
   }
   return {
     prosjekter: berorte.map((b) => ({ id: b.projectId, navn: b.projectName })),
     antallFlytledd: flytrader.length,
     antallTilInnsender,
+    antallHmsSaker: hmsSaker.length,
     alene,
     hoppetOver: hoppetOver.map((h) => ({ id: h.projectId, navn: h.projectName, grunn: h.grunn })),
   };

@@ -23,7 +23,7 @@ export function FjernHmsAnsvarligModal({
   const { t } = useTranslation();
   const [feil, setFeil] = useState<string | null>(null);
 
-  const { data, isLoading } = trpc.organisasjon.forhandsvisFjernHmsAnsvarlig.useQuery(
+  const { data, isLoading, isError } = trpc.organisasjon.forhandsvisFjernHmsAnsvarlig.useQuery(
     { userId: ansvarlig?.userId ?? "", organizationId: ansvarlig?.organizationId ?? "" },
     { enabled: !!ansvarlig },
   );
@@ -45,7 +45,20 @@ export function FjernHmsAnsvarligModal({
       title={t("hms.fjernAnsvarlig.tittel", { navn: ansvarlig.navn })}
       className="max-w-md"
     >
-      {isLoading || !data ? (
+      {isError ? (
+        // M2 (dom 32): feilet forhåndsvisning skal ikke gi evig spinner — si fra og la brukeren lukke.
+        <div className="flex flex-col gap-4 text-sm">
+          <p className="text-red-600">{t("hms.fjernAnsvarlig.feil")}</p>
+          <div className="flex justify-end">
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {t("handling.lukk")}
+            </button>
+          </div>
+        </div>
+      ) : isLoading || !data ? (
         <div className="flex justify-center py-6"><Spinner /></div>
       ) : (
         <div className="flex flex-col gap-4 text-sm text-gray-700">

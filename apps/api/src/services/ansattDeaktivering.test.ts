@@ -72,6 +72,15 @@ const db = vi.hoisted(() => {
     if (tabell === "organizationMember") {
       return { ...rad, user: alle("user").find((u) => u.id === rad.userId) ?? null };
     }
+    if (tabell === "projectMember") {
+      // `select` ignoreres, så filteret `groupMemberships.where = aktivt` gjøres her.
+      return {
+        ...rad,
+        groupMemberships: alle("projectGroupMember")
+          .filter((gm) => gm.projectMemberId === rad.id && gm.periodeSlutt === null)
+          .map((gm) => ({ ...gm, group: alle("projectGroup").find((g) => g.id === gm.groupId) ?? null })),
+      };
+    }
     return { ...rad };
   }
 
@@ -146,6 +155,7 @@ const db = vi.hoisted(() => {
   const navn = [
     "user", "organization", "organizationMember", "project", "projectOrganization", "projectMember",
     "dokumentflyt", "dokumentflytMedlem", "faggruppeKobling", "projectGroupMember", "checklist", "task", "activity",
+    "projectGroup", "documentTransfer",
   ];
   const klient: Record<string, unknown> = Object.fromEntries(navn.map((n) => [n, modell(n)]));
   klient.$transaction = (cb: (tx: unknown) => unknown) => cb(klient);
@@ -175,6 +185,8 @@ vi.mock("../trpc/tilgangskontroll", async (importActual) => ({
 
 import type { Prisma } from "@sitedoc/db";
 import { avsluttMedlemskapForPerson, forhandsvisDeaktivering, gjenapneMedlemskapFraPayload } from "./ansattDeaktivering";
+import { flyttHmsSakerVedRollefjerning } from "./hmsAnsvarlig";
+import { nb } from "@sitedoc/shared";
 import { organisasjonRouter } from "../routes/organisasjon";
 import { medlemRouter } from "../routes/medlem";
 import { prosjektRouter } from "../routes/prosjekt";
@@ -615,5 +627,129 @@ describe("M3 — restdokumenter hos personen går til innsender", () => {
       });
       expect(eposter).not.toContain("u@x.no");
     }
+  });
+});
+
+describe("Ordre (11) — HMS-ballen ved deaktivering", () => {
+  const hmsMal = (projectId: string, eier: string) => ({ template: { domain: "hms", projectId, project: { primaryOrganizationId: eier } } });
+  const hmsSak = (id: string, projectId: string, eier: string, ekstra: Record<string, unknown> = {}): Rad => ({
+    id, dokumentflytId: null, recipientUserId: U, recipientGroupId: "g-hms", aktivPosisjon: 2,
+    bestillerUserId: K, status: "sent", deletedAt: null, ...hmsMal(projectId, eier), ...ekstra,
+  });
+  /** U har ballen på HMS-saker; melderen K er aktiv i P_X (før ordren gikk sakene dit via M3). */
+  function hmsVerden(ekstra: Partial<Record<string, Rad[]>> = {}) {
+    grunnverden({
+      projectGroup: [
+        { id: "g-hms", projectId: P_X, name: "HMS", domains: ["hms"] },
+        { id: "g-1", projectId: P_X, name: "Bygg", domains: ["bygg"] },
+      ],
+      checklist: [
+        hmsSak("h-x", P_X, X),
+        hmsSak("h-lukket", P_X, X, { status: "closed" }),
+        hmsSak("h-slettet", P_X, X, { deletedAt: new Date("2026-01-01") }),
+        hmsSak("h-annet", P_ANNET, Z),
+        hmsSak("h-ekstern", P_EKSTERN, Z),
+      ],
+      task: [hmsSak("t-hms", P_X, X, { aktivPosisjon: 1, recipientGroupId: null })],
+      ...ekstra,
+    });
+  }
+  const sak = (tabell: string, id: string) => rad(tabell, id) as Rad & { recipientUserId: string | null; recipientGroupId: string | null };
+  const overforinger = (felt: "checklistId" | "taskId", id: string) =>
+    db.tabeller.documentTransfer!.filter((d) => d[felt] === id);
+
+  it("🔴 (a) pekeren nulles på åpne HMS-saker i X sine prosjekter, med historikklinje og Activity", async () => {
+    hmsVerden();
+    await deaktiver();
+    expect(sak("checklist", "h-x").recipientUserId).toBeNull();
+    expect(sak("task", "t-hms").recipientUserId).toBeNull();
+
+    const [linje, ...flere] = overforinger("checklistId", "h-x");
+    expect(flere).toEqual([]); // ingen dobbel historikk fra B7/M3
+    expect(linje).toMatchObject({
+      senderId: ADMIN, recipientUserId: null, recipientGroupId: "g-hms", fromStatus: "sent", toStatus: "sent",
+      comment: nb["hms.historikk.ansattDeaktivert"],
+    });
+    expect(overforinger("taskId", "t-hms")).toHaveLength(1);
+    expect(sisteActivity("hms_ansvarlig_deaktivert")).toMatchObject({
+      projectId: P_X,
+      targetType: "hms_ansvarlig",
+      targetId: U,
+      payload: { organizationId: X, sjekklister: ["h-x"], oppgaver: ["t-hms"] },
+    });
+  });
+
+  it("🔴 atferdsendring: saken går IKKE til melderen (før: M3 → K uten historikk)", async () => {
+    hmsVerden();
+    await deaktiver();
+    expect(sak("checklist", "h-x").recipientUserId).not.toBe(K);
+    const p = sisteActivity("ansatt_deaktivert").payload as { prosjekter: Array<{ projectId: string; mottaker?: { tilInnsender: string[] } }> };
+    expect(p.prosjekter.find((x) => x.projectId === P_X)!.mottaker?.tilInnsender ?? []).not.toContain("h-x");
+  });
+
+  it("🔴 (b) sak via et annet firma er urørt", async () => {
+    hmsVerden();
+    await deaktiver();
+    expect(sak("checklist", "h-annet").recipientUserId).toBe(U);
+    expect(overforinger("checklistId", "h-annet")).toEqual([]);
+  });
+
+  it("🔴 (c) M1: lukkede og slettede saker røres ikke — deaktivering", async () => {
+    hmsVerden();
+    await deaktiver();
+    for (const id of ["h-lukket", "h-slettet"]) {
+      expect(sak("checklist", id).recipientUserId, id).toBe(U);
+      expect(overforinger("checklistId", id), id).toEqual([]);
+    }
+  });
+
+  it("🔴 (c) M1: lukkede og slettede saker røres ikke — rollefjerning", async () => {
+    hmsVerden();
+    await flyttHmsSakerVedRollefjerning(tx, { userId: ADMIN, ipAddress: null, userAgent: null }, { organizationId: X, userId: U });
+    expect(sak("checklist", "h-x").recipientUserId).toBeNull();
+    expect(overforinger("checklistId", "h-x")[0]!.comment).toBe(nb["hms.historikk.rolleFjernet"]);
+    for (const id of ["h-lukket", "h-slettet"]) {
+      expect(sak("checklist", id).recipientUserId, id).toBe(U);
+      expect(overforinger("checklistId", id), id).toEqual([]);
+    }
+  });
+
+  it("🔴 (d) recipientGroupId er urørt", async () => {
+    hmsVerden();
+    await deaktiver();
+    expect(sak("checklist", "h-x").recipientGroupId).toBe("g-hms");
+    expect(sak("task", "t-hms").recipientGroupId).toBeNull();
+  });
+
+  it("HMS-gruppe i et prosjekt som avsluttes gir ikke beholdt ball; i et skånet prosjekt gjør den det", async () => {
+    const gmHms: Rad = { id: "gm-hms", projectMemberId: PM_U_X, groupId: "g-hms", periodeSlutt: null };
+    hmsVerden({ projectGroupMember: [{ id: "gm-u", projectMemberId: PM_U_X, groupId: "g-1", periodeSlutt: null }, gmHms] });
+    await deaktiver();
+    expect(sak("checklist", "h-x").recipientUserId).toBeNull();
+
+    // Skånet: Y deltar i P_X og U er aktiv i Y — medlemskapet består, og HMS-gruppa gir ballen.
+    hmsVerden({ projectGroupMember: [{ ...gmHms }] });
+    db.tabeller.organizationMember!.push(om("om-y", Y, new Date("2023-01-01")));
+    db.tabeller.projectOrganization!.push({ id: "po-xy", projectId: P_X, organizationId: Y });
+    await deaktiver();
+    expect(slutt("projectMember", PM_U_X)).toBeNull();
+    expect(sak("checklist", "h-x").recipientUserId).toBe(U);
+  });
+
+  it("reaktivering gir ikke personpekeren tilbake", async () => {
+    hmsVerden();
+    await deaktiver();
+    await reaktiver();
+    expect(sak("checklist", "h-x").recipientUserId).toBeNull();
+    expect(sak("task", "t-hms").recipientUserId).toBeNull();
+  });
+
+  it("forhåndsvisningen teller HMS-sakene sweepen treffer, og M3-tellingen utelater dem", async () => {
+    hmsVerden();
+    const svar = await forhandsvisDeaktivering(tx, { userId: U, organizationId: X });
+    expect(svar.antallHmsSaker).toBe(2); // h-x, t-hms
+    // Kun h-ekstern (Z eier, X deltaker) går fortsatt via M3 — se leveransens flagg.
+    expect(svar.antallTilInnsender).toBe(1);
+    expect(sak("checklist", "h-x").recipientUserId).toBe(U); // forhåndsvisningen skriver ingenting
   });
 });
