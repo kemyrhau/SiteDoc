@@ -57,6 +57,8 @@ function lagPrisma(overstyr: Record<string, unknown> = {}) {
     },
     dokumentflyt: { findMany: vi.fn().mockResolvedValue([{ id: FLYT }]) },
     projectGroup: { findMany: vi.fn().mockResolvedValue([{ id: GRUPPE }]) },
+    // M6: alle faggruppe-id-er i input hører til prosjektet.
+    faggruppe: { count: vi.fn(({ where }: { where: { id: { in: string[] } } }) => Promise.resolve(where.id.in.length)) },
     account: { findFirst: vi.fn().mockResolvedValue(null) },
     projectInvitation: {
       findFirst: vi.fn().mockResolvedValue(null),

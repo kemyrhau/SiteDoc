@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Mõjutatud projektide toomine …",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} ei ole ühegi ettevõtte projekti liige.",
   "firma.ansatte.deaktiver.berorte": "Eemaldatud {{prosjekter}} projektist ja {{ledd}} vooetapist. Dokumendid, mis ootavad {{navn}}, liiguvad sammus järgmise inimese juurde.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} dokumenti, mis ootavad kuupäeval {{navn}} väljaspool isikuvoogu, lähevad tagasi esitajale. Kui esitajat enam projektis ei ole, jääb dokument ilma saajata.",
   "firma.ansatte.deaktiver.aleneTittel": "Sammud, kus {{navn}} on üksi – dokumendid jäävad sammu juurde, kuni valite voo seadistuses uue inimese:",
   "firma.ansatte.deaktiver.beholdesTittel": "Säilitatakse, kuna {{navn}} töötab teises ettevõttes:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "teine ​​ettevõte osaleb projektis",

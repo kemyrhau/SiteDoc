@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Načítání dotčených projektů…",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} není členem žádného z projektů společnosti.",
   "firma.ansatte.deaktiver.berorte": "Odebráno z {{prosjekter}} projektu(ů) a {{ledd}} kroků toku(ů). Dokumenty čekající na {{navn}} se přesunou na další osobu v kroku.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} dokumenty čekající na {{navn}} mimo tok osob se vrátí zpět k odesílateli. Pokud předkladatel již v projektu není, dokument zůstává bez příjemce.",
   "firma.ansatte.deaktiver.aleneTittel": "Kroky, kde je {{navn}} sám – dokumenty zůstávají u kroku, dokud v nastavení postupu nevyberete novou osobu:",
   "firma.ansatte.deaktiver.beholdesTittel": "Uchováváno, protože {{navn}} je zaměstnán jinou společností:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "druhá společnost se projektu účastní",

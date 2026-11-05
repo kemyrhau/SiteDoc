@@ -73,6 +73,7 @@ function prismaForFjern(o: { kennethAvsluttet?: boolean } = {}) {
         return null;
       }),
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Where }) => ({ id: where.id, ...data })),
+      findMany: vi.fn().mockResolvedValue([]),
       delete: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -94,7 +95,8 @@ function prismaForFjern(o: { kennethAvsluttet?: boolean } = {}) {
     faggruppeKobling: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), deleteMany: vi.fn() },
     projectGroupMember: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), deleteMany: vi.fn() },
     checklist: {
-      findMany: vi.fn().mockResolvedValue([{ id: "s-1" }]),
+      // B7 spør med flytpeker (dokumentflytId); M3 spør etter rest uten — den er tom her.
+      findMany: vi.fn(async ({ where }: { where: Where }) => ("dokumentflytId" in where ? [{ id: "s-1" }] : [])),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     task: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn() },
@@ -323,6 +325,99 @@ describe("e-post når til aktive gruppemedlemmer", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const eposter = await hentMottakerEposter(prisma as any, { recipientGroupId: GRUPPE, ekskluderUserId: "admin-1" });
     expect(eposter).toEqual(["aktiv@x.no"]);
+  });
+});
+
+describe("M6 — medlem.*-mutasjoner er bundet til prosjektet i input", () => {
+  const ANNET_PM = "12121212-1212-4212-8212-121212121212"; // medlem i et annet prosjekt
+  const FG_EGEN = "34343434-3434-4434-8434-343434343434";
+  const FG_ANNET = "56565656-5656-4656-8656-565656565656";
+  /** Som Prisma: en rad treffes bare når `projectId` i `where` er radens prosjekt. */
+  function prismaForM6() {
+    const iProsjekt = (where: { id: { in: string[] }; projectId: string }, egne: string[]) =>
+      where.projectId === PROSJEKT ? where.id.in.filter((id) => egne.includes(id)).length : 0;
+    const prisma = {
+      user: { findUnique: vi.fn().mockResolvedValue({ name: "Admin" }), update: vi.fn() },
+      projectMember: {
+        // Kenneth i PROSJEKT, ANNET_PM i et annet; prosjektfilteret gjelder bare når `where` ber om det.
+        findFirst: vi.fn(async ({ where }: { where: Where }) => {
+          const rad = [
+            { id: PM_KENNETH, userId: "u-kenneth", projectId: PROSJEKT },
+            { id: ANNET_PM, userId: "u-annet", projectId: "annet-prosjekt" },
+          ].find((r) => r.id === where.id && (!("projectId" in where) || r.projectId === where.projectId));
+          return rad ? { id: rad.id, userId: rad.userId } : null;
+        }),
+        findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => ({
+          id: where.id,
+          userId: where.id === ANNET_PM ? "u-annet" : "u-kenneth",
+          user: { id: "u-x", name: "X", email: "x@x.no" },
+        })),
+        update: vi.fn(async ({ where, data }: { where: { id: string }; data: Where }) => ({ id: where.id, ...data })),
+      },
+      faggruppe: { count: vi.fn(async ({ where }: { where: never }) => iProsjekt(where, [FG_EGEN])) },
+      projectGroup: { count: vi.fn(async ({ where }: { where: never }) => iProsjekt(where, [])) },
+      dokumentflyt: { count: vi.fn(async ({ where }: { where: never }) => iProsjekt(where, [])) },
+      faggruppeKobling: {
+        // Koblingen til FG_ANNET finnes på medlemmet, men faggruppen ligger i et annet prosjekt.
+        findFirst: vi.fn(async ({ where }: { where: Where & { faggruppe?: Where } }) =>
+          where.faggruppeId === FG_ANNET && where.faggruppe?.projectId === PROSJEKT ? null : { id: "fk-1", periodeSlutt: null },
+        ),
+        update: vi.fn(),
+        create: vi.fn(),
+      },
+      activity: { create: vi.fn() },
+      $transaction: vi.fn(),
+    };
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => unknown) => fn(prisma));
+    return prisma;
+  }
+  const NOT_FOUND = expect.objectContaining({ code: "NOT_FOUND" });
+
+  it("🔴 oppdater, oppdaterRolle, settFirmaansvarlig, settKanAttestere med medlem fra et annet prosjekt → NOT_FOUND, ingenting skrives", async () => {
+    const prisma = prismaForM6();
+    const m = medlemRouter.createCaller(ctxMed(prisma));
+    const id = ANNET_PM;
+    await expect(m.oppdater({ id, projectId: PROSJEKT, name: "Kapret" })).rejects.toEqual(NOT_FOUND);
+    await expect(m.oppdaterRolle({ id, projectId: PROSJEKT, role: "admin" })).rejects.toEqual(NOT_FOUND);
+    await expect(m.settFirmaansvarlig({ id, projectId: PROSJEKT, erFirmaansvarlig: true })).rejects.toEqual(NOT_FOUND);
+    await expect(m.settKanAttestere({ id, projectId: PROSJEKT, kanAttestere: true })).rejects.toEqual(NOT_FOUND);
+    expect(prisma.projectMember.update).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("samme kall med medlem i prosjektet går gjennom (porten slipper riktige kall)", async () => {
+    const prisma = prismaForM6();
+    const m = medlemRouter.createCaller(ctxMed(prisma));
+    await m.oppdaterRolle({ id: PM_KENNETH, projectId: PROSJEKT, role: "admin" });
+    await m.settKanAttestere({ id: PM_KENNETH, projectId: PROSJEKT, kanAttestere: true });
+    expect(prisma.projectMember.update).toHaveBeenCalledTimes(2);
+  });
+
+  it("🔴 leggTilFaggruppe: medlem eller faggruppe fra et annet prosjekt → NOT_FOUND", async () => {
+    const prisma = prismaForM6();
+    const m = medlemRouter.createCaller(ctxMed(prisma));
+    await expect(m.leggTilFaggruppe({ projectMemberId: ANNET_PM, faggruppeId: FG_EGEN, projectId: PROSJEKT })).rejects.toEqual(NOT_FOUND);
+    await expect(m.leggTilFaggruppe({ projectMemberId: PM_KENNETH, faggruppeId: FG_ANNET, projectId: PROSJEKT })).rejects.toEqual(NOT_FOUND);
+    expect(prisma.faggruppeKobling.create).not.toHaveBeenCalled();
+    expect(prisma.faggruppeKobling.update).not.toHaveBeenCalled();
+  });
+
+  it("🔴 fjernFraFaggruppe: faggruppe fra et annet prosjekt → NOT_FOUND", async () => {
+    const prisma = prismaForM6();
+    await expect(
+      medlemRouter.createCaller(ctxMed(prisma)).fjernFraFaggruppe({ projectMemberId: PM_KENNETH, faggruppeId: FG_ANNET, projectId: PROSJEKT }),
+    ).rejects.toEqual(NOT_FOUND);
+    expect(prisma.faggruppeKobling.update).not.toHaveBeenCalled();
+  });
+
+  // Flyt og gruppe har eget kryss-prosjekt-vern i registrer (medlem-registrer.test.ts).
+  it("🔴 registrer: faggruppe fra et annet prosjekt → NOT_FOUND før noe opprettes", async () => {
+    const prisma = prismaForM6();
+    await expect(
+      medlemRouter.createCaller(ctxMed(prisma)).registrer({
+        projectId: PROSJEKT, email: "ny@x.no", firstName: "Ny", lastName: "Person", faggruppeIder: [FG_ANNET],
+      }),
+    ).rejects.toEqual(NOT_FOUND);
   });
 });
 

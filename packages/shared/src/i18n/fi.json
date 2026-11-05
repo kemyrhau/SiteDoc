@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Fetching affected projects …",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} is not a member of any of the company's projects.",
   "firma.ansatte.deaktiver.berorte": "Poistettu {{prosjekter}} projektista ja {{ledd}} kulkuvaiheesta. Asiakirjat, jotka odottavat {{navn}}, siirtyvät vaiheen seuraavalle henkilölle.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} asiakirjaa, jotka odottavat {{navn}} henkilövirran ulkopuolella, palaavat lähettäjälle. Jos lähettäjä ei ole enää mukana projektissa, asiakirja jää ilman vastaanottajaa.",
   "firma.ansatte.deaktiver.aleneTittel": "Steps where {{navn}} is alone — the documents stay with the step until you pick a new person in the flow setup:",
   "firma.ansatte.deaktiver.beholdesTittel": "Kept because {{navn}} is employed by another company:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "the other company takes part in the project",

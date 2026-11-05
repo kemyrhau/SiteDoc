@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Fetching affected projects …",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} is not a member of any of the company's projects.",
   "firma.ansatte.deaktiver.berorte": "Pašalinta iš {{prosjekter}} projekto (-ų) ir {{ledd}} srauto žingsnio (-ų). Dokumentai, laukiantys {{navn}}, perkeliami kitam asmeniui atliekant veiksmą.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} dokumentas (-ai), laukiantis (-ų) {{navn}} už asmens srauto ribų, grįžta atgal į pateikėją. Jei pateikėjo projekte nebėra, dokumentas paliekamas be gavėjo.",
   "firma.ansatte.deaktiver.aleneTittel": "Steps where {{navn}} is alone — the documents stay with the step until you pick a new person in the flow setup:",
   "firma.ansatte.deaktiver.beholdesTittel": "Kept because {{navn}} is employed by another company:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "the other company takes part in the project",

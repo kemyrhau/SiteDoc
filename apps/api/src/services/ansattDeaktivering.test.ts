@@ -31,6 +31,7 @@ const db = vi.hoisted(() => {
     return Object.entries(where).every(([nokkel, betingelse]) => {
       if (nokkel === "NOT") return !match(rad, betingelse as Record<string, unknown>);
       if (nokkel === "OR") return (betingelse as Record<string, unknown>[]).some((b) => match(rad, b));
+      if (nokkel === "AND") return (betingelse as Record<string, unknown>[]).every((b) => match(rad, b));
       if (nokkel === "userId_organizationId") return match(rad, betingelse as Record<string, unknown>);
       const verdi = rad[nokkel];
       if (betingelse === null || betingelse instanceof Date || typeof betingelse !== "object") {
@@ -535,5 +536,84 @@ describe("L3 — tjenesten direkte", () => {
     expect([...svar.gjenapnet].sort()).toEqual([P_X, P_EKSTERN].sort());
     expect(slutt("faggruppeKobling", "fk-u")).toBeNull();
     expect(slutt("projectGroupMember", "gm-u")).toBeNull();
+  });
+});
+
+describe("M3 — restdokumenter hos personen går til innsender", () => {
+  const E = "a0000000-0000-4000-8000-000000000004"; // tidligere innsender, ute av prosjektet
+  const iX = { template: { projectId: P_X } };
+  /** U har ballen utenom en personflyt: tre sjekklister uten flyt og én oppgave på et faggruppe-ledd. */
+  function restverden() {
+    grunnverden({
+      user: [{ id: E, name: "Eva", email: "e@x.no", role: "user" }],
+      projectMember: [{ ...pm("pm-e-x", E, P_X), periodeSlutt: MANUELT_AVSLUTTET }],
+      checklist: [
+        { id: "s-fri", dokumentflytId: null, recipientUserId: U, bestillerUserId: K, status: "sent", deletedAt: null, ...iX },
+        { id: "s-egen", dokumentflytId: null, recipientUserId: U, bestillerUserId: U, status: "sent", deletedAt: null, ...iX },
+        { id: "s-ex", dokumentflytId: null, recipientUserId: U, bestillerUserId: E, status: "sent", deletedAt: null, ...iX },
+        { id: "s-lukket", dokumentflytId: null, recipientUserId: U, bestillerUserId: K, status: "closed", deletedAt: null, ...iX },
+        { id: "s-annet", dokumentflytId: null, recipientUserId: U, bestillerUserId: K, status: "sent", deletedAt: null, template: { projectId: P_ANNET } },
+      ],
+      task: [
+        { id: "t-ledd", dokumentflytId: "f-faggruppe", recipientUserId: U, bestillerUserId: K, status: "sent", deletedAt: null, bestillerFaggruppe: { projectId: P_X } },
+      ],
+    });
+    // Flytdokumentene ligger også i prosjektet — B7 flytter dem, M3 skal ikke telle dem.
+    Object.assign(rad("checklist", "s-delt"), { bestillerUserId: K, ...iX });
+    Object.assign(rad("checklist", "s-alene"), { bestillerUserId: K, ...iX });
+  }
+  const mottaker = (tabell: string, id: string) => rad(tabell, id).recipientUserId;
+  const fjernU = () => caller(medlemRouter).fjern({ id: PM_U_X, projectId: P_X });
+
+  it("🔴 uten flyt → innsender; innsender er personen selv → null; innsender er ute av prosjektet → null", async () => {
+    restverden();
+    await fjernU();
+    expect(mottaker("checklist", "s-fri")).toBe(K);
+    expect(mottaker("task", "t-ledd")).toBe(K);
+    expect(mottaker("checklist", "s-egen")).toBeNull();
+    expect(mottaker("checklist", "s-ex")).toBeNull();
+  });
+
+  it("lukkede dokumenter og dokumenter i andre prosjekter røres ikke", async () => {
+    restverden();
+    await fjernU();
+    expect(mottaker("checklist", "s-lukket")).toBe(U);
+    expect(mottaker("checklist", "s-annet")).toBe(U);
+  });
+
+  it("Activity-payload bærer hvilke dokumenter som gikk til innsender og hvilke som står uten mottaker", async () => {
+    restverden();
+    await fjernU();
+    expect(sisteActivity("prosjektmedlem_avsluttet").payload).toMatchObject({
+      mottaker: { tilInnsender: ["s-fri", "t-ledd"], utenMottaker: ["s-egen", "s-ex"] },
+    });
+    restverden();
+    await deaktiver();
+    const p = sisteActivity("ansatt_deaktivert").payload as { prosjekter: Array<{ projectId: string; mottaker?: unknown }> };
+    expect(p.prosjekter.find((x) => x.projectId === P_X)!.mottaker).toEqual({
+      tilInnsender: ["s-fri", "t-ledd"],
+      utenMottaker: ["s-egen", "s-ex"],
+    });
+  });
+
+  it("🔴 forhåndsvisningen teller dokumentene som går til innsender — ikke flytdokumentene B7 flytter", async () => {
+    restverden();
+    const svar = await forhandsvisDeaktivering(tx, { userId: U, organizationId: X });
+    expect(svar.antallTilInnsender).toBe(4); // s-fri, s-egen, s-ex, t-ledd
+    expect(mottaker("checklist", "s-fri")).toBe(U); // forhåndsvisningen skriver ingenting
+  });
+
+  it("🔴 e-post: varsling på dokumentene etter avslutningen når aldri det tidligere medlemmet", async () => {
+    restverden();
+    await fjernU();
+    const { hentMottakerEposter } = await vi.importActual<typeof import("./epost")>("./epost");
+    const klient = db.klient as unknown as Parameters<typeof hentMottakerEposter>[0];
+    for (const [tabell, id] of [["checklist", "s-fri"], ["checklist", "s-egen"], ["checklist", "s-ex"], ["task", "t-ledd"]]) {
+      const eposter = await hentMottakerEposter(klient, {
+        recipientUserId: mottaker(tabell!, id!) as string | null,
+        ekskluderUserId: ADMIN,
+      });
+      expect(eposter).not.toContain("u@x.no");
+    }
   });
 });

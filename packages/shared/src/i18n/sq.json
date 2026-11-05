@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Po merr projektet e prekura…",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} nuk është anëtar i asnjë prej projekteve të kompanisë.",
   "firma.ansatte.deaktiver.berorte": "U hoq nga {{prosjekter}} projekt(et) dhe {{ledd}} hap(et) rrjedhës. Dokumentet që presin në {{navn}} kalojnë te personi tjetër në hap.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} dokument(et) që presin në {{navn}} jashtë rrjedhës së një personi kthehen te paraqitësi. Nëse paraqitësi nuk është më në projekt, dokumenti mbetet pa marrës.",
   "firma.ansatte.deaktiver.aleneTittel": "Hapat ku {{navn}} është vetëm — dokumentet qëndrojnë me hapin derisa të zgjidhni një person të ri në konfigurimin e rrjedhës:",
   "firma.ansatte.deaktiver.beholdesTittel": "Ruhet sepse {{navn}} është i punësuar nga një kompani tjetër:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "kompania tjetër merr pjesë në projekt",

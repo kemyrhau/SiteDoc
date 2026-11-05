@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Betroffene Projekte werden abgerufen …",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} ist kein Mitglied eines Projekts des Unternehmens.",
   "firma.ansatte.deaktiver.berorte": "Aus {{prosjekter}} Projekt(en) und {{ledd}} Ablaufschritt(en) entfernt. Dokumente, die auf {{navn}} warten, werden zur nächsten Person im Schritt verschoben.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} Dokumente, die auf {{navn}} außerhalb eines Personenflusses warten, werden an den Einreicher zurückgesendet. Ist der Einreicher nicht mehr im Projekt, bleibt das Dokument ohne Empfänger.",
   "firma.ansatte.deaktiver.aleneTittel": "Schritte, bei denen {{navn}} allein ist – die Dokumente bleiben beim Schritt, bis Sie im Flow-Setup eine neue Person auswählen:",
   "firma.ansatte.deaktiver.beholdesTittel": "Wird beibehalten, da {{navn}} bei einem anderen Unternehmen beschäftigt ist:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "das andere Unternehmen beteiligt sich am Projekt",

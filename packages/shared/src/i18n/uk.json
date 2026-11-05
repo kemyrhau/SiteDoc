@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Отримання порушених проектів…",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} не є учасником жодного з проектів компанії.",
   "firma.ansatte.deaktiver.berorte": "Видалено з проектів {{prosjekter}} і кроків потоку {{ledd}}. Документи, які очікують на {{navn}}, переходять до наступної особи на кроці.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} документів, які очікують на {{navn}} за межами потоку особи, повертаються до відправника. Якщо відправника більше немає в проекті, документ залишається без одержувача.",
   "firma.ansatte.deaktiver.aleneTittel": "Кроки, де {{navn}} один — документи залишаються з кроком, доки ви не виберете нову особу в налаштуваннях потоку:",
   "firma.ansatte.deaktiver.beholdesTittel": "Збережено, оскільки {{navn}} працює в іншій компанії:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "інша компанія бере участь у проекті",

@@ -1,6 +1,6 @@
 import type { Prisma } from "@sitedoc/db";
 import { aktivtMedlemWhere } from "../trpc/tilgangskontroll";
-import { avsluttProsjektmedlem } from "./prosjektmedlemskap";
+import { avsluttProsjektmedlem, tellRestdokumenterHosPerson } from "./prosjektmedlemskap";
 import {
   FLYTMEDLEM_SELECT,
   hentGjenvarendeILeddet,
@@ -53,6 +53,8 @@ export interface AvsluttetProsjekt {
     nyHovedansvarligPmId: string | null;
     dokumentIder: string[];
   }>;
+  /** M3: åpne dokumenter utenom flytpekerne — ballen gikk til innsender, eller til ingen. */
+  mottaker?: { tilInnsender: string[]; utenMottaker: string[] };
 }
 
 /** Activity-payload for `ansatt_deaktivert` (M5: alle koblinger som avsluttes er navngitt). */
@@ -164,7 +166,11 @@ export async function avsluttMedlemskapForPerson(
       tx.faggruppeKobling.findMany({ where: aktiv, select: { id: true } }),
       tx.projectGroupMember.findMany({ where: aktiv, select: { id: true } }),
     ]);
-    const resultat = await avsluttProsjektmedlem(tx, { id: b.projectMemberId, userId: args.userId }, naa);
+    const resultat = await avsluttProsjektmedlem(
+      tx,
+      { id: b.projectMemberId, userId: args.userId, projectId: b.projectId },
+      naa,
+    );
     prosjekter.push({
       projectId: b.projectId,
       projectMemberId: b.projectMemberId,
@@ -177,6 +183,7 @@ export async function avsluttMedlemskapForPerson(
         nyHovedansvarligPmId: f.nyHovedansvarligPmId,
         dokumentIder: f.dokumentIder,
       })),
+      mottaker: resultat.mottaker,
     });
   }
   return {
@@ -258,7 +265,8 @@ export async function gjenapneMedlemskapFraPayload(
 
 /**
  * Forhåndsvisning for DeaktiverModal: berørte prosjekter, aktive flytledd, ledd der personen
- * står alene (ballen havner på leddet), og prosjekter som skånes etter vilkåret.
+ * står alene (ballen havner på leddet), åpne dokumenter som går til innsender (M3), og
+ * prosjekter som skånes etter vilkåret.
  */
 export async function forhandsvisDeaktivering(
   db: Db,
@@ -286,9 +294,26 @@ export async function forhandsvisDeaktivering(
       });
     }
   }
+  // M3: dokumenter hos personen som B7 ikke flytter (uten flyt / faggruppe-ledd) går til innsender.
+  const gruppeLedd = berorte.length === 0
+    ? []
+    : await db.dokumentflytMedlem.findMany({
+        where: { hovedansvarligPersonId: { in: berorte.map((b) => b.projectMemberId) }, ...aktivtMedlemWhere },
+        select: { dokumentflytId: true },
+      });
+  const flyterMedPeker = [...new Set([...flytrader, ...gruppeLedd].map((r) => r.dokumentflytId))];
+  let antallTilInnsender = 0;
+  for (const b of berorte) {
+    antallTilInnsender += await tellRestdokumenterHosPerson(db, {
+      projectId: b.projectId,
+      userId: args.userId,
+      flyterMedPeker,
+    });
+  }
   return {
     prosjekter: berorte.map((b) => ({ id: b.projectId, navn: b.projectName })),
     antallFlytledd: flytrader.length,
+    antallTilInnsender,
     alene,
     hoppetOver: hoppetOver.map((h) => ({ id: h.projectId, navn: h.projectName, grunn: h.grunn })),
   };

@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Hämtar berörda projekt...",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} är inte medlem i något av företagets projekt.",
   "firma.ansatte.deaktiver.berorte": "Borttagen från {{prosjekter}} projekt(er) och {{ledd}} flödessteg. Dokument som väntar på {{navn}} flyttas till nästa person i steget.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} dokument som väntar på {{navn}} utanför ett personflöde går tillbaka till avsändaren. Om insändaren inte längre är med i projektet lämnas dokumentet utan mottagare.",
   "firma.ansatte.deaktiver.aleneTittel": "Steg där {{navn}} är ensam — dokumenten stannar med steget tills du väljer en ny person i flödesinställningarna:",
   "firma.ansatte.deaktiver.beholdesTittel": "Sparas eftersom {{navn}} är anställd av ett annat företag:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "det andra företaget deltar i projektet",

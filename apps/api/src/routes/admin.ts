@@ -80,7 +80,7 @@ export const adminRouter = router({
         ? { primaryOrganizationId: input.organizationId }
         : undefined,
       include: {
-        members: { select: { id: true, user: { select: { name: true, email: true } } } },
+        members: { where: aktivtMedlemWhere, select: { id: true, user: { select: { name: true, email: true } } } },
         faggrupper: { select: { id: true } },
         primaryOrganization: { select: { id: true, name: true } },
         projectOrganizations: {

@@ -2119,6 +2119,7 @@
   "firma.ansatte.deaktiver.laster": "Fetching affected projects …",
   "firma.ansatte.deaktiver.ingenProsjekter": "{{navn}} is not a member of any of the company's projects.",
   "firma.ansatte.deaktiver.berorte": "Removed from {{prosjekter}} project(s) and {{ledd}} flow step(s). Documents waiting on {{navn}} move to the next person in the step.",
+  "firma.ansatte.deaktiver.tilInnsender": "{{antall}} document(s) waiting on {{navn}} outside a person flow go back to the submitter. If the submitter is no longer in the project, the document is left without a recipient.",
   "firma.ansatte.deaktiver.aleneTittel": "Steps where {{navn}} is alone — the documents stay with the step until you pick a new person in the flow setup:",
   "firma.ansatte.deaktiver.beholdesTittel": "Kept because {{navn}} is employed by another company:",
   "firma.ansatte.deaktiver.grunn.annet_firma_deltar": "the other company takes part in the project",
