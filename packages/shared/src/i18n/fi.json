@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} allekirjoitti",
   "feil.ingenKontaktServer": "Palvelimeen ei saada yhteyttä. Lataa sivu uudelleen ja yritä uudelleen.",
   "feil.loggetUt": "Olet kirjautunut ulos. Lataa sivu uudelleen kirjautuaksesi sisään.",
-  "personNavn.visPersonkort": "Näytä henkilökortti {{navn}}"
+  "personNavn.visPersonkort": "Näytä henkilökortti {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Poistetaanko {{navn}} kohteesta {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} avointa asiakirjaa ovat {{navn}}:lla. Ne pysyvät vaiheessa {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Uusi ensisijainen vastuuhenkilö",
+  "dokumentflyt.fjernMedlem.erstatter": "Vaihto",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} on ainoa ryhmässä {{rolle}}. Valitse kuka ottaa vallan.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Poista ilman vaihtoa",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Poista ja siirrä {{antall}} asiakirjaa",
+  "dokumentflyt.fjernMedlem.loggStaar": "Loki säilyttää nimen kaikessa, mitä {{navn}} on tehnyt.",
+  "dokumentflyt.leddTomt": "Ei aktiivisia jäseniä – valitse, kenen tulee suorittaa tämä vaihe."
 }

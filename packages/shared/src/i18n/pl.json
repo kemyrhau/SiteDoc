@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} podpisał",
   "feil.ingenKontaktServer": "Nie udało się połączyć z serwerem. Załaduj ponownie stronę i spróbuj ponownie.",
   "feil.loggetUt": "Jesteś wylogowany. Załaduj ponownie stronę, aby się zalogować.",
-  "personNavn.visPersonkort": "Pokaż kartę osoby dla {{navn}}"
+  "personNavn.visPersonkort": "Pokaż kartę osoby dla {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Usunąć {{navn}} z {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} otwarte dokumenty znajdują się w {{navn}}. Pozostają w kroku {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Nowy główny odpowiedzialny",
+  "dokumentflyt.fjernMedlem.erstatter": "Wymiana",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} jest jedynym w {{rolle}}. Wybierz, kto przejmie kontrolę.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Usuń bez wymiany",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Usuń i przenieś dokumenty {{antall}}",
+  "dokumentflyt.fjernMedlem.loggStaar": "Dziennik przechowuje nazwę wszystkiego, co zrobił {{navn}}.",
+  "dokumentflyt.leddTomt": "Brak aktywnych członków — wybierz, kto powinien wstrzymać ten krok."
 }

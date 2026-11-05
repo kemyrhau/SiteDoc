@@ -31,6 +31,7 @@ import {
   hentBrukerProsjektTilgang,
   finnBrukersBoks,
   kanByttFlyt,
+  aktivtMedlemWhere,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { IKKE_SLETTET } from "../utils/softDelete";
@@ -257,6 +258,7 @@ export const sjekklisteRouter = router({
               id: true,
               name: true,
               medlemmer: {
+                where: aktivtMedlemWhere,
                 select: {
                   id: true,
                   rolle: true,
@@ -595,6 +597,7 @@ export const sjekklisteRouter = router({
         if (effektivFlytId) {
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: effektivFlytId,
               rolle: "utforer",
               erHovedansvarlig: true,
@@ -1233,6 +1236,7 @@ export const sjekklisteRouter = router({
           bundet: true,
           faggruppe: { select: { id: true, name: true, color: true } },
           medlemmer: {
+            where: aktivtMedlemWhere,
             select: {
               steg: true,
               rolle: true,
@@ -1397,6 +1401,7 @@ export const sjekklisteRouter = router({
         if (recipientGroupId && sjekkliste.dokumentflytId) {
           const gruppemedlem = await ctx.prisma.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: sjekkliste.dokumentflytId,
               groupId: recipientGroupId,
               erHovedansvarlig: true,
@@ -1457,6 +1462,7 @@ export const sjekklisteRouter = router({
               projectId,
               medlemmer: {
                 some: {
+                  ...aktivtMedlemWhere,
                   OR: [
                     { projectMemberId: tilgang.projectMemberId },
                     ...(tilgang.gruppeIder.size > 0
@@ -1497,6 +1503,7 @@ export const sjekklisteRouter = router({
         if (flytBytteData) {
           const hovedansvarlig = await ctx.prisma.dokumentflytMedlem.findFirst({
             where: {
+              ...aktivtMedlemWhere,
               dokumentflytId: flytBytteData.dokumentflytId,
               rolle: "utforer",
               erHovedansvarlig: true,

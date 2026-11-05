@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} signed",
   "feil.ingenKontaktServer": "Could not reach the server. Reload the page and try again.",
   "feil.loggetUt": "You are signed out. Reload the page to sign in.",
-  "personNavn.visPersonkort": "Show person card for {{navn}}"
+  "personNavn.visPersonkort": "Show person card for {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Remove {{navn}} from {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} open documents are with {{navn}}. They stay in the {{rolle}} step.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "New primary responsible",
+  "dokumentflyt.fjernMedlem.erstatter": "Replacement",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} is the only one in {{rolle}}. Choose who takes over.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Remove without replacement",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Remove and move {{antall}} documents",
+  "dokumentflyt.fjernMedlem.loggStaar": "The log keeps the name on everything {{navn}} has done.",
+  "dokumentflyt.leddTomt": "No active members — choose who should hold this step."
 }

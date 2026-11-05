@@ -128,6 +128,16 @@ To personer kan ha samme navn. Personnavnene i dokumentflyt-oppsettet bruker der
 - **Grupper og faggrupper** rendres som før.
 - **Knappene på raden** (hovedansvarlig, redigerer, ×, «Legg til») er uendret. Klikk i navnet eller kortet bobler ikke videre til raden.
 
+### Fjerning fra dokumentflyt: bekreftelse og tomt ledd (L1, 2026-11-05)
+
+×-knappen på et flytmedlem åpner `FjernMedlemModal` ([FjernMedlemModal.tsx](../../apps/web/src/app/dashbord/oppsett/produksjon/_components/FjernMedlemModal.tsx)). Den henter `dokumentflyt.forhandsvisFjerning` og sender `fjernMedlem`. Fjerningen er myk: raden avsluttes, loggen står.
+
+- **A** — andre i leddet, ingen åpne dokumenter: bare bekreft. `nyHovedansvarligPmId` utelates; serveren velger bare ny hovedansvarlig hvis den fjernede var det.
+- **B** — andre i leddet, åpne dokumenter: velg ny hovedansvarlig blant gjenværende (leddets hovedansvarlig er forhåndsvalgt). Knappen viser antallet som flyttes.
+- **C** — eneste i leddet: velg erstatter blant prosjektmedlemmer utenfor leddet. Med åpne dokumenter er erstatter påkrevd; uten kan leddet stå tomt via «Fjern uten erstatter» (sender `null`, B10).
+
+Et ledd uten medlemmer viser en gul stripe (`dokumentflyt.leddTomt`) for flytadmin i `FlytBoks` ([page.tsx](../../apps/web/src/app/dashbord/oppsett/produksjon/dokumentflyt/page.tsx)). Vakt: `_components/__tests__/fjern-medlem-modal.test.tsx`.
+
 Vakt: `src/components/__tests__/person-navn.test.tsx`.
 
 ## Flerspråklig støtte (i18n)

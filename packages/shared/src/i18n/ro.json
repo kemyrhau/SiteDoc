@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} a semnat",
   "feil.ingenKontaktServer": "Nu s-a putut ajunge la server. Reîncărcați pagina și încercați din nou.",
   "feil.loggetUt": "Ești deconectat. Reîncărcați pagina pentru a vă conecta.",
-  "personNavn.visPersonkort": "Afișați cardul de persoană pentru {{navn}}"
+  "personNavn.visPersonkort": "Afișați cardul de persoană pentru {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Eliminați {{navn}} din {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} documente deschise sunt cu {{navn}}. Ei rămân în pasul {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Noul responsabil principal",
+  "dokumentflyt.fjernMedlem.erstatter": "Înlocuire",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} este singurul din {{rolle}}. Alege cine preia.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Scoateți fără înlocuire",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Eliminați și mutați {{antall}} documente",
+  "dokumentflyt.fjernMedlem.loggStaar": "Jurnalul păstrează numele pe tot ceea ce a făcut {{navn}}.",
+  "dokumentflyt.leddTomt": "Fără membri activi - alege cine ar trebui să facă acest pas."
 }

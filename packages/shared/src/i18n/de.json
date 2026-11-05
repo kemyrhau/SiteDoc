@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} signiert",
   "feil.ingenKontaktServer": "Der Server konnte nicht erreicht werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
   "feil.loggetUt": "Sie sind abgemeldet. Laden Sie die Seite neu, um sich anzumelden.",
-  "personNavn.visPersonkort": "Personenkarte für {{navn}} anzeigen"
+  "personNavn.visPersonkort": "Personenkarte für {{navn}} anzeigen",
+  "dokumentflyt.fjernMedlem.tittel": "{{navn}} aus {{rolle}} entfernen?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} offene Dokumente sind mit {{navn}}. Sie bleiben im Schritt {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Neuer Hauptverantwortlicher",
+  "dokumentflyt.fjernMedlem.erstatter": "Ersatz",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} ist der einzige in {{rolle}}. Wählen Sie, wer übernimmt.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Ohne Ersatz entfernen",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Entfernen und verschieben Sie {{antall}} Dokumente",
+  "dokumentflyt.fjernMedlem.loggStaar": "Das Protokoll speichert den Namen von allem, was {{navn}} getan hat.",
+  "dokumentflyt.leddTomt": "Keine aktiven Mitglieder – wählen Sie, wer diesen Schritt übernehmen soll."
 }

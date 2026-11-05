@@ -5259,5 +5259,14 @@
   "tabell.sjaSignert": "{{antall}} підписав",
   "feil.ingenKontaktServer": "Не вдалося підключитися до сервера. Перезавантажте сторінку та повторіть спробу.",
   "feil.loggetUt": "Ви вийшли. Перезавантажте сторінку, щоб увійти.",
-  "personNavn.visPersonkort": "Показати картку особи для {{navn}}"
+  "personNavn.visPersonkort": "Показати картку особи для {{navn}}",
+  "dokumentflyt.fjernMedlem.tittel": "Видалити {{navn}} із {{rolle}}?",
+  "dokumentflyt.fjernMedlem.dokumenter": "{{antall}} відкритих документів мають {{navn}}. Вони залишаються на кроці {{rolle}}.",
+  "dokumentflyt.fjernMedlem.nyHovedansvarlig": "Новий основний відповідальний",
+  "dokumentflyt.fjernMedlem.erstatter": "Заміна",
+  "dokumentflyt.fjernMedlem.eneste": "{{navn}} — єдиний у {{rolle}}. Виберіть, хто бере на себе.",
+  "dokumentflyt.fjernMedlem.utenErstatter": "Зняти без заміни",
+  "dokumentflyt.fjernMedlem.bekreftFlytt": "Видаліть і перемістіть {{antall}} документів",
+  "dokumentflyt.fjernMedlem.loggStaar": "Журнал зберігає назву всього, що {{navn}} зробив.",
+  "dokumentflyt.leddTomt": "Немає активних учасників — виберіть, хто повинен утримувати цей крок."
 }

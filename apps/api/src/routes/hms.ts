@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
+import { aktivtMedlemWhere, byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { terminalFraStatus, avledetStatus } from "../services/flytFakta";
 import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
@@ -77,6 +77,7 @@ const FLYT_SELECT = {
       id: true,
       name: true,
       medlemmer: {
+        where: aktivtMedlemWhere,
         select: {
           id: true,
           rolle: true,
