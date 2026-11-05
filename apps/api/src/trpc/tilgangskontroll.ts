@@ -487,7 +487,7 @@ export async function erFirmaAdminForProsjekt(
 
 /**
  * Sjekk om bruker har HMS-tilgang på firma-nivå.
- * Returnerer true for: sitedoc_admin eller hms_ansvarlig på orgId.
+ * Returnerer true for: sitedoc_admin eller aktiv ansatt med hms_ansvarlig på orgId.
  *
  * Brukes for firma-nivå HMS-dashbord: lese på tvers av firma-prosjekter,
  * inkl. private dokumenter, og behandle direkte fra firma-rad.
@@ -509,12 +509,13 @@ export async function harFirmaHmsTilgang(
   });
   if (user?.role === "sitedoc_admin") return true;
 
-  // hms_ansvarlig på orgId → ja (firma_admin arver IKKE, se docstring)
+  // hms_ansvarlig på orgId → ja (firma_admin arver IKKE, se docstring).
+  // Deaktivert ansatt → nei, selv om rollen står igjen (Kenneth 2026-11-05, ordre (9)).
   const member = await prisma.organizationMember.findUnique({
     where: { userId_organizationId: { userId, organizationId } },
-    select: { firmaRoller: true },
+    select: { firmaRoller: true, status: true },
   });
-  if (!member) return false;
+  if (!member || member.status === "deaktivert") return false;
   return member.firmaRoller.includes("hms_ansvarlig");
 }
 

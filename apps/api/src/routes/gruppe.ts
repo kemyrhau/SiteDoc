@@ -190,21 +190,49 @@ export const gruppeRouter = router({
       const orgIder = orgKoblinger.map((o) => o.organizationId);
       if (orgIder.length === 0) return [];
 
+      // Ordre (9) / L3: deaktivert ansatt er ikke lenger behandler.
       const medlemmer = await ctx.prisma.organizationMember.findMany({
         where: {
           organizationId: { in: orgIder },
           firmaRoller: { has: "hms_ansvarlig" },
+          status: "aktiv",
         },
         select: {
           userId: true,
+          organizationId: true,
+          organization: { select: { name: true } },
           user: { select: { id: true, name: true, email: true } },
         },
       });
 
-      // Dedup på userId (samme person kan ligge i flere av prosjektets org-koblinger)
-      const sett = new Map<string, { userId: string; navn: string | null; epost: string }>();
+      // kanFjerne: rollen settes av firma-admin i firmaet som ga den (samme regel som
+      // organisasjon.settFirmaHmsAnsvarlig, som avgjør på nytt ved fjerning).
+      const [meg, mineAdminOrger] = await Promise.all([
+        ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } }),
+        ctx.prisma.organizationMember.findMany({
+          where: { userId: ctx.userId, organizationId: { in: orgIder }, status: "aktiv", firmaRoller: { has: "firma_admin" } },
+          select: { organizationId: true },
+        }),
+      ]);
+      const adminOrger = new Set(mineAdminOrger.map((m) => m.organizationId));
+      const kanFjerneI = (orgId: string) => meg?.role === "sitedoc_admin" || adminOrger.has(orgId);
+
+      // Dedup på userId (samme person kan ligge i flere av prosjektets org-koblinger);
+      // raden fra et firma brukeren administrerer vinner, så fjern-valget ikke forsvinner.
+      const sett = new Map<
+        string,
+        { userId: string; navn: string | null; epost: string; organizationId: string; organisasjonNavn: string; kanFjerne: boolean }
+      >();
       for (const m of medlemmer) {
-        sett.set(m.userId, { userId: m.userId, navn: m.user.name, epost: m.user.email });
+        const rad = {
+          userId: m.userId,
+          navn: m.user.name,
+          epost: m.user.email,
+          organizationId: m.organizationId,
+          organisasjonNavn: m.organization.name,
+          kanFjerne: kanFjerneI(m.organizationId),
+        };
+        if (!sett.get(m.userId)?.kanFjerne) sett.set(m.userId, rad);
       }
       return [...sett.values()];
     }),

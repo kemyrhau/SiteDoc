@@ -118,6 +118,23 @@ describe("harFirmaHmsTilgang — firma_admin arver ikke HMS (2026-09-10)", () =>
     expect(await harFirmaHmsTilgang(USER, ORG)).toBe(true);
   });
 
+  it("🔴 deaktivert hms_ansvarlig → nektes, selv om rollen står igjen (Kenneth 2026-11-05)", async () => {
+    findUnique.mockResolvedValue({ firmaRoller: ["hms_ansvarlig"], status: "deaktivert" });
+    expect(await harFirmaHmsTilgang(USER, ORG)).toBe(false);
+  });
+
+  it("🔴 deaktivert hms_ansvarlig → ikke HMS-admin i firmaets prosjekter (erHmsAdmin firma-grenen)", async () => {
+    memberFindUnique.mockReset();
+    memberFindUnique.mockResolvedValue({ role: "member", groupMemberships: [] });
+    eierOrg.mockReturnValue(ORG);
+    findUnique.mockResolvedValue({ firmaRoller: ["hms_ansvarlig"], status: "deaktivert" });
+    expect(await erHmsAdmin(USER, PROJECT)).toBe(false);
+    // Kontroll: samme person aktiv → HMS-admin via firmarollen.
+    findUnique.mockResolvedValue({ firmaRoller: ["hms_ansvarlig"], status: "aktiv" });
+    expect(await erHmsAdmin(USER, PROJECT)).toBe(true);
+    eierOrg.mockReset().mockReturnValue(null);
+  });
+
   it("sitedoc_admin → slipper inn (uendret, kortslutter før org-oppslag)", async () => {
     userFindUnique.mockResolvedValue({ role: "sitedoc_admin" });
     expect(await harFirmaHmsTilgang(USER, ORG)).toBe(true);
