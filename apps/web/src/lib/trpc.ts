@@ -2,6 +2,7 @@
 
 import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
 import type { AppRouter } from "@sitedoc/api/src/trpc/router";
+import { klientfeilLink } from "./klientfeil";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -15,6 +16,7 @@ export function hentTrpcUrl() {
 export function opprettTrpcKlient() {
   return trpc.createClient({
     links: [
+      klientfeilLink,
       httpBatchLink({
         url: hentTrpcUrl(),
       }),

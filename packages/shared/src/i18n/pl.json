@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Podpisano",
   "signaturFilter.mangler": "Brak podpisu",
   "signaturFilter.uten": "Brak pola podpisu",
-  "tabell.sjaSignert": "{{antall}} podpisał"
+  "tabell.sjaSignert": "{{antall}} podpisał",
+  "feil.ingenKontaktServer": "Nie udało się połączyć z serwerem. Załaduj ponownie stronę i spróbuj ponownie.",
+  "feil.loggetUt": "Jesteś wylogowany. Załaduj ponownie stronę, aby się zalogować."
 }

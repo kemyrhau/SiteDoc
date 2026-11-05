@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Підписано",
   "signaturFilter.mangler": "Відсутній підпис",
   "signaturFilter.uten": "Немає поля для підпису",
-  "tabell.sjaSignert": "{{antall}} підписав"
+  "tabell.sjaSignert": "{{antall}} підписав",
+  "feil.ingenKontaktServer": "Не вдалося підключитися до сервера. Перезавантажте сторінку та повторіть спробу.",
+  "feil.loggetUt": "Ви вийшли. Перезавантажте сторінку, щоб увійти."
 }

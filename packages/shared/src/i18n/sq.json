@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Nënshkruar",
   "signaturFilter.mangler": "Mungon nënshkrimi",
   "signaturFilter.uten": "Nuk ka fushë nënshkrimi",
-  "tabell.sjaSignert": "{{antall}} nënshkruar"
+  "tabell.sjaSignert": "{{antall}} nënshkruar",
+  "feil.ingenKontaktServer": "Nuk arrita dot te serveri. Ringarko faqen dhe provo sërish.",
+  "feil.loggetUt": "Jeni dalë nga llogaria. Rifresko faqen për t'u identifikuar."
 }

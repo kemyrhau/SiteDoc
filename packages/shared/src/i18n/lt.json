@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Signed",
   "signaturFilter.mangler": "Missing signature",
   "signaturFilter.uten": "No signature field",
-  "tabell.sjaSignert": "{{antall}} pasirašė"
+  "tabell.sjaSignert": "{{antall}} pasirašė",
+  "feil.ingenKontaktServer": "Nepavyko pasiekti serverio. Iš naujo įkelkite puslapį ir bandykite dar kartą.",
+  "feil.loggetUt": "Esate atsijungęs. Iš naujo įkelkite puslapį, kad prisijungtumėte."
 }

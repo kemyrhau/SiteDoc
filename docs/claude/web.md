@@ -104,6 +104,17 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 - `useVerktoylinje(handlinger)` — Registrerer handlinger per side med auto-cleanup
 - `useAutoVaer(...)` — Auto-henter værdata fra Open-Meteo
 
+### Feiltekst i tRPC-klienten (2026-11-05)
+
+Dialogene viser `error.message` rått. Derfor oversettes to feiltyper ett sted, i `klientfeilLink` ([klientfeil.ts](../../apps/web/src/lib/klientfeil.ts)). Linken ligger først i lenkekjeden i `opprettTrpcKlient` ([trpc.ts](../../apps/web/src/lib/trpc.ts)). Ingen visning endres, og det kommer ingen toast eller banner.
+
+| Tilfelle | Gjenkjennes ved | Tekst |
+|---|---|---|
+| Ingen kontakt | fetch-`TypeError` («Failed to fetch» / «Load failed» / «NetworkError when attempting to fetch resource»), eller 502/503/504 uten tRPC-kropp (`res.json()` gir `SyntaxError`) | `feil.ingenKontaktServer` |
+| Sesjon utløpt | tRPC-kode `UNAUTHORIZED` | `feil.loggetUt` |
+
+Alle andre feil slipper gjennom uendret. Det gjelder også serverens egne meldinger når feilen har tRPC-`data`/`shape`. Vakt: `src/lib/__tests__/klientfeil.test.ts` kjører hele kjeden mot falsk fetch.
+
 ## Flerspråklig støtte (i18n)
 
 **Teknologi:** `i18next` + `react-i18next`, initialisert i `apps/web/src/lib/i18n.ts`

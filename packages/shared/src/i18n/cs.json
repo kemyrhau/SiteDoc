@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Podepsaný",
   "signaturFilter.mangler": "Chybí podpis",
   "signaturFilter.uten": "Žádné pole pro podpis",
-  "tabell.sjaSignert": "{{antall}} podepsáno"
+  "tabell.sjaSignert": "{{antall}} podepsáno",
+  "feil.ingenKontaktServer": "Nelze se spojit se serverem. Znovu načtěte stránku a zkuste to znovu.",
+  "feil.loggetUt": "Jste odhlášeni. Znovu načtěte stránku a přihlaste se."
 }

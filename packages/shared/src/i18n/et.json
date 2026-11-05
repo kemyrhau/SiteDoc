@@ -5256,5 +5256,7 @@
   "signaturFilter.signert": "Allkirjastatud",
   "signaturFilter.mangler": "Allkiri puudub",
   "signaturFilter.uten": "Allkirjavälja pole",
-  "tabell.sjaSignert": "{{antall}} allkirjastas"
+  "tabell.sjaSignert": "{{antall}} allkirjastas",
+  "feil.ingenKontaktServer": "Serveriga ei õnnestunud ühendust saada. Laadige leht uuesti ja proovige uuesti.",
+  "feil.loggetUt": "Olete välja logitud. Sisselogimiseks laadige leht uuesti."
 }
