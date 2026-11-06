@@ -3440,6 +3440,7 @@
   "oppgave.sePunktHint": "Puudutage, et vaadata punkti joonisel",
   "oppgave.punktLaastSendt": "Punkti määras saatja ja seda saab liigutada ainult mustandis",
   "oppgave.punktLaastOffline": "Punkti ei saa ilma ühenduseta liigutada. Selle muutmiseks ühendage.",
+  "tegninger.brukMinPosisjon": "Kasuta minu asukohta",
   "oppgave.dialog": "Dialoog",
   "oppgave.ny": "Uus",
   "oppgave.ingenKommentarer": "Kommentaarid veel puuduvad",

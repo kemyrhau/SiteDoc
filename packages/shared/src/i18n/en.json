@@ -3440,6 +3440,7 @@
   "oppgave.sePunktHint": "Tap to view the point on the drawing",
   "oppgave.punktLaastSendt": "The point was set by the sender and can only be moved in a draft",
   "oppgave.punktLaastOffline": "The point can't be moved without a connection. Connect to change it.",
+  "tegninger.brukMinPosisjon": "Use my location",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "New",
   "oppgave.ingenKommentarer": "No comments yet",

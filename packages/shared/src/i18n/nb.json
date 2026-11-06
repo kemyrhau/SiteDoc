@@ -3440,6 +3440,7 @@
   "oppgave.sePunktHint": "Trykk for å se punktet i tegningen",
   "oppgave.punktLaastSendt": "Punktet ble satt av avsender og kan bare flyttes i utkast",
   "oppgave.punktLaastOffline": "Uten nett kan ikke punktet flyttes. Koble til for å endre det.",
+  "tegninger.brukMinPosisjon": "Bruk min posisjon",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Ny",
   "oppgave.ingenKommentarer": "Ingen kommentarer ennå",

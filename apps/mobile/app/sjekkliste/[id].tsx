@@ -51,6 +51,7 @@ import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import { useDuErHer } from "../../src/hooks/useDuErHer";
+import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
@@ -1566,6 +1567,20 @@ export default function SjekklisteUtfylling() {
                   <Pressable onPress={() => setVisLokByttTegning(true)} hitSlop={12} className="rounded-lg px-3 py-2">
                     <Text className="text-sm font-medium text-blue-600">Bytt tegning</Text>
                   </Pressable>
+                  <View className="flex-row items-center gap-3">
+                  {tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline: offlineModus, duErHer }).brukMinPosisjon && duErHer && (
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => {
+                        // Som et trykk på tegningen — lagres først med Lagre
+                        setLokTempPosX(duErHer.x);
+                        setLokTempPosY(duErHer.y);
+                      }}
+                      className="rounded-lg px-3 py-2"
+                    >
+                      <Text className="text-sm font-medium text-blue-600">{t("tegninger.brukMinPosisjon")}</Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     hitSlop={8}
                     onPress={() => {
@@ -1588,6 +1603,7 @@ export default function SjekklisteUtfylling() {
                   >
                     <Text className="text-sm font-medium text-white">Lagre</Text>
                   </Pressable>
+                  </View>
                 </View>
               </View>
             );

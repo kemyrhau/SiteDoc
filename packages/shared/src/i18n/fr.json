@@ -3440,6 +3440,7 @@
   "oppgave.sePunktHint": "Appuyez pour afficher le point sur le dessin",
   "oppgave.punktLaastSendt": "Le point a été fixé par l'expéditeur et ne peut être déplacé que dans un brouillon",
   "oppgave.punktLaastOffline": "Le point ne peut pas être déplacé sans connexion. Connectez-vous pour le changer.",
+  "tegninger.brukMinPosisjon": "Utiliser ma position",
   "oppgave.dialog": "Dialogue",
   "oppgave.ny": "Nouvelle",
   "oppgave.ingenKommentarer": "Pas encore de commentaires",

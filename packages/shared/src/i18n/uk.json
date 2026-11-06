@@ -3440,6 +3440,7 @@
   "oppgave.sePunktHint": "Торкніться, щоб переглянути точку на малюнку",
   "oppgave.punktLaastSendt": "Точка була встановлена ​​відправником і може бути переміщена лише в чернетці",
   "oppgave.punktLaastOffline": "Точку неможливо перемістити без підключення. Підключіться, щоб змінити його.",
+  "tegninger.brukMinPosisjon": "Використовувати моє місцезнаходження",
   "oppgave.dialog": "Діалог",
   "oppgave.ny": "новий",
   "oppgave.ingenKommentarer": "Поки немає коментарів",
