@@ -22,6 +22,7 @@ import {
 import { seedFirmamodulKatalog } from "../services/seed";
 import {
   avsluttMedlemskapForPerson,
+  finnBerorteProsjekter,
   forhandsvisDeaktivering,
   gjenapneMedlemskapFraPayload,
   lesDeaktiveringsPayload,
@@ -31,6 +32,11 @@ import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 import { recomputeMatriseIBakgrunn } from "../services/reisetidMatrise";
 import { UOPPNAAELIG } from "../services/rute-service";
+import {
+  flyttHmsSakerVedDeaktivering,
+  flyttHmsSakerVedRollefjerning,
+  tellHmsSakerHosPerson,
+} from "../services/hmsAnsvarlig";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -718,6 +724,14 @@ export const organisasjonRouter = router({
           const gjenapnet = forrige ? await gjenapneMedlemskapFraPayload(tx, forrige) : null;
           payload = { targetUserId: input.userId, targetNavn: member.user.name, ...(gjenapnet ?? {}) };
         } else {
+          // Ordre (11): HMS-ballen flyttes FØR medlemskapene avsluttes — sakene blir hos HMS-gruppa
+          // med historikklinje, i stedet for at M3 sender dem til melderen.
+          const { berorte } = await finnBerorteProsjekter(tx, { userId: input.userId, organizationId: orgId });
+          await flyttHmsSakerVedDeaktivering(tx, ctx, {
+            organizationId: orgId,
+            userId: input.userId,
+            avsluttesProjectMemberIder: berorte.map((b) => b.projectMemberId),
+          });
           const avsluttet = await avsluttMedlemskapForPerson(tx, { userId: input.userId, organizationId: orgId });
           payload = { ...avsluttet, targetNavn: member.user.name } as unknown as Prisma.InputJsonValue;
         }
@@ -747,6 +761,22 @@ export const organisasjonRouter = router({
   harHmsTilgang: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(({ ctx, input }) => harFirmaHmsTilgang(ctx.userId, input.organizationId)),
+
+  // Ordre (9): antall åpne HMS-saker personen har ballen i, til fjern-modalen (kun firmaadmin).
+  // Krever ansettelse i firmaet, som settFirmaHmsAnsvarlig (dom (29) M2-mønsteret).
+  forhandsvisFjernHmsAnsvarlig: protectedProcedure
+    .input(z.object({ userId: z.string().uuid(), organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
+        select: { id: true },
+      });
+      if (!member) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Brukeren tilhører ikke firmaet" });
+      }
+      return { antallApne: await tellHmsSakerHosPerson(ctx.prisma, { organizationId: orgId, userId: input.userId }) };
+    }),
 
   // Sett eller fjern hms_ansvarlig-rollen for en bruker (kun firmaadmin).
   // Speil av settFirmaAdmin — skriver til OrganizationMember.firmaRoller.
@@ -794,9 +824,17 @@ export const organisasjonRouter = router({
           data: { firmaRoller: [...member.firmaRoller, "hms_ansvarlig"] },
         });
       } else if (!input.harTilgang && har) {
-        await ctx.prisma.organizationMember.update({
-          where: { id: member.id },
-          data: { firmaRoller: member.firmaRoller.filter((r) => r !== "hms_ansvarlig") },
+        // Ordre (9), A: åpne HMS-saker personen fikk ballen i via rollen blir liggende på leddet.
+        await ctx.prisma.$transaction(async (tx) => {
+          await tx.organizationMember.update({
+            where: { id: member.id },
+            data: { firmaRoller: member.firmaRoller.filter((r) => r !== "hms_ansvarlig") },
+          });
+          await flyttHmsSakerVedRollefjerning(
+            tx,
+            { userId: ctx.userId, ipAddress: ctx.ipAddress, userAgent: ctx.userAgent },
+            { organizationId: orgId, userId: input.userId },
+          );
         });
       }
       return { ok: true };
@@ -1200,6 +1238,8 @@ export const organisasjonRouter = router({
           reiseOverTerskelType: true,
           reisetidTellerOvertid: true,
           reiseLonnsartId: true,
+          // Prosjektkort L1: visningsmodus for sedelen (dagskort | prosjektkort).
+          timerRegistreringsmodus: true,
         },
       });
       // Avstandsbånd (2026-09-11): mobilens offline-resolver (`hentReiseLonnsartId`)
@@ -1311,6 +1351,9 @@ export const organisasjonRouter = router({
         // "kalender" = sesongutledet. B3 (V6): pausevinduets referanse.
         normKilde: z.enum(["fast", "kalender"]).optional(),
         pauseReferanse: z.enum(["fastStart", "ankomst"]).optional(),
+        // Prosjektkort L1 (2026-11-05): visningsmodus for timeføring. Bare
+        // firma-admin skriver (verifiserFirmaAdmin under). Slår inn umiddelbart.
+        timerRegistreringsmodus: z.enum(["dagskort", "prosjektkort"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

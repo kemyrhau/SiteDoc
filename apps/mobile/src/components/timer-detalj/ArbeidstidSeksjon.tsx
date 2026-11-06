@@ -5,9 +5,9 @@ import {
   Pressable,
   Modal,
   Platform,
-  KeyboardAvoidingView,
-  ScrollView,
+  TextInput,
 } from "react-native";
+import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31: SafeAreaView anvender arkets egen topp-inset (~10 pt), header-kontroller truffbare. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Pencil, X, Clock } from "lucide-react-native";
@@ -34,6 +34,8 @@ interface ArbeidstidSeksjonProps {
   startAt: string | null;
   endAt: string | null;
   pauseMin: number;
+  /** ORDRE 17: sedelens kommentar — redigeres i rammen («+ Ny»-skjemaet er borte). */
+  beskrivelse: string | null;
   /** V20/PK7: radene «Arbeidstid i dag» utledes av når det finnes rader med tid. */
   timerRader: ArbeidstidRad[];
   redigerbar: boolean;
@@ -46,6 +48,7 @@ export function ArbeidstidSeksjon({
   startAt,
   endAt,
   pauseMin,
+  beskrivelse,
   timerRader,
   redigerbar,
   onEndret,
@@ -104,6 +107,7 @@ export function ArbeidstidSeksjon({
           dato={dato}
           startAt={startAt}
           endAt={endAt}
+          beskrivelse={beskrivelse}
           onLukk={() => setVisModal(false)}
           onLagret={() => {
             setVisModal(false);
@@ -132,11 +136,12 @@ function Felt({ label, verdi }: { label: string; verdi: string }) {
 /*  RedigerArbeidstidModal                                              */
 /* ------------------------------------------------------------------ */
 
-function RedigerArbeidstidModal({
+export function RedigerArbeidstidModal({
   sheetId,
   dato,
   startAt,
   endAt,
+  beskrivelse,
   onLukk,
   onLagret,
 }: {
@@ -144,6 +149,7 @@ function RedigerArbeidstidModal({
   dato: string;
   startAt: string | null;
   endAt: string | null;
+  beskrivelse: string | null;
   onLukk: () => void;
   onLagret: () => void;
 }) {
@@ -154,6 +160,7 @@ function RedigerArbeidstidModal({
   const [endDato, setEndDato] = useState<Date | null>(endAt ? new Date(endAt) : null);
   const [visStartPicker, setVisStartPicker] = useState(false);
   const [visEndPicker, setVisEndPicker] = useState(false);
+  const [nyBeskrivelse, setNyBeskrivelse] = useState(beskrivelse ?? "");
   const [feil, setFeil] = useState<string | null>(null);
 
   function settTid(grunnDato: string, tidspunkt: Date | null): string | null {
@@ -194,6 +201,7 @@ function RedigerArbeidstidModal({
         // Slice 4b-2: manuell redigering av slutt-tid → bruker-bekreftet tid,
         // nullstiller evt. "system"/"midnatt" (fjerner kontroll-badge).
         sluttTidKilde: "bruker",
+        beskrivelse: nyBeskrivelse.trim() || null,
         syncStatus: "pending",
         sistEndretLokalt: Date.now(),
       })
@@ -220,15 +228,9 @@ function RedigerArbeidstidModal({
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-        <ScrollView
+        <TastaturScrollView
           className="flex-1"
           contentContainerClassName="gap-4 p-4"
-          keyboardShouldPersistTaps="handled"
         >
           <Text className="text-xs text-gray-500">
             {t("timer.arbeidstidIDagBeskrivelse")}
@@ -284,6 +286,21 @@ function RedigerArbeidstidModal({
               (avkrysningen), hodet utledes server-side (Σ rad). Start/slutt
               beholdes som ramme for stempling/glemt-dag. */}
 
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.beskrivelse")}
+            </Text>
+            <TextInput
+              value={nyBeskrivelse}
+              onChangeText={setNyBeskrivelse}
+              placeholder={t("timer.beskrivelsePlaceholder")}
+              multiline
+              numberOfLines={3}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900"
+              style={{ textAlignVertical: "top", minHeight: 80 }}
+            />
+          </View>
+
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
           <View className="mt-2 flex-row gap-2">
@@ -304,8 +321,7 @@ function RedigerArbeidstidModal({
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-        </KeyboardAvoidingView>
+        </TastaturScrollView>
       </SafeAreaView>
     </Modal>
   );

@@ -130,9 +130,13 @@ async function finnRestdokumenterHosPerson(tx: Db, projectId: string, userId: st
  */
 export async function tellRestdokumenterHosPerson(
   db: Db,
-  args: { projectId: string; userId: string; flyterMedPeker: string[] },
+  args: { projectId: string; userId: string; flyterMedPeker: string[]; unntatt?: string[] },
 ): Promise<number> {
-  const where = apneDokumenterIProsjekt(args.projectId, args.userId, args.flyterMedPeker);
+  const where = {
+    ...apneDokumenterIProsjekt(args.projectId, args.userId, args.flyterMedPeker),
+    // Ordre (11): HMS-sakene deaktiveringen flytter først, når aldri M3.
+    ...(args.unntatt?.length ? { id: { notIn: args.unntatt } } : {}),
+  };
   const [sjekklister, oppgaver] = await Promise.all([
     db.checklist.count({ where }),
     db.task.count({ where: where as Prisma.TaskWhereInput }),

@@ -74,6 +74,7 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | `OrganizationSetting.tillattSelvAttestering` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default true) | Selv-attestering-policy |
 | `OrganizationSetting.timerLockEtterDager` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, Int? null = ingen alders-grense; status styrer låsing per Variant A) | Status-basert låsing |
 | `OrganizationSetting.tidsrundingMinutter` | ✅ Tilføyd 2026-05-12 (T.5, PR 1A commit `862c70c3`, Int? @default(15)) — støttede verdier: 15, 30, 60, null (ingen avrunding) | T.5: Tidsrunding ved timer-registrering |
+| `OrganizationSetting.timerRegistreringsmodus` | 🟡 Tilføyd 2026-11-05 (Prosjektkort L1, `feat/prosjektkort-l1`, `schema.prisma:488`, String @default("dagskort")) — `dagskort` \| `prosjektkort`; kun admin skriver (`organisasjon.oppdaterSetting`), alle medlemmer leser via `hentArbeidstidDefaults`. Migrering `20261105120000_timer_registreringsmodus` — **ikke kjørt** mot test/prod | Prosjektkort L1: visningsmodus for web-sedelen |
 | `Organization.harTimerModul` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default false) — midlertidig modul-flagg, samme mønster som `harMaskinModul` |
 | `apps/api/src/services/timer/moduleGate.ts` | ✅ Opprettet 2026-05-01 — `erTimerAktivert` + `krevTimerAktivert` |
 | `modulProcedure('timer')` i tRPC | ❌ Ikke implementert | Forutsetter fullstendig modul-gateway (per A.4) |
@@ -596,6 +597,43 @@ Utstyr-velgeren oppfyller kravet om søk på **både maskinnummer og -navn** (in
 
 **Proaktiv UI (b+disable, 2026-07-05):** maskin-modalen (web `MaskinRadDialog` + mobil `MaskinRadModal`) viser inline kapasitet-linje «Arbeid i gruppen: X t · maskin så langt: Y t · ledig: Z t», som blir rød og **disabler Lagre** når inntastet verdi vil overskride taket — feilen surfaces før lagre, ikke etter. Kapasiteten beregnes reaktivt for gjeldende (projectId, ecoId), også når bruker bytter prosjekt/ECO i modalen (web: fra hele sedelen i minne; mobil: SQLite-spørring på current bucket). Eksisterende ikke-blokkerende advarsler (attestering per-rad + mobil `EcoBucket`-sumindikator) er rutet gjennom samme helper; mobil-sumindikatoren inkluderer nå pause (var utelatt tidligere).
 
+### Prosjektkort L1 — visningsmodus for web-sedelen — 🟡 `feat/prosjektkort-l1` (2026-11-05, ikke merget)
+
+Spec: `relay/prosjektkort/spec-prosjektkort.md` (vedtak 1–10, Kenneth «ok for 1-10»).
+
+- **Modell A — kun visning.** Prosjektkort er en visningsmodus over samme `DailySheet`: samme rader, samme mutasjoner, samme innsending, attestering og lønnsgrunnlag. Ingen ny lagring og ingen endring i eksisterende tRPC-kontrakter.
+- **Firmavalg:** `OrganizationSetting.timerRegistreringsmodus` (`dagskort` default \| `prosjektkort`). Settes under Firma → Innstillinger → «Timeføring» (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`); slår inn ved neste lasting. Ukjent/manglende verdi leses som dagskort (`lesTimerModus`, `packages/shared/src/utils/prosjektkort.ts`).
+- **Dagskort uendret:** i dagskort-modus er markupen byte-identisk med develop (målt med render av begge versjoner, samme data). Prosjektkort-flaten er gated med `prosjektkortModus` i `apps/web/src/app/dashbord/timer/[id]/page.tsx`.
+- **Samleside (`ProsjektkortSamleside`, `page.tsx:1275`):** «Prosjektkort (N)», ett kort pr. prosjekt med «nr — navn», byggeplass og kolonnene Arbeid / Maskin / Varer / Reise («—» når tom). Kortet åpnes på plass og viser dagskortets `ProsjektGruppe` med `iKort` (ECO-bøtter, timer, maskin), VARE-linjer og lenkene «+ Timer · + Maskin · + Tillegg/Utlegg». Under: «+ Nytt prosjektkort», «Dagens ramme · fra–til · pause N min (bæres av …)» med «Endre» (`RedigerHeaderDialog`), og bunnlinja «Sum i dag X t av Y t · maskin · reise» med Slett og «Send dagen (X t)». Er sedelen returnert, sier knappen «Send på nytt» (samme nøkkel som dagskortet, `timer.detalj.sendPaaNytt`). Reise vises i bunnlinja kun når > 0. Innstillingens hjelpetekst (`firma.innstillinger.timeforing.hjelp`) sa i L1 at appen fortsatt viste dagskort; den setningen er fjernet i L2.
+- **Tall (`packages/shared/src/utils/prosjektkort.ts`, delt med mobil fra L2):** erstattede rader (`attestertStatus = "erstattet"`) telles aldri. Arbeid = timer uten `erReise`, Reise = timer med `erReise`, Maskin = maskinrader. Varer: én enhet gir summert mengde, ulike enheter gir antall linjer. Sum i dag = Σ kortenes arbeid + reise. Byggeplass: rad uten egen arver sedelens; én gir navnet, flere gir «N byggeplasser», ingen gir tomt. Trafikklys-prikken bruker samme regel som dagskortets topp-sum.
+- **Varer:** ny `vareforbruk.hentMineForDato` (kun lesing, egne linjer for firma + dato, `apps/api/src/routes/vareforbruk.ts:153`). Ingen «+ Vareforbruk» i L1.
+- **Raddialog:** i prosjektkort-modus er prosjektet låst til kortets (`laastProsjekt`), og overlapp-meldingen navngir det andre kortet (`timer.feil.overlappKort`).
+- **Ikke i L1:** mobil, pivot, attestering, lønnseksport, GPS, syncBatch.
+
+### Prosjektkort L2 — mobil — 🟡 `feat/prosjektkort-l2` (2026-11-06, ikke merget)
+
+Spec: `relay/prosjektkort/spec-prosjektkort.md` § 4.2/§ 4.3/§ 7/§ 9. Samme modell A som web: samme `DailySheet`, samme rader og innsending; ingen nye tRPC-kontrakter, ingen ny Prisma-migrering.
+
+- **Modus offline:** `organization_setting_local.timer_registreringsmodus` (lokal SQLite-kolonne, idempotent `ALTER` i `apps/mobile/src/db/migreringer.ts`) fylles fra `hentArbeidstidDefaults` ved synk (`organizationSettingKatalog.ts`). `lesTimerModusLokalt` gir siste cachede verdi; mangler den, gjelder `dagskort`.
+- **Samleside (`timer/[id]`, `ProsjektkortSamleside.tsx`):** i kortmodus erstattes blå sedel-boks, «Arbeidstid i dag», prosjekt-gruppene, «+ Legg til prosjekt» og Send av: topptekst «N prosjektkort · X t i dag», ett kort pr. prosjekt (navn, byggeplass, chips Arbeid/Maskin/Varer/Reise/Utlegg, chevron), «+ Nytt prosjektkort» (`ProsjektVelgerModal` → kortskjermen), stiplet «Dagens ramme» (fra–til, pause, bærer-kort, «Endre» = `RedigerArbeidstidModal`, og dagens byggeplass = arv-kilden), blå sumlinje og «Send dagen (X t)» / «Send på nytt» på returnert sedel. Bannere, `DagstotalBanner`, `DagskortSammenligning`, `ForslagValgSeksjon`, Gjenåpne og Slett er uendret.
+- **Kortskjerm (`app/timer/[id]/kort/[projectId].tsx`):** «dato · Prosjektkort · status», kortets hode (`KortHode`, samme som samlesiden), dagskortets `ProsjektGruppe` filtrert på prosjektet (ECO-bøtter, timer med maskin som underpost, tillegg, utlegg) og vareforbruk (`vareforbruk.hentMineForDato`; fra L3 sammenslått med lokale linjer og «+ Vareforbruk», se L3). Tomt kort: «Kortet lagres når første rad er lagt til.» — det finnes ikke på samlesiden før en rad er lagret.
+- **Prosjektlås:** `ProsjektkortKontekst` (`prosjektkortKontekst.ts`) låser prosjektet i `TimerRadModal` — prosjektfeltet vises som grå tekst uten chevron (`ProsjektFelt`/`VelgerFelt` `laast`, fra 16c; i L2 var bare velgeren låst, feltet kunne fortsatt åpnes); byggeplass kan fortsatt velges, og arv-teksten heter «fra dagen» (`kortModusVisning`, `apps/mobile/src/lib/prosjektkortMobil.ts`). Når raden arver byggeplass (`byggeplassId = null`), viser rad-dialogen og første valg i byggeplass-velgeren dagskortets faktiske byggeplass, «Blokk A (fra dagskortet)» / «(fra dagen)», eller «Ingen byggeplass» når sedelen ikke har en på radens prosjekt (`arvetByggeplassVisning`, samme fil; ORDRE 18). Dagskort-skjermen har ingen provider og er uendret.
+- **Tall:** samme delte funksjoner som web; lokale rader mappes i `prosjektkortMobil.ts` (`projectId` null → sedelens, reise via `erReiseRadVisning`, maskin uten egen byggeplass).
+- **Tom samleside:** «Ingen prosjektkort ennå. Velg «Nytt prosjektkort» for å registrere timer.» (`timer.prosjektkort.ingenKort`, fra 16c — samme på web-samlesiden; dagskortet beholder `timer.detalj.ingenProsjektGrupper`).
+- **Ikke i L2:** pivot, attestering, lønnseksport, GPS, syncBatch, «+ Vareforbruk».
+
+### Prosjektkort L3 — vareforbruk fra kortet — 🟡 `feat/prosjektkort-l3` (2026-11-06, ikke merget)
+
+Kenneth-vedtak «A» (2026-11-06): «+ Vareforbruk» på det åpne prosjektkortet, web og mobil. Ingen Prisma-migrering; kun additive, valgfrie tRPC-felt. Dagskortet og vareforbruk-siden under prosjektet er uendret i atferd.
+
+- **API (`apps/api/src/routes/vareforbruk.ts`):** ny `vareforbruk.katalogForFirma({ organizationId })` — firmamedlem (`verifiserOrganisasjonTilgang`), FORBIDDEN når Varelager er av for firmaet; svarer med aktive varer (kun id, navn, enhet, varenummer — ingen priser) og `prosjektIderMedVarelager` (brukerens aktive prosjekter i firmaet der Varelager er aktivt). `vareforbruk.opprett` tar valgfri `id` (klient-uuid): samme id sendt på nytt returnerer den eksisterende raden (idempotent offline-sending).
+- **Delte regler (`packages/shared/src/utils/prosjektkort.ts`):** `visVareforbrukKnapp` (Varelager aktiv for prosjektet og kortet ikke låst), `kortDagsseddelId` (sedelens id kun når kortet har en timerrad for prosjektet; `projectId` null arver sedelens), `kortVareforbrukInput` (prosjektet låst til kortets) og `slaaSammenVarelinjer` (server + lokale linjer, dedup på id — ingen dobbelttelling).
+- **Web:** «+ Vareforbruk» på det åpne kortet (`apps/web/src/app/dashbord/timer/[id]/page.tsx`) åpner `KortVareforbrukModal` (`apps/web/src/components/timer/`): prosjektet låst, valgfri byggeplass, `dagsseddelId` fra sedelen. Vare-velgeren er trukket ut som felles `VareVelger` (`apps/web/src/components/varelager/VareVelger.tsx`), også brukt av vareforbruk-siden under prosjektet. Linjene vises «varenavn · mengde · enhet».
+- **Mobil:** katalog-cache `vare_local` pr. firma (`apps/mobile/src/services/vareKatalog.ts`, full overskriving; nett-/tokenfeil kaster før delete og bevarer cachen; FORBIDDEN/NOT_FOUND = ingen vareføring). Prosjektene med Varelager lagres i SecureStore (`sitedoc_varelager_prosjekter`). Kortskjermen `app/timer/[id]/kort/[projectId].tsx` får «+ Vareforbruk» (`KortVareforbrukModal` i `src/components/timer-detalj/`) som skriver til `vareforbruk_local` — virker offline. `syncVareforbruk` (`src/services/vareforbrukSync.ts`) sender i `TimerSyncProvider` etter timer-synken: linjen venter mens sedelen er pending/conflict; synced sedel → sendt med `dagsseddelId` når kortet har timerrad for prosjektet, ellers uten kobling; mangler sedelen eller er den avvist → sendt uten kobling. BAD_REQUEST/FORBIDDEN/NOT_FOUND/CONFLICT/PRECONDITION_FAILED (Varelager slått av) → `avvist` med feilmelding; andre feil lar linjen stå pending. Ved `dato_kollisjon` nøkler `forsonSedelIdentitet` (`timerSync.ts`) også om `vareforbruk_local.sheet_id`. Lokale linjer slås sammen med `hentMineForDato` på kortskjermen og samlesiden; ventende linjer merkes «Venter». Avviste linjer vises med feilmelding, men telles ikke i Varer-summen (`telteKortVarer`, `apps/mobile/src/lib/prosjektkortMobil.ts`).
+- **Låste linjer:** kortet endrer eller sletter ikke varelinjer — retting skjer i Varelager.
+- **Kjent følge-funn (ikke rettet):** vareforbruk-siden under prosjektet bruker `vare.list`, som er firma-admin-only — arbeidere får feil der. Kortet bruker `katalogForFirma` og er ikke berørt.
+- **Ikke i L3:** pivot, attestering, lønnseksport, GPS, syncBatch. Logout tømmer ikke `vareforbruk_local` (`user_id` er lesevakt, som andre lokale tabeller).
+
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 
 Timer er en **firmamodul**: data eies av firma + arbeider, med `projectId` som etikett på radene. Isolasjonen er på **organisasjon (firma)**, ikke prosjekt-medlemskap (jf. to-produkt-modellen i [terminologi.md § 0](terminologi.md) og OPPSUMMERING-timer-arkitektur § D/G1).
@@ -745,7 +783,7 @@ Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggep
 >   når `gjenkjennSted`. `sted.test.ts`-hjelperne `oppm`/`bygg` setter `form` eksplisitt. `GEOFENCE_GRENSER`
 >   er eneste grense-kilde (det tidligere `RADIUS_GRENSER`-aliaset er fjernet). *(RETUR 1, kontrollør-gate 2026-10-04.)*
 > - **API binder nå grensene:** `byggeplass.ts` + `oppmotested.ts` importerer `GEOFENCE_GRENSER` (tall uendret).
-> - **Mobil:** `byggeplassKatalog.identifiserByggeplass`, `timer/ny.tsx`, `StartSluttDagKort.tsx` bygger
+> - **Mobil:** `byggeplassKatalog.identifiserByggeplass`, `timer/ny.tsx` (nå `useGeoProsjektForslag`, ORDRE 17), `StartSluttDagKort.tsx` bygger
 >   kandidater via `tilGeofencer` (byggeplass); `useArbeidsdag`/`StartSluttDagKort` oppmøtested forblir sirkel
 >   (`tilGeofencer` med `soner: []`). Alle `radiusM != null`-byggeplassfiltre borte (grep-vakt). **Reload: OTA.**
 > - **Ikke i V17-A:** db/api-feltene (`omrader.geo_polygon`), karttegning, mobil sone-cache = V17-B/C/D.
@@ -995,6 +1033,30 @@ EXISTS` i `migreringer.ts`). Speiler tillegg-mønsteret tett.
 - Attesteres samtidig med dagsseddelen — ikke egen godkjenningsflyt. **Attestering
   ≠ godkjenning** (CLAUDE.md, låst 2026-04-26).
 
+## Byggeplass per rad (web) — ordre (10)
+
+**Status:** implementert på `feat/web-timer-byggeplass` (2026-11-05), ikke merget. Hjemmel Kenneth 05.11.
+
+Timer- og maskinrader i web-dagsseddelen (`apps/web/src/app/dashbord/timer/[id]/page.tsx`, `TimerRadDialog` + `MaskinRadDialog`) har et adaptivt byggeplassfelt rett etter prosjekt-/maskinvelgeren (`apps/web/src/components/timer/RadByggeplassFelt.tsx`):
+
+- **0 byggeplasser** på radens prosjekt → feltet er skjult.
+- **1 byggeplass** → settes automatisk og vises som tekst.
+- **≥ 2** → nedtrekk med «Ingen byggeplass» + kandidatene.
+
+**Forhåndsvalg (ny rad):** toppbarens byggeplass (`useByggeplass().aktivByggeplass`) hvis den hører til radens prosjekt, ellers tomt; valget kan tømmes. **Prosjektbytte** i dialogen nullstiller en byggeplass som ikke hører til det nye prosjektet. Regelen er ren logikk i `apps/web/src/lib/timerByggeplass.ts` (`velgStandardByggeplass`, `byggeplasserForProsjekt`). Kandidatene hentes med `bygning.hentForFirma` (tilgjengelig for arbeidere).
+
+**Radlinja** viser byggeplassnavnet bak radtypen, f.eks. «Prosjekttimer · Lab 16».
+
+**Server:** `tilfoyTimerRad`, `oppdaterTimerRad`, `maskin.tilfoy` og `maskin.oppdater` validerer `byggeplassId` mot **radens** `projectId` via `krevByggeplassIProsjekt` (`apps/api/src/routes/timer/byggeplass-rad.ts`) → `BAD_REQUEST` ellers. `null`/utelatt er gyldig (A.30). Oppdatering: utelatt = urørt, `null` = tøm.
+
+**Øvrige skriveveier (ordre (12), 2026-11-05):** `forsonDagskort`, `redigerSedelRader`, `splittRad`/`splittRadEier` (via `validerSplittFelles`) og `opprett` (sedel med `projectId` og byggeplass) avviser byggeplass fra et annet prosjekt med samme `BAD_REQUEST`, før noe skrives — `krevByggeplasserIProsjekt` slår opp alle radene i én spørring. **`syncBatch` avviser ikke** (en avvist sedel ville blokkert mobilens offline-kø): `lagByggeplassVasker` lagrer byggeplass utenfor radens prosjekt som `null` (prosjektet beholdes), også på sedelhodet og i forslags-veiene, og serveren logger `[timer_byggeplass_grense]`. En rad med fremmed byggeplass arver ikke sedelhodets byggeplass. Sedelhode uten kjent prosjekt har ingen grense å måle mot og står urørt; `oppdater` på sedelhodet har heller ingen prosjektgrense (hodet har ikke prosjekt). `redigerSedelRader` er full erstatning, og `forsonDagskort` nuller byggeplass på oppdaterte rader når feltet er utelatt — «utelatt = urørt» gjelder de interaktive rad-mutasjonene.
+
+**Bakoverkompatibilitet:** redigering sender `byggeplassId` bare når brukeren har endret feltet, så en verdi mobilen har satt overskrives ikke. Mobil-synk (`syncBatch`) og attestering (`redigerSedelRader`) er urørt. Ingen skjemaendring, ingen GPS i web. Erstatter BACKLOG ⑤ på rad-nivå; toppbar-velgeren i prosjekt-timerlista er fortsatt av.
+
+**Klient:** `byggeplassErEndret` + `byggeplassPayload` (`apps/web/src/lib/timerByggeplass.ts`) avgjør om `byggeplassId` sendes ved redigering — uendret felt utelates (ikke `null`).
+
+**Tester:** `apps/api/src/routes/timer/byggeplass-rad.test.ts` (16: avvisning i alle skriveveier, utelatt = urørt på server, hjelpere), `apps/api/src/routes/timer/timer-lag2-sync.test.ts` (syncBatch-vasking: batchen fullfører, byggeplass `null`, logg), `apps/web/src/lib/__tests__/timerByggeplass.test.ts` (9, utelatt = urørt på klient).
+
 ## Hjelpetekster (?-ikonet) — alle timer-sider
 
 Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side i SiteDoc ha hjelpetekst tilgjengelig via ?-ikonet øverst til høyre. For timer-modulen gjelder dette ALLE sider — bygges samtidig med siden, oppdateres når siden endres.
@@ -1003,7 +1065,7 @@ Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side
 
 | Side | Hjelpetekst skal dekke |
 |------|------------------------|
-| `/timer/min-tid` (dagsseddel) | Hva er en dagsseddel, lønnsart-valg, hvordan koble til Underprosjekt, signering |
+| `/timer/min-tid` (dagsseddel) | Hva er en dagsseddel, lønnsart-valg, hvordan koble til Underprosjekt, signering, byggeplass per rad (forhåndsvalgt fra toppbaren, kan tømmes) |
 | `/timer/oppsett/underprosjekter` | Hva er Underprosjekt, forskjell mellom Proadm-importert vs. SiteDoc-avledet, åpen/lukket-status |
 | `/timer/oppsett/lonnsarter` | Hva er en lønnsart, kobling til Poweroffice-kode, fravær-flag |
 | `/timer/oppsett/tillegg` | Skifttillegg, beredskap, automatiske vs. manuelle tillegg |
@@ -1259,7 +1321,7 @@ En delvis attestert `sent`-sedel har derfor ingen vei tilbake for enkeltraden. E
 
 > 🟢 **LAG 0b — utregning skilt fra skriving (2026-10-02, `fix/mobil-splitt-dagsforslag`, OTA).** `genererForslag` SKREV som sideeffekt (`opprettDagsseddelForSegment` → `finnEllerOpprettDagsseddel` + `db.insert`), og «Slutt dag» markerte arbeidsdagen `avsluttet` FØR utfallet var kjent. Splittet i tre: **`beregnDagsforslag`** (`utils/dagsforslag.ts`) — 🟢 REN, all utregning, null DB, fullt testbar uten RN/DB (`dagsforslag.test.ts`, 6 karakteriseringscase) · **`anvendDagsforslag`** (`utils/dagsforslagAnvend.ts`) — eksisterende persistering, kjører kun når noe skrives · **`samleDagsforslagInput`** (komponenten) — lese-fasen, flyttes ut ved bekreftelsesskjermen (LAG 3). 🔴 **NULL atferdsendring i utregningen** (reise-unntak, `reisetidTellerOvertid`, luftlinje/50, `prosjekter[0]`-fallback, nærmeste uten grense bevart 1:1). Plan: `timer-gps-helhetsplan.md` LAG 0.
 
-> 🟢 **H7 — «avsluttet» settes kun når skrivingen lyktes (commit 2).** Rekkefølge-logikken er trukket ut av `useCallback` til ren, injiserbar `avgjorSluttDagHandling`/`skalMarkereAvsluttet` (`utils/dagsforslag.ts`, testbar uten RN). Fire utfall, tre regler: **suksess/playVek/forKort** → dagen lukkes (som før) · **`blokkertSendt`** → dagen står ÅPEN (økta kunne ikke appendes på en sendt sedel; lederen returnerer → draft → appendbar) · **`kildeManglet`** (`startSheetId == null`, db/prosjekt/aktivitet manglet) → dagen står ÅPEN + NY melding (`timer.kildeManglet.*`, 15 språk) — i dag ble dagen stumt markert avsluttet uten sedel. H7-testene er rød-først mot dagens rekkefølge (`dagsforslag.test.ts`). Manuell-fallbacken (`/timer/ny`) for `kildeManglet` er beholdt.
+> 🟢 **H7 — «avsluttet» settes kun når skrivingen lyktes (commit 2).** Rekkefølge-logikken er trukket ut av `useCallback` til ren, injiserbar `avgjorSluttDagHandling`/`skalMarkereAvsluttet` (`utils/dagsforslag.ts`, testbar uten RN). Fire utfall, tre regler: **suksess/playVek/forKort** → dagen lukkes (som før) · **`blokkertSendt`** → dagen står ÅPEN (økta kunne ikke appendes på en sendt sedel; lederen returnerer → draft → appendbar) · **`kildeManglet`** (`startSheetId == null`, db/prosjekt/aktivitet manglet) → dagen står ÅPEN + NY melding (`timer.kildeManglet.*`, 15 språk) — i dag ble dagen stumt markert avsluttet uten sedel. H7-testene er rød-først mot dagens rekkefølge (`dagsforslag.test.ts`). Manuell-fallbacken for `kildeManglet` er beholdt — siden ORDRE 17 (2026-11-06) åpner den «+»-flyten (timer-raden, `StartSluttDagKort` `onNyRad`) i stedet for `/timer/ny`, som er slettet.
 >
 > 🟢 **Ikke ansatt / mangler lønnsart (ordre 2026-11-04 (8)).** Rekkefølgen i `avgjorSluttDagHandling` er nå: **`ikkeAnsatt`** → `prosjektUkjent`/`kildeManglet` (null sedel) → `blokkertSendt` → `playVek` → **`manglerLonnsart`** (`ingenRader && manglerLonnsart`) → `forKort` → `suksess`. `ikkeAnsatt`: `anvendDagsforslag` får `ctx.erAnsatt` (fra `FirmaKontekst`, ellers `hentLagretAnsattStatus`) og returnerer ved `false` FØR noen sedel skrives — dagen står ÅPEN, Alert `timer.ikkeAnsatt`, ingen navigasjon. `null` (ukjent, f.eks. eldre API) = dagens atferd; serverens `verifiserAnsattIFirma` er fortsatt porten. Kilden er `organisasjon.hentMineMedlemskap` → `erAnsatt` per firma (aktiv `OrganizationMember`, ingen admin-bypass), persistert lokalt (`sitedoc_ansatt_firmaer`) for offline. `manglerLonnsart`: forslagsmotoren teller arbeidsrader droppet uten lønnsart (`raderDroppetUtenLonnsart`; drop-atferden uendret) — 0 rader av den grunn gir «Mangler lønnsart» i stedet for «for kort»; dagen lukkes og sedelen åpnes med (d)-banneret. Tester: `dagsforslag.test.ts`, `dagsforslagAnvend.lag2.test.ts`, `FirmaKontekst.test.ts`, `organisasjon-ansatt.test.ts`.
 

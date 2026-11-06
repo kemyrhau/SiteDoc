@@ -8,11 +8,6 @@ import {
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-} from "react-native-reanimated";
 import {
   useLocalSearchParams,
   useRouter,
@@ -28,7 +23,6 @@ import {
   Plus,
   Sparkles,
   Split,
-  ChevronDown,
   ChevronRight,
   Info,
   MapPin,
@@ -44,7 +38,6 @@ import {
   sheetMachineLocal,
   sheetUtleggLocal,
   equipmentLocal,
-  externalCostObjectLocal,
   byggeplassLocal,
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
@@ -58,14 +51,22 @@ import {
 import { DagskortSammenligning } from "../../src/components/timer-detalj/DagskortSammenligning";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
-import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
-import { TilleggSeksjon } from "../../src/components/timer-detalj/TilleggSeksjon";
-import { UtleggSeksjon } from "../../src/components/timer-detalj/UtleggSeksjon";
-import { MaskinSeksjon } from "../../src/components/timer-detalj/MaskinSeksjon";
-import { ArbeidstidSeksjon } from "../../src/components/timer-detalj/ArbeidstidSeksjon";
+import {
+  ArbeidstidSeksjon,
+  RedigerArbeidstidModal,
+} from "../../src/components/timer-detalj/ArbeidstidSeksjon";
+import { ProsjektkortSamleside } from "../../src/components/timer-detalj/ProsjektkortSamleside";
+import { lesTimerModusLokalt } from "../../src/services/organizationSettingKatalog";
+import {
+  kortProsjektIder,
+  tilKortMaskinRader,
+  tilKortTimerRader,
+  tilKortVarer,
+} from "../../src/lib/prosjektkortMobil";
 import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
+import { ProsjektGruppe } from "../../src/components/timer-detalj/ProsjektGruppe";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import {
   flyttMatpauseVedAvhuking,
@@ -80,14 +81,14 @@ import {
 import {
   hentStandardLonnsartLokalt,
   harOvertidLonnsartLokalt,
+  hentReiseLonnsartId,
 } from "../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
-import {
-  overstigerMaskinTak,
-  type ForsonRad as DeltForsonRad,
-} from "@sitedoc/shared";
+import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
+import { slaaSammenVarelinjer } from "@sitedoc/shared";
+import { hentLokaleVarelinjer } from "../../src/services/vareforbrukSync";
 import type {
   Sedel,
   TimerRad,
@@ -210,6 +211,8 @@ export default function DagsseddelDetalj() {
   const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
   // L1 / B6 sedel-nivå: byggeplass-velger for aktivt prosjekt.
   const [visByggeplassVelger, setVisByggeplassVelger] = useState(false);
+  // Prosjektkort L2: «Endre» i «Dagens ramme» åpner fra/til-modalen.
+  const [visRammeModal, setVisRammeModal] = useState(false);
   // F5: matpause-toast + bekreftelsesmodal ved fjerning (ingen kvalifisert rad).
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
   const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
@@ -580,6 +583,80 @@ export default function DagsseddelDetalj() {
     return Array.from(ider);
   }, [sedel, timerRader, tilleggRader, maskinRader, utleggRader, ekstraProsjektIder]);
 
+  // Prosjektkort L2 (spec § 9): firmaets modus fra lokal cache (fornyes ved synk).
+  // Offline uten cache → «dagskort» (lesTimerModus-default). Dagskort-grenen under
+  // er uendret; kortmodus bytter kun ut sedel-boks/arbeidstid/grupper/send.
+  const kortModus = useMemo(
+    () =>
+      sedel ? lesTimerModusLokalt(sedel.organizationId) === "prosjektkort" : false,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sedel?.organizationId, sistSynkronisert],
+  );
+  const orgId = sedel?.organizationId;
+  const reiseLonnsartId = useMemo(
+    () => (orgId ? hentReiseLonnsartId(orgId) : null),
+    [orgId],
+  );
+  const kortTimer = useMemo(
+    () =>
+      sedel ? tilKortTimerRader(timerRader, sedel.projectId, reiseLonnsartId) : [],
+    [sedel, timerRader, reiseLonnsartId],
+  );
+  const kortMaskin = useMemo(
+    () => (sedel ? tilKortMaskinRader(maskinRader, sedel.projectId) : []),
+    [sedel, maskinRader],
+  );
+  const kortIder = useMemo(
+    () =>
+      sedel
+        ? kortProsjektIder(
+            sedel.projectId,
+            [timerRader, maskinRader, tilleggRader, utleggRader],
+            [],
+          )
+        : [],
+    [sedel, timerRader, maskinRader, tilleggRader, utleggRader],
+  );
+  const utleggAntall = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!sedel) return m;
+    for (const r of utleggRader) {
+      const pid = r.projectId ?? sedel.projectId;
+      m.set(pid, (m.get(pid) ?? 0) + 1);
+    }
+    return m;
+  }, [sedel, utleggRader]);
+  // Vareforbruk: server-linjer (online) + linjer ført fra prosjektkortet lokalt
+  // (L3, også offline). Samme klient-id → telles én gang.
+  const vareQuery = trpc.vareforbruk.hentMineForDato.useQuery(
+    { organizationId: sedel?.organizationId ?? "", dato: sedel?.dato ?? "" },
+    { enabled: kortModus && erPaaNettet && !!sedel },
+  );
+  const kortVarer = useMemo(
+    () =>
+      slaaSammenVarelinjer<{ id: string; projectId: string; antall: number; vare: { enhet: string } }>(
+        tilKortVarer(vareQuery.data ?? []),
+        kortModus && sedel ? hentLokaleVarelinjer(sedel.id) : [],
+      ),
+    [vareQuery.data, kortModus, sedel],
+  );
+  const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select({ navn: byggeplassLocal.navn })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, byggeplassId))
+        .all()[0]?.navn ?? null
+    );
+  }, []);
+  const prosjektNavn = useCallback((projectId: string): string => {
+    const p = finnProsjektLokalt(projectId);
+    if (!p) return projectId;
+    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
+  }, []);
+
   // L1 / B6: aktivt prosjekt-navn (sedelens primærprosjekt) for blå topp-oversikt.
   const sedelProsjektNavn = useMemo(() => {
     if (!sedel) return "";
@@ -924,6 +1001,9 @@ export default function DagsseddelDetalj() {
         {/* L1 / B6 sedel-nivå: blå topp-oversikt — aktivt prosjekt + byggeplass.
             Pil-til-høyre åpner byggeplass-velger (kun redigerbar). Byggeplass er
             sedel-nivå (én/dag); per-rad/«splitt dagen» er Beslutning 6-oppfølger. */}
+        {/* Prosjektkort L2 (spec § 7): sedel-boksen faller bort i kortmodus —
+            byggeplass vises pr. kort, arv-kilden i «Dagens ramme». */}
+        {!kortModus && (
         <Pressable
           disabled={!erRedigerbar}
           onPress={() => setVisByggeplassVelger(true)}
@@ -940,6 +1020,7 @@ export default function DagsseddelDetalj() {
           </View>
           {erRedigerbar && <ChevronRight size={18} color="#1e40af" />}
         </Pressable>
+        )}
 
         {/* Del 3: myk, ikke-blokkerende advisory — GPS-byggeplassen tilhører et
             annet prosjekt enn det valgte (G1: arbeider-valg er autoritativt). */}
@@ -1185,12 +1266,40 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        {kortModus ? (
+          <ProsjektkortSamleside
+            prosjektIder={kortIder}
+            timer={kortTimer}
+            maskin={kortMaskin}
+            varer={kortVarer}
+            utleggAntall={utleggAntall}
+            sedelByggeplassId={sedel.byggeplassId ?? null}
+            sedelStatus={sedel.status}
+            normTimer={normTimer}
+            ramme={{
+              fra: isoTidspunktTilHHMM(sedel.startAt),
+              til: isoTidspunktTilHHMM(sedel.endAt),
+              pauseMin: sedel.pauseMin ?? 0,
+            }}
+            rammeByggeplassNavn={byggeplassInfo.navn}
+            prosjektNavn={prosjektNavn}
+            byggeplassNavn={byggeplassNavn}
+            redigerbar={erRedigerbar}
+            onAapneKort={(pid) => router.push(`/timer/${sheetId}/kort/${pid}`)}
+            onNyttKort={() => setVisLeggTilProsjekt(true)}
+            onEndreRamme={() => setVisRammeModal(true)}
+            onEndreByggeplass={() => setVisByggeplassVelger(true)}
+            onSend={sendTilAttestering}
+          />
+        ) : (
+        <>
         <ArbeidstidSeksjon
           sheetId={sheetId}
           dato={sedel.dato}
           startAt={sedel.startAt}
           endAt={sedel.endAt}
           pauseMin={sedel.pauseMin}
+          beskrivelse={sedel.beskrivelse ?? null}
           timerRader={timerRader}
           redigerbar={erRedigerbar}
           onEndret={markerEndretOgLes}
@@ -1236,6 +1345,8 @@ export default function DagsseddelDetalj() {
             </Text>
           </Pressable>
         )}
+        </>
+        )}
 
         {feil && (
           <Text className="mx-4 mt-4 text-sm text-red-600">{feil}</Text>
@@ -1243,7 +1354,7 @@ export default function DagsseddelDetalj() {
 
         {/* Handlinger (topp-sum flyttet til toppen — U1) */}
         <View className="mx-4 mt-6 gap-2">
-          {erRedigerbar && (
+          {erRedigerbar && !kortModus && (
             <Pressable
               onPress={sendTilAttestering}
               className="flex-row items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 active:bg-blue-700"
@@ -1254,7 +1365,7 @@ export default function DagsseddelDetalj() {
               </Text>
             </Pressable>
           )}
-          {erRedigerbar && (
+          {erRedigerbar && !kortModus && (
             <Text className="text-center text-xs text-gray-500">
               {t("timer.sendGodkjennHint")}
             </Text>
@@ -1319,14 +1430,34 @@ export default function DagsseddelDetalj() {
         <ProsjektVelgerModal
           organizationId={sedel.organizationId}
           valgtId={null}
-          ekskluderIder={aktiveProsjektIder}
+          ekskluderIder={kortModus ? kortIder : aktiveProsjektIder}
           onVelg={(id) => {
+            setVisLeggTilProsjekt(false);
+            // Kortmodus: nytt kort åpnes direkte; lagres når første rad legges til.
+            if (kortModus) {
+              router.push(`/timer/${sheetId}/kort/${id}`);
+              return;
+            }
             setEkstraProsjektIder((forrige) =>
               forrige.includes(id) ? forrige : [...forrige, id],
             );
-            setVisLeggTilProsjekt(false);
           }}
           onLukk={() => setVisLeggTilProsjekt(false)}
+        />
+      )}
+
+      {visRammeModal && (
+        <RedigerArbeidstidModal
+          sheetId={sheetId}
+          dato={sedel.dato}
+          startAt={sedel.startAt}
+          endAt={sedel.endAt}
+          beskrivelse={sedel.beskrivelse ?? null}
+          onLukk={() => setVisRammeModal(false)}
+          onLagret={() => {
+            setVisRammeModal(false);
+            markerEndretOgLes();
+          }}
         />
       )}
 
@@ -1383,376 +1514,5 @@ export default function DagsseddelDetalj() {
 
       <MiniToast melding={pauseToast} />
     </SafeAreaView>
-  );
-}
-
-function ProsjektGruppe({
-  projectId,
-  visHeader,
-  sheetId,
-  organizationId,
-  sedelProjectId,
-  sedelByggeplassId,
-  dato,
-  pauseMin,
-  defaultAktivitetId,
-  harEquipmentCache,
-  harMaskinforerbevis,
-  redigerbar,
-  onPauseToggle,
-  timerRader,
-  alleTimerRader,
-  tilleggRader,
-  maskinRader,
-  utleggRader,
-  onEndret,
-}: {
-  projectId: string;
-  visHeader: boolean;
-  sheetId: string;
-  organizationId: string;
-  /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
-  sedelProjectId: string;
-  /** F3: sedel-nivå byggeplass — arvet verdi på rader uten per-rad-override. */
-  sedelByggeplassId: string | null;
-  /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
-  onPauseToggle: (radId: string, vilHa: boolean) => void;
-  dato: string;
-  /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
-  pauseMin: number;
-  defaultAktivitetId: string | null;
-  harEquipmentCache: boolean;
-  harMaskinforerbevis: boolean;
-  redigerbar: boolean;
-  /** Prosjekt-scopet (denne gruppens rader) — visning/bøtter. */
-  timerRader: TimerRad[];
-  /** M3: sedelens fulle timer-rad-liste (alle prosjekter/ECO), kun overlapp-sjekk. */
-  alleTimerRader: TimerRad[];
-  tilleggRader: TilleggRad[];
-  maskinRader: MaskinRad[];
-  utleggRader: UtleggRad[];
-  onEndret: () => void;
-}) {
-  const { t } = useTranslation();
-  const prosjekt = useMemo(() => finnProsjektLokalt(projectId), [projectId]);
-  // U1: v2 gruppe-header kan kollapses (skjuler ECO-bukets, beholder sum).
-  const [kollapset, setKollapset] = useState(false);
-
-  // Byggeplass i gruppe-header. Primærprosjektets byggeplass vises i sedel-
-  // toppen (L1/B6 blå topp-oversikt) → ikke dupliser her. For SEKUNDÆR-grupper
-  // (rad-nivå multi-prosjekt) vises byggeplassLocal.navn KUN når prosjektet har
-  // nøyaktig én byggeplass i cache (unngå å vise feil ved flere).
-  const byggeplassNavn = useMemo(() => {
-    const db = hentDatabase();
-    if (!db) return null;
-    if (projectId === sedelProjectId) return null;
-    const perProsjekt = db
-      .select({ navn: byggeplassLocal.navn })
-      .from(byggeplassLocal)
-      .where(eq(byggeplassLocal.projectId, projectId))
-      .all();
-    if (perProsjekt.length === 1 && perProsjekt[0].navn) {
-      return perProsjekt[0].navn;
-    }
-    return null;
-  }, [projectId, sedelProjectId]);
-
-  // Subtotal i gruppe-header: sum av prosjektets arbeidstimer. Maskin holdes
-  // utenfor (vises som «herav» i hver ECO-bucket).
-  const prosjektTimer = useMemo(
-    () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
-    [timerRader],
-  );
-
-  // T7-4e: bygg ECO-bukets innen dette prosjektet. Hovedgruppe (ECO=null)
-  // vises alltid først; ECO-er i den rekkefølgen de først dukker opp i rader.
-  // Rader uten projectId tilskrives sedelProjectId (pre-T7-3b1-fallback).
-  const ecoBuckets = useMemo(() => {
-    type Bucket = { ecoId: string | null; timer: TimerRad[]; maskin: MaskinRad[] };
-    const map = new Map<string, Bucket>();
-    const ekv = (eco: string | null) => eco ?? "";
-
-    const finn = (eco: string | null): Bucket => {
-      const k = ekv(eco);
-      let b = map.get(k);
-      if (!b) {
-        b = { ecoId: eco, timer: [], maskin: [] };
-        map.set(k, b);
-      }
-      return b;
-    };
-    for (const r of timerRader) finn(r.externalCostObjectId ?? null).timer.push(r);
-    for (const r of maskinRader) finn(r.externalCostObjectId ?? null).maskin.push(r);
-    // Hvis ingen rader: vis tom hovedgruppe så bruker kan legge til.
-    if (map.size === 0) finn(null);
-    // Sorter: hovedgruppe (null) først, deretter i innsetnings-rekkefølge.
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.ecoId === null && b.ecoId !== null) return -1;
-      if (a.ecoId !== null && b.ecoId === null) return 1;
-      return 0;
-    });
-  }, [timerRader, maskinRader]);
-
-  return (
-    <Animated.View layout={LinearTransition} className="mt-2">
-      {visHeader && (
-        <Pressable
-          onPress={() => setKollapset((v) => !v)}
-          className="mx-4 mt-4 flex-row items-center justify-between gap-2 rounded-lg border border-gray-200 bg-blue-50 px-4 py-2.5"
-        >
-          <View className="flex-1 flex-row items-center gap-1.5">
-            {kollapset ? (
-              <ChevronRight size={16} color="#1e40af" />
-            ) : (
-              <ChevronDown size={16} color="#1e40af" />
-            )}
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-sitedoc-primary">
-                {prosjekt
-                  ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
-                  : projectId}
-              </Text>
-              {byggeplassNavn && (
-                <Text className="text-xs text-gray-600">{byggeplassNavn}</Text>
-              )}
-            </View>
-          </View>
-          <Text className="text-sm font-semibold text-sitedoc-primary">
-            {prosjektTimer.toFixed(2)} {t("timer.tEnhet")}
-          </Text>
-        </Pressable>
-      )}
-
-      {/* ECO-bukets (hovedgruppe + N underprosjekter) — skjules ved kollaps.
-          U3: myk fade-inn/ut + layout-transisjon (Reanimated). */}
-      {!kollapset && (
-        <Animated.View
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(150)}
-          layout={LinearTransition}
-        >
-          {ecoBuckets.map((bucket) => (
-            <EcoBucket
-              key={bucket.ecoId ?? "hoved"}
-              sheetId={sheetId}
-              organizationId={organizationId}
-              projectId={projectId}
-              ecoId={bucket.ecoId}
-              sedelByggeplassId={sedelByggeplassId}
-              onPauseToggle={onPauseToggle}
-              dato={dato}
-              pauseMin={pauseMin}
-              defaultAktivitetId={defaultAktivitetId}
-              harEquipmentCache={harEquipmentCache}
-              harMaskinforerbevis={harMaskinforerbevis}
-              redigerbar={redigerbar}
-              timerRader={bucket.timer}
-              alleTimerRader={alleTimerRader}
-              maskinRader={bucket.maskin}
-              onEndret={onEndret}
-            />
-          ))}
-        </Animated.View>
-      )}
-
-      {/* Tillegg per-prosjekt (separat fra ECO-bukets — ingen ECO-felt på SheetTillegg) */}
-      <TilleggSeksjon
-        sheetId={sheetId}
-        organizationId={organizationId}
-        projectId={projectId}
-        rader={tilleggRader}
-        redigerbar={redigerbar}
-        onEndret={onEndret}
-      />
-      {/* U4: Utlegg per-prosjekt — egen bærer (SheetUtlegg), ordning utledet
-          per prosjekt+kategori. Ligger etter Tillegg (to kataloger, to bærere). */}
-      <UtleggSeksjon
-        sheetId={sheetId}
-        organizationId={organizationId}
-        projectId={projectId}
-        rader={utleggRader}
-        redigerbar={redigerbar}
-        onEndret={onEndret}
-      />
-      {/* sedelProjectId brukes ikke direkte her — beholdt for fremtidig
-          backfill av rader uten projectId. void for å unngå lint-warning. */}
-      {void sedelProjectId}
-    </Animated.View>
-  );
-}
-
-/**
- * T7-4e (2026-05-16): EcoBucket — én bucket per (projectId, externalCostObjectId).
- * Speil av web EcoGruppe (T7-4c). Arbeidstimer (TimerSeksjon) er hovedposten;
- * maskintimer (MaskinSeksjon) rendres indentert som visuell underpost. Sum-
- * indikator nederst speiler server-validering fra T7-4b.
- */
-function EcoBucket({
-  sheetId,
-  organizationId,
-  projectId,
-  ecoId,
-  sedelByggeplassId,
-  onPauseToggle,
-  dato,
-  pauseMin,
-  defaultAktivitetId,
-  harEquipmentCache,
-  harMaskinforerbevis,
-  redigerbar,
-  timerRader,
-  alleTimerRader,
-  maskinRader,
-  onEndret,
-}: {
-  sheetId: string;
-  organizationId: string;
-  projectId: string;
-  ecoId: string | null;
-  /** F3: sedel-nivå byggeplass — arvet verdi på rader uten per-rad-override. */
-  sedelByggeplassId: string | null;
-  /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
-  onPauseToggle: (radId: string, vilHa: boolean) => void;
-  dato: string;
-  pauseMin: number;
-  defaultAktivitetId: string | null;
-  harEquipmentCache: boolean;
-  harMaskinforerbevis: boolean;
-  redigerbar: boolean;
-  timerRader: TimerRad[];
-  /** M3: sedelens fulle timer-rad-liste (kryss-bøtte), kun til overlapp-sjekk. */
-  alleTimerRader: TimerRad[];
-  maskinRader: MaskinRad[];
-  onEndret: () => void;
-}) {
-  const { t } = useTranslation();
-  const sumTimer = useMemo(
-    () => timerRader.reduce((acc, r) => acc + r.timer, 0),
-    [timerRader],
-  );
-  const sumMaskin = useMemo(
-    () => maskinRader.reduce((acc, r) => acc + r.timer, 0),
-    [maskinRader],
-  );
-  // Delt regel (@sitedoc/shared) — samme epsilon + pause-modell som server.
-  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
-
-  // ECO-navn fra lokal cache (én lookup per bucket).
-  const ecoNavn = useMemo(() => {
-    if (!ecoId) return null;
-    const db = hentDatabase();
-    if (!db) return null;
-    const eco = db
-      .select()
-      .from(externalCostObjectLocal)
-      .where(eq(externalCostObjectLocal.id, ecoId))
-      .all()[0];
-    return eco ? { proAdmId: eco.proAdmId, kortNavn: eco.kortNavn } : null;
-  }, [ecoId]);
-
-  return (
-    <View
-      className={`mx-4 mt-3 rounded border bg-gray-50 p-3 ${
-        ecoId ? "border-indigo-200" : "border-gray-200"
-      }`}
-    >
-      {/* ECO-subheader + indigo-badge "→ Godkjenning byggherre" — kun ekte ECO-er */}
-      {ecoId && (
-        <View className="mb-2 flex-row items-center justify-between gap-2 border-b border-gray-200 pb-2">
-          <View className="flex-1 flex-row items-center gap-1.5">
-            {ecoNavn ? (
-              <>
-                {/* U1: ECO-id som badge-chip */}
-                <View className="rounded bg-indigo-100 px-1.5 py-0.5">
-                  <Text className="text-xs font-semibold text-indigo-800">
-                    {ecoNavn.proAdmId}
-                  </Text>
-                </View>
-                <Text className="flex-1 text-xs font-medium text-gray-700">
-                  {ecoNavn.kortNavn}
-                </Text>
-              </>
-            ) : (
-              <Text className="flex-1 text-xs font-semibold text-gray-800">
-                {t("timer.detalj.ukjentEco")}
-              </Text>
-            )}
-          </View>
-          <View className="rounded bg-indigo-100 px-1.5 py-0.5">
-            <Text className="text-xs font-medium text-indigo-800">
-              → {t("timer.gruppe.tilByggherre")}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Arbeidstimer (hovedpost) */}
-      <Text className="mb-1 text-xs font-medium text-gray-700">
-        {t("timer.gruppe.arbeidstimer")} ({sumTimer.toFixed(2)} {t("timer.tEnhet")})
-      </Text>
-      <TimerSeksjon
-        sheetId={sheetId}
-        organizationId={organizationId}
-        rader={timerRader}
-        alleTimerRader={alleTimerRader}
-        projectId={projectId}
-        defaultEcoId={ecoId}
-        visHeader={false}
-        dato={dato}
-        sedelByggeplassId={sedelByggeplassId}
-        pauseMin={pauseMin}
-        harEquipmentCache={harEquipmentCache}
-        defaultAktivitetId={defaultAktivitetId}
-        redigerbar={redigerbar}
-        onPauseToggle={onPauseToggle}
-        onEndret={onEndret}
-      />
-
-      {/* P1 (maskin-i-rad): maskin-radene rendres inline rett etter timer-radene
-          i samme rad-liste, hver med et slate «MASKIN»-merke (MaskinRadVis). Den
-          separate «herav maskin»-underposten + «+ Legg til maskin»-knappen er
-          fjernet; ny maskin legges via timerrad-modalens valgfrie maskin-seksjon,
-          mens eksisterende maskin-rader fortsatt redigeres inline (trykk rad). */}
-      <MaskinSeksjon
-        sheetId={sheetId}
-        organizationId={organizationId}
-        projectId={projectId}
-        defaultEcoId={ecoId}
-        visHeader={false}
-        dato={dato}
-        pauseMin={pauseMin}
-        rader={maskinRader}
-        harEquipmentCache={harEquipmentCache}
-        harMaskinforerbevis={harMaskinforerbevis}
-        redigerbar={redigerbar}
-        onEndret={onEndret}
-      />
-
-      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b.
-          Del B pkt 3 (device-funn 2026-08-08): skjules når maskin = 0.00t. Et
-          «Herav maskin 0.00t av Xt arbeid»-banner uten maskininngang er selv-
-          motsigende og leses som at maskintimer ER ført. Ved maskin > 0 beholdes
-          dagens ordlyd (allerede omformulert én gang, jf. BACKLOG maskinAvArbeid). */}
-      {sumMaskin > 0 && (
-        <View
-          className={`mt-3 rounded border px-3 py-1.5 ${
-            maskinOk
-              ? "border-green-200 bg-green-50"
-              : "border-red-300 bg-red-50"
-          }`}
-        >
-          <Text
-            className={`text-xs font-medium ${
-              maskinOk ? "text-green-800" : "text-red-800"
-            }`}
-          >
-            {t("timer.gruppe.maskinAvArbeid", {
-              maskin: sumMaskin.toFixed(2),
-              arbeid: sumTimer.toFixed(2),
-            })}
-          </Text>
-        </View>
-      )}
-    </View>
   );
 }

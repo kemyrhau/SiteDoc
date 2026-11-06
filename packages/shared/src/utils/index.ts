@@ -499,3 +499,24 @@ export {
   unikNedlastingsnavn,
 } from "./tegningNedlasting";
 export { utledKildeformat, TEGNING_STATUS_NOEKKEL } from "./kildeformat";
+export {
+  lesTimerModus,
+  beregnKortSummer,
+  sumIDag,
+  dagSummer,
+  utledKortByggeplass,
+  kortStatus,
+  trafikklysSone,
+  visVareforbrukKnapp,
+  kortDagsseddelId,
+  kortVareforbrukInput,
+  slaaSammenVarelinjer,
+  type KortVareforbrukInput,
+  type TimerModus,
+  type KortTimerRad,
+  type KortMaskinRad,
+  type KortVareLinje,
+  type VareSum,
+  type KortSummer,
+  type KortByggeplass,
+} from "./prosjektkort";

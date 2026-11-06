@@ -14,11 +14,9 @@ import {
   Text,
   Pressable,
   TextInput,
-  ScrollView,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
+import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31: SafeAreaView anvender arkets egen topp-inset (~10 pt), header-kontroller truffbare. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Plus, Trash2 } from "lucide-react-native";
@@ -409,15 +407,9 @@ export function SplittRadModal(props: Props) {
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-          <ScrollView
+        <TastaturScrollView
             className="flex-1"
             contentContainerClassName="p-4 gap-3"
-            keyboardShouldPersistTaps="handled"
           >
             {/* Original-referanse */}
             <View className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
@@ -513,8 +505,7 @@ export function SplittRadModal(props: Props) {
               </Text>
             </Pressable>
             </KnappMedForklaring>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </TastaturScrollView>
         <TastaturFerdig />
       </SafeAreaView>
     </Modal>

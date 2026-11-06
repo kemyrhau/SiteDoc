@@ -26,6 +26,7 @@ import { TimerSyncStatusBar } from "./TimerSyncStatusBar";
 import { TimerStatusMerkelapp } from "./TimerStatusMerkelapp";
 import { UkeTotalBanner } from "./UkeTotalBanner";
 import { StartSluttDagKort } from "./StartSluttDagKort";
+import { NyTimerRadFlyt } from "./timer-detalj/NyTimerRadFlyt";
 
 interface DagsseddelRad {
   id: string;
@@ -165,6 +166,8 @@ export function DagsseddelListe({
   const { triggerSync, syncerNa, sistSynkronisert } = useTimerSync();
 
   const [rader, setRader] = useState<DagsseddelRad[]>([]);
+  // ORDRE 17: «+» åpner timer-raden direkte (erstatter /timer/ny).
+  const [visNyRad, setVisNyRad] = useState(false);
 
   // Re-les fra DB hver gang siden får fokus (etter retur fra detalj/ny)
   useFocusEffect(
@@ -220,7 +223,7 @@ export function DagsseddelListe({
       {/* P3-hybrid: det fulle «Start dag/Slutt dag»-kortet bor nå øverst på
           timer-flaten (Timer-tab + /timer-stack), ikke lenger på hjem. Hjem
           viser i stedet den kompakte HjemTimerChip. */}
-      <StartSluttDagKort />
+      <StartSluttDagKort onNyRad={() => setVisNyRad(true)} />
 
       {bruker?.id && <UkeTotalBanner userId={bruker.id} />}
 
@@ -295,11 +298,12 @@ export function DagsseddelListe({
 
       {/* Floating action button */}
       <Pressable
-        onPress={() => router.push("/timer/ny")}
+        onPress={() => setVisNyRad(true)}
         className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-blue-600 shadow-lg active:bg-blue-700"
       >
         <Plus size={28} color="#ffffff" />
       </Pressable>
+      {visNyRad && <NyTimerRadFlyt onLukk={() => setVisNyRad(false)} />}
     </SafeAreaView>
   );
 }

@@ -4,6 +4,7 @@
 
 - **Modal-rendering:** ALLTID `<Modal visible={...}>` — ALDRI `{betingelse && <Modal>}` (animasjonsfrys)
 - **SafeAreaView i Modals:** Bruk fra `react-native` (IKKE `react-native-safe-area-context`)
+- **Tastatur i modaler med felt (16b, 2026-11-06):** rulleflaten er `TastaturScrollView` (`apps/mobile/src/components/timer-detalj/TastaturScrollView.tsx`, `automaticallyAdjustKeyboardInsets` + `keyboardShouldPersistTaps="handled"`), ikke `KeyboardAvoidingView` med `keyboardVerticalOffset={0}` — det løftet for lite i pageSheet og dekket felt. iOS ruller feltet med fokus fram over tastaturet; Android er uendret. Velgerlister (FlatList/ScrollView med søkefelt) i `timer-detalj/` har samme prop. Vakttest: `tastatur-innsetter-vakt.test.ts`.
 - **React Query invalidering:** Invalider query-cache etter mutasjoner
 - **`InteractionManager.runAfterInteractions`:** MÅ brukes etter kamera/picker lukkes
 - **Lukkeknapp i modaler/fullskjerm:** ALLTID i en header-bar under SafeAreaView — ALDRI absolutt posisjonert (havner under notch/Dynamic Island). Standard: `<X size={22} color="#ffffff" />` med `hitSlop={12}` i en `flex-row items-center px-4 py-3` View. Se `PdfForhandsvisning.tsx` som referanse.
@@ -210,7 +211,7 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 |--------|--------|
 | `index.tsx` | Dagsseddel-liste — leser lokale dagssedler (`dagsseddelLocal`) for innlogget bruker, sortert på dato, m/totaltimer per sedel |
 | `mine.tsx` | «Mine timer» — kompakt rapport på tvers av prosjekter (lokal Drizzle-spørring, klient-side aggregering). Periodevalg: denne uken / forrige uke / denne måneden (egendefinert periode er web-only) |
-| `ny.tsx` | Ny dagsseddel — velg prosjekt + aktivitet, dato, GPS-fangst. Skriver lokalt (`dagsseddelLocal`/`aktivitetLocal`), dagstotal-banner viser allerede ført tid |
+| «+» (ingen egen skjerm) | ORDRE 17 (2026-11-06): «+» på lista åpner timer-raden direkte (`NyTimerRadFlyt.tsx`): ikke ansatt → `timer.ikkeAnsatt`; prosjektliste (`ProsjektVelgerModal`, GPS-treff forhåndsvalgt øverst med `timer.geoForslag` via `useGeoProsjektForslag`, hoppes over ved ett prosjekt) → `TimerRadModal` i opprettelsesmodus (datofelt, lønnsart/aktivitet fra `sistBrukteRadvalg`, fra/til fra arbeidsdagen). Lagre = `lagreNyTimerRad` (finn-eller-opprett sedel + rad, `services/nyTimerRad.ts`) → sedelen, eller kortskjermen i prosjektkort-modus; eksisterende sedel får `?aapnetEksisterende=1`. Avbryt skriver ingenting. Sendt/akseptert dag: banner `timer.dagSendt` + «Åpne dagen». Sedelens kommentar redigeres i «Endre ramme» (`RedigerArbeidstidModal`). `ny.tsx` er slettet. Også fallback for «Slutt dag» → `kildeManglet` (`StartSluttDagKort` `onNyRad`) |
 | `[id].tsx` | Dagsseddel-detalj — rediger timer-/tillegg-/maskinrader lokalt, send, slett |
 | `attestering/index.tsx` + `[id].tsx` | Firma-attestering (firma-kontekst via `useFirma()`, online-only): liste + detalj. Speil av webs `/dashbord/firma/timer/attestering`. Bruker `timer.dagsseddel.kanAttestereFirma`/`hentTilAttesteringFirma` |
 
@@ -232,7 +233,7 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 
 **Gjenåpning — bekreftelse før kjøring (M7, 2026-07-10):** `gjenaapne()` i `apps/mobile/app/timer/[id].tsx` viser nå `Alert.alert(bekreftTittel, bekreftTekst, [avbryt(cancel), bekreftKnapp → utforGjenaapne])` før mutasjonen kjøres (paritet med webs `<Modal>`-bekreftelse). Mutasjons-kroppen (inkl. M4-`onError`-mappingen, uendret) er flyttet til `utforGjenaapne()`. Bekreft-knappen er **ikke** `style: "destructive"` — gjenåpning er reversibel (sedelen sendes bare på nytt), ulikt `slettSedel()`. Gjenbruker `timer.gjenaapne.bekreftTittel/bekreftTekst/bekreftKnapp` + `handling.avbryt` (alle i nb+en; var web-only). `Alert.alert` er mobilens bekreftelses-idiom (33 treff/12 filer; talt 32 i M7-Steg-0 før denne endringen selv la til den 33.) — CLAUDE.md § Slett-bekreftelse forbyr `confirm()` i web, ikke RN-dialoger (se [BACKLOG § Alert.alert vs e2e](BACKLOG.md)).
 
-**Offline-cacher (Drizzle/SQLite) for «Start/Slutt dag»-forslag:** `oppmotested_local` (Fase 1, GPS-kontor-identifikasjon) + `arbeidstidskalender_local`/`organization_setting_local` (arbeidstid/reise-regelsett) + **R4 (2026-06-11):** `reisetid_matrise_local` (kjøretid kontor×byggeplass, `kjoretidMin < 0` = uoppnåelig) + `byggeplass_local` (id/projectId/number/status for prosjekt→primær-byggeplass-resolusjon). Refresh via katalog-tjenestene (`oppmotestedKatalog`, `reisetidMatriseKatalog`, `byggeplassKatalog`, …) wiret i `TimerSyncProvider` (per-org, ved login + nett-gjenkomst). Reise-forslaget i `StartSluttDagKort.genererForslag` slår opp matrisen (kontor→primær-byggeplass → faktisk reisetid), med graceful `estimerReisetidMin`-fallback når rad mangler. Detaljer i [timer.md § Reise og oppmøtested](timer.md).
+**Offline-cacher (Drizzle/SQLite) for «Start/Slutt dag»-forslag:** `oppmotested_local` (Fase 1, GPS-kontor-identifikasjon) + `arbeidstidskalender_local`/`organization_setting_local` (arbeidstid/reise-regelsett) + **R4 (2026-06-11):** `reisetid_matrise_local` (kjøretid kontor×byggeplass, `kjoretidMin < 0` = uoppnåelig) + `byggeplass_local` (id/projectId/number/status for prosjekt→primær-byggeplass-resolusjon). Refresh via katalog-tjenestene (`oppmotestedKatalog`, `reisetidMatriseKatalog`, `byggeplassKatalog`, `vareKatalog` (L3), …) wiret i `TimerSyncProvider` (per-org, ved login + nett-gjenkomst). Reise-forslaget i `StartSluttDagKort.genererForslag` slår opp matrisen (kontor→primær-byggeplass → faktisk reisetid), med graceful `estimerReisetidMin`-fallback når rad mangler. Detaljer i [timer.md § Reise og oppmøtested](timer.md).
 
 ## Flerspråklig (i18n)
 
@@ -271,6 +272,8 @@ const { t } = useTranslation();
 | `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11; `user_id` + lesefilter lagt til fase 2 2026-10-03) |
 | `oppgave_local` | Offline-katalog for oppgave**lista** (read-only mirror, 2026-10-03) |
 | `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03; filterkolonner 2026-11-03) |
+| `vare_local` | Offline-katalog for firmaets aktive varer (id/navn/enhet/varenummer), pr. firma, fra `vareforbruk.katalogForFirma` (Prosjektkort L3, 2026-11-06) |
+| `vareforbruk_local` | Vareforbruk ført fra prosjektkortet offline; `sync_status` pending/synced/avvist, sendes av `syncVareforbruk` (`src/services/vareforbrukSync.ts`) (L3) |
 | `dokument_speil` | Offline-speil av **hele dokumentet** (`hentMedId`-JSON) for LESING uten nett (fase 2 2026-10-03). Nøklet (dokumentType, id, userId); signaturer strippet |
 
 **Offline dokumentlister (fase 1):** list-skjermene leste før rett på tRPC uten fallback → tom liste

@@ -28,6 +28,12 @@ import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
+import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
+import {
+  RadByggeplassFelt,
+  useRadByggeplass,
+} from "@/components/timer/RadByggeplassFelt";
+import { byggeplassPayload, type ByggeplassValg } from "@/lib/timerByggeplass";
 import {
   maskinBucketKapasitet,
   overstigerMaskinTak,
@@ -45,6 +51,17 @@ import {
   type ForsonRad,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
+import {
+  beregnKortSummer,
+  dagSummer,
+  kortStatus,
+  lesTimerModus,
+  sumIDag,
+  trafikklysSone,
+  utledKortByggeplass,
+  visVareforbrukKnapp,
+  kortDagsseddelId,
+} from "@sitedoc/shared";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
 
@@ -97,6 +114,8 @@ type TimerRad = {
   // Bolk (f): rad-attestering. Brukes til å deaktivere gjenåpne-knappen når leder
   // alt har attestert (server-vakten er sannhetskilden; dette gater bare UI-et).
   attestertStatus: string | null;
+  // Prosjektkort L1: reise-rad (V3/V9) — skilles fra arbeid i kortsummene.
+  erReise?: boolean;
 };
 
 type TilleggVedlegg = {
@@ -186,6 +205,16 @@ export default function DagsseddelDetaljSide() {
     { organizationId: sheet?.organizationId ?? undefined },
     { enabled: !!sheet?.organizationId },
   );
+  // Ordre (10): byggeplass per rad. hentForFirma (som mobil) er tilgjengelig for
+  // arbeidere; dialogene filtrerer på radens prosjekt.
+  const { data: byggeplasser } = trpc.bygning.hentForFirma.useQuery(
+    { organizationId: sheet?.organizationId ?? "" },
+    { enabled: !!sheet?.organizationId },
+  );
+  const byggeplassNavn = useMemo(
+    () => new Map((byggeplasser ?? []).map((b) => [b.id, b.name])),
+    [byggeplasser],
+  );
 
   // Maskin-fra-til (2026-05-17): orgSetting brukes som fallback når en
   // bucket mangler timer-rader (ingen rad å ta fra/til fra). Trpc-cache
@@ -216,6 +245,32 @@ export default function DagsseddelDetaljSide() {
       },
       { enabled: !!sheet?.organizationId && !!sheet?.dato },
     );
+
+  // Prosjektkort L1: firmaets visningsmodus (default dagskort). Kun visning —
+  // samme sedel, samme mutasjoner. Varelinjene hentes bare i prosjektkort-modus.
+  const prosjektkortModus =
+    lesTimerModus(arbeidstidDefaults?.timerRegistreringsmodus) === "prosjektkort";
+  const { data: mineVarer } = trpc.vareforbruk.hentMineForDato.useQuery(
+    {
+      organizationId: sheet?.organizationId ?? "",
+      dato: sheet ? new Date(sheet.dato).toISOString().slice(0, 10) : "",
+    },
+    {
+      enabled: prosjektkortModus && !!sheet?.organizationId && !!sheet?.dato,
+      retry: false,
+    },
+  );
+  // Prosjektkort L3: arbeiderens vare-katalog + prosjektene med Varelager på.
+  // Feil (Varelager av for firmaet, ingen tilgang) → ingen «+ Vareforbruk».
+  const { data: vareKatalog } = trpc.vareforbruk.katalogForFirma.useQuery(
+    { organizationId: sheet?.organizationId ?? "" },
+    { enabled: prosjektkortModus && !!sheet?.organizationId, retry: false },
+  );
+  const [vareModalProsjekt, setVareModalProsjekt] = useState<string | null>(null);
+  // Åpent kort: undefined = automatisk (eneste kort, eller nytt fra opprettelse).
+  const [aapentKort, setAapentKort] = useState<string | null | undefined>(
+    () => nyttProsjektParam ?? undefined,
+  );
 
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
@@ -526,6 +581,79 @@ export default function DagsseddelDetaljSide() {
     (p) => !aktiveProsjektIder.includes(p.id),
   );
 
+  // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter), ellers dagens
+  // effektive start. «Fortsett der du slapp» på hele dagen — ikke bare bøtta.
+  // Seneste slutt hindrer at ny rad prefylles inn i et allerede registrert
+  // tidsrom (overlapp-vakt). Delt av dagskortets gruppe og prosjektkortets «+ Timer».
+  const aapneNyTimerRad = (projectId: string, ecoId: string | null) => {
+    const sisteTil = timerRader
+      .map((r) => r.tilTid)
+      .filter((t): t is string => !!t)
+      .reduce<string | null>(
+        (senest, t) =>
+          senest === null || hhmmTilMin(t) > hhmmTilMin(senest) ? t : senest,
+        null,
+      );
+    setAktivModal({
+      type: "timer",
+      projectId,
+      defaultEcoId: ecoId,
+      defaultFraTid: sisteTil ?? effektivStart,
+      defaultTilTid: effektivSlutt,
+    });
+  };
+
+  // Props for én ProsjektGruppe — samme i dagskortet og i et åpent prosjektkort.
+  const gruppeProps = (projectId: string) => {
+    // T7-4c: hvis ingen rader på prosjektet ennå (bruker la til via
+    // "+ Legg til prosjekt"), vis kun hovedgruppen (ECO=null).
+    const ecoIder = prosjektEcoIder.get(projectId);
+    const ecoListe = ecoIder && ecoIder.length > 0 ? ecoIder : [""];
+    return {
+      projectId,
+      prosjektNavn: prosjektNavnMap.get(projectId),
+      tillegg: tilleggPerProsjekt.get(projectId) ?? [],
+      utlegg: utleggPerProsjekt.get(projectId) ?? [],
+      ecoBuckets: ecoListe.map((ekv) => {
+        const ecoId = ekv === "" ? null : ekv;
+        const data = ecoGrupper.get(ecoGruppeKey(projectId, ecoId));
+        return {
+          ecoId,
+          timer: data?.timer ?? [],
+          maskin: data?.maskin ?? [],
+        };
+      }),
+      erRedigerbar,
+      pauseMin: sheet.pauseMin,
+      pauseVisning,
+      byggeplassNavn,
+      onTilfoyTimer: (ecoId: string | null) => aapneNyTimerRad(projectId, ecoId),
+      onLeggTil: () => setAktivModal({ type: "leggTil", projectId }),
+      onRedigerTimer: (rad: TimerRad) =>
+        setAktivModal({ type: "timer", projectId, rad }),
+      onRedigerTillegg: (rad: TilleggRad) =>
+        setAktivModal({ type: "tillegg", projectId, rad }),
+      onRedigerUtlegg: (rad: UtleggRad) =>
+        setAktivModal({ type: "utlegg", projectId, rad }),
+      onRedigerMaskin: (rad: MaskinRad) =>
+        setAktivModal({ type: "maskin", projectId, rad }),
+      onSplittTimer: (rad: TimerRad) => setSplittModal({ type: "timer", rad }),
+      onSplittTillegg: (rad: TilleggRad) =>
+        setSplittModal({ type: "tillegg", rad }),
+      onSplittMaskin: (rad: MaskinRad) => setSplittModal({ type: "maskin", rad }),
+    };
+  };
+
+  // Prosjektkort L1: kortnavn «nr — navn» (overlapp-meldingen og pausebæreren).
+  const kortNavn = (projectId: string) => {
+    const p = prosjektNavnMap.get(projectId);
+    if (!p) return t("timer.detalj.ukjentProsjekt");
+    return p.internalProjectNumber
+      ? `${p.internalProjectNumber} — ${p.name}`
+      : p.name;
+  };
+  const kortNavnMap = new Map(aktiveProsjektIder.map((id) => [id, kortNavn(id)]));
+
   return (
     <div className="max-w-3xl p-6">
       <Link
@@ -646,7 +774,8 @@ export default function DagsseddelDetaljSide() {
         />
       )}
 
-      {/* Header-info — sedel-nivå */}
+      {/* Header-info — sedel-nivå. Prosjektkort-modus: «Dagens ramme» under kortene. */}
+      {!prosjektkortModus && (
       <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">
@@ -709,86 +838,85 @@ export default function DagsseddelDetaljSide() {
           </dl>
         </div>
       </section>
+      )}
 
-      {/* Prosjekt-grupper */}
-      {aktiveProsjektIder.length === 0 ? (
+      {/* Prosjekt-grupper (dagskort) / prosjektkort-samleside */}
+      {prosjektkortModus ? (
+        <ProsjektkortSamleside
+          prosjektIder={aktiveProsjektIder}
+          aapentKort={
+            aapentKort === undefined
+              ? aktiveProsjektIder.length === 1
+                ? aktiveProsjektIder[0]!
+                : null
+              : aapentKort
+          }
+          onVelgKort={setAapentKort}
+          kortNavn={kortNavnMap}
+          timerRader={timerRader}
+          maskinRader={maskinRader}
+          varer={(mineVarer ?? []) as KortVare[]}
+          sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
+          byggeplassNavn={byggeplassNavn}
+          erRedigerbar={erRedigerbar}
+          kanLeggeTilKort={ledigeProsjekter.length > 0}
+          ramme={{
+            fra: harRaderMedTid
+              ? arbeidstidVisning.startTid ?? "—"
+              : isoTidspunktTilHHMM(sheet.startAt as string | null) || "—",
+            til: harRaderMedTid
+              ? arbeidstidVisning.sluttTid ?? "—"
+              : isoTidspunktTilHHMM(sheet.endAt as string | null) || "—",
+            pauseMin: harRaderMedTid
+              ? arbeidstidVisning.sumPauseMin
+              : sheet.pauseMin,
+            aktivitet: sheet.aktivitet?.navn ?? null,
+            beskrivelse: sheet.beskrivelse ?? null,
+          }}
+          normTimer={normTimer}
+          erReturnert={sheet.status === "returned"}
+          kanSlette={
+            sheet.status === "draft" ||
+            (sheet.status === "returned" && !sheet.attestertVed)
+          }
+          sender={send.isPending}
+          sletter={slett.isPending}
+          renderKort={(projectId) => (
+            <ProsjektGruppe iKort {...gruppeProps(projectId)} />
+          )}
+          onNyTimer={(projectId) => aapneNyTimerRad(projectId, null)}
+          onNyMaskin={(projectId) =>
+            setAktivModal({
+              type: "maskin",
+              projectId,
+              defaultEcoId: null,
+              defaultFraTid: effektivStart,
+              defaultTilTid: effektivSlutt,
+            })
+          }
+          onLeggTil={(projectId) => setAktivModal({ type: "leggTil", projectId })}
+          varelagerProsjekter={vareKatalog?.prosjektIderMedVarelager}
+          onNyVare={setVareModalProsjekt}
+          onNyttKort={() => setAktivModal({ type: "nyProsjekt" })}
+          onEndreRamme={() => setRedigerHeader(true)}
+          onSlett={() => setVisSlettModal(true)}
+          onSend={() => {
+            setFeil(null);
+            send.mutate({ id: sheet.id });
+          }}
+        />
+      ) : aktiveProsjektIder.length === 0 ? (
         <section className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
           {t("timer.detalj.ingenProsjektGrupper")}
         </section>
       ) : (
-        aktiveProsjektIder.map((projectId) => {
-          // T7-4c: hvis ingen rader på prosjektet ennå (bruker la til via
-          // "+ Legg til prosjekt"), vis kun hovedgruppen (ECO=null).
-          const ecoIder = prosjektEcoIder.get(projectId);
-          const ecoListe =
-            ecoIder && ecoIder.length > 0 ? ecoIder : [""];
-          return (
-            <ProsjektGruppe
-              key={projectId}
-              projectId={projectId}
-              prosjektNavn={prosjektNavnMap.get(projectId)}
-              tillegg={tilleggPerProsjekt.get(projectId) ?? []}
-              utlegg={utleggPerProsjekt.get(projectId) ?? []}
-              ecoBuckets={ecoListe.map((ekv) => {
-                const ecoId = ekv === "" ? null : ekv;
-                const data = ecoGrupper.get(ecoGruppeKey(projectId, ecoId));
-                return {
-                  ecoId,
-                  timer: data?.timer ?? [],
-                  maskin: data?.maskin ?? [],
-                };
-              })}
-              erRedigerbar={erRedigerbar}
-              pauseMin={sheet.pauseMin}
-              pauseVisning={pauseVisning}
-              onTilfoyTimer={(ecoId) => {
-                // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter),
-                // ellers dagens effektive start. «Fortsett der du slapp» på hele
-                // dagen — ikke bare bøtta. Seneste slutt hindrer at ny rad
-                // prefylles inn i et allerede registrert tidsrom (overlapp-vakt).
-                const sisteTil = timerRader
-                  .map((r) => r.tilTid)
-                  .filter((t): t is string => !!t)
-                  .reduce<string | null>(
-                    (senest, t) =>
-                      senest === null || hhmmTilMin(t) > hhmmTilMin(senest)
-                        ? t
-                        : senest,
-                    null,
-                  );
-                setAktivModal({
-                  type: "timer",
-                  projectId,
-                  defaultEcoId: ecoId,
-                  defaultFraTid: sisteTil ?? effektivStart,
-                  defaultTilTid: effektivSlutt,
-                });
-              }}
-              onLeggTil={() => setAktivModal({ type: "leggTil", projectId })}
-              onRedigerTimer={(rad) =>
-                setAktivModal({ type: "timer", projectId, rad })
-              }
-              onRedigerTillegg={(rad) =>
-                setAktivModal({ type: "tillegg", projectId, rad })
-              }
-              onRedigerUtlegg={(rad) =>
-                setAktivModal({ type: "utlegg", projectId, rad })
-              }
-              onRedigerMaskin={(rad) =>
-                setAktivModal({ type: "maskin", projectId, rad })
-              }
-              onSplittTimer={(rad) => setSplittModal({ type: "timer", rad })}
-              onSplittTillegg={(rad) =>
-                setSplittModal({ type: "tillegg", rad })
-              }
-              onSplittMaskin={(rad) => setSplittModal({ type: "maskin", rad })}
-            />
-          );
-        })
+        aktiveProsjektIder.map((projectId) => (
+          <ProsjektGruppe key={projectId} {...gruppeProps(projectId)} />
+        ))
       )}
 
       {/* + Legg til prosjekt */}
-      {erRedigerbar && ledigeProsjekter.length > 0 && (
+      {!prosjektkortModus && erRedigerbar && ledigeProsjekter.length > 0 && (
         <div className="mb-6">
           <Button
             variant="secondary"
@@ -803,7 +931,8 @@ export default function DagsseddelDetaljSide() {
       {/* Topp-sum — tre-veis trafikklys relativt til dagsnorm (paritet m/ mobil
           SummeringsBanner). Rund KUN for farge (nærmeste 15 min, T.5-konsistent);
           vist tall uendret. grønn = treffer · gul = over · blå = under (akseptert). */}
-      {erRedigerbar &&
+      {!prosjektkortModus &&
+        erRedigerbar &&
         (() => {
           const rundet = Math.round(totaltimer * 4) / 4;
           const sone =
@@ -832,8 +961,8 @@ export default function DagsseddelDetaljSide() {
           );
         })()}
 
-      {/* Send + slett */}
-      {erRedigerbar && (
+      {/* Send + slett (prosjektkort-modus: bunnlinja i samlesiden) */}
+      {!prosjektkortModus && erRedigerbar && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-5">
           {/* Kenneth-vedtak 2026-10-09 (2): utkast ELLER returnert-og-ikke-attestert
               kan slettes av eieren (server håndhever samme regel). */}
@@ -885,12 +1014,17 @@ export default function DagsseddelDetaljSide() {
           organizationId={sheet.organizationId}
           projectId={aktivModal.projectId}
           prosjekter={prosjekterForVelger}
+          byggeplasser={byggeplasser}
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
           // P4b: hele sedelens timer-rader sendes inn så dialogen kan kjøre samme
           // kryss-bøtte overlapp-vakt som mobil (delt finnOverlappendeTidsrom).
           alleTimerRader={timerRader}
+          // Prosjektkort L1: inne i et kort er prosjektet låst, og overlapp-
+          // meldingen navngir det andre kortet.
+          laastProsjekt={prosjektkortModus}
+          kortNavn={prosjektkortModus ? kortNavnMap : undefined}
           // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
           // maskin-seksjonen (bucket-kapasitet, samme regel som MaskinRadDialog).
           alleMaskinRader={maskinRader}
@@ -914,6 +1048,18 @@ export default function DagsseddelDetaljSide() {
           onLukk={() => setAktivModal(null)}
         />
       )}
+      {vareModalProsjekt && vareKatalog && (
+        <KortVareforbrukModal
+          projectId={vareModalProsjekt}
+          prosjektNavn={kortNavn(vareModalProsjekt)}
+          dato={new Date(sheet.dato).toISOString().slice(0, 10)}
+          dagsseddelId={kortDagsseddelId(sheet.id, timerRader, vareModalProsjekt)}
+          varer={vareKatalog.varer}
+          byggeplasser={byggeplasser}
+          onClose={() => setVareModalProsjekt(null)}
+        />
+      )}
+
       {aktivModal?.type === "leggTil" && (
         <LeggTilVelger
           projectId={aktivModal.projectId}
@@ -956,6 +1102,7 @@ export default function DagsseddelDetaljSide() {
         <MaskinRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
+          byggeplasser={byggeplasser}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           defaultFraTid={aktivModal.defaultFraTid ?? null}
           defaultTilTid={aktivModal.defaultTilTid ?? null}
@@ -985,6 +1132,7 @@ export default function DagsseddelDetaljSide() {
             setEkstraProsjektIder((prev) =>
               prev.includes(id) ? prev : [...prev, id],
             );
+            setAapentKort(id);
             setAktivModal(null);
           }}
         />
@@ -1134,6 +1282,336 @@ export default function DagsseddelDetaljSide() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  ProsjektkortSamleside — Prosjektkort L1 (2026-11-05)                */
+/*  Visningsmodus over samme DailySheet (modell A): ett kort pr.        */
+/*  prosjekt med Arbeid/Maskin/Varer/Reise, åpnes på plass. Innholdet   */
+/*  i et åpent kort er dagskortets ProsjektGruppe (iKort). Sedelens      */
+/*  ramme vises som nedtonet linje; innsending pr. dag i bunnlinja.     */
+/* ------------------------------------------------------------------ */
+
+type KortVare = {
+  id: string;
+  projectId: string;
+  byggeplassId: string | null;
+  antall: number;
+  vare: { id: string; navn: string; enhet: string };
+};
+
+function ProsjektkortSamleside({
+  prosjektIder,
+  aapentKort,
+  onVelgKort,
+  kortNavn,
+  timerRader,
+  maskinRader,
+  varer,
+  sedelByggeplassId,
+  byggeplassNavn,
+  erRedigerbar,
+  kanLeggeTilKort,
+  ramme,
+  normTimer,
+  erReturnert,
+  kanSlette,
+  sender,
+  sletter,
+  renderKort,
+  onNyTimer,
+  onNyMaskin,
+  onLeggTil,
+  varelagerProsjekter,
+  onNyVare,
+  onNyttKort,
+  onEndreRamme,
+  onSlett,
+  onSend,
+}: {
+  prosjektIder: string[];
+  aapentKort: string | null;
+  onVelgKort: (projectId: string | null) => void;
+  kortNavn: Map<string, string>;
+  timerRader: TimerRad[];
+  maskinRader: MaskinRad[];
+  varer: KortVare[];
+  sedelByggeplassId: string | null;
+  byggeplassNavn: Map<string, string>;
+  erRedigerbar: boolean;
+  kanLeggeTilKort: boolean;
+  ramme: {
+    fra: string;
+    til: string;
+    pauseMin: number;
+    aktivitet: string | null;
+    beskrivelse: string | null;
+  };
+  normTimer: number | null;
+  erReturnert: boolean;
+  kanSlette: boolean;
+  sender: boolean;
+  sletter: boolean;
+  renderKort: (projectId: string) => JSX.Element;
+  onNyTimer: (projectId: string) => void;
+  onNyMaskin: (projectId: string) => void;
+  onLeggTil: (projectId: string) => void;
+  varelagerProsjekter: readonly string[] | undefined;
+  onNyVare: (projectId: string) => void;
+  onNyttKort: () => void;
+  onEndreRamme: () => void;
+  onSlett: () => void;
+  onSend: () => void;
+}) {
+  const { t } = useTranslation();
+  const enhet = t("timer.timerEnhet");
+  const visTimer = (n: number) =>
+    n > 0
+      ? `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${enhet}`
+      : "—";
+
+  const dagSum = sumIDag(timerRader);
+  const dag = dagSummer(timerRader, maskinRader);
+  const sone = trafikklysSone(dagSum, normTimer);
+  const prikk =
+    sone === "grå"
+      ? "bg-gray-400"
+      : sone === "grønn"
+        ? "bg-green-500"
+        : sone === "gul"
+          ? "bg-yellow-500"
+          : "bg-blue-500";
+  // Pausen bæres av én rad pr. dag (V20/PK1) — navngi kortet den står på.
+  const pauseBaerer = timerRader.find(
+    (r) => r.attestertStatus !== "erstattet" && r.pauseMin > 0,
+  );
+
+  return (
+    <section className="mb-6">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {t("timer.prosjektkort.overskrift", { antall: prosjektIder.length })}
+      </h2>
+
+      {prosjektIder.length === 0 && (
+        <div className="mb-3 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+          {t("timer.prosjektkort.ingenKort")}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {prosjektIder.map((projectId) => {
+          const kTimer = timerRader.filter((r) => r.projectId === projectId);
+          const kMaskin = maskinRader.filter((r) => r.projectId === projectId);
+          const kVarer = varer.filter((v) => v.projectId === projectId);
+          const summer = beregnKortSummer(kTimer, kMaskin, kVarer);
+          const bp = utledKortByggeplass([...kTimer, ...kMaskin], sedelByggeplassId);
+          const status = kortStatus([...kTimer, ...kMaskin]);
+          const aapen = aapentKort === projectId;
+          const varerTekst =
+            summer.varer === null
+              ? "—"
+              : summer.varer.type === "mengde"
+                ? `${summer.varer.antall.toLocaleString("nb-NO")} ${summer.varer.enhet}`
+                : t("timer.prosjektkort.varelinjer", { antall: summer.varer.antall });
+          const kolonner: [string, string][] = [
+            [t("timer.prosjektkort.kolonne.arbeid"), visTimer(summer.arbeid)],
+            [t("timer.prosjektkort.kolonne.maskin"), visTimer(summer.maskin)],
+            [t("timer.prosjektkort.kolonne.varer"), varerTekst],
+            [t("timer.prosjektkort.kolonne.reise"), visTimer(summer.reise)],
+          ];
+          return (
+            <div
+              key={projectId}
+              className={`rounded-lg border bg-white ${aapen ? "border-blue-400 ring-1 ring-blue-200" : "border-gray-200"}`}
+            >
+              <button
+                type="button"
+                aria-expanded={aapen}
+                onClick={() => onVelgKort(aapen ? null : projectId)}
+                className="flex w-full flex-wrap items-center gap-x-6 gap-y-2 p-4 text-left"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-gray-900">
+                      {kortNavn.get(projectId) ?? t("timer.detalj.ukjentProsjekt")}
+                    </span>
+                    {status === "returnert" && (
+                      <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
+                        {t("timer.prosjektkort.status.returnert")}
+                      </span>
+                    )}
+                    {status === "attestert" && (
+                      <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                        {t("timer.prosjektkort.status.attestert")}
+                      </span>
+                    )}
+                  </div>
+                  {bp.type !== "ingen" && (
+                    <div className="mt-0.5 truncate text-xs text-gray-500">
+                      {bp.type === "en"
+                        ? byggeplassNavn.get(bp.id) ?? ""
+                        : t("timer.prosjektkort.flereByggeplasser", { antall: bp.antall })}
+                    </div>
+                  )}
+                </div>
+                <dl className="flex gap-6">
+                  {kolonner.map(([etikett, verdi]) => (
+                    <div key={etikett} className="min-w-[56px] text-right">
+                      <dt className="text-[10px] uppercase tracking-wide text-gray-400">
+                        {etikett}
+                      </dt>
+                      <dd className="text-sm font-medium tabular-nums text-gray-900">
+                        {verdi}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${aapen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {aapen && (
+                <div className="border-t border-gray-100 p-4">
+                  {renderKort(projectId)}
+
+                  {kVarer.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {kVarer.map((v) => (
+                        <li key={v.id} className="flex items-center gap-2 text-sm text-gray-700">
+                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                            {t("timer.prosjektkort.vareMerke")}
+                          </span>
+                          <span>
+                            {v.vare.navn} · {v.antall.toLocaleString("nb-NO")} {v.vare.enhet}
+                            {v.byggeplassId && byggeplassNavn.get(v.byggeplassId)
+                              ? ` · ${byggeplassNavn.get(v.byggeplassId)}`
+                              : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {erRedigerbar && (
+                    <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => onNyTimer(projectId)}
+                        className="font-medium text-sitedoc-primary hover:underline"
+                      >
+                        {t("timer.prosjektkort.nyTimer")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNyMaskin(projectId)}
+                        className="font-medium text-sitedoc-primary hover:underline"
+                      >
+                        {t("timer.prosjektkort.nyMaskin")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onLeggTil(projectId)}
+                        className="font-medium text-sitedoc-primary hover:underline"
+                      >
+                        {t("timer.prosjektkort.leggTil")}
+                      </button>
+                      {visVareforbrukKnapp({
+                        prosjektIderMedVarelager: varelagerProsjekter,
+                        projectId,
+                        erRedigerbar,
+                      }) && (
+                        <button
+                          type="button"
+                          onClick={() => onNyVare(projectId)}
+                          className="font-medium text-sitedoc-primary hover:underline"
+                        >
+                          {t("timer.prosjektkort.nyVare")}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {erRedigerbar && kanLeggeTilKort && (
+        <button
+          type="button"
+          onClick={onNyttKort}
+          className="mt-3 w-full rounded-lg border border-dashed border-gray-300 p-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+        >
+          {t("timer.prosjektkort.nyttKort")}
+        </button>
+      )}
+
+      {/* Dagens ramme — sedelens felles fra/til/pause, nedtonet. */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-dashed border-gray-200 px-4 py-2 text-xs text-gray-500">
+        <span>
+          {t("timer.prosjektkort.ramme", {
+            fra: ramme.fra,
+            til: ramme.til,
+            pause: ramme.pauseMin,
+          })}
+          {pauseBaerer &&
+            ` ${t("timer.prosjektkort.pauseBaeres", {
+              kort: kortNavn.get(pauseBaerer.projectId) ?? "",
+            })}`}
+          {ramme.aktivitet && ` · ${ramme.aktivitet}`}
+          {ramme.beskrivelse && ` · ${ramme.beskrivelse}`}
+        </span>
+        {erRedigerbar && (
+          <button
+            type="button"
+            onClick={onEndreRamme}
+            className="ml-auto font-medium text-sitedoc-primary hover:underline"
+          >
+            {t("handling.endre")}
+          </button>
+        )}
+      </div>
+
+      {/* Bunnlinje — sum i dag + innsending pr. dag. */}
+      {erRedigerbar && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-4">
+          <span className={`h-2.5 w-2.5 rounded-full ${prikk}`} aria-hidden />
+          <span className="text-sm text-gray-700">
+            {t("timer.prosjektkort.sumIDag", {
+              registrert: formatTimer(dagSum),
+              total: normTimer === null ? "?" : formatTimer(normTimer),
+            })}
+            {dag.maskin > 0 &&
+              ` · ${t("timer.prosjektkort.sumMaskin", { timer: formatTimer(dag.maskin) })}`}
+            {dag.reise > 0 &&
+              ` · ${t("timer.prosjektkort.sumReise", { timer: formatTimer(dag.reise) })}`}
+          </span>
+          <div className="ml-auto flex gap-2">
+            {kanSlette && (
+              <Button variant="secondary" onClick={onSlett} disabled={sletter}>
+                <Trash2 className="mr-1 h-4 w-4" />
+                {t("timer.detalj.slett")}
+              </Button>
+            )}
+            <KnappMedForklaring
+              sperret={timerRader.length === 0 && !sender}
+              forklaring={t("sperret.minstEnRad")}
+            >
+              <Button onClick={onSend} disabled={sender || timerRader.length === 0}>
+                <Send className="mr-1 h-4 w-4" />
+                {/* Returnert sedel: samme tekst som dagskortets «Send på nytt». */}
+                {erReturnert
+                  ? t("timer.detalj.sendPaaNytt")
+                  : t("timer.prosjektkort.sendDagen", { timer: formatTimer(dagSum) })}
+              </Button>
+            </KnappMedForklaring>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  ProsjektGruppe — én blokk per unikt projectId                       */
 /*  T7-4c (2026-05-16): inneholder nå tillegg + N ECO-bukets.           */
 /*  Hovedgruppe (ECO=null) vises uten subheader; ekte ECO-er får        */
@@ -1147,6 +1625,7 @@ type EcoBucket = {
 };
 
 function ProsjektGruppe({
+  iKort,
   projectId,
   prosjektNavn,
   tillegg,
@@ -1155,6 +1634,7 @@ function ProsjektGruppe({
   erRedigerbar,
   pauseMin,
   pauseVisning,
+  byggeplassNavn,
   onTilfoyTimer,
   onLeggTil,
   onRedigerTimer,
@@ -1165,6 +1645,9 @@ function ProsjektGruppe({
   onSplittTillegg,
   onSplittMaskin,
 }: {
+  // Prosjektkort L1: innhold i et åpent kort — kortet bærer ramme, overskrift
+  // og «+ Tillegg/Utlegg», så gruppa tegner bare bøttene og radene.
+  iKort?: boolean;
   projectId: string;
   prosjektNavn: ProsjektRef | undefined;
   tillegg: TilleggRad[];
@@ -1175,6 +1658,8 @@ function ProsjektGruppe({
   pauseMin: number;
   // V20/PK3: pause-kontekst for rad-listas kryss-visning.
   pauseVisning: PauseVisning;
+  // Ordre (10): byggeplass-id → navn for radlinja.
+  byggeplassNavn: Map<string, string>;
   // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
   // fra/til-prefill (siste rads tilTid).
   onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
@@ -1199,8 +1684,14 @@ function ProsjektGruppe({
     (ecoer ?? []).map((e) => [e.id, { kortNavn: e.kortNavn, proAdmId: e.proAdmId }]),
   );
 
+  const Ramme = iKort ? "div" : "section";
   return (
-    <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
+    <Ramme
+      className={
+        iKort ? undefined : "mb-6 rounded-lg border border-gray-200 bg-white p-5"
+      }
+    >
+      {!iKort && (
       <div className="mb-4 border-b border-gray-100 pb-3">
         <h2 className="text-base font-semibold text-gray-900">
           {prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt")}
@@ -1211,6 +1702,7 @@ function ProsjektGruppe({
           )}
         </h2>
       </div>
+      )}
 
       {/* ECO-bukets (hoved først, deretter ECO-er) */}
       <div className="space-y-3">
@@ -1228,6 +1720,7 @@ function ProsjektGruppe({
             erRedigerbar={erRedigerbar}
             pauseMin={pauseMin}
             pauseVisning={pauseVisning}
+            byggeplassNavn={byggeplassNavn}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
@@ -1245,7 +1738,7 @@ function ProsjektGruppe({
           <h3 className="text-sm font-semibold text-gray-700">
             {t("timer.detalj.tilleggUtlegg")}
           </h3>
-          {erRedigerbar && (
+          {erRedigerbar && !iKort && (
             <Button variant="secondary" onClick={onLeggTil}>
               <Plus className="mr-1 h-3 w-3" />
               {t("timer.detalj.leggTil")}
@@ -1277,7 +1770,7 @@ function ProsjektGruppe({
           </div>
         )}
       </div>
-    </section>
+    </Ramme>
   );
 }
 
@@ -1297,6 +1790,7 @@ function EcoGruppe({
   erRedigerbar,
   pauseMin,
   pauseVisning,
+  byggeplassNavn,
   onTilfoyTimer,
   onRedigerTimer,
   onRedigerMaskin,
@@ -1310,6 +1804,7 @@ function EcoGruppe({
   erRedigerbar: boolean;
   pauseMin: number;
   pauseVisning: PauseVisning;
+  byggeplassNavn: Map<string, string>;
   onTilfoyTimer: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
@@ -1374,6 +1869,7 @@ function EcoGruppe({
                 rader={timer}
                 erRedigerbar={erRedigerbar}
                 pauseVisning={pauseVisning}
+                byggeplassNavn={byggeplassNavn}
                 onRediger={onRedigerTimer}
                 onSplitt={onSplittTimer}
               />
@@ -1385,6 +1881,7 @@ function EcoGruppe({
               <RaderMaskinKompakt
                 rader={maskin}
                 erRedigerbar={erRedigerbar}
+                byggeplassNavn={byggeplassNavn}
                 onRediger={onRedigerMaskin}
                 onSplitt={onSplittMaskin}
               />
@@ -1443,6 +1940,7 @@ function RaderTimer({
   rader,
   erRedigerbar,
   pauseVisning,
+  byggeplassNavn,
   onRediger,
   onSplitt,
 }: {
@@ -1450,6 +1948,7 @@ function RaderTimer({
   erRedigerbar: boolean;
   // V20/PK3: dagens pause-kontekst → kryss/tom avkrysning pr. rad.
   pauseVisning: PauseVisning;
+  byggeplassNavn: Map<string, string>;
   onRediger: (rad: TimerRad) => void;
   onSplitt: (rad: TimerRad) => void;
 }) {
@@ -1498,6 +1997,10 @@ function RaderTimer({
             <div>
               <p className="text-sm font-medium text-gray-900">
                 {lonnsart?.navn ?? "—"}
+                {/* Ordre (10): «Prosjekttimer · Lab 16». */}
+                {rad.byggeplassId && byggeplassNavn.has(rad.byggeplassId)
+                  ? ` · ${byggeplassNavn.get(rad.byggeplassId)}`
+                  : ""}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
               {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt
@@ -1670,11 +2173,13 @@ function RaderTillegg({
 function RaderMaskinKompakt({
   rader,
   erRedigerbar,
+  byggeplassNavn,
   onRediger,
   onSplitt,
 }: {
   rader: MaskinRad[];
   erRedigerbar: boolean;
+  byggeplassNavn: Map<string, string>;
   onRediger: (rad: MaskinRad) => void;
   onSplitt: (rad: MaskinRad) => void;
 }) {
@@ -1722,6 +2227,9 @@ function RaderMaskinKompakt({
                     {t("timer.maskinSeksjon.merke")}
                   </span>
                   {equipmentMap.get(rad.vehicleId) ?? "—"}
+                  {rad.byggeplassId && byggeplassNavn.has(rad.byggeplassId)
+                    ? ` · ${byggeplassNavn.get(rad.byggeplassId)}`
+                    : ""}
                 </p>
                 {rad.mengde !== null && rad.mengde !== undefined && (
                   <p className="text-xs text-gray-500">
@@ -1775,10 +2283,13 @@ function TimerRadDialog({
   organizationId,
   projectId,
   prosjekter,
+  byggeplasser,
   defaultAktivitetId,
   defaultEcoId,
   rad,
   alleTimerRader,
+  laastProsjekt,
+  kortNavn,
   alleMaskinRader,
   pauseMin,
   defaultFraTid,
@@ -1794,11 +2305,16 @@ function TimerRadDialog({
   organizationId: string;
   projectId: string;
   prosjekter: ProsjektRef[];
+  byggeplasser: readonly ByggeplassValg[] | undefined;
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
   // P4b: alle timer-rader på sedelen — for kryss-bøtte overlapp-vakt (delt regel).
   alleTimerRader: TimerRad[];
+  // Prosjektkort L1: prosjektet låst til kortets (ny rad også), og kortnavn
+  // (projectId → «nr — navn») så overlapp-meldingen navngir det andre kortet.
+  laastProsjekt?: boolean;
+  kortNavn?: Map<string, string>;
   // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
   // maskin-seksjonen (bucket-kapasitet, speiler MaskinRadDialog).
   alleMaskinRader: MaskinRad[];
@@ -1871,6 +2387,8 @@ function TimerRadDialog({
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({
     projectId: valgtProjectId,
   });
+  // Ordre (10): følger valgt prosjekt — prosjektbytte nullstiller ugyldig valg.
+  const bp = useRadByggeplass({ byggeplasser, projectId: valgtProjectId, rad });
 
   // T.10 / §2.D: maskinvelger for kostnadsbærer ved maskinvedlikehold. Hentes
   // kun for interne prosjekter (verksted). Tom liste / inaktiv maskin-modul →
@@ -2174,12 +2692,20 @@ function TimerRadDialog({
       const overlapp = finnOverlappendeTidsrom(fraTid, tilTid, andreRader);
       if (overlapp) {
         setFeil(
-          t("timer.feil.overlapp", {
-            fra: fraTid,
-            til: tilTid,
-            annenFra: overlapp.fraTid,
-            annenTil: overlapp.tilTid,
-          }),
+          kortNavn
+            ? t("timer.feil.overlappKort", {
+                fra: fraTid,
+                til: tilTid,
+                annenFra: overlapp.fraTid,
+                annenTil: overlapp.tilTid,
+                kort: kortNavn.get(overlapp.projectId) ?? "",
+              })
+            : t("timer.feil.overlapp", {
+                fra: fraTid,
+                til: tilTid,
+                annenFra: overlapp.fraTid,
+                annenTil: overlapp.tilTid,
+              }),
         );
         return;
       }
@@ -2208,6 +2734,8 @@ function TimerRadDialog({
         tilTid: tilTid || null,
         // V20/PK3: radens matpause — server validerer timetallet mot denne.
         pauseMin: radPauseMin,
+        // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
+        ...byggeplassPayload(bp),
       });
     } else {
       // P1 (maskin-i-rad): dual-mutasjon. Per-kall onSuccess fanger tNum +
@@ -2228,6 +2756,7 @@ function TimerRadDialog({
           tilTid: tilTid || null,
           // V20/PK3: radens matpause (auto-bærer for ny rad, PK2).
           pauseMin: radPauseMin,
+          byggeplassId: bp.byggeplassId,
         },
         {
           onSuccess: () => {
@@ -2239,6 +2768,7 @@ function TimerRadDialog({
                 externalCostObjectId: ecoId,
                 vehicleId: maskinVehicleId,
                 timer: tNum,
+                byggeplassId: bp.byggeplassId,
                 mengde: maskinMengde ? parseFloat(maskinMengde) : null,
                 enhet: maskinEnhet || null,
                 fraTid: fraTid || null,
@@ -2278,7 +2808,7 @@ function TimerRadDialog({
               setValgtProjectId(e.target.value);
               setEcoId(null); // ECO tilhører gammelt prosjekt
             }}
-            disabled={!!rad}
+            disabled={!!rad || !!laastProsjekt}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             required
           >
@@ -2290,6 +2820,11 @@ function TimerRadDialog({
             ))}
           </select>
         </div>
+        <RadByggeplassFelt
+          kandidater={bp.kandidater}
+          verdi={bp.byggeplassId}
+          onEndre={bp.setByggeplassId}
+        />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
@@ -3549,6 +4084,7 @@ function UtleggRadDialog({
 function MaskinRadDialog({
   sheetId,
   projectId,
+  byggeplasser,
   defaultEcoId,
   defaultFraTid,
   defaultTilTid,
@@ -3564,6 +4100,7 @@ function MaskinRadDialog({
 }: {
   sheetId: string;
   projectId: string;
+  byggeplasser: readonly ByggeplassValg[] | undefined;
   defaultEcoId?: string | null;
   // Maskin-fra-til (2026-05-17): forslag fra parent basert på timer-rader
   // i bucket (Alt D — sammenheng-prinsipp). null hvis bucket er tom og
@@ -3602,6 +4139,8 @@ function MaskinRadDialog({
   // T7-4c: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-
   // gruppe som arbeidstimer (T.7 låst 2026-05-16).
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
+  // Ordre (10): samme regel som timer-raden.
+  const bp = useRadByggeplass({ byggeplasser, projectId, rad });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
   // Bolk (g): prefill gyldig kun når begge tider finnes OG fra < til.
@@ -3785,6 +4324,8 @@ function MaskinRadDialog({
       // Maskin-fra-til (2026-05-17): tom streng → null (felt er valgfrie).
       fraTid: fraTid || null,
       tilTid: tilTid || null,
+      // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
+      ...byggeplassPayload(bp),
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
@@ -3815,6 +4356,11 @@ function MaskinRadDialog({
             bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
           />
         </div>
+        <RadByggeplassFelt
+          kandidater={bp.kandidater}
+          verdi={bp.byggeplassId}
+          onEndre={bp.setByggeplassId}
+        />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}

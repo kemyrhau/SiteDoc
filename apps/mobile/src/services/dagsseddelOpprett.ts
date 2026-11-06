@@ -8,7 +8,7 @@ import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
  * UF-0 (2026-06-22) — delt find-or-create for dagsseddel.
  *
  * Begge inngangspunkter til ny dagsseddel ruter gjennom denne:
- *   - `ny.tsx` (manuell «+ Ny»)
+ *   - `lagreNyTimerRad` (manuell «+», timer-raden — ORDRE 17)
  *   - `opprettDagsseddelForSegment` (auto-draft via «Start/Slutt dag»)
  *
  * Innkapsler:

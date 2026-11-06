@@ -2,9 +2,15 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { verifiserProsjektmedlem, aktivtProsjektmedlemWhere } from "../trpc/tilgangskontroll";
+import {
+  verifiserProsjektmedlem,
+  aktivtProsjektmedlemWhere,
+  aktivtMedlemWhere,
+  verifiserOrganisasjonTilgang,
+} from "../trpc/tilgangskontroll";
 import {
   krevVarelagerAktivert,
+  erVarelagerAktivert,
   VarelagerModulIkkeAktivertError,
 } from "../services/varelager/moduleGate";
 
@@ -142,6 +148,97 @@ async function validerVareTilhoererFirma(
 }
 
 export const vareforbrukRouter = router({
+  // Prosjektkort L3 (2026-11-06, Kenneth godkjente forslag A): vare-velgeren på
+  // prosjektkortet (web + mobil-cache). `vare.list` krever firmaadmin, så en
+  // arbeider trenger en egen, smal lese-rute. KUN fire felt pr. vare — ingen
+  // priser eller admin-felt. `prosjektIderMedVarelager` = brukerens aktive
+  // prosjekter i firmaet der modulen er på (samme resolver som API-porten),
+  // så mobil kan skjule «+ Vareforbruk» offline.
+  katalogForFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      if (!(await erVarelagerAktivert(input.organizationId))) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Varelager-modulen er ikke aktivert for dette firmaet",
+        });
+      }
+
+      const [varer, prosjekter] = await Promise.all([
+        ctx.prismaVarelager.vare.findMany({
+          where: { organizationId: input.organizationId, aktiv: true },
+          select: { id: true, navn: true, enhet: true, varenummer: true },
+          orderBy: [{ navn: "asc" }],
+        }),
+        prisma.project.findMany({
+          where: {
+            primaryOrganizationId: input.organizationId,
+            members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
+          },
+          select: { id: true },
+        }),
+      ]);
+
+      const aktive = await Promise.all(
+        prosjekter.map(async (p) =>
+          (await erVarelagerAktivert(input.organizationId, p.id)) ? p.id : null,
+        ),
+      );
+
+      return {
+        varer: varer.map((v) => ({
+          id: v.id,
+          navn: v.navn,
+          enhet: v.enhet,
+          varenummer: v.varenummer,
+        })),
+        prosjektIderMedVarelager: aktive.filter((id): id is string => id !== null),
+      };
+    }),
+
+  // Prosjektkort L1 (2026-11-05): innlogget brukers eget vareforbruk for én
+  // dato på tvers av firmaets prosjekter — Varer-kolonnen på prosjektkortet.
+  // Firma-isolert (kun prosjekter med primaryOrganizationId = firmaet) og
+  // bruker-isolert (registrertAvUserId = ctx.userId). Kun lesing.
+  hentMineForDato: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        dato: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Forventet YYYY-MM-DD"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+
+      const prosjekter = await prisma.project.findMany({
+        where: { primaryOrganizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (prosjekter.length === 0) return [];
+
+      const rader = await ctx.prismaVarelager.vareforbruk.findMany({
+        where: {
+          registrertAvUserId: ctx.userId,
+          dato: new Date(input.dato),
+          projectId: { in: prosjekter.map((p) => p.id) },
+        },
+        select: {
+          id: true,
+          projectId: true,
+          byggeplassId: true,
+          dagsseddelId: true,
+          antall: true,
+          vare: { select: { id: true, navn: true, enhet: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      return rader.map((r) => ({ ...r, antall: Number(r.antall) }));
+    }),
+
   list: protectedProcedure
     .input(
       z.object({
@@ -227,6 +324,9 @@ export const vareforbrukRouter = router({
   opprett: protectedProcedure
     .input(
       z.object({
+        // Prosjektkort L3: valgfri klient-generert id for idempotent mobil-synk.
+        // Samme id sendt på nytt → den eksisterende raden returneres, ingen ny.
+        id: z.string().uuid().optional(),
         projectId: z.string().uuid(),
         dato: z.string(),
         vareId: z.string().uuid(),
@@ -239,6 +339,24 @@ export const vareforbrukRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const userId = ctx.userId;
+
+      // Idempotens (L3): en mobil-synk som sender samme id to ganger (svar tapt
+      // på nett) skal gi én linje. Kun egen rad returneres; en fremmed rad med
+      // samme id avvises.
+      const hentEksisterende = async () => {
+        if (!input.id) return null;
+        const rad = await ctx.prismaVarelager.vareforbruk.findUnique({
+          where: { id: input.id },
+        });
+        if (rad && rad.registrertAvUserId !== userId) {
+          throw new TRPCError({ code: "CONFLICT", message: "Id-en er i bruk" });
+        }
+        return rad;
+      };
+      const eksisterende = await hentEksisterende();
+      if (eksisterende) return eksisterende;
+
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       const organizationId = await krevVarelagerForProsjekt(input.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, input.projectId);
@@ -275,19 +393,29 @@ export const vareforbrukRouter = router({
         }
       }
 
-      const opprettet = await ctx.prismaVarelager.vareforbruk.create({
-        data: {
-          projectId: input.projectId,
-          dato: new Date(input.dato),
-          vareId: input.vareId,
-          antall: input.antall,
-          byggeplassId: input.byggeplassId ?? null,
-          externalCostObjectId: input.externalCostObjectId ?? null,
-          kommentar: input.kommentar?.trim() || null,
-          dagsseddelId: input.dagsseddelId ?? null,
-          registrertAvUserId: ctx.userId,
-        },
-      });
+      let opprettet;
+      try {
+        opprettet = await ctx.prismaVarelager.vareforbruk.create({
+          data: {
+            ...(input.id ? { id: input.id } : {}),
+            projectId: input.projectId,
+            dato: new Date(input.dato),
+            vareId: input.vareId,
+            antall: input.antall,
+            byggeplassId: input.byggeplassId ?? null,
+            externalCostObjectId: input.externalCostObjectId ?? null,
+            kommentar: input.kommentar?.trim() || null,
+            dagsseddelId: input.dagsseddelId ?? null,
+            registrertAvUserId: ctx.userId,
+          },
+        });
+      } catch (e) {
+        // To samtidige sendinger med samme id: den andre treffer PK-en (P2002)
+        // → returner raden den første skrev.
+        const rad = (e as { code?: string }).code === "P2002" ? await hentEksisterende() : null;
+        if (!rad) throw e;
+        return rad;
+      }
 
       // Activity-log (best-effort)
       try {

@@ -207,6 +207,8 @@ Gates med:
 
 **Beslutning:** Bruk eksisterende `timerregistreringApen` som proxy for ECO-vareforbruk-tilgang. Egen flagg vurderes hvis behov dukker opp.
 
+**Tillegg Prosjektkort L3 (2026-11-06, `feat/prosjektkort-l3`, ikke merget):** `vareforbruk.katalogForFirma({ organizationId })` — firmamedlem, FORBIDDEN når Varelager er av; aktive varer uten priser + `prosjektIderMedVarelager`. `vareforbruk.opprett` tar valgfri `id` (klient-uuid, idempotent). Brukes av «+ Vareforbruk» på prosjektkortet — se [timer.md § Prosjektkort L3](timer.md). NB: `vare.list` er firma-admin-only, så prosjekt-siden § 6.2 feiler for arbeidere (følge-funn, ikke rettet).
+
 ### 5.3 Vareforbruk-import (firma-admin)
 
 ```
@@ -256,7 +258,7 @@ Mobile-flyt for å registrere vareforbruk fra dagsseddel:
 - Sync-motor (samme mønster som Timer Runde 2 C1-C8)
 - UI-integrasjon i dagsseddel-detalj
 
-**Beslutning:** Utsette til Steg 4b.5 etter web-MVP er stabilt. A.Markussen kan registrere via web som første milepæl.
+**Beslutning:** Utsette til Steg 4b.5 etter web-MVP er stabilt. Delvis levert i Prosjektkort L3 (2026-11-06): `vare_local` + `vareforbruk_local` + `syncVareforbruk`, føring fra prosjektkortet — [timer.md § Prosjektkort L3](timer.md). A.Markussen kan registrere via web som første milepæl.
 
 ## 7. Fase 5 — Import-flyt (~2t)
 

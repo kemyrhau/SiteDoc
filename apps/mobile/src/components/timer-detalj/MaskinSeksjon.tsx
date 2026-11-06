@@ -7,9 +7,8 @@ import {
   ScrollView,
   Modal,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
+import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet (3 modaler i fila) — simulator-målt 2026-08-31: SafeAreaView anvender arkets egen topp-inset (~10 pt), header-kontroller truffbare. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -768,15 +767,9 @@ function MaskinRadModal({
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-        <ScrollView
+        <TastaturScrollView
           className="flex-1"
           contentContainerClassName="p-4 gap-4"
-          keyboardShouldPersistTaps="handled"
         >
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
@@ -918,8 +911,7 @@ function MaskinRadModal({
               {t("handling.lagre")}
             </Text>
           </Pressable>
-        </ScrollView>
-        </KeyboardAvoidingView>
+        </TastaturScrollView>
         <TastaturFerdig />
 
         {visEquipmentVelger && (
@@ -1108,6 +1100,7 @@ export function EquipmentVelgerModal({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              automaticallyAdjustKeyboardInsets
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="gap-2 px-4 py-2"
             >
@@ -1136,6 +1129,7 @@ export function EquipmentVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
             const navn =

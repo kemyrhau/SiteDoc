@@ -93,6 +93,30 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når 
 - **Hvor:** område, tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
 - Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
 
+## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
+
+Siden `oppsett/produksjon/dokumentflyt/page.tsx` har ingen `?`-komponent for kortet ennå; vedtatt tekst, brukes når
+det får hjelpe-ikon.
+
+- **Fra firma:** HMS-ansvarlige fra firmaet. Rollen hører til firmaet, ikke prosjektet. Er du firma-admin i firmaet
+  som ga rollen, har raden en X: den fjerner rollen i hele firmaet, i alle firmaets prosjekter. Bekreftelsen viser hvor
+  mange åpne HMS-saker personen har ballen i. Sakene blir liggende hos HMS-behandlerne i prosjektet, og historikken
+  viser hvorfor. Er personen også prosjekt-admin eller i prosjektets HMS-gruppe, beholder personen ballen der. Ellers står det hvor rollen settes («Settes av firma-admin i Firma →
+  Ansatte») når du holder musa over merket. En deaktivert ansatt vises ikke.
+- **Lagt til i prosjektet:** behandlere som bare gjelder dette prosjektet. X-en står alltid synlig, også på nettbrett,
+  og fjerner personen bare fra prosjektets HMS-gruppe.
+
+## Web: Deaktiver ansatt (`firma/ansatte/_components/DeaktiverModal.tsx`, ordre 2026-11-05 (11), (12))
+
+Modalen har ingen `?`-komponent; vedtatt tekst, brukes når den får hjelpe-ikon.
+
+- **Deaktiver:** personen mister tilgangen til firmaets prosjekter. Oppsummeringen viser hvilke prosjekter og
+  flytledd som berøres, og hvor mange dokumenter som går tilbake til innsenderen. Har personen ballen i åpne
+  HMS-saker, blir sakene liggende hos HMS-behandlerne i prosjektet, og historikken viser hvorfor. Aktiveres
+  personen igjen, får personen ikke sakene tilbake.
+- **Feil:** kan ikke oppsummeringen hentes, står det, og du kan lukke og prøve igjen. «Deaktiver» er sperret så
+  lenge du ikke ser hva deaktiveringen avslutter.
+
 ## Web: Periode og område i sjekkliste- og oppgavelista, metadata i tegningslista (metadata S-pakke 2026-11-04)
 
 Sidene `sjekklister/page.tsx`, `oppgaver/page.tsx` og `TegningerPanel` har ingen `?`-komponent ennå; vedtatt tekst,

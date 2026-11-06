@@ -722,6 +722,17 @@ export function kjorMigreringer() {
         `ALTER TABLE organization_setting_local ADD COLUMN reise_terskel_m INTEGER`,
       );
     }
+    // Prosjektkort L2 (2026-11-05) — firmaets timeføringsmodus, cachet så
+    // samlesiden velges offline. Default 'dagskort' = uendret visning til
+    // første vellykkede henting.
+    if (!kolonner.find((k) => k.name === "timer_registreringsmodus")) {
+      console.log(
+        "[MIG] Legger til timer_registreringsmodus på organization_setting_local",
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN timer_registreringsmodus TEXT NOT NULL DEFAULT 'dagskort'`,
+      );
+    }
   } catch (e) {
     console.warn(
       "[MIG] Kunne ikke utvide organization_setting_local:",
@@ -1329,7 +1340,50 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] metadata-kolonner på tegning_local feilet", e);
   }
+
+  // Prosjektkort L3 (2026-11-06) — vareforbruk fra kortet, offline. `vare_local` er
+  // firmaets vare-katalog (speil av `vareforbruk.katalogForFirma`, full-overskrives
+  // pr. firma ved refresh). `vareforbruk_local` er arbeiderens egne linjer ført på
+  // telefonen: id = klient-uuid som sendes til `vareforbruk.opprett` (idempotent),
+  // `sheet_id` følger sedelen (re-nøkles i forsonSedelIdentitet). Kun nye tabeller,
+  // ingen eksisterende data røres. Idempotent via IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS vare_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      navn TEXT NOT NULL,
+      enhet TEXT NOT NULL,
+      varenummer TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_vare_local_org
+      ON vare_local(organization_id);
+
+    CREATE TABLE IF NOT EXISTS vareforbruk_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      sheet_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      dato TEXT NOT NULL,
+      vare_id TEXT NOT NULL,
+      vare_navn TEXT NOT NULL,
+      enhet TEXT NOT NULL,
+      antall REAL NOT NULL,
+      byggeplass_id TEXT,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      feilmelding TEXT,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_vareforbruk_local_sheet
+      ON vareforbruk_local(sheet_id);
+  `);
 }
+
+/** Prosjektkort L3: lokale tabeller for vare-katalog og vareforbruk ført fra kortet. */
+export const VAREFORBRUK_LOCAL_TABELLER = ["vare_local", "vareforbruk_local"] as const;
 
 /** Metadata S-pakke B-5: kolonner som legges til `tegning_local`. */
 export const TEGNING_META_KOLONNER = ["revision", "status", "kildeformat"] as const;

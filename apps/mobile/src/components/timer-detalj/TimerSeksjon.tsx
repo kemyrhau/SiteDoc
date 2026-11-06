@@ -4,13 +4,12 @@ import {
   Text,
   Pressable,
   TextInput,
-  ScrollView,
   Modal,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
+  Platform,
 } from "react-native";
+import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet (5 modaler i fila; ProsjektByggeplassVelgerModal direkte simulator-målt 2026-08-31): SafeAreaView anvender arkets egen topp-inset (~10 pt), X truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -26,6 +25,7 @@ import {
   Star,
   CheckSquare,
   Square,
+  Calendar,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, and } from "drizzle-orm";
@@ -89,14 +89,19 @@ import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
 import { SplittRadModal } from "./SplittRadModal";
 import { KnappMedForklaring } from "../KnappMedForklaring";
+import { useProsjektkortModus } from "./prosjektkortKontekst";
+import {
+  arvetByggeplassVisning,
+  kortModusVisning,
+} from "../../lib/prosjektkortMobil";
+import {
+  settInnTimerRad,
+  type NyMaskin,
+  type Radvalg,
+} from "../../services/nyTimerRad";
+import { DatoVelgerFelt } from "../DatoVelgerFelt";
+import { formatNorskDato } from "../../utils/dato";
 
-/** P1 (maskin-i-rad): valgfri maskin fra timerrad-modalens maskin-seksjon.
- *  null = ingen maskin valgt (ingen sheet_machine-rad skrives). */
-type NyMaskin = {
-  vehicleId: string;
-  mengde: number | null;
-  enhet: string | null;
-};
 
 interface TimerSeksjonProps {
   sheetId: string;
@@ -135,6 +140,22 @@ interface TimerSeksjonProps {
    *  [id].tsx orkestrerer flytt/sett/fjern (kryss-bøtte, ekte modal, toast). */
   onPauseToggle: (radId: string, vilHa: boolean) => void;
   onEndret: () => void;
+}
+
+// ORDRE 18: dagskortets byggeplass (navn + prosjekt) til arv-visningen i
+// rad-dialogen og byggeplass-velgeren.
+function hentSedelByggeplass(
+  id: string | null | undefined,
+): { navn: string; projectId: string } | null {
+  if (!id) return null;
+  const db = hentDatabase();
+  if (!db) return null;
+  const bp = db
+    .select()
+    .from(byggeplassLocal)
+    .where(eq(byggeplassLocal.id, id))
+    .all()[0];
+  return bp ? { navn: bp.navn ?? bp.id, projectId: bp.projectId } : null;
 }
 
 export function TimerSeksjon({
@@ -212,60 +233,19 @@ export function TimerSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
-      // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
-      const timerRadId = randomUUID();
-      // B4 (L2-B, valg A): arbeideren satte tiden selv → tidKilde="manuell".
-      // erReise settes EKSPLISITT fra lønnsarten (delt regel, ikke server-gjetting,
-      // M3). En manuell reise-rad får reiseKilde="manuell", reiseRetning/avstand/
-      // kjøretid/regel null (retning er informasjon, ikke lønn — C2 krever retning
-      // KUN for matrise-kilde). Ikke-reise → erReise=false, ingen reise-spor.
-      const manuellErReise = erReiseLonnsartLokalt(organizationId, lonnsartId);
-      db.insert(sheetTimerLocal)
-        .values({
-          id: timerRadId,
-          dagsseddelId: sheetId,
-          projectId: radProjectId,
-          // F3: per-rad byggeplass. null = arv fra dagskortet (server propagerer
-          // sedel-verdien ved sync). Kolonnen tilføyd via idempotent ALTER (5be70d9a).
-          byggeplassId,
-          lonnsartId,
-          aktivitetId,
-          externalCostObjectId,
-          timer,
-          fraTid,
-          tilTid,
-          beskrivelse,
-          // V20 PK2: skriv radens matpause-bærer (avkrysningen = pauseMin > 0).
-          pauseMin,
-          erReise: manuellErReise,
-          reiseKilde: manuellErReise ? "manuell" : null,
-          tidKilde: "manuell",
-          sistEndretLokalt: Date.now(),
-        })
-        .run();
-      // P1 (maskin-i-rad): dual-innsetting. Er maskin valgt i timerrad-modalens
-      // maskin-seksjon, skriv en sheet_machine-rad med timer = timerradens antall
-      // (herav-semantikk) i SAMME bucket (projectId + ECO) og med samme fra/til.
-      // Del B pkt 1: stemple sheetTimerId = timer-radens id, så rediger-inngangen
-      // finner igjen «radens» maskin. Feltene speiler MaskinSeksjons insert.
-      if (maskin) {
-        db.insert(sheetMachineLocal)
-          .values({
-            id: randomUUID(),
-            dagsseddelId: sheetId,
-            sheetTimerId: timerRadId,
-            projectId: radProjectId,
-            externalCostObjectId,
-            vehicleId: maskin.vehicleId,
-            timer,
-            mengde: maskin.mengde,
-            enhet: maskin.enhet,
-            fraTid,
-            tilTid,
-            sistEndretLokalt: Date.now(),
-          })
-          .run();
-      }
+      settInnTimerRad(db, sheetId, organizationId, {
+        projectId: radProjectId,
+        byggeplassId,
+        lonnsartId,
+        aktivitetId,
+        timer,
+        externalCostObjectId,
+        fraTid,
+        tilTid,
+        beskrivelse,
+        pauseMin,
+        maskin,
+      });
       onEndret();
     },
     [sheetId, onEndret, organizationId],
@@ -976,6 +956,7 @@ function ByggeplassLinjeTekst({
   byggeplassInfo: { navn: string | null; arvet: boolean } | null;
 }) {
   const { t } = useTranslation();
+  const kortVisning = kortModusVisning(useProsjektkortModus());
   return (
     <Text className="flex-1 text-xs text-gray-500" numberOfLines={1}>
       {prosjektNavn}
@@ -986,7 +967,7 @@ function ByggeplassLinjeTekst({
         >
           {byggeplassInfo.navn ?? t("byggeplassVelger.velg")}
           {byggeplassInfo.arvet
-            ? ` (${t("timer.byggeplass.fraDagskort")})`
+            ? ` (${t(kortVisning.fra)})`
             : ""}
         </Text>
       ) : (
@@ -1016,7 +997,26 @@ function UnderprosjektEtikett({ ecoId }: { ecoId: string }) {
   );
 }
 
-function TimerRadModal({
+/**
+ * «+» rett til timer-raden (ORDRE 17): modalen åpnes uten sedel. Wrapperen
+ * (`NyTimerRadFlyt`) eier dato + sendt-sjekk; sedelen opprettes først ved Lagre.
+ */
+export interface TimerRadOpprettelse {
+  onDatoEndret: (dato: string) => void;
+  /** Sedel-id når datoen er sendt/akseptert — skjemaet sperres, «Åpne dagen» vises. */
+  laastDagId: string | null;
+  onAapneDagen: (sheetId: string) => void;
+  /** Sist brukt / firma-standard for prosjektet (`sistBrukteRadvalg`). */
+  radvalgFor: (projectId: string) => Radvalg;
+}
+
+function isoDato(d: Date): string {
+  const maaned = String(d.getMonth() + 1).padStart(2, "0");
+  const dag = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${maaned}-${dag}`;
+}
+
+export function TimerRadModal({
   sheetId,
   organizationId,
   defaultProjectId,
@@ -1030,9 +1030,11 @@ function TimerRadModal({
   eksisterendeRad,
   tvungetValg,
   sedelByggeplassId,
+  opprettelse,
   onLagre,
   onLukk,
 }: {
+  /** Tom streng i opprettelsesmodus når datoen ikke har sedel ennå. */
   sheetId: string;
   organizationId: string;
   defaultProjectId: string;
@@ -1055,6 +1057,8 @@ function TimerRadModal({
   /** Fabel D: dagskortets byggeplass — videreført til byggeplass-velgeren for
    *  «· arves fra dagskortet»-markering. Ren visning. */
   sedelByggeplassId: string | null;
+  /** Satt = opprettelsesmodus fra «+» (datofelt øverst, prosjekt byttbart). */
+  opprettelse?: TimerRadOpprettelse;
   onLagre: (
     projectId: string,
     byggeplassId: string | null,
@@ -1072,6 +1076,8 @@ function TimerRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const kortModus = useProsjektkortModus();
+  const kortVisning = kortModusVisning(kortModus);
   // T.5 + pause-synk: hent firma-innstillinger fra lokal cache.
   //   - tidsrundingMinutter: null = ingen runding
   //   - pauseMin: matpausens lengde (standardPauseMin, default 30), brukt til
@@ -1154,6 +1160,10 @@ function TimerRadModal({
         aktivitetId: eksisterendeRad.aktivitetId,
       };
     }
+    if (opprettelse) {
+      const valg = opprettelse.radvalgFor(defaultProjectId);
+      return { lonnsartId: valg.lonnsartId ?? "", aktivitetId: valg.aktivitetId ?? "" };
+    }
     const sisteRad =
       eksisterendeRader.length > 0
         ? eksisterendeRader[eksisterendeRader.length - 1]
@@ -1164,6 +1174,8 @@ function TimerRadModal({
       lonnsartId: sisteRad?.lonnsartId ?? firmaDefaultLonnsartId,
       aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
     };
+    // opprettelse leses kun ved åpning (initialverdi); prosjektbytte håndteres i onVelg.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eksisterendeRad, eksisterendeRader, defaultAktivitetId, organizationId]);
 
   // F3: tvungetValg (hurtigsti-prosjektbytte) vinner over radens/defaults ved
@@ -1222,6 +1234,25 @@ function TimerRadModal({
     eksisterendeRad?.beskrivelse ?? "",
   );
   const [feil, setFeil] = useState<string | null>(null);
+  const [visDatoVelger, setVisDatoVelger] = useState(false);
+  // Opprettelse: ny dato → fra/til/antall forhåndsutfylles på nytt mot den
+  // datoens arbeidsdag og rader. Prosjekt, lønnsart og aktivitet beholdes.
+  const [prefillDato, setPrefillDato] = useState(dato);
+  if (opprettelse && prefillDato !== dato) {
+    setPrefillDato(dato);
+    setFraTid(defaultTider.fra);
+    setTilTid(prefillGyldig ? defaultTider.til : null);
+    setTimer(
+      prefillGyldig
+        ? effektiveTimerFraSpenn(
+            defaultTider.fra!,
+            defaultTider.til!,
+            pauseFra,
+            radPauseMinFor(defaultTider.fra, defaultTider.til),
+          ).toFixed(2)
+        : "",
+    );
+  }
   // F3: kombinert prosjekt+byggeplass-velger (erstatter ren prosjekt-velger her).
   const [visProsjektByggeplassVelger, setVisProsjektByggeplassVelger] =
     useState(false);
@@ -1353,6 +1384,17 @@ function TimerRadModal({
     );
   }, [valgtByggeplassId]);
 
+  // ORDRE 18: arv vises som dagskortets faktiske byggeplass, ikke «Arv fra …».
+  const arvetByggeplass = useMemo(
+    () =>
+      arvetByggeplassVisning(
+        hentSedelByggeplass(sedelByggeplassId),
+        valgtProjectId,
+        kortModus,
+      ),
+    [sedelByggeplassId, valgtProjectId, kortModus],
+  );
+
   const valgtLonnsart = useMemo(() => {
     if (!valgtLonnsartId) return null;
     const db = hentDatabase();
@@ -1457,7 +1499,9 @@ function TimerRadModal({
   // Speiler web-TimerRadDialogs disabled-logikk: kjernefeltene + fra/til
   // obligatorisk på timer-rader (2026-07-13, reverserer a2). Validering i lagre()
   // beholdes (viser konkret feilmelding); dette er UI-hintet.
+  const dagLaast = !!opprettelse?.laastDagId;
   const kanLagre =
+    !dagLaast &&
     !!valgtProjectId &&
     !!valgtLonnsartId &&
     !!valgtAktivitetId &&
@@ -1467,6 +1511,7 @@ function TimerRadModal({
 
   function lagre() {
     setFeil(null);
+    if (dagLaast) return;
     if (!valgtProjectId) {
       setFeil(t("timer.feil.prosjektPaakrevd"));
       return;
@@ -1583,16 +1628,57 @@ function TimerRadModal({
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-        <ScrollView
+        <TastaturScrollView
           className="flex-1"
           contentContainerClassName="p-4 gap-4"
-          keyboardShouldPersistTaps="handled"
         >
+          {opprettelse && (
+            <View>
+              <Text className="mb-1 text-sm font-medium text-gray-700">
+                {t("timer.felt.dato")}
+              </Text>
+              <Pressable
+                onPress={() => setVisDatoVelger((v) => !v)}
+                className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-3"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Calendar size={18} color="#6b7280" />
+                  <Text className="text-base text-gray-900">{formatNorskDato(dato)}</Text>
+                </View>
+                <ChevronRight size={18} color="#9ca3af" />
+              </Pressable>
+              {visDatoVelger && (
+                <DatoVelgerFelt
+                  value={new Date(`${dato}T00:00:00`)}
+                  mode="date"
+                  iosDisplay="inline"
+                  onChange={(_, valgt) => {
+                    if (Platform.OS !== "ios") setVisDatoVelger(false); // Android lukker selv
+                    if (valgt) opprettelse.onDatoEndret(isoDato(valgt));
+                  }}
+                  onLukk={() => setVisDatoVelger(false)}
+                />
+              )}
+            </View>
+          )}
+
+          {/* Q7: sendt/akseptert dag tar ikke nye rader — vis hvorfor + vei dit. */}
+          {opprettelse?.laastDagId && (
+            <View className="gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <Text className="text-sm text-amber-900">{t("timer.dagSendt")}</Text>
+              <Pressable
+                onPress={() => opprettelse.onAapneDagen(opprettelse.laastDagId!)}
+                className="items-center rounded-lg border border-amber-300 bg-white px-4 py-2.5"
+              >
+                <Text className="text-sm font-medium text-amber-900">
+                  {t("timer.aapneDagen")}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {!dagLaast && (
+          <>
           {/* F3: kombinert prosjekt+byggeplass. Feltet åpner én velger der
               begge velges (byggeplass innenfor valgt prosjekt). Byggeplass er
               valgfri (null = arv fra dagskortet, server propagerer sedel-verdi). */}
@@ -1604,6 +1690,7 @@ function TimerRadModal({
               prosjektNavn={valgtProsjekt?.name ?? null}
               prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektByggeplassVelger(true)}
+              laast={kortVisning.prosjektLaast}
             />
             <Pressable
               onPress={() => setVisProsjektByggeplassVelger(true)}
@@ -1620,10 +1707,11 @@ function TimerRadModal({
                 }
                 numberOfLines={1}
               >
-                {valgtByggeplassNavn ??
-                  (valgtByggeplassId
-                    ? t("byggeplassVelger.velg")
-                    : t("timer.byggeplass.arvFraDagskort"))}
+                {valgtByggeplassId
+                  ? (valgtByggeplassNavn ?? t("byggeplassVelger.velg"))
+                  : arvetByggeplass.navn
+                    ? `${arvetByggeplass.navn} (${t(arvetByggeplass.nokkel)})`
+                    : t(arvetByggeplass.nokkel)}
               </Text>
             </Pressable>
           </View>
@@ -1837,8 +1925,9 @@ function TimerRadModal({
               </Text>
             </Pressable>
           </KnappMedForklaring>
-        </ScrollView>
-        </KeyboardAvoidingView>
+          </>
+          )}
+        </TastaturScrollView>
         <TastaturFerdig />
 
         {visLonnsartVelger && (
@@ -1886,6 +1975,12 @@ function TimerRadModal({
                 setValgtProjectId(projId);
                 // Nullstill ECO ved prosjekt-bytte — ECO er prosjekt-spesifikk.
                 setValgtEcoId(null);
+                // Opprettelse: lønnsart/aktivitet følger prosjektets sist brukte.
+                if (opprettelse) {
+                  const valg = opprettelse.radvalgFor(projId);
+                  if (valg.lonnsartId) setValgtLonnsartId(valg.lonnsartId);
+                  if (valg.aktivitetId) setValgtAktivitetId(valg.aktivitetId);
+                }
               }
               setValgtByggeplassId(byggId);
               setVisProsjektByggeplassVelger(false);
@@ -1987,6 +2082,7 @@ export function LonnsartVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -2080,6 +2176,7 @@ export function AktivitetVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -2181,6 +2278,7 @@ export function UnderprosjektVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -2243,6 +2341,9 @@ function ProsjektByggeplassVelgerModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // Prosjektkort L2: kortets prosjekt er låst — kun byggeplass kan velges.
+  const kortModus = useProsjektkortModus();
+  const kortVisning = kortModusVisning(kortModus);
   const { favorittIder, toggleFavoritt } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
@@ -2260,6 +2361,17 @@ function ProsjektByggeplassVelgerModal({
     if (!organizationId) return [];
     return hentProsjekterLokalt(organizationId);
   }, [organizationId]);
+
+  // ORDRE 18: første valg viser byggeplassen raden faktisk arver.
+  const arvetByggeplass = useMemo(
+    () =>
+      arvetByggeplassVisning(
+        hentSedelByggeplass(sedelByggeplassId),
+        lokaltProjectId,
+        kortModus,
+      ),
+    [sedelByggeplassId, lokaltProjectId, kortModus],
+  );
 
   const filtrerteProsjekter = useMemo(() => {
     if (!prosjektSok.trim()) return prosjekter;
@@ -2369,6 +2481,7 @@ function ProsjektByggeplassVelgerModal({
         {/* Prosjekt-rad — trykk ekspanderer prosjektlista inline. */}
         <Pressable
           onPress={() => setVisProsjektListe((v) => !v)}
+          disabled={kortVisning.prosjektLaast}
           className="flex-row items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3"
         >
           <View className="flex-1">
@@ -2381,13 +2494,15 @@ function ProsjektByggeplassVelgerModal({
                 : lokaltProjectId}
             </Text>
           </View>
-          <ChevronDown
-            size={20}
-            color="#6b7280"
-            style={{
-              transform: [{ rotate: visProsjektListe ? "180deg" : "0deg" }],
-            }}
-          />
+          {!kortVisning.prosjektLaast && (
+            <ChevronDown
+              size={20}
+              color="#6b7280"
+              style={{
+                transform: [{ rotate: visProsjektListe ? "180deg" : "0deg" }],
+              }}
+            />
+          )}
         </Pressable>
 
         {visProsjektListe ? (
@@ -2405,6 +2520,7 @@ function ProsjektByggeplassVelgerModal({
             <FlatList
               data={filtrerteProsjekter}
               keyExtractor={(item) => item.id}
+              automaticallyAdjustKeyboardInsets
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <Pressable
@@ -2451,7 +2567,12 @@ function ProsjektByggeplassVelgerModal({
               }`}
             >
               <Text className="flex-1 text-base text-gray-700">
-                {t("timer.byggeplass.arvFraDagskort")}
+                {arvetByggeplass.navn ?? t(arvetByggeplass.nokkel)}
+                {arvetByggeplass.navn != null && (
+                  <Text className="text-gray-400">
+                    {` (${t(arvetByggeplass.nokkel)})`}
+                  </Text>
+                )}
               </Text>
               {valgtByggeplassId == null && <Check size={18} color="#1e40af" />}
             </Pressable>
@@ -2468,6 +2589,7 @@ function ProsjektByggeplassVelgerModal({
             <FlatList
               data={filtrerteByggeplasser}
               keyExtractor={(item) => item.id}
+              automaticallyAdjustKeyboardInsets
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <Pressable
@@ -2495,7 +2617,7 @@ function ProsjektByggeplassVelgerModal({
                         faktisk peker på. Ren visning — ingen logikkendring. */}
                     {sedelByggeplassId != null && item.id === sedelByggeplassId && (
                       <Text className="text-xs text-gray-500">
-                        {t("timer.byggeplass.arvesFraDagskort")}
+                        {t(kortVisning.arvesFra)}
                       </Text>
                     )}
                   </View>

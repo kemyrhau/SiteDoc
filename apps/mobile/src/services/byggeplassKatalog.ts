@@ -122,7 +122,7 @@ export function hentByggeplasserForProsjektLokalt(projectId: string) {
 
 /**
  * Synkron lese-funksjon: firmaets byggeplasser (på tvers av prosjekter) fra
- * lokal cache. Brukes av «+ Ny»-skjermens GPS-prosjektforslag (ny.tsx) til å
+ * lokal cache. Brukes av «+»-flytens GPS-prosjektforslag (useGeoProsjektForslag) til å
  * gjenkjenne byggeplass-geofence via A2.
  */
 export function hentByggeplasserForFirmaLokalt(organizationId: string) {

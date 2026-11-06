@@ -4144,6 +4144,21 @@ Ikke drop-in med Prisma: krever `directUrl` i alle fire `schema.prisma` (develop
 
 I dag deler alle fire Prisma-klientene samme URL, så `connection_limit` kan ikke differensieres. Kun kjerne + timer er varme; maskin/varelager sløser halve api-ens tak. Egen URL per db-pakke → differensiert pooling (forutsetning for kvote-veikartet over).
 
+### 🔴 Backup og gjenoppretting (katastrofe-beredskap) — før første ekte kunde
+
+**Kilde:** Kenneth 2026-11-05 (video om nattlig backup ≠ katastrofe-beredskap). **I dag:** ingen automatisk backup. `deploy-prod.sh` tar ingen dump (`DEPLOY-RUNBOK.md:535`); dump tas manuelt før store deployer (`docker/DOCKER-NOTES.md:124`) og ligger på samme server (`~/backup/`, `infrastruktur.md:178`). Uploads (~1,4 GB, delt prod/test) og server-env har ingen jevnlig backup. Ingen restore er testet som katastrofe-øvelse. **Utløser:** før første ekte kunde i prod — restore-testen (punkt 1) kan tas nå.
+
+1. ✅ **Utført 2026-11-05, bestått** (restore på 11,2 s, 6396 = 6396 rader, se [infrastruktur.md § Backup og restore-test](infrastruktur.md)). **Restore-test (først, billigst):** dump prod → gjenopprett i egen skrape-database på server-ny → sammenlign radtall på nøkkeltabeller → mål tiden (gir faktisk RTO) → slett skrape-databasen. Gjentas hvert kvartal og etter hver backup-endring. Datert resultat føres i `infrastruktur.md`.
+2. **Vedta RPO/RTO** (hvor mye data kan vi miste / hvor lenge kan vi være nede). Forslag: RPO ≤ 15 min, RTO ≤ 4 t for prod.
+3. **Automatisk dump (cron)** av `sitedoc` daglig, med oppbevaring (f.eks. 7 daglige + 4 ukentlige) og varsel når en dump mangler eller er unormalt liten.
+4. **Point-in-time recovery:** WAL-arkivering (pgBackRest eller wal-g) — lukker gapet mellom nattlige dumper. Krever postgres-restart → planlegges sammen med «Postgres er utunet».
+5. **Offsite + kryptert kopi:** dumper og WAL ut av server-ny (f.eks. R2/B2), kryptert. Samme boks = ingen backup ved disk-/serverbrann.
+6. **Uploads-backup:** jevnlig synk av uploads offsite (eller via objektlager-planen i `delplaner/fillagring-sikkerhet-ordre-2026-08-07.md` S2, med versjonering).
+7. **Server-env:** kryptert kopi av `docker/env/*.env` utenfor serveren (nøkkelhåndteringsreglene gjelder — aldri i git).
+8. **Gjenopprettings-runbok** i `DEPLOY-RUNBOK.md`: steg for steg fra «server tapt» til «innlogget og verifisert», inkl. hvem som gjør hva.
+
+Erstatter/omfatter «Prod-dumper ligger løst i `~`» (under) og `ny-server-migrering-plan.md:158` (utsatt `pg_dump`-cron).
+
 ### 🟢 Postgres er utunet
 
 `shared_buffers=128MB` (default) på 16 GB-maskin; swap-bruk 18 %. Ingen `command:`-override i `~/stack/postgres/docker-compose.yml`. Tuning-runde krever restart — ikke i forbifarten.
@@ -4720,7 +4735,7 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-f
 - **② ✅ GJORT** — `list`-retur beriker hver sedel med `prosjektIder` (distinct `projectId` på tvers av timer-/maskin-/tillegg-rader). `mine/page.tsx` utleder prosjekt-kolonne + «antall prosjekter» fra dette (ikke lenger `rad.projectId` som ikke finnes).
 - **③ ✅ GJORT** — web-opprett er nå **dato-only**: `opprett`-input droppet `projectId`, auth bruker org-tilgang (`krevBrukersOrg` + `krevTimerAktivert`) i stedet for `verifiserProsjektmedlem`; prosjekt-velgeren + geo-forslag fjernet fra `ny/page.tsx`. Prosjekt legges per rad på detalj-siden. Fjerner den misvisende velgeren og kilden til P2002-forvirringen (`@@unique([userId, dato])` består — én sedel per dato er korrekt).
 - **④ 🟡 FORBLIR FASE 4/E** — auto-forslag/auto-utkast av prosjekt i web (PSI-innsjekk + GPS-hook) er ikke bygd; avhenger av Fase 4 Mannskap/PSI (se «Retning»).
-- **⑤ ✅ verifisert tilsiktet** — byggeplass-velger bevisst deaktivert i web-timer.
+- **⑤ ✅ verifisert tilsiktet** — byggeplass-velger bevisst deaktivert i web-timer. **Delvis erstattet 2026-11-05 (ordre 10):** web-dagsseddelen har nå byggeplass per timer-/maskin-rad (`RadByggeplassFelt.tsx`, se [timer.md § Byggeplass per rad (web)](timer.md#byggeplass-per-rad-web--ordre-10)); toppbar-velgeren i prosjekt-timerlista er fortsatt av.
 
 **Verifiserte funn (2026-07-05, mot kode — pre-fix; ①②③ fikset interim samme dag, se «Interim-status» over):**
 
@@ -4728,7 +4743,7 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-f
 - **② ✅ (var 🟡) «Mine timer» (`mine/page.tsx`) leste `rad.projectId` fra DailySheet (finnes ikke) — nå fikset (se «Interim-status» over).** `list`-retur (`:497-501`) spredte `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kastet dem). **Interim-fiks 2026-07-05:** `list` beriker hver sedel med `prosjektIder`; `mine/page.tsx` utleder kolonnen fra det.
 - **③ ✅ (var 🔴) «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) hadde misvisende prosjekt-velger + var P2002-kollisjonskilde — nå fikset (se «Interim-status» over).** `opprett` (`dagsseddel.ts:549`) tok `projectId` som påkrevd input, men brukte den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagret den aldri; sedelen ble opprettet tom. Prosjektvalget valgte altså ingenting reelt. **Interim-fiks 2026-07-05:** web-opprett er nå dato-only (org-tilgang i stedet for prosjektmedlem-sjekk).
 - **④ 🟡 Ingen forslag/auto-utkast i web:** «intelligent timeføring» (`genererForslag`) er mobil-only — bekreftet ingen web-motpart.
-- **⑤ ❓→✅ Byggeplass-velger deaktivert i web-timer — verifisert tilsiktet:** `[prosjektId]/timer/page.tsx:47` kaller eksplisitt `useToppbarFiltre({ byggeplass: false })`. Bevisst, ikke hull. Asymmetri består: `DailySheet` har `byggeplassId` men ikke `projectId`.
+- **⑤ ❓→✅ Byggeplass-velger deaktivert i web-timer — verifisert tilsiktet:** `[prosjektId]/timer/page.tsx:47` kaller eksplisitt `useToppbarFiltre({ byggeplass: false })`. Bevisst, ikke hull. Asymmetri består: `DailySheet` har `byggeplassId` men ikke `projectId`. **Erstattet for rad-nivå 2026-11-05 (ordre 10):** byggeplass velges nå per rad i web-dagsseddelen — se timer.md § Byggeplass per rad (web).
 
 **Retning (PSI-drevet, Fase-4-avhengig) — lovforankret:**
 

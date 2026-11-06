@@ -11,6 +11,8 @@ import { ChevronDown, X } from "lucide-react-native";
  * Særtilfeller bevart:
  * - `underTekst`: ekstra under-linje inni boksen (f.eks. utstyr «#internNummer»).
  * - `onClear`: når satt + `verdi` finnes vises en clear-X til høyre (ECO).
+ * - `laast`: verdien er gitt av konteksten (prosjektkortet låser prosjektet) —
+ *   vises som grå tekstboks uten chevron og kan ikke trykkes (16c).
  */
 interface VelgerFeltProps {
   /** Vist valgt verdi. null = vis placeholder (grå). */
@@ -25,6 +27,8 @@ interface VelgerFeltProps {
   onClear?: () => void;
   /** Valgfri ekstra styling på boksen. */
   className?: string;
+  /** Låst verdi: ingen trykk, ingen chevron. */
+  laast?: boolean;
 }
 
 export function VelgerFelt({
@@ -34,7 +38,20 @@ export function VelgerFelt({
   underTekst,
   onClear,
   className = "",
+  laast = false,
 }: VelgerFeltProps) {
+  if (laast) {
+    return (
+      <View
+        accessibilityState={{ disabled: true }}
+        className={`rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 ${className}`}
+      >
+        <Text className={`text-base ${verdi ? "text-gray-700" : "text-gray-400"}`}>
+          {verdi ?? placeholder}
+        </Text>
+      </View>
+    );
+  }
   const boks = (
     <Pressable
       onPress={onPress}

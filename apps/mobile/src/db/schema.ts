@@ -102,7 +102,7 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
     .default("draft"),
   // Slice 3 (2026-06-20): markerer at draften ble auto-generert av «Slutt dag»
   // (genererForslag). KUN lokal — synces ALDRI til server. Gater auto-fyll-
-  // banneret på review-skjermen. Manuelle ny.tsx-drafts lar feltet stå null.
+  // banneret på review-skjermen. Manuelle «+»-sedler lar feltet stå null.
   autoGenerert: integer("auto_generert", { mode: "boolean" }),
   // Slice 4a (2026-06-20): true når sedelen er ett av flere segmenter fra et
   // skift som krysset midnatt (genererForslag → splittVedMidnatt). KUN lokal.
@@ -636,6 +636,11 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   // (V1: reisetid er ALDRI overtid). Drizzle-feltet fjernet så ingen leser kan
   // dra det inn; SQLite-KOLONNEN står (to-stegs — droppes i senere release).
   reiseLonnsartId: text("reise_lonnsart_id"),
+  // Prosjektkort L2 (2026-11-05) — "dagskort" | "prosjektkort". Tilføyes
+  // idempotent via ALTER. Les via lesTimerModusLokalt (ukjent → dagskort).
+  timerRegistreringsmodus: text("timer_registreringsmodus")
+    .notNull()
+    .default("dagskort"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
 
@@ -918,4 +923,46 @@ export const byggeplassNavLocal = sqliteTable("byggeplass_nav_local", {
   number: integer("number"),
   status: text("status"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
+});
+
+/**
+ * vare_local — firmaets vare-katalog for «+ Vareforbruk» på prosjektkortet
+ * (Prosjektkort L3, 2026-11-06). Speil av `vareforbruk.katalogForFirma` — kun de
+ * fire feltene, ingen priser. Full-overskrives pr. firma via
+ * vareKatalog.refreshVareKatalog. KUN lokal.
+ */
+export const vareLocal = sqliteTable("vare_local", {
+  id: text("id").primaryKey(), // = server Vare.id
+  organizationId: text("organization_id").notNull(),
+  navn: text("navn").notNull(),
+  enhet: text("enhet").notNull(),
+  varenummer: text("varenummer"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
+});
+
+/**
+ * vareforbruk_local — vareforbruk arbeideren har ført fra prosjektkortet
+ * (Prosjektkort L3). `id` er klient-uuid og sendes som `id` til
+ * `vareforbruk.opprett` (idempotent: to sendinger = én linje). Linjen står
+ * `pending` til sedelen er synket; da sendes den med `dagsseddelId` = sheetId
+ * når kortet har en timerrad for prosjektet. Server-avvisning → `avvist` +
+ * feilmelding (ingen evig retry). KUN lokal.
+ */
+export const vareforbrukLocal = sqliteTable("vareforbruk_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(), // eier-bruker — lesevakt
+  organizationId: text("organization_id").notNull(),
+  sheetId: text("sheet_id").notNull(), // = dagsseddelLocal.id (re-nøkles ved forsoning)
+  projectId: text("project_id").notNull(),
+  dato: text("dato").notNull(), // YYYY-MM-DD
+  vareId: text("vare_id").notNull(),
+  vareNavn: text("vare_navn").notNull(),
+  enhet: text("enhet").notNull(),
+  antall: real("antall").notNull(),
+  byggeplassId: text("byggeplass_id"),
+  syncStatus: text("sync_status", { enum: ["pending", "synced", "avvist"] })
+    .notNull()
+    .default("pending"),
+  feilmelding: text("feilmelding"),
+  sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
