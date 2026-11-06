@@ -3440,6 +3440,7 @@
   "oppgave.sePunktHint": "Tryck för att visa punkten på ritningen",
   "oppgave.punktLaastSendt": "Punkten sattes av avsändaren och kan endast flyttas i ett utkast",
   "oppgave.punktLaastOffline": "Punkten kan inte flyttas utan en anslutning. Anslut för att ändra det.",
+  "tegninger.brukMinPosisjon": "Använd min plats",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Ny",
   "oppgave.ingenKommentarer": "Inga kommentarer än",

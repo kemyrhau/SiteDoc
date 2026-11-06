@@ -1,5 +1,45 @@
 import type { Markør, Omrade, GpsMarkør } from "./TegningsVisning";
 
+/** Markørene slik WebView-JS-en tegner dem (defaults fylt inn) — brukes både i HTML og ved injeksjon. */
+export function markørLagJson(markører: Markør[]): string {
+  return JSON.stringify(markører.map((m) => ({
+    id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
+    fylt: m.fylt !== false, kantFarge: m.kantFarge || "#ffffff",
+  })));
+}
+
+export function gpsLagJson(gpsMarkør: GpsMarkør | null): string {
+  return gpsMarkør ? JSON.stringify({ x: gpsMarkør.x, y: gpsMarkør.y }) : "null";
+}
+
+/** Inndata som bestemmer HTML-en. Markører og GPS er bevisst IKKE med — de injiseres. */
+export interface StabilHtmlInndata {
+  tegningUrl: string;
+  omrader: Omrade[];
+  trykkOppsett: "ingen" | "enkel" | "avansert";
+  rotasjonDelta: number;
+  startutsnitt: { x: number; y: number; w: number; h: number } | null;
+  svgInline: boolean;
+}
+
+/**
+ * ORDRE 24: ny HTML = full WebView-reload = zoom/pan nullstilles. Byggeren lager HTML-en på nytt
+ * kun når de STABILE inndataene endres; markører/GPS tas med som startverdier i første HTML og
+ * oppdateres deretter via `window.settMarkørLag` (injectJavaScript) uten reload.
+ */
+export function lagHtmlBygger(): (stabil: StabilHtmlInndata, start: { markører: Markør[]; gpsMarkør: GpsMarkør | null }) => string {
+  let nøkkel: string | null = null;
+  let html = "";
+  return (stabil, start) => {
+    const k = JSON.stringify(stabil);
+    if (k !== nøkkel) {
+      nøkkel = k;
+      html = byggHtml(stabil.tegningUrl, start.markører, stabil.omrader, start.gpsMarkør, stabil.trykkOppsett, stabil.rotasjonDelta, stabil.startutsnitt, stabil.svgInline);
+    }
+    return html;
+  };
+}
+
 /**
  * Bygg HTML som rendrer tegningen + alle markører i SAMME koordinatsystem.
  * Markører posisjoneres med CSS-prosent (identisk med web UI og PDF).
@@ -15,10 +55,7 @@ export function byggHtml(
   startutsnitt: { x: number; y: number; w: number; h: number } | null = null,
   svgInline: boolean = false,
 ): string {
-  const markørData = JSON.stringify(markører.map((m) => ({
-    id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
-    fylt: m.fylt !== false, kantFarge: m.kantFarge || "#ffffff",
-  })));
+  const markørData = markørLagJson(markører);
   const omradeData = JSON.stringify(
     omrader
       .filter((o) => Array.isArray(o.polygon) && o.polygon.length >= 3)
@@ -32,7 +69,7 @@ export function byggHtml(
         cy: o.polygon.reduce((s, p) => s + p.y, 0) / o.polygon.length,
       })),
   );
-  const gpsData = gpsMarkør ? JSON.stringify({ x: gpsMarkør.x, y: gpsMarkør.y }) : "null";
+  const gpsData = gpsLagJson(gpsMarkør);
   const startutsnittData = startutsnitt ? JSON.stringify(startutsnitt) : "null";
   const tegningUrlJson = JSON.stringify(tegningUrl);
 
@@ -228,6 +265,15 @@ function plasser() {
 
   oppdaterZoom();
 }
+
+// ORDRE 24: oppdater markør-/GPS-laget i eksisterende DOM (ingen reload → zoom holder seg).
+// currentZoom settes til 1 så oppdaterZoom skalerer de nye elementene når brukeren har zoomet.
+window.settMarkørLag = function(m, g) {
+  markører = m;
+  gpsPos = g;
+  currentZoom = 1;
+  plasser();
+};
 
 var startutsnittApplisert = false;
 // L4b: åpne zoomet på startutsnittet (bygget), ikke fit-to-width på rutenettet.

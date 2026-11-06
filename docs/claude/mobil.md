@@ -308,6 +308,25 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
   `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
 
+### TegningsVisning: zoom holder seg ved trykk + «Bruk min posisjon» (2026-11-06)
+
+OTA-only. Funksjonsendring med hjemmel (Kenneth 2026-11-06, «Ja»; feltfunn etter ORDRE 23).
+
+- **Ingen reload ved markør/GPS-endring:** `TegningsVisning` bygger HTML via `lagHtmlBygger`
+  (`src/components/tegning-webview-html.ts`), som lager ny streng kun når de stabile inndataene
+  endres (tegning-URL, områder, trykkoppsett, rotasjon, startutsnitt, svgInline). `markører` og
+  `gpsMarkør` er startverdier i første HTML og oppdateres deretter via
+  `injectJavaScript(window.settMarkørLag(...))`, som tegner `.pin`/`.gps`-laget på nytt i eksisterende
+  DOM. Zoom/pan nullstilles derfor ikke når et trykk flytter punktet eller «du er her» kommer inn.
+  Gjelder både `{ html }`- og lokal-fil-kilden (fila skrives kun ved ny HTML). Test:
+  `tegning-webview-html-stabil.test.ts`. Kallere: `(tabs)/lokasjoner.tsx`, `oppgave/[id].tsx`,
+  `sjekkliste/[id].tsx`, `tegning-3d.tsx`, `TegningsSkjermbilde.tsx`,
+  `rapportobjekter/TegningPosisjonObjekt.tsx` — alle får samme atferd (ingen prop-endring).
+- **«Bruk min posisjon»** (oppgave + sjekkliste): knapp ved siden av Lagre, kun når punktet kan
+  flyttes (utkast, online) OG «du er her» har en posisjon innenfor tegningen
+  (`tegningBunnfelt(...).brukMinPosisjon`). Ett trykk setter det røde punktet til den blå prikkens
+  posisjon — som et trykk på tegningen; lagres først med Lagre. Nøkkel `tegninger.brukMinPosisjon`.
+
 ### Tegningsmodal i oppgave/sjekkliste: lesemodus-tekst og «du er her» (2026-11-06)
 
 `app/oppgave/[id].tsx` (punkt-modal) og `app/sjekkliste/[id].tsx` (lokasjonsmodal). OTA-only.

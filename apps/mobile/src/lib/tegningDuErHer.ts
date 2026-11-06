@@ -29,8 +29,16 @@ export function duErHerPosisjon(
 /**
  * Hva bunnfeltet viser: Lagre når punktet kan flyttes; ellers en forklaring på låsen —
  * offline først (det er den årsaken brukeren kan gjøre noe med), deretter utkast-låsen.
+ * «Bruk min posisjon» (ORDRE 24) vises kun ved siden av Lagre, og kun når «du er her»
+ * har en posisjon innenfor tegningen — ellers ingen knapp og ingen melding.
  */
-export function tegningBunnfelt(opts: { kanRedigerePunkt: boolean; offline: boolean }): "lagre" | "laastOffline" | "laastSendt" {
-  if (opts.kanRedigerePunkt) return "lagre";
-  return opts.offline ? "laastOffline" : "laastSendt";
+export function tegningBunnfelt(opts: {
+  kanRedigerePunkt: boolean;
+  offline: boolean;
+  duErHer?: { x: number; y: number } | null;
+}): { visning: "lagre" | "laastOffline" | "laastSendt"; brukMinPosisjon: boolean } {
+  if (opts.kanRedigerePunkt && !opts.offline) {
+    return { visning: "lagre", brukMinPosisjon: opts.duErHer != null };
+  }
+  return { visning: opts.offline ? "laastOffline" : "laastSendt", brukMinPosisjon: false };
 }

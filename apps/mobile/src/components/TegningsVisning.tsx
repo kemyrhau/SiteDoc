@@ -13,7 +13,7 @@ import {
 import type { LayoutChangeEvent } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
-import { byggHtml } from "./tegning-webview-html";
+import { lagHtmlBygger, markørLagJson, gpsLagJson } from "./tegning-webview-html";
 import { X, AlertTriangle, RefreshCw, Ruler, Waypoints, VectorSquare, Check, Trash2, Hand, Plus, TriangleRight, Magnet, Spline, RotateCw, CloudOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -192,6 +192,7 @@ export function TegningsVisning({
   const erSvg = svgInline || /\.svg(\?|#|$)/i.test(tegningUrl);
   const [htmlFilUrl, setHtmlFilUrl] = useState<string | null>(null);
   const htmlNonceRef = useRef(0);
+  const htmlBygger = useRef(lagHtmlBygger()).current;
 
   // Avansert trykk/måling aktiveres når forelder gir avanserte props.
   const avansert = !!onHint || !!onOpprett || maleData !== undefined;
@@ -435,31 +436,18 @@ export function TegningsVisning({
     };
   }, [laster, feil]);
 
-  // Oppdater GPS-markør med CSS-prosent
+  // ORDRE 24: markører/GPS injiseres i eksisterende DOM — aldri ny HTML (reload nullstiller zoom).
+  const markørJson = markørLagJson(markører);
+  const gpsJson = gpsLagJson(gpsMarkør ?? null);
   useEffect(() => {
     if (!webViewRef.current || laster) return;
-    if (gpsMarkør) {
-      webViewRef.current.injectJavaScript(`
-        (function() {
-          var old = document.querySelector('.gps');
-          if (old) old.remove();
-          var c = document.getElementById('container');
-          if (!c) return;
-          var div = document.createElement('div');
-          div.className = 'gps';
-          div.style.left = '${gpsMarkør.x}%';
-          div.style.top = '${gpsMarkør.y}%';
-          div.innerHTML = '<div class="gps-outer"><div class="gps-inner"></div></div>';
-          c.appendChild(div);
-          oppdaterZoom();
-        })();
-        true;
-      `);
-    }
-  }, [gpsMarkør, laster]);
+    webViewRef.current.injectJavaScript(
+      `window.settMarkørLag && window.settMarkørLag(${markørJson}, ${gpsJson}); true;`,
+    );
+  }, [markørJson, gpsJson, laster]);
 
   // Injiser (eller fjern) måle-overlayet uten reload — kalt når tilstanden endres
-  // og etter en reload (markør-refetch bygger HTML på nytt). Leser fra refs så
+  // og etter en reload (tegningsbytte bygger HTML på nytt). Leser fra refs så
   // callbacken er stabil (ellers re-injiseres overlayet ved hver render).
   const maleSegmenterRef = useRef(maleSegmenter);
   maleSegmenterRef.current = maleSegmenter;
@@ -642,7 +630,10 @@ export function TegningsVisning({
     : onTrykk
       ? "enkel"
       : "ingen";
-  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, trykkOppsett, rotasjonDelta, startutsnitt ?? null, svgInline);
+  const html = htmlBygger(
+    { tegningUrl, omrader, trykkOppsett, rotasjonDelta, startutsnitt: startutsnitt ?? null, svgInline },
+    { markører, gpsMarkør: gpsMarkør ?? null },
+  );
   // Nett-URL: loadHTMLString med baseUrl = tegningens mappe (relativ henting). Tom/data:
   // → undefined (null-origin). Lokal fil håndteres via file://-lasting under (ikke baseUrl).
   const baseUrl = tegningUrl.startsWith("data:") || tegningUrl === "" || erLokalFil

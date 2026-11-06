@@ -1523,6 +1523,7 @@ export default function OppgaveDetalj() {
               tegningTempPosX != null && tegningTempPosY != null
                 ? [{ id: "pos", x: tegningTempPosX, y: tegningTempPosY, farge: "#ef4444" }]
                 : [];
+            const bunnfelt = tegningBunnfelt({ kanRedigerePunkt, offline: offlineModus, duErHer });
             return (
               <View className="flex-1">
                 <TegningsVisning
@@ -1544,8 +1545,21 @@ export default function OppgaveDetalj() {
                   markører={markører}
                   gpsMarkør={duErHer}
                 />
-                {tegningBunnfelt({ kanRedigerePunkt, offline: offlineModus }) === "lagre" ? (
-                  <View className="flex-row items-center justify-end border-t border-gray-200 bg-white px-5 py-4">
+                {bunnfelt.visning === "lagre" ? (
+                  <View className="flex-row items-center justify-end gap-3 border-t border-gray-200 bg-white px-5 py-4">
+                    {bunnfelt.brukMinPosisjon && duErHer && (
+                      <Pressable
+                        hitSlop={8}
+                        onPress={() => {
+                          // Som et trykk på tegningen — lagres først med Lagre
+                          settTegningTempPosX(duErHer.x);
+                          settTegningTempPosY(duErHer.y);
+                        }}
+                        className="rounded-lg px-3 py-2.5"
+                      >
+                        <Text className="text-sm font-medium text-blue-600">{t("tegninger.brukMinPosisjon")}</Text>
+                      </Pressable>
+                    )}
                     <Pressable
                       hitSlop={8}
                       onPress={() => {

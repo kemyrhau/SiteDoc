@@ -38,12 +38,29 @@ describe("duErHerPosisjon — GPS → blå markør", () => {
 
 describe("tegningBunnfelt — Lagre eller låsetekst", () => {
   it("utkast med redigeringsrett → Lagre, ingen tekst", () => {
-    expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: false })).toBe("lagre");
+    expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: false }).visning).toBe("lagre");
   });
   it("sendt (lesemodus) → låsetekst, ikke Lagre", () => {
-    expect(tegningBunnfelt({ kanRedigerePunkt: false, offline: false })).toBe("laastSendt");
+    expect(tegningBunnfelt({ kanRedigerePunkt: false, offline: false }).visning).toBe("laastSendt");
   });
   it("offline → egen offline-tekst", () => {
-    expect(tegningBunnfelt({ kanRedigerePunkt: false, offline: true })).toBe("laastOffline");
+    expect(tegningBunnfelt({ kanRedigerePunkt: false, offline: true }).visning).toBe("laastOffline");
+  });
+});
+
+describe("tegningBunnfelt — «Bruk min posisjon» (ORDRE 24)", () => {
+  const her = { x: 40, y: 60 };
+  it("utkast + posisjon innenfor → vises", () => {
+    expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: false, duErHer: her }).brukMinPosisjon).toBe(true);
+  });
+  it("sendt → skjult", () => {
+    expect(tegningBunnfelt({ kanRedigerePunkt: false, offline: false, duErHer: her }).brukMinPosisjon).toBe(false);
+  });
+  it("offline → skjult", () => {
+    expect(tegningBunnfelt({ kanRedigerePunkt: false, offline: true, duErHer: her }).brukMinPosisjon).toBe(false);
+    expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: true, duErHer: her }).brukMinPosisjon).toBe(false);
+  });
+  it("posisjon null (ingen GPS/utenfor/uten georeferanse) → skjult", () => {
+    expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: false, duErHer: null }).brukMinPosisjon).toBe(false);
   });
 });
