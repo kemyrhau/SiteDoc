@@ -68,9 +68,9 @@ export async function fangGps(): Promise<{
  * Fase 1: identifiser hvilket oppmøtested arbeider startet på via GPS.
  * Nærmeste oppmøtested innenfor sin geofence-radius. Returnerer null hvis
  * ingen treff (da brukes prosjekt-deteksjon / manuell flyt som før).
- * KUN dokumentasjon + forslag — aldri lønnsgrunnlag.
- * Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
- * arbeider-valg (`aktivtProsjektId`) går foran.
+ * GPS gir FORSLAG til sted, prosjekt og reise. Forslaget blir lønnsgrunnlag
+ * først når arbeideren bekrefter i `/timer/bekreft-dag` (helhetsplan § 3 G1,
+ * Kenneth 2026-11-06). Arbeider-valget i skjermen er autoritativt.
  *
  * Tynn kaller av A2 (`gjenkjennSted`, LAG 1-A): kalleren filtrerer bort
  * kandidater uten komplett geofence; funksjonen gir nærmeste innenfor radius.
@@ -147,10 +147,11 @@ export function useArbeidsdag() {
       const { lat, lng } = await fangGps();
       const db = hentDatabase();
       if (!db) return;
-      // GPS-identifiser oppmøtested + byggeplass (dokumentasjon + forslag, aldri
-      // lønn/reise/prosjektvalg). L1: byggeplass speiler oppmøtested-mønsteret.
-      // Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
-      // arbeider-valg (`aktivtProsjektId`) går foran.
+      // GPS-identifiser oppmøtested + byggeplass. L1: byggeplass speiler
+      // oppmøtested-mønsteret. GPS gir FORSLAG til sted, prosjekt og reise.
+      // Forslaget blir lønnsgrunnlag først når arbeideren bekrefter i
+      // `/timer/bekreft-dag` (helhetsplan § 3 G1, Kenneth 2026-11-06).
+      // Arbeider-valget i skjermen er autoritativt.
       const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
       const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();

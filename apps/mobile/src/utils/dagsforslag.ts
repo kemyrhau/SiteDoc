@@ -9,7 +9,7 @@
  *
  * `beregnDagsforslag` er 🟢 **REN**: all utregning, **null DB-skriving og null
  * DB-lesing**. Alle kataloger, org-setting, matrise-oppslag og eksisterende-
- * sedel-status leses ut av kalleren (`samleDagsforslagInput` i komponenten) og
+ * sedel-status leses ut av kalleren (`samleDagsforslagInput`, `dagsforslagInput.ts`) og
  * sendes inn som argumenter. Da er funksjonen fullt testbar uten React Native og
  * uten database — vakten mot at skrive-/lese-splitten endrer utregningen stille.
  *
@@ -20,8 +20,13 @@
  * nærmeste-prosjekt-uten-avstandsgrense. Endres noe av det her, kan ingen se om
  * splitten var riktig. V-reglene fra helhetsplanen (V1–V14) hører IKKE her.
  *
+ * GPS gir FORSLAG til sted, prosjekt og reise. Forslaget blir lønnsgrunnlag
+ * først når arbeideren bekrefter i `/timer/bekreft-dag` (helhetsplan § 3 G1,
+ * Kenneth 2026-11-06). Arbeider-valget i skjermen er autoritativt — det kommer
+ * inn som `input.retting` (L3-A) og vinner over GPS-utledningen.
+ *
  * Selve persisteringen ligger i `anvendDagsforslag` (`dagsforslagAnvend.ts`) og
- * kjører kun når noe skal skrives.
+ * kjører kun ved [Bekreft og lagre] (`bekreftDag.ts`).
  */
 import {
   klassifiserReise,
@@ -310,6 +315,32 @@ export type BeregnDagsforslagInput = {
   /** Effektiv arbeidstid per dato — MÅ dekke startdato + alle segment-datoer. */
   effektivPerDato: Record<string, DagsforslagEffektiv>;
   eksisterendeSedelPerDato: Record<string, DagsforslagEksisterendeSedel>;
+  /**
+   * L3-A: arbeiderens rettinger fra `/timer/bekreft-dag`. Utelatt = forslaget
+   * slik GPS-utledningen gir det (uendret utdata). Arbeider-valget er
+   * autoritativt — det vinner over destinasjon, aktivt prosjekt og default.
+   */
+  retting?: DagsforslagRetting;
+};
+
+/** L3-A: rettedybde B — prosjekt, byggeplass, aktivitet og per dato fra/til, pause, fjern. */
+export type DagsforslagRetting = {
+  prosjektId?: string;
+  aktivitetId?: string;
+  /** undefined = default-kjeden; null = ingen byggeplass. */
+  byggeplassId?: string | null;
+  perDato?: Record<string, DagsforslagRettingDato>;
+};
+
+export type DagsforslagRettingDato = {
+  /** Arbeidsvinduets start "HH:MM". Reise ut forankres her (A1). */
+  arbeidFra?: string;
+  /** Arbeidsvinduets slutt "HH:MM". Reise retur forankres her (A1). */
+  arbeidTil?: string;
+  /** Erstatter fordelt pause for datoen (0–120). */
+  pauseMin?: number;
+  /** Fjerner datoens arbeidsrader. Reiseradene står (K12 a). */
+  fjernArbeid?: boolean;
 };
 
 /** Delmengden av `DagsforslagRegel` som `klassifiserReise` trenger. */
@@ -501,7 +532,12 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     input.reiseOppslag?.destinasjon.type === "ukjent"
       ? input.reiseOppslag.destinasjon.aarsak
       : null;
-  const prosjektId = input.destinasjonProsjektId ?? input.aktivtProsjektId;
+  // L3-A: arbeiderens valg i bekreft-skjermen vinner.
+  const retting = input.retting;
+  const prosjektId =
+    retting?.prosjektId ??
+    input.destinasjonProsjektId ??
+    input.aktivtProsjektId;
   if (prosjektId == null) {
     // Dagen holdes åpen; meldingen navngir veien ut (velg prosjekt, prøv igjen).
     return { ...tomt, prosjektUkjent: true, destinasjonAarsak };
@@ -509,6 +545,9 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
 
   // 2. Aktivitet — default «Anleggsarbeid» eller første.
   const aktivitet =
+    (retting?.aktivitetId
+      ? input.aktiviteter.find((a) => a.id === retting.aktivitetId)
+      : undefined) ??
     input.aktiviteter.find((a) => a.navn === "Anleggsarbeid") ??
     input.aktiviteter[0]!;
 
@@ -611,8 +650,12 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
   // F4: byggeplass-default-kjede → GPS (arbeidsdag) → global kontekst → ingen.
   // D2: kontekst-fallback kun når utkastets prosjekt = aktivt prosjekt.
   const byggeplassDefault =
-    dag.byggeplassId ??
-    (prosjektId === input.aktivtProsjektId ? input.kontekstByggeplassId : null);
+    retting?.byggeplassId !== undefined
+      ? retting.byggeplassId
+      : (dag.byggeplassId ??
+        (prosjektId === input.aktivtProsjektId
+          ? input.kontekstByggeplassId
+          : null));
 
   const sisteIdx = segmenter.length - 1;
   const datoer = segmenter.map((seg, i) => {
@@ -625,15 +668,19 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       status: null,
       eksisterendeRader: [],
     };
+    // Ut-etappen hører til start-segmentet, retur-etappen til slutt-segmentet.
+    const segUt = seg.erStartSegment ? utReise : null;
+    const segRetur = erSiste ? returReise : null;
+    const rettDato = retting?.perDato?.[seg.dato];
     return beregnSegment({
-      segment: seg,
+      segment: rettSegmentVindu(seg, rettDato, segUt, segRetur),
       prosjektId,
       aktivitetId: aktivitet.id,
       byggeplassId: byggeplassDefault,
-      pauseMin: pauseFordelt[i]!,
-      // Ut-etappen hører til start-segmentet, retur-etappen til slutt-segmentet.
-      utReise: seg.erStartSegment ? utReise : null,
-      returReise: erSiste ? returReise : null,
+      pauseMin: rettDato?.pauseMin ?? pauseFordelt[i]!,
+      fjernArbeid: rettDato?.fjernArbeid === true,
+      utReise: segUt,
+      returReise: segRetur,
       tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
       standardPauseEtterTimer: regel?.standardPauseEtterTimer ?? null,
       deltVedMidnatt,
@@ -657,6 +704,36 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
   };
 }
 
+/**
+ * L3-A (A1): arbeiderens fra/til er ARBEIDSVINDUET. Segmentet (= sedelens
+ * vindu) utvides med reisen i hver ende, slik at ut-reisen slutter ved
+ * arbeid-fra og retur-reisen starter ved arbeid-til. Reiselengden (matrisen)
+ * og klassifiseringen røres ikke. Uten fra/til → segmentet uendret.
+ */
+function rettSegmentVindu<
+  S extends { dato: string; startIso: string; sluttIso: string },
+>(
+  seg: S,
+  rett: DagsforslagRettingDato | undefined,
+  utReise: ReiseRadResolvert | null,
+  returReise: ReiseRadResolvert | null,
+): S {
+  if (!rett?.arbeidFra && !rett?.arbeidTil) return seg;
+  const klokke = (hhmm: string) => new Date(`${seg.dato}T${hhmm}:00`).getTime();
+  const startIso = rett.arbeidFra
+    ? new Date(
+        klokke(rett.arbeidFra) - (utReise ? utReise.kjoretidMin : 0) * 60_000,
+      ).toISOString()
+    : seg.startIso;
+  const sluttIso = rett.arbeidTil
+    ? new Date(
+        klokke(rett.arbeidTil) +
+          (returReise ? returReise.kjoretidMin : 0) * 60_000,
+      ).toISOString()
+    : seg.sluttIso;
+  return { ...seg, startIso, sluttIso };
+}
+
 /** Utregning av ett dag-segments rader — ren speiling av rad-genereringen i
  *  det gamle `opprettDagsseddelForSegment` (uten find-or-create og DB-insert). */
 function beregnSegment(a: {
@@ -670,6 +747,8 @@ function beregnSegment(a: {
   aktivitetId: string;
   byggeplassId: string | null;
   pauseMin: number;
+  /** L3-A: arbeideren fjernet datoens arbeidsrader (K12 a — reisen står). */
+  fjernArbeid: boolean;
   /** Ut-reise (reisetid) på start-segmentet — forskyver arbeidsstart + egen rad. null ellers. */
   utReise: ReiseRadResolvert | null;
   /** Retur-reise (reisetid) på slutt-segmentet — forskyver arbeidsslutt + egen rad. null ellers. */
@@ -743,7 +822,7 @@ function beregnSegment(a: {
 
   // Auto-fordeling normaltid/overtid (per dag). Overtid velges strukturert på
   // overtidsnivaa — ALDRI fritekst-navn (③a).
-  if (arbeidstimer > 0) {
+  if (arbeidstimer > 0 && !a.fjernArbeid) {
     const effektivDagsnorm = a.effektiv?.dagsnorm ?? 0;
     // V1: reisetid er ALDRI overtid. Normen er alltid `dagsnorm0` — det gamle
     // `reisetidTellerOvertid`-fradraget i terskelen er fjernet (flagget leses ikke).
