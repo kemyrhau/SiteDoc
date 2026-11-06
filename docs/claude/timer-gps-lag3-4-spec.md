@@ -3,7 +3,7 @@ name: timer-gps-lag3-4-spec
 description: Spesifikasjon for LAG 3 (bekreft dag — den menneskelige porten) og LAG 4 (flere byggeplasser pr. dag) i timer-GPS-helhetsplanen. Besøksmodell uten posisjonssporing, bekreft-dag-skjermen (2 klikk), reiseregler V1–V15 ved flere byggeplasser, løsning på G1-konflikten, leveransedeling og åpne spørsmål til Kenneth. Skrevet av fabel 2026-11-06 på orkestrators ordre (Kenneth «Ja, begge»), gates av orkestrator; Kenneth godkjenner før kode-ordre.
 sist_verifisert_mot_kode: 2026-11-06
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A. Ingen kode levert
+status: 🟢 L3-A levert `feat/timer-bekreft-dag` (⚠️ venter Kontrollør-gate, ikke merget). 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A.
 ---
 
 # LAG 3 + LAG 4 — bekreft dag, og flere byggeplasser pr. dag

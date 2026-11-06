@@ -1,7 +1,7 @@
 ---
 name: timer-gps-helhetsplan
 description: Helhetsplan som syr sammen GPS, reise, flerprosjekt-dag og bekreftelsessteget i timer-modulen. Skrevet 2026-10-01 på Kenneths ordre etter at orkestratoren hadde bestilt kode i hver runde uten kontroll på kompleksiteten. Les FØR noe i dette komplekset bestilles. Revidert 2026-10-01 kveld med Kenneths vedtak V1–V14 (§ 4b).
-sist_verifisert_mot_kode: 2026-11-06 (LAG 3/4 + H26; resten 2026-10-01)
+sist_verifisert_mot_kode: 2026-11-06 (LAG 3/4 + H26 + L3-A; resten 2026-10-01)
 eier: fabel (kontroll-Claude) — orkestrator gater, fra 2026-10-01 kveld
 ---
 
@@ -123,7 +123,7 @@ hovedveien resten av tiden** — ikke en reserve. Se premisset under LAG 3.
 | **H23** | 🔴 **Sirkelen modellerer ikke et lineært prosjekt.** Byggeplass-geofence er punkt + radius; for en lang, smal trasé (Røstbakken) dekker sirkelen områder langt utenfor. **Og den automatiske utledningen fra georeferert tegning lager nøyaktig den sirkelen:** senter = tegningens 50/50, radius = største hjørneavstand + 100 m — ti km veg gir ~5 km radius. Trasé-formen FINNES (`Omrade.type = trase`, `polygon` i tegningskoordinater, tegneverktøy på tegninger-siden), men **broen polygon → geofence finnes ikke**. Funnet av Kenneth på test 2026-10-03 | `georeferanse.ts:433-454`, `tegning.ts:502`, `byggeplass.ts:135`, `schema.prisma` Omrade | 🔴 **Feil prosjekt** (kapabilitet A/C) — reise (B) tåler det | **3/4** (K10) |
 | **H24** | 🔴 **Km-rader teller som TIMER i overtidsgrunnlaget.** `beregnOvertidsgrunnlag` filtrerer kun `erReise` (lag 2), aldri `satsEnhet` — en `per_km`-rad med 150 km i `timer` bidrar 150 t til serverens uke-grunnlag og attesteringsvarselet. Pre-eksisterende; funnet i gate av L2-A 2026-10-03 (Q4). Henger på K4 (km som egen størrelse) | `overtidsgrunnlag.ts:50`, `dagsseddel.ts:646, :3040` (satsEnhet leses kun for taket `:1583`) | Feil varsel (ikke lønn direkte) | **K4** |
 | **H25** | 🔴 **Overlapp PC ↔ mobil lagres dobbelt.** S2-sammenslåingen (dato-kollisjon → omnøkling → additiv push) er blind for tid: overlapp-vakten i `syncBatch` sjekker kun payloaden, web-radene overlever `deleteMany` (kun payload-ider). PC 07–15 + mobil 07–15 = 16 t, kun AML-varsel >13 t. Attestanten ser ingen konflikt (`syncStatus` er mobil-tilstand). Funnet av orkestrator 2026-10-04 | `dagsseddel.ts:5441-5450, :5830-5870`, `timerSync.ts:259-290` | 🔴 **Feil lønn** | **V19** |
-| **H26** | 🔴 **«Anvend uten port» (G1-konflikten).** «Slutt dag» kjører `beregnDagsforslag` → `anvendDagsforslag` og skriver GPS-utledet prosjekt og reise som rader *før* noen har sett forslaget; eneste port er at sedelen er `draft`+`autoGenerert` med banner og må sendes manuelt. Samtidig sier `useArbeidsdag.ts:71,141` «GPS aldri lønnsgrunnlag». Brudd i form, dempet i virkning — ingen tilbakerulling nødvendig. Målt av orkestrator + fabel 2026-11-06 | `StartSluttDagKort.tsx:124-146`, `dagsseddelOpprett.ts:120`, `[id].tsx:1178-1195` | 🔴 **G1** | **LAG 3-A** ([timer-gps-lag3-4-spec.md § 5](timer-gps-lag3-4-spec.md)) |
+| **H26** | 🟢 **LEVERT L3-A (`feat/timer-bekreft-dag`, ⚠️ venter Kontrollør-gate):** «Slutt dag» åpner `/timer/bekreft-dag`; `anvendDagsforslag` kjører kun bak [Bekreft og lagre] (`utils/bekreftDag.ts`). Opprinnelig: **«Anvend uten port» (G1-konflikten).** «Slutt dag» kjører `beregnDagsforslag` → `anvendDagsforslag` og skriver GPS-utledet prosjekt og reise som rader *før* noen har sett forslaget; eneste port er at sedelen er `draft`+`autoGenerert` med banner og må sendes manuelt. Samtidig sier `useArbeidsdag.ts:71,141` «GPS aldri lønnsgrunnlag». Brudd i form, dempet i virkning — ingen tilbakerulling nødvendig. Målt av orkestrator + fabel 2026-11-06 | `StartSluttDagKort.tsx:124-146`, `dagsseddelOpprett.ts:120`, `[id].tsx:1178-1195` | 🔴 **G1** | **LAG 3-A** ([timer-gps-lag3-4-spec.md § 5](timer-gps-lag3-4-spec.md)) |
 
 🔴 **H15 er samme feilklasse som arvingen orkestratoren fjernet fra origo-ordren — men den står
 i koden i dag.** Det var KS-ens skarpeste funn.
@@ -317,11 +317,11 @@ funksjon brukeren ser — og uten det kan ingen svare på «hvorfor fikk jeg den
 er kjernen; spec-en har skjerm, klikktelling, arkitektur, tester, **ORDRE-tekst L3-A (§ 10)** og leveransene
 **L3-A → L3-D → L4-A → L4-C ∥ L4-B → L3-B**.
 
-- **Bekreftelsessteget etter «Slutt dag»** — egen skjerm `/timer/bekreft-dag` (Kenneth-valg B i pauset ordre),
+- 🟢 **LEVERT L3-A (`feat/timer-bekreft-dag`, ⚠️ venter Kontrollør-gate)** — `apps/mobile/app/timer/bekreft-dag.tsx`, `utils/bekreftDag.ts`, `services/dagsforslagInput.ts`, rettinger via `input.retting` i `beregnDagsforslag`. **Bekreftelsessteget etter «Slutt dag»** — egen skjerm `/timer/bekreft-dag` (Kenneth-valg B i pauset ordre),
   forslaget vises som ett kort pr. segment, arbeideren retter prosjekt · byggeplass · tider · pause (rettedybde B)
   og bekrefter. **2 klikk** fra «Slutt dag» til rader (P4). **Dagen forblir åpen hvis han avbryter**
   (Kenneth-vedtak 2026-10-01, valg A). Dagens `Alert` fjernes — skjermen *er* bekreftelsen.
-- 🔴 **G1-konflikten (H26) er avgjort i spec § 5:** dagens `anvendDagsforslag` rett etter «Slutt dag» er et brudd
+- 🟢 **G1-konflikten (H26) lukket av L3-A** (anvend bak Bekreft; G1-ordlyden står i `useArbeidsdag.ts`). Avgjort i spec § 5: dagens `anvendDagsforslag` rett etter «Slutt dag» er et brudd
   i form (ingen port) men dempet i virkning (`draft` + manuell sending). `anvend` flyttes bak «Bekreft» i **L3-A**;
   ingen tilbakerulling. «Tilstedeværelse ≠ arbeidstid» står: det gjelder innsjekk/PSI, ikke en villet «Start dag».
 - **Sammenligningsvisningen ved konflikt** — 🟢 **LEVERT** (`e4866f8d` + `9c7c1ad1`).
