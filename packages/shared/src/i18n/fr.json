@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Vous pouvez tout modifier une fois la feuille journalière créée.",
   "timer.leggTilProsjekt": "+ Ajouter un projet",
   "timer.geoForslag": "Suggéré en fonction de l'emplacement",
+  "timer.dagSendt": "La journée a été envoyée pour approbation",
+  "timer.aapneDagen": "Ouvrir la journée",
   "timer.ingenGeoForslag": "Aucun projet à proximité",
   "timer.feil.ugyldigInput": "Valeur invalide.",
   "timer.detalj.ingenProsjektGrupper": "Aucun projet ajouté pour l'instant. Cliquez sur «Ajouter un projet» pour enregistrer les heures.",

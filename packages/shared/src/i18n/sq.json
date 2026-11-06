@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Mund të modifikoni gjithçka pasi të krijohet fleta ditore.",
   "timer.leggTilProsjekt": "+ Shto projekt",
   "timer.geoForslag": "Sugjerohet në bazë të vendndodhjes",
+  "timer.dagSendt": "Dita është dërguar për miratim",
+  "timer.aapneDagen": "Hape ditën",
   "timer.ingenGeoForslag": "Nuk ka projekte të afërta",
   "timer.feil.ugyldigInput": "Vlera e pavlefshme.",
   "timer.detalj.ingenProsjektGrupper": "Asnjë projekt i shtuar ende. Klikoni \"Shto projekt\" për të regjistruar orët.",

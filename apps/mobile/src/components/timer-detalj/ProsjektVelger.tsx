@@ -9,7 +9,7 @@ import {
 } from "react-native";
 // eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31: SafeAreaView anvender arkets egen topp-inset (~10 pt), header-kontroller truffbare. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Check } from "lucide-react-native";
+import { X, Check, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { hentProsjekterLokalt } from "../../services/prosjektKatalog";
 import type { Prosjekt } from "../../types/timer-detalj";
@@ -21,17 +21,23 @@ import { VelgerFelt } from "./VelgerFelt";
  *
  * Eksluderer-prop kan brukes for «+ Legg til rad i annet prosjekt» der vi
  * bare vil vise prosjekter som ikke allerede har rader på sedelen.
+ *
+ * `forslagId` (ORDRE 17, «+» rett til raden): GPS-/byggeplass-treffet løftes
+ * øverst med merket «Foreslått basert på posisjon». Forhåndsvalget selv er
+ * kallerens `valgtId` — lista hoppes ikke over (Kenneth Q1).
  */
 export function ProsjektVelgerModal({
   organizationId,
   valgtId,
   ekskluderIder,
+  forslagId = null,
   onVelg,
   onLukk,
 }: {
   organizationId: string;
   valgtId: string | null;
   ekskluderIder?: string[];
+  forslagId?: string | null;
   onVelg: (id: string) => void;
   onLukk: () => void;
 }) {
@@ -40,10 +46,12 @@ export function ProsjektVelgerModal({
 
   const prosjekter = useMemo<Prosjekt[]>(() => {
     if (!organizationId) return [];
-    const alle = hentProsjekterLokalt(organizationId);
-    if (!ekskluderIder?.length) return alle;
-    return alle.filter((p) => !ekskluderIder.includes(p.id));
-  }, [organizationId, ekskluderIder]);
+    const alle = hentProsjekterLokalt(organizationId).filter(
+      (p) => !ekskluderIder?.includes(p.id),
+    );
+    const forslag = alle.find((p) => p.id === forslagId);
+    return forslag ? [forslag, ...alle.filter((p) => p !== forslag)] : alle;
+  }, [organizationId, ekskluderIder, forslagId]);
 
   const filtrert = useMemo(() => {
     if (!sok.trim()) return prosjekter;
@@ -99,6 +107,14 @@ export function ProsjektVelgerModal({
                   <Text className="text-xs text-gray-500">
                     {item.projectNumber}
                   </Text>
+                )}
+                {item.id === forslagId && (
+                  <View className="mt-0.5 flex-row items-center gap-1">
+                    <MapPin size={12} color="#1e40af" />
+                    <Text className="text-xs text-sitedoc-primary">
+                      {t("timer.geoForslag")}
+                    </Text>
+                  </View>
                 )}
               </View>
               {item.id === valgtId && <Check size={18} color="#1e40af" />}

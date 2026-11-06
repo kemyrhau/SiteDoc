@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Puteți edita totul după ce foaia zilnică este creată.",
   "timer.leggTilProsjekt": "+ Adăugați proiect",
   "timer.geoForslag": "Sugerat în funcție de locație",
+  "timer.dagSendt": "Ziua a fost trimisă spre aprobare",
+  "timer.aapneDagen": "Deschide ziua",
   "timer.ingenGeoForslag": "Nu există proiecte în apropiere",
   "timer.feil.ugyldigInput": "Valoare nevalidă.",
   "timer.detalj.ingenProsjektGrupper": "Nu au fost adăugate proiecte încă. Faceți clic pe „Adăugați proiect” pentru a înregistra orele.",

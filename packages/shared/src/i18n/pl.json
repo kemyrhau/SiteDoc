@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Możesz edytować wszystko po utworzeniu arkusza dziennego.",
   "timer.leggTilProsjekt": "+ Dodaj projekt",
   "timer.geoForslag": "Sugerowane na podstawie lokalizacji",
+  "timer.dagSendt": "Dzień został przesłany do zatwierdzenia",
+  "timer.aapneDagen": "Otwórz dzień",
   "timer.ingenGeoForslag": "Brak projektów w pobliżu",
   "timer.feil.ugyldigInput": "Nieprawidłowa wartość.",
   "timer.detalj.ingenProsjektGrupper": "Nie dodano jeszcze żadnych projektów. Kliknij «Dodaj projekt», aby zarejestrować godziny.",

@@ -59,7 +59,8 @@ import { trpc } from "../lib/trpc";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
-export function StartSluttDagKort() {
+/** `onNyRad`: åpner «+»-flyten (timer-raden) — fallback når sedelen ikke kunne utledes. */
+export function StartSluttDagKort({ onNyRad }: { onNyRad?: () => void } = {}) {
   const { t } = useTranslation();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -232,8 +233,8 @@ export function StartSluttDagKort() {
         case "kildeManglet":
           // Prosjekt/aktivitet kunne ikke utledes offline → ingen sedel. Dagen
           // står ÅPEN (H7) og brukeren varsles — ellers forsvinner dagen stumt.
-          // Manuell opprettelse er fortsatt tilgjengelig som fallback.
-          router.push("/timer/ny");
+          // Manuell opprettelse (timer-raden, ORDRE 17) er fallback.
+          onNyRad?.();
           Alert.alert(
             t("timer.kildeManglet.tittel"),
             t("timer.kildeManglet.melding"),
@@ -252,7 +253,7 @@ export function StartSluttDagKort() {
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, valgtFirma?.name, erAnsattIValgtFirma, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler, utils]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, valgtFirma?.name, erAnsattIValgtFirma, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler, utils, onNyRad]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som

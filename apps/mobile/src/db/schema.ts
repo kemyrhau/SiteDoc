@@ -102,7 +102,7 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
     .default("draft"),
   // Slice 3 (2026-06-20): markerer at draften ble auto-generert av «Slutt dag»
   // (genererForslag). KUN lokal — synces ALDRI til server. Gater auto-fyll-
-  // banneret på review-skjermen. Manuelle ny.tsx-drafts lar feltet stå null.
+  // banneret på review-skjermen. Manuelle «+»-sedler lar feltet stå null.
   autoGenerert: integer("auto_generert", { mode: "boolean" }),
   // Slice 4a (2026-06-20): true når sedelen er ett av flere segmenter fra et
   // skift som krysset midnatt (genererForslag → splittVedMidnatt). KUN lokal.
