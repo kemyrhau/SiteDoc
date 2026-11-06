@@ -61,7 +61,13 @@ describe("PDF-ekstraksjon virker uten native Promise.withResolvers (Node 20-nede
       expect(posisjoner).toContain("dagmulkt");
       expect(posisjoner).toContain("Side 1");
     } finally {
-      P.withResolvers = orig;
+      // Gjenopprett KUN når det fantes en native metode. På ekte Node 20 er `orig`
+      // undefined; da har pdfjs-legacy (core-js) allerede installert polyfillen på
+      // `Promise`, og `P.withResolvers = undefined` slettet den. pdfjs-dist er en
+      // ekstern modul som Node cacher (vi.resetModules evaluerer den ikke på nytt),
+      // så neste test i filen fikk «Promise.withResolvers is not a function» — CI-rødt
+      // siden 2026-10-15, en testisolasjonsfeil, ikke prod-feil.
+      if (orig !== undefined) P.withResolvers = orig;
       vi.resetModules();
     }
   });

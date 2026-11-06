@@ -113,28 +113,3 @@ export async function koblePunktTilSjekkliste(
     });
   }
 }
-
-/**
- * Prosjektisolering for tegnings-referanser (CLAUDE.md — regelen uten unntak): en `drawingId`
- * som skrives på et kontrollplanpunkt eller en koblet sjekkliste MÅ tilhøre samme prosjekt som
- * objektet. To dører skriver samme felt — `kontrollplan.settPunktPlassering` og
- * `sjekkliste.oppdater` — så vakten bor her, i den delte hjelperen begge arver, og kan ikke
- * drifte fra hverandre. Kalles med `null`-tegning som no-op-ansvar hos kalleren (fjerning av
- * tegning trenger ingen isolasjonssjekk).
- */
-export async function verifiserTegningIProsjekt(
-  db: TxClient,
-  drawingId: string,
-  projectId: string,
-): Promise<void> {
-  const drawing = await db.drawing.findUnique({
-    where: { id: drawingId },
-    select: { byggeplass: { select: { projectId: true } } },
-  });
-  if (!drawing?.byggeplass || drawing.byggeplass.projectId !== projectId) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Tegningen hører til et annet prosjekt.",
-    });
-  }
-}

@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Checkliste wird abgerufen...",
   "sjekkliste.ikkeFunnet": "Checkliste nicht gefunden",
   "sjekkliste.slettSjekkliste": "Checkliste löschen",
+  "sjekkliste.punktIngenRedigeringstilgang": "Sie haben keinen Bearbeitungszugriff auf diese Checkliste",
   "oppgave.henter": "Aufgabe wird abgerufen...",
   "oppgave.ikkeFunnet": "Aufgabe nicht gefunden",
   "oppgave.tittel": "Aufgabe",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Punkt auf Zeichnung",
   "oppgave.settPunktHint": "Tippen Sie, um den Punkt festzulegen oder zu verschieben",
   "oppgave.sePunktHint": "Tippen Sie, um den Punkt in der Zeichnung anzuzeigen",
+  "oppgave.punktLaastSendt": "Der Punkt wurde vom Absender festgelegt und kann nur in einem Entwurf verschoben werden",
+  "oppgave.punktLaastOffline": "Ohne Verbindung kann der Punkt nicht verschoben werden. Verbinden Sie sich, um es zu ändern.",
+  "tegninger.brukMinPosisjon": "Verwenden Sie meinen Standort",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Neu",
   "oppgave.ingenKommentarer": "Noch keine Kommentare",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Ohne Ersatz entfernen",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Entfernen und verschieben Sie {{antall}} Dokumente",
   "dokumentflyt.fjernMedlem.loggStaar": "Das Protokoll speichert den Namen von allem, was {{navn}} getan hat.",
-  "dokumentflyt.leddTomt": "Keine aktiven Mitglieder – wählen Sie, wer diesen Schritt übernehmen soll."
+  "dokumentflyt.leddTomt": "Keine aktiven Mitglieder – wählen Sie, wer diesen Schritt übernehmen soll.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Standort wählen…",
+  "lokasjonVelger.forslagGps": "Auto: GPS-Position",
+  "lokasjonVelger.forslagSistBrukt": "Zuletzt verwendet",
+  "lokasjonVelger.kart": "Karte",
+  "lokasjonVelger.ingenTegningEllerKart": "Das Projekt verfügt über keine Zeichnung oder Karte, auf der eine Position platziert werden kann."
 }

@@ -19,23 +19,11 @@ import { trpc } from "../lib/trpc";
 import { formaterServerFeil } from "../lib/feil";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 import { useByggeplass } from "../kontekst/ByggeplassKontekst";
+import { foreslaaLokasjon } from "../lib/lokasjonForslag";
 
 // F1 (Option B): sist-brukt byggeplass/tegning leses fra og skrives til
 // ByggeplassKontekst (eneste kilde) — modalen har ikke lenger egne
 // `sitedoc_sist_*`-nøkler. Global aktiv byggeplass settes av chip/GPS, ikke her.
-
-/** Sjekk om GPS-koordinat er innenfor tegningens georeferanse-bounds */
-function erInnenforBounds(
-  lat: number,
-  lng: number,
-  geo: { point1: { gps: { lat: number; lng: number } }; point2: { gps: { lat: number; lng: number } } },
-): boolean {
-  const minLat = Math.min(geo.point1.gps.lat, geo.point2.gps.lat);
-  const maxLat = Math.max(geo.point1.gps.lat, geo.point2.gps.lat);
-  const minLng = Math.min(geo.point1.gps.lng, geo.point2.gps.lng);
-  const maxLng = Math.max(geo.point1.gps.lng, geo.point2.gps.lng);
-  return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-}
 
 type Prioritet = "low" | "medium" | "high" | "critical";
 
@@ -222,39 +210,28 @@ export function OpprettDokumentModal({
         ? hentSistTegning(kontekstBygningId)
         : null;
 
-      // Forsøk GPS
+      // Forsøk GPS — matchingen (GPS-treff → sist brukte) bor i lib/lokasjonForslag.
+      let gps: { lat: number; lng: number } | null = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
           const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          const { latitude, longitude } = pos.coords;
-
-          // Finn tegninger der GPS er innenfor bounds
-          const treff = alleTegninger.filter((t) => {
-            const geo = t.geoReference as GeoReferanse | null;
-            if (!geo) return false;
-            return erInnenforBounds(latitude, longitude, geo);
-          });
-
-          if (treff.length > 0) {
-            // Prioriter sist brukte blant GPS-treff
-            const sistBrukt = lagretTegningId ? treff.find((t) => t.id === lagretTegningId) : null;
-            const valgt = sistBrukt ?? treff[0];
-            setValgtTegningId(valgt.id);
-            setValgtBygningId(valgt.byggeplassId ?? valgt.byggeplass?.id ?? null);
-            setLokasjonKilde("gps");
-            return;
-          }
+          gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         }
       } catch {
         // GPS feilet stille — fall gjennom til sist brukte
       }
 
-      // Fallback: sist brukte tegning
-      if (lagretBygningId) {
-        setValgtBygningId(lagretBygningId);
-        if (lagretTegningId) setValgtTegningId(lagretTegningId);
-        setLokasjonKilde("lagret");
+      const forslag = foreslaaLokasjon({
+        tegninger: alleTegninger,
+        gps,
+        sistBygningId: lagretBygningId,
+        sistTegningId: lagretTegningId,
+      });
+      if (forslag) {
+        setValgtBygningId(forslag.byggeplassId);
+        if (forslag.tegningId) setValgtTegningId(forslag.tegningId);
+        setLokasjonKilde(forslag.kilde);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

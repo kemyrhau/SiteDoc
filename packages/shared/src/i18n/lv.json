@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Notiek kontrolsaraksta iegūšana...",
   "sjekkliste.ikkeFunnet": "Kontrolsaraksts nav atrasts",
   "sjekkliste.slettSjekkliste": "Dzēst kontrolsarakstu",
+  "sjekkliste.punktIngenRedigeringstilgang": "Jums nav rediģēšanas piekļuves šim kontrolsarakstam",
   "oppgave.henter": "Notiek uzdevuma iegūšana...",
   "oppgave.ikkeFunnet": "Uzdevums nav atrasts",
   "oppgave.tittel": "Uzdevums",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Punkts uz zīmēšanas",
   "oppgave.settPunktHint": "Pieskarieties, lai iestatītu vai pārvietotu punktu",
   "oppgave.sePunktHint": "Pieskarieties, lai skatītu punktu zīmējumā",
+  "oppgave.punktLaastSendt": "Punktu noteica sūtītājs, un to var pārvietot tikai melnrakstā",
+  "oppgave.punktLaastOffline": "Punktu nevar pārvietot bez savienojuma. Izveidojiet savienojumu, lai to mainītu.",
+  "tegninger.brukMinPosisjon": "Izmantot manu atrašanās vietu",
   "oppgave.dialog": "Dialogs",
   "oppgave.ny": "Jauns",
   "oppgave.ingenKommentarer": "Komentāru vēl nav",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Noņemiet bez nomaiņas",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Noņemiet un pārvietojiet {{antall}} dokumentus",
   "dokumentflyt.fjernMedlem.loggStaar": "Žurnālā tiek saglabāts nosaukums visam, ko {{navn}} ir izdarījis.",
-  "dokumentflyt.leddTomt": "Nav aktīvu dalībnieku — izvēlieties, kam veikt šo soli."
+  "dokumentflyt.leddTomt": "Nav aktīvu dalībnieku — izvēlieties, kam veikt šo soli.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Izvēlieties atrašanās vietu…",
+  "lokasjonVelger.forslagGps": "Automātiski: GPS pozīcija",
+  "lokasjonVelger.forslagSistBrukt": "Pēdējo reizi lietots",
+  "lokasjonVelger.kart": "Karte",
+  "lokasjonVelger.ingenTegningEllerKart": "Projektam nav zīmējuma vai kartes, kur novietot pozīciju."
 }

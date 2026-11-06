@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Po merr listën e kontrollit...",
   "sjekkliste.ikkeFunnet": "Lista kontrolluese nuk u gjet",
   "sjekkliste.slettSjekkliste": "Fshi listën e kontrollit",
+  "sjekkliste.punktIngenRedigeringstilgang": "Ju nuk keni akses për modifikim në këtë listë kontrolli",
   "oppgave.henter": "Po merr detyrën...",
   "oppgave.ikkeFunnet": "Detyra nuk u gjet",
   "oppgave.tittel": "Detyrë",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Pika në vizatim",
   "oppgave.settPunktHint": "Prekni për të vendosur ose zhvendosur pikën",
   "oppgave.sePunktHint": "Prekni për të parë pikën në vizatim",
+  "oppgave.punktLaastSendt": "Pika është caktuar nga dërguesi dhe mund të zhvendoset vetëm në një draft",
+  "oppgave.punktLaastOffline": "Pika nuk mund të zhvendoset pa lidhje. Lidhu për ta ndryshuar.",
+  "tegninger.brukMinPosisjon": "Përdor vendndodhjen time",
   "oppgave.dialog": "Dialogu",
   "oppgave.ny": "E re",
   "oppgave.ingenKommentarer": "Ende nuk ka komente",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Hiqeni pa zëvendësim",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Hiqni dhe zhvendosni {{antall}} dokumente",
   "dokumentflyt.fjernMedlem.loggStaar": "Regjistri ruan emrin në gjithçka që ka bërë {{navn}}.",
-  "dokumentflyt.leddTomt": "Nuk ka anëtarë aktiv - zgjidhni se kush duhet ta mbajë këtë hap."
+  "dokumentflyt.leddTomt": "Nuk ka anëtarë aktiv - zgjidhni se kush duhet ta mbajë këtë hap.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Zgjidh vendndodhjen…",
+  "lokasjonVelger.forslagGps": "Auto: Pozicioni GPS",
+  "lokasjonVelger.forslagSistBrukt": "Përdorur për herë të fundit",
+  "lokasjonVelger.kart": "Harta",
+  "lokasjonVelger.ingenTegningEllerKart": "Projekti nuk ka vizatim apo hartë për të vendosur një pozicion."
 }

@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Kontrollnimekirja toomine...",
   "sjekkliste.ikkeFunnet": "Kontrollnimekirja ei leitud",
   "sjekkliste.slettSjekkliste": "Kustuta kontrollnimekiri",
+  "sjekkliste.punktIngenRedigeringstilgang": "Teil pole sellele kontroll-loendile muutmisõigust",
   "oppgave.henter": "Ülesande toomine...",
   "oppgave.ikkeFunnet": "Ülesannet ei leitud",
   "oppgave.tittel": "Ülesanne",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Punkt joonistamisel",
   "oppgave.settPunktHint": "Puudutage punkti määramiseks või liigutamiseks",
   "oppgave.sePunktHint": "Puudutage, et vaadata punkti joonisel",
+  "oppgave.punktLaastSendt": "Punkti määras saatja ja seda saab liigutada ainult mustandis",
+  "oppgave.punktLaastOffline": "Punkti ei saa ilma ühenduseta liigutada. Selle muutmiseks ühendage.",
+  "tegninger.brukMinPosisjon": "Kasuta minu asukohta",
   "oppgave.dialog": "Dialoog",
   "oppgave.ny": "Uus",
   "oppgave.ingenKommentarer": "Kommentaarid veel puuduvad",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Eemaldage ilma asendamiseta",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Eemaldage ja teisaldage {{antall}} dokumenti",
   "dokumentflyt.fjernMedlem.loggStaar": "Logi säilitab nime kõigel, mida {{navn}} on teinud.",
-  "dokumentflyt.leddTomt": "Aktiivseid liikmeid pole – valige, kes peaks seda sammu tegema."
+  "dokumentflyt.leddTomt": "Aktiivseid liikmeid pole – valige, kes peaks seda sammu tegema.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Vali asukoht…",
+  "lokasjonVelger.forslagGps": "Automaatne: GPS-positsioon",
+  "lokasjonVelger.forslagSistBrukt": "Viimati kasutatud",
+  "lokasjonVelger.kart": "Kaart",
+  "lokasjonVelger.ingenTegningEllerKart": "Projektil pole joonist ega kaarti, millele positsiooni paigutada."
 }

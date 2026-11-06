@@ -35,6 +35,9 @@ import { SkjemaLagringProvider } from "../../src/kontekst/SkjemaLagringKontekst"
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { LokasjonSeksjon, TegningVelgerListe } from "../../src/components/LokasjonSeksjon";
+import { skalForeslaaLokasjon, visLokasjon } from "../../src/lib/lokasjonForslag";
+import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { EmneFelt } from "../../src/components/EmneFelt";
 import { trpc } from "../../src/lib/trpc";
 import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
@@ -47,6 +50,8 @@ import { byggObjektTre, standardFeltNavn } from "@sitedoc/shared";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
+import { useDuErHer } from "../../src/hooks/useDuErHer";
+import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
@@ -108,6 +113,7 @@ export default function SjekklisteUtfylling() {
   const router = useRouter();
   const { bruker } = useAuth();
   const { valgtProsjektId } = useProsjekt();
+  const { settSistTegning } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
 
@@ -162,7 +168,7 @@ export default function SjekklisteUtfylling() {
     number?: number | null;
     transfers?: Transfer[];
     subject?: string | null;
-    template?: { enableChangeLog?: boolean; subjects?: string[]; showSubject?: boolean };
+    template?: { enableChangeLog?: boolean; subjects?: string[]; showSubject?: boolean; showLocation?: boolean };
     changeLog?: EndringsloggRad[];
     drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
     drawingId?: string | null;
@@ -242,6 +248,11 @@ export default function SjekklisteUtfylling() {
   const tilgjengeligeTegninger = useMemo(
     () => alleTegninger.filter((t) => t.fileUrl),
     [alleTegninger],
+  );
+  // «Du er her» i lokasjonsmodalen (ORDRE 23) — kun visning, lagres aldri
+  const duErHer = useDuErHer(
+    visLokasjonModal,
+    lokTempTegningId ? alleTegninger.find((x) => x.id === lokTempTegningId)?.geoReference ?? null : null,
   );
 
   // Lokasjonsinformasjon fra sjekklisteDetalj
@@ -949,44 +960,63 @@ export default function SjekklisteUtfylling() {
         contentContainerClassName="gap-2 p-3 pb-8"
         keyboardShouldPersistTaps="handled"
       >
-        {/* Lokasjonsvelger — trykk for å åpne tegningsvisning */}
-        <Pressable
-          onPress={() => {
-            if (leseModus) return;
-            // Initialiser temp-state fra nåværende lokasjon
-            const harLagretTegning = !!sjekklisteDetalj?.drawingId;
-            setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
-            setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
-            setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
-            setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
+        {/* Lokasjon (ORDRE 19) — felles felt med oppgave; skjules når malen sier
+            showLocation === false (paritet med web). Trykk åpner tegningsvisningen;
+            utkast uten lokasjon får GPS-/sist-brukt-forslag som bekreftes med ett trykk. */}
+        {visLokasjon(sjekklisteDetalj?.template) && (
+          <LokasjonSeksjon
+            tekst={lokasjonTekstVist}
+            kanRedigere={!leseModus}
+            foreslaa={!leseModus && skalForeslaaLokasjon({
+              status: sjekkliste.status,
+              drawingId: sjekklisteDetalj?.drawingId,
+              lokasjonOmfang: sjekklisteDetalj?.lokasjonOmfang,
+            })}
+            tegninger={tilgjengeligeTegninger}
+            onAapne={leseModus
+              // Lesemodus (ORDRE 25): åpner tegningen read-only når punktet ligger i en
+              // tegning — som oppgave. Uten tegning er linjen ikke trykkbar (ingen tom modal).
+              ? (sjekklisteDetalj?.drawingId && sjekklisteDetalj?.drawing?.fileUrl
+                ? () => {
+                    setLokTempTegningId(sjekklisteDetalj.drawingId ?? null);
+                    setLokTempBygningId(sjekklisteDetalj.byggeplass?.id ?? null);
+                    setLokTempPosX(sjekklisteDetalj.positionX ?? null);
+                    setLokTempPosY(sjekklisteDetalj.positionY ?? null);
+                    setVisLokByttTegning(false);
+                    setVisLokasjonModal(true);
+                  }
+                : undefined)
+              : () => {
+              // Initialiser temp-state fra nåværende lokasjon
+              const harLagretTegning = !!sjekklisteDetalj?.drawingId;
+              setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
+              setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
+              setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
+              setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
 
-            // Vei videre når lokasjon mangler: gå rett til tegning/kart i stedet
-            // for å lande på en tom «Ingen tegning valgt»-tilstand.
-            if (!harLagretTegning && tilgjengeligeTegninger.length === 1) {
-              // Én tegning/kart → åpne den direkte i tegningsvisningen
-              const t = tilgjengeligeTegninger[0]!;
-              setLokTempTegningId(t.id);
-              setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
-              setVisLokByttTegning(false);
-            } else if (!harLagretTegning && tilgjengeligeTegninger.length > 1) {
-              // Flere tegninger/kart → åpne velgeren direkte
-              setVisLokByttTegning(true);
-            } else {
-              // Har lagret tegning, eller ingen finnes → modalen viser rett tilstand
-              setVisLokByttTegning(false);
-            }
-            setVisLokasjonModal(true);
-          }}
-          className="rounded-lg bg-white px-4 py-3"
-        >
-          <View className="flex-row items-center gap-2">
-            <MapPin size={14} color={lokasjonTekstVist ? "#1e40af" : "#9ca3af"} />
-            <Text className={`flex-1 text-sm ${lokasjonTekstVist ? "text-gray-800" : "text-gray-400"}`} numberOfLines={1}>
-              {lokasjonTekstVist ?? "Velg lokasjon…"}
-            </Text>
-            {!leseModus && <ChevronDown size={14} color="#9ca3af" />}
-          </View>
-        </Pressable>
+              // Vei videre når lokasjon mangler: gå rett til tegning/kart i stedet
+              // for å lande på en tom «Ingen tegning valgt»-tilstand.
+              if (!harLagretTegning && tilgjengeligeTegninger.length === 1) {
+                // Én tegning/kart → åpne den direkte i tegningsvisningen
+                const t = tilgjengeligeTegninger[0]!;
+                setLokTempTegningId(t.id);
+                setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+                setVisLokByttTegning(false);
+              } else if (!harLagretTegning && tilgjengeligeTegninger.length > 1) {
+                // Flere tegninger/kart → åpne velgeren direkte
+                setVisLokByttTegning(true);
+              } else {
+                // Har lagret tegning, eller ingen finnes → modalen viser rett tilstand
+                setVisLokByttTegning(false);
+              }
+              setVisLokasjonModal(true);
+            }}
+            onBekreftForslag={({ tegningId, byggeplassId }) => {
+              oppdaterMutasjon.mutate({ id: id!, drawingId: tegningId, byggeplassId });
+              if (byggeplassId) settSistTegning(byggeplassId, tegningId);
+            }}
+          />
+        )}
 
         {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
             (ordre 2026-09-22). Redigerbart for den som kan redigere (samme leseModus),
@@ -1454,8 +1484,11 @@ export default function SjekklisteUtfylling() {
       <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
         <ModalFlate kanter={["top", "bottom"]} className="bg-white">
           {(() => {
+            // Fallback til sjekklistens egen tegning: lesevisningen skal virke også når
+            // prosjektets tegningsliste ikke er lastet (offline-speil).
             const aktivTegning = lokTempTegningId
               ? alleTegninger.find((t) => t.id === lokTempTegningId)
+                ?? (sjekklisteDetalj?.drawing?.id === lokTempTegningId ? sjekklisteDetalj.drawing : null)
               : null;
             const tegningUrl = aktivTegning?.fileUrl
               ? (aktivTegning.fileUrl.startsWith("http")
@@ -1474,63 +1507,18 @@ export default function SjekklisteUtfylling() {
                     <Text className="text-sm font-semibold text-white">Bytt tegning</Text>
                     <View style={{ width: 50 }} />
                   </View>
-                  <ScrollView className="flex-1" contentContainerClassName="p-3 gap-1">
-                    {(() => {
-                      const bygningIder = new Set(bygninger.map((b) => b.id));
-                      const grupper: Array<{ id: string; navn: string; tegninger: typeof tilgjengeligeTegninger }> = bygninger
-                        .map((b) => ({
-                          id: b.id,
-                          navn: b.name,
-                          tegninger: tilgjengeligeTegninger.filter(
-                            (t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id,
-                          ),
-                        }))
-                        .filter((g) => g.tegninger.length > 0);
-                      // Georeferert kart / tegning uten byggeplass — ellers usynlig i lista
-                      const løse = tilgjengeligeTegninger.filter(
-                        (t) => !bygningIder.has((t.byggeplassId ?? t.byggeplass?.id) ?? ""),
-                      );
-                      if (løse.length > 0) {
-                        grupper.push({ id: "__løse", navn: "Kart", tegninger: løse });
-                      }
-                      if (grupper.length === 0) {
-                        return (
-                          <Text className="mt-8 px-6 text-center text-sm text-gray-500">
-                            Prosjektet har ingen tegning eller kart å plassere posisjon på.
-                          </Text>
-                        );
-                      }
-                      return grupper.map((g) => (
-                        <View key={g.id} className="mb-2">
-                          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
-                            {g.navn}
-                          </Text>
-                          {g.tegninger.map((t) => (
-                            <Pressable
-                              key={t.id}
-                              onPress={() => {
-                                setLokTempTegningId(t.id);
-                                setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
-                                setLokTempPosX(null);
-                                setLokTempPosY(null);
-                                setVisLokByttTegning(false);
-                              }}
-                              className={`flex-row items-center gap-2 rounded-lg px-3 py-2.5 ${lokTempTegningId === t.id ? "bg-blue-50" : "bg-white"}`}
-                            >
-                              <Text className={`flex-1 text-sm ${lokTempTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
-                                {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
-                              </Text>
-                              {t.geoReference != null && (
-                                <Text className="text-[10px] font-semibold uppercase tracking-wider text-green-600">
-                                  Kart
-                                </Text>
-                              )}
-                            </Pressable>
-                          ))}
-                        </View>
-                      ));
-                    })()}
-                  </ScrollView>
+                  <TegningVelgerListe
+                    tegninger={tilgjengeligeTegninger}
+                    bygninger={bygninger}
+                    valgtTegningId={lokTempTegningId}
+                    onVelg={(t) => {
+                      setLokTempTegningId(t.id);
+                      setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+                      setLokTempPosX(null);
+                      setLokTempPosY(null);
+                      setVisLokByttTegning(false);
+                    }}
+                  />
                 </View>
               );
             }
@@ -1575,6 +1563,9 @@ export default function SjekklisteUtfylling() {
               ? [{ id: "pos", x: lokTempPosX, y: lokTempPosY, farge: "#ef4444" }]
               : [];
 
+            // Trykk, «Bruk min posisjon», Bytt tegning og Lagre kun når sjekklisten kan
+            // redigeres (!leseModus — ingen utkast-lås); ellers låsetekst (ORDRE 25).
+            const bunnfelt = tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline: offlineModus, duErHer });
             return (
               <View className="flex-1">
                 <TegningsVisning
@@ -1583,17 +1574,37 @@ export default function SjekklisteUtfylling() {
                     ? `${aktivTegning.drawingNumber} ${aktivTegning.name}`
                     : aktivTegning?.name ?? ""}
                   onLukk={() => setVisLokasjonModal(false)}
-                  onTrykk={(posX, posY) => {
-                    setLokTempPosX(posX);
-                    setLokTempPosY(posY);
-                  }}
+                  onTrykk={
+                    bunnfelt.visning === "lagre"
+                      ? (posX, posY) => {
+                          setLokTempPosX(posX);
+                          setLokTempPosY(posY);
+                        }
+                      : undefined
+                  }
                   markører={markører}
+                  gpsMarkør={duErHer}
                 />
-                {/* Bunnbar: Bytt tegning + Lagre */}
+                {/* Bunnbar: Bytt tegning + Lagre — eller låsetekst i lesemodus */}
+                {bunnfelt.visning === "lagre" ? (
                 <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
                   <Pressable onPress={() => setVisLokByttTegning(true)} hitSlop={12} className="rounded-lg px-3 py-2">
                     <Text className="text-sm font-medium text-blue-600">Bytt tegning</Text>
                   </Pressable>
+                  <View className="flex-row items-center gap-3">
+                  {bunnfelt.brukMinPosisjon && duErHer && (
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => {
+                        // Som et trykk på tegningen — lagres først med Lagre
+                        setLokTempPosX(duErHer.x);
+                        setLokTempPosY(duErHer.y);
+                      }}
+                      className="rounded-lg px-3 py-2"
+                    >
+                      <Text className="text-sm font-medium text-blue-600">{t("tegninger.brukMinPosisjon")}</Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     hitSlop={8}
                     onPress={() => {
@@ -1616,7 +1627,17 @@ export default function SjekklisteUtfylling() {
                   >
                     <Text className="text-sm font-medium text-white">Lagre</Text>
                   </Pressable>
+                  </View>
                 </View>
+                ) : (
+                  <View className="border-t border-gray-200 bg-white px-5 py-4">
+                    <Text className="text-center text-sm text-gray-500">
+                      {bunnfelt.visning === "laastOffline"
+                        ? t("oppgave.punktLaastOffline")
+                        : t("sjekkliste.punktIngenRedigeringstilgang")}
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })()}

@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Pobieram listę kontrolną...",
   "sjekkliste.ikkeFunnet": "Nie znaleziono listy kontrolnej",
   "sjekkliste.slettSjekkliste": "Usuń listę kontrolną",
+  "sjekkliste.punktIngenRedigeringstilgang": "Nie masz uprawnień do edycji tej listy kontrolnej",
   "oppgave.henter": "Pobieram zadanie...",
   "oppgave.ikkeFunnet": "Nie znaleziono zadania",
   "oppgave.tittel": "Zadanie",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Punkt na rysunku",
   "oppgave.settPunktHint": "Kliknij, aby ustawić lub przesunąć punkt",
   "oppgave.sePunktHint": "Kliknij, aby zobaczyć punkt na rysunku",
+  "oppgave.punktLaastSendt": "Punkt został ustawiony przez nadawcę i można go przenieść tylko w wersji roboczej",
+  "oppgave.punktLaastOffline": "Punktu nie można przenieść bez połączenia. Połącz się, aby to zmienić.",
+  "tegninger.brukMinPosisjon": "Skorzystaj z mojej lokalizacji",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Nowy",
   "oppgave.ingenKommentarer": "Nie ma jeszcze żadnych komentarzy",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Usuń bez wymiany",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Usuń i przenieś dokumenty {{antall}}",
   "dokumentflyt.fjernMedlem.loggStaar": "Dziennik przechowuje nazwę wszystkiego, co zrobił {{navn}}.",
-  "dokumentflyt.leddTomt": "Brak aktywnych członków — wybierz, kto powinien wstrzymać ten krok."
+  "dokumentflyt.leddTomt": "Brak aktywnych członków — wybierz, kto powinien wstrzymać ten krok.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Wybierz lokalizację…",
+  "lokasjonVelger.forslagGps": "Automatycznie: pozycja GPS",
+  "lokasjonVelger.forslagSistBrukt": "Ostatnio używany",
+  "lokasjonVelger.kart": "Mapa",
+  "lokasjonVelger.ingenTegningEllerKart": "Projekt nie zawiera rysunku ani mapy, na której można by umieścić położenie."
 }

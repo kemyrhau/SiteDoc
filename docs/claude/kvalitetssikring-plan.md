@@ -223,6 +223,18 @@ jobb-oppdeling nødvendig ennå.
 skrevet i runde 95 for «stille tomhet»-krav (b) (DB-garanti mot duplikat), men var ekskludert
 fra `pnpm test` og hadde aldri kjørt. Kvitteringen «grønn» var aldri sann før nå.
 
+### 🟡 2026-11-06 — første fulle integrasjonskjøring i CI: 3 tester + 1 fil røde (ORDRE 27)
+
+Run `42263766957` kjørte steget helt gjennom for første gang. Ingen av feilene er produktfeil:
+- `flyt-ruting` § 2.4-regresjonen gjenåpnet uten begrunnelse; siden P2 (`2096c49c`) krever
+  terminal→draft begrunnelse → `BAD_REQUEST`. Testen sender nå `kommentar`.
+- `ftd-reekstraksjon` + `ftd-reprosess-modus` skrev fixtur-PDF til `apps/api/uploads/`, som er
+  gitignorert og ikke finnes i en fersk checkout → `ENOENT`. Testene oppretter mappa i `beforeAll`.
+- `overlapp-forslag` bruker `prismaTimer` (`timer.sheet_timer_forslag`), men CI migrerer kun
+  `@sitedoc/db` + `db-maskin`. `ci.yml` (steget «Migrer engangs-DB») kjører nå også
+  `pnpm --filter @sitedoc/db-timer exec prisma migrate deploy` (`4024990e`, TILLEGG ORDRE 27).
+Lokalt mot engangs-Postgres (pgvector:pg16) med alle tre skjemaer migrert: 27/27 filer, 116 bestått, 5 hoppet over.
+
 ### 🟢 «Stille tomhet»-rekvittering 2026-09-16: tre mock-kvitteringer gjort ekte (integrasjon 17→33)
 
 Tre migreringer var kvittert mot CLAUDE.md § «Stille tomhet» krav (c) — *«en test som FEILER

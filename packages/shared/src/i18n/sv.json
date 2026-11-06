@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Hämtar checklista...",
   "sjekkliste.ikkeFunnet": "Det gick inte att hitta checklistan",
   "sjekkliste.slettSjekkliste": "Ta bort checklista",
+  "sjekkliste.punktIngenRedigeringstilgang": "Du har inte redigeringsbehörighet till den här checklistan",
   "oppgave.henter": "Hämtar uppgift...",
   "oppgave.ikkeFunnet": "Uppgiften hittades inte",
   "oppgave.tittel": "Uppgift",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Peka på ritningen",
   "oppgave.settPunktHint": "Tryck för att ställa in eller flytta punkten",
   "oppgave.sePunktHint": "Tryck för att visa punkten på ritningen",
+  "oppgave.punktLaastSendt": "Punkten sattes av avsändaren och kan endast flyttas i ett utkast",
+  "oppgave.punktLaastOffline": "Punkten kan inte flyttas utan en anslutning. Anslut för att ändra det.",
+  "tegninger.brukMinPosisjon": "Använd min plats",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Ny",
   "oppgave.ingenKommentarer": "Inga kommentarer än",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Ta bort utan att ersätta",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Ta bort och flytta {{antall}} dokument",
   "dokumentflyt.fjernMedlem.loggStaar": "Loggen behåller namnet på allt {{navn}} har gjort.",
-  "dokumentflyt.leddTomt": "Inga aktiva medlemmar – välj vem som ska hålla detta steg."
+  "dokumentflyt.leddTomt": "Inga aktiva medlemmar – välj vem som ska hålla detta steg.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Välj plats...",
+  "lokasjonVelger.forslagGps": "Auto: GPS-position",
+  "lokasjonVelger.forslagSistBrukt": "Senast använd",
+  "lokasjonVelger.kart": "Karta",
+  "lokasjonVelger.ingenTegningEllerKart": "Projektet har ingen ritning eller karta att placera en position på."
 }

@@ -31,7 +31,6 @@ import {
   CloudOff,
   Cloud,
   ClipboardCheck,
-  MapPin,
   Trash2,
   ChevronDown,
   MessageCircle,
@@ -39,7 +38,6 @@ import {
   Share2,
   Eye,
   Scale,
-  ChevronRight,
 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
@@ -50,7 +48,13 @@ import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingsli
 import { EmneFelt } from "../../src/components/EmneFelt";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { dokumentLokasjonsOmfang } from "../../src/lib/dokumentLokasjonsOmfang";
+import { skalForeslaaLokasjon, visLokasjon } from "../../src/lib/lokasjonForslag";
+import { LokasjonSeksjon, TegningVelgerListe } from "../../src/components/LokasjonSeksjon";
+import type { LokasjonTegning } from "../../src/components/LokasjonSeksjon";
+import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
+import { useDuErHer } from "../../src/hooks/useDuErHer";
+import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -105,6 +109,7 @@ export default function OppgaveDetalj() {
   const router = useRouter();
   const { bruker } = useAuth();
   const { valgtProsjektId } = useProsjekt();
+  const { settSistTegning } = useByggeplass();
   const utils = trpc.useUtils();
 
   // State for inline redigering av tittel og beskrivelse
@@ -117,6 +122,9 @@ export default function OppgaveDetalj() {
   const [visTegningModal, settVisTegningModal] = useState(false);
   const [tegningTempPosX, settTegningTempPosX] = useState<number | null>(null);
   const [tegningTempPosY, settTegningTempPosY] = useState<number | null>(null);
+  // Tegningsvelger når oppgaven mangler lokasjon (ORDRE 19): valg lagrer tegningen via
+  // oppgave.oppdater; punktet settes deretter fra lokasjonsfeltet.
+  const [visTegningVelger, settVisTegningVelger] = useState(false);
   const [tittelUtkast, settTittelUtkast] = useState("");
   const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
   const [dialogTekst, settDialogTekst] = useState("");
@@ -153,6 +161,7 @@ export default function OppgaveDetalj() {
     lokasjonFritekst?: string | null;
     omradeId?: string | null;
     omrade?: { id: string; navn: string; type: string } | null;
+    template?: { showLocation?: boolean } | null;
   } | undefined;
   const overforinger = oppgaveDetalj?.transfers;
   // Lokasjonsomfang (2026-09-04; område 2026-09-23): les fra det RÅ, typede
@@ -164,6 +173,29 @@ export default function OppgaveDetalj() {
     lokasjonFritekst: oppgaveDetalj?.lokasjonFritekst,
     omrade: oppgaveDetalj?.omrade,
   });
+
+  // Bygninger og tegninger for lokasjonsfeltets forslag og tegningsvelger (ORDRE 19).
+  const bygningerQuery = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const bygninger = (bygningerQuery.data ?? []) as Array<{ id: string; name: string }>;
+  const alleTegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const tilgjengeligeTegninger = useMemo(
+    () =>
+      ((alleTegningerQuery.data ?? []) as unknown as Array<LokasjonTegning & { fileUrl: string | null }>).filter(
+        (x) => x.fileUrl,
+      ),
+    [alleTegningerQuery.data],
+  );
+  // «Du er her» i tegningsmodalen — georeferansen hentes fra tegningslista (detaljens drawing er ikke typet med den)
+  const duErHer = useDuErHer(
+    visTegningModal,
+    tilgjengeligeTegninger.find((x) => x.id === oppgaveDetalj?.drawing?.id)?.geoReference ?? null,
+  );
 
   // Hent faggrupper for redigering
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
@@ -857,6 +889,59 @@ export default function OppgaveDetalj() {
         contentContainerClassName="gap-2 p-3 pb-8"
         keyboardShouldPersistTaps="handled"
       >
+        {/* Lokasjon (ORDRE 19) — felles felt med sjekklisten, øverst; skjules når malen sier
+            showLocation === false (paritet med web). Tegning: trykk åpner tegningen for å
+            sette/flytte punktet (utkast) eller se det. Uten lokasjon: tegningsvelger, og
+            utkast får GPS-/sist-brukt-forslag som bekreftes med ett trykk. */}
+        {visLokasjon(oppgaveDetalj?.template) && (() => {
+          const tegning = oppgave.drawing;
+          const kanÅpne = !!tegning && !!oppgaveDetalj?.drawing?.fileUrl;
+          const tekst = tegning
+            ? `${tegning.drawingNumber ? `${tegning.drawingNumber} ` : ""}${tegning.name}`
+            : lokasjonOmfangVisning.slag === "byggeplass"
+              ? lokasjonOmfangVisning.sted || t("lokasjonVelger.gjelderByggeplass")
+              : lokasjonOmfangVisning.slag === "omrade"
+                ? lokasjonOmfangVisning.navn || t("lokasjonVelger.omradeUtenNavn")
+                : null;
+          const undertekst = tegning
+            ? kanÅpne
+              ? kanRedigerePunkt ? t("oppgave.settPunktHint") : t("oppgave.sePunktHint")
+              : null
+            : lokasjonOmfangVisning.slag === "byggeplass" && lokasjonOmfangVisning.sted
+              ? t("lokasjonVelger.gjelderByggeplass")
+              : lokasjonOmfangVisning.slag === "omrade" && lokasjonOmfangVisning.navn && lokasjonOmfangVisning.typeNokkel
+                ? t(lokasjonOmfangVisning.typeNokkel)
+                : null;
+          return (
+            <LokasjonSeksjon
+              tekst={tekst}
+              undertekst={undertekst}
+              kanRedigere={kanRedigerePunkt}
+              foreslaa={kanRedigerePunkt && skalForeslaaLokasjon({
+                status: oppgave.status,
+                drawingId: oppgaveDetalj?.drawingId,
+                lokasjonOmfang: oppgaveDetalj?.lokasjonOmfang,
+              })}
+              tegninger={tilgjengeligeTegninger}
+              onAapne={
+                kanÅpne
+                  ? () => {
+                      settTegningTempPosX(oppgaveDetalj?.positionX ?? null);
+                      settTegningTempPosY(oppgaveDetalj?.positionY ?? null);
+                      settVisTegningModal(true);
+                    }
+                  : !tekst && kanRedigerePunkt
+                    ? () => settVisTegningVelger(true)
+                    : undefined
+              }
+              onBekreftForslag={({ tegningId, byggeplassId }) => {
+                oppdaterMutasjon.mutate({ id: id!, drawingId: tegningId });
+                if (byggeplassId) settSistTegning(byggeplassId, tegningId);
+              }}
+            />
+          );
+        })()}
+
         {/* Tittel */}
         <View className="rounded-lg bg-white p-4">
           <Text className="mb-1 text-xs font-medium text-gray-500">{t("oppgave.tittelLabel")}</Text>
@@ -928,75 +1013,6 @@ export default function OppgaveDetalj() {
               </Text>
             </View>
           </Pressable>
-        )}
-
-        {/* Tegning-kobling — trykkbar når tegningen kan vises: åpner tegningen for å
-            sette/flytte punktet (den som har ballen) eller se det (lesemodus). */}
-        {oppgave.drawing && (() => {
-          const kanÅpne = !!oppgaveDetalj?.drawing?.fileUrl;
-          const Kort = kanÅpne ? Pressable : View;
-          return (
-            <Kort
-              className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4"
-              {...(kanÅpne
-                ? {
-                    onPress: () => {
-                      settTegningTempPosX(oppgaveDetalj?.positionX ?? null);
-                      settTegningTempPosY(oppgaveDetalj?.positionY ?? null);
-                      settVisTegningModal(true);
-                    },
-                  }
-                : {})}
-            >
-              <MapPin size={18} color="#7c3aed" />
-              <View className="flex-1">
-                <Text className="text-xs font-medium text-purple-600">{t("oppgave.fraTegning")}</Text>
-                <Text className="text-sm text-purple-800">
-                  {oppgave.drawing.drawingNumber ? `${oppgave.drawing.drawingNumber} ` : ""}{oppgave.drawing.name}
-                </Text>
-                {kanÅpne && (
-                  <Text className="mt-0.5 text-xs text-purple-500">
-                    {kanRedigerePunkt ? t("oppgave.settPunktHint") : t("oppgave.sePunktHint")}
-                  </Text>
-                )}
-              </View>
-              {kanÅpne && <ChevronRight size={18} color="#a78bfa" />}
-            </Kort>
-          );
-        })()}
-
-        {/* Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» — paritet med web/PDF. Vises
-            når omfanget er byggeplass (uten tegning); et eksplisitt svar, aldri et tomt felt. */}
-        {!oppgaveDetalj?.drawing && lokasjonOmfangVisning.slag === "byggeplass" && (
-          <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
-            <MapPin size={18} color="#7c3aed" />
-            {/* Fritekst-sted (2026-09-06): stedet når satt, ellers «hele byggeplassen». */}
-            <View className="flex-1">
-              <Text className="text-sm text-purple-800">
-                {lokasjonOmfangVisning.sted || t("lokasjonVelger.gjelderByggeplass")}
-              </Text>
-              {lokasjonOmfangVisning.sted && (
-                <Text className="text-xs text-purple-500">{t("lokasjonVelger.gjelderByggeplass")}</Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Område (2026-09-23): områdenavnet er stedet, områdetypen dempet kontekst under —
-            samme to-linjers form som byggeplass-grenen og PDFs område-gren. Mangler navnet
-            (område slettet / ennå ikke sammenstilt): nøytral tekst, aldri et tomt felt. */}
-        {!oppgaveDetalj?.drawing && lokasjonOmfangVisning.slag === "omrade" && (
-          <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
-            <MapPin size={18} color="#7c3aed" />
-            <View className="flex-1">
-              <Text className="text-sm text-purple-800">
-                {lokasjonOmfangVisning.navn || t("lokasjonVelger.omradeUtenNavn")}
-              </Text>
-              {lokasjonOmfangVisning.navn && lokasjonOmfangVisning.typeNokkel && (
-                <Text className="text-xs text-purple-500">{t(lokasjonOmfangVisning.typeNokkel)}</Text>
-              )}
-            </View>
-          </View>
         )}
 
         {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
@@ -1469,9 +1485,34 @@ export default function OppgaveDetalj() {
         </ModalFlate>
       </Modal>
 
+      {/* Tegningsvelger (ORDRE 19): oppgave uten lokasjon — valg lagrer tegningen. */}
+      <Modal visible={visTegningVelger} animationType="slide" onRequestClose={() => settVisTegningVelger(false)}>
+        <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
+          <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
+            <Pressable onPress={() => settVisTegningVelger(false)} hitSlop={8}>
+              <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+            </Pressable>
+            <Text className="text-sm font-semibold text-white">{t("lokasjonVelger.velgLokasjon")}</Text>
+            <View style={{ width: 50 }} />
+          </View>
+          <TegningVelgerListe
+            tegninger={tilgjengeligeTegninger}
+            bygninger={bygninger}
+            valgtTegningId={null}
+            onVelg={(valgt) => {
+              oppdaterMutasjon.mutate({ id: id!, drawingId: valgt.id });
+              const byggeplassId = valgt.byggeplassId ?? valgt.byggeplass?.id ?? null;
+              if (byggeplassId) settSistTegning(byggeplassId, valgt.id);
+              settVisTegningVelger(false);
+            }}
+          />
+        </ModalFlate>
+      </Modal>
+
       {/* Tegningspunkt-modal: sett/flytt punktet på den tildelte tegningen. Åpnes kun
           når tegningen har en visbar fil (kanÅpne-vakten på kortet). onTrykk er aktiv
-          bare utenfor lesemodus, så lesemodus ser punktet uten å kunne flytte det. */}
+          bare utenfor lesemodus, så lesemodus ser punktet uten å kunne flytte det — bunnfeltet
+          forklarer da låsen i stedet for Lagre. Blå «du er her»-prikk vises i begge modi. */}
       <Modal visible={visTegningModal} animationType="slide" onRequestClose={() => settVisTegningModal(false)}>
         <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           {(() => {
@@ -1482,6 +1523,7 @@ export default function OppgaveDetalj() {
               tegningTempPosX != null && tegningTempPosY != null
                 ? [{ id: "pos", x: tegningTempPosX, y: tegningTempPosY, farge: "#ef4444" }]
                 : [];
+            const bunnfelt = tegningBunnfelt({ kanRedigerePunkt, offline: offlineModus, duErHer });
             return (
               <View className="flex-1">
                 <TegningsVisning
@@ -1501,9 +1543,23 @@ export default function OppgaveDetalj() {
                       : undefined
                   }
                   markører={markører}
+                  gpsMarkør={duErHer}
                 />
-                {kanRedigerePunkt && (
-                  <View className="flex-row items-center justify-end border-t border-gray-200 bg-white px-5 py-4">
+                {bunnfelt.visning === "lagre" ? (
+                  <View className="flex-row items-center justify-end gap-3 border-t border-gray-200 bg-white px-5 py-4">
+                    {bunnfelt.brukMinPosisjon && duErHer && (
+                      <Pressable
+                        hitSlop={8}
+                        onPress={() => {
+                          // Som et trykk på tegningen — lagres først med Lagre
+                          settTegningTempPosX(duErHer.x);
+                          settTegningTempPosY(duErHer.y);
+                        }}
+                        className="rounded-lg px-3 py-2.5"
+                      >
+                        <Text className="text-sm font-medium text-blue-600">{t("tegninger.brukMinPosisjon")}</Text>
+                      </Pressable>
+                    )}
                     <Pressable
                       hitSlop={8}
                       onPress={() => {
@@ -1518,6 +1574,12 @@ export default function OppgaveDetalj() {
                     >
                       <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
                     </Pressable>
+                  </View>
+                ) : (
+                  <View className="border-t border-gray-200 bg-white px-5 py-4">
+                    <Text className="text-center text-sm text-gray-500">
+                      {offlineModus ? t("oppgave.punktLaastOffline") : t("oppgave.punktLaastSendt")}
+                    </Text>
                   </View>
                 )}
               </View>

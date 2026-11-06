@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Fetching checklist...",
   "sjekkliste.ikkeFunnet": "Checklist not found",
   "sjekkliste.slettSjekkliste": "Delete checklist",
+  "sjekkliste.punktIngenRedigeringstilgang": "You don't have edit access to this checklist",
   "oppgave.henter": "Fetching task...",
   "oppgave.ikkeFunnet": "Task not found",
   "oppgave.tittel": "Task",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Point on drawing",
   "oppgave.settPunktHint": "Tap to set or move the point",
   "oppgave.sePunktHint": "Tap to view the point on the drawing",
+  "oppgave.punktLaastSendt": "The point was set by the sender and can only be moved in a draft",
+  "oppgave.punktLaastOffline": "The point can't be moved without a connection. Connect to change it.",
+  "tegninger.brukMinPosisjon": "Use my location",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "New",
   "oppgave.ingenKommentarer": "No comments yet",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Remove without replacement",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Remove and move {{antall}} documents",
   "dokumentflyt.fjernMedlem.loggStaar": "The log keeps the name on everything {{navn}} has done.",
-  "dokumentflyt.leddTomt": "No active members — choose who should hold this step."
+  "dokumentflyt.leddTomt": "No active members — choose who should hold this step.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Choose location…",
+  "lokasjonVelger.forslagGps": "Auto: GPS position",
+  "lokasjonVelger.forslagSistBrukt": "Last used",
+  "lokasjonVelger.kart": "Map",
+  "lokasjonVelger.ingenTegningEllerKart": "The project has no drawing or map to place a position on."
 }

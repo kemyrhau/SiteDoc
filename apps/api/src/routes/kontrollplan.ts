@@ -3,7 +3,8 @@ import { type Prisma } from "@sitedoc/db";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
-import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
+import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
+import { verifiserByggeplassIProsjekt, verifiserTegningIProsjekt } from "../services/tegningVakt";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
 // L1.5: en forhåndsvalgt flyt må høre til prosjektet, bruke punktets mal, og ha en
@@ -138,6 +139,9 @@ export const kontrollplanRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 22: byggeplassen må tilhøre prosjektet — ellers kobles planen til en fremmed
+      // byggeplass og navnet derfra lekker inn i `navn`.
+      await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
       const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
         where: { id: input.byggeplassId },
         select: { name: true },
@@ -691,12 +695,11 @@ export const kontrollplanRouter = router({
     .query(async ({ ctx, input }) => {
       const drawing = await ctx.prisma.drawing.findUniqueOrThrow({
         where: { id: input.drawingId },
-        select: { byggeplass: { select: { projectId: true } } },
+        select: { projectId: true },
       });
-      if (!drawing.byggeplass) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Tegningen er ikke tilknyttet en lokasjon" });
-      }
-      await verifiserProsjektmedlem(ctx.userId, drawing.byggeplass.projectId);
+      // ORDRE 21: medlemskap via tegningens EGEN projectId — løse tegninger (uten byggeplass)
+      // i eget prosjekt gir sine markører. Ikke-medlem/fremmed prosjekt feiler lukket.
+      await verifiserProsjektmedlem(ctx.userId, drawing.projectId);
       return ctx.prisma.kontrollplanPunkt.findMany({
         where: { drawingId: input.drawingId, positionX: { not: null }, positionY: { not: null }, arkivert: false },
         select: {
@@ -733,7 +736,7 @@ export const kontrollplanRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
       // Prosjektisolering: tegningen må høre til samme prosjekt som punktet. Delt vakt med
-      // sjekkliste.oppdater (samme felt, to dører) — se kontrollplanKobling.ts.
+      // sjekkliste.oppdater (samme felt, to dører) — se services/tegningVakt.ts.
       if (input.drawingId) {
         await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, punkt.kontrollplan.projectId);
       }

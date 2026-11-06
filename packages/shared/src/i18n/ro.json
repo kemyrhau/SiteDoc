@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Se preia lista de verificare...",
   "sjekkliste.ikkeFunnet": "Lista de verificare nu a fost găsită",
   "sjekkliste.slettSjekkliste": "Ștergeți lista de verificare",
+  "sjekkliste.punktIngenRedigeringstilgang": "Nu aveți acces de editare la această listă de verificare",
   "oppgave.henter": "Se preia sarcina...",
   "oppgave.ikkeFunnet": "Sarcina nu a fost găsită",
   "oppgave.tittel": "Sarcină",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Punct pe desen",
   "oppgave.settPunktHint": "Atingeți pentru a seta sau muta punctul",
   "oppgave.sePunktHint": "Atingeți pentru a vizualiza punctul de pe desen",
+  "oppgave.punktLaastSendt": "Punctul a fost stabilit de expeditor și poate fi mutat doar într-o schiță",
+  "oppgave.punktLaastOffline": "Punctul nu poate fi mutat fără o conexiune. Conectați-vă pentru a o schimba.",
+  "tegninger.brukMinPosisjon": "Folosește locația mea",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Nou",
   "oppgave.ingenKommentarer": "Niciun comentariu încă",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Scoateți fără înlocuire",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Eliminați și mutați {{antall}} documente",
   "dokumentflyt.fjernMedlem.loggStaar": "Jurnalul păstrează numele pe tot ceea ce a făcut {{navn}}.",
-  "dokumentflyt.leddTomt": "Fără membri activi - alege cine ar trebui să facă acest pas."
+  "dokumentflyt.leddTomt": "Fără membri activi - alege cine ar trebui să facă acest pas.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Alegeți locația…",
+  "lokasjonVelger.forslagGps": "Auto: poziție GPS",
+  "lokasjonVelger.forslagSistBrukt": "Ultima utilizare",
+  "lokasjonVelger.kart": "Hartă",
+  "lokasjonVelger.ingenTegningEllerKart": "Proiectul nu are desen sau hartă pentru a plasa o poziție."
 }

@@ -308,6 +308,60 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
   `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
 
+### TegningsVisning: zoom holder seg ved trykk + «Bruk min posisjon» (2026-11-06)
+
+OTA-only. Funksjonsendring med hjemmel (Kenneth 2026-11-06, «Ja»; feltfunn etter ORDRE 23).
+
+- **Ingen reload ved markør/GPS-endring:** `TegningsVisning` bygger HTML via `lagHtmlBygger`
+  (`src/components/tegning-webview-html.ts`), som lager ny streng kun når de stabile inndataene
+  endres (tegning-URL, områder, trykkoppsett, rotasjon, startutsnitt, svgInline). `markører` og
+  `gpsMarkør` er startverdier i første HTML og oppdateres deretter via
+  `injectJavaScript(window.settMarkørLag(...))`, som tegner `.pin`/`.gps`-laget på nytt i eksisterende
+  DOM. Zoom/pan nullstilles derfor ikke når et trykk flytter punktet eller «du er her» kommer inn.
+  Gjelder både `{ html }`- og lokal-fil-kilden (fila skrives kun ved ny HTML). Test:
+  `tegning-webview-html-stabil.test.ts`. Kallere: `(tabs)/lokasjoner.tsx`, `oppgave/[id].tsx`,
+  `sjekkliste/[id].tsx`, `tegning-3d.tsx`, `TegningsSkjermbilde.tsx`,
+  `rapportobjekter/TegningPosisjonObjekt.tsx` — alle får samme atferd (ingen prop-endring).
+- **«Bruk min posisjon»** (oppgave + sjekkliste): knapp ved siden av Lagre, kun når punktet kan
+  flyttes (oppgave: utkast + online; sjekkliste: `!leseModus` — ingen utkast-lås, også mottaker
+  med redigeringsrett) OG «du er her» har en posisjon innenfor tegningen
+  (`tegningBunnfelt(...).brukMinPosisjon`). Ett trykk setter det røde punktet til den blå prikkens
+  posisjon — som et trykk på tegningen; lagres først med Lagre. Nøkkel `tegninger.brukMinPosisjon`.
+
+### Sjekkliste-lokasjon i lesemodus: tegningen åpnes read-only (2026-11-06, ORDRE 25)
+
+`app/sjekkliste/[id].tsx`. OTA-only. Funksjonsendring med hjemmel (Kenneth 2026-11-06, «Ja»).
+Selve låseregelen er uendret: sjekkliste har **ingen utkast-lås** — `leseModus` (offline, leser uten
+redigeringsrett, HMS uten ballen via `erMelder && ballHosMelder`) avgjør alene.
+
+- **Lesemodus:** trykk på lokasjonslinjen åpner tegningen med det røde punktet og «du er her»-prikken
+  når sjekklisten har tegning (`drawingId` + `drawing.fileUrl`); uten tegning er linjen ikke trykkbar
+  (ingen tom modal, ingen velger) — som oppgave. Tegningen faller tilbake til `sjekklisteDetalj.drawing`
+  når prosjektets tegningsliste ikke er lastet (offline-speil).
+- **Modalen** bruker `tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline, duErHer })`: `onTrykk`,
+  «Bruk min posisjon», Bytt tegning og Lagre finnes kun ved `visning === "lagre"`; ellers låsetekst —
+  `sjekkliste.punktIngenRedigeringstilgang` («Du har ikke redigeringstilgang til denne sjekklisten»)
+  eller `oppgave.punktLaastOffline` når offline er årsaken. Oppgavens «kun i utkast»-tekst brukes ikke.
+- Vakt: `src/components/sjekkliste-plassering-ingen-utkastlaas-vakt.test.ts` (kildenivå).
+
+### Tegningsmodal i oppgave/sjekkliste: lesemodus-tekst og «du er her» (2026-11-06)
+
+`app/oppgave/[id].tsx` (punkt-modal) og `app/sjekkliste/[id].tsx` (lokasjonsmodal). OTA-only.
+Funksjonsendring med hjemmel (Kenneth 2026-11-06, «1 beholde»). Utkast-låsen
+`kanRedigerePunkt = !offlineModus && status === "draft"` er uendret.
+
+- **Lesemodus-tekst (oppgave):** uten redigeringsrett viser bunnfeltet en forklaring i stedet for Lagre —
+  `oppgave.punktLaastSendt` («Punktet ble satt av avsender og kan bare flyttes i utkast») eller, når
+  offline er årsaken, `oppgave.punktLaastOffline`. Valget ligger i den rene `tegningBunnfelt`
+  (`src/lib/tegningDuErHer.ts`, `tegningDuErHer.test.ts`). Sjekkliste: se ORDRE 25 under.
+- **«Du er her»:** `useDuErHer(aapen, geoReference)` (`src/hooks/useDuErHer.ts`) henter forgrunns-GPS
+  én gang når modalen åpnes — **kun** ved allerede gitt tillatelse (`getForegroundPermissionsAsync`,
+  ber aldri om ny). `duErHerPosisjon` regner om med delt `beregnTransformasjon` + `gpsTilTegning`;
+  siden `gpsTilTegning` clamper til 0–100 tolkes kantverdi som utenfor → ingen prikk. Uten GPS,
+  uten georeferanse eller utenfor tegningen: ingen prikk og ingen melding. Prikken sendes som
+  eksisterende `gpsMarkør`-prop til `TegningsVisning` (blå `.gps`-div, `#3b82f6`, ikke trykkbar) —
+  lagres aldri og blir aldri redigeringsmarkør. Ingen endring i delt komponent.
+
 ### Tegningsvisning: trykk-hint, langt trykk og måling (2026-10-08)
 
 `apps/mobile/src/components/TegningsVisning.tsx` (WebView) + `app/(tabs)/lokasjoner.tsx`. OTA-only
@@ -968,12 +1022,14 @@ annen — da gjelder paritetsregelen igjen.
 
 **Støttede felttyper:** text_field, list_single/multi, traffic_light, integer/decimal/calculation (med enhet), date, date_time, person, persons, company, weather, signature (base64), repeater (med barnefelt), bim/zone/room_property, attachments.
 
-**Lokasjonsvelger:**
-- Vises øverst i felter-listen (over rapportobjektene)
-- Trykk → fullskjerm tegningsvisning (TegningsVisning) med posisjonsprikk
-- Trykk på tegning for å sette/flytte prikk
-- «Bytt tegning»-knapp i bunnbar
-- GPS-auto-valg ved opprettelse (erInnenforBounds, sist brukt fallback)
+**Lokasjonsvelger (felles for sjekkliste og oppgave, ORDRE 19 2026-11-06):**
+- Ett felt øverst i `sjekkliste/[id].tsx` og `oppgave/[id].tsx`: `LokasjonSeksjon` (`src/components/LokasjonSeksjon.tsx`) viser gjeldende lokasjon (tegning, byggeplass eller område), ellers `lokasjonVelger.velgLokasjonPlaceholder`
+- Vises når `visLokasjon(template)` = `showLocation !== false` (paritet med web; gjelder nå også oppgave)
+- **Forslag:** kun når `skalForeslaaLokasjon` (utkast uten tegning og uten `lokasjonOmfang`). `foreslaaLokasjon` (`src/lib/lokasjonForslag.ts`, delt med `OpprettDokumentModal`): GPS-treff mot georefererte tegninger (sist brukte blant treffene vinner) → sist brukte byggeplass/tegning. Forslaget vises forhåndsvalgt med kilde (`forslagGps`/`forslagSistBrukt`) og lagres FØRST ved «Bekreft» — aldri stille. Forslag uten tegning vises ikke (oppgave har ingen byggeplass-kolonne)
+- Lagring: samme mutasjon som før — `sjekkliste.oppdater` (`drawingId` + `byggeplassId`) / `oppgave.oppdater` (`drawingId`); bekreftet forslag oppdaterer sist brukte (`settSistTegning`)
+- Sjekkliste: trykk → fullskjerm tegningsvisning med posisjonsprikk; trykk på tegning setter/flytter prikk; «Bytt tegning» bruker `TegningVelgerListe` (gruppert pr. byggeplass, løse under «Kart»)
+- Oppgave: tegning satt → punktmodalen som før; ingen lokasjon → tegningsvelger (`TegningVelgerListe`) som lagrer tegning, punktet settes etterpå
+- Tester: `lokasjonForslag.test.ts` (forslag, vis-regel, utkast-regel)
 
 **Opprett-modal:**
 - Dokumentflyt-filtrering: kun entrepriser med flyt for valgt mal

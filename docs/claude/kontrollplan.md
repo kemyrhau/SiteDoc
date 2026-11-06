@@ -223,10 +223,12 @@ som er borte fra planen. Ved **hard** sletting (`papirkurv.slettEndelig`/`tomPap
 `status = "planlagt"`), så ingen punkter blir stående som «Påbegynt» på slettede dokumenter.
 Legacy `punkt.status` (manuell, satt før koble-mekanikken) bevares kun for ukoblede punkter.
 
-**Prosjektisolering på tegnings-referanser (delt vakt):** `settPunktPlassering` (kontrollplan)
-og `sjekkliste.oppdater` skriver samme `drawingId`-felt fra hver sin dør. Vakten som krever at
-tegningen tilhører samme prosjekt bor i `verifiserTegningIProsjekt`
-(`apps/api/src/services/kontrollplanKobling.ts`) og kalles fra begge — én kilde, kan ikke drifte.
+**Prosjektisolering på tegnings-referanser (delt vakt):** `settPunktPlassering` (kontrollplan),
+`sjekkliste.oppdater` og `oppgave.opprett`/`oppdater` skriver `drawingId` fra hver sin dør. Vakten
+som krever at tegningen tilhører samme prosjekt bor i `verifiserTegningIProsjekt`
+(`apps/api/src/services/tegningVakt.ts`, nøytral service — flyttet ut av `kontrollplanKobling.ts`
+i ORDRE 20) og kalles fra alle — én kilde, kan ikke drifte. Sjekken går på tegningens egen
+`projectId` (ikke byggeplassens), så løse tegninger uten byggeplass i eget prosjekt godtas.
 `sjekkliste.oppdater`-speilet til punktet skiller «feltet utelatt» (behold) fra «satt til null»
 (tøm), likt `Checklist.update`.
 

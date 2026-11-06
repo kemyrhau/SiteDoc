@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Načítání kontrolního seznamu...",
   "sjekkliste.ikkeFunnet": "Kontrolní seznam nenalezen",
   "sjekkliste.slettSjekkliste": "Smazat kontrolní seznam",
+  "sjekkliste.punktIngenRedigeringstilgang": "K tomuto kontrolnímu seznamu nemáte přístup k úpravám",
   "oppgave.henter": "Načítání úkolu...",
   "oppgave.ikkeFunnet": "Úkol nenalezen",
   "oppgave.tittel": "Úkol",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Bod na výkresu",
   "oppgave.settPunktHint": "Klepnutím nastavíte nebo přesunete bod",
   "oppgave.sePunktHint": "Klepnutím zobrazíte bod na výkresu",
+  "oppgave.punktLaastSendt": "Bod byl nastaven odesílatelem a lze jej přesunout pouze v konceptu",
+  "oppgave.punktLaastOffline": "Bod nelze bez připojení přesunout. Chcete-li to změnit, připojte se.",
+  "tegninger.brukMinPosisjon": "Použít moji polohu",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Nový",
   "oppgave.ingenKommentarer": "Zatím žádné komentáře",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Odstraňte bez výměny",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Odebrat a přesunout {{antall}} dokumenty",
   "dokumentflyt.fjernMedlem.loggStaar": "Protokol uchovává jméno u všeho, co {{navn}} udělal.",
-  "dokumentflyt.leddTomt": "Žádní aktivní členové – vyberte, kdo má tento krok držet."
+  "dokumentflyt.leddTomt": "Žádní aktivní členové – vyberte, kdo má tento krok držet.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Vyberte umístění…",
+  "lokasjonVelger.forslagGps": "Auto: GPS pozice",
+  "lokasjonVelger.forslagSistBrukt": "Naposledy použité",
+  "lokasjonVelger.kart": "Mapa",
+  "lokasjonVelger.ingenTegningEllerKart": "Projekt nemá žádný výkres nebo mapu, na kterou by bylo možné umístit pozici."
 }

@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Получение контрольного списка...",
   "sjekkliste.ikkeFunnet": "Контрольный список не найден",
   "sjekkliste.slettSjekkliste": "Удалить контрольный список",
+  "sjekkliste.punktIngenRedigeringstilgang": "У вас нет доступа к редактированию этого контрольного списка.",
   "oppgave.henter": "Получение задачи...",
   "oppgave.ikkeFunnet": "Задача не найдена",
   "oppgave.tittel": "Задача",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Точка на рисунке",
   "oppgave.settPunktHint": "Нажмите, чтобы установить или переместить точку",
   "oppgave.sePunktHint": "Нажмите, чтобы просмотреть точку на рисунке",
+  "oppgave.punktLaastSendt": "Точка поставлена ​​отправителем и ее можно переместить только в черновике.",
+  "oppgave.punktLaastOffline": "Точку невозможно переместить без соединения. Подключитесь, чтобы изменить его.",
+  "tegninger.brukMinPosisjon": "Использовать мое местоположение",
   "oppgave.dialog": "Диалог",
   "oppgave.ny": "Новый",
   "oppgave.ingenKommentarer": "Комментариев пока нет",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Удалить без замены",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Удалить и переместить {{antall}} документов",
   "dokumentflyt.fjernMedlem.loggStaar": "В журнале сохраняется имя всего, что сделал {{navn}}.",
-  "dokumentflyt.leddTomt": "Нет активных участников — выберите, кто должен провести этот шаг."
+  "dokumentflyt.leddTomt": "Нет активных участников — выберите, кто должен провести этот шаг.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Выберите местоположение…",
+  "lokasjonVelger.forslagGps": "Авто: положение GPS",
+  "lokasjonVelger.forslagSistBrukt": "Последнее использование",
+  "lokasjonVelger.kart": "Карта",
+  "lokasjonVelger.ingenTegningEllerKart": "В проекте нет чертежа или карты, на которой можно было бы разместить позицию."
 }

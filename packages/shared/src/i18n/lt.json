@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Gaunamas kontrolinis sąrašas...",
   "sjekkliste.ikkeFunnet": "Kontrolinis sąrašas nerastas",
   "sjekkliste.slettSjekkliste": "Ištrinkite kontrolinį sąrašą",
+  "sjekkliste.punktIngenRedigeringstilgang": "Neturite prieigos prie šio kontrolinio sąrašo redagavimo",
   "oppgave.henter": "Gaunama užduotis...",
   "oppgave.ikkeFunnet": "Užduotis nerasta",
   "oppgave.tittel": "Užduotis",
@@ -3438,6 +3439,9 @@
   "oppgave.punktITegning": "Taškas ant piešimo",
   "oppgave.settPunktHint": "Bakstelėkite, kad nustatytumėte arba perkeltumėte tašką",
   "oppgave.sePunktHint": "Bakstelėkite, kad peržiūrėtumėte piešinio tašką",
+  "oppgave.punktLaastSendt": "Tašką nustatė siuntėjas ir jį galima perkelti tik juodraštyje",
+  "oppgave.punktLaastOffline": "Taškas negali būti perkeltas be ryšio. Prisijunkite, kad pakeistumėte.",
+  "tegninger.brukMinPosisjon": "Naudokite mano vietą",
   "oppgave.dialog": "Dialogas",
   "oppgave.ny": "Nauja",
   "oppgave.ingenKommentarer": "Komentarų dar nėra",
@@ -5326,5 +5330,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Išimkite be pakeitimo",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Pašalinkite ir perkelkite {{antall}} dokumentus",
   "dokumentflyt.fjernMedlem.loggStaar": "Žurnalas išsaugo pavadinimą viskam, ką padarė {{navn}}.",
-  "dokumentflyt.leddTomt": "Nėra aktyvių narių – pasirinkite, kas turėtų atlikti šį žingsnį."
+  "dokumentflyt.leddTomt": "Nėra aktyvių narių – pasirinkite, kas turėtų atlikti šį žingsnį.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Pasirinkite vietą…",
+  "lokasjonVelger.forslagGps": "Automatinis: GPS padėtis",
+  "lokasjonVelger.forslagSistBrukt": "Paskutinis naudotas",
+  "lokasjonVelger.kart": "Žemėlapis",
+  "lokasjonVelger.ingenTegningEllerKart": "Projekte nėra brėžinio ar žemėlapio, kuriame būtų galima pateikti poziciją."
 }
