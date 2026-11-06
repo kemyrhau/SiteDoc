@@ -221,6 +221,7 @@ export function ByggeplassVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable

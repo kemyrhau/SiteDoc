@@ -84,6 +84,7 @@ export function ProsjektVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable

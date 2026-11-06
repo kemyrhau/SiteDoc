@@ -4,6 +4,7 @@
 
 - **Modal-rendering:** ALLTID `<Modal visible={...}>` — ALDRI `{betingelse && <Modal>}` (animasjonsfrys)
 - **SafeAreaView i Modals:** Bruk fra `react-native` (IKKE `react-native-safe-area-context`)
+- **Tastatur i modaler med felt (16b, 2026-11-06):** rulleflaten er `TastaturScrollView` (`apps/mobile/src/components/timer-detalj/TastaturScrollView.tsx`, `automaticallyAdjustKeyboardInsets` + `keyboardShouldPersistTaps="handled"`), ikke `KeyboardAvoidingView` med `keyboardVerticalOffset={0}` — det løftet for lite i pageSheet og dekket felt. iOS ruller feltet med fokus fram over tastaturet; Android er uendret. Velgerlister (FlatList/ScrollView med søkefelt) i `timer-detalj/` har samme prop. Vakttest: `tastatur-innsetter-vakt.test.ts`.
 - **React Query invalidering:** Invalider query-cache etter mutasjoner
 - **`InteractionManager.runAfterInteractions`:** MÅ brukes etter kamera/picker lukkes
 - **Lukkeknapp i modaler/fullskjerm:** ALLTID i en header-bar under SafeAreaView — ALDRI absolutt posisjonert (havner under notch/Dynamic Island). Standard: `<X size={22} color="#ffffff" />` med `hitSlop={12}` i en `flex-row items-center px-4 py-3` View. Se `PdfForhandsvisning.tsx` som referanse.

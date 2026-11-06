@@ -4,13 +4,11 @@ import {
   Text,
   Pressable,
   TextInput,
-  ScrollView,
   Modal,
   FlatList,
   Image,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
+import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet (2 modaler i fila) — simulator-målt 2026-08-31: SafeAreaView anvender arkets egen topp-inset (~10 pt), header-kontroller truffbare. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Trash2, Pencil, X, Check, Camera, ImagePlus, Clock } from "lucide-react-native";
@@ -666,15 +664,9 @@ function UtleggRadModal({
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-          <ScrollView
+        <TastaturScrollView
             className="flex-1"
             contentContainerClassName="p-4 gap-4"
-            keyboardShouldPersistTaps="handled"
           >
             {/* Kategori — velges (ordning følger av den, aldri valgt separat). */}
             <View>
@@ -841,8 +833,7 @@ function UtleggRadModal({
                 {t("timer.utlegg.kvitteringPaakrevd")}
               </Text>
             )}
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </TastaturScrollView>
         <TastaturFerdig />
 
         {visVelger && (
@@ -928,6 +919,7 @@ function UtleggVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.kategori.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable

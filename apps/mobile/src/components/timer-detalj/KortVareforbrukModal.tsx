@@ -5,12 +5,15 @@ import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import { hentVarerLokalt } from "../../services/vareKatalog";
 import { lagreLokalVarelinje } from "../../services/vareforbrukSync";
+import { TastaturScrollView } from "./TastaturScrollView";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
 
 /**
  * Prosjektkort L3 (2026-11-06): «+ Vareforbruk» fra kortskjermen. Prosjektet
  * er låst til kortets, dato er sedelens. Varene kommer fra lokal katalog-cache
  * og linjen skrives lokalt (offline-trygt) — sendes ved neste synk.
+ * Hele flaten ruller over tastaturet (TastaturScrollView), som raddialogene.
  */
 export function KortVareforbrukModal({
   synlig,
@@ -84,8 +87,11 @@ export function KortVareforbrukModal({
 
   return (
     <Modal visible={synlig} transparent animationType="fade" onRequestClose={onAvbryt}>
-      <View className="flex-1 items-center justify-center bg-black/40 px-6">
-        <View className="max-h-[85%] w-full max-w-md rounded-2xl bg-white p-5">
+      <TastaturScrollView
+        className="flex-1 bg-black/40"
+        contentContainerClassName="flex-grow items-center justify-center px-6 py-10"
+      >
+        <View className="w-full max-w-md rounded-2xl bg-white p-5">
           <View className="mb-3 flex-row items-center gap-2">
             <Package size={20} color="#1e40af" />
             <Text className="flex-1 text-base font-semibold text-gray-900">
@@ -129,7 +135,7 @@ export function KortVareforbrukModal({
             placeholder={t("handling.sok")}
             className="mb-2 rounded-lg border border-gray-300 px-3 py-2 text-base"
           />
-          <ScrollView className="mb-3 max-h-48 rounded-lg border border-gray-200">
+          <ScrollView nestedScrollEnabled className="mb-3 max-h-48 rounded-lg border border-gray-200">
             {treff.length === 0 ? (
               <Text className="p-3 text-sm text-gray-500">{t("felles.ingenTreff")}</Text>
             ) : (
@@ -159,6 +165,7 @@ export function KortVareforbrukModal({
             value={antall}
             onChangeText={setAntall}
             keyboardType="decimal-pad"
+            inputAccessoryViewID={TASTATUR_FERDIG_ID}
             className="mb-4 rounded-lg border border-gray-300 px-3 py-2 text-base"
           />
 
@@ -177,7 +184,8 @@ export function KortVareforbrukModal({
             </Pressable>
           </View>
         </View>
-      </View>
+      </TastaturScrollView>
+      <TastaturFerdig />
     </Modal>
   );
 }
