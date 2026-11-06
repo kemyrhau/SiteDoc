@@ -3438,6 +3438,8 @@
   "oppgave.punktITegning": "Pika në vizatim",
   "oppgave.settPunktHint": "Prekni për të vendosur ose zhvendosur pikën",
   "oppgave.sePunktHint": "Prekni për të parë pikën në vizatim",
+  "oppgave.punktLaastSendt": "Pika është caktuar nga dërguesi dhe mund të zhvendoset vetëm në një draft",
+  "oppgave.punktLaastOffline": "Pika nuk mund të zhvendoset pa lidhje. Lidhu për ta ndryshuar.",
   "oppgave.dialog": "Dialogu",
   "oppgave.ny": "E re",
   "oppgave.ingenKommentarer": "Ende nuk ka komente",

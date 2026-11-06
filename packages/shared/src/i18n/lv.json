@@ -3438,6 +3438,8 @@
   "oppgave.punktITegning": "Punkts uz zīmēšanas",
   "oppgave.settPunktHint": "Pieskarieties, lai iestatītu vai pārvietotu punktu",
   "oppgave.sePunktHint": "Pieskarieties, lai skatītu punktu zīmējumā",
+  "oppgave.punktLaastSendt": "Punktu noteica sūtītājs, un to var pārvietot tikai melnrakstā",
+  "oppgave.punktLaastOffline": "Punktu nevar pārvietot bez savienojuma. Izveidojiet savienojumu, lai to mainītu.",
   "oppgave.dialog": "Dialogs",
   "oppgave.ny": "Jauns",
   "oppgave.ingenKommentarer": "Komentāru vēl nav",

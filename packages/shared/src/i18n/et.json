@@ -3438,6 +3438,8 @@
   "oppgave.punktITegning": "Punkt joonistamisel",
   "oppgave.settPunktHint": "Puudutage punkti määramiseks või liigutamiseks",
   "oppgave.sePunktHint": "Puudutage, et vaadata punkti joonisel",
+  "oppgave.punktLaastSendt": "Punkti määras saatja ja seda saab liigutada ainult mustandis",
+  "oppgave.punktLaastOffline": "Punkti ei saa ilma ühenduseta liigutada. Selle muutmiseks ühendage.",
   "oppgave.dialog": "Dialoog",
   "oppgave.ny": "Uus",
   "oppgave.ingenKommentarer": "Kommentaarid veel puuduvad",
