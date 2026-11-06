@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Единица",
   "timer.velgUtstyr": "— Выберите оборудование —",
   "timer.maskin.bruktPaaSeddel": "использовано на этом листе",
+  "timer.maskin.sistBrukt": "недавно использовано",
   "timer.maskin.kapasitet": "Работа в группе: {{arbeid}} ч · машина на данный момент: {{maskin}} ч · доступна: {{ledig}} ч",
   "timer.maskin.overstigerArbeid": "Машино-часы превышают рабочее время группы — сокращайте, прежде чем экономить.",
   "timer.maskinSeksjon.merke": "Машина",

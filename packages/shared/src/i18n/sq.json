@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Njësia",
   "timer.velgUtstyr": "- Zgjidhni pajisje -",
   "timer.maskin.bruktPaaSeddel": "përdoret në këtë fletë",
+  "timer.maskin.sistBrukt": "përdorur së fundmi",
   "timer.maskin.kapasitet": "Puna në grup: {{arbeid}} h · makinë deri tani: {{maskin}} h · disponueshme: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Orët e makinerive tejkalojnë orët e punës për grupin — zvogëloni përpara se të kurseni.",
   "timer.maskinSeksjon.merke": "Makinë",

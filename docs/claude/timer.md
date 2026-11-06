@@ -589,6 +589,10 @@ Utstyr-velgeren oppfyller kravet om søk på **både maskinnummer og -navn** (in
 - **Web:** ny delt komponent `MaskinVelger` (`apps/web/src/components/timer/MaskinVelger.tsx`, `SearchInput` + chips). Brukt i alle fire callsites: `MaskinRadDialog` (primær, `timer/[id]/page.tsx`), `KompaktMaskinRad` (`attestering/RedigerRadModal.tsx`), `RedigerMaskinRad` (+ `SplittRadModal` via denne). Modalene slutter å caste bort `kategori`.
 - **Mobil:** `EquipmentVelgerModal` (`MaskinSeksjon.tsx`) utvidet med kategori-chip-rad + samme sortering + «brukt»-markør (søkefeltet fantes fra Runde 2.6).
 
+**Sist brukte maskiner øverst (ORDRE 29, 2026-11-06, `feat/byggeplass-kontekst-2` — 🟡 ikke merget).** Brukerens 5 sist brukte maskiner i firmaet (`SIST_BRUKTE_MASKINER_ANTALL`) løftes øverst og merkes `timer.maskin.sistBrukt` («sist brukt»). Sorteringen er delt: `sorterMaskiner` i `packages/shared/src/utils/maskinSortering.ts` (sist brukt → brukt-på-seddelen → internNummer → navn), brukt av både web og mobil.
+- **Web:** `timer.dagsseddel.sistBrukteMaskiner({ organizationId })` (`apps/api/src/routes/timer/dagsseddel.ts`) — kun egne sedler (`sheet.userId = ctx.userId`) i firmaet, ikke-ansatt → `[]`. Sendes som `sistBrukt` til `MaskinVelger` fra `MaskinRadDialog`/`TimerRadDialog` (`timer/[id]/page.tsx`). **Attestering får ikke sist brukte** (`RedigerRadModal`/`RedigerMaskinRad` sender ingen `sistBrukt`).
+- **Mobil:** `sistBrukteMaskiner(db, userId, organizationId)` (`apps/mobile/src/services/nyTimerRad.ts`) leser lokal SQLite (`sheet_machine_local` ⋈ `dagsseddel_local`), virker offline; brukt i `EquipmentVelgerModal`.
+
 ### Maskin ≤ arbeidstimer — invariant + proaktiv UI (T7-4b + 2026-07-05)
 
 **Regel (T7-4b, låst 2026-05-16 + pause-modell 2026-05-18):** per `(projectId, externalCostObjectId)`-bucket må `sum(maskin.timer) ≤ sum(arbeid.timer) + pauseMin/60` (epsilon `0.001`; `pauseMin` er sedel-nivå, tillegges hver bucket — maskin kan gå mens operatør pauser). Server håndhever i `validerMaskinUnderArbeid` (`apps/api/src/routes/timer/dagsseddel.ts`), kaster ved lagre.

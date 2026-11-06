@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Einheit",
   "timer.velgUtstyr": "— Ausrüstung auswählen —",
   "timer.maskin.bruktPaaSeddel": "auf diesem Blatt verwendet",
+  "timer.maskin.sistBrukt": "kürzlich verwendet",
   "timer.maskin.kapasitet": "Arbeit in der Gruppe: {{arbeid}} h · Maschine bisher: {{maskin}} h · verfügbar: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Die Maschinenstunden übersteigen die Arbeitsstunden der Gruppe – reduzieren Sie, bevor Sie sparen.",
   "timer.maskinSeksjon.merke": "Maschine",

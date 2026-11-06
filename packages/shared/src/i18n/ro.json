@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Unitate",
   "timer.velgUtstyr": "— Selectați echipamentul —",
   "timer.maskin.bruktPaaSeddel": "folosit pe această foaie",
+  "timer.maskin.sistBrukt": "folosit recent",
   "timer.maskin.kapasitet": "Lucru în grup: {{arbeid}} h · mașină până acum: {{maskin}} h · disponibil: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Orele de lucru ale mașinii depășesc orele de lucru pentru grup — reduceți înainte de a salva.",
   "timer.maskinSeksjon.merke": "Maşină",

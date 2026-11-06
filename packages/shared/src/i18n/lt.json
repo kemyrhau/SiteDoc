@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Vienetas",
   "timer.velgUtstyr": "— Pasirinkite įrangą —",
   "timer.maskin.bruktPaaSeddel": "naudojamas šiame lape",
+  "timer.maskin.sistBrukt": "neseniai naudotas",
   "timer.maskin.kapasitet": "Darbas grupėje: {{arbeid}} val. · mašina iki šiol: {{maskin}} val. · galima: {{ledig}} val.",
   "timer.maskin.overstigerArbeid": "Mašinų valandos viršija grupės darbo valandas – sumažinkite prieš išsaugodami.",
   "timer.maskinSeksjon.merke": "Mašina",

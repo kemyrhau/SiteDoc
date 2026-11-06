@@ -520,3 +520,10 @@ export {
   type KortSummer,
   type KortByggeplass,
 } from "./prosjektkort";
+
+export {
+  SIST_BRUKTE_MASKINER_ANTALL,
+  sammenlignInternNummer,
+  sisteUnikeMaskiner,
+  sorterMaskiner,
+} from "./maskinSortering";

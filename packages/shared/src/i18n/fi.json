@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Yksikkö",
   "timer.velgUtstyr": "— Valitse varusteet —",
   "timer.maskin.bruktPaaSeddel": "käytetään tällä arkilla",
+  "timer.maskin.sistBrukt": "hiljattain käytetty",
   "timer.maskin.kapasitet": "Työskentely ryhmässä: {{arbeid}} h · kone tähän mennessä: {{maskin}} h · käytettävissä: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Konetunnit ylittävät ryhmän työtunnit – vähennä ennen säästämistä.",
   "timer.maskinSeksjon.merke": "Kone",

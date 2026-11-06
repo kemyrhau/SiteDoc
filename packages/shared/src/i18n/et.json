@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Üksus",
   "timer.velgUtstyr": "— vali varustus —",
   "timer.maskin.bruktPaaSeddel": "sellel lehel kasutatud",
+  "timer.maskin.sistBrukt": "hiljuti kasutatud",
   "timer.maskin.kapasitet": "Töö rühmas: {{arbeid}} h · masin seni: {{maskin}} h · saadaval: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Masinatunnid ületavad grupi töötunde – enne salvestamist vähendage.",
   "timer.maskinSeksjon.merke": "Masin",

@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import * as Location from "expo-location";
 import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { hentByggeplasserForFirmaLokalt } from "../services/byggeplassKatalog";
+import type { StedValg } from "../services/nyTimerRad";
 
 /**
  * GPS-forslag til prosjektlista bak «+» (ORDRE 17; flyttet ut av ny.tsx).
- * Gjenkjenner byggeplass via geofence (H2, LAG 1-A) og returnerer byggeplassens
- * prosjekt. Treffet er et FORSLAG — arbeideren velger i lista (Q1). Stille null
+ * Gjenkjenner byggeplass via geofence (H2, LAG 1-A) og returnerer byggeplassen
+ * med sitt prosjekt (ORDRE 29: byggeplassen kastes ikke lenger). Treffet er et FORSLAG — arbeideren velger i lista (Q1). Stille null
  * ved avslått tillatelse, ingen posisjon eller ingen treff.
  */
-export function useGeoProsjektForslag(orgId: string | null, aktiv = true): string | null {
-  const [forslagId, setForslagId] = useState<string | null>(null);
+export function useGeoProsjektForslag(orgId: string | null, aktiv = true): StedValg | null {
+  const [forslag, setForslag] = useState<StedValg | null>(null);
 
   useEffect(() => {
     if (!orgId || !aktiv) return;
@@ -34,7 +35,8 @@ export function useGeoProsjektForslag(orgId: string | null, aktiv = true): strin
           kandidater,
         );
         if (avbrutt || !treff) return;
-        setForslagId(rader.find((b) => b.id === treff.sted.id)?.projectId ?? null);
+        const bp = rader.find((b) => b.id === treff.sted.id);
+        setForslag(bp ? { projectId: bp.projectId, byggeplassId: bp.id } : null);
       } catch {
         // Stille avslag — manuell valg i lista fungerer som før.
       }
@@ -44,5 +46,5 @@ export function useGeoProsjektForslag(orgId: string | null, aktiv = true): strin
     };
   }, [orgId, aktiv]);
 
-  return forslagId;
+  return forslag;
 }
