@@ -13,9 +13,15 @@
  */
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
-import { sheetTimerLocal, dagsseddelLocal } from "../db/schema";
+import {
+  sheetTimerLocal,
+  dagsseddelLocal,
+  sheetMachineLocal,
+  vareforbrukLocal,
+} from "../db/schema";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
+import type { BekreftDagTillegg } from "./bekreftDagTillegg";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
@@ -40,8 +46,12 @@ export function anvendDagsforslag(
     nyId: () => string;
     naa: () => number;
   },
+  /** L3-D: maskin og varer fra bekreft-dag — skrives på start-sedelen (vedtak C). */
+  tillegg?: BekreftDagTillegg,
 ): AnvendDagsforslagResultat {
   let startSheetId: string | null = null;
+  let startDato: string | null = null;
+  let startBlokkert = false;
   let blokkertSendt = false;
   let totalRader = 0;
   let harEksisterendeRader = false;
@@ -98,7 +108,10 @@ export function anvendDagsforslag(
       normStatus: d.normStatus,
       normSnapshot: d.normSnapshot,
     });
-    if (d.erStartSegment) startSheetId = resultat.id;
+    if (d.erStartSegment) {
+      startSheetId = resultat.id;
+      startDato = d.dato;
+    }
 
     // Sendt/godkjent → kan ikke appende (ville gi server-konflikt). Recall er UF-4.
     if (
@@ -107,6 +120,7 @@ export function anvendDagsforslag(
       resultat.status !== "returned"
     ) {
       blokkertSendt = true;
+      if (d.erStartSegment) startBlokkert = true;
       continue;
     }
     if (d.raderDroppetUtenLonnsart > 0) manglerLonnsart = true;
@@ -155,6 +169,10 @@ export function anvendDagsforslag(
       totalRader++;
     }
     vekForOverlapp.push(...d.vekForOverlapp);
+  }
+
+  if (tillegg && startSheetId && startDato && !startBlokkert) {
+    skrivTillegg(db, tillegg, { ...ctx, sheetId: startSheetId, dato: startDato });
   }
 
   return {
@@ -208,4 +226,53 @@ function utvidArbeidstidsvindu(
     })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
+}
+
+/**
+ * L3-D: maskin uten fra/til og uten timerrad-kobling (som «+ Maskin» i kortet),
+ * varer som pending — sendes når sedelen er synket (`planleggVaresending`).
+ */
+function skrivTillegg(
+  db: LokalDb,
+  tillegg: BekreftDagTillegg,
+  ctx: { userId: string; orgId: string; nyId: () => string; naa: () => number; sheetId: string; dato: string },
+): void {
+  for (const m of tillegg.maskiner) {
+    db.insert(sheetMachineLocal)
+      .values({
+        id: ctx.nyId(),
+        dagsseddelId: ctx.sheetId,
+        sheetTimerId: null,
+        projectId: m.projectId,
+        vehicleId: m.vehicleId,
+        externalCostObjectId: null,
+        timer: m.timer,
+        mengde: m.mengde,
+        enhet: m.enhet,
+        fraTid: null,
+        tilTid: null,
+        sistEndretLokalt: ctx.naa(),
+      })
+      .run();
+  }
+  for (const v of tillegg.varer) {
+    db.insert(vareforbrukLocal)
+      .values({
+        id: ctx.nyId(),
+        userId: ctx.userId,
+        organizationId: ctx.orgId,
+        sheetId: ctx.sheetId,
+        projectId: v.projectId,
+        dato: ctx.dato,
+        vareId: v.vareId,
+        vareNavn: v.vareNavn,
+        enhet: v.enhet,
+        antall: v.antall,
+        byggeplassId: v.byggeplassId,
+        syncStatus: "pending",
+        feilmelding: null,
+        sistEndretLokalt: ctx.naa(),
+      })
+      .run();
+  }
 }

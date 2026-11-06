@@ -4,7 +4,11 @@ import { Package } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import { hentVarerLokalt } from "../../services/vareKatalog";
-import { lagreLokalVarelinje } from "../../services/vareforbrukSync";
+import {
+  lagreLokalVarelinje,
+  fullforVarelinje,
+  type VarelinjeValg,
+} from "../../services/vareforbrukSync";
 import { TastaturScrollView } from "./TastaturScrollView";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
@@ -14,6 +18,9 @@ import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKata
  * er låst til kortets, dato er sedelens. Varene kommer fra lokal katalog-cache
  * og linjen skrives lokalt (offline-trygt) — sendes ved neste synk.
  * Hele flaten ruller over tastaturet (TastaturScrollView), som raddialogene.
+ *
+ * L3-D: med `onVelgLinje` (bekreft-dag) lagres ingenting — linja gis tilbake og
+ * skrives på start-sedelen ved Bekreft. Da finnes ingen sedel ennå (`sheetId` null).
  */
 export function KortVareforbrukModal({
   synlig,
@@ -26,17 +33,19 @@ export function KortVareforbrukModal({
   sedelByggeplassId,
   onAvbryt,
   onLagret,
+  onVelgLinje,
 }: {
   synlig: boolean;
   userId: string;
   organizationId: string;
-  sheetId: string;
+  sheetId: string | null;
   projectId: string;
   prosjektNavn: string;
   dato: string;
   sedelByggeplassId: string | null;
   onAvbryt: () => void;
   onLagret: () => void;
+  onVelgLinje?: (valg: VarelinjeValg) => void;
 }) {
   const { t } = useTranslation();
   const [sok, setSok] = useState("");
@@ -73,19 +82,16 @@ export function KortVareforbrukModal({
 
   function lagre() {
     if (!valgt || !kanLagre) return;
-    lagreLokalVarelinje({
-      id: randomUUID(),
-      userId,
-      organizationId,
-      sheetId,
-      projectId,
-      dato,
-      vareId: valgt.id,
-      vareNavn: valgt.navn,
-      enhet: valgt.enhet,
-      antall: tall,
-      byggeplassId,
-    });
+    fullforVarelinje(
+      { vareId: valgt.id, vareNavn: valgt.navn, enhet: valgt.enhet, antall: tall, byggeplassId },
+      {
+        onVelgLinje,
+        lagre: (v) => {
+          if (!sheetId) return;
+          lagreLokalVarelinje({ id: randomUUID(), userId, organizationId, sheetId, projectId, dato, ...v });
+        },
+      },
+    );
     onLagret();
   }
 

@@ -220,7 +220,7 @@ describe("L3-A § 8 nr. 1 — Bekreft lagrer og avslutter", () => {
     expect(t.rader).toBeGreaterThan(0);
     expect(t.status).toBe("avsluttet");
     const dag = db().select().from(arbeidsdagLocal).all()[0]!;
-    expect(dag.generertDagsseddelId).toBe(resultat.startSheetId);
+    expect(dag.generertDagsseddelId).toBe(resultat!.startSheetId);
     expect(dag.endAt).toBe(SLUTT);
     expect(dag.endLat).toBe(59.9);
   });
