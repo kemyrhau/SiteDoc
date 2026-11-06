@@ -3,7 +3,7 @@ name: timer-gps-lag3-4-spec
 description: Spesifikasjon for LAG 3 (bekreft dag — den menneskelige porten) og LAG 4 (flere byggeplasser pr. dag) i timer-GPS-helhetsplanen. Besøksmodell uten posisjonssporing, bekreft-dag-skjermen (2 klikk), reiseregler V1–V15 ved flere byggeplasser, løsning på G1-konflikten, leveransedeling og åpne spørsmål til Kenneth. Skrevet av fabel 2026-11-06 på orkestrators ordre (Kenneth «Ja, begge»), gates av orkestrator; Kenneth godkjenner før kode-ordre.
 sist_verifisert_mot_kode: 2026-11-06
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A. Ingen kode levert
+status: 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A. Ingen kode levert
 ---
 
 # LAG 3 + LAG 4 — bekreft dag, og flere byggeplasser pr. dag
@@ -168,7 +168,7 @@ Skjermen viser **ett kort pr. segment** i kronologisk rekkefølge, pr. dato (del
 | Reise retur: «Reise · Fetsund bru → Kontor · 15:31–16:02 …» | V7, fra SISTE besøk | Nei — utledes |
 | Årsak-linje når reise mangler: «Ingen reise foreslått: posisjon utilgjengelig» / «Fetsund bru mangler plassering» / «ingen matrisecelle» | V12/V13 `reiseAarsak`/`destinasjonAarsak` | Nei (lenke til hjelp) |
 | Overtid: merke «OT 50 % fra 15:00» på raden som bærer | V4 (§ 4.4) | Nei — utledes |
-| Fotlinje i hvert *arbeids*kort: «+ Maskin · + Varer» (sammenslått, § 3.5) | Maskin-/Varelager-modul aktiv for firmaet | Ja: åpner velger-ark; registrerte linjer vises i kortet med «✕». Skjult når modul er av. **L3-D** |
+| Seksjon «Maskin og varer» nederst: én linje pr. *prosjekt* med «+ Maskin · + Varer» (§ 3.5, K19/K20 pr. prosjekt) | Maskin-/Varelager-modul aktiv for firmaet | Ja: åpner velger-ark; registrerte linjer vises under prosjektlinjen med «✕». Hele seksjonen skjult når modul er av. **L3-D** |
 | «+ Legg til stopp» nederst | — | Åpner samme velger som S2, setter inn besøk m/ tider (K13 ✅) |
 | [Bekreft og lagre] · [Ikke nå] | — | — |
 
@@ -203,59 +203,79 @@ hele gapet ligger på besøk n. Arbeideren kan sette «Dro fra» på kortet; da 
 fra» til neste ankomst. **Default når avreise er ukjent er K11 — ✅ VEDTATT (a)+(c) 2026-11-06:** hele gapet på
 besøk n til «Dro fra» settes; S1 foreslår «Dro fra A?» når appen åpnes utenfor A.
 
-### 3.5 Maskin/redskap og varer pr. segment (Kenneth 2026-11-06, skisse `skjermform-a-maskin-varer.png`)
+### 3.5 Maskin/redskap og varer pr. prosjekt (Kenneth 2026-11-06; K19–K21 vedtatt 2026-11-06; skisse `skjermform-a-maskin-varer.png`)
 
-> **Krav (Kenneth, via orkestrator, ordrett):** *«husk å etterregistrere maskintimer/redskap og varer»* — bekreft-
-> skjermen skal la arbeideren etterregistrere maskintimer/redskap og varer for dagen, ikke bare arbeidstimer og reise.
+> **Krav (Kenneth, ordrett):** *«husk å etterregistrere maskintimer/redskap og varer»* → **K19:** *«la maskintimer være
+> mulig å velge pr prosjekt, med antall -> ikke fra/til»* · **K20:** *«la varer være en mulighet vi kan legge til pr
+> prosjekt»* · **K21:** (a) som anbefalt.
 
-**Plassering: pr. byggeplass-segment (arbeidskortet), ikke pr. dag.** Målt grunnlag:
+**Plassering: pr. prosjekt, i en egen seksjon «Maskin og varer» nederst i skjermen** (over «+ Legg til stopp» og
+Bekreft) — én linje pr. prosjekt i dagens forslag, uansett hvor mange byggeplass-segmenter prosjektet har. Ikke i
+arbeidskortene (forrige utkast la dem pr. segment): maskin og varer er prosjektets, ikke stedets. Målt grunnlag:
 
-- `SheetMachine.projectId` er NOT NULL (`packages/db-timer/prisma/schema.prisma:544`) og `sheetTimerId` (`:541`)
-  kobler maskinraden til én timer-rad; mobil skriver maskin i dag bare gjennom timer-raden (`nyTimerRad.ts:161-182`,
-  `sheetTimerId = timerRadId`; maskintimer = radens timer, `timer.maskinSeksjon.hint` `nb.json:549`). En maskin uten
-  segment har ikke noe prosjekt å stå på.
-- `Vareforbruk` har `projectId` + `byggeplassId?` + `dagsseddelId?` (`packages/db-varelager/prisma/schema.prisma:74-84`),
-  og server-`opprett` (`apps/api/src/routes/vareforbruk.ts:370-394`) krever en sedel med minst én timer-rad på samme
-  prosjekt. Varer uten segment avvises.
-- Pr. segment gir lag 4 maskin/varer pr. byggeplass gratis — ingen omlegging når flere kort kommer (L4-B).
+- `SheetMachine.projectId` er NOT NULL (`packages/db-timer/prisma/schema.prisma:544`); `sheetTimerId` (`:541`) er
+  **valgfri** svak FK — null-rader «beholder søsken-rad-oppførsel og redigeres inline via maskin-seksjonen»
+  (kommentar `:535-540`). En maskinrad på prosjektnivå uten rad-kobling er et dokumentert tilfelle, ikke et unntak.
+  `fraTid/tilTid` er nullable (`:547-548`) — «antall, ikke fra/til» krever ingen skjema-endring.
+- `Vareforbruk` har `projectId` + `byggeplassId?` + `dagsseddelId?` (`packages/db-varelager/prisma/schema.prisma:74-84`);
+  server-`opprett` (`apps/api/src/routes/vareforbruk.ts:370-394`) krever sedel med ≥ 1 timer-rad på samme prosjekt.
+  Pr. prosjekt oppfyller kravet direkte: steg 1 skriver alltid minst én rad pr. prosjekt.
+- Server-vakt `validerMaskinUnderArbeid` (`apps/api/src/routes/timer/dagsseddel.ts:1050`) → `beregnMaskinBrudd`
+  (`packages/shared/src/utils/maskinKapasitet.ts:79`): Σ maskintimer ≤ Σ arbeidstimer + pause **pr. prosjekt(+ECO)**.
+  Grupperingen er alt pr. prosjekt, så vedtaket passer vakten. **Mobil importerer ikke funksjonen i dag** (0 treff i
+  `apps/mobile/src`); skjermen skal kjøre den lokalt før Bekreft — ellers avvises hele `syncBatch` server-side etter at
+  dagen er avsluttet lokalt.
+- Byggeplass på maskinrad utledes i dag server-side fra sedelhodet (`syncMaskinByggeplass`, `dagsseddel.ts:6301`:
+  `vaskTell(lokal.byggeplassId, radProsjekt(m.projectId))`). Mobil sender ikke `byggeplassId` pr. maskinrad, og en
+  pr.-prosjekt-rad trenger det ikke.
 
-**Klikktelling (P4-taket, maks 2 for vanlig dag):** hvert arbeidskort får én sammenslått **fotlinje «+ Maskin ·
-+ Varer»** — to tekstknapper, ingen egen seksjon, ingen tom liste. Dag uten maskin/varer: fotlinjen trykkes aldri →
-**2 klikk uendret**. Med maskin: «+ Maskin» (3) → velg i ark (4) → Bekreft = 4. Med vare: «+ Varer» (3) → vare (4)
-→ antall + Legg til (5) → Bekreft = 5. Reise- og mellom-kort har ingen fotlinje.
+**Konsekvens for flere byggeplasser på samme prosjekt samme dag (lag 4):** én prosjektlinje og én maskinrad/vare
+uansett antall besøk. Maskin og varer fordeles **ikke** pr. byggeplass fra skjermen; `byggeplassId` på vare settes bare
+når prosjektet har nøyaktig én byggeplass i forslaget (entydig), ellers null, og maskinrad bærer aldri byggeplass fra
+skjermen. Fordeling pr. byggeplass gjøres i så fall på sedelen etterpå (`MaskinSeksjon`, prosjektkortets vareliste).
+Det er vedtakets pris, og den er riktig: GPS vet *hvor* arbeideren var, ikke hvor maskinen gikk. § 6-notatet om
+`sheet_machine_local.byggeplassId` er dermed ikke lenger en forutsetning for denne skjermen.
+
+**Klikktelling (P4-taket, maks 2 for vanlig dag):** seksjonen viser prosjektnavn + «+ Maskin · + Varer» pr. prosjekt.
+Dag uten maskin/varer: ingen av knappene trykkes → **2 klikk uendret**. Med maskin: «+ Maskin» → velg i ark → antall +
+Legg til → Bekreft = **5**. Med vare: «+ Varer» → vare → antall + Legg til → Bekreft = **5**. (Forrige utkast hadde
+maskin = 4 fordi timer var forhåndsutfylt; K19 nei koster ett felt. Riktig: en maskintime arbeideren ikke har skrevet,
+er et gjett.)
 
 **Maskin/redskap:**
 
 | Element | Kilde / regel | Redigerbar? |
 |---|---|---|
-| Velger-ark «Maskin · {byggeplass}» | `EquipmentVelgerModal` (`MaskinSeksjon.tsx:1003`, sortering `:1053-1065`) med gruppe **«Sist brukt»** øverst (ORDRE 29 A: `sistBrukteMaskiner` pr. ansatt, firma-isolert, 2d mobil i `nyTimerRad.ts`), deretter «Alle» + søk | Ja |
-| Timer | **forhåndsutfylt = segmentets arbeidstid** (samme regel som i dag). Regnes om når segmentets tider rettes, til arbeideren har overstyrt feltet (K19) | Ja |
+| Prosjektlinje | ett prosjekt = én linje, nøkkel `projectId`; navn + prosjektnummer som i kortene | — |
+| Velger-ark «Maskin · {prosjekt}» | `EquipmentVelgerModal` (`MaskinSeksjon.tsx:1003`, sortering `:1053-1065`) med gruppe **«Sist brukt»** øverst (ORDRE 29 A: `sistBrukteMaskiner` pr. ansatt, firma-isolert), deretter «Alle» + søk | Ja |
+| **Antall timer** | **tomt felt, påkrevd, desimal-tastatur** — K19: ikke fra/til, ikke forhåndsutfylt. Lokal vakt: Σ maskintimer på prosjektet ≤ Σ arbeidstimer + pause (`beregnMaskinBrudd`), samme tekst som serverens brudd-melding; feltet rødt og «Legg til» blokkert ved brudd | Ja |
 | Mengde · enhet | tomt, valgfritt — som «Maskin (valgfritt)» i `TimerRadModal` (`TimerSeksjon.tsx:1813-1893`) | Ja |
-| Redskap | = `Equipment.kategori='smautstyr'` (`apps/mobile/src/db/schema.ts:458`; import `maskinImport.ts:86`). Vises i samme velger merket «redskap». **Ingen egen modell** (K21) | — |
-| Flere maskiner pr. segment | én linje pr. maskin i kortet, «✕» pr. linje | Ja |
+| Redskap | = `Equipment.kategori='smautstyr'` (`apps/mobile/src/db/schema.ts:458`; import `maskinImport.ts:86`), merket «redskap» i samme velger. **Ingen egen modell (K21 ✅ a)** | — |
+| Flere maskiner pr. prosjekt | én linje pr. maskin under prosjektlinjen, «✕» pr. linje; samme maskin to ganger = to rader (som på sedelen) | Ja |
 
-Ingen maskin legges inn automatisk: GPS vet *hvor*, ikke *hvilken* maskin. «Sist brukt» gjør valget til ett trykk uten å
-skrive rader arbeideren ikke har bedt om (samme prinsipp som porten i § 5).
+Ingen maskin legges inn automatisk: GPS vet *hvor*, ikke *hvilken* maskin. «Sist brukt» gjør valget til ett trykk uten
+å skrive rader arbeideren ikke har bedt om (samme prinsipp som porten i § 5).
 
-**Varer:**
+**Varer (K20 ✅ — «en mulighet vi kan legge til pr prosjekt»):**
 
 | Element | Kilde / regel | Redigerbar? |
 |---|---|---|
-| Velger-ark | `KortVareforbrukModal` (`apps/mobile/src/components/timer-detalj/KortVareforbrukModal.tsx`) gjenbrukt: prosjekt låst til segmentets, byggeplass-chip forhåndsvalgt fra segmentet, varesøk mot lokal `vareLocal` (`schema.ts:934`, buffer fra `vareKatalog.ts`) | Ja |
+| Velger-ark | `KortVareforbrukModal` (`apps/mobile/src/components/timer-detalj/KortVareforbrukModal.tsx`) gjenbrukt: prosjekt låst til linjens; byggeplass-chip forhåndsvalgt når prosjektet har én byggeplass i forslaget, ellers tom/valgfri; varesøk mot lokal `vareLocal` (`schema.ts:934`, buffer fra `vareKatalog.ts`) | Ja |
 | Antall · enhet | enhet fra varen; antall må fylles | Ja |
 
 **Dataskriving — alt først ved «Bekreft og lagre»** (`anvendDagsforslag` utvides i L3-D; i dag har den 0 felt for
 maskin/varer, `dagsforslagAnvend.ts:17-29`). Rekkefølge:
 
 1. Timer-rader pr. segment (som L3-A).
-2. Maskinrader → `sheet_machine_local` (`schema.ts:208`): `sheetTimerId` = den nye timer-radens id, `projectId` =
-   segmentets, `timer`, `mengde/enhet`, `vehicleId`. Sync som i dag via `dagsseddel.syncBatch` (`timerSync.ts:651/758`;
-   Zod `dagsseddel.ts:5867-5885`); byggeplass utledes på server (`syncMaskinByggeplass` `:6285`) til
-   `sheet_machine_local` får `byggeplassId` (modul-sjekk § 6).
-3. Vareforbruk-rader → `vareforbrukLocal` (`schema.ts:951`): `sheetId` = lokal sedel-id, `projectId`, `byggeplassId`,
-   `syncStatus='pending'`. Synkes av eksisterende `syncVareforbruk` (`vareforbrukSync.ts:73`, kalt fra
-   `TimerSyncProvider.tsx:192`) **etter** at sedelen er `synced` (`:48`) — server-kravet om timer-rad på samme prosjekt
-   er oppfylt fordi steg 1 skrev den.
+2. Maskinrader → `sheet_machine_local` (`schema.ts:208`): `projectId` = linjens, **`sheetTimerId = null`**
+   (prosjektnivå — dokumentert null-tilfelle; ved to segmenter på prosjektet finnes ingen riktig rad å peke på),
+   `timer` = antall, `mengde/enhet`, `vehicleId`, `fraTid/tilTid = null`, `externalCostObjectId` = prosjektets
+   timer-raders ECO når alle deler én, ellers null (T7-4a: maskin følger prosjekt+ECO-gruppe). Sync som i dag via
+   `dagsseddel.syncBatch` (`timerSync.ts:651/758`; Zod `dagsseddel.ts:5867-5885`); byggeplass utledes på server.
+3. Vareforbruk-rader → `vareforbrukLocal` (`schema.ts:951`): `sheetId` = lokal sedel-id, `projectId`, `byggeplassId`
+   (entydig eller null), `syncStatus='pending'`. Synkes av eksisterende `syncVareforbruk` (`vareforbrukSync.ts:73`,
+   kalt fra `TimerSyncProvider.tsx:192`) **etter** at sedelen er `synced` (`:48`) — server-kravet om timer-rad på
+   samme prosjekt er oppfylt fordi steg 1 skrev den.
 
 Avbrudd («Ikke nå», sveip, drept app) skriver ingenting — heller ikke maskin/varer som alt er lagt inn i skjermen (§ 3.1).
 
@@ -263,23 +283,30 @@ Avbrudd («Ikke nå», sveip, drept app) skriver ingenting — heller ikke maski
 
 - «+ Maskin» vises bare når firmaet har Maskin-modul aktiv og `equipmentLocal` har utstyr (samme vilkår som
   `MaskinSeksjon`). Server-vaktene `verifiserKjoretoyTilhørerFirma` + `validerMaskinUnderArbeid` er uendret.
-- «+ Varer» vises bare når `visVareforbrukKnapp` er sann for segmentets prosjekt
+- «+ Varer» vises bare når `visVareforbrukKnapp` er sann for linjens prosjekt
   (`packages/shared/src/utils/prosjektkort.ts:169`: `prosjektIderMedVarelager.includes(projectId)`). Katalogen er
   firma-isolert (`katalogForFirma`, `vareforbruk.ts:157`).
+- Hele seksjonen skjules når ingen prosjektlinje har en synlig knapp.
 - Offline: begge velgere leser lokale buffere. Er bufferen tom offline, vises «Utstyr/varer ikke lastet — legg til på
-  sedelen senere» i fotlinjen i stedet for knappen. Skjermen gjør ingen nettkall.
+  sedelen senere» i linjen i stedet for knappen. Skjermen gjør ingen nettkall.
 
-**Etterpå på sedelen:** maskin vises i `MaskinSeksjon` under prosjektgruppen (`ProsjektGruppe.tsx:359`) i begge
-registreringsmoduser. Varer vises i dag **bare i prosjektkort-modus** (`apps/mobile/app/timer/[id]/kort/[projectId].tsx:336-371`;
-dagskort laster ikke `vareQuery`, `[id].tsx:631-633`). I dagskort-modus ville varene arbeideren la inn i skjermen være
-usynlige på sedelen etterpå → **K20**.
+**Etterpå på sedelen — vedtak for dagskort-modus (K20, tatt i spec på orkestrators ordre):** maskin vises i
+`MaskinSeksjon` under prosjektgruppen (`ProsjektGruppe.tsx:359`) i begge registreringsmoduser — rader med
+`sheetTimerId = null` rendres inline der i dag. Varer vises i dag **bare i prosjektkort-modus**
+(`apps/mobile/app/timer/[id]/kort/[projectId].tsx:336-371`; dagskort laster ikke `vareQuery`, `[id].tsx:631-633`).
+**L3-D legger en lesevisning av prosjektets vareforbruk i `ProsjektGruppe` (dagskort)**, samme spørring som
+prosjektkortet — en vare arbeideren nettopp bekreftet skal ikke være usynlig i halve brukermassen. Retting skjer via
+prosjektkortet/web som i dag; ingen ny redigering i dagskort.
 
-**Personvern/isolering:** ingen nye persondata. Maskin- og varerader bærer prosjekt/byggeplass og ansatt (via sedelen)
-nøyaktig som i dag. `sistBrukteMaskiner` leser kun egne rader (ORDRE 29 A).
+**Personvern/isolering:** ingen nye persondata. Maskin- og varerader bærer prosjekt (og evt. byggeplass) og ansatt (via
+sedelen) nøyaktig som i dag. `sistBrukteMaskiner` leser kun egne rader (ORDRE 29 A).
 
-**Funn (løses ikke her, meldes Kontrollør):** `vareforbruk.opprett` henter sedelens `userId` (`vareforbruk.ts:378`) men
-sammenligner den ikke med `ctx.userId` — en bruker i samme firma kan muligens registrere vareforbruk på en annens
-sedel. Måles i L3-D-gaten; fiks hører til API, ikke mobil.
+**Funn (løses ikke her, meldes Kontrollør):**
+
+1. `vareforbruk.opprett` henter sedelens `userId` (`vareforbruk.ts:378`) men sammenligner den ikke med `ctx.userId` —
+   en bruker i samme firma kan muligens registrere vareforbruk på en annens sedel. Måles i L3-D-gaten; fiks i API.
+2. `beregnMaskinBrudd` ligger i shared, men ingen fil i `apps/mobile/src` importerer den: dagens `TimerRadModal` kan
+   skrive maskin > arbeid lokalt og få hele synken avvist. L3-D bør bruke vakten i begge innganger (skjermen + modalen).
 
 ---
 
@@ -388,7 +415,7 @@ arbeidstid». Brudd?
 | # | Leveranse | Lag | Berører | Migrering | Avhenger av |
 |---|---|---|---|---|---|
 | **L3-A** | Skjermen `/timer/bekreft-dag` (form A ✅), `anvend` bak Bekreft, delt `samleDagsforslagInput`, avbrudd = åpen dag, grenene glemt/sendt/tomt/ukjent, V12/V13-årsaker, rettedybde B *for én byggeplass* (prosjekt/tid/pause/fjern), tre kodekommentarer reversert, i18n ×15, tester § 8 nr. 1–8. **ORDRE-tekst: § 10** | 3 | mobil | ingen | — (✅ K15: bestilles nå) |
-| **L3-D** | Maskin/redskap og varer i bekreft-skjermen (§ 3.5): fotlinje pr. arbeidskort, `EquipmentVelgerModal` m/ «Sist brukt», `KortVareforbrukModal` m/ låst prosjekt, `anvendDagsforslag` skriver maskin- og vareforbruk-rader bak Bekreft, vakter Maskin/Varelager, offline-buffer, varer synlige på sedelen i dagskort-modus (K20), tester § 8 nr. 15–19 | 3 | mobil (+ shared/i18n; `ProsjektGruppe` ved K20 a) | ingen | L3-A merget + ORDRE 29 Leveranse A (`sistBrukteMaskiner`) merget; K19–K21 |
+| **L3-D** | Maskin/redskap og varer i bekreft-skjermen (§ 3.5): seksjon «Maskin og varer» pr. prosjekt (antall timer, ikke fra/til), `EquipmentVelgerModal` m/ «Sist brukt», `KortVareforbrukModal` m/ låst prosjekt, lokal `beregnMaskinBrudd`-vakt, `anvendDagsforslag` skriver maskin- (`sheetTimerId = null`) og vareforbruk-rader bak Bekreft, vakter Maskin/Varelager, offline-buffer, lesevisning av varer i `ProsjektGruppe` (K20), tester § 8 nr. 15–21 | 3 | mobil (+ shared-import, i18n; `ProsjektGruppe`) | ingen | L3-A merget + ORDRE 29 Leveranse A (`sistBrukteMaskiner`) merget; K19–K21 ✅ vedtatt 2026-11-06 |
 | **L4-A** | `arbeidsdag_besok_local` + mobil-migrering, besøk 1 fra Start dag, S1-banner (AppState + 10-min-vakt) og S2-knapp, rydding av `arbeidsdag_local`+besøk > 14 d | 4 | mobil | mobil (SQLite) | L3-A (ellers havner nye besøk i en skjerm som ikke finnes) |
 | **L4-B** | `beregnDagsforslag` m/ `besok[]`: rad pr. besøk, V9 mellom-rad, V4 pr. dag, V5/V6 på tvers, V7 fra siste, V8 stempel; `dagsseddel_local.project_id` nullable (H14); skjermen viser flere kort + «Dro fra» + «+ Legg til stopp»; fasit Dag C som test | 4 | mobil + shared | mobil | L4-A, K11/K13 |
 | **L4-C** | Server: `reiseRetning='mellom'` i Zod/invarianter, `arvReiseSpor`/`beregnReiseAvvik` hopper mellom-rader, attestering/eksport viser byggeplass pr. rad; **persondata-gjerdet `hentTilAttestering` lukkes her** | 4 | api + db-timer | evt. CHECK på `reiseRetning` (Kontrollør måler) | kan gå parallelt med L4-B; må merges FØR L4-B (mobil sender ellers rader serveren avviser) |
@@ -406,11 +433,11 @@ i egen branch hvis kapasitet finnes (ulike filer: L3-D = skjermen + `dagsforslag
 - `sheet_machines` (Maskin) og `Vareforbruk` (Varelager): **berørt av L3-D, men uten skjema-endring** — skjermen skriver
   gjennom de eksisterende lokale tabellene og synk-veiene (§ 3.5), ingen nye felt på server. Lest mot `maskin.md` og
   `dagsseddel-design.md`: `Vareforbruk.dagsseddelId?` «registreres i Timer-flyten» er nettopp dette. **Mangel målt:**
-  `sheet_machine_local` (`schema.ts:208`) har ikke `byggeplassId` (server har, `schema.prisma:546`); server utleder i
-  `syncMaskinByggeplass`. Holder for L3-A/L3-D (ett segment = én byggeplass pr. prosjekt), men ved L4-B (to besøk
-  samme prosjekt, ulik byggeplass) må mobil sende `byggeplassId` pr. maskinrad: mobil-migrering + `syncBatch`-Zod.
-  **Koordineres med ORDRE 29 Leveranse B #5** («har SheetMachine også byggeplassId, gjelder samme regel») så det
-  ikke gjøres to ganger.
+  `sheet_machine_local` (`schema.ts:208`) har ikke `byggeplassId` (server har, `schema.prisma:546`); server utleder fra
+  sedelhodet i `syncMaskinByggeplass` (`dagsseddel.ts:6301`). **Ikke lenger en forutsetning for skjermen** — K19/K20
+  legger maskin og varer pr. prosjekt, og maskinrad bærer aldri byggeplass fra skjermen (§ 3.5). Fordeling av maskin
+  pr. byggeplass ved to besøk på samme prosjekt er en sedel-sak og hører til **ORDRE 29 Leveranse B #5** («har
+  SheetMachine også byggeplassId, gjelder samme regel»), ikke L4-B.
 - `sheet_timer`: nytt verdi-alternativ `reiseRetning='mellom'` (L4-C). Lest mot `timer.md`, fase-0 C.16 og
   `maskin.md`: ingen av dem leser `reiseRetning`. Eksport (`timer.md § eksport`) må vise «mellom» som arbeidstid —
   Kontrollør bekrefter ved L4-C.
@@ -447,17 +474,21 @@ i egen branch hvis kapasitet finnes (ulike filer: L3-D = skjermen + `dagsforslag
 12. S1: `AppState active` to ganger innen 10 min → én måling (vakt).
 13. Rydding: `arbeidsdag_local` + besøk eldre enn 14 d slettes, nyere ikke.
 14. `hentTilAttestering` viser ikke andre prosjekters rader for prosjektadmin (L4-C, gjerde-test som feiler i dag).
-15. L3-D: Bekreft med én maskin på segmentet → rad i `sheet_machine_local` med `sheetTimerId` = segmentets nye
-    timer-rad, `projectId` = segmentets, `timer` = segmentets arbeidstid når ikke overstyrt (**rød først**: `anvend`
-    skriver ingen maskin i dag).
-16. L3-D: Bekreft med én vare → rad i `vareforbrukLocal` med `syncStatus='pending'`, `sheetId` = sedelen; `syncVareforbruk`
-    sender først når sedelen er `synced` (eksisterende vakt `:48` dekkes av test).
-17. L3-D: Dag uten maskin/varer → nøyaktig samme klikksti som L3-A (2); fotlinjen rendres men åpner ingen seksjon
+15. L3-D: Bekreft med én maskin på prosjektet, antall 3,0 → rad i `sheet_machine_local` med `projectId` = prosjektet,
+    **`sheetTimerId = null`**, `fraTid/tilTid = null`, `timer = 3.0` (**rød først**: `anvend` skriver ingen maskin i dag).
+16. L3-D: Bekreft med én vare → rad i `vareforbrukLocal` med `syncStatus='pending'`, `sheetId` = sedelen, `projectId` =
+    linjens, `byggeplassId` = prosjektets eneste byggeplass i forslaget; `syncVareforbruk` sender først når sedelen er
+    `synced` (eksisterende vakt `:48` dekkes av test).
+17. L3-D: Dag uten maskin/varer → nøyaktig samme klikksti som L3-A (2); seksjonen rendres men åpner ingenting
     (snapshot/`queryByText`).
-18. L3-D: «+ Varer» rendres ikke når `prosjektIderMedVarelager` mangler segmentets prosjekt; «+ Maskin» rendres ikke uten
-    Maskin-modul/tomt `equipmentLocal`.
+18. L3-D: «+ Varer» rendres ikke når `prosjektIderMedVarelager` mangler linjens prosjekt; «+ Maskin» rendres ikke uten
+    Maskin-modul/tomt `equipmentLocal`; hele seksjonen rendres ikke når ingen linje har knapp.
 19. L3-D: Avbrudd etter at maskin og vare er lagt inn i skjermen → 0 rader i `sheet_machine_local` og `vareforbrukLocal`
     (utvidelse av nr. 2).
+20. L3-D: Forslag med to segmenter på samme prosjekt (syntetisk input i testen, ingen L4-B-avhengighet) → **én**
+    prosjektlinje; én maskin → én rad; vare får `byggeplassId = null` (ikke entydig).
+21. L3-D: Antall maskintimer 9,0 på prosjekt med 3,4 t arbeid + 0,5 t pause → «Legg til» blokkert med
+    `beregnMaskinBrudd`-melding, ingen rad; samme input mot `syncBatch` gir samme brudd (server-test finnes).
 
 ---
 
@@ -473,12 +504,11 @@ i egen branch hvis kapasitet finnes (ulike filer: L3-D = skjermen + `dagsforslag
 | **K16** | `arbeidsdag_local.start_lat/lng, end_lat/lng` — beholde? | (a) behold (ikke synket, lokal) · (b) dropp, lagre kun tolket sted | **(b)** i L4-A — konsekvent med «aldri GPS-posisjon til person»; ingen leser dem etter tolkning | tas ved gate som anbefalt (b) |
 | **K17** | Bekreft: PSI-innsjekk er aldri kilde for besøk eller timer | ja / nei | **ja** — holder «tilstedeværelse ≠ arbeidstid» | tas ved gate som anbefalt (ja) |
 | **K18** | Skjermform A (segmentliste) eller B (tidslinje)? Se `skjermform-a-b.png` | A / B | **A** (§ 3.2) | ✅ **VEDTATT A 2026-11-06** |
-| **K19** | Maskintimer i bekreft-skjermen: forhåndsutfylt = segmentets arbeidstid? | (a) ja, forhåndsutfylt og redigerbar i arket; regnes om når segmentet rettes til arbeideren overstyrer · (b) alltid tomt felt, må fylles | **(a)** — samme regel som dagens `TimerRadModal` (maskin = radens timer); (b) legger ett klikk på hver maskin | ÅPEN — L3-D |
-| **K20** | Varer lagt inn i skjermen er usynlige på sedelen i dagskort-modus (§ 3.5) | (a) L3-D legger en lesevisning av vareforbruk i `ProsjektGruppe` (dagskort) — samme data som prosjektkortet · (b) «+ Varer» vises bare når firmaet står i prosjektkort-modus; dagskort får varer senere | **(a)** — ellers kan arbeideren ikke se eller rette det han nettopp bekreftet; (b) er stille tomhet i halve brukermassen | ÅPEN — L3-D |
-| **K21** | «Redskap» — egen kategori i utstyrsregisteret? | (a) nei, `smautstyr` dekker redskap; velgeren merker dem «redskap» · (b) ny `Equipment.kategori='redskap'` (db-maskin-migrering + import + web) | **(a)** — ingen migrering, importen (`maskinImport.ts:86`) legger alt håndholdt der alt; (b) kan tas senere uten å røre skjermen | ÅPEN — L3-D |
+| **K19** | Maskintimer i bekreft-skjermen: forhåndsutfylt = segmentets arbeidstid? | (a) ja, forhåndsutfylt og redigerbar i arket; regnes om når segmentet rettes til arbeideren overstyrer · (b) alltid tomt felt, må fylles | (a) var anbefalt | ❌ **VEDTATT NEI 2026-11-06** — Kenneth: *«pr prosjekt, med antall -> ikke fra/til»*: tomt antall-felt, påkrevd, pr. prosjekt (§ 3.5) |
+| **K20** | Varer lagt inn i skjermen er usynlige på sedelen i dagskort-modus (§ 3.5) | (a) L3-D legger en lesevisning av vareforbruk i `ProsjektGruppe` (dagskort) — samme data som prosjektkortet · (b) «+ Varer» vises bare når firmaet står i prosjektkort-modus; dagskort får varer senere | **(a)** | ✅ **VEDTATT 2026-11-06** — Kenneth: *«en mulighet vi kan legge til pr prosjekt»*; lesevisning (a) tatt i spec på orkestrators ordre (§ 3.5) |
+| **K21** | «Redskap» — egen kategori i utstyrsregisteret? | (a) nei, `smautstyr` dekker redskap; velgeren merker dem «redskap» · (b) ny `Equipment.kategori='redskap'` (db-maskin-migrering + import + web) | **(a)** | ✅ **VEDTATT (a) 2026-11-06** |
 
-K11/K13/K15/K18 er vedtatt; **L3-A kan bestilles nå (§ 10)**. K19–K21 trengs før L3-D bestilles — kan tas som
-«anbefalt» ved L3-D-gaten hvis Kenneth ikke svarer før.
+K11/K13/K15/K18 og K19–K21 er vedtatt; **L3-A kan bestilles nå (§ 10)**, L3-D når L3-A + ORDRE 29 A er på `develop`.
 
 ---
 

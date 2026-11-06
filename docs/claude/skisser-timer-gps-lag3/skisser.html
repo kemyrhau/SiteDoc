@@ -219,23 +219,28 @@ if (fig === "flyt") {
       </div>
     </div>`;
 } else if (fig === "maskinvarer") {
-  const fot = (klikk) => `<div class="fot"><span>+ Maskin</span><span>+ Varer</span>${klikk ? `<div class="klikk" style="right:-6px;top:-4px">${klikk}</div>` : ""}</div>`;
-  const kortLille = `<div class="sek arbeid"><div class="h"><span>Lillestrøm skole</span><span class="rediger">Endre</span></div><div class="u">2041 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>07:24–12:10 · pause 30 min · 4,3 t</div>${fot()}</div>`;
+  const knapper = (klikk) => `<span style="display:flex;gap:10px;color:var(--primar);font-weight:600"><span style="position:relative">+ Maskin${klikk ? `<div class="klikk" style="right:-14px;top:-16px">${klikk}</div>` : ""}</span><span style="color:var(--demp);font-weight:400">·</span>+ Varer</span>`;
+  const plinje = (navn, nr, klikk) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--linje);font-size:12px"><span><b>${navn}</b> <span style="color:var(--demp)">· ${nr}</span></span>${knapper(klikk)}</div>`;
+  const mvsek = (ekstra, klikk) => `<div class="sek" style="border-style:dashed"><div class="h"><span>Maskin og varer</span><span class="u" style="font-weight:400">pr. prosjekt</span></div>
+    ${plinje("Lillestrøm skole", "2041")}
+    ${plinje("Fetsund bru", "2057", klikk)}${ekstra}</div>`;
+  const kortLille = `<div class="sek arbeid"><div class="h"><span>Lillestrøm skole</span><span class="rediger">Endre</span></div><div class="u">2041 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>07:24–12:10 · pause 30 min · 4,3 t</div></div>`;
+  const kortFetsund = `<div class="sek arbeid"><div class="h"><span>Fetsund bru</span><span class="rediger">Endre</span></div><div class="u">2057 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>12:10–15:31 · 3,4 t <span class="merke ot">OT 50 % fra 15:00</span></div></div>`;
   const topp = `<div class="topp"><span class="tilbake">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
   <div class="banner sum"><b>tor 6. nov</b> · Start 06:52 · Slutt 15:31 · <b>8,1 t</b> arbeid + 1,1 t reise · norm 7,5 t</div>
   <div class="sek reise"><div class="h"><span>Reise · Kontor → Lillestrøm skole</span><span>32 min</span></div><div class="u">06:52–07:24 · 28 km · over 30 min → <b>reisetid</b></div></div>`;
-  const bunn = `<div class="sek reise"><div class="h"><span>Reise · Fetsund bru → Kontor</span><span>31 min</span></div><div class="u">15:31–16:02 · 27 km · over 30 min → <b>reisetid</b></div></div>
-  <div class="legg">+ Legg til stopp</div>
+  const bunn = `<div class="legg">+ Legg til stopp</div>
   <div class="btn">Bekreft og lagre</div>`;
-  const a1 = `<div class="tlf">${topp}${kortLille}
-  <div class="sek arbeid"><div class="h"><span>Fetsund bru</span><span class="rediger">Endre</span></div><div class="u">2057 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>12:10–15:31 · 3,4 t <span class="merke ot">OT 50 % fra 15:00</span></div>${fot(3)}</div>
+  const reiseHjem = `<div class="sek reise"><div class="h"><span>Reise · Fetsund bru → Kontor</span><span>31 min</span></div><div class="u">15:31–16:02 · 27 km · over 30 min → <b>reisetid</b></div></div>`;
+  const a1 = `<div class="tlf">${topp}${kortLille}${kortFetsund}${reiseHjem}
+  ${mvsek("", 2)}
   ${bunn}<div class="klikk" style="right:14px;bottom:18px">2</div></div>`;
-  const a2 = `<div class="tlf">${topp}${kortLille}
-  <div class="sek arbeid"><div class="h"><span>Fetsund bru</span><span class="rediger">Endre</span></div><div class="u">2057 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>12:10–15:31 · 3,4 t <span class="merke ot">OT 50 % fra 15:00</span></div>
-    <div class="mv"><span><span class="ik">Maskin</span>Gravemaskin CAT 308 · M-12</span><span><b>3,4 t</b> <span class="x">✕</span></span></div>
+  const linjer = `
+    <div class="mv"><span><span class="ik">Maskin</span>Gravemaskin CAT 308 · M-12</span><span><b>3,0 t</b> <span class="x">✕</span></span></div>
     <div class="mv"><span><span class="ik">Redskap</span>Pigghammer · S-04</span><span><b>1,0 t</b> <span class="x">✕</span></span></div>
-    <div class="mv"><span><span class="ik">Vare</span>Spiker 90 mm</span><span><b>2 esker</b> <span class="x">✕</span></span></div>
-    ${fot()}</div>
+    <div class="mv"><span><span class="ik">Vare</span>Spiker 90 mm</span><span><b>2 esker</b> <span class="x">✕</span></span></div>`;
+  const a2 = `<div class="tlf">${topp}${kortLille}${kortFetsund}${reiseHjem}
+  ${mvsek(linjer)}
   ${bunn}<div class="klikk" style="right:14px;bottom:18px">5</div></div>`;
   const ark = `<div class="tlf">${topp}<div class="dimmet">${kortLille}</div>
   <div class="ark">
@@ -243,28 +248,27 @@ if (fig === "flyt") {
     <div class="tittel"><span>Maskin · Fetsund bru</span><span class="tilbake">Avbryt</span></div>
     <div class="sok">Søk utstyr …</div>
     <div class="gruppe">Sist brukt</div>
-    <div class="listerad valgt" style="position:relative"><span class="n">Gravemaskin CAT 308</span><span class="u">M-12 · i går</span><div class="klikk" style="right:-8px;top:-6px">4</div></div>
+    <div class="listerad valgt" style="position:relative"><span class="n">Gravemaskin CAT 308</span><span class="u">M-12 · i går</span><div class="klikk" style="right:-8px;top:-6px">3</div></div>
     <div class="listerad"><span class="n">Pigghammer</span><span class="u">S-04 · redskap</span></div>
     <div class="listerad"><span class="n">Hjullaster Volvo L60</span><span class="u">M-07 · 3. nov</span></div>
     <div class="gruppe">Alle (24)</div>
     <div class="listerad"><span class="n">Dumper Bell B25</span><span class="u">M-03</span></div>
-    <div class="listerad"><span class="n">Gravemaskin CAT 320</span><span class="u">M-15</span></div>
-    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px"><span style="color:var(--demp)">Timer</span><span class="sok" style="flex:1;margin:0;color:#111">3,4</span><span style="color:var(--demp)">Mengde</span><span class="sok" style="flex:1;margin:0">—</span></div>
-    <div class="u" style="font-size:10px;color:var(--demp);margin-top:4px">Timer = segmentets arbeidstid (12:10–15:31). Endre ved behov.</div>
-    <div class="btn" style="margin-top:8px">Legg til</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px"><span style="color:var(--demp)">Antall timer</span><span class="sok" style="flex:1;margin:0;color:#111;border-color:var(--primar)">3,0<span style="color:var(--primar)">|</span></span><span style="color:var(--demp)">Mengde</span><span class="sok" style="flex:1;margin:0">—</span></div>
+    <div class="u" style="font-size:10px;color:var(--demp);margin-top:4px">Påkrevd. Maks 3,4 t på Fetsund bru i dag (arbeidstid + pause).</div>
+    <div class="btn" style="margin-top:8px;position:relative">Legg til<div class="klikk" style="right:-8px;top:-6px">4</div></div>
   </div></div>`;
   rot.innerHTML = `
-    <h1>LAG 3 — form A med maskin/redskap og varer pr. segment (Kenneth 2026-11-06). Dag uten maskin/varer: fortsatt 2 klikk.</h1>
+    <h1>LAG 3 — form A med maskin/redskap og varer pr. prosjekt (K19 nei · K20 ja · K21 a, 2026-11-06). Dag uten maskin/varer: fortsatt 2 klikk.</h1>
     <div class="rad">
-      <div><div class="steg"><span class="n">A</span>Standard dag — fotlinje sammenslått<span class="anbefalt">2 KLIKK</span></div>${a1}</div>
-      <div><div class="steg"><span class="n">A+</span>Fetsund-kortet med maskin, redskap og vare</div>${a2}</div>
-      <div><div class="steg"><span class="n">ARK</span>«+ Maskin» → velger, sist brukt øverst</div>${ark}</div>
+      <div><div class="steg"><span class="n">A</span>Standard dag — seksjon «Maskin og varer» nederst<span class="anbefalt">2 KLIKK</span></div>${a1}</div>
+      <div><div class="steg"><span class="n">A+</span>Fetsund bru med maskin, redskap og vare (antall)</div>${a2}</div>
+      <div><div class="steg"><span class="n">ARK</span>«+ Maskin» → velger, sist brukt øverst, antall timer</div>${ark}</div>
     </div>
     <div class="forklar" style="margin-top:14px;max-width:1260px;columns:2;column-gap:28px">
-      <p><b>Plassering:</b> fotlinjen «+ Maskin · + Varer» ligger i hvert <i>arbeids</i>kort (aldri på reise/mellom). Maskin hører til segmentet fordi <code>SheetMachine.projectId</code> er påkrevd og <code>sheetTimerId</code> peker på timer-raden; varer fordi serveren krever timer-rad på samme prosjekt. Lag 4 (flere byggeplasser) får dermed maskin/varer pr. byggeplass gratis.</p>
-      <p><b>Klikk:</b> uten maskin/varer trykkes fotlinjen aldri → 2 klikk (P4). Med maskin: «+ Maskin» (3) → velg (4) → Bekreft. Med vare: «+ Varer» (3) → vare (4) → antall (5) → Bekreft. Knappene skjules når firmaet ikke har Maskin-/Varelager-modul aktiv, eller når lokal buffer er tom offline.</p>
-      <p><b>Forhåndsutfylling:</b> ingen maskin legges inn automatisk (GPS vet hvor, ikke hvilken maskin). «Sist brukt» (ORDRE 29 A, <code>sistBrukteMaskiner</code>, pr. ansatt, firma-isolert) gjør valget til ett trykk. Timer = segmentets arbeidstid som i dag (<code>timer.maskinSeksjon.hint</code>), regnes om når segmentet rettes til arbeideren har overstyrt. Redskap = utstyr med kategori <code>smautstyr</code> — ingen egen modell.</p>
-      <p><b>Skriving:</b> alt først ved «Bekreft og lagre»: timer-rader → maskinrader (<code>sheet_machine_local</code>, <code>sheetTimerId</code> = ny rad) → vareforbruk (<code>vareforbrukLocal</code>, <code>pending</code>, synkes etter sedelen). «Ikke nå» skriver ingenting.</p>
+      <p><b>Plassering:</b> egen seksjon «Maskin og varer» nederst, én linje pr. <i>prosjekt</i> i dagens forslag — ikke i arbeidskortene. Maskin og varer er prosjektets, ikke stedets (Kenneth: «pr prosjekt»). To byggeplasser på samme prosjekt gir fortsatt én linje; fordeling pr. byggeplass gjøres på sedelen etterpå.</p>
+      <p><b>Klikk:</b> uten maskin/varer trykkes ingen knapp → 2 klikk (P4). Med maskin: «+ Maskin» (2) → velg (3) → antall + Legg til (4) → Bekreft (5). Med vare: samme = 5. Knappene skjules uten Maskin-/Varelager-modul, eller når lokal buffer er tom offline; hele seksjonen skjules når ingen linje har knapp.</p>
+      <p><b>Antall, ikke fra/til (K19):</b> timer-feltet er tomt og påkrevd, desimal-tastatur. Ingen forhåndsutfylling fra arbeidstiden. Lokal vakt = serverens <code>beregnMaskinBrudd</code>: Σ maskintimer ≤ arbeidstid + pause pr. prosjekt. Redskap = utstyr med kategori <code>smautstyr</code> (K21), ingen egen modell. «Sist brukt» (ORDRE 29 A) øverst.</p>
+      <p><b>Skriving:</b> alt først ved «Bekreft og lagre»: timer-rader → maskinrader (<code>sheet_machine_local</code>, <code>projectId</code>, <code>sheetTimerId = null</code>, <code>fraTid/tilTid = null</code>) → vareforbruk (<code>vareforbrukLocal</code>, <code>pending</code>, synkes etter sedelen). «Ikke nå» skriver ingenting.</p>
     </div>`;
 }
 document.body.dataset.klar = "1";
