@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Išimkite be pakeitimo",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Pašalinkite ir perkelkite {{antall}} dokumentus",
   "dokumentflyt.fjernMedlem.loggStaar": "Žurnalas išsaugo pavadinimą viskam, ką padarė {{navn}}.",
-  "dokumentflyt.leddTomt": "Nėra aktyvių narių – pasirinkite, kas turėtų atlikti šį žingsnį."
+  "dokumentflyt.leddTomt": "Nėra aktyvių narių – pasirinkite, kas turėtų atlikti šį žingsnį.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Pasirinkite vietą…",
+  "lokasjonVelger.forslagGps": "Automatinis: GPS padėtis",
+  "lokasjonVelger.forslagSistBrukt": "Paskutinis naudotas",
+  "lokasjonVelger.kart": "Žemėlapis",
+  "lokasjonVelger.ingenTegningEllerKart": "Projekte nėra brėžinio ar žemėlapio, kuriame būtų galima pateikti poziciją."
 }

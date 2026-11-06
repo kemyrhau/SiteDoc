@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Зняти без заміни",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Видаліть і перемістіть {{antall}} документів",
   "dokumentflyt.fjernMedlem.loggStaar": "Журнал зберігає назву всього, що {{navn}} зробив.",
-  "dokumentflyt.leddTomt": "Немає активних учасників — виберіть, хто повинен утримувати цей крок."
+  "dokumentflyt.leddTomt": "Немає активних учасників — виберіть, хто повинен утримувати цей крок.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Виберіть місце…",
+  "lokasjonVelger.forslagGps": "Авто: положення GPS",
+  "lokasjonVelger.forslagSistBrukt": "Останнє використання",
+  "lokasjonVelger.kart": "Карта",
+  "lokasjonVelger.ingenTegningEllerKart": "У проекті немає креслення чи карти, на яких можна розмістити позицію."
 }

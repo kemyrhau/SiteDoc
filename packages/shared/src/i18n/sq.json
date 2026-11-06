@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Hiqeni pa zëvendësim",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Hiqni dhe zhvendosni {{antall}} dokumente",
   "dokumentflyt.fjernMedlem.loggStaar": "Regjistri ruan emrin në gjithçka që ka bërë {{navn}}.",
-  "dokumentflyt.leddTomt": "Nuk ka anëtarë aktiv - zgjidhni se kush duhet ta mbajë këtë hap."
+  "dokumentflyt.leddTomt": "Nuk ka anëtarë aktiv - zgjidhni se kush duhet ta mbajë këtë hap.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Zgjidh vendndodhjen…",
+  "lokasjonVelger.forslagGps": "Auto: Pozicioni GPS",
+  "lokasjonVelger.forslagSistBrukt": "Përdorur për herë të fundit",
+  "lokasjonVelger.kart": "Harta",
+  "lokasjonVelger.ingenTegningEllerKart": "Projekti nuk ka vizatim apo hartë për të vendosur një pozicion."
 }

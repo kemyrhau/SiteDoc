@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Odstraňte bez výměny",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Odebrat a přesunout {{antall}} dokumenty",
   "dokumentflyt.fjernMedlem.loggStaar": "Protokol uchovává jméno u všeho, co {{navn}} udělal.",
-  "dokumentflyt.leddTomt": "Žádní aktivní členové – vyberte, kdo má tento krok držet."
+  "dokumentflyt.leddTomt": "Žádní aktivní členové – vyberte, kdo má tento krok držet.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Vyberte umístění…",
+  "lokasjonVelger.forslagGps": "Auto: GPS pozice",
+  "lokasjonVelger.forslagSistBrukt": "Naposledy použité",
+  "lokasjonVelger.kart": "Mapa",
+  "lokasjonVelger.ingenTegningEllerKart": "Projekt nemá žádný výkres nebo mapu, na kterou by bylo možné umístit pozici."
 }

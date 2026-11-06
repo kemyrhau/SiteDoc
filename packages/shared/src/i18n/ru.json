@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Удалить без замены",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Удалить и переместить {{antall}} документов",
   "dokumentflyt.fjernMedlem.loggStaar": "В журнале сохраняется имя всего, что сделал {{navn}}.",
-  "dokumentflyt.leddTomt": "Нет активных участников — выберите, кто должен провести этот шаг."
+  "dokumentflyt.leddTomt": "Нет активных участников — выберите, кто должен провести этот шаг.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Выберите местоположение…",
+  "lokasjonVelger.forslagGps": "Авто: положение GPS",
+  "lokasjonVelger.forslagSistBrukt": "Последнее использование",
+  "lokasjonVelger.kart": "Карта",
+  "lokasjonVelger.ingenTegningEllerKart": "В проекте нет чертежа или карты, на которой можно было бы разместить позицию."
 }

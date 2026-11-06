@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Scoateți fără înlocuire",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Eliminați și mutați {{antall}} documente",
   "dokumentflyt.fjernMedlem.loggStaar": "Jurnalul păstrează numele pe tot ceea ce a făcut {{navn}}.",
-  "dokumentflyt.leddTomt": "Fără membri activi - alege cine ar trebui să facă acest pas."
+  "dokumentflyt.leddTomt": "Fără membri activi - alege cine ar trebui să facă acest pas.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Alegeți locația…",
+  "lokasjonVelger.forslagGps": "Auto: poziție GPS",
+  "lokasjonVelger.forslagSistBrukt": "Ultima utilizare",
+  "lokasjonVelger.kart": "Hartă",
+  "lokasjonVelger.ingenTegningEllerKart": "Proiectul nu are desen sau hartă pentru a plasa o poziție."
 }

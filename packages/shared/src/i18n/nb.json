@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Fjern uten erstatter",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Fjern og flytt {{antall}} dokumenter",
   "dokumentflyt.fjernMedlem.loggStaar": "Loggen beholder navnet på alt {{navn}} har gjort.",
-  "dokumentflyt.leddTomt": "Ingen aktive medlemmer — velg hvem som skal ha leddet."
+  "dokumentflyt.leddTomt": "Ingen aktive medlemmer — velg hvem som skal ha leddet.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Velg lokasjon…",
+  "lokasjonVelger.forslagGps": "Auto: GPS-posisjon",
+  "lokasjonVelger.forslagSistBrukt": "Sist brukte",
+  "lokasjonVelger.kart": "Kart",
+  "lokasjonVelger.ingenTegningEllerKart": "Prosjektet har ingen tegning eller kart å plassere posisjon på."
 }
