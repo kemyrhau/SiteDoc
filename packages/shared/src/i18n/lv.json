@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Pēc dienas lapas izveides varat visu rediģēt.",
   "timer.leggTilProsjekt": "+ Pievienot projektu",
   "timer.geoForslag": "Ieteikts, pamatojoties uz atrašanās vietu",
+  "timer.dagSendt": "Diena ir nosūtīta apstiprināšanai",
+  "timer.aapneDagen": "Atver dienu",
   "timer.ingenGeoForslag": "Tuvumā nav projektu",
   "timer.feil.ugyldigInput": "Nederīga vērtība.",
   "timer.detalj.ingenProsjektGrupper": "Vēl nav pievienots neviens projekts. Noklikšķiniet uz \"Pievienot projektu\", lai reģistrētu stundas.",

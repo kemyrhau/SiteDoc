@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Sie können alles bearbeiten, nachdem das Tagesblatt erstellt wurde.",
   "timer.leggTilProsjekt": "+ Projekt hinzufügen",
   "timer.geoForslag": "Empfohlen je nach Standort",
+  "timer.dagSendt": "Der Tag wurde zur Genehmigung gesendet",
+  "timer.aapneDagen": "Eröffne den Tag",
   "timer.ingenGeoForslag": "Keine Projekte in der Nähe",
   "timer.feil.ugyldigInput": "Ungültiger Wert.",
   "timer.detalj.ingenProsjektGrupper": "Noch keine Projekte hinzugefügt. Klicken Sie auf „Projekt hinzufügen“, um Stunden zu registrieren.",

@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Pärast päevalehe loomist saate kõike muuta.",
   "timer.leggTilProsjekt": "+ Lisa projekt",
   "timer.geoForslag": "Soovitatav asukoha põhjal",
+  "timer.dagSendt": "Päev on saadetud kinnitamiseks",
+  "timer.aapneDagen": "Avage päev",
   "timer.ingenGeoForslag": "Lähedal pole projekte",
   "timer.feil.ugyldigInput": "Kehtetu väärtus.",
   "timer.detalj.ingenProsjektGrupper": "Projekte pole veel lisatud. Tundide registreerimiseks klõpsake nuppu \"Lisa projekt\".",

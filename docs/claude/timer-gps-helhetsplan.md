@@ -38,7 +38,7 @@ skaper hullene**, ikke manglende kode.
 ```
 byggeplassKatalog.ts:72-96        byggeplass · egen radius        → A
 useArbeidsdag.ts:71-87            oppmøtested · egen radius       → A
-timer/ny.tsx:131-142              prosjekt · hardkodet 500 m      → C
+timer/ny.tsx:131-142              prosjekt · hardkodet 500 m      → C   (slettet, ORDRE 17 — se H2)
 StartSluttDagKort.tsx:441-451     prosjekt · INGEN grense         → C
 ```
 
@@ -94,7 +94,7 @@ hovedveien resten av tiden** — ikke en reserve. Se premisset under LAG 3.
 | # | Hull | Bevis | Klasse |
 |---|---|---|---|
 | **H1** | **Prosjekt velges uten avstandsgrense**, og faller blindt til `prosjekter[0]` uten koordinater | `StartSluttDagKort.tsx:440-451` | Stille feil |
-| **H2** | **To innganger uenige:** manuell har 500 m-tak, auto har ingen | `timer/ny.tsx:139` vs. over | Inkonsistens |
+| **H2** | ~~**To innganger uenige:** manuell har 500 m-tak, auto har ingen~~ ⚪ **BORTFALT (ORDRE 17, 2026-11-06):** `timer/ny.tsx` er slettet. «+» foreslår prosjekt via byggeplass-geofence (`useGeoProsjektForslag` → `gjenkjennSted`, samme A-klasse som `byggeplassKatalog`), ikke 500 m-taket | ~~`timer/ny.tsx:139`~~ → `apps/mobile/src/hooks/useGeoProsjektForslag.ts` | Inkonsistens — bortfalt |
 | **H3** | **Byggeplass-geofence er valgfri og finnes ikke i opprettelsen** — den settes i en EGEN modal etterpå (Kartverket-adressesøk, Leaflet-kart, breddegrad/lengdegrad, radius-glider **25–500 m** `oppsett/byggeplasser/page.tsx:1407-1409`, «Beregn fra tegning»), eller utledes fra georeferert tegning. *(Rettet etter KS: planen sa først «oppstår bare fra tegning».)* Tre ulike radius-spenn: modal 25–500 m · byggeplass-API 1–100 000 m · oppmøtested 10–5000 m | `validation/index.ts:95-101`, `page.tsx:959-966` (`handleOpprett` sender kun `name`+`projectId`) | Tomt datagrunnlag — **lukkes av V14** |
 | **H4** | **Avstanden som avgjorde lønnsart kastes** | `StartSluttDagKort.tsx:866-888` | Usporbar lønn |
 | **H5** | 🟢 **LEVERT (lag 0a, `ee6093fd` → `89acee95`).** Km skrives i `timer`; taket er nå lønnsart-bevisst i `rad-tak.ts` (`KM_MAKS_PER_DAG = 2000`, `TIMER_MAKS_PER_DAG = 24`), lest av alle fem skrivestier. *(Premisstabellen i planen var feil: `:3528` var `redigerSedelRader` (web firma-admin) som MANGLET taket, `:4670` var `syncBatch` som HADDE det — en 150 km-rad ble altså avvist fra BÅDE web og mobil, og 25 timer slapp gjennom fra firma-admin.)* K4 urørt | `rad-tak.ts:19,29,33`, `timer-km-tak.test.ts` | Funksjonsfeil — lukket |

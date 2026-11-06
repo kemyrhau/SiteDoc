@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Ви можете редагувати все після створення щоденника.",
   "timer.leggTilProsjekt": "+ Додати проект",
   "timer.geoForslag": "Рекомендовано на основі розташування",
+  "timer.dagSendt": "День відправлено на узгодження",
+  "timer.aapneDagen": "Відкрийте день",
   "timer.ingenGeoForslag": "Немає найближчих проектів",
   "timer.feil.ugyldigInput": "Недійсне значення.",
   "timer.detalj.ingenProsjektGrupper": "Ще жодного проекту не додано. Натисніть «Додати проект», щоб зареєструвати години.",

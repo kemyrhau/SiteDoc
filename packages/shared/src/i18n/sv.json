@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Du kan redigera allt efter att det dagliga arket har skapats.",
   "timer.leggTilProsjekt": "+ Lägg till projekt",
   "timer.geoForslag": "Föreslagna baserat på plats",
+  "timer.dagSendt": "Dagen har skickats för godkännande",
+  "timer.aapneDagen": "Öppna dagen",
   "timer.ingenGeoForslag": "Inga närliggande projekt",
   "timer.feil.ugyldigInput": "Ogiltigt värde.",
   "timer.detalj.ingenProsjektGrupper": "Inga projekt har lagts till ännu. Klicka på «Lägg till projekt» för att registrera timmar.",

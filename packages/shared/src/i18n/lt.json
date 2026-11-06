@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Sukūrę dienos lapą galite viską redaguoti.",
   "timer.leggTilProsjekt": "+ Pridėti projektą",
   "timer.geoForslag": "Siūloma pagal vietą",
+  "timer.dagSendt": "Diena išsiųsta patvirtinti",
+  "timer.aapneDagen": "Atidarykite dieną",
   "timer.ingenGeoForslag": "Netoliese nėra projektų",
   "timer.feil.ugyldigInput": "Netinkama vertė.",
   "timer.detalj.ingenProsjektGrupper": "Dar nėra pridėtų projektų. Norėdami užregistruoti valandas, spustelėkite „Pridėti projektą“.",

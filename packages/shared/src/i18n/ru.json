@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Вы можете редактировать все после создания ежедневного листа.",
   "timer.leggTilProsjekt": "+ Добавить проект",
   "timer.geoForslag": "Рекомендуется в зависимости от местоположения",
+  "timer.dagSendt": "День отправлен на согласование",
+  "timer.aapneDagen": "Открыть день",
   "timer.ingenGeoForslag": "Нет близлежащих проектов",
   "timer.feil.ugyldigInput": "Недопустимое значение.",
   "timer.detalj.ingenProsjektGrupper": "Проекты пока не добавлены. Нажмите «Добавить проект», чтобы зарегистрировать часы.",

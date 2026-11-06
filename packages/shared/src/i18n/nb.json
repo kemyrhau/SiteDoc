@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Du kan redigere alt etter at dagsseddelen er opprettet.",
   "timer.leggTilProsjekt": "+ Legg til prosjekt",
   "timer.geoForslag": "Foreslått basert på posisjon",
+  "timer.dagSendt": "Dagen er sendt til attestering",
+  "timer.aapneDagen": "Åpne dagen",
   "timer.ingenGeoForslag": "Ingen prosjekter i nærheten",
   "timer.feil.ugyldigInput": "Ugyldig verdi.",
   "timer.detalj.ingenProsjektGrupper": "Ingen prosjekter lagt til ennå. Klikk «Legg til prosjekt» for å registrere timer.",

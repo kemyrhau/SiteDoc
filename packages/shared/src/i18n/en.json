@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "You can edit everything after the daily sheet is created.",
   "timer.leggTilProsjekt": "+ Add project",
   "timer.geoForslag": "Suggested based on location",
+  "timer.dagSendt": "The day has been sent for approval",
+  "timer.aapneDagen": "Open the day",
   "timer.ingenGeoForslag": "No nearby projects",
   "timer.feil.ugyldigInput": "Invalid value.",
   "timer.detalj.ingenProsjektGrupper": "No projects added yet. Click «Add project» to register hours.",

@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Po vytvoření denního listu můžete vše upravit.",
   "timer.leggTilProsjekt": "+ Přidat projekt",
   "timer.geoForslag": "Doporučeno na základě umístění",
+  "timer.dagSendt": "Den byl odeslán ke schválení",
+  "timer.aapneDagen": "Otevřete den",
   "timer.ingenGeoForslag": "Žádné blízké projekty",
   "timer.feil.ugyldigInput": "Neplatná hodnota.",
   "timer.detalj.ingenProsjektGrupper": "Zatím nebyly přidány žádné projekty. Klikněte na „Přidat projekt“ pro registraci hodin.",

@@ -5,6 +5,7 @@ import {
   Pressable,
   Modal,
   Platform,
+  TextInput,
 } from "react-native";
 import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31: SafeAreaView anvender arkets egen topp-inset (~10 pt), header-kontroller truffbare. fullScreen-feilen gjelder ikke pageSheet.
@@ -33,6 +34,8 @@ interface ArbeidstidSeksjonProps {
   startAt: string | null;
   endAt: string | null;
   pauseMin: number;
+  /** ORDRE 17: sedelens kommentar — redigeres i rammen («+ Ny»-skjemaet er borte). */
+  beskrivelse: string | null;
   /** V20/PK7: radene «Arbeidstid i dag» utledes av når det finnes rader med tid. */
   timerRader: ArbeidstidRad[];
   redigerbar: boolean;
@@ -45,6 +48,7 @@ export function ArbeidstidSeksjon({
   startAt,
   endAt,
   pauseMin,
+  beskrivelse,
   timerRader,
   redigerbar,
   onEndret,
@@ -103,6 +107,7 @@ export function ArbeidstidSeksjon({
           dato={dato}
           startAt={startAt}
           endAt={endAt}
+          beskrivelse={beskrivelse}
           onLukk={() => setVisModal(false)}
           onLagret={() => {
             setVisModal(false);
@@ -136,6 +141,7 @@ export function RedigerArbeidstidModal({
   dato,
   startAt,
   endAt,
+  beskrivelse,
   onLukk,
   onLagret,
 }: {
@@ -143,6 +149,7 @@ export function RedigerArbeidstidModal({
   dato: string;
   startAt: string | null;
   endAt: string | null;
+  beskrivelse: string | null;
   onLukk: () => void;
   onLagret: () => void;
 }) {
@@ -153,6 +160,7 @@ export function RedigerArbeidstidModal({
   const [endDato, setEndDato] = useState<Date | null>(endAt ? new Date(endAt) : null);
   const [visStartPicker, setVisStartPicker] = useState(false);
   const [visEndPicker, setVisEndPicker] = useState(false);
+  const [nyBeskrivelse, setNyBeskrivelse] = useState(beskrivelse ?? "");
   const [feil, setFeil] = useState<string | null>(null);
 
   function settTid(grunnDato: string, tidspunkt: Date | null): string | null {
@@ -193,6 +201,7 @@ export function RedigerArbeidstidModal({
         // Slice 4b-2: manuell redigering av slutt-tid → bruker-bekreftet tid,
         // nullstiller evt. "system"/"midnatt" (fjerner kontroll-badge).
         sluttTidKilde: "bruker",
+        beskrivelse: nyBeskrivelse.trim() || null,
         syncStatus: "pending",
         sistEndretLokalt: Date.now(),
       })
@@ -276,6 +285,21 @@ export function RedigerArbeidstidModal({
           {/* V20/PK7: pausefeltet er fjernet — matpausen eies av radene
               (avkrysningen), hodet utledes server-side (Σ rad). Start/slutt
               beholdes som ramme for stempling/glemt-dag. */}
+
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.beskrivelse")}
+            </Text>
+            <TextInput
+              value={nyBeskrivelse}
+              onChangeText={setNyBeskrivelse}
+              placeholder={t("timer.beskrivelsePlaceholder")}
+              multiline
+              numberOfLines={3}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900"
+              style={{ textAlignVertical: "top", minHeight: 80 }}
+            />
+          </View>
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 

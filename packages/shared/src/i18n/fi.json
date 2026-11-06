@@ -421,6 +421,8 @@
   "timer.nyHjelpetekst": "Voit muokata kaikkea päivälehden luomisen jälkeen.",
   "timer.leggTilProsjekt": "+ Lisää projekti",
   "timer.geoForslag": "Suositeltu sijainnin perusteella",
+  "timer.dagSendt": "Päivä on lähetetty hyväksyttäväksi",
+  "timer.aapneDagen": "Avaa päivä",
   "timer.ingenGeoForslag": "Ei lähiprojekteja",
   "timer.feil.ugyldigInput": "Virheellinen arvo.",
   "timer.detalj.ingenProsjektGrupper": "Projekteja ei ole vielä lisätty. Napsauta \"Lisää projekti\" rekisteröidäksesi tunnit.",

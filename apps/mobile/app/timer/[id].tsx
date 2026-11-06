@@ -1299,6 +1299,7 @@ export default function DagsseddelDetalj() {
           startAt={sedel.startAt}
           endAt={sedel.endAt}
           pauseMin={sedel.pauseMin}
+          beskrivelse={sedel.beskrivelse ?? null}
           timerRader={timerRader}
           redigerbar={erRedigerbar}
           onEndret={markerEndretOgLes}
@@ -1451,6 +1452,7 @@ export default function DagsseddelDetalj() {
           dato={sedel.dato}
           startAt={sedel.startAt}
           endAt={sedel.endAt}
+          beskrivelse={sedel.beskrivelse ?? null}
           onLukk={() => setVisRammeModal(false)}
           onLagret={() => {
             setVisRammeModal(false);
