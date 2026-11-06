@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Vareforbruk",
   "timer.prosjektkort.vareLagre": "Før på kortet",
   "timer.prosjektkort.nyttKort": "+ Nytt prosjektkort",
+  "timer.prosjektkort.ingenKort": "Ingen prosjektkort ennå. Velg «Nytt prosjektkort» for å registrere timer.",
   "timer.prosjektkort.ramme": "Dagens ramme · {{fra}}–{{til}} · pause {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(bæres av {{kort}})",
   "timer.prosjektkort.sumIDag": "Sum i dag {{registrert}} t av {{total}} t",

@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Materjalikulu",
   "timer.prosjektkort.vareLagre": "Salvesta kaardile",
   "timer.prosjektkort.nyttKort": "+ Uus projektikaart",
+  "timer.prosjektkort.ingenKort": "Projektikaarte veel pole. Tundide registreerimiseks valige \"Uus projektikaart\".",
   "timer.prosjektkort.ramme": "Tänane kaader · {{fra}}–{{til}} · paus {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(vedaja: {{kort}})",
   "timer.prosjektkort.sumIDag": "Täna kokku {{registrert}} h / {{total}} h",

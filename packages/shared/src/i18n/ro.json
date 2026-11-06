@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Consum de material",
   "timer.prosjektkort.vareLagre": "Înregistrează pe card",
   "timer.prosjektkort.nyttKort": "+ Nou card de proiect",
+  "timer.prosjektkort.ingenKort": "Încă nu există carduri de proiect. Alegeți „Card de proiect nou” pentru a înregistra orele.",
   "timer.prosjektkort.ramme": "Cadrul de azi · {{fra}}–{{til}} · pauză {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(transportat de {{kort}})",
   "timer.prosjektkort.sumIDag": "Total astăzi {{registrert}} ore din {{total}} ore",

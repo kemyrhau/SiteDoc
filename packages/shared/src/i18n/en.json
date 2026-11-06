@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Material consumption",
   "timer.prosjektkort.vareLagre": "Record on card",
   "timer.prosjektkort.nyttKort": "+ New project card",
+  "timer.prosjektkort.ingenKort": "No project cards yet. Choose «New project card» to register hours.",
   "timer.prosjektkort.ramme": "Today's frame · {{fra}}–{{til}} · break {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(carried by {{kort}})",
   "timer.prosjektkort.sumIDag": "Total today {{registrert}} h of {{total}} h",

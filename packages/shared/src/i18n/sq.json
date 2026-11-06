@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Konsumi i materialit",
   "timer.prosjektkort.vareLagre": "Regjistro në kartë",
   "timer.prosjektkort.nyttKort": "+ Kartë e re e projektit",
+  "timer.prosjektkort.ingenKort": "Nuk ka ende karta projekti. Zgjidhni \"Kartën e re të projektit\" për të regjistruar orët.",
   "timer.prosjektkort.ramme": "Korniza e sotme · {{fra}}–{{til}} · pushim {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(e bartur nga {{kort}})",
   "timer.prosjektkort.sumIDag": "Gjithsej sot {{registrert}} orë nga {{total}} orë",

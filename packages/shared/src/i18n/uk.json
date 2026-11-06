@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Матеріаломісткість",
   "timer.prosjektkort.vareLagre": "Запис на картку",
   "timer.prosjektkort.nyttKort": "+ Нова картка проекту",
+  "timer.prosjektkort.ingenKort": "Карток проектів ще немає. Для реєстрації годин виберіть «Нова картка проекту».",
   "timer.prosjektkort.ramme": "Сьогоднішній кадр · {{fra}}–{{til}} · перерва {{pause}} хв",
   "timer.prosjektkort.pauseBaeres": "(з {{kort}})",
   "timer.prosjektkort.sumIDag": "Усього сьогодні {{registrert}} год з {{total}} год",

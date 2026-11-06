@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Spotřeba materiálu",
   "timer.prosjektkort.vareLagre": "Záznam na kartu",
   "timer.prosjektkort.nyttKort": "+ Nová karta projektu",
+  "timer.prosjektkort.ingenKort": "Zatím žádné karty projektu. Zvolte „Nová karta projektu“ pro registraci hodin.",
   "timer.prosjektkort.ramme": "Dnešní snímek · {{fra}}–{{til}} · přestávka {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(přenáší {{kort}})",
   "timer.prosjektkort.sumIDag": "Celkem dnes {{registrert}} h z {{total}} h",

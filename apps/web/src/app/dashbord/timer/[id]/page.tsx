@@ -1391,7 +1391,7 @@ function ProsjektkortSamleside({
 
       {prosjektIder.length === 0 && (
         <div className="mb-3 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
-          {t("timer.detalj.ingenProsjektGrupper")}
+          {t("timer.prosjektkort.ingenKort")}
         </div>
       )}
 

@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Zużycie materiału",
   "timer.prosjektkort.vareLagre": "Zapis na karcie",
   "timer.prosjektkort.nyttKort": "+ Nowa karta projektu",
+  "timer.prosjektkort.ingenKort": "Nie ma jeszcze kart projektów. Wybierz «Nowa karta projektu», aby zarejestrować godziny.",
   "timer.prosjektkort.ramme": "Dzisiejszy kadr · {{fra}}–{{til}} · przerwa {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(prowadzony przez {{kort}})",
   "timer.prosjektkort.sumIDag": "Razem dzisiaj {{registrert}} godz. z {{total}} godz",

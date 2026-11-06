@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Materiālu patēriņš",
   "timer.prosjektkort.vareLagre": "Ierakstiet kartē",
   "timer.prosjektkort.nyttKort": "+ Jauna projekta karte",
+  "timer.prosjektkort.ingenKort": "Vēl nav projektu karšu. Izvēlieties \"Jauna projekta karte\", lai reģistrētu stundas.",
   "timer.prosjektkort.ramme": "Šodienas kadrs · {{fra}}–{{til}} · pārtraukums {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(pārvadāja {{kort}})",
   "timer.prosjektkort.sumIDag": "Kopā šodien {{registrert}} h no {{total}} h",

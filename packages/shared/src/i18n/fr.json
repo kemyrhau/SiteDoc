@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Consommation de matière",
   "timer.prosjektkort.vareLagre": "Enregistrer sur carte",
   "timer.prosjektkort.nyttKort": "+ Nouvelle fiche de projet",
+  "timer.prosjektkort.ingenKort": "Aucune fiche de projet pour l'instant. Choisissez «Nouvelle fiche projet» pour enregistrer les heures.",
   "timer.prosjektkort.ramme": "Cadre du jour · {{fra}}–{{til}} · pause {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(porté par {{kort}})",
   "timer.prosjektkort.sumIDag": "Total aujourd'hui {{registrert}} h sur {{total}} h",

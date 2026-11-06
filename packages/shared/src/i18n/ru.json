@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Расход материала",
   "timer.prosjektkort.vareLagre": "Запись на карту",
   "timer.prosjektkort.nyttKort": "+ Новая карточка проекта",
+  "timer.prosjektkort.ingenKort": "Карточек проектов пока нет. Для регистрации часов выберите «Новая карточка проекта».",
   "timer.prosjektkort.ramme": "Кадр сегодняшнего дня · {{fra}}–{{til}} · перерыв {{pause}} мин.",
   "timer.prosjektkort.pauseBaeres": "(носит {{kort}})",
   "timer.prosjektkort.sumIDag": "Всего сегодня {{registrert}} ч из {{total}} ч.",

@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Materiaalin kulutus",
   "timer.prosjektkort.vareLagre": "Tallenna kortille",
   "timer.prosjektkort.nyttKort": "+ Uusi projektikortti",
+  "timer.prosjektkort.ingenKort": "Ei vielä projektikortteja. Valitse \"Uusi projektikortti\" rekisteröidäksesi tunnit.",
   "timer.prosjektkort.ramme": "Tämän päivän kehys · {{fra}}–{{til}} · tauko {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(kuljettaja {{kort}})",
   "timer.prosjektkort.sumIDag": "Yhteensä tänään {{registrert}} h / {{total}} h",

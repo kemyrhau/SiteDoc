@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Materialförbrukning",
   "timer.prosjektkort.vareLagre": "Anteckna på kortet",
   "timer.prosjektkort.nyttKort": "+ Nytt projektkort",
+  "timer.prosjektkort.ingenKort": "Inga projektkort ännu. Välj «Nytt projektkort» för att registrera timmar.",
   "timer.prosjektkort.ramme": "Dagens ram · {{fra}}–{{til}} · paus {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(buren av {{kort}})",
   "timer.prosjektkort.sumIDag": "Totalt idag {{registrert}} tim av {{total}} tim",

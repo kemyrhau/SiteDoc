@@ -83,7 +83,7 @@ export function ProsjektkortSamleside({
       {prosjektIder.length === 0 && (
         <View className="rounded-lg border border-dashed border-gray-300 bg-white p-5">
           <Text className="text-center text-sm text-gray-500">
-            {t("timer.detalj.ingenProsjektGrupper")}
+            {t("timer.prosjektkort.ingenKort")}
           </Text>
         </View>
       )}

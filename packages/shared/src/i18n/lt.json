@@ -362,6 +362,7 @@
   "timer.prosjektkort.nyVare": "+ Medžiagų suvartojimas",
   "timer.prosjektkort.vareLagre": "Įrašyti į kortelę",
   "timer.prosjektkort.nyttKort": "+ Nauja projekto kortelė",
+  "timer.prosjektkort.ingenKort": "Dar nėra projekto kortelių. Norėdami užregistruoti valandas, pasirinkite „Nauja projekto kortelė“.",
   "timer.prosjektkort.ramme": "Šiandienos kadras · {{fra}}–{{til}} · pertrauka {{pause}} min",
   "timer.prosjektkort.pauseBaeres": "(vežė {{kort}})",
   "timer.prosjektkort.sumIDag": "Iš viso šiandien {{registrert}} val. iš {{total}} val",

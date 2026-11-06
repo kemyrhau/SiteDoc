@@ -1600,6 +1600,7 @@ function TimerRadModal({
               prosjektNavn={valgtProsjekt?.name ?? null}
               prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektByggeplassVelger(true)}
+              laast={kortVisning.prosjektLaast}
             />
             <Pressable
               onPress={() => setVisProsjektByggeplassVelger(true)}
