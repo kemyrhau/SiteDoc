@@ -8,6 +8,7 @@ import {
   aktivtMedlemWhere,
   verifiserOrganisasjonTilgang,
 } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import {
   krevVarelagerAktivert,
   erVarelagerAktivert,
@@ -358,6 +359,10 @@ export const vareforbrukRouter = router({
       if (eksisterende) return eksisterende;
 
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen (hoved-DB) MÅ tilhøre prosjektet.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
+      }
       const organizationId = await krevVarelagerForProsjekt(input.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, input.projectId);
 
@@ -471,6 +476,10 @@ export const vareforbrukRouter = router({
       }
 
       await verifiserProsjektmedlem(ctx.userId, rad.projectId);
+      // ORDRE 29 #14: ny byggeplass MÅ tilhøre radens prosjekt. `null` = fjern, ingen sjekk.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, rad.projectId);
+      }
       const organizationId = await krevVarelagerForProsjekt(rad.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, rad.projectId);
 

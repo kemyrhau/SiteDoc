@@ -38,7 +38,11 @@ import {
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { IKKE_SLETTET } from "../utils/softDelete";
-import { verifiserTegningIProsjekt, verifiserByggeplassIProsjekt } from "../services/tegningVakt";
+import {
+  verifiserTegningIProsjekt,
+  verifiserByggeplassIProsjekt,
+  verifiserOmradeIProsjekt,
+} from "../services/tegningVakt";
 import {
   velgTaskByggeplass,
   hentTegningensByggeplassId,
@@ -644,6 +648,10 @@ export const oppgaveRouter = router({
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, mal.projectId);
       }
+      // ORDRE 29 #13: samme vakt for område — kun prosjekt (byggeplassen kan følge tegningen).
+      if (input.omradeId) {
+        await verifiserOmradeIProsjekt(ctx.prisma, input.omradeId, mal.projectId);
+      }
       const byggeplassId = velgTaskByggeplass({
         tegningensByggeplassId: await hentTegningensByggeplassId(ctx.prisma, input.drawingId),
         oensket: input.byggeplassId,
@@ -848,6 +856,9 @@ export const oppgaveRouter = router({
       }
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, hentProjectId(oppgave));
+      }
+      if (input.omradeId) {
+        await verifiserOmradeIProsjekt(ctx.prisma, input.omradeId, hentProjectId(oppgave));
       }
 
       // ORDRE 28: byggeplass følger tegningen. Effektiv tegning = ny når den røres, ellers dagens.

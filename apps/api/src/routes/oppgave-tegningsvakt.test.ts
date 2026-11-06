@@ -194,3 +194,48 @@ describe("oppgave.hentForTegning — medlemskap via drawing.projectId (ORDRE 21)
     expect(findMany).not.toHaveBeenCalled();
   });
 });
+
+// ── ORDRE 29 #13: område-vakt ─────────────────────────────────────────────────
+
+const OMRADE = "55555555-5555-5555-5555-555555555555";
+const OMRADE_AVVIST = { code: "BAD_REQUEST", message: "Området hører til et annet prosjekt." };
+
+describe("oppgave — område-vakt (ORDRE 29 #13)", () => {
+  function medOmrade(omradeProsjekt: string) {
+    const base = lagCtx(null);
+    base.ctx.prisma.omrade = {
+      findUnique: vi.fn().mockResolvedValue({ projectId: omradeProsjekt, byggeplassId: "bp-1" }),
+    };
+    return base;
+  }
+
+  it("opprett: område i eget prosjekt → når skriving", async () => {
+    const { ctx, transaction } = medOmrade(PROSJEKT);
+    await expect(
+      oppgaveRouter.createCaller(ctx).opprett({ title: "T", templateId: MAL, omradeId: OMRADE }),
+    ).rejects.toMatchObject({ message: "NÅDDE_SKRIVING" });
+    expect(transaction).toHaveBeenCalled();
+  });
+
+  it("opprett: område i fremmed prosjekt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, transaction } = medOmrade(FREMMED);
+    await expect(
+      oppgaveRouter.createCaller(ctx).opprett({ title: "T", templateId: MAL, omradeId: OMRADE }),
+    ).rejects.toMatchObject(OMRADE_AVVIST);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("oppdater: område i eget prosjekt → lagres", async () => {
+    const { ctx, taskUpdate } = medOmrade(PROSJEKT);
+    await oppgaveRouter.createCaller(ctx).oppdater({ id: OPPGAVE, omradeId: OMRADE });
+    expect(taskUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("oppdater: område i fremmed prosjekt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, taskUpdate } = medOmrade(FREMMED);
+    await expect(
+      oppgaveRouter.createCaller(ctx).oppdater({ id: OPPGAVE, omradeId: OMRADE }),
+    ).rejects.toMatchObject(OMRADE_AVVIST);
+    expect(taskUpdate).not.toHaveBeenCalled();
+  });
+});

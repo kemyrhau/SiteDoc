@@ -47,3 +47,59 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
     omradeId: d?.omradeId ?? null,
   };
 }
+
+/**
+ * ORDRE 29 #1: områdelista i lokasjonsvelgeren viser bare områdene på valgt byggeplass. Uten
+ * valgt byggeplass («Alle») vises alle. Hvert område hører til nøyaktig én byggeplass (påkrevd i
+ * skjemaet), så et område fra en annen byggeplass kan ikke velges inn på dokumentet.
+ */
+export function filtrerOmrader<T extends { byggeplassId: string }>(
+  omrader: readonly T[],
+  byggeplassId: string | null | undefined,
+): T[] {
+  return byggeplassId ? omrader.filter((o) => o.byggeplassId === byggeplassId) : [...omrader];
+}
+
+/**
+ * ORDRE 29 #1/#5: byggeplassen et lokasjonsvalg uten tegning (hele byggeplassen, fritekst) skal
+ * bære. Rekkefølge: byggeplassen valgt i velgeren → dokumentets egen → toppbarens aktive. Returnerer
+ * `undefined` (ikke null) når ingen finnes, så serveren lar dokumentets byggeplass stå urørt — et
+ * lokasjonsvalg tømmer aldri byggeplassen.
+ */
+export function byggeplassForLokasjon(kilder: {
+  valgt?: string | null;
+  dokument?: string | null;
+  aktiv?: string | null;
+}): string | undefined {
+  return kilder.valgt || kilder.dokument || kilder.aktiv || undefined;
+}
+
+/**
+ * ORDRE 29 #6: bytte av byggeplass via sjekkliste-chipen. Tegningen fjernes alltid (den hører til
+ * den gamle byggeplassen). Et område hører også til den gamle byggeplassen, så omfang «omrade»
+ * nullstilles sammen med `omradeId` — ellers ville serveren avvise omfang «omrade» uten område.
+ * Omfang «punkt» mister tegningen og nullstilles, og pinnen tømmes (en pin uten tegning er
+ * meningsløs). «Hele byggeplassen» (+ fritekst) gjelder like godt den nye byggeplassen og beholdes.
+ */
+export function byggeplassByttInput(
+  naavaerendeOmfang: "punkt" | "byggeplass" | "omrade" | null | undefined,
+  nyByggeplassId: string | null,
+): {
+  byggeplassId: string | null;
+  drawingId: null;
+  positionX: null;
+  positionY: null;
+  omradeId: null;
+  lokasjonOmfang?: null;
+} {
+  const base = {
+    byggeplassId: nyByggeplassId,
+    drawingId: null,
+    positionX: null,
+    positionY: null,
+    omradeId: null,
+  } as const;
+  return naavaerendeOmfang === "omrade" || naavaerendeOmfang === "punkt"
+    ? { ...base, lokasjonOmfang: null }
+    : { ...base };
+}
