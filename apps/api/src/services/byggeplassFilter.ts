@@ -10,11 +10,12 @@ import type { Prisma } from "@sitedoc/db";
  * ELLER byggeplass-løst.
  *
  * To former, fordi datamodellen er asymmetrisk:
- * - Form A (`byggeplassFilterViaTegning`): `Task` har INGEN egen `byggeplassId`;
- *   tilhørighet finnes kun via tegningen (`drawing.byggeplassId`). Derfor TRE ledd:
- *   (1) oppgave på valgt byggeplass' tegning, (2) oppgave på en PROSJEKT-tegning
- *   (`drawing.byggeplassId = null`), (3) oppgave uten tegning (`drawingId = null`).
- *   Ledd (2) er det som glapp i ni håndspeilede kopier og skjulte oppgaver på
+ * - Form A (`byggeplassFilterViaTegning`): `Task` har egen `byggeplassId` fra ORDRE 28
+ *   (2026-11-06); før fantes tilhørighet kun via tegningen. Egen verdi FØRST, tegningen
+ *   som reserve for rader uten egen (ikke backfillet / opprettet av eldre klient). FIRE ledd:
+ *   (1) egen byggeplass = valgt; ellers, når egen er null: (2) på valgt byggeplass' tegning,
+ *   (3) på en PROSJEKT-tegning (`drawing.byggeplassId = null`), (4) uten tegning.
+ *   Ledd (3) er det som glapp i ni håndspeilede kopier og skjulte oppgaver på
  *   prosjekt-tegninger — nettopp tilstanden det myke tegningsfilteret skal bevare.
  * - Form B (`byggeplassFilterDirekte`): `Checklist`/`Drawing` har `byggeplassId`
  *   selv. TO ledd: valgt byggeplass ELLER byggeplass-løs.
@@ -39,7 +40,7 @@ function tilMatch(id: string | string[]): ByggeplassIdMatch {
   return Array.isArray(id) ? { in: id } : id;
 }
 
-/** Form A — byggeplass via tegning (Task). Tre ledd. `null` når id er tom. */
+/** Form A — egen byggeplass, ellers via tegning (Task). Fire ledd. `null` når id er tom. */
 export function byggeplassFilterViaTegning(
   byggeplassId: string | string[] | null | undefined,
 ): Prisma.TaskWhereInput | null {
@@ -47,9 +48,10 @@ export function byggeplassFilterViaTegning(
   const match = tilMatch(byggeplassId!);
   return {
     OR: [
-      { drawing: { byggeplassId: match } },
-      { drawing: { byggeplassId: null } },
-      { drawingId: null },
+      { byggeplassId: match },
+      { byggeplassId: null, drawing: { byggeplassId: match } },
+      { byggeplassId: null, drawing: { byggeplassId: null } },
+      { byggeplassId: null, drawingId: null },
     ],
   };
 }

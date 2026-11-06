@@ -392,6 +392,24 @@ export function OpprettDokumentModal({
 
   const erPending = opprettSjekkliste.isPending || opprettOppgave.isPending;
 
+  // Lean mutate-signatur (TS2589, docs/claude/api.md § TS/tRPC-fallgruver): med
+  // byggeplassId i oppgave.opprett-inputen (ORDRE 28) tåler ikke useCallback-deps
+  // den dype tRPC-typen — `as unknown as` FØR bruk i håndterOpprett.
+  const opprettOppgaveMutate = opprettOppgave.mutate as unknown as (inn: {
+    templateId: string;
+    bestillerFaggruppeId: string;
+    utforerFaggruppeId: string;
+    dokumentflytId: string;
+    title: string;
+    priority: string;
+    checklistId?: string;
+    checklistFieldId?: string;
+    byggeplassId?: string;
+    drawingId?: string;
+    positionX?: number;
+    positionY?: number;
+  }) => void;
+
   const nullstillSkjema = useCallback(() => {
     setEmne("");
     setTittel("");
@@ -470,7 +488,7 @@ export function OpprettDokumentModal({
         ? `Oppgave fra ${sjekklisteNummer}: ${feltLabel}`
         : (tittel.trim() || mal.name);
 
-      opprettOppgave.mutate({
+      opprettOppgaveMutate({
         templateId: mal.id,
         bestillerFaggruppeId: oppretterFaggruppeId,
         utforerFaggruppeId: autoSvarerFaggruppeId,
@@ -479,6 +497,9 @@ export function OpprettDokumentModal({
         priority: prioritet,
         checklistId: sjekklisteId || undefined,
         checklistFieldId: sjekklisteFeltId || undefined,
+        // ORDRE 28: valgt byggeplass følger oppgaven (tegningens vinner på serveren;
+        // uten valg arver serveren sjekklistens byggeplass).
+        byggeplassId: valgtBygningId ?? undefined,
         drawingId: valgtTegningId ?? undefined,
         positionX: posisjon?.x,
         positionY: posisjon?.y,
@@ -498,7 +519,7 @@ export function OpprettDokumentModal({
     settSistTegning,
     prioritet,
     opprettSjekkliste,
-    opprettOppgave,
+    opprettOppgaveMutate,
     erFraSjekkliste,
     sjekklisteId,
     sjekklisteFeltId,

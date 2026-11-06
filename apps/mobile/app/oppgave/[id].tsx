@@ -54,7 +54,7 @@ import type { LokasjonTegning } from "../../src/components/LokasjonSeksjon";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useDuErHer } from "../../src/hooks/useDuErHer";
-import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
+import { byttTegningInput, tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -1485,7 +1485,9 @@ export default function OppgaveDetalj() {
         </ModalFlate>
       </Modal>
 
-      {/* Tegningsvelger (ORDRE 19): oppgave uten lokasjon — valg lagrer tegningen. */}
+      {/* Tegningsvelger (ORDRE 19): oppgave uten lokasjon — valg lagrer tegningen. Åpnes også
+          fra «Bytt tegning» i tegningsmodalen (ORDRE 28): punktet nullstilles og byggeplassen
+          følger den nye tegningen på serveren. */}
       <Modal visible={visTegningVelger} animationType="slide" onRequestClose={() => settVisTegningVelger(false)}>
         <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
@@ -1500,7 +1502,7 @@ export default function OppgaveDetalj() {
             bygninger={bygninger}
             valgtTegningId={null}
             onVelg={(valgt) => {
-              oppdaterMutasjon.mutate({ id: id!, drawingId: valgt.id });
+              oppdaterMutasjon.mutate(byttTegningInput(id!, valgt.id));
               const byggeplassId = valgt.byggeplassId ?? valgt.byggeplass?.id ?? null;
               if (byggeplassId) settSistTegning(byggeplassId, valgt.id);
               settVisTegningVelger(false);
@@ -1546,7 +1548,20 @@ export default function OppgaveDetalj() {
                   gpsMarkør={duErHer}
                 />
                 {bunnfelt.visning === "lagre" ? (
-                  <View className="flex-row items-center justify-end gap-3 border-t border-gray-200 bg-white px-5 py-4">
+                  <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
+                    {/* Bytt tegning (ORDRE 28) — samme plass som i sjekklisten. Tegningsmodalen
+                        lukkes før velgeren åpnes (to Modaler oppå hverandre fryser iOS). */}
+                    <Pressable
+                      hitSlop={12}
+                      onPress={() => {
+                        settVisTegningModal(false);
+                        settVisTegningVelger(true);
+                      }}
+                      className="rounded-lg px-3 py-2"
+                    >
+                      <Text className="text-sm font-medium text-blue-600">{t("felt.byttTegning")}</Text>
+                    </Pressable>
+                    <View className="flex-row items-center gap-3">
                     {bunnfelt.brukMinPosisjon && duErHer && (
                       <Pressable
                         hitSlop={8}
@@ -1574,6 +1589,7 @@ export default function OppgaveDetalj() {
                     >
                       <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
                     </Pressable>
+                    </View>
                   </View>
                 ) : (
                   <View className="border-t border-gray-200 bg-white px-5 py-4">

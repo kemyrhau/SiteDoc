@@ -119,7 +119,7 @@ export default function FirmaHmsSide() {
     const map: Record<string, number> = {};
     for (const t of dokumenter.avvik as DokumentRad[]) {
       if (LUKKET.has(t.status)) continue;
-      const bid = t.drawing?.byggeplass?.id;
+      const bid = t.byggeplass?.id ?? t.drawing?.byggeplass?.id;
       if (!bid) continue;
       map[bid] = (map[bid] ?? 0) + 1;
     }

@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Auto: Pozicioni GPS",
   "lokasjonVelger.forslagSistBrukt": "Përdorur për herë të fundit",
   "lokasjonVelger.kart": "Harta",
-  "lokasjonVelger.ingenTegningEllerKart": "Projekti nuk ka vizatim apo hartë për të vendosur një pozicion."
+  "lokasjonVelger.ingenTegningEllerKart": "Projekti nuk ka vizatim apo hartë për të vendosur një pozicion.",
+  "lokasjonVelger.ingenTegningValgt": "Asnjë vizatim i zgjedhur. Zgjidhni një vizatim ose hartë për të shënuar një pozicion."
 }

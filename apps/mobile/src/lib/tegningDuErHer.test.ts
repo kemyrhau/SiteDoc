@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { duErHerPosisjon, tegningBunnfelt } from "./tegningDuErHer";
+import { byttTegningInput, duErHerPosisjon, tegningBunnfelt } from "./tegningDuErHer";
 
 // Tegning der nedre venstre hjørne = (59.0, 10.0) og øvre høyre = (59.1, 10.1)
 const geo = {
@@ -68,5 +68,13 @@ describe("tegningBunnfelt — «Bruk min posisjon» (ORDRE 24)", () => {
   });
   it("posisjon null (ingen GPS/utenfor/uten georeferanse) → skjult", () => {
     expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: false, duErHer: null }).brukMinPosisjon).toBe(false);
+  });
+});
+
+describe("byttTegningInput — Bytt tegning i oppgave (ORDRE 28)", () => {
+  it("🔴 nullstiller punktet og sender ny tegning, men aldri byggeplass (serveren lar den følge tegningen)", () => {
+    const inn = byttTegningInput("oppg-1", "tegn-2");
+    expect(inn).toEqual({ id: "oppg-1", drawingId: "tegn-2", positionX: null, positionY: null });
+    expect("byggeplassId" in inn).toBe(false);
   });
 });

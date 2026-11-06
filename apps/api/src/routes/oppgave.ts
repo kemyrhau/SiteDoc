@@ -38,7 +38,12 @@ import {
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { IKKE_SLETTET } from "../utils/softDelete";
-import { verifiserTegningIProsjekt } from "../services/tegningVakt";
+import { verifiserTegningIProsjekt, verifiserByggeplassIProsjekt } from "../services/tegningVakt";
+import {
+  velgTaskByggeplass,
+  hentTegningensByggeplassId,
+  hentArvetSjekklisteByggeplassId,
+} from "../services/taskByggeplass";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 
 /**
@@ -180,6 +185,8 @@ async function lesOppgaveMedId(
           byggeplass: { select: { id: true, name: true } },
         },
       },
+      // ORDRE 28: oppgavens egen byggeplass (følger dokumentet); tegningens er reserve.
+      byggeplass: { select: { id: true, name: true } },
       // Steg 2b (2026-09-23): områdenavn+type for lokasjonsvisning når lokasjonOmfang="omrade".
       // Additiv lese-utvidelse — omradeId (skalar) fulgte alt med; navnet krevde relasjonen.
       omrade: { select: { id: true, navn: true, type: true } },
@@ -280,6 +287,8 @@ export const oppgaveRouter = router({
           bestillerFaggruppe: true,
           utforerFaggruppe: true,
           drawing: { select: { id: true, name: true, floor: true, byggeplass: { select: { id: true, name: true } } } },
+          // ORDRE 28: egen byggeplass først i lista, tegningens som reserve.
+          byggeplass: { select: { id: true, name: true } },
           // B-1 (metadata-spec): område for kolonne/filter i listene (web + mobil).
           omrade: { select: { id: true, navn: true, type: true } },
           recipientUser: { select: { id: true, name: true } },
@@ -491,6 +500,9 @@ export const oppgaveRouter = router({
         dueDate: z.string().datetime().optional(),
         templateId: z.string().uuid(),
         drawingId: z.string().uuid().optional(),
+        // ORDRE 28: aktiv byggeplass fra klienten (web toppbar / mobil global kontekst).
+        // Tegningens byggeplass vinner når tegning er satt (velgTaskByggeplass).
+        byggeplassId: z.string().uuid().optional(),
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
         // Lokasjonsomfang (2026-09-04): "byggeplass" = hele byggeplassen · "punkt" = pin ·
@@ -628,6 +640,15 @@ export const oppgaveRouter = router({
       if (input.drawingId) {
         await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, mal.projectId);
       }
+      // ORDRE 28: samme vakt for byggeplass — en fremmed prosjekts byggeplass avvises.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, mal.projectId);
+      }
+      const byggeplassId = velgTaskByggeplass({
+        tegningensByggeplassId: await hentTegningensByggeplassId(ctx.prisma, input.drawingId),
+        oensket: input.byggeplassId,
+        arvet: await hentArvetSjekklisteByggeplassId(ctx.prisma, input.checklistId, mal.projectId),
+      });
 
       // Gratis-grense (10 oppgaver per prosjekt) — interim-vedtak 2026-07-26:
       // gjelder KUN standalone-prosjekter (prøve); firma-tilknyttede er grenseløse,
@@ -714,6 +735,7 @@ export const oppgaveRouter = router({
             number: nummer,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             drawingId: input.drawingId,
+            byggeplassId,
             positionX: input.positionX,
             positionY: input.positionY,
             lokasjonOmfang: input.lokasjonOmfang,
@@ -762,6 +784,8 @@ export const oppgaveRouter = router({
         bestillerFaggruppeId: z.string().uuid().optional(),
         utforerFaggruppeId: z.string().uuid().optional(),
         drawingId: z.string().uuid().nullable().optional(),
+        // ORDRE 28: null = «hele prosjektet». Tegningens byggeplass vinner (velgTaskByggeplass).
+        byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
         lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
@@ -776,6 +800,7 @@ export const oppgaveRouter = router({
         include: {
           bestillerFaggruppe: { select: { projectId: true } },
           template: { select: { domain: true, projectId: true } },
+          drawing: { select: { byggeplassId: true } },
         },
       });
       await verifiserDokumentTilgang(
@@ -821,11 +846,31 @@ export const oppgaveRouter = router({
       if (input.drawingId) {
         await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, hentProjectId(oppgave));
       }
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, hentProjectId(oppgave));
+      }
+
+      // ORDRE 28: byggeplass følger tegningen. Effektiv tegning = ny når den røres, ellers dagens.
+      // Skrives kun når verdien faktisk endres (ingen støy på rene tittel-/frist-endringer).
+      const tegningByttes = input.drawingId !== undefined && input.drawingId !== oppgave.drawingId;
+      const nyByggeplassId = velgTaskByggeplass({
+        tegningensByggeplassId:
+          input.drawingId !== undefined
+            ? await hentTegningensByggeplassId(ctx.prisma, input.drawingId)
+            : (oppgave.drawing?.byggeplassId ?? null),
+        oensket: input.byggeplassId,
+        naavaerende: oppgave.byggeplassId,
+      });
 
       return ctx.prisma.task.update({
         where: { id },
         data: {
           ...data,
+          byggeplassId: nyByggeplassId !== oppgave.byggeplassId ? nyByggeplassId : undefined,
+          // Bytte av tegning: gammel pin gir ingen mening på ny tegning. Nullstill med mindre
+          // klienten sender ny posisjon i samme kall.
+          ...(tegningByttes && input.positionX === undefined ? { positionX: null } : {}),
+          ...(tegningByttes && input.positionY === undefined ? { positionY: null } : {}),
           dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
         },
       });

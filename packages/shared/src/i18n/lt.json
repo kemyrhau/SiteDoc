@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Automatinis: GPS padėtis",
   "lokasjonVelger.forslagSistBrukt": "Paskutinis naudotas",
   "lokasjonVelger.kart": "Žemėlapis",
-  "lokasjonVelger.ingenTegningEllerKart": "Projekte nėra brėžinio ar žemėlapio, kuriame būtų galima pateikti poziciją."
+  "lokasjonVelger.ingenTegningEllerKart": "Projekte nėra brėžinio ar žemėlapio, kuriame būtų galima pateikti poziciją.",
+  "lokasjonVelger.ingenTegningValgt": "Piešinys nepasirinktas. Norėdami pažymėti vietą, pasirinkite piešinį arba žemėlapį."
 }

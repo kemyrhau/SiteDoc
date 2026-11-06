@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Automatique : position GPS",
   "lokasjonVelger.forslagSistBrukt": "Dernière utilisation",
   "lokasjonVelger.kart": "Carte",
-  "lokasjonVelger.ingenTegningEllerKart": "Le projet n'a pas de dessin ou de carte sur lequel placer une position."
+  "lokasjonVelger.ingenTegningEllerKart": "Le projet n'a pas de dessin ou de carte sur lequel placer une position.",
+  "lokasjonVelger.ingenTegningValgt": "Aucun dessin sélectionné. Choisissez un dessin ou une carte pour marquer une position."
 }

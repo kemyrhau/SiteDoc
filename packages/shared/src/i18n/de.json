@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Auto: GPS-Position",
   "lokasjonVelger.forslagSistBrukt": "Zuletzt verwendet",
   "lokasjonVelger.kart": "Karte",
-  "lokasjonVelger.ingenTegningEllerKart": "Das Projekt verfügt über keine Zeichnung oder Karte, auf der eine Position platziert werden kann."
+  "lokasjonVelger.ingenTegningEllerKart": "Das Projekt verfügt über keine Zeichnung oder Karte, auf der eine Position platziert werden kann.",
+  "lokasjonVelger.ingenTegningValgt": "Keine Zeichnung ausgewählt. Wählen Sie eine Zeichnung oder Karte, um eine Position zu markieren."
 }

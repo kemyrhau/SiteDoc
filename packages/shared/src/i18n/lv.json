@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Automātiski: GPS pozīcija",
   "lokasjonVelger.forslagSistBrukt": "Pēdējo reizi lietots",
   "lokasjonVelger.kart": "Karte",
-  "lokasjonVelger.ingenTegningEllerKart": "Projektam nav zīmējuma vai kartes, kur novietot pozīciju."
+  "lokasjonVelger.ingenTegningEllerKart": "Projektam nav zīmējuma vai kartes, kur novietot pozīciju.",
+  "lokasjonVelger.ingenTegningValgt": "Nav atlasīts neviens zīmējums. Izvēlieties zīmējumu vai karti, lai atzīmētu pozīciju."
 }

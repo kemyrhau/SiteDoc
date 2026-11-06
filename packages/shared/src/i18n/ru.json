@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Авто: положение GPS",
   "lokasjonVelger.forslagSistBrukt": "Последнее использование",
   "lokasjonVelger.kart": "Карта",
-  "lokasjonVelger.ingenTegningEllerKart": "В проекте нет чертежа или карты, на которой можно было бы разместить позицию."
+  "lokasjonVelger.ingenTegningEllerKart": "В проекте нет чертежа или карты, на которой можно было бы разместить позицию.",
+  "lokasjonVelger.ingenTegningValgt": "Рисунок не выбран. Выберите рисунок или карту, чтобы отметить позицию."
 }

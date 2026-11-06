@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Auto: GPS position",
   "lokasjonVelger.forslagSistBrukt": "Last used",
   "lokasjonVelger.kart": "Map",
-  "lokasjonVelger.ingenTegningEllerKart": "The project has no drawing or map to place a position on."
+  "lokasjonVelger.ingenTegningEllerKart": "The project has no drawing or map to place a position on.",
+  "lokasjonVelger.ingenTegningValgt": "No drawing selected. Choose a drawing or map to mark a position."
 }

@@ -1502,18 +1502,18 @@ export default function SjekklisteUtfylling() {
                 <View className="flex-1">
                   <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
                     <Pressable onPress={() => setVisLokByttTegning(false)} hitSlop={8}>
-                      <Text className="text-sm font-medium text-white">Tilbake</Text>
+                      <Text className="text-sm font-medium text-white">{t("handling.tilbake")}</Text>
                     </Pressable>
-                    <Text className="text-sm font-semibold text-white">Bytt tegning</Text>
+                    <Text className="text-sm font-semibold text-white">{t("felt.byttTegning")}</Text>
                     <View style={{ width: 50 }} />
                   </View>
                   <TegningVelgerListe
                     tegninger={tilgjengeligeTegninger}
                     bygninger={bygninger}
                     valgtTegningId={lokTempTegningId}
-                    onVelg={(t) => {
-                      setLokTempTegningId(t.id);
-                      setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+                    onVelg={(valgt) => {
+                      setLokTempTegningId(valgt.id);
+                      setLokTempBygningId(valgt.byggeplassId ?? valgt.byggeplass?.id ?? null);
                       setLokTempPosX(null);
                       setLokTempPosY(null);
                       setVisLokByttTegning(false);
@@ -1529,27 +1529,27 @@ export default function SjekklisteUtfylling() {
                 <View className="flex-1">
                   <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
                     <Pressable onPress={() => setVisLokasjonModal(false)} hitSlop={8}>
-                      <Text className="text-sm font-medium text-white">Avbryt</Text>
+                      <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
                     </Pressable>
-                    <Text className="text-sm font-semibold text-white">Lokasjon</Text>
+                    <Text className="text-sm font-semibold text-white">{t("lokasjonVelger.etikett")}</Text>
                     <View style={{ width: 50 }} />
                   </View>
                   <View className="flex-1 items-center justify-center gap-3 px-8">
                     <MapPin size={32} color="#9ca3af" />
                     {tilgjengeligeTegninger.length === 0 ? (
                       <Text className="text-center text-sm text-gray-500">
-                        Prosjektet har ingen tegning eller kart å plassere posisjon på.
+                        {t("lokasjonVelger.ingenTegningEllerKart")}
                       </Text>
                     ) : (
                       <>
                         <Text className="text-center text-sm text-gray-500">
-                          Ingen tegning valgt. Velg en tegning eller kart for å markere posisjon.
+                          {t("lokasjonVelger.ingenTegningValgt")}
                         </Text>
                         <Pressable
                           onPress={() => setVisLokByttTegning(true)}
                           className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
                         >
-                          <Text className="text-sm font-medium text-white">Velg tegning</Text>
+                          <Text className="text-sm font-medium text-white">{t("tegningsvelger.velgTegning")}</Text>
                         </Pressable>
                       </>
                     )}
@@ -1589,7 +1589,7 @@ export default function SjekklisteUtfylling() {
                 {bunnfelt.visning === "lagre" ? (
                 <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
                   <Pressable onPress={() => setVisLokByttTegning(true)} hitSlop={12} className="rounded-lg px-3 py-2">
-                    <Text className="text-sm font-medium text-blue-600">Bytt tegning</Text>
+                    <Text className="text-sm font-medium text-blue-600">{t("felt.byttTegning")}</Text>
                   </Pressable>
                   <View className="flex-row items-center gap-3">
                   {bunnfelt.brukMinPosisjon && duErHer && (
@@ -1625,7 +1625,7 @@ export default function SjekklisteUtfylling() {
                     }}
                     className="rounded-lg bg-blue-700 px-6 py-2.5"
                   >
-                    <Text className="text-sm font-medium text-white">Lagre</Text>
+                    <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
                   </Pressable>
                   </View>
                 </View>

@@ -117,6 +117,9 @@ const TASK_SELECT = {
   // serveren. Additivt — ingen ny prosedyre/tilgangssjekk. Grunn select (ingen dyp
   // relasjon) → ingen TS2589-risiko (jf. signaturliste-kommentaren over).
   drawing: { select: { byggeplassId: true, name: true } },
+  // ORDRE 28: oppgavens EGEN byggeplass (Task.byggeplassId) — mobilen bruker den først,
+  // tegningens som reserve (eldre rader uten egen verdi). Skalar, ingen TS2589-risiko.
+  byggeplassId: true,
   // Filter i mobilens HMS-liste (filter-hms 2026-11-03): emne, prioritet, tegning og
   // utførende faggruppe — samme felt som oppgave-/sjekklistelista filtrerer på.
   // Additivt, grunne relasjoner (ingen TS2589-risiko), ingen ny tilgangssjekk.
@@ -402,6 +405,8 @@ export const hmsRouter = router({
                 },
               },
               drawing: { select: { byggeplass: { select: { id: true, name: true } } } },
+              // ORDRE 28: egen byggeplass først i visningen, tegningens som reserve.
+              byggeplass: { select: { id: true, name: true } },
             },
             orderBy: { updatedAt: "desc" },
           })
@@ -463,6 +468,8 @@ export const hmsRouter = router({
                 },
               },
               drawing: { select: { byggeplass: { select: { id: true, name: true } } } },
+              // ORDRE 28: egen byggeplass først i visningen, tegningens som reserve.
+              byggeplass: { select: { id: true, name: true } },
             },
             orderBy: { updatedAt: "desc" },
           })

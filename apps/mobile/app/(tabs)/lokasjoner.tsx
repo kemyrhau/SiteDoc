@@ -1448,6 +1448,7 @@ export default function LokasjonerSkjerm() {
           posisjonY={markørPosisjon.y}
           gpsPositionert={harGeoRef}
           templateId={valgtMalId}
+          byggeplassId={valgtBygningId}
         />
       )}
     </SafeAreaView>

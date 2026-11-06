@@ -750,11 +750,11 @@ export const reiseGrensepunktLocal = sqliteTable(
  * fra `oppgave.hentForProsjekt` (uten byggeplassId → hele prosjektet, så lokal
  * lesing selv gjør byggeplass-scopingen serveren gjør med byggeplassFilterViaTegning).
  *
- * Byggeplass-nøkkelen: Task har INGEN egen byggeplassId — tilhørighet finnes kun
- * via tegningen (drawing.byggeplassId). Serverens TRE-ledds tegningsfilter kollapser
+ * Byggeplass-nøkkelen: Task har egen byggeplassId (ORDRE 28); eldre rader uten egen
+ * verdi arver tegningens (drawing.byggeplassId). Serverens FIRE-ledds filter kollapser
  * til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen som Checklist bruker,
- * når vi utleder byggeplassId = drawing.byggeplass.id (ingen tegning / prosjekt-
- * tegning → null → gjelder hele prosjektet). Derfor er byggeplassId her den UTLEDETE
+ * når vi utleder byggeplassId = egen ?? drawing.byggeplass.id (begge null → gjelder
+ * hele prosjektet). Derfor er byggeplassId her den UTLEDETE
  * effektive byggeplassen, ikke en rå kolonne.
  *
  * Serverens tilgangsfilter + HMS-eksklusjon (domain ≠ hms) er allerede anvendt ved

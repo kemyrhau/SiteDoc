@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Auto: poziție GPS",
   "lokasjonVelger.forslagSistBrukt": "Ultima utilizare",
   "lokasjonVelger.kart": "Hartă",
-  "lokasjonVelger.ingenTegningEllerKart": "Proiectul nu are desen sau hartă pentru a plasa o poziție."
+  "lokasjonVelger.ingenTegningEllerKart": "Proiectul nu are desen sau hartă pentru a plasa o poziție.",
+  "lokasjonVelger.ingenTegningValgt": "Niciun desen selectat. Alegeți un desen sau o hartă pentru a marca o poziție."
 }

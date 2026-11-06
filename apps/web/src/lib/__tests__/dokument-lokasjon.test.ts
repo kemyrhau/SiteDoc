@@ -79,4 +79,16 @@ describe("lesDokumentLokasjon", () => {
       omradeId: "omr-9",
     });
   });
+
+  it("🔴 ORDRE 28: dokumentets egen byggeplass vinner over tegningens; tegningens er reserve", () => {
+    expect(
+      lesDokumentLokasjon({ byggeplass: { name: "Egen" }, drawing: { name: "T", byggeplass: { name: "Tegningens" } } })
+        .bygningNavn,
+    ).toBe("Egen");
+    // Egen uten tegning (oppgave opprettet på aktiv byggeplass, ingen standardtegning).
+    expect(lesDokumentLokasjon({ byggeplass: { name: "Egen" } }).bygningNavn).toBe("Egen");
+    // Eldre rad uten egen verdi → tegningens.
+    expect(lesDokumentLokasjon({ byggeplass: null, drawing: { name: "T", byggeplass: { name: "Tegningens" } } }).bygningNavn)
+      .toBe("Tegningens");
+  });
 });

@@ -596,8 +596,8 @@ export async function byggSjekklisteArkivHtml(
  * Oppgave/HMS-adapter: henter `Task` og normaliserer. Dekker vanlig oppgave OG HMS avvik/RUH
  * (Task med `template.domain="hms"`, `subdomain="avvik"|"ruh"`) — avvik/RUH trenger ingenting
  * utover task-leseren (kun standard felttyper, ingen HMS-egne kolonner). Task-avvik fra
- * sjekkliste: `data`/`template` er nullable (→ tom innholdsseksjon), byggeplass kommer via
- * tegningen (Task har ingen egen byggeplass-relasjon), og terminalen er «Lukket», ikke «Godkjent».
+ * sjekkliste: `data`/`template` er nullable (→ tom innholdsseksjon), byggeplass er oppgavens egen
+ * (ORDRE 28) med tegningens som reserve for eldre rader, og terminalen er «Lukket», ikke «Godkjent».
  */
 export async function byggOppgaveArkivHtml(
   prisma: PrismaClient,
@@ -612,6 +612,7 @@ export async function byggOppgaveArkivHtml(
       utforerFaggruppe: { select: { name: true } },
       bestiller: { select: { name: true } },
       drawing: { select: { byggeplass: { select: { name: true } } } },
+      byggeplass: { select: { name: true } },
       omrade: { select: { navn: true, type: true } },
     },
   });
@@ -644,7 +645,8 @@ export async function byggOppgaveArkivHtml(
     positionY: oppgave.positionY,
     lokasjonOmfang: oppgave.lokasjonOmfang,
     lokasjonFritekst: oppgave.lokasjonFritekst,
-    byggeplassNavn: oppgave.drawing?.byggeplass?.name ?? null,
+    // ORDRE 28: oppgavens egen byggeplass først, tegningens som reserve (eldre rader).
+    byggeplassNavn: oppgave.byggeplass?.name ?? oppgave.drawing?.byggeplass?.name ?? null,
     omradeNavn: oppgave.omrade?.navn ?? null,
     omradeType: oppgave.omrade?.type ?? null,
     title: oppgave.title,

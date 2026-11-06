@@ -73,8 +73,8 @@ export function LokasjonSeksjon({
         sistBygningId: valgtBygningId,
         sistTegningId: valgtBygningId ? hentSistTegning(valgtBygningId) : null,
       });
-      // Dokumentet lagrer tegning (oppgave har ingen egen byggeplass-kolonne) — et forslag
-      // uten tegning gir derfor ingenting å bekrefte.
+      // Forslaget bekreftes som tegning (byggeplass følger tegningen på serveren, ORDRE 28) —
+      // et forslag uten tegning gir derfor ingenting å bekrefte.
       const tegning = f?.tegningId ? tegninger.find((x) => x.id === f.tegningId) : undefined;
       settForslag(f && tegning ? { tegning, kilde: f.kilde } : null);
     })();

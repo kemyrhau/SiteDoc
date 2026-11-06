@@ -17,8 +17,8 @@ import type { trpc } from "../lib/trpc";
  *  tre i ETT kall ({avvik, sja, ruh}) → én tabell gir atomisk refresh (ett
  *  delete+insert per prosjekt) og én lesevei.
  *
- *  Byggeplass (utledet effektiv): Task via tegning (drawing.byggeplassId),
- *  Checklist direkte (byggeplassId). Begge kollapser til samme «valgt ELLER
+ *  Byggeplass (utledet effektiv): Task egen byggeplassId, ellers via tegning
+ *  (drawing.byggeplassId) for eldre rader; Checklist direkte (byggeplassId). Begge kollapser til samme «valgt ELLER
  *  byggeplass-løs»-regel. Serverens synlighetsfilter (privat/åpen) + draft-guard
  *  er anvendt ved henting → radene er en tro kopi av brukerens HMS-liste.
  *
@@ -69,7 +69,7 @@ interface ServerHmsRad {
   updatedAt: Date | string;
   template: { name: string; prefix: string | null } | null;
   bestillerFaggruppe: { name: string } | null;
-  // Task (avvik/ruh): byggeplass via tegning. Checklist (sja): byggeplassId direkte.
+  // Task (avvik/ruh): egen byggeplassId (ORDRE 28), tegningens som reserve. Checklist (sja): byggeplassId direkte.
   // Filter-hms: begge har tegningsnavn. Feltene er valgfrie — gammelt API mangler dem.
   drawing?: { byggeplassId?: string | null; name?: string | null } | null;
   byggeplassId?: string | null;
@@ -89,12 +89,12 @@ function tilIso(v: Date | string | null | undefined): string {
 }
 
 /**
- * Utledet effektiv byggeplass: Task → drawing.byggeplassId, Checklist → byggeplassId.
- * Skiller på `byggeplassId`-nøkkelen (bare Checklist har den), ikke på `drawing` — fra
- * filter-hms har også SJA `drawing` (kun navn).
+ * Utledet effektiv byggeplass: egen byggeplassId først (Checklist direkte; Task fra
+ * ORDRE 28), ellers tegningens (eldre Task-rader uten egen verdi). SJA-tegningen har
+ * kun navn, så reserven gir aldri noe for Checklist — samme som byggeplassFilterDirekte.
  */
 function effektivByggeplass(r: ServerHmsRad): string | null {
-  return "byggeplassId" in r ? r.byggeplassId ?? null : r.drawing?.byggeplassId ?? null;
+  return r.byggeplassId ?? r.drawing?.byggeplassId ?? null;
 }
 
 /**

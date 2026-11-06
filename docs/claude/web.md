@@ -262,6 +262,7 @@ Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`,
 
 - **Faste felt** (metadata): Emne, Bestiller-entreprise, Lokasjon — vises øverst i «Faste felt»-seksjonen med øye-toggle (`showSubject`, `showEnterprise`, `showLocation` på `ReportTemplate`)
 - **Lokasjon settes IKKE i opprettelsesmodal** — settes automatisk fra tegning ved klikk, eller kobles etterpå via tegningsvisning. Byggeplass/tegning-dropdown er fjernet fra opprettelseskjema (web + mobil)
+- **Byggeplass følger dokumentet (ORDRE 28, 2026-11-06):** opprett-stedene (oppgaver-siden, HMS avvik/RUH, tegninger-siden) sender aktiv byggeplass som `byggeplassId`; lister og detalj viser `byggeplass ?? drawing.byggeplass` (`apps/web/src/lib/dokument-lokasjon.ts`). Tegningsbytte på web går allerede via `LokasjonVelger` (byggeplass- og tegningsnedtrekk) i oppgave- og sjekkliste-detalj så lenge dokumentet er utkast — ingen ny knapp
 - Rekursiv `RekursivtFelt`-rendering med nesting
 - Repeater: grønn ramme, uten BetingelseBjelke
 - Slett-validering: blokkeres ved bruk (JSONB `?|` operator)

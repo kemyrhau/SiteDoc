@@ -42,3 +42,15 @@ export function tegningBunnfelt(opts: {
   }
   return { visning: opts.offline ? "laastOffline" : "laastSendt", brukMinPosisjon: false };
 }
+
+/**
+ * Oppdaterings-input når brukeren bytter tegning fra tegningsmodalen (ORDRE 28). Punktet
+ * hørte til den gamle tegningen og nullstilles; byggeplassen sendes ikke — serveren lar
+ * den følge den nye tegningen (tegningen vinner).
+ */
+export function byttTegningInput(
+  id: string,
+  tegningId: string,
+): { id: string; drawingId: string; positionX: null; positionY: null } {
+  return { id, drawingId: tegningId, positionX: null, positionY: null };
+}

@@ -211,6 +211,13 @@ export default function HmsListe() {
     },
   });
 
+  // Lean mutate-signaturer (TS2589, docs/claude/api.md § TS/tRPC-fallgruver): med
+  // byggeplassId i oppgave.opprett-inputen (ORDRE 28) tåler ikke useCallback-deps de
+  // dype tRPC-typene — `as unknown as` FØR de brukes i callbacken.
+  type OpprettInn = { templateId: string; title: string; byggeplassId?: string };
+  const opprettOppgaveMutate = opprettOppgave.mutate as unknown as (inn: OpprettInn) => void;
+  const opprettSjekklisteMutate = opprettSjekkliste.mutate as unknown as (inn: OpprettInn) => void;
+
   // HMS-opprett: subdomain avstyrer tabell (avvik/RUH=oppgave, SJA=sjekkliste).
   // Ingen faggruppe — serveren auto-ruter HMS-dokumenter (speiler web).
   const håndterMal = useCallback(
@@ -219,19 +226,22 @@ export default function HmsListe() {
       if (mal.subdomain === "sja") {
         // Kontekst-default (V2): aktiv byggeplass fra global kontekst settes ved
         // opprettelse. sjekkliste.opprett tar byggeplassId direkte.
-        opprettSjekkliste.mutate({
+        opprettSjekklisteMutate({
           templateId: mal.id,
           title: mal.name,
           byggeplassId: valgtBygningId ?? undefined,
         });
       } else {
-        // Avvik/RUH = oppgave. oppgave.opprett tar kun drawingId (ingen
-        // byggeplassId-felt), og mobil-HMS har ingen aktiv tegning-kilde →
-        // byggeplass festes ikke her (sak B, backlogget).
-        opprettOppgave.mutate({ templateId: mal.id, title: mal.name });
+        // Avvik/RUH = oppgave. ORDRE 28: oppgave.opprett tar byggeplassId — aktiv
+        // byggeplass festes som for SJA (mobil-HMS har ingen aktiv tegning-kilde).
+        opprettOppgaveMutate({
+          templateId: mal.id,
+          title: mal.name,
+          byggeplassId: valgtBygningId ?? undefined,
+        });
       }
     },
-    [opprettOppgave, opprettSjekkliste, valgtBygningId],
+    [opprettOppgaveMutate, opprettSjekklisteMutate, valgtBygningId],
   );
 
   const onRefresh = useCallback(() => {

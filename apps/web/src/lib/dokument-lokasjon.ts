@@ -6,8 +6,8 @@
  * drawingId + posisjon. Rotårsak: den leste fra det OMFORMEDE `oppgave`-objektet fra
  * `useOppgaveSkjema`, som dropper `drawingId`/`positionX`/`positionY`/`drawing` — og `as unknown as`
  * skjulte de manglende feltene. Denne helperen tar det RÅ query-resultatet (fullOppgaveRå/
- * fullSjekklisteRå), så feltene faktisk finnes. Task har ingen egen byggeplass-kolonne → byggeplass
- * utledes av tegningens byggeplass.
+ * fullSjekklisteRå), så feltene faktisk finnes. Byggeplass (ORDRE 28): dokumentets egen byggeplass
+ * først, tegningens som reserve (eldre Task-rader uten egen verdi).
  */
 export interface DokumentLokasjon {
   tegningId: string | null;
@@ -33,12 +33,13 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
         lokasjonFritekst?: string | null;
         omradeId?: string | null;
         drawing?: { name?: string | null; byggeplass?: { name?: string | null } | null } | null;
+        byggeplass?: { name?: string | null } | null;
       }
     | undefined;
   return {
     tegningId: d?.drawingId ?? null,
     tegningNavn: d?.drawing?.name ?? null,
-    bygningNavn: d?.drawing?.byggeplass?.name ?? null,
+    bygningNavn: d?.byggeplass?.name ?? d?.drawing?.byggeplass?.name ?? null,
     positionX: d?.positionX ?? null,
     positionY: d?.positionY ?? null,
     lokasjonOmfang: d?.lokasjonOmfang ?? null,
