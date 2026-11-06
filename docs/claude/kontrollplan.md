@@ -194,6 +194,10 @@ skjemaet, men ble aldri fylt — planen viste 0 % selv om sjekklister var godkje
   og kan bytte tegning som et bevisst valg. Arven skjer server-side i `koblePunktTilSjekkliste`
   kun ved `kilde:"startet"` (byggeplass følger tegningen); «koblet» rører aldri en eksisterende
   sjekklistes lokasjon.
+- **Start arver også punktets OMRÅDE** (ORDRE 29 #4, 2026-11-06): `koblePunktTilSjekkliste` skriver
+  `omradeId` fra punktet. Uten tegning blir området selve lokasjonsnivået (`lokasjonOmfang: "omrade"`);
+  med tegning beholdes oppførselen over (omfang settes når utføreren plasserer markøren). Byggeplass
+  følger tegningen, ellers området. Test: `kontrollplanKobling.test.ts`.
 - **Koble eksisterende** (`kontrollplan.koblePunkt`) knytter en allerede opprettet sjekkliste
   (samme mal, ikke alt koblet) til punktet — dekker sjekklister laget før koblingen fantes.
 - **Fremdrift** avledes fra koblet sjekkliste-status i `apps/web/src/lib/kontrollplanFremdrift.ts`
@@ -231,6 +235,13 @@ i ORDRE 20) og kalles fra alle — én kilde, kan ikke drifte. Sjekken går på 
 `projectId` (ikke byggeplassens), så løse tegninger uten byggeplass i eget prosjekt godtas.
 `sjekkliste.oppdater`-speilet til punktet skiller «feltet utelatt» (behold) fra «satt til null»
 (tøm), likt `Checklist.update`.
+
+**Samme vakt for område (ORDRE 29 #13):** `verifiserOmradeIProsjekt` (samme fil) kalles fra
+`kontrollplan.opprettPunkter` (område må ligge i planens prosjekt OG på planens byggeplass, sjekket før
+importhendelsen skrives), `sjekkliste.opprett`/`oppdater` og `oppgave.opprett`/`oppdater` (kun prosjekt —
+dokumentets byggeplass kan følge tegningen). Test: `kontrollplan-opprettpunkter-omrade.test.ts`,
+`sjekkliste-tegningsvakt.test.ts`, `oppgave-tegningsvakt.test.ts`, `task-byggeplass.integration.test.ts`.
+Ikke dekket ennå: kopier-punkter (`maalOmradeIder`) skriver `omradeId` uten vakt.
 
 ### Forhåndsvalgt dokumentflyt (Leveranse 1.5)
 

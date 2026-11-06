@@ -21,6 +21,7 @@ import {
   utledKildeformat,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin, aktivtProsjektmedlemWhere } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import { konverterDwg, hentKonverteringKapasitet, roterProsentMarkor, type DwgKonverteringsResultat } from "../services/dwgKonvertering";
 import {
   erKonverteringPågår,
@@ -797,6 +798,10 @@ export const tegningRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet — før fil-arbeid og skriving.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
+      }
 
       const erDwg = input.fileType.toLowerCase() === "dwg";
       const erDxf = input.fileType.toLowerCase() === "dxf";
@@ -884,6 +889,10 @@ export const tegningRouter = router({
       if (utledetKilde !== undefined) data.scaleKilde = utledetKilde;
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      // ORDRE 29 #14: ny byggeplass MÅ tilhøre tegningens prosjekt. `null` = løs tegning.
+      if (data.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, data.byggeplassId, tegning.projectId);
+      }
       return ctx.prisma.drawing.update({ where: { id }, data });
     }),
 
@@ -1024,6 +1033,10 @@ export const tegningRouter = router({
     .mutation(async ({ ctx, input }) => {
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      // ORDRE 29 #14: samme vakt som oppdater. `null` = løsne fra byggeplass, ingen sjekk.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, tegning.projectId);
+      }
       return ctx.prisma.drawing.update({
         where: { id: input.drawingId },
         data: { byggeplassId: input.byggeplassId },

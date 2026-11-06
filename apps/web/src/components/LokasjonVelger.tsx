@@ -7,6 +7,7 @@ import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { SignertBilde } from "@/components/SignertBilde";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { byggeplassForLokasjon, filtrerOmrader } from "@/lib/dokument-lokasjon";
 import { harTegningsmarkor } from "@sitedoc/shared";
 import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
@@ -28,6 +29,11 @@ interface LokasjonVelgerProps {
   lokasjonFritekst?: string | null;
   /** Område-referanse (steg 2b, 2026-09-23) — satt når lokasjonOmfang="omrade". */
   omradeId?: string | null;
+  /**
+   * ORDRE 29 #1: dokumentets egen byggeplass. Velgeren åpner på den (før toppbarens aktive), og
+   * et lokasjonsvalg uten tegning bærer den videre i stedet for å tømme den.
+   */
+  byggeplassId?: string | null;
   visPosisjon?: boolean;
   onLagre: (data: {
     drawingId: string | null;
@@ -57,6 +63,7 @@ export function LokasjonVelger({
   lokasjonOmfang,
   lokasjonFritekst,
   omradeId,
+  byggeplassId,
   visPosisjon,
   onLagre,
   leseModus,
@@ -99,8 +106,12 @@ export function LokasjonVelger({
     { projectId: prosjektId },
     { enabled: open || lokasjonOmfang === "omrade" },
   );
-  const omrader = (omraderRå ?? []) as Array<{ id: string; navn: string; type: string; byggeplass?: { name: string } | null }>;
-  const harOmrader = omrader.length > 0;
+  const omrader = (omraderRå ?? []) as Array<{
+    id: string; navn: string; type: string; byggeplassId: string; byggeplass?: { name: string } | null;
+  }>;
+  // ORDRE 29 #1: bare områdene på valgt byggeplass kan velges (alle når «Alle» er valgt).
+  const omraderForByggeplass = filtrerOmrader(omrader, valgtBygningId);
+  const harOmrader = omraderForByggeplass.length > 0;
   const valgtOmradeNavn = omrader.find((o) => o.id === (omradeId ?? valgtOmradeId))?.navn ?? null;
 
   // Auto-select bygning når kun én finnes — sparer brukeren et meningsløst valg.
@@ -143,13 +154,13 @@ export function LokasjonVelger({
   const kanPlasserPin = visPosisjon && !erPdf;
 
   const åpne = useCallback(() => {
-    setValgtBygningId(aktivByggeplass?.id ?? "");
+    setValgtBygningId(byggeplassId ?? aktivByggeplass?.id ?? "");
     setValgtTegningId(tegningId ?? standardTegning?.id ?? "");
     setPunkt(positionX != null && positionY != null ? { x: positionX, y: positionY } : null);
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setOpen(true);
-  }, [aktivByggeplass?.id, tegningId, standardTegning?.id, positionX, positionY]);
+  }, [byggeplassId, aktivByggeplass?.id, tegningId, standardTegning?.id, positionX, positionY]);
 
   // Auto-åpning (krav 3): åpne velgeren én gang når kalleren ber om det (utkast uten valgt
   // omfang). Ref-guard så den ikke åpner på nytt ved re-render. Lukking lagrer ingenting.
@@ -203,7 +214,8 @@ export function LokasjonVelger({
     // `lokasjonOmfang == null` forbeholdt «ikke valgt ennå», og auto-åpningen nages ikke.
     onLagre({
       drawingId: valgtTegningId || null,
-      byggeplassId: tegning?.byggeplassId ?? null,
+      // Prosjekt-tegning (uten byggeplass): `undefined` = dokumentets byggeplass står urørt.
+      byggeplassId: tegning?.byggeplassId ?? undefined,
       positionX: visPosisjon ? (punkt?.x ?? null) : undefined,
       positionY: visPosisjon ? (punkt?.y ?? null) : undefined,
       lokasjonOmfang: valgtTegningId ? "punkt" : null,
@@ -214,8 +226,18 @@ export function LokasjonVelger({
     setOpen(false);
   }
 
+  // Velgerens byggeplass når modalen er åpen; ellers dokumentets, så toppbarens (passiv knapp).
+  function lokasjonsByggeplass() {
+    return byggeplassForLokasjon({
+      valgt: open ? valgtBygningId : undefined,
+      dokument: byggeplassId,
+      aktiv: aktivByggeplass?.id,
+    });
+  }
+
   function handleFjern() {
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: null, lokasjonFritekst: null, omradeId: null });
+    // Fjern lokasjon tømmer tegning/pin/område — ikke byggeplassen (den eier toppbaren/chipen).
+    onLagre({ drawingId: null, positionX: null, positionY: null, lokasjonOmfang: null, lokasjonFritekst: null, omradeId: null });
     setOpen(false);
   }
 
@@ -223,14 +245,17 @@ export function LokasjonVelger({
   // omradeId følger med (DoD 12: omfang="omrade" krever omradeId — knappen er sperret uten valg).
   function handleOmrade(id: string) {
     if (!id) return;
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "omrade", lokasjonFritekst: null, omradeId: id });
+    // ORDRE 29 #1: dokumentet følger områdets byggeplass.
+    const omradeByggeplass = omrader.find((o) => o.id === id)?.byggeplassId;
+    onLagre({ drawingId: null, byggeplassId: byggeplassForLokasjon({ valgt: omradeByggeplass, dokument: byggeplassId, aktiv: aktivByggeplass?.id }), positionX: null, positionY: null, lokasjonOmfang: "omrade", lokasjonFritekst: null, omradeId: id });
     setOpen(false);
   }
 
   // «Gjelder hele byggeplassen» (krav 2): ett trykk, ingen obligatorisk bekreftelse. Nullstiller
   // tegning/pin — omfanget ER svaret. Fungerer både fra passiv tilstand og inne i (auto-)åpnet modal.
+  // ORDRE 29 #5: bærer valgt/dokumentets/aktiv byggeplass — aldri null.
   function handleByggeplass() {
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: null, omradeId: null });
+    onLagre({ drawingId: null, byggeplassId: lokasjonsByggeplass(), positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: null, omradeId: null });
     setOpen(false);
   }
 
@@ -240,7 +265,7 @@ export function LokasjonVelger({
   function handleFritekst() {
     const tekst = fritekst.trim();
     if (!tekst) return;
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: tekst, omradeId: null });
+    onLagre({ drawingId: null, byggeplassId: lokasjonsByggeplass(), positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: tekst, omradeId: null });
     setOpen(false);
   }
 
@@ -381,7 +406,14 @@ export function LokasjonVelger({
               <select
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 value={valgtBygningId}
-                onChange={(e) => { setValgtBygningId(e.target.value); setValgtTegningId(""); setPunkt(null); }}
+                onChange={(e) => {
+                  const ny = e.target.value;
+                  setValgtBygningId(ny);
+                  setValgtTegningId("");
+                  setPunkt(null);
+                  // Et valgt område fra en annen byggeplass forsvinner fra lista — nullstill valget.
+                  if (!filtrerOmrader(omrader, ny).some((o) => o.id === valgtOmradeId)) setValgtOmradeId("");
+                }}
               >
                 <option value="">{t("lokasjonVelger.alleBygninger")}</option>
                 {(bygninger ?? []).map((b: { id: string; name: string; number: number | null }) => (
@@ -435,13 +467,13 @@ export function LokasjonVelger({
                   onChange={(e) => setValgtOmradeId(e.target.value)}
                 >
                   <option value="">{t("lokasjonVelger.omradeVelgPlaceholder")}</option>
-                  {omrader.map((o) => (
+                  {omraderForByggeplass.map((o) => (
                     <option key={o.id} value={o.id}>
                       {o.byggeplass?.name ? `${o.byggeplass.name} · ` : ""}{o.navn}
                     </option>
                   ))}
                 </select>
-                <Button variant="secondary" disabled={!valgtOmradeId} onClick={() => handleOmrade(valgtOmradeId)}>
+                <Button variant="secondary" disabled={!omraderForByggeplass.some((o) => o.id === valgtOmradeId)} onClick={() => handleOmrade(valgtOmradeId)}>
                   {t("handling.lagre")}
                 </Button>
               </div>

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { join } from "node:path";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import { konverterPunktsky } from "../services/punktskyKonvertering";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -59,6 +60,10 @@ export const punktskyRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
+      }
 
       const punktsky = await ctx.prisma.pointCloud.create({
         data: {

@@ -88,7 +88,11 @@ const NÅDDE_SKRIVING = "NÅDDE_SKRIVING";
  * tx-mock; vaktene får tx og leser drawing/byggeplass derfra. `checklist.create` kaster
  * sentinel — beviser at vaktene slapp kallet gjennom til skrivingen.
  */
-function lagOpprettCtx(opts: { tegningProsjekt?: string | null; byggeplassProsjekt?: string | null }) {
+function lagOpprettCtx(opts: {
+  tegningProsjekt?: string | null;
+  byggeplassProsjekt?: string | null;
+  omradeProsjekt?: string | null;
+}) {
   const create = vi.fn().mockRejectedValue(new Error(NÅDDE_SKRIVING));
   const drawingFindUnique = vi
     .fn()
@@ -102,6 +106,11 @@ function lagOpprettCtx(opts: { tegningProsjekt?: string | null; byggeplassProsje
     },
     drawing: { findUnique: drawingFindUnique },
     byggeplass: { findUnique: byggeplassFindUnique },
+    omrade: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(opts.omradeProsjekt ? { projectId: opts.omradeProsjekt, byggeplassId: BYGGEPLASS } : null),
+    },
     checklist: { create },
   };
   const ctx = {
@@ -196,5 +205,52 @@ describe("sjekkliste.oppdater — byggeplass-vakt (ORDRE 21)", () => {
     await sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, byggeplassId: null });
     expect(byggeplassFindUnique).not.toHaveBeenCalled();
     expect(checklistUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── ORDRE 29 #13: område-vakt ─────────────────────────────────────────────────
+
+const OMRADE = "55555555-5555-5555-5555-555555555555";
+const OMRADE_AVVIST = { code: "BAD_REQUEST", message: "Området hører til et annet prosjekt." };
+
+describe("sjekkliste.opprett — område-vakt (ORDRE 29 #13)", () => {
+  it("område i eget prosjekt → når skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ omradeProsjekt: PROSJEKT });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ templateId: MAL, omradeId: OMRADE }),
+    ).rejects.toMatchObject({ message: NÅDDE_SKRIVING });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("område i fremmed prosjekt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ omradeProsjekt: FREMMED });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ templateId: MAL, omradeId: OMRADE }),
+    ).rejects.toMatchObject(OMRADE_AVVIST);
+    expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe("sjekkliste.oppdater — område-vakt (ORDRE 29 #13)", () => {
+  function medOmrade(omradeProsjekt: string) {
+    const base = lagCtx(null);
+    base.ctx.prisma.omrade = {
+      findUnique: vi.fn().mockResolvedValue({ projectId: omradeProsjekt, byggeplassId: BYGGEPLASS }),
+    };
+    return base;
+  }
+
+  it("område i eget prosjekt → lagres", async () => {
+    const { ctx, checklistUpdate } = medOmrade(PROSJEKT);
+    await sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, omradeId: OMRADE });
+    expect(checklistUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("område i fremmed prosjekt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, checklistUpdate } = medOmrade(FREMMED);
+    await expect(
+      sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, omradeId: OMRADE }),
+    ).rejects.toMatchObject(OMRADE_AVVIST);
+    expect(checklistUpdate).not.toHaveBeenCalled();
   });
 });

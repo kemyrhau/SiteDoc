@@ -28,6 +28,7 @@ const ids = {
   bp1: "",
   bp2: "",
   fremmedBp: "",
+  fremmedOmrade: "",
   tegningBp1: "",
   tegningBp2: "",
   tegningProsjekt: "",
@@ -60,6 +61,12 @@ beforeAll(async () => {
   ids.bp2 = bp2.id;
   ids.fremmedBp = fremmedBp.id;
 
+  // ORDRE 29 #13: et område i det fremmede prosjektet — skal aldri kunne festes på en oppgave her.
+  const fremmedOmrade = await prisma.omrade.create({
+    data: { projectId: fremmed.id, byggeplassId: fremmedBp.id, navn: `${NS} Fremmed sone` },
+  });
+  ids.fremmedOmrade = fremmedOmrade.id;
+
   const tegning = (byggeplassId: string | null, navn: string) =>
     prisma.drawing.create({
       data: { projectId: p.id, byggeplassId, name: `${NS} ${navn}`, fileUrl: "/uploads/x.pdf", fileType: "pdf" },
@@ -86,6 +93,7 @@ afterAll(async () => {
   if (ids.groupId) await prisma.projectGroup.deleteMany({ where: { id: ids.groupId } });
   if (ids.templateId) await prisma.reportTemplate.deleteMany({ where: { id: ids.templateId } });
   await prisma.drawing.deleteMany({ where: { projectId: ids.projectId } });
+  await prisma.omrade.deleteMany({ where: { projectId: { in: [ids.projectId, ids.fremmedProjectId] } } });
   await prisma.byggeplass.deleteMany({ where: { projectId: { in: [ids.projectId, ids.fremmedProjectId] } } });
   await prisma.project.deleteMany({ where: { id: { in: [ids.projectId, ids.fremmedProjectId] } } });
   if (ids.userId) await prisma.user.deleteMany({ where: { id: ids.userId } });
@@ -202,6 +210,38 @@ describe("TILLEGG ORDRE 28: oppgave.oppdater — område/«hele byggeplassen» (
       select: { byggeplassId: true, drawingId: true, lokasjonOmfang: true },
     });
     expect(etter).toEqual({ byggeplassId: ids.bp1, drawingId: null, lokasjonOmfang: "byggeplass" });
+  });
+});
+
+describe("ORDRE 29 N6: oppgave.oppdater — byggeplass fra annet prosjekt", () => {
+  it("🔴 avvises, og oppgaven beholder sin byggeplass", async () => {
+    const id = await lagTask({ byggeplassId: ids.bp1 });
+    const caller = createTestCaller(ids.userId);
+    await expect(caller.oppgave.oppdater({ id, byggeplassId: ids.fremmedBp })).rejects.toMatchObject({
+      message: "Byggeplassen hører til et annet prosjekt.",
+    });
+    expect(await byggeplassFor(id)).toBe(ids.bp1);
+  });
+});
+
+describe("ORDRE 29 #13: oppgave — område fra annet prosjekt", () => {
+  it("🔴 opprett avvises, ingen oppgave skrives", async () => {
+    const før = await prisma.task.count({ where: { templateId: ids.templateId } });
+    const caller = createTestCaller(ids.userId);
+    await expect(
+      caller.oppgave.opprett({ templateId: ids.templateId, title: "Avvik", omradeId: ids.fremmedOmrade }),
+    ).rejects.toMatchObject({ message: "Området hører til et annet prosjekt." });
+    expect(await prisma.task.count({ where: { templateId: ids.templateId } })).toBe(før);
+  });
+
+  it("🔴 oppdater avvises, oppgaven får ikke området", async () => {
+    const id = await lagTask({ byggeplassId: ids.bp1 });
+    const caller = createTestCaller(ids.userId);
+    await expect(caller.oppgave.oppdater({ id, omradeId: ids.fremmedOmrade })).rejects.toMatchObject({
+      message: "Området hører til et annet prosjekt.",
+    });
+    const etter = await prisma.task.findUniqueOrThrow({ where: { id }, select: { omradeId: true } });
+    expect(etter.omradeId).toBeNull();
   });
 });
 

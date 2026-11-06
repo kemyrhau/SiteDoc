@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { tolkPsiOpprettFeil } from "./psi-feil";
 
@@ -63,6 +64,8 @@ export const psiRouter = router({
       // Hent bygningsnavn for malnavn
       let byggeplassNavn = "";
       if (input.byggeplassId) {
+        // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet — før noe skrives.
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
         const byggeplass = await ctx.prisma.byggeplass.findUnique({ where: { id: input.byggeplassId }, select: { name: true } });
         byggeplassNavn = byggeplass?.name ? ` — ${byggeplass.name}` : "";
       }
@@ -653,6 +656,8 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
         where: { userId: ctx.userId, projectId: kildePsi.projectId, role: "admin", ...aktivtMedlemWhere },
       });
       if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // ORDRE 29 #14: målbyggeplassen MÅ tilhøre kilde-PSI-ens prosjekt.
+      await verifiserByggeplassIProsjekt(ctx.prisma, input.targetByggeplassId, kildePsi.projectId);
 
       // Sjekk at målbygning ikke allerede har PSI
       const eksisterende = await ctx.prisma.psi.findUnique({

@@ -12,7 +12,11 @@ import { grenseNaadd } from "@sitedoc/shared";
 import { erRaaUploadsUrl } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
-import { verifiserTegningIProsjekt, verifiserByggeplassIProsjekt } from "../services/tegningVakt";
+import {
+  verifiserTegningIProsjekt,
+  verifiserByggeplassIProsjekt,
+  verifiserOmradeIProsjekt,
+} from "../services/tegningVakt";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
 import { berikMedMetadata } from "../services/dokumentMetadata";
@@ -597,6 +601,10 @@ export const sjekklisteRouter = router({
         if (input.byggeplassId) {
           await verifiserByggeplassIProsjekt(tx, input.byggeplassId, mal.projectId);
         }
+        // ORDRE 29 #13: samme vakt for område — kun prosjekt.
+        if (input.omradeId) {
+          await verifiserOmradeIProsjekt(tx, input.omradeId, mal.projectId);
+        }
 
         // Auto-generer tittel fra malnavn (nummer vises separat i Nr-kolonne)
         const tittel = input.title?.trim() || mal.name;
@@ -763,6 +771,10 @@ export const sjekklisteRouter = router({
       // ORDRE 21: samme vakt for byggeplass. `null` = fjern byggeplass, ingen sjekk.
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, sjekkliste.template.projectId);
+      }
+      // ORDRE 29 #13: samme vakt for område. `null` = fjern område, ingen sjekk.
+      if (input.omradeId) {
+        await verifiserOmradeIProsjekt(ctx.prisma, input.omradeId, sjekkliste.template.projectId);
       }
 
       const { id, ...data } = input;

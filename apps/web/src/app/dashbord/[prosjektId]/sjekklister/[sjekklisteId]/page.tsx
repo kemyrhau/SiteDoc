@@ -9,6 +9,7 @@ import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/p
 import { byggObjektTre } from "@sitedoc/shared/types";
 import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight, Anchor } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { byggeplassByttInput } from "@/lib/dokument-lokasjon";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -621,8 +622,16 @@ export default function SjekklisteDetaljSide() {
       valgtId: fullSjekkliste?.byggeplass?.id ?? null,
       tomLabel: t("kontekstChip.heleProsjektet"),
       alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),
+      // ORDRE 29 #6: tegning, pin og område hører til den gamle byggeplassen og nullstilles.
       onVelg: (id) =>
-        oppdaterMutasjon.mutate({ id: params.sjekklisteId, byggeplassId: id, drawingId: null }),
+        oppdaterMutasjon.mutate({
+          id: params.sjekklisteId,
+          ...byggeplassByttInput(
+            (fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null })
+              .lokasjonOmfang,
+            id,
+          ),
+        }),
     },
     {
       // Runde-2 (#6): «UTFØRER»-etikett → «Faggruppe» (relasjonell benevnelse; chip-verdien er selve
@@ -925,12 +934,13 @@ export default function SjekklisteDetaljSide() {
             lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null}
             lokasjonFritekst={(fullSjekkliste as unknown as { lokasjonFritekst?: string | null }).lokasjonFritekst ?? null}
             omradeId={(fullSjekkliste as unknown as { omradeId?: string | null }).omradeId ?? null}
+            byggeplassId={fullSjekkliste?.byggeplass?.id ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
                 id: params.sjekklisteId,
                 drawingId: data.drawingId,
-                byggeplassId: data.byggeplassId ?? undefined,
+                byggeplassId: data.byggeplassId,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,

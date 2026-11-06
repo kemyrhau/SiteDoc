@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import type { PrismaClient } from "@sitedoc/db";
 
 /**
@@ -186,6 +187,10 @@ export const mannskapRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet. `null` = prosjektnivå, ingen sjekk.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
+      }
       await krevPsiModul(ctx.prisma, input.projectId);
 
       // Lukk ev. glemt >12t åpen rad FØR idempotent-sjekken, så en foreldet

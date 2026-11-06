@@ -4,7 +4,11 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
-import { verifiserByggeplassIProsjekt, verifiserTegningIProsjekt } from "../services/tegningVakt";
+import {
+  verifiserByggeplassIProsjekt,
+  verifiserOmradeIProsjekt,
+  verifiserTegningIProsjekt,
+} from "../services/tegningVakt";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
 // L1.5: en forhåndsvalgt flyt må høre til prosjektet, bruke punktets mal, og ha en
@@ -199,9 +203,15 @@ export const kontrollplanRouter = router({
     .mutation(async ({ ctx, input }) => {
       const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
         where: { id: input.kontrollplanId },
-        select: { projectId: true },
+        select: { projectId: true, byggeplassId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+
+      // ORDRE 29 #13: hvert område MÅ ligge i planens prosjekt og på planens byggeplass.
+      // Før importhendelsen og punktene skrives.
+      for (const omradeId of new Set(input.punkter.map((p) => p.omradeId).filter((id): id is string => !!id))) {
+        await verifiserOmradeIProsjekt(ctx.prisma, omradeId, kontrollplan.projectId, kontrollplan.byggeplassId);
+      }
 
       // L1.6: alle punktene i kallet deler samme mal → én oppslag. Entydig flyt bindes
       // ved opprettelse; ellers null (Start viser feilmeldingen, admin setter flyten).

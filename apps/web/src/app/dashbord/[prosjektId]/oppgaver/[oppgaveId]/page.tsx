@@ -954,11 +954,15 @@ export default function OppgaveDetaljSide() {
             lokasjonOmfang={oppgaveLokasjon.lokasjonOmfang}
             lokasjonFritekst={oppgaveLokasjon.lokasjonFritekst}
             omradeId={oppgaveLokasjon.omradeId}
+            byggeplassId={(fullOppgaveRå as { byggeplassId?: string | null } | undefined)?.byggeplassId ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
                 id: params.oppgaveId,
                 drawingId: data.drawingId,
+                // ORDRE 29 #1/#5: byggeplassen velgeren valgte (område/hele byggeplassen/tegning).
+                // `undefined` = urørt — serveren beholder oppgavens byggeplass.
+                byggeplassId: data.byggeplassId,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,
