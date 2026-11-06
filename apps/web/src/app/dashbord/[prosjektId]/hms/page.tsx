@@ -187,9 +187,10 @@ export default function HmsSide() {
         templateId: mal.id,
         title: mal.name,
         priority: "medium",
-        // Kontekst-default (V2): oppgave tar kun drawingId (byggeplass utledes
-        // via tegning). Byggeplass-uten-aktiv-tegning droppes (sak B, backlog).
+        // Kontekst-default (V2) + ORDRE 28: oppgave tar drawingId og byggeplassId
+        // (tegningens byggeplass vinner på serveren når standardTegning er satt).
         drawingId: standardTegning?.id,
+        byggeplassId: aktivByggeplass?.id,
       })) as { id: string };
       await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
       router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);

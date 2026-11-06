@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Авто: положення GPS",
   "lokasjonVelger.forslagSistBrukt": "Останнє використання",
   "lokasjonVelger.kart": "Карта",
-  "lokasjonVelger.ingenTegningEllerKart": "У проекті немає креслення чи карти, на яких можна розмістити позицію."
+  "lokasjonVelger.ingenTegningEllerKart": "У проекті немає креслення чи карти, на яких можна розмістити позицію.",
+  "lokasjonVelger.ingenTegningValgt": "Малюнок не вибрано. Виберіть малюнок або карту, щоб позначити позицію."
 }

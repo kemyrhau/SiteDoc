@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Auto: GPS-position",
   "lokasjonVelger.forslagSistBrukt": "Senast använd",
   "lokasjonVelger.kart": "Karta",
-  "lokasjonVelger.ingenTegningEllerKart": "Projektet har ingen ritning eller karta att placera en position på."
+  "lokasjonVelger.ingenTegningEllerKart": "Projektet har ingen ritning eller karta att placera en position på.",
+  "lokasjonVelger.ingenTegningValgt": "Ingen ritning har valts. Välj en ritning eller karta för att markera en position."
 }

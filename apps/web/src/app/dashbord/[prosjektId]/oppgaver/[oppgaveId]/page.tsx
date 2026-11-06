@@ -592,8 +592,8 @@ export default function OppgaveDetaljSide() {
     return <p className="py-12 text-center text-gray-500">{t("oppgaver.ikkeFunnet")}</p>;
   }
 
-  // P4b: kontekst-chip-linje (utfyllingsmodus). Byggeplass er tegning-avledet på
-  // oppgave (ingen byggeplassId på oppgave — audit) → display; faggruppe (utfører)
+  // P4b: kontekst-chip-linje (utfyllingsmodus). Byggeplass = oppgavens egen (ORDRE 28),
+  // tegningens som reserve → display; faggruppe (utfører)
   // = velger i utkast; prosjekt/mal = display.
   const oppgaveCast = oppgave as unknown as {
     title: string;
@@ -631,7 +631,7 @@ export default function OppgaveDetaljSide() {
     },
     {
       etikett: t("kontekstChip.byggeplass"),
-      // Byggeplass utledes av tegningens byggeplass (Task har ingen egen byggeplass-kolonne). Fra
+      // Byggeplass: oppgavens egen, ellers tegningens (ORDRE 28). Fra
       // lesDokumentLokasjon (rå hentMedId) — det omformede `oppgave` dropper `drawing` → viste ellers
       // «Hele prosjektet» selv når oppgaven har en tegning (samme rotårsak som lokasjon).
       verdi: oppgaveLokasjon.bygningNavn ?? t("kontekstChip.heleProsjektet"),

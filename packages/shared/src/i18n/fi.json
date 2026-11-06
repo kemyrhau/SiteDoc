@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Automaattinen: GPS-sijainti",
   "lokasjonVelger.forslagSistBrukt": "Viimeksi käytetty",
   "lokasjonVelger.kart": "Kartta",
-  "lokasjonVelger.ingenTegningEllerKart": "Projektissa ei ole piirustusta tai karttaa, johon voisi sijoittaa sijainnin."
+  "lokasjonVelger.ingenTegningEllerKart": "Projektissa ei ole piirustusta tai karttaa, johon voisi sijoittaa sijainnin.",
+  "lokasjonVelger.ingenTegningValgt": "Piirrosta ei ole valittu. Valitse piirros tai kartta sijainnin merkitsemiseksi."
 }

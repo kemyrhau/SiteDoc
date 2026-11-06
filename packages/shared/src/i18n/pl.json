@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Automatycznie: pozycja GPS",
   "lokasjonVelger.forslagSistBrukt": "Ostatnio używany",
   "lokasjonVelger.kart": "Mapa",
-  "lokasjonVelger.ingenTegningEllerKart": "Projekt nie zawiera rysunku ani mapy, na której można by umieścić położenie."
+  "lokasjonVelger.ingenTegningEllerKart": "Projekt nie zawiera rysunku ani mapy, na której można by umieścić położenie.",
+  "lokasjonVelger.ingenTegningValgt": "Nie wybrano rysunku. Wybierz rysunek lub mapę, aby oznaczyć pozycję."
 }

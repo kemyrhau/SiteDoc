@@ -1169,6 +1169,7 @@ model Byggeplass {
   pointClouds      PointCloud[]
   overflater       Overflate[]
   checklists       Checklist[]
+  tasks            Task[]
   ftdKontrakter    FtdKontrakt[]
   gruppeKoblinger  ProjectGroupByggeplass[]
   psiEr            Psi[]
@@ -1487,6 +1488,11 @@ model Task {
   number               Int?      @map("number")
   priority             String    @default("medium")
   dueDate              DateTime? @map("due_date")
+  // ORDRE 28 (2026-11-06): egen byggeplass — speiler Checklist.byggeplassId. Før fantes
+  // tilhørighet kun via tegningen, så en oppgave opprettet på aktiv byggeplass uten tegning
+  // havnet på «Hele prosjektet». Settes tegning med byggeplass, følger feltet tegningen
+  // (server, oppgave.ts). Backfill fra drawing.byggeplassId i migreringen.
+  byggeplassId         String?   @map("byggeplass_id")
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
@@ -1525,6 +1531,7 @@ model Task {
   bestillerFaggruppe Faggruppe?         @relation("TaskBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
   utforerFaggruppe   Faggruppe?         @relation("TaskUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
   eier               User?              @relation("TaskOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
+  byggeplass         Byggeplass?        @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   drawing            Drawing?           @relation(fields: [drawingId], references: [id])
   dokumentflyt       Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   checklist          Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
@@ -1549,6 +1556,7 @@ model Task {
   @@index([dokumentflytId, status])
   @@index([deletedAt])
   @@index([omradeId])
+  @@index([byggeplassId])
   @@map("tasks")
 }
 

@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Automaatne: GPS-positsioon",
   "lokasjonVelger.forslagSistBrukt": "Viimati kasutatud",
   "lokasjonVelger.kart": "Kaart",
-  "lokasjonVelger.ingenTegningEllerKart": "Projektil pole joonist ega kaarti, millele positsiooni paigutada."
+  "lokasjonVelger.ingenTegningEllerKart": "Projektil pole joonist ega kaarti, millele positsiooni paigutada.",
+  "lokasjonVelger.ingenTegningValgt": "Joonistust pole valitud. Valige asukoha märkimiseks joonis või kaart."
 }

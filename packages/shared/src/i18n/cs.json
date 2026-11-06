@@ -5335,5 +5335,6 @@
   "lokasjonVelger.forslagGps": "Auto: GPS pozice",
   "lokasjonVelger.forslagSistBrukt": "Naposledy použité",
   "lokasjonVelger.kart": "Mapa",
-  "lokasjonVelger.ingenTegningEllerKart": "Projekt nemá žádný výkres nebo mapu, na kterou by bylo možné umístit pozici."
+  "lokasjonVelger.ingenTegningEllerKart": "Projekt nemá žádný výkres nebo mapu, na kterou by bylo možné umístit pozici.",
+  "lokasjonVelger.ingenTegningValgt": "Není vybrán žádný výkres. Vyberte nákres nebo mapu pro označení pozice."
 }

@@ -297,10 +297,22 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
 (`organizationId=null`) er ikke i `prosjekt_local` → dekkes kun av `startOffline`/list-skjermen.
 
 - **Sjekkliste (2026-09-11):** `sjekkliste.hentForProsjekt`; byggeplass direkte (`byggeplassFilterDirekte`).
-- **Oppgave (2026-10-03):** `oppgave.hentForProsjekt` (uten `domain` → HMS ekskludert). Task har ingen
-  egen `byggeplassId` — tilhørighet via tegning. Serverens tre-ledds `byggeplassFilterViaTegning`
-  kollapser til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen når speilet lagrer den UTLEDETE
-  effektive byggeplassen (`drawing.byggeplass.id`; ingen/prosjekt-tegning → null → hele prosjektet).
+- **Oppgave (2026-10-03; ORDRE 28 2026-11-06):** `oppgave.hentForProsjekt` (uten `domain` → HMS ekskludert).
+  Task har egen `byggeplassId` (satt fra aktiv byggeplass ved opprett) med tegningens som reserve.
+  Serverens fire-ledds `byggeplassFilterViaTegning` kollapser til den samme to-ledds «valgt ELLER
+  byggeplass-løs»-regelen når speilet lagrer den UTLEDETE effektive byggeplassen (egen ?? `drawing.byggeplass.id`;
+  ingen av delene → null → hele prosjektet).
+- **Opprett sender aktiv byggeplass (ORDRE 28):** `OppgaveModal`, `OpprettDokumentModal`, `OpprettVelger` og
+  `app/hms/index.tsx` sender `byggeplassId` fra valgt byggeplass; serveren lar tegningens vinne.
+- **«Bytt tegning» i oppgave (ORDRE 28):** `app/oppgave/[id].tsx` har «Bytt tegning» i tegningsmodalens
+  bunnfelt (som sjekklisten) → tegningsvelgeren → `oppgave.oppdater(byttTegningInput(...))`
+  (`src/lib/tegningDuErHer.ts`): ny tegning, punktet nullstilles, byggeplassen regnes av serveren.
+  Sjekklistens tegningsmodal er i18n-et (`felt.byttTegning`, `lokasjonVelger.*`, `tegningsvelger.velgTegning`).
+- **Tegning/pin = omfang «punkt» (TILLEGG ORDRE 28):** alle mobilsteder som lagrer tegning eller pin
+  (oppgave: forslag-bekreft, «Bytt tegning», Lagre i tegningsmodalen; sjekkliste: lokasjonsmodalen når tegning
+  er valgt) sender `PUNKT_OMFANG` (`src/lib/tegningDuErHer.ts`): `lokasjonOmfang: "punkt"`, `omradeId: null`,
+  `lokasjonFritekst: null` — speiler web `LokasjonVelger.handleLagre`, så en ny pin ikke skjules bak et gammelt
+  område/«hele byggeplassen» i `dokumentLokasjonsOmfang` eller PDF-ens tegningsfelt.
 - **HMS (2026-10-03):** `hms.hentDokumenter` (alle tre kategorier i ett kall → én `hms_local`-tabell med
   `kategori`-diskriminator; atomisk refresh/lesevei). avvik/RUH er Task (byggeplass via tegning), SJA er
   Checklist (direkte) — begge utledes til samme effektive `byggeplassId`. 🔴 Speilet bærer ALDRI `data`/

@@ -20,9 +20,9 @@ export interface DokumentRad {
     project?: { id: string; name: string } | null;
   };
   bestiller?: { name: string | null } | null;
-  // For HMS-avvik (Task) — byggeplass utledes via drawing.byggeplass
+  // For HMS-avvik (Task) — reserve for eldre rader uten egen byggeplass (ORDRE 28)
   drawing?: { byggeplass?: { id: string; name: string } | null } | null;
-  // For SJA/RUH (Checklist) — byggeplass direkte
+  // Egen byggeplass: SJA (Checklist) og avvik/RUH (Task, ORDRE 28) — leses først
   byggeplass?: { id: string; name: string } | null;
   // Flyt-posisjon (Ordre 2.3) — «Hos»-kolonnen leser aktivt ledd + medlemmer via
   // delt utledning (FlytIndikator/perspektivEtikett). Utelates i firma-aggregatet.

@@ -200,9 +200,9 @@ export function OpprettVelger({ synlig, kategori, onOpprettet, onLukk }: Opprett
     if (kategori === "sjekkliste") {
       opprettSjekkliste.mutate({ templateId: malId, dokumentflytId: flytId, byggeplassId, drawingId });
     } else {
-      // Oppgave krever tittel — default malnavn (redigerbar i detaljskjermen). Oppgave-
-      // opprett tar ikke byggeplassId (kun drawingId), paritet med modalen.
-      opprettOppgave.mutate({ templateId: malId, dokumentflytId: flytId, title: malNavn, drawingId });
+      // Oppgave krever tittel — default malnavn (redigerbar i detaljskjermen). ORDRE 28:
+      // oppgave.opprett tar byggeplassId som sjekklisten (tegningens vinner på serveren).
+      opprettOppgave.mutate({ templateId: malId, dokumentflytId: flytId, title: malNavn, byggeplassId, drawingId });
     }
   }
 
