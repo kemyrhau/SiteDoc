@@ -28,6 +28,7 @@ import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
+import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
 import {
   RadByggeplassFelt,
   useRadByggeplass,
@@ -58,6 +59,8 @@ import {
   sumIDag,
   trafikklysSone,
   utledKortByggeplass,
+  visVareforbrukKnapp,
+  kortDagsseddelId,
 } from "@sitedoc/shared";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
@@ -257,6 +260,13 @@ export default function DagsseddelDetaljSide() {
       retry: false,
     },
   );
+  // Prosjektkort L3: arbeiderens vare-katalog + prosjektene med Varelager på.
+  // Feil (Varelager av for firmaet, ingen tilgang) → ingen «+ Vareforbruk».
+  const { data: vareKatalog } = trpc.vareforbruk.katalogForFirma.useQuery(
+    { organizationId: sheet?.organizationId ?? "" },
+    { enabled: prosjektkortModus && !!sheet?.organizationId, retry: false },
+  );
+  const [vareModalProsjekt, setVareModalProsjekt] = useState<string | null>(null);
   // Åpent kort: undefined = automatisk (eneste kort, eller nytt fra opprettelse).
   const [aapentKort, setAapentKort] = useState<string | null | undefined>(
     () => nyttProsjektParam ?? undefined,
@@ -885,6 +895,8 @@ export default function DagsseddelDetaljSide() {
             })
           }
           onLeggTil={(projectId) => setAktivModal({ type: "leggTil", projectId })}
+          varelagerProsjekter={vareKatalog?.prosjektIderMedVarelager}
+          onNyVare={setVareModalProsjekt}
           onNyttKort={() => setAktivModal({ type: "nyProsjekt" })}
           onEndreRamme={() => setRedigerHeader(true)}
           onSlett={() => setVisSlettModal(true)}
@@ -1036,6 +1048,18 @@ export default function DagsseddelDetaljSide() {
           onLukk={() => setAktivModal(null)}
         />
       )}
+      {vareModalProsjekt && vareKatalog && (
+        <KortVareforbrukModal
+          projectId={vareModalProsjekt}
+          prosjektNavn={kortNavn(vareModalProsjekt)}
+          dato={new Date(sheet.dato).toISOString().slice(0, 10)}
+          dagsseddelId={kortDagsseddelId(sheet.id, timerRader, vareModalProsjekt)}
+          varer={vareKatalog.varer}
+          byggeplasser={byggeplasser}
+          onClose={() => setVareModalProsjekt(null)}
+        />
+      )}
+
       {aktivModal?.type === "leggTil" && (
         <LeggTilVelger
           projectId={aktivModal.projectId}
@@ -1295,6 +1319,8 @@ function ProsjektkortSamleside({
   onNyTimer,
   onNyMaskin,
   onLeggTil,
+  varelagerProsjekter,
+  onNyVare,
   onNyttKort,
   onEndreRamme,
   onSlett,
@@ -1327,6 +1353,8 @@ function ProsjektkortSamleside({
   onNyTimer: (projectId: string) => void;
   onNyMaskin: (projectId: string) => void;
   onLeggTil: (projectId: string) => void;
+  varelagerProsjekter: readonly string[] | undefined;
+  onNyVare: (projectId: string) => void;
   onNyttKort: () => void;
   onEndreRamme: () => void;
   onSlett: () => void;
@@ -1485,6 +1513,19 @@ function ProsjektkortSamleside({
                       >
                         {t("timer.prosjektkort.leggTil")}
                       </button>
+                      {visVareforbrukKnapp({
+                        prosjektIderMedVarelager: varelagerProsjekter,
+                        projectId,
+                        erRedigerbar,
+                      }) && (
+                        <button
+                          type="button"
+                          onClick={() => onNyVare(projectId)}
+                          className="font-medium text-sitedoc-primary hover:underline"
+                        >
+                          {t("timer.prosjektkort.nyVare")}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

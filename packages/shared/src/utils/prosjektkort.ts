@@ -160,3 +160,75 @@ export function trafikklysSone(
   if (Math.abs(rundet - norm) < 0.001) return "grønn";
   return rundet > norm ? "gul" : "blå";
 }
+
+/* ------------------------------------------------------------------ */
+/*  L3 (2026-11-06): vareforbruk fra kortet — delt web/mobil.          */
+/* ------------------------------------------------------------------ */
+
+/** «+ Vareforbruk» vises kun i et redigerbart kort der Varelager er på for prosjektet. */
+export function visVareforbrukKnapp(args: {
+  prosjektIderMedVarelager: readonly string[] | null | undefined;
+  projectId: string;
+  erRedigerbar: boolean;
+}): boolean {
+  return (
+    args.erRedigerbar &&
+    (args.prosjektIderMedVarelager ?? []).includes(args.projectId)
+  );
+}
+
+/**
+ * Sedel-koblingen for en ny varelinje. API-et (`vareforbruk.opprett`) avviser
+ * en `dagsseddelId` uten timerrad for samme prosjekt — et kort med bare maskin
+ * eller tillegg fører derfor linjen uten kobling (som på prosjektsiden).
+ */
+export function kortDagsseddelId(
+  sedelId: string,
+  timer: readonly { projectId: string }[],
+  projectId: string,
+): string | undefined {
+  return timer.some((r) => r.projectId === projectId) ? sedelId : undefined;
+}
+
+export type KortVareforbrukInput = {
+  id?: string;
+  projectId: string;
+  dato: string;
+  vareId: string;
+  antall: number;
+  byggeplassId: string | null;
+  dagsseddelId?: string;
+};
+
+/** Opprett-input fra kortet. Prosjektet er alltid kortets — kan ikke velges. */
+export function kortVareforbrukInput(args: {
+  kortProsjektId: string;
+  dato: string;
+  vareId: string;
+  antall: number;
+  byggeplassId: string | null;
+  dagsseddelId?: string;
+  id?: string;
+}): KortVareforbrukInput {
+  return {
+    ...(args.id ? { id: args.id } : {}),
+    projectId: args.kortProsjektId,
+    dato: args.dato,
+    vareId: args.vareId,
+    antall: args.antall,
+    byggeplassId: args.byggeplassId,
+    ...(args.dagsseddelId ? { dagsseddelId: args.dagsseddelId } : {}),
+  };
+}
+
+/**
+ * Server-linjer + lokale (ikke synket) i én liste. En lokal linje som alt er
+ * synket har samme id som server-raden (klient-id) → telles én gang.
+ */
+export function slaaSammenVarelinjer<T extends { id: string }>(
+  server: readonly T[],
+  lokale: readonly T[],
+): T[] {
+  const kjente = new Set(server.map((v) => v.id));
+  return [...server, ...lokale.filter((v) => !kjente.has(v.id))];
+}

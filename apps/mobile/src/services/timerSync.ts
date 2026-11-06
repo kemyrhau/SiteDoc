@@ -10,6 +10,7 @@ import {
   sheetUtleggLocal,
   sheetUtleggVedleggLocal,
   slettedeRaderLocal,
+  vareforbrukLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
@@ -304,6 +305,8 @@ export async function syncTimer(
       .set({ dagsseddelId: tilId })
       .where(eq(slettedeRaderLocal.dagsseddelId, fraId))
       .run();
+    // Prosjektkort L3: vareforbruk ført fra kortet følger sedelen (sendes med dagsseddelId).
+    db.update(vareforbrukLocal).set({ sheetId: tilId }).where(eq(vareforbrukLocal.sheetId, fraId)).run();
     const maalFinnes = db
       .select({ id: dagsseddelLocal.id })
       .from(dagsseddelLocal)

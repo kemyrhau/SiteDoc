@@ -87,6 +87,8 @@ import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
 import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
+import { slaaSammenVarelinjer } from "@sitedoc/shared";
+import { hentLokaleVarelinjer } from "../../src/services/vareforbrukSync";
 import type {
   Sedel,
   TimerRad,
@@ -624,14 +626,19 @@ export default function DagsseddelDetalj() {
     }
     return m;
   }, [sedel, utleggRader]);
-  // Vareforbruk føres utenfor sedelen (Varelager) — kun lesing, kun online.
+  // Vareforbruk: server-linjer (online) + linjer ført fra prosjektkortet lokalt
+  // (L3, også offline). Samme klient-id → telles én gang.
   const vareQuery = trpc.vareforbruk.hentMineForDato.useQuery(
     { organizationId: sedel?.organizationId ?? "", dato: sedel?.dato ?? "" },
     { enabled: kortModus && erPaaNettet && !!sedel },
   );
   const kortVarer = useMemo(
-    () => tilKortVarer(vareQuery.data ?? []),
-    [vareQuery.data],
+    () =>
+      slaaSammenVarelinjer<{ id: string; projectId: string; antall: number; vare: { enhet: string } }>(
+        tilKortVarer(vareQuery.data ?? []),
+        kortModus && sedel ? hentLokaleVarelinjer(sedel.id) : [],
+      ),
+    [vareQuery.data, kortModus, sedel],
   );
   const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
     const db = hentDatabase();

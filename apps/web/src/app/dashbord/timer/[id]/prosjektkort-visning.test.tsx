@@ -101,7 +101,11 @@ const sheet = {
   ],
 };
 
-function rendre(modus: string | undefined, overstyr: Partial<typeof sheet> = {}) {
+function rendre(
+  modus: string | undefined,
+  overstyr: Partial<typeof sheet> = {},
+  ekstra: Record<string, unknown> = {},
+) {
   h.data = {
     "timer.dagsseddel.hentMedId": { ...sheet, ...overstyr },
     "prosjekt.hentForTimer": [
@@ -112,6 +116,7 @@ function rendre(modus: string | undefined, overstyr: Partial<typeof sheet> = {})
     "organisasjon.hentArbeidstidDefaults":
       modus === undefined ? {} : { timerRegistreringsmodus: modus },
     "vareforbruk.hentMineForDato": [],
+    ...ekstra,
   };
   return renderToStaticMarkup(<Side />);
 }
@@ -166,5 +171,51 @@ describe("timer-sedel — visningsmodus", () => {
     const html = rendre("prosjektkort", { status: "returned" });
     expect(html).toContain("timer.detalj.sendPaaNytt");
     expect(html).not.toContain("timer.prosjektkort.sendDagen");
+  });
+});
+
+describe("timer-sedel — L3 «+ Vareforbruk» på kortet", () => {
+  const ettKort = { timer: [sheet.timer[0]!] };
+  const katalog = (prosjekter: string[]) => ({
+    "vareforbruk.katalogForFirma": {
+      varer: [{ id: "v1", navn: "Grus", enhet: "m3", varenummer: null }],
+      prosjektIderMedVarelager: prosjekter,
+    },
+  });
+
+  it("vises i åpent kort når Varelager er på for prosjektet", () => {
+    expect(rendre("prosjektkort", ettKort, katalog(["p1"]))).toContain(
+      "timer.prosjektkort.nyVare",
+    );
+  });
+
+  it("skjult når Varelager er av for prosjektet eller katalogen feiler", () => {
+    expect(rendre("prosjektkort", ettKort, katalog(["p2"]))).not.toContain(
+      "timer.prosjektkort.nyVare",
+    );
+    // Ingen katalog (FORBIDDEN/av for firmaet) → kortet er som i L2.
+    expect(rendre("prosjektkort", ettKort)).not.toContain("timer.prosjektkort.nyVare");
+  });
+
+  it("skjult på sendt sedel", () => {
+    expect(
+      rendre("prosjektkort", { ...ettKort, status: "submitted" }, katalog(["p1"])),
+    ).not.toContain("timer.prosjektkort.nyVare");
+  });
+
+  it("varelinjer har ingen rediger/slett-kontroller (låste linjer kan ikke endres)", () => {
+    const html = rendre("prosjektkort", ettKort, {
+      ...katalog(["p1"]),
+      "vareforbruk.hentMineForDato": [
+        { id: "f1", projectId: "p1", byggeplassId: null, dagsseddelId: "s1", antall: 2, vare: { id: "v1", navn: "Grus", enhet: "m3" } },
+      ],
+    });
+    const liste = html.match(/<ul class="mt-3 space-y-1">.*?<\/ul>/)?.[0] ?? "";
+    expect(liste).toContain("Grus · 2 m3");
+    expect(liste).not.toContain("<button");
+  });
+
+  it("dagskort er uendret når katalogen finnes", () => {
+    expect(rendre("dagskort", {}, katalog(["p1", "p2"]))).toBe(rendre("dagskort"));
   });
 });

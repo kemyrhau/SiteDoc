@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { VareVelger } from "@/components/varelager/VareVelger";
 
 type VareforbrukRad = {
   id: string;
@@ -425,20 +426,12 @@ function ForbrukModal({
           />
         </FeltBlokk>
         <FeltBlokk label={t("vareforbruk.felt.vare")}>
-          <select
+          <VareVelger
+            varer={varekatalog as VareKatalog[] | undefined}
             value={vareId}
-            onChange={(e) => setVareId(e.target.value)}
+            onChange={setVareId}
             disabled={modus === "rediger"}
-            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm disabled:bg-gray-100"
-          >
-            <option value="">{t("vareforbruk.felt.varePlaceholder")}</option>
-            {(varekatalog as VareKatalog[] | undefined)?.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.navn}
-                {v.varenummer ? ` (${v.varenummer})` : ""} — {v.enhet}
-              </option>
-            ))}
-          </select>
+          />
         </FeltBlokk>
         <FeltBlokk label={t("vareforbruk.felt.antall") + (valgtVare ? ` (${valgtVare.enhet})` : "")}>
           <input

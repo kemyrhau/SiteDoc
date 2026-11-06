@@ -924,3 +924,45 @@ export const byggeplassNavLocal = sqliteTable("byggeplass_nav_local", {
   status: text("status"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
 });
+
+/**
+ * vare_local — firmaets vare-katalog for «+ Vareforbruk» på prosjektkortet
+ * (Prosjektkort L3, 2026-11-06). Speil av `vareforbruk.katalogForFirma` — kun de
+ * fire feltene, ingen priser. Full-overskrives pr. firma via
+ * vareKatalog.refreshVareKatalog. KUN lokal.
+ */
+export const vareLocal = sqliteTable("vare_local", {
+  id: text("id").primaryKey(), // = server Vare.id
+  organizationId: text("organization_id").notNull(),
+  navn: text("navn").notNull(),
+  enhet: text("enhet").notNull(),
+  varenummer: text("varenummer"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — freshness
+});
+
+/**
+ * vareforbruk_local — vareforbruk arbeideren har ført fra prosjektkortet
+ * (Prosjektkort L3). `id` er klient-uuid og sendes som `id` til
+ * `vareforbruk.opprett` (idempotent: to sendinger = én linje). Linjen står
+ * `pending` til sedelen er synket; da sendes den med `dagsseddelId` = sheetId
+ * når kortet har en timerrad for prosjektet. Server-avvisning → `avvist` +
+ * feilmelding (ingen evig retry). KUN lokal.
+ */
+export const vareforbrukLocal = sqliteTable("vareforbruk_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(), // eier-bruker — lesevakt
+  organizationId: text("organization_id").notNull(),
+  sheetId: text("sheet_id").notNull(), // = dagsseddelLocal.id (re-nøkles ved forsoning)
+  projectId: text("project_id").notNull(),
+  dato: text("dato").notNull(), // YYYY-MM-DD
+  vareId: text("vare_id").notNull(),
+  vareNavn: text("vare_navn").notNull(),
+  enhet: text("enhet").notNull(),
+  antall: real("antall").notNull(),
+  byggeplassId: text("byggeplass_id"),
+  syncStatus: text("sync_status", { enum: ["pending", "synced", "avvist"] })
+    .notNull()
+    .default("pending"),
+  feilmelding: text("feilmelding"),
+  sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+});

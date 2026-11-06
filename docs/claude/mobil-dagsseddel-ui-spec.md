@@ -391,7 +391,7 @@ Gjelder bare når firmaets `timerRegistreringsmodus = prosjektkort` (cachet loka
 
 - Blå sedel-boks og «Arbeidstid i dag»-seksjonen vises ikke i kortmodus; «Dagens ramme» tar over begge (`ProsjektkortSamleside.tsx`).
 - Kortskjermen bruker dagskortets `ProsjektGruppe` med prosjektet låst (`ProsjektkortKontekst`); arv-teksten heter «fra dagen».
-- Vareforbruk vises som ren lesing på kortskjermen, kun på nett.
+- Vareforbruk på kortskjermen: server-linjer (`hentMineForDato`) slått sammen med lokale (`vareforbruk_local`); «+ Vareforbruk» med låst prosjekt virker offline og vises kun når Varelager er aktiv for prosjektet (L3, `KortVareforbrukModal.tsx`, [timer.md § Prosjektkort L3](timer.md)).
 
 ## 8. Ut av scope (ikke i denne spec'en)
 
