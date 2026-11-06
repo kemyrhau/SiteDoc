@@ -1,7 +1,7 @@
 ---
 name: timer-gps-helhetsplan
 description: Helhetsplan som syr sammen GPS, reise, flerprosjekt-dag og bekreftelsessteget i timer-modulen. Skrevet 2026-10-01 på Kenneths ordre etter at orkestratoren hadde bestilt kode i hver runde uten kontroll på kompleksiteten. Les FØR noe i dette komplekset bestilles. Revidert 2026-10-01 kveld med Kenneths vedtak V1–V14 (§ 4b).
-sist_verifisert_mot_kode: 2026-10-01
+sist_verifisert_mot_kode: 2026-11-06 (LAG 3/4 + H26; resten 2026-10-01)
 eier: fabel (kontroll-Claude) — orkestrator gater, fra 2026-10-01 kveld
 ---
 
@@ -123,6 +123,7 @@ hovedveien resten av tiden** — ikke en reserve. Se premisset under LAG 3.
 | **H23** | 🔴 **Sirkelen modellerer ikke et lineært prosjekt.** Byggeplass-geofence er punkt + radius; for en lang, smal trasé (Røstbakken) dekker sirkelen områder langt utenfor. **Og den automatiske utledningen fra georeferert tegning lager nøyaktig den sirkelen:** senter = tegningens 50/50, radius = største hjørneavstand + 100 m — ti km veg gir ~5 km radius. Trasé-formen FINNES (`Omrade.type = trase`, `polygon` i tegningskoordinater, tegneverktøy på tegninger-siden), men **broen polygon → geofence finnes ikke**. Funnet av Kenneth på test 2026-10-03 | `georeferanse.ts:433-454`, `tegning.ts:502`, `byggeplass.ts:135`, `schema.prisma` Omrade | 🔴 **Feil prosjekt** (kapabilitet A/C) — reise (B) tåler det | **3/4** (K10) |
 | **H24** | 🔴 **Km-rader teller som TIMER i overtidsgrunnlaget.** `beregnOvertidsgrunnlag` filtrerer kun `erReise` (lag 2), aldri `satsEnhet` — en `per_km`-rad med 150 km i `timer` bidrar 150 t til serverens uke-grunnlag og attesteringsvarselet. Pre-eksisterende; funnet i gate av L2-A 2026-10-03 (Q4). Henger på K4 (km som egen størrelse) | `overtidsgrunnlag.ts:50`, `dagsseddel.ts:646, :3040` (satsEnhet leses kun for taket `:1583`) | Feil varsel (ikke lønn direkte) | **K4** |
 | **H25** | 🔴 **Overlapp PC ↔ mobil lagres dobbelt.** S2-sammenslåingen (dato-kollisjon → omnøkling → additiv push) er blind for tid: overlapp-vakten i `syncBatch` sjekker kun payloaden, web-radene overlever `deleteMany` (kun payload-ider). PC 07–15 + mobil 07–15 = 16 t, kun AML-varsel >13 t. Attestanten ser ingen konflikt (`syncStatus` er mobil-tilstand). Funnet av orkestrator 2026-10-04 | `dagsseddel.ts:5441-5450, :5830-5870`, `timerSync.ts:259-290` | 🔴 **Feil lønn** | **V19** |
+| **H26** | 🔴 **«Anvend uten port» (G1-konflikten).** «Slutt dag» kjører `beregnDagsforslag` → `anvendDagsforslag` og skriver GPS-utledet prosjekt og reise som rader *før* noen har sett forslaget; eneste port er at sedelen er `draft`+`autoGenerert` med banner og må sendes manuelt. Samtidig sier `useArbeidsdag.ts:71,141` «GPS aldri lønnsgrunnlag». Brudd i form, dempet i virkning — ingen tilbakerulling nødvendig. Målt av orkestrator + fabel 2026-11-06 | `StartSluttDagKort.tsx:124-146`, `dagsseddelOpprett.ts:120`, `[id].tsx:1178-1195` | 🔴 **G1** | **LAG 3-A** ([timer-gps-lag3-4-spec.md § 5](timer-gps-lag3-4-spec.md)) |
 
 🔴 **H15 er samme feilklasse som arvingen orkestratoren fjernet fra origo-ordren — men den står
 i koden i dag.** Det var KS-ens skarpeste funn.
@@ -311,37 +312,63 @@ funksjon brukeren ser — og uten det kan ingen svare på «hvorfor fikk jeg den
 > V6-pausevindu, overtidssplitt og (på web) prosjekt·byggeplass-linje — fire steder GPS-veien har og manuell ikke.
 > Lukkes av V20/V21/V22 **før** lag 3 bestilles, så bekreftelsesskjermen ikke arver skjevheten. Ikke hastesak.
 
-- **Bekreftelsessteget etter «Slutt dag»** — egen skjerm, forslaget vises, arbeideren retter og
-  bekrefter. **Dagen forblir åpen hvis han avbryter** (Kenneth-vedtak 2026-10-01).
+📄 **Kodbar spec 2026-11-06: [timer-gps-lag3-4-spec.md](timer-gps-lag3-4-spec.md)** — 🟢 **VEDTATT 2026-11-06**
+(Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 form A; K12/K14/K16/K17 tas ved gate som anbefalt). Punktene under
+er kjernen; spec-en har skjerm, klikktelling, arkitektur, tester, **ORDRE-tekst L3-A (§ 10)** og leveransene
+**L3-A → L3-D → L4-A → L4-C ∥ L4-B → L3-B**.
+
+- **Bekreftelsessteget etter «Slutt dag»** — egen skjerm `/timer/bekreft-dag` (Kenneth-valg B i pauset ordre),
+  forslaget vises som ett kort pr. segment, arbeideren retter prosjekt · byggeplass · tider · pause (rettedybde B)
+  og bekrefter. **2 klikk** fra «Slutt dag» til rader (P4). **Dagen forblir åpen hvis han avbryter**
+  (Kenneth-vedtak 2026-10-01, valg A). Dagens `Alert` fjernes — skjermen *er* bekreftelsen.
+- 🔴 **G1-konflikten (H26) er avgjort i spec § 5:** dagens `anvendDagsforslag` rett etter «Slutt dag» er et brudd
+  i form (ingen port) men dempet i virkning (`draft` + manuell sending). `anvend` flyttes bak «Bekreft» i **L3-A**;
+  ingen tilbakerulling. «Tilstedeværelse ≠ arbeidstid» står: det gjelder innsjekk/PSI, ikke en villet «Start dag».
 - **Sammenligningsvisningen ved konflikt** — 🟢 **LEVERT** (`e4866f8d` + `9c7c1ad1`).
-- **Forespørsel til leder når dagskortet er attestert** (U-BEKREFT-R) — krever én migrering.
+- **Forespørsel til leder når dagskortet er attestert** (U-BEKREFT-R) — krever én migrering. L3-C, etter L3-A.
 - **Bekreftelsesskjermen bærer årsakene** når reise ikke er foreslått (**V12**, **V13**): «posisjon
   utilgjengelig» · «byggeplass X mangler plassering» · «ingen matrisecelle». Uten dette er V13 en
   stille tomhet.
+- **Én skjerm for to innganger** (PREMISS over): manuell dag går gjennom samme rute uten `arbeidsdagId` — **L3-B**,
+  etter V21/V22. L3-A bestilles før V21/V22 (K15 ✅ vedtatt).
+- **Maskin/redskap og varer etterregistreres i samme skjerm** (Kenneth 2026-11-06: *«husk å etterregistrere
+  maskintimer/redskap og varer»*) — fotlinje «+ Maskin · + Varer» i hvert arbeidskort, pr. byggeplass-segment
+  (`SheetMachine.projectId` påkrevd, `Vareforbruk` krever timer-rad på prosjektet). Dag uten maskin/varer er fortsatt
+  2 klikk (P4). Maskintimer forhåndsutfylt = segmentets arbeidstid; «sist brukt» øverst (ORDRE 29 A
+  `sistBrukteMaskiner`); varer via `KortVareforbrukModal` med låst prosjekt. Alt skrives først ved Bekreft.
+  **L3-D**, etter L3-A + ORDRE 29 A; spec § 3.5, skisse `skjermform-a-maskin-varer.png`, åpne K19–K21.
 
-🔴 **Og de tre kodekommentarene som forbyr GPS å velge prosjekt må reverseres HER — eksplisitt,
-med henvisning til Kenneths vedtak og til at bekreftelsessteget er på plass.** Rives de før
+🔴 **Og de tre kodekommentarene som forbyr GPS å velge prosjekt reverseres i L3-A — eksplisitt,
+med henvisning til Kenneths vedtak og til at bekreftelsessteget er på plass** (ordlyd i spec § 5 pkt. 3). Rives de før
 bekreftelsessteget finnes, brytes G1.
 
-### LAG 4 — Flere prosjekter pr. dag
+### LAG 4 — Flere byggeplasser pr. dag
 
-**Forutsetter lag 1 (ett stedssvar), lag 2 (sporbarhet) og lag 3 (bekreftelse).**
+**Forutsetter lag 1 (ett stedssvar), lag 2 (sporbarhet) og lag 3 (bekreftelse).** Spec: samme fil, § 2 og § 4.
 
-- **Segment må få en stedsdimensjon** (H8) — i dag er grensen midnatt og ingenting annet.
-  ⚠️ **Rettet etter KS: strukturen er HALVBYGD, ikke fraværende.** `sheet_timer_local.byggeplassId`
-  finnes — forslaget setter den bare aldri på radene, kun på sedelen.
-- 🟢 **Overtid på delt dag er avgjort** (H17 → **V4**): kronologisk, prosjektet som eier
-  klokkeslettet bærer den, siste prosjekt bærer overtiden. Mobilens pr.-økt-regning må bli pr. dag.
-- 🟢 **Mellometapper er avgjort** (H18 → **V9**): arbeidstid uansett avstand, bæres av prosjektet
-  man kommer til, måles som klokketid avreise→ankomst. **Derfor trenger lag 4 IKKE
-  byggeplass→byggeplass-aksen** — H10 er flyttet tilbake til lag 5. *(KS-en flyttet den hit;
-  V9 flytter den tilbake, fordi avstanden mellom prosjekter ikke avgjør lønn.)*
-- **Ankomststempel erstatter utledet vindu** (**V8**) — ankomst-registreringen under gir ekte
-  klokketid for både reise og mellometappe.
-- **`dagsseddel_local.project_id` må bli nullable** (H14) — gjelden `timer.md:124` navngir.
-- **Ankomst-registrering** — noe må merke at man kom til prosjekt nr. 2.
-- ⚠️ **Og overlapp-regelen består:** to prosjekter må ha adskilte klokkevinduer. **«To steder
-  samtidig» er ikke uttrykkbart, og det er trolig riktig.**
+- **Modellen er bekreftede stopp, ikke sporing** (lukker **K3 for lag 4**): dagen er en ordnet liste av besøk i ny
+  lokal tabell `arbeidsdag_besok_local` (byggeplass + klokkeslett, **aldri lat/lng**, synkes aldri, ryddes etter
+  14 d). Besøk oppstår ved Start dag, «Ankommet»-trykk og Slutt dag. Ankomst registreres på to måter som begge
+  bygges: **S1** forslag-banner ved app-åpning (én forgrunnsmåling, ≤ 1 pr. 10 min, 1 klikk) og **S2** «Bytt
+  byggeplass»-knapp i kortet. Bakgrunnssporing avvist (`mannskap.md:19/45`, batteri, ingen personvernvurdering).
+  Målt 2026-11-06: ingen sporing finnes i appen i dag (0 treff på bakgrunns-API, `expo-task-manager` ikke installert).
+- **Segment får stedsdimensjon** (H8): én arbeidsrad pr. besøk med `byggeplassId` og `tidKilde='stempel'`.
+  `sheet_timer_local.byggeplassId` finnes alt — forslaget setter den bare aldri på radene (M5 i spec).
+- 🟢 **Overtid på delt dag** (H17 → **V4**): `klassifiserArbeidstid` kjøres pr. dato over alle arbeids- og
+  mellom-rader sortert på klokkeslett, ikke pr. økt; raden som eier terskelen splittes; siste prosjekt bærer.
+  **Målt 2026-11-06: V4 og V9 finnes ikke i kode.**
+- 🟢 **Mellometapper** (H18 → **V9**): egen rad `erReise=false`, `reiseRetning='mellom'`, prosjekt = den man
+  kommer til, klokketid avreise→ankomst, ordinær lønnsart, teller i norm/overtid. **Ingen byggeplass→byggeplass-akse**
+  — H10 blir i lag 5. Server må godta `'mellom'` (L4-C, før L4-B merges). Avreise stemples ikke som standard —
+  gapet ligger på forrige besøk til «Dro fra» settes (**K11**, anbefaling (a)+(c)).
+- **Første etappe ut** (V3/V10/V11/V13/V15): origo = start-GPS, destinasjon = *første besøk* (ikke slutt-GPS).
+  **Retur** (V7): fra *siste besøk* × oppmøtested når slutt-GPS treffer kontoret. Form uendret. Fasit **Dag C** i spec § 4.6.
+- **`dagsseddel_local.project_id` blir nullable** (H14) i L4-B. `daily_sheets` på server er uendret (én pr.
+  `userId, dato`, aldri hatt projectId) → **Varelager og Maskin ikke berørt** (modul-sjekk i spec § 6).
+- ⚠️ **Overlapp-regelen består:** to prosjekter må ha adskilte klokkevinduer. Samme byggeplass to ganger på rad
+  slås sammen. **«To steder samtidig» er ikke uttrykkbart, og det er trolig riktig.**
+- 🔴 **Persondata-gjerde som lag 4 gjør synligere:** `hentTilAttestering` viser rader på tvers av prosjekt for
+  prosjektadmin når én sedel spenner flere prosjekter (meldt, ikke fikset). Lukkes i **L4-C**, før L4-B.
 
 ### LAG 5 — Sjåføren
 
@@ -380,9 +407,9 @@ bekreftelsessteget finnes, brytes G1.
 | Ordre | Status | Grunn |
 |---|---|---|
 | `inbox-dokgen-byggeplass-origo.md` | ⏸️ **HOLDES — kan omskrives** | K1 er nå avgjort (V13/V14). Ordren må **skrives om til V14** (geokoding ved opprettelse + tre varsler, ingen arv, ingen fallback, ikke påkrevd) og gates av orkestrator FØR den sendes |
-| `inbox-kontrollplan-bekreft-dagsforslag.md` | ⏸️ **PAUSET** | Arkitektur-splitten (beregn/anvend) står og hører i LAG 0. **Skjermen venter på at modellen er avklart** |
-| U-BEKREFT-R (forespørsel til leder) | ⏸️ | Krever migrering. Hører i lag 3, etter at lag 3s første del er inne |
-| Alt i lag 4 og 5 | ⏸️ | Forutsetter lag 1–3 |
+| `inbox-kontrollplan-bekreft-dagsforslag.md` | 🔄 **ERSTATTET 2026-11-06** | Modellen er avklart i [timer-gps-lag3-4-spec.md](timer-gps-lag3-4-spec.md) (Kenneths valg B + A er tatt med). K11/K13/K15/K18 **vedtatt 2026-11-06**; **ORDRE-tekst L3-A ligger klar i spec § 10** — orkestrator sender. L3-D (maskin/varer) følger etter L3-A + ORDRE 29 A |
+| U-BEKREFT-R (forespørsel til leder) | ⏸️ | Krever migrering. L3-C, etter L3-A |
+| Lag 4 (L4-A/B/C) | ⏸️ **spesifisert** | Forutsetter L3-A merget. Lag 5 forutsetter lag 4 + personvernvurdering (K3 for sporing står åpen) |
 | **Lag 0** | 🟢 **LEVERT 2026-10-02** | `89acee95` + `a13f4343` — se § 5 |
 | **Lag 0c** (shared tsc) | 🟢 **LEVERT 2026-10-02** | `c78bc14f` — regel 10 er fire ledd, 10 pakker typesjekkes |
 
@@ -433,7 +460,8 @@ i `a86a5934`, før lag 0-ordrene gikk ut. Rapporten er skrevet mot en eldre lesn
 - **Katalog-synk («har noe endret seg?»)** — Kenneths forslag 2026-10-02 om at telefonen spør serveren om
   endring i stedet for å hente ti kataloger blindt. Mobilsync-infrastruktur, ikke timer-GPS; lag 1–5 trenger
   den ikke. Plassert i [BACKLOG § 1](BACKLOG.md) med fella kataloger-vs-dokumenter.
-- **K3 (sporing), K4 (km som målt størrelse), K5 (server-verifisering)** er fortsatt åpne. V9 gjør at
-  K4 er det eneste som trenger byggeplass→byggeplass-aksen. K5 avgjør hvor mye lag 2 verifiserer server-side.
+- **K3 (sporing), K4 (km som målt størrelse)** er fortsatt åpne *for lag 5*. **K3 er lukket for lag 4 2026-11-06
+  som «bekreftede stopp»** (spec § 2.1) — sporing trenger fortsatt personvernvurderingen over. V9 gjør at K4 er det
+  eneste som trenger byggeplass→byggeplass-aksen. K5 er vedtatt (mottak med sporbarhet).
 - **Sjåfør-modellen er ikke spesifisert** av noen, noe sted. Den er nevnt av Kenneth 2026-10-01
   og finnes ikke i dokumentasjonen ellers.
