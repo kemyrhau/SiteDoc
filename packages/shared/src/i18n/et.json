@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Kontrollnimekirja toomine...",
   "sjekkliste.ikkeFunnet": "Kontrollnimekirja ei leitud",
   "sjekkliste.slettSjekkliste": "Kustuta kontrollnimekiri",
+  "sjekkliste.punktIngenRedigeringstilgang": "Teil pole sellele kontroll-loendile muutmisõigust",
   "oppgave.henter": "Ülesande toomine...",
   "oppgave.ikkeFunnet": "Ülesannet ei leitud",
   "oppgave.tittel": "Ülesanne",

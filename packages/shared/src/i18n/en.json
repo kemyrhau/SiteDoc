@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Fetching checklist...",
   "sjekkliste.ikkeFunnet": "Checklist not found",
   "sjekkliste.slettSjekkliste": "Delete checklist",
+  "sjekkliste.punktIngenRedigeringstilgang": "You don't have edit access to this checklist",
   "oppgave.henter": "Fetching task...",
   "oppgave.ikkeFunnet": "Task not found",
   "oppgave.tittel": "Task",

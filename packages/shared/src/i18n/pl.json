@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Pobieram listę kontrolną...",
   "sjekkliste.ikkeFunnet": "Nie znaleziono listy kontrolnej",
   "sjekkliste.slettSjekkliste": "Usuń listę kontrolną",
+  "sjekkliste.punktIngenRedigeringstilgang": "Nie masz uprawnień do edycji tej listy kontrolnej",
   "oppgave.henter": "Pobieram zadanie...",
   "oppgave.ikkeFunnet": "Nie znaleziono zadania",
   "oppgave.tittel": "Zadanie",

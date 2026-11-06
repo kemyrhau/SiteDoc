@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Récupération de la liste de contrôle...",
   "sjekkliste.ikkeFunnet": "Liste de contrôle introuvable",
   "sjekkliste.slettSjekkliste": "Supprimer la liste de contrôle",
+  "sjekkliste.punktIngenRedigeringstilgang": "Vous n'avez pas accès en modification à cette liste de contrôle",
   "oppgave.henter": "Tâche de récupération...",
   "oppgave.ikkeFunnet": "Tâche introuvable",
   "oppgave.tittel": "Tâche",

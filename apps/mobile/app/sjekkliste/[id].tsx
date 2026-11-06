@@ -973,7 +973,20 @@ export default function SjekklisteUtfylling() {
               lokasjonOmfang: sjekklisteDetalj?.lokasjonOmfang,
             })}
             tegninger={tilgjengeligeTegninger}
-            onAapne={leseModus ? undefined : () => {
+            onAapne={leseModus
+              // Lesemodus (ORDRE 25): åpner tegningen read-only når punktet ligger i en
+              // tegning — som oppgave. Uten tegning er linjen ikke trykkbar (ingen tom modal).
+              ? (sjekklisteDetalj?.drawingId && sjekklisteDetalj?.drawing?.fileUrl
+                ? () => {
+                    setLokTempTegningId(sjekklisteDetalj.drawingId ?? null);
+                    setLokTempBygningId(sjekklisteDetalj.byggeplass?.id ?? null);
+                    setLokTempPosX(sjekklisteDetalj.positionX ?? null);
+                    setLokTempPosY(sjekklisteDetalj.positionY ?? null);
+                    setVisLokByttTegning(false);
+                    setVisLokasjonModal(true);
+                  }
+                : undefined)
+              : () => {
               // Initialiser temp-state fra nåværende lokasjon
               const harLagretTegning = !!sjekklisteDetalj?.drawingId;
               setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
@@ -1471,8 +1484,11 @@ export default function SjekklisteUtfylling() {
       <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
         <ModalFlate kanter={["top", "bottom"]} className="bg-white">
           {(() => {
+            // Fallback til sjekklistens egen tegning: lesevisningen skal virke også når
+            // prosjektets tegningsliste ikke er lastet (offline-speil).
             const aktivTegning = lokTempTegningId
               ? alleTegninger.find((t) => t.id === lokTempTegningId)
+                ?? (sjekklisteDetalj?.drawing?.id === lokTempTegningId ? sjekklisteDetalj.drawing : null)
               : null;
             const tegningUrl = aktivTegning?.fileUrl
               ? (aktivTegning.fileUrl.startsWith("http")
@@ -1547,6 +1563,9 @@ export default function SjekklisteUtfylling() {
               ? [{ id: "pos", x: lokTempPosX, y: lokTempPosY, farge: "#ef4444" }]
               : [];
 
+            // Trykk, «Bruk min posisjon», Bytt tegning og Lagre kun når sjekklisten kan
+            // redigeres (!leseModus — ingen utkast-lås); ellers låsetekst (ORDRE 25).
+            const bunnfelt = tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline: offlineModus, duErHer });
             return (
               <View className="flex-1">
                 <TegningsVisning
@@ -1555,20 +1574,25 @@ export default function SjekklisteUtfylling() {
                     ? `${aktivTegning.drawingNumber} ${aktivTegning.name}`
                     : aktivTegning?.name ?? ""}
                   onLukk={() => setVisLokasjonModal(false)}
-                  onTrykk={(posX, posY) => {
-                    setLokTempPosX(posX);
-                    setLokTempPosY(posY);
-                  }}
+                  onTrykk={
+                    bunnfelt.visning === "lagre"
+                      ? (posX, posY) => {
+                          setLokTempPosX(posX);
+                          setLokTempPosY(posY);
+                        }
+                      : undefined
+                  }
                   markører={markører}
                   gpsMarkør={duErHer}
                 />
-                {/* Bunnbar: Bytt tegning + Lagre */}
+                {/* Bunnbar: Bytt tegning + Lagre — eller låsetekst i lesemodus */}
+                {bunnfelt.visning === "lagre" ? (
                 <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
                   <Pressable onPress={() => setVisLokByttTegning(true)} hitSlop={12} className="rounded-lg px-3 py-2">
                     <Text className="text-sm font-medium text-blue-600">Bytt tegning</Text>
                   </Pressable>
                   <View className="flex-row items-center gap-3">
-                  {tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline: offlineModus, duErHer }).brukMinPosisjon && duErHer && (
+                  {bunnfelt.brukMinPosisjon && duErHer && (
                     <Pressable
                       hitSlop={8}
                       onPress={() => {
@@ -1605,6 +1629,15 @@ export default function SjekklisteUtfylling() {
                   </Pressable>
                   </View>
                 </View>
+                ) : (
+                  <View className="border-t border-gray-200 bg-white px-5 py-4">
+                    <Text className="text-center text-sm text-gray-500">
+                      {bunnfelt.visning === "laastOffline"
+                        ? t("oppgave.punktLaastOffline")
+                        : t("sjekkliste.punktIngenRedigeringstilgang")}
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })()}

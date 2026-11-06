@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Henter sjekkliste...",
   "sjekkliste.ikkeFunnet": "Sjekklisten ble ikke funnet",
   "sjekkliste.slettSjekkliste": "Slett sjekkliste",
+  "sjekkliste.punktIngenRedigeringstilgang": "Du har ikke redigeringstilgang til denne sjekklisten",
   "oppgave.henter": "Henter oppgave...",
   "oppgave.ikkeFunnet": "Oppgaven ble ikke funnet",
   "oppgave.tittel": "Oppgave",

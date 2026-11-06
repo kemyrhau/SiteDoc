@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Po merr listën e kontrollit...",
   "sjekkliste.ikkeFunnet": "Lista kontrolluese nuk u gjet",
   "sjekkliste.slettSjekkliste": "Fshi listën e kontrollit",
+  "sjekkliste.punktIngenRedigeringstilgang": "Ju nuk keni akses për modifikim në këtë listë kontrolli",
   "oppgave.henter": "Po merr detyrën...",
   "oppgave.ikkeFunnet": "Detyra nuk u gjet",
   "oppgave.tittel": "Detyrë",

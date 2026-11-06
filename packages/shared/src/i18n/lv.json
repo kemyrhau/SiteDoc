@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Notiek kontrolsaraksta iegūšana...",
   "sjekkliste.ikkeFunnet": "Kontrolsaraksts nav atrasts",
   "sjekkliste.slettSjekkliste": "Dzēst kontrolsarakstu",
+  "sjekkliste.punktIngenRedigeringstilgang": "Jums nav rediģēšanas piekļuves šim kontrolsarakstam",
   "oppgave.henter": "Notiek uzdevuma iegūšana...",
   "oppgave.ikkeFunnet": "Uzdevums nav atrasts",
   "oppgave.tittel": "Uzdevums",
