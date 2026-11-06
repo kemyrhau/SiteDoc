@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect, beforeAll } from "vitest";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { ekstraherPdfSider, delTekstIChunks } from "./ftd-prosessering";
@@ -92,17 +94,17 @@ describe("PDF side-attribusjon (pagerender pr. side)", () => {
     expect(chunkMed(TOKENS.tre)?.pageNumber).toBe(3);
   });
 
-  it("RED-vakt: gammel split('\\f')-strategi gir bare 1 «side» på samme PDF", async () => {
-    // Dokumenterer hvorfor pagerender trengs: den sammenslåtte teksten fra
-    // pdf-parse har ingen form-feed, så den gamle delingen så kun én side.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
-      b: Buffer,
-    ) => Promise<{ text: string }>;
-    const res = await pdfParse(pdf);
-    const gamleSider = res.text.split("\f").filter((s) => s.trim());
-    expect(gamleSider).toHaveLength(1); // feilen: 3-siders PDF → 1 «side»
-    // mens den nye veien korrekt gir 3:
+  // Tidligere RED-vakt kjørte selve pdf-parse@1 (pdf.js v1.10.100, 2018) for å vise at
+  // `split("\f")` ga 1 «side». pdf-parse er fjernet fra prosesseringen (se
+  // pdf-parse-import.test.ts), og den gamle parseren klarer ikke lenger å lese pdf-lib-
+  // fixturen på Node 20 (CI/prod) — «Invalid PDF structure», ikke side-feilen vakten
+  // skulle vise. Vakten testet dermed et bibliotek vi ikke bruker. Den erstattes av en
+  // kildevakt på det som faktisk ga prod-feilen 2026-10-14: deling på form-feed.
+  it("RED-vakt: prosesseringen deler ikke på form-feed, men henter sider via ekstraherPdfSider", () => {
+    const kilde = readFileSync(join(__dirname, "ftd-prosessering.ts"), "utf8");
+    expect(kilde).not.toMatch(/\.split\(\s*["'`]\\f["'`]/);
+    expect(kilde).toMatch(/await ekstraherPdfSider\(buffer/);
+    // og den nye veien gir 3 sider på samme PDF:
     expect(sider).toHaveLength(3);
   });
 });
