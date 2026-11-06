@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
-import { verifiserTegningIProsjekt } from "../services/tegningVakt";
+import { verifiserByggeplassIProsjekt, verifiserTegningIProsjekt } from "../services/tegningVakt";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
 // L1.5: en forhåndsvalgt flyt må høre til prosjektet, bruke punktets mal, og ha en
@@ -139,6 +139,9 @@ export const kontrollplanRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 22: byggeplassen må tilhøre prosjektet — ellers kobles planen til en fremmed
+      // byggeplass og navnet derfra lekker inn i `navn`.
+      await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
       const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
         where: { id: input.byggeplassId },
         select: { name: true },
