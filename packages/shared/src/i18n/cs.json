@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Nástroj",
   "timer.bekreftDag.tillegg.timer": "Strojní hodiny",
   "timer.bekreftDag.tillegg.bruddTittel": "Příliš mnoho strojových hodin",
+  "timer.bekreftDag.tillegg.startSendt": "Stroje a materiály nelze přidat – dnešní časový rozvrh byl odeslán",
   "timer.bekreftDag.bekreft": "Potvrďte a uložte",
   "timer.bekreftDag.ikkeNaa": "Teď ne",
   "timer.bekreftDag.avsluttDag": "Konec dne",

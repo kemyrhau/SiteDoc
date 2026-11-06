@@ -62,11 +62,13 @@ import {
   tilKortMaskinRader,
   tilKortTimerRader,
   tilKortVarer,
+  varerForProsjekt,
 } from "../../src/lib/prosjektkortMobil";
 import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
 import { ProsjektGruppe } from "../../src/components/timer-detalj/ProsjektGruppe";
+import type { VisVarelinje } from "../../src/components/timer-detalj/VareforbrukLesListe";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import {
   flyttMatpauseVedAvhuking,
@@ -626,19 +628,18 @@ export default function DagsseddelDetalj() {
     }
     return m;
   }, [sedel, utleggRader]);
-  // Vareforbruk: server-linjer (online) + linjer ført fra prosjektkortet lokalt
-  // (L3, også offline). Samme klient-id → telles én gang.
+  // Vareforbruk: server-linjer (online) + linjer ført lokalt fra prosjektkortet
+  // eller bekreft-dag (L3/L3-D, også offline). Samme klient-id → telles én gang.
+  // Begge moduser: dagskortet viser dem lesende per prosjekt (K20).
   const vareQuery = trpc.vareforbruk.hentMineForDato.useQuery(
     { organizationId: sedel?.organizationId ?? "", dato: sedel?.dato ?? "" },
-    { enabled: kortModus && erPaaNettet && !!sedel },
+    { enabled: erPaaNettet && !!sedel },
   );
+  const serverVarer = useMemo(() => tilKortVarer(vareQuery.data ?? []), [vareQuery.data]);
+  const lokaleVarer = useMemo(() => (sedel ? hentLokaleVarelinjer(sedel.id) : []), [sedel]);
   const kortVarer = useMemo(
-    () =>
-      slaaSammenVarelinjer<{ id: string; projectId: string; antall: number; vare: { enhet: string } }>(
-        tilKortVarer(vareQuery.data ?? []),
-        kortModus && sedel ? hentLokaleVarelinjer(sedel.id) : [],
-      ),
-    [vareQuery.data, kortModus, sedel],
+    () => slaaSammenVarelinjer<VisVarelinje>(serverVarer, lokaleVarer),
+    [serverVarer, lokaleVarer],
   );
   const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
     const db = hentDatabase();
@@ -1330,6 +1331,7 @@ export default function DagsseddelDetalj() {
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             maskinRader={maskinRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             utleggRader={utleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            varer={varerForProsjekt<VisVarelinje>(serverVarer, lokaleVarer, pid)}
             onEndret={markerEndretOgLes}
           />
         ))}

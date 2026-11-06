@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Mjet",
   "timer.bekreftDag.tillegg.timer": "Orari i makinës",
   "timer.bekreftDag.tillegg.bruddTittel": "Shumë orë makinerie",
+  "timer.bekreftDag.tillegg.startSendt": "Makineritë dhe materialet nuk mund të shtohen - fleta e orarit të sotëm është dorëzuar",
   "timer.bekreftDag.bekreft": "Konfirmo dhe ruaj",
   "timer.bekreftDag.ikkeNaa": "Jo tani",
   "timer.bekreftDag.avsluttDag": "Dita e fundit",

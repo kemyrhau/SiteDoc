@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Tool",
   "timer.bekreftDag.tillegg.timer": "Machine hours",
   "timer.bekreftDag.tillegg.bruddTittel": "Too many machine hours",
+  "timer.bekreftDag.tillegg.startSendt": "Machines and materials cannot be added — today's timesheet has been submitted",
   "timer.bekreftDag.bekreft": "Confirm and save",
   "timer.bekreftDag.ikkeNaa": "Not now",
   "timer.bekreftDag.avsluttDag": "End day",

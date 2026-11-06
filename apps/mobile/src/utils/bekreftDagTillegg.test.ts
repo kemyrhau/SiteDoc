@@ -43,6 +43,8 @@ import {
   entydigByggeplass,
   maskinBruddForTillegg,
   vaktGrunnlag,
+  tilleggTilstand,
+  rensTillegg,
   type BekreftDagTillegg,
 } from "./bekreftDagTillegg";
 import { fullforVarelinje, planleggVaresending } from "../services/vareforbrukSync";
@@ -426,5 +428,106 @@ describe("Dom (56) merknad 1 — A2: byggeplass på et annet prosjekt", () => {
     expect(reise.length).toBeGreaterThan(0);
     expect(reise.every((r) => r.byggeplassId === "b2")).toBe(true);
     expect(reise.every((r) => r.reiseKjoretidMin === 60)).toBe(true);
+  });
+});
+
+describe("Dom (57) m1 — M7: lokal maskinrad uten prosjekt arver sedelens", () => {
+  it("🔴 eksisterende maskinrad med projectId null teller mot sedelens prosjekt", () => {
+    db().insert(dagsseddelLocal).values({
+      id: "eks", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", pauseMin: 0, sistEndretLokalt: 1,
+    }).run();
+    db().insert(sheetMachineLocal).values({
+      id: "m-null", dagsseddelId: "eks", projectId: null, vehicleId: "eq-9", timer: 7.5,
+      sistEndretLokalt: 1,
+    }).run();
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const grunnlag = vaktGrunnlag(lokalDb(), BRUKER, forslag);
+    expect(grunnlag!.maskinRader).toEqual([{ projectId: "p1", externalCostObjectId: null, timer: 7.5 }]);
+    // 7,5 arvet + 3 nye på p1 > forslagets arbeid + pause → brudd. Uten arv havner
+    // raden i en egen null-bøtte og bruddet forsvinner.
+    expect(maskinBruddForTillegg(grunnlag, MASKIN_3.maskiner)).toHaveLength(1);
+  });
+});
+
+/** 20:00 → 04:00 neste dag, arbeidet på startdatoen fjernet: startdatoen har 0 rader. */
+function forslagUtenStartRader() {
+  holder.raw.run("DELETE FROM arbeidsdag_local;");
+  seedArbeidsdag("2026-07-01T20:00:00");
+  const ctx = kontekst({
+    dag: { startAt: "2026-07-01T20:00:00", startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null },
+    sluttIso: "2026-07-02T04:00:00",
+  });
+  return forberedBekreftDag(lokalDb(), ctx, { perDato: { [DATO]: { fjernArbeid: true } } }).forslag;
+}
+
+describe("Dom (57) m2 — vare krever timer-rad på startdatoen", () => {
+  it("🔴 vanlig dag → varer tillatt", () => {
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const g = vaktGrunnlag(lokalDb(), BRUKER, forslag);
+    expect(tilleggTilstand(forslag, g, "p1")).toEqual({ startSendt: false, varerTillatt: true });
+  });
+
+  it("🔴 0 rader på startdatoen → varer ikke tillatt, maskinknappen berøres ikke", () => {
+    const forslag = forslagUtenStartRader();
+    expect(forslag.datoer.find((d) => d.erStartSegment)!.rader).toHaveLength(0);
+    const g = vaktGrunnlag(lokalDb(), BRUKER, forslag);
+    expect(tilleggTilstand(forslag, g, "p1")).toEqual({ startSendt: false, varerTillatt: false });
+  });
+
+  it("🔴 eksisterende timer-rad på start-sedelen for prosjektet → tillatt", () => {
+    db().insert(dagsseddelLocal).values({
+      id: "eks", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", pauseMin: 0, sistEndretLokalt: 1,
+    }).run();
+    db().insert(sheetTimerLocal).values({
+      id: "t-eks", dagsseddelId: "eks", projectId: null, aktivitetId: "a1", lonnsartId: "L-normal", timer: 2,
+      sistEndretLokalt: 1,
+    }).run();
+    const forslag = forslagUtenStartRader();
+    const g = vaktGrunnlag(lokalDb(), BRUKER, forslag);
+    expect(tilleggTilstand(forslag, g, "p1").varerTillatt).toBe(true);
+  });
+
+  it("🔴 fjerning: varer tas ut når vilkåret faller, og Bekreft skriver da ingen vare", () => {
+    const forslag = forslagUtenStartRader();
+    const tilstand = tilleggTilstand(forslag, vaktGrunnlag(lokalDb(), BRUKER, forslag), "p1");
+    const renset = rensTillegg({ maskiner: MASKIN_3.maskiner, varer: VARE.varer }, tilstand);
+    expect(renset).toEqual({ maskiner: MASKIN_3.maskiner, varer: [] });
+    bekreftDag(lokalDb(), forslag, { ...skriveCtx(), sluttIso: "2026-07-02T04:00:00" }, {
+      maskiner: [],
+      varer: renset.varer,
+    });
+    expect(tellTillegg().varer).toBe(0);
+  });
+
+  it("uendret tillegg gir samme objekt (ingen render-løkke i effekten)", () => {
+    const tl = { maskiner: MASKIN_3.maskiner, varer: VARE.varer };
+    expect(rensTillegg(tl, { startSendt: false, varerTillatt: true })).toBe(tl);
+  });
+});
+
+describe("Dom (57) m3 — start-sedel sendt, senere datoer åpne", () => {
+  it("🔴 startSendt → ingen tillegg, og rensTillegg tømmer alt", () => {
+    db().insert(dagsseddelLocal).values({
+      id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "sent", sistEndretLokalt: 1,
+    }).run();
+    holder.raw.run("DELETE FROM arbeidsdag_local;");
+    seedArbeidsdag("2026-07-01T20:00:00");
+    const { forslag } = forberedBekreftDag(
+      lokalDb(),
+      kontekst({
+        dag: { startAt: "2026-07-01T20:00:00", startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null },
+        sluttIso: "2026-07-02T04:00:00",
+      }),
+    );
+    expect(forslag.datoer.some((d) => !d.blokkert)).toBe(true);
+    const tilstand = tilleggTilstand(forslag, vaktGrunnlag(lokalDb(), BRUKER, forslag), "p1");
+    expect(tilstand).toEqual({ startSendt: true, varerTillatt: false });
+    expect(rensTillegg({ maskiner: MASKIN_3.maskiner, varer: VARE.varer }, tilstand)).toEqual({
+      maskiner: [],
+      varer: [],
+    });
   });
 });

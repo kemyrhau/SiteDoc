@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Instrument",
   "timer.bekreftDag.tillegg.timer": "Ore de mașină",
   "timer.bekreftDag.tillegg.bruddTittel": "Prea multe ore de mașină",
+  "timer.bekreftDag.tillegg.startSendt": "Mașinile și materialele nu pot fi adăugate — a fost trimisă fișa de pontaj de astăzi",
   "timer.bekreftDag.bekreft": "Confirmați și salvați",
   "timer.bekreftDag.ikkeNaa": "Nu acum",
   "timer.bekreftDag.avsluttDag": "Ziua de sfârșit",

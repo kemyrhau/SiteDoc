@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Інструмент",
   "timer.bekreftDag.tillegg.timer": "Годин машини",
   "timer.bekreftDag.tillegg.bruddTittel": "Забагато машино-годин",
+  "timer.bekreftDag.tillegg.startSendt": "Машини та матеріали не можна додати — сьогоднішній табель подано",
   "timer.bekreftDag.bekreft": "Підтвердити та зберегти",
   "timer.bekreftDag.ikkeNaa": "Не зараз",
   "timer.bekreftDag.avsluttDag": "Кінцевий день",

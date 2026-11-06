@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Werkzeug",
   "timer.bekreftDag.tillegg.timer": "Maschinenstunden",
   "timer.bekreftDag.tillegg.bruddTittel": "Zu viele Maschinenstunden",
+  "timer.bekreftDag.tillegg.startSendt": "Maschinen und Materialien können nicht hinzugefügt werden – der heutige Stundenzettel wurde übermittelt",
   "timer.bekreftDag.bekreft": "Bestätigen und speichern",
   "timer.bekreftDag.ikkeNaa": "Nicht jetzt",
   "timer.bekreftDag.avsluttDag": "Endtag",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import { ArrowLeft, Package } from "lucide-react-native";
+import { ArrowLeft } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../../../src/db/database";
@@ -23,6 +23,10 @@ import { TimerStatusMerkelapp } from "../../../../src/components/TimerStatusMerk
 import { ProsjektGruppe } from "../../../../src/components/timer-detalj/ProsjektGruppe";
 import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-detalj/BekreftFjernMatpauseModal";
 import { KortVareforbrukModal } from "../../../../src/components/timer-detalj/KortVareforbrukModal";
+import {
+  VareforbrukLesListe,
+  type VisVarelinje,
+} from "../../../../src/components/timer-detalj/VareforbrukLesListe";
 import { KortHode } from "../../../../src/components/timer-detalj/ProsjektkortSamleside";
 import { ProsjektkortKontekst } from "../../../../src/components/timer-detalj/prosjektkortKontekst";
 import { finnProsjektLokalt } from "../../../../src/services/prosjektKatalog";
@@ -33,7 +37,7 @@ import {
   hentLokaleVarelinjer,
   type LokalVarelinje,
 } from "../../../../src/services/vareforbrukSync";
-import { slaaSammenVarelinjer, visVareforbrukKnapp } from "@sitedoc/shared";
+import { visVareforbrukKnapp } from "@sitedoc/shared";
 import {
   flyttMatpauseVedAvhuking,
   settMatpauseBaerer,
@@ -43,10 +47,10 @@ import { useMiniToast, MiniToast } from "../../../../src/components/MiniToast";
 import { useReLesVedSynk } from "../../../../src/hooks/useReLesVedSynk";
 import { formatNorskDato } from "../../../../src/utils/dato";
 import {
-  formatKortTall,
   tilKortMaskinRader,
   tilKortTimerRader,
   tilKortVarer,
+  varerForProsjekt,
 } from "../../../../src/lib/prosjektkortMobil";
 import type {
   Sedel,
@@ -213,17 +217,7 @@ export default function ProsjektkortSkjerm() {
   // som server-raden → telles én gang; offline vises de lokale alene.
   const varer = useMemo(
     () =>
-      slaaSammenVarelinjer<{
-        id: string;
-        projectId: string;
-        antall: number;
-        vare: { navn: string; enhet: string };
-        syncStatus?: LokalVarelinje["syncStatus"];
-        feilmelding?: string | null;
-      }>(
-        tilKortVarer(vareQuery.data ?? []).filter((v) => v.projectId === projectId),
-        lokaleVarer,
-      ),
+      varerForProsjekt<VisVarelinje>(tilKortVarer(vareQuery.data ?? []), lokaleVarer, projectId),
     [vareQuery.data, lokaleVarer, projectId],
   );
   const kanForeVare = visVareforbrukKnapp({
@@ -333,32 +327,9 @@ export default function ProsjektkortSkjerm() {
           />
         </ProsjektkortKontekst.Provider>
 
-        {/* Vareforbruk (L3): føres fra kortet med prosjektet låst; linjene kan
-            ikke endres her — retting skjer i Varelager. */}
+        {/* Vareforbruk (L3): føres fra kortet med prosjektet låst. */}
         {(varer.length > 0 || kanForeVare) && (
-          <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
-            <View className="mb-2 flex-row items-center gap-2">
-              <Package size={16} color="#6b7280" />
-              <Text className="text-sm font-semibold text-gray-900">
-                {t("vareforbruk.tittel")}
-              </Text>
-            </View>
-            {varer.map((v) => (
-              <View key={v.id} className="py-1">
-                <View className="flex-row justify-between">
-                  <Text className="flex-1 text-sm text-gray-700">{v.vare.navn}</Text>
-                  {v.syncStatus === "pending" && (
-                    <Text className="mr-2 text-xs text-amber-700">{t("timer.sync.venter")}</Text>
-                  )}
-                  <Text className="text-sm text-gray-900">
-                    {formatKortTall(v.antall).replace(/,0$/, "")} {v.vare.enhet}
-                  </Text>
-                </View>
-                {v.syncStatus === "avvist" && v.feilmelding && (
-                  <Text className="text-xs text-red-600">{v.feilmelding}</Text>
-                )}
-              </View>
-            ))}
+          <VareforbrukLesListe varer={varer}>
             {kanForeVare && (
               <Pressable
                 onPress={() => setVisVareModal(true)}
@@ -369,7 +340,7 @@ export default function ProsjektkortSkjerm() {
                 </Text>
               </Pressable>
             )}
-          </View>
+          </VareforbrukLesListe>
         )}
       </ScrollView>
 

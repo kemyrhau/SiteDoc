@@ -3,7 +3,7 @@ name: timer-gps-lag3-4-spec
 description: Spesifikasjon for LAG 3 (bekreft dag — den menneskelige porten) og LAG 4 (flere byggeplasser pr. dag) i timer-GPS-helhetsplanen. Besøksmodell uten posisjonssporing, bekreft-dag-skjermen (2 klikk), reiseregler V1–V15 ved flere byggeplasser, løsning på G1-konflikten, leveransedeling og åpne spørsmål til Kenneth. Skrevet av fabel 2026-11-06 på orkestrators ordre (Kenneth «Ja, begge»), gates av orkestrator; Kenneth godkjenner før kode-ordre.
 sist_verifisert_mot_kode: 2026-11-06
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 L3-A levert `feat/timer-bekreft-dag` (⚠️ venter Kontrollør-gate, ikke merget). 🟢 L3-D levert `feat/timer-bekreft-dag-maskin` (⚠️ venter Kontrollør-gate, ikke merget) — lesevisning av varer i `ProsjektGruppe` ⬜ ikke med (se § 3.5 Status L3-D). 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A.
+status: 🟢 L3-A levert `feat/timer-bekreft-dag` (⚠️ venter Kontrollør-gate, ikke merget). 🟢 L3-D levert `feat/timer-bekreft-dag-maskin` (⚠️ venter Kontrollør-gate, ikke merget) — lesevisning av varer i `ProsjektGruppe` + dom 57 m1–m3 levert i L3-D2 `feat/timer-bekreft-dag-d2` (⚠️ venter gate). 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A.
 ---
 
 # LAG 3 + LAG 4 — bekreft dag, og flere byggeplasser pr. dag
@@ -292,9 +292,8 @@ Avbrudd («Ikke nå», sveip, drept app) skriver ingenting — heller ikke maski
 
 **Etterpå på sedelen — vedtak for dagskort-modus (K20, tatt i spec på orkestrators ordre):** maskin vises i
 `MaskinSeksjon` under prosjektgruppen (`ProsjektGruppe.tsx:359`) i begge registreringsmoduser — rader med
-`sheetTimerId = null` rendres inline der i dag. Varer vises i dag **bare i prosjektkort-modus**
-(`apps/mobile/app/timer/[id]/kort/[projectId].tsx:336-371`; dagskort laster ikke `vareQuery`, `[id].tsx:631-633`).
-**L3-D legger en lesevisning av prosjektets vareforbruk i `ProsjektGruppe` (dagskort)**, samme spørring som
+`sheetTimerId = null` rendres inline der i dag. Varer viste før L3-D2 **bare i prosjektkort-modus**
+(prosjektkortets egen blokk; dagskort lastet ikke `vareQuery`). **L3-D legger en lesevisning av prosjektets vareforbruk i `ProsjektGruppe` (dagskort)**, samme spørring som
 prosjektkortet — en vare arbeideren nettopp bekreftet skal ikke være usynlig i halve brukermassen. Retting skjer via
 prosjektkortet/web som i dag; ingen ny redigering i dagskort.
 
@@ -318,9 +317,20 @@ prosjektkortet/web som i dag; ingen ny redigering i dagskort.
   (`utils/dagsforslagAnvend.ts`, `skrivTillegg`) maskin og varer på **start-sedelen**; er den sendt (blokkert),
   skrives ingen av dem (vedtak C). ECO = null på maskinradene, som forslagets timer-rader.
 - `TimerRadModal`-vakten er ikke med (vedtak E, egen ordre). Funn 1 (`userId` i `vareforbruk.opprett`) er urørt.
-- ⬜ **Ikke med:** lesevisning av vareforbruk i `ProsjektGruppe` (dagskort, K20-avsnittet over) — sto ikke i den
-  godkjente planen; meldt orkestrator. Til den finnes, er varer ført her synlige på prosjektkortet og web.
-- Tester: `bekreftDagTillegg.test.ts` (§ 8 nr. 15–21 + vedtak B/C + dom 56 m1), `dagsforslag.retting.test.ts` (dom 56 m2).
+- Lesevisning av vareforbruk i dagskort (K20) — **L3-D2** (ORDRE 32, `feat/timer-bekreft-dag-d2`, ⚠️ venter gate):
+  `ProsjektGruppe` tar valgfri `varer` og rendrer `VareforbrukLesListe`
+  (`apps/mobile/src/components/timer-detalj/VareforbrukLesListe.tsx`), som er prosjektkortets blokk flyttet uendret
+  (kortet legger «+ Ny vare» inn som `children`). `[id].tsx` laster `vareQuery` + lokale linjer i begge moduser og
+  deler pr. prosjekt med `varerForProsjekt` (`lib/prosjektkortMobil.ts`); prosjektkortet sender ikke `varer` til
+  `ProsjektGruppe`, så lista vises ikke dobbelt der. Ingen redigering i dagskort.
+- Dom 57 m2/m3 (L3-D2): `tilleggTilstand` + `rensTillegg` (`utils/bekreftDagTillegg.ts`). Har start-datoen 0
+  timer-rader for prosjektet (eksisterende sedel + forslag), skjules «+ Varer» og varer i minnet fjernes — en vare
+  kobles bare til sedelen når sedelen har timer-rad for prosjektet (`kortDagsseddelId`). Er start-sedelen sendt mens
+  senere datoer er åpne, viser seksjonen bare `timer.bekreftDag.tillegg.startSendt` uten knapper, og alle tillegg
+  fjernes. `bekreft-dag.tsx` sender `rensTillegg(tillegg, tilstand)` til `bekreftDag`, så Bekreft skriver aldri det
+  som er skjult.
+- Tester: `bekreftDagTillegg.test.ts` (§ 8 nr. 15–21 + vedtak B/C + dom 56 m1 + dom 57 m1–m3),
+  `dagsforslag.retting.test.ts` (dom 56 m2), `prosjektkortMobil.test.ts` (`varerForProsjekt`).
 
 **Personvern/isolering:** ingen nye persondata. Maskin- og varerader bærer prosjekt (og evt. byggeplass) og ansatt (via
 sedelen) nøyaktig som i dag. `sistBrukteMaskiner` leser kun egne rader (ORDRE 29 A).

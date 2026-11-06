@@ -22,6 +22,7 @@ import { TimerSeksjon } from "./TimerSeksjon";
 import { TilleggSeksjon } from "./TilleggSeksjon";
 import { UtleggSeksjon } from "./UtleggSeksjon";
 import { MaskinSeksjon } from "./MaskinSeksjon";
+import { VareforbrukLesListe, type VisVarelinje } from "./VareforbrukLesListe";
 
 /**
  * Prosjekt-gruppe for dagsseddel-detaljen (T7-3b2/T7-4e): ECO-bøtter med timer
@@ -48,6 +49,7 @@ export function ProsjektGruppe({
   tilleggRader,
   maskinRader,
   utleggRader,
+  varer,
   onEndret,
 }: {
   projectId: string;
@@ -74,6 +76,8 @@ export function ProsjektGruppe({
   tilleggRader: TilleggRad[];
   maskinRader: MaskinRad[];
   utleggRader: UtleggRad[];
+  /** K20: dagskortets lesevisning. Prosjektkortet sender ikke — det har egen blokk. */
+  varer?: VisVarelinje[];
   onEndret: () => void;
 }) {
   const { t } = useTranslation();
@@ -217,6 +221,7 @@ export function ProsjektGruppe({
         redigerbar={redigerbar}
         onEndret={onEndret}
       />
+      {varer && varer.length > 0 ? <VareforbrukLesListe varer={varer} /> : null}
       {/* sedelProjectId brukes ikke direkte her — beholdt for fremtidig
           backfill av rader uten projectId. void for å unngå lint-warning. */}
       {void sedelProjectId}

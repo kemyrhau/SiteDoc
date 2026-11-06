@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Verktyg",
   "timer.bekreftDag.tillegg.timer": "Maskintimmar",
   "timer.bekreftDag.tillegg.bruddTittel": "För många maskintimmar",
+  "timer.bekreftDag.tillegg.startSendt": "Maskiner och material kan inte läggas till — dagens tidrapport har skickats in",
   "timer.bekreftDag.bekreft": "Bekräfta och spara",
   "timer.bekreftDag.ikkeNaa": "Inte nu",
   "timer.bekreftDag.avsluttDag": "Slutdagen",

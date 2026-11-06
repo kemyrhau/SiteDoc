@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Tool",
   "timer.bekreftDag.tillegg.timer": "Machine hours",
   "timer.bekreftDag.tillegg.bruddTittel": "Too many machine hours",
+  "timer.bekreftDag.tillegg.startSendt": "Mašīnas un materiālus nevar pievienot — šodienas darba laika uzskaite ir iesniegta",
   "timer.bekreftDag.bekreft": "Apstipriniet un saglabājiet",
   "timer.bekreftDag.ikkeNaa": "Ne tagad",
   "timer.bekreftDag.avsluttDag": "Beigu diena",

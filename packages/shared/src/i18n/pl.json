@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Narzędzie",
   "timer.bekreftDag.tillegg.timer": "Godziny pracy maszyny",
   "timer.bekreftDag.tillegg.bruddTittel": "Za dużo godzin pracy maszyny",
+  "timer.bekreftDag.tillegg.startSendt": "Nie można dodawać maszyn i materiałów — przesłano dzisiejszy grafik",
   "timer.bekreftDag.bekreft": "Potwierdź i zapisz",
   "timer.bekreftDag.ikkeNaa": "Nie teraz",
   "timer.bekreftDag.avsluttDag": "Koniec dnia",
