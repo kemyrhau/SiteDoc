@@ -3438,6 +3438,8 @@
   "oppgave.punktITegning": "Punct pe desen",
   "oppgave.settPunktHint": "Atingeți pentru a seta sau muta punctul",
   "oppgave.sePunktHint": "Atingeți pentru a vizualiza punctul de pe desen",
+  "oppgave.punktLaastSendt": "Punctul a fost stabilit de expeditor și poate fi mutat doar într-o schiță",
+  "oppgave.punktLaastOffline": "Punctul nu poate fi mutat fără o conexiune. Conectați-vă pentru a o schimba.",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Nou",
   "oppgave.ingenKommentarer": "Niciun comentariu încă",

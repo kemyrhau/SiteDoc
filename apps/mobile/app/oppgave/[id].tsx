@@ -53,6 +53,8 @@ import { LokasjonSeksjon, TegningVelgerListe } from "../../src/components/Lokasj
 import type { LokasjonTegning } from "../../src/components/LokasjonSeksjon";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
+import { useDuErHer } from "../../src/hooks/useDuErHer";
+import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -188,6 +190,11 @@ export default function OppgaveDetalj() {
         (x) => x.fileUrl,
       ),
     [alleTegningerQuery.data],
+  );
+  // «Du er her» i tegningsmodalen — georeferansen hentes fra tegningslista (detaljens drawing er ikke typet med den)
+  const duErHer = useDuErHer(
+    visTegningModal,
+    tilgjengeligeTegninger.find((x) => x.id === oppgaveDetalj?.drawing?.id)?.geoReference ?? null,
   );
 
   // Hent faggrupper for redigering
@@ -1504,7 +1511,8 @@ export default function OppgaveDetalj() {
 
       {/* Tegningspunkt-modal: sett/flytt punktet på den tildelte tegningen. Åpnes kun
           når tegningen har en visbar fil (kanÅpne-vakten på kortet). onTrykk er aktiv
-          bare utenfor lesemodus, så lesemodus ser punktet uten å kunne flytte det. */}
+          bare utenfor lesemodus, så lesemodus ser punktet uten å kunne flytte det — bunnfeltet
+          forklarer da låsen i stedet for Lagre. Blå «du er her»-prikk vises i begge modi. */}
       <Modal visible={visTegningModal} animationType="slide" onRequestClose={() => settVisTegningModal(false)}>
         <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           {(() => {
@@ -1534,8 +1542,9 @@ export default function OppgaveDetalj() {
                       : undefined
                   }
                   markører={markører}
+                  gpsMarkør={duErHer}
                 />
-                {kanRedigerePunkt && (
+                {tegningBunnfelt({ kanRedigerePunkt, offline: offlineModus }) === "lagre" ? (
                   <View className="flex-row items-center justify-end border-t border-gray-200 bg-white px-5 py-4">
                     <Pressable
                       hitSlop={8}
@@ -1551,6 +1560,12 @@ export default function OppgaveDetalj() {
                     >
                       <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
                     </Pressable>
+                  </View>
+                ) : (
+                  <View className="border-t border-gray-200 bg-white px-5 py-4">
+                    <Text className="text-center text-sm text-gray-500">
+                      {offlineModus ? t("oppgave.punktLaastOffline") : t("oppgave.punktLaastSendt")}
+                    </Text>
                   </View>
                 )}
               </View>

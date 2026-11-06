@@ -308,6 +308,25 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   `apps/api/src/routes/hms.ts` fikk ett additivt byggeplass-felt hver (scalar `byggeplassId` + grunn
   `drawing.byggeplassId`) så offline-lesing kan scope likt serveren.
 
+### Tegningsmodal i oppgave/sjekkliste: lesemodus-tekst og «du er her» (2026-11-06)
+
+`app/oppgave/[id].tsx` (punkt-modal) og `app/sjekkliste/[id].tsx` (lokasjonsmodal). OTA-only.
+Funksjonsendring med hjemmel (Kenneth 2026-11-06, «1 beholde»). Utkast-låsen
+`kanRedigerePunkt = !offlineModus && status === "draft"` er uendret.
+
+- **Lesemodus-tekst (oppgave):** uten redigeringsrett viser bunnfeltet en forklaring i stedet for Lagre —
+  `oppgave.punktLaastSendt` («Punktet ble satt av avsender og kan bare flyttes i utkast») eller, når
+  offline er årsaken, `oppgave.punktLaastOffline`. Valget ligger i den rene `tegningBunnfelt`
+  (`src/lib/tegningDuErHer.ts`, `tegningDuErHer.test.ts`). Sjekklistens modal åpnes kun utenfor
+  lesemodus (`LokasjonSeksjon.onAapne` er `undefined` ved `leseModus`), så teksten finnes ikke der.
+- **«Du er her»:** `useDuErHer(aapen, geoReference)` (`src/hooks/useDuErHer.ts`) henter forgrunns-GPS
+  én gang når modalen åpnes — **kun** ved allerede gitt tillatelse (`getForegroundPermissionsAsync`,
+  ber aldri om ny). `duErHerPosisjon` regner om med delt `beregnTransformasjon` + `gpsTilTegning`;
+  siden `gpsTilTegning` clamper til 0–100 tolkes kantverdi som utenfor → ingen prikk. Uten GPS,
+  uten georeferanse eller utenfor tegningen: ingen prikk og ingen melding. Prikken sendes som
+  eksisterende `gpsMarkør`-prop til `TegningsVisning` (blå `.gps`-div, `#3b82f6`, ikke trykkbar) —
+  lagres aldri og blir aldri redigeringsmarkør. Ingen endring i delt komponent.
+
 ### Tegningsvisning: trykk-hint, langt trykk og måling (2026-10-08)
 
 `apps/mobile/src/components/TegningsVisning.tsx` (WebView) + `app/(tabs)/lokasjoner.tsx`. OTA-only

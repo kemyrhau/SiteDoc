@@ -3438,6 +3438,8 @@
   "oppgave.punktITegning": "Punkt auf Zeichnung",
   "oppgave.settPunktHint": "Tippen Sie, um den Punkt festzulegen oder zu verschieben",
   "oppgave.sePunktHint": "Tippen Sie, um den Punkt in der Zeichnung anzuzeigen",
+  "oppgave.punktLaastSendt": "Der Punkt wurde vom Absender festgelegt und kann nur in einem Entwurf verschoben werden",
+  "oppgave.punktLaastOffline": "Ohne Verbindung kann der Punkt nicht verschoben werden. Verbinden Sie sich, um es zu ändern.",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Neu",
   "oppgave.ingenKommentarer": "Noch keine Kommentare",

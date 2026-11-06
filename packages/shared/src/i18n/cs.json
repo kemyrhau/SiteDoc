@@ -3438,6 +3438,8 @@
   "oppgave.punktITegning": "Bod na výkresu",
   "oppgave.settPunktHint": "Klepnutím nastavíte nebo přesunete bod",
   "oppgave.sePunktHint": "Klepnutím zobrazíte bod na výkresu",
+  "oppgave.punktLaastSendt": "Bod byl nastaven odesílatelem a lze jej přesunout pouze v konceptu",
+  "oppgave.punktLaastOffline": "Bod nelze bez připojení přesunout. Chcete-li to změnit, připojte se.",
   "oppgave.dialog": "Dialog",
   "oppgave.ny": "Nový",
   "oppgave.ingenKommentarer": "Zatím žádné komentáře",

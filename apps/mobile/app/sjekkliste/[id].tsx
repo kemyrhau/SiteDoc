@@ -50,6 +50,7 @@ import { byggObjektTre, standardFeltNavn } from "@sitedoc/shared";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
+import { useDuErHer } from "../../src/hooks/useDuErHer";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
@@ -246,6 +247,11 @@ export default function SjekklisteUtfylling() {
   const tilgjengeligeTegninger = useMemo(
     () => alleTegninger.filter((t) => t.fileUrl),
     [alleTegninger],
+  );
+  // «Du er her» i lokasjonsmodalen (ORDRE 23) — kun visning, lagres aldri
+  const duErHer = useDuErHer(
+    visLokasjonModal,
+    lokTempTegningId ? alleTegninger.find((x) => x.id === lokTempTegningId)?.geoReference ?? null : null,
   );
 
   // Lokasjonsinformasjon fra sjekklisteDetalj
@@ -1553,6 +1559,7 @@ export default function SjekklisteUtfylling() {
                     setLokTempPosY(posY);
                   }}
                   markører={markører}
+                  gpsMarkør={duErHer}
                 />
                 {/* Bunnbar: Bytt tegning + Lagre */}
                 <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
