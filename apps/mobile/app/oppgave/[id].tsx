@@ -31,7 +31,6 @@ import {
   CloudOff,
   Cloud,
   ClipboardCheck,
-  MapPin,
   Trash2,
   ChevronDown,
   MessageCircle,
@@ -39,7 +38,6 @@ import {
   Share2,
   Eye,
   Scale,
-  ChevronRight,
 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
