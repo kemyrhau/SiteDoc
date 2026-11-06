@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, Modal, TextInput, ScrollView } from "react-native";
 import { Package } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -46,9 +46,16 @@ export function KortVareforbrukModal({
     () => (synlig ? hentByggeplasserForProsjektLokalt(projectId) : []),
     [synlig, projectId],
   );
-  const [byggeplassId, setByggeplassId] = useState<string | null>(
-    byggeplasser.some((b) => b.id === sedelByggeplassId) ? sedelByggeplassId : null,
-  );
+  const [byggeplassId, setByggeplassId] = useState<string | null>(null);
+  // Modalen er alltid montert (mobil.md: aldri `{betingelse && <Modal>}`) —
+  // skjemaet nullstilles og forhåndsvalg settes ved hver åpning, ikke ved montering.
+  useEffect(() => {
+    if (!synlig) return;
+    setSok("");
+    setVareId(null);
+    setAntall("");
+    setByggeplassId(byggeplasser.some((b) => b.id === sedelByggeplassId) ? sedelByggeplassId : null);
+  }, [synlig, byggeplasser, sedelByggeplassId]);
   const varer = useMemo(
     () => (synlig ? hentVarerLokalt(organizationId) : []),
     [synlig, organizationId],
@@ -79,9 +86,6 @@ export function KortVareforbrukModal({
       antall: tall,
       byggeplassId,
     });
-    setSok("");
-    setVareId(null);
-    setAntall("");
     onLagret();
   }
 

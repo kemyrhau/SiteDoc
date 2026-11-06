@@ -379,9 +379,9 @@ export default function ProsjektkortSkjerm() {
         onBekreft={bekreftFjernMatpause}
       />
 
-      {visVareModal && bruker?.id && (
+      {bruker?.id && (
         <KortVareforbrukModal
-          synlig
+          synlig={visVareModal}
           userId={bruker.id}
           organizationId={sedel.organizationId}
           sheetId={sheetId}
