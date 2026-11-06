@@ -10,6 +10,7 @@ import {
 } from "../db/schema";
 import { finnEllerOpprettDagsseddel } from "./dagsseddelOpprett";
 import { erReiseLonnsartLokalt } from "./timerKatalog";
+import { SIST_BRUKTE_MASKINER_ANTALL, sisteUnikeMaskiner } from "@sitedoc/shared";
 
 /* ============================================================================
  *  «+» rett til timer-raden (ORDRE 17, 2026-11-06)
@@ -76,6 +77,79 @@ export function sistBrukteRadvalg(
     lonnsartId: sistLonnsart ?? aktiveLonnsarter.find((l) => l.erStandardvalg)?.id ?? null,
     aktivitetId: sistAktivitet ?? standardAktivitet,
   };
+}
+
+/** Prosjekt + byggeplass som foreslås for ny rad (ORDRE 29 pkt 1). */
+/**
+ * ORDRE 29: brukerens sist brukte maskiner i firmaet (nyeste først, unike, N = 5) —
+ * løftes øverst i maskinvelgeren. Kun EGNE sedler i firmaet; lokal SQLite, virker offline.
+ */
+export function sistBrukteMaskiner(
+  db: LokalDb,
+  userId: string,
+  organizationId: string,
+  n: number = SIST_BRUKTE_MASKINER_ANTALL,
+): string[] {
+  const rader = db
+    .select({ vehicleId: sheetMachineLocal.vehicleId })
+    .from(sheetMachineLocal)
+    .innerJoin(dagsseddelLocal, eq(sheetMachineLocal.dagsseddelId, dagsseddelLocal.id))
+    .where(and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.organizationId, organizationId)))
+    .orderBy(desc(dagsseddelLocal.dato), desc(sheetMachineLocal.sistEndretLokalt))
+    .limit(50)
+    .all();
+  return sisteUnikeMaskiner(
+    rader.map((r) => r.vehicleId),
+    n,
+  );
+}
+
+export interface StedValg {
+  projectId: string;
+  byggeplassId: string | null;
+}
+
+interface StedKilder {
+  /** Toppbarens prosjekt + byggeplass (innlogget kontekst). */
+  innlogget: StedValg | null;
+  /** Geofence-treff (`useGeoProsjektForslag`). */
+  gps: StedValg | null;
+  /** Firmaets byggeplasser — kun byggeplass på radens prosjekt er gyldig. */
+  byggeplasser: readonly { id: string; projectId: string }[];
+}
+
+/**
+ * Byggeplass for ny rad på valgt prosjekt: innlogget byggeplass → GPS-treff →
+ * null (arv fra dagskortet). En byggeplass på et annet prosjekt forkastes.
+ * Speiler webs `velgStandardByggeplass` (toppbaren vinner når den er gyldig).
+ */
+export function byggeplassForNyRad(projectId: string, k: StedKilder): string | null {
+  const gyldig = (v: StedValg | null) =>
+    v?.projectId === projectId &&
+    !!v.byggeplassId &&
+    k.byggeplasser.some((b) => b.id === v.byggeplassId && b.projectId === projectId)
+      ? v.byggeplassId
+      : null;
+  return gyldig(k.innlogget) ?? gyldig(k.gps);
+}
+
+/**
+ * «+» uten prosjektliste (Kenneth 2026-11-06: «Jeg er innlogget på prosjekt/
+ * byggeplass -> Jeg trykker + for timer -> timer foreslås registrert på denne
+ * byggeplass»): innlogget prosjekt i firmaets liste → rett til raden; ellers
+ * eneste prosjekt; ellers null = vis lista (GPS-forslag forhåndsvalgt).
+ */
+export function startvalgForNyRad(
+  prosjektIder: readonly string[],
+  k: StedKilder,
+): StedValg | null {
+  const projectId =
+    k.innlogget && prosjektIder.includes(k.innlogget.projectId)
+      ? k.innlogget.projectId
+      : prosjektIder.length === 1
+        ? prosjektIder[0]!
+        : null;
+  return projectId ? { projectId, byggeplassId: byggeplassForNyRad(projectId, k) } : null;
 }
 
 export interface DagForDato {
@@ -189,8 +263,8 @@ export type LagreNyRadResultat =
 
 /**
  * Lagre fra opprettelsesmodus (§ 3.1): finn-eller-opprett sedelen for datoen,
- * så skriv raden. Sedelens aktivitet = radens (§ 4.3); primærprosjekt = radens
- * prosjekt på en NY sedel. En sendt/akseptert dag får ingen rad.
+ * så skriv raden. Sedelens aktivitet = radens (§ 4.3); primærprosjekt og
+ * byggeplass = radens på en NY sedel. En sendt/akseptert dag får ingen rad.
  */
 export function lagreNyTimerRad(
   db: LokalDb,
@@ -204,7 +278,9 @@ export function lagreNyTimerRad(
     dato: args.dato,
     prosjektId: args.rad.projectId,
     aktivitetId: args.rad.aktivitetId,
-    byggeplassId: null,
+    // ORDRE 29: NY sedel arver radens byggeplass (som primærprosjektet);
+    // en eksisterende sedel røres ikke.
+    byggeplassId: args.rad.byggeplassId,
     beskrivelse: null,
   });
   settInnTimerRad(db, sedel.id, args.organizationId, args.rad);

@@ -211,6 +211,11 @@ export default function DagsseddelDetaljSide() {
     { organizationId: sheet?.organizationId ?? "" },
     { enabled: !!sheet?.organizationId },
   );
+  // ORDRE 29: egne sist brukte maskiner (N = 5) løftes øverst i maskinvelgeren.
+  const { data: sistBrukteMaskiner } = trpc.timer.dagsseddel.sistBrukteMaskiner.useQuery(
+    { organizationId: sheet?.organizationId ?? "" },
+    { enabled: !!sheet?.organizationId },
+  );
   const byggeplassNavn = useMemo(
     () => new Map((byggeplasser ?? []).map((b) => [b.id, b.name])),
     [byggeplasser],
@@ -1028,6 +1033,7 @@ export default function DagsseddelDetaljSide() {
           // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
           // maskin-seksjonen (bucket-kapasitet, samme regel som MaskinRadDialog).
           alleMaskinRader={maskinRader}
+          sistBrukteMaskiner={sistBrukteMaskiner ?? []}
           pauseMin={sheet.pauseMin}
           // Bolk (d) R1: prefill fra/til på ny rad + T.5-runding, fra medlems-
           // tilgjengelig arbeidstidDefaults (tidsrundingMinutter eksponert der).
@@ -1112,6 +1118,7 @@ export default function DagsseddelDetaljSide() {
           // beregne bucket-kapasitet reaktivt for gjeldende (projectId, ECO).
           alleTimerRader={timerRader}
           alleMaskinRader={maskinRader}
+          sistBrukteMaskiner={sistBrukteMaskiner ?? []}
           pauseMin={sheet.pauseMin}
           // B1/B2 (bolk e): pausevindu-parametre for spenn↔antall-synk. Samme
           // kilde som timer-modalen; standardPauseMin ≠ pauseMin (bucket-tak).
@@ -2291,6 +2298,7 @@ function TimerRadDialog({
   laastProsjekt,
   kortNavn,
   alleMaskinRader,
+  sistBrukteMaskiner,
   pauseMin,
   defaultFraTid,
   defaultTilTid,
@@ -2318,6 +2326,8 @@ function TimerRadDialog({
   // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
   // maskin-seksjonen (bucket-kapasitet, speiler MaskinRadDialog).
   alleMaskinRader: MaskinRad[];
+  /** ORDRE 29: egne sist brukte maskiner (nyeste først) — øverst i velgeren. */
+  sistBrukteMaskiner: string[];
   pauseMin: number;
   // Bolk (d) R1: prefill fra/til ved ny rad. R4: T.5-runding ved commit.
   defaultFraTid?: string | null;
@@ -3058,6 +3068,7 @@ function TimerRadDialog({
                     valgtId={maskinVehicleId}
                     onVelg={setMaskinVehicleId}
                     bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
+                    sistBrukt={sistBrukteMaskiner}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -4092,6 +4103,7 @@ function MaskinRadDialog({
   rad,
   alleTimerRader,
   alleMaskinRader,
+  sistBrukteMaskiner,
   pauseMin,
   skiftStart,
   standardPauseMin,
@@ -4113,6 +4125,8 @@ function MaskinRadDialog({
   // bucket-kapasitet. Samme regel som server (validerMaskinUnderArbeid).
   alleTimerRader: TimerRad[];
   alleMaskinRader: MaskinRad[];
+  /** ORDRE 29: egne sist brukte maskiner (nyeste først) — øverst i velgeren. */
+  sistBrukteMaskiner: string[];
   pauseMin: number;
   // B1/B2 (bolk e): pause-bevisst spenn↔antall-synk + spenn-validering på
   // maskin-rad. standardPauseMin = firma-default (samme kilde som timer-
@@ -4354,6 +4368,7 @@ function MaskinRadDialog({
             valgtId={vehicleId}
             onVelg={setVehicleId}
             bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
+            sistBrukt={sistBrukteMaskiner}
           />
         </div>
         <RadByggeplassFelt

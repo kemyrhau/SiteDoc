@@ -541,6 +541,7 @@
   "timer.felt.enhet": "одиниця",
   "timer.velgUtstyr": "— Виберіть обладнання —",
   "timer.maskin.bruktPaaSeddel": "використовується на цьому аркуші",
+  "timer.maskin.sistBrukt": "нещодавно використаний",
   "timer.maskin.kapasitet": "Робота в групі: {{arbeid}} h · поки машина: {{maskin}} h · доступна: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Машино-години перевищують робочі години для групи — зменште перед збереженням.",
   "timer.maskinSeksjon.merke": "машина",

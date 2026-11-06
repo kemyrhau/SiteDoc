@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Jednotka",
   "timer.velgUtstyr": "— Vyberte vybavení —",
   "timer.maskin.bruktPaaSeddel": "použité na tomto listu",
+  "timer.maskin.sistBrukt": "nedávno použitý",
   "timer.maskin.kapasitet": "Práce ve skupině: {{arbeid}} h · stroj zatím: {{maskin}} h · dostupný: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Strojové hodiny překračují pracovní dobu skupiny – snižte před uložením.",
   "timer.maskinSeksjon.merke": "Stroj",

@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Enhet",
   "timer.velgUtstyr": "— Välj utrustning —",
   "timer.maskin.bruktPaaSeddel": "används på detta blad",
+  "timer.maskin.sistBrukt": "nyligen använd",
   "timer.maskin.kapasitet": "Arbeta i grupp: {{arbeid}} h · maskin hittills: {{maskin}} h · tillgänglig: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Maskintimmar överstiger arbetstimmar för gruppen – minska innan du sparar.",
   "timer.maskinSeksjon.merke": "Maskin",

@@ -63,6 +63,7 @@ import {
   pauseVinduForDag,
   hhmmTilMin,
   PAUSE_TERSKEL_TIMER,
+  sisteUnikeMaskiner,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -1640,6 +1641,21 @@ export const dagsseddelRouter = router({
         firmanavn = org?.name ?? null;
       }
       return { kanFoere, firmanavn };
+    }),
+
+  // ORDRE 29: brukerens sist brukte maskiner (nyeste først, unike, N = 5) — løftes
+  // øverst i maskinvelgeren. Kun EGNE sedler i firmaet; ikke ansatt → tom liste.
+  sistBrukteMaskiner: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      if (!(await erAnsattIFirma(ctx.userId, input.organizationId))) return [];
+      const rader = await ctx.prismaTimer.sheetMachine.findMany({
+        where: { sheet: { userId: ctx.userId, organizationId: input.organizationId } },
+        orderBy: [{ sheet: { dato: "desc" } }, { createdAt: "desc" }],
+        take: 50,
+        select: { vehicleId: true },
+      });
+      return sisteUnikeMaskiner(rader.map((r) => r.vehicleId));
     }),
 
   hentMedId: protectedProcedure

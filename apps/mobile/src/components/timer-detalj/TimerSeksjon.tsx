@@ -1020,6 +1020,7 @@ export function TimerRadModal({
   sheetId,
   organizationId,
   defaultProjectId,
+  defaultByggeplassId,
   defaultEcoId,
   dato,
   sheetPauseMin,
@@ -1038,6 +1039,9 @@ export function TimerRadModal({
   sheetId: string;
   organizationId: string;
   defaultProjectId: string;
+  /** ORDRE 29: byggeplass en NY rad starter på (innlogget/GPS). Ignoreres for
+   *  eksisterende rad og ved `tvungetValg`. */
+  defaultByggeplassId?: string | null;
   defaultEcoId: string | null;
   dato: string;
   /** Sedel-nivå pause (min) — bucket-kapasitet i den valgfrie maskin-seksjonen.
@@ -1185,10 +1189,13 @@ export function TimerRadModal({
   );
   // F3: per-rad byggeplass. null = arv fra dagskortet (sedel-nivå). Byggeplass
   // hører alltid til rad-prosjektet; nullstilles ved prosjektbytte i modalen.
+  // ORDRE 29: ny rad fra «+» starter på innlogget byggeplass (`defaultByggeplassId`).
   const [valgtByggeplassId, setValgtByggeplassId] = useState<string | null>(
     tvungetValg
       ? tvungetValg.byggeplassId
-      : eksisterendeRad?.byggeplassId ?? null,
+      : eksisterendeRad
+        ? eksisterendeRad.byggeplassId ?? null
+        : defaultByggeplassId ?? null,
   );
   const [valgtLonnsartId, setValgtLonnsartId] = useState<string>(
     defaultValg.lonnsartId,

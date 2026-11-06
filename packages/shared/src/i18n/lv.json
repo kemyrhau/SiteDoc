@@ -541,6 +541,7 @@
   "timer.felt.enhet": "Vienība",
   "timer.velgUtstyr": "— Izvēlieties aprīkojumu —",
   "timer.maskin.bruktPaaSeddel": "izmantots šajā lapā",
+  "timer.maskin.sistBrukt": "nesen lietots",
   "timer.maskin.kapasitet": "Darbs grupā: {{arbeid}} h · mašīna līdz šim: {{maskin}} h · pieejams: {{ledig}} h",
   "timer.maskin.overstigerArbeid": "Mašīnu stundas pārsniedz darba stundas grupai — samaziniet pirms saglabāšanas.",
   "timer.maskinSeksjon.merke": "Mašīna",

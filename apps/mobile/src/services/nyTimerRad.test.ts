@@ -39,6 +39,7 @@ vi.mock("../db/database", () => ({
 }));
 vi.mock("../lib/i18n", () => ({ default: { t: (k: string) => k } }));
 
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
@@ -46,11 +47,13 @@ import {
   erDagLaast,
   finnDagForDato,
   lagreNyTimerRad,
+  sistBrukteMaskiner,
   sistBrukteRadvalg,
+  startvalgForNyRad,
   type NyRad,
 } from "./nyTimerRad";
 
-const { aktivitetLocal, dagsseddelLocal, lonnsartLocal, sheetTimerLocal } = schema;
+const { aktivitetLocal, dagsseddelLocal, lonnsartLocal, sheetMachineLocal, sheetTimerLocal } = schema;
 
 // Ekte sql.js bak samme spørre-API som Expo-driveren nyTimerRad tar inn.
 type Db = NonNullable<ReturnType<typeof import("../db/database").hentDatabase>>;
@@ -323,5 +326,117 @@ describe("lagreNyTimerRad", () => {
       expect(lagreNyTimerRad(db(), { userId: "u1", organizationId: "o1", dato: "2026-11-06", rad }).ok).toBe(true);
       expect(antall().rader).toBe(1);
     }
+  });
+});
+
+describe("ORDRE 29: startvalgForNyRad — innlogget byggeplass forhåndsvalgt", () => {
+  const byggeplasser = [
+    { id: "bp1", projectId: "p1" },
+    { id: "bp2", projectId: "p1" },
+    { id: "bp9", projectId: "p9" },
+  ];
+  const kilder = (
+    innlogget: { projectId: string; byggeplassId: string | null } | null,
+    gps: { projectId: string; byggeplassId: string | null } | null = null,
+  ) => ({ innlogget, gps, byggeplasser });
+
+  it("innlogget prosjekt i firmaets liste → rett til raden med innlogget byggeplass", () => {
+    expect(startvalgForNyRad(["p1", "p2"], kilder({ projectId: "p1", byggeplassId: "bp2" }))).toEqual({
+      projectId: "p1",
+      byggeplassId: "bp2",
+    });
+  });
+
+  it("innlogget byggeplass slår GPS; uten innlogget byggeplass brukes GPS på samme prosjekt", () => {
+    const gps = { projectId: "p1", byggeplassId: "bp1" };
+    expect(startvalgForNyRad(["p1"], kilder({ projectId: "p1", byggeplassId: "bp2" }, gps))?.byggeplassId).toBe("bp2");
+    expect(startvalgForNyRad(["p1"], kilder({ projectId: "p1", byggeplassId: null }, gps))?.byggeplassId).toBe("bp1");
+  });
+
+  it("byggeplass fra annet prosjekt eller ukjent i katalogen forkastes", () => {
+    expect(startvalgForNyRad(["p1", "p2"], kilder({ projectId: "p1", byggeplassId: "bp9" }))?.byggeplassId).toBeNull();
+    expect(startvalgForNyRad(["p1", "p2"], kilder({ projectId: "p1", byggeplassId: "ukjent" }))?.byggeplassId).toBeNull();
+    // GPS på et annet prosjekt enn det valgte gir ingen byggeplass.
+    expect(
+      startvalgForNyRad(["p1", "p9"], kilder({ projectId: "p1", byggeplassId: null }, { projectId: "p9", byggeplassId: "bp9" }))
+        ?.byggeplassId,
+    ).toBeNull();
+  });
+
+  it("innlogget prosjekt utenfor firmaets liste → prosjektlista (null) ved flere prosjekter", () => {
+    expect(startvalgForNyRad(["p1", "p2"], kilder({ projectId: "p9", byggeplassId: "bp9" }))).toBeNull();
+    expect(startvalgForNyRad(["p1", "p2"], kilder(null))).toBeNull();
+    // Ett prosjekt hoppes fortsatt over (som før ORDRE 29).
+    expect(startvalgForNyRad(["p1"], kilder(null))).toEqual({ projectId: "p1", byggeplassId: null });
+  });
+});
+
+describe("ORDRE 29: ny sedel arver radens byggeplass", () => {
+  it("NY sedel får radens byggeplass; eksisterende sedel røres ikke", () => {
+    const ny = lagreNyTimerRad(db(), {
+      userId: "u1",
+      organizationId: "o1",
+      dato: "2026-11-06",
+      rad: { ...rad, byggeplassId: "bp1" },
+    });
+    expect(ny.ok && ny.eksisterte).toBe(false);
+    const sedel = db().select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, ny.sheetId!)).get()!;
+    expect(sedel.byggeplassId).toBe("bp1");
+
+    seedSedel("s-fins", "2026-11-07");
+    const igjen = lagreNyTimerRad(db(), {
+      userId: "u1",
+      organizationId: "o1",
+      dato: "2026-11-07",
+      rad: { ...rad, byggeplassId: "bp2" },
+    });
+    expect(igjen).toEqual({ ok: true, sheetId: "s-fins", eksisterte: true });
+    const fins = db().select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, "s-fins")).get()!;
+    expect(fins.byggeplassId).toBeNull();
+  });
+});
+
+describe("ORDRE 29: sistBrukteMaskiner (egne, i firmaet, nyeste først, N = 5)", () => {
+  function seedMaskin(id: string, sheetId: string, vehicleId: string, sistEndret: number) {
+    db()
+      .insert(sheetMachineLocal)
+      .values({ id, dagsseddelId: sheetId, vehicleId, timer: 1, sistEndretLokalt: sistEndret })
+      .run();
+  }
+
+  it("🔴 rekkefølge etter dato og endring, unike, maks 5", () => {
+    seedSedel("s-gml", "2026-11-01");
+    seedSedel("s-ny", "2026-11-05");
+    seedMaskin("m1", "s-gml", "v-gammel", 1);
+    seedMaskin("m2", "s-ny", "v-a", 1);
+    seedMaskin("m3", "s-ny", "v-b", 2);
+    seedMaskin("m4", "s-gml", "v-a", 5); // duplikat — teller kun nyeste forekomst
+    seedMaskin("m5", "s-gml", "v-c", 3);
+    seedMaskin("m6", "s-gml", "v-d", 2);
+    seedMaskin("m7", "s-gml", "v-e", 0);
+    expect(sistBrukteMaskiner(db(), "u1", "o1")).toEqual(["v-b", "v-a", "v-c", "v-d", "v-gammel"]);
+  });
+
+  it("🔴 annen brukers og annet firmas sedler teller ikke", () => {
+    seedSedel("s-annen", "2026-11-05", "draft", "u2");
+    seedMaskin("m1", "s-annen", "v-annen-bruker", 1);
+    db()
+      .insert(dagsseddelLocal)
+      .values({
+        id: "s-firma2",
+        userId: "u1",
+        organizationId: "o2",
+        projectId: "p1",
+        aktivitetId: "a1",
+        dato: "2026-11-05",
+        status: "draft",
+        syncStatus: "synced",
+        sistEndretLokalt: 1000,
+        sistSynkronisert: 1000,
+      })
+      .run();
+    seedMaskin("m2", "s-firma2", "v-annet-firma", 1);
+    expect(sistBrukteMaskiner(db(), "u1", "o1")).toEqual([]);
+    expect(sistBrukteMaskiner(db(), "u1", "o2")).toEqual(["v-annet-firma"]);
   });
 });
