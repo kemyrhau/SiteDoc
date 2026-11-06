@@ -12,6 +12,7 @@ import type {
   KortTimerRad,
   KortVareLinje,
 } from "@sitedoc/shared";
+import { slaaSammenVarelinjer } from "@sitedoc/shared";
 import { erReiseRadVisning } from "../utils/reiseRad";
 
 type LokalTimerRad = {
@@ -100,6 +101,21 @@ export function tilKortVarer<
   V extends { projectId: string; antall: unknown; vare: { enhet: string } },
 >(varer: readonly V[]): (V & KortVareLinje)[] {
   return varer.map((v) => ({ ...v, antall: Number(v.antall) || 0 }));
+}
+
+/**
+ * K20: ett prosjekts varelinjer for lesevisning — server + lokale, synket lokal
+ * linje (samme id) telles én gang (`slaaSammenVarelinjer`).
+ */
+export function varerForProsjekt<V extends { id: string; projectId: string }>(
+  server: readonly V[],
+  lokale: readonly V[],
+  projectId: string,
+): V[] {
+  return slaaSammenVarelinjer(
+    server.filter((v) => v.projectId === projectId),
+    lokale.filter((v) => v.projectId === projectId),
+  );
 }
 
 /**

@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Redskap",
   "timer.bekreftDag.tillegg.timer": "Maskintimer",
   "timer.bekreftDag.tillegg.bruddTittel": "For mange maskintimer",
+  "timer.bekreftDag.tillegg.startSendt": "Maskin og varer kan ikke føres — dagens sedel er sendt",
   "timer.bekreftDag.bekreft": "Bekreft og lagre",
   "timer.bekreftDag.ikkeNaa": "Ikke nå",
   "timer.bekreftDag.avsluttDag": "Avslutt dag",

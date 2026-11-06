@@ -127,6 +127,34 @@ export function vaktGrunnlag(
   };
 }
 
+/**
+ * Dom (57) m2/m3. `startSendt`: start-sedelen er sendt mens senere datoer er
+ * åpne — tilleggene har ingen sedel å skrives på. `varerTillatt`: startdatoen
+ * har minst én timer-rad (ny eller eksisterende) på prosjektet; ellers kan
+ * varen ikke kobles til sedelen (`kortDagsseddelId`) og knappen skjules.
+ */
+export type TilleggTilstand = { startSendt: boolean; varerTillatt: boolean };
+
+export function tilleggTilstand(
+  forslag: Dagsforslag,
+  grunnlag: VaktGrunnlag | null,
+  projectId: string,
+): TilleggTilstand {
+  const startSendt = forslag.datoer.find((d) => d.erStartSegment)?.blokkert === true;
+  const varerTillatt =
+    !startSendt && grunnlag != null && grunnlag.timerRader.some((r) => r.projectId === projectId);
+  return { startSendt, varerTillatt };
+}
+
+/** Fjerner tillegg tilstanden ikke tillater. Uendret → samme objekt. */
+export function rensTillegg(tillegg: BekreftDagTillegg, tilstand: TilleggTilstand): BekreftDagTillegg {
+  const maskiner = tilstand.startSendt ? [] : tillegg.maskiner;
+  const varer = tilstand.varerTillatt ? tillegg.varer : [];
+  return maskiner.length === tillegg.maskiner.length && varer.length === tillegg.varer.length
+    ? tillegg
+    : { maskiner, varer };
+}
+
 /** Samme regel som serveren (`beregnMaskinBrudd`). Nye maskiner har ingen ECO. */
 export function maskinBruddForTillegg(
   grunnlag: VaktGrunnlag | null,

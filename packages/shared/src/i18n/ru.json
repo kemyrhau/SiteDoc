@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Инструмент",
   "timer.bekreftDag.tillegg.timer": "Машиночасы",
   "timer.bekreftDag.tillegg.bruddTittel": "Слишком много машино-часов",
+  "timer.bekreftDag.tillegg.startSendt": "Машины и материалы добавить невозможно — сегодняшнее расписание отправлено.",
   "timer.bekreftDag.bekreft": "Подтвердите и сохраните",
   "timer.bekreftDag.ikkeNaa": "Не сейчас",
   "timer.bekreftDag.avsluttDag": "Конец дня",

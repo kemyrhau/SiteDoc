@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Työkalu",
   "timer.bekreftDag.tillegg.timer": "Konetunnit",
   "timer.bekreftDag.tillegg.bruddTittel": "Liian monta konetuntia",
+  "timer.bekreftDag.tillegg.startSendt": "Koneita ja materiaaleja ei voi lisätä – tämän päivän tuntiraportti on lähetetty",
   "timer.bekreftDag.bekreft": "Vahvista ja tallenna",
   "timer.bekreftDag.ikkeNaa": "Ei nyt",
   "timer.bekreftDag.avsluttDag": "Loppupäivä",

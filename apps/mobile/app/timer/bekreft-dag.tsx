@@ -40,6 +40,8 @@ import {
 import {
   vaktGrunnlag,
   entydigByggeplass,
+  tilleggTilstand,
+  rensTillegg,
   type BekreftDagTillegg,
 } from "../../src/utils/bekreftDagTillegg";
 import { BekreftDagTilleggSeksjon } from "../../src/components/timer-detalj/BekreftDagTilleggSeksjon";
@@ -211,6 +213,19 @@ export default function BekreftDagSkjerm() {
     );
   }, [prosjektId]);
 
+  // Dom (57) m2/m3: det forslaget ikke lenger tillater (vare uten timer-rad på
+  // startdatoen, sendt start-sedel) tas ut — Bekreft dropper aldri stille.
+  const tilstand = useMemo(
+    () =>
+      beregnet && prosjektId
+        ? tilleggTilstand(beregnet.forslag, grunnlag, prosjektId)
+        : { startSendt: false, varerTillatt: false },
+    [beregnet, grunnlag, prosjektId],
+  );
+  useEffect(() => {
+    setTillegg((tl) => rensTillegg(tl, tilstand));
+  }, [tilstand]);
+
   const rettDato = useCallback(
     (dato: string, endring: DagsforslagRettingDato) => {
       setRetting((r) => ({
@@ -253,7 +268,7 @@ export default function BekreftDagSkjerm() {
         sluttIso,
         endLat,
         endLng,
-      }, tillegg);
+      }, rensTillegg(tillegg, tilstand));
       if (handling.type === "maskinBrudd") {
         // Ingenting er skrevet — skjermen står, arbeideren justerer maskintimene.
         Alert.alert(t("timer.bekreftDag.tillegg.bruddTittel"), t("timer.maskin.overstigerArbeid"));
@@ -318,7 +333,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, params.arbeidsdagId, lagrer, orgId, erAnsatt, sluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg]);
+  }, [beregnet, bruker?.id, params.arbeidsdagId, lagrer, orgId, erAnsatt, sluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -500,6 +515,7 @@ export default function BekreftDagSkjerm() {
                 dato={startDato}
                 byggeplassId={entydigByggeplass(forslag, prosjektId)}
                 grunnlag={grunnlag}
+                tilstand={tilstand}
                 tillegg={tillegg}
                 onEndre={setTillegg}
               />

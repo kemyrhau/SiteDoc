@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Tööriist",
   "timer.bekreftDag.tillegg.timer": "Masina tunnid",
   "timer.bekreftDag.tillegg.bruddTittel": "Liiga palju masinatunde",
+  "timer.bekreftDag.tillegg.startSendt": "Masinaid ja materjale lisada ei saa — tänane tunnitabel on esitatud",
   "timer.bekreftDag.bekreft": "Kinnitage ja salvestage",
   "timer.bekreftDag.ikkeNaa": "Mitte praegu",
   "timer.bekreftDag.avsluttDag": "Lõpupäev",

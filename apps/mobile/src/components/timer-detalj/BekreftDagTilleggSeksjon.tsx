@@ -16,6 +16,7 @@ import {
   tilleggSynlighet,
   maskinBruddForTillegg,
   type BekreftDagTillegg,
+  type TilleggTilstand,
   type VaktGrunnlag,
 } from "../../utils/bekreftDagTillegg";
 
@@ -32,6 +33,7 @@ export function BekreftDagTilleggSeksjon({
   dato,
   byggeplassId,
   grunnlag,
+  tilstand,
   tillegg,
   onEndre,
 }: {
@@ -43,6 +45,8 @@ export function BekreftDagTilleggSeksjon({
   /** Entydig byggeplass for dagen — forhåndsvalg i vare-modalen. */
   byggeplassId: string | null;
   grunnlag: VaktGrunnlag | null;
+  /** Dom (57) m2/m3 — skjermen har allerede renset `tillegg` etter denne. */
+  tilstand: TilleggTilstand;
   tillegg: BekreftDagTillegg;
   onEndre: (neste: BekreftDagTillegg) => void;
 }) {
@@ -76,6 +80,15 @@ export function BekreftDagTilleggSeksjon({
 
   const synlig = tilleggSynlighet({ harEquipment, varelagerProsjektIder: varelagerProsjekter, projectId });
   if (!synlig.seksjon) return null;
+
+  if (tilstand.startSendt) {
+    return (
+      <View className="gap-1 rounded-lg border border-gray-200 bg-white p-3">
+        <Text className="text-sm font-semibold text-gray-900">{t("timer.bekreftDag.tillegg.tittel")}</Text>
+        <Text className="text-sm text-gray-600">{t("timer.bekreftDag.tillegg.startSendt")}</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="gap-2 rounded-lg border border-gray-200 bg-white p-3">
@@ -115,7 +128,7 @@ export function BekreftDagTilleggSeksjon({
             <Text className="text-sm font-medium text-gray-800">{t("timer.bekreftDag.tillegg.maskin")}</Text>
           </Pressable>
         ) : null}
-        {synlig.varer ? (
+        {synlig.varer && tilstand.varerTillatt ? (
           <Pressable
             onPress={() => setVisVare(true)}
             className="flex-1 items-center rounded-md border border-gray-300 py-2 active:bg-gray-100"

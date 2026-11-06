@@ -4917,6 +4917,7 @@
   "timer.bekreftDag.tillegg.redskap": "Outil",
   "timer.bekreftDag.tillegg.timer": "Heures machines",
   "timer.bekreftDag.tillegg.bruddTittel": "Trop d'heures machine",
+  "timer.bekreftDag.tillegg.startSendt": "Les machines et les matériaux ne peuvent pas être ajoutés — la feuille de temps d'aujourd'hui a été soumise",
   "timer.bekreftDag.bekreft": "Confirmer et enregistrer",
   "timer.bekreftDag.ikkeNaa": "Pas maintenant",
   "timer.bekreftDag.avsluttDag": "Fin de journée",
