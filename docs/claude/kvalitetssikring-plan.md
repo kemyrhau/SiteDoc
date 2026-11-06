@@ -231,8 +231,8 @@ Run `42263766957` kjørte steget helt gjennom for første gang. Ingen av feilene
 - `ftd-reekstraksjon` + `ftd-reprosess-modus` skrev fixtur-PDF til `apps/api/uploads/`, som er
   gitignorert og ikke finnes i en fersk checkout → `ENOENT`. Testene oppretter mappa i `beforeAll`.
 - `overlapp-forslag` bruker `prismaTimer` (`timer.sheet_timer_forslag`), men CI migrerer kun
-  `@sitedoc/db` + `db-maskin`. 🔴 Krever at `ci.yml` også kjører
-  `pnpm --filter @sitedoc/db-timer exec prisma migrate deploy` — ikke gjort (ci.yml utenfor ORDRE 27-mandat).
+  `@sitedoc/db` + `db-maskin`. `ci.yml` (steget «Migrer engangs-DB») kjører nå også
+  `pnpm --filter @sitedoc/db-timer exec prisma migrate deploy` (`4024990e`, TILLEGG ORDRE 27).
 Lokalt mot engangs-Postgres (pgvector:pg16) med alle tre skjemaer migrert: 27/27 filer, 116 bestått, 5 hoppet over.
 
 ### 🟢 «Stille tomhet»-rekvittering 2026-09-16: tre mock-kvitteringer gjort ekte (integrasjon 17→33)
