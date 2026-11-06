@@ -116,12 +116,12 @@ function seedAktivitet(id: string, navn = id) {
 
 type Status = "draft" | "sent" | "returned" | "accepted";
 
-function seedSedel(id: string, dato: string, status: Status = "draft") {
+function seedSedel(id: string, dato: string, status: Status = "draft", userId = "u1") {
   db()
     .insert(dagsseddelLocal)
     .values({
       id,
-      userId: "u1",
+      userId,
       organizationId: "o1",
       projectId: "p1",
       aktivitetId: "a1",
@@ -184,6 +184,27 @@ describe("sistBrukteRadvalg", () => {
     expect(sistBrukteRadvalg(db(), "u1", "p2", "o1")).toEqual({
       lonnsartId: "l-std",
       aktivitetId: "a-gml",
+    });
+  });
+
+  it("M11: en annen brukers nyere valg på samme prosjekt lekker ikke inn", () => {
+    seedLonnsart("l-min");
+    seedLonnsart("l-annen");
+    seedAktivitet("a-min");
+    seedAktivitet("a-annen");
+    seedSedel("s-min", "2026-11-01");
+    seedRad("r-min", "s-min", "p1", "l-min", "a-min");
+    seedSedel("s-annen", "2026-11-05", "draft", "u2");
+    seedRad("r-annen", "s-annen", "p1", "l-annen", "a-annen");
+
+    expect(sistBrukteRadvalg(db(), "u1", "p1", "o1")).toEqual({
+      lonnsartId: "l-min",
+      aktivitetId: "a-min",
+    });
+    // Negativkontroll: u2 får sitt eget valg.
+    expect(sistBrukteRadvalg(db(), "u2", "p1", "o1")).toEqual({
+      lonnsartId: "l-annen",
+      aktivitetId: "a-annen",
     });
   });
 
@@ -256,6 +277,33 @@ describe("lagreNyTimerRad", () => {
     expect(ny.ok && ny.eksisterte).toBe(false);
     expect(ny.sheetId).not.toBe("s-fins");
     expect(antall()).toEqual({ sedler: 2, rader: 2 });
+  });
+
+  it("M9: ny sedel får radens aktivitet", () => {
+    const res = lagreNyTimerRad(db(), {
+      userId: "u1",
+      organizationId: "o1",
+      dato: "2026-11-06",
+      rad: { ...rad, aktivitetId: "a-rad" },
+    });
+    expect(res.ok && res.eksisterte).toBe(false);
+    const sedel = db().select().from(dagsseddelLocal).all()[0]!;
+    expect(sedel.id).toBe(res.sheetId);
+    expect(sedel.aktivitetId).toBe("a-rad");
+    expect(sedel.projectId).toBe("p1");
+  });
+
+  it("M10: en annen brukers sendte dag på samme dato sperrer ikke", () => {
+    seedSedel("s-u2", "2026-11-06", "sent", "u2");
+    expect(finnDagForDato(db(), "u1", "2026-11-06")).toBeNull();
+    const res = lagreNyTimerRad(db(), { userId: "u1", organizationId: "o1", dato: "2026-11-06", rad });
+    expect(res.ok).toBe(true);
+    expect(res.sheetId).not.toBe("s-u2");
+    // Negativkontroll: u2 selv er sperret på sin sendte dag.
+    expect(erDagLaast(finnDagForDato(db(), "u2", "2026-11-06"))).toBe(true);
+    expect(
+      lagreNyTimerRad(db(), { userId: "u2", organizationId: "o1", dato: "2026-11-06", rad }),
+    ).toEqual({ ok: false, grunn: "dagLaast", sheetId: "s-u2" });
   });
 
   it("nekter rad på sendt og akseptert dag", () => {

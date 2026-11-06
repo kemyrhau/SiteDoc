@@ -130,14 +130,29 @@ export function kortModusVisning(kortModus: boolean) {
   return kortModus
     ? {
         prosjektLaast: true,
-        arvFra: "timer.byggeplass.arvFraDagen",
         arvesFra: "timer.byggeplass.arvesFraDagen",
         fra: "timer.byggeplass.fraDagen",
       }
     : {
         prosjektLaast: false,
-        arvFra: "timer.byggeplass.arvFraDagskort",
         arvesFra: "timer.byggeplass.arvesFraDagskort",
         fra: "timer.byggeplass.fraDagskort",
       };
+}
+
+/**
+ * ORDRE 18 (2026-11-06): hva rad-dialogen viser når raden arver byggeplass
+ * (`byggeplassId = null`) — dagskortets faktiske byggeplass, ikke en
+ * forklaring. Samme regel som radlista: arv gjelder bare når sedelens
+ * byggeplass hører til radens prosjekt. `navn` null → «Ingen byggeplass».
+ */
+export function arvetByggeplassVisning(
+  sedelByggeplass: { navn: string; projectId: string } | null,
+  projectId: string | null,
+  kortModus: boolean,
+): { navn: string | null; nokkel: string } {
+  if (!sedelByggeplass || sedelByggeplass.projectId !== projectId) {
+    return { navn: null, nokkel: "timer.byggeplass.ingenValgt" };
+  }
+  return { navn: sedelByggeplass.navn, nokkel: kortModusVisning(kortModus).fra };
 }

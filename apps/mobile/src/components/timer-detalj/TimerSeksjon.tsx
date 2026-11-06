@@ -90,7 +90,10 @@ import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
 import { SplittRadModal } from "./SplittRadModal";
 import { KnappMedForklaring } from "../KnappMedForklaring";
 import { useProsjektkortModus } from "./prosjektkortKontekst";
-import { kortModusVisning } from "../../lib/prosjektkortMobil";
+import {
+  arvetByggeplassVisning,
+  kortModusVisning,
+} from "../../lib/prosjektkortMobil";
 import {
   settInnTimerRad,
   type NyMaskin,
@@ -137,6 +140,22 @@ interface TimerSeksjonProps {
    *  [id].tsx orkestrerer flytt/sett/fjern (kryss-bøtte, ekte modal, toast). */
   onPauseToggle: (radId: string, vilHa: boolean) => void;
   onEndret: () => void;
+}
+
+// ORDRE 18: dagskortets byggeplass (navn + prosjekt) til arv-visningen i
+// rad-dialogen og byggeplass-velgeren.
+function hentSedelByggeplass(
+  id: string | null | undefined,
+): { navn: string; projectId: string } | null {
+  if (!id) return null;
+  const db = hentDatabase();
+  if (!db) return null;
+  const bp = db
+    .select()
+    .from(byggeplassLocal)
+    .where(eq(byggeplassLocal.id, id))
+    .all()[0];
+  return bp ? { navn: bp.navn ?? bp.id, projectId: bp.projectId } : null;
 }
 
 export function TimerSeksjon({
@@ -1057,7 +1076,8 @@ export function TimerRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
-  const kortVisning = kortModusVisning(useProsjektkortModus());
+  const kortModus = useProsjektkortModus();
+  const kortVisning = kortModusVisning(kortModus);
   // T.5 + pause-synk: hent firma-innstillinger fra lokal cache.
   //   - tidsrundingMinutter: null = ingen runding
   //   - pauseMin: matpausens lengde (standardPauseMin, default 30), brukt til
@@ -1363,6 +1383,17 @@ export function TimerRadModal({
         .all()[0]?.navn ?? null
     );
   }, [valgtByggeplassId]);
+
+  // ORDRE 18: arv vises som dagskortets faktiske byggeplass, ikke «Arv fra …».
+  const arvetByggeplass = useMemo(
+    () =>
+      arvetByggeplassVisning(
+        hentSedelByggeplass(sedelByggeplassId),
+        valgtProjectId,
+        kortModus,
+      ),
+    [sedelByggeplassId, valgtProjectId, kortModus],
+  );
 
   const valgtLonnsart = useMemo(() => {
     if (!valgtLonnsartId) return null;
@@ -1676,10 +1707,11 @@ export function TimerRadModal({
                 }
                 numberOfLines={1}
               >
-                {valgtByggeplassNavn ??
-                  (valgtByggeplassId
-                    ? t("byggeplassVelger.velg")
-                    : t(kortVisning.arvFra))}
+                {valgtByggeplassId
+                  ? (valgtByggeplassNavn ?? t("byggeplassVelger.velg"))
+                  : arvetByggeplass.navn
+                    ? `${arvetByggeplass.navn} (${t(arvetByggeplass.nokkel)})`
+                    : t(arvetByggeplass.nokkel)}
               </Text>
             </Pressable>
           </View>
@@ -2310,7 +2342,8 @@ function ProsjektByggeplassVelgerModal({
 }) {
   const { t } = useTranslation();
   // Prosjektkort L2: kortets prosjekt er låst — kun byggeplass kan velges.
-  const kortVisning = kortModusVisning(useProsjektkortModus());
+  const kortModus = useProsjektkortModus();
+  const kortVisning = kortModusVisning(kortModus);
   const { favorittIder, toggleFavoritt } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
@@ -2328,6 +2361,17 @@ function ProsjektByggeplassVelgerModal({
     if (!organizationId) return [];
     return hentProsjekterLokalt(organizationId);
   }, [organizationId]);
+
+  // ORDRE 18: første valg viser byggeplassen raden faktisk arver.
+  const arvetByggeplass = useMemo(
+    () =>
+      arvetByggeplassVisning(
+        hentSedelByggeplass(sedelByggeplassId),
+        lokaltProjectId,
+        kortModus,
+      ),
+    [sedelByggeplassId, lokaltProjectId, kortModus],
+  );
 
   const filtrerteProsjekter = useMemo(() => {
     if (!prosjektSok.trim()) return prosjekter;
@@ -2523,7 +2567,12 @@ function ProsjektByggeplassVelgerModal({
               }`}
             >
               <Text className="flex-1 text-base text-gray-700">
-                {t(kortVisning.arvFra)}
+                {arvetByggeplass.navn ?? t(arvetByggeplass.nokkel)}
+                {arvetByggeplass.navn != null && (
+                  <Text className="text-gray-400">
+                    {` (${t(arvetByggeplass.nokkel)})`}
+                  </Text>
+                )}
               </Text>
               {valgtByggeplassId == null && <Check size={18} color="#1e40af" />}
             </Pressable>

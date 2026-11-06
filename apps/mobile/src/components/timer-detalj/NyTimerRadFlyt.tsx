@@ -91,7 +91,13 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
       .from(sheetTimerLocal)
       .where(eq(sheetTimerLocal.dagsseddelId, fra.id))
       .all();
-    return { id: fra.id, laast: erDagLaast(fra), pauseMin: sedel?.pauseMin ?? 0, rader };
+    return {
+      id: fra.id,
+      laast: erDagLaast(fra),
+      pauseMin: sedel?.pauseMin ?? 0,
+      byggeplassId: sedel?.byggeplassId ?? null,
+      rader,
+    };
   }, [bruker?.id, dato]);
 
   const harEquipmentCache = useMemo(() => {
@@ -160,7 +166,7 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
       defaultAktivitetId={null}
       eksisterendeRad={null}
       tvungetValg={null}
-      sedelByggeplassId={null}
+      sedelByggeplassId={dag?.byggeplassId ?? null}
       opprettelse={{
         onDatoEndret: setDato,
         laastDagId: dag?.laast ? dag.id : null,

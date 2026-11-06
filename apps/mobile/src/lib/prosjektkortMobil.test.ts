@@ -15,6 +15,7 @@ import {
   formatKortTall,
   kortModusVisning,
   telteKortVarer,
+  arvetByggeplassVisning,
 } from "./prosjektkortMobil";
 
 const SEDEL = "p-sedel";
@@ -117,7 +118,6 @@ describe("kortModusVisning — prosjektlås og arv-tekst", () => {
   it("kortmodus låser prosjektet og kaller arv-kilden «dagen»", () => {
     expect(kortModusVisning(true)).toEqual({
       prosjektLaast: true,
-      arvFra: "timer.byggeplass.arvFraDagen",
       arvesFra: "timer.byggeplass.arvesFraDagen",
       fra: "timer.byggeplass.fraDagen",
     });
@@ -126,7 +126,6 @@ describe("kortModusVisning — prosjektlås og arv-tekst", () => {
   it("dagskort er uendret: ikke låst, «dagskortet»", () => {
     expect(kortModusVisning(false)).toEqual({
       prosjektLaast: false,
-      arvFra: "timer.byggeplass.arvFraDagskort",
       arvesFra: "timer.byggeplass.arvesFraDagskort",
       fra: "timer.byggeplass.fraDagskort",
     });
@@ -151,5 +150,35 @@ describe("telteKortVarer (16d)", () => {
 
   it("server-linjer uten syncStatus telles, andre prosjekter ikke", () => {
     expect(telteKortVarer(varer, "p2").map((v) => v.id)).toEqual(["d"]);
+  });
+});
+
+describe("arvetByggeplassVisning — rad-dialogen viser dagskortets faktiske byggeplass", () => {
+  const blokkA = { navn: "Blokk A", projectId: "p1" };
+
+  it("sedelens byggeplass vises med navn + «fra dagskortet» / «fra dagen»", () => {
+    expect(arvetByggeplassVisning(blokkA, "p1", false)).toEqual({
+      navn: "Blokk A",
+      nokkel: "timer.byggeplass.fraDagskort",
+    });
+    expect(arvetByggeplassVisning(blokkA, "p1", true)).toEqual({
+      navn: "Blokk A",
+      nokkel: "timer.byggeplass.fraDagen",
+    });
+  });
+
+  it("ingen byggeplass på sedelen → «Ingen byggeplass»", () => {
+    expect(arvetByggeplassVisning(null, "p1", false)).toEqual({
+      navn: null,
+      nokkel: "timer.byggeplass.ingenValgt",
+    });
+    expect(arvetByggeplassVisning(null, "p1", true).nokkel).toBe("timer.byggeplass.ingenValgt");
+  });
+
+  it("sedelens byggeplass på annet prosjekt arves ikke (samme regel som radlista)", () => {
+    expect(arvetByggeplassVisning(blokkA, "p2", false)).toEqual({
+      navn: null,
+      nokkel: "timer.byggeplass.ingenValgt",
+    });
   });
 });
