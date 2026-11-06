@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisser — LAG 3 bekreft dag + LAG 4 flere byggeplasser</title>
+<style>
+  :root { --bg:#f3f4f6; --kort:#fff; --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --primar:#2563eb; --primar-bg:#eff6ff; --rod:#dc2626; --rod-bg:#fef2f2; --gul-bg:#fef3c7; --gul:#92400e; --gronn:#16a34a; --gronn-bg:#ecfdf5; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tekst); font:14px/1.4 -apple-system, "Segoe UI", Inter, sans-serif; padding:28px; }
+  h1 { font-size:15px; margin:0 0 14px; color:var(--demp); font-weight:600; letter-spacing:.02em; }
+  .rad { display:flex; gap:22px; align-items:flex-start; }
+  .fotnote { font-size:12px; color:var(--demp); margin-top:14px; max-width:1200px; }
+  .steg { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#1e3a8a; margin-bottom:6px; }
+  .steg .n { width:20px; height:20px; border-radius:50%; background:var(--primar); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:11px; }
+  .steg.grå .n { background:#9ca3af; } .steg.grå { color:var(--demp); }
+  .pil { align-self:center; color:#9ca3af; font-size:26px; padding:0 2px; margin-top:120px; }
+  .klikk { position:absolute; width:24px; height:24px; border-radius:50%; background:var(--rod); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.25); border:2px solid #fff; }
+  .tlf { position:relative; width:290px; background:#fff; border:1px solid #d1d5db; border-radius:22px; padding:12px 10px 14px; box-shadow:0 10px 30px rgba(0,0,0,.12); font-size:12px; }
+  .tlf .topp { display:flex; justify-content:space-between; align-items:center; padding:2px 4px 8px; }
+  .tlf .topp .t { font-weight:700; font-size:14px; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:999px; background:#f3f4f6; color:var(--demp); font-weight:600; }
+  .banner { border-radius:9px; padding:7px 9px; font-size:11px; margin-bottom:7px; }
+  .banner.info { background:#f9fafb; border:1px solid var(--kant); color:#374151; }
+  .banner.sum { background:var(--primar-bg); color:#1e3a8a; }
+  .banner.gul { background:var(--gul-bg); color:var(--gul); }
+  .banner.rod { background:var(--rod-bg); color:#991b1b; }
+  .banner.gronn { background:var(--gronn-bg); color:#166534; border:1px solid #bbf7d0; }
+  .sek { border:1px solid var(--kant); border-radius:9px; padding:8px 9px; margin-bottom:7px; background:#fff; }
+  .sek .h { display:flex; justify-content:space-between; align-items:center; font-weight:700; }
+  .sek .u { color:var(--demp); font-size:11px; margin-top:1px; }
+  .sek.reise { background:#fafafa; border-style:dashed; }
+  .sek.reise .h { color:#374151; font-weight:600; }
+  .sek.arbeid { border-color:#bfdbfe; }
+  .sek.mellom { background:#fafafa; border-style:dashed; }
+  .sek.pause { background:#fafafa; }
+  .sek .rediger { color:var(--primar); font-size:11px; font-weight:600; }
+  .merke { font-size:9px; font-weight:700; padding:1px 5px; border-radius:4px; background:#fef3c7; color:#92400e; margin-right:4px; }
+  .merke.gps { background:#dcfce7; color:#166534; }
+  .merke.ot { background:#fee2e2; color:#991b1b; }
+  .merke.gra { background:#f3f4f6; color:#6b7280; }
+  .btn { border-radius:9px; padding:10px 12px; font-weight:700; text-align:center; background:var(--primar); color:#fff; margin-top:4px; }
+  .btn.sek2 { background:#fff; color:var(--demp); border:1px solid var(--kant); font-weight:600; }
+  .btn.rodk { background:#fff; color:var(--rod); border:1px solid #fecaca; }
+  .btn.liten { padding:7px 10px; font-size:12px; }
+  .legg { color:var(--primar); font-weight:600; padding:7px 2px; font-size:12px; }
+  .kort { border:1px solid var(--kant); border-radius:11px; padding:8px 10px; margin-bottom:7px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .kort .h { display:flex; justify-content:space-between; align-items:center; font-weight:700; }
+  .kort .u { color:var(--demp); font-size:11px; }
+  .knapper { display:flex; gap:6px; margin-top:6px; }
+  .knapper .btn { flex:1; margin:0; }
+  .aarsak { font-size:10px; color:#6b7280; padding:4px 2px 0; }
+  .aarsak b { color:#991b1b; }
+  /* tidslinje (form B) */
+  .tl { position:relative; padding-left:46px; }
+  .tl:before { content:""; position:absolute; left:34px; top:4px; bottom:4px; width:2px; background:#d1d5db; }
+  .tl .p { position:relative; margin-bottom:6px; }
+  .tl .p .kl { position:absolute; left:-46px; top:2px; width:34px; font-size:10px; color:var(--demp); text-align:right; padding-right:6px; font-variant-numeric:tabular-nums; }
+  .tl .p .dot { position:absolute; left:-15px; top:5px; width:8px; height:8px; border-radius:50%; background:var(--primar); border:2px solid #fff; box-shadow:0 0 0 1px #d1d5db; }
+  .tl .p.reise .dot { background:#9ca3af; }
+  .tl .p .boks { border:1px solid var(--kant); border-radius:8px; padding:6px 8px; font-size:11px; }
+  .tl .p.arbeid .boks { border-color:#bfdbfe; background:#fbfdff; min-height:52px; }
+  .tl .p.reise .boks { border-style:dashed; color:#374151; }
+  .tl .p .boks .n { font-weight:700; }
+  .tl .p .boks .u { color:var(--demp); }
+  .forklar { max-width:300px; font-size:12px; color:#374151; }
+  .forklar p { margin:0 0 8px; }
+  .forklar .nr { display:inline-flex; width:18px; height:18px; border-radius:50%; background:var(--primar); color:#fff; font-size:11px; align-items:center; justify-content:center; margin-right:6px; font-weight:700; }
+  .listerad { display:flex; justify-content:space-between; align-items:center; padding:8px 4px; border-top:1px solid var(--kant); }
+  .listerad .n { font-weight:600; } .listerad .u { color:var(--demp); font-size:11px; }
+  .listerad.valgt { background:var(--primar-bg); border-radius:8px; }
+  .ark { border-top-left-radius:16px; border-top-right-radius:16px; background:#fff; margin:20px -10px -14px; padding:10px 12px 14px; box-shadow:0 -6px 20px rgba(0,0,0,.15); }
+  .ark .grep { width:36px; height:4px; background:#d1d5db; border-radius:2px; margin:0 auto 8px; }
+  .ark .tittel { font-weight:700; font-size:13px; margin-bottom:6px; display:flex; justify-content:space-between; }
+  .sok { border:1px solid var(--kant); border-radius:9px; padding:7px 9px; color:#9ca3af; margin-bottom:6px; }
+  .fot { display:flex; gap:14px; font-size:11px; color:var(--primar); font-weight:600; margin-top:6px; padding-top:5px; border-top:1px dashed var(--kant); position:relative; }
+  .mv { display:flex; justify-content:space-between; font-size:11px; margin-top:4px; padding:4px 7px; background:#f8fafc; border-radius:6px; border:1px solid #eef2f7; }
+  .mv .ik { color:var(--demp); margin-right:4px; font-weight:600; }
+  .mv .x { color:#9ca3af; }
+  .gruppe { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--demp); font-weight:700; margin:8px 0 2px; }
+  .dimmet { opacity:.45; }
+  .tilbake { color:var(--primar); font-size:12px; }
+  .anbefalt { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:999px; background:var(--gronn-bg); color:#166534; margin-left:6px; }
+</style>
+</head>
+<body>
+<div id="rot"></div>
+<script>
+const fig = new URLSearchParams(location.search).get("fig") || "flyt";
+const rot = document.getElementById("rot");
+
+/* ---------- felles ---------- */
+const timerFane = (klikk) => `
+<div class="tlf">
+  <div class="topp"><span class="t">Timer</span><span class="badge">tor 6. nov</span></div>
+  <div class="kort" style="border-color:#bfdbfe">
+    <div class="h"><span>Dagen pågår</span><span class="merke gps">GPS</span></div>
+    <div class="u">Start 06:52 · Kontor Lillestrøm · 8 t 39 min</div>
+    <div class="u" style="margin-top:3px">Nå: <b>Fetsund bru</b> (siden 12:10)</div>
+    <div class="knapper"><div class="btn liten sek2">Bytt byggeplass</div><div class="btn liten">Slutt dag</div></div>
+    ${klikk ? `<div class="klikk" style="right:14px;bottom:4px">${klikk}</div>` : ""}
+  </div>
+  <div class="banner sum">Denne uka 22,5 t · forrige 37,5 t</div>
+  <div class="sek"><div class="h"><span>ons 5. nov</span><span>7,5 t</span></div><div class="u">2041 Lillestrøm skole · Sendt</div></div>
+  <div class="sek"><div class="h"><span>tir 4. nov</span><span>7,5 t</span></div><div class="u">2041 Lillestrøm skole · Attestert</div></div>
+</div>`;
+
+const bekreftA = (klikk, opts = {}) => `
+<div class="tlf">
+  <div class="topp"><span class="tilbake">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+  <div class="banner sum"><b>tor 6. nov</b> · Start 06:52 · Slutt 15:31 · <b>8,1 t</b> arbeid + 1,1 t reise · norm 7,5 t</div>
+  <div class="sek reise"><div class="h"><span>Reise · Kontor → Lillestrøm skole</span><span>32 min</span></div><div class="u">06:52–07:24 · 28 km · over 30 min → <b>reisetid</b></div></div>
+  <div class="sek arbeid"><div class="h"><span>Lillestrøm skole</span><span class="rediger">Endre</span></div><div class="u">2041 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>07:24–${opts.droFra ? "11:40" : "12:10"} · pause 30 min · ${opts.droFra ? "3,8" : "4,3"} t</div></div>
+  ${opts.droFra ? `<div class="sek mellom"><div class="h"><span>Kjøring til Fetsund bru</span><span>30 min</span></div><div class="u">11:40–12:10 · arbeidstid, føres på 2057 (V9)</div></div>` : ""}
+  <div class="sek arbeid"><div class="h"><span>Fetsund bru</span><span class="rediger">Endre</span></div><div class="u">2057 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>12:10–15:31 · 3,4 t <span class="merke ot">OT 50 % fra 15:00</span></div></div>
+  <div class="sek reise"><div class="h"><span>Reise · Fetsund bru → Kontor</span><span>31 min</span></div><div class="u">15:31–16:02 · 27 km · over 30 min → <b>reisetid</b></div></div>
+  <div class="legg">+ Legg til stopp</div>
+  <div class="btn">Bekreft og lagre</div>
+  ${klikk ? `<div class="klikk" style="right:14px;bottom:18px">${klikk}</div>` : ""}
+</div>`;
+
+const bekreftB = `
+<div class="tlf">
+  <div class="topp"><span class="tilbake">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+  <div class="banner sum"><b>tor 6. nov</b> · 8,1 t arbeid + 1,1 t reise · norm 7,5 t</div>
+  <div class="tl">
+    <div class="p reise"><span class="kl">06:52</span><span class="dot"></span><div class="boks"><span class="n">Reise</span> Kontor → Lillestrøm · 32 min · reisetid</div></div>
+    <div class="p arbeid"><span class="kl">07:24</span><span class="dot"></span><div class="boks"><div class="n">Lillestrøm skole · 2041</div><div class="u">Anleggsarbeid · pause 30 min · 4,3 t</div><div class="u" style="margin-top:12px;color:#9ca3af">↕ dra for å endre</div></div></div>
+    <div class="p arbeid"><span class="kl">12:10</span><span class="dot"></span><div class="boks"><div class="n">Fetsund bru · 2057</div><div class="u">Anleggsarbeid · 3,4 t</div><div class="u"><span class="merke ot">OT fra 15:00</span></div></div></div>
+    <div class="p reise"><span class="kl">15:31</span><span class="dot"></span><div class="boks"><span class="n">Reise</span> Fetsund → Kontor · 31 min · reisetid</div></div>
+    <div class="p"><span class="kl">16:02</span><span class="dot" style="background:#9ca3af"></span><div class="boks" style="border:0;padding:0;color:var(--demp)">Slutt</div></div>
+  </div>
+  <div class="btn">Bekreft og lagre</div>
+</div>`;
+
+const sedelEtter = `
+<div class="tlf">
+  <div class="topp"><span class="tilbake">‹ Mine timer</span><span class="t">tor 6. nov</span><span class="badge">Kladd</span></div>
+  <div class="banner gronn">Dagen er bekreftet. 5 rader opprettet fra GPS-forslaget.</div>
+  <div class="sek"><div class="h"><span>2041 — Lillestrøm skole</span><span>4,3 t</span></div><div class="u">Reise ut 0,5 t · Arbeid 4,3 t</div></div>
+  <div class="sek"><div class="h"><span>2057 — Fetsund bru</span><span>3,4 t</span></div><div class="u">Arbeid 2,8 t · OT 0,5 t · Reise retur 0,5 t</div></div>
+  <div class="sek"><div class="h"><span>Maskin</span><span>—</span></div><div class="legg">+ Maskin / kjøretøy</div></div>
+  <div class="btn">Send til attestering</div>
+</div>`;
+
+/* ---------- ankomst S1 / S2 ---------- */
+const s1 = `
+<div class="tlf">
+  <div class="topp"><span class="t">Timer</span><span class="badge">tor 6. nov · 12:11</span></div>
+  <div class="banner gronn" style="position:relative"><b>Du ser ut til å være ved Fetsund bru.</b><div class="u" style="margin-top:2px;color:#166534">Siste stopp: Lillestrøm skole (siden 07:24)</div>
+    <div class="knapper"><div class="btn liten">Ankommet</div><div class="btn liten sek2">Nei</div></div>
+    <div class="klikk" style="left:52px;bottom:2px">1</div>
+  </div>
+  <div class="kort" style="border-color:#bfdbfe">
+    <div class="h"><span>Dagen pågår</span><span class="merke gps">GPS</span></div>
+    <div class="u">Start 06:52 · Kontor Lillestrøm · 5 t 19 min</div>
+    <div class="u" style="margin-top:3px">Nå: <b>Lillestrøm skole</b> (siden 07:24)</div>
+    <div class="knapper"><div class="btn liten sek2">Bytt byggeplass</div><div class="btn liten">Slutt dag</div></div>
+  </div>
+  <div class="banner sum">Denne uka 22,5 t · forrige 37,5 t</div>
+</div>`;
+
+const s2 = `
+<div class="tlf">
+  <div class="topp"><span class="t">Timer</span><span class="badge">tor 6. nov · 12:11</span></div>
+  <div class="kort dimmet" style="border-color:#bfdbfe">
+    <div class="h"><span>Dagen pågår</span><span class="merke gps">GPS</span></div>
+    <div class="u">Nå: <b>Lillestrøm skole</b> (siden 07:24)</div>
+    <div class="knapper"><div class="btn liten sek2">Bytt byggeplass</div><div class="btn liten">Slutt dag</div></div>
+  </div>
+  <div class="klikk" style="left:122px;top:96px">1</div>
+  <div class="ark">
+    <div class="grep"></div>
+    <div class="tittel"><span>Ankommet hvor?</span><span class="tilbake">Lukk</span></div>
+    <div class="listerad valgt" style="position:relative"><div><div class="n">Fetsund bru</div><div class="u">2057 · <span class="merke gps">GPS-treff</span> 40 m unna</div></div><span>›</span><div class="klikk" style="right:26px;top:12px">2</div></div>
+    <div class="sok">Søk byggeplass …</div>
+    <div class="listerad"><div><div class="n">Lillestrøm skole</div><div class="u">2041 · nåværende</div></div><span>›</span></div>
+    <div class="listerad"><div><div class="n">Rælingen vgs</div><div class="u">2060 · 14 km</div></div><span>›</span></div>
+    <div class="listerad"><div><div class="n">Utenfor kjent byggeplass</div><div class="u">prosjekt velges i bekreft-skjermen</div></div><span>›</span></div>
+  </div>
+</div>`;
+
+/* ---------- figurer ---------- */
+if (fig === "flyt") {
+  rot.innerHTML = `
+    <h1>LAG 3 — Slutt dag → bekreft → sedel (2 klikk, P4-tak). Dagens Alert utgår; skjermen er bekreftelsen.</h1>
+    <div class="rad">
+      <div><div class="steg"><span class="n">1</span>«Slutt dag» i Timer-fanen</div>${timerFane(1)}</div><div class="pil">›</div>
+      <div><div class="steg"><span class="n">2</span>/timer/bekreft-dag — rett og bekreft</div>${bekreftA(2)}</div><div class="pil">›</div>
+      <div><div class="steg grå"><span class="n">→</span>Sedelen (kladd) — som i dag, men først nå</div>${sedelEtter}</div>
+      <div class="forklar">
+        <p><span class="nr">1</span>Henter slutt-GPS, bygger <code>samleDagsforslagInput</code>, kjører <code>beregnDagsforslag</code>. Ingenting skrives.</p>
+        <p><span class="nr">2</span>«Bekreft og lagre» kjører <code>anvendDagsforslag</code> → rader → dagen avsluttes. <b>«Ikke nå» / tilbake</b>: dagen forblir åpen, GPS-økta ikke oppbrukt.</p>
+        <p>Grå/stiplete kort er utledet (reise, mellometappe) og kan ikke fjernes — bare tidene og stedene rundt dem rettes. Blå kort (arbeid pr. besøk) har «Endre»: prosjekt · byggeplass · fra/til · aktivitet · fjern.</p>
+        <p>Mangler reise, står årsaken der V12/V13 krever det: «posisjon utilgjengelig», «Fetsund bru mangler plassering», «ingen matrisecelle».</p>
+      </div>
+    </div>`;
+} else if (fig === "skjermform") {
+  rot.innerHTML = `
+    <h1>LAG 3 — skjermform: A segmentliste (anbefalt) vs. B tidslinje. Samme data, samme knapper.</h1>
+    <div class="rad">
+      <div><div class="steg"><span class="n">A</span>Segmentliste — ett kort pr. segment<span class="anbefalt">ANBEFALT</span></div>${bekreftA(null, { droFra: true })}</div>
+      <div><div class="steg"><span class="n">B</span>Tidslinje — klokkeslett i margen</div>${bekreftB}</div>
+      <div class="forklar">
+        <p><b>A</b> gjenbruker mønsteret fra sammenligningsvisningen (én kolonne). «Endre» åpner et ark med prosjekt/byggeplass-velger og klokke. Viser her også «Dro fra 11:40» satt → mellometappe-kort oppstår (V9), Lillestrøm-raden slutter 11:40.</p>
+        <p><b>B</b> er bedre til å <i>se</i> dagen, men retting krever drag av grenser og blir trangt på små skjermer; «Endre» pr. element gir uansett samme ark som A.</p>
+        <p>Begge: utledede segmenter (reise, mellom) er stiplete og uten «Endre». Overtid vises som merke på raden som bærer (V4). Sum i toppen regnes om live.</p>
+      </div>
+    </div>`;
+} else if (fig === "ankomst") {
+  rot.innerHTML = `
+    <h1>LAG 4 — ankomst-registrering: S1 forslag ved app-åpning (1 klikk) og S2 manuell knapp (2 klikk). Begge bygges; ingen bakgrunnssporing.</h1>
+    <div class="rad">
+      <div><div class="steg"><span class="n">S1</span>Appen åpnes ved Fetsund bru → banner<span class="anbefalt">HOVEDVEI</span></div>${s1}</div>
+      <div><div class="steg"><span class="n">S2</span>«Bytt byggeplass» → liste, GPS-treff øverst</div>${s2}</div>
+      <div class="forklar">
+        <p><b>S1:</b> <code>AppState → active</code> mens dagen pågår → én forgrunnsmåling (maks 1 pr. 10 min) → <code>gjenkjennSted</code>. Treff ≠ siste besøk → banner. «Ankommet» skriver besøk med klokkeslett og byggeplass — <b>aldri posisjon</b>. «Nei» demper samme byggeplass i 30 min. Ingen treff / GPS av → stille.</p>
+        <p><b>S2:</b> for den som ikke åpner appen i bilen, eller har GPS av. Samme liste som ved Start dag; GPS-treff øverst når det finnes. «Utenfor kjent byggeplass» gir et besøk uten sted; prosjektet velges i bekreft-skjermen.</p>
+        <p><b>Avvist:</b> bakgrunnssporing / OS-geofence (<code>mannskap.md:19/45</code>, batteri, ingen personvernvurdering) og automatisk besøk uten trykk (<code>mannskap.md:197</code>).</p>
+      </div>
+    </div>`;
+} else if (fig === "maskinvarer") {
+  const fot = (klikk) => `<div class="fot"><span>+ Maskin</span><span>+ Varer</span>${klikk ? `<div class="klikk" style="right:-6px;top:-4px">${klikk}</div>` : ""}</div>`;
+  const kortLille = `<div class="sek arbeid"><div class="h"><span>Lillestrøm skole</span><span class="rediger">Endre</span></div><div class="u">2041 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>07:24–12:10 · pause 30 min · 4,3 t</div>${fot()}</div>`;
+  const topp = `<div class="topp"><span class="tilbake">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+  <div class="banner sum"><b>tor 6. nov</b> · Start 06:52 · Slutt 15:31 · <b>8,1 t</b> arbeid + 1,1 t reise · norm 7,5 t</div>
+  <div class="sek reise"><div class="h"><span>Reise · Kontor → Lillestrøm skole</span><span>32 min</span></div><div class="u">06:52–07:24 · 28 km · over 30 min → <b>reisetid</b></div></div>`;
+  const bunn = `<div class="sek reise"><div class="h"><span>Reise · Fetsund bru → Kontor</span><span>31 min</span></div><div class="u">15:31–16:02 · 27 km · over 30 min → <b>reisetid</b></div></div>
+  <div class="legg">+ Legg til stopp</div>
+  <div class="btn">Bekreft og lagre</div>`;
+  const a1 = `<div class="tlf">${topp}${kortLille}
+  <div class="sek arbeid"><div class="h"><span>Fetsund bru</span><span class="rediger">Endre</span></div><div class="u">2057 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>12:10–15:31 · 3,4 t <span class="merke ot">OT 50 % fra 15:00</span></div>${fot(3)}</div>
+  ${bunn}<div class="klikk" style="right:14px;bottom:18px">2</div></div>`;
+  const a2 = `<div class="tlf">${topp}${kortLille}
+  <div class="sek arbeid"><div class="h"><span>Fetsund bru</span><span class="rediger">Endre</span></div><div class="u">2057 · Anleggsarbeid</div><div class="u"><span class="merke gps">stempel</span>12:10–15:31 · 3,4 t <span class="merke ot">OT 50 % fra 15:00</span></div>
+    <div class="mv"><span><span class="ik">Maskin</span>Gravemaskin CAT 308 · M-12</span><span><b>3,4 t</b> <span class="x">✕</span></span></div>
+    <div class="mv"><span><span class="ik">Redskap</span>Pigghammer · S-04</span><span><b>1,0 t</b> <span class="x">✕</span></span></div>
+    <div class="mv"><span><span class="ik">Vare</span>Spiker 90 mm</span><span><b>2 esker</b> <span class="x">✕</span></span></div>
+    ${fot()}</div>
+  ${bunn}<div class="klikk" style="right:14px;bottom:18px">5</div></div>`;
+  const ark = `<div class="tlf">${topp}<div class="dimmet">${kortLille}</div>
+  <div class="ark">
+    <div class="grep"></div>
+    <div class="tittel"><span>Maskin · Fetsund bru</span><span class="tilbake">Avbryt</span></div>
+    <div class="sok">Søk utstyr …</div>
+    <div class="gruppe">Sist brukt</div>
+    <div class="listerad valgt" style="position:relative"><span class="n">Gravemaskin CAT 308</span><span class="u">M-12 · i går</span><div class="klikk" style="right:-8px;top:-6px">4</div></div>
+    <div class="listerad"><span class="n">Pigghammer</span><span class="u">S-04 · redskap</span></div>
+    <div class="listerad"><span class="n">Hjullaster Volvo L60</span><span class="u">M-07 · 3. nov</span></div>
+    <div class="gruppe">Alle (24)</div>
+    <div class="listerad"><span class="n">Dumper Bell B25</span><span class="u">M-03</span></div>
+    <div class="listerad"><span class="n">Gravemaskin CAT 320</span><span class="u">M-15</span></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px"><span style="color:var(--demp)">Timer</span><span class="sok" style="flex:1;margin:0;color:#111">3,4</span><span style="color:var(--demp)">Mengde</span><span class="sok" style="flex:1;margin:0">—</span></div>
+    <div class="u" style="font-size:10px;color:var(--demp);margin-top:4px">Timer = segmentets arbeidstid (12:10–15:31). Endre ved behov.</div>
+    <div class="btn" style="margin-top:8px">Legg til</div>
+  </div></div>`;
+  rot.innerHTML = `
+    <h1>LAG 3 — form A med maskin/redskap og varer pr. segment (Kenneth 2026-11-06). Dag uten maskin/varer: fortsatt 2 klikk.</h1>
+    <div class="rad">
+      <div><div class="steg"><span class="n">A</span>Standard dag — fotlinje sammenslått<span class="anbefalt">2 KLIKK</span></div>${a1}</div>
+      <div><div class="steg"><span class="n">A+</span>Fetsund-kortet med maskin, redskap og vare</div>${a2}</div>
+      <div><div class="steg"><span class="n">ARK</span>«+ Maskin» → velger, sist brukt øverst</div>${ark}</div>
+    </div>
+    <div class="forklar" style="margin-top:14px;max-width:1260px;columns:2;column-gap:28px">
+      <p><b>Plassering:</b> fotlinjen «+ Maskin · + Varer» ligger i hvert <i>arbeids</i>kort (aldri på reise/mellom). Maskin hører til segmentet fordi <code>SheetMachine.projectId</code> er påkrevd og <code>sheetTimerId</code> peker på timer-raden; varer fordi serveren krever timer-rad på samme prosjekt. Lag 4 (flere byggeplasser) får dermed maskin/varer pr. byggeplass gratis.</p>
+      <p><b>Klikk:</b> uten maskin/varer trykkes fotlinjen aldri → 2 klikk (P4). Med maskin: «+ Maskin» (3) → velg (4) → Bekreft. Med vare: «+ Varer» (3) → vare (4) → antall (5) → Bekreft. Knappene skjules når firmaet ikke har Maskin-/Varelager-modul aktiv, eller når lokal buffer er tom offline.</p>
+      <p><b>Forhåndsutfylling:</b> ingen maskin legges inn automatisk (GPS vet hvor, ikke hvilken maskin). «Sist brukt» (ORDRE 29 A, <code>sistBrukteMaskiner</code>, pr. ansatt, firma-isolert) gjør valget til ett trykk. Timer = segmentets arbeidstid som i dag (<code>timer.maskinSeksjon.hint</code>), regnes om når segmentet rettes til arbeideren har overstyrt. Redskap = utstyr med kategori <code>smautstyr</code> — ingen egen modell.</p>
+      <p><b>Skriving:</b> alt først ved «Bekreft og lagre»: timer-rader → maskinrader (<code>sheet_machine_local</code>, <code>sheetTimerId</code> = ny rad) → vareforbruk (<code>vareforbrukLocal</code>, <code>pending</code>, synkes etter sedelen). «Ikke nå» skriver ingenting.</p>
+    </div>`;
+}
+document.body.dataset.klar = "1";
+</script>
+</body>
+</html>
