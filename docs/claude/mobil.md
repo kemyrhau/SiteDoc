@@ -323,7 +323,8 @@ OTA-only. Funksjonsendring med hjemmel (Kenneth 2026-11-06, «Ja»; feltfunn ett
   `sjekkliste/[id].tsx`, `tegning-3d.tsx`, `TegningsSkjermbilde.tsx`,
   `rapportobjekter/TegningPosisjonObjekt.tsx` — alle får samme atferd (ingen prop-endring).
 - **«Bruk min posisjon»** (oppgave + sjekkliste): knapp ved siden av Lagre, kun når punktet kan
-  flyttes (utkast, online) OG «du er her» har en posisjon innenfor tegningen
+  flyttes (oppgave: utkast + online; sjekkliste: `!leseModus` — ingen utkast-lås, også mottaker
+  med redigeringsrett) OG «du er her» har en posisjon innenfor tegningen
   (`tegningBunnfelt(...).brukMinPosisjon`). Ett trykk setter det røde punktet til den blå prikkens
   posisjon — som et trykk på tegningen; lagres først med Lagre. Nøkkel `tegninger.brukMinPosisjon`.
 

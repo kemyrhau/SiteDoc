@@ -60,6 +60,12 @@ describe("tegningBunnfelt — «Bruk min posisjon» (ORDRE 24)", () => {
     expect(tegningBunnfelt({ kanRedigerePunkt: false, offline: true, duErHer: her }).brukMinPosisjon).toBe(false);
     expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: true, duErHer: her }).brukMinPosisjon).toBe(false);
   });
+  it("sjekkliste sendt, mottaker med redigeringsrett (!leseModus) → vises — ingen utkast-lås", () => {
+    // Sjekkliste sender kanRedigerePunkt = !leseModus, ikke status === "draft" (TILLEGG 2026-11-06).
+    const leseModus = false;
+    expect(tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline: false, duErHer: her }).brukMinPosisjon).toBe(true);
+    expect(tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline: false, duErHer: her }).visning).toBe("lagre");
+  });
   it("posisjon null (ingen GPS/utenfor/uten georeferanse) → skjult", () => {
     expect(tegningBunnfelt({ kanRedigerePunkt: true, offline: false, duErHer: null }).brukMinPosisjon).toBe(false);
   });
