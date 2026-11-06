@@ -332,11 +332,12 @@ er kjernen; spec-en har skjerm, klikktelling, arkitektur, tester, **ORDRE-tekst 
 - **Én skjerm for to innganger** (PREMISS over): manuell dag går gjennom samme rute uten `arbeidsdagId` — **L3-B**,
   etter V21/V22. L3-A bestilles før V21/V22 (K15 ✅ vedtatt).
 - **Maskin/redskap og varer etterregistreres i samme skjerm** (Kenneth 2026-11-06: *«husk å etterregistrere
-  maskintimer/redskap og varer»*) — fotlinje «+ Maskin · + Varer» i hvert arbeidskort, pr. byggeplass-segment
-  (`SheetMachine.projectId` påkrevd, `Vareforbruk` krever timer-rad på prosjektet). Dag uten maskin/varer er fortsatt
-  2 klikk (P4). Maskintimer forhåndsutfylt = segmentets arbeidstid; «sist brukt» øverst (ORDRE 29 A
-  `sistBrukteMaskiner`); varer via `KortVareforbrukModal` med låst prosjekt. Alt skrives først ved Bekreft.
-  **L3-D**, etter L3-A + ORDRE 29 A; spec § 3.5, skisse `skjermform-a-maskin-varer.png`, åpne K19–K21.
+  maskintimer/redskap og varer»*; K19–K21 vedtatt 2026-11-06: *«pr prosjekt, med antall -> ikke fra/til»*) — egen
+  seksjon «Maskin og varer» nederst i skjermen, én linje pr. **prosjekt** med «+ Maskin · + Varer»; maskintimer som
+  tomt antall-felt (ikke forhåndsutfylt, ikke fra/til), `sheetTimerId = null`; varer valgfritt pr. prosjekt. Dag uten
+  maskin/varer er fortsatt 2 klikk (P4); med maskin eller vare 5. «Sist brukt» øverst (ORDRE 29 A `sistBrukteMaskiner`);
+  lokal vakt = serverens `beregnMaskinBrudd`. Alt skrives først ved Bekreft. **L3-D**, etter L3-A + ORDRE 29 A; spec
+  § 3.5, skisse `skjermform-a-maskin-varer.png`.
 
 🔴 **Og de tre kodekommentarene som forbyr GPS å velge prosjekt reverseres i L3-A — eksplisitt,
 med henvisning til Kenneths vedtak og til at bekreftelsessteget er på plass** (ordlyd i spec § 5 pkt. 3). Rives de før
