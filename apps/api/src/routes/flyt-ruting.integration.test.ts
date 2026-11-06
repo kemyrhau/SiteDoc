@@ -219,7 +219,8 @@ describe("Fase 5a: server-e2e posisjons-ruting (distinkte personer)", () => {
 
     // Registrator A (Ledд 1, medlem — § 2.4 gjenåpne-rett) gjenåpner. Landing = åpnerens eget ledд.
     // Med DISTINKTE personer (A ≠ D) lander det på 1, ikke terminal-posisjon 4 (den systematiske buggen).
-    await createTestCaller(s.A_registrator).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" });
+    // P2 (2096c49c): gjenåpning fra terminal krever begrunnelse (statusKreverBegrunnelse("draft","approved")).
+    await createTestCaller(s.A_registrator).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft", kommentar: "gjenåpnet" });
     const f = await faktaFor(s.checklistId);
     expect(f.aktivPosisjon).toBe(1);  // §2.4 regel 1: åpnerens eget ledд — IKKE 4
     expect(f.terminal).toBeNull();

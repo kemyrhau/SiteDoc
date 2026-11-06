@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { writeFile, unlink } from "node:fs/promises";
+import { mkdir, writeFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { prisma } from "@sitedoc/db";
@@ -83,6 +83,9 @@ async function lagDokumentMedSide1Chunks(fileUrl: string): Promise<string> {
 }
 
 beforeAll(async () => {
+  // uploads/ er gitignorert og finnes ikke i en fersk CI-checkout (ENOENT i CI 2026-11-06);
+  // prodkoden leser fra samme sti, så testen oppretter mappa selv.
+  await mkdir(UPLOADS_DIR, { recursive: true });
   const bruker = await prisma.user.create({
     data: {
       email: `reprosess-modus-${Date.now()}@sitedoc.test`,
