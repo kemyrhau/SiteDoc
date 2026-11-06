@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Ta bort utan att ersätta",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Ta bort och flytta {{antall}} dokument",
   "dokumentflyt.fjernMedlem.loggStaar": "Loggen behåller namnet på allt {{navn}} har gjort.",
-  "dokumentflyt.leddTomt": "Inga aktiva medlemmar – välj vem som ska hålla detta steg."
+  "dokumentflyt.leddTomt": "Inga aktiva medlemmar – välj vem som ska hålla detta steg.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Välj plats...",
+  "lokasjonVelger.forslagGps": "Auto: GPS-position",
+  "lokasjonVelger.forslagSistBrukt": "Senast använd",
+  "lokasjonVelger.kart": "Karta",
+  "lokasjonVelger.ingenTegningEllerKart": "Projektet har ingen ritning eller karta att placera en position på."
 }

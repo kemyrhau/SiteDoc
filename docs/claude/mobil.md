@@ -968,12 +968,14 @@ annen — da gjelder paritetsregelen igjen.
 
 **Støttede felttyper:** text_field, list_single/multi, traffic_light, integer/decimal/calculation (med enhet), date, date_time, person, persons, company, weather, signature (base64), repeater (med barnefelt), bim/zone/room_property, attachments.
 
-**Lokasjonsvelger:**
-- Vises øverst i felter-listen (over rapportobjektene)
-- Trykk → fullskjerm tegningsvisning (TegningsVisning) med posisjonsprikk
-- Trykk på tegning for å sette/flytte prikk
-- «Bytt tegning»-knapp i bunnbar
-- GPS-auto-valg ved opprettelse (erInnenforBounds, sist brukt fallback)
+**Lokasjonsvelger (felles for sjekkliste og oppgave, ORDRE 19 2026-11-06):**
+- Ett felt øverst i `sjekkliste/[id].tsx` og `oppgave/[id].tsx`: `LokasjonSeksjon` (`src/components/LokasjonSeksjon.tsx`) viser gjeldende lokasjon (tegning, byggeplass eller område), ellers `lokasjonVelger.velgLokasjonPlaceholder`
+- Vises når `visLokasjon(template)` = `showLocation !== false` (paritet med web; gjelder nå også oppgave)
+- **Forslag:** kun når `skalForeslaaLokasjon` (utkast uten tegning og uten `lokasjonOmfang`). `foreslaaLokasjon` (`src/lib/lokasjonForslag.ts`, delt med `OpprettDokumentModal`): GPS-treff mot georefererte tegninger (sist brukte blant treffene vinner) → sist brukte byggeplass/tegning. Forslaget vises forhåndsvalgt med kilde (`forslagGps`/`forslagSistBrukt`) og lagres FØRST ved «Bekreft» — aldri stille. Forslag uten tegning vises ikke (oppgave har ingen byggeplass-kolonne)
+- Lagring: samme mutasjon som før — `sjekkliste.oppdater` (`drawingId` + `byggeplassId`) / `oppgave.oppdater` (`drawingId`); bekreftet forslag oppdaterer sist brukte (`settSistTegning`)
+- Sjekkliste: trykk → fullskjerm tegningsvisning med posisjonsprikk; trykk på tegning setter/flytter prikk; «Bytt tegning» bruker `TegningVelgerListe` (gruppert pr. byggeplass, løse under «Kart»)
+- Oppgave: tegning satt → punktmodalen som før; ingen lokasjon → tegningsvelger (`TegningVelgerListe`) som lagrer tegning, punktet settes etterpå
+- Tester: `lokasjonForslag.test.ts` (forslag, vis-regel, utkast-regel)
 
 **Opprett-modal:**
 - Dokumentflyt-filtrering: kun entrepriser med flyt for valgt mal

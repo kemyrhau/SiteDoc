@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Poista ilman vaihtoa",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Poista ja siirrä {{antall}} asiakirjaa",
   "dokumentflyt.fjernMedlem.loggStaar": "Loki säilyttää nimen kaikessa, mitä {{navn}} on tehnyt.",
-  "dokumentflyt.leddTomt": "Ei aktiivisia jäseniä – valitse, kenen tulee suorittaa tämä vaihe."
+  "dokumentflyt.leddTomt": "Ei aktiivisia jäseniä – valitse, kenen tulee suorittaa tämä vaihe.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Valitse paikka…",
+  "lokasjonVelger.forslagGps": "Automaattinen: GPS-sijainti",
+  "lokasjonVelger.forslagSistBrukt": "Viimeksi käytetty",
+  "lokasjonVelger.kart": "Kartta",
+  "lokasjonVelger.ingenTegningEllerKart": "Projektissa ei ole piirustusta tai karttaa, johon voisi sijoittaa sijainnin."
 }

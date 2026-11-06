@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Eemaldage ilma asendamiseta",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Eemaldage ja teisaldage {{antall}} dokumenti",
   "dokumentflyt.fjernMedlem.loggStaar": "Logi säilitab nime kõigel, mida {{navn}} on teinud.",
-  "dokumentflyt.leddTomt": "Aktiivseid liikmeid pole – valige, kes peaks seda sammu tegema."
+  "dokumentflyt.leddTomt": "Aktiivseid liikmeid pole – valige, kes peaks seda sammu tegema.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Vali asukoht…",
+  "lokasjonVelger.forslagGps": "Automaatne: GPS-positsioon",
+  "lokasjonVelger.forslagSistBrukt": "Viimati kasutatud",
+  "lokasjonVelger.kart": "Kaart",
+  "lokasjonVelger.ingenTegningEllerKart": "Projektil pole joonist ega kaarti, millele positsiooni paigutada."
 }

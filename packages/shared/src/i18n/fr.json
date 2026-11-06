@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Supprimer sans remplacement",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Supprimer et déplacer {{antall}} documents",
   "dokumentflyt.fjernMedlem.loggStaar": "Le journal conserve le nom de tout ce que {{navn}} a fait.",
-  "dokumentflyt.leddTomt": "Aucun membre actif – choisissez qui doit organiser cette étape."
+  "dokumentflyt.leddTomt": "Aucun membre actif – choisissez qui doit organiser cette étape.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Choisissez l'emplacement…",
+  "lokasjonVelger.forslagGps": "Automatique : position GPS",
+  "lokasjonVelger.forslagSistBrukt": "Dernière utilisation",
+  "lokasjonVelger.kart": "Carte",
+  "lokasjonVelger.ingenTegningEllerKart": "Le projet n'a pas de dessin ou de carte sur lequel placer une position."
 }

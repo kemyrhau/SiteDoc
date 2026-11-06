@@ -5326,5 +5326,10 @@
   "dokumentflyt.fjernMedlem.utenErstatter": "Noņemiet bez nomaiņas",
   "dokumentflyt.fjernMedlem.bekreftFlytt": "Noņemiet un pārvietojiet {{antall}} dokumentus",
   "dokumentflyt.fjernMedlem.loggStaar": "Žurnālā tiek saglabāts nosaukums visam, ko {{navn}} ir izdarījis.",
-  "dokumentflyt.leddTomt": "Nav aktīvu dalībnieku — izvēlieties, kam veikt šo soli."
+  "dokumentflyt.leddTomt": "Nav aktīvu dalībnieku — izvēlieties, kam veikt šo soli.",
+  "lokasjonVelger.velgLokasjonPlaceholder": "Izvēlieties atrašanās vietu…",
+  "lokasjonVelger.forslagGps": "Automātiski: GPS pozīcija",
+  "lokasjonVelger.forslagSistBrukt": "Pēdējo reizi lietots",
+  "lokasjonVelger.kart": "Karte",
+  "lokasjonVelger.ingenTegningEllerKart": "Projektam nav zīmējuma vai kartes, kur novietot pozīciju."
 }
