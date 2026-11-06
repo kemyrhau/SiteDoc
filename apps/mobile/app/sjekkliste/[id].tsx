@@ -51,7 +51,7 @@ import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import { useDuErHer } from "../../src/hooks/useDuErHer";
-import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
+import { PUNKT_OMFANG, tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
@@ -1614,6 +1614,8 @@ export default function SjekklisteUtfylling() {
                         drawingId: lokTempTegningId,
                         positionX: lokTempPosX,
                         positionY: lokTempPosY,
+                        // Tegning valgt → omfang «punkt» (web-paritet); kun bygning → omfang urørt.
+                        ...(lokTempTegningId ? PUNKT_OMFANG : {}),
                       });
                       if (valgtProsjektId && lokTempBygningId && lokTempTegningId) {
                         import("expo-secure-store").then((ss) => {

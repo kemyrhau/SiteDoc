@@ -183,6 +183,28 @@ describe("ORDRE 28: oppgave.oppdater — bytt tegning", () => {
   });
 });
 
+describe("TILLEGG ORDRE 28: oppgave.oppdater — område/«hele byggeplassen» (drawingId: null)", () => {
+  it("🔴 byggeplassen forsvinner ikke når web-LokasjonVelger fjerner tegningen", async () => {
+    const id = await lagTask({ drawingId: ids.tegningBp1, byggeplassId: ids.bp1 });
+    const caller = createTestCaller(ids.userId);
+    // Samme input som oppgave-detaljens LokasjonVelger sender ved «Gjelder hele byggeplassen».
+    await caller.oppgave.oppdater({
+      id,
+      drawingId: null,
+      positionX: null,
+      positionY: null,
+      lokasjonOmfang: "byggeplass",
+      lokasjonFritekst: null,
+      omradeId: null,
+    });
+    const etter = await prisma.task.findUniqueOrThrow({
+      where: { id },
+      select: { byggeplassId: true, drawingId: true, lokasjonOmfang: true },
+    });
+    expect(etter).toEqual({ byggeplassId: ids.bp1, drawingId: null, lokasjonOmfang: "byggeplass" });
+  });
+});
+
 describe("ORDRE 28: byggeplassFilterViaTegning i ekte SQL", () => {
   it("🔴 egen byggeplass styrer — også uten tegning og over en annen tegnings byggeplass", async () => {
     const egenUtenTegning = await lagTask({ byggeplassId: ids.bp1 });

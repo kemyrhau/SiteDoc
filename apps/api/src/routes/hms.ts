@@ -229,7 +229,7 @@ export const hmsRouter = router({
       const draftGuard = { OR: [{ status: { not: "draft" } }, { bestillerUserId: ctx.userId }] };
 
       // Byggeplass-tilhørighet (mykt) — regel i byggeplassFilter.ts. Task via tegning
-      // (3 ledd, inkl. prosjekt-tegning), Checklist direkte (2 ledd).
+      // (4 ledd: egen byggeplass, ellers via tegning inkl. prosjekt-tegning), Checklist direkte (2 ledd).
       const taskByggeplassClause = byggeplassFilterViaTegning(input.byggeplassId);
       const checklistByggeplassClause = byggeplassFilterDirekte(input.byggeplassId);
 

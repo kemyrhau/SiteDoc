@@ -308,6 +308,11 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   bunnfelt (som sjekklisten) → tegningsvelgeren → `oppgave.oppdater(byttTegningInput(...))`
   (`src/lib/tegningDuErHer.ts`): ny tegning, punktet nullstilles, byggeplassen regnes av serveren.
   Sjekklistens tegningsmodal er i18n-et (`felt.byttTegning`, `lokasjonVelger.*`, `tegningsvelger.velgTegning`).
+- **Tegning/pin = omfang «punkt» (TILLEGG ORDRE 28):** alle mobilsteder som lagrer tegning eller pin
+  (oppgave: forslag-bekreft, «Bytt tegning», Lagre i tegningsmodalen; sjekkliste: lokasjonsmodalen når tegning
+  er valgt) sender `PUNKT_OMFANG` (`src/lib/tegningDuErHer.ts`): `lokasjonOmfang: "punkt"`, `omradeId: null`,
+  `lokasjonFritekst: null` — speiler web `LokasjonVelger.handleLagre`, så en ny pin ikke skjules bak et gammelt
+  område/«hele byggeplassen» i `dokumentLokasjonsOmfang` eller PDF-ens tegningsfelt.
 - **HMS (2026-10-03):** `hms.hentDokumenter` (alle tre kategorier i ett kall → én `hms_local`-tabell med
   `kategori`-diskriminator; atomisk refresh/lesevei). avvik/RUH er Task (byggeplass via tegning), SJA er
   Checklist (direkte) — begge utledes til samme effektive `byggeplassId`. 🔴 Speilet bærer ALDRI `data`/

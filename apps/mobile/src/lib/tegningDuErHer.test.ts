@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byttTegningInput, duErHerPosisjon, tegningBunnfelt } from "./tegningDuErHer";
+import { PUNKT_OMFANG, byttTegningInput, duErHerPosisjon, tegningBunnfelt } from "./tegningDuErHer";
 
 // Tegning der nedre venstre hjørne = (59.0, 10.0) og øvre høyre = (59.1, 10.1)
 const geo = {
@@ -74,7 +74,21 @@ describe("tegningBunnfelt — «Bruk min posisjon» (ORDRE 24)", () => {
 describe("byttTegningInput — Bytt tegning i oppgave (ORDRE 28)", () => {
   it("🔴 nullstiller punktet og sender ny tegning, men aldri byggeplass (serveren lar den følge tegningen)", () => {
     const inn = byttTegningInput("oppg-1", "tegn-2");
-    expect(inn).toEqual({ id: "oppg-1", drawingId: "tegn-2", positionX: null, positionY: null });
+    expect(inn).toMatchObject({ id: "oppg-1", drawingId: "tegn-2", positionX: null, positionY: null });
     expect("byggeplassId" in inn).toBe(false);
+  });
+
+  it("🔴 setter omfang «punkt» og nullstiller område/fritekst — ny tegning skjules ikke bak gammelt område", () => {
+    expect(byttTegningInput("oppg-1", "tegn-2")).toMatchObject({
+      lokasjonOmfang: "punkt",
+      omradeId: null,
+      lokasjonFritekst: null,
+    });
+  });
+});
+
+describe("PUNKT_OMFANG — tegning/pin lagret på mobil (TILLEGG ORDRE 28)", () => {
+  it("🔴 speiler web LokasjonVelger.handleLagre: punkt, uten område og fritekst", () => {
+    expect(PUNKT_OMFANG).toEqual({ lokasjonOmfang: "punkt", omradeId: null, lokasjonFritekst: null });
   });
 });

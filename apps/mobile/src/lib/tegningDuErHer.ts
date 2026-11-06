@@ -44,13 +44,21 @@ export function tegningBunnfelt(opts: {
 }
 
 /**
+ * Omfangsfeltene når en tegning/pin lagres (TILLEGG ORDRE 28). Speiler web
+ * `LokasjonVelger.handleLagre`: tegning/pin = omfang «punkt», og et tidligere område eller
+ * «hele byggeplassen»-fritekst nullstilles — ellers skjuler `dokumentLokasjonsOmfang`
+ * (og PDF-ens tegningsfelt) den nye pinnen bak det gamle valget.
+ */
+export const PUNKT_OMFANG = { lokasjonOmfang: "punkt", omradeId: null, lokasjonFritekst: null } as const;
+
+/**
  * Oppdaterings-input når brukeren bytter tegning fra tegningsmodalen (ORDRE 28). Punktet
  * hørte til den gamle tegningen og nullstilles; byggeplassen sendes ikke — serveren lar
- * den følge den nye tegningen (tegningen vinner).
+ * den følge den nye tegningen (tegningen vinner). Omfanget blir «punkt» (PUNKT_OMFANG).
  */
 export function byttTegningInput(
   id: string,
   tegningId: string,
-): { id: string; drawingId: string; positionX: null; positionY: null } {
-  return { id, drawingId: tegningId, positionX: null, positionY: null };
+): { id: string; drawingId: string; positionX: null; positionY: null } & typeof PUNKT_OMFANG {
+  return { id, drawingId: tegningId, positionX: null, positionY: null, ...PUNKT_OMFANG };
 }

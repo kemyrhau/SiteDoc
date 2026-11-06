@@ -54,7 +54,7 @@ import type { LokasjonTegning } from "../../src/components/LokasjonSeksjon";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useDuErHer } from "../../src/hooks/useDuErHer";
-import { byttTegningInput, tegningBunnfelt } from "../../src/lib/tegningDuErHer";
+import { PUNKT_OMFANG, byttTegningInput, tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -935,7 +935,7 @@ export default function OppgaveDetalj() {
                     : undefined
               }
               onBekreftForslag={({ tegningId, byggeplassId }) => {
-                oppdaterMutasjon.mutate({ id: id!, drawingId: tegningId });
+                oppdaterMutasjon.mutate({ id: id!, drawingId: tegningId, ...PUNKT_OMFANG });
                 if (byggeplassId) settSistTegning(byggeplassId, tegningId);
               }}
             />
@@ -1582,6 +1582,7 @@ export default function OppgaveDetalj() {
                           id: id!,
                           positionX: tegningTempPosX,
                           positionY: tegningTempPosY,
+                          ...PUNKT_OMFANG,
                         });
                         settVisTegningModal(false);
                       }}

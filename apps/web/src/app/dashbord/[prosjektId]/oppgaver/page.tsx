@@ -19,6 +19,7 @@ import { FlyttbareKolonner, renderFlyttbartHode } from "@/components/FlyttbareKo
 import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
 import { metadataFilterAlternativer, metadataFilterVerdi, metadataFlereVerdier, type MetadataRad } from "@/lib/dokumentMetadata";
 import { METADATA_KOLONNE_IDER, METADATA_NAVN_NOKKEL, byggMetadataKolonner } from "@/components/DokumentMetadataKolonner";
+import { oppgaveListeInput } from "@/lib/oppgaveListeInput";
 
 // --- Typer ---
 
@@ -259,8 +260,9 @@ export default function OppgaverSide() {
   // byggeplass vinner på serveren når standardTegning er satt.
   const { aktivByggeplass, standardTegning } = useByggeplass();
 
+  // TILLEGG ORDRE 28: listen følger toppbarens byggeplass (serveren scoper, 4 ledd).
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
+    oppgaveListeInput(params.prosjektId, aktivByggeplass),
   );
   const oppgaver = oppgaveQuery.data as OppgaveRad[] | undefined;
   const isLoading = oppgaveQuery.isLoading;
