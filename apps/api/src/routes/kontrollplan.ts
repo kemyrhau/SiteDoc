@@ -3,7 +3,8 @@ import { type Prisma } from "@sitedoc/db";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
-import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
+import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
+import { verifiserTegningIProsjekt } from "../services/tegningVakt";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
 // L1.5: en forhåndsvalgt flyt må høre til prosjektet, bruke punktets mal, og ha en
@@ -733,7 +734,7 @@ export const kontrollplanRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
       // Prosjektisolering: tegningen må høre til samme prosjekt som punktet. Delt vakt med
-      // sjekkliste.oppdater (samme felt, to dører) — se kontrollplanKobling.ts.
+      // sjekkliste.oppdater (samme felt, to dører) — se services/tegningVakt.ts.
       if (input.drawingId) {
         await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, punkt.kontrollplan.projectId);
       }

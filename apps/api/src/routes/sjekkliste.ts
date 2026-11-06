@@ -11,7 +11,8 @@ import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/share
 import { grenseNaadd } from "@sitedoc/shared";
 import { erRaaUploadsUrl } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
-import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
+import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
+import { verifiserTegningIProsjekt } from "../services/tegningVakt";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
 import { berikMedMetadata } from "../services/dokumentMetadata";

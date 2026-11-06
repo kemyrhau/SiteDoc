@@ -38,6 +38,7 @@ import {
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { IKKE_SLETTET } from "../utils/softDelete";
+import { verifiserTegningIProsjekt } from "../services/tegningVakt";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 
 /**
@@ -622,6 +623,13 @@ export const oppgaveRouter = router({
         }
       }
 
+      // Prosjektisolering (ORDRE 20): en tegning på oppgaven MÅ tilhøre malens prosjekt —
+      // prosjektet utledes fra malen (server), aldri fra klientinput. Etter tilgangssjekkene
+      // over, før noe skrives. Uten tegning: ingen sjekk.
+      if (input.drawingId) {
+        await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, mal.projectId);
+      }
+
       // Gratis-grense (10 oppgaver per prosjekt) — interim-vedtak 2026-07-26:
       // gjelder KUN standalone-prosjekter (prøve); firma-tilknyttede er grenseløse,
       // sitedoc_admin har bypass. Delt beslutning i grenseNaadd (@sitedoc/shared),
@@ -807,6 +815,12 @@ export const oppgaveRouter = router({
             message: "Oppgaver kan ikke redigeres etter sending — kun tilføyelser er tillatt",
           });
         }
+      }
+
+      // Prosjektisolering (ORDRE 20): samme vakt som sjekkliste.oppdater — tegningen MÅ tilhøre
+      // oppgavens prosjekt (utledet på serveren). `null` = fjern tegning, ingen sjekk.
+      if (input.drawingId) {
+        await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, hentProjectId(oppgave));
       }
 
       return ctx.prisma.task.update({

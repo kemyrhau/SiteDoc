@@ -20,6 +20,8 @@ vi.mock("../trpc/tilgangskontroll", () => ({
 // Kobling-servicen importeres av routeren, men slettPunkt rører den ikke.
 vi.mock("../services/kontrollplanKobling", () => ({
   koblePunktTilSjekkliste: vi.fn(),
+}));
+vi.mock("../services/tegningVakt", () => ({
   verifiserTegningIProsjekt: vi.fn(),
 }));
 

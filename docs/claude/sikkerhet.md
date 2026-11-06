@@ -268,6 +268,13 @@ Ruten returnerte hele `Organization`-raden for et vilkårlig `projectId` til enh
 - **Kallere** (bare web, ingen på mobil): `dashbord/oppsett/firma/page.tsx`, `OppsettSidemeny.tsx`, `lib/innstillinger-kort.tsx` — alle bruker svaret som «eierfirma», og alle kjører i prosjektkontekst der brukeren er medlem.
 - **Test:** `apps/api/src/routes/organisasjon-hentforprosjekt.test.ts` (rød før fiksen: 2 av 2).
 
+### ✅ 8k. `oppgave.opprett`/`oppdater` godtok en `drawingId` fra et annet prosjekt (funn 2026-11-06, Redesign under ORDRE 19; Kenneth A; 🟢 FIKSET på `fix/oppgave-tegningsvakt` — venter Kontrollør-gate/merge)
+Auth sjekket oppgavens eget prosjekt, ikke tegningens — en fremmed `drawingId` kunne skrives på oppgaven. Sjekkliste og kontrollplan hadde vakten; oppgave manglet den.
+- **Fiks:** delt `verifiserTegningIProsjekt` flyttet til `apps/api/src/services/tegningVakt.ts` og kalles i `oppgave.opprett` (prosjekt fra malen) og `oppgave.oppdater` (prosjekt fra `hentProjectId(oppgave)`) før skriving; `null` (fjern tegning) slipper uten oppslag.
+- **Funksjonsendring (Kenneth A, 2026-11-06):** vakten sjekker nå `drawing.projectId`, ikke `drawing.byggeplass.projectId`. Sjekkliste og kontrollplan godtar derfor løse tegninger (uten byggeplass) fra eget prosjekt — før ble de avvist.
+- **Ikke endret:** `oppgave.hentForTegning` (kun lesing) sjekker medlemskap via `byggeplass.projectId` og gir NOT_FOUND for løse tegninger — ikke en lekkasje, men en lesebegrensning utenfor denne ordren.
+- **Test:** `services/tegningVakt.test.ts`, `routes/oppgave-tegningsvakt.test.ts`, `routes/sjekkliste-tegningsvakt.test.ts`. Negativkontroll: vakten fjernet → 3 røde (fremmed prosjekt skrives); hjelperen tilbake på byggeplass → løs tegning rød.
+
 ### ✅ 8c. ezdxf-SVG-visningen stolte 100 % på at markupen var render.py-generert (herding 2026-10-11, `fix/ezdxf-xss-vern`)
 Web beholdt SVG-ens egen `<style>` når den så `data-motor="ezdxf"` **i fila**, og mobil injiserte markupen rått via `innerHTML` i en WebView. DOMPurify saniterer ikke CSS, og mobil har ingen DOMPurify. Trygt i dag (render.py `html.escape`-er tekst/lag og skriver en fast `<style>`), men ingen sperre ved drift i render.py, en ny motor, eller en forfalsket SVG. Opplasting av SVG er dessuten ikke klient-tillatt (`ACCEPT` uten `.svg`), men `upload.ts:72` er en **blokkliste** — en direkte `.svg`-POST lagres med `fileType="svg"`. Herdet:
 - **Web motorvalg fra serverens markør, ikke fila:** `erEzdxfMotor = lesKonverteringMarkor(...).motor === "ezdxf"` (`tegninger/page.tsx`). En forfalsket SVG kan bære `data-motor="ezdxf"`, men får aldri server-markøren (`konverteringRapport.markor.motor`, skrevet kun av render.py/pdf) → behandles som «egen» → `<style>` strippes.
