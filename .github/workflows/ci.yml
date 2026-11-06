@@ -100,6 +100,7 @@ jobs:
         run: |
           pnpm --filter @sitedoc/db exec prisma migrate deploy
           pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-timer exec prisma migrate deploy
 
       - name: Integrasjonstester (engangs-Postgres)
         env:
