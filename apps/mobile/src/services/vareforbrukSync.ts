@@ -59,7 +59,14 @@ export function planleggVaresending(
 /** Server-avvisning som ikke løses ved å prøve igjen (vs. nett-/tokenfeil). */
 export function erPermanentAvvisning(e: unknown): boolean {
   const kode = (e as { data?: { code?: string } })?.data?.code;
-  return kode === "BAD_REQUEST" || kode === "FORBIDDEN" || kode === "NOT_FOUND" || kode === "CONFLICT";
+  // PRECONDITION_FAILED: Varelager slått av for prosjektet (`krevVarelagerForProsjekt`).
+  return (
+    kode === "BAD_REQUEST" ||
+    kode === "FORBIDDEN" ||
+    kode === "NOT_FOUND" ||
+    kode === "CONFLICT" ||
+    kode === "PRECONDITION_FAILED"
+  );
 }
 
 /** Send brukerens ventende varelinjer. Nettfeil lar linjen stå pending. */

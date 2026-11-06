@@ -14,6 +14,7 @@ import {
   tilKortVarer,
   formatKortTall,
   kortModusVisning,
+  telteKortVarer,
 } from "./prosjektkortMobil";
 
 const SEDEL = "p-sedel";
@@ -129,5 +130,26 @@ describe("kortModusVisning — prosjektlås og arv-tekst", () => {
       arvesFra: "timer.byggeplass.arvesFraDagskort",
       fra: "timer.byggeplass.fraDagskort",
     });
+  });
+});
+
+describe("telteKortVarer (16d)", () => {
+  const vare = { navn: "Sement", enhet: "sekk" };
+  const varer = [
+    { id: "a", projectId: "p1", antall: 2, vare, syncStatus: "synced" as const },
+    { id: "b", projectId: "p1", antall: 5, vare, syncStatus: "avvist" as const },
+    { id: "c", projectId: "p1", antall: 1, vare, syncStatus: "pending" as const },
+    { id: "d", projectId: "p2", antall: 9, vare },
+    { id: "e", projectId: "p1", antall: 3, vare },
+  ];
+
+  it("avviste lokale linjer telles ikke i Varer-summen", () => {
+    const telte = telteKortVarer(varer, "p1");
+    expect(telte.map((v) => v.id)).toEqual(["a", "c", "e"]);
+    expect(beregnKortSummer([], [], telte).varer).toEqual({ type: "mengde", antall: 6, enhet: "sekk" });
+  });
+
+  it("server-linjer uten syncStatus telles, andre prosjekter ikke", () => {
+    expect(telteKortVarer(varer, "p2").map((v) => v.id)).toEqual(["d"]);
   });
 });

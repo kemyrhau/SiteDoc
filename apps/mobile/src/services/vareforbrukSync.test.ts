@@ -255,6 +255,18 @@ describe("vareforbruk fra kortet — synk", () => {
     expect(server.kall()).toBe(1);
   });
 
+  it("Varelager slått av (PRECONDITION_FAILED) → avvist, sendes ikke igjen (16d)", async () => {
+    seedSedel("s1", "synced");
+    seedTimerRad("t1", "s1");
+    nyLinje("l1", "s1");
+    const feil = Object.assign(new Error("Varelager er ikke aktivt"), { data: { code: "PRECONDITION_FAILED" } });
+    const server = lagServer({ feil });
+    await syncVareforbruk(server.klient, "u1");
+    expect(linje("l1")).toMatchObject({ syncStatus: "avvist", feilmelding: "Varelager er ikke aktivt" });
+    await syncVareforbruk(server.klient, "u1");
+    expect(server.kall()).toBe(1);
+  });
+
   it("dato_kollisjon: forsoning nøkler om sheet_id → linjen kobles til server-sedelen", async () => {
     seedSedel("local-s", "pending");
     seedTimerRad("t1", "local-s");
