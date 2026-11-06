@@ -12,7 +12,7 @@ import { grenseNaadd } from "@sitedoc/shared";
 import { erRaaUploadsUrl } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
-import { verifiserTegningIProsjekt } from "../services/tegningVakt";
+import { verifiserTegningIProsjekt, verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
 import { berikMedMetadata } from "../services/dokumentMetadata";
@@ -589,6 +589,15 @@ export const sjekklisteRouter = router({
           nummer = (maks._max.number ?? 0) + 1;
         }
 
+        // Prosjektisolering (ORDRE 21): tegning og byggeplass MÅ tilhøre malens prosjekt
+        // (utledet på serveren). Før create — en avvisning ruller tilbake hele transaksjonen.
+        if (input.drawingId) {
+          await verifiserTegningIProsjekt(tx, input.drawingId, mal.projectId);
+        }
+        if (input.byggeplassId) {
+          await verifiserByggeplassIProsjekt(tx, input.byggeplassId, mal.projectId);
+        }
+
         // Auto-generer tittel fra malnavn (nummer vises separat i Nr-kolonne)
         const tittel = input.title?.trim() || mal.name;
 
@@ -750,6 +759,10 @@ export const sjekklisteRouter = router({
       // sjekklistas eget prosjekt, ikke tegningens). `null` = fjern tegning, ingen sjekk.
       if (input.drawingId) {
         await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, sjekkliste.template.projectId);
+      }
+      // ORDRE 21: samme vakt for byggeplass. `null` = fjern byggeplass, ingen sjekk.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, sjekkliste.template.projectId);
       }
 
       const { id, ...data } = input;

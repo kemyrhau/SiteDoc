@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { verifiserTegningIProsjekt } from "./tegningVakt";
+import { verifiserByggeplassIProsjekt, verifiserTegningIProsjekt } from "./tegningVakt";
 
 /**
  * verifiserTegningIProsjekt (ORDRE 20) — sjekker tegningens EGEN `projectId`, ikke byggeplassens.
@@ -34,5 +34,32 @@ describe("verifiserTegningIProsjekt", () => {
   it("ukjent tegning → BAD_REQUEST", async () => {
     const { db } = lagDb(null);
     await expect(verifiserTegningIProsjekt(db, "t1", PROSJEKT)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+describe("verifiserByggeplassIProsjekt (ORDRE 21)", () => {
+  function lagByggeplassDb(byggeplass: { projectId: string } | null) {
+    const findUnique = vi.fn().mockResolvedValue(byggeplass);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { db: { byggeplass: { findUnique } } as any, findUnique };
+  }
+
+  it("byggeplass i samme prosjekt → OK, slår opp byggeplass.projectId", async () => {
+    const { db, findUnique } = lagByggeplassDb({ projectId: PROSJEKT });
+    await expect(verifiserByggeplassIProsjekt(db, "b1", PROSJEKT)).resolves.toBeUndefined();
+    expect(findUnique).toHaveBeenCalledWith({ where: { id: "b1" }, select: { projectId: true } });
+  });
+
+  it("byggeplass i fremmed prosjekt → BAD_REQUEST", async () => {
+    const { db } = lagByggeplassDb({ projectId: FREMMED });
+    await expect(verifiserByggeplassIProsjekt(db, "b1", PROSJEKT)).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Byggeplassen hører til et annet prosjekt.",
+    });
+  });
+
+  it("ukjent byggeplass → BAD_REQUEST", async () => {
+    const { db } = lagByggeplassDb(null);
+    await expect(verifiserByggeplassIProsjekt(db, "b1", PROSJEKT)).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });
