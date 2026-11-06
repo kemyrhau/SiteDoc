@@ -30,3 +30,27 @@ export async function verifiserTegningIProsjekt(
     });
   }
 }
+
+/**
+ * Prosjektisolering for byggeplass-referanser på dokumenter (ORDRE 21): en `byggeplassId` som
+ * skrives på en sjekkliste MÅ tilhøre dokumentets prosjekt. Søster av vakten over, med samme
+ * `db`-parameter (kan kjøres i transaksjon). `krevByggeplassIProsjekt` i
+ * `routes/timer/byggeplass-rad.ts` gjør det samme for timer-rader, men bruker den globale
+ * klienten og bor i firmamodulen — derfor ikke gjenbrukt her.
+ */
+export async function verifiserByggeplassIProsjekt(
+  db: TxClient,
+  byggeplassId: string,
+  projectId: string,
+): Promise<void> {
+  const byggeplass = await db.byggeplass.findUnique({
+    where: { id: byggeplassId },
+    select: { projectId: true },
+  });
+  if (!byggeplass || byggeplass.projectId !== projectId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Byggeplassen hører til et annet prosjekt.",
+    });
+  }
+}

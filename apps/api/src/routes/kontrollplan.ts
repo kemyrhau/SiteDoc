@@ -692,12 +692,11 @@ export const kontrollplanRouter = router({
     .query(async ({ ctx, input }) => {
       const drawing = await ctx.prisma.drawing.findUniqueOrThrow({
         where: { id: input.drawingId },
-        select: { byggeplass: { select: { projectId: true } } },
+        select: { projectId: true },
       });
-      if (!drawing.byggeplass) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Tegningen er ikke tilknyttet en lokasjon" });
-      }
-      await verifiserProsjektmedlem(ctx.userId, drawing.byggeplass.projectId);
+      // ORDRE 21: medlemskap via tegningens EGEN projectId — løse tegninger (uten byggeplass)
+      // i eget prosjekt gir sine markører. Ikke-medlem/fremmed prosjekt feiler lukket.
+      await verifiserProsjektmedlem(ctx.userId, drawing.projectId);
       return ctx.prisma.kontrollplanPunkt.findMany({
         where: { drawingId: input.drawingId, positionX: { not: null }, positionY: { not: null }, arkivert: false },
         select: {

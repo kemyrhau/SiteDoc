@@ -75,3 +75,126 @@ describe("sjekkliste.oppdater — tegningsvakt (drawing.projectId)", () => {
     expect(checklistUpdate).toHaveBeenCalledTimes(1);
   });
 });
+
+// ── ORDRE 21: sjekkliste.opprett + byggeplass-vakt ────────────────────────────
+
+const BYGGEPLASS = "44444444-4444-4444-4444-444444444444";
+const MAL = "22222222-2222-2222-2222-222222222222";
+/** Sentinel fra tx.checklist.create (tRPC pakker den inn, meldingen består): kallet nådde skriving. */
+const NÅDDE_SKRIVING = "NÅDDE_SKRIVING";
+
+/**
+ * opprett via HMS-grenen (færrest forutsetninger). $transaction kjører tilbakekallet med en
+ * tx-mock; vaktene får tx og leser drawing/byggeplass derfra. `checklist.create` kaster
+ * sentinel — beviser at vaktene slapp kallet gjennom til skrivingen.
+ */
+function lagOpprettCtx(opts: { tegningProsjekt?: string | null; byggeplassProsjekt?: string | null }) {
+  const create = vi.fn().mockRejectedValue(new Error(NÅDDE_SKRIVING));
+  const drawingFindUnique = vi
+    .fn()
+    .mockResolvedValue(opts.tegningProsjekt ? { projectId: opts.tegningProsjekt } : null);
+  const byggeplassFindUnique = vi
+    .fn()
+    .mockResolvedValue(opts.byggeplassProsjekt ? { projectId: opts.byggeplassProsjekt } : null);
+  const tx = {
+    reportTemplate: {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ prefix: null, name: "SJA", projectId: PROSJEKT }),
+    },
+    drawing: { findUnique: drawingFindUnique },
+    byggeplass: { findUnique: byggeplassFindUnique },
+    checklist: { create },
+  };
+  const ctx = {
+    userId: "user-1",
+    tokenKilde: null,
+    sessionToken: null,
+    req: { log: { info: vi.fn(), warn: vi.fn() } },
+    nyttSessionTokenForRespons: { value: null },
+    prisma: {
+      reportTemplate: { findUniqueOrThrow: vi.fn().mockResolvedValue({ domain: "hms", projectId: PROSJEKT }) },
+      projectGroup: { findFirst: vi.fn().mockResolvedValue({ id: "hms-gruppe" }) },
+      dokumentflytMal: { findFirst: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  return { ctx, create, drawingFindUnique, byggeplassFindUnique };
+}
+
+describe("sjekkliste.opprett — tegnings- og byggeplass-vakt (ORDRE 21)", () => {
+  const basis = { templateId: MAL };
+
+  it("løs tegning (uten byggeplass) i eget prosjekt → når skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ tegningProsjekt: PROSJEKT });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ ...basis, drawingId: TEGNING }),
+    ).rejects.toMatchObject({ message: NÅDDE_SKRIVING });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("tegning med byggeplass i eget prosjekt → når skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ tegningProsjekt: PROSJEKT, byggeplassProsjekt: PROSJEKT });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ ...basis, drawingId: TEGNING, byggeplassId: BYGGEPLASS }),
+    ).rejects.toMatchObject({ message: NÅDDE_SKRIVING });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("tegning i fremmed prosjekt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ tegningProsjekt: FREMMED });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ ...basis, drawingId: TEGNING }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Tegningen hører til et annet prosjekt." });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("byggeplass i fremmed prosjekt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ byggeplassProsjekt: FREMMED });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ ...basis, byggeplassId: BYGGEPLASS }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Byggeplassen hører til et annet prosjekt." });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("uten tegning og byggeplass → ingen oppslag, når skriving", async () => {
+    const { ctx, create, drawingFindUnique, byggeplassFindUnique } = lagOpprettCtx({});
+    await expect(sjekklisteRouter.createCaller(ctx).opprett(basis)).rejects.toMatchObject({
+      message: NÅDDE_SKRIVING,
+    });
+    expect(drawingFindUnique).not.toHaveBeenCalled();
+    expect(byggeplassFindUnique).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("sjekkliste.oppdater — byggeplass-vakt (ORDRE 21)", () => {
+  function medByggeplass(byggeplassProsjekt: string | null) {
+    const base = lagCtx(null);
+    const byggeplassFindUnique = vi
+      .fn()
+      .mockResolvedValue(byggeplassProsjekt ? { projectId: byggeplassProsjekt } : null);
+    base.ctx.prisma.byggeplass = { findUnique: byggeplassFindUnique };
+    return { ...base, byggeplassFindUnique };
+  }
+
+  it("byggeplass i eget prosjekt → lagres", async () => {
+    const { ctx, checklistUpdate } = medByggeplass(PROSJEKT);
+    await sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, byggeplassId: BYGGEPLASS });
+    expect(checklistUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("byggeplass i fremmed prosjekt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, checklistUpdate } = medByggeplass(FREMMED);
+    await expect(
+      sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, byggeplassId: BYGGEPLASS }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Byggeplassen hører til et annet prosjekt." });
+    expect(checklistUpdate).not.toHaveBeenCalled();
+  });
+
+  it("byggeplassId null → lagres uten oppslag", async () => {
+    const { ctx, checklistUpdate, byggeplassFindUnique } = medByggeplass(null);
+    await sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, byggeplassId: null });
+    expect(byggeplassFindUnique).not.toHaveBeenCalled();
+    expect(checklistUpdate).toHaveBeenCalledTimes(1);
+  });
+});

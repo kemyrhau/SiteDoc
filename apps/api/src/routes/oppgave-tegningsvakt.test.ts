@@ -26,6 +26,8 @@ vi.mock("../trpc/tilgangskontroll", () => ({
   aktivtProsjektmedlemWhere: vi.fn(),
 }));
 
+import { TRPCError } from "@trpc/server";
+import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { oppgaveRouter } from "./oppgave";
 
 const PROSJEKT = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -146,5 +148,49 @@ describe("oppgave.opprett — tegningsvakt", () => {
     await expect(oppgaveRouter.createCaller(ctx).opprett(basis)).rejects.toMatchObject({ message: "NÅDDE_SKRIVING" });
     expect(drawingFindUnique).not.toHaveBeenCalled();
     expect(transaction).toHaveBeenCalled();
+  });
+});
+
+// ── ORDRE 21: hentForTegning via drawing.projectId ───────────────────────────
+
+describe("oppgave.hentForTegning — medlemskap via drawing.projectId (ORDRE 21)", () => {
+  function lagLeseCtx(tegningProsjekt: string) {
+    const findMany = vi.fn().mockResolvedValue([{ id: OPPGAVE }]);
+    const ctx = {
+      userId: "user-1",
+      tokenKilde: null,
+      sessionToken: null,
+      req: { log: { info: vi.fn(), warn: vi.fn() } },
+      nyttSessionTokenForRespons: { value: null },
+      prisma: {
+        drawing: { findUniqueOrThrow: vi.fn().mockResolvedValue({ projectId: tegningProsjekt }) },
+        task: { findMany },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+    return { ctx, findMany };
+  }
+
+  it("løs tegning i eget prosjekt → markørene returneres", async () => {
+    vi.mocked(verifiserProsjektmedlem).mockImplementation(async (_u, pid) => {
+      if (pid !== PROSJEKT) throw new TRPCError({ code: "FORBIDDEN" });
+    });
+    const { ctx, findMany } = lagLeseCtx(PROSJEKT);
+    await expect(oppgaveRouter.createCaller(ctx).hentForTegning({ drawingId: TEGNING })).resolves.toEqual([
+      { id: OPPGAVE },
+    ]);
+    expect(verifiserProsjektmedlem).toHaveBeenLastCalledWith("user-1", PROSJEKT);
+    expect(findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("tegning i fremmed prosjekt (ikke medlem) → FORBIDDEN, ingen markører lest", async () => {
+    vi.mocked(verifiserProsjektmedlem).mockImplementation(async (_u, pid) => {
+      if (pid !== PROSJEKT) throw new TRPCError({ code: "FORBIDDEN" });
+    });
+    const { ctx, findMany } = lagLeseCtx(FREMMED);
+    await expect(oppgaveRouter.createCaller(ctx).hentForTegning({ drawingId: TEGNING })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
