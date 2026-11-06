@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Gaunamas kontrolinis sąrašas...",
   "sjekkliste.ikkeFunnet": "Kontrolinis sąrašas nerastas",
   "sjekkliste.slettSjekkliste": "Ištrinkite kontrolinį sąrašą",
+  "sjekkliste.punktIngenRedigeringstilgang": "Neturite prieigos prie šio kontrolinio sąrašo redagavimo",
   "oppgave.henter": "Gaunama užduotis...",
   "oppgave.ikkeFunnet": "Užduotis nerasta",
   "oppgave.tittel": "Užduotis",

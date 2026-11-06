@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Checkliste wird abgerufen...",
   "sjekkliste.ikkeFunnet": "Checkliste nicht gefunden",
   "sjekkliste.slettSjekkliste": "Checkliste löschen",
+  "sjekkliste.punktIngenRedigeringstilgang": "Sie haben keinen Bearbeitungszugriff auf diese Checkliste",
   "oppgave.henter": "Aufgabe wird abgerufen...",
   "oppgave.ikkeFunnet": "Aufgabe nicht gefunden",
   "oppgave.tittel": "Aufgabe",

@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Načítání kontrolního seznamu...",
   "sjekkliste.ikkeFunnet": "Kontrolní seznam nenalezen",
   "sjekkliste.slettSjekkliste": "Smazat kontrolní seznam",
+  "sjekkliste.punktIngenRedigeringstilgang": "K tomuto kontrolnímu seznamu nemáte přístup k úpravám",
   "oppgave.henter": "Načítání úkolu...",
   "oppgave.ikkeFunnet": "Úkol nenalezen",
   "oppgave.tittel": "Úkol",

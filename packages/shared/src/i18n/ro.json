@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Se preia lista de verificare...",
   "sjekkliste.ikkeFunnet": "Lista de verificare nu a fost găsită",
   "sjekkliste.slettSjekkliste": "Ștergeți lista de verificare",
+  "sjekkliste.punktIngenRedigeringstilgang": "Nu aveți acces de editare la această listă de verificare",
   "oppgave.henter": "Se preia sarcina...",
   "oppgave.ikkeFunnet": "Sarcina nu a fost găsită",
   "oppgave.tittel": "Sarcină",

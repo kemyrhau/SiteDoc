@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Отримання контрольного списку...",
   "sjekkliste.ikkeFunnet": "Контрольний список не знайдено",
   "sjekkliste.slettSjekkliste": "Видалити контрольний список",
+  "sjekkliste.punktIngenRedigeringstilgang": "Ви не маєте права редагувати цей контрольний список",
   "oppgave.henter": "Отримання завдання...",
   "oppgave.ikkeFunnet": "Завдання не знайдено",
   "oppgave.tittel": "завдання",

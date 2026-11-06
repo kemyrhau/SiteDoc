@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Hämtar checklista...",
   "sjekkliste.ikkeFunnet": "Det gick inte att hitta checklistan",
   "sjekkliste.slettSjekkliste": "Ta bort checklista",
+  "sjekkliste.punktIngenRedigeringstilgang": "Du har inte redigeringsbehörighet till den här checklistan",
   "oppgave.henter": "Hämtar uppgift...",
   "oppgave.ikkeFunnet": "Uppgiften hittades inte",
   "oppgave.tittel": "Uppgift",

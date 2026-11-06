@@ -3426,6 +3426,7 @@
   "sjekkliste.henter": "Haetaan tarkistuslistaa...",
   "sjekkliste.ikkeFunnet": "Tarkistuslistaa ei löydy",
   "sjekkliste.slettSjekkliste": "Poista tarkistuslista",
+  "sjekkliste.punktIngenRedigeringstilgang": "Sinulla ei ole tämän tarkistuslistan muokkausoikeuksia",
   "oppgave.henter": "Haetaan tehtävää...",
   "oppgave.ikkeFunnet": "Tehtävää ei löydy",
   "oppgave.tittel": "Tehtävä",

@@ -328,6 +328,22 @@ OTA-only. Funksjonsendring med hjemmel (Kenneth 2026-11-06, «Ja»; feltfunn ett
   (`tegningBunnfelt(...).brukMinPosisjon`). Ett trykk setter det røde punktet til den blå prikkens
   posisjon — som et trykk på tegningen; lagres først med Lagre. Nøkkel `tegninger.brukMinPosisjon`.
 
+### Sjekkliste-lokasjon i lesemodus: tegningen åpnes read-only (2026-11-06, ORDRE 25)
+
+`app/sjekkliste/[id].tsx`. OTA-only. Funksjonsendring med hjemmel (Kenneth 2026-11-06, «Ja»).
+Selve låseregelen er uendret: sjekkliste har **ingen utkast-lås** — `leseModus` (offline, leser uten
+redigeringsrett, HMS uten ballen via `erMelder && ballHosMelder`) avgjør alene.
+
+- **Lesemodus:** trykk på lokasjonslinjen åpner tegningen med det røde punktet og «du er her»-prikken
+  når sjekklisten har tegning (`drawingId` + `drawing.fileUrl`); uten tegning er linjen ikke trykkbar
+  (ingen tom modal, ingen velger) — som oppgave. Tegningen faller tilbake til `sjekklisteDetalj.drawing`
+  når prosjektets tegningsliste ikke er lastet (offline-speil).
+- **Modalen** bruker `tegningBunnfelt({ kanRedigerePunkt: !leseModus, offline, duErHer })`: `onTrykk`,
+  «Bruk min posisjon», Bytt tegning og Lagre finnes kun ved `visning === "lagre"`; ellers låsetekst —
+  `sjekkliste.punktIngenRedigeringstilgang` («Du har ikke redigeringstilgang til denne sjekklisten»)
+  eller `oppgave.punktLaastOffline` når offline er årsaken. Oppgavens «kun i utkast»-tekst brukes ikke.
+- Vakt: `src/components/sjekkliste-plassering-ingen-utkastlaas-vakt.test.ts` (kildenivå).
+
 ### Tegningsmodal i oppgave/sjekkliste: lesemodus-tekst og «du er her» (2026-11-06)
 
 `app/oppgave/[id].tsx` (punkt-modal) og `app/sjekkliste/[id].tsx` (lokasjonsmodal). OTA-only.
@@ -337,8 +353,7 @@ Funksjonsendring med hjemmel (Kenneth 2026-11-06, «1 beholde»). Utkast-låsen
 - **Lesemodus-tekst (oppgave):** uten redigeringsrett viser bunnfeltet en forklaring i stedet for Lagre —
   `oppgave.punktLaastSendt` («Punktet ble satt av avsender og kan bare flyttes i utkast») eller, når
   offline er årsaken, `oppgave.punktLaastOffline`. Valget ligger i den rene `tegningBunnfelt`
-  (`src/lib/tegningDuErHer.ts`, `tegningDuErHer.test.ts`). Sjekklistens modal åpnes kun utenfor
-  lesemodus (`LokasjonSeksjon.onAapne` er `undefined` ved `leseModus`), så teksten finnes ikke der.
+  (`src/lib/tegningDuErHer.ts`, `tegningDuErHer.test.ts`). Sjekkliste: se ORDRE 25 under.
 - **«Du er her»:** `useDuErHer(aapen, geoReference)` (`src/hooks/useDuErHer.ts`) henter forgrunns-GPS
   én gang når modalen åpnes — **kun** ved allerede gitt tillatelse (`getForegroundPermissionsAsync`,
   ber aldri om ny). `duErHerPosisjon` regner om med delt `beregnTransformasjon` + `gpsTilTegning`;
