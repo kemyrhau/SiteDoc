@@ -167,3 +167,18 @@ describe("L3-A § 8 nr. 4 — rettinger slår gjennom i radene", () => {
     expect(reise(f, "retur")).toBeDefined();
   });
 });
+
+describe("Dom (56) merknad 2 — kun «til» rettet", () => {
+  it("arbeidTil alene flytter bare slutten; arbeid-fra og reise ut står", () => {
+    const f = beregnDagsforslag(
+      lagInput({ retting: { perDato: { "2026-07-01": { arbeidTil: "16:00" } } } }),
+    );
+    const rader = arbeid(f);
+    expect(rader[0]!.fraTid).toBe("07:00");
+    expect(rader[rader.length - 1]!.tilTid).toBe("16:00");
+    const ut = reise(f, "ut")!;
+    const retur = reise(f, "retur")!;
+    expect([ut.fraTid, ut.tilTid]).toEqual(["05:00", "07:00"]);
+    expect([retur.fraTid, retur.tilTid]).toEqual(["16:00", "18:00"]);
+  });
+});

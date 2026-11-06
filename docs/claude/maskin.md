@@ -304,6 +304,13 @@ gren) → arvet likt av skjerm/PDF/Excel (flateparitet). Api-en bærer `utleieEn
 `detaljEksport` (`apps/api/src/routes/timer/rapport.ts`, `utleieEnhetMap`). Krever at maskinen har
 `sheetTimerId` satt (koblingen finnes) — rader ført før koblingen (`sheetTimerId = NULL`) står uendret.
 
+**Maskinrad fra «Bekreft dag» (L3-D, 2026-11-06, `feat/timer-bekreft-dag-maskin`, ⚠️ venter gate):** mobilens
+`/timer/bekreft-dag` fører maskin pr. prosjekt med antall timer — `sheetTimerId = NULL`, `fraTid/tilTid = NULL`,
+ECO null (`skrivTillegg` i `apps/mobile/src/utils/dagsforslagAnvend.ts`). Slike rader er prosjektnivå og foldes
+derfor ikke inn på operatørens timerad (avsnittet over). Lokal vakt med samme regel som serveren
+(`beregnMaskinBrudd`, maskin ≤ arbeid pr. prosjekt+ECO) før skriving (`maskinBruddForTillegg`,
+`apps/mobile/src/utils/bekreftDagTillegg.ts`); serveren validerer på nytt ved sync.
+
 ## Tre kategorier
 
 ```

@@ -37,6 +37,12 @@ import {
   erTomtForslag,
   erAlleDatoerSendt,
 } from "../../src/utils/bekreftDag";
+import {
+  vaktGrunnlag,
+  entydigByggeplass,
+  type BekreftDagTillegg,
+} from "../../src/utils/bekreftDagTillegg";
+import { BekreftDagTilleggSeksjon } from "../../src/components/timer-detalj/BekreftDagTilleggSeksjon";
 import type {
   DagsforslagRetting,
   DagsforslagRettingDato,
@@ -102,6 +108,8 @@ export default function BekreftDagSkjerm() {
   const [erAnsatt, setErAnsatt] = useState<boolean | null | undefined>(undefined);
   const [valgark, setValgark] = useState<Valgark>(null);
   const [lagrer, setLagrer] = useState(false);
+  // L3-D: maskin og varer holdes i minnet til Bekreft (spec § 3.5).
+  const [tillegg, setTillegg] = useState<BekreftDagTillegg>({ maskiner: [], varer: [] });
 
   // Ikke ansatt → ingen sedel. Fersk kontekst først, ellers sist lagrede svar.
   useEffect(() => {
@@ -180,6 +188,29 @@ export default function BekreftDagSkjerm() {
     [prosjektId],
   );
 
+  // L3-D: vakten leser start-sedelen (om den finnes) + dagens nye rader.
+  const grunnlag = useMemo(() => {
+    const db = hentDatabase();
+    if (!db || !beregnet || !bruker?.id) return null;
+    return vaktGrunnlag(db, bruker.id, beregnet.forslag);
+  }, [beregnet, bruker?.id]);
+
+  // Prosjektbytte flytter tilleggene med; byggeplassen gjettes ikke på nytt.
+  useEffect(() => {
+    if (!prosjektId) return;
+    setTillegg((tl) =>
+      tl.maskiner.every((m) => m.projectId === prosjektId) &&
+      tl.varer.every((v) => v.projectId === prosjektId)
+        ? tl
+        : {
+            maskiner: tl.maskiner.map((m) => ({ ...m, projectId: prosjektId })),
+            varer: tl.varer.map((v) =>
+              v.projectId === prosjektId ? v : { ...v, projectId: prosjektId, byggeplassId: null },
+            ),
+          },
+    );
+  }, [prosjektId]);
+
   const rettDato = useCallback(
     (dato: string, endring: DagsforslagRettingDato) => {
       setRetting((r) => ({
@@ -222,7 +253,12 @@ export default function BekreftDagSkjerm() {
         sluttIso,
         endLat,
         endLng,
-      });
+      }, tillegg);
+      if (handling.type === "maskinBrudd") {
+        // Ingenting er skrevet — skjermen står, arbeideren justerer maskintimene.
+        Alert.alert(t("timer.bekreftDag.tillegg.bruddTittel"), t("timer.maskin.overstigerArbeid"));
+        return;
+      }
       oppdaterTellere();
       void triggerSync();
       // Utfallene fra «Slutt dag» (H7), nå bak Bekreft.
@@ -282,7 +318,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, params.arbeidsdagId, lagrer, orgId, erAnsatt, sluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name]);
+  }, [beregnet, bruker?.id, params.arbeidsdagId, lagrer, orgId, erAnsatt, sluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -346,6 +382,7 @@ export default function BekreftDagSkjerm() {
   const ikkeAnsatt = erAnsatt === false;
   const tomt = !ikkeAnsatt && erTomtForslag(forslag);
   const manglerProsjekt = prosjektId == null;
+  const startDato = forslag.datoer.find((d) => d.erStartSegment)?.dato ?? null;
   const kanBekrefte = !alleSendt && !ikkeAnsatt && !tomt && !manglerProsjekt && !lagrer;
 
   return (
@@ -452,6 +489,20 @@ export default function BekreftDagSkjerm() {
                   ),
                 })}
               </Text>
+            ) : null}
+
+            {!alleSendt && !ikkeAnsatt && !tomt && prosjektId && bruker?.id && startDato ? (
+              <BekreftDagTilleggSeksjon
+                orgId={orgId}
+                userId={bruker.id}
+                projectId={prosjektId}
+                prosjektNavn={prosjektNavn ?? ""}
+                dato={startDato}
+                byggeplassId={entydigByggeplass(forslag, prosjektId)}
+                grunnlag={grunnlag}
+                tillegg={tillegg}
+                onEndre={setTillegg}
+              />
             ) : null}
 
             <Text className="px-1 text-xs text-gray-500">{t("timer.bekreftDag.hjelp")}</Text>

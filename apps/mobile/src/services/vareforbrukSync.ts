@@ -188,3 +188,27 @@ export function lagreLokalVarelinje(args: {
     .values({ ...args, syncStatus: "pending", feilmelding: null, sistEndretLokalt: Date.now() })
     .run();
 }
+/** Arbeiderens valg i vare-modalen (før det er bundet til en sedel). */
+export type VarelinjeValg = {
+  vareId: string;
+  vareNavn: string;
+  enhet: string;
+  antall: number;
+  byggeplassId: string | null;
+};
+
+/**
+ * L3-D vedtak B: med `onVelgLinje` returneres linja til kalleren (bekreft-dag
+ * holder den i minnet til Bekreft); uten lagres den som før (prosjektkortet).
+ */
+export function fullforVarelinje(
+  valg: VarelinjeValg,
+  p: { onVelgLinje?: (valg: VarelinjeValg) => void; lagre: (valg: VarelinjeValg) => void },
+): "valgt" | "lagret" {
+  if (p.onVelgLinje) {
+    p.onVelgLinje(valg);
+    return "valgt";
+  }
+  p.lagre(valg);
+  return "lagret";
+}

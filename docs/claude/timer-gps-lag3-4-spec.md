@@ -3,7 +3,7 @@ name: timer-gps-lag3-4-spec
 description: Spesifikasjon for LAG 3 (bekreft dag — den menneskelige porten) og LAG 4 (flere byggeplasser pr. dag) i timer-GPS-helhetsplanen. Besøksmodell uten posisjonssporing, bekreft-dag-skjermen (2 klikk), reiseregler V1–V15 ved flere byggeplasser, løsning på G1-konflikten, leveransedeling og åpne spørsmål til Kenneth. Skrevet av fabel 2026-11-06 på orkestrators ordre (Kenneth «Ja, begge»), gates av orkestrator; Kenneth godkjenner før kode-ordre.
 sist_verifisert_mot_kode: 2026-11-06
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 L3-A levert `feat/timer-bekreft-dag` (⚠️ venter Kontrollør-gate, ikke merget). 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A.
+status: 🟢 L3-A levert `feat/timer-bekreft-dag` (⚠️ venter Kontrollør-gate, ikke merget). 🟢 L3-D levert `feat/timer-bekreft-dag-maskin` (⚠️ venter Kontrollør-gate, ikke merget) — lesevisning av varer i `ProsjektGruppe` ⬜ ikke med (se § 3.5 Status L3-D). 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A.
 ---
 
 # LAG 3 + LAG 4 — bekreft dag, og flere byggeplasser pr. dag
@@ -298,6 +298,30 @@ Avbrudd («Ikke nå», sveip, drept app) skriver ingenting — heller ikke maski
 prosjektkortet — en vare arbeideren nettopp bekreftet skal ikke være usynlig i halve brukermassen. Retting skjer via
 prosjektkortet/web som i dag; ingen ny redigering i dagskort.
 
+**Status L3-D (ORDRE 31, `feat/timer-bekreft-dag-maskin`, ⚠️ venter gate; vedtak A–E i orkestratorens OK 2026-11-06):**
+
+- Seksjonen: `BekreftDagTilleggSeksjon` (`apps/mobile/src/components/timer-detalj/BekreftDagTilleggSeksjon.tsx`),
+  nederst i ScrollView over hjelpeteksten og [Bekreft] (vedtak A). Én linje = dagens prosjekt (`forslag.prosjektId`);
+  prosjekt-retting flytter tilleggene med, og varene mister byggeplassen (gjettes ikke på nytt).
+- Synlighet: `tilleggSynlighet` (`apps/mobile/src/utils/bekreftDagTillegg.ts`) — «+ Maskin» når `equipment_local` har
+  rader for firmaet, «+ Varer» når prosjektet er i `hentVarelagerProsjekterLokalt`. Begge mangler → seksjonen
+  skjules helt, **uten** «ikke lastet»-teksten over (vedtak D; ingen «hentet»-markør).
+- Maskin: `EquipmentVelgerModal` → antall-ark (timer påkrevd, valgfri mengde + enhet fra `ENHETER`), live vakt
+  `maskinBruddForTillegg` med rød kant og stengt [Legg til]. Redskap (`kategori='smautstyr'`) merkes i lista.
+- Varer: `KortVareforbrukModal` med ny valgfri `onVelgLinje` (`sheetId={null}`) — linjen holdes i minnet; uten
+  propen lagrer modalen som før (`fullforVarelinje`, `vareforbrukSync.ts`; vedtak B). Byggeplass forhåndsvalgt
+  bare når dagen har nøyaktig én (`entydigByggeplass`).
+- Skriving: `bekreftDag(db, forslag, ctx, tillegg)` (`utils/bekreftDag.ts`) kjører vakten `vaktGrunnlag` +
+  `maskinBruddForTillegg` **før** skriving; brudd gir `handling.type = "maskinBrudd"`, 0 skrivinger, dagen står
+  `paagaar`, skjermen viser `timer.maskin.overstigerArbeid`. Grunnlaget = eksisterende draft/returned-sedels timer-
+  og maskinrader + nye rader, pause = sedelens + nye raders (PK6). Deretter skriver `anvendDagsforslag(…, tillegg)`
+  (`utils/dagsforslagAnvend.ts`, `skrivTillegg`) maskin og varer på **start-sedelen**; er den sendt (blokkert),
+  skrives ingen av dem (vedtak C). ECO = null på maskinradene, som forslagets timer-rader.
+- `TimerRadModal`-vakten er ikke med (vedtak E, egen ordre). Funn 1 (`userId` i `vareforbruk.opprett`) er urørt.
+- ⬜ **Ikke med:** lesevisning av vareforbruk i `ProsjektGruppe` (dagskort, K20-avsnittet over) — sto ikke i den
+  godkjente planen; meldt orkestrator. Til den finnes, er varer ført her synlige på prosjektkortet og web.
+- Tester: `bekreftDagTillegg.test.ts` (§ 8 nr. 15–21 + vedtak B/C + dom 56 m1), `dagsforslag.retting.test.ts` (dom 56 m2).
+
 **Personvern/isolering:** ingen nye persondata. Maskin- og varerader bærer prosjekt (og evt. byggeplass) og ansatt (via
 sedelen) nøyaktig som i dag. `sistBrukteMaskiner` leser kun egne rader (ORDRE 29 A).
 
@@ -415,7 +439,7 @@ arbeidstid». Brudd?
 | # | Leveranse | Lag | Berører | Migrering | Avhenger av |
 |---|---|---|---|---|---|
 | **L3-A** | Skjermen `/timer/bekreft-dag` (form A ✅), `anvend` bak Bekreft, delt `samleDagsforslagInput`, avbrudd = åpen dag, grenene glemt/sendt/tomt/ukjent, V12/V13-årsaker, rettedybde B *for én byggeplass* (prosjekt/tid/pause/fjern), tre kodekommentarer reversert, i18n ×15, tester § 8 nr. 1–8. **ORDRE-tekst: § 10** | 3 | mobil | ingen | — (✅ K15: bestilles nå) |
-| **L3-D** | Maskin/redskap og varer i bekreft-skjermen (§ 3.5): seksjon «Maskin og varer» pr. prosjekt (antall timer, ikke fra/til), `EquipmentVelgerModal` m/ «Sist brukt», `KortVareforbrukModal` m/ låst prosjekt, lokal `beregnMaskinBrudd`-vakt, `anvendDagsforslag` skriver maskin- (`sheetTimerId = null`) og vareforbruk-rader bak Bekreft, vakter Maskin/Varelager, offline-buffer, lesevisning av varer i `ProsjektGruppe` (K20), tester § 8 nr. 15–21 | 3 | mobil (+ shared-import, i18n; `ProsjektGruppe`) | ingen | L3-A merget + ORDRE 29 Leveranse A (`sistBrukteMaskiner`) merget; K19–K21 ✅ vedtatt 2026-11-06 |
+| **L3-D** | Maskin/redskap og varer i bekreft-skjermen (§ 3.5): seksjon «Maskin og varer» pr. prosjekt (antall timer, ikke fra/til), `EquipmentVelgerModal` m/ «Sist brukt», `KortVareforbrukModal` m/ låst prosjekt, lokal `beregnMaskinBrudd`-vakt, `anvendDagsforslag` skriver maskin- (`sheetTimerId = null`) og vareforbruk-rader bak Bekreft, vakter Maskin/Varelager, offline-buffer, lesevisning av varer i `ProsjektGruppe` (K20), tester § 8 nr. 15–21 | 3 | mobil (+ shared-import, i18n; `ProsjektGruppe`) | ingen | L3-A merget + ORDRE 29 Leveranse A (`sistBrukteMaskiner`) merget; K19–K21 ✅ vedtatt 2026-11-06. 🟢 Levert `feat/timer-bekreft-dag-maskin` (⚠️ venter gate) uten `ProsjektGruppe`-lesevisningen (§ 3.5 Status L3-D) |
 | **L4-A** | `arbeidsdag_besok_local` + mobil-migrering, besøk 1 fra Start dag, S1-banner (AppState + 10-min-vakt) og S2-knapp, rydding av `arbeidsdag_local`+besøk > 14 d | 4 | mobil | mobil (SQLite) | L3-A (ellers havner nye besøk i en skjerm som ikke finnes) |
 | **L4-B** | `beregnDagsforslag` m/ `besok[]`: rad pr. besøk, V9 mellom-rad, V4 pr. dag, V5/V6 på tvers, V7 fra siste, V8 stempel; `dagsseddel_local.project_id` nullable (H14); skjermen viser flere kort + «Dro fra» + «+ Legg til stopp»; fasit Dag C som test | 4 | mobil + shared | mobil | L4-A, K11/K13 |
 | **L4-C** | Server: `reiseRetning='mellom'` i Zod/invarianter, `arvReiseSpor`/`beregnReiseAvvik` hopper mellom-rader, attestering/eksport viser byggeplass pr. rad; **persondata-gjerdet `hentTilAttestering` lukkes her** | 4 | api + db-timer | evt. CHECK på `reiseRetning` (Kontrollør måler) | kan gå parallelt med L4-B; må merges FØR L4-B (mobil sender ellers rader serveren avviser) |

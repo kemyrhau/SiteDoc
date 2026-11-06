@@ -16,6 +16,15 @@ import {
   type AnvendDagsforslagResultat,
 } from "./dagsforslag";
 import { anvendDagsforslag } from "./dagsforslagAnvend";
+import type { MaskinBrudd } from "@sitedoc/shared";
+import {
+  maskinBruddForTillegg,
+  vaktGrunnlag,
+  type BekreftDagTillegg,
+} from "./bekreftDagTillegg";
+
+/** L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21). */
+export type BekreftDagHandling = SluttDagHandling | { type: "maskinBrudd"; brudd: MaskinBrudd[] };
 
 /**
  * L3-A «Bekreft dag» (spec § 10, helhetsplan § 3 G1, Kenneth 2026-11-06).
@@ -69,8 +78,16 @@ export function bekreftDag(
     endLat: number | null;
     endLng: number | null;
   },
-): { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat } {
-  const resultat = anvendDagsforslag(db, forslag, ctx);
+  tillegg?: BekreftDagTillegg,
+):
+  | { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat }
+  | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null } {
+  // Vakten kjøres FØR noe skrives — samme regel som serveren ville avvist med.
+  if (tillegg && tillegg.maskiner.length > 0) {
+    const brudd = maskinBruddForTillegg(vaktGrunnlag(db, ctx.userId, forslag), tillegg.maskiner);
+    if (brudd.length > 0) return { handling: { type: "maskinBrudd", brudd }, resultat: null };
+  }
+  const resultat = anvendDagsforslag(db, forslag, ctx, tillegg);
   // H7: avgjør handlingen FØR arbeidsdagen røres. Sendt sedel, ikke ansatt og
   // manglende kilde/prosjekt holder dagen åpen (A4 venter Kenneth).
   const handling = avgjorSluttDagHandling(resultat);
