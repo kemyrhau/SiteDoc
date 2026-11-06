@@ -84,6 +84,7 @@ export function ProsjektVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -124,10 +125,13 @@ export function ProsjektFelt({
   prosjektNavn,
   prosjektNummer,
   onTrykk,
+  laast = false,
 }: {
   prosjektNavn: string | null;
   prosjektNummer: string | null;
   onTrykk: () => void;
+  /** Prosjektkortet: prosjektet hører til kortet og kan ikke byttes (16c). */
+  laast?: boolean;
 }) {
   const { t } = useTranslation();
   // U2: tynn wrapper rundt VelgerFelt — formaterer prosjekt-strengen, deler
@@ -140,6 +144,7 @@ export function ProsjektFelt({
       verdi={verdi}
       placeholder={t("timer.velgProsjekt")}
       onPress={onTrykk}
+      laast={laast}
     />
   );
 }

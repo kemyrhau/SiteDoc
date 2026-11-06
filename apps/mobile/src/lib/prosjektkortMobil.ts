@@ -102,6 +102,18 @@ export function tilKortVarer<
   return varer.map((v) => ({ ...v, antall: Number(v.antall) || 0 }));
 }
 
+/**
+ * Linjene som telles i kortets Varer-sum: kortets prosjekt, uten lokale linjer
+ * serveren har avvist (16d). Avviste linjer vises fortsatt i lista med
+ * feilmelding — de er bare ikke ført.
+ */
+export function telteKortVarer<V extends { projectId: string; syncStatus?: string | null }>(
+  varer: readonly V[],
+  projectId: string,
+): V[] {
+  return varer.filter((v) => v.projectId === projectId && v.syncStatus !== "avvist");
+}
+
 /** Timetall som web-samlesiden (nb-NO, 1–2 desimaler): 5 → «5,0», 2.25 → «2,25». */
 export function formatKortTall(n: number): string {
   const rundet = Math.round(n * 100) / 100;

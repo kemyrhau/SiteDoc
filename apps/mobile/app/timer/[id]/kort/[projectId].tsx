@@ -16,16 +16,24 @@ import {
   byggeplassLocal,
 } from "../../../../src/db/schema";
 import { useTimerSync } from "../../../../src/providers/TimerSyncProvider";
+import { useAuth } from "../../../../src/providers/AuthProvider";
 import { useNettverk } from "../../../../src/providers/NettverkProvider";
 import { trpc } from "../../../../src/lib/trpc";
 import { TimerStatusMerkelapp } from "../../../../src/components/TimerStatusMerkelapp";
 import { ProsjektGruppe } from "../../../../src/components/timer-detalj/ProsjektGruppe";
 import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-detalj/BekreftFjernMatpauseModal";
+import { KortVareforbrukModal } from "../../../../src/components/timer-detalj/KortVareforbrukModal";
 import { KortHode } from "../../../../src/components/timer-detalj/ProsjektkortSamleside";
 import { ProsjektkortKontekst } from "../../../../src/components/timer-detalj/prosjektkortKontekst";
 import { finnProsjektLokalt } from "../../../../src/services/prosjektKatalog";
 import { hentReiseLonnsartId } from "../../../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../../../src/services/maskinKatalog";
+import { hentVarelagerProsjekterLokalt } from "../../../../src/services/vareKatalog";
+import {
+  hentLokaleVarelinjer,
+  type LokalVarelinje,
+} from "../../../../src/services/vareforbrukSync";
+import { slaaSammenVarelinjer, visVareforbrukKnapp } from "@sitedoc/shared";
 import {
   flyttMatpauseVedAvhuking,
   settMatpauseBaerer,
@@ -73,6 +81,10 @@ export default function ProsjektkortSkjerm() {
   const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
   const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
+  const { bruker } = useAuth();
+  const [lokaleVarer, setLokaleVarer] = useState<LokalVarelinje[]>([]);
+  const [varelagerProsjekter, setVarelagerProsjekter] = useState<string[]>([]);
+  const [visVareModal, setVisVareModal] = useState(false);
 
   // Samme lesing som timer/[id] — alle dagens rader (overlapp og matpause
   // gjelder hele dagen); filtrering pr. prosjekt skjer ved visning.
@@ -107,7 +119,8 @@ export default function ProsjektkortSkjerm() {
       .where(eq(equipmentLocal.organizationId, sedelRad.organizationId))
       .all().length;
     setHarEquipmentCache(equipmentCount > 0);
-  }, [sheetId]);
+    setLokaleVarer(hentLokaleVarelinjer(sheetId, projectId));
+  }, [sheetId, projectId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -127,6 +140,18 @@ export default function ProsjektkortSkjerm() {
       aktiv = false;
     };
   }, [sedel?.organizationId]);
+
+  useEffect(() => {
+    const orgId = sedel?.organizationId;
+    if (!orgId) return;
+    let aktiv = true;
+    void hentVarelagerProsjekterLokalt(orgId).then((ider) => {
+      if (aktiv) setVarelagerProsjekter(ider);
+    });
+    return () => {
+      aktiv = false;
+    };
+  }, [sedel?.organizationId, sistSynkronisert]);
 
   const erRedigerbar = sedel?.status === "draft" || sedel?.status === "returned";
 
@@ -184,10 +209,28 @@ export default function ProsjektkortSkjerm() {
     { organizationId: sedel?.organizationId ?? "", dato: sedel?.dato ?? "" },
     { enabled: erPaaNettet && !!sedel },
   );
+  // Server-linjer + lokale fra kortet (L3). Synket lokal linje har samme id
+  // som server-raden → telles én gang; offline vises de lokale alene.
   const varer = useMemo(
-    () => tilKortVarer(vareQuery.data ?? []).filter((v) => v.projectId === projectId),
-    [vareQuery.data, projectId],
+    () =>
+      slaaSammenVarelinjer<{
+        id: string;
+        projectId: string;
+        antall: number;
+        vare: { navn: string; enhet: string };
+        syncStatus?: LokalVarelinje["syncStatus"];
+        feilmelding?: string | null;
+      }>(
+        tilKortVarer(vareQuery.data ?? []).filter((v) => v.projectId === projectId),
+        lokaleVarer,
+      ),
+    [vareQuery.data, lokaleVarer, projectId],
   );
+  const kanForeVare = visVareforbrukKnapp({
+    prosjektIderMedVarelager: varelagerProsjekter,
+    projectId,
+    erRedigerbar,
+  });
 
   const prosjektNavn = useMemo(() => {
     const p = finnProsjektLokalt(projectId);
@@ -290,8 +333,9 @@ export default function ProsjektkortSkjerm() {
           />
         </ProsjektkortKontekst.Provider>
 
-        {/* Vareforbruk føres i Varelager — her kun lesing (spec § 4.3). */}
-        {varer.length > 0 && (
+        {/* Vareforbruk (L3): føres fra kortet med prosjektet låst; linjene kan
+            ikke endres her — retting skjer i Varelager. */}
+        {(varer.length > 0 || kanForeVare) && (
           <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
             <View className="mb-2 flex-row items-center gap-2">
               <Package size={16} color="#6b7280" />
@@ -300,13 +344,31 @@ export default function ProsjektkortSkjerm() {
               </Text>
             </View>
             {varer.map((v) => (
-              <View key={v.id} className="flex-row justify-between py-1">
-                <Text className="flex-1 text-sm text-gray-700">{v.vare.navn}</Text>
-                <Text className="text-sm text-gray-900">
-                  {formatKortTall(v.antall).replace(/,0$/, "")} {v.vare.enhet}
-                </Text>
+              <View key={v.id} className="py-1">
+                <View className="flex-row justify-between">
+                  <Text className="flex-1 text-sm text-gray-700">{v.vare.navn}</Text>
+                  {v.syncStatus === "pending" && (
+                    <Text className="mr-2 text-xs text-amber-700">{t("timer.sync.venter")}</Text>
+                  )}
+                  <Text className="text-sm text-gray-900">
+                    {formatKortTall(v.antall).replace(/,0$/, "")} {v.vare.enhet}
+                  </Text>
+                </View>
+                {v.syncStatus === "avvist" && v.feilmelding && (
+                  <Text className="text-xs text-red-600">{v.feilmelding}</Text>
+                )}
               </View>
             ))}
+            {kanForeVare && (
+              <Pressable
+                onPress={() => setVisVareModal(true)}
+                className="mt-2 self-start rounded-lg border border-blue-700 px-3 py-2 active:bg-blue-50"
+              >
+                <Text className="text-sm font-medium text-blue-700">
+                  {t("timer.prosjektkort.nyVare")}
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
       </ScrollView>
@@ -316,6 +378,25 @@ export default function ProsjektkortSkjerm() {
         onAvbryt={() => setBekreftFjernRadId(null)}
         onBekreft={bekreftFjernMatpause}
       />
+
+      {bruker?.id && (
+        <KortVareforbrukModal
+          synlig={visVareModal}
+          userId={bruker.id}
+          organizationId={sedel.organizationId}
+          sheetId={sheetId}
+          projectId={projectId}
+          prosjektNavn={prosjektNavn}
+          dato={sedel.dato}
+          sedelByggeplassId={sedel.byggeplassId ?? null}
+          onAvbryt={() => setVisVareModal(false)}
+          onLagret={() => {
+            setVisVareModal(false);
+            lesData();
+            void triggerSync();
+          }}
+        />
+      )}
 
       <MiniToast melding={pauseToast} />
     </View>

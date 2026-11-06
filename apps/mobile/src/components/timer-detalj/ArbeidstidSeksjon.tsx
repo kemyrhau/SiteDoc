@@ -5,9 +5,8 @@ import {
   Pressable,
   Modal,
   Platform,
-  KeyboardAvoidingView,
-  ScrollView,
 } from "react-native";
+import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31: SafeAreaView anvender arkets egen topp-inset (~10 pt), header-kontroller truffbare. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Pencil, X, Clock } from "lucide-react-native";
@@ -220,15 +219,9 @@ export function RedigerArbeidstidModal({
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-        <ScrollView
+        <TastaturScrollView
           className="flex-1"
           contentContainerClassName="gap-4 p-4"
-          keyboardShouldPersistTaps="handled"
         >
           <Text className="text-xs text-gray-500">
             {t("timer.arbeidstidIDagBeskrivelse")}
@@ -304,8 +297,7 @@ export function RedigerArbeidstidModal({
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-        </KeyboardAvoidingView>
+        </TastaturScrollView>
       </SafeAreaView>
     </Modal>
   );

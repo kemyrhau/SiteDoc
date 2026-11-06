@@ -33,6 +33,8 @@ import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
 import { refreshByggeplassKatalog } from "../services/byggeplassKatalog";
 import { refreshReisetidMatriseKatalog } from "../services/reisetidMatriseKatalog";
 import { refreshReiseGrensepunktKatalog } from "../services/reiseGrensepunktKatalog";
+import { refreshVareKatalog } from "../services/vareKatalog";
+import { syncVareforbruk } from "../services/vareforbrukSync";
 import { hentLagretFirmaId } from "../kontekst/FirmaKontekst";
 
 interface TimerSyncKontekst {
@@ -126,6 +128,10 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
             refreshByggeplassKatalog(utils.client, orgId),
             refreshReisetidMatriseKatalog(utils.client, orgId),
             refreshReiseGrensepunktKatalog(utils.client, orgId),
+            // Prosjektkort L3: egen catch — vare-katalogen skal aldri velte timer-katalogene.
+            refreshVareKatalog(utils.client, orgId).catch((e) =>
+              console.warn("[VARE-KATALOG] Refresh feilet for firma", orgId, e),
+            ),
           ]),
         );
       }
@@ -181,6 +187,11 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
       // direkte. null → serveren faller tilbake til medlemskapet (bakoverkompat).
       const firmaId = (await hentLagretFirmaId()) ?? undefined;
       const resultat = await syncTimer(utils.client, bruker.id, undefined, firmaId);
+      // Prosjektkort L3: varelinjer fra kortet etter sedlene (koblingen krever
+      // synket sedel). Egen catch — skal aldri velte timer-synken.
+      await syncVareforbruk(utils.client, bruker.id).catch((e) =>
+        console.warn("[VAREFORBRUK-SYNC] feilet:", e),
+      );
       setSistSynkronisert(Date.now());
       setSisteFeil(resultat.feil ?? null);
       // Refresh tellere fra DB etter sync

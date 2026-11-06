@@ -13,6 +13,7 @@ import {
 } from "@sitedoc/shared";
 import {
   formatKortTall,
+  telteKortVarer,
   pauseBaererProsjekt,
   sendKnappTekst,
 } from "../../lib/prosjektkortMobil";
@@ -83,7 +84,7 @@ export function ProsjektkortSamleside({
       {prosjektIder.length === 0 && (
         <View className="rounded-lg border border-dashed border-gray-300 bg-white p-5">
           <Text className="text-center text-sm text-gray-500">
-            {t("timer.detalj.ingenProsjektGrupper")}
+            {t("timer.prosjektkort.ingenKort")}
           </Text>
         </View>
       )}
@@ -210,7 +211,7 @@ export function KortHode({
   navn: string;
   timer: readonly KortTimerRad[];
   maskin: readonly KortMaskinRad[];
-  varer: readonly KortVareLinje[];
+  varer: readonly (KortVareLinje & { syncStatus?: string | null })[];
   utlegg: number;
   sedelByggeplassId: string | null;
   byggeplassNavn: (byggeplassId: string) => string | null;
@@ -220,7 +221,7 @@ export function KortHode({
   const enhet = t("timer.timerEnhet");
   const kTimer = timer.filter((r) => r.projectId === projectId);
   const kMaskin = maskin.filter((r) => r.projectId === projectId);
-  const kVarer = varer.filter((v) => v.projectId === projectId);
+  const kVarer = telteKortVarer(varer, projectId);
   const summer = beregnKortSummer(kTimer, kMaskin, kVarer);
   const bp = utledKortByggeplass([...kTimer, ...kMaskin], sedelByggeplassId);
   const status = kortStatus([...kTimer, ...kMaskin]);

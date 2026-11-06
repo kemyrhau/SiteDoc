@@ -4,13 +4,11 @@ import {
   Text,
   Pressable,
   TextInput,
-  ScrollView,
   Modal,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from "react-native";
+import { TastaturScrollView } from "./TastaturScrollView";
 // eslint-disable-next-line no-restricted-imports -- pageSheet (5 modaler i fila; ProsjektByggeplassVelgerModal direkte simulator-målt 2026-08-31): SafeAreaView anvender arkets egen topp-inset (~10 pt), X truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -1587,15 +1585,9 @@ function TimerRadModal({
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-        <ScrollView
+        <TastaturScrollView
           className="flex-1"
           contentContainerClassName="p-4 gap-4"
-          keyboardShouldPersistTaps="handled"
         >
           {/* F3: kombinert prosjekt+byggeplass. Feltet åpner én velger der
               begge velges (byggeplass innenfor valgt prosjekt). Byggeplass er
@@ -1608,6 +1600,7 @@ function TimerRadModal({
               prosjektNavn={valgtProsjekt?.name ?? null}
               prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektByggeplassVelger(true)}
+              laast={kortVisning.prosjektLaast}
             />
             <Pressable
               onPress={() => setVisProsjektByggeplassVelger(true)}
@@ -1841,8 +1834,7 @@ function TimerRadModal({
               </Text>
             </Pressable>
           </KnappMedForklaring>
-        </ScrollView>
-        </KeyboardAvoidingView>
+        </TastaturScrollView>
         <TastaturFerdig />
 
         {visLonnsartVelger && (
@@ -1991,6 +1983,7 @@ export function LonnsartVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -2084,6 +2077,7 @@ export function AktivitetVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -2185,6 +2179,7 @@ export function UnderprosjektVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -2414,6 +2409,7 @@ function ProsjektByggeplassVelgerModal({
             <FlatList
               data={filtrerteProsjekter}
               keyExtractor={(item) => item.id}
+              automaticallyAdjustKeyboardInsets
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <Pressable
@@ -2477,6 +2473,7 @@ function ProsjektByggeplassVelgerModal({
             <FlatList
               data={filtrerteByggeplasser}
               keyExtractor={(item) => item.id}
+              automaticallyAdjustKeyboardInsets
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <Pressable
