@@ -41,7 +41,7 @@ export function VareforbrukLesListe({ varer, children }: { varer: VisVarelinje[]
             </Text>
           </View>
           {v.syncStatus === "avvist" && v.feilmelding && (
-            <Text className="text-xs text-red-600">{v.feilmelding}</Text>
+            <Text className="text-xs text-red-600">{t(v.feilmelding, { defaultValue: v.feilmelding })}</Text>
           )}
         </View>
       ))}

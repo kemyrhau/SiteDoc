@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Удалить это потребление?",
   "vareforbruk.modulIkkeAktivert.tittel": "Расход материала не активен",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Активируйте модуль «Материалы» в администрации фирмы для учета потребления.",
+  "vareforbruk.feil.sedelSendt": "Ежедневный отчет отправлен. Использование материала не может быть изменено до тех пор, пока он не будет возвращен.",
+  "vareforbruk.feil.annensSedel": "Ежедневный лист принадлежит кому-то другому. Изменить использование материала может только администратор.",
   "firma.timer.felt.standard": "По умолчанию",
   "firma.timer.standard.erValgt": "Тип оплаты по умолчанию для новых строк времени",
   "firma.timer.standard.settValgt": "Установить по умолчанию для новых строк времени",

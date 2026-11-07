@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Të fshihet ky konsum?",
   "vareforbruk.modulIkkeAktivert.tittel": "Konsumi i materialit nuk është aktiv",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivizoni modulin Materiale në administrimin e firmës për të regjistruar konsumin.",
+  "vareforbruk.feil.sedelSendt": "Fleta ditore është dorëzuar. Përdorimi i materialit nuk mund të ndryshohet derisa të kthehet.",
+  "vareforbruk.feil.annensSedel": "Fleta ditore i përket dikujt tjetër. Vetëm një administrator mund të ndryshojë përdorimin e tij material.",
   "firma.timer.felt.standard": "E paracaktuar",
   "firma.timer.standard.erValgt": "Lloji i parazgjedhur i pagesës për rreshtat e rinj kohorë",
   "firma.timer.standard.settValgt": "Cakto si parazgjedhje për rreshtat e rinj kohorë",

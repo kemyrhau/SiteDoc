@@ -111,7 +111,7 @@ export default function VareforbrukSide() {
       void utils.vareforbruk.list.invalidate();
       setSlettRad(null);
     },
-    onError: (e: { message: string }) => alert(e.message),
+    onError: (e: { message: string }) => alert(t(e.message, { defaultValue: e.message })),
   });
 
   // Hvis trpc-error skyldes manglende modul, vis melding
@@ -384,14 +384,14 @@ function ForbrukModal({
       void utils.vareforbruk.list.invalidate();
       onClose();
     },
-    onError: (e: { message: string }) => setFeil(e.message),
+    onError: (e: { message: string }) => setFeil(t(e.message, { defaultValue: e.message })),
   });
   const oppdater = trpc.vareforbruk.oppdater.useMutation({
     onSuccess: () => {
       void utils.vareforbruk.list.invalidate();
       onClose();
     },
-    onError: (e: { message: string }) => setFeil(e.message),
+    onError: (e: { message: string }) => setFeil(t(e.message, { defaultValue: e.message })),
   });
 
   const isPending = opprett.isPending || oppdater.isPending;

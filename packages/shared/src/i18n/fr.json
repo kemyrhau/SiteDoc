@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Supprimer cette consommation ?",
   "vareforbruk.modulIkkeAktivert.tittel": "La consommation de matière n'est pas active",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Activez le module Matériaux dans l'administration Firma pour enregistrer la consommation.",
+  "vareforbruk.feil.sedelSendt": "La feuille journalière a été soumise. L'utilisation du matériel ne peut pas être modifiée jusqu'à son retour.",
+  "vareforbruk.feil.annensSedel": "La feuille journalière appartient à quelqu'un d'autre. Seul un administrateur peut modifier son utilisation matérielle.",
   "firma.timer.felt.standard": "Défaut",
   "firma.timer.standard.erValgt": "Type de paie par défaut pour les nouvelles lignes de temps",
   "firma.timer.standard.settValgt": "Définir par défaut pour les nouvelles lignes de temps",

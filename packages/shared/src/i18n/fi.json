@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Poistetaanko tämä kulutus?",
   "vareforbruk.modulIkkeAktivert.tittel": "Materiaalin kulutus ei ole aktiivinen",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivoi Materiaalit-moduuli yrityksen hallinnassa kulutuksen rekisteröimiseksi.",
+  "vareforbruk.feil.sedelSendt": "Päivälehti on lähetetty. Materiaalin käyttöä ei voi muuttaa ennen kuin se on palautettu.",
+  "vareforbruk.feil.annensSedel": "Päivälehti kuuluu jollekin muulle. Vain ylläpitäjä voi muuttaa materiaalin käyttöä.",
   "firma.timer.felt.standard": "Oletus",
   "firma.timer.standard.erValgt": "Uusien aikarivien oletusmaksutyyppi",
   "firma.timer.standard.settValgt": "Aseta oletukseksi uusille aikariveille",

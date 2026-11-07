@@ -417,7 +417,7 @@ export async function verifiserAnsattIFirma(
  *
  * AKTIV admin (status "aktiv") er UENDRET — den avgjørende gaten.
  */
-async function erFirmaAdmin(
+export async function erFirmaAdmin(
   userId: string,
   organizationId: string,
 ): Promise<boolean> {

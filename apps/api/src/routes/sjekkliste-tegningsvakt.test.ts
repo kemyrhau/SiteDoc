@@ -254,3 +254,60 @@ describe("sjekkliste.oppdater — område-vakt (ORDRE 29 #13)", () => {
     expect(checklistUpdate).not.toHaveBeenCalled();
   });
 });
+
+// ── ORDRE 33: område må ligge på dokumentets EFFEKTIVE byggeplass ────────────
+
+const BP2 = "66666666-6666-6666-6666-666666666662";
+const ANNEN_BYGGEPLASS = { code: "BAD_REQUEST", message: "Området hører til en annen byggeplass." };
+
+describe("sjekkliste — område mot byggeplass (ORDRE 33)", () => {
+  it("O5 opprett: område på annen byggeplass enn valgt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ byggeplassProsjekt: PROSJEKT, omradeProsjekt: PROSJEKT });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ templateId: MAL, byggeplassId: BP2, omradeId: OMRADE }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("O5 opprett: område på samme byggeplass → når skriving", async () => {
+    const { ctx, create } = lagOpprettCtx({ byggeplassProsjekt: PROSJEKT, omradeProsjekt: PROSJEKT });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).opprett({ templateId: MAL, byggeplassId: BYGGEPLASS, omradeId: OMRADE }),
+    ).rejects.toMatchObject({ message: NÅDDE_SKRIVING });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  /** Området ligger på BYGGEPLASS; sjekklisten får `rad`-feltene. */
+  async function medRad(rad: { byggeplassId?: string | null; omradeId?: string | null }) {
+    const base = lagCtx(null);
+    base.ctx.prisma.omrade = {
+      findUnique: vi.fn().mockResolvedValue({ projectId: PROSJEKT, byggeplassId: BYGGEPLASS }),
+    };
+    base.ctx.prisma.byggeplass = { findUnique: vi.fn().mockResolvedValue({ projectId: PROSJEKT }) };
+    const dagens = await base.ctx.prisma.checklist.findUniqueOrThrow();
+    base.ctx.prisma.checklist.findUniqueOrThrow = vi.fn().mockResolvedValue({ ...dagens, ...rad });
+    return base;
+  }
+
+  it("O6 oppdater: nytt område mot radens byggeplass (ingen byggeplassId i input) → BAD_REQUEST", async () => {
+    const { ctx, checklistUpdate } = await medRad({ byggeplassId: BP2 });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, omradeId: OMRADE }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(checklistUpdate).not.toHaveBeenCalled();
+  });
+
+  it("O6 oppdater: byggeplass byttes, området beholdes → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, checklistUpdate } = await medRad({ byggeplassId: BYGGEPLASS, omradeId: OMRADE });
+    await expect(
+      sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, byggeplassId: BP2 }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(checklistUpdate).not.toHaveBeenCalled();
+  });
+
+  it("O6 oppdater: område på radens byggeplass → lagres", async () => {
+    const { ctx, checklistUpdate } = await medRad({ byggeplassId: BYGGEPLASS });
+    await sjekklisteRouter.createCaller(ctx).oppdater({ id: SJEKKLISTE, omradeId: OMRADE });
+    expect(checklistUpdate).toHaveBeenCalledTimes(1);
+  });
+});
