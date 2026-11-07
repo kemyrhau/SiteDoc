@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisser — oversiktlig dag (#9) og «Hva gjorde du i dag» (#10/11)</title>
+<style>
+  /* Skriftstørrelser er Tailwind-klassene skalert 0,75 (telefonbredde 290 px):
+     text-[10px]=7.5 · text-xs=9 · text-sm=10.5 · text-base=12 · text-lg=13.5 */
+  :root { --bg:#f3f4f6; --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --demp2:#9ca3af;
+          --amber:#b45309; --amber-kant:#f59e0b; --primar:#1e40af; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tekst); font:14px/1.4 -apple-system, "Segoe UI", Inter, sans-serif; padding:26px; }
+  h1 { font-size:15px; margin:0 0 14px; color:var(--demp); font-weight:600; }
+  .rad { display:flex; gap:22px; align-items:flex-start; }
+  .kol { display:flex; flex-direction:column; gap:8px; }
+  .steg { font-size:12px; font-weight:700; color:#1e3a8a; }
+  .steg.graa { color:var(--demp); }
+  .anbefalt { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:999px; background:#dcfce7; color:#166534; margin-left:6px; }
+  .forklar { max-width:300px; font-size:12px; color:#374151; }
+  .forklar p { margin:0 0 8px; }
+  .forklar .nr { display:inline-flex; width:18px; height:18px; border-radius:50%; background:#dc2626; color:#fff; font-size:11px; align-items:center; justify-content:center; margin-right:6px; font-weight:700; }
+  .fotnote { font-size:12px; color:var(--demp); margin-top:14px; max-width:1240px; }
+  .klikk { position:absolute; width:22px; height:22px; border-radius:50%; background:#dc2626; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.3); z-index:3; }
+
+  /* telefon */
+  .tlf { position:relative; width:290px; background:#f9fafb; border:1px solid #d1d5db; border-radius:22px; padding:0 0 10px; box-shadow:0 10px 30px rgba(0,0,0,.12); font-size:10.5px; overflow:hidden; }
+  .topp { display:flex; align-items:center; gap:8px; padding:9px 12px; background:#fff; border-bottom:1px solid var(--kant); }
+  .topp .pil { color:#1f2937; font-size:14px; }
+  .topp .t { flex:1; font-weight:600; font-size:13.5px; color:var(--tekst); }
+  .innhold { padding:10px 12px 0; display:flex; flex-direction:column; gap:8px; }
+  .kort { background:#fff; border:1px solid var(--kant); border-radius:8px; padding:10px 11px; }
+  .xs { font-size:9px; } .sm { font-size:10.5px; } .base { font-size:12px; } .lg { font-size:13.5px; } .tiny { font-size:7.5px; }
+  .g9 { color:#111827; } .g7 { color:#374151; } .g6 { color:#4b5563; } .g5 { color:#6b7280; } .g4 { color:#9ca3af; }
+  .fed { font-weight:600; } .med { font-weight:500; }
+  .mono { font-variant-numeric:tabular-nums; }
+  .btn { border-radius:8px; padding:9px 12px; font-weight:600; text-align:center; font-size:12px; }
+  .btn.blaa { background:#2563eb; color:#fff; }
+  .btn.moerk { background:#111827; color:#fff; }
+  .btn.sek { background:#fff; color:#1f2937; border:1px solid #d1d5db; }
+  .merke { display:inline-block; border-radius:4px; padding:1px 5px; font-size:7.5px; font-weight:600; }
+  .merke.oransje { background:#ffedd5; color:#c2410c; }
+  .merke.groenn { background:#dcfce7; color:#15803d; }
+  .merke.gul { background:#fef9c3; color:#854d0e; }
+  .merke.amber { background:#fef3c7; color:#92400e; font-size:9px; font-weight:500; padding:2px 6px; }
+  .merke.slate { background:#e2e8f0; color:#334155; text-transform:uppercase; }
+  .chip { display:inline-flex; gap:3px; background:#f3f4f6; border-radius:5px; padding:3px 7px; }
+  .amber { color:var(--amber); }
+  .prikk { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--amber-kant); margin-right:4px; vertical-align:middle; }
+  .linje { display:flex; gap:8px; padding:3px 0; }
+  .linje .et { width:64px; flex:none; color:var(--demp); }
+  .linje .v { flex:1; color:var(--tekst); }
+  .linje.mangler { border-left:2.5px solid var(--amber-kant); margin-left:-11px; padding-left:8.5px; }
+  .kv { display:flex; justify-content:space-between; gap:8px; padding:2.5px 0; }
+  .kv .n { flex:1; } .kv .t { flex:none; text-align:right; min-width:38px; }
+  .kv.sum { border-top:1px solid var(--kant); margin-top:3px; padding-top:5px; font-weight:600; }
+  .delelinje { border-top:1px dashed var(--kant); margin:4px 0; }
+  .felt { border:1px solid #d1d5db; border-radius:7px; background:#fff; padding:6px 8px; min-height:40px; color:#9ca3af; font-size:12px; }
+  .felt.fylt { color:#111827; }
+  .valgfelt { border:1px solid var(--kant); border-radius:6px; padding:5px 8px; }
+  .tid { display:flex; gap:6px; }
+  .tid .boks { flex:1; border:1px solid #d1d5db; border-radius:6px; background:#fff; padding:5px 7px; font-size:12px; display:flex; justify-content:space-between; }
+  .tid .boks .kl { color:#9ca3af; font-size:9px; }
+  .ark { background:#fff; border-top-left-radius:14px; border-top-right-radius:14px; box-shadow:0 -6px 20px rgba(0,0,0,.18); padding:8px 12px 12px; margin-top:6px; }
+  .ark .grep { width:34px; height:4px; background:#d1d5db; border-radius:2px; margin:0 auto 8px; }
+  .ark .rad2 { padding:7px 2px; border-top:1px solid #f3f4f6; font-size:11px; display:flex; justify-content:space-between; }
+  .ark .rad2.valgt { background:#eff6ff; color:#1d4ed8; font-weight:600; border-radius:6px; }
+  .skjerm { position:relative; }
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,.25); }
+  .palett { display:flex; gap:4px; margin-top:4px; flex-wrap:wrap; }
+  .palett span { width:16px; height:16px; border-radius:3px; border:1px solid rgba(0,0,0,.08); }
+</style>
+</head>
+<body>
+<div id="rot"></div>
+<script>
+const fig = new URLSearchParams(location.search).get("fig") || "oversikt";
+const rot = document.getElementById("rot");
+
+/* ===================== #9 OVERSIKT OVER DAGEN ===================== */
+
+const oversiktIdag = () => `
+<div class="tlf">
+  <div class="topp"><span class="pil">‹</span><span class="t">Dagsseddel tor 6. nov</span><span class="merke gul" style="font-size:9px">Venter</span></div>
+  <div class="innhold">
+    <div class="kort sm" style="background:#fefce8;border-color:#fef08a;color:#854d0e">8,10t av 7,50t registrert<div class="xs">herav maskin 3,00 t</div></div>
+    <div class="kort sm g7" style="background:#f9fafb;padding:7px 11px">2 prosjektkort · 8,1 t i dag</div>
+    <div class="kort">
+      <div style="display:flex;align-items:center;gap:6px"><span class="base fed g9">2041 Lillestrøm skole</span><span class="merke oransje">Returnert</span><span style="flex:1"></span><span class="g4 base">›</span></div>
+      <div class="sm g5" style="margin-top:2px">Lillestrøm skole</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px" class="sm">
+        <span class="chip"><span class="g7">Arbeid</span><span class="fed g9">4,0 t</span></span>
+        <span class="chip"><span class="g7">Maskin</span><span class="fed g9">3,0 t</span></span>
+        <span class="chip"><span class="g7">Varer</span><span class="fed g9">2 linjer</span></span>
+      </div>
+    </div>
+    <div class="kort">
+      <div style="display:flex;align-items:center;gap:6px"><span class="base fed g9">2057 Fetsund bru</span><span style="flex:1"></span><span class="g4 base">›</span></div>
+      <div class="sm g5" style="margin-top:2px">Fetsund bru</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px" class="sm">
+        <span class="chip"><span class="g7">Arbeid</span><span class="fed g9">4,1 t</span></span>
+        <span class="chip"><span class="g7">Reise</span><span class="fed g9">0,5 t</span></span>
+      </div>
+    </div>
+    <div class="base fed" style="color:#1e40af;padding:2px 0">+ Nytt kort</div>
+    <div class="kort sm g6" style="border-style:dashed;border-color:#d1d5db;background:transparent;padding:7px 11px">
+      <div style="display:flex;justify-content:space-between;gap:8px"><span>Dagens ramme · 06:52–15:31 · pause 30 min</span><span class="med" style="color:#1e40af">Endre</span></div>
+      <div style="margin-top:4px">⌖ Byggeplass: Lillestrøm skole <span class="g4">›</span></div>
+    </div>
+    <div class="kort sm" style="background:#eff6ff;border:0;color:#1e40af;padding:7px 11px">Sum i dag 8,1 t av 7,5 t · maskin 3,0 t · reise 0,5 t</div>
+    <div class="btn blaa">➤ Send 8,1 t til godkjenning</div>
+    <div class="xs g5" style="text-align:center">Lederen attesterer før lønn</div>
+  </div>
+</div>`;
+
+const oversiktA = (klikk) => `
+<div class="tlf">
+  <div class="topp"><span class="pil">‹</span><span class="t">Dagsseddel tor 6. nov</span></div>
+  <div class="innhold">
+    <div class="kort">
+      <div style="display:flex;justify-content:space-between" class="sm">
+        <span class="fed g9">Sum i dag</span><span class="mono g9">8,1 t arbeid · 3,0 t maskin · 0,5 t reise</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px" class="sm">
+        <span class="g5">Norm 7,5 t · ramme 06:52–15:31 · pause 30 min</span>
+      </div>
+      <div class="sm amber" style="margin-top:4px"><span class="prikk"></span>Ikke sendt</div>
+    </div>
+
+    <div class="kort">
+      <div style="display:flex;align-items:center" class="base"><span class="fed g9" style="flex:1">2041 Lillestrøm skole</span><span class="sm amber"><span class="prikk"></span>Returnert</span></div>
+      <div class="sm g5" style="margin-bottom:5px">Lillestrøm skole</div>
+      <div class="linje sm"><span class="et">Arbeid</span><span class="v mono">07:24–11:30 · 4,0 t</span></div>
+      <div class="linje sm"><span class="et">Maskin</span><span class="v">Hjulgraver 8 t · 3,0 t</span></div>
+      <div class="linje sm"><span class="et">Varer</span><span class="v">Pukk 0–32 · 4 t<br>Fiberduk · 60 m</span></div>
+      <div class="linje sm"><span class="et">Beskrivelse</span><span class="v">Graving grøft nordside, lagt fiberduk</span></div>
+    </div>
+
+    <div class="kort">
+      <div style="display:flex;align-items:center" class="base"><span class="fed g9" style="flex:1">2057 Fetsund bru</span></div>
+      <div class="sm g5" style="margin-bottom:5px">Fetsund bru</div>
+      <div class="linje sm"><span class="et">Arbeid</span><span class="v mono">12:10–15:31 · 4,1 t<br>overtid 50 % fra 14:30 · 1,0 t</span></div>
+      <div class="linje sm"><span class="et">Maskin</span><span class="v g4">–</span></div>
+      <div class="linje sm"><span class="et">Varer</span><span class="v g4">–</span></div>
+      <div class="linje sm mangler"><span class="et">Beskrivelse</span><span class="v amber">Mangler</span></div>
+      <div class="linje sm"><span class="et">Reise</span><span class="v mono">retur 15:31–16:02 · 0,5 t</span></div>
+    </div>
+
+    <div class="sm g7" style="padding:2px 0">+ Nytt kort</div>
+    <div class="btn moerk">Send 8,1 t til godkjenning</div>
+    <div class="xs g5" style="text-align:center">Lederen attesterer før lønn</div>
+  </div>
+  ${klikk ? `<div class="klikk" style="right:16px;bottom:34px">${klikk}</div>` : ""}
+</div>`;
+
+const oversiktB = () => `
+<div class="tlf">
+  <div class="topp"><span class="pil">‹</span><span class="t">Dagsseddel tor 6. nov</span></div>
+  <div class="innhold">
+    <div class="kort sm">
+      <div class="kv"><span class="n g9">Arbeid</span><span class="t mono">8,1 t</span></div>
+      <div class="kv"><span class="n g9">Maskin</span><span class="t mono">3,0 t</span></div>
+      <div class="kv"><span class="n g9">Reise</span><span class="t mono">0,5 t</span></div>
+      <div class="kv"><span class="n g5">Norm 7,5 t · ramme 06:52–15:31</span><span class="t amber"><span class="prikk"></span>Ikke sendt</span></div>
+    </div>
+
+    <div class="kort sm">
+      <div style="display:flex;align-items:center;margin-bottom:4px" class="base"><span class="fed g9" style="flex:1">2041 Lillestrøm skole</span><span class="sm amber"><span class="prikk"></span>Returnert</span></div>
+      <div class="kv"><span class="n g9">07:24–11:30 · Anleggsarbeid</span><span class="t mono">4,0 t</span></div>
+      <div class="kv"><span class="n g9">Hjulgraver 8 t</span><span class="t mono">3,0 t</span></div>
+      <div class="kv"><span class="n g9">Pukk 0–32</span><span class="t mono">4 t</span></div>
+      <div class="kv"><span class="n g9">Fiberduk</span><span class="t mono">60 m</span></div>
+      <div class="delelinje"></div>
+      <div class="g7" style="font-style:italic">Graving grøft nordside, lagt fiberduk</div>
+    </div>
+
+    <div class="kort sm">
+      <div style="display:flex;align-items:center;margin-bottom:4px" class="base"><span class="fed g9" style="flex:1">2057 Fetsund bru</span></div>
+      <div class="kv"><span class="n g9">12:10–15:31 · Anleggsarbeid</span><span class="t mono">4,1 t</span></div>
+      <div class="kv"><span class="n g5">Overtid 50 % fra 14:30</span><span class="t mono g5">1,0 t</span></div>
+      <div class="kv"><span class="n g5">Reise retur 15:31–16:02</span><span class="t mono g5">0,5 t</span></div>
+      <div class="delelinje"></div>
+      <div class="amber"><span class="prikk"></span>Beskrivelse mangler</div>
+    </div>
+
+    <div class="sm g7" style="padding:2px 0">+ Nytt kort</div>
+    <div class="btn moerk">Send 8,1 t til godkjenning</div>
+    <div class="xs g5" style="text-align:center">Lederen attesterer før lønn</div>
+  </div>
+</div>`;
+
+/* ===================== #10/11 «HVA GJORDE DU I DAG» I BEKREFT DAG ===================== */
+
+const topplinjeBekreft = () => `
+  <div class="topp"><span class="pil">←</span><span class="t">Bekreft dag</span></div>`;
+
+const bekreftHode = () => `
+    <div class="kort">
+      <div class="sm fed g9">tor 6. nov · 06:52–15:31 · 8,1 t</div>
+      <div class="xs g5" style="margin-top:2px">Norm 7,5 t</div>
+    </div>
+    <div class="kort" style="display:flex;flex-direction:column;gap:6px">
+      <div class="valgfelt"><div class="xs g5">Prosjekt</div><div class="sm med g9">2041 Lillestrøm skole</div></div>
+      <div class="valgfelt"><div class="xs g5">Byggeplass</div><div class="sm med g9">Lillestrøm skole</div></div>
+      <div class="valgfelt"><div class="xs g5">Aktivitet</div><div class="sm med g9">Anleggsarbeid</div></div>
+    </div>`;
+
+const arbeidsblokkTopp = () => `
+      <div class="xs fed g5">torsdag 6. november</div>
+      <div class="xs g6">🚗 Reise ut · Kontor → Lillestrøm skole · 06:52–07:24 · 32 min</div>
+      <div style="background:#f9fafb;border-radius:6px;padding:7px 8px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between" class="sm fed g9"><span>Arbeid · 7,6 t</span><span style="color:#dc2626">🗑</span></div>
+        <div class="tid"><div class="boks"><span class="g9">07:24</span><span class="kl">◷</span></div><div class="boks"><span class="g9">15:31</span><span class="kl">◷</span></div></div>
+        <div><span class="merke amber">OT 50 % fra 14:30 · 1,0 t</span> <span class="xs g4">(redigering: ORDRE 34)</span></div>
+        <div style="display:flex;align-items:center;gap:8px" class="sm g7"><span>Pause</span><span style="flex:1"></span><span style="border:1px solid #d1d5db;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center">−</span><span class="mono g9" style="width:44px;text-align:center">30 min</span><span style="border:1px solid #d1d5db;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center">+</span></div>`;
+
+const bekreftIdag = () => `
+<div class="tlf">
+  ${topplinjeBekreft()}
+  <div class="innhold">
+    ${bekreftHode()}
+    <div class="kort" style="display:flex;flex-direction:column;gap:6px">
+      ${arbeidsblokkTopp()}
+      </div>
+    </div>
+    <div class="kort">
+      <div class="sm fed g9" style="margin-bottom:6px">Maskin og varer</div>
+      <div style="display:flex;gap:6px"><span class="btn sek sm" style="flex:1;padding:6px">+ Maskin</span><span class="btn sek sm" style="flex:1;padding:6px">+ Varer</span></div>
+    </div>
+    <div class="xs g5" style="padding:0 2px">Tidene kommer fra stemplingen. Rett dem før du bekrefter.</div>
+    <div class="btn blaa">Bekreft og lagre</div>
+    <div class="btn sek">Ikke nå</div>
+  </div>
+</div>`;
+
+const bekreftA = (klikk) => `
+<div class="tlf">
+  ${topplinjeBekreft()}
+  <div class="innhold">
+    ${bekreftHode()}
+    <div class="kort" style="display:flex;flex-direction:column;gap:6px">
+      ${arbeidsblokkTopp()}
+        <div style="border-top:1px dashed var(--kant);padding-top:6px;position:relative">
+          <div class="sm med g7">Hva gjorde du i dag?</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 6px" class="sm">
+            <span class="chip g9" style="border:1px solid #d1d5db;background:#fff">Graving grøft nordside</span>
+            <span class="chip g9" style="border:1px solid #d1d5db;background:#fff">Masseutskifting</span>
+            <span class="chip g9" style="border:1px solid #d1d5db;background:#fff">Anleggsarbeid</span>
+          </div>
+          <div class="felt fylt">Graving grøft nordside, lagt fiberduk</div>
+          ${klikk ? `<div class="klikk" style="left:118px;top:14px">${klikk}</div>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="kort">
+      <div class="sm fed g9" style="margin-bottom:6px">Maskin og varer</div>
+      <div style="display:flex;gap:6px"><span class="btn sek sm" style="flex:1;padding:6px">+ Maskin</span><span class="btn sek sm" style="flex:1;padding:6px">+ Varer</span></div>
+    </div>
+    <div class="btn blaa">Bekreft og lagre</div>
+    <div class="btn sek">Ikke nå</div>
+  </div>
+</div>`;
+
+const bekreftB = (klikk) => `
+<div class="tlf">
+  ${topplinjeBekreft()}
+  <div class="innhold" style="position:relative">
+    ${bekreftHode()}
+    <div class="kort" style="display:flex;flex-direction:column;gap:6px">
+      ${arbeidsblokkTopp()}
+        <div class="valgfelt" style="background:#fff;display:flex;justify-content:space-between;align-items:center;position:relative">
+          <div><div class="xs g5">Hva gjorde du i dag?</div><div class="sm med g4">Velg eller skriv</div></div><span class="g4 base">›</span>
+          ${klikk ? `<div class="klikk" style="right:-14px;top:-6px">${klikk}</div>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="kort">
+      <div class="sm fed g9" style="margin-bottom:6px">Maskin og varer</div>
+      <div style="display:flex;gap:6px"><span class="btn sek sm" style="flex:1;padding:6px">+ Maskin</span><span class="btn sek sm" style="flex:1;padding:6px">+ Varer</span></div>
+    </div>
+    <div class="btn blaa">Bekreft og lagre</div>
+  </div>
+  <div class="ark" style="position:relative">
+    <div class="grep"></div>
+    <div class="base fed g9" style="margin-bottom:4px">Hva gjorde du i dag? · 2041</div>
+    <div class="xs g5" style="margin-bottom:2px">SIST BRUKT PÅ PROSJEKTET</div>
+    <div class="rad2 valgt"><span>Graving grøft nordside</span><span>✓</span></div>
+    <div class="rad2"><span>Masseutskifting</span></div>
+    <div class="rad2"><span>Anleggsarbeid <span class="g4">(aktivitet)</span></span></div>
+    <div class="xs g5" style="margin:6px 0 2px">ELLER SKRIV SELV</div>
+    <div class="felt" style="min-height:34px">Skriv …</div>
+    <div class="btn moerk" style="margin-top:8px;padding:7px">Ferdig</div>
+    <div class="klikk" style="right:10px;top:46px">2</div>
+  </div>
+</div>`;
+
+/* ===================== figurer ===================== */
+
+if (fig === "oversikt") {
+  rot.innerHTML = `
+  <h1>#9 Oversikt over dagen (prosjektkort-modus, <code>timer/[id]</code>) — i dag · A · B</h1>
+  <div class="rad">
+    <div class="kol"><div class="steg graa">I dag (målt, L2 + L3-D2)</div>${oversiktIdag()}
+      <div class="forklar"><p><b>7 farger på én flate:</b> gul status-merke, gul/grønn/blå sum-banner, oransje «Returnert», blå «+ Nytt kort», blå «Endre», blå sum-boks, blå Send. <b>Dagsummen står tre ganger</b> (banner, topptekst, sum-boks). <b>5 skriftstørrelser:</b> 10 px merke, xs hint, sm det meste, base navn/knapp, lg tittel. Chips viser bare tall — ikke <i>hva</i>.</p>
+      <div class="palett"><span style="background:#fef9c3"></span><span style="background:#fefce8;border-color:#fef08a"></span><span style="background:#ffedd5"></span><span style="background:#1e40af"></span><span style="background:#eff6ff"></span><span style="background:#2563eb"></span><span style="background:#f3f4f6"></span></div></div>
+    </div>
+    <div class="kol"><div class="steg">A — faste linjer pr. prosjekt <span class="anbefalt">ANBEFALT</span></div>${oversiktA()}
+      <div class="forklar"><p>Ett kort pr. prosjekt med <b>alltid de samme linjene</b> i samme rekkefølge og typografi (sm 14 px, etikett grå): Arbeid · Maskin · Varer · Beskrivelse (+ Reise når ført). Tomt = «–», så det som mangler <i>synes som et hull</i>. Sum i dag øverst, én gang, i vanlig tekst.</p><p><b>Én farge:</b> amber prikk/venstrekant for «Ikke sendt», «Returnert» og «Mangler». Alt annet grått/svart. 2 skriftstørrelser i innholdet (sm + base navn).</p></div>
+    </div>
+    <div class="kol"><div class="steg">B — kvittering (verdi venstre, tall høyre)</div>${oversiktB()}
+      <div class="forklar"><p>Samme data uten etiketter: hver registrering er én rad med tallet høyrestilt (tabular-nums). Kortere — bare det som er ført vises — men en tom kategori er <i>usynlig</i>; «mangler» må da sies med egen linje. Beskrivelsen i kursiv under en skillelinje.</p><p>Samme fargeregel som A.</p></div>
+    </div>
+  </div>
+  <div class="fotnote">Toppbar og status-merke tilhører <code>app/timer/[id].tsx</code> (felles med dagskortet) og tegnes uendret — se spec § 5 (isolering). Overtidslinjen vises i begge; redigering eies av ORDRE 34.</div>`;
+} else if (fig === "beskrivelse") {
+  rot.innerHTML = `
+  <h1>#10/11 «Hva gjorde du i dag?» i Bekreft dag — i dag · A · B</h1>
+  <div class="rad">
+    <div class="kol"><div class="steg graa">I dag (målt, L3-A + L3-D)</div>${bekreftIdag()}
+      <div class="forklar"><p>Skjermen har <b>ingen beskrivelse</b>. <code>anvendDagsforslag</code> skriver aldri <code>beskrivelse</code>; feltet finnes bare i <code>TimerRadModal</code> på sedelen etterpå (3 klikk unna: kort → rad → felt).</p></div>
+    </div>
+    <div class="kol"><div class="steg">A — chips + felt, synlig i blokken <span class="anbefalt">ANBEFALT</span></div>${bekreftA(1)}
+      <div class="forklar"><p><span class="nr">1</span>Ett trykk på et forslag fyller feltet (redigerbart). Forslag = de 2 sist brukte beskrivelsene dine på <i>dette prosjektet</i> + aktivitetsnavnet. Feltet står rett under arbeidstiden, alltid synlig: spørsmålet blir stilt uten at arbeideren må lete.</p><p>Klikk: forslag passer = <b>+1</b>; skrive selv = +1 (felt) + tekst + Ferdig.</p></div>
+    </div>
+    <div class="kol"><div class="steg">B — velgerrad → ark (som Prosjekt/Byggeplass)</div>${bekreftB(1)}
+      <div class="forklar"><p><span class="nr">1</span>Raden åpner et ark; <span class="nr">2</span>velg sist brukt (lukker arket) eller skriv selv nederst. Samme mønster som Prosjekt/Byggeplass/Aktivitet over, og blokken holder seg kort. Men spørsmålet er gjemt bak en rad, og det billigste utfallet koster <b>+2</b>.</p></div>
+    </div>
+  </div>
+  <div class="fotnote">Begge skriver til samme felt som prosjektkortet: <code>sheetTimerLocal.beskrivelse</code> på prosjektets arbeidsrad(er). Ved flere prosjekter (L4) får hvert prosjekt sitt felt under prosjektets første arbeidsblokk.</div>`;
+}
+document.body.dataset.klar = "1";
+</script>
+</body>
+</html>
