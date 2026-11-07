@@ -45,6 +45,7 @@ import {
   type BekreftDagTillegg,
 } from "../../src/utils/bekreftDagTillegg";
 import { BekreftDagTilleggSeksjon } from "../../src/components/timer-detalj/BekreftDagTilleggSeksjon";
+import { stegOvertidFra } from "../../src/utils/dagsforslag";
 import type {
   DagsforslagRetting,
   DagsforslagRettingDato,
@@ -388,6 +389,11 @@ export default function BekreftDagSkjerm() {
   const otNivaa = new Map(
     input.alleLonnsarter.map((l) => [l.id, l.overtidsnivaa] as const),
   );
+  // ORDRE 34 pkt 4: nivå-chips — kun aktive lønnsarter med overtidsnivå.
+  const overtidValg = input.alleLonnsarter
+    .filter((l) => l.aktiv && l.overtidsnivaa != null)
+    .sort((a, b) => a.rekkefolge - b.rekkefolge)
+    .map((l) => ({ id: l.id, navn: l.navn ?? `${l.overtidsnivaa}%` }));
   const prosjektNavn = prosjekter.find((p) => p.id === prosjektId)?.name ?? null;
   const aktivitetNavn =
     aktiviteter.find((a) => a.id === forslag.aktivitetId)?.navn ?? null;
@@ -491,6 +497,7 @@ export default function BekreftDagSkjerm() {
                 visDato={forslag.datoer.length > 1}
                 fjernet={retting.perDato?.[d.dato]?.fjernArbeid === true}
                 otNivaa={otNivaa}
+                overtidValg={overtidValg}
                 tidsrunding={input.regel?.tidsrundingMinutter ?? null}
                 onRett={(endring) => rettDato(d.dato, endring)}
               />
@@ -598,6 +605,7 @@ function DatoKort({
   visDato,
   fjernet,
   otNivaa,
+  overtidValg,
   tidsrunding,
   onRett,
 }: {
@@ -605,10 +613,12 @@ function DatoKort({
   visDato: boolean;
   fjernet: boolean;
   otNivaa: Map<string, number | null>;
+  overtidValg: Array<{ id: string; navn: string }>;
   tidsrunding: number | null;
   onRett: (endring: DagsforslagRettingDato) => void;
 }) {
   const { t } = useTranslation();
+  const [redigerOvertid, setRedigerOvertid] = useState(false);
   const arbeid = dag.rader.filter((r) => !r.erReise);
   const ut = dag.rader.find((r) => r.erReise && r.reiseRetning === "ut");
   const retur = dag.rader.find((r) => r.erReise && r.reiseRetning === "retur");
@@ -649,12 +659,63 @@ function DatoKort({
             onTilEndret={(hhmm) => onRett({ arbeidTil: hhmm })}
           />
           {forsteOt?.fraTid ? (
-            <Text className="self-start rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-              {t("timer.bekreftDag.overtid", {
-                nivaa: otNivaa.get(forsteOt.lonnsartId),
-                fra: forsteOt.fraTid,
-              })}
-            </Text>
+            <Pressable
+              onPress={() => setRedigerOvertid((v) => !v)}
+              accessibilityHint={t("timer.bekreftDag.overtidRedigerHint")}
+              className="self-start rounded bg-amber-100 px-2 py-0.5"
+            >
+              <Text className="text-xs font-medium text-amber-800">
+                {t("timer.bekreftDag.overtid", {
+                  nivaa: otNivaa.get(forsteOt.lonnsartId),
+                  fra: forsteOt.fraTid,
+                })}
+              </Text>
+            </Pressable>
+          ) : null}
+          {redigerOvertid && forsteOt?.fraTid ? (
+            <View className="gap-2 rounded-md border border-amber-200 bg-white p-2">
+              <View className="flex-row items-center justify-between">
+                <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidFra")}</Text>
+                <View className="flex-row items-center gap-3">
+                  <Pressable
+                    onPress={() =>
+                      onRett({ overtidFra: stegOvertidFra(forsteOt.fraTid!, -1, fra, til, tidsrunding) })
+                    }
+                    hitSlop={8}
+                    className="rounded-full border border-gray-300 p-1"
+                  >
+                    <Minus size={16} color="#374151" />
+                  </Pressable>
+                  <Text className="w-16 text-center text-sm text-gray-900">{forsteOt.fraTid}</Text>
+                  <Pressable
+                    onPress={() =>
+                      onRett({ overtidFra: stegOvertidFra(forsteOt.fraTid!, 1, fra, til, tidsrunding) })
+                    }
+                    hitSlop={8}
+                    className="rounded-full border border-gray-300 p-1"
+                  >
+                    <Plus size={16} color="#374151" />
+                  </Pressable>
+                </View>
+              </View>
+              <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidNivaa")}</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {overtidValg.map((l) => {
+                  const valgt = l.id === forsteOt.lonnsartId;
+                  return (
+                    <Pressable
+                      key={l.id}
+                      onPress={() => onRett({ overtidLonnsartId: l.id })}
+                      className={`rounded-full border px-3 py-1 ${valgt ? "border-blue-600 bg-blue-50" : "border-gray-300"}`}
+                    >
+                      <Text className={`text-xs ${valgt ? "font-semibold text-blue-700" : "text-gray-700"}`}>
+                        {l.navn}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
           ) : null}
           <View className="flex-row items-center justify-between">
             <Text className="text-sm text-gray-700">{t("timer.bekreftDag.pause")}</Text>

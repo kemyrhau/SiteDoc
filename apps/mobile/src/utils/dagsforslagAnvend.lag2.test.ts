@@ -271,3 +271,30 @@ describe("anvendDagsforslag — ikke ansatt / mangler lønnsart (ordre 2026-11-0
     });
   });
 });
+
+describe("anvendDagsforslag — hode-pause følger radene (ORDRE 34 pkt 3)", () => {
+  const ctx = {
+    userId: "u1",
+    erAnsatt: null,
+    orgId: "o1",
+    nyId: () => `rad-${teller++}`,
+    naa: () => 1000,
+  };
+
+  it("🔴 append på eksisterende draft med hode-pause 0 → hodet = Σ rad-pause (30)", () => {
+    const forste = anvendDagsforslag(anvendDb(), forslag(), ctx);
+    const sheetId = forste.startSheetId!;
+    // Eksisterende sedel uten rader og med feil hode (0) — slik feltdataene så ut.
+    holder.raw.run("DELETE FROM sheet_timer_local;");
+    db().update(dagsseddelLocal).set({ pauseMin: 0 }).where(eq(dagsseddelLocal.id, sheetId)).run();
+
+    const f = forslag();
+    f.datoer[0].erNy = false;
+    const andre = anvendDagsforslag(anvendDb(), f, ctx);
+    expect(andre.startSheetId).toBe(sheetId);
+
+    const sedel = db().select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, sheetId)).all()[0];
+    expect(sedel!.pauseMin).toBe(30);
+    expect(sedel!.syncStatus).toBe("pending");
+  });
+});

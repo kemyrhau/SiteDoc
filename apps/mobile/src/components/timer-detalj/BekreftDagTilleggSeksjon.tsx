@@ -8,13 +8,15 @@ import { hentDatabase } from "../../db/database";
 import { equipmentLocal } from "../../db/schema";
 import { finnEquipmentLokalt } from "../../services/maskinKatalog";
 import { hentVarelagerProsjekterLokalt } from "../../services/vareKatalog";
-import { ENHETER } from "../../lib/enheter";
+import { hentLokaleVarelinjerForDag } from "../../services/vareforbrukSync";
 import { EquipmentVelgerModal } from "./MaskinSeksjon";
 import { KortVareforbrukModal } from "./KortVareforbrukModal";
 import { TastaturScrollView } from "./TastaturScrollView";
 import {
   tilleggSynlighet,
   maskinBruddForTillegg,
+  nyTilleggMaskin,
+  fortIDagLinjer,
   type BekreftDagTillegg,
   type TilleggTilstand,
   type VaktGrunnlag,
@@ -77,6 +79,12 @@ export function BekreftDagTilleggSeksjon({
         .all().length > 0
     );
   }, [orgId]);
+
+  // «Ført i dag» leses ved åpning (lokale linjer på eksisterende sedel).
+  const lagredeIDag = useMemo(
+    () => (visVare ? hentLokaleVarelinjerForDag(userId, projectId, dato) : []),
+    [visVare, userId, projectId, dato],
+  );
 
   const synlig = tilleggSynlighet({ harEquipment, varelagerProsjektIder: varelagerProsjekter, projectId });
   if (!synlig.seksjon) return null;
@@ -157,13 +165,13 @@ export function BekreftDagTilleggSeksjon({
         eksisterende={tillegg}
         projectId={projectId}
         onLukk={() => setMaskinId(null)}
-        onLeggTil={(timer, mengde, enhet) => {
+        onLeggTil={(timer) => {
           if (!maskinId) return;
           onEndre({
             ...tillegg,
             maskiner: [
               ...tillegg.maskiner,
-              { lokalId: randomUUID(), projectId, vehicleId: maskinId, timer, mengde, enhet },
+              nyTilleggMaskin({ lokalId: randomUUID(), projectId, vehicleId: maskinId, timer }),
             ],
           });
           setMaskinId(null);
@@ -184,6 +192,8 @@ export function BekreftDagTilleggSeksjon({
         onVelgLinje={(valg) =>
           onEndre({ ...tillegg, varer: [...tillegg.varer, { lokalId: randomUUID(), projectId, ...valg }] })
         }
+        forblirApen
+        fortIDag={fortIDagLinjer(lagredeIDag, tillegg.varer, projectId)}
       />
     </View>
   );
@@ -206,7 +216,8 @@ function TilleggLinje({ tekst, merke, onFjern }: { tekst: string; merke: string 
   );
 }
 
-/** Maskintimer for valgt maskin. Samme vakt som Bekreft — [Legg til] stenges ved brudd. */
+/** Maskintimer for valgt maskin (uten mengde/enhet — ORDRE 34). Samme vakt som
+ *  Bekreft — [Legg til] stenges ved brudd. */
 function MaskinTimerArk({
   vehicleId,
   grunnlag,
@@ -220,28 +231,21 @@ function MaskinTimerArk({
   eksisterende: BekreftDagTillegg;
   projectId: string;
   onLukk: () => void;
-  onLeggTil: (timer: number, mengde: number | null, enhet: string | null) => void;
+  onLeggTil: (timer: number) => void;
 }) {
   const { t } = useTranslation();
   const [tekst, setTekst] = useState("");
-  const [mengdeTekst, setMengdeTekst] = useState("");
-  const [enhet, setEnhet] = useState<string | null>(null);
   useEffect(() => {
     if (!vehicleId) return;
     setTekst("");
-    setMengdeTekst("");
-    setEnhet(null);
   }, [vehicleId]);
-  // Mengde er valgfri (som `MaskinSeksjon`); tomt felt = null.
-  const mengde = mengdeTekst.trim() ? Number(mengdeTekst.replace(",", ".")) : null;
-  const mengdeGyldig = mengde === null || (Number.isFinite(mengde) && mengde >= 0);
   const timer = Number(tekst.replace(",", "."));
   const gyldig = Number.isFinite(timer) && timer > 0;
   const brudd =
     gyldig &&
     maskinBruddForTillegg(grunnlag, [
       ...eksisterende.maskiner,
-      { lokalId: "ny", projectId, vehicleId: vehicleId ?? "", timer, mengde: null, enhet: null },
+      nyTilleggMaskin({ lokalId: "ny", projectId, vehicleId: vehicleId ?? "", timer }),
     ]).length > 0;
 
   return (
@@ -260,33 +264,14 @@ function MaskinTimerArk({
             autoFocus
             className={`rounded-lg border px-3 py-2 text-base ${brudd ? "border-red-400 bg-red-50" : "border-gray-300"}`}
           />
-          <Text className="text-sm font-medium text-gray-700">{t("timer.felt.mengde")}</Text>
-          <TextInput
-            value={mengdeTekst}
-            onChangeText={setMengdeTekst}
-            placeholder="0,00"
-            keyboardType="decimal-pad"
-            className="rounded-lg border border-gray-300 px-3 py-2 text-base"
-          />
-          <View className="flex-row flex-wrap gap-1.5">
-            {ENHETER.map((e) => (
-              <Pressable
-                key={e}
-                onPress={() => setEnhet(enhet === e ? null : e)}
-                className={`rounded-full border px-3 py-1 ${enhet === e ? "border-blue-600 bg-blue-50" : "border-gray-300"}`}
-              >
-                <Text className={`text-xs ${enhet === e ? "text-blue-700" : "text-gray-700"}`}>{e}</Text>
-              </Pressable>
-            ))}
-          </View>
           {brudd ? <Text className="text-xs text-red-700">{t("timer.maskin.overstigerArbeid")}</Text> : null}
           <View className="flex-row gap-2">
             <Pressable onPress={onLukk} className="flex-1 items-center rounded-lg border border-gray-300 py-2.5">
               <Text className="text-sm font-medium text-gray-800">{t("handling.avbryt")}</Text>
             </Pressable>
             <Pressable
-              onPress={() => onLeggTil(timer, mengde, mengde === null ? null : enhet)}
-              disabled={!gyldig || brudd || !mengdeGyldig}
+              onPress={() => onLeggTil(timer)}
+              disabled={!gyldig || brudd}
               className="flex-1 items-center rounded-lg bg-blue-600 py-2.5 disabled:opacity-50"
             >
               <Text className="text-sm font-semibold text-white">{t("handling.leggTil")}</Text>

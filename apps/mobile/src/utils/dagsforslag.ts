@@ -36,6 +36,7 @@ import {
   pauseVinduFra,
   pauseMinForDag,
   hhmmTilMin,
+  pauseOverlappMin,
   finnOverlappendeTidsrom,
   løsReiseLonnsartId,
   grensepunktTraff,
@@ -48,6 +49,8 @@ import {
   type Startsted,
   type Sluttsted,
   type Destinasjon,
+  type ArbeidstidSegment,
+  OVERTID_NIVAA_50,
 } from "@sitedoc/shared";
 import { rundTimerTilNarmeste } from "./tidsrunding";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "./dagsegment";
@@ -88,6 +91,8 @@ export type DagsforslagAktivitet = { id: string; navn: string };
 /** Lønnsart-kandidat — feltene `velgOvertidLonnsart` + id trenger. */
 export type DagsforslagLonnsart = {
   id: string;
+  /** Visningsnavn — nivå-chipsene i Bekreft dag (ORDRE 34 pkt 4). */
+  navn?: string;
   overtidsnivaa: number | null;
   aktiv: boolean;
   type: string;
@@ -341,7 +346,77 @@ export type DagsforslagRettingDato = {
   pauseMin?: number;
   /** Fjerner datoens arbeidsrader. Reiseradene står (K12 a). */
   fjernArbeid?: boolean;
+  /**
+   * ORDRE 34 pkt 4: arbeiderens rettede overtid-start "HH:MM". Splitter
+   * normaltid/overtid her i stedet for ved dagsnormen.
+   */
+  overtidFra?: string;
+  /**
+   * ORDRE 34 pkt 4: valgt overtid-lønnsart. Kun lønnsart med `overtidsnivaa`
+   * godtas — ellers faller valget tilbake til `velgOvertidLonnsart`.
+   */
+  overtidLonnsartId?: string;
 };
+
+/**
+ * ORDRE 34 pkt 4: normaltid/overtid-segmenter når arbeideren har rettet
+ * overtid-starten. Normaltid = arbeid fra arbeidsstart til `overtidFra` minus
+ * pausen som faller i det spennet; resten er overtid. Avgrenset til [0, arbeid].
+ */
+export function segmenterVedOvertidFra(args: {
+  arbeidstimer: number;
+  arbeidsstartHHMM: string;
+  overtidFra: string;
+  pauseFra: string;
+  pauseMin: number;
+}): ArbeidstidSegment[] {
+  const { arbeidstimer } = args;
+  if (arbeidstimer <= 0) return [];
+  const startMin = hhmmTilMin(args.arbeidsstartHHMM);
+  const fraMin = hhmmTilMin(args.overtidFra);
+  const brutto = Math.max(0, fraMin - startMin);
+  const pause = pauseOverlappMin(startMin, fraMin, hhmmTilMin(args.pauseFra), args.pauseMin);
+  const normal = Math.min(
+    arbeidstimer,
+    Math.round((Math.max(0, brutto - pause) / 60) * 100) / 100,
+  );
+  const overtid = Math.round((arbeidstimer - normal) * 100) / 100;
+  const segmenter: ArbeidstidSegment[] = [];
+  if (normal > 0) segmenter.push({ overtidsnivaa: null, timer: normal });
+  if (overtid > 0) segmenter.push({ overtidsnivaa: OVERTID_NIVAA_50, timer: overtid });
+  return segmenter;
+}
+
+/**
+ * ORDRE 34 pkt 4: flytt overtid-starten ett steg (firmaets tidsrunding, ellers
+ * 15 min), avgrenset til arbeidsvinduet [fra, til − steg] så overtiden aldri
+ * forsvinner helt ved pressing.
+ */
+export function stegOvertidFra(
+  naa: string,
+  retning: -1 | 1,
+  fra: string,
+  til: string,
+  tidsrundingMinutter: number | null,
+): string {
+  const steg = tidsrundingMinutter && tidsrundingMinutter > 0 ? tidsrundingMinutter : 15;
+  const min = hhmmTilMin(fra);
+  const maks = Math.max(min, hhmmTilMin(til) - steg);
+  const ny = Math.min(maks, Math.max(min, hhmmTilMin(naa) + retning * steg));
+  const t = Math.floor(ny / 60);
+  const m = ny % 60;
+  return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** ORDRE 34 pkt 4: arbeiderens overtid-lønnsart — kun med overtidsnivå, aktiv. */
+export function godtattOvertidLonnsart(
+  lonnsarter: DagsforslagLonnsart[],
+  id: string | null,
+): DagsforslagLonnsart | null {
+  if (!id) return null;
+  const l = lonnsarter.find((x) => x.id === id);
+  return l && l.aktiv && l.overtidsnivaa != null ? l : null;
+}
 
 /** Delmengden av `DagsforslagRegel` som `klassifiserReise` trenger. */
 function reiseRegelsett(regel: DagsforslagRegel) {
@@ -679,6 +754,8 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       byggeplassId: byggeplassDefault,
       pauseMin: rettDato?.pauseMin ?? pauseFordelt[i]!,
       fjernArbeid: rettDato?.fjernArbeid === true,
+      overtidFra: rettDato?.overtidFra ?? null,
+      overtidLonnsartId: rettDato?.overtidLonnsartId ?? null,
       utReise: segUt,
       returReise: segRetur,
       tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
@@ -749,6 +826,10 @@ function beregnSegment(a: {
   pauseMin: number;
   /** L3-A: arbeideren fjernet datoens arbeidsrader (K12 a — reisen står). */
   fjernArbeid: boolean;
+  /** ORDRE 34 pkt 4: rettet overtid-start "HH:MM" — null = split ved dagsnorm. */
+  overtidFra: string | null;
+  /** ORDRE 34 pkt 4: valgt overtid-lønnsart — null = `velgOvertidLonnsart`. */
+  overtidLonnsartId: string | null;
   /** Ut-reise (reisetid) på start-segmentet — forskyver arbeidsstart + egen rad. null ellers. */
   utReise: ReiseRadResolvert | null;
   /** Retur-reise (reisetid) på slutt-segmentet — forskyver arbeidsslutt + egen rad. null ellers. */
@@ -845,15 +926,25 @@ function beregnSegment(a: {
       reisetidTimer: 0,
       pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
       pauseMin: a.pauseMin,
-      segmenter: klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
+      segmenter: a.overtidFra
+        ? segmenterVedOvertidFra({
+            arbeidstimer,
+            arbeidsstartHHMM,
+            overtidFra: a.overtidFra,
+            pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
+            pauseMin: a.pauseMin,
+          })
+        : klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
     });
+    const valgtOvertid = godtattOvertidLonnsart(a.alleLonnsarter, a.overtidLonnsartId);
     for (const vindu of carvet) {
       // Normaltid (overtidsnivaa=null) → firmaets standard-lønnsart.
       // Overtid → velg strukturert på overtidsnivaa (type=ordinaer, aktiv).
       const lonnsartId =
         vindu.overtidsnivaa === null
           ? a.standardLonnsartId
-          : (velgOvertidLonnsart(a.alleLonnsarter, vindu.overtidsnivaa)?.id ??
+          : (valgtOvertid?.id ??
+            velgOvertidLonnsart(a.alleLonnsarter, vindu.overtidsnivaa)?.id ??
             null);
       // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden over.
       // Telles, så Slutt dag kan si «mangler lønnsart» i stedet for «for kort».
