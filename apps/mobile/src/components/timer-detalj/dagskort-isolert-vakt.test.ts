@@ -51,6 +51,66 @@ describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
   });
 });
 
+// ORDRE 37 — varesøket ruller «Vare»-blokka over tastaturet. Kun søkefeltet
+// styrer rullingen; TastaturScrollView får bare ref-videresending, og
+// dagskortets seksjoner sender ingen ref (atferd som før).
+const SCROLL = les("TastaturScrollView.tsx");
+const DAGSKORT_SEKSJONER = [
+  "ArbeidstidSeksjon.tsx",
+  "MaskinSeksjon.tsx",
+  "SplittRadModal.tsx",
+  "TilleggSeksjon.tsx",
+  "TimerSeksjon.tsx",
+  "UtleggSeksjon.tsx",
+];
+const inputTagg = (kilde: string, kjennetegn: string) => {
+  const i = kilde.indexOf(kjennetegn);
+  return i < 0 ? "" : kilde.slice(kilde.lastIndexOf("<TextInput", i), kilde.indexOf("/>", i));
+};
+
+describe("ORDRE 37 — varesøket over tastaturet", () => {
+  it("🔴 søkefeltet (value={sok}) har fokus-styringen", () => {
+    const tagg = inputTagg(MODAL, "value={sok}");
+    expect(tagg).toContain("onFocus={varesokFokus.onFocus}");
+    expect(tagg).toContain("onBlur={varesokFokus.onBlur}");
+  });
+
+  it("🔴 antall-feltet ruller ikke (iOS ruller det fram som før)", () => {
+    const tagg = inputTagg(MODAL, "value={antall}");
+    expect(tagg).toContain("keyboardType=");
+    expect(tagg).not.toContain("onFocus");
+  });
+
+  it("🔴 Keyboard-lytteren fjernes ved unmount, og abonnementet har .remove()", () => {
+    expect(MODAL).toMatch(/useEffect\(\(\) => \(\) => varesokFokus\.rydd\(\), \[varesokFokus\]\)/);
+    const util = les("../../utils/varesokRulling.ts");
+    expect(util).toContain("abonnement?.remove();");
+    expect(util).toMatch(/onBlur: fjern/);
+    expect(util).toMatch(/rydd: fjern/);
+  });
+
+  it("🔴 rulleflaten i modalen er TastaturScrollView med ref", () => {
+    expect(MODAL).toMatch(/<TastaturScrollView\s+ref=\{rulleRef\}/);
+  });
+
+  it("🔴 TastaturScrollView videresender ref og beholder insets + handled", () => {
+    expect(SCROLL).toContain("forwardRef<");
+    expect(SCROLL).toMatch(/<ScrollView \{\.\.\.props\} ref=\{ref\} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">/);
+  });
+
+  it.each(DAGSKORT_SEKSJONER)("🔴 %s sender ingen ref til TastaturScrollView", (fil) => {
+    const kilde = les(fil);
+    const i = kilde.indexOf("<TastaturScrollView");
+    expect(i).toBeGreaterThan(0);
+    expect(kilde.slice(i, kilde.indexOf(">", i))).not.toContain("ref=");
+  });
+
+  it("negativkontroll: inputTagg finner taggen og gir tomt for ukjent kjennetegn", () => {
+    expect(inputTagg(MODAL, "value={sok}")).toContain("onChangeText={setSok}");
+    expect(inputTagg(MODAL, "finnes-ikke")).toBe("");
+  });
+});
+
 // ORDRE 35 (I2) — prosjektkortet har egen rute (`app/timer/[id]/prosjektkort.tsx`).
 // Dagskortet sender dit med én Redirect og bærer ingen kort-JSX lenger.
 // JSX-taggrekkefølgen er frosset: = develop b3e96829 minus kort-taggene
