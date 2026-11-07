@@ -35,6 +35,7 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| 2026-11-08 | Timer (mobil) | ORDRE 36b: Prosjektkortet = prosjekt + byggeplass (+ underprosjekt). Timer, maskin og varer arver kortet (låst i modalen); «Flytt raden» flytter en rad til annet kort (koblet maskin følger med). Reise, tillegg og utlegg ligger i egen dag-seksjon under kortene; reise viser byggeplass/underprosjekt bare når firmaet bruker det. Bekreft dag krever én beskrivelse pr. kort. Dagskortet uendret. | b85c7c6a (merge 3ff60370) |
 | 2026-11-07 | Timer mobil — vareforbruk | Varesøket i «Registrer vareforbruk» (Bekreft dag og prosjektkortet) ruller «Vare» til toppen når feltet får fokus, så treffene vises over tastaturet i stedet for bak det. Dagskortet uendret. | d9631c26 (merge 89867984) |
 | 2026-11-07 | Timer (mobil) | ORDRE 36a: Bekreft dag krever beskrivelse («Hva gjorde du i dag?») for hvert prosjekt med arbeid. Forslag-knapper fra egne to siste beskrivelser + aktiviteten. Trykk Bekreft med tomt felt gir rød ramme og forklaring, ingen lagring (virker offline). Teksten lagres på arbeidsradene. | 0aef2e8b (merge c461d40c) |
 | 2026-11-07 | Timer (mobil) | ORDRE 35: Prosjektkortet åpnes i egen skjerm (dagskortet uendret). Bekreft dag har «Legg til overtid» på dager uten overtid (velger nivået firmaet har). «+» på overtid-fra går til sluttid og aldri bakover; 0 t overtid fjerner merket. Avviste varelinjer vises ikke i «Ført i dag». | 2658f13b (merge e8bcccde) |
