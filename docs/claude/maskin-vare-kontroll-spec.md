@@ -1,5 +1,5 @@
 ---
-status: 🟡 UTKAST
+status: 🟢 VEDTATT 2026-11-07 (Kenneth, B1–B7; B2 = B2-a med presisering) — ingen kode ennå. Rekkefølge: 36b → 36c → 36d-1 → 36d-2 → 36d-3.
 sist_verifisert_mot_kode: 2026-11-07 (develop @ 09cfbb4d)
 eier: Fabel (spec) → Redesign/kode-Opus (kode)
 ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07)
@@ -7,7 +7,7 @@ ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07)
 
 # Spec 36d — kontroll av maskin og varer i dagsoversikten, og underprosjekt som føringsnivå for timer, maskin og varer
 
-> **Status 🟡 UTKAST.** Ingen kode. Alle presens-utsagn i § 1 er målt mot `develop @ 09cfbb4d` med fil:linje. Åpne beslutninger for Kenneth er merket **B1 … B7** og samlet i § 9.
+> **Status 🟢 VEDTATT 2026-11-07** (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). Ingen kode ennå. Alle presens-utsagn i § 1 er målt mot `develop @ 09cfbb4d` med fil:linje. Beslutningene **B1 … B7** er vedtatt og samlet i § 9; B2 har Kenneths presisering i § 0.
 
 ## 0. Bestilling
 
@@ -30,7 +30,13 @@ ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07)
 
 **Nytt:** firmaet velger om timer, maskintimer og varer føres mot **byggeplass** eller **underprosjekt** (ExternalCostObject, «ECO»). Ett valg for alle tre radtyper.
 
-**Ut av scope:** underprosjekt generelt («egen kontroll etterhvert») — kun åpne funn i § 8. Dagskortet `apps/mobile/app/timer/[id].tsx` endres ikke (memory-vedtak «dagskort isolert», 2026-11-07).
+**Vedtak 2026-11-07 (Kenneth via orkestrator), ordrett:** «Ja til alle bortsett fra hurtigvalg, er ikke det like greit å ta med nå». Hurtigvalg gjelder 36b (Redesign kopierer `handterHurtigVelg` inn i `prosjektkort/radLagring.ts`, lagring C), ikke denne specen.
+
+- **B1 JA:** `foringsnivaa` («byggeplass» | «underprosjekt») som kolonne på `OrganizationSetting`, default byggeplass. Migrering godkjent — kjøres via deploy-flyten, aldri av agenten.
+- **B2 JA (B2-a), med Kenneths presisering:** det **gamle dagskortet** (`app/timer/[id].tsx` i dagskortmodus, appen slik den var før prosjektkortene) står uendret. **Prosjektkort-flyten** (36b-dagsoversikten, prosjektkortet og Bekreft dag) er «det nye dagskortet» og skal kunne tilpasses: firmavalget, maskinkontrollen og varer per byggeplass/underprosjekt gjelder der.
+- **B3, B4, B5, B6, B7 JA** som anbefalt. Rekkefølge: **36b → 36c → 36d-1 → 36d-2 → 36d-3**.
+
+**Ut av scope:** underprosjekt generelt («egen kontroll etterhvert») — kun åpne funn i § 8. Det gamle dagskortet `apps/mobile/app/timer/[id].tsx` (dagskortmodus) endres ikke (memory-vedtak «dagskort isolert», 2026-11-07; B2-presisering over).
 
 ---
 
@@ -151,7 +157,7 @@ Regler (`dagsoversikt.ts`, ren funksjon `maskinLinjerForProsjekt(timerRader, mas
 
 Maskinraden får byggeplass i oversikten **uten skjemaendring**: den utledes fra timeraden den er knyttet til (§ 2.1). For `sheetTimerId` NULL vises ingen byggeplass (ingen gjetting), kun markeringen. Konsekvens for `KortHode`-utledningen (`prosjektkortMobil.ts:54`): uendret i 36d-1 — maskin bidrar fortsatt ikke til kortets byggeplass, siden den ikke har egen verdi.
 
-**B5 (lav):** skal `sheetMachineLocal` få `byggeplassId` (speil av server-feltet `schema.prisma:546`, mobil-sync `timerSync.ts:758-775` sender den ikke)? Anbefaling: **nei i 36d-1**; ja i 36d-2 hvis firmavalget «byggeplass» skal gi maskin egen byggeplass-velger (§ 3.3).
+**B5 VEDTATT 2026-11-07:** `sheetMachineLocal` får **ikke** `byggeplassId` i 36d-1 (speil av server-feltet `schema.prisma:546`; mobil-sync `timerSync.ts:758-775` sender den ikke). Vurderes i 36d-2 hvis firmavalget «byggeplass» skal gi maskin egen byggeplass-velger (§ 3.2).
 
 ### 2.3 «Maskintimer på en byggeplass overstiger arbeidstimene der»
 
@@ -161,13 +167,13 @@ Dagens vakt (`maskinKapasitet.ts`) er per (prosjekt, ECO) og håndheves hardt p�
 - Maskin med `sheetTimerId` NULL teller **ikke** i byggeplass-summen (ingen byggeplass å telle mot) — de har allerede egen markering.
 - Ingen sperre, ingen Alert, ingen toast. Ingen endring i server-vakten.
 
-**B4:** Skal byggeplass-overskridelse bare vises (anbefalt, 36d-1) eller også sperres på server som dagens ECO-vakt? Sperre = funksjonsendring i `validerMaskinUnderArbeid` + bøttenøkkel, påvirker dagskort, web og sync. Anbefaling: **kun visning** nå.
+**B4 VEDTATT 2026-11-07: kun visning** (amber) i 36d-1. Ingen server-sperre — det ville vært funksjonsendring i `validerMaskinUnderArbeid` + bøttenøkkel med virkning for dagskort, web og sync.
 
 ### 2.4 Trykk på maskinrad (knytte til arbeidstimer)
 
 36b/§ 2.5: ingen radikoner, trykk åpner modal. Trykk på en «ikke knyttet»-maskinrad åpner `MaskinRadModal` (`MaskinSeksjon.tsx:436`) som i dag. Å **knytte** raden til en timerad finnes ikke i noen modal i dag (`maskin.oppdater` `dagsseddel.ts:7230-7244` har ikke `sheetTimerId`; mobil-sync bærer den kun ved opprettelse `:761`). Spec-en foreslår i 36d-1 en valgfri velger «Hører til arbeidstimer» i `MaskinRadModal` (liste over sedelens timerader for samme prosjekt), som setter `sheetTimerId` lokalt og krever at `syncBatch` allerede bærer feltet (`:5891` → `:6878`) — det gjør den. Web `maskin.oppdater` trenger `sheetTimerId` i input for paritet.
 
-Dette er en liten funksjonsendring i `MaskinRadModal`, som også brukes av dagskortet → **B2** (se § 3.4): må gates bak prop `handlinger?`/`visKnytting?` med dagens default `false` og test i `dagskort-isolert-vakt.test.ts`. Hvis Kenneth sier nei, utgår § 2.4 og «ikke knyttet» forblir ren informasjon.
+**B3 VEDTATT 2026-11-07: ja, i 36d-1.** `MaskinRadModal` brukes også av det gamle dagskortet → velgeren gates bak prop `visKnytting?` med dagens default `false` (B2-presisering § 0 / § 3.3) og test i `dagskort-isolert-vakt.test.ts`.
 
 ### 2.5 Varer per byggeplass
 
@@ -205,7 +211,7 @@ Begrunnelse: (a) innstillingen er **ikke** en firmamodul-tabell — den er en fi
 
 Alternativ (ikke anbefalt): `OrganizationModule.config Json` per modul (`:320`) — gir tre uavhengige valg, som strider mot Kenneths «ett valg», og leses ikke av noen i dag.
 
-**Skjemaendring = ja** (ny kolonne i `packages/db`, migrering via Prisma, default dekker alle eksisterende firmaer — ingen stille tomhet, ingen backfill nødvendig). **B1: godkjenn plassering og navn `foringsnivaa` («byggeplass» | «underprosjekt»).**
+**Skjemaendring = ja** (ny kolonne i `packages/db`, migrering via Prisma, default dekker alle eksisterende firmaer — ingen stille tomhet, ingen backfill nødvendig). **B1 VEDTATT 2026-11-07:** plassering og navn `foringsnivaa` («byggeplass» | «underprosjekt») godkjent; migreringen er godkjent og kjøres via deploy-flyten (DEPLOY-RUNBOK), aldri av agenten.
 
 Lag som følger presedensen (§ 1.2): `oppdaterSetting`-input `organisasjon.ts:1281-1356` + `hentArbeidstidDefaults`-select `:1219-1240`; web `firma/innstillinger/page.tsx` ny seksjon ved `TilgangPolicySeksjon` `:283-297`; mobil `organizationSettingKatalog.ts` ny `lesForingsnivaaLokalt(organizationId)` ved siden av `lesTimerModusLokalt` `:113`; `organizationSettingLocal` ny kolonne.
 
@@ -224,14 +230,14 @@ Valget styrer **hvilken velger som vises** i føringsflatene og **hva oversikten
 | Web vareforbruk-side `[prosjektId]/vareforbruk/page.tsx` | begge felt (uendret) | begge felt (uendret) — web admin-flater viser alltid begge |
 | Web attestering/redigering | uendret | uendret |
 
-### 3.3 Konsekvens for dagskortet `app/timer/[id].tsx` — B2 (STOPP)
+### 3.3 Konsekvens for det gamle dagskortet `app/timer/[id].tsx` — B2 VEDTATT B2-a med presisering
 
 Dagskortet viser i dag ECO-bøtter og ECO-velger **alltid** (§ 1.3). Et firma på «byggeplass» ville etter 36d-2 fortsatt se «Underprosjekt»-feltet i dagskortets `TimerRadModal`/`MaskinRadModal` og ECO-gruppering i `ProsjektGruppe`, mens prosjektkortet skjuler det. To alternativer:
 
 - **B2-a (anbefalt): dagskortet endres ikke.** Valget gjelder prosjektkort-grenen, Bekreft dag og `KortVareforbrukModal`. Dagskortet beholder dagens oppførsel (ECO valgfritt, byggeplass valgfritt). Inkonsekvensen er akseptabel fordi dagskortet skal fases ut i firmaer som bruker prosjektkort (`timerRegistreringsmodus`), og fordi vedtaket 2026-11-07 isolerer det.
 - **B2-b: dagskortet følger valget.** Krever prop `foringsnivaa` på `ProsjektGruppe`, `TimerRadModal`, `MaskinRadModal` med dagens default («vis ECO») + utvidet vakt-test, og endring i `[id].tsx`-grenen. **STOPP — krever egen hjemmel fra Kenneth.**
 
-Spec-en skriver 36d-2 for **B2-a**. Hvis Kenneth velger B2-b, er det en egen leveranse etter 36d-2.
+**B2 VEDTATT 2026-11-07 = B2-a, med Kenneths presisering (§ 0):** det gamle dagskortet i dagskortmodus står uendret. Prosjektkort-flyten (36b-dagsoversikten, prosjektkortet `app/timer/[id]/kort/[projectId].tsx` + `prosjektkort.tsx`, og Bekreft dag) er «det nye dagskortet» og tilpasses fritt: firmavalget, maskinkontrollen (§ 2) og varer per byggeplass/underprosjekt gjelder der. B2-b er dermed ikke aktuelt; delte komponenter (`TimerRadModal`, `MaskinRadModal`, `ProsjektGruppe`) får prop med dagens default slik at dagskortmodus ikke endrer oppførsel.
 
 ### 3.4 Eksisterende rader uten underprosjekt — ingen stille tomhet, ingen gjetting
 
@@ -248,7 +254,7 @@ Målt: eksporten bærer **verken** byggeplass-dimensjon på maskin/vare **eller*
 
 - Bytte av `foringsnivaa` endrer **ingen** tall i attestering, lønn eller eksport. Rader ført før byttet beholder sine felt; rader ført etter får det nye feltet fylt. Perioden får blandede rader — det er synlig i oversikten (markering) og i web-redigering (begge felt vises), ikke i eksporten.
 - `foringsnivaa` skal **ikke** lagres på raden eller sedelen (ingen `foringsnivaaVedFøring`-kolonne). Begrunnelse: feltene selv (`byggeplassId`/`externalCostObjectId` satt eller NULL) er fakta; valget er bare et UI-filter. Ingen stille tomhet oppstår fordi ingen ny identitetskolonne innføres på radene.
-- **B6:** skal web-rapporten få ECO som kolonne + filter (`rapport.ts:313-315` «ikke bygget nå») i 36d-2, slik at kontroll per underprosjekt også finnes i eksporten? Anbefaling: **ja, men som 36d-3-del** (web-oversikt), ikke i 36d-2.
+- **B6 VEDTATT 2026-11-07:** web-rapporten får ECO som kolonne + filter (`rapport.ts:313-315` «ikke bygget nå») som **del av 36d-3**, ikke i 36d-2.
 
 ### 3.6 Server-validering — paritetshull
 
@@ -276,16 +282,17 @@ ECO-kolonne + filter i `timer.rapport.detaljEksport` (`rapport.ts:313-315`-plane
 
 ---
 
-## 5. Rekkefølge — anbefaling (B7)
+## 5. Rekkefølge — 🟢 VEDTATT 2026-11-07 (B7)
 
 | Rekkefølge | Leveranse | Avhenger av | Begrunnelse |
 |---|---|---|---|
-| 1 | **36b** (dagsoversikt A) | — | 36d-1 rendrer i `ProsjektkortDagsoversikt` |
-| 2 | **36d-1** maskin- og varekontroll i oversikten (§ 2) | 36b | Svarer direkte på begge Kenneth-funnene uten skjemaendring; viser «Hele prosjektet»/«Ikke knyttet» som er kontrollen; avdekker omfanget av NULL-rader før firmaene velger nivå |
-| 3 | **36d-2** firmavalg + ECO i KortVareforbrukModal/Bekreft dag (§ 3) | B1, B2; 36d-1 (markeringene må finnes før firmaer kan bytte, ellers er byttet usynlig) | Skjemaendring i `packages/db` + mobil-kolonne; bør ikke blandes med 36d-1 |
-| 4 | **36d-3** web-oversikt (§ 4) | 36d-2 for underprosjekt-kolonnen; ellers uavhengig | Kan starte parallelt med 36d-2 etter 36d-1 |
+| 1 | **36b** (dagsoversikt A, inkl. hurtigvelg) | — | 36d-1 rendrer i `ProsjektkortDagsoversikt` |
+| 2 | **36c** | 36b | Redesigns leveranse; 36d-1 legges etter den (vedtak 2026-11-07) |
+| 3 | **36d-1** maskin- og varekontroll i oversikten (§ 2) | 36b | Svarer direkte på begge Kenneth-funnene uten skjemaendring; viser «Hele prosjektet»/«Ikke knyttet» som er kontrollen; avdekker omfanget av NULL-rader før firmaene velger nivå |
+| 4 | **36d-2** firmavalg + ECO i KortVareforbrukModal/Bekreft dag (§ 3) | B1, B2; 36d-1 (markeringene må finnes før firmaer kan bytte, ellers er byttet usynlig) | Skjemaendring i `packages/db` + mobil-kolonne; bør ikke blandes med 36d-1 |
+| 5 | **36d-3** web-oversikt (§ 4) | 36d-2 for underprosjekt-kolonnen; ellers uavhengig | Kan starte parallelt med 36d-2 etter 36d-1 |
 
-Alternativet «36d-2 først» ble vurdert: det gir firmaet valget tidligere, men uten 36d-1 ser ingen effekten av valget på mobil, og «ingen kontroll på riktig føring» forblir. Anbefaling: **36d-1 før 36d-2.**
+Alternativet «36d-2 først» ble vurdert: det gir firmaet valget tidligere, men uten 36d-1 ser ingen effekten av valget på mobil, og «ingen kontroll på riktig føring» forblir. **Vedtatt: 36b → 36c → 36d-1 → 36d-2 → 36d-3.**
 
 ---
 
@@ -349,17 +356,17 @@ Mikrotekst etter § 3a: innstillingsbeskrivelsen sier hvor det flytter (mobil/Be
 
 ---
 
-## 9. Beslutninger for Kenneth
+## 9. Beslutninger — alle 🟢 VEDTATT 2026-11-07 (Kenneth: «Ja til alle bortsett fra hurtigvalg»)
 
-| # | Spørsmål | Anbefaling |
-|---|---|---|
-| **B1** | Innstillingen `foringsnivaa` («byggeplass» | «underprosjekt») som ny kolonne på `OrganizationSetting` i `packages/db` (kjernen), default «byggeplass», ingen backfill. Skjemaendring = ja. | Ja — følger `timerRegistreringsmodus`-presedensen; ikke en modul-tabell |
-| **B2** | Dagskortet `app/timer/[id].tsx`: følge firmavalget (B2-b, STOPP, egen leveranse) eller uendret (B2-a)? | **B2-a uendret** |
-| **B3** | § 2.4 «Hører til arbeidstimer»-velger i `MaskinRadModal` (prosjektkort-grenen, prop-gated) så Bekreft dag-maskiner kan knyttes i ettertid? | Ja i 36d-1, prop med dagens default |
-| **B4** | Byggeplass-overskridelse maskin > arbeid: kun visning (amber) eller også server-sperre? | **Kun visning** |
-| **B5** | `sheetMachineLocal.byggeplassId` + sync av feltet fra mobil? | Nei i 36d-1; vurderes i 36d-2 |
-| **B6** | ECO-kolonne + filter i rapport/eksport? | Ja, som del av 36d-3 |
-| **B7** | Rekkefølge 36b → 36d-1 → 36d-2 → 36d-3 | Ja |
+| # | Spørsmål | Anbefaling | Vedtak |
+|---|---|---|---|
+| **B1** | Innstillingen `foringsnivaa` («byggeplass» | «underprosjekt») som ny kolonne på `OrganizationSetting` i `packages/db` (kjernen), default «byggeplass», ingen backfill. Skjemaendring = ja. | Ja — følger `timerRegistreringsmodus`-presedensen; ikke en modul-tabell | **JA.** Migrering via deploy-flyten, aldri av agenten |
+| **B2** | Dagskortet `app/timer/[id].tsx`: følge firmavalget (B2-b, STOPP, egen leveranse) eller uendret (B2-a)? | **B2-a uendret** | **JA B2-a + presisering:** gamle dagskortet (dagskortmodus) uendret; prosjektkort-flyten (36b, prosjektkort, Bekreft dag) er «det nye dagskortet» og tilpasses |
+| **B3** | § 2.4 «Hører til arbeidstimer»-velger i `MaskinRadModal` (prosjektkort-grenen, prop-gated) så Bekreft dag-maskiner kan knyttes i ettertid? | Ja i 36d-1, prop med dagens default | **JA** |
+| **B4** | Byggeplass-overskridelse maskin > arbeid: kun visning (amber) eller også server-sperre? | **Kun visning** | **JA** |
+| **B5** | `sheetMachineLocal.byggeplassId` + sync av feltet fra mobil? | Nei i 36d-1; vurderes i 36d-2 | **JA** |
+| **B6** | ECO-kolonne + filter i rapport/eksport? | Ja, som del av 36d-3 | **JA** |
+| **B7** | Rekkefølge 36b → 36d-1 → 36d-2 → 36d-3 | Ja | **JA**, med 36c foran 36d-1: 36b → 36c → 36d-1 → 36d-2 → 36d-3 |
 
 ---
 
@@ -367,6 +374,6 @@ Mikrotekst etter § 3a: innstillingsbeskrivelsen sier hvor det flytter (mobil/Be
 
 - Underprosjekt-opprettelse i UI (F-U3), ProAdm-import.
 - Endring i server-kapasitetsvakt (bøttenøkkel) — B4.
-- Dagskortets ECO-visning (B2-b).
+- Det gamle dagskortets ECO-visning (B2-b, forkastet ved B2-presiseringen).
 - Attestering per byggeplass.
 - Sletting/omskriving av eksisterende rader ved bytte av føringsnivå — skjer aldri.
