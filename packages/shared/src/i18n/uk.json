@@ -5389,5 +5389,17 @@
   "lokasjonVelger.forslagSistBrukt": "Останнє використання",
   "lokasjonVelger.kart": "Карта",
   "lokasjonVelger.ingenTegningEllerKart": "У проекті немає креслення чи карти, на яких можна розмістити позицію.",
-  "lokasjonVelger.ingenTegningValgt": "Малюнок не вибрано. Виберіть малюнок або карту, щоб позначити позицію."
+  "lokasjonVelger.ingenTegningValgt": "Малюнок не вибрано. Виберіть малюнок або карту, щоб позначити позицію.",
+  "timer.dagsoversikt.sumIDag": "Всього сьогодні",
+  "timer.dagsoversikt.normRamme": "Норма {{norm}} год · кадр {{fra}}–{{til}} · перерва {{pause}} хв",
+  "timer.dagsoversikt.ikkeSendt": "Не відправлено",
+  "timer.dagsoversikt.sendt": "Надіслано",
+  "timer.dagsoversikt.returnert": "Повернувся",
+  "timer.dagsoversikt.attestert": "Схвалено {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "опис",
+  "timer.dagsoversikt.mangler": "Відсутня",
+  "timer.dagsoversikt.overtid": "понаднормова {{prosent}} % від {{fra}} · {{timer}} год",
+  "timer.dagsoversikt.delOpp": "Розділіть ряд",
+  "timer.dagsoversikt.slettRad": "Видалити рядок",
+  "timer.dagsoversikt.slettRadBekreft": "Видалити рядок?"
 }

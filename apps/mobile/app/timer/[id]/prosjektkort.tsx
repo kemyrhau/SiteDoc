@@ -18,9 +18,8 @@ import { DagskortSammenligning } from "../../../src/components/timer-detalj/Dags
 import { TimerStatusMerkelapp } from "../../../src/components/TimerStatusMerkelapp";
 import { DagstotalBanner } from "../../../src/components/DagstotalBanner";
 import { RedigerArbeidstidModal } from "../../../src/components/timer-detalj/ArbeidstidSeksjon";
-import { ProsjektkortSamleside } from "../../../src/components/timer-detalj/prosjektkort/ProsjektkortSamleside";
+import { ProsjektkortDagsoversikt } from "../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
 import { useProsjektkortSedel } from "../../../src/components/timer-detalj/prosjektkort/useProsjektkortSedel";
-import { SummeringsBanner } from "../../../src/components/timer-detalj/SummeringsBanner";
 import { ProsjektVelgerModal } from "../../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../../src/components/timer-detalj/ByggeplassVelger";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../../src/utils/dato";
@@ -102,14 +101,6 @@ export default function ProsjektkortSkjerm() {
           </Text>
         </View>
       )}
-
-      <View className="mx-4 mt-3">
-        <SummeringsBanner
-          totaltimer={s.totaltimer}
-          normTimer={s.normTimer}
-          maskinTimer={s.totalMaskin}
-        />
-      </View>
 
       <ScrollView className="flex-1" contentContainerClassName="pb-24">
         {s.byggeplassInfo.mismatch && (
@@ -325,14 +316,17 @@ export default function ProsjektkortSkjerm() {
           </View>
         )}
 
-        <ProsjektkortSamleside
+        <ProsjektkortDagsoversikt
+          sheetId={sheetId}
+          sedel={sedel}
           prosjektIder={s.kortIder}
-          timer={s.kortTimer}
-          maskin={s.kortMaskin}
+          timerRader={s.timerRader}
+          maskinRader={s.maskinRader}
           varer={s.kortVarer}
           utleggAntall={s.utleggAntall}
-          sedelByggeplassId={sedel.byggeplassId ?? null}
-          sedelStatus={sedel.status}
+          reiseLonnsartId={s.reiseLonnsartId}
+          harEquipmentCache={s.harEquipmentCache}
+          varelagerProsjekter={s.varelagerProsjekter}
           normTimer={s.normTimer}
           ramme={{
             fra: isoTidspunktTilHHMM(sedel.startAt),
@@ -348,13 +342,15 @@ export default function ProsjektkortSkjerm() {
           onEndreRamme={() => setVisRammeModal(true)}
           onEndreByggeplass={() => setVisByggeplassVelger(true)}
           onSend={s.sendTilAttestering}
+          onEndret={s.markerEndretOgLes}
+          onVarerLagret={s.markerEndretOgLes}
         />
 
         {s.feil && (
           <Text className="mx-4 mt-4 text-sm text-red-600">{s.feil}</Text>
         )}
 
-        {/* Send ligger i samlesiden; her kun gjenåpne og slett. */}
+        {/* Send ligger i dagsoversikten; her kun gjenåpne og slett. */}
         <View className="mx-4 mt-6 gap-2">
           {sedel.status === "sent" &&
             (kanGjenaapneDagsseddel(sedel.status, sedel.syncStatus) ? (

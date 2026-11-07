@@ -1,0 +1,86 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, it, expect } from "vitest";
+
+// ORDRE 36b (spec `dagsoversikt-beskrivelse-spec.md` § 2): dagsoversiktens
+// visuelle regler — ingen ikoner, bare grått/amber/hvitt, to skriftstørrelser
+// (text-sm/text-base) — og at Slett alltid går via bekreftelsen. Samlesidens
+// SummeringsBanner er erstattet av sum-kortet.
+
+const her = dirname(fileURLToPath(import.meta.url));
+const les = (...del: string[]) => readFileSync(join(her, ...del), "utf-8");
+const utenKommentarer = (s: string) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+
+const OVERSIKT = utenKommentarer(les("ProsjektkortDagsoversikt.tsx"));
+const HANDLINGER = utenKommentarer(les("RadHandlinger.tsx"));
+const SIDE = les("../../../../app/timer/[id]/prosjektkort.tsx");
+const KORT = les("../../../../app/timer/[id]/kort/[projectId].tsx");
+
+const IKONER = ["lucide", "Pencil", "Split", "Trash2"];
+/** Tailwind-fargeklasser som ikke er grå/amber/hvit. */
+const fremmedeFarger = (kilde: string) =>
+  [...kilde.matchAll(/\b(?:text|bg|border|border-l)-([a-z]+)-\d{2,3}\b/g)]
+    .map((m) => m[1])
+    .filter((f) => f !== "gray" && f !== "amber");
+const skriftbrudd = (kilde: string) => kilde.match(/text-xs|text-\[|text-lg|text-xl/g) ?? [];
+
+describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
+  it("negativkontroll: filene er lest og er de riktige", () => {
+    expect(OVERSIKT).toContain("export function ProsjektkortDagsoversikt");
+    expect(HANDLINGER).toContain("export function RadHandlinger");
+    expect(fremmedeFarger('className="text-blue-700"')).toEqual(["blue"]);
+    expect(skriftbrudd('className="text-xs"')).toEqual(["text-xs"]);
+  });
+
+  it.each(IKONER)("🔴 dagsoversikten og rad-handlingene bruker ikke «%s»", (ikon) => {
+    // Ordgrense: «SplittRadModal» er modalen, ikke lucide-ikonet «Split».
+    const ord = new RegExp(`\\b${ikon}\\b`);
+    expect(OVERSIKT).not.toMatch(ord);
+    expect(HANDLINGER).not.toMatch(ord);
+  });
+
+  it("🔴 dagsoversikten bruker bare grått, amber og hvitt", () => {
+    expect(fremmedeFarger(OVERSIKT)).toEqual([]);
+  });
+
+  it("🔴 to skriftstørrelser: ingen text-xs, text-[…], text-lg eller text-xl", () => {
+    expect(skriftbrudd(OVERSIKT)).toEqual([]);
+  });
+
+  it("🔴 Slett går via bekreftelsen — onSlett kalles kun fra bekreft-knappen", () => {
+    const flat = HANDLINGER.replace(/\s+/g, " ");
+    expect(flat.match(/handlinger\.onSlett\(\)/g)?.length).toBe(1);
+    expect(flat).not.toContain("onPress={handlinger.onSlett}");
+    expect(flat).toContain("onPress={() => setBekreft(true)}");
+    const bekreft = flat.slice(flat.indexOf("<Modal"));
+    expect(bekreft).toContain("setBekreft(false); handlinger.onSlett();");
+  });
+
+  it("🔴 samlesiden har ikke SummeringsBanner eller ProsjektkortSamleside; begge sider bruker dagsoversikten", () => {
+    expect(SIDE).not.toContain("SummeringsBanner");
+    expect(SIDE).not.toContain("ProsjektkortSamleside");
+    expect(SIDE).toContain("<ProsjektkortDagsoversikt");
+    expect(KORT).toContain("<ProsjektkortDagsoversikt");
+    expect(KORT).toMatch(/<ProsjektkortDagsoversikt\s+enkeltProsjekt/);
+  });
+
+  it("🔴 én skrivesti: kortskjermen bærer ikke ProsjektGruppe eller KortHode", () => {
+    expect(KORT).not.toContain("ProsjektGruppe");
+    expect(KORT).not.toContain("KortHode");
+  });
+
+  it("🔴 dagsoversikten skriver kun via radLagring (ingen db.insert/update/delete direkte)", () => {
+    expect(OVERSIKT).not.toMatch(/\.(insert|update|delete)\(/);
+    expect(OVERSIKT).toContain('from "./radLagring"');
+  });
+
+  it("negativkontroll: slett uten bekreftelse og blå klasse fanges", () => {
+    const direkte = HANDLINGER.replace("onPress={() => setBekreft(true)}", "onPress={handlinger.onSlett}");
+    expect(direkte.replace(/\s+/g, " ")).toContain("onPress={handlinger.onSlett}");
+    expect(fremmedeFarger(OVERSIKT.replace("text-gray-700", "text-blue-700"))).toEqual(["blue"]);
+    expect(`${OVERSIKT}\nimport { Trash2 } from "lucide-react-native";`).toMatch(/\bTrash2\b/);
+    expect("SplittRadModal").not.toMatch(/\bSplit\b/);
+  });
+});

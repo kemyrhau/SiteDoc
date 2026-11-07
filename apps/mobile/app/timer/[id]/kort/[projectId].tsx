@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../../../src/db/database";
@@ -16,19 +16,14 @@ import {
   byggeplassLocal,
 } from "../../../../src/db/schema";
 import { useTimerSync } from "../../../../src/providers/TimerSyncProvider";
-import { useAuth } from "../../../../src/providers/AuthProvider";
 import { useNettverk } from "../../../../src/providers/NettverkProvider";
 import { trpc } from "../../../../src/lib/trpc";
 import { TimerStatusMerkelapp } from "../../../../src/components/TimerStatusMerkelapp";
-import { ProsjektGruppe } from "../../../../src/components/timer-detalj/ProsjektGruppe";
+import { TilleggSeksjon } from "../../../../src/components/timer-detalj/TilleggSeksjon";
+import { UtleggSeksjon } from "../../../../src/components/timer-detalj/UtleggSeksjon";
 import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-detalj/BekreftFjernMatpauseModal";
-import { KortVareforbrukModal } from "../../../../src/components/timer-detalj/KortVareforbrukModal";
-import {
-  VareforbrukLesListe,
-  type VisVarelinje,
-} from "../../../../src/components/timer-detalj/VareforbrukLesListe";
-import { KortHode } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortSamleside";
-import { ProsjektkortKontekst } from "../../../../src/components/timer-detalj/prosjektkortKontekst";
+import type { VisVarelinje } from "../../../../src/components/timer-detalj/VareforbrukLesListe";
+import { ProsjektkortDagsoversikt } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
 import { finnProsjektLokalt } from "../../../../src/services/prosjektKatalog";
 import { hentReiseLonnsartId } from "../../../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../../../src/services/maskinKatalog";
@@ -37,7 +32,6 @@ import {
   hentLokaleVarelinjer,
   type LokalVarelinje,
 } from "../../../../src/services/vareforbrukSync";
-import { visVareforbrukKnapp } from "@sitedoc/shared";
 import {
   flyttMatpauseVedAvhuking,
   settMatpauseBaerer,
@@ -45,13 +39,8 @@ import {
 } from "../../../../src/services/matpause";
 import { useMiniToast, MiniToast } from "../../../../src/components/MiniToast";
 import { useReLesVedSynk } from "../../../../src/hooks/useReLesVedSynk";
-import { formatNorskDato } from "../../../../src/utils/dato";
-import {
-  tilKortMaskinRader,
-  tilKortTimerRader,
-  tilKortVarer,
-  varerForProsjekt,
-} from "../../../../src/lib/prosjektkortMobil";
+import { formatNorskDato, isoTidspunktTilHHMM } from "../../../../src/utils/dato";
+import { tilKortVarer, varerForProsjekt } from "../../../../src/lib/prosjektkortMobil";
 import type {
   Sedel,
   TimerRad,
@@ -85,10 +74,8 @@ export default function ProsjektkortSkjerm() {
   const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
   const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
-  const { bruker } = useAuth();
   const [lokaleVarer, setLokaleVarer] = useState<LokalVarelinje[]>([]);
   const [varelagerProsjekter, setVarelagerProsjekter] = useState<string[]>([]);
-  const [visVareModal, setVisVareModal] = useState(false);
 
   // Samme lesing som timer/[id] — alle dagens rader (overlapp og matpause
   // gjelder hele dagen); filtrering pr. prosjekt skjer ved visning.
@@ -171,8 +158,10 @@ export default function ProsjektkortSkjerm() {
     lesData();
   }, [sedel, sheetId, oppdaterTellere, triggerSync, lesData]);
 
-  // F5-matpausen er dag-nivå (kryss-kort), som på samlesiden.
-  const handterPauseToggle = useCallback(
+  // F5-matpausen er dag-nivå (kryss-kort). ORDRE 36b: dagsoversikten har ingen
+  // matpause-avkrysning pr. rad (rad-modalen avgjør bæreren) — kalleren er borte,
+  // funksjonen er beholdt (ikke slettet) og meldt i leveransen.
+  const _handterPauseToggle = useCallback(
     (radId: string, vilHa: boolean) => {
       if (!sedel) return;
       if (vilHa) {
@@ -220,11 +209,6 @@ export default function ProsjektkortSkjerm() {
       varerForProsjekt<VisVarelinje>(tilKortVarer(vareQuery.data ?? []), lokaleVarer, projectId),
     [vareQuery.data, lokaleVarer, projectId],
   );
-  const kanForeVare = visVareforbrukKnapp({
-    prosjektIderMedVarelager: varelagerProsjekter,
-    projectId,
-    erRedigerbar,
-  });
 
   const prosjektNavn = useMemo(() => {
     const p = finnProsjektLokalt(projectId);
@@ -282,18 +266,18 @@ export default function ProsjektkortSkjerm() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="pb-24">
-        <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
-          <KortHode
-            projectId={projectId}
-            navn={prosjektNavn}
-            timer={tilKortTimerRader(kTimer, sedel.projectId, reiseLonnsartId)}
-            maskin={tilKortMaskinRader(kMaskin, sedel.projectId)}
-            varer={varer}
-            utlegg={kUtlegg.length}
-            sedelByggeplassId={sedel.byggeplassId ?? null}
-            byggeplassNavn={byggeplassNavn}
-          />
-        </View>
+        {/* T.11: soft-varsel når arbeider mangler gyldig maskinførerbevis
+            (som maskinseksjonen viste det: kun når maskin er ført). */}
+        {harEquipmentCache && !harMaskinforerbevis && kMaskin.length > 0 && (
+          <View className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={14} color="#b45309" />
+              <Text className="flex-1 text-xs text-amber-800">
+                {t("timer.maskinforerbevis.arbeider")}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {tomt && erRedigerbar && (
           <Text className="mx-4 mt-3 text-sm text-gray-500">
@@ -301,47 +285,53 @@ export default function ProsjektkortSkjerm() {
           </Text>
         )}
 
-        {/* Arbeidstimer (ECO-bøtter, maskin som underpost), tillegg og utlegg —
-            samme komponent som dagskortet, med prosjektet låst. */}
-        <ProsjektkortKontekst.Provider value={true}>
-          <ProsjektGruppe
-            projectId={projectId}
-            visHeader={false}
-            sheetId={sheetId}
-            organizationId={sedel.organizationId}
-            sedelProjectId={sedel.projectId}
-            sedelByggeplassId={sedel.byggeplassId ?? null}
-            dato={sedel.dato}
-            pauseMin={sedel.pauseMin}
-            defaultAktivitetId={sedel.aktivitetId ?? null}
-            harEquipmentCache={harEquipmentCache}
-            harMaskinforerbevis={harMaskinforerbevis}
-            redigerbar={erRedigerbar}
-            onPauseToggle={handterPauseToggle}
-            timerRader={kTimer}
-            alleTimerRader={timerRader}
-            tilleggRader={kTillegg}
-            maskinRader={kMaskin}
-            utleggRader={kUtlegg}
-            onEndret={markerEndretOgLes}
-          />
-        </ProsjektkortKontekst.Provider>
+        {/* ORDRE 36b: kortet er dagsoversikten for ett prosjekt — linjene
+            åpner de delte rad-modalene, skriving via radLagring. */}
+        <ProsjektkortDagsoversikt
+          enkeltProsjekt
+          sheetId={sheetId}
+          sedel={sedel}
+          prosjektIder={[projectId]}
+          timerRader={timerRader}
+          maskinRader={maskinRader}
+          varer={varer}
+          utleggAntall={new Map([[projectId, kUtlegg.length]])}
+          reiseLonnsartId={reiseLonnsartId}
+          harEquipmentCache={harEquipmentCache}
+          varelagerProsjekter={varelagerProsjekter}
+          normTimer={null}
+          ramme={{
+            fra: isoTidspunktTilHHMM(sedel.startAt),
+            til: isoTidspunktTilHHMM(sedel.endAt),
+            pauseMin: sedel.pauseMin ?? 0,
+          }}
+          rammeByggeplassNavn={null}
+          prosjektNavn={() => prosjektNavn}
+          byggeplassNavn={byggeplassNavn}
+          redigerbar={erRedigerbar}
+          onEndret={markerEndretOgLes}
+          onVarerLagret={() => {
+            lesData();
+            void triggerSync();
+          }}
+        />
 
-        {/* Vareforbruk (L3): føres fra kortet med prosjektet låst. */}
-        {(varer.length > 0 || kanForeVare) && (
-          <VareforbrukLesListe varer={varer}>
-            {kanForeVare && (
-              <Pressable
-                onPress={() => setVisVareModal(true)}
-                className="mt-2 self-start rounded-lg border border-blue-700 px-3 py-2 active:bg-blue-50"
-              >
-                <Text className="text-sm font-medium text-blue-700">
-                  {t("timer.prosjektkort.nyVare")}
-                </Text>
-              </Pressable>
-            )}
-          </VareforbrukLesListe>
-        )}
+        <TilleggSeksjon
+          sheetId={sheetId}
+          organizationId={sedel.organizationId}
+          projectId={projectId}
+          rader={kTillegg}
+          redigerbar={erRedigerbar}
+          onEndret={markerEndretOgLes}
+        />
+        <UtleggSeksjon
+          sheetId={sheetId}
+          organizationId={sedel.organizationId}
+          projectId={projectId}
+          rader={kUtlegg}
+          redigerbar={erRedigerbar}
+          onEndret={markerEndretOgLes}
+        />
       </ScrollView>
 
       <BekreftFjernMatpauseModal
@@ -349,25 +339,6 @@ export default function ProsjektkortSkjerm() {
         onAvbryt={() => setBekreftFjernRadId(null)}
         onBekreft={bekreftFjernMatpause}
       />
-
-      {bruker?.id && (
-        <KortVareforbrukModal
-          synlig={visVareModal}
-          userId={bruker.id}
-          organizationId={sedel.organizationId}
-          sheetId={sheetId}
-          projectId={projectId}
-          prosjektNavn={prosjektNavn}
-          dato={sedel.dato}
-          sedelByggeplassId={sedel.byggeplassId ?? null}
-          onAvbryt={() => setVisVareModal(false)}
-          onLagret={() => {
-            setVisVareModal(false);
-            lesData();
-            void triggerSync();
-          }}
-        />
-      )}
 
       <MiniToast melding={pauseToast} />
     </View>

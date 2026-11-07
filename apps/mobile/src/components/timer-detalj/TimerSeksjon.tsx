@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { TastaturScrollView } from "./TastaturScrollView";
+import { RadHandlinger, type RadHandlingerProps } from "./prosjektkort/RadHandlinger";
 // eslint-disable-next-line no-restricted-imports -- pageSheet (5 modaler i fila; ProsjektByggeplassVelgerModal direkte simulator-målt 2026-08-31): SafeAreaView anvender arkets egen topp-inset (~10 pt), X truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -1032,6 +1033,8 @@ export function TimerRadModal({
   tvungetValg,
   sedelByggeplassId,
   opprettelse,
+  handlinger,
+  fokusBeskrivelse = false,
   onLagre,
   onLukk,
 }: {
@@ -1063,6 +1066,12 @@ export function TimerRadModal({
   sedelByggeplassId: string | null;
   /** Satt = opprettelsesmodus fra «+» (datofelt øverst, prosjekt byttbart). */
   opprettelse?: TimerRadOpprettelse;
+  /** ORDRE 36b: «Del opp»/«Slett» — kun fra prosjektkort-flyten. Udefinert
+   *  (dagskortet) = ingen knapper, modalen som før. */
+  handlinger?: RadHandlingerProps;
+  /** ORDRE 36b: dagsoversiktens «Beskrivelse»/«Mangler» åpner med fokus i
+   *  beskrivelsesfeltet. Standard false = som før. */
+  fokusBeskrivelse?: boolean;
   onLagre: (
     projectId: string,
     byggeplassId: string | null,
@@ -1801,6 +1810,7 @@ export function TimerRadModal({
             <TextInput
               value={beskrivelse}
               onChangeText={setBeskrivelse}
+              autoFocus={fokusBeskrivelse}
               placeholder={t("timer.radBeskrivelsePlaceholder")}
               multiline
               numberOfLines={3}
@@ -1932,6 +1942,7 @@ export function TimerRadModal({
               </Text>
             </Pressable>
           </KnappMedForklaring>
+          {handlinger && <RadHandlinger handlinger={handlinger} />}
           </>
           )}
         </TastaturScrollView>
@@ -2328,7 +2339,7 @@ export function UnderprosjektVelgerModal({
  * favoritter → resten. INGEN GPS-tier — GPS-kontekst lever kun på sedel-nivå
  * («Start dag»); rad-modalen har ingen GPS-kontekst → `gpsForeslagId` utelates.
  */
-function ProsjektByggeplassVelgerModal({
+export function ProsjektByggeplassVelgerModal({
   organizationId,
   valgtProjectId,
   valgtByggeplassId,

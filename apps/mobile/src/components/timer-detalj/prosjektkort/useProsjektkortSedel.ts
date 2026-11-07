@@ -56,6 +56,8 @@ import {
 } from "../../../lib/forsoningSpeil";
 import { useReLesVedSynk } from "../../../hooks/useReLesVedSynk";
 import { useFirma } from "../../../kontekst/FirmaKontekst";
+import { hentEquipmentLokalt } from "../../../services/maskinKatalog";
+import { hentVarelagerProsjekterLokalt } from "../../../services/vareKatalog";
 
 // ORDRE 35 (I2): prosjektkortets datalag. Dette er en KOPI av logikken i
 // `app/timer/[id].tsx` (dagskortet) — lesing, synk, konflikt/forsoning, norm,
@@ -441,6 +443,23 @@ export function useProsjektkortSedel(sheetId: string) {
   );
   const serverVarer = useMemo(() => tilKortVarer(vareQuery.data ?? []), [vareQuery.data]);
   const lokaleVarer = useMemo(() => (sedel ? hentLokaleVarelinjer(sedel.id) : []), [sedel]);
+  // ORDRE 36b: dagsoversikten avgjør Maskin-/Varer-linjene (P1/P2) lokalt.
+  const harEquipmentCache = useMemo(
+    () => (orgId ? hentEquipmentLokalt(orgId).length > 0 : false),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orgId, sistSynkronisert],
+  );
+  const [varelagerProsjekter, setVarelagerProsjekter] = useState<string[]>([]);
+  useEffect(() => {
+    if (!orgId) return;
+    let aktiv = true;
+    void hentVarelagerProsjekterLokalt(orgId).then((ider) => {
+      if (aktiv) setVarelagerProsjekter(ider);
+    });
+    return () => {
+      aktiv = false;
+    };
+  }, [orgId, sistSynkronisert]);
   const kortVarer = useMemo(
     () => slaaSammenVarelinjer<VisVarelinje>(serverVarer, lokaleVarer),
     [serverVarer, lokaleVarer],
@@ -690,6 +709,10 @@ export function useProsjektkortSedel(sheetId: string) {
     kortIder,
     utleggAntall,
     kortVarer,
+    maskinRader,
+    reiseLonnsartId,
+    harEquipmentCache,
+    varelagerProsjekter,
     byggeplassNavn,
     prosjektNavn,
     byggeplassInfo,

@@ -647,6 +647,36 @@ Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskort
 - **Dagskort-vakt:** `dagskort-isolert-vakt.test.ts` krever at `[id].tsx` ikke importerer prosjektkort-komponentene, har nøyaktig én `<Redirect` i `if (kortModus)`, og fryser JSX-taggsekvensen (SHA-256) — endret dagskort-markup gir rødt.
 - `ProsjektkortSamleside.tsx` er flyttet til `src/components/timer-detalj/prosjektkort/`. `kortIder` og `kortProsjektIder` står igjen i `[id].tsx` fordi `ProsjektVelgerModal`-linja (`ekskluderIder={kortModus ? kortIder : aktiveProsjektIder}`) ikke er rørt.
 
+### Dagsoversikt i prosjektkort-modus (ORDRE 36b) — 🟡 `feat/dagsoversikt-36b` (2026-11-07, ikke merget)
+
+Spec: `dagsoversikt-beskrivelse-spec.md` § 2.1–2.4. Samlesiden (`app/timer/[id]/prosjektkort.tsx`) og kortskjermen (`app/timer/[id]/kort/[projectId].tsx`) bruker samme komponent, `src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx`. Kortskjermen sender `enkeltProsjekt`, som skjuler navneraden, sum-kortet, Send og «+ Nytt prosjektkort», og viser «+ Timer».
+
+- **Linjene per prosjekt:** Arbeid (segmenter, med overtid som underlinje), Reise, Maskin og Varer, Utlegg og Beskrivelse/«Mangler». Regelen bor i `src/utils/dagsoversikt.ts` (`linjerForProsjekt`, `statusOrd`, `dagsoversiktSum`).
+  - Maskin vises når firmaet har utstyr i cache ELLER maskin er ført.
+  - Varer vises når prosjektet har varelager ELLER varer er ført.
+  - «Mangler» betyr arbeid > 0 uten beskrivelse på noen arbeidsrad (K3).
+  - Sum-kortet har «Sum i dag», ramme og byggeplass, et statusord med ● og Send.
+- **Farger og stil:** kun grått og amber. Skriften er lik for alle linjer, og det brukes ingen ikoner. Slett går alltid via bekreftelse (`RadHandlinger.tsx`). Kildevakt: `dagsoversikt-kilde-vakt.test.ts`.
+- **Redigering:** én skrivesti via `prosjektkort/radLagring.ts` (lagring C, `db` sprøytes inn):
+  - `leggTilTimerRad`, `oppdaterTimerRad`, `hurtigVelgTimerRad`, `fjernTimerRad`
+  - `oppdaterMaskinRad`, `fjernMaskinRad`
+
+  Modalene `TimerRadModal`, `MaskinRadModal`, `SplittRadModal`, `ProsjektByggeplassVelgerModal` og `KortVareforbrukModal` er delt med dagskortet.
+  - `handlinger?` («Del opp»/«Slett») og `fokusBeskrivelse` er av som default, så dagskortet ser modalene som før.
+  - Vakt: `dagskort-isolert-vakt.test.ts` § ORDRE 36b.
+  - Hurtigvelg (bytte byggeplass/prosjekt) åpnes fra byggeplassnavnet på arbeidssegmentet når prosjektet har flere byggeplasser.
+- **To kopier av skrivesemantikk:** timer- og maskinradenes skriving finnes både i dagskortets `TimerSeksjon.tsx`/`MaskinSeksjon.tsx` (urørt) og i `radLagring.ts`. **En fiks i den ene skal vurderes i den andre.** Vakten `radLagring-glue-vakt.test.ts` gjør to sjekker:
+  - Den sammenligner nøkkelsettet i alle `.set`/`.values`.
+  - Den teller 21 tokens og 11 hurtigvelg-tokens i begge kopiene.
+
+  Vakten feiler ved ett endret token, og har negativkontroll.
+- **Atferdsendringer på kortskjermen:**
+  - Matpause-avkrysningen per rad har ingen inngang (`_handterPauseToggle`).
+  - Maskin-tak vises per prosjekt i stedet for ECO-bøtter.
+  - Varer-linjen erstatter «+ Ny vare» og `VareforbrukLesListe`.
+  - Tillegg og Utlegg står som egne seksjoner.
+  - `ProsjektkortSamleside.tsx` har ingen kallere, men er beholdt.
+
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 
 Timer er en **firmamodul**: data eies av firma + arbeider, med `projectId` som etikett på radene. Isolasjonen er på **organisasjon (firma)**, ikke prosjekt-medlemskap (jf. to-produkt-modellen i [terminologi.md § 0](terminologi.md) og OPPSUMMERING-timer-arkitektur § D/G1).

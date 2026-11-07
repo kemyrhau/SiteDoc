@@ -5389,5 +5389,17 @@
   "lokasjonVelger.forslagSistBrukt": "Last used",
   "lokasjonVelger.kart": "Map",
   "lokasjonVelger.ingenTegningEllerKart": "The project has no drawing or map to place a position on.",
-  "lokasjonVelger.ingenTegningValgt": "No drawing selected. Choose a drawing or map to mark a position."
+  "lokasjonVelger.ingenTegningValgt": "No drawing selected. Choose a drawing or map to mark a position.",
+  "timer.dagsoversikt.sumIDag": "Total today",
+  "timer.dagsoversikt.normRamme": "Norm {{norm}} h · frame {{fra}}–{{til}} · break {{pause}} min",
+  "timer.dagsoversikt.ikkeSendt": "Not sent",
+  "timer.dagsoversikt.sendt": "Sent",
+  "timer.dagsoversikt.returnert": "Returned",
+  "timer.dagsoversikt.attestert": "Approved {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Description",
+  "timer.dagsoversikt.mangler": "Missing",
+  "timer.dagsoversikt.overtid": "overtime {{prosent}} % from {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.delOpp": "Split the row",
+  "timer.dagsoversikt.slettRad": "Delete the row",
+  "timer.dagsoversikt.slettRadBekreft": "Delete the row?"
 }

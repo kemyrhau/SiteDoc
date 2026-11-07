@@ -5389,5 +5389,17 @@
   "lokasjonVelger.forslagSistBrukt": "Dernière utilisation",
   "lokasjonVelger.kart": "Carte",
   "lokasjonVelger.ingenTegningEllerKart": "Le projet n'a pas de dessin ou de carte sur lequel placer une position.",
-  "lokasjonVelger.ingenTegningValgt": "Aucun dessin sélectionné. Choisissez un dessin ou une carte pour marquer une position."
+  "lokasjonVelger.ingenTegningValgt": "Aucun dessin sélectionné. Choisissez un dessin ou une carte pour marquer une position.",
+  "timer.dagsoversikt.sumIDag": "Total aujourd'hui",
+  "timer.dagsoversikt.normRamme": "Norme {{norm}} h · cadre {{fra}}–{{til}} · pause {{pause}} min",
+  "timer.dagsoversikt.ikkeSendt": "Non envoyé",
+  "timer.dagsoversikt.sendt": "Envoyée",
+  "timer.dagsoversikt.returnert": "Retourné",
+  "timer.dagsoversikt.attestert": "Approuvé {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Description",
+  "timer.dagsoversikt.mangler": "Manquante",
+  "timer.dagsoversikt.overtid": "heures supplémentaires {{prosent}} % de {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.delOpp": "Diviser la ligne",
+  "timer.dagsoversikt.slettRad": "Supprimer la ligne",
+  "timer.dagsoversikt.slettRadBekreft": "Supprimer la ligne ?"
 }

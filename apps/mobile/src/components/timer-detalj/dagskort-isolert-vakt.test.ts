@@ -173,3 +173,61 @@ describe("ORDRE 36a — beskrivelsessperren rører ikke dagskortet", () => {
     },
   );
 });
+
+// ORDRE 36b — «Del opp»/«Slett» og beskrivelse-fokus i rad-modalene er
+// prosjektkort-flytens. Standard = dagens atferd (ingen handlinger, ingen
+// autofokus), og dagskortets seksjoner sender dem aldri.
+const TIMER_SEKSJON = les("TimerSeksjon.tsx");
+const GRUPPE = les("ProsjektGruppe.tsx");
+const DAGSOVERSIKT_PROPS = ["handlinger=", "fokusBeskrivelse="];
+
+/** Alle `<Tagg … />`-åpninger i kilden (til første `/>` eller `>` på toppnivå). */
+function tagger(kilde: string, navn: string): string[] {
+  const ut: string[] = [];
+  let i = kilde.indexOf(`<${navn}`);
+  while (i >= 0) {
+    ut.push(kilde.slice(i, kilde.indexOf("/>", i)));
+    i = kilde.indexOf(`<${navn}`, i + 1);
+  }
+  return ut;
+}
+
+describe("ORDRE 36b — rad-modalenes nye props rører ikke dagskortet", () => {
+  it("negativkontroll: modal-taggene finnes i seksjonene", () => {
+    expect(tagger(TIMER_SEKSJON, "TimerRadModal").length).toBeGreaterThan(0);
+    expect(tagger(MASKIN, "MaskinRadModal").length).toBeGreaterThan(0);
+  });
+
+  it.each(DAGSOVERSIKT_PROPS)("🔴 seksjonenes egne modal-kall sender ikke «%s»", (prop) => {
+    for (const tagg of [...tagger(TIMER_SEKSJON, "TimerRadModal"), ...tagger(MASKIN, "MaskinRadModal")]) {
+      expect(tagg).not.toContain(prop);
+    }
+  });
+
+  it.each(["handlinger", "fokusBeskrivelse", "RadHandlinger", "ProsjektkortDagsoversikt"])(
+    "🔴 dagskortet og ProsjektGruppe inneholder ikke «%s»",
+    (navn) => {
+      expect(DAGSKORT).not.toContain(navn);
+      expect(GRUPPE).not.toContain(navn);
+    },
+  );
+
+  it("🔴 standardverdiene er dagens atferd", () => {
+    expect(TIMER_SEKSJON).toContain("fokusBeskrivelse = false,");
+    expect(TIMER_SEKSJON).toContain("handlinger?: RadHandlingerProps;");
+    expect(MASKIN).toContain("handlinger?: RadHandlingerProps;");
+    // RadHandlinger rendres kun når handlinger er sendt.
+    for (const kilde of [TIMER_SEKSJON, MASKIN]) {
+      expect(kilde.match(/<RadHandlinger/g)?.length).toBe(1);
+      expect(kilde).toContain("{handlinger && <RadHandlinger handlinger={handlinger} />}");
+    }
+  });
+
+  it("negativkontroll: et dagskort-kall med handlinger eller snudd standard fanges", () => {
+    const mutant = TIMER_SEKSJON.replace("<TimerRadModal", "<TimerRadModal handlinger={x}");
+    expect(tagger(mutant, "TimerRadModal").some((t) => t.includes("handlinger="))).toBe(true);
+    expect(TIMER_SEKSJON.replace("fokusBeskrivelse = false,", "fokusBeskrivelse = true,")).not.toContain(
+      "fokusBeskrivelse = false,",
+    );
+  });
+});

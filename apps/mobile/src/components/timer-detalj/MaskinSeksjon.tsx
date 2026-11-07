@@ -56,6 +56,7 @@ import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { SplittRadModal } from "./SplittRadModal";
+import { RadHandlinger, type RadHandlingerProps } from "./prosjektkort/RadHandlinger";
 import { useAuth } from "../../providers/AuthProvider";
 import { sistBrukteMaskiner } from "../../services/nyTimerRad";
 
@@ -433,7 +434,7 @@ function MaskinRadVis({
   );
 }
 
-function MaskinRadModal({
+export function MaskinRadModal({
   sheetId,
   organizationId,
   defaultProjectId,
@@ -441,6 +442,7 @@ function MaskinRadModal({
   dato,
   pauseMin,
   eksisterendeRad,
+  handlinger,
   onLagre,
   onLukk,
 }: {
@@ -451,6 +453,9 @@ function MaskinRadModal({
   dato: string;
   pauseMin: number;
   eksisterendeRad: MaskinRad | null;
+  /** ORDRE 36b: «Del opp»/«Slett» — kun fra prosjektkort-flyten. Udefinert
+   *  (dagskortet) = ingen knapper, modalen som før. */
+  handlinger?: RadHandlingerProps;
   onLagre: (
     projectId: string,
     ecoId: string | null,
@@ -903,6 +908,7 @@ function MaskinRadModal({
               {t("handling.lagre")}
             </Text>
           </Pressable>
+          {handlinger && <RadHandlinger handlinger={handlinger} />}
         </TastaturScrollView>
         <TastaturFerdig />
 

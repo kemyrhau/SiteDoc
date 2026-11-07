@@ -5389,5 +5389,17 @@
   "lokasjonVelger.forslagSistBrukt": "Pēdējo reizi lietots",
   "lokasjonVelger.kart": "Karte",
   "lokasjonVelger.ingenTegningEllerKart": "Projektam nav zīmējuma vai kartes, kur novietot pozīciju.",
-  "lokasjonVelger.ingenTegningValgt": "Nav atlasīts neviens zīmējums. Izvēlieties zīmējumu vai karti, lai atzīmētu pozīciju."
+  "lokasjonVelger.ingenTegningValgt": "Nav atlasīts neviens zīmējums. Izvēlieties zīmējumu vai karti, lai atzīmētu pozīciju.",
+  "timer.dagsoversikt.sumIDag": "Kopā šodien",
+  "timer.dagsoversikt.normRamme": "Norma {{norm}} h · kadrs {{fra}}–{{til}} · pārtraukums {{pause}} min",
+  "timer.dagsoversikt.ikkeSendt": "Nav nosūtīts",
+  "timer.dagsoversikt.sendt": "Nosūtīts",
+  "timer.dagsoversikt.returnert": "Atgriezās",
+  "timer.dagsoversikt.attestert": "Apstiprināts {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Apraksts",
+  "timer.dagsoversikt.mangler": "Trūkst",
+  "timer.dagsoversikt.overtid": "virsstundas {{prosent}} % no {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.delOpp": "Sadaliet rindu",
+  "timer.dagsoversikt.slettRad": "Dzēst rindu",
+  "timer.dagsoversikt.slettRadBekreft": "Vai dzēst rindu?"
 }
