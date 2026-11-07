@@ -411,6 +411,33 @@ export function stegOvertidFra(
   return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/**
+ * ORDRE 35 (RETUR 1a): rettingen «Legg til overtid» gir — overtid fra
+ * arbeidsstart. Finnes ikke firmaets standardnivå (50 %), velges første
+ * nivå-valg, ellers ville radene droppes som «mangler lønnsart».
+ */
+export function leggTilOvertidRetting(
+  fra: string,
+  alleLonnsarter: DagsforslagLonnsart[],
+  overtidValg: Array<{ id: string }>,
+): DagsforslagRettingDato {
+  const forste = overtidValg[0];
+  if (velgOvertidLonnsart(alleLonnsarter, OVERTID_NIVAA_50) || !forste) return { overtidFra: fra };
+  return { overtidFra: fra, overtidLonnsartId: forste.id };
+}
+
+/**
+ * ORDRE 35 (RETUR 1b): overtid-starten editoren viser — fra radene, ellers
+ * arbeiderens retting. Editoren og nivå-valget er da tilgjengelige også når
+ * ingen overtidsrad ble laget (nivået finnes ikke).
+ */
+export function overtidEditorFra(
+  forsteOtFra: string | null | undefined,
+  rettetOvertidFra: string | undefined,
+): string | null {
+  return forsteOtFra ?? rettetOvertidFra ?? null;
+}
+
 /** ORDRE 34 pkt 4: arbeiderens overtid-lønnsart — kun med overtidsnivå, aktiv. */
 export function godtattOvertidLonnsart(
   lonnsarter: DagsforslagLonnsart[],

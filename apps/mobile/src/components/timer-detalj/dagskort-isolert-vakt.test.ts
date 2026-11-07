@@ -75,6 +75,16 @@ describe("ORDRE 35 — prosjektkortet er flyttet ut av dagskortet", () => {
     },
   );
 
+  it("🔴 Redirect bærer aapnetEksisterende videre (notisen «dagen finnes» overlever)", () => {
+    const flat = DAGSKORT.replace(/\s+/g, " ");
+    const i = flat.indexOf('pathname: "/timer/[id]/prosjektkort"');
+    expect(i).toBeGreaterThan(0);
+    const blokk = flat.slice(i, flat.indexOf("/>", i));
+    expect(blokk).toContain(
+      "...(params.aapnetEksisterende ? { aapnetEksisterende: params.aapnetEksisterende } : {})",
+    );
+  });
+
   it("🔴 nøyaktig én Redirect, og den er styrt av kortModus mot prosjektkort-ruten", () => {
     expect(DAGSKORT.match(/<Redirect/g)?.length).toBe(1);
     const flat = DAGSKORT.replace(/\s+/g, " ");

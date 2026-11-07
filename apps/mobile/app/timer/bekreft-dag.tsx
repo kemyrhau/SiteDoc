@@ -45,12 +45,17 @@ import {
   type BekreftDagTillegg,
 } from "../../src/utils/bekreftDagTillegg";
 import { BekreftDagTilleggSeksjon } from "../../src/components/timer-detalj/BekreftDagTilleggSeksjon";
-import { stegOvertidFra } from "../../src/utils/dagsforslag";
+import {
+  leggTilOvertidRetting,
+  overtidEditorFra,
+  stegOvertidFra,
+} from "../../src/utils/dagsforslag";
 import type {
   DagsforslagRetting,
   DagsforslagRettingDato,
   DagsforslagDag,
   DagsforslagRad,
+  DagsforslagLonnsart,
 } from "../../src/utils/dagsforslag";
 
 /**
@@ -498,6 +503,8 @@ export default function BekreftDagSkjerm() {
                 fjernet={retting.perDato?.[d.dato]?.fjernArbeid === true}
                 otNivaa={otNivaa}
                 overtidValg={overtidValg}
+                alleLonnsarter={input.alleLonnsarter}
+                rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}
                 tidsrunding={input.regel?.tidsrundingMinutter ?? null}
                 onRett={(endring) => rettDato(d.dato, endring)}
               />
@@ -606,6 +613,8 @@ function DatoKort({
   fjernet,
   otNivaa,
   overtidValg,
+  alleLonnsarter,
+  rettetOvertidFra,
   tidsrunding,
   onRett,
 }: {
@@ -614,6 +623,8 @@ function DatoKort({
   fjernet: boolean;
   otNivaa: Map<string, number | null>;
   overtidValg: Array<{ id: string; navn: string }>;
+  alleLonnsarter: DagsforslagLonnsart[];
+  rettetOvertidFra: string | undefined;
   tidsrunding: number | null;
   onRett: (endring: DagsforslagRettingDato) => void;
 }) {
@@ -624,6 +635,7 @@ function DatoKort({
   const retur = dag.rader.find((r) => r.erReise && r.reiseRetning === "retur");
   const arbeidTimer = arbeid.reduce((s, r) => s + r.timer, 0);
   const forsteOt = arbeid.find((r) => otNivaa.get(r.lonnsartId) != null);
+  const otFra = overtidEditorFra(forsteOt?.fraTid, rettetOvertidFra);
   // Fra/til vises fra radene; ved «fjernet» fra arbeidsvinduet mellom reisene.
   const fra = arbeid[0]?.fraTid ?? ut?.tilTid ?? tilHHMM(dag.segmentStartIso);
   const til = arbeid[arbeid.length - 1]?.tilTid ?? retur?.fraTid ?? tilHHMM(dag.segmentSluttIso);
@@ -673,11 +685,11 @@ function DatoKort({
             </Pressable>
           ) : null}
           {/* ORDRE 35 del B: ingen overtid ennå → start den fra arbeidsstart; samme motor
-              (segmenterVedOvertidFra), nivå faller tilbake til OT50 til et chip velges. */}
+              (segmenterVedOvertidFra). Uten OT50 velges første nivå (leggTilOvertidRetting). */}
           {!forsteOt && overtidValg.length > 0 ? (
             <Pressable
               onPress={() => {
-                onRett({ overtidFra: fra });
+                onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));
                 setRedigerOvertid(true);
               }}
               hitSlop={8}
@@ -689,24 +701,24 @@ function DatoKort({
               </Text>
             </Pressable>
           ) : null}
-          {redigerOvertid && forsteOt?.fraTid ? (
+          {redigerOvertid && otFra ? (
             <View className="gap-2 rounded-md border border-amber-200 bg-white p-2">
               <View className="flex-row items-center justify-between">
                 <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidFra")}</Text>
                 <View className="flex-row items-center gap-3">
                   <Pressable
                     onPress={() =>
-                      onRett({ overtidFra: stegOvertidFra(forsteOt.fraTid!, -1, fra, til, tidsrunding) })
+                      onRett({ overtidFra: stegOvertidFra(otFra, -1, fra, til, tidsrunding) })
                     }
                     hitSlop={8}
                     className="rounded-full border border-gray-300 p-1"
                   >
                     <Minus size={16} color="#374151" />
                   </Pressable>
-                  <Text className="w-16 text-center text-sm text-gray-900">{forsteOt.fraTid}</Text>
+                  <Text className="w-16 text-center text-sm text-gray-900">{otFra}</Text>
                   <Pressable
                     onPress={() =>
-                      onRett({ overtidFra: stegOvertidFra(forsteOt.fraTid!, 1, fra, til, tidsrunding) })
+                      onRett({ overtidFra: stegOvertidFra(otFra, 1, fra, til, tidsrunding) })
                     }
                     hitSlop={8}
                     className="rounded-full border border-gray-300 p-1"
@@ -718,7 +730,7 @@ function DatoKort({
               <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidNivaa")}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {overtidValg.map((l) => {
-                  const valgt = l.id === forsteOt.lonnsartId;
+                  const valgt = l.id === forsteOt?.lonnsartId;
                   return (
                     <Pressable
                       key={l.id}

@@ -71,6 +71,15 @@ describe("ORDRE 35 — to kopier av glue kaller samme service-funksjoner", () =>
     expect(avvik(DAGSKORT, kommentert)).toEqual(["byggForsonOverlappKall("]);
   });
 
+  it("🔴 prosjektkort-skjermen viser «dagen finnes»-notisen fra aapnetEksisterende", () => {
+    const flat = SKJERM.replace(/\s+/g, " ");
+    expect(flat).toContain("useLocalSearchParams<{ id: string; aapnetEksisterende?: string }>()");
+    expect(flat).toContain('const [visAapnetNotis, setVisAapnetNotis] = useState( params.aapnetEksisterende === "1", );');
+    const i = flat.indexOf("{visAapnetNotis && (");
+    expect(i).toBeGreaterThan(0);
+    expect(flat.slice(i, i + 400)).toContain('t("timer.dagFinnes.notis")');
+  });
+
   it("🔴 prosjektkort-skjermen bruker hooken og sender tilbake når ikke kortmodus", () => {
     expect(SKJERM).toContain("useProsjektkortSedel(sheetId)");
     const flat = SKJERM.replace(/\s+/g, " ");

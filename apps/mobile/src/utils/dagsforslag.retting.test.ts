@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
+  leggTilOvertidRetting,
+  overtidEditorFra,
   stegOvertidFra,
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
@@ -299,7 +301,60 @@ describe("ORDRE 35 del B — «Legg til overtid» i Bekreft dag", () => {
     expect(i).toBeGreaterThan(0);
     const knapp = flat.slice(flat.lastIndexOf("{!forsteOt", i), i);
     expect(knapp).toContain("{!forsteOt && overtidValg.length > 0 ? (");
-    expect(knapp).toContain("onRett({ overtidFra: fra });");
+    expect(knapp).toContain("onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));");
     expect(knapp).toContain("setRedigerOvertid(true);");
+  });
+});
+
+describe("ORDRE 35 RETUR 1 — firma med OT100 uten OT50", () => {
+  const L_OT100 = "L-ot100";
+  const kunOt100 = [
+    { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+    { id: L_OT100, overtidsnivaa: 100, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+  ];
+  const overtidValg = [{ id: L_OT100 }];
+  const kort = { sluttIso: "2026-07-01T15:30:00", alleLonnsarter: kunOt100 };
+
+  it("🔴 (a) «Legg til overtid» velger første nivå når OT50 mangler", () => {
+    expect(leggTilOvertidRetting("07:00", kunOt100, overtidValg)).toEqual({
+      overtidFra: "07:00",
+      overtidLonnsartId: L_OT100,
+    });
+    const f = beregnDagsforslag(
+      lagInput({
+        ...kort,
+        retting: { perDato: { "2026-07-01": leggTilOvertidRetting("07:00", kunOt100, overtidValg) } },
+      }),
+    );
+    const rader = arbeid(f);
+    expect(rader.length).toBeGreaterThan(0);
+    expect(rader.every((r) => r.lonnsartId === L_OT100)).toBe(true);
+    expect(sum(rader)).toBe(6);
+    expect(f.datoer[0].raderDroppetUtenLonnsart).toBe(0);
+  });
+
+  it("negativkontroll: uten nivå-valget droppes arbeidet (fella som ble rettet)", () => {
+    const f = beregnDagsforslag(
+      lagInput({ ...kort, retting: { perDato: { "2026-07-01": { overtidFra: "07:00" } } } }),
+    );
+    expect(arbeid(f)).toHaveLength(0);
+    expect(f.datoer[0].raderDroppetUtenLonnsart).toBeGreaterThan(0);
+  });
+
+  it("med OT50 settes ikke nivå — standardvalget gjelder som før", () => {
+    const medOt50 = lagInput().alleLonnsarter;
+    expect(leggTilOvertidRetting("07:00", medOt50, [{ id: L_OT50 }])).toEqual({ overtidFra: "07:00" });
+  });
+
+  it("🔴 (b) editoren får overtid-start fra rettingen når ingen overtidsrad finnes", () => {
+    expect(overtidEditorFra(undefined, "07:00")).toBe("07:00");
+    expect(overtidEditorFra("16:00", "07:00")).toBe("16:00");
+    expect(overtidEditorFra(null, undefined)).toBeNull();
+    const her = dirname(fileURLToPath(import.meta.url));
+    const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
+    expect(flat).toContain("const otFra = overtidEditorFra(forsteOt?.fraTid, rettetOvertidFra);");
+    expect(flat).toContain("{redigerOvertid && otFra ? (");
+    expect(flat).toContain("rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}");
+    expect(flat).not.toContain("redigerOvertid && forsteOt");
   });
 });
