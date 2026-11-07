@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  type TextInput,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Car, Minus, Plus, Trash2, Undo2 } from "lucide-react-native";
@@ -36,7 +37,12 @@ import {
   avsluttDagUtenSedel,
   erTomtForslag,
   erAlleDatoerSendt,
+  manglerBeskrivelse,
+  prosjekterMedArbeid,
+  flyttBeskrivelse,
 } from "../../src/utils/bekreftDag";
+import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
+import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
 import {
   vaktGrunnlag,
   entydigByggeplass,
@@ -118,6 +124,11 @@ export default function BekreftDagSkjerm() {
   const [lagrer, setLagrer] = useState(false);
   // L3-D: maskin og varer holdes i minnet til Bekreft (spec § 3.5).
   const [tillegg, setTillegg] = useState<BekreftDagTillegg>({ maskiner: [], varer: [] });
+  // ORDRE 36a: feltet er nøytralt til første Bekreft-forsøk med tom beskrivelse.
+  const [forsoktBekreft, setForsoktBekreft] = useState(false);
+  const rulleRef = useRef<ScrollView>(null);
+  const beskrivelseFelt = useRef(new Map<string, TextInput>());
+  const beskrivelseY = useRef(new Map<string, number>());
 
   // Ikke ansatt → ingen sedel. Fersk kontekst først, ellers sist lagrede svar.
   useEffect(() => {
@@ -191,6 +202,39 @@ export default function BekreftDagSkjerm() {
       .all();
   }, [orgId]);
   const prosjektId = beregnet?.forslag.prosjektId ?? null;
+
+  // ORDRE 36a: ett beskrivelsesfelt pr. prosjekt med arbeid; chips fra lokal DB.
+  const arbeidProsjekter = useMemo(
+    () => (beregnet ? prosjekterMedArbeid(beregnet.forslag) : []),
+    [beregnet],
+  );
+  const chipDato = beregnet?.forslag.datoer[0]?.dato ?? null;
+  const aktivitetIdForChip = beregnet?.forslag.aktivitetId ?? null;
+  const beskrivelseChipsPerProsjekt = useMemo(() => {
+    const db = hentDatabase();
+    const ut = new Map<string, string[]>();
+    if (!db || !bruker?.id || !chipDato) return ut;
+    const aktivitet = aktiviteter.find((a) => a.id === aktivitetIdForChip)?.navn ?? null;
+    for (const p of arbeidProsjekter) {
+      const siste = sisteBeskrivelser(db, { userId: bruker.id, projectId: p, dato: chipDato });
+      ut.set(p, beskrivelseChips(siste, aktivitet));
+    }
+    return ut;
+  }, [arbeidProsjekter, bruker?.id, chipDato, aktiviteter, aktivitetIdForChip]);
+
+  const settBeskrivelse = useCallback((projectId: string, tekst: string) => {
+    setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [projectId]: tekst } }));
+  }, []);
+
+  // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
+  const visTomBeskrivelse = useCallback((projectIds: string[]) => {
+    setForsoktBekreft(true);
+    const forste = projectIds[0];
+    if (!forste) return;
+    const y = beskrivelseY.current.get(forste);
+    if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+    beskrivelseFelt.current.get(forste)?.focus();
+  }, []);
   const byggeplasser = useMemo(
     () => (prosjektId ? hentByggeplasserForProsjektLokalt(prosjektId) : []),
     [prosjektId],
@@ -261,6 +305,12 @@ export default function BekreftDagSkjerm() {
   const bekreft = useCallback(() => {
     const db = hentDatabase();
     if (!db || !beregnet || !bruker?.id || !params.arbeidsdagId || lagrer) return;
+    // ORDRE 36a: påkrevd beskrivelse — sperren står FØR noe skrives.
+    const tomme = manglerBeskrivelse(beregnet.forslag);
+    if (tomme.length > 0) {
+      visTomBeskrivelse(tomme);
+      return;
+    }
     setLagrer(true);
     try {
       const { forslag } = beregnet;
@@ -278,6 +328,11 @@ export default function BekreftDagSkjerm() {
       if (handling.type === "maskinBrudd") {
         // Ingenting er skrevet — skjermen står, arbeideren justerer maskintimene.
         Alert.alert(t("timer.bekreftDag.tillegg.bruddTittel"), t("timer.maskin.overstigerArbeid"));
+        return;
+      }
+      if (handling.type === "manglerBeskrivelse") {
+        // Sikkerhetsnett — ingenting er skrevet, skjermen står.
+        visTomBeskrivelse(handling.projectIds);
         return;
       }
       oppdaterTellere();
@@ -339,7 +394,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, params.arbeidsdagId, lagrer, orgId, erAnsatt, sluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand]);
+  }, [beregnet, bruker?.id, params.arbeidsdagId, lagrer, orgId, erAnsatt, sluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -414,7 +469,12 @@ export default function BekreftDagSkjerm() {
   return (
     <ModalFlate className="bg-gray-50">
       {topp}
-      <ScrollView contentContainerClassName="gap-3 p-4">
+      <ScrollView
+        ref={rulleRef}
+        contentContainerClassName="gap-3 p-4"
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Topplinje: dato · start/slutt · sum · norm */}
         <View className="rounded-lg border border-gray-200 bg-white p-3">
           <Text className="text-sm font-semibold text-gray-900">
@@ -510,6 +570,23 @@ export default function BekreftDagSkjerm() {
               />
             ))}
 
+            {arbeidProsjekter.map((p) => (
+              <BekreftDagBeskrivelse
+                key={p}
+                ref={(felt) => {
+                  if (felt) beskrivelseFelt.current.set(p, felt);
+                  else beskrivelseFelt.current.delete(p);
+                }}
+                onLayout={(e) => beskrivelseY.current.set(p, e.nativeEvent.layout.y)}
+                prosjektNavn={prosjekter.find((pr) => pr.id === p)?.name ?? null}
+                visProsjekt={arbeidProsjekter.length > 1}
+                verdi={retting.beskrivelse?.[p] ?? ""}
+                chips={beskrivelseChipsPerProsjekt.get(p) ?? []}
+                visFeil={forsoktBekreft && !retting.beskrivelse?.[p]?.trim()}
+                onEndre={(tekst) => settBeskrivelse(p, tekst)}
+              />
+            ))}
+
             {forslag.reiseAarsak || forslag.destinasjonAarsak ? (
               <Text className="px-1 text-xs text-gray-500">
                 {t("timer.bekreftDag.ingenReise", {
@@ -573,7 +650,13 @@ export default function BekreftDagSkjerm() {
         onVelg={(id) => {
           // Nytt prosjekt → byggeplassen tilhørte det gamle; A5 velger på nytt.
           setValgtByggeplassId(undefined);
-          setRetting((r) => ({ ...r, prosjektId: id ?? undefined, byggeplassId: undefined }));
+          setRetting((r) => ({
+            ...r,
+            prosjektId: id ?? undefined,
+            byggeplassId: undefined,
+            // ORDRE 36a: skrevet beskrivelse følger med til det nye prosjektet.
+            beskrivelse: flyttBeskrivelse(r.beskrivelse, prosjektId, id),
+          }));
           setValgark(null);
         }}
         onLukk={() => setValgark(null)}
