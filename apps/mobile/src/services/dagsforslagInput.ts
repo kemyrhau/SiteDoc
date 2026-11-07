@@ -105,6 +105,7 @@ export function samleDagsforslagInput(
   const alleLonnsarter = db
     .select({
       id: lonnsartLocal.id,
+      navn: lonnsartLocal.navn,
       overtidsnivaa: lonnsartLocal.overtidsnivaa,
       aktiv: lonnsartLocal.aktiv,
       type: lonnsartLocal.type,

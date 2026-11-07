@@ -7,11 +7,14 @@ import { hentVarerLokalt } from "../../services/vareKatalog";
 import {
   lagreLokalVarelinje,
   fullforVarelinje,
+  vareModalEtterLagre,
+  type FortVarelinje,
   type VarelinjeValg,
 } from "../../services/vareforbrukSync";
 import { TastaturScrollView } from "./TastaturScrollView";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
+import { formatKortTall } from "../../lib/prosjektkortMobil";
 
 /**
  * Prosjektkort L3 (2026-11-06): «+ Vareforbruk» fra kortskjermen. Prosjektet
@@ -21,6 +24,9 @@ import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKata
  *
  * L3-D: med `onVelgLinje` (bekreft-dag) lagres ingenting — linja gis tilbake og
  * skrives på start-sedelen ved Bekreft. Da finnes ingen sedel ennå (`sheetId` null).
+ *
+ * ORDRE 34: `forblirApen` (kun Bekreft dag) holder dialogen åpen etter hver linje
+ * og viser `fortIDag` øverst; [Ferdig] lukker. Default = dagens atferd (lukker).
  */
 export function KortVareforbrukModal({
   synlig,
@@ -34,6 +40,8 @@ export function KortVareforbrukModal({
   onAvbryt,
   onLagret,
   onVelgLinje,
+  forblirApen = false,
+  fortIDag = [],
 }: {
   synlig: boolean;
   userId: string;
@@ -46,6 +54,8 @@ export function KortVareforbrukModal({
   onAvbryt: () => void;
   onLagret: () => void;
   onVelgLinje?: (valg: VarelinjeValg) => void;
+  forblirApen?: boolean;
+  fortIDag?: FortVarelinje[];
 }) {
   const { t } = useTranslation();
   const [sok, setSok] = useState("");
@@ -92,6 +102,12 @@ export function KortVareforbrukModal({
         },
       },
     );
+    if (vareModalEtterLagre(forblirApen) === "nullstill") {
+      setSok("");
+      setVareId(null);
+      setAntall("");
+      return;
+    }
     onLagret();
   }
 
@@ -108,6 +124,19 @@ export function KortVareforbrukModal({
               {t("vareforbruk.modal.opprett")}
             </Text>
           </View>
+
+          {forblirApen && fortIDag.length > 0 && (
+            <View className="mb-3 rounded-lg bg-gray-50 p-2">
+              <Text className="mb-1 text-xs font-medium text-gray-500">
+                {t("timer.bekreftDag.vareFortIDag")}
+              </Text>
+              {fortIDag.map((l, i) => (
+                <Text key={i} className="text-sm text-gray-900">
+                  {`${l.navn} · ${formatKortTall(l.antall).replace(/,0$/, "")} ${l.enhet}`}
+                </Text>
+              ))}
+            </View>
+          )}
 
           <Text className="text-xs font-medium text-gray-500">{t("timer.felt.prosjekt")}</Text>
           <Text className="mb-3 text-sm text-gray-900">{prosjektNavn}</Text>
@@ -181,7 +210,9 @@ export function KortVareforbrukModal({
 
           <View className="flex-row justify-end gap-2">
             <Pressable onPress={onAvbryt} className="rounded-lg px-4 py-2.5 active:bg-gray-100">
-              <Text className="text-base font-medium text-gray-700">{t("handling.avbryt")}</Text>
+              <Text className="text-base font-medium text-gray-700">
+                {forblirApen ? t("timer.bekreftDag.vareFerdig") : t("handling.avbryt")}
+              </Text>
             </Pressable>
             <Pressable
               onPress={lagre}

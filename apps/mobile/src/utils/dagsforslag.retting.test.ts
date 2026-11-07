@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
+  stegOvertidFra,
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
 } from "./dagsforslag";
@@ -180,5 +181,60 @@ describe("Dom (56) merknad 2 — kun «til» rettet", () => {
     const retur = reise(f, "retur")!;
     expect([ut.fraTid, ut.tilTid]).toEqual(["05:00", "07:00"]);
     expect([retur.fraTid, retur.tilTid]).toEqual(["16:00", "18:00"]);
+  });
+});
+
+describe("ORDRE 34 pkt 4 — arbeiderens overtid-retting", () => {
+  const L_OT100 = "L-ot100";
+  const medOt100 = () =>
+    lagInput({
+      alleLonnsarter: [
+        { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+        { id: L_OT50, overtidsnivaa: 50, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+        { id: L_OT100, overtidsnivaa: 100, aktiv: true, type: "ordinaer", rekkefolge: 2 },
+      ],
+    });
+
+  it("uten retting: split ved dagsnorm (15:30)", () => {
+    const ot = arbeid(beregnDagsforslag(medOt100())).find((r) => r.lonnsartId === L_OT50);
+    expect(ot?.fraTid).toBe("15:30");
+  });
+
+  it("🔴 overtidFra 14:00 splitter ved 14:00 (pausen 11:00–11:30 trekkes fra normaltiden)", () => {
+    const f = beregnDagsforslag({
+      ...medOt100(),
+      retting: { perDato: { "2026-07-01": { overtidFra: "14:00" } } },
+    });
+    const rader = arbeid(f);
+    const normal = rader.filter((r) => r.lonnsartId === L_NORMAL);
+    const ot = rader.find((r) => r.lonnsartId === L_OT50);
+    expect(normal[normal.length - 1]!.tilTid).toBe("14:00");
+    expect(sum(normal)).toBe(6.5);
+    expect(ot).toMatchObject({ fraTid: "14:00", tilTid: "17:30", timer: 3.5 });
+    // Total arbeid uendret — kun splitten flytter seg.
+    expect(sum(rader)).toBe(10);
+  });
+
+  it("🔴 valgt nivå (100 %) brukes på overtidsradene", () => {
+    const f = beregnDagsforslag({
+      ...medOt100(),
+      retting: { perDato: { "2026-07-01": { overtidLonnsartId: L_OT100 } } },
+    });
+    expect(arbeid(f).find((r) => r.fraTid === "15:30")?.lonnsartId).toBe(L_OT100);
+  });
+
+  it("🔴 lønnsart uten overtidsnivå avvises → standard overtid-valg", () => {
+    const f = beregnDagsforslag({
+      ...medOt100(),
+      retting: { perDato: { "2026-07-01": { overtidLonnsartId: L_NORMAL } } },
+    });
+    expect(arbeid(f).find((r) => r.fraTid === "15:30")?.lonnsartId).toBe(L_OT50);
+  });
+
+  it("stegOvertidFra følger tidsrundingen og holder seg i arbeidsvinduet", () => {
+    expect(stegOvertidFra("15:30", -1, "07:00", "17:30", 30)).toBe("15:00");
+    expect(stegOvertidFra("15:30", 1, "07:00", "17:30", null)).toBe("15:45");
+    expect(stegOvertidFra("07:00", -1, "07:00", "17:30", 15)).toBe("07:00");
+    expect(stegOvertidFra("17:15", 1, "07:00", "17:30", 15)).toBe("17:15");
   });
 });

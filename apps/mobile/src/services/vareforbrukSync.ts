@@ -212,3 +212,36 @@ export function fullforVarelinje(
   p.lagre(valg);
   return "lagret";
 }
+
+/**
+ * ORDRE 34 pkt 2: hva modalen gjør etter «Før på kortet». `forblirApen`
+ * (Bekreft dag) nullstiller vare/antall og står åpen til [Ferdig]; ellers lukkes
+ * den som før (prosjektkortet).
+ */
+export function vareModalEtterLagre(forblirApen: boolean): "nullstill" | "lukk" {
+  return forblirApen ? "nullstill" : "lukk";
+}
+
+export type FortVarelinje = { navn: string; antall: number; enhet: string };
+
+/** Arbeiderens lokale varelinjer for prosjektet på datoen (alle sedler). */
+export function hentLokaleVarelinjerForDag(
+  userId: string,
+  projectId: string,
+  dato: string,
+): FortVarelinje[] {
+  const db = hentDatabase();
+  if (!db) return [];
+  return db
+    .select({ navn: vareforbrukLocal.vareNavn, antall: vareforbrukLocal.antall, enhet: vareforbrukLocal.enhet })
+    .from(vareforbrukLocal)
+    .where(
+      and(
+        eq(vareforbrukLocal.userId, userId),
+        eq(vareforbrukLocal.projectId, projectId),
+        eq(vareforbrukLocal.dato, dato),
+      ),
+    )
+    .orderBy(asc(vareforbrukLocal.sistEndretLokalt))
+    .all();
+}

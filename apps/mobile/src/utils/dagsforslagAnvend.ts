@@ -168,6 +168,9 @@ export function anvendDagsforslag(
         .run();
       totalRader++;
     }
+    // ORDRE 34 pkt 3 (#9): hodet = Σ rad.pauseMin også ved append på en
+    // eksisterende sedel (speiler serverens PK6 `synkroniserHodePause`).
+    synkHodePauseLokalt(db, resultat.id);
     vekForOverlapp.push(...d.vekForOverlapp);
   }
 
@@ -185,6 +188,31 @@ export function anvendDagsforslag(
     ikkeAnsatt: false,
     manglerLonnsart,
   };
+}
+
+/**
+ * Matpause-invarianten (`services/matpause.ts`): `dagsseddel_local.pauseMin =
+ * Σ sheet_timer_local.pauseMin`. Uten denne ble hodet stående på en eldre verdi
+ * (f.eks. 0) etter append, mens bærer-raden fikk 30 — ramme-linjen viste
+ * «pause 0 min» til neste pull. Skriver kun ved avvik.
+ */
+export function synkHodePauseLokalt(db: LokalDb, sheetId: string): void {
+  const sum = db
+    .select({ pauseMin: sheetTimerLocal.pauseMin })
+    .from(sheetTimerLocal)
+    .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+    .all()
+    .reduce((s, r) => s + (r.pauseMin ?? 0), 0);
+  const sedel = db
+    .select({ pauseMin: dagsseddelLocal.pauseMin })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .all()[0];
+  if (!sedel || sedel.pauseMin === sum) return;
+  db.update(dagsseddelLocal)
+    .set({ pauseMin: sum, syncStatus: "pending", sistEndretLokalt: Date.now() })
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .run();
 }
 
 /**

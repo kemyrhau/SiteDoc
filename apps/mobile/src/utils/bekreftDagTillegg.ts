@@ -38,6 +38,36 @@ export type TilleggVare = {
 export type BekreftDagTillegg = { maskiner: TilleggMaskin[]; varer: TilleggVare[] };
 
 /**
+ * ORDRE 34 pkt 1: Bekreft dag fører maskintimer uten mengde/enhet. Feltene finnes
+ * fortsatt i DB/API (firmarapport, attestering, prosjektkortets MaskinSeksjon).
+ */
+/**
+ * ORDRE 34 pkt 2: «Ført i dag» øverst i vare-modalen — linjer som alt ligger
+ * lokalt for prosjektet/datoen, pluss de som er valgt i denne Bekreft dag-økten.
+ */
+export function fortIDagLinjer(
+  lagret: { navn: string; antall: number; enhet: string }[],
+  varer: TilleggVare[],
+  projectId: string,
+): { navn: string; antall: number; enhet: string }[] {
+  return [
+    ...lagret,
+    ...varer
+      .filter((v) => v.projectId === projectId)
+      .map((v) => ({ navn: v.vareNavn, antall: v.antall, enhet: v.enhet })),
+  ];
+}
+
+export function nyTilleggMaskin(p: {
+  lokalId: string;
+  projectId: string;
+  vehicleId: string;
+  timer: number;
+}): TilleggMaskin {
+  return { ...p, mengde: null, enhet: null };
+}
+
+/**
  * Hvilke knapper vises. Maskin krever utstyrsbufferen, varer krever at prosjektet
  * har Varelager. Vedtak D: mangler begge, skjules seksjonen helt.
  */

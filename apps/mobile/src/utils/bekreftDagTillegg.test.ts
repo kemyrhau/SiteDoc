@@ -45,6 +45,8 @@ import {
   vaktGrunnlag,
   tilleggTilstand,
   rensTillegg,
+  nyTilleggMaskin,
+  fortIDagLinjer,
   type BekreftDagTillegg,
 } from "./bekreftDagTillegg";
 import { fullforVarelinje, planleggVaresending } from "../services/vareforbrukSync";
@@ -529,5 +531,30 @@ describe("Dom (57) m3 — start-sedel sendt, senere datoer åpne", () => {
       maskiner: [],
       varer: [],
     });
+  });
+});
+
+describe("ORDRE 34 pkt 1a/2 — maskin uten mengde, «Ført i dag»", () => {
+  it("🔴 maskin fra Bekreft dag har aldri mengde/enhet (de føres i prosjektkortet)", () => {
+    expect(nyTilleggMaskin({ lokalId: "m1", projectId: "p1", vehicleId: "v1", timer: 3 })).toEqual({
+      lokalId: "m1",
+      projectId: "p1",
+      vehicleId: "v1",
+      timer: 3,
+      mengde: null,
+      enhet: null,
+    });
+  });
+
+  it("🔴 «Ført i dag» = lagrede linjer + linjene lagt til i denne dialogen, kun prosjektet", () => {
+    const lagret = [{ navn: "Grus", antall: 2, enhet: "m3" }];
+    const varer = [
+      { lokalId: "a", projectId: "p1", vareId: "v1", vareNavn: "Sand", enhet: "tonn", antall: 4, byggeplassId: null },
+      { lokalId: "b", projectId: "p2", vareId: "v2", vareNavn: "Kult", enhet: "m3", antall: 1, byggeplassId: null },
+    ];
+    expect(fortIDagLinjer(lagret, varer, "p1")).toEqual([
+      { navn: "Grus", antall: 2, enhet: "m3" },
+      { navn: "Sand", antall: 4, enhet: "tonn" },
+    ]);
   });
 });

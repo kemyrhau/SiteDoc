@@ -58,6 +58,8 @@ import {
   lagreLokalVarelinje,
   hentLokaleVarelinjer,
   planleggVaresending,
+  vareModalEtterLagre,
+  hentLokaleVarelinjerForDag,
 } from "./vareforbrukSync";
 import {
   refreshVareKatalog,
@@ -422,5 +424,22 @@ describe("vare-katalog-cache", () => {
 
   it("låst kort (sendt) viser ikke knappen selv med Varelager på", () => {
     expect(visVareforbrukKnapp({ prosjektIderMedVarelager: ["p1"], projectId: "p1", erRedigerbar: false })).toBe(false);
+  });
+});
+
+describe("ORDRE 34 pkt 2 — vare-dialogen blir stående i Bekreft dag", () => {
+  it("🔴 forblirApen → nullstill (dialogen lukkes ikke); standard → lukk", () => {
+    expect(vareModalEtterLagre(true)).toBe("nullstill");
+    expect(vareModalEtterLagre(false)).toBe("lukk");
+  });
+
+  it("«Ført i dag» leser brukerens linjer for prosjekt + dato, ikke andres", () => {
+    nyLinje("l1", "s1");
+    nyLinje("l2", "s1", "p2");
+    expect(hentLokaleVarelinjerForDag("u1", "p1", "2026-11-06")).toEqual([
+      { navn: "Grus", antall: 2.5, enhet: "m3" },
+    ]);
+    expect(hentLokaleVarelinjerForDag("u2", "p1", "2026-11-06")).toEqual([]);
+    expect(hentLokaleVarelinjerForDag("u1", "p1", "2026-11-07")).toEqual([]);
   });
 });
