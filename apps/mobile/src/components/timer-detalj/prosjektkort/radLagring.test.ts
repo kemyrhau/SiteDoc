@@ -309,9 +309,9 @@ describe("maskinrad", () => {
   it("oppdater endrer bare den raden", () => {
     const a = leggTilMaskinRad(db(), K, maskinFelt);
     const b = leggTilMaskinRad(db(), K, maskinFelt);
-    oppdaterMaskinRad(db(), K, a, { ...maskinFelt, timer: 1, ecoId: null });
+    oppdaterMaskinRad(db(), K, a, { ...maskinFelt, timer: 1, ecoId: "eco2" });
     const rader = new Map(maskinRader().map((r) => [r.id, r]));
-    expect(rader.get(a)).toMatchObject({ timer: 1, externalCostObjectId: null });
+    expect(rader.get(a)).toMatchObject({ timer: 1, externalCostObjectId: "eco2" });
     expect(rader.get(b)).toMatchObject({ timer: 3, externalCostObjectId: "eco1" });
   });
 

@@ -22,6 +22,15 @@ const flat = (x: string) => x.replace(/\s+/g, " ");
 const MATPAUSE_VILKAAR =
   "onPauseToggle && redigerbar && pauseRegelTrigget && radKrysserPause(rad, pauseFra, standardPauseMin)";
 
+/** Avhukingen lukker modalen: en åpen modal ville lagret radens gamle pause-bærer tilbake. */
+const MATPAUSE_LUKK = "onToggle: () => { setTimerModal(null); onPauseToggle(";
+/** Modalenes slett/lagre skriver mot riktig rad via radLagring. */
+const RADLAGRING_KOBLINGER = [
+  "fjernTimerRad(db(), k, redigert.id)",
+  "fjernMaskinRad(db(), k, maskinModal.id)",
+  "oppdaterMaskinRad(db(), k, maskinModal.id",
+];
+
 const IKONER = ["lucide", "Pencil", "Split", "Trash2"];
 /** Tailwind-fargeklasser som ikke er grå/amber/hvit. */
 const fremmedeFarger = (kilde: string) =>
@@ -87,6 +96,24 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
   it("negativkontroll: droppet matpause-vilkår eller -inngang fanges", () => {
     expect(flat(OVERSIKT.replace("pauseRegelTrigget && radKrysser", "radKrysser"))).not.toContain(MATPAUSE_VILKAAR);
     expect(KORT.replace("onPauseToggle={handterPauseToggle}", "")).not.toContain("onPauseToggle={handterPauseToggle}");
+  });
+
+  it("🔴 matpause-avhukingen lukker rad-modalen før flyttet skrives", () => {
+    expect(flat(OVERSIKT)).toContain(MATPAUSE_LUKK);
+  });
+
+  it.each(RADLAGRING_KOBLINGER)("🔴 modal → radLagring: «%s»", (kobling) => {
+    expect(flat(OVERSIKT)).toContain(kobling);
+  });
+
+  it("negativkontroll: åpen modal ved avhuking og feil rad-id mot radLagring fanges", () => {
+    expect(flat(OVERSIKT.replace("setTimerModal(null);\n            onPauseToggle(", "onPauseToggle("))).not.toContain(
+      MATPAUSE_LUKK,
+    );
+    for (const kobling of RADLAGRING_KOBLINGER) {
+      const id = kobling.includes("redigert") ? "redigert.id" : "maskinModal.id";
+      expect(flat(OVERSIKT).replace(kobling, kobling.replace(id, "rad.id"))).not.toContain(kobling);
+    }
   });
 
   it("🔴 dagsoversikten skriver kun via radLagring (ingen db.insert/update/delete direkte)", () => {
