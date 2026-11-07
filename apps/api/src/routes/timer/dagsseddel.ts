@@ -166,6 +166,82 @@ async function krevProsjektLeder(userId: string, projectId: string): Promise<voi
 }
 
 /**
+ * Firma der brukeren kan attestere timer på prosjektet (H1, Kenneth 2026-11-08).
+ * Attestering følger arbeidsgiveren (`DailySheet.organizationId`), ikke prosjekteier:
+ * timer, lønnsart og prissnapshot er firmaets interne data. Rett i et firma gis av
+ * firma-admin der, eller aktiv ansatt der som også er prosjektadmin/`kanAttestere`.
+ * `null` = alle firma (sitedoc_admin).
+ */
+async function attesteringsFirmaer(userId: string, projectId: string): Promise<string[] | null> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!bruker) return [];
+  if (bruker.role === "sitedoc_admin") return null;
+
+  const [ansettelser, medlem] = await Promise.all([
+    prisma.organizationMember.findMany({
+      where: { userId },
+      select: { organizationId: true, status: true, firmaRoller: true },
+    }),
+    prisma.projectMember.findFirst({
+      where: aktivtProsjektmedlemWhere(userId, projectId),
+      select: { role: true, kanAttestere: true },
+    }),
+  ]);
+  const erLeder = medlem?.role === "admin" || medlem?.kanAttestere === true;
+  // Samme status-regler som erFirmaAdmin (ikke deaktivert) og erAnsattIFirma (aktiv).
+  return ansettelser
+    .filter(
+      (a) =>
+        (a.status !== "deaktivert" && a.firmaRoller.includes("firma_admin")) ||
+        (erLeder && a.status === "aktiv"),
+    )
+    .map((a) => a.organizationId);
+}
+
+/** Kaster FORBIDDEN med mindre brukeren kan attestere hver (sedel-firma, prosjekt). */
+async function krevAttesteringsrett(
+  userId: string,
+  rader: { organizationId: string; projectId: string }[],
+): Promise<void> {
+  const prosjektIder = Array.from(new Set(rader.map((r) => r.projectId)));
+  const firmaPerProsjekt = new Map(
+    await Promise.all(
+      prosjektIder.map(async (pid) => [pid, await attesteringsFirmaer(userId, pid)] as const),
+    ),
+  );
+  for (const r of rader) {
+    const firmaer = firmaPerProsjekt.get(r.projectId);
+    if (firmaer === null) continue;
+    if (!firmaer?.includes(r.organizationId)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Timer attesteres av firmaet den ansatte jobber for",
+      });
+    }
+  }
+}
+
+/** Som `krevAttesteringsrett`, men slår opp sedlenes firma fra `sheetId`. */
+async function krevAttesteringsrettForRader(
+  prismaTimer: PrismaClientTimer,
+  userId: string,
+  rader: { sheetId: string; projectId: string }[],
+): Promise<void> {
+  const sedler = await prismaTimer.dailySheet.findMany({
+    where: { id: { in: Array.from(new Set(rader.map((r) => r.sheetId))) } },
+    select: { id: true, organizationId: true },
+  });
+  const orgPerSedel = new Map(sedler.map((s) => [s.id, s.organizationId]));
+  await krevAttesteringsrett(
+    userId,
+    rader.map((r) => ({ organizationId: orgPerSedel.get(r.sheetId) ?? "", projectId: r.projectId })),
+  );
+}
+
+/**
  * Hent dagsseddel og verifiser at innlogget bruker eier den (eller er admin).
  * Kaster NOT_FOUND hvis ikke funnet, FORBIDDEN hvis ikke eget.
  */
@@ -2885,6 +2961,8 @@ export const dagsseddelRouter = router({
       // fjerning av eksisterende rader gates IKKE — arbeid i gang skal aldri låses.
       await krevTimerAktivert(sheet.organizationId);
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+      // H3: samme firma-grense på rad-projectId som tilfoyTimerRad.
+      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
 
       const tillegg = await ctx.prismaTimer.tillegg.findFirst({
         where: { id: input.tilleggId, organizationId: sheet.organizationId },
@@ -3115,6 +3193,9 @@ export const dagsseddelRouter = router({
       // fjerning av eksisterende rader gates IKKE — arbeid i gang skal aldri låses.
       await krevTimerAktivert(sheet.organizationId);
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+      // H3: samme firma-grense på rad-projectId som tilfoyTimerRad — før
+      // prosjekt-overstyringen under leses på projectId.
+      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
 
       const kategori = await ctx.prismaTimer.expenseCategory.findFirst({
         where: { id: input.expenseCategoryId, organizationId: sheet.organizationId },
@@ -3454,12 +3535,15 @@ export const dagsseddelRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await krevProsjektLeder(ctx.userId, input.projectId);
+      // H1: kun sedler fra firma brukeren attesterer for — aldri annet firmas timer.
+      const firmaer = await attesteringsFirmaer(ctx.userId, input.projectId);
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           // T.1 (2026-05-11): projectId ligger på rad — filtrer via timer-relasjon.
           timer: { some: { projectId: input.projectId } },
           status: "sent",
+          ...(firmaer ? { organizationId: { in: firmaer } } : {}),
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
@@ -3479,21 +3563,28 @@ export const dagsseddelRouter = router({
         where: { id: { in: userIder } },
         select: { id: true, name: true, email: true },
       });
+      // Ansattnummer hentes fra sedelens firma — ikke et vilkårlig firmas nummer.
+      const orgIder = Array.from(new Set(sedler.map((s) => s.organizationId)));
       const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder } },
-        select: { userId: true, ansattnummer: true },
+        where: { userId: { in: userIder }, organizationId: { in: orgIder } },
+        select: { userId: true, organizationId: true, ansattnummer: true },
       });
-      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
-      const brukerMap = new Map(
-        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
+      const ansattnummerMap = new Map(
+        medlemmer.map((m) => [`${m.userId}:${m.organizationId}`, m.ansattnummer]),
       );
+      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
 
-      return sedler.map((s) => ({
-        ...s,
-        ansatt: brukerMap.get(s.userId) ?? null,
-        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-        antallRader: s.timer.length + s.tillegg.length,
-      }));
+      return sedler.map((s) => {
+        const bruker = brukerMap.get(s.userId);
+        return {
+          ...s,
+          ansatt: bruker
+            ? { ...bruker, ansattnummer: ansattnummerMap.get(`${s.userId}:${s.organizationId}`) ?? null }
+            : null,
+          totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+          antallRader: s.timer.length + s.tillegg.length,
+        };
+      });
     }),
 
   // Boolean-flagg som sidebar/UI bruker for å gate Attestering-lenken.
@@ -3568,6 +3659,9 @@ export const dagsseddelRouter = router({
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
+          // H1: firmaets egne sedler — en annen arbeidsgivers sedler på samme
+          // prosjekt attesteres av det firmaet, ikke her.
+          organizationId: input.organizationId,
           status: { in: statuser },
           timer: { some: { projectId: { in: prosjektIder } } },
           ...(datoFilter ? { dato: datoFilter } : {}),
@@ -3779,9 +3873,8 @@ export const dagsseddelRouter = router({
     }),
 
   // Hent én dagsseddel som prosjektleder (for attestering-detaljside).
-  // Skiller seg fra hentMedId ved at den autoriserer på krevProsjektLeder
-  // (ProjectMember.role="admin" eller kanAttestere=true) i stedet for
-  // eierskap. Beriker med ansatt-info fra kjernen.
+  // Skiller seg fra hentMedId ved at den autoriserer på krevAttesteringsrett
+  // (attesteringsrett i sedelens firma, H1) i stedet for eierskap. Beriker med ansatt-info fra kjernen.
   hentForAttestering: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -3824,13 +3917,9 @@ export const dagsseddelRouter = router({
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
-      // T7-2b1 (2026-05-14): prosjektleder-auth som primær, firma-admin-fallback
-      // slik at firma-admin-detalj-siden også kan bruke samme query.
-      try {
-        await krevProsjektLeder(ctx.userId, projectId);
-      } catch {
-        await autoriserAdminForFirma(ctx.userId, sheet.organizationId);
-      }
+      // H1: attesteringsrett i sedelens firma (firma-admin der, eller ansatt der
+      // med prosjektleder-rett). Dekker også firma-admin-detalj-siden (T7-2b1).
+      await krevAttesteringsrett(ctx.userId, [{ organizationId: sheet.organizationId, projectId }]);
 
       // T7-2d (2026-05-16): Per-rad prosjekt-join. SheetTimer/Tillegg/Machine
       // har "svak FK" til Project (A.20 — ingen Prisma @relation pga cross-package).
@@ -3978,7 +4067,9 @@ export const dagsseddelRouter = router({
 
       // T.1 (2026-05-11): projectId ligger på rad — bruk rad.projectId
       // for auth og ECO-validering.
-      await krevProsjektLeder(ctx.userId, rad.projectId);
+      await krevAttesteringsrett(ctx.userId, [
+        { organizationId: sheet.organizationId, projectId: rad.projectId },
+      ]);
 
       // Status-vakt: kun "sent" tillates. "returned" er hos ansatten,
       // "accepted" er låst av snapshot, "draft" har aldri vært innom leder.
@@ -4125,9 +4216,8 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // Auth: én sjekk per unike projectId
-      const uniqueProjectIds = Array.from(new Set(alle.map((r) => r.projectId)));
-      await Promise.all(uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)));
+      // Auth: attesteringsrett per (sedel-firma, prosjekt) — H1.
+      await krevAttesteringsrettForRader(ctx.prismaTimer, ctx.userId, alle);
 
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
@@ -4315,8 +4405,7 @@ export const dagsseddelRouter = router({
         });
       }
 
-      const uniqueProjectIds = Array.from(new Set(alle.map((r) => r.projectId)));
-      await Promise.all(uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)));
+      await krevAttesteringsrettForRader(ctx.prismaTimer, ctx.userId, alle);
 
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
@@ -4368,7 +4457,7 @@ export const dagsseddelRouter = router({
   // sedel-nivå → status "sent" (tilbake i leder-køen for ny vurdering), alle
   // rader tilbake til "pending". Adskilt fra rad-retur (`returnerRader`), som er
   // for delvis flyt UNDER attestering. Speiler auth (unike projectId +
-  // krevProsjektLeder, som returnerRader) og rad-reset (som gjenaapneDagsseddel).
+  // krevAttesteringsrett, som returnerRader) og rad-reset (som gjenaapneDagsseddel).
   gjenaapneAttestering: protectedProcedure
     .input(z.object({ sheetId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -4388,7 +4477,7 @@ export const dagsseddelRouter = router({
       }
 
       // Leder-auth: samme oppslag som returnerRader — unike projectId fra
-      // sedelens rader, krevProsjektLeder på hver. En accepted-sedel har alltid
+      // sedelens rader, krevAttesteringsrett på hver (H1). En accepted-sedel har alltid
       // rader (ble accepted fordi alle ble attestert); tom sedel → kan ikke
       // autorisere (speiler hentForAttestering).
       const [timerRader, tilleggRader, maskinRader] = await Promise.all([
@@ -4416,8 +4505,9 @@ export const dagsseddelRouter = router({
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
-      await Promise.all(
-        uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)),
+      await krevAttesteringsrett(
+        ctx.userId,
+        uniqueProjectIds.map((pid) => ({ organizationId: sheet.organizationId, projectId: pid })),
       );
 
       // Reverser attesteringen (samme rad-reset som gjenaapneDagsseddel): alle
@@ -5395,7 +5485,10 @@ export const dagsseddelRouter = router({
       }
 
       const uniqueProjectIds = Array.from(new Set(alle.map((r) => r.projectId)));
-      await Promise.all(uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)));
+      await krevAttesteringsrett(
+        ctx.userId,
+        uniqueProjectIds.map((pid) => ({ organizationId: sheet.organizationId, projectId: pid })),
+      );
 
       const naa = new Date();
 
@@ -5516,7 +5609,7 @@ export const dagsseddelRouter = router({
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
-      await krevProsjektLeder(ctx.userId, projectId);
+      await krevAttesteringsrett(ctx.userId, [{ organizationId: sheet.organizationId, projectId }]);
 
       return ctx.prismaTimer.dailySheet.update({
         where: { id: input.id },

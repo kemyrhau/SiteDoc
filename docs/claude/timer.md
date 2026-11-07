@@ -714,6 +714,26 @@ Anvendt på alle fire rad-skrive-stiene i `dagsseddel.ts`:
 | `redigerSedelRader` | inline ProjectOrganization-sjekk | refaktorert til helper (+ eier-gren) |
 | `splittRad` | inline ProjectOrganization-sjekk | refaktorert til helper (+ eier-gren) |
 
+### Firma-grense på attestering (H1) og tillegg/utlegg (H3) — 🟡 på `fix/firmagrense-attestering`, venter gate
+
+Kenneth 2026-11-08: prosjektdokumentasjon og kontaktinfo deles mellom firmaene på et prosjekt; firmaets interne timer- og lønnsdata (timer, lønnsart, prissnapshot) deles ikke. Et firma B som deltar på firma A sitt prosjekt attesterer derfor sine egne sedler — A ser dem ikke.
+
+**`krevAttesteringsrett(userId, rader)`** (`dagsseddel.ts:205`, firmaene beregnes i `attesteringsFirmaer` `:175`): for hver rad `{ organizationId (sedelens), projectId }` kreves én av
+- `sitedoc_admin`;
+- `firma_admin` i **sedelens** firma (ikke deaktivert) — trenger ikke være prosjektmedlem;
+- aktiv ansatt i sedelens firma som også er aktivt prosjektmedlem med `role = "admin"` eller `kanAttestere`.
+
+Ellers `FORBIDDEN` («Timer attesteres av firmaet den ansatte jobber for»). Et utvalg med én fremmed rad avvises i sin helhet.
+
+| Endepunkt | Vakt |
+|---|---|
+| `hentTilAttestering` (`:3534`) | `krevProsjektLeder` + where `organizationId ∈ attesteringsFirmaer`; ansattnummer hentes fra sedelens firma |
+| `hentTilAttesteringFirma` (`:3605`) | where `organizationId = input.organizationId` (B sine sedler på A-prosjekt vises hos B, ikke hos A) |
+| `hentForAttestering` (`:3878`) | `krevAttesteringsrett` |
+| `flyttTimerRadEco` (`:4050`), `attesterRader` (`:4162`), `returnerRader` (`:4354`), `gjenaapneAttestering` (`:4461`), `attester` (`:5423`), `returner` (`:5586`) | `krevAttesteringsrett` (rad-nivå via `krevAttesteringsrettForRader`, som slår opp sedlenes firma) |
+
+`kanAttestere` (UI-gaten) er uendret. **H3:** `tilfoyTilleggRad` (`:2964`) og `tilfoyUtleggRad` (`:3196`) kaller `verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId)` som `tilfoyTimerRad` — medlemskap kreves ikke, som der. **Ansattnummer** i `rapport.ts:hentFirmaAnsatteMedTimer` hentes kun fra eget firma (`organizationId: orgId`); navn og e-post på fremmede ansatte vises fortsatt (kontaktinfo, H2 utgått). Test: `routes/timer/firmagrense-attestering.test.ts` (11 røde mot `47a0875e`, 4 negativkontroller/vakt grønne begge veier).
+
 ### Firma-grense på firmaPeriodeRapport
 
 `rapport.ts` (`firmaPeriodeRapport`) filtrerer nå dagssedler på **`dailySheet.organizationId == orgId`** i tillegg til prosjekt-tilhørighet. SHA/arbeidsgiver-modellen: hvert firma rapporterer **egne** timer, aldri prosjekteiers. Lukker cross-firma-lekkasje der en cross-org-invitert arbeiders sedel (annet org) med rad mot firmaets prosjekt tidligere dukket opp i rapporten — nå bevisst ekskludert.

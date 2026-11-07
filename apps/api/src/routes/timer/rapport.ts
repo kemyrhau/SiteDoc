@@ -899,8 +899,10 @@ export const rapportRouter = router({
         select: { id: true, name: true, email: true },
         orderBy: { name: "asc" },
       });
+      // Navn og e-post deles på tvers av firma (kontaktinfo); ansattnummer er
+      // firmaets interne lønnsnøkkel og hentes kun fra eget firma.
       const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder } },
+        where: { userId: { in: userIder }, organizationId: orgId },
         select: { userId: true, ansattnummer: true },
       });
       const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
