@@ -35,6 +35,7 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| 2026-11-07 | Timer (mobil) | ORDRE 35: Prosjektkortet åpnes i egen skjerm (dagskortet uendret). Bekreft dag har «Legg til overtid» på dager uten overtid (velger nivået firmaet har). «+» på overtid-fra går til sluttid og aldri bakover; 0 t overtid fjerner merket. Avviste varelinjer vises ikke i «Ført i dag». | 2658f13b (merge e8bcccde) |
 | 2026-11-07 | Timer/Bekreft dag (mobil) | Maskin føres kun med timer (ikke mengde/enhet) i Bekreft dag. Varevelgeren holdes åpen etter Lagre og viser «Ført i dag»; knappen heter «Ferdig». Pausen i dagsseddel-hodet synkes lokalt med radene. Overtid kan redigeres: trykk på merket → «Overtid fra» (−/+) og nivå. Fraksjonsnavn i A. Markussen-seed rettet (Knust fjell 0-11/0-120, Grovpukk 22-64/22-120). Dagskortet uendret. | 2c44c2fd (merge c92e73e5) |
 | 2026-11-07 | Timer/vareforbruk, Oppgave/Sjekkliste | Eieren kan ikke lenger opprette, endre eller slette vareforbruk-linjer på en sendt eller godkjent dagsseddel før den er returnert (server og mobil). Område på oppgave/sjekkliste må tilhøre effektiv byggeplass — feil byggeplass avvises også av serveren. | 98c04cb8 (merge af938581) |
 | 2026-11-07 | Mobil Timer (Bekreft dag) | Dagskortet viser nå registrerte varer under hvert prosjekt (kun lesing). I «Maskin og varer» vises «+ Varer» bare når dagen har arbeidstimer på prosjektet. Er dagsseddelen allerede sendt, viser seksjonen bare en forklarende linje og ingen knapper — maskin og varer kan ikke legges til der. | `6f8af318` (merge `d79687be`) |
