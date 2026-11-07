@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
+  leggTilOvertidRetting,
+  overtidEditorFra,
   stegOvertidFra,
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
@@ -235,6 +240,121 @@ describe("ORDRE 34 pkt 4 — arbeiderens overtid-retting", () => {
     expect(stegOvertidFra("15:30", -1, "07:00", "17:30", 30)).toBe("15:00");
     expect(stegOvertidFra("15:30", 1, "07:00", "17:30", null)).toBe("15:45");
     expect(stegOvertidFra("07:00", -1, "07:00", "17:30", 15)).toBe("07:00");
-    expect(stegOvertidFra("17:15", 1, "07:00", "17:30", 15)).toBe("17:15");
+    // ORDRE 35 C2: «+» når helt til `til` (0 timer overtid).
+    expect(stegOvertidFra("17:15", 1, "07:00", "17:30", 15)).toBe("17:30");
+    expect(stegOvertidFra("17:30", 1, "07:00", "17:30", 15)).toBe("17:30");
+  });
+
+  it("🔴 ORDRE 35 C2: «+» flytter aldri starten bakover (start etter `til`)", () => {
+    expect(stegOvertidFra("18:00", 1, "07:00", "17:30", 15)).toBe("18:00");
+    // «−» klemmes fortsatt inn i vinduet.
+    expect(stegOvertidFra("18:00", -1, "07:00", "17:30", 15)).toBe("17:30");
+  });
+
+  it("🔴 ORDRE 35 C1 (O3/O12): overtidFra ved/etter arbeidsslutt → 0 timer overtid", () => {
+    for (const overtidFra of ["17:30", "19:00"]) {
+      const rader = arbeid(
+        beregnDagsforslag({
+          ...medOt100(),
+          retting: { perDato: { "2026-07-01": { overtidFra } } },
+        }),
+      );
+      expect(rader.some((r) => r.lonnsartId !== L_NORMAL)).toBe(false);
+      expect(sum(rader)).toBe(10);
+    }
+  });
+
+  it("🔴 ORDRE 35 C1 (O5): inaktiv overtid-lønnsart avvises → standard overtid-valg", () => {
+    const f = beregnDagsforslag({
+      ...lagInput({
+        alleLonnsarter: [
+          { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+          { id: L_OT50, overtidsnivaa: 50, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+          { id: L_OT100, overtidsnivaa: 100, aktiv: false, type: "ordinaer", rekkefolge: 2 },
+        ],
+      }),
+      retting: { perDato: { "2026-07-01": { overtidLonnsartId: L_OT100 } } },
+    });
+    expect(arbeid(f).find((r) => r.fraTid === "15:30")?.lonnsartId).toBe(L_OT50);
+  });
+});
+
+describe("ORDRE 35 del B — «Legg til overtid» i Bekreft dag", () => {
+  it("🔴 dag under normen (lørdag-tilfellet): overtidFra = arbeidsstart → kun OT-rader, 50 % som fallback", () => {
+    // Arbeid 07:00–13:30 minus 30 min pause = 6 t < dagsnorm 8 → ingen overtid uten retting.
+    const kort = { sluttIso: "2026-07-01T15:30:00" };
+    expect(arbeid(beregnDagsforslag(lagInput(kort))).every((r) => r.lonnsartId === L_NORMAL)).toBe(true);
+    const rader = arbeid(
+      beregnDagsforslag(
+        lagInput({ ...kort, retting: { perDato: { "2026-07-01": { overtidFra: "07:00" } } } }),
+      ),
+    );
+    expect(rader.length).toBeGreaterThan(0);
+    expect(rader.every((r) => r.lonnsartId === L_OT50)).toBe(true);
+    expect(sum(rader)).toBe(6);
+  });
+
+  it("🔴 knappen: vises kun uten overtid og med nivå-valg; starter overtid fra arbeidsstart og åpner editoren", () => {
+    const her = dirname(fileURLToPath(import.meta.url));
+    const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
+    const i = flat.indexOf('t("timer.bekreftDag.overtidLeggTil")');
+    expect(i).toBeGreaterThan(0);
+    const knapp = flat.slice(flat.lastIndexOf("{!forsteOt", i), i);
+    expect(knapp).toContain("{!forsteOt && overtidValg.length > 0 ? (");
+    expect(knapp).toContain("onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));");
+    expect(knapp).toContain("setRedigerOvertid(true);");
+  });
+});
+
+describe("ORDRE 35 RETUR 1 — firma med OT100 uten OT50", () => {
+  const L_OT100 = "L-ot100";
+  const kunOt100 = [
+    { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+    { id: L_OT100, overtidsnivaa: 100, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+  ];
+  const overtidValg = [{ id: L_OT100 }];
+  const kort = { sluttIso: "2026-07-01T15:30:00", alleLonnsarter: kunOt100 };
+
+  it("🔴 (a) «Legg til overtid» velger første nivå når OT50 mangler", () => {
+    expect(leggTilOvertidRetting("07:00", kunOt100, overtidValg)).toEqual({
+      overtidFra: "07:00",
+      overtidLonnsartId: L_OT100,
+    });
+    const f = beregnDagsforslag(
+      lagInput({
+        ...kort,
+        retting: { perDato: { "2026-07-01": leggTilOvertidRetting("07:00", kunOt100, overtidValg) } },
+      }),
+    );
+    const rader = arbeid(f);
+    expect(rader.length).toBeGreaterThan(0);
+    expect(rader.every((r) => r.lonnsartId === L_OT100)).toBe(true);
+    expect(sum(rader)).toBe(6);
+    expect(f.datoer[0].raderDroppetUtenLonnsart).toBe(0);
+  });
+
+  it("negativkontroll: uten nivå-valget droppes arbeidet (fella som ble rettet)", () => {
+    const f = beregnDagsforslag(
+      lagInput({ ...kort, retting: { perDato: { "2026-07-01": { overtidFra: "07:00" } } } }),
+    );
+    expect(arbeid(f)).toHaveLength(0);
+    expect(f.datoer[0].raderDroppetUtenLonnsart).toBeGreaterThan(0);
+  });
+
+  it("med OT50 settes ikke nivå — standardvalget gjelder som før", () => {
+    const medOt50 = lagInput().alleLonnsarter;
+    expect(leggTilOvertidRetting("07:00", medOt50, [{ id: L_OT50 }])).toEqual({ overtidFra: "07:00" });
+  });
+
+  it("🔴 (b) editoren får overtid-start fra rettingen når ingen overtidsrad finnes", () => {
+    expect(overtidEditorFra(undefined, "07:00")).toBe("07:00");
+    expect(overtidEditorFra("16:00", "07:00")).toBe("16:00");
+    expect(overtidEditorFra(null, undefined)).toBeNull();
+    const her = dirname(fileURLToPath(import.meta.url));
+    const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
+    expect(flat).toContain("const otFra = overtidEditorFra(forsteOt?.fraTid, rettetOvertidFra);");
+    expect(flat).toContain("{redigerOvertid && otFra ? (");
+    expect(flat).toContain("rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}");
+    expect(flat).not.toContain("redigerOvertid && forsteOt");
   });
 });

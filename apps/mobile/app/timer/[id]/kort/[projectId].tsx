@@ -27,7 +27,7 @@ import {
   VareforbrukLesListe,
   type VisVarelinje,
 } from "../../../../src/components/timer-detalj/VareforbrukLesListe";
-import { KortHode } from "../../../../src/components/timer-detalj/ProsjektkortSamleside";
+import { KortHode } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortSamleside";
 import { ProsjektkortKontekst } from "../../../../src/components/timer-detalj/prosjektkortKontekst";
 import { finnProsjektLokalt } from "../../../../src/services/prosjektKatalog";
 import { hentReiseLonnsartId } from "../../../../src/services/timerKatalog";

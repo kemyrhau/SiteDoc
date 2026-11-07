@@ -4930,6 +4930,7 @@
   "timer.bekreftDag.overtidFra": "Сверхурочная работа от",
   "timer.bekreftDag.overtidNivaa": "Уровень",
   "timer.bekreftDag.overtidRedigerHint": "Нажмите, чтобы изменить сверхурочную работу",
+  "timer.bekreftDag.overtidLeggTil": "Добавить сверхурочную работу",
   "firma.timer.rapport.pdf.detaljer": "Подробности",
   "firma.timer.rapport.pdf.kolType": "Тип",
   "firma.timer.rapport.pdf.kolBetegnelse": "Элемент",

@@ -442,4 +442,13 @@ describe("ORDRE 34 pkt 2 — vare-dialogen blir stående i Bekreft dag", () => {
     expect(hentLokaleVarelinjerForDag("u2", "p1", "2026-11-06")).toEqual([]);
     expect(hentLokaleVarelinjerForDag("u1", "p1", "2026-11-07")).toEqual([]);
   });
+
+  it("🔴 ORDRE 35 C3: avvist linje vises ikke i «Ført i dag»; pending og synced gjør", () => {
+    nyLinje("l1", "s1");
+    nyLinje("l2", "s1");
+    nyLinje("l3", "s1");
+    db().update(vareforbrukLocal).set({ syncStatus: "avvist" }).where(eq(vareforbrukLocal.id, "l2")).run();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "l3")).run();
+    expect(hentLokaleVarelinjerForDag("u1", "p1", "2026-11-06")).toHaveLength(2);
+  });
 });
