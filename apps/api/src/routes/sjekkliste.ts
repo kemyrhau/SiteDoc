@@ -601,9 +601,9 @@ export const sjekklisteRouter = router({
         if (input.byggeplassId) {
           await verifiserByggeplassIProsjekt(tx, input.byggeplassId, mal.projectId);
         }
-        // ORDRE 29 #13: samme vakt for område — kun prosjekt.
+        // ORDRE 29 #13 + ORDRE 33: område må tilhøre prosjektet og valgt byggeplass.
         if (input.omradeId) {
-          await verifiserOmradeIProsjekt(tx, input.omradeId, mal.projectId);
+          await verifiserOmradeIProsjekt(tx, input.omradeId, mal.projectId, input.byggeplassId);
         }
 
         // Auto-generer tittel fra malnavn (nummer vises separat i Nr-kolonne)
@@ -772,9 +772,19 @@ export const sjekklisteRouter = router({
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, sjekkliste.template.projectId);
       }
-      // ORDRE 29 #13: samme vakt for område. `null` = fjern område, ingen sjekk.
-      if (input.omradeId) {
-        await verifiserOmradeIProsjekt(ctx.prisma, input.omradeId, sjekkliste.template.projectId);
+      // ORDRE 29 #13 + ORDRE 33: området må tilhøre prosjektet og den effektive byggeplassen
+      // (input der satt, ellers radens). Sjekkes også når kun byggeplassen byttes og området
+      // beholdes. `null` = fjern område, ingen sjekk.
+      const effektivtOmrade = input.omradeId !== undefined ? input.omradeId : sjekkliste.omradeId;
+      if (effektivtOmrade && (input.omradeId !== undefined || input.byggeplassId !== undefined)) {
+        const effektivByggeplass =
+          input.byggeplassId !== undefined ? input.byggeplassId : sjekkliste.byggeplassId;
+        await verifiserOmradeIProsjekt(
+          ctx.prisma,
+          effektivtOmrade,
+          sjekkliste.template.projectId,
+          effektivByggeplass,
+        );
       }
 
       const { id, ...data } = input;

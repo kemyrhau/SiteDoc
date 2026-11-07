@@ -2,11 +2,13 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
+import type { Context } from "../trpc/context";
 import {
   verifiserProsjektmedlem,
   aktivtProsjektmedlemWhere,
   aktivtMedlemWhere,
   verifiserOrganisasjonTilgang,
+  erFirmaAdmin,
 } from "../trpc/tilgangskontroll";
 import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import {
@@ -14,6 +16,50 @@ import {
   erVarelagerAktivert,
   VarelagerModulIkkeAktivertError,
 } from "../services/varelager/moduleGate";
+
+/** Statuser der sedelens eier selv kan endre vareforbruket på den. */
+const SEDEL_AAPEN_FOR_EIER = ["draft", "returned"];
+
+/**
+ * ORDRE 33: vareforbruk på en dagsseddel følger sedelen. Eieren kan endre mens
+ * sedelen er åpen (utkast/returnert); ellers kreves sitedoc_admin, prosjektadmin
+ * eller firma_admin i SEDELENS firma (ikke prosjektets — UE-sedler på HE-prosjekt).
+ * Meldingen er en i18n-nøkkel som klienten oversetter.
+ */
+async function krevVareforbrukPaaSedel(
+  userId: string,
+  sheet: { userId: string; status: string; organizationId: string },
+  projectId: string,
+): Promise<void> {
+  if (sheet.userId === userId && SEDEL_AAPEN_FOR_EIER.includes(sheet.status)) return;
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return;
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
+    select: { role: true },
+  });
+  if (medlem?.role === "admin") return;
+  if (await erFirmaAdmin(userId, sheet.organizationId)) return;
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: sheet.userId === userId ? "vareforbruk.feil.sedelSendt" : "vareforbruk.feil.annensSedel",
+  });
+}
+
+/** Sedel-vakten for en eksisterende linje. Linje uten (eller med forsvunnet) sedel er uberørt. */
+async function krevVareforbrukLinjeAapen(
+  prismaTimer: Context["prismaTimer"],
+  userId: string,
+  dagsseddelId: string | null,
+  projectId: string,
+): Promise<void> {
+  if (!dagsseddelId) return;
+  const sheet = await prismaTimer.dailySheet.findUnique({
+    where: { id: dagsseddelId },
+    select: { userId: true, status: true, organizationId: true },
+  });
+  if (sheet) await krevVareforbrukPaaSedel(userId, sheet, projectId);
+}
 
 /**
  * Hent prosjektets eier-firma + sjekk at modulen er aktiv på prosjekt-nivå.
@@ -381,6 +427,8 @@ export const vareforbrukRouter = router({
           where: { id: input.dagsseddelId },
           select: {
             userId: true,
+            status: true,
+            organizationId: true,
             timer: { where: { projectId: input.projectId }, select: { id: true }, take: 1 },
           },
         });
@@ -396,6 +444,7 @@ export const vareforbrukRouter = router({
             message: "Dagsseddelen har ingen timer-rader for dette prosjektet",
           });
         }
+        await krevVareforbrukPaaSedel(userId, sheet, input.projectId);
       }
 
       let opprettet;
@@ -465,6 +514,7 @@ export const vareforbrukRouter = router({
         select: {
           projectId: true,
           attestertSnapshot: true,
+          dagsseddelId: true,
         },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
@@ -476,6 +526,7 @@ export const vareforbrukRouter = router({
       }
 
       await verifiserProsjektmedlem(ctx.userId, rad.projectId);
+      await krevVareforbrukLinjeAapen(ctx.prismaTimer, ctx.userId, rad.dagsseddelId, rad.projectId);
       // ORDRE 29 #14: ny byggeplass MÅ tilhøre radens prosjekt. `null` = fjern, ingen sjekk.
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, rad.projectId);
@@ -530,6 +581,7 @@ export const vareforbrukRouter = router({
           projectId: true,
           vareId: true,
           attestertSnapshot: true,
+          dagsseddelId: true,
         },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
@@ -541,6 +593,7 @@ export const vareforbrukRouter = router({
       }
 
       await verifiserProsjektmedlem(ctx.userId, rad.projectId);
+      await krevVareforbrukLinjeAapen(ctx.prismaTimer, ctx.userId, rad.dagsseddelId, rad.projectId);
       const organizationId = await krevVarelagerForProsjekt(rad.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, rad.projectId);
 

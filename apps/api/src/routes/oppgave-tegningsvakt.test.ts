@@ -239,3 +239,87 @@ describe("oppgave — område-vakt (ORDRE 29 #13)", () => {
     expect(taskUpdate).not.toHaveBeenCalled();
   });
 });
+
+// ── ORDRE 33: område må ligge på dokumentets EFFEKTIVE byggeplass ────────────
+
+const BP1 = "66666666-6666-6666-6666-666666666661";
+const BP2 = "66666666-6666-6666-6666-666666666662";
+const ANNEN_BYGGEPLASS = { code: "BAD_REQUEST", message: "Området hører til en annen byggeplass." };
+
+describe("oppgave — område mot byggeplass (ORDRE 33)", () => {
+  /** Området ligger på BP1. Tegningen har `tegningensBp`; oppgaven (oppdater) får `oppgave`-feltene. */
+  async function medByggeplass(opts: {
+    tegningensBp?: string | null;
+    oppgave?: { byggeplassId?: string | null; omradeId?: string | null };
+  }) {
+    const base = lagCtx(null);
+    base.ctx.prisma.omrade = {
+      findUnique: vi.fn().mockResolvedValue({ projectId: PROSJEKT, byggeplassId: BP1 }),
+    };
+    base.ctx.prisma.byggeplass = { findUnique: vi.fn().mockResolvedValue({ projectId: PROSJEKT }) };
+    base.ctx.prisma.drawing.findUnique = vi
+      .fn()
+      .mockResolvedValue({ projectId: PROSJEKT, byggeplassId: opts.tegningensBp ?? null });
+    const dagens = await base.ctx.prisma.task.findUniqueOrThrow();
+    base.ctx.prisma.task.findUniqueOrThrow = vi.fn().mockResolvedValue({ ...dagens, ...opts.oppgave });
+    return base;
+  }
+  const basis = { title: "T", templateId: MAL };
+
+  it("O1 opprett: område på annen byggeplass enn valgt → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, transaction } = await medByggeplass({});
+    await expect(
+      oppgaveRouter.createCaller(ctx).opprett({ ...basis, byggeplassId: BP2, omradeId: OMRADE }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("O2 opprett: område på samme byggeplass → når skriving", async () => {
+    const { ctx, transaction } = await medByggeplass({});
+    await expect(
+      oppgaveRouter.createCaller(ctx).opprett({ ...basis, byggeplassId: BP1, omradeId: OMRADE }),
+    ).rejects.toMatchObject({ message: "NÅDDE_SKRIVING" });
+    expect(transaction).toHaveBeenCalled();
+  });
+
+  it("O3 opprett: byggeplass utledet fra tegningen (ingen byggeplassId i input) → BAD_REQUEST", async () => {
+    const { ctx, transaction } = await medByggeplass({ tegningensBp: BP2 });
+    await expect(
+      oppgaveRouter.createCaller(ctx).opprett({ ...basis, drawingId: TEGNING, omradeId: OMRADE }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("O4a oppdater: nytt område mot oppgavens nåværende byggeplass → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, taskUpdate } = await medByggeplass({ oppgave: { byggeplassId: BP2 } });
+    await expect(
+      oppgaveRouter.createCaller(ctx).oppdater({ id: OPPGAVE, omradeId: OMRADE }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(taskUpdate).not.toHaveBeenCalled();
+  });
+
+  it("O4b oppdater: byggeplass byttes, området beholdes → BAD_REQUEST, INGEN skriving", async () => {
+    const { ctx, taskUpdate } = await medByggeplass({ oppgave: { byggeplassId: BP1, omradeId: OMRADE } });
+    await expect(
+      oppgaveRouter.createCaller(ctx).oppdater({ id: OPPGAVE, byggeplassId: BP2 }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(taskUpdate).not.toHaveBeenCalled();
+  });
+
+  it("O4c oppdater: tegningsbytte flytter byggeplassen, området beholdes → BAD_REQUEST", async () => {
+    const { ctx, taskUpdate } = await medByggeplass({
+      tegningensBp: BP2,
+      oppgave: { byggeplassId: BP1, omradeId: OMRADE },
+    });
+    await expect(
+      oppgaveRouter.createCaller(ctx).oppdater({ id: OPPGAVE, drawingId: TEGNING }),
+    ).rejects.toMatchObject(ANNEN_BYGGEPLASS);
+    expect(taskUpdate).not.toHaveBeenCalled();
+  });
+
+  it("O4d oppdater: område på samme byggeplass → lagres", async () => {
+    const { ctx, taskUpdate } = await medByggeplass({ oppgave: { byggeplassId: BP1 } });
+    await oppgaveRouter.createCaller(ctx).oppdater({ id: OPPGAVE, omradeId: OMRADE });
+    expect(taskUpdate).toHaveBeenCalledTimes(1);
+  });
+});

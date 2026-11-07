@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Diesen Verbrauch löschen?",
   "vareforbruk.modulIkkeAktivert.tittel": "Der Materialverbrauch ist nicht aktiv",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivieren Sie das Materialmodul in der Firmenverwaltung, um den Verbrauch zu erfassen.",
+  "vareforbruk.feil.sedelSendt": "Das Tagesblatt wurde eingereicht. Die materielle Nutzung kann bis zur Rückgabe nicht geändert werden.",
+  "vareforbruk.feil.annensSedel": "Das Tagesblatt gehört jemand anderem. Nur ein Administrator kann die Materialverwendung ändern.",
   "firma.timer.felt.standard": "Standard",
   "firma.timer.standard.erValgt": "Standardlohntyp für neue Zeitzeilen",
   "firma.timer.standard.settValgt": "Als Standard für neue Zeitzeilen festlegen",

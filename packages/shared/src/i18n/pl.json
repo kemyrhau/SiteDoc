@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Usunąć to zużycie?",
   "vareforbruk.modulIkkeAktivert.tittel": "Zużycie materiału nie jest aktywne",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktywuj moduł Materiały w administracji firmy, aby zarejestrować zużycie.",
+  "vareforbruk.feil.sedelSendt": "Arkusz dzienny został przesłany. Wykorzystanie materiału nie może zostać zmienione, dopóki nie zostanie zwrócony.",
+  "vareforbruk.feil.annensSedel": "Arkusz dzienny należy do kogoś innego. Jedynie administrator może zmienić jego materialne przeznaczenie.",
   "firma.timer.felt.standard": "Domyślny",
   "firma.timer.standard.erValgt": "Domyślny typ wynagrodzenia dla nowych wierszy czasu",
   "firma.timer.standard.settValgt": "Ustaw jako domyślny dla nowych wierszy czasu",

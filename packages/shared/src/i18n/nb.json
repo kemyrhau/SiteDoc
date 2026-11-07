@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Slett dette vareforbruket?",
   "vareforbruk.modulIkkeAktivert.tittel": "Vareforbruk er ikke aktivert",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktiver Varelager-modulen i firma-administrasjon for å registrere vareforbruk.",
+  "vareforbruk.feil.sedelSendt": "Dagsseddelen er sendt. Vareforbruket kan ikke endres før den er returnert.",
+  "vareforbruk.feil.annensSedel": "Dagsseddelen tilhører en annen. Kun administrator kan endre vareforbruket på den.",
   "firma.timer.felt.standard": "Standard",
   "firma.timer.standard.erValgt": "Standard lønnsart for nye timer-rader",
   "firma.timer.standard.settValgt": "Sett som standard for nye timer-rader",

@@ -147,7 +147,10 @@ ingen personvernvurdering finnes. Avvist: automatisk besøk uten trykk (`mannska
 - **Glemt dag** (`kappGlemtDagSlutt`-grenen `:278-301`): samme skjerm, slutt-tid forhåndsutfylt fra kappingen,
   merket «slutt anslått» (`sluttTidKilde='system'`). Ingen egen prompt lenger.
 - **Sendt sedel** (`blokkertSendt`): skjermen viser forslaget i lesemodus med «Dagen er alt sendt — ingenting
-  opprettes» og lenke til sedelen; dagen avsluttes uten rader. (U-BEKREFT-R kommer senere her.)
+  opprettes» og lenke til sedelen; ingen rader skrives og dagen står `paagaar` (H7 beholdt —
+  `apps/mobile/app/timer/bekreft-dag.tsx:296`). **A4 vedtatt Kenneth 2026-11-07: «behold».** Serveren håndhever
+  samme grense for varer: vareforbruk på en sendt sedel avvises (ORDRE 33, sikkerhet.md § 8m). (U-BEKREFT-R kommer
+  senere her.)
 - **Tomt forslag** (0 rader, f.eks. < rundingsgrense): «Ingen timer å føre» · [Avslutt dag] · [Ikke nå]. Avslutt
   lukker økta uten sedel (K14).
 - **`ikkeAnsatt` / `kildeManglet` / `prosjektUkjent`**: skjermen åpner likevel; prosjekt-feltet er tomt og rødt

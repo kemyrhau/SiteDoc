@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Видалити це споживання?",
   "vareforbruk.modulIkkeAktivert.tittel": "Витрата матеріалів не активна",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Для реєстрації споживання активуйте модуль «Матеріали» в адміністрації фірми.",
+  "vareforbruk.feil.sedelSendt": "Щоденний лист подано. Використання матеріалу не можна змінити, доки він не буде повернутий.",
+  "vareforbruk.feil.annensSedel": "Щоденний аркуш належить комусь іншому. Тільки адміністратор може змінити його матеріальне використання.",
   "firma.timer.felt.standard": "За замовчуванням",
   "firma.timer.standard.erValgt": "Тип оплати за умовчанням для нових часових рядків",
   "firma.timer.standard.settValgt": "Установити за умовчанням для нових рядків часу",

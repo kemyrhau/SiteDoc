@@ -41,7 +41,7 @@ Alle routere i `apps/api/src/routes/`:
 | `eksternKostObjekt` | list (ExternalCostObject = «Underprosjekt» i UI; firma-isolert via `krevBrukersOrg`, ikke prosjekt-isolert — lese-only for timer-velgere) |
 | `vareKategori` | list, opprett, oppdater, slett (vareforbruk-modulens kategorikatalog) |
 | `vare` | list, hentMedId, opprett, oppdater, deaktiver (vareforbruk-modulens varekatalog) |
-| `vareforbruk` | list, hentMedId, opprett, oppdater, slett (vareforbruk-registrering, m/byggeplass + eksternt kostobjekt). _Firmamodul, `db-varelager` — se steg-4b-plan.md_ |
+| `vareforbruk` | list, hentMedId, opprett, oppdater, slett (vareforbruk-registrering, m/byggeplass + eksternt kostobjekt; linje på dagsseddel følger sedelens eier/status — [sikkerhet.md § 8m](sikkerhet.md)). _Firmamodul, `db-varelager` — se steg-4b-plan.md_ |
 | `vareImport` | importerForhandsvisning, importerBekreft (vare-/kategori-import) |
 | `firmaIntegrasjon` | list, lagre, slett (firma-integrasjonskonfigurasjon; API-nøkler returneres ALDRI — kun `harNøkkel`. Rotfil `routes/firma-integrasjon.ts`) |
 | `firma` | Nestet (`firma/index.ts`): `kalender` (hentForAar, importerNorskStandard, opprett, oppdater, slett, hentForMobil — firma-arbeidskalender/helligdager) |

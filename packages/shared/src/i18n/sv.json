@@ -4413,6 +4413,8 @@
   "vareforbruk.slett.bekreft": "Ta bort denna förbrukning?",
   "vareforbruk.modulIkkeAktivert.tittel": "Materialförbrukningen är inte aktiv",
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivera materialmodulen i firmaadministration för att registrera förbrukning.",
+  "vareforbruk.feil.sedelSendt": "Dagbladet har lämnats in. Materialanvändningen kan inte ändras förrän den returneras.",
+  "vareforbruk.feil.annensSedel": "Dagbladet tillhör någon annan. Endast en administratör kan ändra dess materialanvändning.",
   "firma.timer.felt.standard": "Standard",
   "firma.timer.standard.erValgt": "Standardlönetyp för nya tidsrader",
   "firma.timer.standard.settValgt": "Ställ in som standard för nya tidsrader",

@@ -648,15 +648,16 @@ export const oppgaveRouter = router({
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, mal.projectId);
       }
-      // ORDRE 29 #13: samme vakt for område — kun prosjekt (byggeplassen kan følge tegningen).
-      if (input.omradeId) {
-        await verifiserOmradeIProsjekt(ctx.prisma, input.omradeId, mal.projectId);
-      }
       const byggeplassId = velgTaskByggeplass({
         tegningensByggeplassId: await hentTegningensByggeplassId(ctx.prisma, input.drawingId),
         oensket: input.byggeplassId,
         arvet: await hentArvetSjekklisteByggeplassId(ctx.prisma, input.checklistId, mal.projectId),
       });
+      // ORDRE 29 #13 + ORDRE 33: område må tilhøre prosjektet OG oppgavens effektive
+      // byggeplass (etter at tegningen har fått vinne).
+      if (input.omradeId) {
+        await verifiserOmradeIProsjekt(ctx.prisma, input.omradeId, mal.projectId, byggeplassId);
+      }
 
       // Gratis-grense (10 oppgaver per prosjekt) — interim-vedtak 2026-07-26:
       // gjelder KUN standalone-prosjekter (prøve); firma-tilknyttede er grenseløse,
@@ -857,9 +858,6 @@ export const oppgaveRouter = router({
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, hentProjectId(oppgave));
       }
-      if (input.omradeId) {
-        await verifiserOmradeIProsjekt(ctx.prisma, input.omradeId, hentProjectId(oppgave));
-      }
 
       // ORDRE 28: byggeplass følger tegningen. Effektiv tegning = ny når den røres, ellers dagens.
       // Skrives kun når verdien faktisk endres (ingen støy på rene tittel-/frist-endringer).
@@ -872,6 +870,12 @@ export const oppgaveRouter = router({
         oensket: input.byggeplassId,
         naavaerende: oppgave.byggeplassId,
       });
+      // ORDRE 33: området må ligge på den effektive byggeplassen. Sjekkes også når kun
+      // byggeplassen flytter (ny byggeplass eller tegningsbytte) og området beholdes.
+      const effektivtOmrade = input.omradeId !== undefined ? input.omradeId : oppgave.omradeId;
+      if (effektivtOmrade && (input.omradeId !== undefined || nyByggeplassId !== oppgave.byggeplassId)) {
+        await verifiserOmradeIProsjekt(ctx.prisma, effektivtOmrade, hentProjectId(oppgave), nyByggeplassId);
+      }
 
       return ctx.prisma.task.update({
         where: { id },

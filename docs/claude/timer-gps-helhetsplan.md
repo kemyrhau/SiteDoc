@@ -321,6 +321,8 @@ er kjernen; spec-en har skjerm, klikktelling, arkitektur, tester, **ORDRE-tekst 
   forslaget vises som ett kort pr. segment, arbeideren retter prosjekt · byggeplass · tider · pause (rettedybde B)
   og bekrefter. **2 klikk** fra «Slutt dag» til rader (P4). **Dagen forblir åpen hvis han avbryter**
   (Kenneth-vedtak 2026-10-01, valg A). Dagens `Alert` fjernes — skjermen *er* bekreftelsen.
+  **A4 vedtatt (Kenneth 2026-11-07, «behold»):** alle datoer sendt → lesemodus, ingen rader, dagen står `paagaar` (H7,
+  `bekreft-dag.tsx:296`); serveren avviser vareforbruk på sendt sedel (ORDRE 33, sikkerhet.md § 8m).
 - 🟢 **G1-konflikten (H26) lukket av L3-A** (anvend bak Bekreft; G1-ordlyden står i `useArbeidsdag.ts`). Avgjort i spec § 5: dagens `anvendDagsforslag` rett etter «Slutt dag» er et brudd
   i form (ingen port) men dempet i virkning (`draft` + manuell sending). `anvend` flyttes bak «Bekreft» i **L3-A**;
   ingen tilbakerulling. «Tilstedeværelse ≠ arbeidstid» står: det gjelder innsjekk/PSI, ikke en villet «Start dag».

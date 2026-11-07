@@ -255,6 +255,18 @@ describe("vareforbruk fra kortet — synk", () => {
     expect(server.kall()).toBe(1);
   });
 
+  it("sedelen sendt før køen nådde fram (ORDRE 33, FORBIDDEN) → avvist med i18n-nøkkel, sendes ikke igjen", async () => {
+    seedSedel("s1", "synced");
+    seedTimerRad("t1", "s1");
+    nyLinje("l1", "s1");
+    const feil = Object.assign(new Error("vareforbruk.feil.sedelSendt"), { data: { code: "FORBIDDEN" } });
+    const server = lagServer({ feil });
+    await syncVareforbruk(server.klient, "u1");
+    expect(linje("l1")).toMatchObject({ syncStatus: "avvist", feilmelding: "vareforbruk.feil.sedelSendt" });
+    await syncVareforbruk(server.klient, "u1");
+    expect(server.kall()).toBe(1);
+  });
+
   it("Varelager slått av (PRECONDITION_FAILED) → avvist, sendes ikke igjen (16d)", async () => {
     seedSedel("s1", "synced");
     seedTimerRad("t1", "s1");
