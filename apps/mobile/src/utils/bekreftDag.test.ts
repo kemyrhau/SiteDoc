@@ -45,7 +45,14 @@ import {
   avsluttDagUtenSedel,
   erTomtForslag,
   erAlleDatoerSendt,
+  prosjekterMedArbeid,
 } from "./bekreftDag";
+import type { Dagsforslag } from "./dagsforslag";
+
+/** ORDRE 36a: beskrivelse er påkrevd ved Bekreft — testene her måler noe annet. */
+function medBeskrivelse(f: Dagsforslag): Dagsforslag {
+  return { ...f, beskrivelsePerProsjekt: Object.fromEntries(prosjekterMedArbeid(f).map((p) => [p, "Graving"])) };
+}
 
 let teller = 0;
 const {
@@ -196,7 +203,7 @@ describe("L3-A § 8 nr. 4 — retting i skjermen slår gjennom ved Bekreft", () 
       prosjektId: "p2",
       perDato: { [DATO]: { arbeidFra: "07:30", arbeidTil: "14:30", pauseMin: 60 } },
     });
-    bekreftDag(lokalDb(), forslag, skriveCtx());
+    bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx());
     const sedel = db().select().from(dagsseddelLocal).all()[0]!;
     expect(sedel.projectId).toBe("p2");
     expect(sedel.pauseMin).toBe(60);
@@ -213,7 +220,7 @@ describe("L3-A § 8 nr. 4 — retting i skjermen slår gjennom ved Bekreft", () 
 describe("L3-A § 8 nr. 1 — Bekreft lagrer og avslutter", () => {
   it("🔴 bekreftDag gir sedel + rader, dagen avsluttet med generertDagsseddelId", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
-    const { handling, resultat } = bekreftDag(lokalDb(), forslag, skriveCtx());
+    const { handling, resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx());
     expect(handling.type).toBe("suksess");
     const t = tell();
     expect(t.sedler).toBe(1);
@@ -234,7 +241,7 @@ describe("L3-A § 8 nr. 3 — sendt sedel (A4 venter Kenneth: H7 beholdes)", () 
     }).run();
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     expect(erAlleDatoerSendt(forslag)).toBe(true);
-    const { handling } = bekreftDag(lokalDb(), forslag, skriveCtx());
+    const { handling } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx());
     expect(handling.type).toBe("blokkertSendt");
     expect(tell()).toEqual({ sedler: 1, rader: 0, status: "paagaar" });
   });

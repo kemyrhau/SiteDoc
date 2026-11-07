@@ -284,6 +284,12 @@ export type Dagsforslag = {
    */
   normStatus: "server" | "cachet" | "ukjent" | null;
   datoer: DagsforslagDag[];
+  /**
+   * ORDRE 36a (spec § 3): arbeiderens «Hva gjorde du i dag?» pr. projectId,
+   * fra `retting.beskrivelse`. Utelatt = ingen retting (uendret utdata).
+   * `anvendDagsforslag` skriver teksten på prosjektets arbeidsrader.
+   */
+  beskrivelsePerProsjekt?: Record<string, string>;
 };
 
 /** Alt `beregnDagsforslag` trenger — ferdig lest ut av kalleren (ingen DB her). */
@@ -335,6 +341,8 @@ export type DagsforslagRetting = {
   /** undefined = default-kjeden; null = ingen byggeplass. */
   byggeplassId?: string | null;
   perDato?: Record<string, DagsforslagRettingDato>;
+  /** ORDRE 36a: beskrivelse pr. projectId (påkrevd før Bekreft, spec § 3). */
+  beskrivelse?: Record<string, string>;
 };
 
 export type DagsforslagRettingDato = {
@@ -808,6 +816,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     destinasjonAarsak,
     normStatus: effektivStartDag.normStatus ?? null,
     datoer,
+    ...(retting?.beskrivelse ? { beskrivelsePerProsjekt: retting.beskrivelse } : {}),
   };
 }
 

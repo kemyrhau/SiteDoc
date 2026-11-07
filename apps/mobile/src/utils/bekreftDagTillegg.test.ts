@@ -37,7 +37,13 @@ vi.mock("../db/database", () => ({
 import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
-import { forberedBekreftDag, bekreftDag } from "./bekreftDag";
+import { forberedBekreftDag, bekreftDag, prosjekterMedArbeid } from "./bekreftDag";
+import type { Dagsforslag } from "./dagsforslag";
+
+/** ORDRE 36a: beskrivelse er påkrevd ved Bekreft — testene her måler noe annet. */
+function medBeskrivelse(f: Dagsforslag): Dagsforslag {
+  return { ...f, beskrivelsePerProsjekt: Object.fromEntries(prosjekterMedArbeid(f).map((p) => [p, "Graving"])) };
+}
 import {
   tilleggSynlighet,
   entydigByggeplass,
@@ -196,7 +202,7 @@ beforeEach(() => {
 describe("L3-D § 8 nr. 15 — maskin med antall", () => {
   it("🔴 maskin 3,0 → én rad uten sheetTimerId og uten fra/til, på start-sedelen", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
-    const { handling, resultat } = bekreftDag(lokalDb(), forslag, skriveCtx(), MASKIN_3);
+    const { handling, resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), MASKIN_3);
     expect(handling.type).toBe("suksess");
     const rader = db().select().from(sheetMachineLocal).all();
     expect(rader).toHaveLength(1);
@@ -215,7 +221,7 @@ describe("L3-D § 8 nr. 15 — maskin med antall", () => {
 describe("L3-D § 8 nr. 16 — vare", () => {
   it("🔴 vare → pending-rad på start-sedelen; sending venter til sedelen er synket", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
-    const { resultat } = bekreftDag(lokalDb(), forslag, skriveCtx(), VARE);
+    const { resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), VARE);
     const rader = db().select().from(vareforbrukLocal).all();
     expect(rader).toHaveLength(1);
     const v = rader[0]!;
@@ -236,14 +242,14 @@ describe("L3-D § 8 nr. 16 — vare", () => {
 describe("L3-D § 8 nr. 17 — uten maskin/vare er Bekreft som før", () => {
   it("tillegg utelatt og tomt tillegg gir samme rader og 0 maskin/vare", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
-    bekreftDag(lokalDb(), forslag, skriveCtx());
+    bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx());
     const utenRader = db().select().from(sheetTimerLocal).all().map((r) => ({ ...r, id: "", dagsseddelId: "" }));
     expect(tellTillegg()).toEqual({ maskin: 0, varer: 0 });
 
     holder.raw.run("DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM arbeidsdag_local;");
     seedArbeidsdag();
     const { forslag: f2 } = forberedBekreftDag(lokalDb(), kontekst());
-    bekreftDag(lokalDb(), f2, skriveCtx(), { maskiner: [], varer: [] });
+    bekreftDag(lokalDb(), medBeskrivelse(f2), skriveCtx(), { maskiner: [], varer: [] });
     const medTomt = db().select().from(sheetTimerLocal).all().map((r) => ({ ...r, id: "", dagsseddelId: "" }));
     expect(medTomt).toEqual(utenRader);
     expect(tellTillegg()).toEqual({ maskin: 0, varer: 0 });
@@ -304,7 +310,7 @@ describe("L3-D § 8 nr. 20 — byggeplass på varen", () => {
       }),
     );
     expect(forslag.datoer).toHaveLength(2);
-    const { resultat } = bekreftDag(lokalDb(), forslag, { ...skriveCtx(), sluttIso: "2026-07-02T04:00:00" }, MASKIN_3);
+    const { resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), { ...skriveCtx(), sluttIso: "2026-07-02T04:00:00" }, MASKIN_3);
     const maskin = db().select().from(sheetMachineLocal).all();
     expect(maskin).toHaveLength(1);
     expect(maskin[0]!.dagsseddelId).toBe(resultat!.startSheetId);
@@ -335,7 +341,7 @@ describe("L3-D § 8 nr. 21 — maskin ≤ arbeid + pause (samme regel som server
       maskiner: [{ ...MASKIN_3.maskiner[0]!, timer: 9 }],
       varer: VARE.varer,
     };
-    const { handling, resultat } = bekreftDag(lokalDb(), forslag, skriveCtx(), ni);
+    const { handling, resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), ni);
     expect(handling.type).toBe("maskinBrudd");
     expect(resultat).toBeNull();
     expect(tellTillegg()).toEqual({ maskin: 0, varer: 0 });
@@ -368,7 +374,7 @@ describe("Vedtak C — sendt start-sedel", () => {
       dato: DATO, status: "sent", sistEndretLokalt: 1,
     }).run();
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
-    const { handling } = bekreftDag(lokalDb(), forslag, skriveCtx(), {
+    const { handling } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), {
       maskiner: MASKIN_3.maskiner,
       varer: VARE.varer,
     });
@@ -496,7 +502,7 @@ describe("Dom (57) m2 — vare krever timer-rad på startdatoen", () => {
     const tilstand = tilleggTilstand(forslag, vaktGrunnlag(lokalDb(), BRUKER, forslag), "p1");
     const renset = rensTillegg({ maskiner: MASKIN_3.maskiner, varer: VARE.varer }, tilstand);
     expect(renset).toEqual({ maskiner: MASKIN_3.maskiner, varer: [] });
-    bekreftDag(lokalDb(), forslag, { ...skriveCtx(), sluttIso: "2026-07-02T04:00:00" }, {
+    bekreftDag(lokalDb(), medBeskrivelse(forslag), { ...skriveCtx(), sluttIso: "2026-07-02T04:00:00" }, {
       maskiner: [],
       varer: renset.varer,
     });

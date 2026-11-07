@@ -23,8 +23,37 @@ import {
   type BekreftDagTillegg,
 } from "./bekreftDagTillegg";
 
-/** L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21). */
-export type BekreftDagHandling = SluttDagHandling | { type: "maskinBrudd"; brudd: MaskinBrudd[] };
+/**
+ * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
+ * ORDRE 36a: tom beskrivelse på et prosjekt med arbeid → ingenting skrives.
+ */
+export type BekreftDagHandling =
+  | SluttDagHandling
+  | { type: "maskinBrudd"; brudd: MaskinBrudd[] }
+  | { type: "manglerBeskrivelse"; projectIds: string[] };
+
+/**
+ * ORDRE 36a (spec § 3): prosjektene som har arbeid (ikke reise) på en åpen
+ * dato, i forslagets rekkefølge. Fjernet arbeid (`fjernArbeid`) har ingen
+ * arbeidsrader og teller ikke.
+ */
+export function prosjekterMedArbeid(forslag: Dagsforslag): string[] {
+  const ider: string[] = [];
+  for (const d of forslag.datoer) {
+    if (d.blokkert) continue;
+    for (const r of d.rader) {
+      if (!r.erReise && r.timer > 0 && !ider.includes(r.projectId)) ider.push(r.projectId);
+    }
+  }
+  return ider;
+}
+
+/** ORDRE 36a: prosjekter med arbeid der beskrivelsen er tom etter trim. */
+export function manglerBeskrivelse(forslag: Dagsforslag): string[] {
+  return prosjekterMedArbeid(forslag).filter(
+    (p) => !forslag.beskrivelsePerProsjekt?.[p]?.trim(),
+  );
+}
 
 /**
  * L3-A «Bekreft dag» (spec § 10, helhetsplan § 3 G1, Kenneth 2026-11-06).
@@ -63,6 +92,16 @@ export function forberedBekreftDag(
   return { input, forslag: beregnDagsforslag({ ...input, retting }) };
 }
 
+/** ORDRE 36a: prosjektbytte flytter teksten når det nye prosjektet ikke har egen. */
+export function flyttBeskrivelse(
+  b: Record<string, string> | undefined,
+  fra: string | null,
+  til: string | null,
+): Record<string, string> | undefined {
+  if (!b || !fra || !til || fra === til || !b[fra]?.trim() || b[til]?.trim()) return b;
+  return { ...b, [til]: b[fra]! };
+}
+
 /** SKRIV — kun fra [Bekreft og lagre]. Avslutter dagen når H7 sier det. */
 export function bekreftDag(
   db: LokalDb,
@@ -81,7 +120,13 @@ export function bekreftDag(
   tillegg?: BekreftDagTillegg,
 ):
   | { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat }
-  | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null } {
+  | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
+  | { handling: { type: "manglerBeskrivelse"; projectIds: string[] }; resultat: null } {
+  // ORDRE 36a: beskrivelsen er påkrevd — sjekkes først, ingenting skrives.
+  const mangler = manglerBeskrivelse(forslag);
+  if (mangler.length > 0) {
+    return { handling: { type: "manglerBeskrivelse", projectIds: mangler }, resultat: null };
+  }
   // Vakten kjøres FØR noe skrives — samme regel som serveren ville avvist med.
   if (tillegg && tillegg.maskiner.length > 0) {
     const brudd = maskinBruddForTillegg(vaktGrunnlag(db, ctx.userId, forslag), tillegg.maskiner);

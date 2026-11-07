@@ -150,6 +150,11 @@ export function anvendDagsforslag(
           timer: rad.timer,
           fraTid: rad.fraTid,
           tilTid: rad.tilTid,
+          // ORDRE 36a: «Hva gjorde du i dag?» på prosjektets arbeidsrader;
+          // reise beskriver seg selv (retning + destinasjon).
+          beskrivelse: rad.erReise
+            ? null
+            : forslag.beskrivelsePerProsjekt?.[rad.projectId]?.trim() || null,
           pauseMin: rad.pauseMin,
           // B1: reise-sporet (M1 — innsettingen skrev det ikke før). byggeplassId
           // settes nå faktisk (destinasjonen på reise-rader; null → arv på

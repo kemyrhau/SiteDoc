@@ -103,3 +103,13 @@ describe("ORDRE 35 — prosjektkortet er flyttet ut av dagskortet", () => {
     expect(jsxTagger("")).toBe("");
   });
 });
+
+// ORDRE 36a — påkrevd «Hva gjorde du i dag?» bor KUN i Bekreft dag.
+describe("ORDRE 36a — beskrivelsessperren rører ikke dagskortet", () => {
+  it.each(["manglerBeskrivelse", "beskrivelsePerProsjekt", "BekreftDagBeskrivelse", "sisteBeskrivelser"])(
+    "🔴 dagskortet inneholder ikke «%s»",
+    (navn) => {
+      expect(DAGSKORT).not.toContain(navn);
+    },
+  );
+});
