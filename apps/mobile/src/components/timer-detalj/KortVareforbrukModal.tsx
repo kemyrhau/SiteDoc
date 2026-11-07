@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { View, Text, Pressable, Modal, TextInput, ScrollView } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, Pressable, Modal, TextInput, ScrollView, Keyboard } from "react-native";
 import { Package } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
@@ -15,6 +15,7 @@ import { TastaturScrollView } from "./TastaturScrollView";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
 import { formatKortTall } from "../../lib/prosjektkortMobil";
+import { lagVaresokFokus, varesokRullMal } from "../../utils/varesokRulling";
 
 /**
  * Prosjektkort L3 (2026-11-06): «+ Vareforbruk» fra kortskjermen. Prosjektet
@@ -27,6 +28,9 @@ import { formatKortTall } from "../../lib/prosjektkortMobil";
  *
  * ORDRE 34: `forblirApen` (kun Bekreft dag) holder dialogen åpen etter hver linje
  * og viser `fortIDag` øverst; [Ferdig] lukker. Default = dagens atferd (lukker).
+ *
+ * ORDRE 37: med fokus i søkefeltet og tastaturet oppe rulles «Vare»-blokka til
+ * toppen, så treffene vises over tastaturet (`utils/varesokRulling.ts`).
  */
 export function KortVareforbrukModal({
   synlig,
@@ -90,6 +94,22 @@ export function KortVareforbrukModal({
   const tall = Number(antall.replace(",", "."));
   const kanLagre = !!valgt && Number.isFinite(tall) && tall > 0;
 
+  const rulleRef = useRef<ScrollView>(null);
+  const kortY = useRef(0);
+  const vareY = useRef(0);
+  const [varesokFokus] = useState(() =>
+    lagVaresokFokus({
+      tastaturSynlig: () => Keyboard.isVisible(),
+      lyttVist: (fn) => Keyboard.addListener("keyboardDidShow", fn),
+      rull: () =>
+        rulleRef.current?.scrollTo({
+          y: varesokRullMal({ kortY: kortY.current, feltY: vareY.current, marg: 12 }),
+          animated: true,
+        }),
+    }),
+  );
+  useEffect(() => () => varesokFokus.rydd(), [varesokFokus]);
+
   function lagre() {
     if (!valgt || !kanLagre) return;
     fullforVarelinje(
@@ -114,10 +134,16 @@ export function KortVareforbrukModal({
   return (
     <Modal visible={synlig} transparent animationType="fade" onRequestClose={onAvbryt}>
       <TastaturScrollView
+        ref={rulleRef}
         className="flex-1 bg-black/40"
         contentContainerClassName="flex-grow items-center justify-center px-6 py-10"
       >
-        <View className="w-full max-w-md rounded-2xl bg-white p-5">
+        <View
+          onLayout={(e) => {
+            kortY.current = e.nativeEvent.layout.y;
+          }}
+          className="w-full max-w-md rounded-2xl bg-white p-5"
+        >
           <View className="mb-3 flex-row items-center gap-2">
             <Package size={20} color="#1e40af" />
             <Text className="flex-1 text-base font-semibold text-gray-900">
@@ -167,35 +193,43 @@ export function KortVareforbrukModal({
             </>
           )}
 
-          <Text className="mb-1 text-xs font-medium text-gray-500">{t("vareforbruk.felt.vare")}</Text>
-          <TextInput
-            value={sok}
-            onChangeText={setSok}
-            placeholder={t("handling.sok")}
-            className="mb-2 rounded-lg border border-gray-300 px-3 py-2 text-base"
-          />
-          <ScrollView nestedScrollEnabled className="mb-3 max-h-48 rounded-lg border border-gray-200">
-            {treff.length === 0 ? (
-              <Text className="p-3 text-sm text-gray-500">{t("felles.ingenTreff")}</Text>
-            ) : (
-              treff.map((v) => {
-                const aktiv = v.id === vareId;
-                return (
-                  <Pressable
-                    key={v.id}
-                    onPress={() => setVareId(v.id)}
-                    className={`flex-row justify-between border-b border-gray-100 px-3 py-2.5 ${aktiv ? "bg-blue-50" : ""}`}
-                  >
-                    <Text className={`flex-1 text-sm ${aktiv ? "font-semibold text-blue-800" : "text-gray-800"}`}>
-                      {v.navn}
-                      {v.varenummer ? ` (${v.varenummer})` : ""}
-                    </Text>
-                    <Text className="text-sm text-gray-500">{v.enhet}</Text>
-                  </Pressable>
-                );
-              })
-            )}
-          </ScrollView>
+          <View
+            onLayout={(e) => {
+              vareY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <Text className="mb-1 text-xs font-medium text-gray-500">{t("vareforbruk.felt.vare")}</Text>
+            <TextInput
+              value={sok}
+              onChangeText={setSok}
+              onFocus={varesokFokus.onFocus}
+              onBlur={varesokFokus.onBlur}
+              placeholder={t("handling.sok")}
+              className="mb-2 rounded-lg border border-gray-300 px-3 py-2 text-base"
+            />
+            <ScrollView nestedScrollEnabled className="mb-3 max-h-48 rounded-lg border border-gray-200">
+              {treff.length === 0 ? (
+                <Text className="p-3 text-sm text-gray-500">{t("felles.ingenTreff")}</Text>
+              ) : (
+                treff.map((v) => {
+                  const aktiv = v.id === vareId;
+                  return (
+                    <Pressable
+                      key={v.id}
+                      onPress={() => setVareId(v.id)}
+                      className={`flex-row justify-between border-b border-gray-100 px-3 py-2.5 ${aktiv ? "bg-blue-50" : ""}`}
+                    >
+                      <Text className={`flex-1 text-sm ${aktiv ? "font-semibold text-blue-800" : "text-gray-800"}`}>
+                        {v.navn}
+                        {v.varenummer ? ` (${v.varenummer})` : ""}
+                      </Text>
+                      <Text className="text-sm text-gray-500">{v.enhet}</Text>
+                    </Pressable>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
 
           <Text className="mb-1 text-xs font-medium text-gray-500">
             {t("vareforbruk.felt.antall") + (valgt ? ` (${valgt.enhet})` : "")}
