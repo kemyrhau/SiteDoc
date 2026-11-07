@@ -389,8 +389,9 @@ export function segmenterVedOvertidFra(args: {
 
 /**
  * ORDRE 34 pkt 4: flytt overtid-starten ett steg (firmaets tidsrunding, ellers
- * 15 min), avgrenset til arbeidsvinduet [fra, til − steg] så overtiden aldri
- * forsvinner helt ved pressing.
+ * 15 min), avgrenset til arbeidsvinduet [fra, til]. ORDRE 35 C2: «+» helt til
+ * `til` gir 0 timer overtid (merket faller bort, «Legg til overtid» kommer
+ * tilbake); «+» flytter aldri starten bakover.
  */
 export function stegOvertidFra(
   naa: string,
@@ -401,8 +402,10 @@ export function stegOvertidFra(
 ): string {
   const steg = tidsrundingMinutter && tidsrundingMinutter > 0 ? tidsrundingMinutter : 15;
   const min = hhmmTilMin(fra);
-  const maks = Math.max(min, hhmmTilMin(til) - steg);
-  const ny = Math.min(maks, Math.max(min, hhmmTilMin(naa) + retning * steg));
+  const maks = Math.max(min, hhmmTilMin(til));
+  const naaMin = hhmmTilMin(naa);
+  const kandidat = Math.min(maks, Math.max(min, naaMin + retning * steg));
+  const ny = retning === 1 ? Math.max(naaMin, kandidat) : kandidat;
   const t = Math.floor(ny / 60);
   const m = ny % 60;
   return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;

@@ -1,4 +1,4 @@
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, ne } from "drizzle-orm";
 import { kortDagsseddelId, kortVareforbrukInput, type KortVareforbrukInput } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import { dagsseddelLocal, sheetTimerLocal, vareforbrukLocal } from "../db/schema";
@@ -240,6 +240,8 @@ export function hentLokaleVarelinjerForDag(
         eq(vareforbrukLocal.userId, userId),
         eq(vareforbrukLocal.projectId, projectId),
         eq(vareforbrukLocal.dato, dato),
+        // ORDRE 35 C3: avviste linjer ble aldri ført — vises ikke som «Ført i dag».
+        ne(vareforbrukLocal.syncStatus, "avvist"),
       ),
     )
     .orderBy(asc(vareforbrukLocal.sistEndretLokalt))

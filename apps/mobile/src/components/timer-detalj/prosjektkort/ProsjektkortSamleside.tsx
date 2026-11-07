@@ -16,7 +16,7 @@ import {
   telteKortVarer,
   pauseBaererProsjekt,
   sendKnappTekst,
-} from "../../lib/prosjektkortMobil";
+} from "../../../lib/prosjektkortMobil";
 
 /**
  * Prosjektkort L2 (spec § 4.2/§ 7): samlesiden for dagen i prosjektkort-modus.

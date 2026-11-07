@@ -672,6 +672,23 @@ function DatoKort({
               </Text>
             </Pressable>
           ) : null}
+          {/* ORDRE 35 del B: ingen overtid ennå → start den fra arbeidsstart; samme motor
+              (segmenterVedOvertidFra), nivå faller tilbake til OT50 til et chip velges. */}
+          {!forsteOt && overtidValg.length > 0 ? (
+            <Pressable
+              onPress={() => {
+                onRett({ overtidFra: fra });
+                setRedigerOvertid(true);
+              }}
+              hitSlop={8}
+              className="flex-row items-center gap-1 self-start"
+            >
+              <Plus size={14} color="#1d4ed8" />
+              <Text className="text-xs font-medium text-blue-700">
+                {t("timer.bekreftDag.overtidLeggTil")}
+              </Text>
+            </Pressable>
+          ) : null}
           {redigerOvertid && forsteOt?.fraTid ? (
             <View className="gap-2 rounded-md border border-amber-200 bg-white p-2">
               <View className="flex-row items-center justify-between">
