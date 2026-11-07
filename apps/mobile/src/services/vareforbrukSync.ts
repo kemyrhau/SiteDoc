@@ -30,7 +30,10 @@ export type Varesending = { handling: "vent" } | { handling: "send"; input: Kort
  *  - sedel mangler lokalt eller er avvist → send uten kobling (som på web).
  */
 export function planleggVaresending(
-  linje: Pick<VareLinjeLokal, "id" | "sheetId" | "projectId" | "dato" | "vareId" | "antall" | "byggeplassId">,
+  linje: Pick<
+    VareLinjeLokal,
+    "id" | "sheetId" | "projectId" | "dato" | "vareId" | "antall" | "byggeplassId" | "externalCostObjectId"
+  >,
   sedel: SedelLokal | null,
   timerRader: readonly { projectId: string | null }[],
 ): Varesending {
@@ -41,6 +44,8 @@ export function planleggVaresending(
     vareId: linje.vareId,
     antall: linje.antall,
     byggeplassId: linje.byggeplassId,
+    // ORDRE 36b: varen arver kortets underprosjekt (null på linjer fra før kolonnen).
+    externalCostObjectId: linje.externalCostObjectId ?? null,
   };
   if (!sedel || sedel.syncStatus === "avvist") {
     return { handling: "send", input: kortVareforbrukInput(basis) };
@@ -141,6 +146,9 @@ export type LokalVarelinje = {
   projectId: string;
   antall: number;
   vare: { navn: string; enhet: string };
+  /** ORDRE 36b: kortnøkkelens B og UP (null = sedelens byggeplass / uten UP). */
+  byggeplassId: string | null;
+  externalCostObjectId: string | null;
   syncStatus: "pending" | "synced" | "avvist";
   feilmelding: string | null;
 };
@@ -163,6 +171,8 @@ export function hentLokaleVarelinjer(sheetId: string, projectId?: string): Lokal
       projectId: l.projectId,
       antall: l.antall,
       vare: { navn: l.vareNavn, enhet: l.enhet },
+      byggeplassId: l.byggeplassId ?? null,
+      externalCostObjectId: l.externalCostObjectId ?? null,
       syncStatus: l.syncStatus,
       feilmelding: l.feilmelding,
     }));
@@ -181,11 +191,13 @@ export function lagreLokalVarelinje(args: {
   enhet: string;
   antall: number;
   byggeplassId: string | null;
+  /** ORDRE 36b: kortets underprosjekt. */
+  externalCostObjectId?: string | null;
 }): void {
   const db = hentDatabase();
   if (!db) throw new Error("Database ikke tilgjengelig");
   db.insert(vareforbrukLocal)
-    .values({ ...args, syncStatus: "pending", feilmelding: null, sistEndretLokalt: Date.now() })
+    .values({ ...args, externalCostObjectId: args.externalCostObjectId ?? null, syncStatus: "pending", feilmelding: null, sistEndretLokalt: Date.now() })
     .run();
 }
 /** Arbeiderens valg i vare-modalen (før det er bundet til en sedel). */

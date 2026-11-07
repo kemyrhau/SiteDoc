@@ -26,6 +26,7 @@ import {
   krevByggeplassIProsjekt,
   krevByggeplasserIProsjekt,
   lagByggeplassVasker,
+  maskinByggeplassVedSync,
 } from "./byggeplass-rad";
 import {
   hentErReiseKontekst,
@@ -5738,6 +5739,8 @@ export const dagsseddelRouter = router({
             id: m.id,
             projectId: m.projectId,
             externalCostObjectId: m.externalCostObjectId,
+            // ORDRE 36b: maskinens byggeplass (kortet) — mobil skriver den lokalt.
+            byggeplassId: m.byggeplassId,
             // Del B pkt 1: returner koblingen så mobil beholder den ved pull.
             sheetTimerId: m.sheetTimerId,
             vehicleId: m.vehicleId,
@@ -5889,6 +5892,10 @@ export const dagsseddelRouter = router({
                   // Del B pkt 1: svak FK → timer-raden maskinen ble ført sammen med.
                   // Optional/nullable → eldre klienter uten feltet lar det stå null.
                   sheetTimerId: z.string().uuid().nullable().optional(),
+                  // ORDRE 36b: maskinen bærer kortets byggeplass (samme kort som
+                  // timer-raden). Optional → eldre klienter uten feltet beholder
+                  // sedel-arven (lokal.byggeplassId); null = eksplisitt ingen.
+                  byggeplassId: z.string().uuid().nullable().optional(),
                   vehicleId: z.string().uuid(),
                   timer: z.number().min(0).max(24),
                   mengde: z.number().min(0).nullable().optional(),
@@ -6285,6 +6292,7 @@ export const dagsseddelRouter = router({
           const vaskByggeplass = await lagByggeplassVasker([
             lokal.byggeplassId,
             ...lokal.timer.map((t) => t.byggeplassId),
+            ...lokal.maskiner.map((m) => m.byggeplassId),
           ]);
           let byggeplassVasket = 0;
           const vaskTell = (b: string | null | undefined, p: string | null): string | null => {
@@ -6301,7 +6309,9 @@ export const dagsseddelRouter = router({
           const syncMaskinByggeplass = new Map(
             lokal.maskiner.map((m) => [
               m.id,
-              vaskTell(lokal.byggeplassId, radProsjekt(m.projectId)),
+              maskinByggeplassVedSync(m, lokal.byggeplassId, (b) =>
+                vaskTell(b, radProsjekt(m.projectId)),
+              ),
             ]),
           );
           // Forslags-veiene (V19) lagrer payloadens egne byggeplass-felt — vask dem

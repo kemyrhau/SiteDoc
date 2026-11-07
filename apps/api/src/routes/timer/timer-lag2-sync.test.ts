@@ -358,3 +358,113 @@ describe("syncBatch — byggeplass utenfor radens prosjekt (ordre 12)", () => {
     );
   });
 });
+
+/**
+ * ORDRE 36b: maskin-raden bærer egen byggeplass (kortets) i syncBatch-pushen.
+ * Feltet er optional — eldre klienter uten feltet beholder sedel-arven.
+ */
+describe("syncBatch — maskin bærer egen byggeplass (ORDRE 36b)", () => {
+  const MASKIN = "99999999-9999-9999-9999-999999999999";
+  const TIMER_RAD = "88888888-8888-8888-8888-888888888888";
+  const BYGGEPLASS_EGEN_2 = "12345678-1234-1234-1234-123456789abc"; // også under PROSJEKT
+
+  function maskinRad(ekstra: Record<string, unknown>) {
+    return {
+      id: MASKIN,
+      projectId: PROSJEKT,
+      vehicleId: "12121212-1212-1212-1212-121212121212",
+      timer: 2,
+      ...ekstra,
+    };
+  }
+
+  async function pushOgHentMaskin(sedel: Record<string, unknown>) {
+    const { ctx, txMock } = lagCtx();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await dagsseddelRouter.createCaller(ctx).syncBatch({ sedler: [sedel as any] });
+    expect(res.resultater[0]!.resultat).toBe("ok");
+    const data = (txMock.sheetMachine.createMany as ReturnType<typeof vi.fn>).mock.calls[0]![0].data;
+    expect(data).toHaveLength(1);
+    return data[0] as Record<string, unknown>;
+  }
+
+  beforeEach(() => {
+    kjerne.byggeplassFindMany.mockResolvedValue([
+      { id: BYGGEPLASS_EGEN, projectId: PROSJEKT },
+      { id: BYGGEPLASS_EGEN_2, projectId: PROSJEKT },
+      { id: BYGGEPLASS_FREMMED, projectId: ANNET_PROSJEKT },
+    ]);
+  });
+
+  it("🔴 (a) byggeplassId i eget prosjekt lagres på maskinen — ikke sedelens", async () => {
+    const m = await pushOgHentMaskin({
+      ...sedelMed({ projectId: PROSJEKT }),
+      byggeplassId: BYGGEPLASS_EGEN,
+      maskiner: [maskinRad({ byggeplassId: BYGGEPLASS_EGEN_2 })],
+    });
+    expect(m.byggeplassId).toBe(BYGGEPLASS_EGEN_2);
+  });
+
+  it("🔴 (b) byggeplassId fra et annet prosjekt → null (prosjektet beholdes)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = await pushOgHentMaskin({
+      ...sedelMed({ projectId: PROSJEKT }),
+      byggeplassId: BYGGEPLASS_EGEN,
+      maskiner: [maskinRad({ byggeplassId: BYGGEPLASS_FREMMED })],
+    });
+    expect(m.byggeplassId).toBeNull();
+    expect(m.projectId).toBe(PROSJEKT);
+    warn.mockRestore();
+  });
+
+  it("🔴 RETUR 4: eksplisitt null = arv — maskinen får sedelens byggeplass (som timer-radene)", async () => {
+    // Mobil (timerSync) sender null når raden står på sedelens byggeplass.
+    // Mot 2c0fab3e ble den lagret som null og forsvant fra byggeplassen.
+    const m = await pushOgHentMaskin({
+      ...sedelMed({ projectId: PROSJEKT }),
+      byggeplassId: BYGGEPLASS_EGEN,
+      maskiner: [maskinRad({ byggeplassId: null })],
+    });
+    expect(m.byggeplassId).toBe(BYGGEPLASS_EGEN);
+  });
+
+  it("RETUR 4 negativkontroll: null + sedel-byggeplass fra et annet prosjekt → null", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = await pushOgHentMaskin({
+      ...sedelMed({ projectId: PROSJEKT }),
+      byggeplassId: BYGGEPLASS_FREMMED,
+      maskiner: [maskinRad({ byggeplassId: null })],
+    });
+    expect(m.byggeplassId).toBeNull();
+    expect(m.projectId).toBe(PROSJEKT);
+    warn.mockRestore();
+  });
+
+  it("(c) uten feltet (eldre klient) → sedelens byggeplass som før", async () => {
+    const m = await pushOgHentMaskin({
+      ...sedelMed({ projectId: PROSJEKT }),
+      byggeplassId: BYGGEPLASS_EGEN,
+      maskiner: [maskinRad({})],
+    });
+    expect(m.byggeplassId).toBe(BYGGEPLASS_EGEN);
+  });
+
+  it("🔴 (d) stille tomhet: maskin med samme kort (sheetTimerId + byggeplass) som timer-raden ender på timer-radens byggeplass X", async () => {
+    const { ctx, txMock } = lagCtx();
+    const sedel = {
+      // Sedelhodet har en ANNEN byggeplass enn kortet — før 36b arvet maskinen den.
+      ...sedelMed({ id: TIMER_RAD, projectId: PROSJEKT, byggeplassId: BYGGEPLASS_EGEN_2 }),
+      byggeplassId: BYGGEPLASS_EGEN,
+      maskiner: [maskinRad({ sheetTimerId: TIMER_RAD, byggeplassId: BYGGEPLASS_EGEN_2 })],
+    };
+    const res = await dagsseddelRouter.createCaller(ctx).syncBatch({ sedler: [sedel] });
+    expect(res.resultater[0]!.resultat).toBe("ok");
+    const maskin = (txMock.sheetMachine.createMany as ReturnType<typeof vi.fn>).mock.calls[0]![0].data[0];
+    const timerRad = sisteCreateMany.find((r) => r.id === TIMER_RAD)!;
+    expect(timerRad.byggeplassId).toBe(BYGGEPLASS_EGEN_2);
+    // Ikke-tom og lik timer-radens — maskinen havner på samme kort.
+    expect(maskin.byggeplassId).toBeTruthy();
+    expect(maskin.byggeplassId).toBe(timerRad.byggeplassId);
+    expect(maskin.sheetTimerId).toBe(TIMER_RAD);
+  });
+});

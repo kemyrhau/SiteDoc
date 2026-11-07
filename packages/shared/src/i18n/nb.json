@@ -5389,5 +5389,22 @@
   "lokasjonVelger.forslagSistBrukt": "Sist brukte",
   "lokasjonVelger.kart": "Kart",
   "lokasjonVelger.ingenTegningEllerKart": "Prosjektet har ingen tegning eller kart å plassere posisjon på.",
-  "lokasjonVelger.ingenTegningValgt": "Ingen tegning valgt. Velg en tegning eller kart for å markere posisjon."
+  "lokasjonVelger.ingenTegningValgt": "Ingen tegning valgt. Velg en tegning eller kart for å markere posisjon.",
+  "timer.dagsoversikt.sumIDag": "Sum i dag",
+  "timer.dagsoversikt.flyttRad": "Flytt raden",
+  "timer.dagsoversikt.dagen": "Dagen",
+  "timer.dagsoversikt.normRamme": "Norm {{norm}} t · ramme {{fra}}–{{til}} · pause {{pause}} min",
+  "timer.dagsoversikt.ikkeSendt": "Ikke sendt",
+  "timer.dagsoversikt.sendt": "Sendt",
+  "timer.dagsoversikt.returnert": "Returnert",
+  "timer.dagsoversikt.attestert": "Attestert {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Beskrivelse",
+  "timer.dagsoversikt.mangler": "Mangler",
+  "timer.dagsoversikt.overtid": "overtid {{prosent}} % fra {{fra}} · {{timer}} t",
+  "timer.dagsoversikt.delOpp": "Del opp raden",
+  "timer.dagsoversikt.slettRad": "Slett raden",
+  "timer.dagsoversikt.slettRadBekreft": "Slette raden?",
+  "timer.kortValg.utenByggeplass": "Uten byggeplass",
+  "timer.kortValg.uten": "Uten",
+  "timer.kortValg.flyttTittel": "Flytt raden til"
 }

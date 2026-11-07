@@ -13,6 +13,7 @@
  */
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
+import { beskrivelseForRad } from "./beskrivelseKort";
 import {
   sheetTimerLocal,
   dagsseddelLocal,
@@ -150,11 +151,9 @@ export function anvendDagsforslag(
           timer: rad.timer,
           fraTid: rad.fraTid,
           tilTid: rad.tilTid,
-          // ORDRE 36a: «Hva gjorde du i dag?» på prosjektets arbeidsrader;
+          // ORDRE 36a/36b: «Hva gjorde du i dag?» fra radens eget kort;
           // reise beskriver seg selv (retning + destinasjon).
-          beskrivelse: rad.erReise
-            ? null
-            : forslag.beskrivelsePerProsjekt?.[rad.projectId]?.trim() || null,
+          beskrivelse: rad.erReise ? null : beskrivelseForRad(forslag, rad, d),
           pauseMin: rad.pauseMin,
           // B1: reise-sporet (M1 — innsettingen skrev det ikke før). byggeplassId
           // settes nå faktisk (destinasjonen på reise-rader; null → arv på

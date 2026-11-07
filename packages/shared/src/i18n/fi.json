@@ -5389,5 +5389,22 @@
   "lokasjonVelger.forslagSistBrukt": "Viimeksi käytetty",
   "lokasjonVelger.kart": "Kartta",
   "lokasjonVelger.ingenTegningEllerKart": "Projektissa ei ole piirustusta tai karttaa, johon voisi sijoittaa sijainnin.",
-  "lokasjonVelger.ingenTegningValgt": "Piirrosta ei ole valittu. Valitse piirros tai kartta sijainnin merkitsemiseksi."
+  "lokasjonVelger.ingenTegningValgt": "Piirrosta ei ole valittu. Valitse piirros tai kartta sijainnin merkitsemiseksi.",
+  "timer.dagsoversikt.sumIDag": "Yhteensä tänään",
+  "timer.dagsoversikt.flyttRad": "Siirrä riviä",
+  "timer.dagsoversikt.dagen": "Päivä",
+  "timer.dagsoversikt.normRamme": "Norm {{norm}} h · kehys {{fra}}–{{til}} · tauko {{pause}} min",
+  "timer.dagsoversikt.ikkeSendt": "Ei lähetetty",
+  "timer.dagsoversikt.sendt": "Lähetetty",
+  "timer.dagsoversikt.returnert": "Palannut",
+  "timer.dagsoversikt.attestert": "Hyväksytty {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Kuvaus",
+  "timer.dagsoversikt.mangler": "Puuttuu",
+  "timer.dagsoversikt.overtid": "ylityöt {{prosent}} % alkaen {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.delOpp": "Jaa rivi",
+  "timer.dagsoversikt.slettRad": "Poista rivi",
+  "timer.dagsoversikt.slettRadBekreft": "Poistetaanko rivi?",
+  "timer.kortValg.utenByggeplass": "Ei rakennustyömaa",
+  "timer.kortValg.uten": "Ei mitään",
+  "timer.kortValg.flyttTittel": "Siirrä rivi kohteeseen"
 }

@@ -9,6 +9,7 @@ import {
   aktivtMedlemWhere,
   verifiserOrganisasjonTilgang,
   erFirmaAdmin,
+  verifiserProsjekterTilhørerFirma,
 } from "../trpc/tilgangskontroll";
 import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import {
@@ -276,6 +277,8 @@ export const vareforbrukRouter = router({
           id: true,
           projectId: true,
           byggeplassId: true,
+          // ORDRE 36b: dagsoversikten trenger underprosjektet for å vise/flytte raden.
+          externalCostObjectId: true,
           dagsseddelId: true,
           antall: true,
           vare: { select: { id: true, navn: true, enhet: true } },
@@ -499,6 +502,8 @@ export const vareforbrukRouter = router({
     .input(
       z.object({
         id: z.string().uuid(),
+        // ORDRE 36b «Flytt raden»: bytt prosjekt innen samme firma (varelager-eier).
+        projectId: z.string().uuid().optional(),
         dato: z.string().optional(),
         antall: z.number().positive().optional(),
         byggeplassId: z.string().uuid().nullable().optional(),
@@ -525,23 +530,71 @@ export const vareforbrukRouter = router({
         });
       }
 
+      // ORDRE 36b «Flytt raden»: prosjektbytte krever samme tilgang til målprosjektet
+      // som `opprett` (medlem → byggeplass → modul aktiv → tilgang-policy) + firma-
+      // grense: målet må tilhøre firmaet som eier linjens varelager. Varelager-eieren
+      // er prosjektets primaryOrganizationId (krevVarelagerForProsjekt), så et prosjekt
+      // firmaet bare er koblet til (annen eier → annen varekatalog) avvises også.
+      // Samme eier-firma ⇒ samme varekatalog, så vareId trenger ingen ny katalog-sjekk.
+      const maalProsjekt = input.projectId ?? rad.projectId;
+      const byttProsjekt = maalProsjekt !== rad.projectId;
+
+      // Tilgang til linjens NÅVÆRENDE prosjekt (uendret når projectId ikke byttes).
       await verifiserProsjektmedlem(ctx.userId, rad.projectId);
       await krevVareforbrukLinjeAapen(ctx.prismaTimer, ctx.userId, rad.dagsseddelId, rad.projectId);
-      // ORDRE 29 #14: ny byggeplass MÅ tilhøre radens prosjekt. `null` = fjern, ingen sjekk.
+      if (byttProsjekt) await verifiserProsjektmedlem(ctx.userId, maalProsjekt);
+      // ORDRE 29 #14: ny byggeplass MÅ tilhøre (mål)prosjektet. `null` = fjern, ingen sjekk.
       if (input.byggeplassId) {
-        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, rad.projectId);
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, maalProsjekt);
       }
       const organizationId = await krevVarelagerForProsjekt(rad.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, rad.projectId);
-
-      if (input.externalCostObjectId) {
-        await validerEco(input.externalCostObjectId, organizationId, rad.projectId);
+      if (byttProsjekt) {
+        await verifiserProsjekterTilhørerFirma([maalProsjekt], organizationId);
+        const maalOrg = await krevVarelagerForProsjekt(maalProsjekt);
+        if (maalOrg !== organizationId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Prosjektet hører til et annet firmas varelager",
+          });
+        }
+        await krevTilgangPolicy(ctx.userId, organizationId, maalProsjekt);
+        // RETUR 4: linja beholder dagsseddelId — da må sedelen ha arbeid på
+        // målprosjektet, ellers ville vareforbruket peke på en sedel uten
+        // timer der (og attestering/rapport koble feil). Uten sedel: ingen sjekk.
+        if (rad.dagsseddelId) {
+          const timerPaaMaal = await ctx.prismaTimer.sheetTimer.findFirst({
+            where: { sheetId: rad.dagsseddelId, projectId: maalProsjekt },
+            select: { id: true },
+          });
+          if (!timerPaaMaal) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Dagsseddelen har ingen timer-rad på prosjektet varen flyttes til",
+            });
+          }
+        }
       }
 
-      const { id, dato, antall, byggeplassId, externalCostObjectId, kommentar } = input;
+      if (input.externalCostObjectId) {
+        await validerEco(input.externalCostObjectId, organizationId, maalProsjekt);
+      }
+
+      const { id, dato, antall, kommentar } = input;
+      // Ved prosjektbytte er gammelt prosjekts byggeplass/underprosjekt ugyldig i det
+      // nye — uten eksplisitt verdi i input nullstilles de i stedet for å bli stående.
+      const byggeplassId =
+        input.byggeplassId !== undefined ? input.byggeplassId : byttProsjekt ? null : undefined;
+      const externalCostObjectId =
+        input.externalCostObjectId !== undefined
+          ? input.externalCostObjectId
+          : byttProsjekt
+            ? null
+            : undefined;
       const oppdatert = await ctx.prismaVarelager.vareforbruk.update({
         where: { id },
         data: {
+          ...(byttProsjekt ? { projectId: maalProsjekt } : {}),
           ...(dato !== undefined ? { dato: new Date(dato) } : {}),
           ...(antall !== undefined ? { antall } : {}),
           ...(byggeplassId !== undefined ? { byggeplassId } : {}),
@@ -556,11 +609,14 @@ export const vareforbrukRouter = router({
           data: {
             actorUserId: ctx.userId,
             organizationId,
-            projectId: rad.projectId,
+            projectId: maalProsjekt,
             targetType: "vareforbruk",
             targetId: id,
             action: "vare.endret",
-            payload: { antall: oppdatert.antall.toString() },
+            payload: {
+              antall: oppdatert.antall.toString(),
+              ...(byttProsjekt ? { fraProsjektId: rad.projectId } : {}),
+            },
           },
         });
       } catch {

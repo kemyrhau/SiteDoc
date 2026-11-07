@@ -22,6 +22,8 @@ import {
   vaktGrunnlag,
   type BekreftDagTillegg,
 } from "./bekreftDagTillegg";
+import { kortMedArbeid } from "./beskrivelseKort";
+import { kortNokkel } from "../lib/prosjektkortMobil";
 
 /**
  * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
@@ -30,7 +32,7 @@ import {
 export type BekreftDagHandling =
   | SluttDagHandling
   | { type: "maskinBrudd"; brudd: MaskinBrudd[] }
-  | { type: "manglerBeskrivelse"; projectIds: string[] };
+  | { type: "manglerBeskrivelse"; nokler: string[] };
 
 /**
  * ORDRE 36a (spec § 3): prosjektene som har arbeid (ikke reise) på en åpen
@@ -48,11 +50,14 @@ export function prosjekterMedArbeid(forslag: Dagsforslag): string[] {
   return ider;
 }
 
-/** ORDRE 36a: prosjekter med arbeid der beskrivelsen er tom etter trim. */
+/**
+ * ORDRE 36a/36b: beskrivelse-nøklene (ett pr. kort med arbeid) der teksten er
+ * tom etter trim. Ett kort pr. prosjekt → nøkkelen er projectId (som 36a).
+ */
 export function manglerBeskrivelse(forslag: Dagsforslag): string[] {
-  return prosjekterMedArbeid(forslag).filter(
-    (p) => !forslag.beskrivelsePerProsjekt?.[p]?.trim(),
-  );
+  return kortMedArbeid(forslag)
+    .map((k) => k.nokkel)
+    .filter((n) => !forslag.beskrivelsePerKort?.[n]?.trim());
 }
 
 /**
@@ -102,6 +107,21 @@ export function flyttBeskrivelse(
   return { ...b, [til]: b[fra]! };
 }
 
+/**
+ * RETUR 4 (P6): prosjektbytte når det gamle prosjektet har flere kort. Teksten
+ * står da under kortnøkkelen til kortet som arver dagens byggeplass, ikke under
+ * `projectId` — begge kildene flyttes (projectId først), aldri over eksisterende.
+ */
+export function flyttBeskrivelseVedProsjektbytte(
+  b: Record<string, string> | undefined,
+  fra: string | null,
+  til: string | null,
+  dagByggeplassId: string | null,
+): Record<string, string> | undefined {
+  const arvKort = fra ? kortNokkel({ projectId: fra, byggeplassId: dagByggeplassId, ecoId: null }) : null;
+  return flyttBeskrivelse(flyttBeskrivelse(b, fra, til), arvKort, til);
+}
+
 /** SKRIV — kun fra [Bekreft og lagre]. Avslutter dagen når H7 sier det. */
 export function bekreftDag(
   db: LokalDb,
@@ -121,11 +141,11 @@ export function bekreftDag(
 ):
   | { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat }
   | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
-  | { handling: { type: "manglerBeskrivelse"; projectIds: string[] }; resultat: null } {
+  | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null } {
   // ORDRE 36a: beskrivelsen er påkrevd — sjekkes først, ingenting skrives.
   const mangler = manglerBeskrivelse(forslag);
   if (mangler.length > 0) {
-    return { handling: { type: "manglerBeskrivelse", projectIds: mangler }, resultat: null };
+    return { handling: { type: "manglerBeskrivelse", nokler: mangler }, resultat: null };
   }
   // Vakten kjøres FØR noe skrives — samme regel som serveren ville avvist med.
   if (tillegg && tillegg.maskiner.length > 0) {

@@ -5389,5 +5389,22 @@
   "lokasjonVelger.forslagSistBrukt": "Zuletzt verwendet",
   "lokasjonVelger.kart": "Karte",
   "lokasjonVelger.ingenTegningEllerKart": "Das Projekt verfügt über keine Zeichnung oder Karte, auf der eine Position platziert werden kann.",
-  "lokasjonVelger.ingenTegningValgt": "Keine Zeichnung ausgewählt. Wählen Sie eine Zeichnung oder Karte, um eine Position zu markieren."
+  "lokasjonVelger.ingenTegningValgt": "Keine Zeichnung ausgewählt. Wählen Sie eine Zeichnung oder Karte, um eine Position zu markieren.",
+  "timer.dagsoversikt.sumIDag": "Insgesamt heute",
+  "timer.dagsoversikt.flyttRad": "Zeile verschieben",
+  "timer.dagsoversikt.dagen": "Der Tag",
+  "timer.dagsoversikt.normRamme": "Norm {{norm}} h · Frame {{fra}}–{{til}} · Pause {{pause}} min",
+  "timer.dagsoversikt.ikkeSendt": "Nicht gesendet",
+  "timer.dagsoversikt.sendt": "Gesendet",
+  "timer.dagsoversikt.returnert": "Zurückgegeben",
+  "timer.dagsoversikt.attestert": "Genehmigt {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Beschreibung",
+  "timer.dagsoversikt.mangler": "Fehlen",
+  "timer.dagsoversikt.overtid": "Überstunden {{prosent}} % von {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.delOpp": "Teilen Sie die Zeile",
+  "timer.dagsoversikt.slettRad": "Löschen Sie die Zeile",
+  "timer.dagsoversikt.slettRadBekreft": "Zeile löschen?",
+  "timer.kortValg.utenByggeplass": "Keine Baustelle",
+  "timer.kortValg.uten": "Keiner",
+  "timer.kortValg.flyttTittel": "Zeile verschieben nach"
 }

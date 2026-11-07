@@ -5389,5 +5389,22 @@
   "lokasjonVelger.forslagSistBrukt": "Ostatnio używany",
   "lokasjonVelger.kart": "Mapa",
   "lokasjonVelger.ingenTegningEllerKart": "Projekt nie zawiera rysunku ani mapy, na której można by umieścić położenie.",
-  "lokasjonVelger.ingenTegningValgt": "Nie wybrano rysunku. Wybierz rysunek lub mapę, aby oznaczyć pozycję."
+  "lokasjonVelger.ingenTegningValgt": "Nie wybrano rysunku. Wybierz rysunek lub mapę, aby oznaczyć pozycję.",
+  "timer.dagsoversikt.sumIDag": "Razem dzisiaj",
+  "timer.dagsoversikt.flyttRad": "Przesuń wiersz",
+  "timer.dagsoversikt.dagen": "Dzień",
+  "timer.dagsoversikt.normRamme": "Norma {{norm}} h · ramka {{fra}}–{{til}} · przerwa {{pause}} min",
+  "timer.dagsoversikt.ikkeSendt": "Nie wysłano",
+  "timer.dagsoversikt.sendt": "Wysłano",
+  "timer.dagsoversikt.returnert": "Zwrócony",
+  "timer.dagsoversikt.attestert": "Zatwierdzono {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Opis",
+  "timer.dagsoversikt.mangler": "Zaginiony",
+  "timer.dagsoversikt.overtid": "nadgodziny {{prosent}} % od {{fra}} · {{timer}} godz",
+  "timer.dagsoversikt.delOpp": "Podziel rząd",
+  "timer.dagsoversikt.slettRad": "Usuń wiersz",
+  "timer.dagsoversikt.slettRadBekreft": "Usunąć wiersz?",
+  "timer.kortValg.utenByggeplass": "Brak placu budowy",
+  "timer.kortValg.uten": "Nic",
+  "timer.kortValg.flyttTittel": "Przenieś wiersz do"
 }

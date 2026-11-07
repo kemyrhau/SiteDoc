@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { TastaturScrollView } from "./TastaturScrollView";
+import { RadHandlinger, type RadHandlingerProps } from "./prosjektkort/RadHandlinger";
 // eslint-disable-next-line no-restricted-imports -- pageSheet (5 modaler i fila; ProsjektByggeplassVelgerModal direkte simulator-målt 2026-08-31): SafeAreaView anvender arkets egen topp-inset (~10 pt), X truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -63,6 +64,7 @@ import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
   erReiseLonnsartLokalt,
+  hentUnderprosjekterLokalt,
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { erReiseRadVisning } from "../../utils/reiseRad";
@@ -89,7 +91,7 @@ import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
 import { SplittRadModal } from "./SplittRadModal";
 import { KnappMedForklaring } from "../KnappMedForklaring";
-import { useProsjektkortModus } from "./prosjektkortKontekst";
+import { useKortLaas, useProsjektkortModus } from "./prosjektkortKontekst";
 import {
   arvetByggeplassVisning,
   kortModusVisning,
@@ -1032,6 +1034,9 @@ export function TimerRadModal({
   tvungetValg,
   sedelByggeplassId,
   opprettelse,
+  handlinger,
+  fokusBeskrivelse = false,
+  reise,
   onLagre,
   onLukk,
 }: {
@@ -1063,6 +1068,17 @@ export function TimerRadModal({
   sedelByggeplassId: string | null;
   /** Satt = opprettelsesmodus fra «+» (datofelt øverst, prosjekt byttbart). */
   opprettelse?: TimerRadOpprettelse;
+  /** ORDRE 36b: «Del opp»/«Slett» — kun fra prosjektkort-flyten. Udefinert
+   *  (dagskortet) = ingen knapper, modalen som før. */
+  handlinger?: RadHandlingerProps;
+  /** ORDRE 36b: dagsoversiktens «Beskrivelse»/«Mangler» åpner med fokus i
+   *  beskrivelsesfeltet. Standard false = som før. */
+  fokusBeskrivelse?: boolean;
+  /** ORDRE 36b: reise fra dag-seksjonen. Ny rad starter på reise-lønnsarten;
+   *  byggeplass/underprosjekt vises kun når valgt prosjekt har flere
+   *  byggeplasser / underprosjekter (K3), ellers lagres null.
+   *  Udefinert (dagskortet, kortene) = som før. */
+  reise?: { lonnsartId: string | null };
   onLagre: (
     projectId: string,
     byggeplassId: string | null,
@@ -1174,6 +1190,12 @@ export function TimerRadModal({
         : null;
     const firmaDefaultLonnsartId =
       hentStandardLonnsartLokalt(organizationId)?.id ?? "";
+    if (reise?.lonnsartId) {
+      return {
+        lonnsartId: reise.lonnsartId,
+        aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
+      };
+    }
     return {
       lonnsartId: sisteRad?.lonnsartId ?? firmaDefaultLonnsartId,
       aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
@@ -1187,11 +1209,20 @@ export function TimerRadModal({
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     tvungetValg?.projectId ?? eksisterendeRad?.projectId ?? defaultProjectId,
   );
+  // ORDRE 36b K3: reise viser byggeplass/underprosjekt bare når relevant.
+  const reiseVisByggeplass =
+    !!reise && hentByggeplasserForProsjektLokalt(valgtProjectId).length > 1;
+  const reiseVisUnderprosjekt =
+    !!reise && hentUnderprosjekterLokalt(valgtProjectId).length > 0;
   // F3: per-rad byggeplass. null = arv fra dagskortet (sedel-nivå). Byggeplass
   // hører alltid til rad-prosjektet; nullstilles ved prosjektbytte i modalen.
   // ORDRE 29: ny rad fra «+» starter på innlogget byggeplass (`defaultByggeplassId`).
+  // ORDRE 36b: på et kort er byggeplass låst til kortets (effektive) valg.
+  const kortLaas = useKortLaas();
   const [valgtByggeplassId, setValgtByggeplassId] = useState<string | null>(
-    tvungetValg
+    kortLaas
+      ? kortLaas.byggeplassId
+      : tvungetValg
       ? tvungetValg.byggeplassId
       : eksisterendeRad
         ? eksisterendeRad.byggeplassId ?? null
@@ -1230,7 +1261,9 @@ export function TimerRadModal({
   // F3: ved tvungetValg (prosjektbytte) nullstilles ECO — den er prosjekt-
   // spesifikk og radens gamle ECO gjelder ikke det nye prosjektet.
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
-    tvungetValg ? null : eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
+    kortLaas
+      ? kortLaas.ecoId
+      : tvungetValg ? null : eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
   );
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   // Bolk (g)/web-speiling: til prefylles kun ved gyldig prefill (fra < til).
@@ -1699,8 +1732,11 @@ export function TimerRadModal({
               onTrykk={() => setVisProsjektByggeplassVelger(true)}
               laast={kortVisning.prosjektLaast}
             />
+            {(!reise || reiseVisByggeplass || !!valgtByggeplassId) && (
             <Pressable
               onPress={() => setVisProsjektByggeplassVelger(true)}
+              disabled={!!kortLaas}
+              accessibilityState={{ disabled: !!kortLaas }}
               className="mt-1 flex-row items-center gap-1 px-1 py-0.5"
             >
               <Text className="text-xs text-gray-500">
@@ -1708,7 +1744,7 @@ export function TimerRadModal({
               </Text>
               <Text
                 className={
-                  valgtByggeplassId
+                  valgtByggeplassId && !kortLaas
                     ? "flex-1 text-xs text-gray-700"
                     : "flex-1 text-xs text-gray-400"
                 }
@@ -1721,6 +1757,7 @@ export function TimerRadModal({
                     : t(arvetByggeplass.nokkel)}
               </Text>
             </Pressable>
+            )}
           </View>
 
           <View>
@@ -1779,6 +1816,7 @@ export function TimerRadModal({
           </View>
 
           {/* Underprosjekt (valgfritt) — Tilleggsarbeid, Endring m.fl. */}
+          {(!reise || reiseVisUnderprosjekt || !!valgtEcoId) && (
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.underprosjekt")}
@@ -1790,8 +1828,10 @@ export function TimerRadModal({
               placeholder={t("timer.velgUnderprosjekt")}
               onPress={() => setVisEcoVelger(true)}
               onClear={() => setValgtEcoId(null)}
+              laast={!!kortLaas}
             />
           </View>
+          )}
 
           {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt) */}
           <View>
@@ -1801,6 +1841,7 @@ export function TimerRadModal({
             <TextInput
               value={beskrivelse}
               onChangeText={setBeskrivelse}
+              autoFocus={fokusBeskrivelse}
               placeholder={t("timer.radBeskrivelsePlaceholder")}
               multiline
               numberOfLines={3}
@@ -1932,6 +1973,7 @@ export function TimerRadModal({
               </Text>
             </Pressable>
           </KnappMedForklaring>
+          {handlinger && <RadHandlinger handlinger={handlinger} />}
           </>
           )}
         </TastaturScrollView>
@@ -2328,7 +2370,7 @@ export function UnderprosjektVelgerModal({
  * favoritter → resten. INGEN GPS-tier — GPS-kontekst lever kun på sedel-nivå
  * («Start dag»); rad-modalen har ingen GPS-kontekst → `gpsForeslagId` utelates.
  */
-function ProsjektByggeplassVelgerModal({
+export function ProsjektByggeplassVelgerModal({
   organizationId,
   valgtProjectId,
   valgtByggeplassId,

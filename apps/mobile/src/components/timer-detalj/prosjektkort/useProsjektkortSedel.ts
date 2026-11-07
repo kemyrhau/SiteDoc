@@ -22,10 +22,13 @@ import {
 } from "../../../lib/dagskortSammenligning";
 import { lesTimerModusLokalt } from "../../../services/organizationSettingKatalog";
 import {
+  kortNokler,
   kortProsjektIder,
   tilKortMaskinRader,
   tilKortTimerRader,
   tilKortVarer,
+  type KortValg,
+  type SedelKortKontekst,
 } from "../../../lib/prosjektkortMobil";
 import type { VisVarelinje } from "../VareforbrukLesListe";
 import { finnProsjektLokalt } from "../../../services/prosjektKatalog";
@@ -37,6 +40,7 @@ import {
   hentStandardLonnsartLokalt,
   harOvertidLonnsartLokalt,
   hentReiseLonnsartId,
+  finnUnderprosjektLokalt,
 } from "../../../services/timerKatalog";
 import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
 import { slaaSammenVarelinjer } from "@sitedoc/shared";
@@ -56,6 +60,8 @@ import {
 } from "../../../lib/forsoningSpeil";
 import { useReLesVedSynk } from "../../../hooks/useReLesVedSynk";
 import { useFirma } from "../../../kontekst/FirmaKontekst";
+import { hentEquipmentLokalt } from "../../../services/maskinKatalog";
+import { hentVarelagerProsjekterLokalt } from "../../../services/vareKatalog";
 
 // ORDRE 35 (I2): prosjektkortets datalag. Dette er en KOPI av logikken i
 // `app/timer/[id].tsx` (dagskortet) — lesing, synk, konflikt/forsoning, norm,
@@ -441,10 +447,73 @@ export function useProsjektkortSedel(sheetId: string) {
   );
   const serverVarer = useMemo(() => tilKortVarer(vareQuery.data ?? []), [vareQuery.data]);
   const lokaleVarer = useMemo(() => (sedel ? hentLokaleVarelinjer(sedel.id) : []), [sedel]);
+  // ORDRE 36b: dagsoversikten avgjør Maskin-/Varer-linjene (P1/P2) lokalt.
+  const harEquipmentCache = useMemo(
+    () => (orgId ? hentEquipmentLokalt(orgId).length > 0 : false),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orgId, sistSynkronisert],
+  );
+  const [varelagerProsjekter, setVarelagerProsjekter] = useState<string[]>([]);
+  useEffect(() => {
+    if (!orgId) return;
+    let aktiv = true;
+    void hentVarelagerProsjekterLokalt(orgId).then((ider) => {
+      if (aktiv) setVarelagerProsjekter(ider);
+    });
+    return () => {
+      aktiv = false;
+    };
+  }, [orgId, sistSynkronisert]);
   const kortVarer = useMemo(
     () => slaaSammenVarelinjer<VisVarelinje>(serverVarer, lokaleVarer),
     [serverVarer, lokaleVarer],
   );
+  // ORDRE 36b: dagens byggeplass med prosjekt — grunnlaget for effektiv
+  // byggeplass i kortnøkkelen (rad uten egen byggeplass arver dagens bare i
+  // samme prosjekt).
+  const sedelKontekst = useMemo<SedelKortKontekst | null>(() => {
+    if (!sedel) return null;
+    const db = hentDatabase();
+    const bp =
+      db && sedel.byggeplassId
+        ? db
+            .select({ id: byggeplassLocal.id, projectId: byggeplassLocal.projectId })
+            .from(byggeplassLocal)
+            .where(eq(byggeplassLocal.id, sedel.byggeplassId))
+            .all()[0]
+        : undefined;
+    return {
+      projectId: sedel.projectId,
+      byggeplass: bp ? { id: bp.id, projectId: bp.projectId } : null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedel?.projectId, sedel?.byggeplassId, sistSynkronisert]);
+  const ecoNavn = useCallback((ecoId: string): string => {
+    const e = finnUnderprosjektLokalt(ecoId);
+    return e ? `${e.proAdmId} — ${e.kortNavn}` : ecoId;
+  }, []);
+  // Kortlista (ORDRE 36b): ett kort per (prosjekt, effektiv byggeplass,
+  // underprosjekt) over arbeid, maskin og varer. Reise, tillegg og utlegg
+  // ligger i dag-seksjonen og lager ikke kort.
+  const kort = useMemo<KortValg[]>(() => {
+    if (!sedel || !sedelKontekst) return [];
+    const db = hentDatabase();
+    const bpNavn = (id: string) =>
+      db
+        ?.select({ navn: byggeplassLocal.navn })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, id))
+        .all()[0]?.navn ?? id;
+    return kortNokler(
+      sedelKontekst,
+      [timerRader.filter((_, i) => !kortTimer[i]?.erReise), maskinRader, kortVarer],
+      [],
+      {
+        byggeplassNavn: bpNavn,
+        ecoNokkel: (id) => finnUnderprosjektLokalt(id)?.proAdmId ?? id,
+      },
+    );
+  }, [sedel, sedelKontekst, timerRader, kortTimer, maskinRader, kortVarer]);
   const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
     const db = hentDatabase();
     if (!db) return null;
@@ -688,8 +757,17 @@ export function useProsjektkortSedel(sheetId: string) {
     kortTimer,
     kortMaskin,
     kortIder,
+    kort,
+    sedelKontekst,
+    ecoNavn,
+    tilleggRader,
+    utleggRader,
     utleggAntall,
     kortVarer,
+    maskinRader,
+    reiseLonnsartId,
+    harEquipmentCache,
+    varelagerProsjekter,
     byggeplassNavn,
     prosjektNavn,
     byggeplassInfo,

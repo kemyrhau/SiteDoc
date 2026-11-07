@@ -42,7 +42,7 @@ import type { Dagsforslag } from "./dagsforslag";
 
 /** ORDRE 36a: beskrivelse er påkrevd ved Bekreft — testene her måler noe annet. */
 function medBeskrivelse(f: Dagsforslag): Dagsforslag {
-  return { ...f, beskrivelsePerProsjekt: Object.fromEntries(prosjekterMedArbeid(f).map((p) => [p, "Graving"])) };
+  return { ...f, beskrivelsePerKort: Object.fromEntries(prosjekterMedArbeid(f).map((p) => [p, "Graving"])) };
 }
 import {
   tilleggSynlighet,

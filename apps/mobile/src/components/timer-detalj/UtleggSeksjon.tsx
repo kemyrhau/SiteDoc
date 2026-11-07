@@ -62,6 +62,12 @@ interface UtleggSeksjonProps {
   rader: UtleggRad[];
   redigerbar: boolean;
   onEndret: () => void;
+  /**
+   * ORDRE 36b (dag-seksjonen): dagens prosjekter. Med flere vises en
+   * prosjekt-chip øverst i ny-modalen, forhåndsvalgt på `projectId`.
+   * Dagskortet sender ingenting og ser modalen som før.
+   */
+  prosjektValg?: { id: string; navn: string }[];
 }
 
 /** Pille-tekst per ordning (undertekst, aldri et valg). */
@@ -89,6 +95,7 @@ export function UtleggSeksjon({
   rader,
   redigerbar,
   onEndret,
+  prosjektValg,
 }: UtleggSeksjonProps) {
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
@@ -178,6 +185,7 @@ export function UtleggSeksjon({
           }
           organizationId={organizationId}
           projectId={projectId}
+          prosjektValg={prosjektValg}
           sheetId={sheetId}
           onLagreEndring={(belop, kommentar) => {
             if (redigerRadId) oppdater(redigerRadId, belop, kommentar);
@@ -459,7 +467,8 @@ function UtleggVedleggSeksjon({
 function UtleggRadModal({
   eksisterendeRad,
   organizationId,
-  projectId,
+  projectId: startProjectId,
+  prosjektValg,
   sheetId,
   onLagreEndring,
   onOpprettet,
@@ -468,6 +477,7 @@ function UtleggRadModal({
   eksisterendeRad: UtleggRad | null;
   organizationId: string;
   projectId: string;
+  prosjektValg?: { id: string; navn: string }[];
   sheetId: string;
   onLagreEndring: (belop: number | null, kommentar: string | null) => void;
   onOpprettet: () => void;
@@ -476,6 +486,7 @@ function UtleggRadModal({
   const { t } = useTranslation();
   const { leggIKo } = useOpplastingsKo();
   const erRedigering = !!eksisterendeRad;
+  const [projectId, setProjectId] = useState<string>(startProjectId);
 
   // Ny rad: id stemples ved åpning (stabil for pending-kvittering før lagring).
   const [nyRadId] = useState(() => randomUUID());
@@ -668,6 +679,26 @@ function UtleggRadModal({
             className="flex-1"
             contentContainerClassName="p-4 gap-4"
           >
+            {!erRedigering && prosjektValg && prosjektValg.length > 1 && (
+              <View className="flex-row flex-wrap gap-2">
+                {prosjektValg.map((p) => (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => setProjectId(p.id)}
+                    accessibilityState={{ selected: p.id === projectId }}
+                    className={`min-h-[36px] justify-center rounded-full border px-3 ${
+                      p.id === projectId
+                        ? "border-gray-900 bg-gray-900"
+                        : "border-gray-300 bg-white active:bg-gray-50"
+                    }`}
+                  >
+                    <Text className={`text-sm ${p.id === projectId ? "text-white" : "text-gray-700"}`}>
+                      {p.navn}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
             {/* Kategori — velges (ordning følger av den, aldri valgt separat). */}
             <View>
               <Text className="mb-1 text-sm font-medium text-gray-700">

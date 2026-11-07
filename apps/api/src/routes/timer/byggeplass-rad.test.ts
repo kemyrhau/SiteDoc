@@ -49,6 +49,7 @@ import {
   krevByggeplassIProsjekt,
   krevByggeplasserIProsjekt,
   lagByggeplassVasker,
+  maskinByggeplassVedSync,
 } from "./byggeplass-rad";
 
 const USER = "user-1";
@@ -320,5 +321,23 @@ describe("oppdaterTimerRad — utelatt byggeplassId er urørt (ordre 12 B)", () 
     });
     const data = (timerUpdate.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
     expect(data.byggeplassId).toBeNull();
+  });
+});
+
+describe("maskinByggeplassVedSync (ORDRE 36b)", () => {
+  const vask = (b: string | null | undefined) => (b === BYGGEPLASS_B ? b : null);
+
+  it("egen byggeplass vinner over sedelens", () => {
+    expect(maskinByggeplassVedSync({ byggeplassId: BYGGEPLASS_B }, RAD2, vask)).toBe(BYGGEPLASS_B);
+  });
+  it("egen byggeplass som vaskes bort → null, faller IKKE tilbake til sedelens", () => {
+    expect(maskinByggeplassVedSync({ byggeplassId: RAD2 }, BYGGEPLASS_B, vask)).toBeNull();
+  });
+  it("RETUR 4: eksplisitt null = arv (som timer-radene)", () => {
+    expect(maskinByggeplassVedSync({ byggeplassId: null }, BYGGEPLASS_B, vask)).toBe(BYGGEPLASS_B);
+  });
+  it("utelatt felt → sedelens byggeplass (vasket)", () => {
+    expect(maskinByggeplassVedSync({}, BYGGEPLASS_B, vask)).toBe(BYGGEPLASS_B);
+    expect(maskinByggeplassVedSync({}, RAD2, vask)).toBeNull();
   });
 });

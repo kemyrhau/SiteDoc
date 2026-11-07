@@ -40,8 +40,11 @@ import {
   manglerBeskrivelse,
   prosjekterMedArbeid,
   flyttBeskrivelse,
+  flyttBeskrivelseVedProsjektbytte,
 } from "../../src/utils/bekreftDag";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
+import { kortMedArbeid } from "../../src/utils/beskrivelseKort";
+import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
 import {
   vaktGrunnlag,
@@ -203,9 +206,13 @@ export default function BekreftDagSkjerm() {
   }, [orgId]);
   const prosjektId = beregnet?.forslag.prosjektId ?? null;
 
-  // ORDRE 36a: ett beskrivelsesfelt pr. prosjekt med arbeid; chips fra lokal DB.
+  // ORDRE 36a/36b: ett beskrivelsesfelt pr. kort med arbeid; chips pr. prosjekt fra lokal DB.
   const arbeidProsjekter = useMemo(
     () => (beregnet ? prosjekterMedArbeid(beregnet.forslag) : []),
+    [beregnet],
+  );
+  const arbeidKort = useMemo(
+    () => (beregnet ? kortMedArbeid(beregnet.forslag) : []),
     [beregnet],
   );
   const chipDato = beregnet?.forslag.datoer[0]?.dato ?? null;
@@ -222,14 +229,14 @@ export default function BekreftDagSkjerm() {
     return ut;
   }, [arbeidProsjekter, bruker?.id, chipDato, aktiviteter, aktivitetIdForChip]);
 
-  const settBeskrivelse = useCallback((projectId: string, tekst: string) => {
-    setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [projectId]: tekst } }));
+  const settBeskrivelse = useCallback((nokkel: string, tekst: string) => {
+    setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
   }, []);
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
-  const visTomBeskrivelse = useCallback((projectIds: string[]) => {
+  const visTomBeskrivelse = useCallback((nokler: string[]) => {
     setForsoktBekreft(true);
-    const forste = projectIds[0];
+    const forste = nokler[0];
     if (!forste) return;
     const y = beskrivelseY.current.get(forste);
     if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
@@ -332,7 +339,7 @@ export default function BekreftDagSkjerm() {
       }
       if (handling.type === "manglerBeskrivelse") {
         // Sikkerhetsnett — ingenting er skrevet, skjermen står.
-        visTomBeskrivelse(handling.projectIds);
+        visTomBeskrivelse(handling.nokler);
         return;
       }
       oppdaterTellere();
@@ -570,20 +577,34 @@ export default function BekreftDagSkjerm() {
               />
             ))}
 
-            {arbeidProsjekter.map((p) => (
+            {arbeidKort.map((k) => (
               <BekreftDagBeskrivelse
-                key={p}
+                key={k.nokkel}
                 ref={(felt) => {
-                  if (felt) beskrivelseFelt.current.set(p, felt);
-                  else beskrivelseFelt.current.delete(p);
+                  if (felt) beskrivelseFelt.current.set(k.nokkel, felt);
+                  else beskrivelseFelt.current.delete(k.nokkel);
                 }}
-                onLayout={(e) => beskrivelseY.current.set(p, e.nativeEvent.layout.y)}
-                prosjektNavn={prosjekter.find((pr) => pr.id === p)?.name ?? null}
-                visProsjekt={arbeidProsjekter.length > 1}
-                verdi={retting.beskrivelse?.[p] ?? ""}
-                chips={beskrivelseChipsPerProsjekt.get(p) ?? []}
-                visFeil={forsoktBekreft && !retting.beskrivelse?.[p]?.trim()}
-                onEndre={(tekst) => settBeskrivelse(p, tekst)}
+                onLayout={(e) => beskrivelseY.current.set(k.nokkel, e.nativeEvent.layout.y)}
+                prosjektNavn={
+                  [
+                    prosjekter.find((pr) => pr.id === k.projectId)?.name ?? null,
+                    // Flere kort på samme prosjekt → byggeplassen skiller feltene.
+                    k.delerProsjekt
+                      ? (k.byggeplassId
+                          ? hentByggeplasserForProsjektLokalt(k.projectId).find(
+                              (b) => b.id === k.byggeplassId,
+                            )?.navn
+                          : null) ?? t("timer.kortValg.utenByggeplass")
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || null
+                }
+                visProsjekt={arbeidKort.length > 1}
+                verdi={retting.beskrivelse?.[k.nokkel] ?? ""}
+                chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
+                visFeil={forsoktBekreft && !retting.beskrivelse?.[k.nokkel]?.trim()}
+                onEndre={(tekst) => settBeskrivelse(k.nokkel, tekst)}
               />
             ))}
 
@@ -654,8 +675,14 @@ export default function BekreftDagSkjerm() {
             ...r,
             prosjektId: id ?? undefined,
             byggeplassId: undefined,
-            // ORDRE 36a: skrevet beskrivelse følger med til det nye prosjektet.
-            beskrivelse: flyttBeskrivelse(r.beskrivelse, prosjektId, id),
+            // ORDRE 36a: skrevet beskrivelse følger med til det nye prosjektet
+            // (RETUR 4: også fra arve-kortet når prosjektet hadde flere kort).
+            beskrivelse: flyttBeskrivelseVedProsjektbytte(
+              r.beskrivelse,
+              prosjektId,
+              id,
+              forsteDag?.byggeplassId ?? null,
+            ),
           }));
           setValgark(null);
         }}
@@ -669,7 +696,16 @@ export default function BekreftDagSkjerm() {
         valgtId={forsteDag?.byggeplassId ?? null}
         onVelg={(id) => {
           setValgtByggeplassId(id ?? undefined);
-          setRetting((r) => ({ ...r, byggeplassId: id }));
+          setRetting((r) => {
+            // ORDRE 36b: tekst på et kort som arver dagens byggeplass følger
+            // med (ett kort pr. prosjekt bruker projectId-nøkkel og følger alltid).
+            const fra = prosjektId
+              ? kortNokkel({ projectId: prosjektId, byggeplassId: forsteDag?.byggeplassId ?? null, ecoId: null })
+              : null;
+            const til = prosjektId ? kortNokkel({ projectId: prosjektId, byggeplassId: id, ecoId: null }) : null;
+            const b = flyttBeskrivelse(flyttBeskrivelse(r.beskrivelse, fra, til), fra, prosjektId);
+            return { ...r, byggeplassId: id, beskrivelse: b };
+          });
           setValgark(null);
         }}
         onLukk={() => setValgark(null)}

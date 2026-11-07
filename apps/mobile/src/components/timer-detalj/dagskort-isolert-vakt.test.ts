@@ -166,10 +166,107 @@ describe("ORDRE 35 — prosjektkortet er flyttet ut av dagskortet", () => {
 
 // ORDRE 36a — påkrevd «Hva gjorde du i dag?» bor KUN i Bekreft dag.
 describe("ORDRE 36a — beskrivelsessperren rører ikke dagskortet", () => {
-  it.each(["manglerBeskrivelse", "beskrivelsePerProsjekt", "BekreftDagBeskrivelse", "sisteBeskrivelser"])(
+  it.each(["manglerBeskrivelse", "beskrivelsePerProsjekt", "beskrivelsePerKort", "kortMedArbeid", "BekreftDagBeskrivelse", "sisteBeskrivelser"])(
     "🔴 dagskortet inneholder ikke «%s»",
     (navn) => {
       expect(DAGSKORT).not.toContain(navn);
     },
   );
+});
+
+// ORDRE 36b — «Del opp»/«Slett» og beskrivelse-fokus i rad-modalene er
+// prosjektkort-flytens. Standard = dagens atferd (ingen handlinger, ingen
+// autofokus), og dagskortets seksjoner sender dem aldri.
+const TIMER_SEKSJON = les("TimerSeksjon.tsx");
+const GRUPPE = les("ProsjektGruppe.tsx");
+const DAGSOVERSIKT_PROPS = ["handlinger=", "fokusBeskrivelse="];
+
+/** Alle `<Tagg … />`-åpninger i kilden (til første `/>` eller `>` på toppnivå). */
+function tagger(kilde: string, navn: string): string[] {
+  const ut: string[] = [];
+  let i = kilde.indexOf(`<${navn}`);
+  while (i >= 0) {
+    ut.push(kilde.slice(i, kilde.indexOf("/>", i)));
+    i = kilde.indexOf(`<${navn}`, i + 1);
+  }
+  return ut;
+}
+
+describe("ORDRE 36b — rad-modalenes nye props rører ikke dagskortet", () => {
+  it("negativkontroll: modal-taggene finnes i seksjonene", () => {
+    expect(tagger(TIMER_SEKSJON, "TimerRadModal").length).toBeGreaterThan(0);
+    expect(tagger(MASKIN, "MaskinRadModal").length).toBeGreaterThan(0);
+  });
+
+  it.each(DAGSOVERSIKT_PROPS)("🔴 seksjonenes egne modal-kall sender ikke «%s»", (prop) => {
+    for (const tagg of [...tagger(TIMER_SEKSJON, "TimerRadModal"), ...tagger(MASKIN, "MaskinRadModal")]) {
+      expect(tagg).not.toContain(prop);
+    }
+  });
+
+  it.each(["handlinger", "fokusBeskrivelse", "RadHandlinger", "ProsjektkortDagsoversikt"])(
+    "🔴 dagskortet og ProsjektGruppe inneholder ikke «%s»",
+    (navn) => {
+      expect(DAGSKORT).not.toContain(navn);
+      expect(GRUPPE).not.toContain(navn);
+    },
+  );
+
+  it("🔴 standardverdiene er dagens atferd", () => {
+    expect(TIMER_SEKSJON).toContain("fokusBeskrivelse = false,");
+    expect(TIMER_SEKSJON).toContain("handlinger?: RadHandlingerProps;");
+    expect(MASKIN).toContain("handlinger?: RadHandlingerProps;");
+    // RadHandlinger rendres kun når handlinger er sendt.
+    for (const kilde of [TIMER_SEKSJON, MASKIN]) {
+      expect(kilde.match(/<RadHandlinger/g)?.length).toBe(1);
+      expect(kilde).toContain("{handlinger && <RadHandlinger handlinger={handlinger} />}");
+    }
+  });
+
+  it("negativkontroll: et dagskort-kall med handlinger eller snudd standard fanges", () => {
+    const mutant = TIMER_SEKSJON.replace("<TimerRadModal", "<TimerRadModal handlinger={x}");
+    expect(tagger(mutant, "TimerRadModal").some((t) => t.includes("handlinger="))).toBe(true);
+    expect(TIMER_SEKSJON.replace("fokusBeskrivelse = false,", "fokusBeskrivelse = true,")).not.toContain(
+      "fokusBeskrivelse = false,",
+    );
+  });
+});
+
+// ORDRE 36b (kort = prosjekt+byggeplass+underprosjekt, dag-seksjonen):
+// delte seksjoner har fått `reise`, `prosjektValg` og kortlås via kontekst.
+// Dagskortet sender ingen av dem, og grenen med prop udefinert er dagens atferd.
+const flat = (x: string) => x.replace(/\s+/g, " ");
+const UTLEGG = flat(les("UtleggSeksjon.tsx"));
+const KONTEKST = flat(les("prosjektkortKontekst.ts"));
+const REISE_VILKAAR = [
+  "{(!reise || reiseVisByggeplass || !!valgtByggeplassId) && (",
+  "{(!reise || reiseVisUnderprosjekt || !!valgtEcoId) && (",
+];
+const UTLEGG_CHIPS = "{!erRedigering && prosjektValg && prosjektValg.length > 1 && (";
+
+describe("ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet", () => {
+  it.each(["prosjektValg=", "reise=", "DagSeksjon", "KortValgModal", "ProsjektkortKontekst", "kortRadFlytt"])(
+    "🔴 dagskortet inneholder ikke «%s»",
+    (navn) => {
+      expect(DAGSKORT).not.toContain(navn);
+    },
+  );
+
+  it("🔴 nye props er valgfrie, og uten dem er visningen som før", () => {
+    expect(flat(TIMER_SEKSJON)).toContain("reise?: { lonnsartId: string | null }");
+    expect(UTLEGG).toContain("prosjektValg?: { id: string; navn: string }[]");
+    for (const v of REISE_VILKAAR) expect(flat(TIMER_SEKSJON)).toContain(v);
+    expect(UTLEGG).toContain(UTLEGG_CHIPS);
+  });
+
+  it("🔴 utenfor et kort er kortlåsen null (standard-kontekst false)", () => {
+    expect(KONTEKST).toContain("createContext<KortLaas | boolean>(false)");
+    expect(KONTEKST).toContain('return typeof v === "object" ? v : null;');
+  });
+
+  it("negativkontroll: skjult byggeplass uten reise og chips uten prosjektValg fanges", () => {
+    const mutant = flat(TIMER_SEKSJON).replace("(!reise || reiseVisByggeplass", "(reiseVisByggeplass");
+    expect(mutant).not.toContain(REISE_VILKAAR[0]);
+    expect(UTLEGG.replace("prosjektValg && prosjektValg.length > 1", "true")).not.toContain(UTLEGG_CHIPS);
+  });
 });

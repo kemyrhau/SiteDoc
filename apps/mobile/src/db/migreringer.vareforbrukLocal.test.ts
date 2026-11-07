@@ -79,6 +79,7 @@ describe("L3: vare_local + vareforbruk_local", () => {
         "byggeplass_id",
         "dato",
         "enhet",
+        "external_cost_object_id", // ORDRE 36b — kortnøkkel
         "feilmelding",
         "id",
         "organization_id",

@@ -51,11 +51,13 @@ import { hentOrganizationSettingLokalt } from "../../services/organizationSettin
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { useKortLaas } from "./prosjektkortKontekst";
 import { FraTilTidFelt } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { SplittRadModal } from "./SplittRadModal";
+import { RadHandlinger, type RadHandlingerProps } from "./prosjektkort/RadHandlinger";
 import { useAuth } from "../../providers/AuthProvider";
 import { sistBrukteMaskiner } from "../../services/nyTimerRad";
 
@@ -433,7 +435,7 @@ function MaskinRadVis({
   );
 }
 
-function MaskinRadModal({
+export function MaskinRadModal({
   sheetId,
   organizationId,
   defaultProjectId,
@@ -441,6 +443,7 @@ function MaskinRadModal({
   dato,
   pauseMin,
   eksisterendeRad,
+  handlinger,
   onLagre,
   onLukk,
 }: {
@@ -451,6 +454,9 @@ function MaskinRadModal({
   dato: string;
   pauseMin: number;
   eksisterendeRad: MaskinRad | null;
+  /** ORDRE 36b: «Del opp»/«Slett» — kun fra prosjektkort-flyten. Udefinert
+   *  (dagskortet) = ingen knapper, modalen som før. */
+  handlinger?: RadHandlingerProps;
   onLagre: (
     projectId: string,
     ecoId: string | null,
@@ -554,8 +560,10 @@ function MaskinRadModal({
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
   // T7-4e: ECO på maskin — pre-selekteres fra eksisterende rad eller defaultEcoId.
+  // ORDRE 36b: på et kort er underprosjektet låst til kortets valg.
+  const kortLaas = useKortLaas();
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
-    eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
+    kortLaas ? kortLaas.ecoId : eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
   );
   const [feil, setFeil] = useState<string | null>(null);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
@@ -771,6 +779,7 @@ function MaskinRadModal({
               prosjektNavn={valgtProsjekt?.name ?? null}
               prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektVelger(true)}
+              laast={!!kortLaas}
             />
           </View>
 
@@ -854,6 +863,7 @@ function MaskinRadModal({
               placeholder={t("timer.velgUnderprosjekt")}
               onPress={() => setVisEcoVelger(true)}
               onClear={() => setValgtEcoId(null)}
+              laast={!!kortLaas}
             />
           </View>
 
@@ -903,6 +913,7 @@ function MaskinRadModal({
               {t("handling.lagre")}
             </Text>
           </Pressable>
+          {handlinger && <RadHandlinger handlinger={handlinger} />}
         </TastaturScrollView>
         <TastaturFerdig />
 

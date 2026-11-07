@@ -5389,5 +5389,22 @@
   "lokasjonVelger.forslagSistBrukt": "Последнее использование",
   "lokasjonVelger.kart": "Карта",
   "lokasjonVelger.ingenTegningEllerKart": "В проекте нет чертежа или карты, на которой можно было бы разместить позицию.",
-  "lokasjonVelger.ingenTegningValgt": "Рисунок не выбран. Выберите рисунок или карту, чтобы отметить позицию."
+  "lokasjonVelger.ingenTegningValgt": "Рисунок не выбран. Выберите рисунок или карту, чтобы отметить позицию.",
+  "timer.dagsoversikt.sumIDag": "Итого сегодня",
+  "timer.dagsoversikt.flyttRad": "Переместить строку",
+  "timer.dagsoversikt.dagen": "День",
+  "timer.dagsoversikt.normRamme": "Норма {{norm}} ч · кадр {{fra}}–{{til}} · перерыв {{pause}} мин",
+  "timer.dagsoversikt.ikkeSendt": "Не отправлено",
+  "timer.dagsoversikt.sendt": "Отправил",
+  "timer.dagsoversikt.returnert": "Вернулся",
+  "timer.dagsoversikt.attestert": "Одобрено {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Описание",
+  "timer.dagsoversikt.mangler": "Отсутствующий",
+  "timer.dagsoversikt.overtid": "сверхурочная работа {{prosent}} % от {{fra}} · {{timer}} ч",
+  "timer.dagsoversikt.delOpp": "Разделить строку",
+  "timer.dagsoversikt.slettRad": "Удалить строку",
+  "timer.dagsoversikt.slettRadBekreft": "Удалить строку?",
+  "timer.kortValg.utenByggeplass": "Нет строительной площадки",
+  "timer.kortValg.uten": "Никто",
+  "timer.kortValg.flyttTittel": "Переместить строку в"
 }

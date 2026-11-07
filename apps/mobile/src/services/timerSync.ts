@@ -766,6 +766,8 @@ export async function syncTimer(
             // validering per (projectId, ECO). Drizzle-kolonnen ble lagt til
             // i T7-4a; sync-laget glemte å speile før T7-4e.
             externalCostObjectId: m.externalCostObjectId ?? null,
+            // ORDRE 36b: maskinens egen byggeplass (kortnøkkelen). null = arv fra sedelen.
+            byggeplassId: m.byggeplassId ?? null,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
@@ -1316,6 +1318,8 @@ export async function syncTimer(
             // T7-4e: skriv ECO på maskin lokalt. Server (T7-4b hentEndringerSiden)
             // returnerer feltet i maskiner-mappingen.
             externalCostObjectId: m.externalCostObjectId ?? null,
+            // ORDRE 36b: maskinens byggeplass fra server (null = arv fra sedel).
+            byggeplassId: m.byggeplassId ?? null,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,

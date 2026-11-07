@@ -5389,5 +5389,22 @@
   "lokasjonVelger.forslagSistBrukt": "Përdorur për herë të fundit",
   "lokasjonVelger.kart": "Harta",
   "lokasjonVelger.ingenTegningEllerKart": "Projekti nuk ka vizatim apo hartë për të vendosur një pozicion.",
-  "lokasjonVelger.ingenTegningValgt": "Asnjë vizatim i zgjedhur. Zgjidhni një vizatim ose hartë për të shënuar një pozicion."
+  "lokasjonVelger.ingenTegningValgt": "Asnjë vizatim i zgjedhur. Zgjidhni një vizatim ose hartë për të shënuar një pozicion.",
+  "timer.dagsoversikt.sumIDag": "Gjithsej sot",
+  "timer.dagsoversikt.flyttRad": "Zhvendos rreshtin",
+  "timer.dagsoversikt.dagen": "ditën",
+  "timer.dagsoversikt.normRamme": "Norma {{norm}} h · korniza {{fra}}–{{til}} · pushim {{pause}} min.",
+  "timer.dagsoversikt.ikkeSendt": "Nuk është dërguar",
+  "timer.dagsoversikt.sendt": "Dërguar",
+  "timer.dagsoversikt.returnert": "U kthye",
+  "timer.dagsoversikt.attestert": "Miratuar {{dato}}",
+  "timer.dagsoversikt.beskrivelse": "Përshkrimi",
+  "timer.dagsoversikt.mangler": "Mungon",
+  "timer.dagsoversikt.overtid": "jashtë orarit {{prosent}} % nga {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.delOpp": "Ndani rreshtin",
+  "timer.dagsoversikt.slettRad": "Fshini rreshtin",
+  "timer.dagsoversikt.slettRadBekreft": "Të fshihet rreshti?",
+  "timer.kortValg.utenByggeplass": "Asnjë kantier ndërtimi",
+  "timer.kortValg.uten": "Asnjë",
+  "timer.kortValg.flyttTittel": "Zhvendos rreshtin te"
 }

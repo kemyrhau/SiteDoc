@@ -31,6 +31,11 @@ import { lagVaresokFokus, varesokRullMal } from "../../utils/varesokRulling";
  *
  * ORDRE 37: med fokus i søkefeltet og tastaturet oppe rulles «Vare»-blokka til
  * toppen, så treffene vises over tastaturet (`utils/varesokRulling.ts`).
+ *
+ * ORDRE 36b: med `kortLaas` arver linja kortets byggeplass og underprosjekt —
+ * ingen byggeplass-velger (retting går via «Flytt raden»). `byggeplassId` er
+ * kortets EFFEKTIVE byggeplass — varelinjer arver ikke fra sedelen
+ * (`vareByggeplassForKort`, RETUR 4). Uten `kortLaas`: som før.
  */
 export function KortVareforbrukModal({
   synlig,
@@ -46,6 +51,7 @@ export function KortVareforbrukModal({
   onVelgLinje,
   forblirApen = false,
   fortIDag = [],
+  kortLaas,
 }: {
   synlig: boolean;
   userId: string;
@@ -60,6 +66,7 @@ export function KortVareforbrukModal({
   onVelgLinje?: (valg: VarelinjeValg) => void;
   forblirApen?: boolean;
   fortIDag?: FortVarelinje[];
+  kortLaas?: { byggeplassId: string | null; ecoId: string | null };
 }) {
   const { t } = useTranslation();
   const [sok, setSok] = useState("");
@@ -70,6 +77,9 @@ export function KortVareforbrukModal({
     [synlig, projectId],
   );
   const [byggeplassId, setByggeplassId] = useState<string | null>(null);
+  // Primitiver i dep-lista: kalleren kan sende et nytt `kortLaas`-objekt pr. render.
+  const laast = !!kortLaas;
+  const laastByggeplassId = kortLaas?.byggeplassId ?? null;
   // Modalen er alltid montert (mobil.md: aldri `{betingelse && <Modal>}`) —
   // skjemaet nullstilles og forhåndsvalg settes ved hver åpning, ikke ved montering.
   useEffect(() => {
@@ -77,8 +87,14 @@ export function KortVareforbrukModal({
     setSok("");
     setVareId(null);
     setAntall("");
-    setByggeplassId(byggeplasser.some((b) => b.id === sedelByggeplassId) ? sedelByggeplassId : null);
-  }, [synlig, byggeplasser, sedelByggeplassId]);
+    setByggeplassId(
+      laast
+        ? laastByggeplassId
+        : byggeplasser.some((b) => b.id === sedelByggeplassId)
+          ? sedelByggeplassId
+          : null,
+    );
+  }, [synlig, byggeplasser, sedelByggeplassId, laast, laastByggeplassId]);
   const varer = useMemo(
     () => (synlig ? hentVarerLokalt(organizationId) : []),
     [synlig, organizationId],
@@ -118,7 +134,16 @@ export function KortVareforbrukModal({
         onVelgLinje,
         lagre: (v) => {
           if (!sheetId) return;
-          lagreLokalVarelinje({ id: randomUUID(), userId, organizationId, sheetId, projectId, dato, ...v });
+          lagreLokalVarelinje({
+            id: randomUUID(),
+            userId,
+            organizationId,
+            sheetId,
+            projectId,
+            dato,
+            ...v,
+            externalCostObjectId: kortLaas?.ecoId ?? null,
+          });
         },
       },
     );
@@ -167,7 +192,7 @@ export function KortVareforbrukModal({
           <Text className="text-xs font-medium text-gray-500">{t("timer.felt.prosjekt")}</Text>
           <Text className="mb-3 text-sm text-gray-900">{prosjektNavn}</Text>
 
-          {byggeplasser.length > 0 && (
+          {!kortLaas && byggeplasser.length > 0 && (
             <>
               <Text className="mb-1 text-xs font-medium text-gray-500">
                 {t("vareforbruk.felt.byggeplass")}

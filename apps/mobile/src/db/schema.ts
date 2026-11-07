@@ -223,6 +223,10 @@ export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   // idempotent via ALTER i migreringer.ts. Maskin følger samme prosjekt+ECO-
   // gruppe som arbeidstimer (T.7 låst 2026-05-16).
   externalCostObjectId: text("external_cost_object_id"),
+  // ORDRE 36b (2026-11-07) — maskin bærer prosjektkortets byggeplass selv. NULL = arver
+  // sedelens byggeplass (samme arv som sheetTimerLocal.byggeplassId). Speil av server
+  // sheet_machines.byggeplass_id; tilføyes idempotent via ALTER i migreringer.ts.
+  byggeplassId: text("byggeplass_id"),
   timer: real("timer").notNull(),
   mengde: real("mengde"),
   enhet: text("enhet"),
@@ -960,6 +964,8 @@ export const vareforbrukLocal = sqliteTable("vareforbruk_local", {
   enhet: text("enhet").notNull(),
   antall: real("antall").notNull(),
   byggeplassId: text("byggeplass_id"),
+  // ORDRE 36b (2026-11-07) — kortets underprosjekt. NULL = uten underprosjekt.
+  externalCostObjectId: text("external_cost_object_id"),
   syncStatus: text("sync_status", { enum: ["pending", "synced", "avvist"] })
     .notNull()
     .default("pending"),
