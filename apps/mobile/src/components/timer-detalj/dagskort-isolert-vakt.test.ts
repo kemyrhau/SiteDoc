@@ -166,7 +166,7 @@ describe("ORDRE 35 — prosjektkortet er flyttet ut av dagskortet", () => {
 
 // ORDRE 36a — påkrevd «Hva gjorde du i dag?» bor KUN i Bekreft dag.
 describe("ORDRE 36a — beskrivelsessperren rører ikke dagskortet", () => {
-  it.each(["manglerBeskrivelse", "beskrivelsePerProsjekt", "BekreftDagBeskrivelse", "sisteBeskrivelser"])(
+  it.each(["manglerBeskrivelse", "beskrivelsePerProsjekt", "beskrivelsePerKort", "kortMedArbeid", "BekreftDagBeskrivelse", "sisteBeskrivelser"])(
     "🔴 dagskortet inneholder ikke «%s»",
     (navn) => {
       expect(DAGSKORT).not.toContain(navn);
@@ -229,5 +229,44 @@ describe("ORDRE 36b — rad-modalenes nye props rører ikke dagskortet", () => {
     expect(TIMER_SEKSJON.replace("fokusBeskrivelse = false,", "fokusBeskrivelse = true,")).not.toContain(
       "fokusBeskrivelse = false,",
     );
+  });
+});
+
+// ORDRE 36b (kort = prosjekt+byggeplass+underprosjekt, dag-seksjonen):
+// delte seksjoner har fått `reise`, `prosjektValg` og kortlås via kontekst.
+// Dagskortet sender ingen av dem, og grenen med prop udefinert er dagens atferd.
+const flat = (x: string) => x.replace(/\s+/g, " ");
+const UTLEGG = flat(les("UtleggSeksjon.tsx"));
+const KONTEKST = flat(les("prosjektkortKontekst.ts"));
+const REISE_VILKAAR = [
+  "{(!reise || reiseVisByggeplass || !!valgtByggeplassId) && (",
+  "{(!reise || reiseVisUnderprosjekt || !!valgtEcoId) && (",
+];
+const UTLEGG_CHIPS = "{!erRedigering && prosjektValg && prosjektValg.length > 1 && (";
+
+describe("ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet", () => {
+  it.each(["prosjektValg=", "reise=", "DagSeksjon", "KortValgModal", "ProsjektkortKontekst", "kortRadFlytt"])(
+    "🔴 dagskortet inneholder ikke «%s»",
+    (navn) => {
+      expect(DAGSKORT).not.toContain(navn);
+    },
+  );
+
+  it("🔴 nye props er valgfrie, og uten dem er visningen som før", () => {
+    expect(flat(TIMER_SEKSJON)).toContain("reise?: { lonnsartId: string | null }");
+    expect(UTLEGG).toContain("prosjektValg?: { id: string; navn: string }[]");
+    for (const v of REISE_VILKAAR) expect(flat(TIMER_SEKSJON)).toContain(v);
+    expect(UTLEGG).toContain(UTLEGG_CHIPS);
+  });
+
+  it("🔴 utenfor et kort er kortlåsen null (standard-kontekst false)", () => {
+    expect(KONTEKST).toContain("createContext<KortLaas | boolean>(false)");
+    expect(KONTEKST).toContain('return typeof v === "object" ? v : null;');
+  });
+
+  it("negativkontroll: skjult byggeplass uten reise og chips uten prosjektValg fanges", () => {
+    const mutant = flat(TIMER_SEKSJON).replace("(!reise || reiseVisByggeplass", "(reiseVisByggeplass");
+    expect(mutant).not.toContain(REISE_VILKAAR[0]);
+    expect(UTLEGG.replace("prosjektValg && prosjektValg.length > 1", "true")).not.toContain(UTLEGG_CHIPS);
   });
 });

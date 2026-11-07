@@ -22,6 +22,21 @@ import { ProsjektkortDagsoversikt } from "../../../src/components/timer-detalj/p
 import { useProsjektkortSedel } from "../../../src/components/timer-detalj/prosjektkort/useProsjektkortSedel";
 import { ProsjektVelgerModal } from "../../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../../src/components/timer-detalj/ByggeplassVelger";
+import {
+  KortValgModal,
+  kortValgTrengs,
+} from "../../../src/components/timer-detalj/prosjektkort/KortValgModal";
+import { DagSeksjon } from "../../../src/components/timer-detalj/prosjektkort/DagSeksjon";
+import { useProsjekt } from "../../../src/kontekst/ProsjektKontekst";
+import { useByggeplass } from "../../../src/kontekst/ByggeplassKontekst";
+import { hentByggeplasserForFirmaLokalt } from "../../../src/services/byggeplassKatalog";
+import { byggeplassForNyRad } from "../../../src/services/nyTimerRad";
+import {
+  effektivByggeplass,
+  kortNokkel,
+  tilRuteParam,
+  type KortValg,
+} from "../../../src/lib/prosjektkortMobil";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../../src/utils/gjenaapne-tilgang";
 
@@ -41,6 +56,9 @@ export default function ProsjektkortSkjerm() {
   const { sedel } = s;
 
   const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
+  const [nyttKortProsjekt, setNyttKortProsjekt] = useState<string | null>(null);
+  const { valgtProsjektId } = useProsjekt();
+  const { valgtBygningId } = useByggeplass();
   const [visByggeplassVelger, setVisByggeplassVelger] = useState(false);
   const [visRammeModal, setVisRammeModal] = useState(false);
   const [visAapnetNotis, setVisAapnetNotis] = useState(
@@ -68,6 +86,14 @@ export default function ProsjektkortSkjerm() {
   if (!s.kortModus) {
     return <Redirect href={{ pathname: "/timer/[id]", params: { id: sheetId } }} />;
   }
+
+  // ORDRE 36b: kortet adresseres med (prosjekt, byggeplass, underprosjekt).
+  const aapneKort = (k: KortValg) =>
+    router.push(
+      `/timer/${sheetId}/kort/${k.projectId}?bp=${tilRuteParam(k.byggeplassId)}&up=${tilRuteParam(k.ecoId)}`,
+    );
+  // Valgt kombinasjon som alt finnes → det eksisterende kortet åpnes (samme rute).
+  const sedelKontekst = s.sedelKontekst ?? { projectId: sedel.projectId, byggeplass: null };
 
   return (
     <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
@@ -319,11 +345,27 @@ export default function ProsjektkortSkjerm() {
         <ProsjektkortDagsoversikt
           sheetId={sheetId}
           sedel={sedel}
-          prosjektIder={s.kortIder}
+          kort={s.kort}
+          sedelKontekst={sedelKontekst}
+          ecoNavn={s.ecoNavn}
+          dagSeksjon={
+            <DagSeksjon
+              sheetId={sheetId}
+              sedel={sedel}
+              timerRader={s.timerRader}
+              tilleggRader={s.tilleggRader}
+              utleggRader={s.utleggRader}
+              reiseLonnsartId={s.reiseLonnsartId}
+              prosjektIder={[...new Set([...s.kort.map((k) => k.projectId), sedel.projectId])]}
+              prosjektNavn={s.prosjektNavn}
+              harEquipmentCache={s.harEquipmentCache}
+              redigerbar={s.erRedigerbar}
+              onEndret={s.markerEndretOgLes}
+            />
+          }
           timerRader={s.timerRader}
           maskinRader={s.maskinRader}
           varer={s.kortVarer}
-          utleggAntall={s.utleggAntall}
           reiseLonnsartId={s.reiseLonnsartId}
           harEquipmentCache={s.harEquipmentCache}
           varelagerProsjekter={s.varelagerProsjekter}
@@ -337,7 +379,7 @@ export default function ProsjektkortSkjerm() {
           prosjektNavn={s.prosjektNavn}
           byggeplassNavn={s.byggeplassNavn}
           redigerbar={s.erRedigerbar}
-          onAapneKort={(pid) => router.push(`/timer/${sheetId}/kort/${pid}`)}
+          onAapneKort={aapneKort}
           onNyttKort={() => setVisLeggTilProsjekt(true)}
           onEndreRamme={() => setVisRammeModal(true)}
           onEndreByggeplass={() => setVisByggeplassVelger(true)}
@@ -404,13 +446,40 @@ export default function ProsjektkortSkjerm() {
         <ProsjektVelgerModal
           organizationId={sedel.organizationId}
           valgtId={null}
-          ekskluderIder={s.kortIder}
           onVelg={(id) => {
             setVisLeggTilProsjekt(false);
-            // Nytt kort åpnes direkte; lagres når første rad legges til.
-            router.push(`/timer/${sheetId}/kort/${id}`);
+            // K3: byggeplass/underprosjekt spørres bare når prosjektet har
+            // flere byggeplasser eller underprosjekter. Nytt kort lagres når
+            // første rad legges til.
+            if (kortValgTrengs(id)) setNyttKortProsjekt(id);
+            else
+              aapneKort({ projectId: id, byggeplassId: effektivByggeplass(id, null, sedelKontekst), ecoId: null });
           }}
           onLukk={() => setVisLeggTilProsjekt(false)}
+        />
+      )}
+
+      {nyttKortProsjekt && (
+        <KortValgModal
+          organizationId={sedel.organizationId}
+          modus={{
+            type: "ny",
+            projectId: nyttKortProsjekt,
+            forslagByggeplassId: byggeplassForNyRad(nyttKortProsjekt, {
+              innlogget: valgtProsjektId
+                ? { projectId: valgtProsjektId, byggeplassId: valgtBygningId }
+                : null,
+              gps: null,
+              byggeplasser: hentByggeplasserForFirmaLokalt(sedel.organizationId),
+            }),
+          }}
+          sedel={sedelKontekst}
+          prosjektNavn={s.prosjektNavn}
+          onVelg={(k) => {
+            setNyttKortProsjekt(null);
+            aapneKort(s.kort.find((e) => kortNokkel(e) === kortNokkel(k)) ?? k);
+          }}
+          onLukk={() => setNyttKortProsjekt(null)}
         />
       )}
 

@@ -658,22 +658,37 @@ Spec: `dagsoversikt-beskrivelse-spec.md` § 2.1–2.4. Samlesiden (`app/timer/[i
   - Sum-kortet har «Sum i dag», ramme og byggeplass, et statusord med ● og Send.
 - **Farger og stil:** kun grått og amber. Skriften er lik for alle linjer, og det brukes ingen ikoner. Slett går alltid via bekreftelse (`RadHandlinger.tsx`). Kildevakt: `dagsoversikt-kilde-vakt.test.ts`.
 - **Redigering:** én skrivesti via `prosjektkort/radLagring.ts` (lagring C, `db` sprøytes inn):
-  - `leggTilTimerRad`, `oppdaterTimerRad`, `hurtigVelgTimerRad`, `fjernTimerRad`
+  - `leggTilTimerRad`, `oppdaterTimerRad`, `fjernTimerRad`
   - `oppdaterMaskinRad`, `fjernMaskinRad`
 
   Modalene `TimerRadModal`, `MaskinRadModal`, `SplittRadModal`, `ProsjektByggeplassVelgerModal` og `KortVareforbrukModal` er delt med dagskortet.
   - `handlinger?` («Del opp»/«Slett») og `fokusBeskrivelse` er av som default, så dagskortet ser modalene som før.
   - Vakt: `dagskort-isolert-vakt.test.ts` § ORDRE 36b.
-  - Hurtigvelg (bytte byggeplass/prosjekt) åpnes fra byggeplassnavnet på arbeidssegmentet når prosjektet har flere byggeplasser.
+  - Hurtigvelg (`hurtigVelgTimerRad`) er erstattet av «Flytt raden» (RETUR 3, under).
 - **To kopier av skrivesemantikk:** timer- og maskinradenes skriving finnes både i dagskortets `TimerSeksjon.tsx`/`MaskinSeksjon.tsx` (urørt) og i `radLagring.ts`. **En fiks i den ene skal vurderes i den andre.** Vakten `radLagring-glue-vakt.test.ts` gjør to sjekker:
   - Den sammenligner nøkkelsettet i alle `.set`/`.values`.
-  - Den teller 21 tokens og 11 hurtigvelg-tokens i begge kopiene.
+  - Den teller 21 tokens i begge kopiene.
 
   Vakten feiler ved ett endret token, og har negativkontroll.
 - **Matpause på kortskjermen:** avhukingen har flyttet fra rad-kortet til rad-modalen (`RadHandlinger`, `matpause`). Regelen er den samme: dag > 5,5t, raden krysser lunsjvinduet, og sedelen er redigerbar.
   - Flytten går via `handterPauseToggle` (sett, flytt eller `BekreftFjernMatpauseModal`) og lukker modalen.
   - Oversikten tar `onPauseToggle`. Bare kortskjermen sender den, og dagskortet ser ingenting.
 - **Ingen funksjon fjernet:** «+ Ny vare» er erstattet av Varer-linjen, og ECO-bøttenes maskin-tak vises per prosjekt.
+
+#### RETUR 3 — kortet = prosjekt + byggeplass + underprosjekt (🟡 `feat/dagsoversikt-36b`, ikke merget)
+
+Kenneth GO 2026-11-07 (§ 7: ingen backfill, valg kun når relevant (K3), SQLite OK). Ingen Prisma-migrering; kun additive, valgfrie tRPC-felt.
+
+- **Kortnøkkel** (`apps/mobile/src/lib/prosjektkortMobil.ts`): `kortNokkel` = `projectId|byggeplassId|ecoId` («ingen» for null). Byggeplass er den EFFEKTIVE: radens egen, ellers sedelens — men bare når sedelens byggeplass hører til samme prosjekt (`effektivByggeplass`). `kortNokler`/`raderPaaKort`/`radHorerTilKort` grupperer timer, maskin og varer; `lagretByggeplassForKort` gir `null` (= arv) når kortets byggeplass er sedelens. Kortskjermen leser kortet fra ruteparametrene (`fraRuteParam`/`tilRuteParam`).
+- **Kortlås:** `ProsjektkortKontekst` bærer hele kortet (`useKortLaas`); `TimerRadModal` låser prosjekt, byggeplass og underprosjekt til kortets. Utenfor kort (dagskortet) er konteksten `false` og ingenting endres.
+- **«+ Nytt kort»** (`KortValgModal`, modus `ny`): prosjekt med 0–1 byggeplass og uten underprosjekt åpner kortet direkte (`kortValgTrengs`, K3). Ellers: underprosjekt-chips («Uten» forhåndsvalgt) og byggeplass-rader. «Uten byggeplass» vises bare når dagens byggeplass ikke hører til prosjektet (`kanVelgeUtenByggeplass`).
+- **«Flytt raden»** (`KortValgModal`, modus `flytt`; skriving i `prosjektkort/kortRadFlytt.ts`, utenfor `radLagring.ts` med vilje): timer-rad beholder alle felt unntatt prosjekt/byggeplass/underprosjekt; koblet maskin følger (`foelgKobletMaskin`, GO 5). Maskin alene sjekkes mot kapasitet (`beregnMaskinBrudd`) før flytt og kobles løs. Vare: `pending` flyttes lokalt og sendes med nye verdier; `synced` flyttes FØRST på server (`vareforbruk.oppdater` med `projectId`, GO 6), feil vises i modalen og ingenting lokalt endres; `avvist` beholder syncStatus.
+- **Server (`apps/api/src/routes/vareforbruk.ts` `oppdater`):** valgfri `projectId`. Prosjektbytte krever medlemskap i målprosjektet, at målet tilhører firmaet og samme varelager-eier (`FORBIDDEN` ellers), og tilgang-policy. Byggeplass/underprosjekt valideres mot målprosjektet og nullstilles ved bytte når input ikke sier noe. `hentMineForDato` returnerer `externalCostObjectId`. Test: `vareforbruk-flytt.test.ts`.
+- **Maskin-byggeplass** (`apps/api/src/routes/timer/byggeplass-rad.ts` `maskinByggeplassVedSync`): `syncBatch` tar valgfri `byggeplassId` pr. maskin. Utelatt (eldre klient) = sedel-arven som før. Pull returnerer feltet.
+- **SQLite (mobil):** `sheet_machine_local.byggeplass_id` og `vareforbruk_local.external_cost_object_id`, additive via `ALTER` (`KORTVALG_LOCAL_KOLONNER`, `migreringer.ts`). Ingen backfill: gamle rader arver sedelen ved visning. Test: `migreringer.kortvalgLocal.test.ts` (feiler når kolonnen mangler).
+- **Dag-seksjonen** (`prosjektkort/DagSeksjon.tsx`, GO 4): reise, tillegg og utlegg hører til dagen og ligger under kortene, over sum og «Send dagen». Prosjekt-forslaget er prosjektet med flest arbeidstimer. Reise velger prosjekt; byggeplass/underprosjekt i modalen bare når prosjektet har flere (K3). `TilleggSeksjon` og `UtleggSeksjon` gjenbrukes (utlegg får prosjekt-chips ved flere prosjekter). Kortskjermen viser dem ikke lenger — de er flyttet, ikke fjernet.
+- **Bekreft dag — beskrivelse pr. kort** (`apps/mobile/src/utils/beskrivelseKort.ts`): `kortMedArbeid` gir ett felt pr. (prosjekt, effektiv byggeplass) med arbeid; underprosjekt finnes ikke i Bekreft dag. Nøkkelen i `beskrivelsePerKort` er `projectId` når prosjektet har ett kort (identisk med 36a), ellers kortnøkkelen. `manglerBeskrivelse` sperrer pr. nøkkel (`BekreftDagHandling.nokler`); `anvendDagsforslag` skriver tekst fra radens eget kort (`beskrivelseForRad`). Feltet viser byggeplassnavnet når flere kort deler prosjekt; bytte av dagens byggeplass tar med teksten. Tester: `bekreftDagBeskrivelse.test.ts` § ORDRE 36b.
+- **Dagskortet urørt:** vakt `dagskort-isolert-vakt.test.ts` § «ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet» (optional props, `REISE_VILKAAR`, `UTLEGG_CHIPS`, kontekst-default `false`, negativkontroll). Flytt-vakter: `dagsoversikt-kilde-vakt.test.ts`.
 
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 

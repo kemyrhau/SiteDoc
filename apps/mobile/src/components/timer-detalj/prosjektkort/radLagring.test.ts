@@ -43,7 +43,6 @@ import { kjorMigreringer } from "../../../db/migreringer";
 import {
   fjernMaskinRad,
   fjernTimerRad,
-  hurtigVelgTimerRad,
   leggTilMaskinRad,
   leggTilTimerRad,
   oppdaterMaskinRad,
@@ -234,37 +233,6 @@ describe("oppdaterTimerRad", () => {
     seedTimer("t1");
     oppdaterTimerRad(db(), K, "t1", felt, null);
     expect(tombstones()).toHaveLength(0);
-  });
-});
-
-describe("hurtigVelgTimerRad (F3)", () => {
-  it("bare byggeplass endret → lagret direkte, tider/matpause/maskin urørt", () => {
-    seedTimer("t1", { pauseMin: 0, beskrivelse: "B" });
-    oppdaterTimerRad(db(), K, "t1", { ...felt, pauseMin: 0, beskrivelse: "B" }, { vehicleId: "v1", mengde: null, enhet: null });
-    const u = hurtigVelgTimerRad(db(), K, timerRad("t1"), "p1", "p1", "bp2");
-    expect(u).toEqual({ type: "lagret" });
-    expect(timerRad("t1")).toMatchObject({ byggeplassId: "bp2", fraTid: "07:00", tilTid: "15:00", pauseMin: 0, beskrivelse: "B" });
-    expect(maskinRader()).toHaveLength(1);
-  });
-
-  it("prosjekt endret → åpne modal med tvunget valg, INGENTING skrevet", () => {
-    seedTimer("t1");
-    const u = hurtigVelgTimerRad(db(), K, timerRad("t1"), "p1", "p2", "bp9");
-    expect(u).toEqual({ type: "aapneModal", tvungetValg: { projectId: "p2", byggeplassId: "bp9" } });
-    expect(timerRad("t1")).toMatchObject({ projectId: "p1", byggeplassId: null, sistEndretLokalt: 1000 });
-  });
-
-  it("negativkontroll: uendret byggeplass eller ukjent rad → ingen skriving", () => {
-    seedTimer("t1", { byggeplassId: "bp1" });
-    expect(hurtigVelgTimerRad(db(), K, timerRad("t1"), "p1", "p1", "bp1")).toEqual({ type: "uendret" });
-    expect(timerRad("t1").sistEndretLokalt).toBe(1000);
-    expect(hurtigVelgTimerRad(db(), K, undefined, "p1", "p1", "bp1")).toEqual({ type: "uendret" });
-  });
-
-  it("rad uten projectId faller tilbake til kortets prosjekt", () => {
-    seedTimer("t1", { projectId: null });
-    expect(hurtigVelgTimerRad(db(), K, timerRad("t1"), "p1", "p1", "bp2")).toEqual({ type: "lagret" });
-    expect(timerRad("t1").projectId).toBe("p1");
   });
 });
 

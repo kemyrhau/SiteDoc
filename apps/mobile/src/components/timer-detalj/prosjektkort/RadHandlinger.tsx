@@ -7,10 +7,13 @@ import { useTranslation } from "react-i18next";
  * modalen — kun når prosjektkort-flyten sender `handlinger` (dagsoversikt og
  * kortskjerm). Dagskortet sender ingenting og ser modalene som før
  * (`dagskort-isolert-vakt.test.ts`). Slett går ALLTID via bekreftelsen.
+ * `onFlytt` (36b § 5b) står over «Del opp» og åpner `KortValgModal`.
  * `matpause` (36b): kortskjermens matpause-avhuking for raden — samme regel som
  * dagskortets rad-kort (dag > 5,5t og raden krysser lunsjvinduet), flyttet hit.
  */
 export type RadHandlingerProps = {
+  /** 36b § 5b: flytt raden til et annet kort (prosjekt, byggeplass, underprosjekt). */
+  onFlytt?: () => void;
   onDelOpp: () => void;
   onSlett: () => void;
   matpause?: { avhuket: boolean; trukketMin: number; onToggle: () => void };
@@ -28,6 +31,11 @@ export function RadHandlinger({ handlinger }: { handlinger: RadHandlingerProps }
               ? t("timer.matpause.trukket", { min: handlinger.matpause.trukketMin })
               : t("timer.matpause.trukketUmerket")}
           </Text>
+        </Pressable>
+      )}
+      {handlinger.onFlytt && (
+        <Pressable onPress={handlinger.onFlytt} className="min-h-[44px] justify-center active:bg-gray-50">
+          <Text className="text-base text-gray-700">{t("timer.dagsoversikt.flyttRad")}</Text>
         </Pressable>
       )}
       <Pressable onPress={handlinger.onDelOpp} className="min-h-[44px] justify-center active:bg-gray-50">

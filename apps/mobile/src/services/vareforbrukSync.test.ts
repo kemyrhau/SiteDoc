@@ -215,7 +215,7 @@ describe("vareforbruk fra kortet — synk", () => {
 
   it("timerrad med projectId null arver sedelens prosjekt (legacy) → koblet", () => {
     const plan = planleggVaresending(
-      { id: "l1", sheetId: "s1", projectId: "p1", dato: "2026-11-06", vareId: "v1", antall: 1, byggeplassId: null },
+      { id: "l1", sheetId: "s1", projectId: "p1", dato: "2026-11-06", vareId: "v1", antall: 1, byggeplassId: null, externalCostObjectId: null },
       { id: "s1", projectId: "p1", syncStatus: "synced" },
       [{ projectId: null }],
     );

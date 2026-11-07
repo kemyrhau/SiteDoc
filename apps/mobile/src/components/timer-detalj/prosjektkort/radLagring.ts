@@ -4,14 +4,13 @@ import type { hentDatabase } from "../../../db/database";
 import { sheetTimerLocal, sheetMachineLocal, slettedeRaderLocal } from "../../../db/schema";
 import { erReiseLonnsartLokalt } from "../../../services/timerKatalog";
 import { settInnTimerRad, type NyMaskin } from "../../../services/nyTimerRad";
-import type { TimerRad } from "../../../types/timer-detalj";
 
 /* ============================================================================
  *  ORDRE 36b (lagring C, Kenneth 2026-11-07): skrivestien for timer- og
  *  maskinrader i prosjektkort-flyten (dagsoversikt + kortskjerm).
  *
  *  KOPI av skrivesemantikken i `TimerSeksjon.tsx` (leggTil/oppdater/
- *  handterHurtigVelg/fjern) og `MaskinSeksjon.tsx` (leggTil/oppdater/fjern),
+ *  fjern) og `MaskinSeksjon.tsx` (leggTil/oppdater/fjern),
  *  som dagskortet fortsatt bruker urørt. `db` sprøytes inn så kontrakt-testene
  *  kan måle DB-effekten mot ekte SQLite. `radLagring-glue-vakt.test.ts` FEILER
  *  hvis nøkkelsett eller kall i én kopi endres uten den andre — en fiks i én
@@ -64,7 +63,7 @@ export function leggTilTimerRad(
 
 /**
  * Oppdater en timer-rad. `maskin`:
- *   undefined = ikke rør maskin-rader (hurtigsti: byggeplass-bytte),
+ *   undefined = ikke rør maskin-rader,
  *   null      = fjern koblet maskin-rad (bruker tømte maskinen),
  *   objekt    = sett/oppdater koblet maskin-rad.
  */
@@ -201,52 +200,6 @@ export function oppdaterTimerRad(
       });
     }
   }
-}
-
-export type HurtigVelgUtfall =
-  /** Prosjekt byttet → full rad-modal med nytt prosjekt+byggeplass forhåndsvalgt. */
-  | { type: "aapneModal"; tvungetValg: { projectId: string; byggeplassId: string | null } }
-  /** Bare byggeplass byttet → lagret direkte. */
-  | { type: "lagret" }
-  /** Ingen endring, eller raden finnes ikke → ingenting skrevet. */
-  | { type: "uendret" };
-
-/**
- * F3 hybrid-hurtigsti (kopi av `handterHurtigVelg`): prosjektbytte kan
- * ugyldiggjøre prosjekt-scopede felt → full rad-modal, ingen stille nulling.
- * Kun byggeplass endret → lagres direkte via `oppdaterTimerRad` uten å røre
- * tider, matpause-bærer eller maskin.
- */
-export function hurtigVelgTimerRad(
-  db: LokalDb,
-  kontekst: RadKontekst,
-  rad: TimerRad | undefined,
-  projectId: string,
-  nyProjectId: string,
-  nyByggeplassId: string | null,
-): HurtigVelgUtfall {
-  if (!rad) return { type: "uendret" };
-  const gjeldendeProjectId = rad.projectId ?? projectId;
-  if (nyProjectId !== gjeldendeProjectId) {
-    return { type: "aapneModal", tvungetValg: { projectId: nyProjectId, byggeplassId: nyByggeplassId } };
-  }
-  // Samme prosjekt: no-op hvis byggeplassen er uendret (unngår unødig pending-sync).
-  if ((nyByggeplassId ?? null) !== (rad.byggeplassId ?? null)) {
-    oppdaterTimerRad(db, kontekst, rad.id, {
-      projectId: gjeldendeProjectId,
-      byggeplassId: nyByggeplassId,
-      lonnsartId: rad.lonnsartId,
-      aktivitetId: rad.aktivitetId,
-      timer: rad.timer,
-      externalCostObjectId: rad.externalCostObjectId,
-      fraTid: rad.fraTid,
-      tilTid: rad.tilTid,
-      beskrivelse: rad.beskrivelse,
-      pauseMin: rad.pauseMin,
-    });
-    return { type: "lagret" };
-  }
-  return { type: "uendret" };
 }
 
 /** Slett timer-rad + tombstone med radens serverVersjon, ATOMISK (V19.9.1 / S-A). */

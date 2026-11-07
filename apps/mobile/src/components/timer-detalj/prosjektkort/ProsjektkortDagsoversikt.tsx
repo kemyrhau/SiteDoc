@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, Modal } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
+  beregnMaskinBrudd,
   overstigerMaskinTak,
   visVareforbrukKnapp,
   hhmmTilMin,
@@ -14,6 +15,7 @@ import {
 } from "../../../services/matpause";
 import { hentDatabase } from "../../../db/database";
 import { useAuth } from "../../../providers/AuthProvider";
+import { trpc } from "../../../lib/trpc";
 import { finnLonnsartLokalt } from "../../../services/timerKatalog";
 import { finnEquipmentLokalt } from "../../../services/maskinKatalog";
 import { erReiseRadVisning } from "../../../utils/reiseRad";
@@ -26,22 +28,37 @@ import {
   type OversiktMaskinRad,
   type ProsjektLinjer,
 } from "../../../utils/dagsoversikt";
-import { formatKortTall, sendKnappTekst } from "../../../lib/prosjektkortMobil";
-import { TimerRadModal, ProsjektByggeplassVelgerModal } from "../TimerSeksjon";
+import {
+  formatKortTall,
+  kortNokkel,
+  kortValgFor,
+  lagretByggeplassForKort,
+  sendKnappTekst,
+  type KortValg,
+  type SedelKortKontekst,
+} from "../../../lib/prosjektkortMobil";
+import { TimerRadModal } from "../TimerSeksjon";
 import { MaskinRadModal } from "../MaskinSeksjon";
 import { SplittRadModal } from "../SplittRadModal";
 import { KortVareforbrukModal } from "../KortVareforbrukModal";
 import type { VisVarelinje } from "../VareforbrukLesListe";
-import { ProsjektkortKontekst } from "../prosjektkortKontekst";
+import { ProsjektkortKontekst, type KortLaas } from "../prosjektkortKontekst";
 import {
   leggTilTimerRad,
   oppdaterTimerRad,
-  hurtigVelgTimerRad,
   fjernTimerRad,
   oppdaterMaskinRad,
   fjernMaskinRad,
   type RadKontekst,
 } from "./radLagring";
+import {
+  flyttMaskinRad,
+  flyttTimerRad,
+  flyttVareLokalt,
+  foelgKobletMaskin,
+  type FlyttMaal,
+} from "./kortRadFlytt";
+import { KortValgModal } from "./KortValgModal";
 import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
 
 /**
@@ -50,14 +67,29 @@ import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
  * redigeringen på kortskjermen (`enkeltProsjekt`). Faste linjer pr. prosjekt,
  * bare grått og amber, to skriftstørrelser, ingen ikoner. Linjene åpner de
  * delte rad-modalene; ALL skriving går via `radLagring` (lagring C).
+ *
+ * Revidert plan RETUR 3: ett kort = (prosjekt, byggeplass, underprosjekt).
+ * Prosjektnavnet står én gang, kortene under med «byggeplass · underprosjekt».
+ * Rad-modalene åpnes med kortlås (byggeplass og underprosjekt grå); retting
+ * går via «Flytt raden» (`kortRadFlytt.ts`). Reise, tillegg og utlegg hører
+ * til dagen (`dagSeksjon`), ikke kortene.
  */
 
 type TimerModal = {
   radId: string | null;
-  projectId: string;
+  kort: KortValg;
   fokusBeskrivelse: boolean;
-  tvungetValg: { projectId: string; byggeplassId: string | null } | null;
 };
+
+type Flytt =
+  | { radType: "timer"; rad: TimerRad; fra: KortValg }
+  | { radType: "maskin"; rad: MaskinRad; fra: KortValg }
+  | { radType: "vare"; vare: VisVarelinje; fra: KortValg };
+
+type KortBlokk = { valg: KortValg; linjer: ProsjektLinjer<VisVarelinje> };
+
+/** Effektiv byggeplass i kortlåsen — modalen viser kortets byggeplass. */
+const laasFor = (k: KortValg): KortLaas => ({ byggeplassId: k.byggeplassId, ecoId: k.ecoId });
 
 type Splitt =
   | { radType: "timer"; original: TimerRad }
@@ -66,11 +98,11 @@ type Splitt =
 export function ProsjektkortDagsoversikt({
   sheetId,
   sedel,
-  prosjektIder,
+  sedelKontekst,
+  kort,
   timerRader,
   maskinRader,
   varer,
-  utleggAntall,
   reiseLonnsartId,
   harEquipmentCache,
   varelagerProsjekter,
@@ -79,6 +111,8 @@ export function ProsjektkortDagsoversikt({
   rammeByggeplassNavn,
   prosjektNavn,
   byggeplassNavn,
+  ecoNavn,
+  dagSeksjon,
   redigerbar,
   enkeltProsjekt = false,
   onAapneKort,
@@ -92,12 +126,13 @@ export function ProsjektkortDagsoversikt({
 }: {
   sheetId: string;
   sedel: Sedel;
-  prosjektIder: string[];
+  sedelKontekst: SedelKortKontekst;
+  /** Kortene i visningsrekkefølge (`kortNokler`). */
+  kort: KortValg[];
   /** Alle dagens rader (overlapp og matpause gjelder hele dagen). */
   timerRader: TimerRad[];
   maskinRader: MaskinRad[];
   varer: VisVarelinje[];
-  utleggAntall: Map<string, number>;
   reiseLonnsartId: string | null;
   harEquipmentCache: boolean;
   varelagerProsjekter: string[];
@@ -106,10 +141,13 @@ export function ProsjektkortDagsoversikt({
   rammeByggeplassNavn: string | null;
   prosjektNavn: (projectId: string) => string;
   byggeplassNavn: (byggeplassId: string) => string | null;
+  ecoNavn: (ecoId: string) => string;
+  /** Dagens reise, tillegg og utlegg — under kortene, over sum og Send. */
+  dagSeksjon?: ReactNode;
   redigerbar: boolean;
-  /** Kortskjermen: ett prosjekt, uten sum-kort, Send og «+ Nytt prosjektkort». */
+  /** Kortskjermen: ett kort, uten sum-kort, Send og «+ Nytt prosjektkort». */
   enkeltProsjekt?: boolean;
-  onAapneKort?: (projectId: string) => void;
+  onAapneKort?: (kort: KortValg) => void;
   onNyttKort?: () => void;
   onEndreRamme?: () => void;
   onEndreByggeplass?: () => void;
@@ -126,8 +164,11 @@ export function ProsjektkortDagsoversikt({
   const [timerModal, setTimerModal] = useState<TimerModal | null>(null);
   const [maskinModal, setMaskinModal] = useState<MaskinRad | null>(null);
   const [splitt, setSplitt] = useState<Splitt | null>(null);
-  const [vareProsjekt, setVareProsjekt] = useState<string | null>(null);
-  const [hurtigRadId, setHurtigRadId] = useState<string | null>(null);
+  const [vareKort, setVareKort] = useState<KortValg | null>(null);
+  const [vareValgt, setVareValgt] = useState<{ vare: VisVarelinje; kort: KortValg } | null>(null);
+  const [flytt, setFlytt] = useState<Flytt | null>(null);
+  const [flyttFeil, setFlyttFeil] = useState<string | null>(null);
+  const oppdaterVare = trpc.vareforbruk.oppdater.useMutation();
 
   // 36b: matpausen er dag-nivå — samme regel som dagskortets rad-kort.
   const { pauseFra, standardPauseMin } = useMemo(
@@ -160,7 +201,9 @@ export function ProsjektkortDagsoversikt({
       timerRader.map((r) => ({
         id: r.id,
         projectId: r.projectId ?? sedel.projectId,
-        byggeplassId: r.byggeplassId ?? sedel.byggeplassId ?? null,
+        // Lagret verdi: null = arver dagens byggeplass (kortnøkkelen avgjør).
+        byggeplassId: r.byggeplassId ?? null,
+        externalCostObjectId: r.externalCostObjectId ?? null,
         timer: r.timer,
         fraTid: r.fraTid,
         tilTid: r.tilTid,
@@ -170,37 +213,48 @@ export function ProsjektkortDagsoversikt({
         // Lokale rader bærer ikke attesteringsstatus.
         attestertStatus: null,
       })),
-    [timerRader, sedel.projectId, sedel.byggeplassId, reiseLonnsartId],
+    [timerRader, sedel.projectId, reiseLonnsartId],
   );
   const oversiktMaskin = useMemo<OversiktMaskinRad[]>(
     () =>
       maskinRader.map((r) => ({
         id: r.id,
         projectId: r.projectId ?? sedel.projectId,
-        byggeplassId: null,
+        byggeplassId: r.byggeplassId ?? null,
+        externalCostObjectId: r.externalCostObjectId ?? null,
         vehicleId: r.vehicleId,
         timer: r.timer,
         attestertStatus: null,
       })),
     [maskinRader, sedel.projectId],
   );
-  const alle = useMemo(
-    () =>
-      prosjektIder.map((projectId) => ({
-        projectId,
-        linjer: linjerForProsjekt({
-          projectId,
-          timer: oversiktTimer,
-          maskin: oversiktMaskin,
-          varer,
-          utlegg: utleggAntall.get(projectId) ?? 0,
-          harEquipmentCache,
-          harVarelager: varelagerProsjekter.includes(projectId),
-        }),
-      })),
-    [prosjektIder, oversiktTimer, oversiktMaskin, varer, utleggAntall, harEquipmentCache, varelagerProsjekter],
-  );
-  const sum = dagsoversiktSum(alle.map((a) => a.linjer));
+  // Kortene grupperes pr. prosjekt (kortNokler sorterer prosjektene samlet).
+  // Reise hører til dagen og telles bare i sum-kortet.
+  const grupper = useMemo(() => {
+    const arbeidTimer = oversiktTimer.filter((r) => !r.erReise);
+    const ut: { projectId: string; blokker: KortBlokk[] }[] = [];
+    for (const valg of kort) {
+      const linjer = linjerForProsjekt({
+        projectId: valg.projectId,
+        timer: arbeidTimer,
+        maskin: oversiktMaskin,
+        varer,
+        utlegg: 0,
+        harEquipmentCache,
+        harVarelager: varelagerProsjekter.includes(valg.projectId),
+        kort: { valg, sedel: sedelKontekst },
+      });
+      const siste = ut[ut.length - 1];
+      if (siste?.projectId === valg.projectId) siste.blokker.push({ valg, linjer });
+      else ut.push({ projectId: valg.projectId, blokker: [{ valg, linjer }] });
+    }
+    return ut;
+  }, [kort, oversiktTimer, oversiktMaskin, varer, harEquipmentCache, varelagerProsjekter, sedelKontekst]);
+  const reiseSum = oversiktTimer.filter((r) => r.erReise).reduce((a, r) => a + r.timer, 0);
+  const sum = {
+    ...dagsoversiktSum(grupper.flatMap((g) => g.blokker.map((b) => b.linjer))),
+    reise: reiseSum,
+  };
   const status = statusOrd(sedel.status);
 
   const timerRad = (id: string | null) => (id ? timerRader.find((r) => r.id === id) ?? null : null);
@@ -213,19 +267,93 @@ export function ProsjektkortDagsoversikt({
     r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid} · ` : "";
   const t2 = (n: number) => `${formatKortTall(n)} ${t("timer.tEnhet")}`;
 
-  const aapneTimer = (projectId: string, radId: string | null, fokusBeskrivelse = false) => {
+  const aapneTimer = (kortValg: KortValg, radId: string | null, fokusBeskrivelse = false) => {
     if (!redigerbar) return;
-    setTimerModal({ radId, projectId, fokusBeskrivelse, tvungetValg: null });
+    setTimerModal({ radId, kort: kortValg, fokusBeskrivelse });
+  };
+  const kortForRad = (r: {
+    projectId: string | null;
+    byggeplassId?: string | null;
+    externalCostObjectId?: string | null;
+  }) =>
+    kortValgFor(
+      {
+        projectId: r.projectId ?? sedel.projectId,
+        byggeplassId: r.byggeplassId ?? null,
+        externalCostObjectId: r.externalCostObjectId ?? null,
+      },
+      sedelKontekst,
+    );
+  const startFlytt = (f: Flytt) => {
+    setFlyttFeil(null);
+    setFlytt(f);
   };
 
   const db = () => hentDatabase()!;
   const redigert = timerRad(timerModal?.radId ?? null);
-  const hurtigRad = timerRad(hurtigRadId);
+
+  const utforFlytt = async (til: KortValg) => {
+    if (!flytt) return;
+    const maal: FlyttMaal = {
+      projectId: til.projectId,
+      byggeplassId: lagretByggeplassForKort(til, sedelKontekst),
+      ecoId: til.ecoId,
+    };
+    if (flytt.radType === "timer") {
+      flyttTimerRad(db(), k, flytt.rad, maal);
+    } else if (flytt.radType === "maskin") {
+      // Samme bøtte-regel (prosjekt, underprosjekt) som ved ny rad og på server.
+      const brudd = beregnMaskinBrudd(
+        timerRader.map((r) => ({
+          projectId: r.projectId ?? sedel.projectId,
+          externalCostObjectId: r.externalCostObjectId ?? null,
+          timer: r.timer,
+        })),
+        maskinRader.map((m) =>
+          m.id === flytt.rad.id
+            ? { projectId: til.projectId, externalCostObjectId: til.ecoId, timer: m.timer }
+            : {
+                projectId: m.projectId ?? sedel.projectId,
+                externalCostObjectId: m.externalCostObjectId ?? null,
+                timer: m.timer,
+              },
+        ),
+        sedel.pauseMin,
+      );
+      if (brudd.some((b) => b.projectId === til.projectId && (b.externalCostObjectId ?? null) === til.ecoId)) {
+        setFlyttFeil(t("timer.maskin.overstigerArbeid"));
+        return;
+      }
+      flyttMaskinRad(db(), flytt.rad.id, maal);
+    } else {
+      const v = flytt.vare;
+      // Linjen finnes på server: flytt der først (vaktene sjekker prosjekt og firma).
+      if (v.syncStatus !== "pending" && v.syncStatus !== "avvist") {
+        try {
+          await oppdaterVare.mutateAsync({
+            id: v.id,
+            projectId: til.projectId,
+            byggeplassId: maal.byggeplassId,
+            externalCostObjectId: til.ecoId,
+          });
+        } catch (e) {
+          const melding = e instanceof Error ? e.message : String(e);
+          setFlyttFeil(t(melding, { defaultValue: melding }));
+          return;
+        }
+      }
+      flyttVareLokalt(db(), v.id, maal);
+      setFlytt(null);
+      onVarerLagret();
+      return;
+    }
+    setFlytt(null);
+    onEndret();
+  };
 
   // Kalles som funksjon (ikke komponent) så radene ikke remountes ved hver render.
-  function prosjekt(projectId: string, linjer: ProsjektLinjer<VisVarelinje>) {
-    const arbeidsrader = [...linjer.arbeid, ...linjer.overtid];
-    const flereByggeplasser = new Set(arbeidsrader.map((r) => r.byggeplassId)).size > 1;
+  function kortBlokk({ valg, linjer }: KortBlokk, visHode: boolean) {
+    const projectId = valg.projectId;
     const kanForeVare = visVareforbrukKnapp({
       prosjektIderMedVarelager: varelagerProsjekter,
       projectId,
@@ -235,39 +363,39 @@ export function ProsjektkortDagsoversikt({
       linjer.summer.maskin > 0 &&
       overstigerMaskinTak(linjer.summer.maskin, linjer.summer.arbeid, sedel.pauseMin);
 
+    const hode = [
+      valg.byggeplassId
+        ? byggeplassNavn(valg.byggeplassId) ?? t("timer.byggeplass.ingenValgt")
+        : t("timer.kortValg.utenByggeplass"),
+      valg.ecoId ? ecoNavn(valg.ecoId) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
     return (
-      <View key={projectId} className="mx-4 mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
-        {!enkeltProsjekt && (
+      <View key={kortNokkel(valg)}>
+        {visHode && (
           <Pressable
-            onPress={() => onAapneKort?.(projectId)}
-            className="min-h-[44px] justify-center active:bg-gray-50"
+            onPress={() => onAapneKort?.(valg)}
+            className="min-h-[44px] justify-center border-t border-gray-100 active:bg-gray-50"
           >
-            <Text className="text-base font-semibold text-gray-900">{prosjektNavn(projectId)}</Text>
+            <Text className="text-sm font-semibold text-gray-700">{hode}</Text>
           </Pressable>
         )}
 
         <Linje etikett={t("timer.prosjektkort.kolonne.arbeid")}>
           {linjer.arbeid.length === 0 ? (
-            <Tom onPress={() => aapneTimer(projectId, null)} />
+            <Tom onPress={() => aapneTimer(valg, null)} />
           ) : (
             linjer.arbeid.map((r) => (
-              <View key={r.id} className="flex-row flex-wrap items-center">
-                <Verdi onPress={() => aapneTimer(projectId, r.id)}>
-                  {tid(r)}
-                  {t2(r.timer)}
-                </Verdi>
-                {flereByggeplasser && (
-                  <Verdi gra onPress={() => redigerbar && setHurtigRadId(r.id)}>
-                    {" · "}
-                    {(r.byggeplassId && byggeplassNavn(r.byggeplassId)) ||
-                      t("timer.byggeplass.ingenValgt")}
-                  </Verdi>
-                )}
-              </View>
+              <Verdi key={r.id} onPress={() => aapneTimer(valg, r.id)}>
+                {tid(r)}
+                {t2(r.timer)}
+              </Verdi>
             ))
           )}
           {linjer.overtid.map((r) => (
-            <Verdi key={r.id} gra onPress={() => aapneTimer(projectId, r.id)}>
+            <Verdi key={r.id} gra onPress={() => aapneTimer(valg, r.id)}>
               {t("timer.dagsoversikt.overtid", {
                 prosent: r.overtidsnivaa,
                 fra: r.fraTid ?? "–",
@@ -277,22 +405,11 @@ export function ProsjektkortDagsoversikt({
           ))}
         </Linje>
 
-        {linjer.reise.length > 0 && (
-          <Linje etikett={t("timer.prosjektkort.kolonne.reise")}>
-            {linjer.reise.map((r) => (
-              <Verdi key={r.id} onPress={() => aapneTimer(projectId, r.id)}>
-                {tid(r)}
-                {t2(r.timer)}
-              </Verdi>
-            ))}
-          </Linje>
-        )}
-
         {linjer.visMaskin && (
           <Linje etikett={t("timer.prosjektkort.kolonne.maskin")}>
             {linjer.maskin.length === 0 ? (
               // Tom maskin: ny timer-rad med maskinseksjonen (P1).
-              <Tom onPress={() => aapneTimer(projectId, null)} />
+              <Tom onPress={() => aapneTimer(valg, null)} />
             ) : (
               linjer.maskin.map((r) => (
                 <Verdi
@@ -320,11 +437,11 @@ export function ProsjektkortDagsoversikt({
         {linjer.visVarer && (
           <Linje etikett={t("timer.prosjektkort.kolonne.varer")}>
             {linjer.varer.length === 0 ? (
-              <Tom onPress={() => kanForeVare && setVareProsjekt(projectId)} />
+              <Tom onPress={() => kanForeVare && setVareKort(valg)} />
             ) : (
               linjer.varer.map((v) => (
                 <View key={v.id}>
-                  <Verdi onPress={() => kanForeVare && setVareProsjekt(projectId)}>
+                  <Verdi onPress={() => kanForeVare && setVareValgt({ vare: v, kort: valg })}>
                     {v.vare.navn} {formatKortTall(v.antall).replace(/,0$/, "")} {v.vare.enhet}
                     {v.syncStatus === "pending" ? ` · ${t("timer.sync.venter")}` : ""}
                   </Verdi>
@@ -340,18 +457,12 @@ export function ProsjektkortDagsoversikt({
           </Linje>
         )}
 
-        {linjer.utlegg > 0 && (
-          <Linje etikett={t("timer.prosjektkort.kolonne.utlegg")}>
-            <Verdi onPress={() => !enkeltProsjekt && onAapneKort?.(projectId)}>{String(linjer.utlegg)}</Verdi>
-          </Linje>
-        )}
-
         <Linje
           etikett={t("timer.dagsoversikt.beskrivelse")}
           mangler={linjer.mangler}
         >
           <Pressable
-            onPress={() => aapneTimer(projectId, linjer.forsteArbeidsradId, true)}
+            onPress={() => aapneTimer(valg, linjer.forsteArbeidsradId, true)}
             className="min-h-[44px] justify-center active:bg-gray-50"
           >
             {linjer.mangler ? (
@@ -369,18 +480,37 @@ export function ProsjektkortDagsoversikt({
     );
   }
 
+  function prosjektGruppe(projectId: string, blokker: KortBlokk[]) {
+    const visHode =
+      !enkeltProsjekt &&
+      (blokker.length > 1 || blokker.some((b) => b.valg.byggeplassId !== null || b.valg.ecoId !== null));
+    return (
+      <View key={projectId} className="mx-4 mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
+        {!enkeltProsjekt && (
+          <Pressable
+            onPress={() => blokker[0] && onAapneKort?.(blokker[0].valg)}
+            className="min-h-[44px] justify-center active:bg-gray-50"
+          >
+            <Text className="text-base font-semibold text-gray-900">{prosjektNavn(projectId)}</Text>
+          </Pressable>
+        )}
+        {blokker.map((b) => kortBlokk(b, visHode))}
+      </View>
+    );
+  }
+
   const sendTekst = sendKnappTekst(sedel.status, sum.arbeid);
 
   return (
     <ProsjektkortKontekst.Provider value={true}>
-      {alle.length === 0 && !enkeltProsjekt && (
+      {grupper.length === 0 && !enkeltProsjekt && (
         <Text className="mx-4 mt-4 text-sm text-gray-500">{t("timer.prosjektkort.ingenKort")}</Text>
       )}
-      {alle.map((a) => prosjekt(a.projectId, a.linjer))}
+      {grupper.map((g) => prosjektGruppe(g.projectId, g.blokker))}
 
-      {redigerbar && enkeltProsjekt && prosjektIder[0] && (
+      {redigerbar && enkeltProsjekt && kort[0] && (
         <Pressable
-          onPress={() => aapneTimer(prosjektIder[0], null)}
+          onPress={() => aapneTimer(kort[0]!, null)}
           className="mx-4 mt-2 min-h-[44px] justify-center active:bg-gray-50"
         >
           <Text className="text-sm text-gray-700">{t("timer.prosjektkort.nyTimer")}</Text>
@@ -394,6 +524,8 @@ export function ProsjektkortDagsoversikt({
               <Text className="text-sm text-gray-700">{t("timer.prosjektkort.nyttKort")}</Text>
             </Pressable>
           )}
+
+          {dagSeksjon}
 
           <View className="mx-4 mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
             <View className="flex-row items-baseline justify-between">
@@ -458,26 +590,31 @@ export function ProsjektkortDagsoversikt({
       )}
 
       {timerModal && (
+        <ProsjektkortKontekst.Provider value={laasFor(timerModal.kort)}>
         <TimerRadModal
           sheetId={sheetId}
           organizationId={sedel.organizationId}
-          defaultProjectId={timerModal.projectId}
-          defaultEcoId={redigert?.externalCostObjectId ?? null}
+          defaultProjectId={timerModal.kort.projectId}
+          defaultEcoId={timerModal.kort.ecoId}
           dato={sedel.dato}
           sheetPauseMin={sedel.pauseMin}
           harEquipmentCache={harEquipmentCache}
           eksisterendeRader={timerRader.filter(
-            (r) => (r.projectId ?? sedel.projectId) === timerModal.projectId,
+            (r) => (r.projectId ?? sedel.projectId) === timerModal.kort.projectId,
           )}
           alleTimerRader={timerRader}
           defaultAktivitetId={sedel.aktivitetId ?? null}
           eksisterendeRad={redigert}
-          tvungetValg={timerModal.tvungetValg}
+          tvungetValg={null}
           sedelByggeplassId={sedel.byggeplassId ?? null}
           fokusBeskrivelse={timerModal.fokusBeskrivelse}
           handlinger={
             redigert
               ? {
+                  onFlytt: () => {
+                    setTimerModal(null);
+                    startFlytt({ radType: "timer", rad: redigert, fra: timerModal.kort });
+                  },
                   onDelOpp: () => {
                     setTimerModal(null);
                     setSplitt({ radType: "timer", original: redigert });
@@ -493,7 +630,7 @@ export function ProsjektkortDagsoversikt({
           }
           onLagre={(
             projectId,
-            byggeplassId,
+            _byggeplassId,
             lonnsartId,
             aktivitetId,
             timer,
@@ -506,7 +643,8 @@ export function ProsjektkortDagsoversikt({
           ) => {
             const felt = {
               projectId,
-              byggeplassId,
+              // Kortlåsen gir effektiv byggeplass; lagres som null når den arves.
+              byggeplassId: lagretByggeplassForKort(timerModal.kort, sedelKontekst),
               lonnsartId,
               aktivitetId,
               timer,
@@ -516,16 +654,21 @@ export function ProsjektkortDagsoversikt({
               beskrivelse,
               pauseMin,
             };
-            if (redigert) oppdaterTimerRad(db(), k, redigert.id, felt, maskin);
-            else leggTilTimerRad(db(), k, felt, maskin);
+            const radId = redigert
+              ? (oppdaterTimerRad(db(), k, redigert.id, felt, maskin), redigert.id)
+              : leggTilTimerRad(db(), k, felt, maskin);
+            // Koblet maskin følger raden også på byggeplass (GO punkt 5).
+            foelgKobletMaskin(db(), radId);
             setTimerModal(null);
             onEndret();
           }}
           onLukk={() => setTimerModal(null)}
         />
+        </ProsjektkortKontekst.Provider>
       )}
 
       {maskinModal && (
+        <ProsjektkortKontekst.Provider value={laasFor(kortForRad(maskinModal))}>
         <MaskinRadModal
           sheetId={sheetId}
           organizationId={sedel.organizationId}
@@ -535,6 +678,10 @@ export function ProsjektkortDagsoversikt({
           pauseMin={sedel.pauseMin}
           eksisterendeRad={maskinModal}
           handlinger={{
+            onFlytt: () => {
+              setMaskinModal(null);
+              startFlytt({ radType: "maskin", rad: maskinModal, fra: kortForRad(maskinModal) });
+            },
             onDelOpp: () => {
               setMaskinModal(null);
               setSplitt({ radType: "maskin", original: maskinModal });
@@ -561,6 +708,7 @@ export function ProsjektkortDagsoversikt({
           }}
           onLukk={() => setMaskinModal(null)}
         />
+        </ProsjektkortKontekst.Provider>
       )}
 
       {splitt && (
@@ -575,51 +723,68 @@ export function ProsjektkortDagsoversikt({
         />
       )}
 
-      {hurtigRad && (
-        <ProsjektByggeplassVelgerModal
-          organizationId={sedel.organizationId}
-          valgtProjectId={hurtigRad.projectId ?? sedel.projectId}
-          valgtByggeplassId={hurtigRad.byggeplassId ?? null}
-          sedelByggeplassId={sedel.byggeplassId ?? null}
-          onVelg={(nyProjectId, nyByggeplassId) => {
-            setHurtigRadId(null);
-            const utfall = hurtigVelgTimerRad(
-              db(),
-              k,
-              hurtigRad,
-              sedel.projectId,
-              nyProjectId,
-              nyByggeplassId,
-            );
-            if (utfall.type === "lagret") onEndret();
-            if (utfall.type === "aapneModal") {
-              setTimerModal({
-                radId: hurtigRad.id,
-                projectId: hurtigRad.projectId ?? sedel.projectId,
-                fokusBeskrivelse: false,
-                tvungetValg: utfall.tvungetValg,
-              });
-            }
-          }}
-          onLukk={() => setHurtigRadId(null)}
-        />
-      )}
-
-      {bruker?.id && vareProsjekt && (
+      {bruker?.id && vareKort && (
         <KortVareforbrukModal
           synlig
           userId={bruker.id}
           organizationId={sedel.organizationId}
           sheetId={sheetId}
-          projectId={vareProsjekt}
-          prosjektNavn={prosjektNavn(vareProsjekt)}
+          projectId={vareKort.projectId}
+          prosjektNavn={prosjektNavn(vareKort.projectId)}
           dato={sedel.dato}
           sedelByggeplassId={sedel.byggeplassId ?? null}
-          onAvbryt={() => setVareProsjekt(null)}
+          kortLaas={{ byggeplassId: lagretByggeplassForKort(vareKort, sedelKontekst), ecoId: vareKort.ecoId }}
+          onAvbryt={() => setVareKort(null)}
           onLagret={() => {
-            setVareProsjekt(null);
+            setVareKort(null);
             onVarerLagret();
           }}
+        />
+      )}
+
+      {/* Varelinje: ny vare (som før) eller «Flytt raden» (§ 5b). */}
+      {vareValgt && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setVareValgt(null)}>
+          <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setVareValgt(null)}>
+            <Pressable className="rounded-t-2xl bg-white px-4 pb-8 pt-4" onPress={() => {}}>
+              <Text className="mb-2 text-base font-semibold text-gray-900">
+                {vareValgt.vare.vare.navn} {formatKortTall(vareValgt.vare.antall).replace(/,0$/, "")}{" "}
+                {vareValgt.vare.vare.enhet}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  const v = vareValgt;
+                  setVareValgt(null);
+                  startFlytt({ radType: "vare", vare: v.vare, fra: v.kort });
+                }}
+                className="min-h-[44px] justify-center border-t border-gray-100 active:bg-gray-50"
+              >
+                <Text className="text-base text-gray-700">{t("timer.dagsoversikt.flyttRad")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  const kortValg = vareValgt.kort;
+                  setVareValgt(null);
+                  setVareKort(kortValg);
+                }}
+                className="min-h-[44px] justify-center border-t border-gray-100 active:bg-gray-50"
+              >
+                <Text className="text-base text-gray-700">{t("timer.prosjektkort.nyVare")}</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
+
+      {flytt && (
+        <KortValgModal
+          organizationId={sedel.organizationId}
+          modus={{ type: "flytt", fra: flytt.fra }}
+          sedel={sedelKontekst}
+          prosjektNavn={prosjektNavn}
+          feil={flyttFeil}
+          onVelg={(til) => void utforFlytt(til)}
+          onLukk={() => setFlytt(null)}
         />
       )}
     </ProsjektkortKontekst.Provider>

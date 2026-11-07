@@ -178,3 +178,24 @@ describe("dagsoversiktSum", () => {
     expect(dagsoversiktSum([c, b]).maskin).toBe(0);
   });
 });
+
+describe("linjerForProsjekt — kort pr. (prosjekt, byggeplass, underprosjekt) (ORDRE 36b)", () => {
+  const sedel = { projectId: "p1", byggeplass: { id: "b1", projectId: "p1" } };
+  it("to byggeplasser i samme prosjekt gir to separate kort", () => {
+    const t = [
+      arbeid({ id: "a", byggeplassId: null, timer: 3 }),
+      arbeid({ id: "b", byggeplassId: "b2", timer: 2 }),
+    ];
+    const paaB1 = linjer({ timer: t, kort: { valg: { projectId: "p1", byggeplassId: "b1", ecoId: null }, sedel } });
+    const paaB2 = linjer({ timer: t, kort: { valg: { projectId: "p1", byggeplassId: "b2", ecoId: null }, sedel } });
+    expect(paaB1.arbeid.map((r) => r.id)).toEqual(["a"]);
+    expect(paaB2.arbeid.map((r) => r.id)).toEqual(["b"]);
+  });
+  it("vare med underprosjekt havner bare på kortet med samme underprosjekt", () => {
+    const v = [vare({ id: "v1" }), vare({ id: "v2", externalCostObjectId: "e1" })];
+    const uten = linjer({ varer: v, kort: { valg: { projectId: "p1", byggeplassId: "b1", ecoId: null }, sedel } });
+    const med = linjer({ varer: v, kort: { valg: { projectId: "p1", byggeplassId: "b1", ecoId: "e1" }, sedel } });
+    expect(uten.varer.map((x) => x.id)).toEqual(["v1"]);
+    expect(med.varer.map((x) => x.id)).toEqual(["v2"]);
+  });
+});

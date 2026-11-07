@@ -1380,7 +1380,29 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_vareforbruk_local_sheet
       ON vareforbruk_local(sheet_id);
   `);
+
+  // ORDRE 36b (2026-11-07) — prosjektkortet ER valget (prosjekt, byggeplass, underprosjekt).
+  // Maskin bærer kortets byggeplass selv (speil av server sheet_machines.byggeplass_id),
+  // vareforbruk bærer kortets underprosjekt (speil av vareforbruk.external_cost_object_id).
+  // Additiv, nullable, INGEN backfill (Kenneth 2026-11-07: gamle rader arver sedelen ved
+  // visning). Ingen data slettes. Idempotent via PRAGMA.
+  for (const [tabell, kol] of KORTVALG_LOCAL_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
 }
+
+/** ORDRE 36b: kortvalg-kolonner (tabell, kolonne) som legges til eksisterende tabeller. */
+export const KORTVALG_LOCAL_KOLONNER = [
+  ["sheet_machine_local", "byggeplass_id"],
+  ["vareforbruk_local", "external_cost_object_id"],
+] as const;
 
 /** Prosjektkort L3: lokale tabeller for vare-katalog og vareforbruk ført fra kortet. */
 export const VAREFORBRUK_LOCAL_TABELLER = ["vare_local", "vareforbruk_local"] as const;

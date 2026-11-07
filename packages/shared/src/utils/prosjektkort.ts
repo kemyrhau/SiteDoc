@@ -197,16 +197,19 @@ export type KortVareforbrukInput = {
   vareId: string;
   antall: number;
   byggeplassId: string | null;
+  /** ORDRE 36b: kortets underprosjekt — sendes kun når kortet har ett. */
+  externalCostObjectId?: string;
   dagsseddelId?: string;
 };
 
-/** Opprett-input fra kortet. Prosjektet er alltid kortets — kan ikke velges. */
+/** Opprett-input fra kortet. Prosjektet (og underprosjektet, 36b) er alltid kortets — kan ikke velges. */
 export function kortVareforbrukInput(args: {
   kortProsjektId: string;
   dato: string;
   vareId: string;
   antall: number;
   byggeplassId: string | null;
+  externalCostObjectId?: string | null;
   dagsseddelId?: string;
   id?: string;
 }): KortVareforbrukInput {
@@ -217,6 +220,7 @@ export function kortVareforbrukInput(args: {
     vareId: args.vareId,
     antall: args.antall,
     byggeplassId: args.byggeplassId,
+    ...(args.externalCostObjectId ? { externalCostObjectId: args.externalCostObjectId } : {}),
     ...(args.dagsseddelId ? { dagsseddelId: args.dagsseddelId } : {}),
   };
 }

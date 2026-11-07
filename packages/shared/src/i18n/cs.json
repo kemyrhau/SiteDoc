@@ -5391,6 +5391,8 @@
   "lokasjonVelger.ingenTegningEllerKart": "Projekt nemá žádný výkres nebo mapu, na kterou by bylo možné umístit pozici.",
   "lokasjonVelger.ingenTegningValgt": "Není vybrán žádný výkres. Vyberte nákres nebo mapu pro označení pozice.",
   "timer.dagsoversikt.sumIDag": "Dnes celkem",
+  "timer.dagsoversikt.flyttRad": "Přesunout řádek",
+  "timer.dagsoversikt.dagen": "Den",
   "timer.dagsoversikt.normRamme": "Norma {{norm}} h · snímek {{fra}}–{{til}} · přestávka {{pause}} min",
   "timer.dagsoversikt.ikkeSendt": "Nebylo odesláno",
   "timer.dagsoversikt.sendt": "Odesláno",
@@ -5401,5 +5403,8 @@
   "timer.dagsoversikt.overtid": "přesčas {{prosent}} % od {{fra}} · {{timer}} h",
   "timer.dagsoversikt.delOpp": "Rozdělte řádek",
   "timer.dagsoversikt.slettRad": "Smazat řádek",
-  "timer.dagsoversikt.slettRadBekreft": "Smazat řádek?"
+  "timer.dagsoversikt.slettRadBekreft": "Smazat řádek?",
+  "timer.kortValg.utenByggeplass": "Žádné staveniště",
+  "timer.kortValg.uten": "Žádný",
+  "timer.kortValg.flyttTittel": "Přesunout řádek do"
 }

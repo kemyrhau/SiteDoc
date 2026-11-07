@@ -5391,6 +5391,8 @@
   "lokasjonVelger.ingenTegningEllerKart": "Projekte nėra brėžinio ar žemėlapio, kuriame būtų galima pateikti poziciją.",
   "lokasjonVelger.ingenTegningValgt": "Piešinys nepasirinktas. Norėdami pažymėti vietą, pasirinkite piešinį arba žemėlapį.",
   "timer.dagsoversikt.sumIDag": "Iš viso šiandien",
+  "timer.dagsoversikt.flyttRad": "Perkelti eilutę",
+  "timer.dagsoversikt.dagen": "Diena",
   "timer.dagsoversikt.normRamme": "Norma {{norm}} h · kadras {{fra}}–{{til}} · pertrauka {{pause}} min.",
   "timer.dagsoversikt.ikkeSendt": "Neišsiųsta",
   "timer.dagsoversikt.sendt": "Išsiųsta",
@@ -5401,5 +5403,8 @@
   "timer.dagsoversikt.overtid": "viršvalandžiai {{prosent}} % nuo {{fra}} · {{timer}} val",
   "timer.dagsoversikt.delOpp": "Padalinkite eilutę",
   "timer.dagsoversikt.slettRad": "Ištrinkite eilutę",
-  "timer.dagsoversikt.slettRadBekreft": "Ištrinti eilutę?"
+  "timer.dagsoversikt.slettRadBekreft": "Ištrinti eilutę?",
+  "timer.kortValg.utenByggeplass": "Nėra statybvietės",
+  "timer.kortValg.uten": "Nėra",
+  "timer.kortValg.flyttTittel": "Perkelti eilutę į"
 }

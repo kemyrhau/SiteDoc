@@ -46,6 +46,8 @@ import {
   flyttBeskrivelse,
 } from "./bekreftDag";
 import type { Dagsforslag } from "./dagsforslag";
+import { kortMedArbeid } from "./beskrivelseKort";
+import { kortNokkel } from "../lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../services/beskrivelseForslag";
 
 let teller = 0;
@@ -185,7 +187,7 @@ function somReise(f: Dagsforslag): Dagsforslag {
   return { ...f, datoer: f.datoer.map((d) => ({ ...d, rader: d.rader.map((r) => ({ ...r, erReise: true })) })) };
 }
 function medTekst(f: Dagsforslag, b: Record<string, string>): Dagsforslag {
-  return { ...f, beskrivelsePerProsjekt: b };
+  return { ...f, beskrivelsePerKort: b };
 }
 
 describe("ORDRE 36a — manglerBeskrivelse", () => {
@@ -231,7 +233,7 @@ describe("ORDRE 36a — bekreftDag sperrer tom beskrivelse", () => {
   it("🔴 tomt felt → manglerBeskrivelse [p1], 0 rader, dagen står paagaar", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     const { handling, resultat } = bekreftDag(lokalDb(), forslag, skriveCtx());
-    expect(handling).toEqual({ type: "manglerBeskrivelse", projectIds: ["p1"] });
+    expect(handling).toEqual({ type: "manglerBeskrivelse", nokler: ["p1"] });
     expect(resultat).toBeNull();
     expect(tell()).toEqual({ sedler: 0, rader: 0, status: "paagaar" });
   });
@@ -258,6 +260,52 @@ describe("ORDRE 36a — bekreftDag sperrer tom beskrivelse", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst(), { beskrivelse: { p1: chip } });
     expect(manglerBeskrivelse(forslag)).toEqual([]);
     expect(bekreftDag(lokalDb(), forslag, skriveCtx()).handling.type).toBe("suksess");
+  });
+});
+
+describe("ORDRE 36b — beskrivelse pr. kort (prosjekt + byggeplass)", () => {
+  /** Første arbeidsrad kopiert med egen byggeplass `bp` på samme prosjekt. */
+  function medEkstraByggeplass(f: Dagsforslag, bp: string): Dagsforslag {
+    const [d0, ...resten] = f.datoer;
+    const arbeid = d0!.rader.find((r) => !r.erReise)!;
+    return { ...f, datoer: [{ ...d0!, rader: [...d0!.rader, { ...arbeid, byggeplassId: bp }] }, ...resten] };
+  }
+  const K_ARV = kortNokkel({ projectId: "p1", byggeplassId: null, ecoId: null });
+  const K_B2 = kortNokkel({ projectId: "p1", byggeplassId: "b2", ecoId: null });
+
+  it("🔴 to byggeplasser på ett prosjekt → to påkrevde felt", () => {
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const to = medEkstraByggeplass(forslag, "b2");
+    const kort = kortMedArbeid(to);
+    expect(kort.map((k) => k.nokkel)).toEqual([K_ARV, K_B2]);
+    expect(kort.every((k) => k.delerProsjekt)).toBe(true);
+    expect(manglerBeskrivelse(to)).toEqual([K_ARV, K_B2]);
+    expect(manglerBeskrivelse(medTekst(to, { [K_ARV]: "Graving" }))).toEqual([K_B2]);
+    // projectId-nøkkelen dekker IKKE kort når prosjektet har flere.
+    expect(manglerBeskrivelse(medTekst(to, { p1: "Graving" }))).toEqual([K_ARV, K_B2]);
+  });
+
+  it("🔴 hver tekst lander kun på eget korts rader", () => {
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const to = medTekst(medEkstraByggeplass(forslag, "b2"), { [K_ARV]: "Graving", [K_B2]: " Rør " });
+    expect(bekreftDag(lokalDb(), to, skriveCtx()).handling.type).toBe("suksess");
+    const arbeid = db().select().from(sheetTimerLocal).all().filter((r) => !r.erReise);
+    const b2 = arbeid.filter((r) => r.byggeplassId === "b2");
+    const arv = arbeid.filter((r) => r.byggeplassId !== "b2");
+    expect(b2.length).toBeGreaterThan(0);
+    expect(arv.length).toBeGreaterThan(0);
+    expect(b2.every((r) => r.beskrivelse === "Rør")).toBe(true);
+    expect(arv.every((r) => r.beskrivelse === "Graving")).toBe(true);
+  });
+
+  it("🔴 regresjon: ett kort pr. prosjekt → nøkkel = projectId, som 36a", () => {
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    expect(kortMedArbeid(forslag)).toEqual([
+      { nokkel: "p1", projectId: "p1", byggeplassId: null, delerProsjekt: false },
+    ]);
+    const to = medEkstraProsjekt(forslag, "p2");
+    expect(kortMedArbeid(to).map((k) => k.nokkel)).toEqual(["p1", "p2"]);
+    expect(manglerBeskrivelse(medTekst(to, { p1: "A", p2: "B" }))).toEqual([]);
   });
 });
 
@@ -342,7 +390,7 @@ describe("ORDRE 36a — kildevakter i bekreft-dag.tsx", () => {
     expect(sperre).not.toContain("trpc");
   });
   it("🔴 rød ramme kun etter forsøk på tomt felt", () => {
-    expect(SKJERM).toMatch(/visFeil=\{forsoktBekreft && !retting\.beskrivelse\?\.\[p\]\?\.trim\(\)\}/);
+    expect(SKJERM).toMatch(/visFeil=\{forsoktBekreft && !retting\.beskrivelse\?\.\[k\.nokkel\]\?\.trim\(\)\}/);
     const flat = FELT.replace(/\s+/g, " ");
     expect(flat).toContain('visFeil ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"');
     expect(flat).toMatch(/\{visFeil \? \( <Text className="text-xs text-red-700">/);

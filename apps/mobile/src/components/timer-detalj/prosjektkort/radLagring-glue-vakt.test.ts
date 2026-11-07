@@ -31,8 +31,6 @@ const TIMER = region(TIMER_KILDE, "const leggTil = useCallback(", "return (\n   
 const MASKIN = region(MASKIN_KILDE, "const leggTil = useCallback(", "if (rader.length === 0) return null;");
 const ORIGINAL = TIMER + MASKIN;
 const MODUL = utenKommentarer(MODUL_KILDE);
-const HURTIG_ORIGINAL = region(TIMER_KILDE, "const handterHurtigVelg", "const fjern = useCallback(");
-const HURTIG_MODUL = region(MODUL_KILDE, "export function hurtigVelgTimerRad", "export function fjernTimerRad");
 
 /** Nøklene i hvert objekt etter `.set(`/`.values(`, sortert (shorthand = navnet). */
 function skriveNokler(kilde: string): string[] {
@@ -94,20 +92,6 @@ const TOKENS = [
   "eq(sheetMachineLocal.sheetTimerId, radId)",
   "if (maskin !== undefined)",
 ];
-const HURTIG_TOKENS = [
-  "rad.projectId ?? projectId",
-  "nyProjectId !== gjeldendeProjectId",
-  "(nyByggeplassId ?? null) !== (rad.byggeplassId ?? null)",
-  "rad.lonnsartId",
-  "rad.aktivitetId",
-  "rad.timer",
-  "rad.externalCostObjectId",
-  "rad.fraTid",
-  "rad.tilTid",
-  "rad.beskrivelse",
-  "rad.pauseMin",
-];
-
 const flat = (s: string) => s.replace(/\s+/g, " ");
 const tell = (kilde: string, token: string) => flat(kilde).split(flat(token)).length - 1;
 const avvik = (a: string, b: string, tokens: string[]) =>
@@ -118,7 +102,7 @@ describe("ORDRE 36b — radLagring er en tro kopi av seksjonenes skrivesemantikk
     expect(TIMER).toContain("const fjern = useCallback(");
     expect(TIMER).toContain("const handterHurtigVelg");
     expect(MASKIN).toContain('radType: "maskin"');
-    expect(MODUL).toContain("export function hurtigVelgTimerRad");
+    expect(MODUL).toContain("export function fjernTimerRad");
     expect(skriveNokler(ORIGINAL).length).toBeGreaterThan(40);
   });
 
@@ -132,12 +116,6 @@ describe("ORDRE 36b — radLagring er en tro kopi av seksjonenes skrivesemantikk
     expect(tell(MODUL, token)).toBe(a);
   });
 
-  it.each(HURTIG_TOKENS)("🔴 hurtigvelg «%s» — like mange", (token) => {
-    const a = tell(HURTIG_ORIGINAL, token);
-    expect(a).toBeGreaterThan(0);
-    expect(tell(HURTIG_MODUL, token)).toBe(a);
-  });
-
   it("negativkontroll: ett endret token eller én fjernet nøkkel fanges", () => {
     expect(avvik(ORIGINAL, MODUL, TOKENS)).toEqual([]);
     const tombstoneDroppet = MODUL.replace('radType: "timer"', 'radType: "maskin"');
@@ -147,7 +125,5 @@ describe("ORDRE 36b — radLagring er en tro kopi av seksjonenes skrivesemantikk
     expect(skriveNokler(utenVersjon)).not.toEqual(skriveNokler(ORIGINAL));
     const utenPause = MODUL.replace("      pauseMin,\n      ...reiseSet", "      ...reiseSet");
     expect(skriveNokler(utenPause)).not.toEqual(skriveNokler(ORIGINAL));
-    const hurtigByttet = HURTIG_MODUL.replace("rad.pauseMin", "0");
-    expect(avvik(HURTIG_ORIGINAL, hurtigByttet, HURTIG_TOKENS)).toEqual(["rad.pauseMin"]);
   });
 });

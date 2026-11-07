@@ -9,9 +9,7 @@ import { hentDatabase } from "../../../../src/db/database";
 import {
   dagsseddelLocal,
   sheetTimerLocal,
-  sheetTilleggLocal,
   sheetMachineLocal,
-  sheetUtleggLocal,
   equipmentLocal,
   byggeplassLocal,
 } from "../../../../src/db/schema";
@@ -19,13 +17,11 @@ import { useTimerSync } from "../../../../src/providers/TimerSyncProvider";
 import { useNettverk } from "../../../../src/providers/NettverkProvider";
 import { trpc } from "../../../../src/lib/trpc";
 import { TimerStatusMerkelapp } from "../../../../src/components/TimerStatusMerkelapp";
-import { TilleggSeksjon } from "../../../../src/components/timer-detalj/TilleggSeksjon";
-import { UtleggSeksjon } from "../../../../src/components/timer-detalj/UtleggSeksjon";
 import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-detalj/BekreftFjernMatpauseModal";
 import type { VisVarelinje } from "../../../../src/components/timer-detalj/VareforbrukLesListe";
 import { ProsjektkortDagsoversikt } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
 import { finnProsjektLokalt } from "../../../../src/services/prosjektKatalog";
-import { hentReiseLonnsartId } from "../../../../src/services/timerKatalog";
+import { finnUnderprosjektLokalt, hentReiseLonnsartId } from "../../../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../../../src/services/maskinKatalog";
 import { hentVarelagerProsjekterLokalt } from "../../../../src/services/vareKatalog";
 import {
@@ -41,6 +37,12 @@ import { useMiniToast, MiniToast } from "../../../../src/components/MiniToast";
 import { useReLesVedSynk } from "../../../../src/hooks/useReLesVedSynk";
 import { formatNorskDato, isoTidspunktTilHHMM } from "../../../../src/utils/dato";
 import {
+  effektivByggeplass,
+  fraRuteParam,
+  kortValgFor,
+  raderPaaKort,
+  type KortValg,
+  type SedelKortKontekst,
   tilKortMaskinRader,
   tilKortTimerRader,
   tilKortVarer,
@@ -50,9 +52,7 @@ import { KortHode } from "../../../../src/components/timer-detalj/prosjektkort/P
 import type {
   Sedel,
   TimerRad,
-  TilleggRad,
   MaskinRad,
-  UtleggRad,
 } from "../../../../src/types/timer-detalj";
 
 /**
@@ -65,17 +65,19 @@ export default function ProsjektkortSkjerm() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id: string; projectId: string }>();
+  const params = useLocalSearchParams<{ id: string; projectId: string; bp?: string; up?: string }>();
   const sheetId = params.id ?? "";
   const projectId = params.projectId ?? "";
+  // ORDRE 36b: kortet = (prosjekt, byggeplass, underprosjekt). Mangler `bp`
+  // (gammel rute) velges prosjektets første kort.
+  const bpParam = fraRuteParam(params.bp);
+  const upParam = fraRuteParam(params.up) ?? null;
   const { triggerSync, oppdaterTellere, sistSynkronisert } = useTimerSync();
   const { erPaaNettet } = useNettverk();
 
   const [sedel, setSedel] = useState<Sedel | null>(null);
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
-  const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
-  const [utleggRader, setUtleggRader] = useState<UtleggRad[]>([]);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
   const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
@@ -101,14 +103,8 @@ export default function ProsjektkortSkjerm() {
     setTimerRader(
       db.select().from(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).all(),
     );
-    setTilleggRader(
-      db.select().from(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, sheetId)).all(),
-    );
     setMaskinRader(
       db.select().from(sheetMachineLocal).where(eq(sheetMachineLocal.dagsseddelId, sheetId)).all(),
-    );
-    setUtleggRader(
-      db.select().from(sheetUtleggLocal).where(eq(sheetUtleggLocal.dagsseddelId, sheetId)).all(),
     );
     const equipmentCount = db
       .select({ id: equipmentLocal.id })
@@ -192,11 +188,28 @@ export default function ProsjektkortSkjerm() {
     markerEndretOgLes();
   }, [sedel, sheetId, markerEndretOgLes]);
 
-  const iKortet = useCallback(
-    (r: { projectId: string | null }) =>
-      (r.projectId ?? sedel?.projectId) === projectId,
-    [sedel?.projectId, projectId],
-  );
+  const sedelKontekst = useMemo<SedelKortKontekst | null>(() => {
+    if (!sedel) return null;
+    const db = hentDatabase();
+    const bp =
+      db && sedel.byggeplassId
+        ? db
+            .select({ id: byggeplassLocal.id, projectId: byggeplassLocal.projectId })
+            .from(byggeplassLocal)
+            .where(eq(byggeplassLocal.id, sedel.byggeplassId))
+            .all()[0]
+        : undefined;
+    return {
+      projectId: sedel.projectId,
+      byggeplass: bp ? { id: bp.id, projectId: bp.projectId } : null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedel?.projectId, sedel?.byggeplassId]);
+
+  const ecoNavn = useCallback((ecoId: string): string => {
+    const e = finnUnderprosjektLokalt(ecoId);
+    return e ? `${e.proAdmId} — ${e.kortNavn}` : ecoId;
+  }, []);
 
   const orgId = sedel?.organizationId;
   const reiseLonnsartId = useMemo(
@@ -251,12 +264,21 @@ export default function ProsjektkortSkjerm() {
     );
   }
 
-  const kTimer = timerRader.filter(iKortet);
-  const kTillegg = tilleggRader.filter(iKortet);
-  const kMaskin = maskinRader.filter(iKortet);
-  const kUtlegg = utleggRader.filter(iKortet);
-  const tomt =
-    kTimer.length + kTillegg.length + kMaskin.length + kUtlegg.length === 0;
+  const kontekst = sedelKontekst ?? { projectId: sedel.projectId, byggeplass: null };
+  const iProsjektet = (r: { projectId: string | null }) =>
+    (r.projectId ?? sedel.projectId) === projectId;
+  const forste = [...timerRader, ...maskinRader].find(iProsjektet);
+  const valg: KortValg =
+    bpParam === undefined
+      ? forste
+        ? kortValgFor(forste, kontekst)
+        : { projectId, byggeplassId: effektivByggeplass(projectId, null, kontekst), ecoId: null }
+      : { projectId, byggeplassId: bpParam, ecoId: upParam };
+  const kTimer = raderPaaKort(timerRader, kontekst, valg);
+  const kMaskin = raderPaaKort(maskinRader, kontekst, valg);
+  const kVarer = raderPaaKort(varer, kontekst, valg);
+  // Tillegg og utlegg er dagsnivå (ORDRE 36b) — de ligger på samlesiden.
+  const tomt = kTimer.length + kMaskin.length + kVarer.length === 0;
 
   return (
     <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
@@ -274,11 +296,11 @@ export default function ProsjektkortSkjerm() {
         <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
           <KortHode
             projectId={projectId}
-            navn={prosjektNavn}
+            navn={valg.ecoId ? `${prosjektNavn} · ${ecoNavn(valg.ecoId)}` : prosjektNavn}
             timer={tilKortTimerRader(kTimer, sedel.projectId, reiseLonnsartId)}
             maskin={tilKortMaskinRader(kMaskin, sedel.projectId)}
-            varer={varer}
-            utlegg={kUtlegg.length}
+            varer={kVarer}
+            utlegg={0}
             sedelByggeplassId={sedel.byggeplassId ?? null}
             byggeplassNavn={byggeplassNavn}
           />
@@ -309,11 +331,12 @@ export default function ProsjektkortSkjerm() {
           enkeltProsjekt
           sheetId={sheetId}
           sedel={sedel}
-          prosjektIder={[projectId]}
+          kort={[valg]}
+          sedelKontekst={kontekst}
+          ecoNavn={ecoNavn}
           timerRader={timerRader}
           maskinRader={maskinRader}
           varer={varer}
-          utleggAntall={new Map([[projectId, kUtlegg.length]])}
           reiseLonnsartId={reiseLonnsartId}
           harEquipmentCache={harEquipmentCache}
           varelagerProsjekter={varelagerProsjekter}
@@ -335,22 +358,6 @@ export default function ProsjektkortSkjerm() {
           }}
         />
 
-        <TilleggSeksjon
-          sheetId={sheetId}
-          organizationId={sedel.organizationId}
-          projectId={projectId}
-          rader={kTillegg}
-          redigerbar={erRedigerbar}
-          onEndret={markerEndretOgLes}
-        />
-        <UtleggSeksjon
-          sheetId={sheetId}
-          organizationId={sedel.organizationId}
-          projectId={projectId}
-          rader={kUtlegg}
-          redigerbar={erRedigerbar}
-          onEndret={markerEndretOgLes}
-        />
       </ScrollView>
 
       <BekreftFjernMatpauseModal

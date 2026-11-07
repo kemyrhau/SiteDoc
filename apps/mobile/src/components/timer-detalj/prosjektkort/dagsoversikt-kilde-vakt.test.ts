@@ -128,4 +128,51 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
     expect(`${OVERSIKT}\nimport { Trash2 } from "lucide-react-native";`).toMatch(/\bTrash2\b/);
     expect("SplittRadModal").not.toMatch(/\bSplit\b/);
   });
+
+  // ORDRE 36b § 5b — «Flytt raden» i komponentlaget.
+  const flyttBlokk = (kilde: string) => {
+    const fra = kilde.indexOf("const utforFlytt = async");
+    return flat(kilde.slice(fra, kilde.indexOf("\n  };\n", fra)));
+  };
+  /** Synket vare flyttes på server FØR lokalt, og avbryter ved serverfeil. */
+  const vareRekkefolge = (b: string) => {
+    const server = b.indexOf("await oppdaterVare.mutateAsync(");
+    const avbryt = b.indexOf("setFlyttFeil(t(melding", server);
+    const lokal = b.indexOf("flyttVareLokalt(db(), v.id, maal)");
+    return server > 0 && avbryt > server && b.indexOf("return;", avbryt) < lokal && lokal > avbryt;
+  };
+  /** Maskinkapasitet sjekkes før maskin-raden flyttes. */
+  const maskinRekkefolge = (b: string) => {
+    const brudd = b.indexOf("beregnMaskinBrudd(");
+    const avslag = b.indexOf('setFlyttFeil(t("timer.maskin.overstigerArbeid"))');
+    const flytt = b.indexOf("flyttMaskinRad(db(), flytt.rad.id, maal)");
+    return brudd > 0 && avslag > brudd && flytt > avslag;
+  };
+
+  it("🔴 flytt: byggeplass lagres som kortets lagrede verdi (arv = null)", () => {
+    expect(flyttBlokk(OVERSIKT)).toContain("byggeplassId: lagretByggeplassForKort(til, sedelKontekst)");
+    expect(flyttBlokk(OVERSIKT)).toContain("flyttTimerRad(db(), k, flytt.rad, maal)");
+  });
+
+  it("🔴 flytt av synket vare: server først, lokal kun ved suksess; pending/avvist kun lokalt", () => {
+    const b = flyttBlokk(OVERSIKT);
+    expect(vareRekkefolge(b)).toBe(true);
+    expect(b).toContain('if (v.syncStatus !== "pending" && v.syncStatus !== "avvist") {');
+  });
+
+  it("🔴 flytt av maskin: kapasitet sjekkes før skriving", () => {
+    expect(maskinRekkefolge(flyttBlokk(OVERSIKT))).toBe(true);
+  });
+
+  it("negativkontroll: lokal vare-flytt før server, og maskin-flytt før sjekk, fanges", () => {
+    const b = flyttBlokk(OVERSIKT);
+    const lokalForst = b
+      .replace("flyttVareLokalt(db(), v.id, maal);", "")
+      .replace("await oppdaterVare.mutateAsync(", "flyttVareLokalt(db(), v.id, maal); await oppdaterVare.mutateAsync(");
+    expect(vareRekkefolge(lokalForst)).toBe(false);
+    const maskinForst = b
+      .replace("flyttMaskinRad(db(), flytt.rad.id, maal);", "")
+      .replace("const brudd = beregnMaskinBrudd(", "flyttMaskinRad(db(), flytt.rad.id, maal); const brudd = beregnMaskinBrudd(");
+    expect(maskinRekkefolge(maskinForst)).toBe(false);
+  });
 });

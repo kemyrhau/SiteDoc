@@ -75,3 +75,21 @@ export async function krevByggeplasserIProsjekt(
     });
   }
 }
+
+/**
+ * ORDRE 36b: hvilken byggeplass en maskin-rad lagres med i syncBatch.
+ * - Klienten sendte `byggeplassId` (også `null`) → maskinens egen verdi gjelder
+ *   (kortets byggeplass, samme som timer-raden), vasket mot radens prosjekt.
+ * - Feltet utelatt (eldre klient) → sedel-arven som før (sedelhodets byggeplass).
+ * `vask` er bundet til maskin-radens prosjekt; oppslaget går alltid på projectId.
+ */
+export function maskinByggeplassVedSync(
+  m: { byggeplassId?: string | null },
+  sedelByggeplass: string | null | undefined,
+  vask: (byggeplassId: string | null | undefined) => string | null,
+): string | null {
+  if (m.byggeplassId !== undefined) {
+    return m.byggeplassId ? vask(m.byggeplassId) : null;
+  }
+  return vask(sedelByggeplass);
+}

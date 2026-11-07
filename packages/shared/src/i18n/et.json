@@ -5391,6 +5391,8 @@
   "lokasjonVelger.ingenTegningEllerKart": "Projektil pole joonist ega kaarti, millele positsiooni paigutada.",
   "lokasjonVelger.ingenTegningValgt": "Joonistust pole valitud. Valige asukoha märkimiseks joonis või kaart.",
   "timer.dagsoversikt.sumIDag": "Täna kokku",
+  "timer.dagsoversikt.flyttRad": "Liiguta rida",
+  "timer.dagsoversikt.dagen": "Päev",
   "timer.dagsoversikt.normRamme": "Norm {{norm}} h · kaader {{fra}}–{{til}} · paus {{pause}} min",
   "timer.dagsoversikt.ikkeSendt": "Ei saadetud",
   "timer.dagsoversikt.sendt": "Saadetud",
@@ -5401,5 +5403,8 @@
   "timer.dagsoversikt.overtid": "lisatunnid {{prosent}} % alates {{fra}} · {{timer}} h",
   "timer.dagsoversikt.delOpp": "Jaga rida pooleks",
   "timer.dagsoversikt.slettRad": "Kustuta rida",
-  "timer.dagsoversikt.slettRadBekreft": "Kas kustutada rida?"
+  "timer.dagsoversikt.slettRadBekreft": "Kas kustutada rida?",
+  "timer.kortValg.utenByggeplass": "Ehitusplats puudub",
+  "timer.kortValg.uten": "Mitte ühtegi",
+  "timer.kortValg.flyttTittel": "Teisalda rida asukohta"
 }

@@ -5391,6 +5391,8 @@
   "lokasjonVelger.ingenTegningEllerKart": "Proiectul nu are desen sau hartă pentru a plasa o poziție.",
   "lokasjonVelger.ingenTegningValgt": "Niciun desen selectat. Alegeți un desen sau o hartă pentru a marca o poziție.",
   "timer.dagsoversikt.sumIDag": "Total azi",
+  "timer.dagsoversikt.flyttRad": "Mutați rândul",
+  "timer.dagsoversikt.dagen": "Ziua",
   "timer.dagsoversikt.normRamme": "Normă {{norm}} h · cadru {{fra}}–{{til}} · pauză {{pause}} min",
   "timer.dagsoversikt.ikkeSendt": "Nu trimis",
   "timer.dagsoversikt.sendt": "Trimis",
@@ -5401,5 +5403,8 @@
   "timer.dagsoversikt.overtid": "prelungiri {{prosent}} % din {{fra}} · {{timer}} h",
   "timer.dagsoversikt.delOpp": "Împărțiți rândul",
   "timer.dagsoversikt.slettRad": "Ștergeți rândul",
-  "timer.dagsoversikt.slettRadBekreft": "Ștergeți rândul?"
+  "timer.dagsoversikt.slettRadBekreft": "Ștergeți rândul?",
+  "timer.kortValg.utenByggeplass": "Fără șantier",
+  "timer.kortValg.uten": "Nici unul",
+  "timer.kortValg.flyttTittel": "Mutați rândul la"
 }

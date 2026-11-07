@@ -10,6 +10,9 @@ export type VisVarelinje = {
   projectId: string;
   antall: number;
   vare: { navn: string; enhet: string };
+  /** ORDRE 36b: kortnøkkelens B og UP (null/mangler = dagens byggeplass / uten UP). */
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
   syncStatus?: LokalVarelinje["syncStatus"];
   feilmelding?: string | null;
 };

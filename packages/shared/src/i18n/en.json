@@ -5391,6 +5391,8 @@
   "lokasjonVelger.ingenTegningEllerKart": "The project has no drawing or map to place a position on.",
   "lokasjonVelger.ingenTegningValgt": "No drawing selected. Choose a drawing or map to mark a position.",
   "timer.dagsoversikt.sumIDag": "Total today",
+  "timer.dagsoversikt.flyttRad": "Move row",
+  "timer.dagsoversikt.dagen": "The day",
   "timer.dagsoversikt.normRamme": "Norm {{norm}} h · frame {{fra}}–{{til}} · break {{pause}} min",
   "timer.dagsoversikt.ikkeSendt": "Not sent",
   "timer.dagsoversikt.sendt": "Sent",
@@ -5401,5 +5403,8 @@
   "timer.dagsoversikt.overtid": "overtime {{prosent}} % from {{fra}} · {{timer}} h",
   "timer.dagsoversikt.delOpp": "Split the row",
   "timer.dagsoversikt.slettRad": "Delete the row",
-  "timer.dagsoversikt.slettRadBekreft": "Delete the row?"
+  "timer.dagsoversikt.slettRadBekreft": "Delete the row?",
+  "timer.kortValg.utenByggeplass": "No building site",
+  "timer.kortValg.uten": "None",
+  "timer.kortValg.flyttTittel": "Move row to"
 }

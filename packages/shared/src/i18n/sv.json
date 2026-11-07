@@ -5391,6 +5391,8 @@
   "lokasjonVelger.ingenTegningEllerKart": "Projektet har ingen ritning eller karta att placera en position på.",
   "lokasjonVelger.ingenTegningValgt": "Ingen ritning har valts. Välj en ritning eller karta för att markera en position.",
   "timer.dagsoversikt.sumIDag": "Totalt idag",
+  "timer.dagsoversikt.flyttRad": "Flytta rad",
+  "timer.dagsoversikt.dagen": "Dagen",
   "timer.dagsoversikt.normRamme": "Norm {{norm}} h · ram {{fra}}–{{til}} · paus {{pause}} min",
   "timer.dagsoversikt.ikkeSendt": "Ej skickat",
   "timer.dagsoversikt.sendt": "Skickat",
@@ -5401,5 +5403,8 @@
   "timer.dagsoversikt.overtid": "övertid {{prosent}} % från {{fra}} · {{timer}} h",
   "timer.dagsoversikt.delOpp": "Dela raden",
   "timer.dagsoversikt.slettRad": "Ta bort raden",
-  "timer.dagsoversikt.slettRadBekreft": "Ta bort raden?"
+  "timer.dagsoversikt.slettRadBekreft": "Ta bort raden?",
+  "timer.kortValg.utenByggeplass": "Ingen byggarbetsplats",
+  "timer.kortValg.uten": "Ingen",
+  "timer.kortValg.flyttTittel": "Flytta rad till"
 }

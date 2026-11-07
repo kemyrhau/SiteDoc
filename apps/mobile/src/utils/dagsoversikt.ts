@@ -1,5 +1,11 @@
 import { beregnKortSummer, kortStatus, type KortSummer } from "@sitedoc/shared";
-import { telteKortVarer } from "../lib/prosjektkortMobil";
+import {
+  kortNokkel,
+  kortNokkelFor,
+  telteKortVarer,
+  type KortValg,
+  type SedelKortKontekst,
+} from "../lib/prosjektkortMobil";
 
 /**
  * ORDRE 36b (spec `dagsoversikt-beskrivelse-spec.md` § 2.1/§ 2.3): ren logikk
@@ -17,6 +23,7 @@ export type OversiktTimerRad = {
   tilTid: string | null;
   beskrivelse: string | null;
   erReise: boolean;
+  externalCostObjectId?: string | null;
   /** Lønnsartens overtidsnivå (50/100) — null = ordinær. */
   overtidsnivaa: number | null;
   attestertStatus: string | null;
@@ -27,6 +34,7 @@ export type OversiktMaskinRad = {
   projectId: string;
   byggeplassId: string | null;
   vehicleId: string;
+  externalCostObjectId?: string | null;
   timer: number;
   attestertStatus: string | null;
 };
@@ -34,6 +42,8 @@ export type OversiktMaskinRad = {
 export type OversiktVare = {
   id: string;
   projectId: string;
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
   antall: number;
   vare: { navn: string; enhet: string };
   syncStatus?: string | null;
@@ -76,11 +86,19 @@ export function linjerForProsjekt<V extends OversiktVare>(args: {
   utlegg: number;
   harEquipmentCache: boolean;
   harVarelager: boolean;
+  /**
+   * ORDRE 36b: ett kort = (prosjekt, effektiv byggeplass, underprosjekt). Uten
+   * `kort` filtreres på prosjekt alene (som før).
+   */
+  kort?: { valg: KortValg; sedel: SedelKortKontekst };
 }): ProsjektLinjer<V> {
-  const { projectId } = args;
-  const timer = args.timer.filter((r) => r.projectId === projectId && gjelder(r));
-  const maskin = args.maskin.filter((r) => r.projectId === projectId && gjelder(r));
-  const varer = args.varer.filter((v) => v.projectId === projectId);
+  const { projectId, kort } = args;
+  const nokkel = kort ? kortNokkel(kort.valg) : null;
+  const paaKort = (r: { projectId: string; byggeplassId?: string | null; externalCostObjectId?: string | null }) =>
+    r.projectId === projectId && (!kort || kortNokkelFor(r, kort.sedel) === nokkel);
+  const timer = args.timer.filter((r) => paaKort(r) && gjelder(r));
+  const maskin = args.maskin.filter((r) => paaKort(r) && gjelder(r));
+  const varer = args.varer.filter(paaKort);
   const telte = telteKortVarer(varer, projectId);
   const summer = beregnKortSummer(timer, maskin, telte);
 

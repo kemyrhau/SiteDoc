@@ -51,6 +51,7 @@ import { hentOrganizationSettingLokalt } from "../../services/organizationSettin
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { useKortLaas } from "./prosjektkortKontekst";
 import { FraTilTidFelt } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
@@ -559,8 +560,10 @@ export function MaskinRadModal({
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
   // T7-4e: ECO på maskin — pre-selekteres fra eksisterende rad eller defaultEcoId.
+  // ORDRE 36b: på et kort er underprosjektet låst til kortets valg.
+  const kortLaas = useKortLaas();
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
-    eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
+    kortLaas ? kortLaas.ecoId : eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
   );
   const [feil, setFeil] = useState<string | null>(null);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
@@ -776,6 +779,7 @@ export function MaskinRadModal({
               prosjektNavn={valgtProsjekt?.name ?? null}
               prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektVelger(true)}
+              laast={!!kortLaas}
             />
           </View>
 
@@ -859,6 +863,7 @@ export function MaskinRadModal({
               placeholder={t("timer.velgUnderprosjekt")}
               onPress={() => setVisEcoVelger(true)}
               onClear={() => setValgtEcoId(null)}
+              laast={!!kortLaas}
             />
           </View>
 

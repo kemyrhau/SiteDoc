@@ -66,6 +66,12 @@ describe("L3 kortVareforbrukInput — prosjektlås", () => {
     expect("dagsseddelId" in inp).toBe(false);
     expect("id" in inp).toBe(false);
   });
+  it("ORDRE 36b: kortets underprosjekt sendes med, og utelates uten", () => {
+    const basis = { kortProsjektId: "p1", dato: "2026-11-06", vareId: "v1", antall: 1, byggeplassId: null };
+    expect(kortVareforbrukInput({ ...basis, externalCostObjectId: "eco1" }).externalCostObjectId).toBe("eco1");
+    expect("externalCostObjectId" in kortVareforbrukInput({ ...basis, externalCostObjectId: null })).toBe(false);
+    expect("externalCostObjectId" in kortVareforbrukInput(basis)).toBe(false);
+  });
 });
 
 describe("L3 slaaSammenVarelinjer — ingen dobbelttelling", () => {
