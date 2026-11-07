@@ -40,6 +40,7 @@ import {
   manglerBeskrivelse,
   prosjekterMedArbeid,
   flyttBeskrivelse,
+  flyttBeskrivelseVedProsjektbytte,
 } from "../../src/utils/bekreftDag";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
 import { kortMedArbeid } from "../../src/utils/beskrivelseKort";
@@ -674,8 +675,14 @@ export default function BekreftDagSkjerm() {
             ...r,
             prosjektId: id ?? undefined,
             byggeplassId: undefined,
-            // ORDRE 36a: skrevet beskrivelse følger med til det nye prosjektet.
-            beskrivelse: flyttBeskrivelse(r.beskrivelse, prosjektId, id),
+            // ORDRE 36a: skrevet beskrivelse følger med til det nye prosjektet
+            // (RETUR 4: også fra arve-kortet når prosjektet hadde flere kort).
+            beskrivelse: flyttBeskrivelseVedProsjektbytte(
+              r.beskrivelse,
+              prosjektId,
+              id,
+              forsteDag?.byggeplassId ?? null,
+            ),
           }));
           setValgark(null);
         }}

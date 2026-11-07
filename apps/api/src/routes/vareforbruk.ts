@@ -559,6 +559,21 @@ export const vareforbrukRouter = router({
           });
         }
         await krevTilgangPolicy(ctx.userId, organizationId, maalProsjekt);
+        // RETUR 4: linja beholder dagsseddelId — da må sedelen ha arbeid på
+        // målprosjektet, ellers ville vareforbruket peke på en sedel uten
+        // timer der (og attestering/rapport koble feil). Uten sedel: ingen sjekk.
+        if (rad.dagsseddelId) {
+          const timerPaaMaal = await ctx.prismaTimer.sheetTimer.findFirst({
+            where: { sheetId: rad.dagsseddelId, projectId: maalProsjekt },
+            select: { id: true },
+          });
+          if (!timerPaaMaal) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Dagsseddelen har ingen timer-rad på prosjektet varen flyttes til",
+            });
+          }
+        }
       }
 
       if (input.externalCostObjectId) {

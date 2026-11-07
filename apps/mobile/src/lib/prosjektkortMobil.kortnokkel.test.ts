@@ -11,6 +11,7 @@ import {
   raderPaaKort,
   tilKortMaskinRader,
   tilRuteParam,
+  vareByggeplassForKort,
   type SedelKortKontekst,
 } from "./prosjektkortMobil";
 
@@ -121,5 +122,17 @@ describe("kortnøkkel", () => {
 
   it("tilKortMaskinRader beholder radens egen byggeplass", () => {
     expect(tilKortMaskinRader([{ projectId: "pA", byggeplassId: "bA2", timer: 2 }], "pA")[0]!.byggeplassId).toBe("bA2");
+  });
+});
+
+describe("RETUR 4 — varelinjer arver ikke", () => {
+  it("🔴 kortet på sedelens byggeplass: vare får byggeplassen, timer/maskin får null (arv)", () => {
+    const kort = { projectId: "pA", byggeplassId: "bA1", ecoId: null };
+    expect(lagretByggeplassForKort(kort, SEDEL)).toBeNull();
+    expect(vareByggeplassForKort(kort)).toBe("bA1");
+  });
+  it("annen byggeplass og «uten» lagres som de er", () => {
+    expect(vareByggeplassForKort({ projectId: "pA", byggeplassId: "bA2", ecoId: null })).toBe("bA2");
+    expect(vareByggeplassForKort({ projectId: "pB", byggeplassId: null, ecoId: "e1" })).toBeNull();
   });
 });

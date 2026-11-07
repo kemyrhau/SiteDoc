@@ -262,6 +262,16 @@ export function lagretByggeplassForKort(kort: KortValg, sedel: SedelKortKontekst
     : kort.byggeplassId;
 }
 
+/**
+ * RETUR 4: byggeplassen en VARELINJE på kortet lagres med — alltid kortets
+ * effektive byggeplass. `vareforbruk` har ingen arv fra sedelen (web filtrerer
+ * på `byggeplassId`), så `null` ville flyttet linja til «uten byggeplass».
+ * Kontrast: timer/maskin bruker `lagretByggeplassForKort` (null = arv).
+ */
+export function vareByggeplassForKort(kort: KortValg): string | null {
+  return kort.byggeplassId;
+}
+
 export type KortSortering = {
   /** Byggeplassnavn for sortering (ukjent → id). */
   byggeplassNavn: (id: string) => string;

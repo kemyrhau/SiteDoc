@@ -19,6 +19,7 @@ const PROSJEKT_X = "66666666-6666-6666-6666-666666666666"; // annet firma
 const LINJE = "55555555-5555-5555-5555-555555555555";
 const BYGGEPLASS_A = "77777777-7777-7777-7777-777777777777"; // under PROSJEKT_A
 const BYGGEPLASS_B = "88888888-8888-8888-8888-888888888888"; // under PROSJEKT_B
+const SEDEL = "12121212-1212-1212-1212-121212121212";
 
 const { projectFindUnique, activityCreate } = vi.hoisted(() => ({
   projectFindUnique: vi.fn(),
@@ -63,7 +64,13 @@ const byggeplassProsjekt: Record<string, string> = {
   [BYGGEPLASS_B]: PROSJEKT_B,
 };
 
-function lagCtx() {
+function lagCtx(opts: { dagsseddelId?: string | null; timerProsjekter?: string[] } = {}) {
+  const sheetTimerFindFirst = vi.fn(
+    async ({ where }: { where: { sheetId: string; projectId: string } }) =>
+      where.sheetId === opts.dagsseddelId && (opts.timerProsjekter ?? []).includes(where.projectId)
+        ? { id: "timer-rad" }
+        : null,
+  );
   const update = vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => ({
     id: where.id,
     antall: 1,
@@ -87,15 +94,19 @@ function lagCtx() {
         findUnique: vi.fn().mockResolvedValue({
           projectId: PROSJEKT_A,
           attestertSnapshot: null,
-          dagsseddelId: null,
+          dagsseddelId: opts.dagsseddelId ?? null,
         }),
         update,
       },
     },
-    prismaTimer: { dailySheet: { findUnique: vi.fn() } },
+    // dailySheet → null: åpen-sjekken (krevVareforbrukLinjeAapen) hopper over.
+    prismaTimer: {
+      dailySheet: { findUnique: vi.fn().mockResolvedValue(null) },
+      sheetTimer: { findFirst: sheetTimerFindFirst },
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
-  return { ctx, update };
+  return { ctx, update, sheetTimerFindFirst };
 }
 
 beforeEach(() => {
@@ -194,5 +205,43 @@ describe("vareforbruk.oppdater — prosjektbytte (ORDRE 36b)", () => {
     await vareforbrukRouter.createCaller(ctx).oppdater({ id: LINJE, projectId: PROSJEKT_A, antall: 2 });
     expect(update.mock.calls[0]![0].data).toEqual({ antall: 2 });
     expect(verifiserProsjekterTilhørerFirma).not.toHaveBeenCalled();
+  });
+});
+
+describe("vareforbruk.oppdater — prosjektbytte og dagsseddel (RETUR 4)", () => {
+  it("🔴 sedelen har timer-rad på målprosjektet → flyttes, dagsseddelId beholdes", async () => {
+    const { ctx, update, sheetTimerFindFirst } = lagCtx({
+      dagsseddelId: SEDEL,
+      timerProsjekter: [PROSJEKT_A, PROSJEKT_B],
+    });
+    await vareforbrukRouter.createCaller(ctx).oppdater({ id: LINJE, projectId: PROSJEKT_B });
+    expect(sheetTimerFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { sheetId: SEDEL, projectId: PROSJEKT_B } }),
+    );
+    const data = update.mock.calls[0]![0].data;
+    expect(data.projectId).toBe(PROSJEKT_B);
+    expect(data).not.toHaveProperty("dagsseddelId");
+  });
+
+  it("🔴 sedelen mangler timer-rad på målprosjektet → BAD_REQUEST, ingen skriving", async () => {
+    const { ctx, update } = lagCtx({ dagsseddelId: SEDEL, timerProsjekter: [PROSJEKT_A] });
+    await expect(
+      vareforbrukRouter.createCaller(ctx).oppdater({ id: LINJE, projectId: PROSJEKT_B }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("uten dagsseddel: ingen sedel-sjekk", async () => {
+    const { ctx, update, sheetTimerFindFirst } = lagCtx({ dagsseddelId: null });
+    await vareforbrukRouter.createCaller(ctx).oppdater({ id: LINJE, projectId: PROSJEKT_B });
+    expect(sheetTimerFindFirst).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("uten prosjektbytte: ingen sedel-sjekk (antall-endring som før)", async () => {
+    const { ctx, update, sheetTimerFindFirst } = lagCtx({ dagsseddelId: SEDEL, timerProsjekter: [] });
+    await vareforbrukRouter.createCaller(ctx).oppdater({ id: LINJE, antall: 3 });
+    expect(sheetTimerFindFirst).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
   });
 });

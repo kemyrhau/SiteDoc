@@ -417,13 +417,27 @@ describe("syncBatch — maskin bærer egen byggeplass (ORDRE 36b)", () => {
     warn.mockRestore();
   });
 
-  it("eksplisitt null → null, arver IKKE sedelens byggeplass", async () => {
+  it("🔴 RETUR 4: eksplisitt null = arv — maskinen får sedelens byggeplass (som timer-radene)", async () => {
+    // Mobil (timerSync) sender null når raden står på sedelens byggeplass.
+    // Mot 2c0fab3e ble den lagret som null og forsvant fra byggeplassen.
     const m = await pushOgHentMaskin({
       ...sedelMed({ projectId: PROSJEKT }),
       byggeplassId: BYGGEPLASS_EGEN,
       maskiner: [maskinRad({ byggeplassId: null })],
     });
+    expect(m.byggeplassId).toBe(BYGGEPLASS_EGEN);
+  });
+
+  it("RETUR 4 negativkontroll: null + sedel-byggeplass fra et annet prosjekt → null", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = await pushOgHentMaskin({
+      ...sedelMed({ projectId: PROSJEKT }),
+      byggeplassId: BYGGEPLASS_FREMMED,
+      maskiner: [maskinRad({ byggeplassId: null })],
+    });
     expect(m.byggeplassId).toBeNull();
+    expect(m.projectId).toBe(PROSJEKT);
+    warn.mockRestore();
   });
 
   it("(c) uten feltet (eldre klient) → sedelens byggeplass som før", async () => {

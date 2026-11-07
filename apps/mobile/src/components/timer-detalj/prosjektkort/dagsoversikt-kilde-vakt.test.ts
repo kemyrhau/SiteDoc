@@ -138,7 +138,7 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
   const vareRekkefolge = (b: string) => {
     const server = b.indexOf("await oppdaterVare.mutateAsync(");
     const avbryt = b.indexOf("setFlyttFeil(t(melding", server);
-    const lokal = b.indexOf("flyttVareLokalt(db(), v.id, maal)");
+    const lokal = b.indexOf("flyttVareLokalt(db(), v.id, vareMaal)");
     return server > 0 && avbryt > server && b.indexOf("return;", avbryt) < lokal && lokal > avbryt;
   };
   /** Maskinkapasitet sjekkes før maskin-raden flyttes. */
@@ -167,12 +167,21 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
   it("negativkontroll: lokal vare-flytt før server, og maskin-flytt før sjekk, fanges", () => {
     const b = flyttBlokk(OVERSIKT);
     const lokalForst = b
-      .replace("flyttVareLokalt(db(), v.id, maal);", "")
-      .replace("await oppdaterVare.mutateAsync(", "flyttVareLokalt(db(), v.id, maal); await oppdaterVare.mutateAsync(");
+      .replace("flyttVareLokalt(db(), v.id, vareMaal);", "")
+      .replace("await oppdaterVare.mutateAsync(", "flyttVareLokalt(db(), v.id, vareMaal); await oppdaterVare.mutateAsync(");
     expect(vareRekkefolge(lokalForst)).toBe(false);
     const maskinForst = b
       .replace("flyttMaskinRad(db(), flytt.rad.id, maal);", "")
       .replace("const brudd = beregnMaskinBrudd(", "flyttMaskinRad(db(), flytt.rad.id, maal); const brudd = beregnMaskinBrudd(");
     expect(maskinRekkefolge(maskinForst)).toBe(false);
+  });
+
+  it("🔴 RETUR 4: varer bruker kortets EFFEKTIVE byggeplass — ikke lagret (null = arv)", () => {
+    const b = flyttBlokk(OVERSIKT);
+    expect(b).toContain("const vareMaal: FlyttMaal = { ...maal, byggeplassId: vareByggeplassForKort(til) };");
+    expect(b).toContain("byggeplassId: vareMaal.byggeplassId,");
+    expect(b).not.toContain("byggeplassId: maal.byggeplassId,");
+    expect(flat(OVERSIKT)).toContain("kortLaas={{ byggeplassId: vareByggeplassForKort(vareKort), ecoId: vareKort.ecoId }}");
+    expect(flat(OVERSIKT)).not.toMatch(/kortLaas=\{\{ byggeplassId: lagretByggeplassForKort/);
   });
 });

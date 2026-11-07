@@ -23,6 +23,7 @@ import {
   type BekreftDagTillegg,
 } from "./bekreftDagTillegg";
 import { kortMedArbeid } from "./beskrivelseKort";
+import { kortNokkel } from "../lib/prosjektkortMobil";
 
 /**
  * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
@@ -104,6 +105,21 @@ export function flyttBeskrivelse(
 ): Record<string, string> | undefined {
   if (!b || !fra || !til || fra === til || !b[fra]?.trim() || b[til]?.trim()) return b;
   return { ...b, [til]: b[fra]! };
+}
+
+/**
+ * RETUR 4 (P6): prosjektbytte når det gamle prosjektet har flere kort. Teksten
+ * står da under kortnøkkelen til kortet som arver dagens byggeplass, ikke under
+ * `projectId` — begge kildene flyttes (projectId først), aldri over eksisterende.
+ */
+export function flyttBeskrivelseVedProsjektbytte(
+  b: Record<string, string> | undefined,
+  fra: string | null,
+  til: string | null,
+  dagByggeplassId: string | null,
+): Record<string, string> | undefined {
+  const arvKort = fra ? kortNokkel({ projectId: fra, byggeplassId: dagByggeplassId, ecoId: null }) : null;
+  return flyttBeskrivelse(flyttBeskrivelse(b, fra, til), arvKort, til);
 }
 
 /** SKRIV — kun fra [Bekreft og lagre]. Avslutter dagen når H7 sier det. */

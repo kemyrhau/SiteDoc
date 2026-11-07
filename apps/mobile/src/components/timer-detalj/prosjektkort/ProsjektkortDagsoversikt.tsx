@@ -33,6 +33,7 @@ import {
   kortNokkel,
   kortValgFor,
   lagretByggeplassForKort,
+  vareByggeplassForKort,
   sendKnappTekst,
   type KortValg,
   type SedelKortKontekst,
@@ -327,13 +328,15 @@ export function ProsjektkortDagsoversikt({
       flyttMaskinRad(db(), flytt.rad.id, maal);
     } else {
       const v = flytt.vare;
+      // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
+      const vareMaal: FlyttMaal = { ...maal, byggeplassId: vareByggeplassForKort(til) };
       // Linjen finnes på server: flytt der først (vaktene sjekker prosjekt og firma).
       if (v.syncStatus !== "pending" && v.syncStatus !== "avvist") {
         try {
           await oppdaterVare.mutateAsync({
             id: v.id,
             projectId: til.projectId,
-            byggeplassId: maal.byggeplassId,
+            byggeplassId: vareMaal.byggeplassId,
             externalCostObjectId: til.ecoId,
           });
         } catch (e) {
@@ -342,7 +345,7 @@ export function ProsjektkortDagsoversikt({
           return;
         }
       }
-      flyttVareLokalt(db(), v.id, maal);
+      flyttVareLokalt(db(), v.id, vareMaal);
       setFlytt(null);
       onVarerLagret();
       return;
@@ -733,7 +736,7 @@ export function ProsjektkortDagsoversikt({
           prosjektNavn={prosjektNavn(vareKort.projectId)}
           dato={sedel.dato}
           sedelByggeplassId={sedel.byggeplassId ?? null}
-          kortLaas={{ byggeplassId: lagretByggeplassForKort(vareKort, sedelKontekst), ecoId: vareKort.ecoId }}
+          kortLaas={{ byggeplassId: vareByggeplassForKort(vareKort), ecoId: vareKort.ecoId }}
           onAvbryt={() => setVareKort(null)}
           onLagret={() => {
             setVareKort(null);

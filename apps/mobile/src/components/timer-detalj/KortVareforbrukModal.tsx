@@ -34,7 +34,8 @@ import { lagVaresokFokus, varesokRullMal } from "../../utils/varesokRulling";
  *
  * ORDRE 36b: med `kortLaas` arver linja kortets byggeplass og underprosjekt —
  * ingen byggeplass-velger (retting går via «Flytt raden»). `byggeplassId` er
- * lagret verdi (`null` = arver dagens). Uten `kortLaas`: som før.
+ * kortets EFFEKTIVE byggeplass — varelinjer arver ikke fra sedelen
+ * (`vareByggeplassForKort`, RETUR 4). Uten `kortLaas`: som før.
  */
 export function KortVareforbrukModal({
   synlig,

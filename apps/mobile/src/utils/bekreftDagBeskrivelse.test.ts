@@ -44,6 +44,7 @@ import {
   manglerBeskrivelse,
   prosjekterMedArbeid,
   flyttBeskrivelse,
+  flyttBeskrivelseVedProsjektbytte,
 } from "./bekreftDag";
 import type { Dagsforslag } from "./dagsforslag";
 import { kortMedArbeid } from "./beskrivelseKort";
@@ -367,6 +368,41 @@ describe("ORDRE 36a — flyttBeskrivelse ved prosjektbytte", () => {
     expect(flyttBeskrivelse(undefined, "p1", "p2")).toBeUndefined();
     expect(flyttBeskrivelse({ p1: " " }, "p1", "p2")).toEqual({ p1: " " });
     expect(flyttBeskrivelse({ p1: "A" }, "p1", "p1")).toEqual({ p1: "A" });
+  });
+});
+
+describe("RETUR 4 (P6) — prosjektbytte når prosjektet har flere kort", () => {
+  const K_ARV = kortNokkel({ projectId: "p1", byggeplassId: "b1", ecoId: null });
+  const K_B2 = kortNokkel({ projectId: "p1", byggeplassId: "b2", ecoId: null });
+
+  it("🔴 flere kort: arve-kortets tekst følger med til nytt prosjekt", () => {
+    const b = { [K_ARV]: "Graving", [K_B2]: "Rør" };
+    expect(flyttBeskrivelseVedProsjektbytte(b, "p1", "p2", "b1")).toEqual({ ...b, p2: "Graving" });
+    // Negativkontroll: 36a-flyttingen alene finner ingen projectId-nøkkel.
+    expect(flyttBeskrivelse(b, "p1", "p2")).toEqual(b);
+  });
+  it("🔴 overskriver aldri tekst som alt står på målprosjektet", () => {
+    const b = { [K_ARV]: "Graving", p2: "Eget" };
+    expect(flyttBeskrivelseVedProsjektbytte(b, "p1", "p2", "b1")).toEqual(b);
+  });
+  it("🔴 regresjon: ett kort (projectId-nøkkel) oppfører seg som 36a", () => {
+    expect(flyttBeskrivelseVedProsjektbytte({ p1: "Graving" }, "p1", "p2", "b1")).toEqual({ p1: "Graving", p2: "Graving" });
+    expect(flyttBeskrivelseVedProsjektbytte({ p1: "A", [K_ARV]: "B" }, "p1", "p2", "b1")).toEqual({ p1: "A", [K_ARV]: "B", p2: "A" });
+  });
+  it("🔴 ende-til-ende: to kort på p1 → bytte til p2 → Bekreft passerer uten ny tekst", () => {
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const [d0, ...resten] = forslag.datoer;
+    const arbeid = d0!.rader.find((r) => !r.erReise)!;
+    const to = { ...forslag, datoer: [{ ...d0!, rader: [...d0!.rader, { ...arbeid, byggeplassId: "b2" }] }, ...resten] };
+    const kort = kortMedArbeid(to);
+    expect(kort).toHaveLength(2);
+    const arv = kort.find((k) => k.byggeplassId !== "b2")!;
+    const dagBp = d0!.byggeplassId ?? null;
+    const b = flyttBeskrivelseVedProsjektbytte({ [arv.nokkel]: "Graving", [kort[1]!.nokkel]: "Rør" }, "p1", "p2", dagBp);
+    expect(b?.p2).toBe("Graving");
+  });
+  it("🔴 kildevakt: prosjekt-valget bruker flyttBeskrivelseVedProsjektbytte", () => {
+    expect(SKJERM).toMatch(/beskrivelse: flyttBeskrivelseVedProsjektbytte\(\s*r\.beskrivelse,\s*prosjektId,\s*id,\s*forsteDag\?\.byggeplassId \?\? null,?\s*\)/);
   });
 });
 
