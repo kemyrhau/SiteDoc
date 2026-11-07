@@ -649,7 +649,7 @@ Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskort
 
 ### Dagsoversikt i prosjektkort-modus (ORDRE 36b) — 🟡 `feat/dagsoversikt-36b` (2026-11-07, ikke merget)
 
-Spec: `dagsoversikt-beskrivelse-spec.md` § 2.1–2.4. Samlesiden (`app/timer/[id]/prosjektkort.tsx`) og kortskjermen (`app/timer/[id]/kort/[projectId].tsx`) bruker samme komponent, `src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx`. Kortskjermen sender `enkeltProsjekt`, som skjuler navneraden, sum-kortet, Send og «+ Nytt prosjektkort», og viser «+ Timer».
+Spec: `dagsoversikt-beskrivelse-spec.md` § 2.1–2.4. Samlesiden (`app/timer/[id]/prosjektkort.tsx`) og kortskjermen (`app/timer/[id]/kort/[projectId].tsx`) bruker samme komponent, `src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx`. Kortskjermen sender `enkeltProsjekt`, som skjuler navneraden, sum-kortet, Send og «+ Nytt prosjektkort», og viser «+ Timer». Kortskjermen er `KortHode` (fra `ProsjektkortSamleside.tsx`) med oversikt-linjene under. `TilleggSeksjon` og `UtleggSeksjon` rendres direkte og uendret under linjene.
 
 - **Linjene per prosjekt:** Arbeid (segmenter, med overtid som underlinje), Reise, Maskin og Varer, Utlegg og Beskrivelse/«Mangler». Regelen bor i `src/utils/dagsoversikt.ts` (`linjerForProsjekt`, `statusOrd`, `dagsoversiktSum`).
   - Maskin vises når firmaet har utstyr i cache ELLER maskin er ført.
@@ -670,12 +670,10 @@ Spec: `dagsoversikt-beskrivelse-spec.md` § 2.1–2.4. Samlesiden (`app/timer/[i
   - Den teller 21 tokens og 11 hurtigvelg-tokens i begge kopiene.
 
   Vakten feiler ved ett endret token, og har negativkontroll.
-- **Atferdsendringer på kortskjermen:**
-  - Matpause-avkrysningen per rad har ingen inngang (`_handterPauseToggle`).
-  - Maskin-tak vises per prosjekt i stedet for ECO-bøtter.
-  - Varer-linjen erstatter «+ Ny vare» og `VareforbrukLesListe`.
-  - Tillegg og Utlegg står som egne seksjoner.
-  - `ProsjektkortSamleside.tsx` har ingen kallere, men er beholdt.
+- **Matpause på kortskjermen:** avhukingen har flyttet fra rad-kortet til rad-modalen (`RadHandlinger`, `matpause`). Regelen er den samme: dag > 5,5t, raden krysser lunsjvinduet, og sedelen er redigerbar.
+  - Flytten går via `handterPauseToggle` (sett, flytt eller `BekreftFjernMatpauseModal`) og lukker modalen.
+  - Oversikten tar `onPauseToggle`. Bare kortskjermen sender den, og dagskortet ser ingenting.
+- **Ingen funksjon fjernet:** «+ Ny vare» er erstattet av Varer-linjen, og ECO-bøttenes maskin-tak vises per prosjekt.
 
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 

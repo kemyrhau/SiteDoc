@@ -1,7 +1,17 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { overstigerMaskinTak, visVareforbrukKnapp } from "@sitedoc/shared";
+import {
+  overstigerMaskinTak,
+  visVareforbrukKnapp,
+  hhmmTilMin,
+  pauseOverlappMin,
+} from "@sitedoc/shared";
+import {
+  matpauseKontekst,
+  matpauseRegelTrigget,
+  radKrysserPause,
+} from "../../../services/matpause";
 import { hentDatabase } from "../../../db/database";
 import { useAuth } from "../../../providers/AuthProvider";
 import { finnLonnsartLokalt } from "../../../services/timerKatalog";
@@ -76,6 +86,7 @@ export function ProsjektkortDagsoversikt({
   onEndreRamme,
   onEndreByggeplass,
   onSend,
+  onPauseToggle,
   onEndret,
   onVarerLagret,
 }: {
@@ -103,6 +114,8 @@ export function ProsjektkortDagsoversikt({
   onEndreRamme?: () => void;
   onEndreByggeplass?: () => void;
   onSend?: () => void;
+  /** 36b: kortskjermens matpause-flytt (dag-nivå); avhukingen vises i rad-modalen. */
+  onPauseToggle?: (radId: string, vilHa: boolean) => void;
   onEndret: () => void;
   onVarerLagret: () => void;
 }) {
@@ -115,6 +128,32 @@ export function ProsjektkortDagsoversikt({
   const [splitt, setSplitt] = useState<Splitt | null>(null);
   const [vareProsjekt, setVareProsjekt] = useState<string | null>(null);
   const [hurtigRadId, setHurtigRadId] = useState<string | null>(null);
+
+  // 36b: matpausen er dag-nivå — samme regel som dagskortets rad-kort.
+  const { pauseFra, standardPauseMin } = useMemo(
+    () => matpauseKontekst(sedel.organizationId, sedel.dato, timerRader),
+    [sedel.organizationId, sedel.dato, timerRader],
+  );
+  const pauseRegelTrigget = useMemo(
+    () => matpauseRegelTrigget(timerRader, standardPauseMin),
+    [timerRader, standardPauseMin],
+  );
+  const matpauseFor = (rad: TimerRad) =>
+    onPauseToggle && redigerbar && pauseRegelTrigget && radKrysserPause(rad, pauseFra, standardPauseMin)
+      ? {
+          avhuket: rad.pauseMin > 0,
+          trukketMin:
+            rad.fraTid && rad.tilTid
+              ? pauseOverlappMin(hhmmTilMin(rad.fraTid), hhmmTilMin(rad.tilTid), hhmmTilMin(pauseFra), rad.pauseMin)
+              : 0,
+          // Lukker modalen: flyttet skrives med en gang, og en åpen modal ville
+          // lagret radens gamle pause-bærer tilbake.
+          onToggle: () => {
+            setTimerModal(null);
+            onPauseToggle(rad.id, !(rad.pauseMin > 0));
+          },
+        }
+      : undefined;
 
   const oversiktTimer = useMemo<OversiktTimerRad[]>(
     () =>
@@ -448,6 +487,7 @@ export function ProsjektkortDagsoversikt({
                     setTimerModal(null);
                     onEndret();
                   },
+                  matpause: matpauseFor(redigert),
                 }
               : undefined
           }

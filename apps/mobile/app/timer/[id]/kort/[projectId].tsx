@@ -40,7 +40,13 @@ import {
 import { useMiniToast, MiniToast } from "../../../../src/components/MiniToast";
 import { useReLesVedSynk } from "../../../../src/hooks/useReLesVedSynk";
 import { formatNorskDato, isoTidspunktTilHHMM } from "../../../../src/utils/dato";
-import { tilKortVarer, varerForProsjekt } from "../../../../src/lib/prosjektkortMobil";
+import {
+  tilKortMaskinRader,
+  tilKortTimerRader,
+  tilKortVarer,
+  varerForProsjekt,
+} from "../../../../src/lib/prosjektkortMobil";
+import { KortHode } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortSamleside";
 import type {
   Sedel,
   TimerRad,
@@ -158,10 +164,9 @@ export default function ProsjektkortSkjerm() {
     lesData();
   }, [sedel, sheetId, oppdaterTellere, triggerSync, lesData]);
 
-  // F5-matpausen er dag-nivå (kryss-kort). ORDRE 36b: dagsoversikten har ingen
-  // matpause-avkrysning pr. rad (rad-modalen avgjør bæreren) — kalleren er borte,
-  // funksjonen er beholdt (ikke slettet) og meldt i leveransen.
-  const _handterPauseToggle = useCallback(
+  // F5-matpausen er dag-nivå (kryss-kort), som på samlesiden. ORDRE 36b:
+  // avhukingen vises i rad-modalen (RadHandlinger), ikke på rad-kortet.
+  const handterPauseToggle = useCallback(
     (radId: string, vilHa: boolean) => {
       if (!sedel) return;
       if (vilHa) {
@@ -266,6 +271,19 @@ export default function ProsjektkortSkjerm() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="pb-24">
+        <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <KortHode
+            projectId={projectId}
+            navn={prosjektNavn}
+            timer={tilKortTimerRader(kTimer, sedel.projectId, reiseLonnsartId)}
+            maskin={tilKortMaskinRader(kMaskin, sedel.projectId)}
+            varer={varer}
+            utlegg={kUtlegg.length}
+            sedelByggeplassId={sedel.byggeplassId ?? null}
+            byggeplassNavn={byggeplassNavn}
+          />
+        </View>
+
         {/* T.11: soft-varsel når arbeider mangler gyldig maskinførerbevis
             (som maskinseksjonen viste det: kun når maskin er ført). */}
         {harEquipmentCache && !harMaskinforerbevis && kMaskin.length > 0 && (
@@ -309,6 +327,7 @@ export default function ProsjektkortSkjerm() {
           prosjektNavn={() => prosjektNavn}
           byggeplassNavn={byggeplassNavn}
           redigerbar={erRedigerbar}
+          onPauseToggle={handterPauseToggle}
           onEndret={markerEndretOgLes}
           onVarerLagret={() => {
             lesData();

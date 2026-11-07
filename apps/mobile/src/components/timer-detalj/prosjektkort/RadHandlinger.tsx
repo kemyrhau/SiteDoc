@@ -7,10 +7,13 @@ import { useTranslation } from "react-i18next";
  * modalen — kun når prosjektkort-flyten sender `handlinger` (dagsoversikt og
  * kortskjerm). Dagskortet sender ingenting og ser modalene som før
  * (`dagskort-isolert-vakt.test.ts`). Slett går ALLTID via bekreftelsen.
+ * `matpause` (36b): kortskjermens matpause-avhuking for raden — samme regel som
+ * dagskortets rad-kort (dag > 5,5t og raden krysser lunsjvinduet), flyttet hit.
  */
 export type RadHandlingerProps = {
   onDelOpp: () => void;
   onSlett: () => void;
+  matpause?: { avhuket: boolean; trukketMin: number; onToggle: () => void };
 };
 
 export function RadHandlinger({ handlinger }: { handlinger: RadHandlingerProps }) {
@@ -18,6 +21,15 @@ export function RadHandlinger({ handlinger }: { handlinger: RadHandlingerProps }
   const [bekreft, setBekreft] = useState(false);
   return (
     <View className="mt-4 border-t border-gray-200 pt-2">
+      {handlinger.matpause && (
+        <Pressable onPress={handlinger.matpause.onToggle} className="min-h-[44px] justify-center active:bg-gray-50">
+          <Text className={`text-base ${handlinger.matpause.avhuket ? "text-gray-700" : "text-gray-400"}`}>
+            {handlinger.matpause.avhuket
+              ? t("timer.matpause.trukket", { min: handlinger.matpause.trukketMin })
+              : t("timer.matpause.trukketUmerket")}
+          </Text>
+        </Pressable>
+      )}
       <Pressable onPress={handlinger.onDelOpp} className="min-h-[44px] justify-center active:bg-gray-50">
         <Text className="text-base text-gray-700">{t("timer.dagsoversikt.delOpp")}</Text>
       </Pressable>

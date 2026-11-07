@@ -18,6 +18,10 @@ const HANDLINGER = utenKommentarer(les("RadHandlinger.tsx"));
 const SIDE = les("../../../../app/timer/[id]/prosjektkort.tsx");
 const KORT = les("../../../../app/timer/[id]/kort/[projectId].tsx");
 
+const flat = (x: string) => x.replace(/\s+/g, " ");
+const MATPAUSE_VILKAAR =
+  "onPauseToggle && redigerbar && pauseRegelTrigget && radKrysserPause(rad, pauseFra, standardPauseMin)";
+
 const IKONER = ["lucide", "Pencil", "Split", "Trash2"];
 /** Tailwind-fargeklasser som ikke er grå/amber/hvit. */
 const fremmedeFarger = (kilde: string) =>
@@ -66,9 +70,23 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
     expect(KORT).toMatch(/<ProsjektkortDagsoversikt\s+enkeltProsjekt/);
   });
 
-  it("🔴 én skrivesti: kortskjermen bærer ikke ProsjektGruppe eller KortHode", () => {
+  it("🔴 én skrivesti: kortskjermen = KortHode + oversikt, uten ProsjektGruppe", () => {
     expect(KORT).not.toContain("ProsjektGruppe");
-    expect(KORT).not.toContain("KortHode");
+    expect(KORT.split("<KortHode").length - 1).toBe(1);
+    expect(KORT.indexOf("<KortHode")).toBeLessThan(KORT.indexOf("<ProsjektkortDagsoversikt"));
+  });
+
+  it("🔴 matpause flyttet til rad-modalen — ingen funksjon fjernet", () => {
+    expect(KORT).toContain("onPauseToggle={handterPauseToggle}");
+    expect(KORT).toContain("<BekreftFjernMatpauseModal");
+    expect(flat(OVERSIKT)).toContain(MATPAUSE_VILKAAR);
+    expect(OVERSIKT).toContain("matpause: matpauseFor(redigert)");
+    expect(HANDLINGER).toContain("{handlinger.matpause && (");
+  });
+
+  it("negativkontroll: droppet matpause-vilkår eller -inngang fanges", () => {
+    expect(flat(OVERSIKT.replace("pauseRegelTrigget && radKrysser", "radKrysser"))).not.toContain(MATPAUSE_VILKAAR);
+    expect(KORT.replace("onPauseToggle={handterPauseToggle}", "")).not.toContain("onPauseToggle={handterPauseToggle}");
   });
 
   it("🔴 dagsoversikten skriver kun via radLagring (ingen db.insert/update/delete direkte)", () => {
