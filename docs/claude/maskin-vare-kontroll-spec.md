@@ -1,13 +1,13 @@
 ---
-status: 🟢 VEDTATT 2026-11-08 — § 3 (36d-2, firmavalg av/på i tillegg til byggeplass) og B1 (`benytterUnderprosjekt Boolean @default(false)`) vedtatt av Kenneth 2026-11-08 («Ja, i tillegg»); B8 utgår, F-U3 står åpent. § 2 (36d-1), § 4 (36d-3), B2–B7 🟢 VEDTATT 2026-11-07. Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
-sist_verifisert_mot_kode: 2026-11-08 (develop @ 480e0420, § 1.8 og § 3); § 1.1–1.7 målt 2026-11-07 (develop @ 09cfbb4d) — linjeskift i § 1.8
+status: 🟢 VEDTATT 2026-11-08 — § 3 (36d-2, firmavalg av/på i tillegg til byggeplass) og B1 (`benytterUnderprosjekt Boolean @default(false)`) vedtatt av Kenneth 2026-11-08 («Ja, i tillegg»); B8 utgår, F-U3 står åpent. § 2 (36d-1), § 4 (36d-3), B2–B7 🟢 VEDTATT 2026-11-07. **TILLEGG 2026-11-08 (Kenneth etter 36c-test): underprosjekt-valg også i GPS-veien + søkbar liste ved mange underprosjekter — § 3.9; grensen for søkbar liste (B9) venter på Kenneth.** Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
+sist_verifisert_mot_kode: 2026-11-08 (develop @ bde7f268 etter 36c-merge: § 1.8 Bekreft dag, § 3.2, § 3.8, § 3.9; øvrig § 1.8/§ 3 @ 480e0420); § 1.1–1.7 målt 2026-11-07 (develop @ 09cfbb4d) — linjeskift i § 1.8
 eier: Fabel (spec) → Redesign/kode-Opus (kode)
-ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + TILLEGG + AVGRENSNING (relay/inbox-fabel.md, 2026-11-08)
+ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + TILLEGG + AVGRENSNING + VEDTAK + «TILLEGG — spec 36d-2: underprosjekt i GPS-veien og søkbar liste» (relay/inbox-fabel.md, 2026-11-08)
 ---
 
 # Spec 36d — kontroll av maskin og varer i dagsoversikten, og underprosjekt som frivillig tilleggsdimensjon for timer, maskin og varer
 
-> **Status 🟢 VEDTATT 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 (36d-2) og B1 er 🟢 VEDTATT 2026-11-08** (Kenneth ordrett «Ja, i tillegg», `relay/inbox-fabel.md` «VEDTAK — revisjon 36d-2»): firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt»; innstillingen er `benytterUnderprosjekt Boolean @default(false)`. B8 utgår (Proadm-kjeden utsatt, § 3.7); F-U3 står som åpent funn. Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`.
+> **Status 🟢 VEDTATT 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 (36d-2) og B1 er 🟢 VEDTATT 2026-11-08** (Kenneth ordrett «Ja, i tillegg», `relay/inbox-fabel.md` «VEDTAK — revisjon 36d-2»): firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt»; innstillingen er `benytterUnderprosjekt Boolean @default(false)`. B8 utgår (Proadm-kjeden utsatt, § 3.7); F-U3 står som åpent funn. **TILLEGG 2026-11-08** (Kenneth etter telefontest av 36c, `relay/inbox-fabel.md` «TILLEGG — spec 36d-2: underprosjekt i GPS-veien og søkbar liste»): underprosjekt-valget skal finnes i **begge** veier inn i Bekreft dag (manuell og GPS), og lista skal være **søkbar** når den er lang — § 3.9. Grensen for når lista blir søkbar er et forslag (B9, 🟡 venter på Kenneth). Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`, unntatt Bekreft dag i § 1.8, § 3.2, § 3.8 og § 3.9 som er målt mot `bde7f268` (36c merget).
 
 ## 0. Bestilling
 
@@ -47,6 +47,13 @@ ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + T
 **Ut av scope:** underprosjekt generelt («egen kontroll etterhvert») — kun åpne funn i § 8. Det gamle dagskortet `apps/mobile/app/timer/[id].tsx` (dagskortmodus) endres ikke (memory-vedtak «dagskort isolert», 2026-11-07; B2-presisering over).
 
 ---
+
+**Tillegg 2026-11-08 — Kenneth ordrett etter telefontest av 36c (via orkestrator, `relay/inbox-fabel.md` «TILLEGG — spec 36d-2: underprosjekt i GPS-veien og søkbar liste»):**
+
+- «Jeg fikk ikke opp underprosjekt listen når jeg utleder fra start dag.»
+- «Jeg har opplevd at det er over 100 underprosjekter i et prosjekt. Disse bør kanskje være en søkbar liste når de overstiger for eksempel 5-7 stk.»
+
+Kenneth spurte også hvordan én av to aktiviteter på samme prosjekt kan faktureres som tilleggsarbeid med timedokumentasjon. Svaret (orkestrator, godkjent av Kenneth) er at aktiviteten føres på et underprosjekt og dermed får eget kort med egne timer — ingen modellendring, ført som eksempel i § 3.9.3. Lesning: punkt 1 er en mangel i 36c (valget finnes bare i manuell modus, § 1.8); punkt 2 er et visningskrav som gjelder alle flater der underprosjekt velges. Begge går inn i 36d-2 (§ 3.9).
 
 ## 1. Målt tilstand (2026-11-07, `09cfbb4d`; linjeskift etter 36b-merge i § 1.8)
 
@@ -89,7 +96,7 @@ Et nytt felt krever (målt `organizationSettingKatalog.ts:39-91`): select i `hen
 | MaskinRadModal | JA | `MaskinSeksjon.tsx:55` (import), felt `:844-858`, modal `:948-956`, init `:558` |
 | SplittRadModal | JA | `SplittRadModal.tsx:42`, felt `:629-633/792-796` |
 | **Prosjektkort** (kortskjerm `app/timer/[id]/kort/[projectId].tsx`) | JA via samme `ProsjektGruppe` `:307-327`; **etter 36b** også via kortvalget (§ 1.8) | |
-| **Bekreft dag** | **NEI** — alt hardkodes `null` (fortsatt på `480e0420`, § 1.8) | `bekreftDagTillegg.ts:118` (timerrad), `:198` (maskin, kommentar `:188` «Nye maskiner har ingen ECO»); `dagsforslagAnvend.ts:149` (timerrad), `:281` (maskin), vare `:292-309` uten ECO |
+| **Bekreft dag** | **Bare manuell modus** — 36c-chips (`bde7f268`, § 1.8); GPS-veien (Start dag/Slutt dag) hardkoder `null` | `bekreftDagTillegg.ts:118` (timerrad), `:198` (maskin, kommentar `:188` «Nye maskiner har ingen ECO»); `dagsforslagAnvend.ts:149` (timerrad), `:281` (maskin), vare `:292-309` uten ECO |
 | **KortVareforbrukModal** (varer) | **NEI** egen velger; **etter 36b arver linja kortets ECO** (§ 1.8) | `09cfbb4d`: 0 treff; byggeplass-chips `:144-168` |
 | Web vareforbruk-side | JA | `apps/web/src/app/dashbord/[prosjektId]/vareforbruk/page.tsx:359-360/377/413/422` |
 | Web attestering/redigering | JA | `attestering-buckets.tsx:32/79/92/183-187/247-252`; `RedigerTimerRad.tsx:34/92-94`; `RedigerMaskinRad.tsx:46-48/160-165` |
@@ -107,7 +114,7 @@ Et nytt felt krever (målt `organizationSettingKatalog.ts:39-91`): select i `hen
 | TimerRadModal med maskin-seksjon (hovedvei fra prosjektkort/dagskort) | SATT | — (arves implisitt via timeraden) | `nyTimerRad.ts:240-255` (`sheetTimerId: timerRadId` `:244`); redigering `TimerSeksjon.tsx:345/370` |
 | `MaskinSeksjon.leggTil` (egen «+», skjult: `visHeader={false}` `ProsjektGruppe.tsx:369`) | NULL | — | `MaskinSeksjon.tsx:118-149` |
 | SplittRadModal maskinrest | NULL | — | `SplittRadModal.tsx:320-334` |
-| **Bekreft dag** (`skrivTillegg`) | **NULL** | — | `dagsforslagAnvend.ts:278` (+ `fraTid/tilTid: null` `:285-286`, ECO `null` `:281`); kommentar `:265` «maskin uten fra/til og uten timerrad-kobling» |
+| **Bekreft dag** (`skrivTillegg`) | **kortets `ecoId` i manuell modus (36c), ellers NULL** | — | `dagsforslagAnvend.ts:285` (maskin) og `:309` (vare) `externalCostObjectId: ctx.ecoId ?? null`; `fraTid/tilTid: null` `:289-290` (`bde7f268`) |
 | Rader fra før koblingen fantes | NULL | — | skjema-kommentar `schema.prisma:534-541` |
 | Web `maskin.tilfoy` | ikke i input | i input | `480e0420`: `dagsseddel.ts:7254-7259`; `sheetTimerId` finnes kun i `syncBatch` `:5882` |
 
@@ -133,7 +140,7 @@ Et nytt felt krever (målt `organizationSettingKatalog.ts:39-91`): select i `hen
 
 36b erstattet `ProsjektkortSamleside` med `src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx` og ren `src/utils/dagsoversikt.ts`. Ingen radikoner (§ 2.5 i [dagsoversikt-beskrivelse-spec.md](dagsoversikt-beskrivelse-spec.md)); trykk på linje åpner modal. **36d-1 bygger på denne.** Vakt-test: `apps/mobile/src/components/timer-detalj/dagskort-isolert-vakt.test.ts`.
 
-### 1.8 Remåling etter 36b-merge (2026-11-08, `develop @ 480e0420`)
+### 1.8 Remåling etter 36b-merge (2026-11-08, `develop @ 480e0420`; Bekreft dag remålt etter 36c-merge, `bde7f268`)
 
 Det som har endret seg siden § 1.1–1.7 og som § 3 bygger på:
 
@@ -141,7 +148,8 @@ Det som har endret seg siden § 1.1–1.7 og som § 3 bygger på:
 - **Kortvalg med underprosjekt-chips:** `KortValgModal` `src/components/timer-detalj/prosjektkort/KortValgModal.tsx:14-21`. Modus `ny` («+ Nytt kort»): underprosjekt-chips øverst med «Uten» forhåndsvalgt, start `ecoId: null` `:68`; K3 `:35-39`: 0–1 byggeplass **og** ingen underprosjekter (`hentUnderprosjekterLokalt(projectId).length > 0` er vilkåret) → kortet åpnes direkte uten modal. Modus `flytt` («Flytt raden»): prosjekt, byggeplass og underprosjekt som chips. Velgeren vises altså i dag **når prosjektet har aktive underprosjekter**, uavhengig av firma. (36c flytter `ny`-modusen fra P4 til Bekreft dag — § 3.8.)
 - **Varer arver kortet:** `KortVareforbrukModal.tsx:35-38` (kommentar), payload `externalCostObjectId: kortLaas?.ecoId ?? null` `:145`; byggeplass = kortets effektive (`vareByggeplassForKort`, RETUR 4). Ingen byggeplass-velger under `kortLaas` — retting via «Flytt raden». Uten `kortLaas`: som før (chips).
 - **Lokal DB og sync bærer begge felt nå:** `vareforbrukLocal.byggeplassId` `schema.ts:966`, `externalCostObjectId` `:968`; `vareforbrukSync.ts:35` (`VarelinjeValg` inkl. begge), `:48`, `:151`, `:175`. `sheetMachineLocal.byggeplassId` `schema.ts:229` (kommentar `:226-228`: «NULL = arver sedelens byggeplass … speil av server `sheet_machines.byggeplass_id`»). → **B5 er innfridd av 36b**; testene 12/14 fra 2026-11-07 utgår (§ 7).
-- **Bekreft dag er fortsatt uten underprosjekt:** `app/timer/bekreft-dag.tsx:703/705` (`kortNokkel({ …, ecoId: null })`), `src/utils/bekreftDag.ts:121` (`arvKort … ecoId: null`), `bekreftDagTillegg.ts:118/198`, `dagsforslagAnvend.ts:150` (timerrad) og `:280` (maskin). 0 treff på `externalCostObjectId|underprosjekt` i `dagsforslagInput.ts`. **Ingen 36c-commit på develop** (`git log -- app/timer/bekreft-dag.tsx`: nyeste `b85c7c6a`, `2c0fab3e`, `0aef2e8b`).
+- **Bekreft dag etter 36c (merget `8ba055ff`, kode `4c35d26f`, målt `bde7f268`) — underprosjekt bare i manuell modus:** `app/timer/bekreft-dag.tsx:120` `manuell = params.opprinnelse === "manuell"`; underprosjekt-lista `:287-295` er gatet på **`manuell && prosjektId`** (`:289`), vises som chips `:641-663` (toggle: nytt trykk på valgt chip tømmer `:649`), `ecoId` starter `null` `:296` og nullstilles ved prosjektbytte `:297`. Lagringen `:373-384` sender **`ecoId: manuell ? ecoId : null` `:380`** — GPS-veien (Start dag/Slutt dag → `StartSluttDagKort.tsx:81-82` → bekreft-dag uten `opprinnelse`) får derfor aldri valget. **Dette er rotårsaken til Kenneths «fikk ikke opp underprosjekt listen når jeg utleder fra start dag».** Lagringskjeden bærer ellers alt: `bekreftDag.ts:138` tar `ecoId?: string | null`, `dagsforslagAnvend.ts:155` (timerrad, `rad.erReise ? null : ctx.ecoId`), `:285` (maskin) og `:309` (vare). Fortsatt `null` uansett modus: `bekreftDagTillegg.ts:118` (timer i tillegg-seksjonen) og `:198` (maskin i tillegg-seksjonen), `bekreftDag.ts:121` (`arvKort`). Lista i bekreft-dag (`Valgliste` `:1053-1096`, brukt for prosjekt/byggeplass/aktivitet) har **ingen søk** (0 `TextInput`), og chips-rekka vokser ubegrenset.
+- **Søkbar liste finnes allerede for underprosjekt i timer-detalj:** `UnderprosjektVelgerModal` `TimerSeksjon.tsx:2258` — søkefelt når `ecoer.length > 7` (`:2314`), `TextInput` `:2316` med `placeholder={t("handling.sok")}` `:2319`, søk på `proAdmId` **og** `kortNavn` (`:2290-2294`), `FlatList` `:2324`. Samme `> 7`-grense i `ProsjektVelger.tsx:82` (søk navn + `projectNumber` `:58-62`), `ByggeplassVelger.tsx:194` (`:164-168`) og `EnkeltvelgerModal.tsx:58`. Trykkbart felt med chevron og `onClear` for ECO: `VelgerFelt.tsx:13`.
 - **Lokal ECO-tabell:** `externalCostObjectLocal` `schema.ts:481-493` (`id, organizationId, projectId, proAdmId notNull, kortNavn, kilde, status, timerregistreringApen, sistOppdatert`). Pull `timerKatalog.ts:78` → `eksternKostObjekt.list` uten `projectId`; server filtrerer `slettetVed: null`, `status: "aktiv"`, `timerregistreringApen: true` (`eksternKostObjekt.ts:40-44`); lokalt overskrives hele tabellen. «Aktive underprosjekter» lokalt = `hentUnderprosjekterLokalt(projectId)` `timerKatalog.ts:398-412`.
 - **API-linjer (`dagsseddel.ts`):** `tilfoyTimerRad` `:2037` (ECO-input `:2056`), `oppdaterTimerRad` `:2207` (`:2217`), `forsonDagskort` `:2446` (`:2466/:2487`), `flyttTimerRadEco` `:4050` (`z.string().uuid().nullable()` `:4054` — null er lov; validering `:4107`), `redigerSedelRader` `:4548` (`:4573`), `syncBatch` `:5882` (`:5927/:5984`), `maskin: router` `:7253`, `maskin.tilfoy` `:7254` (`:7259`, lagring `externalCostObjectId: input.externalCostObjectId ?? null` `:7298/:7316`), `maskin.oppdater` `:7331` (`:7336`). Alle `.nullable().optional()` unntatt `flyttTimerRadEco`.
 - **Opprettelse av underprosjekt finnes ikke i kode:** `externalCostObject.(create|upsert|createMany|update|updateMany|delete)` i hele repoet = **0 treff**. `eksternKostObjekt.ts:13-14`: «kun lese-operasjoner … Opprettelse skjer via Proadm-import eller dedikert admin-flyt (ikke her)» — ingen av delene er bygget. Bærer F-U3. Proadm-kjeden (import → ECO → dokumentflyt) er ikke målt — utsatt av Kenneth (§ 3.7).
@@ -252,7 +260,7 @@ Valget styrer **om underprosjekt-velgeren vises** i prosjektkort-flyten og Bekre
 
 Regler for velgeren når valget er **på**:
 
-- Vises **sammen med** prosjekt og byggeplass, der kortet velges: `KortValgModal` modus `ny` og `flytt` (chips, som 36b `:14-21`), Bekreft dag (§ 3.8), og — via kortet — for timer, maskin og varer på kortet.
+- Vises **sammen med** prosjekt og byggeplass, der kortet velges: `KortValgModal` modus `ny` og `flytt` (som 36b `:14-21`), Bekreft dag i **begge veier** — manuell («+»/«+ Nytt prosjektkort», 36c) og GPS (Start dag/Slutt dag) — § 3.8–3.9, og — via kortet — for timer, maskin og varer på kortet. Visningsform (chips eller felt + søkbar liste) etter § 3.9.2.
 - **Frivillig:** tomt ved åpning («Uten» er startverdien, som `ecoId: null` `KortValgModal.tsx:68`), aldri forhåndsvalgt fra et annet kort eller en annen dag, ingen «påkrevd»-validering, kan tømmes igjen («Uten»/«Flytt raden» til kort uten underprosjekt — `flyttTimerRadEco` tar `null` `:4054`). Tomt lagres som `NULL` i `externalCostObjectId`.
 - **Rader på et kort arver kortets underprosjekt** (36b: `kortLaas.ecoId` i `KortVareforbrukModal.tsx:145`, timer/maskin via kortet). Det er ikke forhåndsvalg — det er kortets identitet (`kortNokkel`). Brukeren som vil føre uten underprosjekt velger/åpner kortet uten.
 - Vises bare når prosjektet har aktive underprosjekter lokalt (`hentUnderprosjekterLokalt(projectId)`, `timerKatalog.ts:398-412`), ellers er det ingenting å velge (K3 som i dag). Vilkåret blir altså **`benytterUnderprosjekt && underprosjekter.length > 0`**.
@@ -263,7 +271,7 @@ Regler for velgeren når valget er **på**:
 | `KortValgModal` `ny`/`flytt` | underprosjekt-chips **skjules** (prop fra firmavalget); byggeplass-chips som i dag; K3 = «0–1 byggeplass → direkte» | som 36b: chips med «Uten» først; K3 som i dag |
 | `TimerRadModal` / `MaskinRadModal` på kortet | ECO-feltet (`TimerSeksjon.tsx:1781-1794` / `MaskinSeksjon.tsx:844-858`) **skjules** via prop med dagens default (vist) — dagskortet uendret (§ 3.3); raden arver kortets `ecoId` som før | feltet vist, forhåndsutfylt med kortets underprosjekt (kortets identitet), kan endres → raden flyttes til annet kort (36b-regel) |
 | `KortVareforbrukModal` under `kortLaas` | som i dag (ingen egen velger; arver kortet `:145`) | som i dag (arver kortet) |
-| **Bekreft dag** — timer, maskin, varer | som i dag (`ecoId: null` `bekreft-dag.tsx:703/705`, `bekreftDag.ts:121`, `dagsforslagAnvend.ts:150/280`, `bekreftDagTillegg.ts:118/198`) | ny frivillig velger «Underprosjekt» per prosjekt(kort) i Bekreft dag; valgt verdi til `anvendDagsforslag`/`skrivTillegg` for timer, maskin og varer under det kortet; tomt → `null`. Byggeplass som i dag |
+| **Bekreft dag** — timer, maskin, varer | velgeren **skjules** i begge veier (også 36c-chipsene i manuell modus `bekreft-dag.tsx:641-663`); `ecoId: null` til `bekreftDag` `:380` som GPS-veien i dag | velger «Underprosjekt» i **begge veier** (manuell og GPS): `manuell`-vilkåret i `:289` og `:380` fjernes, vilkåret blir `benytterUnderprosjekt && underprosjekter.length > 0`; valgt verdi til `anvendDagsforslag`/`skrivTillegg` for timer (`dagsforslagAnvend.ts:155`), maskin (`:285`) og varer (`:309`) under kortet, **og** til tillegg-seksjonens timer/maskin (`bekreftDagTillegg.ts:118/198` arver samme `ecoId`); tomt → `null`. Byggeplass som i dag. Visning etter § 3.9.2 |
 | Dagsoversikt 36d-1 | byggeplass-kontroll (§ 2) | byggeplass-kontroll (§ 2) **pluss** kortets underprosjekt i korthodet; **ingen amber for tomt underprosjekt** — tomt er lovlig (utsagn 2). Nøytral tekst «Uten underprosjekt» bare der kort grupperes |
 | Web vareforbruk-side, attestering, redigering | begge felt, uendret (admin-flater viser alltid begge) | uendret |
 
@@ -302,9 +310,25 @@ Målt: eksporten bærer **verken** byggeplass-dimensjon på maskin/vare **eller*
 
 ### 3.8 Forhold til 36c-mellomløsningen
 
-36c (bestilt hos Redesign, **ikke på develop `480e0420`**) flytter «+ Nytt kort» (P4) inn i Bekreft dag og gir Bekreft dag et **frivillig underprosjekt-valg når prosjektet har aktive underprosjekter** (vilkåret er K3-regelen `hentUnderprosjekterLokalt(projectId).length > 0`, samme som `KortValgModal.tsx:35-39`). Det er en mellomløsning uten firmavalg.
+36c (**merget `8ba055ff`**, kode `4c35d26f`) flytter «+ Nytt kort» (P4) inn i Bekreft dag som manuell modus (`opprinnelse=manuell` `bekreft-dag.tsx:120`) og gir Bekreft dag et **frivillig underprosjekt-valg når prosjektet har aktive underprosjekter** (vilkåret er K3-regelen `hentUnderprosjekterLokalt(projectId).length > 0`, samme som `KortValgModal.tsx:35-39`) — men **bare i manuell modus** (`manuell && prosjektId` `:289`, `ecoId: manuell ? ecoId : null` `:380`). Det er en mellomløsning uten firmavalg, og GPS-veien er utelatt (§ 1.8).
 
-**36d-2 erstatter den regelen med firmavalget:** vilkåret for å vise underprosjekt-valget i Bekreft dag (og i `KortValgModal`) blir `benytterUnderprosjekt && underprosjekter.length > 0`. Oppførselen for øvrig (tomt ved åpning, frivillig, tomt → `NULL`) beholdes fra 36c. Rader ført via 36c-mellomløsningen med underprosjekt beholdes uendret (§ 3.4).
+**36d-2 erstatter den regelen med firmavalget og fjerner modus-vilkåret:** vilkåret for å vise underprosjekt-valget i Bekreft dag (og i `KortValgModal`) blir `benytterUnderprosjekt && underprosjekter.length > 0` — uavhengig av om skjermen ble åpnet manuelt eller fra Start dag/Slutt dag (§ 3.9.1). Oppførselen for øvrig (tomt ved åpning, frivillig, tomt → `NULL`) beholdes fra 36c. Rader ført via 36c-mellomløsningen med underprosjekt beholdes uendret (§ 3.4).
+
+### 3.9 Underprosjekt i GPS-veien og søkbar liste — TILLEGG 2026-11-08 (B9 🟡 venter på Kenneth)
+
+Kenneths to funn fra telefontesten av 36c (§ 0, ordrett) går inn i 36d-2. Ingen modellendring; begge er mobil-UI i Bekreft dag og `KortValgModal`.
+
+**3.9.1 Underprosjekt-valg også fra Start dag og Slutt dag (GPS-veien).** Når `benytterUnderprosjekt` er på og prosjektet har aktive underprosjekter, vises valget i Bekreft dag **uansett hvordan skjermen ble åpnet**: fra «+»/«+ Nytt prosjektkort» (manuell, 36c) og fra Start dag/Slutt dag (`StartSluttDagKort.tsx:81-82`, uten `opprinnelse`). Samme regler i begge veier: tomt ved åpning, aldri påkrevd, kan tømmes, tomt lagres `NULL`. Målt (`bde7f268`): rotårsaken er `manuell`-vilkåret to steder — lista `bekreft-dag.tsx:289` og lagringen `:380`; begge erstattes av firmavilkåret (§ 3.2). Lagringskjeden trenger ingen endring for timer/maskin/vare under kortet (`bekreftDag.ts:138` → `dagsforslagAnvend.ts:155/:285/:309`); tillegg-seksjonen (`bekreftDagTillegg.ts:118/198`) må i tillegg ta kortets `ecoId` i stedet for hardkodet `null`, så timer og maskin ført som tillegg under samme kort får samme underprosjekt. Byggeplass-valget i GPS-veien er uendret. Underprosjektet gjelder **per prosjekt(kort)** i Bekreft dag, som i 36c: velges et annet prosjekt, nullstilles valget (`:297`).
+
+**3.9.2 Søkbar liste ved mange underprosjekter.** Kenneth har sett over 100 underprosjekter i ett prosjekt; chips-rekka fra 36c (`bekreft-dag.tsx:641-663`) og `KortValgModal` (`:93-105`) skalerer ikke. Regel, i tråd med «Adaptive nedtrekksmenyer» (`ui-standarder.md:92`):
+
+- **Til og med grensen:** chips som i 36c/36b — «Uten» først (`timer.kortValg.uten`), ett trykk velger, nytt trykk på valgt tømmer.
+- **Over grensen:** ett trykkbart felt «Underprosjekt» (`VelgerFelt`, `VelgerFelt.tsx:13`, med `onClear`-X når noe er valgt) som åpner en **søkbar liste**: `UnderprosjektVelgerModal` (`TimerSeksjon.tsx:2258`) gjenbrukes — søk på **kode (`proAdmId`) og navn (`kortNavn`)** (`:2290-2294`), `FlatList`, «Uten»-rad øverst som tømmer. Søkefeltet vises alltid i denne modusen (lista er per definisjon lang), ikke bare ved `> 7` som i dag (`:2314`). Tom verdi i feltet viser «Uten».
+- Gjelder **begge** flater der underprosjekt velges: Bekreft dag (begge veier, § 3.9.1) og `KortValgModal` modus `ny`/`flytt`. Byggeplass-chips er uendret (kortere lister; egen sak om de vokser).
+- **Grensen (B9, forslag):** **6 aktive underprosjekter** — chips t.o.m. 6, felt + søkbar liste fra 7. Begrunnelse: Kenneths «5-7 stk.»; 6 chips fyller omtrent to rader på telefon uten at «Uten» drukner. Alternativ **7** matcher presedensen for når søkefeltet dukker opp i eksisterende lister (`> 7`, `ProsjektVelger.tsx:82`, `TimerSeksjon.tsx:2314`), men der er det søkefeltet i lista som slår inn, ikke bytte av visningsform, så presedensen binder ikke. Kenneth bekrefter tallet (§ 9).
+- Tellingen er **aktive** underprosjekter for prosjektet (`hentUnderprosjekterLokalt(projectId)`, `timerKatalog.ts:398-412`), samme liste som vises.
+
+**3.9.3 Eksempel — tilleggsarbeid med egen timedokumentasjon.** To arbeidsoppgaver utføres samme dag på samme prosjekt; den ene skal faktureres som tilleggsarbeid med egne timer. Oppgaven føres på et underprosjekt (opprettet av firmaet, F-U3 for flaten): den får da **eget kort** (`kortNokkel` med `ecoId`, § 1.8) med egne timer, maskin og varer, og timedokumentasjonen følger kortet i dagsoversikt, attestering og eksport (§ 4). Den andre oppgaven føres på kortet uten underprosjekt. Merk: «aktivitet» her er arbeidsoppgaven, ikke aktivitetskatalogen i timer (`aktivitetLocal`, `bekreft-dag.tsx:233-237`) og ikke `Activity`-audittabellen (`terminologi.md:180`).
 
 ---
 
@@ -333,7 +357,7 @@ ECO-kolonne + filter i `timer.rapport.detaljEksport` (`rapport.ts:313-315`-plane
 | Rekkefølge | Leveranse | Avhenger av | Begrunnelse |
 |---|---|---|---|
 | 1 | **36b** (dagsoversikt A, inkl. hurtigvelg) — **merget `3ff60370`** | — | 36d-1 rendrer i `ProsjektkortDagsoversikt` |
-| 2 | **36c** | 36b | Redesigns leveranse; 36d-1 legges etter den (vedtak 2026-11-07). Bærer mellomløsningen § 3.8 |
+| 2 | **36c** | 36b | **Merget `8ba055ff`** (kode `4c35d26f`, 2026-11-08); 36d-1 legges etter den (vedtak 2026-11-07). Bærer mellomløsningen § 3.8 — underprosjekt bare i manuell modus, rettes i 36d-2 (§ 3.9.1) |
 | 3 | **36d-1** maskin- og varekontroll i oversikten (§ 2) | 36b | Svarer direkte på begge Kenneth-funnene uten skjemaendring; viser «Hele prosjektet»/«Ikke knyttet» som er kontrollen |
 | 4 | **36d-2** firmavalg av/på + underprosjekt i Bekreft dag (§ 3) | B1 (🟢 vedtatt); 36c (erstatter mellomløsningen) | Skjemaendring i `packages/db` + mobil-kolonne; bør ikke blandes med 36d-1 |
 | 5 | **36d-3** web-oversikt (§ 4) | 36d-2 for underprosjekt-kolonnen; ellers uavhengig | Kan starte parallelt med 36d-2 etter 36d-1 |
@@ -354,7 +378,7 @@ ECO-kolonne + filter i `timer.rapport.detaljEksport` (`rapport.ts:313-315`-plane
 | `firma.innstillinger.underprosjekt.paa` | Bruk underprosjekt |
 | `bekreftDag.felt.underprosjekt` | Underprosjekt |
 
-Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt` fra 2026-11-07 utgår (varer arver kortet; ingen egen velger). Mikrotekst etter § 3a: beskrivelsen sier hvor det flytter (mobil/Bekreft dag), at det er frivillig, og hva som skjer med det som finnes (uendret).
+Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt` fra 2026-11-07 utgår (varer arver kortet; ingen egen velger). § 3.9.2 trenger ingen nye nøkler: feltet bruker `timer.felt.underprosjekt` («Underprosjekt», `nb.json:585`), tom verdi `timer.kortValg.uten` («Uten», `:5410`), søkefeltet `handling.sok` («Søk», `:934`) som `UnderprosjektVelgerModal` allerede bruker (`TimerSeksjon.tsx:2319`). Mikrotekst etter § 3a: beskrivelsen sier hvor det flytter (mobil/Bekreft dag), at det er frivillig, og hva som skjer med det som finnes (uendret).
 
 ---
 
@@ -375,8 +399,8 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 10. `OrganizationSetting.benytterUnderprosjekt` default `false` for eksisterende firma (migreringstest: `SELECT count(*) WHERE benytter_underprosjekt IS NULL` = 0).
 11. `oppdaterSetting` tar `benytterUnderprosjekt: boolean`; streng/`null` avvises (Zod).
 12. `KortValgModal` modus `ny` og `flytt` med valget **av** og prosjekt med aktive underprosjekter: ingen underprosjekt-chips, byggeplass-chips som i dag. Med **på**: chips med «Uten» forhåndsvalgt, `ecoId` starter `null`.
-13. Bekreft dag med **på** og prosjekt med aktive underprosjekter: velgeren vises tom; uten valg lagres `externalCostObjectId: null` på timer, maskin og vare; med valg får alle tre under kortet samme `ecoId`. Byggeplass-payload identisk med i dag i begge tilfeller.
-14. Bekreft dag med **av**, eller prosjekt uten aktive underprosjekter: ingen velger; payload som i dag (`null`).
+13. Bekreft dag med **på** og prosjekt med aktive underprosjekter, **i begge veier** (manuell `opprinnelse=manuell` og GPS uten `opprinnelse`): velgeren vises tom; uten valg lagres `externalCostObjectId: null` på timer, maskin og vare; med valg får alle tre under kortet samme `ecoId` — også tillegg-seksjonens timer og maskin (`bekreftDagTillegg`). Byggeplass-payload identisk med i dag i begge tilfeller.
+14. Bekreft dag med **av**, eller prosjekt uten aktive underprosjekter: ingen velger i noen av veiene (heller ikke 36c-chipsene i manuell modus); payload `null`.
 15. `TimerRadModal`/`MaskinRadModal` i prosjektkort-grenen med **av**: ECO-feltet rendres ikke; raden lagres med kortets `ecoId` (uendret arv). Dagskort-grenen (`dagskort-isolert-vakt.test.ts`): feltet rendres som før uansett innstilling.
 16. `tilfoyTimerRad`/`oppdaterTimerRad`/`maskin.tilfoy`/`maskin.oppdater`/`syncBatch` avviser ECO fra annet prosjekt/firma/lukket (paritet med `validerEco`); `null` godtas alltid.
 17. Bytte av `benytterUnderprosjekt` begge veier endrer ingen rad (SELECT før/etter identisk) og ingen eksport-tall; kort med `ecoId` vises med underprosjekt-navn etter bytte til **av**.
@@ -386,6 +410,11 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 **36d-3:**
 20. `maskin.equipment.bruk` filtrerer på firma (annet firmas maskin → FORBIDDEN) og periode; «ikke knyttet»-flagg ved NULL.
 21. `vareforbruk.listForFirma` filtrerer på firma; «hele prosjektet» ved `byggeplassId` NULL.
+
+**36d-2 TILLEGG 2026-11-08 (§ 3.9):**
+22. GPS-veien: Bekreft dag åpnet fra Start dag/Slutt dag (ingen `opprinnelse`) med **på** og aktive underprosjekter → velgeren vises; valgt `ecoId` når `bekreftDag` (ikke `null` som `bekreft-dag.tsx:380` gjør i dag) og alle rader under kortet. Feiler på `bde7f268`.
+23. Grense (B9): med N aktive underprosjekter ≤ grensen rendres chips og ingen `VelgerFelt`; med N > grensen rendres `VelgerFelt` og ingen chips, og trykk åpner lista med søkefelt synlig. Gjelder Bekreft dag og `KortValgModal` (`ny` og `flytt`).
+24. Søk i lista treffer på kode (`proAdmId`) og på navn (`kortNavn`), uavhengig av store/små bokstaver; «Uten»-raden står øverst og tømmer valget (`ecoId: null`); `onClear` på feltet tømmer uten å åpne lista.
 
 ---
 
@@ -410,6 +439,7 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 | **B5** | `sheetMachineLocal.byggeplassId` + sync? | Nei i 36d-1 | **🟢 JA** — innfridd av 36b (`schema.ts:229`), ingen rest |
 | **B6** | ECO-kolonne + filter i rapport/eksport? | Ja, i 36d-3 | **🟢 JA** |
 | **B7** | Rekkefølge | 36b → 36c → 36d-1 → 36d-2 → 36d-3 | **🟢 JA** |
+| **B9 (TILLEGG 2026-11-08)** | Grense for når underprosjekt-valget går fra chips til felt + søkbar liste (§ 3.9.2)? | **6** aktive underprosjekter (chips t.o.m. 6, søkbar liste fra 7) — innenfor Kenneths «5-7 stk.», to chip-rader på telefon. Alternativ 7 = presedens `> 7` for søkefelt i lister, men binder ikke (annet grep) | **🟡 VENTER PÅ KENNETH** — tallet |
 ---
 
 ## 10. Ut av scope
