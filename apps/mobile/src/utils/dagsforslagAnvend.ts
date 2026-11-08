@@ -58,6 +58,7 @@ export function anvendDagsforslag(
   let startSheetId: string | null = null;
   let startDato: string | null = null;
   let startBlokkert = false;
+  let startByggeplassId: string | null = null;
   let blokkertSendt = false;
   let totalRader = 0;
   let harEksisterendeRader = false;
@@ -131,6 +132,18 @@ export function anvendDagsforslag(
     }
     if (d.raderDroppetUtenLonnsart > 0) manglerLonnsart = true;
 
+    // RETUR 36c pkt 1: arbeidsrader arver sedelens byggeplass (null). Fantes
+    // sedelen alt med en ANNEN byggeplass enn den valgte, skrives den valgte
+    // eksplisitt — ellers havner kortet under sedelens byggeplass. Lik/ny sedel
+    // beholder arv, så «Endre ramme» tar radene med som før.
+    const eksplisittByggeplassId =
+      resultat.eksisterte &&
+      d.byggeplassId != null &&
+      sedelByggeplass(db, resultat.id) !== d.byggeplassId
+        ? d.byggeplassId
+        : null;
+    if (d.erStartSegment) startByggeplassId = eksplisittByggeplassId;
+
     // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
     // den nye økten. Rad-innsettingen under bruker sedel-id → appender rader.
     if (resultat.eksisterte) {
@@ -162,11 +175,12 @@ export function anvendDagsforslag(
           pauseMin: rad.pauseMin,
           // B1: reise-sporet (M1 — innsettingen skrev det ikke før). byggeplassId
           // settes nå faktisk (destinasjonen på reise-rader; null → arv på
-          // arbeidsrader). reiseRegel JSON-stringifies (TEXT-kolonne).
+          // arbeidsrader, unntatt når kortets byggeplass avviker fra en
+          // eksisterende sedels — RETUR 36c pkt 1). reiseRegel JSON-stringifies (TEXT-kolonne).
           erReise: rad.erReise,
           reiseRetning: rad.reiseRetning,
           reiseOppmotestedId: rad.reiseOppmotestedId,
-          byggeplassId: rad.byggeplassId,
+          byggeplassId: rad.erReise ? rad.byggeplassId : (rad.byggeplassId ?? eksplisittByggeplassId),
           reiseKjoretidMin: rad.reiseKjoretidMin,
           reiseAvstandM: rad.reiseAvstandM,
           reiseKilde: rad.reiseKilde,
@@ -184,7 +198,7 @@ export function anvendDagsforslag(
   }
 
   if (tillegg && startSheetId && startDato && !startBlokkert) {
-    skrivTillegg(db, tillegg, { ...ctx, sheetId: startSheetId, dato: startDato });
+    skrivTillegg(db, tillegg, { ...ctx, sheetId: startSheetId, dato: startDato, byggeplassId: startByggeplassId });
   }
 
   return {
@@ -197,6 +211,16 @@ export function anvendDagsforslag(
     ikkeAnsatt: false,
     manglerLonnsart,
   };
+}
+
+function sedelByggeplass(db: LokalDb, sheetId: string): string | null {
+  return (
+    db
+      .select({ byggeplassId: dagsseddelLocal.byggeplassId })
+      .from(dagsseddelLocal)
+      .where(eq(dagsseddelLocal.id, sheetId))
+      .all()[0]?.byggeplassId ?? null
+  );
 }
 
 /**
@@ -272,7 +296,12 @@ function utvidArbeidstidsvindu(
 function skrivTillegg(
   db: LokalDb,
   tillegg: BekreftDagTillegg,
-  ctx: { userId: string; orgId: string; nyId: () => string; naa: () => number; sheetId: string; dato: string; ecoId?: string | null },
+  ctx: {
+    userId: string; orgId: string; nyId: () => string; naa: () => number; sheetId: string; dato: string;
+    ecoId?: string | null;
+    /** RETUR 36c pkt 1: valgt byggeplass når den avviker fra sedelens; null = arv. */
+    byggeplassId: string | null;
+  },
 ): void {
   for (const m of tillegg.maskiner) {
     db.insert(sheetMachineLocal)
@@ -283,6 +312,7 @@ function skrivTillegg(
         projectId: m.projectId,
         vehicleId: m.vehicleId,
         externalCostObjectId: ctx.ecoId ?? null,
+        byggeplassId: ctx.byggeplassId,
         timer: m.timer,
         mengde: m.mengde,
         enhet: m.enhet,

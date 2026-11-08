@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Keyboard,
+  InputAccessoryView,
   type TextInput,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -103,6 +105,9 @@ function formatTimer(n: number): string {
 
 const PAUSE_STEG = 15;
 const PAUSE_MAKS = 120;
+
+/** RETUR 36c pkt 3: iOS «Ferdig»-linje over tastaturet for «Hva gjorde du i dag?». */
+const TASTATUR_ID = "bekreftDagTastatur";
 
 export default function BekreftDagSkjerm() {
   const { t } = useTranslation();
@@ -276,6 +281,22 @@ export default function BekreftDagSkjerm() {
     const y = beskrivelseY.current.get(forste);
     if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
     beskrivelseFelt.current.get(forste)?.focus();
+  }, []);
+  // RETUR 36c pkt 3: feltet det skrives i ruller over tastaturet når det er oppe.
+  const rullTilBeskrivelse = useCallback((nokkel: string) => {
+    const rull = () => {
+      const y = beskrivelseY.current.get(nokkel);
+      if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+    };
+    if (Keyboard.isVisible()) {
+      rull();
+      return;
+    }
+    const lytter = Keyboard.addListener("keyboardDidShow", () => {
+      lytter.remove();
+      rull();
+    });
+    setTimeout(() => lytter.remove(), 1500);
   }, []);
   const byggeplasser = useMemo(
     () => (prosjektId ? hentByggeplasserForProsjektLokalt(prosjektId) : []),
@@ -533,6 +554,7 @@ export default function BekreftDagSkjerm() {
         contentContainerClassName="gap-3 p-4"
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {manuell && !laastDato ? (
           <View>
@@ -692,6 +714,8 @@ export default function BekreftDagSkjerm() {
                   else beskrivelseFelt.current.delete(k.nokkel);
                 }}
                 onLayout={(e) => beskrivelseY.current.set(k.nokkel, e.nativeEvent.layout.y)}
+                tastaturId={TASTATUR_ID}
+                onFokus={() => rullTilBeskrivelse(k.nokkel)}
                 prosjektNavn={
                   [
                     prosjekter.find((pr) => pr.id === k.projectId)?.name ?? null,
@@ -715,7 +739,8 @@ export default function BekreftDagSkjerm() {
               />
             ))}
 
-            {forslag.reiseAarsak || forslag.destinasjonAarsak ? (
+            {/* RETUR 36c pkt 4: manuell føring bruker aldri GPS — ingen reise-årsak. */}
+            {!manuell && (forslag.reiseAarsak || forslag.destinasjonAarsak) ? (
               <Text className="px-1 text-xs text-gray-500">
                 {t("timer.bekreftDag.ingenReise", {
                   aarsak: t(
@@ -746,6 +771,16 @@ export default function BekreftDagSkjerm() {
           </>
         ) : null}
       </ScrollView>
+
+      {Platform.OS === "ios" ? (
+        <InputAccessoryView nativeID={TASTATUR_ID}>
+          <View className="flex-row justify-end border-t border-gray-200 bg-gray-100 px-4 py-2">
+            <Pressable onPress={() => Keyboard.dismiss()} className="px-2 py-1">
+              <Text className="text-base font-medium text-blue-700">{t("handling.ferdig")}</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
 
       {/* Handlinger */}
       <View className="gap-2 border-t border-gray-200 bg-white p-4">

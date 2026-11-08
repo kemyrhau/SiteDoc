@@ -42,6 +42,8 @@ import { kjorMigreringer } from "../db/migreringer";
 import { bekreftDag, forberedBekreftDag, prosjekterMedArbeid } from "./bekreftDag";
 import { manuellDag, lesManuellGrunnlag, forberedManuellDag } from "./manuellDag";
 import type { Dagsforslag } from "./dagsforslag";
+import { entydigByggeplass } from "./bekreftDagTillegg";
+import { kortNokkel } from "../lib/prosjektkortMobil";
 
 function medBeskrivelse(f: Dagsforslag): Dagsforslag {
   return { ...f, beskrivelsePerKort: Object.fromEntries(prosjekterMedArbeid(f).map((p) => [p, "Graving"])) };
@@ -317,6 +319,100 @@ describe("ORDRE 36c rettelse S2 — valgfritt underprosjekt på kortet", () => {
     expect(skjerm).toContain("onPress={() => setEcoId(valgt ? null : e.id)}");
     expect(skjerm).toContain("ecoId: manuell ? ecoId : null,");
     expect(skjerm).not.toMatch(/setEcoId\(underprosjekter\[0\]/);
+  });
+});
+
+describe("RETUR 36c pkt 1 — kortets byggeplass i skrivestien (også når sedelen finnes)", () => {
+  const tillegg = (bp: string | null) => ({
+    maskiner: [{ lokalId: "m", projectId: "p2", vehicleId: "v1", timer: 1, mengde: null, enhet: null }],
+    varer: [{ lokalId: "v", projectId: "p2", vareId: "vare1", vareNavn: "Pukk", enhet: "t", antall: 2, byggeplassId: bp }],
+  });
+  const sedelMedA = () => {
+    seedSedel();
+    db().update(dagsseddelLocal).set({ byggeplassId: "A" }).where(eq(dagsseddelLocal.id, "sedel1")).run();
+  };
+  const ny = () => rader().find((r) => r.id !== "rad1")!;
+  const maskiner = () => db().select().from(schema.sheetMachineLocal).all();
+  const varer = () => db().select().from(schema.vareforbrukLocal).all();
+  const lagreKort = (bp: string | null, eco: string | null = null) => {
+    const { forslag, sluttIso } = forberedManuellDag(lokalDb(), manuellKontekst(), { prosjektId: "p2", byggeplassId: bp });
+    // Skjermen sender varens byggeplass fra KortVareforbrukModal (sedelByggeplassId = entydigByggeplass).
+    return bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(sluttIso, eco), tillegg(entydigByggeplass(forslag, "p2")));
+  };
+
+  it("🔴 sedel med A + nytt kort B: rad, maskin og vare har B, og kortet grupperes under B", () => {
+    sedelMedA();
+    lagreKort("B", "eco1");
+    expect(sedler()).toHaveLength(1);
+    expect(ny().dagsseddelId).toBe("sedel1");
+    expect(ny().byggeplassId).toBe("B");
+    expect(maskiner()[0].byggeplassId).toBe("B");
+    expect(varer()[0].byggeplassId).toBe("B");
+    const sedelBp = sedler()[0].byggeplassId;
+    expect(kortNokkel({ projectId: ny().projectId ?? "", byggeplassId: ny().byggeplassId ?? sedelBp, ecoId: ny().externalCostObjectId }))
+      .toBe(kortNokkel({ projectId: "p2", byggeplassId: "B", ecoId: "eco1" }));
+    // rad1 (sedelens egen) er urørt.
+    expect(rader().find((r) => r.id === "rad1")!.byggeplassId).toBeNull();
+  });
+
+  it("negativkontroll: sedel med A + kort A → arv (null) som før", () => {
+    sedelMedA();
+    lagreKort("A");
+    expect(ny().byggeplassId).toBeNull();
+    expect(maskiner()[0].byggeplassId).toBeNull();
+  });
+
+  it("negativkontroll: ny sedel med B → arv (null), sedelen bærer B", () => {
+    lagreKort("B");
+    expect(sedler()[0].byggeplassId).toBe("B");
+    expect(rader()[0].byggeplassId).toBeNull();
+    expect(maskiner()[0].byggeplassId).toBeNull();
+  });
+
+  it("🔴 GPS-veien: «Slutt dag» nr. 2 med byggeplass B på sedel med A skriver B på arbeidsraden", () => {
+    sedelMedA();
+    const { forslag } = forberedBekreftDag(lokalDb(), {
+      userId: BRUKER, orgId: ORG,
+      dag: { startAt: `${DATO}T16:00:00`, startLat: null, startLng: null, oppmotestedId: null, byggeplassId: "B" },
+      sluttIso: `${DATO}T18:00:00`, endLat: null, endLng: null,
+      kontekstByggeplassId: null, aktivtProsjektId: "p2", sisteSegmentKilde: "bruker",
+    });
+    expect(forslag.datoer[0].byggeplassId).toBe("B");
+    // Reiserad med egen (tom) byggeplass i samme dag.
+    const d0 = forslag.datoer[0];
+    const medReise = { ...forslag, datoer: [{ ...d0, rader: [...d0.rader, { ...d0.rader[0]!, erReise: true, byggeplassId: null }] }] };
+    bekreftDag(lokalDb(), medBeskrivelse(medReise), skriveCtx(`${DATO}T18:00:00`));
+    const arbeid = rader().filter((r) => r.id !== "rad1" && !r.erReise);
+    expect(arbeid.length).toBeGreaterThan(0);
+    expect(arbeid.every((r) => r.byggeplassId === "B")).toBe(true);
+    // Reiseraden beholder sin egen byggeplass — kortets B gjelder bare arbeid.
+    const reise = rader().filter((r) => r.id !== "rad1" && r.erReise);
+    expect(reise.length).toBeGreaterThan(0);
+    expect(reise.every((r) => r.byggeplassId === null)).toBe(true);
+  });
+});
+
+describe("RETUR 36c pkt 3 og 4 — kildevakter for Bekreft dag", () => {
+  const skjerm = () => fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
+  const felt = () => fs.readFileSync(path.join(__dirname, "../components/timer-detalj/BekreftDagBeskrivelse.tsx"), "utf8");
+
+  it("🔴 pkt 4: reise-meldingen vises ikke i manuell modus", () => {
+    expect(skjerm()).toContain("{!manuell && (forslag.reiseAarsak || forslag.destinasjonAarsak) ? (");
+  });
+
+  it("🔴 pkt 3: feltet ruller over tastaturet ved fokus", () => {
+    expect(skjerm()).toContain("onFokus={() => rullTilBeskrivelse(k.nokkel)}");
+    expect(skjerm()).toContain('Keyboard.addListener("keyboardDidShow"');
+    expect(felt()).toContain("onFokus?.();");
+  });
+
+  it("🔴 pkt 3: «Ferdig» over tastaturet (iOS) og under feltet (Android), tom flate/drag lukker", () => {
+    expect(skjerm()).toContain("<InputAccessoryView nativeID={TASTATUR_ID}>");
+    expect(skjerm()).toContain("tastaturId={TASTATUR_ID}");
+    expect(felt()).toContain('inputAccessoryViewID={Platform.OS === "ios" ? tastaturId : undefined}');
+    expect(felt()).toContain('Platform.OS === "android" && harFokus && tastaturOppe ? (');
+    expect(skjerm()).toContain('keyboardShouldPersistTaps="handled"');
+    expect(skjerm()).toContain('keyboardDismissMode="on-drag"');
   });
 });
 
