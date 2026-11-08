@@ -732,7 +732,7 @@ Ellers `FORBIDDEN` («Timer attesteres av firmaet den ansatte jobber for»). Et 
 | `hentForAttestering` (`:3878`) | `krevAttesteringsrett` |
 | `flyttTimerRadEco` (`:4050`), `attesterRader` (`:4162`), `returnerRader` (`:4354`), `gjenaapneAttestering` (`:4461`), `attester` (`:5423`), `returner` (`:5586`) | `krevAttesteringsrett` (rad-nivå via `krevAttesteringsrettForRader`, som slår opp sedlenes firma) |
 
-`kanAttestere` (UI-gaten) er uendret. **H3:** `tilfoyTilleggRad` (`:2964`) og `tilfoyUtleggRad` (`:3196`) kaller `verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId)` som `tilfoyTimerRad` — medlemskap kreves ikke, som der. **Ansattnummer** i `rapport.ts:hentFirmaAnsatteMedTimer` hentes kun fra eget firma (`organizationId: orgId`); navn og e-post på fremmede ansatte vises fortsatt (kontaktinfo, H2 utgått). Test: `routes/timer/firmagrense-attestering.test.ts` (11 røde mot `47a0875e`, 4 negativkontroller/vakt grønne begge veier).
+`kanAttestere` (UI-gaten) er uendret. **H3:** `tilfoyTilleggRad` (`:2964`) og `tilfoyUtleggRad` (`:3196`) kaller `verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId)` som `tilfoyTimerRad` — medlemskap kreves ikke, som der. **Ansattnummer** i `rapport.ts:hentFirmaAnsatteMedTimer` hentes kun fra eget firma (`organizationId: orgId`); navn og e-post på fremmede ansatte vises fortsatt (kontaktinfo, H2 utgått). Test: `routes/timer/firmagrense-attestering.test.ts` (11 røde mot `47a0875e` + 6 mutant-tester fra RETUR 1, 4 negativkontroller/vakt grønne begge veier — 21 i alt).
 
 ### Firma-grense på firmaPeriodeRapport
 

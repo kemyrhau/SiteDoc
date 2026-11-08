@@ -9,8 +9,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Ekte tilgangskontroll mot mocket kjerne-DB i minnet — rollene avgjøres av de samme
  * reglene som i prod (firmaRoller, status, ProjectMember.kanAttestere/role).
  *
- * Rød først: mot `origin/develop` 47a0875e (før fiksen) feiler de 11 🔴-merkede; negativkontroller
- * og vakt-testen er grønne begge veier.
+ * Rød først: mot `origin/develop` 47a0875e (før fiksen) feiler de 11 første 🔴-merkede; negativkontroller
+ * og vakt-testen er grønne begge veier. RETUR 1 (Kontrollør 2026-11-08) la til én 🔴 per grønn mutant
+ * (M5, M7, M8, M10, M11, M13) — hver rød mot sin mutant, grønn med fiksen.
  */
 
 const ORG_A = "a0000000-0000-0000-0000-000000000001";
@@ -24,11 +25,14 @@ const ADMIN_B = "admin-b"; // firma-admin i B, ikke prosjektmedlem
 const LEDER_B = "leder-b"; // ansatt i B, prosjektadmin på PROSJEKT_A (gjest)
 const ANSATT_A = "ansatt-a";
 const ANSATT_B = "ansatt-b";
+const LEDER_SLUTTET = "leder-sluttet"; // deaktivert i A, men fortsatt kanAttestere på PROSJEKT_A
+const DOBBEL = "dobbel"; // ansatt i både A og B, med ulikt ansattnummer
 
 const SEDEL_A = "5ede1000-0000-0000-0000-00000000000a";
 const SEDEL_B = "5ede1000-0000-0000-0000-00000000000b";
 const RAD_A = "4ad00000-0000-0000-0000-00000000000a";
 const RAD_B = "4ad00000-0000-0000-0000-00000000000b";
+const SEDEL_DOBBEL = "5ede1000-0000-0000-0000-00000000000d";
 
 type Medlem = { userId: string; organizationId: string; status: string; firmaRoller: string[]; ansattnummer: string | null };
 const ORG_MEDLEMMER: Medlem[] = [
@@ -38,10 +42,15 @@ const ORG_MEDLEMMER: Medlem[] = [
   { userId: ADMIN_B, organizationId: ORG_B, status: "aktiv", firmaRoller: ["firma_admin"], ansattnummer: "B-1" },
   { userId: LEDER_B, organizationId: ORG_B, status: "aktiv", firmaRoller: [], ansattnummer: "B-2" },
   { userId: ANSATT_B, organizationId: ORG_B, status: "aktiv", firmaRoller: [], ansattnummer: "B-7" },
+  { userId: LEDER_SLUTTET, organizationId: ORG_A, status: "deaktivert", firmaRoller: [], ansattnummer: "A-8" },
+  // B-nummeret står sist: et oppslag på tvers av firma som nøkles på userId alene ender på B-9.
+  { userId: DOBBEL, organizationId: ORG_A, status: "aktiv", firmaRoller: [], ansattnummer: "A-9" },
+  { userId: DOBBEL, organizationId: ORG_B, status: "aktiv", firmaRoller: [], ansattnummer: "B-9" },
 ];
 const PROSJEKT_MEDLEMMER = [
   { userId: LEDER_A, projectId: PROSJEKT_A, role: "member", kanAttestere: true },
   { userId: LEDER_B, projectId: PROSJEKT_A, role: "admin", kanAttestere: false },
+  { userId: LEDER_SLUTTET, projectId: PROSJEKT_A, role: "member", kanAttestere: true },
 ];
 
 const SEDLER = [
@@ -156,6 +165,7 @@ function lagPrismaTimer() {
         ),
       }),
       sheetTimer: modell({
+        findUnique: vi.fn(async ({ where }: { where: { id: string } }) => TIMER_RADER.find((r) => r.id === where.id) ?? null),
         findMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) => filtrer(TIMER_RADER, where)),
       }),
       tillegg: modell({ findFirst: vi.fn(async () => ({ id: "t" })) }),
@@ -174,6 +184,7 @@ function kaller(userId: string) {
   return { dagsseddel: dagsseddelRouter.createCaller(ctx), rapport: rapportRouter.createCaller(ctx) };
 }
 const kun = (radIder: string[]) => ({ radIder: { timerIder: radIder, tilleggIder: [], maskinIder: [] } });
+const FIRMAGRENSE = "Timer attesteres av firmaet den ansatte jobber for";
 
 beforeEach(() => mocks.create.mockClear());
 
@@ -224,6 +235,39 @@ describe("H1 — attestering krever rett i sedelens firma", () => {
     await expect(kaller(ADMIN_B).dagsseddel.attesterRader(kun([RAD_B]))).resolves.toMatchObject({ antallAttestert: 1 });
   });
 
+  // Meldingen (ikke bare FORBIDDEN) sikrer at avvisningen kommer fra firmagrensen.
+  it("🔴 A-leder kan ikke gjenåpne B sin godkjente sedel (M10)", async () => {
+    SEDLER[1]!.status = "accepted";
+    try {
+      await expect(kaller(LEDER_A).dagsseddel.gjenaapneAttestering({ sheetId: SEDEL_B })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: FIRMAGRENSE,
+      });
+    } finally {
+      SEDLER[1]!.status = "sent";
+    }
+  });
+
+  it("🔴 A-leder kan ikke flytte ECO på B sin rad (M11)", async () => {
+    await expect(
+      kaller(LEDER_A).dagsseddel.flyttTimerRadEco({ timerRadId: RAD_B, externalCostObjectId: null }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: FIRMAGRENSE });
+  });
+
+  it("🔴 A-leder kan ikke attestere B sin sedel via det gamle endepunktet (M13)", async () => {
+    await expect(kaller(LEDER_A).dagsseddel.attester({ id: SEDEL_B } as never)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: FIRMAGRENSE,
+    });
+  });
+
+  it("🔴 deaktivert leder med kanAttestere kan ikke attestere i det gamle firmaet (M5)", async () => {
+    await expect(kaller(LEDER_SLUTTET).dagsseddel.attesterRader(kun([RAD_A]))).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: FIRMAGRENSE,
+    });
+  });
+
   it("negativkontroll: A-leder med kanAttestere attesterer fortsatt A sin rad", async () => {
     await expect(kaller(LEDER_A).dagsseddel.attesterRader(kun([RAD_A]))).resolves.toMatchObject({ antallAttestert: 1 });
   });
@@ -243,6 +287,25 @@ describe("Ansattnummer på tvers av firma (H2 utgått — kontaktinfo deles)", (
       ansattnummer: null,
     });
     expect(ansatte.find((a) => a.id === ANSATT_A)?.ansattnummer).toBe("A-3");
+  });
+});
+
+describe("Ansattnummer for ansatt i to firma følger sedelens firma", () => {
+  beforeEach(() => {
+    SEDLER.push({ id: SEDEL_DOBBEL, organizationId: ORG_A, userId: DOBBEL, status: "sent", dato: new Date("2026-11-02"), aktivitetId: null });
+    return () => {
+      SEDLER.pop();
+    };
+  });
+
+  it("🔴 attesteringslista viser A-nummeret på A-sedelen (M7)", async () => {
+    const sedler = await kaller(LEDER_A).dagsseddel.hentTilAttestering({ projectId: PROSJEKT_A });
+    expect(sedler.find((s) => s.id === SEDEL_DOBBEL)?.ansatt?.ansattnummer).toBe("A-9");
+  });
+
+  it("🔴 A sin ansattoversikt viser A-nummeret (M8)", async () => {
+    const ansatte = await kaller(ADMIN_A).rapport.hentFirmaAnsatteMedTimer({ organizationId: ORG_A });
+    expect(ansatte.find((a) => a.id === DOBBEL)?.ansattnummer).toBe("A-9");
   });
 });
 
