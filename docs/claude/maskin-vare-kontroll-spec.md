@@ -1,13 +1,13 @@
 ---
-status: 🟡 REVISJON 2026-11-08 — § 3 (36d-2) skrevet om til firmavalg av/på for underprosjekt (Kenneth 2026-11-08); B1 revidert og **B8 (Proadm) åpent**, begge venter på Kenneth. § 2 (36d-1), § 4 (36d-3), B2–B7 står som 🟢 VEDTATT 2026-11-07. Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
+status: 🟡 REVISJON 2026-11-08 — § 3 (36d-2) skrevet om til firmavalg av/på for underprosjekt (Kenneth 2026-11-08); **B1 revidert**, venter på Kenneth. Proadm-kjeden utsatt (Kenneth 2026-11-08, § 3.7). § 2 (36d-1), § 4 (36d-3), B2–B7 står som 🟢 VEDTATT 2026-11-07. Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
 sist_verifisert_mot_kode: 2026-11-08 (develop @ 480e0420, § 1.8 og § 3); § 1.1–1.7 målt 2026-11-07 (develop @ 09cfbb4d) — linjeskift i § 1.8
 eier: Fabel (spec) → Redesign/kode-Opus (kode)
-ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 (relay/inbox-fabel.md, 2026-11-08)
+ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + TILLEGG + AVGRENSNING (relay/inbox-fabel.md, 2026-11-08)
 ---
 
 # Spec 36d — kontroll av maskin og varer i dagsoversikten, og underprosjekt som frivillig tilleggsdimensjon for timer, maskin og varer
 
-> **Status 🟡 REVISJON 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 er skrevet om 2026-11-08:** firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt». Det gir revidert **B1** (nytt feltnavn og type) og nytt **B8** (Proadm) i § 9 — begge venter på Kenneth. Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`.
+> **Status 🟡 REVISJON 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 er skrevet om 2026-11-08:** firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt». Det gir revidert **B1** (nytt feltnavn og type) i § 9 — venter på Kenneth. Proadm-kjeden er utsatt av Kenneth (§ 3.7). Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`.
 
 ## 0. Bestilling
 
@@ -40,7 +40,9 @@ ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 (re
 2. «Husk at vi skal tillate at underprosjekt kan være tom og ikke skal velges»
 3. «I firma innstillinger trenger vi et valg for om firmaet skal benytte underprosjekt eller ikke i sin registrering. Dersom firmaet benytter proadm, da er vi avhengig av at underprosjekt eksisterer. Ellers får vi ikke dokumentflyt til å fungere»
 
-**Lesning:** byggeplass er alltid med (som i dag, og som 36b bygde kortet: prosjekt + byggeplass + underprosjekt). Underprosjekt er en **egen, frivillig dimensjon** som firmaet slår av eller på. «Enten/eller»-modellen fra 2026-11-07 (§ 3 gammel) utgår. Utsagn 2 og 3 trekker hver sin vei for Proadm-firmaer (frivillig felt vs. «avhengig av at underprosjekt eksisterer») — det er **B8**, lagt fram rangert i § 3.7/§ 9, ikke avgjort her.
+**Lesning:** byggeplass er alltid med (som i dag, og som 36b bygde kortet: prosjekt + byggeplass + underprosjekt). Underprosjekt er en **egen, frivillig dimensjon** som firmaet slår av eller på. «Enten/eller»-modellen fra 2026-11-07 (§ 3 gammel) utgår. Utsagn 3 (Proadm) er **avgrenset av Kenneth samme dag** — se under.
+
+**Avgrensning 2026-11-08 — Kenneth ordrett (via orkestrator, «AVGRENSNING av TILLEGG revisjon 36d-2»):** «detaljer om dette må vi ta senere. Vi har ikke startet dialog med proadm enda. Vi skal bare klargjøre at underprosjekt eksisterer. Og at vi kan skrive timer mot underprosjekt». Specen slår derfor bare fast (§ 3.7) at underprosjekt finnes som entitet, og at timer, maskin og varer kan føres mot det når firmavalget er på. Ingen B-spørsmål om Proadm, ingen flagging av rader uten underprosjekt.
 
 **Ut av scope:** underprosjekt generelt («egen kontroll etterhvert») — kun åpne funn i § 8. Det gamle dagskortet `apps/mobile/app/timer/[id].tsx` (dagskortmodus) endres ikke (memory-vedtak «dagskort isolert», 2026-11-07; B2-presisering over).
 
@@ -142,11 +144,7 @@ Det som har endret seg siden § 1.1–1.7 og som § 3 bygger på:
 - **Bekreft dag er fortsatt uten underprosjekt:** `app/timer/bekreft-dag.tsx:703/705` (`kortNokkel({ …, ecoId: null })`), `src/utils/bekreftDag.ts:121` (`arvKort … ecoId: null`), `bekreftDagTillegg.ts:118/198`, `dagsforslagAnvend.ts:150` (timerrad) og `:280` (maskin). 0 treff på `externalCostObjectId|underprosjekt` i `dagsforslagInput.ts`. **Ingen 36c-commit på develop** (`git log -- app/timer/bekreft-dag.tsx`: nyeste `b85c7c6a`, `2c0fab3e`, `0aef2e8b`).
 - **Lokal ECO-tabell:** `externalCostObjectLocal` `schema.ts:481-493` (`id, organizationId, projectId, proAdmId notNull, kortNavn, kilde, status, timerregistreringApen, sistOppdatert`). Pull `timerKatalog.ts:78` → `eksternKostObjekt.list` uten `projectId`; server filtrerer `slettetVed: null`, `status: "aktiv"`, `timerregistreringApen: true` (`eksternKostObjekt.ts:40-44`); lokalt overskrives hele tabellen. «Aktive underprosjekter» lokalt = `hentUnderprosjekterLokalt(projectId)` `timerKatalog.ts:398-412`.
 - **API-linjer (`dagsseddel.ts`):** `tilfoyTimerRad` `:2037` (ECO-input `:2056`), `oppdaterTimerRad` `:2207` (`:2217`), `forsonDagskort` `:2446` (`:2466/:2487`), `flyttTimerRadEco` `:4050` (`z.string().uuid().nullable()` `:4054` — null er lov; validering `:4107`), `redigerSedelRader` `:4548` (`:4573`), `syncBatch` `:5882` (`:5927/:5984`), `maskin: router` `:7253`, `maskin.tilfoy` `:7254` (`:7259`, lagring `externalCostObjectId: input.externalCostObjectId ?? null` `:7298/:7316`), `maskin.oppdater` `:7331` (`:7336`). Alle `.nullable().optional()` unntatt `flyttTimerRadEco`.
-- **Proadm — målt for B8 (§ 3.7):**
-  - Konfigurasjon per firma ligger i `OrganizationIntegration` `packages/db/prisma/schema.prisma:331-346` (`type String // "proadm" | "hr" | "gps" | "smartdoc"` `:334`, `aktiv Boolean @default(true)` `:338`, `@@unique([organizationId, type])` `:343`). Skrives kun av sitedoc_admin-CRUD `apps/api/src/routes/admin.ts:708/730/764/810` (`type: z.enum(["proadm", …])` `:732`). Firma-admin-routeren `firma-integrasjon.ts:12` har `const FIRMA_TYPER = [] as const;` — firmaet kan ikke selv legge til Proadm. Web: kun `dashbord/admin/firmaer/[id]/InnstillingerFane.tsx:9` (`INTEGRASJON_TYPER = ["proadm", …]`); `firma/innstillinger/page.tsx` har 0 treff på `proadm`/`integrasjon`.
-  - **Ingen kode spør «har firmaet Proadm?»** utenfor CRUD-rutene (0 treff på `organizationIntegration` i timer-, vareforbruk- og dokumentflyt-ruter).
-  - **Ingen import av underprosjekt fra Proadm, ingen eksport til Proadm, ingen opprettelse av ECO i det hele tatt:** `externalCostObject.(create|upsert|createMany|update|updateMany|delete)` i hele repoet = **0 treff**. `eksternKostObjekt.ts:13-14`: «kun lese-operasjoner … Opprettelse skjer via Proadm-import eller dedikert admin-flyt (ikke her)» — ingen av delene finnes. `ftd-prosessering.ts:1103-2263` parser Proadm A-/T-nota (FTD), ikke underprosjekt. `rapport.ts:313` «Fremtid (proadm-underprosjekt) … Ikke bygget nå».
-  - **Dokumentflyt ↔ underprosjekt i kode:** eneste dokumentflyt-modell med ECO er `Godkjenning` `schema.prisma:1572`, `externalCostObjectId String?` `:1583` (**valgfri**, `onDelete: SetNull`). Ingen `prisma.godkjenning`-ruter finnes (0 treff). Varsel/endring/regningsarbeid har ingen egne modeller; `FtdChangeEvent` `:2022-2026` og `mengde.ts:364/450` (`docType` varsel | varsel_om_endring | endringsmelding | regningsarbeid) bærer ingen ECO. `dokumentflyt.ts` nevner Godkjenning bare i slettevern-telling `:29/:241`. **Konklusjon: i dagens kode avhenger ingen dokumentflyt av underprosjekt.** Kenneths utsagn 3 beskriver den planlagte Proadm-koblingen (kostnad → Proadm-underprosjekt via `Godkjenning.externalCostObjectId`/`proAdmId`), ikke bygget kode.
+- **Opprettelse av underprosjekt finnes ikke i kode:** `externalCostObject.(create|upsert|createMany|update|updateMany|delete)` i hele repoet = **0 treff**. `eksternKostObjekt.ts:13-14`: «kun lese-operasjoner … Opprettelse skjer via Proadm-import eller dedikert admin-flyt (ikke her)» — ingen av delene er bygget. Bærer F-U3. Proadm-kjeden (import → ECO → dokumentflyt) er ikke målt — utsatt av Kenneth (§ 3.7).
 - **Firmagrense H1 + H3** (`1b6b856e`) flyttet linjer i `dagsseddel.ts` og `rapport.ts` etter at UE-utredningen ble levert; tallene over er etter den.
 
 ---
@@ -242,7 +240,7 @@ benytterUnderprosjekt Boolean @default(false) @map("benytter_underprosjekt")
 
 Begrunnelse for plassering: (a) innstillingen er **ikke** en firmamodul-tabell — den er en firmainnstilling som tre moduler leser, nøyaktig som `timerRegistreringsmodus` `:488` og tilgangs-defaultene `:382-384`; (b) `ExternalCostObject` selv ligger i kjernen `:2798`; (c) mobil-speilet `organizationSettingLocal` `schema.ts:611-649` finnes og gir offline-lesing. Regelen «firmamodulers tabeller aldri i `packages/db`» brytes ikke.
 
-Alternativ (ikke anbefalt): `OrganizationModule.config Json` per modul (`:320`) — tre uavhengige valg, strider mot «ett valg», leses ikke av noen i dag. Alternativ 2 (ikke anbefalt): utlede «på» fra `OrganizationIntegration type "proadm"` i stedet for eget felt — se B8, § 3.7.
+Alternativ (ikke anbefalt): `OrganizationModule.config Json` per modul (`:320`) — tre uavhengige valg, strider mot «ett valg», leses ikke av noen i dag.
 
 **Skjemaendring = ja** (ny kolonne i `packages/db`, migrering via Prisma). **B1 må godkjennes på nytt av Kenneth** (navn, type, default). Migreringen kjøres via deploy-flyten, aldri av agenten.
 
@@ -294,21 +292,13 @@ Målt: eksporten bærer **verken** byggeplass-dimensjon på maskin/vare **eller*
 
 `tilfoyTimerRad` `dagsseddel.ts:2037`, `oppdaterTimerRad` `:2207`, `syncBatch` `:5882`, `maskin.tilfoy` `:7254` (lagrer rett: `:7298/:7316`) og `maskin.oppdater` `:7331` validerer ikke ECO mot firma/prosjekt/status; kun `flyttTimerRadEco` `:4050-4107` og `vareforbruk.validerEco` `vareforbruk.ts:141-172` gjør det. Mobil-velgeren filtrerer på prosjekt + aktiv (`TimerSeksjon.tsx:2280-2285`, `hentUnderprosjekterLokalt`), så i praksis sendes gyldige verdier, men web/`syncBatch` kan sende hva som helst. 36d-2 gjenbruker `validerEco`-logikken i alle fem. Sikkerhets-/korrekthetsendring uten brukersynlig tap → ingen hjemmel-krav, men nevnes (`feedback_sikkerhet_fritar_ikke`). **Ikke** en «påkrevd»-vakt — tomt er alltid lov.
 
-### 3.7 Proadm og dokumentflyt — B8 (åpent, rangert, til Kenneth)
+### 3.7 Underprosjekt finnes — og timer, maskin og varer kan føres mot det
 
-**Målt (§ 1.8):** Proadm finnes i dag bare som en rad i `OrganizationIntegration` (type «proadm», satt av sitedoc_admin). Det finnes **ingen import av underprosjekt fra Proadm, ingen eksport til Proadm, ingen opprettelse av underprosjekt noe sted, og ingen dokumentflyt-rute som leser eller krever `externalCostObjectId`**. Eneste kobling i skjema er `Godkjenning.externalCostObjectId String?` (valgfri, `:1583`) — uten ruter. Det Kenneth beskriver i utsagn 3 («dersom firmaet benytter proadm, da er vi avhengig av at underprosjekt eksisterer, ellers får vi ikke dokumentflyt til å fungere») er altså et **domenekrav for den planlagte Proadm-koblingen** (godkjent kostnad → Proadm-underprosjekt via `proAdmId`), ikke en avhengighet i dagens kode. Specen kan ikke måle «hvordan dokumentflyt avhenger» ut over dette, fordi koden ikke finnes.
+**1. Underprosjekt finnes som entitet i dag:** `ExternalCostObject` `packages/db/prisma/schema.prisma:2798` (UI-term «Underprosjekt», `terminologi.md:209`): `organizationId`, `projectId` (per prosjekt), `proAdmId String` (påkrevd, `:2803`), `kilde` («proadm_import» | «manuell» | «felt_opprettet», `:2808`), `kortNavn`, `status` («aktiv» | «lukket», `:2811`), `timerregistreringApen Boolean` (`:2812`), `slettetVed?`, `@@unique([organizationId, proAdmId])` `:2832`. Leses av `eksternKostObjekt.list` (`eksternKostObjekt.ts:25-60`, filter aktiv + åpen `:40-44`) og speiles lokalt i `externalCostObjectLocal` `apps/mobile/src/db/schema.ts:481-493` (pull `timerKatalog.ts:78`, oppslag `hentUnderprosjekterLokalt` `:398-412`). Ingen opprettelsesflate finnes (§ 1.8, F-U3).
 
-**Spenningen:** utsagn 2 sier underprosjekt kan være tomt. Utsagn 3 sier Proadm-firmaer trenger at underprosjekt *eksisterer*. De forenes slik: **eksisterer** gjelder objektet (firmaet må ha underprosjekter å velge blant — import/opprettelse, F-U3), ikke at hver rad må bære ett. Kravet «kostnaden må peke på et Proadm-underprosjekt» hører hjemme i **dokumentflyt-steget** (når en Godkjenning/kostnad skal til Proadm), ikke i timeregistreringen. Timer-, maskin- og vareraden kan være tom; dokumentflyten sier fra når den trenger underprosjektet.
+**2. Når firmavalget er på, kan timer føres mot et underprosjekt.** Radene bærer feltet allerede (`SheetTimer.externalCostObjectId` `packages/db-timer/prisma/schema.prisma:245`, API `tilfoyTimerRad` `dagsseddel.ts:2056`), og 36b gjør underprosjekt til del av kortet (`KortValg.ecoId`, § 1.8). 36d-2 legger til firmavalget som vilkår for velgeren (§ 3.2) og velgeren i Bekreft dag. **Maskin og varer følger de samme reglene:** `SheetMachine.externalCostObjectId` `:553` / `maskin.tilfoy` `dagsseddel.ts:7259`; `Vareforbruk.externalCostObjectId` `packages/db-varelager/prisma/schema.prisma:79` / `vareforbruk.opprett` `vareforbruk.ts:385`. Alle tre arver kortets underprosjekt (§ 3.2), alle tre kan stå tomme (NULL).
 
-| Rang | Alternativ | Hva det betyr | For | Mot |
-|---|---|---|---|---|
-| **1 (anbefalt)** | **B8-a: manuelt av/på, uavhengig av Proadm.** `benytterUnderprosjekt` settes av firma-admin (web) eller sitedoc_admin. Proadm-firma slår det på selv. Raden alltid frivillig. | Ett felt, én regel, ingen lesing av `OrganizationIntegration` i timer-ruter. Følger utsagn 2 fullt ut. | Et Proadm-firma kan glemme å slå på — men da ser de det i dokumentflyt-steget, som er stedet kravet hører hjemme. Ingen kode for Proadm finnes å koble mot i dag. |
-| 2 | **B8-b: automatisk på når Proadm er aktiv.** Effektiv verdi = `benytterUnderprosjekt || harAktivIntegrasjon("proadm")`. Raden fortsatt frivillig. | Proadm-firmaer får velgeren uten å gjøre noe. | Første lesing av `OrganizationIntegration` utenfor admin-CRUD (`hentArbeidstidDefaults` må slå opp). To kilder til én sannhet; i dag gir det ingenting siden Proadm-firmaer ikke har underprosjekter å velge (0 import). Kan legges til **senere som del av Proadm-importen** — importen selv kan sette `benytterUnderprosjekt = true`. |
-| 3 | **B8-c: låst på + påkrevd per rad når Proadm er aktiv.** | Garanterer at ingen rad hos Proadm-firma er uten underprosjekt. | Bryter utsagn 2. Sperrer registrering når underprosjekt-lista er tom (den er tom for alle i dag). Flytter dokumentflytens krav inn i timeregistreringen og rammer offline-føring. **Frarådes.** |
-
-**Anbefaling:** **B8-a nå**, med B8-b som planlagt oppfølger når Proadm-import bygges (da kan importen slå valget på, og dokumentflyt-steget kan kreve underprosjekt på kostnaden). Kenneth avgjør.
-
-**Avhengighet som må sies høyt (F-U3, skjerpet):** siden ingen kan opprette underprosjekt i dag (0 create-kall, `proAdmId` påkrevd og unik), er «på» virkningsløst for alle firmaer inntil enten Proadm-import eller en manuell opprettelsesflate (`kilde "manuell"`, `proAdmId` må da få en unik verdi — f.eks. firmaets egen kode) finnes. Det er ikke 36d-2 sitt scope, men 36d-2 bør ikke leveres som «ferdig» uten at Kenneth vet det.
+**Proadm:** Import av Proadm-endringsmeldinger via underprosjekt — senere, dialog ikke startet (Kenneth 2026-11-08).
 
 ### 3.8 Forhold til 36c-mellomløsningen
 
@@ -345,7 +335,7 @@ ECO-kolonne + filter i `timer.rapport.detaljEksport` (`rapport.ts:313-315`-plane
 | 1 | **36b** (dagsoversikt A, inkl. hurtigvelg) — **merget `3ff60370`** | — | 36d-1 rendrer i `ProsjektkortDagsoversikt` |
 | 2 | **36c** | 36b | Redesigns leveranse; 36d-1 legges etter den (vedtak 2026-11-07). Bærer mellomløsningen § 3.8 |
 | 3 | **36d-1** maskin- og varekontroll i oversikten (§ 2) | 36b | Svarer direkte på begge Kenneth-funnene uten skjemaendring; viser «Hele prosjektet»/«Ikke knyttet» som er kontrollen |
-| 4 | **36d-2** firmavalg av/på + underprosjekt i Bekreft dag (§ 3) | B1 (revidert), B8; 36c (erstatter mellomløsningen) | Skjemaendring i `packages/db` + mobil-kolonne; bør ikke blandes med 36d-1 |
+| 4 | **36d-2** firmavalg av/på + underprosjekt i Bekreft dag (§ 3) | B1 (revidert); 36c (erstatter mellomløsningen) | Skjemaendring i `packages/db` + mobil-kolonne; bør ikke blandes med 36d-1 |
 | 5 | **36d-3** web-oversikt (§ 4) | 36d-2 for underprosjekt-kolonnen; ellers uavhengig | Kan starte parallelt med 36d-2 etter 36d-1 |
 
 ---
@@ -403,13 +393,10 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 
 - F-U1: ECO-validering mangler i `tilfoyTimerRad`/`oppdaterTimerRad`/`maskin.tilfoy`/`maskin.oppdater`/`syncBatch` (§ 3.6).
 - F-U2: Eksport/lønn bærer ikke ECO selv om `timer.md:864` sier det (`timerDetaljRader.ts`, `timer-rapport-eksport.ts`: 0 treff). Doc-feil eller manglende kode — avklares i 36d-3/B6.
-- **F-U3 (skjerpet 2026-11-08):** underprosjekt kan **ikke opprettes noe sted** — 0 create-kall i repoet, `eksternKostObjekt`-routeren er kun lesing (`eksternKostObjekt.ts:13-14`), Proadm-import finnes ikke (§ 1.8). `proAdmId` er påkrevd og unik per firma (`schema.prisma:2803/:2832`), så en manuell opprettelsesflate må gi feltet en verdi. Inntil import eller opprettelse finnes er firmavalget «på» uten virkning for alle firmaer. Bør få egen ordre (web firma-admin: opprett/lukk underprosjekt, `kilde "manuell"`) — Kenneth avgjør om før eller etter 36d-2.
+- **F-U3 (skjerpet 2026-11-08):** underprosjekt kan **ikke opprettes noe sted** — 0 create-kall i repoet, `eksternKostObjekt`-routeren er kun lesing (`eksternKostObjekt.ts:13-14`), Proadm-import finnes ikke (§ 1.8). `proAdmId` er påkrevd og unik per firma (`schema.prisma:2803/:2832`), så en manuell opprettelsesflate må gi feltet en verdi. Inntil import eller opprettelse finnes er firmavalget «på» uten virkning for alle firmaer. Bør få egen ordre (web firma-admin: opprett/lukk underprosjekt, `kilde "manuell"`) — Kenneth avgjør om før eller etter 36d-2. Proadm-import: senere (§ 3.7).
 - F-U4: `ExternalCostObject` er per prosjekt. Byggeplass er også per prosjekt. Ingen kobling byggeplass ↔ underprosjekt finnes eller er ønsket (`terminologi.md:209`).
 - F-U5: `maskin.tilfoy` kaller ikke `verifiserProsjekterTilhørerFirma` (gjør `tilfoyTimerRad`).
 - F-U6: `SplittRadModal` maskinrest mister `sheetTimerId` (`:320-334`) — splittede maskiner blir «ikke knyttet».
-- **F-U7 (nytt 2026-11-08):** `Godkjenning.externalCostObjectId` (`schema.prisma:1583`) er valgfri og har ingen ruter; dokumentflyt-kravet «kostnad må peke på Proadm-underprosjekt» (Kenneth utsagn 3) finnes ikke i kode. Hører til Proadm-koblingen, ikke 36d.
-- **F-U8 (nytt 2026-11-08):** firma-admin kan ikke se eller legge til Proadm-integrasjon selv (`firma-integrasjon.ts:12` `FIRMA_TYPER = []`); kun sitedoc_admin. Relevant for B8-b.
-
 ---
 
 ## 9. Beslutninger
@@ -423,14 +410,12 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 | **B5** | `sheetMachineLocal.byggeplassId` + sync? | Nei i 36d-1 | **🟢 JA** — innfridd av 36b (`schema.ts:229`), ingen rest |
 | **B6** | ECO-kolonne + filter i rapport/eksport? | Ja, i 36d-3 | **🟢 JA** |
 | **B7** | Rekkefølge | 36b → 36c → 36d-1 → 36d-2 → 36d-3 | **🟢 JA** |
-| **B8 (nytt 2026-11-08)** | Proadm: skal firmavalget være manuelt (a), automatisk på når Proadm-integrasjon er aktiv (b), eller låst på + påkrevd per rad (c)? Målt: ingen dokumentflyt-kode avhenger av underprosjekt i dag (§ 3.7) | **B8-a nå**, B8-b som oppfølger når Proadm-import bygges; B8-c frarådes (bryter «kan være tom», sperrer ved tom liste) | **🟡 VENTER PÅ KENNETH** |
-
 ---
 
 ## 10. Ut av scope
 
-- Underprosjekt-opprettelse i UI og Proadm-import (F-U3) — egen ordre; 36d-2 «på» er uten virkning til det finnes.
-- Dokumentflytens krav om Proadm-underprosjekt på kostnad (F-U7) — Proadm-koblingen.
+- Underprosjekt-opprettelse i UI (F-U3) — egen ordre; 36d-2 «på» er uten virkning til det finnes.
+- Import av Proadm-endringsmeldinger via underprosjekt og alt som følger av den (låsing av firmavalget, flagging av rader uten underprosjekt, dokumentflyt) — senere, dialog ikke startet (Kenneth 2026-11-08).
 - Endring i server-kapasitetsvakt (bøttenøkkel) — B4.
 - Det gamle dagskortets ECO-visning (B2-b, forkastet ved B2-presiseringen).
 - Attestering per byggeplass.
