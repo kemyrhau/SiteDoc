@@ -1,5 +1,5 @@
 ---
-status: 🟢 VEDTATT 2026-11-08 — § 3 (36d-2, firmavalg av/på i tillegg til byggeplass) og B1 (`benytterUnderprosjekt Boolean @default(false)`) vedtatt av Kenneth 2026-11-08 («Ja, i tillegg»); B8 utgår, F-U3 står åpent. § 2 (36d-1), § 4 (36d-3), B2–B7 🟢 VEDTATT 2026-11-07. **TILLEGG 2026-11-08 (Kenneth etter 36c-test): underprosjekt-valg også i GPS-veien + søkbar liste ved mange underprosjekter — § 3.9; grensen for søkbar liste (B9) venter på Kenneth.** Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
+status: 🟢 VEDTATT 2026-11-08 — § 3 (36d-2, firmavalg av/på i tillegg til byggeplass) og B1 (`benytterUnderprosjekt Boolean @default(false)`) vedtatt av Kenneth 2026-11-08 («Ja, i tillegg»); B8 utgår, F-U3 står åpent. § 2 (36d-1), § 4 (36d-3), B2–B7 🟢 VEDTATT 2026-11-07. **TILLEGG 2026-11-08 (Kenneth etter 36c-test): underprosjekt-valg også i GPS-veien + søkbar liste ved mange underprosjekter — § 3.9; grense B9 = 6 vedtatt av Kenneth 2026-11-08 («Ja, 6»).** Alt 🟢 VEDTATT. Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
 sist_verifisert_mot_kode: 2026-11-08 (develop @ bde7f268 etter 36c-merge: § 1.8 Bekreft dag, § 3.2, § 3.8, § 3.9; øvrig § 1.8/§ 3 @ 480e0420); § 1.1–1.7 målt 2026-11-07 (develop @ 09cfbb4d) — linjeskift i § 1.8
 eier: Fabel (spec) → Redesign/kode-Opus (kode)
 ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + TILLEGG + AVGRENSNING + VEDTAK + «TILLEGG — spec 36d-2: underprosjekt i GPS-veien og søkbar liste» (relay/inbox-fabel.md, 2026-11-08)
@@ -7,7 +7,7 @@ ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + T
 
 # Spec 36d — kontroll av maskin og varer i dagsoversikten, og underprosjekt som frivillig tilleggsdimensjon for timer, maskin og varer
 
-> **Status 🟢 VEDTATT 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 (36d-2) og B1 er 🟢 VEDTATT 2026-11-08** (Kenneth ordrett «Ja, i tillegg», `relay/inbox-fabel.md` «VEDTAK — revisjon 36d-2»): firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt»; innstillingen er `benytterUnderprosjekt Boolean @default(false)`. B8 utgår (Proadm-kjeden utsatt, § 3.7); F-U3 står som åpent funn. **TILLEGG 2026-11-08** (Kenneth etter telefontest av 36c, `relay/inbox-fabel.md` «TILLEGG — spec 36d-2: underprosjekt i GPS-veien og søkbar liste»): underprosjekt-valget skal finnes i **begge** veier inn i Bekreft dag (manuell og GPS), og lista skal være **søkbar** når den er lang — § 3.9. Grensen for når lista blir søkbar er et forslag (B9, 🟡 venter på Kenneth). Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`, unntatt Bekreft dag i § 1.8, § 3.2, § 3.8 og § 3.9 som er målt mot `bde7f268` (36c merget).
+> **Status 🟢 VEDTATT 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 (36d-2) og B1 er 🟢 VEDTATT 2026-11-08** (Kenneth ordrett «Ja, i tillegg», `relay/inbox-fabel.md` «VEDTAK — revisjon 36d-2»): firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt»; innstillingen er `benytterUnderprosjekt Boolean @default(false)`. B8 utgår (Proadm-kjeden utsatt, § 3.7); F-U3 står som åpent funn. **TILLEGG 2026-11-08** (Kenneth etter telefontest av 36c, `relay/inbox-fabel.md` «TILLEGG — spec 36d-2: underprosjekt i GPS-veien og søkbar liste»): underprosjekt-valget skal finnes i **begge** veier inn i Bekreft dag (manuell og GPS), og lista skal være **søkbar** når den er lang — § 3.9. Grensen for når lista blir søkbar er **B9 = 6, 🟢 VEDTATT 2026-11-08** (Kenneth ordrett «Ja, 6», `relay/inbox-fabel.md` «VEDTAK B9»): til og med 6 aktive underprosjekter som knapper, fra 7 søkbart valgfelt. Specen er dermed helt 🟢 VEDTATT. Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`, unntatt Bekreft dag i § 1.8, § 3.2, § 3.8 og § 3.9 som er målt mot `bde7f268` (36c merget).
 
 ## 0. Bestilling
 
@@ -314,7 +314,7 @@ Målt: eksporten bærer **verken** byggeplass-dimensjon på maskin/vare **eller*
 
 **36d-2 erstatter den regelen med firmavalget og fjerner modus-vilkåret:** vilkåret for å vise underprosjekt-valget i Bekreft dag (og i `KortValgModal`) blir `benytterUnderprosjekt && underprosjekter.length > 0` — uavhengig av om skjermen ble åpnet manuelt eller fra Start dag/Slutt dag (§ 3.9.1). Oppførselen for øvrig (tomt ved åpning, frivillig, tomt → `NULL`) beholdes fra 36c. Rader ført via 36c-mellomløsningen med underprosjekt beholdes uendret (§ 3.4).
 
-### 3.9 Underprosjekt i GPS-veien og søkbar liste — TILLEGG 2026-11-08 (B9 🟡 venter på Kenneth)
+### 3.9 Underprosjekt i GPS-veien og søkbar liste — TILLEGG 2026-11-08 (B9 = 6, 🟢 VEDTATT 2026-11-08)
 
 Kenneths to funn fra telefontesten av 36c (§ 0, ordrett) går inn i 36d-2. Ingen modellendring; begge er mobil-UI i Bekreft dag og `KortValgModal`.
 
@@ -325,7 +325,7 @@ Kenneths to funn fra telefontesten av 36c (§ 0, ordrett) går inn i 36d-2. Inge
 - **Til og med grensen:** chips som i 36c/36b — «Uten» først (`timer.kortValg.uten`), ett trykk velger, nytt trykk på valgt tømmer.
 - **Over grensen:** ett trykkbart felt «Underprosjekt» (`VelgerFelt`, `VelgerFelt.tsx:13`, med `onClear`-X når noe er valgt) som åpner en **søkbar liste**: `UnderprosjektVelgerModal` (`TimerSeksjon.tsx:2258`) gjenbrukes — søk på **kode (`proAdmId`) og navn (`kortNavn`)** (`:2290-2294`), `FlatList`, «Uten»-rad øverst som tømmer. Søkefeltet vises alltid i denne modusen (lista er per definisjon lang), ikke bare ved `> 7` som i dag (`:2314`). Tom verdi i feltet viser «Uten».
 - Gjelder **begge** flater der underprosjekt velges: Bekreft dag (begge veier, § 3.9.1) og `KortValgModal` modus `ny`/`flytt`. Byggeplass-chips er uendret (kortere lister; egen sak om de vokser).
-- **Grensen (B9, forslag):** **6 aktive underprosjekter** — chips t.o.m. 6, felt + søkbar liste fra 7. Begrunnelse: Kenneths «5-7 stk.»; 6 chips fyller omtrent to rader på telefon uten at «Uten» drukner. Alternativ **7** matcher presedensen for når søkefeltet dukker opp i eksisterende lister (`> 7`, `ProsjektVelger.tsx:82`, `TimerSeksjon.tsx:2314`), men der er det søkefeltet i lista som slår inn, ikke bytte av visningsform, så presedensen binder ikke. Kenneth bekrefter tallet (§ 9).
+- **Grensen (B9, 🟢 VEDTATT 2026-11-08, Kenneth «Ja, 6»):** **6 aktive underprosjekter** — chips t.o.m. 6, felt + søkbar liste fra 7. Begrunnelse: Kenneths «5-7 stk.»; 6 chips fyller omtrent to rader på telefon uten at «Uten» drukner. Alternativ **7** matcher presedensen for når søkefeltet dukker opp i eksisterende lister (`> 7`, `ProsjektVelger.tsx:82`, `TimerSeksjon.tsx:2314`), men der er det søkefeltet i lista som slår inn, ikke bytte av visningsform, så presedensen binder ikke. Tallet er vedtatt (§ 9).
 - Tellingen er **aktive** underprosjekter for prosjektet (`hentUnderprosjekterLokalt(projectId)`, `timerKatalog.ts:398-412`), samme liste som vises.
 
 **3.9.3 Eksempel — tilleggsarbeid med egen timedokumentasjon.** To arbeidsoppgaver utføres samme dag på samme prosjekt; den ene skal faktureres som tilleggsarbeid med egne timer. Oppgaven føres på et underprosjekt (opprettet av firmaet, F-U3 for flaten): den får da **eget kort** (`kortNokkel` med `ecoId`, § 1.8) med egne timer, maskin og varer, og timedokumentasjonen følger kortet i dagsoversikt, attestering og eksport (§ 4). Den andre oppgaven føres på kortet uten underprosjekt. Merk: «aktivitet» her er arbeidsoppgaven, ikke aktivitetskatalogen i timer (`aktivitetLocal`, `bekreft-dag.tsx:233-237`) og ikke `Activity`-audittabellen (`terminologi.md:180`).
@@ -413,7 +413,7 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 
 **36d-2 TILLEGG 2026-11-08 (§ 3.9):**
 22. GPS-veien: Bekreft dag åpnet fra Start dag/Slutt dag (ingen `opprinnelse`) med **på** og aktive underprosjekter → velgeren vises; valgt `ecoId` når `bekreftDag` (ikke `null` som `bekreft-dag.tsx:380` gjør i dag) og alle rader under kortet. Feiler på `bde7f268`.
-23. Grense (B9): med N aktive underprosjekter ≤ grensen rendres chips og ingen `VelgerFelt`; med N > grensen rendres `VelgerFelt` og ingen chips, og trykk åpner lista med søkefelt synlig. Gjelder Bekreft dag og `KortValgModal` (`ny` og `flytt`).
+23. Grense (B9 = 6): med N aktive underprosjekter ≤ 6 rendres chips og ingen `VelgerFelt`; med N ≥ 7 rendres `VelgerFelt` og ingen chips, og trykk åpner lista med søkefelt synlig. Gjelder Bekreft dag og `KortValgModal` (`ny` og `flytt`).
 24. Søk i lista treffer på kode (`proAdmId`) og på navn (`kortNavn`), uavhengig av store/små bokstaver; «Uten»-raden står øverst og tømmer valget (`ecoId: null`); `onClear` på feltet tømmer uten å åpne lista.
 
 ---
@@ -439,7 +439,7 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 | **B5** | `sheetMachineLocal.byggeplassId` + sync? | Nei i 36d-1 | **🟢 JA** — innfridd av 36b (`schema.ts:229`), ingen rest |
 | **B6** | ECO-kolonne + filter i rapport/eksport? | Ja, i 36d-3 | **🟢 JA** |
 | **B7** | Rekkefølge | 36b → 36c → 36d-1 → 36d-2 → 36d-3 | **🟢 JA** |
-| **B9 (TILLEGG 2026-11-08)** | Grense for når underprosjekt-valget går fra chips til felt + søkbar liste (§ 3.9.2)? | **6** aktive underprosjekter (chips t.o.m. 6, søkbar liste fra 7) — innenfor Kenneths «5-7 stk.», to chip-rader på telefon. Alternativ 7 = presedens `> 7` for søkefelt i lister, men binder ikke (annet grep) | **🟡 VENTER PÅ KENNETH** — tallet |
+| **B9 (TILLEGG 2026-11-08)** | Grense for når underprosjekt-valget går fra chips til felt + søkbar liste (§ 3.9.2)? | **6** aktive underprosjekter (chips t.o.m. 6, søkbar liste fra 7) — innenfor Kenneths «5-7 stk.», to chip-rader på telefon. Alternativ 7 = presedens `> 7` for søkefelt i lister, men binder ikke (annet grep) | **🟢 JA 6** (2026-11-08, «Ja, 6») |
 ---
 
 ## 10. Ut av scope
