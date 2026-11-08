@@ -182,9 +182,9 @@ Merk «Sikkerhet fritar ikke» (memory): H1 fjerner at A sin prosjektleder kan a
 
 | # | Hull | Kilde | Alvor |
 |---|---|---|---|
-| H1 | Attestering ikke firma-isolert (4 lesinger + attester/returner) — A ser og attesterer B sine sedler inkl. prissnapshot | `dagsseddel.ts:3458-3462`, `:3568-3573`, `:3797-3808`, `:4128-4129`, `:4176-4184` | Høy (pris + lønn lekker på tvers av firma) |
-| H2 | `hentFirmaAnsatteMedTimer` uten org-filter — navn/e-post på fremmede ansatte | `rapport.ts:889-893` | Middels (persondata) |
-| H3 | `tilfoyTilleggRad`/`tilfoyUtleggRad` uten prosjektgrense | `dagsseddel.ts:2903`, `:3170` | Middels |
+| ~~H1~~ 🟡 | ~~Attestering ikke firma-isolert (4 lesinger + attester/returner) — A ser og attesterer B sine sedler inkl. prissnapshot~~ — lukket på `fix/firmagrense-attestering` ([sikkerhet.md § 8n](sikkerhet.md)) | `dagsseddel.ts:3458-3462`, `:3568-3573`, `:3797-3808`, `:4128-4129`, `:4176-4184` | Høy (pris + lønn lekker på tvers av firma) |
+| ~~H2~~ utgått | ~~`hentFirmaAnsatteMedTimer` uten org-filter — navn/e-post på fremmede ansatte~~ — kontaktinfo deles (Kenneth 2026-11-08); ansattnummer kun fra eget firma | `rapport.ts:889-893` | Middels (persondata) |
+| ~~H3~~ 🟡 | ~~`tilfoyTilleggRad`/`tilfoyUtleggRad` uten prosjektgrense~~ — lukket, samme branch | `dagsseddel.ts:2903`, `:3170` | Middels |
 | H4 | Prosjektarkiv tar med fremmede firmaers kvitteringer | `services/eksport/filer.ts:185-222` | Lav–middels; beslutning (B4) |
 | H5 | B sin rapport mangler rader på deltatte prosjekter | `rapport.ts:120-126` | Middels for B (feil lønnsgrunnlag) — B7 |
 | H6 | `timerTilgangDefault` og `maskinbrukTilgangDefault` dødt i runtime | `schema.prisma:382-384`, 0 treff i timer-ruter | Lav (dokumentert i `historikk-2026-05.md:3661`) |
