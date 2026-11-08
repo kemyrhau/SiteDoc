@@ -217,7 +217,7 @@ Kortskjermen viser server-linjer + lokale (`kort/[projectId].tsx:212-222`). Over
 
 ---
 
-## 3. 36d-2 — firmavalg «bruker firmaet underprosjekt i registreringen?» (av/på) — 🟡 REVIDERT 2026-11-08
+## 3. 36d-2 — firmavalg «bruker firmaet underprosjekt i registreringen?» (av/på) — 🟢 VEDTATT 2026-11-08
 
 > **Erstatter § 3 av 2026-11-07** («byggeplass | underprosjekt», enten/eller). Byggeplass er **alltid** med, som i dag og som 36b bygde kortet. Underprosjekt er en **frivillig tilleggsdimensjon** som firmaet slår av eller på. Når den er på, kan en registrering bære prosjekt + byggeplass + underprosjekt samtidig (Kenneth utsagn 1); feltet kan alltid stå tomt (utsagn 2).
 
