@@ -1,5 +1,5 @@
 ---
-status: 🟡 REVISJON 2026-11-08 — § 3 (36d-2) skrevet om til firmavalg av/på for underprosjekt (Kenneth 2026-11-08); **B1 revidert**, venter på Kenneth. Proadm-kjeden utsatt (Kenneth 2026-11-08, § 3.7). § 2 (36d-1), § 4 (36d-3), B2–B7 står som 🟢 VEDTATT 2026-11-07. Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
+status: 🟢 VEDTATT 2026-11-08 — § 3 (36d-2, firmavalg av/på i tillegg til byggeplass) og B1 (`benytterUnderprosjekt Boolean @default(false)`) vedtatt av Kenneth 2026-11-08 («Ja, i tillegg»); B8 utgår, F-U3 står åpent. § 2 (36d-1), § 4 (36d-3), B2–B7 🟢 VEDTATT 2026-11-07. Ingen kode ennå. Rekkefølge: 36b (merget) → 36c → 36d-1 → 36d-2 → 36d-3.
 sist_verifisert_mot_kode: 2026-11-08 (develop @ 480e0420, § 1.8 og § 3); § 1.1–1.7 målt 2026-11-07 (develop @ 09cfbb4d) — linjeskift i § 1.8
 eier: Fabel (spec) → Redesign/kode-Opus (kode)
 ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + TILLEGG + AVGRENSNING (relay/inbox-fabel.md, 2026-11-08)
@@ -7,7 +7,7 @@ ordre: Spec 36d + TILLEGG (relay/inbox-fabel.md, 2026-11-07); revisjon 36d-2 + T
 
 # Spec 36d — kontroll av maskin og varer i dagsoversikten, og underprosjekt som frivillig tilleggsdimensjon for timer, maskin og varer
 
-> **Status 🟡 REVISJON 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 er skrevet om 2026-11-08:** firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt». Det gir revidert **B1** (nytt feltnavn og type) i § 9 — venter på Kenneth. Proadm-kjeden er utsatt av Kenneth (§ 3.7). Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`.
+> **Status 🟢 VEDTATT 2026-11-08.** § 2, § 4, § 5 og B2–B7 er 🟢 VEDTATT 2026-11-07 (Kenneth via orkestrator, `relay/inbox-fabel.md` «VEDTAK — Spec 36d»). **§ 3 (36d-2) og B1 er 🟢 VEDTATT 2026-11-08** (Kenneth ordrett «Ja, i tillegg», `relay/inbox-fabel.md` «VEDTAK — revisjon 36d-2»): firmavalget for underprosjekt er **av/på i tillegg til byggeplass**, ikke «byggeplass eller underprosjekt»; innstillingen er `benytterUnderprosjekt Boolean @default(false)`. B8 utgår (Proadm-kjeden utsatt, § 3.7); F-U3 står som åpent funn. Ingen kode ennå. Presens i § 1.1–1.7 er målt mot `09cfbb4d`; § 1.8 og § 3 mot `480e0420`.
 
 ## 0. Bestilling
 
@@ -221,7 +221,7 @@ Kortskjermen viser server-linjer + lokale (`kort/[projectId].tsx:212-222`). Over
 
 > **Erstatter § 3 av 2026-11-07** («byggeplass | underprosjekt», enten/eller). Byggeplass er **alltid** med, som i dag og som 36b bygde kortet. Underprosjekt er en **frivillig tilleggsdimensjon** som firmaet slår av eller på. Når den er på, kan en registrering bære prosjekt + byggeplass + underprosjekt samtidig (Kenneth utsagn 1); feltet kan alltid stå tomt (utsagn 2).
 
-### 3.1 Hvor innstillingen bor — B1 (revidert, venter på Kenneth)
+### 3.1 Hvor innstillingen bor — B1 (🟢 VEDTATT 2026-11-08)
 
 **Anbefaling:** nytt boolsk felt på `OrganizationSetting` i **`packages/db`** (kjernen):
 
@@ -335,7 +335,7 @@ ECO-kolonne + filter i `timer.rapport.detaljEksport` (`rapport.ts:313-315`-plane
 | 1 | **36b** (dagsoversikt A, inkl. hurtigvelg) — **merget `3ff60370`** | — | 36d-1 rendrer i `ProsjektkortDagsoversikt` |
 | 2 | **36c** | 36b | Redesigns leveranse; 36d-1 legges etter den (vedtak 2026-11-07). Bærer mellomløsningen § 3.8 |
 | 3 | **36d-1** maskin- og varekontroll i oversikten (§ 2) | 36b | Svarer direkte på begge Kenneth-funnene uten skjemaendring; viser «Hele prosjektet»/«Ikke knyttet» som er kontrollen |
-| 4 | **36d-2** firmavalg av/på + underprosjekt i Bekreft dag (§ 3) | B1 (revidert); 36c (erstatter mellomløsningen) | Skjemaendring i `packages/db` + mobil-kolonne; bør ikke blandes med 36d-1 |
+| 4 | **36d-2** firmavalg av/på + underprosjekt i Bekreft dag (§ 3) | B1 (🟢 vedtatt); 36c (erstatter mellomløsningen) | Skjemaendring i `packages/db` + mobil-kolonne; bør ikke blandes med 36d-1 |
 | 5 | **36d-3** web-oversikt (§ 4) | 36d-2 for underprosjekt-kolonnen; ellers uavhengig | Kan starte parallelt med 36d-2 etter 36d-1 |
 
 ---
@@ -403,7 +403,7 @@ Nøklene `firma.innstillinger.foringsnivaa.*` og `vareforbruk.felt.underprosjekt
 
 | # | Spørsmål | Anbefaling | Status |
 |---|---|---|---|
-| **B1 (revidert 2026-11-08)** | Innstillingen `benytterUnderprosjekt Boolean @default(false)` som ny kolonne på `OrganizationSetting` i `packages/db` (kjernen), ingen backfill; deploy-notat lister firmaer med eksisterende ECO-rader som må slås på. Skjemaendring = ja. | Ja — følger de boolske feltenes presedens (`:414/:425`); erstatter `foringsnivaa`. Default `false` (alternativ `true` beskrevet § 3.1) | **🟡 VENTER PÅ KENNETH** (navn, type, default). Migrering via deploy-flyten, aldri av agenten |
+| **B1 (revidert 2026-11-08)** | Innstillingen `benytterUnderprosjekt Boolean @default(false)` som ny kolonne på `OrganizationSetting` i `packages/db` (kjernen), ingen backfill; deploy-notat lister firmaer med eksisterende ECO-rader som må slås på. Skjemaendring = ja. | Ja — følger de boolske feltenes presedens (`:414/:425`); erstatter `foringsnivaa`. Default `false` (alternativ `true` beskrevet § 3.1) | **🟢 JA** (2026-11-08, «Ja, i tillegg») — navn, type og default `false` som anbefalt. Migrering via deploy-flyten, aldri av agenten |
 | **B2** | Dagskortet `app/timer/[id].tsx`: følge firmavalget eller uendret? | B2-a uendret | **🟢 JA B2-a + presisering** (2026-11-07): gamle dagskortet uendret; prosjektkort-flyten (36b, prosjektkort, Bekreft dag) er «det nye dagskortet» og tilpasses |
 | **B3** | § 2.4 «Hører til arbeidstimer»-velger i `MaskinRadModal` (prop-gated)? | Ja i 36d-1 | **🟢 JA** |
 | **B4** | Byggeplass-overskridelse maskin > arbeid: kun visning eller server-sperre? | Kun visning | **🟢 JA** |
