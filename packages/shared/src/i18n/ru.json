@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Норма неизвестна — сверхурочные не назначены",
   "timer.attestering.arbeidReiseSplit": "Работа {{arbeid}} ч · Поездка {{reise}} ч",
   "timer.bekreftDag.tittel": "Подтвердить день",
+  "timer.bekreftDag.manuell.tittel": "Новая карточка проекта",
+  "timer.bekreftDag.manuell.hjelp": "Сохранено как карточка проекта на дату. Если у вас уже есть часы на этот день, карточка добавляется вместе с ними.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} ч",
   "timer.bekreftDag.sluttAnslaatt": "Окончание примерно",
   "timer.bekreftDag.norm": "Стандартный {{norm}} ч",

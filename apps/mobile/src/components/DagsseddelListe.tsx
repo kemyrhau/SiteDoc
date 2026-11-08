@@ -27,6 +27,10 @@ import { TimerStatusMerkelapp } from "./TimerStatusMerkelapp";
 import { UkeTotalBanner } from "./UkeTotalBanner";
 import { StartSluttDagKort } from "./StartSluttDagKort";
 import { NyTimerRadFlyt } from "./timer-detalj/NyTimerRadFlyt";
+import { useFirma } from "../kontekst/FirmaKontekst";
+import { lesTimerModusLokalt } from "../services/organizationSettingKatalog";
+import { sjekkAnsattForNyRegistrering } from "../utils/ansattSjekk";
+import { lokalIsoDato } from "../utils/dato";
 
 interface DagsseddelRad {
   id: string;
@@ -168,6 +172,27 @@ export function DagsseddelListe({
   const [rader, setRader] = useState<DagsseddelRad[]>([]);
   // ORDRE 17: «+» åpner timer-raden direkte (erstatter /timer/ny).
   const [visNyRad, setVisNyRad] = useState(false);
+  const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
+
+  // ORDRE 36c: i prosjektkort-modus åpner «+» Bekreft dag uten GPS (dagens
+  // dato forhåndsvalgt, kan byttes). Dagskort-modus beholder timer-raden.
+  const onPluss = useCallback(async () => {
+    if (!valgtFirmaId || lesTimerModusLokalt(valgtFirmaId) !== "prosjektkort") {
+      setVisNyRad(true);
+      return;
+    }
+    const ansatt = await sjekkAnsattForNyRegistrering({
+      erAnsattIValgtFirma,
+      orgId: valgtFirmaId,
+      firmaNavn: valgtFirma?.name ?? "",
+      t,
+    });
+    if (!ansatt) return;
+    router.push({
+      pathname: "/timer/bekreft-dag",
+      params: { opprinnelse: "manuell", dato: lokalIsoDato(new Date()) },
+    });
+  }, [valgtFirmaId, valgtFirma?.name, erAnsattIValgtFirma, t, router]);
 
   // Re-les fra DB hver gang siden får fokus (etter retur fra detalj/ny)
   useFocusEffect(
@@ -298,7 +323,7 @@ export function DagsseddelListe({
 
       {/* Floating action button */}
       <Pressable
-        onPress={() => setVisNyRad(true)}
+        onPress={() => void onPluss()}
         className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-blue-600 shadow-lg active:bg-blue-700"
       >
         <Plus size={28} color="#ffffff" />

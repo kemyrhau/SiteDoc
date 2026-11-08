@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Normi ​​tuntematon – ylitöitä ei jaettu",
   "timer.attestering.arbeidReiseSplit": "Työ {{arbeid}} h · Matkailu {{reise}} h",
   "timer.bekreftDag.tittel": "Vahvista päivä",
+  "timer.bekreftDag.manuell.tittel": "Uusi projektikortti",
+  "timer.bekreftDag.manuell.hjelp": "Tallennettu projektikorttina päivämääränä. Jos sinulla on jo tunteja sinä päivänä, kortti lisätään niiden viereen.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Loppuarvio",
   "timer.bekreftDag.norm": "Normaali {{norm}} h",

@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norma nezināma — virsstundas nav iedalītas",
   "timer.attestering.arbeidReiseSplit": "Darbs {{arbeid}} h · Ceļojums {{reise}} h",
   "timer.bekreftDag.tittel": "Apstipriniet dienu",
+  "timer.bekreftDag.manuell.tittel": "Jauna projekta karte",
+  "timer.bekreftDag.manuell.hjelp": "Saglabāta kā projekta karte datumā. Ja jums jau ir stundas šajā dienā, karte tiek pievienota tām līdzās.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Aprēķināts beigas",
   "timer.bekreftDag.norm": "Standarta {{norm}} h",

@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norma nieznana — nie przydzielono godzin nadliczbowych",
   "timer.attestering.arbeidReiseSplit": "Praca {{arbeid}} godz. · Podróżowanie {{reise}} godz",
   "timer.bekreftDag.tittel": "Potwierdź dzień",
+  "timer.bekreftDag.manuell.tittel": "Nowa karta projektu",
+  "timer.bekreftDag.manuell.hjelp": "Zapisano jako kartę projektu w dniu. Jeśli tego dnia masz już godziny, karta jest dodawana obok nich.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} godz",
   "timer.bekreftDag.sluttAnslaatt": "Koniec szacowany",
   "timer.bekreftDag.norm": "Standardowa {{norm}} godz",

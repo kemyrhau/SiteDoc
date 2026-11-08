@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norm ukjent — overtid ikke fordelt",
   "timer.attestering.arbeidReiseSplit": "Arbeid {{arbeid}} t · Reise {{reise}} t",
   "timer.bekreftDag.tittel": "Bekreft dag",
+  "timer.bekreftDag.manuell.tittel": "Nytt prosjektkort",
+  "timer.bekreftDag.manuell.hjelp": "Lagres som prosjektkort på datoen. Har du alt timer den dagen, legges kortet inn sammen med dem.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} t",
   "timer.bekreftDag.sluttAnslaatt": "Slutt anslått",
   "timer.bekreftDag.norm": "Norm {{norm}} t",

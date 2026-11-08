@@ -20,20 +20,9 @@ import { DagstotalBanner } from "../../../src/components/DagstotalBanner";
 import { RedigerArbeidstidModal } from "../../../src/components/timer-detalj/ArbeidstidSeksjon";
 import { ProsjektkortDagsoversikt } from "../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
 import { useProsjektkortSedel } from "../../../src/components/timer-detalj/prosjektkort/useProsjektkortSedel";
-import { ProsjektVelgerModal } from "../../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../../src/components/timer-detalj/ByggeplassVelger";
-import {
-  KortValgModal,
-  kortValgTrengs,
-} from "../../../src/components/timer-detalj/prosjektkort/KortValgModal";
 import { DagSeksjon } from "../../../src/components/timer-detalj/prosjektkort/DagSeksjon";
-import { useProsjekt } from "../../../src/kontekst/ProsjektKontekst";
-import { useByggeplass } from "../../../src/kontekst/ByggeplassKontekst";
-import { hentByggeplasserForFirmaLokalt } from "../../../src/services/byggeplassKatalog";
-import { byggeplassForNyRad } from "../../../src/services/nyTimerRad";
 import {
-  effektivByggeplass,
-  kortNokkel,
   tilRuteParam,
   type KortValg,
 } from "../../../src/lib/prosjektkortMobil";
@@ -55,10 +44,6 @@ export default function ProsjektkortSkjerm() {
   const s = useProsjektkortSedel(sheetId);
   const { sedel } = s;
 
-  const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
-  const [nyttKortProsjekt, setNyttKortProsjekt] = useState<string | null>(null);
-  const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useByggeplass();
   const [visByggeplassVelger, setVisByggeplassVelger] = useState(false);
   const [visRammeModal, setVisRammeModal] = useState(false);
   const [visAapnetNotis, setVisAapnetNotis] = useState(
@@ -380,7 +365,13 @@ export default function ProsjektkortSkjerm() {
           byggeplassNavn={s.byggeplassNavn}
           redigerbar={s.erRedigerbar}
           onAapneKort={aapneKort}
-          onNyttKort={() => setVisLeggTilProsjekt(true)}
+          onNyttKort={() =>
+            // ORDRE 36c: samme skjerm som «Start dag», uten GPS; datoen er kortets.
+            router.push({
+              pathname: "/timer/bekreft-dag",
+              params: { opprinnelse: "manuell", dato: sedel.dato, laastDato: "1" },
+            })
+          }
           onEndreRamme={() => setVisRammeModal(true)}
           onEndreByggeplass={() => setVisByggeplassVelger(true)}
           onSend={s.sendTilAttestering}
@@ -441,47 +432,6 @@ export default function ProsjektkortSkjerm() {
           )}
         </View>
       </ScrollView>
-
-      {visLeggTilProsjekt && (
-        <ProsjektVelgerModal
-          organizationId={sedel.organizationId}
-          valgtId={null}
-          onVelg={(id) => {
-            setVisLeggTilProsjekt(false);
-            // K3: byggeplass/underprosjekt spørres bare når prosjektet har
-            // flere byggeplasser eller underprosjekter. Nytt kort lagres når
-            // første rad legges til.
-            if (kortValgTrengs(id)) setNyttKortProsjekt(id);
-            else
-              aapneKort({ projectId: id, byggeplassId: effektivByggeplass(id, null, sedelKontekst), ecoId: null });
-          }}
-          onLukk={() => setVisLeggTilProsjekt(false)}
-        />
-      )}
-
-      {nyttKortProsjekt && (
-        <KortValgModal
-          organizationId={sedel.organizationId}
-          modus={{
-            type: "ny",
-            projectId: nyttKortProsjekt,
-            forslagByggeplassId: byggeplassForNyRad(nyttKortProsjekt, {
-              innlogget: valgtProsjektId
-                ? { projectId: valgtProsjektId, byggeplassId: valgtBygningId }
-                : null,
-              gps: null,
-              byggeplasser: hentByggeplasserForFirmaLokalt(sedel.organizationId),
-            }),
-          }}
-          sedel={sedelKontekst}
-          prosjektNavn={s.prosjektNavn}
-          onVelg={(k) => {
-            setNyttKortProsjekt(null);
-            aapneKort(s.kort.find((e) => kortNokkel(e) === kortNokkel(k)) ?? k);
-          }}
-          onLukk={() => setNyttKortProsjekt(null)}
-        />
-      )}
 
       {visRammeModal && (
         <RedigerArbeidstidModal

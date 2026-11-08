@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norm unknown — overtime not allocated",
   "timer.attestering.arbeidReiseSplit": "Work {{arbeid}} h · Travel {{reise}} h",
   "timer.bekreftDag.tittel": "Confirm day",
+  "timer.bekreftDag.manuell.tittel": "New project card",
+  "timer.bekreftDag.manuell.hjelp": "Saved as a project card on the date. If you already have hours that day, the card is added alongside them.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "End estimated",
   "timer.bekreftDag.norm": "Standard {{norm}} h",

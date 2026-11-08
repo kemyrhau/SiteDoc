@@ -68,6 +68,7 @@ import {
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { erReiseRadVisning } from "../../utils/reiseRad";
+import { nyRadTider } from "../../utils/nyRadTider";
 import type {
   TimerRad,
   Lonnsart,
@@ -1123,17 +1124,22 @@ export function TimerRadModal({
   // både timer-synken og lagringen så timetallet, avkrysningen og det lagrede
   // fradraget alltid stemmer — ingen skjult firma-default lenger (P1). Kalles med
   // de FERSKE tidene i hver handler (unngår en-render-lag mot `radPauseMin`-memo).
+  // ORDRE 36c del B: en reiserad bærer aldri matpausen. Boolsk i dep-arrayene
+  // — `reise`-objektet er nytt hver render hos kalleren.
+  const erReiseRad = !!reise;
   const radPauseMinFor = useCallback(
     (fra: string | null, til: string | null): number =>
-      avgjorRadPauseMin({
-        alleRader: alleTimerRader,
-        radId: eksisterendeRad?.id ?? null,
-        fraTid: fra,
-        tilTid: til,
-        pauseFra,
-        standardPauseMin: pauseMin,
-      }),
-    [alleTimerRader, eksisterendeRad, pauseFra, pauseMin],
+      erReiseRad
+        ? 0
+        : avgjorRadPauseMin({
+            alleRader: alleTimerRader,
+            radId: eksisterendeRad?.id ?? null,
+            fraTid: fra,
+            tilTid: til,
+            pauseFra,
+            standardPauseMin: pauseMin,
+          }),
+    [erReiseRad, alleTimerRader, eksisterendeRad, pauseFra, pauseMin],
   );
 
   // Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
@@ -1149,24 +1155,15 @@ export function TimerRadModal({
     }
     const effektiv = hentArbeidsdagTiderLokalt(organizationId, new Date(`${dato}T00:00:00`));
     // Bolk (g) prefill-scope (M6, 2026-07-10): fra = seneste tilTid over HELE
-    // sedelen (alle bøtter, `alleTimerRader`), beregnet som MAKS via hhmmTilMin
-    // — ikke siste array-element (rekkefølge-uavhengig; speiler webs reduce i
-    // `page.tsx` `onTilfoyTimer`). «Fortsett der du slapp» på hele dagen;
-    // hindrer prefill inn i et allerede registrert tidsrom. `eksisterendeRader`
-    // (bøtte-scopet) beholdes for lønnsart/aktivitet-prefill (`defaultValg`).
-    const senesteTil = alleTimerRader
-      .map((r) => r.tilTid)
-      .filter((tid): tid is string => !!tid)
-      .reduce<string | null>(
-        (senest, tid) =>
-          senest === null || hhmmTilMin(tid) > hhmmTilMin(senest) ? tid : senest,
-        null,
-      );
-    return {
-      fra: senesteTil ?? effektiv.startTid,
-      til: effektiv.sluttTid,
-    };
-  }, [eksisterendeRad, alleTimerRader, organizationId, dato]);
+    // sedelen (alle bøtter, `alleTimerRader`) — speiler webs reduce i
+    // `page.tsx` `onTilfoyTimer`. `eksisterendeRader` (bøtte-scopet) beholdes
+    // for lønnsart/aktivitet-prefill (`defaultValg`). Reise: ingen sluttid.
+    return nyRadTider({
+      reise: erReiseRad,
+      tilTider: alleTimerRader.map((r) => r.tilTid),
+      effektiv,
+    });
+  }, [eksisterendeRad, alleTimerRader, organizationId, dato, erReiseRad]);
 
   // Forhåndsvelg lønnsart + aktivitet på ny rad. Prioritetskjede:
   //   - Rediger eksisterende rad: bruk radens egne verdier

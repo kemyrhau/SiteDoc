@@ -3,7 +3,7 @@ import type { Dagsforslag, DagsforslagDag } from "./dagsforslag";
 
 /**
  * ORDRE 36b (revidert plan § 5): «Hva gjorde du i dag?» pr. KORT
- * (prosjekt + effektiv byggeplass; underprosjekt finnes ikke i Bekreft dag).
+ * (prosjekt + effektiv byggeplass; underprosjekt inngår ikke i nøkkelen).
  *
  * Nøkkelen i `beskrivelsePerKort` er:
  *  - `projectId` når prosjektet har ETT kort med arbeid — identisk med 36a,

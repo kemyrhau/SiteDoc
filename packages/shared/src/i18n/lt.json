@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norma nežinoma – viršvalandžiai neskirti",
   "timer.attestering.arbeidReiseSplit": "Darbas {{arbeid}} val. · Kelionės {{reise}} val",
   "timer.bekreftDag.tittel": "Patvirtinkite dieną",
+  "timer.bekreftDag.manuell.tittel": "Nauja projekto kortelė",
+  "timer.bekreftDag.manuell.hjelp": "Išsaugota kaip projekto kortelė datą. Jei tą dieną jau turite valandų, kortelė pridedama prie jų.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} val.",
   "timer.bekreftDag.sluttAnslaatt": "Apskaičiuota pabaiga",
   "timer.bekreftDag.norm": "Standartinė {{norm}} val",
