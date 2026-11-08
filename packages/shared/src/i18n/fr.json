@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norme inconnue — heures supplémentaires non attribuées",
   "timer.attestering.arbeidReiseSplit": "Travail {{arbeid}} h · Voyage {{reise}} h",
   "timer.bekreftDag.tittel": "Confirmer le jour",
+  "timer.bekreftDag.manuell.tittel": "Nouvelle fiche de projet",
+  "timer.bekreftDag.manuell.hjelp": "Enregistré comme carte de projet à la date. Si vous avez déjà des heures ce jour-là, la carte est ajoutée à côté d'elles.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Fin estimée",
   "timer.bekreftDag.norm": "Norme {{norm}} h",

@@ -7,10 +7,11 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Platform,
   type TextInput,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, Car, Minus, Plus, Trash2, Undo2 } from "lucide-react-native";
+import { ArrowLeft, Calendar, Car, ChevronRight, Minus, Plus, Trash2, Undo2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import { eq, and } from "drizzle-orm";
@@ -28,6 +29,7 @@ import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { tilHHMM } from "../../src/hooks/useArbeidsdag";
 import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
 import { hentByggeplasserForProsjektLokalt } from "../../src/services/byggeplassKatalog";
+import { hentUnderprosjekterLokalt } from "../../src/services/timerKatalog";
 import { FraTilTidFelt } from "../../src/components/timer-detalj/FraTilTidFelt";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { useModalInnsetter } from "../../src/components/ModalInnsetter";
@@ -42,6 +44,9 @@ import {
   flyttBeskrivelse,
   flyttBeskrivelseVedProsjektbytte,
 } from "../../src/utils/bekreftDag";
+import { forberedManuellDag } from "../../src/utils/manuellDag";
+import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
+import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
 import { kortMedArbeid } from "../../src/utils/beskrivelseKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
@@ -77,6 +82,11 @@ import type {
  * arbeideren skjermen (Ikke nå, tilbake, drept app) står dagen `paagaar`, og
  * «Slutt dag» åpner skjermen på nytt med fersk slutt-GPS. Slutt-posisjonen
  * kommer som ruteparametre fra kortet (transient, ikke lagret).
+ *
+ * ORDRE 36c — MANUELL modus (`opprinnelse=manuell`, «+» og «+ Nytt
+ * prosjektkort»): samme skjerm uten GPS og uten arbeidsdag. Datoen er valgt på
+ * forhånd og kan byttes (ikke fra et prosjektkort: `laastDato`). Finnes en
+ * dagsseddel den datoen, legges registreringen inn i den (`bekreftDag`).
  */
 
 type Valgark = "prosjekt" | "byggeplass" | "aktivitet" | null;
@@ -103,7 +113,12 @@ export default function BekreftDagSkjerm() {
     endLat?: string;
     endLng?: string;
     sisteSegmentKilde?: string;
+    opprinnelse?: string;
+    dato?: string;
+    laastDato?: string;
   }>();
+  const manuell = params.opprinnelse === "manuell";
+  const laastDato = params.laastDato === "1";
   const { bruker } = useAuth();
   const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
   const { valgtProsjektId } = useProsjekt();
@@ -118,6 +133,8 @@ export default function BekreftDagSkjerm() {
     params.sisteSegmentKilde === "system" ? "system" : "bruker";
 
   const [retting, setRetting] = useState<DagsforslagRetting>({});
+  const [manuellDato, setManuellDato] = useState(params.dato ?? lokalIsoDato(new Date()));
+  const [visDatoVelger, setVisDatoVelger] = useState(false);
   // A2: byggeplassvalget kjører lese-fasen på nytt (kun select).
   const [valgtByggeplassId, setValgtByggeplassId] = useState<
     string | null | undefined
@@ -151,7 +168,7 @@ export default function BekreftDagSkjerm() {
   // Dagen leses fra DB — kun en `paagaar`-dag kan bekreftes.
   const dag = useMemo(() => {
     const db = hentDatabase();
-    if (!db || !params.arbeidsdagId) return null;
+    if (!db || manuell || !params.arbeidsdagId) return null;
     const rad = db
       .select()
       .from(arbeidsdagLocal)
@@ -165,13 +182,28 @@ export default function BekreftDagSkjerm() {
       oppmotestedId: rad.oppmotestedId ?? null,
       byggeplassId: rad.byggeplassId ?? null,
     };
-  }, [params.arbeidsdagId]);
+  }, [manuell, params.arbeidsdagId]);
 
   // LES + REGN på nytt ved hver retting. Ingen skriving.
   const beregnet = useMemo(() => {
     const db = hentDatabase();
-    if (!db || !dag || !bruker?.id || !sluttIso) return null;
-    return forberedBekreftDag(
+    if (!db || !bruker?.id) return null;
+    if (manuell) {
+      return forberedManuellDag(
+        db,
+        {
+          userId: bruker.id,
+          orgId,
+          dato: manuellDato,
+          kontekstByggeplassId: valgtBygningId,
+          aktivtProsjektId: valgtProsjektId,
+          valgtByggeplassId,
+        },
+        retting,
+      );
+    }
+    if (!dag || !sluttIso) return null;
+    const lest = forberedBekreftDag(
       db,
       {
         userId: bruker.id,
@@ -187,7 +219,10 @@ export default function BekreftDagSkjerm() {
       },
       retting,
     );
-  }, [dag, bruker?.id, orgId, sluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting]);
+    return { ...lest, sluttIso };
+  }, [manuell, manuellDato, dag, bruker?.id, orgId, sluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting]);
+  // Manuell: sluttiden er utledet (`manuellDag`), ikke en slutt-GPS.
+  const effSluttIso = beregnet?.sluttIso ?? sluttIso;
 
   const prosjekter = useMemo(() => hentProsjekterLokalt(orgId), [orgId]);
   const aktiviteter = useMemo(() => {
@@ -246,6 +281,20 @@ export default function BekreftDagSkjerm() {
     () => (prosjektId ? hentByggeplasserForProsjektLokalt(prosjektId) : []),
     [prosjektId],
   );
+  // ORDRE 36c (rettelse S2): valgfritt underprosjekt i manuell modus. Vises når
+  // prosjektet har aktive underprosjekter (K3, til firmavalget i 36d-2). Tomt
+  // ved åpning, forhåndsvelges aldri; nytt trykk på valgt chip tømmer.
+  const underprosjekter = useMemo(
+    () =>
+      manuell && prosjektId
+        ? hentUnderprosjekterLokalt(prosjektId)
+            .map((e) => ({ id: e.id, navn: `${e.proAdmId} — ${e.kortNavn}` }))
+            .sort((a, b) => a.navn.localeCompare(b.navn, "nb", { numeric: true }))
+        : [],
+    [manuell, prosjektId],
+  );
+  const [ecoId, setEcoId] = useState<string | null>(null);
+  useEffect(() => setEcoId(null), [prosjektId]);
 
   // L3-D: vakten leser start-sedelen (om den finnes) + dagens nye rader.
   const grunnlag = useMemo(() => {
@@ -311,7 +360,7 @@ export default function BekreftDagSkjerm() {
 
   const bekreft = useCallback(() => {
     const db = hentDatabase();
-    if (!db || !beregnet || !bruker?.id || !params.arbeidsdagId || lagrer) return;
+    if (!db || !beregnet || !bruker?.id || (!manuell && !params.arbeidsdagId) || lagrer) return;
     // ORDRE 36a: påkrevd beskrivelse — sperren står FØR noe skrives.
     const tomme = manglerBeskrivelse(beregnet.forslag);
     if (tomme.length > 0) {
@@ -327,8 +376,9 @@ export default function BekreftDagSkjerm() {
         erAnsatt: erAnsatt ?? null,
         nyId: randomUUID,
         naa: Date.now,
-        arbeidsdagId: params.arbeidsdagId,
-        sluttIso,
+        arbeidsdagId: manuell ? null : params.arbeidsdagId,
+        ecoId: manuell ? ecoId : null,
+        sluttIso: effSluttIso,
         endLat,
         endLng,
       }, rensTillegg(tillegg, tilstand));
@@ -347,7 +397,9 @@ export default function BekreftDagSkjerm() {
       // Utfallene fra «Slutt dag» (H7), nå bak Bekreft.
       switch (handling.type) {
         case "suksess":
-          router.replace(`/timer/${handling.sheetId}`);
+          // Fra prosjektkortet (låst dato): tilbake dit — kortet leser på nytt ved fokus.
+          if (laastDato) router.back();
+          else router.replace(`/timer/${handling.sheetId}`);
           // B6.3-markør: normen var ikke dagens server-svar → si det.
           if (forslag.normStatus === "ukjent") {
             Alert.alert(
@@ -401,7 +453,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, params.arbeidsdagId, lagrer, orgId, erAnsatt, sluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -428,17 +480,17 @@ export default function BekreftDagSkjerm() {
         <ArrowLeft size={22} color="#1f2937" />
       </Pressable>
       <Text className="flex-1 text-lg font-semibold text-gray-900">
-        {t("timer.bekreftDag.tittel")}
+        {t(manuell ? "timer.bekreftDag.manuell.tittel" : "timer.bekreftDag.tittel")}
       </Text>
     </View>
   );
 
-  if (!dag || !beregnet || erAnsatt === undefined) {
+  if ((!manuell && !dag) || !beregnet || erAnsatt === undefined) {
     return (
       <ModalFlate className="bg-gray-50">
         {topp}
         <View className="flex-1 items-center justify-center">
-          {dag ? <ActivityIndicator /> : (
+          {dag || manuell ? <ActivityIndicator /> : (
             <Text className="text-sm text-gray-500">{t("timer.bekreftDag.ingenAapenDag")}</Text>
           )}
         </View>
@@ -451,7 +503,7 @@ export default function BekreftDagSkjerm() {
   const sum = alleRader.reduce((s, r) => s + r.timer, 0);
   const forsteDag = forslag.datoer[0];
   const sisteDag = forslag.datoer[forslag.datoer.length - 1];
-  const anslaatt = sisteSegmentKilde === "system" || forslag.kappet;
+  const anslaatt = !manuell && (sisteSegmentKilde === "system" || forslag.kappet);
   const norm = forsteDag ? input.effektivPerDato[forsteDag.dato]?.dagsnorm : undefined;
   const otNivaa = new Map(
     input.alleLonnsarter.map((l) => [l.id, l.overtidsnivaa] as const),
@@ -482,13 +534,46 @@ export default function BekreftDagSkjerm() {
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
       >
+        {manuell && !laastDato ? (
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">{t("timer.felt.dato")}</Text>
+            <Pressable
+              onPress={() => setVisDatoVelger((v) => !v)}
+              className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-3"
+            >
+              <View className="flex-row items-center gap-2">
+                <Calendar size={18} color="#6b7280" />
+                <Text className="text-base text-gray-900">{formatNorskDato(manuellDato)}</Text>
+              </View>
+              <ChevronRight size={18} color="#9ca3af" />
+            </Pressable>
+            {visDatoVelger && (
+              <DatoVelgerFelt
+                value={new Date(`${manuellDato}T00:00:00`)}
+                mode="date"
+                iosDisplay="inline"
+                onChange={(_, valgt) => {
+                  if (Platform.OS !== "ios") setVisDatoVelger(false); // Android lukker selv
+                  if (!valgt) return;
+                  const ny = lokalIsoDato(valgt);
+                  if (ny === manuellDato) return;
+                  setManuellDato(ny);
+                  // Tidsrettingene hørte til forrige dato; prosjekt og beskrivelse følger med.
+                  setRetting((r) => ({ ...r, perDato: undefined }));
+                }}
+                onLukk={() => setVisDatoVelger(false)}
+              />
+            )}
+          </View>
+        ) : null}
+
         {/* Topplinje: dato · start/slutt · sum · norm */}
         <View className="rounded-lg border border-gray-200 bg-white p-3">
           <Text className="text-sm font-semibold text-gray-900">
             {t("timer.bekreftDag.topplinje", {
               dato: forsteDag?.dato ?? "",
-              start: tilHHMM(forsteDag?.segmentStartIso ?? dag.startAt),
-              slutt: tilHHMM(sisteDag?.segmentSluttIso ?? sluttIso),
+              start: tilHHMM(forsteDag?.segmentStartIso ?? dag?.startAt ?? ""),
+              slutt: tilHHMM(sisteDag?.segmentSluttIso ?? effSluttIso),
               sum: formatTimer(sum),
             })}
           </Text>
@@ -553,6 +638,28 @@ export default function BekreftDagSkjerm() {
                     }
                     onPress={() => setValgark("byggeplass")}
                   />
+                  {underprosjekter.length > 0 ? (
+                    <View className="gap-1">
+                      <Text className="text-sm text-gray-500">{t("timer.felt.underprosjekt")}</Text>
+                      <View className="flex-row flex-wrap gap-2">
+                        {underprosjekter.map((e) => {
+                          const valgt = ecoId === e.id;
+                          return (
+                            <Pressable
+                              key={e.id}
+                              onPress={() => setEcoId(valgt ? null : e.id)}
+                              accessibilityState={{ selected: valgt }}
+                              className={`min-h-[36px] justify-center rounded-full border px-3 ${
+                                valgt ? "border-gray-900 bg-gray-900" : "border-gray-300 bg-white active:bg-gray-50"
+                              }`}
+                            >
+                              <Text className={`text-sm ${valgt ? "text-white" : "text-gray-700"}`}>{e.navn}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  ) : null}
                   <Valgfelt
                     etikett={t("timer.bekreftDag.aktivitet")}
                     verdi={aktivitetNavn ?? "—"}
@@ -633,7 +740,9 @@ export default function BekreftDagSkjerm() {
               />
             ) : null}
 
-            <Text className="px-1 text-xs text-gray-500">{t("timer.bekreftDag.hjelp")}</Text>
+            <Text className="px-1 text-xs text-gray-500">
+              {t(manuell ? "timer.bekreftDag.manuell.hjelp" : "timer.bekreftDag.hjelp")}
+            </Text>
           </>
         ) : null}
       </ScrollView>
@@ -642,6 +751,9 @@ export default function BekreftDagSkjerm() {
       <View className="gap-2 border-t border-gray-200 bg-white p-4">
         {alleSendt ? (
           <Knapp tekst={t("handling.lukk")} onPress={ikkeNaa} sekundaer />
+        ) : manuell && (ikkeAnsatt || tomt) ? (
+          // Ingen arbeidsdag å avslutte i manuell modus.
+          <Knapp tekst={t("timer.bekreftDag.ikkeNaa")} onPress={ikkeNaa} sekundaer />
         ) : ikkeAnsatt || tomt ? (
           <>
             <Knapp

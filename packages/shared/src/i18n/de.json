@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norm unbekannt – Überstunden nicht zugeteilt",
   "timer.attestering.arbeidReiseSplit": "Arbeit {{arbeid}} h · Reise {{reise}} h",
   "timer.bekreftDag.tittel": "Tag bestätigen",
+  "timer.bekreftDag.manuell.tittel": "Neue Projektkarte",
+  "timer.bekreftDag.manuell.hjelp": "Am Datum als Projektkarte gespeichert. Wenn Sie an diesem Tag bereits Stunden haben, wird die Karte daneben hinzugefügt.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Ende geschätzt",
   "timer.bekreftDag.norm": "Standard {{norm}} h",

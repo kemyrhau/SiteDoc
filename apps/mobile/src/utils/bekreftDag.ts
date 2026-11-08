@@ -132,7 +132,10 @@ export function bekreftDag(
     erAnsatt: boolean | null;
     nyId: () => string;
     naa: () => number;
-    arbeidsdagId: string;
+    /** ORDRE 36c: null = manuell modus (ingen arbeidsdag å avslutte). */
+    arbeidsdagId: string | null;
+    /** ORDRE 36c: valgt underprosjekt i manuell modus. Utelatt/null = uten. */
+    ecoId?: string | null;
     sluttIso: string;
     endLat: number | null;
     endLng: number | null;
@@ -156,7 +159,7 @@ export function bekreftDag(
   // H7: avgjør handlingen FØR arbeidsdagen røres. Sendt sedel, ikke ansatt og
   // manglende kilde/prosjekt holder dagen åpen (A4 venter Kenneth).
   const handling = avgjorSluttDagHandling(resultat);
-  if (skalMarkereAvsluttet(handling)) {
+  if (ctx.arbeidsdagId && skalMarkereAvsluttet(handling)) {
     db.update(arbeidsdagLocal)
       .set({
         endAt: ctx.sluttIso,

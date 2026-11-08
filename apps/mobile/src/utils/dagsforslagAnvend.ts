@@ -46,6 +46,11 @@ export function anvendDagsforslag(
     erAnsatt: boolean | null;
     nyId: () => string;
     naa: () => number;
+    /**
+     * ORDRE 36c: underprosjekt på kortet (manuell Bekreft dag) — settes på
+     * arbeidsrader, maskin og varer. Utelatt/null = uten, som før.
+     */
+    ecoId?: string | null;
   },
   /** L3-D: maskin og varer fra bekreft-dag — skrives på start-sedelen (vedtak C). */
   tillegg?: BekreftDagTillegg,
@@ -147,7 +152,7 @@ export function anvendDagsforslag(
           projectId: rad.projectId,
           lonnsartId: rad.lonnsartId,
           aktivitetId: rad.aktivitetId,
-          externalCostObjectId: null,
+          externalCostObjectId: rad.erReise ? null : (ctx.ecoId ?? null),
           timer: rad.timer,
           fraTid: rad.fraTid,
           tilTid: rad.tilTid,
@@ -267,7 +272,7 @@ function utvidArbeidstidsvindu(
 function skrivTillegg(
   db: LokalDb,
   tillegg: BekreftDagTillegg,
-  ctx: { userId: string; orgId: string; nyId: () => string; naa: () => number; sheetId: string; dato: string },
+  ctx: { userId: string; orgId: string; nyId: () => string; naa: () => number; sheetId: string; dato: string; ecoId?: string | null },
 ): void {
   for (const m of tillegg.maskiner) {
     db.insert(sheetMachineLocal)
@@ -277,7 +282,7 @@ function skrivTillegg(
         sheetTimerId: null,
         projectId: m.projectId,
         vehicleId: m.vehicleId,
-        externalCostObjectId: null,
+        externalCostObjectId: ctx.ecoId ?? null,
         timer: m.timer,
         mengde: m.mengde,
         enhet: m.enhet,
@@ -301,6 +306,7 @@ function skrivTillegg(
         enhet: v.enhet,
         antall: v.antall,
         byggeplassId: v.byggeplassId,
+        externalCostObjectId: ctx.ecoId ?? null,
         syncStatus: "pending",
         feilmelding: null,
         sistEndretLokalt: ctx.naa(),

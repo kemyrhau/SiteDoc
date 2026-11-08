@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Normă necunoscută — ore suplimentare nu au fost alocate",
   "timer.attestering.arbeidReiseSplit": "Muncă {{arbeid}} h · Călătorie {{reise}} h",
   "timer.bekreftDag.tittel": "Confirmați ziua",
+  "timer.bekreftDag.manuell.tittel": "Noua carte de proiect",
+  "timer.bekreftDag.manuell.hjelp": "Salvat ca card de proiect la data respectivă. Dacă aveți deja ore în acea zi, cardul este adăugat alături de ele.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Sfârșit estimat",
   "timer.bekreftDag.norm": "Standard {{norm}} h",

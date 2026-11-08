@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norma neznámá – přesčasy nejsou přiděleny",
   "timer.attestering.arbeidReiseSplit": "Práce {{arbeid}} h · Cestování {{reise}} h",
   "timer.bekreftDag.tittel": "Potvrďte den",
+  "timer.bekreftDag.manuell.tittel": "Nová karta projektu",
+  "timer.bekreftDag.manuell.hjelp": "Uloženo jako karta projektu k datu. Pokud již máte ten den hodiny, karta se přidá vedle nich.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Odhadovaný konec",
   "timer.bekreftDag.norm": "Standardní {{norm}} h",

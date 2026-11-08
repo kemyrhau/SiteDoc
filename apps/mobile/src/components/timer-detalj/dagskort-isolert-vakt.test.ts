@@ -270,3 +270,27 @@ describe("ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet", () =>
     expect(UTLEGG.replace("prosjektValg && prosjektValg.length > 1", "true")).not.toContain(UTLEGG_CHIPS);
   });
 });
+
+// ORDRE 36c — reise uten sluttid/pause bor i TimerRadModal bak `reise`-propen
+// (kun DagSeksjon sender den); Bekreft dag i manuell modus når aldri dagskortet.
+const REISE_PAUSE = "erReiseRad ? 0 : avgjorRadPauseMin({";
+const NY_RAD_TIDER = "return nyRadTider({ reise: erReiseRad,";
+
+describe("ORDRE 36c — reise-forslag og manuell Bekreft dag rører ikke dagskortet", () => {
+  it.each(["opprinnelse", "\"/timer/bekreft-dag\"", "laastDato"])("🔴 dagskortet inneholder ikke «%s»", (navn) => {
+    expect(DAGSKORT).not.toContain(navn);
+  });
+
+  it("🔴 reise-grenen er styrt av propen: pause 0 og nyRadTider kun med reise", () => {
+    const k = flat(TIMER_SEKSJON);
+    expect(k).toContain("const erReiseRad = !!reise;");
+    expect(k).toContain(REISE_PAUSE);
+    expect(k).toContain(NY_RAD_TIDER);
+  });
+
+  it("negativkontroll: vilkåret byttet til true fanges", () => {
+    const mutant = flat(TIMER_SEKSJON).replace("const erReiseRad = !!reise;", "const erReiseRad = true;");
+    expect(mutant).not.toContain("const erReiseRad = !!reise;");
+    expect(flat(TIMER_SEKSJON).replace(REISE_PAUSE, "avgjorRadPauseMin({")).not.toContain(REISE_PAUSE);
+  });
+});

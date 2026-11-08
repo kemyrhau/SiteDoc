@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norma e panjohur - jashtë orarit nuk është caktuar",
   "timer.attestering.arbeidReiseSplit": "Puna {{arbeid}} h · Udhëtim {{reise}} h",
   "timer.bekreftDag.tittel": "Konfirmo ditën",
+  "timer.bekreftDag.manuell.tittel": "Karta e re e projektit",
+  "timer.bekreftDag.manuell.hjelp": "Ruajtur si një kartë projekti në datën. Nëse keni tashmë orë atë ditë, kartela shtohet krahas tyre.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} orë",
   "timer.bekreftDag.sluttAnslaatt": "Fundi i vlerësuar",
   "timer.bekreftDag.norm": "Standardi {{norm}} h",

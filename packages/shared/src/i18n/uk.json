@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Норма невідома — понаднормова не нарахована",
   "timer.attestering.arbeidReiseSplit": "Робота {{arbeid}} h · Подорож {{reise}} h",
   "timer.bekreftDag.tittel": "Підтвердьте день",
+  "timer.bekreftDag.manuell.tittel": "Нова картка проекту",
+  "timer.bekreftDag.manuell.hjelp": "Збережено як картку проекту на дату. Якщо у вас уже є години на цей день, картка додається разом із ними.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} год",
   "timer.bekreftDag.sluttAnslaatt": "Кінець оцінюється",
   "timer.bekreftDag.norm": "Стандарт {{norm}} год",

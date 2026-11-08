@@ -37,3 +37,10 @@ export function isoTidspunktTilHHMM(iso: string | null | undefined): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
+
+/** Lokal kalenderdato som `YYYY-MM-DD` (ikke UTC — `toISOString` bytter dato etter midnatt). */
+export function lokalIsoDato(d: Date): string {
+  const maaned = String(d.getMonth() + 1).padStart(2, "0");
+  const dag = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${maaned}-${dag}`;
+}

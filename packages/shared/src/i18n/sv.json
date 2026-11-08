@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norm okänd — övertid ej tilldelad",
   "timer.attestering.arbeidReiseSplit": "Jobba {{arbeid}} h · Resa {{reise}} h",
   "timer.bekreftDag.tittel": "Bekräfta dag",
+  "timer.bekreftDag.manuell.tittel": "Nytt projektkort",
+  "timer.bekreftDag.manuell.hjelp": "Sparat som projektkort på datumet. Om du redan har timmar den dagen läggs kortet till vid sidan av dem.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Slut beräknat",
   "timer.bekreftDag.norm": "Standard {{norm}} h",

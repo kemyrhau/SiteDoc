@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -7,7 +6,8 @@ import { hentDatabase } from "../../db/database";
 import { dagsseddelLocal, equipmentLocal, sheetTimerLocal } from "../../db/schema";
 import { useAuth } from "../../providers/AuthProvider";
 import { useTimerSync } from "../../providers/TimerSyncProvider";
-import { useFirma, hentLagretAnsattStatus } from "../../kontekst/FirmaKontekst";
+import { useFirma } from "../../kontekst/FirmaKontekst";
+import { sjekkAnsattForNyRegistrering } from "../../utils/ansattSjekk";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../kontekst/ByggeplassKontekst";
 import { useGeoProsjektForslag } from "../../hooks/useGeoProsjektForslag";
@@ -75,14 +75,14 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
   useEffect(() => {
     let avbrutt = false;
     (async () => {
-      const erAnsatt =
-        erAnsattIValgtFirma ?? (orgId ? await hentLagretAnsattStatus(orgId) : null);
+      const ansatt = await sjekkAnsattForNyRegistrering({
+        erAnsattIValgtFirma,
+        orgId,
+        firmaNavn: valgtFirma?.name ?? "",
+        t,
+      });
       if (avbrutt) return;
-      if (erAnsatt === false) {
-        Alert.alert(
-          t("timer.kildeManglet.tittel"),
-          t("timer.ikkeAnsatt", { firma: valgtFirma?.name ?? "" }),
-        );
+      if (!ansatt) {
         onLukk();
         return;
       }

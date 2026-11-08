@@ -4885,6 +4885,8 @@
   "timer.attestering.norm.ukjent": "Norm teadmata — ületunde ei jaotata",
   "timer.attestering.arbeidReiseSplit": "Töö {{arbeid}} h · Reisimine {{reise}} h",
   "timer.bekreftDag.tittel": "Kinnitage päev",
+  "timer.bekreftDag.manuell.tittel": "Uus projektikaart",
+  "timer.bekreftDag.manuell.hjelp": "Salvestatud kuupäeval projektikaardina. Kui teil on sel päeval juba tunnid, lisatakse kaart nende kõrvale.",
   "timer.bekreftDag.topplinje": "{{dato}} · {{start}}–{{slutt}} · {{sum}} h",
   "timer.bekreftDag.sluttAnslaatt": "Hinnanguline lõpp",
   "timer.bekreftDag.norm": "Standardne {{norm}} h",
