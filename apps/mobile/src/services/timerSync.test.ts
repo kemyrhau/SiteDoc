@@ -1281,3 +1281,141 @@ describe("36c-kort-3 — pushEnSedel pusher én sedel, uten pull", () => {
     expect(fanget.pull).toBe(1);
   });
 });
+
+/**
+ * ORDRE 36e (pkt. 1) — push/pull-kappløpet som tapte Kenneths «Bekreft dag»
+ * 09.11 21:07: en skriving MENS syncBatch er i luften må ikke stemples synket,
+ * ellers erstatter pullen i samme kjøring radene med serverens (uten de nye).
+ */
+describe("ORDRE 36e — skriving under push tapes ikke", () => {
+  const okSvar = (id: string): PushResultat =>
+    ({
+      clientUuid: id,
+      resultat: "ok",
+      serverData: {
+        id,
+        status: "draft",
+        lederKommentar: null,
+        attestertVed: null,
+        updatedAt: "2026-11-09T20:00:00.000Z",
+        rader: [],
+      },
+    }) as unknown as PushResultat;
+
+  /** Pull som bærer sedelen UTEN rader (serverens bilde før den nye skrivingen). */
+  const pullUtenRader = (id: string) => ({
+    serverTid: "2026-11-09T21:10:00.000Z",
+    sedler: [serverSedel({ id, dato: "2026-11-09", status: "draft" })],
+    levendeSedler: [{ id, clientUuid: id }],
+    slettevindu: { fraDato: "2026-01-01", tilDato: null },
+  });
+
+  /** Klient der `underPush` kjører inne i syncBatch.mutate (brukeren lagrer midt i pushen). */
+  function klientMedSkrivingUnderPush(
+    resultater: PushResultat[],
+    pull: { serverTid: string; sedler: ServerSedel[]; levendeSedler: Array<{ id: string; clientUuid?: string }>; slettevindu: { fraDato: string; tilDato: string | null } },
+    underPush: () => void,
+  ) {
+    return {
+      timer: {
+        dagsseddel: {
+          syncBatch: {
+            mutate: async () => {
+              underPush();
+              return { resultater };
+            },
+          },
+          hentEndringerSiden: { query: async () => pull },
+          hentMedId: { query: async () => ({ timer: [] }) },
+        },
+      },
+    } as unknown as Parameters<typeof syncTimer>[0];
+  }
+
+  /** «Bekreft dag»: ny timer-rad + sedelen merket endret (som anvendDagsforslag). */
+  function bekreftDagUnderPush(sedelId: string, radId: string) {
+    seedTimerRad(radId, sedelId, 0.25, { sistEndretLokalt: Date.now() });
+    db()
+      .update(dagsseddelLocal)
+      .set({ syncStatus: "pending", sistEndretLokalt: Date.now() + 1 })
+      .where(eq(dagsseddelLocal.id, sedelId))
+      .run();
+  }
+
+  it("🔴 repro 36e: rad lagret under push står igjen, sedelen forblir pending", async () => {
+    seedSedel({ id: "s-36e", dato: "2026-11-09", status: "draft", syncStatus: "pending" });
+    const klient = klientMedSkrivingUnderPush([okSvar("s-36e")], pullUtenRader("s-36e"), () =>
+      bekreftDagUnderPush("s-36e", "r-2107"),
+    );
+
+    await syncTimer(klient, "u1");
+
+    expect(sedelFor("s-36e").syncStatus).toBe("pending");
+    expect(timerRaderFor("s-36e").map((r) => r.id)).toEqual(["r-2107"]);
+  });
+
+  it("🔴 tombstone laget under push ryddes ikke — bare de sendte", async () => {
+    seedSedel({ id: "s-36e-t", dato: "2026-11-09", status: "draft", syncStatus: "pending" });
+    db()
+      .insert(schema.slettedeRaderLocal)
+      .values({ radId: "sendt", dagsseddelId: "s-36e-t", radType: "timer", slettetVed: 1000 })
+      .run();
+    const klient = klientMedSkrivingUnderPush([okSvar("s-36e-t")], tomtPull, () => {
+      db()
+        .insert(schema.slettedeRaderLocal)
+        .values({ radId: "ny", dagsseddelId: "s-36e-t", radType: "timer", slettetVed: Date.now() })
+        .run();
+      db()
+        .update(dagsseddelLocal)
+        .set({ sistEndretLokalt: Date.now() + 1 })
+        .where(eq(dagsseddelLocal.id, "s-36e-t"))
+        .run();
+    });
+
+    await syncTimer(klient, "u1");
+
+    const igjen = db().select().from(schema.slettedeRaderLocal).all().map((t) => t.radId);
+    expect(igjen).toEqual(["ny"]);
+    expect(sedelFor("s-36e-t").syncStatus).toBe("pending");
+  });
+
+  it("🔴 pull-nett (1c): synced sedel med upushet rad skrevet under kjøringen erstattes ikke", async () => {
+    // S1 pending gir en push; under den skriver en (feilaktig) vei en rad på den
+    // SYNKEDE S2 uten å merke den pending. Pullen bærer S2 uten raden.
+    seedSedel({ id: "s1", dato: "2026-11-08", status: "draft", syncStatus: "pending" });
+    seedSedel({ id: "s2", dato: "2026-11-09", status: "draft", syncStatus: "synced" });
+    const klient = klientMedSkrivingUnderPush([okSvar("s1")], pullUtenRader("s2"), () =>
+      seedTimerRad("r-glemt", "s2", 1, { sistEndretLokalt: Date.now() }),
+    );
+
+    await syncTimer(klient, "u1");
+
+    expect(timerRaderFor("s2").map((r) => r.id)).toEqual(["r-glemt"]);
+    expect(sedelFor("s2").syncStatus).toBe("pending");
+  });
+
+  it("vakt: vanlig sync uten endring under push → synced som før, tombstones ryddet", async () => {
+    seedSedel({ id: "s-vanlig", dato: "2026-11-09", status: "draft", syncStatus: "pending" });
+    db()
+      .insert(schema.slettedeRaderLocal)
+      .values({ radId: "t1", dagsseddelId: "s-vanlig", radType: "timer", slettetVed: 1000 })
+      .run();
+    const { klient } = lagKlientFanger([okSvar("s-vanlig")]);
+
+    await syncTimer(klient, "u1");
+
+    expect(sedelFor("s-vanlig").syncStatus).toBe("synced");
+    expect(db().select().from(schema.slettedeRaderLocal).all()).toHaveLength(0);
+  });
+
+  it("vakt (1c): gammel rad uten versjon (før kjøringen) erstattes fortsatt av pullen", async () => {
+    seedSedel({ id: "s-gml", dato: "2026-11-09", status: "draft", syncStatus: "synced" });
+    seedTimerRad("r-gml", "s-gml", 5, { sistEndretLokalt: 1000 });
+    const klient = lagKlient(pullUtenRader("s-gml"));
+
+    await syncTimer(klient, "u1");
+
+    expect(timerRaderFor("s-gml")).toHaveLength(0);
+    expect(sedelFor("s-gml").syncStatus).toBe("synced");
+  });
+});
