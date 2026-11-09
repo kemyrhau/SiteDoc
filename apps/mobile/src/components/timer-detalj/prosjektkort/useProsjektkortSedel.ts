@@ -11,8 +11,8 @@ import {
   sheetMachineLocal,
   sheetUtleggLocal,
   byggeplassLocal,
-  slettedeRaderLocal,
 } from "../../../db/schema";
+import { leggSedelTombstone } from "../../../services/sedelTombstone";
 import { useTimerSync } from "../../../providers/TimerSyncProvider";
 import { useNettverk } from "../../../providers/NettverkProvider";
 import { trpc } from "../../../lib/trpc";
@@ -730,16 +730,8 @@ export function useProsjektkortSedel(sheetId: string) {
             // sedel-tombstone — synken sender `slett` (også offline senere) og
             // pull gjenoppliver den ikke. Aldri synket → serveren svarer
             // NOT_FOUND og tombstonen ryddes.
-            hentDatabase()
-              ?.insert(slettedeRaderLocal)
-              .values({
-                radId: sheetId,
-                dagsseddelId: sheetId,
-                radType: "sedel",
-                slettetVed: Date.now(),
-              })
-              .onConflictDoNothing()
-              .run();
+            const db = hentDatabase();
+            if (db) leggSedelTombstone(db, sheetId);
             slettLokalt();
           }
         },
