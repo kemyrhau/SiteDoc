@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Zeile löschen?",
   "timer.kortValg.utenByggeplass": "Keine Baustelle",
   "timer.kortValg.uten": "Keiner",
-  "timer.kortValg.flyttTittel": "Zeile verschieben nach"
+  "timer.kortValg.flyttTittel": "Zeile verschieben nach",
+  "timer.kort.endre": "Karte wechseln",
+  "timer.kort.slett": "Karte löschen",
+  "timer.kort.flyttTittel": "Verschieben Sie die Karte nach",
+  "timer.kort.flyttKnapp": "Karte verschieben",
+  "timer.kort.sammenslaa": "Die Karte wird mit {{kort}} zusammengeführt, das bereits existiert.",
+  "timer.kort.slettTittel": "Karte löschen?",
+  "timer.kort.slettTekst": "Arbeit ({{timer}} h), Maschinen und Güter am {{kort}} werden aus der Arbeitszeittabelle für {{dato}} entfernt.",
+  "timer.kort.slettUtkast": "Die Arbeitszeittabelle bleibt Ihr Entwurf. Ihr Vorgesetzter hat es nicht erhalten. Reisekosten, Spesen und Spesen werden einbehalten.",
+  "timer.kort.slettReturnert": "Reisekosten, Spesen und Spesen werden einbehalten. Ihr Vorgesetzter sieht die Änderung, wenn Sie die Arbeitszeittabelle erneut senden.",
+  "timer.kort.slettSiste": "Dies ist die letzte Karte – die Arbeitszeittabelle ist leer.",
+  "timer.kort.offlineSlett": "Auf der Karte sind versendete Waren verzeichnet. Stellen Sie zum Löschen eine Verbindung zum Internet her.",
+  "timer.kort.offlineFlytt": "Auf der Karte sind versendete Waren verzeichnet. Stellen Sie eine Verbindung zum Internet her, um sich zu bewegen."
 }

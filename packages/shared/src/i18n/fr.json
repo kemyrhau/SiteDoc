@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Supprimer la ligne ?",
   "timer.kortValg.utenByggeplass": "Pas de chantier",
   "timer.kortValg.uten": "Aucune",
-  "timer.kortValg.flyttTittel": "Déplacer la ligne vers"
+  "timer.kortValg.flyttTittel": "Déplacer la ligne vers",
+  "timer.kort.endre": "Changer de carte",
+  "timer.kort.slett": "Supprimer la carte",
+  "timer.kort.flyttTittel": "Déplacez la carte vers",
+  "timer.kort.flyttKnapp": "Déplacer la carte",
+  "timer.kort.sammenslaa": "La carte sera fusionnée avec {{kort}}, qui existe déjà.",
+  "timer.kort.slettTittel": "Supprimer la carte ?",
+  "timer.kort.slettTekst": "Le travail ({{timer}} h), les machines et les marchandises sur {{kort}} sont supprimés de la feuille de temps pour {{dato}}.",
+  "timer.kort.slettUtkast": "La feuille de temps reste votre brouillon. Votre manager ne l'a pas reçu. Les déplacements, indemnités et dépenses sont conservés.",
+  "timer.kort.slettReturnert": "Les déplacements, indemnités et dépenses sont conservés. Votre responsable voit le changement lorsque vous envoyez à nouveau la feuille de temps.",
+  "timer.kort.slettSiste": "C'est la dernière carte — la feuille de temps sera vide.",
+  "timer.kort.offlineSlett": "La carte contient des marchandises qui ont été envoyées. Connectez-vous à Internet pour supprimer.",
+  "timer.kort.offlineFlytt": "La carte contient des marchandises qui ont été envoyées. Connectez-vous à Internet pour vous déplacer."
 }

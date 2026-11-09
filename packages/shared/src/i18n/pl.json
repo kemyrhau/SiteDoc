@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Usunąć wiersz?",
   "timer.kortValg.utenByggeplass": "Brak placu budowy",
   "timer.kortValg.uten": "Nic",
-  "timer.kortValg.flyttTittel": "Przenieś wiersz do"
+  "timer.kortValg.flyttTittel": "Przenieś wiersz do",
+  "timer.kort.endre": "Zmień kartę",
+  "timer.kort.slett": "Usuń kartę",
+  "timer.kort.flyttTittel": "Przesuń kartę do",
+  "timer.kort.flyttKnapp": "Przesuń kartę",
+  "timer.kort.sammenslaa": "Karta zostanie połączona z {{kort}}, który już istnieje.",
+  "timer.kort.slettTittel": "Usunąć kartę?",
+  "timer.kort.slettTekst": "Praca ({{timer}} h), maszyny i towary na {{kort}} są usuwane z grafiku dla {{dato}}.",
+  "timer.kort.slettUtkast": "Karta czasu pracy pozostaje wersją roboczą. Twój menadżer go nie otrzymał. Podróże, diety i wydatki są zachowywane.",
+  "timer.kort.slettReturnert": "Podróże, diety i wydatki są zachowywane. Twój menedżer zobaczy zmianę, gdy ponownie wyślesz kartę czasu pracy.",
+  "timer.kort.slettSiste": "To jest ostatnia karta — grafik będzie pusty.",
+  "timer.kort.offlineSlett": "Na karcie znajdują się towary, które zostały wysłane. Połącz się z internetem, aby usunąć.",
+  "timer.kort.offlineFlytt": "Na karcie znajdują się towary, które zostały wysłane. Aby się przenieść, połącz się z internetem."
 }

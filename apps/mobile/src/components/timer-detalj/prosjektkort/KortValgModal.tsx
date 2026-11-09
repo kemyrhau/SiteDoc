@@ -26,7 +26,7 @@ import { ProsjektVelgerModal } from "../ProsjektVelger";
  */
 export type KortValgModus =
   | { type: "ny"; projectId: string; forslagByggeplassId: string | null }
-  | { type: "flytt"; fra: KortValg };
+  | { type: "flytt"; fra: KortValg; /** 36c-kort: «Endre kort» flytter hele kortet. */ heleKortet?: boolean };
 
 export function kanVelgeUtenByggeplass(_projectId: string, _sedel: SedelKortKontekst): boolean {
   return true;
@@ -46,6 +46,7 @@ export function KortValgModal({
   sedel,
   prosjektNavn,
   feil = null,
+  merknad,
   onVelg,
   onLukk,
 }: {
@@ -55,6 +56,8 @@ export function KortValgModal({
   prosjektNavn: (projectId: string) => string;
   /** Kallerens avslag (f.eks. maskinkapasitet ved flytt) — vises over knappen. */
   feil?: string | null;
+  /** 36c-kort: grå forklaring for valget (f.eks. at kortene slås sammen). */
+  merknad?: (valg: KortValg) => string | null;
   onVelg: (kort: KortValg) => void;
   onLukk: () => void;
 }) {
@@ -107,6 +110,7 @@ export function KortValgModal({
   );
 
   const flytt = modus.type === "flytt";
+  const heleKortet = modus.type === "flytt" && modus.heleKortet === true;
   // `ny` med flere byggeplasser: raden åpner kortet. Ellers chips + knapp.
   const byggeplassSomRader = !flytt && byggeplassRader.length > 1;
   const kanBekrefte = flytt ? kortNokkel(valg) !== kortNokkel(modus.fra) : true;
@@ -116,7 +120,11 @@ export function KortValgModal({
       <Pressable className="flex-1 justify-end bg-black/40" onPress={onLukk}>
         <Pressable className="max-h-[80%] rounded-t-2xl bg-white px-4 pb-8 pt-4" onPress={() => {}}>
           <Text className="mb-3 text-base font-semibold text-gray-900">
-            {flytt ? t("timer.kortValg.flyttTittel") : prosjektNavn(valg.projectId)}
+            {heleKortet
+              ? t("timer.kort.flyttTittel")
+              : flytt
+                ? t("timer.kortValg.flyttTittel")
+                : prosjektNavn(valg.projectId)}
           </Text>
           <ScrollView>
             {flytt && (
@@ -156,6 +164,9 @@ export function KortValgModal({
                   </View>
                 )}
           </ScrollView>
+          {kanBekrefte && merknad?.(valg) && (
+            <Text className="mt-3 text-sm text-gray-600">{merknad(valg)}</Text>
+          )}
           {feil && <Text className="mt-3 text-sm text-amber-700">{feil}</Text>}
           {!byggeplassSomRader && (
             <Pressable
@@ -167,7 +178,7 @@ export function KortValgModal({
               }`}
             >
               <Text className="text-base font-semibold text-white">
-                {flytt ? t("handling.flytt") : t("timer.aapne")}
+                {heleKortet ? t("timer.kort.flyttKnapp") : flytt ? t("handling.flytt") : t("timer.aapne")}
               </Text>
             </Pressable>
           )}

@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Vai dzēst rindu?",
   "timer.kortValg.utenByggeplass": "Nav būvlaukuma",
   "timer.kortValg.uten": "Nav",
-  "timer.kortValg.flyttTittel": "Pārvietot rindu uz"
+  "timer.kortValg.flyttTittel": "Pārvietot rindu uz",
+  "timer.kort.endre": "Mainīt karti",
+  "timer.kort.slett": "Dzēst karti",
+  "timer.kort.flyttTittel": "Pārvietojiet karti uz",
+  "timer.kort.flyttKnapp": "Pārvietot karti",
+  "timer.kort.sammenslaa": "Karte tiks apvienota ar {{kort}}, kas jau pastāv.",
+  "timer.kort.slettTittel": "Vai dzēst karti?",
+  "timer.kort.slettTekst": "Darbs ({{timer}} h), mašīnas un preces uz {{kort}} tiek noņemtas no laika uzskaites uzskaites datumam {{dato}}.",
+  "timer.kort.slettUtkast": "Darba laika uzskaite paliek kā jūsu melnraksts. Jūsu vadītājs to nav saņēmis. Ceļojumi, pabalsti un izdevumi tiek saglabāti.",
+  "timer.kort.slettReturnert": "Ceļojumi, pabalsti un izdevumi tiek saglabāti. Jūsu pārvaldnieks redzēs izmaiņas, kad atkārtoti nosūtāt laika uzskaiti.",
+  "timer.kort.slettSiste": "Šī ir pēdējā karte — darba laika uzskaite būs tukša.",
+  "timer.kort.offlineSlett": "Kartē ir preces, kas ir nosūtītas. Lai izdzēstu, izveidojiet savienojumu ar internetu.",
+  "timer.kort.offlineFlytt": "Kartē ir preces, kas ir nosūtītas. Lai pārvietotos, izveidojiet savienojumu ar internetu."
 }

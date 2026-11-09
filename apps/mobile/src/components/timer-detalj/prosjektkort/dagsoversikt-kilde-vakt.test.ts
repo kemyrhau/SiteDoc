@@ -67,8 +67,10 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
     expect(flat.match(/handlinger\.onSlett\(\)/g)?.length).toBe(1);
     expect(flat).not.toContain("onPress={handlinger.onSlett}");
     expect(flat).toContain("onPress={() => setBekreft(true)}");
-    const bekreft = flat.slice(flat.indexOf("<Modal"));
-    expect(bekreft).toContain("setBekreft(false); handlinger.onSlett();");
+    // 36c-kort: modalen er løftet til den delte BekreftSlettModal.
+    expect(flat.indexOf("<BekreftSlettModal")).toBeGreaterThan(-1);
+    const bekreft = flat.slice(flat.indexOf("<BekreftSlettModal"));
+    expect(bekreft).toContain("onBekreft={() => { setBekreft(false); handlinger.onSlett(); }}");
   });
 
   it("🔴 samlesiden har ikke SummeringsBanner eller ProsjektkortSamleside; begge sider bruker dagsoversikten", () => {

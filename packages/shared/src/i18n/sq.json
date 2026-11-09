@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Të fshihet rreshti?",
   "timer.kortValg.utenByggeplass": "Asnjë kantier ndërtimi",
   "timer.kortValg.uten": "Asnjë",
-  "timer.kortValg.flyttTittel": "Zhvendos rreshtin te"
+  "timer.kortValg.flyttTittel": "Zhvendos rreshtin te",
+  "timer.kort.endre": "Ndrysho kartën",
+  "timer.kort.slett": "Fshi kartën",
+  "timer.kort.flyttTittel": "Zhvendosni kartën në",
+  "timer.kort.flyttKnapp": "Zhvendos kartën",
+  "timer.kort.sammenslaa": "Karta do të shkrihet me {{kort}}, e cila tashmë ekziston.",
+  "timer.kort.slettTittel": "Të fshihet kartela?",
+  "timer.kort.slettTekst": "Puna ({{timer}} h), makineritë dhe mallrat në {{kort}} janë hequr nga fleta kohore për {{dato}}.",
+  "timer.kort.slettUtkast": "Fleta e kohës qëndron si drafti juaj. Menaxheri juaj nuk e ka marrë atë. Udhëtimet, shtesat dhe shpenzimet mbahen.",
+  "timer.kort.slettReturnert": "Udhëtimet, shtesat dhe shpenzimet mbahen. Menaxheri juaj e sheh ndryshimin kur dërgoni sërish fletën e kohës.",
+  "timer.kort.slettSiste": "Kjo është karta e fundit - fleta e kohës do të jetë bosh.",
+  "timer.kort.offlineSlett": "Karta ka mallra që janë dërguar. Lidhu me internetin për ta fshirë.",
+  "timer.kort.offlineFlytt": "Karta ka mallra që janë dërguar. Lidhu me internetin për të lëvizur."
 }

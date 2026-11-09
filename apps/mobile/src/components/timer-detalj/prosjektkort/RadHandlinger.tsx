@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { View, Text, Pressable, Modal } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
+import { BekreftSlettModal } from "./BekreftSlettModal";
 
 /**
  * ORDRE 36b: «Del opp raden» / «Slett raden» nederst i timer- og maskin-
@@ -45,27 +46,16 @@ export function RadHandlinger({ handlinger }: { handlinger: RadHandlingerProps }
         <Text className="text-base text-red-600">{t("timer.dagsoversikt.slettRad")}</Text>
       </Pressable>
 
-      <Modal visible={bekreft} transparent animationType="fade" onRequestClose={() => setBekreft(false)}>
-        <View className="flex-1 items-center justify-center bg-black/40 px-8">
-          <View className="w-full max-w-sm rounded-2xl bg-white p-5">
-            <Text className="mb-4 text-base text-gray-900">{t("timer.dagsoversikt.slettRadBekreft")}</Text>
-            <View className="flex-row justify-end gap-2">
-              <Pressable onPress={() => setBekreft(false)} className="rounded-lg px-4 py-2.5 active:bg-gray-100">
-                <Text className="text-base font-medium text-gray-700">{t("handling.avbryt")}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  setBekreft(false);
-                  handlinger.onSlett();
-                }}
-                className="rounded-lg bg-red-600 px-4 py-2.5 active:bg-red-700"
-              >
-                <Text className="text-base font-semibold text-white">{t("timer.dagsoversikt.slettRad")}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <BekreftSlettModal
+        synlig={bekreft}
+        tekst={t("timer.dagsoversikt.slettRadBekreft")}
+        bekreftTekst={t("timer.dagsoversikt.slettRad")}
+        onAvbryt={() => setBekreft(false)}
+        onBekreft={() => {
+          setBekreft(false);
+          handlinger.onSlett();
+        }}
+      />
     </View>
   );
 }
