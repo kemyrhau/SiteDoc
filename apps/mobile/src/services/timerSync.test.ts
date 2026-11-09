@@ -1419,3 +1419,134 @@ describe("ORDRE 36e — skriving under push tapes ikke", () => {
     expect(sedelFor("s-gml").syncStatus).toBe("synced");
   });
 });
+
+describe("ORDRE 36e pkt. 2 — sedel slettet i prosjektkortet", () => {
+  const pull = (sedler: ServerSedel[]) => ({
+    serverTid: "2026-11-09T21:10:00.000Z",
+    sedler,
+    levendeSedler: sedler.map((s) => ({ id: s.id, clientUuid: s.clientUuid })),
+    slettevindu: { fraDato: "2026-01-01", tilDato: null },
+  });
+
+  function leggSedelTombstone(id: string) {
+    db()
+      .insert(schema.slettedeRaderLocal)
+      .values({ radId: id, dagsseddelId: id, radType: "sedel", slettetVed: Date.now() })
+      .run();
+  }
+
+  function tombstoneFor(id: string) {
+    return db()
+      .select()
+      .from(schema.slettedeRaderLocal)
+      .where(eq(schema.slettedeRaderLocal.radId, id))
+      .all()[0];
+  }
+
+  /** Klient der `slett` gjør `slettSvar` og pull bærer `sedler`; fanger kall. */
+  function klient(slettSvar: (id: string) => Promise<unknown>, sedler: ServerSedel[]) {
+    const slettet: string[] = [];
+    const pullInput: Array<{ sistSynkronisert?: string }> = [];
+    const k = {
+      timer: {
+        dagsseddel: {
+          syncBatch: { mutate: async () => ({ resultater: [] }) },
+          slett: {
+            mutate: async ({ id }: { id: string }) => {
+              slettet.push(id);
+              return slettSvar(id);
+            },
+          },
+          hentEndringerSiden: {
+            query: async (input: { sistSynkronisert?: string }) => {
+              pullInput.push(input);
+              return pull(sedler);
+            },
+          },
+          hentMedId: { query: async () => ({ timer: [] }) },
+        },
+      },
+    } as unknown as Parameters<typeof syncTimer>[0];
+    return { k, slettet, pullInput };
+  }
+
+  const trpcFeil = (code: string) => Object.assign(new Error(code), { data: { code } });
+
+  it("🔴 slettet synket draft sendes som slett, tombstonen ryddes (M3)", async () => {
+    leggSedelTombstone("s-slett");
+    const { k, slettet } = klient(async () => ({ id: "s-slett" }), []);
+
+    await syncTimer(k, "u1");
+
+    expect(slettet).toEqual(["s-slett"]);
+    expect(tombstoneFor("s-slett")).toBeUndefined();
+  });
+
+  it("🔴 pull gjenoppliver ikke slettet sedel mens slett ikke er bekreftet (M4)", async () => {
+    leggSedelTombstone("s-off");
+    const { k } = klient(
+      async () => {
+        throw new Error("Network request failed");
+      },
+      [serverSedel({ id: "s-off", dato: "2026-11-09", status: "draft" })],
+    );
+
+    await syncTimer(k, "u1");
+
+    expect(tombstoneFor("s-off")).toBeDefined();
+    expect(sedelFor("s-off")).toBeUndefined();
+  });
+
+  it("NOT_FOUND (aldri synket) rydder tombstonen", async () => {
+    leggSedelTombstone("s-ny");
+    const { k } = klient(async () => {
+      throw trpcFeil("NOT_FOUND");
+    }, []);
+
+    await syncTimer(k, "u1");
+
+    expect(tombstoneFor("s-ny")).toBeUndefined();
+  });
+
+  it("🔴 avslått (sendt i mellomtiden): sedelen hentes tilbake med beskjed", async () => {
+    // Eldre synket sedel gir en sistSynkronisert — avslag må likevel hente alt.
+    seedSedel({ id: "s-annen", dato: "2026-11-01", status: "draft", syncStatus: "synced" });
+    db()
+      .update(dagsseddelLocal)
+      .set({ sistSynkronisert: Date.parse("2026-11-08T00:00:00.000Z") })
+      .where(eq(dagsseddelLocal.id, "s-annen"))
+      .run();
+    leggSedelTombstone("s-sendt");
+    const { k, pullInput } = klient(
+      async () => {
+        throw trpcFeil("PRECONDITION_FAILED");
+      },
+      [
+        serverSedel({ id: "s-annen", dato: "2026-11-01", status: "draft" }),
+        serverSedel({ id: "s-sendt", dato: "2026-11-09", status: "sent" }),
+      ],
+    );
+
+    await syncTimer(k, "u1");
+
+    expect(tombstoneFor("s-sendt")).toBeUndefined();
+    expect(pullInput[0]?.sistSynkronisert).toBeUndefined();
+    expect(sedelFor("s-sendt")?.status).toBe("sent");
+    expect(sedelFor("s-sendt")?.feilmelding).toBe("timer.sync.slettAvslaatt");
+  });
+
+  it("vakt: uten sedel-tombstone kalles ikke slett, pull bruker sistSynkronisert", async () => {
+    seedSedel({ id: "s-vanlig", dato: "2026-11-01", status: "draft", syncStatus: "synced" });
+    db()
+      .update(dagsseddelLocal)
+      .set({ sistSynkronisert: Date.parse("2026-11-08T00:00:00.000Z") })
+      .where(eq(dagsseddelLocal.id, "s-vanlig"))
+      .run();
+    const { k, slettet, pullInput } = klient(async () => ({}), []);
+
+    await syncTimer(k, "u1");
+
+    expect(slettet).toEqual([]);
+    expect(pullInput[0]?.sistSynkronisert).toBe("2026-11-08T00:00:00.000Z");
+  });
+});

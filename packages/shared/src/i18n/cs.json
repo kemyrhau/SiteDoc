@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Stroj bez zadání času: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (kontrola)",
+  "timer.sync.slettAvslaatt": "Denní list nelze smazat – byl odeslán",
   "timer.sync.slattSammen": "Sloučeno s denním listem, který již pro toto datum existoval – vaše hodiny jsou zachovány.",
   "timer.eksport.ark.detaljer": "Podrobnosti",
   "timer.eksport.kolType": "Typ",

@@ -263,7 +263,10 @@ export const slettedeRaderLocal = sqliteTable("slettede_rader_local", {
   radId: text("rad_id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(), // = server sheetId
   radType: text("rad_type", {
-    enum: ["timer", "tillegg", "maskin", "utlegg"],
+    // ORDRE 36e (pkt. 2): "sedel" = hele sedelen slettet i prosjektkortet
+    // (radId = dagsseddelId = sedel-id). Sendes som `slett` før pull, ikke i
+    // push-ens slettedeIder. Kolonnen er TEXT uten CHECK → ingen migrering.
+    enum: ["timer", "tillegg", "maskin", "utlegg", "sedel"],
   }).notNull(),
   // V19.9.1 (B'-1) — versjonen (`SheetTimer.updatedAt`) kopiert fra timer-raden da
   // den ble slettet lokalt. Sendes som `slettedeIder.timerVersjoner` → S1–S4

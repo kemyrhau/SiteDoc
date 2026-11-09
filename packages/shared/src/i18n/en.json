@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Machine without a time entry: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (control)",
+  "timer.sync.slettAvslaatt": "The day sheet could not be deleted – it has been sent",
   "timer.sync.slattSammen": "Merged with the day sheet that already existed for this date — your hours are kept.",
   "timer.eksport.ark.detaljer": "Details",
   "timer.eksport.kolType": "Type",

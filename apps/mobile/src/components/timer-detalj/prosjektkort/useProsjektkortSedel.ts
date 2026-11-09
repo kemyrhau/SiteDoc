@@ -11,6 +11,7 @@ import {
   sheetMachineLocal,
   sheetUtleggLocal,
   byggeplassLocal,
+  slettedeRaderLocal,
 } from "../../../db/schema";
 import { useTimerSync } from "../../../providers/TimerSyncProvider";
 import { useNettverk } from "../../../providers/NettverkProvider";
@@ -725,6 +726,20 @@ export function useProsjektkortSedel(sheetId: string) {
               },
             );
           } else {
+            // ORDRE 36e (pkt. 2): en synket draft finnes også på serveren. Legg en
+            // sedel-tombstone — synken sender `slett` (også offline senere) og
+            // pull gjenoppliver den ikke. Aldri synket → serveren svarer
+            // NOT_FOUND og tombstonen ryddes.
+            hentDatabase()
+              ?.insert(slettedeRaderLocal)
+              .values({
+                radId: sheetId,
+                dagsseddelId: sheetId,
+                radType: "sedel",
+                slettetVed: Date.now(),
+              })
+              .onConflictDoNothing()
+              .run();
             slettLokalt();
           }
         },

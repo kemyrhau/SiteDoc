@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Maskin uten timerad: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (kontroll)",
+  "timer.sync.slettAvslaatt": "Sedelen kunne ikke slettes – den er sendt",
   "timer.sync.slattSammen": "Slått sammen med dagsseddelen som alt fantes for denne datoen — timene dine er beholdt.",
   "timer.eksport.ark.detaljer": "Detaljer",
   "timer.eksport.kolType": "Type",

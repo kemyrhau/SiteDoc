@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Машина без введення часу: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (контроль)",
+  "timer.sync.slettAvslaatt": "Не вдалося видалити денний лист – його відправлено",
   "timer.sync.slattSammen": "Об’єднано з денним аркушем, який уже існував на цю дату — ваші години зберігаються.",
   "timer.eksport.ark.detaljer": "Подробиці",
   "timer.eksport.kolType": "Тип",

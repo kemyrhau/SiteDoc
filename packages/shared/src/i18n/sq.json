@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Makinë pa hyrje kohore: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (kontrolli)",
+  "timer.sync.slettAvslaatt": "Fleta e ditës nuk mund të fshihej - ajo u dërgua",
   "timer.sync.slattSammen": "E shkrirë me fletën e ditës që ekzistonte tashmë për këtë datë - orët tuaja mbahen.",
   "timer.eksport.ark.detaljer": "Detajet",
   "timer.eksport.kolType": "Lloji",

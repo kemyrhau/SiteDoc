@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Masin ilma ajakirjeta: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (kontroll)",
+  "timer.sync.slettAvslaatt": "Päevalehte ei saanud kustutada – see on saadetud",
   "timer.sync.slattSammen": "Ühendatud selle kuupäeva jaoks juba eksisteerinud päevalehega – teie lahtiolekuajad jäetakse alles.",
   "timer.eksport.ark.detaljer": "Üksikasjad",
   "timer.eksport.kolType": "Tüüp",
