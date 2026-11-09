@@ -136,6 +136,8 @@ export function bekreftDag(
     arbeidsdagId: string | null;
     /** ORDRE 36c: valgt underprosjekt i manuell modus. Utelatt/null = uten. */
     ecoId?: string | null;
+    /** RETUR 36c-3: eksplisitt «Ingen byggeplass» (manuell) — løfter sedelens arv. */
+    utenByggeplassValgt?: boolean;
     sluttIso: string;
     endLat: number | null;
     endLng: number | null;

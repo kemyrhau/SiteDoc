@@ -145,7 +145,7 @@ beforeEach(() => {
   teller = 0;
   holder.raw.run(
     "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_machine_local; DELETE FROM vareforbruk_local; DELETE FROM arbeidsdag_local;" +
-      " DELETE FROM prosjekt_local; DELETE FROM aktivitet_local; DELETE FROM lonnsart_local;",
+      " DELETE FROM prosjekt_local; DELETE FROM aktivitet_local; DELETE FROM lonnsart_local; DELETE FROM byggeplass_local;",
   );
   seedKatalog();
 });
@@ -389,6 +389,95 @@ describe("RETUR 36c pkt 1 — kortets byggeplass i skrivestien (også når sedel
     const reise = rader().filter((r) => r.id !== "rad1" && r.erReise);
     expect(reise.length).toBeGreaterThan(0);
     expect(reise.every((r) => r.byggeplassId === null)).toBe(true);
+  });
+});
+
+describe("RETUR 36c-3 — «Ingen byggeplass» fra Bekreft dag løfter arven (Kontrollør 1b)", () => {
+  /** sedel1 (p1) med A i p1: rad1 arver A, en p1-maskin arver A, og en reiserad uten byggeplass. */
+  const sedelMedA = () => {
+    seedSedel();
+    db().insert(schema.byggeplassLocal).values({ id: "A", organizationId: ORG, projectId: "p1", navn: "A", sistOppdatert: 1 }).run();
+    db().update(dagsseddelLocal).set({ byggeplassId: "A", syncStatus: "synced" }).where(eq(dagsseddelLocal.id, "sedel1")).run();
+    db().insert(sheetTimerLocal).values({
+      id: "reise1", dagsseddelId: "sedel1", projectId: "p1", lonnsartId: "L-normal", aktivitetId: "a1",
+      timer: 0.5, fraTid: "06:30", tilTid: "07:00", pauseMin: 0, erReise: true, sistEndretLokalt: 1,
+    }).run();
+    db().insert(schema.sheetMachineLocal).values({
+      id: "mask1", dagsseddelId: "sedel1", projectId: "p1", vehicleId: "v1", timer: 2, sistEndretLokalt: 1,
+    }).run();
+  };
+  const lagreUten = (utenByggeplassValgt: boolean, retting: Parameters<typeof forberedManuellDag>[2] = { byggeplassId: null }) => {
+    const { forslag, sluttIso } = forberedManuellDag(lokalDb(), manuellKontekst(), retting);
+    return bekreftDag(lokalDb(), medBeskrivelse(forslag), { ...skriveCtx(sluttIso), utenByggeplassValgt });
+  };
+  const rad = (id: string) => rader().find((r) => r.id === id)!;
+  const nye = () => rader().filter((r) => !["rad1", "reise1"].includes(r.id));
+  const maskin = () => db().select().from(schema.sheetMachineLocal).all().find((m) => m.id === "mask1")!;
+
+  it("🔴 sedel med A + «Ingen byggeplass»: arvende rad og maskin får A, hodet NULL + pending, ny rad NULL", () => {
+    sedelMedA();
+    const { handling } = lagreUten(true);
+    expect(handling.type).toBe("suksess");
+    expect(sedler()).toHaveLength(1);
+    expect(rad("rad1").byggeplassId).toBe("A");
+    expect(maskin().byggeplassId).toBe("A");
+    expect(sedler()[0].byggeplassId).toBeNull();
+    expect(sedler()[0].syncStatus).toBe("pending");
+    expect(nye().length).toBeGreaterThan(0);
+    expect(nye().every((r) => r.dagsseddelId === "sedel1" && r.byggeplassId === null)).toBe(true);
+    // Effektiv byggeplass (rad ?? sedel): det gamle kortet står under A, det nye er ekte «uten».
+    expect(rad("rad1").byggeplassId ?? sedler()[0].byggeplassId).toBe("A");
+    expect(nye()[0].byggeplassId ?? sedler()[0].byggeplassId).toBeNull();
+  });
+
+  it("🔴 reise er urørt", () => {
+    sedelMedA();
+    lagreUten(true);
+    expect(rad("reise1").byggeplassId).toBeNull();
+    expect(rad("reise1").sistEndretLokalt).toBe(1);
+  });
+
+  it("negativkontroll: GPS-veien (uten flagg) skriver som før — ny rad arver A, ingenting løftes", () => {
+    sedelMedA();
+    lagreUten(false);
+    expect(sedler()[0].byggeplassId).toBe("A");
+    expect(rad("rad1").byggeplassId).toBeNull();
+    expect(maskin().byggeplassId).toBeNull();
+    expect(nye().every((r) => r.byggeplassId === null)).toBe(true);
+  });
+
+  it("negativkontroll: ny sedel (ingen A) løftes ikke — ingen eksisterende rader røres", () => {
+    lagreUten(true);
+    expect(sedler()).toHaveLength(1);
+    expect(sedler()[0].byggeplassId).toBeNull();
+    expect(rader().every((r) => r.byggeplassId === null)).toBe(true);
+  });
+
+  it("negativkontroll: «Ingen byggeplass» i annet prosjekt enn A — ingen arv å løfte", () => {
+    sedelMedA();
+    lagreUten(true, { prosjektId: "p2", byggeplassId: null });
+    expect(sedler()[0].byggeplassId).toBe("A");
+    expect(rad("rad1").byggeplassId).toBeNull();
+  });
+
+  it("🔴 skjermen sender flagget bare i manuell modus ved eksplisitt «Ingen byggeplass»", () => {
+    const skjerm = fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
+    expect(skjerm).toContain("utenByggeplassValgt: manuell && retting.byggeplassId === null,");
+  });
+});
+
+describe("RETUR 36c-3 — testhull K10 og K12/P12 (kildevakter)", () => {
+  const les = (rel: string) => fs.readFileSync(path.join(__dirname, rel), "utf8");
+
+  it("🔴 K10: skjermen sender kortets entydige byggeplass til tilleggsseksjonen", () => {
+    expect(les("../../app/timer/bekreft-dag.tsx")).toContain("byggeplassId={entydigByggeplass(forslag, prosjektId)}");
+  });
+
+  it("🔴 K12/P12: «+ Legg til arbeid/maskin» vises bare når sedelen er redigerbar (ikke låst)", () => {
+    const kort = les("../components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx");
+    expect(kort).toContain('leggTil={redigerbar ? t("timer.prosjektkort.leggTilArbeid") : undefined}');
+    expect(kort).toContain('leggTil={redigerbar ? t("timer.prosjektkort.leggTilMaskin") : undefined}');
+    expect(kort).not.toMatch(/leggTil=\{t\(/);
   });
 });
 

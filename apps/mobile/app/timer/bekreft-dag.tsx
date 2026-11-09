@@ -414,6 +414,9 @@ export default function BekreftDagSkjerm() {
         naa: Date.now,
         arbeidsdagId: manuell ? null : params.arbeidsdagId,
         ecoId: manuell ? ecoId : null,
+        // RETUR 36c-3: eksplisitt «Ingen byggeplass» i manuell modus løfter
+        // arven på en eksisterende sedel med byggeplass. GPS-veien: som før.
+        utenByggeplassValgt: manuell && retting.byggeplassId === null,
         sluttIso: effSluttIso,
         endLat,
         endLng,
@@ -489,7 +492,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse, retting.byggeplassId]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {

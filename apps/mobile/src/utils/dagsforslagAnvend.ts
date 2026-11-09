@@ -19,7 +19,10 @@ import {
   dagsseddelLocal,
   sheetMachineLocal,
   vareforbrukLocal,
+  byggeplassLocal,
 } from "../db/schema";
+import { loftByggeplassArv, trengerByggeplassLoft } from "../components/timer-detalj/prosjektkort/kortRadFlytt";
+import type { SedelKortKontekst } from "../lib/prosjektkortMobil";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
 import type { BekreftDagTillegg } from "./bekreftDagTillegg";
@@ -51,6 +54,13 @@ export function anvendDagsforslag(
      * arbeidsrader, maskin og varer. Utelatt/null = uten, som før.
      */
     ecoId?: string | null;
+    /**
+     * RETUR 36c-3: brukeren valgte «Ingen byggeplass» eksplisitt (manuell
+     * Bekreft dag). Har en eksisterende sedel byggeplass A, løftes arven
+     * (`loftByggeplassArv`) før radene skrives — ellers ville den nye raden
+     * arvet A. Utelatt (GPS-veien) = som før.
+     */
+    utenByggeplassValgt?: boolean;
   },
   /** L3-D: maskin og varer fra bekreft-dag — skrives på start-sedelen (vedtak C). */
   tillegg?: BekreftDagTillegg,
@@ -144,6 +154,16 @@ export function anvendDagsforslag(
         : null;
     if (d.erStartSegment) startByggeplassId = eksplisittByggeplassId;
 
+    // RETUR 36c-3: «Ingen byggeplass» på en eksisterende sedel med A — samme
+    // løft som prosjektkort-stien (RETUR 36c-2 P1 a2), FØR radene skrives:
+    // arvende rader får A, hodet blir NULL, og den nye raden er ekte «uten».
+    if (ctx.utenByggeplassValgt && resultat.eksisterte && d.byggeplassId == null) {
+      const sedel = sedelKontekstLokalt(db, resultat.id);
+      if (sedel && trengerByggeplassLoft({ projectId: forslag.prosjektId, byggeplassId: null, ecoId: null }, sedel)) {
+        loftByggeplassArv(db, resultat.id, sedel);
+      }
+    }
+
     // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
     // den nye økten. Rad-innsettingen under bruker sedel-id → appender rader.
     if (resultat.eksisterte) {
@@ -221,6 +241,24 @@ function sedelByggeplass(db: LokalDb, sheetId: string): string | null {
       .where(eq(dagsseddelLocal.id, sheetId))
       .all()[0]?.byggeplassId ?? null
   );
+}
+
+/** Sedelens prosjekt + byggeplass (med byggeplassens prosjekt) — som `sedelKontekst` i prosjektkortet. */
+function sedelKontekstLokalt(db: LokalDb, sheetId: string): SedelKortKontekst | null {
+  const s = db
+    .select({ projectId: dagsseddelLocal.projectId, byggeplassId: dagsseddelLocal.byggeplassId })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .all()[0];
+  if (!s?.projectId) return null;
+  const bp = s.byggeplassId
+    ? db
+        .select({ id: byggeplassLocal.id, projectId: byggeplassLocal.projectId })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, s.byggeplassId))
+        .all()[0]
+    : undefined;
+  return { projectId: s.projectId, byggeplass: bp ? { id: bp.id, projectId: bp.projectId } : null };
 }
 
 /**
