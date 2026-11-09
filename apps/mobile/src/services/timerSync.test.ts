@@ -50,7 +50,7 @@ import { drizzle } from "drizzle-orm/sql-js";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
-import { syncTimer, bekreftConflict } from "./timerSync";
+import { syncTimer, bekreftConflict, pushEnSedel } from "./timerSync";
 import {
   anvendForsonetLokalt,
   byggForsonOverlappKall,
@@ -1214,5 +1214,70 @@ describe("syncTimer — firma følger «Mitt firma» (Kenneth-vedtak 2026-10-09)
     const { klient, fanget } = lagFanger();
     await syncTimer(klient, "u1");
     expect((fanget.pull as { organizationId?: string }).organizationId).toBeUndefined();
+  });
+});
+
+describe("36c-kort-3 — pushEnSedel pusher én sedel, uten pull", () => {
+  function lagEnFanger(svar: (ider: string[]) => PushResultat[] | Promise<never>) {
+    const fanget: { ider: string[][]; pull: number } = { ider: [], pull: 0 };
+    const klient = {
+      timer: {
+        dagsseddel: {
+          syncBatch: {
+            mutate: async (input: { sedler: Array<{ clientUuid: string }> }) => {
+              const ider = input.sedler.map((s) => s.clientUuid);
+              fanget.ider.push(ider);
+              return { resultater: await svar(ider) };
+            },
+          },
+          hentEndringerSiden: {
+            query: async () => {
+              fanget.pull++;
+              return tomtPull;
+            },
+          },
+          hentMedId: { query: async () => ({ timer: [] }) },
+        },
+      },
+    } as unknown as Parameters<typeof syncTimer>[0];
+    return { klient, fanget };
+  }
+  const okFor = (ider: string[]): PushResultat[] =>
+    ider.map((id) => ({
+      clientUuid: id,
+      resultat: "ok",
+      serverData: { id, status: "draft", lederKommentar: null, attestertVed: null, updatedAt: "2026-11-09T10:00:00.000Z" },
+    }));
+
+  it("bare den ene pending-sedelen sendes, ingen pull, true når den er synket", async () => {
+    seedSedel({ id: "k1", dato: "2026-11-07", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rk1", "k1", 7.5);
+    seedSedel({ id: "k2", dato: "2026-11-08", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rk2", "k2", 6);
+    const { klient, fanget } = lagEnFanger(okFor);
+    expect(await pushEnSedel(klient, "u1", "k1")).toBe(true);
+    expect(fanget.ider).toEqual([["k1"]]);
+    expect(fanget.pull).toBe(0);
+    expect(sedelFor("k1").syncStatus).toBe("synced");
+    expect(sedelFor("k2").syncStatus).toBe("pending");
+  });
+
+  it("transient feil → false, sedelen står pending", async () => {
+    seedSedel({ id: "k1", dato: "2026-11-07", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rk1", "k1", 7.5);
+    const { klient } = lagEnFanger(() => Promise.reject(new Error("Nettverksfeil")));
+    expect(await pushEnSedel(klient, "u1", "k1")).toBe(false);
+    expect(sedelFor("k1").syncStatus).toBe("pending");
+  });
+
+  it("negativkontroll: syncTimer sender fortsatt alle pending og puller", async () => {
+    seedSedel({ id: "k1", dato: "2026-11-07", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rk1", "k1", 7.5);
+    seedSedel({ id: "k2", dato: "2026-11-08", status: "draft", syncStatus: "pending" });
+    seedTimerRad("rk2", "k2", 6);
+    const { klient, fanget } = lagEnFanger(okFor);
+    await syncTimer(klient, "u1");
+    expect(fanget.ider.flat().sort()).toEqual(["k1", "k2"]);
+    expect(fanget.pull).toBe(1);
   });
 });

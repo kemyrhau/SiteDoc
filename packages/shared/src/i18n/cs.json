@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Cestovní, náhrady a výdaje zůstávají zachovány. Váš manažer uvidí změnu, když znovu odešlete časový rozvrh.",
   "timer.kort.slettSiste": "Toto je poslední karta — časový rozvrh bude prázdný.",
   "timer.kort.offlineSlett": "Na kartě je zboží, které bylo odesláno. Chcete-li smazat, připojte se k internetu.",
-  "timer.kort.offlineFlytt": "Na kartě je zboží, které bylo odesláno. Chcete-li se pohybovat, připojte se k internetu."
+  "timer.kort.offlineFlytt": "Na kartě je zboží, které bylo odesláno. Chcete-li se pohybovat, připojte se k internetu.",
+  "timer.kort.delvisFlyttet": "Hodiny byly přesunuty. Materiál ne — klepněte znovu na „Vyměňte kartu“ na staré kartě."
 }

@@ -99,7 +99,8 @@ beforeAll(async () => {
   holder.drizzle = drizzle(raw, { schema });
 });
 
-beforeEach(() => {
+/** Tom DB + én sedel og to lønnsarter — også mellom gjennomløp i én test. */
+function nullstillDb() {
   holder.uuid = 0;
   holder.raw.run(
     "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_machine_local; DELETE FROM slettede_rader_local; DELETE FROM lonnsart_local; DELETE FROM vareforbruk_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_utlegg_local;",
@@ -128,7 +129,8 @@ beforeEach(() => {
       .values({ id, organizationId: "o1", type: "ordinaer", navn, aktiv: true, erStandardvalg: false, sistOppdatert: 1 })
       .run();
   }
-});
+}
+beforeEach(nullstillDb);
 
 const felt: TimerRadFelt = {
   projectId: "p1",
@@ -196,7 +198,8 @@ function byggDag() {
 /** tRPC-klientfeil bærer koden i `e.data.code`. */
 const trpcFeil = (code: string) => Object.assign(new Error(code), { data: { code } });
 
-const SERVER_OK = { erPaaNettet: true, slettVare: async () => {}, flyttVare: async () => {} };
+const SERVER_OK = { erPaaNettet: true, slettVare: async () => {}, pushSedel: async () => true, flyttVare: async () => {} };
+const sedelRad = () => db().select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, "s1")).all()[0];
 
 describe("slettKort", () => {
   it("sletter bare kortets arbeid, maskin (også koblet) og varer; reise, nabokort, tillegg og utlegg er urørt", async () => {
@@ -367,51 +370,110 @@ describe("flyttKort", () => {
     expect(tombstones()).toHaveLength(0);
   });
 
-  it("synket vare flyttes på server FØR lokal skriving, med kortets effektive byggeplass", async () => {
+  it("36c-kort-3: timer flyttes lokalt, sedelen pushes, så flyttes den synkede varen på server og deretter lokalt", async () => {
     const { a } = byggDag();
     db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
-    const flyttVare = vi.fn(async (_id: string, _m: unknown) => {
-      expect(timerRad(a).projectId).toBe("p1");
+    const rekke: string[] = [];
+    const pushSedel = vi.fn(async () => {
+      // Pushen ser timer-raden på målprosjektet — det `oppdater` krever (RETUR 4).
+      expect(timerRad(a).projectId).toBe("p2");
+      expect(sedelRad().syncStatus).toBe("pending");
       expect(vare("v-a").projectId).toBe("p1");
+      rekke.push("push");
+      return true;
     });
-    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: true, flyttVare })).toEqual({ utfall: "ok" });
+    const flyttVare = vi.fn(async (_id: string, _m: unknown) => {
+      // Lokal vare røres ikke før serveren har bekreftet.
+      expect(vare("v-a").projectId).toBe("p1");
+      rekke.push("vare");
+    });
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: true, pushSedel, flyttVare })).toEqual({ utfall: "ok" });
+    expect(rekke).toEqual(["push", "vare"]);
     expect(flyttVare).toHaveBeenCalledWith("v-a", { projectId: "p2", byggeplassId: "bp2", ecoId: "eco2" });
     expect(vare("v-a")).toMatchObject({ projectId: "p2", byggeplassId: "bp2" });
   });
 
-  it("negativkontroll: serverfeil og offline → ingen lokal skriving", async () => {
+  it("uten synkede varer pushes ingenting — sedelen synkes som før", async () => {
+    byggDag();
+    const pushSedel = vi.fn(async () => true);
+    const flyttVare = vi.fn(async () => {});
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: false, pushSedel, flyttVare })).toEqual({ utfall: "ok" });
+    expect(pushSedel).not.toHaveBeenCalled();
+    expect(flyttVare).not.toHaveBeenCalled();
+  });
+
+  it("offline med synket vare → offline uten skriving", async () => {
     const { a } = byggDag();
     db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
-    const feil = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
-      erPaaNettet: true,
-      flyttVare: async () => {
-        throw new Error("nei");
-      },
-    });
-    expect(feil).toEqual({ utfall: "serverFeil", melding: "nei" });
+    const pushSedel = vi.fn(async () => true);
     const flyttVare = vi.fn(async () => {});
-    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: false, flyttVare })).toEqual({ utfall: "offline" });
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: false, pushSedel, flyttVare })).toEqual({ utfall: "offline" });
+    expect(pushSedel).not.toHaveBeenCalled();
     expect(flyttVare).not.toHaveBeenCalled();
     expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
     expect(maskin("m-a")).toMatchObject({ projectId: "p1", sistEndretLokalt: 1 });
+    expect(sedelRad().syncStatus).toBe("synced");
     expect(vare("v-a").projectId).toBe("p1");
   });
 
-  it("RETUR 36c-kort-2b: NOT_FOUND ved flytt (f.eks. slettet målunderprosjekt) stopper uten lokal skriving", async () => {
-    const { a } = byggDag();
-    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
-    for (const kode of ["NOT_FOUND", "FORBIDDEN"]) {
+  it("push feiler (false eller kaster) → delvis: timer og maskin flyttet, sedel pending, varen urørt og ikke sendt", async () => {
+    for (const pushSedel of [async () => false, async (): Promise<boolean> => { throw new Error("nett"); }]) {
+      nullstillDb();
+      const { a, koblet } = byggDag();
+      db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+      const flyttVare = vi.fn(async () => {});
+      expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: true, pushSedel, flyttVare })).toEqual({ utfall: "delvis" });
+      expect(flyttVare).not.toHaveBeenCalled();
+      expect(timerRad(a)).toMatchObject({ projectId: "p2", byggeplassId: "bp2" });
+      expect(maskin(koblet)).toMatchObject({ projectId: "p2" });
+      expect(maskin("m-a")).toMatchObject({ projectId: "p2" });
+      expect(sedelRad().syncStatus).toBe("pending");
+      expect(vare("v-a")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+    }
+  });
+
+  it("serveren avviser varen (feil, NOT_FOUND, FORBIDDEN) → delvis med serverens grunn; varen står igjen", async () => {
+    for (const feil of [new Error("nei"), trpcFeil("NOT_FOUND"), trpcFeil("FORBIDDEN")]) {
+      nullstillDb();
+      const { a } = byggDag();
+      db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
       const u = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
         erPaaNettet: true,
+        pushSedel: async () => true,
         flyttVare: async () => {
-          throw trpcFeil(kode);
+          throw feil;
         },
       });
-      expect(u, kode).toMatchObject({ utfall: "serverFeil" });
+      expect(u).toEqual({ utfall: "delvis", melding: feil.message });
+      expect(timerRad(a)).toMatchObject({ projectId: "p2" });
+      expect(vare("v-a")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
     }
-    expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
-    expect(maskin("m-a")).toMatchObject({ projectId: "p1" });
-    expect(vare("v-a").projectId).toBe("p1");
+  });
+
+  it("vare 2 av 3 avvises → vare 1 flyttet, 2 og 3 urørt; nytt forsøk på fra-kortet flytter resten", async () => {
+    const a = leggTilTimerRad(db(), K, felt, null);
+    for (const id of ["v-1", "v-2", "v-3"]) lagVare(id, "p1", "bp1", "synced");
+    const kall: string[] = [];
+    const u = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
+      erPaaNettet: true,
+      pushSedel: async () => true,
+      flyttVare: async (id) => {
+        kall.push(id);
+        if (id === "v-2") throw new Error("nett");
+      },
+    });
+    expect(u).toEqual({ utfall: "delvis", melding: "nett" });
+    expect(kall).toEqual(["v-1", "v-2"]);
+    expect(vare("v-1").projectId).toBe("p2");
+    expect(vare("v-2").projectId).toBe("p1");
+    expect(vare("v-3").projectId).toBe("p1");
+    expect(timerRad(a).projectId).toBe("p2");
+    // Fra-kortet har nå bare de to varene igjen; «Endre kort» igjen fullfører.
+    const rest = innholdFor(A);
+    expect(rest.timer).toHaveLength(0);
+    expect(rest.varer.map((v) => v.id).sort()).toEqual(["v-2", "v-3"]);
+    expect(await flyttKort(db(), dagFor(), rest, A, TIL, SERVER_OK)).toEqual({ utfall: "ok" });
+    for (const id of ["v-1", "v-2", "v-3"]) expect(vare(id)).toMatchObject({ projectId: "p2", byggeplassId: "bp2" });
   });
 
   it("sammenslåing: målkortet finnes → radene får samme nøkkel og beholder beskrivelsene", async () => {
@@ -466,13 +528,20 @@ describe("RETUR 36c-kort-2 — feiltekst og NOT_FOUND", () => {
   it("hvert stopp-utfall gir en synlig tekst — offline aldri stille", () => {
     expect(kortUtfallTekst({ utfall: "offline" }, "slett")).toBe("timer.kort.offlineSlett");
     expect(kortUtfallTekst({ utfall: "offline" }, "flytt")).toBe("timer.kort.offlineFlytt");
-    const stopp: KortUtfall[] = [{ utfall: "laast" }, { utfall: "brudd" }, { utfall: "serverFeil", melding: "x" }];
+    expect(kortUtfallTekst({ utfall: "delvis" }, "flytt")).toBe("timer.kort.delvisFlyttet");
+    const stopp: KortUtfall[] = [{ utfall: "laast" }, { utfall: "brudd" }, { utfall: "serverFeil", melding: "x" }, { utfall: "delvis" }];
     for (const u of stopp) for (const h of ["slett", "flytt"] as const) expect(kortUtfallTekst(u, h)).toBeTruthy();
     expect(kortUtfallTekst({ utfall: "ok" }, "slett")).toBeNull();
   });
 
-  it("nøklene finnes i nb og en", () => {
+  it("nøklene finnes i alle språkfilene", () => {
     const i18n = path.join(__dirname, "../../../../../../packages/shared/src/i18n");
+    const filer = fs.readdirSync(i18n).filter((f) => f.endsWith(".json"));
+    expect(filer).toHaveLength(15);
+    for (const fil of filer) {
+      const json = JSON.parse(fs.readFileSync(path.join(i18n, fil), "utf8")) as Record<string, string>;
+      expect(json["timer.kort.delvisFlyttet"], `${fil}:delvisFlyttet`).toBeTruthy();
+    }
     for (const sprak of ["nb", "en"]) {
       const json = JSON.parse(fs.readFileSync(path.join(i18n, `${sprak}.json`), "utf8")) as Record<string, string>;
       for (const n of ["timer.kort.offlineSlett", "timer.kort.offlineFlytt", "timer.detalj.laast", "timer.maskin.overstigerArbeid"])
@@ -483,12 +552,14 @@ describe("RETUR 36c-kort-2 — feiltekst og NOT_FOUND", () => {
   it("kortskjermen viser teksten fra kortUtfallTekst for både flytt og slett", () => {
     const kort = fs.readFileSync(path.join(__dirname, "../../../../app/timer/[id]/kort/[projectId].tsx"), "utf8");
     // visUtfall har ingen egne unntak: alt annet enn «ok» går gjennom kortUtfallTekst.
+    // 36c-kort-3: `delvis` legger serverens grunn bak teksten (avslaget skjules ikke).
     const a = kort.indexOf("const visUtfall =");
     const blokk = kort.slice(a, kort.indexOf("};", a));
     expect(blokk).toContain("const tekst = kortUtfallTekst(u, handling);");
-    expect(blokk.match(/u\.utfall/g)).toEqual(["u.utfall"]);
+    expect(blokk.match(/u\.utfall/g)).toEqual(["u.utfall", "u.utfall"]);
     expect(blokk).toContain('u.utfall === "ok"');
-    expect(blokk).toContain("setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) : null);");
+    expect(blokk).toContain('const grunn = u.utfall === "delvis" && u.melding ? `\\n${u.melding}` : "";');
+    expect(blokk).toContain("setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) + grunn : null);");
     expect(kort).toContain('visUtfall(u, "flytt")');
     expect(kort).toContain('visUtfall(u, "slett")');
   });
@@ -522,12 +593,16 @@ describe("kildevakter — kortskjermen", () => {
       expect(kort).toContain(`t("timer.kort.${n}"`);
   });
 
-  it("server før lokal: transaksjonen kommer etter serverkallene i både flytt og slett", () => {
+  it("rekkefølge: flytt = brudd → lokal transaksjon → push → server-vare → lokal vare; slett = server før lokal", () => {
     const kilde = fs.readFileSync(path.join(__dirname, "kortRadFlytt.ts"), "utf8");
     const flytt = kilde.slice(kilde.indexOf("export async function flyttKort"));
-    expect(flytt.indexOf("await server.flyttVare")).toBeGreaterThan(-1);
-    expect(flytt.indexOf("await server.flyttVare")).toBeLessThan(flytt.indexOf("db.transaction"));
-    expect(flytt.indexOf("girNyttBrudd")).toBeLessThan(flytt.indexOf("await server.flyttVare"));
+    const steg = ["girNyttBrudd", "db.transaction", "await server.pushSedel", "await server.flyttVare", "flyttVareLokalt(db,"].map((n) =>
+      flytt.indexOf(n),
+    );
+    for (const i of steg) expect(i).toBeGreaterThan(-1);
+    expect([...steg].sort((x, y) => x - y)).toEqual(steg);
+    // Push-feil gir aldri «ok»: utfallet rett etter pushen er delvis.
+    expect(flytt).toMatch(/if \(!pushet\) return \{ utfall: "delvis" \};/);
     const slett = kilde.slice(kilde.indexOf("export async function slettKort"), kilde.indexOf("export function slettKortLokalt"));
     expect(slett.indexOf("await server.slettVare")).toBeLessThan(slett.indexOf("slettKortLokalt("));
   });

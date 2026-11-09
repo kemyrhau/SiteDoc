@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Podróże, diety i wydatki są zachowywane. Twój menedżer zobaczy zmianę, gdy ponownie wyślesz kartę czasu pracy.",
   "timer.kort.slettSiste": "To jest ostatnia karta — grafik będzie pusty.",
   "timer.kort.offlineSlett": "Na karcie znajdują się towary, które zostały wysłane. Połącz się z internetem, aby usunąć.",
-  "timer.kort.offlineFlytt": "Na karcie znajdują się towary, które zostały wysłane. Aby się przenieść, połącz się z internetem."
+  "timer.kort.offlineFlytt": "Na karcie znajdują się towary, które zostały wysłane. Aby się przenieść, połącz się z internetem.",
+  "timer.kort.delvisFlyttet": "Godziny zostały przeniesione. Materiały nie — dotknij ponownie „Zmień kartę” na starej karcie."
 }

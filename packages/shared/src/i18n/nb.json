@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Reise, tillegg og utlegg beholdes. Leder ser endringen når du sender seddelen på nytt.",
   "timer.kort.slettSiste": "Dette er siste kort — seddelen blir tom.",
   "timer.kort.offlineSlett": "Kortet har varer som er sendt. Koble til nett for å slette.",
-  "timer.kort.offlineFlytt": "Kortet har varer som er sendt. Koble til nett for å flytte."
+  "timer.kort.offlineFlytt": "Kortet har varer som er sendt. Koble til nett for å flytte.",
+  "timer.kort.delvisFlyttet": "Timene er flyttet. Varene ble ikke flyttet — trykk «Endre kort» igjen på det gamle kortet."
 }
