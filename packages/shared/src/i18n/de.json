@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Waren",
   "timer.prosjektkort.kolonne.reise": "Reisen",
   "timer.prosjektkort.kolonne.utlegg": "Kosten",
+  "timer.prosjektkort.leggTilArbeid": "+ Arbeit hinzufügen",
+  "timer.prosjektkort.leggTilMaskin": "+ Maschine hinzufügen",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} Websites",
   "timer.prosjektkort.varelinjer": "{{antall}} Zeilen",
   "timer.prosjektkort.status.returnert": "Zurückgegeben",

@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Tavarat",
   "timer.prosjektkort.kolonne.reise": "Matkustaa",
   "timer.prosjektkort.kolonne.utlegg": "Kulut",
+  "timer.prosjektkort.leggTilArbeid": "+ Lisää töitä",
+  "timer.prosjektkort.leggTilMaskin": "+ Lisää kone",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} sivustoa",
   "timer.prosjektkort.varelinjer": "{{antall}} riviä",
   "timer.prosjektkort.status.returnert": "Palannut",

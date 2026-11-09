@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Zboží",
   "timer.prosjektkort.kolonne.reise": "Cestovat",
   "timer.prosjektkort.kolonne.utlegg": "Výdaje",
+  "timer.prosjektkort.leggTilArbeid": "+ Přidat práci",
+  "timer.prosjektkort.leggTilMaskin": "+ Přidat stroj",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} webů",
   "timer.prosjektkort.varelinjer": "{{antall}} řádků",
   "timer.prosjektkort.status.returnert": "Vráceno",

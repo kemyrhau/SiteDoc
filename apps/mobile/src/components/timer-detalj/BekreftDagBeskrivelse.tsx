@@ -12,6 +12,10 @@ import { harForslag, vekslForslag } from "../../utils/forslagVeksling";
  * `InputAccessoryView` (`tastaturId`), Android via knappen under feltet mens
  * tastaturet er oppe. Ingenting skrives herfra — teksten holdes i
  * skjermens retting til [Bekreft og lagre].
+ * RETUR 36c-2 (D4): feltet har makshøyde med intern scroll, så markøren aldri
+ * havner under tastaturet; skjermen ruller selve feltet (`onFeltY`) over
+ * tastaturet og på nytt når innholdet vokser (`onInnholdEndret`). «Ferdig» er
+ * en fullbredde-knapp ≥ 44 pt.
  */
 export const BekreftDagBeskrivelse = forwardRef<
   TextInput,
@@ -28,9 +32,25 @@ export const BekreftDagBeskrivelse = forwardRef<
     tastaturId?: string;
     /** Feltet fikk fokus — skjermen ruller det over tastaturet. */
     onFokus?: () => void;
+    /** Tekstfeltets y innenfor kortet — rullemålet er feltet, ikke kortets topp. */
+    onFeltY?: (y: number) => void;
+    /** Innholdshøyden endret seg (ny linje) mens feltet har fokus. */
+    onInnholdEndret?: () => void;
   }
 >(function BekreftDagBeskrivelse(
-  { prosjektNavn, visProsjekt, verdi, chips, visFeil, onEndre, onLayout, tastaturId, onFokus },
+  {
+    prosjektNavn,
+    visProsjekt,
+    verdi,
+    chips,
+    visFeil,
+    onEndre,
+    onLayout,
+    tastaturId,
+    onFokus,
+    onFeltY,
+    onInnholdEndret,
+  },
   ref,
 ) {
   const { t } = useTranslation();
@@ -77,16 +97,24 @@ export const BekreftDagBeskrivelse = forwardRef<
           onFokus?.();
         }}
         onBlur={() => setHarFokus(false)}
+        onLayout={(e) => onFeltY?.(e.nativeEvent.layout.y)}
+        onContentSizeChange={() => {
+          if (harFokus) onInnholdEndret?.();
+        }}
+        scrollEnabled
         placeholder={t("timer.bekreftDag.beskrivelse.placeholder")}
         multiline
         textAlignVertical="top"
-        className={`min-h-[56px] rounded-lg border px-3 py-3 text-base text-gray-900 ${
+        className={`max-h-[140px] min-h-[56px] rounded-lg border px-3 py-3 text-base text-gray-900 ${
           visFeil ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
         }`}
       />
       {Platform.OS === "android" && harFokus && tastaturOppe ? (
-        <Pressable onPress={() => Keyboard.dismiss()} className="self-end rounded-lg px-3 py-2">
-          <Text className="text-sm font-medium text-blue-700">{t("handling.ferdig")}</Text>
+        <Pressable
+          onPress={() => Keyboard.dismiss()}
+          className="min-h-[44px] items-center justify-center rounded-lg bg-blue-600 px-4"
+        >
+          <Text className="text-base font-semibold text-white">{t("handling.ferdig")}</Text>
         </Pressable>
       ) : null}
       {visFeil ? (

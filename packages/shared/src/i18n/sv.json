@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Gods",
   "timer.prosjektkort.kolonne.reise": "Resa",
   "timer.prosjektkort.kolonne.utlegg": "Utgifter",
+  "timer.prosjektkort.leggTilArbeid": "+ Lägg till arbete",
+  "timer.prosjektkort.leggTilMaskin": "+ Lägg till maskin",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} webbplatser",
   "timer.prosjektkort.varelinjer": "{{antall}} rader",
   "timer.prosjektkort.status.returnert": "Returnerad",

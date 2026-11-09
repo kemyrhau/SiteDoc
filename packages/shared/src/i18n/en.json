@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Goods",
   "timer.prosjektkort.kolonne.reise": "Travel",
   "timer.prosjektkort.kolonne.utlegg": "Expenses",
+  "timer.prosjektkort.leggTilArbeid": "+ Add work",
+  "timer.prosjektkort.leggTilMaskin": "+ Add machine",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} sites",
   "timer.prosjektkort.varelinjer": "{{antall}} lines",
   "timer.prosjektkort.status.returnert": "Returned",

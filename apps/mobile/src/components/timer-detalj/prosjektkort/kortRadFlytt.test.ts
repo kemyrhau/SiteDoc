@@ -40,7 +40,14 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../../../db/schema";
 import { kjorMigreringer } from "../../../db/migreringer";
-import { flyttMaskinRad, flyttTimerRad, flyttVareLokalt, foelgKobletMaskin } from "./kortRadFlytt";
+import {
+  flyttMaskinRad,
+  flyttTimerRad,
+  flyttVareLokalt,
+  foelgKobletMaskin,
+  loftByggeplassArv,
+  trengerByggeplassLoft,
+} from "./kortRadFlytt";
 import { leggTilTimerRad, type TimerRadFelt } from "./radLagring";
 
 const { dagsseddelLocal, lonnsartLocal, sheetMachineLocal, sheetTimerLocal, vareforbrukLocal } = schema;
@@ -200,5 +207,59 @@ describe("flyttVareLokalt", () => {
   it("negativkontroll: ukjent linje → ingenting endres", () => {
     flyttVareLokalt(db(), "finnes-ikke", MAAL);
     expect(db().select().from(vareforbrukLocal).all()).toHaveLength(0);
+  });
+});
+
+describe("RETUR 36c-2 P1 (a2) — løft byggeplass-arv ved «Uten byggeplass»", () => {
+  const SEDEL_A = { projectId: "p1", byggeplass: { id: "bpA", projectId: "p1" } };
+  const sedelRad = () => db().select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, "s1")).all()[0];
+  const medHeaderA = () => db().update(dagsseddelLocal).set({ byggeplassId: "bpA" }).where(eq(dagsseddelLocal.id, "s1")).run();
+
+  it("arvende timer- og maskinrader får A eksplisitt; sedelens byggeplass nullstilles og blir pending", () => {
+    medHeaderA();
+    const id = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+    db().insert(sheetMachineLocal).values({ id: "m-fri", dagsseddelId: "s1", projectId: null, vehicleId: "v9", timer: 2, sistEndretLokalt: 1 }).run();
+    expect(loftByggeplassArv(db(), "s1", SEDEL_A)).toBe(true);
+    expect(timerRad(id).byggeplassId).toBe("bpA");
+    expect(maskinRader().map((m) => m.byggeplassId)).toEqual(["bpA", "bpA"]);
+    expect(sedelRad()).toMatchObject({ byggeplassId: null, syncStatus: "pending" });
+    expect(sedelRad().sistEndretLokalt).toBeGreaterThan(1000);
+  });
+
+  it("negativkontroll: reise, rader i annet prosjekt og rader med egen byggeplass røres ikke", () => {
+    medHeaderA();
+    const reise = leggTilTimerRad(db(), K, felt, null);
+    db().update(sheetTimerLocal).set({ erReise: true, sistEndretLokalt: 1 }).where(eq(sheetTimerLocal.id, reise)).run();
+    const annet = leggTilTimerRad(db(), K, { ...felt, projectId: "p2" }, null);
+    const egen = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bpB" }, null);
+    db().insert(sheetMachineLocal).values({ id: "m-p2", dagsseddelId: "s1", projectId: "p2", vehicleId: "v9", timer: 2, sistEndretLokalt: 1 }).run();
+    loftByggeplassArv(db(), "s1", SEDEL_A);
+    expect(timerRad(reise)).toMatchObject({ byggeplassId: null, sistEndretLokalt: 1 });
+    expect(timerRad(annet).byggeplassId).toBeNull();
+    expect(timerRad(egen).byggeplassId).toBe("bpB");
+    expect(maskinRader()[0]).toMatchObject({ id: "m-p2", byggeplassId: null, sistEndretLokalt: 1 });
+  });
+
+  it("negativkontroll: sedel uten byggeplass → no-op (false), ingen pending", () => {
+    const id = leggTilTimerRad(db(), K, felt, null);
+    expect(loftByggeplassArv(db(), "s1", { projectId: "p1", byggeplass: null })).toBe(false);
+    expect(timerRad(id).byggeplassId).toBeNull();
+    expect(sedelRad().syncStatus).toBe("synced");
+  });
+
+  it("trengerByggeplassLoft: bare «uten» i samme prosjekt som sedelens byggeplass", () => {
+    expect(trengerByggeplassLoft({ projectId: "p1", byggeplassId: null, ecoId: null }, SEDEL_A)).toBe(true);
+    expect(trengerByggeplassLoft({ projectId: "p1", byggeplassId: "bpA", ecoId: null }, SEDEL_A)).toBe(false);
+    expect(trengerByggeplassLoft({ projectId: "p2", byggeplassId: null, ecoId: null }, SEDEL_A)).toBe(false);
+    expect(trengerByggeplassLoft({ projectId: "p1", byggeplassId: null, ecoId: null }, { projectId: "p1", byggeplass: null })).toBe(false);
+  });
+
+  it("kildevakt: lagring og flytt løfter før byggeplass beregnes; «Uten» tilbys alltid", async () => {
+    const fs = await import("node:fs");
+    const kilde = fs.readFileSync(path.join(__dirname, "ProsjektkortDagsoversikt.tsx"), "utf8");
+    expect(kilde).toMatch(/loftArvVedBehov\(til\);\s*const maal/);
+    expect(kilde).toMatch(/loftArvVedBehov\(timerModal\.kort\);\s*const felt/);
+    const modal = fs.readFileSync(path.join(__dirname, "KortValgModal.tsx"), "utf8");
+    expect(modal).toMatch(/kanVelgeUtenByggeplass\([^)]*\): boolean \{\s*return true;/);
   });
 });

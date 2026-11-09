@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Towary",
   "timer.prosjektkort.kolonne.reise": "Podróż",
   "timer.prosjektkort.kolonne.utlegg": "Wydatki",
+  "timer.prosjektkort.leggTilArbeid": "+ Dodaj pracę",
+  "timer.prosjektkort.leggTilMaskin": "+ Dodaj maszynę",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} witryn",
   "timer.prosjektkort.varelinjer": "Linie {{antall}}",
   "timer.prosjektkort.status.returnert": "Zwrócony",

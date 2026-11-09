@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Mallrat",
   "timer.prosjektkort.kolonne.reise": "Udhëtoni",
   "timer.prosjektkort.kolonne.utlegg": "Shpenzimet",
+  "timer.prosjektkort.leggTilArbeid": "+ Shto punë",
+  "timer.prosjektkort.leggTilMaskin": "+ Shto makinë",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} sajte",
   "timer.prosjektkort.varelinjer": "{{antall}} rreshta",
   "timer.prosjektkort.status.returnert": "U kthye",

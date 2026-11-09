@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Kaubad",
   "timer.prosjektkort.kolonne.reise": "Reisimine",
   "timer.prosjektkort.kolonne.utlegg": "Kulud",
+  "timer.prosjektkort.leggTilArbeid": "+ Lisa töö",
+  "timer.prosjektkort.leggTilMaskin": "+ Lisa masin",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} saiti",
   "timer.prosjektkort.varelinjer": "{{antall}} rida",
   "timer.prosjektkort.status.returnert": "Tagastatud",

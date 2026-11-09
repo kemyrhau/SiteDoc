@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Varer",
   "timer.prosjektkort.kolonne.reise": "Reise",
   "timer.prosjektkort.kolonne.utlegg": "Utlegg",
+  "timer.prosjektkort.leggTilArbeid": "+ Legg til arbeid",
+  "timer.prosjektkort.leggTilMaskin": "+ Legg til maskin",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} byggeplasser",
   "timer.prosjektkort.varelinjer": "{{antall}} linjer",
   "timer.prosjektkort.status.returnert": "Returnert",

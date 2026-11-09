@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Товары",
   "timer.prosjektkort.kolonne.reise": "Путешествовать",
   "timer.prosjektkort.kolonne.utlegg": "Затраты",
+  "timer.prosjektkort.leggTilArbeid": "+ Добавить работу",
+  "timer.prosjektkort.leggTilMaskin": "+ Добавить машину",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} сайтов",
   "timer.prosjektkort.varelinjer": "{{antall}} строк",
   "timer.prosjektkort.status.returnert": "Вернулся",
