@@ -44,10 +44,13 @@ import { kjorMigreringer } from "../../../db/migreringer";
 import {
   flyttKort,
   kortFinnesFraFor,
+  erIkkeFunnet,
   kortInnhold,
+  kortUtfallTekst,
   slettKort,
   vareFinnesPaaServer,
   type KortDag,
+  type KortUtfall,
   type KortVare,
 } from "./kortRadFlytt";
 import { leggTilTimerRad, type TimerRadFelt } from "./radLagring";
@@ -190,6 +193,9 @@ function byggDag() {
     .run();
   return { a, koblet, reise, nabo };
 }
+/** tRPC-klientfeil bærer koden i `e.data.code`. */
+const trpcFeil = (code: string) => Object.assign(new Error(code), { data: { code } });
+
 const SERVER_OK = { erPaaNettet: true, slettVare: async () => {}, flyttVare: async () => {} };
 
 describe("slettKort", () => {
@@ -238,6 +244,45 @@ describe("slettKort", () => {
     expect(timerRad(a)).toBeDefined();
     expect(maskinAlle()).toHaveLength(3);
     expect(vare("v-a")).toBeDefined();
+    expect(tombstones()).toHaveLength(0);
+  });
+
+  it("RETUR 36c-kort-2: nett faller etter server-slett → nytt forsøk får NOT_FOUND og fullfører", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    // Forsøk 1: serveren sletter, men svaret når aldri fram.
+    const brudd = await slettKort(db(), dagFor(), innholdFor(A), {
+      erPaaNettet: true,
+      slettVare: async () => {
+        throw new Error("Network request failed");
+      },
+    });
+    expect(brudd).toEqual({ utfall: "serverFeil", melding: "Network request failed" });
+    expect(vare("v-a")).toBeDefined();
+    // Forsøk 2: linja finnes ikke lenger på server → regnes som slettet.
+    const slettVare = vi.fn(async () => {
+      throw trpcFeil("NOT_FOUND");
+    });
+    expect(await slettKort(db(), dagFor(), innholdFor(A), { erPaaNettet: true, slettVare })).toEqual({ utfall: "ok" });
+    expect(slettVare).toHaveBeenCalledWith("v-a");
+    expect(vare("v-a")).toBeUndefined();
+    expect(timerRad(a)).toBeUndefined();
+  });
+
+  it("negativkontroll: annen tRPC-feil enn NOT_FOUND stopper fortsatt før lokal skriving", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    for (const kode of ["FORBIDDEN", "BAD_REQUEST", "INTERNAL_SERVER_ERROR"]) {
+      const u = await slettKort(db(), dagFor(), innholdFor(A), {
+        erPaaNettet: true,
+        slettVare: async () => {
+          throw trpcFeil(kode);
+        },
+      });
+      expect(u).toMatchObject({ utfall: "serverFeil" });
+    }
+    expect(vare("v-a")).toBeDefined();
+    expect(timerRad(a)).toBeDefined();
     expect(tombstones()).toHaveLength(0);
   });
 
@@ -352,6 +397,27 @@ describe("flyttKort", () => {
     expect(vare("v-a").projectId).toBe("p1");
   });
 
+  it("RETUR 36c-kort-2: NOT_FOUND fra server-varen ved flytt regnes som lyktes; annen feil stopper", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    const nekt = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
+      erPaaNettet: true,
+      flyttVare: async () => {
+        throw trpcFeil("FORBIDDEN");
+      },
+    });
+    expect(nekt).toMatchObject({ utfall: "serverFeil" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p1" });
+    const ok = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
+      erPaaNettet: true,
+      flyttVare: async () => {
+        throw trpcFeil("NOT_FOUND");
+      },
+    });
+    expect(ok).toEqual({ utfall: "ok" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p2" });
+  });
+
   it("sammenslåing: målkortet finnes → radene får samme nøkkel og beholder beskrivelsene", async () => {
     const { a, nabo } = byggDag();
     const B: KortValg = { projectId: "p2", byggeplassId: null, ecoId: null };
@@ -392,6 +458,43 @@ describe("flyttKort", () => {
     expect(timerRad(a).byggeplassId).toBeNull();
     expect(timerRad(arver).byggeplassId).toBe("bpA");
     expect(db().select().from(dagsseddelLocal).all()[0]).toMatchObject({ byggeplassId: null, syncStatus: "pending" });
+  });
+});
+
+describe("RETUR 36c-kort-2 — feiltekst og NOT_FOUND", () => {
+  it("erIkkeFunnet kjenner bare tRPC-koden NOT_FOUND", () => {
+    expect(erIkkeFunnet(trpcFeil("NOT_FOUND"))).toBe(true);
+    for (const e of [trpcFeil("FORBIDDEN"), new Error("NOT_FOUND"), null, undefined, "NOT_FOUND"]) expect(erIkkeFunnet(e)).toBe(false);
+  });
+
+  it("hvert stopp-utfall gir en synlig tekst — offline aldri stille", () => {
+    expect(kortUtfallTekst({ utfall: "offline" }, "slett")).toBe("timer.kort.offlineSlett");
+    expect(kortUtfallTekst({ utfall: "offline" }, "flytt")).toBe("timer.kort.offlineFlytt");
+    const stopp: KortUtfall[] = [{ utfall: "laast" }, { utfall: "brudd" }, { utfall: "serverFeil", melding: "x" }];
+    for (const u of stopp) for (const h of ["slett", "flytt"] as const) expect(kortUtfallTekst(u, h)).toBeTruthy();
+    expect(kortUtfallTekst({ utfall: "ok" }, "slett")).toBeNull();
+  });
+
+  it("nøklene finnes i nb og en", () => {
+    const i18n = path.join(__dirname, "../../../../../../packages/shared/src/i18n");
+    for (const sprak of ["nb", "en"]) {
+      const json = JSON.parse(fs.readFileSync(path.join(i18n, `${sprak}.json`), "utf8")) as Record<string, string>;
+      for (const n of ["timer.kort.offlineSlett", "timer.kort.offlineFlytt", "timer.detalj.laast", "timer.maskin.overstigerArbeid"])
+        expect(json[n], `${sprak}:${n}`).toBeTruthy();
+    }
+  });
+
+  it("kortskjermen viser teksten fra kortUtfallTekst for både flytt og slett", () => {
+    const kort = fs.readFileSync(path.join(__dirname, "../../../../app/timer/[id]/kort/[projectId].tsx"), "utf8");
+    // visUtfall har ingen egne unntak: alt annet enn «ok» går gjennom kortUtfallTekst.
+    const a = kort.indexOf("const visUtfall =");
+    const blokk = kort.slice(a, kort.indexOf("};", a));
+    expect(blokk).toContain("const tekst = kortUtfallTekst(u, handling);");
+    expect(blokk.match(/u\.utfall/g)).toEqual(["u.utfall"]);
+    expect(blokk).toContain('u.utfall === "ok"');
+    expect(blokk).toContain("setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) : null);");
+    expect(kort).toContain('visUtfall(u, "flytt")');
+    expect(kort).toContain('visUtfall(u, "slett")');
   });
 });
 

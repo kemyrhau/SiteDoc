@@ -267,6 +267,35 @@ export type KortUtfall =
   | { utfall: "offline" }
   | { utfall: "serverFeil"; melding: string };
 
+/**
+ * Feiltekst for et utfall (i18n-nøkkel eller serverens melding); `null` = ingen
+ * feil. RETUR 36c-kort-2: «offline» skal aldri gi et stille trykk.
+ */
+export function kortUtfallTekst(u: KortUtfall, handling: "slett" | "flytt"): string | null {
+  switch (u.utfall) {
+    case "ok":
+    case "uendret":
+      return null;
+    case "brudd":
+      return "timer.maskin.overstigerArbeid";
+    case "offline":
+      return handling === "slett" ? "timer.kort.offlineSlett" : "timer.kort.offlineFlytt";
+    case "laast":
+      return "timer.detalj.laast";
+    case "serverFeil":
+      return u.melding;
+  }
+}
+
+/**
+ * RETUR 36c-kort-2: `NOT_FOUND` fra server-varen = linja finnes ikke lenger
+ * der (typisk slettet i et tidligere forsøk som falt midt i løkka). Regnes som
+ * lyktes, ellers sitter kortet fast. Alle andre feil stopper før lokal skriving.
+ */
+export function erIkkeFunnet(e: unknown): boolean {
+  return (e as { data?: { code?: string } } | null)?.data?.code === "NOT_FOUND";
+}
+
 /** Dagens rader + statusen — det brudd-sjekken og redigerbar-sperren trenger. */
 export type KortDag = {
   sheetId: string;
@@ -332,6 +361,7 @@ export async function slettKort(
     try {
       await server.slettVare(v.id);
     } catch (e) {
+      if (erIkkeFunnet(e)) continue;
       return { utfall: "serverFeil", melding: e instanceof Error ? e.message : String(e) };
     }
   }
@@ -399,6 +429,7 @@ export async function flyttKort(
     try {
       await server.flyttVare(v.id, vareMaal);
     } catch (e) {
+      if (erIkkeFunnet(e)) continue;
       return { utfall: "serverFeil", melding: e instanceof Error ? e.message : String(e) };
     }
   }

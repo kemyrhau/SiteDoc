@@ -57,6 +57,7 @@ import {
   flyttKort,
   kortFinnesFraFor,
   kortInnhold,
+  kortUtfallTekst,
   slettKort,
   vareFinnesPaaServer,
   type KortDag,
@@ -327,15 +328,10 @@ export default function ProsjektkortSkjerm() {
     timerRader.every((r) => iKortet.has(r.id) || r.erReise === true || r.lonnsartId === reiseLonnsartId) &&
     maskinRader.every((m) => iKortet.has(m.id)) &&
     [...(vareQuery.data ?? []), ...lokaleVarer].every((v) => iKortet.has(v.id));
-  const visUtfall = (u: KortUtfall): boolean => {
+  const visUtfall = (u: KortUtfall, handling: "slett" | "flytt"): boolean => {
     if (u.utfall === "ok") return true;
-    setKortFeil(
-      u.utfall === "brudd"
-        ? t("timer.maskin.overstigerArbeid")
-        : u.utfall === "serverFeil"
-          ? t(u.melding, { defaultValue: u.melding })
-          : null,
-    );
+    const tekst = kortUtfallTekst(u, handling);
+    setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) : null);
     return false;
   };
   const utforEndre = async (til: typeof valg) => {
@@ -353,7 +349,7 @@ export default function ProsjektkortSkjerm() {
       },
     });
     setKortArbeider(false);
-    if (!visUtfall(u)) return;
+    if (!visUtfall(u, "flytt")) return;
     setVisEndre(false);
     markerEndretOgLes();
     void vareQuery.refetch();
@@ -372,7 +368,7 @@ export default function ProsjektkortSkjerm() {
     });
     setKortArbeider(false);
     setVisSlett(false);
-    if (!visUtfall(u)) return;
+    if (!visUtfall(u, "slett")) return;
     markerEndretOgLes();
     void vareQuery.refetch();
     router.back();
