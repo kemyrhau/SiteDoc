@@ -291,6 +291,7 @@ export function kortUtfallTekst(u: KortUtfall, handling: "slett" | "flytt"): str
  * RETUR 36c-kort-2: `NOT_FOUND` fra server-varen = linja finnes ikke lenger
  * der (typisk slettet i et tidligere forsøk som falt midt i løkka). Regnes som
  * lyktes, ellers sitter kortet fast. Alle andre feil stopper før lokal skriving.
+ * Gjelder bare `slettKort` — ved flytt kan NOT_FOUND bety at MÅLET mangler.
  */
 export function erIkkeFunnet(e: unknown): boolean {
   return (e as { data?: { code?: string } } | null)?.data?.code === "NOT_FOUND";
@@ -429,7 +430,8 @@ export async function flyttKort(
     try {
       await server.flyttVare(v.id, vareMaal);
     } catch (e) {
-      if (erIkkeFunnet(e)) continue;
+      // Ikke `erIkkeFunnet` her: `oppdater` gir også NOT_FOUND når målet
+      // (underprosjektet) mangler — en avvist flytt må stoppe (RETUR 36c-kort-2b).
       return { utfall: "serverFeil", melding: e instanceof Error ? e.message : String(e) };
     }
   }

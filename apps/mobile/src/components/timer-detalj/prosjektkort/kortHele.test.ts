@@ -397,25 +397,21 @@ describe("flyttKort", () => {
     expect(vare("v-a").projectId).toBe("p1");
   });
 
-  it("RETUR 36c-kort-2: NOT_FOUND fra server-varen ved flytt regnes som lyktes; annen feil stopper", async () => {
+  it("RETUR 36c-kort-2b: NOT_FOUND ved flytt (f.eks. slettet målunderprosjekt) stopper uten lokal skriving", async () => {
     const { a } = byggDag();
     db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
-    const nekt = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
-      erPaaNettet: true,
-      flyttVare: async () => {
-        throw trpcFeil("FORBIDDEN");
-      },
-    });
-    expect(nekt).toMatchObject({ utfall: "serverFeil" });
-    expect(timerRad(a)).toMatchObject({ projectId: "p1" });
-    const ok = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
-      erPaaNettet: true,
-      flyttVare: async () => {
-        throw trpcFeil("NOT_FOUND");
-      },
-    });
-    expect(ok).toEqual({ utfall: "ok" });
-    expect(timerRad(a)).toMatchObject({ projectId: "p2" });
+    for (const kode of ["NOT_FOUND", "FORBIDDEN"]) {
+      const u = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
+        erPaaNettet: true,
+        flyttVare: async () => {
+          throw trpcFeil(kode);
+        },
+      });
+      expect(u, kode).toMatchObject({ utfall: "serverFeil" });
+    }
+    expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+    expect(maskin("m-a")).toMatchObject({ projectId: "p1" });
+    expect(vare("v-a").projectId).toBe("p1");
   });
 
   it("sammenslåing: målkortet finnes → radene får samme nøkkel og beholder beskrivelsene", async () => {
