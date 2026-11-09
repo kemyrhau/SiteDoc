@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Smazat řádek?",
   "timer.kortValg.utenByggeplass": "Žádné staveniště",
   "timer.kortValg.uten": "Žádný",
-  "timer.kortValg.flyttTittel": "Přesunout řádek do"
+  "timer.kortValg.flyttTittel": "Přesunout řádek do",
+  "timer.kort.endre": "Vyměňte kartu",
+  "timer.kort.slett": "Smazat kartu",
+  "timer.kort.flyttTittel": "Přesuňte kartu do",
+  "timer.kort.flyttKnapp": "Přesunout kartu",
+  "timer.kort.sammenslaa": "Karta bude sloučena s kartou {{kort}}, která již existuje.",
+  "timer.kort.slettTittel": "Smazat kartu?",
+  "timer.kort.slettTekst": "Práce ({{timer}} h), stroje a zboží na {{kort}} jsou odstraněny z časového rozvrhu pro {{dato}}.",
+  "timer.kort.slettUtkast": "Časový rozvrh zůstane jako váš koncept. Váš manažer jej neobdržel. Cestovní, náhrady a výdaje zůstávají zachovány.",
+  "timer.kort.slettReturnert": "Cestovní, náhrady a výdaje zůstávají zachovány. Váš manažer uvidí změnu, když znovu odešlete časový rozvrh.",
+  "timer.kort.slettSiste": "Toto je poslední karta — časový rozvrh bude prázdný.",
+  "timer.kort.offlineSlett": "Na kartě je zboží, které bylo odesláno. Chcete-li smazat, připojte se k internetu.",
+  "timer.kort.offlineFlytt": "Na kartě je zboží, které bylo odesláno. Chcete-li se pohybovat, připojte se k internetu."
 }

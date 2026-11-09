@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Ta bort raden?",
   "timer.kortValg.utenByggeplass": "Ingen byggarbetsplats",
   "timer.kortValg.uten": "Ingen",
-  "timer.kortValg.flyttTittel": "Flytta rad till"
+  "timer.kortValg.flyttTittel": "Flytta rad till",
+  "timer.kort.endre": "Byt kort",
+  "timer.kort.slett": "Ta bort kort",
+  "timer.kort.flyttTittel": "Flytta kortet till",
+  "timer.kort.flyttKnapp": "Flytta kort",
+  "timer.kort.sammenslaa": "Kortet kommer att slås samman med {{kort}}, som redan finns.",
+  "timer.kort.slettTittel": "Ta bort kortet?",
+  "timer.kort.slettTekst": "Arbete ({{timer}} h), maskiner och varor på {{kort}} tas bort från tidrapporten för {{dato}}.",
+  "timer.kort.slettUtkast": "Tidrapporten stannar som ditt utkast. Din chef har inte fått det. Resor, traktamenten och utlägg behålls.",
+  "timer.kort.slettReturnert": "Resor, traktamenten och utlägg behålls. Din chef ser ändringen när du skickar tidrapporten igen.",
+  "timer.kort.slettSiste": "Detta är det sista kortet — tidrapporten kommer att vara tom.",
+  "timer.kort.offlineSlett": "Kortet har varor som har skickats. Anslut till internet för att radera.",
+  "timer.kort.offlineFlytt": "Kortet har varor som har skickats. Anslut till internet för att flytta."
 }

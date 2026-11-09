@@ -93,6 +93,17 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når 
 - **Hvor:** område, tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
 - Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
 
+## Mobil: Prosjektkortet (`app/timer/[id]/kort/[projectId].tsx`, 36c-kort)
+
+Ingen `?`-komponent på mobil ennå; vedtatt tekst for kortskjermen, brukes når mobil får hjelpe-ikon.
+
+- **Hva er dette?** Ett kort = arbeid, maskiner og varer på ett prosjekt, én byggeplass og ett underprosjekt den dagen.
+- **Endre kort:** flytter hele kortet til et annet prosjekt, en annen byggeplass eller et annet underprosjekt. Finnes
+  kortet du velger fra før, slås de sammen. Reise, tillegg og utlegg blir liggende på dagen.
+- **Slett kort:** sletter arbeid, maskiner og varer på kortet. Er det dagens siste kort, blir dagsseddelen stående som tomt utkast.
+- Begge knappene finnes bare mens dagsseddelen er utkast eller returnert. Varer som alt er sendt, må endres på serveren —
+  uten dekning er knappene sperret.
+
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 
 Siden `oppsett/produksjon/dokumentflyt/page.tsx` har ingen `?`-komponent for kortet ennå; vedtatt tekst, brukes når

@@ -38,7 +38,9 @@ import { useReLesVedSynk } from "../../../../src/hooks/useReLesVedSynk";
 import { formatNorskDato, isoTidspunktTilHHMM } from "../../../../src/utils/dato";
 import {
   effektivByggeplass,
+  formatKortTall,
   fraRuteParam,
+  kortNokkel,
   kortValgFor,
   raderPaaKort,
   type KortValg,
@@ -46,8 +48,20 @@ import {
   tilKortMaskinRader,
   tilKortTimerRader,
   tilKortVarer,
+  tilRuteParam,
   varerForProsjekt,
 } from "../../../../src/lib/prosjektkortMobil";
+import { KortValgModal } from "../../../../src/components/timer-detalj/prosjektkort/KortValgModal";
+import { BekreftSlettModal } from "../../../../src/components/timer-detalj/prosjektkort/BekreftSlettModal";
+import {
+  flyttKort,
+  kortFinnesFraFor,
+  kortInnhold,
+  slettKort,
+  vareFinnesPaaServer,
+  type KortDag,
+  type KortUtfall,
+} from "../../../../src/components/timer-detalj/prosjektkort/kortRadFlytt";
 import { KortHode } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortSamleside";
 import type {
   Sedel,
@@ -84,6 +98,13 @@ export default function ProsjektkortSkjerm() {
   const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
   const [lokaleVarer, setLokaleVarer] = useState<LokalVarelinje[]>([]);
   const [varelagerProsjekter, setVarelagerProsjekter] = useState<string[]>([]);
+  // ORDRE 36c-kort: «Endre kort» (KortValgModal, hele kortet) og «Slett kort».
+  const [visEndre, setVisEndre] = useState(false);
+  const [visSlett, setVisSlett] = useState(false);
+  const [kortFeil, setKortFeil] = useState<string | null>(null);
+  const [kortArbeider, setKortArbeider] = useState(false);
+  const oppdaterVare = trpc.vareforbruk.oppdater.useMutation();
+  const slettVare = trpc.vareforbruk.slett.useMutation();
 
   // Samme lesing som timer/[id] — alle dagens rader (overlapp og matpause
   // gjelder hele dagen); filtrering pr. prosjekt skjer ved visning.
@@ -280,6 +301,94 @@ export default function ProsjektkortSkjerm() {
   // Tillegg og utlegg er dagsnivå (ORDRE 36b) — de ligger på samlesiden.
   const tomt = kTimer.length + kMaskin.length + kVarer.length === 0;
 
+  // ORDRE 36c-kort: kortets innhold (arbeid uten reise, maskin + koblet, varer).
+  const innhold = kortInnhold({ timerRader, maskinRader, varer, sedel: kontekst, kort: valg, reiseLonnsartId });
+  const dag: KortDag = {
+    sheetId,
+    organizationId: sedel.organizationId,
+    status: sedel.status,
+    pauseMin: sedel.pauseMin ?? 0,
+    sedel: kontekst,
+    timerRader,
+    maskinRader,
+  };
+  const sperretOffline = !erPaaNettet && innhold.varer.some(vareFinnesPaaServer);
+  const kortNavn = (k: typeof valg) =>
+    [
+      finnProsjektLokalt(k.projectId)?.name ?? k.projectId,
+      k.byggeplassId ? byggeplassNavn(k.byggeplassId) ?? k.byggeplassId : t("timer.kortValg.utenByggeplass"),
+      k.ecoId ? ecoNavn(k.ecoId) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  // Siste kort: ingen andre arbeid-, maskin- eller vare-rader på dagen.
+  const iKortet = new Set([...innhold.timer, ...innhold.maskin, ...innhold.varer].map((r) => r.id));
+  const sisteKort =
+    timerRader.every((r) => iKortet.has(r.id) || r.erReise === true || r.lonnsartId === reiseLonnsartId) &&
+    maskinRader.every((m) => iKortet.has(m.id)) &&
+    [...(vareQuery.data ?? []), ...lokaleVarer].every((v) => iKortet.has(v.id));
+  const visUtfall = (u: KortUtfall): boolean => {
+    if (u.utfall === "ok") return true;
+    setKortFeil(
+      u.utfall === "brudd"
+        ? t("timer.maskin.overstigerArbeid")
+        : u.utfall === "serverFeil"
+          ? t(u.melding, { defaultValue: u.melding })
+          : null,
+    );
+    return false;
+  };
+  const utforEndre = async (til: typeof valg) => {
+    if (kortArbeider) return;
+    setKortArbeider(true);
+    const u = await flyttKort(hentDatabase()!, dag, innhold, valg, til, {
+      erPaaNettet,
+      flyttVare: async (id, maal) => {
+        await oppdaterVare.mutateAsync({
+          id,
+          projectId: maal.projectId,
+          byggeplassId: maal.byggeplassId,
+          externalCostObjectId: maal.ecoId,
+        });
+      },
+    });
+    setKortArbeider(false);
+    if (!visUtfall(u)) return;
+    setVisEndre(false);
+    markerEndretOgLes();
+    void vareQuery.refetch();
+    router.replace(
+      `/timer/${sheetId}/kort/${til.projectId}?bp=${tilRuteParam(til.byggeplassId)}&up=${tilRuteParam(til.ecoId)}`,
+    );
+  };
+  const utforSlett = async () => {
+    if (kortArbeider) return;
+    setKortArbeider(true);
+    const u = await slettKort(hentDatabase()!, dag, innhold, {
+      erPaaNettet,
+      slettVare: async (id) => {
+        await slettVare.mutateAsync({ id });
+      },
+    });
+    setKortArbeider(false);
+    setVisSlett(false);
+    if (!visUtfall(u)) return;
+    markerEndretOgLes();
+    void vareQuery.refetch();
+    router.back();
+  };
+  const slettTekst = [
+    t("timer.kort.slettTekst", {
+      timer: formatKortTall(innhold.timer.reduce((a, r) => a + r.timer, 0)),
+      kort: kortNavn(valg),
+      dato: formatNorskDato(sedel.dato),
+    }),
+    sedel.status === "returned" ? t("timer.kort.slettReturnert") : t("timer.kort.slettUtkast"),
+    sisteKort ? t("timer.kort.slettSiste") : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <View className="flex-row items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
@@ -358,7 +467,76 @@ export default function ProsjektkortSkjerm() {
           }}
         />
 
+        {/* ORDRE 36c-kort: hele kortet — kun når sedelen er redigerbar. */}
+        {erRedigerbar && !tomt && (
+          <View className="mx-4 mt-6">
+            <View className="flex-row gap-3">
+              <Pressable
+                disabled={sperretOffline || kortArbeider}
+                accessibilityState={{ disabled: sperretOffline || kortArbeider }}
+                onPress={() => {
+                  setKortFeil(null);
+                  setVisEndre(true);
+                }}
+                className="min-h-[44px] flex-1 items-center justify-center rounded-lg border border-gray-300 bg-white active:bg-gray-50"
+              >
+                <Text className={`text-base ${sperretOffline ? "text-gray-400" : "text-gray-700"}`}>
+                  {t("timer.kort.endre")}
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={sperretOffline || kortArbeider}
+                accessibilityState={{ disabled: sperretOffline || kortArbeider }}
+                onPress={() => {
+                  setKortFeil(null);
+                  setVisSlett(true);
+                }}
+                className="min-h-[44px] flex-1 items-center justify-center rounded-lg border border-gray-300 bg-white active:bg-gray-50"
+              >
+                <Text className={`text-base ${sperretOffline ? "text-gray-400" : "text-red-600"}`}>
+                  {t("timer.kort.slett")}
+                </Text>
+              </Pressable>
+            </View>
+            {sperretOffline && (
+              <Text className="mt-2 text-sm text-amber-700">
+                {t("timer.kort.offlineFlytt")} {t("timer.kort.offlineSlett")}
+              </Text>
+            )}
+            {kortFeil && !visEndre && <Text className="mt-2 text-sm text-amber-700">{kortFeil}</Text>}
+          </View>
+        )}
       </ScrollView>
+
+      {visEndre && (
+        <KortValgModal
+          organizationId={sedel.organizationId}
+          modus={{ type: "flytt", fra: valg, heleKortet: true }}
+          sedel={kontekst}
+          prosjektNavn={(id) => {
+            const p = finnProsjektLokalt(id);
+            return p ? `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}` : id;
+          }}
+          feil={kortFeil}
+          merknad={(til) =>
+            kortNokkel(til) !== kortNokkel(valg) &&
+            kortFinnesFraFor([...timerRader.filter((r) => !iKortet.has(r.id)), ...maskinRader.filter((m) => !iKortet.has(m.id))], kontekst, til)
+              ? t("timer.kort.sammenslaa", { kort: kortNavn(til) })
+              : null
+          }
+          onVelg={(til) => void utforEndre(til)}
+          onLukk={() => setVisEndre(false)}
+        />
+      )}
+
+      <BekreftSlettModal
+        synlig={visSlett}
+        tittel={t("timer.kort.slettTittel")}
+        tekst={slettTekst}
+        bekreftTekst={t("timer.kort.slett")}
+        onAvbryt={() => setVisSlett(false)}
+        onBekreft={() => void utforSlett()}
+      />
 
       <BekreftFjernMatpauseModal
         synlig={bekreftFjernRadId !== null}

@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Ștergeți rândul?",
   "timer.kortValg.utenByggeplass": "Fără șantier",
   "timer.kortValg.uten": "Nici unul",
-  "timer.kortValg.flyttTittel": "Mutați rândul la"
+  "timer.kortValg.flyttTittel": "Mutați rândul la",
+  "timer.kort.endre": "Schimbați cardul",
+  "timer.kort.slett": "Ștergeți cardul",
+  "timer.kort.flyttTittel": "Mutați cardul în",
+  "timer.kort.flyttKnapp": "Mutați cardul",
+  "timer.kort.sammenslaa": "Cardul va fi îmbinat cu {{kort}}, care există deja.",
+  "timer.kort.slettTittel": "Ștergeți cardul?",
+  "timer.kort.slettTekst": "Lucrarea ({{timer}} h), mașinile și bunurile de pe {{kort}} sunt eliminate din foaia de pontaj pentru {{dato}}.",
+  "timer.kort.slettUtkast": "Foaia de pontaj rămâne ca schiță. Managerul dvs. nu a primit-o. Deplasările, indemnizațiile și cheltuielile sunt păstrate.",
+  "timer.kort.slettReturnert": "Deplasările, indemnizațiile și cheltuielile sunt păstrate. Managerul vede schimbarea când trimiteți din nou foaia de pontaj.",
+  "timer.kort.slettSiste": "Acesta este ultimul card - foaia de pontaj va fi goală.",
+  "timer.kort.offlineSlett": "Cardul conține bunuri care au fost trimise. Conectați-vă la internet pentru a șterge.",
+  "timer.kort.offlineFlytt": "Cardul conține bunuri care au fost trimise. Conectați-vă la internet pentru a vă deplasa."
 }

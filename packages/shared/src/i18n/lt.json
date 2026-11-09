@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Ištrinti eilutę?",
   "timer.kortValg.utenByggeplass": "Nėra statybvietės",
   "timer.kortValg.uten": "Nėra",
-  "timer.kortValg.flyttTittel": "Perkelti eilutę į"
+  "timer.kortValg.flyttTittel": "Perkelti eilutę į",
+  "timer.kort.endre": "Keisti kortelę",
+  "timer.kort.slett": "Ištrinti kortelę",
+  "timer.kort.flyttTittel": "Perkelkite kortelę į",
+  "timer.kort.flyttKnapp": "Perkelti kortelę",
+  "timer.kort.sammenslaa": "Kortelė bus sujungta su {{kort}}, kuri jau yra.",
+  "timer.kort.slettTittel": "Ištrinti kortelę?",
+  "timer.kort.slettTekst": "Darbas ({{timer}} h), mašinos ir prekės {{kort}} pašalinamos iš {{dato}} darbo laiko apskaitos žiniaraščio.",
+  "timer.kort.slettUtkast": "Darbo laiko apskaitos žiniaraštis lieka jūsų juodraštis. Jūsų vadovas jo negavo. Išsaugomos kelionės, pašalpos ir išlaidos.",
+  "timer.kort.slettReturnert": "Išsaugomos kelionės, pašalpos ir išlaidos. Jūsų vadovas pamatys pokyčius, kai vėl išsiųsite darbo laiko apskaitos žiniaraštį.",
+  "timer.kort.slettSiste": "Tai paskutinė kortelė – darbo laiko apskaitos žiniaraštis bus tuščias.",
+  "timer.kort.offlineSlett": "Kortelėje yra prekės, kurios buvo išsiųstos. Prisijunkite prie interneto, kad ištrintumėte.",
+  "timer.kort.offlineFlytt": "Kortelėje yra prekės, kurios buvo išsiųstos. Norėdami judėti, prisijunkite prie interneto."
 }

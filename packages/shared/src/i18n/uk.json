@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Видалити рядок?",
   "timer.kortValg.utenByggeplass": "Без будівельного майданчика",
   "timer.kortValg.uten": "Жодного",
-  "timer.kortValg.flyttTittel": "Перемістити рядок до"
+  "timer.kortValg.flyttTittel": "Перемістити рядок до",
+  "timer.kort.endre": "Змінити картку",
+  "timer.kort.slett": "Видалити картку",
+  "timer.kort.flyttTittel": "Перемістіть картку до",
+  "timer.kort.flyttKnapp": "Перемістити картку",
+  "timer.kort.sammenslaa": "Картку буде об’єднано з {{kort}}, яка вже існує.",
+  "timer.kort.slettTittel": "Видалити картку?",
+  "timer.kort.slettTekst": "Робота ({{timer}} год), машини та товари на {{kort}} видаляються з табелю за {{dato}}.",
+  "timer.kort.slettUtkast": "Табель залишається чернеткою. Ваш керівник не отримав його. Проїзд, грошові та витрати зберігаються.",
+  "timer.kort.slettReturnert": "Проїзд, грошові та витрати зберігаються. Ваш менеджер побачить зміни, коли ви знову надішлете табель.",
+  "timer.kort.slettSiste": "Це остання картка — табель буде порожній.",
+  "timer.kort.offlineSlett": "На картці є товари, які відправлені. Щоб видалити, підключіться до Інтернету.",
+  "timer.kort.offlineFlytt": "На картці є товари, які відправлені. Щоб рухатися, підключіться до Інтернету."
 }

@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Slette raden?",
   "timer.kortValg.utenByggeplass": "Uten byggeplass",
   "timer.kortValg.uten": "Uten",
-  "timer.kortValg.flyttTittel": "Flytt raden til"
+  "timer.kortValg.flyttTittel": "Flytt raden til",
+  "timer.kort.endre": "Endre kort",
+  "timer.kort.slett": "Slett kort",
+  "timer.kort.flyttTittel": "Flytt kortet til",
+  "timer.kort.flyttKnapp": "Flytt kortet",
+  "timer.kort.sammenslaa": "Kortet slås sammen med {{kort}}, som finnes fra før.",
+  "timer.kort.slettTittel": "Slette kortet?",
+  "timer.kort.slettTekst": "Arbeid ({{timer}} t), maskin og varer på {{kort}} fjernes fra dagsseddelen for {{dato}}.",
+  "timer.kort.slettUtkast": "Seddelen blir værende som utkast hos deg. Leder har ikke fått den. Reise, tillegg og utlegg beholdes.",
+  "timer.kort.slettReturnert": "Reise, tillegg og utlegg beholdes. Leder ser endringen når du sender seddelen på nytt.",
+  "timer.kort.slettSiste": "Dette er siste kort — seddelen blir tom.",
+  "timer.kort.offlineSlett": "Kortet har varer som er sendt. Koble til nett for å slette.",
+  "timer.kort.offlineFlytt": "Kortet har varer som er sendt. Koble til nett for å flytte."
 }

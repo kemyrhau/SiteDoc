@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Kas kustutada rida?",
   "timer.kortValg.utenByggeplass": "Ehitusplats puudub",
   "timer.kortValg.uten": "Mitte ühtegi",
-  "timer.kortValg.flyttTittel": "Teisalda rida asukohta"
+  "timer.kortValg.flyttTittel": "Teisalda rida asukohta",
+  "timer.kort.endre": "Vaheta kaarti",
+  "timer.kort.slett": "Kustuta kaart",
+  "timer.kort.flyttTittel": "Liigutage kaart kohta",
+  "timer.kort.flyttKnapp": "Liiguta kaarti",
+  "timer.kort.sammenslaa": "Kaart liidetakse kaardiga {{kort}}, mis on juba olemas.",
+  "timer.kort.slettTittel": "Kas kustutada kaart?",
+  "timer.kort.slettTekst": "Töö ({{timer}} h), masinad ja kaubad {{kort}} eemaldatakse {{dato}} ajalehest.",
+  "timer.kort.slettUtkast": "Tööajatabel jääb teie mustandiks. Teie juht ei ole seda kätte saanud. Sõidud, päevarahad ja kulud jäetakse alles.",
+  "timer.kort.slettReturnert": "Sõidud, päevarahad ja kulud jäetakse alles. Teie haldur näeb muudatust, kui saadate ajatabeli uuesti.",
+  "timer.kort.slettSiste": "See on viimane kaart – ajatabel jääb tühjaks.",
+  "timer.kort.offlineSlett": "Kaardil on kaup, mis on saadetud. Kustutamiseks looge Interneti-ühendus.",
+  "timer.kort.offlineFlytt": "Kaardil on kaup, mis on saadetud. Liikumiseks looge Interneti-ühendus."
 }

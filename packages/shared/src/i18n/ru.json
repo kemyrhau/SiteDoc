@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Удалить строку?",
   "timer.kortValg.utenByggeplass": "Нет строительной площадки",
   "timer.kortValg.uten": "Никто",
-  "timer.kortValg.flyttTittel": "Переместить строку в"
+  "timer.kortValg.flyttTittel": "Переместить строку в",
+  "timer.kort.endre": "Сменить карту",
+  "timer.kort.slett": "Удалить карту",
+  "timer.kort.flyttTittel": "Переместите карту в",
+  "timer.kort.flyttKnapp": "Переместить карту",
+  "timer.kort.sammenslaa": "Карта будет объединена с {{kort}}, который уже существует.",
+  "timer.kort.slettTittel": "Удалить карту?",
+  "timer.kort.slettTekst": "Работа ({{timer}} ч), машины и товары на {{kort}} удаляются из табеля учета рабочего времени на {{dato}}.",
+  "timer.kort.slettUtkast": "Табель учета рабочего времени остается черновиком. Ваш менеджер его не получил. Путевые расходы, надбавки и расходы сохраняются.",
+  "timer.kort.slettReturnert": "Путевые расходы, надбавки и расходы сохраняются. Ваш менеджер увидит изменение, когда вы снова отправите табель учета рабочего времени.",
+  "timer.kort.slettSiste": "Это последняя карточка — табель будет пустым.",
+  "timer.kort.offlineSlett": "На карте есть отправленные товары. Подключитесь к Интернету, чтобы удалить.",
+  "timer.kort.offlineFlytt": "На карте есть отправленные товары. Подключитесь к Интернету, чтобы двигаться."
 }

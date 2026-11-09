@@ -1,0 +1,435 @@
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { createRequire } from "node:module";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+/**
+ * ORDRE 36c-kort — «Endre kort» (`flyttKort`) og «Slett kort» (`slettKort`).
+ *
+ * EKTE SQLite (sql.js) + ekte migreringer, samme oppsett som
+ * `kortRadFlytt.test.ts`. Hver kontrakt har negativkontroll: nabokort, reise,
+ * tillegg og utlegg er urørt; avslag (låst, brudd, offline, serverfeil) gir
+ * ingen lokal skriving.
+ */
+
+const holder = vi.hoisted(() => ({
+  raw: null as unknown as {
+    run: (sql: string, params?: unknown[]) => void;
+    prepare: (sql: string) => {
+      step(): boolean;
+      getAsObject(): Record<string, unknown>;
+      bind(p: unknown[]): void;
+      free(): void;
+    };
+    getRowsModified(): number;
+  },
+  shim: null as unknown,
+  drizzle: null as unknown,
+  uuid: 0,
+}));
+
+vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
+vi.mock("expo-sqlite", () => ({ openDatabaseSync: () => holder.shim }));
+vi.mock("expo-crypto", () => ({ randomUUID: () => `uuid-${++holder.uuid}` }));
+vi.mock("../../../db/database", () => ({
+  erDatabaseTilgjengelig: () => true,
+  hentDatabase: () => holder.drizzle,
+}));
+vi.mock("../../../lib/i18n", () => ({ default: { t: (k: string) => k } }));
+
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/sql-js";
+import * as schema from "../../../db/schema";
+import { kjorMigreringer } from "../../../db/migreringer";
+import {
+  flyttKort,
+  kortFinnesFraFor,
+  kortInnhold,
+  slettKort,
+  vareFinnesPaaServer,
+  type KortDag,
+  type KortVare,
+} from "./kortRadFlytt";
+import { leggTilTimerRad, type TimerRadFelt } from "./radLagring";
+import type { KortValg, SedelKortKontekst } from "../../../lib/prosjektkortMobil";
+
+const {
+  dagsseddelLocal,
+  lonnsartLocal,
+  sheetMachineLocal,
+  sheetTilleggLocal,
+  sheetTimerLocal,
+  sheetUtleggLocal,
+  slettedeRaderLocal,
+  vareforbrukLocal,
+} = schema;
+
+type Db = NonNullable<ReturnType<typeof import("../../../db/database").hentDatabase>>;
+const db = () => holder.drizzle as Db;
+const K = { sheetId: "s1", organizationId: "o1" };
+
+beforeAll(async () => {
+  const require = createRequire(import.meta.url);
+  const initSqlJs = require("sql.js");
+  const distDir = path.dirname(require.resolve("sql.js"));
+  const SQL = await initSqlJs({ locateFile: (f: string) => path.join(distDir, f) });
+  const raw = new SQL.Database();
+  holder.raw = raw;
+  holder.shim = {
+    execSync: (sql: string) => {
+      raw.run(sql);
+    },
+    getAllSync: (sql: string, ...params: unknown[]) => {
+      const stmt = raw.prepare(sql);
+      if (params.length) stmt.bind(params.flat());
+      const rader: Record<string, unknown>[] = [];
+      while (stmt.step()) rader.push(stmt.getAsObject());
+      stmt.free();
+      return rader;
+    },
+    runSync: (sql: string, ...params: unknown[]) => {
+      raw.run(sql, params.length ? (params.flat() as unknown[]) : undefined);
+      return { changes: raw.getRowsModified(), lastInsertRowId: 0 };
+    },
+  };
+  kjorMigreringer();
+  holder.drizzle = drizzle(raw, { schema });
+});
+
+beforeEach(() => {
+  holder.uuid = 0;
+  holder.raw.run(
+    "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_machine_local; DELETE FROM slettede_rader_local; DELETE FROM lonnsart_local; DELETE FROM vareforbruk_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_utlegg_local;",
+  );
+  db()
+    .insert(dagsseddelLocal)
+    .values({
+      id: "s1",
+      userId: "u1",
+      organizationId: "o1",
+      projectId: "p1",
+      aktivitetId: "a1",
+      dato: "2026-11-07",
+      status: "draft",
+      syncStatus: "synced",
+      sistEndretLokalt: 1000,
+      sistSynkronisert: 1000,
+    })
+    .run();
+  for (const [id, navn] of [
+    ["l-arb", "Ordinær"],
+    ["l-reise", "Reise"],
+  ]) {
+    db()
+      .insert(lonnsartLocal)
+      .values({ id, organizationId: "o1", type: "ordinaer", navn, aktiv: true, erStandardvalg: false, sistOppdatert: 1 })
+      .run();
+  }
+});
+
+const felt: TimerRadFelt = {
+  projectId: "p1",
+  byggeplassId: "bp1",
+  lonnsartId: "l-arb",
+  aktivitetId: "a1",
+  timer: 7.5,
+  externalCostObjectId: null,
+  fraTid: "07:00",
+  tilTid: "15:00",
+  beskrivelse: "Graving",
+  pauseMin: 0,
+};
+const SEDEL: SedelKortKontekst = { projectId: "p1", byggeplass: null };
+const A: KortValg = { projectId: "p1", byggeplassId: "bp1", ecoId: null };
+const TIL: KortValg = { projectId: "p2", byggeplassId: "bp2", ecoId: "eco2" };
+
+const timerAlle = () => db().select().from(sheetTimerLocal).all();
+const maskinAlle = () => db().select().from(sheetMachineLocal).all();
+const timerRad = (id: string) => db().select().from(sheetTimerLocal).where(eq(sheetTimerLocal.id, id)).all()[0];
+const maskin = (id: string) => db().select().from(sheetMachineLocal).where(eq(sheetMachineLocal.id, id)).all()[0];
+const vare = (id: string) => db().select().from(vareforbrukLocal).where(eq(vareforbrukLocal.id, id)).all()[0];
+const tombstones = () => db().select().from(slettedeRaderLocal).all();
+const varerDb = (): KortVare[] =>
+  db()
+    .select()
+    .from(vareforbrukLocal)
+    .all()
+    .map((v) => ({ id: v.id, projectId: v.projectId, byggeplassId: v.byggeplassId, externalCostObjectId: v.externalCostObjectId, syncStatus: v.syncStatus }));
+
+function lagVare(id: string, projectId: string, byggeplassId: string | null, syncStatus: "pending" | "synced") {
+  db()
+    .insert(vareforbrukLocal)
+    .values({ id, userId: "u1", organizationId: "o1", sheetId: "s1", projectId, byggeplassId, dato: "2026-11-07", vareId: "x", vareNavn: "Pukk", enhet: "t", antall: 2, syncStatus, sistEndretLokalt: 1 })
+    .run();
+}
+function lagMaskin(id: string, projectId: string, byggeplassId: string | null, timer: number) {
+  db().insert(sheetMachineLocal).values({ id, dagsseddelId: "s1", projectId, byggeplassId, vehicleId: "v9", timer, sistEndretLokalt: 1 }).run();
+}
+function dagFor(sedel = SEDEL, status = "draft"): KortDag {
+  return { sheetId: "s1", organizationId: "o1", status, pauseMin: 0, sedel, timerRader: timerAlle(), maskinRader: maskinAlle() };
+}
+const innholdFor = (kort: KortValg, sedel = SEDEL) =>
+  kortInnhold({ timerRader: timerAlle(), maskinRader: maskinAlle(), varer: varerDb(), sedel, kort, reiseLonnsartId: "l-reise" });
+
+/** Kort A (p1 · bp1) med arbeid + koblet maskin + fri maskin + reise + vare; nabokort i p2; tillegg og utlegg. */
+function byggDag() {
+  const a = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+  db().update(sheetTimerLocal).set({ serverVersjon: "ver-7" }).where(eq(sheetTimerLocal.id, a)).run();
+  const koblet = maskinAlle()[0].id;
+  db().update(sheetMachineLocal).set({ timer: 5 }).where(eq(sheetMachineLocal.id, koblet)).run(); // under arbeid → ingen brudd
+  lagMaskin("m-a", "p1", "bp1", 1);
+  const reise = leggTilTimerRad(db(), K, { ...felt, lonnsartId: "l-reise", timer: 1 }, null);
+  const nabo = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null, beskrivelse: "Støping" }, null);
+  lagMaskin("m-b", "p2", null, 1);
+  lagVare("v-a", "p1", "bp1", "pending");
+  lagVare("v-b", "p2", null, "synced");
+  db().insert(sheetTilleggLocal).values({ id: "t-1", dagsseddelId: "s1", projectId: "p1", tilleggId: "x", antall: 1, sistEndretLokalt: 1 }).run();
+  db()
+    .insert(sheetUtleggLocal)
+    .values({ id: "u-1", dagsseddelId: "s1", projectId: "p1", expenseCategoryId: "x", belop: 10, ordningVedFoering: "utlegg", foertVed: 1, sistEndretLokalt: 1 })
+    .run();
+  return { a, koblet, reise, nabo };
+}
+const SERVER_OK = { erPaaNettet: true, slettVare: async () => {}, flyttVare: async () => {} };
+
+describe("slettKort", () => {
+  it("sletter bare kortets arbeid, maskin (også koblet) og varer; reise, nabokort, tillegg og utlegg er urørt", async () => {
+    const { a, koblet, reise, nabo } = byggDag();
+    const slettVare = vi.fn(async () => {});
+    expect(await slettKort(db(), dagFor(), innholdFor(A), { erPaaNettet: true, slettVare })).toEqual({ utfall: "ok" });
+    expect(timerAlle().map((r) => r.id).sort()).toEqual([reise, nabo].sort());
+    expect(maskinAlle().map((m) => m.id)).toEqual(["m-b"]);
+    expect(maskin(koblet)).toBeUndefined();
+    expect(varerDb().map((v) => v.id)).toEqual(["v-b"]);
+    expect(db().select().from(sheetTilleggLocal).all()).toHaveLength(1);
+    expect(db().select().from(sheetUtleggLocal).all()).toHaveLength(1);
+    // Usynket vare: ingen server.
+    expect(slettVare).not.toHaveBeenCalled();
+    // Tombstones: timer MED serverVersjon, maskin (koblet + fri).
+    const ts = tombstones();
+    expect(ts.find((t) => t.radId === a)).toMatchObject({ radType: "timer", serverVersjon: "ver-7", dagsseddelId: "s1" });
+    expect(ts.filter((t) => t.radType === "maskin").map((t) => t.radId).sort()).toEqual([koblet, "m-a"].sort());
+    expect(ts).toHaveLength(3);
+  });
+
+  it("synket vare slettes på server FØR lokal skriving", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    const slettVare = vi.fn(async (_id: string) => {
+      expect(timerRad(a)).toBeDefined();
+      expect(vare("v-a")).toBeDefined();
+    });
+    expect(await slettKort(db(), dagFor(), innholdFor(A), { erPaaNettet: true, slettVare })).toEqual({ utfall: "ok" });
+    expect(slettVare).toHaveBeenCalledWith("v-a");
+    expect(slettVare).toHaveBeenCalledTimes(1);
+    expect(vare("v-a")).toBeUndefined();
+  });
+
+  it("negativkontroll: serverfeil → ingen lokal skriving", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    const u = await slettKort(db(), dagFor(), innholdFor(A), {
+      erPaaNettet: true,
+      slettVare: async () => {
+        throw new Error("vareforbruk.feil");
+      },
+    });
+    expect(u).toEqual({ utfall: "serverFeil", melding: "vareforbruk.feil" });
+    expect(timerRad(a)).toBeDefined();
+    expect(maskinAlle()).toHaveLength(3);
+    expect(vare("v-a")).toBeDefined();
+    expect(tombstones()).toHaveLength(0);
+  });
+
+  it("offline-sperre: synket vare på kortet → offline uten skriving; bare usynkede → ok", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    const slettVare = vi.fn(async () => {});
+    expect(await slettKort(db(), dagFor(), innholdFor(A), { erPaaNettet: false, slettVare })).toEqual({ utfall: "offline" });
+    expect(slettVare).not.toHaveBeenCalled();
+    expect(timerRad(a)).toBeDefined();
+    expect(tombstones()).toHaveLength(0);
+    db().update(vareforbrukLocal).set({ syncStatus: "pending" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    expect(await slettKort(db(), dagFor(), innholdFor(A), { erPaaNettet: false, slettVare })).toEqual({ utfall: "ok" });
+    expect(timerRad(a)).toBeUndefined();
+  });
+
+  it("vareFinnesPaaServer: synket og ukjent status = server; pending og avvist = bare lokal", () => {
+    expect(vareFinnesPaaServer({ id: "1", projectId: "p", syncStatus: "synced" })).toBe(true);
+    expect(vareFinnesPaaServer({ id: "1", projectId: "p" })).toBe(true);
+    expect(vareFinnesPaaServer({ id: "1", projectId: "p", syncStatus: "pending" })).toBe(false);
+    expect(vareFinnesPaaServer({ id: "1", projectId: "p", syncStatus: "avvist" })).toBe(false);
+  });
+
+  it("arvende rad (null byggeplass) teller som kortets når sedelens byggeplass hører til prosjektet", async () => {
+    const sedel: SedelKortKontekst = { projectId: "p1", byggeplass: { id: "bpA", projectId: "p1" } };
+    const arver = leggTilTimerRad(db(), K, { ...felt, byggeplassId: null }, null);
+    const eksplisitt = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bpA" }, null);
+    const annet = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null }, null);
+    const kortA: KortValg = { projectId: "p1", byggeplassId: "bpA", ecoId: null };
+    expect(innholdFor(kortA, sedel).timer.map((r) => r.id).sort()).toEqual([arver, eksplisitt].sort());
+    expect(await slettKort(db(), dagFor(sedel), innholdFor(kortA, sedel), SERVER_OK)).toEqual({ utfall: "ok" });
+    expect(timerAlle().map((r) => r.id)).toEqual([annet]);
+  });
+
+  it("negativkontroll: nøkkelen er hele kortet — samme prosjekt, annen byggeplass eller underprosjekt hører ikke med", () => {
+    const a = leggTilTimerRad(db(), K, felt, null);
+    leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp2" }, null);
+    leggTilTimerRad(db(), K, { ...felt, externalCostObjectId: "eco1" }, null);
+    expect(innholdFor(A).timer.map((r) => r.id)).toEqual([a]);
+  });
+
+  it("låst sedel (sendt/godkjent) → laast, ingen skriving", async () => {
+    const { a } = byggDag();
+    for (const status of ["submitted", "approved"]) {
+      expect(await slettKort(db(), dagFor(SEDEL, status), innholdFor(A), SERVER_OK)).toEqual({ utfall: "laast" });
+      expect(await flyttKort(db(), dagFor(SEDEL, status), innholdFor(A), A, TIL, SERVER_OK)).toEqual({ utfall: "laast" });
+    }
+    expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+    expect(tombstones()).toHaveLength(0);
+    // Returnert er redigerbar.
+    expect(await slettKort(db(), dagFor(SEDEL, "returned"), innholdFor(A), SERVER_OK)).toEqual({ utfall: "ok" });
+  });
+
+  it("nytt maskinbrudd stopper uten skriving; brudd som fantes fra før blokkerer ikke", async () => {
+    const a = leggTilTimerRad(db(), K, felt, null);
+    lagMaskin("m-c", "p1", "bp2", 6); // annet kort, samme bøtte (p1) — dekkes bare av kort A
+    expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toEqual({ utfall: "brudd" });
+    expect(timerRad(a)).toBeDefined();
+    expect(tombstones()).toHaveLength(0);
+    // Eksisterende brudd i p2 hindrer ikke sletting når p1 ikke får nytt brudd.
+    db().delete(sheetMachineLocal).run();
+    lagMaskin("m-p2", "p2", null, 5);
+    expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toEqual({ utfall: "ok" });
+  });
+});
+
+describe("flyttKort", () => {
+  it("alle kortets rader og koblet maskin får målnøkkelen; reise, nabokort, tillegg og utlegg er urørt", async () => {
+    const { a, koblet, reise, nabo } = byggDag();
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, SERVER_OK)).toEqual({ utfall: "ok" });
+    const nokkel = { projectId: "p2", byggeplassId: "bp2", externalCostObjectId: "eco2" };
+    expect(timerRad(a)).toMatchObject({ ...nokkel, beskrivelse: "Graving", fraTid: "07:00" });
+    expect(maskin(koblet)).toMatchObject({ ...nokkel, sheetTimerId: a });
+    expect(maskin("m-a")).toMatchObject(nokkel);
+    expect(vare("v-a")).toMatchObject(nokkel);
+    expect(timerRad(reise)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+    expect(timerRad(nabo)).toMatchObject({ projectId: "p2", byggeplassId: null, externalCostObjectId: null });
+    expect(maskin("m-b")).toMatchObject({ projectId: "p2", byggeplassId: null, sistEndretLokalt: 1 });
+    expect(vare("v-b")).toMatchObject({ projectId: "p2", byggeplassId: null });
+    expect(db().select().from(sheetTilleggLocal).all()[0]).toMatchObject({ projectId: "p1", sistEndretLokalt: 1 });
+    expect(db().select().from(sheetUtleggLocal).all()[0]).toMatchObject({ projectId: "p1", sistEndretLokalt: 1 });
+    expect(tombstones()).toHaveLength(0);
+  });
+
+  it("synket vare flyttes på server FØR lokal skriving, med kortets effektive byggeplass", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    const flyttVare = vi.fn(async (_id: string, _m: unknown) => {
+      expect(timerRad(a).projectId).toBe("p1");
+      expect(vare("v-a").projectId).toBe("p1");
+    });
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: true, flyttVare })).toEqual({ utfall: "ok" });
+    expect(flyttVare).toHaveBeenCalledWith("v-a", { projectId: "p2", byggeplassId: "bp2", ecoId: "eco2" });
+    expect(vare("v-a")).toMatchObject({ projectId: "p2", byggeplassId: "bp2" });
+  });
+
+  it("negativkontroll: serverfeil og offline → ingen lokal skriving", async () => {
+    const { a } = byggDag();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "v-a")).run();
+    const feil = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
+      erPaaNettet: true,
+      flyttVare: async () => {
+        throw new Error("nei");
+      },
+    });
+    expect(feil).toEqual({ utfall: "serverFeil", melding: "nei" });
+    const flyttVare = vi.fn(async () => {});
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, { erPaaNettet: false, flyttVare })).toEqual({ utfall: "offline" });
+    expect(flyttVare).not.toHaveBeenCalled();
+    expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+    expect(maskin("m-a")).toMatchObject({ projectId: "p1", sistEndretLokalt: 1 });
+    expect(vare("v-a").projectId).toBe("p1");
+  });
+
+  it("sammenslåing: målkortet finnes → radene får samme nøkkel og beholder beskrivelsene", async () => {
+    const { a, nabo } = byggDag();
+    const B: KortValg = { projectId: "p2", byggeplassId: null, ecoId: null };
+    const utenfor = timerAlle().filter((r) => !innholdFor(A).timer.some((k) => k.id === r.id));
+    expect(kortFinnesFraFor(utenfor, SEDEL, B)).toBe(true);
+    expect(kortFinnesFraFor(utenfor, SEDEL, { projectId: "p3", byggeplassId: null, ecoId: null })).toBe(false);
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, B, SERVER_OK)).toEqual({ utfall: "ok" });
+    expect(innholdFor(B).timer.map((r) => [r.id, r.beskrivelse]).sort()).toEqual(
+      [
+        [a, "Graving"],
+        [nabo, "Støping"],
+      ].sort(),
+    );
+    expect(innholdFor(A).timer).toHaveLength(0);
+  });
+
+  it("nytt maskinbrudd stopper uten skriving", async () => {
+    const a = leggTilTimerRad(db(), K, felt, null);
+    lagMaskin("m-c", "p1", "bp2", 6);
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, SERVER_OK)).toEqual({ utfall: "brudd" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+  });
+
+  it("uendret kort → ingen skriving", async () => {
+    const { a } = byggDag();
+    const før = timerRad(a).sistEndretLokalt;
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, { ...A }, SERVER_OK)).toEqual({ utfall: "uendret" });
+    expect(timerRad(a).sistEndretLokalt).toBe(før);
+  });
+
+  it("«Uten byggeplass» løfter sedelens arv: andre arvende rader beholder byggeplassen eksplisitt", async () => {
+    db().update(dagsseddelLocal).set({ byggeplassId: "bpA" }).where(eq(dagsseddelLocal.id, "s1")).run();
+    const sedel: SedelKortKontekst = { projectId: "p1", byggeplass: { id: "bpA", projectId: "p1" } };
+    const a = leggTilTimerRad(db(), K, felt, null);
+    const arver = leggTilTimerRad(db(), K, { ...felt, byggeplassId: null, beskrivelse: "Annet" }, null);
+    const uten: KortValg = { projectId: "p1", byggeplassId: null, ecoId: null };
+    expect(await flyttKort(db(), dagFor(sedel), innholdFor(A, sedel), A, uten, SERVER_OK)).toEqual({ utfall: "ok" });
+    expect(timerRad(a).byggeplassId).toBeNull();
+    expect(timerRad(arver).byggeplassId).toBe("bpA");
+    expect(db().select().from(dagsseddelLocal).all()[0]).toMatchObject({ byggeplassId: null, syncStatus: "pending" });
+  });
+});
+
+describe("kildevakter — kortskjermen", () => {
+  const app = path.join(__dirname, "../../../../app/timer");
+  const kort = fs.readFileSync(path.join(app, "[id]/kort/[projectId].tsx"), "utf8");
+
+  it("knappene vises bare når sedelen er redigerbar", () => {
+    const i = kort.indexOf("{erRedigerbar && !tomt && (");
+    expect(i).toBeGreaterThan(-1);
+    const blokk = kort.slice(i, kort.indexOf("</ScrollView>", i));
+    expect(blokk).toContain('t("timer.kort.endre")');
+    expect(blokk).toContain('t("timer.kort.slett")');
+    expect(kort.split('t("timer.kort.endre")')).toHaveLength(2);
+  });
+
+  it("dagskortet importerer ikke kortfunksjonene", () => {
+    const dagskort = fs.readFileSync(path.join(app, "[id].tsx"), "utf8");
+    for (const navn of ["flyttKort", "slettKort", "kortInnhold", "BekreftSlettModal"]) expect(dagskort).not.toContain(navn);
+  });
+
+  it("synlige tekster går via t()", () => {
+    // Kommentarer kan nevne knappene; JSX-tekst og strenglitteraler kan ikke.
+    for (const tekst of ["Endre kort", "Slett kort", "Slette kortet", "siste kort"]) {
+      expect(kort).not.toMatch(new RegExp(`>\\s*${tekst}`));
+      expect(kort).not.toMatch(new RegExp(`["'\`]${tekst}`));
+    }
+    for (const n of ["slettTittel", "slettTekst", "slettUtkast", "slettReturnert", "slettSiste", "sammenslaa", "offlineFlytt", "offlineSlett"])
+      expect(kort).toContain(`t("timer.kort.${n}"`);
+  });
+
+  it("server før lokal: transaksjonen kommer etter serverkallene i både flytt og slett", () => {
+    const kilde = fs.readFileSync(path.join(__dirname, "kortRadFlytt.ts"), "utf8");
+    const flytt = kilde.slice(kilde.indexOf("export async function flyttKort"));
+    expect(flytt.indexOf("await server.flyttVare")).toBeGreaterThan(-1);
+    expect(flytt.indexOf("await server.flyttVare")).toBeLessThan(flytt.indexOf("db.transaction"));
+    expect(flytt.indexOf("girNyttBrudd")).toBeLessThan(flytt.indexOf("await server.flyttVare"));
+    const slett = kilde.slice(kilde.indexOf("export async function slettKort"), kilde.indexOf("export function slettKortLokalt"));
+    expect(slett.indexOf("await server.slettVare")).toBeLessThan(slett.indexOf("slettKortLokalt("));
+  });
+});

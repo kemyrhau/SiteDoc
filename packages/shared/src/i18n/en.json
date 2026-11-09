@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Delete the row?",
   "timer.kortValg.utenByggeplass": "No building site",
   "timer.kortValg.uten": "None",
-  "timer.kortValg.flyttTittel": "Move row to"
+  "timer.kortValg.flyttTittel": "Move row to",
+  "timer.kort.endre": "Change card",
+  "timer.kort.slett": "Delete card",
+  "timer.kort.flyttTittel": "Move the card to",
+  "timer.kort.flyttKnapp": "Move card",
+  "timer.kort.sammenslaa": "The card will be merged with {{kort}}, which already exists.",
+  "timer.kort.slettTittel": "Delete the card?",
+  "timer.kort.slettTekst": "Work ({{timer}} h), machines and goods on {{kort}} are removed from the timesheet for {{dato}}.",
+  "timer.kort.slettUtkast": "The timesheet stays as your draft. Your manager has not received it. Travel, allowances and expenses are kept.",
+  "timer.kort.slettReturnert": "Travel, allowances and expenses are kept. Your manager sees the change when you send the timesheet again.",
+  "timer.kort.slettSiste": "This is the last card — the timesheet will be empty.",
+  "timer.kort.offlineSlett": "The card has goods that have been sent. Connect to the internet to delete.",
+  "timer.kort.offlineFlytt": "The card has goods that have been sent. Connect to the internet to move."
 }

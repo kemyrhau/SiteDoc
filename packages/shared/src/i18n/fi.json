@@ -5410,5 +5410,17 @@
   "timer.dagsoversikt.slettRadBekreft": "Poistetaanko rivi?",
   "timer.kortValg.utenByggeplass": "Ei rakennustyömaa",
   "timer.kortValg.uten": "Ei mitään",
-  "timer.kortValg.flyttTittel": "Siirrä rivi kohteeseen"
+  "timer.kortValg.flyttTittel": "Siirrä rivi kohteeseen",
+  "timer.kort.endre": "Vaihda kortti",
+  "timer.kort.slett": "Poista kortti",
+  "timer.kort.flyttTittel": "Siirrä kortti kohteeseen",
+  "timer.kort.flyttKnapp": "Siirrä korttia",
+  "timer.kort.sammenslaa": "Kortti yhdistetään {{kort}}:ään, joka on jo olemassa.",
+  "timer.kort.slettTittel": "Poistetaanko kortti?",
+  "timer.kort.slettTekst": "Työ ({{timer}} h), koneet ja tavarat {{kort}} poistetaan {{dato}} työaikalomakkeesta.",
+  "timer.kort.slettUtkast": "Työaikalomake pysyy luonnoksena. Esimiehenne ei ole saanut sitä. Matkat, päivärahat ja kulut säilytetään.",
+  "timer.kort.slettReturnert": "Matkat, päivärahat ja kulut säilytetään. Esimies näkee muutoksen, kun lähetät työaikaraportin uudelleen.",
+  "timer.kort.slettSiste": "Tämä on viimeinen kortti – työaikalomake on tyhjä.",
+  "timer.kort.offlineSlett": "Kortissa on lähetetty tavara. Muodosta yhteys Internetiin poistaaksesi.",
+  "timer.kort.offlineFlytt": "Kortissa on lähetetty tavara. Yhdistä Internetiin liikkuaksesi."
 }
