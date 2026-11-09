@@ -12,6 +12,7 @@ import {
   sheetUtleggLocal,
   byggeplassLocal,
 } from "../../../db/schema";
+import { leggSedelTombstone } from "../../../services/sedelTombstone";
 import { useTimerSync } from "../../../providers/TimerSyncProvider";
 import { useNettverk } from "../../../providers/NettverkProvider";
 import { trpc } from "../../../lib/trpc";
@@ -725,6 +726,12 @@ export function useProsjektkortSedel(sheetId: string) {
               },
             );
           } else {
+            // ORDRE 36e (pkt. 2): en synket draft finnes også på serveren. Legg en
+            // sedel-tombstone — synken sender `slett` (også offline senere) og
+            // pull gjenoppliver den ikke. Aldri synket → serveren svarer
+            // NOT_FOUND og tombstonen ryddes.
+            const db = hentDatabase();
+            if (db) leggSedelTombstone(db, sheetId);
             slettLokalt();
           }
         },

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
+  klemPauseInnIArbeid,
   leggTilOvertidRetting,
   overtidEditorFra,
   stegOvertidFra,
@@ -356,5 +357,43 @@ describe("ORDRE 35 RETUR 1 — firma med OT100 uten OT50", () => {
     expect(flat).toContain("{redigerOvertid && otFra ? (");
     expect(flat).toContain("rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}");
     expect(flat).not.toContain("redigerOvertid && forsteOt");
+  });
+});
+
+/**
+ * ORDRE 36e pkt. 4 — pausevinduet etter arbeidsslutt (kort dag) ga en rad uten
+ * klokke-gap: timene trekt for pausen, men ingen rad bar den (F5). Klemmen
+ * legger pausen inne i arbeidstiden.
+ */
+describe("ORDRE 36e pkt. 4 — pausen bæres også på en kort dag", () => {
+  it("🔴 Start dag 08–12 med rettet pause 30 → rad 08:00–12:00, pause 30, 3,5 t", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        retting: { perDato: { "2026-07-01": { arbeidFra: "08:00", arbeidTil: "12:00", pauseMin: 30 } } },
+      }),
+    );
+    const rader = arbeid(f);
+    expect(rader).toHaveLength(1);
+    expect([rader[0]!.fraTid, rader[0]!.tilTid]).toEqual(["08:00", "12:00"]);
+    expect(rader[0]!.timer).toBeCloseTo(3.5, 5);
+    expect(rader[0]!.pauseMin).toBe(30);
+  });
+
+  it("vakt: vanlig dag 07:00–15:30 → carve uendret (pausen 11:00–11:30 på samme rad)", () => {
+    const f = beregnDagsforslag(
+      lagInput({ retting: { perDato: { "2026-07-01": { arbeidFra: "07:00", arbeidTil: "15:30" } } } }),
+    );
+    const rader = arbeid(f);
+    expect(rader.map((r) => [r.fraTid, r.tilTid, r.timer, r.pauseMin])).toEqual([["07:00", "15:30", 8, 30]]);
+  });
+
+  it("klemPauseInnIArbeid: vindu inne i arbeidstiden returneres uendret, utenfor → midt i", () => {
+    const k = (pauseFra: string, arbeidstimer = 3.5, pauseMin = 30) =>
+      klemPauseInnIArbeid({ arbeidsstartHHMM: "08:00", arbeidstimer, pauseFra, pauseMin });
+    expect(k("11:00", 7.5)).toBe("11:00");
+    expect(k("12:00")).toBe("09:45");
+    expect(k("11:30")).toBe("09:45"); // grensen: ingen arbeid igjen ved pausestart
+    expect(k("07:00")).toBe("09:45"); // fastStart før sen ankomst
+    expect(k("12:00", 3.5, 0)).toBe("12:00"); // ingen pause → ingen klemming
   });
 });

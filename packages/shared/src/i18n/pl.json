@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Maszyna bez wpisu czasu: {{navn}}",
   "timer.eksport.sumKontroll": "SUMA (kontrola)",
+  "timer.sync.slettAvslaatt": "Nie udało się usunąć arkusza dziennego – został wysłany",
   "timer.sync.slattSammen": "Połączono z arkuszem dziennym, który już istniał dla tej daty — Twoje godziny pracy zostaną zachowane.",
   "timer.eksport.ark.detaljer": "Bliższe dane",
   "timer.eksport.kolType": "Typ",

@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Машина без ввода времени: {{navn}}",
   "timer.eksport.sumKontroll": "СУММ (контроль)",
+  "timer.sync.slettAvslaatt": "Дневной лист не удалось удалить – он был отправлен.",
   "timer.sync.slattSammen": "Объединение с уже существующим на эту дату расписанием дней — ваши часы сохраняются.",
   "timer.eksport.ark.detaljer": "Подробности",
   "timer.eksport.kolType": "Тип",

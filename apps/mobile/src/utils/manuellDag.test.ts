@@ -555,3 +555,13 @@ describe("ORDRE 36c — kildevakter for inngangene", () => {
     expect(skjerm).toContain("arbeidsdagId: manuell ? null : params.arbeidsdagId,");
   });
 });
+
+describe("ORDRE 36e pkt. 4 — manuell kort dag bærer pausen", () => {
+  it("🔴 manuell 08–12 + 30 → rad 08:00–12:00, pauseMin 30, timer 3,5; hodet Σ = 30", () => {
+    const { handling } = lagreManuelt({ perDato: { [DATO]: { arbeidFra: "08:00", arbeidTil: "12:00" } } });
+    expect(handling.type).toBe("suksess");
+    const r = rader();
+    expect(r.map((x) => [x.fraTid, x.tilTid, x.timer, x.pauseMin])).toEqual([["08:00", "12:00", 3.5, 30]]);
+    expect(sedler()[0]!.pauseMin).toBe(30);
+  });
+});

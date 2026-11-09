@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Maschine ohne Zeiteintrag: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (Kontrolle)",
+  "timer.sync.slettAvslaatt": "Das Tagesblatt konnte nicht gelöscht werden – es wurde gesendet",
   "timer.sync.slattSammen": "Zusammengeführt mit der für dieses Datum bereits vorhandenen Tagesliste – Ihre Stunden bleiben erhalten.",
   "timer.eksport.ark.detaljer": "Details",
   "timer.eksport.kolType": "Typ",

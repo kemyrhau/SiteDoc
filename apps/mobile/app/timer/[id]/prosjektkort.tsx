@@ -193,6 +193,16 @@ export default function ProsjektkortSkjerm() {
           </View>
         )}
 
+        {/* ORDRE 36e (pkt. 2): slettingen ble avslått (sendt i mellomtiden). */}
+        {sedel.syncStatus === "synced" && sedel.feilmelding && (
+          <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <View className="flex-row items-start gap-2">
+              <AlertTriangle size={16} color="#b45309" style={{ marginTop: 1 }} />
+              <Text className="flex-1 text-sm text-amber-900">{sedel.feilmelding}</Text>
+            </View>
+          </View>
+        )}
+
         {sedel.syncStatus === "conflict" && (
           <>
             {s.erOverlapp && (

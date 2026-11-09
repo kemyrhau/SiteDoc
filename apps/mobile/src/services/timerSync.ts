@@ -1,4 +1,4 @@
-import { eq, and, gt, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, gt, gte, lte, inArray, isNull } from "drizzle-orm";
 import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
@@ -42,6 +42,8 @@ type SporFelter = {
  * `anvendSvar` har kjørt. `naa` = sedelens nye `sistSynkronisert` (samme stempel).
  */
 type HoppetSpeiling = { sheetId: string; hoppedeIder: string[]; naa: number };
+/** ORDRE 36e: per sedel-id — `sistEndretLokalt` og tombstone-id-ene payloaden bar. */
+type LestVedBygg = { endret: Map<string, number>; tombstoneIder: Map<string, string[]> };
 
 /** Rå timer-rad fra `hentMedId` (full Prisma-rad). Smal cast FØR bruk (unngår TS2589). */
 type RaaTimerRad = {
@@ -306,6 +308,9 @@ async function kjorTimerSync(
     push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 },
     pull: { mottatt: 0, slettet: 0 },
   };
+  // ORDRE 36e (pkt. 1c): kjøringens start — pull-vakten under beskytter timer-
+  // rader skrevet MENS denne kjøringen pågår.
+  const kjoringStartet = Date.now();
 
   // Forson lokal sedel-identitet mot server-identiteten (2026-07-11).
   // Synk-identitet er clientUuid = lokal `id`. Når en lokal sedel har en ANNEN
@@ -401,10 +406,16 @@ async function kjorTimerSync(
   // normal batch-send og per-item-fallback (gift-isolering ved permanent feil).
   // `byggetVed` = tidspunktet payloaden ble lest (før mutate) — styrer rad-
   // restemplingen (V19.9.8), så en mid-push-redigering ikke stemples som synket.
+  // ORDRE 36e (pkt. 1): `lest` = hva payloaden faktisk bar — sedelens
+  // `sistEndretLokalt` slik den ble lest, og tombstone-id-ene som ble sendt. En
+  // sedel endret MENS pushen var i luften (f.eks. «Bekreft dag») forblir pending,
+  // ellers erstatter pullen i samme kjøring radene med serverens og nye rader
+  // forsvinner stille. Sammenligner stempel mot stempel (ingen klokke-avhengighet).
   const anvendSvar = (
     svar: Awaited<ReturnType<typeof klient.timer.dagsseddel.syncBatch.mutate>>,
     naa: number,
     byggetVed: number,
+    lest: LestVedBygg,
   ): HoppetSpeiling[] => {
     // V19.9 (RETUR 1, vilkår 3): sedler der serveren HOPPET OVER rader (serverraden
     // er nyere). Delta-pullen henter dem ikke (hodets updatedAt er bumpet, men
@@ -413,9 +424,15 @@ async function kjorTimerSync(
     const speilinger: HoppetSpeiling[] = [];
     for (const r of svar.resultater) {
       if (r.resultat === "ok" && r.serverData) {
+        const naaEndret = db
+          .select({ sistEndretLokalt: dagsseddelLocal.sistEndretLokalt })
+          .from(dagsseddelLocal)
+          .where(eq(dagsseddelLocal.id, r.clientUuid))
+          .all()[0]?.sistEndretLokalt;
+        const endretUnderPush = naaEndret !== lest.endret.get(r.clientUuid);
         db.update(dagsseddelLocal)
           .set({
-            syncStatus: "synced",
+            syncStatus: endretUnderPush ? "pending" : "synced",
             status: r.serverData.status,
             lederKommentar: r.serverData.lederKommentar,
             attestertVed: r.serverData.attestertVed,
@@ -439,9 +456,19 @@ async function kjorTimerSync(
         // på de sendte slettedeIder. Rydd tombstones for sedelen KUN her (ikke
         // conflict/avvist/feilet). deleteMany er idempotent → en tapt rydding
         // (partiell batch) er trygg, tombstonen re-sendes bare neste tick.
-        db.delete(slettedeRaderLocal)
-          .where(eq(slettedeRaderLocal.dagsseddelId, r.clientUuid))
-          .run();
+        // ORDRE 36e: kun tombstones payloaden bar — en sletting gjort under pushen
+        // er ikke sendt og må leve til neste push (ellers gjenoppstår raden).
+        const sendte = lest.tombstoneIder.get(r.clientUuid) ?? [];
+        if (sendte.length > 0) {
+          db.delete(slettedeRaderLocal)
+            .where(
+              and(
+                eq(slettedeRaderLocal.dagsseddelId, r.clientUuid),
+                inArray(slettedeRaderLocal.radId, sendte),
+              ),
+            )
+            .run();
+        }
         resultat.push.ok++;
       } else if (r.resultat === "conflict" && r.serverData) {
         // V19-B (B-1): serveren sender nå EKSPLISITT `aarsak` på conflict (V19-A,
@@ -669,6 +696,10 @@ async function kjorTimerSync(
       // V19.9.8 (B'-4): tidspunktet payloaden LESES — styrer rad-restemplingen i
       // anvendSvar (en rad endret etter dette stemplet pushes på nytt, ikke synket).
       const byggetVed = Date.now();
+      const lest: LestVedBygg = {
+        endret: new Map(batch.map((sedel) => [sedel.id, sedel.sistEndretLokalt])),
+        tombstoneIder: new Map(),
+      };
       const sedlerMedRader = batch.map((sedel) => {
         const timer = db
           .select()
@@ -691,11 +722,17 @@ async function kjorTimerSync(
           .where(eq(sheetUtleggLocal.dagsseddelId, sedel.id))
           .all();
         // S-A: tombstones for lokalt slettede rader på denne sedelen.
+        // ORDRE 36e (pkt. 2): sedel-tombstones går via `slett`, aldri i push.
         const tombstones = db
           .select()
           .from(slettedeRaderLocal)
           .where(eq(slettedeRaderLocal.dagsseddelId, sedel.id))
-          .all();
+          .all()
+          .filter((t) => t.radType !== "sedel");
+        lest.tombstoneIder.set(
+          sedel.id,
+          tombstones.map((t) => t.radId),
+        );
 
         return {
           clientUuid: sedel.id,
@@ -871,7 +908,7 @@ async function kjorTimerSync(
         );
         // V19.9 (RETUR 1, vilkår 3): anvendSvar samler hoppede sedler; speil dem
         // fra hentMedId etterpå (async, utenfor den synkrone DB-skrivingen).
-        await speilHoppedeRader(anvendSvar(svar, Date.now(), byggetVed));
+        await speilHoppedeRader(anvendSvar(svar, Date.now(), byggetVed, lest));
       } catch (e) {
         if (!erPermanentFeil(e)) {
           // Transient (nettverk/5xx/401): behold ALLE pending — ingen quarantine,
@@ -909,7 +946,7 @@ async function kjorTimerSync(
               tidsavbruddMs,
             );
             // Samme byggetVed — item ble lest i samme payload-bygg (over).
-            await speilHoppedeRader(anvendSvar(enkeltSvar, Date.now(), byggetVed));
+            await speilHoppedeRader(anvendSvar(enkeltSvar, Date.now(), byggetVed, lest));
           } catch (e2) {
             if (!erPermanentFeil(e2)) {
               // Transient midt i isolering — behold pending, prøv neste sedel.
@@ -942,8 +979,50 @@ async function kjorTimerSync(
 
   if (kunSedelId) return resultat;
 
+  /* ---------------- SLETT: sedler slettet i prosjektkortet ---------------- */
+  // ORDRE 36e (pkt. 2): en sedel slettet lokalt (prosjektkortet) ligger som
+  // tombstone (radType "sedel") til serveren har svart. OK/NOT_FOUND → ryddes.
+  // Avslått (sendt/attestert i mellomtiden) → ryddes, sedelen hentes inn igjen
+  // av pull og får beskjeden. Nett-/ukjent feil → tombstonen lever, pull
+  // hopper over sedelen og neste tick prøver igjen.
+  const avslatteSlettinger = new Set<string>();
+  const sedelTombstones = db
+    .select({ radId: slettedeRaderLocal.radId })
+    .from(slettedeRaderLocal)
+    .where(eq(slettedeRaderLocal.radType, "sedel"))
+    .all();
+  for (const { radId } of sedelTombstones) {
+    let rydd = false;
+    try {
+      await medTimeout(klient.timer.dagsseddel.slett.mutate({ id: radId }), tidsavbruddMs);
+      rydd = true;
+    } catch (e) {
+      const code = (e as { data?: { code?: string } } | null)?.data?.code;
+      if (code === "NOT_FOUND") rydd = true;
+      // Server avviser sendt sedel med PRECONDITION_FAILED; FORBIDDEN = ikke lov.
+      if (code === "PRECONDITION_FAILED" || code === "FORBIDDEN") {
+        rydd = true;
+        avslatteSlettinger.add(radId);
+      }
+    }
+    if (rydd) {
+      db.delete(slettedeRaderLocal).where(eq(slettedeRaderLocal.radId, radId)).run();
+    }
+  }
+  // Tombstones som fortsatt lever (slett ikke bekreftet) — pull hopper over dem.
+  const levendeSedelTombstones = new Set(
+    db
+      .select({ radId: slettedeRaderLocal.radId })
+      .from(slettedeRaderLocal)
+      .where(eq(slettedeRaderLocal.radType, "sedel"))
+      .all()
+      .map((t) => t.radId),
+  );
+
   /* ---------------- PULL: server-endringer → lokal ---------------- */
-  const sistSynk = hentSistSynkronisert(userId);
+  // Avslått sletting: sedelen kan være uendret siden forrige pull → hent alt
+  // (som ved fersk innlogging) så den kommer tilbake. Sjelden.
+  const sistSynk = avslatteSlettinger.size > 0 ? null : hentSistSynkronisert(userId);
   try {
     const svar = await medTimeout(
       klient.timer.dagsseddel.hentEndringerSiden.query({
@@ -960,6 +1039,13 @@ async function kjorTimerSync(
     void naa;
 
     for (const serverSedel of svar.sedler) {
+      // ORDRE 36e (pkt. 2): sedel slettet lokalt, slett ikke bekreftet ennå.
+      if (
+        levendeSedelTombstones.has(serverSedel.clientUuid) ||
+        levendeSedelTombstones.has(serverSedel.id)
+      ) {
+        continue;
+      }
       // Synk-identitet (2026-07-11): clientUuid er den ene identiteten. Match
       // primært på clientUuid (invariant), fallback server-id for lokal data
       // pullet før invarianten (der lokal id = server-id).
@@ -1026,6 +1112,35 @@ async function kjorTimerSync(
         (lokal.syncStatus === "pending" || lokal.syncStatus === "avvist")
       ) {
         continue;
+      }
+
+      // ORDRE 36e (pkt. 1c) — sikkerhetsnett: en SYNCED sedel med en timer-rad som
+      // aldri er pushet (ingen serverVersjon) og som er skrevet under DENNE
+      // kjøringen, er nytt arbeid en skrivevei ikke fikk markert pending i tide.
+      // Radstatningen under ville slettet den → sett pending og hopp over; neste
+      // push sender den. Vinduet [kjoringStartet, nå] holder eldre rader uten
+      // versjon (før V19.9.8) og server-stemplede rader (klokkeavvik) utenfor.
+      if (lokal && lokal.syncStatus === "synced") {
+        const pullNaa = Date.now();
+        const upushet = db
+          .select({ id: sheetTimerLocal.id })
+          .from(sheetTimerLocal)
+          .where(
+            and(
+              eq(sheetTimerLocal.dagsseddelId, lokal.id),
+              isNull(sheetTimerLocal.serverVersjon),
+              gte(sheetTimerLocal.sistEndretLokalt, kjoringStartet),
+              lte(sheetTimerLocal.sistEndretLokalt, pullNaa),
+            ),
+          )
+          .all();
+        if (upushet.length > 0) {
+          db.update(dagsseddelLocal)
+            .set({ syncStatus: "pending" })
+            .where(eq(dagsseddelLocal.id, lokal.id))
+            .run();
+          continue;
+        }
       }
 
       // 🔴 "conflict" (datatap-ordre 2026-09-30, AVVIK 1): server-wins-grenen
@@ -1455,6 +1570,14 @@ async function kjorTimerSync(
       db.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, sheetId)).run();
     }
     resultat.pull.slettet = skalSlettes.length;
+
+    // ORDRE 36e (pkt. 2): avslått sletting — sedelen er tilbake fra pull; si fra.
+    for (const id of avslatteSlettinger) {
+      db.update(dagsseddelLocal)
+        .set({ feilmelding: i18n.t("timer.sync.slettAvslaatt") })
+        .where(eq(dagsseddelLocal.id, id))
+        .run();
+    }
 
     resultat.pull.mottatt = svar.sedler.length;
   } catch (e) {

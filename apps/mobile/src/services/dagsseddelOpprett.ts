@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
-import { dagsseddelLocal } from "../db/schema";
+import { dagsseddelLocal, sheetTimerLocal } from "../db/schema";
 import { hentDatabase } from "../db/database";
 import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 
@@ -21,8 +21,11 @@ import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
  *       sender segmentets egne tider og hopper over prefill.
  *
  * Setter ALDRI timer-/maskin-rader — det eier kalleren. Rører ALDRI en
- * eksisterende sedel (idempotent), så midnatt-splitt beholder eksisterende
- * dager urørt.
+ * eksisterende sedel med timer-rader (idempotent), så midnatt-splitt beholder
+ * eksisterende dager urørt. ORDRE 36e pkt. 3: en eksisterende sedel UTEN
+ * timer-rader får ramme og flagg fra de nye argumentene, som en ny draft —
+ * ellers lever et gammelt hode (`sluttTidKilde=system`, `deltVedMidnatt`,
+ * rammen 00:00–12:00) videre i en tom sedel.
  */
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
@@ -80,6 +83,30 @@ export function finnEllerOpprettDagsseddel(
     )
     .all()[0];
   if (eksisterende) {
+    const tom =
+      (eksisterende.status === "draft" || eksisterende.status === "returned") &&
+      db
+        .select({ id: sheetTimerLocal.id })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.dagsseddelId, eksisterende.id))
+        .limit(1)
+        .all().length === 0;
+    if (tom) {
+      const ramme = rammeFraArgs(args);
+      db.update(dagsseddelLocal)
+        .set({
+          startAt: ramme.startAt ?? null,
+          endAt: ramme.endAt ?? null,
+          pauseMin: 0,
+          autoGenerert: args.autoGenerert ?? null,
+          deltVedMidnatt: false,
+          sluttTidKilde: args.sluttTidKilde ?? "bruker",
+          syncStatus: "pending",
+          sistEndretLokalt: Date.now(),
+        })
+        .where(eq(dagsseddelLocal.id, eksisterende.id))
+        .run();
+    }
     return {
       id: eksisterende.id,
       eksisterte: true,
@@ -88,19 +115,7 @@ export function finnEllerOpprettDagsseddel(
     };
   }
 
-  // (c) Arbeidstid-prefill kun for felt som ikke er gitt (manuell inngang).
-  let startAt = args.startAt;
-  let endAt = args.endAt;
-  let pauseMin = args.pauseMin;
-  if (startAt === undefined || endAt === undefined || pauseMin === undefined) {
-    const effektiv = hentArbeidsdagTiderLokalt(
-      args.orgId,
-      new Date(`${args.dato}T00:00:00`),
-    );
-    if (startAt === undefined) startAt = hhmmTilIso(args.dato, effektiv.startTid);
-    if (endAt === undefined) endAt = hhmmTilIso(args.dato, effektiv.sluttTid);
-    if (pauseMin === undefined) pauseMin = effektiv.pauseMin;
-  }
+  const { startAt, endAt, pauseMin } = rammeFraArgs(args);
 
   const id = randomUUID();
   const naa = Date.now();
@@ -135,6 +150,27 @@ export function finnEllerOpprettDagsseddel(
     .run();
 
   return { id, eksisterte: false, status: "draft", organizationId: args.orgId };
+}
+
+/** (c) Arbeidstid-prefill kun for felt som ikke er gitt (manuell inngang). */
+function rammeFraArgs(args: FinnEllerOpprettArgs): {
+  startAt: string | null | undefined;
+  endAt: string | null | undefined;
+  pauseMin: number | undefined;
+} {
+  let startAt = args.startAt;
+  let endAt = args.endAt;
+  let pauseMin = args.pauseMin;
+  if (startAt === undefined || endAt === undefined || pauseMin === undefined) {
+    const effektiv = hentArbeidsdagTiderLokalt(
+      args.orgId,
+      new Date(`${args.dato}T00:00:00`),
+    );
+    if (startAt === undefined) startAt = hhmmTilIso(args.dato, effektiv.startTid);
+    if (endAt === undefined) endAt = hhmmTilIso(args.dato, effektiv.sluttTid);
+    if (pauseMin === undefined) pauseMin = effektiv.pauseMin;
+  }
+  return { startAt, endAt, pauseMin };
 }
 
 /** HH:MM (firmaets standardarbeidstid) + ISO-dato → ISO-timestamp. */

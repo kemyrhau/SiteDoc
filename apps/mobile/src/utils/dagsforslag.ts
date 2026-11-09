@@ -38,6 +38,7 @@ import {
   hhmmTilMin,
   pauseOverlappMin,
   finnOverlappendeTidsrom,
+  minTilHhmm,
   løsReiseLonnsartId,
   grensepunktTraff,
   DEFAULT_PAUSE_ETTER_TIMER,
@@ -372,6 +373,29 @@ export type DagsforslagRettingDato = {
  * overtid-starten. Normaltid = arbeid fra arbeidsstart til `overtidFra` minus
  * pausen som faller i det spennet; resten er overtid. Avgrenset til [0, arbeid].
  */
+/**
+ * ORDRE 36e pkt. 4: et pausevindu som ikke starter inne i arbeidstiden
+ * (kort dag: `pauseVinduFra` havner etter slutt; sen ankomst med
+ * `fastStart`: før start) gir ingen rad med klokke-gap, så F5-bæreren blir 0
+ * mens pausen alt er trukket fra timene. Da legges pausen midt i arbeidstiden.
+ * Vinduer inne i arbeidstiden (vanlig dag) returneres uendret.
+ */
+export function klemPauseInnIArbeid(args: {
+  arbeidsstartHHMM: string;
+  /** Netto arbeidstimer (pausen alt trukket). */
+  arbeidstimer: number;
+  pauseFra: string;
+  pauseMin: number;
+}): string {
+  if (args.pauseMin <= 0) return args.pauseFra;
+  const startMin = hhmmTilMin(args.arbeidsstartHHMM);
+  const arbeidMin = Math.round(args.arbeidstimer * 60);
+  const pauseFraMin = hhmmTilMin(args.pauseFra);
+  // `tilFraAntall` legger pausen inn bare når arbeid gjenstår ved pausestart.
+  if (pauseFraMin >= startMin && pauseFraMin < startMin + arbeidMin) return args.pauseFra;
+  return minTilHhmm(startMin + Math.floor(arbeidMin / 2));
+}
+
 export function segmenterVedOvertidFra(args: {
   arbeidstimer: number;
   arbeidsstartHHMM: string;
@@ -961,17 +985,25 @@ function beregnSegment(a: {
       a.effektiv?.pauseReferanse === "fastStart"
         ? (a.effektiv?.startTid ?? arbeidsstartHHMM)
         : arbeidsstartHHMM;
+    // ORDRE 36e pkt. 4: pausevinduet må ligge inne i arbeidstiden, ellers bærer
+    // ingen rad pausen (F5 krever klokke-gap) mens timene alt er trukket.
+    const pauseFra = klemPauseInnIArbeid({
+      arbeidsstartHHMM,
+      arbeidstimer,
+      pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
+      pauseMin: a.pauseMin,
+    });
     const carvet = carveArbeidstider({
       startTid: arbeidsstartHHMM,
       reisetidTimer: 0,
-      pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
+      pauseFra,
       pauseMin: a.pauseMin,
       segmenter: a.overtidFra
         ? segmenterVedOvertidFra({
             arbeidstimer,
             arbeidsstartHHMM,
             overtidFra: a.overtidFra,
-            pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
+            pauseFra,
             pauseMin: a.pauseMin,
           })
         : klassifiserArbeidstid({ arbeidstimer, dagsnorm }),

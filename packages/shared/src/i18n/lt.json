@@ -4840,6 +4840,7 @@
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Įrenginys be laiko įrašo: {{navn}}",
   "timer.eksport.sumKontroll": "SUM (kontrolė)",
+  "timer.sync.slettAvslaatt": "Dienos lapo ištrinti nepavyko – jis išsiųstas",
   "timer.sync.slattSammen": "Sujungta su šios datos dienos lapu – jūsų valandos išsaugomos.",
   "timer.eksport.ark.detaljer": "Detalės",
   "timer.eksport.kolType": "Tipas",
