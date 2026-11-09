@@ -154,6 +154,17 @@ export default function BekreftDagSkjerm() {
   const rulleRef = useRef<ScrollView>(null);
   const beskrivelseFelt = useRef(new Map<string, TextInput>());
   const beskrivelseY = useRef(new Map<string, number>());
+  // RETUR 36c-2 (D4): tekstfeltets y innenfor kortet — rullemålet er feltet.
+  const beskrivelseFeltY = useRef(new Map<string, number>());
+  const [tastaturOppe, setTastaturOppe] = useState(false);
+  useEffect(() => {
+    const vis = Keyboard.addListener("keyboardDidShow", () => setTastaturOppe(true));
+    const skjul = Keyboard.addListener("keyboardDidHide", () => setTastaturOppe(false));
+    return () => {
+      vis.remove();
+      skjul.remove();
+    };
+  }, []);
 
   // Ikke ansatt → ingen sedel. Fersk kontekst først, ellers sist lagrede svar.
   useEffect(() => {
@@ -283,10 +294,14 @@ export default function BekreftDagSkjerm() {
     beskrivelseFelt.current.get(forste)?.focus();
   }, []);
   // RETUR 36c pkt 3: feltet det skrives i ruller over tastaturet når det er oppe.
+  // RETUR 36c-2 (D4): målet er selve tekstfeltet (kortets y + feltets y), ikke
+  // kortets topp — chips over feltet ruller ut av syne og kan ikke treffes.
   const rullTilBeskrivelse = useCallback((nokkel: string) => {
     const rull = () => {
       const y = beskrivelseY.current.get(nokkel);
-      if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+      if (y == null) return;
+      const feltY = beskrivelseFeltY.current.get(nokkel) ?? 0;
+      rulleRef.current?.scrollTo({ y: Math.max(0, y + feltY - 16), animated: true });
     };
     if (Keyboard.isVisible()) {
       rull();
@@ -554,7 +569,7 @@ export default function BekreftDagSkjerm() {
         contentContainerClassName="gap-3 p-4"
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode="none"
       >
         {manuell && !laastDato ? (
           <View>
@@ -716,6 +731,8 @@ export default function BekreftDagSkjerm() {
                 onLayout={(e) => beskrivelseY.current.set(k.nokkel, e.nativeEvent.layout.y)}
                 tastaturId={TASTATUR_ID}
                 onFokus={() => rullTilBeskrivelse(k.nokkel)}
+                onFeltY={(y) => beskrivelseFeltY.current.set(k.nokkel, y)}
+                onInnholdEndret={() => rullTilBeskrivelse(k.nokkel)}
                 prosjektNavn={
                   [
                     prosjekter.find((pr) => pr.id === k.projectId)?.name ?? null,
@@ -770,13 +787,19 @@ export default function BekreftDagSkjerm() {
             </Text>
           </>
         ) : null}
+        {/* RETUR 36c-2 (D4): luft under siste felt mens tastaturet er oppe, så
+            rullingen til feltet ikke klemmes mot bunnen. */}
+        {tastaturOppe ? <View className="h-[120px]" /> : null}
       </ScrollView>
 
       {Platform.OS === "ios" ? (
         <InputAccessoryView nativeID={TASTATUR_ID}>
-          <View className="flex-row justify-end border-t border-gray-200 bg-gray-100 px-4 py-2">
-            <Pressable onPress={() => Keyboard.dismiss()} className="px-2 py-1">
-              <Text className="text-base font-medium text-blue-700">{t("handling.ferdig")}</Text>
+          <View className="border-t border-gray-200 bg-gray-100 px-4 py-2">
+            <Pressable
+              onPress={() => Keyboard.dismiss()}
+              className="min-h-[44px] items-center justify-center rounded-lg bg-blue-600"
+            >
+              <Text className="text-base font-semibold text-white">{t("handling.ferdig")}</Text>
             </Pressable>
           </View>
         </InputAccessoryView>

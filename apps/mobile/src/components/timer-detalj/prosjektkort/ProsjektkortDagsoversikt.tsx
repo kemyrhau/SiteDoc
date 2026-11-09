@@ -57,6 +57,8 @@ import {
   flyttTimerRad,
   flyttVareLokalt,
   foelgKobletMaskin,
+  loftByggeplassArv,
+  trengerByggeplassLoft,
   type FlyttMaal,
 } from "./kortRadFlytt";
 import { KortValgModal } from "./KortValgModal";
@@ -293,8 +295,15 @@ export function ProsjektkortDagsoversikt({
   const db = () => hentDatabase()!;
   const redigert = timerRad(timerModal?.radId ?? null);
 
+  // RETUR 36c-2 P1 (a2): «Uten byggeplass» på en sedel med byggeplass —
+  // løft arven ut før lagring, så NULL på raden betyr ekte «uten».
+  const loftArvVedBehov = (kort: KortValg) => {
+    if (trengerByggeplassLoft(kort, sedelKontekst)) loftByggeplassArv(db(), sheetId, sedelKontekst);
+  };
+
   const utforFlytt = async (til: KortValg) => {
     if (!flytt) return;
+    loftArvVedBehov(til);
     const maal: FlyttMaal = {
       projectId: til.projectId,
       byggeplassId: lagretByggeplassForKort(til, sedelKontekst),
@@ -388,7 +397,10 @@ export function ProsjektkortDagsoversikt({
 
         <Linje etikett={t("timer.prosjektkort.kolonne.arbeid")}>
           {linjer.arbeid.length === 0 ? (
-            <Tom onPress={() => aapneTimer(valg, null)} />
+            <Tom
+              onPress={() => aapneTimer(valg, null)}
+              leggTil={redigerbar ? t("timer.prosjektkort.leggTilArbeid") : undefined}
+            />
           ) : (
             linjer.arbeid.map((r) => (
               <Verdi key={r.id} onPress={() => aapneTimer(valg, r.id)}>
@@ -412,7 +424,10 @@ export function ProsjektkortDagsoversikt({
           <Linje etikett={t("timer.prosjektkort.kolonne.maskin")}>
             {linjer.maskin.length === 0 ? (
               // Tom maskin: ny timer-rad med maskinseksjonen (P1).
-              <Tom onPress={() => aapneTimer(valg, null)} />
+              <Tom
+                onPress={() => aapneTimer(valg, null)}
+                leggTil={redigerbar ? t("timer.prosjektkort.leggTilMaskin") : undefined}
+              />
             ) : (
               linjer.maskin.map((r) => (
                 <Verdi
@@ -644,6 +659,7 @@ export function ProsjektkortDagsoversikt({
             pauseMin,
             maskin,
           ) => {
+            loftArvVedBehov(timerModal.kort);
             const felt = {
               projectId,
               // Kortlåsen gir effektiv byggeplass; lagres som null når den arves.
@@ -824,10 +840,18 @@ function Verdi({ onPress, gra = false, children }: { onPress: () => void; gra?: 
   );
 }
 
-function Tom({ onPress }: { onPress: () => void }) {
+/**
+ * Tom celle. RETUR 36c-2 (D2): `leggTil` gir en tydelig «+ Legg til …» der
+ * trykket oppretter en ny rad — «–» ble lest som en rad som kunne redigeres.
+ */
+function Tom({ onPress, leggTil }: { onPress: () => void; leggTil?: string }) {
   return (
     <Pressable onPress={onPress} className="min-h-[44px] justify-center active:bg-gray-50">
-      <Text className="text-sm text-gray-400">–</Text>
+      {leggTil ? (
+        <Text className="text-sm font-medium text-gray-700">{leggTil}</Text>
+      ) : (
+        <Text className="text-sm text-gray-400">–</Text>
+      )}
     </Pressable>
   );
 }

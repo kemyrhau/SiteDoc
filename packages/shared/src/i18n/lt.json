@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Prekės",
   "timer.prosjektkort.kolonne.reise": "Kelionės",
   "timer.prosjektkort.kolonne.utlegg": "Išlaidos",
+  "timer.prosjektkort.leggTilArbeid": "+ Add work",
+  "timer.prosjektkort.leggTilMaskin": "+ Add machine",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} svetainės",
   "timer.prosjektkort.varelinjer": "{{antall}} eilučių",
   "timer.prosjektkort.status.returnert": "Sugrįžo",

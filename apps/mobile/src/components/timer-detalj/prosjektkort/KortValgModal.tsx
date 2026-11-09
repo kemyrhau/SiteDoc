@@ -20,16 +20,16 @@ import { ProsjektVelgerModal } from "../ProsjektVelger";
  *  - `flytt`: «Flytt raden». Prosjekt kan byttes, byggeplass og underprosjekt
  *    som chips; «Flytt» er avslått til valget skiller seg fra radens kort.
  *
- * Byggeplass i `KortValg` er den EFFEKTIVE. «Uten byggeplass» kan ikke
- * uttrykkes når dagens byggeplass hører til samme prosjekt (en rad uten
- * byggeplass arver den) — da vises valget ikke.
+ * Byggeplass i `KortValg` er den EFFEKTIVE. «Uten byggeplass» tilbys alltid
+ * (RETUR 36c-2 P1 a2): når dagens byggeplass hører til samme prosjekt løftes
+ * arven ut ved lagring (`loftByggeplassArv`), så raden blir ekte «uten».
  */
 export type KortValgModus =
   | { type: "ny"; projectId: string; forslagByggeplassId: string | null }
   | { type: "flytt"; fra: KortValg };
 
-export function kanVelgeUtenByggeplass(projectId: string, sedel: SedelKortKontekst): boolean {
-  return effektivByggeplass(projectId, null, sedel) === null;
+export function kanVelgeUtenByggeplass(_projectId: string, _sedel: SedelKortKontekst): boolean {
+  return true;
 }
 
 /** K3 for «+ Nytt kort»: 0–1 byggeplass og ingen underprosjekt → kortet åpnes direkte. */

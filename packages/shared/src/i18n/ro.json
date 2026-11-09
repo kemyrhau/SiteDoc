@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Bunuri",
   "timer.prosjektkort.kolonne.reise": "Voiaj",
   "timer.prosjektkort.kolonne.utlegg": "Cheltuieli",
+  "timer.prosjektkort.leggTilArbeid": "+ Adăugați de lucru",
+  "timer.prosjektkort.leggTilMaskin": "+ Adăugați mașină",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} site-uri",
   "timer.prosjektkort.varelinjer": "{{antall}} linii",
   "timer.prosjektkort.status.returnert": "Întors",

@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Marchandises",
   "timer.prosjektkort.kolonne.reise": "Voyage",
   "timer.prosjektkort.kolonne.utlegg": "Dépenses",
+  "timer.prosjektkort.leggTilArbeid": "+ Ajouter du travail",
+  "timer.prosjektkort.leggTilMaskin": "+ Ajouter une machine",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} sites",
   "timer.prosjektkort.varelinjer": "{{antall}} lignes",
   "timer.prosjektkort.status.returnert": "Retourné",

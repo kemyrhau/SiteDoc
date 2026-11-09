@@ -412,7 +412,35 @@ describe("RETUR 36c pkt 3 og 4 — kildevakter for Bekreft dag", () => {
     expect(felt()).toContain('inputAccessoryViewID={Platform.OS === "ios" ? tastaturId : undefined}');
     expect(felt()).toContain('Platform.OS === "android" && harFokus && tastaturOppe ? (');
     expect(skjerm()).toContain('keyboardShouldPersistTaps="handled"');
-    expect(skjerm()).toContain('keyboardDismissMode="on-drag"');
+    expect(skjerm()).toContain('keyboardDismissMode="none"');
+  });
+});
+
+describe("RETUR 36c-2 D4 — kildevakter for tastatur i Bekreft dag", () => {
+  const skjerm = () => fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
+  const felt = () => fs.readFileSync(path.join(__dirname, "../components/timer-detalj/BekreftDagBeskrivelse.tsx"), "utf8");
+
+  it("🔴 a: feltet har makshøyde og intern scroll", () => {
+    expect(felt()).toContain("max-h-[140px]");
+    expect(felt()).toContain("scrollEnabled");
+  });
+
+  it("🔴 b: rullemålet er tekstfeltet, rulles på nytt når innholdet vokser, luft under", () => {
+    expect(felt()).toContain("onLayout={(e) => onFeltY?.(e.nativeEvent.layout.y)}");
+    expect(felt()).toContain("if (harFokus) onInnholdEndret?.();");
+    expect(skjerm()).toContain("y + feltY - 16");
+    expect(skjerm()).toContain("onInnholdEndret={() => rullTilBeskrivelse(k.nokkel)}");
+    expect(skjerm()).toContain('{tastaturOppe ? <View className="h-[120px]" /> : null}');
+  });
+
+  it("🔴 c: «Ferdig» er fullbredde-knapp ≥ 44 pt på iOS og Android", () => {
+    const knapp = "min-h-[44px] items-center justify-center rounded-lg bg-blue-600";
+    expect(skjerm()).toContain(knapp);
+    expect(felt()).toContain(knapp);
+  });
+
+  it("🔴 d: scroll lukker ikke tastaturet", () => {
+    expect(skjerm()).not.toContain('keyboardDismissMode="on-drag"');
   });
 });
 

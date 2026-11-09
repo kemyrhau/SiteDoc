@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "Preces",
   "timer.prosjektkort.kolonne.reise": "Ceļot",
   "timer.prosjektkort.kolonne.utlegg": "Izdevumi",
+  "timer.prosjektkort.leggTilArbeid": "+ Pievienot darbu",
+  "timer.prosjektkort.leggTilMaskin": "+ Pievienojiet mašīnu",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} vietnes",
   "timer.prosjektkort.varelinjer": "{{antall}} rindiņas",
   "timer.prosjektkort.status.returnert": "Atgriezās",

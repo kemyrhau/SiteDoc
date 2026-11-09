@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { hentDatabase } from "../../../db/database";
-import { sheetMachineLocal, sheetTimerLocal, vareforbrukLocal } from "../../../db/schema";
+import { dagsseddelLocal, sheetMachineLocal, sheetTimerLocal, vareforbrukLocal } from "../../../db/schema";
+import { effektivByggeplass, type KortValg, type SedelKortKontekst } from "../../../lib/prosjektkortMobil";
 import type { TimerRad } from "../../../types/timer-detalj";
 import { oppdaterTimerRad, type RadKontekst } from "./radLagring";
 
@@ -116,4 +117,65 @@ export function flyttVareLokalt(db: LokalDb, vareId: string, til: FlyttMaal): vo
     })
     .where(eq(vareforbrukLocal.id, vareId))
     .run();
+}
+
+/**
+ * RETUR 36c-2 P1 (a2): trengs løft før kortet `kort` kan lagres? Ja når kortet
+ * er «Uten byggeplass» og en rad uten byggeplass ellers ville arvet sedelens.
+ */
+export function trengerByggeplassLoft(kort: KortValg, sedel: SedelKortKontekst): boolean {
+  return kort.byggeplassId === null && effektivByggeplass(kort.projectId, null, sedel) !== null;
+}
+
+/**
+ * RETUR 36c-2 P1 (a2): «Uten byggeplass» på en sedel som har byggeplass A —
+ * løft arven ut, uten migrering. Arvende timer- og maskinrader (byggeplass
+ * NULL, samme prosjekt som A) får A skrevet eksplisitt, og sedelens byggeplass
+ * nullstilles. Etterpå betyr NULL på en rad ekte «uten» for server, web og
+ * gamle klienter (`rad ?? sedel` = null). Reise-rader har aldri byggeplass og
+ * røres ikke. Én transaksjon; kalleren markerer sedelen endret (sync).
+ * Ingen arv å løfte → no-op (false).
+ */
+export function loftByggeplassArv(db: LokalDb, sheetId: string, sedel: SedelKortKontekst): boolean {
+  const a = sedel.byggeplass;
+  if (!a) return false;
+  const arver = (projectId: string | null, byggeplassId: string | null) =>
+    !byggeplassId && (projectId ?? sedel.projectId) === a.projectId;
+  const naa = Date.now();
+  db.transaction((tx) => {
+    const timer = tx
+      .select({
+        id: sheetTimerLocal.id,
+        projectId: sheetTimerLocal.projectId,
+        byggeplassId: sheetTimerLocal.byggeplassId,
+        erReise: sheetTimerLocal.erReise,
+      })
+      .from(sheetTimerLocal)
+      .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+      .all();
+    for (const r of timer) {
+      if (r.erReise || !arver(r.projectId, r.byggeplassId)) continue;
+      tx.update(sheetTimerLocal)
+        .set({ byggeplassId: a.id, sistEndretLokalt: naa })
+        .where(eq(sheetTimerLocal.id, r.id))
+        .run();
+    }
+    const maskiner = tx
+      .select({ id: sheetMachineLocal.id, projectId: sheetMachineLocal.projectId, byggeplassId: sheetMachineLocal.byggeplassId })
+      .from(sheetMachineLocal)
+      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
+      .all();
+    for (const m of maskiner) {
+      if (!arver(m.projectId, m.byggeplassId)) continue;
+      tx.update(sheetMachineLocal)
+        .set({ byggeplassId: a.id, sistEndretLokalt: naa })
+        .where(eq(sheetMachineLocal.id, m.id))
+        .run();
+    }
+    tx.update(dagsseddelLocal)
+      .set({ byggeplassId: null, sistEndretLokalt: naa, syncStatus: "pending" })
+      .where(eq(dagsseddelLocal.id, sheetId))
+      .run();
+  });
+  return true;
 }

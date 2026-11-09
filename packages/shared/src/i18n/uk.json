@@ -351,6 +351,8 @@
   "timer.prosjektkort.kolonne.varer": "товари",
   "timer.prosjektkort.kolonne.reise": "Подорожі",
   "timer.prosjektkort.kolonne.utlegg": "Витрати",
+  "timer.prosjektkort.leggTilArbeid": "+ Додати роботу",
+  "timer.prosjektkort.leggTilMaskin": "+ Додати машину",
   "timer.prosjektkort.flereByggeplasser": "{{antall}} сайтів",
   "timer.prosjektkort.varelinjer": "{{antall}} рядків",
   "timer.prosjektkort.status.returnert": "Повернувся",
