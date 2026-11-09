@@ -265,6 +265,8 @@ export type KortUtfall =
   | { utfall: "uendret" }
   | { utfall: "brudd" }
   | { utfall: "offline" }
+  /** 36c-kort-3: timer og maskin er flyttet, (noen) synkede varer ikke. `melding` = serverens avslag. */
+  | { utfall: "delvis"; melding?: string }
   | { utfall: "serverFeil"; melding: string };
 
 /**
@@ -282,6 +284,8 @@ export function kortUtfallTekst(u: KortUtfall, handling: "slett" | "flytt"): str
       return handling === "slett" ? "timer.kort.offlineSlett" : "timer.kort.offlineFlytt";
     case "laast":
       return "timer.detalj.laast";
+    case "delvis":
+      return "timer.kort.delvisFlyttet";
     case "serverFeil":
       return u.melding;
   }
@@ -407,9 +411,16 @@ export function slettKortLokalt(db: LokalDb, sheetId: string, innhold: KortInnho
 
 /**
  * «Endre kort»: ett mål for alle kortets rader. Timer via `flyttTimerRad`
- * (koblet maskin følger), frie maskiner via `flyttMaskinRad`, varer på server
- * først (`flyttVare`) og så lokalt. «Uten byggeplass» løfter sedelens arv
- * (`loftByggeplassArv`). Finnes målkortet, slås kortene sammen (datanivå).
+ * (koblet maskin følger), frie maskiner via `flyttMaskinRad`. «Uten byggeplass»
+ * løfter sedelens arv (`loftByggeplassArv`). Finnes målkortet, slås kortene
+ * sammen (datanivå).
+ *
+ * 36c-kort-3: synkede varer kan først flyttes på server når server-sedelen har
+ * en timer-rad på målprosjektet (RETUR 4 i `vareforbruk.oppdater`). Rekkefølge:
+ * lokal flytt av timer/maskin (+ lokale varer) → push sedelen (`pushSedel`) →
+ * `flyttVare` per synket vare → lokal vareflytt for hver vare server godtok.
+ * Feiler push eller en vare: «delvis» — resten blir på dette kortet, og et nytt
+ * «Endre kort» der flytter dem (timer-steget er da tomt).
  */
 export async function flyttKort(
   db: LokalDb,
@@ -417,7 +428,11 @@ export async function flyttKort(
   innhold: KortInnhold,
   fra: KortValg,
   til: KortValg,
-  server: { erPaaNettet: boolean; flyttVare: (id: string, til: FlyttMaal) => Promise<void> },
+  server: {
+    erPaaNettet: boolean;
+    pushSedel: () => Promise<boolean>;
+    flyttVare: (id: string, til: FlyttMaal) => Promise<void>;
+  },
 ): Promise<KortUtfall> {
   if (!erRedigerbar(dag.status)) return { utfall: "laast" };
   if (kortNokkel(fra) === kortNokkel(til)) return { utfall: "uendret" };
@@ -426,15 +441,6 @@ export async function flyttKort(
   const vareMaal: FlyttMaal = { projectId: til.projectId, byggeplassId: vareByggeplassForKort(til), ecoId: til.ecoId };
   const serverVarer = innhold.varer.filter(vareFinnesPaaServer);
   if (serverVarer.length > 0 && !server.erPaaNettet) return { utfall: "offline" };
-  for (const v of serverVarer) {
-    try {
-      await server.flyttVare(v.id, vareMaal);
-    } catch (e) {
-      // Ikke `erIkkeFunnet` her: `oppdater` gir også NOT_FOUND når målet
-      // (underprosjektet) mangler — en avvist flytt må stoppe (RETUR 36c-kort-2b).
-      return { utfall: "serverFeil", melding: e instanceof Error ? e.message : String(e) };
-    }
-  }
   if (trengerByggeplassLoft(til, dag.sedel)) loftByggeplassArv(db, dag.sheetId, dag.sedel);
   const maal: FlyttMaal = {
     projectId: til.projectId,
@@ -451,7 +457,27 @@ export async function flyttKort(
       if (m.sheetTimerId != null && timerIder.has(m.sheetTimerId)) continue; // fulgte timer-raden
       flyttMaskinRad(t, m.id, maal);
     }
-    for (const v of innhold.varer) flyttVareLokalt(t, v.id, vareMaal);
+    // Bare lokale (pending/avvist) varer — de sendes med nye verdier ved sync.
+    for (const v of innhold.varer) if (!vareFinnesPaaServer(v)) flyttVareLokalt(t, v.id, vareMaal);
+    if (serverVarer.length > 0) {
+      t.update(dagsseddelLocal)
+        .set({ sistEndretLokalt: Date.now(), syncStatus: "pending" })
+        .where(eq(dagsseddelLocal.id, dag.sheetId))
+        .run();
+    }
   });
+  if (serverVarer.length === 0) return { utfall: "ok" };
+  const pushet = await server.pushSedel().catch(() => false);
+  if (!pushet) return { utfall: "delvis" };
+  for (const v of serverVarer) {
+    try {
+      await server.flyttVare(v.id, vareMaal);
+    } catch (e) {
+      // Ikke `erIkkeFunnet` her: `oppdater` gir også NOT_FOUND når målet
+      // (underprosjektet) mangler — en avvist flytt må stoppe (RETUR 36c-kort-2b).
+      return { utfall: "delvis", melding: e instanceof Error ? e.message : String(e) };
+    }
+    flyttVareLokalt(db, v.id, vareMaal);
+  }
   return { utfall: "ok" };
 }

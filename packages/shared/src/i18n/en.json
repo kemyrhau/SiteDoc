@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Travel, allowances and expenses are kept. Your manager sees the change when you send the timesheet again.",
   "timer.kort.slettSiste": "This is the last card — the timesheet will be empty.",
   "timer.kort.offlineSlett": "The card has goods that have been sent. Connect to the internet to delete.",
-  "timer.kort.offlineFlytt": "The card has goods that have been sent. Connect to the internet to move."
+  "timer.kort.offlineFlytt": "The card has goods that have been sent. Connect to the internet to move.",
+  "timer.kort.delvisFlyttet": "The hours were moved. The materials were not — tap “Change card” again on the old card."
 }

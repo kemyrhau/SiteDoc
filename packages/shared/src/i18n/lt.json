@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Išsaugomos kelionės, pašalpos ir išlaidos. Jūsų vadovas pamatys pokyčius, kai vėl išsiųsite darbo laiko apskaitos žiniaraštį.",
   "timer.kort.slettSiste": "Tai paskutinė kortelė – darbo laiko apskaitos žiniaraštis bus tuščias.",
   "timer.kort.offlineSlett": "Kortelėje yra prekės, kurios buvo išsiųstos. Prisijunkite prie interneto, kad ištrintumėte.",
-  "timer.kort.offlineFlytt": "Kortelėje yra prekės, kurios buvo išsiųstos. Norėdami judėti, prisijunkite prie interneto."
+  "timer.kort.offlineFlytt": "Kortelėje yra prekės, kurios buvo išsiųstos. Norėdami judėti, prisijunkite prie interneto.",
+  "timer.kort.delvisFlyttet": "Valandos perkeltos. Medžiagos neperkeltos — senoje kortelėje dar kartą bakstelėkite „Keisti kortelę“."
 }

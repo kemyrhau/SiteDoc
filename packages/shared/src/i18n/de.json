@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Reisekosten, Spesen und Spesen werden einbehalten. Ihr Vorgesetzter sieht die Änderung, wenn Sie die Arbeitszeittabelle erneut senden.",
   "timer.kort.slettSiste": "Dies ist die letzte Karte – die Arbeitszeittabelle ist leer.",
   "timer.kort.offlineSlett": "Auf der Karte sind versendete Waren verzeichnet. Stellen Sie zum Löschen eine Verbindung zum Internet her.",
-  "timer.kort.offlineFlytt": "Auf der Karte sind versendete Waren verzeichnet. Stellen Sie eine Verbindung zum Internet her, um sich zu bewegen."
+  "timer.kort.offlineFlytt": "Auf der Karte sind versendete Waren verzeichnet. Stellen Sie eine Verbindung zum Internet her, um sich zu bewegen.",
+  "timer.kort.delvisFlyttet": "Die Stunden wurden verschoben. Die Materialien nicht — tippe auf der alten Karte erneut auf „Karte wechseln“."
 }

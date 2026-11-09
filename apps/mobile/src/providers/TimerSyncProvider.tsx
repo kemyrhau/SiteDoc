@@ -13,6 +13,7 @@ import { useAuth } from "./AuthProvider";
 import { useNettverk } from "./NettverkProvider";
 import {
   syncTimer,
+  pushEnSedel,
   tellPending,
   tellConflict,
   tellAvvist,
@@ -47,6 +48,11 @@ interface TimerSyncKontekst {
   katalogLastet: boolean;
   /** Manuell trigger — pull-to-refresh, etter lokal endring, etc. */
   triggerSync: () => Promise<void>;
+  /**
+   * 36c-kort-3: push én sedel NÅ og si om den ble synket. Venter på en
+   * pågående sync (i motsetning til `triggerSync`, som hopper over). Offline → false.
+   */
+  pushSedel: (sheetId: string) => Promise<boolean>;
   /** Last ned katalog (lønnsarter/aktiviteter/tillegg) fra server. */
   triggerKatalogRefresh: () => Promise<void>;
   /** Refresh tellere fra DB uten å kjøre sync (etter lokal opprett/slett). */
@@ -62,6 +68,7 @@ const TimerSyncContext = createContext<TimerSyncKontekst>({
   sisteFeil: null,
   katalogLastet: false,
   triggerSync: async () => {},
+  pushSedel: async () => false,
   triggerKatalogRefresh: async () => {},
   oppdaterTellere: () => {},
 });
@@ -86,6 +93,8 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
   const [katalogLastet, setKatalogLastet] = useState(false);
 
   const syncerRef = useRef(false);
+  // 36c-kort-3: løses når pågående sync er ferdig — `pushSedel` venter på den.
+  const syncFerdigRef = useRef<Promise<void> | null>(null);
   const katalogRefreshRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -180,6 +189,8 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     if (!erPaaNettet) return;
     if (syncerRef.current) return; // unngå overlappende kall
     syncerRef.current = true;
+    let ferdig = () => {};
+    syncFerdigRef.current = new Promise<void>((r) => (ferdig = r));
     setSyncerNa(true);
     try {
       // Kenneth-vedtak 2026-10-09: synk følger «Mitt firma». TimerSyncProvider ligger
@@ -203,8 +214,30 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     } finally {
       syncerRef.current = false;
       setSyncerNa(false);
+      ferdig();
     }
   }, [bruker?.id, erPaaNettet, utils.client]);
+
+  const pushSedel = useCallback(
+    async (sheetId: string): Promise<boolean> => {
+      if (!bruker?.id || !erPaaNettet) return false;
+      while (syncerRef.current) await syncFerdigRef.current;
+      syncerRef.current = true;
+      let ferdig = () => {};
+      syncFerdigRef.current = new Promise<void>((r) => (ferdig = r));
+      try {
+        const firmaId = (await hentLagretFirmaId()) ?? undefined;
+        return await pushEnSedel(utils.client, bruker.id, sheetId, firmaId);
+      } catch {
+        return false;
+      } finally {
+        syncerRef.current = false;
+        setPendingAntall(tellPending(bruker.id));
+        ferdig();
+      }
+    },
+    [bruker?.id, erPaaNettet, utils.client],
+  );
 
   // Initial-sync ved innlogging + endret nettverk
   useEffect(() => {
@@ -262,6 +295,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
         sisteFeil,
         katalogLastet,
         triggerSync,
+        pushSedel,
         triggerKatalogRefresh,
         oppdaterTellere,
       }}

@@ -99,7 +99,8 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for kortskjermen, brukes når
 
 - **Hva er dette?** Ett kort = arbeid, maskiner og varer på ett prosjekt, én byggeplass og ett underprosjekt den dagen.
 - **Endre kort:** flytter hele kortet til et annet prosjekt, en annen byggeplass eller et annet underprosjekt. Finnes
-  kortet du velger fra før, slås de sammen. Reise, tillegg og utlegg blir liggende på dagen.
+  kortet du velger fra før, slås de sammen. Reise, tillegg og utlegg blir liggende på dagen. Får ikke telefonen flyttet
+  varene på serveren, blir timene flyttet og varene stående på det gamle kortet — trykk «Endre kort» der en gang til.
 - **Slett kort:** sletter arbeid, maskiner og varer på kortet. Er det dagens siste kort, blir dagsseddelen stående som tomt utkast.
 - Begge knappene finnes bare mens dagsseddelen er utkast eller returnert. Varer som alt er sendt, må endres på serveren —
   uten dekning er knappene sperret.

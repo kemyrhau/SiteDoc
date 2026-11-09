@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Les déplacements, indemnités et dépenses sont conservés. Votre responsable voit le changement lorsque vous envoyez à nouveau la feuille de temps.",
   "timer.kort.slettSiste": "C'est la dernière carte — la feuille de temps sera vide.",
   "timer.kort.offlineSlett": "La carte contient des marchandises qui ont été envoyées. Connectez-vous à Internet pour supprimer.",
-  "timer.kort.offlineFlytt": "La carte contient des marchandises qui ont été envoyées. Connectez-vous à Internet pour vous déplacer."
+  "timer.kort.offlineFlytt": "La carte contient des marchandises qui ont été envoyées. Connectez-vous à Internet pour vous déplacer.",
+  "timer.kort.delvisFlyttet": "Les heures ont été déplacées. Les matériaux non — appuyez à nouveau sur « Changer de carte » sur l’ancienne carte."
 }

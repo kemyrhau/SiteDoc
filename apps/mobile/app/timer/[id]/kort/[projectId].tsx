@@ -87,7 +87,7 @@ export default function ProsjektkortSkjerm() {
   // (gammel rute) velges prosjektets første kort.
   const bpParam = fraRuteParam(params.bp);
   const upParam = fraRuteParam(params.up) ?? null;
-  const { triggerSync, oppdaterTellere, sistSynkronisert } = useTimerSync();
+  const { triggerSync, pushSedel, oppdaterTellere, sistSynkronisert } = useTimerSync();
   const { erPaaNettet } = useNettverk();
 
   const [sedel, setSedel] = useState<Sedel | null>(null);
@@ -331,7 +331,8 @@ export default function ProsjektkortSkjerm() {
   const visUtfall = (u: KortUtfall, handling: "slett" | "flytt"): boolean => {
     if (u.utfall === "ok") return true;
     const tekst = kortUtfallTekst(u, handling);
-    setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) : null);
+    const grunn = u.utfall === "delvis" && u.melding ? `\n${u.melding}` : "";
+    setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) + grunn : null);
     return false;
   };
   const utforEndre = async (til: typeof valg) => {
@@ -339,6 +340,7 @@ export default function ProsjektkortSkjerm() {
     setKortArbeider(true);
     const u = await flyttKort(hentDatabase()!, dag, innhold, valg, til, {
       erPaaNettet,
+      pushSedel: () => pushSedel(sheetId),
       flyttVare: async (id, maal) => {
         await oppdaterVare.mutateAsync({
           id,
@@ -349,6 +351,12 @@ export default function ProsjektkortSkjerm() {
       },
     });
     setKortArbeider(false);
+    if (u.utfall === "delvis") {
+      // 36c-kort-3: timer er flyttet — les på nytt; modalen står med teksten,
+      // og «Flytt» igjen flytter varene som ble igjen på dette kortet.
+      lesData();
+      void vareQuery.refetch();
+    }
     if (!visUtfall(u, "flytt")) return;
     setVisEndre(false);
     markerEndretOgLes();

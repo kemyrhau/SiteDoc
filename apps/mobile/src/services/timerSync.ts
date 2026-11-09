@@ -266,6 +266,37 @@ export async function syncTimer(
   // Utelatt (eldre kall) → serveren faller tilbake til brukerens medlemskap (bakoverkompat).
   firmaId?: string,
 ): Promise<SyncResultat> {
+  return kjorTimerSync(klient, userId, tidsavbruddMs, firmaId, null);
+}
+
+/**
+ * 36c-kort-3: push ÉN sedel nå (samme push-vei som `syncTimer`, uten pull) og
+ * si om den ble `synced`. «Endre kort» trenger server-sedelens timer-rad på
+ * målprosjektet før synkede varer kan flyttes (`vareforbruk.oppdater`).
+ * Sedelen må være `pending`; ellers sendes ingenting og svaret er dagens status.
+ */
+export async function pushEnSedel(
+  klient: TrpcKlient,
+  userId: string,
+  sheetId: string,
+  firmaId?: string,
+  tidsavbruddMs: number = SYNK_NETT_TIDSAVBRUDD_MS,
+): Promise<boolean> {
+  await kjorTimerSync(klient, userId, tidsavbruddMs, firmaId, sheetId);
+  const db = hentDatabase();
+  if (!db) return false;
+  const sedel = db.select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, sheetId)).all()[0];
+  return sedel?.syncStatus === "synced";
+}
+
+/** Felles kropp. `kunSedelId` ≠ null: push bare den sedelen, og ingen pull. */
+async function kjorTimerSync(
+  klient: TrpcKlient,
+  userId: string,
+  tidsavbruddMs: number,
+  firmaId: string | undefined,
+  kunSedelId: string | null,
+): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
     return { push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0, slettet: 0 } };
@@ -622,6 +653,7 @@ export async function syncTimer(
       and(
         eq(dagsseddelLocal.userId, userId),
         eq(dagsseddelLocal.syncStatus, "pending"),
+        kunSedelId ? eq(dagsseddelLocal.id, kunSedelId) : undefined,
       ),
     )
     .all();
@@ -907,6 +939,8 @@ export async function syncTimer(
       }
     }
   }
+
+  if (kunSedelId) return resultat;
 
   /* ---------------- PULL: server-endringer → lokal ---------------- */
   const sistSynk = hentSistSynkronisert(userId);

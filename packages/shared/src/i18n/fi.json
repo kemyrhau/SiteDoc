@@ -5422,5 +5422,6 @@
   "timer.kort.slettReturnert": "Matkat, päivärahat ja kulut säilytetään. Esimies näkee muutoksen, kun lähetät työaikaraportin uudelleen.",
   "timer.kort.slettSiste": "Tämä on viimeinen kortti – työaikalomake on tyhjä.",
   "timer.kort.offlineSlett": "Kortissa on lähetetty tavara. Muodosta yhteys Internetiin poistaaksesi.",
-  "timer.kort.offlineFlytt": "Kortissa on lähetetty tavara. Yhdistä Internetiin liikkuaksesi."
+  "timer.kort.offlineFlytt": "Kortissa on lähetetty tavara. Yhdistä Internetiin liikkuaksesi.",
+  "timer.kort.delvisFlyttet": "Tunnit siirrettiin. Tarvikkeita ei siirretty — paina vanhalla kortilla uudelleen ”Vaihda kortti”."
 }
