@@ -35,6 +35,7 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| 2026-11-10 | Dokumentsøk web | Word-filer (.docx) vises nå i leseren og oversettes som PDF (før: «ikke klar» for alltid). Leseren viser «Dokumentet klargjøres …» (oppdaterer seg selv), «søkbart, men kan ikke vises her» for andre filtyper, eller feil + «Prosesser på nytt». Knappen heter «Last ned original» (før: «… PDF»). Eksisterende Word-filer får leservisning via «Prosesser mappe på nytt». Hjemmel: Kenneth «A + B» 10.11 | fce8b216 (merge 55f4d906) |
 | 2026-11-09 | Timer mobil | Registrering lagret med «Bekreft dag» mens appen synket forsvinner ikke lenger. Sedel slettet i prosjektkortet slettes også på serveren (avvist sletting vises med forklaring). Nytt kort i en tom sedel arver ikke gamle tider/pause. Pause utenfor arbeidstiden legges midt i arbeidstiden. Dagskort urørt | 6e8658e9 (merge 768ce5e5) |
 | 2026-11-09 | Timer mobil | «Endre kort» til annet prosjekt fungerer nå også når kortet har varer som alt er synket (før: avvist av server). Avviser serveren en vare, er timene likevel flyttet og varen står igjen på det gamle kortet med forklaring — «Endre kort» igjen flytter resten | 6dbe6d5f (merge e8f71225) |
 | 2026-11-09 | Timer mobil | «Slett kort» blir ikke stående fast etter nettbrudd midt i slettingen; «Endre kort» som avvises av server vises som feil (ikke som lyktes); trykk uten nett på kort med synkede varer gir alltid en synlig forklaring | f0678b63 (merge 4c6f2089) |

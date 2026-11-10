@@ -81,6 +81,16 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Indeks på `drawings.conversion_status`:** konverteringsarbeideren i api poller `pending` hvert 3 s og watchdogen hvert 60 s, uten indeks (seq scan). Billig så lenge `drawings` er liten. Legg en partial index (`where conversion_status in ('pending','converting')`) i neste migreringsrunde (Kontrollør 17.10).
 - **Query-embedding (søk) og `EMBEDDING_SAMTIDIG`:** web og api er to prosesser, så samtidigheten mot NorBERT er ≤ 2 × grensen. Default 2 holdt på test. Senk til 1 via env ved behov.
 
+### 🟡 DOKUMENTLESER — oppfølgere etter DL-1 (gate 2026-11-10, merge `55f4d906`, ikke bestilt)
+
+- 🔴 **Beslutning (Kenneth): «Prosesser på nytt» for PDF uten blokker.** Leseren viser «feilet» + knappen, men serveren lager ikke PDF-blokker på nytt (kun embedding) → 10 min spinner, så «feilet» igjen. Valg: PDF-blokkreparasjon, eller skjul knappen for PDF.
+- **Strandet `pending`/`processing` poller evig** i leseren (hvert 5. s mens fanen er åpen). Bruk `STRANDET_MS` også i `lesertilstand`.
+- **Leseren mangler ?-hjelpetekst** (ingen oppføring i `hjelpetekster.md`).
+- **Korrupt DOCX** får serverteksten «for stor eller ugyldig (maks 50 MB utpakket)» — misvisende for en liten, ødelagt fil.
+- **Testhull:** DOCX-språk fra uttrukket tekst (ikke zip-bytes) er ikke vaktet — en engelsk DOCX-fixture mangler (mutant M3 grønn).
+- **Lokal dev:** `mappe.hentDokumenter` gir 500 lokalt (`text = jsonb` i raw-spørringen); web leser `apps/web/uploads`, api skriver `apps/api/uploads`. Ikke sett på test.
+- **Bilder i DOCX** vises ikke i leseren (mammoth `convertImage` → fil → `image`-blokk, middels).
+
 ### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
 
 (1) radens timetall (skjult fradrag, `TimerSeksjon.tsx:1043-1060`) · (2) `rad.pauseMin` = avkrysningen, settes kun av GPS
