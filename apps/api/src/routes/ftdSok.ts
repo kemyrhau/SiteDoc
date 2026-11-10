@@ -6,6 +6,7 @@ import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontrol
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { mappeKlausulSql, byggMappeTilgangsFilter } from "../services/mappe-filter";
 import { HEADLINE_OPTS, maksPrDokFor } from "../services/ai-sok-service";
+import { helordTsquery, tekstTsquery } from "../services/sok-tsquery";
 
 export interface SokTreff {
   id: string;
@@ -68,6 +69,9 @@ export const ftdSokRouter = router({
       const rnKlausul = Number.isFinite(maksPrDok)
         ? Prisma.sql`WHERE t.rn <= ${maksPrDok}`
         : Prisma.empty;
+      // Punkt 6: hele ord ELLER ordbegynnelser; helords-treff rangeres foran rene prefiks-treff.
+      const tq = tekstTsquery(input.query);
+      const helord = helordTsquery(input.query);
       type RåTreff = Omit<SokTreff, "metode">;
       let rader = await ctx.prisma.$queryRaw<RåTreff[]>`
         SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
@@ -86,24 +90,25 @@ export const ftdSokRouter = router({
             d.file_url AS "fileUrl",
             d.doc_type AS "docType",
             d.folder_id AS "folderId",
-            ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) AS rank,
-            ts_headline('norwegian', c.chunk_text, plainto_tsquery('norwegian', ${input.query}), ${HEADLINE_OPTS}) AS utdrag,
+            ts_rank(c.search_vector, ${tq}) AS rank,
+            ts_headline('norwegian', c.chunk_text, ${tq}, ${HEADLINE_OPTS}) AS utdrag,
+            (c.search_vector @@ ${helord}) AS helord,
             ROW_NUMBER() OVER (
               PARTITION BY c.document_id
-              ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) DESC
+              ORDER BY (c.search_vector @@ ${helord}) DESC, ts_rank(c.search_vector, ${tq}) DESC
             ) AS rn,
             COUNT(*) OVER (PARTITION BY c.document_id)::int AS "antallIDok"
           FROM ftd_document_chunks c
           JOIN ftd_documents d ON d.id = c.document_id
           WHERE d.project_id = ${input.projectId}
             AND d.is_active = true
-            AND c.search_vector @@ plainto_tsquery('norwegian', ${input.query})
+            AND c.search_vector @@ ${tq}
             ${mappeKlausul}
             ${dokKlausul}
             ${ekskluderKlausul}
         ) t
         ${rnKlausul}
-        ORDER BY t.rank DESC
+        ORDER BY t.helord DESC, t.rank DESC
         LIMIT ${input.limit}
       `;
 

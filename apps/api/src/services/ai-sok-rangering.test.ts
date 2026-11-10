@@ -74,7 +74,10 @@ describe("T5 / D1 — leksikalsk kandidatuttak er sortert før LIMIT", () => {
     const { prisma, fanget } = lagPrisma({});
     await hybridSok(prisma, "p1", "dagmulkt", null, {});
     const sql = leksikalskSql(fanget);
-    const orderPos = sql.search(/ORDER BY ts_rank\(c\.search_vector, plainto_tsquery\('norwegian', \?\)\) DESC/);
+    // SØK-2 punkt 6: helords-klassen først, så ts_rank på hele ord ELLER ordbegynnelser.
+    const orderPos = sql.search(
+      /ORDER BY \(c\.search_vector @@ plainto_tsquery\('norwegian', \?\)\) DESC,\s+ts_rank\(c\.search_vector, \(plainto_tsquery\('norwegian', \?\) \|\| to_tsquery\('norwegian', \?\)\)\) DESC/,
+    );
     const limitPos = sql.lastIndexOf("LIMIT");
     expect(orderPos).toBeGreaterThan(-1);
     expect(orderPos).toBeLessThan(limitPos);

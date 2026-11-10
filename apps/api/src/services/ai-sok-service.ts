@@ -5,6 +5,7 @@
 import { PrismaClient, Prisma } from "@sitedoc/db";
 import { fetchMedTimeout } from "./embedding-service";
 import { mappeKlausulSql } from "./mappe-filter";
+import { helordTsquery, tekstTsquery } from "./sok-tsquery";
 
 /**
  * Query-embedding er INTERAKTIVT (bruker venter på søkeresultat), så timeouten er
@@ -171,7 +172,12 @@ interface RåChunk {
   folderId: string | null;
   cosineSim: number;
   kilde: "vektor" | "leksikalsk" | "begge";
+  /** Punkt 6: leksikalsk kandidat kun via ordbegynnelse (ikke helt ord) → term-signalet halveres. */
+  kunPrefiks?: boolean;
 }
+
+/** Punkt 6 (orkestrator-OK 2026-11-11): faktor på term-signalet for rene prefiks-treff. */
+export const PREFIKS_FAKTOR = 0.5;
 
 // ---- Hjelpefunksjoner ----
 
@@ -183,7 +189,7 @@ function normaliserListe(verdier: number[]): number[] {
   return verdier.map((v) => (v - min) / (max - min));
 }
 
-function beregReRank(
+export function beregReRank(
   chunk: RåChunk,
   termer: string[],
   fraser: string[],
@@ -199,7 +205,8 @@ function beregReRank(
 
   // Term-treff (normalisert: andel av søketermer som finnes)
   const termHits = termer.length > 0
-    ? termer.filter((t) => tekstLower.includes(t)).length / termer.length
+    ? (termer.filter((t) => tekstLower.includes(t)).length / termer.length) *
+      (chunk.kunPrefiks ? PREFIKS_FAKTOR : 1)
     : 0;
 
   // Heading-treff
@@ -385,7 +392,7 @@ async function leggPaaHeadline(
   if (ider.length === 0) return;
   const rader = await prisma.$queryRaw<Array<{ id: string; utdrag: string | null }>>`
     SELECT c.id,
-           ts_headline('norwegian', c.chunk_text, plainto_tsquery('norwegian', ${query}), ${HEADLINE_OPTS}) AS utdrag
+           ts_headline('norwegian', c.chunk_text, ${tekstTsquery(query)}, ${HEADLINE_OPTS}) AS utdrag
     FROM ftd_document_chunks c
     WHERE c.id IN (${Prisma.join(ider)})
   `;
@@ -512,16 +519,18 @@ export async function hybridSok(
       d.file_url AS "fileUrl",
       d.doc_type AS "docType",
       d.folder_id AS "folderId",
-      0.0 AS "cosineSim"
+      0.0 AS "cosineSim",
+      NOT (c.search_vector @@ ${helordTsquery(rensetQuery)}) AS "kunPrefiks"
     FROM ftd_document_chunks c
     JOIN ftd_documents d ON d.id = c.document_id
     WHERE d.project_id = ${projectId}
       AND d.is_active = true
-      AND c.search_vector @@ plainto_tsquery('norwegian', ${rensetQuery})
+      AND c.search_vector @@ ${tekstTsquery(rensetQuery)}
       ${mappeKlausul}
       ${dokKlausul}
       ${ekskluderKlausul}
-    ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${rensetQuery})) DESC, c.id
+    ORDER BY (c.search_vector @@ ${helordTsquery(rensetQuery)}) DESC,
+      ts_rank(c.search_vector, ${tekstTsquery(rensetQuery)}) DESC, c.id
     LIMIT ${kandidatK}
   `;
 
@@ -533,7 +542,9 @@ export async function hybridSok(
   }
   for (const c of leksikalskeTreff) {
     if (chunkMap.has(c.id)) {
-      chunkMap.get(c.id)!.kilde = "begge";
+      const v = chunkMap.get(c.id)!;
+      v.kilde = "begge";
+      v.kunPrefiks = c.kunPrefiks;
     } else {
       c.kilde = "leksikalsk";
       c.cosineSim = 0;
@@ -665,23 +676,25 @@ async function leksikalskSok(
         d.file_url AS "fileUrl",
         d.doc_type AS "docType",
         d.folder_id AS "folderId",
-        ts_rank(c.search_vector, plainto_tsquery('norwegian', ${query}))::float AS score,
+        ts_rank(c.search_vector, ${tekstTsquery(query)})::float AS score,
+        (c.search_vector @@ ${helordTsquery(query)}) AS helord,
         ROW_NUMBER() OVER (
           PARTITION BY c.document_id
-          ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${query})) DESC, c.chunk_index ASC
+          ORDER BY (c.search_vector @@ ${helordTsquery(query)}) DESC,
+            ts_rank(c.search_vector, ${tekstTsquery(query)}) DESC, c.chunk_index ASC
         ) AS rn,
         COUNT(*) OVER (PARTITION BY c.document_id)::int AS "antallIDok"
       FROM ftd_document_chunks c
       JOIN ftd_documents d ON d.id = c.document_id
       WHERE d.project_id = ${projectId}
         AND d.is_active = true
-        AND c.search_vector @@ plainto_tsquery('norwegian', ${query})
+        AND c.search_vector @@ ${tekstTsquery(query)}
         ${mappeKlausul}
         ${dokKlausul}
         ${ekskluderKlausul}
     ) t
     ${rnKlausul}
-    ORDER BY t.score DESC, t."documentId" ASC, t.rn ASC
+    ORDER BY t.helord DESC, t.score DESC, t."documentId" ASC, t.rn ASC
     LIMIT ${limit}
   `;
 

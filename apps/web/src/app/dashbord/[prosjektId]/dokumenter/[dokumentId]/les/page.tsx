@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { rensHtml } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
@@ -70,6 +70,15 @@ export default function DokumentLeser() {
       if (fallback !== språk) setSpråk(fallback);
     }
   }, [data, språk]);
+
+  // SØK-2 (5a): åpnet fra søk (Ctrl K / Dokumentsøk) → første markering scrolles i syne når
+  // blokkene er lastet. Kun ved nytt innhold/språk, ikke ved polling.
+  const innholdRef = useRef<HTMLElement>(null);
+  const antallBlokker = data?.blokker.length ?? 0;
+  useEffect(() => {
+    if (!highlight.trim() || antallBlokker === 0) return;
+    innholdRef.current?.querySelector("mark")?.scrollIntoView({ block: "center" });
+  }, [highlight, antallBlokker, språk]);
 
   // Sammenlign-query (lazy) — sender blokkId, API henter norsk original
   const { data: sammenlignData, isLoading: sammenlignLaster } = trpc.modul.sammenlignOversettelse.useQuery(
@@ -231,7 +240,7 @@ export default function DokumentLeser() {
       </header>
 
       {/* Innhold */}
-      <main className="flex-1 overflow-y-auto">
+      <main ref={innholdRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-4 py-8">
         {data.blokker.map((blokk) => {
           const innhold = highlightTekst(blokk.content, highlight);
