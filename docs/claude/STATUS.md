@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-10
+- 2026-11-10 — **`ai-sok.md` + `web.md`: DL-1 — DOCX i dokumentleseren + lesertilstander** (branch `fix/dokumentleser-docx`, kode + docs, dokumentleser, ⚠️ venter Kontrollør-gate): ai-sok.md ny bullet «DOCX i dokumentleseren» (leser-blokker + felles etterløp med PDF, reparasjon av eksisterende DOCX); web.md `/les`-raden beskriver klargjøres/kan ikke vises/feilet. Telling uendret.
 - 2026-11-10 — **`BACKLOG.md` + `sikkerhet.md`: S-PAK-1 — sikkerhetspakker (next-auth beta.32, fastify 5.12, @fastify/static 10, sharp 0.35, dompurify, drizzle-orm, overrides, `images.unoptimized`)** (branch `fix/sikkerhet-pakker-p1`, kode + docs, Sikkerhet, ⚠️ venter Kontrollør-gate): BACKLOG Pakke B fikk lukket/gjenstår-linje; sikkerhet.md funn 3 (A2) oppdatert med versjon, `setHeaders`-v10 og røykresultat. Telling uendret.
 - 2026-11-09 — **`timer.md` + `hjelpetekster.md`: 36c-kort-3 — «Endre kort» med synkede varer pusher sedelen først** (branch `fix/36c-kort-3`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): timer.md nytt underpunkt under 36c-kort i § ORDRE 36c (bruddsjekk → lokal transaksjon → `pushSedel` → `vareforbruk.oppdater` → lokal vare; `delvis` med `timer.kort.delvisFlyttet`; `pushEnSedel` = `kjorTimerSync` med `kunSedelId`) og 36c-kort-rekkefølgen presisert; hjelpetekster.md kortskjermen fikk setning om varer som står igjen. Ingen statusendring.
 - 2026-11-09 — **`timer.md`: RETUR 36c-kort-2 — «Slett kort» henger ikke etter nettbrudd** (branch `fix/36c-kort-2`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): timer.md ny RETUR-underpunkt under 36c-kort i § ORDRE 36c (`NOT_FOUND` = lyktes bare i `slettKort` — ved flytt stopper den, RETUR 2b; `kortUtfallTekst` gir offline-tekst). Ingen statusendring.
@@ -395,7 +396,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | adaptiv-sok-plan.md | — | Skal drøftes (per CLAUDE.md) |
 | aktivitetsfeed.md | 2026-05-01 | **Planlagt fase** (etter Maskin Fase 1 + Timer Fase 3). Activity-tabell finnes i prod (E.1 `13a746a7`), ingen produsent-kode skrevet ennå |
 | ai-integrasjon.md | — | — |
-| ai-sok.md | 2026-10-30 | § SØK-2 flere treff/forrige-neste/M3 (`feat/sok2-flere-treff`), § Filtyper GAB-rensing + rens 2 (`fix/sok-ramme-gab-rens`), § Visning F3/F1b (merget `46b390c8`) + F1a-varsel (merget `24ddc0b1`) + hel-avsnitt-markering (merget `ea2b4090`) + blokk-ramme (`fix/sok-ramme-gab-rens`) |
+| ai-sok.md | 2026-11-10 | § Filtyper DOCX i dokumentleseren (`fix/dokumentleser-docx`), § SØK-2 flere treff/forrige-neste/M3 (`feat/sok2-flere-treff`), § Filtyper GAB-rensing + rens 2 (`fix/sok-ramme-gab-rens`), § Visning F3/F1b (merget `46b390c8`) + F1a-varsel (merget `24ddc0b1`) + hel-avsnitt-markering (merget `ea2b4090`) + blokk-ramme (`fix/sok-ramme-gab-rens`) |
 | api.md | — | Drift mtp UX-runde + Vareforbruk-modul: nye routere `vareKategori`/`vare`/`vareforbruk`/`vareImport`/`firmaIntegrasjon`/`timer.rapport` ikke dokumentert |
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
 | byggeplass-strategi.md | — | Planlagt fase. Fase 0.5 §§ 1-3 + § 5 implementert 2026-05-01. ByggeplassMedlemskap utsatt til Fase 4 (Mannskap) |

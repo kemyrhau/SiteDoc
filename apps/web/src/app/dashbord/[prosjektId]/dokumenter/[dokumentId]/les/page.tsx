@@ -5,12 +5,13 @@ import { useParams, useSearchParams } from "next/navigation";
 import { rensHtml } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X, FileText, Download } from "lucide-react";
+import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X, FileText, Download, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SignertBilde } from "@/components/SignertBilde";
 import { SignertLenke } from "@/components/SignertLenke";
+import { beregnLesertilstand, KLARGJORING_POLL_MS } from "@/lib/lesertilstand";
 
 export default function DokumentLeser() {
   useToppbarFiltre({ byggeplass: false });
@@ -24,11 +25,43 @@ export default function DokumentLeser() {
   const [språk, setSpråk] = useState("nb"); // Start alltid med kildespråk
   const [visSpraakmeny, setVisSpraakmeny] = useState(false);
   const [sammenlignBlokk, setSammenlignBlokk] = useState<{ id: string; content: string } | null>(null);
+  const [reprosessertVed, setReprosessertVed] = useState<number | null>(null);
+
+  const tilstandFor = (d: {
+    blokker: unknown[];
+    tilgjengeligeSprak: string[];
+    processingState: string;
+    processingError: string | null;
+    filename: string | null;
+    updatedAt: Date | string;
+  }) =>
+    beregnLesertilstand({
+      antallBlokker: d.blokker.length,
+      antallSprak: d.tilgjengeligeSprak.length,
+      processingState: d.processingState,
+      processingError: d.processingError,
+      filnavn: d.filename,
+      updatedAt: d.updatedAt,
+      reprosessertVed,
+      na: Date.now(),
+    });
 
   const { data, isLoading, refetch } = trpc.mappe.hentDokumentBlokker.useQuery(
     { documentId: dokumentId, language: språk },
-    { enabled: !!dokumentId },
+    {
+      enabled: !!dokumentId,
+      // Poll kun mens blokkene er underveis — stopper av seg selv ved innhold/feil.
+      refetchInterval: (q) =>
+        q.state.data && tilstandFor(q.state.data).type === "klargjores" ? KLARGJORING_POLL_MS : false,
+    },
   );
+
+  const reprosesserMut = trpc.mappe.reprosesserDokument.useMutation({
+    onSuccess: () => {
+      setReprosessertVed(Date.now());
+      void refetch();
+    },
+  });
 
   // Når data lastes og valgt språk mangler blokker, fall tilbake til tilgjengelig språk
   useEffect(() => {
@@ -79,8 +112,9 @@ export default function DokumentLeser() {
     );
   }
 
-  // Tom tilstand: vis nyttig info med nedlastingslenke
-  if (!data || (data.blokker.length === 0 && data.tilgjengeligeSprak.length === 0)) {
+  // Ingen blokker: klargjøres (poller), kan ikke vises her, eller feilet (prosesser på nytt).
+  const tilstand = data ? tilstandFor(data) : null;
+  if (!data || tilstand?.type !== "innhold") {
     return (
       <div className="flex h-full flex-col bg-gray-50">
         <header className="shrink-0 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
@@ -93,20 +127,52 @@ export default function DokumentLeser() {
           <h1 className="text-sm font-semibold text-gray-900">{data?.filename ?? t("dokument.dokument")}</h1>
         </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
-          <FileText className="h-12 w-12 text-gray-300" />
-          <p className="text-center text-sm text-gray-500">
-            {t("dokumentleser.ikkeKlar")}
-          </p>
-          {data?.fileUrl && (
-            <SignertLenke
-              url={data.fileUrl}
-              nyFane
-              className="flex items-center gap-2 rounded-lg bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-secondary"
-            >
-              <Download className="h-4 w-4" />
-              {t("handling.lastNed")} PDF
-            </SignertLenke>
+          {tilstand?.type === "klargjores" ? (
+            <Loader2 className="h-12 w-12 animate-spin text-gray-300" />
+          ) : tilstand?.type === "feilet" ? (
+            <AlertTriangle className="h-12 w-12 text-amber-400" />
+          ) : (
+            <FileText className="h-12 w-12 text-gray-300" />
           )}
+          <p className="max-w-md text-center text-sm text-gray-500">
+            {tilstand?.type === "klargjores"
+              ? t("dokumentleser.klargjores")
+              : tilstand?.type === "feilet"
+                ? (tilstand.feilmelding ?? t("dokumentleser.klargjoringFeilet"))
+                : tilstand?.type === "kanIkkeVises" && !tilstand.sokbar
+                  ? t("dokumentleser.kanIkkeLeses")
+                  : t("dokumentleser.kanIkkeVises")}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {tilstand?.type === "feilet" && (
+              <button
+                onClick={() => reprosesserMut.mutate({ documentId: dokumentId })}
+                disabled={reprosesserMut.isPending}
+                className="flex items-center gap-2 rounded-lg bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+              >
+                {reprosesserMut.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {t("mapper.reprosesserDokument")}
+              </button>
+            )}
+            {data?.fileUrl && (
+              <SignertLenke
+                url={data.fileUrl}
+                nyFane
+                className={
+                  tilstand?.type === "feilet"
+                    ? "flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    : "flex items-center gap-2 rounded-lg bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-secondary"
+                }
+              >
+                <Download className="h-4 w-4" />
+                {t("dokumentleser.lastNedOriginal")}
+              </SignertLenke>
+            )}
+          </div>
         </div>
       </div>
     );
