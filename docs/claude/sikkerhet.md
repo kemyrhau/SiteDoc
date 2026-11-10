@@ -25,7 +25,7 @@ er de en kjede.
 |---|---|---|---|
 | 1 | Sjekkliste-/oppgavebilder er **uautentisert tilgjengelige** på stien | målt 2026-08-12 | Åpen (se under) |
 | 2 | **Test skriver inn i PRODS uploads-katalog** | målt 2026-08-28 | Åpen |
-| 3 | `@fastify/static` mulig egen path traversal — kan nå filer **utenfor** `uploads/` uavhengig av vår gate | BACKLOG A2 (High) | Delvis: rot-lås verifisert, versjon ikke |
+| 3 | `@fastify/static` mulig egen path traversal — kan nå filer **utenfor** `uploads/` uavhengig av vår gate | BACKLOG A2 (High) | 🟡 Bumpet til 10.1.10 (S-PAK-1, venter gate); rot-lås + gate verifisert |
 | 4 | Omgåelse av vår egen signaturgate (`//`, `/./`, `%2e` → 200) | fikset 2026-08-12 | ✅ Lukket |
 
 **Kjeden:** test kan skrive en fil (2) inn i en katalog som serveres uautentisert (1),
@@ -154,8 +154,12 @@ innholdet under hadde drevet over til arkivmal-PDF. Flyttet hit 2026-08-28.
 ### 3. 🟠 BACKLOG A2 — `@fastify/static` path traversal (High)
 
 Eies av [BACKLOG](BACKLOG.md) § A2. **Halvparten er verifisert 2026-08-28:** rot-låsen
-er på plass (`server.ts:129`, `root: join(process.cwd(), "uploads")`). Gjenstår:
-`@fastify/static@9.3.0` er installert — om den er patchet krever oppslag i rådgivninger.
+er på plass (`server.ts:159`, `root: join(process.cwd(), "uploads")`). **S-PAK-1 (2026-11-10,
+branch `fix/sikkerhet-pakker-p1`, ⚠️ venter Kontrollør-gate):** bumpet til `@fastify/static`
+`^10.1.1` (lock 10.1.10, `@fastify/send` 4.2.1). v10 gir `setHeaders` en `FastifyReply` og kjører
+den etter send-headerne (`server.ts:161`), så vår `Content-Type`/CSP/`Cache-Control` vinner.
+Lokalt røyktestet: signert → 200 med `nosniff`, sandbox-CSP og `no-store` på `privat/`;
+usignert, feil signatur, `..`, `%2e%2e`, `//`, `/./` → 401/403/404.
 
 ### 4. 🟠 SSRF i pdf-render — krever en autentisert bruker
 
