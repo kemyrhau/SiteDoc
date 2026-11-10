@@ -9,7 +9,7 @@ import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontrol
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
-import { prosesserDokument } from "../services/ftd-prosessering";
+import { prosesserDokument, genererBlokkerFraLagretFil } from "../services/ftd-prosessering";
 import { embeddDokumentChunks } from "../services/embedding-service";
 import { STRANDET_MS, erStrandet, utenAktivtKjørendeWhere } from "../services/reprosessering";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -100,6 +100,8 @@ async function tvingReekstraksjonAv(
  * Reparer et dokumentsett (mappe eller helt prosjekt): full re-ekstraksjon kun
  * der søkbart innhold mangler (0 chunks / `failed`); ellers kun re-embedding av
  * chunks som ikke er ferdig embeddet. Kjørende/ikke-støttede hoppes over.
+ * DOCX som er søkbart men mangler leser-blokker (lastet opp før DL-1) får i
+ * tillegg blokker fra lagret fil (`genererBlokkerFraLagretFil`).
  * Kalleren MÅ ha verifisert tilgang til prosjektet.
  */
 async function reparerDokumentSett(
@@ -107,7 +109,7 @@ async function reparerDokumentSett(
 ): Promise<{ ok: true; full: number; embedding: number }> {
   const dokumenter = await prisma.ftdDocument.findMany({
     where: utenAktivtKjørendeWhere(where),
-    select: { id: true, processingState: true },
+    select: { id: true, processingState: true, filename: true },
   });
   if (dokumenter.length === 0) return { ok: true, full: 0, embedding: 0 };
 
@@ -161,7 +163,35 @@ async function reparerDokumentSett(
       embeddDokumentChunks(prisma, id),
     );
   }
+  const blokkIder = await docxUtenLeserblokker(
+    dokumenter.filter((d) => d.processingState === "completed" && !fullIder.includes(d.id)),
+  );
+  if (blokkIder.length > 0) {
+    kjørMedGrense(blokkIder, REEKSTRAKSJON_SAMTIDIG, (id) =>
+      genererBlokkerFraLagretFil(prisma, id),
+    );
+  }
   return { ok: true, full: fullIder.length, embedding: embeddingIder.length };
+}
+
+/**
+ * Id-ene til DOCX-dokumenter i `dokumenter` som ikke har én eneste leser-blokk.
+ * Kun `.docx` — PDF-atferden ved reparasjon er uendret (OK DL-1).
+ */
+async function docxUtenLeserblokker(
+  dokumenter: Array<{ id: string; filename: string | null }>,
+): Promise<string[]> {
+  const docxIder = dokumenter
+    .filter((d) => (d.filename ?? "").toLowerCase().endsWith(".docx"))
+    .map((d) => d.id);
+  if (docxIder.length === 0) return [];
+  const medBlokker = await prisma.ftdDocumentBlock.findMany({
+    where: { documentId: { in: docxIder } },
+    select: { documentId: true },
+    distinct: ["documentId"],
+  });
+  const harBlokker = new Set(medBlokker.map((b) => b.documentId));
+  return docxIder.filter((id) => !harBlokker.has(id));
 }
 
 /**
@@ -346,7 +376,17 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const dok = await ctx.prisma.ftdDocument.findUnique({
         where: { id: input.documentId },
-        select: { projectId: true, folderId: true, filename: true, fileUrl: true, sourceLanguage: true },
+        select: {
+          projectId: true,
+          folderId: true,
+          filename: true,
+          fileUrl: true,
+          sourceLanguage: true,
+          // Klargjøringsstatus for leserens tom-tilstand (DL-1)
+          processingState: true,
+          processingError: true,
+          updatedAt: true,
+        },
       });
       if (!dok) throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke" });
       await verifiserMappeLesetilgang(ctx.userId, dok.projectId, dok.folderId);
@@ -387,6 +427,9 @@ export const mappeRouter = router({
         sourceLanguage: dok.sourceLanguage,
         projectId: dok.projectId,
         jobber: jobbRader,
+        processingState: dok.processingState,
+        processingError: dok.processingError,
+        updatedAt: dok.updatedAt,
       };
     }),
 
@@ -1114,7 +1157,7 @@ export const mappeRouter = router({
     .mutation(async ({ ctx, input }) => {
       const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
         where: { id: input.documentId },
-        select: { id: true, projectId: true, processingState: true },
+        select: { id: true, projectId: true, processingState: true, filename: true },
       });
       await verifiserProsjektmedlem(ctx.userId, doc.projectId);
 
@@ -1141,6 +1184,13 @@ export const mappeRouter = router({
         embeddDokumentChunks(ctx.prisma, doc.id).catch((err) =>
           console.error(`Re-embedding feilet for ${doc.id}:`, err),
         );
+        // DOCX uten leser-blokker (før DL-1): lag blokker fra lagret fil i tillegg.
+        if ((await docxUtenLeserblokker([doc])).length > 0) {
+          genererBlokkerFraLagretFil(ctx.prisma, doc.id).catch((err) =>
+            console.error(`Blokkgenerering (DOCX) feilet for ${doc.id}:`, err),
+          );
+          return { ok: true, modus: "blokker" as const };
+        }
         return { ok: true, modus: "embedding" as const };
       }
 
