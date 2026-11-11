@@ -1146,7 +1146,9 @@ Timer- og maskinrader i web-dagsseddelen (`apps/web/src/app/dashbord/timer/[id]/
 
 **Forhåndsvalg (ny rad):** toppbarens byggeplass (`useByggeplass().aktivByggeplass`) hvis den hører til radens prosjekt, ellers tomt; valget kan tømmes. **Prosjektbytte** i dialogen nullstiller en byggeplass som ikke hører til det nye prosjektet. Regelen er ren logikk i `apps/web/src/lib/timerByggeplass.ts` (`velgStandardByggeplass`, `byggeplasserForProsjekt`). Kandidatene hentes med `bygning.hentForFirma` (tilgjengelig for arbeidere).
 
-**Radlinja** viser byggeplassnavnet bak radtypen, f.eks. «Prosjekttimer · Lab 16».
+**Radlinja (V22, web-paritet med mobil):** timeraden har en sekundærlinje i liten skrift under radtypen: «Prosjekt · Byggeplass» (`RaderTimer` i `page.tsx`, tekst fra `radByggeplassLinje` i `apps/web/src/lib/timerByggeplass.ts`). Byggeplass = radens egen, ellers dagskortets — arvet vises nedtonet med «(fra dagskortet)» (i prosjektkort-modus «(fra dagen)»), og arves bare når den hører til radens prosjekt; ellers «Ingen byggeplass». Byggeplassnavnet står ikke lenger i tittellinja (erstatter ordre (10)s «Prosjekttimer · Lab 16»). Klikk på linja åpner rad-dialogen med byggeplassfeltet. Maskinradene (`RaderMaskinKompakt`) beholder « · navn» i tittelen. i18n gjenbruker mobilens `timer.byggeplass.fraDagskort`/`fraDagen`/`ingenValgt`. Tester: `timerByggeplass.test.ts` (V22-blokk) + `radlinje-visning.test.tsx` (inkl. vakt mot navn i tittelen).
+
+**Ett-klikk på mobil (målt 2026-11-12):** web velger automatisk når prosjektet har nøyaktig én byggeplass (`velgStandardByggeplass`). Mobilens `byggeplassForNyRad` (`apps/mobile/src/services/nyTimerRad.ts`) har ikke den regelen — innlogget → GPS → arv fra dagskortet. Meldt orkestrator, ikke bygget.
 
 **Server:** `tilfoyTimerRad`, `oppdaterTimerRad`, `maskin.tilfoy` og `maskin.oppdater` validerer `byggeplassId` mot **radens** `projectId` via `krevByggeplassIProsjekt` (`apps/api/src/routes/timer/byggeplass-rad.ts`) → `BAD_REQUEST` ellers. `null`/utelatt er gyldig (A.30). Oppdatering: utelatt = urørt, `null` = tøm.
 

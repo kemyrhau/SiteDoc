@@ -33,7 +33,11 @@ import {
   RadByggeplassFelt,
   useRadByggeplass,
 } from "@/components/timer/RadByggeplassFelt";
-import { byggeplassPayload, type ByggeplassValg } from "@/lib/timerByggeplass";
+import {
+  byggeplassPayload,
+  radByggeplassLinje,
+  type ByggeplassValg,
+} from "@/lib/timerByggeplass";
 import {
   maskinBucketKapasitet,
   overstigerMaskinTak,
@@ -164,6 +168,15 @@ type MaskinRad = {
   mengde: unknown;
   enhet: string | null;
   attestertStatus: string | null;
+};
+
+// V22: det timer-radens sekundærlinje trenger fra sedelen og gruppa.
+type RadLinjeKontekst = {
+  prosjektNavn: string;
+  projectId: string;
+  sedelByggeplassId: string | null;
+  byggeplasser: ByggeplassValg[] | undefined;
+  kortModus: boolean;
 };
 
 type ProsjektRef = {
@@ -632,6 +645,15 @@ export default function DagsseddelDetaljSide() {
       pauseMin: sheet.pauseMin,
       pauseVisning,
       byggeplassNavn,
+      radLinje: {
+        prosjektNavn:
+          prosjektNavnMap.get(projectId)?.name ?? t("timer.detalj.ukjentProsjekt"),
+        projectId,
+        sedelByggeplassId:
+          (sheet as { byggeplassId?: string | null }).byggeplassId ?? null,
+        byggeplasser,
+        kortModus: prosjektkortModus,
+      },
       onTilfoyTimer: (ecoId: string | null) => aapneNyTimerRad(projectId, ecoId),
       onLeggTil: () => setAktivModal({ type: "leggTil", projectId }),
       onRedigerTimer: (rad: TimerRad) =>
@@ -1642,6 +1664,7 @@ function ProsjektGruppe({
   pauseMin,
   pauseVisning,
   byggeplassNavn,
+  radLinje,
   onTilfoyTimer,
   onLeggTil,
   onRedigerTimer,
@@ -1665,8 +1688,10 @@ function ProsjektGruppe({
   pauseMin: number;
   // V20/PK3: pause-kontekst for rad-listas kryss-visning.
   pauseVisning: PauseVisning;
-  // Ordre (10): byggeplass-id → navn for radlinja.
+  // Ordre (10): byggeplass-id → navn for maskin-radlinja.
   byggeplassNavn: Map<string, string>;
+  // V22: grunnlaget for timer-radens «Prosjekt · Byggeplass»-linje.
+  radLinje: RadLinjeKontekst;
   // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
   // fra/til-prefill (siste rads tilTid).
   onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
@@ -1728,6 +1753,7 @@ function ProsjektGruppe({
             pauseMin={pauseMin}
             pauseVisning={pauseVisning}
             byggeplassNavn={byggeplassNavn}
+            radLinje={radLinje}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
@@ -1798,6 +1824,7 @@ function EcoGruppe({
   pauseMin,
   pauseVisning,
   byggeplassNavn,
+  radLinje,
   onTilfoyTimer,
   onRedigerTimer,
   onRedigerMaskin,
@@ -1812,6 +1839,7 @@ function EcoGruppe({
   pauseMin: number;
   pauseVisning: PauseVisning;
   byggeplassNavn: Map<string, string>;
+  radLinje: RadLinjeKontekst;
   onTilfoyTimer: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
@@ -1876,7 +1904,7 @@ function EcoGruppe({
                 rader={timer}
                 erRedigerbar={erRedigerbar}
                 pauseVisning={pauseVisning}
-                byggeplassNavn={byggeplassNavn}
+                radLinje={radLinje}
                 onRediger={onRedigerTimer}
                 onSplitt={onSplittTimer}
               />
@@ -1947,7 +1975,7 @@ function RaderTimer({
   rader,
   erRedigerbar,
   pauseVisning,
-  byggeplassNavn,
+  radLinje,
   onRediger,
   onSplitt,
 }: {
@@ -1955,7 +1983,7 @@ function RaderTimer({
   erRedigerbar: boolean;
   // V20/PK3: dagens pause-kontekst → kryss/tom avkrysning pr. rad.
   pauseVisning: PauseVisning;
-  byggeplassNavn: Map<string, string>;
+  radLinje: RadLinjeKontekst;
   onRediger: (rad: TimerRad) => void;
   onSplitt: (rad: TimerRad) => void;
 }) {
@@ -1999,15 +2027,30 @@ function RaderTimer({
                 rad.pauseMin,
               )
             : 0;
+        // V22: byggeplassen står på sekundærlinja, ikke i tittelen (erstatter
+        // ordre 10s « · navn» etter lønnsarten).
+        const bpLinje = radByggeplassLinje({
+          radByggeplassId: rad.byggeplassId ?? null,
+          sedelByggeplassId: radLinje.sedelByggeplassId,
+          projectId: radLinje.projectId,
+          byggeplasser: radLinje.byggeplasser,
+          kortModus: radLinje.kortModus,
+          t,
+        });
+        const linjeInnhold = (
+          <>
+            {radLinje.prosjektNavn}
+            {" · "}
+            <span className={bpLinje.arvet || bpLinje.ingen ? "text-gray-400" : "text-gray-600"}>
+              {bpLinje.tekst}
+            </span>
+          </>
+        );
         return (
           <li key={rad.id} className="flex items-center justify-between py-2">
             <div>
               <p className="text-sm font-medium text-gray-900">
                 {lonnsart?.navn ?? "—"}
-                {/* Ordre (10): «Prosjekttimer · Lab 16». */}
-                {rad.byggeplassId && byggeplassNavn.has(rad.byggeplassId)
-                  ? ` · ${byggeplassNavn.get(rad.byggeplassId)}`
-                  : ""}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
               {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt
@@ -2035,6 +2078,19 @@ function RaderTimer({
                 <p className="mt-0.5 text-xs italic text-gray-600">
                   {rad.beskrivelse}
                 </p>
+              )}
+              {/* V22: «Prosjekt · Byggeplass» (speiler mobil F3). Klikk åpner
+                  rad-dialogen, der byggeplass-feltet står. */}
+              {erRedigerbar ? (
+                <button
+                  type="button"
+                  onClick={() => onRediger(rad)}
+                  className="mt-0.5 block text-left text-xs text-gray-500 hover:underline"
+                >
+                  {linjeInnhold}
+                </button>
+              ) : (
+                <p className="mt-0.5 text-xs text-gray-500">{linjeInnhold}</p>
               )}
             </div>
             <div className="flex items-center gap-3">

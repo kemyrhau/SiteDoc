@@ -52,3 +52,29 @@ export function byggeplassPayload(bp: {
 }): { byggeplassId?: string | null } {
   return bp.endret ? { byggeplassId: bp.byggeplassId } : {};
 }
+
+/**
+ * V22 — sekundærlinja «Prosjekt · Byggeplass» under timer-raden (web-paritet med
+ * mobilens `ByggeplassLinjeTekst`). Radens egen byggeplass vises i vanlig styrke;
+ * ellers arves sedelens, nedtonet med «(fra dagskortet)» / «(fra dagen)» i
+ * prosjektkort-modus — men bare når den hører til radens prosjekt (sekundær-
+ * prosjekt-rader arver ikke). Ingen av delene → «Ingen byggeplass».
+ */
+export function radByggeplassLinje(args: {
+  radByggeplassId: string | null;
+  sedelByggeplassId: string | null;
+  projectId: string;
+  byggeplasser: readonly ByggeplassValg[] | undefined;
+  kortModus: boolean;
+  t: (nokkel: string) => string;
+}): { tekst: string; arvet: boolean; ingen: boolean } {
+  const arvet = args.radByggeplassId == null;
+  const id = args.radByggeplassId ?? args.sedelByggeplassId;
+  const bp = id ? (args.byggeplasser ?? []).find((b) => b.id === id) : undefined;
+  if (!bp || (arvet && bp.projectId !== args.projectId)) {
+    return { tekst: args.t("timer.byggeplass.ingenValgt"), arvet: false, ingen: true };
+  }
+  if (!arvet) return { tekst: bp.name, arvet: false, ingen: false };
+  const fra = args.kortModus ? "timer.byggeplass.fraDagen" : "timer.byggeplass.fraDagskort";
+  return { tekst: `${bp.name} (${args.t(fra)})`, arvet: true, ingen: false };
+}
