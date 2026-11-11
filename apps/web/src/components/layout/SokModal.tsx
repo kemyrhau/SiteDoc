@@ -3,14 +3,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Search, CornerDownLeft } from "lucide-react";
+import { Search, CornerDownLeft, Loader2 } from "lucide-react";
 import { useSokRegistry, type SokTreff, type SokGruppe } from "@/hooks/useSokRegistry";
+import { useDokumentSok } from "@/hooks/useDokumentSok";
+import { leserHref, seAlleHref } from "@/lib/dokument-sok-ctrlk";
+import { UtsnittVisning } from "@/components/ftd-sok/treff-liste";
+import { byggUtsnitt } from "@/components/ftd-sok/utsnitt";
 import { normaliserSok, matchScore } from "@sitedoc/shared";
 
 /**
  * Global søkemodal (steg iv, 1b) — Ctrl/Cmd+K. Grupperer treff i INNSTILLINGER
  * + SIDER, med brødsmulesti og tastaturnavigasjon. Registeret utledes fra
  * hub-kort + sidebar (drift-fritt), og matcher diakritikk-tolerant.
+ *
+ * SØK-2: inne i et prosjekt kommer gruppa DOKUMENTER etter (innhold i dokumentene brukeren har
+ * tilgang til, via `useDokumentSok`). Registertreffene vises med en gang; dokumentgruppa fylles
+ * inn når kallet svarer.
  */
 
 const GRUPPE_REKKEFOLGE: SokGruppe[] = ["innstillinger", "sider"];
@@ -21,16 +29,24 @@ const VANLIGE_HREF: string[] = [
   "/dashbord/firma/timer/lonnsarter",
 ];
 
-const FLIS_STIL: Record<SokGruppe, { flis: string; tekst: string }> = {
+const FLIS_STIL: Record<SokGruppe | "dokumenter", { flis: string; tekst: string }> = {
   innstillinger: { flis: "#e7edfb", tekst: "#1e40af" }, // blå
   sider: { flis: "#fbf3e2", tekst: "#92610a" }, // amber
+  dokumenter: { flis: "#e6f4ea", tekst: "#166534" }, // grønn
 };
+
+/** Én valgbar rad i visningsrekkefølge — tastaturnavigasjonen går over alle grupper. */
+type Rad =
+  | { type: "register"; key: string; href: string; treff: SokTreff }
+  | { type: "dokument"; key: string; href: string; dok: ReturnType<typeof useDokumentSok>["treff"][number] }
+  | { type: "seAlle"; key: string; href: string };
 
 export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const registry = useSokRegistry();
   const [q, setSq] = useState("");
+  const dok = useDokumentSok(q);
   const [valgt, setValgt] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -64,13 +80,40 @@ export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }
       .map((x) => x.r);
   }, [norm, registry]);
 
+  const grupper = GRUPPE_REKKEFOLGE.map((g) => ({
+    gruppe: g,
+    rader: treff.filter((r) => r.gruppe === g),
+  })).filter((x) => x.rader.length > 0);
+
+  const dokRader: Rad[] =
+    norm && dok.prosjektId
+      ? dok.treff.map((d) => ({
+          type: "dokument" as const,
+          key: `dok-${d.documentId}`,
+          href: leserHref(dok.prosjektId!, d.documentId, dok.sokeord),
+          dok: d,
+        }))
+      : [];
+  const seAlle: Rad[] =
+    dokRader.length > 0
+      ? [{ type: "seAlle", key: "se-alle", href: seAlleHref(dok.prosjektId!, dok.sokeord) }]
+      : [];
+  const rader: Rad[] = [
+    ...grupper.flatMap((g) =>
+      g.rader.map((r) => ({ type: "register" as const, key: r.id, href: r.href, treff: r })),
+    ),
+    ...dokRader,
+    ...seAlle,
+  ];
+  const visSokerDokumenter = !!norm && dok.venter && dokRader.length === 0;
+
   // Hold valgt-indeks innenfor grensene.
   useEffect(() => {
-    setValgt((v) => Math.min(v, Math.max(0, treff.length - 1)));
-  }, [treff.length]);
+    setValgt((v) => Math.min(v, Math.max(0, rader.length - 1)));
+  }, [rader.length]);
 
   function velg(indeks: number) {
-    const rad = treff[indeks];
+    const rad = rader[indeks];
     if (!rad) return;
     onLukk();
     router.push(rad.href);
@@ -79,7 +122,7 @@ export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setValgt((v) => Math.min(v + 1, treff.length - 1));
+      setValgt((v) => Math.min(v + 1, rader.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setValgt((v) => Math.max(v - 1, 0));
@@ -94,10 +137,17 @@ export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }
 
   if (!apen) return null;
 
-  const grupper = GRUPPE_REKKEFOLGE.map((g) => ({
-    gruppe: g,
-    rader: treff.filter((r) => r.gruppe === g),
-  })).filter((x) => x.rader.length > 0);
+  const radIndeks = (key: string) => rader.findIndex((r) => r.key === key);
+  const gruppeEtikett = (gruppe: SokGruppe | "dokumenter") => (
+    <div className="flex items-center gap-2 px-4 pb-1 pt-2">
+      <span
+        className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+        style={{ backgroundColor: FLIS_STIL[gruppe].flis, color: FLIS_STIL[gruppe].tekst }}
+      >
+        {t(`sok.gruppe.${gruppe}`)}
+      </span>
+    </div>
+  );
 
   return (
     <div
@@ -130,25 +180,17 @@ export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }
               {t("sok.vanlige")}
             </p>
           )}
-          {norm && treff.length === 0 ? (
+          {norm && rader.length === 0 && !visSokerDokumenter ? (
             <p className="px-4 py-8 text-center text-sm text-gray-400">
               {t("sok.ingenTreff", { q: q.trim() })}
             </p>
           ) : (
-            grupper.map(({ gruppe, rader }) => (
+            <>
+            {grupper.map(({ gruppe, rader: gruppeRader }) => (
               <div key={gruppe} className="mb-1">
-                {norm && (
-                  <div className="flex items-center gap-2 px-4 pb-1 pt-2">
-                    <span
-                      className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                      style={{ backgroundColor: FLIS_STIL[gruppe].flis, color: FLIS_STIL[gruppe].tekst }}
-                    >
-                      {t(`sok.gruppe.${gruppe}`)}
-                    </span>
-                  </div>
-                )}
-                {rader.map((rad) => {
-                  const flatIndeks = treff.indexOf(rad);
+                {norm && gruppeEtikett(gruppe)}
+                {gruppeRader.map((rad) => {
+                  const flatIndeks = radIndeks(rad.id);
                   const erValgt = flatIndeks === valgt;
                   return (
                     <button
@@ -172,7 +214,57 @@ export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }
                   );
                 })}
               </div>
-            ))
+            ))}
+            {(dokRader.length > 0 || visSokerDokumenter) && (
+              <div className="mb-1">
+                {gruppeEtikett("dokumenter")}
+                {visSokerDokumenter && (
+                  <p className="flex items-center gap-2 px-4 py-2 text-[12.5px] text-gray-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {t("sok.sokerDokumenter")}
+                  </p>
+                )}
+                {[...dokRader, ...seAlle].map((rad) => {
+                  const flatIndeks = radIndeks(rad.key);
+                  const erValgt = flatIndeks === valgt;
+                  return (
+                    <button
+                      key={rad.key}
+                      type="button"
+                      onMouseEnter={() => setValgt(flatIndeks)}
+                      onClick={() => velg(flatIndeks)}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left"
+                      style={erValgt ? { backgroundColor: "#eef3fd" } : undefined}
+                    >
+                      {rad.type === "dokument" ? (
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13.5px] font-semibold text-gray-900">
+                            {rad.dok.filename}
+                          </span>
+                          <span className="line-clamp-2 text-[11.5px] text-gray-500">
+                            <UtsnittVisning
+                              deler={byggUtsnitt({
+                                chunkText: rad.dok.chunkText,
+                                søkeord: dok.sokeord,
+                                utdrag: rad.dok.utdrag,
+                                sectionTitle: rad.dok.sectionTitle,
+                                metode: rad.dok.metode,
+                              })}
+                            />
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-[12.5px] font-medium text-sitedoc-primary">
+                          {t("sok.seAlleDokumenter")}
+                        </span>
+                      )}
+                      {erValgt && <CornerDownLeft className="h-4 w-4 shrink-0 text-gray-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            </>
           )}
         </div>
 

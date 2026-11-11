@@ -6,6 +6,7 @@ import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontrol
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { mappeKlausulSql, byggMappeTilgangsFilter } from "../services/mappe-filter";
 import { HEADLINE_OPTS, maksPrDokFor } from "../services/ai-sok-service";
+import { helordFoerPrefiks } from "../services/sok-tsquery";
 
 export interface SokTreff {
   id: string;
@@ -68,8 +69,9 @@ export const ftdSokRouter = router({
       const rnKlausul = Number.isFinite(maksPrDok)
         ? Prisma.sql`WHERE t.rn <= ${maksPrDok}`
         : Prisma.empty;
+      // Punkt 6: hele ord først; ordbegynnelser bare når hele ord gir 0 treff (sok-tsquery.ts).
       type RåTreff = Omit<SokTreff, "metode">;
-      let rader = await ctx.prisma.$queryRaw<RåTreff[]>`
+      let { rader } = await helordFoerPrefiks(input.query, (tq) => ctx.prisma.$queryRaw<RåTreff[]>`
         SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
                t."sectionTitle", t."nsCode", t.filename, t."fileUrl", t."docType",
                t."folderId", t.rank, t.utdrag, t."antallIDok"
@@ -86,18 +88,18 @@ export const ftdSokRouter = router({
             d.file_url AS "fileUrl",
             d.doc_type AS "docType",
             d.folder_id AS "folderId",
-            ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) AS rank,
-            ts_headline('norwegian', c.chunk_text, plainto_tsquery('norwegian', ${input.query}), ${HEADLINE_OPTS}) AS utdrag,
+            ts_rank(c.search_vector, ${tq}) AS rank,
+            ts_headline('norwegian', c.chunk_text, ${tq}, ${HEADLINE_OPTS}) AS utdrag,
             ROW_NUMBER() OVER (
               PARTITION BY c.document_id
-              ORDER BY ts_rank(c.search_vector, plainto_tsquery('norwegian', ${input.query})) DESC
+              ORDER BY ts_rank(c.search_vector, ${tq}) DESC
             ) AS rn,
             COUNT(*) OVER (PARTITION BY c.document_id)::int AS "antallIDok"
           FROM ftd_document_chunks c
           JOIN ftd_documents d ON d.id = c.document_id
           WHERE d.project_id = ${input.projectId}
             AND d.is_active = true
-            AND c.search_vector @@ plainto_tsquery('norwegian', ${input.query})
+            AND c.search_vector @@ ${tq}
             ${mappeKlausul}
             ${dokKlausul}
             ${ekskluderKlausul}
@@ -105,9 +107,9 @@ export const ftdSokRouter = router({
         ${rnKlausul}
         ORDER BY t.rank DESC
         LIMIT ${input.limit}
-      `;
+      `);
 
-      // Fallback til ILIKE hvis tsvector gir 0 treff (delord, forkortelser).
+      // Fallback til ILIKE hvis heller ikke ordbegynnelser gir treff (delord, forkortelser).
       // Ingen ts_headline her (tsquery matcher ikke) — klienten highlighter utdraget.
       // S4/D4: rangert på antall forekomster av søkestrengen i chunken (ikke-overlappende,
       // store/små bokstaver likt), ikke på filnavn. Likhet → filnavn, avsnitt, id (deterministisk).

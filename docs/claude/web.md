@@ -213,6 +213,7 @@ Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
 - `HovedSidebar` — 60px ikonbar (`hidden md:flex`), deaktiverte ikoner uten prosjekt
 - `SekundaertPanel` — 280px panel (`hidden md:flex`)
 - `Verktoylinje` — Kontekstuell handlingsbar
+- `SokModal` — «Søk overalt» (Ctrl/Cmd+K). Grupper INNSTILLINGER + SIDER fra `useSokRegistry` (hub-kort + sidebar, `matchScore`), vises straks. **SØK-2 (2026-11-11):** inne i et prosjekt kommer gruppa DOKUMENTER etter: `useDokumentSok` kaller `ftdSok.sokDokumenter` (`limit` 20) — samme port som Dokumentsøk (medlemskap + `hentTilgjengeligeMappeIder`/`mappeKlausulSql` på serveren, ingen klientfiltrering). Regler i `lib/dokument-sok-ctrlk.ts`: minst 3 tegn, debounce 250 ms, ett treff pr. dokument (beste chunk), maks 5. Rad = filnavn + utsnitt (`byggUtsnitt`/`UtsnittVisning`, som Dokumentsøk). Enter/klikk → `/dashbord/{p}/dokumenter/{id}/les?highlight={q}` (leseren scroller første `<mark>` i syne); siste rad «Se alle i Dokumentsøk» → `/dashbord/{p}/sok?q={q}` (siden fyller inn og søker). «Søker i dokumenter …» mens kallet går; «Ingen treff» først når begge er tomme og kallet er ferdig. Tastaturnavigasjonen går over alle grupper i visningsrekkefølge. Modul-gating av dokumentgruppa: egen BACKLOG-sak. Tester: `lib/__tests__/dokument-sok-ctrlk.test.ts`, `apps/api/src/services/sok-tsquery.test.ts`.
 
 ## Paneler
 
