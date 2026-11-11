@@ -99,9 +99,14 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 ### 🟡 FEILFORMAT — oppfølger etter ERRFMT (gate 2026-11-11, merge `8b18ae77`, ikke bestilt)
 
+- 🔴 **Rå prosesseringsfeil vises til brukeren (målt på test 2026-11-12):** `FtdDocument.processingError` lagres som rå `err.message` og vises uendret i mappelista og i leseren (`les/page.tsx:152`, `tilstand.feilmelding`). Eksempel: «ENOENT: no such file or directory, open '/app/apps/web/uploads/seed/seed-uparset.pdf'» — avslører serverens filsti. ERRFMT dekker tRPC-feil, ikke lagret feiltekst. Forslag: lagre/vis en feilkode med generisk tekst, originalen kun i loggen. Prioriteres foran i18n fase 2.
+- 🟡 **Testdata:** seed-filene under `uploads/seed/` finnes ikke på testserveren, så `seed-uparset.pdf` tester ikke «SiteDoc kan ikke lese denne filen» (feiler på ENOENT før lesing).
+
 - **i18n fase 2:** feilteksten fra `formaterFeil` er norsk på serveren. Klienten kan slå opp `t(`feil.${feilKode}`)` på `data.feilKode` (`IKKE_FUNNET`/`FINNES_ALLEREDE`/`HENGER_SAMMEN`/`INTERN`) for andre språk.
 
 ### 🟡 SØK — oppfølgere etter SØK-2 (gate 2026-11-11, merge `85f821b0`, ikke bestilt)
+
+- 🟡 **Søketreff på bildesider får ingen markering (målt på test 2026-11-12):** sider med bilder rendres som sidebilde, teksten ligger som skjult søkbar blokk (`blokk-prosessering.ts` `prosesserSideSomBilde`). NS 3420-PDF-en (75 sider) har 0 `<mark>` etter Ctrl+K → Enter med `?highlight=`; ingen rulling til treffet. Forslag: hopp til treffets `pageNumber`. Gammel atferd (`fe073105`), ikke regresjon.
 
 - **Modul-gating av Dokumentsøk (alternativ B):** `dokumentsok`-modulen er definert, men gater ingenting. Skal ev. gjøres samlet for sidemeny, side og Ctrl K-gruppa. Krever hjemmel (funksjonsendring).
 - **Tiebreak i ORDER BY:** like rank gir tilfeldig rekkefølge (topp 10 «sikkerhet» varierer). Legg `c.id` som siste ledd.
@@ -123,7 +128,9 @@ Hodet `startAt/endAt/pauseMin` driver ikke lønn/overtid/norm/eksport (kun forsl
 Lokale rader redigert *mens* sedelen står i `conflict` erstattes av serverens når V19.7b-slippet skjer (valget tatt på PC).
 **Ikke bestilt.** Avgjøres om sammenligningen skal låse redigering under konflikt, eller om slippet skal ta lokale endringer med som nytt forslag.
 
-### 🔴 SAMME SEDEL REDIGERT PÅ PC OG TELEFON — SIST SYNKET VINNER STILLE (målt 2026-10-05, Kenneth på test)
+### ✅ LØST — SAMME SEDEL REDIGERT PÅ PC OG TELEFON — SIST SYNKET VINNER STILLE (målt 2026-10-05, Kenneth på test)
+
+✅ **Lukket av V19.9-B** (versjonssjekk pr. rad, klient `6905a80f`, merge `586c2c95`, i develop). Beholdt under for sporbarhet.
 
 `syncBatch` erstatter payload-radene etter id uten å sjekke om serverraden er endret siden telefonen hentet den
 (`SheetTimer.updatedAt` finnes; `sheet_timer_local` har kun `sistEndretLokalt`, ingen serverversjon). V19 dekker kun to
