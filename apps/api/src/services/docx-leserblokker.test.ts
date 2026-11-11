@@ -183,11 +183,11 @@ describe("genererBlokkerFraLagretFil (A4: reparasjon av eksisterende DOCX)", () 
     expect(m.createMany).toHaveBeenCalledTimes(1);
   });
 
-  it("PDF berøres ikke: ingen fil leses, ingen blokker lages", async () => {
+  it("annen filtype berøres ikke: ingen fil leses, ingen blokker lages", async () => {
     const m = lagPrismaMock();
     m.dokUpdate.mockResolvedValueOnce({
-      fileUrl: "/uploads/finnes-ikke.pdf",
-      filename: "a.pdf",
+      fileUrl: "/uploads/finnes-ikke.xlsx",
+      filename: "a.xlsx",
       folderId: "mappe1",
     } as never);
     await genererBlokkerFraLagretFil(m.prisma, "dok1");

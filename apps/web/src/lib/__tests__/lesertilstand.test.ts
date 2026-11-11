@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { INGEN_LESERBLOKKER } from "@sitedoc/shared";
 import { beregnLesertilstand, filtypeFraNavn, KLARGJORING_GRENSE_MS } from "../lesertilstand";
 
 /**
@@ -12,6 +13,7 @@ const grunn = {
   antallSprak: 0,
   processingState: "completed",
   processingError: null,
+  antallChunks: 4,
   filnavn: "Nussir sikkerhetsinnstruks_NO.docx",
   updatedAt: new Date(NA - 60_000),
   na: NA,
@@ -57,6 +59,26 @@ describe("beregnLesertilstand", () => {
       type: "kanIkkeVises",
       sokbar: true,
     });
+  });
+
+  it("markøren INGEN_LESERBLOKKER → kan ikke vises med én gang, søkbar etter chunks (DL-2)", () => {
+    const merket = { ...grunn, filnavn: "skannet.pdf", processingError: INGEN_LESERBLOKKER };
+    expect(beregnLesertilstand(merket)).toEqual({ type: "kanIkkeVises", sokbar: true });
+    expect(beregnLesertilstand({ ...merket, antallChunks: 0 })).toEqual({ type: "kanIkkeVises", sokbar: false });
+    // Ingen 10-min-vent og aldri «feilet», heller ikke lenge etter
+    expect(
+      beregnLesertilstand({ ...merket, updatedAt: new Date(NA - 3 * KLARGJORING_GRENSE_MS) }).type,
+    ).toBe("kanIkkeVises");
+  });
+
+  it("markøren overstyres av «Prosesser på nytt» som pågår", () => {
+    expect(
+      beregnLesertilstand({
+        ...grunn,
+        processingState: "processing",
+        processingError: INGEN_LESERBLOKKER,
+      }).type,
+    ).toBe("klargjores");
   });
 
   it("unsupported → kan ikke vises, ikke søkbar", () => {

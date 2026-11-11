@@ -10,7 +10,12 @@
  * - `kanIkkeVises`: filtypen får aldri leser-blokker (`sokbar`), eller SiteDoc kan ikke
  *   lese filen i det hele tatt (`unsupported` → `sokbar: false`).
  * - `feilet`: prosesseringen feilet, eller PDF/DOCX står uten blokker etter grensen.
+ *
+ * DL-2 (2026-11-11): blokkuttrekket ga 0 blokker (`INGEN_LESERBLOKKER`-markøren) →
+ * `kanIkkeVises` med én gang; `sokbar` følger om dokumentet har søk-chunks.
  */
+import { INGEN_LESERBLOKKER } from "@sitedoc/shared";
+
 export type Lesertilstand =
   | { type: "innhold" }
   | { type: "klargjores" }
@@ -36,6 +41,8 @@ export function beregnLesertilstand(input: {
   antallSprak: number;
   processingState: string;
   processingError: string | null;
+  /** Antall søk-chunks — avgjør `sokbar` når blokkuttrekket ga 0 blokker. */
+  antallChunks: number;
   filnavn: string | null;
   updatedAt: Date | string;
   /** Tidspunkt brukeren trykket «Prosesser på nytt» her (dekker race mot serveren). */
@@ -57,6 +64,9 @@ export function beregnLesertilstand(input: {
   }
 
   if (!blokkFiltype) return { type: "kanIkkeVises", sokbar: true };
+  if (input.processingError === INGEN_LESERBLOKKER) {
+    return { type: "kanIkkeVises", sokbar: input.antallChunks > 0 };
+  }
 
   const sist = Math.max(new Date(input.updatedAt).getTime(), input.reprosessertVed ?? 0);
   if (input.na - sist < KLARGJORING_GRENSE_MS) return { type: "klargjores" };
