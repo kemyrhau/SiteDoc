@@ -91,6 +91,12 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Lokal dev:** `mappe.hentDokumenter` gir 500 lokalt (`text = jsonb` i raw-spørringen); web leser `apps/web/uploads`, api skriver `apps/api/uploads`. Ikke sett på test.
 - **Bilder i DOCX** vises ikke i leseren (mammoth `convertImage` → fil → `image`-blokk, middels).
 
+### 🟡 DOKUMENTLESER — oppfølgere etter DL-2 (gate 2026-11-11, merge `80a233e0`, ikke bestilt)
+
+- **pdftoppm-feil på bildeside** gir 0 blokker + markøren `INGEN_LESERBLOKKER` → alle bildesider rendres på nytt ved hver «Prosesser mappe på nytt». Skill «tekstløs» fra «render feilet».
+- **Flaky test:** `apps/api/src/services/pdfjs-node20.test.ts` får timeout (5 s) under parallell `turbo test`; grønn alene og med `--concurrency=1`. Hev timeout for fila. Rammet merge 80a233e0 to ganger.
+- **e2e ikke kjørt:** mappelista viser ikke «Feil» for markøren (lokal `hentDokumenter` gir 500) — dekket av enhetstest; verifiser på test.
+
 ### 🟡 SØK — oppfølgere etter SØK-2 (gate 2026-11-11, merge `85f821b0`, ikke bestilt)
 
 - **Modul-gating av Dokumentsøk (alternativ B):** `dokumentsok`-modulen er definert, men gater ingenting. Skal ev. gjøres samlet for sidemeny, side og Ctrl K-gruppa. Krever hjemmel (funksjonsendring).
