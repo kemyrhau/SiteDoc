@@ -412,7 +412,8 @@ git -C ~/Documents/Programmering/SiteDoc-merge push origin --delete <branch>
 - 🔴 **Treet fjernes når leveransen er merget og agenten ikke har mer i det** (Kenneth-vedtak 2026-11-11; før ble trær
   bare satt detached og hopet seg opp — 34 trær 11.11). Faste rolletrær står: `SiteDoc-merge`, `SiteDoc-gate`,
   `SiteDoc-fabel`. Neste ordre får et nytt tre fra `origin/develop`, ikke et gjenbrukt.
-- **App-trær** (`SiteDoc/.claude/worktrees/<navn>-xxxxxx`) fjernes ved å arkivere økten — Kenneth godkjenner arkiveringen.
+- **App-trær** (`SiteDoc/.claude/worktrees/<navn>-xxxxxx`): arkiver økten først (Kenneth godkjenner) — arkivering
+  fjerner IKKE treet (målt 11.11), så kjør `worktree remove` etterpå.
 - `worktree remove` kan melde «Directory not empty» når Finder har mappa åpen: git har da meldt ut treet. Slett resten
   først når `.git`-fila i mappa peker til en gitdir som ikke finnes.
 - **Plass måles med `df` før/etter, ikke `du` per tre** — pnpm hardlenker `node_modules`, så `du` teller samme fil i
