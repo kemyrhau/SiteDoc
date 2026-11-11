@@ -586,6 +586,7 @@ Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprett
 | Egen `TRPCError` (også med `cause`) og Zod-input | uendret | — | uendret |
 
 - **Prisma gjenkjennes på `name.startsWith("PrismaClient")`, ikke `instanceof`** — Timer/Maskin/Varelager har egne genererte klienter med egne klasser. Låst i `feilformat.test.ts` (mutant `instanceof` → rød).
+- **En `TRPCError` med egen melding OG Prisma-`cause` får likevel den generiske teksten** — Prisma-sjekken går før «egen feil»-sjekken. Bevisst: årsaken avgjør, så rå Prisma-tekst kan ikke snike seg ut via en egen melding som gjengir den. Vil flaten ha egen tekst, fanges Prisma-feilen lokalt og kastes uten `cause` (se § P2002 → CONFLICT).
 - **Prisma-feil oversettes også i dev**, så det brukeren ser er likt overalt. I prod slettes `data.stack`.
 - **Originalen logges** via `onError` → `loggTrpcFeil` i begge inngangene: Fastify (`apps/api/src/server.ts`, `req.log`) og web-ruten (`apps/web/src/app/api/trpc/[...trpc]/route.ts`, `console`). Oversatt Prisma-feil = `warn` med `prismaKode`, `modell`, `path`; ukjent/intern = `error`. Egne 4xx logges ikke.
 - **Klienter skal skille på `data.feilKode`**, ikke på meldingstekst. Fraværende `feilKode` = feilen kom fra vår egen kode (eller en gammel server).

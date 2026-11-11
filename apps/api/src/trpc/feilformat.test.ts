@@ -63,6 +63,14 @@ const appRouter = router({
   egenMedÅrsak: publicProcedure.query(() => {
     throw new TRPCError({ code: "CONFLICT", message: "Dagsseddelen er allerede godkjent", cause: new Error("rå") });
   }),
+  // Reelt tilfelle: maskin/equipment.ts — egen tekst over en rå årsak.
+  egenInternMedÅrsak: publicProcedure.query(() => {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Kunne ikke kontakte Vegvesen",
+      cause: new Error("fetch failed ECONNRESET 10.0.0.7"),
+    });
+  }),
 });
 
 async function kall(sti: string, metode: "GET" | "POST" = "GET", nodeEnv = "production") {
@@ -178,6 +186,13 @@ describe("ERRFMT — egne TRPCError slipper uendret", () => {
     const { status, feil } = await kall("egenMedÅrsak");
     expect(status).toBe(409);
     expect(feil.message).toBe("Dagsseddelen er allerede godkjent");
+  });
+
+  it("🔴 INTERNAL med cause og egen melding — meldingen beholdes i prod, ingen feilKode", async () => {
+    const { status, feil } = await kall("egenInternMedÅrsak");
+    expect(status).toBe(500);
+    expect(feil.message).toBe("Kunne ikke kontakte Vegvesen");
+    expect(feil.data.feilKode).toBeUndefined();
   });
 });
 
