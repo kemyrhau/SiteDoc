@@ -97,6 +97,10 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Flaky test:** `apps/api/src/services/pdfjs-node20.test.ts` får timeout (5 s) under parallell `turbo test`; grønn alene og med `--concurrency=1`. Hev timeout for fila. Rammet merge 80a233e0 to ganger.
 - **e2e ikke kjørt:** mappelista viser ikke «Feil» for markøren (lokal `hentDokumenter` gir 500) — dekket av enhetstest; verifiser på test.
 
+### 🟡 FEILFORMAT — oppfølger etter ERRFMT (gate 2026-11-11, merge `8b18ae77`, ikke bestilt)
+
+- **i18n fase 2:** feilteksten fra `formaterFeil` er norsk på serveren. Klienten kan slå opp `t(`feil.${feilKode}`)` på `data.feilKode` (`IKKE_FUNNET`/`FINNES_ALLEREDE`/`HENGER_SAMMEN`/`INTERN`) for andre språk.
+
 ### 🟡 SØK — oppfølgere etter SØK-2 (gate 2026-11-11, merge `85f821b0`, ikke bestilt)
 
 - **Modul-gating av Dokumentsøk (alternativ B):** `dokumentsok`-modulen er definert, men gater ingenting. Skal ev. gjøres samlet for sidemeny, side og Ctrl K-gruppa. Krever hjemmel (funksjonsendring).
