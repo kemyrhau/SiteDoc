@@ -30,8 +30,9 @@ sist_verifisert_mot_kode: 2026-08-09
 > DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
-> 🟡 **V20-oppfølgere (åpne):** V21 (overtidsforslag manuell) og V22 (prosjekt·byggeplass på raden, web-paritet) VEDTATT
-> 2026-10-06. **Specen finnes** ([timer-pause-en-kilde-spec.md](timer-pause-en-kilde-spec.md) § 8) — neste steg er kodeordrer, ikke ny spec (målt 2026-11-12). Ikke bestilt. L3-B venter på dem.
+> ✅ **V22 MERGET 2026-11-12** (`ca757d92`, Kontrollør GODKJENT `1c3a7258`): «Prosjekt · Byggeplass» på web-timeraden — på develop, **ikke deployet til test**. Gate-notater: klikk/låst variant mangler test (M6/M7 overlevde); mobil `byggeplassForNyRad` (`nyTimerRad.ts:126`) mangler ett-klikk-regelen web har — egen beslutning.
+> 🟡 **V20-oppfølger (åpen):** V21 (overtidsforslag manuell) VEDTATT
+> 2026-10-06. **Specen finnes** ([timer-pause-en-kilde-spec.md](timer-pause-en-kilde-spec.md) § 8) — neste steg er kodeordre, ikke ny spec (målt 2026-11-12). V21 ikke bestilt. L3-B venter på den.
 
 # 🔴 TAVLA — hvem sitter hvor
 
@@ -41,10 +42,10 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
-| **Kontrollør** | `SiteDoc-gate` | detached `7334e868` | ⚪ LEDIG |
+| **Kontrollør** | `SiteDoc-gate` | detached `1c3a7258` | ⚪ LEDIG (V22 gatet) |
 | **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `fix/dokumentleser-docx` `fce8b216` | ⚪ LEDIG (DL-1/DL-2 i develop) |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `feat/sok-mobil` `8e59f83e` | ⚪ LEDIG |
+| **Redesign** | `SiteDoc-redesign` | `feat/v22-web-radlinje` `1c3a7258` (merget `ca757d92`) | ⚪ LEDIG |
 | **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `7e5f9ca2` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
