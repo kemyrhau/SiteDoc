@@ -597,6 +597,10 @@ skjema-hookene dekker SJA/avvik/RUH). Tjeneste: `services/dokumentSpeil.ts`.
   `sjekkliste.hentForOffline` / `oppgave.hentForOffline` (delt leser med `stemplLest`-flagg;
   online-atferd bit-identisk). **Mobilen tåler gammel server:** mangler prosedyren (NOT_FOUND),
   hoppes forhånds-nedlasting over stille-men-logget — write-through virker uansett.
+  🔴 **«Mangler prosedyren» ≠ «dokumentet er slettet»** (ERRFMT 2026-11-11): begge er NOT_FOUND.
+  `erProsedyreMangler` (`dokumentSpeil.ts`) svarer `false` når svaret har `data.feilKode` (serverens
+  feilformat — prosedyren finnes), og bare tRPC sin egen «No "query"-procedure»-melding stopper resten.
+  Et slettet dokument teller som ett feilet og resten lastes. Låst i `dokumentSpeil.test.ts`.
 - 🔴 **Signaturer strippes før lagring** (`raaVedleggIData`, @sitedoc/shared) — samme skrive-vei-
   vaksine som server. Signaturer (base64 i `data`) vises offline; bilder krever nett → eksisterende
   `BildeFallback`-plassholder.

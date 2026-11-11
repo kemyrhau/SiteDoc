@@ -1066,7 +1066,11 @@ som DWG-gjenopprettingen, ikke etter.**
 
 ---
 
-### 🔴 Rå Prisma-tekst kan nå brukerens skjerm — tRPC har ingen `errorFormatter` (2026-09-24)
+### ✅ LØST — Rå Prisma-tekst kan nå brukerens skjerm — tRPC har ingen `errorFormatter` (2026-09-24)
+
+> ✅ **Løst 2026-11-11 (ERRFMT, branch `fix/trpc-errorformatter`):** `formaterFeil` i `apps/api/src/trpc/feilformat.ts`
+> er koblet i `trpc.ts`. P2025 → `NOT_FOUND`, P2002/P2003 → `CONFLICT`, alt annet → generisk; original logges.
+> Se [api.md § Feilformat](api.md) og [sikkerhet.md § Lukket 2026-11-11](sikkerhet.md). Teksten under er historikk.
 
 **Kenneth 2026-09-24, på test:** klikket Slett på en tegning og fikk i modalen
 «`Invalid prisma.drawing.findUniqueOrThrow() invocation … No record was found`».

@@ -354,6 +354,16 @@ sjekker på andre akser (ikke tenant-hull som de fem over), og vurderes i frys-v
 
 ---
 
+## ✅ Lukket 2026-11-11 — rå Prisma-tekst til klienten (ERRFMT)
+
+**Funn (2026-09-24, BACKLOG):** tRPC hadde ingen `errorFormatter`; `findUniqueOrThrow`-feil gikk med rå tekst (`Invalid prisma.drawing.findUniqueOrThrow() invocation …`) til enhver flate som viser `error.message` — modellnavn og ORM gratis til rekognosering.
+
+**Fiks:** `formaterFeil` i `apps/api/src/trpc/feilformat.ts`, koblet i `trpc.ts`. Prisma-feil får nøytral norsk tekst + `NOT_FOUND`/`CONFLICT`/`INTERNAL_SERVER_ERROR`; ukjente feil er generiske i prod og `data.stack` slettes der. Originalen logges på serveren (`onError` i `server.ts` og web-ruten). Detaljer: [api.md § Feilformat](api.md).
+
+**Målt:** `feilformat.test.ts` (13 tester gjennom ekte `fetchRequestHandler`; mutanter: formatter frakoblet → 7 røde, P2025 fjernet → 3, prod-generalisering fjernet → 1, logging fjernet → 1, `instanceof` i stedet for navn → 1). e2e lokalt: `sjekkliste.hentMedId` med ukjent id via `/api/trpc` — før: `INTERNAL_SERVER_ERROR` + rå Prisma-tekst; etter: `NOT_FOUND`/404 «Fant ikke det du ba om. Det kan være slettet.», og `P2025 oversatt til NOT_FOUND` i serverloggen.
+
+⚠️ **Gjenstår (ikke del av denne fiksen):** i dev (`NODE_ENV≠production`) inneholder `data.stack` fortsatt Prisma-teksten — tRPC sin standard, og bare synlig lokalt.
+
 ## ✅ Verifisert trygt — med dato og metode
 
 | Påstand | Hvordan målt | Dato |
