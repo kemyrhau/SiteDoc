@@ -16,7 +16,7 @@ import {
 } from "../services/ftd-prosessering";
 import { embeddDokumentChunks } from "../services/embedding-service";
 import { STRANDET_MS, erStrandet, utenAktivtKjørendeWhere } from "../services/reprosessering";
-import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { STOETTEDE_SPRAAK, INGEN_LESERBLOKKER } from "@sitedoc/shared";
 
 const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
 
@@ -1242,7 +1242,8 @@ export const mappeRouter = router({
    * «Prosesser alle dokumenter på nytt» og deaktiverer knappen mens noe kjører
    * (overlever sideoppdatering, siden tilstanden utledes av DB-radene, ikke klient-state).
    * `pågår` = dokumenter i pending/processing. `feilet` = røde dokumenter som IKKE kjører
-   * (failed, lagret feilårsak, eller minst én chunk med embedding `failed`). Disjunkte sett.
+   * (failed, lagret feilårsak unntatt markøren `INGEN_LESERBLOKKER`, eller minst én chunk
+   * med embedding `failed`). Disjunkte sett.
    */
   reprosesseringStatus: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
@@ -1267,7 +1268,9 @@ export const mappeRouter = router({
                    (d.processing_state NOT IN ('pending', 'processing')
                      AND (
                        d.processing_state = 'failed'
-                       OR d.processing_error IS NOT NULL
+                       -- markøren (tekstløs PDF/DOCX uten leser-blokker) er ikke en feil (DL-2)
+                       OR (d.processing_error IS NOT NULL
+                         AND d.processing_error IS DISTINCT FROM ${INGEN_LESERBLOKKER})
                        OR EXISTS (
                          SELECT 1 FROM ftd_document_chunks c
                          WHERE c.document_id = d.id AND c.embedding_state = 'failed'
