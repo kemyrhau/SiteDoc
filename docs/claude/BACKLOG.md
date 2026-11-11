@@ -91,6 +91,15 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Lokal dev:** `mappe.hentDokumenter` gir 500 lokalt (`text = jsonb` i raw-spørringen); web leser `apps/web/uploads`, api skriver `apps/api/uploads`. Ikke sett på test.
 - **Bilder i DOCX** vises ikke i leseren (mammoth `convertImage` → fil → `image`-blokk, middels).
 
+### 🟡 SØK — oppfølgere etter SØK-2 (gate 2026-11-11, merge `85f821b0`, ikke bestilt)
+
+- **Modul-gating av Dokumentsøk (alternativ B):** `dokumentsok`-modulen er definert, men gater ingenting. Skal ev. gjøres samlet for sidemeny, side og Ctrl K-gruppa. Krever hjemmel (funksjonsendring).
+- **Tiebreak i ORDER BY:** like rank gir tilfeldig rekkefølge (topp 10 «sikkerhet» varierer). Legg `c.id` som siste ledd.
+- **Testhull (mutanter grønne):** M6 — ingen test fanger at `ts_headline` i `hybridSok`/`leksikalskSok` får tsquery fra prefiks-trinnet; M8 — `sok-mappetilgang.test.ts` sjekker bare `toBeDefined()`, ikke at hybridsøkets leksikalske SQL har mappeklausulen (sjekk SQL som `sok-tsquery.test.ts:128`).
+- **Integrasjonstesten** `sok-tsquery.integration.test.ts` er ekskludert av `vitest.config` og kjøres ikke i gate.
+- **Ikke e2e-verifisert:** at leseren scroller til første `<mark>` fra Ctrl K, og medlem uten mappetilgang i Ctrl K. Verifiseres på test etter deploy.
+- **Lokal dev:** Next dev-rekompilering gir Postgres 42601 på søket (Prisma på `globalThis` + nestet `Prisma.sql` fra annen modulinstans). Restart web løser. Ikke prod.
+
 ### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
 
 (1) radens timetall (skjult fradrag, `TimerSeksjon.tsx:1043-1060`) · (2) `rad.pauseMin` = avkrysningen, settes kun av GPS
