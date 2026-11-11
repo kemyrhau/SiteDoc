@@ -22,7 +22,7 @@ const PROSJEKT = "11111111-1111-4111-8111-111111111111";
 function lagCaller() {
   const fanget: Array<{ sql: string; values: unknown[] }> = [];
   const prisma = {
-    // Tsvector-søket gir 0 treff → ILIKE-fallbacken kjøres også.
+    // Tsvector-søket gir 0 treff i begge trinn (hele ord, prefiks) → ILIKE-fallbacken kjøres også.
     $queryRaw: vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const q = Prisma.sql(strings, ...values);
       fanget.push({ sql: q.sql, values: q.values });
@@ -34,7 +34,7 @@ function lagCaller() {
 }
 
 describe("ftdSok.sokDokumenter — S4", () => {
-  it("D2: dokumentIder/ekskluderMappeIder havner i både tsvector- og ILIKE-spørringen", async () => {
+  it("D2: dokumentIder/ekskluderMappeIder havner i alle tre spørringer (hele ord, prefiks, ILIKE)", async () => {
     const { caller, fanget } = lagCaller();
     await caller.sokDokumenter({
       projectId: PROSJEKT,
@@ -42,7 +42,7 @@ describe("ftdSok.sokDokumenter — S4", () => {
       dokumentIder: ["dok-ref"],
       ekskluderMappeIder: ["ns-mappe"],
     });
-    expect(fanget).toHaveLength(2);
+    expect(fanget).toHaveLength(3);
     for (const q of fanget) {
       expect(q.sql).toMatch(/d\.project_id = \?/);
       expect(q.sql).toMatch(/AND d\.id IN \(\?\)/);
@@ -64,18 +64,18 @@ describe("ftdSok.sokDokumenter — S4", () => {
   it("D4: ILIKE-fallbacken sorteres på forekomster (rank) først, så filnavn/avsnitt/id", async () => {
     const { caller, fanget } = lagCaller();
     await caller.sokDokumenter({ projectId: PROSJEKT, query: "Dagmulkt" });
-    const ilike = fanget[1]!.sql;
+    const ilike = fanget[2]!.sql;
     // rank = antall ikke-overlappende forekomster av søkestrengen (små bokstaver)
     expect(ilike).toMatch(/length\(lower\(c\.chunk_text\)\) - length\(replace\(lower\(c\.chunk_text\), \?, ''\)\)/);
-    expect(fanget[1]!.values).toContain("dagmulkt");
+    expect(fanget[2]!.values).toContain("dagmulkt");
     expect(ilike).toMatch(/ORDER BY t\.rank DESC, t\.filename ASC, t\."chunkIndex" ASC, t\.id ASC/);
     expect(ilike).not.toMatch(/ORDER BY t\.filename ASC, t\.rank DESC/);
   });
 
-  it("SØK-2: begge spørringer har COUNT(*) OVER (antallIDok) og rn-tak 5; ett dokument i filteret → intet rn-tak", async () => {
+  it("SØK-2: alle spørringer har COUNT(*) OVER (antallIDok) og rn-tak 5; ett dokument i filteret → intet rn-tak", async () => {
     const { caller, fanget } = lagCaller();
     await caller.sokDokumenter({ projectId: PROSJEKT, query: "dagmulkt" });
-    expect(fanget).toHaveLength(2);
+    expect(fanget).toHaveLength(3);
     for (const q of fanget) {
       expect(q.sql).toMatch(/COUNT\(\*\) OVER \(PARTITION BY c\.document_id\)::int AS "antallIDok"/);
       expect(q.sql).toMatch(/t\."antallIDok"/);

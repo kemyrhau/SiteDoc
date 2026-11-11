@@ -6,7 +6,7 @@ import { verifiserProsjektmedlem, erSiteDocAdmin } from "../trpc/tilgangskontrol
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { mappeKlausulSql, byggMappeTilgangsFilter } from "../services/mappe-filter";
 import { HEADLINE_OPTS, maksPrDokFor } from "../services/ai-sok-service";
-import { helordTsquery, tekstTsquery } from "../services/sok-tsquery";
+import { helordFoerPrefiks } from "../services/sok-tsquery";
 
 export interface SokTreff {
   id: string;
@@ -69,11 +69,9 @@ export const ftdSokRouter = router({
       const rnKlausul = Number.isFinite(maksPrDok)
         ? Prisma.sql`WHERE t.rn <= ${maksPrDok}`
         : Prisma.empty;
-      // Punkt 6: hele ord ELLER ordbegynnelser; helords-treff rangeres foran rene prefiks-treff.
-      const tq = tekstTsquery(input.query);
-      const helord = helordTsquery(input.query);
+      // Punkt 6: hele ord først; ordbegynnelser bare når hele ord gir 0 treff (sok-tsquery.ts).
       type RåTreff = Omit<SokTreff, "metode">;
-      let rader = await ctx.prisma.$queryRaw<RåTreff[]>`
+      let { rader } = await helordFoerPrefiks(input.query, (tq) => ctx.prisma.$queryRaw<RåTreff[]>`
         SELECT t.id, t."documentId", t."chunkText", t."chunkIndex", t."pageNumber",
                t."sectionTitle", t."nsCode", t.filename, t."fileUrl", t."docType",
                t."folderId", t.rank, t.utdrag, t."antallIDok"
@@ -92,10 +90,9 @@ export const ftdSokRouter = router({
             d.folder_id AS "folderId",
             ts_rank(c.search_vector, ${tq}) AS rank,
             ts_headline('norwegian', c.chunk_text, ${tq}, ${HEADLINE_OPTS}) AS utdrag,
-            (c.search_vector @@ ${helord}) AS helord,
             ROW_NUMBER() OVER (
               PARTITION BY c.document_id
-              ORDER BY (c.search_vector @@ ${helord}) DESC, ts_rank(c.search_vector, ${tq}) DESC
+              ORDER BY ts_rank(c.search_vector, ${tq}) DESC
             ) AS rn,
             COUNT(*) OVER (PARTITION BY c.document_id)::int AS "antallIDok"
           FROM ftd_document_chunks c
@@ -108,11 +105,11 @@ export const ftdSokRouter = router({
             ${ekskluderKlausul}
         ) t
         ${rnKlausul}
-        ORDER BY t.helord DESC, t.rank DESC
+        ORDER BY t.rank DESC
         LIMIT ${input.limit}
-      `;
+      `);
 
-      // Fallback til ILIKE hvis tsvector gir 0 treff (delord, forkortelser).
+      // Fallback til ILIKE hvis heller ikke ordbegynnelser gir treff (delord, forkortelser).
       // Ingen ts_headline her (tsquery matcher ikke) — klienten highlighter utdraget.
       // S4/D4: rangert på antall forekomster av søkestrengen i chunken (ikke-overlappende,
       // store/små bokstaver likt), ikke på filnavn. Likhet → filnavn, avsnitt, id (deterministisk).

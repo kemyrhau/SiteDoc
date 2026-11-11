@@ -16,7 +16,7 @@ export function skalSokeDokumenter(prosjektId: string | null | undefined, q: str
 }
 
 /**
- * Ett treff pr. dokument (beste chunk = første, serveren sorterer helord → rank), maks
+ * Ett treff pr. dokument (beste chunk = første, serveren sorterer på rank), maks
  * MAKS_DOK_TREFF, i serverens rekkefølge.
  */
 export function slaaSammenPrDokument<T extends { documentId: string }>(treff: readonly T[]): T[] {

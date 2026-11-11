@@ -1,9 +1,9 @@
 import { Prisma } from "@sitedoc/db";
 
-// SØK-2 punkt 6 (Kenneth 2026-11-11): tekstsøket matcher ordbegynnelser, ikke bare hele ord.
-// «adgangskontr» finner «Adgangskontroll». Hele ord (`plainto_tsquery`) matcher som før, og
-// rangeres alltid foran rene prefiks-treff (helords-klassen først i ORDER BY). `term:*` bruker
-// samme GIN-indeks på `search_vector` — ingen migrering.
+// SØK-2 punkt 6 (Kenneth 2026-11-11): søket skal gi mest mulig korrekte treff. Hele ord
+// (`plainto_tsquery`) først; ordbegynnelser (`term:*`) bare når hele ord gir 0 treff. Da finner
+// «adgangskontr» «Adgangskontroll», mens «sikkerhet» ikke drar med «sikkerhetstiltak». `term:*`
+// bruker samme GIN-indeks på `search_vector` — ingen migrering.
 
 /** Kortere fragmenter får ikke `:*` — «a» skulle ellers treffe halve korpuset. */
 export const MIN_PREFIKS_TEGN = 3;
@@ -21,14 +21,28 @@ export function prefiksTsqueryStreng(query: string): string | null {
   return termer.map((t) => `${t}:*`).join(" & ");
 }
 
-/** Hele ord — dagens match. Brukes også som helords-klasse i rangeringen. */
+/** Hele ord — dagens match, og første trinn i `helordFoerPrefiks`. */
 export function helordTsquery(query: string): Prisma.Sql {
   return Prisma.sql`plainto_tsquery('norwegian', ${query})`;
 }
 
-/** Hele ord ELLER ordbegynnelser. Faller til `helordTsquery` når prefiks-delen er tom. */
-export function tekstTsquery(query: string): Prisma.Sql {
+/** Bare ordbegynnelser, eller null når ingen term er lang nok. */
+export function prefiksTsquery(query: string): Prisma.Sql | null {
   const prefiks = prefiksTsqueryStreng(query);
-  if (!prefiks) return helordTsquery(query);
-  return Prisma.sql`(plainto_tsquery('norwegian', ${query}) || to_tsquery('norwegian', ${prefiks}))`;
+  return prefiks ? Prisma.sql`to_tsquery('norwegian', ${prefiks})` : null;
+}
+
+/**
+ * Kjører `sok` med hele ord; gir det 0 rader, én gang til med ordbegynnelser. `tq` er tsquery-en
+ * radene kom fra (til ts_headline), `prefiks` sier om det var prefiks-trinnet.
+ */
+export async function helordFoerPrefiks<T>(
+  query: string,
+  sok: (tq: Prisma.Sql) => Promise<T[]>,
+): Promise<{ rader: T[]; tq: Prisma.Sql; prefiks: boolean }> {
+  const helord = helordTsquery(query);
+  const rader = await sok(helord);
+  const prefiks = rader.length === 0 ? prefiksTsquery(query) : null;
+  if (!prefiks) return { rader, tq: helord, prefiks: false };
+  return { rader: await sok(prefiks), tq: prefiks, prefiks: true };
 }
