@@ -2,6 +2,7 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "@sitedoc/api/src/trpc/router";
 import { prisma } from "@sitedoc/db";
 import { lagContextStamme } from "@sitedoc/api/src/trpc/context";
+import { loggTrpcFeil } from "@sitedoc/api/src/trpc/feilformat";
 import { auth } from "@/auth";
 
 /**
@@ -78,6 +79,9 @@ async function handler(req: Request) {
       req: req as never,
       res: {} as never,
     }),
+    // ERRFMT: samme logging som Fastify-veien (server.ts) — originalen logges her;
+    // brukeren får formatterens nøytrale tekst.
+    onError: ({ error, path }) => loggTrpcFeil(console, error, path),
   });
 }
 

@@ -15,6 +15,7 @@ import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
+import { loggTrpcFeil } from "./trpc/feilformat";
 import { vurderUploadsFilForesporsel, assertFilSigneringEnv } from "./utils/hmac";
 import { trengerSandboxCsp, UPLOADS_SANDBOX_CSP } from "./utils/uploadsFiltype";
 
@@ -220,6 +221,8 @@ async function start() {
       }),
       router: appRouter,
       createContext: () => createContext({ req, res }),
+      // ERRFMT: originalen logges her; brukeren får formatterens nøytrale tekst.
+      onError: ({ error, path }) => loggTrpcFeil(req.log, error, path),
       // H1 mobil-token-rotasjon: hvis rotasjons-middleware satte ny token
       // i ctx.nyttSessionTokenForRespons.value, eksponer den som
       // X-Session-Token respons-header. Mobil-klient lytter og oppdaterer

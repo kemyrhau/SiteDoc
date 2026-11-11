@@ -572,9 +572,28 @@ Referanse-impl (fil + søkestreng, ikke linjenr — jf. dokumentasjons-standard.
 
 Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
 
+## Feilformat — rå Prisma-tekst når aldri klienten (ERRFMT, 2026-11-11)
+
+`initTRPC.create({ errorFormatter })` i `apps/api/src/trpc/trpc.ts` kaller `formaterFeil` (`apps/api/src/trpc/feilformat.ts`). Én fiks for alle `findUniqueOrThrow`-kall — ingen ruter er endret.
+
+| Årsak (`error.cause`) | Kode / HTTP | `data.feilKode` | Melding |
+|---|---|---|---|
+| Prisma `P2025` (ikke funnet) | `NOT_FOUND` / 404 | `IKKE_FUNNET` | «Fant ikke det du ba om. Det kan være slettet.» |
+| Prisma `P2002` (unik-brudd) | `CONFLICT` / 409 | `FINNES_ALLEREDE` | «Dette finnes allerede.» |
+| Prisma `P2003` (fremmednøkkel) | `CONFLICT` / 409 | `HENGER_SAMMEN` | «Endringen kan ikke gjøres fordi den henger sammen med andre data.» |
+| Annen Prisma-feil (validering, init, ukjent kode) | `INTERNAL_SERVER_ERROR` / 500 | `INTERN` | «Noe gikk galt. Prøv igjen.» |
+| Ukjent kastet feil (ikke `TRPCError`) | 500 | `INTERN` | Generisk i prod; i dev beholdes detaljene |
+| Egen `TRPCError` (også med `cause`) og Zod-input | uendret | — | uendret |
+
+- **Prisma gjenkjennes på `name.startsWith("PrismaClient")`, ikke `instanceof`** — Timer/Maskin/Varelager har egne genererte klienter med egne klasser. Låst i `feilformat.test.ts` (mutant `instanceof` → rød).
+- **Prisma-feil oversettes også i dev**, så det brukeren ser er likt overalt. I prod slettes `data.stack`.
+- **Originalen logges** via `onError` → `loggTrpcFeil` i begge inngangene: Fastify (`apps/api/src/server.ts`, `req.log`) og web-ruten (`apps/web/src/app/api/trpc/[...trpc]/route.ts`, `console`). Oversatt Prisma-feil = `warn` med `prismaKode`, `modell`, `path`; ukjent/intern = `error`. Egne 4xx logges ikke.
+- **Klienter skal skille på `data.feilKode`**, ikke på meldingstekst. Fraværende `feilKode` = feilen kom fra vår egen kode (eller en gammel server).
+- Teksten er norsk, ikke i18n (fase 2 ligger i BACKLOG hos orkestrator). Flater som vil ha egen tekst, kaster fortsatt egen `TRPCError` — den passerer urørt.
+
 ## P2002 → CONFLICT ved unik-brudd (mønster; `psi.opprett` 2026-09-27)
 
-Et unik-brudd i Postgres når klienten som `PrismaClientKnownRequestError` med `code === "P2002"`. Fanges den ikke, boble den opp som en rå intern feil (spinneren stopper, ingen melding). Mønsteret — samme struktur i `overflate.ts` (søk `catch (e)` i `beregnFraPunktsky`), `avdeling.ts` og nå `psi-feil.ts`:
+Et unik-brudd i Postgres når klienten som `PrismaClientKnownRequestError` med `code === "P2002"`. Fanges den ikke, oversetter feilformatet den til `CONFLICT` med den generiske teksten «Dette finnes allerede.» (§ Feilformat). Trenger flaten å si HVA som finnes, fanges den lokalt. Mønsteret — samme struktur i `overflate.ts` (søk `catch (e)` i `beregnFraPunktsky`), `avdeling.ts` og nå `psi-feil.ts`:
 
 ```ts
 } catch (e) {
