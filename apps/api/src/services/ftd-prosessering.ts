@@ -11,6 +11,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { inflateRawSync } from "node:zlib";
 import type { PrismaClient } from "@sitedoc/db";
+import { INGEN_LESERBLOKKER } from "@sitedoc/shared";
 import * as mammoth from "mammoth";
 import { splittMalebrevPdf } from "./pdf-splitting";
 import { genererBlokker, genererDocxBlokker } from "./blokk-prosessering";
@@ -334,10 +335,11 @@ export async function genererDocxBlokkOgOversett(
 }
 
 /**
- * Lag leser-blokker for et allerede søkbart DOCX-dokument fra lagret fil, uten å
- * ekstrahere chunks på nytt. Brukes av reparasjonsstien for DOCX lastet opp før
- * DL-1 (completed med chunks, men 0 blokker). Bumper `updated_at` først, så leseren
- * viser «klargjøres» mens jobben går.
+ * Lag leser-blokker for et allerede søkbart PDF- eller DOCX-dokument fra lagret fil,
+ * uten å ekstrahere chunks på nytt — samme blokkvei som ved opplasting. Brukes av
+ * reparasjonsstien for dokumenter som er completed med chunks men 0 blokker (DOCX før
+ * DL-1, PDF der blokkene aldri ble laget — DL-2). Bumper `updated_at` og nullstiller
+ * en eventuell `INGEN_LESERBLOKKER`-markør først, så leseren viser «klargjøres».
  */
 export async function genererBlokkerFraLagretFil(
   prisma: PrismaClient,
@@ -348,9 +350,38 @@ export async function genererBlokkerFraLagretFil(
     data: { processingError: null },
     select: { fileUrl: true, filename: true, folderId: true },
   });
-  if (!dok.fileUrl || extname(dok.filename ?? "").toLowerCase() !== ".docx") return;
+  const ext = extname(dok.filename ?? "").toLowerCase();
+  if (!dok.fileUrl || !LESERBLOKK_FILTYPER.includes(ext)) return;
   const buffer = await readFile(join(UPLOADS_DIR, dok.fileUrl.replace(/^\/uploads\//, "")));
-  await genererDocxBlokkOgOversett(prisma, documentId, dok.folderId, buffer);
+  if (ext === ".pdf") {
+    await genererBlokkOgOversett(prisma, documentId, dok.folderId, buffer, ext);
+  } else {
+    await genererDocxBlokkOgOversett(prisma, documentId, dok.folderId, buffer);
+  }
+}
+
+/** Filtyper som får leser-blokker (PDF og DOCX). */
+export const LESERBLOKK_FILTYPER = [".pdf", ".docx"];
+
+/**
+ * Id-ene til PDF-/DOCX-dokumenter i `dokumenter` som ikke har én eneste leser-blokk
+ * (DOCX: DL-1, PDF: DL-2). Dokumenter med blokker røres ikke.
+ */
+export async function utenLeserblokker(
+  db: Pick<PrismaClient, "ftdDocumentBlock">,
+  dokumenter: Array<{ id: string; filename: string | null }>,
+): Promise<string[]> {
+  const ider = dokumenter
+    .filter((d) => LESERBLOKK_FILTYPER.some((ext) => (d.filename ?? "").toLowerCase().endsWith(ext)))
+    .map((d) => d.id);
+  if (ider.length === 0) return [];
+  const medBlokker = await db.ftdDocumentBlock.findMany({
+    where: { documentId: { in: ider } },
+    select: { documentId: true },
+    distinct: ["documentId"],
+  });
+  const harBlokker = new Set(medBlokker.map((b) => b.documentId));
+  return ider.filter((id) => !harBlokker.has(id));
 }
 
 /**
@@ -414,6 +445,16 @@ async function blokkEtterløp(
   // Generer blokker med detektert språk (riktig merking)
   const antall = await lagBlokker(kildeSpråk);
   console.log(`Blokkprosessering: ${antall} blokker for ${documentId} (kilde: ${kildeSpråk})`);
+
+  // 0 blokker (f.eks. PDF uten uttrekkbar tekst eller bilder): ærlig slutt-tilstand
+  // i stedet for at leseren venter i 10 min og viser «feilet» (DL-2). Markør, ikke feil.
+  if (antall === 0) {
+    await prisma.ftdDocument.update({
+      where: { id: documentId },
+      data: { processingError: INGEN_LESERBLOKKER },
+    });
+    return;
+  }
 
   // Generer embeddings for blokker (fire-and-forget)
   embeddNyeBlokker(prisma, documentId).catch((err) => {

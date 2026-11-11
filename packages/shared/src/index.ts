@@ -24,3 +24,4 @@ export * from "./tegning/objekt-markering-farge";
 export * from "./tegning/lag-gruppering";
 export * from "./tegning/rekonvertering";
 export * from "./sok/utsnitt";
+export * from "./dokument/leserblokker";

@@ -32,6 +32,7 @@ export default function DokumentLeser() {
     tilgjengeligeSprak: string[];
     processingState: string;
     processingError: string | null;
+    antallChunks: number;
     filename: string | null;
     updatedAt: Date | string;
   }) =>
@@ -40,6 +41,7 @@ export default function DokumentLeser() {
       antallSprak: d.tilgjengeligeSprak.length,
       processingState: d.processingState,
       processingError: d.processingError,
+      antallChunks: d.antallChunks,
       filnavn: d.filename,
       updatedAt: d.updatedAt,
       reprosessertVed,

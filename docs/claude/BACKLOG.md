@@ -83,7 +83,7 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 ### 🟡 DOKUMENTLESER — oppfølgere etter DL-1 (gate 2026-11-10, merge `55f4d906`, ikke bestilt)
 
-- 🔴 **Beslutning (Kenneth): «Prosesser på nytt» for PDF uten blokker.** Leseren viser «feilet» + knappen, men serveren lager ikke PDF-blokker på nytt (kun embedding) → 10 min spinner, så «feilet» igjen. Valg: PDF-blokkreparasjon, eller skjul knappen for PDF.
+- ⚠️ **DL-2 levert på `fix/dokumentleser-pdf-blokker`, venter gate** (Kenneth: «ja, lag lesevisningen»; ai-sok.md § PDF-blokkreparasjon). ~~**Beslutning (Kenneth): «Prosesser på nytt» for PDF uten blokker.**~~ Leseren viser «feilet» + knappen, men serveren lager ikke PDF-blokker på nytt (kun embedding) → 10 min spinner, så «feilet» igjen. Valg: PDF-blokkreparasjon, eller skjul knappen for PDF.
 - **Strandet `pending`/`processing` poller evig** i leseren (hvert 5. s mens fanen er åpen). Bruk `STRANDET_MS` også i `lesertilstand`.
 - **Leseren mangler ?-hjelpetekst** (ingen oppføring i `hjelpetekster.md`).
 - **Korrupt DOCX** får serverteksten «for stor eller ugyldig (maks 50 MB utpakket)» — misvisende for en liten, ødelagt fil.
