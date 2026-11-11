@@ -404,16 +404,25 @@ git push origin HEAD:develop
 ### Rydding etter merge (Opus-livssyklus fase 4)
 
 ```sh
-git -C <agentens tre> checkout --detach origin/develop
+git -C ~/Documents/Programmering/SiteDoc-merge worktree remove <agentens tre>   # nekter ved endringer — da: meld
 git -C ~/Documents/Programmering/SiteDoc-merge branch -d <branch>     # -d, aldri -D
 git -C ~/Documents/Programmering/SiteDoc-merge push origin --delete <branch>
 ```
 
-- 🔴 **Mål `git worktree list` og tavla før rydding; rydd aldri et tre en agent står i**, og slett aldri `SiteDoc-merge`.
+- 🔴 **Treet fjernes når leveransen er merget og agenten ikke har mer i det** (Kenneth-vedtak 2026-11-11; før ble trær
+  bare satt detached og hopet seg opp — 34 trær 11.11). Faste rolletrær står: `SiteDoc-merge`, `SiteDoc-gate`,
+  `SiteDoc-fabel`. Neste ordre får et nytt tre fra `origin/develop`, ikke et gjenbrukt.
+- **App-trær** (`SiteDoc/.claude/worktrees/<navn>-xxxxxx`) fjernes ved å arkivere økten — Kenneth godkjenner arkiveringen.
+- `worktree remove` kan melde «Directory not empty» når Finder har mappa åpen: git har da meldt ut treet. Slett resten
+  først når `.git`-fila i mappa peker til en gitdir som ikke finnes.
+- **Plass måles med `df` før/etter, ikke `du` per tre** — pnpm hardlenker `node_modules`, så `du` teller samme fil i
+  hvert tre (20 trær «60 GB» frigjorde 9 GB, 11.11).
+- 🔴 **Mål `git worktree list` og tavla før rydding; rydd aldri et tre en agent står i** (`lsof -d cwd`), og slett aldri `SiteDoc-merge`.
 - Før du berger noe som ser tapt ut: `git log -S` og `merge-base --is-ancestor` — en «tapt» leveranse er oftest merget
   under et annet navn.
 - **Inventar ved hver lukking:** `git -C ~/Documents/Programmering/SiteDoc worktree list` + `git status --porcelain` og
-  `git stash list` i hvert tre. Et tre, en fil eller en stash ingen vet om, er et funn.
+  `git stash list` i hvert tre. Et tre, en fil eller en stash ingen vet om, er et funn. Et merget tre uten agent på
+  tavla ryddes.
 - **Hver økt som produserer en fil, får en git-vei for den i ordren** (docs-branch). En rapport som ikke committes,
   finnes ikke.
 
