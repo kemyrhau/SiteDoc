@@ -31,20 +31,21 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **V22 MERGET 2026-11-12** (`ca757d92`, Kontrollør GODKJENT `1c3a7258`): «Prosjekt · Byggeplass» på web-timeraden — **på test `51a39d8d`** (deployet av Kenneth 2026-11-12), verifisert innlogget av orkestrator på to sendte sedler: sekundærlinja vises per rad (også ulike byggeplasser på samme sedel), tittellinja uten byggeplass, maskinraden beholder « · navn», låst sedel gir `<p>` (ikke knapp). Arvet/ingen/klikk ikke sett på test (ingen åpen sedel; sett lokalt). Gate-notater: klikk/låst variant mangler test (M6/M7 overlevde); mobil `byggeplassForNyRad` (`nyTimerRad.ts:126`) mangler ett-klikk-regelen web har — egen beslutning.
+> ✅ **L4-A MERGET 2026-11-12** (`4ac2cb4a`, Kontrollør GODKJENT `aeb9da48`): byggeplass-besøk gjennom dagen på mobil — besøk 1 fra Start dag, S1-banner «Ankommet ny byggeplass?» når appen går til aktiv (kun med gitt GPS-tillatelse, maks 1/10 min, [Nei] demper 30 min), S2 [Bytt byggeplass] ved siden av [Slutt dag] (nå halv bredde), avreise ved avsluttet dag, rydding etter 14 d. Ny lokal SQLite-tabell `arbeidsdag_besok_local` (ingen synk). **Ikke på OTA.** Beslutningsfunn (Kenneth): S1 måler ikke ved kaldstart eller fanebytte til Timer — anbefalt oppfølger før L4-B. L4-B må tåle dager uten `start_dag`-besøk (dager som pågår når OTA kommer).
 > ✅ **V21 MERGET 2026-11-12** (`04f819b9`, Kontrollør GODKJENT `d1eeb830` etter én RETUR): overtidsforslag i dagskortets rad-dialog, web + mobil (Kenneth «1 ja, 2 ja» 12.11). **Ikke på test/OTA** — samles med neste deploy som er verdt tiden. Forslaget vises kun når firmaets overtids-lønnsarter har `overtidsnivaa`; prod-firmaene har det satt (Kenneth 2026-11-12); på test.sitedoc.no har Sitedoc Myrhaug Overtid 50 %/100 % med nivå (skjermbilde Kenneth 12.11). Det var Kontrollørs lokale seed-firma som manglet feltet. L3-B var avhengig av V21 og er nå ublokkert.
 
 # 🔴 TAVLA — hvem sitter hvor
 
 **Eneste skribent: orkestrator.** 🔴 **Føres FRA MÅLING — `git log origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-11-12 · develop `04f819b9` · test kjører `51a39d8d` (web: V22 + SØK-2 + DL-2 + ERRFMT; V22 deployet av Kenneth 2026-11-12) · OTA testkanal `8f05a30d` (OTA `01a1ccc`, sett på Kenneths telefon 2026-11-12).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
+**Sist ført: 2026-11-12 · develop `4ac2cb4a` · test kjører `51a39d8d` (web: V22 + SØK-2 + DL-2 + ERRFMT; V22 deployet av Kenneth 2026-11-12) · OTA testkanal `8f05a30d` (OTA `01a1ccc`, sett på Kenneths telefon 2026-11-12).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
-| **Kontrollør** | `SiteDoc-gate` | detached `d1eeb830` | ⚪ LEDIG (V21 gatet) |
-| **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `fix/dokumentleser-docx` `fce8b216` | ⚪ LEDIG (DL-1/DL-2 i develop) |
+| **Kontrollør** | `SiteDoc-gate` | detached `aeb9da48` | ⚪ LEDIG (L4-A gatet) |
+| **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `feat/sjekkliste-pdf-oppgaver-vedlegg` (ikke pushet) | 🔵 ORDRE GITT PDF-1 (henvisning til oppgaver alltid; tilleggsvalg «Ta med oppgaver»/«Ta med vedlegg», begge av) |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `feat/v21-overtidsforslag` `d1eeb830` (merget `04f819b9`) | ⚪ LEDIG |
+| **Redesign** | `SiteDoc-redesign` | `feat/timer-l4a-besok` `aeb9da48` (merget `4ac2cb4a`) | ⚪ LEDIG |
 | **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `7e5f9ca2` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
