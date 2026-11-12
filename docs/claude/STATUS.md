@@ -11,7 +11,9 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-11-12
+**Sist oppdatert:** 2026-11-13
+- 2026-11-13 — **`timer.md` + `maskin.md`: PRESISERING TILLEGG — maskin/vare pr. arbeidsrad i Bekreft dag** (branch `feat/timer-dagsoversikt-radform`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): dagslista fjernet; nøkkel `dato|lønnsart|radIndeks` (stabil opprettelsesrekkefølge); vakter `tilleggUtenRad`/over radens timer; maskin.md-avsnittet «Maskinrad fra Bekreft dag» omskrevet. Telling uendret.
+- 2026-11-13 — **`timer.md`: TILLEGG radform — maskin/vare på raden i Bekreft dag, rad-flytt tar med varer, sortering pr. underprosjekt** (branch `feat/timer-dagsoversikt-radform`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): radform-seksjonen ny TILLEGG-bullet, `radForMaskin` fjernet fra teksten, testlista utvidet. Telling uendret.
 - 2026-11-12 — **`timer.md`: RETUR radform — lagre-sperre for beskrivelse + vakter R10/R17** (branch `feat/timer-dagsoversikt-radform`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): ny bullet «Lagre-sperre» under radform; testlista utvidet. Telling uendret.
 - 2026-11-12 — **`timer.md`: Maskinkobling — flere maskiner pr. timerad, egne timer ≤ radens** (branch `feat/timer-dagsoversikt-radform`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate, NY BESLUTNING Kenneth 2026-11-12): timer.md ny bullet under radform (før/etter for `oppdaterTimerRad` og `TimerSeksjon`, Del opp, Flytt, Bekreft dag via `radForMaskin`); Flytt-linja sier alle koblede maskiner følger. Ingen migrering. Telling uendret.
 - 2026-11-12 — **`timer.md` + `mobil.md`: Dagsoversikt i radform** (branch `feat/timer-dagsoversikt-radform`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate, migrering `20261112000001_vareforbruk_sheet_timer_id` ikke kjørt): timer.md ny underseksjon (én boks pr. rad, «Uten rad», Send-sperre, vare `sheetTimerId`, beskrivelse pr. rad i Bekreft dag) + gamle linje-/ikonregler merket; mobil.md `vareforbruk_local`- og `bekreft-dag.tsx`-radene. Telling uendret.

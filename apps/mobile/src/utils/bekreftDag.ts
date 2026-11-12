@@ -21,8 +21,12 @@ import { lokalIsoDato } from "./dato";
 import type { MaskinBrudd } from "@sitedoc/shared";
 import {
   maskinBruddForTillegg,
+  maskinerForDato,
+  maskinerOverRaden,
+  tilleggRader,
+  tilleggUtenRad,
   vaktGrunnlag,
-  type BekreftDagTillegg,
+  type TilleggPerRad,
 } from "./bekreftDagTillegg";
 import { arbeidsraderPerKort, kortMedArbeid } from "./beskrivelseKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
@@ -31,11 +35,14 @@ import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
 /**
  * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
  * ORDRE 36a: tom beskrivelse på et prosjekt med arbeid → ingenting skrives.
+ * PRESISERING TILLEGG: maskin/vare på en rad som ikke finnes lenger → ingenting
+ * skrives; linjene kastes aldri stille.
  */
 export type BekreftDagHandling =
   | SluttDagHandling
   | { type: "maskinBrudd"; brudd: MaskinBrudd[] }
-  | { type: "manglerBeskrivelse"; nokler: string[] };
+  | { type: "manglerBeskrivelse"; nokler: string[] }
+  | { type: "tilleggUtenRad"; nokler: string[] };
 
 /**
  * ORDRE 36a (spec § 3): prosjektene som har arbeid (ikke reise) på en åpen
@@ -159,22 +166,49 @@ export function bekreftDag(
     /** L4-A (§ 2.2): byggeplassen slutt-GPS traff (null = ingen treff). */
     sluttSted?: BesokSted | null;
   },
-  tillegg?: BekreftDagTillegg,
+  tilleggPerRad?: TilleggPerRad,
 ):
   | { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat }
   | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
-  | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null } {
+  | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null }
+  | { handling: { type: "tilleggUtenRad"; nokler: string[] }; resultat: null } {
   // ORDRE 36a: beskrivelsen er påkrevd — sjekkes først, ingenting skrives.
   const mangler = manglerBeskrivelse(forslag);
   if (mangler.length > 0) {
     return { handling: { type: "manglerBeskrivelse", nokler: mangler }, resultat: null };
   }
-  // Vakten kjøres FØR noe skrives — samme regel som serveren ville avvist med.
-  if (tillegg && tillegg.maskiner.length > 0) {
-    const brudd = maskinBruddForTillegg(vaktGrunnlag(db, ctx.userId, forslag), tillegg.maskiner);
-    if (brudd.length > 0) return { handling: { type: "maskinBrudd", brudd }, resultat: null };
+  if (tilleggPerRad) {
+    // PRESISERING TILLEGG: linjer uten rad (raden forsvant) → stopp, ingenting skrives.
+    const utenRad = tilleggUtenRad(forslag, tilleggPerRad);
+    if (utenRad.length > 0) {
+      return { handling: { type: "tilleggUtenRad", nokler: utenRad }, resultat: null };
+    }
+    // Regel 2: maskinens egne timer ≤ radens.
+    const over = maskinerOverRaden(forslag, tilleggPerRad);
+    if (over.length > 0) {
+      return {
+        handling: {
+          type: "maskinBrudd",
+          brudd: over.map((o) => ({
+            projectId: o.projectId,
+            externalCostObjectId: ctx.ecoId ?? null,
+            maskinSum: o.maskin.timer,
+            timerSum: o.radTimer,
+          })),
+        },
+        resultat: null,
+      };
+    }
+    // Vakten kjøres FØR noe skrives — samme sum-regel som serveren, pr. sedel (dato).
+    const datoer = [...new Set(tilleggRader(forslag).map((r) => r.dato))];
+    for (const dato of datoer) {
+      const maskiner = maskinerForDato(forslag, tilleggPerRad, dato);
+      if (maskiner.length === 0) continue;
+      const brudd = maskinBruddForTillegg(vaktGrunnlag(db, ctx.userId, forslag, dato), maskiner);
+      if (brudd.length > 0) return { handling: { type: "maskinBrudd", brudd }, resultat: null };
+    }
   }
-  const resultat = anvendDagsforslag(db, forslag, ctx, tillegg);
+  const resultat = anvendDagsforslag(db, forslag, ctx, tilleggPerRad);
   // H7: avgjør handlingen FØR arbeidsdagen røres. Sendt sedel, ikke ansatt og
   // manglende kilde/prosjekt holder dagen åpen (A4 venter Kenneth).
   const handling = avgjorSluttDagHandling(resultat);

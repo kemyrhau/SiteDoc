@@ -230,6 +230,13 @@ export type DagsforslagRad = {
   reiseRegel: ReiseRegelSnapshot | null;
   /** V8: "utledet" på auto-reise-rader (vindu fra GPS ± matrise). null ellers. */
   tidKilde: "stempel" | "utledet" | "manuell" | null;
+  /**
+   * PRESISERING TILLEGG (2026-11-13): arbeidsradens stabile identitet i
+   * forslaget = carve-vinduets opprettelsesrekkefølge, ikke posisjon etter
+   * tid. Bærer `radTilleggNokkel`, så maskin/vare følger raden når tiden
+   * rettes. Utelatt på reise-rader.
+   */
+  radIndeks?: number;
 };
 
 /** Forslaget for én kalenderdag (ett midnatt-segment). */
@@ -1017,7 +1024,7 @@ function beregnSegment(a: {
         : klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
     });
     const valgtOvertid = godtattOvertidLonnsart(a.alleLonnsarter, a.overtidLonnsartId);
-    for (const vindu of carvet) {
+    for (const [radIndeks, vindu] of carvet.entries()) {
       // Normaltid (overtidsnivaa=null) → firmaets standard-lønnsart.
       // Overtid → velg strukturert på overtidsnivaa (type=ordinaer, aktiv).
       const lonnsartId =
@@ -1066,6 +1073,7 @@ function beregnSegment(a: {
         reiseKilde: null,
         reiseRegel: null,
         tidKilde: null,
+        radIndeks,
       });
     }
   }

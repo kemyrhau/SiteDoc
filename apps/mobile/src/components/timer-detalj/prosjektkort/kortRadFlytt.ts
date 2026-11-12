@@ -253,6 +253,24 @@ export function kortInnhold(args: {
   return { timer, maskin, varer: raderPaaKort(args.varer, sedel, kort) };
 }
 
+/**
+ * TILLEGG 2026-11-12 regel 1: raden eier prosjekt/byggeplass/underprosjekt.
+ * Innholdet til ÉN rad = raden + maskiner og varer koblet til den
+ * (`sheetTimerId`). Flytt av raden tar dem med, timer og mengde uendret.
+ * Ukoblede linjer («Uten rad») blir der de er.
+ */
+export function radInnhold<V extends KortVare & { sheetTimerId?: string | null }>(args: {
+  rad: TimerRad;
+  maskinRader: readonly MaskinRad[];
+  varer: readonly V[];
+}): KortInnhold {
+  return {
+    timer: [args.rad],
+    maskin: args.maskinRader.filter((m) => m.sheetTimerId === args.rad.id),
+    varer: args.varer.filter((v) => v.sheetTimerId === args.rad.id),
+  };
+}
+
 /** Finnes et annet kort med målnøkkelen? Da slås kortene sammen. */
 export function kortFinnesFraFor(
   rader: readonly { projectId: string | null; byggeplassId?: string | null; externalCostObjectId?: string | null }[],

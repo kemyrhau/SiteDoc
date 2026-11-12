@@ -68,6 +68,47 @@ export function raderForDag<T extends RadformTimer, M extends RadformKoblet, V e
 }
 
 /**
+ * TILLEGG 2026-11-12 regel 4–5: sortering på underprosjekt. Raden eier
+ * prosjekt og underprosjekt — hver boks havner HEL (med sine maskiner og varer)
+ * i gruppen til RADENS (prosjekt, underprosjekt), uansett hva linjene selv
+ * bærer. «Uten rad» (bare gamle, ukoblede linjer) havner i gruppen til linjens
+ * egen (prosjekt, underprosjekt). Gruppene står i rekkefølgen til sin første
+ * rad (tidsrekkefølge); grupper med bare «Uten rad» kommer sist. Ingenting slås
+ * sammen.
+ */
+export type RadformGruppe<T, M, V> = {
+  projectId: string;
+  ecoId: string | null;
+  rader: RadformBoks<T, M, V>[];
+  utenRad: { maskin: M[]; varer: V[] };
+};
+
+type MedEco = { externalCostObjectId?: string | null };
+
+export function grupperPaaUnderprosjekt<
+  T extends RadformTimer & MedEco,
+  M extends RadformKoblet & MedEco,
+  V extends RadformKoblet & MedEco,
+>(dag: RadformDag<T, M, V>): RadformGruppe<T, M, V>[] {
+  const grupper: RadformGruppe<T, M, V>[] = [];
+  const etterNokkel = new Map<string, RadformGruppe<T, M, V>>();
+  const gruppe = (projectId: string, ecoId: string | null) => {
+    const k = `${projectId}|${ecoId ?? ""}`;
+    let g = etterNokkel.get(k);
+    if (!g) {
+      g = { projectId, ecoId, rader: [], utenRad: { maskin: [], varer: [] } };
+      etterNokkel.set(k, g);
+      grupper.push(g);
+    }
+    return g;
+  };
+  for (const boks of dag.rader) gruppe(boks.rad.projectId, boks.rad.externalCostObjectId ?? null).rader.push(boks);
+  for (const m of dag.utenRad.maskin) gruppe(m.projectId, m.externalCostObjectId ?? null).utenRad.maskin.push(m);
+  for (const v of dag.utenRad.varer) gruppe(v.projectId, v.externalCostObjectId ?? null).utenRad.varer.push(v);
+  return grupper;
+}
+
+/**
  * Første rad (i visningsrekkefølge) som mangler beskrivelse — Send sperres og
  * meldingen peker hit (beslutning 3). Reise krever ikke beskrivelse.
  */

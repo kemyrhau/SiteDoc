@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from "react";
+import { forwardRef, useEffect, useState, type ReactNode } from "react";
 import { View, Text, Pressable, TextInput, Keyboard, Platform, type LayoutChangeEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import { harForslag, vekslForslag } from "../../utils/forslagVeksling";
@@ -46,6 +46,11 @@ export const BekreftDagBeskrivelse = forwardRef<
     radRef?: (nokkel: string, felt: TextInput | null) => void;
     /** Radfeltets y innenfor kortet — sperren ruller hit (beslutning 3). */
     onRadY?: (nokkel: string, y: number) => void;
+    /**
+     * PRESISERING TILLEGG (2026-11-12): maskin og varer under hver arbeidsrad —
+     * også når kortet har én rad (da under kortets felt).
+     */
+    radTillegg?: (nokkel: string) => ReactNode;
   }
 >(function BekreftDagBeskrivelse(
   {
@@ -64,6 +69,7 @@ export const BekreftDagBeskrivelse = forwardRef<
     onEndreRad,
     radRef,
     onRadY,
+    radTillegg,
   },
   ref,
 ) {
@@ -136,6 +142,7 @@ export const BekreftDagBeskrivelse = forwardRef<
           {t("timer.bekreftDag.beskrivelse.paakrevd", { prosjekt: prosjektNavn ?? "" })}
         </Text>
       ) : null}
+      {rader.length === 1 ? radTillegg?.(rader[0]!.nokkel) : null}
       {rader.length >= 2
         ? rader.map((r) => (
             <View key={r.nokkel} className="gap-1" onLayout={(e) => onRadY?.(r.nokkel, e.nativeEvent.layout.y)}>
@@ -161,6 +168,7 @@ export const BekreftDagBeskrivelse = forwardRef<
                   {t("timer.bekreftDag.beskrivelse.radMangler", { rad: r.tid })}
                 </Text>
               ) : null}
+              {radTillegg?.(r.nokkel)}
             </View>
           ))
         : null}

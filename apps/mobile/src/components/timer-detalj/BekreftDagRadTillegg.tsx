@@ -18,46 +18,17 @@ import {
   nyTilleggMaskin,
   fortIDagLinjer,
   type BekreftDagTillegg,
-  type TilleggTilstand,
+  type TilleggMaskin,
   type VaktGrunnlag,
 } from "../../utils/bekreftDagTillegg";
+import { maskinerOverRad } from "../../services/kobledeMaskiner";
 
 /**
- * L3-D «Maskin og varer» i `/timer/bekreft-dag` (spec § 3.5, ORDRE 31).
- * Holdes i minnet til [Bekreft og lagre]; ingenting skrives herfra. Seksjonen
- * skjules helt når verken utstyr eller Varelager finnes (vedtak D).
+ * Hva arbeideren kan føre: utstyrsbufferen (maskin) og prosjektene med
+ * Varelager (varer). Leses én gang pr. skjerm, deles av alle radene.
  */
-export function BekreftDagTilleggSeksjon({
-  orgId,
-  userId,
-  projectId,
-  prosjektNavn,
-  dato,
-  byggeplassId,
-  grunnlag,
-  tilstand,
-  tillegg,
-  onEndre,
-}: {
-  orgId: string;
-  userId: string;
-  projectId: string;
-  prosjektNavn: string;
-  dato: string;
-  /** Entydig byggeplass for dagen — forhåndsvalg i vare-modalen. */
-  byggeplassId: string | null;
-  grunnlag: VaktGrunnlag | null;
-  /** Dom (57) m2/m3 — skjermen har allerede renset `tillegg` etter denne. */
-  tilstand: TilleggTilstand;
-  tillegg: BekreftDagTillegg;
-  onEndre: (neste: BekreftDagTillegg) => void;
-}) {
-  const { t } = useTranslation();
+export function useTilleggKatalog(orgId: string): { harEquipment: boolean; varelagerProsjekter: string[] } {
   const [varelagerProsjekter, setVarelagerProsjekter] = useState<string[]>([]);
-  const [visMaskinVelger, setVisMaskinVelger] = useState(false);
-  const [maskinId, setMaskinId] = useState<string | null>(null);
-  const [visVare, setVisVare] = useState(false);
-
   useEffect(() => {
     let aktiv = true;
     void hentVarelagerProsjekterLokalt(orgId).then((ider) => {
@@ -67,7 +38,6 @@ export function BekreftDagTilleggSeksjon({
       aktiv = false;
     };
   }, [orgId]);
-
   const harEquipment = useMemo(() => {
     const db = hentDatabase();
     if (!db || !orgId) return false;
@@ -79,6 +49,50 @@ export function BekreftDagTilleggSeksjon({
         .all().length > 0
     );
   }, [orgId]);
+  return { harEquipment, varelagerProsjekter };
+}
+
+/**
+ * L3-D maskin og varer i `/timer/bekreft-dag` (spec § 3.5, ORDRE 31) —
+ * PRESISERING TILLEGG (Kenneth 2026-11-12): registreres på RADEN, som i
+ * prosjektkortet. Én blokk under hver arbeidsrad, også når dagen har én rad.
+ * Holdes i minnet til [Bekreft og lagre]; ingenting skrives herfra. Maskinens
+ * timer er som standard radens; lavere tillatt, høyere stopper.
+ */
+export function BekreftDagRadTillegg({
+  orgId,
+  userId,
+  projectId,
+  prosjektNavn,
+  dato,
+  byggeplassId,
+  radTimer,
+  grunnlag,
+  andreMaskiner,
+  katalog,
+  tillegg,
+  onEndre,
+}: {
+  orgId: string;
+  userId: string;
+  projectId: string;
+  prosjektNavn: string;
+  dato: string;
+  /** Radens effektive byggeplass — forhåndsvalg i vare-modalen. */
+  byggeplassId: string | null;
+  radTimer: number;
+  /** Datoens sedel (sum-vakten). */
+  grunnlag: VaktGrunnlag | null;
+  /** Maskiner på datoens andre rader — teller med i sum-vakten. */
+  andreMaskiner: TilleggMaskin[];
+  katalog: { harEquipment: boolean; varelagerProsjekter: string[] };
+  tillegg: BekreftDagTillegg;
+  onEndre: (neste: BekreftDagTillegg) => void;
+}) {
+  const { t } = useTranslation();
+  const [visMaskinVelger, setVisMaskinVelger] = useState(false);
+  const [maskinId, setMaskinId] = useState<string | null>(null);
+  const [visVare, setVisVare] = useState(false);
 
   // «Ført i dag» leses ved åpning (lokale linjer på eksisterende sedel).
   const lagredeIDag = useMemo(
@@ -86,60 +100,29 @@ export function BekreftDagTilleggSeksjon({
     [visVare, userId, projectId, dato],
   );
 
-  const synlig = tilleggSynlighet({ harEquipment, varelagerProsjektIder: varelagerProsjekter, projectId });
+  const synlig = tilleggSynlighet({
+    harEquipment: katalog.harEquipment,
+    varelagerProsjektIder: katalog.varelagerProsjekter,
+    projectId,
+  });
   if (!synlig.seksjon) return null;
 
-  if (tilstand.startSendt) {
-    return (
-      <View className="gap-1 rounded-lg border border-gray-200 bg-white p-3">
-        <Text className="text-sm font-semibold text-gray-900">{t("timer.bekreftDag.tillegg.tittel")}</Text>
-        <Text className="text-sm text-gray-600">{t("timer.bekreftDag.tillegg.startSendt")}</Text>
-      </View>
-    );
-  }
-
   return (
-    <View className="gap-2 rounded-lg border border-gray-200 bg-white p-3">
-      <Text className="text-sm font-semibold text-gray-900">{t("timer.bekreftDag.tillegg.tittel")}</Text>
-
-      {tillegg.maskiner.map((m) => {
-        const eq_ = finnEquipmentLokalt(m.vehicleId);
-        const navn = eq_
-          ? `${eq_.merke ?? ""} ${eq_.modell ?? ""}`.trim() || eq_.internNavn || m.vehicleId
-          : m.vehicleId;
-        return (
-          <TilleggLinje
-            key={m.lokalId}
-            tekst={`${navn} · ${m.timer.toLocaleString("nb-NO", { maximumFractionDigits: 2 })} t`}
-            merke={eq_?.kategori === "smautstyr" ? t("timer.bekreftDag.tillegg.redskap") : null}
-            onFjern={() =>
-              onEndre({ ...tillegg, maskiner: tillegg.maskiner.filter((x) => x.lokalId !== m.lokalId) })
-            }
-          />
-        );
-      })}
-      {tillegg.varer.map((v) => (
-        <TilleggLinje
-          key={v.lokalId}
-          tekst={`${v.vareNavn} · ${v.antall.toLocaleString("nb-NO", { maximumFractionDigits: 3 })} ${v.enhet}`}
-          merke={null}
-          onFjern={() => onEndre({ ...tillegg, varer: tillegg.varer.filter((x) => x.lokalId !== v.lokalId) })}
-        />
-      ))}
-
+    <View className="gap-1.5">
+      <TilleggLinjer tillegg={tillegg} onEndre={onEndre} />
       <View className="flex-row gap-2">
         {synlig.maskin ? (
           <Pressable
             onPress={() => setVisMaskinVelger(true)}
-            className="flex-1 items-center rounded-md border border-gray-300 py-2 active:bg-gray-100"
+            className="min-h-[36px] flex-1 items-center justify-center rounded-md border border-gray-300 active:bg-gray-100"
           >
             <Text className="text-sm font-medium text-gray-800">{t("timer.bekreftDag.tillegg.maskin")}</Text>
           </Pressable>
         ) : null}
-        {synlig.varer && tilstand.varerTillatt ? (
+        {synlig.varer ? (
           <Pressable
             onPress={() => setVisVare(true)}
-            className="flex-1 items-center rounded-md border border-gray-300 py-2 active:bg-gray-100"
+            className="min-h-[36px] flex-1 items-center justify-center rounded-md border border-gray-300 active:bg-gray-100"
           >
             <Text className="text-sm font-medium text-gray-800">{t("timer.bekreftDag.tillegg.varer")}</Text>
           </Pressable>
@@ -162,7 +145,8 @@ export function BekreftDagTilleggSeksjon({
       <MaskinTimerArk
         vehicleId={maskinId}
         grunnlag={grunnlag}
-        eksisterende={tillegg}
+        radTimer={radTimer}
+        eksisterende={[...andreMaskiner, ...tillegg.maskiner]}
         projectId={projectId}
         onLukk={() => setMaskinId(null)}
         onLeggTil={(timer) => {
@@ -199,6 +183,45 @@ export function BekreftDagTilleggSeksjon({
   );
 }
 
+/** Radens maskin- og varelinjer med fjern-knapp. Brukes også for linjer uten rad. */
+export function TilleggLinjer({
+  tillegg,
+  onEndre,
+}: {
+  tillegg: BekreftDagTillegg;
+  onEndre: (neste: BekreftDagTillegg) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {tillegg.maskiner.map((m) => {
+        const eq_ = finnEquipmentLokalt(m.vehicleId);
+        const navn = eq_
+          ? `${eq_.merke ?? ""} ${eq_.modell ?? ""}`.trim() || eq_.internNavn || m.vehicleId
+          : m.vehicleId;
+        return (
+          <TilleggLinje
+            key={m.lokalId}
+            tekst={`${navn} · ${formaterTimer(m.timer)} t`}
+            merke={eq_?.kategori === "smautstyr" ? t("timer.bekreftDag.tillegg.redskap") : null}
+            onFjern={() =>
+              onEndre({ ...tillegg, maskiner: tillegg.maskiner.filter((x) => x.lokalId !== m.lokalId) })
+            }
+          />
+        );
+      })}
+      {tillegg.varer.map((v) => (
+        <TilleggLinje
+          key={v.lokalId}
+          tekst={`${v.vareNavn} · ${v.antall.toLocaleString("nb-NO", { maximumFractionDigits: 3 })} ${v.enhet}`}
+          merke={null}
+          onFjern={() => onEndre({ ...tillegg, varer: tillegg.varer.filter((x) => x.lokalId !== v.lokalId) })}
+        />
+      ))}
+    </>
+  );
+}
+
 function TilleggLinje({ tekst, merke, onFjern }: { tekst: string; merke: string | null; onFjern: () => void }) {
   const { t } = useTranslation();
   return (
@@ -216,11 +239,17 @@ function TilleggLinje({ tekst, merke, onFjern }: { tekst: string; merke: string 
   );
 }
 
-/** Maskintimer for valgt maskin (uten mengde/enhet — ORDRE 34). Samme vakt som
- *  Bekreft — [Legg til] stenges ved brudd. */
+function formaterTimer(timer: number): string {
+  return timer.toLocaleString("nb-NO", { maximumFractionDigits: 2 });
+}
+
+/** Maskintimer for valgt maskin (uten mengde/enhet — ORDRE 34). Standard =
+ *  radens timer; lavere tillatt, høyere ikke (TILLEGG 2026-11-12). Samme vakt
+ *  som Bekreft — [Legg til] stenges ved brudd. */
 function MaskinTimerArk({
   vehicleId,
   grunnlag,
+  radTimer,
   eksisterende,
   projectId,
   onLukk,
@@ -228,7 +257,9 @@ function MaskinTimerArk({
 }: {
   vehicleId: string | null;
   grunnlag: VaktGrunnlag | null;
-  eksisterende: BekreftDagTillegg;
+  radTimer: number;
+  /** Datoens øvrige maskiner (andre rader + denne). */
+  eksisterende: TilleggMaskin[];
   projectId: string;
   onLukk: () => void;
   onLeggTil: (timer: number) => void;
@@ -237,16 +268,14 @@ function MaskinTimerArk({
   const [tekst, setTekst] = useState("");
   useEffect(() => {
     if (!vehicleId) return;
-    setTekst("");
-  }, [vehicleId]);
+    setTekst(formaterTimer(radTimer));
+  }, [vehicleId, radTimer]);
   const timer = Number(tekst.replace(",", "."));
   const gyldig = Number.isFinite(timer) && timer > 0;
+  const ny = nyTilleggMaskin({ lokalId: "ny", projectId, vehicleId: vehicleId ?? "", timer });
+  const overRad = gyldig && maskinerOverRad(radTimer, [ny]).length > 0;
   const brudd =
-    gyldig &&
-    maskinBruddForTillegg(grunnlag, [
-      ...eksisterende.maskiner,
-      nyTilleggMaskin({ lokalId: "ny", projectId, vehicleId: vehicleId ?? "", timer }),
-    ]).length > 0;
+    gyldig && (overRad || maskinBruddForTillegg(grunnlag, [...eksisterende, ny]).length > 0);
 
   return (
     <Modal visible={vehicleId != null} transparent animationType="fade" onRequestClose={onLukk}>
@@ -264,7 +293,13 @@ function MaskinTimerArk({
             autoFocus
             className={`rounded-lg border px-3 py-2 text-base ${brudd ? "border-red-400 bg-red-50" : "border-gray-300"}`}
           />
-          {brudd ? <Text className="text-xs text-red-700">{t("timer.maskin.overstigerArbeid")}</Text> : null}
+          {brudd ? (
+            <Text className="text-xs text-red-700">
+              {overRad
+                ? t("timer.bekreftDag.tillegg.overRad", { timer: formaterTimer(radTimer) })
+                : t("timer.maskin.overstigerArbeid")}
+            </Text>
+          ) : null}
           <View className="flex-row gap-2">
             <Pressable onPress={onLukk} className="flex-1 items-center rounded-lg border border-gray-300 py-2.5">
               <Text className="text-sm font-medium text-gray-800">{t("handling.avbryt")}</Text>

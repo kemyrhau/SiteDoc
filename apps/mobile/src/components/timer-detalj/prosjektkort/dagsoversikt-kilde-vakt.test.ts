@@ -164,7 +164,11 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
 
   it("🔴 flytt: byggeplass lagres som kortets lagrede verdi (arv = null)", () => {
     expect(flyttBlokk(OVERSIKT)).toContain("byggeplassId: lagretByggeplassForKort(til, sedelKontekst)");
-    expect(flyttBlokk(OVERSIKT)).toContain("flyttTimerRad(db(), k, flytt.rad, maal)");
+    // TILLEGG 2026-11-12: timer-raden flyttes via flyttKort med radens innhold
+    // (koblet maskin + varer følger); flyttKort lagrer lagretByggeplassForKort
+    // (kortHele.test.ts). Negativkontroll: gammel direkte flyttTimerRad er borte.
+    expect(flyttBlokk(OVERSIKT)).toContain("radInnhold({ rad: flytt.rad, maskinRader, varer })");
+    expect(flyttBlokk(OVERSIKT)).not.toContain("flyttTimerRad(db(), k, flytt.rad, maal)");
   });
 
   it("🔴 flytt av synket vare: server først, lokal kun ved suksess; pending/avvist kun lokalt", () => {

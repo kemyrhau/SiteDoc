@@ -1,5 +1,6 @@
 import { kortNokkel } from "../lib/prosjektkortMobil";
 import type { Dagsforslag, DagsforslagDag } from "./dagsforslag";
+import { radTilleggNokkel } from "./bekreftDagTillegg";
 
 /**
  * ORDRE 36b (revidert plan § 5): «Hva gjorde du i dag?» pr. KORT
@@ -86,6 +87,12 @@ export type BeskrivelseRad = {
   kortNokkel: string;
   fraTid: string | null;
   tilTid: string | null;
+  /** PRESISERING TILLEGG: nøkkelen maskin/vare på raden holdes under (`radTilleggNokkel`). */
+  tilleggNokkel: string | null;
+  dato: string;
+  timer: number;
+  /** Radens effektive byggeplass (raden, ellers datoens) — forhåndsvalg for varer. */
+  byggeplassId: string | null;
 };
 
 /** Arbeidsradene (timer > 0) pr. kort på åpne datoer, i forslagets rekkefølge. */
@@ -99,7 +106,18 @@ export function arbeidsraderPerKort(forslag: Dagsforslag): Map<string, Beskrivel
       const nokkel = radBeskrivelseNokkel(d, r);
       const k = radKortNokkel(r, d);
       const kn = kort.find((x) => kortNokkelFraKort(x) === k)?.nokkel ?? r.projectId;
-      if (nokkel) ut.get(kn)?.push({ nokkel, kortNokkel: kn, fraTid: r.fraTid, tilTid: r.tilTid });
+      if (nokkel) {
+        ut.get(kn)?.push({
+          nokkel,
+          kortNokkel: kn,
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+          tilleggNokkel: radTilleggNokkel(d.dato, r),
+          dato: d.dato,
+          timer: r.timer,
+          byggeplassId: r.byggeplassId ?? d.byggeplassId,
+        });
+      }
     }
   }
   return ut;

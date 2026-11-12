@@ -47,6 +47,7 @@ import {
   erIkkeFunnet,
   kortInnhold,
   kortUtfallTekst,
+  radInnhold,
   slettKort,
   vareFinnesPaaServer,
   type KortDag,
@@ -605,5 +606,56 @@ describe("kildevakter — kortskjermen", () => {
     expect(flytt).toMatch(/if \(!pushet\) return \{ utfall: "delvis" \};/);
     const slett = kilde.slice(kilde.indexOf("export async function slettKort"), kilde.indexOf("export function slettKortLokalt"));
     expect(slett.indexOf("await server.slettVare")).toBeLessThan(slett.indexOf("slettKortLokalt("));
+  });
+});
+
+describe("TILLEGG 2026-11-12 regel 1 — flytt av ÉN rad tar med maskiner og varer", () => {
+  /** Rad r1 (p1·bp1) med koblet maskin og koblet vare; rad r2 på samme kort med egen vare; ukoblet vare. */
+  function toRader() {
+    const r1 = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: 6, mengde: null, enhet: null }]);
+    const r2 = leggTilTimerRad(db(), K, { ...felt, fraTid: "15:00", tilTid: "17:00", timer: 2 }, []);
+    const m1 = maskinAlle()[0].id;
+    lagVare("v-r1", "p1", "bp1", "pending");
+    lagVare("v-r1s", "p1", "bp1", "synced");
+    lagVare("v-r2", "p1", "bp1", "pending");
+    lagVare("v-fri", "p1", "bp1", "pending");
+    db().update(vareforbrukLocal).set({ sheetTimerId: r1, antall: 3.5 }).where(eq(vareforbrukLocal.id, "v-r1")).run();
+    db().update(vareforbrukLocal).set({ sheetTimerId: r1 }).where(eq(vareforbrukLocal.id, "v-r1s")).run();
+    db().update(vareforbrukLocal).set({ sheetTimerId: r2 }).where(eq(vareforbrukLocal.id, "v-r2")).run();
+    return { r1, r2, m1 };
+  }
+  const varerMedRad = () =>
+    db()
+      .select()
+      .from(vareforbrukLocal)
+      .all()
+      .map((v) => ({ id: v.id, projectId: v.projectId, byggeplassId: v.byggeplassId, externalCostObjectId: v.externalCostObjectId, syncStatus: v.syncStatus, sheetTimerId: v.sheetTimerId }));
+
+  it("flytt av rad til B: koblet maskin og varer (lokal + synket) følger, timer og mengde uendret", async () => {
+    const { r1, r2, m1 } = toRader();
+    const flyttVare = vi.fn(async () => {});
+    const innhold = radInnhold({ rad: timerRad(r1)!, maskinRader: maskinAlle(), varer: varerMedRad() });
+    expect(innhold.maskin.map((m) => m.id)).toEqual([m1]);
+    expect(innhold.varer.map((v) => v.id).sort()).toEqual(["v-r1", "v-r1s"]);
+    const u = await flyttKort(db(), dagFor(), innhold, A, TIL, { erPaaNettet: true, pushSedel: async () => true, flyttVare });
+    expect(u).toEqual({ utfall: "ok" });
+    const nokkel = { projectId: "p2", externalCostObjectId: "eco2" };
+    expect(timerRad(r1)).toMatchObject({ ...nokkel, timer: felt.timer });
+    expect(maskin(m1)).toMatchObject({ ...nokkel, sheetTimerId: r1, timer: 6 });
+    expect(vare("v-r1")).toMatchObject({ ...nokkel, sheetTimerId: r1, antall: 3.5, enhet: "t" });
+    expect(vare("v-r1s")).toMatchObject({ ...nokkel, sheetTimerId: r1, antall: 2 });
+    expect(flyttVare).toHaveBeenCalledTimes(1);
+    // Negativkontroll: nabo-raden og dens vare, og den ukoblede varen, blir der de er.
+    expect(timerRad(r2)).toMatchObject({ projectId: "p1", byggeplassId: "bp1", externalCostObjectId: null });
+    expect(vare("v-r2")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+    expect(vare("v-fri")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+  });
+
+  it("negativkontroll: uten varer i innholdet (gammel timer-flytt) blir varene stående — det er det radInnhold retter", async () => {
+    const { r1 } = toRader();
+    const innhold = { ...radInnhold({ rad: timerRad(r1)!, maskinRader: maskinAlle(), varer: varerMedRad() }), varer: [] };
+    expect(await flyttKort(db(), dagFor(), innhold, A, TIL, SERVER_OK)).toEqual({ utfall: "ok" });
+    expect(timerRad(r1)).toMatchObject({ projectId: "p2" });
+    expect(vare("v-r1")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
   });
 });

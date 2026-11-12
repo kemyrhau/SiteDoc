@@ -15,6 +15,8 @@ import { BekreftSlettModal } from "./BekreftSlettModal";
 export type RadHandlingerProps = {
   /** 36b § 5b: flytt raden til et annet kort (prosjekt, byggeplass, underprosjekt). */
   onFlytt?: () => void;
+  /** TILLEGG 2026-11-12: koblet maskin følger raden — merknad i stedet for egen flytt. */
+  folgerRaden?: boolean;
   onDelOpp: () => void;
   onSlett: () => void;
   matpause?: { avhuket: boolean; trukketMin: number; onToggle: () => void };
@@ -38,6 +40,11 @@ export function RadHandlinger({ handlinger }: { handlinger: RadHandlingerProps }
         <Pressable onPress={handlinger.onFlytt} className="min-h-[44px] justify-center active:bg-gray-50">
           <Text className="text-base text-gray-700">{t("timer.dagsoversikt.flyttRad")}</Text>
         </Pressable>
+      )}
+      {handlinger.folgerRaden && (
+        <View className="min-h-[44px] justify-center">
+          <Text className="text-sm text-gray-500">{t("timer.dagsoversikt.folgerRaden")}</Text>
+        </View>
       )}
       <Pressable onPress={handlinger.onDelOpp} className="min-h-[44px] justify-center active:bg-gray-50">
         <Text className="text-base text-gray-700">{t("timer.dagsoversikt.delOpp")}</Text>
