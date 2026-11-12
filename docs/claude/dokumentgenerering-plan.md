@@ -177,7 +177,8 @@ knappe-duplikatet på sjekklistedetalj.
 >
 > - ✅ **Lukket:** «attachments-bilder rendres dobbelt» — krevde `utskrift/**`, nå borte.
 > - ⚠️ **Ikke lukket (mobil):** bor i `packages/pdf/felt.ts` via `expo-print` → hører til
->   Fase 3, ikke F2.
+>   Fase 3, ikke F2. *(Historisk: mobil bruker `arkiv.rendr` siden 2026-08-24; `felt.ts`
+>   kjører nå kun på serveren.)*
 > - ⚠️ **To delvis lukket:** «skjuler uutfylte» + «print uten bilde-venting» bor i en
 >   **andre web-utskriftsflate planen overså** —
 >   `apps/web/src/app/dashbord/[prosjektId]/sjekklister/skriv-ut/page.tsx:111`
@@ -367,6 +368,13 @@ utskrift, og hver verifiseringsrunde koster et EAS-bygg.
 3. **Fjern.** Først da: `expo-print`-import, HTML-byggingen, base64-inliningen av
    vedlegg (`[id].tsx` ~513), og pakken fra `package.json`. Egen gate — ikke slett
    i samme commit som du legger til.
+
+> **Status 2026-11-12 (PDF-1, målt):** fase 1–3 er gjennomført for koden — mobil har kun
+> `arkiv.rendr`-veien (`app/sjekkliste/[id].tsx`, `EksportPdfForhandsvisning`); ingen
+> `expo-print`-import finnes i `apps/mobile/app` eller `src`. Pakken `expo-print` står
+> fortsatt i `apps/mobile/package.json` (ikke fjernet — pakkeendring krever egen ordre).
+> PDF-1 la til `medOppgaver`/`medVedlegg` på `arkiv.rendr` og henvisningslinjen
+> «Oppgaver: …» under felt med oppgaver — se [mobil.md § PDF-utskrift og deling](mobil.md).
 
 Ordre: `relay/inbox-mobil-arkivpdf.md`.
 

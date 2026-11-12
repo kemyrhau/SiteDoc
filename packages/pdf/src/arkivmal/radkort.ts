@@ -15,12 +15,12 @@
  * verifiseringslogg).
  */
 
-import { esc, fullBildeUrl, harMeningsfullLabel, bildeMerke, nyBildeTeller, samleBildeNr } from "../hjelpere";
+import { esc, fullBildeUrl, harMeningsfullLabel, bildeMerke, nyBildeTeller, samleBildeNr, byggOppgaveHenvisning, byggFilListe } from "../hjelpere";
 import type { BildeTeller } from "../hjelpere";
 import { byggDetaljUtsnitt } from "../tegning";
 import { skalarCelle, byggUtenforRaderBlokk } from "./repeater";
 import { normaliserRad } from "../typer";
-import type { TreObjekt, FeltVerdi, Vedlegg, Rad } from "../typer";
+import type { TreObjekt, FeltVerdi, Vedlegg, Rad, PdfConfig } from "../typer";
 
 /** Detaljutsnittet i radkortet — «kun visuell lokasjon» (~40 mm, Kenneth). 4:3 → ~30 mm høyt. */
 const RADKORT_UTSNITT_HOYDE = 113; // ~30 mm
@@ -112,7 +112,7 @@ function byggMerknad(felt: FeltVerdi | undefined): string {
     : "";
 }
 
-function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number, teller: BildeTeller): string {
+function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number, teller: BildeTeller, config?: PdfConfig): string {
   // Funn 2026-09-04: et felt i malen er navnløst MED VILJE — «_» er systemets
   // plassholder for tomt navn, ikke en datafeil. Sammenhengen over feltet
   // (f.eks. posisjon i tegning) bærer betydningen, så en etikett ville vært støy.
@@ -147,13 +147,20 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
     innhold =
       rader.length === 0
         ? `<div class="felt-verdi"><span class="tom">Ingen rader</span></div>`
-        : `<div class="ark-radkort-nested">${byggRadkortRader(barn, rader, dybde + 1, teller)}</div>`;
+        : `<div class="ark-radkort-nested">${byggRadkortRader(barn, rader, dybde + 1, teller, config)}</div>`;
   } else if (barn.type === "attachments") {
-    innhold = ""; // bildene rendres av bildeblokken under
+    // Bildene rendres av bildeblokken under. PDF-1: med «Ta med vedlegg» listes
+    // ikke-bilde-filene med navn (uten valget: som før, ingenting).
+    const filer = Array.isArray(felt?.verdi)
+      ? (felt!.verdi as unknown[]).filter(
+          (v): v is Vedlegg => !!v && typeof v === "object" && typeof (v as Vedlegg).filnavn === "string",
+        ).filter((v) => !erBilde(v))
+      : [];
+    innhold = byggFilListe(filer, config, "");
   } else {
     // Skalar/beregning/dato/status → label + verdi (delt med tabellformen) + ev. merknad.
     // Funn #4: skalar-grenen tapte kommentaren; nå appended via samme byggMerknad-kilde.
-    innhold = `<div class="felt-verdi">${skalarCelle(barn, felt)}</div>${byggMerknad(felt)}`;
+    innhold = `<div class="felt-verdi">${skalarCelle(barn, felt, config)}</div>${byggMerknad(felt)}`;
   }
 
   // Bilder som henger på DETTE feltet (per-felt vedlegg + attachments-verdi).
@@ -169,7 +176,7 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
 }
 
 /** Radkortene for én repeater (uten seksjonshode — kalles av byggRadkort + nesting). */
-function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number, teller: BildeTeller): string {
+function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number, teller: BildeTeller, config?: PdfConfig): string {
   const barn = objekt.children ?? [];
   return rader
     .map((rad, idx) => {
@@ -184,8 +191,10 @@ function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number, teller
         `<span class="ark-radkort-tittel">${esc(objekt.label)} — rad ${radnr}</span>` +
         markorTekst +
         `</div>`;
-      const felter = barn.map((b) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde, teller)).join("");
-      return `<div class="ark-radkort">${header}<div class="ark-radkort-kropp">${felter}</div></div>`;
+      const felter = barn.map((b) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde, teller, config)).join("");
+      // PDF-1: oppgaver opprettet fra denne raden — sist i kortet.
+      const henvisning = byggOppgaveHenvisning(`${objekt.id}:${rad._radId}`, config);
+      return `<div class="ark-radkort">${header}<div class="ark-radkort-kropp">${felter}${henvisning}</div></div>`;
     })
     .join("");
 }
@@ -197,14 +206,15 @@ export function byggRadkort(
   label: string,
   objektFelt?: FeltVerdi,
   teller: BildeTeller = nyBildeTeller(samleBildeNr([verdi, objektFelt])),
+  config?: PdfConfig,
 ): string {
   const rader = Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : [];
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk «Registrert utenfor rader» rett over kortene (tom → "").
   // Dokumenttelleren fortsetter fra feltene foran (ordre 2026-11-04 (2)).
-  const blokk = byggUtenforRaderBlokk(objektFelt, teller);
+  const blokk = byggUtenforRaderBlokk(objektFelt, teller, config);
   if (rader.length === 0) {
     return `${heading}${blokk.html}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
   }
-  return `${heading}${blokk.html}${byggRadkortRader(objekt, rader, 0, teller)}`;
+  return `${heading}${blokk.html}${byggRadkortRader(objekt, rader, 0, teller, config)}`;
 }

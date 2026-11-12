@@ -34,6 +34,9 @@ export const arkivRouter = router({
             }),
           )
           .min(1),
+        // PDF-1 (2026-11-12): utskriftsvalg. Utelatt = av → dagens utskrift + henvisningslinja.
+        medOppgaver: z.boolean().optional(),
+        medVedlegg: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -105,6 +108,27 @@ export const arkivRouter = router({
       const resultat = await rendrArkivPdf(ctx.prisma, dokRefs, {
         generertTekst: genererArkivStempel(naa),
         datoForFilnavn: naa.toISOString().slice(0, 10),
+        medOppgaver: input.medOppgaver ?? false,
+        medVedlegg: input.medVedlegg ?? false,
+        // PDF-1: oppgaver i henvisning/deler krever samme dokumenttilgang som lesing.
+        oppgaveTilgang: async (o) => {
+          try {
+            await verifiserDokumentTilgang(
+              ctx.userId,
+              o.projectId,
+              o.bestillerFaggruppeId,
+              o.utforerFaggruppeId,
+              o.domain,
+              o.id,
+              "task",
+              o.hmsSynlighet,
+            );
+            return true;
+          } catch (e) {
+            if (e instanceof TRPCError && e.code === "FORBIDDEN") return false;
+            throw e;
+          }
+        },
       });
 
       // Revisjonsspor: én activity-rad per dokument (hvem genererte hva).

@@ -96,6 +96,9 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .subtitle{font-size:10px;font-weight:600;color:${f.celletekst};margin-top:8px}
 .trafikklys{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
 .vedlegg-teller{font-size:9.5px;color:${f.graa};margin-top:4px}
+/* PDF-1: oppgave-henvisning under felt/rad («Oppgaver: BEF15 Tittel (Status) · …»). */
+.ark-oppgave-henvisning{font-size:9.5px;color:${f.navy};margin-top:3px}
+.ark-henvisning-rad td{border-bottom:1px solid ${f.radLinje};padding:0 8px 5px 32px}
 
 /* Repeater som tabell (arkiv-override) */
 .ark-repeater{width:100%;border-collapse:collapse;margin-top:6px;font-size:10.5px}

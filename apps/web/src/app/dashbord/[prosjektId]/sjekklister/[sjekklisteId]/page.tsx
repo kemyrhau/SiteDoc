@@ -260,6 +260,9 @@ export default function SjekklisteDetaljSide() {
   // Melding skilles bevisst: timeout → «prøv igjen» hjelper; manglende vedlegg →
   // dokumentet ER ufullstendig (last ned likevel, hullet er merket i PDF-en).
   const [eksportMelding, setEksportMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  // PDF-1: utskriftsvalg — oppgaver med (default), vedlegg ikke. Velges i nedtrekket ved knappen.
+  const [pdfValg, setPdfValg] = useState({ medOppgaver: true, medVedlegg: false });
+  const [visPdfValg, setVisPdfValg] = useState(false);
   const rendrArkiv = trpc.arkiv.rendr.useMutation({
     onSuccess: (res: {
       pdfBase64: string;
@@ -870,13 +873,13 @@ export default function SjekklisteDetaljSide() {
             dokumentTittel={sjekkliste.title ?? undefined}
           />
           )}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="relative ml-auto flex items-center">
             <button
               onClick={() =>
-                rendrArkiv.mutate({ dokumenter: [{ id: params.sjekklisteId, type: "sjekkliste" }] })
+                rendrArkiv.mutate({ dokumenter: [{ id: params.sjekklisteId, type: "sjekkliste" }], ...pdfValg })
               }
               disabled={rendrArkiv.isPending}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-l-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               title={t("handling.lastNedPdf")}
             >
               {rendrArkiv.isPending ? (
@@ -886,6 +889,39 @@ export default function SjekklisteDetaljSide() {
               )}
               <span className="hidden sm:inline">{t("handling.lastNedPdf")}</span>
             </button>
+            {/* PDF-1: split-del — hva PDF-en tar med. */}
+            <button
+              onClick={() => setVisPdfValg((v) => !v)}
+              className="flex items-center self-stretch rounded-r-lg border border-l-0 border-gray-300 px-1.5 text-gray-600 hover:bg-gray-50"
+              title={t("eksport.pdfValg")}
+              aria-label={t("eksport.pdfValg")}
+              aria-expanded={visPdfValg}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            {visPdfValg && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setVisPdfValg(false)} />
+                <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+                  {(
+                    [
+                      ["medOppgaver", t("eksport.medOppgaver")],
+                      ["medVedlegg", t("eksport.medVedlegg")],
+                    ] as const
+                  ).map(([nokkel, etikett]) => (
+                    <label key={nokkel} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={pdfValg[nokkel]}
+                        onChange={(e) => setPdfValg((v) => ({ ...v, [nokkel]: e.target.checked }))}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      {etikett}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

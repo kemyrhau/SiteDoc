@@ -261,6 +261,19 @@ export interface PdfConfig {
   signaturMedLogg?: boolean;
   /** Arkiv-only: tidspunktet PDF-en genereres (ISO) — vises i signatur-topplinja. */
   signaturGenerertTidspunkt?: string;
+  /**
+   * Arkiv-only (PDF-1, 2026-11-12): oppgave-henvisning per felt/rad. Nøkkel = feltets id,
+   * eller `${repeaterId}:${_radId}` for en repeater-rad (samme form som `Task.checklistFieldId`).
+   * Verdi = ferdig linje («Oppgaver: BEF15 Tittel (Status) · …») bygd av api-et. Vises ALLTID
+   * under feltet/raden som har oppgaver, uavhengig av «Ta med oppgaver».
+   */
+  oppgaveHenvisninger?: Record<string, string>;
+  /**
+   * Arkiv-only (PDF-1): «Ta med vedlegg» er på. Ikke-bilde-filer listes med filnavn i stedet
+   * for antall; PDF-er merkes med `bakerstMerke` (de legges bakerst i utskriften). Uten
+   * dette: dagens filteller.
+   */
+  vedleggFilnavn?: { bakerstMerke: string };
 }
 
 // ---------------------------------------------------------------------------

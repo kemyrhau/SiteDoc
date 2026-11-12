@@ -129,6 +129,8 @@ export default function SjekklisteUtfylling() {
   // closure i mutasjon-callbacken).
   const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
   const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
+  // PDF-1: utskriftsvalg — oppgaver med (default), vedlegg ikke. Gjelder både deling og forhåndsvisning.
+  const [pdfValg, settPdfValg] = useState({ medOppgaver: true, medVedlegg: false });
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
   // D (bygg 50): endringsloggen skal ikke stå åpen — sammenleggbar, lukket som standard.
@@ -607,7 +609,11 @@ export default function SjekklisteUtfylling() {
       dokumenter: { manglendeVedlegg: string[] }[];
     }) => {
       try {
-        const filsti = `${FileSystem.cacheDirectory}${res.filnavn}`;
+        // PDF-1: unik undermappe pr. render — samme filnavn etter et valgbytte ville ellers
+        // gitt samme filUri, og WebView-en laster ikke den nye PDF-en.
+        const mappe = `${FileSystem.cacheDirectory}pdf-${Date.now()}/`;
+        await FileSystem.makeDirectoryAsync(mappe, { intermediates: true });
+        const filsti = `${mappe}${res.filnavn}`;
         await FileSystem.writeAsStringAsync(filsti, res.pdfBase64, {
           encoding: FileSystem.EncodingType.Base64,
         });
@@ -649,8 +655,8 @@ export default function SjekklisteUtfylling() {
     }
     arkivIntensjonRef.current = "del";
     settEksportMelding(null);
-    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
-  }, [id, erPaaNettet, rendrArkiv, t]);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }], ...pdfValg });
+  }, [id, erPaaNettet, rendrArkiv, t, pdfValg]);
 
   // Funn E: forhåndsvis PDF-en i appen (kontroll før sending). Samme server-
   // render som deling, men vises i WebView i stedet for share sheet.
@@ -662,8 +668,23 @@ export default function SjekklisteUtfylling() {
     }
     arkivIntensjonRef.current = "forhandsvis";
     settEksportMelding(null);
-    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
-  }, [id, erPaaNettet, rendrArkiv, t]);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }], ...pdfValg });
+  }, [id, erPaaNettet, rendrArkiv, t, pdfValg]);
+
+  // PDF-1: valgbytte i forhåndsvisningen → render på nytt med de nye valgene.
+  const endrePdfValg = useCallback(
+    (nye: { medOppgaver: boolean; medVedlegg: boolean }) => {
+      if (!id) return;
+      settPdfValg(nye);
+      if (!erPaaNettet) {
+        settEksportMelding({ type: "advarsel", tekst: t("eksport.kreverTilkobling") });
+        return;
+      }
+      arkivIntensjonRef.current = "forhandsvis";
+      rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }], ...nye });
+    },
+    [id, erPaaNettet, rendrArkiv, t],
+  );
 
   // Del den allerede-forhåndsviste fila (samme PDF, ingen ny server-render).
   const delForhåndsvistPdf = useCallback(async () => {
@@ -1478,6 +1499,7 @@ export default function SjekklisteUtfylling() {
         tittel={sjekkliste?.title ?? t("eksport.forhandsvis")}
         onDel={delForhåndsvistPdf}
         onLukk={() => settPdfForhandsvisFil(null)}
+        valg={{ ...pdfValg, oppdaterer: rendrArkiv.isPending, onEndre: endrePdfValg }}
       />
 
       {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}

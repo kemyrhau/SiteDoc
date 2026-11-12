@@ -3224,7 +3224,7 @@ Hører naturlig sammen med fase 3 (arkivmal), der bildeblokkene uansett bygges.
 
 ### Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (målt 2026-08-13)
 
-> ⚠️ **IKKE lukket av F2 (2026-08-20).** Planen § F2 listet denne blant «fire saker F2 dekker», men F2 fjerner kun **web**-klient-utskriften. Denne saken bor i **mobil-stien** (`packages/pdf/src/felt.ts:131/152` via expo-print) og hører til **Fase 3 (mobil-device)** — dokgen rørte ingen mobil-filer. Meldt fra i stedet for lukket (per F2-ordrens gate).
+> ⚠️ **IKKE lukket av F2 (2026-08-20).** Planen § F2 listet denne blant «fire saker F2 dekker», men F2 fjerner kun **web**-klient-utskriften. Denne saken bor i **mobil-stien** (`packages/pdf/src/felt.ts:131/152` via expo-print — *historisk: mobil bruker `arkiv.rendr` siden 2026-08-24, så `felt.ts` kjører nå kun på serveren*) og hører til **Fase 3 (mobil-device)** — dokgen rørte ingen mobil-filer. Meldt fra i stedet for lukket (per F2-ordrens gate).
 
 **Oppfølger til web-funnet under.** `packages/pdf/src/felt.ts` viser «Ikke utfylt» for ~15 felttyper, men returnerer `""` — altså skjuler feltet — for to innholdsbærende typer:
 

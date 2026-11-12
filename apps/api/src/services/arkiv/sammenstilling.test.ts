@@ -52,6 +52,7 @@ function fakePrisma(): PrismaClient {
       ],
     },
     checklistChangeLog: { findMany: async () => [] },
+    task: { findMany: async () => [] }, // PDF-1: oppgaver fra sjekklista
     user: { findMany: async () => [] },
   } as unknown as PrismaClient;
 }
@@ -122,6 +123,7 @@ describe("byggSjekklisteArkivHtml — orkestrator", () => {
       project: { findUnique: async () => ({ name: "P", projectNumber: "1", primaryOrganization: null }) },
       documentTransfer: { findMany: async () => [] },
       checklistChangeLog: { findMany: async () => [] },
+      task: { findMany: async () => [] }, // PDF-1: oppgaver fra sjekklista
       user: { findMany: async () => [] },
     } as unknown as PrismaClient;
 
@@ -275,6 +277,7 @@ function prismaBetinget(
     project: { findUnique: async () => ({ name: "P", projectNumber: "1", primaryOrganization: null }) },
     documentTransfer: { findMany: async () => [] },
     checklistChangeLog: { findMany: async () => [] },
+    task: { findMany: async () => [] }, // PDF-1: oppgaver fra sjekklista
     user: { findMany: async () => [] },
   } as unknown as PrismaClient;
 }
@@ -367,6 +370,7 @@ function prismaSjekklisteOmrade(omrade: { navn: string; type: string } | null): 
     project: { findUnique: async () => ({ name: "P", projectNumber: "1", primaryOrganization: null }) },
     documentTransfer: { findMany: async () => [] },
     checklistChangeLog: { findMany: async () => [] },
+    task: { findMany: async () => [] }, // PDF-1: oppgaver fra sjekklista
     user: { findMany: async () => [] },
   } as unknown as PrismaClient;
 }
@@ -445,5 +449,59 @@ describe("arkiv-lokasjon — områdenavn (steg 2b, begge dokumenttyper)", () => 
     });
     expect(r.html).toContain("Et definert område");
     expect(r.html).not.toContain("Grøft V2");
+  });
+});
+
+describe("byggSjekklisteArkivHtml — PDF-1 oppgaver og vedlegg", () => {
+  // Felt f1 med en PDF og en docx som vedlegg; to oppgaver på feltet, én fra annet prosjekt.
+  function prismaPdf1(): PrismaClient {
+    const base = fakePrisma() as unknown as Record<string, unknown>;
+    return {
+      ...base,
+      checklist: {
+        findUniqueOrThrow: async () => ({
+          ...(await (base.checklist as { findUniqueOrThrow: () => Promise<Record<string, unknown>> }).findUniqueOrThrow()),
+          data: {
+            f1: {
+              verdi: "ok",
+              kommentar: "",
+              vedlegg: [
+                { url: "/u/rapport.pdf", filnavn: "rapport.pdf", type: "fil" },
+                { url: "/u/notat.docx", filnavn: "notat.docx", type: "fil" },
+              ],
+            },
+          },
+          template: {
+            projectId: "p1", prefix: "BEF", enableChangeLog: false,
+            objects: [{ id: "f1", type: "text_field", label: "Kantstein", required: false, config: {}, sortOrder: 0, parentId: null }],
+          },
+        }),
+      },
+      task: {
+        findMany: async () => [
+          { id: "o1", number: 15, title: "Skjev kant", status: "sent", checklistFieldId: "f1", bestillerFaggruppeId: null, utforerFaggruppeId: null, bestillerFaggruppe: null, template: { projectId: "p1", prefix: "BEF", domain: "bygg", hmsSynlighet: null } },
+          { id: "o2", number: 16, title: "Mangler fuge", status: "draft", checklistFieldId: "f1", bestillerFaggruppeId: null, utforerFaggruppeId: null, bestillerFaggruppe: null, template: { projectId: "p1", prefix: "BEF", domain: "bygg", hmsSynlighet: null } },
+          { id: "fremmed", number: 99, title: "Fremmed", status: "sent", checklistFieldId: "f1", bestillerFaggruppeId: null, utforerFaggruppeId: null, bestillerFaggruppe: null, template: { projectId: "p-annet", prefix: "X", domain: "bygg", hmsSynlighet: null } },
+        ],
+      },
+    } as unknown as PrismaClient;
+  }
+
+  it("henvisningslinja vises UTEN valg; oppgave fra annet prosjekt aldri med; ingen PDF samles", async () => {
+    const r = await byggSjekklisteArkivHtml(prismaPdf1(), "c1", { hentBildeBytes: async () => null, generertTekst: "x" });
+    expect(r.html).toContain("Skjev kant");
+    expect(r.html).toContain("Mangler fuge");
+    expect(r.html).not.toContain("Fremmed");
+    expect(r.oppgaveIder).toEqual(["o1", "o2"]);
+    expect(r.pdfVedlegg).toEqual([]);
+    expect(r.html).not.toContain("notat.docx");
+  });
+
+  it("med vedlegg: filnavn i felt, PDF samles til bakerst; linja står fortsatt", async () => {
+    const r = await byggSjekklisteArkivHtml(prismaPdf1(), "c1", { hentBildeBytes: async () => null, generertTekst: "x", medVedlegg: true });
+    expect(r.html).toContain("Skjev kant");
+    expect(r.html).toContain("notat.docx");
+    expect(r.html).toContain("rapport.pdf");
+    expect(r.pdfVedlegg).toEqual([{ url: "/u/rapport.pdf", filnavn: "rapport.pdf" }]);
   });
 });
