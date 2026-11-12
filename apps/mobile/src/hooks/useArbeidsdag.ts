@@ -12,7 +12,7 @@ import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentOgCacheArbeidstidSvar } from "../services/arbeidstidSvarKatalog";
 import {
-  registrerBesok,
+  opprettArbeidsdagMedBesok,
   ryddGamleArbeidsdager,
 } from "../services/arbeidsdagBesok";
 import { trpc } from "../lib/trpc";
@@ -174,38 +174,18 @@ export function useArbeidsdag() {
       const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();
       const id = randomUUID();
-      db.insert(arbeidsdagLocal)
-        .values({
-          id,
-          userId: bruker.id,
-          dato: formatIsoDato(new Date()),
-          startAt: naaIso,
-          startLat: lat,
-          startLng: lng,
-          endAt: null,
-          endLat: null,
-          endLng: null,
-          status: "paagaar",
-          generertDagsseddelId: null,
-          oppmotestedId: oppm?.id ?? null,
-          oppmotestedNavn: oppm?.navn ?? null,
-          byggeplassId: bygg?.id ?? null,
-          byggeplassNavn: bygg?.navn ?? null,
-          sistEndretLokalt: Date.now(),
-        })
-        .run();
-      // L4-A (§ 2.2): besøk 1 = dagens startsted (null = utenfor kjent byggeplass).
-      registrerBesok(db, {
-        id: randomUUID(),
-        arbeidsdagId: id,
-        sted: {
-          id: bygg?.id ?? null,
-          navn: bygg?.navn ?? null,
-          projectId: bygg?.projectId ?? null,
-        },
-        ankomstAt: naaIso,
-        kilde: "start_dag",
+      // L4-A (§ 2.2): arbeidsdag-raden + besøk 1 (dagens startsted) skrives sammen.
+      opprettArbeidsdagMedBesok(db, {
+        id,
+        besokId: randomUUID(),
+        userId: bruker.id,
+        dato: formatIsoDato(new Date()),
         naaIso,
+        naaMs: Date.now(),
+        lat,
+        lng,
+        oppmotested: oppm,
+        bygg,
       });
       setAktivDag({
         id,

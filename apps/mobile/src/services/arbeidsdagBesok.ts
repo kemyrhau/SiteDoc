@@ -191,6 +191,135 @@ export function lagS1Vakt(): S1Vakt {
 }
 
 /**
+ * K14: ÉN vakt pr. app-prosess (modulnivå). Kortet bruker denne — aldri en
+ * vakt pr. montering, ellers nullstilles 10-min-grensen og [Nei]-dempingen
+ * hver gang Timer-fanen monteres på nytt (vakt-test).
+ */
+export const s1Prosessvakt: S1Vakt = lagS1Vakt();
+
+/** Det S1 trenger av expo-location — injiseres så stien kan testes. */
+export type S1Posisjon = {
+  getForegroundPermissionsAsync(): Promise<{ status: string }>;
+  getCurrentPositionAsync(o: {
+    accuracy: number;
+  }): Promise<{ coords: { latitude: number; longitude: number } }>;
+  Accuracy: { Balanced: number };
+};
+
+/**
+ * S1: stille posisjonsmåling. Spør ALDRI om tillatelse (den ble gitt ved
+ * Start dag) — kun `getForegroundPermissionsAsync`. Mangler tillatelsen, eller
+ * GPS feiler → null (banneret uteblir).
+ */
+export async function maalStille(
+  loc: S1Posisjon,
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const perm = await loc.getForegroundPermissionsAsync();
+    if (perm.status !== "granted") return null;
+    const pos = await loc.getCurrentPositionAsync({ accuracy: loc.Accuracy.Balanced });
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * S1-måling (§ 2.1/2.3), felles for montering og AppState→active: vakten
+ * (10 min) slipper gjennom → mål stille → gjenkjenn byggeplass → forslag.
+ * Uten firma måles ikke (og vakten forbrukes ikke). `undefined` = ikke målt
+ * (banneret røres ikke); `null` = målt uten forslag (banneret skjules).
+ */
+export async function kjorS1(p: {
+  vakt: S1Vakt;
+  orgId: string;
+  naaMs: () => number;
+  maal: () => Promise<{ lat: number; lng: number } | null>;
+  identifiser: (lat: number, lng: number, orgId: string) => BesokSted | null;
+  siste: () => Pick<Besok, "byggeplassId"> | null;
+}): Promise<BesokSted | null | undefined> {
+  if (!p.orgId || !p.vakt.skalMaale(p.naaMs())) return undefined;
+  const pos = await p.maal();
+  if (!pos) return undefined;
+  const treff = p.identifiser(pos.lat, pos.lng, p.orgId);
+  return s1Forslag(treff, p.siste(), p.vakt, p.naaMs());
+}
+
+/**
+ * S2 (§ 2.4): valget i «Ankommet hvor?». Samme byggeplass som siste besøk →
+ * ingen ny rad (false). Ellers et `manuell`-besøk (true).
+ */
+export function velgS2Besok(
+  db: LokalDb,
+  p: { id: string; arbeidsdagId: string; sted: BesokSted; naaIso: string },
+): boolean {
+  const siste = sisteBesok(db, p.arbeidsdagId);
+  if (siste && p.sted.id === siste.byggeplassId) return false;
+  registrerBesok(db, {
+    id: p.id,
+    arbeidsdagId: p.arbeidsdagId,
+    sted: p.sted,
+    ankomstAt: p.naaIso,
+    kilde: "manuell",
+    naaIso: p.naaIso,
+  });
+  return true;
+}
+
+/**
+ * Start dag (§ 2.2): arbeidsdag-raden og besøk 1 (`start_dag`) skrives
+ * sammen. Besøket = dagens startsted (`id: null` = utenfor kjent byggeplass).
+ */
+export function opprettArbeidsdagMedBesok(
+  db: LokalDb,
+  p: {
+    id: string;
+    besokId: string;
+    userId: string;
+    dato: string;
+    naaIso: string;
+    naaMs: number;
+    lat: number | null;
+    lng: number | null;
+    oppmotested: { id: string; navn: string } | null;
+    bygg: BesokSted | null;
+  },
+): void {
+  db.insert(arbeidsdagLocal)
+    .values({
+      id: p.id,
+      userId: p.userId,
+      dato: p.dato,
+      startAt: p.naaIso,
+      startLat: p.lat,
+      startLng: p.lng,
+      endAt: null,
+      endLat: null,
+      endLng: null,
+      status: "paagaar",
+      generertDagsseddelId: null,
+      oppmotestedId: p.oppmotested?.id ?? null,
+      oppmotestedNavn: p.oppmotested?.navn ?? null,
+      byggeplassId: p.bygg?.id ?? null,
+      byggeplassNavn: p.bygg?.navn ?? null,
+      sistEndretLokalt: p.naaMs,
+    })
+    .run();
+  registrerBesok(db, {
+    id: p.besokId,
+    arbeidsdagId: p.id,
+    sted: {
+      id: p.bygg?.id ?? null,
+      navn: p.bygg?.navn ?? null,
+      projectId: p.bygg?.projectId ?? null,
+    },
+    ankomstAt: p.naaIso,
+    kilde: "start_dag",
+    naaIso: p.naaIso,
+  });
+}
+
+/**
  * S1: skal banneret vises for dette GPS-treffet? Kun når treffet er en annen
  * byggeplass enn siste besøk og ikke er dempet. Ingen treff → stille.
  */
