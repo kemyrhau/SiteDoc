@@ -30,7 +30,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
-> ✅ **V22 MERGET 2026-11-12** (`ca757d92`, Kontrollør GODKJENT `1c3a7258`): «Prosjekt · Byggeplass» på web-timeraden — på develop, **ikke deployet til test**. Gate-notater: klikk/låst variant mangler test (M6/M7 overlevde); mobil `byggeplassForNyRad` (`nyTimerRad.ts:126`) mangler ett-klikk-regelen web har — egen beslutning.
+> ✅ **V22 MERGET 2026-11-12** (`ca757d92`, Kontrollør GODKJENT `1c3a7258`): «Prosjekt · Byggeplass» på web-timeraden — **på test `51a39d8d`** (deployet av Kenneth 2026-11-12), verifisert innlogget av orkestrator på to sendte sedler: sekundærlinja vises per rad (også ulike byggeplasser på samme sedel), tittellinja uten byggeplass, maskinraden beholder « · navn», låst sedel gir `<p>` (ikke knapp). Arvet/ingen/klikk ikke sett på test (ingen åpen sedel; sett lokalt). Gate-notater: klikk/låst variant mangler test (M6/M7 overlevde); mobil `byggeplassForNyRad` (`nyTimerRad.ts:126`) mangler ett-klikk-regelen web har — egen beslutning.
 > 🟡 **V20-oppfølger (åpen):** V21 (overtidsforslag manuell) VEDTATT
 > 2026-10-06. **Specen finnes** ([timer-pause-en-kilde-spec.md](timer-pause-en-kilde-spec.md) § 8) — neste steg er kodeordre, ikke ny spec (målt 2026-11-12). V21 ikke bestilt. L3-B venter på den.
 
@@ -38,7 +38,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 **Eneste skribent: orkestrator.** 🔴 **Føres FRA MÅLING — `git log origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-11-12 · develop `8f05a30d` · test kjører `8f05a30d` (SØK-2 + DL-2 + ERRFMT, deployet av Kenneth 2026-11-11, verifisert i nettleser av orkestrator) + OTA testkanal (ikke verifisert på telefon).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
+**Sist ført: 2026-11-12 · develop `51a39d8d` · test kjører `51a39d8d` (web: V22 + SØK-2 + DL-2 + ERRFMT; V22 deployet av Kenneth 2026-11-12) · OTA testkanal `8f05a30d` (OTA `01a1ccc`, sett på Kenneths telefon 2026-11-12).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
