@@ -1135,6 +1135,12 @@ export type AnvendDagsforslagResultat = {
   ikkeAnsatt: boolean;
   /** Minst én arbeidsrad ble hoppet over fordi lønnsarten manglet. */
   manglerLonnsart: boolean;
+  /** DEL 5 a: datoer der sedelen ble skrevet (ny eller redigerbar). */
+  lagredeDatoer: string[];
+  /** DEL 5 a: datoer som var sendt/godkjent og derfor ikke ble skrevet. */
+  blokkerteDatoer: string[];
+  /** DEL 5 a: sedelen for første skrevne dato (navigasjonsmål ved delvis lagring). */
+  forsteLagredeSheetId: string | null;
 };
 
 /**
@@ -1142,7 +1148,8 @@ export type AnvendDagsforslagResultat = {
  * injiserbar så rekkefølge-logikken kan testes uten React Native.
  *
  * 🔴 KJERNEN I H7: dagen markeres `avsluttet` KUN når skrivingen lyktes
- * (`suksess`/`playVek`/`forKort` — sedel finnes, ingenting tapt). To utfall
+ * (`suksess`/`delvisSendt`/`playVek`/`forKort` — sedel finnes, det skrevne er
+ * lagret; `delvisSendt` sier i tillegg hvilke datoer som var sendt). To utfall
  * holder dagen ÅPEN så GPS-økta ikke går tapt:
  *  - `blokkertSendt`: sedelen er alt sendt → økta kunne ikke appendes. Timene
  *    reddes ved at lederen returnerer sedelen (→ draft → appendbar).
@@ -1157,6 +1164,7 @@ export type AnvendDagsforslagResultat = {
 export type SluttDagHandling =
   | { type: "suksess"; sheetId: string }
   | { type: "blokkertSendt"; sheetId: string }
+  | { type: "delvisSendt"; sheetId: string; lagret: string[]; blokkert: string[] }
   | { type: "playVek"; sheetId: string; intervaller: string }
   | { type: "forKort"; sheetId: string; preFylt: boolean }
   | { type: "manglerLonnsart"; sheetId: string }
@@ -1168,6 +1176,7 @@ export type SluttDagHandling =
 export function skalMarkereAvsluttet(handling: SluttDagHandling): boolean {
   return (
     handling.type === "suksess" ||
+    handling.type === "delvisSendt" ||
     handling.type === "playVek" ||
     handling.type === "forKort" ||
     handling.type === "manglerLonnsart"
@@ -1193,7 +1202,17 @@ export function avgjorSluttDagHandling(
       ? { type: "prosjektUkjent" }
       : { type: "kildeManglet" };
   }
-  // UF-1: dagens sedel var alt sendt → den nye økten ble ikke lagt til.
+  // DEL 5 a: noe ble skrevet og noe var sendt → egen, sann melding; økten
+  // lukkes (det skrevne er lagret). Den lagrede sedelen er navigasjonsmålet.
+  if (resultat.blokkertSendt && resultat.lagredeDatoer.length > 0) {
+    return {
+      type: "delvisSendt",
+      sheetId: resultat.forsteLagredeSheetId ?? sheetId,
+      lagret: resultat.lagredeDatoer,
+      blokkert: resultat.blokkerteDatoer,
+    };
+  }
+  // UF-1: alt var sendt → ingenting ble skrevet, økten står åpen.
   if (resultat.blokkertSendt) return { type: "blokkertSendt", sheetId };
   // 1b: play vek for manuelt førte timer — si HVA som vek.
   if (resultat.vekForOverlapp.length > 0) {

@@ -16,6 +16,8 @@ import {
   type AnvendDagsforslagResultat,
 } from "./dagsforslag";
 import { anvendDagsforslag } from "./dagsforslagAnvend";
+import { nesteLokaleMidnatt } from "./dagsegment";
+import { lokalIsoDato } from "./dato";
 import type { MaskinBrudd } from "@sitedoc/shared";
 import {
   maskinBruddForTillegg,
@@ -240,4 +242,70 @@ export function erTomtForslag(forslag: Dagsforslag): boolean {
   return forslag.datoer
     .filter((d) => !d.blokkert)
     .every((d) => d.rader.length === 0 && d.raderDroppetUtenLonnsart === 0);
+}
+
+/** DEL 5 a: datoene i forslaget som alt er sendt/godkjent (lagres ikke). */
+export function sendteDatoer(forslag: Dagsforslag): string[] {
+  return forslag.datoer.filter((d) => d.blokkert).map((d) => d.dato);
+}
+
+/**
+ * DEL 5 a/c: hvorfor «Bekreft og lagre» ikke kan lagre nå — null = kan lagre.
+ * Hver sperre har en melding i skjermen (`timer.bekreftDag.sperre.<årsak>`);
+ * ingen sperre er stille. Pågående lagring (dobbelttrykk) er ikke en sperre —
+ * knappen viser da laste-indikator.
+ */
+export type BekreftSperre =
+  | "ikkeKlar"
+  | "ikkeInnlogget"
+  | "dagLukket"
+  | "manglerProsjekt"
+  | "sluttIkkeGodkjent";
+
+export function bekreftSperre(a: {
+  harDb: boolean;
+  harBeregnet: boolean;
+  harBruker: boolean;
+  manuell: boolean;
+  harArbeidsdagId: boolean;
+  manglerProsjekt: boolean;
+  /** c: sluttiden er anslått og ikke godkjent eller rettet av arbeideren. */
+  sluttIkkeGodkjent: boolean;
+}): BekreftSperre | null {
+  if (!a.harDb) return "ikkeKlar";
+  if (!a.harBruker) return "ikkeInnlogget";
+  if (!a.manuell && !a.harArbeidsdagId) return "dagLukket";
+  if (!a.harBeregnet) return "dagLukket";
+  if (a.manglerProsjekt) return "manglerProsjekt";
+  if (a.sluttIkkeGodkjent) return "sluttIkkeGodkjent";
+  return null;
+}
+
+/**
+ * DEL 5 c: arbeiderens retting av en anslått sluttid — `steg` minutter fram
+ * eller tilbake. Aldri før start + 15 min; kan gå forbi midnatt (arbeideren
+ * velger det selv — d kapper bare estimatet).
+ */
+export function stegSluttIso(gjeldendeIso: string, startIso: string, stegMin: number): string {
+  const min = new Date(startIso).getTime() + 15 * 60_000;
+  return new Date(Math.max(min, new Date(gjeldendeIso).getTime() + stegMin * 60_000)).toISOString();
+}
+
+/**
+ * DEL 5 c/d: sluttiden slik Bekreft dag viser den. Nøyaktig midnatt etter
+ * start vises som «24:00» på startdatoen (estimatet er kappet der); en slutt
+ * på en senere dato bærer datoen, så det er tydelig at timer føres der.
+ */
+export function visSluttTid(
+  startIso: string,
+  sluttIso: string,
+): { tid: string; dato: string | null } {
+  const slutt = new Date(sluttIso);
+  const hhmm = `${String(slutt.getHours()).padStart(2, "0")}:${String(slutt.getMinutes()).padStart(2, "0")}`;
+  if (slutt.getTime() === nesteLokaleMidnatt(startIso).getTime()) {
+    return { tid: "24:00", dato: null };
+  }
+  const startDato = lokalIsoDato(new Date(startIso));
+  const sluttDato = lokalIsoDato(slutt);
+  return { tid: hhmm, dato: sluttDato === startDato ? null : sluttDato };
 }
