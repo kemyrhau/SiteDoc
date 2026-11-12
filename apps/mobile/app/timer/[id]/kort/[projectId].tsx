@@ -21,6 +21,8 @@ import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-deta
 import type { VisVarelinje } from "../../../../src/components/timer-detalj/VareforbrukLesListe";
 import { ProsjektkortDagsoversikt } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
 import { finnProsjektLokalt } from "../../../../src/services/prosjektKatalog";
+import { prosjektVisningsnavn } from "../../../../src/utils/prosjektNavn";
+import { hentDagsnormLokalt } from "../../../../src/services/arbeidstidSvarKatalog";
 import { finnUnderprosjektLokalt, hentReiseLonnsartId } from "../../../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../../../src/services/maskinKatalog";
 import { hentVarelagerProsjekterLokalt } from "../../../../src/services/vareKatalog";
@@ -250,11 +252,16 @@ export default function ProsjektkortSkjerm() {
     [vareQuery.data, lokaleVarer, projectId],
   );
 
+  // V21 (Kenneth 2026-11-12): dagsnormen til rad-modalens overtidsforslag —
+  // samme svar-cache som samlesida (`useProsjektkortSedel`), regner aldri.
+  const normTimer = useMemo(
+    () => (sedel ? hentDagsnormLokalt(sedel.organizationId, sedel.dato)?.dagsnorm ?? null : null),
+    [sedel],
+  );
+
   const prosjektNavn = useMemo(() => {
-    const p = finnProsjektLokalt(projectId);
-    if (!p) return projectId;
-    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
-  }, [projectId]);
+    return prosjektVisningsnavn(finnProsjektLokalt(projectId), t("timer.detalj.ukjentProsjekt"));
+  }, [projectId, t]);
 
   const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
     const db = hentDatabase();
@@ -316,7 +323,7 @@ export default function ProsjektkortSkjerm() {
   const sperretOffline = !erPaaNettet && innhold.varer.some(vareFinnesPaaServer);
   const kortNavn = (k: typeof valg) =>
     [
-      finnProsjektLokalt(k.projectId)?.name ?? k.projectId,
+      prosjektVisningsnavn(finnProsjektLokalt(k.projectId), t("timer.detalj.ukjentProsjekt")),
       k.byggeplassId ? byggeplassNavn(k.byggeplassId) ?? k.byggeplassId : t("timer.kortValg.utenByggeplass"),
       k.ecoId ? ecoNavn(k.ecoId) : null,
     ]
@@ -453,7 +460,7 @@ export default function ProsjektkortSkjerm() {
           reiseLonnsartId={reiseLonnsartId}
           harEquipmentCache={harEquipmentCache}
           varelagerProsjekter={varelagerProsjekter}
-          normTimer={null}
+          normTimer={normTimer}
           ramme={{
             fra: isoTidspunktTilHHMM(sedel.startAt),
             til: isoTidspunktTilHHMM(sedel.endAt),
@@ -517,10 +524,7 @@ export default function ProsjektkortSkjerm() {
           organizationId={sedel.organizationId}
           modus={{ type: "flytt", fra: valg, heleKortet: true }}
           sedel={kontekst}
-          prosjektNavn={(id) => {
-            const p = finnProsjektLokalt(id);
-            return p ? `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}` : id;
-          }}
+          prosjektNavn={(id) => prosjektVisningsnavn(finnProsjektLokalt(id), t("timer.detalj.ukjentProsjekt"))}
           feil={kortFeil}
           merknad={(til) =>
             kortNokkel(til) !== kortNokkel(valg) &&

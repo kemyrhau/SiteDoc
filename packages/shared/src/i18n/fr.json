@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Approuvé {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Description",
   "timer.dagsoversikt.mangler": "Manquante",
-  "timer.dagsoversikt.overtid": "heures supplémentaires {{prosent}} % de {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Heures supplémentaires {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Diviser la ligne",
   "timer.dagsoversikt.slettRad": "Supprimer la ligne",
   "timer.dagsoversikt.slettRadBekreft": "Supprimer la ligne ?",

@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Aprobat {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Descriere",
   "timer.dagsoversikt.mangler": "Lipsă",
-  "timer.dagsoversikt.overtid": "prelungiri {{prosent}} % din {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Prelungiri {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Împărțiți rândul",
   "timer.dagsoversikt.slettRad": "Ștergeți rândul",
   "timer.dagsoversikt.slettRadBekreft": "Ștergeți rândul?",

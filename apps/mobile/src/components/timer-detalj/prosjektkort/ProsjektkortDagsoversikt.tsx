@@ -409,13 +409,14 @@ export function ProsjektkortDagsoversikt({
               </Verdi>
             ))
           )}
+          {/* Kenneth 2026-11-12: overtidsrader rendres som alle andre rader
+              (fra–til · timer), med overtidsnivået til slutt. */}
           {linjer.overtid.map((r) => (
             <Verdi key={r.id} gra onPress={() => aapneTimer(valg, r.id)}>
-              {t("timer.dagsoversikt.overtid", {
-                prosent: r.overtidsnivaa,
-                fra: r.fraTid ?? "–",
-                timer: formatKortTall(r.timer),
-              })}
+              {tid(r)}
+              {t2(r.timer)}
+              {" · "}
+              {t("timer.dagsoversikt.overtid", { prosent: r.overtidsnivaa })}
             </Verdi>
           ))}
         </Linje>
@@ -626,6 +627,41 @@ export function ProsjektkortDagsoversikt({
           tvungetValg={null}
           sedelByggeplassId={sedel.byggeplassId ?? null}
           fokusBeskrivelse={timerModal.fokusBeskrivelse}
+          // V21 (Kenneth 2026-11-12): overtidsforslaget krever begge — samme
+          // som dagskortets TimerSeksjon. Normal-delen lagres via onLagre,
+          // overtid-delen som ny rad på samme kort (ingen koblet maskin).
+          dagsnormTimer={normTimer}
+          onLeggTilOvertidDel={(
+            projectId,
+            _byggeplassId,
+            lonnsartId,
+            aktivitetId,
+            timer,
+            externalCostObjectId,
+            fraTid,
+            tilTid,
+            beskrivelse,
+            pauseMin,
+          ) => {
+            leggTilTimerRad(
+              db(),
+              k,
+              {
+                projectId,
+                byggeplassId: lagretByggeplassForKort(timerModal.kort, sedelKontekst),
+                lonnsartId,
+                aktivitetId,
+                timer,
+                externalCostObjectId,
+                fraTid,
+                tilTid,
+                beskrivelse,
+                pauseMin,
+              },
+              null,
+            );
+            onEndret();
+          }}
           handlinger={
             redigert
               ? {

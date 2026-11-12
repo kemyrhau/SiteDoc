@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Schváleno {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Popis",
   "timer.dagsoversikt.mangler": "Chybějící",
-  "timer.dagsoversikt.overtid": "přesčas {{prosent}} % od {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Přesčasy {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Rozdělte řádek",
   "timer.dagsoversikt.slettRad": "Smazat řádek",
   "timer.dagsoversikt.slettRadBekreft": "Smazat řádek?",

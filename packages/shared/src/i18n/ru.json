@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Одобрено {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Описание",
   "timer.dagsoversikt.mangler": "Отсутствующий",
-  "timer.dagsoversikt.overtid": "сверхурочная работа {{prosent}} % от {{fra}} · {{timer}} ч",
+  "timer.dagsoversikt.overtid": "Сверхурочные {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Разделить строку",
   "timer.dagsoversikt.slettRad": "Удалить строку",
   "timer.dagsoversikt.slettRadBekreft": "Удалить строку?",

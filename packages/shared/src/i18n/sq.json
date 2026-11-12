@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Miratuar {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Përshkrimi",
   "timer.dagsoversikt.mangler": "Mungon",
-  "timer.dagsoversikt.overtid": "jashtë orarit {{prosent}} % nga {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "jashtë orarit {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Ndani rreshtin",
   "timer.dagsoversikt.slettRad": "Fshini rreshtin",
   "timer.dagsoversikt.slettRadBekreft": "Të fshihet rreshti?",

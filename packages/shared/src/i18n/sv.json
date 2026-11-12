@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Godkänd {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Beskrivning",
   "timer.dagsoversikt.mangler": "Saknad",
-  "timer.dagsoversikt.overtid": "övertid {{prosent}} % från {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Övertid {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Dela raden",
   "timer.dagsoversikt.slettRad": "Ta bort raden",
   "timer.dagsoversikt.slettRadBekreft": "Ta bort raden?",

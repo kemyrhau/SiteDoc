@@ -18,6 +18,7 @@ import {
 import { trpc } from "../../../src/lib/trpc";
 import { useFirma } from "../../../src/kontekst/FirmaKontekst";
 import { formatNorskDato } from "../../../src/utils/dato";
+import { prosjektVisningsnavn } from "../../../src/utils/prosjektNavn";
 
 type AttesteringRad = {
   id: string;
@@ -192,10 +193,7 @@ function SedelKort({
         )}
         {rad.prosjekt && (
           <Text className="mt-0.5 text-xs text-gray-500" numberOfLines={1}>
-            {rad.prosjekt.projectNumber
-              ? `${rad.prosjekt.projectNumber} — `
-              : ""}
-            {rad.prosjekt.name}
+            {prosjektVisningsnavn(rad.prosjekt, t("timer.detalj.ukjentProsjekt"))}
           </Text>
         )}
         <Text className="mt-1 text-xs text-gray-500">

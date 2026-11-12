@@ -33,6 +33,7 @@ import {
 } from "../../../lib/prosjektkortMobil";
 import type { VisVarelinje } from "../VareforbrukLesListe";
 import { finnProsjektLokalt } from "../../../services/prosjektKatalog";
+import { prosjektVisningsnavn } from "../../../utils/prosjektNavn";
 import {
   hentDagsnormLokalt,
   hentOgCacheArbeidstidSvar,
@@ -527,10 +528,8 @@ export function useProsjektkortSedel(sheetId: string) {
     );
   }, []);
   const prosjektNavn = useCallback((projectId: string): string => {
-    const p = finnProsjektLokalt(projectId);
-    if (!p) return projectId;
-    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
-  }, []);
+    return prosjektVisningsnavn(finnProsjektLokalt(projectId), t("timer.detalj.ukjentProsjekt"));
+  }, [t]);
 
   // Sedel-nivå byggeplass: navn + mismatch (GPS-byggeplass under et annet prosjekt).
   const byggeplassInfo = useMemo(() => {
@@ -554,9 +553,9 @@ export function useProsjektkortSedel(sheetId: string) {
             ? {
                 byggeplass: navn ?? sedel.byggeplassId,
                 gpsProsjekt:
-                  finnProsjektLokalt(bp.projectId)?.name ?? bp.projectId,
+                  prosjektVisningsnavn(finnProsjektLokalt(bp.projectId), t("timer.detalj.ukjentProsjekt")),
                 sedelProsjekt:
-                  finnProsjektLokalt(sedel.projectId)?.name ?? sedel.projectId,
+                  prosjektVisningsnavn(finnProsjektLokalt(sedel.projectId), t("timer.detalj.ukjentProsjekt")),
               }
             : null;
         return { navn, mismatch };
@@ -571,7 +570,7 @@ export function useProsjektkortSedel(sheetId: string) {
       return { navn: perProsjekt[0].navn, mismatch: null };
     }
     return { navn: null, mismatch: null };
-  }, [sedel]);
+  }, [sedel, t]);
 
   // Skriv valgt byggeplass på sedelen (null = «Ingen byggeplass») + merk pending.
   const velgByggeplass = useCallback(

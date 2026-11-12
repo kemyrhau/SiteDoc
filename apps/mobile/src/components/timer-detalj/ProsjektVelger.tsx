@@ -103,11 +103,6 @@ export function ProsjektVelgerModal({
             >
               <View className="flex-1">
                 <Text className="text-base text-gray-900">{item.name}</Text>
-                {item.projectNumber && (
-                  <Text className="text-xs text-gray-500">
-                    {item.projectNumber}
-                  </Text>
-                )}
                 {item.id === forslagId && (
                   <View className="mt-0.5 flex-row items-center gap-1">
                     <MapPin size={12} color="#1e40af" />
@@ -135,26 +130,22 @@ export function ProsjektVelgerModal({
 
 /**
  * Trykkbar prosjekt-felt-knapp til bruk i edit-modaler.
- * Viser valgt prosjekts navn + nummer. Åpner ProsjektVelgerModal ved trykk.
+ * Viser valgt prosjekts navn (aldri nummeret — Kenneth 2026-11-12). Åpner ProsjektVelgerModal ved trykk.
  */
 export function ProsjektFelt({
   prosjektNavn,
-  prosjektNummer,
   onTrykk,
   laast = false,
 }: {
   prosjektNavn: string | null;
-  prosjektNummer: string | null;
   onTrykk: () => void;
   /** Prosjektkortet: prosjektet hører til kortet og kan ikke byttes (16c). */
   laast?: boolean;
 }) {
   const { t } = useTranslation();
-  // U2: tynn wrapper rundt VelgerFelt — formaterer prosjekt-strengen, deler
-  // chevron-affordance med de øvrige velgerne.
-  const verdi = prosjektNavn
-    ? `${prosjektNummer ? prosjektNummer + " — " : ""}${prosjektNavn}`
-    : null;
+  // U2: tynn wrapper rundt VelgerFelt — deler chevron-affordance med de
+  // øvrige velgerne. null = ingen valgt → placeholder.
+  const verdi = prosjektNavn;
   return (
     <VelgerFelt
       verdi={verdi}

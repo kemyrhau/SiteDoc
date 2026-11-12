@@ -777,7 +777,6 @@ export function MaskinRadModal({
             </Text>
             <ProsjektFelt
               prosjektNavn={valgtProsjekt?.name ?? null}
-              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektVelger(true)}
               laast={!!kortLaas}
             />

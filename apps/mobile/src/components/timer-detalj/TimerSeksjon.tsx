@@ -107,6 +107,7 @@ import {
 } from "../../services/nyTimerRad";
 import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import { formatNorskDato } from "../../utils/dato";
+import { prosjektVisningsnavn } from "../../utils/prosjektNavn";
 
 
 interface TimerSeksjonProps {
@@ -1865,7 +1866,6 @@ export function TimerRadModal({
             </Text>
             <ProsjektFelt
               prosjektNavn={valgtProsjekt?.name ?? null}
-              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektByggeplassVelger(true)}
               laast={kortVisning.prosjektLaast}
             />
@@ -2708,9 +2708,7 @@ export function ProsjektByggeplassVelgerModal({
               {t("timer.felt.prosjekt")}
             </Text>
             <Text className="text-base text-gray-900">
-              {valgtProsjekt
-                ? `${valgtProsjekt.projectNumber ? valgtProsjekt.projectNumber + " — " : ""}${valgtProsjekt.name}`
-                : lokaltProjectId}
+              {prosjektVisningsnavn(valgtProsjekt, t("timer.detalj.ukjentProsjekt"))}
             </Text>
           </View>
           {!kortVisning.prosjektLaast && (
@@ -2756,11 +2754,6 @@ export function ProsjektByggeplassVelgerModal({
                 >
                   <View className="flex-1">
                     <Text className="text-base text-gray-900">{item.name}</Text>
-                    {item.projectNumber && (
-                      <Text className="text-xs text-gray-500">
-                        {item.projectNumber}
-                      </Text>
-                    )}
                   </View>
                   {item.id === lokaltProjectId && (
                     <Check size={18} color="#1e40af" />

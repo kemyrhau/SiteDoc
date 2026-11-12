@@ -704,6 +704,13 @@ Kenneth GO 2026-11-07 (§ 7: ingen backfill, valg kun når relevant (K3), SQLite
 - **Bekreft dag — beskrivelse pr. kort** (`apps/mobile/src/utils/beskrivelseKort.ts`): `kortMedArbeid` gir ett felt pr. (prosjekt, effektiv byggeplass) med arbeid; underprosjekt finnes ikke i Bekreft dag. Nøkkelen i `beskrivelsePerKort` er `projectId` når prosjektet har ett kort (identisk med 36a), ellers kortnøkkelen. `manglerBeskrivelse` sperrer pr. nøkkel (`BekreftDagHandling.nokler`); `anvendDagsforslag` skriver tekst fra radens eget kort (`beskrivelseForRad`). Feltet viser byggeplassnavnet når flere kort deler prosjekt; bytte av dagens byggeplass tar med teksten. Tester: `bekreftDagBeskrivelse.test.ts` § ORDRE 36b.
 - **Dagskortet urørt:** vakt `dagskort-isolert-vakt.test.ts` § «ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet» (optional props, `REISE_VILKAAR`, `UTLEGG_CHIPS`, kontekst-default `false`, negativkontroll). Flytt-vakter: `dagsoversikt-kilde-vakt.test.ts`.
 
+#### Kenneths telefontest 2026-11-12 — del 1–4 (🟡 `fix/timer-mobil-kenneth-1211`, ⚠️ venter Kontrollør-gate)
+
+- **V21 i kortvisningen:** `ProsjektkortDagsoversikt` sender `dagsnormTimer={normTimer}` og `onLeggTilOvertidDel` til `TimerRadModal` som `TimerSeksjon` gjør. Overtid-delen lagres som ny rad på samme kort (`leggTilTimerRad`, byggeplass via `lagretByggeplassForKort`). `kort/[projectId].tsx` henter normen fra svar-cachen (`hentDagsnormLokalt`) i stedet for `null`. Kenneths dag (07–15 normal, 15–17 OT 50 %, 17–18 normal, norm 7,5) gir forslaget OT 50 % for 17–18.
+- **Prosjektnavn på mobil — én kilde:** `prosjektVisningsnavn` (`apps/mobile/src/utils/prosjektNavn.ts`) returnerer bare navnet. Prosjektnummeret («SD-nummer») vises ikke på noen mobilflate (kort, overskrifter, prosjektvelgere, attestering); `prosjektNummer`-propen på `ProsjektFelt` er fjernet. Nummeret er fortsatt søkbart i `timer-detalj/ProsjektVelger.tsx` og `TimerSeksjon.tsx`. Ukjent prosjekt (ikke i lokal cache) vises som «Ukjent prosjekt» (`timer.detalj.ukjentProsjekt`), aldri som ID — også i GPS-mismatch-meldingene. Web er uendret.
+- **Overtidsrader med fra–til:** overtidslinja i dagsoversikten rendres som arbeidslinja: «15:00–17:00 · 2,0 t · Overtid 50 %» (`timer.dagsoversikt.overtid` = «Overtid {{prosent}} %»).
+- **Test:** `prosjektkort/kenneth-1211-vakt.test.ts` (rene tester + kildevakter; negativkontroll per del).
+
 ### «+» og «+ Nytt prosjektkort» → Bekreft dag uten GPS (ORDRE 36c) — 🟡 `feat/pluss-manuell-36c` (2026-11-08, ikke merget)
 
 Kenneth: «Den åpner samme skjerm som «Start dag», bare uten GPS.» Prosjektkortet er primærenheten: P1 og P4 oppretter aldri en ny dagsseddel når datoen alt har en.

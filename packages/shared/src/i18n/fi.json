@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Hyväksytty {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Kuvaus",
   "timer.dagsoversikt.mangler": "Puuttuu",
-  "timer.dagsoversikt.overtid": "ylityöt {{prosent}} % alkaen {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Ylityöt {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Jaa rivi",
   "timer.dagsoversikt.slettRad": "Poista rivi",
   "timer.dagsoversikt.slettRadBekreft": "Poistetaanko rivi?",

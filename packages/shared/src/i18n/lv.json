@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Apstiprināts {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Apraksts",
   "timer.dagsoversikt.mangler": "Trūkst",
-  "timer.dagsoversikt.overtid": "virsstundas {{prosent}} % no {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "virsstundas {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Sadaliet rindu",
   "timer.dagsoversikt.slettRad": "Dzēst rindu",
   "timer.dagsoversikt.slettRadBekreft": "Vai dzēst rindu?",

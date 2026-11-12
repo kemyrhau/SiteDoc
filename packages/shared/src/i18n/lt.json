@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Patvirtinta {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Aprašymas",
   "timer.dagsoversikt.mangler": "Trūksta",
-  "timer.dagsoversikt.overtid": "viršvalandžiai {{prosent}} % nuo {{fra}} · {{timer}} val",
+  "timer.dagsoversikt.overtid": "Viršvalandžiai {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Padalinkite eilutę",
   "timer.dagsoversikt.slettRad": "Ištrinkite eilutę",
   "timer.dagsoversikt.slettRadBekreft": "Ištrinti eilutę?",

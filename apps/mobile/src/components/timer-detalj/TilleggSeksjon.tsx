@@ -597,7 +597,6 @@ function TilleggRadModal({
             </Text>
             <ProsjektFelt
               prosjektNavn={valgtProsjekt?.name ?? null}
-              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektVelger(true)}
             />
           </View>
