@@ -49,6 +49,24 @@ describe("PDF-1 henvisningslinje", () => {
   });
 });
 
+describe("PDF-1T henvisningslinja escapes (G7)", () => {
+  // Oppgavetittelen er brukerinnhold og går rett inn i pdf-render-HTML-en.
+  const ONDSINNET = "Oppgaver: BEF-001 <img src=x onerror=alert(1)> (Sendt)";
+  const ESCAPET = "&lt;img src=x onerror=alert(1)&gt;";
+  const ond: PdfConfig = { bildeBaseUrl: "/api", oppgaveHenvisninger: { f1: ONDSINNET, "rep:r2": ONDSINNET } };
+  const rader = [{ _radId: "r1", felter: { a: fv("én") } }, { _radId: "r2", felter: { a: fv("to") } }];
+
+  it.each([
+    ["felt", () => byggInnhold([FELT], { f1: fv("ok") }, ond)],
+    ["tabell-repeater", () => byggRepeaterTabell(TAB, rader, "Kontroll", undefined, undefined, ond)],
+    ["radkort-repeater", () => byggRadkort(RIK, rader, "Befaring", undefined, undefined, ond)],
+  ])("%s: teksten escapes, taggen kommer aldri med", (_navn, bygg) => {
+    const html = bygg();
+    expect(html).toContain(ESCAPET);
+    expect(html).not.toMatch(/<img[^>]*onerror/i);
+  });
+});
+
 describe("PDF-1 vedlegg med filnavn", () => {
   const pdf = { id: "d", type: "fil", url: "/uploads/x/rapport.pdf", filnavn: "rapport.pdf" };
   const docx = { id: "e", type: "fil", url: "/uploads/x/notat.docx", filnavn: "notat.docx" };
