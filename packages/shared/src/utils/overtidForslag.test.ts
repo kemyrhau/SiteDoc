@@ -116,6 +116,17 @@ describe("foreslaOvertidSplitt", () => {
     ).toEqual([]);
   });
 
+  it("dagsnorm 0 → ingen linje", () => {
+    expect(
+      foreslaOvertidSplitt(
+        [rad("a", "07:00", "16:00", { pauseMin: 30 })],
+        0,
+        LONNSARTER,
+        PAUSE,
+      ),
+    ).toEqual([]);
+  });
+
   it("reise er aldri overtid og teller ikke mot normen", () => {
     // 7,5 t arbeid (= norm) + 2 t reise etterpå → ingen forslag.
     const f = foreslaOvertidSplitt(

@@ -2855,7 +2855,8 @@ function TimerRadDialog({
         ...felles,
         lonnsartId: f.overtidLonnsart.id,
         ...f.overtid,
-        byggeplassId: rad ? rad.byggeplassId : bp.byggeplassId,
+        // Ny rad: dialogens byggeplass (uendret = radens egen) — samme som normal-delen.
+        byggeplassId: bp.byggeplassId,
       });
     } catch {
       // Hook-nivå onError har satt feilen; vis det som faktisk ble lagret.
