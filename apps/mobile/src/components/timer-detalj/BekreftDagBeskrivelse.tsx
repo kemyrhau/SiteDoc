@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from "react";
+import { forwardRef, useEffect, useState, type ReactNode } from "react";
 import { View, Text, Pressable, TextInput, Keyboard, Platform, type LayoutChangeEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import { harForslag, vekslForslag } from "../../utils/forslagVeksling";
@@ -36,6 +36,21 @@ export const BekreftDagBeskrivelse = forwardRef<
     onFeltY?: (y: number) => void;
     /** Innholdshøyden endret seg (ny linje) mens feltet har fokus. */
     onInnholdEndret?: () => void;
+    /**
+     * Radform (Kenneth 2026-11-12, beslutning 2): kortets arbeidsrader. Med to
+     * eller flere får hver rad sitt eget felt; tomt felt = kortteksten
+     * (vist som plassholder), skrevet tekst overstyrer for den raden.
+     */
+    rader?: { nokkel: string; tid: string; verdi: string; visFeil: boolean }[];
+    onEndreRad?: (nokkel: string, tekst: string) => void;
+    radRef?: (nokkel: string, felt: TextInput | null) => void;
+    /** Radfeltets y innenfor kortet — sperren ruller hit (beslutning 3). */
+    onRadY?: (nokkel: string, y: number) => void;
+    /**
+     * PRESISERING TILLEGG (2026-11-12): maskin og varer under hver arbeidsrad —
+     * også når kortet har én rad (da under kortets felt).
+     */
+    radTillegg?: (nokkel: string) => ReactNode;
   }
 >(function BekreftDagBeskrivelse(
   {
@@ -50,6 +65,11 @@ export const BekreftDagBeskrivelse = forwardRef<
     onFokus,
     onFeltY,
     onInnholdEndret,
+    rader = [],
+    onEndreRad,
+    radRef,
+    onRadY,
+    radTillegg,
   },
   ref,
 ) {
@@ -122,6 +142,36 @@ export const BekreftDagBeskrivelse = forwardRef<
           {t("timer.bekreftDag.beskrivelse.paakrevd", { prosjekt: prosjektNavn ?? "" })}
         </Text>
       ) : null}
+      {rader.length === 1 ? radTillegg?.(rader[0]!.nokkel) : null}
+      {rader.length >= 2
+        ? rader.map((r) => (
+            <View key={r.nokkel} className="gap-1" onLayout={(e) => onRadY?.(r.nokkel, e.nativeEvent.layout.y)}>
+              <Text className="text-sm text-gray-500" style={{ fontVariant: ["tabular-nums"] }}>
+                {r.tid}
+              </Text>
+              <TextInput
+                ref={(felt) => radRef?.(r.nokkel, felt)}
+                value={r.verdi}
+                onChangeText={(tekst) => onEndreRad?.(r.nokkel, tekst)}
+                inputAccessoryViewID={Platform.OS === "ios" ? tastaturId : undefined}
+                onFocus={() => setHarFokus(true)}
+                onBlur={() => setHarFokus(false)}
+                placeholder={verdi.trim() || t("timer.bekreftDag.beskrivelse.radPlassholder")}
+                multiline
+                textAlignVertical="top"
+                className={`max-h-[100px] min-h-[44px] rounded-lg border px-3 py-2 text-base text-gray-900 ${
+                  r.visFeil ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
+                }`}
+              />
+              {r.visFeil ? (
+                <Text className="text-xs text-red-700">
+                  {t("timer.bekreftDag.beskrivelse.radMangler", { rad: r.tid })}
+                </Text>
+              ) : null}
+              {radTillegg?.(r.nokkel)}
+            </View>
+          ))
+        : null}
     </View>
   );
 });

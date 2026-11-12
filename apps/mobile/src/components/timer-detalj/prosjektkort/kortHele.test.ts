@@ -47,6 +47,7 @@ import {
   erIkkeFunnet,
   kortInnhold,
   kortUtfallTekst,
+  radInnhold,
   slettKort,
   vareFinnesPaaServer,
   type KortDag,
@@ -178,13 +179,13 @@ const innholdFor = (kort: KortValg, sedel = SEDEL) =>
 
 /** Kort A (p1 · bp1) med arbeid + koblet maskin + fri maskin + reise + vare; nabokort i p2; tillegg og utlegg. */
 function byggDag() {
-  const a = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+  const a = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: felt.timer, mengde: null, enhet: null }]);
   db().update(sheetTimerLocal).set({ serverVersjon: "ver-7" }).where(eq(sheetTimerLocal.id, a)).run();
   const koblet = maskinAlle()[0].id;
   db().update(sheetMachineLocal).set({ timer: 5 }).where(eq(sheetMachineLocal.id, koblet)).run(); // under arbeid → ingen brudd
   lagMaskin("m-a", "p1", "bp1", 1);
-  const reise = leggTilTimerRad(db(), K, { ...felt, lonnsartId: "l-reise", timer: 1 }, null);
-  const nabo = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null, beskrivelse: "Støping" }, null);
+  const reise = leggTilTimerRad(db(), K, { ...felt, lonnsartId: "l-reise", timer: 1 }, []);
+  const nabo = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null, beskrivelse: "Støping" }, []);
   lagMaskin("m-b", "p2", null, 1);
   lagVare("v-a", "p1", "bp1", "pending");
   lagVare("v-b", "p2", null, "synced");
@@ -311,9 +312,9 @@ describe("slettKort", () => {
 
   it("arvende rad (null byggeplass) teller som kortets når sedelens byggeplass hører til prosjektet", async () => {
     const sedel: SedelKortKontekst = { projectId: "p1", byggeplass: { id: "bpA", projectId: "p1" } };
-    const arver = leggTilTimerRad(db(), K, { ...felt, byggeplassId: null }, null);
-    const eksplisitt = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bpA" }, null);
-    const annet = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null }, null);
+    const arver = leggTilTimerRad(db(), K, { ...felt, byggeplassId: null }, []);
+    const eksplisitt = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bpA" }, []);
+    const annet = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null }, []);
     const kortA: KortValg = { projectId: "p1", byggeplassId: "bpA", ecoId: null };
     expect(innholdFor(kortA, sedel).timer.map((r) => r.id).sort()).toEqual([arver, eksplisitt].sort());
     expect(await slettKort(db(), dagFor(sedel), innholdFor(kortA, sedel), SERVER_OK)).toEqual({ utfall: "ok" });
@@ -321,9 +322,9 @@ describe("slettKort", () => {
   });
 
   it("negativkontroll: nøkkelen er hele kortet — samme prosjekt, annen byggeplass eller underprosjekt hører ikke med", () => {
-    const a = leggTilTimerRad(db(), K, felt, null);
-    leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp2" }, null);
-    leggTilTimerRad(db(), K, { ...felt, externalCostObjectId: "eco1" }, null);
+    const a = leggTilTimerRad(db(), K, felt, []);
+    leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp2" }, []);
+    leggTilTimerRad(db(), K, { ...felt, externalCostObjectId: "eco1" }, []);
     expect(innholdFor(A).timer.map((r) => r.id)).toEqual([a]);
   });
 
@@ -340,7 +341,7 @@ describe("slettKort", () => {
   });
 
   it("nytt maskinbrudd stopper uten skriving; brudd som fantes fra før blokkerer ikke", async () => {
-    const a = leggTilTimerRad(db(), K, felt, null);
+    const a = leggTilTimerRad(db(), K, felt, []);
     lagMaskin("m-c", "p1", "bp2", 6); // annet kort, samme bøtte (p1) — dekkes bare av kort A
     expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toEqual({ utfall: "brudd" });
     expect(timerRad(a)).toBeDefined();
@@ -451,7 +452,7 @@ describe("flyttKort", () => {
   });
 
   it("vare 2 av 3 avvises → vare 1 flyttet, 2 og 3 urørt; nytt forsøk på fra-kortet flytter resten", async () => {
-    const a = leggTilTimerRad(db(), K, felt, null);
+    const a = leggTilTimerRad(db(), K, felt, []);
     for (const id of ["v-1", "v-2", "v-3"]) lagVare(id, "p1", "bp1", "synced");
     const kall: string[] = [];
     const u = await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, {
@@ -493,7 +494,7 @@ describe("flyttKort", () => {
   });
 
   it("nytt maskinbrudd stopper uten skriving", async () => {
-    const a = leggTilTimerRad(db(), K, felt, null);
+    const a = leggTilTimerRad(db(), K, felt, []);
     lagMaskin("m-c", "p1", "bp2", 6);
     expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, SERVER_OK)).toEqual({ utfall: "brudd" });
     expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
@@ -509,8 +510,8 @@ describe("flyttKort", () => {
   it("«Uten byggeplass» løfter sedelens arv: andre arvende rader beholder byggeplassen eksplisitt", async () => {
     db().update(dagsseddelLocal).set({ byggeplassId: "bpA" }).where(eq(dagsseddelLocal.id, "s1")).run();
     const sedel: SedelKortKontekst = { projectId: "p1", byggeplass: { id: "bpA", projectId: "p1" } };
-    const a = leggTilTimerRad(db(), K, felt, null);
-    const arver = leggTilTimerRad(db(), K, { ...felt, byggeplassId: null, beskrivelse: "Annet" }, null);
+    const a = leggTilTimerRad(db(), K, felt, []);
+    const arver = leggTilTimerRad(db(), K, { ...felt, byggeplassId: null, beskrivelse: "Annet" }, []);
     const uten: KortValg = { projectId: "p1", byggeplassId: null, ecoId: null };
     expect(await flyttKort(db(), dagFor(sedel), innholdFor(A, sedel), A, uten, SERVER_OK)).toEqual({ utfall: "ok" });
     expect(timerRad(a).byggeplassId).toBeNull();
@@ -605,5 +606,56 @@ describe("kildevakter — kortskjermen", () => {
     expect(flytt).toMatch(/if \(!pushet\) return \{ utfall: "delvis" \};/);
     const slett = kilde.slice(kilde.indexOf("export async function slettKort"), kilde.indexOf("export function slettKortLokalt"));
     expect(slett.indexOf("await server.slettVare")).toBeLessThan(slett.indexOf("slettKortLokalt("));
+  });
+});
+
+describe("TILLEGG 2026-11-12 regel 1 — flytt av ÉN rad tar med maskiner og varer", () => {
+  /** Rad r1 (p1·bp1) med koblet maskin og koblet vare; rad r2 på samme kort med egen vare; ukoblet vare. */
+  function toRader() {
+    const r1 = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: 6, mengde: null, enhet: null }]);
+    const r2 = leggTilTimerRad(db(), K, { ...felt, fraTid: "15:00", tilTid: "17:00", timer: 2 }, []);
+    const m1 = maskinAlle()[0].id;
+    lagVare("v-r1", "p1", "bp1", "pending");
+    lagVare("v-r1s", "p1", "bp1", "synced");
+    lagVare("v-r2", "p1", "bp1", "pending");
+    lagVare("v-fri", "p1", "bp1", "pending");
+    db().update(vareforbrukLocal).set({ sheetTimerId: r1, antall: 3.5 }).where(eq(vareforbrukLocal.id, "v-r1")).run();
+    db().update(vareforbrukLocal).set({ sheetTimerId: r1 }).where(eq(vareforbrukLocal.id, "v-r1s")).run();
+    db().update(vareforbrukLocal).set({ sheetTimerId: r2 }).where(eq(vareforbrukLocal.id, "v-r2")).run();
+    return { r1, r2, m1 };
+  }
+  const varerMedRad = () =>
+    db()
+      .select()
+      .from(vareforbrukLocal)
+      .all()
+      .map((v) => ({ id: v.id, projectId: v.projectId, byggeplassId: v.byggeplassId, externalCostObjectId: v.externalCostObjectId, syncStatus: v.syncStatus, sheetTimerId: v.sheetTimerId }));
+
+  it("flytt av rad til B: koblet maskin og varer (lokal + synket) følger, timer og mengde uendret", async () => {
+    const { r1, r2, m1 } = toRader();
+    const flyttVare = vi.fn(async () => {});
+    const innhold = radInnhold({ rad: timerRad(r1)!, maskinRader: maskinAlle(), varer: varerMedRad() });
+    expect(innhold.maskin.map((m) => m.id)).toEqual([m1]);
+    expect(innhold.varer.map((v) => v.id).sort()).toEqual(["v-r1", "v-r1s"]);
+    const u = await flyttKort(db(), dagFor(), innhold, A, TIL, { erPaaNettet: true, pushSedel: async () => true, flyttVare });
+    expect(u).toEqual({ utfall: "ok" });
+    const nokkel = { projectId: "p2", externalCostObjectId: "eco2" };
+    expect(timerRad(r1)).toMatchObject({ ...nokkel, timer: felt.timer });
+    expect(maskin(m1)).toMatchObject({ ...nokkel, sheetTimerId: r1, timer: 6 });
+    expect(vare("v-r1")).toMatchObject({ ...nokkel, sheetTimerId: r1, antall: 3.5, enhet: "t" });
+    expect(vare("v-r1s")).toMatchObject({ ...nokkel, sheetTimerId: r1, antall: 2 });
+    expect(flyttVare).toHaveBeenCalledTimes(1);
+    // Negativkontroll: nabo-raden og dens vare, og den ukoblede varen, blir der de er.
+    expect(timerRad(r2)).toMatchObject({ projectId: "p1", byggeplassId: "bp1", externalCostObjectId: null });
+    expect(vare("v-r2")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+    expect(vare("v-fri")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+  });
+
+  it("negativkontroll: uten varer i innholdet (gammel timer-flytt) blir varene stående — det er det radInnhold retter", async () => {
+    const { r1 } = toRader();
+    const innhold = { ...radInnhold({ rad: timerRad(r1)!, maskinRader: maskinAlle(), varer: varerMedRad() }), varer: [] };
+    expect(await flyttKort(db(), dagFor(), innhold, A, TIL, SERVER_OK)).toEqual({ utfall: "ok" });
+    expect(timerRad(r1)).toMatchObject({ projectId: "p2" });
+    expect(vare("v-r1")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
   });
 });

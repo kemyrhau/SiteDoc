@@ -19,13 +19,12 @@ import {
   dagsseddelLocal,
   sheetMachineLocal,
   vareforbrukLocal,
-  byggeplassLocal,
 } from "../db/schema";
 import { loftByggeplassArv, trengerByggeplassLoft } from "../components/timer-detalj/prosjektkort/kortRadFlytt";
-import type { SedelKortKontekst } from "../lib/prosjektkortMobil";
+import { kortValgFor } from "../lib/prosjektkortMobil";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
-import type { BekreftDagTillegg } from "./bekreftDagTillegg";
+import { radTilleggNokkel, sedelKontekstLokalt, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
@@ -62,13 +61,13 @@ export function anvendDagsforslag(
      */
     utenByggeplassValgt?: boolean;
   },
-  /** L3-D: maskin og varer fra bekreft-dag — skrives på start-sedelen (vedtak C). */
-  tillegg?: BekreftDagTillegg,
+  /**
+   * L3-D + PRESISERING TILLEGG: maskin og varer pr. arbeidsrad fra bekreft-dag
+   * (nøkkel `radTilleggNokkel`) — skrives koblet til raden, på radens sedel.
+   */
+  tilleggPerRad?: TilleggPerRad,
 ): AnvendDagsforslagResultat {
   let startSheetId: string | null = null;
-  let startDato: string | null = null;
-  let startBlokkert = false;
-  let startByggeplassId: string | null = null;
   let blokkertSendt = false;
   let totalRader = 0;
   let harEksisterendeRader = false;
@@ -138,7 +137,6 @@ export function anvendDagsforslag(
     });
     if (d.erStartSegment) {
       startSheetId = resultat.id;
-      startDato = d.dato;
     }
 
     // Sendt/godkjent → kan ikke appende (ville gi server-konflikt). Recall er UF-4.
@@ -149,7 +147,6 @@ export function anvendDagsforslag(
     ) {
       blokkertSendt = true;
       blokkerteDatoer.push(d.dato);
-      if (d.erStartSegment) startBlokkert = true;
       continue;
     }
     lagredeDatoer.push(d.dato);
@@ -166,7 +163,6 @@ export function anvendDagsforslag(
       sedelByggeplass(db, resultat.id) !== d.byggeplassId
         ? d.byggeplassId
         : null;
-    if (d.erStartSegment) startByggeplassId = eksplisittByggeplassId;
 
     // RETUR 36c-3: «Ingen byggeplass» på en eksisterende sedel med A — samme
     // løft som prosjektkort-stien (RETUR 36c-2 P1 a2), FØR radene skrives:
@@ -192,9 +188,10 @@ export function anvendDagsforslag(
     }
 
     for (const rad of d.rader) {
+      const radId = ctx.nyId();
       db.insert(sheetTimerLocal)
         .values({
-          id: ctx.nyId(),
+          id: radId,
           dagsseddelId: resultat.id,
           projectId: rad.projectId,
           lonnsartId: rad.lonnsartId,
@@ -224,15 +221,16 @@ export function anvendDagsforslag(
         })
         .run();
       totalRader++;
+      const nokkel = radTilleggNokkel(d.dato, rad);
+      const tillegg = nokkel ? tilleggPerRad?.[nokkel] : undefined;
+      if (tillegg && (tillegg.maskiner.length > 0 || tillegg.varer.length > 0)) {
+        skrivTillegg(db, tillegg, { ...ctx, sheetId: resultat.id, dato: d.dato, radId });
+      }
     }
     // ORDRE 34 pkt 3 (#9): hodet = Σ rad.pauseMin også ved append på en
     // eksisterende sedel (speiler serverens PK6 `synkroniserHodePause`).
     synkHodePauseLokalt(db, resultat.id);
     vekForOverlapp.push(...d.vekForOverlapp);
-  }
-
-  if (tillegg && startSheetId && startDato && !startBlokkert) {
-    skrivTillegg(db, tillegg, { ...ctx, sheetId: startSheetId, dato: startDato, byggeplassId: startByggeplassId });
   }
 
   return {
@@ -258,24 +256,6 @@ function sedelByggeplass(db: LokalDb, sheetId: string): string | null {
       .where(eq(dagsseddelLocal.id, sheetId))
       .all()[0]?.byggeplassId ?? null
   );
-}
-
-/** Sedelens prosjekt + byggeplass (med byggeplassens prosjekt) — som `sedelKontekst` i prosjektkortet. */
-function sedelKontekstLokalt(db: LokalDb, sheetId: string): SedelKortKontekst | null {
-  const s = db
-    .select({ projectId: dagsseddelLocal.projectId, byggeplassId: dagsseddelLocal.byggeplassId })
-    .from(dagsseddelLocal)
-    .where(eq(dagsseddelLocal.id, sheetId))
-    .all()[0];
-  if (!s?.projectId) return null;
-  const bp = s.byggeplassId
-    ? db
-        .select({ id: byggeplassLocal.id, projectId: byggeplassLocal.projectId })
-        .from(byggeplassLocal)
-        .where(eq(byggeplassLocal.id, s.byggeplassId))
-        .all()[0]
-    : undefined;
-  return { projectId: s.projectId, byggeplass: bp ? { id: bp.id, projectId: bp.projectId } : null };
 }
 
 /**
@@ -345,29 +325,36 @@ function utvidArbeidstidsvindu(
 }
 
 /**
- * L3-D: maskin uten fra/til og uten timerrad-kobling (som «+ Maskin» i kortet),
- * varer som pending — sendes når sedelen er synket (`planleggVaresending`).
+ * L3-D + PRESISERING TILLEGG (2026-11-12): maskin og varer legges på RADEN de
+ * ble registrert på i Bekreft dag — og arver radens prosjekt, effektive
+ * byggeplass og underprosjekt (`kortValgFor`). Ingen auto-kobling, ingen
+ * tidsmatching. Maskinen har ikke fra–til, bare egne timer (≤ radens — vakten
+ * i `bekreftDag`). Varer skrives pending og sendes når sedelen er synket
+ * (`planleggVaresending`).
  */
 function skrivTillegg(
   db: LokalDb,
   tillegg: BekreftDagTillegg,
   ctx: {
     userId: string; orgId: string; nyId: () => string; naa: () => number; sheetId: string; dato: string;
-    ecoId?: string | null;
-    /** RETUR 36c pkt 1: valgt byggeplass når den avviker fra sedelens; null = arv. */
-    byggeplassId: string | null;
+    radId: string;
   },
 ): void {
+  const sedel = sedelKontekstLokalt(db, ctx.sheetId);
+  const rad = db.select().from(sheetTimerLocal).where(eq(sheetTimerLocal.id, ctx.radId)).all()[0];
+  if (!sedel || !rad) return;
+  const kort = kortValgFor(rad, sedel);
   for (const m of tillegg.maskiner) {
     db.insert(sheetMachineLocal)
       .values({
         id: ctx.nyId(),
         dagsseddelId: ctx.sheetId,
-        sheetTimerId: null,
-        projectId: m.projectId,
+        sheetTimerId: rad.id,
+        projectId: kort.projectId,
         vehicleId: m.vehicleId,
-        externalCostObjectId: ctx.ecoId ?? null,
-        byggeplassId: ctx.byggeplassId,
+        externalCostObjectId: kort.ecoId,
+        // Lagret som raden (null = arv fra sedelen), som `foelgKobletMaskin`.
+        byggeplassId: rad.byggeplassId ?? null,
         timer: m.timer,
         mengde: m.mengde,
         enhet: m.enhet,
@@ -384,14 +371,16 @@ function skrivTillegg(
         userId: ctx.userId,
         organizationId: ctx.orgId,
         sheetId: ctx.sheetId,
-        projectId: v.projectId,
+        projectId: kort.projectId,
         dato: ctx.dato,
         vareId: v.vareId,
         vareNavn: v.vareNavn,
         enhet: v.enhet,
         antall: v.antall,
-        byggeplassId: v.byggeplassId,
-        externalCostObjectId: ctx.ecoId ?? null,
+        // Varen bærer byggeplassen eksplisitt (serveren arver ikke) — radens effektive.
+        byggeplassId: kort.byggeplassId,
+        externalCostObjectId: kort.ecoId,
+        sheetTimerId: rad.id,
         syncStatus: "pending",
         feilmelding: null,
         sistEndretLokalt: ctx.naa(),

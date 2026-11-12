@@ -42,7 +42,19 @@ import { kjorMigreringer } from "../db/migreringer";
 import { bekreftDag, forberedBekreftDag, prosjekterMedArbeid } from "./bekreftDag";
 import { manuellDag, lesManuellGrunnlag, forberedManuellDag } from "./manuellDag";
 import type { Dagsforslag } from "./dagsforslag";
-import { entydigByggeplass } from "./bekreftDagTillegg";
+import { entydigByggeplass, radTilleggNokkel, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
+
+/** PRESISERING TILLEGG: linjene ligger på forslagets første arbeidsrad. */
+function paaForsteRad(forslag: Dagsforslag, tillegg?: BekreftDagTillegg): TilleggPerRad | undefined {
+  if (!tillegg) return undefined;
+  for (const d of forslag.datoer) {
+    for (const r of d.rader) {
+      const n = radTilleggNokkel(d.dato, r);
+      if (n) return { [n]: tillegg };
+    }
+  }
+  throw new Error("ingen arbeidsrad i forslaget");
+}
 import { kortNokkel } from "../lib/prosjektkortMobil";
 
 function medBeskrivelse(f: Dagsforslag): Dagsforslag {
@@ -106,10 +118,10 @@ function lagreManuelt(
   retting?: Parameters<typeof forberedManuellDag>[2],
   over = {},
   ecoId?: string | null,
-  tillegg?: Parameters<typeof bekreftDag>[3],
+  tillegg?: BekreftDagTillegg,
 ) {
   const { forslag, sluttIso } = forberedManuellDag(lokalDb(), manuellKontekst(over), retting);
-  return bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(sluttIso, ecoId), tillegg);
+  return bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(sluttIso, ecoId), paaForsteRad(forslag, tillegg));
 }
 
 const sedler = () => db().select().from(dagsseddelLocal).all();
@@ -337,7 +349,7 @@ describe("RETUR 36c pkt 1 — kortets byggeplass i skrivestien (også når sedel
   const lagreKort = (bp: string | null, eco: string | null = null) => {
     const { forslag, sluttIso } = forberedManuellDag(lokalDb(), manuellKontekst(), { prosjektId: "p2", byggeplassId: bp });
     // Skjermen sender varens byggeplass fra KortVareforbrukModal (sedelByggeplassId = entydigByggeplass).
-    return bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(sluttIso, eco), tillegg(entydigByggeplass(forslag, "p2")));
+    return bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(sluttIso, eco), paaForsteRad(forslag, tillegg(entydigByggeplass(forslag, "p2"))));
   };
 
   it("🔴 sedel med A + nytt kort B: rad, maskin og vare har B, og kortet grupperes under B", () => {
@@ -469,8 +481,8 @@ describe("RETUR 36c-3 — «Ingen byggeplass» fra Bekreft dag løfter arven (Ko
 describe("RETUR 36c-3 — testhull K10 og K12/P12 (kildevakter)", () => {
   const les = (rel: string) => fs.readFileSync(path.join(__dirname, rel), "utf8");
 
-  it("🔴 K10: skjermen sender kortets entydige byggeplass til tilleggsseksjonen", () => {
-    expect(les("../../app/timer/bekreft-dag.tsx")).toContain("byggeplassId={entydigByggeplass(forslag, prosjektId)}");
+  it("🔴 K10 (PRESISERING TILLEGG): skjermen sender radens byggeplass til radens maskin/vare", () => {
+    expect(les("../../app/timer/bekreft-dag.tsx")).toContain("byggeplassId={r.byggeplassId}");
   });
 
   it("🔴 K12/P12: «+ Legg til arbeid/maskin» vises bare når sedelen er redigerbar (ikke låst)", () => {

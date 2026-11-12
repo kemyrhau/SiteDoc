@@ -231,7 +231,7 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
             tilTid,
             beskrivelse,
             pauseMin,
-            maskin,
+            maskiner: maskin.linjer,
           },
         });
         if (!res.ok) {

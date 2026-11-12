@@ -155,12 +155,17 @@ describe("del 4 — overtidsrader rendres med fra–til som alle andre rader", (
     expect(en["timer.dagsoversikt.overtid"]).toBe("Overtime {{prosent}} %");
   });
 
-  it("overtid-linja bruker tid(r) + t2(r.timer) som arbeid-linja", () => {
-    const start = OVERSIKT.indexOf("linjer.overtid.map(");
+  // Radform (2026-11-12): overtid er en vanlig rad — samme boks, samme
+  // tidsoverskrift og timer; bare lønnsart-teksten bærer nivået.
+  it("overtid-raden bruker radens felles tid + t2(rad.timer); nivået i lønnsart-teksten", () => {
+    const start = OVERSIKT.indexOf("function radBoks(");
     expect(start).toBeGreaterThan(-1);
-    const blokk = OVERSIKT.slice(start, OVERSIKT.indexOf("</Linje>", start));
-    expect(blokk).toMatch(/\{tid\(r\)\}\s*\{t2\(r\.timer\)\}/);
-    expect(blokk).toMatch(/t\("timer\.dagsoversikt\.overtid", \{ prosent: r\.overtidsnivaa \}\)/);
+    const blokk = OVERSIKT.slice(start, OVERSIKT.indexOf("\n  }\n", start));
+    expect(blokk).toContain("{tidTekst(rad)}");
+    expect(blokk).toContain("{t2(rad.timer)}");
+    expect(blokk).toMatch(/t\("timer\.dagsoversikt\.overtid", \{ prosent: rad\.overtidsnivaa \}\)/);
     expect(blokk).not.toMatch(/fra:/);
+    // Ingen egen overtid-gren i visningen.
+    expect(OVERSIKT).not.toContain("linjer.overtid.map(");
   });
 });

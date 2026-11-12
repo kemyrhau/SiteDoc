@@ -1386,7 +1386,10 @@ export function kjorMigreringer() {
   // vareforbruk bærer kortets underprosjekt (speil av vareforbruk.external_cost_object_id).
   // Additiv, nullable, INGEN backfill (Kenneth 2026-11-07: gamle rader arver sedelen ved
   // visning). Ingen data slettes. Idempotent via PRAGMA.
-  for (const [tabell, kol] of KORTVALG_LOCAL_KOLONNER) {
+  // Radform (Kenneth 2026-11-12): varelinjen husker timerraden den er ført fra
+  // (speil av server vareforbruk.sheet_timer_id). Samme regler: additiv, nullable,
+  // ingen backfill — gamle linjer vises under «Uten rad».
+  for (const [tabell, kol] of [...KORTVALG_LOCAL_KOLONNER, ...RADFORM_LOCAL_KOLONNER]) {
     try {
       const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
       if (!kolonner.find((k) => k.name === kol)) {
@@ -1424,6 +1427,9 @@ export const KORTVALG_LOCAL_KOLONNER = [
   ["sheet_machine_local", "byggeplass_id"],
   ["vareforbruk_local", "external_cost_object_id"],
 ] as const;
+
+/** Radform: varelinjens timerrad (tabell, kolonne). */
+export const RADFORM_LOCAL_KOLONNER = [["vareforbruk_local", "sheet_timer_id"]] as const;
 
 /** Prosjektkort L3: lokale tabeller for vare-katalog og vareforbruk ført fra kortet. */
 export const VAREFORBRUK_LOCAL_TABELLER = ["vare_local", "vareforbruk_local"] as const;

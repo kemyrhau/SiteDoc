@@ -52,6 +52,7 @@ export function KortVareforbrukModal({
   forblirApen = false,
   fortIDag = [],
   kortLaas,
+  sheetTimerId,
 }: {
   synlig: boolean;
   userId: string;
@@ -67,6 +68,8 @@ export function KortVareforbrukModal({
   forblirApen?: boolean;
   fortIDag?: FortVarelinje[];
   kortLaas?: { byggeplassId: string | null; ecoId: string | null };
+  /** Radform (2026-11-12): timerraden varen føres fra. Mangler = ukoblet («Uten rad»). */
+  sheetTimerId?: string | null;
 }) {
   const { t } = useTranslation();
   const [sok, setSok] = useState("");
@@ -143,6 +146,7 @@ export function KortVareforbrukModal({
             dato,
             ...v,
             externalCostObjectId: kortLaas?.ecoId ?? null,
+            sheetTimerId: sheetTimerId ?? null,
           });
         },
       },

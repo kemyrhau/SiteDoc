@@ -41,8 +41,10 @@ export type FlyttMaal = {
 };
 
 /**
- * Koblet maskin følger timer-raden (Kenneth GO punkt 5): prosjekt, byggeplass
- * og underprosjekt kopieres fra timer-raden. Ingen koblet maskin → no-op.
+ * Koblede maskiner følger timer-raden (Kenneth GO punkt 5): prosjekt,
+ * byggeplass og underprosjekt kopieres fra timer-raden. Gjelder ALLE koblede
+ * maskiner (NY BESLUTNING 2026-11-12: 0..n pr. rad). Timene røres aldri.
+ * Ingen koblet maskin → no-op.
  */
 export function foelgKobletMaskin(db: LokalDb, timerRadId: string): void {
   const rad = db
@@ -55,28 +57,29 @@ export function foelgKobletMaskin(db: LokalDb, timerRadId: string): void {
     .where(eq(sheetTimerLocal.id, timerRadId))
     .all()[0];
   if (!rad) return;
-  const maskin = db
+  const maskiner = db
     .select()
     .from(sheetMachineLocal)
     .where(eq(sheetMachineLocal.sheetTimerId, timerRadId))
-    .all()[0];
-  if (!maskin) return;
-  if (
-    maskin.projectId === rad.projectId &&
-    (maskin.byggeplassId ?? null) === (rad.byggeplassId ?? null) &&
-    (maskin.externalCostObjectId ?? null) === (rad.externalCostObjectId ?? null)
-  ) {
-    return;
+    .all();
+  for (const maskin of maskiner) {
+    if (
+      maskin.projectId === rad.projectId &&
+      (maskin.byggeplassId ?? null) === (rad.byggeplassId ?? null) &&
+      (maskin.externalCostObjectId ?? null) === (rad.externalCostObjectId ?? null)
+    ) {
+      continue;
+    }
+    db.update(sheetMachineLocal)
+      .set({
+        projectId: rad.projectId,
+        byggeplassId: rad.byggeplassId ?? null,
+        externalCostObjectId: rad.externalCostObjectId ?? null,
+        sistEndretLokalt: Date.now(),
+      })
+      .where(eq(sheetMachineLocal.id, maskin.id))
+      .run();
   }
-  db.update(sheetMachineLocal)
-    .set({
-      projectId: rad.projectId,
-      byggeplassId: rad.byggeplassId ?? null,
-      externalCostObjectId: rad.externalCostObjectId ?? null,
-      sistEndretLokalt: Date.now(),
-    })
-    .where(eq(sheetMachineLocal.id, maskin.id))
-    .run();
 }
 
 /**
@@ -248,6 +251,24 @@ export function kortInnhold(args: {
       kortNokkelFor(m, sedel) === kortNokkel(kort),
   );
   return { timer, maskin, varer: raderPaaKort(args.varer, sedel, kort) };
+}
+
+/**
+ * TILLEGG 2026-11-12 regel 1: raden eier prosjekt/byggeplass/underprosjekt.
+ * Innholdet til ÉN rad = raden + maskiner og varer koblet til den
+ * (`sheetTimerId`). Flytt av raden tar dem med, timer og mengde uendret.
+ * Ukoblede linjer («Uten rad») blir der de er.
+ */
+export function radInnhold<V extends KortVare & { sheetTimerId?: string | null }>(args: {
+  rad: TimerRad;
+  maskinRader: readonly MaskinRad[];
+  varer: readonly V[];
+}): KortInnhold {
+  return {
+    timer: [args.rad],
+    maskin: args.maskinRader.filter((m) => m.sheetTimerId === args.rad.id),
+    varer: args.varer.filter((v) => v.sheetTimerId === args.rad.id),
+  };
 }
 
 /** Finnes et annet kort med målnøkkelen? Da slås kortene sammen. */

@@ -4,15 +4,18 @@ import {
   type MaskinBrudd,
   type MaskinKapasitetRad,
 } from "@sitedoc/shared";
-import { dagsseddelLocal, sheetTimerLocal, sheetMachineLocal } from "../db/schema";
+import { byggeplassLocal, dagsseddelLocal, sheetTimerLocal, sheetMachineLocal } from "../db/schema";
 import type { LokalDb } from "../services/dagsforslagInput";
+import { maskinerOverRad } from "../services/kobledeMaskiner";
+import type { SedelKortKontekst } from "../lib/prosjektkortMobil";
 import type { Dagsforslag } from "./dagsforslag";
 
 /**
- * L3-D «Maskin og varer» i `/timer/bekreft-dag` (spec § 3.5, ORDRE 31).
+ * L3-D maskin og varer i `/timer/bekreft-dag` (spec § 3.5, ORDRE 31;
+ * PRESISERING TILLEGG 2026-11-12: pr. rad).
  *
- * Tilleggene holdes i skjermens minne og skrives FØRST ved [Bekreft og lagre],
- * på start-segmentets sedel (vedtak C). Er start-sedelen sendt, skrives ingen.
+ * Linjene holdes i skjermens minne pr. arbeidsrad og skrives FØRST ved
+ * [Bekreft og lagre], koblet til raden (`sheetTimerId`) på radens sedel.
  */
 
 export type TilleggMaskin = {
@@ -102,7 +105,7 @@ export type VaktGrunnlag = {
 };
 
 /**
- * KUN LESING. Grunnlaget serveren validerer på etter Bekreft: start-sedelens
+ * KUN LESING. Grunnlaget serveren validerer på etter Bekreft: datoens sedels
  * eksisterende timer- og maskinrader (append på draft/returned) + forslagets
  * rader for start-datoen. null = ingen start-sedel å skrive på (sendt/ingen).
  */
@@ -110,8 +113,10 @@ export function vaktGrunnlag(
   db: LokalDb,
   userId: string,
   forslag: Dagsforslag,
+  /** Utelatt = start-datoen. */
+  dato?: string,
 ): VaktGrunnlag | null {
-  const d = forslag.datoer.find((x) => x.erStartSegment);
+  const d = forslag.datoer.find((x) => (dato ? x.dato === dato : x.erStartSegment));
   if (!d || d.blokkert || forslag.prosjektId == null) return null;
   const nyeTimer = d.rader.map((r) => ({
     projectId: r.projectId,
@@ -157,32 +162,96 @@ export function vaktGrunnlag(
   };
 }
 
-/**
- * Dom (57) m2/m3. `startSendt`: start-sedelen er sendt mens senere datoer er
- * åpne — tilleggene har ingen sedel å skrives på. `varerTillatt`: startdatoen
- * har minst én timer-rad (ny eller eksisterende) på prosjektet; ellers kan
- * varen ikke kobles til sedelen (`kortDagsseddelId`) og knappen skjules.
- */
-export type TilleggTilstand = { startSendt: boolean; varerTillatt: boolean };
-
-export function tilleggTilstand(
-  forslag: Dagsforslag,
-  grunnlag: VaktGrunnlag | null,
-  projectId: string,
-): TilleggTilstand {
-  const startSendt = forslag.datoer.find((d) => d.erStartSegment)?.blokkert === true;
-  const varerTillatt =
-    !startSendt && grunnlag != null && grunnlag.timerRader.some((r) => r.projectId === projectId);
-  return { startSendt, varerTillatt };
+/** Sedelens prosjekt + byggeplass (med byggeplassens prosjekt) — som `sedelKontekst` i prosjektkortet. */
+export function sedelKontekstLokalt(db: LokalDb, sheetId: string): SedelKortKontekst | null {
+  const s = db
+    .select({ projectId: dagsseddelLocal.projectId, byggeplassId: dagsseddelLocal.byggeplassId })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .all()[0];
+  if (!s?.projectId) return null;
+  const bp = s.byggeplassId
+    ? db
+        .select({ id: byggeplassLocal.id, projectId: byggeplassLocal.projectId })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, s.byggeplassId))
+        .all()[0]
+    : undefined;
+  return { projectId: s.projectId, byggeplass: bp ? { id: bp.id, projectId: bp.projectId } : null };
 }
 
-/** Fjerner tillegg tilstanden ikke tillater. Uendret → samme objekt. */
-export function rensTillegg(tillegg: BekreftDagTillegg, tilstand: TilleggTilstand): BekreftDagTillegg {
-  const maskiner = tilstand.startSendt ? [] : tillegg.maskiner;
-  const varer = tilstand.varerTillatt ? tillegg.varer : [];
-  return maskiner.length === tillegg.maskiner.length && varer.length === tillegg.varer.length
-    ? tillegg
-    : { maskiner, varer };
+/**
+ * PRESISERING TILLEGG pkt 2 (Kenneth 2026-11-12): radene i Bekreft dag er
+ * vanlige rader — maskiner og varer registreres på RADEN, som i
+ * prosjektkortet. Ingen dagsliste, ingen tidsmatching, ingen auto-kobling.
+ *
+ * Nøkkel = `tillegg:` + dato | lønnsart | radIndeks. `radIndeks` er radens
+ * stabile identitet (carve-vinduets opprettelsesrekkefølge, ikke posisjon
+ * etter tid) — rettes fra–til, følger linjene raden. Uten fra-tid og
+ * prosjekt: prosjektbytte tar linjene med. Lønnsarten gjør at et vindu som
+ * forsvinner aldri lar linjene gli over på et annet vindu stille.
+ */
+export const TILLEGG_PREFIKS = "tillegg:";
+
+export function radTilleggNokkel(
+  dato: string,
+  rad: { erReise: boolean; lonnsartId: string; radIndeks?: number },
+): string | null {
+  if (rad.erReise || rad.radIndeks == null) return null;
+  return `${TILLEGG_PREFIKS}${dato}|${rad.lonnsartId}|${rad.radIndeks}`;
+}
+
+/** Maskin og varer pr. arbeidsrad, nøkkel fra `radTilleggNokkel`. */
+export type TilleggPerRad = Record<string, BekreftDagTillegg>;
+
+export type TilleggRad = { nokkel: string; dato: string; projectId: string; timer: number };
+
+/** Arbeidsradene på åpne datoer som kan bære maskin og varer. */
+export function tilleggRader(forslag: Dagsforslag): TilleggRad[] {
+  const ut: TilleggRad[] = [];
+  for (const d of forslag.datoer) {
+    if (d.blokkert) continue;
+    for (const r of d.rader) {
+      const nokkel = radTilleggNokkel(d.dato, r);
+      if (nokkel && r.timer > 0) ut.push({ nokkel, dato: d.dato, projectId: r.projectId, timer: r.timer });
+    }
+  }
+  return ut;
+}
+
+function harLinjer(t: BekreftDagTillegg | undefined): boolean {
+  return !!t && (t.maskiner.length > 0 || t.varer.length > 0);
+}
+
+/**
+ * Nøkler med linjer der raden ikke finnes lenger (fjernet arbeid, færre rader,
+ * sendt dato). Bekreft stopper på dem — linjene kastes aldri stille.
+ */
+export function tilleggUtenRad(forslag: Dagsforslag, perRad: TilleggPerRad): string[] {
+  const finnes = new Set(tilleggRader(forslag).map((r) => r.nokkel));
+  return Object.keys(perRad).filter((k) => harLinjer(perRad[k]) && !finnes.has(k));
+}
+
+/** Regel 2: maskinens egne timer ≤ radens (standard = radens, lavere tillatt). */
+export function maskinerOverRaden(
+  forslag: Dagsforslag,
+  perRad: TilleggPerRad,
+): Array<{ nokkel: string; projectId: string; radTimer: number; maskin: TilleggMaskin }> {
+  return tilleggRader(forslag).flatMap((r) =>
+    maskinerOverRad(r.timer, perRad[r.nokkel]?.maskiner ?? []).map((maskin) => ({
+      nokkel: r.nokkel,
+      projectId: r.projectId,
+      radTimer: r.timer,
+      maskin,
+    })),
+  );
+}
+
+/** Maskinene som skrives på datoens sedel, med radens prosjekt (for sum-vakten). */
+export function maskinerForDato(forslag: Dagsforslag, perRad: TilleggPerRad, dato: string): TilleggMaskin[] {
+  return tilleggRader(forslag)
+    .filter((r) => r.dato === dato)
+    .flatMap((r) => (perRad[r.nokkel]?.maskiner ?? []).map((m) => ({ ...m, projectId: r.projectId })));
 }
 
 /** Samme regel som serveren (`beregnMaskinBrudd`). Nye maskiner har ingen ECO. */

@@ -230,6 +230,13 @@ export type DagsforslagRad = {
   reiseRegel: ReiseRegelSnapshot | null;
   /** V8: "utledet" på auto-reise-rader (vindu fra GPS ± matrise). null ellers. */
   tidKilde: "stempel" | "utledet" | "manuell" | null;
+  /**
+   * PRESISERING TILLEGG (2026-11-13): arbeidsradens stabile identitet i
+   * forslaget = carve-vinduets opprettelsesrekkefølge, ikke posisjon etter
+   * tid. Bærer `radTilleggNokkel`, så maskin/vare følger raden når tiden
+   * rettes. Utelatt på reise-rader.
+   */
+  radIndeks?: number;
 };
 
 /** Forslaget for én kalenderdag (ett midnatt-segment). */
@@ -292,6 +299,11 @@ export type Dagsforslag = {
    * `anvendDagsforslag` skriver teksten på kortets arbeidsrader.
    */
   beskrivelsePerKort?: Record<string, string>;
+  /**
+   * Radform (beslutning 2): overstyrt beskrivelse pr. arbeidsrad, nøkkel fra
+   * `radBeskrivelseNokkel`. Tom/utelatt = radens korttekst.
+   */
+  beskrivelsePerRad?: Record<string, string>;
 };
 
 /** Alt `beregnDagsforslag` trenger — ferdig lest ut av kalleren (ingen DB her). */
@@ -345,6 +357,8 @@ export type DagsforslagRetting = {
   perDato?: Record<string, DagsforslagRettingDato>;
   /** ORDRE 36a/36b: beskrivelse pr. kort (påkrevd før Bekreft) — se `beskrivelsePerKort`. */
   beskrivelse?: Record<string, string>;
+  /** Radform: overstyring pr. arbeidsrad — se `beskrivelsePerRad`. */
+  beskrivelsePerRad?: Record<string, string>;
 };
 
 export type DagsforslagRettingDato = {
@@ -842,6 +856,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     normStatus: effektivStartDag.normStatus ?? null,
     datoer,
     ...(retting?.beskrivelse ? { beskrivelsePerKort: retting.beskrivelse } : {}),
+    ...(retting?.beskrivelsePerRad ? { beskrivelsePerRad: retting.beskrivelsePerRad } : {}),
   };
 }
 
@@ -1009,7 +1024,7 @@ function beregnSegment(a: {
         : klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
     });
     const valgtOvertid = godtattOvertidLonnsart(a.alleLonnsarter, a.overtidLonnsartId);
-    for (const vindu of carvet) {
+    for (const [radIndeks, vindu] of carvet.entries()) {
       // Normaltid (overtidsnivaa=null) → firmaets standard-lønnsart.
       // Overtid → velg strukturert på overtidsnivaa (type=ordinaer, aktiv).
       const lonnsartId =
@@ -1058,6 +1073,7 @@ function beregnSegment(a: {
         reiseKilde: null,
         reiseRegel: null,
         tidKilde: null,
+        radIndeks,
       });
     }
   }

@@ -304,10 +304,10 @@ gren) → arvet likt av skjerm/PDF/Excel (flateparitet). Api-en bærer `utleieEn
 `detaljEksport` (`apps/api/src/routes/timer/rapport.ts`, `utleieEnhetMap`). Krever at maskinen har
 `sheetTimerId` satt (koblingen finnes) — rader ført før koblingen (`sheetTimerId = NULL`) står uendret.
 
-**Maskinrad fra «Bekreft dag» (L3-D, 2026-11-06, `feat/timer-bekreft-dag-maskin`, ⚠️ venter gate):** mobilens
-`/timer/bekreft-dag` fører maskin pr. prosjekt med antall timer — `sheetTimerId = NULL`, `fraTid/tilTid = NULL`,
-ECO null (`skrivTillegg` i `apps/mobile/src/utils/dagsforslagAnvend.ts`). Slike rader er prosjektnivå og foldes
-derfor ikke inn på operatørens timerad (avsnittet over). Lokal vakt med samme regel som serveren
+**Maskinrad fra «Bekreft dag» (L3-D 2026-11-06; PRESISERING TILLEGG 2026-11-13, `feat/timer-dagsoversikt-radform`, ⚠️ venter gate):** mobilens
+`/timer/bekreft-dag` fører maskin pr. arbeidsrad med antall timer — `sheetTimerId` = radens id, radens prosjekt,
+byggeplass og underprosjekt, `fraTid/tilTid = NULL` (`skrivTillegg` i `apps/mobile/src/utils/dagsforslagAnvend.ts`).
+Maskinens timer ≤ radens timer (`maskinerOverRaden`). Detalj: `timer.md` § Dagsoversikt i radform, TILLEGG. Lokal vakt med samme regel som serveren
 (`beregnMaskinBrudd`, maskin ≤ arbeid pr. prosjekt+ECO) før skriving (`maskinBruddForTillegg`,
 `apps/mobile/src/utils/bekreftDagTillegg.ts`); serveren validerer på nytt ved sync.
 

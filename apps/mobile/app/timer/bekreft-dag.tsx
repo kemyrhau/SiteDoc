@@ -57,17 +57,22 @@ import { forberedManuellDag } from "../../src/utils/manuellDag";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
-import { kortMedArbeid } from "../../src/utils/beskrivelseKort";
+import { kortMedArbeid, arbeidsraderPerKort, RAD_PREFIKS } from "../../src/utils/beskrivelseKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
 import {
   vaktGrunnlag,
-  entydigByggeplass,
-  tilleggTilstand,
-  rensTillegg,
+  maskinerForDato,
+  tilleggUtenRad,
   type BekreftDagTillegg,
+  type TilleggPerRad,
+  type VaktGrunnlag,
 } from "../../src/utils/bekreftDagTillegg";
-import { BekreftDagTilleggSeksjon } from "../../src/components/timer-detalj/BekreftDagTilleggSeksjon";
+import {
+  BekreftDagRadTillegg,
+  TilleggLinjer,
+  useTilleggKatalog,
+} from "../../src/components/timer-detalj/BekreftDagRadTillegg";
 import {
   leggTilOvertidRetting,
   overtidEditorFra,
@@ -157,8 +162,8 @@ export default function BekreftDagSkjerm() {
   // DEL 5 c: anslått slutt må godkjennes («Tidene stemmer») eller rettes før lagring.
   const [sluttGodkjent, setSluttGodkjent] = useState(false);
   const [rettetSluttIso, setRettetSluttIso] = useState<string | null>(null);
-  // L3-D: maskin og varer holdes i minnet til Bekreft (spec § 3.5).
-  const [tillegg, setTillegg] = useState<BekreftDagTillegg>({ maskiner: [], varer: [] });
+  // L3-D + PRESISERING TILLEGG: maskin og varer pr. arbeidsrad, i minnet til Bekreft.
+  const [tilleggPerRad, setTilleggPerRad] = useState<TilleggPerRad>({});
   // ORDRE 36a: feltet er nøytralt til første Bekreft-forsøk med tom beskrivelse.
   const [forsoktBekreft, setForsoktBekreft] = useState(false);
   const rulleRef = useRef<ScrollView>(null);
@@ -166,6 +171,9 @@ export default function BekreftDagSkjerm() {
   const beskrivelseY = useRef(new Map<string, number>());
   // RETUR 36c-2 (D4): tekstfeltets y innenfor kortet — rullemålet er feltet.
   const beskrivelseFeltY = useRef(new Map<string, number>());
+  // Radform: radfeltene inne i kortet (nøkkel `rad:…`).
+  const radFelt = useRef(new Map<string, TextInput>());
+  const radY = useRef(new Map<string, number>());
   const [tastaturOppe, setTastaturOppe] = useState(false);
   useEffect(() => {
     const vis = Keyboard.addListener("keyboardDidShow", () => setTastaturOppe(true));
@@ -285,6 +293,14 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? kortMedArbeid(beregnet.forslag) : []),
     [beregnet],
   );
+  const manglerNokler = useMemo(
+    () => (beregnet ? manglerBeskrivelse(beregnet.forslag) : []),
+    [beregnet],
+  );
+  const raderPerKort = useMemo(
+    () => (beregnet ? arbeidsraderPerKort(beregnet.forslag) : new Map<string, never[]>()),
+    [beregnet],
+  );
   const chipDato = beregnet?.forslag.datoer[0]?.dato ?? null;
   const aktivitetIdForChip = beregnet?.forslag.aktivitetId ?? null;
   const beskrivelseChipsPerProsjekt = useMemo(() => {
@@ -302,12 +318,28 @@ export default function BekreftDagSkjerm() {
   const settBeskrivelse = useCallback((nokkel: string, tekst: string) => {
     setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
   }, []);
+  const raderPerKortRef = useRef(raderPerKort);
+  raderPerKortRef.current = raderPerKort;
+  const settRadBeskrivelse = useCallback((nokkel: string, tekst: string) => {
+    setRetting((r) => ({ ...r, beskrivelsePerRad: { ...r.beskrivelsePerRad, [nokkel]: tekst } }));
+  }, []);
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
     setForsoktBekreft(true);
     const forste = nokler[0];
     if (!forste) return;
+    // Radform (beslutning 3): en radnøkkel ruller til radfeltet i sitt kort.
+    if (forste.startsWith(RAD_PREFIKS)) {
+      const kort = [...raderPerKortRef.current.entries()].find(([, rader]) =>
+        rader.some((r) => r.nokkel === forste),
+      )?.[0];
+      const kortY = kort ? beskrivelseY.current.get(kort) : undefined;
+      const y = kortY != null ? kortY + (radY.current.get(forste) ?? 0) : undefined;
+      if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+      radFelt.current.get(forste)?.focus();
+      return;
+    }
     const y = beskrivelseY.current.get(forste);
     if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
     beskrivelseFelt.current.get(forste)?.focus();
@@ -351,41 +383,51 @@ export default function BekreftDagSkjerm() {
   const [ecoId, setEcoId] = useState<string | null>(null);
   useEffect(() => setEcoId(null), [prosjektId]);
 
-  // L3-D: vakten leser start-sedelen (om den finnes) + dagens nye rader.
-  const grunnlag = useMemo(() => {
+  // L3-D: vakten leser datoens sedel (om den finnes) + forslagets nye rader.
+  const grunnlagPerDato = useMemo(() => {
     const db = hentDatabase();
-    if (!db || !beregnet || !bruker?.id) return null;
-    return vaktGrunnlag(db, bruker.id, beregnet.forslag);
+    const ut = new Map<string, VaktGrunnlag | null>();
+    if (!db || !beregnet || !bruker?.id) return ut;
+    for (const d of beregnet.forslag.datoer) ut.set(d.dato, vaktGrunnlag(db, bruker.id, beregnet.forslag, d.dato));
+    return ut;
   }, [beregnet, bruker?.id]);
+  const tilleggKatalog = useTilleggKatalog(orgId);
+  const settRadTillegg = useCallback((nokkel: string, neste: BekreftDagTillegg) => {
+    setTilleggPerRad((tl) => {
+      const ny = { ...tl };
+      if (neste.maskiner.length === 0 && neste.varer.length === 0) delete ny[nokkel];
+      else ny[nokkel] = neste;
+      return ny;
+    });
+  }, []);
 
-  // Prosjektbytte flytter tilleggene med; byggeplassen gjettes ikke på nytt.
+  // Prosjektbytte flytter linjene med (de følger raden); byggeplassen gjettes ikke på nytt.
   useEffect(() => {
     if (!prosjektId) return;
-    setTillegg((tl) =>
-      tl.maskiner.every((m) => m.projectId === prosjektId) &&
-      tl.varer.every((v) => v.projectId === prosjektId)
-        ? tl
-        : {
-            maskiner: tl.maskiner.map((m) => ({ ...m, projectId: prosjektId })),
-            varer: tl.varer.map((v) =>
+    setTilleggPerRad((tl) => {
+      const alleRiktige = Object.values(tl).every(
+        (x) => x.maskiner.every((m) => m.projectId === prosjektId) && x.varer.every((v) => v.projectId === prosjektId),
+      );
+      if (alleRiktige) return tl;
+      return Object.fromEntries(
+        Object.entries(tl).map(([k, x]) => [
+          k,
+          {
+            maskiner: x.maskiner.map((m) => ({ ...m, projectId: prosjektId })),
+            varer: x.varer.map((v) =>
               v.projectId === prosjektId ? v : { ...v, projectId: prosjektId, byggeplassId: null },
             ),
           },
-    );
+        ]),
+      );
+    });
   }, [prosjektId]);
 
-  // Dom (57) m2/m3: det forslaget ikke lenger tillater (vare uten timer-rad på
-  // startdatoen, sendt start-sedel) tas ut — Bekreft dropper aldri stille.
-  const tilstand = useMemo(
-    () =>
-      beregnet && prosjektId
-        ? tilleggTilstand(beregnet.forslag, grunnlag, prosjektId)
-        : { startSendt: false, varerTillatt: false },
-    [beregnet, grunnlag, prosjektId],
+  // Linjer på en rad som ikke finnes lenger — vises for seg; Bekreft stopper på dem.
+  const utenRad = useMemo(
+    () => (beregnet ? tilleggUtenRad(beregnet.forslag, tilleggPerRad) : []),
+    [beregnet, tilleggPerRad],
   );
-  useEffect(() => {
-    setTillegg((tl) => rensTillegg(tl, tilstand));
-  }, [tilstand]);
 
   const rettDato = useCallback(
     (dato: string, endring: DagsforslagRettingDato) => {
@@ -460,7 +502,12 @@ export default function BekreftDagSkjerm() {
         endLat,
         endLng,
         sluttSted: manuell ? null : identifiserByggeplass(endLat, endLng, orgId),
-      }, rensTillegg(tillegg, tilstand));
+      }, tilleggPerRad);
+      if (handling.type === "tilleggUtenRad") {
+        // Ingenting er skrevet — linjene står under «Uten rad» til arbeideren fjerner dem.
+        Alert.alert(t("timer.bekreftDag.tillegg.utenRadTittel"), t("timer.bekreftDag.tillegg.utenRadMelding"));
+        return;
+      }
       if (handling.type === "maskinBrudd") {
         // Ingenting er skrevet — skjermen står, arbeideren justerer maskintimene.
         Alert.alert(t("timer.bekreftDag.tillegg.bruddTittel"), t("timer.maskin.overstigerArbeid"));
@@ -543,7 +590,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -612,7 +659,6 @@ export default function BekreftDagSkjerm() {
   const ikkeAnsatt = erAnsatt === false;
   const tomt = !ikkeAnsatt && erTomtForslag(forslag);
   const manglerProsjekt = prosjektId == null;
-  const startDato = forslag.datoer.find((d) => d.erStartSegment)?.dato ?? null;
   // DEL 5 a: datoer med sendt sedel vises FØR lagring — timene der lagres ikke.
   const sendte = sendteDatoer(forslag);
   // DEL 5 d-tillegg: hver dato med timer blir et eget prosjektkort (egen sedel, egen rad).
@@ -878,10 +924,61 @@ export default function BekreftDagSkjerm() {
                 visProsjekt={arbeidKort.length > 1}
                 verdi={retting.beskrivelse?.[k.nokkel] ?? ""}
                 chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
-                visFeil={forsoktBekreft && !retting.beskrivelse?.[k.nokkel]?.trim()}
+                visFeil={forsoktBekreft && manglerNokler.includes(k.nokkel)}
                 onEndre={(tekst) => settBeskrivelse(k.nokkel, tekst)}
+                rader={(raderPerKort.get(k.nokkel) ?? []).map((r) => ({
+                  nokkel: r.nokkel,
+                  tid: r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : t("timer.dagsoversikt.utenTid"),
+                  verdi: retting.beskrivelsePerRad?.[r.nokkel] ?? "",
+                  visFeil: forsoktBekreft && manglerNokler.includes(r.nokkel),
+                }))}
+                onEndreRad={settRadBeskrivelse}
+                radRef={(nokkel, felt) => {
+                  if (felt) radFelt.current.set(nokkel, felt);
+                  else radFelt.current.delete(nokkel);
+                }}
+                onRadY={(nokkel, y) => radY.current.set(nokkel, y)}
+                radTillegg={(nokkel) => {
+                  const r = (raderPerKort.get(k.nokkel) ?? []).find((x) => x.nokkel === nokkel);
+                  if (!r?.tilleggNokkel || alleSendt || ikkeAnsatt || tomt || !bruker?.id) return null;
+                  const tn = r.tilleggNokkel;
+                  const egne = tilleggPerRad[tn] ?? { maskiner: [], varer: [] };
+                  return (
+                    <BekreftDagRadTillegg
+                      orgId={orgId}
+                      userId={bruker.id}
+                      projectId={k.projectId}
+                      prosjektNavn={prosjekter.find((pr) => pr.id === k.projectId)?.name ?? ""}
+                      dato={r.dato}
+                      byggeplassId={r.byggeplassId}
+                      radTimer={r.timer}
+                      grunnlag={grunnlagPerDato.get(r.dato) ?? null}
+                      andreMaskiner={maskinerForDato(forslag, tilleggPerRad, r.dato).filter(
+                        (m) => !egne.maskiner.some((e) => e.lokalId === m.lokalId),
+                      )}
+                      katalog={tilleggKatalog}
+                      tillegg={egne}
+                      onEndre={(neste) => settRadTillegg(tn, neste)}
+                    />
+                  );
+                }}
               />
             ))}
+
+            {utenRad.length > 0 ? (
+              // PRESISERING TILLEGG: raden forsvant (fjernet arbeid, færre rader) —
+              // linjene kastes aldri stille; arbeideren fjerner dem før Bekreft.
+              <View className="gap-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <Text className="text-sm text-amber-900">{t("timer.bekreftDag.tillegg.utenRadMelding")}</Text>
+                {utenRad.map((n) => (
+                  <TilleggLinjer
+                    key={n}
+                    tillegg={tilleggPerRad[n] ?? { maskiner: [], varer: [] }}
+                    onEndre={(neste) => settRadTillegg(n, neste)}
+                  />
+                ))}
+              </View>
+            ) : null}
 
             {/* RETUR 36c pkt 4: manuell føring bruker aldri GPS — ingen reise-årsak. */}
             {!manuell && (forslag.reiseAarsak || forslag.destinasjonAarsak) ? (
@@ -894,20 +991,6 @@ export default function BekreftDagSkjerm() {
               </Text>
             ) : null}
 
-            {!alleSendt && !ikkeAnsatt && !tomt && prosjektId && bruker?.id && startDato ? (
-              <BekreftDagTilleggSeksjon
-                orgId={orgId}
-                userId={bruker.id}
-                projectId={prosjektId}
-                prosjektNavn={prosjektNavn ?? ""}
-                dato={startDato}
-                byggeplassId={entydigByggeplass(forslag, prosjektId)}
-                grunnlag={grunnlag}
-                tilstand={tilstand}
-                tillegg={tillegg}
-                onEndre={setTillegg}
-              />
-            ) : null}
 
             <Text className="px-1 text-xs text-gray-500">
               {t(manuell ? "timer.bekreftDag.manuell.hjelp" : "timer.bekreftDag.hjelp")}

@@ -63,6 +63,27 @@ async function krevVareforbrukLinjeAapen(
 }
 
 /**
+ * Radform (2026-11-12): en vare kan kobles til timerraden den er ført fra — men bare
+ * når raden ligger på samme sedel og samme prosjekt. Ugyldig kobling (ingen sedel,
+ * rad på annen sedel/prosjekt, rad ikke synket ennå) gir `null`: linjen lagres
+ * likevel og vises under «Uten rad». En vareregistrering avvises aldri for koblingens
+ * skyld — tapt vareforbruk er verre enn en manglende plassering.
+ */
+export async function gyldigVareRad(
+  prismaTimer: Pick<Context["prismaTimer"], "sheetTimer">,
+  sheetTimerId: string | null | undefined,
+  dagsseddelId: string | null,
+  projectId: string,
+): Promise<string | null> {
+  if (!sheetTimerId || !dagsseddelId) return null;
+  const rad = await prismaTimer.sheetTimer.findUnique({
+    where: { id: sheetTimerId },
+    select: { sheetId: true, projectId: true },
+  });
+  return rad && rad.sheetId === dagsseddelId && rad.projectId === projectId ? sheetTimerId : null;
+}
+
+/**
  * Hent prosjektets eier-firma + sjekk at modulen er aktiv på prosjekt-nivå.
  * Returnerer organizationId for videre validering.
  */
@@ -280,6 +301,8 @@ export const vareforbrukRouter = router({
           // ORDRE 36b: dagsoversikten trenger underprosjektet for å vise/flytte raden.
           externalCostObjectId: true,
           dagsseddelId: true,
+          // Radform (2026-11-12): dagsoversikten viser varen under sin timerrad.
+          sheetTimerId: true,
           antall: true,
           vare: { select: { id: true, navn: true, enhet: true } },
         },
@@ -385,6 +408,9 @@ export const vareforbrukRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         kommentar: z.string().max(2000).nullable().optional(),
         dagsseddelId: z.string().uuid().nullable().optional(),
+        // Radform (2026-11-12): timerraden varen er ført fra. Krever dagsseddelId,
+        // og raden må ligge på den sedelen og ha samme prosjekt.
+        sheetTimerId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -450,6 +476,13 @@ export const vareforbrukRouter = router({
         await krevVareforbrukPaaSedel(userId, sheet, input.projectId);
       }
 
+      const sheetTimerId = await gyldigVareRad(
+        ctx.prismaTimer,
+        input.sheetTimerId,
+        input.dagsseddelId ?? null,
+        input.projectId,
+      );
+
       let opprettet;
       try {
         opprettet = await ctx.prismaVarelager.vareforbruk.create({
@@ -463,6 +496,7 @@ export const vareforbrukRouter = router({
             externalCostObjectId: input.externalCostObjectId ?? null,
             kommentar: input.kommentar?.trim() || null,
             dagsseddelId: input.dagsseddelId ?? null,
+            sheetTimerId,
             registrertAvUserId: ctx.userId,
           },
         });

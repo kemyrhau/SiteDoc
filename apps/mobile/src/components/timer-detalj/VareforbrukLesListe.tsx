@@ -13,6 +13,8 @@ export type VisVarelinje = {
   /** ORDRE 36b: kortnøkkelens B og UP (null/mangler = dagens byggeplass / uten UP). */
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
+  /** Radform: timerraden linjen er ført fra (null/mangler = «Uten rad»). */
+  sheetTimerId?: string | null;
   syncStatus?: LokalVarelinje["syncStatus"];
   feilmelding?: string | null;
 };

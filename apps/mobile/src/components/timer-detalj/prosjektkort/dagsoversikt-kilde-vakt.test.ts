@@ -31,7 +31,7 @@ const RADLAGRING_KOBLINGER = [
   "oppdaterMaskinRad(db(), k, maskinModal.id",
 ];
 
-const IKONER = ["lucide", "Pencil", "Split", "Trash2"];
+const IKONER = ["Pencil", "Split", "Trash2"];
 /** Tailwind-fargeklasser som ikke er grå/amber/hvit. */
 const fremmedeFarger = (kilde: string) =>
   [...kilde.matchAll(/\b(?:text|bg|border|border-l)-([a-z]+)-\d{2,3}\b/g)]
@@ -52,6 +52,17 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
     const ord = new RegExp(`\\b${ikon}\\b`);
     expect(OVERSIKT).not.toMatch(ord);
     expect(HANDLINGER).not.toMatch(ord);
+  });
+
+  // Radform (Kenneth 2026-11-12): klokke-ikonet foran radens tid er eneste
+  // tillatte lucide-ikon i dagsoversikten; rad-handlingene har ingen.
+  it("🔴 dagsoversikten importerer bare Clock fra lucide; rad-handlingene ingen", () => {
+    const importer = OVERSIKT.match(/import \{[^}]*\} from "lucide-react-native";/g) ?? [];
+    expect(importer).toEqual(['import { Clock } from "lucide-react-native";']);
+    expect(OVERSIKT.match(/\blucide\b/g)).toHaveLength(1);
+    expect(HANDLINGER).not.toMatch(/\blucide\b/);
+    // Negativkontroll: et ekstra ikon i importen feiler.
+    expect(OVERSIKT.replace("{ Clock }", "{ Clock, Pencil }")).not.toContain('import { Clock } from "lucide-react-native";');
   });
 
   it("🔴 dagsoversikten bruker bare grått, amber og hvitt", () => {
@@ -153,7 +164,11 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
 
   it("🔴 flytt: byggeplass lagres som kortets lagrede verdi (arv = null)", () => {
     expect(flyttBlokk(OVERSIKT)).toContain("byggeplassId: lagretByggeplassForKort(til, sedelKontekst)");
-    expect(flyttBlokk(OVERSIKT)).toContain("flyttTimerRad(db(), k, flytt.rad, maal)");
+    // TILLEGG 2026-11-12: timer-raden flyttes via flyttKort med radens innhold
+    // (koblet maskin + varer følger); flyttKort lagrer lagretByggeplassForKort
+    // (kortHele.test.ts). Negativkontroll: gammel direkte flyttTimerRad er borte.
+    expect(flyttBlokk(OVERSIKT)).toContain("radInnhold({ rad: flytt.rad, maskinRader, varer })");
+    expect(flyttBlokk(OVERSIKT)).not.toContain("flyttTimerRad(db(), k, flytt.rad, maal)");
   });
 
   it("🔴 flytt av synket vare: server først, lokal kun ved suksess; pending/avvist kun lokalt", () => {

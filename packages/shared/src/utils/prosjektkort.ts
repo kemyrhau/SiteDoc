@@ -200,6 +200,8 @@ export type KortVareforbrukInput = {
   /** ORDRE 36b: kortets underprosjekt — sendes kun når kortet har ett. */
   externalCostObjectId?: string;
   dagsseddelId?: string;
+  /** Radform (2026-11-12): timerraden varen er ført fra — kun sammen med `dagsseddelId`. */
+  sheetTimerId?: string;
 };
 
 /** Opprett-input fra kortet. Prosjektet (og underprosjektet, 36b) er alltid kortets — kan ikke velges. */
@@ -211,6 +213,7 @@ export function kortVareforbrukInput(args: {
   byggeplassId: string | null;
   externalCostObjectId?: string | null;
   dagsseddelId?: string;
+  sheetTimerId?: string | null;
   id?: string;
 }): KortVareforbrukInput {
   return {
@@ -222,6 +225,7 @@ export function kortVareforbrukInput(args: {
     byggeplassId: args.byggeplassId,
     ...(args.externalCostObjectId ? { externalCostObjectId: args.externalCostObjectId } : {}),
     ...(args.dagsseddelId ? { dagsseddelId: args.dagsseddelId } : {}),
+    ...(args.dagsseddelId && args.sheetTimerId ? { sheetTimerId: args.sheetTimerId } : {}),
   };
 }
 

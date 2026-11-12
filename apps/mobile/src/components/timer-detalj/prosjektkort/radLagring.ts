@@ -3,7 +3,13 @@ import { randomUUID } from "expo-crypto";
 import type { hentDatabase } from "../../../db/database";
 import { sheetTimerLocal, sheetMachineLocal, slettedeRaderLocal } from "../../../db/schema";
 import { erReiseLonnsartLokalt } from "../../../services/timerKatalog";
-import { settInnTimerRad, type NyMaskin } from "../../../services/nyTimerRad";
+import { settInnTimerRad } from "../../../services/nyTimerRad";
+import {
+  maskinerOverRadEtterLagring,
+  skrivKobledeMaskiner,
+  type MaskinEndringer,
+  type NyMaskin,
+} from "../../../services/kobledeMaskiner";
 
 /* ============================================================================
  *  ORDRE 36b (lagring C, Kenneth 2026-11-07): skrivestien for timer- og
@@ -51,29 +57,33 @@ export interface MaskinRadFelt {
   tilTid: string | null;
 }
 
-/** Ny timer-rad (+ evt. koblet maskin). Returnerer radens id. */
+/** Ny timer-rad (+ 0..n koblede maskiner). Returnerer radens id. */
 export function leggTilTimerRad(
   db: LokalDb,
   { sheetId, organizationId }: RadKontekst,
   felt: TimerRadFelt,
-  maskin: NyMaskin | null,
+  maskiner: NyMaskin[],
 ): string {
-  return settInnTimerRad(db, sheetId, organizationId, { ...felt, maskin });
+  return settInnTimerRad(db, sheetId, organizationId, { ...felt, maskiner });
 }
 
+export type OppdaterRadResultat = { ok: true } | { ok: false; grunn: "maskinOverRad" };
+
 /**
- * Oppdater en timer-rad. `maskin`:
+ * Oppdater en timer-rad. `maskiner` (NY BESLUTNING maskinkobling 2026-11-12):
  *   undefined = ikke rør maskin-rader,
- *   null      = fjern koblet maskin-rad (bruker tømte maskinen),
- *   objekt    = sett/oppdater koblet maskin-rad.
+ *   objekt    = linjer med id oppdateres, linjer uten id settes inn,
+ *               `fjernede` slettes; koblede maskiner som ikke er nevnt, røres ikke.
+ * Maskintimer settes aldri fra radens timer. Går en koblet maskin over radens
+ * timer, skrives ingenting og resultatet er `maskinOverRad`.
  */
 export function oppdaterTimerRad(
   db: LokalDb,
   { sheetId, organizationId }: RadKontekst,
   radId: string,
   felt: TimerRadFelt,
-  maskin?: NyMaskin | null,
-): void {
+  maskiner?: MaskinEndringer,
+): OppdaterRadResultat {
   const {
     projectId: radProjectId,
     byggeplassId,
@@ -122,6 +132,12 @@ export function oppdaterTimerRad(
           reiseAvstandM: null,
           reiseRegel: null,
         };
+  // NY BESLUTNING maskinkobling (Kenneth 2026-11-12): maskintimer følger ALDRI
+  // raden stille. Ville en koblet maskin fått flere timer enn raden, avvises
+  // hele lagringen før noe skrives (rad-modalen sier fra og ber om retting).
+  if (maskinerOverRadEtterLagring(db, radId, timer, maskiner).length > 0) {
+    return { ok: false as const, grunn: "maskinOverRad" as const };
+  }
   db.update(sheetTimerLocal)
     .set({
       projectId: radProjectId,
@@ -140,66 +156,18 @@ export function oppdaterTimerRad(
     })
     .where(eq(sheetTimerLocal.id, radId))
     .run();
-  // Del B pkt 1: livssyklus for den koblede maskin-raden (sheetTimerId = radId).
-  if (maskin !== undefined) {
-    const eksisterendeMaskin =
-      db
-        .select()
-        .from(sheetMachineLocal)
-        .where(eq(sheetMachineLocal.sheetTimerId, radId))
-        .all()[0] ?? null;
-    if (maskin) {
-      if (eksisterendeMaskin) {
-        db.update(sheetMachineLocal)
-          .set({
-            projectId: radProjectId,
-            externalCostObjectId,
-            vehicleId: maskin.vehicleId,
-            timer,
-            mengde: maskin.mengde,
-            enhet: maskin.enhet,
-            fraTid,
-            tilTid,
-            sistEndretLokalt: Date.now(),
-          })
-          .where(eq(sheetMachineLocal.id, eksisterendeMaskin.id))
-          .run();
-      } else {
-        db.insert(sheetMachineLocal)
-          .values({
-            id: randomUUID(),
-            dagsseddelId: sheetId,
-            sheetTimerId: radId,
-            projectId: radProjectId,
-            externalCostObjectId,
-            vehicleId: maskin.vehicleId,
-            timer,
-            mengde: maskin.mengde,
-            enhet: maskin.enhet,
-            fraTid,
-            tilTid,
-            sistEndretLokalt: Date.now(),
-          })
-          .run();
-      }
-    } else if (eksisterendeMaskin) {
-      // Slett koblet maskin-rad + tombstone ATOMISK (S-A).
-      db.transaction((tx) => {
-        tx.delete(sheetMachineLocal)
-          .where(eq(sheetMachineLocal.id, eksisterendeMaskin.id))
-          .run();
-        tx.insert(slettedeRaderLocal)
-          .values({
-            radId: eksisterendeMaskin.id,
-            dagsseddelId: sheetId,
-            radType: "maskin",
-            slettetVed: Date.now(),
-          })
-          .onConflictDoNothing()
-          .run();
-      });
-    }
+  // NY BESLUTNING: bare maskinlinjene modalen sender, skrives. Koblede maskiner
+  // som ikke er nevnt, røres ikke. undefined = ingen maskin røres.
+  if (maskiner !== undefined) {
+    skrivKobledeMaskiner(
+      db,
+      sheetId,
+      radId,
+      { projectId: radProjectId, byggeplassId, externalCostObjectId, timer, fraTid, tilTid },
+      maskiner,
+    );
   }
+  return { ok: true };
 }
 
 /** Slett timer-rad + tombstone med radens serverVersjon, ATOMISK (V19.9.1 / S-A). */

@@ -190,7 +190,7 @@ export function DagSeksjon({
               pauseMin,
             };
             if (reiseModal.rad) oppdaterTimerRad(db(), k, reiseModal.rad.id, felt, maskin);
-            else leggTilTimerRad(db(), k, felt, maskin);
+            else leggTilTimerRad(db(), k, felt, maskin.linjer);
             setReiseModal(null);
             onEndret();
           }}

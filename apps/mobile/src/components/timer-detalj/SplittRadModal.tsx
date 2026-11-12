@@ -35,6 +35,7 @@ import {
 } from "../../db/schema";
 import type { TimerRad, MaskinRad, TilleggRad } from "../../types/timer-detalj";
 import { VelgerFelt } from "./VelgerFelt";
+import { hentKobledeMaskiner, maskinerOverRad } from "../../services/kobledeMaskiner";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import {
   LonnsartVelgerModal,
@@ -112,7 +113,7 @@ function delLikt(total: number, n: number): string[] {
 }
 
 export function SplittRadModal(props: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Original-sum som delene må matche.
   const originalSum =
@@ -252,6 +253,19 @@ export function SplittRadModal(props: Props) {
         }
       }
       const o = props.original;
+      // NY BESLUTNING maskinkobling (2026-11-12): koblede maskiner blir på del 1
+      // (originalens id). Får del 1 færre timer enn en koblet maskin, sier vi fra
+      // og lagrer ikke — maskintimene rettes aldri stille.
+      const del1Timer = tilTall(timerDeler[0]!.timerTekst);
+      const overDel1 = maskinerOverRad(del1Timer, hentKobledeMaskiner(db, o.id));
+      if (overDel1.length > 0) {
+        const m = overDel1[0]!;
+        const e = db.select().from(equipmentLocal).where(eq(equipmentLocal.id, m.vehicleId)).all()[0];
+        const navn = (e ? `${e.merke ?? ""} ${e.modell ?? ""}`.trim() || e.internNavn : null) ?? t("timer.maskinSeksjon.merke");
+        const fmt = (n: number) => n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
+        setFeil(t("timer.maskinSeksjon.overRad", { maskin: navn, maskinTimer: fmt(m.timer), radTimer: fmt(del1Timer) }));
+        return;
+      }
       // Lokal reconcile: GJENBRUK originalens id på del 1 (update), insert resten.
       // Rasjonale (S3-fiks): syncBatch sletter kun rader hvis id er i payloaden
       // (deleteMany id:{in:...}). Sletter vi originalen lokalt faller id-en ut av
