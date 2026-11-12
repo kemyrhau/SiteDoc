@@ -22,36 +22,17 @@ import { trpc } from "../lib/trpc";
 import { hentDatabase } from "../db/database";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import {
-  lagS1Vakt,
+  kjorS1,
+  maalStille,
   registrerBesok,
-  s1Forslag,
+  s1Prosessvakt,
   sisteBesok,
+  velgS2Besok,
   type Besok,
   type BesokKilde,
   type BesokSted,
 } from "../services/arbeidsdagBesok";
 import { AnkommetHvorModal } from "./AnkommetHvorModal";
-
-/** L4-A S1: én vakt pr. app-prosess — 10-min-grensen og [Nei]-dempingen
- *  overlever at Timer-fanen remountes. */
-const s1Vakt = lagS1Vakt();
-
-/**
- * L4-A S1: stille posisjonsmåling. Spør ALDRI om tillatelse (den ble gitt ved
- * Start dag); mangler den, eller GPS feiler → null (banneret uteblir).
- */
-async function maalStille(): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const perm = await Location.getForegroundPermissionsAsync();
-    if (perm.status !== "granted") return null;
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
-  } catch {
-    return null;
-  }
-}
 
 /**
  * `onNyRad`: beholdt i signaturen (A5, ORDRE 30). Var fallback ved
@@ -86,22 +67,36 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
     if (!aktivDag) setS1(null);
   }, [aktivDag, besokNonce]);
 
-  // L4-A S1 (§ 2.3): appen kommer i forgrunnen mens dagen pågår → maks én
-  // måling pr. 10 min. Treff på en annen byggeplass enn siste besøk (og ikke
-  // dempet) → banner. Ingen treff / GPS av → stille. Ingen bakgrunnsposisjon.
+  // L4-A S1 (§ 2.3): ved montering mens dagen pågår, og når appen kommer i
+  // forgrunnen → maks én måling pr. 10 min (vakten er pr. app-prosess, K14).
+  // Treff på en annen byggeplass enn siste besøk (og ikke dempet) → banner.
+  // Ingen treff / GPS av → stille. Ingen bakgrunnsposisjon.
   useEffect(() => {
     if (!aktivDag) return;
     const dagId = aktivDag.id;
-    const sub = AppState.addEventListener("change", (tilstand) => {
-      if (tilstand !== "active" || !s1Vakt.skalMaale(Date.now())) return;
-      void maalStille().then((pos) => {
-        const db = hentDatabase();
-        if (!pos || !db) return;
-        const treff = identifiserByggeplass(pos.lat, pos.lng, orgIdKort);
-        setS1(s1Forslag(treff, sisteBesok(db, dagId), s1Vakt, Date.now()));
+    let aktiv = true;
+    const maal = () =>
+      void kjorS1({
+        vakt: s1Prosessvakt,
+        orgId: orgIdKort,
+        naaMs: Date.now,
+        maal: () => maalStille(Location),
+        identifiser: identifiserByggeplass,
+        siste: () => {
+          const db = hentDatabase();
+          return db ? sisteBesok(db, dagId) : null;
+        },
+      }).then((forslag) => {
+        if (aktiv && forslag !== undefined) setS1(forslag);
       });
+    maal();
+    const sub = AppState.addEventListener("change", (tilstand) => {
+      if (tilstand === "active") maal();
     });
-    return () => sub.remove();
+    return () => {
+      aktiv = false;
+      sub.remove();
+    };
   }, [aktivDag, orgIdKort]);
 
   const registrer = useCallback(
@@ -135,11 +130,16 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
   const velgS2 = useCallback(
     (sted: BesokSted) => {
       setVisS2(false);
-      // Samme sted som siste besøk → ingen ny rad.
-      if (siste && sted.id === siste.byggeplassId) return;
-      registrer(sted, "manuell");
+      const db = hentDatabase();
+      if (!db || !aktivDag) return;
+      // Samme sted som siste besøk → ingen ny rad (velgS2Besok).
+      const naaIso = new Date().toISOString();
+      if (velgS2Besok(db, { id: randomUUID(), arbeidsdagId: aktivDag.id, sted, naaIso })) {
+        setS1(null);
+        setBesokNonce((n) => n + 1);
+      }
     },
-    [siste, registrer],
+    [aktivDag],
   );
 
   // Tikk forløpt-tid hvert minutt mens dagen pågår.
@@ -324,7 +324,7 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
           <Pressable
             onPress={() => {
               // [Nei] skriver ingenting — demper samme byggeplass i 30 min.
-              if (s1.id) s1Vakt.demp(s1.id, Date.now());
+              if (s1.id) s1Prosessvakt.demp(s1.id, Date.now());
               setS1(null);
             }}
             className="flex-1 items-center rounded-lg border border-green-300 bg-white py-3 active:bg-green-50"

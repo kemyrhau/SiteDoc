@@ -37,8 +37,13 @@ import { kjorMigreringer } from "../db/migreringer";
 import {
   avsluttBesok,
   hentBesok,
+  kjorS1,
   lagS1Vakt,
+  maalStille,
+  opprettArbeidsdagMedBesok,
   registrerBesok,
+  s1Prosessvakt,
+  velgS2Besok,
   ryddGamleArbeidsdager,
   s1Forslag,
   S1_DEMPING_MS,
@@ -137,6 +142,29 @@ describe("L4-A — migrering", () => {
   });
 });
 
+describe("L4-A2 — skjema og migrering fra før L4-A", () => {
+  it("🔴 K12: besøkstabellen har ingen posisjonskolonner", () => {
+    const stmt = holder.raw.prepare("PRAGMA table_info(arbeidsdag_besok_local)");
+    const kolonner: string[] = [];
+    while (stmt.step()) kolonner.push(String(stmt.getAsObject().name));
+    stmt.free();
+    expect(kolonner).toContain("byggeplass_id"); // tabellen finnes og leses
+    for (const k of kolonner) {
+      expect(k, k).not.toMatch(/lat|lng|lon|pos|koord|coord/i);
+    }
+  });
+
+  it("🔴 DB fra før L4-A (uten tabellen): migrering oppretter den, arbeidsdagen står", () => {
+    holder.raw.run("DROP TABLE arbeidsdag_besok_local");
+    expect(tabeller(holder.raw)).not.toContain("arbeidsdag_besok_local");
+    kjorMigreringer();
+    expect(tabeller(holder.raw)).toContain("arbeidsdag_besok_local");
+    expect(db().select().from(arbeidsdagLocal).all().map((d) => d.id)).toEqual([DAG]);
+    expect(velgS2Besok(lokalDb(), { id: "b1", arbeidsdagId: DAG, sted: A, naaIso: "T08" })).toBe(true);
+    expect(hentBesok(lokalDb(), DAG)).toHaveLength(1);
+  });
+});
+
 describe("L4-A § 2.2 — Start dag og Slutt dag", () => {
   it("🔴 besøk 1: rekkefølge 1, kilde start_dag, bekreftet, avreise null", () => {
     registrerBesok(lokalDb(), {
@@ -150,13 +178,39 @@ describe("L4-A § 2.2 — Start dag og Slutt dag", () => {
     });
   });
 
-  it("🔴 kildevakt: startDag skriver besøk 1 med kilde start_dag etter at dagen er satt inn", () => {
+  it("🔴 K13: Start dag skriver arbeidsdagen OG besøk 1 (start_dag) på startstedet", () => {
+    opprettArbeidsdagMedBesok(lokalDb(), {
+      id: "dag2", besokId: "b-start", userId: "u1", dato: "2026-11-12",
+      naaIso: "2026-11-12T06:30:00.000Z", naaMs: 5, lat: 69.6, lng: 18.9,
+      oppmotested: { id: "om1", navn: "Lager" }, bygg: B,
+    });
+    const dag = db().select().from(arbeidsdagLocal).all().find((d) => d.id === "dag2");
+    expect(dag).toMatchObject({
+      status: "paagaar", startAt: "2026-11-12T06:30:00.000Z", byggeplassId: "bp-b",
+      oppmotestedId: "om1",
+    });
+    expect(hentBesok(lokalDb(), "dag2")).toEqual([
+      expect.objectContaining({
+        id: "b-start", rekkefolge: 1, kilde: "start_dag", byggeplassId: "bp-b",
+        prosjektId: "p2", ankomstAt: "2026-11-12T06:30:00.000Z", avreiseAt: null,
+      }),
+    ]);
+  });
+
+  it("🔴 K13: Start dag utenfor kjent byggeplass → besøk 1 med byggeplass null", () => {
+    opprettArbeidsdagMedBesok(lokalDb(), {
+      id: "dag3", besokId: "b-ute", userId: "u1", dato: "2026-11-12",
+      naaIso: "T06", naaMs: 5, lat: null, lng: null, oppmotested: null, bygg: null,
+    });
+    expect(hentBesok(lokalDb(), "dag3")).toEqual([
+      expect.objectContaining({ rekkefolge: 1, kilde: "start_dag", byggeplassId: null }),
+    ]);
+  });
+
+  it("🔴 K13: startDag bruker opprettArbeidsdagMedBesok (ingen egen insert)", () => {
     const kilde = fs.readFileSync(path.join(__dirname, "../hooks/useArbeidsdag.ts"), "utf8");
-    const innsatt = kilde.indexOf(".insert(arbeidsdagLocal)");
-    const besok = kilde.indexOf("registrerBesok(db, {", innsatt);
-    expect(innsatt).toBeGreaterThan(-1);
-    expect(besok).toBeGreaterThan(innsatt);
-    expect(kilde.slice(besok, besok + 400)).toMatch(/arbeidsdagId: id,[\s\S]*kilde: "start_dag"/);
+    expect(kilde).toMatch(/opprettArbeidsdagMedBesok\(db, \{/);
+    expect(kilde).not.toContain(".insert(arbeidsdagLocal)");
   });
 
   it("🔴 nytt besøk lukker forrige: avreise = ny ankomst", () => {
@@ -237,10 +291,143 @@ describe("L4-A § 2.3 — S1-vakt", () => {
 
   it("🔴 [Nei] skriver ingenting (kortet kaller ikke registrerBesok i Nei-grenen)", () => {
     const kort = fs.readFileSync(path.join(__dirname, "../components/StartSluttDagKort.tsx"), "utf8");
-    const nei = kort.indexOf("s1Vakt.demp(");
+    const nei = kort.indexOf("s1Prosessvakt.demp(");
     expect(nei).toBeGreaterThan(-1);
     const gren = kort.slice(kort.lastIndexOf("onPress={() => {", nei), kort.indexOf("}}", nei));
     expect(gren).not.toContain("registrer");
+  });
+});
+
+function falskLocation(status: string) {
+  const kall = { request: 0, posisjon: 0 };
+  const loc = {
+    getForegroundPermissionsAsync: async () => ({ status }),
+    requestForegroundPermissionsAsync: async () => {
+      kall.request++;
+      return { status: "granted" };
+    },
+    getCurrentPositionAsync: async () => {
+      kall.posisjon++;
+      return { coords: { latitude: 69.6, longitude: 18.9 } };
+    },
+    Accuracy: { Balanced: 3 },
+  };
+  return { loc, kall };
+}
+
+describe("L4-A2 — S1-måling (K1, K14, montering)", () => {
+  it("🔴 K1: tillatelse mangler → null, spør aldri, måler ikke", async () => {
+    const { loc, kall } = falskLocation("denied");
+    expect(await maalStille(loc)).toBeNull();
+    expect(kall).toEqual({ request: 0, posisjon: 0 });
+  });
+
+  it("🔴 K1: tillatelse gitt → posisjon, fortsatt uten å spørre", async () => {
+    const { loc, kall } = falskLocation("granted");
+    expect(await maalStille(loc)).toEqual({ lat: 69.6, lng: 18.9 });
+    expect(kall).toEqual({ request: 0, posisjon: 1 });
+  });
+
+  it("🔴 K1: S1-stien i kortet og tjenesten spør aldri om tillatelse", () => {
+    for (const rel of ["../components/StartSluttDagKort.tsx", "./arbeidsdagBesok.ts"]) {
+      const kilde = fs.readFileSync(path.join(__dirname, rel), "utf8");
+      expect(kilde, rel).not.toContain("requestForegroundPermissionsAsync");
+    }
+  });
+
+  it("🔴 K14: kortet bruker prosessvakten, aldri en egen vakt pr. montering", () => {
+    const kort = fs.readFileSync(path.join(__dirname, "../components/StartSluttDagKort.tsx"), "utf8");
+    expect(kort).not.toMatch(/lagS1Vakt\s*\(/);
+    expect(kort).toMatch(/vakt: s1Prosessvakt/);
+    expect(kort).toMatch(/s1Prosessvakt\.demp\(/);
+  });
+
+  it("🔴 K14: prosessvakten er én instans på tvers av importer (modulnivå)", async () => {
+    const igjen = await import("./arbeidsdagBesok");
+    expect(igjen.s1Prosessvakt).toBe(s1Prosessvakt);
+    // Tilstand lever i instansen: demping satt én gang gjelder neste montering.
+    const t0 = 1_000_000_000;
+    igjen.s1Prosessvakt.demp("bp-k14", t0);
+    expect(s1Prosessvakt.erDempet("bp-k14", t0 + 1)).toBe(true);
+  });
+
+  function s1Deler(vakt: ReturnType<typeof lagS1Vakt>, naa: { ms: number }) {
+    const maal = vi.fn(async () => ({ lat: 1, lng: 2 }));
+    return {
+      maal,
+      p: {
+        vakt, orgId: "org1", naaMs: () => naa.ms, maal,
+        identifiser: () => B,
+        siste: () => ({ byggeplassId: "bp-a" }),
+      },
+    };
+  }
+
+  it("🔴 montering: første måling gir forslag; ny montering innen 10 min måler ikke", async () => {
+    const naa = { ms: 1_000_000 };
+    const { maal, p } = s1Deler(lagS1Vakt(), naa);
+    expect(await kjorS1(p)).toEqual(B);
+    naa.ms += S1_MAALEINTERVALL_MS - 1;
+    expect(await kjorS1(p)).toBeUndefined();
+    expect(maal).toHaveBeenCalledTimes(1);
+    naa.ms += 1;
+    expect(await kjorS1(p)).toEqual(B);
+    expect(maal).toHaveBeenCalledTimes(2);
+  });
+
+  it("🔴 montering: [Nei] demper samme byggeplass i 30 min også ved neste måling", async () => {
+    const naa = { ms: 1_000_000 };
+    const vakt = lagS1Vakt();
+    const { p } = s1Deler(vakt, naa);
+    vakt.demp("bp-b", naa.ms);
+    expect(await kjorS1(p)).toBeNull();
+    naa.ms += S1_DEMPING_MS;
+    expect(await kjorS1(p)).toEqual(B);
+  });
+
+  it("🔴 montering: GPS uten svar → ikke målt (banneret røres ikke)", async () => {
+    const naa = { ms: 1_000_000 };
+    const { p } = s1Deler(lagS1Vakt(), naa);
+    expect(await kjorS1({ ...p, maal: async () => null })).toBeUndefined();
+  });
+
+  it("🔴 montering: kortet måler straks ved montering, ikke bare ved AppState→active", () => {
+    const kort = fs.readFileSync(path.join(__dirname, "../components/StartSluttDagKort.tsx"), "utf8");
+    const eff = kort.slice(kort.indexOf("const maal = () =>"), kort.indexOf("sub.remove();"));
+    const kall = eff.indexOf("\n    maal();");
+    const lytter = eff.indexOf("AppState.addEventListener");
+    expect(kall).toBeGreaterThan(-1);
+    expect(kall).toBeLessThan(lytter);
+    expect(eff.slice(lytter)).toMatch(/tilstand === "active"\) maal\(\)/);
+    expect(eff).toMatch(/maal: \(\) => maalStille\(Location\)/);
+  });
+});
+
+describe("L4-A2 — S2 (K9)", () => {
+  it("🔴 K9: samme byggeplass som siste besøk → ingen ny rad", () => {
+    registrerBesok(lokalDb(), {
+      id: "b1", arbeidsdagId: DAG, sted: A, ankomstAt: "T07", kilde: "start_dag", naaIso: "T07",
+    });
+    expect(velgS2Besok(lokalDb(), { id: "b2", arbeidsdagId: DAG, sted: A, naaIso: "T09" })).toBe(false);
+    expect(hentBesok(lokalDb(), DAG)).toHaveLength(1);
+    expect(hentBesok(lokalDb(), DAG)[0].avreiseAt).toBeNull();
+  });
+
+  it("🔴 K9: annen byggeplass → manuell-besøk, forrige lukkes", () => {
+    registrerBesok(lokalDb(), {
+      id: "b1", arbeidsdagId: DAG, sted: A, ankomstAt: "T07", kilde: "start_dag", naaIso: "T07",
+    });
+    expect(velgS2Besok(lokalDb(), { id: "b2", arbeidsdagId: DAG, sted: B, naaIso: "T09" })).toBe(true);
+    const [b1, b2] = hentBesok(lokalDb(), DAG);
+    expect(b1.avreiseAt).toBe("T09");
+    expect(b2).toMatchObject({ rekkefolge: 2, kilde: "manuell", byggeplassId: "bp-b" });
+  });
+
+  it("🔴 K9: kortets S2-valg går via velgS2Besok", () => {
+    const kort = fs.readFileSync(path.join(__dirname, "../components/StartSluttDagKort.tsx"), "utf8");
+    const s2 = kort.slice(kort.indexOf("const velgS2 = useCallback("), kort.indexOf("[aktivDag],", kort.indexOf("const velgS2")));
+    expect(s2).toMatch(/velgS2Besok\(db, \{/);
+    expect(s2).not.toMatch(/registrer\(/);
   });
 });
 
@@ -298,7 +485,6 @@ describe("L4-A § 2.5 — PSI er aldri kilde for besøk", () => {
     gaa(path.join(rot, "src"));
     expect(skrivere.sort()).toEqual([
       "src/components/StartSluttDagKort.tsx",
-      "src/hooks/useArbeidsdag.ts",
       "src/services/arbeidsdagBesok.ts",
       "src/utils/bekreftDag.ts",
     ]);
