@@ -48,6 +48,7 @@ import {
   prosjekterMedArbeid,
 } from "./bekreftDag";
 import type { Dagsforslag } from "./dagsforslag";
+import { hentBesok, registrerBesok } from "../services/arbeidsdagBesok";
 
 /** ORDRE 36a: beskrivelse er påkrevd ved Bekreft — testene her måler noe annet. */
 function medBeskrivelse(f: Dagsforslag): Dagsforslag {
@@ -168,6 +169,7 @@ beforeEach(() => {
   teller = 0;
   holder.raw.run(
     "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM arbeidsdag_local;" +
+      " DELETE FROM arbeidsdag_besok_local;" +
       " DELETE FROM prosjekt_local; DELETE FROM aktivitet_local; DELETE FROM lonnsart_local;",
   );
   seedKatalog();
@@ -254,6 +256,7 @@ describe("L3-A § 8 nr. 5 — tomt forslag", () => {
     expect(erTomtForslag(forslag)).toBe(true);
     avsluttDagUtenSedel(lokalDb(), {
       arbeidsdagId: DAG_ID, sluttIso: SLUTT, endLat: null, endLng: null, naa: () => 1000,
+      nyId: () => "slutt-besok",
     });
     expect(tell()).toEqual({ sedler: 0, rader: 0, status: "avsluttet" });
     const dag = db().select().from(arbeidsdagLocal).all()[0]!;
@@ -265,5 +268,48 @@ describe("L3-A § 8 nr. 5 — tomt forslag", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     expect(erTomtForslag(forslag)).toBe(false);
     expect(erAlleDatoerSendt(forslag)).toBe(false);
+  });
+});
+
+describe("L4-A § 2.2 — Slutt dag lukker besøkene sammen med dagen", () => {
+  const A = { id: "bp-a", navn: "Kaia", projectId: "p1" };
+  const B = { id: "bp-b", navn: "Skolen", projectId: "p1" };
+  function besok1() {
+    registrerBesok(lokalDb(), {
+      id: "b1", arbeidsdagId: DAG_ID, sted: A, ankomstAt: START, kilde: "start_dag", naaIso: START,
+    });
+  }
+
+  it("🔴 Bekreft: siste besøk får avreise = slutt; annen byggeplass → slutt_dag-besøk", () => {
+    besok1();
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    bekreftDag(lokalDb(), medBeskrivelse(forslag), { ...skriveCtx(), sluttSted: B });
+    const [b1, b2] = hentBesok(lokalDb(), DAG_ID);
+    expect(b1!.avreiseAt).toBe(SLUTT);
+    expect(b2).toMatchObject({ kilde: "slutt_dag", byggeplassId: "bp-b", ankomstAt: SLUTT, avreiseAt: SLUTT });
+  });
+
+  it("🔴 H7: dagen holdes åpen (sendt sedel) → ingen avreise skrives", () => {
+    besok1();
+    db().insert(dagsseddelLocal).values({
+      id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "sent", sistEndretLokalt: 1,
+    }).run();
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    bekreftDag(lokalDb(), medBeskrivelse(forslag), { ...skriveCtx(), sluttSted: B });
+    const besok = hentBesok(lokalDb(), DAG_ID);
+    expect(besok).toHaveLength(1);
+    expect(besok[0]!.avreiseAt).toBeNull();
+  });
+
+  it("🔴 [Avslutt dag] uten sedel lukker også siste besøk", () => {
+    besok1();
+    avsluttDagUtenSedel(lokalDb(), {
+      arbeidsdagId: DAG_ID, sluttIso: SLUTT, endLat: null, endLng: null, naa: () => 1000,
+      nyId: () => "slutt", sluttSted: null,
+    });
+    const besok = hentBesok(lokalDb(), DAG_ID);
+    expect(besok).toHaveLength(1);
+    expect(besok[0]!.avreiseAt).toBe(SLUTT);
   });
 });

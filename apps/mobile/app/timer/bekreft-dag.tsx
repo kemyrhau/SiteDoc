@@ -30,7 +30,10 @@ import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { tilHHMM } from "../../src/hooks/useArbeidsdag";
 import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
-import { hentByggeplasserForProsjektLokalt } from "../../src/services/byggeplassKatalog";
+import {
+  hentByggeplasserForProsjektLokalt,
+  identifiserByggeplass,
+} from "../../src/services/byggeplassKatalog";
 import { hentUnderprosjekterLokalt } from "../../src/services/timerKatalog";
 import { FraTilTidFelt } from "../../src/components/timer-detalj/FraTilTidFelt";
 import { ModalFlate } from "../../src/components/ModalFlate";
@@ -389,10 +392,12 @@ export default function BekreftDagSkjerm() {
       endLat,
       endLng,
       naa: Date.now,
+      sluttSted: identifiserByggeplass(endLat, endLng, orgId),
+      nyId: randomUUID,
     });
     oppdaterTellere();
     router.back();
-  }, [params.arbeidsdagId, sluttIso, endLat, endLng, oppdaterTellere, router]);
+  }, [params.arbeidsdagId, sluttIso, endLat, endLng, orgId, oppdaterTellere, router]);
 
   const bekreft = useCallback(() => {
     const db = hentDatabase();
@@ -420,6 +425,7 @@ export default function BekreftDagSkjerm() {
         sluttIso: effSluttIso,
         endLat,
         endLng,
+        sluttSted: manuell ? null : identifiserByggeplass(endLat, endLng, orgId),
       }, rensTillegg(tillegg, tilstand));
       if (handling.type === "maskinBrudd") {
         // Ingenting er skrevet — skjermen står, arbeideren justerer maskintimene.

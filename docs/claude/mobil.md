@@ -285,6 +285,7 @@ const { t } = useTranslation();
 | `hms_local` | Offline-katalog for HMS-**lista** (én tabell, `kategori` avvik/sja/ruh, 2026-10-03; filterkolonner 2026-11-03) |
 | `vare_local` | Offline-katalog for firmaets aktive varer (id/navn/enhet/varenummer), pr. firma, fra `vareforbruk.katalogForFirma` (Prosjektkort L3, 2026-11-06) |
 | `vareforbruk_local` | Vareforbruk ført fra prosjektkortet offline; `sync_status` pending/synced/avvist, sendes av `syncVareforbruk` (`src/services/vareforbrukSync.ts`) (L3). ORDRE 36b: `external_cost_object_id` (kortets underprosjekt; `sheet_machine_local.byggeplass_id` likeså), additiv, ingen backfill |
+| `arbeidsdag_besok_local` | L4-A (2026-11-12): bekreftede byggeplass-besøk gjennom dagen (`rekkefolge`, `byggeplass_id`/`_navn`, `prosjekt_id`, `ankomst_at`/`avreise_at`, `kilde` start_dag/gps_forslag/manuell/slutt_dag). Ingen lat/lng. Indeks `idx_arbeidsdag_besok_local_dag`. Additiv `CREATE … IF NOT EXISTS` i `migreringer.ts`. Synkes aldri; ryddes med `arbeidsdag_local` (avsluttet/forkastet > 14 d). Logikk: `src/services/arbeidsdagBesok.ts` |
 | `dokument_speil` | Offline-speil av **hele dokumentet** (`hentMedId`-JSON) for LESING uten nett (fase 2 2026-10-03). Nøklet (dokumentType, id, userId); signaturer strippet |
 
 **Offline dokumentlister (fase 1):** list-skjermene leste før rett på tRPC uten fallback → tom liste
