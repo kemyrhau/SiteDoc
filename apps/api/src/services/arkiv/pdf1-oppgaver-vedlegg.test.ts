@@ -6,7 +6,8 @@ import { PDFDocument } from "pdf-lib";
  *  - hentSjekklisteOppgaver: henvisningslinjer + oppgave-id-er, 🔴 aldri fra et annet prosjekt,
  *    aldri en oppgave brukeren mangler tilgang til.
  *  - rendrArkivPdf: «Ta med oppgaver» av → ingen oppgavedel; på → én del pr. oppgave.
- *    «Ta med vedlegg» → PDF-vedlegg bakerst. Uten flagg → dagens resultat.
+ *    «Ta med vedlegg» → PDF-vedlegg bakerst. Standard (rettelse 2026-11-12): begge av →
+ *    dagens PDF + henvisningslinje.
  */
 
 const { hentBytes, sjekkliste, oppgave } = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ vi.mock("./sammenstilling", () => ({ byggSjekklisteArkivHtml: sjekkliste, byggOp
 import { hentSjekklisteOppgaver } from "./oppgave-henvisning";
 import { rendrArkivPdf, leggVedleggBakerst } from "./render";
 import type { PrismaClient } from "@sitedoc/db";
+import { STANDARD_PDF_VALG } from "@sitedoc/shared";
 
 const P = "prosjekt-a";
 const ANNET = "prosjekt-b";
@@ -145,7 +147,22 @@ describe("rendrArkivPdf — utskriftsvalg", () => {
     expect(Math.round(doc.getPage(1).getWidth())).toBe(333);
   });
 
-  it("uten flagg → dagens resultat: kun sjekklista, ingen vedlegg lagt til", async () => {
+  it("standard (ingen valg) = dagens PDF + henvisning, uten oppgavedel og uten vedlegg", async () => {
+    sjekkliste.mockImplementation(async (_p: unknown, _id: string, o: { medVedlegg?: boolean }) =>
+      resultat(`SJEKKLISTE Oppgaver: BEF-001 Tittel o1${o.medVedlegg ? " VEDLEGG-MERKET" : ""}`, {
+        oppgaveIder: ["o1", "o2"], pdfVedlegg: [{ url: "/v.pdf", filnavn: "v.pdf" }],
+      }),
+    );
+    const r = await kjør({ ...STANDARD_PDF_VALG });
+    expect(sendtHtml).toContain("Oppgaver: BEF-001 Tittel o1");
+    expect(sendtHtml).not.toContain("VEDLEGG-MERKET");
+    expect(oppgave).not.toHaveBeenCalled();
+    expect(sendtHtml).not.toContain("OPPGAVE-");
+    expect(hentBytes).not.toHaveBeenCalled();
+    expect((await PDFDocument.load(r.pdf)).getPageCount()).toBe(1);
+  });
+
+  it("uten flagg → samme som standard", async () => {
     const r = await kjør();
     expect(oppgave).not.toHaveBeenCalled();
     expect(hentBytes).not.toHaveBeenCalled();

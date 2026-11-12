@@ -373,7 +373,7 @@ utskrift, og hver verifiseringsrunde koster et EAS-bygg.
 > `arkiv.rendr`-veien (`app/sjekkliste/[id].tsx`, `EksportPdfForhandsvisning`); ingen
 > `expo-print`-import finnes i `apps/mobile/app` eller `src`. Pakken `expo-print` står
 > fortsatt i `apps/mobile/package.json` (ikke fjernet — pakkeendring krever egen ordre).
-> PDF-1 la til `medOppgaver`/`medVedlegg` på `arkiv.rendr` og henvisningslinjen
+> PDF-1 la til `medOppgaver`/`medVedlegg` (begge av som standard) på `arkiv.rendr` og henvisningslinjen
 > «Oppgaver: …» under felt med oppgaver — se [mobil.md § PDF-utskrift og deling](mobil.md).
 
 Ordre: `relay/inbox-mobil-arkivpdf.md`.

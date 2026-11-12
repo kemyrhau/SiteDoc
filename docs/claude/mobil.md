@@ -1028,7 +1028,7 @@ annen — da gjelder paritetsregelen igjen.
 **Flyt:** Share-ikon → `arkiv.rendr` → base64 skrives til en egen undermappe pr. render (`${cacheDirectory}pdf-<tid>/`, så forrige forhåndsvisning ikke overskrives mens den vises) → `EksportPdfForhandsvisning` (`src/components/EksportPdfForhandsvisning.tsx`, WebView i `ModalFlate`) → Del → `expo-sharing` → iOS delearket.
 
 **Utskriftsvalg (PDF-1, 2026-11-12):** forhåndsvisningen har to brytere under headeren (`valg`-prop på `EksportPdfForhandsvisning`); endring rendrer forhåndsvisningen på nytt, og Del sender samme valg:
-- **Ta med oppgaver** (`eksport.medOppgaver`, standard PÅ) — hver oppgave opprettet fra et felt i sjekklisten legges inn som egen del rett etter sjekklista.
+- **Ta med oppgaver** (`eksport.medOppgaver`, standard AV — `STANDARD_PDF_VALG` i `packages/shared/src/dokument/pdf-valg.ts`) — hver oppgave opprettet fra et felt i sjekklisten legges inn som egen del rett etter sjekklista.
 - **Ta med vedlegg** (`eksport.medVedlegg`, standard AV) — PDF-vedlegg legges bakerst i PDF-en (pdf-lib, `leggVedleggBakerst` i `render.ts`); bilder vises som før; andre filer listes med filnavn under feltet.
 - Uavhengig av valgene: under hvert felt eller hver repeater-rad med oppgaver står en henvisningslinje «Oppgaver: BEF-015 Tittel (status) · …» (`byggOppgaveHenvisning`, `packages/pdf/src/hjelpere.ts`). Oppgavene hentes kun fra samme prosjekt og filtreres på dokumenttilgang (`hentSjekklisteOppgaver`, `apps/api/src/services/arkiv/oppgave-henvisning.ts`).
 - Oppgave-skjermen (`app/oppgave/[id].tsx`) har ingen valg — den rendrer én oppgave.

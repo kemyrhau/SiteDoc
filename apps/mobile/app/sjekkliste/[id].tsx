@@ -13,8 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
-import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG } from "@sitedoc/shared";
+import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument, PdfValg } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -129,8 +129,8 @@ export default function SjekklisteUtfylling() {
   // closure i mutasjon-callbacken).
   const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
   const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
-  // PDF-1: utskriftsvalg — oppgaver med (default), vedlegg ikke. Gjelder både deling og forhåndsvisning.
-  const [pdfValg, settPdfValg] = useState({ medOppgaver: true, medVedlegg: false });
+  // PDF-1: utskriftsvalg — begge av som standard (STANDARD_PDF_VALG). Gjelder både deling og forhåndsvisning.
+  const [pdfValg, settPdfValg] = useState<PdfValg>(STANDARD_PDF_VALG);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
   // D (bygg 50): endringsloggen skal ikke stå åpen — sammenleggbar, lukket som standard.

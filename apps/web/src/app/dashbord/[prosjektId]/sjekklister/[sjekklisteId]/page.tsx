@@ -24,7 +24,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, type PdfValg } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -260,8 +260,8 @@ export default function SjekklisteDetaljSide() {
   // Melding skilles bevisst: timeout → «prøv igjen» hjelper; manglende vedlegg →
   // dokumentet ER ufullstendig (last ned likevel, hullet er merket i PDF-en).
   const [eksportMelding, setEksportMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
-  // PDF-1: utskriftsvalg — oppgaver med (default), vedlegg ikke. Velges i nedtrekket ved knappen.
-  const [pdfValg, setPdfValg] = useState({ medOppgaver: true, medVedlegg: false });
+  // PDF-1: utskriftsvalg — begge av som standard (STANDARD_PDF_VALG). Velges i nedtrekket ved knappen.
+  const [pdfValg, setPdfValg] = useState<PdfValg>(STANDARD_PDF_VALG);
   const [visPdfValg, setVisPdfValg] = useState(false);
   const rendrArkiv = trpc.arkiv.rendr.useMutation({
     onSuccess: (res: {

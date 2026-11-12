@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STANDARD_PDF_VALG } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserDokumentTilgang } from "../trpc/tilgangskontroll";
@@ -108,8 +109,8 @@ export const arkivRouter = router({
       const resultat = await rendrArkivPdf(ctx.prisma, dokRefs, {
         generertTekst: genererArkivStempel(naa),
         datoForFilnavn: naa.toISOString().slice(0, 10),
-        medOppgaver: input.medOppgaver ?? false,
-        medVedlegg: input.medVedlegg ?? false,
+        medOppgaver: input.medOppgaver ?? STANDARD_PDF_VALG.medOppgaver,
+        medVedlegg: input.medVedlegg ?? STANDARD_PDF_VALG.medVedlegg,
         // PDF-1: oppgaver i henvisning/deler krever samme dokumenttilgang som lesing.
         oppgaveTilgang: async (o) => {
           try {
