@@ -266,6 +266,21 @@ describe("Avbryt skriver ingenting", () => {
 });
 
 describe("lagreNyTimerRad", () => {
+  it("RETUR punkt 2: maskin over raden → verken rad eller dagsseddel opprettes", () => {
+    seedLonnsart("l1", { standard: true });
+    seedAktivitet("a1", "Anleggsarbeid");
+    const over: NyRad = { ...rad, maskiner: [{ vehicleId: "v1", timer: 8, mengde: null, enhet: null }] };
+    expect(() =>
+      lagreNyTimerRad(db(), { userId: "u1", organizationId: "o1", dato: "2026-11-06", rad: over }),
+    ).toThrow(/maskinOverRad/);
+    expect(antall()).toEqual({ sedler: 0, rader: 0 });
+
+    // Negativkontroll: maskin på radens timer → sedel + rad opprettes.
+    const ok: NyRad = { ...rad, maskiner: [{ vehicleId: "v1", timer: 7.5, mengde: null, enhet: null }] };
+    expect(lagreNyTimerRad(db(), { userId: "u1", organizationId: "o1", dato: "2026-11-06", rad: ok }).ok).toBe(true);
+    expect(antall()).toEqual({ sedler: 1, rader: 1 });
+  });
+
   it("gjenbruker eksisterende sedel for datoen", () => {
     seedSedel("s-fins", "2026-11-06");
     const res = lagreNyTimerRad(db(), { userId: "u1", organizationId: "o1", dato: "2026-11-06", rad });

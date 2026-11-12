@@ -74,5 +74,13 @@ export function raderForDag<T extends RadformTimer, M extends RadformKoblet, V e
 export function forsteRadUtenBeskrivelse<T extends { id: string; beskrivelse: string | null; erReise: boolean }>(
   rader: T[],
 ): T | null {
-  return rader.find((r) => !r.erReise && !(r.beskrivelse ?? "").trim()) ?? null;
+  return rader.find((r) => radManglerBeskrivelse(r.beskrivelse, r.erReise)) ?? null;
+}
+
+/**
+ * Kenneth 2026-11-12: en arbeidsrad kan ikke lagres uten beskrivelse. Reise er
+ * unntatt. Brukes av rad-modalens lagre-sperre og av Send-sperren.
+ */
+export function radManglerBeskrivelse(beskrivelse: string | null, erReise: boolean): boolean {
+  return !erReise && !(beskrivelse ?? "").trim();
 }

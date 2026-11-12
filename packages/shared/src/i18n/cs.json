@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "Toto je poslední karta — časový rozvrh bude prázdný.",
   "timer.kort.offlineSlett": "Na kartě je zboží, které bylo odesláno. Chcete-li smazat, připojte se k internetu.",
   "timer.kort.offlineFlytt": "Na kartě je zboží, které bylo odesláno. Chcete-li se pohybovat, připojte se k internetu.",
-  "timer.kort.delvisFlyttet": "Hodiny byly přesunuty. Materiál ne — klepněte znovu na „Vyměňte kartu“ na staré kartě."
+  "timer.kort.delvisFlyttet": "Hodiny byly přesunuty. Materiál ne — klepněte znovu na „Vyměňte kartu“ na staré kartě.",
+  "timer.feil.beskrivelsePaakrevd": "Popište, co bylo provedeno před uložením."
 }

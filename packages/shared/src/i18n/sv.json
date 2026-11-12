@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "Detta är det sista kortet — tidrapporten kommer att vara tom.",
   "timer.kort.offlineSlett": "Kortet har varor som har skickats. Anslut till internet för att radera.",
   "timer.kort.offlineFlytt": "Kortet har varor som har skickats. Anslut till internet för att flytta.",
-  "timer.kort.delvisFlyttet": "Timmarna har flyttats. Varorna flyttades inte — tryck på ”Byt kort” igen på det gamla kortet."
+  "timer.kort.delvisFlyttet": "Timmarna har flyttats. Varorna flyttades inte — tryck på ”Byt kort” igen på det gamla kortet.",
+  "timer.feil.beskrivelsePaakrevd": "Beskriv vad som gjordes innan du sparade."
 }

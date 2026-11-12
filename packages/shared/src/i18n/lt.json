@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "Tai paskutinė kortelė – darbo laiko apskaitos žiniaraštis bus tuščias.",
   "timer.kort.offlineSlett": "Kortelėje yra prekės, kurios buvo išsiųstos. Prisijunkite prie interneto, kad ištrintumėte.",
   "timer.kort.offlineFlytt": "Kortelėje yra prekės, kurios buvo išsiųstos. Norėdami judėti, prisijunkite prie interneto.",
-  "timer.kort.delvisFlyttet": "Valandos perkeltos. Medžiagos neperkeltos — senoje kortelėje dar kartą bakstelėkite „Keisti kortelę“."
+  "timer.kort.delvisFlyttet": "Valandos perkeltos. Medžiagos neperkeltos — senoje kortelėje dar kartą bakstelėkite „Keisti kortelę“.",
+  "timer.feil.beskrivelsePaakrevd": "Aprašykite, kas buvo padaryta prieš išsaugant."
 }

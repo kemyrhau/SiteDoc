@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "To jest ostatnia karta — grafik będzie pusty.",
   "timer.kort.offlineSlett": "Na karcie znajdują się towary, które zostały wysłane. Połącz się z internetem, aby usunąć.",
   "timer.kort.offlineFlytt": "Na karcie znajdują się towary, które zostały wysłane. Aby się przenieść, połącz się z internetem.",
-  "timer.kort.delvisFlyttet": "Godziny zostały przeniesione. Materiały nie — dotknij ponownie „Zmień kartę” na starej karcie."
+  "timer.kort.delvisFlyttet": "Godziny zostały przeniesione. Materiały nie — dotknij ponownie „Zmień kartę” na starej karcie.",
+  "timer.feil.beskrivelsePaakrevd": "Opisz, co zostało zrobione przed zapisaniem."
 }

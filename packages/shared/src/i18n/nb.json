@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "Dette er siste kort — seddelen blir tom.",
   "timer.kort.offlineSlett": "Kortet har varer som er sendt. Koble til nett for å slette.",
   "timer.kort.offlineFlytt": "Kortet har varer som er sendt. Koble til nett for å flytte.",
-  "timer.kort.delvisFlyttet": "Timene er flyttet. Varene ble ikke flyttet — trykk «Endre kort» igjen på det gamle kortet."
+  "timer.kort.delvisFlyttet": "Timene er flyttet. Varene ble ikke flyttet — trykk «Endre kort» igjen på det gamle kortet.",
+  "timer.feil.beskrivelsePaakrevd": "Skriv hva som ble gjort før du lagrer."
 }

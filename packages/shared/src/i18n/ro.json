@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "Acesta este ultimul card - foaia de pontaj va fi goală.",
   "timer.kort.offlineSlett": "Cardul conține bunuri care au fost trimise. Conectați-vă la internet pentru a șterge.",
   "timer.kort.offlineFlytt": "Cardul conține bunuri care au fost trimise. Conectați-vă la internet pentru a vă deplasa.",
-  "timer.kort.delvisFlyttet": "Orele au fost mutate. Materialele nu — apăsați din nou „Schimbați cardul” pe cardul vechi."
+  "timer.kort.delvisFlyttet": "Orele au fost mutate. Materialele nu — apăsați din nou „Schimbați cardul” pe cardul vechi.",
+  "timer.feil.beskrivelsePaakrevd": "Descrieți ce sa făcut înainte de a salva."
 }

@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "Šī ir pēdējā karte — darba laika uzskaite būs tukša.",
   "timer.kort.offlineSlett": "Kartē ir preces, kas ir nosūtītas. Lai izdzēstu, izveidojiet savienojumu ar internetu.",
   "timer.kort.offlineFlytt": "Kartē ir preces, kas ir nosūtītas. Lai pārvietotos, izveidojiet savienojumu ar internetu.",
-  "timer.kort.delvisFlyttet": "Stundas ir pārvietotas. Materiāli netika pārvietoti — vecajā kartītē vēlreiz pieskarieties “Mainīt karti”."
+  "timer.kort.delvisFlyttet": "Stundas ir pārvietotas. Materiāli netika pārvietoti — vecajā kartītē vēlreiz pieskarieties “Mainīt karti”.",
+  "timer.feil.beskrivelsePaakrevd": "Aprakstiet, kas tika darīts pirms saglabāšanas."
 }

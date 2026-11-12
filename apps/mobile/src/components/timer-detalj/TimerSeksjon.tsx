@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -68,6 +68,7 @@ import {
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { erReiseRadVisning } from "../../utils/reiseRad";
+import { radManglerBeskrivelse } from "../../utils/dagsoversiktRader";
 import { nyRadTider } from "../../utils/nyRadTider";
 import type {
   TimerRad,
@@ -1301,6 +1302,8 @@ export function TimerRadModal({
   const [beskrivelse, setBeskrivelse] = useState<string>(
     eksisterendeRad?.beskrivelse ?? "",
   );
+  const [beskrivelseFeil, setBeskrivelseFeil] = useState(false);
+  const beskrivelseRef = useRef<TextInput>(null);
   const [feil, setFeil] = useState<string | null>(null);
   const [visDatoVelger, setVisDatoVelger] = useState(false);
   // Opprettelse: ny dato → fra/til/antall forhåndsutfylles på nytt mot den
@@ -1638,6 +1641,18 @@ export function TimerRadModal({
     }
     if (!valgtAktivitetId) {
       setFeil(t("timer.feil.aktivitetPaakrevd"));
+      return;
+    }
+    // Kenneth 2026-11-12: arbeidsrad krever beskrivelse (reise unntatt).
+    // Feltmelding under beskrivelsesfeltet; ingenting lagres.
+    if (
+      radManglerBeskrivelse(
+        beskrivelse,
+        erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
+      )
+    ) {
+      setBeskrivelseFeil(true);
+      beskrivelseRef.current?.focus();
       return;
     }
     // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Tid-løse
@@ -1993,21 +2008,31 @@ export function TimerRadModal({
           </View>
           )}
 
-          {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt) */}
+          {/* T.12: fritekst per rad — «hva gjorde du?». Påkrevd på arbeidsrad
+              (Kenneth 2026-11-12), reise unntatt. */}
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.radBeskrivelse")}
             </Text>
             <TextInput
+              ref={beskrivelseRef}
               value={beskrivelse}
-              onChangeText={setBeskrivelse}
+              onChangeText={(v) => {
+                setBeskrivelse(v);
+                if (beskrivelseFeil && v.trim()) setBeskrivelseFeil(false);
+              }}
               autoFocus={fokusBeskrivelse}
               placeholder={t("timer.radBeskrivelsePlaceholder")}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
-              className="min-h-[72px] rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
+              className={`min-h-[72px] rounded-lg border bg-white px-3 py-3 text-base text-gray-900 ${beskrivelseFeil ? "border-red-500" : "border-gray-300"}`}
             />
+            {beskrivelseFeil && (
+              <Text className="mt-1 text-sm text-red-600">
+                {t("timer.feil.beskrivelsePaakrevd")}
+              </Text>
+            )}
           </View>
 
           {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon, også ved

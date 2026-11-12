@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "Kjo është karta e fundit - fleta e kohës do të jetë bosh.",
   "timer.kort.offlineSlett": "Karta ka mallra që janë dërguar. Lidhu me internetin për ta fshirë.",
   "timer.kort.offlineFlytt": "Karta ka mallra që janë dërguar. Lidhu me internetin për të lëvizur.",
-  "timer.kort.delvisFlyttet": "Orët u zhvendosën. Materialet jo — prekni sërish «Ndrysho kartën» te karta e vjetër."
+  "timer.kort.delvisFlyttet": "Orët u zhvendosën. Materialet jo — prekni sërish «Ndrysho kartën» te karta e vjetër.",
+  "timer.feil.beskrivelsePaakrevd": "Përshkruani se çfarë është bërë para ruajtjes."
 }

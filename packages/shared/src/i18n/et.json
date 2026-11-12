@@ -5483,5 +5483,6 @@
   "timer.kort.slettSiste": "See on viimane kaart – ajatabel jääb tühjaks.",
   "timer.kort.offlineSlett": "Kaardil on kaup, mis on saadetud. Kustutamiseks looge Interneti-ühendus.",
   "timer.kort.offlineFlytt": "Kaardil on kaup, mis on saadetud. Liikumiseks looge Interneti-ühendus.",
-  "timer.kort.delvisFlyttet": "Tunnid on teisaldatud. Materjale ei teisaldatud — puuduta vanal kaardil uuesti „Vaheta kaarti“."
+  "timer.kort.delvisFlyttet": "Tunnid on teisaldatud. Materjale ei teisaldatud — puuduta vanal kaardil uuesti „Vaheta kaarti“.",
+  "timer.feil.beskrivelsePaakrevd": "Kirjeldage, mida tehti enne salvestamist."
 }
