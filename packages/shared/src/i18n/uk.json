@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Схвалено {{dato}}",
   "timer.dagsoversikt.beskrivelse": "опис",
   "timer.dagsoversikt.mangler": "Відсутня",
-  "timer.dagsoversikt.overtid": "понаднормова {{prosent}} % від {{fra}} · {{timer}} год",
+  "timer.dagsoversikt.overtid": "Понаднормова {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Розділіть ряд",
   "timer.dagsoversikt.slettRad": "Видалити рядок",
   "timer.dagsoversikt.slettRadBekreft": "Видалити рядок?",

@@ -114,9 +114,6 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
                       >
                         {item.name}
                       </Text>
-                      <Text className="mt-0.5 text-sm text-gray-500">
-                        {item.projectNumber}
-                      </Text>
                     </View>
                     {erValgt && <Check size={20} color="#1d4ed8" />}
                   </Pressable>

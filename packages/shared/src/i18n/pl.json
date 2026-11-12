@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Zatwierdzono {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Opis",
   "timer.dagsoversikt.mangler": "Zaginiony",
-  "timer.dagsoversikt.overtid": "nadgodziny {{prosent}} % od {{fra}} · {{timer}} godz",
+  "timer.dagsoversikt.overtid": "Nadgodziny {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Podziel rząd",
   "timer.dagsoversikt.slettRad": "Usuń wiersz",
   "timer.dagsoversikt.slettRadBekreft": "Usunąć wiersz?",

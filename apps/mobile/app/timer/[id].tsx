@@ -67,6 +67,7 @@ import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/Byggepl
 import { ProsjektGruppe } from "../../src/components/timer-detalj/ProsjektGruppe";
 import type { VisVarelinje } from "../../src/components/timer-detalj/VareforbrukLesListe";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
+import { prosjektVisningsnavn } from "../../src/utils/prosjektNavn";
 import {
   flyttMatpauseVedAvhuking,
   settMatpauseBaerer,
@@ -611,10 +612,8 @@ export default function DagsseddelDetalj() {
   // L1 / B6: aktivt prosjekt-navn (sedelens primærprosjekt) for blå topp-oversikt.
   const sedelProsjektNavn = useMemo(() => {
     if (!sedel) return "";
-    const p = finnProsjektLokalt(sedel.projectId);
-    if (!p) return sedel.projectId;
-    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
-  }, [sedel]);
+    return prosjektVisningsnavn(finnProsjektLokalt(sedel.projectId), t("timer.detalj.ukjentProsjekt"));
+  }, [sedel, t]);
 
   // L1 / B6 sedel-nivå byggeplass: navn til topp-oversikten + mismatch-deteksjon.
   // 1) Eksplisitt sedel-byggeplass (GPS ved «Start dag», eller valgt i velgeren)
@@ -642,9 +641,9 @@ export default function DagsseddelDetalj() {
             ? {
                 byggeplass: navn ?? sedel.byggeplassId,
                 gpsProsjekt:
-                  finnProsjektLokalt(bp.projectId)?.name ?? bp.projectId,
+                  prosjektVisningsnavn(finnProsjektLokalt(bp.projectId), t("timer.detalj.ukjentProsjekt")),
                 sedelProsjekt:
-                  finnProsjektLokalt(sedel.projectId)?.name ?? sedel.projectId,
+                  prosjektVisningsnavn(finnProsjektLokalt(sedel.projectId), t("timer.detalj.ukjentProsjekt")),
               }
             : null;
         return { navn, mismatch };
@@ -659,7 +658,7 @@ export default function DagsseddelDetalj() {
       return { navn: perProsjekt[0].navn, mismatch: null };
     }
     return { navn: null, mismatch: null };
-  }, [sedel]);
+  }, [sedel, t]);
 
   // L1 / B6: skriv valgt byggeplass på sedelen (sedel-nivå) + merk pending.
   // Sync-laget sender byggeplassId på sedel-nivå; server propagerer til rader.

@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Kinnitatud {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Kirjeldus",
   "timer.dagsoversikt.mangler": "Puudub",
-  "timer.dagsoversikt.overtid": "lisatunnid {{prosent}} % alates {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Ületunnitöö {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Jaga rida pooleks",
   "timer.dagsoversikt.slettRad": "Kustuta rida",
   "timer.dagsoversikt.slettRadBekreft": "Kas kustutada rida?",

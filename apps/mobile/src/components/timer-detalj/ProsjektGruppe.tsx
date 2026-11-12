@@ -12,6 +12,7 @@ import { overstigerMaskinTak } from "@sitedoc/shared";
 import { hentDatabase } from "../../db/database";
 import { byggeplassLocal, externalCostObjectLocal } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
+import { prosjektVisningsnavn } from "../../utils/prosjektNavn";
 import type {
   TimerRad,
   TilleggRad,
@@ -159,9 +160,7 @@ export function ProsjektGruppe({
             )}
             <View className="flex-1">
               <Text className="text-sm font-semibold text-sitedoc-primary">
-                {prosjekt
-                  ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
-                  : projectId}
+                {prosjektVisningsnavn(prosjekt, t("timer.detalj.ukjentProsjekt"))}
               </Text>
               {byggeplassNavn && (
                 <Text className="text-xs text-gray-600">{byggeplassNavn}</Text>

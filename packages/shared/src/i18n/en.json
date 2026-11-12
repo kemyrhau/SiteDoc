@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Approved {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Description",
   "timer.dagsoversikt.mangler": "Missing",
-  "timer.dagsoversikt.overtid": "overtime {{prosent}} % from {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Overtime {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Split the row",
   "timer.dagsoversikt.slettRad": "Delete the row",
   "timer.dagsoversikt.slettRadBekreft": "Delete the row?",

@@ -5434,7 +5434,7 @@
   "timer.dagsoversikt.attestert": "Genehmigt {{dato}}",
   "timer.dagsoversikt.beskrivelse": "Beschreibung",
   "timer.dagsoversikt.mangler": "Fehlen",
-  "timer.dagsoversikt.overtid": "Überstunden {{prosent}} % von {{fra}} · {{timer}} h",
+  "timer.dagsoversikt.overtid": "Überstunden {{prosent}} %",
   "timer.dagsoversikt.delOpp": "Teilen Sie die Zeile",
   "timer.dagsoversikt.slettRad": "Löschen Sie die Zeile",
   "timer.dagsoversikt.slettRadBekreft": "Zeile löschen?",
