@@ -44,6 +44,7 @@ export function ProsjektGruppe({
   harMaskinforerbevis,
   redigerbar,
   onPauseToggle,
+  dagsnormTimer = null,
   timerRader,
   alleTimerRader,
   tilleggRader,
@@ -62,6 +63,9 @@ export function ProsjektGruppe({
   sedelByggeplassId: string | null;
   /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
   onPauseToggle: (radId: string, vilHa: boolean) => void;
+  /** V21: firmaets dagsnorm for dagen — overtidsforslaget i rad-dialogen.
+   *  null/udefinert = ingen forslagslinje. */
+  dagsnormTimer?: number | null;
   dato: string;
   /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
   pauseMin: number;
@@ -187,6 +191,7 @@ export function ProsjektGruppe({
               ecoId={bucket.ecoId}
               sedelByggeplassId={sedelByggeplassId}
               onPauseToggle={onPauseToggle}
+              dagsnormTimer={dagsnormTimer}
               dato={dato}
               pauseMin={pauseMin}
               defaultAktivitetId={defaultAktivitetId}
@@ -242,6 +247,7 @@ function EcoBucket({
   ecoId,
   sedelByggeplassId,
   onPauseToggle,
+  dagsnormTimer,
   dato,
   pauseMin,
   defaultAktivitetId,
@@ -261,6 +267,7 @@ function EcoBucket({
   sedelByggeplassId: string | null;
   /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
   onPauseToggle: (radId: string, vilHa: boolean) => void;
+  dagsnormTimer: number | null;
   dato: string;
   pauseMin: number;
   defaultAktivitetId: string | null;
@@ -353,6 +360,7 @@ function EcoBucket({
         defaultAktivitetId={defaultAktivitetId}
         redigerbar={redigerbar}
         onPauseToggle={onPauseToggle}
+        dagsnormTimer={dagsnormTimer}
         onEndret={onEndret}
       />
 

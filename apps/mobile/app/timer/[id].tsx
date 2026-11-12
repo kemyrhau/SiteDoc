@@ -1262,6 +1262,7 @@ export default function DagsseddelDetalj() {
             harMaskinforerbevis={harMaskinforerbevis}
             redigerbar={erRedigerbar}
             onPauseToggle={handterPauseToggle}
+            dagsnormTimer={normTimer}
             timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             alleTimerRader={timerRader}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}

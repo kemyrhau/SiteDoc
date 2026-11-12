@@ -65,6 +65,7 @@ import {
   hentReiseLonnsartId,
   erReiseLonnsartLokalt,
   hentUnderprosjekterLokalt,
+  hentLonnsarterLokalt,
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { erReiseRadVisning } from "../../utils/reiseRad";
@@ -84,6 +85,8 @@ import {
   tilFraAntall,
   tilErEtterFra,
   finnOverlappendeTidsrom,
+  foreslaOvertidSplitt,
+  type OvertidForslag,
 } from "@sitedoc/shared";
 import { ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt } from "./FraTilTidFelt";
@@ -142,6 +145,8 @@ interface TimerSeksjonProps {
   /** F5 (2026-07-14): sedel-nivå matpause-toggle. radId + ønsket tilstand →
    *  [id].tsx orkestrerer flytt/sett/fjern (kryss-bøtte, ekte modal, toast). */
   onPauseToggle: (radId: string, vilHa: boolean) => void;
+  /** V21: dagsnorm for overtidsforslaget i rad-dialogen. Udefinert = ingen linje. */
+  dagsnormTimer?: number | null;
   onEndret: () => void;
 }
 
@@ -176,6 +181,7 @@ export function TimerSeksjon({
   defaultAktivitetId,
   redigerbar,
   onPauseToggle,
+  dagsnormTimer = null,
   onEndret,
 }: TimerSeksjonProps) {
   const { t } = useTranslation();
@@ -599,6 +605,35 @@ export function TimerSeksjon({
           }
           tvungetValg={tvungetValg}
           sedelByggeplassId={sedelByggeplassId}
+          dagsnormTimer={dagsnormTimer}
+          // V21: overtid-delen av en delt rad — ny rad, ingen maskin (den
+          // koblede maskinen følger normal-delen via onLagre).
+          onLeggTilOvertidDel={(
+            radProjectId,
+            byggeplassId,
+            lonnsartId,
+            aktivitetId,
+            timer,
+            externalCostObjectId,
+            fraTid,
+            tilTid,
+            beskrivelse,
+            pauseMin,
+          ) =>
+            leggTil(
+              radProjectId,
+              byggeplassId,
+              lonnsartId,
+              aktivitetId,
+              timer,
+              externalCostObjectId,
+              fraTid,
+              tilTid,
+              beskrivelse,
+              pauseMin,
+              null,
+            )
+          }
           onLagre={(
             radProjectId,
             byggeplassId,
@@ -1038,6 +1073,8 @@ export function TimerRadModal({
   handlinger,
   fokusBeskrivelse = false,
   reise,
+  dagsnormTimer,
+  onLeggTilOvertidDel,
   onLagre,
   onLukk,
 }: {
@@ -1080,6 +1117,24 @@ export function TimerRadModal({
    *  byggeplasser / underprosjekter (K3), ellers lagres null.
    *  Udefinert (dagskortet, kortene) = som før. */
   reise?: { lonnsartId: string | null };
+  /** V21: dagsnorm for overtidsforslaget. Udefinert/null (kortene, ny-rad-flyten)
+   *  = ingen forslagslinje, modalen som før. */
+  dagsnormTimer?: number | null;
+  /** V21: lagrer overtid-delen som ny rad når forslaget deler raden. Normal-
+   *  delen går gjennom `onLagre`. Udefinert = kun «hel rad»-forslag vises ikke
+   *  heller (forslagslinja krever begge). */
+  onLeggTilOvertidDel?: (
+    projectId: string,
+    byggeplassId: string | null,
+    lonnsartId: string,
+    aktivitetId: string,
+    timer: number,
+    externalCostObjectId: string | null,
+    fraTid: string,
+    tilTid: string,
+    beskrivelse: string | null,
+    pauseMin: number,
+  ) => void;
   onLagre: (
     projectId: string,
     byggeplassId: string | null,
@@ -1096,7 +1151,10 @@ export function TimerRadModal({
   ) => void;
   onLukk: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // V21: timetall i forslagslinja i brukerens språk (7,5 / 7.5).
+  const formaterTimer = (n: number) =>
+    n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
   const kortModus = useProsjektkortModus();
   const kortVisning = kortModusVisning(kortModus);
   // T.5 + pause-synk: hent firma-innstillinger fra lokal cache.
@@ -1537,6 +1595,57 @@ export function TimerRadModal({
   // obligatorisk på timer-rader (2026-07-13, reverserer a2). Validering i lagre()
   // beholdes (viser konkret feilmelding); dette er UI-hintet.
   const dagLaast = !!opprettelse?.laastDagId;
+
+  // V21: overtidsforslag for denne raden — sedelens øvrige rader + dialogens
+  // gjeldende verdier, delt regel (`foreslaOvertidSplitt`). Kun et forslag;
+  // ingenting skrives før knappen trykkes.
+  const overtidForslag = useMemo(() => {
+    if (dagsnormTimer == null || !onLeggTilOvertidDel) return null;
+    if (!fraTid || !tilTid || !valgtLonnsartId) return null;
+    const katalog = hentLonnsarterLokalt(organizationId);
+    const nivaaFor = (id: string | null) =>
+      katalog.find((l) => l.id === id)?.overtidsnivaa ?? null;
+    const egenId = eksisterendeRad?.id ?? "__ny__";
+    const rader = [
+      ...alleTimerRader
+        .filter((r) => r.id !== eksisterendeRad?.id)
+        .map((r) => ({
+          id: r.id,
+          fraTid: r.fraTid ?? null,
+          tilTid: r.tilTid ?? null,
+          pauseMin: r.pauseMin ?? 0,
+          erReise: !!r.erReise,
+          overtidsnivaa: nivaaFor(r.lonnsartId),
+        })),
+      {
+        id: egenId,
+        fraTid,
+        tilTid,
+        pauseMin: radPauseMinFor(fraTid, tilTid),
+        erReise:
+          erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
+        overtidsnivaa: nivaaFor(valgtLonnsartId),
+      },
+    ];
+    return (
+      foreslaOvertidSplitt(rader, dagsnormTimer, katalog, { pauseFra }).find(
+        (f) => f.radId === egenId,
+      ) ?? null
+    );
+  }, [
+    dagsnormTimer,
+    onLeggTilOvertidDel,
+    fraTid,
+    tilTid,
+    valgtLonnsartId,
+    organizationId,
+    eksisterendeRad?.id,
+    alleTimerRader,
+    radPauseMinFor,
+    erReiseRad,
+    pauseFra,
+  ]);
+
   const kanLagre =
     !dagLaast &&
     !!valgtProjectId &&
@@ -1546,7 +1655,7 @@ export function TimerRadModal({
     !!fraTid &&
     !!tilTid;
 
-  function lagre() {
+  function lagre(forslag?: OvertidForslag<Lonnsart>) {
     setFeil(null);
     if (dagLaast) return;
     if (!valgtProjectId) {
@@ -1632,10 +1741,41 @@ export function TimerRadModal({
           enhet: maskinEnhet || null,
         }
       : null;
+    // V21: overtidsforslaget. Hel rad over normen → samme lagring med overtid-
+    // lønnsarten. Krysser normen → normal-delen via onLagre (beholder id, maskin
+    // og lønnsart), overtid-delen som ny rad via onLeggTilOvertidDel.
+    if (forslag?.normal && onLeggTilOvertidDel) {
+      onLagre(
+        valgtProjectId,
+        valgtByggeplassId,
+        valgtLonnsartId,
+        valgtAktivitetId,
+        forslag.normal.timer,
+        valgtEcoId,
+        forslag.normal.fraTid,
+        forslag.normal.tilTid,
+        beskrivelse.trim() || null,
+        forslag.normal.pauseMin,
+        maskin,
+      );
+      onLeggTilOvertidDel(
+        valgtProjectId,
+        valgtByggeplassId,
+        forslag.overtidLonnsart.id,
+        valgtAktivitetId,
+        forslag.overtid.timer,
+        valgtEcoId,
+        forslag.overtid.fraTid,
+        forslag.overtid.tilTid,
+        beskrivelse.trim() || null,
+        forslag.overtid.pauseMin,
+      );
+      return;
+    }
     onLagre(
       valgtProjectId,
       valgtByggeplassId,
-      valgtLonnsartId,
+      forslag ? forslag.overtidLonnsart.id : valgtLonnsartId,
       valgtAktivitetId,
       tall,
       valgtEcoId,
@@ -1812,6 +1952,39 @@ export function TimerRadModal({
             )}
           </View>
 
+          {/* V21: overtidsforslag — én linje, én knapp. Vises kun når raden
+              (eller dagen) passerer dagsnormen og firmaet har overtid-lønnsart. */}
+          {overtidForslag && (
+            <View className="gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <Text className="text-sm text-amber-900">
+                {overtidForslag.normal
+                  ? t("timer.overtidForslag.splitt", {
+                      over: formaterTimer(overtidForslag.overTimer),
+                      normalNavn: valgtLonnsart?.navn ?? "",
+                      nFra: overtidForslag.normal.fraTid,
+                      nTil: overtidForslag.normal.tilTid,
+                      otNavn: overtidForslag.overtidLonnsart.navn,
+                      oFra: overtidForslag.overtid.fraTid,
+                      oTil: overtidForslag.overtid.tilTid,
+                    })
+                  : t("timer.overtidForslag.helRad", {
+                      over: formaterTimer(overtidForslag.overTimer),
+                      otNavn: overtidForslag.overtidLonnsart.navn,
+                    })}
+              </Text>
+              <Pressable
+                onPress={() => lagre(overtidForslag)}
+                className="items-center rounded-lg border border-amber-300 bg-white px-4 py-2.5"
+              >
+                <Text className="text-sm font-medium text-amber-900">
+                  {overtidForslag.normal
+                    ? t("timer.overtidForslag.delKnapp")
+                    : t("timer.overtidForslag.helKnapp")}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* Underprosjekt (valgfritt) — Tilleggsarbeid, Endring m.fl. */}
           {(!reise || reiseVisUnderprosjekt || !!valgtEcoId) && (
           <View>
@@ -1959,7 +2132,7 @@ export function TimerRadModal({
 
           <KnappMedForklaring sperret={!kanLagre} forklaring={t("sperret.timerRad")}>
             <Pressable
-              onPress={lagre}
+              onPress={() => lagre()}
               disabled={!kanLagre}
               className={`mt-4 items-center rounded-lg px-6 py-4 ${
                 kanLagre ? "bg-blue-600 active:bg-blue-700" : "bg-blue-300"

@@ -52,7 +52,11 @@ import {
   utledArbeidstidFraRader,
   avgjorRadPauseMin,
   finnOverlappendeTidsrom,
+  foreslaOvertidSplitt,
+  erReiseLonnsart,
   type ForsonRad,
+  type ErReiseKontekst,
+  type OvertidForslag,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import {
@@ -1073,6 +1077,14 @@ export default function DagsseddelDetaljSide() {
           // V20/PK5: pausereferanse fra kalender-effektiv norm (samme kilde som
           // serveren). Default «ankomst» (firma-standard) til normen er lastet.
           pauseReferanse={effektivNorm?.pauseReferanse ?? "ankomst"}
+          // V21: dagsnorm + reise-kontekst for overtidsforslaget i dialogen.
+          normTimer={normTimer}
+          reiseKontekst={{
+            reiseLonnsartId: arbeidstidDefaults?.reiseLonnsartId ?? null,
+            grensepunktLonnsartIds: (arbeidstidDefaults?.reiseGrenser ?? [])
+              .map((g) => g.lonnsartId)
+              .filter((id): id is string => id != null),
+          }}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -2363,6 +2375,8 @@ function TimerRadDialog({
   standardPauseMin,
   standardPauseEtterTimer,
   pauseReferanse,
+  normTimer,
+  reiseKontekst,
   onLukk,
 }: {
   sheetId: string;
@@ -2397,9 +2411,13 @@ function TimerRadDialog({
   // rad-fraTid, «fastStart» fra skiftstart. Må matche serverens vindu, ellers
   // avviser den interaktive PK4-vakten.
   pauseReferanse: "fastStart" | "ankomst";
+  // V21: firmaets dagsnorm for datoen (null = ikke lastet → ingen forslag) og
+  // reise-kontekst (reise er aldri overtid).
+  normTimer: number | null;
+  reiseKontekst: ErReiseKontekst;
   onLukk: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
@@ -2728,20 +2746,155 @@ function TimerRadDialog({
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
+  // V21: første kall i overtid-delingen (normal-delen av en eksisterende rad).
+  // Lukker IKKE — andre kall (overtid-delen) følger i `brukOvertidForslag`.
+  const oppdaterDel = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation({
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  // V21: overtidsforslag for DENNE raden — de andre radene på sedelen + dialogens
+  // gjeldende verdier, delt regel (`foreslaOvertidSplitt`). Kun et forslag; ingenting
+  // skrives før brukeren trykker knappen.
+  const overtidForslag = useMemo(() => {
+    if (!lonnsarter || !fraTid || !tilTid) return null;
+    const nivaaFor = (id: string) =>
+      lonnsarter.find((l) => l.id === id)?.overtidsnivaa ?? null;
+    const egenId = rad?.id ?? "__ny__";
+    const egenNavn = lonnsarter.find((l) => l.id === lonnsartId)?.navn ?? "";
+    const rader = [
+      ...alleTimerRader
+        .filter((r) => r.id !== rad?.id)
+        .map((r) => ({
+          id: r.id,
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+          pauseMin: r.pauseMin,
+          erReise: r.erReise ?? false,
+          overtidsnivaa: nivaaFor(r.lonnsartId),
+        })),
+      {
+        id: egenId,
+        fraTid,
+        tilTid,
+        pauseMin: radPauseMin,
+        erReise:
+          !!lonnsartId && erReiseLonnsart(lonnsartId, egenNavn, reiseKontekst),
+        overtidsnivaa: lonnsartId ? nivaaFor(lonnsartId) : null,
+      },
+    ];
+    return (
+      foreslaOvertidSplitt(rader, normTimer, lonnsarter, { pauseFra }).find(
+        (f) => f.radId === egenId,
+      ) ?? null
+    );
+  }, [
+    lonnsarter,
+    fraTid,
+    tilTid,
+    rad?.id,
+    lonnsartId,
+    alleTimerRader,
+    radPauseMin,
+    reiseKontekst,
+    normTimer,
+    pauseFra,
+  ]);
+  const formaterT = (n: number) =>
+    n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
+  const lonnsartNavn = (id: string) =>
+    lonnsarter?.find((l) => l.id === id)?.navn ?? "";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const tNum = validerSkjema();
+    if (tNum == null) return;
+    lagreRad(tNum, lonnsartId);
+  }
+
+  // V21: knappen i forslagslinja. Hel rad over normen → vanlig lagring med
+  // overtid-lønnsarten. Krysser normen → to kall: normal-delen (oppdater/tilføy),
+  // så overtid-delen (tilføy). Feiler kall 2, står raden forkortet og dialogen
+  // viser feilen (kjent begrensning, timer.md § V21).
+  async function brukOvertidForslag(
+    f: OvertidForslag<{ id: string }>,
+  ): Promise<void> {
+    const tNum = validerSkjema();
+    if (tNum == null) return;
+    if (!f.normal) {
+      lagreRad(tNum, f.overtidLonnsart.id);
+      return;
+    }
+    const felles = {
+      aktivitetId,
+      externalCostObjectId: ecoId,
+      vehicleId: erInternt ? vehicleId : null,
+      beskrivelse: beskrivelse.trim() || null,
+    };
+    try {
+      if (rad) {
+        await oppdaterDel.mutateAsync({
+          id: rad.id,
+          ...felles,
+          lonnsartId,
+          ...f.normal,
+          ...byggeplassPayload(bp),
+        });
+      } else {
+        await tilfoy.mutateAsync({
+          sheetId,
+          projectId: valgtProjectId,
+          ...felles,
+          lonnsartId,
+          ...f.normal,
+          byggeplassId: bp.byggeplassId,
+        });
+      }
+      await tilfoy.mutateAsync({
+        sheetId,
+        projectId: valgtProjectId,
+        ...felles,
+        lonnsartId: f.overtidLonnsart.id,
+        ...f.overtid,
+        byggeplassId: rad ? rad.byggeplassId : bp.byggeplassId,
+      });
+    } catch {
+      // Hook-nivå onError har satt feilen; vis det som faktisk ble lagret.
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      return;
+    }
+    utils.timer.dagsseddel.hentMedId.invalidate();
+    if (!rad && maskinVehicleId) {
+      maskinTilfoy.mutate({
+        sheetId,
+        projectId: valgtProjectId,
+        externalCostObjectId: ecoId,
+        vehicleId: maskinVehicleId,
+        timer: tNum,
+        byggeplassId: bp.byggeplassId,
+        mengde: maskinMengde ? parseFloat(maskinMengde) : null,
+        enhet: maskinEnhet || null,
+        fraTid: fraTid || null,
+        tilTid: tilTid || null,
+      });
+    } else {
+      onLukk();
+    }
+  }
+
+  // Felles skjema-validering (lagre + overtidsforslag). Returnerer antall timer,
+  // eller null når feilen er satt.
+  function validerSkjema(): number | null {
     setFeil(null);
     // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Sjekkes
     // FØR de andre valideringene (tid-løse rader er ufullstendige lønnsdata).
     if (!fraTid || !tilTid) {
       setFeil(t("timer.feil.fraTilPaakrevd"));
-      return;
+      return null;
     }
     const tNum = parseFloat(timer);
     if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
-      return;
+      return null;
     }
     // Pause-synk-sikkerhetsnett (paritet m/ mobil TimerSeksjon.tsx:681). Krev
     // FØRST til > fra (bolk (g): lukker 0==0-hullet der fra≥til gir forventet=0
@@ -2749,7 +2902,7 @@ function TimerRadDialog({
     if (fraTid && tilTid) {
       if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
         setFeil(t("timer.feil.sluttForStart"));
-        return;
+        return null;
       }
       // P4b: kryss-bøtte overlapp-vakt (paritet m/ mobil TimerSeksjon + server).
       // Én arbeider kan ikke være to steder samtidig — sjekk mot alle andre
@@ -2773,7 +2926,7 @@ function TimerRadDialog({
                 annenTil: overlapp.tilTid,
               }),
         );
-        return;
+        return null;
       }
       const forventet = effektiveTimerFraSpenn(
         fraTid,
@@ -2783,13 +2936,19 @@ function TimerRadDialog({
       );
       if (Math.abs(forventet - tNum) > 0.01) {
         setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
-        return;
+        return null;
       }
     }
+    return tNum;
+  }
+
+  // Vanlig lagring av raden (uendret sti); V21 sender inn overtid-lønnsarten
+  // når hele raden ligger over dagsnormen.
+  function lagreRad(tNum: number, lagreLonnsartId: string) {
     if (rad) {
       oppdater.mutate({
         id: rad.id,
-        lonnsartId,
+        lonnsartId: lagreLonnsartId,
         aktivitetId,
         timer: tNum,
         externalCostObjectId: ecoId,
@@ -2812,7 +2971,7 @@ function TimerRadDialog({
         {
           sheetId,
           projectId: valgtProjectId,
-          lonnsartId,
+          lonnsartId: lagreLonnsartId,
           aktivitetId,
           timer: tNum,
           externalCostObjectId: ecoId,
@@ -2850,7 +3009,10 @@ function TimerRadDialog({
   }
 
   const lagrer =
-    tilfoy.isPending || oppdater.isPending || maskinTilfoy.isPending;
+    tilfoy.isPending ||
+    oppdater.isPending ||
+    oppdaterDel.isPending ||
+    maskinTilfoy.isPending;
 
   return (
     <Modal
@@ -3005,6 +3167,38 @@ function TimerRadDialog({
                 : t("timer.matpause.trukketUmerket")}
             </span>
           </button>
+        )}
+        {/* V21: overtidsforslag — én linje, én knapp. Vises kun når raden (eller
+            dagen) passerer dagsnormen og firmaet har en overtid-lønnsart. */}
+        {overtidForslag && (
+          <div className="flex items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2">
+            <span className="text-sm text-amber-900">
+              {overtidForslag.normal
+                ? t("timer.overtidForslag.splitt", {
+                    over: formaterT(overtidForslag.overTimer),
+                    normalNavn: lonnsartNavn(lonnsartId),
+                    nFra: overtidForslag.normal.fraTid,
+                    nTil: overtidForslag.normal.tilTid,
+                    otNavn: overtidForslag.overtidLonnsart.navn,
+                    oFra: overtidForslag.overtid.fraTid,
+                    oTil: overtidForslag.overtid.tilTid,
+                  })
+                : t("timer.overtidForslag.helRad", {
+                    over: formaterT(overtidForslag.overTimer),
+                    otNavn: overtidForslag.overtidLonnsart.navn,
+                  })}
+            </span>
+            <button
+              type="button"
+              onClick={() => void brukOvertidForslag(overtidForslag)}
+              disabled={lagrer}
+              className="shrink-0 rounded border border-amber-300 bg-white px-3 py-1 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {overtidForslag.normal
+                ? t("timer.overtidForslag.delKnapp")
+                : t("timer.overtidForslag.helKnapp")}
+            </button>
+          </div>
         )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">

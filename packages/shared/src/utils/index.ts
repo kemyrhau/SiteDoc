@@ -159,6 +159,12 @@ export {
   velgOvertidLonnsart,
 } from "./lonnsregel";
 export type { ArbeidstidSegment, OvertidLonnsartKandidat } from "./lonnsregel";
+export { foreslaOvertidSplitt } from "./overtidForslag";
+export type {
+  OvertidForslagRad,
+  OvertidForslagDel,
+  OvertidForslag,
+} from "./overtidForslag";
 export {
   DEFAULT_PAUSE_ETTER_TIMER,
   pauseVinduFra,
