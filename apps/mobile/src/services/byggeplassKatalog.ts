@@ -79,7 +79,7 @@ export function identifiserByggeplass(
   lat: number | null,
   lng: number | null,
   organizationId: string,
-): { id: string; navn: string | null } | null {
+): { id: string; navn: string | null; projectId: string | null } | null {
   if (lat == null || lng == null || !organizationId) return null;
   const db = hentDatabase();
   if (!db) return null;
@@ -104,7 +104,8 @@ export function identifiserByggeplass(
   const treff = gjenkjennSted({ lat, lng }, kandidater);
   if (!treff) return null;
   const rad = rader.find((b) => b.id === treff.sted.id);
-  return { id: treff.sted.id, navn: rad?.navn ?? null };
+  // L4-A: projectId med (additivt) — besøksloggen lagrer byggeplassens prosjekt.
+  return { id: treff.sted.id, navn: rad?.navn ?? null, projectId: rad?.projectId ?? null };
 }
 
 /**

@@ -428,6 +428,25 @@ export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
+/**
+ * L4-A (spec `timer-gps-lag3-4-spec.md` § 2.2): byggeplass-besøk gjennom dagen —
+ * bekreftede stopp, ikke sporing. KUN lokal, synkes aldri. Ingen lat/lng: posisjonen
+ * brukes i øyeblikket til gjenkjenning og kastes. Ryddes sammen med arbeidsdagen.
+ */
+export const arbeidsdagBesokLocal = sqliteTable("arbeidsdag_besok_local", {
+  id: text("id").primaryKey(),
+  arbeidsdagId: text("arbeidsdag_id").notNull(), // → arbeidsdag_local.id
+  rekkefolge: integer("rekkefolge").notNull(), // 1..n
+  byggeplassId: text("byggeplass_id"), // null = utenfor kjent byggeplass
+  byggeplassNavn: text("byggeplass_navn"), // snapshot for visning offline
+  prosjektId: text("prosjekt_id"), // byggeplassens prosjekt
+  ankomstAt: text("ankomst_at").notNull(), // ISO
+  avreiseAt: text("avreise_at"), // null til neste besøk/Slutt dag
+  kilde: text("kilde").notNull(), // 'start_dag' | 'gps_forslag' | 'manuell' | 'slutt_dag'
+  bekreftet: integer("bekreftet").notNull(), // 0 = forslag, 1 = arbeideren trykket
+  sistEndretLokalt: text("sist_endret_lokalt").notNull(), // ISO
+});
+
 export const aktivitetLocal = sqliteTable("aktivitet_local", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull(),

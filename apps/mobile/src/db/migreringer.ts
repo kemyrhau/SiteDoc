@@ -1396,6 +1396,27 @@ export function kjorMigreringer() {
       console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
     }
   }
+
+  // L4-A (2026-11-12, spec timer-gps-lag3-4 § 2.2): byggeplass-besøk gjennom dagen.
+  // KUN lokal, synkes aldri, ingen lat/lng. Ny tabell — eksisterende installasjoner
+  // får den uten å røre andre data. Idempotent via IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS arbeidsdag_besok_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      arbeidsdag_id TEXT NOT NULL,
+      rekkefolge INTEGER NOT NULL,
+      byggeplass_id TEXT,
+      byggeplass_navn TEXT,
+      prosjekt_id TEXT,
+      ankomst_at TEXT NOT NULL,
+      avreise_at TEXT,
+      kilde TEXT NOT NULL,
+      bekreftet INTEGER NOT NULL,
+      sist_endret_lokalt TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_arbeidsdag_besok_local_dag
+      ON arbeidsdag_besok_local(arbeidsdag_id);
+  `);
 }
 
 /** ORDRE 36b: kortvalg-kolonner (tabell, kolonne) som legges til eksisterende tabeller. */

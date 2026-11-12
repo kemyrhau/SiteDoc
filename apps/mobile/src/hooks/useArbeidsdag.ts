@@ -11,6 +11,10 @@ import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentOgCacheArbeidstidSvar } from "../services/arbeidstidSvarKatalog";
+import {
+  registrerBesok,
+  ryddGamleArbeidsdager,
+} from "../services/arbeidsdagBesok";
 import { trpc } from "../lib/trpc";
 
 /**
@@ -94,6 +98,9 @@ function identifiserOppmotested(
   return { id: treff.sted.id, navn: rad?.navn ?? "" };
 }
 
+/** L4-A: ryddingen (§ 2.2) kjøres én gang pr. app-prosess, ikke pr. fokus. */
+let ryddetDenneProsessen = false;
+
 export function useArbeidsdag() {
   const { bruker } = useAuth();
   const { valgtFirmaId } = useFirma();
@@ -133,6 +140,17 @@ export function useArbeidsdag() {
   }, [bruker?.id]);
 
   const refresh = useCallback(() => {
+    if (!ryddetDenneProsessen) {
+      const db = hentDatabase();
+      if (db) {
+        ryddetDenneProsessen = true;
+        try {
+          ryddGamleArbeidsdager(db, Date.now());
+        } catch (e) {
+          console.warn("[L4-A] Rydding av gamle arbeidsdager feilet:", e);
+        }
+      }
+    }
     setAktivDag(lesAktivDag());
   }, [lesAktivDag]);
 
@@ -176,6 +194,19 @@ export function useArbeidsdag() {
           sistEndretLokalt: Date.now(),
         })
         .run();
+      // L4-A (§ 2.2): besøk 1 = dagens startsted (null = utenfor kjent byggeplass).
+      registrerBesok(db, {
+        id: randomUUID(),
+        arbeidsdagId: id,
+        sted: {
+          id: bygg?.id ?? null,
+          navn: bygg?.navn ?? null,
+          projectId: bygg?.projectId ?? null,
+        },
+        ankomstAt: naaIso,
+        kilde: "start_dag",
+        naaIso,
+      });
       setAktivDag({
         id,
         startAt: naaIso,

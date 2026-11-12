@@ -24,6 +24,7 @@ import {
 } from "./bekreftDagTillegg";
 import { kortMedArbeid } from "./beskrivelseKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
+import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
 
 /**
  * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
@@ -141,6 +142,8 @@ export function bekreftDag(
     sluttIso: string;
     endLat: number | null;
     endLng: number | null;
+    /** L4-A (§ 2.2): byggeplassen slutt-GPS traff (null = ingen treff). */
+    sluttSted?: BesokSted | null;
   },
   tillegg?: BekreftDagTillegg,
 ):
@@ -173,6 +176,14 @@ export function bekreftDag(
       })
       .where(eq(arbeidsdagLocal.id, ctx.arbeidsdagId))
       .run();
+    // L4-A: besøkene lukkes i samme steg som dagen — H7 holder dagen åpen → ingen avreise.
+    avsluttBesok(db, {
+      nyId: ctx.nyId,
+      arbeidsdagId: ctx.arbeidsdagId,
+      sluttIso: ctx.sluttIso,
+      sluttSted: ctx.sluttSted ?? null,
+      naaIso: new Date(ctx.naa()).toISOString(),
+    });
   }
   return { handling, resultat };
 }
@@ -186,6 +197,9 @@ export function avsluttDagUtenSedel(
     endLat: number | null;
     endLng: number | null;
     naa: () => number;
+    /** L4-A (§ 2.2): byggeplassen slutt-GPS traff (null = ingen treff). */
+    sluttSted?: BesokSted | null;
+    nyId: () => string;
   },
 ): void {
   db.update(arbeidsdagLocal)
@@ -199,6 +213,13 @@ export function avsluttDagUtenSedel(
     })
     .where(eq(arbeidsdagLocal.id, p.arbeidsdagId))
     .run();
+  avsluttBesok(db, {
+    nyId: p.nyId,
+    arbeidsdagId: p.arbeidsdagId,
+    sluttIso: p.sluttIso,
+    sluttSted: p.sluttSted ?? null,
+    naaIso: new Date(p.naa()).toISOString(),
+  });
 }
 
 /**
