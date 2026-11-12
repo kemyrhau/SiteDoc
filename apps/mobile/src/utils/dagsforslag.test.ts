@@ -528,9 +528,41 @@ function lagResultat(
     prosjektUkjent: false,
     ikkeAnsatt: false,
     manglerLonnsart: false,
+    lagredeDatoer: [],
+    blokkerteDatoer: [],
+    forsteLagredeSheetId: null,
     ...over,
   };
 }
+
+describe("DEL 5 a — delvis lagret: økten lukkes, brukeren får vite hva som ble lagret", () => {
+  it("🔴 9.11 sendt + 10.11 skrevet → delvisSendt, økten LUKKES, sedelen er den lagrede", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({
+        startSheetId: "sedel-9-11",
+        blokkertSendt: true,
+        lagredeDatoer: ["2026-11-10"],
+        blokkerteDatoer: ["2026-11-09"],
+        forsteLagredeSheetId: "sedel-10-11",
+      }),
+    );
+    expect(h).toEqual({
+      type: "delvisSendt",
+      sheetId: "sedel-10-11",
+      lagret: ["2026-11-10"],
+      blokkert: ["2026-11-09"],
+    });
+    expect(skalMarkereAvsluttet(h)).toBe(true);
+  });
+
+  it("🔴 ingenting skrevet (alle datoer sendt) → blokkertSendt, økten står ÅPEN", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({ blokkertSendt: true, blokkerteDatoer: ["2026-11-09"] }),
+    );
+    expect(h.type).toBe("blokkertSendt");
+    expect(skalMarkereAvsluttet(h)).toBe(false);
+  });
+});
 
 describe("H7 — avgjorSluttDagHandling: dagen lukkes kun når skrivingen lyktes", () => {
   it("blokkertSendt: dagen står ÅPEN (rød-først — i dag markeres avsluttet)", () => {

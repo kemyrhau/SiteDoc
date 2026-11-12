@@ -74,6 +74,11 @@ export function anvendDagsforslag(
   let harEksisterendeRader = false;
   const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
   let manglerLonnsart = false;
+  // DEL 5 a: hvilke datoer som ble skrevet og hvilke som var sendt — gir en
+  // sann melding ved delvis lagring.
+  const lagredeDatoer: string[] = [];
+  const blokkerteDatoer: string[] = [];
+  let forsteLagredeSheetId: string | null = null;
 
   if (ctx.erAnsatt === false) {
     return {
@@ -85,6 +90,9 @@ export function anvendDagsforslag(
       prosjektUkjent: false,
       ikkeAnsatt: true,
       manglerLonnsart: false,
+      lagredeDatoer: [],
+      blokkerteDatoer: [],
+      forsteLagredeSheetId: null,
     };
   }
 
@@ -101,6 +109,9 @@ export function anvendDagsforslag(
       prosjektUkjent: forslag.prosjektUkjent,
       ikkeAnsatt: false,
       manglerLonnsart: false,
+      lagredeDatoer: [],
+      blokkerteDatoer: [],
+      forsteLagredeSheetId: null,
     };
   }
 
@@ -137,9 +148,12 @@ export function anvendDagsforslag(
       resultat.status !== "returned"
     ) {
       blokkertSendt = true;
+      blokkerteDatoer.push(d.dato);
       if (d.erStartSegment) startBlokkert = true;
       continue;
     }
+    lagredeDatoer.push(d.dato);
+    forsteLagredeSheetId ??= resultat.id;
     if (d.raderDroppetUtenLonnsart > 0) manglerLonnsart = true;
 
     // RETUR 36c pkt 1: arbeidsrader arver sedelens byggeplass (null). Fantes
@@ -230,6 +244,9 @@ export function anvendDagsforslag(
     prosjektUkjent: false,
     ikkeAnsatt: false,
     manglerLonnsart,
+    lagredeDatoer,
+    blokkerteDatoer,
+    forsteLagredeSheetId,
   };
 }
 

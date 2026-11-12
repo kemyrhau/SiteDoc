@@ -23,6 +23,16 @@ const BEKREFT_DAG_PROPS = [
   "overtidFra",
   "overtidLonnsartId",
   "stegOvertidFra",
+  // DEL 5 (glemt dag, Kenneth 2026-11-12): kun Bekreft dag.
+  "sluttGodkjent",
+  "rettetSluttIso",
+  "bekreftSperre",
+  "stegSluttIso",
+  "visSluttTid",
+  "estimerGlemtSlutt",
+  "delvisSendt",
+  "sendteDatoer",
+  "kortPrDato",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {

@@ -14,6 +14,7 @@ import {
   fangGps,
 } from "../hooks/useArbeidsdag";
 import { hentArbeidsdagTiderLokalt } from "../services/kalenderKatalog";
+import { estimerGlemtSlutt } from "../utils/dagsegment";
 import {
   hentDagsnormLokalt,
   hentOgCacheArbeidstidSvar,
@@ -210,19 +211,11 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
       new Date(`${startDato}T00:00:00`),
     );
     const norm = hentDagsnormLokalt(valgtFirmaId ?? "", startDato);
-    const start = new Date(aktivDag.startAt);
-    const [tt, mm] = tider.sluttTid.split(":").map(Number);
-    let slutt = new Date(start);
-    slutt.setHours(tt, mm, 0, 0);
-    // Nattskift-edge (4b-2): standardSluttTid ligger før start-klokkeslettet →
-    // 0/negativ varighet. Estimer i stedet start + dagsnorm (krysser evt.
-    // midnatt → 4a-splitt håndterer det). Arbeider korrigerer uansett.
-    if (slutt.getTime() <= start.getTime()) {
-      const dagsnormTimer =
-        norm?.dagsnorm && norm.dagsnorm > 0 ? norm.dagsnorm : 7.5;
-      slutt = new Date(start.getTime() + dagsnormTimer * 3_600_000);
-    }
-    void utforSluttDag(slutt.toISOString(), "system");
+    // Nattskift-edge (4b-2): standardsluttid før start → start + dagsnorm.
+    // DEL 5 d: estimatet kappes ved midnatt — aldri automatisk tid på neste
+    // dato. Bekreft dag krever at arbeideren godkjenner eller retter (del c).
+    const { sluttIso } = estimerGlemtSlutt(aktivDag.startAt, tider.sluttTid, norm?.dagsnorm);
+    void utforSluttDag(sluttIso, "system");
   }, [aktivDag, behandler, valgtFirmaId, utforSluttDag]);
 
   if (!bruker?.id) return null;

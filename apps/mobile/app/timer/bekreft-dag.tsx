@@ -44,6 +44,10 @@ import {
   avsluttDagUtenSedel,
   erTomtForslag,
   erAlleDatoerSendt,
+  sendteDatoer,
+  visSluttTid,
+  bekreftSperre,
+  stegSluttIso,
   manglerBeskrivelse,
   prosjekterMedArbeid,
   flyttBeskrivelse,
@@ -150,6 +154,9 @@ export default function BekreftDagSkjerm() {
   const [erAnsatt, setErAnsatt] = useState<boolean | null | undefined>(undefined);
   const [valgark, setValgark] = useState<Valgark>(null);
   const [lagrer, setLagrer] = useState(false);
+  // DEL 5 c: anslått slutt må godkjennes («Tidene stemmer») eller rettes før lagring.
+  const [sluttGodkjent, setSluttGodkjent] = useState(false);
+  const [rettetSluttIso, setRettetSluttIso] = useState<string | null>(null);
   // L3-D: maskin og varer holdes i minnet til Bekreft (spec § 3.5).
   const [tillegg, setTillegg] = useState<BekreftDagTillegg>({ maskiner: [], varer: [] });
   // ORDRE 36a: feltet er nøytralt til første Bekreft-forsøk med tom beskrivelse.
@@ -222,24 +229,33 @@ export default function BekreftDagSkjerm() {
       );
     }
     if (!dag || !sluttIso) return null;
+    // DEL 5 c: arbeiderens rettede slutt erstatter anslaget — kilden er da arbeideren.
+    const brukSluttIso = rettetSluttIso ?? sluttIso;
     const lest = forberedBekreftDag(
       db,
       {
         userId: bruker.id,
         orgId,
         dag,
-        sluttIso,
+        sluttIso: brukSluttIso,
         endLat,
         endLng,
         kontekstByggeplassId: valgtBygningId,
         aktivtProsjektId: valgtProsjektId,
-        sisteSegmentKilde,
+        sisteSegmentKilde: rettetSluttIso ? "bruker" : sisteSegmentKilde,
         valgtByggeplassId,
       },
       retting,
     );
-    return { ...lest, sluttIso };
-  }, [manuell, manuellDato, dag, bruker?.id, orgId, sluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting]);
+    return { ...lest, sluttIso: brukSluttIso };
+  }, [manuell, manuellDato, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting]);
+  // DEL 5 c: panelet for anslått slutt — GPS-veien, slutten satt av systemet
+  // (glemt dag) eller kappet. Står også etter retting, så arbeideren ser tiden.
+  const sluttPanel =
+    !manuell &&
+    beregnet != null &&
+    (sisteSegmentKilde === "system" || beregnet.forslag.kappet || rettetSluttIso != null);
+  const sluttIkkeGodkjent = sluttPanel && !sluttGodkjent && rettetSluttIso == null;
   // Manuell: sluttiden er utledet (`manuellDag`), ikke en slutt-GPS.
   const effSluttIso = beregnet?.sluttIso ?? sluttIso;
 
@@ -401,7 +417,25 @@ export default function BekreftDagSkjerm() {
 
   const bekreft = useCallback(() => {
     const db = hentDatabase();
-    if (!db || !beregnet || !bruker?.id || (!manuell && !params.arbeidsdagId) || lagrer) return;
+    // Dobbelttrykk mens lagring pågår: knappen viser laste-indikator.
+    if (lagrer) return;
+    // DEL 5 a: ingen sperre er stille — hver sier hva som mangler.
+    const sperre = bekreftSperre({
+      harDb: db != null,
+      harBeregnet: beregnet != null,
+      harBruker: !!bruker?.id,
+      manuell,
+      harArbeidsdagId: !!params.arbeidsdagId,
+      manglerProsjekt: beregnet?.forslag.prosjektId == null,
+      sluttIkkeGodkjent,
+    });
+    if (sperre || !db || !beregnet || !bruker?.id) {
+      Alert.alert(
+        t("timer.bekreftDag.sperre.tittel"),
+        t(`timer.bekreftDag.sperre.${sperre ?? "ikkeKlar"}`),
+      );
+      return;
+    }
     // ORDRE 36a: påkrevd beskrivelse — sperren står FØR noe skrives.
     const tomme = manglerBeskrivelse(beregnet.forslag);
     if (tomme.length > 0) {
@@ -458,6 +492,17 @@ export default function BekreftDagSkjerm() {
             );
           }
           break;
+        case "delvisSendt":
+          // DEL 5 a: noe ble lagret, noe ble stoppet av en sendt sedel — økten er lukket.
+          router.replace(`/timer/${handling.sheetId}`);
+          Alert.alert(
+            t("timer.delvisSendt.tittel"),
+            t("timer.delvisSendt.melding", {
+              lagret: handling.lagret.map(formatNorskDato).join(", "),
+              blokkert: handling.blokkert.map(formatNorskDato).join(", "),
+            }),
+          );
+          break;
         case "blokkertSendt":
           // Dagen står ÅPEN — timene reddes ved at lederen returnerer sedelen.
           router.replace(`/timer/${handling.sheetId}`);
@@ -498,7 +543,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse, retting.byggeplassId]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tillegg, tilstand, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -568,7 +613,21 @@ export default function BekreftDagSkjerm() {
   const tomt = !ikkeAnsatt && erTomtForslag(forslag);
   const manglerProsjekt = prosjektId == null;
   const startDato = forslag.datoer.find((d) => d.erStartSegment)?.dato ?? null;
-  const kanBekrefte = !alleSendt && !ikkeAnsatt && !tomt && !manglerProsjekt && !lagrer;
+  // DEL 5 a: datoer med sendt sedel vises FØR lagring — timene der lagres ikke.
+  const sendte = sendteDatoer(forslag);
+  // DEL 5 d-tillegg: hver dato med timer blir et eget prosjektkort (egen sedel, egen rad).
+  const kortPrDato = forslag.datoer.filter((d) => !d.blokkert && d.rader.length > 0).length;
+  const startIso = forsteDag?.segmentStartIso ?? dag?.startAt ?? "";
+  const slutt = visSluttTid(startIso, sisteDag?.segmentSluttIso ?? effSluttIso ?? startIso);
+  const sluttTekst = slutt.dato ? `${kortDato(slutt.dato)} ${slutt.tid}` : slutt.tid;
+  const flyttSlutt = (stegMin: number) => {
+    if (!dag) return;
+    setRettetSluttIso(
+      stegSluttIso(sisteDag?.segmentSluttIso ?? effSluttIso ?? dag.startAt, dag.startAt, stegMin),
+    );
+    // Tidsrettingene hørte til forrige slutt.
+    setRetting((r) => ({ ...r, perDato: undefined }));
+  };
 
   return (
     <ModalFlate className="bg-gray-50">
@@ -618,8 +677,8 @@ export default function BekreftDagSkjerm() {
           <Text className="text-sm font-semibold text-gray-900">
             {t("timer.bekreftDag.topplinje", {
               dato: forsteDag?.dato ?? "",
-              start: tilHHMM(forsteDag?.segmentStartIso ?? dag?.startAt ?? ""),
-              slutt: tilHHMM(sisteDag?.segmentSluttIso ?? effSluttIso),
+              start: tilHHMM(startIso),
+              slutt: sluttTekst,
               sum: formatTimer(sum),
             })}
           </Text>
@@ -635,9 +694,53 @@ export default function BekreftDagSkjerm() {
           </Text>
         </View>
 
+        {sluttPanel ? (
+          // DEL 5 c: anslått slutt — godkjennes eller rettes før noe lagres.
+          <View
+            className={`gap-2 rounded-lg border p-3 ${
+              sluttIkkeGodkjent ? "border-amber-300 bg-amber-50" : "border-gray-200 bg-white"
+            }`}
+          >
+            <Text className="text-sm font-semibold text-gray-900">
+              {t(rettetSluttIso ? "timer.bekreftDag.slutt.rettet" : "timer.bekreftDag.slutt.anslaatt", {
+                slutt: sluttTekst,
+              })}
+            </Text>
+            <Text className="text-xs text-gray-600">{t("timer.bekreftDag.slutt.hjelp")}</Text>
+            <View className="flex-row gap-2">
+              {[-60, -15, 15, 60].map((steg) => (
+                <Pressable
+                  key={steg}
+                  onPress={() => flyttSlutt(steg)}
+                  className="min-h-[40px] flex-1 items-center justify-center rounded-md border border-gray-300 bg-white active:bg-gray-100"
+                >
+                  <Text className="text-sm text-gray-800">
+                    {t(`timer.bekreftDag.slutt.steg.${steg < 0 ? "minus" : "pluss"}${Math.abs(steg)}`)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {sluttIkkeGodkjent ? (
+              <Pressable
+                onPress={() => setSluttGodkjent(true)}
+                className="min-h-[44px] items-center justify-center rounded-md bg-amber-600 active:bg-amber-700"
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {t("timer.bekreftDag.slutt.godkjenn")}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
         {alleSendt ? (
           <View className="rounded-lg border border-amber-300 bg-amber-50 p-3">
             <Text className="text-sm text-amber-900">{t("timer.bekreftDag.alleredeSendt")}</Text>
+            {sendte.map((dato) => (
+              <Text key={dato} className="mt-1 text-sm text-amber-900">
+                {t("timer.bekreftDag.datoSendt", { dato: kortDato(dato) })}
+              </Text>
+            ))}
             {sendtSedelId ? (
               <Pressable onPress={() => router.replace(`/timer/${sendtSedelId}`)} className="mt-2">
                 <Text className="text-sm font-medium text-blue-700">
@@ -715,7 +818,21 @@ export default function BekreftDagSkjerm() {
               ) : null}
             </View>
 
-            {forslag.datoer.map((d) => (
+            {kortPrDato > 1 ? (
+              <Text className="px-1 text-xs text-gray-600">
+                {t("timer.bekreftDag.kortPrDato", { antall: kortPrDato })}
+              </Text>
+            ) : null}
+
+            {forslag.datoer.map((d) =>
+              d.blokkert ? (
+                // DEL 5 a: sendt dato — vises før lagring, timene her lagres ikke.
+                <View key={d.dato} className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                  <Text className="text-sm text-amber-900">
+                    {t("timer.bekreftDag.datoSendt", { dato: kortDato(d.dato) })}
+                  </Text>
+                </View>
+              ) : (
               <DatoKort
                 key={d.dato}
                 dag={d}
@@ -728,7 +845,8 @@ export default function BekreftDagSkjerm() {
                 tidsrunding={input.regel?.tidsrundingMinutter ?? null}
                 onRett={(endring) => rettDato(d.dato, endring)}
               />
-            ))}
+              ),
+            )}
 
             {arbeidKort.map((k) => (
               <BekreftDagBeskrivelse
@@ -834,7 +952,7 @@ export default function BekreftDagSkjerm() {
             <Knapp
               tekst={t("timer.bekreftDag.bekreft")}
               onPress={bekreft}
-              deaktivert={!kanBekrefte}
+              deaktivert={lagrer}
               laster={lagrer}
             />
             <Knapp tekst={t("timer.bekreftDag.ikkeNaa")} onPress={ikkeNaa} sekundaer />
@@ -905,6 +1023,11 @@ export default function BekreftDagSkjerm() {
 }
 
 /** Ett kort pr. dato: reise ut · arbeid (fra/til, OT, fjern) · pause · reise retur. */
+/** «2026-11-10» → «10.11.» */
+function kortDato(iso: string): string {
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+}
+
 function DatoKort({
   dag,
   visDato,
