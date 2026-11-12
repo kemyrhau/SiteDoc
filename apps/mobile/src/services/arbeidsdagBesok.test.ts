@@ -385,6 +385,15 @@ describe("L4-A2 — S1-måling (K1, K14, montering)", () => {
     expect(await kjorS1(p)).toEqual(B);
   });
 
+  it("🔴 uten firma (orgId tom) → ikke målt, maal kalles ikke, vakten forbrukes ikke", async () => {
+    const naa = { ms: 1_000_000 };
+    const vakt = lagS1Vakt();
+    const { maal, p } = s1Deler(vakt, naa);
+    expect(await kjorS1({ ...p, orgId: "" })).toBeUndefined();
+    expect(maal).not.toHaveBeenCalled();
+    expect(vakt.skalMaale(naa.ms)).toBe(true);
+  });
+
   it("🔴 montering: GPS uten svar → ikke målt (banneret røres ikke)", async () => {
     const naa = { ms: 1_000_000 };
     const { p } = s1Deler(lagS1Vakt(), naa);
