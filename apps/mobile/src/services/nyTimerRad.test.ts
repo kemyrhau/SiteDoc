@@ -162,7 +162,7 @@ const rad: NyRad = {
   tilTid: "15:00",
   beskrivelse: null,
   pauseMin: 30,
-  maskin: null,
+  maskiner: [],
 };
 
 describe("sistBrukteRadvalg", () => {

@@ -10,6 +10,7 @@ import {
 } from "../db/schema";
 import { finnEllerOpprettDagsseddel } from "./dagsseddelOpprett";
 import { erReiseLonnsartLokalt } from "./timerKatalog";
+import { maskinerOverRad, skrivKobledeMaskiner, type NyMaskin } from "./kobledeMaskiner";
 import { SIST_BRUKTE_MASKINER_ANTALL, sisteUnikeMaskiner } from "@sitedoc/shared";
 
 /* ============================================================================
@@ -173,12 +174,8 @@ export function erDagLaast(dag: DagForDato | null): boolean {
   return dag?.status === "sent" || dag?.status === "accepted";
 }
 
-/** P1 (maskin-i-rad): valgfri maskin fra timerrad-modalens maskin-seksjon. */
-export type NyMaskin = {
-  vehicleId: string;
-  mengde: number | null;
-  enhet: string | null;
-};
+/** NY BESLUTNING maskinkobling (2026-11-12): flere maskiner pr. rad, egne timer. */
+export type { NyMaskin } from "./kobledeMaskiner";
 
 export interface NyRad {
   projectId: string;
@@ -191,7 +188,8 @@ export interface NyRad {
   tilTid: string | null;
   beskrivelse: string | null;
   pauseMin: number;
-  maskin: NyMaskin | null;
+  /** 0, 1 eller flere koblede maskiner, hver med egne timer ≤ radens. */
+  maskiner: NyMaskin[];
 }
 
 /** Skriv én timer-rad (+ evt. maskin) på en sedel. Delt av sedelen og «+». */
@@ -201,6 +199,11 @@ export function settInnTimerRad(
   organizationId: string,
   rad: NyRad,
 ): string {
+  // NY BESLUTNING maskinkobling: maskin over radens timer avvises FØR noe
+  // skrives (rad-modalen sier fra først; dette er siste vern).
+  if (maskinerOverRad(rad.timer, rad.maskiner).length > 0) {
+    throw new Error("maskinOverRad: maskintimer over radens timer");
+  }
   // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
   const timerRadId = randomUUID();
   // B4 (L2-B, valg A): arbeideren satte tiden selv → tidKilde="manuell".
@@ -232,27 +235,24 @@ export function settInnTimerRad(
       sistEndretLokalt: Date.now(),
     })
     .run();
-  // P1 (maskin-i-rad): dual-innsetting. Er maskin valgt, skriv en sheet_machine-
-  // rad med timer = timerradens antall (herav-semantikk) i SAMME bucket
-  // (projectId + ECO) og med samme fra/til. Del B pkt 1: sheetTimerId = timer-
-  // radens id, så rediger-inngangen finner igjen «radens» maskin.
-  if (rad.maskin) {
-    db.insert(sheetMachineLocal)
-      .values({
-        id: randomUUID(),
-        dagsseddelId: sheetId,
-        sheetTimerId: timerRadId,
+  // NY BESLUTNING maskinkobling: hver maskin kobles til raden (sheetTimerId)
+  // med EGNE timer (≤ radens — rad-modalen avviser ellers). Samme skrivevei
+  // som rediger-banen (`skrivKobledeMaskiner`).
+  if (rad.maskiner.length > 0) {
+    skrivKobledeMaskiner(
+      db,
+      sheetId,
+      timerRadId,
+      {
         projectId: rad.projectId,
+        byggeplassId: rad.byggeplassId,
         externalCostObjectId: rad.externalCostObjectId,
-        vehicleId: rad.maskin.vehicleId,
         timer: rad.timer,
-        mengde: rad.maskin.mengde,
-        enhet: rad.maskin.enhet,
         fraTid: rad.fraTid,
         tilTid: rad.tilTid,
-        sistEndretLokalt: Date.now(),
-      })
-      .run();
+      },
+      { linjer: rad.maskiner.map((m) => ({ ...m, id: null })), fjernede: [] },
+    );
   }
   return timerRadId;
 }
@@ -272,6 +272,10 @@ export function lagreNyTimerRad(
 ): LagreNyRadResultat {
   const fra = finnDagForDato(db, args.userId, args.dato);
   if (fra && erDagLaast(fra)) return { ok: false, grunn: "dagLaast", sheetId: fra.id };
+  // Maskin over radens timer: avvis før en tom sedel opprettes.
+  if (maskinerOverRad(args.rad.timer, args.rad.maskiner).length > 0) {
+    throw new Error("maskinOverRad: maskintimer over radens timer");
+  }
   const sedel = finnEllerOpprettDagsseddel(db, {
     userId: args.userId,
     orgId: args.organizationId,

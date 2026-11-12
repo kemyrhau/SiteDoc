@@ -164,16 +164,16 @@ function seedTimer(id: string, ekstra: Partial<typeof sheetTimerLocal.$inferInse
 
 describe("leggTilTimerRad", () => {
   it("skriver raden med alle felt, tidKilde manuell, uten maskin", () => {
-    const id = leggTilTimerRad(db(), K, { ...felt, beskrivelse: "Graving" }, null);
+    const id = leggTilTimerRad(db(), K, { ...felt, beskrivelse: "Graving" }, []);
     const r = timerRad(id);
     expect(r).toMatchObject({ dagsseddelId: "s1", projectId: "p1", lonnsartId: "l-arb", timer: 7.5, beskrivelse: "Graving", pauseMin: 30, tidKilde: "manuell" });
     expect(maskinRader()).toHaveLength(0);
   });
 
-  it("med maskin: koblet maskinrad (sheetTimerId = raden)", () => {
-    const id = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+  it("med maskin: koblet maskinrad (sheetTimerId = raden), egne timer", () => {
+    const id = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: 7.5, mengde: null, enhet: null }]);
     expect(maskinRader()).toHaveLength(1);
-    expect(maskinRader()[0]).toMatchObject({ sheetTimerId: id, vehicleId: "v1", projectId: "p1" });
+    expect(maskinRader()[0]).toMatchObject({ sheetTimerId: id, vehicleId: "v1", projectId: "p1", timer: 7.5 });
   });
 });
 
@@ -204,35 +204,123 @@ describe("oppdaterTimerRad", () => {
     expect(timerRad("t2")).toMatchObject({ erReise: false, reiseKilde: null, reiseAvstandM: null });
   });
 
-  it("maskin undefined rører ikke koblet maskinrad; objekt oppretter, så oppdaterer", () => {
+  it("maskin undefined rører ikke koblet maskinrad; ny linje oppretter, linje med id oppdaterer", () => {
     seedTimer("t1");
-    oppdaterTimerRad(db(), K, "t1", felt);
+    expect(oppdaterTimerRad(db(), K, "t1", felt)).toEqual({ ok: true });
     expect(maskinRader()).toHaveLength(0);
-    oppdaterTimerRad(db(), K, "t1", felt, { vehicleId: "v1", mengde: null, enhet: null });
+    oppdaterTimerRad(db(), K, "t1", felt, { linjer: [{ id: null, vehicleId: "v1", timer: 7.5, mengde: null, enhet: null }], fjernede: [] });
     expect(maskinRader()).toHaveLength(1);
-    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 5 }, { vehicleId: "v2", mengde: 4, enhet: "t" });
+    const mid = maskinRader()[0].id;
+    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 5 }, { linjer: [{ id: mid, vehicleId: "v2", timer: 5, mengde: 4, enhet: "t" }], fjernede: [] });
     expect(maskinRader()).toHaveLength(1);
     expect(maskinRader()[0]).toMatchObject({ sheetTimerId: "t1", vehicleId: "v2", timer: 5, mengde: 4 });
-    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 4 });
+    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 6 });
     expect(maskinRader()[0].timer).toBe(5);
     expect(tombstones()).toHaveLength(0);
   });
 
-  it("maskin null sletter koblet maskinrad + maskin-tombstone UTEN serverVersjon", () => {
+  it("fjernede: sletter koblet maskinrad + maskin-tombstone UTEN serverVersjon", () => {
     seedTimer("t1");
-    oppdaterTimerRad(db(), K, "t1", felt, { vehicleId: "v1", mengde: null, enhet: null });
+    oppdaterTimerRad(db(), K, "t1", felt, { linjer: [{ id: null, vehicleId: "v1", timer: 7.5, mengde: null, enhet: null }], fjernede: [] });
     const mid = maskinRader()[0].id;
-    oppdaterTimerRad(db(), K, "t1", felt, null);
+    oppdaterTimerRad(db(), K, "t1", felt, { linjer: [], fjernede: [mid] });
     expect(maskinRader()).toHaveLength(0);
     expect(tombstones()).toEqual([
       expect.objectContaining({ radId: mid, dagsseddelId: "s1", radType: "maskin", serverVersjon: null }),
     ]);
   });
 
-  it("negativkontroll: maskin null uten koblet maskinrad skriver ingen tombstone", () => {
+  it("negativkontroll: fjernede med id som ikke er koblet til raden sletter ingenting", () => {
     seedTimer("t1");
-    oppdaterTimerRad(db(), K, "t1", felt, null);
+    db().insert(sheetMachineLocal).values({ id: "m-los", dagsseddelId: "s1", projectId: "p1", vehicleId: "v9", timer: 3, sistEndretLokalt: 1 }).run();
+    oppdaterTimerRad(db(), K, "t1", felt, { linjer: [], fjernede: ["m-los"] });
+    expect(maskinRader()).toHaveLength(1);
     expect(tombstones()).toHaveLength(0);
+  });
+});
+
+/* ============================================================================
+ *  NY BESLUTNING maskinkobling (Kenneth 2026-11-12) — påkrevde tester, hver
+ *  med negativkontroll.
+ * ============================================================================ */
+describe("maskinkobling — flere maskiner pr. rad, egne timer ≤ radens", () => {
+  const koblet = (radId: string) => maskinRader().filter((m) => m.sheetTimerId === radId);
+  const timerFor = (vehicleId: string) => maskinRader().find((m) => m.vehicleId === vehicleId)?.timer;
+
+  it("gravemaskin 8 t + bil 3 t på en rad på 8 t", () => {
+    const id = leggTilTimerRad(db(), K, { ...felt, timer: 8, fraTid: "07:00", tilTid: "15:30" }, [
+      { vehicleId: "grave", timer: 8, mengde: null, enhet: null },
+      { vehicleId: "bil", timer: 3, mengde: null, enhet: null },
+    ]);
+    expect(koblet(id)).toHaveLength(2);
+    expect(timerFor("grave")).toBe(8);
+    expect(timerFor("bil")).toBe(3);
+    // Full maskin arver radens fra/til; kortere maskin gjetter ikke tid.
+    expect(maskinRader().find((m) => m.vehicleId === "grave")).toMatchObject({ fraTid: "07:00", tilTid: "15:30" });
+    expect(maskinRader().find((m) => m.vehicleId === "bil")).toMatchObject({ fraTid: null, tilTid: null });
+    // Negativkontroll: bilen ble IKKE løftet til radens 8 t.
+    expect(timerFor("bil")).not.toBe(8);
+  });
+
+  it("maskintimer over radens avvises (ny rad kaster, eksisterende rad → ok:false, ingenting skrevet)", () => {
+    expect(() =>
+      leggTilTimerRad(db(), K, { ...felt, timer: 8 }, [{ vehicleId: "grave", timer: 9, mengde: null, enhet: null }]),
+    ).toThrow(/maskinOverRad/);
+    expect(timerRad("uuid-1")).toBeUndefined();
+    expect(maskinRader()).toHaveLength(0);
+
+    seedTimer("t1", { timer: 8 });
+    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 8 }, { linjer: [{ id: null, vehicleId: "grave", timer: 8, mengde: null, enhet: null }], fjernede: [] });
+    // Senker raden til 6 t uten å rette maskinen → avvist, raden står på 8 t.
+    expect(oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 6 })).toEqual({ ok: false, grunn: "maskinOverRad" });
+    expect(timerRad("t1").timer).toBe(8);
+    expect(timerFor("grave")).toBe(8);
+    // Ny linje over raden → avvist.
+    expect(
+      oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 8 }, { linjer: [{ id: null, vehicleId: "bil", timer: 8.5, mengde: null, enhet: null }], fjernede: [] }),
+    ).toEqual({ ok: false, grunn: "maskinOverRad" });
+    expect(maskinRader()).toHaveLength(1);
+    // Negativkontroll: lik radens timer er lov, og retter brukeren maskinen
+    // samtidig, går senkingen gjennom.
+    const mid = maskinRader()[0].id;
+    expect(
+      oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 6 }, { linjer: [{ id: mid, vehicleId: "grave", timer: 6, mengde: null, enhet: null }], fjernede: [] }),
+    ).toEqual({ ok: true });
+    expect(timerRad("t1").timer).toBe(6);
+    expect(timerFor("grave")).toBe(6);
+  });
+
+  it("lagring av rad endrer eller sletter ikke maskiner stille", () => {
+    const id = leggTilTimerRad(db(), K, { ...felt, timer: 8 }, [
+      { vehicleId: "grave", timer: 8, mengde: null, enhet: null },
+      { vehicleId: "bil", timer: 3, mengde: null, enhet: null },
+    ]);
+    const foer = koblet(id).map((m) => ({ ...m }));
+    // Rad lagres med endret beskrivelse og høyere timer, uten maskiner sendt.
+    oppdaterTimerRad(db(), K, id, { ...felt, timer: 9, beskrivelse: "Ny" });
+    // Rad lagres med bare én av maskinene sendt (endret) — den andre er urørt.
+    const grave = koblet(id).find((m) => m.vehicleId === "grave")!;
+    oppdaterTimerRad(db(), K, id, { ...felt, timer: 9 }, { linjer: [{ id: grave.id, vehicleId: "grave", timer: 7, mengde: null, enhet: null }], fjernede: [] });
+    expect(koblet(id)).toHaveLength(2);
+    expect(timerFor("bil")).toBe(3);
+    expect(koblet(id).find((m) => m.vehicleId === "bil")).toEqual(foer.find((m) => m.vehicleId === "bil"));
+    expect(timerFor("grave")).toBe(7);
+    expect(tombstones()).toHaveLength(0);
+    // Negativkontroll: raden fikk 9 t, men ingen maskin fulgte etter.
+    expect(timerRad(id).timer).toBe(9);
+    expect(maskinRader().some((m) => m.timer === 9)).toBe(false);
+  });
+
+  it("ukoblet maskin på 3 t er fortsatt 3 t etter lagring av en rad", () => {
+    seedTimer("t1", { timer: 8 });
+    db().insert(sheetMachineLocal).values({ id: "m-los", dagsseddelId: "s1", projectId: "p1", vehicleId: "bil", timer: 3, sistEndretLokalt: 1 }).run();
+    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 2 });
+    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 8 }, { linjer: [{ id: null, vehicleId: "grave", timer: 8, mengde: null, enhet: null }], fjernede: [] });
+    const los = maskinRader().find((m) => m.id === "m-los")!;
+    expect(los).toMatchObject({ timer: 3, sheetTimerId: null, sistEndretLokalt: 1 });
+    // Negativkontroll: en linje med den ukoblede id-en blir ikke dratt inn på raden.
+    oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 8 }, { linjer: [{ id: "m-los", vehicleId: "bil", timer: 8, mengde: null, enhet: null }], fjernede: [] });
+    expect(maskinRader().find((m) => m.id === "m-los")).toMatchObject({ timer: 3, sheetTimerId: null });
   });
 });
 

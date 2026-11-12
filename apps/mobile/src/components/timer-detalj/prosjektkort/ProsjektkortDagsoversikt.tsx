@@ -715,7 +715,7 @@ export function ProsjektkortDagsoversikt({
                 beskrivelse,
                 pauseMin,
               },
-              null,
+              [],
             );
             onEndret();
           }}
@@ -768,7 +768,7 @@ export function ProsjektkortDagsoversikt({
             };
             const radId = redigert
               ? (oppdaterTimerRad(db(), k, redigert.id, felt, maskin), redigert.id)
-              : leggTilTimerRad(db(), k, felt, maskin);
+              : leggTilTimerRad(db(), k, felt, maskin.linjer);
             // Koblet maskin følger raden også på byggeplass (GO punkt 5).
             foelgKobletMaskin(db(), radId);
             setTimerModal(null);

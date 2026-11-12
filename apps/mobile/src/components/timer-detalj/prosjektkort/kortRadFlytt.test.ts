@@ -135,7 +135,7 @@ const vare = (id: string) => db().select().from(vareforbrukLocal).where(eq(varef
 
 describe("flyttTimerRad", () => {
   it("bytter prosjekt/byggeplass/underprosjekt, beholder tider, lønnsart, beskrivelse og matpause", () => {
-    const id = leggTilTimerRad(db(), K, felt, null);
+    const id = leggTilTimerRad(db(), K, felt, []);
     flyttTimerRad(db(), K, timerRad(id), MAAL);
     expect(timerRad(id)).toMatchObject({
       projectId: "p2",
@@ -151,14 +151,14 @@ describe("flyttTimerRad", () => {
   });
 
   it("koblet maskin følger raden (prosjekt, byggeplass, underprosjekt) og forblir koblet", () => {
-    const id = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+    const id = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: felt.timer, mengde: null, enhet: null }]);
     flyttTimerRad(db(), K, timerRad(id), MAAL);
     expect(maskinRader()).toHaveLength(1);
     expect(maskinRader()[0]).toMatchObject({ sheetTimerId: id, projectId: "p2", byggeplassId: "bp2", externalCostObjectId: "eco2", vehicleId: "v1" });
   });
 
   it("negativkontroll: maskin som ikke er koblet til raden flyttes ikke", () => {
-    const id = leggTilTimerRad(db(), K, felt, null);
+    const id = leggTilTimerRad(db(), K, felt, []);
     db().insert(sheetMachineLocal).values({ id: "m-fri", dagsseddelId: "s1", projectId: "p1", vehicleId: "v9", timer: 2, sistEndretLokalt: 1 }).run();
     flyttTimerRad(db(), K, timerRad(id), MAAL);
     expect(maskinRader()[0]).toMatchObject({ id: "m-fri", projectId: "p1", byggeplassId: null, sistEndretLokalt: 1 });
@@ -167,14 +167,16 @@ describe("flyttTimerRad", () => {
 
 describe("foelgKobletMaskin", () => {
   it("kopierer timer-radens byggeplass til koblet maskin", () => {
-    const id = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp1" }, { vehicleId: "v1", mengde: null, enhet: null });
+    const id = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp1" }, [{ vehicleId: "v1", timer: felt.timer, mengde: null, enhet: null }]);
+    // Maskin skrives nå med radens bøtte; simuler en eldre maskin uten byggeplass.
+    db().update(sheetMachineLocal).set({ byggeplassId: null }).run();
     expect(maskinRader()[0].byggeplassId).toBeNull();
     foelgKobletMaskin(db(), id);
     expect(maskinRader()[0].byggeplassId).toBe("bp1");
   });
 
   it("negativkontroll: allerede lik → ingen skriving (ingen unødig pending-sync)", () => {
-    const id = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+    const id = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: felt.timer, mengde: null, enhet: null }]);
     db().update(sheetMachineLocal).set({ sistEndretLokalt: 1 }).run();
     foelgKobletMaskin(db(), id);
     expect(maskinRader()[0].sistEndretLokalt).toBe(1);
@@ -183,9 +185,24 @@ describe("foelgKobletMaskin", () => {
   });
 });
 
+describe("foelgKobletMaskin — flere maskiner (NY BESLUTNING 2026-11-12)", () => {
+  it("ALLE koblede maskiner følger raden ved flytt; timene røres ikke", () => {
+    const id = leggTilTimerRad(db(), K, { ...felt, timer: 8 }, [
+      { vehicleId: "grave", timer: 8, mengde: null, enhet: null },
+      { vehicleId: "bil", timer: 3, mengde: null, enhet: null },
+    ]);
+    flyttTimerRad(db(), K, timerRad(id), MAAL);
+    const m = maskinRader();
+    expect(m).toHaveLength(2);
+    for (const x of m) expect(x).toMatchObject({ sheetTimerId: id, projectId: "p2", byggeplassId: "bp2", externalCostObjectId: "eco2" });
+    // Negativkontroll: bilen beholder sine 3 t (ikke løftet til radens 8).
+    expect(m.find((x) => x.vehicleId === "bil")!.timer).toBe(3);
+  });
+});
+
 describe("flyttMaskinRad", () => {
   it("flytter maskin alene og kobler den løs fra timer-raden", () => {
-    const id = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+    const id = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: felt.timer, mengde: null, enhet: null }]);
     const m = maskinRader()[0];
     flyttMaskinRad(db(), m.id, MAAL);
     expect(maskinRader()[0]).toMatchObject({ projectId: "p2", byggeplassId: "bp2", externalCostObjectId: "eco2", sheetTimerId: null, vehicleId: "v1" });
@@ -217,7 +234,7 @@ describe("RETUR 36c-2 P1 (a2) — løft byggeplass-arv ved «Uten byggeplass»",
 
   it("arvende timer- og maskinrader får A eksplisitt; sedelens byggeplass nullstilles og blir pending", () => {
     medHeaderA();
-    const id = leggTilTimerRad(db(), K, felt, { vehicleId: "v1", mengde: null, enhet: null });
+    const id = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: felt.timer, mengde: null, enhet: null }]);
     db().insert(sheetMachineLocal).values({ id: "m-fri", dagsseddelId: "s1", projectId: null, vehicleId: "v9", timer: 2, sistEndretLokalt: 1 }).run();
     expect(loftByggeplassArv(db(), "s1", SEDEL_A)).toBe(true);
     expect(timerRad(id).byggeplassId).toBe("bpA");
@@ -228,10 +245,10 @@ describe("RETUR 36c-2 P1 (a2) — løft byggeplass-arv ved «Uten byggeplass»",
 
   it("negativkontroll: reise, rader i annet prosjekt og rader med egen byggeplass røres ikke", () => {
     medHeaderA();
-    const reise = leggTilTimerRad(db(), K, felt, null);
+    const reise = leggTilTimerRad(db(), K, felt, []);
     db().update(sheetTimerLocal).set({ erReise: true, sistEndretLokalt: 1 }).where(eq(sheetTimerLocal.id, reise)).run();
-    const annet = leggTilTimerRad(db(), K, { ...felt, projectId: "p2" }, null);
-    const egen = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bpB" }, null);
+    const annet = leggTilTimerRad(db(), K, { ...felt, projectId: "p2" }, []);
+    const egen = leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bpB" }, []);
     db().insert(sheetMachineLocal).values({ id: "m-p2", dagsseddelId: "s1", projectId: "p2", vehicleId: "v9", timer: 2, sistEndretLokalt: 1 }).run();
     loftByggeplassArv(db(), "s1", SEDEL_A);
     expect(timerRad(reise)).toMatchObject({ byggeplassId: null, sistEndretLokalt: 1 });
@@ -241,7 +258,7 @@ describe("RETUR 36c-2 P1 (a2) — løft byggeplass-arv ved «Uten byggeplass»",
   });
 
   it("negativkontroll: sedel uten byggeplass → no-op (false), ingen pending", () => {
-    const id = leggTilTimerRad(db(), K, felt, null);
+    const id = leggTilTimerRad(db(), K, felt, []);
     expect(loftByggeplassArv(db(), "s1", { projectId: "p1", byggeplass: null })).toBe(false);
     expect(timerRad(id).byggeplassId).toBeNull();
     expect(sedelRad().syncStatus).toBe("synced");

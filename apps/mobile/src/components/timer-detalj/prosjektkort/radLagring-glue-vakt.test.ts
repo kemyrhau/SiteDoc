@@ -89,8 +89,13 @@ const TOKENS = [
   'gammel?.reiseKilde === "matrise"',
   "(gammel.fraTid ?? null) !== (fraTid ?? null)",
   "(gammel.tilTid ?? null) !== (tilTid ?? null)",
-  "eq(sheetMachineLocal.sheetTimerId, radId)",
-  "if (maskin !== undefined)",
+  // NY BESLUTNING maskinkobling (2026-11-12): koblede maskiner skrives via
+  // delt `kobledeMaskiner.ts` — begge kopier må avvise maskin over rad FØR
+  // skriving og bare røre maskiner når endringer er sendt.
+  "maskinerOverRadEtterLagring(db, radId, timer, maskiner)",
+  "if (maskiner !== undefined)",
+  "skrivKobledeMaskiner(",
+  'grunn: "maskinOverRad" as const',
 ];
 const flat = (s: string) => s.replace(/\s+/g, " ");
 const tell = (kilde: string, token: string) => flat(kilde).split(flat(token)).length - 1;

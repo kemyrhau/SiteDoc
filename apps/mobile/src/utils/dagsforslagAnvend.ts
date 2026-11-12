@@ -24,6 +24,7 @@ import {
 import { loftByggeplassArv, trengerByggeplassLoft } from "../components/timer-detalj/prosjektkort/kortRadFlytt";
 import type { SedelKortKontekst } from "../lib/prosjektkortMobil";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
+import { radForMaskin } from "../services/kobledeMaskiner";
 import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
 import type { BekreftDagTillegg } from "./bekreftDagTillegg";
 
@@ -80,7 +81,17 @@ export function anvendDagsforslag(
   const blokkerteDatoer: string[] = [];
   // Radform (2026-11-12): arbeidsrader skrevet i denne Bekreft dag, pr. sedel —
   // varer fra samme kort kobles til kortets første arbeidsrad.
-  const skrevneArbeidsrader: Array<{ id: string; sheetId: string; projectId: string }> = [];
+  // NY BESLUTNING maskinkobling: bøtte + fra/til tas med så maskiner kan kobles
+  // etter `radForMaskin` (samme prosjekt/byggeplass/ECO, fra–til innenfor).
+  const skrevneArbeidsrader: Array<{
+    id: string;
+    sheetId: string;
+    projectId: string;
+    byggeplassId: string | null;
+    externalCostObjectId: string | null;
+    fraTid: string | null;
+    tilTid: string | null;
+  }> = [];
   let forsteLagredeSheetId: string | null = null;
 
   if (ctx.erAnsatt === false) {
@@ -196,7 +207,17 @@ export function anvendDagsforslag(
 
     for (const rad of d.rader) {
       const radId = ctx.nyId();
-      if (!rad.erReise) skrevneArbeidsrader.push({ id: radId, sheetId: resultat.id, projectId: rad.projectId });
+      if (!rad.erReise) {
+        skrevneArbeidsrader.push({
+          id: radId,
+          sheetId: resultat.id,
+          projectId: rad.projectId,
+          byggeplassId: rad.byggeplassId ?? eksplisittByggeplassId,
+          externalCostObjectId: ctx.ecoId ?? null,
+          fraTid: rad.fraTid,
+          tilTid: rad.tilTid,
+        });
+      }
       db.insert(sheetTimerLocal)
         .values({
           id: radId,
@@ -245,6 +266,11 @@ export function anvendDagsforslag(
       byggeplassId: startByggeplassId,
       radFor: (projectId) =>
         skrevneArbeidsrader.find((r) => r.sheetId === sheetId && r.projectId === projectId)?.id ?? null,
+      maskinRadFor: (maskin) =>
+        radForMaskin(
+          maskin,
+          skrevneArbeidsrader.filter((r) => r.sheetId === sheetId),
+        ),
     });
   }
 
@@ -361,7 +387,10 @@ function utvidArbeidstidsvindu(
  * L3-D: maskin uten fra/til, varer som pending — sendes når sedelen er synket
  * (`planleggVaresending`). Radform (2026-11-12): varer kobles til kortets første
  * arbeidsrad skrevet i samme Bekreft dag (`radFor`); ingen slik rad → ukoblet
- * («Uten rad»). Maskin forblir ukoblet.
+ * («Uten rad»). Maskin kobles etter NY BESLUTNING maskinkobling (`maskinRadFor`
+ * = `radForMaskin`): kun når nøyaktig én rad med samme prosjekt/byggeplass/ECO
+ * dekker maskinens fra–til. Bekreft dag-maskiner har ikke fra/til → alltid
+ * «Uten rad», timene urørt.
  */
 function skrivTillegg(
   db: LokalDb,
@@ -372,6 +401,13 @@ function skrivTillegg(
     /** RETUR 36c pkt 1: valgt byggeplass når den avviker fra sedelens; null = arv. */
     byggeplassId: string | null;
     radFor: (projectId: string) => string | null;
+    maskinRadFor: (maskin: {
+      projectId: string;
+      byggeplassId: string | null;
+      externalCostObjectId: string | null;
+      fraTid: string | null;
+      tilTid: string | null;
+    }) => string | null;
   },
 ): void {
   for (const m of tillegg.maskiner) {
@@ -379,9 +415,15 @@ function skrivTillegg(
       .values({
         id: ctx.nyId(),
         dagsseddelId: ctx.sheetId,
-        // Radform: maskin kobles ikke her — sheetTimerId betyr «koblet maskin»
-        // (timer = radens); valget venter på beslutning (orkestrator 2026-11-12).
-        sheetTimerId: null,
+        // NY BESLUTNING maskinkobling: kobles bare når én rad entydig dekker
+        // maskinens fra–til (her alltid null → «Uten rad»). Ingen gjetting.
+        sheetTimerId: ctx.maskinRadFor({
+          projectId: m.projectId,
+          byggeplassId: ctx.byggeplassId,
+          externalCostObjectId: ctx.ecoId ?? null,
+          fraTid: null,
+          tilTid: null,
+        }),
         projectId: m.projectId,
         vehicleId: m.vehicleId,
         externalCostObjectId: ctx.ecoId ?? null,
