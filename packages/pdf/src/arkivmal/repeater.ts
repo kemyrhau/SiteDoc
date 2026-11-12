@@ -12,12 +12,12 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller, samleBildeNr } from "../hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, byggGrenseVerdi, byggTilfoyelser, bildeMerke, nyBildeTeller, samleBildeNr, byggOppgaveHenvisning, byggFilListe } from "../hjelpere";
 import type { BildeTeller } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
 import { normaliserRad } from "../typer";
-import type { TreObjekt, FeltVerdi, Vedlegg, Rad } from "../typer";
+import type { TreObjekt, FeltVerdi, Vedlegg, Rad, PdfConfig } from "../typer";
 
 const TOM = `<span class="tom">Ikke utfylt</span>`;
 
@@ -61,7 +61,7 @@ function bilderIRad(barn: TreObjekt[], rad: Rad): Vedlegg[] {
  * Delt med radkort-formen (radkort.ts) for skalar/beregning/dato/status-felt.
  * Håndterer IKKE drawing_position (radkort eier den) — den grenen er fjernet.
  */
-export function skalarCelle(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
+export function skalarCelle(objekt: TreObjekt, felt: FeltVerdi | undefined, config?: PdfConfig): string {
   const verdi = felt?.verdi;
   const tom = verdi === null || verdi === undefined || verdi === "";
 
@@ -118,7 +118,12 @@ export function skalarCelle(objekt: TreObjekt, felt: FeltVerdi | undefined): str
               !!v && typeof v === "object" && typeof (v as Vedlegg).filnavn === "string",
           )
         : [];
-      return filer.length > 0 ? esc(`${filer.length} vedlegg`) : TOM;
+      if (filer.length === 0) return TOM;
+      // PDF-1: med «Ta med vedlegg» listes ikke-bilde-filene med navn (bildene står under raden).
+      const ikkeBilder = filer.filter((f) => !erBilde(f));
+      return config?.vedleggFilnavn && ikkeBilder.length > 0
+        ? byggFilListe(ikkeBilder, config, "")
+        : esc(`${filer.length} vedlegg`);
     }
     default: {
       // text_field, person, company, bim/zone/room_property, m.fl.
@@ -163,6 +168,7 @@ const F7_MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direk
 export function byggUtenforRaderBlokk(
   objektFelt: FeltVerdi | undefined,
   startNr: number | BildeTeller,
+  config?: PdfConfig,
 ): { html: string; nesteNr: number } {
   // Tall = eget kall (F7-tester); teller = dokumenttelleren med reservasjoner (RETUR 1).
   const teller: BildeTeller = typeof startNr === "number" ? { neste: startNr, reservert: new Set() } : startNr;
@@ -188,9 +194,11 @@ export function byggUtenforRaderBlokk(
   const grid = celler.length ? `<div class="ark-bilde-grid">${celler.join("")}</div>` : "";
   // A1-kvittering (2026-08-22): kommentar i guillemeter «…» = fasit-PNG-en («Testbilde»).
   const kommentarHtml = kommentar ? `<div class="kommentar">«${esc(kommentar)}»</div>` : "";
-  const filteller = antallIkkeBilder > 0
-    ? `<div class="vedlegg-teller">${antallIkkeBilder} vedlegg uten forhåndsvisning</div>`
-    : "";
+  const filteller = byggFilListe(
+    alle.filter((v) => !erBilde(v)),
+    config,
+    `<div class="vedlegg-teller">${antallIkkeBilder} vedlegg uten forhåndsvisning</div>`,
+  );
   const html = `<div class="ark-utenfor-rader"><div class="ark-utenfor-merke">${F7_MERKE}</div>${kommentarHtml}${grid}${filteller}</div>`;
   return { html, nesteNr: teller.neste };
 }
@@ -201,6 +209,7 @@ export function byggRepeaterTabell(
   label: string,
   objektFelt?: FeltVerdi,
   teller: BildeTeller = nyBildeTeller(samleBildeNr([verdi, objektFelt])),
+  config?: PdfConfig,
 ): string {
   const barn = objekt.children ?? [];
   // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
@@ -209,7 +218,7 @@ export function byggRepeaterTabell(
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk FØRST (forbruker bildeNr før radene). Tom blokk → "".
   // Dokumenttelleren fortsetter fra feltene foran (ordre 2026-11-04 (2)).
-  const blokk = byggUtenforRaderBlokk(objektFelt, teller);
+  const blokk = byggUtenforRaderBlokk(objektFelt, teller, config);
 
   if (rader.length === 0) {
     // Case (a): objektnivå-innhold + 0 rader → blokk + «Ingen rader registrert».
@@ -235,11 +244,16 @@ export function byggRepeaterTabell(
           // modellen fester i dag tilføyelser på topp-nivå feltnøkkel, men cella skal
           // rendre dem hvis de finnes — går aldri via renderFelt her).
           const tilfoyelser = byggTilfoyelser(felt?.tilfoyelser);
-          return `<td>${skalarCelle(b, felt)}${tilfoyelser}${kommentar}</td>`;
+          return `<td>${skalarCelle(b, felt, config)}${tilfoyelser}${kommentar}</td>`;
         })
         .join("");
       const datarad = `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;
-      return datarad + byggBilderader(bilderIRad(barn, rad), teller, kolonnespenn);
+      // PDF-1: oppgaver opprettet fra denne raden (`${repeaterId}:${_radId}`) — egen rad under.
+      const henvisning = byggOppgaveHenvisning(`${objekt.id}:${rad._radId}`, config);
+      const henvisningsrad = henvisning
+        ? `<tr class="ark-henvisning-rad"><td colspan="${kolonnespenn}">${henvisning}</td></tr>`
+        : "";
+      return datarad + henvisningsrad + byggBilderader(bilderIRad(barn, rad), teller, kolonnespenn);
     })
     .join("");
 

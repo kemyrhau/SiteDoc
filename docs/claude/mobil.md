@@ -1021,34 +1021,17 @@ annen — da gjelder paritetsregelen igjen.
 
 ## PDF-utskrift og deling
 
-**PDF-bygger:** `@sitedoc/pdf` (packages/pdf/) — delt pakke for web og mobil. Genererer komplett HTML-strenger.
+**Én utskriftsmotor — serveren (`arkiv.rendr`).** Mobil bygger ingen PDF selv. `app/sjekkliste/[id].tsx` kaller `trpc.arkiv.rendr` med `{ dokumenter: [{ id, type: "sjekkliste" }], medOppgaver, medVedlegg }` (Bearer-auth som alle tRPC-kall) og får samme eksport-PDF som web (`apps/api/src/services/arkiv/render.ts`, arkivmalen i `packages/pdf/src/arkivmal/`). Den lokale veien (`byggSjekklisteHtml`, `TegningsCapture`, `PdfForhandsvisning`, `expo-print`-genereringen) ble slettet 2026-08-24 — se [dokumentgenerering-plan.md](dokumentgenerering-plan.md) § F2/Fase 3.
 
-**Arkitektur:**
-- `byggSjekklisteHtml()` tar data-objekter + config → returnerer HTML (`byggOppgaveHtml` pensjonert 2026-08-12 — var kallerløs)
-- Null runtime-avhengigheter — kun TypeScript-strenger
-- `PdfConfig`: bildeBaseUrl, maksbildeHoyde, gjentakendeHeader, visSidenummer, tegningScreenshot, tegningDetaljScreenshot
+**Krever nett:** uten tilkobling sier knappen at PDF krever nett (`erPaaNettet`-sjekk før kallet) — ingen PDF offline. En PDF kan uansett ikke deles uten nett (Kenneth 2026-08-17).
 
-**Layout:**
-1. Header-ramme: logo, prosjektnummer · navn, fra→til, status, vær (styrt av utskriftsinnstillinger)
-2. Tegningsposisjon: oversikt + detalj side om side (canvas-screenshot)
-3. Feltblokker: label → bilder (2-kolonners flex) → verdi → kommentar
+**Flyt:** Share-ikon → `arkiv.rendr` → base64 skrives til en egen undermappe pr. render (`${cacheDirectory}pdf-<tid>/`, så forrige forhåndsvisning ikke overskrives mens den vises) → `EksportPdfForhandsvisning` (`src/components/EksportPdfForhandsvisning.tsx`, WebView i `ModalFlate`) → Del → `expo-sharing` → iOS delearket.
 
-**Tegningsposisjon i PDF:**
-- `TegningsCapture.tsx`: offscreen WebView med `<canvas>` som tegner bilde + prikk
-- Genererer to bilder: oversikt (maks 2400px) og detalj (800px utsnitt, 12.5% av bildet)
-- Canvas `toDataURL()` → base64-PNG → `postMessage` → React Native
-- Ingen native snapshot (ViewShot) — alt i WebView canvas
-- Feature-flag: `BRUK_SCREENSHOT_TEGNING = true` i sjekkliste.ts
-
-**Bilde-URLer:** `hentWebUrl() + "/api"` som bildeBaseUrl — alle bilder via Next.js proxy
-
-**Forhåndsvisning:** `PdfForhandsvisning`-komponent — WebView med HTML-preview. Del-knapp genererer PDF via `expo-print` → `expo-sharing`.
-
-**Flyt:** Share-ikon → forhåndsvisning → Del-knapp → PDF → iOS delearket
-
-**Sider:** Ren block-layout (ingen `<table>` wrapping). `page-break-inside: avoid` på feltblokker. `page-break-after: always` etter tegning.
-
-**Støttede felttyper:** text_field, list_single/multi, traffic_light, integer/decimal/calculation (med enhet), date, date_time, person, persons, company, weather, signature (base64), repeater (med barnefelt), bim/zone/room_property, attachments.
+**Utskriftsvalg (PDF-1, 2026-11-12):** forhåndsvisningen har to brytere under headeren (`valg`-prop på `EksportPdfForhandsvisning`); endring rendrer forhåndsvisningen på nytt, og Del sender samme valg:
+- **Ta med oppgaver** (`eksport.medOppgaver`, standard AV — `STANDARD_PDF_VALG` i `packages/shared/src/dokument/pdf-valg.ts`) — hver oppgave opprettet fra et felt i sjekklisten legges inn som egen del rett etter sjekklista.
+- **Ta med vedlegg** (`eksport.medVedlegg`, standard AV) — PDF-vedlegg legges bakerst i PDF-en (pdf-lib, `leggVedleggBakerst` i `render.ts`); bilder vises som før; andre filer listes med filnavn under feltet.
+- Uavhengig av valgene: under hvert felt eller hver repeater-rad med oppgaver står en henvisningslinje «Oppgaver: BEF-015 Tittel (status) · …» (`byggOppgaveHenvisning`, `packages/pdf/src/hjelpere.ts`). Oppgavene hentes kun fra samme prosjekt og filtreres på dokumenttilgang (`hentSjekklisteOppgaver`, `apps/api/src/services/arkiv/oppgave-henvisning.ts`).
+- Oppgave-skjermen (`app/oppgave/[id].tsx`) har ingen valg — den rendrer én oppgave.
 
 **Lokasjonsvelger (felles for sjekkliste og oppgave, ORDRE 19 2026-11-06):**
 - Ett felt øverst i `sjekkliste/[id].tsx` og `oppgave/[id].tsx`: `LokasjonSeksjon` (`src/components/LokasjonSeksjon.tsx`) viser gjeldende lokasjon (tegning, byggeplass eller område), ellers `lokasjonVelger.velgLokasjonPlaceholder`

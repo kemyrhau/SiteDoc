@@ -463,6 +463,9 @@ Lagres via `oppdaterVedlegg` (in-place patch i `useSjekklisteSkjema`/`useOppgave
 
 ## Print-til-PDF
 
+### Sjekkliste-PDF fra detaljsiden (`arkiv.rendr`, PDF-1 2026-11-12)
+«Last ned PDF» på `sjekklister/[sjekklisteId]/page.tsx` er en delt knapp: hoveddelen laster ned med gjeldende valg, pila (`ChevronDown`, `eksport.pdfValg`) åpner et nedtrekk med to avkrysninger — **Ta med oppgaver** og **Ta med vedlegg**, begge av som standard (`STANDARD_PDF_VALG`, `packages/shared/src/dokument/pdf-valg.ts`). Uten valg blir PDF-en som før, pluss henvisningslinjen. Valgene sendes som `medOppgaver`/`medVedlegg` til `arkiv.rendr`; samme motor og samme valg som mobil ([mobil.md § PDF-utskrift og deling](mobil.md)). Henvisningslinjen «Oppgaver: …» under felt/rad med oppgaver kommer alltid. Massutskrift (`sjekklister/skriv-ut`) har ikke valgene.
+
 ### Arkitektur
 Dedikerte utskriftssider: `/utskrift/sjekkliste/[sjekklisteId]` og `/utskrift/oppgave/[oppgaveId]`. Åpnes via `window.open(url + "?print=true", "_blank")` fra detaljsider.
 

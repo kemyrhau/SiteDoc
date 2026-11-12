@@ -5,7 +5,7 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser, formaterVaerTekst, bildeMerke, nyBildeTeller, samleBildeNr } from "./hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser, formaterVaerTekst, bildeMerke, nyBildeTeller, samleBildeNr, byggFilListe } from "./hjelpere";
 import type { BildeTeller } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
@@ -183,9 +183,8 @@ export function renderFelt(
         });
         html += `</div>`;
       }
-      if (filer.length > 0) {
-        html += `<div class="vedlegg-teller">📎 ${filer.length} fil${filer.length > 1 ? "er" : ""}</div>`;
-      }
+      // PDF-1: med «Ta med vedlegg» listes filnavnene; ellers dagens teller.
+      html += byggFilListe(filer, config, `<div class="vedlegg-teller">📎 ${filer.length} fil${filer.length > 1 ? "er" : ""}</div>`);
       html += `</div>`;
       return html;
     }
@@ -257,10 +256,8 @@ export function renderFelt(
     html += `<div class="kommentar">${esc(felt.kommentar)}</div>`;
   }
 
-  // Fil-vedlegg
-  if (filer.length > 0) {
-    html += `<div class="vedlegg-teller">📎 ${filer.length} fil${filer.length > 1 ? "er" : ""}</div>`;
-  }
+  // Fil-vedlegg (PDF-1: filnavn med «Ta med vedlegg», ellers teller)
+  html += byggFilListe(filer, config, `<div class="vedlegg-teller">📎 ${filer.length} fil${filer.length > 1 ? "er" : ""}</div>`);
 
   html += `</div>`;
   return html;

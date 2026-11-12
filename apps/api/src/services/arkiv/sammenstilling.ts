@@ -26,6 +26,7 @@ import {
   statusSemantiskFarge,
   formaterNummer,
   formaterDatoKort,
+  erPdfVedlegg,
   type RapportObjekt,
   type TreObjekt,
   type FeltVerdi,
@@ -46,6 +47,7 @@ import { lesHendelseslogg, lesEndringslogg } from "./logg-lesere";
 import { samleRepeaterMarkorer, byggUtsnittCrop, malBildeDimensjoner, type RepeaterMarkor } from "./tegningsmarkorer";
 import { injiserGrenseSnapshot } from "./grensesnapshot";
 import { filtrerSynligeArkivObjekter } from "./synlighet";
+import { hentSjekklisteOppgaver, type OppgaveTilgang } from "./oppgave-henvisning";
 
 interface BildeRef { url: string; filnavn?: string; type?: string }
 
@@ -79,6 +81,19 @@ export interface SammenstillingOpts {
   generertTekst: string;
   /** Krav #2: default true (lag 2 med). */
   eksport?: boolean;
+  /**
+   * PDF-1 «Ta med vedlegg»: ikke-bilde-filer listes med filnavn, og PDF-vedlegg samles i
+   * `pdfVedlegg` (render.ts legger dem bakerst). Av/utelatt → dagens filteller.
+   */
+  medVedlegg?: boolean;
+  /** PDF-1: dokumenttilgang per oppgave (satt av arkiv-ruten). Utelatt → kun prosjektfilteret. */
+  oppgaveTilgang?: OppgaveTilgang;
+}
+
+/** PDF-vedlegg som skal legges bakerst (PDF-1, «Ta med vedlegg»). */
+export interface PdfVedleggRef {
+  url: string;
+  filnavn: string;
 }
 
 /**
@@ -113,6 +128,10 @@ export interface SammenstillingResultat {
   manglendeVedlegg: string[];
   /** Verdier for per-side header/footer (4c). */
   ramme: RammeData;
+  /** PDF-1: oppgaver opprettet fra dokumentet (kun sjekkliste) som brukeren har tilgang til. */
+  oppgaveIder: string[];
+  /** PDF-1: PDF-vedlegg fra synlige felt (kun når `medVedlegg`), i feltrekkefølge. */
+  pdfVedlegg: PdfVedleggRef[];
 }
 
 /** «BEF-001» → filnavn. Faller tilbake til `<fallbackPrefix>-<id>` når nummer/prefix mangler. */
@@ -207,6 +226,27 @@ interface NormalisertArkivDok {
   utforerFaggruppeNavn: string | null;
   // Logg-referanse (checklistId ELLER taskId — logg-leserne er type-diskriminert)
   loggRef: { checklistId: string } | { taskId: string };
+  /** PDF-1: feltnøkkel → «Oppgaver: …»-linje (kun sjekkliste). */
+  oppgaveHenvisninger?: Record<string, string>;
+  /** PDF-1: oppgavene bak henvisningene (tilgangsfiltrert). */
+  oppgaveIder?: string[];
+}
+
+/** PDF-vedlegg i en feltverdi — dyp gange (repeater-rader nester felt), dedup på url. */
+function samlePdfVedlegg(v: unknown, ut: Map<string, PdfVedleggRef>): void {
+  if (Array.isArray(v)) {
+    for (const e of v) samlePdfVedlegg(e, ut);
+    return;
+  }
+  if (!v || typeof v !== "object") return;
+  const o = v as Record<string, unknown>;
+  if (typeof o.url === "string" && typeof o.filnavn === "string") {
+    if (erPdfVedlegg({ url: o.url, filnavn: o.filnavn }) && !ut.has(o.url)) {
+      ut.set(o.url, { url: o.url, filnavn: o.filnavn });
+    }
+    return;
+  }
+  for (const verdi of Object.values(o)) samlePdfVedlegg(verdi, ut);
 }
 
 /**
@@ -421,7 +461,16 @@ async function byggArkivHtmlKjerne(
     signaturOppslag,
     signaturMedLogg: true,
     signaturGenerertTidspunkt: new Date().toISOString(),
+    // PDF-1: «Oppgaver: …» under felt/rad (alltid), filnavn med «Ta med vedlegg».
+    oppgaveHenvisninger: norm.oppgaveHenvisninger,
+    vedleggFilnavn: opts.medVedlegg ? { bakerstMerke: nb["eksport.vedleggBakerst"] } : undefined,
   });
+
+  // PDF-1: PDF-vedlegg fra SYNLIGE felt (aldri-viste felt er filtrert bort over), feltrekkefølge.
+  const pdfVedlegg = new Map<string, PdfVedleggRef>();
+  if (opts.medVedlegg) {
+    for (const o of objects) samlePdfVedlegg(dataMedNavn[o.id], pdfVedlegg);
+  }
 
   // 4b) D2: dokument-lokasjon (tegningsmarkør) øverst side 1. Tekstlinje under:
   // byggeplass · tegningsnavn. Uten markør/bilde → "" (ingen lokasjonsseksjon).
@@ -536,6 +585,8 @@ async function byggArkivHtmlKjerne(
     prosjektRef,
     manglendeVedlegg: manglende,
     ramme,
+    oppgaveIder: norm.oppgaveIder ?? [],
+    pdfVedlegg: [...pdfVedlegg.values()],
   };
 }
 
@@ -588,6 +639,11 @@ export async function byggSjekklisteArkivHtml(
     utforerFaggruppeNavn: sjekkliste.utforerFaggruppe?.name ?? null,
     loggRef: { checklistId: sjekkliste.id },
   };
+
+  // PDF-1: oppgaver opprettet fra sjekklista (samme prosjekt + tilgang) → henvisningslinjer.
+  const oppgaver = await hentSjekklisteOppgaver(prisma, sjekkliste.id, norm.projectId, opts.oppgaveTilgang);
+  norm.oppgaveHenvisninger = oppgaver.henvisninger;
+  norm.oppgaveIder = oppgaver.ider;
 
   return byggArkivHtmlKjerne(prisma, norm, opts);
 }
