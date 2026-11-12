@@ -57,7 +57,7 @@ import { forberedManuellDag } from "../../src/utils/manuellDag";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
-import { kortMedArbeid } from "../../src/utils/beskrivelseKort";
+import { kortMedArbeid, arbeidsraderPerKort, RAD_PREFIKS } from "../../src/utils/beskrivelseKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
 import {
@@ -166,6 +166,9 @@ export default function BekreftDagSkjerm() {
   const beskrivelseY = useRef(new Map<string, number>());
   // RETUR 36c-2 (D4): tekstfeltets y innenfor kortet — rullemålet er feltet.
   const beskrivelseFeltY = useRef(new Map<string, number>());
+  // Radform: radfeltene inne i kortet (nøkkel `rad:…`).
+  const radFelt = useRef(new Map<string, TextInput>());
+  const radY = useRef(new Map<string, number>());
   const [tastaturOppe, setTastaturOppe] = useState(false);
   useEffect(() => {
     const vis = Keyboard.addListener("keyboardDidShow", () => setTastaturOppe(true));
@@ -285,6 +288,14 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? kortMedArbeid(beregnet.forslag) : []),
     [beregnet],
   );
+  const manglerNokler = useMemo(
+    () => (beregnet ? manglerBeskrivelse(beregnet.forslag) : []),
+    [beregnet],
+  );
+  const raderPerKort = useMemo(
+    () => (beregnet ? arbeidsraderPerKort(beregnet.forslag) : new Map<string, never[]>()),
+    [beregnet],
+  );
   const chipDato = beregnet?.forslag.datoer[0]?.dato ?? null;
   const aktivitetIdForChip = beregnet?.forslag.aktivitetId ?? null;
   const beskrivelseChipsPerProsjekt = useMemo(() => {
@@ -302,12 +313,28 @@ export default function BekreftDagSkjerm() {
   const settBeskrivelse = useCallback((nokkel: string, tekst: string) => {
     setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
   }, []);
+  const raderPerKortRef = useRef(raderPerKort);
+  raderPerKortRef.current = raderPerKort;
+  const settRadBeskrivelse = useCallback((nokkel: string, tekst: string) => {
+    setRetting((r) => ({ ...r, beskrivelsePerRad: { ...r.beskrivelsePerRad, [nokkel]: tekst } }));
+  }, []);
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
     setForsoktBekreft(true);
     const forste = nokler[0];
     if (!forste) return;
+    // Radform (beslutning 3): en radnøkkel ruller til radfeltet i sitt kort.
+    if (forste.startsWith(RAD_PREFIKS)) {
+      const kort = [...raderPerKortRef.current.entries()].find(([, rader]) =>
+        rader.some((r) => r.nokkel === forste),
+      )?.[0];
+      const kortY = kort ? beskrivelseY.current.get(kort) : undefined;
+      const y = kortY != null ? kortY + (radY.current.get(forste) ?? 0) : undefined;
+      if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+      radFelt.current.get(forste)?.focus();
+      return;
+    }
     const y = beskrivelseY.current.get(forste);
     if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
     beskrivelseFelt.current.get(forste)?.focus();
@@ -878,8 +905,20 @@ export default function BekreftDagSkjerm() {
                 visProsjekt={arbeidKort.length > 1}
                 verdi={retting.beskrivelse?.[k.nokkel] ?? ""}
                 chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
-                visFeil={forsoktBekreft && !retting.beskrivelse?.[k.nokkel]?.trim()}
+                visFeil={forsoktBekreft && manglerNokler.includes(k.nokkel)}
                 onEndre={(tekst) => settBeskrivelse(k.nokkel, tekst)}
+                rader={(raderPerKort.get(k.nokkel) ?? []).map((r) => ({
+                  nokkel: r.nokkel,
+                  tid: r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : t("timer.dagsoversikt.utenTid"),
+                  verdi: retting.beskrivelsePerRad?.[r.nokkel] ?? "",
+                  visFeil: forsoktBekreft && manglerNokler.includes(r.nokkel),
+                }))}
+                onEndreRad={settRadBeskrivelse}
+                radRef={(nokkel, felt) => {
+                  if (felt) radFelt.current.set(nokkel, felt);
+                  else radFelt.current.delete(nokkel);
+                }}
+                onRadY={(nokkel, y) => radY.current.set(nokkel, y)}
               />
             ))}
 

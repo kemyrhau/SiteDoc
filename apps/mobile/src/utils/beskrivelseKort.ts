@@ -56,12 +56,64 @@ export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
   });
 }
 
+/**
+ * Radform (Kenneth 2026-11-12, beslutning 2): kortteksten forhåndsutfyller
+ * hver rad; hver arbeidsrad kan overstyres i `beskrivelsePerRad`.
+ *
+ * Radnøkkel = `rad:` + dato | prosjekt | fra-tid | n (n = løpenummer blant
+ * like rader samme dato). Endres fra-tid, faller overstyringen bort og raden
+ * får kortteksten igjen — aldri en annen rads tekst.
+ */
+export const RAD_PREFIKS = "rad:";
+
+type RadNokkelGrunnlag = { projectId: string; fraTid: string | null; erReise: boolean };
+
+export function radBeskrivelseNokkel(
+  d: { dato: string; rader: readonly RadNokkelGrunnlag[] },
+  rad: RadNokkelGrunnlag,
+): string | null {
+  const i = d.rader.indexOf(rad);
+  if (i < 0 || rad.erReise) return null;
+  const n = d.rader
+    .slice(0, i)
+    .filter((r) => !r.erReise && r.projectId === rad.projectId && r.fraTid === rad.fraTid).length;
+  return `${RAD_PREFIKS}${d.dato}|${rad.projectId}|${rad.fraTid ?? ""}|${n}`;
+}
+
+export type BeskrivelseRad = {
+  nokkel: string;
+  /** Kortet raden hører til (nøkkel i `beskrivelsePerKort`). */
+  kortNokkel: string;
+  fraTid: string | null;
+  tilTid: string | null;
+};
+
+/** Arbeidsradene (timer > 0) pr. kort på åpne datoer, i forslagets rekkefølge. */
+export function arbeidsraderPerKort(forslag: Dagsforslag): Map<string, BeskrivelseRad[]> {
+  const kort = kortMedArbeid(forslag);
+  const ut = new Map<string, BeskrivelseRad[]>(kort.map((k) => [k.nokkel, []]));
+  for (const d of forslag.datoer) {
+    if (d.blokkert) continue;
+    for (const r of d.rader) {
+      if (r.erReise || !(r.timer > 0)) continue;
+      const nokkel = radBeskrivelseNokkel(d, r);
+      const k = radKortNokkel(r, d);
+      const kn = kort.find((x) => kortNokkelFraKort(x) === k)?.nokkel ?? r.projectId;
+      if (nokkel) ut.get(kn)?.push({ nokkel, kortNokkel: kn, fraTid: r.fraTid, tilTid: r.tilTid });
+    }
+  }
+  return ut;
+}
+
 /** Teksten (trimmet, null = tom) en arbeidsrad på dato `d` skal få. */
 export function beskrivelseForRad(
   forslag: Dagsforslag,
-  rad: RadKortGrunnlag,
-  d: Pick<DagsforslagDag, "byggeplassId">,
+  rad: RadKortGrunnlag & RadNokkelGrunnlag,
+  d: Pick<DagsforslagDag, "byggeplassId" | "dato" | "rader">,
 ): string | null {
+  const radNokkel = radBeskrivelseNokkel(d, rad);
+  const egen = radNokkel ? forslag.beskrivelsePerRad?.[radNokkel]?.trim() : undefined;
+  if (egen) return egen;
   const b = forslag.beskrivelsePerKort;
   if (!b) return null;
   const k = radKortNokkel(rad, d);

@@ -33,9 +33,9 @@ export function planleggVaresending(
   linje: Pick<
     VareLinjeLokal,
     "id" | "sheetId" | "projectId" | "dato" | "vareId" | "antall" | "byggeplassId" | "externalCostObjectId"
-  >,
+  > & { sheetTimerId?: string | null },
   sedel: SedelLokal | null,
-  timerRader: readonly { projectId: string | null }[],
+  timerRader: readonly { id?: string; projectId: string | null }[],
 ): Varesending {
   const basis = {
     id: linje.id,
@@ -51,12 +51,18 @@ export function planleggVaresending(
     return { handling: "send", input: kortVareforbrukInput(basis) };
   }
   if (sedel.syncStatus !== "synced") return { handling: "vent" };
-  const timer = timerRader.map((r) => ({ projectId: r.projectId ?? sedel.projectId }));
+  const timer = timerRader.map((r) => ({ id: r.id, projectId: r.projectId ?? sedel.projectId }));
+  // Radform: koblingen sendes kun når raden fortsatt står på sedelen for varens
+  // prosjekt (flyttet/slettet rad → linjen sendes ukoblet og vises under «Uten rad»).
+  const rad = linje.sheetTimerId
+    ? timer.find((r) => r.id === linje.sheetTimerId && r.projectId === linje.projectId)
+    : undefined;
   return {
     handling: "send",
     input: kortVareforbrukInput({
       ...basis,
       dagsseddelId: kortDagsseddelId(sedel.id, timer, linje.projectId),
+      sheetTimerId: rad?.id ?? null,
     }),
   };
 }
@@ -103,7 +109,7 @@ export async function syncVareforbruk(
         .get() ?? null;
     const timerRader = sedel
       ? db
-          .select({ projectId: sheetTimerLocal.projectId })
+          .select({ id: sheetTimerLocal.id, projectId: sheetTimerLocal.projectId })
           .from(sheetTimerLocal)
           .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
           .all()
@@ -149,6 +155,8 @@ export type LokalVarelinje = {
   /** ORDRE 36b: kortnøkkelens B og UP (null = sedelens byggeplass / uten UP). */
   byggeplassId: string | null;
   externalCostObjectId: string | null;
+  /** Radform: timerraden linjen er ført fra (null = «Uten rad»). */
+  sheetTimerId: string | null;
   syncStatus: "pending" | "synced" | "avvist";
   feilmelding: string | null;
 };
@@ -173,6 +181,7 @@ export function hentLokaleVarelinjer(sheetId: string, projectId?: string): Lokal
       vare: { navn: l.vareNavn, enhet: l.enhet },
       byggeplassId: l.byggeplassId ?? null,
       externalCostObjectId: l.externalCostObjectId ?? null,
+      sheetTimerId: l.sheetTimerId ?? null,
       syncStatus: l.syncStatus,
       feilmelding: l.feilmelding,
     }));
@@ -193,11 +202,20 @@ export function lagreLokalVarelinje(args: {
   byggeplassId: string | null;
   /** ORDRE 36b: kortets underprosjekt. */
   externalCostObjectId?: string | null;
+  /** Radform: timerraden varen føres fra (null = ikke koblet). */
+  sheetTimerId?: string | null;
 }): void {
   const db = hentDatabase();
   if (!db) throw new Error("Database ikke tilgjengelig");
   db.insert(vareforbrukLocal)
-    .values({ ...args, externalCostObjectId: args.externalCostObjectId ?? null, syncStatus: "pending", feilmelding: null, sistEndretLokalt: Date.now() })
+    .values({
+      ...args,
+      externalCostObjectId: args.externalCostObjectId ?? null,
+      sheetTimerId: args.sheetTimerId ?? null,
+      syncStatus: "pending",
+      feilmelding: null,
+      sistEndretLokalt: Date.now(),
+    })
     .run();
 }
 /** Arbeiderens valg i vare-modalen (før det er bundet til en sedel). */

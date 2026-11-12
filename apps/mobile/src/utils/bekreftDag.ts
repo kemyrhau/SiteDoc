@@ -24,7 +24,7 @@ import {
   vaktGrunnlag,
   type BekreftDagTillegg,
 } from "./bekreftDagTillegg";
-import { kortMedArbeid } from "./beskrivelseKort";
+import { arbeidsraderPerKort, kortMedArbeid } from "./beskrivelseKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
 import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
 
@@ -54,13 +54,25 @@ export function prosjekterMedArbeid(forslag: Dagsforslag): string[] {
 }
 
 /**
- * ORDRE 36a/36b: beskrivelse-nøklene (ett pr. kort med arbeid) der teksten er
- * tom etter trim. Ett kort pr. prosjekt → nøkkelen er projectId (som 36a).
+ * ORDRE 36a/36b + radform (beslutning 2/3): nøklene der en arbeidsrad står
+ * uten beskrivelse. Radens tekst = egen overstyring, ellers kortets tekst.
+ * - Ingen rad på kortet har tekst → kortets nøkkel (skriv én gang i kortfeltet).
+ * - Noen rader har tekst, andre ikke → radnøklene (`rad:…`) som mangler.
+ * Ett kort pr. prosjekt → kortnøkkelen er projectId (som 36a).
  */
 export function manglerBeskrivelse(forslag: Dagsforslag): string[] {
-  return kortMedArbeid(forslag)
-    .map((k) => k.nokkel)
-    .filter((n) => !forslag.beskrivelsePerKort?.[n]?.trim());
+  const rader = arbeidsraderPerKort(forslag);
+  const ut: string[] = [];
+  for (const k of kortMedArbeid(forslag)) {
+    const kortTekst = forslag.beskrivelsePerKort?.[k.nokkel]?.trim();
+    if (kortTekst) continue;
+    const kortRader = rader.get(k.nokkel) ?? [];
+    const tomme = kortRader.filter((r) => !forslag.beskrivelsePerRad?.[r.nokkel]?.trim());
+    if (tomme.length === 0 && kortRader.length > 0) continue;
+    if (tomme.length === kortRader.length) ut.push(k.nokkel);
+    else ut.push(...tomme.map((r) => r.nokkel));
+  }
+  return ut;
 }
 
 /**

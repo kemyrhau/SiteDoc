@@ -233,6 +233,11 @@ describe("L3-D § 8 nr. 16 — vare", () => {
     expect(v.organizationId).toBe(ORG);
     expect(v.antall).toBe(12.5);
     expect(v.syncStatus).toBe("pending");
+    // Radform: varen kobles til kortets arbeidsrad; aldri til en reiserad.
+    const rad = db().select().from(sheetTimerLocal).all().find((r) => r.id === v.sheetTimerId);
+    expect(rad).toBeDefined();
+    expect(rad!.erReise).toBeFalsy();
+    expect(rad!.projectId).toBe("p1");
     const sedel = db().select().from(dagsseddelLocal).all()[0]!;
     expect(sedel.syncStatus).not.toBe("synced");
     expect(planleggVaresending(v, sedel, [{ projectId: "p1" }]).handling).toBe("vent");

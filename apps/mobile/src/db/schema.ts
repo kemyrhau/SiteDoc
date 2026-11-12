@@ -988,6 +988,8 @@ export const vareforbrukLocal = sqliteTable("vareforbruk_local", {
   byggeplassId: text("byggeplass_id"),
   // ORDRE 36b (2026-11-07) — kortets underprosjekt. NULL = uten underprosjekt.
   externalCostObjectId: text("external_cost_object_id"),
+  // Radform (2026-11-12) — timerraden linjen er ført fra. NULL = ikke koblet → «Uten rad».
+  sheetTimerId: text("sheet_timer_id"),
   syncStatus: text("sync_status", { enum: ["pending", "synced", "avvist"] })
     .notNull()
     .default("pending"),

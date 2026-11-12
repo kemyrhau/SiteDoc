@@ -85,6 +85,7 @@ describe("L3: vare_local + vareforbruk_local", () => {
         "organization_id",
         "project_id",
         "sheet_id",
+        "sheet_timer_id", // radform 2026-11-12 — kobling til timerrad
         "sist_endret_lokalt",
         "sync_status",
         "user_id",

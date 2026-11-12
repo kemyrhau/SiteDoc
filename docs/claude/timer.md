@@ -664,12 +664,12 @@ Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskort
 
 Spec: `dagsoversikt-beskrivelse-spec.md` § 2.1–2.4. Samlesiden (`app/timer/[id]/prosjektkort.tsx`) og kortskjermen (`app/timer/[id]/kort/[projectId].tsx`) bruker samme komponent, `src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx`. Kortskjermen sender `enkeltProsjekt`, som skjuler navneraden, sum-kortet, Send og «+ Nytt prosjektkort», og viser «+ Timer». Kortskjermen er `KortHode` (fra `ProsjektkortSamleside.tsx`) med oversikt-linjene under. `TilleggSeksjon` og `UtleggSeksjon` rendres direkte og uendret under linjene.
 
-- **Linjene per prosjekt:** Arbeid (segmenter, med overtid som underlinje), Reise, Maskin og Varer, Utlegg og Beskrivelse/«Mangler». Regelen bor i `src/utils/dagsoversikt.ts` (`linjerForProsjekt`, `statusOrd`, `dagsoversiktSum`).
+- **Linjene per prosjekt** (⚠️ erstattet av radform 2026-11-12, se under — `linjerForProsjekt` brukes fortsatt for synlighetsreglene `visMaskin`/`visVarer`): Arbeid (segmenter, med overtid som underlinje), Reise, Maskin og Varer, Utlegg og Beskrivelse/«Mangler». Regelen bor i `src/utils/dagsoversikt.ts` (`linjerForProsjekt`, `statusOrd`, `dagsoversiktSum`).
   - Maskin vises når firmaet har utstyr i cache ELLER maskin er ført.
   - Varer vises når prosjektet har varelager ELLER varer er ført.
   - «Mangler» betyr arbeid > 0 uten beskrivelse på noen arbeidsrad (K3).
   - Sum-kortet har «Sum i dag», ramme og byggeplass, et statusord med ● og Send.
-- **Farger og stil:** kun grått og amber. Skriften er lik for alle linjer, og det brukes ingen ikoner. Slett går alltid via bekreftelse (`RadHandlinger.tsx`). Kildevakt: `dagsoversikt-kilde-vakt.test.ts`.
+- **Farger og stil:** kun grått og amber. Skriften er lik for alle linjer, og det brukes ingen ikoner (unntak radform: `Clock` foran radens tid, eneste tillatte ikon-import). Slett går alltid via bekreftelse (`RadHandlinger.tsx`). Kildevakt: `dagsoversikt-kilde-vakt.test.ts`.
 - **Redigering:** én skrivesti via `prosjektkort/radLagring.ts` (lagring C, `db` sprøytes inn):
   - `leggTilTimerRad`, `oppdaterTimerRad`, `fjernTimerRad`
   - `oppdaterMaskinRad`, `fjernMaskinRad`
@@ -710,6 +710,21 @@ Kenneth GO 2026-11-07 (§ 7: ingen backfill, valg kun når relevant (K3), SQLite
 - **Prosjektnavn på mobil — én kilde:** `prosjektVisningsnavn` (`apps/mobile/src/utils/prosjektNavn.ts`) returnerer bare navnet. Prosjektnummeret («SD-nummer») vises ikke på noen mobilflate (kort, overskrifter, prosjektvelgere, attestering); `prosjektNummer`-propen på `ProsjektFelt` er fjernet. Nummeret er fortsatt søkbart i `timer-detalj/ProsjektVelger.tsx` og `TimerSeksjon.tsx`. Ukjent prosjekt (ikke i lokal cache) vises som «Ukjent prosjekt» (`timer.detalj.ukjentProsjekt`), aldri som ID — også i GPS-mismatch-meldingene. Web er uendret.
 - **Overtidsrader med fra–til:** overtidslinja i dagsoversikten rendres som arbeidslinja: «15:00–17:00 · 2,0 t · Overtid 50 %» (`timer.dagsoversikt.overtid` = «Overtid {{prosent}} %»).
 - **Test:** `prosjektkort/kenneth-1211-vakt.test.ts` (rene tester + kildevakter; negativkontroll per del).
+
+#### Dagsoversikt i radform (🟡 `feat/timer-dagsoversikt-radform`, Kenneth 2026-11-12, ⚠️ venter Kontrollør-gate, migrering ikke kjørt)
+
+Godkjent plan «Dagsoversikt i radform»: beslutning 1 = B (varer kobles til rad), 2 og 3 som anbefalt. Maskinkobling i Bekreft dag (A/B/C) avventer Kenneth og er **ikke** kodet.
+
+- **Én boks pr. timerrad** i `ProsjektkortDagsoversikt`, i tidsrekkefølge (fra-tid stigende, rader uten fra-tid sist). Regelen bor i `apps/mobile/src/utils/dagsoversiktRader.ts` (`raderForDag`). Rader slås aldri sammen, heller ikke like rader på samme prosjekt. Overtid er en vanlig rad. Oppsummeringen pr. prosjekt er fjernet.
+- **Boksen** (`radBoks`): `Clock` + «07:00–15:00» (`timer.dagsoversikt.utenTid` når fra–til mangler), prosjekt + timer, lønnsart (overtid: `timer.dagsoversikt.overtid`) · byggeplass, beskrivelse eller amber «Mangler beskrivelse», radens maskin og varer, «+ Vare». Trykk på boksen åpner `TimerRadModal` når `redigerbar`; V21 (`dagsnormTimer`, `onLeggTilOvertidDel` → `leggTilTimerRad`) er uendret.
+- **Kort uten rader** får egen boks med «+ Legg til arbeid», «+ Legg til maskin» og «+ Vare» som før (knappeteksten kun når `redigerbar`).
+- **«Uten rad»** (`timer.dagsoversikt.utenRad`): maskin/varer uten kobling, med kobling til ukjent rad eller til rad på annet prosjekt. Aldri skjult, aldri plassert etter skjønn. Gamle varer og alt ført på web havner her (web kobler ikke).
+- **Bunnlinje:** Sum i dag · Overtid · Maskin · Reise, `maskinOverTak`-varsel pr. prosjekt, normramme, byggeplass, statusord. Tillegg og Utlegg står i egne seksjoner.
+- **Send-sperre (beslutning 3):** `forsteRadUtenBeskrivelse` (reise krever ingen tekst). Send åpner da raden med fokus i beskrivelse i stedet for å sende; amber linje over Send (`timer.dagsoversikt.sendSperret`) gjør det samme.
+- **Vare kobles til rad:** nullable `sheet_timer_id` på `varelager.vareforbruk` (Prisma `sheetTimerId` + indeks, migrering `20261112000001_vareforbruk_sheet_timer_id`, additiv, ingen backfill), `vareforbruk_local.sheet_timer_id` på mobil, `vareforbrukSync` sender/leser feltet begge veier. Server (`gyldigVareRad` i `apps/api/src/routes/vareforbruk.ts`) lagrer null når raden ikke finnes på samme sedel og prosjekt. «+ Vare» fra en rad sender `sheetTimerId={vareRadId}` til `KortVareforbrukModal`; Bekreft dag kobler varer til arbeidsraden via `ctx.radFor` i `dagsforslagAnvend.ts`. Maskin fra Bekreft dag får fortsatt `sheetTimerId: null` (koblet maskin er 1:1 med tvungen timer).
+- **Beskrivelse pr. rad i Bekreft dag (beslutning 2):** kortets tekst fyller alle radene; ved 2+ arbeidsrader på kortet får hver rad eget felt (`BekreftDagBeskrivelse`, plassholder `timer.bekreftDag.beskrivelse.radPlassholder`) som overstyrer. Nøkkel `rad:${dato}|${projectId}|${fraTid}|${n}` (`radBeskrivelseNokkel`, `utils/beskrivelseKort.ts`), lagret i `retting.beskrivelsePerRad`; endres fra-tid, faller raden tilbake til kortets tekst — aldri en annen rads tekst. Sperre pr. rad: `manglerBeskrivelse` (`utils/bekreftDag.ts`) gir kortnøkkelen når alt er tomt, ellers nøklene til radene som mangler; skjermen ruller til raden og fokuserer feltet, feilteksten er `timer.bekreftDag.beskrivelse.radMangler`.
+- **Dagskortet urørt.**
+- **Test:** `dagsoversiktRader.test.ts`, `beskrivelsePerRad.test.ts`, `migreringer.radformLocal.test.ts`, `vareforbrukSync.test.ts`, `bekreftDagTillegg.test.ts`, kildevakter `prosjektkort/radform-vakt.test.ts` (M10: feiler når `leggTilTimerRad` i `onLeggTilOvertidDel` byttes med `void` — kjørt), `dagsoversikt-kilde-vakt.test.ts` (kun `Clock`), `kenneth-1211-vakt.test.ts` del 4.
 
 ### «+» og «+ Nytt prosjektkort» → Bekreft dag uten GPS (ORDRE 36c) — 🟡 `feat/pluss-manuell-36c` (2026-11-08, ikke merget)
 

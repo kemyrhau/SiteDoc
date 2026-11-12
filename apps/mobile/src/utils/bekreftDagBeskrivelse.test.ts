@@ -426,7 +426,9 @@ describe("ORDRE 36a — kildevakter i bekreft-dag.tsx", () => {
     expect(sperre).not.toContain("trpc");
   });
   it("🔴 rød ramme kun etter forsøk på tomt felt", () => {
-    expect(SKJERM).toMatch(/visFeil=\{forsoktBekreft && !retting\.beskrivelse\?\.\[k\.nokkel\]\?\.trim\(\)\}/);
+    // Radform: «tom» = manglerBeskrivelse (kort uten tekst på noen rad, eller radene som mangler).
+    expect(SKJERM).toMatch(/visFeil=\{forsoktBekreft && manglerNokler\.includes\(k\.nokkel\)\}/);
+    expect(SKJERM).toMatch(/visFeil: forsoktBekreft && manglerNokler\.includes\(r\.nokkel\)/);
     const flat = FELT.replace(/\s+/g, " ");
     expect(flat).toContain('visFeil ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"');
     expect(flat).toMatch(/\{visFeil \? \( <Text className="text-xs text-red-700">/);

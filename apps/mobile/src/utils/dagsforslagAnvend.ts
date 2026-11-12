@@ -78,6 +78,9 @@ export function anvendDagsforslag(
   // sann melding ved delvis lagring.
   const lagredeDatoer: string[] = [];
   const blokkerteDatoer: string[] = [];
+  // Radform (2026-11-12): arbeidsrader skrevet i denne Bekreft dag, pr. sedel —
+  // varer fra samme kort kobles til kortets første arbeidsrad.
+  const skrevneArbeidsrader: Array<{ id: string; sheetId: string; projectId: string }> = [];
   let forsteLagredeSheetId: string | null = null;
 
   if (ctx.erAnsatt === false) {
@@ -192,9 +195,11 @@ export function anvendDagsforslag(
     }
 
     for (const rad of d.rader) {
+      const radId = ctx.nyId();
+      if (!rad.erReise) skrevneArbeidsrader.push({ id: radId, sheetId: resultat.id, projectId: rad.projectId });
       db.insert(sheetTimerLocal)
         .values({
-          id: ctx.nyId(),
+          id: radId,
           dagsseddelId: resultat.id,
           projectId: rad.projectId,
           lonnsartId: rad.lonnsartId,
@@ -232,7 +237,15 @@ export function anvendDagsforslag(
   }
 
   if (tillegg && startSheetId && startDato && !startBlokkert) {
-    skrivTillegg(db, tillegg, { ...ctx, sheetId: startSheetId, dato: startDato, byggeplassId: startByggeplassId });
+    const sheetId = startSheetId;
+    skrivTillegg(db, tillegg, {
+      ...ctx,
+      sheetId,
+      dato: startDato,
+      byggeplassId: startByggeplassId,
+      radFor: (projectId) =>
+        skrevneArbeidsrader.find((r) => r.sheetId === sheetId && r.projectId === projectId)?.id ?? null,
+    });
   }
 
   return {
@@ -345,8 +358,10 @@ function utvidArbeidstidsvindu(
 }
 
 /**
- * L3-D: maskin uten fra/til og uten timerrad-kobling (som «+ Maskin» i kortet),
- * varer som pending — sendes når sedelen er synket (`planleggVaresending`).
+ * L3-D: maskin uten fra/til, varer som pending — sendes når sedelen er synket
+ * (`planleggVaresending`). Radform (2026-11-12): varer kobles til kortets første
+ * arbeidsrad skrevet i samme Bekreft dag (`radFor`); ingen slik rad → ukoblet
+ * («Uten rad»). Maskin forblir ukoblet.
  */
 function skrivTillegg(
   db: LokalDb,
@@ -356,6 +371,7 @@ function skrivTillegg(
     ecoId?: string | null;
     /** RETUR 36c pkt 1: valgt byggeplass når den avviker fra sedelens; null = arv. */
     byggeplassId: string | null;
+    radFor: (projectId: string) => string | null;
   },
 ): void {
   for (const m of tillegg.maskiner) {
@@ -363,6 +379,8 @@ function skrivTillegg(
       .values({
         id: ctx.nyId(),
         dagsseddelId: ctx.sheetId,
+        // Radform: maskin kobles ikke her — sheetTimerId betyr «koblet maskin»
+        // (timer = radens); valget venter på beslutning (orkestrator 2026-11-12).
         sheetTimerId: null,
         projectId: m.projectId,
         vehicleId: m.vehicleId,
@@ -392,6 +410,7 @@ function skrivTillegg(
         antall: v.antall,
         byggeplassId: v.byggeplassId,
         externalCostObjectId: ctx.ecoId ?? null,
+        sheetTimerId: ctx.radFor(v.projectId),
         syncStatus: "pending",
         feilmelding: null,
         sistEndretLokalt: ctx.naa(),
