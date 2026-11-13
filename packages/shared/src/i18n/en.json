@@ -5513,5 +5513,9 @@
   "hjelp.utlegg.tekst": "Expenses are money you have paid yourself on behalf of the company and are to be reimbursed. Take a photo of the receipt. Examples: parking, road tolls, tools bought in a shop, fuel for a company car. The expense is entered on the project card and gets the card's building site and sub-project.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Allowances and expenses were not saved",
   "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "All the days have already been sent, so allowances and expenses have no timesheet to be saved on. Nothing has been saved. Remove them, or enter them in the project card.",
-  "timer.bekreftDag.lonnUtlegg.kortValg": "Card"
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Card",
+  "timer.dagsoversikt.endreMengde": "Change quantity",
+  "timer.dagsoversikt.slettVare": "Delete item",
+  "timer.dagsoversikt.slettVareTekst": "Delete {{navn}}? The line is removed from the day and from inventory.",
+  "timer.dagsoversikt.offlineVare": "The item has been sent. Connect to the internet to change or delete it."
 }

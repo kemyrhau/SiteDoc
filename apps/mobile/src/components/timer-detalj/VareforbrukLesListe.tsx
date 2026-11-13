@@ -17,6 +17,8 @@ export type VisVarelinje = {
   sheetTimerId?: string | null;
   syncStatus?: LokalVarelinje["syncStatus"];
   feilmelding?: string | null;
+  /** Punkt 7: serveren har attestert linjen (`hentMineForDato`). Mangler = ukjent/nei. */
+  attestert?: boolean;
 };
 
 /**

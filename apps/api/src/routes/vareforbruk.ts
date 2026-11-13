@@ -304,12 +304,19 @@ export const vareforbrukRouter = router({
           // Radform (2026-11-12): dagsoversikten viser varen under sin timerrad.
           sheetTimerId: true,
           antall: true,
+          // Punkt 7 (2026-11-13): vare-arket skjuler «Endre mengde»/«Slett» for attesterte
+          // linjer. Bare flagget sendes — snapshotet (pris o.l.) blir på serveren.
+          attestertSnapshot: true,
           vare: { select: { id: true, navn: true, enhet: true } },
         },
         orderBy: { createdAt: "asc" },
       });
 
-      return rader.map((r) => ({ ...r, antall: Number(r.antall) }));
+      return rader.map(({ attestertSnapshot, ...r }) => ({
+        ...r,
+        antall: Number(r.antall),
+        attestert: attestertSnapshot !== null,
+      }));
     }),
 
   list: protectedProcedure

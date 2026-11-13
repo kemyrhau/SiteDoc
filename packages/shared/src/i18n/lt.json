@@ -5513,5 +5513,9 @@
   "hjelp.utlegg.tekst": "Išlaidos yra pinigai, kuriuos pats sumokėjote įmonės vardu ir kurie turi būti kompensuoti. Nufotografuokite kvitą. Pavyzdžiai: automobilių stovėjimo aikštelė, kelių mokesčiai, parduotuvėje pirkti įrankiai, kuras tarnybiniam automobiliui. Išlaidos įrašomos į projekto kortelę ir gauna kortelės statybvietę bei paprojektį.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Pašalpų ir išlaidų sutaupyti nepavyko",
   "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Visos dienos jau išsiųstos, todėl išmokos ir išlaidos neturi laiko apskaitos žiniaraščio, kurį būtų galima taupyti. Nieko neišsaugota. Pašalinkite juos arba įveskite į projekto kortelę.",
-  "timer.bekreftDag.lonnUtlegg.kortValg": "Kort"
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Kort",
+  "timer.dagsoversikt.endreMengde": "Keisti kiekį",
+  "timer.dagsoversikt.slettVare": "Ištrinti elementą",
+  "timer.dagsoversikt.slettVareTekst": "Ištrinti {{navn}}? Linija pašalinama iš dienos ir iš inventoriaus.",
+  "timer.dagsoversikt.offlineVare": "Prekė išsiųsta. Prisijunkite prie interneto, kad pakeistumėte arba ištrintumėte."
 }

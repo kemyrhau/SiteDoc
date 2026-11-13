@@ -5513,5 +5513,9 @@
   "hjelp.utlegg.tekst": "Les dépenses sont de l'argent que vous avez payé vous-même au nom de l'entreprise et qui doivent être remboursées. Prenez une photo du reçu. Exemples : stationnement, péages routiers, outils achetés dans un magasin, carburant pour une voiture de société. La dépense est inscrite sur la fiche projet et obtient le chantier et le sous-projet de la fiche.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Les allocations et les dépenses n'ont pas été économisées",
   "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Tous les jours ont déjà été envoyés, les indemnités et les dépenses n'ont donc aucune feuille de temps sur laquelle économiser. Rien n'a été sauvegardé. Supprimez-les ou saisissez-les dans la fiche du projet.",
-  "timer.bekreftDag.lonnUtlegg.kortValg": "Carte"
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Carte",
+  "timer.dagsoversikt.endreMengde": "Changer la quantité",
+  "timer.dagsoversikt.slettVare": "Supprimer l'élément",
+  "timer.dagsoversikt.slettVareTekst": "Supprimer {{navn}} ? La ligne est supprimée du jour et du stock.",
+  "timer.dagsoversikt.offlineVare": "L'article a été envoyé. Connectez-vous à Internet pour le modifier ou le supprimer."
 }

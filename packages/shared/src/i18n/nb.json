@@ -5513,5 +5513,9 @@
   "hjelp.utlegg.tekst": "Utlegg er penger du har lagt ut selv for firmaet, og som du skal ha tilbake. Ta bilde av kvitteringen. Eksempler: parkering, bompenger, verktøy kjøpt i butikk, drivstoff til firmabil. Utlegget føres på prosjektkortet og får kortets byggeplass og underprosjekt.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Tillegg og utlegg ble ikke lagret",
   "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Alle dagene er allerede sendt, så tillegg og utlegg har ingen dagsseddel å lagres på. Ingenting er lagret. Fjern dem, eller før dem i prosjektkortet.",
-  "timer.bekreftDag.lonnUtlegg.kortValg": "Kort"
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Kort",
+  "timer.dagsoversikt.endreMengde": "Endre mengde",
+  "timer.dagsoversikt.slettVare": "Slett varen",
+  "timer.dagsoversikt.slettVareTekst": "Slette {{navn}}? Linjen fjernes fra dagen og fra varelageret.",
+  "timer.dagsoversikt.offlineVare": "Varen er sendt. Koble til nett for å endre eller slette den."
 }

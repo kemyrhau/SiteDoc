@@ -5513,5 +5513,9 @@
   "hjelp.utlegg.tekst": "Kulut ovat rahaa, jonka olet itse maksanut yrityksen puolesta ja jotka tulee korvata. Ota valokuva kuitista. Esimerkkejä: pysäköinti, tiemaksut, kaupasta ostetut työkalut, työsuhdeauton polttoaine. Kulu kirjataan projektikortille ja saa kortin rakennustyömaan ja osaprojektin.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Korvauksia ja kuluja ei säästetty",
   "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Kaikki päivät on jo lähetetty, joten kulukorvauksilla ja kuluilla ei ole työaikalomaketta, jolle tallentaa. Mitään ei ole pelastettu. Poista ne tai kirjoita ne projektikorttiin.",
-  "timer.bekreftDag.lonnUtlegg.kortValg": "Kortti"
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Kortti",
+  "timer.dagsoversikt.endreMengde": "Muuta määrää",
+  "timer.dagsoversikt.slettVare": "Poista kohde",
+  "timer.dagsoversikt.slettVareTekst": "Poistetaanko {{navn}}? Rivi poistetaan päivästä ja varastosta.",
+  "timer.dagsoversikt.offlineVare": "Tuote on lähetetty. Muodosta Internetiin muuttaaksesi tai poistaaksesi sen."
 }

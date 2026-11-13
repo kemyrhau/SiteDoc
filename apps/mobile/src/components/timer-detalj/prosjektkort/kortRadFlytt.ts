@@ -240,6 +240,8 @@ export type KortVare = {
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
   syncStatus?: "pending" | "synced" | "avvist";
+  /** Punkt 7: serveren har attestert linjen (`hentMineForDato`). Låst. */
+  attestert?: boolean;
 };
 
 /** Linjen finnes på server (synket, eller bare kjent fra server) → serverkall først. */
@@ -562,5 +564,69 @@ export async function flyttKort(
     }
     flyttVareLokalt(db, v.id, vareMaal);
   }
+  return { utfall: "ok" };
+}
+
+/* ============================================================================
+ *  Punkt 7 (Kenneth 2026-11-13): «Endre mengde» og «Slett» i vare-arket på
+ *  dagsoversikten. Samme kall som kortsiden (`vareforbruk.oppdater`/`slett`)
+ *  og samme lokale sletting av ventende `vareforbruk_local`. Ingen ny vei.
+ * ============================================================================ */
+
+/** Arket viser knappene bare for en redigerbar, ikke-avvist, ikke-attestert linje. */
+export function kanEndreVare(v: KortVare, redigerbar: boolean): boolean {
+  return redigerbar && v.syncStatus !== "avvist" && !v.attestert;
+}
+
+function feilmelding(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * Slett én varelinje. Finnes den på server, slettes den der først (offline →
+ * «offline» uten skriving; NOT_FOUND = alt slettet). Ventende linje slettes
+ * bare lokalt — den har aldri vært sendt.
+ */
+export async function slettVarelinje(
+  db: LokalDb,
+  v: KortVare,
+  server: { erPaaNettet: boolean; slettVare: (id: string) => Promise<void> },
+): Promise<KortUtfall> {
+  if (vareFinnesPaaServer(v)) {
+    if (!server.erPaaNettet) return { utfall: "offline" };
+    try {
+      await server.slettVare(v.id);
+    } catch (e) {
+      if (!erIkkeFunnet(e)) return { utfall: "serverFeil", melding: feilmelding(e) };
+    }
+  }
+  db.delete(vareforbrukLocal).where(eq(vareforbrukLocal.id, v.id)).run();
+  return { utfall: "ok" };
+}
+
+/**
+ * Ny mengde på én varelinje. Synket linje oppdateres på server først
+ * (`vareforbruk.oppdater`), deretter lokal kopi; ventende linje sendes med ny
+ * mengde ved neste sync. Mengde ≤ 0 eller ugyldig → «uendret».
+ */
+export async function endreVareMengde(
+  db: LokalDb,
+  v: KortVare,
+  antall: number,
+  server: { erPaaNettet: boolean; oppdaterVare: (input: { id: string; antall: number }) => Promise<unknown> },
+): Promise<KortUtfall> {
+  if (!Number.isFinite(antall) || antall <= 0) return { utfall: "uendret" };
+  if (vareFinnesPaaServer(v)) {
+    if (!server.erPaaNettet) return { utfall: "offline" };
+    try {
+      await server.oppdaterVare({ id: v.id, antall });
+    } catch (e) {
+      return { utfall: "serverFeil", melding: feilmelding(e) };
+    }
+  }
+  db.update(vareforbrukLocal)
+    .set({ antall, sistEndretLokalt: Date.now() })
+    .where(eq(vareforbrukLocal.id, v.id))
+    .run();
   return { utfall: "ok" };
 }

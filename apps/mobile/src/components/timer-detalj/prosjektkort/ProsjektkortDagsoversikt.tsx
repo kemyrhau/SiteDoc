@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { View, Text, Pressable, Modal } from "react-native";
+import { View, Text, Pressable, Modal, TextInput } from "react-native";
 import { Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -63,6 +63,10 @@ import {
   flyttMaskinRad,
   flyttVareLokalt,
   kortUtfallTekst,
+  kanEndreVare,
+  slettVarelinje,
+  endreVareMengde,
+  type KortUtfall,
   radInnhold,
   foelgKobletMaskin,
   loftByggeplassArv,
@@ -70,6 +74,8 @@ import {
   type FlyttMaal,
 } from "./kortRadFlytt";
 import { KortValgModal } from "./KortValgModal";
+import { BekreftSlettModal } from "./BekreftSlettModal";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "../TastaturFerdig";
 import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
 
 /**
@@ -192,6 +198,12 @@ export function ProsjektkortDagsoversikt({
   const [flytt, setFlytt] = useState<Flytt | null>(null);
   const [flyttFeil, setFlyttFeil] = useState<string | null>(null);
   const oppdaterVare = trpc.vareforbruk.oppdater.useMutation();
+  // Punkt 7: «Endre mengde» (tekst i feltet; null = lukket) og «Slett» i vare-arket.
+  const slettVare = trpc.vareforbruk.slett.useMutation();
+  const [vareMengde, setVareMengde] = useState<string | null>(null);
+  const [vareSlett, setVareSlett] = useState(false);
+  const [vareFeil, setVareFeil] = useState<string | null>(null);
+  const [vareLagrer, setVareLagrer] = useState(false);
   const { pushSedel } = useTimerSync();
   const { erPaaNettet } = useNettverk();
 
@@ -481,6 +493,61 @@ export function ProsjektkortDagsoversikt({
     onEndret();
   };
 
+  // Punkt 7: samme kall som kortsiden (`vareforbruk.oppdater`/`slett`) via
+  // kortRadFlytt; ventende linje skrives bare lokalt.
+  const lukkVare = () => {
+    setVareValgt(null);
+    setVareMengde(null);
+    setVareSlett(false);
+    setVareFeil(null);
+  };
+  const vareUtfall = (u: KortUtfall) => {
+    if (u.utfall === "ok") {
+      lukkVare();
+      onVarerLagret();
+      return;
+    }
+    if (u.utfall === "uendret") {
+      setVareFeil(t("timer.feil.ugyldigAntall"));
+      return;
+    }
+    const tekst =
+      u.utfall === "offline" ? "timer.dagsoversikt.offlineVare" : kortUtfallTekst(u, "slett");
+    setVareMengde(null);
+    setVareSlett(false);
+    setVareFeil(tekst ? t(tekst, { defaultValue: tekst }) : null);
+  };
+  const lagreVareMengde = async () => {
+    if (!vareValgt || vareMengde === null || vareLagrer) return;
+    setVareLagrer(true);
+    try {
+      vareUtfall(
+        await endreVareMengde(db(), vareValgt.vare, Number(vareMengde.replace(",", ".")), {
+          erPaaNettet,
+          oppdaterVare: (input) => oppdaterVare.mutateAsync(input),
+        }),
+      );
+    } finally {
+      setVareLagrer(false);
+    }
+  };
+  const bekreftSlettVare = async () => {
+    if (!vareValgt || vareLagrer) return;
+    setVareLagrer(true);
+    try {
+      vareUtfall(
+        await slettVarelinje(db(), vareValgt.vare, {
+          erPaaNettet,
+          slettVare: async (id) => {
+            await slettVare.mutateAsync({ id });
+          },
+        }),
+      );
+    } finally {
+      setVareLagrer(false);
+    }
+  };
+
   const antallPaaKort = (rader: readonly KortRad[] | undefined, valg: KortValg) =>
     (rader ?? []).filter((r) => kortNokkelFor(r, sedelKontekst) === kortNokkel(valg)).length;
   const kortHode = (valg: KortValg) => {
@@ -517,7 +584,13 @@ export function ProsjektkortDagsoversikt({
     const valg = kortFor.vare.get(v.id);
     return (
       <View key={v.id}>
-        <Verdi onPress={() => valg && kanForeVare(v.projectId) && setVareValgt({ vare: v, kort: valg })}>
+        <Verdi
+          onPress={() => {
+            if (!valg || !kanForeVare(v.projectId)) return;
+            setVareFeil(null);
+            setVareValgt({ vare: v, kort: valg });
+          }}
+        >
           {v.vare.navn} {formatKortTall(v.antall).replace(/,0$/, "")} {v.vare.enhet}
           {v.syncStatus === "pending" ? ` · ${t("timer.sync.venter")}` : ""}
         </Verdi>
@@ -950,15 +1023,44 @@ export function ProsjektkortDagsoversikt({
         />
       )}
 
-      {/* Varelinje: ny vare (som før) eller «Flytt raden» (§ 5b). */}
+      {/* Varelinje: ny vare (som før), «Flytt raden» (§ 5b), og (punkt 7) «Endre mengde» / «Slett». */}
       {vareValgt && (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setVareValgt(null)}>
-          <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setVareValgt(null)}>
+        <Modal
+          visible={vareMengde === null && !vareSlett}
+          transparent
+          animationType="fade"
+          onRequestClose={lukkVare}
+        >
+          <Pressable className="flex-1 justify-end bg-black/40" onPress={lukkVare}>
             <Pressable className="rounded-t-2xl bg-white px-4 pb-8 pt-4" onPress={() => {}}>
               <Text className="mb-2 text-base font-semibold text-gray-900">
                 {vareValgt.vare.vare.navn} {formatKortTall(vareValgt.vare.antall).replace(/,0$/, "")}{" "}
                 {vareValgt.vare.vare.enhet}
               </Text>
+              {vareFeil && <Text className="mb-2 text-sm text-amber-700">{vareFeil}</Text>}
+              {/* Låst linje (attestert, avvist, dagen ikke redigerbar) får ingen knapper. */}
+              {kanEndreVare(vareValgt.vare, redigerbar) && (
+                <>
+                  <Pressable
+                    onPress={() => {
+                      setVareFeil(null);
+                      setVareMengde(formatKortTall(vareValgt.vare.antall).replace(/,0$/, ""));
+                    }}
+                    className="min-h-[44px] justify-center border-t border-gray-100 active:bg-gray-50"
+                  >
+                    <Text className="text-base text-gray-700">{t("timer.dagsoversikt.endreMengde")}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      setVareFeil(null);
+                      setVareSlett(true);
+                    }}
+                    className="min-h-[44px] justify-center border-t border-gray-100 active:bg-gray-50"
+                  >
+                    <Text className="text-base text-gray-900">{t("timer.dagsoversikt.slettVare")}</Text>
+                  </Pressable>
+                </>
+              )}
               {erKoblet(vareValgt.vare) ? (
                 // TILLEGG 2026-11-12 regel 1: koblet vare følger raden.
                 <View className="min-h-[44px] justify-center border-t border-gray-100">
@@ -992,6 +1094,57 @@ export function ProsjektkortDagsoversikt({
           </Pressable>
         </Modal>
       )}
+
+      {vareValgt && vareMengde !== null && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setVareMengde(null)}>
+          <View className="flex-1 items-center justify-center bg-black/40 px-8">
+            <View className="w-full max-w-sm rounded-2xl bg-white p-5">
+              <Text className="mb-2 text-base font-semibold text-gray-900">{vareValgt.vare.vare.navn}</Text>
+              <Text className="mb-1 text-sm font-medium text-gray-500">
+                {`${t("timer.mengde")} (${vareValgt.vare.vare.enhet})`}
+              </Text>
+              <TextInput
+                value={vareMengde}
+                onChangeText={setVareMengde}
+                keyboardType="decimal-pad"
+                autoFocus
+                inputAccessoryViewID={TASTATUR_FERDIG_ID}
+                className="mb-2 rounded-lg border border-gray-300 px-3 py-2 text-base"
+              />
+              {vareFeil && <Text className="mb-2 text-sm text-amber-700">{vareFeil}</Text>}
+              <View className="mt-2 flex-row justify-end gap-2">
+                <Pressable
+                  onPress={() => {
+                    setVareMengde(null);
+                    setVareFeil(null);
+                  }}
+                  className="rounded-lg px-4 py-2.5 active:bg-gray-100"
+                >
+                  <Text className="text-base font-medium text-gray-700">{t("handling.avbryt")}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void lagreVareMengde()}
+                  disabled={vareLagrer}
+                  className="rounded-lg bg-gray-900 px-4 py-2.5 active:bg-gray-700"
+                >
+                  <Text className="text-base font-semibold text-white">
+                    {vareLagrer ? t("handling.lagrer") : t("handling.lagre")}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+          <TastaturFerdig />
+        </Modal>
+      )}
+
+      <BekreftSlettModal
+        synlig={!!vareValgt && vareSlett}
+        tekst={t("timer.dagsoversikt.slettVareTekst", { navn: vareValgt?.vare.vare.navn ?? "" })}
+        bekreftTekst={t("handling.slett")}
+        onAvbryt={() => setVareSlett(false)}
+        onBekreft={() => void bekreftSlettVare()}
+      />
 
       {flytt && (
         <KortValgModal

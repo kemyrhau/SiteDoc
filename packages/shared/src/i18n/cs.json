@@ -5513,5 +5513,9 @@
   "hjelp.utlegg.tekst": "Výdaje jsou peníze, které jste sami zaplatili jménem společnosti a které mají být uhrazeny. Vyfoťte účtenku. Příklady: parkování, mýtné, nářadí zakoupené v obchodě, pohonné hmoty do služebního auta. Výdaj se zapíše na kartu projektu a získá staveniště karty a dílčí projekt.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Přídavky a výdaje nebyly ušetřeny",
   "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Všechny dny již byly odeslány, takže příspěvky a výdaje nemají žádný časový rozvrh, na který by bylo možné uložit. Nic se nezachránilo. Odstraňte je nebo je zadejte na kartu projektu.",
-  "timer.bekreftDag.lonnUtlegg.kortValg": "Karta"
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Karta",
+  "timer.dagsoversikt.endreMengde": "Změňte množství",
+  "timer.dagsoversikt.slettVare": "Smazat položku",
+  "timer.dagsoversikt.slettVareTekst": "Smazat {{navn}}? Linka je odstraněna ze dne a ze zásob.",
+  "timer.dagsoversikt.offlineVare": "Položka byla odeslána. Chcete-li jej změnit nebo odstranit, připojte se k internetu."
 }
