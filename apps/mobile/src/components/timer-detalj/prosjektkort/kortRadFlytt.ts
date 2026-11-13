@@ -4,7 +4,9 @@ import type { hentDatabase } from "../../../db/database";
 import {
   dagsseddelLocal,
   sheetMachineLocal,
+  sheetTilleggLocal,
   sheetTimerLocal,
+  sheetUtleggLocal,
   slettedeRaderLocal,
   vareforbrukLocal,
 } from "../../../db/schema";
@@ -149,8 +151,8 @@ export function trengerByggeplassLoft(kort: KortValg, sedel: SedelKortKontekst):
 
 /**
  * RETUR 36c-2 P1 (a2): «Uten byggeplass» på en sedel som har byggeplass A —
- * løft arven ut, uten migrering. Arvende timer- og maskinrader (byggeplass
- * NULL, samme prosjekt som A) får A skrevet eksplisitt, og sedelens byggeplass
+ * løft arven ut, uten migrering. Arvende timer-, maskin-, tillegg- og
+ * utleggrader (byggeplass NULL, samme prosjekt som A) får A skrevet eksplisitt, og sedelens byggeplass
  * nullstilles. Etterpå betyr NULL på en rad ekte «uten» for server, web og
  * gamle klienter (`rad ?? sedel` = null). Reise-rader har aldri byggeplass og
  * røres ikke. Én transaksjon; kalleren markerer sedelen endret (sync).
@@ -192,6 +194,26 @@ export function loftByggeplassArv(db: LokalDb, sheetId: string, sedel: SedelKort
         .where(eq(sheetMachineLocal.id, m.id))
         .run();
     }
+    // Tillegg/utlegg på prosjektkortet (2026-11-13): de arver som timer — uten
+    // løft ville de hoppet til «uten byggeplass»-kortet.
+    const tillegg = tx
+      .select({ id: sheetTilleggLocal.id, projectId: sheetTilleggLocal.projectId, byggeplassId: sheetTilleggLocal.byggeplassId })
+      .from(sheetTilleggLocal)
+      .where(eq(sheetTilleggLocal.dagsseddelId, sheetId))
+      .all();
+    for (const r of tillegg) {
+      if (!arver(r.projectId, r.byggeplassId)) continue;
+      tx.update(sheetTilleggLocal).set({ byggeplassId: a.id, sistEndretLokalt: naa }).where(eq(sheetTilleggLocal.id, r.id)).run();
+    }
+    const utlegg = tx
+      .select({ id: sheetUtleggLocal.id, projectId: sheetUtleggLocal.projectId, byggeplassId: sheetUtleggLocal.byggeplassId })
+      .from(sheetUtleggLocal)
+      .where(eq(sheetUtleggLocal.dagsseddelId, sheetId))
+      .all();
+    for (const r of utlegg) {
+      if (!arver(r.projectId, r.byggeplassId)) continue;
+      tx.update(sheetUtleggLocal).set({ byggeplassId: a.id, sistEndretLokalt: naa }).where(eq(sheetUtleggLocal.id, r.id)).run();
+    }
     tx.update(dagsseddelLocal)
       .set({ byggeplassId: null, sistEndretLokalt: naa, syncStatus: "pending" })
       .where(eq(dagsseddelLocal.id, sheetId))
@@ -205,7 +227,8 @@ export function loftByggeplassArv(db: LokalDb, sheetId: string, sedel: SedelKort
  *  kortskjermen. Kortet = (prosjekt, effektiv byggeplass, underprosjekt).
  *  Rekkefølge: redigerbar → brudd-sjekk → nett → server-varer → lokal
  *  transaksjon. Feil før lokal skriving stopper uten å røre timer/maskin.
- *  Reise, tillegg og utlegg hører til dagen og røres ikke.
+ *  Reise hører til dagen og røres ikke. Tillegg og utlegg hører til kortet
+ *  (spec tillegg-utlegg-prosjektkort, B4): de flyttes og slettes med det.
  *
  *  Sammenslåing (b, «ja foreløpig»): skjer på datanivå — radene får målkortets
  *  nøkkel. Ingen egen visning; kortvisningen kan endres uten å røre dette.
@@ -230,12 +253,25 @@ export type KortInnhold = {
   /** Maskin på kortet + maskin koblet (`sheetTimerId`) til kortets timer. */
   maskin: MaskinRad[];
   varer: KortVare[];
+  /** Tillegg/utlegg på kortet (B4). Mangler for én rad (`radInnhold`) = ingen. */
+  tillegg?: KortLinje[];
+  utlegg?: KortLinje[];
+};
+
+/** Tillegg- eller utleggrad slik kortet ser den. NULL byggeplass = arv. */
+export type KortLinje = {
+  id: string;
+  projectId: string | null;
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 
 export function kortInnhold(args: {
   timerRader: readonly TimerRad[];
   maskinRader: readonly MaskinRad[];
   varer: readonly KortVare[];
+  tilleggRader?: readonly KortLinje[];
+  utleggRader?: readonly KortLinje[];
   sedel: SedelKortKontekst;
   kort: KortValg;
   reiseLonnsartId: string | null;
@@ -250,7 +286,13 @@ export function kortInnhold(args: {
       (m.sheetTimerId != null && timerIder.has(m.sheetTimerId)) ||
       kortNokkelFor(m, sedel) === kortNokkel(kort),
   );
-  return { timer, maskin, varer: raderPaaKort(args.varer, sedel, kort) };
+  return {
+    timer,
+    maskin,
+    varer: raderPaaKort(args.varer, sedel, kort),
+    tillegg: raderPaaKort(args.tilleggRader ?? [], sedel, kort),
+    utlegg: raderPaaKort(args.utleggRader ?? [], sedel, kort),
+  };
 }
 
 /**
@@ -427,6 +469,21 @@ export function slettKortLokalt(db: LokalDb, sheetId: string, innhold: KortInnho
     for (const v of innhold.varer) {
       tx.delete(vareforbrukLocal).where(eq(vareforbrukLocal.id, v.id)).run();
     }
+    // B4: kortets tillegg og utlegg slettes med tombstone (som rad-slett i seksjonene).
+    for (const r of innhold.tillegg ?? []) {
+      tx.delete(sheetTilleggLocal).where(eq(sheetTilleggLocal.id, r.id)).run();
+      tx.insert(slettedeRaderLocal)
+        .values({ radId: r.id, dagsseddelId: sheetId, radType: "tillegg", slettetVed: naa })
+        .onConflictDoNothing()
+        .run();
+    }
+    for (const r of innhold.utlegg ?? []) {
+      tx.delete(sheetUtleggLocal).where(eq(sheetUtleggLocal.id, r.id)).run();
+      tx.insert(slettedeRaderLocal)
+        .values({ radId: r.id, dagsseddelId: sheetId, radType: "utlegg", slettetVed: naa })
+        .onConflictDoNothing()
+        .run();
+    }
   });
 }
 
@@ -480,6 +537,11 @@ export async function flyttKort(
     }
     // Bare lokale (pending/avvist) varer — de sendes med nye verdier ved sync.
     for (const v of innhold.varer) if (!vareFinnesPaaServer(v)) flyttVareLokalt(t, v.id, vareMaal);
+    // B4: tillegg og utlegg følger kortet med samme lagrede verdier som timer (arv = NULL).
+    const naa = Date.now();
+    const felt = { projectId: maal.projectId, byggeplassId: maal.byggeplassId, externalCostObjectId: maal.ecoId, sistEndretLokalt: naa };
+    for (const r of innhold.tillegg ?? []) t.update(sheetTilleggLocal).set(felt).where(eq(sheetTilleggLocal.id, r.id)).run();
+    for (const r of innhold.utlegg ?? []) t.update(sheetUtleggLocal).set(felt).where(eq(sheetUtleggLocal.id, r.id)).run();
     if (serverVarer.length > 0) {
       t.update(dagsseddelLocal)
         .set({ sistEndretLokalt: Date.now(), syncStatus: "pending" })

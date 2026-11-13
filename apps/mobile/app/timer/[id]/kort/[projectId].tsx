@@ -10,6 +10,8 @@ import {
   dagsseddelLocal,
   sheetTimerLocal,
   sheetMachineLocal,
+  sheetTilleggLocal,
+  sheetUtleggLocal,
   equipmentLocal,
   byggeplassLocal,
 } from "../../../../src/db/schema";
@@ -17,6 +19,10 @@ import { useTimerSync } from "../../../../src/providers/TimerSyncProvider";
 import { useNettverk } from "../../../../src/providers/NettverkProvider";
 import { trpc } from "../../../../src/lib/trpc";
 import { TimerStatusMerkelapp } from "../../../../src/components/TimerStatusMerkelapp";
+import { TilleggSeksjon } from "../../../../src/components/timer-detalj/TilleggSeksjon";
+import { UtleggSeksjon } from "../../../../src/components/timer-detalj/UtleggSeksjon";
+import { ProsjektkortKontekst } from "../../../../src/components/timer-detalj/prosjektkortKontekst";
+import { HjelpIkon } from "../../../../src/components/HjelpIkon";
 import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-detalj/BekreftFjernMatpauseModal";
 import type { VisVarelinje } from "../../../../src/components/timer-detalj/VareforbrukLesListe";
 import { ProsjektkortDagsoversikt } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
@@ -44,6 +50,7 @@ import {
   fraRuteParam,
   kortNokkel,
   kortValgFor,
+  lagretByggeplassForKort,
   raderPaaKort,
   type KortValg,
   type SedelKortKontekst,
@@ -70,6 +77,8 @@ import type {
   Sedel,
   TimerRad,
   MaskinRad,
+  TilleggRad,
+  UtleggRad,
 } from "../../../../src/types/timer-detalj";
 
 /**
@@ -95,6 +104,8 @@ export default function ProsjektkortSkjerm() {
   const [sedel, setSedel] = useState<Sedel | null>(null);
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
+  const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
+  const [utleggRader, setUtleggRader] = useState<UtleggRad[]>([]);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
   const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
@@ -129,6 +140,12 @@ export default function ProsjektkortSkjerm() {
     );
     setMaskinRader(
       db.select().from(sheetMachineLocal).where(eq(sheetMachineLocal.dagsseddelId, sheetId)).all(),
+    );
+    setTilleggRader(
+      db.select().from(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, sheetId)).all(),
+    );
+    setUtleggRader(
+      db.select().from(sheetUtleggLocal).where(eq(sheetUtleggLocal.dagsseddelId, sheetId)).all(),
     );
     const equipmentCount = db
       .select({ id: equipmentLocal.id })
@@ -306,11 +323,23 @@ export default function ProsjektkortSkjerm() {
   const kTimer = raderPaaKort(timerRader, kontekst, valg);
   const kMaskin = raderPaaKort(maskinRader, kontekst, valg);
   const kVarer = raderPaaKort(varer, kontekst, valg);
-  // Tillegg og utlegg er dagsnivå (ORDRE 36b) — de ligger på samlesiden.
-  const tomt = kTimer.length + kMaskin.length + kVarer.length === 0;
+  // Spec tillegg-utlegg-prosjektkort § 3: tillegg og utlegg hører til kortet.
+  const kTillegg = raderPaaKort(tilleggRader, kontekst, valg);
+  const kUtlegg = raderPaaKort(utleggRader, kontekst, valg);
+  const tomt = kTimer.length + kMaskin.length + kVarer.length + kTillegg.length + kUtlegg.length === 0;
 
-  // ORDRE 36c-kort: kortets innhold (arbeid uten reise, maskin + koblet, varer).
-  const innhold = kortInnhold({ timerRader, maskinRader, varer, sedel: kontekst, kort: valg, reiseLonnsartId });
+  // ORDRE 36c-kort: kortets innhold (arbeid uten reise, maskin + koblet, varer,
+  // tillegg og utlegg — B4: Endre/Slett kort tar dem med).
+  const innhold = kortInnhold({
+    timerRader,
+    maskinRader,
+    varer,
+    tilleggRader,
+    utleggRader,
+    sedel: kontekst,
+    kort: valg,
+    reiseLonnsartId,
+  });
   const dag: KortDag = {
     sheetId,
     organizationId: sedel.organizationId,
@@ -329,11 +358,21 @@ export default function ProsjektkortSkjerm() {
     ]
       .filter(Boolean)
       .join(" · ");
-  // Siste kort: ingen andre arbeid-, maskin- eller vare-rader på dagen.
-  const iKortet = new Set([...innhold.timer, ...innhold.maskin, ...innhold.varer].map((r) => r.id));
+  // Siste kort: ingen andre arbeid-, maskin-, vare-, tillegg- eller utleggrader på dagen.
+  const iKortet = new Set(
+    [
+      ...innhold.timer,
+      ...innhold.maskin,
+      ...innhold.varer,
+      ...(innhold.tillegg ?? []),
+      ...(innhold.utlegg ?? []),
+    ].map((r) => r.id),
+  );
   const sisteKort =
     timerRader.every((r) => iKortet.has(r.id) || r.erReise === true || r.lonnsartId === reiseLonnsartId) &&
     maskinRader.every((m) => iKortet.has(m.id)) &&
+    tilleggRader.every((r) => iKortet.has(r.id)) &&
+    utleggRader.every((r) => iKortet.has(r.id)) &&
     [...(vareQuery.data ?? []), ...lokaleVarer].every((v) => iKortet.has(v.id));
   const visUtfall = (u: KortUtfall, handling: "slett" | "flytt"): boolean => {
     if (u.utfall === "ok") return true;
@@ -420,7 +459,8 @@ export default function ProsjektkortSkjerm() {
             timer={tilKortTimerRader(kTimer, sedel.projectId, reiseLonnsartId)}
             maskin={tilKortMaskinRader(kMaskin, sedel.projectId)}
             varer={kVarer}
-            utlegg={0}
+            utlegg={kUtlegg.length}
+            tillegg={kTillegg.length}
             sedelByggeplassId={sedel.byggeplassId ?? null}
             byggeplassNavn={byggeplassNavn}
           />
@@ -477,6 +517,32 @@ export default function ProsjektkortSkjerm() {
             void triggerSync();
           }}
         />
+
+        {/* Spec tillegg-utlegg-prosjektkort § 3/§ 5: tillegg og utlegg på kortet.
+            Kontekst-låsen viser kortets byggeplass/underprosjekt låst i modalen;
+            nye rader lagres med kortets felt (null = arv fra sedelen). */}
+        <ProsjektkortKontekst.Provider value={{ byggeplassId: valg.byggeplassId, ecoId: valg.ecoId }}>
+          <TilleggSeksjon
+            sheetId={sheetId}
+            organizationId={sedel.organizationId}
+            projectId={projectId}
+            rader={kTillegg}
+            redigerbar={erRedigerbar}
+            onEndret={markerEndretOgLes}
+            hjelpIkon={<HjelpIkon tittel={t("hjelp.tillegg.tittel")} tekst={t("hjelp.tillegg.tekst")} />}
+            kortFelt={{ byggeplassId: lagretByggeplassForKort(valg, kontekst), externalCostObjectId: valg.ecoId }}
+          />
+          <UtleggSeksjon
+            sheetId={sheetId}
+            organizationId={sedel.organizationId}
+            projectId={projectId}
+            rader={kUtlegg}
+            redigerbar={erRedigerbar}
+            onEndret={markerEndretOgLes}
+            hjelpIkon={<HjelpIkon tittel={t("hjelp.utlegg.tittel")} tekst={t("hjelp.utlegg.tekst")} />}
+            kortFelt={{ byggeplassId: lagretByggeplassForKort(valg, kontekst), externalCostObjectId: valg.ecoId }}
+          />
+        </ProsjektkortKontekst.Provider>
 
         {/* ORDRE 36c-kort: hele kortet — kun når sedelen er redigerbar. */}
         {erRedigerbar && !tomt && (

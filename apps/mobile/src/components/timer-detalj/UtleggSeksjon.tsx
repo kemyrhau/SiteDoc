@@ -45,6 +45,8 @@ import type { UtleggRad, Utleggskategori } from "../../types/timer-detalj";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { KnappMedForklaring } from "../KnappMedForklaring";
 import { skrivUtlegg, type NyttUtlegg } from "../../services/tilleggUtleggSkriv";
+import { useKortLaas } from "./prosjektkortKontekst";
+import { KortLaasFelt } from "./KortLaasFelt";
 
 /**
  * UtleggSeksjon (U4) — registrering av utlegg/fakturert på mobil, mockup 8c.
@@ -74,6 +76,11 @@ interface UtleggSeksjonProps {
    * det; dagskortet sender ingenting og ser seksjonen som før.
    */
   hjelpIkon?: ReactNode;
+  /**
+   * Spec tillegg-utlegg-prosjektkort (B1/T11): kortets lagrede felt på nye rader.
+   * Prosjektkortet sender det; dagskortet sender ingenting → `null, null` = arv.
+   */
+  kortFelt?: { byggeplassId: string | null; externalCostObjectId: string | null };
 }
 
 /** Pille-tekst per ordning (undertekst, aldri et valg). */
@@ -103,6 +110,7 @@ export function UtleggSeksjon({
   onEndret,
   prosjektValg,
   hjelpIkon,
+  kortFelt,
 }: UtleggSeksjonProps) {
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
@@ -196,6 +204,7 @@ export function UtleggSeksjon({
           organizationId={organizationId}
           projectId={projectId}
           prosjektValg={prosjektValg}
+          kortFelt={kortFelt}
           sheetId={sheetId}
           onLagreEndring={(belop, kommentar) => {
             if (redigerRadId) oppdater(redigerRadId, belop, kommentar);
@@ -479,6 +488,7 @@ export function UtleggRadModal({
   organizationId,
   projectId: startProjectId,
   prosjektValg,
+  kortFelt,
   sheetId,
   onLagreEndring,
   onOpprettet,
@@ -489,6 +499,11 @@ export function UtleggRadModal({
   organizationId: string;
   projectId: string;
   prosjektValg?: { id: string; navn: string }[];
+  /**
+   * Spec tillegg-utlegg-prosjektkort (B1/T11): kortets lagrede felt på nye rader.
+   * Prosjektkortet sender det; dagskortet sender ingenting → `null, null` = arv.
+   */
+  kortFelt?: { byggeplassId: string | null; externalCostObjectId: string | null };
   /** Sedelen raden skrives på. Ubrukt når `onOpprett` er satt. */
   sheetId: string;
   onLagreEndring: (belop: number | null, kommentar: string | null) => void;
@@ -503,6 +518,8 @@ export function UtleggRadModal({
 }) {
   const { t } = useTranslation();
   const { leggIKo } = useOpplastingsKo();
+  // Prosjektkortet: byggeplass og underprosjekt er kortets — vist låst (spec § 5).
+  const kortLaas = useKortLaas();
   const erRedigering = !!eksisterendeRad;
   const [projectId, setProjectId] = useState<string>(startProjectId);
 
@@ -635,6 +652,8 @@ export function UtleggRadModal({
       ordningVedFoering: ordning,
       foertVed: Date.now(),
       kvittering: pendingFoto,
+      byggeplassId: kortFelt?.byggeplassId ?? null,
+      externalCostObjectId: kortFelt?.externalCostObjectId ?? null,
     };
     if (onOpprett) {
       onOpprett(nytt);
@@ -670,6 +689,7 @@ export function UtleggRadModal({
             className="flex-1"
             contentContainerClassName="p-4 gap-4"
           >
+            {kortLaas && projectId && <KortLaasFelt projectId={projectId} kortLaas={kortLaas} />}
             {!erRedigering && prosjektValg && prosjektValg.length > 1 && (
               <View className="flex-row flex-wrap gap-2">
                 {prosjektValg.map((p) => (

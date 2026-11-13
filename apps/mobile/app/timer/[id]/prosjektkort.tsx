@@ -348,10 +348,7 @@ export default function ProsjektkortSkjerm() {
               sheetId={sheetId}
               sedel={sedel}
               timerRader={s.timerRader}
-              tilleggRader={s.tilleggRader}
-              utleggRader={s.utleggRader}
               reiseLonnsartId={s.reiseLonnsartId}
-              prosjektIder={[...new Set([...s.kort.map((k) => k.projectId), sedel.projectId])]}
               prosjektNavn={s.prosjektNavn}
               harEquipmentCache={s.harEquipmentCache}
               redigerbar={s.erRedigerbar}
@@ -359,6 +356,8 @@ export default function ProsjektkortSkjerm() {
             />
           }
           timerRader={s.timerRader}
+          tilleggRader={s.tilleggRader}
+          utleggRader={s.utleggRader}
           maskinRader={s.maskinRader}
           varer={s.kortVarer}
           reiseLonnsartId={s.reiseLonnsartId}

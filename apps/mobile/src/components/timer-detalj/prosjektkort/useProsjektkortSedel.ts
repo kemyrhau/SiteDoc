@@ -495,8 +495,8 @@ export function useProsjektkortSedel(sheetId: string) {
     return e ? `${e.proAdmId} — ${e.kortNavn}` : ecoId;
   }, []);
   // Kortlista (ORDRE 36b): ett kort per (prosjekt, effektiv byggeplass,
-  // underprosjekt) over arbeid, maskin og varer. Reise, tillegg og utlegg
-  // ligger i dag-seksjonen og lager ikke kort.
+  // underprosjekt) over arbeid, maskin, varer, tillegg og utlegg (spec
+  // tillegg-utlegg-prosjektkort § 3). Reise ligger i dag-seksjonen og lager ikke kort.
   const kort = useMemo<KortValg[]>(() => {
     if (!sedel || !sedelKontekst) return [];
     const db = hentDatabase();
@@ -508,14 +508,14 @@ export function useProsjektkortSedel(sheetId: string) {
         .all()[0]?.navn ?? id;
     return kortNokler(
       sedelKontekst,
-      [timerRader.filter((_, i) => !kortTimer[i]?.erReise), maskinRader, kortVarer],
+      [timerRader.filter((_, i) => !kortTimer[i]?.erReise), maskinRader, kortVarer, tilleggRader, utleggRader],
       [],
       {
         byggeplassNavn: bpNavn,
         ecoNokkel: (id) => finnUnderprosjektLokalt(id)?.proAdmId ?? id,
       },
     );
-  }, [sedel, sedelKontekst, timerRader, kortTimer, maskinRader, kortVarer]);
+  }, [sedel, sedelKontekst, timerRader, kortTimer, maskinRader, kortVarer, tilleggRader, utleggRader]);
   const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
     const db = hentDatabase();
     if (!db) return null;

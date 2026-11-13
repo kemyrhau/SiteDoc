@@ -6,30 +6,23 @@ import { erReiseRadVisning } from "../../../utils/reiseRad";
 import { formatKortTall } from "../../../lib/prosjektkortMobil";
 import { TimerRadModal } from "../TimerSeksjon";
 import { SplittRadModal } from "../SplittRadModal";
-import { TilleggSeksjon } from "../TilleggSeksjon";
-import { UtleggSeksjon } from "../UtleggSeksjon";
-import { HjelpIkon } from "../../HjelpIkon";
 import { leggTilTimerRad, oppdaterTimerRad, fjernTimerRad, type RadKontekst } from "./radLagring";
-import type { Sedel, TimerRad, TilleggRad, UtleggRad } from "../../../types/timer-detalj";
+import type { Sedel, TimerRad } from "../../../types/timer-detalj";
 
 /**
- * ORDRE 36b (revidert plan § 2): reise, tillegg og utlegg hører til dagen,
- * ikke kortene. Seksjonen ligger under kortene og over sum/Send.
+ * ORDRE 36b (revidert plan § 2): reise hører til dagen, ikke kortene.
+ * Seksjonen ligger under kortene og over sum/Send. Tillegg og utlegg føres
+ * på prosjektkortet (spec tillegg-utlegg-prosjektkort § 3) — ikke her.
  *
  * Prosjekt: forslaget er prosjektet med flest arbeidstimer i dag (ellers
- * dagens prosjekt). Tillegg-modalen har sitt eget prosjektfelt; utlegg får
- * prosjekt-chips når dagen har flere prosjekter. Reise velger bare prosjekt;
- * byggeplass/underprosjekt vises i modalen kun når prosjektet har flere (K3).
- * Allerede førte rader vises uendret — ingen data flyttes.
+ * dagens prosjekt). Reise velger bare prosjekt; byggeplass/underprosjekt
+ * vises i modalen kun når prosjektet har flere (K3).
  */
 export function DagSeksjon({
   sheetId,
   sedel,
   timerRader,
-  tilleggRader,
-  utleggRader,
   reiseLonnsartId,
-  prosjektIder,
   prosjektNavn,
   harEquipmentCache,
   redigerbar,
@@ -38,11 +31,7 @@ export function DagSeksjon({
   sheetId: string;
   sedel: Sedel;
   timerRader: TimerRad[];
-  tilleggRader: TilleggRad[];
-  utleggRader: UtleggRad[];
   reiseLonnsartId: string | null;
-  /** Dagens prosjekter (kortene + dagens prosjekt), i visningsrekkefølge. */
-  prosjektIder: string[];
   prosjektNavn: (projectId: string) => string;
   harEquipmentCache: boolean;
   redigerbar: boolean;
@@ -75,7 +64,6 @@ export function DagSeksjon({
     return best;
   }, [timerRader, reiseLonnsartId, sedel.projectId]);
 
-  const prosjektValg = prosjektIder.map((id) => ({ id, navn: prosjektNavn(id) }));
   const db = () => hentDatabase()!;
 
   return (
@@ -115,26 +103,6 @@ export function DagSeksjon({
           </Pressable>
         )}
       </View>
-
-      <TilleggSeksjon
-        sheetId={sheetId}
-        organizationId={sedel.organizationId}
-        projectId={forslagProsjekt}
-        rader={tilleggRader}
-        redigerbar={redigerbar}
-        onEndret={onEndret}
-        hjelpIkon={<HjelpIkon tittel={t("hjelp.tillegg.tittel")} tekst={t("hjelp.tillegg.tekst")} />}
-      />
-      <UtleggSeksjon
-        sheetId={sheetId}
-        organizationId={sedel.organizationId}
-        projectId={forslagProsjekt}
-        prosjektValg={prosjektValg}
-        rader={utleggRader}
-        redigerbar={redigerbar}
-        onEndret={onEndret}
-        hjelpIkon={<HjelpIkon tittel={t("hjelp.utlegg.tittel")} tekst={t("hjelp.utlegg.tekst")} />}
-      />
 
       {reiseModal && (
         <TimerRadModal

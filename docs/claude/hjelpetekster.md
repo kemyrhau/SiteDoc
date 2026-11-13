@@ -95,14 +95,14 @@ Trakt-arket har ikke `HjelpIkon` ennå; vedtatt tekst, brukes når arket får ik
 
 ## Mobil: Prosjektkortet (`app/timer/[id]/kort/[projectId].tsx`, 36c-kort)
 
-Kortskjermen har ikke sidehjelp ennå; overskriftene «Tillegg» og «Utlegg» i `DagSeksjon` har `HjelpIkon` (se § Mobil: Tillegg
+Kortskjermen har ikke sidehjelp ennå; overskriftene «Tillegg» og «Utlegg» på kortskjermen har `HjelpIkon` (se § Mobil: Tillegg
 og Utlegg). Vedtatt tekst for kortskjermen:
 
-- **Hva er dette?** Ett kort = arbeid, maskiner og varer på ett prosjekt, én byggeplass og ett underprosjekt den dagen.
+- **Hva er dette?** Ett kort = arbeid, maskiner, varer, tillegg og utlegg på ett prosjekt, én byggeplass og ett underprosjekt den dagen.
 - **Endre kort:** flytter hele kortet til et annet prosjekt, en annen byggeplass eller et annet underprosjekt. Finnes
-  kortet du velger fra før, slås de sammen. Reise, tillegg og utlegg blir liggende på dagen. Får ikke telefonen flyttet
+  kortet du velger fra før, slås de sammen. Tillegg og utlegg følger kortet; reise blir liggende på dagen. Får ikke telefonen flyttet
   varene på serveren, blir timene flyttet og varene stående på det gamle kortet — trykk «Endre kort» der en gang til.
-- **Slett kort:** sletter arbeid, maskiner og varer på kortet. Er det dagens siste kort, blir dagsseddelen stående som tomt utkast.
+- **Slett kort:** sletter arbeid, maskiner, varer, tillegg og utlegg på kortet. Reise beholdes. Er det dagens siste kort, blir dagsseddelen stående som tomt utkast.
 - Begge knappene finnes bare mens dagsseddelen er utkast eller returnert. Varer som alt er sendt, må endres på serveren —
   uten dekning er knappene sperret.
 
@@ -110,12 +110,12 @@ og Utlegg). Vedtatt tekst for kortskjermen:
 
 `HjelpIkon` (`apps/mobile/src/components/HjelpIkon.tsx`) er mobilens ?-ikon: står ved overskriften det forklarer, trykk
 åpner et ark med tittel og tekst. Brukt ved «Tillegg» og «Utlegg» i Bekreft dag (`BekreftDagLonnUtlegg.tsx`) og i
-prosjektkortet (`prosjektkort/DagSeksjon.tsx`). Tekstene ligger i i18n (`hjelp.tillegg.*`, `hjelp.utlegg.*`, 15 språk).
+kortskjermen (`app/timer/[id]/kort/[projectId].tsx`, spec tillegg-utlegg-prosjektkort, 🟡 `feat/timer-tillegg-utlegg-kort`). Tekstene ligger i i18n (`hjelp.tillegg.*`, `hjelp.utlegg.*`, 15 språk).
 
 - **Tillegg** (`hjelp.tillegg.tekst`, Kenneths tekst): «Tillegg er lønn du har krav på i tillegg til timelønnen, fordi
-  arbeidet ble gjort under bestemte forhold. Eksempler: smusstillegg, høydetillegg, kosttillegg, bastillegg.»
+  arbeidet ble gjort under bestemte forhold. Eksempler: smusstillegg, høydetillegg, kosttillegg, bastillegg. Tillegget føres på prosjektkortet og får kortets byggeplass og underprosjekt.»
 - **Utlegg** (`hjelp.utlegg.tekst`, Kenneths tekst): «Utlegg er penger du har lagt ut selv for firmaet, og som du skal ha
-  tilbake. Ta bilde av kvitteringen. Eksempler: parkering, bompenger, verktøy kjøpt i butikk, drivstoff til firmabil.»
+  tilbake. Ta bilde av kvitteringen. Eksempler: parkering, bompenger, verktøy kjøpt i butikk, drivstoff til firmabil. Utlegget føres på prosjektkortet og får kortets byggeplass og underprosjekt.»
 - I Bekreft dag lagres linjene først ved [Bekreft og lagre], på første dato som ikke er sendt. Er alle datoene sendt,
   får du beskjed, og ingenting lagres.
 
