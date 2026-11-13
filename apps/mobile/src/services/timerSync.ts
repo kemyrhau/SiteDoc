@@ -11,9 +11,11 @@ import {
   sheetUtleggVedleggLocal,
   slettedeRaderLocal,
   vareforbrukLocal,
+  arbeidsdagLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
+import type { LokalDb } from "./dagsforslagInput";
 
 /**
  * LAG 2 (TILLEGG 1) — reise-/tid-spor på en pull-rad, ALLE valgfrie. En GAMMEL
@@ -291,6 +293,83 @@ export async function pushEnSedel(
   return sedel?.syncStatus === "synced";
 }
 
+/**
+ * F1 (2026-11-13) — redning av foreldreløse utlegg. Før F1 re-nøklet ikke
+ * `forsonSedelIdentitet` `sheet_utlegg_local`; utlegg ble stående på en sedel-id
+ * som ikke lenger har noe hode, og ble aldri pushet.
+ *
+ * Koblingen gammel id → ny id lagres ingen steder. Den ENESTE gjenværende sporet
+ * er `arbeidsdag_local.generert_dagsseddel_id` (ble heller ikke re-nøklet før F1):
+ * den peker fortsatt på gammel id og bærer (userId, dato). Server har én sedel pr.
+ * (userId, dato) (`DailySheet @@unique([userId, dato])`), så den lokale sedelen på
+ * samme (userId, dato) er målet. Flytter KUN når koblingen er entydig (én dato,
+ * nøyaktig én lokal sedel); ellers står utlegget urørt — ingen gjetting.
+ * Rekkevidde: GPS-dager (manuell dag setter ikke pekeren), utlegg på dagens
+ * start-sedel, og arbeidsdager som ikke er ryddet (14 døgn, `RYDD_ETTER_MS`).
+ * En synket mål-sedel settes `pending` så utlegget pushes (og pull ikke erstatter
+ * radene med serverens sett). Returnerer antall flyttede utlegg.
+ */
+export function reddForeldreloseUtlegg(db: LokalDb, userId: string, naa: number): number {
+  const sedelIder = new Set(
+    db.select({ id: dagsseddelLocal.id }).from(dagsseddelLocal).all().map((r) => r.id),
+  );
+  const foreldrelose = [
+    ...new Set(
+      db
+        .select({ dagsseddelId: sheetUtleggLocal.dagsseddelId })
+        .from(sheetUtleggLocal)
+        .all()
+        .map((r) => r.dagsseddelId),
+    ),
+  ].filter((id) => !sedelIder.has(id));
+
+  let flyttet = 0;
+  for (const gammelId of foreldrelose) {
+    const dager = db
+      .select({ dato: arbeidsdagLocal.dato })
+      .from(arbeidsdagLocal)
+      .where(
+        and(
+          eq(arbeidsdagLocal.generertDagsseddelId, gammelId),
+          eq(arbeidsdagLocal.userId, userId),
+        ),
+      )
+      .all();
+    const datoer = [...new Set(dager.map((d) => d.dato))];
+    if (datoer.length !== 1) continue;
+    const kandidater = db
+      .select({ id: dagsseddelLocal.id, syncStatus: dagsseddelLocal.syncStatus })
+      .from(dagsseddelLocal)
+      .where(and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.dato, datoer[0])))
+      .all();
+    if (kandidater.length !== 1) continue;
+    const maal = kandidater[0];
+    const antall = db
+      .select({ id: sheetUtleggLocal.id })
+      .from(sheetUtleggLocal)
+      .where(eq(sheetUtleggLocal.dagsseddelId, gammelId))
+      .all().length;
+    db.transaction((tx) => {
+      tx.update(sheetUtleggLocal)
+        .set({ dagsseddelId: maal.id })
+        .where(eq(sheetUtleggLocal.dagsseddelId, gammelId))
+        .run();
+      tx.update(arbeidsdagLocal)
+        .set({ generertDagsseddelId: maal.id })
+        .where(eq(arbeidsdagLocal.generertDagsseddelId, gammelId))
+        .run();
+      if (maal.syncStatus === "synced") {
+        tx.update(dagsseddelLocal)
+          .set({ syncStatus: "pending", sistEndretLokalt: naa })
+          .where(eq(dagsseddelLocal.id, maal.id))
+          .run();
+      }
+    });
+    flyttet += antall;
+  }
+  return flyttet;
+}
+
 /** Felles kropp. `kunSedelId` ≠ null: push bare den sedelen, og ingen pull. */
 async function kjorTimerSync(
   klient: TrpcKlient,
@@ -321,43 +400,61 @@ async function kjorTimerSync(
   // dublett-hodet slettes. Brukes av M1 (conflict) og M2 (pull-guard).
   const forsonSedelIdentitet = (fraId: string, tilId: string): void => {
     if (fraId === tilId) return;
-    // Flytt arbeiderens rader til mål-identiteten. Rad-id er globalt unike
-    // (uuid) → ingen PK-kollisjon med målets egne rader.
-    db.update(sheetTimerLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(sheetTimerLocal.dagsseddelId, fraId))
-      .run();
-    db.update(sheetTilleggLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(sheetTilleggLocal.dagsseddelId, fraId))
-      .run();
-    db.update(sheetMachineLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(sheetMachineLocal.dagsseddelId, fraId))
-      .run();
-    // S-A: flytt tombstones med, så slette-intensjonen følger den re-nøklede
-    // sedelen og propagerer på neste push (i stedet for å bli foreldreløs).
-    db.update(slettedeRaderLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(slettedeRaderLocal.dagsseddelId, fraId))
-      .run();
-    // Prosjektkort L3: vareforbruk ført fra kortet følger sedelen (sendes med dagsseddelId).
-    db.update(vareforbrukLocal).set({ sheetId: tilId }).where(eq(vareforbrukLocal.sheetId, fraId)).run();
-    const maalFinnes = db
-      .select({ id: dagsseddelLocal.id })
-      .from(dagsseddelLocal)
-      .where(eq(dagsseddelLocal.id, tilId))
-      .all()[0];
-    if (maalFinnes) {
-      // Mål-sedelen finnes: radene er flyttet over — fjern dublett-hodet.
-      db.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, fraId)).run();
-    } else {
-      // Re-nøkle sedelhodet til mål-identiteten (behold alle felt).
-      db.update(dagsseddelLocal)
-        .set({ id: tilId })
-        .where(eq(dagsseddelLocal.id, fraId))
+    // F1 (2026-11-13): alt i ÉN transaksjon — en avbrutt forsoning skal aldri
+    // etterlate halvparten av radene på en id som ikke lenger har noe hode.
+    db.transaction((tx) => {
+      // Flytt arbeiderens rader til mål-identiteten. Rad-id er globalt unike
+      // (uuid) → ingen PK-kollisjon med målets egne rader.
+      tx.update(sheetTimerLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetTimerLocal.dagsseddelId, fraId))
         .run();
-    }
+      tx.update(sheetTilleggLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetTilleggLocal.dagsseddelId, fraId))
+        .run();
+      tx.update(sheetMachineLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetMachineLocal.dagsseddelId, fraId))
+        .run();
+      // S-A: flytt tombstones med, så slette-intensjonen følger den re-nøklede
+      // sedelen og propagerer på neste push (i stedet for å bli foreldreløs).
+      tx.update(slettedeRaderLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(slettedeRaderLocal.dagsseddelId, fraId))
+        .run();
+      // Prosjektkort L3: vareforbruk ført fra kortet følger sedelen (sendes med dagsseddelId).
+      tx.update(vareforbrukLocal).set({ sheetId: tilId }).where(eq(vareforbrukLocal.sheetId, fraId)).run();
+      // F1 (2026-11-13): utlegg følger sedelen. Manglet før → utlegg ble stående
+      // på gammel id og ble aldri pushet (datatap). Vedlegg (`sheet_utlegg_vedlegg_local`,
+      // `sheet_tillegg_vedlegg_local`) og opplastingskøen peker på RAD-id, som ikke
+      // endres her → de følger raden uten egen omnøkling.
+      tx.update(sheetUtleggLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetUtleggLocal.dagsseddelId, fraId))
+        .run();
+      // F1: arbeidsdagens (svake) peker til sedelen den genererte følger også, så
+      // koblingen dag → sedel ikke peker på en id som ikke finnes.
+      tx.update(arbeidsdagLocal)
+        .set({ generertDagsseddelId: tilId })
+        .where(eq(arbeidsdagLocal.generertDagsseddelId, fraId))
+        .run();
+      const maalFinnes = tx
+        .select({ id: dagsseddelLocal.id })
+        .from(dagsseddelLocal)
+        .where(eq(dagsseddelLocal.id, tilId))
+        .all()[0];
+      if (maalFinnes) {
+        // Mål-sedelen finnes: radene er flyttet over — fjern dublett-hodet.
+        tx.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, fraId)).run();
+      } else {
+        // Re-nøkle sedelhodet til mål-identiteten (behold alle felt).
+        tx.update(dagsseddelLocal)
+          .set({ id: tilId })
+          .where(eq(dagsseddelLocal.id, fraId))
+          .run();
+      }
+    });
   };
 
   // V19.9.8 (B'-4) — etter push-`ok`/`conflict-overlapp`: skriv radversjonen
@@ -671,6 +768,10 @@ async function kjorTimerSync(
       }
     }
   };
+
+  // F1 (2026-11-13): redd utlegg som eldre app-versjoner lot ligge igjen på en
+  // forsonet (borte) sedel-id, FØR push-utvalget — så den reddede sedelen er med.
+  if (kunSedelId === null) reddForeldreloseUtlegg(db, userId, Date.now());
 
   /* ---------------- PUSH: lokale pending → server ----------------- */
   const pendingSedler = db
