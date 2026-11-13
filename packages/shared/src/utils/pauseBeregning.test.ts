@@ -190,6 +190,17 @@ describe("ORDRE 2026-11-13 — pause etter arbeidstimer (avgjorRadPause/pauseFra
     });
   });
 
+  it("🔴 VILKÅR 1: lagret 07:00–12:15 p0 + ny manuell 13:00–13:20 → p0 og 0,33 t (raden er kortere enn pausen)", () => {
+    const r = avgjor([["07:00", "12:15", 0]], "13:00", "13:20");
+    expect(r.pauseMin).toBe(0);
+    expect(effektiveTimerFraSpenn("13:00", "13:20", r.pauseFra, r.pauseMin)).toBeCloseTo(0.33, 2);
+  });
+
+  it("spennkravet: spenn = pausen → p0; spenn > pausen → p30", () => {
+    expect(avgjor([["07:00", "12:15", 0]], "13:00", "13:30").pauseMin).toBe(0);
+    expect(avgjor([["07:00", "12:15", 0]], "13:00", "13:31").pauseMin).toBe(30);
+  });
+
   it("pausepunktet klemmes inn i raden (grensen faller etter til − pause)", () => {
     expect(
       pauseFraForRad({

@@ -303,7 +303,8 @@ export function fastPauseFraFor(dag: {
  * Bekreft dag og manuell føring bruker ÉN regel (ORDRE dobbel pause 2026-11-13):
  *   1) dagsbrutto = Σ spenn på sedelens andre rader + det nye arbeidet > 5,5 t
  *   2) ingen annen rad på sedelen bærer pausen alt (kun én pr. sedel)
- * Returnerer `standardPauseMin` når begge holder, ellers 0. Plasseringen
+ * Returnerer `standardPauseMin` når begge holder og det nye arbeidet har spenn
+ * lengre enn pausen (spennkravet), ellers 0. Plasseringen
  * (`pauseFraForRad`) ligger hos kalleren.
  */
 export function dagPauseMinForNyttArbeid(args: {
@@ -318,6 +319,11 @@ export function dagPauseMinForNyttArbeid(args: {
   standardPauseMin: number;
 }): number {
   const { andreRader, nyBruttoTimer, standardPauseMin } = args;
+  // (0) Spennkrav (VILKÅR 1, gate 2026-11-14): bæreren må ha spenn LENGRE enn
+  // pausen. En for kort rad får pause 0 og fullt spenn — ellers blir 20 min
+  // arbeid 0 t og serveren gir `kast`. Samme krav som serverens `stemmerNy`
+  // og mobilens `radKanBaerePause`.
+  if (Math.round(Math.max(0, nyBruttoTimer) * 60) <= standardPauseMin) return 0;
   const bruttoAndre = andreRader.reduce((sum, r) => {
     if (!r.fraTid || !r.tilTid) return sum;
     const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);

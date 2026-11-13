@@ -892,7 +892,12 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
   if (baererIdx < 0) {
     baererIdx = arbeidPerSeg.reduce((sist, a, i) => (a ? i : sist), -1);
   }
-  const pauseFordelt = segmenter.map((_, i) => (i === baererIdx ? dagPauseMin : 0));
+  // Spennkrav (VILKÅR 1, gate 2026-11-14): bæreren må ha arbeid LENGRE enn
+  // pausen, ellers pause 0 og fullt spenn (samme krav som `dagPauseMinForNyttArbeid`).
+  const baererKanBaere = (arbeidPerSeg[baererIdx]?.min ?? 0) > dagPauseMin;
+  const pauseFordelt = segmenter.map((_, i) =>
+    i === baererIdx && baererKanBaere ? dagPauseMin : 0,
+  );
   // Pausepunktet pr. segment (brukes av `beregnSegment` for bærerens pauseFra).
   const pauseFraPerSeg = segmenter.map((seg, i) => {
     const a = arbeidPerSeg[i];

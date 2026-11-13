@@ -244,6 +244,41 @@ describe("Bekreft dag — dobbel pause (A)", () => {
     sjekkServer(f, morgen);
   });
 
+  // VILKÅR 1 (gate 2026-11-14): en økt kortere enn pausen blir aldri bærer.
+  const utenRunding = (over: Partial<BeregnDagsforslagInput>) => {
+    const base = lagInput(over);
+    return { ...base, regel: { ...base.regel!, tidsrundingMinutter: null } };
+  };
+
+  it("🔴 VILKÅR 1: lagret 07:00–12:15 p0 + ny økt 13:00–13:20 → p0 og 0,33 t", () => {
+    const morgen = [{ fraTid: "07:00", tilTid: "12:15", pauseMin: 0 }];
+    const f = beregnDagsforslag(
+      utenRunding({
+        dag: { ...lagInput().dag, startAt: "2026-10-01T13:00:00" },
+        sluttIso: "2026-10-01T13:20:00",
+        eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) },
+      }),
+    );
+    expect(sum(arbeid(f).map((r) => r.pauseMin))).toBe(0);
+    expect(sum(arbeid(f).map((r) => r.timer))).toBe(0.33);
+    sjekkInvariant(f);
+    sjekkServer(f, morgen);
+  });
+
+  it("🔴 VILKÅR 1: midnattsdelt økt der bæreren (00:00–00:20) er kortere enn pausen → p0, fullt spenn", () => {
+    const morgen = [{ fraTid: "07:00", tilTid: "12:15", pauseMin: 0 }];
+    const f = beregnDagsforslag(
+      utenRunding({
+        dag: { ...lagInput().dag, startAt: "2026-10-01T23:00:00" },
+        sluttIso: "2026-10-02T00:20:00",
+        eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) },
+      }),
+    );
+    expect(sum(arbeid(f).map((r) => r.pauseMin))).toBe(0);
+    expect(sum(arbeid(f).map((r) => r.timer))).toBe(1.33);
+    sjekkInvariant(f);
+  });
+
   const morgen0700til1310 = {
     dag: {
       startAt: "2026-10-01T07:00:00",
