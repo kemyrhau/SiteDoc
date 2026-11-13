@@ -6330,6 +6330,12 @@ export const dagsseddelRouter = router({
           // `conflict/overlapp`. Valgfritt → eldre klient ignorerer dem.
           rader?: { id: string; updatedAt: string }[];
           hoppetOver?: string[];
+          // Telefontest A funn 1: false = serveren skrev INGENTING fra pushen (tidlig
+          // V19-A-overlapp, A-1a, laast) — heller ikke tillegg/utlegg/maskin. true =
+          // avvik-veien skrev hode, uomstridte rader, tillegg og utlegg. Mobilen lar da
+          // sist-synket stå og sender linjene på nytt etter forsoningen. Valgfritt →
+          // eldre klient ignorerer det.
+          skrevet?: boolean;
         };
         feilmelding?: string;
       };
@@ -6831,6 +6837,7 @@ export const dagsseddelRouter = router({
                 aarsak: "overlapp" | "laast";
                 skrevneRader: { id: string; updatedAt: string }[];
                 hoppetOver: string[];
+                skrevet: boolean;
               };
           const txResultat: SyncTxResultat = await ctx.prismaTimer.$transaction(async (tx) => {
             // 2b (2026-07-16, TOCTOU-fiks): accepted-vakten (over) leser
@@ -6988,7 +6995,7 @@ export const dagsseddelRouter = router({
                   [...payloadMedGrunn, ...tombstoneForslag],
                   lokal.projectId ?? null,
                 );
-                return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: hoppetOverIder };
+                return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: hoppetOverIder, skrevet: false };
               }
             }
 
@@ -7269,7 +7276,7 @@ export const dagsseddelRouter = router({
                 avvikForslag,
                 lokal.projectId ?? null,
               );
-              return { slag: "overlapp", aarsak, skrevneRader, hoppetOver: hoppetOverIder };
+              return { slag: "overlapp", aarsak, skrevneRader, hoppetOver: hoppetOverIder, skrevet: true };
             }
 
             return { slag: "ok", sedel, skrevneRader, hoppetOver: hoppetOverIder };
@@ -7299,6 +7306,7 @@ export const dagsseddelRouter = router({
                   updatedAt: serverSedel.updatedAt.toISOString(),
                   rader: txResultat.skrevneRader,
                   hoppetOver: txResultat.hoppetOver,
+                  skrevet: txResultat.skrevet,
                 },
               });
             } else {
@@ -7432,6 +7440,8 @@ export const dagsseddelRouter = router({
                     attestertVed:
                       eksisterende.attestertVed?.toISOString() ?? null,
                     updatedAt: eksisterende.updatedAt.toISOString(),
+                    // Funn 1: A-1a skriver ingenting fra pushen.
+                    skrevet: false,
                   },
                   // Ingen feilmelding: dette er et MASKINSIGNAL til mobilen om å
                   // forsone identiteten (re-nøkle + additiv re-push, timerSync M1),

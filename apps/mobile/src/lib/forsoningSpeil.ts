@@ -22,7 +22,14 @@ import {
   type ForsonInput,
 } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
-import { dagsseddelLocal, sheetMachineLocal, sheetTimerLocal } from "../db/schema";
+import {
+  dagsseddelLocal,
+  sheetMachineLocal,
+  sheetTilleggLocal,
+  sheetTimerLocal,
+  sheetUtleggLocal,
+  slettedeRaderLocal,
+} from "../db/schema";
 import type { Side, TidsromRad } from "./dagskortSammenligning";
 
 /** Narrow form av server-radene `forsonDagskort` returnerer (unngår dyp tRPC-union / TS2589). */
@@ -94,6 +101,10 @@ export function anvendForsonetLokalt(
 ): void {
   const db = hentDatabase();
   if (!db) return;
+  // Telefontest A funn 1: linjer endret/slettet etter siste godtatte push leses FØR
+  // relinken (som selv stempler maskinlinjer). Uten dem ville et tidlig overlapp-svar
+  // (serveren skrev ingenting) etterlate tillegg/utlegg/maskin usendt bak `synced`.
+  const usendt = harUsendteLinjer(db, sheetId);
   // Funn 5: telefonens egne rader (forslagene) leses FØR de slettes — relinken trenger
   // forslagets verdier for likhetsregelen.
   const lokaleFoer = db
@@ -124,10 +135,41 @@ export function anvendForsonetLokalt(
       .run();
   }
   // Sedelen er nå i synk med serverens forsonede sett → stemple sist synket = naa.
+  // Usendte linjer → `pending`, så neste push bærer dem (bekreftConflict beholder det).
   db.update(dagsseddelLocal)
-    .set({ sistSynkronisert: naa })
+    .set({ sistSynkronisert: naa, ...(usendt ? { syncStatus: "pending" as const } : {}) })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
+}
+
+/**
+ * Telefontest A funn 1: har sedelen tillegg-, utlegg- eller maskinlinjer (eller tombstones
+ * for dem) endret etter siste godtatte push (`sistSynkronisert`)? Konflikt-grenen lar
+ * sist-synket stå når serveren ikke skrev noe (`skrevet: false`); da er alt endret siden
+ * forrige ok-push usendt. Timer-radene telles ikke — forsoningen erstatter dem.
+ */
+function harUsendteLinjer(db: Db, sheetId: string): boolean {
+  const sedel = db
+    .select({ sistSynkronisert: dagsseddelLocal.sistSynkronisert })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .get();
+  const forrige = sedel?.sistSynkronisert ?? 0;
+  const endret = (t: { sistEndretLokalt: number | null }) => (t.sistEndretLokalt ?? 0) > forrige;
+  for (const tabell of [sheetTilleggLocal, sheetUtleggLocal, sheetMachineLocal] as const) {
+    const rader = db
+      .select({ sistEndretLokalt: tabell.sistEndretLokalt })
+      .from(tabell)
+      .where(eq(tabell.dagsseddelId, sheetId))
+      .all();
+    if (rader.some(endret)) return true;
+  }
+  return db
+    .select({ radType: slettedeRaderLocal.radType, slettetVed: slettedeRaderLocal.slettetVed })
+    .from(slettedeRaderLocal)
+    .where(eq(slettedeRaderLocal.dagsseddelId, sheetId))
+    .all()
+    .some((t) => t.radType !== "timer" && t.radType !== "sedel" && t.slettetVed > forrige);
 }
 
 type Db = NonNullable<ReturnType<typeof hentDatabase>>;

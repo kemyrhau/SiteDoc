@@ -661,7 +661,11 @@ async function kjorTimerSync(
                 aarsak === "overlapp"
                   ? i18n.t("timer.sync.pcOgsaEndret")
                   : (r.feilmelding ?? null),
-              sistSynkronisert: naa,
+              // Telefontest A funn 1: `skrevet: false` = serveren skrev ingenting fra
+              // pushen (heller ikke tillegg/utlegg/maskin). Sist-synket står da, så
+              // forsoningen ser hvilke linjer som aldri ble sendt. Mangler feltet
+              // (eldre server) → som før.
+              ...(r.serverData.skrevet === false ? {} : { sistSynkronisert: naa }),
             })
             .where(eq(dagsseddelLocal.id, målId))
             .run();
@@ -1730,9 +1734,20 @@ async function kjorTimerSync(
 export function bekreftConflict(sheetId: string): void {
   const db = hentDatabase();
   if (!db) return;
+  // Telefontest A funn 1: har forsoningen (anvendForsonetLokalt) satt `pending` fordi
+  // tillegg/utlegg/maskin aldri nådde serveren, står `pending` — neste push sender dem.
+  const naa = db
+    .select({ syncStatus: dagsseddelLocal.syncStatus })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .get();
   db.update(dagsseddelLocal)
     // V19-B (B-3): valget er tatt → synced, konflikt-årsak nulles.
-    .set({ syncStatus: "synced", konfliktAarsak: null, feilmelding: null })
+    .set({
+      syncStatus: naa?.syncStatus === "pending" ? "pending" : "synced",
+      konfliktAarsak: null,
+      feilmelding: null,
+    })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
 }

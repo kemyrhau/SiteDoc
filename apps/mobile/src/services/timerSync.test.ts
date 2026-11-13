@@ -1627,3 +1627,171 @@ describe("Telefontest B funn 5 — lokale maskinlinjer følger raden som vant", 
     expect(maskin("m1")?.byggeplassId).toBe("b12");
   });
 });
+
+describe("Telefontest A funn 1 — tillegg/utlegg/maskin pushes etter forsoning når serveren ikke skrev dem", () => {
+  // Kortbyttet (Endre kort) skjedde ETTER siste godtatte push (sistSynkronisert 1000).
+  const ENDRET = 5000;
+  const FORSONT = 9_000_000;
+
+  function seedLinjer(sheetId: string) {
+    db()
+      .insert(schema.sheetTilleggLocal)
+      .values({
+        id: "tl-1",
+        dagsseddelId: sheetId,
+        projectId: "p2",
+        byggeplassId: "b12",
+        tilleggId: "t1",
+        antall: 1,
+        sistEndretLokalt: ENDRET,
+      })
+      .run();
+    db()
+      .insert(schema.sheetUtleggLocal)
+      .values({
+        id: "ut-1",
+        dagsseddelId: sheetId,
+        projectId: "p2",
+        byggeplassId: "b12",
+        expenseCategoryId: "k1",
+        belop: 250,
+        ordningVedFoering: "utlegg",
+        foertVed: Date.parse("2026-11-05T10:00:00.000Z"),
+        sistEndretLokalt: ENDRET,
+      })
+      .run();
+  }
+
+  const serverRad = {
+    id: "r1",
+    projectId: "p2",
+    byggeplassId: "b12",
+    lonnsartId: "l1",
+    aktivitetId: "a1",
+    externalCostObjectId: null,
+    timer: 7.5,
+    fraTid: "07:00",
+    tilTid: "15:00",
+    beskrivelse: null,
+    pauseMin: 0,
+    updatedAt: "2026-11-13T11:00:00.000Z",
+  };
+
+  function overlappSvar(sheetId: string, ekstra: Record<string, unknown>): PushResultat {
+    return {
+      clientUuid: sheetId,
+      resultat: "conflict",
+      aarsak: "overlapp",
+      serverData: {
+        id: sheetId,
+        clientUuid: sheetId,
+        status: "draft",
+        lederKommentar: null,
+        attestertVed: null,
+        updatedAt: "2026-11-13T10:00:00.000Z",
+        ...ekstra,
+      } as PushResultat["serverData"],
+    };
+  }
+
+  async function pushOgForson(sheetId: string, svar: PushResultat) {
+    await syncTimer(lagKlient(tomtPull, [svar]), "u1");
+    expect(sedelFor(sheetId).syncStatus).toBe("conflict");
+    anvendForsonetLokalt(sheetId, [serverRad], FORSONT);
+    bekreftConflict(sheetId);
+  }
+
+  function pushUtlegg(fanget: { input: unknown }) {
+    const inp = fanget.input as {
+      sedler: Array<{
+        tillegg: Array<{ id: string; projectId: string | null; byggeplassId: string | null }>;
+        utlegg: Array<{ id: string; projectId: string | null; byggeplassId: string | null }>;
+      }>;
+    };
+    return inp.sedler[0]!;
+  }
+
+  it("🔴 (a) tidlig overlapp (skrevet: false): sedelen blir pending, og neste push bærer utlegg og tillegg på nytt kort", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("s1");
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: false }));
+
+    const s = sedelFor("s1");
+    expect(s.syncStatus).toBe("pending");
+    expect(s.konfliktAarsak).toBe(null);
+
+    const { klient, fanget } = lagKlientFanger([
+      { clientUuid: "s1", resultat: "ok", serverData: { id: "s1", status: "draft", lederKommentar: null, attestertVed: null, updatedAt: "2026-11-13T12:00:00.000Z" } },
+    ]);
+    const res = await syncTimer(klient, "u1");
+    const p = pushUtlegg(fanget);
+    expect(p.utlegg.map((u) => [u.id, u.projectId, u.byggeplassId])).toEqual([["ut-1", "p2", "b12"]]);
+    expect(p.tillegg.map((t) => [t.id, t.projectId, t.byggeplassId])).toEqual([["tl-1", "p2", "b12"]]);
+    // Timer-raden har serverens versjon fra forsoningen → uomstridt, ikke endret lokalt.
+    const t = pushTimer(fanget).timer.find((r) => r.id === "r1")!;
+    expect(t.serverVersjon).toBe("2026-11-13T11:00:00.000Z");
+    expect(t.endretLokalt).toBe(false);
+    expect(res.push.ok).toBe(1);
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("🔴 (a) A-1a (dagen ført på PC først, sedelen aldri synket): pending etter forsoning", async () => {
+    seedSedel({ id: "lok", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    db().update(dagsseddelLocal).set({ sistSynkronisert: null }).where(eq(dagsseddelLocal.id, "lok")).run();
+    seedTimerRad("r1", "lok", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("lok");
+
+    const svar = overlappSvar("lok", { skrevet: false });
+    svar.serverData = { ...svar.serverData!, id: "srv", clientUuid: "srv" };
+    await syncTimer(lagKlient(tomtPull, [svar]), "u1");
+    expect(sedelFor("srv").syncStatus).toBe("conflict");
+    anvendForsonetLokalt("srv", [serverRad], FORSONT);
+    bekreftConflict("srv");
+
+    expect(sedelFor("srv").syncStatus).toBe("pending");
+  });
+
+  it("negativkontroll: avvik-veien (skrevet: true) skrev utlegg og tillegg → synced, ingen ekstra push", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("s1");
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: true }));
+
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("negativkontroll: tidlig overlapp på en sedel uten tillegg, utlegg og maskin → synced som i dag", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: false }));
+
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("negativkontroll: eldre API uten skrevet-feltet → synced som i dag (ingen regresjon)", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("s1");
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [] }));
+
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("tombstone for et utlegg slettet etter siste godtatte push teller også (tidlig overlapp → pending)", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    db()
+      .insert(schema.slettedeRaderLocal)
+      .values({ radId: "ut-gammel", dagsseddelId: "s1", radType: "utlegg", slettetVed: ENDRET })
+      .run();
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: false }));
+
+    expect(sedelFor("s1").syncStatus).toBe("pending");
+  });
+});
