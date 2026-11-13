@@ -30,7 +30,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
-> ✅ **Timer telefontest A/B MERGET 2026-11-13** (merge `9bac6caf` av `58077324`, Kontrollør GODKJENT `inbox-orkestrator.md:22676` + re-gate V1, regel 10 re-kjørt): funn 1–5 (forsoning sender tillegg/utlegg/maskin, kvittering bekreftet + redning + 404-rydding, byggeplass eget prosjekt, «Bruk mobilen» tar `slettet_pc`, maskin/varer følger raden som vant) + konflikt-tekst + vare Endre/Slett. Ingen migrering. ⚪ Ikke på telefon: venter test-deploy + OTA. 🔴 Neste: plan A «konflikt løst på web → telefonen beholder usendte tillegg/utlegg/maskin» (Kenneth «Ja, plan A» 13.11; ordre i `inbox-redesign-timer-mobil-retur.md`, gren `fix/timer-konflikt-web-usendte`, inkl. develop-lint `kortTilleggUtlegg.test.ts:39/51`). Egen rydding: RolldownError-støy fra kø-timere i `OpplastingsKoProvider.test.ts` under turbo.
+> ✅ **Timer plan A MERGET 2026-11-13** (merge `7b43b592` av `65732941`, Kontrollør GODKJENT `inbox-orkestrator.md:22773`, regel 10 rød-kontroll re-kjørt): konflikt løst på web → telefonen beholder usendte tillegg/utlegg/maskin, sedel `pending`, entydig relink ellers «Uten rad». Lokal SQLite-kolonne `paa_server`, ingen servermigrering. Develop-lint `kortTilleggUtlegg.test.ts` rettet. ⚪ Ikke på telefon: venter test-deploy + OTA sammen med telefontest A/B. Åpent: `@sitedoc/api:lint` 51 feil fra før på develop (egen ordre ved behov).
+> ✅ **Timer telefontest A/B MERGET 2026-11-13** (merge `9bac6caf` av `58077324`, Kontrollør GODKJENT `inbox-orkestrator.md:22676` + re-gate V1, regel 10 re-kjørt): funn 1–5 (forsoning sender tillegg/utlegg/maskin, kvittering bekreftet + redning + 404-rydding, byggeplass eget prosjekt, «Bruk mobilen» tar `slettet_pc`, maskin/varer følger raden som vant) + konflikt-tekst + vare Endre/Slett. Ingen migrering. ⚪ Ikke på telefon: venter test-deploy + OTA (sammen med plan A). Egen rydding: RolldownError-støy fra kø-timere i `OpplastingsKoProvider.test.ts` under turbo.
 >
 > ✅ **Timer tillegg/utlegg på prosjektkortet MERGET 2026-11-13** (merge `6fe2958e` av `5022edcc`, Kontrollør GODKJENT `inbox-orkestrator.md:22357`, regel 10 re-kjørt). ⚠️ Migrering `20261113120000_tillegg_utlegg_byggeplass_eco` **ikke kjørt** — Kenneth: migrering + test-deploy før OTA. Oppfølger: `RedigerRadModal` nuller byggeplass på alle ventende timer-/maskinrader ved attesteringsredigering (siden mai) + vakt i `redigerSedelRader` — egen ordre.
 >
@@ -65,10 +66,10 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
-| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG — telefontest A/B GODKJENT, merget `9bac6caf` |
+| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG — plan A GODKJENT, merget `7b43b592` |
 | **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `feat/sjekkliste-pdf-oppgaver-vedlegg` `c0563328` (merget `6db57534`) | ⚪ LEDIG |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `fix/timer-forsoning-ab` `58077324` (merget `9bac6caf`) | 🔵 neste: plan A konflikt løst på web |
+| **Redesign** | `SiteDoc-redesign` | `fix/timer-konflikt-web-usendte` `65732941` (merget `7b43b592`) | ⚪ LEDIG |
 | **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `3c619872` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG — spec tillegg/utlegg på prosjektkortet merget `3d19c81d` 2026-11-13; B1–B8 vedtatt |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
