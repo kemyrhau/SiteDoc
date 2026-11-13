@@ -20,7 +20,7 @@ const KORT = les("../../../../app/timer/[id]/kort/[projectId].tsx");
 
 const flat = (x: string) => x.replace(/\s+/g, " ");
 const MATPAUSE_VILKAAR =
-  "onPauseToggle && redigerbar && pauseRegelTrigget && radKrysserPause(rad, pauseFra, standardPauseMin)";
+  "onPauseToggle && redigerbar && pauseRegelTrigget && radKanBaerePause(rad, standardPauseMin)";
 
 /** Avhukingen lukker modalen: en åpen modal ville lagret radens gamle pause-bærer tilbake. */
 const MATPAUSE_LUKK = "onToggle: () => { setTimerModal(null); onPauseToggle(";
@@ -107,7 +107,7 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
   });
 
   it("negativkontroll: droppet matpause-vilkår eller -inngang fanges", () => {
-    expect(flat(OVERSIKT.replace("pauseRegelTrigget && radKrysser", "radKrysser"))).not.toContain(MATPAUSE_VILKAAR);
+    expect(flat(OVERSIKT.replace("pauseRegelTrigget && radKanBaerePause", "radKanBaerePause"))).not.toContain(MATPAUSE_VILKAAR);
     expect(KORT.replace("onPauseToggle={handterPauseToggle}", "")).not.toContain("onPauseToggle={handterPauseToggle}");
   });
 

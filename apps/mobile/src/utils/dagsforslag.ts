@@ -33,8 +33,9 @@ import {
   klassifiserArbeidstid,
   velgOvertidLonnsart,
   carveArbeidstider,
-  pauseVinduFra,
-  pauseMinForDag,
+  dagPauseMinForNyttArbeid,
+  pauseFraForRad,
+  fastPauseFraFor,
   hhmmTilMin,
   pauseOverlappMin,
   finnOverlappendeTidsrom,
@@ -53,7 +54,7 @@ import {
   type ArbeidstidSegment,
   OVERTID_NIVAA_50,
 } from "@sitedoc/shared";
-import { rundTimerTilNarmeste } from "./tidsrunding";
+import { rundTidspunktTilNarmeste } from "./tidsrunding";
 import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "./dagsegment";
 
@@ -78,6 +79,28 @@ function formatIsoDato(d: Date): string {
 function tilHHMM(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/**
+ * Arbeidsvinduet (ms) i et segment: ut-reisen skyver start fram, retur-reisen
+ * skyver slutt tilbake, og hver kant rundes for seg til tidsrunding-grid. En
+ * kant som berører en reise-etappe rundes ikke (reisen må møte arbeidet).
+ * Én kilde for pause-avgjørelsen (`beregnDagsforslag`) og radene (`beregnSegment`).
+ */
+function arbeidsvinduMs(
+  segment: { startIso: string; sluttIso: string },
+  utReise: { kjoretidMin: number } | null,
+  returReise: { kjoretidMin: number } | null,
+  tidsrundingMinutter: number | null,
+): { startMs: number; sluttMs: number } {
+  const raaStartMs =
+    new Date(segment.startIso).getTime() + (utReise ? utReise.kjoretidMin : 0) * 60_000;
+  const raaSluttMs =
+    new Date(segment.sluttIso).getTime() - (returReise ? returReise.kjoretidMin : 0) * 60_000;
+  return {
+    startMs: utReise ? raaStartMs : rundTidspunktTilNarmeste(raaStartMs, tidsrundingMinutter),
+    sluttMs: returReise ? raaSluttMs : rundTidspunktTilNarmeste(raaSluttMs, tidsrundingMinutter),
+  };
 }
 
 /** Ett prosjekt-kandidat for Haversine-valget (plain data, ingen Drizzle). */
@@ -124,6 +147,13 @@ export type DagsforslagEffektiv = {
   dagsnorm: number;
   /** B3 (V6): pausevinduets referanse. Default "ankomst" (fra arbeidsstart). */
   pauseReferanse?: "fastStart" | "ankomst";
+  /**
+   * RETUR 2026-11-13: firmaets `standardPauseEtterTimer` slik svar-cachen har
+   * den (server `hentEffektivArbeidstid`). Vinner over org-setting-cachen, samme
+   * rekkefølge som manuell føring (`matpauseKontekst`). Mangler → regelen →
+   * `DEFAULT_PAUSE_ETTER_TIMER`.
+   */
+  pauseEtterTimer?: number;
   /** B6.3: svarets opphav — "server" (dagens dato), "cachet" (≤30d), "ukjent" (ingen). */
   normStatus?: "server" | "cachet" | "ukjent";
   /**
@@ -204,8 +234,14 @@ export type DagsforslagEksisterendeSedel = {
   finnes: boolean;
   /** Sedelens status (draft/returned/sent/accepted/…). null når !finnes. */
   status: string | null;
-  /** Sedelens rader (fra/til) — for overlapp-vakten mot manuelt førte timer. */
-  eksisterendeRader: Array<{ fraTid: string | null; tilTid: string | null }>;
+  /** Sedelens rader (fra/til) — for overlapp-vakten mot manuelt førte timer.
+   *  `pauseMin` (2026-11-13): dag-pausen avgjøres mot disse — teller med i
+   *  dagsbrutto, og bærer en av dem alt pause, trekkes den ikke igjen. */
+  eksisterendeRader: Array<{
+    fraTid: string | null;
+    tilTid: string | null;
+    pauseMin?: number | null;
+  }>;
 };
 
 /** Én foreslått timer-rad (uten id/sedel — fylles av `anvendDagsforslag`). */
@@ -624,12 +660,11 @@ export function fordelPause(
   const kapasitet = bruttoTimer.slice();
   const pauseTimerPer = new Array<number>(n).fill(0);
 
-  // F-e (dag-nivå gate, re-fiks 2026-07-13): pausefradrag gjelder KUN når dagens
-  // totale brutto arbeidstid overstiger terskelen (AML §10-9, 5,5 t). Gaten ligger
-  // her — i dag-nivå pause-kilden der dagstotalen finnes — så pausen nulles FØR den
-  // fordeles per segment (alle segmenters pauseMin blir 0 under terskel).
-  const dagsTotalBrutto = bruttoTimer.reduce((s, b) => s + Math.max(0, b), 0);
-  const effektivPauseTotalMin = pauseMinForDag(dagsTotalBrutto, pauseTotalMin);
+  // Terskel-gaten (AML §10-9) ligger hos KALLEREN (2026-11-13): den må se hele
+  // dagen — også rader som alt står på sedelen — ikke bare denne økta. Kalleren
+  // sender 0 når dagen er under terskel eller pausen alt er ført
+  // (`dagPauseMinForNyttArbeid`, samme regel som manuell føring).
+  const effektivPauseTotalMin = pauseTotalMin;
 
   const lengsteForst = bruttoTimer
     .map((b, i) => ({ b, i }))
@@ -795,10 +830,96 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       (new Date(s.sluttIso).getTime() - new Date(s.startIso).getTime()) /
       3_600_000,
   );
-  const pauseFordelt = fordelPause(
-    bruttoPerSeg,
-    effektivStartDag.pauseMin,
-  ).pauseMin;
+  // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer» — SAMME regel som
+  // manuell føring (`avgjorRadPause`) og serveren (`vurderRadTimer`):
+  //   1) dagsbrutto = rader som alt står på sedelen + ARBEIDET i økta (rettet
+  //      arbeidsvindu, uten reise; fjernet arbeid = 0) > 5,5 t
+  //   2) bæreren er segmentet der summert arbeid (sedelens rader før + tidligere
+  //      segmenter) passerer firmaets grense; ellers siste segment med arbeid.
+  //      Pausepunktet = `pauseFraForRad` — et gap mellom økter er ingen pause.
+  //   3) ingen eksisterende rad bærer alt pausen (én pr. dag)
+  // Lagrede rader endres aldri — pausen legges på den nye økta.
+  const andreRader = segmenter.flatMap(
+    (s) => input.eksisterendeSedelPerDato[s.dato]?.eksisterendeRader ?? [],
+  );
+  const sisteSegIdx = segmenter.length - 1;
+  const arbeidPerSeg = segmenter.map((seg, i) => {
+    const rettDato = retting?.perDato?.[seg.dato];
+    if (rettDato?.fjernArbeid === true) return null;
+    const segUt = seg.erStartSegment ? utReise : null;
+    const segRetur = i === sisteSegIdx ? returReise : null;
+    const v = arbeidsvinduMs(
+      rettSegmentVindu(seg, rettDato, segUt, segRetur),
+      segUt,
+      segRetur,
+      regel?.tidsrundingMinutter ?? null,
+    );
+    if (v.sluttMs <= v.startMs) return null;
+    const fraMin = hhmmTilMin(tilHHMM(new Date(v.startMs).toISOString()));
+    return { fraMin, min: Math.round((v.sluttMs - v.startMs) / 60_000) };
+  });
+  const dagPauseMin = dagPauseMinForNyttArbeid({
+    andreRader,
+    nyBruttoTimer: arbeidPerSeg.reduce((s, a) => s + (a ? a.min : 0), 0) / 60,
+    standardPauseMin: effektivStartDag.pauseMin,
+  });
+  const pauseEtterTimerFor = (dato: string) =>
+    input.effektivPerDato[dato]?.pauseEtterTimer ??
+    regel?.standardPauseEtterTimer ??
+    DEFAULT_PAUSE_ETTER_TIMER;
+  // Arbeid før hvert segment: sedelens rader før segmentstart + tidligere segmenter.
+  let arbeidTidligereSeg = 0;
+  const arbeidForSeg = arbeidPerSeg.map((a) => {
+    const her = arbeidTidligereSeg;
+    arbeidTidligereSeg += a ? a.min : 0;
+    return her;
+  });
+  const passererGrensen = (i: number): boolean => {
+    const a = arbeidPerSeg[i];
+    if (!a) return false;
+    const rader = input.eksisterendeSedelPerDato[segmenter[i]!.dato]?.eksisterendeRader ?? [];
+    const radArbeid = rader.reduce((sum, r) => {
+      if (!r.fraTid || !r.tilTid) return sum;
+      const f = hhmmTilMin(r.fraTid);
+      const t = hhmmTilMin(r.tilTid);
+      return t > f && f < a.fraMin ? sum + (Math.min(t, a.fraMin) - f) : sum;
+    }, 0);
+    const foer = arbeidForSeg[i]! + radArbeid;
+    const grense = Math.round(pauseEtterTimerFor(segmenter[i]!.dato) * 60);
+    return foer < grense && foer + a.min > grense;
+  };
+  let baererIdx = segmenter.findIndex((_, i) => passererGrensen(i));
+  if (baererIdx < 0) {
+    baererIdx = arbeidPerSeg.reduce((sist, a, i) => (a ? i : sist), -1);
+  }
+  // Spennkrav (VILKÅR 1, gate 2026-11-14): bæreren må ha arbeid LENGRE enn
+  // pausen, ellers pause 0 og fullt spenn (samme krav som `dagPauseMinForNyttArbeid`).
+  const baererKanBaere = (arbeidPerSeg[baererIdx]?.min ?? 0) > dagPauseMin;
+  const pauseFordelt = segmenter.map((_, i) =>
+    i === baererIdx && baererKanBaere ? dagPauseMin : 0,
+  );
+  // Pausepunktet pr. segment (brukes av `beregnSegment` for bærerens pauseFra).
+  const pauseFraPerSeg = segmenter.map((seg, i) => {
+    const a = arbeidPerSeg[i];
+    if (!a) return null;
+    const effektiv = input.effektivPerDato[seg.dato];
+    const pauseEtterTimer = pauseEtterTimerFor(seg.dato);
+    return pauseFraForRad({
+      fraTid: minTilHhmm(a.fraMin),
+      tilTid: minTilHhmm(a.fraMin + a.min),
+      andreRader: input.eksisterendeSedelPerDato[seg.dato]?.eksisterendeRader ?? [],
+      pauseEtterTimer,
+      pauseMin: retting?.perDato?.[seg.dato]?.pauseMin ?? effektivStartDag.pauseMin,
+      fastPauseFra: effektiv
+        ? fastPauseFraFor({
+            startTid: effektiv.startTid,
+            pauseEtterTimer,
+            pauseReferanse: effektiv.pauseReferanse ?? "ankomst",
+          })
+        : null,
+      arbeidForEkstraMin: arbeidForSeg[i]!,
+    });
+  });
 
   // F4: byggeplass-default-kjede → GPS (arbeidsdag) → global kontekst → ingen.
   // D2: kontekst-fallback kun når utkastets prosjekt = aktivt prosjekt.
@@ -831,13 +952,13 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       aktivitetId: aktivitet.id,
       byggeplassId: byggeplassDefault,
       pauseMin: rettDato?.pauseMin ?? pauseFordelt[i]!,
+      pauseFra: pauseFraPerSeg[i] ?? null,
       fjernArbeid: rettDato?.fjernArbeid === true,
       overtidFra: rettDato?.overtidFra ?? null,
       overtidLonnsartId: rettDato?.overtidLonnsartId ?? null,
       utReise: segUt,
       returReise: segRetur,
       tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
-      standardPauseEtterTimer: regel?.standardPauseEtterTimer ?? null,
       deltVedMidnatt,
       sluttTidKilde,
       effektiv: input.effektivPerDato[seg.dato],
@@ -904,6 +1025,8 @@ function beregnSegment(a: {
   aktivitetId: string;
   byggeplassId: string | null;
   pauseMin: number;
+  /** ORDRE 2026-11-13: pausepunktet (`pauseFraForRad`) for segmentets arbeid. */
+  pauseFra: string | null;
   /** L3-A: arbeideren fjernet datoens arbeidsrader (K12 a — reisen står). */
   fjernArbeid: boolean;
   /** ORDRE 34 pkt 4: rettet overtid-start "HH:MM" — null = split ved dagsnorm. */
@@ -915,7 +1038,6 @@ function beregnSegment(a: {
   /** Retur-reise (reisetid) på slutt-segmentet — forskyver arbeidsslutt + egen rad. null ellers. */
   returReise: ReiseRadResolvert | null;
   tidsrundingMinutter: number | null;
-  standardPauseEtterTimer: number | null;
   deltVedMidnatt: boolean;
   sluttTidKilde: "bruker" | "midnatt" | "system";
   effektiv: DagsforslagEffektiv | undefined;
@@ -964,17 +1086,23 @@ function beregnSegment(a: {
   // fra slutt-GPS. Reisen trekkes dermed via vinduet, ikke via timene — det gamle
   // `totalTimer − reisetidTimer` er FJERNET (ville trukket reisen to ganger med
   // etapper i begge ender).
-  const utMs = (a.utReise ? a.utReise.kjoretidMin : 0) * 60_000;
-  const returMs = (a.returReise ? a.returReise.kjoretidMin : 0) * 60_000;
-  const arbeidsstartMs = new Date(segment.startIso).getTime() + utMs;
-  const arbeidssluttMs = new Date(segment.sluttIso).getTime() - returMs;
+  // Avrunding (Kenneth 2026-11-13: «benytt fra til -> rund av til nærmeste 15
+  // minutter»): arbeidsstart og arbeidsslutt rundes HVER FOR SEG til firmaets
+  // tidsrunding-grid; timene er det rundede spennet minus pausen, så
+  // `rad.timer = effektiveTimerFraSpenn(fra, til, pauseFra, pauseMin)` holder.
+  // Den gamle avrundingen av varigheten er fjernet. En kant som BERØRER en
+  // reise-etappe rundes ikke — reise-vinduet er utledet fra GPS ± matrise og må
+  // fortsatt møte arbeidet i endepunktet (rører, overlapper ikke).
+  const { startMs: arbeidsstartMs, sluttMs: arbeidssluttMs } = arbeidsvinduMs(
+    segment,
+    a.utReise,
+    a.returReise,
+    a.tidsrundingMinutter,
+  );
   const arbeidsstartIso = new Date(arbeidsstartMs).toISOString();
   const bruttoVinduTimer = Math.max(0, (arbeidssluttMs - arbeidsstartMs) / 3_600_000);
-  // F-B: rund arbeidstimer til firmaets tidsrunding-grid FØR normaltid/overtid-
-  // splitten. Reise rundes ikke.
-  const raaArbeid =
+  const arbeidstimer =
     Math.round(Math.max(0, bruttoVinduTimer - a.pauseMin / 60) * 100) / 100;
-  const arbeidstimer = rundTimerTilNarmeste(raaArbeid, a.tidsrundingMinutter);
 
   const rader: DagsforslagRad[] = [];
   const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
@@ -989,24 +1117,16 @@ function beregnSegment(a: {
     // `reisetidTellerOvertid`-fradraget i terskelen er fjernet (flagget leses ikke).
     const dagsnorm = effektivDagsnorm > 0 ? effektivDagsnorm : arbeidstimer;
 
-    const pauseEtterTimer =
-      a.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
     // Carve fra ARBEIDSSTART (etter ut-etappen), ikke segment-GPS-start.
     // reisetidTimer=0: vinduet har alt ekskludert reisen (B2).
     const arbeidsstartHHMM = tilHHMM(arbeidsstartIso);
-    // B3 (V6): pausevinduet. "fastStart" → fra firmaets sesongjusterte starttid;
-    // "ankomst" (default) → fra arbeidsstart (etter reisen) — legger aldri pausen
-    // i en reise.
-    const pauseFraTid =
-      a.effektiv?.pauseReferanse === "fastStart"
-        ? (a.effektiv?.startTid ?? arbeidsstartHHMM)
-        : arbeidsstartHHMM;
-    // ORDRE 36e pkt. 4: pausevinduet må ligge inne i arbeidstiden, ellers bærer
-    // ingen rad pausen (F5 krever klokke-gap) mens timene alt er trukket.
+    // ORDRE 2026-11-13: pausepunktet fra `beregnDagsforslag` (der summert
+    // arbeid passerer grensen). ORDRE 36e pkt. 4: klemmes inn i arbeidstiden
+    // som sikkerhet, så bæreren alltid har pausen i raden.
     const pauseFra = klemPauseInnIArbeid({
       arbeidsstartHHMM,
       arbeidstimer,
-      pauseFra: pauseVinduFra(pauseFraTid, pauseEtterTimer),
+      pauseFra: a.pauseFra ?? arbeidsstartHHMM,
       pauseMin: a.pauseMin,
     });
     const carvet = carveArbeidstider({

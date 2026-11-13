@@ -242,6 +242,8 @@ export function samleDagsforslagInput(
       pauseMin: tider.pauseMin,
       dagsnorm: norm?.dagsnorm ?? 0,
       pauseReferanse: norm?.pauseReferanse ?? "ankomst",
+      // RETUR 2026-11-13: firmaets pausegrense fra svar-cachen (server-verdien).
+      ...(norm?.pauseEtterTimer != null ? { pauseEtterTimer: norm.pauseEtterTimer } : {}),
       normStatus: norm?.normStatus ?? "ukjent",
       // B5: snapshot av normen svar-cachen hadde (null når ukjent — ingen svar).
       // hentetAt (Unix ms) → ISO i snapshotet.
@@ -314,7 +316,11 @@ function lesEksisterendeSedel(
     return { finnes: false, status: null, eksisterendeRader: [] };
   }
   const rader = db
-    .select({ fraTid: sheetTimerLocal.fraTid, tilTid: sheetTimerLocal.tilTid })
+    .select({
+      fraTid: sheetTimerLocal.fraTid,
+      tilTid: sheetTimerLocal.tilTid,
+      pauseMin: sheetTimerLocal.pauseMin,
+    })
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
     .all();

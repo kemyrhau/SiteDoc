@@ -194,7 +194,7 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
     expect(arbeidsTimer(f)).toBeCloseTo(11.5, 5);
   });
 
-  it("3. pause-fordeling: terskelgate (<5,5t ⇒ 0 pause) + pause lander på lengste segment", () => {
+  it("3. pause-fordeling: terskelgate (<5,5t ⇒ 0 pause) + pause der summert arbeid passerer grensen", () => {
     // 3a: kort dag under 5,5t-terskelen ⇒ ingen pause trekkes.
     const kort = beregnDagsforslag(
       lagInput({ sluttIso: "2026-10-01T12:00:00" }), // 5t
@@ -209,7 +209,8 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
     expect(arbeidsTimer(lang)).toBeCloseTo(5.5, 5);
     expect(lang.datoer[0]!.pauseMin).toBe(30);
 
-    // 3c: midnatt-splitt [5t, 7t] ⇒ pausen lander HELT på det lengste segmentet.
+    // 3c: midnatt-splitt [5t, 7t] ⇒ ORDRE 2026-11-13 «pausen trekkes etter 4
+    // ARBEIDStimer»: 4 t arbeid er nådd 23:00 i seg0 ⇒ seg0 bærer hele pausen.
     const delt = beregnDagsforslag(
       lagInput({
         dag: {
@@ -226,9 +227,9 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
         },
       }),
     );
-    // seg0 = 5t (19→24), seg1 = 7t (00→07): pause→lengste (seg1).
-    expect(delt.datoer[0]!.pauseMin).toBe(0);
-    expect(delt.datoer[1]!.pauseMin).toBe(30);
+    // seg0 = 5t (19→24), seg1 = 7t (00→07): grensen passeres i seg0.
+    expect(delt.datoer[0]!.pauseMin).toBe(30);
+    expect(delt.datoer[1]!.pauseMin).toBe(0);
   });
 
   it("4. kappet glemt-dag: spenn > 16t kappes til start + dagsnorm, kilde = 'system'", () => {

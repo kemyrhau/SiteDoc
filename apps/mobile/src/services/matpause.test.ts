@@ -75,7 +75,7 @@ const PAUSE_FRA = "11:00"; // pauseVinduFra("07:00", 4.0)
 //  PK2-regelen — ren (brukt av leggTil + oppdater ved lagring)
 // ============================================================================
 describe("avgjorRadPauseMin (V20 PK2)", () => {
-  const base = { pauseFra: PAUSE_FRA, standardPauseMin: 30 };
+  const base = { pauseEtterTimer: 4, standardPauseMin: 30 };
 
   it("(b) én manuell rad 07:00–15:00 blir bærer → 30, og timer = 7.50", () => {
     const pm = avgjorRadPauseMin({
@@ -101,7 +101,7 @@ describe("avgjorRadPauseMin (V20 PK2)", () => {
     expect(effektiveTimerFraSpenn("07:00", "12:00", PAUSE_FRA, pm)).toBe(5);
   });
 
-  it("raden krysser ikke pausevinduet (12:00–18:00) → 0", () => {
+  it("ORDRE 2026-11-13: én rad 12:00–18:00 (6 t) → 30 — et klokkevindu (11:00) avgjør ikke lenger", () => {
     const pm = avgjorRadPauseMin({
       ...base,
       alleRader: [],
@@ -109,7 +109,7 @@ describe("avgjorRadPauseMin (V20 PK2)", () => {
       fraTid: "12:00",
       tilTid: "18:00",
     });
-    expect(pm).toBe(0);
+    expect(pm).toBe(30);
   });
 
   it("en ANNEN rad bærer alt → 0 (kun-én-pr.-dag)", () => {
@@ -138,8 +138,8 @@ describe("avgjorRadPauseMin (V20 PK2)", () => {
     expect(pm).toBe(30);
   });
 
-  it("to korte rader der SUM > 5,5 t: bæreren er den som krysser vinduet", () => {
-    // Rad 1 finnes (07:00–11:30, krysser), ny rad 12:00–16:00 krysser ikke → 0.
+  it("to korte rader der SUM > 5,5 t: rad 1 bærer alt → ny rad 0 (én pr. dag)", () => {
+    // Rad 1 finnes (07:00–11:30, bærer 30), ny rad 12:00–16:00 → 0.
     const pm = avgjorRadPauseMin({
       ...base,
       alleRader: [
@@ -216,7 +216,7 @@ function seedLagretManuellRad() {
     radId: null,
     fraTid: "07:00",
     tilTid: "15:00",
-    pauseFra: PAUSE_FRA,
+    pauseEtterTimer: 4,
     standardPauseMin: 30,
   });
   db()
@@ -299,26 +299,31 @@ describe("matpauseKontekst — PK5 pausevindu (sql.js)", () => {
       .run();
   }
 
-  it("uten cachet norm → fastStart fra kalenderens skiftstart (07:00+4t = 11:00)", () => {
-    // Ingen arbeidstid_svar_local-rad → norm=null → fastStart-fallback. Radens
-    // fraTid 08:00 skal IKKE flytte vinduet (fastStart er default).
-    const { pauseFra } = matpauseKontekst("o1", "2026-10-06", [{ fraTid: "08:00" }]);
-    expect(pauseFra).toBe("11:00");
+  // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer»: konteksten gir
+  // pausepunktet PR. RAD (`pauseFraFor`) — der summert arbeid passerer grensen;
+  // «fastStart» bruker fast klokkeslett når det ligger i raden (tolkning b(2)).
+  it("uten cachet norm → fastStart fra kalenderens skiftstart: 07:00+4t = 11:00 i raden 08:00–15:00", () => {
+    const k = matpauseKontekst("o1", "2026-10-06", [{ fraTid: "08:00" }]);
+    expect(k.pauseEtterTimer).toBe(4);
+    expect(k.fastPauseFra).toBe("11:00");
+    expect(k.pauseFraFor({ fraTid: "08:00", tilTid: "15:00" })).toBe("11:00");
   });
 
-  it("(test 6) pauseReferanse=ankomst → vindu fra tidligste rad-fraTid (08:00+4t = 12:00)", () => {
+  it("(test 6) pauseReferanse=ankomst → summert arbeid: 08–10 (2 t) + rad fra 10:30 → 12:30", () => {
     seedNorm("ankomst");
-    const { pauseFra } = matpauseKontekst("o1", "2026-10-06", [
-      { fraTid: "09:00" },
-      { fraTid: "08:00" },
+    const k = matpauseKontekst("o1", "2026-10-06", [
+      { id: "a", fraTid: "08:00", tilTid: "10:00" },
+      { id: "b", fraTid: "10:30", tilTid: "16:00" },
     ]);
-    // Ankomst: tidligste fraTid 08:00 + 4t = 12:00 — IKKE fastStart 11:00.
-    expect(pauseFra).toBe("12:00");
+    expect(k.fastPauseFra).toBeNull();
+    expect(k.pauseFraFor({ id: "b", fraTid: "10:30", tilTid: "16:00" })).toBe("12:30");
   });
 
-  it("pauseReferanse=fastStart (cachet) → 07:00+4t = 11:00 uansett rad-fraTid", () => {
+  it("pauseReferanse=fastStart (cachet) → 11:00 når det ligger i raden; ellers summert arbeid", () => {
     seedNorm("fastStart");
-    const { pauseFra } = matpauseKontekst("o1", "2026-10-06", [{ fraTid: "08:00" }]);
-    expect(pauseFra).toBe("11:00");
+    const k = matpauseKontekst("o1", "2026-10-06", [{ fraTid: "08:00" }]);
+    expect(k.pauseFraFor({ fraTid: "08:00", tilTid: "15:00" })).toBe("11:00");
+    // 11:00 ligger ikke i 12:00–18:00 → 4 t arbeid nås 16:00.
+    expect(k.pauseFraFor({ fraTid: "12:00", tilTid: "18:00" })).toBe("16:00");
   });
 });

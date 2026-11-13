@@ -65,7 +65,9 @@ export type OvertidForslag<L> = {
 /**
  * Regn ut overtidsforslag for dagens rader. Returnerer ett forslag pr. berørt
  * rad (tom liste når normen ikke passeres, normen mangler eller firmaet ikke
- * har en overtid-lønnsart). `pauseFra` = dagens pausevindu (`pauseVinduForDag`).
+ * har en overtid-lønnsart). `pauseFra` = pausepunktet: fast streng, eller pr. rad
+ * (ORDRE 2026-11-13 — pausen ligger der summert arbeid passerer grensen, jf.
+ * `pauseFraForRad`).
  */
 export function foreslaOvertidSplitt<
   L extends OvertidLonnsartKandidat & { id: string },
@@ -73,11 +75,11 @@ export function foreslaOvertidSplitt<
   rader: readonly OvertidForslagRad[],
   norm: number | null,
   lonnsarter: readonly L[],
-  opts: { pauseFra: string },
+  opts: { pauseFra: string | ((rad: OvertidForslagRad) => string) },
 ): OvertidForslag<L>[] {
   if (norm == null || norm <= 0) return [];
-  const { pauseFra } = opts;
-  const pauseFraMin = hhmmTilMin(pauseFra);
+  const pauseFraFor = (rad: OvertidForslagRad): string =>
+    typeof opts.pauseFra === "string" ? opts.pauseFra : opts.pauseFra(rad);
 
   const arbeid = rader
     .filter(
@@ -87,13 +89,15 @@ export function foreslaOvertidSplitt<
     .map((r) => {
       const fraMin = hhmmTilMin(r.fraTid);
       const tilMin = hhmmTilMin(r.tilTid);
+      const pauseFra = pauseFraFor(r);
+      const pauseFraMin = hhmmTilMin(pauseFra);
       const effMin =
         tilMin > fraMin
           ? tilMin -
             fraMin -
             pauseOverlappMin(fraMin, tilMin, pauseFraMin, r.pauseMin)
           : 0;
-      return { rad: r, fraMin, tilMin, effMin };
+      return { rad: r, fraMin, tilMin, effMin, pauseFra, pauseFraMin };
     })
     .filter((r) => r.effMin > 0)
     .sort((a, b) => a.fraMin - b.fraMin);
@@ -110,7 +114,7 @@ export function foreslaOvertidSplitt<
   const normMin = Math.round(norm * 60);
   const forslag: OvertidForslag<L>[] = [];
   let brukt = 0;
-  for (const { rad, fraMin, tilMin, effMin } of arbeid) {
+  for (const { rad, fraMin, tilMin, effMin, pauseFra, pauseFraMin } of arbeid) {
     const foer = brukt;
     brukt += effMin;
     if (rad.overtidsnivaa != null || brukt <= normMin) continue;

@@ -6,13 +6,12 @@ import {
   beregnMaskinBrudd,
   overstigerMaskinTak,
   visVareforbrukKnapp,
-  hhmmTilMin,
-  pauseOverlappMin,
 } from "@sitedoc/shared";
 import {
   matpauseKontekst,
   matpauseRegelTrigget,
-  radKrysserPause,
+  radKanBaerePause,
+  pauseTrukketMinForRad,
 } from "../../../services/matpause";
 import { hentDatabase } from "../../../db/database";
 import { useAuth } from "../../../providers/AuthProvider";
@@ -208,7 +207,7 @@ export function ProsjektkortDagsoversikt({
   const { erPaaNettet } = useNettverk();
 
   // 36b: matpausen er dag-nivå — samme regel som dagskortets rad-kort.
-  const { pauseFra, standardPauseMin } = useMemo(
+  const { standardPauseMin } = useMemo(
     () => matpauseKontekst(sedel.organizationId, sedel.dato, timerRader),
     [sedel.organizationId, sedel.dato, timerRader],
   );
@@ -217,13 +216,10 @@ export function ProsjektkortDagsoversikt({
     [timerRader, standardPauseMin],
   );
   const matpauseFor = (rad: TimerRad) =>
-    onPauseToggle && redigerbar && pauseRegelTrigget && radKrysserPause(rad, pauseFra, standardPauseMin)
+    onPauseToggle && redigerbar && pauseRegelTrigget && radKanBaerePause(rad, standardPauseMin)
       ? {
           avhuket: rad.pauseMin > 0,
-          trukketMin:
-            rad.fraTid && rad.tilTid
-              ? pauseOverlappMin(hhmmTilMin(rad.fraTid), hhmmTilMin(rad.tilTid), hhmmTilMin(pauseFra), rad.pauseMin)
-              : 0,
+          trukketMin: pauseTrukketMinForRad(rad),
           // Lukker modalen: flyttet skrives med en gang, og en åpen modal ville
           // lagret radens gamle pause-bærer tilbake.
           onToggle: () => {
