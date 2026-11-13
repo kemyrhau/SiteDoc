@@ -1237,6 +1237,21 @@ Timer- og maskinrader i web-dagsseddelen (`apps/web/src/app/dashbord/timer/[id]/
 
 **Tester:** `apps/api/src/routes/timer/byggeplass-rad.test.ts` (16: avvisning i alle skriveveier, utelatt = urørt på server, hjelpere), `apps/api/src/routes/timer/timer-lag2-sync.test.ts` (syncBatch-vasking: batchen fullfører, byggeplass `null`, logg), `apps/web/src/lib/__tests__/timerByggeplass.test.ts` (9, utelatt = urørt på klient).
 
+## Tillegg og utlegg på prosjektkortet — API
+
+**Status:** 🟡 `feat/timer-tillegg-utlegg-kort` (2026-11-13), ikke merget, venter Kontrollør-gate. Spec: [tillegg-utlegg-prosjektkort-spec.md](tillegg-utlegg-prosjektkort-spec.md) (B1–B8 vedtatt av Kenneth).
+
+`sheet_tillegg` og `sheet_utlegg` bærer `byggeplassId` og `externalCostObjectId` (underprosjekt). NULL betyr arv: byggeplass fra sedelen (A.30), underprosjekt ingen.
+
+- **Interaktive skriveveier** (`tilfoyTilleggRad`, `oppdaterTilleggRad`, `tilfoyUtleggRad`, `oppdaterUtleggRad`, `redigerSedelRader`, `splittRad`/`splittRadEier` i `apps/api/src/routes/timer/dagsseddel.ts`) avviser byggeplass utenfor radens prosjekt (`krevByggeplasserIProsjekt`) og underprosjekt utenfor radens prosjekt eller firma (`krevEcoerIProsjekt` i `apps/api/src/routes/timer/byggeplass-rad.ts`) med BAD_REQUEST. Et utelatt felt i `oppdater*` lar verdien stå.
+- **`syncBatch`** avviser aldri: et fremmed felt vaskes til `null` (`kortFeltVedSync` + `lagEcoVasker`), et utelatt felt blir `null`. En gammel klient som ikke kjenner feltene, gir dermed arv. `hentEndringerSiden` returnerer feltene.
+- **Splitt:** delene arver originalens felt når de står på samme prosjekt og ikke oppgir egne (`arvTilleggKort`); bytter delen prosjekt, nulles feltene.
+- **`redigerSedelRader`** skriver `?? null` for tillegg — webklienten må sende feltene, ellers nulles de ved redigering.
+- **B7 flytt:** `flyttTimerRadEco` tar `radType: "timer" | "tillegg"` (standard `"timer"`). Tillegg logges som `tillegg.eco-flyttet` på `sheet_tillegg`. Samme ECO-krav som timer (aktiv, åpen for timeregistrering, samme prosjekt).
+- **B8 eksport:** `rapport.detaljEksport` (`apps/api/src/routes/timer/rapport.ts`) gir `byggeplass` (radens, ellers sedelens) og `underprosjekt` («proAdmId · kortNavn», firma-scopet oppslag) på timerader, maskinrader, tillegg og utlegg. Kolonnene i arket kommer i web-commiten.
+
+Tester: `apps/api/src/routes/timer/tillegg-utlegg-kort-api.test.ts` (T2–T4 + B7), `tillegg-utlegg-kort-migrering.test.ts` (T1).
+
 ## Hjelpetekster (?-ikonet) — alle timer-sider
 
 Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side i SiteDoc ha hjelpetekst tilgjengelig via ?-ikonet øverst til høyre. For timer-modulen gjelder dette ALLE sider — bygges samtidig med siden, oppdateres når siden endres.

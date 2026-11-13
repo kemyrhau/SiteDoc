@@ -400,6 +400,9 @@ export const rapportRouter = router({
               belop: true,
               kommentar: true,
               projectId: true,
+              // Tillegg/utlegg på prosjektkortet (B8): kortet raden er ført på.
+              byggeplassId: true,
+              externalCostObjectId: true,
               expenseCategory: { select: { navn: true } },
             },
           },
@@ -478,11 +481,19 @@ export const rapportRouter = router({
         });
         for (const o of steder) oppmotestedMap.set(o.id, o.navn);
       }
+      // B8 (tillegg/utlegg på prosjektkortet): byggeplass-navn for ALLE radtyper
+      // og sedelens egen (arv når radens er NULL, A.30).
       const byggeplassIder = Array.from(
         new Set(
-          sedler.flatMap((s) =>
-            s.timer.map((r) => r.byggeplassId).filter((id): id is string => id != null),
-          ),
+          sedler
+            .flatMap((s) => [
+              s.byggeplassId,
+              ...s.timer.map((r) => r.byggeplassId),
+              ...s.maskiner.map((r) => r.byggeplassId),
+              ...s.tillegg.map((r) => r.byggeplassId),
+              ...s.utlegg.map((r) => r.byggeplassId),
+            ])
+            .filter((id): id is string => id != null),
         ),
       );
       const byggeplassMap = new Map<string, string>();
@@ -497,6 +508,35 @@ export const rapportRouter = router({
         id == null ? null : (oppmotestedMap.get(id) ?? null);
       const byggeplassNavn = (id: string | null): string | null =>
         id == null ? null : (byggeplassMap.get(id) ?? null);
+      // B8: effektiv byggeplass = radens, ellers sedelens (NULL = arv, A.30).
+      const effektivByggeplass = (
+        s: { byggeplassId: string | null },
+        r: { byggeplassId: string | null },
+      ): string | null => byggeplassNavn(r.byggeplassId ?? s.byggeplassId);
+
+      // B8: underprosjekt-navn («proAdmId · kortNavn») for alle radtyper, firma-scopet.
+      const ecoIder = Array.from(
+        new Set(
+          sedler
+            .flatMap((s) => [
+              ...s.timer.map((r) => r.externalCostObjectId),
+              ...s.maskiner.map((r) => r.externalCostObjectId),
+              ...s.tillegg.map((r) => r.externalCostObjectId),
+              ...s.utlegg.map((r) => r.externalCostObjectId),
+            ])
+            .filter((id): id is string => id != null),
+        ),
+      );
+      const ecoMap = new Map<string, string>();
+      if (ecoIder.length > 0) {
+        const ecoer = await prisma.externalCostObject.findMany({
+          where: { id: { in: ecoIder }, organizationId: orgId },
+          select: { id: true, kortNavn: true, proAdmId: true },
+        });
+        for (const e of ecoer) ecoMap.set(e.id, `${e.proAdmId} · ${e.kortNavn}`);
+      }
+      const underprosjektNavn = (id: string | null): string | null =>
+        id == null ? null : (ecoMap.get(id) ?? null);
 
       const iso = (d: Date): string => d.toISOString().slice(0, 10);
       const ansatt = (userId: string): string =>
@@ -529,6 +569,8 @@ export const rapportRouter = router({
           ansatt: ansatt(s.userId),
           ansattnr: ansattnummerMap.get(s.userId) ?? null,
           prosjekt: prosjektNavn(r.projectId),
+          byggeplass: effektivByggeplass(s, r),
+          underprosjekt: underprosjektNavn(r.externalCostObjectId),
           lonnsart: r.lonnsart?.navn ?? "(ukjent)",
           lonnsartType: r.lonnsart?.type ?? null,
           satsEnhet: r.lonnsart?.satsEnhet ?? null,
@@ -560,6 +602,8 @@ export const rapportRouter = router({
             .map((m) => ({
               id: m.id,
               navn: utstyrMap.get(m.vehicleId) ?? m.vehicleId,
+              byggeplass: effektivByggeplass(s, m),
+              underprosjekt: underprosjektNavn(m.externalCostObjectId),
               // Maskintimer = egen størrelse (attesteringsflaten summerer den
               // separat), egen kolonne i eksporten — aldri i timer-kolonnen.
               timer: Number(m.timer),
@@ -582,6 +626,8 @@ export const rapportRouter = router({
         ansatt: ansatt(s.userId),
         ansattnr: ansattnummerMap.get(s.userId) ?? null,
         prosjekt: prosjektNavn(m.projectId),
+        byggeplass: effektivByggeplass(s, m),
+        underprosjekt: underprosjektNavn(m.externalCostObjectId),
         navn: utstyrMap.get(m.vehicleId) ?? m.vehicleId,
         timer: Number(m.timer),
         mengde: m.mengde === null ? null : Number(m.mengde),
@@ -625,6 +671,8 @@ export const rapportRouter = router({
           ansatt: ansatt(s.userId),
           ansattnr: ansattnummerMap.get(s.userId) ?? null,
           prosjekt: prosjektNavn(r.projectId),
+          byggeplass: effektivByggeplass(s, r),
+          underprosjekt: underprosjektNavn(r.externalCostObjectId),
           tillegg: r.tillegg?.navn ?? "(ukjent)",
           antall: Number(r.antall),
           kommentar: r.kommentar,
@@ -640,6 +688,8 @@ export const rapportRouter = router({
           ansatt: ansatt(s.userId),
           ansattnr: ansattnummerMap.get(s.userId) ?? null,
           prosjekt: prosjektNavn(r.projectId),
+          byggeplass: effektivByggeplass(s, r),
+          underprosjekt: underprosjektNavn(r.externalCostObjectId),
           kategori: r.expenseCategory?.navn ?? "(ukjent)",
           belop: r.belop === null ? null : Number(r.belop),
           kommentar: r.kommentar,

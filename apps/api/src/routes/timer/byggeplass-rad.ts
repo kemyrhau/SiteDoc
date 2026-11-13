@@ -91,3 +91,69 @@ export function maskinByggeplassVedSync(
 ): string | null {
   return vask(m.byggeplassId ?? sedelByggeplass);
 }
+
+const FEIL_ECO_UTENFOR_PROSJEKT = "Underprosjektet hører ikke til radens prosjekt";
+
+type EcoVasker = (
+  externalCostObjectId: string | null | undefined,
+  projectId: string | null | undefined,
+) => string | null;
+
+/**
+ * Tillegg/utlegg på prosjektkortet (spec tillegg-utlegg-prosjektkort § 2.2):
+ * underprosjektet (ExternalCostObject, svak FK i kjernen) må høre til radens
+ * prosjekt og firmaet, og ikke være slettet. Én spørring for alle rader; vaskeren
+ * gir id-en tilbake bare for riktig prosjekt, ellers `null`. Status (aktiv/åpen)
+ * sjekkes IKKE her — det er attestantens flytt-sjekk (flyttTimerRadEco); en rad
+ * ført mens underprosjektet var åpent skal kunne synkes etter at det stenges.
+ */
+export async function lagEcoVasker(
+  ecoIder: (string | null | undefined)[],
+  organizationId: string,
+): Promise<EcoVasker> {
+  const ider = Array.from(new Set(ecoIder.filter((e): e is string => !!e)));
+  if (ider.length === 0) return () => null;
+  const treff = await prisma.externalCostObject.findMany({
+    where: { id: { in: ider }, organizationId, slettetVed: null },
+    select: { id: true, projectId: true },
+  });
+  const prosjektFor = new Map(treff.map((e) => [e.id, e.projectId]));
+  return (ecoId, projectId) =>
+    ecoId && projectId && prosjektFor.get(ecoId) === projectId ? ecoId : null;
+}
+
+/** Interaktive skriveveier: avvis underprosjekt fra annet prosjekt/firma. */
+export async function krevEcoerIProsjekt(
+  rader: { externalCostObjectId?: string | null; projectId: string }[],
+  organizationId: string,
+): Promise<void> {
+  const vask = await lagEcoVasker(
+    rader.map((r) => r.externalCostObjectId),
+    organizationId,
+  );
+  if (
+    rader.some(
+      (r) => r.externalCostObjectId && vask(r.externalCostObjectId, r.projectId) === null,
+    )
+  ) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: FEIL_ECO_UTENFOR_PROSJEKT });
+  }
+}
+
+/**
+ * syncBatch for tillegg/utlegg: kortfeltene vaskes mot radens prosjekt.
+ * Utelatt/null = NULL = arver sedelens byggeplass (A.30) — IKKE sedelens verdi
+ * skrevet inn som maskin gjør (`maskinByggeplassVedSync`): eldre klienter sender
+ * ikke feltene, og raden skal da bety nøyaktig det den betydde før. Fremmed → null.
+ */
+export function kortFeltVedSync(
+  r: { byggeplassId?: string | null; externalCostObjectId?: string | null },
+  projectId: string,
+  vaskByggeplass: (byggeplassId: string | null | undefined, projectId: string) => string | null,
+  vaskEco: (ecoId: string | null | undefined, projectId: string) => string | null,
+): { byggeplassId: string | null; externalCostObjectId: string | null } {
+  return {
+    byggeplassId: vaskByggeplass(r.byggeplassId, projectId),
+    externalCostObjectId: vaskEco(r.externalCostObjectId, projectId),
+  };
+}
