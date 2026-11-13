@@ -629,6 +629,7 @@ export default function BekreftDagSkjerm() {
   useEffect(
     () => () => {
       let eide: string[] = [];
+      let flushFeilet = false;
       try {
         skrivUtkastNaa();
         const k = utkastKontekstRef.current;
@@ -639,12 +640,14 @@ export default function BekreftDagSkjerm() {
         }
       } catch {
         eide = [];
+        flushFeilet = true;
       }
       for (const sti of pendingKvitteringer.current) {
         if (!eide.includes(sti)) void slettLokaltBilde(sti);
       }
-      // Fjernede kvitteringer som siste skrevne utkast ikke lenger eier.
-      for (const sti of fjernetKvitteringer.current) {
+      // Fjernede kvitteringer som siste skrevne utkast ikke lenger eier. Feilet
+      // flushen, kan forrige rad fortsatt eie fila — da blir den stående.
+      if (!flushFeilet) for (const sti of fjernetKvitteringer.current) {
         if (!eide.includes(sti)) void slettLokaltBilde(sti);
       }
     },

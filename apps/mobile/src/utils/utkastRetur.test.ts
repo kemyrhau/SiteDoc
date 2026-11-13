@@ -106,6 +106,11 @@ describe("V10 — avvik 10: kvitteringsfil slettes først etter skrevet utkast u
         "for (const sti of fjernetKvitteringer.current) { void slettLokaltBilde(sti);",
       ],
     );
+    // Feilet flushen (catch), kan forrige rad fortsatt eie fila: hopp over løkka.
+    vakt(SKJERM, /\} catch \{\s*eide = \[\];\s*flushFeilet = true;\s*\}[\s\S]*?if \(!flushFeilet\) for \(const sti of fjernetKvitteringer\.current\)/, [
+      "if (!flushFeilet) for (const sti of fjernetKvitteringer.current)",
+      "for (const sti of fjernetKvitteringer.current)",
+    ]);
   });
 
   it("🔴 BekreftDagLonnUtlegg: callback når gitt, ellers straks-sletting som før", () => {
@@ -160,15 +165,21 @@ describe("V12 — avvik 12: GPS-utkast i lista går samme sti som «Slutt dag»"
 
   it("🔴 lista kaller forberedSluttDag og navigerer med resultatet", () => {
     const kropp = callbackKropp(LISTE, "aapneUtkast");
-    vakt(
-      kropp,
-      /forberedSluttDag\(\{ arbeidsdag: dag, orgId: [^}]*klient: utils\.client \}\)\s*\.then\(\(params\) => router\.push\(\{ pathname: "\/timer\/bekreft-dag", params \}\)\)/,
-      // Mutant: lista hopper over funksjonen (som før rettingen).
-      [
-        /void forberedSluttDag\([\s\S]*?\}\);\n/,
-        'router.push({ pathname: "/timer/bekreft-dag", params: { arbeidsdagId: dag.id, sluttIso: new Date().toISOString(), endLat: "", endLng: "", sisteSegmentKilde: "bruker" } });\n',
-      ],
-    );
+    // Argumentene matches eksakt: ett ekstra felt (f.eks. overstyrtSluttIso, som
+    // hopper over GPS og gir endLat: "") skal felle vakten.
+    const re =
+      /forberedSluttDag\(\{ arbeidsdag: dag, orgId: valgtFirmaId \?\? "", klient: utils\.client \}\)\s*\.then\(\(params\) => router\.push\(\{ pathname: "\/timer\/bekreft-dag", params \}\)\)/;
+    // Mutant: lista hopper over funksjonen (som før rettingen).
+    vakt(kropp, re, [
+      /void forberedSluttDag\([\s\S]*?\}\);\n/,
+      'router.push({ pathname: "/timer/bekreft-dag", params: { arbeidsdagId: dag.id, sluttIso: new Date().toISOString(), endLat: "", endLng: "", sisteSegmentKilde: "bruker" } });\n',
+    ]);
+    // Mutant K1a (Kontrollør): lista overstyrer sluttidspunktet → GPS hoppes over.
+    vakt(kropp, re, [
+      "orgId: valgtFirmaId ?? \"\", klient: utils.client })",
+      "orgId: valgtFirmaId ?? \"\", overstyrtSluttIso: new Date().toISOString(), klient: utils.client })",
+    ]);
+    expect(kropp).not.toMatch(/overstyrtSluttIso/);
     // Ingen tom posisjon hardkodet noe sted i lista.
     expect(LISTE).not.toMatch(/endLat: ""/);
   });

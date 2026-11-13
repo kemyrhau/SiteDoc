@@ -414,7 +414,7 @@ describe("Utkast — kildevakter i bekreft-dag.tsx (V1–V6)", () => {
 
   it("🔴 V4: unmount sletter bare kvitteringer utkastet IKKE eier", () => {
     const re =
-      /try \{\s*skrivUtkastNaa\(\);[\s\S]*?eide = finnUtkast\([\s\S]*?\} catch \{\s*eide = \[\];\s*\}\s*for \(const sti of pendingKvitteringer\.current\) \{\s*if \(!eide\.includes\(sti\)\) void slettLokaltBilde\(sti\);/;
+      /try \{\s*skrivUtkastNaa\(\);[\s\S]*?eide = finnUtkast\([\s\S]*?\} catch \{\s*eide = \[\];\s*flushFeilet = true;\s*\}\s*for \(const sti of pendingKvitteringer\.current\) \{\s*if \(!eide\.includes\(sti\)\) void slettLokaltBilde\(sti\);/;
     vakt(re, ["if (!eide.includes(sti)) void slettLokaltBilde(sti);", "void slettLokaltBilde(sti);"]);
     // Ubetinget sletting (som før utkastet) finnes ikke.
     expect(SKJERM).not.toMatch(/for \(const sti of pendingKvitteringer\.current\) void slettLokaltBilde/);
