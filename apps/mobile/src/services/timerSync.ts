@@ -16,6 +16,7 @@ import {
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
 import { varsleKoen } from "../lib/koTrigger";
+import { leggTilbakeUsendteLinjer, taLokaltOyeblikksbilde, type LokaltOyeblikksbilde } from "../lib/konfliktWebUsendte";
 import type { LokalDb } from "./dagsforslagInput";
 
 /**
@@ -558,6 +559,14 @@ async function kjorTimerSync(
           .run();
         // V19.9.8: skriv versjon for skrevne rader (ikke hoppetOver) + restemple.
         skrivRadVersjoner(r.clientUuid, r.serverData.rader, naa, byggetVed);
+        // Plan A: linjene payloaden bar, finnes nå på serveren. En linje opprettet eller
+        // endret under pushen (stempel > byggetVed) merkes ikke — den sendes neste gang.
+        for (const tabell of [sheetTilleggLocal, sheetUtleggLocal, sheetMachineLocal] as const) {
+          db.update(tabell)
+            .set({ paaServer: true })
+            .where(and(eq(tabell.dagsseddelId, r.clientUuid), lte(tabell.sistEndretLokalt, byggetVed)))
+            .run();
+        }
         // V19.9 (RETUR 1, vilkår 3): hoppede rader må speiles fra serveren (ellers
         // står telefonen med stale innhold + stale versjon → neste redigering gir R4).
         if (r.serverData.hoppetOver && r.serverData.hoppetOver.length > 0) {
@@ -1294,6 +1303,7 @@ async function kjorTimerSync(
       // projectId/dato/tider/beskrivelse røres IKKE — den lokale header-en er
       // del av det eneste eksemplaret til konflikten er løst, og skal ikke
       // klobbes av server-versjonen (presisering, orkestrator TILLEGG 5).
+      let webLostBilde: LokaltOyeblikksbilde | null = null;
       if (lokal && lokal.syncStatus === "conflict") {
         // V19.7b (B-3b): veien ut av lokal `conflict` når valget er tatt på PC.
         // Slipp raderstatningen KUN når (a) årsaken er "overlapp" OG (b) serveren
@@ -1311,6 +1321,10 @@ async function kjorTimerSync(
           lokal.konfliktAarsak === "overlapp" &&
           ss.konfliktVentendeSiden === null &&
           ss.antallForslag === 0;
+        if (overlappLostPaaPc) {
+          // Plan A: les telefonens linjer FØR raderstatningen sletter dem.
+          webLostBilde = taLokaltOyeblikksbilde(db, maalId);
+        }
         if (!overlappLostPaaPc) {
           // Minimalt hode: KUN status/lederKommentar/attestertVed/sistSynkronisert.
           db.update(dagsseddelLocal)
@@ -1563,6 +1577,7 @@ async function kjorTimerSync(
             antall: tl.antall,
             kommentar: tl.kommentar,
             ...kortFeltFraServer(tl as unknown as Partial<KortFelt>, kortFor.get(tl.id)),
+            paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -1621,6 +1636,7 @@ async function kjorTimerSync(
             enhet: m.enhet,
             fraTid: m.fraTid ?? null,
             tilTid: m.tilTid ?? null,
+            paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -1646,6 +1662,7 @@ async function kjorTimerSync(
             ordningVedFoering: u.ordningVedFoering,
             foertVed: new Date(u.foertVed).getTime(),
             ...kortFeltFraServer(u as unknown as Partial<KortFelt>, kortFor.get(u.id)),
+            paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -1676,6 +1693,36 @@ async function kjorTimerSync(
               })
               .run();
           }
+        }
+      }
+      // Plan A (2026-11-13): overlapp-konflikten er løst på web. Serveren avviste hele
+      // pushen (`skrevet: false`), så linjer som aldri nådde den, finnes bare i bildet.
+      // Legg dem tilbake (ikke de med `paaServer` — de er slettet på web) og koble
+      // maskiner/ventende varer om. Noe lagt tilbake → `pending`, neste push sender det.
+      if (webLostBilde) {
+        const ss = serverSedel as unknown as {
+          timer: Array<{ id: string }>;
+          tillegg: Array<{ id: string }>;
+          maskiner?: Array<{ id: string }>;
+          utlegg?: Array<{ id: string }>;
+        };
+        const serverIder = new Set(
+          [...ss.timer, ...ss.tillegg, ...(ss.maskiner ?? []), ...(ss.utlegg ?? [])].map((r) => r.id),
+        );
+        const { lagtTilbake } = leggTilbakeUsendteLinjer(
+          db,
+          maalId,
+          webLostBilde,
+          serverIder,
+          levendeTombstoneIder,
+          sedelProjectId,
+          Date.now(),
+        );
+        if (lagtTilbake > 0) {
+          db.update(dagsseddelLocal)
+            .set({ syncStatus: "pending" })
+            .where(eq(dagsseddelLocal.id, maalId))
+            .run();
         }
       }
     }

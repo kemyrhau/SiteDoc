@@ -36,7 +36,6 @@ vi.mock("../../../db/database", () => ({
 }));
 vi.mock("../../../lib/i18n", () => ({ default: { t: (k: string) => k } }));
 
-import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../../../db/schema";
 import { kjorMigreringer } from "../../../db/migreringer";
@@ -48,7 +47,6 @@ const { dagsseddelLocal, sheetTilleggLocal, sheetUtleggLocal, slettedeRaderLocal
 
 type Db = NonNullable<ReturnType<typeof import("../../../db/database").hentDatabase>>;
 const db = () => holder.drizzle as Db;
-const K = { sheetId: "s1", organizationId: "o1" };
 
 beforeAll(async () => {
   const require = createRequire(import.meta.url);

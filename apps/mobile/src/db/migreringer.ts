@@ -1414,6 +1414,19 @@ export function kjorMigreringer() {
     }
   }
 
+  // Plan A (2026-11-13): tillegg/utlegg/maskin husker om serveren har raden. Additiv, nullable
+  // INTEGER, INGEN backfill — gamle rader får sann ved neste pull. Idempotent via PRAGMA.
+  for (const [tabell, kol] of PAA_SERVER_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} INTEGER`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+
   // L4-A (2026-11-12, spec timer-gps-lag3-4 § 2.2): byggeplass-besøk gjennom dagen.
   // KUN lokal, synkes aldri, ingen lat/lng. Ny tabell — eksisterende installasjoner
   // får den uten å røre andre data. Idempotent via IF NOT EXISTS.
@@ -1479,6 +1492,13 @@ export const RADFORM_LOCAL_KOLONNER = [["vareforbruk_local", "sheet_timer_id"]] 
 export const VEDLEGG_REGISTRERT_KOLONNER = [
   ["sheet_tillegg_vedlegg_local", "registrert"],
   ["sheet_utlegg_vedlegg_local", "registrert"],
+] as const;
+
+/** Plan A (konflikt løst på web): «raden finnes på serveren» (tabell, kolonne). */
+export const PAA_SERVER_KOLONNER = [
+  ["sheet_machine_local", "paa_server"],
+  ["sheet_tillegg_local", "paa_server"],
+  ["sheet_utlegg_local", "paa_server"],
 ] as const;
 
 /** Prosjektkort L3: lokale tabeller for vare-katalog og vareforbruk ført fra kortet. */
