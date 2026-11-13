@@ -55,10 +55,10 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
-| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG (prosjektkort-utkast RETUR 2026-11-13, inbox-orkestrator.md:21869) |
+| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | 🟡 RE-GATER prosjektkort-utkast `89c9495f` (vilkår 1–5). Ballen: Kontrollør |
 | **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `feat/sjekkliste-pdf-oppgaver-vedlegg` `c0563328` (merget `6db57534`) | ⚪ LEDIG |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `feat/timer-prosjektkort-utkast` `16d7a787` | 🔴 RETUR 2026-11-13: avvik 10 + 12 og telefonsteg 1/6/7 (vilkår 1–5). Ballen: Redesign |
+| **Redesign** | `SiteDoc-redesign` | `feat/timer-prosjektkort-utkast` `89c9495f` | 🟢 RETUR LEVERT 2026-11-13. Venter på re-gate; valg 3 (steg 7) venter på Kenneth |
 | **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `e346d51e` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG — REDESIGN-MASTERPLAN oppdatert, merget `2f867b43` 2026-11-13. Ti beslutninger (planens § 5) hos Kenneth |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
