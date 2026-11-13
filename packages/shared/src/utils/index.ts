@@ -178,6 +178,9 @@ export {
   pauseVinduForDag,
   utledArbeidstidFraRader,
   avgjorRadPauseMin,
+  avgjorRadPause,
+  pauseFraForRad,
+  fastPauseFraFor,
   dagPauseMinForNyttArbeid,
 } from "./pauseBeregning";
 export {

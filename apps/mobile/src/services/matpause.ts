@@ -3,11 +3,11 @@ import { hentDatabase } from "../db/database";
 import { sheetTimerLocal, dagsseddelLocal } from "../db/schema";
 import {
   effektiveTimerFraSpenn,
-  pauseVinduForDag,
-  pauseOverlappMin,
   hhmmTilMin,
   pauseMinForDag,
   avgjorRadPauseMin,
+  pauseFraForRad,
+  fastPauseFraFor,
   DEFAULT_PAUSE_ETTER_TIMER,
 } from "@sitedoc/shared";
 
@@ -31,10 +31,9 @@ import { hentDagsnormLokalt } from "./arbeidstidSvarKatalog";
  *  pauseMin): ved HVER endring settes `dagsseddel_local.pauseMin =
  *  Σ(sheet_timer_local.pauseMin)`. sheet_machines / maskinKapasitet.ts urørt.
  *
- *  Rad-timer holdes konsistent via den deployede modellen:
- *      rad.timer = effektiveTimerFraSpenn(fra, til, pauseFra, rad.pauseMin)
- *  (pauseMin=0 → fullt spenn; pauseMin>0 → spenn − lunsjoverlapp). «Ikke rør
- *  pause-vindus/terskel-modellen» — vi gjenbruker helperne fra pauseBeregning.
+ *  Rad-timer: rad.timer = effektiveTimerFraSpenn(fra, til, pauseFra, pauseMin)
+ *  der pauseFra = `pauseFraFor(rad)` ligger inne i raden → bæreren får
+ *  spenn − pause (ORDRE 2026-11-13, pausen etter 4 ARBEIDStimer).
  * ============================================================================ */
 
 type Rad = typeof sheetTimerLocal.$inferSelect;
@@ -52,23 +51,31 @@ export type MatpauseResultat =
   /** Ingen endring (ugyldig tilstand). */
   | { utfall: "ingen" };
 
+/** Det `matpauseKontekst` gir: pauselengde, firmaets grense og pausepunktet
+ *  pr. rad (ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer»). */
+export type MatpauseKontekst = {
+  standardPauseMin: number;
+  /** Firmaets `standardPauseEtterTimer` (svar-cache → innstilling → 4,0). */
+  pauseEtterTimer: number;
+  /** Kun `pauseReferanse = "fastStart"`: starttid + grense; ellers null. */
+  fastPauseFra: string | null;
+  /** Hvor pausen ligger i raden (delt `pauseFraForRad`). `id` utelater raden
+   *  selv fra «andre rader»; ny rad sendes uten id. */
+  pauseFraFor: (rad: { id?: string | null; fraTid: string; tilTid: string }) => string;
+};
+
 /**
- * Pausevindu-kontekst for en sedel: hvor lunsjen faller + dens lengde.
- *
- * V20/PK5 — vinduet følger firmaets `pauseReferanse` (én delt `pauseVinduForDag`
- * med server + web): «ankomst» regner fra dagens tidligste rad-`fraTid` (når
- * arbeidet faktisk begynte, etter evt. reise), «fastStart» fra skiftstart. Normen
- * (startTid/pauseEtterTimer/pauseReferanse) leses fra svar-cachen
- * (`hentDagsnormLokalt`, REGNER aldri); mangler den, fall tilbake til fastStart
- * fra kalenderens skiftstart + firma-innstilling — uendret atferd for
- * fastStart-firmaer og offline uten cachet norm. `rader` må sendes for at
- * «ankomst» skal finne tidligste fraTid; tom liste → vinduet rammes av skiftstart.
+ * Pause-kontekst for en sedel. Normen (startTid/pauseEtterTimer/pauseReferanse)
+ * leses fra svar-cachen (`hentDagsnormLokalt`, REGNER aldri); mangler den, fall
+ * tilbake til kalenderens skiftstart + firma-innstilling. Pausepunktet i en rad =
+ * der summert arbeid (dagens rader sortert på fraTid) passerer firmaets grense —
+ * samme `pauseFraForRad` som Bekreft dag, web og server. `rader` = dagens rader.
  */
 export function matpauseKontekst(
   organizationId: string,
   dato: string,
-  rader: readonly { fraTid?: string | null }[] = [],
-): { pauseFra: string; standardPauseMin: number } {
+  rader: readonly { id?: string | null; fraTid?: string | null; tilTid?: string | null }[] = [],
+): MatpauseKontekst {
   const setting = hentOrganizationSettingLokalt(organizationId);
   const standardPauseMin = setting?.standardPauseMin ?? 30;
   const norm = hentDagsnormLokalt(organizationId, dato);
@@ -78,13 +85,20 @@ export function matpauseKontekst(
   const pauseEtterTimer =
     norm?.pauseEtterTimer ?? setting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
   const pauseReferanse = norm?.pauseReferanse ?? "fastStart";
+  const fastPauseFra = fastPauseFraFor({ startTid: skiftStart, pauseEtterTimer, pauseReferanse });
   return {
-    pauseFra: pauseVinduForDag(rader, {
-      startTid: skiftStart,
-      pauseEtterTimer,
-      pauseReferanse,
-    }),
     standardPauseMin,
+    pauseEtterTimer,
+    fastPauseFra,
+    pauseFraFor: (rad) =>
+      pauseFraForRad({
+        fraTid: rad.fraTid,
+        tilTid: rad.tilTid,
+        andreRader: rad.id ? rader.filter((r) => r.id !== rad.id) : rader,
+        pauseEtterTimer,
+        pauseMin: standardPauseMin,
+        fastPauseFra,
+      }),
   };
 }
 
@@ -108,49 +122,64 @@ export function matpauseRegelTrigget(
   return pauseMinForDag(dagsBruttoTimer(rader), standardPauseMin) > 0;
 }
 
-/** Krysser raden lunsjvinduet? (kvalifisert til å bære pausen). Reise-rader
- *  (null-tider) kvalifiserer aldri. */
-export function radKrysserPause(
-  rad: Rad,
-  pauseFra: string,
-  standardPauseMin: number,
-): boolean {
+/** Kan raden bære dagens matpause? Pausen ligger alltid HELT inne i bæreren
+ *  (ORDRE 2026-11-13), så kravet er at spennet er lengre enn pausen. Reise-rader
+ *  (null-tider) kvalifiserer aldri. Erstatter «krysser lunsjvinduet». */
+export function radKanBaerePause(rad: Rad, standardPauseMin: number): boolean {
   if (!rad.fraTid || !rad.tilTid) return false;
-  return (
-    pauseOverlappMin(
-      hhmmTilMin(rad.fraTid),
-      hhmmTilMin(rad.tilTid),
-      hhmmTilMin(pauseFra),
-      standardPauseMin,
-    ) > 0
-  );
+  return hhmmTilMin(rad.tilTid) - hhmmTilMin(rad.fraTid) > standardPauseMin;
 }
 
-/** Rad-timer gitt en pauseMin — deployert modell (spenn − lunsjoverlapp). */
-function beregnRadTimer(rad: Rad, pauseFra: string, pauseMin: number): number {
+/** Minutter faktisk trukket på raden — utledet av lagret `timer` (gjelder både
+ *  gamle vindu-rader med delvis overlapp og nye rader med hel pause). */
+export function pauseTrukketMinForRad(rad: {
+  fraTid?: string | null;
+  tilTid?: string | null;
+  timer: number;
+  pauseMin: number;
+}): number {
+  if (!rad.fraTid || !rad.tilTid || rad.pauseMin <= 0) return 0;
+  const spenn = hhmmTilMin(rad.tilTid) - hhmmTilMin(rad.fraTid);
+  const trukket = Math.round(spenn - rad.timer * 60);
+  return Math.min(rad.pauseMin, Math.max(0, trukket));
+}
+
+/** Rad-timer gitt en pauseMin — pausen ligger i raden fra `pauseFraFor`. */
+function beregnRadTimer(rad: Rad, k: MatpauseKontekst, pauseMin: number): number {
   if (!rad.fraTid || !rad.tilTid) return rad.timer;
+  const pauseFra = k.pauseFraFor({ id: rad.id, fraTid: rad.fraTid, tilTid: rad.tilTid });
   return effektiveTimerFraSpenn(rad.fraTid, rad.tilTid, pauseFra, pauseMin);
 }
 
-/** Kandidat-bærere (ekskl. gitt rad): krysser vinduet OG har positiv rest-timer
- *  etter fradrag. Sortert lengste-først (samme prioritet som genereringen). */
+/** Passerer summert arbeid firmaets grense inne i denne raden? */
+function radPassererGrensen(rad: Rad, rader: Rad[], pauseEtterTimer: number): boolean {
+  if (!rad.fraTid || !rad.tilTid) return false;
+  const fra = hhmmTilMin(rad.fraTid);
+  const til = hhmmTilMin(rad.tilTid);
+  const arbeidFor = rader.reduce((sum, r) => {
+    if (r.id === rad.id || !r.fraTid || !r.tilTid) return sum;
+    const f = hhmmTilMin(r.fraTid);
+    const t = hhmmTilMin(r.tilTid);
+    return t > f && f < fra ? sum + (Math.min(t, fra) - f) : sum;
+  }, 0);
+  const grense = Math.round(pauseEtterTimer * 60);
+  return arbeidFor < grense && arbeidFor + (til - fra) > grense;
+}
+
+/** Kandidat-bærere (ekskl. gitt rad): lang nok til å bære pausen. Raden der
+ *  grensen passeres først, deretter lengste-først. */
 function kvalifiserteBaerere(
   rader: Rad[],
   ekskluderRadId: string | null,
-  pauseFra: string,
-  standardPauseMin: number,
+  k: MatpauseKontekst,
 ): Rad[] {
+  const spenn = (r: Rad) => hhmmTilMin(r.tilTid!) - hhmmTilMin(r.fraTid!);
   return rader
-    .filter(
-      (r) =>
-        r.id !== ekskluderRadId &&
-        radKrysserPause(r, pauseFra, standardPauseMin) &&
-        beregnRadTimer(r, pauseFra, standardPauseMin) > 0,
-    )
+    .filter((r) => r.id !== ekskluderRadId && radKanBaerePause(r, k.standardPauseMin))
     .sort((a, z) => {
-      const spennA = hhmmTilMin(a.tilTid!) - hhmmTilMin(a.fraTid!);
-      const spennZ = hhmmTilMin(z.tilTid!) - hhmmTilMin(z.fraTid!);
-      return spennZ - spennA;
+      const ga = radPassererGrensen(a, rader, k.pauseEtterTimer) ? 1 : 0;
+      const gz = radPassererGrensen(z, rader, k.pauseEtterTimer) ? 1 : 0;
+      return gz - ga || spenn(z) - spenn(a);
     });
 }
 
@@ -159,7 +188,7 @@ function kvalifiserteBaerere(
 function skrivPauseTilstand(
   db: NonNullable<ReturnType<typeof hentDatabase>>,
   sheetId: string,
-  pauseFra: string,
+  k: MatpauseKontekst,
   nyPauseMinPerRad: Map<string, number>,
 ): void {
   const naa = Date.now();
@@ -180,7 +209,7 @@ function skrivPauseTilstand(
       tx.update(sheetTimerLocal)
         .set({
           pauseMin: ny,
-          timer: beregnRadTimer(rad, pauseFra, ny),
+          timer: beregnRadTimer(rad, k, ny),
           sistEndretLokalt: naa,
         })
         .where(eq(sheetTimerLocal.id, rad.id))
@@ -216,23 +245,17 @@ export function flyttMatpauseVedAvhuking(
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
     .all();
-  // PK5: vinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
-  const { pauseFra, standardPauseMin } = matpauseKontekst(organizationId, dato, rader);
-  const kandidater = kvalifiserteBaerere(
-    rader,
-    baererRadId,
-    pauseFra,
-    standardPauseMin,
-  );
+  const k = matpauseKontekst(organizationId, dato, rader);
+  const kandidater = kvalifiserteBaerere(rader, baererRadId, k);
   if (kandidater.length === 0) return { utfall: "ingenKvalifisert" };
   const ny = kandidater[0];
   skrivPauseTilstand(
     db,
     sheetId,
-    pauseFra,
+    k,
     new Map([
       [baererRadId, 0],
-      [ny.id, standardPauseMin],
+      [ny.id, k.standardPauseMin],
     ]),
   );
   return { utfall: "flyttet", tilTidsrom: `${ny.fraTid}–${ny.tilTid}` };
@@ -255,14 +278,13 @@ export function settMatpauseBaerer(
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
     .all();
-  // PK5: vinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
-  const { pauseFra, standardPauseMin } = matpauseKontekst(organizationId, dato, rader);
+  const k = matpauseKontekst(organizationId, dato, rader);
   const endringer = new Map<string, number>();
   for (const r of rader) {
     if (r.pauseMin > 0 && r.id !== nyBaererRadId) endringer.set(r.id, 0);
   }
-  endringer.set(nyBaererRadId, standardPauseMin);
-  skrivPauseTilstand(db, sheetId, pauseFra, endringer);
+  endringer.set(nyBaererRadId, k.standardPauseMin);
+  skrivPauseTilstand(db, sheetId, k, endringer);
   return { utfall: "satt" };
 }
 
@@ -282,11 +304,10 @@ export function fjernMatpause(
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
     .all();
-  // PK5: vinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
-  const { pauseFra } = matpauseKontekst(organizationId, dato, rader);
+  const k = matpauseKontekst(organizationId, dato, rader);
   const endringer = new Map<string, number>();
   for (const r of rader) if (r.pauseMin > 0) endringer.set(r.id, 0);
   if (endringer.size === 0) return { utfall: "ingen" };
-  skrivPauseTilstand(db, sheetId, pauseFra, endringer);
+  skrivPauseTilstand(db, sheetId, k, endringer);
   return { utfall: "fjernet" };
 }

@@ -242,6 +242,8 @@ export function samleDagsforslagInput(
       pauseMin: tider.pauseMin,
       dagsnorm: norm?.dagsnorm ?? 0,
       pauseReferanse: norm?.pauseReferanse ?? "ankomst",
+      // RETUR 2026-11-13: firmaets pausegrense fra svar-cachen (server-verdien).
+      ...(norm?.pauseEtterTimer != null ? { pauseEtterTimer: norm.pauseEtterTimer } : {}),
       normStatus: norm?.normStatus ?? "ukjent",
       // B5: snapshot av normen svar-cachen hadde (null når ukjent — ingen svar).
       // hentetAt (Unix ms) → ISO i snapshotet.

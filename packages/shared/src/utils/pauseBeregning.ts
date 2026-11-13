@@ -178,21 +178,71 @@ export function utledArbeidstidFraRader(
 }
 
 /**
- * V20/PK2 — skal denne raden BÆRE dagens matpause når den lagres? Bæreren får
- * `standardPauseMin`, alle andre 0 (kun-én-pr.-dag). Regelen trigger når ALLE
- * holder:
- *   1) dagsbrutto INKL. denne raden > 5,5 t (`pauseMinForDag`, AML §10-9)
- *   2) raden krysser pausevinduet (overlapp > 0)
- *   3) ingen ANNEN rad på sedelen bærer pausen alt
- * Ellers 0 — da regnes raden fullt spenn (ingen skjult fradrag). Dette gjør
- * `fix/matpause-avkrysning` til regel for ny rad + redigering: avkrysningen
- * (`rad.pauseMin > 0`) speiler da det FAKTISKE fradraget, også for manuell føring.
+ * ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer» — HVOR pausen ligger i
+ * raden som bærer den. Kenneth: «Morgen 07:00–10:00 og kveld 16:00–19:00 gir 0
+ * pause og 3,0 t. -> dette kan ikke være rett -> dette er totalt 6 timer arbeid
+ * -> her er det krav om 0,5 timer pause» · «Ja, etter 4 arbeidstimer».
+ *
+ * Punktet er der SUMMERT arbeid (radene sortert på `fraTid`) passerer firmaets
+ * `pauseEtterTimer` — ikke et klokkeslett etter ankomst, og et gap mellom økter
+ * teller ikke som pause. Arbeidet på `andreRader` som starter før raden teller
+ * med. Er grensen alt passert før raden, ligger pausen først i raden. Punktet
+ * klemmes inn i raden ([fra, til − pauseMin]) slik at bærerens timer alltid er
+ * spenn − pause (`effektiveTimerFraSpenn`), uansett hvor grensen falt.
+ *
+ * `fastPauseFra` (firma med `pauseReferanse = "fastStart"`): firmaets faste
+ * klokkeslett (starttid + grense) brukes når det faller inne i raden; ellers
+ * gjelder arbeidstimene som for alle andre.
+ */
+export function pauseFraForRad(args: {
+  fraTid: string;
+  tilTid: string;
+  /** Dagens ANDRE rader (uten raden selv). */
+  andreRader: readonly { fraTid?: string | null; tilTid?: string | null }[];
+  pauseEtterTimer: number;
+  pauseMin: number;
+  fastPauseFra?: string | null;
+  /** Arbeid (min) før raden som ikke står i `andreRader` — midnattsdelt økt:
+   *  arbeidet på forrige dato teller med (Bekreft dag). */
+  arbeidForEkstraMin?: number;
+}): string {
+  const fraMin = hhmmTilMin(args.fraTid);
+  const tilMin = hhmmTilMin(args.tilTid);
+  const sisteStart = Math.max(fraMin, tilMin - Math.max(0, args.pauseMin));
+  const klem = (min: number) => minTilHhmm(Math.min(Math.max(min, fraMin), sisteStart));
+  if (args.fastPauseFra) {
+    const fastMin = hhmmTilMin(args.fastPauseFra);
+    if (fastMin >= fraMin && fastMin < tilMin) return klem(fastMin);
+  }
+  const arbeidFor = args.andreRader.reduce((sum, r) => {
+    if (!r.fraTid || !r.tilTid) return sum;
+    const f = hhmmTilMin(r.fraTid);
+    const t = hhmmTilMin(r.tilTid);
+    if (t <= f || f >= fraMin) return sum;
+    // Kun arbeidet FØR raden starter (en overlappende rad telles til radstart).
+    return sum + (Math.min(t, fraMin) - f);
+  }, args.arbeidForEkstraMin ?? 0);
+  const grenseMin = Math.round(args.pauseEtterTimer * 60);
+  return klem(fraMin + Math.max(0, grenseMin - arbeidFor));
+}
+
+/**
+ * V20/PK2 + ORDRE 2026-11-13 — skal denne raden BÆRE dagens matpause når den
+ * lagres, og hvor ligger den? Bæreren får `standardPauseMin`, alle andre 0
+ * (kun-én-pr.-dag). Regelen:
+ *   1) dagsbrutto INKL. denne raden > 5,5 t (`pauseMinForDag`, AML §10-9) —
+ *      regnet på radenes faktiske fra/til
+ *   2) ingen ANNEN rad på sedelen bærer pausen alt
+ * Lagrede rader endres aldri: faller grensen i en lagret rad uten pause, legges
+ * pausen på raden som lagres nå. Plasseringen (`pauseFra`) = `pauseFraForRad`.
+ * Det gamle kravet «raden krysser pausevinduet» er borte (klokkevindu i et gap
+ * ga 0 pause på en 6-timersdag).
  *
  * Ren/plattformuavhengig — delt av mobil (`matpause.ts` re-eksporterer) og web
  * (`TimerRadDialog`). Rør ALDRI hodet (`dagsseddel.pauseMin`) — PK6/V20-S utleder
- * det server-side. Pausevinduet (`pauseFra`) kommer fra kalleren (PK5-vindu).
+ * det server-side.
  */
-export function avgjorRadPauseMin(args: {
+export function avgjorRadPause(args: {
   /** Alle rader på sedelen (DB- eller state-snapshot). */
   alleRader: readonly {
     id: string;
@@ -204,35 +254,57 @@ export function avgjorRadPauseMin(args: {
   radId: string | null;
   fraTid: string | null;
   tilTid: string | null;
-  pauseFra: string;
   standardPauseMin: number;
-}): number {
-  const { alleRader, radId, fraTid, tilTid, pauseFra, standardPauseMin } = args;
-  if (!fraTid || !tilTid) return 0;
-  // (2) Krysser kandidaten pausevinduet?
-  const overlapp = pauseOverlappMin(
-    hhmmTilMin(fraTid),
-    hhmmTilMin(tilTid),
-    hhmmTilMin(pauseFra),
-    standardPauseMin,
-  );
-  if (overlapp <= 0) return 0;
-  // (1) + (3): dagsterskel inkl. kandidatens NYE spenn, og ingen annen bærer.
-  return dagPauseMinForNyttArbeid({
-    andreRader: alleRader.filter((r) => r.id !== radId),
+  /** Firmaets `standardPauseEtterTimer` (effektiv arbeidstid / svar-cache). */
+  pauseEtterTimer: number;
+  /** Kun `pauseReferanse = "fastStart"`: firmaets starttid + grense. */
+  fastPauseFra?: string | null;
+}): { pauseMin: number; pauseFra: string } {
+  const { alleRader, radId, fraTid, tilTid, standardPauseMin } = args;
+  if (!fraTid || !tilTid) return { pauseMin: 0, pauseFra: fraTid ?? "00:00" };
+  const andreRader = alleRader.filter((r) => r.id !== radId);
+  const pauseMin = dagPauseMinForNyttArbeid({
+    andreRader,
     nyBruttoTimer: Math.max(0, hhmmTilMin(tilTid) - hhmmTilMin(fraTid)) / 60,
     standardPauseMin,
   });
+  const pauseFra = pauseFraForRad({
+    fraTid,
+    tilTid,
+    andreRader,
+    pauseEtterTimer: args.pauseEtterTimer,
+    pauseMin: standardPauseMin,
+    fastPauseFra: args.fastPauseFra ?? null,
+  });
+  return { pauseMin, pauseFra };
+}
+
+/** `avgjorRadPause` når kalleren bare trenger lengden. */
+export function avgjorRadPauseMin(args: Parameters<typeof avgjorRadPause>[0]): number {
+  return avgjorRadPause(args).pauseMin;
 }
 
 /**
- * Dag-delen av pauseregelen (punkt 1 og 3 i `avgjorRadPauseMin`), skilt ut så
+ * `fastStart`-firmaets faste pausepunkt (starttid + grense), ellers null —
+ * argumentet `fastPauseFra` til `pauseFraForRad`/`avgjorRadPause`.
+ */
+export function fastPauseFraFor(dag: {
+  startTid: string;
+  pauseEtterTimer: number;
+  pauseReferanse: "fastStart" | "ankomst";
+}): string | null {
+  return dag.pauseReferanse === "fastStart"
+    ? pauseVinduFra(dag.startTid, dag.pauseEtterTimer)
+    : null;
+}
+
+/**
+ * Dag-delen av pauseregelen (punkt 1 og 2 i `avgjorRadPause`), skilt ut så
  * Bekreft dag og manuell føring bruker ÉN regel (ORDRE dobbel pause 2026-11-13):
  *   1) dagsbrutto = Σ spenn på sedelens andre rader + det nye arbeidet > 5,5 t
- *   3) ingen annen rad på sedelen bærer pausen alt (kun én pr. sedel)
- * Returnerer `standardPauseMin` når begge holder, ellers 0. Punkt 2 (krysser
- * pausevinduet) ligger hos kalleren: manuell rad sjekker overlappen, Bekreft dag
- * legger pausevinduet inne i arbeidet (`klemPauseInnIArbeid`).
+ *   2) ingen annen rad på sedelen bærer pausen alt (kun én pr. sedel)
+ * Returnerer `standardPauseMin` når begge holder, ellers 0. Plasseringen
+ * (`pauseFraForRad`) ligger hos kalleren.
  */
 export function dagPauseMinForNyttArbeid(args: {
   /** Radene som står på sedelen fra før (uten kandidaten). */

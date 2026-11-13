@@ -571,12 +571,14 @@ describe("ORDRE 36c — kildevakter for inngangene", () => {
   });
 });
 
-describe("ORDRE 36e pkt. 4 — manuell kort dag bærer pausen", () => {
-  it("🔴 manuell 08–12 + 30 → rad 08:00–12:00, pauseMin 30, timer 3,5; hodet Σ = 30", () => {
+// ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer» (SVAR a): 08–12 er
+// 4,0 t arbeid ≤ 5,5 t → ingen pause. Erstatter 36e pkt. 4 (3,5 t / 30).
+describe("ORDRE 2026-11-13 — manuell kort dag (4 t) får ingen pause", () => {
+  it("🔴 manuell 08–12 → rad 08:00–12:00, pauseMin 0, timer 4,0; hodet Σ = 0", () => {
     const { handling } = lagreManuelt({ perDato: { [DATO]: { arbeidFra: "08:00", arbeidTil: "12:00" } } });
     expect(handling.type).toBe("suksess");
     const r = rader();
-    expect(r.map((x) => [x.fraTid, x.tilTid, x.timer, x.pauseMin])).toEqual([["08:00", "12:00", 3.5, 30]]);
-    expect(sedler()[0]!.pauseMin).toBe(30);
+    expect(r.map((x) => [x.fraTid, x.tilTid, x.timer, x.pauseMin])).toEqual([["08:00", "12:00", 4, 0]]);
+    expect(sedler()[0]!.pauseMin).toBe(0);
   });
 });

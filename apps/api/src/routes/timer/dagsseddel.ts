@@ -603,9 +603,19 @@ export function vurderRadTimer(args: {
     return { pauseMin: pauseMinAngitt ?? 0, teller: null, kast: false };
   }
 
-  const stemmer = (pm: number) =>
+  // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer»: bæreren har HELE
+  // pausen inne i raden (timer = spenn − pause), uansett klokkevindu. Gamle rader
+  // (vindu-formelen, delvis overlapp) godtas fortsatt — ingen nye avvik/kast på
+  // lagrede, sendte eller attesterte sedler (måling c).
+  const spennMin = hhmmTilMin(tilTid) - hhmmTilMin(fraTid);
+  const stemmerGammel = (pm: number) =>
     Math.abs(timer - effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, pm)) <=
     PAUSE_TOLERANSE;
+  const stemmerNy = (pm: number) =>
+    pm > 0 &&
+    spennMin > pm &&
+    Math.abs(timer - (spennMin - pm) / 60) <= PAUSE_TOLERANSE;
+  const stemmer = (pm: number) => stemmerGammel(pm) || stemmerNy(pm);
   const krysser =
     pauseOverlappMin(
       hhmmTilMin(fraTid),
@@ -631,7 +641,10 @@ export function vurderRadTimer(args: {
     if (stemmer(0)) {
       return { pauseMin: 0, teller: null, kast: false };
     }
-    if (krysser && stemmer(standardPauseMin)) {
+    if (
+      (krysser && stemmerGammel(standardPauseMin)) ||
+      stemmerNy(standardPauseMin)
+    ) {
       return finnesAlleredeBaerer
         ? { pauseMin: 0, teller: "to_baerere", kast: false }
         : { pauseMin: standardPauseMin, teller: "baerer", kast: false };
@@ -651,12 +664,31 @@ export function vurderRadTimer(args: {
  * delrad i samme rekkefølge som input.
  */
 export function fordelPauseVedSplitt(
-  nyeRader: readonly { fraTid?: string | null; tilTid?: string | null }[],
+  nyeRader: readonly {
+    fraTid?: string | null;
+    tilTid?: string | null;
+    timer?: number;
+  }[],
   originalPauseMin: number,
   pauseVindu: string,
 ): number[] {
   const fordeling = new Array<number>(nyeRader.length).fill(0);
   if (originalPauseMin <= 0 || nyeRader.length === 0) return fordeling;
+  // ORDRE 2026-11-13: delraden hvis timetall alt bærer HELE pausen
+  // (timer = spenn − pause) eier markøren — pausen ligger i raden, ikke i et
+  // klokkevindu. Ingen slik delrad → størst overlapp mot vinduet (gamle rader).
+  const baererIdx = nyeRader.findIndex((r) => {
+    if (!r.fraTid || !r.tilTid || r.timer === undefined) return false;
+    const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
+    return (
+      spenn > originalPauseMin &&
+      Math.abs(r.timer - (spenn - originalPauseMin) / 60) <= PAUSE_TOLERANSE
+    );
+  });
+  if (baererIdx >= 0) {
+    fordeling[baererIdx] = originalPauseMin;
+    return fordeling;
+  }
   const pauseFraMin = hhmmTilMin(pauseVindu);
   let beste = -1;
   let besteOverlapp = 0;
@@ -684,10 +716,12 @@ function avvisTimerAvvik(
   fraTid: string,
   tilTid: string,
   timer: number,
-  pauseVindu: string,
+  _pauseVindu: string,
   pauseMin: number,
 ): never {
-  const forventet = effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, pauseMin);
+  // ORDRE 2026-11-13: forventet etter ny regel — pausen ligger i raden
+  // (spenn − pause; pausepunkt = fra gir full overlapp).
+  const forventet = effektiveTimerFraSpenn(fraTid, tilTid, fraTid, pauseMin);
   throw new TRPCError({
     code: "BAD_REQUEST",
     message: `Antall timer (${timer}) stemmer ikke med tidsrommet ${fraTid}–${tilTid} (forventet ${forventet.toFixed(
@@ -1412,25 +1446,18 @@ async function opprettForsteTimerRadForslag(
   const tilTid = instantTilOsloHHMM(endAt);
 
   // V20/PK9: pausen hentes fra NORMEN (V16), ikke hodet, og skrives PÅ raden som
-  // bærer når regelen trigger (dagsbrutto > 5,5 t OG raden krysser pausevinduet).
-  // Pausevinduet (PK5) følger firmaets pauseReferanse. Ingen skjult fradrag.
+  // bærer når regelen trigger. ORDRE 2026-11-13 «pausen trekkes etter 4
+  // ARBEIDStimer»: sedelen er tom, så raden er dagens eneste — den bærer når
+  // dagsbrutto > 5,5 t og spennet er lengre enn pausen; pausen ligger i raden
+  // (timer = spenn − pause). Ingen skjult fradrag.
   const eff = await hentEffektivArbeidstid(orgId, dato);
-  const pauseVindu = pauseVinduForDag([{ fraTid }], {
-    startTid: eff.startTid,
-    pauseEtterTimer: eff.pauseEtterTimer,
-    pauseReferanse: eff.pauseReferanse,
-  });
   const bruttoTimer = (endAt.getTime() - startAt.getTime()) / 3_600_000;
-  const krysser =
-    pauseOverlappMin(
-      hhmmTilMin(fraTid),
-      hhmmTilMin(tilTid),
-      hhmmTilMin(pauseVindu),
-      eff.pauseMin,
-    ) > 0;
+  const spennMin = hhmmTilMin(tilTid) - hhmmTilMin(fraTid);
   const radPauseMin =
-    bruttoTimer > PAUSE_TERSKEL_TIMER && krysser ? eff.pauseMin : 0;
-  const timer = effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, radPauseMin);
+    bruttoTimer > PAUSE_TERSKEL_TIMER && spennMin > eff.pauseMin
+      ? eff.pauseMin
+      : 0;
+  const timer = effektiveTimerFraSpenn(fraTid, tilTid, fraTid, radPauseMin);
   if (timer <= 0) return;
 
   // LAG 2 (presisering 2): utled erReise også her. Standard-lønnsarten er normalt

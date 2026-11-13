@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { effektiveTimerFraSpenn } from "@sitedoc/shared";
+import { effektiveTimerFraSpenn, hhmmTilMin, pauseVinduForDag } from "@sitedoc/shared";
 import {
   beregnDagsforslag,
   type BeregnDagsforslagInput,
@@ -14,6 +14,13 @@ import {
  *
  * A: pausen avgjøres for hele dagen (rader på sedelen + økta), samme regel som
  *    manuell føring — trekkes én gang pr. dag.
+ * ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer» — Kenneth: «Morgen
+ *    07:00–10:00 og kveld 16:00–19:00 gir 0 pause og 3,0 t. -> dette kan ikke
+ *    være rett -> dette er totalt 6 timer arbeid -> her er det krav om 0,5
+ *    timer pause» · «Ja, etter 4 arbeidstimer». Dagen får pause når arbeidet
+ *    > 5,5 t; bæreren er raden der summert arbeid passerer firmaets
+ *    `standardPauseEtterTimer`; et gap mellom rader er ingen pause; lagrede
+ *    rader endres aldri.
  * B: arbeidsstart og arbeidsslutt rundes hver for seg; timer = rundet spenn −
  *    pause, så `rad.timer = effektiveTimerFraSpenn(...)` holder for hver rad.
  *
@@ -83,6 +90,39 @@ const sum = (xs: number[]) => Math.round(xs.reduce((s, x) => s + x, 0) * 100) / 
  *  spennet (klokke-gap = pauseMin), så pauseFra = fra gir full overlapp.
  *  Et segment som ender ved midnatt skrives «23:59» (eksisterende konvensjon i
  *  `tilFraAntall`) — det betyr 24:00 i regnestykket. */
+/**
+ * Serverens kontroll (`vurderRadTimer`, `apps/api/src/routes/timer/dagsseddel.ts`):
+ * en rad gir verken `avvik` (sync) eller `kast` (interaktiv) når den stemmer
+ * med den GAMLE vindu-formelen (`pauseVinduForDag` over alle radene) ELLER med
+ * den nye regelen (pausen inne i raden: `timer = (spenn − pauseMin)/60`).
+ * Gjelder dager som ikke er delt ved midnatt (23:59-konvensjonen, se gate nr. 4).
+ */
+function sjekkServer(
+  f: ReturnType<typeof beregnDagsforslag>,
+  eksisterende: Array<{ fraTid: string; tilTid: string; pauseMin: number }>,
+  pauseEtterTimer = 4,
+) {
+  for (const d of f.datoer) {
+    const alle = [...eksisterende, ...d.rader];
+    const vindu = pauseVinduForDag(alle, {
+      startTid: "07:00",
+      pauseEtterTimer,
+      pauseReferanse: "ankomst",
+    });
+    for (const r of d.rader) {
+      const gammel =
+        Math.abs(r.timer - effektiveTimerFraSpenn(r.fraTid!, r.tilTid!, vindu, r.pauseMin)) <=
+        0.01;
+      const spenn = hhmmTilMin(r.tilTid!) - hhmmTilMin(r.fraTid!);
+      const ny =
+        r.pauseMin > 0 &&
+        spenn > r.pauseMin &&
+        Math.abs(r.timer - (spenn - r.pauseMin) / 60) <= 0.01;
+      expect(gammel || ny).toBe(true);
+    }
+  }
+}
+
 function sjekkInvariant(f: ReturnType<typeof beregnDagsforslag>) {
   for (const d of f.datoer) {
     const tilMidnatt = d.deltVedMidnatt && d.sluttTidKilde === "midnatt";
@@ -112,15 +152,13 @@ describe("Bekreft dag — dobbel pause (A)", () => {
     expect(sum(rader.map((r) => r.pauseMin))).toBe(0);
     expect(f.datoer[0]!.pauseMin).toBe(0);
     sjekkInvariant(f);
+    sjekkServer(f, [{ fraTid: "07:00", tilTid: "15:00", pauseMin: 30 }]);
   });
 
-  it("morgen 3 t UTEN pause + kveld 6:10 → dagen > 5,5 t, pausen trekkes én gang (på kvelden)", () => {
+  it("🔴 morgen 3 t UTEN pause + kveld 6:10 → 4-timersgrensen passeres i kveldsøkta → pause 30, 5,50 t", () => {
+    const morgen = [{ fraTid: "07:00", tilTid: "10:00", pauseMin: 0 }];
     const f = beregnDagsforslag(
-      lagInput({
-        eksisterendeSedelPerDato: {
-          "2026-10-01": sedelMed([{ fraTid: "07:00", tilTid: "10:00", pauseMin: 0 }]),
-        },
-      }),
+      lagInput({ eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) } }),
     );
     const rader = arbeid(f);
     expect(rader[0]!.fraTid).toBe("16:45");
@@ -128,27 +166,153 @@ describe("Bekreft dag — dobbel pause (A)", () => {
     expect(sum(rader.map((r) => r.pauseMin))).toBe(30);
     expect(sum(rader.map((r) => r.timer))).toBe(5.5);
     sjekkInvariant(f);
+    sjekkServer(f, morgen);
   });
 
-  it("🔴 terskelen ser hele dagen: morgen 3 t uten pause + kveld 3 t → 6 t > 5,5 → pause 30", () => {
+  const kveld16til19 = {
+    dag: {
+      startAt: "2026-10-01T16:00:00",
+      startLat: 59.9,
+      startLng: 10.7,
+      oppmotestedId: null,
+      byggeplassId: null,
+    },
+    sluttIso: "2026-10-01T19:00:00",
+  };
+
+  // Dagsnorm 1 t splitter kveldsøkta i normaltid + overtid, så pausepunktet
+  // synes: pause kl. 17:00 → 16:00–17:00 uten pause, 17:00–19:00 med pause.
+  const EFFEKTIV_NORM1: DagsforslagEffektiv = { ...EFFEKTIV, dagsnorm: 1 };
+
+  it("🔴 Kenneths fasit: morgen 07:00–10:00 uten pause + kveld 16:00–19:00 → kveld pause 30 fra 17:00, 2,5 t (dag 5,5 t)", () => {
+    const morgen = [{ fraTid: "07:00", tilTid: "10:00", pauseMin: 0 }];
     const f = beregnDagsforslag(
       lagInput({
-        dag: {
-          startAt: "2026-10-01T16:00:00",
-          startLat: 59.9,
-          startLng: 10.7,
-          oppmotestedId: null,
-          byggeplassId: null,
-        },
-        sluttIso: "2026-10-01T19:00:00",
-        eksisterendeSedelPerDato: {
-          "2026-10-01": sedelMed([{ fraTid: "07:00", tilTid: "10:00", pauseMin: 0 }]),
-        },
+        ...kveld16til19,
+        eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) },
       }),
     );
     expect(sum(arbeid(f).map((r) => r.pauseMin))).toBe(30);
     expect(sum(arbeid(f).map((r) => r.timer))).toBe(2.5);
+    expect(3 + sum(arbeid(f).map((r) => r.timer))).toBe(5.5);
     sjekkInvariant(f);
+    sjekkServer(f, morgen);
+
+    const delt = beregnDagsforslag(
+      lagInput({
+        ...kveld16til19,
+        effektivPerDato: { "2026-10-01": EFFEKTIV_NORM1 },
+        eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) },
+      }),
+    );
+    const r = arbeid(delt).map((x) => [x.fraTid, x.tilTid, x.pauseMin]);
+    expect(r).toEqual([
+      ["16:00", "17:00", 0],
+      ["17:00", "19:00", 30],
+    ]);
+    sjekkInvariant(delt);
+    sjekkServer(delt, morgen);
+  });
+
+  it("🔴 3 t + 2 t → dagen ≤ 5,5 t → ingen pause", () => {
+    const morgen = [{ fraTid: "07:00", tilTid: "10:00", pauseMin: 0 }];
+    const f = beregnDagsforslag(
+      lagInput({
+        ...kveld16til19,
+        sluttIso: "2026-10-01T18:00:00",
+        eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) },
+      }),
+    );
+    expect(sum(arbeid(f).map((r) => r.pauseMin))).toBe(0);
+    expect(sum(arbeid(f).map((r) => r.timer))).toBe(2);
+    sjekkInvariant(f);
+    sjekkServer(f, morgen);
+  });
+
+  it("🔴 lagret morgen 5 t uten pause + ny kveld 2 t → pausen på kvelden (lagret rad endres aldri)", () => {
+    const morgen = [{ fraTid: "07:00", tilTid: "12:00", pauseMin: 0 }];
+    const f = beregnDagsforslag(
+      lagInput({
+        ...kveld16til19,
+        sluttIso: "2026-10-01T18:00:00",
+        eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) },
+      }),
+    );
+    expect(sum(arbeid(f).map((r) => r.pauseMin))).toBe(30);
+    expect(sum(arbeid(f).map((r) => r.timer))).toBe(1.5);
+    sjekkInvariant(f);
+    sjekkServer(f, morgen);
+  });
+
+  const morgen0700til1310 = {
+    dag: {
+      startAt: "2026-10-01T07:00:00",
+      startLat: 59.9,
+      startLng: 10.7,
+      oppmotestedId: null,
+      byggeplassId: null,
+    },
+    sluttIso: "2026-10-01T13:10:00",
+  };
+  // Dagsnorm 3 t: normaltid 07:00–10:00(+pause) synliggjør pausepunktet.
+  const EFFEKTIV_NORM3: DagsforslagEffektiv = { ...EFFEKTIV, dagsnorm: 3 };
+
+  it("🔴 07:00–13:10 → pause 30 kl. 11:00 (etter 4 arbeidstimer)", () => {
+    const f = beregnDagsforslag(
+      lagInput({ ...morgen0700til1310, effektivPerDato: { "2026-10-01": EFFEKTIV_NORM3 } }),
+    );
+    expect(arbeid(f).map((x) => [x.fraTid, x.tilTid, x.pauseMin])).toEqual([
+      ["07:00", "10:00", 0],
+      ["10:00", "13:15", 30],
+    ]);
+    expect(sum(arbeid(f).map((r) => r.timer))).toBe(5.75);
+    sjekkInvariant(f);
+    sjekkServer(f, []);
+  });
+
+  it("🔴 firmaets pausegrense 2 t → pausen havner i morgenraden (kl. 09:00), ikke fast 4", () => {
+    const base = lagInput({
+      ...morgen0700til1310,
+      effektivPerDato: { "2026-10-01": EFFEKTIV_NORM3 },
+    });
+    const f = beregnDagsforslag({
+      ...base,
+      regel: { ...base.regel!, standardPauseEtterTimer: 2 },
+    });
+    expect(arbeid(f).map((x) => [x.fraTid, x.tilTid, x.pauseMin])).toEqual([
+      ["07:00", "10:30", 30],
+      ["10:30", "13:15", 0],
+    ]);
+    sjekkInvariant(f);
+    sjekkServer(f, [], 2);
+  });
+
+  it("firmaets pausegrense fra svar-cachen (effektiv.pauseEtterTimer) vinner over org-setting-cachen", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        ...morgen0700til1310,
+        effektivPerDato: { "2026-10-01": { ...EFFEKTIV_NORM3, pauseEtterTimer: 2 } },
+      }),
+    );
+    expect(arbeid(f).map((x) => [x.fraTid, x.tilTid, x.pauseMin])).toEqual([
+      ["07:00", "10:30", 30],
+      ["10:30", "13:15", 0],
+    ]);
+    sjekkServer(f, [], 2);
+  });
+
+  it("🔴 kun én pause pr. dag: morgenraden bærer alt pausen → kveld 0", () => {
+    const morgen = [{ fraTid: "07:00", tilTid: "10:00", pauseMin: 30 }];
+    const f = beregnDagsforslag(
+      lagInput({
+        ...kveld16til19,
+        eksisterendeSedelPerDato: { "2026-10-01": sedelMed(morgen) },
+      }),
+    );
+    expect(sum(arbeid(f).map((r) => r.pauseMin))).toBe(0);
+    expect(sum(arbeid(f).map((r) => r.timer))).toBe(3);
+    sjekkInvariant(f);
+    sjekkServer(f, morgen);
   });
 
   it("enkelt økt 6:10 (16:39–22:49) uten andre rader → pause 30 + avrundet spenn = 5,50 t", () => {
@@ -159,6 +323,7 @@ describe("Bekreft dag — dobbel pause (A)", () => {
     expect(sum(rader.map((r) => r.pauseMin))).toBe(30);
     expect(sum(rader.map((r) => r.timer))).toBe(5.5);
     sjekkInvariant(f);
+    sjekkServer(f, []);
   });
 
   it("midnatt-delt økt (20:00–03:10) → én pause for økta, over begge sedlene", () => {

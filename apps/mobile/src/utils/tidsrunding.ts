@@ -10,6 +10,10 @@
  *
  * Bekreft dag (2026-11-13): avrundingen gjelder klokkeslettene Fra og Til, ikke
  * varigheten. Timene regnes fra det rundede spennet minus pausen.
+ * ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer» (Kenneth: «dette er
+ * totalt 6 timer arbeid -> her er det krav om 0,5 timer pause» · «Ja, etter 4
+ * arbeidstimer»): pausen ligger i økta der summert arbeid passerer firmaets
+ * grense (`pauseFraForRad`), ikke i et klokkevindu — se dagsforslag.ts.
  */
 /**
  * ORDRE dobbel pause + avrunding (2026-11-13, Kenneth: «benytt fra til -> rund

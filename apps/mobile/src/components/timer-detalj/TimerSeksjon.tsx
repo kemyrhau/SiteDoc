@@ -55,7 +55,8 @@ import { trpc } from "../../lib/trpc";
 import {
   matpauseKontekst,
   matpauseRegelTrigget,
-  radKrysserPause,
+  radKanBaerePause,
+  pauseTrukketMinForRad,
   avgjorRadPauseMin,
 } from "../../services/matpause";
 import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
@@ -197,8 +198,7 @@ export function TimerSeksjon({
   // F5: matpause-kontekst (hvor lunsjen faller + lengde) + om regelen trigger for
   // dagen (dagsbrutto > 5,5t). Trigget beregnes fra ALLE sedelens rader
   // (`alleTimerRader`), ikke bøtte-scopet `rader` — pausen er dag-nivå.
-  // V20/PK5: pausevinduet avgjøres mot dagens rader (ankomst → tidligste fraTid).
-  const { pauseFra, standardPauseMin } = useMemo(
+  const { standardPauseMin } = useMemo(
     () => matpauseKontekst(organizationId, dato, alleTimerRader),
     [organizationId, dato, alleTimerRader],
   );
@@ -515,7 +515,6 @@ export function TimerSeksjon({
               reiseLonnsartId,
             )}
             redigerbar={redigerbar}
-            pauseFra={pauseFra}
             standardPauseMin={standardPauseMin}
             pauseRegelTrigget={pauseRegelTrigget}
             onPauseToggle={onPauseToggle}
@@ -704,7 +703,6 @@ function TimerRadVis({
   sedelByggeplassId,
   erReise,
   redigerbar,
-  pauseFra,
   standardPauseMin,
   pauseRegelTrigget,
   onPauseToggle,
@@ -721,8 +719,7 @@ function TimerRadVis({
   sedelByggeplassId: string | null;
   erReise: boolean;
   redigerbar: boolean;
-  /** F5: pausevindu-start (HH:MM) + lengde — avgjør om raden krysser lunsjen. */
-  pauseFra: string;
+  /** F5: pauselengde — raden må være lengre enn pausen for å kunne bære den. */
   standardPauseMin: number;
   /** F5: trigger matpause-regelen for dagen? (dagsbrutto > 5,5t). */
   pauseRegelTrigget: boolean;
@@ -738,13 +735,14 @@ function TimerRadVis({
 
   const pauseAvhuket = rad.pauseMin > 0;
   // F5: vis matpause-avhukingen (INTERAKTIV) kun når regelen trigger (dag > 5,5t)
-  // OG raden krysser lunsjvinduet (kvalifisert bærer). Bæreren (pauseMin > 0) er
+  // OG raden er lang nok til å bære pausen (ORDRE 2026-11-13: pausen ligger der
+  // summert arbeid passerer grensen, ikke i et klokkevindu). Bæreren (pauseMin > 0) er
   // avhuket; øvrige kvalifiserte rader viser en tom checkbox man kan hake for å
   // flytte pausen dit. Redigerbar-gate: kun draft/returned kan endre.
   const visPauseRad =
     redigerbar &&
     pauseRegelTrigget &&
-    radKrysserPause(rad, pauseFra, standardPauseMin);
+    radKanBaerePause(rad, standardPauseMin);
   // V20 låst visning (Kenneth 2026-10-07): på en sendt/attestert/låst sedel er
   // det ingenting å flytte — men bæreren skal VISE at pausen er trukket,
   // skrivebeskyttet. Kun bæreren (ikke tom avkrysning): speiler web (dagsseddel +
@@ -754,15 +752,9 @@ function TimerRadVis({
   // (spenn-overlapp mot lunsjvinduet gitt radens pauseMin) — ikke hardkodet 30.
   // Full-spenn → 30 min; delvis overlapp → f.eks. 15 min. Kun visning; rører
   // ikke pause-beregningen. visPauseRad garanterer fra/til er satt.
-  const pauseTrukketMin =
-    rad.fraTid && rad.tilTid
-      ? pauseOverlappMin(
-          hhmmTilMin(rad.fraTid),
-          hhmmTilMin(rad.tilTid),
-          hhmmTilMin(pauseFra),
-          rad.pauseMin,
-        )
-      : 0;
+  // ORDRE 2026-11-13: utledet av lagret timer (spenn − timer), så gamle
+  // vindu-rader med delvis overlapp vises som de ble lagret.
+  const pauseTrukketMin = pauseTrukketMinForRad(rad);
 
   // F3: radens effektive prosjekt (per-rad override eller gruppe-fallback).
   const effektivProjectId = rad.projectId ?? gruppeProjectId;
@@ -1134,8 +1126,8 @@ export function TimerRadModal({
   // T.5 + pause-synk: hent firma-innstillinger fra lokal cache.
   //   - tidsrundingMinutter: null = ingen runding
   //   - pauseMin: matpausens lengde (standardPauseMin, default 30), brukt til
-  //     pause-bevisst auto-synk antall ↔ fra/til. Pausevinduet (pauseFra) kommer
-  //     fra `matpauseKontekst` (PK5, pauseReferanse-aware).
+  //     pause-bevisst auto-synk antall ↔ fra/til. Pausepunktet pr. rad kommer
+  //     fra `matpauseKontekst` (ORDRE 2026-11-13, etter grensen i arbeidstimer).
   const { tidsrundingMinutter, pauseMin } = useMemo(() => {
     const setting = hentOrganizationSettingLokalt(organizationId);
     return {
@@ -1144,11 +1136,16 @@ export function TimerRadModal({
     };
   }, [organizationId]);
 
-  // V20/PK5: pausevindu via delt `matpauseKontekst` (pauseReferanse-aware) — samme
-  // kilde som rad-lista og mutasjonene, mot dagens rader (ankomst → tidligste fraTid).
-  const pauseFra = useMemo(
-    () => matpauseKontekst(organizationId, dato, alleTimerRader).pauseFra,
+  // ORDRE 2026-11-13: pausepunktet pr. rad via delt `matpauseKontekst` — der
+  // summert arbeid (dagens andre rader + denne) passerer firmaets grense.
+  const pauseKontekst = useMemo(
+    () => matpauseKontekst(organizationId, dato, alleTimerRader),
     [organizationId, dato, alleTimerRader],
+  );
+  const pauseFraFor = useCallback(
+    (fra: string, til: string): string =>
+      pauseKontekst.pauseFraFor({ id: eksisterendeRad?.id ?? null, fraTid: fra, tilTid: til }),
+    [pauseKontekst, eksisterendeRad],
   );
 
   // V20 PK2: radens EGEN matpause (0 eller standardPauseMin) for de oppgitte
@@ -1168,10 +1165,11 @@ export function TimerRadModal({
             radId: eksisterendeRad?.id ?? null,
             fraTid: fra,
             tilTid: til,
-            pauseFra,
             standardPauseMin: pauseMin,
+            pauseEtterTimer: pauseKontekst.pauseEtterTimer,
+            fastPauseFra: pauseKontekst.fastPauseFra,
           }),
-    [erReiseRad, alleTimerRader, eksisterendeRad, pauseFra, pauseMin],
+    [erReiseRad, alleTimerRader, eksisterendeRad, pauseKontekst, pauseMin],
   );
 
   // Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
@@ -1278,7 +1276,7 @@ export function TimerRadModal({
       return effektiveTimerFraSpenn(
         defaultTider.fra!,
         defaultTider.til!,
-        pauseFra,
+        pauseFraFor(defaultTider.fra!, defaultTider.til!),
         // V20 PK2: radens egen pause, ikke firma-default (P1 skjult fradrag).
         radPauseMinFor(defaultTider.fra, defaultTider.til),
       ).toFixed(2);
@@ -1318,7 +1316,7 @@ export function TimerRadModal({
         ? effektiveTimerFraSpenn(
             defaultTider.fra!,
             defaultTider.til!,
-            pauseFra,
+            pauseFraFor(defaultTider.fra!, defaultTider.til!),
             radPauseMinFor(defaultTider.fra, defaultTider.til),
           ).toFixed(2)
         : "",
@@ -1376,13 +1374,13 @@ export function TimerRadModal({
           effektiveTimerFraSpenn(
             hhmm,
             tilTid,
-            pauseFra,
+            pauseFraFor(hhmm, tilTid),
             radPauseMinFor(hhmm, tilTid),
           ).toFixed(2),
         );
       }
     },
-    [tilTid, pauseFra, radPauseMinFor],
+    [tilTid, pauseFraFor, radPauseMinFor],
   );
 
   const handterTilEndret = useCallback(
@@ -1393,13 +1391,13 @@ export function TimerRadModal({
           effektiveTimerFraSpenn(
             fraTid,
             hhmm,
-            pauseFra,
+            pauseFraFor(fraTid, hhmm),
             radPauseMinFor(fraTid, hhmm),
           ).toFixed(2),
         );
       }
     },
-    [fraTid, pauseFra, radPauseMinFor],
+    [fraTid, pauseFraFor, radPauseMinFor],
   );
 
   const handterTimerEndret = useCallback(
@@ -1410,10 +1408,12 @@ export function TimerRadModal({
         // Antall → til: bruk radens pause for GJELDENDE tider (til beregnes her,
         // så bæreren avgjøres mot det nåværende spennet; lagrings-guarden regner
         // uansett om med de ferske tidene).
-        setTilTid(tilFraAntall(fraTid, n, pauseFra, radPauseMinFor(fraTid, tilTid)));
+        // ORDRE 2026-11-13: bærerens pause ligger alltid HELT inne i raden, så
+        // til = fra + antall + pause (pausepunkt = fra gir nettopp det).
+        setTilTid(tilFraAntall(fraTid, n, fraTid, radPauseMinFor(fraTid, tilTid)));
       }
     },
-    [fraTid, tilTid, pauseFra, radPauseMinFor],
+    [fraTid, tilTid, radPauseMinFor],
   );
 
   // Transparens: hvor mange minutter pause raden faktisk absorberer (0 = ingen).
@@ -1426,10 +1426,10 @@ export function TimerRadModal({
     return pauseOverlappMin(
       fm,
       tm,
-      hhmmTilMin(pauseFra),
+      hhmmTilMin(pauseFraFor(fraTid, tilTid)),
       radPauseMinFor(fraTid, tilTid),
     );
-  }, [fraTid, tilTid, pauseFra, radPauseMinFor]);
+  }, [fraTid, tilTid, pauseFraFor, radPauseMinFor]);
 
   const valgtProsjekt = useMemo(() => {
     return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
@@ -1601,7 +1601,12 @@ export function TimerRadModal({
       },
     ];
     return (
-      foreslaOvertidSplitt(rader, dagsnormTimer, katalog, { pauseFra }).find(
+      foreslaOvertidSplitt(rader, dagsnormTimer, katalog, {
+        pauseFra: (r) =>
+          r.fraTid && r.tilTid
+            ? pauseKontekst.pauseFraFor({ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid })
+            : "00:00",
+      }).find(
         (f) => f.radId === egenId,
       ) ?? null
     );
@@ -1616,7 +1621,7 @@ export function TimerRadModal({
     alleTimerRader,
     radPauseMinFor,
     erReiseRad,
-    pauseFra,
+    pauseKontekst,
   ]);
 
   const kanLagre =
@@ -1705,7 +1710,7 @@ export function TimerRadModal({
       const forventet = effektiveTimerFraSpenn(
         fraTid,
         tilTid,
-        pauseFra,
+        pauseFraFor(fraTid, tilTid),
         radPauseMin,
       );
       if (Math.abs(forventet - tall) > 0.01) {

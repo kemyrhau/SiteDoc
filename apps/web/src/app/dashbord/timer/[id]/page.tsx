@@ -48,7 +48,8 @@ import {
   hhmmTilMin,
   pauseOverlappMin,
   pauseMinForDag,
-  pauseVinduForDag,
+  pauseFraForRad,
+  fastPauseFraFor,
   utledArbeidstidFraRader,
   avgjorRadPauseMin,
   finnOverlappendeTidsrom,
@@ -196,11 +197,10 @@ type ProsjektRef = {
   type?: string;
 };
 
-// V20/PK3: dagens pause-kontekst for rad-lista. `pauseFra` = pausevinduets
-// start (HH:MM), `standardPauseMin` = firmaets pauselengde, `regelTrigget` =
-// dagsbrutto > 5,5 t. Avgjør om en rad viser kryss/tom avkrysning i lista.
+// V20/PK3: dagens pause-kontekst for rad-lista. `standardPauseMin` = firmaets
+// pauselengde, `regelTrigget` = dagsbrutto > 5,5 t. Avgjør om en rad viser
+// kryss/tom avkrysning i lista (ORDRE 2026-11-13: ikke lenger et klokkevindu).
 type PauseVisning = {
-  pauseFra: string;
   standardPauseMin: number;
   regelTrigget: boolean;
 };
@@ -512,25 +512,16 @@ export default function DagsseddelDetaljSide() {
     "15:00";
 
   // V20/PK3: pause-kontekst for rad-lista (kryss/tom avkrysning pr. rad, også
-  // for rader ført på mobil). Vindu via delt `pauseVinduForDag` (PK5), regelen
-  // (dagsbrutto > 5,5 t) via delt `pauseMinForDag`. Samme kilder som serveren.
+  // for rader ført på mobil). Regelen (dagsbrutto > 5,5 t) via delt
+  // `pauseMinForDag`. ORDRE 2026-11-13: en rad kan bære pausen når spennet er
+  // lengre enn pausen — pausen ligger der summert arbeid passerer grensen.
   const listeStandardPauseMin = arbeidstidDefaults?.standardPauseMin ?? 30;
-  const listePauseFra = pauseVinduForDag(
-    timerRader.map((r) => ({ fraTid: r.fraTid })),
-    {
-      startTid: effektivStart,
-      pauseEtterTimer:
-        arbeidstidDefaults?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER,
-      pauseReferanse: effektivNorm?.pauseReferanse ?? "ankomst",
-    },
-  );
   const dagBruttoTimer = timerRader.reduce((sum, r) => {
     if (!r.fraTid || !r.tilTid) return sum;
     const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
     return spenn > 0 ? sum + spenn / 60 : sum;
   }, 0);
   const pauseVisning = {
-    pauseFra: listePauseFra,
     standardPauseMin: listeStandardPauseMin,
     regelTrigget: pauseMinForDag(dagBruttoTimer, listeStandardPauseMin) > 0,
   };
@@ -2102,24 +2093,21 @@ function RaderTimer({
         // synlighetsregel som mobilens `visPauseRad`. Bæreren (pauseMin > 0) vises
         // huket; andre kvalifiserte rader viser tom avkrysning. Les-visning;
         // redigering skjer i rad-dialogen (PK3).
-        const radKrysser =
-          !!rad.fraTid &&
-          !!rad.tilTid &&
-          pauseOverlappMin(
-            hhmmTilMin(rad.fraTid),
-            hhmmTilMin(rad.tilTid),
-            hhmmTilMin(pauseVisning.pauseFra),
-            pauseVisning.standardPauseMin,
-          ) > 0;
-        const visPause =
-          (pauseVisning.regelTrigget && radKrysser) || rad.pauseMin > 0;
-        const pauseTrukketMin =
+        // ORDRE 2026-11-13: kan bære = spennet er lengre enn pausen; trukne
+        // minutter utledes av lagret timer (spenn − timer), så gamle vindu-rader
+        // vises som de ble lagret.
+        const radSpennMin =
           rad.fraTid && rad.tilTid
-            ? pauseOverlappMin(
-                hhmmTilMin(rad.fraTid),
-                hhmmTilMin(rad.tilTid),
-                hhmmTilMin(pauseVisning.pauseFra),
+            ? hhmmTilMin(rad.tilTid) - hhmmTilMin(rad.fraTid)
+            : 0;
+        const radKanBaere = radSpennMin > pauseVisning.standardPauseMin;
+        const visPause =
+          (pauseVisning.regelTrigget && radKanBaere) || rad.pauseMin > 0;
+        const pauseTrukketMin =
+          radSpennMin > 0
+            ? Math.min(
                 rad.pauseMin,
+                Math.max(0, Math.round(radSpennMin - tilTall(rad.timer) * 60)),
               )
             : 0;
         // V22: byggeplassen står på sekundærlinja, ikke i tittelen (erstatter
@@ -2505,18 +2493,28 @@ function TimerRadDialog({
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
 
-  // V20/PK5: pausevinduets start for dagen gitt en kandidat-fraTid. «ankomst»
-  // → tidligste rad-fraTid (inkl. kandidaten), «fastStart» → skiftstart. Samme
-  // delte `pauseVinduForDag` som serveren, så den interaktive PK4-vakten ikke
-  // avviser. Andre rader = alle unntatt den som redigeres.
+  // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer»: pausepunktet for
+  // kandidat-spennet = der summert arbeid (sedelens rader før + raden) passerer
+  // firmaets grense; «fastStart» bruker fast klokkeslett når det ligger i raden.
+  // Samme delte `pauseFraForRad` som mobil og serveren. Andre rader = alle
+  // unntatt den som redigeres.
   const andreRaderFraTid = alleTimerRader
     .filter((r) => r.id !== rad?.id)
-    .map((r) => ({ fraTid: r.fraTid }));
-  function beregnPauseFra(kandidatFra: string | null): string {
-    return pauseVinduForDag([...andreRaderFraTid, { fraTid: kandidatFra }], {
-      startTid: skiftStart,
+    .map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid }));
+  const fastPauseFra = fastPauseFraFor({
+    startTid: skiftStart,
+    pauseEtterTimer: standardPauseEtterTimer,
+    pauseReferanse,
+  });
+  function beregnPauseFra(kFra: string | null, kTil: string | null): string {
+    if (!kFra) return "00:00";
+    return pauseFraForRad({
+      fraTid: kFra,
+      tilTid: kTil ?? kFra,
+      andreRader: andreRaderFraTid,
       pauseEtterTimer: standardPauseEtterTimer,
-      pauseReferanse,
+      pauseMin: standardPauseMin,
+      fastPauseFra,
     });
   }
 
@@ -2530,18 +2528,15 @@ function TimerRadDialog({
     tilTid: r.tilTid,
     pauseMin: r.pauseMin,
   }));
-  function beregnAutoPause(
-    kFra: string | null,
-    kTil: string | null,
-    pf: string,
-  ): number {
+  function beregnAutoPause(kFra: string | null, kTil: string | null): number {
     return avgjorRadPauseMin({
       alleRader: alleRaderForPause,
       radId: rad?.id ?? null,
       fraTid: kFra,
       tilTid: kTil,
-      pauseFra: pf,
       standardPauseMin,
+      pauseEtterTimer: standardPauseEtterTimer,
+      fastPauseFra,
     });
   }
 
@@ -2598,8 +2593,8 @@ function TimerRadDialog({
     // prefill; ellers tom (ingen 0-rad). V20/PK1+PK2: pausen er radens
     // auto-bærer-avgjørelse, ikke firma-default/hodet.
     if (prefillGyldig) {
-      const pf = beregnPauseFra(defaultFraTid!);
-      const pm = beregnAutoPause(defaultFraTid!, defaultTilTid!, pf);
+      const pf = beregnPauseFra(defaultFraTid!, defaultTilTid!);
+      const pm = beregnAutoPause(defaultFraTid!, defaultTilTid!);
       return String(effektiveTimerFraSpenn(defaultFraTid!, defaultTilTid!, pf, pm));
     }
     return "";
@@ -2663,21 +2658,20 @@ function TimerRadDialog({
   const [maskinMengde, setMaskinMengde] = useState<string>("");
   const [maskinEnhet, setMaskinEnhet] = useState<string>("");
 
-  // V20/PK5: pausevindu for GJELDENDE fra-tid (ankomst-firmaer regner fra
-  // tidligste rad-fraTid, inkl. den som redigeres her).
+  // ORDRE 2026-11-13: pausepunktet for GJELDENDE fra/til.
   const pauseFra = useMemo(
-    () => beregnPauseFra(fraTid || null),
+    () => beregnPauseFra(fraTid || null, tilTid || null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fraTid, alleTimerRader, rad?.id, skiftStart, standardPauseEtterTimer, pauseReferanse],
+    [fraTid, tilTid, alleTimerRader, rad?.id, skiftStart, standardPauseEtterTimer, pauseReferanse, standardPauseMin],
   );
 
   // V20/PK2: auto-bærer-avgjørelse for gjeldende fra/til. radPauseMin =
   // brukerens overstyring hvis satt, ellers auto. ÉN verdi driver timetallet
   // (PK1) og avkrysningen — aldri firma-default eller hodet.
   const autoPauseMin = useMemo(
-    () => (fraTid && tilTid ? beregnAutoPause(fraTid, tilTid, pauseFra) : 0),
+    () => (fraTid && tilTid ? beregnAutoPause(fraTid, tilTid) : 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fraTid, tilTid, pauseFra, alleTimerRader, rad?.id, standardPauseMin],
+    [fraTid, tilTid, alleTimerRader, rad?.id, standardPauseMin, standardPauseEtterTimer, fastPauseFra],
   );
   const radPauseMin = pauseOverstyrt ?? autoPauseMin;
 
@@ -2696,20 +2690,13 @@ function TimerRadDialog({
   }, [fraTid, tilTid, pauseFra, radPauseMin]);
 
   // V20/PK3: avkrysningen vises kun når matpause-regelen trigger for dagen
-  // (dagsbrutto inkl. denne raden > 5,5 t) OG raden krysser pausevinduet —
-  // samme synlighetsregel som mobil (`visPauseRad`). `pauseTrukketMin` er de
-  // FAKTISK trukne minuttene (full overlapp → 30; delvis → mindre).
+  // (dagsbrutto inkl. denne raden > 5,5 t) OG raden kan bære pausen (spennet er
+  // lengre enn pausen — ORDRE 2026-11-13, samme som mobilens `radKanBaerePause`).
+  // `pauseTrukketMin` er de FAKTISK trukne minuttene.
   const dagKrysserPause = useMemo(() => {
     if (!fraTid || !tilTid) return false;
-    return (
-      pauseOverlappMin(
-        hhmmTilMin(fraTid),
-        hhmmTilMin(tilTid),
-        hhmmTilMin(pauseFra),
-        standardPauseMin,
-      ) > 0
-    );
-  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
+    return hhmmTilMin(tilTid) - hhmmTilMin(fraTid) > standardPauseMin;
+  }, [fraTid, tilTid, standardPauseMin]);
   const pauseRegelTrigget = useMemo(() => {
     const spenn = (r: { fraTid: string | null; tilTid: string | null }) =>
       r.fraTid && r.tilTid
@@ -2783,8 +2770,8 @@ function TimerRadDialog({
     if (r && tilTid) {
       // PK5: vinduet kan flytte seg (ankomst). PK1/PK2: pause = overstyring
       // eller auto-bærer for det NYE spennet.
-      const pf = beregnPauseFra(r);
-      const pm = pauseOverstyrt ?? beregnAutoPause(r, tilTid, pf);
+      const pf = beregnPauseFra(r, tilTid);
+      const pm = pauseOverstyrt ?? beregnAutoPause(r, tilTid);
       setTimer(String(effektiveTimerFraSpenn(r, tilTid, pf, pm)));
     }
   }
@@ -2792,8 +2779,8 @@ function TimerRadDialog({
     const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
     setTilTid(r);
     if (fraTid && r) {
-      const pf = beregnPauseFra(fraTid);
-      const pm = pauseOverstyrt ?? beregnAutoPause(fraTid, r, pf);
+      const pf = beregnPauseFra(fraTid, r);
+      const pm = pauseOverstyrt ?? beregnAutoPause(fraTid, r);
       setTimer(String(effektiveTimerFraSpenn(fraTid, r, pf, pm)));
     }
   }
@@ -2802,7 +2789,9 @@ function TimerRadDialog({
     const n = parseFloat(v);
     if (fraTid && !isNaN(n) && n > 0) {
       // Antall er autoritativt → utled til-tid med gjeldende pause (radens).
-      setTilTid(tilFraAntall(fraTid, n, beregnPauseFra(fraTid), radPauseMin));
+      // ORDRE 2026-11-13: pausen ligger alltid i bærer-raden → til = fra +
+      // antall + pause (pausepunkt = fra gjør at hele pausen legges til).
+      setTilTid(tilFraAntall(fraTid, n, fraTid, radPauseMin));
     }
   }
 
@@ -2866,7 +2855,21 @@ function TimerRadDialog({
       },
     ];
     return (
-      foreslaOvertidSplitt(rader, normTimer, lonnsarter, { pauseFra }).find(
+      foreslaOvertidSplitt(rader, normTimer, lonnsarter, {
+        pauseFra: (r) =>
+          r.id === egenId
+            ? pauseFra
+            : r.fraTid && r.tilTid
+              ? pauseFraForRad({
+                  fraTid: r.fraTid,
+                  tilTid: r.tilTid,
+                  andreRader: rader.filter((a) => a.id !== r.id),
+                  pauseEtterTimer: standardPauseEtterTimer,
+                  pauseMin: r.pauseMin,
+                  fastPauseFra,
+                })
+              : "00:00",
+      }).find(
         (f) => f.radId === egenId,
       ) ?? null
     );
@@ -2881,6 +2884,8 @@ function TimerRadDialog({
     reiseKontekst,
     normTimer,
     pauseFra,
+    standardPauseEtterTimer,
+    fastPauseFra,
   ]);
   const formaterT = (n: number) =>
     n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
