@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { AppState } from "react-native";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { trpc } from "../lib/trpc";
@@ -562,6 +563,29 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       lagreInternRef.current();
     }
   }, [erPaaNettet, erInitialisert, synkStatus]);
+
+  // Ventende auto-lagring (debounce 2 s) skrives synkront til SQLite når skjermen
+  // forlates (unmount — også sveip-tilbake/`beforeRemove`, som går utenom
+  // `håndterTilbake`) og når appen går i bakgrunnen. Kun den synkrone delen:
+  // server-synken tas av «nett tilbake»-effekten over eller ved neste åpning
+  // (usynket SQLite leses inn). Ingen setState ved unmount. (C4, Redesign 2026-11-13)
+  useEffect(() => {
+    const flushVentende = (): boolean => {
+      if (!lagreTimerRef.current) return false;
+      clearTimeout(lagreTimerRef.current);
+      lagreTimerRef.current = null;
+      if (!oppgaveId) return false;
+      skrivTilSQLite(oppgaveId, lagreUtvalg(feltVerdierRef.current, basisRef.current).data, false);
+      return true;
+    };
+    const abonnement = AppState.addEventListener("change", (tilstand) => {
+      if (tilstand !== "active" && flushVentende()) settSynkStatus("lokalt_lagret");
+    });
+    return () => {
+      abonnement.remove();
+      flushVentende();
+    };
+  }, [oppgaveId]);
 
   // Oppdater én nøkkel i et felt og planlegg auto-lagring
   const oppdaterFelt = useCallback(

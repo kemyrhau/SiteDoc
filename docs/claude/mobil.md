@@ -269,6 +269,8 @@ const { t } = useTranslation();
 
 **Auto-save hooks (useSjekklisteSkjema/useOppgaveSkjema):** Bruker `lagreInternRef` og stabil `planleggLagring` (tom dep-array) for å bryte dependency-kaskaden `oppdaterDataMutasjon → lagreIntern → planleggLagring → oppdaterFelt → settVerdi`. Uten refs: mutation-state-skifte gjenskaper hele kjeden → effects re-trigges → loop.
 
+**Flush av ventende auto-lagring (C4, 2026-11-13):** begge hookene har en effekt som, når `lagreTimerRef` har en ventende 2 s-debounce, nuller timeren og skriver den synkrone delen (`skrivTilSQLite(id, lagreUtvalg(...).data, false)`) — ved unmount (også sveip-tilbake/`beforeRemove`, som går utenom `håndterTilbake`) og ved `AppState` ≠ `active`. Ved bakgrunn settes `synkStatus` til `lokalt_lagret` så «nett tilbake»-effekten synker; ved unmount ingen setState — usynket SQLite leses inn og synkes ved neste åpning. Før: en endring yngre enn 2 s gikk tapt. Vakter V7/V8 i `src/hooks/skjemaFlush.test.ts`.
+
 **Oversettelse ved lagring (Lag 3):** API `oppdaterData` prøver auto-oversettelse (OPUS-MT) ved lagring. Wrappet i try/catch — lagring skal ALDRI feile pga. oversettelsesserver. OPUS-MT trenger pivot via engelsk (lt→en→nb) — **TODO**: implementer pivot-logikk i `kallOversettelsesServer()`.
 
 ## Offline-first (SQLite)
