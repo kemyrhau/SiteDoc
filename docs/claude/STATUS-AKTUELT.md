@@ -30,6 +30,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
+> ✅ **Timer mobil F1 MERGET 2026-11-13** (merge `98bb4887` av `e9f45fb4`, Kontrollør GODKJENT `inbox-orkestrator.md:22244`, regel 10 re-kjørt): utlegg og arbeidsdag-peker følger sedelen når den får ny id (én transaksjon) · foreldreløse utlegg reddes ved sync når koblingen er entydig (kun GPS-dager; manuelle har ingen kobling). Åpent hos Kenneth: reddet utlegg på allerede **sendt** sedel havner hos attestanten (Kontrollør anbefaler godta). ⚪ Ikke på telefon: venter OTA testkanal.
+>
 > ✅ **Timer mobil TELEFONTEST 13.11 MERGET 2026-11-13** (merge `e5aea2f4` av `2399c71e`, Kontrollør GODKJENT `inbox-orkestrator.md:22171` + `:22208`): manuell føring henter dagsnorm ved datobytte, så «Norm fra siste kjente svar» ikke vises med nett · «+ Nytt prosjektkort» blå og større · pågår-kortet viser «Nå: X (siden HH:MM)» fra første besøk, unntatt når besøk 1 = oppmøtestedet eller start på verksted/kontor uten byggeplass (B-9). ⚪ Ikke på telefon: venter OTA testkanal.
 >
 > ✅ **Timer mobil UTKAST FOR PROSJEKTKORT MERGET 2026-11-13** (merge `1499458a` av `df69aaee`, Kontrollør GODKJENT etter to RETUR-er, gate 3 `inbox-orkestrator.md:22057`): endringer i Bekreft dag lagres lokalt som utkast · «Ikke nå» heter «Fortsett senere» når noe er endret og lagrer i stedet for å forkaste · Timer-lista viser dagen med 0,00 t og gult «Ikke bekreftet», trykk gjenoppretter · «Avslutt uten timer» spør med modal når utkastet har innhold · åpning fra lista henter slutt-GPS og norm som «Slutt dag» (`forberedSluttDag`) · sjekkliste/oppgave mister ikke tekst ved rask tilbake/bakgrunn. Valg 3 (GPS-utkast blir manuelt kort) dekkes kun av test (Kenneth «Ja, bare test»). Kun lokal SQLite (additiv tabell), ingen server/Prisma. OTA testkanal kjørt; telefontestet av Kenneth 13.11 (utkast lagres). Fire nye funn: 3/4/9 i `fix/timer-telefontest-1311`, 5 = spec `tillegg-utlegg-prosjektkort-spec.md` (merget `3d19c81d`). **Kenneth 13.11 «Ja til alle»:** B1–B8 som anbefalt (dagskortet urørt, ingen backfill), B-9 (verksted-start viser bare «Startet på X») som retur på `18fb4db3`, F1 (utlegg/vedlegg re-nøkles ikke i `forsonSedelIdentitet`) rettes før specen. Rekkefølge Redesign: B-9 → F1 → spec (6 commits, migrering kjøres av Kenneth, API før OTA).
@@ -59,10 +61,10 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
-| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG — telefontest 13.11 + B-9 GODKJENT, merget `e5aea2f4` |
+| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG — F1 GODKJENT, merget `98bb4887` |
 | **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `feat/sjekkliste-pdf-oppgaver-vedlegg` `c0563328` (merget `6db57534`) | ⚪ LEDIG |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `fix/timer-telefontest-1311` `2399c71e` (merget `e5aea2f4`) | 🔵 ARBEIDER — F1 (utlegg/vedlegg ved ny sedel-id); deretter spec tillegg/utlegg |
+| **Redesign** | `SiteDoc-redesign` | `fix/timer-forson-utlegg` `e9f45fb4` (merget `98bb4887`) | ⚪ LEDIG — neste: spec tillegg/utlegg på prosjektkortet |
 | **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `3c619872` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG — spec tillegg/utlegg på prosjektkortet merget `3d19c81d` 2026-11-13; B1–B8 vedtatt |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
