@@ -32,6 +32,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
 | PSI/§15-geofence-håndheving (nivåer, per firma/byggeplass) | `psi-geofence-handhevning-utredning.md` (🟡 parkert grunnlagsdok) |
 | Maskin-modul spec endres | `maskin.md` |
+| Tillegg/utlegg på prosjektkortet (byggeplass/underprosjekt) spec endres | `tillegg-utlegg-prosjektkort-spec.md` (🟡 UTKAST, Fabel) |
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |

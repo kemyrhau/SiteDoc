@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-13
+- 2026-11-13 — **`tillegg-utlegg-prosjektkort-spec.md`: ny spec — tillegg og utlegg på prosjektkortet med byggeplass/underprosjekt** (branch `docs/fabel`, docs-only, Fabel, 🟡 UTKAST, B1–B8 til Kenneth): to nullable kolonner på `sheet_tillegg`/`sheet_utlegg`, føring på kortskjermen, dagskort urørt, Bekreft dag med kortvalg, web/eksport-lesere med `fil:linje`, seks commits, 13 gate-tester. Registrert i DOC-MAP. 🔄 Under arbeid 21 → 22, totalt 57 → 58.
 - 2026-11-13 — **`timer.md` + `mobil.md`: RETUR prosjektkort-utkast — felles `forberedSluttDag` (avvik 12) og utsatt kvitteringssletting (avvik 10)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`mobil.md`: Sjekkliste/oppgave flusher ventende auto-lagring ved unmount og bakgrunn (C4)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet — tellinger uendret.
 - 2026-11-13 — **`timer.md` + `mobil.md` + `hjelpetekster.md`: Utkast for prosjektkort i Timer-lista (C3)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): merket «Ikke bekreftet», 0 t-rad, GPS-rydding ved fokus, utkast utenfor `usendteKladder`. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
@@ -334,11 +335,11 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 |---|---:|
 | ✅ Verifisert mot kode | 6 |
 | ⚠️ Drift identifisert | 4 |
-| 🔄 Under arbeid | 21 |
+| 🔄 Under arbeid | 22 |
 | ❌ Ikke screenet | 21 |
 | ✔️ Ferdig brukt (lukket) | 3 |
 | 📦 Arkivert | 8 |
-| **Totalt** | **57** |
+| **Totalt** | **58** |
 
 ---
 
@@ -371,6 +372,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
+| tillegg-utlegg-prosjektkort-spec.md | 2026-11-13 | **🟡 UTKAST 2026-11-13 (Fabel, spec, ingen kode; B1–B8 til Kenneth):** tillegg og utlegg bærer byggeplass + underprosjekt og føres på prosjektkortet (reverserer 36b GO 4). Dagskort urørt (vakt utvidet), Bekreft dag beholdes med kortvalg, ingen backfill. Målt mot develop @ 665806e2. |
 | fase-M-forarbeid-testmaler-ns3420-malbygger-2026-07-16.md | 2026-07-16 | **Beviskilde fase M.** Måling av testmaler + NS3420-inventar + MalBygger-kapabilitet (redesign-Opus, kun lesing). Rå-vedlegg i samme mappe: `ns3420-mal-dump-raw.json`, `ns3420-dok-inventar.json`, `ns3420-dok-inventar-raw.json`. Levde 5 dager utenfor git i repo-rota; versjonert 2026-07-16 |
 | faseM-3a-felttype-matrise.md | 2026-07-16 | **Arbeidsanker fase M-3a.** 27 felttyper målt langs (a)-(d) + 6 funn (`fd0ee7a2`). ⚠️ **Delvis foreldet av del 2:** F1/F2/F4 er bygget — `:44–45` og `:80` beskriver tilstand før fiksen. Oppdateres i del 2s commit |
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
