@@ -1,7 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { arbeidsdagLocal, prosjektkortUtkastLocal } from "../db/schema";
 import type { LokalDb } from "../services/dagsforslagInput";
-import { slettLokaltBilde } from "../services/lokalBilde";
 import type { DagsforslagRetting } from "./dagsforslag";
 import type { TilleggPerRad } from "./bekreftDagTillegg";
 import type { NyttLonnstillegg, NyttUtlegg } from "../services/tilleggUtleggSkriv";
@@ -262,6 +261,9 @@ export function slettUtkastRad(db: LokalDb, args: UtkastEier & { nokkel: string 
 /** Forkast: rad + kvitteringsbilder slettes. Kan ikke angres. */
 export async function forkastUtkast(db: LokalDb, args: UtkastEier & { nokkel: string }): Promise<void> {
   const stier = slettUtkastRad(db, args);
+  // Dynamisk: modulen holdes fri for expo-filsystemet, så rene tester (bekreftDag)
+  // kan importere den.
+  const { slettLokaltBilde } = await import("../services/lokalBilde");
   for (const sti of stier) await slettLokaltBilde(sti);
 }
 

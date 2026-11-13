@@ -391,8 +391,10 @@ describe("ORDRE Tillegg/Utlegg i Bekreft dag — kildevakter i skjermen", () => 
       /resultat\?\.lonnUtleggSkrevet\)\s*\{\s*pendingKvitteringer\.current = \[\];[\s\S]*?leggIKo\(ko\)/,
     );
   });
-  it("🔴 ulagrede kvitteringer ryddes når skjermen forlates", () => {
-    expect(SKJERM).toMatch(/for \(const sti of pendingKvitteringer\.current\) void slettLokaltBilde\(sti\)/);
+  it("🔴 ulagrede kvitteringer ryddes når skjermen forlates (utkast-eide unntatt)", () => {
+    expect(SKJERM).toMatch(
+      /for \(const sti of pendingKvitteringer\.current\) \{\s*if \(!eide\.includes\(sti\)\) void slettLokaltBilde\(sti\);?\s*\}/,
+    );
   });
   it("negativkontroll: seksjonen skjules når alle datoer er sendt", () => {
     expect(SKJERM).toMatch(/!alleSendt && !ikkeAnsatt && !tomt && lonnUtleggProsjekt \? \(\s*<BekreftDagLonnUtlegg/);

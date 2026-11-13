@@ -119,6 +119,16 @@ prosjektkortet (`prosjektkort/DagSeksjon.tsx`). Tekstene ligger i i18n (`hjelp.t
 - I Bekreft dag lagres linjene først ved [Bekreft og lagre], på første dato som ikke er sendt. Er alle datoene sendt,
   får du beskjed, og ingenting lagres.
 
+## Mobil: Bekreft dag — utkast (`app/timer/bekreft-dag.tsx`)
+
+`HjelpIkon` i toppen av Bekreft dag (`timer.bekreftDag.utkastHjelpTittel` / `utkastHjelpTekst`, 15 språk):
+«Det du fører lagres på telefonen mens du jobber. Går du ut, ligger det klart neste gang du åpner dagen. Ingen andre
+ser det før du trykker Bekreft. Forkast sletter det.»
+
+- Sekundærknappen heter «Fortsett senere» med hint «Lagres på telefonen. Lederen ser ingenting før du bekrefter.» når
+  noe er ført, ellers «Ikke nå».
+- «Fortsetter der du slapp (kl.)» øverst når et utkast er gjenopprettet; «Lagret automatisk» i handlingsfeltet.
+
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 
 Siden `oppsett/produksjon/dokumentflyt/page.tsx` har ingen `?`-komponent for kortet ennå; vedtatt tekst, brukes når

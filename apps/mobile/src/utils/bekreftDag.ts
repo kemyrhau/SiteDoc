@@ -31,6 +31,7 @@ import {
 import { arbeidsraderPerKort, kortMedArbeid } from "./beskrivelseKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
 import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
+import { slettUtkastRad } from "./prosjektkortUtkast";
 
 /**
  * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
@@ -185,6 +186,12 @@ export function bekreftDag(
     endLng: number | null;
     /** L4-A (§ 2.2): byggeplassen slutt-GPS traff (null = ingen treff). */
     sluttSted?: BesokSted | null;
+    /**
+     * Utkast for prosjektkort: nøkkelen til skjermens utkast. Slettes rett etter
+     * at en sedel faktisk ble skrevet (`forsteLagredeSheetId`); hver stopp beholder
+     * det. Filene røres ikke — køen eier kvitteringene etter Bekreft.
+     */
+    utkastNokkel?: string;
   },
   tilleggPerRad?: TilleggPerRad,
   /** ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg + utlegg fra minnet. */
@@ -245,6 +252,11 @@ export function bekreftDag(
   if (harLonnUtlegg(lonnUtlegg) && !resultat.lonnUtleggSkrevet) {
     return { handling: { type: "tilleggUtleggUtenDag" }, resultat };
   }
+  // Utkast: en sedel ble skrevet → det ikke bekreftede prosjektkortet er bekreftet.
+  // Ingen sedel (alt sendt, ikke ansatt, kilde/prosjekt mangler) → utkastet står.
+  if (ctx.utkastNokkel && resultat.forsteLagredeSheetId != null) {
+    slettUtkastRad(db, { userId: ctx.userId, orgId: ctx.orgId, nokkel: ctx.utkastNokkel });
+  }
   // H7: avgjør handlingen FØR arbeidsdagen røres. Sendt sedel, ikke ansatt og
   // manglende kilde/prosjekt holder dagen åpen (A4 venter Kenneth).
   const handling = avgjorSluttDagHandling(resultat);
@@ -284,26 +296,37 @@ export function avsluttDagUtenSedel(
     /** L4-A (§ 2.2): byggeplassen slutt-GPS traff (null = ingen treff). */
     sluttSted?: BesokSted | null;
     nyId: () => string;
+    /**
+     * Utkast for prosjektkort (`dag:<arbeidsdagId>`): slettes i samme transaksjon
+     * som dagen avsluttes. Kvitteringsstiene returneres — kalleren sletter filene
+     * ETTER commit.
+     */
+    utkast?: { userId: string; orgId: string; nokkel: string };
   },
-): void {
-  db.update(arbeidsdagLocal)
-    .set({
-      endAt: p.sluttIso,
-      endLat: p.endLat,
-      endLng: p.endLng,
-      status: "avsluttet",
-      generertDagsseddelId: null,
-      sistEndretLokalt: p.naa(),
-    })
-    .where(eq(arbeidsdagLocal.id, p.arbeidsdagId))
-    .run();
-  avsluttBesok(db, {
-    nyId: p.nyId,
-    arbeidsdagId: p.arbeidsdagId,
-    sluttIso: p.sluttIso,
-    sluttSted: p.sluttSted ?? null,
-    naaIso: new Date(p.naa()).toISOString(),
+): string[] {
+  let kvitteringer: string[] = [];
+  db.transaction((tx) => {
+    tx.update(arbeidsdagLocal)
+      .set({
+        endAt: p.sluttIso,
+        endLat: p.endLat,
+        endLng: p.endLng,
+        status: "avsluttet",
+        generertDagsseddelId: null,
+        sistEndretLokalt: p.naa(),
+      })
+      .where(eq(arbeidsdagLocal.id, p.arbeidsdagId))
+      .run();
+    avsluttBesok(tx as unknown as LokalDb, {
+      nyId: p.nyId,
+      arbeidsdagId: p.arbeidsdagId,
+      sluttIso: p.sluttIso,
+      sluttSted: p.sluttSted ?? null,
+      naaIso: new Date(p.naa()).toISOString(),
+    });
+    if (p.utkast) kvitteringer = slettUtkastRad(tx as unknown as LokalDb, p.utkast);
   });
+  return kvitteringer;
 }
 
 /**
