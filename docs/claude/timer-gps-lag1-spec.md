@@ -114,7 +114,12 @@ trukket reisen to ganger. **Derfor:**
 - `arbeidsstart = start-GPS + ut.kjoretidMin` når ut-etappen er **reisetid**; `= start-GPS` når den er
   **arbeidstid** (V3) eller ikke finnes.
 - `arbeidsslutt = slutt-GPS − retur.kjoretidMin` når retur er reisetid; `= slutt-GPS` ellers.
-- 🔴 **`arbeidstimer = arbeidsslutt − arbeidsstart − pause`** (rundet som før). **Subtraksjonen
+- 🔴 **`arbeidstimer = arbeidsslutt − arbeidsstart − pause`**. *Endret 2026-11-13 (Kenneth: «benytt fra
+  til -> rund av til nærmeste 15 minutter»):* avrundingen gjelder **klokkeslettene** — arbeidsstart og
+  arbeidsslutt rundes hver for seg til `tidsrundingMinutter` (`rundTidspunktTilNarmeste`,
+  `apps/mobile/src/utils/tidsrunding.ts`), ikke varigheten; en kant som berører en reise-etappe rundes
+  ikke. Pausen trekkes **én gang pr. sedel** — dagsbrutto og eksisterende pausebærer på sedelen avgjør
+  (`dagPauseMinForNyttArbeid`, `packages/shared/src/utils/pauseBeregning.ts`). **Subtraksjonen
   `totalTimer − reisetidTimer` FJERNES** — vinduet har allerede ekskludert begge etapper.
 - `carveArbeidstider` får `startTid = arbeidsstart` og `reisetidTimer = 0` (eller parameteren fjernes).
   **Ingen `sluttKapp`:** carven legger segmenter forover og stopper når `seg.timer` er brukt

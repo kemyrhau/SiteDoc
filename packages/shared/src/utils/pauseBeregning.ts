@@ -209,15 +209,6 @@ export function avgjorRadPauseMin(args: {
 }): number {
   const { alleRader, radId, fraTid, tilTid, pauseFra, standardPauseMin } = args;
   if (!fraTid || !tilTid) return 0;
-  const andre = alleRader.filter((r) => r.id !== radId);
-  // (1) Dagsbrutto (sum rad-spenn) inkl. kandidatens NYE spenn.
-  const kandidatSpenn = Math.max(0, hhmmTilMin(tilTid) - hhmmTilMin(fraTid)) / 60;
-  const bruttoAndre = andre.reduce((sum, r) => {
-    if (!r.fraTid || !r.tilTid) return sum;
-    const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
-    return spenn > 0 ? sum + spenn / 60 : sum;
-  }, 0);
-  if (pauseMinForDag(bruttoAndre + kandidatSpenn, standardPauseMin) === 0) return 0;
   // (2) Krysser kandidaten pausevinduet?
   const overlapp = pauseOverlappMin(
     hhmmTilMin(fraTid),
@@ -226,8 +217,46 @@ export function avgjorRadPauseMin(args: {
     standardPauseMin,
   );
   if (overlapp <= 0) return 0;
+  // (1) + (3): dagsterskel inkl. kandidatens NYE spenn, og ingen annen bærer.
+  return dagPauseMinForNyttArbeid({
+    andreRader: alleRader.filter((r) => r.id !== radId),
+    nyBruttoTimer: Math.max(0, hhmmTilMin(tilTid) - hhmmTilMin(fraTid)) / 60,
+    standardPauseMin,
+  });
+}
+
+/**
+ * Dag-delen av pauseregelen (punkt 1 og 3 i `avgjorRadPauseMin`), skilt ut så
+ * Bekreft dag og manuell føring bruker ÉN regel (ORDRE dobbel pause 2026-11-13):
+ *   1) dagsbrutto = Σ spenn på sedelens andre rader + det nye arbeidet > 5,5 t
+ *   3) ingen annen rad på sedelen bærer pausen alt (kun én pr. sedel)
+ * Returnerer `standardPauseMin` når begge holder, ellers 0. Punkt 2 (krysser
+ * pausevinduet) ligger hos kalleren: manuell rad sjekker overlappen, Bekreft dag
+ * legger pausevinduet inne i arbeidet (`klemPauseInnIArbeid`).
+ */
+export function dagPauseMinForNyttArbeid(args: {
+  /** Radene som står på sedelen fra før (uten kandidaten). */
+  andreRader: readonly {
+    fraTid?: string | null;
+    tilTid?: string | null;
+    pauseMin?: number | null;
+  }[];
+  /** Brutto spenn (timer) på det nye arbeidet, før pausefradrag. */
+  nyBruttoTimer: number;
+  standardPauseMin: number;
+}): number {
+  const { andreRader, nyBruttoTimer, standardPauseMin } = args;
+  const bruttoAndre = andreRader.reduce((sum, r) => {
+    if (!r.fraTid || !r.tilTid) return sum;
+    const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
+    return spenn > 0 ? sum + spenn / 60 : sum;
+  }, 0);
+  // (1) Dagsterskel (AML §10-9).
+  if (pauseMinForDag(bruttoAndre + Math.max(0, nyBruttoTimer), standardPauseMin) === 0) {
+    return 0;
+  }
   // (3) Bærer en ANNEN rad pausen alt? (kun-én-pr.-dag — flytt, ikke dupliser.)
-  if (andre.some((r) => r.pauseMin > 0)) return 0;
+  if (andreRader.some((r) => (r.pauseMin ?? 0) > 0)) return 0;
   return standardPauseMin;
 }
 

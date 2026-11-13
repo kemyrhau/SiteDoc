@@ -314,7 +314,11 @@ function lesEksisterendeSedel(
     return { finnes: false, status: null, eksisterendeRader: [] };
   }
   const rader = db
-    .select({ fraTid: sheetTimerLocal.fraTid, tilTid: sheetTimerLocal.tilTid })
+    .select({
+      fraTid: sheetTimerLocal.fraTid,
+      tilTid: sheetTimerLocal.tilTid,
+      pauseMin: sheetTimerLocal.pauseMin,
+    })
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
     .all();

@@ -827,6 +827,14 @@ Hjemmel: Kenneth, ordre «Bekreft dag Til/ramme + synlig konflikt» punkt 3. Kun
 - **Punkt 1 (Til = faktisk slutt) er ikke kodet:** venter på Kenneths valg (bryter invarianten `timer = effektiveTimerFraSpenn(fra, til, …)`).
 - Tester: `dagsseddelListeVisning.test.ts` (🔴 tom konflikt ved sedel med innhold vises; 🔴 konflikt ved tom plassholder; 🔴 eldste konflikt velges; 🔴 banner åpner og synker; vakter: plassholder skjules uten konflikt, divergens, ingen navigering utenfor konflikt). Mutanter: konflikt-filter fjernet → 2 røde; åpning fjernet → 1 rød; nyeste i stedet for eldste → 1 rød.
 
+### Bekreft dag — dobbel pause og avrunding av Fra/Til — 🟡 `fix/timer-bekreft-pause-avrunding` (2026-11-13, ikke merget)
+
+Hjemmel: Kenneth 13.11 «rett dobbelpause, benytt fra til -> rund av til nærmeste 15 minutter -> la den ansatte korrigere». Kun mobil-JS + én delt funksjon; ingen server- eller Prisma-endring.
+
+- **Dobbel pause:** `beregnDagsforslag` (`apps/mobile/src/utils/dagsforslag.ts`) avgjør pausen for hele dagen med samme regel som manuell føring: `dagPauseMinForNyttArbeid` (`packages/shared/src/utils/pauseBeregning.ts`), som `avgjorRadPauseMin` nå delegerer til. Dagsbrutto = radene som alt står på sedelen + økta > 5,5 t, og ingen eksisterende rad bærer pause → standardpausen; ellers 0. `lesEksisterendeSedel` (`dagsforslagInput.ts`) leser derfor `pauseMin` på radene. `fordelPause` har ikke lenger egen terskel-gate — den lå bare på økta. Midnatt-delt økt: radene på alle økt-datoene teller, pausen fordeles én gang.
+- **Avrunding:** arbeidsstart og arbeidsslutt rundes hver for seg til `tidsrundingMinutter` (`rundTidspunktTilNarmeste`, `apps/mobile/src/utils/tidsrunding.ts`); `arbeidstimer` = rundet spenn − pause, så `rad.timer = effektiveTimerFraSpenn(fra, til, pauseFra, pauseMin)` holder. Den gamle avrundingen av varigheten (`rundTimerTilNarmeste`) er fjernet. Til kan havne frem i tid (22:53 → 23:00); den ansatte retter Fra/Til i Bekreft dag (`FraTilTidFelt`, timene regnes på nytt). En kant som berører en reise-etappe rundes ikke (reise-vinduet må møte arbeidet i endepunktet). Reisetid rundes ikke.
+- Tester: `dagsforslag.pause-avrunding.test.ts` (🔴 Kenneths fasit: morgenkort med pause + kveld 16:39–22:49 → 16:45–22:45 = 6,00 t, pause 0; morgen 3 t uten pause + kveld → pause én gang; terskel over hele dagen; enkelt økt 6:10 → pause 30 + rundet spenn; midnatt → én pause; Fra/Til rundes hver for seg; invarianten på alle rader).
+
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 
 Timer er en **firmamodul**: data eies av firma + arbeider, med `projectId` som etikett på radene. Isolasjonen er på **organisasjon (firma)**, ikke prosjekt-medlemskap (jf. to-produkt-modellen i [terminologi.md § 0](terminologi.md) og OPPSUMMERING-timer-arkitektur § D/G1).
