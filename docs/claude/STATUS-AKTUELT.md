@@ -58,8 +58,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG (L4-A2 gatet) |
 | **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `feat/sjekkliste-pdf-oppgaver-vedlegg` `c0563328` (merget `6db57534`) | ⚪ LEDIG |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `fix/timer-l4a2-s1-montering` `6e6d613f` (merget `187d869f`) | ⚪ LEDIG |
-| **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `7e5f9ca2` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG |
+| **Redesign** | `SiteDoc-redesign` | `feat/timer-prosjektkort-utkast` (ny fra develop `c920f9f8`) | 🔵 ORDRE GITT 2026-11-13: utkast for prosjektkort (plan § 1–§ 8, C1–C4; Kenneths 4 beslutninger). Ballen: Redesign → Kontrollør |
+| **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `7e5f9ca2` · `docs/timer-gps-k19-21` `88f310e7` | 🔵 ORDRE GITT 2026-11-13: oppdater REDESIGN-MASTERPLAN.md (sist ført 30.09). Ballen: Fabel |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
