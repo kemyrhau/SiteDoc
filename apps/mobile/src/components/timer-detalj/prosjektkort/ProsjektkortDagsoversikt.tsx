@@ -640,7 +640,7 @@ export function ProsjektkortDagsoversikt({
         <>
           {redigerbar && (
             <Pressable onPress={onNyttKort} className="mx-4 mt-2 min-h-[44px] justify-center active:bg-gray-50">
-              <Text className="text-sm text-gray-700">{t("timer.prosjektkort.nyttKort")}</Text>
+              <Text className="text-base font-medium text-sitedoc-primary">{t("timer.prosjektkort.nyttKort")}</Text>
             </Pressable>
           )}
 
