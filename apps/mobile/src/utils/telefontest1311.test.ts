@@ -74,7 +74,16 @@ describe("funn 9 — pågår-kortet viser alltid hvor brukeren står", () => {
 
   it("🔴 første besøk utenfor byggeplass → «Nå»-linjen vises (stedNavn gir «Utenfor …»)", () => {
     expect(naaStedLinje({ oppmotestedNavn: null, siste: besok(1, null, null) })).toBe("besok");
-    expect(naaStedLinje({ oppmotestedNavn: "Verkstedet", siste: besok(1, null, null) })).toBe("besok");
+  });
+
+  it("🔴 B-9: dagen startet på oppmøtested uten byggeplass (verksted) → bare «Startet på X»", () => {
+    expect(naaStedLinje({ oppmotestedNavn: "Verkstedet", siste: besok(1, null, null) })).toBe(null);
+    // Negativkontroll: tomt oppmøtested-navn gir fortsatt «Nå: Utenfor …».
+    expect(naaStedLinje({ oppmotestedNavn: "", siste: besok(1, null, null) })).toBe("besok");
+  });
+
+  it("🔴 B-9: fra besøk 2 vises «Nå»-linjen også utenfor byggeplass", () => {
+    expect(naaStedLinje({ oppmotestedNavn: "Verkstedet", siste: besok(2, null, null) })).toBe("besok");
   });
 
   it("intet besøk lest → «Utenfor byggeplass»", () => {
