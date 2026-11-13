@@ -15,7 +15,7 @@ import {
   type SluttDagHandling,
   type AnvendDagsforslagResultat,
 } from "./dagsforslag";
-import { anvendDagsforslag } from "./dagsforslagAnvend";
+import { anvendDagsforslag, harLonnUtlegg, type LonnUtlegg } from "./dagsforslagAnvend";
 import { nesteLokaleMidnatt } from "./dagsegment";
 import { lokalIsoDato } from "./dato";
 import type { MaskinBrudd } from "@sitedoc/shared";
@@ -42,7 +42,8 @@ export type BekreftDagHandling =
   | SluttDagHandling
   | { type: "maskinBrudd"; brudd: MaskinBrudd[] }
   | { type: "manglerBeskrivelse"; nokler: string[] }
-  | { type: "tilleggUtenRad"; nokler: string[] };
+  | { type: "tilleggUtenRad"; nokler: string[] }
+  | { type: "tilleggUtleggUtenDag" };
 
 /**
  * ORDRE 36a (spec § 3): prosjektene som har arbeid (ikke reise) på en åpen
@@ -58,6 +59,25 @@ export function prosjekterMedArbeid(forslag: Dagsforslag): string[] {
     }
   }
   return ider;
+}
+
+/**
+ * ORDRE Tillegg/Utlegg i Bekreft dag: standardprosjektet for lønnstillegg og
+ * utlegg = prosjektet med flest arbeidstimer (ikke reise) på åpne datoer.
+ * Likt → første i forslagets rekkefølge. Uten arbeid → forslagets prosjekt.
+ */
+export function prosjektMedFlestTimer(forslag: Dagsforslag): string | null {
+  const sum = new Map<string, number>();
+  for (const d of forslag.datoer) {
+    if (d.blokkert) continue;
+    for (const r of d.rader) {
+      if (r.erReise || r.timer <= 0) continue;
+      sum.set(r.projectId, (sum.get(r.projectId) ?? 0) + r.timer);
+    }
+  }
+  let best: string | null = null;
+  for (const [id, timer] of sum) if (best == null || timer > (sum.get(best) ?? 0)) best = id;
+  return best ?? forslag.prosjektId ?? null;
 }
 
 /**
@@ -167,8 +187,11 @@ export function bekreftDag(
     sluttSted?: BesokSted | null;
   },
   tilleggPerRad?: TilleggPerRad,
+  /** ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg + utlegg fra minnet. */
+  lonnUtlegg?: LonnUtlegg,
 ):
   | { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat }
+  | { handling: { type: "tilleggUtleggUtenDag" }; resultat: AnvendDagsforslagResultat | null }
   | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
   | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null }
   | { handling: { type: "tilleggUtenRad"; nokler: string[] }; resultat: null } {
@@ -176,6 +199,11 @@ export function bekreftDag(
   const mangler = manglerBeskrivelse(forslag);
   if (mangler.length > 0) {
     return { handling: { type: "manglerBeskrivelse", nokler: mangler }, resultat: null };
+  }
+  // ORDRE Tillegg/Utlegg i Bekreft dag: linjene trenger en åpen dato sin sedel.
+  // Alle datoer blokkert → stopp FØR noe skrives (aldri stille tap).
+  if (harLonnUtlegg(lonnUtlegg) && !forslag.datoer.some((d) => !d.blokkert)) {
+    return { handling: { type: "tilleggUtleggUtenDag" }, resultat: null };
   }
   if (tilleggPerRad) {
     // PRESISERING TILLEGG: linjer uten rad (raden forsvant) → stopp, ingenting skrives.
@@ -208,7 +236,15 @@ export function bekreftDag(
       if (brudd.length > 0) return { handling: { type: "maskinBrudd", brudd }, resultat: null };
     }
   }
-  const resultat = anvendDagsforslag(db, forslag, ctx, tilleggPerRad);
+  const resultat = anvendDagsforslag(db, forslag, ctx, tilleggPerRad, lonnUtlegg);
+  // RETUR (Kontrollør M3): alle datoer ble sendt mellom forslag og Bekreft →
+  // ingen åpen sedel, linjene ble ikke skrevet. Da ble heller ingen timer skrevet
+  // (`forsteLagredeSheetId` settes ved første lagrede dato). Samme stopp som
+  // vakten over: skjermen blir stående med linjene og kvitteringene — aldri
+  // navigering bort (unmount ville slettet bildene) og aldri stille tap.
+  if (harLonnUtlegg(lonnUtlegg) && !resultat.lonnUtleggSkrevet) {
+    return { handling: { type: "tilleggUtleggUtenDag" }, resultat };
+  }
   // H7: avgjør handlingen FØR arbeidsdagen røres. Sendt sedel, ikke ansatt og
   // manglende kilde/prosjekt holder dagen åpen (A4 venter Kenneth).
   const handling = avgjorSluttDagHandling(resultat);

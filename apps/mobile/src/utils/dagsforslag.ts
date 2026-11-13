@@ -54,6 +54,7 @@ import {
   OVERTID_NIVAA_50,
 } from "@sitedoc/shared";
 import { rundTimerTilNarmeste } from "./tidsrunding";
+import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "./dagsegment";
 
 /**
@@ -1157,6 +1158,13 @@ export type AnvendDagsforslagResultat = {
   blokkerteDatoer: string[];
   /** DEL 5 a: sedelen for første skrevne dato (navigasjonsmål ved delvis lagring). */
   forsteLagredeSheetId: string | null;
+  /**
+   * ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg/utlegg ble skrevet på
+   * `forsteLagredeSheetId`. Utelatt/false = ikke skrevet (ingen åpen sedel).
+   */
+  lonnUtleggSkrevet?: boolean;
+  /** Kvitterings-køoppføringer — kalleren legger dem i køen etter vellykket Bekreft. */
+  utleggKo?: NyKoOppforing[];
 };
 
 /**

@@ -52,7 +52,12 @@ import {
   prosjekterMedArbeid,
   flyttBeskrivelse,
   flyttBeskrivelseVedProsjektbytte,
+  prosjektMedFlestTimer,
 } from "../../src/utils/bekreftDag";
+import { BekreftDagLonnUtlegg } from "../../src/components/timer-detalj/BekreftDagLonnUtlegg";
+import type { LonnUtlegg } from "../../src/utils/dagsforslagAnvend";
+import { slettLokaltBilde } from "../../src/services/lokalBilde";
+import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { forberedManuellDag } from "../../src/utils/manuellDag";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
@@ -164,6 +169,12 @@ export default function BekreftDagSkjerm() {
   const [rettetSluttIso, setRettetSluttIso] = useState<string | null>(null);
   // L3-D + PRESISERING TILLEGG: maskin og varer pr. arbeidsrad, i minnet til Bekreft.
   const [tilleggPerRad, setTilleggPerRad] = useState<TilleggPerRad>({});
+  // ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg + utlegg i minnet til Bekreft.
+  const [lonnUtlegg, setLonnUtlegg] = useState<LonnUtlegg>({ tillegg: [], utlegg: [] });
+  // Kvitteringsfilene som ennå ikke er registrert — ryddes når skjermen forlates
+  // uten lagring. Tømmes synkront så snart Bekreft har skrevet dem.
+  const pendingKvitteringer = useRef<string[]>([]);
+  const { leggIKo } = useOpplastingsKo();
   // ORDRE 36a: feltet er nøytralt til første Bekreft-forsøk med tom beskrivelse.
   const [forsoktBekreft, setForsoktBekreft] = useState(false);
   const rulleRef = useRef<ScrollView>(null);
@@ -287,6 +298,10 @@ export default function BekreftDagSkjerm() {
   // ORDRE 36a/36b: ett beskrivelsesfelt pr. kort med arbeid; chips pr. prosjekt fra lokal DB.
   const arbeidProsjekter = useMemo(
     () => (beregnet ? prosjekterMedArbeid(beregnet.forslag) : []),
+    [beregnet],
+  );
+  const lonnUtleggProsjekt = useMemo(
+    () => (beregnet ? prosjektMedFlestTimer(beregnet.forslag) : null),
     [beregnet],
   );
   const arbeidKort = useMemo(
@@ -439,6 +454,17 @@ export default function BekreftDagSkjerm() {
     [],
   );
 
+  useEffect(() => {
+    pendingKvitteringer.current = lonnUtlegg.utlegg.flatMap((u) => (u.kvittering ? [u.kvittering.lokalSti] : []));
+  }, [lonnUtlegg]);
+  // Skjermen forlates (Ikke nå, tilbake, avbryt) uten at Bekreft skrev → rydd filene.
+  useEffect(
+    () => () => {
+      for (const sti of pendingKvitteringer.current) void slettLokaltBilde(sti);
+    },
+    [],
+  );
+
   const ikkeNaa = useCallback(() => router.back(), [router]);
 
   const avsluttUtenTimer = useCallback(() => {
@@ -487,7 +513,7 @@ export default function BekreftDagSkjerm() {
     setLagrer(true);
     try {
       const { forslag } = beregnet;
-      const { handling } = bekreftDag(db, forslag, {
+      const { handling, resultat } = bekreftDag(db, forslag, {
         userId: bruker.id,
         orgId,
         erAnsatt: erAnsatt ?? null,
@@ -502,7 +528,16 @@ export default function BekreftDagSkjerm() {
         endLat,
         endLng,
         sluttSted: manuell ? null : identifiserByggeplass(endLat, endLng, orgId),
-      }, tilleggPerRad);
+      }, tilleggPerRad, lonnUtlegg);
+      if (handling.type === "tilleggUtleggUtenDag") {
+        // Ingenting er skrevet — alle datoer er sendt (også om de ble sendt mellom
+        // forslag og Bekreft); skjermen står, linjene og kvitteringene beholdes.
+        Alert.alert(
+          t("timer.bekreftDag.tilleggUtlegg.utenDagTittel"),
+          t("timer.bekreftDag.tilleggUtlegg.utenDagTekst"),
+        );
+        return;
+      }
       if (handling.type === "tilleggUtenRad") {
         // Ingenting er skrevet — linjene står under «Uten rad» til arbeideren fjerner dem.
         Alert.alert(t("timer.bekreftDag.tillegg.utenRadTittel"), t("timer.bekreftDag.tillegg.utenRadMelding"));
@@ -517,6 +552,13 @@ export default function BekreftDagSkjerm() {
         // Sikkerhetsnett — ingenting er skrevet, skjermen står.
         visTomBeskrivelse(handling.nokler);
         return;
+      }
+      if (resultat?.lonnUtleggSkrevet) {
+        // Linjene er skrevet: filene eies nå av utleggs-vedleggene (ikke rydd ved
+        // unmount), og kvitteringene køes ETTER at radene finnes (server-row-orden).
+        pendingKvitteringer.current = [];
+        setLonnUtlegg({ tillegg: [], utlegg: [] });
+        for (const ko of resultat.utleggKo ?? []) void leggIKo(ko);
       }
       oppdaterTellere();
       void triggerSync();
@@ -590,7 +632,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, leggIKo]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -978,6 +1020,17 @@ export default function BekreftDagSkjerm() {
                   />
                 ))}
               </View>
+            ) : null}
+
+            {/* ORDRE Tillegg/Utlegg i Bekreft dag — skrives på første åpne dato sin sedel. */}
+            {!alleSendt && !ikkeAnsatt && !tomt && lonnUtleggProsjekt ? (
+              <BekreftDagLonnUtlegg
+                verdi={lonnUtlegg}
+                onEndre={setLonnUtlegg}
+                organizationId={orgId}
+                defaultProjectId={lonnUtleggProsjekt}
+                prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
+              />
             ) : null}
 
             {/* RETUR 36c pkt 4: manuell føring bruker aldri GPS — ingen reise-årsak. */}

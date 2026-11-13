@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Karta ka mallra që janë dërguar. Lidhu me internetin për ta fshirë.",
   "timer.kort.offlineFlytt": "Karta ka mallra që janë dërguar. Lidhu me internetin për të lëvizur.",
   "timer.kort.delvisFlyttet": "Orët u zhvendosën. Materialet jo — prekni sërish «Ndrysho kartën» te karta e vjetër.",
-  "timer.feil.beskrivelsePaakrevd": "Përshkruani se çfarë është bërë para ruajtjes."
+  "timer.feil.beskrivelsePaakrevd": "Përshkruani se çfarë është bërë para ruajtjes.",
+  "hjelp.ikonEtikett": "Ndihmë: {{tittel}}",
+  "hjelp.tillegg.tittel": "Shtesat",
+  "hjelp.tillegg.tekst": "Shtesat janë pagesa që ju takon mbi pagën tuaj për orë, sepse puna është kryer në kushte të veçanta. Shembuj: lejimi i papastërtisë, lejimi i lartësisë, pagesa e vaktit, lejimi i përgjegjësit.",
+  "hjelp.utlegg.tittel": "Shpenzimet",
+  "hjelp.utlegg.tekst": "Shpenzimet janë para që i keni paguar vetë në emër të kompanisë dhe duhet të rimbursohen. Bëni një foto të faturës. Shembuj: parkim, tarifa rrugore, mjete të blera në një dyqan, karburant për një makinë kompanie.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Shtesat dhe shpenzimet nuk u kursyen",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Të gjitha ditët tashmë janë dërguar, kështu që shtesat dhe shpenzimet nuk kanë fletë kohore për t'u kursyer. Asgjë nuk është shpëtuar. Hiqini ato ose futini në kartën e projektit."
 }

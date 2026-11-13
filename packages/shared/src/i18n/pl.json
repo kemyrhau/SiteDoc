@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Na karcie znajdują się towary, które zostały wysłane. Połącz się z internetem, aby usunąć.",
   "timer.kort.offlineFlytt": "Na karcie znajdują się towary, które zostały wysłane. Aby się przenieść, połącz się z internetem.",
   "timer.kort.delvisFlyttet": "Godziny zostały przeniesione. Materiały nie — dotknij ponownie „Zmień kartę” na starej karcie.",
-  "timer.feil.beskrivelsePaakrevd": "Opisz, co zostało zrobione przed zapisaniem."
+  "timer.feil.beskrivelsePaakrevd": "Opisz, co zostało zrobione przed zapisaniem.",
+  "hjelp.ikonEtikett": "Pomoc: {{tittel}}",
+  "hjelp.tillegg.tittel": "Dodatki",
+  "hjelp.tillegg.tekst": "Dodatki to wynagrodzenie, do którego jesteś uprawniony oprócz stawki godzinowej, ponieważ praca była wykonywana w określonych warunkach. Przykłady: dodatek za brud, dodatek na wysokość, dodatek na wyżywienie, dodatek dla brygadzisty.",
+  "hjelp.utlegg.tittel": "Wydatki",
+  "hjelp.utlegg.tekst": "Wydatki to pieniądze, które poniosłeś sam w imieniu firmy i które podlegają zwrotowi. Zrób zdjęcie paragonu. Przykłady: parking, opłaty drogowe, narzędzia zakupione w sklepie, paliwo do samochodu służbowego.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Nie zaoszczędzono na dodatkach i wydatkach",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Wszystkie dni zostały już wysłane, więc diety i wydatki nie mają grafiku, na którym można by zapisać. Nic nie zostało zapisane. Usuń je lub wpisz na karcie projektu."
 }

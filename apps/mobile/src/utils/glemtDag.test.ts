@@ -379,3 +379,48 @@ describe("DEL 5 — kildevakter i Bekreft dag", () => {
     expect(KORT).toContain("jobberFortsatt");
   });
 });
+
+describe("ORDRE Tillegg/Utlegg i Bekreft dag — kildevakter i skjermen", () => {
+  it("🔴 tilleggUtleggUtenDag gir Alert og return (ingen stille stopp)", () => {
+    expect(SKJERM).toMatch(
+      /handling\.type === "tilleggUtleggUtenDag"\)\s*\{[\s\S]*?Alert\.alert\([\s\S]*?utenDagTittel[\s\S]*?return;/,
+    );
+  });
+  it("🔴 kvitteringene køes først etter skrevet Bekreft, og filene slippes før køing", () => {
+    expect(SKJERM).toMatch(
+      /resultat\?\.lonnUtleggSkrevet\)\s*\{\s*pendingKvitteringer\.current = \[\];[\s\S]*?leggIKo\(ko\)/,
+    );
+  });
+  it("🔴 ulagrede kvitteringer ryddes når skjermen forlates", () => {
+    expect(SKJERM).toMatch(/for \(const sti of pendingKvitteringer\.current\) void slettLokaltBilde\(sti\)/);
+  });
+  it("negativkontroll: seksjonen skjules når alle datoer er sendt", () => {
+    expect(SKJERM).toMatch(/!alleSendt && !ikkeAnsatt && !tomt && lonnUtleggProsjekt \? \(\s*<BekreftDagLonnUtlegg/);
+  });
+});
+
+describe("RETUR Tillegg/Utlegg (Kontrollør M9, M11) — kildevakter", () => {
+  const UTLEGG_SEKSJON = utenKommentarer(les("../components/timer-detalj/UtleggSeksjon.tsx"));
+  const LONN_UTLEGG = utenKommentarer(les("../components/timer-detalj/BekreftDagLonnUtlegg.tsx"));
+
+  it("🔴 M11: onOpprett-grenen leverer utlegget til kalleren og returnerer FØR skrivingen", () => {
+    expect(UTLEGG_SEKSJON).toMatch(
+      /if \(onOpprett\) \{\s*onOpprett\(nytt\);\s*return;\s*\}\s*const ko = skrivUtlegg\(db, sheetId, nytt/,
+    );
+  });
+  it("🔴 M11: Bekreft dag-modalen bruker onOpprett (ingen skriving med sheetId=\"\")", () => {
+    expect(LONN_UTLEGG).toMatch(/<UtleggRadModal[\s\S]*?sheetId=""[\s\S]*?onOpprett=\{\(u\) => \{/);
+  });
+  it("negativkontroll M11: prosjektkortets vei (uten onOpprett) skriver fortsatt med sedelens id", () => {
+    expect(UTLEGG_SEKSJON).toMatch(/const ko = skrivUtlegg\(db, sheetId, nytt, randomUUID\);\s*if \(ko\) await leggIKo\(ko\);/);
+  });
+  it("🔴 M9: fjern utlegg-linje sletter den ulagrede kvitteringsfila før linja fjernes", () => {
+    expect(LONN_UTLEGG).toMatch(
+      /onFjern=\{\(\) => \{\s*if \(u\.kvittering\?\.lokalSti\) void slettLokaltBilde\(u\.kvittering\.lokalSti\);\s*onEndre\(\(f\) => \(\{ \.\.\.f, utlegg: f\.utlegg\.filter/,
+    );
+  });
+  it("negativkontroll M9: fjern tillegg-linje har ingen fil å slette", () => {
+    expect(LONN_UTLEGG).toMatch(/onFjern=\{\(\) => onEndre\(\(f\) => \(\{ \.\.\.f, tillegg: f\.tillegg\.filter/);
+    expect(LONN_UTLEGG.match(/slettLokaltBilde\(/g)).toHaveLength(1);
+  });
+});

@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Na kartě je zboží, které bylo odesláno. Chcete-li smazat, připojte se k internetu.",
   "timer.kort.offlineFlytt": "Na kartě je zboží, které bylo odesláno. Chcete-li se pohybovat, připojte se k internetu.",
   "timer.kort.delvisFlyttet": "Hodiny byly přesunuty. Materiál ne — klepněte znovu na „Vyměňte kartu“ na staré kartě.",
-  "timer.feil.beskrivelsePaakrevd": "Popište, co bylo provedeno před uložením."
+  "timer.feil.beskrivelsePaakrevd": "Popište, co bylo provedeno před uložením.",
+  "hjelp.ikonEtikett": "Nápověda: {{tittel}}",
+  "hjelp.tillegg.tittel": "Povolenky",
+  "hjelp.tillegg.tekst": "Příplatky jsou platy, na které máte nárok nad rámec vaší hodinové mzdy, protože práce byla vykonána za určitých podmínek. Příklady: příspěvek na nečistoty, příspěvek na výšku, příspěvek na stravování, příspěvek na mistra.",
+  "hjelp.utlegg.tittel": "Výdaje",
+  "hjelp.utlegg.tekst": "Výdaje jsou peníze, které jste sami zaplatili jménem společnosti a které mají být uhrazeny. Vyfoťte účtenku. Příklady: parkování, mýtné, nářadí zakoupené v obchodě, pohonné hmoty do služebního auta.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Přídavky a výdaje nebyly ušetřeny",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Všechny dny již byly odeslány, takže příspěvky a výdaje nemají žádný časový rozvrh, na který by bylo možné uložit. Nic se nezachránilo. Odstraňte je nebo je zadejte na kartu projektu."
 }

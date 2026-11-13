@@ -162,6 +162,32 @@ export function vaktGrunnlag(
   };
 }
 
+/**
+ * ORDRE Tillegg/Utlegg 3b (GO 2026-11-13): sedel-kontekst for en rad som
+ * nettopp er skrevet — aldri null. Mangler sedelen prosjekt (eldre sedel med
+ * `projectId = null`), er radens prosjekt konteksten: raden eier prosjektet
+ * (TILLEGG 2026-11-12). Sedelens byggeplass beholdes for arv.
+ */
+export function sedelKontekstForRad(db: LokalDb, sheetId: string, radProsjektId: string): SedelKortKontekst {
+  const s = db
+    .select({ projectId: dagsseddelLocal.projectId, byggeplassId: dagsseddelLocal.byggeplassId })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .all()[0];
+  const bp = s?.byggeplassId
+    ? db
+        .select({ id: byggeplassLocal.id, projectId: byggeplassLocal.projectId })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, s.byggeplassId))
+        .all()[0]
+    : undefined;
+  return {
+    // Server-sedel uten prosjekt lagres lokalt som "" (timerSync) — faller også til raden.
+    projectId: s?.projectId || radProsjektId,
+    byggeplass: bp ? { id: bp.id, projectId: bp.projectId } : null,
+  };
+}
+
 /** Sedelens prosjekt + byggeplass (med byggeplassens prosjekt) — som `sedelKontekst` i prosjektkortet. */
 export function sedelKontekstLokalt(db: LokalDb, sheetId: string): SedelKortKontekst | null {
   const s = db
@@ -185,20 +211,21 @@ export function sedelKontekstLokalt(db: LokalDb, sheetId: string): SedelKortKont
  * vanlige rader — maskiner og varer registreres på RADEN, som i
  * prosjektkortet. Ingen dagsliste, ingen tidsmatching, ingen auto-kobling.
  *
- * Nøkkel = `tillegg:` + dato | lønnsart | radIndeks. `radIndeks` er radens
- * stabile identitet (carve-vinduets opprettelsesrekkefølge, ikke posisjon
- * etter tid) — rettes fra–til, følger linjene raden. Uten fra-tid og
- * prosjekt: prosjektbytte tar linjene med. Lønnsarten gjør at et vindu som
- * forsvinner aldri lar linjene gli over på et annet vindu stille.
+ * Nøkkel = `tillegg:` + dato | radIndeks. `radIndeks` er radens stabile
+ * identitet (carve-vinduets opprettelsesrekkefølge, ikke posisjon etter tid) —
+ * rettes fra–til, følger linjene raden. Uten fra-tid, prosjekt og lønnsart
+ * (ORDRE Tillegg/Utlegg 3a, GO 2026-11-13): prosjektbytte og lønnsartbytte
+ * (f.eks. til overtid) tar linjene med. Et vindu som forsvinner gir fortsatt
+ * `tilleggUtenRad`-stopp — linjene glir aldri stille over på en annen rad.
  */
 export const TILLEGG_PREFIKS = "tillegg:";
 
 export function radTilleggNokkel(
   dato: string,
-  rad: { erReise: boolean; lonnsartId: string; radIndeks?: number },
+  rad: { erReise: boolean; radIndeks?: number },
 ): string | null {
   if (rad.erReise || rad.radIndeks == null) return null;
-  return `${TILLEGG_PREFIKS}${dato}|${rad.lonnsartId}|${rad.radIndeks}`;
+  return `${TILLEGG_PREFIKS}${dato}|${rad.radIndeks}`;
 }
 
 /** Maskin og varer pr. arbeidsrad, nøkkel fra `radTilleggNokkel`. */

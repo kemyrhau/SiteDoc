@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Kaardil on kaup, mis on saadetud. Kustutamiseks looge Interneti-ühendus.",
   "timer.kort.offlineFlytt": "Kaardil on kaup, mis on saadetud. Liikumiseks looge Interneti-ühendus.",
   "timer.kort.delvisFlyttet": "Tunnid on teisaldatud. Materjale ei teisaldatud — puuduta vanal kaardil uuesti „Vaheta kaarti“.",
-  "timer.feil.beskrivelsePaakrevd": "Kirjeldage, mida tehti enne salvestamist."
+  "timer.feil.beskrivelsePaakrevd": "Kirjeldage, mida tehti enne salvestamist.",
+  "hjelp.ikonEtikett": "Abi: {{tittel}}",
+  "hjelp.tillegg.tittel": "Toetused",
+  "hjelp.tillegg.tekst": "Toetused on tasu, mida teil on õigus saada lisaks tunnipalgale, kuna töö tehti teatud tingimustel. Näited: mustusetoetus, kõrgustoetus, söögiraha, töödejuhataja toetus.",
+  "hjelp.utlegg.tittel": "Kulud",
+  "hjelp.utlegg.tekst": "Kulud on raha, mille olete ise ettevõtte nimel maksnud ja mis tuleb hüvitada. Tehke kviitungist foto. Näited: parkimine, teemaksud, poest ostetud tööriistad, kütus ametiautole.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Toetusi ja kulusid kokku ei hoitud",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Kõik päevad on juba saadetud, nii et päevarahadel ja kuludel pole tööaja tabelit, kuhu salvestada. Midagi pole päästetud. Eemaldage need või sisestage need projektikaardile."
 }
