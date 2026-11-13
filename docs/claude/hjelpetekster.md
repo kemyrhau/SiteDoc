@@ -128,6 +128,7 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - Sekundærknappen heter «Fortsett senere» med hint «Lagres på telefonen. Lederen ser ingenting før du bekrefter.» når
   noe er ført, ellers «Ikke nå».
 - «Fortsetter der du slapp (kl.)» øverst når et utkast er gjenopprettet; «Lagret automatisk» i handlingsfeltet.
+- Merke i Timer-lista (`DagsseddelListe.tsx`): «Ikke bekreftet» (`timer.utkast.ikkeBekreftet`) — ved siden av statusen, eller på egen rad med 0 t når datoen ikke har sedel.
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 

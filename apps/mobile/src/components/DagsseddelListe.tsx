@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { randomUUID } from "expo-crypto";
 import { eq, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import {
@@ -31,6 +32,14 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { lesTimerModusLokalt } from "../services/organizationSettingKatalog";
 import { sjekkAnsattForNyRegistrering } from "../utils/ansattSjekk";
 import { lokalIsoDato } from "../utils/dato";
+import { slettLokaltBilde } from "../services/lokalBilde";
+import {
+  flettUtkastIListe,
+  lesUtkastForListe,
+  type ListeRad,
+  type UtkastMaal,
+} from "../utils/utkastListe";
+import type { UtkastOversikt } from "../utils/prosjektkortUtkast";
 
 interface DagsseddelRad {
   id: string;
@@ -138,6 +147,30 @@ function lesDagssedlerLokalt(userId: string): DagsseddelRad[] {
   return dedupPerDato(rader);
 }
 
+/**
+ * Utkast for prosjektkort (C3): rydd GPS-utkast for avsluttede dager, slett
+ * filene ryddingen frigjør, og les utkastene for valgt firma.
+ */
+function lesUtkastLokalt(
+  userId: string,
+  orgId: string | null | undefined,
+): { utkast: UtkastOversikt[]; paagaarIder: Set<string> } {
+  const db = hentDatabase();
+  if (!db || !orgId) return { utkast: [], paagaarIder: new Set() };
+  try {
+    const { filer, utkast, paagaarIder } = lesUtkastForListe(db, {
+      userId,
+      orgId,
+      naa: new Date().toISOString(),
+      nyId: randomUUID,
+    });
+    for (const sti of filer) void slettLokaltBilde(sti);
+    return { utkast, paagaarIder };
+  } catch {
+    return { utkast: [], paagaarIder: new Set() };
+  }
+}
+
 function formatDato(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("no-NB", {
@@ -170,6 +203,10 @@ export function DagsseddelListe({
   const { triggerSync, syncerNa, sistSynkronisert } = useTimerSync();
 
   const [rader, setRader] = useState<DagsseddelRad[]>([]);
+  const [utkastInfo, setUtkastInfo] = useState<{
+    utkast: UtkastOversikt[];
+    paagaarIder: Set<string>;
+  }>({ utkast: [], paagaarIder: new Set() });
   // ORDRE 17: «+» åpner timer-raden direkte (erstatter /timer/ny).
   const [visNyRad, setVisNyRad] = useState(false);
   const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
@@ -194,29 +231,56 @@ export function DagsseddelListe({
     });
   }, [valgtFirmaId, valgtFirma?.name, erAnsattIValgtFirma, t, router]);
 
-  // Re-les fra DB hver gang siden får fokus (etter retur fra detalj/ny)
-  useFocusEffect(
-    useCallback(() => {
-      if (bruker?.id) {
-        setRader(lesDagssedlerLokalt(bruker.id));
+  const lesAlt = useCallback(() => {
+    if (!bruker?.id) return;
+    setRader(lesDagssedlerLokalt(bruker.id));
+    setUtkastInfo(lesUtkastLokalt(bruker.id, valgtFirmaId));
+  }, [bruker?.id, valgtFirmaId]);
+
+  // Re-les fra DB hver gang siden får fokus (etter retur fra detalj/ny/Bekreft dag)
+  useFocusEffect(lesAlt);
+
+  // Utkast er ikke sedler: de flettes inn for visning, men `usendteKladder`
+  // under leser `rader` (kun sedler).
+  const liste = useMemo(
+    () => flettUtkastIListe(rader, utkastInfo.utkast, utkastInfo.paagaarIder),
+    [rader, utkastInfo],
+  );
+
+  const aapneUtkast = useCallback(
+    (maal: UtkastMaal) => {
+      if (maal.opprinnelse === "manuell") {
+        router.push({
+          pathname: "/timer/bekreft-dag",
+          params: { opprinnelse: "manuell", dato: maal.dato },
+        });
+        return;
       }
-    }, [bruker?.id]),
+      // Pågående GPS-dag: samme skjerm og parametre som «Slutt dag», slutt = nå.
+      router.push({
+        pathname: "/timer/bekreft-dag",
+        params: {
+          arbeidsdagId: maal.arbeidsdagId,
+          sluttIso: new Date().toISOString(),
+          endLat: "",
+          endLng: "",
+          sisteSegmentKilde: "bruker",
+        },
+      });
+    },
+    [router],
   );
 
   // FUNN 2026-10-06 (punkt 3): samme fokus-blindhet som detaljskjermen. Står
   // dag-lista i fokus mens en bakgrunnssynk fullfører, oppdaterte ikke
   // syncStatus-merkelappene seg — «Venter» ble stående på dagene. Lista er en ren
   // navigasjonsflate uten kladd, så re-les klobber ingenting.
-  useReLesVedSynk(sistSynkronisert, () => {
-    if (bruker?.id) setRader(lesDagssedlerLokalt(bruker.id));
-  });
+  useReLesVedSynk(sistSynkronisert, lesAlt);
 
   const onRefresh = useCallback(async () => {
     await triggerSync();
-    if (bruker?.id) {
-      setRader(lesDagssedlerLokalt(bruker.id));
-    }
-  }, [triggerSync, bruker?.id]);
+    lesAlt();
+  }, [triggerSync, lesAlt]);
 
   // UF-3: kladd-påminnelse — usendte drafts MED innhold fra TIDLIGERE dager.
   // Distinkt fra glemt-dag-prompt (StartSluttDagKort = uavsluttet økt): dette
@@ -270,9 +334,11 @@ export function DagsseddelListe({
         </Pressable>
       )}
 
-      <FlatList<DagsseddelRad>
-        data={rader}
-        keyExtractor={(item) => item.id}
+      <FlatList<ListeRad<DagsseddelRad>>
+        data={liste}
+        keyExtractor={(item) =>
+          item.type === "sedel" ? item.rad.id : `utkast:${item.dato}`
+        }
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={syncerNa} onRefresh={onRefresh} />
@@ -284,7 +350,30 @@ export function DagsseddelListe({
             </Text>
           </View>
         )}
-        renderItem={({ item }) => (
+        renderItem={({ item: element }) => {
+          if (element.type === "utkast") {
+            return (
+              <Pressable
+                onPress={() => aapneUtkast(element.maal)}
+                className="border-b border-gray-100 px-4 py-3 active:bg-gray-50"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Text className="flex-1 text-base font-medium text-gray-900">
+                    {formatDato(element.dato)}
+                  </Text>
+                  <Text className="font-mono text-sm text-gray-700">
+                    {(0).toFixed(2)} {t("timer.tEnhet")}
+                  </Text>
+                  <ChevronRight size={18} color="#9ca3af" />
+                </View>
+                <View className="mt-1 flex-row items-center gap-2">
+                  <IkkeBekreftetMerke />
+                </View>
+              </Pressable>
+            );
+          }
+          const { rad: item, ikkeBekreftet } = element;
+          return (
           <Pressable
             onPress={() => router.push(`/timer/${item.id}`)}
             className="border-b border-gray-100 px-4 py-3 active:bg-gray-50"
@@ -308,6 +397,7 @@ export function DagsseddelListe({
                 status={item.status}
                 syncStatus={item.syncStatus}
               />
+              {ikkeBekreftet && <IkkeBekreftetMerke />}
               <Text className="text-xs text-gray-500">
                 {t("timer.antallRader", { antall: item.antallRader })}
               </Text>
@@ -318,7 +408,8 @@ export function DagsseddelListe({
               </Text>
             )}
           </Pressable>
-        )}
+          );
+        }}
       />
 
       {/* Floating action button */}
@@ -330,5 +421,17 @@ export function DagsseddelListe({
       </Pressable>
       {visNyRad && <NyTimerRadFlyt onLukk={() => setVisNyRad(false)} />}
     </SafeAreaView>
+  );
+}
+
+/** Merket for et ikke bekreftet prosjektkort (utkast på telefonen). */
+function IkkeBekreftetMerke() {
+  const { t } = useTranslation();
+  return (
+    <View className="rounded-full bg-amber-100 px-2.5 py-0.5">
+      <Text className="text-xs font-medium text-amber-800">
+        {t("timer.utkast.ikkeBekreftet")}
+      </Text>
+    </View>
   );
 }
