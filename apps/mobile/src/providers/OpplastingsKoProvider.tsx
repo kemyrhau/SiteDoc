@@ -9,6 +9,9 @@ import {
   oppgaveFeltdata,
   sheetTilleggVedleggLocal,
   sheetUtleggVedleggLocal,
+  sheetTilleggLocal,
+  sheetUtleggLocal,
+  dagsseddelLocal,
 } from "../db/schema";
 import { lastOppFil, OpplastingFeil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
@@ -109,6 +112,42 @@ export function useOpplastingsKo() {
 }
 
 const MAKS_FORSOK = 5;
+
+/**
+ * V1 (gate 2026-11-13): finnes utlegg-/tillegg-raden kvitteringen hører til, og sedelen dens,
+ * fortsatt lokalt? Pull erstatter radene til en sedel med serverens, så en rad som er slettet
+ * på web forsvinner også her. Uten id-er kan vi ikke si noe → regnes som at den finnes
+ * (prøv igjen, aldri kast et bilde på tynt grunnlag).
+ */
+function kvitteringsForelderFinnes(
+  db: NonNullable<ReturnType<typeof hentDatabase>>,
+  oppforing: { sheetUtleggId: string | null; sheetTilleggId: string | null },
+): boolean {
+  let dagsseddelId: string | undefined;
+  if (oppforing.sheetUtleggId) {
+    dagsseddelId = db
+      .select()
+      .from(sheetUtleggLocal)
+      .where(eq(sheetUtleggLocal.id, oppforing.sheetUtleggId))
+      .all()[0]?.dagsseddelId;
+  } else if (oppforing.sheetTilleggId) {
+    dagsseddelId = db
+      .select()
+      .from(sheetTilleggLocal)
+      .where(eq(sheetTilleggLocal.id, oppforing.sheetTilleggId))
+      .all()[0]?.dagsseddelId;
+  } else {
+    return true;
+  }
+  if (!dagsseddelId) return false;
+  return (
+    db
+      .select()
+      .from(dagsseddelLocal)
+      .where(eq(dagsseddelLocal.id, dagsseddelId))
+      .all().length > 0
+  );
+}
 // Antall forsøk før et vedlegg regnes som «vedvarende feilende» og blir synlig i UI.
 const FEIL_TERSKEL = 3;
 
@@ -529,6 +568,27 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
               gpsLat: oppforing.gpsLat,
               gpsLng: oppforing.gpsLng,
             });
+            // V1 (gate 2026-11-13): 404 er forbigående bare så lenge raden finnes lokalt og
+            // venter på push. Er utlegget/tillegget (eller sedelen) slettet — typisk på web,
+            // så pull har fjernet raden — blir 404 permanent. Da ryddes køraden og lokalfila
+            // som i «lokalfil mangler»-grenen, ellers prøves kvitteringen for alltid.
+            if (
+              !utfall.ok &&
+              utfall.grunn === "ikke_funnet" &&
+              !kvitteringsForelderFinnes(db, oppforing)
+            ) {
+              console.warn(
+                "[KØ] Forkaster kvittering — raden finnes ikke lenger lokalt:",
+                oppforing.filnavn,
+                oppforing.sheetUtleggId ?? oppforing.sheetTilleggId,
+              );
+              db.delete(opplastingsKo)
+                .where(eq(opplastingsKo.id, oppforing.id))
+                .run();
+              nesteForsokRef.current.delete(oppforing.id);
+              await slettLokaltBilde(oppforing.lokalSti);
+              oppdaterTellere();
+            } else {
             if (!utfall.ok) {
               throw new OpplastingFeil(
                 `Kvittering ikke registrert (${utfall.grunn}${utfall.status ? ` ${utfall.status}` : ""})`,
@@ -546,6 +606,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             }
             await slettLokaltBilde(oppforing.lokalSti);
             oppdaterTellere();
+            }
           } else {
           // Suksess — oppdater SQLite
           db.update(opplastingsKo)

@@ -65,6 +65,9 @@ const H = vi.hoisted(() => {
       oppgaveFeltdata: [],
       sheetTilleggVedleggLocal: [],
       sheetUtleggVedleggLocal: [],
+      sheetTilleggLocal: [],
+      sheetUtleggLocal: [],
+      dagsseddelLocal: [],
     };
     const rader = (t: { _tabell: string }) => tab[t._tabell];
     return {
@@ -186,6 +189,9 @@ vi.mock("../db/schema", () => ({
   oppgaveFeltdata: H.lagTabell("oppgaveFeltdata"),
   sheetTilleggVedleggLocal: H.lagTabell("sheetTilleggVedleggLocal"),
   sheetUtleggVedleggLocal: H.lagTabell("sheetUtleggVedleggLocal"),
+  sheetTilleggLocal: H.lagTabell("sheetTilleggLocal"),
+  sheetUtleggLocal: H.lagTabell("sheetUtleggLocal"),
+  dagsseddelLocal: H.lagTabell("dagsseddelLocal"),
 }));
 
 vi.mock("../db/database", () => ({ hentDatabase: () => H.db }));
@@ -336,9 +342,9 @@ describe("OpplastingsKoProvider — mutex-flagget frigis alltid", () => {
  * fantes da verken på server eller telefon.
  */
 describe.each([
-  { type: "utlegg", felt: "sheetUtleggId", tabell: "sheetUtleggVedleggLocal" },
-  { type: "tillegg", felt: "sheetTilleggId", tabell: "sheetTilleggVedleggLocal" },
-] as const)("OpplastingsKoProvider — funn 2: $type-kvittering venter på serverens bekreftelse", ({ felt, tabell }) => {
+  { type: "utlegg", felt: "sheetUtleggId", tabell: "sheetUtleggVedleggLocal", radTabell: "sheetUtleggLocal" },
+  { type: "tillegg", felt: "sheetTilleggId", tabell: "sheetTilleggVedleggLocal", radTabell: "sheetTilleggLocal" },
+] as const)("OpplastingsKoProvider — funn 2: $type-kvittering venter på serverens bekreftelse", ({ felt, tabell, radTabell }) => {
   let realSetTimeout: typeof setTimeout;
 
   beforeEach(() => {
@@ -370,6 +376,9 @@ describe.each([
       mimeType: "image/jpeg",
       sistEndretLokalt: 1,
     });
+    // Raden kvitteringen hører til, og sedelen dens, finnes lokalt (ikke pushet ennå).
+    H.db._tab[radTabell].push({ id: "rad-1", dagsseddelId: "sedel-1", sistEndretLokalt: 1 });
+    H.db._tab.dagsseddelLocal.push({ id: "sedel-1" });
   });
 
   afterEach(() => {
@@ -430,6 +439,52 @@ describe.each([
     expect(lokal.registrert).toEqual(expect.any(Number));
     expect(lokal.lokalSti).toBeNull();
     expect(H.slettLokaltBilde).toHaveBeenCalledWith("/tmp/kv-1.jpg");
+  });
+
+  // V1 (gate 2026-11-13): 404 for en rad som er slettet (på web → pull fjernet den lokalt) er
+  // permanent. Køraden og lokalfila ryddes, ellers prøves kvitteringen for alltid.
+  it("V1: 404 og raden finnes ikke lokalt — køraden og lokalfila ryddes, ingen nye forsøk", async () => {
+    H.registrer.mockResolvedValue({ ok: false, grunn: "ikke_funnet", status: 404 });
+    H.db!._tab[radTabell].length = 0;
+    const ctx = start();
+    await ctx.leggIKo(oppforing());
+    await drenér();
+
+    expect(H.registrer).toHaveBeenCalledTimes(1);
+    expect(H.db!._tab.opplastingsKo).toHaveLength(0);
+    expect(H.slettLokaltBilde).toHaveBeenCalledWith("/tmp/kv-1.jpg");
+
+    varsleKoen();
+    await drenér();
+    expect(H.registrer).toHaveBeenCalledTimes(1);
+    expect(H.lastOppFil).toHaveBeenCalledTimes(1);
+  });
+
+  it("V1: 404 og sedelen er slettet lokalt — køraden og lokalfila ryddes", async () => {
+    H.registrer.mockResolvedValue({ ok: false, grunn: "ikke_funnet", status: 404 });
+    H.db!._tab.dagsseddelLocal.length = 0;
+    const ctx = start();
+    await ctx.leggIKo(oppforing());
+    await drenér();
+
+    expect(H.db!._tab.opplastingsKo).toHaveLength(0);
+    expect(H.slettLokaltBilde).toHaveBeenCalledWith("/tmp/kv-1.jpg");
+  });
+
+  it("V1 negativkontroll: 404 og raden finnes men er ikke pushet — prøves igjen, ingenting ryddes", async () => {
+    H.registrer.mockResolvedValue({ ok: false, grunn: "ikke_funnet", status: 404 });
+    const ctx = start();
+    await ctx.leggIKo(oppforing());
+    await drenér();
+    expect(H.db!._tab.opplastingsKo).toHaveLength(1);
+    expect(H.db!._tab.opplastingsKo[0].status).toBe("venter");
+
+    varsleKoen();
+    await drenér();
+    expect(H.registrer).toHaveBeenCalledTimes(2);
+    expect(H.db!._tab.opplastingsKo).toHaveLength(1);
+    expect(H.db!._tab.opplastingsKo[0].status).toBe("venter");
+    expect(H.slettLokaltBilde).not.toHaveBeenCalled();
   });
 
   it("hard feil (400) teller mot taket — status feilet, fila står", async () => {
