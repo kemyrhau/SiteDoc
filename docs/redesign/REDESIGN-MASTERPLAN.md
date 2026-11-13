@@ -94,9 +94,9 @@ Kilde: `historikk-2026-10.md`, STATUS-AKTUELT; de tre siste verifisert mot `orig
 | Timer-GPS H24 | km-rader teller som timer i overtidsgrunnlaget | `overtidsgrunnlag.ts:50` — henger på K4 |
 | Sikkerhet | uploads-`.svg` same-origin script; pdf-render SSRF | BACKLOG § sikkerhet (venter ordre) |
 
-## 5. 🔴 Åpne beslutninger for Kenneth (produktvedtak er ikke Fabels)
+## 5. ✅ Beslutninger — vedtatt av Kenneth 2026-11-13 («Ja, alle ti»): alle ti etter anbefalingen
 
-| # | Beslutning | Anbefaling |
+| # | Beslutning | Vedtak (= anbefaling) |
 |---|-----------|-----------|
 | 1 | **Ny målestokk-dato** for piloten (sept 2026 passert) | Sett dato = første lønnskjøring med SiteDoc som eneste kilde for 50 ansatte; alt i § 2 pkt 1–2 måles mot den |
 | 2 | **P2:** skal «Gjenåpne» kreve begrunnelse? (`STATUS_KREVER_BEGRUNNELSE` sjekker bare ny status) | Ja — gjenåpning endrer et lukket ansvar; én linje er nok |
