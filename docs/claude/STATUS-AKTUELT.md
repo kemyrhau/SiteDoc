@@ -30,6 +30,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
+> ✅ **Timer tillegg/utlegg på prosjektkortet MERGET 2026-11-13** (merge `6fe2958e` av `5022edcc`, Kontrollør GODKJENT `inbox-orkestrator.md:22357`, regel 10 re-kjørt). ⚠️ Migrering `20261113120000_tillegg_utlegg_byggeplass_eco` **ikke kjørt** — Kenneth: migrering + test-deploy før OTA. Oppfølger: `RedigerRadModal` nuller byggeplass på alle ventende timer-/maskinrader ved attesteringsredigering (siden mai) + vakt i `redigerSedelRader` — egen ordre.
+>
 > ✅ **Timer mobil F1 MERGET 2026-11-13** (merge `98bb4887` av `e9f45fb4`, Kontrollør GODKJENT `inbox-orkestrator.md:22244`, regel 10 re-kjørt): utlegg og arbeidsdag-peker følger sedelen når den får ny id (én transaksjon) · foreldreløse utlegg reddes ved sync når koblingen er entydig (kun GPS-dager; manuelle har ingen kobling). Åpent hos Kenneth: reddet utlegg på allerede **sendt** sedel havner hos attestanten (Kontrollør anbefaler godta). ⚪ Ikke på telefon: venter OTA testkanal.
 >
 > ✅ **Timer mobil TELEFONTEST 13.11 MERGET 2026-11-13** (merge `e5aea2f4` av `2399c71e`, Kontrollør GODKJENT `inbox-orkestrator.md:22171` + `:22208`): manuell føring henter dagsnorm ved datobytte, så «Norm fra siste kjente svar» ikke vises med nett · «+ Nytt prosjektkort» blå og større · pågår-kortet viser «Nå: X (siden HH:MM)» fra første besøk, unntatt når besøk 1 = oppmøtestedet eller start på verksted/kontor uten byggeplass (B-9). ⚪ Ikke på telefon: venter OTA testkanal.
@@ -61,10 +63,10 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
-| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG — F1 GODKJENT, merget `98bb4887` |
+| **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | ⚪ LEDIG — tillegg/utlegg-kort GODKJENT, merget `6fe2958e` |
 | **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `feat/sjekkliste-pdf-oppgaver-vedlegg` `c0563328` (merget `6db57534`) | ⚪ LEDIG |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `fix/timer-forson-utlegg` `e9f45fb4` (merget `98bb4887`) | ⚪ LEDIG — neste: spec tillegg/utlegg på prosjektkortet |
+| **Redesign** | `SiteDoc-redesign` | `feat/timer-tillegg-utlegg-kort` `5022edcc` (merget `6fe2958e`) | 🔵 ARBEIDER — telefontest A/B: konfliktløsning blander versjoner, kvittering registreres ikke (måling + plan, ingen kode) |
 | **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `3c619872` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG — spec tillegg/utlegg på prosjektkortet merget `3d19c81d` 2026-11-13; B1–B8 vedtatt |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
