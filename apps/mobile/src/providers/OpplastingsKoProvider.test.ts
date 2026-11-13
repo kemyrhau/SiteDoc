@@ -172,6 +172,9 @@ const H = vi.hoisted(() => {
     lagTabell,
     db: null as ReturnType<typeof lagFakeDb> | null,
     lastOppFil: vi.fn(),
+    registrer: vi.fn(async (_p: Record<string, unknown>) => ({ ok: true }) as Record<string, unknown>),
+    slettLokaltBilde: vi.fn(async (_s: string) => {}),
+    effekter: [] as Array<() => unknown>,
     idTeller: { n: 0 },
   };
 });
@@ -201,11 +204,11 @@ vi.mock("../services/opplasting", () => ({
 }));
 
 vi.mock("../services/lokalBilde", () => ({
-  slettLokaltBilde: vi.fn(async () => {}),
+  slettLokaltBilde: H.slettLokaltBilde,
 }));
 
 vi.mock("../services/bildeRegistrering", () => ({
-  registrerBildeIDatabase: vi.fn(async () => {}),
+  registrerBildeIDatabase: H.registrer,
   patchVedleggUrl: vi.fn(async () => true),
 }));
 
@@ -230,7 +233,10 @@ vi.mock("react", () => ({
   useState: (init: unknown) => [typeof init === "function" ? (init as () => unknown)() : init, () => {}],
   useRef: (init: unknown) => ({ current: init }),
   useCallback: (fn: unknown) => fn,
-  useEffect: () => {},
+  // Effektene samles (kjøres aldri automatisk); funn 2-testene kjører dem eksplisitt.
+  useEffect: (fn: () => unknown) => {
+    H.effekter.push(fn);
+  },
   useMemo: (fn: () => unknown) => fn(),
 }));
 
@@ -242,6 +248,7 @@ vi.mock("react/jsx-runtime", () => ({
 }));
 
 import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
+import { varsleKoen } from "../lib/koTrigger";
 
 interface KoKontekst {
   leggIKo: (o: Record<string, unknown>) => Promise<void>;
@@ -319,5 +326,119 @@ describe("OpplastingsKoProvider — mutex-flagget frigis alltid", () => {
     expect(H.lastOppFil).toHaveBeenCalledTimes(2);
     expect(r2?.status).toBe("fullfort");
     expect(r1?.status).toBe("feilet");
+  });
+});
+
+/**
+ * Telefontest A funn 2: en timer-kvittering (utlegg/tillegg) regnes ikke som ferdig før serveren
+ * har bekreftet den. Før: registreringen ble avfyrt uten `await`, en NOT_FOUND (raden ikke pushet
+ * ennå) ble svelget, og køen satte likevel `serverUrl` lokalt og slettet lokalfila — kvitteringen
+ * fantes da verken på server eller telefon.
+ */
+describe.each([
+  { type: "utlegg", felt: "sheetUtleggId", tabell: "sheetUtleggVedleggLocal" },
+  { type: "tillegg", felt: "sheetTilleggId", tabell: "sheetTilleggVedleggLocal" },
+] as const)("OpplastingsKoProvider — funn 2: $type-kvittering venter på serverens bekreftelse", ({ felt, tabell }) => {
+  let realSetTimeout: typeof setTimeout;
+
+  beforeEach(() => {
+    H.db = H.lagFakeDb();
+    H.idTeller.n = 0;
+    H.effekter.length = 0;
+    H.lastOppFil.mockReset();
+    H.lastOppFil.mockImplementation(async () => ({
+      fileUrl: "/uploads/privat/k.jpg",
+      fileName: "k.jpg",
+      fileType: "image/jpeg",
+      fileSize: 100,
+    }));
+    H.registrer.mockReset();
+    H.slettLokaltBilde.mockClear();
+    realSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      fn: (...a: unknown[]) => void,
+      ms?: number,
+    ) => (((ms ?? 0) < 50 ? realSetTimeout(fn, ms) : 0) as unknown)) as typeof setTimeout);
+    vi.spyOn(globalThis, "setInterval").mockImplementation((() => 0) as unknown as typeof setInterval);
+    H.db._tab[tabell].push({
+      id: "kv-1",
+      [felt]: "rad-1",
+      lokalSti: "/tmp/kv-1.jpg",
+      serverUrl: null,
+      registrert: null,
+      filnavn: "kv-1.jpg",
+      mimeType: "image/jpeg",
+      sistEndretLokalt: 1,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function start() {
+    const element = OpplastingsKoProvider({ children: null }) as { props: { value: KoKontekst } };
+    // Kjør effektene (bl.a. abonnementet på køtriggeren).
+    for (const fn of H.effekter) fn();
+    return element.props.value;
+  }
+
+  const oppforing = () => ({
+    [felt]: "rad-1",
+    objektId: "rad-1",
+    vedleggId: "kv-1",
+    lokalSti: "/tmp/kv-1.jpg",
+    filnavn: "kv-1.jpg",
+    mimeType: "image/jpeg",
+  });
+
+  it("(a) NOT_FOUND: køen er ikke ferdig, lokal rad har ingen serverUrl og fila står", async () => {
+    H.registrer.mockResolvedValue({ ok: false, grunn: "ikke_funnet", status: 404 });
+    const ctx = start();
+    await ctx.leggIKo(oppforing());
+    await drenér();
+
+    expect(H.registrer).toHaveBeenCalledTimes(1);
+    const ko = H.db!._tab.opplastingsKo[0];
+    expect(ko.status).toBe("venter");
+    // Opplastingen er gjort — URL-en huskes på køraden så neste forsøk ikke laster opp på nytt.
+    expect(ko.serverUrl).toBe("/uploads/privat/k.jpg");
+    const lokal = H.db!._tab[tabell][0];
+    expect(lokal.serverUrl).toBeNull();
+    expect(lokal.lokalSti).toBe("/tmp/kv-1.jpg");
+    expect(H.slettLokaltBilde).not.toHaveBeenCalled();
+  });
+
+  it("(b) etter push: neste forsøk registrerer uten ny opplasting og fullfører", async () => {
+    H.registrer.mockResolvedValueOnce({ ok: false, grunn: "ikke_funnet", status: 404 });
+    H.registrer.mockResolvedValue({ ok: true });
+    const ctx = start();
+    await ctx.leggIKo(oppforing());
+    await drenér();
+    expect(H.db!._tab.opplastingsKo[0].status).toBe("venter");
+
+    // Synken har pushet raden → køen vekkes (backoff nulles).
+    varsleKoen();
+    await drenér();
+
+    expect(H.lastOppFil).toHaveBeenCalledTimes(1);
+    expect(H.registrer).toHaveBeenCalledTimes(2);
+    expect(H.registrer.mock.calls[1][0]).toMatchObject({ [felt]: "rad-1", vedleggId: "kv-1", fileUrl: "/uploads/privat/k.jpg" });
+    expect(H.db!._tab.opplastingsKo[0].status).toBe("fullfort");
+    const lokal = H.db!._tab[tabell][0];
+    expect(lokal.serverUrl).toBe("/uploads/privat/k.jpg");
+    expect(lokal.registrert).toEqual(expect.any(Number));
+    expect(lokal.lokalSti).toBeNull();
+    expect(H.slettLokaltBilde).toHaveBeenCalledWith("/tmp/kv-1.jpg");
+  });
+
+  it("hard feil (400) teller mot taket — status feilet, fila står", async () => {
+    H.registrer.mockResolvedValue({ ok: false, grunn: "hard", status: 400 });
+    const ctx = start();
+    await ctx.leggIKo(oppforing());
+    await drenér();
+    expect(H.db!._tab.opplastingsKo[0].status).toBe("feilet");
+    expect(H.db!._tab[tabell][0].serverUrl).toBeNull();
+    expect(H.slettLokaltBilde).not.toHaveBeenCalled();
   });
 });

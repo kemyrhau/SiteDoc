@@ -47,6 +47,7 @@ import { KnappMedForklaring } from "../KnappMedForklaring";
 import { skrivUtlegg, type NyttUtlegg } from "../../services/tilleggUtleggSkriv";
 import { useKortLaas } from "./prosjektkortKontekst";
 import { KortLaasFelt } from "./KortLaasFelt";
+import { vedleggKilde } from "../../lib/vedleggKilde";
 
 /**
  * UtleggSeksjon (U4) — registrering av utlegg/fakturert på mobil, mockup 8c.
@@ -309,13 +310,14 @@ function UtleggVedleggBilde({
   onFjern: (v: LokaltUtleggVedlegg) => void;
 }) {
   const { t } = useTranslation();
-  const harLokal = !!v.lokalSti;
+  // Telefontest A funn 2: server-URL vinner over en lokal sti (fila slettes etter opplasting).
+  const kilde = vedleggKilde(v);
   const signert = trpc.timer.dagsseddel.signerUtleggVedlegg.useQuery(
     { vedleggId: v.id },
-    { enabled: !harLokal && !!v.serverUrl },
+    { enabled: kilde.signer },
   );
-  const uri = harLokal
-    ? v.lokalSti ?? undefined
+  const uri = kilde.lokal
+    ? kilde.lokal
     : signert.data?.url
       ? `${AUTH_CONFIG.apiUrl}${signert.data.url}`
       : undefined;

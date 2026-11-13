@@ -1400,6 +1400,20 @@ export function kjorMigreringer() {
     }
   }
 
+  // Telefontest A funn 2 (2026-11-13): kvitteringsvedlegg husker når serveren bekreftet dem.
+  // Additiv, nullable INTEGER, INGEN backfill — gamle vedlegg får tidspunktet ved neste pull
+  // (serveren har dem) eller av redningen i timerSync. Idempotent via PRAGMA.
+  for (const [tabell, kol] of VEDLEGG_REGISTRERT_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} INTEGER`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+
   // L4-A (2026-11-12, spec timer-gps-lag3-4 § 2.2): byggeplass-besøk gjennom dagen.
   // KUN lokal, synkes aldri, ingen lat/lng. Ny tabell — eksisterende installasjoner
   // får den uten å røre andre data. Idempotent via IF NOT EXISTS.
@@ -1460,6 +1474,12 @@ export const KORTVALG_LOCAL_KOLONNER = [
 
 /** Radform: varelinjens timerrad (tabell, kolonne). */
 export const RADFORM_LOCAL_KOLONNER = [["vareforbruk_local", "sheet_timer_id"]] as const;
+
+/** Telefontest A funn 2: serverens bekreftelse på kvitteringsvedlegg (tabell, kolonne). */
+export const VEDLEGG_REGISTRERT_KOLONNER = [
+  ["sheet_tillegg_vedlegg_local", "registrert"],
+  ["sheet_utlegg_vedlegg_local", "registrert"],
+] as const;
 
 /** Prosjektkort L3: lokale tabeller for vare-katalog og vareforbruk ført fra kortet. */
 export const VAREFORBRUK_LOCAL_TABELLER = ["vare_local", "vareforbruk_local"] as const;

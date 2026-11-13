@@ -13,6 +13,7 @@ import {
 import { lastOppFil, OpplastingFeil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
 import { registrerBildeIDatabase, patchVedleggUrl } from "../services/bildeRegistrering";
+import { abonnerKoen } from "../lib/koTrigger";
 import { fullforVedleggUrl } from "../lib/vedleggFullforing";
 import { oppforingerAaKansellere, skalSkriveVedleggUrl, type KoOppforingRef } from "../utils/koDedup";
 import {
@@ -220,8 +221,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     (vedleggId: string, serverUrl: string) => {
       const db = hentDatabase();
       if (db) {
+        // Telefontest A funn 2: kalles kun etter serverens bekreftelse → lokalfila slettes
+        // straks, så `lokalSti` nulles og `registrert` stemples.
+        const naa = Date.now();
         db.update(sheetTilleggVedleggLocal)
-          .set({ serverUrl, sistEndretLokalt: Date.now() })
+          .set({ serverUrl, registrert: naa, lokalSti: null, sistEndretLokalt: naa })
           .where(eq(sheetTilleggVedleggLocal.id, vedleggId))
           .run();
       }
@@ -248,8 +252,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     (vedleggId: string, serverUrl: string) => {
       const db = hentDatabase();
       if (db) {
+        // Telefontest A funn 2: kalles kun etter serverens bekreftelse → lokalfila slettes
+        // straks, så `lokalSti` nulles og `registrert` stemples.
+        const naa = Date.now();
         db.update(sheetUtleggVedleggLocal)
-          .set({ serverUrl, sistEndretLokalt: Date.now() })
+          .set({ serverUrl, registrert: naa, lokalSti: null, sistEndretLokalt: naa })
           .where(eq(sheetUtleggVedleggLocal.id, vedleggId))
           .run();
       }
@@ -438,9 +445,17 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
       nesteForsokRef.current.delete(oppforing.id);
       console.log("[KØ] Prosesserer:", oppforing.filnavn, "status:", oppforing.status, "forsøk:", oppforing.forsok, "sti:", oppforing.lokalSti.slice(-50));
 
+      // Telefontest A funn 2: en kvittering er ikke levert før serveren har bekreftet raden.
+      // Er fila alt lastet opp (serverUrl på køraden) men registreringen ikke bekreftet,
+      // prøves bare registreringen igjen — ingen ny opplasting, ingen fil-sjekk.
+      const erKvittering = Boolean(oppforing.sheetUtleggId || oppforing.sheetTilleggId);
+      const alleredeOpplastet = erKvittering && !!oppforing.serverUrl;
+
       // Sjekk om lokal fil finnes — ellers slett oppføringen (gammel container/avinstallert)
       const { getInfoAsync } = await import("expo-file-system/legacy");
-      const filInfo = await getInfoAsync(oppforing.lokalSti);
+      const filInfo = alleredeOpplastet
+        ? { exists: true }
+        : await getInfoAsync(oppforing.lokalSti);
       console.log("[KØ] Fil finnes:", filInfo.exists, oppforing.lokalSti.slice(-50));
       if (!filInfo.exists) {
         // 🔴 Aldri stille: en forkastet oppføring skal si fra (før var dette en
@@ -468,7 +483,14 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         console.log("[KØ] Starter opplasting til:", `${AUTH_CONFIG.apiUrl}/upload`);
 
         try {
-          const resultat = await lastOppFil(
+          const resultat = alleredeOpplastet && oppforing.serverUrl
+            ? {
+                fileUrl: oppforing.serverUrl,
+                fileName: oppforing.filnavn,
+                fileSize: oppforing.filstorrelse ?? 0,
+                fileType: oppforing.mimeType,
+              }
+            : await lastOppFil(
             oppforing.lokalSti,
             oppforing.filnavn,
             oppforing.mimeType,
@@ -483,6 +505,48 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           );
 
           console.log("[KØ] Opplasting vellykket:", resultat.fileUrl);
+
+          if (erKvittering) {
+            // Telefontest A funn 2: husk server-URL-en på køraden, men marker den IKKE
+            // fullført før serveren har bekreftet raden. Feiler registreringen (404 = raden
+            // er ikke synket ennå, nett), kastes en OpplastingFeil → catch under setter
+            // køraden tilbake til «venter» med serverUrl, og neste forsøk registrerer bare.
+            // Lokalfila og den lokale vedleggsraden røres ikke før bekreftelsen.
+            if (!alleredeOpplastet) {
+              db.update(opplastingsKo)
+                .set({ serverUrl: resultat.fileUrl })
+                .where(eq(opplastingsKo.id, oppforing.id))
+                .run();
+            }
+            const utfall = await registrerBildeIDatabase({
+              sheetUtleggId: oppforing.sheetUtleggId,
+              sheetTilleggId: oppforing.sheetUtleggId ? null : oppforing.sheetTilleggId,
+              vedleggId: oppforing.vedleggId,
+              fileUrl: resultat.fileUrl,
+              fileName: resultat.fileName,
+              fileSize: resultat.fileSize,
+              mimeType: oppforing.mimeType,
+              gpsLat: oppforing.gpsLat,
+              gpsLng: oppforing.gpsLng,
+            });
+            if (!utfall.ok) {
+              throw new OpplastingFeil(
+                `Kvittering ikke registrert (${utfall.grunn}${utfall.status ? ` ${utfall.status}` : ""})`,
+                utfall.grunn === "hard" ? "hard" : "nett",
+              );
+            }
+            db.update(opplastingsKo)
+              .set({ status: "fullfort", serverUrl: resultat.fileUrl })
+              .where(eq(opplastingsKo.id, oppforing.id))
+              .run();
+            if (oppforing.sheetUtleggId) {
+              fullforUtleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
+            } else {
+              fullforTilleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
+            }
+            await slettLokaltBilde(oppforing.lokalSti);
+            oppdaterTellere();
+          } else {
           // Suksess — oppdater SQLite
           db.update(opplastingsKo)
             .set({
@@ -492,44 +556,6 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             .where(eq(opplastingsKo.id, oppforing.id))
             .run();
 
-          // U4: utlegg-vedlegg har egen registrerings-/oppdaterings-sti (speil av
-          // tillegg-grenen). Egen gren → sjekkliste/oppgave-koden under urørt.
-          if (oppforing.sheetUtleggId) {
-            registrerBildeIDatabase({
-              sheetUtleggId: oppforing.sheetUtleggId,
-              vedleggId: oppforing.vedleggId,
-              fileUrl: resultat.fileUrl,
-              fileName: resultat.fileName,
-              fileSize: resultat.fileSize,
-              mimeType: oppforing.mimeType,
-              gpsLat: oppforing.gpsLat,
-              gpsLng: oppforing.gpsLng,
-            }).catch((f) =>
-              console.warn("[KØ] Utlegg-vedlegg-registrering feilet (ikke-kritisk):", f),
-            );
-            fullforUtleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
-            await slettLokaltBilde(oppforing.lokalSti);
-            oppdaterTellere();
-          } else if (oppforing.sheetTilleggId) {
-            // Funn #2: tillegg-vedlegg har egen registrerings-/oppdaterings-sti.
-            // Egen gren → den eksisterende sjekkliste/oppgave-koden under er
-            // urørt og kjører kun for ikke-tillegg-oppføringer.
-            registrerBildeIDatabase({
-              sheetTilleggId: oppforing.sheetTilleggId,
-              vedleggId: oppforing.vedleggId,
-              fileUrl: resultat.fileUrl,
-              fileName: resultat.fileName,
-              fileSize: resultat.fileSize,
-              mimeType: oppforing.mimeType,
-              gpsLat: oppforing.gpsLat,
-              gpsLng: oppforing.gpsLng,
-            }).catch((f) =>
-              console.warn("[KØ] Tillegg-vedlegg-registrering feilet (ikke-kritisk):", f),
-            );
-            fullforTilleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
-            await slettLokaltBilde(oppforing.lokalSti);
-            oppdaterTellere();
-          } else {
             // Kappløp-vern (2026-10-22): er dette en FORELDET oppføring — finnes en NYERE
             // oppføring for samme vedlegg (en annotering lagt til etterpå)? Da skal URL-en
             // IKKE skrives; den nyeste vinner. Rydd bort den overflødige lokalfila og la
@@ -627,7 +653,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
 
             oppdaterTellere();
             } // slutt kappløp-vern: skalSkriveVedleggUrl-gren
-          }
+          } // slutt ikke-kvittering
 
           // Uansett suksess-gren: prosesser neste (etter finally, når flagget er false).
           skalFortsetteMedNeste = true;
@@ -709,6 +735,19 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     }, 15000);
     return () => clearInterval(intervall);
   }, [erPaaNettet, ventende, prosesserNeste]);
+
+  // Telefontest A funn 2: synken vekker køen når den har pushet rader — en kvittering som
+  // ventet på at raden skulle finnes på serveren, prøves straks i stedet for etter backoff.
+  useEffect(
+    () =>
+      abonnerKoen(() => {
+        nesteForsokRef.current.clear();
+        if (!prosessererRef.current) {
+          prosesserNeste().catch((f) => console.error("[KØ] prosesserNeste feilet fra køtrigger:", f));
+        }
+      }),
+    [prosesserNeste],
+  );
 
   const leggIKo = useCallback(
     async (oppforing: NyKoOppforing) => {
