@@ -203,6 +203,7 @@ export function KortHode({
   maskin,
   varer,
   utlegg,
+  tillegg = 0,
   sedelByggeplassId,
   byggeplassNavn,
   visChevron = false,
@@ -213,6 +214,8 @@ export function KortHode({
   maskin: readonly KortMaskinRad[];
   varer: readonly (KortVareLinje & { syncStatus?: string | null })[];
   utlegg: number;
+  /** Spec tillegg-utlegg-prosjektkort § 3.1: antall lønnstillegg på kortet. */
+  tillegg?: number;
   sedelByggeplassId: string | null;
   byggeplassNavn: (byggeplassId: string) => string | null;
   visChevron?: boolean;
@@ -241,6 +244,9 @@ export function KortHode({
   }
   if (summer.reise > 0) {
     chips.push([t("timer.prosjektkort.kolonne.reise"), `${formatKortTall(summer.reise)} ${enhet}`]);
+  }
+  if (tillegg > 0) {
+    chips.push([t("timer.prosjektkort.kolonne.tillegg"), String(tillegg)]);
   }
   if (utlegg > 0) {
     chips.push([t("timer.prosjektkort.kolonne.utlegg"), String(utlegg)]);

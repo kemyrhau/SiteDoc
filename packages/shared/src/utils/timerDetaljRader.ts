@@ -28,6 +28,11 @@ export type KildeMaskin = {
    *  maskin foldes inn på operatørens timerad (`"time"`) eller står på egen linje
    *  (`"doegn"`). null = ukjent enhet → ALDRI gjettet, står på egen linje. */
   utleieEnhet: string | null;
+  /** B8 (tillegg-utlegg-prosjektkort-spec § 6): effektiv byggeplass (rad ?? sedel)
+   *  og underprosjekt (ECO «proAdmId · kortNavn»), resolvert navn. Valgfrie så en
+   *  eldre API-respons gir null, ikke undefined. */
+  byggeplass?: string | null;
+  underprosjekt?: string | null;
 };
 
 /** Løs maskin (uten gyldig timerad, eller på ikke-eksporterbar timerad) — bærer
@@ -70,6 +75,8 @@ export type DetaljEksportKilde = {
     reiseKilde: "matrise" | "manuell" | null;
     tidKilde: "stempel" | "utledet" | "manuell" | null;
     normStatus: "server" | "cachet" | "ukjent" | null; // sedelens norm-status (DailySheet)
+    byggeplass?: string | null;
+    underprosjekt?: string | null;
     maskiner: KildeMaskin[];
   }>;
   maskinUtenTimerad: KildeLosMaskin[];
@@ -84,6 +91,8 @@ export type DetaljEksportKilde = {
     antall: number;
     kommentar: string | null;
     radstatus: string;
+    byggeplass?: string | null;
+    underprosjekt?: string | null;
   }>;
   utlegg: Array<{
     id: string;
@@ -95,6 +104,8 @@ export type DetaljEksportKilde = {
     belop: number | null;
     kommentar: string | null;
     seddelstatus: string;
+    byggeplass?: string | null;
+    underprosjekt?: string | null;
   }>;
 };
 
@@ -120,6 +131,9 @@ export type DetaljRad = {
   ansatt: string;
   ansattnr: string | null;
   prosjekt: string;
+  /** B8: effektiv byggeplass-navn (rad ?? sedel) · underprosjekt-navn. Alle radtyper. */
+  byggeplass: string | null;
+  underprosjekt: string | null;
   /** Lønnsart · maskinnavn · tilleggsnavn · utleggskategori. */
   betegnelse: string;
   aktivitet: string | null; // kun timer
@@ -202,6 +216,8 @@ export function byggDetaljRader(
     ansatt: id.ansatt,
     ansattnr: id.ansattnr,
     prosjekt: id.prosjekt,
+    byggeplass: m.byggeplass ?? null,
+    underprosjekt: m.underprosjekt ?? null,
     betegnelse: m.navn,
     aktivitet: null,
     fraTid: null,
@@ -261,6 +277,8 @@ export function byggDetaljRader(
         ansatt: r.ansatt,
         ansattnr: r.ansattnr,
         prosjekt: r.prosjekt,
+        byggeplass: r.byggeplass ?? null,
+        underprosjekt: r.underprosjekt ?? null,
         betegnelse: r.lonnsart,
         aktivitet: r.aktivitet,
         fraTid: r.fraTid,
@@ -320,6 +338,8 @@ export function byggDetaljRader(
             ansatt: r.ansatt,
             ansattnr: r.ansattnr,
             prosjekt: r.prosjekt,
+            byggeplass: r.byggeplass ?? null,
+            underprosjekt: r.underprosjekt ?? null,
             betegnelse: r.tillegg,
             aktivitet: null,
             fraTid: null,
@@ -364,6 +384,8 @@ export function byggDetaljRader(
             ansatt: r.ansatt,
             ansattnr: r.ansattnr,
             prosjekt: r.prosjekt,
+            byggeplass: r.byggeplass ?? null,
+            underprosjekt: r.underprosjekt ?? null,
             betegnelse: r.kategori,
             aktivitet: null,
             fraTid: null,
@@ -406,6 +428,8 @@ export function byggDetaljRader(
 /** Hvilke av de fire numeriske/type-spesifikke kolonnene har innhold i radsettet.
  *  PDF bruker dette til å droppe helt tomme kolonner (A4-lesbarhet); Excel viser alt. */
 export type KolonneTilstedevaerelse = {
+  byggeplass: boolean;
+  underprosjekt: boolean;
   aktivitet: boolean;
   fraTid: boolean;
   tilTid: boolean;
@@ -436,6 +460,8 @@ export type KolonneTilstedevaerelse = {
 export function kolonnerMedInnhold(rader: DetaljRad[]): KolonneTilstedevaerelse {
   const harReise = rader.some((r) => r.erReise === true);
   return {
+    byggeplass: rader.some((r) => r.byggeplass !== null && r.byggeplass !== ""),
+    underprosjekt: rader.some((r) => r.underprosjekt !== null && r.underprosjekt !== ""),
     aktivitet: rader.some((r) => r.aktivitet !== null && r.aktivitet !== ""),
     fraTid: rader.some((r) => r.fraTid !== null && r.fraTid !== ""),
     tilTid: rader.some((r) => r.tilTid !== null && r.tilTid !== ""),
@@ -479,6 +505,9 @@ export const TIMER_KOL_KEYS = [
   "ansatt",
   "ansattnr",
   "prosjekt",
+  // B8 — sted-dimensjonen (vises dynamisk kun når radene bærer den).
+  "byggeplass",
+  "underprosjekt",
   "type",
   "betegnelse",
   "lonnsartType",
@@ -530,6 +559,8 @@ export const TIMER_KOL_I18N: Record<TimerKolKey, string> = {
   ansatt: "kolAnsatt",
   ansattnr: "kolAnsattnr",
   prosjekt: "kolProsjekt",
+  byggeplass: "kolByggeplass",
+  underprosjekt: "kolUnderprosjekt",
   type: "kolType",
   betegnelse: "kolBetegnelse",
   lonnsartType: "kolLonnsartType",
@@ -577,6 +608,8 @@ export const TIMER_KOL_BREDDE: Record<TimerKolKey, TimerKolBredde> = {
   ansatt: { min: 120, vekt: 2, excel: 22 },
   ansattnr: { min: 74, vekt: 0, excel: 10 },
   prosjekt: { min: 120, vekt: 2, excel: 22 },
+  byggeplass: { min: 110, vekt: 2, excel: 20 },
+  underprosjekt: { min: 120, vekt: 2, excel: 22 },
   type: { min: 78, vekt: 0, excel: 10 },
   betegnelse: { min: 150, vekt: 4, excel: 26 },
   lonnsartType: { min: 90, vekt: 0, excel: 12 },
@@ -636,7 +669,10 @@ export function losTimerKolonner(
   const innhold = kolonnerMedInnhold(rader);
   const koler: TimerKolKey[] = ["dato", "ansatt"];
   if (!ekstern) koler.push("ansattnr");
-  koler.push("prosjekt", "type", "betegnelse");
+  koler.push("prosjekt");
+  if (innhold.byggeplass) koler.push("byggeplass");
+  if (innhold.underprosjekt) koler.push("underprosjekt");
+  koler.push("type", "betegnelse");
   if (innhold.lonnsartType) koler.push("lonnsartType");
   if (innhold.satsEnhet) koler.push("satsEnhet");
   if (innhold.aktivitet) koler.push("aktivitet");

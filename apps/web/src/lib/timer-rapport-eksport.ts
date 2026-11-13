@@ -86,6 +86,9 @@ type LøsMaskinRad = {
   enhet: string | null;
   radstatus: string;
   utleieEnhet: string | null;
+  // B8: effektiv byggeplass + underprosjekt (resolvert navn). Valgfritt = eldre API.
+  byggeplass?: string | null;
+  underprosjekt?: string | null;
 };
 
 /**
@@ -120,6 +123,8 @@ export type DetaljEksport = {
     tidKilde: "stempel" | "utledet" | "manuell" | null;
     normStatus: "server" | "cachet" | "ukjent" | null;
     radstatus: string; // T.3 attestertStatus per rad, ikke sedel-status
+    byggeplass?: string | null;
+    underprosjekt?: string | null;
     maskiner: Array<{
       id: string;
       navn: string;
@@ -129,6 +134,8 @@ export type DetaljEksport = {
       radstatus: string;
       // utleieEnhet ("time" → folder inn på timeraden; "doegn"/null → egen linje)
       utleieEnhet: string | null;
+      byggeplass?: string | null;
+      underprosjekt?: string | null;
     }>;
   }>;
   maskinUtenTimerad: LøsMaskinRad[];
@@ -145,6 +152,8 @@ export type DetaljEksport = {
     antall: number;
     kommentar: string | null;
     radstatus: string;
+    byggeplass?: string | null;
+    underprosjekt?: string | null;
   }>;
   utlegg: Array<{
     id: string;
@@ -156,6 +165,8 @@ export type DetaljEksport = {
     belop: number | null;
     kommentar: string | null;
     seddelstatus: string; // utlegg har ingen rad-status → sedel-status
+    byggeplass?: string | null;
+    underprosjekt?: string | null;
   }>;
 };
 
@@ -454,6 +465,8 @@ const EXCEL_KOL: Record<TimerKolKey, ExcelKolDesc> = {
   ansatt: { i18n: "kolAnsatt", verdi: (r) => r.ansatt },
   ansattnr: { i18n: "kolAnsattnr", verdi: (r) => r.ansattnr ?? "" },
   prosjekt: { i18n: "kolProsjekt", verdi: (r) => r.prosjekt },
+  byggeplass: { i18n: "kolByggeplass", verdi: (r) => r.byggeplass ?? "" },
+  underprosjekt: { i18n: "kolUnderprosjekt", verdi: (r) => r.underprosjekt ?? "" },
   type: { i18n: "kolType", verdi: (r, t) => typeEtikett(t, r.type) },
   betegnelse: { i18n: "kolBetegnelse", verdi: (r, t, ekstern) => betegnelse(t, r, ekstern) },
   lonnsartType: { i18n: "kolLonnsartType", verdi: (r, t) => lonnsartTypeEtikett(t, r.lonnsartType) },

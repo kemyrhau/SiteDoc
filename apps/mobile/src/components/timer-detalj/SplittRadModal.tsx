@@ -375,6 +375,9 @@ export function SplittRadModal(props: Props) {
             tilleggId: o.tilleggId,
             antall: tilTall(d.antallTekst),
             kommentar: o.kommentar,
+            // B5: delene arver originalens kort (byggeplass + underprosjekt).
+            byggeplassId: o.byggeplassId ?? null,
+            externalCostObjectId: o.externalCostObjectId ?? null,
             sistEndretLokalt: Date.now(),
           })
           .run();

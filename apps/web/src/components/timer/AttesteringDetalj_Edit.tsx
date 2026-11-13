@@ -49,6 +49,8 @@ type TilleggRad = {
   kommentar: string | null;
   attestertStatus: string | null;
   parentRadId?: string | null;
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 type MaskinRad = {
   id: string;
@@ -146,6 +148,8 @@ export function AttesteringDetaljEdit({
     tilleggId: r.tilleggId,
     antall: tilTall(r.antall),
     kommentar: r.kommentar,
+    byggeplassId: r.byggeplassId ?? null,
+    externalCostObjectId: r.externalCostObjectId ?? null,
   }));
   const initMaskin: RedigerMaskinRadData[] = pendingMaskin.map((r) => ({
     key: r.id,
@@ -358,6 +362,8 @@ export function AttesteringDetaljEdit({
           tilleggId: r.tilleggId,
           antall: r.antall,
           kommentar: r.kommentar,
+          byggeplassId: r.byggeplassId ?? null,
+          externalCostObjectId: r.externalCostObjectId ?? null,
         })),
         maskin: editMaskin.map((r) => ({
           originalId: r.originalId,

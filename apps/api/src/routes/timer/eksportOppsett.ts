@@ -50,7 +50,7 @@ async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<
 // Zod-enumen kan ikke ta en readonly-tuple direkte). Reise-/lønnsart-kolonnene lagt
 // til så malens kolonnevalg round-tripper; skjerm/Excel projiserer dem, PDF ignorerer.
 const KOLONNE_KEYS = [
-  "dato", "ansatt", "ansattnr", "prosjekt", "type", "betegnelse",
+  "dato", "ansatt", "ansattnr", "prosjekt", "byggeplass", "underprosjekt", "type", "betegnelse",
   "lonnsartType", "satsEnhet", "aktivitet",
   "fraTid", "tilTid", "timer", "maskintimer", "antall", "belop", "mengde", "enhet",
   "reise", "retning", "fraSted", "tilSted", "avstandKm", "kjoretidMin",

@@ -25,7 +25,10 @@ import {
 import {
   krevByggeplassIProsjekt,
   krevByggeplasserIProsjekt,
+  krevEcoerIProsjekt,
+  kortFeltVedSync,
   lagByggeplassVasker,
+  lagEcoVasker,
   maskinByggeplassVedSync,
 } from "./byggeplass-rad";
 import {
@@ -1488,6 +1491,10 @@ const splittRadInput = z.discriminatedUnion("radType", [
           tilleggId: z.string().uuid(),
           antall: z.number().positive(),
           kommentar: z.string().nullable().optional(),
+          // Tillegg på prosjektkortet (spec § 6): utelatt = delen arver originalens
+          // kort når prosjektet er det samme (arvTilleggKort).
+          byggeplassId: z.string().uuid().nullable().optional(),
+          externalCostObjectId: z.string().uuid().nullable().optional(),
         }),
       )
       .min(2, "Splitt krever minst 2 nye rader"),
@@ -1513,6 +1520,36 @@ const splittRadInput = z.discriminatedUnion("radType", [
   }),
 ]);
 type SplittRadInput = z.infer<typeof splittRadInput>;
+
+type TilleggKortKilde = {
+  projectId: string;
+  byggeplassId: string | null;
+  externalCostObjectId: string | null;
+};
+
+/**
+ * Tillegg på prosjektkortet (spec § 3.3/§ 6, B5): en splitt-del arver originalens
+ * byggeplass og underprosjekt når klienten ikke sender feltene og delen står på
+ * samme prosjekt. Flyttes delen til et annet prosjekt, passer ikke originalens kort
+ * — da blir feltet NULL (arv fra sedelen). Oppgitt verdi (også null) vinner; den er
+ * validert mot prosjektet i validerSplittFelles.
+ */
+export function arvTilleggKort(
+  del: { projectId: string; byggeplassId?: string | null; externalCostObjectId?: string | null },
+  original: TilleggKortKilde,
+): { byggeplassId: string | null; externalCostObjectId: string | null } {
+  const sammeProsjekt = del.projectId === original.projectId;
+  return {
+    byggeplassId:
+      del.byggeplassId !== undefined ? del.byggeplassId : sammeProsjekt ? original.byggeplassId : null,
+    externalCostObjectId:
+      del.externalCostObjectId !== undefined
+        ? del.externalCostObjectId
+        : sammeProsjekt
+          ? original.externalCostObjectId
+          : null,
+  };
+}
 
 /**
  * Delt validerings-kjerne for splitt (P2). Kalles av begge splitt-innganger FØR
@@ -1548,8 +1585,12 @@ async function validerSplittFelles(
     input.nyeRader.map((r) => r.projectId),
     sheet.organizationId,
   );
-  // Ordre (12): byggeplassen må høre til radens prosjekt (tillegg-rader har ingen).
+  // Ordre (12): byggeplassen må høre til radens prosjekt.
   await krevByggeplasserIProsjekt(input.nyeRader);
+  // Tillegg på prosjektkortet: et oppgitt underprosjekt må høre til radens prosjekt.
+  if (input.radType === "tillegg") {
+    await krevEcoerIProsjekt(input.nyeRader, sheet.organizationId);
+  }
   // Maskin-splitt tar nye vehicleId fra input — org-valider hver unik mot
   // firmaets maskinregister. Timer-splitt arver original-radens vehicleId.
   if (input.radType === "maskin") {
@@ -2947,6 +2988,9 @@ export const dagsseddelRouter = router({
         tilleggId: z.string().uuid(),
         antall: z.number().min(0),
         kommentar: z.string().nullable().optional(),
+        // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2963,6 +3007,9 @@ export const dagsseddelRouter = router({
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
       // H3: samme firma-grense på rad-projectId som tilfoyTimerRad.
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
+      await krevByggeplasserIProsjekt([input]);
+      await krevEcoerIProsjekt([input], sheet.organizationId);
 
       const tillegg = await ctx.prismaTimer.tillegg.findFirst({
         where: { id: input.tilleggId, organizationId: sheet.organizationId },
@@ -2983,6 +3030,8 @@ export const dagsseddelRouter = router({
             tilleggId: input.tilleggId,
             antall: input.antall,
             kommentar: input.kommentar ?? null,
+            byggeplassId: input.byggeplassId ?? null,
+            externalCostObjectId: input.externalCostObjectId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
@@ -2997,6 +3046,9 @@ export const dagsseddelRouter = router({
         tilleggId: z.string().uuid().optional(),
         antall: z.number().min(0).optional(),
         kommentar: z.string().nullable().optional(),
+        // Utelatt = urørt; null = arv/uten underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -3020,6 +3072,18 @@ export const dagsseddelRouter = router({
       }
       if (input.antall !== undefined) data.antall = input.antall;
       if (input.kommentar !== undefined) data.kommentar = input.kommentar;
+      // Prosjektkortet: valideres mot RADENS prosjekt.
+      if (input.byggeplassId !== undefined) {
+        await krevByggeplasserIProsjekt([{ byggeplassId: input.byggeplassId, projectId: rad.projectId }]);
+        data.byggeplassId = input.byggeplassId;
+      }
+      if (input.externalCostObjectId !== undefined) {
+        await krevEcoerIProsjekt(
+          [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+          sheet.organizationId,
+        );
+        data.externalCostObjectId = input.externalCostObjectId;
+      }
 
       // F4-1d: rad-write + touchSedel atomisk.
       const [oppdatert] = await ctx.prismaTimer.$transaction([
@@ -3179,6 +3243,9 @@ export const dagsseddelRouter = router({
         // håndhever beløps-regelen — klienten kan ikke overstyre den.
         belop: z.number().min(0).nullable().optional(),
         kommentar: z.string().nullable().optional(),
+        // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -3196,6 +3263,9 @@ export const dagsseddelRouter = router({
       // H3: samme firma-grense på rad-projectId som tilfoyTimerRad — før
       // prosjekt-overstyringen under leses på projectId.
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
+      await krevByggeplasserIProsjekt([input]);
+      await krevEcoerIProsjekt([input], sheet.organizationId);
 
       const kategori = await ctx.prismaTimer.expenseCategory.findFirst({
         where: { id: input.expenseCategoryId, organizationId: sheet.organizationId },
@@ -3254,6 +3324,8 @@ export const dagsseddelRouter = router({
             belop,
             kommentar: input.kommentar ?? null,
             ordningVedFoering: ordning,
+            byggeplassId: input.byggeplassId ?? null,
+            externalCostObjectId: input.externalCostObjectId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
@@ -3269,6 +3341,9 @@ export const dagsseddelRouter = router({
         id: z.string().uuid(),
         belop: z.number().min(0).nullable().optional(),
         kommentar: z.string().nullable().optional(),
+        // Utelatt = urørt; null = arv/uten underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -3309,6 +3384,18 @@ export const dagsseddelRouter = router({
         }
       }
       if (input.kommentar !== undefined) data.kommentar = input.kommentar;
+      // Prosjektkortet: valideres mot RADENS prosjekt.
+      if (input.byggeplassId !== undefined) {
+        await krevByggeplasserIProsjekt([{ byggeplassId: input.byggeplassId, projectId: rad.projectId }]);
+        data.byggeplassId = input.byggeplassId;
+      }
+      if (input.externalCostObjectId !== undefined) {
+        await krevEcoerIProsjekt(
+          [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+          sheet.organizationId,
+        );
+        data.externalCostObjectId = input.externalCostObjectId;
+      }
 
       const [oppdatert] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetUtlegg.update({ where: { id: input.id }, data }),
@@ -3692,6 +3779,9 @@ export const dagsseddelRouter = router({
             select: {
               id: true,
               belop: true,
+              // Tillegg/utlegg på prosjektkortet (spec § 6): kortet raden hører til.
+              byggeplassId: true,
+              externalCostObjectId: true,
               expenseCategory: { select: { navn: true } },
             },
           },
@@ -4050,14 +4140,18 @@ export const dagsseddelRouter = router({
   flyttTimerRadEco: protectedProcedure
     .input(
       z.object({
+        // B7 (tillegg på prosjektkortet): `timerRadId` er rad-ID-en også for
+        // tillegg — navnet beholdes for bakoverkompatibilitet med eldre web.
         timerRadId: z.string().uuid(),
+        radType: z.enum(["timer", "tillegg"]).default("timer"),
         externalCostObjectId: z.string().uuid().nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const rad = await ctx.prismaTimer.sheetTimer.findUnique({
-        where: { id: input.timerRadId },
-      });
+      const erTillegg = input.radType === "tillegg";
+      const rad = erTillegg
+        ? await ctx.prismaTimer.sheetTillegg.findUnique({ where: { id: input.timerRadId } })
+        : await ctx.prismaTimer.sheetTimer.findUnique({ where: { id: input.timerRadId } });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
 
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
@@ -4115,10 +4209,15 @@ export const dagsseddelRouter = router({
       const fraEcoId = rad.externalCostObjectId;
       // F4-1d: rad-write + touchSedel atomisk.
       const [oppdatert] = await ctx.prismaTimer.$transaction([
-        ctx.prismaTimer.sheetTimer.update({
-          where: { id: input.timerRadId },
-          data: { externalCostObjectId: input.externalCostObjectId },
-        }),
+        erTillegg
+          ? ctx.prismaTimer.sheetTillegg.update({
+              where: { id: input.timerRadId },
+              data: { externalCostObjectId: input.externalCostObjectId },
+            })
+          : ctx.prismaTimer.sheetTimer.update({
+              where: { id: input.timerRadId },
+              data: { externalCostObjectId: input.externalCostObjectId },
+            }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
       ]);
 
@@ -4129,9 +4228,9 @@ export const dagsseddelRouter = router({
             actorUserId: ctx.userId,
             organizationId: sheet.organizationId,
             projectId: rad.projectId,
-            targetType: "sheet_timer",
+            targetType: erTillegg ? "sheet_tillegg" : "sheet_timer",
             targetId: input.timerRadId,
-            action: "timer.eco-flyttet",
+            action: erTillegg ? "tillegg.eco-flyttet" : "timer.eco-flyttet",
             payload: {
               sheetId: sheet.id,
               fraEcoId,
@@ -4588,6 +4687,9 @@ export const dagsseddelRouter = router({
               tilleggId: z.string().uuid(),
               antall: z.number().positive(),
               kommentar: z.string().nullable().optional(),
+              // Tillegg på prosjektkortet (spec § 6): som timer — `?? null`.
+              byggeplassId: z.string().uuid().nullable().optional(),
+              externalCostObjectId: z.string().uuid().nullable().optional(),
             }),
           ),
           maskin: z.array(
@@ -4654,7 +4756,13 @@ export const dagsseddelRouter = router({
         sheet.organizationId,
       );
       // Ordre (12): byggeplassen må høre til radens prosjekt (samme grense som ordre 10).
-      await krevByggeplasserIProsjekt([...input.nyeRader.timer, ...input.nyeRader.maskin]);
+      await krevByggeplasserIProsjekt([
+        ...input.nyeRader.timer,
+        ...input.nyeRader.maskin,
+        ...input.nyeRader.tillegg,
+      ]);
+      // Tillegg på prosjektkortet: underprosjektet må høre til radens prosjekt.
+      await krevEcoerIProsjekt(input.nyeRader.tillegg, sheet.organizationId);
 
       // §2.D: org-valider alle rad-vehicleId (maskin-kostnadsbærer) mot firmaets
       // maskinregister — timer-rad (nullable) + maskin-rad (påkrevd), samme
@@ -4945,6 +5053,8 @@ export const dagsseddelRouter = router({
               projectId: rad.projectId,
               antall: rad.antall,
               kommentar: rad.kommentar ?? null,
+              byggeplassId: rad.byggeplassId ?? null,
+              externalCostObjectId: rad.externalCostObjectId ?? null,
               attestertStatus: "pending",
               parentRadId: rad.originalId,
             },
@@ -5176,6 +5286,7 @@ export const dagsseddelRouter = router({
                 projectId: rad.projectId,
                 antall: rad.antall,
                 kommentar: rad.kommentar ?? null,
+                ...arvTilleggKort(rad, original as TilleggKortKilde),
                 attestertStatus: "pending",
                 parentRadId: original.id,
               },
@@ -5385,6 +5496,7 @@ export const dagsseddelRouter = router({
                 projectId: rad.projectId,
                 antall: rad.antall,
                 kommentar: rad.kommentar ?? null,
+                ...arvTilleggKort(rad, original as TilleggKortKilde),
               },
             }),
           ),
@@ -5819,6 +5931,9 @@ export const dagsseddelRouter = router({
             tilleggId: tl.tilleggId,
             antall: Number(tl.antall),
             kommentar: tl.kommentar,
+            // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
+            byggeplassId: tl.byggeplassId,
+            externalCostObjectId: tl.externalCostObjectId,
             // Funn #2: kvittering-vedlegg per tillegg-rad (metadata).
             vedlegg: (vedleggPerRad.get(tl.id) ?? []).map((v) => ({
               id: v.id,
@@ -5854,6 +5969,8 @@ export const dagsseddelRouter = router({
             kommentar: u.kommentar,
             ordningVedFoering: u.ordningVedFoering,
             foertVed: u.createdAt.toISOString(),
+            byggeplassId: u.byggeplassId,
+            externalCostObjectId: u.externalCostObjectId,
             vedlegg: (utleggVedleggPerRad.get(u.id) ?? []).map((v) => ({
               id: v.id,
               fileUrl: v.fileUrl,
@@ -5974,6 +6091,11 @@ export const dagsseddelRouter = router({
                 tilleggId: z.string().uuid(),
                 antall: z.number().min(0),
                 kommentar: z.string().nullable().optional(),
+                // Prosjektkortet (spec tillegg-utlegg-prosjektkort § 3.6): raden bærer
+                // kortets byggeplass og underprosjekt. Optional → eldre klienter uten
+                // feltene gir NULL (= arver sedelens byggeplass, uten underprosjekt).
+                byggeplassId: z.string().uuid().nullable().optional(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
               }),
             ),
             maskiner: z
@@ -6015,6 +6137,9 @@ export const dagsseddelRouter = router({
                   belop: z.number().min(0).nullable().optional(),
                   kommentar: z.string().nullable().optional(),
                   ordningVedFoering: SYNC_ORDNING_ENUM,
+                  // Prosjektkortet (§ 3.6): som tillegg — utelatt = NULL = arv.
+                  byggeplassId: z.string().uuid().nullable().optional(),
+                  externalCostObjectId: z.string().uuid().nullable().optional(),
                   // Klientens føringstidspunkt (ISO). Skrives til createdAt så
                   // stempelet er reviderbart: «ført 3. aug, ordningen var X da» —
                   // ikke synk-dagen. Uten dette ville en rad som lå offline i tre
@@ -6386,7 +6511,18 @@ export const dagsseddelRouter = router({
             lokal.byggeplassId,
             ...lokal.timer.map((t) => t.byggeplassId),
             ...lokal.maskiner.map((m) => m.byggeplassId),
+            ...lokal.tillegg.map((tl) => tl.byggeplassId),
+            ...lokal.utlegg.map((u) => u.byggeplassId),
           ]);
+          // Prosjektkortet: tillegg/utlegg bærer underprosjekt — vaskes mot radens
+          // prosjekt og firmaet (fremmed → null, aldri avvisning: offline-køen).
+          const vaskEco = await lagEcoVasker(
+            [
+              ...lokal.tillegg.map((tl) => tl.externalCostObjectId),
+              ...lokal.utlegg.map((u) => u.externalCostObjectId),
+            ],
+            orgId,
+          );
           let byggeplassVasket = 0;
           const vaskTell = (b: string | null | undefined, p: string | null): string | null => {
             const v = vaskByggeplass(b, p);
@@ -6969,6 +7105,7 @@ export const dagsseddelRouter = router({
                   tilleggId: tl.tilleggId,
                   antall: tl.antall,
                   kommentar: tl.kommentar ?? null,
+                  ...kortFeltVedSync(tl, radProsjekt(tl.projectId)!, vaskTell, vaskEco),
                 })),
               });
             }
@@ -7008,6 +7145,7 @@ export const dagsseddelRouter = router({
                   belop: u.belop ?? null,
                   kommentar: u.kommentar ?? null,
                   ordningVedFoering: u.ordningVedFoering,
+                  ...kortFeltVedSync(u, radProsjekt(u.projectId)!, vaskTell, vaskEco),
                   createdAt: new Date(u.foertVed),
                 })),
               });

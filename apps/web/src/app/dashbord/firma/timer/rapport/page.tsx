@@ -256,7 +256,7 @@ function byggPdfTekster(
   [K in
     | "dokumentTittel" | "periode" | "prosjekt" | "ansatt" | "alle" | "ingenData" | "sum"
     | "sammendrag" | "kolAnsattnr" | "kolTotalTimer" | "kolSedler" | "kolSistRegistrert"
-    | "kolKladd" | "kolSent" | "kolAttestert" | "detaljer" | "subtotal" | "kolDato" | "kolType"
+    | "kolKladd" | "kolSent" | "kolAttestert" | "detaljer" | "subtotal" | "kolDato" | "kolByggeplass" | "kolUnderprosjekt" | "kolType"
     | "kolBetegnelse" | "kolAktivitet" | "kolFra" | "kolTil" | "kolTimer" | "kolMaskintimer"
     | "kolAntall" | "kolBelop" | "kolMengde" | "kolEnhet" | "kolBeskrivelse" | "kolStatus"
     | "typeTimer" | "typeMaskin" | "typeTillegg" | "typeUtlegg" | "maskinUtenTimerad"
@@ -282,6 +282,8 @@ function byggPdfTekster(
     detaljer: k("detaljer"),
     subtotal: k("subtotal"),
     kolDato: k("kolDato"),
+    kolByggeplass: k("kolByggeplass"),
+    kolUnderprosjekt: k("kolUnderprosjekt"),
     kolType: k("kolType"),
     kolBetegnelse: k("kolBetegnelse"),
     kolAktivitet: k("kolAktivitet"),

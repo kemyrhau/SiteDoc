@@ -700,7 +700,7 @@ Kenneth GO 2026-11-07 (§ 7: ingen backfill, valg kun når relevant (K3), SQLite
 - **Maskin-byggeplass** (`apps/api/src/routes/timer/byggeplass-rad.ts` `maskinByggeplassVedSync`): `syncBatch` tar valgfri `byggeplassId` pr. maskin. Null eller utelatt (eldre klient) = arv av sedelens byggeplass, som timer-radene (RETUR 4); en byggeplass fra et annet prosjekt blir null. Pull returnerer feltet. Test: `byggeplass-rad.test.ts`, `timer-lag2-sync.test.ts`.
 - **Bekreft dag, prosjektbytte med flere kort** (`flyttBeskrivelseVedProsjektbytte`, `apps/mobile/src/utils/bekreftDag.ts`, RETUR 4): teksten flyttes både fra `projectId`-nøkkelen og fra kortet som arver dagens byggeplass, aldri over tekst målprosjektet alt har. Test: `bekreftDagBeskrivelse.test.ts` § RETUR 4 (P6).
 - **SQLite (mobil):** `sheet_machine_local.byggeplass_id` og `vareforbruk_local.external_cost_object_id`, additive via `ALTER` (`KORTVALG_LOCAL_KOLONNER`, `migreringer.ts`). Ingen backfill: gamle rader arver sedelen ved visning. Test: `migreringer.kortvalgLocal.test.ts` (feiler når kolonnen mangler).
-- **Dag-seksjonen** (`prosjektkort/DagSeksjon.tsx`, GO 4): reise, tillegg og utlegg hører til dagen og ligger under kortene, over sum og «Send dagen». Prosjekt-forslaget er prosjektet med flest arbeidstimer. Reise velger prosjekt; byggeplass/underprosjekt i modalen bare når prosjektet har flere (K3). `TilleggSeksjon` og `UtleggSeksjon` gjenbrukes (utlegg får prosjekt-chips ved flere prosjekter). Kortskjermen viser dem ikke lenger — de er flyttet, ikke fjernet.
+- **Dag-seksjonen** (`prosjektkort/DagSeksjon.tsx`, GO 4; 🟡 `feat/timer-tillegg-utlegg-kort` reverserer for tillegg/utlegg — de føres på kortskjermen, se § Tillegg og utlegg på prosjektkortet — API, «Mobil — føring på kortskjermen»): reise, tillegg og utlegg hører til dagen og ligger under kortene, over sum og «Send dagen». Prosjekt-forslaget er prosjektet med flest arbeidstimer. Reise velger prosjekt; byggeplass/underprosjekt i modalen bare når prosjektet har flere (K3). `TilleggSeksjon` og `UtleggSeksjon` gjenbrukes (utlegg får prosjekt-chips ved flere prosjekter). Kortskjermen viser dem ikke lenger — de er flyttet, ikke fjernet.
 - **Bekreft dag — beskrivelse pr. kort** (`apps/mobile/src/utils/beskrivelseKort.ts`): `kortMedArbeid` gir ett felt pr. (prosjekt, effektiv byggeplass) med arbeid; underprosjekt finnes ikke i Bekreft dag. Nøkkelen i `beskrivelsePerKort` er `projectId` når prosjektet har ett kort (identisk med 36a), ellers kortnøkkelen. `manglerBeskrivelse` sperrer pr. nøkkel (`BekreftDagHandling.nokler`); `anvendDagsforslag` skriver tekst fra radens eget kort (`beskrivelseForRad`). Feltet viser byggeplassnavnet når flere kort deler prosjekt; bytte av dagens byggeplass tar med teksten. Tester: `bekreftDagBeskrivelse.test.ts` § ORDRE 36b.
 - **Dagskortet urørt:** vakt `dagskort-isolert-vakt.test.ts` § «ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet» (optional props, `REISE_VILKAAR`, `UTLEGG_CHIPS`, kontekst-default `false`, negativkontroll). Flytt-vakter: `dagsoversikt-kilde-vakt.test.ts`.
 
@@ -736,7 +736,7 @@ Godkjent plan «Dagsoversikt i radform»: beslutning 1 = B (varer kobles til rad
   - *Prosjektkort* (`ProsjektkortDagsoversikt`): «Flytt raden» på en timer-rad går via `flyttKort` med `radInnhold` (`kortRadFlytt.ts`) — koblede maskiner og varer (lokale og synkede, server først etter push) følger, timer og mengde uendret; ukoblede linjer blir. Koblet maskin/vare har ingen egen Flytt, men linjen `timer.dagsoversikt.folgerRaden` (`RadHandlinger.folgerRaden`, vare-modalen); ukoblede («Uten rad») flyttes som før.
   - *Sortering* (`grupperPaaUnderprosjekt`): hele rader (med maskin/varer) under radens (prosjekt, underprosjekt), grupper i rekkefølgen til sin første rad, overskrift «prosjekt · underprosjekt» når dagen har mer enn én gruppe. «Uten rad» vises pr. gruppe under linjens eget underprosjekt. Ingen sammenslåing.
 - **ORDRE Tillegg og Utlegg i Bekreft dag (GO 2026-11-13, 🟡 `feat/timer-bekreftdag-tillegg-utlegg`, ikke merget):**
-  - *Seksjon* `BekreftDagLonnUtlegg.tsx` under arbeidsradene: «Tillegg» og «Utlegg», hver med `HjelpIkon` og «+». Modalene er prosjektkortets (`TilleggRadModal`, `UtleggRadModal` med `onOpprett`, eksportert fra `TilleggSeksjon.tsx`/`UtleggSeksjon.tsx`). Linjene holdes i minnet (`lonnUtlegg` i `bekreft-dag.tsx`) og er knyttet til sedel + prosjekt, ikke til en arbeidsrad. Standardprosjekt = prosjektet med flest arbeidstimer (`prosjektMedFlestTimer`, `utils/bekreftDag.ts`; likt → første). Skjules når alle datoer er sendt.
+  - *Seksjon* `BekreftDagLonnUtlegg.tsx` under arbeidsradene: «Tillegg» og «Utlegg», hver med `HjelpIkon` og «+». Modalene er prosjektkortets (`TilleggRadModal`, `UtleggRadModal` med `onOpprett`, eksportert fra `TilleggSeksjon.tsx`/`UtleggSeksjon.tsx`). Linjene holdes i minnet (`lonnUtlegg` i `bekreft-dag.tsx`) og er knyttet til sedel + kort (prosjekt + byggeplass), ikke til en arbeidsrad. Standard = kortet med flest arbeidstimer (`kortMedFlestTimer`, `utils/beskrivelseKort.ts`; likt → første) — T12, se § Tillegg og utlegg på prosjektkortet. Skjules når alle datoer er sendt.
   - *Skriving:* ved [Bekreft og lagre] skriver `anvendDagsforslag` (`utils/dagsforslagAnvend.ts`) linjene på `forsteLagredeSheetId` (første åpne dato sin sedel) via `skrivLonnstillegg`/`skrivUtlegg` (`services/tilleggUtleggSkriv.ts`, samme skrivevei som prosjektkortet). Kvitteringen køes med `leggIKo` først etter skrevet Bekreft (`resultat.lonnUtleggSkrevet`). Tillegg-vedlegg legges til etterpå i prosjektkortet (B1).
   - *Vakt:* `tilleggUtleggUtenDag` i `bekreftDag` — linjer finnes, men alle datoer er sendt → Alert `timer.bekreftDag.tilleggUtlegg.utenDagTittel`/`utenDagTekst`, ingenting skrives. Rekkefølge: `manglerBeskrivelse` → `tilleggUtleggUtenDag` → `tilleggUtenRad` → `maskinBrudd` → bøtte → anvend; enhver stopp skriver null linjer. Sendes alle datoene mellom forslag og Bekreft (race), skriver `anvendDagsforslag` verken timer eller linjer (`lonnUtleggSkrevet` false), og `bekreftDag` gir samme stopp etter anvend (RETUR Kontrollør M3) — skjermen navigerer ikke bort, så linjer og kvitteringer beholdes.
   - *Rydding:* forlates skjermen uten lagring, slettes ulagrede kvitteringsfiler (`slettLokaltBilde`); fjerning av en utlegg-linje sletter fila med en gang.
@@ -1237,6 +1237,31 @@ Timer- og maskinrader i web-dagsseddelen (`apps/web/src/app/dashbord/timer/[id]/
 
 **Tester:** `apps/api/src/routes/timer/byggeplass-rad.test.ts` (16: avvisning i alle skriveveier, utelatt = urørt på server, hjelpere), `apps/api/src/routes/timer/timer-lag2-sync.test.ts` (syncBatch-vasking: batchen fullfører, byggeplass `null`, logg), `apps/web/src/lib/__tests__/timerByggeplass.test.ts` (9, utelatt = urørt på klient).
 
+## Tillegg og utlegg på prosjektkortet — API
+
+**Status:** 🟡 `feat/timer-tillegg-utlegg-kort` (2026-11-13), ikke merget, venter Kontrollør-gate. Spec: [tillegg-utlegg-prosjektkort-spec.md](tillegg-utlegg-prosjektkort-spec.md) (B1–B8 vedtatt av Kenneth).
+
+`sheet_tillegg` og `sheet_utlegg` bærer `byggeplassId` og `externalCostObjectId` (underprosjekt). NULL betyr arv: byggeplass fra sedelen (A.30), underprosjekt ingen.
+
+- **Interaktive skriveveier** (`tilfoyTilleggRad`, `oppdaterTilleggRad`, `tilfoyUtleggRad`, `oppdaterUtleggRad`, `redigerSedelRader`, `splittRad`/`splittRadEier` i `apps/api/src/routes/timer/dagsseddel.ts`) avviser byggeplass utenfor radens prosjekt (`krevByggeplasserIProsjekt`) og underprosjekt utenfor radens prosjekt eller firma (`krevEcoerIProsjekt` i `apps/api/src/routes/timer/byggeplass-rad.ts`) med BAD_REQUEST. Et utelatt felt i `oppdater*` lar verdien stå.
+- **`syncBatch`** avviser aldri: et fremmed felt vaskes til `null` (`kortFeltVedSync` + `lagEcoVasker`), et utelatt felt blir `null`. En gammel klient som ikke kjenner feltene, gir dermed arv. `hentEndringerSiden` returnerer feltene.
+- **Splitt:** delene arver originalens felt når de står på samme prosjekt og ikke oppgir egne (`arvTilleggKort`); bytter delen prosjekt, nulles feltene.
+- **`redigerSedelRader`** skriver `?? null` for tillegg — webklienten må sende feltene, ellers nulles de ved redigering.
+- **B7 flytt:** `flyttTimerRadEco` tar `radType: "timer" | "tillegg"` (standard `"timer"`). Tillegg logges som `tillegg.eco-flyttet` på `sheet_tillegg`. Samme ECO-krav som timer (aktiv, åpen for timeregistrering, samme prosjekt).
+- **B8 eksport:** `rapport.detaljEksport` (`apps/api/src/routes/timer/rapport.ts`) gir `byggeplass` (radens, ellers sedelens) og `underprosjekt` («proAdmId · kortNavn», firma-scopet oppslag) på timerader, maskinrader, tillegg og utlegg. Kolonnene: se «Web og eksport (C6)» under.
+
+Tester: `apps/api/src/routes/timer/tillegg-utlegg-kort-api.test.ts` (T2–T4 + B7), `tillegg-utlegg-kort-migrering.test.ts` (T1).
+
+**Mobil — føring på kortskjermen (C4):** «Tillegg» og «Utlegg» står på kortskjermen `app/timer/[id]/kort/[projectId].tsx` under kortets rader, med `HjelpIkon`. Radene er `raderPaaKort(…, valg)` — samme kortnøkkel som timer (`kortNokkelFor`), så en arvende rad (NULL) hører til kortet med sedelens byggeplass og uten underprosjekt. Ny rad får `kortFelt` (`lagretByggeplassForKort` + kortets ECO) og står låst grått i modalen (`KortLaasFelt`, via `ProsjektkortKontekst` med `KortLaas`); retting går via «Endre kort». `DagSeksjon` har bare reise. Tillegg og utlegg lager kort (`kortNokler` i `useProsjektkortSedel`), samlesidens kortrad viser «Tillegg n · Utlegg n» (`ProsjektkortDagsoversikt` `kortHode`). Endre/Slett kort tar dem med (`kortInnhold`, B4; Slett tombstoner). Dagskortet er urørt (B1/B3, vakt `dagskort-isolert-vakt.test.ts`; `UTLEGG_CHIPS` står, men `prosjektValg` har ingen avsender lenger). Tester: `prosjektkort/kortTilleggUtlegg.test.ts`, vakt `timer-detalj/tillegg-utlegg-kort-vakt.test.ts` (T7).
+
+**Mobil — Bekreft dag pr. kort (C5, B6):** hver tillegg-/utleggslinje i `BekreftDagLonnUtlegg` bærer kortets `projectId` + effektive `byggeplassId`. Ny linje får prosjektets kort med flest timer (`kortMedFlestTimer(forslag, projectId)`). Med flere kort (`kortMedArbeid`) vises kortvalg («Kort», `timer.bekreftDag.lonnUtlegg.kortValg`) pr. linje med samme etikett som beskrivelsesfeltene; ett kort → ingen valg. Ved lagring knyttes linjene til et kort som finnes (`knyttLonnUtleggTilKort`, `utils/lonnUtleggKort.ts`): eksakt treff beholdes, borte kort eller gammelt utkast uten felt → prosjektets kort med flest timer, prosjekt uten arbeid → null (arv). `anvendDagsforslag` lagrer byggeplassen som timeradene (`lagretByggeplassForKort`: lik sedelens → null) og setter dagens underprosjekt (`ctx.ecoId`) bare på linjer på dagens prosjekt. Begrensning som på kortskjermen: kort uten byggeplass på en sedel med byggeplass arver sedelens. Tester: `utils/lonnUtleggKort.test.ts`, `bekreftDagTillegg.test.ts` § T12, vakt T12 i `tillegg-utlegg-kort-vakt.test.ts`.
+
+**Web og eksport (C6, B7/B8):**
+- **Kolonner:** `byggeplass` og `underprosjekt` står i `TIMER_KOL_KEYS` rett etter `prosjekt` (`packages/shared/src/utils/timerDetaljRader.ts`), speilet i `KOLONNE_KEYS` (`apps/api/src/routes/timer/eksportOppsett.ts`) og `pdfEksport.kolonner` (`rapport.ts`). Skjerm (`TimerRapportDetaljer`), Excel (`EXCEL_KOL`) og PDF (`packages/pdf/src/timer-rapport.ts`) viser dem på alle radtyper; dynamisk sett dropper dem når de er tomme. Gjelder også ekstern mottaker.
+- **Sedel (`/dashbord/timer/[id]`):** tillegg/utlegg med underprosjekt står i underprosjektets bøtte (`EcoGruppe`); NULL-rader står i prosjektseksjonen som før. Rad-dialogene har byggeplass og underprosjekt (`useRadSted`/`RadStedFelt`); ny rad får byggeplass-standard som en timerad, redigering sender bare felt som er endret.
+- **Attestering (B7):** tillegg står fortsatt i prosjektseksjonen (`TilleggRaderLeder` i `attestering-buckets.tsx`), med underprosjekt-velger pr. rad når attestanten kan flytte (`flyttTimerRadEco` med `radType: "tillegg"`).
+- **Redigering sender feltene uendret:** `RedigerRadModal` og `AttesteringDetalj_Edit` bærer tilleggets `byggeplassId`/`externalCostObjectId` til `redigerSedelRader` (ellers `?? null`). Vakt: `apps/web/src/__tests__/tillegg-sted-bevart-vakt.test.ts`. Test: `timerDetaljRader.test.ts` (kolonner).
+
 ## Hjelpetekster (?-ikonet) — alle timer-sider
 
 Per regelen i [CLAUDE.md](../../CLAUDE.md#hjelpetekster-per-side) skal hver side i SiteDoc ha hjelpetekst tilgjengelig via ?-ikonet øverst til høyre. For timer-modulen gjelder dette ALLE sider — bygges samtidig med siden, oppdateres når siden endres.
@@ -1625,6 +1650,8 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `sheetId` | `uuid` FK → `daily_sheets` | |
 | `tilleggId` | `uuid` FK → `tillegg` | Datadrevet katalog |
 | `projectId` | `uuid` (svak FK → `projects`) | **NY T.2 (2026-05-12) — NOT NULL.** Per-rad prosjekttilhørighet. |
+| `byggeplassId` | `text?` (svak FK → `byggeplasser`) | 🟡 `feat/timer-tillegg-utlegg-kort` (migrering `20261113120000_tillegg_utlegg_byggeplass_eco`, ikke kjørt). NULL = arver sedelens byggeplass (A.30). Ingen backfill (B2). |
+| `externalCostObjectId` | `text?` (svak FK → `external_cost_objects`) | 🟡 samme migrering. Underprosjekt; NULL = hovedgruppa. |
 | `antall` | `decimal` | Antall (1 for avhuking) |
 | `kommentar` | `text?` | Tvungen for noen tillegg (`Tillegg.tvungenKommentar=true`) |
 | `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering |
@@ -1637,6 +1664,7 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 - `(tilleggId)` — tillegg-aggregering
 - `(projectId)` — **NY T.2**
 - `(attestertStatus)` — **NY T.3**
+- `(byggeplassId)`, `(externalCostObjectId)` — 🟡 `20261113120000_tillegg_utlegg_byggeplass_eco`
 
 ### `sheet_tillegg_vedlegg` (kvittering-vedlegg på tillegg-rad) — NY Funn #2 (2026-06-21)
 
@@ -1774,6 +1802,8 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 | `id` | `uuid` PK | |
 | `sheetId` | `uuid` FK → `daily_sheets` (CASCADE) | |
 | `projectId` | `text` | Svak FK → `projects` (kjernen, A.20-mønster) |
+| `byggeplassId` | `text?` | 🟡 `feat/timer-tillegg-utlegg-kort` (migrering `20261113120000_tillegg_utlegg_byggeplass_eco`, ikke kjørt). Svak FK → `byggeplasser`; NULL = arver sedelens byggeplass (A.30). Ingen backfill (B2). |
+| `externalCostObjectId` | `text?` | 🟡 samme migrering. Svak FK → `external_cost_objects` (underprosjekt); NULL = hovedgruppa. |
 | `expenseCategoryId` | `uuid` FK → `expense_categories` (RESTRICT) | |
 | `belop` | `decimal(10,2)?` | NULL **kun** når `ordningVedFoering='fakturert'` (CHECK). Refusjon krone for krone for `utlegg` |
 | `mvaSats` | `decimal(5,2)?` | mva-sats snapshot per rad (regnskapsspørsmål — settes fra kategori i U2) |
@@ -1785,7 +1815,7 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 - `ordning_ved_foering IN ('lonnstillegg','utlegg','fakturert')` (omdøpt fra `sats` — migrering `20260811130000`)
 - `(ordning_ved_foering='fakturert' AND belop IS NULL) OR (ordning_ved_foering<>'fakturert' AND belop IS NOT NULL)` — fakturert når **aldri** penger; utlegg krever alltid beløp.
 
-**Indekser:** `(sheetId)`, `(projectId)`, `(expenseCategoryId)`.
+**Indekser:** `(sheetId)`, `(projectId)`, `(expenseCategoryId)`, 🟡 `(byggeplassId)`, `(externalCostObjectId)` (`20261113120000`).
 
 **`ordningVedFoering`** er integritetsbærer, ikke bare revisjonsspor: insert stempler utledet ordning (`overstyring ?? firma-default`, via delt funksjon i `@sitedoc/shared/utleggOrdning.ts`) i samme transaksjon, og CHECK-en håndhever beløps-regelen mot DET stempelet — aldri mot et kategori-oppslag som kan drifte. Feltet er **immutabelt** etter insert; ordningsbytte = korreksjon (ny rad + gammel krediteres), aldri mutasjon.
 

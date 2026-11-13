@@ -53,7 +53,6 @@ import {
   prosjekterMedArbeid,
   flyttBeskrivelse,
   flyttBeskrivelseVedProsjektbytte,
-  prosjektMedFlestTimer,
 } from "../../src/utils/bekreftDag";
 import { BekreftDagLonnUtlegg } from "../../src/components/timer-detalj/BekreftDagLonnUtlegg";
 import type { LonnUtlegg } from "../../src/utils/dagsforslagAnvend";
@@ -76,7 +75,8 @@ import { trpc } from "../../src/lib/trpc";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
-import { kortMedArbeid, arbeidsraderPerKort, RAD_PREFIKS } from "../../src/utils/beskrivelseKort";
+import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, RAD_PREFIKS, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
+import { knyttLonnUtleggTilKort } from "../../src/utils/lonnUtleggKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
 import {
@@ -408,12 +408,33 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? prosjekterMedArbeid(beregnet.forslag) : []),
     [beregnet],
   );
+  // T12 (spec § 5, B6): standard = kortet med flest timer, ikke prosjektet.
   const lonnUtleggProsjekt = useMemo(
-    () => (beregnet ? prosjektMedFlestTimer(beregnet.forslag) : null),
+    () => (beregnet ? (kortMedFlestTimer(beregnet.forslag)?.projectId ?? null) : null),
     [beregnet],
   );
   const arbeidKort = useMemo(
     () => (beregnet ? kortMedArbeid(beregnet.forslag) : []),
+    [beregnet],
+  );
+  // Kortets navn: prosjekt, og byggeplassen når flere kort deler prosjektet.
+  // Brukes av beskrivelsesfeltene og kortvalget på tillegg/utlegg (T12).
+  const kortEtikett = useCallback(
+    (k: BeskrivelseKort) =>
+      [
+        prosjekter.find((pr) => pr.id === k.projectId)?.name ?? null,
+        k.delerProsjekt
+          ? (k.byggeplassId
+              ? hentByggeplasserForProsjektLokalt(k.projectId).find((b) => b.id === k.byggeplassId)?.navn
+              : null) ?? t("timer.kortValg.utenByggeplass")
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    [prosjekter, t],
+  );
+  const standardKortFor = useCallback(
+    (projectId: string) => (beregnet ? kortMedFlestTimer(beregnet.forslag, projectId) : null),
     [beregnet],
   );
   const manglerNokler = useMemo(
@@ -789,7 +810,7 @@ export default function BekreftDagSkjerm() {
         endLng,
         sluttSted: manuell ? null : identifiserByggeplass(endLat, endLng, orgId),
         utkastNokkel: utkastNokkel ?? undefined,
-      }, tilleggPerRad, lonnUtlegg);
+      }, tilleggPerRad, knyttLonnUtleggTilKort(lonnUtlegg, arbeidKort, forslag));
       // Sedel skrevet → utkastet er slettet i `bekreftDag`; ingenting å flushe.
       if (resultat?.forsteLagredeSheetId != null) harEndretRef.current = false;
       if (handling.type === "tilleggUtleggUtenDag") {
@@ -895,7 +916,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, leggIKo, skrivUtkastNaa, utkastNokkel]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, arbeidKort, leggIKo, skrivUtkastNaa, utkastNokkel]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -1258,21 +1279,7 @@ export default function BekreftDagSkjerm() {
                 onFokus={() => rullTilBeskrivelse(k.nokkel)}
                 onFeltY={(y) => beskrivelseFeltY.current.set(k.nokkel, y)}
                 onInnholdEndret={() => rullTilBeskrivelse(k.nokkel)}
-                prosjektNavn={
-                  [
-                    prosjekter.find((pr) => pr.id === k.projectId)?.name ?? null,
-                    // Flere kort på samme prosjekt → byggeplassen skiller feltene.
-                    k.delerProsjekt
-                      ? (k.byggeplassId
-                          ? hentByggeplasserForProsjektLokalt(k.projectId).find(
-                              (b) => b.id === k.byggeplassId,
-                            )?.navn
-                          : null) ?? t("timer.kortValg.utenByggeplass")
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || null
-                }
+                prosjektNavn={kortEtikett(k) || null}
                 visProsjekt={arbeidKort.length > 1}
                 verdi={retting.beskrivelse?.[k.nokkel] ?? ""}
                 chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
@@ -1340,6 +1347,9 @@ export default function BekreftDagSkjerm() {
                 organizationId={orgId}
                 defaultProjectId={lonnUtleggProsjekt}
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
+                kort={arbeidKort}
+                standardKortFor={standardKortFor}
+                kortEtikett={kortEtikett}
                 onFjernKvittering={fjernKvittering}
               />
             ) : null}

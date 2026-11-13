@@ -35,10 +35,12 @@ import { raderForDag, grupperPaaUnderprosjekt, forsteRadUtenBeskrivelse } from "
 import {
   formatKortTall,
   kortNokkel,
+  kortNokkelFor,
   kortValgFor,
   lagretByggeplassForKort,
   vareByggeplassForKort,
   sendKnappTekst,
+  type KortRad,
   type KortValg,
   type SedelKortKontekst,
 } from "../../../lib/prosjektkortMobil";
@@ -80,8 +82,10 @@ import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
  * Revidert plan RETUR 3: ett kort = (prosjekt, byggeplass, underprosjekt).
  * Prosjektnavnet står én gang, kortene under med «byggeplass · underprosjekt».
  * Rad-modalene åpnes med kortlås (byggeplass og underprosjekt grå); retting
- * går via «Flytt raden» (`kortRadFlytt.ts`). Reise, tillegg og utlegg hører
- * til dagen (`dagSeksjon`), ikke kortene.
+ * går via «Flytt raden» (`kortRadFlytt.ts`). Reise hører til dagen
+ * (`dagSeksjon`). Tillegg og utlegg hører til kortet (spec
+ * tillegg-utlegg-prosjektkort § 3): samlesiden viser antallet i kortlinja,
+ * føring skjer på kortskjermen.
  */
 
 type TimerModal = {
@@ -122,6 +126,8 @@ export function ProsjektkortDagsoversikt({
   byggeplassNavn,
   ecoNavn,
   dagSeksjon,
+  tilleggRader,
+  utleggRader,
   redigerbar,
   enkeltProsjekt = false,
   onAapneKort,
@@ -151,7 +157,13 @@ export function ProsjektkortDagsoversikt({
   prosjektNavn: (projectId: string) => string;
   byggeplassNavn: (byggeplassId: string) => string | null;
   ecoNavn: (ecoId: string) => string;
-  /** Dagens reise, tillegg og utlegg — under kortene, over sum og Send. */
+  /**
+   * Spec tillegg-utlegg-prosjektkort § 3.1: dagens tillegg/utlegg — telles pr.
+   * kort i kortlinja («Tillegg n · Utlegg n»). Kortskjermen sender dem ikke.
+   */
+  tilleggRader?: readonly KortRad[];
+  utleggRader?: readonly KortRad[];
+  /** Dagens reise — under kortene, over sum og Send. */
   dagSeksjon?: ReactNode;
   redigerbar: boolean;
   /** Kortskjermen: ett kort, uten sum-kort, Send og «+ Nytt prosjektkort». */
@@ -469,15 +481,22 @@ export function ProsjektkortDagsoversikt({
     onEndret();
   };
 
-  const kortHode = (valg: KortValg) =>
-    [
+  const antallPaaKort = (rader: readonly KortRad[] | undefined, valg: KortValg) =>
+    (rader ?? []).filter((r) => kortNokkelFor(r, sedelKontekst) === kortNokkel(valg)).length;
+  const kortHode = (valg: KortValg) => {
+    const tillegg = antallPaaKort(tilleggRader, valg);
+    const utlegg = antallPaaKort(utleggRader, valg);
+    return [
       valg.byggeplassId
         ? byggeplassNavn(valg.byggeplassId) ?? t("timer.byggeplass.ingenValgt")
         : t("timer.kortValg.utenByggeplass"),
       valg.ecoId ? ecoNavn(valg.ecoId) : null,
+      tillegg > 0 ? `${t("timer.prosjektkort.kolonne.tillegg")} ${tillegg}` : null,
+      utlegg > 0 ? `${t("timer.prosjektkort.kolonne.utlegg")} ${utlegg}` : null,
     ]
       .filter(Boolean)
       .join(" · ");
+  };
   const kanForeVare = (projectId: string) =>
     visVareforbrukKnapp({ prosjektIderMedVarelager: varelagerProsjekter, projectId, erRedigerbar: redigerbar });
   const tidTekst = (r: { fraTid: string | null; tilTid: string | null }) =>
@@ -593,7 +612,7 @@ export function ProsjektkortDagsoversikt({
         </View>
       ))}
 
-      {/* Kort uten arbeidsrad (nytt kort, eller bare maskin/varer): én boks
+      {/* Kort uten arbeidsrad (nytt kort, eller bare maskin/varer/tillegg/utlegg): én boks
           med «+ Legg til arbeid», så kortet ikke forsvinner. */}
       {kortUtenRader.map((valg) => (
         <View key={kortNokkel(valg)} className="mx-4 mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3">

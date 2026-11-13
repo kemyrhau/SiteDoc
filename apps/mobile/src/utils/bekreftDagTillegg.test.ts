@@ -837,6 +837,56 @@ describe("ORDRE Tillegg/Utlegg i Bekreft dag (GO 2026-11-13)", () => {
     expect(prosjektMedFlestTimer(medP2(1))).toBe("p1"); // negativkontroll: B (3,5 t) alene vinner ikke
   });
 
+  describe("T12 — linjene får kortets byggeplass og dagens underprosjekt", () => {
+    const seedByggeplasser = () =>
+      db().insert(byggeplassLocal).values([
+        { id: "b1", organizationId: ORG, projectId: "p1", navn: "B1", lat: 60.0, lng: 10.8, radiusM: 150, sistOppdatert: 1 },
+        { id: "b2", organizationId: ORG, projectId: "p1", navn: "B2", lat: 60.1, lng: 10.9, radiusM: 150, sistOppdatert: 1 },
+      ]).run();
+    const linjer = (byggeplassId: string | null, projectId = "p1"): LonnUtlegg => ({
+      tillegg: [{ lokalId: "lt-1", projectId, tilleggId: "t-smuss", antall: 1, kommentar: null, byggeplassId }],
+      utlegg: [{ ...UTLEGG, projectId, kvittering: null, byggeplassId }],
+    });
+    const rader = () => [
+      ...db().select().from(schema.sheetTilleggLocal).all(),
+      ...db().select().from(schema.sheetUtleggLocal).all(),
+    ];
+
+    it("🔴 kort b2 på sedel uten byggeplass → b2 på raden; underprosjektet følger dagen", () => {
+      seedByggeplasser();
+      const { handling } = bekreftDag(
+        lokalDb(), medBeskrivelse(toRader(VANLIG)), { ...skriveCtx(), ecoId: "eco-1" }, {}, linjer("b2"),
+      );
+      expect(handling.type).toBe("suksess");
+      expect(rader().map((r) => [r.byggeplassId, r.externalCostObjectId])).toEqual([["b2", "eco-1"], ["b2", "eco-1"]]);
+    });
+
+    it("negativkontroll: uten dagens underprosjekt → null", () => {
+      seedByggeplasser();
+      bekreftDag(lokalDb(), medBeskrivelse(toRader(VANLIG)), skriveCtx(), {}, linjer("b2"));
+      expect(rader().map((r) => r.externalCostObjectId)).toEqual([null, null]);
+    });
+
+    it("🔴 kortets byggeplass = sedelens → null (arv), som timeradene", () => {
+      seedByggeplasser();
+      db().insert(dagsseddelLocal).values({
+        id: "med-b1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+        dato: DATO, status: "draft", pauseMin: 0, byggeplassId: "b1", sistEndretLokalt: 1,
+      }).run();
+      const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+      const { resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), {}, linjer("b1"));
+      expect(resultat?.forsteLagredeSheetId).toBe("med-b1");
+      expect(rader().map((r) => r.byggeplassId)).toEqual([null, null]);
+    });
+
+    it("🔴 underprosjektet settes bare på dagens prosjekt (negativkontroll: p2 → null)", () => {
+      bekreftDag(
+        lokalDb(), medBeskrivelse(toRader(VANLIG)), { ...skriveCtx(), ecoId: "eco-1" }, {}, linjer(null, "p2"),
+      );
+      expect(rader().map((r) => r.externalCostObjectId)).toEqual([null, null]);
+    });
+  });
+
   it("🔴 prosjektkortet: skrivUtlegg gir samme rader som før (rad + vedlegg, image/jpeg, serverUrl null)", () => {
     db().insert(dagsseddelLocal).values({
       id: "kort", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",

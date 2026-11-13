@@ -245,6 +245,10 @@ export const sheetTilleggLocal = sqliteTable("sheet_tillegg_local", {
   tilleggId: text("tillegg_id").notNull(),
   antall: real("antall").notNull(),
   kommentar: text("kommentar"),
+  // Tillegg/utlegg på prosjektkortet (2026-11-13): kortets byggeplass + underprosjekt.
+  // NULL = arv (byggeplass fra sedelen, intet underprosjekt). Lagt til via KORTVALG_LOCAL_KOLONNER.
+  byggeplassId: text("byggeplass_id"),
+  externalCostObjectId: text("external_cost_object_id"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -317,6 +321,10 @@ export const sheetUtleggLocal = sqliteTable("sheet_utlegg_local", {
   kommentar: text("kommentar"),
   ordningVedFoering: text("ordning_ved_foering").notNull(), // "utlegg" | "fakturert" (aldri "lonnstillegg")
   foertVed: integer("foert_ved").notNull(), // Unix ms — føringstidspunkt (immutabelt)
+  // Tillegg/utlegg på prosjektkortet (2026-11-13): kortets byggeplass + underprosjekt.
+  // NULL = arv (byggeplass fra sedelen, intet underprosjekt). Lagt til via KORTVALG_LOCAL_KOLONNER.
+  byggeplassId: text("byggeplass_id"),
+  externalCostObjectId: text("external_cost_object_id"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 

@@ -143,6 +143,10 @@ type TilleggRad = {
   // Funn #2 (2026-06-21): kvittering-vedlegg per tillegg-rad (fra hentMedId).
   vedlegg?: TilleggVedlegg[];
   attestertStatus: string | null;
+  // Tillegg/utlegg på prosjektkortet (2026-11-13): NULL = arver sedelens
+  // byggeplass / hovedgruppa. Valgfrie så gammel API-respons ikke bryter.
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 
 // U3 (2026-08-08): utlegg-rad (SheetUtlegg). Egen bærer med ordningVedFoering-
@@ -156,6 +160,8 @@ type UtleggRad = {
   kommentar: string | null;
   ordningVedFoering: string;
   vedlegg?: TilleggVedlegg[];
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 
 type MaskinRad = {
@@ -530,10 +536,17 @@ export default function DagsseddelDetaljSide() {
   };
 
   // T7-4c (2026-05-16): Grupper per (projectId, externalCostObjectId) for
-  // arbeid + maskin. Tillegg holdes per-prosjekt (ingen ECO-felt på SheetTillegg).
+  // arbeid + maskin. Tillegg/utlegg (2026-11-13): rader med underprosjekt går i
+  // sin ECO-bøtte; rader uten (NULL) står i prosjektets tillegg/utlegg-seksjon
+  // som før — og skaper ingen tom hovedbøtte.
   // Rekkefølge: prosjekt-IDer i den rekkefølgen de først dukker opp; innen
   // hvert prosjekt: hovedgruppe (ECO=null) først, deretter ECO-er i rekkefølge.
-  type EcoGruppeData = { timer: TimerRad[]; maskin: MaskinRad[] };
+  type EcoGruppeData = {
+    timer: TimerRad[];
+    maskin: MaskinRad[];
+    tillegg: TilleggRad[];
+    utlegg: UtleggRad[];
+  };
   const ecoGruppeKey = (pid: string, eco: string | null) =>
     `${pid}|${eco ?? ""}`;
   const ecoGrupper = new Map<string, EcoGruppeData>();
@@ -558,7 +571,7 @@ export default function DagsseddelDetaljSide() {
     const k = ecoGruppeKey(pid, eco);
     let g = ecoGrupper.get(k);
     if (!g) {
-      g = { timer: [], maskin: [] };
+      g = { timer: [], maskin: [], tillegg: [], utlegg: [] };
       ecoGrupper.set(k, g);
     }
     return g;
@@ -573,12 +586,22 @@ export default function DagsseddelDetaljSide() {
     finnEcoGruppe(r.projectId, r.externalCostObjectId).maskin.push(r);
   }
   for (const r of tilleggRader) {
+    if (r.externalCostObjectId) {
+      noterEco(r.projectId, r.externalCostObjectId);
+      finnEcoGruppe(r.projectId, r.externalCostObjectId).tillegg.push(r);
+      continue;
+    }
     noterProsjekt(r.projectId);
     const liste = tilleggPerProsjekt.get(r.projectId) ?? [];
     liste.push(r);
     tilleggPerProsjekt.set(r.projectId, liste);
   }
   for (const r of utleggRader) {
+    if (r.externalCostObjectId) {
+      noterEco(r.projectId, r.externalCostObjectId);
+      finnEcoGruppe(r.projectId, r.externalCostObjectId).utlegg.push(r);
+      continue;
+    }
     noterProsjekt(r.projectId);
     const liste = utleggPerProsjekt.get(r.projectId) ?? [];
     liste.push(r);
@@ -643,6 +666,8 @@ export default function DagsseddelDetaljSide() {
           ecoId,
           timer: data?.timer ?? [],
           maskin: data?.maskin ?? [],
+          tillegg: data?.tillegg ?? [],
+          utlegg: data?.utlegg ?? [],
         };
       }),
       erRedigerbar,
@@ -1124,6 +1149,7 @@ export default function DagsseddelDetaljSide() {
         <TilleggRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
+          byggeplasser={byggeplasser}
           rad={aktivModal.rad}
           laastTilleggId={aktivModal.laastTilleggId}
           onLukk={() => setAktivModal(null)}
@@ -1133,6 +1159,7 @@ export default function DagsseddelDetaljSide() {
         <UtleggRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
+          byggeplasser={byggeplasser}
           expenseCategoryId={aktivModal.expenseCategoryId}
           rad={aktivModal.rad}
           onLukk={() => setAktivModal(null)}
@@ -1663,6 +1690,10 @@ type EcoBucket = {
   ecoId: string | null;
   timer: TimerRad[];
   maskin: MaskinRad[];
+  // Tillegg/utlegg med dette underprosjektet. Hovedbøtta har alltid tomme
+  // lister — NULL-radene vises i prosjektets egen seksjon.
+  tillegg: TilleggRad[];
+  utlegg: UtleggRad[];
 };
 
 function ProsjektGruppe({
@@ -1761,6 +1792,12 @@ function ProsjektGruppe({
             }
             timer={bucket.timer}
             maskin={bucket.maskin}
+            tillegg={bucket.tillegg}
+            utlegg={bucket.utlegg}
+            projectId={projectId}
+            onRedigerTillegg={onRedigerTillegg}
+            onRedigerUtlegg={onRedigerUtlegg}
+            onSplittTillegg={onSplittTillegg}
             erRedigerbar={erRedigerbar}
             pauseMin={pauseMin}
             pauseVisning={pauseVisning}
@@ -1790,7 +1827,9 @@ function ProsjektGruppe({
             </Button>
           )}
         </div>
-        {tillegg.length === 0 && utlegg.length === 0 ? (
+        {tillegg.length === 0 &&
+        utlegg.length === 0 &&
+        !ecoBuckets.some((b) => b.tillegg.length > 0 || b.utlegg.length > 0) ? (
           <p className="text-sm text-gray-500">
             {t("timer.detalj.ingenTilleggUtlegg")}
           </p>
@@ -1832,6 +1871,12 @@ function EcoGruppe({
   ecoNavn,
   timer,
   maskin,
+  tillegg,
+  utlegg,
+  projectId,
+  onRedigerTillegg,
+  onRedigerUtlegg,
+  onSplittTillegg,
   erRedigerbar,
   pauseMin,
   pauseVisning,
@@ -1847,6 +1892,12 @@ function EcoGruppe({
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
   timer: TimerRad[];
   maskin: MaskinRad[];
+  tillegg: TilleggRad[];
+  utlegg: UtleggRad[];
+  projectId: string;
+  onRedigerTillegg: (rad: TilleggRad) => void;
+  onRedigerUtlegg: (rad: UtleggRad) => void;
+  onSplittTillegg: (rad: TilleggRad) => void;
   erRedigerbar: boolean;
   pauseMin: number;
   pauseVisning: PauseVisning;
@@ -1936,6 +1987,31 @@ function EcoGruppe({
           </>
         )}
       </div>
+
+      {/* Tillegg/utlegg ført på dette underprosjektet (2026-11-13). */}
+      {(tillegg.length > 0 || utlegg.length > 0) && (
+        <div className="mb-3 space-y-3 border-t border-gray-200 pt-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.detalj.tilleggUtlegg")}
+          </h4>
+          {tillegg.length > 0 && (
+            <RaderTillegg
+              rader={tillegg}
+              erRedigerbar={erRedigerbar}
+              onRediger={onRedigerTillegg}
+              onSplitt={onSplittTillegg}
+            />
+          )}
+          {utlegg.length > 0 && (
+            <RaderUtlegg
+              rader={utlegg}
+              projectId={projectId}
+              erRedigerbar={erRedigerbar}
+              onRediger={onRedigerUtlegg}
+            />
+          )}
+        </div>
+      )}
 
       {/* Sum-indikator — grønn når maskin ≤ arbeid, rød ellers */}
       {(sumTimer > 0 || sumMaskin > 0) && (
@@ -3406,15 +3482,79 @@ function TimerRadDialog({
 /*  TilleggRadDialog                                                    */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  Tillegg/utlegg: byggeplass + underprosjekt pr. rad (2026-11-13)     */
+/*  Ny rad: byggeplass forhåndsvelges som på timer-raden; underprosjekt */
+/*  tomt. Redigering: feltene sendes bare når de er endret, så en rad   */
+/*  ført på mobil (eller NULL = arv) står urørt.                        */
+/* ------------------------------------------------------------------ */
+
+function useRadSted(args: {
+  byggeplasser: readonly ByggeplassValg[] | undefined;
+  projectId: string;
+  rad?: { byggeplassId?: string | null; externalCostObjectId?: string | null };
+}) {
+  const { byggeplasser, projectId, rad } = args;
+  const bp = useRadByggeplass({
+    byggeplasser,
+    projectId,
+    rad: rad ? { byggeplassId: rad.byggeplassId ?? null } : undefined,
+  });
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
+  const opprinneligEco = rad?.externalCostObjectId ?? null;
+  const [ecoId, setEcoId] = useState<string | null>(opprinneligEco);
+  const ecoEndret = !rad || ecoId !== opprinneligEco;
+  const payload: { byggeplassId?: string | null; externalCostObjectId?: string | null } = {
+    ...(rad ? byggeplassPayload(bp) : { byggeplassId: bp.byggeplassId }),
+    ...(ecoEndret ? { externalCostObjectId: ecoId } : {}),
+  };
+  return { bp, ecoer: ecoer ?? [], ecoId, setEcoId, payload };
+}
+
+function RadStedFelt({ sted }: { sted: ReturnType<typeof useRadSted> }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <RadByggeplassFelt
+        kandidater={sted.bp.kandidater}
+        verdi={sted.bp.byggeplassId}
+        onEndre={sted.bp.setByggeplassId}
+      />
+      {(sted.ecoer.length > 0 || !!sted.ecoId) && (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.underprosjekt")}{" "}
+            <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
+          </label>
+          <select
+            value={sted.ecoId ?? ""}
+            onChange={(e) => sted.setEcoId(e.target.value || null)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">—</option>
+            {sted.ecoer.map((eco) => (
+              <option key={eco.id} value={eco.id}>
+                {eco.proAdmId} — {eco.kortNavn}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </>
+  );
+}
+
 function TilleggRadDialog({
   sheetId,
   projectId,
+  byggeplasser,
   rad,
   laastTilleggId,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
+  byggeplasser: readonly ByggeplassValg[] | undefined;
   rad?: TilleggRad;
   // U3 (8a): kategori valgt i den unified velgeren → vises read-only her.
   // Redigering (rad) og fri-select-veien er uendret (bit-for-bit sats-flyt).
@@ -3434,6 +3574,7 @@ function TilleggRadDialog({
     rad ? String(tilTall(rad.antall)) : "1",
   );
   const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
+  const sted = useRadSted({ byggeplasser, projectId, rad });
   const [feil, setFeil] = useState<string | null>(null);
   // D4 (web-paritet): kvittering-opplasting (mobil har kamera/galleri).
   const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
@@ -3550,9 +3691,9 @@ function TilleggRadDialog({
       kommentar: kommentar.trim() || null,
     };
     if (rad) {
-      oppdater.mutate({ id: rad.id, ...data });
+      oppdater.mutate({ id: rad.id, ...data, ...sted.payload });
     } else {
-      tilfoy.mutate({ sheetId, projectId, ...data });
+      tilfoy.mutate({ sheetId, projectId, ...data, ...sted.payload });
     }
   }
 
@@ -3569,6 +3710,7 @@ function TilleggRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <RadStedFelt sted={sted} />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.tillegg")}
@@ -4062,12 +4204,14 @@ function LeggTilVelger({
 function UtleggRadDialog({
   sheetId,
   projectId,
+  byggeplasser,
   expenseCategoryId,
   rad,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
+  byggeplasser: readonly ByggeplassValg[] | undefined;
   expenseCategoryId?: string;
   rad?: UtleggRad;
   onLukk: () => void;
@@ -4076,6 +4220,7 @@ function UtleggRadDialog({
   const utils = trpc.useUtils();
   const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId });
 
+  const sted = useRadSted({ byggeplasser, projectId, rad });
   const kategoriId = rad?.expenseCategoryId ?? expenseCategoryId ?? "";
   const kat = (katalog as UtleggKategori[] | undefined)?.find(
     (k) => k.id === kategoriId,
@@ -4199,7 +4344,12 @@ function UtleggRadDialog({
     }
     const kommentarVal = kommentar.trim() || null;
     if (rad) {
-      oppdater.mutate({ id: rad.id, belop: belopVal, kommentar: kommentarVal });
+      oppdater.mutate({
+        id: rad.id,
+        belop: belopVal,
+        kommentar: kommentarVal,
+        ...sted.payload,
+      });
     } else {
       tilfoy.mutate({
         sheetId,
@@ -4207,6 +4357,7 @@ function UtleggRadDialog({
         expenseCategoryId: kategoriId,
         belop: belopVal,
         kommentar: kommentarVal,
+        ...sted.payload,
       });
     }
   }
@@ -4221,6 +4372,7 @@ function UtleggRadDialog({
       title={rad ? t("timer.utleggReg.redigerUtlegg") : t("timer.detalj.leggTil")}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <RadStedFelt sted={sted} />
         {/* Kategori-overskrift + ordnings-pille + kilde (8b). Aldri et valg. */}
         <div>
           <div className="flex flex-wrap items-center gap-2">

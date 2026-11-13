@@ -26,6 +26,9 @@ export type NyttUtlegg = {
   ordningVedFoering: UtleggOrdning;
   foertVed: number;
   kvittering: PendingKvittering | null;
+  /** Prosjektkortets byggeplass/underprosjekt (2026-11-13). Utelatt/null = arv. */
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 
 /**
@@ -51,6 +54,8 @@ export function skrivUtlegg(
       kommentar: u.kommentar,
       ordningVedFoering: u.ordningVedFoering,
       foertVed: u.foertVed,
+      byggeplassId: u.byggeplassId ?? null,
+      externalCostObjectId: u.externalCostObjectId ?? null,
       sistEndretLokalt: u.foertVed,
     })
     .run();
@@ -93,6 +98,9 @@ export type NyttLonnstillegg = {
   tilleggId: string;
   antall: number;
   kommentar: string | null;
+  /** Prosjektkortets byggeplass/underprosjekt (2026-11-13). Utelatt/null = arv. */
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 
 /** Skriver lønnstillegget på `sheetId` — samme verdier som prosjektkortets `leggTil`. */
@@ -105,6 +113,8 @@ export function skrivLonnstillegg(db: LokalDb, sheetId: string, l: NyttLonnstill
       tilleggId: l.tilleggId,
       antall: l.antall,
       kommentar: l.kommentar,
+      byggeplassId: l.byggeplassId ?? null,
+      externalCostObjectId: l.externalCostObjectId ?? null,
       sistEndretLokalt: naa,
     })
     .run();

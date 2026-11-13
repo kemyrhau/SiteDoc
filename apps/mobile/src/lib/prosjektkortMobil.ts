@@ -283,7 +283,8 @@ export type KortSortering = {
  * Kortlista: prosjekter i første-forekomst-rekkefølge (timer → maskin →
  * varer, så bruker-tilføyde), innen prosjektet byggeplass etter navn med
  * «Uten» sist, deretter underprosjekt etter proAdmId med «Uten» først.
- * Tillegg/utlegg/reise ligger i dag-seksjonen og lager ikke kort.
+ * Reise ligger i dag-seksjonen og lager ikke kort; tillegg/utlegg gjør det
+ * (spec tillegg-utlegg-prosjektkort § 3 — kalleren sender dem som grupper).
  */
 export function kortNokler(
   sedel: SedelKortKontekst,

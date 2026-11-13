@@ -35,6 +35,9 @@ import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { SplittRadModal } from "./SplittRadModal";
+import { skrivLonnstillegg } from "../../services/tilleggUtleggSkriv";
+import { useKortLaas } from "./prosjektkortKontekst";
+import { KortLaasFelt } from "./KortLaasFelt";
 
 interface TilleggSeksjonProps {
   sheetId: string;
@@ -48,6 +51,11 @@ interface TilleggSeksjonProps {
    * det; dagskortet sender ingenting og ser seksjonen som før.
    */
   hjelpIkon?: ReactNode;
+  /**
+   * Spec tillegg-utlegg-prosjektkort (B1/T11): kortets lagrede felt på nye rader.
+   * Prosjektkortet sender det; dagskortet sender ingenting → `null, null` = arv.
+   */
+  kortFelt?: { byggeplassId: string | null; externalCostObjectId: string | null };
 }
 
 export function TilleggSeksjon({
@@ -58,6 +66,7 @@ export function TilleggSeksjon({
   redigerbar,
   onEndret,
   hjelpIkon,
+  kortFelt,
 }: TilleggSeksjonProps) {
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
@@ -74,20 +83,23 @@ export function TilleggSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
-      db.insert(sheetTilleggLocal)
-        .values({
-          id: randomUUID(),
-          dagsseddelId: sheetId,
+      skrivLonnstillegg(
+        db,
+        sheetId,
+        {
+          lokalId: randomUUID(),
           projectId: radProjectId,
           tilleggId,
           antall,
           kommentar,
-          sistEndretLokalt: Date.now(),
-        })
-        .run();
+          byggeplassId: kortFelt?.byggeplassId ?? null,
+          externalCostObjectId: kortFelt?.externalCostObjectId ?? null,
+        },
+        Date.now(),
+      );
       onEndret();
     },
-    [sheetId, onEndret],
+    [sheetId, onEndret, kortFelt?.byggeplassId, kortFelt?.externalCostObjectId],
   );
 
   const oppdater = useCallback(
@@ -100,19 +112,23 @@ export function TilleggSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
+      // Byggeplass/underprosjekt hører til prosjektet: bytte prosjekt (kun mulig
+      // på dagskortet) nuller dem, så raden arver fra sedelen igjen.
+      const prosjektByttet = rader.find((r) => r.id === radId)?.projectId !== radProjectId;
       db.update(sheetTilleggLocal)
         .set({
           projectId: radProjectId,
           tilleggId,
           antall,
           kommentar,
+          ...(prosjektByttet ? { byggeplassId: null, externalCostObjectId: null } : {}),
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTilleggLocal.id, radId))
         .run();
       onEndret();
     },
-    [onEndret],
+    [onEndret, rader],
   );
 
   const fjern = useCallback(
@@ -528,6 +544,8 @@ export function TilleggRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // Prosjektkortet: prosjekt, byggeplass og underprosjekt er kortets — låst (spec § 5).
+  const kortLaas = useKortLaas();
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     eksisterendeRad?.projectId ?? defaultProjectId,
   );
@@ -607,8 +625,10 @@ export function TilleggRadModal({
             <ProsjektFelt
               prosjektNavn={valgtProsjekt?.name ?? null}
               onTrykk={() => setVisProsjektVelger(true)}
+              laast={!!kortLaas}
             />
           </View>
+          {kortLaas && valgtProjectId && <KortLaasFelt projectId={valgtProjectId} kortLaas={kortLaas} />}
 
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
