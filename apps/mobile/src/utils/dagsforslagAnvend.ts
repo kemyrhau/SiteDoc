@@ -21,7 +21,7 @@ import {
   vareforbrukLocal,
 } from "../db/schema";
 import { loftByggeplassArv, trengerByggeplassLoft } from "../components/timer-detalj/prosjektkort/kortRadFlytt";
-import { kortValgFor } from "../lib/prosjektkortMobil";
+import { kortValgFor, lagretByggeplassForKort } from "../lib/prosjektkortMobil";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
 import { radTilleggNokkel, sedelKontekstForRad, sedelKontekstLokalt, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
@@ -262,9 +262,21 @@ export function anvendDagsforslag(
   let lonnUtleggSkrevet = false;
   const utleggKo: NyKoOppforing[] = [];
   if (harLonnUtlegg(lonnUtlegg) && forsteLagredeSheetId) {
-    for (const l of lonnUtlegg.tillegg) skrivLonnstillegg(db, forsteLagredeSheetId, l, ctx.naa());
+    // T12 (spec tillegg-utlegg-prosjektkort § 5, B6): linja bærer kortets
+    // byggeplass (effektiv). Lik sedelens → null (arv), som timeradene
+    // (`lagretByggeplassForKort`). Underprosjektet er dagens valg og settes
+    // bare på dagens prosjekt — et ECO tilhører alltid sitt prosjekt.
+    const sedel = sedelKontekstLokalt(db, forsteLagredeSheetId);
+    const kortFelt = (l: { projectId: string; byggeplassId?: string | null }) => {
+      const bp = l.byggeplassId ?? null;
+      return {
+        byggeplassId: sedel ? lagretByggeplassForKort({ projectId: l.projectId, byggeplassId: bp, ecoId: null }, sedel) : bp,
+        externalCostObjectId: l.projectId === forslag.prosjektId ? (ctx.ecoId ?? null) : null,
+      };
+    };
+    for (const l of lonnUtlegg.tillegg) skrivLonnstillegg(db, forsteLagredeSheetId, { ...l, ...kortFelt(l) }, ctx.naa());
     for (const u of lonnUtlegg.utlegg) {
-      const ko = skrivUtlegg(db, forsteLagredeSheetId, u, ctx.nyId);
+      const ko = skrivUtlegg(db, forsteLagredeSheetId, { ...u, ...kortFelt(u) }, ctx.nyId);
       if (ko) utleggKo.push(ko);
     }
     lonnUtleggSkrevet = true;

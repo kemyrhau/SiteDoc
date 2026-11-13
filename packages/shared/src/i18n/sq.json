@@ -5507,5 +5507,6 @@
   "hjelp.utlegg.tittel": "Shpenzimet",
   "hjelp.utlegg.tekst": "Shpenzimet janë para që i keni paguar vetë në emër të kompanisë dhe duhet të rimbursohen. Bëni një foto të faturës. Shembuj: parkim, tarifa rrugore, mjete të blera në një dyqan, karburant për një makinë kompanie. Shpenzimi futet në kartën e projektit dhe merr vendin e ndërtimit dhe nënprojektin e kartës.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Shtesat dhe shpenzimet nuk u kursyen",
-  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Të gjitha ditët tashmë janë dërguar, kështu që shtesat dhe shpenzimet nuk kanë fletë kohore për t'u kursyer. Asgjë nuk është shpëtuar. Hiqini ato ose futini në kartën e projektit."
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Të gjitha ditët tashmë janë dërguar, kështu që shtesat dhe shpenzimet nuk kanë fletë kohore për t'u kursyer. Asgjë nuk është shpëtuar. Hiqini ato ose futini në kartën e projektit.",
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Kartelë"
 }

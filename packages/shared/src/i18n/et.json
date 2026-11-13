@@ -5507,5 +5507,6 @@
   "hjelp.utlegg.tittel": "Kulud",
   "hjelp.utlegg.tekst": "Kulud on raha, mille olete ise ettevõtte nimel maksnud ja mis tuleb hüvitada. Tehke kviitungist foto. Näited: parkimine, teemaksud, poest ostetud tööriistad, kütus ametiautole. Kulu kantakse projektikaardile ja saab kaardi ehitusplatsi ja alamprojekti.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Toetusi ja kulusid kokku ei hoitud",
-  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Kõik päevad on juba saadetud, nii et päevarahadel ja kuludel pole tööaja tabelit, kuhu salvestada. Midagi pole päästetud. Eemaldage need või sisestage need projektikaardile."
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Kõik päevad on juba saadetud, nii et päevarahadel ja kuludel pole tööaja tabelit, kuhu salvestada. Midagi pole päästetud. Eemaldage need või sisestage need projektikaardile.",
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Kaart"
 }

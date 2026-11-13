@@ -5507,5 +5507,6 @@
   "hjelp.utlegg.tittel": "Utgifter",
   "hjelp.utlegg.tekst": "Utgifter är pengar du har betalat själv för företagets räkning och som ska ersättas. Ta ett foto av kvittot. Exempel: parkering, vägtullar, verktyg köpta i butik, bränsle till tjänstebil. Utgiften förs in på projektkortet och får kortets byggplats och delprojekt.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Bidrag och utgifter sparades inte",
-  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Alla dagar är redan skickade, så traktamenten och utlägg har ingen tidrapport att spara på. Inget har sparats. Ta bort dem eller ange dem i projektkortet."
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Alla dagar är redan skickade, så traktamenten och utlägg har ingen tidrapport att spara på. Inget har sparats. Ta bort dem eller ange dem i projektkortet.",
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Kort"
 }

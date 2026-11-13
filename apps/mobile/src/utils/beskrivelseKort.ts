@@ -143,3 +143,31 @@ export function beskrivelseForRad(
 function kortNokkelFraKort(k: BeskrivelseKort): string {
   return kortNokkel({ projectId: k.projectId, byggeplassId: k.byggeplassId, ecoId: null });
 }
+
+/**
+ * Kortet med flest arbeidstimer (spec tillegg-utlegg-prosjektkort § 5, B6):
+ * standardkort for en ny tillegg-/utleggslinje i Bekreft dag. Med `projectId`
+ * velges blant det prosjektets kort. Lik sum → første kort. Ingen arbeid → null.
+ */
+export function kortMedFlestTimer(forslag: Dagsforslag, projectId?: string): BeskrivelseKort | null {
+  const sum = new Map<string, number>();
+  for (const d of forslag.datoer) {
+    if (d.blokkert) continue;
+    for (const r of d.rader) {
+      if (r.erReise || !(r.timer > 0)) continue;
+      const k = radKortNokkel(r, d);
+      sum.set(k, (sum.get(k) ?? 0) + r.timer);
+    }
+  }
+  let best: BeskrivelseKort | null = null;
+  let bestTimer = 0;
+  for (const k of kortMedArbeid(forslag)) {
+    if (projectId && k.projectId !== projectId) continue;
+    const t = sum.get(kortNokkelFraKort(k)) ?? 0;
+    if (!best || t > bestTimer) {
+      best = k;
+      bestTimer = t;
+    }
+  }
+  return best;
+}

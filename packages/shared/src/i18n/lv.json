@@ -5507,5 +5507,6 @@
   "hjelp.utlegg.tittel": "Izdevumi",
   "hjelp.utlegg.tekst": "Izdevumi ir nauda, ​​ko esat samaksājis uzņēmuma vārdā un kas ir jāatlīdzina. Nofotografējiet kvīti. Piemēri: autostāvvieta, ceļa nodevas, veikalā pirkti instrumenti, degviela dienesta automašīnai. Izdevumi tiek ierakstīti projekta kartē un iegūst kartes būvlaukumu un apakšprojektu.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Pabalsti un izdevumi netika ietaupīti",
-  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Visas dienas jau ir nosūtītas, tāpēc pabalstiem un izdevumiem nav laika uzskaites, kurā varētu ietaupīt. Nekas nav saglabāts. Noņemiet tos vai ievadiet tos projekta kartītē."
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Visas dienas jau ir nosūtītas, tāpēc pabalstiem un izdevumiem nav laika uzskaites, kurā varētu ietaupīt. Nekas nav saglabāts. Noņemiet tos vai ievadiet tos projekta kartītē.",
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Kart"
 }

@@ -137,3 +137,26 @@ describe("T7 — kortskjermen fører tillegg og utlegg", () => {
     expect(`${DAGSEKSJON}<TilleggSeksjon`).toContain("<TilleggSeksjon");
   });
 });
+
+describe("T12 — Bekreft dag fører tillegg og utlegg pr. kort (B6)", () => {
+  const SKJERM = flat(les("../../../app/timer/bekreft-dag.tsx"));
+  const LONN = flat(les("BekreftDagLonnUtlegg.tsx"));
+  const KRAV_SKJERM = [
+    "knyttLonnUtleggTilKort(lonnUtlegg, arbeidKort, forslag)",
+    "kort={arbeidKort}",
+    "kortMedFlestTimer(beregnet.forslag)?.projectId",
+  ];
+  const KRAV_LONN = ["const visKortValg = kort.length > 1;", "byggeplassId: k.byggeplassId", "...nyttKort(projectId)", "...nyttKort(u.projectId)"];
+
+  it("🔴 skjermen gir linjene kort ved lagring, og komponenten viser kortvalg ved flere kort", () => {
+    for (const k of KRAV_SKJERM) expect(SKJERM).toContain(k);
+    for (const k of KRAV_LONN) expect(LONN).toContain(k);
+  });
+
+  it("negativkontroll: gammel lagring (lonnUtlegg rett inn) og linje uten kort fanges", () => {
+    const gammel = SKJERM.replace("knyttLonnUtleggTilKort(lonnUtlegg, arbeidKort, forslag)", "lonnUtlegg");
+    expect(gammel).not.toContain(KRAV_SKJERM[0]);
+    const uten = LONN.replace("...nyttKort(projectId)", "projectId");
+    expect(uten).not.toContain(KRAV_LONN[2]);
+  });
+});

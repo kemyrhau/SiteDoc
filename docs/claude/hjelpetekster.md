@@ -118,6 +118,8 @@ kortskjermen (`app/timer/[id]/kort/[projectId].tsx`, spec tillegg-utlegg-prosjek
   tilbake. Ta bilde av kvitteringen. Eksempler: parkering, bompenger, verktøy kjøpt i butikk, drivstoff til firmabil. Utlegget føres på prosjektkortet og får kortets byggeplass og underprosjekt.»
 - I Bekreft dag lagres linjene først ved [Bekreft og lagre], på første dato som ikke er sendt. Er alle datoene sendt,
   får du beskjed, og ingenting lagres.
+- I Bekreft dag med flere kort viser hver linje kortvalget «Kort» (`timer.bekreftDag.lonnUtlegg.kortValg`): trykk på
+  kortet linja hører til. Forvalgt er kortet med flest timer. Ett kort → ingen valg.
 
 ## Mobil: Bekreft dag — utkast (`app/timer/bekreft-dag.tsx`)
 

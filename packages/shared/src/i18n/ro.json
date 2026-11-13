@@ -5507,5 +5507,6 @@
   "hjelp.utlegg.tittel": "Cheltuieli",
   "hjelp.utlegg.tekst": "Cheltuielile sunt bani pe care i-ați plătit singur în numele companiei și urmează să fie rambursați. Faceți o fotografie a chitanței. Exemple: parcare, taxe rutiere, unelte cumpărate dintr-un magazin, combustibil pentru o mașină de serviciu. Cheltuiala este înscrisă pe cardul de proiect și primește șantierul și subproiectul cardului.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Alocațiile și cheltuielile nu au fost economisite",
-  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Toate zilele au fost deja trimise, astfel încât indemnizațiile și cheltuielile nu au nicio foaie de pontaj pe care să fie salvate. Nimic nu a fost salvat. Eliminați-le sau introduceți-le în cardul de proiect."
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Toate zilele au fost deja trimise, astfel încât indemnizațiile și cheltuielile nu au nicio foaie de pontaj pe care să fie salvate. Nimic nu a fost salvat. Eliminați-le sau introduceți-le în cardul de proiect.",
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Card"
 }

@@ -5507,5 +5507,6 @@
   "hjelp.utlegg.tittel": "Kosten",
   "hjelp.utlegg.tekst": "Spesen sind Gelder, die Sie im Namen des Unternehmens selbst gezahlt haben und die Ihnen zu erstatten sind. Machen Sie ein Foto von der Quittung. Beispiele: Parken, Straßenbenutzungsgebühren, in einem Geschäft gekaufte Werkzeuge, Treibstoff für einen Firmenwagen. Der Aufwand wird auf der Projektkarte eingetragen und erhält den Bauplatz und das Teilprojekt der Karte.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Spesen und Spesen wurden nicht gespart",
-  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Alle Tage wurden bereits gesendet, sodass für Zulagen und Spesen kein Zeitnachweis zum Speichern vorhanden ist. Es wurde nichts gespeichert. Entfernen Sie sie oder tragen Sie sie in die Projektkarte ein."
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Alle Tage wurden bereits gesendet, sodass für Zulagen und Spesen kein Zeitnachweis zum Speichern vorhanden ist. Es wurde nichts gespeichert. Entfernen Sie sie oder tragen Sie sie in die Projektkarte ein.",
+  "timer.bekreftDag.lonnUtlegg.kortValg": "Karte"
 }
