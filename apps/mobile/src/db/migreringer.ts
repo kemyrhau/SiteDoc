@@ -1420,7 +1420,32 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_arbeidsdag_besok_local_dag
       ON arbeidsdag_besok_local(arbeidsdag_id);
   `);
+
+  // Utkast for prosjektkort (2026-11-13): ikke bekreftet prosjektkort, KUN lokal.
+  // Unik (bruker, firma, nøkkel) — all skriving er upsert, så to utkast for samme
+  // dag kan ikke oppstå. Ny tabell, idempotent via IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS prosjektkort_utkast_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      nokkel TEXT NOT NULL,
+      dato TEXT NOT NULL,
+      arbeidsdag_id TEXT,
+      skjema_versjon INTEGER NOT NULL,
+      data TEXT NOT NULL,
+      kvitteringer TEXT NOT NULL DEFAULT '[]',
+      opprettet TEXT NOT NULL,
+      sist_endret TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_prosjektkort_utkast
+      ON prosjektkort_utkast_local(user_id, organization_id, nokkel);
+  `);
 }
+
+/** Utkast for prosjektkort: lokal tabell + unik indeks. */
+export const UTKAST_LOCAL_TABELL = "prosjektkort_utkast_local" as const;
+export const UTKAST_LOCAL_UNIK_INDEKS = "ux_prosjektkort_utkast" as const;
 
 /** ORDRE 36b: kortvalg-kolonner (tabell, kolonne) som legges til eksisterende tabeller. */
 export const KORTVALG_LOCAL_KOLONNER = [

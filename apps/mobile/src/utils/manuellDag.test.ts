@@ -327,8 +327,11 @@ describe("ORDRE 36c rettelse S2 — valgfritt underprosjekt på kortet", () => {
     expect(skjerm).toContain("{underprosjekter.length > 0 ? (");
     // Aldri forhåndsvalgt — heller ikke med ett underprosjekt.
     expect(skjerm).toContain("const [ecoId, setEcoId] = useState<string | null>(null);");
-    expect(skjerm).toContain("useEffect(() => setEcoId(null), [prosjektId]);");
-    expect(skjerm).toContain("onPress={() => setEcoId(valgt ? null : e.id)}");
+    // Prosjektbytte tømmer fortsatt valget (utkast-gjenoppretting er grunnlinjen).
+    expect(skjerm).toMatch(
+      /if \(ecoProsjektRef\.current !== prosjektId\) \{\s*ecoProsjektRef\.current = prosjektId;\s*setEcoId\(null\);/,
+    );
+    expect(skjerm).toContain("setEcoId(valgt ? null : e.id);");
     expect(skjerm).toContain("ecoId: manuell ? ecoId : null,");
     expect(skjerm).not.toMatch(/setEcoId\(underprosjekter\[0\]/);
   });

@@ -996,3 +996,24 @@ export const vareforbrukLocal = sqliteTable("vareforbruk_local", {
   feilmelding: text("feilmelding"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
+
+/**
+ * prosjektkort_utkast_local — ikke bekreftet prosjektkort (Bekreft dag-skjermen).
+ * Lagrer KUN brukerens rettinger (delta) som opak JSON i `data`; forslaget
+ * beregnes på nytt ved gjenåpning og rettingene legges oppå. Nøkkel:
+ * `dato:YYYY-MM-DD` (manuell) eller `dag:<arbeidsdagId>` (GPS). Unik pr.
+ * (bruker, firma, nøkkel). KUN lokal — synkes aldri (vakt i prosjektkortUtkast.test.ts).
+ */
+export const prosjektkortUtkastLocal = sqliteTable("prosjektkort_utkast_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(),
+  nokkel: text("nokkel").notNull(),
+  dato: text("dato").notNull(), // YYYY-MM-DD — lista og opprydding
+  arbeidsdagId: text("arbeidsdag_id"), // kun GPS
+  skjemaVersjon: integer("skjema_versjon").notNull(),
+  data: text("data").notNull(), // JSON — UtkastData
+  kvitteringer: text("kvitteringer").notNull().default("[]"), // JSON-liste over lokalSti
+  opprettet: text("opprettet").notNull(),
+  sistEndret: text("sist_endret").notNull(),
+});

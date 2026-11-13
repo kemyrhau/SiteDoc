@@ -9,10 +9,11 @@ import {
   ActivityIndicator,
   Platform,
   Keyboard,
+  AppState,
   InputAccessoryView,
   type TextInput,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { ArrowLeft, Calendar, Car, ChevronRight, Minus, Plus, Trash2, Undo2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
@@ -57,6 +58,17 @@ import {
 import { BekreftDagLonnUtlegg } from "../../src/components/timer-detalj/BekreftDagLonnUtlegg";
 import type { LonnUtlegg } from "../../src/utils/dagsforslagAnvend";
 import { slettLokaltBilde } from "../../src/services/lokalBilde";
+import {
+  erTomtUtkast,
+  finnUtkast,
+  forkastUtkast,
+  gpsUtkastNokkel,
+  lagreUtkast,
+  manuellUtkastNokkel,
+  slettbareEtterSkriving,
+  type UtkastData,
+} from "../../src/utils/prosjektkortUtkast";
+import { HjelpIkon } from "../../src/components/HjelpIkon";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { forberedManuellDag } from "../../src/utils/manuellDag";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
@@ -121,6 +133,11 @@ function formatTimer(n: number): string {
 }
 
 const PAUSE_STEG = 15;
+const UTKAST_DEBOUNCE_MS = 2000;
+
+function formaterKlokke(d: Date): string {
+  return d.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+}
 const PAUSE_MAKS = 120;
 
 /** RETUR 36c pkt 3: iOS «Ferdig»-linje over tastaturet for «Hva gjorde du i dag?». */
@@ -174,6 +191,10 @@ export default function BekreftDagSkjerm() {
   // Kvitteringsfilene som ennå ikke er registrert — ryddes når skjermen forlates
   // uten lagring. Tømmes synkront så snart Bekreft har skrevet dem.
   const pendingKvitteringer = useRef<string[]>([]);
+  // RETUR avvik 10: kvitteringer arbeideren har fjernet. Fila slettes først når
+  // en utkastversjon UTEN utlegget er skrevet (`skrivUtkastNaa`) — ellers kan et
+  // krasj i debounce-vinduet gjenopprette utlegget med en død `lokalSti`.
+  const fjernetKvitteringer = useRef<Set<string>>(new Set());
   const { leggIKo } = useOpplastingsKo();
   // ORDRE 36a: feltet er nøytralt til første Bekreft-forsøk med tom beskrivelse.
   const [forsoktBekreft, setForsoktBekreft] = useState(false);
@@ -194,6 +215,74 @@ export default function BekreftDagSkjerm() {
       skjul.remove();
     };
   }, []);
+
+  // UTKAST (plan 2026-11-13 § 2/§ 6): rettingene lagres lokalt mens arbeideren
+  // fører. Skrives KUN fra brukerhandlinger (`endret()`), aldri fra effekter —
+  // åpning med bare forslag gir ingen rad. Skrivingen er synkron (SQLite), så
+  // hvert flush-punkt er ferdig før navigeringen fortsetter.
+  const utkastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const harEndretRef = useRef(false);
+  // Nøkkelen raden sist ble lest/skrevet under — datobytte flytter fra den.
+  const lagretNokkelRef = useRef<string | null>(null);
+  const utkastKontekstRef = useRef<{
+    userId: string;
+    orgId: string;
+    nokkel: string;
+    dato: string;
+    arbeidsdagId: string | null;
+    data: UtkastData;
+  } | null>(null);
+  const [utkastLastet, setUtkastLastet] = useState(false);
+  const [gjenopprettetTid, setGjenopprettetTid] = useState<string | null>(null);
+  const [lagretTid, setLagretTid] = useState<string | null>(null);
+
+  const skrivUtkastNaa = useCallback(() => {
+    if (utkastTimerRef.current) {
+      clearTimeout(utkastTimerRef.current);
+      utkastTimerRef.current = null;
+    }
+    const k = utkastKontekstRef.current;
+    const db = hentDatabase();
+    if (!harEndretRef.current || !k || !db || !k.orgId) return;
+    const res = lagreUtkast(db, {
+      userId: k.userId,
+      orgId: k.orgId,
+      nokkel: k.nokkel,
+      dato: k.dato,
+      arbeidsdagId: k.arbeidsdagId,
+      data: k.data,
+      naa: new Date().toISOString(),
+      nyId: randomUUID,
+      fraNokkel: lagretNokkelRef.current ?? undefined,
+    });
+    if (res === "opptatt") return;
+    for (const sti of slettbareEtterSkriving(fjernetKvitteringer.current, k.data)) {
+      fjernetKvitteringer.current.delete(sti);
+      void slettLokaltBilde(sti);
+    }
+    harEndretRef.current = false;
+    lagretNokkelRef.current = k.nokkel;
+    if (res === "lagret") setLagretTid(formaterKlokke(new Date()));
+  }, []);
+
+  const endret = useCallback(() => {
+    harEndretRef.current = true;
+    if (utkastTimerRef.current) clearTimeout(utkastTimerRef.current);
+    utkastTimerRef.current = setTimeout(skrivUtkastNaa, UTKAST_DEBOUNCE_MS);
+  }, [skrivUtkastNaa]);
+
+  // Flush: sveip/tilbake/maskinvare-tilbake (beforeRemove) og app i bakgrunnen.
+  const navigation = useNavigation();
+  useEffect(() => {
+    const fjern = navigation.addListener("beforeRemove", () => skrivUtkastNaa());
+    return fjern;
+  }, [navigation, skrivUtkastNaa]);
+  useEffect(() => {
+    const lytter = AppState.addEventListener("change", (tilstand) => {
+      if (tilstand !== "active") skrivUtkastNaa();
+    });
+    return () => lytter.remove();
+  }, [skrivUtkastNaa]);
 
   // Ikke ansatt → ingen sedel. Fersk kontekst først, ellers sist lagrede svar.
   useEffect(() => {
@@ -332,12 +421,14 @@ export default function BekreftDagSkjerm() {
 
   const settBeskrivelse = useCallback((nokkel: string, tekst: string) => {
     setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
-  }, []);
+    endret();
+  }, [endret]);
   const raderPerKortRef = useRef(raderPerKort);
   raderPerKortRef.current = raderPerKort;
   const settRadBeskrivelse = useCallback((nokkel: string, tekst: string) => {
     setRetting((r) => ({ ...r, beskrivelsePerRad: { ...r.beskrivelsePerRad, [nokkel]: tekst } }));
-  }, []);
+    endret();
+  }, [endret]);
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
@@ -396,7 +487,71 @@ export default function BekreftDagSkjerm() {
     [manuell, prosjektId],
   );
   const [ecoId, setEcoId] = useState<string | null>(null);
-  useEffect(() => setEcoId(null), [prosjektId]);
+  // Prosjektbytte nullstiller underprosjektet — men ikke et valg gjenopprettet
+  // fra utkastet: grunnlinjen settes først når utkastet er lest.
+  const ecoProsjektRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!utkastLastet) return;
+    if (ecoProsjektRef.current === undefined) {
+      ecoProsjektRef.current = prosjektId;
+      return;
+    }
+    if (ecoProsjektRef.current !== prosjektId) {
+      ecoProsjektRef.current = prosjektId;
+      setEcoId(null);
+    }
+  }, [prosjektId, utkastLastet]);
+
+  // UTKAST: nøkkel og delta for denne skjermen — leses av flush-punktene.
+  const utkastNokkel = manuell
+    ? manuellUtkastNokkel(manuellDato)
+    : params.arbeidsdagId
+      ? gpsUtkastNokkel(params.arbeidsdagId)
+      : null;
+  const utkastData: UtkastData = {
+    retting,
+    tilleggPerRad,
+    lonnUtlegg,
+    valgtByggeplassId,
+    rettetSluttIso: manuell ? null : rettetSluttIso,
+    ecoId: manuell ? ecoId : null,
+  };
+  const utkastDato = manuell ? manuellDato : dag ? lokalIsoDato(new Date(dag.startAt)) : null;
+  utkastKontekstRef.current =
+    bruker?.id && utkastNokkel && utkastDato
+      ? {
+          userId: bruker.id,
+          orgId,
+          nokkel: utkastNokkel,
+          dato: utkastDato,
+          arbeidsdagId: manuell ? null : params.arbeidsdagId,
+          data: utkastData,
+        }
+      : null;
+  const utkastInnhold = !erTomtUtkast(utkastData);
+
+  // Gjenoppretting (én gang): utkastets rettinger legges oppå FERSKT forslag.
+  // Anslått slutt må godkjennes på nytt (`sluttGodkjent` gjenopprettes ikke).
+  useEffect(() => {
+    if (utkastLastet || !bruker?.id || !orgId) return;
+    if (!manuell && !dag) return;
+    const db = hentDatabase();
+    if (!db) return;
+    const nokkel = manuell ? manuellUtkastNokkel(manuellDato) : gpsUtkastNokkel(params.arbeidsdagId);
+    lagretNokkelRef.current = nokkel;
+    const u = finnUtkast(db, { userId: bruker.id, orgId, nokkel });
+    if (u) {
+      const d = u.data;
+      setRetting(d.retting ?? {});
+      setTilleggPerRad(d.tilleggPerRad ?? {});
+      setLonnUtlegg(d.lonnUtlegg ?? { tillegg: [], utlegg: [] });
+      setValgtByggeplassId(d.valgtByggeplassId ?? undefined);
+      if (!manuell && d.rettetSluttIso) setRettetSluttIso(d.rettetSluttIso);
+      if (manuell) setEcoId(d.ecoId ?? null);
+      setGjenopprettetTid(formaterKlokke(new Date(u.sistEndret)));
+    }
+    setUtkastLastet(true);
+  }, [utkastLastet, bruker?.id, orgId, manuell, dag, manuellDato, params.arbeidsdagId]);
 
   // L3-D: vakten leser datoens sedel (om den finnes) + forslagets nye rader.
   const grunnlagPerDato = useMemo(() => {
@@ -414,7 +569,8 @@ export default function BekreftDagSkjerm() {
       else ny[nokkel] = neste;
       return ny;
     });
-  }, []);
+    endret();
+  }, [endret]);
 
   // Prosjektbytte flytter linjene med (de følger raden); byggeplassen gjettes ikke på nytt.
   useEffect(() => {
@@ -450,38 +606,117 @@ export default function BekreftDagSkjerm() {
         ...r,
         perDato: { ...r.perDato, [dato]: { ...r.perDato?.[dato], ...endring } },
       }));
+      endret();
     },
-    [],
+    [endret],
+  );
+  const fjernKvittering = useCallback((sti: string) => {
+    fjernetKvitteringer.current.add(sti);
+  }, []);
+  const endreLonnUtlegg = useCallback(
+    (neste: (forrige: LonnUtlegg) => LonnUtlegg) => {
+      setLonnUtlegg(neste);
+      endret();
+    },
+    [endret],
   );
 
   useEffect(() => {
     pendingKvitteringer.current = lonnUtlegg.utlegg.flatMap((u) => (u.kvittering ? [u.kvittering.lokalSti] : []));
   }, [lonnUtlegg]);
-  // Skjermen forlates (Ikke nå, tilbake, avbryt) uten at Bekreft skrev → rydd filene.
+  // Skjermen forlates uten at Bekreft skrev: siste flush, og kun filer som
+  // utkastet IKKE eier slettes (feilet flush / tomt utkast). Raden eier resten.
   useEffect(
     () => () => {
-      for (const sti of pendingKvitteringer.current) void slettLokaltBilde(sti);
+      let eide: string[] = [];
+      let flushFeilet = false;
+      try {
+        skrivUtkastNaa();
+        const k = utkastKontekstRef.current;
+        const db = hentDatabase();
+        const nokkel = lagretNokkelRef.current;
+        if (k && db && k.orgId && nokkel) {
+          eide = finnUtkast(db, { userId: k.userId, orgId: k.orgId, nokkel })?.kvitteringer ?? [];
+        }
+      } catch {
+        eide = [];
+        flushFeilet = true;
+      }
+      for (const sti of pendingKvitteringer.current) {
+        if (!eide.includes(sti)) void slettLokaltBilde(sti);
+      }
+      // Fjernede kvitteringer som siste skrevne utkast ikke lenger eier. Feilet
+      // flushen, kan forrige rad fortsatt eie fila — da blir den stående.
+      if (!flushFeilet) for (const sti of fjernetKvitteringer.current) {
+        if (!eide.includes(sti)) void slettLokaltBilde(sti);
+      }
     },
-    [],
+    [skrivUtkastNaa],
   );
 
-  const ikkeNaa = useCallback(() => router.back(), [router]);
+  // «Ikke nå» / «Fortsett senere» / «Lukk» / pil: lagre først, så tilbake.
+  const ikkeNaa = useCallback(() => {
+    skrivUtkastNaa();
+    router.back();
+  }, [router, skrivUtkastNaa]);
+
+  const forkast = useCallback(() => {
+    const k = utkastKontekstRef.current;
+    if (!k) return;
+    Alert.alert(
+      t("timer.utkast.forkastTittel"),
+      t("timer.utkast.forkastTekst", { dato: formatNorskDato(k.dato) }),
+      [
+        { text: t("handling.avbryt"), style: "cancel" },
+        {
+          text: t("timer.utkast.forkast"),
+          style: "destructive",
+          onPress: () => {
+            if (utkastTimerRef.current) clearTimeout(utkastTimerRef.current);
+            utkastTimerRef.current = null;
+            harEndretRef.current = false;
+            const db = hentDatabase();
+            const nokkel = lagretNokkelRef.current ?? k.nokkel;
+            const ferdig = () => router.back();
+            if (!db || !k.orgId) return ferdig();
+            void forkastUtkast(db, { userId: k.userId, orgId: k.orgId, nokkel }).finally(ferdig);
+          },
+        },
+      ],
+    );
+  }, [router, t]);
 
   const avsluttUtenTimer = useCallback(() => {
     const db = hentDatabase();
     if (!db || !params.arbeidsdagId || !sluttIso) return;
-    avsluttDagUtenSedel(db, {
-      arbeidsdagId: params.arbeidsdagId,
-      sluttIso,
-      endLat,
-      endLng,
-      naa: Date.now,
-      sluttSted: identifiserByggeplass(endLat, endLng, orgId),
-      nyId: randomUUID,
-    });
-    oppdaterTellere();
-    router.back();
-  }, [params.arbeidsdagId, sluttIso, endLat, endLng, orgId, oppdaterTellere, router]);
+    const arbeidsdagId = params.arbeidsdagId;
+    const utfor = () => {
+      // Dagen avsluttes og utkastet slettes i én transaksjon; filene etter commit.
+      if (utkastTimerRef.current) clearTimeout(utkastTimerRef.current);
+      utkastTimerRef.current = null;
+      harEndretRef.current = false;
+      const kvitteringer = avsluttDagUtenSedel(db, {
+        arbeidsdagId,
+        sluttIso,
+        endLat,
+        endLng,
+        naa: Date.now,
+        sluttSted: identifiserByggeplass(endLat, endLng, orgId),
+        nyId: randomUUID,
+        utkast: bruker?.id && orgId
+          ? { userId: bruker.id, orgId, nokkel: gpsUtkastNokkel(arbeidsdagId) }
+          : undefined,
+      });
+      for (const sti of kvitteringer) void slettLokaltBilde(sti);
+      oppdaterTellere();
+      router.back();
+    };
+    if (!utkastInnhold) return utfor();
+    Alert.alert(t("timer.utkast.avsluttUtenTimerTittel"), t("timer.utkast.avsluttUtenTimerTekst"), [
+      { text: t("handling.avbryt"), style: "cancel" },
+      { text: t("timer.bekreftDag.avsluttUtenTimer"), style: "destructive", onPress: utfor },
+    ]);
+  }, [params.arbeidsdagId, sluttIso, endLat, endLng, orgId, bruker?.id, utkastInnhold, oppdaterTellere, router, t]);
 
   const bekreft = useCallback(() => {
     const db = hentDatabase();
@@ -513,6 +748,12 @@ export default function BekreftDagSkjerm() {
     setLagrer(true);
     try {
       const { forslag } = beregnet;
+      // UTKAST: debounce nulles FØR Bekreft (en sen lagring skal ikke gjenskape
+      // utkastet etter slettingen), og siste retting skrives — stopper Bekreft,
+      // står utkastet med det arbeideren så.
+      if (utkastTimerRef.current) clearTimeout(utkastTimerRef.current);
+      utkastTimerRef.current = null;
+      skrivUtkastNaa();
       const { handling, resultat } = bekreftDag(db, forslag, {
         userId: bruker.id,
         orgId,
@@ -528,7 +769,10 @@ export default function BekreftDagSkjerm() {
         endLat,
         endLng,
         sluttSted: manuell ? null : identifiserByggeplass(endLat, endLng, orgId),
+        utkastNokkel: utkastNokkel ?? undefined,
       }, tilleggPerRad, lonnUtlegg);
+      // Sedel skrevet → utkastet er slettet i `bekreftDag`; ingenting å flushe.
+      if (resultat?.forsteLagredeSheetId != null) harEndretRef.current = false;
       if (handling.type === "tilleggUtleggUtenDag") {
         // Ingenting er skrevet — alle datoer er sendt (også om de ble sendt mellom
         // forslag og Bekreft); skjermen står, linjene og kvitteringene beholdes.
@@ -632,7 +876,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, leggIKo]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, leggIKo, skrivUtkastNaa, utkastNokkel]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -661,10 +905,14 @@ export default function BekreftDagSkjerm() {
       <Text className="flex-1 text-lg font-semibold text-gray-900">
         {t(manuell ? "timer.bekreftDag.manuell.tittel" : "timer.bekreftDag.tittel")}
       </Text>
+      <HjelpIkon
+        tittel={t("timer.bekreftDag.utkastHjelpTittel")}
+        tekst={t("timer.bekreftDag.utkastHjelpTekst")}
+      />
     </View>
   );
 
-  if ((!manuell && !dag) || !beregnet || erAnsatt === undefined) {
+  if ((!manuell && !dag) || !beregnet || erAnsatt === undefined || (!!orgId && !utkastLastet)) {
     return (
       <ModalFlate className="bg-gray-50">
         {topp}
@@ -715,7 +963,18 @@ export default function BekreftDagSkjerm() {
     );
     // Tidsrettingene hørte til forrige slutt.
     setRetting((r) => ({ ...r, perDato: undefined }));
+    endret();
   };
+
+  // «Fortsett senere» når et utkast finnes — teksten lover at kortet ligger der.
+  const sekundarKnapp = utkastInnhold ? (
+    <View className="gap-1">
+      <Knapp tekst={t("timer.bekreftDag.fortsettSenere")} onPress={ikkeNaa} sekundaer />
+      <Text className="text-center text-xs text-gray-500">{t("timer.bekreftDag.fortsettSenereHint")}</Text>
+    </View>
+  ) : (
+    <Knapp tekst={t("timer.bekreftDag.ikkeNaa")} onPress={ikkeNaa} sekundaer />
+  );
 
   return (
     <ModalFlate className="bg-gray-50">
@@ -727,6 +986,11 @@ export default function BekreftDagSkjerm() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
       >
+        {gjenopprettetTid ? (
+          <Text className="text-sm text-gray-500">
+            {t("timer.utkast.gjenopprettet", { tid: gjenopprettetTid })}
+          </Text>
+        ) : null}
         {manuell && !laastDato ? (
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">{t("timer.felt.dato")}</Text>
@@ -750,9 +1014,30 @@ export default function BekreftDagSkjerm() {
                   if (!valgt) return;
                   const ny = lokalIsoDato(valgt);
                   if (ny === manuellDato) return;
+                  const db = hentDatabase();
+                  // Et ikke bekreftet kort finnes alt på måldatoen: åpne det, aldri overskriv.
+                  if (db && bruker?.id && orgId && finnUtkast(db, { userId: bruker.id, orgId, nokkel: manuellUtkastNokkel(ny) })) {
+                    Alert.alert(
+                      t("timer.utkast.finnesPaaDato", { dato: formatNorskDato(ny) }),
+                      undefined,
+                      [
+                        { text: t("handling.avbryt"), style: "cancel" },
+                        {
+                          text: t("timer.utkast.aapne"),
+                          onPress: () => {
+                            skrivUtkastNaa();
+                            router.replace(`/timer/bekreft-dag?opprinnelse=manuell&dato=${ny}`);
+                          },
+                        },
+                      ],
+                    );
+                    return;
+                  }
                   setManuellDato(ny);
                   // Tidsrettingene hørte til forrige dato; prosjekt og beskrivelse følger med.
                   setRetting((r) => ({ ...r, perDato: undefined }));
+                  // Utkastet flytter med (fra lagret nøkkel til ny dato).
+                  endret();
                 }}
                 onLukk={() => setVisDatoVelger(false)}
               />
@@ -810,7 +1095,10 @@ export default function BekreftDagSkjerm() {
             </View>
             {sluttIkkeGodkjent ? (
               <Pressable
-                onPress={() => setSluttGodkjent(true)}
+                onPress={() => {
+                  setSluttGodkjent(true);
+                  endret();
+                }}
                 className="min-h-[44px] items-center justify-center rounded-md bg-amber-600 active:bg-amber-700"
               >
                 <Text className="text-sm font-semibold text-white">
@@ -884,7 +1172,10 @@ export default function BekreftDagSkjerm() {
                           return (
                             <Pressable
                               key={e.id}
-                              onPress={() => setEcoId(valgt ? null : e.id)}
+                              onPress={() => {
+                                setEcoId(valgt ? null : e.id);
+                                endret();
+                              }}
                               accessibilityState={{ selected: valgt }}
                               className={`min-h-[36px] justify-center rounded-full border px-3 ${
                                 valgt ? "border-gray-900 bg-gray-900" : "border-gray-300 bg-white active:bg-gray-50"
@@ -1026,10 +1317,11 @@ export default function BekreftDagSkjerm() {
             {!alleSendt && !ikkeAnsatt && !tomt && lonnUtleggProsjekt ? (
               <BekreftDagLonnUtlegg
                 verdi={lonnUtlegg}
-                onEndre={setLonnUtlegg}
+                onEndre={endreLonnUtlegg}
                 organizationId={orgId}
                 defaultProjectId={lonnUtleggProsjekt}
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
+                onFjernKvittering={fjernKvittering}
               />
             ) : null}
 
@@ -1052,6 +1344,11 @@ export default function BekreftDagSkjerm() {
         ) : null}
         {/* RETUR 36c-2 (D4): luft under siste felt mens tastaturet er oppe, så
             rullingen til feltet ikke klemmes mot bunnen. */}
+        {utkastInnhold && !alleSendt ? (
+          <Pressable onPress={forkast} hitSlop={8} className="items-center py-2">
+            <Text className="text-sm font-medium text-red-600">{t("timer.utkast.forkast")}</Text>
+          </Pressable>
+        ) : null}
         {tastaturOppe ? <View className="h-[120px]" /> : null}
       </ScrollView>
 
@@ -1070,18 +1367,23 @@ export default function BekreftDagSkjerm() {
 
       {/* Handlinger */}
       <View className="gap-2 border-t border-gray-200 bg-white p-4">
+        {lagretTid && !alleSendt ? (
+          <Text className="text-center text-xs text-gray-400">
+            {t("dokument.lagretAutomatisk", { tid: lagretTid })}
+          </Text>
+        ) : null}
         {alleSendt ? (
           <Knapp tekst={t("handling.lukk")} onPress={ikkeNaa} sekundaer />
         ) : manuell && (ikkeAnsatt || tomt) ? (
           // Ingen arbeidsdag å avslutte i manuell modus.
-          <Knapp tekst={t("timer.bekreftDag.ikkeNaa")} onPress={ikkeNaa} sekundaer />
+          sekundarKnapp
         ) : ikkeAnsatt || tomt ? (
           <>
             <Knapp
               tekst={t(ikkeAnsatt ? "timer.bekreftDag.avsluttUtenTimer" : "timer.bekreftDag.avsluttDag")}
               onPress={avsluttUtenTimer}
             />
-            <Knapp tekst={t("timer.bekreftDag.ikkeNaa")} onPress={ikkeNaa} sekundaer />
+            {sekundarKnapp}
           </>
         ) : (
           <>
@@ -1091,7 +1393,7 @@ export default function BekreftDagSkjerm() {
               deaktivert={lagrer}
               laster={lagrer}
             />
-            <Knapp tekst={t("timer.bekreftDag.ikkeNaa")} onPress={ikkeNaa} sekundaer />
+            {sekundarKnapp}
           </>
         )}
       </View>
@@ -1117,6 +1419,7 @@ export default function BekreftDagSkjerm() {
               forsteDag?.byggeplassId ?? null,
             ),
           }));
+          endret();
           setValgark(null);
         }}
         onLukk={() => setValgark(null)}
@@ -1139,6 +1442,7 @@ export default function BekreftDagSkjerm() {
             const b = flyttBeskrivelse(flyttBeskrivelse(r.beskrivelse, fra, til), fra, prosjektId);
             return { ...r, byggeplassId: id, beskrivelse: b };
           });
+          endret();
           setValgark(null);
         }}
         onLukk={() => setValgark(null)}
@@ -1150,6 +1454,7 @@ export default function BekreftDagSkjerm() {
         valgtId={forslag.aktivitetId}
         onVelg={(id) => {
           setRetting((r) => ({ ...r, aktivitetId: id ?? undefined }));
+          endret();
           setValgark(null);
         }}
         onLukk={() => setValgark(null)}
