@@ -58,7 +58,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Kontrollør** | `SiteDoc-gate` | detached `6e6d613f` | 🟡 GATER prosjektkort-utkast `df69aaee` (gate 3, bare vakt K1a). Ballen: Kontrollør |
 | **Dokumentleser** | `SiteDoc/.claude/worktrees/dokumentleser-docx-b367dc` | `feat/sjekkliste-pdf-oppgaver-vedlegg` `c0563328` (merget `6db57534`) | ⚪ LEDIG |
 | — | `SiteDoc/.claude/worktrees/dokumentleser-pdf-blokker` | detached `7334e868` | ubrukt (branch `fix/trpc-errorformatter` slettet 2026-11-12, merget `8b18ae77`) |
-| **Redesign** | `SiteDoc-redesign` | `feat/timer-prosjektkort-utkast` `df69aaee` | 🟢 RETUR 2 LEVERT, venter på gate 3. Valg 3 (steg 7) venter på Kenneth |
+| **Redesign** | `SiteDoc-redesign` | `feat/timer-prosjektkort-utkast` `df69aaee` | 🟢 RETUR 2 LEVERT, venter på gate 3. Valg 3: Kenneth 2026-11-13 «Ja, bare test» — dekkes av test, ingen ny avslutt-sti |
 | **Fabel** | `SiteDoc-fabel` · `SiteDoc-fabel-docs` | `docs/fabel` `e346d51e` · `docs/timer-gps-k19-21` `88f310e7` | ⚪ LEDIG — REDESIGN-MASTERPLAN oppdatert, merget `2f867b43` 2026-11-13. Ti beslutninger (planens § 5) hos Kenneth |
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
