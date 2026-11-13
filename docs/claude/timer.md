@@ -815,6 +815,18 @@ Hjemmel: Kenneth «Ja, plan A» 2026-11-13. Kun mobil; ingen server- eller Prism
 - **Restrisiko:** linjer synket før appoppdateringen har `paa_server` null. Slettes en slik linje på web mens konflikten står åpen, kommer den tilbake én gang ved neste pull.
 - Tester: `timerSync.konfliktWeb.test.ts` (🔴 usendt tillegg/utlegg/maskin står og sedelen er `pending`; 🔴 relink med én kandidat, «Uten rad» ved to og ingen; 🔴 push `ok` merker, linje skrevet under push merkes ikke; negativkontroller: `paa_server` sann slettet på web, levende tombstone, sendt vare, konfliktårsak `laast`, overlapp ikke løst) og `migreringer.paaServer.test.ts` (kolonne, ingen backfill, idempotent).
 
+### Synlig konflikt i Timer-lista — 🟡 `fix/timer-til-ramme-konflikt` (2026-11-13, ikke merget)
+
+Hjemmel: Kenneth, ordre «Bekreft dag Til/ramme + synlig konflikt» punkt 3. Kun mobil.
+
+- **Problemet:** banneret sa «1 konflikt», men lista viste ingen konflikt-sedel. Visnings-dedupen (`dedupPerDato`) kollapset sedler med samme dato og skjulte en tom sedel, også når den hadde `syncStatus="conflict"`.
+- **Dedup:** `dedupPerDato` (`apps/mobile/src/utils/dagsseddelListeVisning.ts`) skjuler aldri en konflikt-sedel. Den vises med den røde «Konflikt»-merkelappen (`TimerStatusMerkelapp`). Dedupen gjelder bare de andre sedlene samme dato. En tom plassholder ved siden av en konflikt skjules. Divergens-regelen (≥2 med innhold vises begge) er uendret.
+- **Banneret:** trykk på konflikt-banneret (`TimerSyncStatusBar.tsx`) åpner konflikt-sedelen (`/timer/[id]`). Er det flere, åpnes den eldste (`velgEldsteKonflikt`, tidligste dato). Synk startes fortsatt ved hvert trykk (`haandterStatusbarTrykk`). Andre banner-tilstander åpner ingenting.
+- **Tekst:** `timer.sync.konflikter_one`/`_other` med `count` («1 konflikt — sjekk sedelen» / «N konflikter — sjekk sedlene»).
+- **Punkt 2 (ramme følger faktisk start/slutt) er ikke kodet:** sedel uten timerrader får alt rammen nullstilt i `finnEllerOpprettDagsseddel` (`dagsseddelOpprett.ts`, «36e pkt. 3»). Feltcaset 07:00–22:51 gikk derfor gjennom utvid-veien (`utvidArbeidstidsvindu`, `dagsforslagAnvend.ts`) med rader på sedelen — meldt orkestrator.
+- **Punkt 1 (Til = faktisk slutt) er ikke kodet:** venter på Kenneths valg (bryter invarianten `timer = effektiveTimerFraSpenn(fra, til, …)`).
+- Tester: `dagsseddelListeVisning.test.ts` (🔴 tom konflikt ved sedel med innhold vises; 🔴 konflikt ved tom plassholder; 🔴 eldste konflikt velges; 🔴 banner åpner og synker; vakter: plassholder skjules uten konflikt, divergens, ingen navigering utenfor konflikt). Mutanter: konflikt-filter fjernet → 2 røde; åpning fjernet → 1 rød; nyeste i stedet for eldste → 1 rød.
+
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 
 Timer er en **firmamodul**: data eies av firma + arbeider, med `projectId` som etikett på radene. Isolasjonen er på **organisasjon (firma)**, ikke prosjekt-medlemskap (jf. to-produkt-modellen i [terminologi.md § 0](terminologi.md) og OPPSUMMERING-timer-arkitektur § D/G1).
