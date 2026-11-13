@@ -65,6 +65,10 @@ export type TilleggRad = {
   kommentar: string | null;
   attestertStatus: string | null;
   project?: RadProsjekt;
+  // Tillegg på prosjektkortet (2026-11-13). NULL = arv fra sedelen / uten
+  // underprosjekt. Valgfrie så eldre API-respons ikke bryter.
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 
 export type MaskinRad = {
@@ -309,13 +313,34 @@ function TilleggRaderLeder({
   prosjektKontekst,
   valgte,
   onToggle,
+  kanFlytte,
 }: {
   rader: TilleggRad[];
   prosjektKontekst?: string;
   valgte: Set<string>;
   onToggle: (id: string) => void;
+  kanFlytte: boolean;
 }) {
   const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  // B7: attestanten retter underprosjekt på tillegg som på timer-raden.
+  const førsteProsjektId = prosjektKontekst ?? rader[0]?.projectId;
+  const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId: førsteProsjektId ?? "" },
+    { enabled: !!førsteProsjektId },
+  );
+  const [feil, setFeil] = useState<string | null>(null);
+  const flytt = trpc.timer.dagsseddel.flyttTimerRadEco.useMutation({
+    onSuccess: () => {
+      void utils.timer.dagsseddel.hentForAttestering.invalidate();
+    },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  function ecoEtikett(ecoId: string | null | undefined): string | null {
+    if (!ecoId) return null;
+    const eco = ecoListe?.find((e) => e.id === ecoId);
+    return eco ? `${eco.proAdmId} · ${eco.kortNavn}` : null;
+  }
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(
@@ -329,6 +354,8 @@ function TilleggRaderLeder({
   }
 
   return (
+    <>
+    {feil && <p className="mb-2 text-sm text-red-600">{feil}</p>}
     <ul className="divide-y divide-gray-100">
       {rader.map((rad) => {
         const pending = (rad.attestertStatus ?? "pending") === "pending";
@@ -336,6 +363,8 @@ function TilleggRaderLeder({
           pending && (!prosjektKontekst || rad.projectId === prosjektKontekst);
         const valgt = valgte.has(rad.id);
         const info = infoFor(rad.tilleggId);
+        const ecoNavn = ecoEtikett(rad.externalCostObjectId);
+        const visEco = kanFlytte || !!rad.externalCostObjectId;
         return (
           <li
             key={rad.id}
@@ -362,6 +391,39 @@ function TilleggRaderLeder({
               {rad.kommentar && (
                 <p className="text-xs text-gray-500">{rad.kommentar}</p>
               )}
+              {visEco && (
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    {t("timer.attestering.flyttEco.etikett")}:
+                  </span>
+                  {kanFlytte && tilgjengelig ? (
+                    <select
+                      value={rad.externalCostObjectId ?? ""}
+                      onChange={(e) => {
+                        setFeil(null);
+                        flytt.mutate({
+                          timerRadId: rad.id,
+                          radType: "tillegg",
+                          externalCostObjectId: e.target.value || null,
+                        });
+                      }}
+                      disabled={flytt.isPending}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs"
+                    >
+                      <option value="">{t("timer.attestering.flyttEco.ingenEco")}</option>
+                      {ecoListe?.map((eco) => (
+                        <option key={eco.id} value={eco.id}>
+                          {eco.proAdmId} · {eco.kortNavn}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-gray-700">
+                      {ecoNavn ?? t("timer.attestering.flyttEco.ingenEco")}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <span className="font-mono text-sm text-gray-900">
               {info.type === "avhuking"
@@ -374,6 +436,7 @@ function TilleggRaderLeder({
         );
       })}
     </ul>
+    </>
   );
 }
 
@@ -578,6 +641,7 @@ export function ProsjektSectionAttest({
             prosjektKontekst={prosjektKontekst}
             valgte={valgteTillegg}
             onToggle={onToggleTillegg}
+            kanFlytte={kanFlytte}
           />
         </div>
       )}

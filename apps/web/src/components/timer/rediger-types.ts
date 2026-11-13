@@ -20,6 +20,10 @@ export type RedigerTilleggRadData = {
   tilleggId: string;
   antall: number;
   kommentar: string | null;
+  // Spec tillegg-utlegg-prosjektkort: bæres uendret gjennom redigering — utelatt
+  // felt nuller dem på serveren (`?? null`). Ny rad: undefined = arv.
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 
 export type RedigerMaskinRadData = {

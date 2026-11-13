@@ -193,6 +193,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         tilleggId: string;
         antall: unknown;
         kommentar: string | null;
+        byggeplassId?: string | null;
+        externalCostObjectId?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.tillegg],
   );
@@ -346,7 +348,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     }
 
     // Bygg full payload: andre bukers pending-rader uendret + edit-rader for vår bucket.
-    // Tillegg er per-prosjekt (ingen ECO) — alltid uendret her.
+    // Tillegg redigeres ikke i denne modalen — sendes uendret, inkl. byggeplass og
+    // underprosjekt (utelatt felt nuller dem på serveren).
     const andreTimer = pendingTimer.filter((r) => !bucketPredikat(r));
     const andreMaskin = pendingMaskin.filter((r) => !bucketPredikat(r));
 
@@ -415,6 +418,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
           tilleggId: r.tilleggId,
           antall: tilTall(r.antall),
           kommentar: r.kommentar,
+          byggeplassId: r.byggeplassId ?? null,
+          externalCostObjectId: r.externalCostObjectId ?? null,
         })),
         maskin: [
           ...andreMaskin.map((r) => ({

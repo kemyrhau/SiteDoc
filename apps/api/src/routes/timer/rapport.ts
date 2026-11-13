@@ -66,6 +66,8 @@ const teksterSchema = z.object({
   detaljer: z.string(),
   subtotal: z.string(), // gruppe-subtotal-etikett (fase 4)
   kolDato: z.string(),
+  kolByggeplass: z.string(),
+  kolUnderprosjekt: z.string(),
   kolType: z.string(),
   kolBetegnelse: z.string(),
   kolAktivitet: z.string(),
@@ -743,7 +745,8 @@ export const rapportRouter = router({
         kolonner: z
           .array(
             z.enum([
-              "dato", "ansatt", "ansattnr", "prosjekt", "type", "betegnelse",
+              "dato", "ansatt", "ansattnr", "prosjekt", "byggeplass", "underprosjekt",
+              "type", "betegnelse",
               // LAG 2 D2 — speiler TIMER_KOL_KEYS (@sitedoc/shared). PDF ignorerer
               // reise-nøkler den ikke rendrer; enumet må godta hele kol-settet så
               // malens valgte kolonner round-tripper.
@@ -802,6 +805,8 @@ export const rapportRouter = router({
           ansatt: r.ansatt,
           ansattnr: r.ansattnr,
           prosjekt: r.prosjekt,
+          byggeplass: r.byggeplass,
+          underprosjekt: r.underprosjekt,
           betegnelse: r.betegnelse,
           aktivitet: r.aktivitet,
           fraTid: r.fraTid,
