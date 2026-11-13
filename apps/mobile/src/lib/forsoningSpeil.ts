@@ -29,6 +29,7 @@ import {
   sheetTimerLocal,
   sheetUtleggLocal,
   slettedeRaderLocal,
+  vareforbrukLocal,
 } from "../db/schema";
 import type { Side, TidsromRad } from "./dagskortSammenligning";
 
@@ -200,7 +201,7 @@ function lokalTilForsonRad(r: {
 }
 
 /**
- * Telefontest B funn 5: lokale maskinlinjer som hang på en telefonrad serveren slo inn i
+ * Telefontest B funn 5: lokale maskin- og ventende varelinjer som hang på en telefonrad serveren slo inn i
  * en annen rad (`relinketFra`), følger raden som vant — samme delte likhetsregel som
  * serveren (`planleggLinjeRelink`). Uten `relinketFra` (eldre API) skjer ingenting.
  */
@@ -244,6 +245,31 @@ function relinkLokaleLinjer(
     db.update(sheetMachineLocal)
       .set({ ...p.data, sistEndretLokalt: naa })
       .where(eq(sheetMachineLocal.id, p.id))
+      .run();
+  }
+  // Varer: serveren relinker dem ikke — den har dem ikke ennå. Mobilen sender en varelinje
+  // først når sedelen er synced (`vareforbrukSync.ts` `planleggVaresending`), og serveren
+  // godtar bare en kobling til en rad som står på sedelen (`gyldigVareRad`,
+  // api `vareforbruk.ts`). Derfor relinkes bare ventende lokale linjer her; en sendt
+  // linje eies av serveren og røres ikke.
+  const varer = db
+    .select()
+    .from(vareforbrukLocal)
+    .where(
+      and(
+        eq(vareforbrukLocal.sheetId, sheetId),
+        eq(vareforbrukLocal.syncStatus, "pending"),
+        inArray(
+          vareforbrukLocal.sheetTimerId,
+          par.map((p) => p.fra.id),
+        ),
+      ),
+    )
+    .all();
+  for (const p of planleggLinjeRelink(par, varer, rader.map(lokalTilForsonRad))) {
+    db.update(vareforbrukLocal)
+      .set({ ...p.data, sistEndretLokalt: naa })
+      .where(eq(vareforbrukLocal.id, p.id))
       .run();
   }
 }

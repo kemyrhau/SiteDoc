@@ -51,6 +51,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { syncTimer, bekreftConflict, pushEnSedel } from "./timerSync";
+import { planleggVaresending } from "./vareforbrukSync";
 import {
   anvendForsonetLokalt,
   byggForsonOverlappKall,
@@ -309,7 +310,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   holder.raw.run(
-    "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_machine_local; DELETE FROM sheet_utlegg_local; DELETE FROM slettede_rader_local; DELETE FROM sheet_utlegg_vedlegg_local; DELETE FROM sheet_tillegg_vedlegg_local;",
+    "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_machine_local; DELETE FROM sheet_utlegg_local; DELETE FROM slettede_rader_local; DELETE FROM sheet_utlegg_vedlegg_local; DELETE FROM sheet_tillegg_vedlegg_local; DELETE FROM vareforbruk_local;",
   );
 });
 
@@ -1625,6 +1626,67 @@ describe("Telefontest B funn 5 — lokale maskinlinjer følger raden som vant", 
 
     expect(maskin("m1")?.sheetTimerId).toBe("mob");
     expect(maskin("m1")?.byggeplassId).toBe("b12");
+  });
+
+  // Varer: serveren relinker ikke varer (de er ikke sendt før sedelen er synced,
+  // vareforbrukSync.ts). Ventende lokale varelinjer følger raden som vant lokalt.
+  function seedVare(id: string, sheetTimerId: string | null, syncStatus: "pending" | "synced" = "pending") {
+    db()
+      .insert(schema.vareforbrukLocal)
+      .values({
+        id,
+        userId: "u1",
+        organizationId: "o1",
+        sheetId: "sheet-r5",
+        projectId: "p1",
+        dato: "2026-11-05",
+        vareId: "vare-1",
+        vareNavn: "Pukk 6-32",
+        enhet: "tonn",
+        antall: 3,
+        byggeplassId: "b12",
+        externalCostObjectId: null,
+        sheetTimerId,
+        syncStatus,
+        sistEndretLokalt: 1000,
+      })
+      .run();
+  }
+  function vare(id: string) {
+    return db().select().from(schema.vareforbrukLocal).where(eq(schema.vareforbrukLocal.id, id)).get();
+  }
+
+  it("🔴 PC-valget: ventende vare på mobilraden peker på PC-raden, og sendingen bærer ny sheetTimerId", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedVare("v1", "mob");
+    seedVare("v2", "annen");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc(["mob"])], 9_000_000);
+
+    expect(vare("v1")?.sheetTimerId).toBe("pc");
+    expect(vare("v1")?.byggeplassId).toBe(null);
+    const sending = planleggVaresending(
+      vare("v1")!,
+      { id: "sheet-r5", projectId: "p1", syncStatus: "synced" },
+      [{ id: "pc", projectId: "p1" }],
+    );
+    expect(sending.handling === "send" && sending.input.sheetTimerId).toBe("pc");
+    // Negativkontroll: vare på en rad som ikke var paret, røres ikke.
+    expect(vare("v2")?.sheetTimerId).toBe("annen");
+    expect(vare("v2")?.byggeplassId).toBe("b12");
+  });
+
+  it("vare som allerede er sendt (synced) røres ikke — serveren eier den", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedVare("v3", "mob", "synced");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc(["mob"])], 9_000_000);
+
+    expect(vare("v3")?.sheetTimerId).toBe("mob");
   });
 });
 
