@@ -189,6 +189,8 @@ export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 export {
   byggForsonInputFraValg,
   parForslagMotSedel,
+  aktivtHelhetsvalg,
+  helhetsvalgNokler,
   overlappBlokkererAttestering,
 } from "./forsonValg";
 export type {
