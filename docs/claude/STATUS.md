@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-13
+- 2026-11-13 — **`timer.md` + `mobil.md`: F1 — forsoningen flytter utlegg og arbeidsdag-peker til ny sedel-id, redning av foreldreløse utlegg** (branch `fix/timer-forson-utlegg`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`timer.md` + `mobil.md`: telefontest 13.11 — norm hentes i manuell Bekreft dag (funn 3), blå «+ Nytt prosjektkort» (funn 4), «Nå»-linjen fra første besøk (funn 9)** (branch `fix/timer-telefontest-1311`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`tillegg-utlegg-prosjektkort-spec.md`: ny spec — tillegg og utlegg på prosjektkortet med byggeplass/underprosjekt** (branch `docs/fabel`, docs-only, Fabel, 🟡 UTKAST, B1–B8 til Kenneth): to nullable kolonner på `sheet_tillegg`/`sheet_utlegg`, føring på kortskjermen, dagskort urørt, Bekreft dag med kortvalg, web/eksport-lesere med `fil:linje`, seks commits, 13 gate-tester. Registrert i DOC-MAP. 🔄 Under arbeid 21 → 22, totalt 57 → 58.
 - 2026-11-13 — **`timer.md` + `mobil.md`: RETUR prosjektkort-utkast — felles `forberedSluttDag` (avvik 12) og utsatt kvitteringssletting (avvik 10)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
