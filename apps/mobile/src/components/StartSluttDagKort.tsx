@@ -17,6 +17,7 @@ import { hentArbeidsdagTiderLokalt } from "../services/kalenderKatalog";
 import { estimerGlemtSlutt } from "../utils/dagsegment";
 import { hentDagsnormLokalt } from "../services/arbeidstidSvarKatalog";
 import { forberedSluttDag } from "../services/sluttDag";
+import { naaStedLinje } from "../utils/paagaarSted";
 import { trpc } from "../lib/trpc";
 import { hentDatabase } from "../db/database";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
@@ -271,6 +272,8 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
 
   const stedNavn = (b: Pick<Besok, "byggeplassId" | "byggeplassNavn">) =>
     b.byggeplassId ? (b.byggeplassNavn ?? "") : t("timer.besok.utenfor");
+  // Funn 9: «Nå»-linjen vises også for første besøk (se `naaStedLinje`).
+  const naaLinje = naaStedLinje({ oppmotestedNavn: aktivDag.oppmotestedNavn, siste });
 
   return (
     <>
@@ -320,10 +323,12 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
           {t("timer.startDag.startetPaa", { sted: aktivDag.oppmotestedNavn })}
         </Text>
       ) : null}
-      {siste && siste.rekkefolge > 1 ? (
+      {naaLinje === "besok" && siste ? (
         <Text className="mt-1 pl-6 text-xs text-green-700">
           {t("timer.besok.naa", { sted: stedNavn(siste), tid: tilHHMM(siste.ankomstAt) })}
         </Text>
+      ) : naaLinje === "utenfor" ? (
+        <Text className="mt-1 pl-6 text-xs text-green-700">{t("timer.besok.utenfor")}</Text>
       ) : null}
       <View className="mt-3 flex-row gap-2">
       <Pressable

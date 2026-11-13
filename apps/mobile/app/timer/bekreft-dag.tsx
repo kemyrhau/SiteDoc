@@ -71,6 +71,8 @@ import {
 import { HjelpIkon } from "../../src/components/HjelpIkon";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { forberedManuellDag } from "../../src/utils/manuellDag";
+import { hentOgCacheArbeidstidSvar } from "../../src/services/arbeidstidSvarKatalog";
+import { trpc } from "../../src/lib/trpc";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
@@ -174,6 +176,22 @@ export default function BekreftDagSkjerm() {
   const [retting, setRetting] = useState<DagsforslagRetting>({});
   const [manuellDato, setManuellDato] = useState(params.dato ?? lokalIsoDato(new Date()));
   const [visDatoVelger, setVisDatoVelger] = useState(false);
+  // Funn 3 (telefontest 13.11): manuell modus («+», «+ Nytt prosjektkort») har
+  // ingen `forberedSluttDag` foran seg og leste bare svar-cachen — uten et svar
+  // for datoen ble normen «cachet» selv med nett. Hent dagens svar for den valgte
+  // datoen og regn på nytt når det er lagret; offline beholdes cachen (varselet står).
+  const normUtils = trpc.useUtils();
+  const [normNonce, settNormNonce] = useState(0);
+  useEffect(() => {
+    if (!manuell || !orgId) return;
+    let avbrutt = false;
+    void hentOgCacheArbeidstidSvar(normUtils.client, orgId, manuellDato).then((ok) => {
+      if (ok && !avbrutt) settNormNonce((n) => n + 1);
+    });
+    return () => {
+      avbrutt = true;
+    };
+  }, [manuell, orgId, manuellDato, normUtils.client]);
   // A2: byggeplassvalget kjører lese-fasen på nytt (kun select).
   const [valgtByggeplassId, setValgtByggeplassId] = useState<
     string | null | undefined
@@ -356,7 +374,8 @@ export default function BekreftDagSkjerm() {
       retting,
     );
     return { ...lest, sluttIso: brukSluttIso };
-  }, [manuell, manuellDato, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: re-les svar-cachen (funn 3)
+  }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting]);
   // DEL 5 c: panelet for anslått slutt — GPS-veien, slutten satt av systemet
   // (glemt dag) eller kappet. Står også etter retting, så arbeideren ser tiden.
   const sluttPanel =
