@@ -181,7 +181,7 @@ Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det i
 | 🔵 | Observasjon uten smerte i dag | BACKLOG |
 
   **Kontrollspørsmål før noe avbryter planen:** *kommer noen ikke videre uten dette?* Merket står i ordrens første linje.
-- **Målestokken er piloten:** [REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Rekkefølge (50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan). ⚠️ `docs/redesign/MASTERPLAN.md` har samme tittel og er utdatert — sjekk datoen.
+- **Målestokken er piloten:** [REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Rekkefølge (50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan).
 
 ### 🔴 DEPLOY KOSTER KENNETHS TID — MERGE GJØR IKKE (vedtak 2026-09-10)
 
