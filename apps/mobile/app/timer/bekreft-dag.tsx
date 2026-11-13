@@ -530,7 +530,8 @@ export default function BekreftDagSkjerm() {
         sluttSted: manuell ? null : identifiserByggeplass(endLat, endLng, orgId),
       }, tilleggPerRad, lonnUtlegg);
       if (handling.type === "tilleggUtleggUtenDag") {
-        // Ingenting er skrevet — alle datoer er sendt; linjene står til arbeideren fjerner dem.
+        // Ingenting er skrevet — alle datoer er sendt (også om de ble sendt mellom
+        // forslag og Bekreft); skjermen står, linjene og kvitteringene beholdes.
         Alert.alert(
           t("timer.bekreftDag.tilleggUtlegg.utenDagTittel"),
           t("timer.bekreftDag.tilleggUtlegg.utenDagTekst"),

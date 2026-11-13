@@ -763,6 +763,35 @@ describe("ORDRE Tillegg/Utlegg i Bekreft dag (GO 2026-11-13)", () => {
     expect(db().select().from(arbeidsdagLocal).all()[0]!.status).toBe("paagaar");
   });
 
+  it("🔴 RETUR M3: datoen sendes mellom forslag og Bekreft → tilleggUtleggUtenDag, ingenting skrevet, dagen åpen", () => {
+    // Forslaget regnes mens datoen er åpen ...
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    expect(forslag.datoer.some((d) => !d.blokkert)).toBe(true);
+    // ... så sendes sedelen (f.eks. fra en annen enhet via sync) før Bekreft.
+    db().insert(dagsseddelLocal).values({
+      id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "sent", sistEndretLokalt: 1,
+    }).run();
+    const timerFor = db().select().from(schema.sheetTimerLocal).all().length;
+    const { handling, resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), {}, LINJER);
+    expect(handling).toEqual({ type: "tilleggUtleggUtenDag" });
+    expect(resultat?.lonnUtleggSkrevet).toBe(false);
+    expect(resultat?.lagredeDatoer).toEqual([]);
+    expect(tell()).toEqual(INGEN);
+    expect(db().select().from(schema.sheetTimerLocal).all()).toHaveLength(timerFor);
+    expect(db().select().from(arbeidsdagLocal).all()[0]!.status).toBe("paagaar");
+  });
+
+  it("negativkontroll M3: samme race uten linjer → blokkertSendt som før", () => {
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    db().insert(dagsseddelLocal).values({
+      id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "sent", sistEndretLokalt: 1,
+    }).run();
+    const { handling } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), {});
+    expect(handling.type).toBe("blokkertSendt");
+  });
+
   it("negativkontroll: samme sendte dato uten linjer → blokkertSendt som før (ingen ny sperre)", () => {
     db().insert(dagsseddelLocal).values({
       id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",

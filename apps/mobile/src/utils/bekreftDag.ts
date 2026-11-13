@@ -191,7 +191,7 @@ export function bekreftDag(
   lonnUtlegg?: LonnUtlegg,
 ):
   | { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat }
-  | { handling: { type: "tilleggUtleggUtenDag" }; resultat: null }
+  | { handling: { type: "tilleggUtleggUtenDag" }; resultat: AnvendDagsforslagResultat | null }
   | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
   | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null }
   | { handling: { type: "tilleggUtenRad"; nokler: string[] }; resultat: null } {
@@ -237,6 +237,14 @@ export function bekreftDag(
     }
   }
   const resultat = anvendDagsforslag(db, forslag, ctx, tilleggPerRad, lonnUtlegg);
+  // RETUR (Kontrollør M3): alle datoer ble sendt mellom forslag og Bekreft →
+  // ingen åpen sedel, linjene ble ikke skrevet. Da ble heller ingen timer skrevet
+  // (`forsteLagredeSheetId` settes ved første lagrede dato). Samme stopp som
+  // vakten over: skjermen blir stående med linjene og kvitteringene — aldri
+  // navigering bort (unmount ville slettet bildene) og aldri stille tap.
+  if (harLonnUtlegg(lonnUtlegg) && !resultat.lonnUtleggSkrevet) {
+    return { handling: { type: "tilleggUtleggUtenDag" }, resultat };
+  }
   // H7: avgjør handlingen FØR arbeidsdagen røres. Sendt sedel, ikke ansatt og
   // manglende kilde/prosjekt holder dagen åpen (A4 venter Kenneth).
   const handling = avgjorSluttDagHandling(resultat);

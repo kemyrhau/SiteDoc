@@ -256,8 +256,9 @@ export function anvendDagsforslag(
   }
 
   // ORDRE Tillegg/Utlegg i Bekreft dag: på første åpne dato sin sedel. Ingen
-  // åpen sedel (alt ble blokkert under skrivingen) → `lonnUtleggSkrevet` false,
-  // kalleren beholder linjene — aldri stille tap.
+  // åpen sedel (alt ble blokkert under skrivingen) → `lonnUtleggSkrevet` false;
+  // `bekreftDag` gjør det til stoppen `tilleggUtleggUtenDag`, og skjermen blir
+  // stående med linjene — aldri stille tap.
   let lonnUtleggSkrevet = false;
   const utleggKo: NyKoOppforing[] = [];
   if (harLonnUtlegg(lonnUtlegg) && forsteLagredeSheetId) {
