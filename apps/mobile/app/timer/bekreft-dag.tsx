@@ -65,6 +65,7 @@ import {
   gpsUtkastNokkel,
   lagreUtkast,
   manuellUtkastNokkel,
+  slettbareEtterSkriving,
   type UtkastData,
 } from "../../src/utils/prosjektkortUtkast";
 import { HjelpIkon } from "../../src/components/HjelpIkon";
@@ -190,6 +191,10 @@ export default function BekreftDagSkjerm() {
   // Kvitteringsfilene som ennå ikke er registrert — ryddes når skjermen forlates
   // uten lagring. Tømmes synkront så snart Bekreft har skrevet dem.
   const pendingKvitteringer = useRef<string[]>([]);
+  // RETUR avvik 10: kvitteringer arbeideren har fjernet. Fila slettes først når
+  // en utkastversjon UTEN utlegget er skrevet (`skrivUtkastNaa`) — ellers kan et
+  // krasj i debounce-vinduet gjenopprette utlegget med en død `lokalSti`.
+  const fjernetKvitteringer = useRef<Set<string>>(new Set());
   const { leggIKo } = useOpplastingsKo();
   // ORDRE 36a: feltet er nøytralt til første Bekreft-forsøk med tom beskrivelse.
   const [forsoktBekreft, setForsoktBekreft] = useState(false);
@@ -251,6 +256,10 @@ export default function BekreftDagSkjerm() {
       fraNokkel: lagretNokkelRef.current ?? undefined,
     });
     if (res === "opptatt") return;
+    for (const sti of slettbareEtterSkriving(fjernetKvitteringer.current, k.data)) {
+      fjernetKvitteringer.current.delete(sti);
+      void slettLokaltBilde(sti);
+    }
     harEndretRef.current = false;
     lagretNokkelRef.current = k.nokkel;
     if (res === "lagret") setLagretTid(formaterKlokke(new Date()));
@@ -601,6 +610,9 @@ export default function BekreftDagSkjerm() {
     },
     [endret],
   );
+  const fjernKvittering = useCallback((sti: string) => {
+    fjernetKvitteringer.current.add(sti);
+  }, []);
   const endreLonnUtlegg = useCallback(
     (neste: (forrige: LonnUtlegg) => LonnUtlegg) => {
       setLonnUtlegg(neste);
@@ -629,6 +641,10 @@ export default function BekreftDagSkjerm() {
         eide = [];
       }
       for (const sti of pendingKvitteringer.current) {
+        if (!eide.includes(sti)) void slettLokaltBilde(sti);
+      }
+      // Fjernede kvitteringer som siste skrevne utkast ikke lenger eier.
+      for (const sti of fjernetKvitteringer.current) {
         if (!eide.includes(sti)) void slettLokaltBilde(sti);
       }
     },
@@ -1302,6 +1318,7 @@ export default function BekreftDagSkjerm() {
                 organizationId={orgId}
                 defaultProjectId={lonnUtleggProsjekt}
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
+                onFjernKvittering={fjernKvittering}
               />
             ) : null}
 

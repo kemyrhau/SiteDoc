@@ -23,6 +23,7 @@ export function BekreftDagLonnUtlegg({
   organizationId,
   defaultProjectId,
   prosjektValg,
+  onFjernKvittering,
 }: {
   verdi: LonnUtlegg;
   onEndre: (neste: (forrige: LonnUtlegg) => LonnUtlegg) => void;
@@ -30,6 +31,12 @@ export function BekreftDagLonnUtlegg({
   /** Prosjektet med flest arbeidstimer i forslaget. */
   defaultProjectId: string;
   prosjektValg: { id: string; navn: string }[];
+  /**
+   * RETUR avvik 10: med utkast eier skjermen sletting av kvitteringsfila (den
+   * slettes først når en utkastversjon uten utlegget er skrevet). Uten callback
+   * slettes fila straks, som før.
+   */
+  onFjernKvittering?: (lokalSti: string) => void;
 }) {
   const { t } = useTranslation();
   const [visTillegg, setVisTillegg] = useState(false);
@@ -83,7 +90,11 @@ export function BekreftDagLonnUtlegg({
             detalj={detalj}
             onFjern={() => {
               // Kvitteringen er ikke registrert ennå — fila ryddes med linja.
-              if (u.kvittering?.lokalSti) void slettLokaltBilde(u.kvittering.lokalSti);
+              const sti = u.kvittering?.lokalSti;
+              if (sti) {
+                if (onFjernKvittering) onFjernKvittering(sti);
+                else void slettLokaltBilde(sti);
+              }
               onEndre((f) => ({ ...f, utlegg: f.utlegg.filter((x) => x.id !== u.id) }));
             }}
           />

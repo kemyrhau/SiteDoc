@@ -89,6 +89,16 @@ export function erTomtUtkast(data: UtkastData): boolean {
   return true;
 }
 
+/**
+ * RETUR avvik 10: kvitteringer fjernet i skjermen venter til en utkastversjon
+ * UTEN dem er skrevet. Returnerer de ventende stiene som nå kan slettes (ikke
+ * lenger i det skrevne utkastet). Kalles kun etter «lagret»/«slettet».
+ */
+export function slettbareEtterSkriving(venter: Iterable<string>, skrevet: UtkastData): string[] {
+  const eide = new Set(kvitteringerI(skrevet));
+  return Array.from(venter).filter((s) => !eide.has(s));
+}
+
 /** Kvitteringsstiene utkastet eier (lagres i egen kolonne så opprydding ikke parser `data`). */
 export function kvitteringerI(data: UtkastData): string[] {
   const ut: string[] = [];

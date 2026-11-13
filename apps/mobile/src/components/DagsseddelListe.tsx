@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { View, Text, FlatList, Pressable, RefreshControl } from "react-native";
 // eslint-disable-next-line no-restricted-imports -- skjerm-rot, ikke modal: rendret som rute (app/(tabs)/timer-oversikt + app/timer). SafeAreaView virker korrekt på skjermrot.
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,13 +12,14 @@ import {
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import {
   dagsseddelLocal,
   sheetTimerLocal,
   sheetTilleggLocal,
   sheetMachineLocal,
+  arbeidsdagLocal,
 } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useTimerSync } from "../providers/TimerSyncProvider";
@@ -33,6 +34,8 @@ import { lesTimerModusLokalt } from "../services/organizationSettingKatalog";
 import { sjekkAnsattForNyRegistrering } from "../utils/ansattSjekk";
 import { lokalIsoDato } from "../utils/dato";
 import { slettLokaltBilde } from "../services/lokalBilde";
+import { forberedSluttDag } from "../services/sluttDag";
+import { trpc } from "../lib/trpc";
 import {
   flettUtkastIListe,
   lesUtkastForListe,
@@ -201,6 +204,8 @@ export function DagsseddelListe({
   const { t } = useTranslation();
   const { bruker } = useAuth();
   const { triggerSync, syncerNa, sistSynkronisert } = useTimerSync();
+  const utils = trpc.useUtils();
+  const gpsUtkastBehandlerRef = useRef(false);
 
   const [rader, setRader] = useState<DagsseddelRad[]>([]);
   const [utkastInfo, setUtkastInfo] = useState<{
@@ -256,19 +261,31 @@ export function DagsseddelListe({
         });
         return;
       }
-      // Pågående GPS-dag: samme skjerm og parametre som «Slutt dag», slutt = nå.
-      router.push({
-        pathname: "/timer/bekreft-dag",
-        params: {
-          arbeidsdagId: maal.arbeidsdagId,
-          sluttIso: new Date().toISOString(),
-          endLat: "",
-          endLng: "",
-          sisteSegmentKilde: "bruker",
-        },
-      });
+      // Pågående GPS-dag: SAMME sti som «Slutt dag» (RETUR avvik 12) — slutt-GPS
+      // + fersk norm før navigasjonen. Ref-sperre mot dobbelttrykk under GPS.
+      if (gpsUtkastBehandlerRef.current || !bruker?.id) return;
+      const db = hentDatabase();
+      const dag = db
+        ?.select({ id: arbeidsdagLocal.id, startAt: arbeidsdagLocal.startAt })
+        .from(arbeidsdagLocal)
+        .where(
+          and(
+            eq(arbeidsdagLocal.id, maal.arbeidsdagId),
+            eq(arbeidsdagLocal.userId, bruker.id),
+            eq(arbeidsdagLocal.status, "paagaar"),
+          ),
+        )
+        .all()[0];
+      // Dagen er avsluttet siden lista ble lest — les på nytt (raden flyttes).
+      if (!dag) return lesAlt();
+      gpsUtkastBehandlerRef.current = true;
+      void forberedSluttDag({ arbeidsdag: dag, orgId: valgtFirmaId ?? "", klient: utils.client })
+        .then((params) => router.push({ pathname: "/timer/bekreft-dag", params }))
+        .finally(() => {
+          gpsUtkastBehandlerRef.current = false;
+        });
     },
-    [router],
+    [router, bruker?.id, valgtFirmaId, utils, lesAlt],
   );
 
   // FUNN 2026-10-06 (punkt 3): samme fokus-blindhet som detaljskjermen. Står

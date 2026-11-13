@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-13
+- 2026-11-13 — **`timer.md` + `mobil.md`: RETUR prosjektkort-utkast — felles `forberedSluttDag` (avvik 12) og utsatt kvitteringssletting (avvik 10)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`mobil.md`: Sjekkliste/oppgave flusher ventende auto-lagring ved unmount og bakgrunn (C4)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet — tellinger uendret.
 - 2026-11-13 — **`timer.md` + `mobil.md` + `hjelpetekster.md`: Utkast for prosjektkort i Timer-lista (C3)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): merket «Ikke bekreftet», 0 t-rad, GPS-rydding ved fokus, utkast utenfor `usendteKladder`. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`timer.md` + `mobil.md` + `hjelpetekster.md`: Utkast for prosjektkort i Bekreft dag (C2)** (branch `feat/timer-prosjektkort-utkast`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): timer.md § Utkast for prosjektkort utvidet (gjenoppretting, skrivepunkter, knapper, Bekreft/Avslutt uten timer/datobytte, tester); mobil.md `bekreft-dag.tsx`-raden; hjelpetekster.md ny § Mobil: Bekreft dag — utkast. Ingen fil opprettet/slettet — tellinger uendret.

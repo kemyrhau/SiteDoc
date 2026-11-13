@@ -15,10 +15,8 @@ import {
 } from "../hooks/useArbeidsdag";
 import { hentArbeidsdagTiderLokalt } from "../services/kalenderKatalog";
 import { estimerGlemtSlutt } from "../utils/dagsegment";
-import {
-  hentDagsnormLokalt,
-  hentOgCacheArbeidstidSvar,
-} from "../services/arbeidstidSvarKatalog";
+import { hentDagsnormLokalt } from "../services/arbeidstidSvarKatalog";
+import { forberedSluttDag } from "../services/sluttDag";
 import { trpc } from "../lib/trpc";
 import { hentDatabase } from "../db/database";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
@@ -163,36 +161,16 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
     if (!aktivDag || !bruker?.id || behandler) return;
     setBehandler(true);
     try {
-      // Lag 2 (gjenoppretting av glemt dag): bruk estimert slutt-tid og IKKE
-      // GPS-ved-slutt — arbeider er ikke nødvendigvis på stedet nå.
-      const { lat, lng } = overstyrtSluttIso
-        ? { lat: null as number | null, lng: null as number | null }
-        : await fangGps();
-      const orgId = valgtFirmaId ?? "";
-      const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
-      // B6 v3: hent serverens norm-SVAR for de berørte datoene (start + slutt,
-      // midnatt gir to) FØR skjermens lese-fase, så forslaget bruker fersk norm
-      // når nett finnes. Best-effort — offline beholder cachen (markøren
-      // signaliserer).
-      const berorteDatoer = new Set<string>([
-        formatIsoDato(new Date(aktivDag.startAt)),
-        formatIsoDato(new Date(sluttIso)),
-      ]);
-      await Promise.all(
-        Array.from(berorteDatoer).map((d) =>
-          hentOgCacheArbeidstidSvar(utils.client, orgId, d),
-        ),
-      );
-      router.push({
-        pathname: "/timer/bekreft-dag",
-        params: {
-          arbeidsdagId: aktivDag.id,
-          sluttIso,
-          endLat: lat == null ? "" : String(lat),
-          endLng: lng == null ? "" : String(lng),
-          sisteSegmentKilde,
-        },
+      // Felles sti med Timer-listas GPS-utkast (RETUR avvik 12): slutt-GPS
+      // (ikke ved glemt dag) + fersk norm for de berørte datoene, så navigasjon.
+      const params = await forberedSluttDag({
+        arbeidsdag: aktivDag,
+        orgId: valgtFirmaId ?? "",
+        klient: utils.client,
+        overstyrtSluttIso,
+        sisteSegmentKilde,
       });
+      router.push({ pathname: "/timer/bekreft-dag", params });
     } finally {
       setBehandler(false);
     }

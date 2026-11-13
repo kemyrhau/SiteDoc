@@ -416,9 +416,11 @@ describe("RETUR Tillegg/Utlegg (Kontrollør M9, M11) — kildevakter", () => {
   it("negativkontroll M11: prosjektkortets vei (uten onOpprett) skriver fortsatt med sedelens id", () => {
     expect(UTLEGG_SEKSJON).toMatch(/const ko = skrivUtlegg\(db, sheetId, nytt, randomUUID\);\s*if \(ko\) await leggIKo\(ko\);/);
   });
-  it("🔴 M9: fjern utlegg-linje sletter den ulagrede kvitteringsfila før linja fjernes", () => {
+  // RETUR avvik 10 (2026-11-13): med `onFjernKvittering` overtar skjermen
+  // slettingen (etter skrevet utkast); uten callback er atferden som før.
+  it("🔴 M9: fjern utlegg-linje sletter den ulagrede kvitteringsfila før linja fjernes (uten callback)", () => {
     expect(LONN_UTLEGG).toMatch(
-      /onFjern=\{\(\) => \{\s*if \(u\.kvittering\?\.lokalSti\) void slettLokaltBilde\(u\.kvittering\.lokalSti\);\s*onEndre\(\(f\) => \(\{ \.\.\.f, utlegg: f\.utlegg\.filter/,
+      /onFjern=\{\(\) => \{\s*const sti = u\.kvittering\?\.lokalSti;\s*if \(sti\) \{\s*if \(onFjernKvittering\) onFjernKvittering\(sti\);\s*else void slettLokaltBilde\(sti\);\s*\}\s*onEndre\(\(f\) => \(\{ \.\.\.f, utlegg: f\.utlegg\.filter/,
     );
   });
   it("negativkontroll M9: fjern tillegg-linje har ingen fil å slette", () => {
