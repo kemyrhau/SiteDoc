@@ -1451,6 +1451,11 @@ export const UTKAST_LOCAL_UNIK_INDEKS = "ux_prosjektkort_utkast" as const;
 export const KORTVALG_LOCAL_KOLONNER = [
   ["sheet_machine_local", "byggeplass_id"],
   ["vareforbruk_local", "external_cost_object_id"],
+  // Tillegg/utlegg på prosjektkortet (2026-11-13): NULL = arv, ingen backfill.
+  ["sheet_tillegg_local", "byggeplass_id"],
+  ["sheet_tillegg_local", "external_cost_object_id"],
+  ["sheet_utlegg_local", "byggeplass_id"],
+  ["sheet_utlegg_local", "external_cost_object_id"],
 ] as const;
 
 /** Radform: varelinjens timerrad (tabell, kolonne). */

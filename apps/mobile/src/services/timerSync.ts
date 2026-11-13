@@ -43,6 +43,23 @@ type SporFelter = {
  * rader (serverraden er nyere). Speiles fra `hentMedId` etter at den synkrone
  * `anvendSvar` har kjørt. `naa` = sedelens nye `sistSynkronisert` (samme stempel).
  */
+/** Prosjektkortets felt på tillegg/utlegg (2026-11-13). null = arv. */
+type KortFelt = { byggeplassId: string | null; externalCostObjectId: string | null };
+
+/**
+ * Kortfeltene fra et pull-svar: serverens verdi når feltet FINNES (også null),
+ * ellers den lokale (gammel server utelater feltene — mangler ≠ null).
+ */
+export function kortFeltFraServer(server: Partial<KortFelt>, lokal: KortFelt | undefined): KortFelt {
+  return {
+    byggeplassId: server.byggeplassId !== undefined ? server.byggeplassId : (lokal?.byggeplassId ?? null),
+    externalCostObjectId:
+      server.externalCostObjectId !== undefined
+        ? server.externalCostObjectId
+        : (lokal?.externalCostObjectId ?? null),
+  };
+}
+
 type HoppetSpeiling = { sheetId: string; hoppedeIder: string[]; naa: number };
 /** ORDRE 36e: per sedel-id — `sistEndretLokalt` og tombstone-id-ene payloaden bar. */
 type LestVedBygg = { endret: Map<string, number>; tombstoneIder: Map<string, string[]> };
@@ -924,6 +941,10 @@ async function kjorTimerSync(
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar ?? null,
+            // Prosjektkortet (2026-11-13): kortets byggeplass + underprosjekt
+            // (null = arv). Gammel server stripper feltene stille.
+            byggeplassId: tl.byggeplassId ?? null,
+            externalCostObjectId: tl.externalCostObjectId ?? null,
           })),
           maskiner: maskiner.map((m) => ({
             id: m.id,
@@ -954,6 +975,8 @@ async function kjorTimerSync(
             expenseCategoryId: u.expenseCategoryId,
             belop: u.belop ?? null,
             kommentar: u.kommentar ?? null,
+            byggeplassId: u.byggeplassId ?? null,
+            externalCostObjectId: u.externalCostObjectId ?? null,
             ordningVedFoering: u.ordningVedFoering as
               | "lonnstillegg"
               | "utlegg"
@@ -1410,6 +1433,16 @@ async function kjorTimerSync(
       // (upushet offline-arbeid eller server-wins-conflict der pushen ble avvist
       // før skriving). Vi sletter derfor kun rader på SYNCED-sedler, som per
       // definisjon stemmer med server.
+      // Prosjektkortet (2026-11-13): samme «mangler ≠ null»-regel for kortfeltene
+      // på tillegg/utlegg. En gammel server utelater dem → behold lokal verdi,
+      // ellers ville en pull flytte radene fra kortet til dagen uten at noen ser det.
+      const kortFor = new Map<string, KortFelt>(
+        [
+          ...db.select().from(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, maalId)).all(),
+          ...db.select().from(sheetUtleggLocal).where(eq(sheetUtleggLocal.dagsseddelId, maalId)).all(),
+        ].map((r) => [r.id, { byggeplassId: r.byggeplassId, externalCostObjectId: r.externalCostObjectId }]),
+      );
+
       db.delete(sheetTimerLocal)
         .where(eq(sheetTimerLocal.dagsseddelId, maalId))
         .run();
@@ -1520,6 +1553,7 @@ async function kjorTimerSync(
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar,
+            ...kortFeltFraServer(tl as unknown as Partial<KortFelt>, kortFor.get(tl.id)),
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -1600,6 +1634,7 @@ async function kjorTimerSync(
             kommentar: u.kommentar,
             ordningVedFoering: u.ordningVedFoering,
             foertVed: new Date(u.foertVed).getTime(),
+            ...kortFeltFraServer(u as unknown as Partial<KortFelt>, kortFor.get(u.id)),
             sistEndretLokalt: serverTidMs,
           })
           .run();

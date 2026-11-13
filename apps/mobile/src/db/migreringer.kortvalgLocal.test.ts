@@ -8,6 +8,9 @@ import * as path from "node:path";
  * før kolonnene (med én rad hver), kjører de ekte migreringene (sql.js) og krever at kolonnene
  * er lagt til, at radene står urørt (ingen backfill), og at andre kjøring ikke ALTER-er på nytt.
  * Feiler når kolonnen mangler.
+ *
+ * T5 (tillegg-utlegg-prosjektkort-spec.md § 9, 2026-11-13): `sheet_tillegg_local` og
+ * `sheet_utlegg_local` får `byggeplass_id` + `external_cost_object_id` (NULL = arv).
  */
 
 const holder = vi.hoisted(() => ({
@@ -66,6 +69,26 @@ beforeAll(async () => {
       enhet TEXT,
       sist_endret_lokalt INTEGER NOT NULL
     );
+    CREATE TABLE sheet_tillegg_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      dagsseddel_id TEXT NOT NULL,
+      project_id TEXT,
+      tillegg_id TEXT NOT NULL,
+      antall REAL NOT NULL,
+      kommentar TEXT,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
+    CREATE TABLE sheet_utlegg_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      dagsseddel_id TEXT NOT NULL,
+      project_id TEXT,
+      expense_category_id TEXT NOT NULL,
+      belop REAL,
+      kommentar TEXT,
+      ordning_ved_foering TEXT NOT NULL,
+      foert_ved INTEGER NOT NULL,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
     CREATE TABLE vareforbruk_local (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
@@ -87,6 +110,12 @@ beforeAll(async () => {
     "INSERT INTO sheet_machine_local (id, dagsseddel_id, vehicle_id, timer, sist_endret_lokalt) VALUES ('m-gammel', 's1', 'v1', 2, 1234)",
   );
   db.run(
+    "INSERT INTO sheet_tillegg_local (id, dagsseddel_id, project_id, tillegg_id, antall, sist_endret_lokalt) VALUES ('t-gammel', 's1', 'p1', 'tl1', 1, 1234)",
+  );
+  db.run(
+    "INSERT INTO sheet_utlegg_local (id, dagsseddel_id, project_id, expense_category_id, belop, ordning_ved_foering, foert_ved, sist_endret_lokalt) VALUES ('u-gammel', 's1', 'p1', 'k1', 250, 'utlegg', 1234, 1234)",
+  );
+  db.run(
     "INSERT INTO vareforbruk_local (id, user_id, organization_id, sheet_id, project_id, dato, vare_id, vare_navn, enhet, antall, byggeplass_id, sist_endret_lokalt) VALUES ('x-gammel', 'u1', 'o1', 's1', 'p1', '2026-11-07', 'v1', 'Pukk', 'tonn', 3, 'b1', 1234)",
   );
 });
@@ -96,6 +125,10 @@ describe("ORDRE 36b: kortvalg-kolonner på eksisterende tabeller", () => {
     expect(KORTVALG_LOCAL_KOLONNER.map(([t, k]) => `${t}.${k}`)).toEqual([
       "sheet_machine_local.byggeplass_id",
       "vareforbruk_local.external_cost_object_id",
+      "sheet_tillegg_local.byggeplass_id",
+      "sheet_tillegg_local.external_cost_object_id",
+      "sheet_utlegg_local.byggeplass_id",
+      "sheet_utlegg_local.external_cost_object_id",
     ]);
   });
 
@@ -113,13 +146,19 @@ describe("ORDRE 36b: kortvalg-kolonner på eksisterende tabeller", () => {
     expect(
       holder.db.exec("SELECT byggeplass_id, external_cost_object_id FROM vareforbruk_local WHERE id='x-gammel'")[0]?.values[0],
     ).toEqual(["b1", null]);
+    expect(
+      holder.db.exec("SELECT antall, byggeplass_id, external_cost_object_id FROM sheet_tillegg_local WHERE id='t-gammel'")[0]?.values[0],
+    ).toEqual([1, null, null]);
+    expect(
+      holder.db.exec("SELECT belop, byggeplass_id, external_cost_object_id FROM sheet_utlegg_local WHERE id='u-gammel'")[0]?.values[0],
+    ).toEqual([250, null, null]);
   });
 
   it("er idempotent — andre kjøring ALTER-er ikke på nytt", () => {
     const spion = vi.spyOn(holder.shim, "execSync");
     kjorMigreringer();
     const alters = spion.mock.calls.filter(([sql]) =>
-      /ALTER TABLE (sheet_machine_local|vareforbruk_local) ADD COLUMN (byggeplass_id|external_cost_object_id)/i.test(String(sql)),
+      /ALTER TABLE (sheet_machine_local|vareforbruk_local|sheet_tillegg_local|sheet_utlegg_local) ADD COLUMN (byggeplass_id|external_cost_object_id)/i.test(String(sql)),
     );
     spion.mockRestore();
     expect(alters).toEqual([]);

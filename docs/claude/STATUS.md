@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-13
+- 2026-11-13 — **`mobil.md`: C3 lokalt skjema og sync for byggeplass/underprosjekt på tillegg og utlegg** (branch `feat/timer-tillegg-utlegg-kort`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): fire lokale kolonner via `KORTVALG_LOCAL_KOLONNER`, push/pull med «mangler ≠ null». Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`timer.md` + `api.md`: C2 tillegg/utlegg bærer byggeplass og underprosjekt i API-et** (branch `feat/timer-tillegg-utlegg-kort`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): grense i interaktive skriveveier, vask i `syncBatch`, splitt-arv, B7 flytt av tillegg, B8 eksportfelt. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`timer.md`: C1 tillegg/utlegg på prosjektkortet — `byggeplass_id` + `external_cost_object_id` på `sheet_tillegg`/`sheet_utlegg`** (branch `feat/timer-tillegg-utlegg-kort`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate, migrering `20261113120000_tillegg_utlegg_byggeplass_eco` IKKE kjørt): additiv, nullable, ingen backfill (B2). Vakt T1 `tillegg-utlegg-kort-migrering.test.ts`. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-13 — **`timer.md` + `mobil.md`: F1 — forsoningen flytter utlegg og arbeidsdag-peker til ny sedel-id, redning av foreldreløse utlegg** (branch `fix/timer-forson-utlegg`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
