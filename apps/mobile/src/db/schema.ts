@@ -298,6 +298,9 @@ export const sheetTilleggVedleggLocal = sqliteTable(
     mimeType: text("mime_type").notNull(),
     filstorrelse: integer("filstorrelse"),
     sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+    // Telefontest A funn 2: tidspunktet serveren bekreftet vedlegget (Unix ms). NULL = ikke
+    // bekreftet ennå. Lagt til via VEDLEGG_REGISTRERT_KOLONNER, ingen backfill.
+    registrert: integer("registrert"),
   },
 );
 
@@ -344,6 +347,9 @@ export const sheetUtleggVedleggLocal = sqliteTable(
     mimeType: text("mime_type").notNull(),
     filstorrelse: integer("filstorrelse"),
     sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+    // Telefontest A funn 2: tidspunktet serveren bekreftet vedlegget (Unix ms). NULL = ikke
+    // bekreftet ennå. Lagt til via VEDLEGG_REGISTRERT_KOLONNER, ingen backfill.
+    registrert: integer("registrert"),
   },
 );
 

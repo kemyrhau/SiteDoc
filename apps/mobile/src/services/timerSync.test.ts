@@ -51,6 +51,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { syncTimer, bekreftConflict, pushEnSedel } from "./timerSync";
+import { planleggVaresending } from "./vareforbrukSync";
 import {
   anvendForsonetLokalt,
   byggForsonOverlappKall,
@@ -309,7 +310,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   holder.raw.run(
-    "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_machine_local; DELETE FROM sheet_utlegg_local; DELETE FROM slettede_rader_local;",
+    "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_machine_local; DELETE FROM sheet_utlegg_local; DELETE FROM slettede_rader_local; DELETE FROM sheet_utlegg_vedlegg_local; DELETE FROM sheet_tillegg_vedlegg_local; DELETE FROM vareforbruk_local;",
   );
 });
 
@@ -1548,5 +1549,468 @@ describe("ORDRE 36e pkt. 2 — sedel slettet i prosjektkortet", () => {
 
     expect(slettet).toEqual([]);
     expect(pullInput[0]?.sistSynkronisert).toBe("2026-11-08T00:00:00.000Z");
+  });
+});
+
+describe("Telefontest B funn 5 — lokale maskinlinjer følger raden som vant", () => {
+  function seedMaskin(id: string, sheetTimerId: string | null, byggeplassId: string | null) {
+    db()
+      .insert(schema.sheetMachineLocal)
+      .values({
+        id,
+        dagsseddelId: "sheet-r5",
+        sheetTimerId,
+        projectId: "p1",
+        vehicleId: "v1",
+        byggeplassId,
+        externalCostObjectId: null,
+        timer: 2,
+        sistEndretLokalt: 1000,
+      })
+      .run();
+  }
+  function maskin(id: string) {
+    return db()
+      .select()
+      .from(schema.sheetMachineLocal)
+      .where(eq(schema.sheetMachineLocal.id, id))
+      .get();
+  }
+  const serverPc = (relinketFra?: string[]) => ({
+    id: "pc",
+    projectId: "p1",
+    byggeplassId: null,
+    lonnsartId: "l1",
+    aktivitetId: "a1",
+    externalCostObjectId: null,
+    timer: 7.5,
+    fraTid: "07:00",
+    tilTid: "15:00",
+    beskrivelse: null,
+    pauseMin: 0,
+    updatedAt: "2026-11-13T11:00:00.000Z",
+    ...(relinketFra ? { relinketFra } : {}),
+  });
+
+  function seedMobRad() {
+    db()
+      .update(sheetTimerLocal)
+      .set({ byggeplassId: "b12", fraTid: "08:00", tilTid: "14:00" })
+      .where(eq(sheetTimerLocal.id, "mob"))
+      .run();
+  }
+
+  it("🔴 PC-valget: maskinen på mobilraden flyttes til PC-raden (ikke «Uten rad») og får radens byggeplass", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedMaskin("m1", "mob", "b12");
+    seedMaskin("m2", "annen", "b12");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc(["mob"])], 9_000_000);
+
+    expect(maskin("m1")?.sheetTimerId).toBe("pc");
+    expect(maskin("m1")?.byggeplassId).toBe(null);
+    // Negativkontroll: linje på en rad som ikke var paret, røres ikke.
+    expect(maskin("m2")?.sheetTimerId).toBe("annen");
+    expect(maskin("m2")?.byggeplassId).toBe("b12");
+  });
+
+  it("eldre API (uten relinketFra) tåles: ingen relink, ingen krasj", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedMaskin("m1", "mob", "b12");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc()], 9_000_000);
+
+    expect(maskin("m1")?.sheetTimerId).toBe("mob");
+    expect(maskin("m1")?.byggeplassId).toBe("b12");
+  });
+
+  // Varer: serveren relinker ikke varer (de er ikke sendt før sedelen er synced,
+  // vareforbrukSync.ts). Ventende lokale varelinjer følger raden som vant lokalt.
+  function seedVare(id: string, sheetTimerId: string | null, syncStatus: "pending" | "synced" = "pending") {
+    db()
+      .insert(schema.vareforbrukLocal)
+      .values({
+        id,
+        userId: "u1",
+        organizationId: "o1",
+        sheetId: "sheet-r5",
+        projectId: "p1",
+        dato: "2026-11-05",
+        vareId: "vare-1",
+        vareNavn: "Pukk 6-32",
+        enhet: "tonn",
+        antall: 3,
+        byggeplassId: "b12",
+        externalCostObjectId: null,
+        sheetTimerId,
+        syncStatus,
+        sistEndretLokalt: 1000,
+      })
+      .run();
+  }
+  function vare(id: string) {
+    return db().select().from(schema.vareforbrukLocal).where(eq(schema.vareforbrukLocal.id, id)).get();
+  }
+
+  it("🔴 PC-valget: ventende vare på mobilraden peker på PC-raden, og sendingen bærer ny sheetTimerId", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedVare("v1", "mob");
+    seedVare("v2", "annen");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc(["mob"])], 9_000_000);
+
+    expect(vare("v1")?.sheetTimerId).toBe("pc");
+    expect(vare("v1")?.byggeplassId).toBe(null);
+    const sending = planleggVaresending(
+      vare("v1")!,
+      { id: "sheet-r5", projectId: "p1", syncStatus: "synced" },
+      [{ id: "pc", projectId: "p1" }],
+    );
+    expect(sending.handling === "send" && sending.input.sheetTimerId).toBe("pc");
+    // Negativkontroll: vare på en rad som ikke var paret, røres ikke.
+    expect(vare("v2")?.sheetTimerId).toBe("annen");
+    expect(vare("v2")?.byggeplassId).toBe("b12");
+  });
+
+  it("vare som allerede er sendt (synced) røres ikke — serveren eier den", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedVare("v3", "mob", "synced");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc(["mob"])], 9_000_000);
+
+    expect(vare("v3")?.sheetTimerId).toBe("mob");
+  });
+});
+
+describe("Telefontest A funn 1 — tillegg/utlegg/maskin pushes etter forsoning når serveren ikke skrev dem", () => {
+  // Kortbyttet (Endre kort) skjedde ETTER siste godtatte push (sistSynkronisert 1000).
+  const ENDRET = 5000;
+  const FORSONT = 9_000_000;
+
+  function seedLinjer(sheetId: string) {
+    db()
+      .insert(schema.sheetTilleggLocal)
+      .values({
+        id: "tl-1",
+        dagsseddelId: sheetId,
+        projectId: "p2",
+        byggeplassId: "b12",
+        tilleggId: "t1",
+        antall: 1,
+        sistEndretLokalt: ENDRET,
+      })
+      .run();
+    db()
+      .insert(schema.sheetUtleggLocal)
+      .values({
+        id: "ut-1",
+        dagsseddelId: sheetId,
+        projectId: "p2",
+        byggeplassId: "b12",
+        expenseCategoryId: "k1",
+        belop: 250,
+        ordningVedFoering: "utlegg",
+        foertVed: Date.parse("2026-11-05T10:00:00.000Z"),
+        sistEndretLokalt: ENDRET,
+      })
+      .run();
+  }
+
+  const serverRad = {
+    id: "r1",
+    projectId: "p2",
+    byggeplassId: "b12",
+    lonnsartId: "l1",
+    aktivitetId: "a1",
+    externalCostObjectId: null,
+    timer: 7.5,
+    fraTid: "07:00",
+    tilTid: "15:00",
+    beskrivelse: null,
+    pauseMin: 0,
+    updatedAt: "2026-11-13T11:00:00.000Z",
+  };
+
+  function overlappSvar(sheetId: string, ekstra: Record<string, unknown>): PushResultat {
+    return {
+      clientUuid: sheetId,
+      resultat: "conflict",
+      aarsak: "overlapp",
+      serverData: {
+        id: sheetId,
+        clientUuid: sheetId,
+        status: "draft",
+        lederKommentar: null,
+        attestertVed: null,
+        updatedAt: "2026-11-13T10:00:00.000Z",
+        ...ekstra,
+      } as PushResultat["serverData"],
+    };
+  }
+
+  async function pushOgForson(sheetId: string, svar: PushResultat) {
+    await syncTimer(lagKlient(tomtPull, [svar]), "u1");
+    expect(sedelFor(sheetId).syncStatus).toBe("conflict");
+    anvendForsonetLokalt(sheetId, [serverRad], FORSONT);
+    bekreftConflict(sheetId);
+  }
+
+  function pushUtlegg(fanget: { input: unknown }) {
+    const inp = fanget.input as {
+      sedler: Array<{
+        tillegg: Array<{ id: string; projectId: string | null; byggeplassId: string | null }>;
+        utlegg: Array<{ id: string; projectId: string | null; byggeplassId: string | null }>;
+      }>;
+    };
+    return inp.sedler[0]!;
+  }
+
+  it("🔴 (a) tidlig overlapp (skrevet: false): sedelen blir pending, og neste push bærer utlegg og tillegg på nytt kort", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("s1");
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: false }));
+
+    const s = sedelFor("s1");
+    expect(s.syncStatus).toBe("pending");
+    expect(s.konfliktAarsak).toBe(null);
+
+    const { klient, fanget } = lagKlientFanger([
+      { clientUuid: "s1", resultat: "ok", serverData: { id: "s1", status: "draft", lederKommentar: null, attestertVed: null, updatedAt: "2026-11-13T12:00:00.000Z" } },
+    ]);
+    const res = await syncTimer(klient, "u1");
+    const p = pushUtlegg(fanget);
+    expect(p.utlegg.map((u) => [u.id, u.projectId, u.byggeplassId])).toEqual([["ut-1", "p2", "b12"]]);
+    expect(p.tillegg.map((t) => [t.id, t.projectId, t.byggeplassId])).toEqual([["tl-1", "p2", "b12"]]);
+    // Timer-raden har serverens versjon fra forsoningen → uomstridt, ikke endret lokalt.
+    const t = pushTimer(fanget).timer.find((r) => r.id === "r1")!;
+    expect(t.serverVersjon).toBe("2026-11-13T11:00:00.000Z");
+    expect(t.endretLokalt).toBe(false);
+    expect(res.push.ok).toBe(1);
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("🔴 (a) A-1a (dagen ført på PC først, sedelen aldri synket): pending etter forsoning", async () => {
+    seedSedel({ id: "lok", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    db().update(dagsseddelLocal).set({ sistSynkronisert: null }).where(eq(dagsseddelLocal.id, "lok")).run();
+    seedTimerRad("r1", "lok", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("lok");
+
+    const svar = overlappSvar("lok", { skrevet: false });
+    svar.serverData = { ...svar.serverData!, id: "srv", clientUuid: "srv" };
+    await syncTimer(lagKlient(tomtPull, [svar]), "u1");
+    expect(sedelFor("srv").syncStatus).toBe("conflict");
+    anvendForsonetLokalt("srv", [serverRad], FORSONT);
+    bekreftConflict("srv");
+
+    expect(sedelFor("srv").syncStatus).toBe("pending");
+  });
+
+  it("negativkontroll: avvik-veien (skrevet: true) skrev utlegg og tillegg → synced, ingen ekstra push", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("s1");
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: true }));
+
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("negativkontroll: tidlig overlapp på en sedel uten tillegg, utlegg og maskin → synced som i dag", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: false }));
+
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("negativkontroll: eldre API uten skrevet-feltet → synced som i dag (ingen regresjon)", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    seedLinjer("s1");
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [] }));
+
+    expect(sedelFor("s1").syncStatus).toBe("synced");
+  });
+
+  it("tombstone for et utlegg slettet etter siste godtatte push teller også (tidlig overlapp → pending)", async () => {
+    seedSedel({ id: "s1", dato: "2026-11-05", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r1", "s1", 7.5, { sistEndretLokalt: ENDRET });
+    db()
+      .insert(schema.slettedeRaderLocal)
+      .values({ radId: "ut-gammel", dagsseddelId: "s1", radType: "utlegg", slettetVed: ENDRET })
+      .run();
+
+    await pushOgForson("s1", overlappSvar("s1", { rader: [], hoppetOver: [], skrevet: false }));
+
+    expect(sedelFor("s1").syncStatus).toBe("pending");
+  });
+});
+
+describe("Telefontest A funn 2 — kvitteringen står til serveren har bekreftet den", () => {
+  const SERVER_TID = "2026-11-13T12:00:00.000Z";
+
+  function vedleggFor(tabell: "utlegg" | "tillegg", id: string) {
+    const t = tabell === "utlegg" ? schema.sheetUtleggVedleggLocal : schema.sheetTilleggVedleggLocal;
+    return db().select().from(t).where(eq(t.id, id)).all()[0];
+  }
+
+  it("pull: vedlegg serveren har, merkes registrert (insert og update)", async () => {
+    // Et lokalt vedlegg som serveren nå også har (update-veien).
+    db()
+      .insert(schema.sheetUtleggVedleggLocal)
+      .values({
+        id: "v-upd",
+        sheetUtleggId: "ut-p",
+        lokalSti: null,
+        serverUrl: null,
+        filnavn: "a.jpg",
+        mimeType: "image/jpeg",
+        sistEndretLokalt: 1,
+      })
+      .run();
+    const vedlegg = (id: string) => ({ id, fileUrl: `/uploads/privat/${id}.jpg`, fileName: `${id}.jpg`, mimeType: "image/jpeg", fileSize: 10 });
+    const sedel = serverSedel({
+      id: "s-pull",
+      dato: "2026-11-13",
+      utlegg: [
+        {
+          id: "ut-p",
+          projectId: "p1",
+          expenseCategoryId: "k1",
+          belop: 100,
+          kommentar: null,
+          ordningVedFoering: "utlegg",
+          foertVed: "2026-11-13T08:00:00.000Z",
+          vedlegg: [vedlegg("v-upd"), vedlegg("v-ny")],
+        },
+      ],
+    });
+    await syncTimer(
+      lagKlient({ ...tomtPull, serverTid: SERVER_TID, sedler: [sedel], levendeSedler: [{ id: "s-pull" }] }),
+      "u1",
+    );
+    expect(vedleggFor("utlegg", "v-upd")?.registrert).toBe(Date.parse(SERVER_TID));
+    expect(vedleggFor("utlegg", "v-ny")?.registrert).toBe(Date.parse(SERVER_TID));
+  });
+
+  describe("redning av kvitteringer serveren aldri fikk registrert", () => {
+    type Kall = { prosedyre: string; input: Record<string, unknown> };
+
+    function klientMedVedlegg(kall: Kall[], feil = false) {
+      const k = lagKlient(tomtPull) as unknown as {
+        timer: { dagsseddel: Record<string, unknown> };
+      };
+      for (const prosedyre of ["tilfoyUtleggVedlegg", "tilfoyTilleggVedlegg"]) {
+        k.timer.dagsseddel[prosedyre] = {
+          mutate: async (input: Record<string, unknown>) => {
+            kall.push({ prosedyre, input });
+            if (feil) throw Object.assign(new Error("NOT_FOUND"), { data: { code: "NOT_FOUND" } });
+            return { id: input.id };
+          },
+        };
+      }
+      return k as unknown as Parameters<typeof syncTimer>[0];
+    }
+
+    function seedUtleggMedVedlegg(o: {
+      sedelId: string;
+      status: "draft" | "sent" | "returned" | "accepted";
+      vedleggId: string;
+      serverUrl: string | null;
+      registrert: number | null;
+    }) {
+      seedSedel({ id: o.sedelId, dato: "2026-11-05", status: o.status, syncStatus: "synced" });
+      db()
+        .insert(schema.sheetUtleggLocal)
+        .values({
+          id: `ut-${o.vedleggId}`,
+          dagsseddelId: o.sedelId,
+          projectId: "p1",
+          expenseCategoryId: "k1",
+          belop: 250,
+          ordningVedFoering: "utlegg",
+          foertVed: Date.parse("2026-11-05T10:00:00.000Z"),
+          sistEndretLokalt: 1000,
+        })
+        .run();
+      db()
+        .insert(schema.sheetUtleggVedleggLocal)
+        .values({
+          id: o.vedleggId,
+          sheetUtleggId: `ut-${o.vedleggId}`,
+          lokalSti: null,
+          serverUrl: o.serverUrl,
+          filnavn: `${o.vedleggId}.jpg`,
+          mimeType: "image/jpeg",
+          filstorrelse: 321,
+          sistEndretLokalt: 1000,
+          registrert: o.registrert,
+        })
+        .run();
+    }
+
+    it("registrerer et opplastet, ubekreftet vedlegg på en åpen sedel og merker det registrert", async () => {
+      seedUtleggMedVedlegg({ sedelId: "s-r", status: "draft", vedleggId: "v-r", serverUrl: "/uploads/privat/r.jpg", registrert: null });
+      db()
+        .insert(schema.sheetTilleggLocal)
+        .values({ id: "tl-r", dagsseddelId: "s-r", projectId: "p1", tilleggId: "t1", antall: 1, sistEndretLokalt: 1000 })
+        .run();
+      db()
+        .insert(schema.sheetTilleggVedleggLocal)
+        .values({ id: "vt-r", sheetTilleggId: "tl-r", lokalSti: null, serverUrl: "/uploads/privat/t.jpg", filnavn: "t.jpg", mimeType: "image/jpeg", filstorrelse: 9, sistEndretLokalt: 1000 })
+        .run();
+      const kall: Kall[] = [];
+      await syncTimer(klientMedVedlegg(kall), "u1");
+      expect(kall).toEqual([
+        {
+          prosedyre: "tilfoyUtleggVedlegg",
+          input: { id: "v-r", sheetUtleggId: "ut-v-r", fileUrl: "/uploads/privat/r.jpg", fileName: "v-r.jpg", mimeType: "image/jpeg", fileSize: 321 },
+        },
+        {
+          prosedyre: "tilfoyTilleggVedlegg",
+          input: { id: "vt-r", sheetTilleggId: "tl-r", fileUrl: "/uploads/privat/t.jpg", fileName: "t.jpg", mimeType: "image/jpeg", fileSize: 9 },
+        },
+      ]);
+      expect(vedleggFor("utlegg", "v-r")?.registrert).toBeGreaterThan(0);
+      expect(vedleggFor("tillegg", "vt-r")?.registrert).toBeGreaterThan(0);
+    });
+
+    it("feil fra serveren svelges — vedlegget står ubekreftet til neste sync", async () => {
+      seedUtleggMedVedlegg({ sedelId: "s-f", status: "returned", vedleggId: "v-f", serverUrl: "/uploads/privat/f.jpg", registrert: null });
+      const kall: Kall[] = [];
+      const res = await syncTimer(klientMedVedlegg(kall, true), "u1");
+      expect(kall).toHaveLength(1);
+      expect(res.feil).toBeUndefined();
+      expect(vedleggFor("utlegg", "v-f")?.registrert).toBeNull();
+    });
+
+    it("negativkontroll: registrert, ikke opplastet eller innsendt sedel røres ikke", async () => {
+      seedUtleggMedVedlegg({ sedelId: "s-1", status: "draft", vedleggId: "v-reg", serverUrl: "/uploads/privat/a.jpg", registrert: 1234 });
+      seedUtleggMedVedlegg({ sedelId: "s-2", status: "draft", vedleggId: "v-venter", serverUrl: null, registrert: null });
+      seedUtleggMedVedlegg({ sedelId: "s-3", status: "sent", vedleggId: "v-sendt", serverUrl: "/uploads/privat/c.jpg", registrert: null });
+      const kall: Kall[] = [];
+      await syncTimer(klientMedVedlegg(kall), "u1");
+      expect(kall).toEqual([]);
+      expect(vedleggFor("utlegg", "v-reg")?.registrert).toBe(1234);
+    });
+
+    it("pushEnSedel (kunSedelId) redder ikke — kun full sync", async () => {
+      seedUtleggMedVedlegg({ sedelId: "s-e", status: "draft", vedleggId: "v-e", serverUrl: "/uploads/privat/e.jpg", registrert: null });
+      const kall: Kall[] = [];
+      await pushEnSedel(klientMedVedlegg(kall), "u1", "s-e");
+      expect(kall).toEqual([]);
+    });
   });
 });

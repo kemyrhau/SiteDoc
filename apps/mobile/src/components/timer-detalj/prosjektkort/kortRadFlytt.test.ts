@@ -43,8 +43,11 @@ import { kjorMigreringer } from "../../../db/migreringer";
 import {
   flyttMaskinRad,
   flyttTimerRad,
+  endreVareMengde,
   flyttVareLokalt,
   foelgKobletMaskin,
+  kanEndreVare,
+  slettVarelinje,
   loftByggeplassArv,
   trengerByggeplassLoft,
 } from "./kortRadFlytt";
@@ -278,5 +281,114 @@ describe("RETUR 36c-2 P1 (a2) — løft byggeplass-arv ved «Uten byggeplass»",
     expect(kilde).toMatch(/loftArvVedBehov\(timerModal\.kort\);\s*const felt/);
     const modal = fs.readFileSync(path.join(__dirname, "KortValgModal.tsx"), "utf8");
     expect(modal).toMatch(/kanVelgeUtenByggeplass\([^)]*\): boolean \{\s*return true;/);
+  });
+});
+
+describe("Punkt 7 — «Endre mengde» og «Slett» i vare-arket", () => {
+  const seed = (id: string, syncStatus: "pending" | "synced") =>
+    db()
+      .insert(vareforbrukLocal)
+      .values({ id, userId: "u1", organizationId: "o1", sheetId: "s1", projectId: "p1", dato: "2026-11-07", vareId: "x", vareNavn: "Pukk", enhet: "t", antall: 2, syncStatus, sistEndretLokalt: 1 })
+      .run();
+
+  it("ventende vare slettes lokalt uten serverkall", async () => {
+    seed("v-p", "pending");
+    const slettVare = vi.fn();
+    const u = await slettVarelinje(db(), { id: "v-p", projectId: "p1", syncStatus: "pending" }, { erPaaNettet: false, slettVare });
+    expect(u).toEqual({ utfall: "ok" });
+    expect(slettVare).not.toHaveBeenCalled();
+    expect(vare("v-p")).toBeUndefined();
+  });
+
+  it("synket vare kaller slett og fjernes lokalt", async () => {
+    seed("v-s", "synced");
+    const slettVare = vi.fn().mockResolvedValue(undefined);
+    const u = await slettVarelinje(db(), { id: "v-s", projectId: "p1", syncStatus: "synced" }, { erPaaNettet: true, slettVare });
+    expect(u).toEqual({ utfall: "ok" });
+    expect(slettVare).toHaveBeenCalledWith("v-s");
+    expect(vare("v-s")).toBeUndefined();
+  });
+
+  it("vare kjent bare fra server (uten syncStatus) kaller slett; NOT_FOUND regnes som slettet", async () => {
+    const slettVare = vi.fn().mockRejectedValue({ data: { code: "NOT_FOUND" } });
+    const u = await slettVarelinje(db(), { id: "v-srv", projectId: "p1" }, { erPaaNettet: true, slettVare });
+    expect(u).toEqual({ utfall: "ok" });
+    expect(slettVare).toHaveBeenCalledWith("v-srv");
+  });
+
+  it("negativkontroll: synket vare offline → «offline», ingen kall, raden står", async () => {
+    seed("v-s", "synced");
+    const slettVare = vi.fn();
+    const u = await slettVarelinje(db(), { id: "v-s", projectId: "p1", syncStatus: "synced" }, { erPaaNettet: false, slettVare });
+    expect(u).toEqual({ utfall: "offline" });
+    expect(slettVare).not.toHaveBeenCalled();
+    expect(vare("v-s")).toBeDefined();
+  });
+
+  it("negativkontroll: serverfeil → serverFeil, raden står lokalt", async () => {
+    seed("v-s", "synced");
+    const slettVare = vi.fn().mockRejectedValue(new Error("Vareforbruket er attestert og kan ikke endres"));
+    const u = await slettVarelinje(db(), { id: "v-s", projectId: "p1", syncStatus: "synced" }, { erPaaNettet: true, slettVare });
+    expect(u).toEqual({ utfall: "serverFeil", melding: "Vareforbruket er attestert og kan ikke endres" });
+    expect(vare("v-s")).toBeDefined();
+  });
+
+  it("ventende vare: mengden endres lokalt uten serverkall", async () => {
+    seed("v-p", "pending");
+    const oppdaterVare = vi.fn();
+    const u = await endreVareMengde(db(), { id: "v-p", projectId: "p1", syncStatus: "pending" }, 5.5, { erPaaNettet: false, oppdaterVare });
+    expect(u).toEqual({ utfall: "ok" });
+    expect(oppdaterVare).not.toHaveBeenCalled();
+    expect(vare("v-p")).toMatchObject({ antall: 5.5, syncStatus: "pending" });
+    expect(vare("v-p").sistEndretLokalt).toBeGreaterThan(1);
+  });
+
+  it("synket vare: oppdater kalles med ny mengde, så lokal kopi", async () => {
+    seed("v-s", "synced");
+    const oppdaterVare = vi.fn().mockResolvedValue(undefined);
+    const u = await endreVareMengde(db(), { id: "v-s", projectId: "p1", syncStatus: "synced" }, 3, { erPaaNettet: true, oppdaterVare });
+    expect(u).toEqual({ utfall: "ok" });
+    expect(oppdaterVare).toHaveBeenCalledWith({ id: "v-s", antall: 3 });
+    expect(vare("v-s")).toMatchObject({ antall: 3, syncStatus: "synced" });
+  });
+
+  it("negativkontroll: synket vare offline eller serverfeil → ingen lokal endring", async () => {
+    seed("v-s", "synced");
+    const oppdaterVare = vi.fn().mockRejectedValue(new Error("nei"));
+    expect(await endreVareMengde(db(), { id: "v-s", projectId: "p1", syncStatus: "synced" }, 3, { erPaaNettet: false, oppdaterVare })).toEqual({ utfall: "offline" });
+    expect(oppdaterVare).not.toHaveBeenCalled();
+    expect(await endreVareMengde(db(), { id: "v-s", projectId: "p1", syncStatus: "synced" }, 3, { erPaaNettet: true, oppdaterVare })).toEqual({ utfall: "serverFeil", melding: "nei" });
+    expect(vare("v-s").antall).toBe(2);
+  });
+
+  it("negativkontroll: mengde ≤ 0 eller ikke et tall → uendret, ingen skriving", async () => {
+    seed("v-p", "pending");
+    const oppdaterVare = vi.fn();
+    for (const n of [0, -1, Number.NaN]) {
+      expect(await endreVareMengde(db(), { id: "v-p", projectId: "p1", syncStatus: "pending" }, n, { erPaaNettet: true, oppdaterVare })).toEqual({ utfall: "uendret" });
+    }
+    expect(vare("v-p").antall).toBe(2);
+  });
+
+  it("kanEndreVare: redigerbar vare får knapper, også koblet", () => {
+    expect(kanEndreVare({ id: "v", projectId: "p1", syncStatus: "synced" }, true)).toBe(true);
+    expect(kanEndreVare({ id: "v", projectId: "p1", syncStatus: "pending" }, true)).toBe(true);
+    expect(kanEndreVare({ id: "v", projectId: "p1" }, true)).toBe(true);
+  });
+
+  it("negativkontroll: låst vare (attestert, avvist, ikke redigerbar) får ingen knapper", () => {
+    expect(kanEndreVare({ id: "v", projectId: "p1", syncStatus: "synced", attestert: true }, true)).toBe(false);
+    expect(kanEndreVare({ id: "v", projectId: "p1", syncStatus: "avvist" }, true)).toBe(false);
+    expect(kanEndreVare({ id: "v", projectId: "p1", syncStatus: "synced" }, false)).toBe(false);
+  });
+
+  it("kildevakt: arket styrer knappene med kanEndreVare og bekrefter sletting i BekreftSlettModal", async () => {
+    const fs = await import("node:fs");
+    const kilde = fs.readFileSync(path.join(__dirname, "ProsjektkortDagsoversikt.tsx"), "utf8");
+    expect(kilde).toMatch(/kanEndreVare\(vareValgt/);
+    expect(kilde).toMatch(/<BekreftSlettModal/);
+    expect(kilde).toMatch(/slettVarelinje\(/);
+    expect(kilde).toMatch(/endreVareMengde\(/);
+    expect(kilde).toMatch(/trpc\.vareforbruk\.slett\.useMutation/);
   });
 });

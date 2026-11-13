@@ -121,6 +121,38 @@ describe("utledKortByggeplass", () => {
       ),
     ).toEqual({ type: "flere", antall: 2 });
   });
+
+  // Telefontest A funn 3: arv fra sedelens byggeplass gjelder bare når den
+  // hører til kortets prosjekt — samme regel som radByggeplassLinje (web).
+  const prosjektAv = (id: string) =>
+    ({ "bp-a": "prosjekt-a", "bp-b": "prosjekt-b" })[id] ?? null;
+
+  it("🔴 arvet rad på kort B med sedel-byggeplass i prosjekt A → ingen", () => {
+    expect(
+      utledKortByggeplass([t(1)], "bp-a", {
+        projectId: "prosjekt-b",
+        byggeplassProsjekt: prosjektAv,
+      }),
+    ).toEqual({ type: "ingen" });
+  });
+
+  it("negativkontroll: arvet rad på kort i samme prosjekt → en", () => {
+    expect(
+      utledKortByggeplass([t(1)], "bp-a", {
+        projectId: "prosjekt-a",
+        byggeplassProsjekt: prosjektAv,
+      }),
+    ).toEqual({ type: "en", id: "bp-a" });
+  });
+
+  it("egen byggeplass på raden teller uansett prosjektsjekken", () => {
+    expect(
+      utledKortByggeplass([t(1, { byggeplassId: "bp-a" }), t(1)], "bp-a", {
+        projectId: "prosjekt-b",
+        byggeplassProsjekt: prosjektAv,
+      }),
+    ).toEqual({ type: "en", id: "bp-a" });
+  });
 });
 
 describe("kortStatus", () => {

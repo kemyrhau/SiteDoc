@@ -189,6 +189,8 @@ export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 export {
   byggForsonInputFraValg,
   parForslagMotSedel,
+  aktivtHelhetsvalg,
+  helhetsvalgNokler,
   overlappBlokkererAttestering,
 } from "./forsonValg";
 export type {
@@ -200,6 +202,8 @@ export type {
   ForsonInput,
   OverlappSlot,
 } from "./forsonValg";
+export { parForRelink, planleggLinjeRelink } from "./forsonRelink";
+export type { RelinkPar, RelinkLinje, RelinkData, RelinkPlan } from "./forsonRelink";
 export { radInnholdLikt } from "./radInnhold";
 export type { RadInnhold } from "./radInnhold";
 export { finnSedlerÅSlette } from "./timerSyncSletting";
@@ -511,6 +515,7 @@ export {
   sumIDag,
   dagSummer,
   utledKortByggeplass,
+  type KortByggeplassArv,
   kortStatus,
   trafikklysSone,
   visVareforbrukKnapp,

@@ -18,6 +18,10 @@ Kjernelogikk for offline bildeopplasting:
 4. Ved suksess: server-URL erstatter lokal URL i feltdata, lokal fil slettes
 5. Ved nettverksovergang: køen starter automatisk
 
+### Kvitteringer (timer: tillegg/utlegg)
+- Køraden settes ikke `fullfort` før serveren har bekreftet registreringen (`registrerBildeIDatabase` gir utfall). 404 eller nettfeil: `venter` med `serverUrl` på køraden, og neste forsøk registrerer uten ny opplasting. Lokalfila slettes først etter bekreftelse.
+- `varsleKoen()` (`lib/koTrigger.ts`) fra timerSync vekker køen og nullstiller backoff — se [timer.md § Telefontest A/B](../../../../docs/claude/timer.md)
+
 ### Callback-system
 - `registrerCallback(id, fn)` lar `useSjekklisteSkjema`/`useOppgaveSkjema` lytte på URL-oppdateringer
 - `dokumentType` (`"sjekkliste"` | `"oppgave"`) identifiserer kilde i callback

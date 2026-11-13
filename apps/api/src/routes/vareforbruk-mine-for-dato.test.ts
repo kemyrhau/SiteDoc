@@ -69,6 +69,21 @@ describe("vareforbruk.hentMineForDato", () => {
     expect(res[0]!.antall).toBe(2.5);
   });
 
+  it("punkt 7: attestert vare merkes låst uten at snapshotet sendes", async () => {
+    projectFindMany.mockResolvedValue([{ id: "p1" }]);
+    const { ctx, findMany } = lagCtx([
+      { id: "v1", projectId: "p1", byggeplassId: null, externalCostObjectId: null, dagsseddelId: null, sheetTimerId: null, antall: "1", attestertSnapshot: { pris: 10 }, vare: { id: "a", navn: "Grus", enhet: "m3" } },
+      { id: "v2", projectId: "p1", byggeplassId: null, externalCostObjectId: null, dagsseddelId: null, sheetTimerId: null, antall: "1", attestertSnapshot: null, vare: { id: "a", navn: "Grus", enhet: "m3" } },
+    ]);
+    const res = await vareforbrukRouter
+      .createCaller(ctx)
+      .hentMineForDato({ organizationId: ORG, dato: "2026-11-05" });
+    expect(findMany.mock.calls[0]![0].select.attestertSnapshot).toBe(true);
+    expect(res.map((r) => r.attestert)).toEqual([true, false]);
+    // Negativkontroll: snapshotet (pris o.l.) forlater aldri serveren.
+    expect(res.every((r) => !("attestertSnapshot" in r))).toBe(true);
+  });
+
   it("firma uten prosjekter gir tom liste uten å spørre varelageret", async () => {
     projectFindMany.mockResolvedValue([]);
     const { ctx, findMany } = lagCtx();

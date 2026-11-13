@@ -1,4 +1,4 @@
-import { eq, and, gt, gte, lte, inArray, isNull } from "drizzle-orm";
+import { eq, and, gt, gte, lte, inArray, isNull, isNotNull } from "drizzle-orm";
 import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
@@ -15,6 +15,7 @@ import {
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
+import { varsleKoen } from "../lib/koTrigger";
 import type { LokalDb } from "./dagsforslagInput";
 
 /**
@@ -661,7 +662,11 @@ async function kjorTimerSync(
                 aarsak === "overlapp"
                   ? i18n.t("timer.sync.pcOgsaEndret")
                   : (r.feilmelding ?? null),
-              sistSynkronisert: naa,
+              // Telefontest A funn 1: `skrevet: false` = serveren skrev ingenting fra
+              // pushen (heller ikke tillegg/utlegg/maskin). Sist-synket står da, så
+              // forsoningen ser hvilke linjer som aldri ble sendt. Mangler feltet
+              // (eldre server) → som før.
+              ...(r.serverData.skrevet === false ? {} : { sistSynkronisert: naa }),
             })
             .where(eq(dagsseddelLocal.id, målId))
             .run();
@@ -1100,6 +1105,10 @@ async function kjorTimerSync(
       }
     }
   }
+
+  // Telefontest A funn 2: nye rader på serveren → vekk opplastingskøen, så en kvittering
+  // som fikk 404 fordi raden ikke fantes ennå, registreres nå og ikke etter backoff.
+  if (resultat.push.ok + resultat.push.merged > 0) varsleKoen();
 
   if (kunSedelId) return resultat;
 
@@ -1571,7 +1580,8 @@ async function kjorTimerSync(
             .all()[0];
           if (finnes) {
             db.update(sheetTilleggVedleggLocal)
-              .set({ serverUrl: v.fileUrl, sistEndretLokalt: serverTidMs })
+              // Funn 2: serveren har vedlegget → bekreftet.
+              .set({ serverUrl: v.fileUrl, registrert: serverTidMs, sistEndretLokalt: serverTidMs })
               .where(eq(sheetTilleggVedleggLocal.id, v.id))
               .run();
           } else {
@@ -1584,6 +1594,7 @@ async function kjorTimerSync(
                 filnavn: v.fileName,
                 mimeType: v.mimeType,
                 filstorrelse: v.fileSize,
+                registrert: serverTidMs,
                 sistEndretLokalt: serverTidMs,
               })
               .run();
@@ -1646,7 +1657,8 @@ async function kjorTimerSync(
             .all()[0];
           if (finnes) {
             db.update(sheetUtleggVedleggLocal)
-              .set({ serverUrl: v.fileUrl, sistEndretLokalt: serverTidMs })
+              // Funn 2: serveren har vedlegget → bekreftet.
+              .set({ serverUrl: v.fileUrl, registrert: serverTidMs, sistEndretLokalt: serverTidMs })
               .where(eq(sheetUtleggVedleggLocal.id, v.id))
               .run();
           } else {
@@ -1659,6 +1671,7 @@ async function kjorTimerSync(
                 filnavn: v.fileName,
                 mimeType: v.mimeType,
                 filstorrelse: v.fileSize,
+                registrert: serverTidMs,
                 sistEndretLokalt: serverTidMs,
               })
               .run();
@@ -1720,7 +1733,109 @@ async function kjorTimerSync(
     resultat.feil = e instanceof Error ? e.message : "Pull feilet";
   }
 
+  await reddUregistrerteKvitteringer(db, klient, tidsavbruddMs);
+
   return resultat;
+}
+
+/**
+ * Telefontest A funn 2 — redning for kvitteringer køen allerede har gitt fra seg: fila er
+ * lastet opp (`serverUrl`), men serveren har aldri bekreftet raden (`registrert` er null).
+ * Det var tilstanden før funn 2 (registreringen kunne feile stille og lokalfila ble slettet
+ * likevel). Registreres på nytt via den idempotente serverruta (upsert på id), men kun på
+ * sedler som fortsatt kan endres (draft/returned). Feil svelges — neste sync prøver igjen.
+ */
+async function reddUregistrerteKvitteringer(
+  db: NonNullable<ReturnType<typeof hentDatabase>>,
+  klient: TrpcKlient,
+  tidsavbruddMs: number,
+): Promise<void> {
+  const aapne = ["draft", "returned"] as const;
+  const utlegg = db
+    .select({
+      id: sheetUtleggVedleggLocal.id,
+      radId: sheetUtleggVedleggLocal.sheetUtleggId,
+      serverUrl: sheetUtleggVedleggLocal.serverUrl,
+      filnavn: sheetUtleggVedleggLocal.filnavn,
+      mimeType: sheetUtleggVedleggLocal.mimeType,
+      filstorrelse: sheetUtleggVedleggLocal.filstorrelse,
+    })
+    .from(sheetUtleggVedleggLocal)
+    .innerJoin(sheetUtleggLocal, eq(sheetUtleggLocal.id, sheetUtleggVedleggLocal.sheetUtleggId))
+    .innerJoin(dagsseddelLocal, eq(dagsseddelLocal.id, sheetUtleggLocal.dagsseddelId))
+    .where(
+      and(
+        isNotNull(sheetUtleggVedleggLocal.serverUrl),
+        isNull(sheetUtleggVedleggLocal.registrert),
+        inArray(dagsseddelLocal.status, aapne),
+      ),
+    )
+    .all();
+  for (const v of utlegg) {
+    if (!v.serverUrl) continue;
+    try {
+      await medTimeout(
+        klient.timer.dagsseddel.tilfoyUtleggVedlegg.mutate({
+          id: v.id,
+          sheetUtleggId: v.radId,
+          fileUrl: v.serverUrl,
+          fileName: v.filnavn,
+          mimeType: v.mimeType,
+          fileSize: v.filstorrelse ?? 0,
+        }),
+        tidsavbruddMs,
+      );
+      db.update(sheetUtleggVedleggLocal)
+        .set({ registrert: Date.now() })
+        .where(eq(sheetUtleggVedleggLocal.id, v.id))
+        .run();
+    } catch (e) {
+      console.warn("[TIMER-SYNC] Utlegg-kvittering ikke registrert:", v.id, e instanceof Error ? e.message : e);
+    }
+  }
+
+  const tillegg = db
+    .select({
+      id: sheetTilleggVedleggLocal.id,
+      radId: sheetTilleggVedleggLocal.sheetTilleggId,
+      serverUrl: sheetTilleggVedleggLocal.serverUrl,
+      filnavn: sheetTilleggVedleggLocal.filnavn,
+      mimeType: sheetTilleggVedleggLocal.mimeType,
+      filstorrelse: sheetTilleggVedleggLocal.filstorrelse,
+    })
+    .from(sheetTilleggVedleggLocal)
+    .innerJoin(sheetTilleggLocal, eq(sheetTilleggLocal.id, sheetTilleggVedleggLocal.sheetTilleggId))
+    .innerJoin(dagsseddelLocal, eq(dagsseddelLocal.id, sheetTilleggLocal.dagsseddelId))
+    .where(
+      and(
+        isNotNull(sheetTilleggVedleggLocal.serverUrl),
+        isNull(sheetTilleggVedleggLocal.registrert),
+        inArray(dagsseddelLocal.status, aapne),
+      ),
+    )
+    .all();
+  for (const v of tillegg) {
+    if (!v.serverUrl) continue;
+    try {
+      await medTimeout(
+        klient.timer.dagsseddel.tilfoyTilleggVedlegg.mutate({
+          id: v.id,
+          sheetTilleggId: v.radId,
+          fileUrl: v.serverUrl,
+          fileName: v.filnavn,
+          mimeType: v.mimeType,
+          fileSize: v.filstorrelse ?? 0,
+        }),
+        tidsavbruddMs,
+      );
+      db.update(sheetTilleggVedleggLocal)
+        .set({ registrert: Date.now() })
+        .where(eq(sheetTilleggVedleggLocal.id, v.id))
+        .run();
+    } catch (e) {
+      console.warn("[TIMER-SYNC] Tillegg-kvittering ikke registrert:", v.id, e instanceof Error ? e.message : e);
+    }
+  }
 }
 
 /**
@@ -1730,9 +1845,20 @@ async function kjorTimerSync(
 export function bekreftConflict(sheetId: string): void {
   const db = hentDatabase();
   if (!db) return;
+  // Telefontest A funn 1: har forsoningen (anvendForsonetLokalt) satt `pending` fordi
+  // tillegg/utlegg/maskin aldri nådde serveren, står `pending` — neste push sender dem.
+  const naa = db
+    .select({ syncStatus: dagsseddelLocal.syncStatus })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .get();
   db.update(dagsseddelLocal)
     // V19-B (B-3): valget er tatt → synced, konflikt-årsak nulles.
-    .set({ syncStatus: "synced", konfliktAarsak: null, feilmelding: null })
+    .set({
+      syncStatus: naa?.syncStatus === "pending" ? "pending" : "synced",
+      konfliktAarsak: null,
+      feilmelding: null,
+    })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
 }

@@ -3,6 +3,8 @@ import {
   byggForsonInputFraValg,
   parForslagMotSedel,
   overlappBlokkererAttestering,
+  aktivtHelhetsvalg,
+  helhetsvalgNokler,
   type ForsonRad,
 } from "./forsonValg";
 
@@ -310,5 +312,49 @@ describe("overlappBlokkererAttestering (C-2 — attester-knappen død ved uavkla
   it("null/undefined → ikke blokkert (normal attestering)", () => {
     expect(overlappBlokkererAttestering(null)).toBe(false);
     expect(overlappBlokkererAttestering(undefined)).toBe(false);
+  });
+});
+
+// Telefontest B funn 4: hvilket helhetsvalg som er aktivt (markering på knappen).
+describe("aktivtHelhetsvalg", () => {
+  const n = ["a", "b"];
+  it("alle «sedel» → sedel", () => {
+    expect(aktivtHelhetsvalg(n, { a: "sedel", b: "sedel" }, "sedel")).toBe("sedel");
+  });
+  it("alle «forslag» → forslag", () => {
+    expect(aktivtHelhetsvalg(n, { a: "forslag", b: "forslag" }, "sedel")).toBe("forslag");
+  });
+  it("ett slot overstyrt → null (blandet)", () => {
+    expect(aktivtHelhetsvalg(n, { a: "forslag" }, "sedel")).toBeNull();
+  });
+  it("ingen valg → default («Behold dagskortet» markert)", () => {
+    expect(aktivtHelhetsvalg(n, {}, "sedel")).toBe("sedel");
+  });
+  it("negativkontroll: ingen valgbare slots → null", () => {
+    expect(aktivtHelhetsvalg([], { a: "sedel" }, "sedel")).toBeNull();
+  });
+  it("virker med mobilens sider (lokal/server)", () => {
+    expect(aktivtHelhetsvalg(["x"], { x: "lokal" }, "server")).toBe("lokal");
+  });
+});
+
+describe("helhetsvalgNokler (web «Bruk mobilen i alle tidsrom»)", () => {
+  it("🔴 tar med slettet_pc-slots, slik mobilen gjør", () => {
+    const sedel = [rad("s1", "07:00", "11:00", 4)];
+    const forslag = [
+      rad("f1", "07:00", "11:30", 4.5),
+      rad("r9", "12:00", "15:00", 3, { grunn: "slettet_pc" }),
+    ];
+    const slots = parForslagMotSedel(sedel, forslag);
+    expect(helhetsvalgNokler(slots).sort()).toEqual(["f1", "r9"]);
+    // Valgt «forslag» for alle → slettet_pc-raden gjenopprettes.
+    const valg = Object.fromEntries(helhetsvalgNokler(slots).map((k) => [k, "forslag" as const]));
+    const input = byggForsonInputFraValg(sedel, forslag, valg);
+    expect(JSON.stringify(input)).toContain("12:00");
+  });
+  it("negativkontroll: ikke-valgbare slots (forslag uten motpart i tid, sedel-kun) er ikke med", () => {
+    const sedel = [rad("s1", "07:00", "11:00", 4)];
+    const forslag = [rad("f2", "16:00", "17:00", 1)];
+    expect(helhetsvalgNokler(parForslagMotSedel(sedel, forslag))).toEqual([]);
   });
 });

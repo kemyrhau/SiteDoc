@@ -365,6 +365,8 @@ describe("V19.9-A syncBatch — versjonssjekk pr. rad (§ 9.6)", () => {
     expect(r.serverData!.rader!.map((x) => x.id)).toContain(RAD_NY);
     expect(forslagData()).toHaveLength(1);
     expect(forslagData()[0]).toMatchObject({ id: RAD_A, grunn: "endret_begge" });
+    // Funn 1: avvik-veien skrev hode, uomstridte rader og linjer.
+    expect(r.serverData!.skrevet).toBe(true);
   });
 
   it("test 7: overlapp i tid + versjonsavvik samtidig → HELE payloaden forslag, ingen skriving (V19.1 forrang)", async () => {
@@ -391,7 +393,7 @@ describe("V19.9-A syncBatch — versjonssjekk pr. rad (§ 9.6)", () => {
     expect(forslagData()).toHaveLength(2);
     const grunnById = Object.fromEntries(forslagData().map((f) => [f.id, f.grunn]));
     expect(grunnById[RAD_A]).toBe("endret_begge");
-    expect(grunnById[RAD_NY]).toBe("overlapp");
+    expect(grunnById[RAD_NY]).toBe("overlapp");    expect(r.serverData!.skrevet).toBe(false); // funn 1: ingenting skrevet
   });
   it("(fabel-vilkår a): hoppOver-rad (stale telefon-kopi) tas IKKE med i overlapp-forslaget", async () => {
     // Server A ligger 10–12 (PC flyttet den, V2). Telefonen pusher sin STALE A 07–09
@@ -460,5 +462,45 @@ describe("V19.9-A grep-vakter (§ 9.6 test 13)", () => {
     // aldri hele lokal.timer.
     expect(dagsseddelKilde).toMatch(/data: skrivTimerListe\.map/);
     expect(dagsseddelKilde).not.toMatch(/tx\.sheetTimer\.createMany\({\s*data: lokal\.timer\.map/);
+  });
+});
+
+describe("Telefontest A funn 1 — push etter forsoning", () => {
+  it("(b) rader på serverens versjon (urørt etter forsoning) + utlegg → ok, utlegget skrives", async () => {
+    const { ctx, txMock } = lagCtx([
+      serverRad({ id: RAD_A, updatedAt: new Date(V2), fraTid: "07:00", tilTid: "15:00" }),
+    ]);
+    // Kategorien finnes i firmaets katalog (ellers avvises pushen før skriving).
+    (ctx as unknown as { prismaTimer: { expenseCategory: { findMany: ReturnType<typeof vi.fn> } } })
+      .prismaTimer.expenseCategory.findMany.mockResolvedValue([{ id: "99999999-9999-9999-9999-0000000000aa" }]);
+    const caller = dagsseddelRouter.createCaller(ctx);
+    const s = sedel([{ id: RAD_A, serverVersjon: V2, endretLokalt: false, fraTid: "07:00", tilTid: "15:00" }]);
+    const res = await caller.syncBatch({
+      sedler: [
+        {
+          ...s,
+          utlegg: [
+            {
+              id: "99999999-9999-9999-9999-000000000001",
+              projectId: PROSJEKT,
+              expenseCategoryId: "99999999-9999-9999-9999-0000000000aa",
+              belop: 250,
+              kommentar: null,
+              byggeplassId: null,
+              externalCostObjectId: null,
+              ordningVedFoering: "utlegg" as const,
+              foertVed: "2026-09-20T10:00:00.000Z",
+            },
+          ],
+        },
+      ],
+    });
+    expect(res.resultater[0]!.feilmelding).toBeUndefined();
+    expect(res.resultater[0]!.resultat).toBe("ok");
+    expect(txMock.sheetUtlegg.createMany).toHaveBeenCalledTimes(1);
+    expect(txMock.sheetUtlegg.createMany.mock.calls[0]![0].data[0]).toMatchObject({
+      id: "99999999-9999-9999-9999-000000000001",
+      belop: 250,
+    });
   });
 });

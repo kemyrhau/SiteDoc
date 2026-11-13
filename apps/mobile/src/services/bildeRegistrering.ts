@@ -2,6 +2,24 @@ import { AUTH_CONFIG } from "../config/auth";
 import { hentSessionToken } from "./auth";
 
 /**
+ * Telefontest A funn 2: utfallet av en registrering. Køen trenger det for kvitteringer —
+ * en kvittering er ikke levert før serveren har bekreftet raden. `ikke_funnet` (404) betyr
+ * typisk at tillegg-/utlegg-raden ikke er synket ennå → prøv igjen, ikke kast bildet.
+ */
+export type RegistreringsUtfall =
+  | { ok: true }
+  | { ok: false; grunn: "nett" | "ikke_funnet" | "hard" | "ingen_token"; status?: number };
+
+/** 401/408/429/5xx og 404 er forbigående for køen; øvrige 4xx er harde (feil input). */
+export function klassifiserStatus(status: number): RegistreringsUtfall {
+  if (status === 404) return { ok: false, grunn: "ikke_funnet", status };
+  if (status === 401 || status === 408 || status === 429 || status >= 500) {
+    return { ok: false, grunn: "nett", status };
+  }
+  return { ok: false, grunn: "hard", status };
+}
+
+/**
  * Registrer et opplastet bilde i server-databasen (images-tabellen).
  * Kalles etter vellykket filopplasting til S3/R2.
  * Bruker direkte HTTP-kall til tRPC (ikke hooks) siden dette
@@ -23,11 +41,11 @@ export async function registrerBildeIDatabase(params: {
   gpsLat?: number | null;
   gpsLng?: number | null;
   gpsAktivert?: boolean;
-}): Promise<void> {
+}): Promise<RegistreringsUtfall> {
   const token = await hentSessionToken();
   if (!token) {
     console.warn("[BILDE-REG] Ingen sesjonstoken — hopper over registrering");
-    return;
+    return { ok: false, grunn: "ingen_token" };
   }
 
   const baseUrl = AUTH_CONFIG.apiUrl;
@@ -90,7 +108,7 @@ export async function registrerBildeIDatabase(params: {
     };
   } else {
     console.warn("[BILDE-REG] Verken sjekklisteId eller oppgaveId — hopper over");
-    return;
+    return { ok: false, grunn: "hard" };
   }
 
   // Fjern undefined-verdier (tRPC godtar ikke explicit undefined)
@@ -118,13 +136,15 @@ export async function registrerBildeIDatabase(params: {
       console.error("[BILDE-REG] Feilet:", respons.status, feilTekst);
       console.error("[BILDE-REG] URL var:", url);
       console.error("[BILDE-REG] Body var:", JSON.stringify(rensetInput));
-      return;
+      return klassifiserStatus(respons.status);
     }
 
     console.log("[BILDE-REG] Registrert:", params.fileName, "→", prosedyre);
+    return { ok: true };
   } catch (feil) {
-    // Ikke-kritisk — bildet er allerede opplastet til S3/R2
+    // Bildet er allerede opplastet; registreringen kan prøves igjen.
     console.warn("[BILDE-REG] Nettverksfeil:", feil instanceof Error ? feil.message : feil);
+    return { ok: false, grunn: "nett" };
   }
 }
 

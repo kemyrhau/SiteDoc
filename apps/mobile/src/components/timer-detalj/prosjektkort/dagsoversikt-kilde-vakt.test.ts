@@ -202,3 +202,18 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
     expect(flat(OVERSIKT)).not.toMatch(/kortLaas=\{\{ byggeplassId: lagretByggeplassForKort/);
   });
 });
+
+// Telefontest A funn 3: kortoverskriften (KortHode) bruker prosjektsjekken på
+// arv bare når kallestedet gir `byggeplassProsjekt`; uten prop = dagens oppførsel.
+describe("KortHode — arv på tvers av prosjekt (funn 3)", () => {
+  const HODE = utenKommentarer(les("ProsjektkortSamleside.tsx"));
+  it("kortskjermen sender byggeplassProsjekt til KortHode", () => {
+    expect(flat(KORT)).toMatch(/<KortHode[^>]*byggeplassProsjekt=\{byggeplassProsjekt\}/);
+  });
+  it("vakt: propen er valgfri, og uten den kalles utleder uten arv-sjekk", () => {
+    expect(HODE).toContain("byggeplassProsjekt?: (byggeplassId: string) => string | null;");
+    expect(flat(HODE)).toContain(
+      "byggeplassProsjekt ? { projectId, byggeplassProsjekt } : undefined",
+    );
+  });
+});

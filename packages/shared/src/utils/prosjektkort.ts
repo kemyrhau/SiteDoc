@@ -113,6 +113,17 @@ export type KortByggeplass =
   | { type: "flere"; antall: number };
 
 /**
+ * Prosjektsjekk for arv: med `arv` satt teller sedelens byggeplass bare for
+ * rader uten egen når den hører til kortets prosjekt (samme regel som webens
+ * `radByggeplassLinje`). Ukjent byggeplass teller ikke. Uten `arv`: dagens
+ * oppførsel (arv uten sjekk).
+ */
+export interface KortByggeplassArv {
+  projectId: string;
+  byggeplassProsjekt: (byggeplassId: string) => string | null | undefined;
+}
+
+/**
  * Distinkt byggeplass over kortets timer- og maskinrader. Rad uten egen
  * byggeplass arver sedelens (`null` = dagens byggeplass). Erstattede rader
  * teller ikke.
@@ -120,11 +131,15 @@ export type KortByggeplass =
 export function utledKortByggeplass(
   rader: readonly { byggeplassId: string | null; attestertStatus: string | null }[],
   sedelByggeplassId: string | null,
+  arv?: KortByggeplassArv,
 ): KortByggeplass {
+  const arvGjelder =
+    sedelByggeplassId != null &&
+    (!arv || arv.byggeplassProsjekt(sedelByggeplassId) === arv.projectId);
   const ider = new Set<string>();
   for (const r of rader) {
     if (!gjelder(r)) continue;
-    const id = r.byggeplassId ?? sedelByggeplassId;
+    const id = r.byggeplassId ?? (arvGjelder ? sedelByggeplassId : null);
     if (id) ider.add(id);
   }
   if (ider.size === 0) return { type: "ingen" };
