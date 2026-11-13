@@ -511,6 +511,7 @@ export {
   sumIDag,
   dagSummer,
   utledKortByggeplass,
+  type KortByggeplassArv,
   kortStatus,
   trafikklysSone,
   visVareforbrukKnapp,

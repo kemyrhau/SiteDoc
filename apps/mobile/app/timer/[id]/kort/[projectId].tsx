@@ -292,6 +292,19 @@ export default function ProsjektkortSkjerm() {
     );
   }, []);
 
+  // Funn 3: byggeplassens prosjekt til kortoverskriften (arv på tvers av prosjekt teller ikke).
+  const byggeplassProsjekt = useCallback((byggeplassId: string): string | null => {
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select({ projectId: byggeplassLocal.projectId })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, byggeplassId))
+        .all()[0]?.projectId ?? null
+    );
+  }, []);
+
   if (!sedel) {
     return (
       <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
@@ -463,6 +476,7 @@ export default function ProsjektkortSkjerm() {
             tillegg={kTillegg.length}
             sedelByggeplassId={sedel.byggeplassId ?? null}
             byggeplassNavn={byggeplassNavn}
+            byggeplassProsjekt={byggeplassProsjekt}
           />
         </View>
 

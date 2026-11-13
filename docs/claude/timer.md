@@ -792,6 +792,12 @@ Plan: `relay/inbox-orkestrator.md` «PLAN — Utkast for prosjektkort», Kenneth
 - **Ikke gjenopprettet:** `sluttGodkjent` — anslått slutt må godkjennes på nytt ved gjenåpning. Kjent kant: fjernes et utlegg og appen drepes innen 2 s, står utlegget med kvittering igjen i utkastet (fila er ikke slettet, så utkastet er helt).
 - Tester: `migreringer.utkastLocal.test.ts` (T1), `prosjektkortUtkast.test.ts` (T2–T5, T8, T10, T12, GPS-rydding), `bekreftDagUtkast.test.ts` (T6 Bekreft sletter, T7 utkast urørt ved hvert stopp, T9 Avslutt uten timer, T11 gjenoppretting, V1–V6 kildevakter: `beforeRemove`, `AppState`, «Fortsett senere» skriver før `router.back`, utkast-eide kvitteringer spares, timer avbrytes før Bekreft, gjenoppretting kaller ikke `endret()`). `utkastRetur.test.ts` (V10 utsatt kvitteringssletting, V12 felles `forberedSluttDag`, 9 tester). Vaktene i `glemtDag.test.ts` (kvitteringsrydding, M9 nå med callback-grenen) og `manuellDag.test.ts` (ecoId-nullstilling) er oppdatert til den nye formen.
 
+### Telefontest A/B — forsoning og kvittering — 🟡 `fix/timer-forsoning-ab` (2026-11-13, ikke merget)
+
+Ordre fra orkestrator 2026-11-13 (Kenneth «Ja, alle fire»). Rotårsakene står i `relay/inbox-orkestrator.md` (SJEKKPUNKT 1 og 2, telefontest A).
+
+- **Funn 3 — kortoverskriften:** `utledKortByggeplass(rader, sedelByggeplassId, arv?)` (`packages/shared/src/utils/prosjektkort.ts`) tar valgfritt `arv: { projectId, byggeplassProsjekt }`. Med `arv` teller sedelens byggeplass for rader uten egen bare når den hører til kortets prosjekt. Ukjent byggeplass teller ikke. Det er samme regel som `radByggeplassLinje` (`apps/web/src/lib/timerByggeplass.ts`). Web-overskriften (`dashbord/timer/[id]/page.tsx`) og mobilens `KortHode` (via `byggeplassProsjekt` fra `byggeplass_local`, `kort/[projectId].tsx`) sender `arv`. Uten `arv` er oppførselen som før (`KortHode`-propen er valgfri). Tester: `prosjektkort.test.ts` (rød: arvet rad på kort B gir `ingen`; negativkontroll: samme prosjekt gir `en`), vakt i `dagsoversikt-kilde-vakt.test.ts`.
+
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 
 Timer er en **firmamodul**: data eies av firma + arbeider, med `projectId` som etikett på radene. Isolasjonen er på **organisasjon (firma)**, ikke prosjekt-medlemskap (jf. to-produkt-modellen i [terminologi.md § 0](terminologi.md) og OPPSUMMERING-timer-arkitektur § D/G1).

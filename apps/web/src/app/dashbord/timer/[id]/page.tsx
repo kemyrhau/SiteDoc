@@ -914,6 +914,7 @@ export default function DagsseddelDetaljSide() {
           varer={(mineVarer ?? []) as KortVare[]}
           sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
           byggeplassNavn={byggeplassNavn}
+          byggeplasser={byggeplasser}
           erRedigerbar={erRedigerbar}
           kanLeggeTilKort={ledigeProsjekter.length > 0}
           ramme={{
@@ -1375,6 +1376,7 @@ function ProsjektkortSamleside({
   varer,
   sedelByggeplassId,
   byggeplassNavn,
+  byggeplasser,
   erRedigerbar,
   kanLeggeTilKort,
   ramme,
@@ -1403,6 +1405,8 @@ function ProsjektkortSamleside({
   varer: KortVare[];
   sedelByggeplassId: string | null;
   byggeplassNavn: Map<string, string>;
+  /** Funn 3: byggeplassens prosjekt, så arv på tvers av prosjekt ikke teller i kortoverskriften. */
+  byggeplasser: ByggeplassValg[] | undefined;
   erRedigerbar: boolean;
   kanLeggeTilKort: boolean;
   ramme: {
@@ -1469,7 +1473,10 @@ function ProsjektkortSamleside({
           const kMaskin = maskinRader.filter((r) => r.projectId === projectId);
           const kVarer = varer.filter((v) => v.projectId === projectId);
           const summer = beregnKortSummer(kTimer, kMaskin, kVarer);
-          const bp = utledKortByggeplass([...kTimer, ...kMaskin], sedelByggeplassId);
+          const bp = utledKortByggeplass([...kTimer, ...kMaskin], sedelByggeplassId, {
+            projectId,
+            byggeplassProsjekt: (id) => byggeplasser?.find((b) => b.id === id)?.projectId,
+          });
           const status = kortStatus([...kTimer, ...kMaskin]);
           const aapen = aapentKort === projectId;
           const varerTekst =

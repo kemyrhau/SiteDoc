@@ -206,6 +206,7 @@ export function KortHode({
   tillegg = 0,
   sedelByggeplassId,
   byggeplassNavn,
+  byggeplassProsjekt,
   visChevron = false,
 }: {
   projectId: string;
@@ -218,6 +219,12 @@ export function KortHode({
   tillegg?: number;
   sedelByggeplassId: string | null;
   byggeplassNavn: (byggeplassId: string) => string | null;
+  /**
+   * Telefontest A funn 3: byggeplassens prosjekt. Satt → arv fra sedelens
+   * byggeplass teller bare når den hører til kortets prosjekt (som web).
+   * Default undefined = dagens oppførsel.
+   */
+  byggeplassProsjekt?: (byggeplassId: string) => string | null;
   visChevron?: boolean;
 }) {
   const { t } = useTranslation();
@@ -226,7 +233,11 @@ export function KortHode({
   const kMaskin = maskin.filter((r) => r.projectId === projectId);
   const kVarer = telteKortVarer(varer, projectId);
   const summer = beregnKortSummer(kTimer, kMaskin, kVarer);
-  const bp = utledKortByggeplass([...kTimer, ...kMaskin], sedelByggeplassId);
+  const bp = utledKortByggeplass(
+    [...kTimer, ...kMaskin],
+    sedelByggeplassId,
+    byggeplassProsjekt ? { projectId, byggeplassProsjekt } : undefined,
+  );
   const status = kortStatus([...kTimer, ...kMaskin]);
   const chips: [string, string][] = [
     [t("timer.prosjektkort.kolonne.arbeid"), `${formatKortTall(summer.arbeid)} ${enhet}`],
