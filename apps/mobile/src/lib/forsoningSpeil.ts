@@ -12,15 +12,17 @@
  *    en løst konflikt R10 = ny falsk konflikt).
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   byggForsonInputFraValg,
+  planleggLinjeRelink,
+  type RelinkPar,
   type ForsonRad as DeltForsonRad,
   type ForsonSide,
   type ForsonInput,
 } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
-import { dagsseddelLocal, sheetTimerLocal } from "../db/schema";
+import { dagsseddelLocal, sheetMachineLocal, sheetTimerLocal } from "../db/schema";
 import type { Side, TidsromRad } from "./dagskortSammenligning";
 
 /** Narrow form av server-radene `forsonDagskort` returnerer (unngår dyp tRPC-union / TS2589). */
@@ -39,6 +41,9 @@ export type ForsonetServerRad = {
   // V19.9 (RETUR 1, vilkår 2): radversjonen serveren skrev (SheetTimer.updatedAt).
   // tRPC kan levere ISO-streng eller Date avhengig av transformer → normaliseres.
   updatedAt: string | Date;
+  // Telefontest B funn 5: forslag-id-er (= telefonens rad-id-er) serveren slo inn i denne
+  // raden. Mangler mot eldre API → ingen lokal relink (tåles).
+  relinketFra?: string[];
 };
 
 /** Normaliser en tRPC-levert tidsverdi (streng/Date) → ISO-ms (= server_versjon-format). */
@@ -89,6 +94,14 @@ export function anvendForsonetLokalt(
 ): void {
   const db = hentDatabase();
   if (!db) return;
+  // Funn 5: telefonens egne rader (forslagene) leses FØR de slettes — relinken trenger
+  // forslagets verdier for likhetsregelen.
+  const lokaleFoer = db
+    .select()
+    .from(sheetTimerLocal)
+    .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+    .all();
+  relinkLokaleLinjer(db, sheetId, lokaleFoer, rader, naa);
   db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).run();
   for (const r of rader) {
     db.insert(sheetTimerLocal)
@@ -115,4 +128,80 @@ export function anvendForsonetLokalt(
     .set({ sistSynkronisert: naa })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
+}
+
+type Db = NonNullable<ReturnType<typeof hentDatabase>>;
+type LokalTimerRad = typeof sheetTimerLocal.$inferSelect;
+
+function lokalTilForsonRad(r: {
+  id: string;
+  projectId: string | null;
+  byggeplassId: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  externalCostObjectId: string | null;
+  timer: number | string;
+  fraTid: string | null;
+  tilTid: string | null;
+}): DeltForsonRad {
+  return {
+    id: r.id,
+    projectId: r.projectId ?? "",
+    byggeplassId: r.byggeplassId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    externalCostObjectId: r.externalCostObjectId,
+    timer: Number(r.timer),
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+  };
+}
+
+/**
+ * Telefontest B funn 5: lokale maskinlinjer som hang på en telefonrad serveren slo inn i
+ * en annen rad (`relinketFra`), følger raden som vant — samme delte likhetsregel som
+ * serveren (`planleggLinjeRelink`). Uten `relinketFra` (eldre API) skjer ingenting.
+ */
+function relinkLokaleLinjer(
+  db: Db,
+  sheetId: string,
+  lokaleFoer: readonly LokalTimerRad[],
+  rader: readonly ForsonetServerRad[],
+  naa: number,
+): void {
+  const lokalPaaId = new Map(lokaleFoer.map((r) => [r.id, r]));
+  const par: RelinkPar[] = [];
+  for (const r of rader) {
+    for (const fraId of r.relinketFra ?? []) {
+      const fra = lokalPaaId.get(fraId);
+      if (fra) par.push({ fra: lokalTilForsonRad(fra), tilId: r.id });
+    }
+  }
+  if (par.length === 0) return;
+  const linjer = db
+    .select()
+    .from(sheetMachineLocal)
+    .where(
+      and(
+        eq(sheetMachineLocal.dagsseddelId, sheetId),
+        inArray(
+          sheetMachineLocal.sheetTimerId,
+          par.map((p) => p.fra.id),
+        ),
+      ),
+    )
+    .all();
+  // Lokal projectId null = arv fra sedelen; normaliseres likt med radene (""), så en
+  // linje som arvet sammen med telefonraden også følger raden som vant.
+  const plan = planleggLinjeRelink(
+    par,
+    linjer.map((l) => ({ ...l, projectId: l.projectId ?? "" })),
+    rader.map(lokalTilForsonRad),
+  );
+  for (const p of plan) {
+    db.update(sheetMachineLocal)
+      .set({ ...p.data, sistEndretLokalt: naa })
+      .where(eq(sheetMachineLocal.id, p.id))
+      .run();
+  }
 }

@@ -202,6 +202,8 @@ export type {
   ForsonInput,
   OverlappSlot,
 } from "./forsonValg";
+export { parForRelink, planleggLinjeRelink } from "./forsonRelink";
+export type { RelinkPar, RelinkLinje, RelinkData, RelinkPlan } from "./forsonRelink";
 export { radInnholdLikt } from "./radInnhold";
 export type { RadInnhold } from "./radInnhold";
 export { finnSedlerÅSlette } from "./timerSyncSletting";

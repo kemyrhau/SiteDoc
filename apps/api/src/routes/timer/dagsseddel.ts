@@ -68,6 +68,10 @@ import {
   hhmmTilMin,
   PAUSE_TERSKEL_TIMER,
   sisteUnikeMaskiner,
+  parForRelink,
+  planleggLinjeRelink,
+  type ForsonRad,
+  type RelinkPar,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -1642,6 +1646,87 @@ async function validerSplittFelles(
   }
 }
 
+/** Rad-utsnitt (SheetTimer/SheetTimerForslag) → ForsonRad for paring og relink. */
+type ForsonKilde = {
+  id: string;
+  projectId: string;
+  byggeplassId: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  timer: Prisma.Decimal | number;
+  fraTid: string | null;
+  tilTid: string | null;
+  externalCostObjectId: string | null;
+  grunn?: string | null;
+};
+function tilForsonRad(r: ForsonKilde): ForsonRad {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    byggeplassId: r.byggeplassId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: Number(r.timer),
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    externalCostObjectId: r.externalCostObjectId,
+    grunn: (r.grunn ?? null) as ForsonRad["grunn"],
+  };
+}
+
+/**
+ * Telefontest B funn 5: les paringen FØR rad-skrivingene (samme `parForslagMotSedel` som
+ * skjermen). Kun V19-A-par med ulike id-er gir relink.
+ */
+async function lesRelinkPar(tx: Prisma.TransactionClient, sheetId: string): Promise<RelinkPar[]> {
+  const [foer, forslag] = await Promise.all([
+    tx.sheetTimer.findMany({ where: { sheetId } }),
+    tx.sheetTimerForslag.findMany({ where: { sheetId } }),
+  ]);
+  return parForRelink((foer ?? []).map(tilForsonRad), (forslag ?? []).map(tilForsonRad));
+}
+
+/**
+ * Funn 5: maskinlinjer som hang på et forslag, følger raden som vant. `sheetTimerId`
+ * relinkes alltid; prosjekt/byggeplass/underprosjekt bare når linjen var lik forslaget
+ * (`planleggLinjeRelink`). Attesterte linjer røres aldri. Varer relinkes IKKE her —
+ * mobilen sender dem først etter forsoningen (orkestrator-STOPP 2026-11-13).
+ * Returnerer sluttradene med `relinketFra` (forslag-id-er slått inn i raden), så
+ * mobilen kan relinke sine lokale linjer. Fortsatt en array: eldre apper itererer svaret.
+ */
+async function utforLinjeRelink<R extends ForsonKilde>(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  par: readonly RelinkPar[],
+  slutt: R[],
+): Promise<Array<R & { relinketFra: string[] }>> {
+  if (par.length > 0) {
+    const linjer = await tx.sheetMachine.findMany({
+      where: { sheetId, sheetTimerId: { in: par.map((p) => p.fra.id) } },
+      select: {
+        id: true,
+        sheetTimerId: true,
+        projectId: true,
+        byggeplassId: true,
+        externalCostObjectId: true,
+        attestertStatus: true,
+      },
+    });
+    const plan = planleggLinjeRelink(
+      par,
+      linjer.filter((l) => l.attestertStatus !== "attestert"),
+      slutt.map(tilForsonRad),
+    );
+    for (const p of plan) {
+      await tx.sheetMachine.update({ where: { id: p.id }, data: p.data });
+    }
+  }
+  return slutt.map((r) => ({
+    ...r,
+    relinketFra: par.filter((p) => p.tilId === r.id).map((p) => p.fra.id),
+  }));
+}
+
 export const dagsseddelRouter = router({
   // List dagssedler for innlogget bruker, eller for et prosjekt (admin-perspektiv senere).
   list: protectedProcedure
@@ -2573,11 +2658,14 @@ export const dagsseddelRouter = router({
                 "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
             });
           }
-          await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
-          return tx.sheetTimer.findMany({
+          const par = await lesRelinkPar(tx, input.sheetId);
+          const slutt = await tx.sheetTimer.findMany({
             where: { sheetId: input.sheetId },
             orderBy: { createdAt: "asc" },
           });
+          const svar = await utforLinjeRelink(tx, input.sheetId, par, slutt);
+          await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
+          return svar;
         });
       }
 
@@ -2797,6 +2885,8 @@ export const dagsseddelRouter = router({
               "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
           });
         }
+        // Funn 5: paringen leses før skrivingene (relinken trenger før-bildet).
+        const relinkPar = await lesRelinkPar(tx, input.sheetId);
         // V19.9.7 (A'-7): valgte slettinger (slettet_telefon → «forslag») utføres i
         // SAMME tx, FØR rad-skrivingen og overlapp-vakten. Scopet på sheetId så
         // arbeideren aldri kan slette rader på en annen sedel. Etter dette kjører
@@ -2828,12 +2918,14 @@ export const dagsseddelRouter = router({
         }
         // V20/PK6: hodet = Σ rad etter alle skrivinger (slett + oppdater + ny).
         await synkroniserHodePause(tx, input.sheetId);
-        // V19 (A-5): forslaget er anvendt → slett det i samme tx.
-        await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
         const forsonet = await tx.sheetTimer.findMany({
           where: { sheetId: input.sheetId },
           orderBy: { createdAt: "asc" },
         });
+        // Funn 5: linjer på forslaget følger raden som vant (før forslaget slettes).
+        const svar = await utforLinjeRelink(tx, input.sheetId, relinkPar, forsonet);
+        // V19 (A-5): forslaget er anvendt → slett det i samme tx.
+        await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
         // V19 (A-5, vakt): forsoningen skal ALDRI etterlate en overlapp. Dette er
         // sluttsettet (alle rad-writes committet i tx-en over) — kjør den delte
         // regelen og kast (ruller tx tilbake) hvis den brøt. Et halvt anvendt valg
@@ -2848,7 +2940,7 @@ export const dagsseddelRouter = router({
               "Valget etterlater to overlappende tidsrom på dagsseddelen. Velg én side pr. tidsrom.",
           });
         }
-        return forsonet;
+        return svar;
       });
     }),
 

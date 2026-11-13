@@ -1550,3 +1550,80 @@ describe("ORDRE 36e pkt. 2 — sedel slettet i prosjektkortet", () => {
     expect(pullInput[0]?.sistSynkronisert).toBe("2026-11-08T00:00:00.000Z");
   });
 });
+
+describe("Telefontest B funn 5 — lokale maskinlinjer følger raden som vant", () => {
+  function seedMaskin(id: string, sheetTimerId: string | null, byggeplassId: string | null) {
+    db()
+      .insert(schema.sheetMachineLocal)
+      .values({
+        id,
+        dagsseddelId: "sheet-r5",
+        sheetTimerId,
+        projectId: "p1",
+        vehicleId: "v1",
+        byggeplassId,
+        externalCostObjectId: null,
+        timer: 2,
+        sistEndretLokalt: 1000,
+      })
+      .run();
+  }
+  function maskin(id: string) {
+    return db()
+      .select()
+      .from(schema.sheetMachineLocal)
+      .where(eq(schema.sheetMachineLocal.id, id))
+      .get();
+  }
+  const serverPc = (relinketFra?: string[]) => ({
+    id: "pc",
+    projectId: "p1",
+    byggeplassId: null,
+    lonnsartId: "l1",
+    aktivitetId: "a1",
+    externalCostObjectId: null,
+    timer: 7.5,
+    fraTid: "07:00",
+    tilTid: "15:00",
+    beskrivelse: null,
+    pauseMin: 0,
+    updatedAt: "2026-11-13T11:00:00.000Z",
+    ...(relinketFra ? { relinketFra } : {}),
+  });
+
+  function seedMobRad() {
+    db()
+      .update(sheetTimerLocal)
+      .set({ byggeplassId: "b12", fraTid: "08:00", tilTid: "14:00" })
+      .where(eq(sheetTimerLocal.id, "mob"))
+      .run();
+  }
+
+  it("🔴 PC-valget: maskinen på mobilraden flyttes til PC-raden (ikke «Uten rad») og får radens byggeplass", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedMaskin("m1", "mob", "b12");
+    seedMaskin("m2", "annen", "b12");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc(["mob"])], 9_000_000);
+
+    expect(maskin("m1")?.sheetTimerId).toBe("pc");
+    expect(maskin("m1")?.byggeplassId).toBe(null);
+    // Negativkontroll: linje på en rad som ikke var paret, røres ikke.
+    expect(maskin("m2")?.sheetTimerId).toBe("annen");
+    expect(maskin("m2")?.byggeplassId).toBe("b12");
+  });
+
+  it("eldre API (uten relinketFra) tåles: ingen relink, ingen krasj", () => {
+    seedSedel({ id: "sheet-r5", dato: "2026-11-05", status: "draft", syncStatus: "conflict" });
+    seedTimerRad("mob", "sheet-r5", 6);
+    seedMobRad();
+    seedMaskin("m1", "mob", "b12");
+
+    anvendForsonetLokalt("sheet-r5", [serverPc()], 9_000_000);
+
+    expect(maskin("m1")?.sheetTimerId).toBe("mob");
+    expect(maskin("m1")?.byggeplassId).toBe("b12");
+  });
+});
