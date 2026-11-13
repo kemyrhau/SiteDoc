@@ -389,6 +389,10 @@ model SheetTillegg {
   tilleggId         String   @map("tillegg_id")
   // T.2 (PR 1B, 2026-05-11) — Per-rad prosjekttilhørighet. NOT NULL etter backfill i PR 1A.
   projectId         String   @map("project_id")
+  // Tillegg/utlegg på prosjektkortet (spec tillegg-utlegg-prosjektkort-spec.md § 2).
+  // NULL = arver sedelens byggeplass (A.30), som SheetTimer. Ingen backfill (B2).
+  byggeplassId         String?  @map("byggeplass_id")
+  externalCostObjectId String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
   antall            Decimal  @db.Decimal(6, 2)
   kommentar         String?  @db.Text
   attestertSnapshot Json?    @map("attestert_snapshot")
@@ -409,6 +413,8 @@ model SheetTillegg {
   @@index([projectId])
   @@index([attestertStatus])
   @@index([parentRadId])
+  @@index([byggeplassId])
+  @@index([externalCostObjectId])
   @@map("sheet_tillegg")
   @@schema("timer")
 }
@@ -455,6 +461,10 @@ model SheetUtlegg {
   id                String   @id @default(uuid())
   sheetId           String   @map("sheet_id")
   projectId         String   @map("project_id") // svak FK → projects (kjernen, ingen @relation)
+  // Utlegg på prosjektkortet (spec tillegg-utlegg-prosjektkort-spec.md § 2).
+  // NULL = arver sedelens byggeplass (A.30). Ingen backfill (B2).
+  byggeplassId         String?  @map("byggeplass_id")
+  externalCostObjectId String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
   expenseCategoryId String   @map("expense_category_id")
   // NULL kun når ordningVedFoering='fakturert' (håndhevet av CHECK). Refusjon
   // krone for krone for 'utlegg'.
@@ -473,6 +483,8 @@ model SheetUtlegg {
   @@index([sheetId])
   @@index([projectId])
   @@index([expenseCategoryId])
+  @@index([byggeplassId])
+  @@index([externalCostObjectId])
   @@map("sheet_utlegg")
   @@schema("timer")
 }

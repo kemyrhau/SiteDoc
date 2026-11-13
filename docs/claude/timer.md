@@ -1625,6 +1625,8 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `sheetId` | `uuid` FK → `daily_sheets` | |
 | `tilleggId` | `uuid` FK → `tillegg` | Datadrevet katalog |
 | `projectId` | `uuid` (svak FK → `projects`) | **NY T.2 (2026-05-12) — NOT NULL.** Per-rad prosjekttilhørighet. |
+| `byggeplassId` | `text?` (svak FK → `byggeplasser`) | 🟡 `feat/timer-tillegg-utlegg-kort` (migrering `20261113120000_tillegg_utlegg_byggeplass_eco`, ikke kjørt). NULL = arver sedelens byggeplass (A.30). Ingen backfill (B2). |
+| `externalCostObjectId` | `text?` (svak FK → `external_cost_objects`) | 🟡 samme migrering. Underprosjekt; NULL = hovedgruppa. |
 | `antall` | `decimal` | Antall (1 for avhuking) |
 | `kommentar` | `text?` | Tvungen for noen tillegg (`Tillegg.tvungenKommentar=true`) |
 | `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering |
@@ -1637,6 +1639,7 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 - `(tilleggId)` — tillegg-aggregering
 - `(projectId)` — **NY T.2**
 - `(attestertStatus)` — **NY T.3**
+- `(byggeplassId)`, `(externalCostObjectId)` — 🟡 `20261113120000_tillegg_utlegg_byggeplass_eco`
 
 ### `sheet_tillegg_vedlegg` (kvittering-vedlegg på tillegg-rad) — NY Funn #2 (2026-06-21)
 
@@ -1774,6 +1777,8 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 | `id` | `uuid` PK | |
 | `sheetId` | `uuid` FK → `daily_sheets` (CASCADE) | |
 | `projectId` | `text` | Svak FK → `projects` (kjernen, A.20-mønster) |
+| `byggeplassId` | `text?` | 🟡 `feat/timer-tillegg-utlegg-kort` (migrering `20261113120000_tillegg_utlegg_byggeplass_eco`, ikke kjørt). Svak FK → `byggeplasser`; NULL = arver sedelens byggeplass (A.30). Ingen backfill (B2). |
+| `externalCostObjectId` | `text?` | 🟡 samme migrering. Svak FK → `external_cost_objects` (underprosjekt); NULL = hovedgruppa. |
 | `expenseCategoryId` | `uuid` FK → `expense_categories` (RESTRICT) | |
 | `belop` | `decimal(10,2)?` | NULL **kun** når `ordningVedFoering='fakturert'` (CHECK). Refusjon krone for krone for `utlegg` |
 | `mvaSats` | `decimal(5,2)?` | mva-sats snapshot per rad (regnskapsspørsmål — settes fra kategori i U2) |
@@ -1785,7 +1790,7 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 - `ordning_ved_foering IN ('lonnstillegg','utlegg','fakturert')` (omdøpt fra `sats` — migrering `20260811130000`)
 - `(ordning_ved_foering='fakturert' AND belop IS NULL) OR (ordning_ved_foering<>'fakturert' AND belop IS NOT NULL)` — fakturert når **aldri** penger; utlegg krever alltid beløp.
 
-**Indekser:** `(sheetId)`, `(projectId)`, `(expenseCategoryId)`.
+**Indekser:** `(sheetId)`, `(projectId)`, `(expenseCategoryId)`, 🟡 `(byggeplassId)`, `(externalCostObjectId)` (`20261113120000`).
 
 **`ordningVedFoering`** er integritetsbærer, ikke bare revisjonsspor: insert stempler utledet ordning (`overstyring ?? firma-default`, via delt funksjon i `@sitedoc/shared/utleggOrdning.ts`) i samme transaksjon, og CHECK-en håndhever beløps-regelen mot DET stempelet — aldri mot et kategori-oppslag som kan drifte. Feltet er **immutabelt** etter insert; ordningsbytte = korreksjon (ny rad + gammel krediteres), aldri mutasjon.
 
