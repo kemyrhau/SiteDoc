@@ -8,6 +8,7 @@ import { TimerRadModal } from "../TimerSeksjon";
 import { SplittRadModal } from "../SplittRadModal";
 import { TilleggSeksjon } from "../TilleggSeksjon";
 import { UtleggSeksjon } from "../UtleggSeksjon";
+import { HjelpIkon } from "../../HjelpIkon";
 import { leggTilTimerRad, oppdaterTimerRad, fjernTimerRad, type RadKontekst } from "./radLagring";
 import type { Sedel, TimerRad, TilleggRad, UtleggRad } from "../../../types/timer-detalj";
 
@@ -122,6 +123,7 @@ export function DagSeksjon({
         rader={tilleggRader}
         redigerbar={redigerbar}
         onEndret={onEndret}
+        hjelpIkon={<HjelpIkon tittel={t("hjelp.tillegg.tittel")} tekst={t("hjelp.tillegg.tekst")} />}
       />
       <UtleggSeksjon
         sheetId={sheetId}
@@ -131,6 +133,7 @@ export function DagSeksjon({
         rader={utleggRader}
         redigerbar={redigerbar}
         onEndret={onEndret}
+        hjelpIkon={<HjelpIkon tittel={t("hjelp.utlegg.tittel")} tekst={t("hjelp.utlegg.tekst")} />}
       />
 
       {reiseModal && (

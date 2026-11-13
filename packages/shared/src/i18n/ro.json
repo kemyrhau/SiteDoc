@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Cardul conține bunuri care au fost trimise. Conectați-vă la internet pentru a șterge.",
   "timer.kort.offlineFlytt": "Cardul conține bunuri care au fost trimise. Conectați-vă la internet pentru a vă deplasa.",
   "timer.kort.delvisFlyttet": "Orele au fost mutate. Materialele nu — apăsați din nou „Schimbați cardul” pe cardul vechi.",
-  "timer.feil.beskrivelsePaakrevd": "Descrieți ce sa făcut înainte de a salva."
+  "timer.feil.beskrivelsePaakrevd": "Descrieți ce sa făcut înainte de a salva.",
+  "hjelp.ikonEtikett": "Ajutor: {{tittel}}",
+  "hjelp.tillegg.tittel": "Alocații",
+  "hjelp.tillegg.tekst": "Indemnizațiile sunt plata la care aveți dreptul în plus față de salariul pe oră deoarece munca a fost efectuată în condiții speciale. Exemple: alocație de murdărie, alocație de înălțime, alocație de masă, alocație de maistru.",
+  "hjelp.utlegg.tittel": "Cheltuieli",
+  "hjelp.utlegg.tekst": "Cheltuielile sunt bani pe care i-ați plătit singur în numele companiei și urmează să fie rambursați. Faceți o fotografie a chitanței. Exemple: parcare, taxe rutiere, unelte cumpărate dintr-un magazin, combustibil pentru o mașină de serviciu.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Alocațiile și cheltuielile nu au fost economisite",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Toate zilele au fost deja trimise, astfel încât indemnizațiile și cheltuielile nu au nicio foaie de pontaj pe care să fie salvate. Nimic nu a fost salvat. Eliminați-le sau introduceți-le în cardul de proiect."
 }

@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "La carte contient des marchandises qui ont été envoyées. Connectez-vous à Internet pour supprimer.",
   "timer.kort.offlineFlytt": "La carte contient des marchandises qui ont été envoyées. Connectez-vous à Internet pour vous déplacer.",
   "timer.kort.delvisFlyttet": "Les heures ont été déplacées. Les matériaux non — appuyez à nouveau sur « Changer de carte » sur l’ancienne carte.",
-  "timer.feil.beskrivelsePaakrevd": "Décrivez ce qui a été fait avant de sauvegarder."
+  "timer.feil.beskrivelsePaakrevd": "Décrivez ce qui a été fait avant de sauvegarder.",
+  "hjelp.ikonEtikett": "Aide : {{tittel}}",
+  "hjelp.tillegg.tittel": "Allocations",
+  "hjelp.tillegg.tekst": "Les allocations sont une rémunération à laquelle vous avez droit en plus de votre salaire horaire parce que le travail a été effectué dans des conditions particulières. Exemples : indemnité de saleté, indemnité de hauteur, indemnité de repas, indemnité de contremaître.",
+  "hjelp.utlegg.tittel": "Dépenses",
+  "hjelp.utlegg.tekst": "Les dépenses sont de l'argent que vous avez payé vous-même au nom de l'entreprise et qui doivent être remboursées. Prenez une photo du reçu. Exemples : stationnement, péages routiers, outils achetés dans un magasin, carburant pour une voiture de société.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Les allocations et les dépenses n'ont pas été économisées",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Tous les jours ont déjà été envoyés, les indemnités et les dépenses n'ont donc aucune feuille de temps sur laquelle économiser. Rien n'a été sauvegardé. Supprimez-les ou saisissez-les dans la fiche du projet."
 }

@@ -57,8 +57,8 @@ kilden — er den importert og rendret på siden, har siden `?`-hjelp.
 
 ## Mobil: Søk (`apps/mobile/app/sok/index.tsx`)
 
-Mobilappen har ingen `?`-komponent ennå (ingen `HjelpKnapp` i `apps/mobile`); teksten under er vedtatt
-hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
+Mobil har `HjelpIkon` (`apps/mobile/src/components/HjelpIkon.tsx`, se § Mobil: Tillegg og Utlegg), men søkeskjermen bruker
+den ikke ennå; teksten under er vedtatt hjelpetekst for søkeskjermen.
 
 - **Hva er dette?** Søk i hele prosjektet fra ett felt. Skriv minst to tegn og trykk Søk. Åpnes fra søke-ikonet på
   Hjem og i Mapper, eller fra raden «Søk … i hele prosjektet» under søkefeltet i oppgave-, sjekkliste- og HMS-lista
@@ -73,7 +73,7 @@ hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
 
 ## Mobil: Filter og sortering i sjekkliste-, oppgave-, innboks- og HMS-lista (`FilterOgSorteringSheet.tsx`)
 
-Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når mobil får hjelpe-ikon.
+Trakt-arket har ikke `HjelpIkon` ennå; vedtatt tekst, brukes når arket får ikonet.
 
 - **Hva er dette?** Snevre inn og ordne lista. Bare valg som finnes i lista vises.
 - Gjelder sjekklister, oppgaver og innboksen (innboksen har ikke prioritet).
@@ -95,7 +95,8 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når 
 
 ## Mobil: Prosjektkortet (`app/timer/[id]/kort/[projectId].tsx`, 36c-kort)
 
-Ingen `?`-komponent på mobil ennå; vedtatt tekst for kortskjermen, brukes når mobil får hjelpe-ikon.
+Kortskjermen har ikke sidehjelp ennå; overskriftene «Tillegg» og «Utlegg» i `DagSeksjon` har `HjelpIkon` (se § Mobil: Tillegg
+og Utlegg). Vedtatt tekst for kortskjermen:
 
 - **Hva er dette?** Ett kort = arbeid, maskiner og varer på ett prosjekt, én byggeplass og ett underprosjekt den dagen.
 - **Endre kort:** flytter hele kortet til et annet prosjekt, en annen byggeplass eller et annet underprosjekt. Finnes
@@ -104,6 +105,19 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for kortskjermen, brukes når
 - **Slett kort:** sletter arbeid, maskiner og varer på kortet. Er det dagens siste kort, blir dagsseddelen stående som tomt utkast.
 - Begge knappene finnes bare mens dagsseddelen er utkast eller returnert. Varer som alt er sendt, må endres på serveren —
   uten dekning er knappene sperret.
+
+## Mobil: Tillegg og Utlegg (`HjelpIkon`, Bekreft dag + prosjektkortet)
+
+`HjelpIkon` (`apps/mobile/src/components/HjelpIkon.tsx`) er mobilens ?-ikon: står ved overskriften det forklarer, trykk
+åpner et ark med tittel og tekst. Brukt ved «Tillegg» og «Utlegg» i Bekreft dag (`BekreftDagLonnUtlegg.tsx`) og i
+prosjektkortet (`prosjektkort/DagSeksjon.tsx`). Tekstene ligger i i18n (`hjelp.tillegg.*`, `hjelp.utlegg.*`, 15 språk).
+
+- **Tillegg** (`hjelp.tillegg.tekst`, Kenneths tekst): «Tillegg er lønn du har krav på i tillegg til timelønnen, fordi
+  arbeidet ble gjort under bestemte forhold. Eksempler: smusstillegg, høydetillegg, kosttillegg, bastillegg.»
+- **Utlegg** (`hjelp.utlegg.tekst`, Kenneths tekst): «Utlegg er penger du har lagt ut selv for firmaet, og som du skal ha
+  tilbake. Ta bilde av kvitteringen. Eksempler: parkering, bompenger, verktøy kjøpt i butikk, drivstoff til firmabil.»
+- I Bekreft dag lagres linjene først ved [Bekreft og lagre], på første dato som ikke er sendt. Er alle datoene sendt,
+  får du beskjed, og ingenting lagres.
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 

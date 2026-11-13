@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Kortet har varer som er sendt. Koble til nett for å slette.",
   "timer.kort.offlineFlytt": "Kortet har varer som er sendt. Koble til nett for å flytte.",
   "timer.kort.delvisFlyttet": "Timene er flyttet. Varene ble ikke flyttet — trykk «Endre kort» igjen på det gamle kortet.",
-  "timer.feil.beskrivelsePaakrevd": "Skriv hva som ble gjort før du lagrer."
+  "timer.feil.beskrivelsePaakrevd": "Skriv hva som ble gjort før du lagrer.",
+  "hjelp.ikonEtikett": "Hjelp: {{tittel}}",
+  "hjelp.tillegg.tittel": "Tillegg",
+  "hjelp.tillegg.tekst": "Tillegg er lønn du har krav på i tillegg til timelønnen, fordi arbeidet ble gjort under bestemte forhold. Eksempler: smusstillegg, høydetillegg, kosttillegg, bastillegg.",
+  "hjelp.utlegg.tittel": "Utlegg",
+  "hjelp.utlegg.tekst": "Utlegg er penger du har lagt ut selv for firmaet, og som du skal ha tilbake. Ta bilde av kvitteringen. Eksempler: parkering, bompenger, verktøy kjøpt i butikk, drivstoff til firmabil.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Tillegg og utlegg ble ikke lagret",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Alle dagene er allerede sendt, så tillegg og utlegg har ingen dagsseddel å lagres på. Ingenting er lagret. Fjern dem, eller før dem i prosjektkortet."
 }

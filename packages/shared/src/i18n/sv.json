@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Kortet har varor som har skickats. Anslut till internet för att radera.",
   "timer.kort.offlineFlytt": "Kortet har varor som har skickats. Anslut till internet för att flytta.",
   "timer.kort.delvisFlyttet": "Timmarna har flyttats. Varorna flyttades inte — tryck på ”Byt kort” igen på det gamla kortet.",
-  "timer.feil.beskrivelsePaakrevd": "Beskriv vad som gjordes innan du sparade."
+  "timer.feil.beskrivelsePaakrevd": "Beskriv vad som gjordes innan du sparade.",
+  "hjelp.ikonEtikett": "Hjälp: {{tittel}}",
+  "hjelp.tillegg.tittel": "Bidrag",
+  "hjelp.tillegg.tekst": "Bidrag är lön du har rätt till utöver din timlön eftersom arbetet utförts under särskilda förhållanden. Exempel: smutsbidrag, höjdersättning, måltidsersättning, förmansersättning.",
+  "hjelp.utlegg.tittel": "Utgifter",
+  "hjelp.utlegg.tekst": "Utgifter är pengar du har betalat själv för företagets räkning och som ska ersättas. Ta ett foto av kvittot. Exempel: parkering, vägtullar, verktyg köpta i butik, bränsle till tjänstebil.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Bidrag och utgifter sparades inte",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Alla dagar är redan skickade, så traktamenten och utlägg har ingen tidrapport att spara på. Inget har sparats. Ta bort dem eller ange dem i projektkortet."
 }

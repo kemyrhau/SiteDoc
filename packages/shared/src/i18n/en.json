@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "The card has goods that have been sent. Connect to the internet to delete.",
   "timer.kort.offlineFlytt": "The card has goods that have been sent. Connect to the internet to move.",
   "timer.kort.delvisFlyttet": "The hours were moved. The materials were not — tap “Change card” again on the old card.",
-  "timer.feil.beskrivelsePaakrevd": "Describe what was done before saving."
+  "timer.feil.beskrivelsePaakrevd": "Describe what was done before saving.",
+  "hjelp.ikonEtikett": "Help: {{tittel}}",
+  "hjelp.tillegg.tittel": "Allowances",
+  "hjelp.tillegg.tekst": "Allowances are pay you are entitled to on top of your hourly wage because the work was done under particular conditions. Examples: dirt allowance, height allowance, meal allowance, foreman allowance.",
+  "hjelp.utlegg.tittel": "Expenses",
+  "hjelp.utlegg.tekst": "Expenses are money you have paid yourself on behalf of the company and are to be reimbursed. Take a photo of the receipt. Examples: parking, road tolls, tools bought in a shop, fuel for a company car.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Allowances and expenses were not saved",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "All the days have already been sent, so allowances and expenses have no timesheet to be saved on. Nothing has been saved. Remove them, or enter them in the project card."
 }

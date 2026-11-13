@@ -24,7 +24,20 @@ import { loftByggeplassArv, trengerByggeplassLoft } from "../components/timer-de
 import { kortValgFor } from "../lib/prosjektkortMobil";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
-import { radTilleggNokkel, sedelKontekstLokalt, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
+import { radTilleggNokkel, sedelKontekstForRad, sedelKontekstLokalt, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
+import { skrivLonnstillegg, skrivUtlegg, type NyttLonnstillegg, type NyttUtlegg } from "../services/tilleggUtleggSkriv";
+import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
+
+/**
+ * ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg og utlegg holdt i minnet på
+ * skjermen. Knyttet til sedel + prosjekt (ikke rad) — skrives på første åpne
+ * dato sin sedel (`forsteLagredeSheetId`).
+ */
+export type LonnUtlegg = { tillegg: NyttLonnstillegg[]; utlegg: NyttUtlegg[] };
+
+export function harLonnUtlegg(l: LonnUtlegg | undefined): l is LonnUtlegg {
+  return !!l && (l.tillegg.length > 0 || l.utlegg.length > 0);
+}
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
@@ -66,6 +79,8 @@ export function anvendDagsforslag(
    * (nøkkel `radTilleggNokkel`) — skrives koblet til raden, på radens sedel.
    */
   tilleggPerRad?: TilleggPerRad,
+  /** ORDRE Tillegg/Utlegg i Bekreft dag — se `LonnUtlegg`. */
+  lonnUtlegg?: LonnUtlegg,
 ): AnvendDagsforslagResultat {
   let startSheetId: string | null = null;
   let blokkertSendt = false;
@@ -189,6 +204,8 @@ export function anvendDagsforslag(
 
     for (const rad of d.rader) {
       const radId = ctx.nyId();
+      const radEco = rad.erReise ? null : (ctx.ecoId ?? null);
+      const radByggeplass = rad.erReise ? rad.byggeplassId : (rad.byggeplassId ?? eksplisittByggeplassId);
       db.insert(sheetTimerLocal)
         .values({
           id: radId,
@@ -196,7 +213,7 @@ export function anvendDagsforslag(
           projectId: rad.projectId,
           lonnsartId: rad.lonnsartId,
           aktivitetId: rad.aktivitetId,
-          externalCostObjectId: rad.erReise ? null : (ctx.ecoId ?? null),
+          externalCostObjectId: radEco,
           timer: rad.timer,
           fraTid: rad.fraTid,
           tilTid: rad.tilTid,
@@ -211,7 +228,7 @@ export function anvendDagsforslag(
           erReise: rad.erReise,
           reiseRetning: rad.reiseRetning,
           reiseOppmotestedId: rad.reiseOppmotestedId,
-          byggeplassId: rad.erReise ? rad.byggeplassId : (rad.byggeplassId ?? eksplisittByggeplassId),
+          byggeplassId: radByggeplass,
           reiseKjoretidMin: rad.reiseKjoretidMin,
           reiseAvstandM: rad.reiseAvstandM,
           reiseKilde: rad.reiseKilde,
@@ -224,7 +241,12 @@ export function anvendDagsforslag(
       const nokkel = radTilleggNokkel(d.dato, rad);
       const tillegg = nokkel ? tilleggPerRad?.[nokkel] : undefined;
       if (tillegg && (tillegg.maskiner.length > 0 || tillegg.varer.length > 0)) {
-        skrivTillegg(db, tillegg, { ...ctx, sheetId: resultat.id, dato: d.dato, radId });
+        skrivTillegg(db, tillegg, {
+          ...ctx,
+          sheetId: resultat.id,
+          dato: d.dato,
+          rad: { id: radId, projectId: rad.projectId, byggeplassId: radByggeplass, externalCostObjectId: radEco },
+        });
       }
     }
     // ORDRE 34 pkt 3 (#9): hodet = Σ rad.pauseMin også ved append på en
@@ -233,7 +255,23 @@ export function anvendDagsforslag(
     vekForOverlapp.push(...d.vekForOverlapp);
   }
 
+  // ORDRE Tillegg/Utlegg i Bekreft dag: på første åpne dato sin sedel. Ingen
+  // åpen sedel (alt ble blokkert under skrivingen) → `lonnUtleggSkrevet` false,
+  // kalleren beholder linjene — aldri stille tap.
+  let lonnUtleggSkrevet = false;
+  const utleggKo: NyKoOppforing[] = [];
+  if (harLonnUtlegg(lonnUtlegg) && forsteLagredeSheetId) {
+    for (const l of lonnUtlegg.tillegg) skrivLonnstillegg(db, forsteLagredeSheetId, l, ctx.naa());
+    for (const u of lonnUtlegg.utlegg) {
+      const ko = skrivUtlegg(db, forsteLagredeSheetId, u, ctx.nyId);
+      if (ko) utleggKo.push(ko);
+    }
+    lonnUtleggSkrevet = true;
+  }
+
   return {
+    lonnUtleggSkrevet,
+    utleggKo,
     startSheetId,
     blokkertSendt,
     ingenRader: totalRader === 0,
@@ -337,12 +375,14 @@ function skrivTillegg(
   tillegg: BekreftDagTillegg,
   ctx: {
     userId: string; orgId: string; nyId: () => string; naa: () => number; sheetId: string; dato: string;
-    radId: string;
+    /** Radens verdier slik de nettopp ble skrevet — ingen ny lesing (3b). */
+    rad: { id: string; projectId: string; byggeplassId: string | null; externalCostObjectId: string | null };
   },
 ): void {
-  const sedel = sedelKontekstLokalt(db, ctx.sheetId);
-  const rad = db.select().from(sheetTimerLocal).where(eq(sheetTimerLocal.id, ctx.radId)).all()[0];
-  if (!sedel || !rad) return;
+  // ORDRE Tillegg/Utlegg 3b: ingen gren returnerer stille. Sedel uten prosjekt
+  // → radens prosjekt som kontekst (`sedelKontekstForRad`).
+  const rad = ctx.rad;
+  const sedel = sedelKontekstForRad(db, ctx.sheetId, rad.projectId);
   const kort = kortValgFor(rad, sedel);
   for (const m of tillegg.maskiner) {
     db.insert(sheetMachineLocal)

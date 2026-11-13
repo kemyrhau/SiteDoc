@@ -5486,5 +5486,12 @@
   "timer.kort.offlineSlett": "Kortelėje yra prekės, kurios buvo išsiųstos. Prisijunkite prie interneto, kad ištrintumėte.",
   "timer.kort.offlineFlytt": "Kortelėje yra prekės, kurios buvo išsiųstos. Norėdami judėti, prisijunkite prie interneto.",
   "timer.kort.delvisFlyttet": "Valandos perkeltos. Medžiagos neperkeltos — senoje kortelėje dar kartą bakstelėkite „Keisti kortelę“.",
-  "timer.feil.beskrivelsePaakrevd": "Aprašykite, kas buvo padaryta prieš išsaugant."
+  "timer.feil.beskrivelsePaakrevd": "Aprašykite, kas buvo padaryta prieš išsaugant.",
+  "hjelp.ikonEtikett": "Pagalba: {{tittel}}",
+  "hjelp.tillegg.tittel": "Pašalpos",
+  "hjelp.tillegg.tekst": "Priemokos yra atlyginimas, į kurį turite teisę pridėti valandinį atlyginimą, nes darbas buvo atliktas tam tikromis sąlygomis. Pavyzdžiai: pašalpa už purvą, pašalpa už ūgį, pašalpa maitinimui, meistro pašalpa.",
+  "hjelp.utlegg.tittel": "Išlaidos",
+  "hjelp.utlegg.tekst": "Išlaidos yra pinigai, kuriuos pats sumokėjote įmonės vardu ir kurie turi būti kompensuoti. Nufotografuokite kvitą. Pavyzdžiai: automobilių stovėjimo aikštelė, kelių mokesčiai, parduotuvėje pirkti įrankiai, kuras tarnybiniam automobiliui.",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Pašalpų ir išlaidų sutaupyti nepavyko",
+  "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Visos dienos jau išsiųstos, todėl išmokos ir išlaidos neturi laiko apskaitos žiniaraščio, kurį būtų galima taupyti. Nieko neišsaugota. Pašalinkite juos arba įveskite į projekto kortelę."
 }

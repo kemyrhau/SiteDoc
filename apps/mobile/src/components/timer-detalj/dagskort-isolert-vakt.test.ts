@@ -15,6 +15,7 @@ const les = (...del: string[]) => readFileSync(join(her, ...del), "utf-8");
 const DAGSKORT = les("../../../app/timer/[id].tsx");
 const MODAL = les("KortVareforbrukModal.tsx");
 const MASKIN = les("MaskinSeksjon.tsx");
+const PROSJEKTGRUPPE = les("ProsjektGruppe.tsx");
 
 const BEKREFT_DAG_PROPS = [
   "forblirApen",
@@ -33,6 +34,13 @@ const BEKREFT_DAG_PROPS = [
   "delvisSendt",
   "sendteDatoer",
   "kortPrDato",
+  // ORDRE Tillegg/Utlegg i Bekreft dag (2026-11-13): ?-ikon kun i prosjektkortet
+  // og Bekreft dag; minne-føring kun i Bekreft dag.
+  "hjelpIkon",
+  "HjelpIkon",
+  "onOpprett=",
+  "lonnUtlegg",
+  "BekreftDagLonnUtlegg",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
@@ -55,6 +63,14 @@ describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
     expect(blokk).not.toContain("onLagret");
     expect(flat.slice(flat.indexOf('=== "nullstill"'))).toContain("onLagret();");
   });
+
+  it.each(["hjelpIkon", "HjelpIkon", "onOpprett="])(
+    "🔴 ProsjektGruppe (dagskortets seksjoner) sender ikke «%s»",
+    (navn) => {
+      expect(PROSJEKTGRUPPE.length).toBeGreaterThan(500);
+      expect(PROSJEKTGRUPPE).not.toContain(navn);
+    },
+  );
 
   it("prosjektkortets MaskinSeksjon har fortsatt mengde (pkt 1b alt. 1 — kun fjernet i Bekreft dag)", () => {
     expect(MASKIN).toContain("mengde");

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -44,6 +44,7 @@ import { BildeFallback } from "../BildeFallback";
 import type { UtleggRad, Utleggskategori } from "../../types/timer-detalj";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { KnappMedForklaring } from "../KnappMedForklaring";
+import { skrivUtlegg, type NyttUtlegg } from "../../services/tilleggUtleggSkriv";
 
 /**
  * UtleggSeksjon (U4) — registrering av utlegg/fakturert på mobil, mockup 8c.
@@ -68,6 +69,11 @@ interface UtleggSeksjonProps {
    * Dagskortet sender ingenting og ser modalen som før.
    */
   prosjektValg?: { id: string; navn: string }[];
+  /**
+   * ORDRE Tillegg/Utlegg (B2): ?-ikon ved overskriften. Prosjektkortet sender
+   * det; dagskortet sender ingenting og ser seksjonen som før.
+   */
+  hjelpIkon?: ReactNode;
 }
 
 /** Pille-tekst per ordning (undertekst, aldri et valg). */
@@ -96,6 +102,7 @@ export function UtleggSeksjon({
   redigerbar,
   onEndret,
   prosjektValg,
+  hjelpIkon,
 }: UtleggSeksjonProps) {
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
@@ -141,9 +148,12 @@ export function UtleggSeksjon({
   return (
     <View className="mt-4">
       <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-        <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-          {t("timer.kol.utlegg")}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.kol.utlegg")}
+          </Text>
+          {hjelpIkon}
+        </View>
         {redigerbar && (
           <Pressable
             onPress={() => {
@@ -464,7 +474,7 @@ function UtleggVedleggSeksjon({
   );
 }
 
-function UtleggRadModal({
+export function UtleggRadModal({
   eksisterendeRad,
   organizationId,
   projectId: startProjectId,
@@ -472,15 +482,23 @@ function UtleggRadModal({
   sheetId,
   onLagreEndring,
   onOpprettet,
+  onOpprett,
   onLukk,
 }: {
   eksisterendeRad: UtleggRad | null;
   organizationId: string;
   projectId: string;
   prosjektValg?: { id: string; navn: string }[];
+  /** Sedelen raden skrives på. Ubrukt når `onOpprett` er satt. */
   sheetId: string;
   onLagreEndring: (belop: number | null, kommentar: string | null) => void;
   onOpprettet: () => void;
+  /**
+   * ORDRE Tillegg/Utlegg i Bekreft dag: når satt skriver modalen INGENTING —
+   * utlegget (med pending kvittering, som kalleren nå eier) leveres hit og
+   * skrives av kalleren senere via `skrivUtlegg`. Uten: skriv straks som før.
+   */
+  onOpprett?: (u: NyttUtlegg) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -608,50 +626,23 @@ function UtleggRadModal({
 
     // Ny rad: stemple ordning + foertVed ved føring (offline, uten server).
     if (!ordning) return;
-    const belopVerdi = krevesBelop(ordning) ? belopTall : null;
-    const foertVed = Date.now();
-    db.insert(sheetUtleggLocal)
-      .values({
-        id: nyRadId,
-        dagsseddelId: sheetId,
-        projectId,
-        expenseCategoryId: valgtKategoriId,
-        belop: belopVerdi,
-        kommentar: kommentar.trim() || null,
-        ordningVedFoering: ordning,
-        foertVed,
-        sistEndretLokalt: foertVed,
-      })
-      .run();
-
-    // Kvittering: persistér + enqueue ETTER at raden finnes (server-row-orden).
-    if (pendingFoto) {
-      const vedleggId = randomUUID();
-      db.insert(sheetUtleggVedleggLocal)
-        .values({
-          id: vedleggId,
-          sheetUtleggId: nyRadId,
-          lokalSti: pendingFoto.lokalSti,
-          serverUrl: null,
-          filnavn: pendingFoto.filnavn,
-          mimeType: "image/jpeg",
-          filstorrelse: pendingFoto.filstorrelse,
-          sistEndretLokalt: foertVed,
-        })
-        .run();
-      await leggIKo({
-        sheetUtleggId: nyRadId,
-        objektId: nyRadId,
-        vedleggId,
-        lokalSti: pendingFoto.lokalSti,
-        filnavn: pendingFoto.filnavn,
-        mimeType: "image/jpeg",
-        filstorrelse: pendingFoto.filstorrelse,
-        gpsLat: pendingFoto.gpsLat,
-        gpsLng: pendingFoto.gpsLng,
-        gpsAktivert: true,
-      });
+    const nytt: NyttUtlegg = {
+      id: nyRadId,
+      projectId,
+      expenseCategoryId: valgtKategoriId,
+      belop: krevesBelop(ordning) ? belopTall : null,
+      kommentar: kommentar.trim() || null,
+      ordningVedFoering: ordning,
+      foertVed: Date.now(),
+      kvittering: pendingFoto,
+    };
+    if (onOpprett) {
+      onOpprett(nytt);
+      return;
     }
+    // Kvittering: persistér + enqueue ETTER at raden finnes (server-row-orden).
+    const ko = skrivUtlegg(db, sheetId, nytt, randomUUID);
+    if (ko) await leggIKo(ko);
     onOpprettet();
   }
 

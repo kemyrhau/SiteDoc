@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -43,6 +43,11 @@ interface TilleggSeksjonProps {
   rader: TilleggRad[];
   redigerbar: boolean;
   onEndret: () => void;
+  /**
+   * ORDRE Tillegg/Utlegg (B2): ?-ikon ved overskriften. Prosjektkortet sender
+   * det; dagskortet sender ingenting og ser seksjonen som før.
+   */
+  hjelpIkon?: ReactNode;
 }
 
 export function TilleggSeksjon({
@@ -52,6 +57,7 @@ export function TilleggSeksjon({
   rader,
   redigerbar,
   onEndret,
+  hjelpIkon,
 }: TilleggSeksjonProps) {
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
@@ -136,9 +142,12 @@ export function TilleggSeksjon({
   return (
     <View className="mt-4">
       <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-        <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-          {t("timer.kol.tillegg")}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.kol.tillegg")}
+          </Text>
+          {hjelpIkon}
+        </View>
         {redigerbar && (
           <Pressable
             onPress={() => {
@@ -500,7 +509,7 @@ function VedleggSeksjon({
   );
 }
 
-function TilleggRadModal({
+export function TilleggRadModal({
   eksisterendeRad,
   organizationId,
   defaultProjectId,

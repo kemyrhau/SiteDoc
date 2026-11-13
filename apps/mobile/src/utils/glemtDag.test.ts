@@ -379,3 +379,22 @@ describe("DEL 5 — kildevakter i Bekreft dag", () => {
     expect(KORT).toContain("jobberFortsatt");
   });
 });
+
+describe("ORDRE Tillegg/Utlegg i Bekreft dag — kildevakter i skjermen", () => {
+  it("🔴 tilleggUtleggUtenDag gir Alert og return (ingen stille stopp)", () => {
+    expect(SKJERM).toMatch(
+      /handling\.type === "tilleggUtleggUtenDag"\)\s*\{[\s\S]*?Alert\.alert\([\s\S]*?utenDagTittel[\s\S]*?return;/,
+    );
+  });
+  it("🔴 kvitteringene køes først etter skrevet Bekreft, og filene slippes før køing", () => {
+    expect(SKJERM).toMatch(
+      /resultat\?\.lonnUtleggSkrevet\)\s*\{\s*pendingKvitteringer\.current = \[\];[\s\S]*?leggIKo\(ko\)/,
+    );
+  });
+  it("🔴 ulagrede kvitteringer ryddes når skjermen forlates", () => {
+    expect(SKJERM).toMatch(/for \(const sti of pendingKvitteringer\.current\) void slettLokaltBilde\(sti\)/);
+  });
+  it("negativkontroll: seksjonen skjules når alle datoer er sendt", () => {
+    expect(SKJERM).toMatch(/!alleSendt && !ikkeAnsatt && !tomt && lonnUtleggProsjekt \? \(\s*<BekreftDagLonnUtlegg/);
+  });
+});
