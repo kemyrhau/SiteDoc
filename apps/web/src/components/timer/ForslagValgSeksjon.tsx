@@ -266,6 +266,9 @@ export function ForslagValgSeksjon({
           </Button>
         </div>
       )}
+      {!lesevisning && (
+        <p className="mt-2 text-xs text-gray-500">{t("timer.forslagValg.bekreftHjelp")}</p>
+      )}
     </section>
   );
 }
