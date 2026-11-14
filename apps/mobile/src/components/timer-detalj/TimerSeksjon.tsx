@@ -88,6 +88,7 @@ import {
   finnOverlappendeTidsrom,
   foreslaOvertidSplitt,
   type OvertidForslag,
+  manuellReiseManglerArt,
 } from "@sitedoc/shared";
 import { ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt } from "./FraTilTidFelt";
@@ -1672,7 +1673,15 @@ export function TimerRadModal({
       return;
     }
     if (!valgtLonnsartId) {
-      setFeil(t("timer.feil.lonnsartPaakrevd"));
+      // Ordre (11) C: «+ Reise» uten art å føre på (firmaet mangler standard
+      // lønnsart) — si hvorfor i stedet for «velg lønnsart» i et låst felt.
+      setFeil(
+        t(
+          manuellReiseManglerArt(manuellKlassifisering)
+            ? "timer.reiseTerskel.manglerArt"
+            : "timer.feil.lonnsartPaakrevd",
+        ),
+      );
       return;
     }
     if (!valgtAktivitetId) {
@@ -1952,9 +1961,16 @@ export function TimerRadModal({
                   {valgtLonnsart?.navn ?? ""}
                 </Text>
                 {/* Ordre (9): grå forklaring på hvorfor raden ble arbeid/reise. */}
+                {/* Ordre (11) C: mangler art → tydelig rød tekst, ikke grå. */}
                 {manuellKlassifisering && (
-                  <Text className="mt-1 text-xs text-gray-500">
-                    {manuellKlassifisering.lonnsartId == null
+                  <Text
+                    className={`mt-1 text-xs ${
+                      manuellReiseManglerArt(manuellKlassifisering)
+                        ? "font-medium text-red-700"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {manuellReiseManglerArt(manuellKlassifisering)
                       ? t("timer.reiseTerskel.manglerArt")
                       : forklaringTekst(
                           t,

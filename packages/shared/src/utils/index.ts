@@ -90,13 +90,22 @@ export type {
   ArbeidReiseRad,
   SendDagenTekst,
 } from "./reiseSkille";
-export { klassifiserManuellReise, tilManuellReiseSpor, velgOppmotested } from "./reiseManuell";
+export {
+  klassifiserManuellReise,
+  tilManuellReiseSpor,
+  velgOppmotested,
+  løsManuellReise,
+  manuellReiseForklaringTekst,
+  manuellReiseManglerArt,
+} from "./reiseManuell";
 export type {
   ManuellReiseInput,
   ManuellReiseForklaring,
   ManuellReiseKlassifisering,
   ManuellReiseSpor,
   OppmotestedValg,
+  ManuellReiseKontekst,
+  ManuellReiseResultat,
 } from "./reiseManuell";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
@@ -568,3 +577,4 @@ export {
   sisteUnikeMaskiner,
   sorterMaskiner,
 } from "./maskinSortering";
+export { formaterKjoretid } from "./kjoretid";

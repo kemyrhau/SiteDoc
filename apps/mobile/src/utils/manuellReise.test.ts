@@ -242,7 +242,7 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
     const HOOK = les("../components/timer-detalj/useManuellReise.ts");
     const BEKREFT = les("../../app/timer/bekreft-dag.tsx").replace(/\s+/g, " ");
     const DAGSEKSJON = les("../components/timer-detalj/prosjektkort/DagSeksjon.tsx").replace(/\s+/g, " ");
-    expect(HOOK).toContain("klassifiserManuellReise(");
+    expect(HOOK).toContain("løsManuellReise(");
     expect(HOOK).toContain("velgOppmotested(");
     expect(MODAL).toContain("useManuellReise(");
     expect(MODAL).toContain("manuellReise.spor ?? undefined");
@@ -251,3 +251,23 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
   });
 });
 
+/**
+ * Ordre 2026-11-14 (11) C: mangler firmaet standard ordinær lønnsart, ser
+ * arbeideren «Firmaet mangler standard lønnsart — be firmaadmin sette den» og
+ * lagring sperres — samme delte sjekk som web.
+ */
+describe("Ordre (11) C — mangler standard lønnsart (mobil)", () => {
+  const MODAL = les("../components/timer-detalj/TimerSeksjon.tsx").replace(/\s+/g, " ");
+
+  it("modalen bruker den delte sjekken og den felles teksten", () => {
+    expect(MODAL).toContain("manuellReiseManglerArt(manuellKlassifisering)");
+    expect(MODAL).toContain('t("timer.reiseTerskel.manglerArt")');
+  });
+
+  it("teksten i nb er veiledningen fra ordren", () => {
+    const nb = JSON.parse(les("../../../../packages/shared/src/i18n/nb.json")) as Record<string, string>;
+    expect(nb["timer.reiseTerskel.manglerArt"]).toBe(
+      "Firmaet mangler standard lønnsart — be firmaadmin sette den",
+    );
+  });
+});

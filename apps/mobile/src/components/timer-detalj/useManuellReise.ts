@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { TFunction } from "i18next";
 import {
-  klassifiserManuellReise,
-  tilManuellReiseSpor,
+  løsManuellReise,
+  manuellReiseForklaringTekst,
   velgOppmotested,
-  type ManuellReiseKlassifisering,
   type ManuellReiseSpor,
   type ReiseRegelsett,
 } from "@sitedoc/shared";
@@ -33,38 +31,10 @@ import {
 export type { ManuellReiseSpor };
 
 /**
- * Grå forklaringslinje: «Under terskel (30 min) — føres som arbeidstid» o.l.
- *
- * Under/over velges etter TERSKELUTFALLET (`forklaring.type`), aldri etter
- * `erReise` — firmaet kan ha under-type «reisetid» eller over-type
- * «arbeidstid». Kategorien settes inn separat (RETUR V1, 2026-11-14).
+ * Grå forklaringslinje — delt med web (ordre (11) A). Beholdt navn for
+ * eksisterende kallere.
  */
-export function forklaringTekst(
-  t: TFunction,
-  k: ManuellReiseKlassifisering,
-  lonnsartNavn: string | null,
-): string {
-  const f = k.forklaring;
-  if (f.type === "ukjentAvstand") return t("timer.reiseTerskel.ukjentAvstand");
-  const terskel =
-    f.enhet === "km"
-      ? t("timer.reiseTerskel.km", { km: (f.terskelM / 1000).toLocaleString("nb-NO") })
-      : t("timer.reiseTerskel.min", { min: f.terskelMin });
-  const under = f.type === "under";
-  if (k.erReise && k.reiseRegel.grensepunktTreff && lonnsartNavn) {
-    return t(under ? "timer.reiseTerskel.underBand" : "timer.reiseTerskel.overBand", {
-      terskel,
-      art: lonnsartNavn,
-    });
-  }
-  const kategori = t(
-    k.erReise ? "timer.reiseTerskel.kategoriReise" : "timer.reiseTerskel.kategoriArbeid",
-  );
-  return t(under ? "timer.reiseTerskel.underFores" : "timer.reiseTerskel.overFores", {
-    terskel,
-    kategori,
-  });
-}
+export const forklaringTekst = manuellReiseForklaringTekst;
 
 function lesRegel(organizationId: string): ReiseRegelsett | null {
   const r = hentOrganizationSettingLokalt(organizationId);
@@ -129,30 +99,23 @@ export function useManuellReise({
     };
   }, [aktiv, organizationId]);
 
-  const valg = useMemo(() => velgOppmotested(oppmotesteder, sisteValg), [oppmotesteder, sisteValg]);
-  // Nedtrekket vises kun når terskelen måles i km og firmaet har flere steder.
-  const visVelger = !!regel && regel.reiseTerskelEnhet === "km" && valg.modus === "velg";
-  const oppmotestedId =
-    valg.modus === "auto" ? valg.oppmotestedId : visVelger ? valgtId : null;
-
-  const avstandM = useMemo(() => {
-    if (!oppmotestedId || !byggeplassId) return null;
-    return hentMatriseRadLokalt(oppmotestedId, byggeplassId)?.avstandM ?? null;
-  }, [oppmotestedId, byggeplassId]);
-
-  const klassifisering = useMemo(
+  // Ordre (11) A: oppmøtested-valg, avstand og klassifisering i ÉN delt
+  // funksjon — webens «+ Reise» kaller den samme.
+  const res = useMemo(
     () =>
-      regel
-        ? klassifiserManuellReise({
-            regel,
-            reisetimer: timer,
-            avstandM,
-            grensepunkter,
-            resolverLonnsartId,
-            standardLonnsartId,
-          })
-        : null,
-    [regel, timer, avstandM, grensepunkter, resolverLonnsartId, standardLonnsartId],
+      løsManuellReise({
+        regel,
+        oppmotesteder,
+        sisteValgId: sisteValg,
+        valgtId,
+        byggeplassId,
+        avstandFor: (o, b) => hentMatriseRadLokalt(o, b)?.avstandM ?? null,
+        reisetimer: timer,
+        grensepunkter,
+        resolverLonnsartId,
+        standardLonnsartId,
+      }),
+    [regel, oppmotesteder, sisteValg, valgtId, byggeplassId, timer, grensepunkter, resolverLonnsartId, standardLonnsartId],
   );
 
   function velg(id: string) {
@@ -161,10 +124,10 @@ export function useManuellReise({
   }
 
   return {
-    klassifisering,
-    spor: klassifisering ? tilManuellReiseSpor(klassifisering, oppmotestedId) : null,
+    klassifisering: res.klassifisering,
+    spor: res.spor,
     lonnsartNavn: (id: string | null) => (id ? (lonnsartNavn.get(id) ?? null) : null),
-    velger: visVelger
+    velger: res.visVelger
       ? {
           valgtId,
           steder: oppmotesteder.map((o) => ({ id: o.id, navn: o.navn })),

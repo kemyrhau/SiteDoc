@@ -1533,6 +1533,15 @@ function ReiseSeksjon() {
     timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff === 0;
   const visTvetydigReiseArt =
     timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff >= 2;
+  // Ordre (11) C: reise som føres som arbeidstid (under eller over terskel) lander
+  // på firmaets standard ordinære lønnsart (delt `klassifiserManuellReise`). Mangler
+  // den, kan raden ikke lagres → varsellinje med lenke til feltet (stjerna).
+  const manglerStandardArt =
+    timerAktiv &&
+    (underType === "arbeidstid" || overType === "arbeidstid") &&
+    !((lonnsarter ?? []) as unknown as Array<{ aktiv: boolean; erStandardvalg: boolean }>).some(
+      (l) => l.aktiv && l.erStandardvalg,
+    );
 
   // Ordre (6): status for «+ Reise» fra SAMME resolver som knappen (live mot
   // nedtrekkets verdi). Nedtrekket grupperes: «Foreslått» = navne-treff,
@@ -1720,6 +1729,15 @@ function ReiseSeksjon() {
           </select>
         </div>
       </div>
+
+      {manglerStandardArt && (
+        <p className="mt-3 text-xs font-medium text-amber-700" data-testid="reise-mangler-standardart">
+          {t("firma.innstillinger.reise.manglerStandardArt")}{" "}
+          <Link href="/dashbord/firma/timer/lonnsarter" className="underline hover:text-amber-900">
+            {t("firma.innstillinger.reise.settStandardArt")}
+          </Link>
+        </p>
+      )}
 
       {/* Forklarer hva «Under/Over terskel»-valgene faktisk gjør med timene —
           hvilken lønnsart de havner på (Kenneth-krav: forklar, ikke konfigurer). */}
