@@ -62,6 +62,8 @@ vi.mock("@sitedoc/db", () => ({
     organizationReiseGrense: { findMany: kjerne.grenseFindMany },
     reisetidMatrise: { findMany: kjerne.matriseFindMany },
     byggeplass: { findMany: kjerne.byggeplassFindMany },
+    // RETUR 1 V3: maskin-feilmeldingen slår opp prosjektnavn.
+    project: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -466,5 +468,42 @@ describe("syncBatch — maskin bærer egen byggeplass (ORDRE 36b)", () => {
     expect(maskin.byggeplassId).toBeTruthy();
     expect(maskin.byggeplassId).toBe(timerRad.byggeplassId);
     expect(maskin.sheetTimerId).toBe(TIMER_RAD);
+  });
+});
+
+/**
+ * RETUR 1 V3 — overgang: syncBatch beholder den slakke maskin-regelen (reise
+ * teller som arbeid), så en eldre mobil-app ikke får hele sedelen avvist ved synk
+ * etter API-deployen. Den samme dagen via interaktiv sti (maskin.tilfoy) avvises
+ * — se firma-katalog-server.test.ts «maskin 8 / arbeid 7 / reise 2: avvises».
+ */
+describe("syncBatch — maskin-regelen i overgangsperioden (RETUR 1 V3)", () => {
+  const dag = (maskinTimer: number) => ({
+    ...sedelMed({ timer: 7 }),
+    timer: [
+      { id: "88888888-8888-8888-8888-888888888888", lonnsartId: ORDINAER_LONNSART, aktivitetId: AKTIVITET, timer: 7 },
+      {
+        id: "88888888-8888-8888-8888-888888888889", lonnsartId: REISE_LONNSART, aktivitetId: AKTIVITET, timer: 2,
+        erReise: true, reiseRetning: "ut" as const, reiseKilde: "manuell" as const, tidKilde: "manuell" as const,
+      },
+    ],
+    maskiner: [
+      { id: "99999999-9999-9999-9999-999999999999", projectId: PROSJEKT, vehicleId: "12121212-1212-1212-1212-121212121212", timer: maskinTimer },
+    ],
+  });
+
+  it("maskin 8 / arbeid 7 / reise 2: godtas ved synk (reise teller som arbeid i overgangen)", async () => {
+    const { ctx, txMock } = lagCtx();
+    const res = await dagsseddelRouter.createCaller(ctx).syncBatch({ sedler: [dag(8)] });
+    expect(res.resultater[0]!.resultat).toBe("ok");
+    expect(txMock.sheetMachine.createMany).toHaveBeenCalled();
+  });
+
+  it("🔴 maskin 10 / arbeid 7 / reise 2: avvises fortsatt ved synk (overgangen slakker kun reise)", async () => {
+    const { ctx, txMock } = lagCtx();
+    const res = await dagsseddelRouter.createCaller(ctx).syncBatch({ sedler: [dag(10)] });
+    expect(res.resultater[0]!.resultat).toBe("avvist");
+    expect(res.resultater[0]!.feilmelding).toMatch(/Maskintimer/);
+    expect(txMock.sheetMachine.createMany).not.toHaveBeenCalled();
   });
 });

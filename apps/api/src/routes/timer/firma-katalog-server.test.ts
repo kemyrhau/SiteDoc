@@ -145,7 +145,7 @@ function lagCtx(opts: {
         findUnique: vi.fn().mockResolvedValue({
           id: RAD, sheetId: SHEET, projectId: PROSJEKT, lonnsartId: LONNSART,
           aktivitetId: AKTIVITET, timer: 4, erReise: false, attestertStatus: "pending",
-          externalCostObjectId: null, fraTid: "07:00", tilTid: "11:00",
+          externalCostObjectId: null, fraTid: "07:00", tilTid: "11:00", pauseMin: 0,
         }),
         findMany: vi.fn().mockResolvedValue(timerRader),
         update: timerUpdate,
@@ -154,6 +154,8 @@ function lagCtx(opts: {
         findUnique: vi.fn().mockResolvedValue({
           id: RAD, sheetId: SHEET, projectId: PROSJEKT, tilleggId: TILLEGG, antall: 1,
         }),
+        delete: vi.fn().mockResolvedValue({}),
+        create: vi.fn().mockResolvedValue({}),
         findMany: vi.fn().mockResolvedValue([]),
         update: tilleggUpdate,
       },
@@ -332,5 +334,49 @@ describe("maskin-kontrollen måles mot arbeid uten reise (punkt 5)", () => {
       caller(ctx).maskin.tilfoy({ sheetId: SHEET, projectId: PROSJEKT, vehicleId: UTSTYR, timer: 8 }),
     ).rejects.toThrow(/Maskintimer \(8\.00t\) overstiger arbeidstimer \(7\.00t\)/);
     expect(maskinCreate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * RETUR 1 V2 — splitt-vakten i `validerSplittFelles`. Nye splitt-rader (timer:
+ * lønnsart + aktivitet; tillegg: tillegg) må bruke sedelens firmakatalog. Drives
+ * gjennom begge innganger (leder `splittRad`, eier `splittRadEier`). Avvist =
+ * ingen transaksjon; egne ID-er slipper forbi vakten (transaksjonen startes).
+ */
+describe("splitt — katalog-firmavakt i validerSplittFelles (RETUR 1 V2)", () => {
+  const timerDeler = (lonnsartId: string, aktivitetId: string) => [
+    { projectId: PROSJEKT, lonnsartId: LONNSART, aktivitetId: AKTIVITET, fraTid: "07:00", tilTid: "09:00", timer: 2 },
+    { projectId: PROSJEKT, lonnsartId, aktivitetId, fraTid: "09:00", tilTid: "11:00", timer: 2 },
+  ];
+  const tilleggDeler = (tilleggId: string) => [
+    { projectId: PROSJEKT, tilleggId: TILLEGG, antall: 0.5 },
+    { projectId: PROSJEKT, tilleggId, antall: 0.5 },
+  ];
+  const KATALOGFEIL = /finnes ikke i firmaets katalog/;
+
+  it.each([
+    ["eier, timer, fremmed lønnsart", "draft", "splittRadEier", { radType: "timer", radId: RAD, nyeRader: timerDeler(FREMMED_LONNSART, AKTIVITET) }, /Lønnsart finnes ikke i firmaets katalog/],
+    ["eier, timer, fremmed aktivitet", "draft", "splittRadEier", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, FREMMED_AKTIVITET) }, /Aktivitet finnes ikke i firmaets katalog/],
+    ["eier, tillegg, fremmed tillegg", "draft", "splittRadEier", { radType: "tillegg", radId: RAD, nyeRader: tilleggDeler(FREMMED_TILLEGG) }, /Tillegg finnes ikke i firmaets katalog/],
+    ["leder, timer, fremmed lønnsart", "sent", "splittRad", { radType: "timer", radId: RAD, nyeRader: timerDeler(FREMMED_LONNSART, AKTIVITET) }, /Lønnsart finnes ikke i firmaets katalog/],
+    ["leder, timer, fremmed aktivitet", "sent", "splittRad", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, FREMMED_AKTIVITET) }, /Aktivitet finnes ikke i firmaets katalog/],
+  ] as const)("🔴 %s: BAD_REQUEST, ingen transaksjon", async (_navn, status, inngang, input, feil) => {
+    const { ctx } = lagCtx({ status });
+    const c = caller(ctx) as unknown as Record<string, (i: unknown) => Promise<unknown>>;
+    await expect(c[inngang]!(input)).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(feil) });
+    expect(ctx.prismaTimer.$transaction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["eier, timer", "draft", "splittRadEier", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, AKTIVITET) }],
+    ["eier, tillegg", "draft", "splittRadEier", { radType: "tillegg", radId: RAD, nyeRader: tilleggDeler(TILLEGG) }],
+    ["leder, timer", "sent", "splittRad", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, AKTIVITET) }],
+  ] as const)("%s med egne ID-er: slipper forbi vakten (transaksjonen startes)", async (_navn, status, inngang, input) => {
+    const { ctx } = lagCtx({ status });
+    const c = caller(ctx) as unknown as Record<string, (i: unknown) => Promise<unknown>>;
+    // Transaksjons-mocken dekker ikke splitt-skrivingen; det som måles er at vakten slapp gjennom.
+    const feil = await c[inngang]!(input).then(() => null, (e: unknown) => e as Error);
+    expect(feil?.message ?? "").not.toMatch(KATALOGFEIL);
+    expect(ctx.prismaTimer.$transaction).toHaveBeenCalled();
   });
 });

@@ -1223,6 +1223,13 @@ type ValiderRad = {
 };
 
 /**
+ * RETUR 1 V3 — overgangsbryter for `syncBatch`s maskin-kontroll. `true` = reise
+ * teller som arbeid ved synk (den gamle regelen). Settes til `false` (og
+ * fjernes) når OTA-versjonen med «maskin mot arbeid uten reise» er i bruk.
+ */
+const SYNK_MASKIN_REISE_TELLER_SOM_ARBEID = true;
+
+/**
  * Delegerer til @sitedoc/shared `beregnMaskinBrudd` — samme bucket-regel,
  * epsilon og pause-modell brukes av klient-disable (web + mobil). Serveren
  * konverterer kun Decimal → number før den delte funksjonen kalles.
@@ -1230,11 +1237,18 @@ type ValiderRad = {
  * Arbeid måles UTEN reise (post (7) punkt 5): hver timer-rad går gjennom den
  * delte `arbeidUtenReise`, som gir 0 for reiserader og erstattede rader — den
  * samme funksjonen web-klientens maskin-kontroll summerer bucketen med.
+ *
+ * `reiseTellerSomArbeid` (RETUR 1 V3) er KUN for `syncBatch`s overgangsperiode:
+ * eldre mobil-apper regner reise som arbeid, og en sedel de har lagret lokalt
+ * skal ikke avvises i sin helhet ved synk etter API-deployen. Fjernes når
+ * OTA-versjonen med den nye regelen er i bruk (docs/claude/timer.md § Maskin ≤
+ * arbeidstimer).
  */
 function validerMaskinUnderArbeid(
   timer: ValiderRad[],
   maskin: ValiderRad[],
   pauseMin = 0,
+  opts: { reiseTellerSomArbeid?: boolean } = {},
 ) {
   const tilNum = (v: ValiderRad["timer"]): number =>
     typeof v === "number" ? v : Number(v);
@@ -1249,7 +1263,7 @@ function validerMaskinUnderArbeid(
     timer: arbeidUtenReise([
       {
         timer: tilNum(rad.timer),
-        erReise: rad.erReise,
+        erReise: opts.reiseTellerSomArbeid ? false : rad.erReise,
         attestertStatus: rad.attestertStatus,
       },
     ]),
@@ -6983,6 +6997,11 @@ export const dagsseddelRouter = router({
             // er en buffer (maskin ≤ arbeid + pause/60), så en eldre app skal
             // aldri avvises STRENGERE enn før (ufravikelig: eldre app må synke).
             Math.max(syncSumPause, lokal.pauseMin),
+            // RETUR 1 V3 — OVERGANG: synk beholder den slakke regelen (reise
+            // teller som arbeid), så en eldre app ikke får hele sedelen avvist
+            // etter API-deployen. syncBatch kjenner ikke klientversjonen, så
+            // regelen gjelder all synk til overgangen fjernes (timer.md).
+            { reiseTellerSomArbeid: SYNK_MASKIN_REISE_TELLER_SOM_ARBEID },
           );
           if (syncBrytt.length > 0) {
             resultater.push({
