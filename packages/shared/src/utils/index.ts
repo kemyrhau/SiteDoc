@@ -526,6 +526,7 @@ export {
   type KortByggeplassArv,
   kortStatus,
   trafikklysSone,
+  sumlinjeMotNorm,
   visVareforbrukKnapp,
   kortDagsseddelId,
   kortVareforbrukInput,

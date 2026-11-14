@@ -68,7 +68,7 @@ import {
   kortStatus,
   lesTimerModus,
   sumIDag,
-  trafikklysSone,
+  sumlinjeMotNorm,
   utledKortByggeplass,
   visVareforbrukKnapp,
   kortDagsseddelId,
@@ -1467,9 +1467,10 @@ function ProsjektkortSamleside({
       ? `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${enhet}`
       : "—";
 
+  // Total inkl. reise → «Send dagen (X t)». Sumlinja mot normen teller ikke reise.
   const dagSum = sumIDag(timerRader);
   const dag = dagSummer(timerRader, maskinRader);
-  const sone = trafikklysSone(dagSum, normTimer);
+  const { registrert: motNorm, sone } = sumlinjeMotNorm(timerRader, normTimer);
   const prikk =
     sone === "grå"
       ? "bg-gray-400"
@@ -1680,7 +1681,7 @@ function ProsjektkortSamleside({
           <span className={`h-2.5 w-2.5 rounded-full ${prikk}`} aria-hidden />
           <span className="text-sm text-gray-700">
             {t("timer.prosjektkort.sumIDag", {
-              registrert: formatTimer(dagSum),
+              registrert: formatTimer(motNorm),
               total: normTimer === null ? "?" : formatTimer(normTimer),
             })}
             {dag.maskin > 0 &&

@@ -5,6 +5,7 @@ import {
   kortStatus,
   lesTimerModus,
   sumIDag,
+  sumlinjeMotNorm,
   trafikklysSone,
   utledKortByggeplass,
 } from "./prosjektkort";
@@ -176,5 +177,24 @@ describe("trafikklysSone", () => {
     expect(trafikklysSone(7.55, 7.5)).toBe("grønn");
     expect(trafikklysSone(8, 7.5)).toBe("gul");
     expect(trafikklysSone(6, 7.5)).toBe("blå");
+  });
+});
+
+describe("sumlinjeMotNorm — reise teller ikke mot normen (Kenneth 2026-11-14)", () => {
+  it("eksempel 1: 7,5 arbeid + 2 reise, norm 7,5 → registrert 7,5, grønn", () => {
+    const rader = [t(7.5), t(2, { erReise: true })];
+    expect(sumlinjeMotNorm(rader, 7.5)).toEqual({ registrert: 7.5, sone: "grønn" });
+    // Totalen (topptekst / «Send dagen») beholder reisen.
+    expect(sumIDag(rader)).toBe(9.5);
+  });
+
+  it("erstattede rader teller ikke; mangler norm → grå", () => {
+    const rader = [t(4), t(3, { attestertStatus: "erstattet" }), t(1, { erReise: true })];
+    expect(sumlinjeMotNorm(rader, 7.5)).toEqual({ registrert: 4, sone: "blå" });
+    expect(sumlinjeMotNorm(rader, null).sone).toBe("grå");
+  });
+
+  it("arbeid over normen er fortsatt gul — reisen skjuler ikke overtid", () => {
+    expect(sumlinjeMotNorm([t(8.5), t(1, { erReise: true })], 7.5).sone).toBe("gul");
   });
 });
