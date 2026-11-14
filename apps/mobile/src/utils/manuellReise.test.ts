@@ -2,7 +2,12 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
-import { arbeidOgReise, sendDagenTekst } from "@sitedoc/shared";
+import {
+  arbeidOgReise,
+  klassifiserManuellReise,
+  sendDagenTekst,
+  tilManuellReiseSpor,
+} from "@sitedoc/shared";
 import {
   beregnDagsforslag,
   leggTilManuellReise,
@@ -150,3 +155,99 @@ describe("POST (8) punkt 1 — samme knapp og skjuleregel som det lagrede kortet
     expect(BEKREFT).toContain("{manuell && !alleSendt && !ikkeAnsatt && !tomt && prosjektId ? (");
   });
 });
+
+/**
+ * Ordre 2026-11-14 (9) — terskel og avstandsbånd på «+ Reise». Klassifiseringen
+ * er delt (`klassifiserManuellReise`, testet i shared); her prøves at sporet
+ * følger raden inn i forslaget og at begge flater bruker samme hook.
+ */
+describe("Ordre (9) — terskel-sporet på manuell reise", () => {
+  const REGEL_KM = {
+    reiseTerskelEnhet: "km" as const,
+    reiseTerskelMin: 30,
+    reiseTerskelM: 30000,
+    reiseUnderTerskelType: "arbeidstid" as const,
+    reiseOverTerskelType: "reisetid" as const,
+  };
+
+  it("under terskel → egen arbeidsrad (erReise false), regel lagret, ingen avstand/oppmøtested", () => {
+    const k = klassifiserManuellReise({
+      regel: REGEL_KM,
+      reisetimer: 1.5,
+      avstandM: 12000,
+      grensepunkter: [],
+      resolverLonnsartId: L_REISE,
+      standardLonnsartId: L_NORMAL,
+    });
+    const spor = tilManuellReiseSpor(k, "opp1");
+    const f = beregnDagsforslag({
+      ...manuellInput(),
+      retting: { manuellReise: [{ ...REISE, lonnsartId: k.lonnsartId!, reiseSpor: spor }] },
+    });
+    const rader = f.datoer[0]!.rader;
+    const ny = rader[rader.length - 1]!;
+    expect(ny).toMatchObject({
+      lonnsartId: L_NORMAL,
+      erReise: false,
+      reiseKilde: null,
+      reiseAvstandM: null,
+      reiseOppmotestedId: null,
+      tidKilde: "manuell",
+    });
+    expect(ny.reiseRegel).toMatchObject({ kategori: "arbeidstid", enhet: "km" });
+    // Aldri slått sammen med andre rader: én rad mer enn uten reisen.
+    expect(rader.length).toBe(beregnDagsforslag(manuellInput()).datoer[0]!.rader.length + 1);
+    // Teller som arbeid, ikke reise, i «Send dagen».
+    const { reise } = arbeidOgReise(rader);
+    expect(reise).toBe(0);
+  });
+
+  it("over terskel med bånd → erReise true, båndets art, avstand og oppmøtested lagret", () => {
+    const k = klassifiserManuellReise({
+      regel: REGEL_KM,
+      reisetimer: 1.5,
+      avstandM: 45000,
+      grensepunkter: [{ grenseM: 30000, lonnsartId: "L-bånd-30" }],
+      resolverLonnsartId: L_REISE,
+      standardLonnsartId: L_NORMAL,
+    });
+    const f = beregnDagsforslag({
+      ...manuellInput(),
+      retting: {
+        manuellReise: [{ ...REISE, lonnsartId: k.lonnsartId!, reiseSpor: tilManuellReiseSpor(k, "opp1") }],
+      },
+    });
+    const reise = f.datoer[0]!.rader.filter((r) => r.erReise);
+    expect(reise).toHaveLength(1);
+    expect(reise[0]).toMatchObject({
+      lonnsartId: "L-bånd-30",
+      reiseKilde: "manuell",
+      reiseAvstandM: 45000,
+      reiseOppmotestedId: "opp1",
+    });
+    expect(reise[0]!.reiseRegel).toMatchObject({ kategori: "reisetid", grensepunktTreff: true });
+  });
+
+  it("uten spor (regelsett ikke synket / eldre utkast) → reise-rad som før", () => {
+    const f = beregnDagsforslag({ ...manuellInput(), retting: { manuellReise: [REISE] } });
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise)[0]).toMatchObject({
+      erReise: true,
+      reiseKilde: "manuell",
+      reiseRegel: null,
+    });
+  });
+
+  it("begge flater sender sporet fra samme modal-hook videre til lagringen", () => {
+    const MODAL = les("../components/timer-detalj/TimerSeksjon.tsx").replace(/\s+/g, " ");
+    const HOOK = les("../components/timer-detalj/useManuellReise.ts");
+    const BEKREFT = les("../../app/timer/bekreft-dag.tsx").replace(/\s+/g, " ");
+    const DAGSEKSJON = les("../components/timer-detalj/prosjektkort/DagSeksjon.tsx").replace(/\s+/g, " ");
+    expect(HOOK).toContain("klassifiserManuellReise(");
+    expect(HOOK).toContain("velgOppmotested(");
+    expect(MODAL).toContain("useManuellReise(");
+    expect(MODAL).toContain("manuellReise.spor ?? undefined");
+    expect(DAGSEKSJON).toContain("leggTilTimerRad(db(), k, felt, maskin.linjer, reiseSpor)");
+    expect(BEKREFT).toContain("timer, fraTid, tilTid, reiseSpor }");
+  });
+});
+

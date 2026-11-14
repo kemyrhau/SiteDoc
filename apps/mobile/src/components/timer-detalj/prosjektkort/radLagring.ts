@@ -3,7 +3,7 @@ import { randomUUID } from "expo-crypto";
 import type { hentDatabase } from "../../../db/database";
 import { sheetTimerLocal, sheetMachineLocal, slettedeRaderLocal } from "../../../db/schema";
 import { erReiseLonnsartLokalt } from "../../../services/timerKatalog";
-import { settInnTimerRad } from "../../../services/nyTimerRad";
+import { settInnTimerRad, type NyRad } from "../../../services/nyTimerRad";
 import {
   maskinerOverRadEtterLagring,
   skrivKobledeMaskiner,
@@ -63,8 +63,10 @@ export function leggTilTimerRad(
   { sheetId, organizationId }: RadKontekst,
   felt: TimerRadFelt,
   maskiner: NyMaskin[],
+  // Ordre (9): terskel/bånd-sporet fra «+ Reise» (kun ny reise-rad).
+  reiseSpor?: NyRad["reiseSpor"],
 ): string {
-  return settInnTimerRad(db, sheetId, organizationId, { ...felt, maskiner });
+  return settInnTimerRad(db, sheetId, organizationId, { ...felt, maskiner, reiseSpor });
 }
 
 export type OppdaterRadResultat = { ok: true } | { ok: false; grunn: "maskinOverRad" };

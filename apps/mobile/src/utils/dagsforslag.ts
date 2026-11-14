@@ -46,6 +46,7 @@ import {
   type ReiseKategori,
   type ReiseEnhet,
   type ReiseGrensepunkt,
+  type ManuellReiseSpor,
   type ReiseRegelSnapshot,
   type NormSnapshot,
   type Startsted,
@@ -417,6 +418,12 @@ export type DagsforslagManuellReise = {
   timer: number;
   fraTid: string | null;
   tilTid: string | null;
+  /**
+   * Ordre (9): terskel/bånd-sporet (`klassifiserManuellReise`). Satt → raden
+   * føres etter det (under terskel: erReise false, standard ordinær art).
+   * Udefinert (regelsett ikke synket / eldre utkast) → reise-rad som før.
+   */
+  reiseSpor?: ManuellReiseSpor;
 };
 
 /**
@@ -440,14 +447,15 @@ export function leggTilManuellReise(
     fraTid: r.fraTid,
     tilTid: r.tilTid,
     pauseMin: 0,
-    erReise: true,
+    erReise: r.reiseSpor ? r.reiseSpor.erReise : true,
     reiseRetning: null,
-    reiseOppmotestedId: null,
+    // Ordre (9): ikke-reise-rad bærer aldri avstand/oppmøtested (C2 + DB-CHECK).
+    reiseOppmotestedId: r.reiseSpor?.erReise ? r.reiseSpor.reiseOppmotestedId : null,
     byggeplassId: r.byggeplassId,
     reiseKjoretidMin: null,
-    reiseAvstandM: null,
-    reiseKilde: "manuell",
-    reiseRegel: null,
+    reiseAvstandM: r.reiseSpor?.erReise ? r.reiseSpor.reiseAvstandM : null,
+    reiseKilde: r.reiseSpor ? r.reiseSpor.reiseKilde : "manuell",
+    reiseRegel: r.reiseSpor ? r.reiseSpor.reiseRegel : null,
     tidKilde: "manuell",
   }));
   return datoer.map((d, i) => (i === idx ? { ...d, rader: [...d.rader, ...rader] } : d));

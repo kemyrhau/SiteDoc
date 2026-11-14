@@ -1404,7 +1404,14 @@ export default function BekreftDagSkjerm() {
                     className="min-h-[44px] flex-row items-center gap-3 border-b border-gray-100 px-4 py-2"
                   >
                     <Car size={14} color="#6b7280" />
-                    <Text className="text-sm text-gray-500">{t("timer.prosjektkort.kolonne.reise")}</Text>
+                    {/* Ordre (9): under terskel føres raden som arbeidstid. */}
+                    <Text className="text-sm text-gray-500">
+                      {t(
+                        r.reiseSpor && !r.reiseSpor.erReise
+                          ? "timer.prosjektkort.kolonne.arbeid"
+                          : "timer.prosjektkort.kolonne.reise",
+                      )}
+                    </Text>
                     <Text className="flex-1 text-sm text-gray-900">
                       {r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid} · ` : ""}
                       {formatTimer(r.timer)} {t("timer.timerEnhet")}
@@ -1470,12 +1477,25 @@ export default function BekreftDagSkjerm() {
                 tvungetValg={null}
                 sedelByggeplassId={forsteDag.byggeplassId}
                 reise={{ lonnsartId: reiseKnappLonnsartId, laast: true }}
-                onLagre={(projectId, byggeplassId, lonnsartId, aktivitetId, timer, _eco, fraTid, tilTid) => {
+                onLagre={(
+                  projectId,
+                  byggeplassId,
+                  lonnsartId,
+                  aktivitetId,
+                  timer,
+                  _eco,
+                  fraTid,
+                  tilTid,
+                  _beskrivelse,
+                  _pauseMin,
+                  _maskin,
+                  reiseSpor,
+                ) => {
                   setRetting((x) => ({
                     ...x,
                     manuellReise: [
                       ...(x.manuellReise ?? []),
-                      { projectId, byggeplassId, lonnsartId, aktivitetId, timer, fraTid, tilTid },
+                      { projectId, byggeplassId, lonnsartId, aktivitetId, timer, fraTid, tilTid, reiseSpor },
                     ],
                   }));
                   setReiseModalApen(false);
