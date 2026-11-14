@@ -32,7 +32,13 @@ import {
 
 export type { ManuellReiseSpor };
 
-/** Grå forklaringslinje: «Under terskel (30 min) — føres som arbeidstid» o.l. */
+/**
+ * Grå forklaringslinje: «Under terskel (30 min) — føres som arbeidstid» o.l.
+ *
+ * Under/over velges etter TERSKELUTFALLET (`forklaring.type`), aldri etter
+ * `erReise` — firmaet kan ha under-type «reisetid» eller over-type
+ * «arbeidstid». Kategorien settes inn separat (RETUR V1, 2026-11-14).
+ */
 export function forklaringTekst(
   t: TFunction,
   k: ManuellReiseKlassifisering,
@@ -44,10 +50,20 @@ export function forklaringTekst(
     f.enhet === "km"
       ? t("timer.reiseTerskel.km", { km: (f.terskelM / 1000).toLocaleString("nb-NO") })
       : t("timer.reiseTerskel.min", { min: f.terskelMin });
-  if (!k.erReise) return t("timer.reiseTerskel.underArbeid", { terskel });
-  return k.reiseRegel.grensepunktTreff && lonnsartNavn
-    ? t("timer.reiseTerskel.overBand", { terskel, art: lonnsartNavn })
-    : t("timer.reiseTerskel.over", { terskel });
+  const under = f.type === "under";
+  if (k.erReise && k.reiseRegel.grensepunktTreff && lonnsartNavn) {
+    return t(under ? "timer.reiseTerskel.underBand" : "timer.reiseTerskel.overBand", {
+      terskel,
+      art: lonnsartNavn,
+    });
+  }
+  const kategori = t(
+    k.erReise ? "timer.reiseTerskel.kategoriReise" : "timer.reiseTerskel.kategoriArbeid",
+  );
+  return t(under ? "timer.reiseTerskel.underFores" : "timer.reiseTerskel.overFores", {
+    terskel,
+    kategori,
+  });
 }
 
 function lesRegel(organizationId: string): ReiseRegelsett | null {
