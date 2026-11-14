@@ -43,6 +43,7 @@ import { hentWebUrl } from "../../src/config/auth";
 import { apnLenke } from "../../src/lib/apnLenke";
 import { FraTilTidFelt } from "../../src/components/timer-detalj/FraTilTidFelt";
 import { ModalFlate } from "../../src/components/ModalFlate";
+import { OppmoteSporsmaalArk, useOppmoteSporsmaal } from "../../src/components/OppmoteSporsmaal";
 import { useModalInnsetter } from "../../src/components/ModalInnsetter";
 import {
   forberedBekreftDag,
@@ -172,6 +173,10 @@ export default function BekreftDagSkjerm() {
   const { triggerSync, oppdaterTellere } = useTimerSync();
 
   const orgId = valgtFirmaId ?? "";
+  // POST (12) D: manuell dag stiller «Hvor møter du vanligvis?» først (kun på
+  // nett, kun når serveren sier trengerValg). Lukk = fortsett uten.
+  const oppmote = useOppmoteSporsmaal(manuell ? orgId : "");
+  const [oppmoteFerdig, setOppmoteFerdig] = useState(false);
   const sluttIso = params.sluttIso;
   const endLat = tilTall(params.endLat);
   const endLng = tilTall(params.endLng);
@@ -1063,6 +1068,16 @@ export default function BekreftDagSkjerm() {
 
   return (
     <ModalFlate className="bg-gray-50">
+      {manuell && oppmote.trengerValg && !oppmoteFerdig ? (
+        <OppmoteSporsmaalArk
+          orgId={orgId}
+          onVelg={async (id) => {
+            await oppmote.velg(id);
+            setOppmoteFerdig(true);
+          }}
+          onLukk={() => setOppmoteFerdig(true)}
+        />
+      ) : null}
       {topp}
       <ScrollView
         ref={rulleRef}

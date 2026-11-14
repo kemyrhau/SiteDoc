@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Vaheta ehitusplatsi",
   "timer.besok.ankommetHvor": "Kuhu saabus?",
   "timer.besok.lukk": "Sule",
+  "timer.oppmote.sporsmaal": "Kuhu te tavaliselt tööle ilmute?",
+  "timer.oppmote.forklaring": "Valige koht, kuhu teatate. Seda kasutatakse reisi arvutamiseks. Teie ettevõte saab seda hiljem muuta.",
   "timer.besok.sok": "Otsi ehitusplatse…",
   "timer.besok.gpsTreff": "GPS vaste",
   "timer.besok.utenfor": "Väljaspool teadaolevat ehitusplatsi",

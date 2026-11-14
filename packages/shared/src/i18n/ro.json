@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Schimbați șantierul de construcție",
   "timer.besok.ankommetHvor": "Ajuns unde?",
   "timer.besok.lukk": "Aproape",
+  "timer.oppmote.sporsmaal": "Unde te prezinți de obicei la muncă?",
+  "timer.oppmote.forklaring": "Alegeți locul în care vă raportați. Este folosit pentru a calcula călătoria. Compania dvs. o poate schimba ulterior.",
   "timer.besok.sok": "Căutați șantiere...",
   "timer.besok.gpsTreff": "Potrivire GPS",
   "timer.besok.utenfor": "În afara unui șantier cunoscut",

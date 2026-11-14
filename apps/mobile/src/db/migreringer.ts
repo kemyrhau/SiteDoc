@@ -1468,6 +1468,26 @@ export function kjorMigreringer() {
     CREATE UNIQUE INDEX IF NOT EXISTS ux_prosjektkort_utkast
       ON prosjektkort_utkast_local(user_id, organization_id, nokkel);
   `);
+
+  // Oppmøtested med perioder (POST 2026-11-15 (12) D): brukerens egne perioder,
+  // KUN lokal cache for den delte resolveren (offline etterregistrering). Ny
+  // tabell, idempotent via IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS oppmote_periode_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      fast INTEGER NOT NULL DEFAULT 0,
+      oppmotested_id TEXT,
+      project_id TEXT,
+      fra_dato TEXT NOT NULL,
+      til_dato TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_oppmote_periode_local_bruker_org
+      ON oppmote_periode_local(user_id, organization_id);
+  `);
 }
 
 /** Utkast for prosjektkort: lokal tabell + unik indeks. */

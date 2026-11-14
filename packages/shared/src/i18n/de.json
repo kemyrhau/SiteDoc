@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Baustelle wechseln",
   "timer.besok.ankommetHvor": "Wo angekommen?",
   "timer.besok.lukk": "Schließen",
+  "timer.oppmote.sporsmaal": "Wo melden Sie sich normalerweise zur Arbeit?",
+  "timer.oppmote.forklaring": "Wählen Sie den Ort aus, an den Sie sich melden. Es wird zur Berechnung der Reise verwendet. Ihr Unternehmen kann es später ändern.",
   "timer.besok.sok": "Baustellen durchsuchen…",
   "timer.besok.gpsTreff": "GPS-Übereinstimmung",
   "timer.besok.utenfor": "Außerhalb einer bekannten Baustelle",

@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Сменить строительную площадку",
   "timer.besok.ankommetHvor": "Arrived where?",
   "timer.besok.lukk": "Close",
+  "timer.oppmote.sporsmaal": "Куда вы обычно приходите на работу?",
+  "timer.oppmote.forklaring": "Выберите место, куда вы отчитываетесь. Он используется для расчета поездки. Ваша компания может изменить его позже.",
   "timer.besok.sok": "Поиск строительных площадок…",
   "timer.besok.gpsTreff": "GPS match",
   "timer.besok.utenfor": "За пределами известной строительной площадки",

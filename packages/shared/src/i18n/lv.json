@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Mainīt būvlaukumu",
   "timer.besok.ankommetHvor": "Kur ieradās?",
   "timer.besok.lukk": "Aizvērt",
+  "timer.oppmote.sporsmaal": "Kur jūs parasti ierodaties darbā?",
+  "timer.oppmote.forklaring": "Izvēlieties vietu, uz kuru ziņojat. To izmanto, lai aprēķinātu ceļojumu. Jūsu uzņēmums to var mainīt vēlāk.",
   "timer.besok.sok": "Meklēt būvlaukumus…",
   "timer.besok.gpsTreff": "GPS atbilstība",
   "timer.besok.utenfor": "Ārpus zināmas būvlaukuma",

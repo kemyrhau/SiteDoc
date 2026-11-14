@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Zmień plac budowy",
   "timer.besok.ankommetHvor": "Dotarł gdzie?",
   "timer.besok.lukk": "Zamknąć",
+  "timer.oppmote.sporsmaal": "Gdzie najczęściej zgłaszasz się do pracy?",
+  "timer.oppmote.forklaring": "Wybierz miejsce, do którego się zgłaszasz. Służy do obliczania podróży. Twoja firma może to później zmienić.",
   "timer.besok.sok": "Szukaj placów budowy…",
   "timer.besok.gpsTreff": "Mecz GPS",
   "timer.besok.utenfor": "Poza znanym placem budowy",

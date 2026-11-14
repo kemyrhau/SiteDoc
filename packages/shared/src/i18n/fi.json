@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Vaihda rakennuspaikkaa",
   "timer.besok.ankommetHvor": "Mihin saapui?",
   "timer.besok.lukk": "Lähellä",
+  "timer.oppmote.sporsmaal": "Minne yleensä ilmoittaudut töihin?",
+  "timer.oppmote.forklaring": "Valitse paikka, johon raportoit. Sitä käytetään matkojen laskemiseen. Yrityksesi voi muuttaa sen myöhemmin.",
   "timer.besok.sok": "Hae rakennustyömaista…",
   "timer.besok.gpsTreff": "GPS ottelu",
   "timer.besok.utenfor": "Tunnetun rakennustyömaan ulkopuolella",

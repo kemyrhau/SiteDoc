@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Змінити будівельний майданчик",
   "timer.besok.ankommetHvor": "Куди приїхав?",
   "timer.besok.lukk": "Закрити",
+  "timer.oppmote.sporsmaal": "Де ви зазвичай з'являєтеся на роботу?",
+  "timer.oppmote.forklaring": "Виберіть місце, куди ви звітуєте. Він використовується для розрахунку проїзду. Ваша компанія може змінити це пізніше.",
   "timer.besok.sok": "Шукати будівельні майданчики…",
   "timer.besok.gpsTreff": "відповідність GPS",
   "timer.besok.utenfor": "За межами відомого будівельного майданчика",

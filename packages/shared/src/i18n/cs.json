@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Změnit staveniště",
   "timer.besok.ankommetHvor": "Arrived where?",
   "timer.besok.lukk": "Close",
+  "timer.oppmote.sporsmaal": "Kde se obvykle hlásíte do práce?",
+  "timer.oppmote.forklaring": "Vyberte místo, kam se hlásíte. Používá se k výpočtu cesty. Vaše společnost to může později změnit.",
   "timer.besok.sok": "Hledat stavební stránky…",
   "timer.besok.gpsTreff": "GPS match",
   "timer.besok.utenfor": "Mimo známé staveniště",

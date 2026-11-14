@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Byt byggarbetsplats",
   "timer.besok.ankommetHvor": "Anlände var?",
   "timer.besok.lukk": "Nära",
+  "timer.oppmote.sporsmaal": "Var brukar du anmäla dig på jobbet?",
+  "timer.oppmote.forklaring": "Välj den plats du rapporterar till. Den används för att beräkna resor. Ditt företag kan ändra det senare.",
   "timer.besok.sok": "Sök på byggarbetsplatser...",
   "timer.besok.gpsTreff": "GPS-matchning",
   "timer.besok.utenfor": "Utanför en känd byggarbetsplats",

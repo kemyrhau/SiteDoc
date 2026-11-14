@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Changer de chantier",
   "timer.besok.ankommetHvor": "Arrivé où ?",
   "timer.besok.lukk": "Fermer",
+  "timer.oppmote.sporsmaal": "Où vous présentez-vous habituellement au travail ?",
+  "timer.oppmote.forklaring": "Choisissez l'endroit où vous vous présentez. Il est utilisé pour calculer les déplacements. Votre entreprise pourra le modifier ultérieurement.",
   "timer.besok.sok": "Rechercher des chantiers…",
   "timer.besok.gpsTreff": "Correspondance GPS",
   "timer.besok.utenfor": "En dehors d'un chantier connu",

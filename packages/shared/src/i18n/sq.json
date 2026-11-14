@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Ndryshimi i kantierit",
   "timer.besok.ankommetHvor": "Ku mbërriti?",
   "timer.besok.lukk": "Mbylle",
+  "timer.oppmote.sporsmaal": "Ku paraqiteni zakonisht për punë?",
+  "timer.oppmote.forklaring": "Zgjidhni vendin ku raportoni. Përdoret për të llogaritur udhëtimin. Kompania juaj mund ta ndryshojë atë më vonë.",
   "timer.besok.sok": "Kërko faqet e ndërtimit…",
   "timer.besok.gpsTreff": "Përputhje GPS",
   "timer.besok.utenfor": "Jashtë një kantieri të njohur ndërtimi",

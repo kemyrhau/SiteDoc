@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Bytt byggeplass",
   "timer.besok.ankommetHvor": "Ankommet hvor?",
   "timer.besok.lukk": "Lukk",
+  "timer.oppmote.sporsmaal": "Hvor møter du vanligvis?",
+  "timer.oppmote.forklaring": "Velg stedet du møter på. Det brukes til å beregne reise. Firmaet kan endre det senere.",
   "timer.besok.sok": "Søk byggeplass…",
   "timer.besok.gpsTreff": "GPS-treff",
   "timer.besok.utenfor": "Utenfor kjent byggeplass",

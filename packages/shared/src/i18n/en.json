@@ -4505,6 +4505,8 @@
   "timer.besok.byttByggeplass": "Change building site",
   "timer.besok.ankommetHvor": "Arrived where?",
   "timer.besok.lukk": "Close",
+  "timer.oppmote.sporsmaal": "Where do you usually report for work?",
+  "timer.oppmote.forklaring": "Choose the place you report to. It is used to calculate travel. Your company can change it later.",
   "timer.besok.sok": "Search building sites…",
   "timer.besok.gpsTreff": "GPS match",
   "timer.besok.utenfor": "Outside a known building site",

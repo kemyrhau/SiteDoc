@@ -573,6 +573,26 @@ export const oppmotestedLocal = sqliteTable("oppmotested_local", {
 });
 
 /**
+ * oppmote_periode_local — offline-cache av brukerens egne oppmøtested-perioder
+ * (POST 2026-11-15 (12) D). Delt resolver `løsOppmote` (@sitedoc/shared) leser
+ * herfra, så etterregistrering offline treffer perioden som gjaldt. KUN lokal,
+ * synkes aldri opp. Full overskriving pr. (bruker, firma) via
+ * oppmotePeriodeKatalog.refreshOppmotePeriodeKatalog. userId = synlighetsvakt.
+ */
+export const oppmotePeriodeLocal = sqliteTable("oppmote_periode_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(),
+  type: text("type").notNull(), // "kontor" | "byggeplass"
+  fast: integer("fast", { mode: "boolean" }).notNull().default(false),
+  oppmotestedId: text("oppmotested_id"),
+  projectId: text("project_id"),
+  fraDato: text("fra_dato").notNull(), // YYYY-MM-DD
+  tilDato: text("til_dato"), // YYYY-MM-DD, null = gjeldende
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
  * byggeplass_local — offline-cache av firmaets byggeplasser (R4, 2026-06-11).
  * Lette felt for prosjekt→primær-byggeplass-resolusjon i reisetid-oppslaget.
  * L1 (2026-06-20): utvidet med navn + geofence (lat/lng/radiusM, alle nullable
