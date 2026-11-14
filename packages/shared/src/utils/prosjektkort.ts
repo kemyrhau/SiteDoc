@@ -93,7 +93,11 @@ export function beregnKortSummer(
   return { arbeid, maskin: maskinSum, reise, varer: vareSum };
 }
 
-/** «Sum i dag» = alle timer-rader (arbeid + reise) som ikke er erstattet. */
+/**
+ * «Sum i dag» = alle timer-rader (arbeid + reise) som ikke er erstattet.
+ * Total for dagen — toppteksten og «Send dagen (X t)». Normsammenligningen
+ * bruker `sumlinjeMotNorm`, ikke denne.
+ */
 export function sumIDag(timer: readonly KortTimerRad[]): number {
   return timer.filter(gjelder).reduce((acc, r) => acc + tilTall(r.timer), 0);
 }
@@ -174,6 +178,24 @@ export function trafikklysSone(
   const rundet = Math.round(registrert * 4) / 4;
   if (Math.abs(rundet - norm) < 0.001) return "grønn";
   return rundet > norm ? "gul" : "blå";
+}
+
+/**
+ * Sumlinja «Sum i dag X t av Y t» + trafikklys (Kenneth 2026-11-14, låst):
+ * reise er ikke overtid og teller ikke mot normen — samme regel som
+ * `foreslaOvertidSplitt`. Registrert-tallet er derfor arbeid uten reise
+ * (eksplisitt `erReise`-flagg, frosset fra `erReiseLonnsart`) og uten
+ * erstattede rader. Reisen vises fortsatt separat (« · reise X t»).
+ * Delt web/mobil — ingen lokal logikk på flatene.
+ */
+export function sumlinjeMotNorm(
+  timer: readonly KortTimerRad[],
+  norm: number | null,
+): { registrert: number; sone: ReturnType<typeof trafikklysSone> } {
+  const registrert = timer
+    .filter((r) => gjelder(r) && !r.erReise)
+    .reduce((acc, r) => acc + tilTall(r.timer), 0);
+  return { registrert, sone: trafikklysSone(registrert, norm) };
 }
 
 /* ------------------------------------------------------------------ */
