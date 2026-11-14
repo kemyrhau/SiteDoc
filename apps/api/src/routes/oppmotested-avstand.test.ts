@@ -90,6 +90,17 @@ describe("oppmotested.oppdaterAvstand — firmagrense", () => {
     expect(m.matriseDeleteMany).not.toHaveBeenCalled();
     expect(m.recompute).not.toHaveBeenCalled();
   });
+
+  // Kontrollør-funn 1/N6: tilbakestill sjekker også oppmøtestedets firma.
+  it("tilbakestill med oppmøtested i annet firma → NOT_FOUND, ingen sletting", async () => {
+    m.oppmotestedFindFirst.mockResolvedValue(null);
+    await expect(caller().tilbakestillAvstand(BASE)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(m.oppmotestedFindFirst.mock.calls[0]![0]).toMatchObject({
+      where: { id: KONTOR, organizationId: ORG },
+    });
+    expect(m.matriseDeleteMany).not.toHaveBeenCalled();
+    expect(m.recompute).not.toHaveBeenCalled();
+  });
 });
 
 describe("oppmotested.oppdaterAvstand — lagring", () => {
