@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { DeaktiverModal } from "./_components/DeaktiverModal";
+import { OppmotePerioder } from "./_components/OppmotePerioder";
 
 const ANSATT_ROLLER = ["ansatt", "bas", "prosjektleder", "daglig_leder"] as const;
 type AnsattRolle = (typeof ANSATT_ROLLER)[number];
@@ -732,6 +733,8 @@ function RedigerModal({
                 ))}
             </select>
           </div>
+
+          <OppmotePerioder organizationId={organizationId} organizationMemberId={bruker.memberId} />
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">

@@ -255,6 +255,18 @@ GPS-gjenkjennings-funksjoner. Rene funksjoner, ingen DB/RN/Node. Kontrakt A1–A
 og `resolverPrimaerByggeplass` er SLETTET i L1-B (`2e993250`) — A5 erstattet den. GPS-punkt-typen heter `GpsPunkt`
 (`Punkt` er opptatt av piksel-{x,y} i `maaling.ts`). Fasit: `sted.test.ts`.
 
+### Oppmøtested med perioder (`oppmote.ts`, POST 2026-11-15 (12))
+
+Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sammenlign aldri `Date`.
+
+| Funksjon | Beskrivelse |
+|----------|-------------|
+| `løsOppmote(dato, prosjektId, perioder, gpsStartKontorId)` → `OppmoteResultat` | Bindende rekkefølge: byggeplass-periode på dagens prosjekt → GPS-kontor → midlertidig → fast → `ikkeValgt`. Én test pr. trinn i `oppmote.test.ts` blir rød når trinnet fjernes |
+| `finnFastOppmotested(perioder)` | Id-en til det åpne faste stedet, ellers `null` |
+| `trengerOppmoteValg(antallAktiveKontorer, perioder)` | `true` når ≥ 2 aktive kontorer og intet fast sted — styrer «Hvor møter du vanligvis?» |
+| `finnPeriodeKonflikt(ny, øvrige)` | Overlapp innen samme slag (byggeplass pr. prosjekt, midlertidig, fast). Server og admin-UI bruker samme regel |
+| `tilIsoDato(d)` | `Date`/streng → `YYYY-MM-DD` (UTC) |
+
 ### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
 
 ÉN kilde for filnavn-regelen ved nedlasting av tegninger — brukt av web (enkeltfil,
