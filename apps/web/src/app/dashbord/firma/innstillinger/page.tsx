@@ -1377,6 +1377,13 @@ function ReiseForutsetninger({
               ) : (
                 t("firma.innstillinger.reise.forutsetninger.parOk", { antall: data.parTotalt })
               )}
+              {" "}
+              <Link
+                href="/dashbord/firma/oppmotesteder?fane=avstander"
+                className="text-sitedoc-primary hover:underline"
+              >
+                {t("firma.avstander.seAvstander")}
+              </Link>
               {data.uoppnaaelige.length > 0 && (
                 <div className="mt-1 text-red-700">
                   {t("firma.innstillinger.reise.forutsetninger.uoppnaaelige", {

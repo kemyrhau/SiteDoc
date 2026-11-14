@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -8,6 +8,9 @@ import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2, MapPin, HelpCircle, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { AvstanderFane } from "./AvstanderFane";
+
+type Fane = "steder" | "avstander";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -41,6 +44,22 @@ export default function OppmotesterSide() {
   const [redigerRad, setRedigerRad] = useState<OppmotestedRad | null>(null);
   const [visOpprett, setVisOpprett] = useState(false);
   const [visHjelp, setVisHjelp] = useState(false);
+  // POST (10) B: fanen «Avstander». `?fane=avstander` lar «Dette må være på
+  // plass» i firmainnstillinger lenke rett hit (leses i effekt — ingen
+  // Suspense-grense for useSearchParams).
+  const [fane, setFane] = useState<Fane>("steder");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("fane") === "avstander") {
+      setFane("avstander");
+    }
+  }, []);
+  function velgFane(f: Fane) {
+    setFane(f);
+    const url = new URL(window.location.href);
+    if (f === "avstander") url.searchParams.set("fane", "avstander");
+    else url.searchParams.delete("fane");
+    window.history.replaceState(null, "", url.toString());
+  }
 
   const { data: rader, isLoading } = trpc.oppmotested.hentAlle.useQuery(
     { organizationId: orgId! },
@@ -75,10 +94,12 @@ export default function OppmotesterSide() {
             >
               <HelpCircle className="h-5 w-5" />
             </button>
-            <Button onClick={() => setVisOpprett(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              {t("firma.oppmotested.leggTil")}
-            </Button>
+            {fane === "steder" && (
+              <Button onClick={() => setVisOpprett(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {t("firma.oppmotested.leggTil")}
+              </Button>
+            )}
           </div>
         </div>
       </SonetonetSidehode>
@@ -86,14 +107,27 @@ export default function OppmotesterSide() {
       <Modal
         open={visHjelp}
         onClose={() => setVisHjelp(false)}
-        title={t("firma.oppmotested.hjelp.tittel")}
+        title={
+          fane === "avstander"
+            ? t("firma.avstander.hjelp.tittel")
+            : t("firma.oppmotested.hjelp.tittel")
+        }
       >
-        <div className="space-y-2 text-sm text-gray-600">
-          <p>{t("firma.oppmotested.hjelp.hva")}</p>
-          <p>{t("firma.oppmotested.hjelp.adresse")}</p>
-          <p>{t("firma.oppmotested.hjelp.gps")}</p>
-          <p>{t("firma.oppmotested.hjelp.personvern")}</p>
-        </div>
+        {fane === "avstander" ? (
+          <div className="space-y-2 text-sm text-gray-600">
+            <p>{t("firma.avstander.hjelp.hva")}</p>
+            <p>{t("firma.avstander.hjelp.enhet")}</p>
+            <p>{t("firma.avstander.hjelp.manuell")}</p>
+            <p>{t("firma.avstander.hjelp.status")}</p>
+          </div>
+        ) : (
+          <div className="space-y-2 text-sm text-gray-600">
+            <p>{t("firma.oppmotested.hjelp.hva")}</p>
+            <p>{t("firma.oppmotested.hjelp.adresse")}</p>
+            <p>{t("firma.oppmotested.hjelp.gps")}</p>
+            <p>{t("firma.oppmotested.hjelp.personvern")}</p>
+          </div>
+        )}
         <div className="mt-6 flex justify-end">
           <Button variant="secondary" onClick={() => setVisHjelp(false)}>
             {t("handling.lukk")}
@@ -101,7 +135,25 @@ export default function OppmotesterSide() {
         </div>
       </Modal>
 
-      {isLoading ? (
+      <div className="mb-4 flex gap-1 border-b border-gray-200">
+        {(["steder", "avstander"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => velgFane(f)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+              fane === f
+                ? "border-sitedoc-primary text-sitedoc-primary"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {f === "steder" ? t("firma.avstander.faneSteder") : t("firma.avstander.fane")}
+          </button>
+        ))}
+      </div>
+
+      {fane === "avstander" ? (
+        <AvstanderFane orgId={orgId} />
+      ) : isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Spinner />
         </div>
