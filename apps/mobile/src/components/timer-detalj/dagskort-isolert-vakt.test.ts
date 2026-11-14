@@ -142,8 +142,10 @@ describe("ORDRE 37 — varesøket over tastaturet", () => {
 // JSX-taggrekkefølgen er frosset: = develop b3e96829 minus kort-taggene
 // (ProsjektkortSamleside, RedigerArbeidstidModal). Endres dagskortets JSX med
 // vilje: regenerer hashen med `jsxTagger` og begrunn det i commit-meldingen.
+// 2026-11-14: + `BekreftSendUtenPauseModal` foran `MiniToast` (ORDRE spørsmål
+// ved innsending av dag over 5,5 t uten pause — dagskortets egen send-vei).
 const DAGSKORT_TAGG_HASH =
-  "2e7dc562c28106f98e32d41236f706395b4b34af9f8a7de30f607081c602dbfb";
+  "c895640790e9aa53d4e092d7c6dad80906830d2dcf9c6c755d8fd2cf315d3892";
 
 function jsxTagger(kilde: string): string {
   const uten = kilde.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");

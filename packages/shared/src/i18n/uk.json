@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Змінити кількість",
   "timer.dagsoversikt.slettVare": "Видалити елемент",
   "timer.dagsoversikt.slettVareTekst": "Видалити {{navn}}? Рядок видаляється з дня та з інвентарю.",
-  "timer.dagsoversikt.offlineVare": "Товар відправлено. Підключіться до Інтернету, щоб змінити або видалити його."
+  "timer.dagsoversikt.offlineVare": "Товар відправлено. Підключіться до Інтернету, щоб змінити або видалити його.",
+  "timer.pauseSporsmaal.tittel": "Понад 5,5 год без перерви",
+  "timer.pauseSporsmaal.tekst": "Тривалість дня більше 5,5 годин, і жоден робочий ряд не має перерви. Якщо ви все одно надішлете, аркуш буде надіслано вашому менеджеру для затвердження в такому вигляді.",
+  "timer.pauseSporsmaal.sendLikevel": "Відправити без перерви"
 }

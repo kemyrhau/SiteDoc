@@ -55,6 +55,8 @@ import {
   finnOverlappendeTidsrom,
   foreslaOvertidSplitt,
   erReiseLonnsart,
+  forsokInnsending,
+  svarPaaPauseSporsmaal,
   type ForsonRad,
   type ErReiseKontekst,
   type OvertidForslag,
@@ -355,6 +357,9 @@ export default function DagsseddelDetaljSide() {
     onSuccess: () => utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id }),
     onError: (e: { message: string }) => setFeil(e.message),
   });
+  // Spørsmål ved innsending av dag over 5,5 t uten pause (Kenneth 2026-11-14
+  // «still spørsmål, aksepter ved bekreftelse»). Delt flyt med mobil.
+  const [visPauseSporsmaal, setVisPauseSporsmaal] = useState(false);
 
   const slett = trpc.timer.dagsseddel.slett.useMutation({
     onSuccess: () => router.push("/dashbord/timer/mine"),
@@ -431,6 +436,19 @@ export default function DagsseddelDetaljSide() {
   const erRedigerbar = sheet.status === "draft" || sheet.status === "returned";
   const sheetAktivitetId = sheet.aktivitetId ?? null;
   const timerRader = sheet.timer as unknown as TimerRad[];
+  const utforSend = () => {
+    setFeil(null);
+    send.mutate({ id: sheet.id });
+  };
+  const sendMedPauseSporsmaal = () =>
+    forsokInnsending(timerRader, {
+      send: utforSend,
+      spor: () => setVisPauseSporsmaal(true),
+    });
+  const svarPauseSporsmaal = (svar: "bekreft" | "avbryt") => {
+    setVisPauseSporsmaal(false);
+    svarPaaPauseSporsmaal(svar, utforSend);
+  };
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
   const utleggRader = ((sheet as { utlegg?: unknown }).utlegg ?? []) as unknown as UtleggRad[];
@@ -948,10 +966,7 @@ export default function DagsseddelDetaljSide() {
           onNyttKort={() => setAktivModal({ type: "nyProsjekt" })}
           onEndreRamme={() => setRedigerHeader(true)}
           onSlett={() => setVisSlettModal(true)}
-          onSend={() => {
-            setFeil(null);
-            send.mutate({ id: sheet.id });
-          }}
+          onSend={sendMedPauseSporsmaal}
         />
       ) : aktiveProsjektIder.length === 0 ? (
         <section className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
@@ -1030,10 +1045,7 @@ export default function DagsseddelDetaljSide() {
             forklaring={t("sperret.minstEnRad")}
           >
             <Button
-              onClick={() => {
-                setFeil(null);
-                send.mutate({ id: sheet.id });
-              }}
+              onClick={sendMedPauseSporsmaal}
               disabled={send.isPending || timerRader.length === 0}
             >
               <Send className="mr-1 h-4 w-4" />
@@ -1301,6 +1313,31 @@ export default function DagsseddelDetaljSide() {
                 loading={gjenaapne.isPending}
               >
                 {t("timer.gjenaapne.bekreftKnapp")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {visPauseSporsmaal && (
+        <Modal
+          open={true}
+          onClose={() => svarPauseSporsmaal("avbryt")}
+          title={t("timer.pauseSporsmaal.tittel")}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("timer.pauseSporsmaal.tekst")}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => svarPauseSporsmaal("avbryt")}
+              >
+                {t("handling.avbryt")}
+              </Button>
+              <Button onClick={() => svarPauseSporsmaal("bekreft")}>
+                {t("timer.pauseSporsmaal.sendLikevel")}
               </Button>
             </div>
           </div>

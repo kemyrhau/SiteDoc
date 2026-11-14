@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Ndryshoni sasinë",
   "timer.dagsoversikt.slettVare": "Fshi artikullin",
   "timer.dagsoversikt.slettVareTekst": "Të fshihet {{navn}}? Linja hiqet nga dita dhe nga inventari.",
-  "timer.dagsoversikt.offlineVare": "Artikulli është dërguar. Lidhu me internetin për ta ndryshuar ose fshirë atë."
+  "timer.dagsoversikt.offlineVare": "Artikulli është dërguar. Lidhu me internetin për ta ndryshuar ose fshirë atë.",
+  "timer.pauseSporsmaal.tittel": "Mbi 5.5 orë pa pushim",
+  "timer.pauseSporsmaal.tekst": "Dita është mbi 5.5 orë dhe asnjë rresht pune nuk ka pushim. Nëse dërgoni gjithsesi, fleta i shkon menaxherit tuaj për miratim ashtu siç është.",
+  "timer.pauseSporsmaal.sendLikevel": "Dërgo pa pushim"
 }

@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Endre mengde",
   "timer.dagsoversikt.slettVare": "Slett varen",
   "timer.dagsoversikt.slettVareTekst": "Slette {{navn}}? Linjen fjernes fra dagen og fra varelageret.",
-  "timer.dagsoversikt.offlineVare": "Varen er sendt. Koble til nett for å endre eller slette den."
+  "timer.dagsoversikt.offlineVare": "Varen er sendt. Koble til nett for å endre eller slette den.",
+  "timer.pauseSporsmaal.tittel": "Over 5,5 t uten pause",
+  "timer.pauseSporsmaal.tekst": "Dagen er over 5,5 t, og ingen arbeidsrad har pause. Sender du likevel, går sedelen til attestering hos leder slik den står.",
+  "timer.pauseSporsmaal.sendLikevel": "Send uten pause"
 }

@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Change quantity",
   "timer.dagsoversikt.slettVare": "Delete item",
   "timer.dagsoversikt.slettVareTekst": "Delete {{navn}}? The line is removed from the day and from inventory.",
-  "timer.dagsoversikt.offlineVare": "The item has been sent. Connect to the internet to change or delete it."
+  "timer.dagsoversikt.offlineVare": "The item has been sent. Connect to the internet to change or delete it.",
+  "timer.pauseSporsmaal.tittel": "Over 5.5 h without a break",
+  "timer.pauseSporsmaal.tekst": "The day is over 5.5 h, and no work row has a break. If you send anyway, the sheet goes to your manager for approval as it is.",
+  "timer.pauseSporsmaal.sendLikevel": "Send without break"
 }

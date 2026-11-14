@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Keisti kiekį",
   "timer.dagsoversikt.slettVare": "Ištrinti elementą",
   "timer.dagsoversikt.slettVareTekst": "Ištrinti {{navn}}? Linija pašalinama iš dienos ir iš inventoriaus.",
-  "timer.dagsoversikt.offlineVare": "Prekė išsiųsta. Prisijunkite prie interneto, kad pakeistumėte arba ištrintumėte."
+  "timer.dagsoversikt.offlineVare": "Prekė išsiųsta. Prisijunkite prie interneto, kad pakeistumėte arba ištrintumėte.",
+  "timer.pauseSporsmaal.tittel": "Daugiau nei 5,5 h be pertraukos",
+  "timer.pauseSporsmaal.tekst": "Diena viršija 5,5 val., nė viena darbo eilė neturi pertraukos. Jei vis tiek siunčiate, lapas atitenka jūsų vadovui patvirtinti tokį, koks yra.",
+  "timer.pauseSporsmaal.sendLikevel": "Siųsti be pertraukos"
 }

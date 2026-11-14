@@ -306,6 +306,65 @@ export function fastPauseFraFor(dag: {
 }
 
 /**
+ * Dagsbrutto (timer) = Σ spenn (til − fra) på radene — arbeid OG reise
+ * (ORDRE 2026-11-14 «reise teller mot 5,5-grensen»). Rader uten fra/til eller
+ * med spenn ≤ 0 teller ikke. Én definisjon for pausegrensen
+ * (`dagPauseMinForNyttArbeid`) og innsendings-spørsmålet (`dagManglerPause`).
+ */
+export function dagsBruttoTimer(
+  rader: readonly { fraTid?: string | null; tilTid?: string | null }[],
+): number {
+  return rader.reduce((sum, r) => {
+    if (!r.fraTid || !r.tilTid) return sum;
+    const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
+    return spenn > 0 ? sum + spenn / 60 : sum;
+  }, 0);
+}
+
+/**
+ * Innsendings-spørsmålet (Kenneth 2026-11-14: «Skal en dag over 5,5 t uten
+ * pause stoppes ved innsending?» → «still spørsmål, aksepter ved
+ * bekreftelse»). `true` når BEGGE holder:
+ *   1) dagsbrutto (`dagsBruttoTimer`, arbeid + reise) > 5,5 t
+ *   2) ingen arbeidsrad (`erReise !== true`) har pause > 0
+ * Klienten viser da en bekreftelsesmodal før sending. Stopper aldri lagring,
+ * og serveren avviser ikke slike sedler. Uavhengig av `pauseReferanse`.
+ */
+export function dagManglerPause(
+  rader: readonly {
+    fraTid?: string | null;
+    tilTid?: string | null;
+    pauseMin?: number | null;
+    erReise?: boolean | null;
+  }[],
+): boolean {
+  if (dagsBruttoTimer(rader) <= PAUSE_TERSKEL_TIMER) return false;
+  return !rader.some((r) => r.erReise !== true && (r.pauseMin ?? 0) > 0);
+}
+
+/**
+ * Innsendingsflyten rundt `dagManglerPause`, delt av mobil og web så alle
+ * innsendingsveier oppfører seg likt. `forsokInnsending` sender direkte når
+ * dagen er i orden, ellers åpnes spørsmålet (`spor`). Svaret fra modalen går
+ * gjennom `svarPaaPauseSporsmaal`: «bekreft» sender som normalt, «avbryt»
+ * sender ikke og endrer ingenting.
+ */
+export function forsokInnsending(
+  rader: Parameters<typeof dagManglerPause>[0],
+  handlinger: { send: () => void; spor: () => void },
+): void {
+  if (dagManglerPause(rader)) handlinger.spor();
+  else handlinger.send();
+}
+
+export function svarPaaPauseSporsmaal(
+  svar: "bekreft" | "avbryt",
+  send: () => void,
+): void {
+  if (svar === "bekreft") send();
+}
+
+/**
  * Dag-delen av pauseregelen (punkt 1 og 2 i `avgjorRadPause`), skilt ut så
  * Bekreft dag og manuell føring bruker ÉN regel (ORDRE dobbel pause 2026-11-13):
  *   1) dagsbrutto = Σ spenn på sedelens andre rader (ARBEID OG REISE — lagrede
@@ -338,11 +397,7 @@ export function dagPauseMinForNyttArbeid(args: {
   // arbeid 0 t og serveren gir `kast`. Samme krav som serverens `stemmerNy`
   // og mobilens `radKanBaerePause`.
   if (Math.round(Math.max(0, nyBruttoTimer) * 60) <= standardPauseMin) return 0;
-  const bruttoAndre = andreRader.reduce((sum, r) => {
-    if (!r.fraTid || !r.tilTid) return sum;
-    const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
-    return spenn > 0 ? sum + spenn / 60 : sum;
-  }, 0);
+  const bruttoAndre = dagsBruttoTimer(andreRader);
   // (1) Dagsterskel (AML §10-9). Reise teller (Kenneth 2026-11-14: «den gamle
   // koden var rett» — terskelen ble målt på GPS-spennet inkl. reisen).
   if (

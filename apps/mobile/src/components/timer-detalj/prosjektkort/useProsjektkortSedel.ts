@@ -45,7 +45,11 @@ import {
   finnUnderprosjektLokalt,
 } from "../../../services/timerKatalog";
 import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
-import { slaaSammenVarelinjer } from "@sitedoc/shared";
+import {
+  slaaSammenVarelinjer,
+  forsokInnsending,
+  svarPaaPauseSporsmaal,
+} from "@sitedoc/shared";
 import { hentLokaleVarelinjer } from "../../../services/vareforbrukSync";
 import type {
   Sedel,
@@ -144,6 +148,8 @@ export function useProsjektkortSedel(sheetId: string) {
 
   const [sedel, setSedel] = useState<Sedel | null>(null);
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
+  // Spørsmål ved innsending av dag over 5,5 t uten pause.
+  const [visPauseSporsmaal, setVisPauseSporsmaal] = useState(false);
   const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
   const [utleggRader, setUtleggRader] = useState<UtleggRad[]>([]);
@@ -607,12 +613,28 @@ export function useProsjektkortSedel(sheetId: string) {
     lesData();
   }, [sedel, sheetId, oppdaterTellere, triggerSync, lesData]);
 
+  // Innsending: dag over 5,5 t uten pause → spørsmål først (Kenneth
+  // 2026-11-14 «still spørsmål, aksepter ved bekreftelse»). Delt flyt
+  // (`forsokInnsending`/`svarPaaPauseSporsmaal`) — samme som web.
   function sendTilAttestering() {
     if (!sedel) return;
     if (timerRader.length === 0) {
       setFeil(t("timer.feil.minstEnTimerRad"));
       return;
     }
+    forsokInnsending(timerRader, {
+      send: utforSendTilAttestering,
+      spor: () => setVisPauseSporsmaal(true),
+    });
+  }
+
+  function svarPauseSporsmaal(svar: "bekreft" | "avbryt") {
+    setVisPauseSporsmaal(false);
+    svarPaaPauseSporsmaal(svar, utforSendTilAttestering);
+  }
+
+  function utforSendTilAttestering() {
+    if (!sedel) return;
     const db = hentDatabase();
     if (!db) return;
     db.update(dagsseddelLocal)
@@ -780,6 +802,8 @@ export function useProsjektkortSedel(sheetId: string) {
     velgByggeplass,
     markerEndretOgLes,
     sendTilAttestering,
+    visPauseSporsmaal,
+    svarPauseSporsmaal,
     gjenaapne,
     gjenaapnerPending: gjenaapneMutation.isPending,
     slettSedel,

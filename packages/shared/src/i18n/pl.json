@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Zmień ilość",
   "timer.dagsoversikt.slettVare": "Usuń element",
   "timer.dagsoversikt.slettVareTekst": "Usunąć {{navn}}? Linia jest usuwana z dnia i inwentarza.",
-  "timer.dagsoversikt.offlineVare": "Przedmiot został wysłany. Połącz się z Internetem, aby go zmienić lub usunąć."
+  "timer.dagsoversikt.offlineVare": "Przedmiot został wysłany. Połącz się z Internetem, aby go zmienić lub usunąć.",
+  "timer.pauseSporsmaal.tittel": "Ponad 5,5h bez przerwy",
+  "timer.pauseSporsmaal.tekst": "Dzień trwa ponad 5,5 godziny i żaden rząd pracy nie ma przerwy. Jeśli mimo to wyślesz, arkusz w niezmienionej postaci trafi do Twojego menedżera w celu zatwierdzenia.",
+  "timer.pauseSporsmaal.sendLikevel": "Wysyłaj bez przerwy"
 }

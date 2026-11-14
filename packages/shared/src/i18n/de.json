@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Menge ändern",
   "timer.dagsoversikt.slettVare": "Artikel löschen",
   "timer.dagsoversikt.slettVareTekst": "{{navn}} löschen? Die Zeile wird aus dem Tag und aus dem Inventar entfernt.",
-  "timer.dagsoversikt.offlineVare": "Der Artikel wurde versendet. Stellen Sie eine Verbindung zum Internet her, um es zu ändern oder zu löschen."
+  "timer.dagsoversikt.offlineVare": "Der Artikel wurde versendet. Stellen Sie eine Verbindung zum Internet her, um es zu ändern oder zu löschen.",
+  "timer.pauseSporsmaal.tittel": "Über 5,5 h ohne Pause",
+  "timer.pauseSporsmaal.tekst": "Der Tag dauert mehr als 5,5 Stunden und keine Arbeitsreihe hat eine Pause. Wenn Sie es trotzdem senden, geht das Blatt unverändert zur Genehmigung an Ihren Vorgesetzten.",
+  "timer.pauseSporsmaal.sendLikevel": "Ohne Pause senden"
 }

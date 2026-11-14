@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Muutke kogust",
   "timer.dagsoversikt.slettVare": "Kustuta üksus",
   "timer.dagsoversikt.slettVareTekst": "Kas kustutada {{navn}}? Rida eemaldatakse päevast ja inventuurist.",
-  "timer.dagsoversikt.offlineVare": "Kaup on saadetud. Selle muutmiseks või kustutamiseks looge Interneti-ühendus."
+  "timer.dagsoversikt.offlineVare": "Kaup on saadetud. Selle muutmiseks või kustutamiseks looge Interneti-ühendus.",
+  "timer.pauseSporsmaal.tittel": "Üle 5,5 h ilma vaheajata",
+  "timer.pauseSporsmaal.tekst": "Päev on üle 5,5 h ja üheski tööreas pole pausi. Kui ikkagi saadate, läheb leht sellisel kujul heakskiitmiseks teie haldurile.",
+  "timer.pauseSporsmaal.sendLikevel": "Saada ilma pausita"
 }

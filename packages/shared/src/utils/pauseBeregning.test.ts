@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   tilFraAntall,
   effektiveTimerFraSpenn,
@@ -8,6 +8,9 @@ import {
   avgjorRadPause,
   fastPauseFraFor,
   dagPauseMinForNyttArbeid,
+  dagManglerPause,
+  forsokInnsending,
+  svarPaaPauseSporsmaal,
 } from "./pauseBeregning";
 
 // Grensefiks 2026-07-09: tilFraAntall hoppet tidligere over pausen når raden
@@ -264,5 +267,80 @@ describe("ORDRE 2026-11-14 — reise teller mot 5,5-grensen, pausen bæres av ar
     expect(
       pauseFraForRad({ ...base, andreRader: [{ fraTid: "07:00", tilTid: "08:00", erReise: true }] }),
     ).toBe("12:00");
+  });
+});
+
+// Innsendings-spørsmålet (Kenneth 2026-11-14: «still spørsmål, aksepter ved
+// bekreftelse»). Brutto = arbeid + reise; spørsmål når > 5,5 t og ingen
+// arbeidsrad bærer pausen.
+describe("dagManglerPause — spørsmål ved innsending", () => {
+  it("07–13 p0 → spørsmål", () => {
+    expect(dagManglerPause([{ fraTid: "07:00", tilTid: "13:00", pauseMin: 0 }])).toBe(true);
+  });
+  it("07–13 p30 → ikke spørsmål", () => {
+    expect(dagManglerPause([{ fraTid: "07:00", tilTid: "13:00", pauseMin: 30 }])).toBe(false);
+  });
+  it("07–12 p0 → ikke spørsmål (5 t)", () => {
+    expect(dagManglerPause([{ fraTid: "07:00", tilTid: "12:00", pauseMin: 0 }])).toBe(false);
+  });
+  it("nøyaktig 5,5 t p0 → ikke spørsmål (grensen er «over»)", () => {
+    expect(dagManglerPause([{ fraTid: "07:00", tilTid: "12:30", pauseMin: 0 }])).toBe(false);
+  });
+  it("1 t reise + 5 t arbeid p0 → spørsmål (reise teller)", () => {
+    expect(
+      dagManglerPause([
+        { fraTid: "06:00", tilTid: "07:00", pauseMin: 0, erReise: true },
+        { fraTid: "07:00", tilTid: "12:00", pauseMin: 0, erReise: false },
+      ]),
+    ).toBe(true);
+  });
+  it("pause på en reise-rad teller ikke som bærer → spørsmål", () => {
+    expect(
+      dagManglerPause([
+        { fraTid: "06:00", tilTid: "07:00", pauseMin: 30, erReise: true },
+        { fraTid: "07:00", tilTid: "12:00", pauseMin: 0 },
+      ]),
+    ).toBe(true);
+  });
+  it("to arbeidsrader, pausen på den andre → ikke spørsmål", () => {
+    expect(
+      dagManglerPause([
+        { fraTid: "07:00", tilTid: "10:00", pauseMin: 0 },
+        { fraTid: "10:00", tilTid: "14:00", pauseMin: 30 },
+      ]),
+    ).toBe(false);
+  });
+  it("rader uten fra/til teller ikke i brutto", () => {
+    expect(dagManglerPause([{ fraTid: null, tilTid: null, pauseMin: 0 }])).toBe(false);
+  });
+});
+
+describe("forsokInnsending + svarPaaPauseSporsmaal — flyten", () => {
+  const utenPause = [{ fraTid: "07:00", tilTid: "13:00", pauseMin: 0 }];
+  const medPause = [{ fraTid: "07:00", tilTid: "13:00", pauseMin: 30 }];
+
+  it("dag uten pause over 5,5 t → spørsmål, send kalles ikke", () => {
+    const send = vi.fn();
+    const spor = vi.fn();
+    forsokInnsending(utenPause, { send, spor });
+    expect(spor).toHaveBeenCalledTimes(1);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("dag med pause → send direkte, ingen spørsmål", () => {
+    const send = vi.fn();
+    const spor = vi.fn();
+    forsokInnsending(medPause, { send, spor });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(spor).not.toHaveBeenCalled();
+  });
+  it("bekreft → send kalles", () => {
+    const send = vi.fn();
+    svarPaaPauseSporsmaal("bekreft", send);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it("avbryt → send kalles ikke", () => {
+    const send = vi.fn();
+    svarPaaPauseSporsmaal("avbryt", send);
+    expect(send).not.toHaveBeenCalled();
   });
 });

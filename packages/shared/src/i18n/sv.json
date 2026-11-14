@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Ändra kvantitet",
   "timer.dagsoversikt.slettVare": "Ta bort objekt",
   "timer.dagsoversikt.slettVareTekst": "Ta bort {{navn}}? Linjen tas bort från dagen och från inventeringen.",
-  "timer.dagsoversikt.offlineVare": "Objektet har skickats. Anslut till internet för att ändra eller ta bort det."
+  "timer.dagsoversikt.offlineVare": "Objektet har skickats. Anslut till internet för att ändra eller ta bort det.",
+  "timer.pauseSporsmaal.tittel": "Över 5,5 h utan paus",
+  "timer.pauseSporsmaal.tekst": "Dagen är över 5,5 h och ingen arbetsrad har paus. Skickar du ändå så går bladet till din chef för godkännande som det är.",
+  "timer.pauseSporsmaal.sendLikevel": "Skicka utan paus"
 }
