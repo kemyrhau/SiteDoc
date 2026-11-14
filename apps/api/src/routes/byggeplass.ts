@@ -8,7 +8,10 @@ import {
   verifiserOrganisasjonTilgang,
 } from "../trpc/tilgangskontroll";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
-import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
+import {
+  koordinatEndret,
+  recomputeRadForByggeplass,
+} from "../services/reisetidMatrise";
 import { sokAdresser } from "../services/rute-service";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
@@ -18,6 +21,32 @@ import { IKKE_SLETTET } from "../utils/softDelete";
  * den til 75; da er dette den ENE linjen som endres.
  */
 const GEOKODET_RADIUS_M = 150;
+
+/**
+ * C2: geokod en adresse (Kartverket — samme kilde som geofence-modalen).
+ * NØYAKTIG ett treff → punkt med geokodet-kilde; null eller flere → null.
+ * 🔴 Blokkerer ALDRI lagringen (sokAdresser kaster ikke, men vi verner uansett)
+ * — byggeplasser i terreng har ikke alltid en adresse (C6).
+ */
+async function geokodEttTreff(adresse: string): Promise<{
+  latitude: number;
+  longitude: number;
+  radiusM: number;
+  geofenceKilde: "geokodet";
+} | null> {
+  try {
+    const treff = await sokAdresser(adresse);
+    if (treff.length !== 1) return null;
+    return {
+      latitude: treff[0]!.lat,
+      longitude: treff[0]!.lng,
+      radiusM: GEOKODET_RADIUS_M,
+      geofenceKilde: "geokodet",
+    };
+  } catch {
+    return null;
+  }
+}
 
 export const byggeplassRouter = router({
   // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
@@ -116,31 +145,15 @@ export const byggeplassRouter = router({
       // Null eller flere treff → ingen punkt (byggeplassen merkes av C5).
       // 🔴 Geokoding blokkerer ALDRI opprettelsen (sokAdresser kaster ikke, men
       // vi verner uansett) — byggeplasser i terreng har ikke alltid en adresse (C6).
-      let geo: {
-        latitude?: number;
-        longitude?: number;
-        radiusM?: number;
-        geofenceKilde?: string;
-      } = {};
-      if (input.address) {
-        try {
-          const treff = await sokAdresser(input.address);
-          if (treff.length === 1) {
-            geo = {
-              latitude: treff[0]!.lat,
-              longitude: treff[0]!.lng,
-              radiusM: GEOKODET_RADIUS_M,
-              geofenceKilde: "geokodet",
-            };
-          }
-        } catch {
-          /* geokoding er best-effort — opprettelsen går uansett gjennom */
-        }
-      }
+      const geo = input.address ? await geokodEttTreff(input.address) : null;
 
-      return ctx.prisma.byggeplass.create({
-        data: { ...input, number: nesteNummer, ...geo },
+      const opprettet = await ctx.prisma.byggeplass.create({
+        data: { ...input, number: nesteNummer, ...(geo ?? {}) },
       });
+      // POST 2026-11-14 (10) A: fikk byggeplassen punkt ved opprettelse →
+      // beregn avstander med en gang (fire-and-forget, blokkerer aldri).
+      if (geo) recomputeRadForByggeplass(opprettet.id);
+      return opprettet;
     }),
 
   // Oppdater byggeplass
@@ -155,9 +168,42 @@ export const byggeplassRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id },
+        select: {
+          projectId: true,
+          address: true,
+          latitude: true,
+          longitude: true,
+          geofenceKilde: true,
+        },
+      });
       await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
-      return ctx.prisma.byggeplass.update({ where: { id }, data });
+
+      // POST 2026-11-14 (10) A: ny adresse på et GEOKODET punkt → geokod på nytt
+      // (samme regel som opprett: nøyaktig ett treff). "manuell"/"tegning" er
+      // brukerens/tegningens valg og røres ikke. Ingen treff → punktet står.
+      let geo: Awaited<ReturnType<typeof geokodEttTreff>> = null;
+      const nyAdresse =
+        data.address !== undefined &&
+        data.address.trim() !== "" &&
+        data.address !== byggeplass.address;
+      if (nyAdresse && byggeplass.geofenceKilde === "geokodet") {
+        geo = await geokodEttTreff(data.address!);
+      }
+
+      const oppdatert = await ctx.prisma.byggeplass.update({
+        where: { id },
+        data: { ...data, ...(geo ?? {}) },
+      });
+      if (geo) {
+        const endret = koordinatEndret(
+          { lat: byggeplass.latitude, lng: byggeplass.longitude },
+          { lat: geo.latitude, lng: geo.longitude },
+        );
+        if (endret) recomputeRadForByggeplass(id, { plasseringEndret: true });
+      }
+      return oppdatert;
     }),
 
   // Fase 1c: beregn geofence (senter + radius) fra nyeste georefererte tegning.
@@ -200,7 +246,7 @@ export const byggeplassRouter = router({
     .mutation(async ({ ctx, input }) => {
       const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
         where: { id: input.byggeplassId },
-        select: { projectId: true },
+        select: { projectId: true, latitude: true, longitude: true },
       });
       await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
       const oppdatert = await ctx.prisma.byggeplass.update({
@@ -216,7 +262,12 @@ export const byggeplassRouter = router({
       });
       // R3: manuell geofence-endring (inkl. nullstilling) → recompute rad
       // (fire-and-forget; null-koord → stale-rydding i recomputeMatrise).
-      recomputeRadForByggeplass(input.byggeplassId);
+      recomputeRadForByggeplass(input.byggeplassId, {
+        plasseringEndret: koordinatEndret(
+          { lat: byggeplass.latitude, lng: byggeplass.longitude },
+          { lat: input.latitude, lng: input.longitude },
+        ),
+      });
       return oppdatert;
     }),
 

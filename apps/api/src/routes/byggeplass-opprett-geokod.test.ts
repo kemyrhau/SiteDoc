@@ -29,8 +29,10 @@ vi.mock("../trpc/tilgangskontroll", () => ({
   verifiserAdmin: vi.fn().mockResolvedValue(undefined),
   verifiserOrganisasjonTilgang: vi.fn().mockResolvedValue(undefined),
 }));
+const recompute = vi.hoisted(() => vi.fn());
 vi.mock("../services/reisetidMatrise", () => ({
-  recomputeRadForByggeplass: vi.fn(),
+  recomputeRadForByggeplass: recompute,
+  koordinatEndret: () => true,
 }));
 vi.mock("../services/byggeplassGeofence", () => ({
   oppdaterByggeplassGeofence: vi.fn(),
@@ -54,6 +56,7 @@ function lagCtx(create: ReturnType<typeof vi.fn>) {
 }
 
 beforeEach(() => {
+  recompute.mockReset();
   sokKall = 0;
   sokSvar = async () => [];
 });
@@ -115,5 +118,26 @@ describe("byggeplass.opprett — C2 geokoding", () => {
 
     expect(sokKall).toBe(0);
     expect(create.mock.calls[0]![0].data.latitude).toBeUndefined();
+  });
+
+  // POST 2026-11-14 (10) A: punkt ved opprettelse → avstander beregnes straks.
+  it("ett treff → recompute for den nye byggeplassen", async () => {
+    sokSvar = async () => [{ lat: 59.91, lng: 10.75, label: "Storgata 1" }];
+    const create = vi.fn().mockResolvedValue({ id: "b-ny" });
+    const caller = byggeplassRouter.createCaller(lagCtx(create));
+
+    await caller.opprett({ name: "Plass", projectId: PROSJEKT, address: "Storgata 1" });
+
+    expect(recompute).toHaveBeenCalledTimes(1);
+    expect(recompute.mock.calls[0]![0]).toBe("b-ny");
+  });
+
+  it("uten punkt → ingen recompute (ingenting å beregne)", async () => {
+    const create = vi.fn().mockResolvedValue({ id: "b-ny" });
+    const caller = byggeplassRouter.createCaller(lagCtx(create));
+
+    await caller.opprett({ name: "Plass", projectId: PROSJEKT, address: "Tvetydig" });
+
+    expect(recompute).not.toHaveBeenCalled();
   });
 });

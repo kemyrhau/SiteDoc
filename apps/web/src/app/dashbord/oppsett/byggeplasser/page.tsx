@@ -1822,6 +1822,8 @@ function LokasjonerSideInnhold() {
   const [visEndreNavnModal, setVisEndreNavnModal] = useState(false);
   // Geofence skilt ut til egen, synlig inngang (discoverability) — egen modal.
   const [visGeofenceModal, setVisGeofenceModal] = useState(false);
+  // (10) A: dialogen ble åpnet automatisk etter opprettelse → egen forklaring.
+  const [plasseringEtterOpprett, setPlasseringEtterOpprett] = useState(false);
   const [nyNavn, setNyNavn] = useState("");
   const [nyAdresse, setNyAdresse] = useState("");
   const [endreNavn, setEndreNavn] = useState("");
@@ -1835,7 +1837,7 @@ function LokasjonerSideInnhold() {
   );
 
   const opprettMutation = trpc.bygning.opprett.useMutation({
-    onSuccess: (_data: unknown, variabler: { name: string }) => {
+    onSuccess: (_data: unknown, variabler: { name: string; address?: string }) => {
       utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! }).then(() => {
         const oppdatert = utils.bygning.hentForProsjekt.getData({ projectId: prosjektId! });
         const nytt = oppdatert?.find((a) => a.name === variabler.name);
@@ -1844,6 +1846,17 @@ function LokasjonerSideInnhold() {
         // tegnings-editoren — geofence er nå en synlig knapp.
         if (nytt) setValgtId(nytt.id);
       });
+      // POST 2026-11-14 (10) A: fikk den nye byggeplassen ikke punkt (adressen
+      // ga ikke nøyaktig ett treff, eller ingen adresse), åpnes plasserings-
+      // dialogen straks — avstandene til oppmøtestedene beregnes når punktet
+      // settes. Kun når Timer er aktiv; dialogen kan lukkes, og «mangler
+      // plassering»-merket står da på raden.
+      const opprettet = _data as GeofenceFelt & { id: string };
+      if (timerAktiv && opprettet.latitude == null) {
+        apneGeofence(opprettet);
+        setGeoAdresse(variabler.address ?? "");
+        setPlasseringEtterOpprett(true);
+      }
       setVisModal(false);
       setNyNavn("");
       setNyAdresse("");
@@ -1892,6 +1905,7 @@ function LokasjonerSideInnhold() {
       utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setGeoFeil(null);
       setVisGeofenceModal(false);
+      setPlasseringEtterOpprett(false);
     },
     onError: (feil: { message: string }) => setGeoFeil(feil.message),
   });
@@ -2296,10 +2310,18 @@ function LokasjonerSideInnhold() {
       {/* Geofence modal — egen, tydelig inngang (skilt fra navne-endring) */}
       <Modal
         open={visGeofenceModal}
-        onClose={() => setVisGeofenceModal(false)}
+        onClose={() => {
+          setVisGeofenceModal(false);
+          setPlasseringEtterOpprett(false);
+        }}
         title={t("lokasjoner.geofence.tittel")}
       >
         <div className="flex flex-col">
+          {plasseringEtterOpprett && (
+            <p className="mb-2 text-sm text-gray-700">
+              {t("lokasjoner.geofence.etterOpprett")}
+            </p>
+          )}
           <p className="mb-3 text-xs text-gray-500">
             {t("lokasjoner.geofence.beskrivelse")}
           </p>

@@ -15,12 +15,36 @@
  * av kontor/georef venter aldri på OSRM og feiler aldri pga matrisen. Den
  * eksplisitte «beregn matrise»-knappen `await`-er `recomputeMatrise`.
  *
- * kilde v1 = kun "osrm". Uoppnåelige par lagres med kjoretidMin = -1
- * (computed-men-uoppnåelig; R4 skiller fra fravær = live-fallback).
+ * kilde: "osrm" (beregnet) | "manuell" | "manuell_endret" (POST 2026-11-14 (10)).
+ * Uoppnåelige par lagres med kjoretidMin = -1 (computed-men-uoppnåelig; R4
+ * skiller fra fravær = live-fallback).
+ *
+ * 🔴 MANUELL-VAKT (avstand gir lønn): en rad med kilde som starter på "manuell"
+ * er firmaets egen verdi. recompute (alle triggere + «Beregn matrise») skal
+ * ALDRI overskrive eller slette den — kun `oppmotested.tilbakestillAvstand`
+ * fjerner den. Flyttes et av punktene (`plasseringEndret`), merkes raden
+ * "manuell_endret" i stedet, så fanen Avstander kan si at verdien ble satt før
+ * plasseringen endret seg. Voktet av `reisetidMatrise-manuell.test.ts`.
  */
 
 import { prisma } from "@sitedoc/db";
 import { hentKjoretidMatrise, UOPPNAAELIG, type Coord } from "./rute-service";
+
+/** Kilde-prefiks for firmaets egne verdier. */
+export const MANUELL_KILDE = "manuell";
+export const MANUELL_ENDRET_KILDE = "manuell_endret";
+export function erManuellKilde(kilde: string): boolean {
+  return kilde.startsWith(MANUELL_KILDE);
+}
+const MANUELL_FILTER = { kilde: { startsWith: MANUELL_KILDE } };
+
+/** Har punktet faktisk flyttet seg (inkl. satt/fjernet)? */
+export function koordinatEndret(
+  forrige: { lat: number | null; lng: number | null } | null,
+  ny: { lat: number | null; lng: number | null },
+): boolean {
+  return (forrige?.lat ?? null) !== ny.lat || (forrige?.lng ?? null) !== ny.lng;
+}
 
 // Margin under OSRM /table sitt ~100-koordinat-tak (kontorer + chunk ≤ dette).
 const OSRM_MAX_KOORDINATER = 90;
@@ -29,6 +53,11 @@ interface RecomputeArgs {
   organizationId: string;
   oppmotestedId?: string;
   byggeplassId?: string;
+  /**
+   * Triggeren kommer fra en faktisk koordinatendring (byggeplass eller
+   * oppmøtested). Manuelle rader i settet merkes da "manuell_endret".
+   */
+  plasseringEndret?: boolean;
 }
 
 /**
@@ -48,7 +77,7 @@ export interface RecomputeResultat {
 export async function recomputeMatrise(
   args: RecomputeArgs,
 ): Promise<RecomputeResultat> {
-  const { organizationId, oppmotestedId, byggeplassId } = args;
+  const { organizationId, oppmotestedId, byggeplassId, plasseringEndret } = args;
 
   // 1. Kontorer (sources). lat/lng er påkrevde felt på Oppmotested.
   const kontorer = await prisma.oppmotested.findMany({
@@ -97,8 +126,40 @@ export async function recomputeMatrise(
     projectId: b.projectId,
   }));
   if (utenKoord.length > 0) {
+    // 🔴 Manuell-vakt: firmaets egne verdier slettes ikke av stale-ryddingen.
     await prisma.reisetidMatrise.deleteMany({
-      where: { organizationId, byggeplassId: { in: utenKoord } },
+      where: {
+        organizationId,
+        byggeplassId: { in: utenKoord },
+        NOT: MANUELL_FILTER,
+      },
+    });
+  }
+
+  // Manuelle par i settet: hoppes over i upserten under. Flyttet punkt →
+  // merk "manuell_endret" (verdien beholdes).
+  const kontorIder = kontorer.map((k) => k.id);
+  const byggeplassIder = byggeplasser.map((b) => b.id);
+  const settFilter = {
+    organizationId,
+    oppmotestedId: { in: kontorIder },
+    byggeplassId: { in: byggeplassIder },
+    ...MANUELL_FILTER,
+  };
+  const manuelle =
+    byggeplassIder.length > 0
+      ? await prisma.reisetidMatrise.findMany({
+          where: settFilter,
+          select: { oppmotestedId: true, byggeplassId: true },
+        })
+      : [];
+  const manuellPar = new Set(
+    manuelle.map((m) => `${m.oppmotestedId}|${m.byggeplassId}`),
+  );
+  if (plasseringEndret && manuelle.length > 0) {
+    await prisma.reisetidMatrise.updateMany({
+      where: settFilter,
+      data: { kilde: MANUELL_ENDRET_KILDE },
     });
   }
 
@@ -133,6 +194,8 @@ export async function recomputeMatrise(
       for (let bi = 0; bi < chunk.length; bi++) {
         const kjoretidMin = matrise.durations[ki]?.[bi];
         if (kjoretidMin == null) continue;
+        // 🔴 Manuell-vakt: firmaets egen verdi overskrives aldri.
+        if (manuellPar.has(`${kontorer[ki]!.id}|${chunk[bi]!.id}`)) continue;
         if (kjoretidMin === UOPPNAAELIG) uoppnaaelige++;
         // Avstand fra samme OSRM-kall (reise-terskel-km). UOPPNAAELIG (-1) er
         // symmetrisk med kjoretidMin; manglende celle → null (aldri sett i
@@ -190,7 +253,10 @@ export function recomputeMatriseIBakgrunn(args: RecomputeArgs): void {
  * `project.primaryOrganizationId`; orphan/standalone (null) → ingen matrise.
  * Fire-and-forget.
  */
-export function recomputeRadForByggeplass(byggeplassId: string): void {
+export function recomputeRadForByggeplass(
+  byggeplassId: string,
+  opts: { plasseringEndret?: boolean } = {},
+): void {
   void (async () => {
     const bp = await prisma.byggeplass.findUnique({
       where: { id: byggeplassId },
@@ -198,7 +264,11 @@ export function recomputeRadForByggeplass(byggeplassId: string): void {
     });
     const orgId = bp?.project?.primaryOrganizationId;
     if (!orgId) return; // orphan/standalone-prosjekt → ingen firma-matrise
-    await recomputeMatrise({ organizationId: orgId, byggeplassId });
+    await recomputeMatrise({
+      organizationId: orgId,
+      byggeplassId,
+      plasseringEndret: opts.plasseringEndret,
+    });
   })().catch((e) => {
     console.error(
       "[reisetid-matrise] rad-recompute feilet (ikke-blokkerende):",

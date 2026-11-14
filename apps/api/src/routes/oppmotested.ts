@@ -10,9 +10,31 @@ import {
 import { GEOFENCE_GRENSER } from "@sitedoc/shared";
 import { geokodAdresse } from "../services/rute-service";
 import {
+  MANUELL_KILDE,
   recomputeMatrise,
   recomputeMatriseIBakgrunn,
 } from "../services/reisetidMatrise";
+
+/**
+ * POST 2026-11-14 (10) B: byggeplassen må tilhøre firmaet (org-aksen går via
+ * `project.primaryOrganizationId`). Ellers NOT_FOUND — vi røper ikke at den finnes.
+ */
+async function hentByggeplassForFirma(id: string, organizationId: string) {
+  const byggeplass = await prisma.byggeplass.findFirst({
+    where: { id, project: { primaryOrganizationId: organizationId } },
+    select: { id: true },
+  });
+  if (!byggeplass) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Byggeplassen finnes ikke eller tilhører ikke ditt firma",
+    });
+  }
+  return byggeplass;
+}
+
+/** Fornuftige tak for en manuell avstand (avstand gir lønn). */
+export const MANUELL_AVSTAND_GRENSER = { maksKm: 2000, maksMin: 1440 } as const;
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -142,11 +164,189 @@ export const oppmotestedRouter = router({
 
   // R3: on-demand full firma-backfill av reisetid-matrisen (admin-only).
   // Await-er (eksplisitt brukerhandling — vil ha antall rader / feil).
+  // POST 2026-11-14 (10): valgfri `byggeplassId` = «Beregn» for én byggeplass
+  // i fanen Avstander (alle oppmøtesteder × den). Firma-isolasjonen er
+  // intrinsisk i recomputeMatrise (byggeplass filtreres på org).
   beregnMatrise: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid() }))
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        byggeplassId: z.string().uuid().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
-      return recomputeMatrise({ organizationId: orgId });
+      if (input.byggeplassId) {
+        await hentByggeplassForFirma(input.byggeplassId, orgId);
+      }
+      return recomputeMatrise({
+        organizationId: orgId,
+        byggeplassId: input.byggeplassId,
+      });
+    }),
+
+  // POST 2026-11-14 (10) B: fanen «Avstander» (firma-admin). Byggeplasser i
+  // aktive prosjekter med punkt — pluss byggeplasser som har en manuell verdi
+  // selv om punktet er fjernet (en verdi som gir lønn skal aldri være usynlig).
+  hentAvstander: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      const [innstilling, oppmotesteder, byggeplasser, rader] = await Promise.all([
+        ctx.prisma.organizationSetting.findUnique({
+          where: { organizationId: orgId },
+          select: { reiseTerskelEnhet: true },
+        }),
+        ctx.prisma.oppmotested.findMany({
+          where: { organizationId: orgId, aktiv: true },
+          select: { id: true, navn: true },
+          orderBy: { navn: "asc" },
+        }),
+        ctx.prisma.byggeplass.findMany({
+          where: {
+            project: { primaryOrganizationId: orgId, status: "active" },
+            OR: [
+              { latitude: { not: null } },
+              {
+                reisetidMatriser: {
+                  some: { organizationId: orgId, kilde: { startsWith: MANUELL_KILDE } },
+                },
+              },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            number: true,
+            latitude: true,
+            project: { select: { id: true, name: true, projectNumber: true } },
+          },
+          orderBy: [{ project: { name: "asc" } }, { number: "asc" }],
+        }),
+        ctx.prisma.reisetidMatrise.findMany({
+          where: { organizationId: orgId },
+          select: {
+            oppmotestedId: true,
+            byggeplassId: true,
+            kjoretidMin: true,
+            avstandM: true,
+            kilde: true,
+            beregnetAt: true,
+          },
+        }),
+      ]);
+      return {
+        enhet: (innstilling?.reiseTerskelEnhet ?? "minutter") as "minutter" | "km",
+        oppmotesteder,
+        byggeplasser: byggeplasser.map((b) => ({
+          id: b.id,
+          navn: b.name,
+          nummer: b.number,
+          harPunkt: b.latitude != null,
+          prosjekt: b.project,
+        })),
+        rader,
+      };
+    }),
+
+  // POST 2026-11-14 (10) B: firmaets egen verdi for ett par. Hovedverdien
+  // følger «Måles i» (km → avstand, minutter → kjøretid). Lagres som
+  // kilde="manuell"; recompute overskriver den aldri (manuell-vakt).
+  oppdaterAvstand: protectedProcedure
+    .input(
+      z
+        .object({
+          organizationId: z.string().uuid(),
+          oppmotestedId: z.string().uuid(),
+          byggeplassId: z.string().uuid(),
+          avstandKm: z
+            .number()
+            .positive()
+            .max(MANUELL_AVSTAND_GRENSER.maksKm)
+            .optional(),
+          kjoretidMin: z
+            .number()
+            .int()
+            .positive()
+            .max(MANUELL_AVSTAND_GRENSER.maksMin)
+            .optional(),
+        })
+        .refine((v) => v.avstandKm !== undefined || v.kjoretidMin !== undefined, {
+          message: "Oppgi avstand eller kjøretid",
+        }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await hentOppmotestedForFirma(input.oppmotestedId, orgId);
+      await hentByggeplassForFirma(input.byggeplassId, orgId);
+
+      const eksisterende = await ctx.prisma.reisetidMatrise.findFirst({
+        where: {
+          organizationId: orgId,
+          oppmotestedId: input.oppmotestedId,
+          byggeplassId: input.byggeplassId,
+        },
+        select: { kjoretidMin: true, avstandM: true },
+      });
+      // Verdien som ikke oppgis beholdes fra raden når den er kjent (≥ 0).
+      // Kjøretid er påkrevd i skjemaet — uten kjent kjøretid må den oppgis.
+      const kjoretidMin =
+        input.kjoretidMin ??
+        (eksisterende && eksisterende.kjoretidMin >= 0 ? eksisterende.kjoretidMin : null);
+      if (kjoretidMin == null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kjøretid er ikke kjent for dette paret — oppgi kjøretid også",
+        });
+      }
+      const avstandM =
+        input.avstandKm !== undefined
+          ? Math.round(input.avstandKm * 1000)
+          : eksisterende?.avstandM != null && eksisterende.avstandM >= 0
+            ? eksisterende.avstandM
+            : null;
+
+      return ctx.prisma.reisetidMatrise.upsert({
+        where: {
+          oppmotestedId_byggeplassId: {
+            oppmotestedId: input.oppmotestedId,
+            byggeplassId: input.byggeplassId,
+          },
+        },
+        create: {
+          organizationId: orgId,
+          oppmotestedId: input.oppmotestedId,
+          byggeplassId: input.byggeplassId,
+          kjoretidMin,
+          avstandM,
+          kilde: MANUELL_KILDE,
+        },
+        update: { kjoretidMin, avstandM, kilde: MANUELL_KILDE, beregnetAt: new Date() },
+      });
+    }),
+
+  // POST 2026-11-14 (10) B: «Tilbakestill» — fjern firmaets verdi og beregn
+  // paret på nytt (hele byggeplass-raden; andre manuelle par står).
+  tilbakestillAvstand: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        oppmotestedId: z.string().uuid(),
+        byggeplassId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await hentOppmotestedForFirma(input.oppmotestedId, orgId);
+      await hentByggeplassForFirma(input.byggeplassId, orgId);
+      await ctx.prisma.reisetidMatrise.deleteMany({
+        where: {
+          organizationId: orgId,
+          oppmotestedId: input.oppmotestedId,
+          byggeplassId: input.byggeplassId,
+        },
+      });
+      return recomputeMatrise({ organizationId: orgId, byggeplassId: input.byggeplassId });
     }),
 
   // Opprett nytt oppmøtested
@@ -244,6 +444,8 @@ export const oppmotestedRouter = router({
           recomputeMatriseIBakgrunn({
             organizationId: orgId,
             oppmotestedId: input.id,
+            // (10): flyttet kontor → manuelle par merkes "manuell_endret".
+            plasseringEndret: true,
           });
         }
         return oppdatert;
