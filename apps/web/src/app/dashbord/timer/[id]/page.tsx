@@ -1987,8 +1987,8 @@ function ProsjektGruppe({
 /*  EcoGruppe — én bucket per (projectId, ECO)                          */
 /*  Arbeidstimer er hovedposten; maskintimer rendres indentert under    */
 /*  som visuell underpost (T.7 låst 2026-05-16). Server validerer       */
-/*  sum(maskin) ≤ sum(arbeid) per bucket — UI viser samme indikator     */
-/*  med grønn/rød fargekode.                                            */
+/*  sum(maskin) ≤ sum(arbeid) per bucket; UI sperrer i rad-modalen.    */
+/*  Maskinlinja «Maskin X t» er nøytral (ordre (6) RETUR 1).            */
 /* ------------------------------------------------------------------ */
 
 function EcoGruppe({
@@ -2003,7 +2003,7 @@ function EcoGruppe({
   onRedigerUtlegg,
   onSplittTillegg,
   erRedigerbar,
-  pauseMin,
+  pauseMin: _pauseMin,
   pauseVisning,
   byggeplassNavn,
   radLinje,
@@ -2041,7 +2041,6 @@ function EcoGruppe({
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
   // D6 (web-paritet): bruk delt overstigerMaskinTak MED pause-buffer — identisk
   // med attestering (`attestering-buckets.tsx`) og server.
-  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   return (
     <div
@@ -2144,19 +2143,14 @@ function EcoGruppe({
         </div>
       )}
 
-      {/* Ordre 2026-11-14 (6): «Maskin X t» uten «av Y t arbeid» og uten
-          grønn/rød. Kontrollen består: overstiger maskin arbeid (uten reise),
-          vises varselet. */}
+      {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral — ingen
+          rød/grønn, ingen varseltekst. Sperren mot maskin over arbeid (uten reise)
+          står i rad-modalene. */}
       {sumMaskin > 0 && (
         <div
-          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
-            maskinOk
-              ? "border-gray-200 bg-white text-gray-700"
-              : "border-red-300 bg-red-50 text-red-800"
-          }`}
+          className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
           {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
-          {!maskinOk && <> · {t("timer.rediger.maskinOverstiger")}</>}
         </div>
       )}
     </div>

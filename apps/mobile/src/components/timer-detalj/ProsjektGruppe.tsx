@@ -8,7 +8,7 @@ import Animated, {
 import { ChevronDown, ChevronRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
-import { overstigerMaskinTak, arbeidOgReise } from "@sitedoc/shared";
+import { arbeidOgReise } from "@sitedoc/shared";
 import { hentDatabase } from "../../db/database";
 import { byggeplassLocal, externalCostObjectLocal } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
@@ -300,7 +300,6 @@ function EcoBucket({
     [maskinRader],
   );
   // Delt regel (@sitedoc/shared) — samme epsilon + pause-modell som server.
-  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   // ECO-navn fra lokal cache (én lookup per bucket).
   const ecoNavn = useMemo(() => {
@@ -400,22 +399,17 @@ function EcoBucket({
         onEndret={onEndret}
       />
 
-      {/* Ordre (6): «Maskin X t» — nøytral; rød + varsel kun når maskin
-          overstiger arbeid uten reise (kontrollen beholdes). Skjult ved 0 t
+      {/* Ordre (6): «Maskin X t» — alltid nøytral (RETUR 1); sperren mot
+          maskin over arbeid står i rad-modalen. Skjult ved 0 t
           (Del B pkt 3, device-funn 2026-08-08). */}
       {sumMaskin > 0 && (
         <View
-          className={`mt-3 rounded border px-3 py-1.5 ${
-            maskinOk ? "border-gray-200 bg-gray-50" : "border-red-300 bg-red-50"
-          }`}
+          className="mt-3 rounded border border-gray-200 bg-gray-50 px-3 py-1.5"
         >
           <Text
-            className={`text-xs font-medium ${
-              maskinOk ? "text-gray-700" : "text-red-800"
-            }`}
+            className="text-xs font-medium text-gray-700"
           >
             {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
-            {maskinOk ? "" : ` · ${t("timer.rediger.maskinOverstiger")}`}
           </Text>
         </View>
       )}

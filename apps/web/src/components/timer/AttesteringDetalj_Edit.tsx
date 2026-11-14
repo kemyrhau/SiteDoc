@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus } from "lucide-react";
-import { arbeidOgReise, overstigerMaskinTak } from "@sitedoc/shared";
+import { arbeidOgReise } from "@sitedoc/shared";
 import { RedigerTimerRad } from "./RedigerTimerRad";
 import { RedigerTilleggRad } from "./RedigerTilleggRad";
 import { RedigerMaskinRad } from "./RedigerMaskinRad";
@@ -798,7 +798,6 @@ function EcoBucketEdit({
   const sumMaskin = maskin.reduce((acc, r) => acc + r.timer, 0);
   // Kontrollen består (speil av server-validering), men måles mot arbeid uten
   // reise. Sedel-pausen er ikke kjent her → 0 (strengere, som før).
-  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, 0);
 
   return (
     <div
@@ -930,18 +929,14 @@ function EcoBucketEdit({
         )}
       </div>
 
-      {/* Ordre 2026-11-14 (6): «Maskin X t», uten «av Y t arbeid» og grønn/rød.
-          Overstiger maskin arbeid (uten reise), vises varselet. */}
+      {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral — ingen
+          rød/grønn, ingen varseltekst. Sperren mot maskin over arbeid (uten reise)
+          står i rad-modalene. */}
       {sumMaskin > 0 && (
         <div
-          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
-            maskinOk
-              ? "border-gray-200 bg-white text-gray-700"
-              : "border-red-300 bg-red-50 text-red-800"
-          }`}
+          className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
           {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
-          {!maskinOk && <> · {t("timer.rediger.maskinOverstiger")}</>}
         </div>
       )}
     </div>

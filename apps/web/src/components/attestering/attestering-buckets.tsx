@@ -9,7 +9,6 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@sitedoc/ui";
 import {
   arbeidOgReise,
-  overstigerMaskinTak,
   timerStatusEtikett,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
@@ -664,7 +663,7 @@ export function EcoBucketAttest({
   onToggleTimer,
   onToggleMaskin,
   kanFlytte,
-  pauseMin = 0,
+  pauseMin: _pauseMin = 0,
 }: {
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -685,7 +684,6 @@ export function EcoBucketAttest({
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
   // Pause-modell (2026-05-18): maskin kan gå mens operatør pauser. Kontrollen
   // måles mot arbeid uten reise (delt regel).
-  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   return (
     <div
@@ -760,18 +758,14 @@ export function EcoBucketAttest({
         )}
       </div>
 
-      {/* Ordre 2026-11-14 (6): «Maskin X t», uten «av Y t arbeid» og grønn/rød.
-          Overstiger maskin arbeid (uten reise), vises varselet. */}
+      {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral — ingen
+          rød/grønn, ingen varseltekst. Sperren mot maskin over arbeid (uten reise)
+          står i rad-modalene. */}
       {sumMaskin > 0 && (
         <div
-          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
-            maskinOk
-              ? "border-gray-200 bg-white text-gray-700"
-              : "border-red-300 bg-red-50 text-red-800"
-          }`}
+          className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
           {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
-          {!maskinOk && <> · {t("timer.rediger.maskinOverstiger")}</>}
         </div>
       )}
     </div>

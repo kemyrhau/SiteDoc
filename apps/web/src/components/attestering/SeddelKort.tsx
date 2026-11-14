@@ -182,8 +182,8 @@ export function SeddelKort({
     ecoId: string | null;
   } | null>(null);
   // Vurderings-predikatene deles med firma-attesteringssidens standard-ekspander
-  // (sedel-vurdering.ts) så definisjonene ikke drifter. `sumMaskin`/`maskinOk`
-  // beholdes lokalt for VISNING (tallet + invariant-teksten under).
+  // (sedel-vurdering.ts) så definisjonene ikke drifter. `sumMaskin`
+  // beholdes lokalt for VISNING (nøytral «Maskin X t»).
   const oransje = sedelHarTilleggKrav(sedel);
   const harMertid = sedelHarMertid(sedel);
   const maskinOver = sedelHarMaskinOver(sedel);
@@ -191,8 +191,6 @@ export function SeddelKort({
     (acc, r) => acc + tilTall(r.timer),
     0,
   );
-  const pauseTimer = sedel.pauseMin / 60;
-  const maskinOk = !maskinOver;
   // LAG 2 D1 (V1): arbeid/reise-splitt fra radenes erReise. Vises kun ved reise.
   const reisetimer = sedel.timer.reduce(
     (s, r) => s + (r.erReise === true ? tilTall(r.timer) : 0),
@@ -774,21 +772,16 @@ export function SeddelKort({
                     {sedel.totaltimer.toFixed(2)}t
                   </td>
                 </tr>
-                {/* Ordre 2026-11-14 (6): «Maskin X t», uten «av Y t arbeid» og
-                    grønn/rød. Kontrollen (sedelHarMaskinOver, mot arbeid uten
-                    reise) består: overstiger maskin, vises varselet. */}
+                {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral.
+                    Kontrollen (sedelHarMaskinOver, mot arbeid uten reise) styrer
+                    fortsatt sedelens flagg/ekspansjon; linja har ingen farge. */}
                 {sumMaskin > 0 && (
                   <tr className="border-t border-gray-100">
                     <td colSpan={3} className="px-3 py-1.5 text-right">
                       <span
-                        className={`inline-block rounded border px-2 py-1 text-xs font-medium ${
-                          maskinOk
-                            ? "border-gray-200 bg-white text-gray-700"
-                            : "border-red-300 bg-red-50 text-red-800"
-                        }`}
+                        className="inline-block rounded border px-2 py-1 text-xs font-medium border-gray-200 bg-white text-gray-700"
                       >
                         {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
-                        {!maskinOk && <> · {t("timer.rediger.maskinOverstiger")}</>}
                       </span>
                     </td>
                     <td className="px-3 py-1.5" />
