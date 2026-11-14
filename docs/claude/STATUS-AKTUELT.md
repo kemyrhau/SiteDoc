@@ -30,6 +30,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > DWG retur 1 HATCH/lagfarge/extents/blokk-base (`d0ea3a93`). Detaljer + arkiverte innslag: [historikk-2026-10.md](historikk-2026-10.md).
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
+> ✅ **Timer spørsmål ved innsending (> 5,5 t uten pause) MERGET 2026-11-14** (merge `99e556aa` av `b0920b40`, Kontrollør GODKJENT nederst i `inbox-orkestrator.md`): modal ved innsending på alle fire veier (mobil dagskort/prosjektkort, web samleside/Send). Ikke deployet. Kjent kant: rader uten Fra/Til teller 0 i brutto. pl-oversettelse ikke QA-et.
 > ✅ **Timer reise teller mot 5,5-grensen MERGET 2026-11-14** (merge `3a206848` av `441eee09`, Kontrollør GODKJENT nederst i `inbox-orkestrator.md` etter VILKÅR 1): reisetid teller mot pausegrensen, pausen bæres av arbeid etter 4 arbeidstimer. Ikke deployet. Neste: spørsmål ved innsending av dag > 5,5 t uten pause (Kenneth 14.11 «still spørsmål, aksepter ved bekreftelse»); fastStart beholdes som firmavalg (Kenneth 14.11 «Firma velger b»).
 > ✅ **Timer pauseregel + Fra/Til-avrunding MERGET 2026-11-14** (merge `9bb79f37` av `3f10e34b`, Kontrollør GODKJENT nederst i `inbox-orkestrator.md` etter VILKÅR 1, regel 10 re-kjørt): pausen trekkes etter firmaets «Pause etter timer» i arbeidstimer, én pause pr. dag, Fra/Til rundes til 15 min. ⚠️ Deploy: API/web FØR eller samtidig med OTA. Åpent hos Kenneth: dag > 5,5 t uten pause (stopp ved innsending?), reise mot 5,5-grensen, fastStart-tolkning; oppfølger maskin-klokkevindu.
 > ✅ **Timer konflikt synlig i lista MERGET 2026-11-13** (merge `0f53386f` av `8bf9d933`, Kontrollør GODKJENT): konflikt-sedel skjules aldri, banner åpner eldste konflikt. Punkt 2 (ramme) lukket som allerede levert (`26c4c7cb`).
@@ -65,7 +66,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 **Eneste skribent: orkestrator.** 🔴 **Føres FRA MÅLING — `git log origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-11-14 · develop `3a206848` · test kjører `e441b5b1` (timer mobil del 1–5 + radform + tillegg/utlegg; deployet av Kenneth 2026-11-13) · OTA testkanal `6088d33b` (OTA `01a1d6e`, sett på Kenneths telefon 2026-11-13; telefontest A/B + plan A).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
+**Sist ført: 2026-11-14 · develop `99e556aa` · test kjører `e441b5b1` (timer mobil del 1–5 + radform + tillegg/utlegg; deployet av Kenneth 2026-11-13) · OTA testkanal `6088d33b` (OTA `01a1d6e`, sett på Kenneths telefon 2026-11-13; telefontest A/B + plan A).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
