@@ -11,6 +11,9 @@ import { MaskinVelger } from "./MaskinVelger";
 import type { RedigerMaskinRadData, ProsjektValg } from "./rediger-types";
 
 type Props = {
+  /** Sedelens firma. Uten den faller `equipment.list` tilbake på attestantens
+   *  EGET firma (krevBrukersOrg) og viser feil maskinpark. */
+  organizationId: string;
   rad: RedigerMaskinRadData;
   prosjekter: ProsjektValg[];
   /** T.5: null = ingen runding. Verdier 15/30/60. */
@@ -22,6 +25,7 @@ type Props = {
 };
 
 export function RedigerMaskinRad({
+  organizationId,
   rad,
   prosjekter,
   tidsrundingMinutter,
@@ -30,7 +34,10 @@ export function RedigerMaskinRad({
   onSplitt,
 }: Props) {
   const { t } = useTranslation();
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(
+    { organizationId },
+    { enabled: !!organizationId },
+  );
   const equipment = equipmentRaw as unknown as
     | Array<{
         id: string;

@@ -10,6 +10,9 @@ import { rundTilNarmeste } from "@/lib/tidsrunding";
 import type { RedigerTimerRadData, ProsjektValg } from "./rediger-types";
 
 type Props = {
+  /** Sedelens firma. Katalogen (lønnsart/aktivitet) hentes alltid for DETTE firmaet —
+   *  uten id faller serveren tilbake på attestantens eget firma (feil ved valgt annet firma). */
+  organizationId: string;
   rad: RedigerTimerRadData;
   prosjekter: ProsjektValg[];
   /** T.5: null = ingen runding. Verdier 15/30/60. */
@@ -21,6 +24,7 @@ type Props = {
 };
 
 export function RedigerTimerRad({
+  organizationId,
   rad,
   prosjekter,
   tidsrundingMinutter,
@@ -29,8 +33,14 @@ export function RedigerTimerRad({
   onSplitt,
 }: Props) {
   const { t } = useTranslation();
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(
+    { organizationId },
+    { enabled: !!organizationId },
+  );
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(
+    { organizationId },
+    { enabled: !!organizationId },
+  );
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: rad.projectId },
     { enabled: !!rad.projectId },

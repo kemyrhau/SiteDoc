@@ -821,6 +821,7 @@ export function SeddelKort({
           radType="timer"
           original={splittAktiv.original}
           sheetId={sedel.id}
+          organizationId={orgId!}
           prosjekter={prosjekter}
           tidsrundingMinutter={tidsrundingMinutter}
           onLukk={() => setSplittAktiv(null)}
@@ -835,6 +836,7 @@ export function SeddelKort({
           radType="maskin"
           original={splittAktiv.original}
           sheetId={sedel.id}
+          organizationId={orgId!}
           prosjekter={prosjekter}
           tidsrundingMinutter={tidsrundingMinutter}
           onLukk={() => setSplittAktiv(null)}
