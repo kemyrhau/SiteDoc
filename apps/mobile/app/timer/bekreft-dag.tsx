@@ -33,9 +33,14 @@ import { tilHHMM } from "../../src/hooks/useArbeidsdag";
 import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
 import {
   hentByggeplasserForProsjektLokalt,
+  hentByggeplasserForFirmaLokalt,
   identifiserByggeplass,
 } from "../../src/services/byggeplassKatalog";
-import { hentUnderprosjekterLokalt } from "../../src/services/timerKatalog";
+import { gpsForslagLinje } from "../../src/utils/gpsForslagLinje";
+import { hentUnderprosjekterLokalt, hentReiseKnappLokalt } from "../../src/services/timerKatalog";
+import { TimerRadModal } from "../../src/components/timer-detalj/TimerSeksjon";
+import { hentWebUrl } from "../../src/config/auth";
+import { apnLenke } from "../../src/lib/apnLenke";
 import { FraTilTidFelt } from "../../src/components/timer-detalj/FraTilTidFelt";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { useModalInnsetter } from "../../src/components/ModalInnsetter";
@@ -163,7 +168,7 @@ export default function BekreftDagSkjerm() {
   const { bruker } = useAuth();
   const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useByggeplass();
+  const { valgtBygningId, gpsByggeplassId } = useByggeplass();
   const { triggerSync, oppdaterTellere } = useTimerSync();
 
   const orgId = valgtFirmaId ?? "";
@@ -192,6 +197,29 @@ export default function BekreftDagSkjerm() {
       avbrutt = true;
     };
   }, [manuell, orgId, manuellDato, normUtils.client]);
+  // POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort — samme knapp,
+  // resolver og skjuleregel som det lagrede kortet (`DagSeksjon`). Kun manuell
+  // modus; GPS-dagen foreslår reisen selv.
+  const reiseKnapp = useMemo(
+    () => (manuell && orgId ? hentReiseKnappLokalt(orgId) : null),
+    [manuell, orgId],
+  );
+  const reiseKnappLonnsartId =
+    reiseKnapp?.status === "valgt" || reiseKnapp?.status === "automatisk"
+      ? reiseKnapp.lonnsartId
+      : null;
+  // Firmaadmin-signal som i `DagSeksjon`: hentSetting krever firma-admin.
+  const reiseAdminSetting = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId },
+    { enabled: manuell && !!orgId && reiseKnapp != null && reiseKnappLonnsartId == null, retry: false },
+  );
+  const visReiseHint =
+    reiseKnapp != null && reiseKnappLonnsartId == null && !!reiseAdminSetting.data
+      ? reiseKnapp.status === "flere"
+        ? "flere"
+        : "ingen"
+      : null;
+  const [reiseModalApen, setReiseModalApen] = useState(false);
   // A2: byggeplassvalget kjører lese-fasen på nytt (kun select).
   const [valgtByggeplassId, setValgtByggeplassId] = useState<
     string | null | undefined
@@ -513,6 +541,12 @@ export default function BekreftDagSkjerm() {
   const byggeplasser = useMemo(
     () => (prosjektId ? hentByggeplasserForProsjektLokalt(prosjektId) : []),
     [prosjektId],
+  );
+  // POST (8) TILLEGG punkt 4: firmaets byggeplasser for den gule GPS-linja
+  // (forslaget kan høre til et annet prosjekt enn kortets).
+  const firmaByggeplasser = useMemo(
+    () => (manuell && orgId ? hentByggeplasserForFirmaLokalt(orgId) : []),
+    [manuell, orgId],
   );
   // ORDRE 36c (rettelse S2): valgfritt underprosjekt i manuell modus. Vises når
   // prosjektet har aktive underprosjekter (K3, til firmavalget i 36d-2). Tomt
@@ -981,6 +1015,17 @@ export default function BekreftDagSkjerm() {
     .sort((a, b) => a.rekkefolge - b.rekkefolge)
     .map((l) => ({ id: l.id, navn: l.navn ?? `${l.overtidsnivaa}%` }));
   const prosjektNavn = prosjekter.find((p) => p.id === prosjektId)?.name ?? null;
+  // POST (8) TILLEGG punkt 4: samme GPS-forslag som Hjem, vist gult under
+  // Byggeplass når det avviker fra kortet. Kun informasjon — kortet endres ikke.
+  const gpsLinje = manuell ? gpsForslagLinje({
+    gpsByggeplassId,
+    kortDato: forsteDag?.dato,
+    iDag: lokalIsoDato(new Date()),
+    prosjektId,
+    byggeplassId: forsteDag?.byggeplassId,
+    firmaByggeplasser,
+    prosjektNavn: (id) => prosjekter.find((p) => p.id === id)?.name ?? null,
+  }) : null;
   const aktivitetNavn =
     aktiviteter.find((a) => a.id === forslag.aktivitetId)?.navn ?? null;
 
@@ -1203,6 +1248,16 @@ export default function BekreftDagSkjerm() {
                     }
                     onPress={() => setValgark("byggeplass")}
                   />
+                  {gpsLinje ? (
+                    <Text className="text-xs text-amber-600" numberOfLines={2}>
+                      {gpsLinje.prosjekt
+                        ? t("timer.bekreftDag.gpsForeslarMedProsjekt", {
+                            byggeplass: gpsLinje.byggeplass,
+                            prosjekt: gpsLinje.prosjekt,
+                          })
+                        : t("timer.bekreftDag.gpsForeslar", { byggeplass: gpsLinje.byggeplass })}
+                    </Text>
+                  ) : null}
                   {underprosjekter.length > 0 ? (
                     <View className="gap-1">
                       <Text className="text-sm text-gray-500">{t("timer.felt.underprosjekt")}</Text>
@@ -1337,6 +1392,96 @@ export default function BekreftDagSkjerm() {
                   />
                 ))}
               </View>
+            ) : null}
+
+            {/* POST (8) punkt 1: «+ Reise» — manuell modus. Radene legges i rettingen
+                (utkastet) og skrives som erReise ved Bekreft. */}
+            {manuell && !alleSendt && !ikkeAnsatt && !tomt && prosjektId ? (
+              <View className="rounded-lg border border-gray-200 bg-white">
+                {(retting.manuellReise ?? []).map((r, i) => (
+                  <View
+                    key={`${i}-${r.fraTid ?? ""}`}
+                    className="min-h-[44px] flex-row items-center gap-3 border-b border-gray-100 px-4 py-2"
+                  >
+                    <Car size={14} color="#6b7280" />
+                    <Text className="text-sm text-gray-500">{t("timer.prosjektkort.kolonne.reise")}</Text>
+                    <Text className="flex-1 text-sm text-gray-900">
+                      {r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid} · ` : ""}
+                      {formatTimer(r.timer)} {t("timer.timerEnhet")}
+                    </Text>
+                    <Pressable
+                      hitSlop={8}
+                      accessibilityLabel={t("timer.bekreftDag.fjernReise")}
+                      onPress={() =>
+                        setRetting((x) => ({
+                          ...x,
+                          manuellReise: (x.manuellReise ?? []).filter((_, j) => j !== i),
+                        }))
+                      }
+                    >
+                      <Trash2 size={16} color="#6b7280" />
+                    </Pressable>
+                  </View>
+                ))}
+                {reiseKnappLonnsartId != null ? (
+                  <Pressable
+                    onPress={() => setReiseModalApen(true)}
+                    className="min-h-[44px] justify-center px-4 active:bg-gray-50"
+                  >
+                    <Text className="text-sm font-medium text-gray-700">
+                      + {t("timer.prosjektkort.kolonne.reise")}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {visReiseHint ? (
+                  <Pressable
+                    onPress={() =>
+                      void apnLenke(`${hentWebUrl()}/dashbord/firma/innstillinger#reise-regelsett`)
+                    }
+                    className="min-h-[44px] justify-center px-4 active:bg-gray-50"
+                  >
+                    <Text className="text-xs text-gray-500">
+                      {t(
+                        visReiseHint === "flere"
+                          ? "timer.prosjektkort.reiseSkjultFlere"
+                          : "timer.prosjektkort.reiseSkjultIngen",
+                      )}{" "}
+                      <Text className="text-sitedoc-primary">
+                        {t("timer.prosjektkort.reiseVelgLonnsart")}
+                      </Text>
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+            {reiseModalApen && reiseKnappLonnsartId != null && prosjektId && forsteDag ? (
+              <TimerRadModal
+                sheetId=""
+                organizationId={orgId}
+                defaultProjectId={prosjektId}
+                defaultEcoId={null}
+                dato={forsteDag.dato}
+                sheetPauseMin={0}
+                harEquipmentCache={false}
+                eksisterendeRader={[]}
+                alleTimerRader={[]}
+                defaultAktivitetId={forslag.aktivitetId}
+                eksisterendeRad={null}
+                tvungetValg={null}
+                sedelByggeplassId={forsteDag.byggeplassId}
+                reise={{ lonnsartId: reiseKnappLonnsartId, laast: true }}
+                onLagre={(projectId, byggeplassId, lonnsartId, aktivitetId, timer, _eco, fraTid, tilTid) => {
+                  setRetting((x) => ({
+                    ...x,
+                    manuellReise: [
+                      ...(x.manuellReise ?? []),
+                      { projectId, byggeplassId, lonnsartId, aktivitetId, timer, fraTid, tilTid },
+                    ],
+                  }));
+                  setReiseModalApen(false);
+                }}
+                onLukk={() => setReiseModalApen(false)}
+              />
             ) : null}
 
             {/* ORDRE Tillegg/Utlegg i Bekreft dag — skrives på første åpne dato sin sedel. */}
