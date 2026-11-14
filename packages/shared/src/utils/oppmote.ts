@@ -1,0 +1,146 @@
+// ============================================================================
+//  Ansattens oppmøtested med perioder (POST 2026-11-15 (12) D)
+//
+//  ÉN delt, ren resolver for «hvor møter den ansatte denne dagen». Mobil
+//  (lokal cache, virker offline), web og server kaller samme funksjon.
+//
+//  Rekkefølgen er bindende (Kenneth):
+//    1. Dagens prosjekt har en BYGGEPLASS-periode som gjelder på datoen
+//       → ingen reise, arbeidstid fra første minutt.
+//    2. GPS-start på et kontor → det kontoret.
+//    3. Midlertidig kontor-periode (fast=false) som gjelder på datoen.
+//    4. Fast kontor som gjelder på datoen: det åpne (fraDato ≤ datoen), ellers
+//       det lukkede som dekket datoen (et erstattet fast sted får tilDato).
+//    5. Ingenting → «ikke valgt» (tomt = ikke valgt ennå, aldri gjetting).
+//
+//  Datoen er dagsseddelens dato (YYYY-MM-DD), så etterregistrering treffer
+//  perioden som gjaldt da. Overlapp er avvist i serverlaget; skulle to likevel
+//  dekke datoen, vinner nyeste fraDato (likt → korteste periode).
+// ============================================================================
+
+export type OppmotePeriodeType = "kontor" | "byggeplass";
+
+export interface OppmotePeriodeInput {
+  type: OppmotePeriodeType;
+  /** Fast oppmøtested (kun kontor). false = midlertidig kontor / byggeplass. */
+  fast: boolean;
+  /** Satt kun for kontor. */
+  oppmotestedId: string | null;
+  /** Satt kun for byggeplass. */
+  projectId: string | null;
+  /** YYYY-MM-DD. */
+  fraDato: string;
+  /** YYYY-MM-DD, null = gjeldende. */
+  tilDato: string | null;
+}
+
+export type OppmoteResultat =
+  | { kilde: "byggeplass"; projectId: string }
+  | { kilde: "gps" | "midlertidig" | "fast"; oppmotestedId: string }
+  | { kilde: "ikkeValgt" };
+
+/** Normaliserer Date/ISO-streng til YYYY-MM-DD (Prisma @db.Date gir Date i UTC). */
+export function tilIsoDato(d: Date | string): string {
+  if (typeof d === "string") return d.slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
+function dekker(p: OppmotePeriodeInput, dato: string): boolean {
+  return p.fraDato <= dato && (p.tilDato == null || dato <= p.tilDato);
+}
+
+function spennDager(p: OppmotePeriodeInput): number {
+  if (p.tilDato == null) return Number.POSITIVE_INFINITY;
+  return (Date.parse(p.tilDato) - Date.parse(p.fraDato)) / 86_400_000;
+}
+
+/** Nyeste fraDato vinner; likt → korteste periode (mest spesifikk). */
+function mestSpesifikk(a: OppmotePeriodeInput, b: OppmotePeriodeInput): number {
+  if (a.fraDato !== b.fraDato) return a.fraDato > b.fraDato ? -1 : 1;
+  return spennDager(a) - spennDager(b);
+}
+
+export function løsOppmote(
+  dato: string,
+  prosjektId: string | null,
+  perioder: readonly OppmotePeriodeInput[],
+  gpsStartKontorId: string | null,
+): OppmoteResultat {
+  // 1. Byggeplass-periode på dagens prosjekt.
+  if (prosjektId) {
+    const bp = perioder.find(
+      (p) => p.type === "byggeplass" && p.projectId === prosjektId && dekker(p, dato),
+    );
+    if (bp) return { kilde: "byggeplass", projectId: prosjektId };
+  }
+
+  // 2. GPS-start på et kontor.
+  if (gpsStartKontorId) return { kilde: "gps", oppmotestedId: gpsStartKontorId };
+
+  const kontor = perioder.filter(
+    (p): p is OppmotePeriodeInput & { oppmotestedId: string } =>
+      p.type === "kontor" && p.oppmotestedId != null && dekker(p, dato),
+  );
+
+  // 3. Midlertidig kontor-periode som gjelder på datoen.
+  const midlertidig = kontor.filter((p) => !p.fast).sort(mestSpesifikk)[0];
+  if (midlertidig) return { kilde: "midlertidig", oppmotestedId: midlertidig.oppmotestedId };
+
+  // 4. Fast kontor som gjelder på datoen (åpent eller lukket historikk).
+  const fast = kontor.filter((p) => p.fast).sort(mestSpesifikk)[0];
+  if (fast) return { kilde: "fast", oppmotestedId: fast.oppmotestedId };
+
+  // 5. Ikke valgt.
+  return { kilde: "ikkeValgt" };
+}
+
+/** Den ansattes gjeldende faste oppmøtested (fast uten tilDato), uansett dato. */
+export function finnFastOppmotested(perioder: readonly OppmotePeriodeInput[]): string | null {
+  return perioder.find((p) => p.fast && p.tilDato == null)?.oppmotestedId ?? null;
+}
+
+/**
+ * Skal den ansatte få spørsmålet «Hvor møter du vanligvis?» ved første
+ * timeregistrering? Bare når firmaet har ≥ 2 aktive kontorer og den ansatte
+ * aldri har hatt et fast sted (ett sted settes automatisk av serveren,
+ * null steder → ingenting).
+ */
+export function trengerOppmoteValg(
+  antallAktiveKontorer: number,
+  perioder: readonly OppmotePeriodeInput[],
+): boolean {
+  return antallAktiveKontorer >= 2 && !perioder.some((p) => p.fast);
+}
+
+function overlapper(a: OppmotePeriodeInput, b: OppmotePeriodeInput): boolean {
+  const aSlutt = a.tilDato ?? "9999-12-31";
+  const bSlutt = b.tilDato ?? "9999-12-31";
+  return a.fraDato <= bSlutt && b.fraDato <= aSlutt;
+}
+
+/**
+ * Overlapp-regelen for en ny/endret periode mot den ansattes øvrige perioder.
+ * Serverlaget avviser på treff; web viser samme regel før lagring.
+ *
+ *  - Midlertidig kontor: kan ikke overlappe et annet midlertidig kontor.
+ *  - Byggeplass: kan ikke overlappe en byggeplass-periode på SAMME prosjekt.
+ *  - Fast: det åpne faste stedet lukkes (tilDato = ny fraDato − 1), så ny
+ *    fraDato må være etter dets fraDato; lukket fast-historikk skrives ikke om.
+ *
+ * Returnerer første kolliderende periode, eller null.
+ */
+export function finnPeriodeKonflikt<T extends OppmotePeriodeInput>(
+  ny: OppmotePeriodeInput,
+  ovrige: readonly T[],
+): T | null {
+  for (const p of ovrige) {
+    if (ny.type === "byggeplass") {
+      if (p.type === "byggeplass" && p.projectId === ny.projectId && overlapper(ny, p)) return p;
+    } else if (!ny.fast) {
+      if (p.type === "kontor" && !p.fast && overlapper(ny, p)) return p;
+    } else if (p.fast) {
+      if (p.tilDato == null ? ny.fraDato <= p.fraDato : ny.fraDato <= p.tilDato) return p;
+    }
+  }
+  return null;
+}
