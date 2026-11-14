@@ -64,6 +64,7 @@ import {
 import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
+import { BekreftSendUtenPauseModal } from "../../src/components/timer-detalj/BekreftSendUtenPauseModal";
 import { ProsjektGruppe } from "../../src/components/timer-detalj/ProsjektGruppe";
 import type { VisVarelinje } from "../../src/components/timer-detalj/VareforbrukLesListe";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
@@ -86,6 +87,7 @@ import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
 import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
+import { forsokInnsending, svarPaaPauseSporsmaal } from "@sitedoc/shared";
 import { hentLokaleVarelinjer } from "../../src/services/vareforbrukSync";
 import type {
   Sedel,
@@ -212,6 +214,8 @@ export default function DagsseddelDetalj() {
   // F5: matpause-toast + bekreftelsesmodal ved fjerning (ingen kvalifisert rad).
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
   const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
+  // Spørsmål ved innsending av dag over 5,5 t uten pause.
+  const [visPauseSporsmaal, setVisPauseSporsmaal] = useState(false);
   // UF-0: find-or-open fra «+ Ny» — subtil notis om at dagen alt fantes.
   const [visAapnetNotis, setVisAapnetNotis] = useState(
     params.aapnetEksisterende === "1",
@@ -738,12 +742,28 @@ export default function DagsseddelDetalj() {
     markerEndretOgLes();
   }, [sedel, sheetId, markerEndretOgLes]);
 
+  // Innsending: dag over 5,5 t uten pause → spørsmål først (Kenneth
+  // 2026-11-14 «still spørsmål, aksepter ved bekreftelse»). Delt flyt
+  // (`forsokInnsending`/`svarPaaPauseSporsmaal`) — samme som web.
   function sendTilAttestering() {
     if (!sedel) return;
     if (timerRader.length === 0) {
       setFeil(t("timer.feil.minstEnTimerRad"));
       return;
     }
+    forsokInnsending(timerRader, {
+      send: utforSendTilAttestering,
+      spor: () => setVisPauseSporsmaal(true),
+    });
+  }
+
+  function svarPauseSporsmaal(svar: "bekreft" | "avbryt") {
+    setVisPauseSporsmaal(false);
+    svarPaaPauseSporsmaal(svar, utforSendTilAttestering);
+  }
+
+  function utforSendTilAttestering() {
+    if (!sedel) return;
     const db = hentDatabase();
     if (!db) return;
     db.update(dagsseddelLocal)
@@ -1427,6 +1447,12 @@ export default function DagsseddelDetalj() {
           </View>
         </View>
       </Modal>
+
+      <BekreftSendUtenPauseModal
+        synlig={visPauseSporsmaal}
+        onAvbryt={() => svarPauseSporsmaal("avbryt")}
+        onBekreft={() => svarPauseSporsmaal("bekreft")}
+      />
 
       <MiniToast melding={pauseToast} />
     </SafeAreaView>

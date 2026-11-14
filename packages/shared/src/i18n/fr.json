@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Changer la quantité",
   "timer.dagsoversikt.slettVare": "Supprimer l'élément",
   "timer.dagsoversikt.slettVareTekst": "Supprimer {{navn}} ? La ligne est supprimée du jour et du stock.",
-  "timer.dagsoversikt.offlineVare": "L'article a été envoyé. Connectez-vous à Internet pour le modifier ou le supprimer."
+  "timer.dagsoversikt.offlineVare": "L'article a été envoyé. Connectez-vous à Internet pour le modifier ou le supprimer.",
+  "timer.pauseSporsmaal.tittel": "Plus de 5h30 sans interruption",
+  "timer.pauseSporsmaal.tekst": "La journée dure plus de 5,5 heures et aucun rang de travail ne connaît de pause. Si vous l'envoyez quand même, la feuille est transmise telle quelle à votre responsable pour approbation.",
+  "timer.pauseSporsmaal.sendLikevel": "Envoyer sans interruption"
 }

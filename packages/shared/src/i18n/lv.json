@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Mainīt daudzumu",
   "timer.dagsoversikt.slettVare": "Dzēst vienumu",
   "timer.dagsoversikt.slettVareTekst": "Vai dzēst {{navn}}? Līnija tiek noņemta no dienas un no inventāra.",
-  "timer.dagsoversikt.offlineVare": "Prece ir nosūtīta. Izveidojiet savienojumu ar internetu, lai to mainītu vai dzēstu."
+  "timer.dagsoversikt.offlineVare": "Prece ir nosūtīta. Izveidojiet savienojumu ar internetu, lai to mainītu vai dzēstu.",
+  "timer.pauseSporsmaal.tittel": "Over 5.5 h without a break",
+  "timer.pauseSporsmaal.tekst": "The day is over 5.5 h, and no work row has a break. If you send anyway, the sheet goes to your manager for approval as it is.",
+  "timer.pauseSporsmaal.sendLikevel": "Send without break"
 }

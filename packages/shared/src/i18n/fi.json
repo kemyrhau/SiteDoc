@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Muuta määrää",
   "timer.dagsoversikt.slettVare": "Poista kohde",
   "timer.dagsoversikt.slettVareTekst": "Poistetaanko {{navn}}? Rivi poistetaan päivästä ja varastosta.",
-  "timer.dagsoversikt.offlineVare": "Tuote on lähetetty. Muodosta Internetiin muuttaaksesi tai poistaaksesi sen."
+  "timer.dagsoversikt.offlineVare": "Tuote on lähetetty. Muodosta Internetiin muuttaaksesi tai poistaaksesi sen.",
+  "timer.pauseSporsmaal.tittel": "Yli 5,5 h ilman taukoa",
+  "timer.pauseSporsmaal.tekst": "Päivä on yli 5,5 h, eikä työrivillä ole taukoa. Jos lähetät kuitenkin, arkki menee esimiehellesi hyväksyttäväksi sellaisenaan.",
+  "timer.pauseSporsmaal.sendLikevel": "Lähetä ilman taukoa"
 }

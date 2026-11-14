@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Schimbați cantitatea",
   "timer.dagsoversikt.slettVare": "Ștergeți elementul",
   "timer.dagsoversikt.slettVareTekst": "Ștergeți {{navn}}? Linia este scoasă din zi și din inventar.",
-  "timer.dagsoversikt.offlineVare": "Articolul a fost trimis. Conectați-vă la internet pentru a-l schimba sau șterge."
+  "timer.dagsoversikt.offlineVare": "Articolul a fost trimis. Conectați-vă la internet pentru a-l schimba sau șterge.",
+  "timer.pauseSporsmaal.tittel": "Peste 5,5 ore fără pauză",
+  "timer.pauseSporsmaal.tekst": "Ziua este peste 5,5 ore, iar niciun rând de lucru nu are pauză. Dacă oricum trimiteți, foaia merge la managerul dumneavoastră pentru aprobare așa cum este.",
+  "timer.pauseSporsmaal.sendLikevel": "Trimite fără pauză"
 }

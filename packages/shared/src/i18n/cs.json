@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Změňte množství",
   "timer.dagsoversikt.slettVare": "Smazat položku",
   "timer.dagsoversikt.slettVareTekst": "Smazat {{navn}}? Linka je odstraněna ze dne a ze zásob.",
-  "timer.dagsoversikt.offlineVare": "Položka byla odeslána. Chcete-li jej změnit nebo odstranit, připojte se k internetu."
+  "timer.dagsoversikt.offlineVare": "Položka byla odeslána. Chcete-li jej změnit nebo odstranit, připojte se k internetu.",
+  "timer.pauseSporsmaal.tittel": "Přes 5,5 hodiny bez přestávky",
+  "timer.pauseSporsmaal.tekst": "Den má více než 5,5 hodiny a žádná pracovní řada nemá přestávku. Pokud přesto odešlete, list bude odeslán ke schválení vašemu manažerovi tak, jak je.",
+  "timer.pauseSporsmaal.sendLikevel": "Odeslat bez přestávky"
 }

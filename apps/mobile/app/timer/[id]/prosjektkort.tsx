@@ -21,6 +21,7 @@ import { RedigerArbeidstidModal } from "../../../src/components/timer-detalj/Arb
 import { ProsjektkortDagsoversikt } from "../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
 import { useProsjektkortSedel } from "../../../src/components/timer-detalj/prosjektkort/useProsjektkortSedel";
 import { ByggeplassVelgerModal } from "../../../src/components/timer-detalj/ByggeplassVelger";
+import { BekreftSendUtenPauseModal } from "../../../src/components/timer-detalj/BekreftSendUtenPauseModal";
 import { DagSeksjon } from "../../../src/components/timer-detalj/prosjektkort/DagSeksjon";
 import {
   tilRuteParam,
@@ -469,6 +470,12 @@ export default function ProsjektkortSkjerm() {
           onLukk={() => setVisByggeplassVelger(false)}
         />
       )}
+
+      <BekreftSendUtenPauseModal
+        synlig={s.visPauseSporsmaal}
+        onAvbryt={() => s.svarPauseSporsmaal("avbryt")}
+        onBekreft={() => s.svarPauseSporsmaal("bekreft")}
+      />
     </View>
   );
 }

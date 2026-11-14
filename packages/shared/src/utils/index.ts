@@ -182,6 +182,10 @@ export {
   pauseFraForRad,
   fastPauseFraFor,
   dagPauseMinForNyttArbeid,
+  dagsBruttoTimer,
+  dagManglerPause,
+  forsokInnsending,
+  svarPaaPauseSporsmaal,
 } from "./pauseBeregning";
 export {
   tilErEtterFra,

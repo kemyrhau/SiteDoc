@@ -5518,5 +5518,8 @@
   "timer.dagsoversikt.endreMengde": "Изменить количество",
   "timer.dagsoversikt.slettVare": "Удалить элемент",
   "timer.dagsoversikt.slettVareTekst": "Удалить {{navn}}? Линия снимается с учета и из инвентаря.",
-  "timer.dagsoversikt.offlineVare": "Товар отправлен. Подключитесь к Интернету, чтобы изменить или удалить его."
+  "timer.dagsoversikt.offlineVare": "Товар отправлен. Подключитесь к Интернету, чтобы изменить или удалить его.",
+  "timer.pauseSporsmaal.tittel": "Over 5.5 h without a break",
+  "timer.pauseSporsmaal.tekst": "The day is over 5.5 h, and no work row has a break. If you send anyway, the sheet goes to your manager for approval as it is.",
+  "timer.pauseSporsmaal.sendLikevel": "Send without break"
 }
