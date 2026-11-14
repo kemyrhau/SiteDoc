@@ -455,6 +455,7 @@ export function AttesteringDetaljEdit({
             prosjektValg.find((p) => p.id === pid)?.name ?? pid;
           return (
             <ProsjektSectionEdit
+              organizationId={organizationId}
               key={pid}
               projectId={pid}
               prosjektNavn={prosjektNavn}
@@ -518,6 +519,7 @@ export function AttesteringDetaljEdit({
         <SplittRadModal
           {...splittAktivFor}
           sheetId={sheetId}
+          organizationId={organizationId}
           prosjekter={prosjektValg}
           tidsrundingMinutter={tidsrundingMinutter}
           onLukk={() => setSplittAktivFor(null)}
@@ -596,6 +598,7 @@ type SplittAktivLokal =
   | { radType: "maskin"; original: MaskinRad };
 
 function ProsjektSectionEdit({
+  organizationId,
   projectId,
   prosjektNavn,
   ecoKeys,
@@ -617,6 +620,8 @@ function ProsjektSectionEdit({
   leggTilMaskin,
   aapneSplitt,
 }: {
+  /** Sedelens firma — katalogene (lønnsart/tillegg/maskin) hentes herfra. */
+  organizationId: string;
   projectId: string;
   prosjektNavn: string;
   ecoKeys: string[];
@@ -664,6 +669,7 @@ function ProsjektSectionEdit({
           };
           return (
             <EcoBucketEdit
+              organizationId={organizationId}
               key={ekv}
               projectId={projectId}
               ecoId={ecoId}
@@ -716,6 +722,7 @@ function ProsjektSectionEdit({
               return (
                 <RedigerTilleggRad
                   key={rad.key}
+                  organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
                   onChange={(felt) => oppdaterTillegg(rad.key, felt)}
@@ -736,6 +743,7 @@ function ProsjektSectionEdit({
 }
 
 function EcoBucketEdit({
+  organizationId,
   projectId,
   ecoId,
   ecoNavn,
@@ -753,6 +761,7 @@ function EcoBucketEdit({
   leggTilMaskin,
   aapneSplitt,
 }: {
+  organizationId: string;
   projectId: string;
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -831,6 +840,7 @@ function EcoBucketEdit({
               return (
                 <RedigerTimerRad
                   key={rad.key}
+                  organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
                   tidsrundingMinutter={tidsrundingMinutter}
@@ -881,6 +891,7 @@ function EcoBucketEdit({
               return (
                 <RedigerMaskinRad
                   key={rad.key}
+                  organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
                   tidsrundingMinutter={tidsrundingMinutter}

@@ -1277,9 +1277,12 @@ function ReiseSeksjon() {
     { enabled: !!orgId },
   );
   // Reise-lønnsart velges fra firmaets ordinaer-arter (timeførte, ikke diett/godtgjørelse).
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(undefined, {
-    enabled: !!orgId,
-  });
+  // Send valgt firma eksplisitt — uten organizationId faller serveren tilbake på
+  // brukerens EGET firma (resolverOrgFraInput), mens innstillingen lagres på valgtFirma.
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
   const utils = trpc.useUtils();
 
   const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({

@@ -8,6 +8,8 @@ import { trpc } from "@/lib/trpc";
 import type { RedigerTilleggRadData, ProsjektValg } from "./rediger-types";
 
 type Props = {
+  /** Sedelens firma — tilleggskatalogen hentes for dette firmaet (se RedigerTimerRad). */
+  organizationId: string;
   rad: RedigerTilleggRadData;
   prosjekter: ProsjektValg[];
   onChange: (felt: Partial<RedigerTilleggRadData>) => void;
@@ -16,9 +18,19 @@ type Props = {
   onSplitt?: () => void;
 };
 
-export function RedigerTilleggRad({ rad, prosjekter, onChange, onSlett, onSplitt }: Props) {
+export function RedigerTilleggRad({
+  organizationId,
+  rad,
+  prosjekter,
+  onChange,
+  onSlett,
+  onSplitt,
+}: Props) {
   const { t } = useTranslation();
-  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(
+    { organizationId },
+    { enabled: !!organizationId },
+  );
 
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">

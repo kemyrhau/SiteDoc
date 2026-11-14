@@ -1229,6 +1229,7 @@ export default function DagsseddelDetaljSide() {
             timer: splittModal.rad.timer,
           }}
           sheetId={sheet.id}
+          organizationId={sheet.organizationId}
           prosjekter={prosjekterForVelger}
           tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
           onLukk={() => setSplittModal(null)}
@@ -1250,6 +1251,7 @@ export default function DagsseddelDetaljSide() {
             kommentar: splittModal.rad.kommentar,
           }}
           sheetId={sheet.id}
+          organizationId={sheet.organizationId}
           prosjekter={prosjekterForVelger}
           tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
           onLukk={() => setSplittModal(null)}
@@ -1276,6 +1278,7 @@ export default function DagsseddelDetaljSide() {
             enhet: splittModal.rad.enhet,
           }}
           sheetId={sheet.id}
+          organizationId={sheet.organizationId}
           prosjekter={prosjekterForVelger}
           tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
           onLukk={() => setSplittModal(null)}

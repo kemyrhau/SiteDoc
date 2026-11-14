@@ -64,6 +64,8 @@ type Props =
       radType: "timer";
       original: TimerRadOriginal;
       sheetId: string;
+      /** Sedelens firma — katalogene i redigeringsradene hentes for dette firmaet. */
+      organizationId: string;
       prosjekter: ProsjektValg[];
       tidsrundingMinutter: number | null;
       eierModus?: boolean;
@@ -74,6 +76,8 @@ type Props =
       radType: "tillegg";
       original: TilleggRadOriginal;
       sheetId: string;
+      /** Sedelens firma — katalogene i redigeringsradene hentes for dette firmaet. */
+      organizationId: string;
       prosjekter: ProsjektValg[];
       tidsrundingMinutter: number | null;
       eierModus?: boolean;
@@ -84,6 +88,8 @@ type Props =
       radType: "maskin";
       original: MaskinRadOriginal;
       sheetId: string;
+      /** Sedelens firma — katalogene i redigeringsradene hentes for dette firmaet. */
+      organizationId: string;
       prosjekter: ProsjektValg[];
       tidsrundingMinutter: number | null;
       eierModus?: boolean;
@@ -395,6 +401,7 @@ export function SplittRadModal(props: Props) {
               splitTimer.map((rad, i) => (
                 <RedigerTimerRad
                   key={rad.key}
+                  organizationId={props.organizationId}
                   rad={rad}
                   prosjekter={props.prosjekter}
                   tidsrundingMinutter={props.tidsrundingMinutter}
@@ -406,6 +413,7 @@ export function SplittRadModal(props: Props) {
               splitTillegg.map((rad, i) => (
                 <RedigerTilleggRad
                   key={rad.key}
+                  organizationId={props.organizationId}
                   rad={rad}
                   prosjekter={props.prosjekter}
                   onChange={(felt) => oppdaterTillegg(rad.key, felt)}
@@ -416,6 +424,7 @@ export function SplittRadModal(props: Props) {
               splitMaskin.map((rad, i) => (
                 <RedigerMaskinRad
                   key={rad.key}
+                  organizationId={props.organizationId}
                   rad={rad}
                   prosjekter={props.prosjekter}
                   tidsrundingMinutter={props.tidsrundingMinutter}
