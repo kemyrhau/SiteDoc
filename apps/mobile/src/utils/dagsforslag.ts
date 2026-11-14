@@ -399,7 +399,59 @@ export type DagsforslagRetting = {
   beskrivelse?: Record<string, string>;
   /** Radform: overstyring pr. arbeidsrad — se `beskrivelsePerRad`. */
   beskrivelsePerRad?: Record<string, string>;
+  /**
+   * POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort (manuell modus).
+   * Reise-rader arbeideren har ført selv; legges på første åpne dato som
+   * `erReise` + `reiseKilde "manuell"` — samme spor som `settInnTimerRad` gir
+   * fra det lagrede kortet (`DagSeksjon`). Rører ikke arbeidsradene.
+   */
+  manuellReise?: DagsforslagManuellReise[];
 };
+
+/** Én manuelt ført reise-rad (fra `TimerRadModal` i reise-modus). */
+export type DagsforslagManuellReise = {
+  projectId: string;
+  byggeplassId: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  timer: number;
+  fraTid: string | null;
+  tilTid: string | null;
+};
+
+/**
+ * POST (8) punkt 1 — REN: legger arbeiderens manuelle reise-rader på første
+ * dato som ikke er blokkert (sendt/godkjent). Feltene speiler `settInnTimerRad`
+ * for en reise-lønnsart: `erReise`, `reiseKilde "manuell"`, `tidKilde
+ * "manuell"`, ingen retning/oppmøtested/matrise-spor, ingen pause.
+ */
+export function leggTilManuellReise(
+  datoer: DagsforslagDag[],
+  reiser: DagsforslagManuellReise[] | undefined,
+): DagsforslagDag[] {
+  if (!reiser || reiser.length === 0) return datoer;
+  const idx = datoer.findIndex((d) => !d.blokkert);
+  if (idx === -1) return datoer;
+  const rader: DagsforslagRad[] = reiser.map((r) => ({
+    projectId: r.projectId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: r.timer,
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    pauseMin: 0,
+    erReise: true,
+    reiseRetning: null,
+    reiseOppmotestedId: null,
+    byggeplassId: r.byggeplassId,
+    reiseKjoretidMin: null,
+    reiseAvstandM: null,
+    reiseKilde: "manuell",
+    reiseRegel: null,
+    tidKilde: "manuell",
+  }));
+  return datoer.map((d, i) => (i === idx ? { ...d, rader: [...d.rader, ...rader] } : d));
+}
 
 export type DagsforslagRettingDato = {
   /** Arbeidsvinduets start "HH:MM". Reise ut forankres her (A1). */
@@ -993,7 +1045,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     reiseAarsak,
     destinasjonAarsak,
     normStatus: effektivStartDag.normStatus ?? null,
-    datoer,
+    datoer: leggTilManuellReise(datoer, retting?.manuellReise),
     ...(retting?.beskrivelse ? { beskrivelsePerKort: retting.beskrivelse } : {}),
     ...(retting?.beskrivelsePerRad ? { beskrivelsePerRad: retting.beskrivelsePerRad } : {}),
   };

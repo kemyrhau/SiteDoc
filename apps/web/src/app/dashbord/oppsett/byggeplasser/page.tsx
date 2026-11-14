@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
@@ -1786,9 +1787,28 @@ function PublisertLokasjonKort({
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
+// `useSearchParams` krever Suspense-grense for statisk prerender (Next 14);
+// uten den feiler `next build` på denne siden.
 export default function LokasjonerSide() {
-  const { prosjektId, valgtProsjekt } = useProsjekt();
+  return (
+    <Suspense fallback={null}>
+      <LokasjonerSideInnhold />
+    </Suspense>
+  );
+}
+
+function LokasjonerSideInnhold() {
+  const { prosjektId, valgtProsjekt, velgProsjekt } = useProsjekt();
   const { t } = useTranslation();
+  // POST (8) punkt 2: lenkene fra «Dette må være på plass» (Reise-regelsett)
+  // åpner siden med riktig prosjekt valgt via `?prosjekt=<id>`. Tilgang
+  // sjekkes som før av serveren (prosjekt.hentMedId); siden blir stående.
+  const prosjektParam = useSearchParams().get("prosjekt");
+  useEffect(() => {
+    if (prosjektParam && prosjektParam !== prosjektId) velgProsjekt(prosjektParam);
+    // Kun når parameteren endres — ikke når brukeren senere bytter prosjekt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prosjektParam]);
   const utils = trpc.useUtils();
   // C5(a): «mangler plassering»-merket vises KUN når Timer-modulen er aktiv for
   // firmaet — ellers betyr et manglende byggeplass-punkt ingenting for brukeren.

@@ -5,7 +5,6 @@ import {
   løsReiseLonnsartId,
   løsReiseKnappLonnsart,
   erReiseLonnsart,
-  REISE_LONNSART_REGEX,
   type UtleggOrdning,
   type ReiseKnappResultat,
 } from "@sitedoc/shared";
@@ -22,8 +21,8 @@ import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
 import { hentReiseGrensepunkterLokalt } from "./reiseGrensepunktKatalog";
 import type { trpc } from "../lib/trpc";
 
-// REISE_LONNSART_REGEX bor nå i @sitedoc/shared (én kilde delt med serverens
-// tvetydighets-telling) — importert over, ikke definert lokalt.
+// Reise-navneregelen (REISE_LONNSART_REGEX) bor i @sitedoc/shared og leses her
+// kun via den delte resolveren `løsReiseKnappLonnsart`.
 
 /* ============================================================================
  *  Timer-katalog-cache (Runde 2)
@@ -201,9 +200,8 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
 export function hentLonnsarterLokalt(organizationId: string) {
   const db = hentDatabase();
   if (!db) return [];
-  // Stabil orden: reise-resolveren (eneste kaller) tar første regex-treff via
-  // `.find()` — uten deterministisk sortering kunne valget skifte mellom to
-  // synk-er hos et firma med ≥2 treff. rekkefolge (notNull, firmaets egen
+  // Stabil orden: katalogorden er deterministisk mellom synk-er (reise-
+  // resolveren velger ikke lenger «første treff» — ≥2 treff er tvetydig). rekkefolge (notNull, firmaets egen
   // katalogorden), så id som absolutt bryter. Ikke kode: den er nullable + tekst
   // (leksikalsk «122» < «20»). For 0/1 treff er atferden identisk med før.
   return db
@@ -270,8 +268,9 @@ export function harOvertidLonnsartLokalt(organizationId: string): boolean {
  * mellom generering (genererForslag) og render (reise-merking). Prioritet:
  *   1. Avstandsbånd-treff (`løsReiseLonnsartId` mot lokale grensepunkter) —
  *      KUN når `avstandM` er oppgitt og et grensepunkt med en art treffer
- *   2. OrganizationSetting.reiseLonnsartId (eksplisitt valgt av firma-admin)
- *   3. Navne-match (/reise|transport/i) mot aktive lønnsarter
+ *   2. OrganizationSetting.reiseLonnsartId (eksplisitt valgt av firma-admin, aktiv)
+ *   3. Nøyaktig ÉN aktiv ordinær navne-match (/reise|transport/i)
+ *   2→3 avgjøres av den delte `løsReiseKnappLonnsart` (via `hentReiseKnappLokalt`).
  * Returnerer null hvis ingen passende lønnsart finnes.
  *
  * `avstandM` er VALGFRITT. Utelatt (undefined) → nøyaktig som før: båndene leses
@@ -284,14 +283,12 @@ export function hentReiseLonnsartId(
   organizationId: string,
   avstandM?: number | null,
 ): string | null {
-  const regel = hentOrganizationSettingLokalt(organizationId);
-  // Fallback = dagens oppførsel (prioritet 2→3): eksplisitt art, ellers navne-match.
+  // Fallback (prioritet 2→3) = SAMME delte resolver som «+ Reise»
+  // (POST (8) punkt 2 (5)): aktivt eksplisitt valg, ellers nøyaktig én aktiv
+  // ordinær navne-match. Deaktivert valg / tvetydig / ingen → null.
+  const knapp = hentReiseKnappLokalt(organizationId);
   const fallback =
-    regel?.reiseLonnsartId ??
-    hentLonnsarterLokalt(organizationId).find((l) =>
-      REISE_LONNSART_REGEX.test(l.navn),
-    )?.id ??
-    null;
+    knapp.status === "valgt" || knapp.status === "automatisk" ? knapp.lonnsartId : null;
   // Uten avstand → uendret oppførsel, båndene røres ikke (render-laget).
   if (avstandM === undefined) return fallback;
   // Med avstand → delt resolver velger båndets art, ellers fallback.

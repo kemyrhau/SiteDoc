@@ -3,7 +3,7 @@ import { router, protectedProcedure, inviteProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import type { Prisma } from "@sitedoc/db";
-import { REISE_LONNSART_REGEX } from "@sitedoc/shared";
+import { reiseLonnsartKandidater } from "@sitedoc/shared";
 import {
   autoriserAdminForFirma,
   harFirmaHmsTilgang,
@@ -1157,20 +1157,17 @@ export const organisasjonRouter = router({
       create: { organizationId: orgId },
       update: {},
     });
-    // Tvetydighets-telling: hvor mange AKTIVE lønnsarter matcher reise-regexen.
-    // Speiler mobil-resolveren (`hentReiseLonnsartId`): samme delte
-    // REISE_LONNSART_REGEX, alle typer, kun aktive. Regex kan ikke pushes til
-    // Prisma (Postgres `~*` er ikke i query-API-et), så vi henter navnene og
-    // teller i JS mot den ene kilden. Klienten bruker tallet til å velge varsel
-    // (0 = ingen art tolkes som reise; ≥2 = tvetydig). `.test()` er trygt å
-    // gjenbruke — regexen har ingen `g`-flagg, altså ingen lastIndex-tilstand.
+    // Tvetydighets-telling: hvor mange AKTIVE ORDINÆRE lønnsarter matcher
+    // reise-regelen — SAMME kandidatsett som den delte resolveren
+    // `løsReiseKnappLonnsart` (`reiseLonnsartKandidater`), så varselet og
+    // statuslinja i Reise-regelsett aldri sier hver sin ting (POST (8) punkt 2
+    // (4)). Regex kan ikke pushes til Prisma, så kandidatene filtreres i JS.
+    // Klienten bruker tallet til å velge varsel (0 = ingen; ≥2 = tvetydig).
     const aktiveArter = await ctx.prismaTimer.lonnsart.findMany({
-      where: { organizationId: orgId, aktiv: true },
-      select: { navn: true },
+      where: { organizationId: orgId, aktiv: true, type: "ordinaer" },
+      select: { id: true, navn: true, type: true, aktiv: true },
     });
-    const reiseLonnsartMatchAntall = aktiveArter.filter((a) =>
-      REISE_LONNSART_REGEX.test(a.navn),
-    ).length;
+    const reiseLonnsartMatchAntall = reiseLonnsartKandidater(aktiveArter).length;
     // C5 (V14): to datagrunnlag-tellere som erstatter `reiseMatriseParUtenAvstand`.
     // Tomheten var usynlig i fire måneder (H21) — derfor gjøres den synlig på
     // matrise-flaten, begge klikkbare til byggeplasslista.
@@ -1178,9 +1175,12 @@ export const organisasjonRouter = router({
     //      (arven som arvet prosjektets koordinat er fjernet i C1).
     //  (2) Par markert uoppnåelig (kjoretidMin = UOPPNAAELIG = -1) — KJENT umulig
     //      rute (øy uten veiforbindelse e.l.), ikke manglende grunnlag.
+    // POST (8) punkt 2 (2): geofencen krever både punkt OG radius
+    // (`tilGeofencer`, sted.ts) — en byggeplass med punkt men uten radius gir
+    // heller ingen reise-etappe, så den telles også.
     const reiseByggeplasserUtenPunkt = await ctx.prisma.byggeplass.count({
       where: {
-        latitude: null,
+        OR: [{ latitude: null }, { longitude: null }, { radiusM: null }],
         project: { primaryOrganizationId: orgId, status: "active" },
       },
     });
@@ -1203,6 +1203,86 @@ export const organisasjonRouter = router({
       reiseGrenser,
     };
   }),
+
+  // POST 2026-11-14 (8) punkt 2 — «Dette må være på plass» øverst i
+  // Reise-regelsett: det reiseberegningen avhenger av som bor på andre sider.
+  // Firma-admin i input-firmaet (samme vakt som hentSetting); alle oppslag
+  // filtrerer på firmaet (oppmøtested/matrise på organizationId, byggeplass via
+  // prosjektets primaryOrganizationId). Kun aktive prosjekter — samme utvalg
+  // som telleren i hentSetting; avsluttede prosjekter får ikke ny reise.
+  hentReiseForutsetninger: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      // (1) Oppmøtesteder — lat/lng er påkrevd i skjemaet, så aktiv = har koordinat.
+      const oppmotesteder = await ctx.prisma.oppmotested.findMany({
+        where: { organizationId: orgId, aktiv: true },
+        select: { id: true, navn: true },
+        orderBy: { navn: "asc" },
+      });
+      // (2) Byggeplasser: geofencen krever punkt + radius (`tilGeofencer`).
+      const byggeplasser = await ctx.prisma.byggeplass.findMany({
+        where: { project: { primaryOrganizationId: orgId, status: "active" } },
+        select: {
+          id: true,
+          name: true,
+          latitude: true,
+          longitude: true,
+          radiusM: true,
+          project: { select: { id: true, name: true } },
+        },
+        orderBy: [{ project: { name: "asc" } }, { name: "asc" }],
+      });
+      const harPunkt = (b: { latitude: number | null; longitude: number | null }) =>
+        b.latitude != null && b.longitude != null;
+      const byggeplasserMangler = byggeplasser
+        .filter((b) => !harPunkt(b) || b.radiusM == null)
+        .map((b) => ({
+          id: b.id,
+          navn: b.name,
+          prosjektId: b.project.id,
+          prosjektNavn: b.project.name,
+          manglerPunkt: !harPunkt(b),
+          manglerRadius: b.radiusM == null,
+        }));
+      // (3) Par aktivt oppmøtested × byggeplass med punkt (det «Beregn» fyller).
+      // Mangler = ingen matriserad, eller rad uten avstand (km-terskelen regner
+      // manglende avstand stille som under terskelen, reise.ts).
+      const medPunkt = byggeplasser.filter(harPunkt);
+      const matrise =
+        oppmotesteder.length > 0 && medPunkt.length > 0
+          ? await ctx.prisma.reisetidMatrise.findMany({
+              where: {
+                organizationId: orgId,
+                oppmotestedId: { in: oppmotesteder.map((o) => o.id) },
+                byggeplassId: { in: medPunkt.map((b) => b.id) },
+              },
+              select: { oppmotestedId: true, byggeplassId: true, kjoretidMin: true, avstandM: true },
+            })
+          : [];
+      const parNokkel = (o: string, b: string) => `${o}|${b}`;
+      const radPerPar = new Map(matrise.map((r) => [parNokkel(r.oppmotestedId, r.byggeplassId), r]));
+      const parTotalt = oppmotesteder.length * medPunkt.length;
+      let parManglerAvstand = 0;
+      const uoppnaaelige: { oppmotested: string; byggeplass: string; prosjekt: string }[] = [];
+      for (const o of oppmotesteder) {
+        for (const b of medPunkt) {
+          const rad = radPerPar.get(parNokkel(o.id, b.id));
+          if (rad && rad.kjoretidMin === UOPPNAAELIG) {
+            uoppnaaelige.push({ oppmotested: o.navn, byggeplass: b.name, prosjekt: b.project.name });
+          } else if (!rad || rad.avstandM == null) {
+            parManglerAvstand++;
+          }
+        }
+      }
+      return {
+        oppmotesteder: oppmotesteder.length,
+        byggeplasserMangler,
+        parTotalt,
+        parManglerAvstand,
+        uoppnaaelige,
+      };
+    }),
 
   // T4-d (2026-05-16): medlems-tilgjengelig subset av OrganizationSetting
   // for mobil-cache. Returnerer KUN arbeidstid-defaults + edit-flagg —

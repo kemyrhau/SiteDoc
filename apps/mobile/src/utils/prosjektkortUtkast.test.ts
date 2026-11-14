@@ -175,6 +175,14 @@ describe("T5 — tom delta = ingen rad", () => {
       { ...tomt(), rettetSluttIso: "2026-11-13T15:00:00" },
       { ...tomt(), sluttGodkjent: true },
       { ...tomt(), ecoId: "e1" },
+      {
+        ...tomt(),
+        retting: {
+          manuellReise: [
+            { projectId: "p1", byggeplassId: null, lonnsartId: "l", aktivitetId: "a1", timer: 1, fraTid: null, tilTid: null },
+          ],
+        },
+      },
     ];
     for (const t of tilfeller) expect(erTomtUtkast(t)).toBe(false);
   });
@@ -183,7 +191,7 @@ describe("T5 — tom delta = ingen rad", () => {
     expect(
       erTomtUtkast({
         ...tomt(),
-        retting: { perDato: { [DATO]: {} }, beskrivelse: { p1: "" } },
+        retting: { perDato: { [DATO]: {} }, beskrivelse: { p1: "" }, manuellReise: [] },
         tilleggPerRad: { k: { maskiner: [], varer: [] } },
       }),
     ).toBe(true);

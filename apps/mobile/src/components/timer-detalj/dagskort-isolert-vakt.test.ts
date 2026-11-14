@@ -41,6 +41,12 @@ const BEKREFT_DAG_PROPS = [
   "onOpprett=",
   "lonnUtlegg",
   "BekreftDagLonnUtlegg",
+  // POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort — kun Bekreft dag.
+  "manuellReise",
+  "reiseKnapp",
+  "fjernReise",
+  "gpsLinje",
+  "gpsForslagLinje",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
