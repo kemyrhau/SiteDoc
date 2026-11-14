@@ -1,3 +1,5 @@
+import { arbeidUtenReise, type ArbeidReiseRad } from "@sitedoc/shared";
+
 /**
  * «Krever vurdering»-predikatet for en dagsseddel (2026-08-23).
  *
@@ -23,6 +25,9 @@ export interface VurderingsSedel {
   totaltimer: number;
   pauseMin: number;
   maskiner: Array<{ timer: unknown }>;
+  /** Ordre 2026-11-14 (6): timer-radene, så maskin-kontrollen måles mot arbeid
+   *  UTEN reise. Mangler de, brukes `totaltimer` (som før). */
+  timer?: ArbeidReiseRad[];
 }
 
 function tilTall(v: unknown): number {
@@ -51,7 +56,8 @@ export function sedelHarMertid(s: VurderingsSedel): boolean {
  */
 export function sedelHarMaskinOver(s: VurderingsSedel): boolean {
   const sumMaskin = s.maskiner.reduce((acc, r) => acc + tilTall(r.timer), 0);
-  return sumMaskin > 0 && sumMaskin > s.totaltimer + s.pauseMin / 60 + 0.001;
+  const arbeid = s.timer ? arbeidUtenReise(s.timer) : s.totaltimer;
+  return sumMaskin > 0 && sumMaskin > arbeid + s.pauseMin / 60 + 0.001;
 }
 
 /** B ∪ C — sedelen krever et aktivt attestant-valg → standard-ekspandert. */

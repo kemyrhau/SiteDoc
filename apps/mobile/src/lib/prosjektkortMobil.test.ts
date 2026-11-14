@@ -107,6 +107,16 @@ describe("sendKnappTekst", () => {
       timer: 7.5,
     });
   });
+  it("kladd med reise → «Send dagen (7,5 t · reise 2 t)»", () => {
+    expect(sendKnappTekst("draft", 7.5, 2)).toEqual({
+      nokkel: "timer.prosjektkort.sendDagenMedReise",
+      timer: 7.5,
+      reise: 2,
+    });
+  });
+  it("returnert med reise → fortsatt «Send på nytt»", () => {
+    expect(sendKnappTekst("returned", 7.5, 2)).toEqual({ nokkel: "timer.detalj.sendPaaNytt" });
+  });
 });
 
 describe("formatKortTall — som web (1–2 desimaler, komma)", () => {

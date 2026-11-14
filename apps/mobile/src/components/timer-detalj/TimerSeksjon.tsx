@@ -1081,7 +1081,7 @@ export function TimerRadModal({
    *  byggeplass/underprosjekt vises kun når valgt prosjekt har flere
    *  byggeplasser / underprosjekter (K3), ellers lagres null.
    *  Udefinert (dagskortet, kortene) = som før. */
-  reise?: { lonnsartId: string | null };
+  reise?: { lonnsartId: string | null; laast?: boolean };
   /** V21: dagsnorm for overtidsforslaget. Udefinert/null (kortene, ny-rad-flyten)
    *  = ingen forslagslinje, modalen som før. */
   dagsnormTimer?: number | null;
@@ -1542,12 +1542,14 @@ export function TimerRadModal({
     }) =>
       (r.projectId ?? defaultProjectId) === valgtProjectId &&
       (r.externalCostObjectId ?? null) === (valgtEcoId ?? null);
+    // Ordre (6): maskin måles mot arbeid UTEN reise.
+    const reiseArtId = hentReiseLonnsartId(organizationId);
     const arbeidSum = db
       .select()
       .from(sheetTimerLocal)
       .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
       .all()
-      .filter(iBucket)
+      .filter((r) => iBucket(r) && !erReiseRadVisning(r.erReise, r.lonnsartId, reiseArtId))
       .reduce((acc, r) => acc + (r.timer ?? 0), 0);
     const sumMaskin = db
       .select()
@@ -1562,7 +1564,7 @@ export function TimerRadModal({
       pauseMin: sheetPauseMin,
     });
     return { arbeidSum, sumMaskin, ledig };
-  }, [sheetId, valgtProjectId, valgtEcoId, sheetPauseMin, defaultProjectId]);
+  }, [sheetId, valgtProjectId, valgtEcoId, sheetPauseMin, defaultProjectId, organizationId]);
 
   // Speiler web-TimerRadDialogs disabled-logikk: kjernefeltene + fra/til
   // obligatorisk på timer-rader (2026-07-13, reverserer a2). Validering i lagre()
@@ -1911,11 +1913,19 @@ export function TimerRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.lonnsart")} *
             </Text>
-            <VelgerFelt
-              verdi={valgtLonnsart?.navn ?? null}
-              placeholder={t("timer.velgLonnsart")}
-              onPress={() => setVisLonnsartVelger(true)}
-            />
+            {/* Ordre (6): «+ Reise» låser lønnsarten til den løste
+                reise-arten på NY rad (eksisterende rad redigeres som før). */}
+            {reise?.laast && !eksisterendeRad ? (
+              <Text className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
+                {valgtLonnsart?.navn ?? ""}
+              </Text>
+            ) : (
+              <VelgerFelt
+                verdi={valgtLonnsart?.navn ?? null}
+                placeholder={t("timer.velgLonnsart")}
+                onPress={() => setVisLonnsartVelger(true)}
+              />
+            )}
           </View>
 
           <View>

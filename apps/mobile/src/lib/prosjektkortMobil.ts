@@ -12,7 +12,7 @@ import type {
   KortTimerRad,
   KortVareLinje,
 } from "@sitedoc/shared";
-import { slaaSammenVarelinjer } from "@sitedoc/shared";
+import { slaaSammenVarelinjer, sendDagenTekst, type SendDagenTekst } from "@sitedoc/shared";
 import { erReiseRadVisning } from "../utils/reiseRad";
 
 type LokalTimerRad = {
@@ -86,15 +86,15 @@ export function pauseBaererProsjekt(
   );
 }
 
-export type SendKnappTekst =
-  | { nokkel: "timer.detalj.sendPaaNytt" }
-  | { nokkel: "timer.prosjektkort.sendDagen"; timer: number };
+export type SendKnappTekst = SendDagenTekst;
 
-/** Returnert sedel: samme tekst som dagskortets «Send på nytt» (web-paritet). */
-export function sendKnappTekst(status: string, dagSum: number): SendKnappTekst {
-  return status === "returned"
-    ? { nokkel: "timer.detalj.sendPaaNytt" }
-    : { nokkel: "timer.prosjektkort.sendDagen", timer: dagSum };
+/**
+ * Ordre (6): «Send dagen (7,5 t · reise 2 t)» / «Send dagen (7,5 t)» — delegerer
+ * til den delte formatteren (`sendDagenTekst`, samme som web). `arbeid` er uten
+ * reise. Returnert sedel: «Send på nytt» (web-paritet).
+ */
+export function sendKnappTekst(status: string, arbeid: number, reise = 0): SendKnappTekst {
+  return sendDagenTekst(status, arbeid, reise);
 }
 
 /** Vareforbruk fra server → delt linjetype (bare lesing på mobil). */

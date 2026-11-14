@@ -48,6 +48,8 @@ import {
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
+import { hentReiseLonnsartId } from "../../services/timerKatalog";
+import { erReiseRadVisning } from "../../utils/reiseRad";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
@@ -663,12 +665,14 @@ export function MaskinRadModal({
     }) =>
       (r.projectId ?? defaultProjectId) === valgtProjectId &&
       (r.externalCostObjectId ?? null) === (valgtEcoId ?? null);
+    // Ordre (6): maskin måles mot arbeid UTEN reise.
+    const reiseArtId = hentReiseLonnsartId(organizationId);
     const arbeidSum = db
       .select()
       .from(sheetTimerLocal)
       .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
       .all()
-      .filter(iBucket)
+      .filter((r) => iBucket(r) && !erReiseRadVisning(r.erReise, r.lonnsartId, reiseArtId))
       .reduce((acc, r) => acc + (r.timer ?? 0), 0);
     const sumMaskinEksisterende = db
       .select()
@@ -698,6 +702,7 @@ export function MaskinRadModal({
     pauseMin,
     eksisterendeRad?.id,
     defaultProjectId,
+    organizationId,
   ]);
 
   function lagre() {

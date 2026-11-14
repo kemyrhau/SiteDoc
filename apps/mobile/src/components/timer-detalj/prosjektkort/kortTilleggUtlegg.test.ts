@@ -158,6 +158,7 @@ const dag: KortDag = {
   sedel: SEDEL,
   timerRader: [],
   maskinRader: [],
+  reiseLonnsartId: null,
 };
 const server = {
   erPaaNettet: true,

@@ -281,7 +281,8 @@ describe("ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet", () =>
   );
 
   it("🔴 nye props er valgfrie, og uten dem er visningen som før", () => {
-    expect(flat(TIMER_SEKSJON)).toContain("reise?: { lonnsartId: string | null }");
+    // Ordre (6): `laast` er valgfri — uten den (og uten `reise`) er visningen som før.
+    expect(flat(TIMER_SEKSJON)).toContain("reise?: { lonnsartId: string | null; laast?: boolean }");
     expect(UTLEGG).toContain("prosjektValg?: { id: string; navn: string }[]");
     for (const v of REISE_VILKAAR) expect(flat(TIMER_SEKSJON)).toContain(v);
     expect(UTLEGG).toContain(UTLEGG_CHIPS);

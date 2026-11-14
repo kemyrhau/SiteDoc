@@ -77,6 +77,19 @@ export type {
   ReiseRegelSnapshot,
   NormSnapshot,
 } from "./reise";
+export {
+  løsReiseKnappLonnsart,
+  reiseLonnsartKandidater,
+  arbeidOgReise,
+  arbeidUtenReise,
+  sendDagenTekst,
+} from "./reiseSkille";
+export type {
+  ReiseKnappLonnsart,
+  ReiseKnappResultat,
+  ArbeidReiseRad,
+  SendDagenTekst,
+} from "./reiseSkille";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";

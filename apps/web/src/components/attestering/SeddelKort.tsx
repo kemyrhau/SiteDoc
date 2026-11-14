@@ -774,23 +774,21 @@ export function SeddelKort({
                     {sedel.totaltimer.toFixed(2)}t
                   </td>
                 </tr>
-                {/* B5 (2026-05-27): maskin-av-arbeid-validering — speiler
-                    EcoBucketAttest. Vises kun når sedel har arbeid eller
-                    maskin-rader registrert. */}
-                {(sumMaskin > 0 || sedel.totaltimer > 0) && (
+                {/* Ordre 2026-11-14 (6): «Maskin X t», uten «av Y t arbeid» og
+                    grønn/rød. Kontrollen (sedelHarMaskinOver, mot arbeid uten
+                    reise) består: overstiger maskin, vises varselet. */}
+                {sumMaskin > 0 && (
                   <tr className="border-t border-gray-100">
                     <td colSpan={3} className="px-3 py-1.5 text-right">
                       <span
                         className={`inline-block rounded border px-2 py-1 text-xs font-medium ${
                           maskinOk
-                            ? "border-green-200 bg-green-50 text-green-800"
+                            ? "border-gray-200 bg-white text-gray-700"
                             : "border-red-300 bg-red-50 text-red-800"
                         }`}
                       >
-                        {t("timer.gruppe.maskinAvArbeid", {
-                          maskin: sumMaskin.toFixed(2),
-                          arbeid: sedel.totaltimer.toFixed(2),
-                        })}
+                        {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
+                        {!maskinOk && <> · {t("timer.rediger.maskinOverstiger")}</>}
                       </span>
                     </td>
                     <td className="px-3 py-1.5" />

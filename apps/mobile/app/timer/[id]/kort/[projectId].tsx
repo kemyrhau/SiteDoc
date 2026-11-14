@@ -361,6 +361,7 @@ export default function ProsjektkortSkjerm() {
     sedel: kontekst,
     timerRader,
     maskinRader,
+    reiseLonnsartId,
   };
   const sperretOffline = !erPaaNettet && innhold.varer.some(vareFinnesPaaServer);
   const kortNavn = (k: typeof valg) =>
