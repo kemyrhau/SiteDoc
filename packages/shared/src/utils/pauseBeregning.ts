@@ -197,8 +197,13 @@ export function utledArbeidstidFraRader(
 export function pauseFraForRad(args: {
   fraTid: string;
   tilTid: string;
-  /** Dagens ANDRE rader (uten raden selv). */
-  andreRader: readonly { fraTid?: string | null; tilTid?: string | null }[];
+  /** Dagens ANDRE rader (uten raden selv). Reise-rader (`erReise`) hoppes
+   *  over: grensen er 4 ARBEIDStimer (ORDRE 2026-11-14). */
+  andreRader: readonly {
+    fraTid?: string | null;
+    tilTid?: string | null;
+    erReise?: boolean | null;
+  }[];
   pauseEtterTimer: number;
   pauseMin: number;
   fastPauseFra?: string | null;
@@ -215,7 +220,7 @@ export function pauseFraForRad(args: {
     if (fastMin >= fraMin && fastMin < tilMin) return klem(fastMin);
   }
   const arbeidFor = args.andreRader.reduce((sum, r) => {
-    if (!r.fraTid || !r.tilTid) return sum;
+    if (!r.fraTid || !r.tilTid || r.erReise === true) return sum;
     const f = hhmmTilMin(r.fraTid);
     const t = hhmmTilMin(r.tilTid);
     if (t <= f || f >= fraMin) return sum;
@@ -249,6 +254,8 @@ export function avgjorRadPause(args: {
     fraTid?: string | null;
     tilTid?: string | null;
     pauseMin: number;
+    /** Reise-rad: teller i dagsbrutto, ikke i de 4 arbeidstimene. */
+    erReise?: boolean | null;
   }[];
   /** Raden som lagres — `null` for ny rad (ekskluderes fra «andre»). */
   radId: string | null;
@@ -301,7 +308,9 @@ export function fastPauseFraFor(dag: {
 /**
  * Dag-delen av pauseregelen (punkt 1 og 2 i `avgjorRadPause`), skilt ut så
  * Bekreft dag og manuell føring bruker ÉN regel (ORDRE dobbel pause 2026-11-13):
- *   1) dagsbrutto = Σ spenn på sedelens andre rader + det nye arbeidet > 5,5 t
+ *   1) dagsbrutto = Σ spenn på sedelens andre rader (ARBEID OG REISE — lagrede
+ *      `erReise`-rader teller, ORDRE 2026-11-14 «reise teller mot 5,5-grensen»)
+ *      + det nye arbeidet + ny reisetid (`nyReiseTimer`) > 5,5 t
  *   2) ingen annen rad på sedelen bærer pausen alt (kun én pr. sedel)
  * Returnerer `standardPauseMin` når begge holder og det nye arbeidet har spenn
  * lengre enn pausen (spennkravet), ellers 0. Plasseringen
@@ -316,9 +325,14 @@ export function dagPauseMinForNyttArbeid(args: {
   }[];
   /** Brutto spenn (timer) på det nye arbeidet, før pausefradrag. */
   nyBruttoTimer: number;
+  /** Ny reisetid som føres sammen med arbeidet (Bekreft dag: reisetid-
+   *  etappene). Teller kun mot 5,5-grensen — bæreren er alltid arbeidet, så
+   *  spennkravet gjelder `nyBruttoTimer` alene. */
+  nyReiseTimer?: number;
   standardPauseMin: number;
 }): number {
   const { andreRader, nyBruttoTimer, standardPauseMin } = args;
+  const nyReiseTimer = Math.max(0, args.nyReiseTimer ?? 0);
   // (0) Spennkrav (VILKÅR 1, gate 2026-11-14): bæreren må ha spenn LENGRE enn
   // pausen. En for kort rad får pause 0 og fullt spenn — ellers blir 20 min
   // arbeid 0 t og serveren gir `kast`. Samme krav som serverens `stemmerNy`
@@ -329,8 +343,14 @@ export function dagPauseMinForNyttArbeid(args: {
     const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
     return spenn > 0 ? sum + spenn / 60 : sum;
   }, 0);
-  // (1) Dagsterskel (AML §10-9).
-  if (pauseMinForDag(bruttoAndre + Math.max(0, nyBruttoTimer), standardPauseMin) === 0) {
+  // (1) Dagsterskel (AML §10-9). Reise teller (Kenneth 2026-11-14: «den gamle
+  // koden var rett» — terskelen ble målt på GPS-spennet inkl. reisen).
+  if (
+    pauseMinForDag(
+      bruttoAndre + Math.max(0, nyBruttoTimer) + nyReiseTimer,
+      standardPauseMin,
+    ) === 0
+  ) {
     return 0;
   }
   // (3) Bærer en ANNEN rad pausen alt? (kun-én-pr.-dag — flytt, ikke dupliser.)

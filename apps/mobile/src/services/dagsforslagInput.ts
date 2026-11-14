@@ -320,6 +320,7 @@ function lesEksisterendeSedel(
       fraTid: sheetTimerLocal.fraTid,
       tilTid: sheetTimerLocal.tilTid,
       pauseMin: sheetTimerLocal.pauseMin,
+      erReise: sheetTimerLocal.erReise,
     })
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
