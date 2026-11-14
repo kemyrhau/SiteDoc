@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Johdettu alla olevilta riveiltä",
   "timer.arbeidstidPrefyltHint": "Esitäytetty yrityksesi normaaleista aukioloajoista – säädä vain tarvittaessa (esim. unohdettu tai jaettu päivä). Kirjaa aukioloajat alla oleville riveille.",
   "timer.summering": "{{registrert}}h / {{total}}h rekisteröitynyt",
+  "timer.summeringReise": "Matka {{reise}} h",
   "timer.felt.startTid": "From",
   "timer.felt.sluttTid": "Vastaanottaja",
   "timer.felt.pauseMin": "Tauko (min)",

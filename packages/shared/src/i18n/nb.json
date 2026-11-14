@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Utledet av radene under",
   "timer.arbeidstidPrefyltHint": "Forhåndsutfylt fra firmaets standardtider — juster kun ved avvik (f.eks. glemt eller delt dag). Timene dine føres på radene under.",
   "timer.summering": "{{registrert}}t av {{total}}t registrert",
+  "timer.summeringReise": "Reise {{reise}} t",
   "timer.felt.startTid": "Fra kl.",
   "timer.felt.sluttTid": "Til kl.",
   "timer.felt.pauseMin": "Pause (min)",

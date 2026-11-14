@@ -130,7 +130,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       }>
     | undefined;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId },
+    { projectId, organizationId: sheet?.organizationId },
     { enabled: !!projectId },
   );
   const { data: setting } = trpc.organisasjon.hentSetting.useQuery(

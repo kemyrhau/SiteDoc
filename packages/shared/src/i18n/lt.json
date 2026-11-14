@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Gauta iš toliau pateiktų eilučių",
   "timer.arbeidstidPrefyltHint": "Pre-filled from your company's standard hours — adjust only if needed (e.g. a forgotten or split day). Log your hours on the rows below.",
   "timer.summering": "Užsiregistravo {{registrert}} val. iš {{total}} val",
+  "timer.summeringReise": "Kelionė {{reise}} val",
   "timer.felt.startTid": "Nuo",
   "timer.felt.sluttTid": "Į",
   "timer.felt.pauseMin": "Pertrauka (min.)",

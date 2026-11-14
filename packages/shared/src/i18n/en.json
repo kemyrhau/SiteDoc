@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Derived from the rows below",
   "timer.arbeidstidPrefyltHint": "Pre-filled from your company's standard hours — adjust only if needed (e.g. a forgotten or split day). Log your hours on the rows below.",
   "timer.summering": "{{registrert}}h of {{total}}h registered",
+  "timer.summeringReise": "Travel {{reise}} h",
   "timer.felt.startTid": "From",
   "timer.felt.sluttTid": "To",
   "timer.felt.pauseMin": "Break (min)",

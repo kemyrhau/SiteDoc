@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Atvasināts no tālāk esošajām rindām",
   "timer.arbeidstidPrefyltHint": "Iepriekš aizpildīts no jūsu uzņēmuma standarta darbalaika — pielāgojiet tikai tad, ja nepieciešams (piemēram, aizmirsta vai sadalīta diena). Pierakstiet savu darba laiku zemāk esošajās rindās.",
   "timer.summering": "Reģistrēts {{registrert}}h no {{total}}h",
+  "timer.summeringReise": "Ceļojums {{reise}} h",
   "timer.felt.startTid": "No",
   "timer.felt.sluttTid": "Uz",
   "timer.felt.pauseMin": "Pārtraukums (min)",

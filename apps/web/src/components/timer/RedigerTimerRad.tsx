@@ -42,7 +42,7 @@ export function RedigerTimerRad({
     { enabled: !!organizationId },
   );
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId: rad.projectId },
+    { projectId: rad.projectId, organizationId },
     { enabled: !!rad.projectId },
   );
 

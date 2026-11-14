@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -209,6 +209,15 @@ type PauseVisning = {
   standardPauseMin: number;
   regelTrigget: boolean;
 };
+
+// Post 2026-11-14 (7) punkt 3: sedelens firma til alle kataloger i
+// underkomponentene (lønnsart, aktivitet, tillegg, utleggskategori, maskin,
+// underprosjekt). Uten provider (undefined) faller endepunktet tilbake til
+// brukerens eget firma — samme som før.
+const SedelFirmaKontekst = createContext<string | undefined>(undefined);
+function useSedelFirma(): string | undefined {
+  return useContext(SedelFirmaKontekst);
+}
 
 export default function DagsseddelDetaljSide() {
   const { t } = useTranslation();
@@ -750,6 +759,7 @@ export default function DagsseddelDetaljSide() {
   const kortNavnMap = new Map(aktiveProsjektIder.map((id) => [id, kortNavn(id)]));
 
   return (
+    <SedelFirmaKontekst.Provider value={sheet.organizationId ?? undefined}>
     <div className="max-w-3xl p-6">
       <Link
         href="/dashbord/timer/mine"
@@ -1039,7 +1049,11 @@ export default function DagsseddelDetaljSide() {
       {!prosjektkortModus &&
         erRedigerbar &&
         (() => {
-          const rundet = Math.round(totaltimer * 4) / 4;
+          // Post 2026-11-14 (7) punkt 6: dekningen måles på arbeid UTEN reise
+          // (samme regel som prosjektkortet og maskin-kontrollen); reise vises
+          // separat. Kun banneret — resten av dagskortet bruker `totaltimer`.
+          const { arbeid: bannerArbeid, reise: bannerReise } = arbeidOgReise(timerRader);
+          const rundet = Math.round(bannerArbeid * 4) / 4;
           const sone =
             normTimer === null
               ? "grå"
@@ -1059,9 +1073,15 @@ export default function DagsseddelDetaljSide() {
           return (
             <div className={`mb-4 rounded-lg border p-4 text-sm ${farge}`}>
               {t("timer.summering", {
-                registrert: totaltimer.toFixed(2),
+                registrert: bannerArbeid.toFixed(2),
                 total: normTimer === null ? "?" : normTimer.toFixed(2),
               })}
+              {bannerReise > 0 && (
+                <>
+                  {" · "}
+                  {t("timer.summeringReise", { reise: bannerReise.toFixed(2) })}
+                </>
+              )}
             </div>
           );
         })()}
@@ -1421,6 +1441,7 @@ export default function DagsseddelDetaljSide() {
         </Modal>
       )}
     </div>
+    </SedelFirmaKontekst.Provider>
   );
 }
 
@@ -1879,7 +1900,8 @@ function ProsjektGruppe({
 
   // Hent ECO-katalog for å mappe ID → kortNavn (kun for ECO-er som faktisk
   // brukes på dette prosjektet i en gruppe).
-  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
+  const sedelFirmaId = useSedelFirma();
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId, organizationId: sedelFirmaId });
   const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(
     (ecoer ?? []).map((e) => [e.id, { kortNavn: e.kortNavn, proAdmId: e.proAdmId }]),
   );
@@ -2202,8 +2224,9 @@ function RaderTimer({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery({ organizationId: sedelFirmaId });
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery({ organizationId: sedelFirmaId });
 
   const fjern = trpc.timer.dagsseddel.fjernTimerRad.useMutation({
     onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
@@ -2354,7 +2377,8 @@ function RaderTillegg({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery({ organizationId: sedelFirmaId });
 
   const fjern = trpc.timer.dagsseddel.fjernTilleggRad.useMutation({
     onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
@@ -2458,7 +2482,8 @@ function RaderMaskinKompakt({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery({ organizationId: sedelFirmaId });
   const equipment = equipmentRaw as unknown as
     | Array<{
         id: string;
@@ -2621,9 +2646,10 @@ function TimerRadDialog({
 }) {
   const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery({ organizationId: sedelFirmaId });
   const reiseModus = !rad && !!laastReiseLonnsart;
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery({ organizationId: sedelFirmaId });
 
   // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer»: pausepunktet for
   // kandidat-spennet = der summert arbeid (sedelens rader før + raden) passerer
@@ -2681,6 +2707,7 @@ function TimerRadDialog({
   );
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({
     projectId: valgtProjectId,
+    organizationId: sedelFirmaId,
   });
   // Ordre (10): følger valgt prosjekt — prosjektbytte nullstiller ugyldig valg.
   const bp = useRadByggeplass({ byggeplasser, projectId: valgtProjectId, rad });
@@ -2690,7 +2717,7 @@ function TimerRadDialog({
   // feltet skjules. Org-validering håndheves uansett på server.
   const erInternt =
     prosjekter.find((p) => p.id === valgtProjectId)?.type === "internt";
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(undefined, {
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery({ organizationId: sedelFirmaId }, {
     enabled: erInternt,
   });
   const equipment = equipmentRaw as unknown as
@@ -2769,7 +2796,7 @@ function TimerRadDialog({
   // P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
   // Utstyrslisten hentes ufiltrert (full shape m/ internNummer + kategori for
   // MaskinVelger), speiler MaskinRadDialogs equipment-query.
-  const { data: maskinEquipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const { data: maskinEquipmentRaw } = trpc.maskin.equipment.list.useQuery({ organizationId: sedelFirmaId });
   const maskinEquipment = maskinEquipmentRaw as unknown as
     | Array<{
         id: string;
@@ -3660,7 +3687,8 @@ function useRadSted(args: {
     projectId,
     rad: rad ? { byggeplassId: rad.byggeplassId ?? null } : undefined,
   });
-  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
+  const sedelFirmaId = useSedelFirma();
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId, organizationId: sedelFirmaId });
   const opprinneligEco = rad?.externalCostObjectId ?? null;
   const [ecoId, setEcoId] = useState<string | null>(opprinneligEco);
   const ecoEndret = !rad || ecoId !== opprinneligEco;
@@ -3723,7 +3751,8 @@ function TilleggRadDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery({ organizationId: sedelFirmaId });
 
   // Add-via-velger: kategori er allerede valgt (låst). Ellers fri select.
   const laast = !rad && !!laastTilleggId;
@@ -4054,7 +4083,8 @@ function RaderUtlegg({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId });
+  const sedelFirmaId = useSedelFirma();
+  const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId, organizationId: sedelFirmaId });
 
   const fjern = trpc.timer.dagsseddel.fjernUtleggRad.useMutation({
     onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
@@ -4172,9 +4202,11 @@ function LeggTilVelger({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
-  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery({ organizationId: sedelFirmaId });
   const { data: utleggKatalog } = trpc.timer.expenseCategory.list.useQuery({
     projectId,
+    organizationId: sedelFirmaId,
   });
 
   // Flat sekvens av valgbare rader (markøren indekserer disse; deaktiverte
@@ -4378,7 +4410,8 @@ function UtleggRadDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId });
+  const sedelFirmaId = useSedelFirma();
+  const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId, organizationId: sedelFirmaId });
 
   const sted = useRadSted({ byggeplasser, projectId, rad });
   const kategoriId = rad?.expenseCategoryId ?? expenseCategoryId ?? "";
@@ -4702,7 +4735,8 @@ function MaskinRadDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery({ organizationId: sedelFirmaId });
   const equipment = equipmentRaw as unknown as
     | Array<{
         id: string;
@@ -4715,7 +4749,7 @@ function MaskinRadDialog({
     | undefined;
   // T7-4c: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-
   // gruppe som arbeidstimer (T.7 låst 2026-05-16).
-  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId, organizationId: sedelFirmaId });
   // Ordre (10): samme regel som timer-raden.
   const bp = useRadByggeplass({ byggeplasser, projectId, rad });
 
@@ -5119,7 +5153,8 @@ function RedigerHeaderDialog({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
+  const sedelFirmaId = useSedelFirma();
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery({ organizationId: sedelFirmaId });
 
   const [aktivitetId, setAktivitetId] = useState<string>(
     sheet.aktivitetId ?? "",

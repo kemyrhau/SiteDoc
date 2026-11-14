@@ -70,7 +70,7 @@ export default function NyDagsseddelSide() {
   const { prosjektId: aktivProsjektId } = useProsjekt();
 
   const { data: aktiviteter, isLoading: aktiviteterLaster } =
-    trpc.timer.aktivitet.list.useQuery();
+    trpc.timer.aktivitet.list.useQuery({ organizationId: orgId ?? undefined });
 
   // D7: prosjektliste for arbeider (inkluderer interne prosjekter). Cast for å
   // unngå TS2589 (dyp Project-type) — samme mønster som detalj-siden.

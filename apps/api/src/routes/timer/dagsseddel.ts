@@ -46,6 +46,7 @@ import {
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
 import {
+  arbeidUtenReise,
   beregnMaskinBrudd,
   type MaskinBrudd,
   tilErEtterFra,
@@ -119,6 +120,58 @@ async function verifiserKjoretoyTilhørerFirma(
       code: "BAD_REQUEST",
       message: "Maskin/utstyr finnes ikke i firmaets register",
     });
+  }
+}
+
+/**
+ * Post 2026-11-14 (7) punkt 1: firmavakt for katalog-ID-er. Lønnsart, aktivitet
+ * og tillegg er firma-eide kataloger; en ID fra et annet firma skal avvises før
+ * den kobles til sedelen. Samme mønster som tilfoyTimerRad/tilfoyTilleggRad:
+ * oppslag med `organizationId` i WHERE og avvisning når noe mangler. Tomme
+ * lister og null/undefined hoppes over (feltet endres ikke).
+ */
+export async function krevKatalogIFirma(
+  prismaTimer:
+    | Prisma.TransactionClient
+    | typeof import("@sitedoc/db-timer").prismaTimer,
+  organizationId: string,
+  ider: {
+    lonnsartIder?: ReadonlyArray<string | null | undefined>;
+    aktivitetIder?: ReadonlyArray<string | null | undefined>;
+    tilleggIder?: ReadonlyArray<string | null | undefined>;
+  },
+): Promise<void> {
+  const tx = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  const unike = (l?: ReadonlyArray<string | null | undefined>): string[] =>
+    [...new Set((l ?? []).filter((v): v is string => typeof v === "string" && v.length > 0))];
+  const lonnsartIder = unike(ider.lonnsartIder);
+  const aktivitetIder = unike(ider.aktivitetIder);
+  const tilleggIder = unike(ider.tilleggIder);
+  const [l, a, t] = await Promise.all([
+    lonnsartIder.length
+      ? tx.lonnsart
+          .findMany({ where: { id: { in: lonnsartIder }, organizationId }, select: { id: true } })
+          .then((r) => r.length)
+      : Promise.resolve(0),
+    aktivitetIder.length
+      ? tx.aktivitet
+          .findMany({ where: { id: { in: aktivitetIder }, organizationId }, select: { id: true } })
+          .then((r) => r.length)
+      : Promise.resolve(0),
+    tilleggIder.length
+      ? tx.tillegg
+          .findMany({ where: { id: { in: tilleggIder }, organizationId }, select: { id: true } })
+          .then((r) => r.length)
+      : Promise.resolve(0),
+  ]);
+  if (l !== lonnsartIder.length) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Lønnsart finnes ikke i firmaets katalog" });
+  }
+  if (a !== aktivitetIder.length) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Aktivitet finnes ikke i firmaets katalog" });
+  }
+  if (t !== tilleggIder.length) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Tillegg finnes ikke i firmaets katalog" });
   }
 }
 
@@ -1162,12 +1215,21 @@ type ValiderRad = {
   projectId: string;
   externalCostObjectId: string | null;
   timer: number | Prisma.Decimal;
+  // Tillegg til post (7) punkt 5: reiserader og erstattede rader teller ikke
+  // som arbeid i maskin-kontrollen (samme regel som klienten, post (6) (b) 1).
+  // Gjelder kun timer-radene; maskin-rader har ikke feltene.
+  erReise?: boolean | null;
+  attestertStatus?: string | null;
 };
 
 /**
  * Delegerer til @sitedoc/shared `beregnMaskinBrudd` — samme bucket-regel,
  * epsilon og pause-modell brukes av klient-disable (web + mobil). Serveren
  * konverterer kun Decimal → number før den delte funksjonen kalles.
+ *
+ * Arbeid måles UTEN reise (post (7) punkt 5): hver timer-rad går gjennom den
+ * delte `arbeidUtenReise`, som gir 0 for reiserader og erstattede rader — den
+ * samme funksjonen web-klientens maskin-kontroll summerer bucketen med.
  */
 function validerMaskinUnderArbeid(
   timer: ValiderRad[],
@@ -1181,7 +1243,18 @@ function validerMaskinUnderArbeid(
     externalCostObjectId: rad.externalCostObjectId,
     timer: tilNum(rad.timer),
   });
-  return beregnMaskinBrudd(timer.map(map), maskin.map(map), pauseMin);
+  const mapArbeid = (rad: ValiderRad) => ({
+    projectId: rad.projectId,
+    externalCostObjectId: rad.externalCostObjectId,
+    timer: arbeidUtenReise([
+      {
+        timer: tilNum(rad.timer),
+        erReise: rad.erReise,
+        attestertStatus: rad.attestertStatus,
+      },
+    ]),
+  });
+  return beregnMaskinBrudd(timer.map(mapArbeid), maskin.map(map), pauseMin);
 }
 
 /**
@@ -1200,6 +1273,7 @@ async function hentRaderForValidering(
     projectId: string;
     externalCostObjectId: string | null;
     timer: Prisma.Decimal;
+    erReise: boolean;
   }>;
   maskin: Array<{
     id: string;
@@ -1217,6 +1291,7 @@ async function hentRaderForValidering(
         projectId: true,
         externalCostObjectId: true,
         timer: true,
+        erReise: true,
       },
     }),
     tx.sheetMachine.findMany({
@@ -1622,6 +1697,17 @@ async function validerSplittFelles(
   );
   // Ordre (12): byggeplassen må høre til radens prosjekt.
   await krevByggeplasserIProsjekt(input.nyeRader);
+  // Post (7) punkt 1: nye splitt-rader må bruke firmaets egne katalog-ID-er.
+  if (input.radType === "timer") {
+    await krevKatalogIFirma(prismaTimer, sheet.organizationId, {
+      lonnsartIder: input.nyeRader.map((r) => r.lonnsartId),
+      aktivitetIder: input.nyeRader.map((r) => r.aktivitetId),
+    });
+  } else if (input.radType === "tillegg") {
+    await krevKatalogIFirma(prismaTimer, sheet.organizationId, {
+      tilleggIder: input.nyeRader.map((r) => r.tilleggId),
+    });
+  }
   // Tillegg på prosjektkortet: et oppgitt underprosjekt må høre til radens prosjekt.
   if (input.radType === "tillegg") {
     await krevEcoerIProsjekt(input.nyeRader, sheet.organizationId);
@@ -2159,6 +2245,9 @@ export const dagsseddelRouter = router({
 
       const data: Prisma.DailySheetUpdateInput = {};
       if (input.aktivitetId !== undefined) {
+        await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+          aktivitetIder: [input.aktivitetId],
+        });
         data.aktivitet = { connect: { id: input.aktivitetId } };
       }
       if (input.avdelingId !== undefined) data.avdelingId = input.avdelingId;
@@ -2280,9 +2369,21 @@ export const dagsseddelRouter = router({
         await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
       }
 
+      // LAG 2 (presisering 2): utled erReise fra lønnsarten (web sender ikke
+      // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
+      const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
+      const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
+      if (input.reiseKilde && !erReise) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Lønnsarten er ikke en reise-lønnsart",
+        });
+      }
+
       // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
       // Defensiv — å legge til en timer-rad kan kun øke timer-summen i
-      // bucket. Beholdes for konsistens på tvers av mutasjoner.
+      // bucket. Beholdes for konsistens på tvers av mutasjoner. Ny rad bærer
+      // sitt utledede erReise (post (7) punkt 5: reise teller ikke som arbeid).
       const naa = await hentRaderForValidering(ctx.prismaTimer, input.sheetId);
       const postTimer: ValiderRad[] = [
         ...naa.timer,
@@ -2290,6 +2391,7 @@ export const dagsseddelRouter = router({
           projectId: input.projectId,
           externalCostObjectId: input.externalCostObjectId ?? null,
           timer: input.timer,
+          erReise,
         },
       ];
       const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin, sheet.pauseMin);
@@ -2308,17 +2410,6 @@ export const dagsseddelRouter = router({
         input.fraTid,
         input.tilTid,
       );
-
-      // LAG 2 (presisering 2): utled erReise fra lønnsarten (web sender ikke
-      // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
-      const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
-      const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
-      if (input.reiseKilde && !erReise) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Lønnsarten er ikke en reise-lønnsart",
-        });
-      }
 
       // V20/PK4a — vurder timetallet mot radens pause og pausevinduet. Vinduet
       // (PK5) regnes fra alle rader på dagen (ankomst = tidligste fraTid, inkl.
@@ -2438,6 +2529,12 @@ export const dagsseddelRouter = router({
         krevRadInnenforTak(effektivTimer, lonnsart?.satsEnhet);
       }
 
+      // Post (7) punkt 1: katalog-ID-er må tilhøre sedelens firma før connect.
+      await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+        lonnsartIder: [input.lonnsartId],
+        aktivitetIder: [input.aktivitetId],
+      });
+
       const data: Prisma.SheetTimerUpdateInput = {};
       if (input.lonnsartId !== undefined) {
         data.lonnsart = { connect: { id: input.lonnsartId } };
@@ -2485,6 +2582,9 @@ export const dagsseddelRouter = router({
                   ? input.externalCostObjectId
                   : r.externalCostObjectId,
               timer: input.timer !== undefined ? input.timer : r.timer,
+              // Post (7) punkt 5: ny lønnsart kan gjøre raden til reise (eller arbeid).
+              erReise:
+                typeof data.erReise === "boolean" ? data.erReise : r.erReise,
             }
           : r,
       );
@@ -2773,6 +2873,16 @@ export const dagsseddelRouter = router({
           });
         }
       }
+      // LAG 2 (presisering 2): utled erReise for hver rad (oppdatering = kan ha
+      // byttet lønnsart → re-utled; ny rad = utled). Ett oppslag for alle arter.
+      const erReiseMap = await hentErReiseForLonnsarter(
+        ctx.prismaTimer,
+        sheet.organizationId,
+        [
+          ...input.oppdateringer.map((o) => o.lonnsartId),
+          ...input.nyeRader.map((r) => r.lonnsartId),
+        ],
+      );
       const oppdatertEtterId = new Map(input.oppdateringer.map((o) => [o.id, o]));
       type SluttRad = {
         projectId: string;
@@ -2780,6 +2890,9 @@ export const dagsseddelRouter = router({
         timer: number;
         fraTid: string;
         tilTid: string;
+        // Post (7) punkt 5: maskin-vakten måler mot arbeid uten reise.
+        erReise: boolean;
+        attestertStatus: string | null;
       };
       const sluttTimer: SluttRad[] = [
         ...naavaerende.map((r): SluttRad => {
@@ -2791,6 +2904,8 @@ export const dagsseddelRouter = router({
                 timer: o.timer,
                 fraTid: o.fraTid,
                 tilTid: o.tilTid,
+                erReise: erReiseMap.get(o.lonnsartId) ?? false,
+                attestertStatus: r.attestertStatus,
               }
             : {
                 projectId: r.projectId,
@@ -2798,6 +2913,8 @@ export const dagsseddelRouter = router({
                 timer: Number(r.timer),
                 fraTid: r.fraTid ?? "",
                 tilTid: r.tilTid ?? "",
+                erReise: r.erReise,
+                attestertStatus: r.attestertStatus,
               };
         }),
         ...input.nyeRader.map((r): SluttRad => ({
@@ -2806,6 +2923,8 @@ export const dagsseddelRouter = router({
           timer: r.timer,
           fraTid: r.fraTid,
           tilTid: r.tilTid,
+          erReise: erReiseMap.get(r.lonnsartId) ?? false,
+          attestertStatus: null,
         })),
       ];
 
@@ -2832,6 +2951,8 @@ export const dagsseddelRouter = router({
           projectId: r.projectId,
           externalCostObjectId: r.externalCostObjectId,
           timer: r.timer,
+          erReise: r.erReise,
+          attestertStatus: r.attestertStatus,
         })),
         naa.maskin,
         sheet.pauseMin,
@@ -2848,16 +2969,8 @@ export const dagsseddelRouter = router({
       // attestering ser enten draft/returned (vi vinner) eller har alt committet accepted
       // (count=0 → vi kaster → ALT rulles tilbake). updateMany erstatter samtidig touchSedel
       // (begge bumper updatedAt). Alle rad-writes + sluttlesningen kjører på samme `tx`.
-      // LAG 2 (presisering 2): utled erReise for hver rad (oppdatering = kan ha
-      // byttet lønnsart → re-utled; ny rad = utled). Ett oppslag for alle arter.
-      const erReiseMap = await hentErReiseForLonnsarter(
-        ctx.prismaTimer,
-        sheet.organizationId,
-        [
-          ...input.oppdateringer.map((o) => o.lonnsartId),
-          ...input.nyeRader.map((r) => r.lonnsartId),
-        ],
-      );
+      // LAG 2 (presisering 2): erReiseMap er utledet over (før maskin-vakten,
+      // post (7) punkt 5) og gjenbrukes for rad-skrivingen.
 
       // V20/PK4a — vurder timetallet mot pause + vindu for hver skrevne rad.
       // Vinduet (PK5) regnes fra hele sluttsettet. Bæreren spores på tvers av
@@ -3202,6 +3315,10 @@ export const dagsseddelRouter = router({
 
       const data: Prisma.SheetTilleggUpdateInput = {};
       if (input.tilleggId !== undefined) {
+        // Post (7) punkt 1: tillegget må tilhøre sedelens firma.
+        await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+          tilleggIder: [input.tilleggId],
+        });
         data.tillegg = { connect: { id: input.tilleggId } };
       }
       if (input.antall !== undefined) data.antall = input.antall;
@@ -4990,6 +5107,13 @@ export const dagsseddelRouter = router({
       // som manglet taket helt (.positive(), intet maks, lastet ikke lønnsarten) —
       // en firma-admin kunne føre 25 timer her. Ett batch-oppslag på satsEnhet,
       // samme regel som de andre skrivestiene. Ukjent lønnsart → 24-tak.
+      // Post (7) punkt 1: aktivitet og tillegg i edit-settet må tilhøre sedelens
+      // firma. Lønnsarten sjekkes mot satsEnhet-oppslaget under (samme spørring,
+      // som før tålte en fremmed ID ved å gi satsEnhet=null).
+      await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+        aktivitetIder: input.nyeRader.timer.map((r) => r.aktivitetId),
+        tilleggIder: input.nyeRader.tillegg.map((r) => r.tilleggId),
+      });
       const redigerSatsEnhet = new Map<string, string | null>();
       if (input.nyeRader.timer.length > 0) {
         const redigerLonnsartIder = Array.from(
@@ -5002,6 +5126,12 @@ export const dagsseddelRouter = router({
           },
           select: { id: true, satsEnhet: true },
         });
+        if (redigerLonnsarter.length !== redigerLonnsartIder.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Lønnsart finnes ikke i firmaets katalog",
+          });
+        }
         for (const l of redigerLonnsarter) redigerSatsEnhet.set(l.id, l.satsEnhet);
         for (const r of input.nyeRader.timer) {
           krevRadInnenforTak(r.timer, redigerSatsEnhet.get(r.lonnsartId));
@@ -5056,6 +5186,13 @@ export const dagsseddelRouter = router({
       // (eksTimer/eksTillegg/eksMaskin hentes som pending; alle erstattes.)
       const eksisterendePendingTimerIder = new Set(eksTimer.map((r) => r.id));
       const eksisterendePendingMaskinIder = new Set(eksMaskin.map((r) => r.id));
+      // LAG 2 (presisering 2): utled erReise for de nye rad-ene (firma-admin
+      // rediger sender ikke flagget). Utledes FØR maskin-vakten (post (7) punkt 5). Ett oppslag for alle arter i edit-settet.
+      const redigerErReiseMap = await hentErReiseForLonnsarter(
+        ctx.prismaTimer,
+        sheet.organizationId,
+        input.nyeRader.timer.map((r) => r.lonnsartId),
+      );
       const baseline = await hentRaderForValidering(ctx.prismaTimer, sheet.id);
       const postTimer: ValiderRad[] = [
         ...baseline.timer.filter((r) => !eksisterendePendingTimerIder.has(r.id)),
@@ -5063,6 +5200,7 @@ export const dagsseddelRouter = router({
           projectId: r.projectId,
           externalCostObjectId: r.externalCostObjectId ?? null,
           timer: r.timer,
+          erReise: redigerErReiseMap.get(r.lonnsartId) ?? false,
         })),
       ];
       const postMaskin: ValiderRad[] = [
@@ -5113,13 +5251,6 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // LAG 2 (presisering 2): utled erReise for de nye rad-ene (firma-admin
-      // rediger sender ikke flagget). Ett oppslag for alle arter i edit-settet.
-      const redigerErReiseMap = await hentErReiseForLonnsarter(
-        ctx.prismaTimer,
-        sheet.organizationId,
-        input.nyeRader.timer.map((r) => r.lonnsartId),
-      );
 
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
@@ -6803,6 +6934,29 @@ export const dagsseddelRouter = router({
             continue;
           }
 
+          // LAG 2 (C1/C2/C3): bygg reise-sporet for sedelens rader. Eksplisitt
+          // erReise valideres (C2) + matrise-rader kontrolleres (C3); ellers
+          // utledes flagget (overgangsperioden). C2-brudd avviser HELE sedelen med
+          // navngitt feil (SYNC-1) — resten av batchen går gjennom. Utenfor tx:
+          // rene oppslag, ingen skriving.
+          const reiseResultat = await byggReiseFelterForSynk(
+            // Ordre (12): vasket byggeplass pr. rad (arv fra sedelen er alt løst opp).
+            lokal.timer.map((t) => ({ ...t, byggeplassId: syncTimerByggeplass.get(t.id) ?? null })),
+            null,
+            erReiseKtx,
+            lonnsartNavnMap,
+            gyldigeOppmotesteder,
+          );
+          if (!reiseResultat.ok) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding: reiseResultat.feilmelding,
+            });
+            continue;
+          }
+          const reiseFelterMap = reiseResultat.felter;
+
           // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
           // syncBatch erstatter alle rader på sedelen — post-state = exakt
           // det som er i lokal.timer + lokal.maskiner. Feil per sedel
@@ -6811,6 +6965,10 @@ export const dagsseddelRouter = router({
             projectId: radProsjekt(t.projectId)!,
             externalCostObjectId: t.externalCostObjectId ?? null,
             timer: t.timer,
+            // Post (7) punkt 5: arbeid måles uten reise. Flagget er utledet/
+            // validert av byggReiseFelterForSynk over (derfor kjører maskin-
+            // vakten etter reise-sporet).
+            erReise: reiseFelterMap.get(t.id)?.erReise ?? false,
           }));
           const syncPostMaskin: ValiderRad[] = lokal.maskiner.map((m) => ({
             projectId: radProsjekt(m.projectId)!,
@@ -6834,29 +6992,6 @@ export const dagsseddelRouter = router({
             });
             continue;
           }
-
-          // LAG 2 (C1/C2/C3): bygg reise-sporet for sedelens rader. Eksplisitt
-          // erReise valideres (C2) + matrise-rader kontrolleres (C3); ellers
-          // utledes flagget (overgangsperioden). C2-brudd avviser HELE sedelen med
-          // navngitt feil (SYNC-1) — resten av batchen går gjennom. Utenfor tx:
-          // rene oppslag, ingen skriving.
-          const reiseResultat = await byggReiseFelterForSynk(
-            // Ordre (12): vasket byggeplass pr. rad (arv fra sedelen er alt løst opp).
-            lokal.timer.map((t) => ({ ...t, byggeplassId: syncTimerByggeplass.get(t.id) ?? null })),
-            null,
-            erReiseKtx,
-            lonnsartNavnMap,
-            gyldigeOppmotesteder,
-          );
-          if (!reiseResultat.ok) {
-            resultater.push({
-              clientUuid: lokal.clientUuid,
-              resultat: "avvist",
-              feilmelding: reiseResultat.feilmelding,
-            });
-            continue;
-          }
-          const reiseFelterMap = reiseResultat.felter;
 
           // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
           // T.1 (2026-05-11): projectId/byggeplassId lagres på rad-nivå.

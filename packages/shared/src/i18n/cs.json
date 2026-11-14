@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Odvozeno z řádků níže",
   "timer.arbeidstidPrefyltHint": "Předvyplněno ze standardní otevírací doby vaší společnosti – upravte pouze v případě potřeby (např. zapomenutý nebo rozdělený den). Zapište si otevírací dobu do řádků níže.",
   "timer.summering": "Registrováno {{registrert}}h z {{total}}h",
+  "timer.summeringReise": "Cesta {{reise}} h",
   "timer.felt.startTid": "Z",
   "timer.felt.sluttTid": "Na",
   "timer.felt.pauseMin": "Přestávka (min)",

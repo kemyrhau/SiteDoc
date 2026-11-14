@@ -53,7 +53,7 @@ export function RedigerMaskinRad({
   // som arbeidstimer (T.7 låst 2026-05-16). Server tar imot externalCostObjectId
   // fra T7-4b.
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId: rad.projectId },
+    { projectId: rad.projectId, organizationId },
     { enabled: !!rad.projectId },
   );
 

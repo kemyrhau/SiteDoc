@@ -87,7 +87,7 @@ import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
 import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
-import { forsokInnsending, svarPaaPauseSporsmaal } from "@sitedoc/shared";
+import { arbeidOgReise, forsokInnsending, svarPaaPauseSporsmaal } from "@sitedoc/shared";
 import { hentLokaleVarelinjer } from "../../src/services/vareforbrukSync";
 import type {
   Sedel,
@@ -554,6 +554,9 @@ export default function DagsseddelDetalj() {
     () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
     [timerRader],
   );
+  // Post 2026-11-14 (7) punkt 6: kun topp-banneret måler dekning på arbeid
+  // uten reise; reise vises separat. `totaltimer` er uendret for resten.
+  const bannerArbeidReise = useMemo(() => arbeidOgReise(timerRader), [timerRader]);
 
   // ③a fallback: auto-utkast der dagen nådde normaltid (overtid var aktuelt)
   // men firmaet mangler overtid-lønnsart → auto-gen kunne ikke føre overtid.
@@ -978,7 +981,8 @@ export default function DagsseddelDetalj() {
           alle tilstander, ikke bare ved redigerbar. */}
       <View className="mx-4 mt-3">
         <SummeringsBanner
-          totaltimer={totaltimer}
+          totaltimer={bannerArbeidReise.arbeid}
+          reiseTimer={bannerArbeidReise.reise}
           normTimer={normTimer}
           maskinTimer={totalMaskin}
         />

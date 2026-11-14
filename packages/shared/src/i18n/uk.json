@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Отримано з наведених нижче рядків",
   "timer.arbeidstidPrefyltHint": "Попередньо заповнений зі стандартних годин вашої компанії — коригуйте лише за потреби (наприклад, забутий або розділений день). Запишіть свої години в рядки нижче.",
   "timer.summering": "{{registrert}} год із {{total}} год зареєстровано",
+  "timer.summeringReise": "Подорож {{reise}} год",
   "timer.felt.startTid": "Від",
   "timer.felt.sluttTid": "до",
   "timer.felt.pauseMin": "Перерва (хв)",

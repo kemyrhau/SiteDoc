@@ -20,12 +20,20 @@ const ENDEPUNKTER = [
   "timer.onboarding.status",
   "kompetansetype.hentAlle",
   "maskin.equipment.list",
+  // Post 2026-11-14 (7) punkt 2/3: underprosjekt-katalogen på timer-flatene.
+  "eksternKostObjekt.list",
 ] as const;
 
 const SRC = fileURLToPath(new URL("..", import.meta.url));
 
 /** Firmaadmin-flatene + attesterings-/redigeringskomponentene som viser et valgt firma. */
-const RØTTER = ["app/dashbord/firma", "components/timer", "components/attestering"];
+/** + timer-sedelen (`app/dashbord/timer`, post (7) punkt 3: sedelens firma). */
+const RØTTER = [
+  "app/dashbord/firma",
+  "app/dashbord/timer",
+  "components/timer",
+  "components/attestering",
+];
 
 function alleFiler(dir: string): string[] {
   return readdirSync(dir).flatMap((navn) => {
@@ -96,6 +104,14 @@ describe("firma-scopede katalogkall sender alltid firma-ID", () => {
     for (const a of args) expect(a).toContain("organizationId: orgId");
   });
 
+  it("timer-sedelen gir sedelens firma til underkomponentene (post (7) punkt 3)", () => {
+    const kilde = readFileSync(join(SRC, "app/dashbord/timer/[id]/page.tsx"), "utf-8");
+    expect(kilde).toContain("<SedelFirmaKontekst.Provider value={sheet.organizationId ?? undefined}>");
+    // Hver katalogspørring i underkomponentene bruker sedelens firma.
+    const antall = ENDEPUNKTER.flatMap((ep) => kallArgumenter(kilde, ep)).length;
+    expect(antall).toBeGreaterThanOrEqual(15);
+  });
+
   it("negativkontroll: vakten biter på kall uten argument og med undefined", () => {
     expect(kallUtenFirma("trpc.timer.lonnsart.list.useQuery();")).toEqual(["timer.lonnsart.list"]);
     expect(
@@ -113,5 +129,8 @@ describe("firma-scopede katalogkall sender alltid firma-ID", () => {
     expect(
       kallUtenFirma("const input = { inkluderInaktiv: true };\ntrpc.timer.lonnsart.list.useQuery(input, { enabled });"),
     ).toEqual(["timer.lonnsart.list"]);
+    expect(
+      kallUtenFirma("trpc.eksternKostObjekt.list.useQuery({ projectId }, { enabled });"),
+    ).toEqual(["eksternKostObjekt.list"]);
   });
 });
