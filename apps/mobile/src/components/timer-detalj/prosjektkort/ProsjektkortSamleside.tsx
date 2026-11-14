@@ -6,7 +6,6 @@ import {
   dagSummer,
   kortStatus,
   sumIDag,
-  sumlinjeMotNorm,
   utledKortByggeplass,
   type KortMaskinRad,
   type KortTimerRad,
@@ -66,9 +65,7 @@ export function ProsjektkortSamleside({
   onSend: () => void;
 }) {
   const { t } = useTranslation();
-  // Total inkl. reise → topptekst + «Send dagen». Sumlinja mot normen teller ikke reise.
   const dagSum = sumIDag(timer);
-  const { registrert: motNorm } = sumlinjeMotNorm(timer, normTimer);
   const dag = dagSummer(timer, maskin);
   const pauseKort = pauseBaererProsjekt(timer);
   const send = sendKnappTekst(sedelStatus, dagSum);
@@ -162,7 +159,7 @@ export function ProsjektkortSamleside({
       <View className="rounded-lg bg-blue-50 px-4 py-2.5">
         <Text className="text-sm text-sitedoc-primary">
           {t("timer.prosjektkort.sumIDag", {
-            registrert: formatKortTall(motNorm),
+            registrert: formatKortTall(dagSum),
             total: normTimer === null ? "?" : formatKortTall(normTimer),
           })}
           {dag.maskin > 0 &&
