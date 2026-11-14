@@ -140,6 +140,15 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - **Måles i:** «Måles i» under Reise-regelsett avgjør hovedverdien — km gjør avstanden redigerbar, minutter gjør kjøretiden redigerbar. Den andre verdien vises grått.
 - **Manuell:** en rettet verdi merkes «Manuell», brukes i reiseberegningen og overskrives aldri av ny beregning. Flyttes byggeplassen eller oppmøtestedet, står verdien, men merkes. «Tilbakestill» fjerner den og beregner på nytt.
 - **Status:** «Ingen rute» = ingen kjørbar vei; «Ikke beregnet» = paret mangler verdi, trykk «Beregn».
+- **Kjøretid** vises som «1 t 35 min» over én time og «45 min» under (`timer.kjoretid.*`, ordre 2026-11-14 (11) B). Redigering skjer i minutter.
+
+## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
+
+Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banner:
+
+- **«+ Reise» under terskel** (web-dialogen og mobilens timer-modal): rød linje «Firmaet mangler standard lønnsart — be firmaadmin sette den» (`timer.reiseTerskel.manglerArt`); lagre er sperret. Firmaadmin på web ser i stedet «Firmaet mangler standard lønnsart» (`timer.reiseTerskel.manglerStandardArt`) med lenken «Sett standard lønnsart» (`timer.reiseTerskel.settStandardArt`) til Lønnsarter.
+- **«+ Reise» på web før regelsettet er hentet:** Lagre er sperret med forklaring «Henter firmaets reiseregler …» (`sperret.reiseRegelLaster`), eller «Fikk ikke hentet firmaets reiseregler — lukk og prøv igjen» (`sperret.reiseRegelFeilet`) ved feil.
+- **Firmainnstillinger → Reise:** gul linje (`firma.innstillinger.reise.manglerStandardArt`) med lenke (`firma.innstillinger.reise.settStandardArt`) når terskelen er i bruk og ingen lønnsart er merket som standard.
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 

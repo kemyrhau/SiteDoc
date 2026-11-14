@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Pencil, RotateCcw } from "lucide-react";
+import { formaterKjoretid } from "@sitedoc/shared";
 
 /* ============================================================================
  *  POST 2026-11-14 (10) B: fanen «Avstander» under Firma → Oppmøtesteder.
@@ -127,11 +128,11 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
             {enhet === "km" ? (
               <>
                 <th className="px-3 py-3 text-right">{t("firma.avstander.felt.avstand")}</th>
-                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.kjoretid")}</th>
+                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.kjoretidKolonne")}</th>
               </>
             ) : (
               <>
-                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.kjoretid")}</th>
+                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.kjoretidKolonne")}</th>
                 <th className="px-3 py-3 text-right">{t("firma.avstander.felt.avstand")}</th>
               </>
             )}
@@ -144,7 +145,8 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
             const c = r.celle;
             const uoppnaaelig = !!c && !erManuell(c.kilde) && c.kjoretidMin < 0;
             const km = c && c.avstandM != null && c.avstandM >= 0 ? formaterKm(c.avstandM) : null;
-            const min = c && c.kjoretidMin >= 0 ? String(c.kjoretidMin) : null;
+            // Ordre (11) B: «1 t 35 min» over én time, «45 min» under (delt formaterer).
+            const min = c && c.kjoretidMin >= 0 ? formaterKjoretid(t, c.kjoretidMin) : null;
             const hoved = enhet === "km" ? km : min;
             const sekundaer = enhet === "km" ? min : km;
             return (
@@ -167,10 +169,10 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
                   </td>
                 ) : (
                   <>
-                    <td className="px-3 py-2.5 text-right font-medium tabular-nums text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-gray-900">
                       {hoved ?? "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right tabular-nums text-gray-400">
                       {sekundaer ?? "—"}
                     </td>
                   </>

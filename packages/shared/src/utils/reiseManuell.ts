@@ -182,3 +182,110 @@ export function velgOppmotested(
   const valgtId = sisteValgId && ider.includes(sisteValgId) ? sisteValgId : null;
   return { modus: "velg", valgtId, ider };
 }
+
+// ============================================================================
+//  Ordre 2026-11-14 (11) A: hele «+ Reise»-oppslaget som ÉN delt funksjon.
+//  Mobilens `useManuellReise` (lokal cache) og webens `useManuellReiseWeb`
+//  (tRPC) henter bare data og kaller denne — oppmøtested-valg, avstand og
+//  klassifisering avgjøres aldri i plattformkoden.
+// ============================================================================
+
+export interface ManuellReiseKontekst {
+  /** Firmaets regelsett; null = ikke lastet/cachet → ingen klassifisering. */
+  regel: ReiseRegelsett | null;
+  oppmotesteder: readonly { id: string }[];
+  /** Siste valg husket på enheten (undefined = ikke lest ennå). */
+  sisteValgId: string | null | undefined;
+  /** Valget i nedtrekket (kun brukt når nedtrekket vises). */
+  valgtId: string | null;
+  byggeplassId: string | null;
+  /** Matrise-oppslag oppmøtested × byggeplass → meter, null = ukjent. */
+  avstandFor: (oppmotestedId: string, byggeplassId: string) => number | null;
+  reisetimer: number;
+  grensepunkter: ReiseGrensepunkt[];
+  resolverLonnsartId: string | null;
+  standardLonnsartId: string | null;
+}
+
+export interface ManuellReiseResultat {
+  klassifisering: ManuellReiseKlassifisering | null;
+  spor: ManuellReiseSpor | null;
+  oppmotestedId: string | null;
+  valg: OppmotestedValg;
+  /** Nedtrekket vises kun når terskelen måles i km og firmaet har flere steder. */
+  visVelger: boolean;
+}
+
+export function løsManuellReise(k: ManuellReiseKontekst): ManuellReiseResultat {
+  const valg = velgOppmotested(k.oppmotesteder, k.sisteValgId);
+  const visVelger = !!k.regel && k.regel.reiseTerskelEnhet === "km" && valg.modus === "velg";
+  const oppmotestedId =
+    valg.modus === "auto" ? valg.oppmotestedId : visVelger ? k.valgtId : null;
+  const avstandM =
+    oppmotestedId && k.byggeplassId ? k.avstandFor(oppmotestedId, k.byggeplassId) : null;
+  const klassifisering = k.regel
+    ? klassifiserManuellReise({
+        regel: k.regel,
+        reisetimer: k.reisetimer,
+        avstandM,
+        grensepunkter: k.grensepunkter,
+        resolverLonnsartId: k.resolverLonnsartId,
+        standardLonnsartId: k.standardLonnsartId,
+      })
+    : null;
+  return {
+    klassifisering,
+    spor: klassifisering ? tilManuellReiseSpor(klassifisering, oppmotestedId) : null,
+    oppmotestedId,
+    valg,
+    visVelger,
+  };
+}
+
+/** i18next-kompatibel oversetter (samme form som `grenseSjekk`). */
+type Oversett = (key: string, opts?: Record<string, unknown>) => string;
+
+/**
+ * Grå forklaringslinje: «Under terskel (30 min) — føres som arbeidstid» o.l.
+ * Flyttet fra mobilen (ordre (11) A) så web viser nøyaktig samme tekst.
+ *
+ * Under/over velges etter TERSKELUTFALLET (`forklaring.type`), aldri etter
+ * `erReise` — firmaet kan ha under-type «reisetid» eller over-type
+ * «arbeidstid». Kategorien settes inn separat (RETUR V1, 2026-11-14).
+ */
+export function manuellReiseForklaringTekst(
+  t: Oversett,
+  k: ManuellReiseKlassifisering,
+  lonnsartNavn: string | null,
+): string {
+  const f = k.forklaring;
+  if (f.type === "ukjentAvstand") return t("timer.reiseTerskel.ukjentAvstand");
+  const terskel =
+    f.enhet === "km"
+      ? t("timer.reiseTerskel.km", { km: (f.terskelM / 1000).toLocaleString("nb-NO") })
+      : t("timer.reiseTerskel.min", { min: f.terskelMin });
+  const under = f.type === "under";
+  if (k.erReise && k.reiseRegel.grensepunktTreff && lonnsartNavn) {
+    return t(under ? "timer.reiseTerskel.underBand" : "timer.reiseTerskel.overBand", {
+      terskel,
+      art: lonnsartNavn,
+    });
+  }
+  const kategori = t(
+    k.erReise ? "timer.reiseTerskel.kategoriReise" : "timer.reiseTerskel.kategoriArbeid",
+  );
+  return t(under ? "timer.reiseTerskel.underFores" : "timer.reiseTerskel.overFores", {
+    terskel,
+    kategori,
+  });
+}
+
+/**
+ * Ordre (11) C: raden kan ikke lagres fordi det ikke finnes en art å føre på —
+ * i praksis at firmaet mangler standard ordinær lønnsart (under terskel →
+ * arbeidstid → standardarten). Plattformene viser da `timer.reiseTerskel.manglerArt`
+ * (+ lenke for firmaadmin på web) i stedet for en stille sperre.
+ */
+export function manuellReiseManglerArt(k: ManuellReiseKlassifisering | null): boolean {
+  return !!k && k.lonnsartId == null;
+}

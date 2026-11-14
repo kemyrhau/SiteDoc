@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { klassifiserManuellReise, velgOppmotested } from "./reiseManuell";
+import {
+  klassifiserManuellReise,
+  løsManuellReise,
+  manuellReiseManglerArt,
+  velgOppmotested,
+} from "./reiseManuell";
 import type { ReiseRegelsett } from "./reise";
 
 const minutter: ReiseRegelsett = {
@@ -125,5 +130,65 @@ describe("velgOppmotested", () => {
   it("flere uten gyldig siste valg → ingenting valgt", () => {
     expect(velgOppmotested([{ id: "a" }, { id: "b" }], "slettet")).toEqual({ modus: "velg", valgtId: null, ider: ["a", "b"] });
     expect(velgOppmotested([{ id: "a" }, { id: "b" }], null)).toEqual({ modus: "velg", valgtId: null, ider: ["a", "b"] });
+  });
+});
+
+/**
+ * Ordre 2026-11-14 (11) A: `løsManuellReise` er den ENE funksjonen både mobil
+ * (`useManuellReise`) og web (`useManuellReiseWeb`) kaller. Tabellen er
+ * paritetsfasiten; web-render-testen sender samme input og forventer samme art.
+ */
+describe("løsManuellReise — felles fasit for mobil og web", () => {
+  const steder = [{ id: "o1" }];
+  const matrise: Record<string, number> = { "o1|b1": 45000, "o1|b2": 5000 };
+  const kontekst = (over: Partial<Parameters<typeof løsManuellReise>[0]>) =>
+    løsManuellReise({
+      regel: minutter,
+      oppmotesteder: steder,
+      sisteValgId: null,
+      valgtId: null,
+      byggeplassId: "b1",
+      avstandFor: (o, b) => matrise[`${o}|${b}`] ?? null,
+      reisetimer: 1,
+      ...basis,
+      ...over,
+    });
+
+  it.each([
+    ["minutter under", { reisetimer: 0.25 }, "ordinaer", false],
+    ["minutter nøyaktig på terskel = over", { reisetimer: 0.5 }, "reise-30-60", true],
+    ["minutter over, kjent avstand → bånd", { reisetimer: 1 }, "reise-30-60", true],
+    ["km under (5 km)", { regel: km, byggeplassId: "b2" }, "ordinaer", false],
+    ["km nøyaktig på terskel (7,5 km) = over", { regel: km, avstandFor: () => 7500 }, "reise", true],
+    ["km over, bånd 30–60", { regel: km }, "reise-30-60", true],
+    ["km ukjent avstand → under", { regel: km, byggeplassId: "b-ukjent" }, "ordinaer", false],
+    ["km uten byggeplass → under", { regel: km, byggeplassId: null }, "ordinaer", false],
+  ] as const)("%s", (_n, over, art, erReise) => {
+    const r = kontekst(over as Partial<Parameters<typeof løsManuellReise>[0]>);
+    expect(r.klassifisering?.lonnsartId).toBe(art);
+    expect(r.klassifisering?.erReise).toBe(erReise);
+    expect(r.spor?.erReise).toBe(erReise);
+  });
+
+  it("ett oppmøtested → auto, ingen velger; flere uten valg i km → velger, avstand ukjent", () => {
+    expect(kontekst({ regel: km }).oppmotestedId).toBe("o1");
+    expect(kontekst({ regel: km }).visVelger).toBe(false);
+    const flere = kontekst({ regel: km, oppmotesteder: [{ id: "o1" }, { id: "o2" }] });
+    expect(flere.visVelger).toBe(true);
+    expect(flere.oppmotestedId).toBeNull();
+    expect(flere.klassifisering?.lonnsartId).toBe("ordinaer");
+  });
+
+  it("uten regelsett → ingen klassifisering (web/mobil faller tilbake til resolverens art)", () => {
+    const r = kontekst({ regel: null });
+    expect(r.klassifisering).toBeNull();
+    expect(r.spor).toBeNull();
+  });
+
+  it("mangler standardart under terskel → manuellReiseManglerArt", () => {
+    const r = kontekst({ reisetimer: 0.25, standardLonnsartId: null });
+    expect(manuellReiseManglerArt(r.klassifisering)).toBe(true);
+    expect(manuellReiseManglerArt(kontekst({ reisetimer: 0.25 }).klassifisering)).toBe(false);
+    expect(manuellReiseManglerArt(null)).toBe(false);
   });
 });

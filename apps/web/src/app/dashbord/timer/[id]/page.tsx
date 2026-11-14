@@ -66,6 +66,11 @@ import {
   type OvertidForslag,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
+import { useManuellReiseWeb } from "@/hooks/useManuellReiseWeb";
+import {
+  manuellReiseForklaringTekst,
+  manuellReiseManglerArt,
+} from "@sitedoc/shared";
 import {
   beregnKortSummer,
   dagSummer,
@@ -1141,6 +1146,8 @@ export default function DagsseddelDetaljSide() {
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
           laastReiseLonnsart={aktivModal.reise}
+          // Ordre (11) C: firma-admin får lenke rett til standard lønnsart.
+          erFirmaAdmin={!!orgSetting}
           // P4b: hele sedelens timer-rader sendes inn så dialogen kan kjøre samme
           // kryss-bøtte overlapp-vakt som mobil (delt finnOverlappendeTidsrom).
           alleTimerRader={timerRader}
@@ -2580,6 +2587,7 @@ function TimerRadDialog({
   sheetId,
   organizationId,
   laastReiseLonnsart,
+  erFirmaAdmin,
   projectId,
   prosjekter,
   byggeplasser,
@@ -2642,6 +2650,8 @@ function TimerRadDialog({
   /** Ordre 2026-11-14 (6): «+ Reise» — lønnsarten er låst, raden får
    *  reiseKilde «manuell». Kun ved ny rad. */
   laastReiseLonnsart?: { id: string; navn: string };
+  /** Ordre (11) C: hentSetting lyktes (firma-admin) → lenke til lønnsartene. */
+  erFirmaAdmin?: boolean;
   onLukk: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -2735,11 +2745,13 @@ function TimerRadDialog({
       "",
   );
   useEffect(() => {
-    if (!rad && !lonnsartId) {
+    // «+ Reise»: arten kommer fra den delte terskelregelen under, aldri fra
+    // standard-prefill (over terskel uten resolver-art skal blokkere, ikke gjette).
+    if (!rad && !lonnsartId && !reiseModus) {
       const standard = lonnsarter?.find((l) => l.erStandardvalg)?.id;
       if (standard) setLonnsartId(standard);
     }
-  }, [rad, lonnsartId, lonnsarter]);
+  }, [rad, lonnsartId, lonnsarter, reiseModus]);
   const [aktivitetId, setAktivitetId] = useState<string>(
     rad?.aktivitetId ?? defaultAktivitetId ?? "",
   );
@@ -3050,6 +3062,34 @@ function TimerRadDialog({
     standardPauseEtterTimer,
     fastPauseFra,
   ]);
+  // Ordre (11) A: terskel og avstandsbånd på NY «+ Reise»-rad — SAMME delte
+  // regel som mobilen (`løsManuellReise` → `klassifiserManuellReise`). Under
+  // terskel → standard ordinær art (erReise false); over → båndets/resolverens art.
+  const manuellReise = useManuellReiseWeb({
+    aktiv: reiseModus,
+    organizationId,
+    byggeplassId: bp.byggeplassId,
+    timer: (() => {
+      const n = parseFloat(timer.replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    })(),
+    resolverLonnsartId: laastReiseLonnsart?.id ?? null,
+  });
+  const manuellKlassifisering = manuellReise.klassifisering;
+  const manuellLonnsartId = manuellKlassifisering
+    ? (manuellKlassifisering.lonnsartId ?? "")
+    : null;
+  useEffect(() => {
+    if (manuellLonnsartId != null) setLonnsartId(manuellLonnsartId);
+  }, [manuellLonnsartId]);
+  const manuellManglerArt = manuellReiseManglerArt(manuellKlassifisering);
+  // RETUR (11) vilkår 1 (lønn): «+ Reise» kan ikke lagres før regelsett,
+  // oppmøtesteder, avstander og lønnsarter er lastet — og aldri når et av dem
+  // har feilet. Ellers ville lagringen stille falle tilbake til «som før».
+  const reiseSperre: "klar" | "laster" | "feilet" = reiseModus
+    ? manuellReise.regelStatus
+    : "klar";
+
   const formaterT = (n: number) =>
     n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
   const lonnsartNavn = (id: string) =>
@@ -3069,6 +3109,7 @@ function TimerRadDialog({
   async function brukOvertidForslag(
     f: OvertidForslag<{ id: string }>,
   ): Promise<void> {
+    if (reiseSperre !== "klar") return;
     const tNum = validerSkjema();
     if (tNum == null) return;
     if (!f.normal) {
@@ -3197,6 +3238,8 @@ function TimerRadDialog({
   // Vanlig lagring av raden (uendret sti); V21 sender inn overtid-lønnsarten
   // når hele raden ligger over dagsnormen.
   function lagreRad(tNum: number, lagreLonnsartId: string) {
+    // Forsvar i dybden: Enter/submit forbi sperret knapp lagrer heller ikke.
+    if (reiseSperre !== "klar") return;
     if (rad) {
       oppdater.mutate({
         id: rad.id,
@@ -3234,7 +3277,12 @@ function TimerRadDialog({
           // V20/PK3: radens matpause (auto-bærer for ny rad, PK2).
           pauseMin: radPauseMin,
           byggeplassId: bp.byggeplassId,
-          ...(reiseModus && lagreLonnsartId === laastReiseLonnsart?.id
+          // Ordre (11) A: reiseKilde kun når terskelregelen sier reise (serveren
+          // utleder erReise av arten). Uten regelsett: som før (resolverens art).
+          ...(reiseModus &&
+          (manuellReise.spor
+            ? manuellReise.spor.erReise && lagreLonnsartId === manuellKlassifisering?.lonnsartId
+            : lagreLonnsartId === laastReiseLonnsart?.id)
             ? { reiseKilde: "manuell" as const }
             : {}),
         },
@@ -3316,8 +3364,61 @@ function TimerRadDialog({
           </label>
           {reiseModus ? (
             // «+ Reise»: lønnsarten er låst til den løste reise-lønnsarten.
-            <div className="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-              {laastReiseLonnsart?.navn}
+            <div>
+              <div className="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                {manuellKlassifisering
+                  ? (manuellReise.lonnsartNavn(manuellKlassifisering.lonnsartId) ?? "")
+                  : laastReiseLonnsart?.navn}
+              </div>
+              {/* Ordre (11) A: samme forklaringslinje som mobil (delt tekst).
+                  C: mangler standard lønnsart → rød tekst; admin får lenke. */}
+              {manuellKlassifisering &&
+                (manuellManglerArt ? (
+                  <p className="mt-1 text-xs font-medium text-red-700">
+                    {/* Firmaadmin skal ikke bes om å spørre firmaadmin. */}
+                    {erFirmaAdmin
+                      ? t("timer.reiseTerskel.manglerStandardArt")
+                      : t("timer.reiseTerskel.manglerArt")}
+                    {erFirmaAdmin && (
+                      <>
+                        {" "}
+                        <Link
+                          href="/dashbord/firma/timer/lonnsarter"
+                          className="underline hover:text-red-900"
+                        >
+                          {t("timer.reiseTerskel.settStandardArt")}
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {manuellReiseForklaringTekst(
+                      t,
+                      manuellKlassifisering,
+                      manuellReise.lonnsartNavn(manuellKlassifisering.lonnsartId),
+                    )}
+                  </p>
+                ))}
+              {manuellReise.velger && (
+                <div className="mt-2">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {t("timer.reiseTerskel.fraOppmotested")}
+                  </label>
+                  <select
+                    value={manuellReise.velger.valgtId ?? ""}
+                    onChange={(e) => manuellReise.velger?.velg(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">{t("timer.reiseTerskel.velgOppmotested")}</option>
+                    {manuellReise.velger.steder.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.navn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           ) : (
           <select
@@ -3455,7 +3556,7 @@ function TimerRadDialog({
             <button
               type="button"
               onClick={() => void brukOvertidForslag(overtidForslag)}
-              disabled={lagrer}
+              disabled={lagrer || reiseSperre !== "klar"}
               className="shrink-0 rounded border border-amber-300 bg-white px-3 py-1 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
             >
               {overtidForslag.normal
@@ -3640,14 +3741,27 @@ function TimerRadDialog({
           </Button>
           <KnappMedForklaring
             sperret={
-              (!lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid) && !lagrer
+              (reiseSperre !== "klar" ||
+                !lonnsartId ||
+                !aktivitetId ||
+                !timer ||
+                !fraTid ||
+                !tilTid) &&
+              !lagrer
             }
-            forklaring={t("sperret.timerRad")}
+            forklaring={
+              reiseSperre === "feilet"
+                ? t("sperret.reiseRegelFeilet")
+                : reiseSperre === "laster"
+                  ? t("sperret.reiseRegelLaster")
+                  : t("sperret.timerRad")
+            }
           >
             <Button
               type="submit"
               disabled={
                 lagrer ||
+                reiseSperre !== "klar" ||
                 !lonnsartId ||
                 !aktivitetId ||
                 !timer ||
