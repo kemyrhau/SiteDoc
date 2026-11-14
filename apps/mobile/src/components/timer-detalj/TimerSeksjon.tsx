@@ -92,6 +92,7 @@ import {
 import { ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";
+import { forklaringTekst, useManuellReise, type ManuellReiseSpor } from "./useManuellReise";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
 import { SplittRadModal } from "./SplittRadModal";
@@ -1114,6 +1115,9 @@ export function TimerRadModal({
     pauseMin: number,
     // NY BESLUTNING: maskinlinjene (nye uten id) + fjernede koblede maskiner.
     maskiner: MaskinEndringer,
+    // Ordre (9): terskel/bånd-sporet for en NY «+ Reise»-rad. Udefinert ellers
+    // (og når regelsettet ikke er synket) — kalleren lagrer da som før.
+    reiseSpor?: ManuellReiseSpor,
   ) => void;
   onLukk: () => void;
 }) {
@@ -1300,6 +1304,29 @@ export function TimerRadModal({
   const [beskrivelse, setBeskrivelse] = useState<string>(
     eksisterendeRad?.beskrivelse ?? "",
   );
+  // Ordre (9): terskel og avstandsbånd på NY «+ Reise»-rad — delt regel
+  // (`klassifiserManuellReise`). Under terskel → standard ordinær art, erReise
+  // false; over → båndets art (kjent avstand) eller resolverens.
+  const manuellReiseAktiv = !!reise?.laast && !eksisterendeRad;
+  const manuellReise = useManuellReise({
+    aktiv: manuellReiseAktiv,
+    organizationId,
+    byggeplassId: valgtByggeplassId ?? sedelByggeplassId,
+    timer: (() => {
+      const n = parseFloat(timer.replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    })(),
+    resolverLonnsartId: reise?.lonnsartId ?? null,
+  });
+  const manuellKlassifisering = manuellReise.klassifisering;
+  const manuellLonnsartId = manuellKlassifisering
+    ? (manuellKlassifisering.lonnsartId ?? "")
+    : null;
+  useEffect(() => {
+    if (manuellLonnsartId != null) setValgtLonnsartId(manuellLonnsartId);
+  }, [manuellLonnsartId]);
+  // Under terskel er raden arbeidstid: teller i overtid som annen arbeid.
+  const manuellUnderTerskel = !!manuellReise.spor && !manuellReise.spor.erReise;
   const [beskrivelseFeil, setBeskrivelseFeil] = useState(false);
   const beskrivelseRef = useRef<TextInput>(null);
   const [feil, setFeil] = useState<string | null>(null);
@@ -1598,7 +1625,8 @@ export function TimerRadModal({
         tilTid,
         pauseMin: radPauseMinFor(fraTid, tilTid),
         erReise:
-          erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
+          (erReiseRad && !manuellUnderTerskel) ||
+          erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
         overtidsnivaa: nivaaFor(valgtLonnsartId),
       },
     ];
@@ -1624,6 +1652,7 @@ export function TimerRadModal({
     radPauseMinFor,
     erReiseRad,
     pauseKontekst,
+    manuellUnderTerskel,
   ]);
 
   const kanLagre =
@@ -1770,6 +1799,7 @@ export function TimerRadModal({
         beskrivelse.trim() || null,
         forslag.normal.pauseMin,
         maskin,
+        manuellReise.spor ?? undefined,
       );
       onLeggTilOvertidDel(
         valgtProjectId,
@@ -1798,6 +1828,7 @@ export function TimerRadModal({
       // V20 PK2: radens matpause-bærer (0 ellers).
       radPauseMin,
       maskin,
+      manuellReise.spor ?? undefined,
     );
   }
 
@@ -1916,9 +1947,30 @@ export function TimerRadModal({
             {/* Ordre (6): «+ Reise» låser lønnsarten til den løste
                 reise-arten på NY rad (eksisterende rad redigeres som før). */}
             {reise?.laast && !eksisterendeRad ? (
-              <Text className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
-                {valgtLonnsart?.navn ?? ""}
-              </Text>
+              <View>
+                <Text className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
+                  {valgtLonnsart?.navn ?? ""}
+                </Text>
+                {/* Ordre (9): grå forklaring på hvorfor raden ble arbeid/reise. */}
+                {manuellKlassifisering && (
+                  <Text className="mt-1 text-xs text-gray-500">
+                    {manuellKlassifisering.lonnsartId == null
+                      ? t("timer.reiseTerskel.manglerArt")
+                      : forklaringTekst(
+                          t,
+                          manuellKlassifisering,
+                          manuellReise.lonnsartNavn(manuellKlassifisering.lonnsartId),
+                        )}
+                  </Text>
+                )}
+                {manuellReise.velger && (
+                  <OppmotestedVelger
+                    tittel={t("timer.reiseTerskel.fraOppmotested")}
+                    placeholder={t("timer.reiseTerskel.velgOppmotested")}
+                    {...manuellReise.velger}
+                  />
+                )}
+              </View>
             ) : (
               <VelgerFelt
                 verdi={valgtLonnsart?.navn ?? null}
@@ -2974,5 +3026,54 @@ export function ProsjektByggeplassVelgerModal({
         )}
       </SafeAreaView>
     </Modal>
+  );
+}
+
+/** Ordre (9): «Fra oppmøtested» — inline nedtrekk under låst reise-art (km-terskel,
+ *  flere oppmøtesteder). Siste valg er forhåndsvalgt av kalleren. */
+function OppmotestedVelger({
+  tittel,
+  placeholder,
+  valgtId,
+  steder,
+  velg,
+}: {
+  tittel: string;
+  placeholder: string;
+  valgtId: string | null;
+  steder: { id: string; navn: string }[];
+  velg: (id: string) => void;
+}) {
+  const [apen, setApen] = useState(false);
+  const valgt = steder.find((s) => s.id === valgtId) ?? null;
+  return (
+    <View className="mt-2">
+      <Text className="mb-1 text-sm font-medium text-gray-700">{tittel}</Text>
+      <Pressable
+        onPress={() => setApen((a) => !a)}
+        className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5"
+      >
+        <Text className={`text-sm ${valgt ? "text-gray-900" : "text-gray-400"}`}>
+          {valgt?.navn ?? placeholder}
+        </Text>
+        {apen ? <ChevronDown size={16} color="#6b7280" /> : <ChevronRight size={16} color="#6b7280" />}
+      </Pressable>
+      {apen &&
+        steder.map((sted) => (
+          <Pressable
+            key={sted.id}
+            onPress={() => {
+              velg(sted.id);
+              setApen(false);
+            }}
+            className={`flex-row items-center justify-between border-b border-gray-100 px-3 py-2.5 ${
+              sted.id === valgtId ? "bg-blue-50" : ""
+            }`}
+          >
+            <Text className="text-sm text-gray-900">{sted.navn}</Text>
+            {sted.id === valgtId && <Check size={16} color="#1e40af" />}
+          </Pressable>
+        ))}
+    </View>
   );
 }

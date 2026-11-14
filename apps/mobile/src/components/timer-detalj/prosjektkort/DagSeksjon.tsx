@@ -197,6 +197,7 @@ export function DagSeksjon({
             beskrivelse,
             pauseMin,
             maskin,
+            reiseSpor,
           ) => {
             const felt = {
               projectId,
@@ -211,7 +212,7 @@ export function DagSeksjon({
               pauseMin,
             };
             if (reiseModal.rad) oppdaterTimerRad(db(), k, reiseModal.rad.id, felt, maskin);
-            else leggTilTimerRad(db(), k, felt, maskin.linjer);
+            else leggTilTimerRad(db(), k, felt, maskin.linjer, reiseSpor);
             setReiseModal(null);
             onEndret();
           }}

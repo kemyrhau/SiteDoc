@@ -11,7 +11,11 @@ import {
 import { finnEllerOpprettDagsseddel } from "./dagsseddelOpprett";
 import { erReiseLonnsartLokalt } from "./timerKatalog";
 import { maskinerOverRad, skrivKobledeMaskiner, type NyMaskin } from "./kobledeMaskiner";
-import { SIST_BRUKTE_MASKINER_ANTALL, sisteUnikeMaskiner } from "@sitedoc/shared";
+import {
+  SIST_BRUKTE_MASKINER_ANTALL,
+  sisteUnikeMaskiner,
+  type ManuellReiseSpor,
+} from "@sitedoc/shared";
 
 /* ============================================================================
  *  «+» rett til timer-raden (ORDRE 17, 2026-11-06)
@@ -190,6 +194,12 @@ export interface NyRad {
   pauseMin: number;
   /** 0, 1 eller flere koblede maskiner, hver med egne timer ≤ radens. */
   maskiner: NyMaskin[];
+  /**
+   * Ordre (9): terskel/bånd-sporet fra «+ Reise» (`klassifiserManuellReise`).
+   * Satt → erReise/reiseKilde/avstand/oppmøtested/regel herfra (under terskel:
+   * erReise false på standard ordinær art). Udefinert → utledes fra lønnsarten.
+   */
+  reiseSpor?: ManuellReiseSpor;
 }
 
 /** Skriv én timer-rad (+ evt. maskin) på en sedel. Delt av sedelen og «+». */
@@ -211,7 +221,10 @@ export function settInnTimerRad(
   // M3). En manuell reise-rad får reiseKilde="manuell", reiseRetning/avstand/
   // kjøretid/regel null (retning er informasjon, ikke lønn — C2 krever retning
   // KUN for matrise-kilde). Ikke-reise → erReise=false, ingen reise-spor.
-  const manuellErReise = erReiseLonnsartLokalt(organizationId, rad.lonnsartId);
+  const spor = rad.reiseSpor;
+  const manuellErReise = spor
+    ? spor.erReise
+    : erReiseLonnsartLokalt(organizationId, rad.lonnsartId);
   db.insert(sheetTimerLocal)
     .values({
       id: timerRadId,
@@ -230,7 +243,12 @@ export function settInnTimerRad(
       // V20 PK2: radens matpause-bærer (avkrysningen = pauseMin > 0).
       pauseMin: rad.pauseMin,
       erReise: manuellErReise,
-      reiseKilde: manuellErReise ? "manuell" : null,
+      reiseKilde: spor ? spor.reiseKilde : manuellErReise ? "manuell" : null,
+      // Ordre (9): ikke-reise-rad bærer aldri avstand/oppmøtested (C2 + DB-CHECK);
+      // regelen lagres på begge så klassifiseringen kan etterprøves.
+      reiseAvstandM: spor?.erReise ? spor.reiseAvstandM : null,
+      reiseOppmotestedId: spor?.erReise ? spor.reiseOppmotestedId : null,
+      reiseRegel: spor ? JSON.stringify(spor.reiseRegel) : null,
       tidKilde: "manuell",
       sistEndretLokalt: Date.now(),
     })
