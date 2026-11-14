@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Rrjedh nga rreshtat më poshtë",
   "timer.arbeidstidPrefyltHint": "Mbushur paraprakisht nga orët standarde të kompanisë suaj — rregullojeni vetëm nëse është e nevojshme (p.sh. një ditë e harruar ose e ndarë). Regjistroni orët tuaja në rreshtat më poshtë.",
   "timer.summering": "{{registrert}} orë nga {{total}} orë të regjistruara",
+  "timer.summeringReise": "Udhëtim {{reise}} h",
   "timer.felt.startTid": "Nga",
   "timer.felt.sluttTid": "për të",
   "timer.felt.pauseMin": "Pushim (min)",

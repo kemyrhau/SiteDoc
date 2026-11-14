@@ -142,7 +142,11 @@ function lagCtx(opts: { status?: string; originalTillegg?: Record<string, unknow
         findUnique: vi.fn().mockResolvedValue(sheet),
         update: vi.fn().mockResolvedValue({}),
       },
-      tillegg: { findFirst: vi.fn().mockResolvedValue({ id: TILLEGG }) },
+      tillegg: {
+        findFirst: vi.fn().mockResolvedValue({ id: TILLEGG }),
+        // Post (7) punkt 1: katalog-firmavakten (splitt/oppdater).
+        findMany: vi.fn().mockResolvedValue([{ id: TILLEGG }]),
+      },
       expenseCategory: { findFirst: vi.fn().mockResolvedValue({ id: KATEGORI, ordning: "utlegg" }) },
       prosjektOrdningOverstyring: { findFirst: vi.fn().mockResolvedValue(null) },
       sheetTillegg: {

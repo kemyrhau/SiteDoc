@@ -865,11 +865,21 @@ export async function verifiserProsjekterTilhørerFirma(
 /**
  * Verifiser at bruker tilhører den angitte organisasjonen.
  * Brukes for org-admin-sider (/org/innstillinger).
+ *
+ * `sitedoc_admin` slipper gjennom uten medlemskap, som i `autoriserAdminForFirma`:
+ * har en sitedoc_admin valgt et firma, opptrer den som firmaadmin for det firmaet
+ * (Kenneth 2026-11-14, sikkerhet.md § 8o).
  */
 export async function verifiserOrganisasjonTilgang(
   userId: string,
   organisationId: string,
 ): Promise<void> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (bruker?.role === "sitedoc_admin") return;
+
   const member = await prisma.organizationMember.findUnique({
     where: { userId_organizationId: { userId, organizationId: organisationId } },
     select: { id: true },

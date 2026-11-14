@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Derivat din rândurile de mai jos",
   "timer.arbeidstidPrefyltHint": "Complet în prealabil din orele standard ale companiei dvs. - ajustați numai dacă este necesar (de exemplu, o zi uitată sau fracționată). Înregistrați-vă orele pe rândurile de mai jos.",
   "timer.summering": "{{registrert}}h din {{total}}h înregistrat",
+  "timer.summeringReise": "Călătorie {{reise}} h",
   "timer.felt.startTid": "Din",
   "timer.felt.sluttTid": "La",
   "timer.felt.pauseMin": "Pauza (min)",

@@ -10,12 +10,18 @@ interface SummeringsBannerProps {
   normTimer: number | null;
   /** Sum maskintimer på tvers av prosjekter — vises som «herav» når > 0. */
   maskinTimer?: number;
+  /**
+   * Post 2026-11-14 (7) punkt 6: reisetid. `totaltimer` er arbeid UTEN reise
+   * (dekningen mot norm); reise vises separat som «· Reise N t» når > 0.
+   */
+  reiseTimer?: number;
 }
 
 export function SummeringsBanner({
   totaltimer,
   normTimer,
   maskinTimer,
+  reiseTimer,
 }: SummeringsBannerProps) {
   const { t } = useTranslation();
 
@@ -57,6 +63,9 @@ export function SummeringsBanner({
           registrert: totaltimer.toFixed(2),
           total: normTimer === null ? "?" : normTimer.toFixed(2),
         })}
+        {reiseTimer !== undefined && reiseTimer > 0
+          ? ` · ${t("timer.summeringReise", { reise: reiseTimer.toFixed(2) })}`
+          : null}
       </Text>
       {maskinTimer !== undefined && maskinTimer > 0 && (
         <Text className={`mt-0.5 text-xs ${tekstFarge}`}>

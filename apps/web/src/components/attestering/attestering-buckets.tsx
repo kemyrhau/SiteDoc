@@ -168,7 +168,7 @@ function TimerRaderLeder({
   );
   const førsteProsjektId = prosjektKontekst ?? rader[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId: førsteProsjektId ?? "" },
+    { projectId: førsteProsjektId ?? "", organizationId: orgId },
     { enabled: !!førsteProsjektId },
   );
 
@@ -326,10 +326,13 @@ function TilleggRaderLeder({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  // Katalogene (tillegg + underprosjekt) fra det VISTE firmaet.
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
   // B7: attestanten retter underprosjekt på tillegg som på timer-raden.
   const førsteProsjektId = prosjektKontekst ?? rader[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId: førsteProsjektId ?? "" },
+    { projectId: førsteProsjektId ?? "", organizationId: orgId },
     { enabled: !!førsteProsjektId },
   );
   const [feil, setFeil] = useState<string | null>(null);
@@ -344,8 +347,6 @@ function TilleggRaderLeder({
     const eco = ecoListe?.find((e) => e.id === ecoId);
     return eco ? `${eco.proAdmId} · ${eco.kortNavn}` : null;
   }
-  const { valgtFirma } = useFirma();
-  const orgId = valgtFirma?.id;
   const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(
     { organizationId: orgId! },
     { enabled: !!orgId },
@@ -582,9 +583,11 @@ export function ProsjektSectionAttest({
   pauseMin?: number;
 }) {
   const { t } = useTranslation();
-  // ECO-katalog for navn på subheaders (én query per prosjekt).
+  // ECO-katalog for navn på subheaders (én query per prosjekt), fra det
+  // VISTE firmaet (post (7) punkt 2).
+  const { valgtFirma } = useFirma();
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId },
+    { projectId, organizationId: valgtFirma?.id },
     { enabled: !!projectId },
   );
   const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(

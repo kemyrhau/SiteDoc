@@ -217,6 +217,8 @@ function lagRedigerCtx(satsEnhet: string | null) {
       sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
       sheetMachine: { findMany: vi.fn().mockResolvedValue([]) },
       lonnsart: { findMany: lonnsartFindMany },
+      // Post (7) punkt 1: katalog-firmavakten slår opp aktiviteten.
+      aktivitet: { findMany: vi.fn().mockResolvedValue([{ id: AKTIVITET }]) },
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;

@@ -259,7 +259,7 @@ export function SeddelKort({
   const førsteProsjektId =
     sedel.timer[0]?.projectId ?? sedel.maskiner[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId: førsteProsjektId ?? "" },
+    { projectId: førsteProsjektId ?? "", organizationId: orgId },
     { enabled: !!førsteProsjektId },
   );
 

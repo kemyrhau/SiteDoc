@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Tuletatud allolevatest ridadest",
   "timer.arbeidstidPrefyltHint": "Eeltäidetud teie ettevõtte tavapärastest lahtiolekuaegadest – kohandage ainult vajaduse korral (nt unustatud või poolitatud päev). Logige oma lahtiolekuajad allolevatele ridadele.",
   "timer.summering": "Registreeritud {{registrert}}h {{total}}h-st",
+  "timer.summeringReise": "Reisimine {{reise}} h",
   "timer.felt.startTid": "Alates",
   "timer.felt.sluttTid": "To",
   "timer.felt.pauseMin": "Paus (min)",

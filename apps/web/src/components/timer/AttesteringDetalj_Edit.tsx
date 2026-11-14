@@ -649,7 +649,7 @@ function ProsjektSectionEdit({
   const { t } = useTranslation();
   // Hent ECO-katalog én gang per prosjekt for navn på subheaders.
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId },
+    { projectId, organizationId },
     { enabled: !!projectId },
   );
   const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(

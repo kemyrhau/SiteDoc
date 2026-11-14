@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Pochodzi z wierszy poniżej",
   "timer.arbeidstidPrefyltHint": "Wstępnie wypełnione na podstawie standardowych godzin pracy Twojej firmy — dostosuj tylko w razie potrzeby (np. zapomniany dzień lub podzielony dzień). Zapisz swoje godziny w wierszach poniżej.",
   "timer.summering": "Zarejestrowano {{registrert}}h z {{total}}h",
+  "timer.summeringReise": "Podróż {{reise}} godz",
   "timer.felt.startTid": "Z",
   "timer.felt.sluttTid": "Do",
   "timer.felt.pauseMin": "Przerwa (min)",

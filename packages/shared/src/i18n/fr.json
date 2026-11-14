@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Dérivé des lignes ci-dessous",
   "timer.arbeidstidPrefyltHint": "Pré-rempli à partir des horaires standard de votre entreprise – ajustez uniquement si nécessaire (par exemple, une journée oubliée ou fractionnée). Enregistrez vos heures sur les lignes ci-dessous.",
   "timer.summering": "{{registrert}}h sur {{total}}h inscrites",
+  "timer.summeringReise": "Voyage {{reise}} h",
   "timer.felt.startTid": "Depuis",
   "timer.felt.sluttTid": "À",
   "timer.felt.pauseMin": "Pause (min)",

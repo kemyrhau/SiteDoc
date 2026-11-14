@@ -219,3 +219,27 @@ describe("timer-sedel — L3 «+ Vareforbruk» på kortet", () => {
     expect(rendre("dagskort", {}, katalog(["p1", "p2"]))).toBe(rendre("dagskort"));
   });
 });
+
+describe("dagskort — banneret holder reise utenfor dekningen (post (7) punkt 6)", () => {
+  const ren = (html: string) => html.replace(/&quot;/g, '"');
+  const medReise = () =>
+    rendre("dagskort", {
+      timer: [sheet.timer[0]!, { ...sheet.timer[1]!, timer: "2", erReise: true }],
+    });
+
+  it("dag med reise: dekning = arbeid uten reise, reise vises separat", () => {
+    const html = ren(medReise());
+    expect(html).toContain('timer.summering{"registrert":"4.00"');
+    expect(html).toContain('timer.summeringReise{"reise":"2.00"}');
+  });
+
+  it("dag uten reise: ingen reise-del i banneret", () => {
+    const html = ren(rendre("dagskort"));
+    expect(html).toContain('timer.summering{"registrert":"8.00"');
+    expect(html).not.toContain("timer.summeringReise");
+  });
+
+  it("dagskortet får IKKE «+ Reise» (isolasjonen løftes kun for banneret)", () => {
+    expect(medReise()).not.toContain("timer.prosjektkort.nyReise");
+  });
+});

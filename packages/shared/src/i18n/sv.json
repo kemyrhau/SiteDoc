@@ -455,6 +455,7 @@
   "timer.arbeidstidUtledet": "Härledd från raderna nedan",
   "timer.arbeidstidPrefyltHint": "Förifyllt från ditt företags normala öppettider – justera endast om det behövs (t.ex. en glömd eller delad dag). Logga dina timmar på raderna nedan.",
   "timer.summering": "{{registrert}}h av {{total}}h registrerade",
+  "timer.summeringReise": "Resa {{reise}} h",
   "timer.felt.startTid": "Från",
   "timer.felt.sluttTid": "Till",
   "timer.felt.pauseMin": "Paus (min)",

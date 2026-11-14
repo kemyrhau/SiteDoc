@@ -437,6 +437,9 @@ function lagSplittCtx(opts: { status: string; eier?: boolean }) {
       },
     },
     prismaTimer: {
+      // Post (7) punkt 1: katalog-firmavakten slår opp lønnsart/aktivitet.
+      lonnsart: { findMany: vi.fn().mockResolvedValue([{ id: LONNSART }]) },
+      aktivitet: { findMany: vi.fn().mockResolvedValue([{ id: AKTIVITET }]) },
       sheetTimer: {
         findUnique: vi.fn().mockResolvedValue(original),
         findMany: vi.fn().mockResolvedValue([]), // ingen andre rader på dagen
