@@ -565,3 +565,54 @@ describe("ORDRE 2026-11-13 — vurderRadTimer godtar ny pauseregel og gamle rade
     expect(v).toEqual({ pauseMin: 30, teller: "baerer", kast: false });
   });
 });
+
+describe("ORDRE 2026-11-14 — reise teller mot 5,5-grensen: serveren godtar dagen", () => {
+  // Bekreft dag: 06:00–07:00 reise (1 t) + 07:00–12:00 arbeid (4,5 t, pause 30)
+  // + 12:00–13:00 retur. Pausevinduet fra skiftstart 06:00 + 4 t = 10:00.
+  it("arbeidsraden 07–12, 4,50, pause 30 (interaktiv) → ikke kast", () => {
+    const v = vurderRadTimer({
+      modus: "interaktiv",
+      satsEnhet: "per_time",
+      fraTid: "07:00",
+      tilTid: "12:00",
+      timer: 4.5,
+      pauseMinAngitt: 30,
+      pauseVindu: "10:00",
+      standardPauseMin: STD,
+      finnesAlleredeBaerer: false,
+    });
+    expect(v).toEqual({ pauseMin: 30, teller: null, kast: false });
+  });
+
+  it("reise-radene (1,00, pause 0) → ikke kast, ingen bærer", () => {
+    for (const [fra, til] of [["06:00", "07:00"], ["12:00", "13:00"]] as const) {
+      const v = vurderRadTimer({
+        modus: "interaktiv",
+        satsEnhet: "per_time",
+        fraTid: fra,
+        tilTid: til,
+        timer: 1,
+        pauseMinAngitt: 0,
+        pauseVindu: "10:00",
+        standardPauseMin: STD,
+        finnesAlleredeBaerer: true,
+      });
+      expect(v).toEqual({ pauseMin: 0, teller: null, kast: false });
+    }
+  });
+
+  it("gammel sedel (07–12, 5,00, pause 0, synk) → intet nytt avvik", () => {
+    const v = vurderRadTimer({
+      modus: "sync",
+      satsEnhet: "per_time",
+      fraTid: "07:00",
+      tilTid: "12:00",
+      timer: 5,
+      pauseMinAngitt: 0,
+      pauseVindu: "10:00",
+      standardPauseMin: STD,
+      finnesAlleredeBaerer: false,
+    });
+    expect(v).toEqual({ pauseMin: 0, teller: null, kast: false });
+  });
+});

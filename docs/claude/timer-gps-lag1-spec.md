@@ -123,7 +123,7 @@ trukket reisen to ganger. **Derfor:**
   «pausen trekkes etter 4 ARBEIDStimer», Kenneth: «dette er totalt 6 timer arbeid -> her er det krav om 0,5
   timer pause» · «Ja, etter 4 arbeidstimer»):* bæreren er økta der summert arbeid (sedelens rader + tidligere
   segmenter) passerer firmaets `standardPauseEtterTimer`, og pausen ligger der (`pauseFraForRad`); et gap
-  mellom økter er ingen pause. Dagsbrutto og grensen regnes på det rettede arbeidsvinduet, uten reise. **Subtraksjonen
+  mellom økter er ingen pause. Grensen regnes på det rettede arbeidsvinduet, uten reise; dagsbrutto mot 5,5-grensen = arbeid + ført reisetid (ORDRE 14.11, `timer.md`). **Subtraksjonen
   `totalTimer − reisetidTimer` FJERNES** — vinduet har allerede ekskludert begge etapper.
 - `carveArbeidstider` får `startTid = arbeidsstart` og `reisetidTimer = 0` (eller parameteren fjernes).
   **Ingen `sluttKapp`:** carven legger segmenter forover og stopper når `seg.timer` er brukt

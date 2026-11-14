@@ -241,6 +241,9 @@ export type DagsforslagEksisterendeSedel = {
     fraTid: string | null;
     tilTid: string | null;
     pauseMin?: number | null;
+    /** Reise-rad: teller i dagsbrutto (5,5-grensen), ikke i de 4
+     *  arbeidstimene som plasserer pausen (ORDRE 2026-11-14). */
+    erReise?: boolean | null;
   }>;
 };
 
@@ -832,8 +835,11 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
   );
   // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer» — SAMME regel som
   // manuell føring (`avgjorRadPause`) og serveren (`vurderRadTimer`):
-  //   1) dagsbrutto = rader som alt står på sedelen + ARBEIDET i økta (rettet
-  //      arbeidsvindu, uten reise; fjernet arbeid = 0) > 5,5 t
+  //   1) dagsbrutto = rader som alt står på sedelen (arbeid OG reise) +
+  //      ARBEIDET i økta (rettet arbeidsvindu; fjernet arbeid = 0) + økta sine
+  //      reisetid-etapper > 5,5 t. ORDRE 2026-11-14 (Kenneth: «den gamle koden
+  //      var rett»): reisen teller mot grensen, som da terskelen ble målt på
+  //      GPS-spennet. `arbeidstid`-etapper ligger alt i arbeidsvinduet.
   //   2) bæreren er segmentet der summert arbeid (sedelens rader før + tidligere
   //      segmenter) passerer firmaets grense; ellers siste segment med arbeid.
   //      Pausepunktet = `pauseFraForRad` — et gap mellom økter er ingen pause.
@@ -858,9 +864,19 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     const fraMin = hhmmTilMin(tilHHMM(new Date(v.startMs).toISOString()));
     return { fraMin, min: Math.round((v.sluttMs - v.startMs) / 60_000) };
   });
+  // Reisetid-etappene som blir reise-rader (ut på start-segmentet, retur på
+  // siste) — samme kjøretid som `beregnSegment` skriver som radens timer.
+  const nyReiseMin = segmenter.reduce(
+    (sum, seg, i) =>
+      sum +
+      (seg.erStartSegment && utReise ? utReise.kjoretidMin : 0) +
+      (i === sisteSegIdx && returReise ? returReise.kjoretidMin : 0),
+    0,
+  );
   const dagPauseMin = dagPauseMinForNyttArbeid({
     andreRader,
     nyBruttoTimer: arbeidPerSeg.reduce((s, a) => s + (a ? a.min : 0), 0) / 60,
+    nyReiseTimer: nyReiseMin / 60,
     standardPauseMin: effektivStartDag.pauseMin,
   });
   const pauseEtterTimerFor = (dato: string) =>
@@ -879,7 +895,8 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     if (!a) return false;
     const rader = input.eksisterendeSedelPerDato[segmenter[i]!.dato]?.eksisterendeRader ?? [];
     const radArbeid = rader.reduce((sum, r) => {
-      if (!r.fraTid || !r.tilTid) return sum;
+      // Grensen er 4 ARBEIDStimer — lagrede reise-rader teller ikke her.
+      if (!r.fraTid || !r.tilTid || r.erReise === true) return sum;
       const f = hhmmTilMin(r.fraTid);
       const t = hhmmTilMin(r.tilTid);
       return t > f && f < a.fraMin ? sum + (Math.min(t, a.fraMin) - f) : sum;

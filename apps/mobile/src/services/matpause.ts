@@ -74,7 +74,12 @@ export type MatpauseKontekst = {
 export function matpauseKontekst(
   organizationId: string,
   dato: string,
-  rader: readonly { id?: string | null; fraTid?: string | null; tilTid?: string | null }[] = [],
+  rader: readonly {
+    id?: string | null;
+    fraTid?: string | null;
+    tilTid?: string | null;
+    erReise?: boolean | null;
+  }[] = [],
 ): MatpauseKontekst {
   const setting = hentOrganizationSettingLokalt(organizationId);
   const standardPauseMin = setting?.standardPauseMin ?? 30;

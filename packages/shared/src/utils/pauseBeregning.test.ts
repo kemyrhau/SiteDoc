@@ -7,6 +7,7 @@ import {
   pauseFraForRad,
   avgjorRadPause,
   fastPauseFraFor,
+  dagPauseMinForNyttArbeid,
 } from "./pauseBeregning";
 
 // Grensefiks 2026-07-09: tilFraAntall hoppet tidligere over pausen når raden
@@ -219,5 +220,49 @@ describe("ORDRE 2026-11-13 — pause etter arbeidstimer (avgjorRadPause/pauseFra
     expect(fastPauseFraFor({ startTid: "07:00", pauseEtterTimer: 4, pauseReferanse: "ankomst" })).toBeNull();
     expect(avgjor([], "08:00", "15:00", 4, fast).pauseFra).toBe("11:00");
     expect(avgjor([["07:00", "10:00", 0]], "16:00", "19:00", 4, fast).pauseFra).toBe("17:00");
+  });
+});
+
+describe("ORDRE 2026-11-14 — reise teller mot 5,5-grensen, pausen bæres av arbeid", () => {
+  it("nyReiseTimer teller mot terskelen: 5 t arbeid + 2 t reise → pause", () => {
+    expect(
+      dagPauseMinForNyttArbeid({ andreRader: [], nyBruttoTimer: 5, nyReiseTimer: 2, standardPauseMin: 30 }),
+    ).toBe(30);
+    expect(
+      dagPauseMinForNyttArbeid({ andreRader: [], nyBruttoTimer: 5, standardPauseMin: 30 }),
+    ).toBe(0);
+  });
+
+  it("4,5 t arbeid + 1 t reise = 5,5 t (ikke over) → ingen pause", () => {
+    expect(
+      dagPauseMinForNyttArbeid({ andreRader: [], nyBruttoTimer: 4.5, nyReiseTimer: 1, standardPauseMin: 30 }),
+    ).toBe(0);
+  });
+
+  it("spennkravet gjelder arbeidet alene — reise gjør ikke en 20-min rad til bærer", () => {
+    expect(
+      dagPauseMinForNyttArbeid({ andreRader: [], nyBruttoTimer: 20 / 60, nyReiseTimer: 6, standardPauseMin: 30 }),
+    ).toBe(0);
+  });
+
+  it("lagret reise-rad 06–07 + ny arbeidsrad 07–12 → pause på den nye, etter 4 ARBEIDStimer", () => {
+    const res = avgjorRadPause({
+      alleRader: [{ id: "r1", fraTid: "06:00", tilTid: "07:00", pauseMin: 0, erReise: true }],
+      radId: null,
+      fraTid: "07:00",
+      tilTid: "12:00",
+      standardPauseMin: 30,
+      pauseEtterTimer: 4,
+    });
+    // Reisen teller ikke i de 4 arbeidstimene: pausen ligger 11:00, ikke 10:00.
+    expect(res).toEqual({ pauseMin: 30, pauseFra: "11:00" });
+  });
+
+  it("pauseFraForRad: lagret arbeid før raden teller, reise gjør det ikke", () => {
+    const base = { fraTid: "08:00", tilTid: "14:00", pauseEtterTimer: 4, pauseMin: 30 };
+    expect(pauseFraForRad({ ...base, andreRader: [{ fraTid: "07:00", tilTid: "08:00" }] })).toBe("11:00");
+    expect(
+      pauseFraForRad({ ...base, andreRader: [{ fraTid: "07:00", tilTid: "08:00", erReise: true }] }),
+    ).toBe("12:00");
   });
 });

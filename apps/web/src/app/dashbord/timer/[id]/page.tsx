@@ -2500,7 +2500,7 @@ function TimerRadDialog({
   // unntatt den som redigeres.
   const andreRaderFraTid = alleTimerRader
     .filter((r) => r.id !== rad?.id)
-    .map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid }));
+    .map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise ?? false }));
   const fastPauseFra = fastPauseFraFor({
     startTid: skiftStart,
     pauseEtterTimer: standardPauseEtterTimer,
@@ -2527,6 +2527,7 @@ function TimerRadDialog({
     fraTid: r.fraTid,
     tilTid: r.tilTid,
     pauseMin: r.pauseMin,
+    erReise: r.erReise ?? false,
   }));
   function beregnAutoPause(kFra: string | null, kTil: string | null): number {
     return avgjorRadPauseMin({
