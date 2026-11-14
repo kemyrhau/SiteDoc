@@ -57,6 +57,10 @@ import {
   erReiseLonnsart,
   forsokInnsending,
   svarPaaPauseSporsmaal,
+  løsReiseKnappLonnsart,
+  arbeidOgReise,
+  arbeidUtenReise,
+  sendDagenTekst,
   type ForsonRad,
   type ErReiseKontekst,
   type OvertidForslag,
@@ -67,7 +71,6 @@ import {
   dagSummer,
   kortStatus,
   lesTimerModus,
-  sumIDag,
   sumlinjeMotNorm,
   utledKortByggeplass,
   visVareforbrukKnapp,
@@ -264,6 +267,25 @@ export default function DagsseddelDetaljSide() {
       { enabled: !!sheet?.organizationId },
     );
 
+  // Ordre 2026-11-14 (6): «+ Reise» fører på ÉN løst reise-lønnsart (delt
+  // resolver). Lønnsartene hentes fra sedelens firma — samme som raddialogen.
+  const { data: sedelLonnsarter } = trpc.timer.lonnsart.list.useQuery(
+    { organizationId: sheet?.organizationId ?? "" },
+    { enabled: !!sheet?.organizationId },
+  );
+  const reiseKnapp = useMemo(() => {
+    if (!arbeidstidDefaults || !sedelLonnsarter) return null;
+    const res = løsReiseKnappLonnsart(
+      arbeidstidDefaults.reiseLonnsartId ?? null,
+      sedelLonnsarter,
+    );
+    if (res.status === "valgt" || res.status === "automatisk") {
+      const navn = sedelLonnsarter.find((l) => l.id === res.lonnsartId)?.navn ?? "";
+      return { status: res.status, lonnsart: { id: res.lonnsartId, navn } };
+    }
+    return { status: res.status, lonnsart: null };
+  }, [arbeidstidDefaults, sedelLonnsarter]);
+
   // B6 v3 (H22): topp-sum-normen hentes fra ÉN utledning på serveren
   // (sommertid + normKilde), pr. sedelens dato — IKKE den flate dagsnorm-
   // kolonnen. Samme svar som mobil (cachet) og attesteringsvarselet får.
@@ -313,6 +335,9 @@ export default function DagsseddelDetaljSide() {
         defaultFraTid?: string | null;
         defaultTilTid?: string | null;
         rad?: TimerRad;
+        // Ordre 2026-11-14 (6): «+ Reise» — lønnsarten er låst til den løste
+        // reise-lønnsarten, og raden lagres med reiseKilde «manuell».
+        reise?: { id: string; navn: string };
       }
     // U3: unified velger — «Legg til på dagsseddelen» (8a). Ruter til
     // tillegg-dialog (laastTilleggId) eller utlegg-dialog etter valg.
@@ -639,7 +664,11 @@ export default function DagsseddelDetaljSide() {
   // effektive start. «Fortsett der du slapp» på hele dagen — ikke bare bøtta.
   // Seneste slutt hindrer at ny rad prefylles inn i et allerede registrert
   // tidsrom (overlapp-vakt). Delt av dagskortets gruppe og prosjektkortets «+ Timer».
-  const aapneNyTimerRad = (projectId: string, ecoId: string | null) => {
+  const aapneNyTimerRad = (
+    projectId: string,
+    ecoId: string | null,
+    reise?: { id: string; navn: string },
+  ) => {
     const sisteTil = timerRader
       .map((r) => r.tilTid)
       .filter((t): t is string => !!t)
@@ -654,6 +683,7 @@ export default function DagsseddelDetaljSide() {
       defaultEcoId: ecoId,
       defaultFraTid: sisteTil ?? effektivStart,
       defaultTilTid: effektivSlutt,
+      reise,
     });
   };
 
@@ -951,6 +981,18 @@ export default function DagsseddelDetaljSide() {
             <ProsjektGruppe iKort {...gruppeProps(projectId)} />
           )}
           onNyTimer={(projectId) => aapneNyTimerRad(projectId, null)}
+          reiseLonnsart={reiseKnapp?.lonnsart ?? null}
+          // Firmaadmin (hentSetting lykkes kun for admin) ser hvorfor «+ Reise»
+          // mangler, med lenke til innstillingen. Andre ser ingenting.
+          visReiseHint={
+            !!orgSetting &&
+            (reiseKnapp?.status === "ingen" || reiseKnapp?.status === "flere")
+              ? reiseKnapp.status
+              : null
+          }
+          onNyReise={(projectId, lonnsart) =>
+            aapneNyTimerRad(projectId, null, lonnsart)
+          }
           onNyMaskin={(projectId) =>
             setAktivModal({
               type: "maskin",
@@ -1078,6 +1120,7 @@ export default function DagsseddelDetaljSide() {
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
+          laastReiseLonnsart={aktivModal.reise}
           // P4b: hele sedelens timer-rader sendes inn så dialogen kan kjøre samme
           // kryss-bøtte overlapp-vakt som mobil (delt finnOverlappendeTidsrom).
           alleTimerRader={timerRader}
@@ -1418,6 +1461,9 @@ function ProsjektkortSamleside({
   sletter,
   renderKort,
   onNyTimer,
+  reiseLonnsart,
+  visReiseHint,
+  onNyReise,
   onNyMaskin,
   onLeggTil,
   varelagerProsjekter,
@@ -1454,6 +1500,11 @@ function ProsjektkortSamleside({
   sletter: boolean;
   renderKort: (projectId: string) => JSX.Element;
   onNyTimer: (projectId: string) => void;
+  /** Løst reise-lønnsart for «+ Reise»; null = knappen skjules. */
+  reiseLonnsart: { id: string; navn: string } | null;
+  /** Firmaadmin-hint når knappen er skjult (ingen/flere kandidater). */
+  visReiseHint: "ingen" | "flere" | null;
+  onNyReise: (projectId: string, lonnsart: { id: string; navn: string }) => void;
   onNyMaskin: (projectId: string) => void;
   onLeggTil: (projectId: string) => void;
   varelagerProsjekter: readonly string[] | undefined;
@@ -1470,8 +1521,9 @@ function ProsjektkortSamleside({
       ? `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${enhet}`
       : "—";
 
-  // Total inkl. reise → «Send dagen (X t)». Sumlinja mot normen teller ikke reise.
-  const dagSum = sumIDag(timerRader);
+  // «Send dagen (7,5 t · reise 2 t)»: arbeid og reise hver for seg (ordre
+  // 2026-11-14 (6)). Sumlinja mot normen teller ikke reise.
+  const dagArbeidReise = arbeidOgReise(timerRader);
   const dag = dagSummer(timerRader, maskinRader);
   const { registrert: motNorm, sone } = sumlinjeMotNorm(timerRader, normTimer);
   const prikk =
@@ -1606,6 +1658,15 @@ function ProsjektkortSamleside({
                       >
                         {t("timer.prosjektkort.nyTimer")}
                       </button>
+                      {reiseLonnsart && (
+                        <button
+                          type="button"
+                          onClick={() => onNyReise(projectId, reiseLonnsart)}
+                          className="font-medium text-sitedoc-primary hover:underline"
+                        >
+                          {t("timer.prosjektkort.nyReise")}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => onNyMaskin(projectId)}
@@ -1634,6 +1695,19 @@ function ProsjektkortSamleside({
                         </button>
                       )}
                     </div>
+                  )}
+                  {erRedigerbar && visReiseHint && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {visReiseHint === "ingen"
+                        ? t("timer.prosjektkort.reiseSkjultIngen")
+                        : t("timer.prosjektkort.reiseSkjultFlere")}{" "}
+                      <Link
+                        href="/dashbord/firma/innstillinger#reise-regelsett"
+                        className="font-medium text-sitedoc-primary hover:underline"
+                      >
+                        {t("timer.prosjektkort.reiseVelgLonnsart")}
+                      </Link>
+                    </p>
                   )}
                 </div>
               )}
@@ -1706,9 +1780,21 @@ function ProsjektkortSamleside({
               <Button onClick={onSend} disabled={sender || timerRader.length === 0}>
                 <Send className="mr-1 h-4 w-4" />
                 {/* Returnert sedel: samme tekst som dagskortets «Send på nytt». */}
-                {erReturnert
-                  ? t("timer.detalj.sendPaaNytt")
-                  : t("timer.prosjektkort.sendDagen", { timer: formatTimer(dagSum) })}
+                {(() => {
+                  const tekst = sendDagenTekst(
+                    erReturnert ? "returned" : "draft",
+                    dagArbeidReise.arbeid,
+                    dagArbeidReise.reise,
+                  );
+                  if (tekst.nokkel === "timer.detalj.sendPaaNytt") return t(tekst.nokkel);
+                  if (tekst.nokkel === "timer.prosjektkort.sendDagen") {
+                    return t(tekst.nokkel, { timer: formatTimer(tekst.timer) });
+                  }
+                  return t(tekst.nokkel, {
+                    timer: formatTimer(tekst.timer),
+                    reise: formatTimer(tekst.reise),
+                  });
+                })()}
               </Button>
             </KnappMedForklaring>
           </div>
@@ -1901,8 +1987,8 @@ function ProsjektGruppe({
 /*  EcoGruppe — én bucket per (projectId, ECO)                          */
 /*  Arbeidstimer er hovedposten; maskintimer rendres indentert under    */
 /*  som visuell underpost (T.7 låst 2026-05-16). Server validerer       */
-/*  sum(maskin) ≤ sum(arbeid) per bucket — UI viser samme indikator     */
-/*  med grønn/rød fargekode.                                            */
+/*  sum(maskin) ≤ sum(arbeid) per bucket; UI sperrer i rad-modalen.    */
+/*  Maskinlinja «Maskin X t» er nøytral (ordre (6) RETUR 1).            */
 /* ------------------------------------------------------------------ */
 
 function EcoGruppe({
@@ -1917,7 +2003,7 @@ function EcoGruppe({
   onRedigerUtlegg,
   onSplittTillegg,
   erRedigerbar,
-  pauseMin,
+  pauseMin: _pauseMin,
   pauseVisning,
   byggeplassNavn,
   radLinje,
@@ -1949,12 +2035,12 @@ function EcoGruppe({
   onSplittMaskin: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
-  const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
+  // Ordre 2026-11-14 (6): arbeid og reise hver for seg. «Arbeidstimer (N t)»
+  // og maskin-kontrollen bruker arbeid UTEN reise (og uten erstattede rader).
+  const { arbeid: sumTimer, reise: sumReise } = arbeidOgReise(timer);
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
   // D6 (web-paritet): bruk delt overstigerMaskinTak MED pause-buffer — identisk
-  // med attestering (`attestering-buckets.tsx`) og server. Fjerner det tidligere
-  // «+ 0.001 uten buffer» som kunne vise rød for arbeider men grønn for attestør.
-  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
+  // med attestering (`attestering-buckets.tsx`) og server.
 
   return (
     <div
@@ -1987,6 +2073,11 @@ function EcoGruppe({
             <span className="font-mono font-normal text-gray-500">
               ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
             </span>
+            {sumReise > 0 && (
+              <span className="ml-2 font-mono font-normal normal-case text-gray-500">
+                {t("timer.gruppe.reise", { timer: sumReise.toFixed(2) })}
+              </span>
+            )}
           </h4>
           {erRedigerbar && (
             <Button variant="secondary" size="sm" onClick={onTilfoyTimer}>
@@ -2052,19 +2143,14 @@ function EcoGruppe({
         </div>
       )}
 
-      {/* Sum-indikator — grønn når maskin ≤ arbeid, rød ellers */}
-      {(sumTimer > 0 || sumMaskin > 0) && (
+      {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral — ingen
+          rød/grønn, ingen varseltekst. Sperren mot maskin over arbeid (uten reise)
+          står i rad-modalene. */}
+      {sumMaskin > 0 && (
         <div
-          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
-            maskinOk
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-300 bg-red-50 text-red-800"
-          }`}
+          className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
-          {t("timer.gruppe.maskinAvArbeid", {
-            maskin: sumMaskin.toFixed(2),
-            arbeid: sumTimer.toFixed(2),
-          })}
+          {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
         </div>
       )}
     </div>
@@ -2468,6 +2554,7 @@ function RaderMaskinKompakt({
 function TimerRadDialog({
   sheetId,
   organizationId,
+  laastReiseLonnsart,
   projectId,
   prosjekter,
   byggeplasser,
@@ -2527,11 +2614,15 @@ function TimerRadDialog({
   // reise-kontekst (reise er aldri overtid).
   normTimer: number | null;
   reiseKontekst: ErReiseKontekst;
+  /** Ordre 2026-11-14 (6): «+ Reise» — lønnsarten er låst, raden får
+   *  reiseKilde «manuell». Kun ved ny rad. */
+  laastReiseLonnsart?: { id: string; navn: string };
   onLukk: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
+  const reiseModus = !rad && !!laastReiseLonnsart;
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
 
   // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer»: pausepunktet for
@@ -2611,7 +2702,10 @@ function TimerRadDialog({
   // rad beholder radens lønnsart. Dekker cache-treff her; async-lasting i effekt
   // under (lonnsarter kan være uhentet ved mount).
   const [lonnsartId, setLonnsartId] = useState<string>(
-    rad?.lonnsartId ?? lonnsarter?.find((l) => l.erStandardvalg)?.id ?? "",
+    rad?.lonnsartId ??
+      laastReiseLonnsart?.id ??
+      lonnsarter?.find((l) => l.erStandardvalg)?.id ??
+      "",
   );
   useEffect(() => {
     if (!rad && !lonnsartId) {
@@ -2788,9 +2882,9 @@ function TimerRadDialog({
     }) =>
       r.projectId === valgtProjectId &&
       (r.externalCostObjectId ?? null) === (ecoId ?? null);
-    const arbeidSum = alleTimerRader
-      .filter(iBucket)
-      .reduce((acc, r) => acc + tilTall(r.timer), 0);
+    // Ordre 2026-11-14 (6): maskin måles mot arbeid UTEN reise og uten
+    // erstattede rader (delt regel).
+    const arbeidSum = arbeidUtenReise(alleTimerRader.filter(iBucket));
     const sumMaskin = alleMaskinRader
       .filter(iBucket)
       .reduce((acc, r) => acc + tilTall(r.timer), 0);
@@ -3113,6 +3207,9 @@ function TimerRadDialog({
           // V20/PK3: radens matpause (auto-bærer for ny rad, PK2).
           pauseMin: radPauseMin,
           byggeplassId: bp.byggeplassId,
+          ...(reiseModus && lagreLonnsartId === laastReiseLonnsart?.id
+            ? { reiseKilde: "manuell" as const }
+            : {}),
         },
         {
           onSuccess: () => {
@@ -3152,7 +3249,9 @@ function TimerRadDialog({
       title={
         rad
           ? t("timer.detalj.redigerTimerRad")
-          : t("timer.detalj.tilfoyTimer")
+          : reiseModus
+            ? t("timer.prosjektkort.nyReise")
+            : t("timer.detalj.tilfoyTimer")
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -3188,6 +3287,12 @@ function TimerRadDialog({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
           </label>
+          {reiseModus ? (
+            // «+ Reise»: lønnsarten er låst til den løste reise-lønnsarten.
+            <div className="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+              {laastReiseLonnsart?.navn}
+            </div>
+          ) : (
           <select
             value={lonnsartId}
             onChange={(e) => setLonnsartId(e.target.value)}
@@ -3201,6 +3306,7 @@ function TimerRadDialog({
               </option>
             ))}
           </select>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -3419,7 +3525,7 @@ function TimerRadDialog({
             Maskintimer settes lik timer-radens antall; kortere drift redigeres
             på maskin-raden etterpå. Speiler resolveren (maskinAktiv) + tom-liste-
             sjekk, samme mønster som kostnadsbærer-feltet over (:2066). */}
-        {!rad && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
+        {!rad && !reiseModus && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50">
             <button
               type="button"
@@ -4709,9 +4815,8 @@ function MaskinRadDialog({
     }) =>
       r.projectId === projectId &&
       (r.externalCostObjectId ?? null) === (ecoId ?? null);
-    const arbeidSum = alleTimerRader
-      .filter(iBucket)
-      .reduce((acc, r) => acc + tilTall(r.timer), 0);
+    // Ordre 2026-11-14 (6): arbeid uten reise og uten erstattede rader.
+    const arbeidSum = arbeidUtenReise(alleTimerRader.filter(iBucket));
     const sumMaskinEksisterende = alleMaskinRader
       .filter((r) => iBucket(r) && r.id !== rad?.id)
       .reduce((acc, r) => acc + tilTall(r.timer), 0);

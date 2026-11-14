@@ -409,6 +409,7 @@ export function ProsjektkortDagsoversikt({
           sedel: sedelKontekst,
           timerRader,
           maskinRader,
+          reiseLonnsartId,
         },
         radInnhold({ rad: flytt.rad, maskinRader, varer }),
         flytt.fra,
@@ -439,8 +440,11 @@ export function ProsjektkortDagsoversikt({
       return;
     } else if (flytt.radType === "maskin") {
       // Samme bøtte-regel (prosjekt, underprosjekt) som ved ny rad og på server.
+      // Ordre (6): maskin måles mot arbeid UTEN reise.
       const brudd = beregnMaskinBrudd(
-        timerRader.map((r) => ({
+        timerRader
+          .filter((r) => !erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId))
+          .map((r) => ({
           projectId: r.projectId ?? sedel.projectId,
           externalCostObjectId: r.externalCostObjectId ?? null,
           timer: r.timer,
@@ -655,7 +659,7 @@ export function ProsjektkortDagsoversikt({
     );
   }
 
-  const sendTekst = sendKnappTekst(sedel.status, sum.arbeid);
+  const sendTekst = sendKnappTekst(sedel.status, sum.arbeid, sum.reise);
 
   return (
     <ProsjektkortKontekst.Provider value={true}>
@@ -757,10 +761,8 @@ export function ProsjektkortDagsoversikt({
             {maskinOverTak.map((b) => (
               <Text key={kortNokkel(b.valg)} className="text-sm text-amber-700">
                 {prosjektNavn(b.valg.projectId)} ·{" "}
-                {t("timer.gruppe.maskinAvArbeid", {
-                  maskin: formatKortTall(b.linjer.summer.maskin),
-                  arbeid: formatKortTall(b.linjer.summer.arbeid),
-                })}
+                {t("timer.gruppe.maskin", { maskin: formatKortTall(b.linjer.summer.maskin) })} ·{" "}
+                {t("timer.rediger.maskinOverstiger")}
               </Text>
             ))}
             <Pressable
@@ -810,9 +812,14 @@ export function ProsjektkortDagsoversikt({
                 className="mt-2 min-h-[44px] items-center justify-center rounded-lg bg-gray-900 active:bg-gray-700"
               >
                 <Text className="text-base font-semibold text-white">
-                  {sendTekst.nokkel === "timer.prosjektkort.sendDagen"
-                    ? t(sendTekst.nokkel, { timer: formatKortTall(sendTekst.timer) })
-                    : t(sendTekst.nokkel)}
+                  {sendTekst.nokkel === "timer.detalj.sendPaaNytt"
+                    ? t(sendTekst.nokkel)
+                    : sendTekst.nokkel === "timer.prosjektkort.sendDagenMedReise"
+                      ? t(sendTekst.nokkel, {
+                          timer: formatKortTall(sendTekst.timer),
+                          reise: formatKortTall(sendTekst.reise),
+                        })
+                      : t(sendTekst.nokkel, { timer: formatKortTall(sendTekst.timer) })}
                 </Text>
               </Pressable>
             )}

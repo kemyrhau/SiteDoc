@@ -53,6 +53,19 @@ describe("sedelKreverVurdering (B ∪ C)", () => {
     expect(sedelHarMaskinOver(sedel({ maskiner: [{ timer: 8.4 }] }))).toBe(false);
   });
 
+  it("ordre 2026-11-14 (6): reise teller ikke som arbeid i maskin-kontrollen", () => {
+    // 7,5 t arbeid + 2 t reise; 9 t maskin > 7,5 + 0,5 pause → over.
+    const s = sedel({
+      totaltimer: 9.5,
+      maskiner: [{ timer: 9 }],
+      timer: [
+        { timer: 7.5, erReise: false },
+        { timer: 2, erReise: true },
+      ],
+    });
+    expect(sedelHarMaskinOver(s)).toBe(true);
+  });
+
   it("string-timer på maskinrad tolkes (tilTall)", () => {
     expect(sedelHarMaskinOver(sedel({ maskiner: [{ timer: "10" }] }))).toBe(true);
   });

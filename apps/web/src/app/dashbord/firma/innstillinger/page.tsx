@@ -10,6 +10,7 @@ import { Save, HelpCircle, X, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
+import { løsReiseKnappLonnsart, reiseLonnsartKandidater } from "@sitedoc/shared";
 
 export default function FirmaInnstillinger() {
   const { t } = useTranslation();
@@ -1381,6 +1382,30 @@ function ReiseSeksjon() {
   const visTvetydigReiseArt =
     timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff >= 2;
 
+  // Ordre (6): status for «+ Reise» fra SAMME resolver som knappen (live mot
+  // nedtrekkets verdi). Nedtrekket grupperes: «Foreslått» = navne-treff,
+  // deretter «Andre lønnsarter».
+  const reiseForeslatt = reiseLonnsartKandidater(reiseArtKandidater);
+  const reiseForeslattIder = new Set(reiseForeslatt.map((l) => l.id));
+  const reiseAndre = reiseArtKandidater.filter((l) => !reiseForeslattIder.has(l.id));
+  const reiseAutoArt = reiseForeslatt.length === 1 ? reiseForeslatt[0]! : null;
+  const reiseKnapp = løsReiseKnappLonnsart(lonnsartId || null, reiseArtKandidater);
+  const reiseKnappNavn =
+    reiseKnapp.status === "valgt" || reiseKnapp.status === "automatisk"
+      ? (reiseArtKandidater.find((l) => l.id === reiseKnapp.lonnsartId)?.navn ?? "")
+      : "";
+  const reiseStatusTekst =
+    harBånd && reiseKnappNavn
+      ? t("firma.innstillinger.reise.statusBaand", { navn: reiseKnappNavn })
+      : reiseKnapp.status === "valgt"
+        ? t("firma.innstillinger.reise.statusValgt", { navn: reiseKnappNavn })
+        : reiseKnapp.status === "automatisk"
+          ? t("firma.innstillinger.reise.statusAutomatisk", { navn: reiseKnappNavn })
+          : reiseKnapp.status === "flere"
+            ? t("firma.innstillinger.reise.statusFlere")
+            : t("firma.innstillinger.reise.statusIngen");
+  const reiseStatusOk = reiseKnapp.status === "valgt" || reiseKnapp.status === "automatisk";
+
   // C5 (V14): datagrunnlag-tomhet synlig på matrise-flaten. H21 gikk uoppdaget i
   // fire måneder fordi disse tallene aldri ble vist. To uavhengige mangler:
   //  (1) byggeplasser i aktive prosjekter uten eget punkt → ingen reise beregnes
@@ -1574,13 +1599,36 @@ function ReiseSeksjon() {
           }}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
         >
-          <option value="">{t("firma.innstillinger.reise.lonnsartAuto")}</option>
-          {reiseArtKandidater.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.navn}
-            </option>
-          ))}
+          <option value="">
+            {reiseAutoArt
+              ? t("firma.innstillinger.reise.lonnsartAutoMed", { navn: reiseAutoArt.navn })
+              : t("firma.innstillinger.reise.lonnsartAuto")}
+          </option>
+          {reiseForeslatt.length > 0 && (
+            <optgroup label={t("firma.innstillinger.reise.gruppeForeslatt")}>
+              {reiseForeslatt.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.navn}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {reiseAndre.length > 0 && (
+            <optgroup label={t("firma.innstillinger.reise.gruppeAndre")}>
+              {reiseAndre.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.navn}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
+        <p
+          className={`mt-1 text-xs font-medium ${reiseStatusOk ? "text-gray-700" : "text-amber-700"}`}
+          data-testid="reise-status"
+        >
+          {reiseStatusTekst}
+        </p>
         <p className="mt-1 text-xs text-gray-500">
           {t("firma.innstillinger.reise.lonnsartHjelp")}
         </p>

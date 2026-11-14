@@ -60,7 +60,7 @@ export function SummeringsBanner({
       </Text>
       {maskinTimer !== undefined && maskinTimer > 0 && (
         <Text className={`mt-0.5 text-xs ${tekstFarge}`}>
-          {t("timer.summering.heravMaskin", {
+          {t("timer.gruppe.maskin", {
             maskin: maskinTimer.toFixed(2),
           })}
         </Text>

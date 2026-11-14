@@ -2,6 +2,10 @@ import { useMemo, useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { hentDatabase } from "../../../db/database";
+import { hentReiseKnappLokalt } from "../../../services/timerKatalog";
+import { trpc } from "../../../lib/trpc";
+import { hentWebUrl } from "../../../config/auth";
+import { apnLenke } from "../../../lib/apnLenke";
 import { erReiseRadVisning } from "../../../utils/reiseRad";
 import { formatKortTall } from "../../../lib/prosjektkortMobil";
 import { TimerRadModal } from "../TimerSeksjon";
@@ -42,6 +46,29 @@ export function DagSeksjon({
   const k: RadKontekst = { sheetId, organizationId: sedel.organizationId };
   const [reiseModal, setReiseModal] = useState<{ rad: TimerRad | null } | null>(null);
   const [splitt, setSplitt] = useState<TimerRad | null>(null);
+
+  // Ordre (6): «+ Reise» følger den delte resolveren — skjult ved 0 eller ≥2
+  // kandidater uten eksplisitt valg. Ny rad får lønnsarten låst.
+  const reiseKnapp = useMemo(
+    () => hentReiseKnappLokalt(sedel.organizationId),
+    [sedel.organizationId],
+  );
+  const reiseKnappLonnsartId =
+    reiseKnapp.status === "valgt" || reiseKnapp.status === "automatisk"
+      ? reiseKnapp.lonnsartId
+      : null;
+  // Firmaadmin-signal: hentSetting krever firma-admin (feiler for andre og
+  // offline → ingen tekst). Spørres kun når knappen er skjult.
+  const adminSetting = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: sedel.organizationId },
+    { enabled: redigerbar && reiseKnappLonnsartId == null, retry: false },
+  );
+  const visReiseHint =
+    redigerbar && reiseKnappLonnsartId == null && !!adminSetting.data
+      ? reiseKnapp.status === "flere"
+        ? "flere"
+        : "ingen"
+      : null;
 
   const erReise = (r: TimerRad) => erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId);
   const reiseRader = timerRader.filter(erReise);
@@ -92,13 +119,32 @@ export function DagSeksjon({
             </Text>
           </Pressable>
         ))}
-        {redigerbar && (
+        {redigerbar && reiseKnappLonnsartId != null && (
           <Pressable
             onPress={() => setReiseModal({ rad: null })}
             className="min-h-[44px] justify-center px-4 active:bg-gray-50"
           >
             <Text className="text-sm font-medium text-gray-700">
               + {t("timer.prosjektkort.kolonne.reise")}
+            </Text>
+          </Pressable>
+        )}
+        {visReiseHint && (
+          <Pressable
+            onPress={() =>
+              void apnLenke(`${hentWebUrl()}/dashbord/firma/innstillinger#reise-regelsett`)
+            }
+            className="min-h-[44px] justify-center px-4 active:bg-gray-50"
+          >
+            <Text className="text-xs text-gray-500">
+              {t(
+                visReiseHint === "flere"
+                  ? "timer.prosjektkort.reiseSkjultFlere"
+                  : "timer.prosjektkort.reiseSkjultIngen",
+              )}{" "}
+              <Text className="text-sitedoc-primary">
+                {t("timer.prosjektkort.reiseVelgLonnsart")}
+              </Text>
             </Text>
           </Pressable>
         )}
@@ -119,7 +165,11 @@ export function DagSeksjon({
           eksisterendeRad={reiseModal.rad}
           tvungetValg={null}
           sedelByggeplassId={sedel.byggeplassId ?? null}
-          reise={{ lonnsartId: reiseLonnsartId }}
+          reise={
+            reiseModal.rad
+              ? { lonnsartId: reiseLonnsartId }
+              : { lonnsartId: reiseKnappLonnsartId, laast: true }
+          }
           handlinger={
             reiseModal.rad
               ? {

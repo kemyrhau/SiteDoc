@@ -3,9 +3,11 @@ import {
   utledOrdning,
   erGyldigOrdning,
   løsReiseLonnsartId,
+  løsReiseKnappLonnsart,
   erReiseLonnsart,
   REISE_LONNSART_REGEX,
   type UtleggOrdning,
+  type ReiseKnappResultat,
 } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
@@ -297,6 +299,24 @@ export function hentReiseLonnsartId(
     avstandM,
     hentReiseGrensepunkterLokalt(organizationId),
     fallback,
+  );
+}
+
+/**
+ * Ordre (6): hvilken lønnsart «+ Reise» fører på — SAMME delte resolver som
+ * web (`løsReiseKnappLonnsart`). Lokal cache holder kun aktive arter, så et
+ * deaktivert eksplisitt valg gir `ingen` (knappen skjules), som på web.
+ */
+export function hentReiseKnappLokalt(organizationId: string): ReiseKnappResultat {
+  const regel = hentOrganizationSettingLokalt(organizationId);
+  return løsReiseKnappLonnsart(
+    regel?.reiseLonnsartId ?? null,
+    hentLonnsarterLokalt(organizationId).map((l) => ({
+      id: l.id,
+      navn: l.navn,
+      type: l.type,
+      aktiv: l.aktiv,
+    })),
   );
 }
 

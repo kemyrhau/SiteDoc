@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus } from "lucide-react";
+import { arbeidOgReise } from "@sitedoc/shared";
 import { RedigerTimerRad } from "./RedigerTimerRad";
 import { RedigerTilleggRad } from "./RedigerTilleggRad";
 import { RedigerMaskinRad } from "./RedigerMaskinRad";
@@ -40,6 +41,8 @@ type TimerRad = {
   attestertStatus: string | null;
   // T7-2c3: parentRadId trengs for å skjule Splitt-knapp på split-resultatet selv
   parentRadId?: string | null;
+  // Ordre 2026-11-14 (6): reise skilles fra arbeid i bøttesummen.
+  erReise?: boolean | null;
 };
 type TilleggRad = {
   id: string;
@@ -780,9 +783,21 @@ function EcoBucketEdit({
   aapneSplitt: (aktiv: SplittAktivLokal) => void;
 }) {
   const { t } = useTranslation();
-  const sumTimer = timer.reduce((acc, r) => acc + r.timer, 0);
+  // Ordre 2026-11-14 (6): arbeid og reise hver for seg. Redigerte rader bærer
+  // ikke erReise; en rad regnes som reise når lønnsarten er en reise-lønnsart
+  // på sedelens originale rader (serveren utleder på nytt ved lagring).
+  const reiseLonnsartIder = new Set(
+    pendingTimer.filter((r) => r.erReise === true).map((r) => r.lonnsartId),
+  );
+  const { arbeid: sumTimer, reise: sumReise } = arbeidOgReise(
+    timer.map((r) => ({
+      timer: r.timer,
+      erReise: reiseLonnsartIder.has(r.lonnsartId),
+    })),
+  );
   const sumMaskin = maskin.reduce((acc, r) => acc + r.timer, 0);
-  const maskinOk = sumMaskin <= sumTimer + 0.001;
+  // Kontrollen består (speil av server-validering), men måles mot arbeid uten
+  // reise. Sedel-pausen er ikke kjent her → 0 (strengere, som før).
 
   return (
     <div
@@ -815,6 +830,11 @@ function EcoBucketEdit({
             <span className="font-mono font-normal text-gray-500">
               ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
             </span>
+            {sumReise > 0 && (
+              <span className="ml-2 font-mono font-normal normal-case text-gray-500">
+                {t("timer.gruppe.reise", { timer: sumReise.toFixed(2) })}
+              </span>
+            )}
           </h5>
           <button
             type="button"
@@ -909,19 +929,14 @@ function EcoBucketEdit({
         )}
       </div>
 
-      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers (speil av server-validering) */}
-      {(sumTimer > 0 || sumMaskin > 0) && (
+      {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral — ingen
+          rød/grønn, ingen varseltekst. Sperren mot maskin over arbeid (uten reise)
+          står i rad-modalene. */}
+      {sumMaskin > 0 && (
         <div
-          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
-            maskinOk
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-300 bg-red-50 text-red-800"
-          }`}
+          className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
-          {t("timer.gruppe.maskinAvArbeid", {
-            maskin: sumMaskin.toFixed(2),
-            arbeid: sumTimer.toFixed(2),
-          })}
+          {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
         </div>
       )}
     </div>

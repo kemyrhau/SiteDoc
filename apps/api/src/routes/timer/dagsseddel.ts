@@ -365,6 +365,9 @@ function byggTimerRadData(
   // skrivestiene sender ikke flagget, så kalleren utleder det (samme regel som
   // backfill/synk) og gir det hit. Ingen reise-rad fødes stille `false`.
   erReise: boolean,
+  // Ordre (6): «+ Reise» merker raden manuell. Kun satt når erReise = true
+  // (kalleren avviser ellers) — speiler validerReiseInvarianter.
+  reiseKilde: "manuell" | null = null,
 ): Prisma.SheetTimerUncheckedCreateInput {
   return {
     sheetId,
@@ -380,8 +383,9 @@ function byggTimerRadData(
     externalCostObjectId: r.externalCostObjectId ?? null,
     vehicleId: r.vehicleId ?? null,
     // Interaktive web-rader bærer ikke reise-spor (kilde/retning/tall) — kun
-    // flagget utledes. reiseKilde forblir null (web klassifiserte ikke etappen).
+    // flagget utledes. reiseKilde er null, unntatt «+ Reise» (manuell).
     erReise,
+    reiseKilde: erReise ? reiseKilde : null,
   };
 }
 
@@ -2209,6 +2213,10 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
+        // Ordre 2026-11-14 (6): «+ Reise» sender kilden "manuell". Flagget
+        // erReise utledes fortsatt fra lønnsarten; kilden avvises hvis
+        // lønnsarten ikke er en reise-art (ingen falsk reise-rad).
+        reiseKilde: z.literal("manuell").optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2305,6 +2313,12 @@ export const dagsseddelRouter = router({
       // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
       const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
       const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
+      if (input.reiseKilde && !erReise) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Lønnsarten er ikke en reise-lønnsart",
+        });
+      }
 
       // V20/PK4a — vurder timetallet mot radens pause og pausevinduet. Vinduet
       // (PK5) regnes fra alle rader på dagen (ankomst = tidligste fraTid, inkl.
@@ -2349,6 +2363,7 @@ export const dagsseddelRouter = router({
             input.sheetId,
             { ...input, pauseMin: vurdering.pauseMin },
             erReise,
+            input.reiseKilde ?? null,
           ),
         });
         await synkroniserHodePause(tx, input.sheetId);

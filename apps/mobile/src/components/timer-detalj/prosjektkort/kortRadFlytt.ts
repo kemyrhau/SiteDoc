@@ -375,6 +375,8 @@ export type KortDag = {
   sedel: SedelKortKontekst;
   timerRader: readonly TimerRad[];
   maskinRader: readonly MaskinRad[];
+  /** Ordre (6): reise teller ikke som arbeid i maskin-kontrollen (visnings-fallback for rader uten flagg). */
+  reiseLonnsartId: string | null;
 };
 
 function erRedigerbar(status: string): boolean {
@@ -399,12 +401,17 @@ function girNyttBrudd(dag: KortDag, innhold: KortInnhold, til: KortValg | null):
   });
   const etterpaa = (r: R) =>
     flyttes.has(r.id) && til ? { projectId: til.projectId, externalCostObjectId: til.ecoId, timer: r.timer ?? 0 } : naa(r);
+  // Ordre (6): maskin måles mot arbeid UTEN reise (mobil-SQLite har ingen
+  // erstattede rader — attestering skjer på server).
+  const arbeidRader = dag.timerRader.filter(
+    (r) => !erReiseRadVisning(r.erReise, r.lonnsartId, dag.reiseLonnsartId),
+  );
   const for_ = new Set(
-    beregnMaskinBrudd(dag.timerRader.map(naa), dag.maskinRader.map(naa), dag.pauseMin).map(bucket),
+    beregnMaskinBrudd(arbeidRader.map(naa), dag.maskinRader.map(naa), dag.pauseMin).map(bucket),
   );
   const behold = (r: { id: string }) => til !== null || !flyttes.has(r.id);
   const etter = beregnMaskinBrudd(
-    dag.timerRader.filter(behold).map(etterpaa),
+    arbeidRader.filter(behold).map(etterpaa),
     dag.maskinRader.filter(behold).map(etterpaa),
     dag.pauseMin,
   );

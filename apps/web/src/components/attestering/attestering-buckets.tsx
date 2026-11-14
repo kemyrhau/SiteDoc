@@ -7,7 +7,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@sitedoc/ui";
-import { timerStatusEtikett } from "@sitedoc/shared";
+import {
+  arbeidOgReise,
+  timerStatusEtikett,
+} from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Check, RotateCcw, X } from "lucide-react";
@@ -660,7 +663,7 @@ export function EcoBucketAttest({
   onToggleTimer,
   onToggleMaskin,
   kanFlytte,
-  pauseMin = 0,
+  pauseMin: _pauseMin = 0,
 }: {
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -676,11 +679,11 @@ export function EcoBucketAttest({
   pauseMin?: number;
 }) {
   const { t } = useTranslation();
-  const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
+  // Ordre 2026-11-14 (6): arbeid og reise hver for seg (uten erstattede rader).
+  const { arbeid: sumTimer, reise: sumReise } = arbeidOgReise(timer);
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
-  // Pause-modell (2026-05-18): maskin kan gå mens operatør pauser.
-  const pauseTimer = pauseMin / 60;
-  const maskinOk = sumMaskin <= sumTimer + pauseTimer + 0.001;
+  // Pause-modell (2026-05-18): maskin kan gå mens operatør pauser. Kontrollen
+  // måles mot arbeid uten reise (delt regel).
 
   return (
     <div
@@ -712,6 +715,11 @@ export function EcoBucketAttest({
           <span className="font-mono font-normal text-gray-500">
             ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
           </span>
+          {sumReise > 0 && (
+            <span className="ml-2 font-mono font-normal normal-case text-gray-500">
+              {t("timer.gruppe.reise", { timer: sumReise.toFixed(2) })}
+            </span>
+          )}
         </h4>
         {timer.length === 0 ? (
           <p className="text-xs italic text-gray-500">
@@ -750,19 +758,14 @@ export function EcoBucketAttest({
         )}
       </div>
 
-      {/* Sum-indikator: speiler T7-4b server-validering */}
-      {(sumTimer > 0 || sumMaskin > 0) && (
+      {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral — ingen
+          rød/grønn, ingen varseltekst. Sperren mot maskin over arbeid (uten reise)
+          står i rad-modalene. */}
+      {sumMaskin > 0 && (
         <div
-          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
-            maskinOk
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-300 bg-red-50 text-red-800"
-          }`}
+          className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
-          {t("timer.gruppe.maskinAvArbeid", {
-            maskin: sumMaskin.toFixed(2),
-            arbeid: sumTimer.toFixed(2),
-          })}
+          {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
         </div>
       )}
     </div>

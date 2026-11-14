@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   beregnKortSummer,
   dagSummer,
+  arbeidOgReise,
   kortStatus,
   sumIDag,
   utledKortByggeplass,
@@ -68,7 +69,9 @@ export function ProsjektkortSamleside({
   const dagSum = sumIDag(timer);
   const dag = dagSummer(timer, maskin);
   const pauseKort = pauseBaererProsjekt(timer);
-  const send = sendKnappTekst(sedelStatus, dagSum);
+  // Ordre (6): Send-knappen viser arbeid uten reise, og reise separat.
+  const sendArbeidReise = arbeidOgReise(timer);
+  const send = sendKnappTekst(sedelStatus, sendArbeidReise.arbeid, sendArbeidReise.reise);
 
   return (
     <View className="mx-4 mt-4 gap-3">
@@ -179,7 +182,12 @@ export function ProsjektkortSamleside({
             <Text className="text-base font-semibold text-white">
               {send.nokkel === "timer.detalj.sendPaaNytt"
                 ? t(send.nokkel)
-                : t(send.nokkel, { timer: formatKortTall(send.timer) })}
+                : send.nokkel === "timer.prosjektkort.sendDagenMedReise"
+                  ? t(send.nokkel, {
+                      timer: formatKortTall(send.timer),
+                      reise: formatKortTall(send.reise),
+                    })
+                  : t(send.nokkel, { timer: formatKortTall(send.timer) })}
             </Text>
           </Pressable>
           <Text className="text-center text-xs text-gray-500">

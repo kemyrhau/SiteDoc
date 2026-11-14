@@ -118,7 +118,9 @@ export function vaktGrunnlag(
 ): VaktGrunnlag | null {
   const d = forslag.datoer.find((x) => (dato ? x.dato === dato : x.erStartSegment));
   if (!d || d.blokkert || forslag.prosjektId == null) return null;
-  const nyeTimer = d.rader.map((r) => ({
+  // Ordre (6): maskin måles mot arbeid UTEN reise — reise-rader er ikke grunnlag.
+  // Strengere enn serveren (som fortsatt teller reise), aldri løsere.
+  const nyeTimer = d.rader.filter((r) => !r.erReise).map((r) => ({
     projectId: r.projectId,
     externalCostObjectId: null,
     timer: r.timer,
@@ -147,6 +149,7 @@ export function vaktGrunnlag(
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
     .all()
+    .filter((r) => r.erReise !== true)
     .map(tilRad);
   const eksMaskin = db
     .select()

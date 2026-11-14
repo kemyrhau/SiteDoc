@@ -172,7 +172,7 @@ function lagMaskin(id: string, projectId: string, byggeplassId: string | null, t
   db().insert(sheetMachineLocal).values({ id, dagsseddelId: "s1", projectId, byggeplassId, vehicleId: "v9", timer, sistEndretLokalt: 1 }).run();
 }
 function dagFor(sedel = SEDEL, status = "draft"): KortDag {
-  return { sheetId: "s1", organizationId: "o1", status, pauseMin: 0, sedel, timerRader: timerAlle(), maskinRader: maskinAlle() };
+  return { sheetId: "s1", organizationId: "o1", status, pauseMin: 0, sedel, timerRader: timerAlle(), maskinRader: maskinAlle(), reiseLonnsartId: "l-reise" };
 }
 const innholdFor = (kort: KortValg, sedel = SEDEL) =>
   kortInnhold({ timerRader: timerAlle(), maskinRader: maskinAlle(), varer: varerDb(), sedel, kort, reiseLonnsartId: "l-reise" });
@@ -350,6 +350,14 @@ describe("slettKort", () => {
     db().delete(sheetMachineLocal).run();
     lagMaskin("m-p2", "p2", null, 5);
     expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toEqual({ utfall: "ok" });
+  });
+
+  it("ordre (6): reise i bøtta dekker ikke maskin — maskin måles mot arbeid uten reise", async () => {
+    const a = leggTilTimerRad(db(), K, felt, []);
+    leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp2", lonnsartId: "l-reise", timer: 7 }, []);
+    lagMaskin("m-c", "p1", "bp2", 6); // 6 t maskin ≤ 7 t reise, men reise er ikke arbeid
+    expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toEqual({ utfall: "brudd" });
+    expect(timerRad(a)).toBeDefined();
   });
 });
 

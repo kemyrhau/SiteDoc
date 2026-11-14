@@ -18,7 +18,11 @@ import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
-import { overstigerMaskinTak, finnTidsromKonflikt } from "@sitedoc/shared";
+import {
+  arbeidUtenReise,
+  overstigerMaskinTak,
+  finnTidsromKonflikt,
+} from "@sitedoc/shared";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 
 function tilTall(v: unknown): number {
@@ -165,6 +169,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         fraTid: string | null;
         tilTid: string | null;
         timer: unknown;
+        erReise?: boolean;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.timer],
   );
@@ -624,9 +629,19 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 ) : (
                   <div className="space-y-1">
                     {(() => {
-                      const sumArbeid = editTimer.reduce(
-                        (a, r) => a + r.timer,
-                        0,
+                      // Ordre 2026-11-14 (6): maskin måles mot arbeid UTEN
+                      // reise. Redigerte rader bærer ikke erReise; lønnsarter
+                      // som er reise på sedelens originale rader teller som reise.
+                      const reiseLonnsartIder = new Set(
+                        pendingTimer
+                          .filter((r) => r.erReise === true)
+                          .map((r) => r.lonnsartId),
+                      );
+                      const sumArbeid = arbeidUtenReise(
+                        editTimer.map((r) => ({
+                          timer: r.timer,
+                          erReise: reiseLonnsartIder.has(r.lonnsartId),
+                        })),
                       );
                       const pauseMin = pauseMinutter(editPauseFra, editPauseTil);
                       return editMaskin.map((rad) => (
