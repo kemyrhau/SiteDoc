@@ -66,6 +66,8 @@ describe("Avstander-fanen — kjøretid (B)", () => {
     expect(html).toContain(">1 t 35 min<");
     expect(html).toContain(">45 min<");
     expect(html).toContain(">2 t<");
+    // RETUR (11) nr. 2: «1 t 35 min» skal ikke brytes over to linjer.
+    expect(html).toMatch(/class="[^"]*whitespace-nowrap[^"]*">1 t 35 min</);
   });
 
   it("negativkontroll: rå minutter over én time vises aldri", () => {

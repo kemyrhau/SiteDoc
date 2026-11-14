@@ -146,7 +146,8 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 
 Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banner:
 
-- **«+ Reise» under terskel** (web-dialogen og mobilens timer-modal): rød linje «Firmaet mangler standard lønnsart — be firmaadmin sette den» (`timer.reiseTerskel.manglerArt`); lagre er sperret. Firmaadmin på web ser i tillegg lenken «Sett standard lønnsart» (`timer.reiseTerskel.settStandardArt`) til Lønnsarter.
+- **«+ Reise» under terskel** (web-dialogen og mobilens timer-modal): rød linje «Firmaet mangler standard lønnsart — be firmaadmin sette den» (`timer.reiseTerskel.manglerArt`); lagre er sperret. Firmaadmin på web ser i stedet «Firmaet mangler standard lønnsart» (`timer.reiseTerskel.manglerStandardArt`) med lenken «Sett standard lønnsart» (`timer.reiseTerskel.settStandardArt`) til Lønnsarter.
+- **«+ Reise» på web før regelsettet er hentet:** Lagre er sperret med forklaring «Henter firmaets reiseregler …» (`sperret.reiseRegelLaster`), eller «Fikk ikke hentet firmaets reiseregler — lukk og prøv igjen» (`sperret.reiseRegelFeilet`) ved feil.
 - **Firmainnstillinger → Reise:** gul linje (`firma.innstillinger.reise.manglerStandardArt`) med lenke (`firma.innstillinger.reise.settStandardArt`) når terskelen er i bruk og ingen lønnsart er merket som standard.
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))

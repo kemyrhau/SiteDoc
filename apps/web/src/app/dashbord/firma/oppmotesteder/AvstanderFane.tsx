@@ -169,10 +169,10 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
                   </td>
                 ) : (
                   <>
-                    <td className="px-3 py-2.5 text-right font-medium tabular-nums text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-gray-900">
                       {hoved ?? "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-gray-400">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right tabular-nums text-gray-400">
                       {sekundaer ?? "—"}
                     </td>
                   </>

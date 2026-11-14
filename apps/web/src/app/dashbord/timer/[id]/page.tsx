@@ -3083,6 +3083,12 @@ function TimerRadDialog({
     if (manuellLonnsartId != null) setLonnsartId(manuellLonnsartId);
   }, [manuellLonnsartId]);
   const manuellManglerArt = manuellReiseManglerArt(manuellKlassifisering);
+  // RETUR (11) vilkår 1 (lønn): «+ Reise» kan ikke lagres før regelsett,
+  // oppmøtesteder, avstander og lønnsarter er lastet — og aldri når et av dem
+  // har feilet. Ellers ville lagringen stille falle tilbake til «som før».
+  const reiseSperre: "klar" | "laster" | "feilet" = reiseModus
+    ? manuellReise.regelStatus
+    : "klar";
 
   const formaterT = (n: number) =>
     n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
@@ -3103,6 +3109,7 @@ function TimerRadDialog({
   async function brukOvertidForslag(
     f: OvertidForslag<{ id: string }>,
   ): Promise<void> {
+    if (reiseSperre !== "klar") return;
     const tNum = validerSkjema();
     if (tNum == null) return;
     if (!f.normal) {
@@ -3231,6 +3238,8 @@ function TimerRadDialog({
   // Vanlig lagring av raden (uendret sti); V21 sender inn overtid-lønnsarten
   // når hele raden ligger over dagsnormen.
   function lagreRad(tNum: number, lagreLonnsartId: string) {
+    // Forsvar i dybden: Enter/submit forbi sperret knapp lagrer heller ikke.
+    if (reiseSperre !== "klar") return;
     if (rad) {
       oppdater.mutate({
         id: rad.id,
@@ -3366,7 +3375,10 @@ function TimerRadDialog({
               {manuellKlassifisering &&
                 (manuellManglerArt ? (
                   <p className="mt-1 text-xs font-medium text-red-700">
-                    {t("timer.reiseTerskel.manglerArt")}
+                    {/* Firmaadmin skal ikke bes om å spørre firmaadmin. */}
+                    {erFirmaAdmin
+                      ? t("timer.reiseTerskel.manglerStandardArt")
+                      : t("timer.reiseTerskel.manglerArt")}
                     {erFirmaAdmin && (
                       <>
                         {" "}
@@ -3544,7 +3556,7 @@ function TimerRadDialog({
             <button
               type="button"
               onClick={() => void brukOvertidForslag(overtidForslag)}
-              disabled={lagrer}
+              disabled={lagrer || reiseSperre !== "klar"}
               className="shrink-0 rounded border border-amber-300 bg-white px-3 py-1 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
             >
               {overtidForslag.normal
@@ -3729,14 +3741,27 @@ function TimerRadDialog({
           </Button>
           <KnappMedForklaring
             sperret={
-              (!lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid) && !lagrer
+              (reiseSperre !== "klar" ||
+                !lonnsartId ||
+                !aktivitetId ||
+                !timer ||
+                !fraTid ||
+                !tilTid) &&
+              !lagrer
             }
-            forklaring={t("sperret.timerRad")}
+            forklaring={
+              reiseSperre === "feilet"
+                ? t("sperret.reiseRegelFeilet")
+                : reiseSperre === "laster"
+                  ? t("sperret.reiseRegelLaster")
+                  : t("sperret.timerRad")
+            }
           >
             <Button
               type="submit"
               disabled={
                 lagrer ||
+                reiseSperre !== "klar" ||
                 !lonnsartId ||
                 !aktivitetId ||
                 !timer ||

@@ -16,6 +16,10 @@ import { løsManuellReise, type ReiseRegelsett } from "@sitedoc/shared";
 const h = vi.hoisted(() => ({
   data: {} as Record<string, unknown>,
   kall: [] as Array<{ key: string; input: Record<string, unknown> }>,
+  /** Oppslag som (ennå) ikke har svart: data undefined, ingen feil. */
+  utelat: new Set<string>(),
+  /** Oppslag som har feilet: data undefined, isError true. */
+  feil: new Set<string>(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -54,7 +58,11 @@ vi.mock("@/lib/trpc", () => {
         const key = sti.join(".");
         if (navn === "useQuery") {
           return (_i: unknown, opt?: { enabled?: boolean }) => ({
-            data: opt?.enabled === false ? undefined : h.data[key],
+            data:
+              opt?.enabled === false || h.utelat.has(key) || h.feil.has(key)
+                ? undefined
+                : h.data[key],
+            isError: h.feil.has(key),
             isLoading: false,
             refetch: () => {},
           });
@@ -96,6 +104,8 @@ function rendre({
   admin = false,
 } = {}) {
   h.kall = [];
+  h.utelat.clear();
+  h.feil.clear();
   h.data = {
     "timer.dagsseddel.hentMedId": {
       id: "s1",
@@ -249,10 +259,11 @@ describe("web «+ Reise» — mangler standard lønnsart (C)", () => {
     expect(knapp.disabled).toBe(true);
   });
 
-  it("firma-admin: samme tekst + lenke rett til lønnsartene", () => {
+  it("firma-admin: «mangler standard lønnsart» + lenke — ikke «be firmaadmin»", () => {
     const dialog = rendre({ lonnsarter: utenStandard, admin: true });
     fyllTid(dialog, "11:00", "11:15");
-    expect(dialog.textContent).toContain("timer.reiseTerskel.manglerArt");
+    expect(dialog.textContent).toContain("timer.reiseTerskel.manglerStandardArt");
+    expect(dialog.textContent).not.toContain("timer.reiseTerskel.manglerArt");
     const lenke = within(dialog).getByRole("link", { name: "timer.reiseTerskel.settStandardArt" });
     expect(lenke.getAttribute("href")).toBe("/dashbord/firma/timer/lonnsarter");
   });
@@ -261,5 +272,37 @@ describe("web «+ Reise» — mangler standard lønnsart (C)", () => {
     const dialog = rendre({ admin: true });
     fyllTid(dialog, "11:00", "11:15");
     expect(dialog.textContent).not.toContain("timer.reiseTerskel.manglerArt");
+    expect(dialog.textContent).not.toContain("timer.reiseTerskel.manglerStandardArt");
+  });
+});
+
+/* RETUR 2026-11-14 (11) vilkår 1 (lønn): uten lastet regelsett er klassifiseringen
+ * ukjent, og «som før» ville stille ført en under-terskel-rad som reise. Lagre
+ * skal være sperret med forklaring, og ingen mutate skal gå — også ved submit
+ * forbi knappen. Oppslaget tas bort ETTER at dialogen er åpnet, slik at sida
+ * selv (som også leser defaults) er uberørt. */
+describe("web «+ Reise» — Lagre sperret til regelsettet er lastet (vilkår 1)", () => {
+  afterEach(cleanup);
+
+  it.each([
+    ["ikke lastet", "utelat", "sperret.reiseRegelLaster"],
+    ["feilet", "feil", "sperret.reiseRegelFeilet"],
+  ] as const)("defaults %s: Lagre sperret, forklaring, ingen mutate", (_n, hva, forklaring) => {
+    const dialog = rendre();
+    h[hva].add("organisasjon.hentArbeidstidDefaults");
+    fyllTid(dialog, "11:00", "11:15");
+    const knapp = within(dialog).getByRole("button", { name: "handling.lagre" }) as HTMLButtonElement;
+    expect(knapp.disabled).toBe(true);
+    fireEvent.mouseEnter(knapp.parentElement!);
+    expect(document.body.textContent).toContain(forklaring);
+    expect(lagre(dialog)).toBeUndefined();
+    expect(h.kall.filter((k) => k.key.startsWith("timer.dagsseddel."))).toEqual([]);
+  });
+
+  it("kontroll: samme dialog med lastet regelsett lagrer (under terskel = ordinær)", () => {
+    const dialog = rendre();
+    fyllTid(dialog, "11:00", "11:15");
+    const input = lagre(dialog);
+    expect(input?.lonnsartId).toBe("l1");
   });
 });

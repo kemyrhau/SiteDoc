@@ -56,22 +56,40 @@ export function useManuellReiseWeb({
   resolverLonnsartId: string | null;
 }) {
   const aktivert = aktiv && !!organizationId;
-  const { data: defaults } = trpc.organisasjon.hentArbeidstidDefaults.useQuery(
+  const defaultsQ = trpc.organisasjon.hentArbeidstidDefaults.useQuery(
     { organizationId },
     { enabled: aktivert },
   );
-  const { data: steder } = trpc.oppmotested.hentForFirma.useQuery(
+  const stederQ = trpc.oppmotested.hentForFirma.useQuery(
     { organizationId },
     { enabled: aktivert },
   );
-  const { data: matrise } = trpc.oppmotested.hentMatriseForFirma.useQuery(
+  const matriseQ = trpc.oppmotested.hentMatriseForFirma.useQuery(
     { organizationId },
     { enabled: aktivert },
   );
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(
+  const lonnsarterQ = trpc.timer.lonnsart.list.useQuery(
     { organizationId },
     { enabled: aktivert },
   );
+  const defaults = defaultsQ.data;
+  const steder = stederQ.data;
+  const matrise = matriseQ.data;
+  const lonnsarter = lonnsarterQ.data;
+
+  // RETUR (11) vilkår 1 (lønn): klassifiseringen er bare gyldig når ALT den
+  // bygger på er lastet. Mens et oppslag laster eller har feilet, er
+  // `regel`/avstand/standardart ukjent, og «som før» (resolverens reise-art)
+  // ville stille ført en under-terskel-rad som reise. Kalleren sperrer Lagre
+  // til status er «klar» — aldri stille tilbakefall.
+  const oppslag = [defaultsQ, stederQ, matriseQ, lonnsarterQ];
+  const regelStatus: "klar" | "laster" | "feilet" = !aktivert
+    ? "klar"
+    : oppslag.some((q) => q.isError)
+      ? "feilet"
+      : oppslag.every((q) => q.data !== undefined)
+        ? "klar"
+        : "laster";
 
   const regel = useMemo<ReiseRegelsett | null>(() => {
     if (!aktivert || !defaults) return null;
@@ -140,6 +158,7 @@ export function useManuellReiseWeb({
   }
 
   return {
+    regelStatus,
     klassifisering: res.klassifisering,
     spor: res.spor,
     lonnsartNavn: (id: string | null) => (id ? (navn.get(id) ?? null) : null),
