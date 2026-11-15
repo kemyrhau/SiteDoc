@@ -148,16 +148,60 @@ export async function geokodAdresse(adresse: string): Promise<Coord | null> {
 }
 
 /**
+ * Normaliserte søkevarianter for en adresse som ga 0 treff (TILLEGG 2026-11-15
+ * (13) L2 del C). Geonorge `fuzzy=true` tåler skrivefeil, men ikke sammenskrevet
+ * gatenavn: «sommerfeldtsgate 65» gir 0, «sommerfeldts gate 65» gir 1 (målt).
+ * Trinnvis, kumulativt (hvert trinn bygger på det forrige):
+ *   1. komma → mellomrom, avsluttende «norge» fjernes
+ *   2. forkortelser: «gt»/«gt.» → «gate», «vn»/«vn.» → «veien» (eget ord, eller
+ *      endelse med punktum: «Storgt.» → «Storgate»)
+ *   3. «…sgate»/«…sveien» → «…s gate»/«…s veien»
+ * Returnerer kun varianter som skiller seg fra input og fra hverandre (0–3).
+ */
+export function normaliserteAdresseVarianter(adresse: string): string[] {
+  const rydd = (s: string) => s.replace(/\s+/g, " ").trim();
+  const start = rydd(adresse);
+  const t1 = rydd(start.replace(/,/g, " ").replace(/\s+norge\s*$/iu, ""));
+  const t2 = rydd(
+    t1
+      .replace(/(^|\s)gt\.?(?=\s|$)/giu, "$1gate")
+      .replace(/(^|\s)vn\.?(?=\s|$)/giu, "$1veien")
+      .replace(/(\p{L})gt\.(?=\s|$)/gu, "$1gate")
+      .replace(/(\p{L})vn\.(?=\s|$)/gu, "$1veien"),
+  );
+  const t3 = rydd(t2.replace(/(\p{L}{2,}s)(gate|veien)(?=\s|\d|$)/giu, "$1 $2"));
+  const ut: string[] = [];
+  for (const v of [t1, t2, t3]) {
+    if (v && v.toLowerCase() !== start.toLowerCase() && !ut.some((u) => u.toLowerCase() === v.toLowerCase())) {
+      ut.push(v);
+    }
+  }
+  return ut;
+}
+
+/**
  * Adressesøk mot Kartverket/Geonorge — tolerant for delvis/upresis skriving
  * (`fuzzy=true`). Returnerer inntil `maks` treff med visningsetikett til en
- * klikkbar treffliste. Kaster aldri; tom liste ved feil/timeout/0 treff.
+ * klikkbar treffliste. Gir første søk 0 treff, prøves de normaliserte
+ * variantene (`normaliserteAdresseVarianter`) i rekkefølge; første variant med
+ * treff vinner. Kaster aldri; tom liste ved feil/timeout/0 treff.
  * Åpne adressedata © Kartverket (Geonorge).
  */
 export async function sokAdresser(adresse: string, maks = 5): Promise<AdresseTreff[]> {
   const trimmet = adresse.trim();
   if (!trimmet) return [];
+  const forste = await sokGeonorge(trimmet, maks);
+  if (forste.length > 0) return forste;
+  for (const variant of normaliserteAdresseVarianter(trimmet)) {
+    const treff = await sokGeonorge(variant, maks);
+    if (treff.length > 0) return treff;
+  }
+  return [];
+}
+
+async function sokGeonorge(sok: string, maks: number): Promise<AdresseTreff[]> {
   const url = `${GEONORGE_ADRESSE_URL}?sok=${encodeURIComponent(
-    trimmet,
+    sok,
   )}&fuzzy=true&treffPerSide=${maks}&side=0`;
   const res = await fetchMedTimeout(url, GEOKOD_TIMEOUT_MS);
   if (!res || !res.ok) return [];

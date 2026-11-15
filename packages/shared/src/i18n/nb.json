@@ -4552,7 +4552,7 @@
   "firma.oppmotested.hjelp.adresse": "Skriv inn adressen og trykk «Geokod» for å hente koordinatene automatisk. Du kan finjustere ved å klikke på kartet eller redigere koordinatene direkte.",
   "firma.oppmotested.geokod": "Geokod",
   "firma.oppmotested.geokodLaster": "Søker …",
-  "firma.oppmotested.geokodIngen": "Fant ingen treff på adressen. Juster den, eller sett punktet manuelt på kartet.",
+  "firma.oppmotested.geokodIngen": "Fant ingen treff på adressen. Du kan likevel lagre stedet: klikk i kartet for å sette punktet.",
   "firma.oppmotested.kartHjelp": "Klikk eller dra markøren for å justere posisjonen. Sirkelen viser geofence-radiusen.",
   "timer.maskinforerbevis.arbeider": "Maskinarbeid registreres uten registrert maskinførerbevis. Flagges for synlighet hos leder.",
   "timer.maskinforerbevis.leder": "Maskinarbeid uten registrert maskinførerbevis — flagget for synlighet.",

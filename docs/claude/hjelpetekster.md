@@ -143,6 +143,13 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - **Kjøretid** vises som «1 t 35 min» over én time og «45 min» under (`timer.kjoretid.*`, ordre 2026-11-14 (11) B). Redigering skjer i minutter.
 - **Mellom oppmøtesteder** (`firma.avstander.hjelp.kontor`, POST 2026-11-15 (13) L2): kjøretid mellom firmaets oppmøtesteder, vist når firmaet har minst to. Brukes til overføringsforslaget i Bekreft dag første og siste dag i en midlertidig periode. Kan rettes («Manuell») og tilbakestilles som byggeplass-avstandene.
 
+## Web: Oppmøtested — adressesøk (`firma/oppmotesteder/OppmotestedModal.tsx`, TILLEGG 2026-11-15 (13) L2 del C)
+
+- «Geokod» søker i Kartverkets adresser (`oppmotested.geokod` → `sokAdresser`), samme søk og treffliste (`components/AdresseTreffliste.tsx`) som byggeplass. Ett treff settes direkte; flere vises som klikkbar liste. Valgt treff setter punktet og adresseteksten.
+- Skrivemåter som «sommerfeldtsgate», «Storgt.», «vn» og avsluttende «Norge» prøves automatisk normalisert når første søk gir 0 treff (gjelder også byggeplass).
+- 0 treff (`firma.oppmotested.geokodIngen`): «Fant ingen treff på adressen. Du kan likevel lagre stedet: klikk i kartet for å sette punktet.» Lagre sperres ikke av 0 treff — bare av manglende punkt.
+- Under lista: «Adressedata © Kartverket» (`georef.attribusjonKartverket`).
+
 ## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
 
 Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banner:

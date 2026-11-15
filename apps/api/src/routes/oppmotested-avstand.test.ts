@@ -34,7 +34,7 @@ vi.mock("../trpc/tilgangskontroll", () => ({
   autoriserAdminForFirma: vi.fn().mockResolvedValue(undefined),
   verifiserOrganisasjonTilgang: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("../services/rute-service", () => ({ geokodAdresse: vi.fn() }));
+vi.mock("../services/rute-service", () => ({ geokodAdresse: vi.fn(), sokAdresser: vi.fn() }));
 vi.mock("../services/reisetidMatrise", () => ({
   MANUELL_KILDE: "manuell",
   recomputeMatrise: (...a: unknown[]) => m.recompute(...a),

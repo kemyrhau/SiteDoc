@@ -4552,7 +4552,7 @@
   "firma.oppmotested.hjelp.adresse": "Enter the address and click “Geocode” to fetch the coordinates automatically. You can fine-tune by clicking the map or editing the coordinates directly.",
   "firma.oppmotested.geokod": "Geocode",
   "firma.oppmotested.geokodLaster": "Searching …",
-  "firma.oppmotested.geokodIngen": "No match found for the address. Adjust it, or place the point manually on the map.",
+  "firma.oppmotested.geokodIngen": "No match found for the address. You can still save the location: click the map to set the point.",
   "firma.oppmotested.kartHjelp": "Click or drag the marker to adjust the position. The circle shows the geofence radius.",
   "timer.maskinforerbevis.arbeider": "Machine work is being logged without a registered operator certificate. Flagged for your manager's visibility.",
   "timer.maskinforerbevis.leder": "Machine work without a registered operator certificate — flagged for visibility.",

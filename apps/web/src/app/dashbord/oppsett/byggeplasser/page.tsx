@@ -7,6 +7,7 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@sitedoc/ui";
+import { AdresseTreffliste, type AdresseTreff } from "@/components/AdresseTreffliste";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import {
@@ -1687,8 +1688,6 @@ function RedigerLokasjon({
 /* ------------------------------------------------------------------ */
 
 type GeofenceFelt = { latitude?: number | null; longitude?: number | null; radiusM?: number | null };
-/** Adressesøk-treff (speiler `bygning.geokod`-retur / rute-service AdresseTreff). */
-type AdresseTreff = { lat: number; lng: number; label: string };
 
 /** Geofence er «satt» når alle tre feltene finnes. */
 function harGeofence(lok: GeofenceFelt): boolean {
@@ -2359,22 +2358,7 @@ function LokasjonerSideInnhold() {
                   : t("lokasjoner.geofence.sok")}
               </Button>
             </div>
-            {geoAdresseTreff.length > 0 && (
-              <ul className="mt-1 overflow-hidden rounded-md border border-gray-200">
-                {geoAdresseTreff.map((treff, i) => (
-                  <li key={`${treff.label}-${i}`}>
-                    <button
-                      type="button"
-                      onClick={() => settGeoSenter(treff)}
-                      className="flex w-full items-center gap-2 border-b border-gray-100 px-2.5 py-1.5 text-left text-xs text-gray-700 last:border-b-0 hover:bg-blue-50 hover:text-blue-700"
-                    >
-                      <MapPin className="h-3 w-3 flex-shrink-0 text-gray-400" />
-                      <span className="truncate">{treff.label}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <AdresseTreffliste treff={geoAdresseTreff} onVelg={settGeoSenter} />
             {geokodMelding && (
               <p className="mt-1 text-xs text-sitedoc-error">{geokodMelding}</p>
             )}

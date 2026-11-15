@@ -8,7 +8,7 @@ import {
   verifiserOrganisasjonTilgang,
 } from "../trpc/tilgangskontroll";
 import { GEOFENCE_GRENSER } from "@sitedoc/shared";
-import { geokodAdresse } from "../services/rute-service";
+import { sokAdresser } from "../services/rute-service";
 import {
   MANUELL_KILDE,
   kontorPar,
@@ -150,8 +150,10 @@ export const oppmotestedRouter = router({
       });
     }),
 
-  // Geokod en adresse → koordinat (firma-admin). Fyller lat/lng i UI; lagret
-  // verdi = feltene (kart-klikk/manuell override bevart). Null-treff → null.
+  // Adressesøk → treffliste (firma-admin). Samme `sokAdresser` (Geonorge,
+  // fuzzy + normaliserte varianter) som byggeplass (TILLEGG 2026-11-15 (13) L2
+  // del C). Valgt treff fyller lat/lng + adresse i UI; lagret verdi = feltene
+  // (kart-klikk/manuell override bevart). 0 treff → [] (lagring ikke sperret).
   geokod: protectedProcedure
     .input(
       z.object({
@@ -161,7 +163,7 @@ export const oppmotestedRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserFirmaAdmin(ctx.userId, input.organizationId);
-      return geokodAdresse(input.adresse);
+      return sokAdresser(input.adresse);
     }),
 
   // R3: on-demand full firma-backfill av reisetid-matrisen (admin-only).

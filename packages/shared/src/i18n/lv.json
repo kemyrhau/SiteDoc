@@ -4552,7 +4552,7 @@
   "firma.oppmotested.hjelp.adresse": "Ievadiet adresi un noklikšķiniet uz “Ģeokods”, lai automātiski iegūtu koordinātas. Varat precīzi noregulēt, noklikšķinot uz kartes vai tieši rediģējot koordinātas.",
   "firma.oppmotested.geokod": "Ģeokods",
   "firma.oppmotested.geokodLaster": "Notiek meklēšana…",
-  "firma.oppmotested.geokodIngen": "Adresei nav atrasta atbilstība. Pielāgojiet to vai novietojiet punktu manuāli kartē.",
+  "firma.oppmotested.geokodIngen": "Adresei nav atrasta atbilstība. Jūs joprojām varat saglabāt atrašanās vietu: noklikšķiniet uz kartes, lai iestatītu punktu.",
   "firma.oppmotested.kartHjelp": "Noklikšķiniet vai velciet marķieri, lai pielāgotu pozīciju. Aplis parāda ģeožoga rādiusu.",
   "timer.maskinforerbevis.arbeider": "Mašīnas darbi tiek reģistrēti bez reģistrēta operatora sertifikāta. Atzīmēts, lai nodrošinātu jūsu vadītāja redzamību.",
   "timer.maskinforerbevis.leder": "Mašīnas darbs bez reģistrēta operatora sertifikāta — atzīmēts redzamībai.",

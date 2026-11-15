@@ -4552,7 +4552,7 @@
   "firma.oppmotested.hjelp.adresse": "Geben Sie die Adresse ein und klicken Sie auf „Geokodieren“, um die Koordinaten automatisch abzurufen. Sie können eine Feinabstimmung vornehmen, indem Sie auf die Karte klicken oder die Koordinaten direkt bearbeiten.",
   "firma.oppmotested.geokod": "Geokodieren",
   "firma.oppmotested.geokodLaster": "Suche …",
-  "firma.oppmotested.geokodIngen": "Für die Adresse wurde keine Übereinstimmung gefunden. Passen Sie es an oder platzieren Sie den Punkt manuell auf der Karte.",
+  "firma.oppmotested.geokodIngen": "Für die Adresse wurde keine Übereinstimmung gefunden. Sie können den Standort weiterhin speichern: Klicken Sie auf die Karte, um den Punkt festzulegen.",
   "firma.oppmotested.kartHjelp": "Klicken oder ziehen Sie die Markierung, um die Position anzupassen. Der Kreis zeigt den Geofence-Radius.",
   "timer.maskinforerbevis.arbeider": "Maschinenarbeiten werden ohne registriertes Bedienerzertifikat protokolliert. Markiert für die Sichtbarkeit Ihres Managers.",
   "timer.maskinforerbevis.leder": "Maschinenarbeiten ohne registriertes Bedienerzertifikat – zur besseren Sichtbarkeit gekennzeichnet.",

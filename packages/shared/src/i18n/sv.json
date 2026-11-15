@@ -4552,7 +4552,7 @@
   "firma.oppmotested.hjelp.adresse": "Ange adressen och klicka på \"Geokod\" för att hämta koordinaterna automatiskt. Du kan finjustera genom att klicka på kartan eller redigera koordinaterna direkt.",
   "firma.oppmotested.geokod": "Geokod",
   "firma.oppmotested.geokodLaster": "Söker …",
-  "firma.oppmotested.geokodIngen": "Ingen matchning hittades för adressen. Justera den eller placera punkten manuellt på kartan.",
+  "firma.oppmotested.geokodIngen": "Ingen matchning hittades för adressen. Du kan fortfarande spara platsen: klicka på kartan för att ställa in punkten.",
   "firma.oppmotested.kartHjelp": "Klicka eller dra markören för att justera positionen. Cirkeln visar geofenceradien.",
   "timer.maskinforerbevis.arbeider": "Maskinarbete loggas utan registrerat operatörsintyg. Flaggat för din chefs synlighet.",
   "timer.maskinforerbevis.leder": "Maskinarbete utan registrerat operatörscertifikat — flaggad för synlighet.",

@@ -4552,7 +4552,7 @@
   "firma.oppmotested.hjelp.adresse": "Entrez l'adresse et cliquez sur « Géocoder » pour récupérer automatiquement les coordonnées. Vous pouvez affiner le réglage en cliquant sur la carte ou en modifiant directement les coordonnées.",
   "firma.oppmotested.geokod": "Géocodage",
   "firma.oppmotested.geokodLaster": "Recherche…",
-  "firma.oppmotested.geokodIngen": "Aucune correspondance trouvée pour l'adresse. Ajustez-le ou placez le point manuellement sur la carte.",
+  "firma.oppmotested.geokodIngen": "Aucune correspondance trouvée pour l'adresse. Vous pouvez toujours enregistrer l'emplacement : cliquez sur la carte pour définir le point.",
   "firma.oppmotested.kartHjelp": "Cliquez ou faites glisser le marqueur pour ajuster la position. Le cercle montre le rayon de la barrière géographique.",
   "timer.maskinforerbevis.arbeider": "Le travail sur machine est enregistré sans certificat d'opérateur enregistré. Marqué pour la visibilité de votre manager.",
   "timer.maskinforerbevis.leder": "Travail sur machine sans certificat d’opérateur enregistré – signalé pour visibilité.",
