@@ -175,15 +175,19 @@ export function tellPending(userId: string): number {
 /**
  * Antall conflict dagssedler — eksponeres via TimerSyncProvider for badge.
  */
-export function tellConflict(userId: string): number {
+export function tellConflict(userId: string, orgId?: string | null): number {
   const db = hentDatabase();
   if (!db) return 0;
+  // POST (14): med orgId → bare valgt firma (statusbar/Mer-merke). Uten →
+  // firma-bredt; brukes kun av TimerSyncProvider som endringssignal.
+  if (orgId === null) return 0;
   const rader = db
     .select({ id: dagsseddelLocal.id })
     .from(dagsseddelLocal)
     .where(
       and(
         eq(dagsseddelLocal.userId, userId),
+        orgId ? eq(dagsseddelLocal.organizationId, orgId) : undefined,
         eq(dagsseddelLocal.syncStatus, "conflict"),
       ),
     )
@@ -195,15 +199,19 @@ export function tellConflict(userId: string): number {
  * Antall avviste dagssedler (SYNC-1) — permanent avvist av server, terminal.
  * Eksponeres via TimerSyncProvider for rødt statusbar-varsel.
  */
-export function tellAvvist(userId: string): number {
+export function tellAvvist(userId: string, orgId?: string | null): number {
   const db = hentDatabase();
   if (!db) return 0;
+  // POST (14): med orgId → bare valgt firma (statusbar/Mer-merke). Uten →
+  // firma-bredt; brukes kun av TimerSyncProvider som endringssignal.
+  if (orgId === null) return 0;
   const rader = db
     .select({ id: dagsseddelLocal.id })
     .from(dagsseddelLocal)
     .where(
       and(
         eq(dagsseddelLocal.userId, userId),
+        orgId ? eq(dagsseddelLocal.organizationId, orgId) : undefined,
         eq(dagsseddelLocal.syncStatus, "avvist"),
       ),
     )
@@ -818,11 +826,10 @@ async function kjorTimerSync(
     .all();
 
   if (pendingSedler.length > 0) {
-    // Bygg batch — opp til 100 sedler per kall (matcher server-grense)
-    const batches: typeof pendingSedler[] = [];
-    for (let i = 0; i < pendingSedler.length; i += 100) {
-      batches.push(pendingSedler.slice(i, i + 100));
-    }
+    // POST (14): grupper pr. firma FØR oppdeling i batcher à 100 (server-grense).
+    // Serveren lagrer hele batchen på `organizationId` — en blandet batch etter
+    // firmabytte ville lagt sedel fra firma A på firma B.
+    const batches = delPendingIBatcher(pendingSedler);
 
     for (const batch of batches) {
       // V19.9.8 (B'-4): tidspunktet payloaden LESES — styrer rad-restemplingen i
@@ -1032,9 +1039,9 @@ async function kjorTimerSync(
         };
       });
 
-      // Kenneth-vedtak 2026-10-09: sedelen lagres på SITT firma. En mobil-bruker har én
-      // aktiv org (hentBrukersOrg kaster på multi-org), så batchen er homogen — send
-      // sedelens egen org så serveren lagrer på riktig firma, ikke et avledet medlemskap.
+      // Kenneth-vedtak 2026-10-09: sedelen lagres på SITT firma. Batchen er homogen
+      // pr. firma (delPendingIBatcher, POST 14) — send sedlenes egen org så serveren
+      // lagrer på riktig firma, ikke et avledet medlemskap.
       const batchOrgId = batch[0]?.organizationId ?? firmaId;
       try {
         const svar = await medTimeout(
@@ -1958,3 +1965,25 @@ export function pendingEldreEnn(userId: string, dagerTilbake: number): string[] 
 }
 
 void inArray;
+
+/**
+ * POST (14): ventende sedler gruppert pr. `organizationId` (første forekomst gir
+ * rekkefølgen), deretter delt i batcher à maks `maks` (server-grense 100). Hver
+ * batch har dermed ett firma, så `syncBatch({ organizationId })` blir riktig.
+ */
+export function delPendingIBatcher<T extends { organizationId: string }>(
+  sedler: readonly T[],
+  maks = 100,
+): T[][] {
+  const prFirma = new Map<string, T[]>();
+  for (const s of sedler) {
+    const liste = prFirma.get(s.organizationId);
+    if (liste) liste.push(s);
+    else prFirma.set(s.organizationId, [s]);
+  }
+  const batches: T[][] = [];
+  for (const liste of prFirma.values()) {
+    for (let i = 0; i < liste.length; i += maks) batches.push(liste.slice(i, i + maks));
+  }
+  return batches;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Button, Input, Modal } from "@sitedoc/ui";
@@ -53,7 +53,11 @@ export default function FirmaDetaljSide() {
   const detaljQuery = trpc.admin.hentFirmaDetalj.useQuery({ organizationId });
   const firma = detaljQuery.data as FirmaDetalj | undefined;
 
-  const [aktivFane, setAktivFane] = useState<FaneKey>("prosjekter");
+  // `?fane=brukere` åpner brukerfanen direkte (lenke fra «Mine timer», TILLEGG (14)).
+  const faneParam = useSearchParams()?.get("fane");
+  const [aktivFane, setAktivFane] = useState<FaneKey>(
+    faneParam === "brukere" ? "brukere" : "prosjekter",
+  );
 
   // Rediger firma
   const [visRediger, setVisRediger] = useState(false);

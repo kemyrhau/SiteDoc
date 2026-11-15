@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import * as Location from "expo-location";
 import { eq, and, desc } from "drizzle-orm";
@@ -16,6 +17,7 @@ import {
   ryddGamleArbeidsdager,
 } from "../services/arbeidsdagBesok";
 import { trpc } from "../lib/trpc";
+import { sjekkAnsattForNyRegistrering } from "../utils/ansattSjekk";
 
 /**
  * Delt arbeidsdag-tilstand for BÅDE «Start dag»-kortet (StartSluttDagKort, på
@@ -103,7 +105,8 @@ let ryddetDenneProsessen = false;
 
 export function useArbeidsdag() {
   const { bruker } = useAuth();
-  const { valgtFirmaId } = useFirma();
+  const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
 
   const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
@@ -160,6 +163,15 @@ export function useArbeidsdag() {
 
   const startDag = useCallback(async () => {
     if (!bruker?.id || behandler) return;
+    // POST (14) punkt 2: ikke ansatt i valgt firma → ingen arbeidsdag (samme
+    // sperre som «+» og Bekreft dag), før GPS fanges.
+    const ansatt = await sjekkAnsattForNyRegistrering({
+      erAnsattIValgtFirma,
+      orgId: valgtFirmaId ?? null,
+      firmaNavn: valgtFirma?.name ?? "",
+      t,
+    });
+    if (!ansatt) return;
     setBehandler(true);
     try {
       const { lat, lng } = await fangGps();
@@ -210,7 +222,7 @@ export function useArbeidsdag() {
     } finally {
       setBehandler(false);
     }
-  }, [bruker?.id, behandler, valgtFirmaId, utils]);
+  }, [bruker?.id, behandler, valgtFirmaId, valgtFirma?.name, erAnsattIValgtFirma, t, utils]);
 
   return { aktivDag, startDag, behandler, setBehandler, refresh };
 }

@@ -249,6 +249,42 @@ describe("L3-A § 8 nr. 3 — sendt sedel (A4 venter Kenneth: H7 beholdes)", () 
   });
 });
 
+describe("Gate (34) — sedel i annet firma på datoen", () => {
+  it("🔴 Bekreft stopper med sedelIAnnetFirma og skriver ingenting", () => {
+    db().insert(dagsseddelLocal).values({
+      id: "annet-firma", userId: BRUKER, organizationId: "org-annet", projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", sistEndretLokalt: 1,
+    }).run();
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const { handling, resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx());
+    expect(handling).toEqual({ type: "sedelIAnnetFirma", dato: DATO });
+    expect(resultat).toBeNull();
+    expect(tell()).toEqual({ sedler: 1, rader: 0, status: "paagaar" });
+  });
+
+  it("negativkontroll: samme firmas sedel på datoen → Bekreft skriver", () => {
+    db().insert(dagsseddelLocal).values({
+      id: "samme-firma", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", sistEndretLokalt: 1,
+    }).run();
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const { handling } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx());
+    expect(handling.type).not.toBe("sedelIAnnetFirma");
+    expect(tell().rader).toBeGreaterThan(0);
+  });
+
+  it("🔴 kildevakt: begge UI-stiene viser i18n-teksten og fanger SedelIAnnetFirmaFeil", () => {
+    const nb = JSON.parse(fs.readFileSync(path.join(__dirname, "../../../../packages/shared/src/i18n/nb.json"), "utf8"));
+    expect(nb["timer.sedelIAnnetFirma.tittel"]).toBeTruthy();
+    expect(nb["timer.sedelIAnnetFirma.melding"]).toBeTruthy();
+    for (const fil of ["../../app/timer/bekreft-dag.tsx", "../components/timer-detalj/NyTimerRadFlyt.tsx"]) {
+      const kilde = fs.readFileSync(path.join(__dirname, fil), "utf8");
+      expect(kilde, fil).toContain('Alert.alert(t("timer.sedelIAnnetFirma.tittel"), t("timer.sedelIAnnetFirma.melding"))');
+      expect(kilde, fil).toMatch(/catch \(e\) \{[\s\S]{0,200}e instanceof SedelIAnnetFirmaFeil/);
+    }
+  });
+});
+
 describe("L3-A § 8 nr. 5 — tomt forslag", () => {
   it("ingen katalog → tomt forslag; [Avslutt dag] lukker dagen uten sedel (K14 a)", () => {
     holder.raw.run("DELETE FROM aktivitet_local;");

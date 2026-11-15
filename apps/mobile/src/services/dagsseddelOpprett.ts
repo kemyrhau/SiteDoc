@@ -63,6 +63,35 @@ export interface FinnEllerOpprettResultat {
   organizationId: string;
 }
 
+/** Datoen har allerede en sedel i et annet firma — avbryt, ikke legg rad på den. */
+export class SedelIAnnetFirmaFeil extends Error {
+  constructor(dato: string) {
+    super(`sedelIAnnetFirma: ${dato} har allerede en dagsseddel i et annet firma`);
+    this.name = "SedelIAnnetFirmaFeil";
+  }
+}
+
+/**
+ * Gate (34): første dato der brukeren har en sedel i et ANNET firma enn `orgId`
+ * (null = ingen). Samme regel som vakten i `finnEllerOpprettDagsseddel`, men uten
+ * å skrive — så en flerdato-skriving (Bekreft dag over midnatt) kan stoppe FØR
+ * første dato er lagret. Sedel uten org ("") er ukjent, ikke annet firma.
+ */
+export function finnSedelIAnnetFirma(
+  db: LokalDb,
+  args: { userId: string; orgId: string; datoer: string[] },
+): string | null {
+  for (const dato of args.datoer) {
+    const s = db
+      .select({ organizationId: dagsseddelLocal.organizationId })
+      .from(dagsseddelLocal)
+      .where(and(eq(dagsseddelLocal.userId, args.userId), eq(dagsseddelLocal.dato, dato)))
+      .all()[0];
+    if (s?.organizationId && s.organizationId !== args.orgId) return dato;
+  }
+  return null;
+}
+
 export function finnEllerOpprettDagsseddel(
   db: LokalDb,
   args: FinnEllerOpprettArgs,
@@ -83,6 +112,12 @@ export function finnEllerOpprettDagsseddel(
     )
     .all()[0];
   if (eksisterende) {
+    // POST (14) punkt 2: oppslaget er på userId+dato (DailySheet @@unique), men
+    // en rad skal aldri havne på en sedel i et annet firma. Eldre sedel uten
+    // org ("") er ukjent, ikke annet firma — slipper gjennom som før.
+    if (eksisterende.organizationId && eksisterende.organizationId !== args.orgId) {
+      throw new SedelIAnnetFirmaFeil(args.dato);
+    }
     const tom =
       (eksisterende.status === "draft" || eksisterende.status === "returned") &&
       db

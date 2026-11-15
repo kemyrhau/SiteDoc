@@ -587,3 +587,4 @@ export {
   sorterMaskiner,
 } from "./maskinSortering";
 export { formaterKjoretid } from "./kjoretid";
+export { skalVarsleSkjulteTimer } from "./timerSkjultVarsel";

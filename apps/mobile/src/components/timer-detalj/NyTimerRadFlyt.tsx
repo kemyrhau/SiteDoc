@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
+import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../db/database";
+import { SedelIAnnetFirmaFeil } from "../../services/dagsseddelOpprett";
 import { dagsseddelLocal, equipmentLocal, sheetTimerLocal } from "../../db/schema";
 import { useAuth } from "../../providers/AuthProvider";
 import { useTimerSync } from "../../providers/TimerSyncProvider";
@@ -216,7 +218,9 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
       ) => {
         const db = hentDatabase();
         if (!db) return;
-        const res = lagreNyTimerRad(db, {
+        let res: ReturnType<typeof lagreNyTimerRad>;
+        try {
+          res = lagreNyTimerRad(db, {
           userId: bruker.id,
           organizationId: orgId,
           dato,
@@ -234,7 +238,19 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
             maskiner: maskin.linjer,
           },
         });
+        } catch (e) {
+          // Gate (34): sikkerhetsnett — forhåndssjekken i lagreNyTimerRad skal fange dette først.
+          if (e instanceof SedelIAnnetFirmaFeil) {
+            Alert.alert(t("timer.sedelIAnnetFirma.tittel"), t("timer.sedelIAnnetFirma.melding"));
+            return;
+          }
+          throw e;
+        }
         if (!res.ok) {
+          if (res.grunn === "sedelIAnnetFirma") {
+            Alert.alert(t("timer.sedelIAnnetFirma.tittel"), t("timer.sedelIAnnetFirma.melding"));
+            return;
+          }
           // Dagen ble sendt mens dialogen sto åpen — vis sedelen i stedet.
           aapneSedel(res.sheetId, null, false);
           return;

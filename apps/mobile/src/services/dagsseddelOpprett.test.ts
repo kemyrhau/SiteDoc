@@ -38,7 +38,7 @@ import { drizzle } from "drizzle-orm/sql-js";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
-import { finnEllerOpprettDagsseddel } from "./dagsseddelOpprett";
+import { finnEllerOpprettDagsseddel, SedelIAnnetFirmaFeil } from "./dagsseddelOpprett";
 
 const { dagsseddelLocal, sheetTimerLocal } = schema;
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -140,5 +140,33 @@ describe("ORDRE 36e pkt. 3 — tom sedel får nytt hode", () => {
   it("ny dato → ny sedel som før", () => {
     const r = nyttKort();
     expect(r).toMatchObject({ id: "ny-uuid", eksisterte: false, status: "draft" });
+  });
+});
+
+describe("POST (14) punkt 2 — vakt mot sedel i annet firma (ii-c)", () => {
+  const iFirma = (orgId: string) =>
+    finnEllerOpprettDagsseddel(lokalDb(), {
+      userId: "u1", orgId, dato: DATO, prosjektId: "p2", aktivitetId: "a1",
+    });
+
+  it("🔴 sedel samme dato i annet firma → feil, sedelen røres ikke, ingen ny", () => {
+    seedGammeltHode(false);
+    expect(() => iFirma("org2")).toThrow(SedelIAnnetFirmaFeil);
+    const alle = db().select().from(dagsseddelLocal).all();
+    expect(alle).toHaveLength(1);
+    expect([alle[0]!.organizationId, alle[0]!.syncStatus, alle[0]!.startAt]).toEqual([
+      "org1", "synced", GML_START,
+    ]);
+  });
+
+  it("samme firma → idempotens-treff som før", () => {
+    seedGammeltHode(true);
+    expect(iFirma("org1")).toMatchObject({ id: "s1", eksisterte: true, organizationId: "org1" });
+  });
+
+  it("eldre sedel uten org (\"\") slipper gjennom som før", () => {
+    seedGammeltHode(true);
+    db().update(dagsseddelLocal).set({ organizationId: "" }).where(eq(dagsseddelLocal.id, "s1")).run();
+    expect(iFirma("org2")).toMatchObject({ id: "s1", eksisterte: true });
   });
 });
