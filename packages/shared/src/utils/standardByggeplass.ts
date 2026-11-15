@@ -64,3 +64,10 @@ export function velgTimerByggeplass(input: StandardByggeplassInput): string | nu
   if (gpsNaermeste && byggeplassIder.includes(gpsNaermeste)) return gpsNaermeste;
   return null;
 }
+
+/**
+ * (20) Nøytralt navn på samme regel for dokumentopprettelse (sjekkliste/oppgave, mobil + web):
+ * lagret valg → GPS (kun mobil) → ingen. Samme funksjon, ingen kopi — opprett-vinduet gjetter
+ * aldri (c) «første byggeplass»; dokumentet får byggeplass bare når brukeren har valgt en.
+ */
+export const velgByggeplassUtenGjett = velgTimerByggeplass;
