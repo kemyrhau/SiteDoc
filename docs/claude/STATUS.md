@@ -28,6 +28,7 @@
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (19) gjestevern firmabytte (`1a287c5d`) + (20) punkt 1 dokumentopprettelse uten gjettet byggeplass (`cdf53af4`) merget** (develop, docs-only, orkestrator): to ✅-innslag, to funksjonsendringsrader, «Sist ført» develop `cdf53af4`.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (18) prosjektvelger med byggeplassliste merget (`61b230fb`)** (develop, docs-only, orkestrator): ✅-innslag med åpne punkter, funksjonsendringsrad, «Sist ført» inkl. test/OTA `a8caf6a9`.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md` + `timer.md`: (17) overføringsdag og reiser merget (`22948f5c`)** (develop, docs-only, orkestrator): ✅-innslag med åpne funn, funksjonsendringsrad, «Sist ført»; (17)-markør i `timer.md` «venter gate» → merget.
+- 2026-11-15 — **`timer-geofence-avreise-ankomst-spec.md`: ny spec — målt avreise/ankomst via lokal OS-geofence som kilde for forslag i timer** (branch `docs/fabel`, docs-only, Fabel, 🟡 UTKAST, B1–B10 til Kenneth): hendelse (sted-id + forlot/ankom + tid) kun i SQLite, slettes ved synk-kvittering; firmabryter pr. ansatt + OS «Alltid»; grensesnitt mot (17) `sekvenserReisekjede` med `kilde: 'geofence'`; GDPR-flagg (samtykke vs. kontrolltiltak, DPIA) uten juridisk konklusjon. Reverserer med Kenneth-hjemmel 2026-11-15: `timer-gps-lag3-4-spec.md` § 2.3/2.4/2.5, `timer-gps-helhetsplan.md` LAG 4 + K3, `mannskap.md:45` (markør, ikke sletting). Registrert i DOC-MAP. 🔄 Under arbeid 22 → 23, totalt 58 → 59.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md` + `web.md`/`mobil.md`/`timer.md`/`arkitektur.md`: (16) prosjektvelger + kontoravstand + ukesum merget (`0ec0cc0c`)** (develop, docs-only, orkestrator): ✅-innslag med åpne funn, funksjonsendringsrad, «Sist ført»; (15)- og (16)-markører «ikke merget» → merget.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (15) prosjektvalg på tvers av firma merget (`ca50ba1f`)** (develop, docs-only, orkestrator): ✅-innslag med oppfølgere, funksjonsendringsrad, «Sist ført».
 - 2026-11-15 — **`web.md` + `mobil.md` + `arkitektur.md` § Roller + `hjelpetekster.md`: prosjekter i andre firma (POST (15))** (branch `feat/prosjekt-andre-firma`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): gruppen «Prosjekter i andre firma» i prosjektvelgeren (web + mobil, offline fra `prosjekt_local`), `prosjekt.hentGjesteprosjekter`, ingen nullstilling av gjesteprosjekt ved firmabytte, Timer/Vareforbruk skjult i sidemenyen for gjest, `medlem.registrer` avviser ansettelse nr. 2 (én bruker, ett firma). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
@@ -379,11 +380,11 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 |---|---:|
 | ✅ Verifisert mot kode | 6 |
 | ⚠️ Drift identifisert | 4 |
-| 🔄 Under arbeid | 22 |
+| 🔄 Under arbeid | 23 |
 | ❌ Ikke screenet | 21 |
 | ✔️ Ferdig brukt (lukket) | 3 |
 | 📦 Arkivert | 8 |
-| **Totalt** | **58** |
+| **Totalt** | **59** |
 
 ---
 
@@ -416,6 +417,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
+| timer-geofence-avreise-ankomst-spec.md | 2026-11-15 | **🟡 UTKAST 2026-11-15 (Fabel, spec, ingen kode; B1–B10 til Kenneth):** målt avreise/ankomst via OS-geofence rundt kjente steder (oppmøtested/byggeplass); hendelse uten posisjon kun i SQLite, slettet ved synk-kvittering (14 d reserve); firmabryter på `OrganizationMember` + samtykke/info-logg; krever `expo-task-manager` + plugin-opsjoner → ett EAS-bygg (Kenneth); kobles til (17) via `MaaltTidspunkt.kilde='geofence'`. Målt mot develop @ d409fca4. |
 | tillegg-utlegg-prosjektkort-spec.md | 2026-11-13 | **🟡 UTKAST 2026-11-13 (Fabel, spec, ingen kode; B1–B8 til Kenneth):** tillegg og utlegg bærer byggeplass + underprosjekt og føres på prosjektkortet (reverserer 36b GO 4). Dagskort urørt (vakt utvidet), Bekreft dag beholdes med kortvalg, ingen backfill. Målt mot develop @ 665806e2. |
 | fase-M-forarbeid-testmaler-ns3420-malbygger-2026-07-16.md | 2026-07-16 | **Beviskilde fase M.** Måling av testmaler + NS3420-inventar + MalBygger-kapabilitet (redesign-Opus, kun lesing). Rå-vedlegg i samme mappe: `ns3420-mal-dump-raw.json`, `ns3420-dok-inventar.json`, `ns3420-dok-inventar-raw.json`. Levde 5 dager utenfor git i repo-rota; versjonert 2026-07-16 |
 | faseM-3a-felttype-matrise.md | 2026-07-16 | **Arbeidsanker fase M-3a.** 27 felttyper målt langs (a)-(d) + 6 funn (`fd0ee7a2`). ⚠️ **Delvis foreldet av del 2:** F1/F2/F4 er bygget — `:44–45` og `:80` beskriver tilstand før fiksen. Oppdateres i del 2s commit |
