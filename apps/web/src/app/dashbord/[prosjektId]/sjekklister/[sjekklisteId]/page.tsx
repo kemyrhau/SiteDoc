@@ -25,7 +25,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, type PdfValg, visByggeplassIkkeValgt } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, type PdfValg, visByggeplassIkkeValgt, kanVelgeByggeplassDirekte } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -619,7 +619,10 @@ export default function SjekklisteDetaljSide() {
     byggeplassId: fullSjekkliste?.byggeplass?.id ?? null,
     antallByggeplasser: bygninger.length,
     kanRedigere: !leseModus && !erLaast,
+    drawingId: fullSjekkliste?.drawingId ?? null,
   });
+  // ORDRE (21): med tegning følger byggeplassen tegningen — byttes kun ved å velge en annen tegning.
+  const byggeplassFolgerTegning = !kanVelgeByggeplassDirekte(fullSjekkliste?.drawingId);
 
   const kontekstChips: import("@/components/kontekst-chip/DokumentKontekstChipLinje").Chip[] = [
     {
@@ -635,8 +638,10 @@ export default function SjekklisteDetaljSide() {
         fullSjekkliste?.byggeplass?.name ??
         (bygninger.length > 0 ? "—" : t("kontekstChip.heleProsjektet")),
       type: "velger",
-      deaktivert: erLaast,
-      deaktivertGrunn: t("kontekstChip.byggeplassLaastGodkjent"),
+      deaktivert: erLaast || byggeplassFolgerTegning,
+      deaktivertGrunn: erLaast
+        ? t("kontekstChip.byggeplassLaastGodkjent")
+        : t("kontekstChip.byggeplassFolgerTegning"),
       valgtId: fullSjekkliste?.byggeplass?.id ?? null,
       åpneSignal: byggeplassÅpneSignal,
       alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),

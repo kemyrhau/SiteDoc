@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Gesamtes Projekt",
   "kontekstChip.faggruppeKunUtkast": "Der Handel kann nur im Entwurf geändert werden",
   "kontekstChip.byggeplassLaastGodkjent": "Nach Genehmigung wird die Baustelle gesperrt. Öffnen Sie die Checkliste erneut, um sie zu ändern.",
+  "kontekstChip.byggeplassFolgerTegning": "Der Baugrundstück folgt der Zeichnung. Wählen Sie eine Zeichnung von einer anderen Baustelle aus, um sie zu ändern.",
   "kontekstChip.velgFelt": "Wählen Sie {{felt}}",
   "felles.ingenTreff": "Keine Übereinstimmungen",
   "kontekstChip.allePaa": "Alles in {{prosjekt}}",

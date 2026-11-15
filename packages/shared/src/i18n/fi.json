@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Koko projekti",
   "kontekstChip.faggruppeKunUtkast": "Kauppaa voidaan muuttaa vain luonnoksessa",
   "kontekstChip.byggeplassLaastGodkjent": "Rakennustyömaa on lukittu hyväksynnän jälkeen. Avaa tarkistuslista uudelleen muuttaaksesi sitä.",
+  "kontekstChip.byggeplassFolgerTegning": "Rakennustyömaa noudattaa piirustusta. Valitse piirros toiselta rakennustyömaalta muuttaaksesi sitä.",
   "kontekstChip.velgFelt": "Valitse {{felt}}",
   "felles.ingenTreff": "Ei osumia",
   "kontekstChip.allePaa": "Kaikki {{prosjekt}}",

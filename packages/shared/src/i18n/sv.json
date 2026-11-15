@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Hela projektet",
   "kontekstChip.faggruppeKunUtkast": "Handel kan endast ändras i utkast",
   "kontekstChip.byggeplassLaastGodkjent": "Byggplatsen är låst efter godkännande. Öppna checklistan igen för att ändra den.",
+  "kontekstChip.byggeplassFolgerTegning": "Byggarbetsplatsen följer ritningen. Välj en ritning från en annan byggarbetsplats för att ändra den.",
   "kontekstChip.velgFelt": "Välj {{felt}}",
   "felles.ingenTreff": "Inga matchningar",
   "kontekstChip.allePaa": "Allt i {{prosjekt}}",

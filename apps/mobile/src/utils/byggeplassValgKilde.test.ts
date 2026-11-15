@@ -31,13 +31,43 @@ describe("(20b) byggeplassvalg øverst i lokasjonslista", () => {
   it("sjekkliste: «Velg» åpner lista, og byggeplass-trykk lagrer med byggeplassByttInput", () => {
     const kilde = les("../../app/sjekkliste/[id].tsx");
     expect(kilde).toMatch(/<ByggeplassIkkeValgtLinje onVelg=\{aapneByggeplassValg\} \/>/);
-    expect(kilde).toMatch(/onVelgByggeplass=\{velgByggeplass\}/);
+    expect(kilde).toMatch(/onVelgByggeplass=\{kanVelgeByggeplassDirekte\(sjekklisteDetalj\?\.drawingId\) \? velgByggeplass : undefined\}/);
     expect(kilde).toMatch(/\.\.\.byggeplassByttInput\(sjekklisteDetalj\?\.lokasjonOmfang, byggeplassId\)/);
   });
 
   it("oppgave: byggeplass-trykk lagrer med byggeplassByttInput (drawingId null → ønsket vinner)", () => {
     const kilde = les("../../app/oppgave/[id].tsx");
-    expect(kilde).toMatch(/onVelgByggeplass=\{\(byggeplassId\) =>/);
+    expect(kilde).toMatch(/onVelgByggeplass=\{kanVelgeByggeplassDirekte\(oppgaveDetalj\?\.drawingId\) \? \(byggeplassId\) =>/);
     expect(kilde).toMatch(/\.\.\.byggeplassByttInput\(oppgaveDetalj\?\.lokasjonOmfang, byggeplassId\)/);
+  });
+});
+
+/**
+ * ORDRE 2026-11-15 (21): byggeplassen følger tegningen. Med tegning skjules byggeplass-radene
+ * (byttet skjer ved å velge en tegning fra en annen byggeplass); serveren setter byggeplassen
+ * fra tegningen (`velgTaskByggeplass`). Prosjekt-tegning sender `byggeplassId: undefined`.
+ */
+describe("(21) byggeplass følger tegningen", () => {
+  it("sjekkliste: byggeplass-radene gis bare uten tegning", () => {
+    const kilde = les("../../app/sjekkliste/[id].tsx");
+    expect(kilde).not.toMatch(/onVelgByggeplass=\{velgByggeplass\}/);
+    expect(kilde).toMatch(/onVelgByggeplass=\{kanVelgeByggeplassDirekte\(sjekklisteDetalj\?\.drawingId\) \? velgByggeplass : undefined\}/);
+  });
+
+  it("sjekkliste: «Byggeplass ikke valgt»-linja får drawingId", () => {
+    const kilde = les("../../app/sjekkliste/[id].tsx");
+    expect(kilde).toMatch(/kanRedigere: !leseModus, drawingId: sjekklisteDetalj\?\.drawingId \?\? null, \}\) && <ByggeplassIkkeValgtLinje/);
+  });
+
+  it("sjekkliste: Lagre sender undefined (ikke null) for prosjekt-tegning", () => {
+    const kilde = les("../../app/sjekkliste/[id].tsx");
+    expect(kilde).toMatch(/byggeplassId: lokTempTegningId \? \(lokTempBygningId \?\? undefined\) : lokTempBygningId,/);
+    expect(kilde).not.toMatch(/byggeplassId: lokTempBygningId, drawingId: lokTempTegningId,/);
+  });
+
+  it("oppgave: byggeplass-radene gis bare uten tegning", () => {
+    const kilde = les("../../app/oppgave/[id].tsx");
+    expect(kilde).not.toMatch(/onVelgByggeplass=\{\(byggeplassId\) =>/);
+    expect(kilde).toMatch(/onVelgByggeplass=\{kanVelgeByggeplassDirekte\(oppgaveDetalj\?\.drawingId\) \? \(byggeplassId\) =>[\s\S]*?settVisTegningVelger\(false\); \} : undefined\}/);
   });
 });

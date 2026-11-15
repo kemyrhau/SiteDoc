@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Cały projekt",
   "kontekstChip.faggruppeKunUtkast": "Handel można zmienić tylko w wersji roboczej",
   "kontekstChip.byggeplassLaastGodkjent": "Po zatwierdzeniu plac budowy jest zamykany. Otwórz ponownie listę kontrolną, aby ją zmienić.",
+  "kontekstChip.byggeplassFolgerTegning": "Plac budowy jest zgodny z rysunkiem. Wybierz rysunek z innego placu budowy, aby go zmienić.",
   "kontekstChip.velgFelt": "Wybierz {{felt}}",
   "felles.ingenTreff": "Brak dopasowań",
   "kontekstChip.allePaa": "Wszystko w {{prosjekt}}",

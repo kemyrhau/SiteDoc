@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Întregul proiect",
   "kontekstChip.faggruppeKunUtkast": "Comerțul poate fi modificat numai în draft",
   "kontekstChip.byggeplassLaastGodkjent": "Şantierul este blocat după aprobare. Redeschideți lista de verificare pentru a o modifica.",
+  "kontekstChip.byggeplassFolgerTegning": "Șantierul urmează desenul. Selectați un desen de pe alt șantier pentru a-l schimba.",
   "kontekstChip.velgFelt": "Selectați {{felt}}",
   "felles.ingenTreff": "Fără meciuri",
   "kontekstChip.allePaa": "Toate în {{prosjekt}}",

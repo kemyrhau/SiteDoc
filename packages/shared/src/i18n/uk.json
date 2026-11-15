@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Весь проект",
   "kontekstChip.faggruppeKunUtkast": "Торг можна змінити лише в чернетці",
   "kontekstChip.byggeplassLaastGodkjent": "Будівельний майданчик заблоковано після погодження. Повторно відкрийте контрольний список, щоб змінити його.",
+  "kontekstChip.byggeplassFolgerTegning": "Будівельний майданчик відповідає кресленню. Виберіть креслення з іншого будівельного майданчика, щоб змінити його.",
   "kontekstChip.velgFelt": "Виберіть {{felt}}",
   "felles.ingenTreff": "Немає збігів",
   "kontekstChip.allePaa": "Усе в {{prosjekt}}",
