@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Appen kunde inte hitta ett projekt att länka timmarna till, så inget dagblad skapades. Arbetsdagen är fortfarande öppen – försök \"Slutdag\" igen när projekten har laddats, eller skriv in timmarna manuellt.",
   "timer.prosjektUkjent.tittel": "Kunde inte hitta projektet",
   "timer.prosjektUkjent.melding": "Appen kunde inte härleda projektet från din position. Välj ett projekt i väljaren högst upp och tryck på \"Slutdag\" igen. Arbetsdagen är fortfarande öppen.",
+  "timer.sedelIAnnetFirma.tittel": "Inte sparad",
+  "timer.sedelIAnnetFirma.melding": "Detta datum har redan en tidrapport i ett annat företag. Ett datum kan bara ha en tidrapport, så inget sparades.",
   "timer.normMarkor.cachet.tittel": "Norm från senast kända svar",
   "timer.normMarkor.cachet.melding": "Appen hade inte dagens dagsnorm från servern och använde det senast kända svaret. Kontrollera distributionen när appen är online igen.",
   "timer.normMarkor.cachet.banner": "Dagsnorm från senast kända svar – ej bekräftad för detta datum.",

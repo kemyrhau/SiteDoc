@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Rakendus ei leidnud tundide linkimiseks projekti, mistõttu päevalehte ei loodud. Tööpäev on endiselt lahtine – kui projektid on laaditud, proovige uuesti nuppu \"Lõpp päev\" või sisestage tunnid käsitsi.",
   "timer.prosjektUkjent.tittel": "Projekti ei leitud",
   "timer.prosjektUkjent.melding": "Rakendus ei saanud projekti teie asukoha põhjal tuletada. Valige ülaosas olevas valijas projekt ja puudutage uuesti nuppu „Päeva lõpp”. Tööpäev on veel lahtine.",
+  "timer.sedelIAnnetFirma.tittel": "Pole salvestatud",
+  "timer.sedelIAnnetFirma.melding": "Sellel kuupäeval on juba mõnes teises ettevõttes ajatabel. Kuupäeval saab olla ainult üks ajatabel, seega midagi ei salvestatud.",
   "timer.normMarkor.cachet.tittel": "Norm viimasest teadaolevast vastusest",
   "timer.normMarkor.cachet.melding": "Rakendusel ei olnud serverist tänast päevanormi ja see kasutas viimast teadaolevat vastust. Kontrollige levitamist, kui rakendus on uuesti võrgus.",
   "timer.normMarkor.cachet.banner": "Päevanorm viimasest teadaolevast vastusest – selleks kuupäevaks pole kinnitatud.",

@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Aplikace nemohla najít projekt, ke kterému by bylo možné propojit hodiny, takže nebyl vytvořen žádný denní list. Pracovní den je stále otevřený – po načtení projektů zkuste znovu „End day“ nebo zadejte hodiny ručně.",
   "timer.prosjektUkjent.tittel": "Projekt se nepodařilo najít",
   "timer.prosjektUkjent.melding": "Aplikace nemohla odvodit projekt z vaší pozice. Ve výběru nahoře vyberte projekt a znovu klepněte na „Konec dne“. Pracovní den je stále otevřený.",
+  "timer.sedelIAnnetFirma.tittel": "Neuloženo",
+  "timer.sedelIAnnetFirma.melding": "Toto datum již má časový rozvrh v jiné společnosti. Datum může mít pouze jeden časový rozvrh, takže nebylo uloženo nic.",
   "timer.normMarkor.cachet.tittel": "Norma z poslední známé odpovědi",
   "timer.normMarkor.cachet.melding": "Aplikace neměla dnešní denní normu ze serveru a použila poslední známou odpověď. Jakmile bude aplikace opět online, zkontrolujte distribuci.",
   "timer.normMarkor.cachet.banner": "Denní norma z poslední známé odpovědi – k tomuto datu nepotvrzena.",

@@ -331,3 +331,82 @@ describe("(ii-b) ikke aktivt ansatt i firmaet → ingen ny sedel eller rad", () 
     expect(timerCreate).not.toHaveBeenCalled();
   });
 });
+
+/** Gate (34) vilkår 1: underprosjekt valideres også på timer-rader (tilfoy/oppdater). */
+function lagTimerCtx() {
+  const sheet = { id: SHEET, clientUuid: SHEET, userId: USER, organizationId: ORG, status: "draft", pauseMin: 0, dato: new Date() };
+  const ekko = (args: { data: unknown }) => Promise.resolve({ id: RAD, ...(args.data as object) });
+  const timerCreate = vi.fn(ekko);
+  const timerUpdate = vi.fn(ekko);
+  const rad = { id: RAD, sheetId: SHEET, projectId: PROSJEKT_A, lonnsartId: LONNSART, aktivitetId: AKTIVITET, externalCostObjectId: null, timer: 8, erReise: false, fraTid: "07:00", tilTid: "15:00" };
+  const ctx = {
+    userId: USER,
+    req: { log: { info: vi.fn(), warn: vi.fn() } },
+    prisma: {},
+    prismaTimer: {
+      // Både batch- og interaktiv form (oppdaterTimerRad bruker callback).
+      $transaction: vi.fn((arg: unknown): Promise<unknown> =>
+        typeof arg === "function"
+          ? (arg as (tx: unknown) => Promise<unknown>)(ctx.prismaTimer)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
+      dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: vi.fn().mockResolvedValue({}) },
+      lonnsart: {
+        findFirst: vi.fn().mockResolvedValue({ id: LONNSART, satsEnhet: "time", erReise: false }),
+        findMany: vi.fn().mockResolvedValue([{ id: LONNSART, satsEnhet: "time", erReise: false }]),
+      },
+      aktivitet: {
+        findFirst: vi.fn().mockResolvedValue({ id: AKTIVITET }),
+        findMany: vi.fn().mockResolvedValue([{ id: AKTIVITET }]),
+      },
+      sheetTimer: {
+        findMany: vi.fn().mockResolvedValue([]),
+        findUnique: vi.fn().mockResolvedValue(rad),
+        create: timerCreate,
+        update: timerUpdate,
+        aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
+      },
+      sheetMachine: { findMany: vi.fn().mockResolvedValue([]) },
+      sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
+      sheetUtlegg: { findMany: vi.fn().mockResolvedValue([]) },
+    },
+  };
+  return { ctx, timerCreate, timerUpdate };
+}
+
+const timerInput = {
+  sheetId: SHEET, projectId: PROSJEKT_A, lonnsartId: LONNSART, aktivitetId: AKTIVITET,
+  timer: 8, fraTid: "07:00", tilTid: "15:00",
+};
+
+describe("(v) underprosjekt — tilfoyTimerRad / oppdaterTimerRad (gate 34)", () => {
+  for (const [navn, eco] of [["annet firma", ECO_ANNET_FIRMA], ["annet prosjekt", ECO_B]] as const) {
+    it(`🔴 tilfoyTimerRad: underprosjekt fra ${navn} → BAD_REQUEST, ingen rad`, async () => {
+      const { ctx, timerCreate } = lagTimerCtx();
+      await expect(
+        caller(ctx).tilfoyTimerRad({ ...timerInput, externalCostObjectId: eco }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(ECO_AVVIST) });
+      expect(timerCreate).not.toHaveBeenCalled();
+      expect(ctx.prismaTimer.$transaction).not.toHaveBeenCalled();
+    });
+    it(`🔴 oppdaterTimerRad: underprosjekt fra ${navn} → BAD_REQUEST, ingen oppdatering`, async () => {
+      const { ctx, timerUpdate } = lagTimerCtx();
+      await expect(
+        caller(ctx).oppdaterTimerRad({ id: RAD, fraTid: "07:00", tilTid: "15:00", externalCostObjectId: eco }),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(ECO_AVVIST) });
+      expect(timerUpdate).not.toHaveBeenCalled();
+      expect(ctx.prismaTimer.$transaction).not.toHaveBeenCalled();
+    });
+  }
+  it("tilfoyTimerRad: underprosjekt i radens prosjekt og firma passerer valideringen", async () => {
+    const { ctx } = lagTimerCtx();
+    const svar = caller(ctx).tilfoyTimerRad({ ...timerInput, externalCostObjectId: ECO_A });
+    await svar.catch((e: { message?: string }) => expect(e.message ?? "").not.toMatch(ECO_AVVIST));
+  });
+  it("oppdaterTimerRad: underprosjekt i radens prosjekt og firma settes; null tømmer", async () => {
+    const { ctx, timerUpdate } = lagTimerCtx();
+    await caller(ctx).oppdaterTimerRad({ id: RAD, fraTid: "07:00", tilTid: "15:00", externalCostObjectId: ECO_A });
+    await caller(ctx).oppdaterTimerRad({ id: RAD, fraTid: "07:00", tilTid: "15:00", externalCostObjectId: null });
+    expect(timerUpdate.mock.calls.map((c) => (c[0] as { data: { externalCostObjectId: unknown } }).data.externalCostObjectId)).toEqual([ECO_A, null]);
+  });
+});

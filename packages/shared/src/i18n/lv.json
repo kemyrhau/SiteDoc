@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Lietotne nevarēja atrast projektu, ar kuru saistīt stundas, tāpēc netika izveidota dienas lapa. Darba diena joprojām ir atvērta — mēģiniet vēlreiz “Beigt dienu”, kad projekti ir ielādēti, vai ievadiet stundas manuāli.",
   "timer.prosjektUkjent.tittel": "Nevarēja atrast projektu",
   "timer.prosjektUkjent.melding": "Lietotne nevarēja iegūt projektu no jūsu pozīcijas. Augšpusē esošajā atlasītājā atlasiet projektu un vēlreiz pieskarieties vienumam Beigt dienu. Darba diena joprojām ir atvērta.",
+  "timer.sedelIAnnetFirma.tittel": "Nav saglabāts",
+  "timer.sedelIAnnetFirma.melding": "Šim datumam jau ir darba laika uzskaite citā uzņēmumā. Datumam var būt tikai viena laika uzskaite, tāpēc nekas netika saglabāts.",
   "timer.normMarkor.cachet.tittel": "Norm no pēdējās zināmās atbildes",
   "timer.normMarkor.cachet.melding": "Lietotnei nebija šodienas dienas normas no servera un tika izmantota pēdējā zināmā atbilde. Pārbaudiet izplatīšanu, kad lietotne atkal būs tiešsaistē.",
   "timer.normMarkor.cachet.banner": "Dienas norma no pēdējās zināmās atbildes – šim datumam nav apstiprināta.",

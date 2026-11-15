@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Aplikacja nie mogła znaleźć projektu, z którym można by powiązać godziny, więc nie utworzono arkusza dziennego. Dzień pracy jest nadal otwarty – spróbuj ponownie „Dzień końcowy” po załadowaniu projektów lub wprowadź godziny ręcznie.",
   "timer.prosjektUkjent.tittel": "Nie udało się znaleźć projektu",
   "timer.prosjektUkjent.melding": "Aplikacja nie mogła wygenerować projektu na podstawie Twojej pozycji. Wybierz projekt w selektorze u góry i ponownie kliknij „Dzień końcowy”. Dzień pracy jest nadal otwarty.",
+  "timer.sedelIAnnetFirma.tittel": "Nie zapisano",
+  "timer.sedelIAnnetFirma.melding": "Ta data ma już grafik w innej firmie. Dla danej daty może być przypisany tylko jeden grafik, więc nic nie zostało zapisane.",
   "timer.normMarkor.cachet.tittel": "Norm from last known answer",
   "timer.normMarkor.cachet.melding": "The app did not have today's daily norm from the server and used the last known answer. Check the distribution once the app is back online.",
   "timer.normMarkor.cachet.banner": "Daily norm from the last known answer – not confirmed for this date.",

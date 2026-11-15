@@ -71,6 +71,27 @@ export class SedelIAnnetFirmaFeil extends Error {
   }
 }
 
+/**
+ * Gate (34): første dato der brukeren har en sedel i et ANNET firma enn `orgId`
+ * (null = ingen). Samme regel som vakten i `finnEllerOpprettDagsseddel`, men uten
+ * å skrive — så en flerdato-skriving (Bekreft dag over midnatt) kan stoppe FØR
+ * første dato er lagret. Sedel uten org ("") er ukjent, ikke annet firma.
+ */
+export function finnSedelIAnnetFirma(
+  db: LokalDb,
+  args: { userId: string; orgId: string; datoer: string[] },
+): string | null {
+  for (const dato of args.datoer) {
+    const s = db
+      .select({ organizationId: dagsseddelLocal.organizationId })
+      .from(dagsseddelLocal)
+      .where(and(eq(dagsseddelLocal.userId, args.userId), eq(dagsseddelLocal.dato, dato)))
+      .all()[0];
+    if (s?.organizationId && s.organizationId !== args.orgId) return dato;
+  }
+  return null;
+}
+
 export function finnEllerOpprettDagsseddel(
   db: LokalDb,
   args: FinnEllerOpprettArgs,

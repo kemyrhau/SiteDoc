@@ -2465,6 +2465,8 @@ export const dagsseddelRouter = router({
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
       // Ordre (10): byggeplassen må høre til radens prosjekt.
       await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
+      // Gate (34): underprosjektet må høre til radens prosjekt og sedelens firma.
+      await krevEcoerIProsjekt([input], sheet.organizationId);
 
       // §2.D: vehicleId (maskinvedlikehold-kostnadsbærer) må tilhøre firmaet.
       if (input.vehicleId) {
@@ -2691,6 +2693,11 @@ export const dagsseddelRouter = router({
       if (input.timer !== undefined) data.timer = input.timer;
       if (input.beskrivelse !== undefined) data.beskrivelse = input.beskrivelse;
       if (input.externalCostObjectId !== undefined) {
+        // Gate (34): valideres mot RADENS prosjekt og sedelens firma.
+        await krevEcoerIProsjekt(
+          [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+          sheet.organizationId,
+        );
         data.externalCostObjectId = input.externalCostObjectId;
       }
       if (input.vehicleId !== undefined) {

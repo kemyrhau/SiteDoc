@@ -8,7 +8,7 @@ import {
   sheetMachineLocal,
   sheetTimerLocal,
 } from "../db/schema";
-import { finnEllerOpprettDagsseddel } from "./dagsseddelOpprett";
+import { finnEllerOpprettDagsseddel, finnSedelIAnnetFirma } from "./dagsseddelOpprett";
 import { erReiseLonnsartLokalt } from "./timerKatalog";
 import { maskinerOverRad, skrivKobledeMaskiner, type NyMaskin } from "./kobledeMaskiner";
 import {
@@ -281,7 +281,9 @@ export function settInnTimerRad(
 
 export type LagreNyRadResultat =
   | { ok: true; sheetId: string; eksisterte: boolean }
-  | { ok: false; grunn: "dagLaast"; sheetId: string };
+  | { ok: false; grunn: "dagLaast"; sheetId: string }
+  /** Gate (34): datoen har sedel i et annet firma — ingenting er skrevet. */
+  | { ok: false; grunn: "sedelIAnnetFirma"; sheetId: null };
 
 /**
  * Lagre fra opprettelsesmodus (§ 3.1): finn-eller-opprett sedelen for datoen,
@@ -297,6 +299,10 @@ export function lagreNyTimerRad(
   // Maskin over radens timer: avvis før en tom sedel opprettes.
   if (maskinerOverRad(args.rad.timer, args.rad.maskiner).length > 0) {
     throw new Error("maskinOverRad: maskintimer over radens timer");
+  }
+  // Gate (34): sjekkes før sedelen finnes/opprettes — ingenting skrives.
+  if (finnSedelIAnnetFirma(db, { userId: args.userId, orgId: args.organizationId, datoer: [args.dato] })) {
+    return { ok: false, grunn: "sedelIAnnetFirma", sheetId: null };
   }
   const sedel = finnEllerOpprettDagsseddel(db, {
     userId: args.userId,

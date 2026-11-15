@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Aplikacioni nuk mund të gjente një projekt për të lidhur orët, kështu që nuk u krijua asnjë fletë ditore. Dita e punës është ende e hapur – provoni sërish “End day” pasi të jenë ngarkuar projektet, ose futni orët manualisht.",
   "timer.prosjektUkjent.tittel": "Projekti nuk u gjet",
   "timer.prosjektUkjent.melding": "Aplikacioni nuk mund ta nxjerrë projektin nga pozicioni juaj. Zgjidhni një projekt në zgjedhësin në krye dhe trokitni sërish \"End day\". Dita e punës është ende e hapur.",
+  "timer.sedelIAnnetFirma.tittel": "Nuk u ruajt",
+  "timer.sedelIAnnetFirma.melding": "Kjo datë ka tashmë një fletë kohore në një kompani tjetër. Një datë mund të ketë vetëm një fletë kohore, kështu që asgjë nuk u ruajt.",
   "timer.normMarkor.cachet.tittel": "Norma nga përgjigja e fundit e njohur",
   "timer.normMarkor.cachet.melding": "Aplikacioni nuk kishte normën ditore të sotme nga serveri dhe përdori përgjigjen e fundit të njohur. Kontrolloni shpërndarjen pasi aplikacioni të kthehet në linjë.",
   "timer.normMarkor.cachet.banner": "Norma ditore nga përgjigja e fundit e njohur – e pa konfirmuar për këtë datë.",

@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Aplicația nu a putut găsi un proiect la care să facă legătura între orele, așa că nu a fost creată nicio foaie de zi. Ziua de lucru este încă deschisă – încercați din nou „Încheierea zilei” odată ce proiectele s-au încărcat sau introduceți manual orele.",
   "timer.prosjektUkjent.tittel": "Nu am putut găsi proiectul",
   "timer.prosjektUkjent.melding": "Aplicația nu a putut deriva proiectul din poziția dvs. Selectați un proiect în selectorul din partea de sus și atingeți din nou „Încheierea zilei”. Ziua de lucru este încă deschisă.",
+  "timer.sedelIAnnetFirma.tittel": "Nu a fost salvat",
+  "timer.sedelIAnnetFirma.melding": "Această dată are deja o foaie de pontaj în altă companie. O dată poate avea o singură foaie de pontaj, așa că nu a fost salvat nimic.",
   "timer.normMarkor.cachet.tittel": "Normă din ultimul răspuns cunoscut",
   "timer.normMarkor.cachet.melding": "Aplicația nu avea norma zilnică de astăzi de la server și folosea ultimul răspuns cunoscut. Verificați distribuția odată ce aplicația este din nou online.",
   "timer.normMarkor.cachet.banner": "Norma zilnică de la ultimul răspuns cunoscut – neconfirmat pentru această dată.",

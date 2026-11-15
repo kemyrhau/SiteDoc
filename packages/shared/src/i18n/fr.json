@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "L'application n'a pas trouvé de projet auquel lier les heures, donc aucune feuille journalière n'a été créée. La journée de travail est toujours ouverte – réessayez « Fin de journée » une fois les projets chargés, ou saisissez les heures manuellement.",
   "timer.prosjektUkjent.tittel": "Impossible de trouver le projet",
   "timer.prosjektUkjent.melding": "L'application n'a pas pu dériver le projet de votre position. Sélectionnez un projet dans le sélecteur en haut et appuyez à nouveau sur « Fin de journée ». La journée de travail est toujours ouverte.",
+  "timer.sedelIAnnetFirma.tittel": "Non enregistré",
+  "timer.sedelIAnnetFirma.melding": "Cette date a déjà une feuille de temps dans une autre entreprise. Une date ne peut avoir qu’une seule feuille de temps, rien n’a donc été enregistré.",
   "timer.normMarkor.cachet.tittel": "Norme de la dernière réponse connue",
   "timer.normMarkor.cachet.melding": "L'application ne disposait pas de la norme quotidienne actuelle du serveur et utilisait la dernière réponse connue. Vérifiez la distribution une fois l'application de nouveau en ligne.",
   "timer.normMarkor.cachet.banner": "Norme quotidienne issue de la dernière réponse connue – non confirmée pour cette date.",

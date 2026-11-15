@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import { eq, and } from "drizzle-orm";
 import { hentDatabase } from "../../src/db/database";
+import { SedelIAnnetFirmaFeil } from "../../src/services/dagsseddelOpprett";
 import {
   arbeidsdagLocal,
   aktivitetLocal,
@@ -861,6 +862,11 @@ export default function BekreftDagSkjerm() {
         );
         return;
       }
+      if (handling.type === "sedelIAnnetFirma") {
+        // Gate (34): ingenting er skrevet — en dato kan bare ha én sedel (ett firma).
+        Alert.alert(t("timer.sedelIAnnetFirma.tittel"), t("timer.sedelIAnnetFirma.melding"));
+        return;
+      }
       if (handling.type === "tilleggUtenRad") {
         // Ingenting er skrevet — linjene står under «Uten rad» til arbeideren fjerner dem.
         Alert.alert(t("timer.bekreftDag.tillegg.utenRadTittel"), t("timer.bekreftDag.tillegg.utenRadMelding"));
@@ -952,6 +958,13 @@ export default function BekreftDagSkjerm() {
           Alert.alert(t("timer.prosjektUkjent.tittel"), t("timer.prosjektUkjent.melding"));
           break;
       }
+    } catch (e) {
+      // Gate (34): sikkerhetsnett — forhåndssjekken i bekreftDag skal fange dette først.
+      if (e instanceof SedelIAnnetFirmaFeil) {
+        Alert.alert(t("timer.sedelIAnnetFirma.tittel"), t("timer.sedelIAnnetFirma.melding"));
+        return;
+      }
+      throw e;
     } finally {
       setLagrer(false);
     }

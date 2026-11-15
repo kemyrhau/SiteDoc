@@ -324,6 +324,19 @@ describe("lagreNyTimerRad", () => {
     ).toEqual({ ok: false, grunn: "dagLaast", sheetId: "s-u2" });
   });
 
+  it("🔴 gate (34): sedel i annet firma på datoen → sedelIAnnetFirma, ingenting skrives", () => {
+    seedSedel("s-o2", "2026-11-06");
+    holder.raw.run("UPDATE dagsseddel_local SET organization_id = 'o2' WHERE id = 's-o2';");
+    const res = lagreNyTimerRad(db(), { userId: "u1", organizationId: "o1", dato: "2026-11-06", rad });
+    expect(res).toEqual({ ok: false, grunn: "sedelIAnnetFirma", sheetId: null });
+    expect(antall()).toEqual({ sedler: 1, rader: 0 });
+    // Negativkontroll: samme firma på datoen → raden lagres på sedelen.
+    expect(lagreNyTimerRad(db(), { userId: "u1", organizationId: "o2", dato: "2026-11-06", rad })).toEqual({
+      ok: true, sheetId: "s-o2", eksisterte: true,
+    });
+    expect(antall()).toEqual({ sedler: 1, rader: 1 });
+  });
+
   it("nekter rad på sendt og akseptert dag", () => {
     for (const status of ["sent", "accepted"] as const) {
       holder.raw.run("DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local;");

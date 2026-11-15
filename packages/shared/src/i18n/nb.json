@@ -293,6 +293,8 @@
   "timer.kildeManglet.melding": "Appen fant ikke noe prosjekt å knytte timene til, så ingen dagsseddel ble opprettet. Arbeidsdagen står fortsatt åpen – prøv «Slutt dag» igjen når prosjektene er lastet, eller før timene manuelt.",
   "timer.prosjektUkjent.tittel": "Fant ikke prosjektet",
   "timer.prosjektUkjent.melding": "Appen klarte ikke å utlede prosjektet fra posisjonen din. Velg prosjekt i velgeren øverst og trykk «Slutt dag» på nytt. Arbeidsdagen står fortsatt åpen.",
+  "timer.sedelIAnnetFirma.tittel": "Ikke lagret",
+  "timer.sedelIAnnetFirma.melding": "Datoen har allerede en dagsseddel i et annet firma. En dato kan bare ha én dagsseddel, så ingenting er lagret.",
   "timer.normMarkor.cachet.tittel": "Norm fra siste kjente svar",
   "timer.normMarkor.cachet.melding": "Appen hadde ikke dagens dagsnorm fra serveren og brukte det siste kjente svaret. Kontroller fordelingen når appen får nett igjen.",
   "timer.normMarkor.cachet.banner": "Dagsnorm fra siste kjente svar – ikke bekreftet for denne datoen.",

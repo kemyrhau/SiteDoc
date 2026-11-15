@@ -32,6 +32,7 @@ import { arbeidsraderPerKort, kortMedArbeid } from "./beskrivelseKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
 import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
 import { slettUtkastRad } from "./prosjektkortUtkast";
+import { finnSedelIAnnetFirma } from "../services/dagsseddelOpprett";
 
 /**
  * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
@@ -44,7 +45,8 @@ export type BekreftDagHandling =
   | { type: "maskinBrudd"; brudd: MaskinBrudd[] }
   | { type: "manglerBeskrivelse"; nokler: string[] }
   | { type: "tilleggUtenRad"; nokler: string[] }
-  | { type: "tilleggUtleggUtenDag" };
+  | { type: "tilleggUtleggUtenDag" }
+  | { type: "sedelIAnnetFirma"; dato: string };
 
 /**
  * ORDRE 36a (spec § 3): prosjektene som har arbeid (ikke reise) på en åpen
@@ -201,7 +203,8 @@ export function bekreftDag(
   | { handling: { type: "tilleggUtleggUtenDag" }; resultat: AnvendDagsforslagResultat | null }
   | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
   | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null }
-  | { handling: { type: "tilleggUtenRad"; nokler: string[] }; resultat: null } {
+  | { handling: { type: "tilleggUtenRad"; nokler: string[] }; resultat: null }
+  | { handling: { type: "sedelIAnnetFirma"; dato: string }; resultat: null } {
   // ORDRE 36a: beskrivelsen er påkrevd — sjekkes først, ingenting skrives.
   const mangler = manglerBeskrivelse(forslag);
   if (mangler.length > 0) {
@@ -242,6 +245,16 @@ export function bekreftDag(
       const brudd = maskinBruddForTillegg(vaktGrunnlag(db, ctx.userId, forslag, dato), maskiner);
       if (brudd.length > 0) return { handling: { type: "maskinBrudd", brudd }, resultat: null };
     }
+  }
+  // Gate (34): en dato med sedel i et annet firma stopper hele Bekreft FØR noe
+  // skrives — `anvendDagsforslag` er ikke én transaksjon over datoene.
+  const annetFirma = finnSedelIAnnetFirma(db, {
+    userId: ctx.userId,
+    orgId: ctx.orgId,
+    datoer: forslag.datoer.filter((d) => !d.blokkert).map((d) => d.dato),
+  });
+  if (annetFirma) {
+    return { handling: { type: "sedelIAnnetFirma", dato: annetFirma }, resultat: null };
   }
   const resultat = anvendDagsforslag(db, forslag, ctx, tilleggPerRad, lonnUtlegg);
   // RETUR (Kontrollør M3): alle datoer ble sendt mellom forslag og Bekreft →
