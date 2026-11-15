@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Kunne ikke hente prosjekter",
   "prosjektVelger.sjekkNettverk": "Sjekk nettverkstilkoblingen",
   "prosjektVelger.ingenBeskrivelse": "Du kan logge inn på sitedoc.no og registrere nytt prosjekt",
+  "prosjektVelger.andreFirma": "Prosjekter i andre firma",
+  "prosjektVelger.andreFirmaHjelp": "Du er medlem av disse prosjektene, men de eies av et firma du ikke er ansatt i.",
   "topbar.firma": "Firma",
   "topbar.sokProsjekt": "Søk i prosjekter…",
   "topbar.ingenProsjekter": "Ingen prosjekter",

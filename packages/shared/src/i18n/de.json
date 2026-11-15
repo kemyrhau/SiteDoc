@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Projekte konnten nicht geladen werden",
   "prosjektVelger.sjekkNettverk": "Überprüfen Sie Ihre Netzwerkverbindung",
   "prosjektVelger.ingenBeskrivelse": "Sie können sich unter sitedoc.no anmelden und ein neues Projekt registrieren",
+  "prosjektVelger.andreFirma": "Projekte in anderen Unternehmen",
+  "prosjektVelger.andreFirmaHjelp": "Sie sind Mitglied dieser Projekte, aber sie gehören einem Unternehmen, bei dem Sie nicht angestellt sind.",
   "topbar.firma": "Unternehmen",
   "topbar.sokProsjekt": "Projekte suchen…",
   "topbar.ingenProsjekter": "Keine Projekte",

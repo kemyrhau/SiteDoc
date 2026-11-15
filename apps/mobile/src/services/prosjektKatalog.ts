@@ -2,6 +2,7 @@ import { eq, and } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { prosjektLocal } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import { lokaleGjesteprosjekter } from "../utils/gjesteprosjektListe";
 
 /* ============================================================================
  *  Prosjekt-katalog-cache (T7-3b1 2026-05-14)
@@ -79,6 +80,22 @@ export function hentProsjekterLokalt(organizationId: string) {
       ),
     )
     .all();
+}
+
+/**
+ * (15) Gjesteprosjekter fra lokal cache: aktive rader eid av et firma brukeren
+ * ikke er ansatt i. `mineFirmaIder = null` (ukjent ansettelse) → tom liste.
+ */
+export function hentGjesteprosjekterLokalt(mineFirmaIder: readonly string[] | null) {
+  if (!mineFirmaIder) return [];
+  const db = hentDatabase();
+  if (!db) return [];
+  const rader = db
+    .select()
+    .from(prosjektLocal)
+    .where(eq(prosjektLocal.aktiv, true))
+    .all();
+  return lokaleGjesteprosjekter(rader, mineFirmaIder);
 }
 
 /**

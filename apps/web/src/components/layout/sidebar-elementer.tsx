@@ -37,6 +37,7 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { trpc } from "@/lib/trpc";
 import type { Seksjon } from "@/kontekst/navigasjon-kontekst";
 import type { Permission } from "@sitedoc/shared";
+import { skjulFirmaModulForGjest } from "@sitedoc/shared";
 import { type ModulNavn } from "@/lib/modul-farger";
 
 // Modul-eierskap per sidebar-element (B3): kun disse får fargeaksent
@@ -282,7 +283,7 @@ export function useSidebarElementer(): {
   filtrertHovedelementer: SidebarElement[];
   harMaskinModul: boolean;
 } {
-  const { prosjektId } = useProsjekt();
+  const { prosjektId, valgtGjest } = useProsjekt();
   const { aktivByggeplass } = useByggeplass();
 
   const { data: tillatelser } = trpc.gruppe.hentMineTillatelser.useQuery(
@@ -347,6 +348,12 @@ export function useSidebarElementer(): {
     // er aktivert for det aktuelle prosjektet, ikke kun firma-bredt.
     if (element.kreverFirmaModul === "timer" && !harTimerModulPaaProsjekt) return false;
     if (element.kreverFirmaModul === "varelager" && !harVarelagerPaaProsjekt) return false;
+    // (15): gjesteprosjekt (eid av et firma brukeren ikke er ansatt i) — Timer skjules
+    // med mindre eget firma er koblet til prosjektet; Vareforbruk skjules alltid.
+    if (
+      (element.kreverFirmaModul === "timer" || element.kreverFirmaModul === "varelager") &&
+      skjulFirmaModulForGjest(element.kreverFirmaModul, valgtGjest)
+    ) return false;
     // Timer-leder-sjekk (kun for attesterings-elementet)
     if (element.kreverTimerLeder && !kanAttestereTimer) return false;
     return true;

@@ -2,7 +2,13 @@ import { useMemo } from "react";
 import { trpc } from "../lib/trpc";
 import { useFirma } from "../kontekst/FirmaKontekst";
 import { useNettverk } from "../providers/NettverkProvider";
-import { hentProsjekterLokalt } from "../services/prosjektKatalog";
+import { hentProsjekterLokalt, hentGjesteprosjekterLokalt } from "../services/prosjektKatalog";
+import {
+  mineAnsattFirmaIder,
+  serverGjesteprosjekter,
+  utenGjesteprosjekter,
+  type GjesteprosjektRad,
+} from "../utils/gjesteprosjektListe";
 import { velgHjemProsjektVisning, type HjemProsjektVisning } from "@sitedoc/shared";
 
 /* ============================================================================
@@ -31,6 +37,11 @@ export interface ProsjektRad {
 export interface ProsjektListeResultat {
   visning: HjemProsjektVisning;
   prosjekter: ProsjektRad[];
+  /**
+   * (15) Prosjekter i andre firma: medlem, men eid av et firma brukeren ikke er
+   * ansatt i. Egen gruppe i velgeren — tatt ut av `prosjekter`.
+   */
+  gjesteprosjekter: GjesteprosjektRad[];
   /** Viser lokale data uten nett → flaten skal vise «Frakoblet»-banneret. */
   erFrakoblet: boolean;
   erPaaNettet: boolean;
@@ -41,7 +52,7 @@ export interface ProsjektListeResultat {
 
 export function useProsjektListe(): ProsjektListeResultat {
   const { erPaaNettet } = useNettverk();
-  const { valgtFirmaId, firmaer, lasterFirmaer } = useFirma();
+  const { valgtFirmaId, firmaer, lasterFirmaer, erAnsattIFirma } = useFirma();
 
   const query = trpc.prosjekt.hentMine.useQuery(
     { organizationId: valgtFirmaId ?? undefined },
@@ -57,34 +68,64 @@ export function useProsjektListe(): ProsjektListeResultat {
     [valgtFirmaId, query.status],
   );
 
+  // (15) Gjesteprosjekter: server når på nett, ellers utledet fra prosjekt_local.
+  const gjesteQuery = trpc.prosjekt.hentGjesteprosjekter.useQuery();
+  const mineFirmaIder = useMemo(
+    () => mineAnsattFirmaIder(firmaer, (id) => erAnsattIFirma(id)),
+    [firmaer, erAnsattIFirma],
+  );
+  const lokaleGjester = useMemo(
+    () => hentGjesteprosjekterLokalt(mineFirmaIder),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mineFirmaIder, query.status],
+  );
+
   const visning = velgHjemProsjektVisning({
     erPaaNettet,
     serverBekreftet: query.isSuccess,
     erFeilet: query.isError,
     erPauset: query.fetchStatus === "paused",
-    harLokaleProsjekter: lokale.length > 0,
+    harLokaleProsjekter: lokale.length > 0 || lokaleGjester.length > 0,
   });
+
+  const gjesteprosjekter = useMemo<GjesteprosjektRad[]>(() => {
+    if (visning === "server") {
+      // Lean cast som hovedlista (TS2589-vern).
+      const data = gjesteQuery.data as unknown as Parameters<typeof serverGjesteprosjekter>[0] | undefined;
+      return data ? serverGjesteprosjekter(data) : [];
+    }
+    if (visning === "lokal") return lokaleGjester;
+    return [];
+  }, [visning, gjesteQuery.data, lokaleGjester]);
 
   const prosjekter = useMemo<ProsjektRad[]>(() => {
     if (visning === "server") {
       // Lean cast: tRPC-output drar med dyp config-Json (TS2589 på videre bruk).
       const data = (query.data as unknown as ProsjektRad[] | undefined) ?? [];
-      return data.map((p) => ({ id: p.id, name: p.name, projectNumber: p.projectNumber ?? null }));
+      return utenGjesteprosjekter(
+        data.map((p) => ({ id: p.id, name: p.name, projectNumber: p.projectNumber ?? null })),
+        gjesteprosjekter,
+      );
     }
     if (visning === "lokal") {
-      return lokale.map((p) => ({ id: p.id, name: p.name, projectNumber: p.projectNumber ?? null }));
+      return utenGjesteprosjekter(
+        lokale.map((p) => ({ id: p.id, name: p.name, projectNumber: p.projectNumber ?? null })),
+        gjesteprosjekter,
+      );
     }
     return [];
-  }, [visning, query.data, lokale]);
+  }, [visning, query.data, lokale, gjesteprosjekter]);
 
   return {
     visning,
     prosjekter,
+    gjesteprosjekter,
     erFrakoblet: visning === "lokal",
     erPaaNettet,
     feilmelding: query.error?.message ?? null,
     refetch: () => {
       query.refetch();
+      gjesteQuery.refetch();
     },
   };
 }

@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Не удалось загрузить проекты",
   "prosjektVelger.sjekkNettverk": "Проверьте подключение к сети",
   "prosjektVelger.ingenBeskrivelse": "Вы можете войти на sitedoc.no и зарегистрировать новый проект.",
+  "prosjektVelger.andreFirma": "Проекты в других компаниях",
+  "prosjektVelger.andreFirmaHjelp": "Вы являетесь участником этих проектов, но они принадлежат компании, в которой вы не работаете.",
   "topbar.firma": "Компания",
   "topbar.sokProsjekt": "Поиск проектов…",
   "topbar.ingenProsjekter": "Нет проектов",

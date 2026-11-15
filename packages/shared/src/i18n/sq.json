@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Projektet nuk mund të ngarkoheshin",
   "prosjektVelger.sjekkNettverk": "Kontrollo lidhjen e rrjetit",
   "prosjektVelger.ingenBeskrivelse": "Mund të identifikoheni në sitedoc.no dhe të regjistroni një projekt të ri",
+  "prosjektVelger.andreFirma": "Projekte në kompani të tjera",
+  "prosjektVelger.andreFirmaHjelp": "Ju jeni anëtar i këtyre projekteve, por ato janë në pronësi të një kompanie ku nuk jeni të punësuar.",
   "topbar.firma": "Kompania",
   "topbar.sokProsjekt": "Kërko projekte…",
   "topbar.ingenProsjekter": "Asnjë projekt",

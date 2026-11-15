@@ -355,6 +355,27 @@ export const medlemRouter = router({
 
         // 2. Sikre OrganizationMember-rad hvis bruker skal tilhøre et firma.
         if (organizationId) {
+          // POST 2026-11-15 (15), Kenneth-vedtak 2: en bruker kan bare være ansatt i ett
+          // firma. Admin-grenen kunne ellers opprette en ANDRE ansettelse for en bruker som
+          // er aktivt ansatt i et annet firma. Vakta slår kun inn når upserten ville OPPRETTE
+          // en rad — finnes raden allerede i dette firmaet (aktiv eller deaktivert), er
+          // upserten en no-op og kallet slipper gjennom som før. Uten organizationId legges
+          // brukeren til som gjest på prosjektet (ingen ansettelse) — uendret.
+          const ansettelser = await tx.organizationMember.findMany({
+            where: { userId: user.id },
+            select: { organizationId: true, status: true },
+          });
+          const harRadHer = ansettelser.some((a) => a.organizationId === organizationId);
+          const aktivAnnet = ansettelser.some(
+            (a) => a.organizationId !== organizationId && a.status === "aktiv",
+          );
+          if (!harRadHer && aktivAnnet) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message:
+                "Brukeren er ansatt i et annet firma. En bruker kan bare være ansatt i ett firma — legg brukeren til uten firma for å gi tilgang til prosjektet.",
+            });
+          }
           await tx.organizationMember.upsert({
             where: { userId_organizationId: { userId: user.id, organizationId } },
             create: { userId: user.id, organizationId, ansattRolle: "ansatt", firmaRoller: [] },

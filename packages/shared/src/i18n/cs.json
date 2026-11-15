@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Projekty se nepodařilo načíst",
   "prosjektVelger.sjekkNettverk": "Zkontrolujte připojení k síti",
   "prosjektVelger.ingenBeskrivelse": "Můžete se přihlásit na sitedoc.no a zaregistrovat nový projekt",
+  "prosjektVelger.andreFirma": "Projekty v jiných společnostech",
+  "prosjektVelger.andreFirmaHjelp": "Jste členem těchto projektů, ale jsou ve vlastnictví společnosti, u které nejste zaměstnáni.",
   "topbar.firma": "Společnost",
   "topbar.sokProsjekt": "Hledat projekty…",
   "topbar.ingenProsjekter": "Žádné projekty",

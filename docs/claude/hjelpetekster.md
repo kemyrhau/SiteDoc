@@ -150,6 +150,12 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - 0 treff (`firma.oppmotested.geokodIngen`): «Fant ingen treff på adressen. Du kan likevel lagre stedet: klikk i kartet for å sette punktet.» Lagre sperres ikke av 0 treff — bare av manglende punkt.
 - Under lista: «Adressedata © Kartverket» (`georef.attribusjonKartverket`).
 
+## Web og mobil: «Prosjekter i andre firma» i prosjektvelgeren (POST 2026-11-15 (15))
+
+- **Gruppeoverskrift:** «Prosjekter i andre firma» (`prosjektVelger.andreFirma`).
+- **Forklaring:** «Du er medlem av disse prosjektene, men de eies av et firma du ikke er ansatt i.» (`prosjektVelger.andreFirmaHjelp`). På web står den som ?-ikon med tooltip ved overskriften (`KontekstChip.tsx`). På mobil står den som grå linje under overskriften (`ProsjektVelger.tsx`).
+- **Rad:** prosjektnavn · eierfirma (web på samme linje, mobil på linja under; eierfirma mangler offline).
+
 ## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
 
 Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banner:

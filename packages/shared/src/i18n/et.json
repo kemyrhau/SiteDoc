@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Projekte ei saanud laadida",
   "prosjektVelger.sjekkNettverk": "Kontrollige oma võrguühendust",
   "prosjektVelger.ingenBeskrivelse": "Saate sisse logida saidil sitedoc.no ja registreerida uue projekti",
+  "prosjektVelger.andreFirma": "Projektid teistes ettevõtetes",
+  "prosjektVelger.andreFirmaHjelp": "Olete nende projektide liige, kuid need kuuluvad ettevõttele, kus te ei tööta.",
   "topbar.firma": "Ettevõte",
   "topbar.sokProsjekt": "Otsi projekte…",
   "topbar.ingenProsjekter": "Projekte pole",

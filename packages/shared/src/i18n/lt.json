@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Nepavyko įkelti projektų",
   "prosjektVelger.sjekkNettverk": "Patikrinkite tinklo ryšį",
   "prosjektVelger.ingenBeskrivelse": "Galite prisijungti adresu sitedoc.no ir užregistruoti naują projektą",
+  "prosjektVelger.andreFirma": "Projektai kitose įmonėse",
+  "prosjektVelger.andreFirmaHjelp": "Jūs esate šių projektų narys, bet jie priklauso įmonei, kurioje nesate įdarbintas.",
   "topbar.firma": "Įmonė",
   "topbar.sokProsjekt": "Ieškoti projektų…",
   "topbar.ingenProsjekter": "Jokių projektų",
