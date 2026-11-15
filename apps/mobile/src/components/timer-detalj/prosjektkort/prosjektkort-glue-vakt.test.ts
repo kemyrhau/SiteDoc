@@ -13,7 +13,9 @@ const her = dirname(fileURLToPath(import.meta.url));
 const les = (...del: string[]) => readFileSync(join(her, ...del), "utf-8");
 
 const DAGSKORT = les("../../../../app/timer/[id].tsx");
-const KORT = les("useProsjektkortSedel.ts");
+// ORDRE (23): prosjektkortets gjenåpne-glue bor i `useGjenaapneDagsseddel.ts`
+// (delt med kortskjermen) — den er en del av prosjektkort-kopien.
+const KORT = les("useProsjektkortSedel.ts") + "\n" + les("useGjenaapneDagsseddel.ts");
 const SKJERM = les("../../../../app/timer/[id]/prosjektkort.tsx");
 
 /** Kall som begge kopier skal ha like mange av (lagring, konflikt, forsoning). */

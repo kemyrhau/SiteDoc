@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Aucune",
   "timer.kortValg.flyttTittel": "Déplacer la ligne vers",
   "timer.kort.endre": "Changer de carte",
+  "timer.kort.seHeleDagen": "See the whole day ({{antall}} projects)",
   "timer.kort.slett": "Supprimer la carte",
   "timer.kort.flyttTittel": "Déplacez la carte vers",
   "timer.kort.flyttKnapp": "Déplacer la carte",

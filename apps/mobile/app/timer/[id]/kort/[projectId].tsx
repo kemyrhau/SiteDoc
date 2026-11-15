@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import { ArrowLeft, AlertTriangle } from "lucide-react-native";
+import { ArrowLeft, AlertTriangle, ChevronRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../../../src/db/database";
@@ -49,6 +49,7 @@ import {
   formatKortTall,
   fraRuteParam,
   kortNokkel,
+  kortProsjektIder,
   kortValgFor,
   lagretByggeplassForKort,
   raderPaaKort,
@@ -73,6 +74,9 @@ import {
   type KortUtfall,
 } from "../../../../src/components/timer-detalj/prosjektkort/kortRadFlytt";
 import { KortHode } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortSamleside";
+import { GjenaapneKnapp } from "../../../../src/components/timer-detalj/prosjektkort/GjenaapneKnapp";
+import { useGjenaapneDagsseddel } from "../../../../src/components/timer-detalj/prosjektkort/useGjenaapneDagsseddel";
+import { visSeHeleDagen } from "../../../../src/components/timer-detalj/prosjektkort/gjenaapne";
 import type {
   Sedel,
   TimerRad,
@@ -162,6 +166,13 @@ export default function ProsjektkortSkjerm() {
     }, [lesData]),
   );
   useReLesVedSynk(sistSynkronisert, lesData);
+
+  // ORDRE (23): sendt sedel skal kunne gjenåpnes herfra også — samme vei som samlesiden.
+  const [gjenaapneFeil, setGjenaapneFeil] = useState<string | null>(null);
+  const { gjenaapne, pending: gjenaapnerPending } = useGjenaapneDagsseddel(sheetId, {
+    onGjenaapnet: lesData,
+    onFeil: setGjenaapneFeil,
+  });
 
   useEffect(() => {
     const orgId = sedel?.organizationId;
@@ -324,6 +335,12 @@ export default function ProsjektkortSkjerm() {
   }
 
   const kontekst = sedelKontekst ?? { projectId: sedel.projectId, byggeplass: null };
+  // Samme telling som samlesiden (useProsjektkortSedel.kortIder).
+  const antallProsjekter = kortProsjektIder(
+    sedel.projectId,
+    [timerRader, maskinRader, tilleggRader, utleggRader],
+    [],
+  ).length;
   const iProsjektet = (r: { projectId: string | null }) =>
     (r.projectId ?? sedel.projectId) === projectId;
   const forste = [...timerRader, ...maskinRader].find(iProsjektet);
@@ -598,6 +615,30 @@ export default function ProsjektkortSkjerm() {
             {kortFeil && !visEndre && <Text className="mt-2 text-sm text-amber-700">{kortFeil}</Text>}
           </View>
         )}
+
+        {/* ORDRE (23): kortskjermen er aldri en blindvei — gjenåpne her, og
+            «Se hele dagen» til samlesiden når dagen har flere prosjekter. */}
+        {gjenaapneFeil && <Text className="mx-4 mt-4 text-sm text-red-600">{gjenaapneFeil}</Text>}
+        <View className="mx-4 mt-6 gap-2">
+          <GjenaapneKnapp
+            status={sedel.status}
+            syncStatus={sedel.syncStatus}
+            pending={gjenaapnerPending}
+            onGjenaapne={gjenaapne}
+          />
+          {visSeHeleDagen(antallProsjekter) && (
+            <Pressable
+              // Tilbake til samlesiden i stacken; finnes den ikke, erstattes kortet.
+              onPress={() => router.dismissTo(`/timer/${sheetId}/prosjektkort`)}
+              className="min-h-[44px] flex-row items-center justify-center gap-1 rounded-lg active:bg-gray-100"
+            >
+              <Text className="text-base text-sitedoc-primary">
+                {t("timer.kort.seHeleDagen", { antall: antallProsjekter })}
+              </Text>
+              <ChevronRight size={16} color="#1e40af" />
+            </Pressable>
+          )}
+        </View>
       </ScrollView>
 
       {visEndre && (

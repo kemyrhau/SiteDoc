@@ -28,7 +28,7 @@ import {
   type KortValg,
 } from "../../../src/lib/prosjektkortMobil";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../../src/utils/dato";
-import { kanGjenaapneDagsseddel } from "../../../src/utils/gjenaapne-tilgang";
+import { GjenaapneKnapp } from "../../../src/components/timer-detalj/prosjektkort/GjenaapneKnapp";
 
 /**
  * ORDRE 35 (I2): prosjektkortets samleside, flyttet ut av `app/timer/[id].tsx`
@@ -395,40 +395,13 @@ export default function ProsjektkortSkjerm() {
 
         {/* Send ligger i dagsoversikten; her kun gjenåpne og slett. */}
         <View className="mx-4 mt-6 gap-2">
-          {sedel.status === "sent" &&
-            (kanGjenaapneDagsseddel(sedel.status, sedel.syncStatus) ? (
-              <>
-                <Pressable
-                  onPress={s.gjenaapne}
-                  disabled={s.gjenaapnerPending}
-                  className="flex-row items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white py-3 active:bg-blue-50 disabled:opacity-50"
-                >
-                  <RotateCcw size={16} color="#1e40af" />
-                  <Text className="text-base font-medium text-sitedoc-primary">
-                    {t("timer.gjenaapne.knapp")}
-                  </Text>
-                </Pressable>
-                <Text className="text-center text-xs text-gray-500">
-                  {t("timer.gjenaapne.hjelp")}
-                </Text>
-              </>
-            ) : (
-              /* Gjenåpne er sperret i conflict (datatap-ordre 2026-09-30). */
-              <>
-                <Pressable
-                  disabled
-                  className="flex-row items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 py-3 opacity-50"
-                >
-                  <RotateCcw size={16} color="#9ca3af" />
-                  <Text className="text-base font-medium text-gray-400">
-                    {t("timer.gjenaapne.knapp")}
-                  </Text>
-                </Pressable>
-                <Text className="text-center text-xs text-gray-500">
-                  {t("timer.gjenaapne.sperretKonflikt")}
-                </Text>
-              </>
-            ))}
+          {/* Gjenåpne er sperret i conflict (datatap-ordre 2026-09-30). */}
+          <GjenaapneKnapp
+            status={sedel.status}
+            syncStatus={sedel.syncStatus}
+            pending={s.gjenaapnerPending}
+            onGjenaapne={s.gjenaapne}
+          />
           {(sedel.status === "draft" || sedel.status === "returned") && (
             <Pressable
               onPress={s.slettSedel}

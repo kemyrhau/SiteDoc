@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Žádný",
   "timer.kortValg.flyttTittel": "Přesunout řádek do",
   "timer.kort.endre": "Vyměňte kartu",
+  "timer.kort.seHeleDagen": "Zobrazit celý den ({{antall}} projekty)",
   "timer.kort.slett": "Smazat kartu",
   "timer.kort.flyttTittel": "Přesuňte kartu do",
   "timer.kort.flyttKnapp": "Přesunout kartu",

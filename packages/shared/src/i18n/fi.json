@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Ei mitään",
   "timer.kortValg.flyttTittel": "Siirrä rivi kohteeseen",
   "timer.kort.endre": "Vaihda kortti",
+  "timer.kort.seHeleDagen": "Katso koko päivä ({{antall}} projektia)",
   "timer.kort.slett": "Poista kortti",
   "timer.kort.flyttTittel": "Siirrä kortti kohteeseen",
   "timer.kort.flyttKnapp": "Siirrä korttia",

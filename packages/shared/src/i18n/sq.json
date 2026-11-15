@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Asnjë",
   "timer.kortValg.flyttTittel": "Zhvendos rreshtin te",
   "timer.kort.endre": "Ndrysho kartën",
+  "timer.kort.seHeleDagen": "Shiko gjithë ditën ({{antall}} projekte)",
   "timer.kort.slett": "Fshi kartën",
   "timer.kort.flyttTittel": "Zhvendosni kartën në",
   "timer.kort.flyttKnapp": "Zhvendos kartën",

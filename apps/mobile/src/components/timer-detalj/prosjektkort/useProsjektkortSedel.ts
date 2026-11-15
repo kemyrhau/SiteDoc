@@ -14,6 +14,7 @@ import {
 } from "../../../db/schema";
 import { leggSedelTombstone } from "../../../services/sedelTombstone";
 import { useTimerSync } from "../../../providers/TimerSyncProvider";
+import { useGjenaapneDagsseddel } from "./useGjenaapneDagsseddel";
 import { useNettverk } from "../../../providers/NettverkProvider";
 import { trpc } from "../../../lib/trpc";
 import {
@@ -142,7 +143,6 @@ export function useProsjektkortSedel(sheetId: string) {
   const router = useRouter();
   const { t } = useTranslation();
   const { triggerSync, oppdaterTellere, sistSynkronisert } = useTimerSync();
-  const gjenaapneMutation = trpc.timer.dagsseddel.gjenaapneDagsseddel.useMutation();
   // Returnert sedel lever på serveren → slettes der (online); draft slettes lokalt.
   const slettMutation = trpc.timer.dagsseddel.slett.useMutation();
 
@@ -191,6 +191,12 @@ export function useProsjektkortSedel(sheetId: string) {
   );
   // Bakgrunnssynk mens skjermen er i fokus → les på nytt (som dagskortet).
   useReLesVedSynk(sistSynkronisert, lesData);
+
+  // Gjenåpne en sendt sedel — delt med kortskjermen (ORDRE (23)).
+  const { gjenaapne, pending: gjenaapnerPending } = useGjenaapneDagsseddel(sheetId, {
+    onGjenaapnet: lesData,
+    onFeil: setFeil,
+  });
 
   // Konflikt: hent web-kortet live (kun conflict + nett), som dagskortet.
   const { erPaaNettet } = useNettverk();
@@ -651,58 +657,6 @@ export function useProsjektkortSedel(sheetId: string) {
     lesData();
   }
 
-  // Gjenåpne en sendt sedel (online-only), med bekreftelse først.
-  function gjenaapne() {
-    if (!sedel) return;
-    Alert.alert(
-      t("timer.gjenaapne.bekreftTittel"),
-      t("timer.gjenaapne.bekreftTekst"),
-      [
-        { text: t("handling.avbryt"), style: "cancel" },
-        { text: t("timer.gjenaapne.bekreftKnapp"), onPress: utforGjenaapne },
-      ],
-    );
-  }
-
-  function utforGjenaapne() {
-    if (!sedel) return;
-    setFeil(null);
-    gjenaapneMutation.mutate(
-      { id: sheetId },
-      {
-        onSuccess: () => {
-          const db = hentDatabase();
-          if (db) {
-            db.update(dagsseddelLocal)
-              .set({
-                status: "draft",
-                syncStatus: "synced",
-                sistEndretLokalt: Date.now(),
-              })
-              .where(eq(dagsseddelLocal.id, sheetId))
-              .run();
-          }
-          oppdaterTellere();
-          lesData();
-        },
-        onError: (e: unknown) => {
-          // Map på tRPC-feilkode; ingen kode = ekte nettverksfeil.
-          const code = (e as { data?: { code?: string } } | null)?.data?.code;
-          const melding = e instanceof Error ? e.message : "";
-          setFeil(
-            code === "CONFLICT"
-              ? t("timer.gjenaapne.feilGodkjent")
-              : code === "PRECONDITION_FAILED"
-                ? t("timer.gjenaapne.laastAttestert")
-                : code != null
-                  ? melding
-                  : t("timer.gjenaapne.feilNett"),
-          );
-        },
-      },
-    );
-  }
-
   function slettLokalt() {
     const db = hentDatabase();
     if (!db) return;
@@ -805,7 +759,7 @@ export function useProsjektkortSedel(sheetId: string) {
     visPauseSporsmaal,
     svarPauseSporsmaal,
     gjenaapne,
-    gjenaapnerPending: gjenaapneMutation.isPending,
+    gjenaapnerPending,
     slettSedel,
     triggerSync,
   };

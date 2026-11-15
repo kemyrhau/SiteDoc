@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Никто",
   "timer.kortValg.flyttTittel": "Переместить строку в",
   "timer.kort.endre": "Сменить карту",
+  "timer.kort.seHeleDagen": "Посмотреть весь день ({{antall}} проектов)",
   "timer.kort.slett": "Удалить карту",
   "timer.kort.flyttTittel": "Переместите карту в",
   "timer.kort.flyttKnapp": "Переместить карту",
