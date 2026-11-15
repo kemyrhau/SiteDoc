@@ -52,3 +52,34 @@ export function gjesteprosjekterIAndreFirma<T extends { primaryOrganizationId: s
   if (!valgtFirmaId) return [...gjesteprosjekter];
   return gjesteprosjekter.filter((p) => p.primaryOrganizationId !== valgtFirmaId);
 }
+
+export interface ProsjektForNullstilling {
+  id: string;
+  primaryOrganizationId: string | null;
+}
+
+/**
+ * Skal valgt prosjekt nullstilles ved firmabytte? Delt av web (`prosjekt-kontekst.tsx`) og
+ * mobil (`ProsjektKontekst.tsx`, ordre (19)) — flyttet fra `apps/web/src/lib/gjesteprosjekt.ts`.
+ *
+ * P1 Fase 2 (2026-05-05): prosjekt som ikke tilhører valgt firma nullstilles. Standalone
+ * (eier null) regnes også som mismatch når et firma er valgt.
+ *
+ * Unntak (15): et gjesteprosjekt (aktivt medlem, eier er et firma brukeren ikke er ansatt i)
+ * tilhører aldri valgt firma, men er like fullt brukerens prosjekt — det skal ikke kastes ut
+ * ved firmabytte. Mens gjestelista laster, venter vi (ellers nullstilles et gjesteprosjekt
+ * før lista er kjent).
+ */
+export function skalNullstilleProsjekt(input: {
+  valgtFirmaId: string | null;
+  prosjekt: ProsjektForNullstilling | null;
+  gjesteIder: readonly string[];
+  lasterGjester: boolean;
+}): boolean {
+  const { valgtFirmaId, prosjekt, gjesteIder, lasterGjester } = input;
+  if (!valgtFirmaId || !prosjekt) return false;
+  if (prosjekt.primaryOrganizationId === valgtFirmaId) return false;
+  if (lasterGjester) return false;
+  if (gjesteIder.includes(prosjekt.id)) return false;
+  return true;
+}
