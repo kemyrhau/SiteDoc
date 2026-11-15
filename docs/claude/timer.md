@@ -881,6 +881,20 @@ Hjemmel: Kenneth, ordre «Bekreft dag Til/ramme + synlig konflikt» punkt 3. Kun
 - **Punkt 1 (Til = faktisk slutt) er ikke kodet:** venter på Kenneths valg (bryter invarianten `timer = effektiveTimerFraSpenn(fra, til, …)`).
 - Tester: `dagsseddelListeVisning.test.ts` (🔴 tom konflikt ved sedel med innhold vises; 🔴 konflikt ved tom plassholder; 🔴 eldste konflikt velges; 🔴 banner åpner og synker; vakter: plassholder skjules uten konflikt, divergens, ingen navigering utenfor konflikt). Mutanter: konflikt-filter fjernet → 2 røde; åpning fjernet → 1 rød; nyeste i stedet for eldste → 1 rød.
 
+### Firmafilter på mobil + firmahull på server — 🟡 `fix/timer-firmafilter` (2026-11-15, ikke merget)
+
+Hjemmel: POST + RETUR 2026-11-15 (14). Kenneth: en bruker er ansatt i ett firma og skal ikke kunne åpne dagssedler i andre firmaer. `@@unique([userId, dato])` står; ingen skjemaendring, ingen ny tekst.
+
+- **Timer-lista, ukesummen og statusbaren** leser fra `src/services/timerListeLokal.ts` (`lesDagssedlerLokalt`, `lesUkeTotalLokalt`, `finnEldsteKonfliktSedelId`). Alle filtrerer på `organizationId = valgtFirmaId`. Uten valgt firma vises ingenting. I et firma der brukeren ikke er ansatt, er lista tom, så en sedel fra et annet firma kan ikke åpnes derfra.
+- **Konflikt- og avvist-tellere:** `tellConflict`/`tellAvvist(userId, orgId?)` (`timerSync.ts`) tar firma. Statusbaren og Mer-fanen bruker `useFirmaSyncTellere` (`src/hooks/useFirmaSyncTellere.ts`), fordi `TimerSyncProvider` ligger utenfor `FirmaProvider`. `tellPending` er bevisst firma-bred, fordi pushen sender alle firmaer.
+- **Push gruppert pr. firma:** `delPendingIBatcher` deler ventende sedler pr. `organizationId`, deretter i biter på maks. Hver `syncBatch` får sitt eget firma.
+- **Ansatt-sperre på alle innganger:** `sjekkAnsattForNyRegistrering` (`src/utils/ansattSjekk.ts`, tekst `timer.ikkeAnsatt`) i «+» i prosjektkort-modus (`DagsseddelListe.onPluss`), «+» i dagskort-modus og Start/Slutt-kortets nye rad (`NyTimerRadFlyt`), og Start dag (`useArbeidsdag.startDag`, før GPS). Bekreft dag stopper via `erAnsatt` i `anvendDagsforslag`. GPS-utkastet skrives bare i Bekreft dag.
+- **Vakt i `finnEllerOpprettDagsseddel`** (`dagsseddelOpprett.ts`): oppslaget er på userId+dato. Finnes en sedel samme dato i et annet firma, kastes `SedelIAnnetFirmaFeil`, og ingen rad legges på den. En eldre sedel uten firma (`""`) slipper gjennom som før.
+- **Server — aktiv ansettelse:** `opprett` og `syncBatch` krever aktiv ansettelse i firmaet via `resolverOrgForEgenTimeføring`. Rad-skriving (`tilfoyTimerRad` m.fl.) krever det via `hentEgenDagsseddel` (eier-stien, `krevAnsatt` er standard `true`). Begge fantes; nå er de testet på rutenivå. Admin-innsyn i andres sedler og attestering er uendret.
+- **Server — firmahull:** `maskin.tilfoy` kaller `verifiserProsjekterTilhørerFirma`. Underprosjekt (ECO) valideres mot sedelens firma og radens prosjekt (`krevEcoerIProsjekt`) i `maskin.tilfoy` og `maskin.oppdater` (BAD_REQUEST). I `syncBatch` vaskes fremmed ECO på timer- og maskinrader til null (`[timer_eco_grense]`-logg); sedelen avvises ikke.
+- **Ikke med (meldt):** `HjemTimerChip.lesDagensDagskort` filtrerer ikke på firma. `tilfoyTimerRad` og timerrad-oppdatering validerer ikke ECO mot firma/prosjekt.
+- Tester: `timerListeLokal.test.ts` (liste, ukesum, statusbar, tellere pr. firma), `timerSync-firma-gruppering.test.ts` (iii), `ansattSjekk.test.ts` (ii-a: sjekken + koblingstest for alle innganger, negativkontroll), `dagsseddelOpprett.test.ts` (ii-c: vakten), `timer-firmahull.test.ts` (iv, v, ii-b: opprett/syncBatch/tilfoyTimerRad avviser ikke-ansatt). Mutanter: vakt fjernet, gate i opprett/syncBatch/eier-sti fjernet → røde.
+
 ### Bekreft dag — dobbel pause og avrunding av Fra/Til — 🟡 `fix/timer-bekreft-pause-avrunding` (2026-11-13, ikke merget)
 
 Hjemmel: Kenneth 13.11 «rett dobbelpause, benytt fra til -> rund av til nærmeste 15 minutter -> la den ansatte korrigere», og ORDRE 13.11 «pausen trekkes etter 4 ARBEIDStimer». Mobil, web, server og delt kode; ingen Prisma-endring, ingen migrering, ingen ny API.

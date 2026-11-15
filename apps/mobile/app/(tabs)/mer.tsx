@@ -37,6 +37,7 @@ import { erTegningCachet } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
 import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { useFirmaSyncTellere } from "../../src/hooks/useFirmaSyncTellere";
 import type { SpraakKode } from "@sitedoc/shared";
 
 export default function MerSkjerm() {
@@ -45,7 +46,9 @@ export default function MerSkjerm() {
   const { bruker, loggUt } = useAuth();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
-  const { pendingAntall, conflictAntall } = useTimerSync();
+  const { pendingAntall } = useTimerSync();
+  // POST (14): konflikt-merket teller bare valgt firma.
+  const { conflictAntall } = useFirmaSyncTellere();
   const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
   // Feltfunn A (2026-10-04): VARIG «hva er lagret for offline»-visning, lest fra SQLite/disk
   // ved fokus — ikke den flyktige `offlineTekst` som forsvinner når fanen forlates.

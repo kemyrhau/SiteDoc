@@ -63,6 +63,14 @@ export interface FinnEllerOpprettResultat {
   organizationId: string;
 }
 
+/** Datoen har allerede en sedel i et annet firma — avbryt, ikke legg rad på den. */
+export class SedelIAnnetFirmaFeil extends Error {
+  constructor(dato: string) {
+    super(`sedelIAnnetFirma: ${dato} har allerede en dagsseddel i et annet firma`);
+    this.name = "SedelIAnnetFirmaFeil";
+  }
+}
+
 export function finnEllerOpprettDagsseddel(
   db: LokalDb,
   args: FinnEllerOpprettArgs,
@@ -83,6 +91,12 @@ export function finnEllerOpprettDagsseddel(
     )
     .all()[0];
   if (eksisterende) {
+    // POST (14) punkt 2: oppslaget er på userId+dato (DailySheet @@unique), men
+    // en rad skal aldri havne på en sedel i et annet firma. Eldre sedel uten
+    // org ("") er ukjent, ikke annet firma — slipper gjennom som før.
+    if (eksisterende.organizationId && eksisterende.organizationId !== args.orgId) {
+      throw new SedelIAnnetFirmaFeil(args.dato);
+    }
     const tom =
       (eksisterende.status === "draft" || eksisterende.status === "returned") &&
       db

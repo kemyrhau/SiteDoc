@@ -12,15 +12,9 @@ import {
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
-import {
-  dagsseddelLocal,
-  sheetTimerLocal,
-  sheetTilleggLocal,
-  sheetMachineLocal,
-  arbeidsdagLocal,
-} from "../db/schema";
+import { arbeidsdagLocal } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { useReLesVedSynk } from "../hooks/useReLesVedSynk";
@@ -43,59 +37,7 @@ import {
   type UtkastMaal,
 } from "../utils/utkastListe";
 import type { UtkastOversikt } from "../utils/prosjektkortUtkast";
-import { dedupPerDato, type DedupRad } from "../utils/dagsseddelListeVisning";
-
-interface DagsseddelRad extends DedupRad {
-  id: string;
-  status: string;
-  beskrivelse: string | null;
-  totaltimer: number;
-  antallRader: number;
-}
-
-function lesDagssedlerLokalt(userId: string): DagsseddelRad[] {
-  const db = hentDatabase();
-  if (!db) return [];
-
-  const sedler = db
-    .select()
-    .from(dagsseddelLocal)
-    .where(eq(dagsseddelLocal.userId, userId))
-    .orderBy(desc(dagsseddelLocal.dato))
-    .all();
-
-  const rader = sedler.map((s) => {
-    const timer = db
-      .select({ timer: sheetTimerLocal.timer })
-      .from(sheetTimerLocal)
-      .where(eq(sheetTimerLocal.dagsseddelId, s.id))
-      .all();
-    // Innhold = timer- ELLER tillegg- ELLER maskin-rader. Tillegg/maskin telles
-    // for at en sedel som kun bærer tillegg/maskin ikke feilklassifiseres som tom.
-    const antallTillegg = db
-      .select({ id: sheetTilleggLocal.id })
-      .from(sheetTilleggLocal)
-      .where(eq(sheetTilleggLocal.dagsseddelId, s.id))
-      .all().length;
-    const antallMaskin = db
-      .select({ id: sheetMachineLocal.id })
-      .from(sheetMachineLocal)
-      .where(eq(sheetMachineLocal.dagsseddelId, s.id))
-      .all().length;
-    return {
-      id: s.id,
-      dato: s.dato,
-      status: s.status,
-      syncStatus: s.syncStatus,
-      beskrivelse: s.beskrivelse,
-      totaltimer: timer.reduce((acc, t) => acc + t.timer, 0),
-      antallRader: timer.length,
-      harInnhold: timer.length > 0 || antallTillegg > 0 || antallMaskin > 0,
-    };
-  });
-
-  return dedupPerDato(rader);
-}
+import { lesDagssedlerLokalt, type DagsseddelRad } from "../services/timerListeLokal";
 
 /**
  * Utkast for prosjektkort (C3): rydd GPS-utkast for avsluttede dager, slett
@@ -185,7 +127,7 @@ export function DagsseddelListe({
 
   const lesAlt = useCallback(() => {
     if (!bruker?.id) return;
-    setRader(lesDagssedlerLokalt(bruker.id));
+    setRader(lesDagssedlerLokalt(bruker.id, valgtFirmaId));
     setUtkastInfo(lesUtkastLokalt(bruker.id, valgtFirmaId));
   }, [bruker?.id, valgtFirmaId]);
 
@@ -278,7 +220,7 @@ export function DagsseddelListe({
           viser i stedet den kompakte HjemTimerChip. */}
       <StartSluttDagKort onNyRad={() => setVisNyRad(true)} />
 
-      {bruker?.id && <UkeTotalBanner userId={bruker.id} />}
+      {bruker?.id && <UkeTotalBanner userId={bruker.id} orgId={valgtFirmaId} />}
 
       {/* UF-3: mild kladd-påminnelse — trykk åpner eldste usendte kladd. */}
       {usendteKladder.length > 0 && (

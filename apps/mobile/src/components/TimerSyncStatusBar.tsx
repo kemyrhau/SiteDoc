@@ -4,35 +4,11 @@ import { CloudOff, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react-na
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useRouter } from "expo-router";
-import { and, eq } from "drizzle-orm";
 import { useAuth } from "../providers/AuthProvider";
-import { hentDatabase } from "../db/database";
-import { dagsseddelLocal } from "../db/schema";
-import {
-  haandterStatusbarTrykk,
-  velgEldsteKonflikt,
-} from "../utils/dagsseddelListeVisning";
-
-/** Lokale konflikt-sedler for brukeren; banneret åpner den eldste. */
-function finnEldsteKonfliktSedelId(userId: string | undefined): string | null {
-  const db = hentDatabase();
-  if (!db || !userId) return null;
-  const sedler = db
-    .select({
-      id: dagsseddelLocal.id,
-      dato: dagsseddelLocal.dato,
-      syncStatus: dagsseddelLocal.syncStatus,
-    })
-    .from(dagsseddelLocal)
-    .where(
-      and(
-        eq(dagsseddelLocal.userId, userId),
-        eq(dagsseddelLocal.syncStatus, "conflict"),
-      ),
-    )
-    .all();
-  return velgEldsteKonflikt(sedler);
-}
+import { useFirma } from "../kontekst/FirmaKontekst";
+import { finnEldsteKonfliktSedelId } from "../services/timerListeLokal";
+import { useFirmaSyncTellere } from "../hooks/useFirmaSyncTellere";
+import { haandterStatusbarTrykk } from "../utils/dagsseddelListeVisning";
 
 function formatTid(ms: number): string {
   return new Date(ms).toLocaleTimeString("no-NB", {
@@ -58,10 +34,11 @@ export function TimerSyncStatusBar() {
   const { erPaaNettet } = useNettverk();
   const router = useRouter();
   const { bruker } = useAuth();
+  const { valgtFirmaId } = useFirma();
+  // POST (14): konflikt/avvist teller bare valgt firma.
+  const { conflictAntall, avvistAntall } = useFirmaSyncTellere();
   const {
     pendingAntall,
-    conflictAntall,
-    avvistAntall,
     sistSynkronisert,
     syncerNa,
     triggerSync,
@@ -110,7 +87,7 @@ export function TimerSyncStatusBar() {
       onPress={() =>
         haandterStatusbarTrykk({
           visningErKonflikt,
-          finnKonfliktSedelId: () => finnEldsteKonfliktSedelId(bruker?.id),
+          finnKonfliktSedelId: () => finnEldsteKonfliktSedelId(bruker?.id, valgtFirmaId),
           aapneSedel: (id) => router.push(`/timer/${id}`),
           startSync: () => void triggerSync(),
         })

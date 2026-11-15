@@ -6925,8 +6925,11 @@ export const dagsseddelRouter = router({
           ]);
           // Prosjektkortet: tillegg/utlegg bærer underprosjekt — vaskes mot radens
           // prosjekt og firmaet (fremmed → null, aldri avvisning: offline-køen).
+          // POST (14): også timer-/maskinrader — samme vasker, samme regel.
           const vaskEco = await lagEcoVasker(
             [
+              ...lokal.timer.map((t) => t.externalCostObjectId),
+              ...lokal.maskiner.map((m) => m.externalCostObjectId),
               ...lokal.tillegg.map((tl) => tl.externalCostObjectId),
               ...lokal.utlegg.map((u) => u.externalCostObjectId),
             ],
@@ -6972,6 +6975,24 @@ export const dagsseddelRouter = router({
           if (byggeplassVasket > 0) {
             console.warn(
               `[timer_byggeplass_grense] sedel=${lokal.clientUuid} felt=${byggeplassVasket}: byggeplass utenfor radens prosjekt lagret som null (ordre 12)`,
+            );
+          }
+
+          // POST (14): underprosjekt på timer-/maskinrader vaskes mot radens
+          // prosjekt og sedelens firma FØR maskinvakten og skrivingen — fremmed
+          // → null, aldri avvisning (offline-køen), som tillegg/utlegg.
+          let ecoVasket = 0;
+          for (const r of [...lokal.timer, ...lokal.maskiner]) {
+            if (!r.externalCostObjectId) continue;
+            const v = vaskEco(r.externalCostObjectId, radProsjekt(r.projectId));
+            if (!v) {
+              r.externalCostObjectId = null;
+              ecoVasket++;
+            }
+          }
+          if (ecoVasket > 0) {
+            console.warn(
+              `[timer_eco_grense] sedel=${lokal.clientUuid} rader=${ecoVasket}: underprosjekt utenfor radens prosjekt/firma lagret som null (POST 14)`,
             );
           }
 
@@ -7843,8 +7864,12 @@ export const dagsseddelRouter = router({
         // §2.D: vehicleId (maskin-kostnadsbærer) må tilhøre firmaet. Svak FK
         // mot Equipment (db-maskin) → org-isolasjon håndheves i app-lag.
         await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
+        // POST (14): firma-grense på rad-projectId — som tilfoyTimerRad.
+        await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
         // Ordre (10): byggeplassen må høre til radens prosjekt.
         await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
+        // POST (14): underprosjektet må høre til radens prosjekt og sedelens firma.
+        await krevEcoerIProsjekt([input], sheet.organizationId);
 
         // T7-4b: valider post-state.
         const naa = await hentRaderForValidering(
@@ -7937,6 +7962,11 @@ export const dagsseddelRouter = router({
         if (input.mengde !== undefined) data.mengde = input.mengde;
         if (input.enhet !== undefined) data.enhet = input.enhet;
         if (input.externalCostObjectId !== undefined) {
+          // POST (14): valideres mot RADENS prosjekt og sedelens firma.
+          await krevEcoerIProsjekt(
+            [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+            sheet.organizationId,
+          );
           data.externalCostObjectId = input.externalCostObjectId;
         }
         if (input.fraTid !== undefined) data.fraTid = input.fraTid;
