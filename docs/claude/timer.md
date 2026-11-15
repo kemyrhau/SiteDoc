@@ -1626,7 +1626,7 @@ En delvis attestert `sent`-sedel har derfor ingen vei tilbake for enkeltraden. E
 
 #### Reisekjede og retting i Bekreft dag (ordre 2026-11-15 (17), Kenneth-vedtak 2026-11-15)
 
-> **🟡 Levert på `fix/overforingsdag-reiser` (venter Kontrollør-gate, ikke merget).**
+> **✅ Merget `22948f5c` (2026-11-15, Kontrollør GODKJENT GATE (41) @ `0539df71`). Ikke deployet.**
 >
 > - **Kjeden:** overføring → reise til byggeplass → arbeid → reise fra byggeplass → overføring tilbake. `sekvenserReisekjede` (`packages/shared/src/utils/reiseKjede.ts`) legger kortene etter hverandre uten overlapp. Uten retting står arbeidsstart/-slutt fast; reisene legges bakover og returen framover. Reisekort har fast lengde (kjøretid) til de rettes. Arbeid er elastisk. Kalles fra `sekvenserDag` i `apps/mobile/src/utils/dagsforslag.ts` (`beregnDagsforslag`). Test: `reiseKjede.test.ts`, `dagsforslag.test.ts`.
 > - **Ankring:** rettet kort er fast punkt. Beregnede naboer flytter seg, rettede naboer står. Retting lagres i `retting.perDato[dato].reiseTid[kjedeNokkel]` (reisekort) og `arbeidFra` (ankomst). Lagrede rader på dager med Avslutt røres ikke.
