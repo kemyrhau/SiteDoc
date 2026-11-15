@@ -75,7 +75,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 **Eneste skribent: orkestrator.** 🔴 **Føres FRA MÅLING — `git log origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-11-15 · develop `a6ef73ab` · test web: gitSha ikke bekreftet etter deploy av (11) · OTA testkanal `d95ef365` (OTA `01a1dc2`, sett på Kenneths telefon 2026-11-15).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
+**Sist ført: 2026-11-15 · develop `5ed73963` · test web: gitSha `5ed73963` (L1-migreringen verifisert på test — perioder lagres) · OTA testkanal `d95ef365` (OTA `01a1dc2`, sett på Kenneths telefon 2026-11-15).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
@@ -90,6 +90,13 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
+
+### 🟡 Funn fra testoppsettet 2026-11-15 (Kenneth satte opp agent-testfirma på test — oppsett i [dev-login-agent.md § Fast testoppsett](dev-login-agent.md))
+
+1. **Områder på byggeplass** — sjekk senere om oppsettet virker som det skal. Kenneth: «vi tar det senere». Ingen eier ennå.
+2. **Prosjektlokasjon dupliserer byggeplass-punktet.** Målt: `Project.latitude/longitude` (`schema.prisma:672-673`) brukes kun til vær (`useAutoVaer`, web + mobil) og `LokasjonObjekt` i rapporter; reise-matrisen bruker bare byggeplassens punkt (`reisetidMatrise.ts:106`). Anbefaling: avled prosjektlokasjon fra byggeplassen. Egen ordre, ikke bestilt.
+3. **Geokoding av oppmøtested feiler på vanlig skrivemåte.** «sommerfeldtsgate 65, tromsø norge» gir 0 treff; «sommerfeldts gate 65 tromsø» gir treff. Oppmøtested geokoder via Nominatim (`rute-service.ts:82`, `geokodAdresse`), byggeplass via Geonorge med treffliste (`rute-service.ts:156`, `sokAdresser`) — to ulike søk i samme produkt. Meldingen «Fant ingen treff …» (`oppmotesteder/page.tsx:293`) blokkerer ikke lagring, men leses som at adressen ikke kan lagres. Årsak: offisielt gatenavn er «Sommerfeldts gate»; Kartverket og Nominatim krever nær eksakt navn, mens Google normaliserer «-sgate»/«gt.». Kenneth har sett det samme i Xledger. Forslag til Kenneth: oppmøtested bruker samme `sokAdresser` + treffliste som byggeplass, og søket prøver normaliserte varianter når første søk gir 0 treff («gt»/«gt.» → «gate», «…sgate» → «…s gate»).
+4. **Vedtak 2026-11-15 (endrer «kun firmaadmin endrer etter første valg»):** den ansatte setter **midlertidig** oppmøtested via overføring i Reise-kortet — Tur til et annet kontor gjør det kontoret til midlertidig oppmøtested (kjøring kvelden før → gjelder fra neste dag; kjøring om morgenen → samme dag); Retur avslutter perioden. **Fast** oppmøtested endres fortsatt kun av firmaadmin, som ser «satt av / når» og kan rette. Begrunnelse (Kenneth): i sesong med mange ansatte kan ikke firmaadmin vedlikeholde personkortene; byttet skjer samtidig som overføringskjøringen. Lagt inn i L2-returen til Redesign.
 
 ## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, **målt 2026-09-12**)
 

@@ -3,6 +3,7 @@ name: dev-login-agent
 description: Dev-only test-innlogging for agent- + simulator-testing (test-miljø). Endepunkt, header, testbrukere, sikkerhetsgrense.
 metadata:
   sist_verifisert_mot_kode: 2026-07-26
+  sist_endret: 2026-11-15
 ---
 
 # Dev-login — agent- og simulator-testing (test-miljø)
@@ -134,6 +135,27 @@ DATABASE_URL=<sitedoc_test> pnpm --filter @sitedoc/db exec tsx scripts/seed-test
 | `test-godkjenner@sitedoc.test` | `user` | 5b-pilot ledd 4 |
 
 Whitelisten i `apps/api/src/routes/dev-login.ts` MÅ matche disse epostene.
+
+## Fast testoppsett på test — «Testfirma AS (agent-test)» (satt opp av Kenneth 2026-11-15)
+
+Agenter som tester timer/reise/oppmøtested på test.sitedoc.no bruker **dette oppsettet**, ikke egne oppdiktede steder eller adresser. Satt opp i UI av Kenneth; L1-migreringen `20261115120000_oppmote_perioder` er verifisert på test samtidig (perioder lagres og vises med «Satt av … 15.11.2026»).
+
+| Del | Verdi |
+|---|---|
+| Firma | Testfirma AS (agent-test) |
+| Prosjekt 1 | Agent-testprosjekt — byggeplass «Testområde 1», geofence 68.7474, 17.8051, 50 m |
+| Prosjekt 2 | ett prosjekt med kjøretid over terskel fra kontorene |
+| Kontor Narvik | teknologivegen 5 narvik — 68.44443, 17.44932, radius 60 m |
+| Kontor Tromsø | uten adresse — 69.65615, 18.95524, radius 30 m |
+| Test Arbeider `test-arbeider@sitedoc.test` | fast oppmøtested Kontor Narvik fra 15.11.2026 |
+| Test Firmaadmin `test-firma@sitedoc.test` | fast oppmøtested Kontor Tromsø fra 15.11.2026 |
+| Reise-regelsett | Minutter (kjøretid), terskel 30 · under = Som arbeidstid · over = Som reisetid · reise-lønnsart Automatisk → Reisetid |
+
+Firmainnstillinger → Reise viser: 2 oppmøtesteder, alle byggeplasser har punkt, avstand regnet for alle 4 par.
+
+🔴 **Regler for agenter:**
+- Oppsettet over (firma, kontorer, byggeplass, faste perioder, regelsett) **endres eller nullstilles aldri** av en agent. Agenten oppretter og sletter kun **egne timeregistreringer**.
+- **Mangler:** en ansatt **uten** oppmøtested (trengs for `ikkeValgt`-tester). Trenger en test det, meldes det til orkestrator — ikke fjern periodene til Test Arbeider.
 
 ## Worktree — lokal web-bevis uten Kenneth-innlogging (localhost)
 
