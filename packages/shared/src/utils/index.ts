@@ -591,7 +591,13 @@ export {
 } from "./maskinSortering";
 export { formaterKjoretid } from "./kjoretid";
 export { skalVarsleSkjulteTimer } from "./timerSkjultVarsel";
-export { erGjesteprosjekt, skjulFirmaModulForGjest, gjesteprosjekterIAndreFirma } from "./gjesteprosjekt";
+export {
+  erGjesteprosjekt,
+  skjulFirmaModulForGjest,
+  gjesteprosjekterIAndreFirma,
+  skalNullstilleProsjekt,
+  type ProsjektForNullstilling,
+} from "./gjesteprosjekt";
 export { velgStandardByggeplass, velgTimerByggeplass, HELE_PROSJEKTET_VALG } from "./standardByggeplass";
 export type { StandardByggeplassInput } from "./standardByggeplass";
 export {

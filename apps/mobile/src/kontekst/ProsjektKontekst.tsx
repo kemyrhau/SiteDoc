@@ -3,12 +3,17 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
 import { Platform } from "react-native";
 import { useFirma } from "./FirmaKontekst";
+import { trpc } from "../lib/trpc";
+import { hentGjesteprosjekterLokalt } from "../services/prosjektKatalog";
+import { mineAnsattFirmaIder } from "../utils/gjesteprosjektListe";
+import { firmabyttUtfall } from "../utils/firmabyttProsjekt";
 
 const VALGT_PROSJEKT_KEY = "sitedoc_valgt_prosjekt";
 
@@ -55,7 +60,7 @@ export function useProsjekt() {
 }
 
 export function ProsjektProvider({ children }: { children: ReactNode }) {
-  const { valgtFirmaId } = useFirma();
+  const { valgtFirmaId, firmaer, erAnsattIFirma } = useFirma();
   const [valgtProsjektId, setValgtProsjektId] = useState<string | null>(null);
   const [lasterProsjektId, setLasterProsjektId] = useState(true);
   const prevFirmaId = useRef<string | null>(null);
@@ -77,19 +82,58 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     lastLagretProsjekt();
   }, []);
 
-  // Auto-reset prosjekt-valg ved firma-bytte. Skip-first-render-mønster
-  // via useRef hindrer at persistert valg renses ved app-oppstart når
-  // valgtFirmaId går fra null til lagret verdi.
+  // Firmabytte (ordre (19)): samme regel som web (`skalNullstilleProsjekt` i
+  // @sitedoc/shared via `firmabyttUtfall`). Gjesteprosjekt beholdes; prosjekt i
+  // forrige firma nullstilles som før. Skip-first-render via useRef hindrer at
+  // persistert valg renses ved oppstart (valgtFirmaId null → lagret verdi).
+  // Bytte registreres som ventende til gjestelista er kjent.
+  const [ventendeForrigeFirmaId, setVentendeForrigeFirmaId] = useState<string | null>(null);
   useEffect(() => {
     const previous = prevFirmaId.current;
     prevFirmaId.current = valgtFirmaId;
     if (previous && previous !== valgtFirmaId) {
-      setValgtProsjektId(null);
-      slettVerdi(VALGT_PROSJEKT_KEY).catch(() => {});
+      setVentendeForrigeFirmaId(previous);
     }
   }, [valgtFirmaId]);
 
+  // Gjestelista hentes bare når et firmabytte venter. Server når den svarer;
+  // ellers (frakoblet/feil) utledet fra prosjekt_local + ansettelser (15).
+  const gjesteQuery = trpc.prosjekt.hentGjesteprosjekter.useQuery(undefined, {
+    enabled: ventendeForrigeFirmaId !== null,
+  });
+  const lasterGjester = gjesteQuery.isPending && gjesteQuery.fetchStatus === "fetching";
+  const gjester = useMemo<{ id: string; primaryOrganizationId: string | null }[]>(() => {
+    if (ventendeForrigeFirmaId === null) return [];
+    // Lean cast (TS2589-vern, som useProsjektListe).
+    const data = gjesteQuery.data as unknown as
+      | { id: string; primaryOrganizationId: string | null }[]
+      | undefined;
+    if (data) return data.map((p) => ({ id: p.id, primaryOrganizationId: p.primaryOrganizationId }));
+    return hentGjesteprosjekterLokalt(mineAnsattFirmaIder(firmaer, (id) => erAnsattIFirma(id))).map(
+      (p) => ({ id: p.id, primaryOrganizationId: p.primaryOrganizationId }),
+    );
+  }, [ventendeForrigeFirmaId, gjesteQuery.data, firmaer, erAnsattIFirma]);
+
+  useEffect(() => {
+    if (ventendeForrigeFirmaId === null) return;
+    const utfall = firmabyttUtfall({
+      forrigeFirmaId: ventendeForrigeFirmaId,
+      valgtFirmaId,
+      prosjektId: valgtProsjektId,
+      gjester,
+      lasterGjester,
+    });
+    if (utfall === "vent") return;
+    if (utfall === "nullstill") {
+      setValgtProsjektId(null);
+      slettVerdi(VALGT_PROSJEKT_KEY).catch(() => {});
+    }
+    setVentendeForrigeFirmaId(null);
+  }, [ventendeForrigeFirmaId, valgtFirmaId, valgtProsjektId, gjester, lasterGjester]);
+
   const byttProsjekt = useCallback((id: string) => {
+    // Eget valg etter firmabyttet vinner over en ventende nullstilling.
+    setVentendeForrigeFirmaId(null);
     setValgtProsjektId(id);
     lagreVerdi(VALGT_PROSJEKT_KEY, id).catch(() => {});
   }, []);
