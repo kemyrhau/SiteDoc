@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { and, eq } from "drizzle-orm";
 import type { OppmotePeriodeInput } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
@@ -14,6 +15,30 @@ import type { trpc } from "../lib/trpc";
  * ============================================================================ */
 
 type TrpcKlient = ReturnType<typeof trpc.useUtils>["client"];
+
+/* Versjonsteller for den lokale periode-cachen (17, P2). Bumpes ved hver
+ * skriving (refresh og overføring), så skjermer som har lest periodene i en
+ * useMemo leser på nytt — uten at hver skjerm holder sin egen teller. */
+let periodeVersjon = 0;
+const lyttere = new Set<() => void>();
+
+export function bumpOppmotePeriodeVersjon(): void {
+  periodeVersjon += 1;
+  for (const l of lyttere) l();
+}
+
+/** Hook: gjeldende versjon av periode-cachen — legg den i useMemo-avhengighetene. */
+export function useOppmotePeriodeVersjon(): number {
+  return useSyncExternalStore(
+    (l) => {
+      lyttere.add(l);
+      return () => {
+        lyttere.delete(l);
+      };
+    },
+    () => periodeVersjon,
+  );
+}
 
 /**
  * Hent egne perioder fra server og overskriv lokal cache for (bruker, firma).
@@ -63,6 +88,7 @@ export function skrivOppmotePerioderLokalt(
       })
       .run();
   }
+  bumpOppmotePeriodeVersjon();
 }
 
 /** Synkron lesing for resolveren. Tom liste hvis cachen ikke er fylt. */

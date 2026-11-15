@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   erApenOverforing,
   finnDagsramme,
@@ -17,7 +17,10 @@ import {
 } from "@sitedoc/shared";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { hentOppmotederLokalt } from "../../services/oppmotestedKatalog";
-import { hentOppmotePerioderLokalt } from "../../services/oppmotePeriodeKatalog";
+import {
+  hentOppmotePerioderLokalt,
+  useOppmotePeriodeVersjon,
+} from "../../services/oppmotePeriodeKatalog";
 import { hentMatriseRadLokalt } from "../../services/reisetidMatriseKatalog";
 import { hentReiseGrensepunkterLokalt } from "../../services/reiseGrensepunktKatalog";
 import { hentLonnsarterLokalt, hentStandardLonnsartLokalt } from "../../services/timerKatalog";
@@ -90,7 +93,7 @@ export function useManuellReise({
   /** Byggeplassen reisen går til (kortets valg). null = ikke valgt. */
   byggeplassId: string | null;
   /** Dagens rader — dagsrammen (første fra / siste til) regnes av ikke-reise-radene. */
-  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[];
+  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean; erOverforing?: boolean }[];
   resolverLonnsartId: string | null;
   /** null = standardvalget: første tilbudte overføring, ellers Tur (TILLEGG). */
   valg: ReiseKortValg | null;
@@ -103,8 +106,9 @@ export function useManuellReise({
 }) {
   const regel = useMemo(() => lesRegel(organizationId), [organizationId]);
   const oppmotesteder = useMemo(() => hentOppmotederLokalt(organizationId), [organizationId]);
-  // Teller: perioder leses på nytt etter en overføring (optimistisk skriving).
-  const [periodeVersjon, setPeriodeVersjon] = useState(0);
+  // Felles versjon (17, P2): perioder leses på nytt etter hver skriving til
+  // cachen — overføring her eller refresh fra synk.
+  const periodeVersjon = useOppmotePeriodeVersjon();
   const perioder = useMemo(
     () => hentOppmotePerioderLokalt(userId, organizationId),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- periodeVersjon tvinger ny lesing
@@ -175,6 +179,9 @@ export function useManuellReise({
       const celle = hentKontorAvstandLokalt(kontorOppsett.fraKontorId, kontorValg);
       return løsOverforingKort({
         ...felles,
+        // (17) P1: overføringen ligger ytterst i kjeden, aldri oppå en reise.
+        dagStart: ramme.kjedeStart,
+        dagSlutt: ramme.kjedeSlutt,
         overforing: {
           retning: kontorRetning === "tur" ? "ut" : "retur",
           fra: { type: "kontor", oppmotestedId: kontorOppsett.fraKontorId },
@@ -192,6 +199,9 @@ export function useManuellReise({
       if (o) {
         return løsOverforingKort({
           ...felles,
+          // (17) P1: overføringen ligger ytterst i kjeden, aldri oppå en reise.
+          dagStart: ramme.kjedeStart,
+          dagSlutt: ramme.kjedeSlutt,
           overforing: o.overforing,
           oppmotestedId: o.oppmotestedId,
           kjoretidMin: o.celle?.kjoretidMin ?? null,
@@ -236,7 +246,6 @@ export function useManuellReise({
     kontorKonflikt,
     apenOverforing,
     kontorNavn,
-    lastPerioderPaaNytt: () => setPeriodeVersjon((v) => v + 1),
     oppmote,
     oppmotestedNavn,
     overforinger,

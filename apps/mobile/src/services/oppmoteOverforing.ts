@@ -4,7 +4,11 @@ import { planleggOverforing, type OverforingPlan } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import { oppmoteOverforingKo, oppmotePeriodeLocal } from "../db/schema";
 import type { trpc } from "../lib/trpc";
-import { hentOppmotePerioderLokalt, refreshOppmotePeriodeKatalog } from "./oppmotePeriodeKatalog";
+import {
+  bumpOppmotePeriodeVersjon,
+  hentOppmotePerioderLokalt,
+  refreshOppmotePeriodeKatalog,
+} from "./oppmotePeriodeKatalog";
 
 /* ============================================================================
  *  Overføring til annet kontor fra reise-kortet (POST 2026-11-15 (13) del B)
@@ -90,6 +94,7 @@ export function registrerOverforing(args: OverforingArgs): OverforingRegistrert 
     .run();
   const periodeId =
     plan.utfall === "opprettet" ? id : plan.utfall === "lukket" ? plan.apen.id : null;
+  bumpOppmotePeriodeVersjon();
   return { utfall: plan.utfall, periodeId };
 }
 

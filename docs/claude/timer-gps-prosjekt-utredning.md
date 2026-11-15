@@ -237,7 +237,8 @@ egen radius) · `timer/ny.tsx:131-142` (prosjekt, hardkodet 500 m) · `StartSlut
 (`byggeplassKatalog.ts:70`, `useArbeidsdag.ts:141-142`, `db/schema.ts:374`).
 
 **Og `mannskap.md:347-349`:** innsjekkstid skal **ikke** brukes som forslag til arbeidstid;
-«pauser inne i geofence er ikke arbeidstid».
+«pauser inne i geofence er ikke arbeidstid». → **Opphevet av Kenneth-vedtak 2026-11-15 (17):** målte tidspunkter KAN
+foreslås, også for arbeidstid; arbeideren bestemmer og retter (se `mannskap.md` § Timer).
 
 🔴 **Dette er vedtak, ikke forglemmelser. De må reverseres bevisst og føres — ikke rives ved
 uhell.** ⚠️ **Og G1-grensen består:** det som reverseres er «GPS foreslår aldri prosjekt», ikke

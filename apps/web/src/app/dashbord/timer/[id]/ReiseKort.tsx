@@ -73,7 +73,7 @@ export function ReiseKort({
   prosjektNavn: (projectId: string) => string;
   /** Sedelens aktivitet — reise-raden får den automatisk. null → Lagre sperret. */
   aktivitetId: string | null;
-  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[];
+  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean; erOverforing?: boolean }[];
   resolverLonnsartId: string | null;
   /** Retninger sedelen alt har en overføringsrad for — tilbys ikke igjen. */
   skjulOverforingRetninger: ReadonlyArray<"ut" | "retur">;

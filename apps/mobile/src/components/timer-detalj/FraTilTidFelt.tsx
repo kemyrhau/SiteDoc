@@ -32,6 +32,11 @@ interface Props {
    * på etikettene. Maskin-rader utelater denne (fra/til er der valgfritt).
    */
   paakrevd?: boolean;
+  /**
+   * Ordre (17): «fra–til» som to trykkbare tider i én tekstlinje (reisekjeden
+   * i Bekreft dag). Samme velger; default false = feltene som før.
+   */
+  kompakt?: boolean;
 }
 
 export function FraTilTidFelt({
@@ -41,6 +46,7 @@ export function FraTilTidFelt({
   onFraEndret,
   onTilEndret,
   paakrevd = false,
+  kompakt = false,
 }: Props) {
   const { t } = useTranslation();
   // Hvilket felt er åpent + utkast-verdien som scrolles (committes først ved
@@ -67,7 +73,19 @@ export function FraTilTidFelt({
   }
 
   return (
-    <View className="flex-row gap-2">
+    <View className={kompakt ? "flex-row items-center" : "flex-row gap-2"}>
+      {kompakt ? (
+        <>
+          <Pressable onPress={() => aapne("fra")} hitSlop={8} accessibilityLabel={t("timer.felt.startTid")}>
+            <Text className="text-xs font-medium text-blue-700 underline">{fraTid ?? "--:--"}</Text>
+          </Pressable>
+          <Text className="text-xs text-gray-600">–</Text>
+          <Pressable onPress={() => aapne("til")} hitSlop={8} accessibilityLabel={t("timer.felt.sluttTid")}>
+            <Text className="text-xs font-medium text-blue-700 underline">{tilTid ?? "--:--"}</Text>
+          </Pressable>
+        </>
+      ) : (
+      <>
       <View className="flex-1">
         <Text className="mb-1 text-sm font-medium text-gray-700">
           {t("timer.felt.startTid")}
@@ -83,6 +101,8 @@ export function FraTilTidFelt({
         </Text>
         <TidFeltBoks verdi={tilTid} onPress={() => aapne("til")} />
       </View>
+      </>
+      )}
 
       {/* iOS: full-bredde spinner i transparent bunn-ark-modal. Modal (ikke
           absolutt overlay) fordi den rendres på native-rot → escaper flex-1-

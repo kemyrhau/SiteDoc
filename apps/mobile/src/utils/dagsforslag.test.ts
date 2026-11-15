@@ -844,16 +844,27 @@ describe("POST (13) L2 — overføring som forslagsrad (TILLEGG)", () => {
     expect(overf(res)).toHaveLength(0);
   });
 
-  it("over midnatt eller overlapp med lagret rad → hoppes over, aldri oppfunnet", () => {
+  it("(17) punkt 2: over midnatt → ingen rad, men varsel på dagen (aldri stille)", () => {
     const lang = oppslag({ celle: { kjoretidMin: 8 * 60, avstandM: 600000 } });
-    expect(overf(leggTilOverforinger(grunnDag(), [lang], CTX))).toHaveLength(0);
-    const overlapp = leggTilOverforinger(grunnDag(), [oppslag()], {
-      ...CTX,
-      eksisterendeSedelPerDato: {
-        [DATO]: { eksisterendeRader: [{ fraTid: "05:00", tilTid: "06:00" }] },
-      } as unknown as typeof CTX.eksisterendeSedelPerDato,
-    });
-    expect(overf(overlapp)).toHaveLength(0);
+    const res = leggTilOverforinger(grunnDag(), [lang], CTX);
+    expect(overf(res)).toHaveLength(0);
+    expect(res.datoer[0]!.kjedeKonflikt).toEqual({ type: "overMidnatt", retning: "ut", erOverforing: true });
+  });
+
+  it("(17) punkt 2: overlapp med lagret rad → raden står, Bekreft sperres med begrunnelse", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        // Reise-lønnsarten kommer fra reise-oppslaget; ingen egen reise denne dagen.
+        reiseOppslag: lagReise({ utCelle: null }),
+        overforinger: [oppslag()],
+        eksisterendeSedelPerDato: {
+          [DATO]: { finnes: true, status: "draft", eksisterendeRader: [{ fraTid: "05:00", tilTid: "06:00" }] },
+        } as unknown as BeregnDagsforslagInput["eksisterendeSedelPerDato"],
+      }),
+    );
+    const d = f.datoer[0]!;
+    expect(d.rader.filter((r) => r.overforing)).toHaveLength(1);
+    expect(d.kjedeKonflikt).toMatchObject({ type: "overlapp", annenFraTid: "05:00", annenTilTid: "06:00" });
   });
 
   it("byggOverforingOppslag: første og siste dag av midlertidig kontor gir ut + retur med navn og kontor-celle", () => {

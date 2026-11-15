@@ -130,6 +130,12 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - Sekundærknappen heter «Fortsett senere» med hint «Lagres på telefonen. Lederen ser ingenting før du bekrefter.» når
   noe er ført, ellers «Ikke nå».
 - «Fortsetter der du slapp (kl.)» øverst når et utkast er gjenopprettet; «Lagret automatisk» i handlingsfeltet.
+- **Reisekjeden (ordre (17)):** ingen ?-tekst — linjene forklarer seg selv. «Reise X → Y 06:30–07:00 · 30 min» /
+  «Overføring X → Y …» (`timer.bekreftDag.reiseRute` / `overforingRute` + `kjedeMin`); trykk på tiden for å rette,
+  merket «Rettet» (`kjedeRettet`) med Angre. «Ankomst» (`ankomst`) viser «Beregnet {tid}» (`beregnet`) og «Målt {tid}»
+  (`maalt`, kilde `maaltKilde.gps_forslag` = «Ankommet»). Konflikt: «Reisen 07:00–07:40 overlapper 07:30–15:00. Rett en
+  av tidene før du lagrer.» / «Reisen går over midnatt. Rett tidene før du lagrer.» (`kjedeKonflikt.*`); sperretekst på
+  «Bekreft og lagre»: `sperre.kjedeKonflikt`. Prosjektkortet viser overlapp mellom lagrede rader med `timer.feil.overlapp`.
 - Merke i Timer-lista (`DagsseddelListe.tsx`): «Ikke bekreftet» (`timer.utkast.ikkeBekreftet`) — ved siden av statusen, eller på egen rad med 0 t når datoen ikke har sedel.
 
 ## Web: Avstander-fanen (`firma/oppmotesteder/page.tsx` + `AvstanderFane.tsx`, POST 2026-11-14 (10))
@@ -170,7 +176,7 @@ Web (`apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`) bruker samme nøkler 
 
 Ingen ?-tekst — kortet viser én resultatlinje og, når Lagre er sperret, én forklaring under knappen (`KnappMedForklaring`):
 
-- **Valg:** «Tur» / «Retur» (`timer.reiseKort.tur` / `.retur`); første og siste dag i en midlertidig periode også «Overføring X → Y» (`timer.reiseKort.overforing`), forhåndsvalgt.
+- **Valg:** «Til byggeplass» / «Fra byggeplass» (`timer.reiseKort.tur` / `.retur`, ordre (17)); første og siste dag i en midlertidig periode også «Overføring X → Y» (`timer.reiseKort.overforing`), forhåndsvalgt.
 - **Oppmøtested** vises som tekst «Fra {navn}» (`timer.reiseKort.fraOppmotested`) bare når firmaet har flere — den ansatte velger det aldri.
 - **Resultat:** «08:00–08:45 · 45 min kjøring» (`timer.reiseKort.resultat`) + grå forklaringslinje (arbeid/reise og hvorfor).
 - **Sperretekster** (`timer.reiseKort.sperre.*`): «Møter på byggeplass, ingen reise» · «Oppmøtested er ikke valgt — koble til nett for å velge» · «Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander» · «Før arbeidstid på dagen først — reisen legges før eller etter den» · «Reisen går over midnatt — før den på dagen den hører til» · «Firmaet har ikke satt opp reiseregler — be firmaadmin sette dem». Mangler standard lønnsart: `timer.reiseTerskel.manglerArt` (over).

@@ -22,6 +22,7 @@ import {
   Split,
   CheckSquare,
   Square,
+  AlertTriangle,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
@@ -64,6 +65,7 @@ import {
   type ForsonRad,
   type ErReiseKontekst,
   type OvertidForslag,
+  finnOverlappVarsel,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { ReiseKort } from "./ReiseKort";
@@ -474,6 +476,9 @@ export default function DagsseddelDetaljSide() {
   const erRedigerbar = sheet.status === "draft" || sheet.status === "returned";
   const sheetAktivitetId = sheet.aktivitetId ?? null;
   const timerRader = sheet.timer as unknown as TimerRad[];
+  // Kenneth-vedtak 2026-11-15 (17): overlappende rader vises med varsel i
+  // kortet. Kun prosjektkort-modus — dagskortet står urørt.
+  const overlappVarsel = finnOverlappVarsel(timerRader);
   const utforSend = () => {
     setFeil(null);
     send.mutate({ id: sheet.id });
@@ -949,6 +954,13 @@ export default function DagsseddelDetaljSide() {
       </section>
       )}
 
+      {prosjektkortModus && overlappVarsel && (
+        <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {t("timer.feil.overlapp", { ...overlappVarsel })}
+        </p>
+      )}
+
       {/* Prosjekt-grupper (dagskort) / prosjektkort-samleside */}
       {prosjektkortModus ? (
         <ProsjektkortSamleside
@@ -1143,7 +1155,7 @@ export default function DagsseddelDetaljSide() {
           byggeplasser={byggeplasser}
           prosjektNavn={kortNavn}
           aktivitetId={sheetAktivitetId ?? null}
-          dagsrader={timerRader.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise ?? false }))}
+          dagsrader={timerRader.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise ?? false, erOverforing: r.reiseKilde === "overforing" }))}
           resolverLonnsartId={aktivModal.reise.id}
           skjulOverforingRetninger={timerRader
             .filter((r) => r.reiseKilde === "overforing")

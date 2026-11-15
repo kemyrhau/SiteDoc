@@ -314,6 +314,7 @@ describe("DEL 5 a/c — sperrene i Bekreft dag", () => {
     [{ harBeregnet: false }, "dagLukket"],
     [{ manglerProsjekt: true }, "manglerProsjekt"],
     [{ sluttIkkeGodkjent: true }, "sluttIkkeGodkjent"],
+    [{ kjedeKonflikt: true }, "kjedeKonflikt"],
   ] as const)("🔴 %o → sperre «%s» (aldri stille)", (over, aarsak) => {
     expect(bekreftSperre({ ...ok, ...over })).toBe(aarsak);
   });

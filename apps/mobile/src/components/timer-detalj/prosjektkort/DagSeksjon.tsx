@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
+import { AlertTriangle } from "lucide-react-native";
+import { finnOverlappVarsel } from "@sitedoc/shared";
 import { hentDatabase } from "../../../db/database";
 import { hentReiseKnappLokalt } from "../../../services/timerKatalog";
 import { trpc } from "../../../lib/trpc";
@@ -92,6 +94,10 @@ export function DagSeksjon({
     return best;
   }, [timerRader, reiseLonnsartId, sedel.projectId]);
 
+  // Kenneth-vedtak 2026-11-15 (17): overlappende rader vises med varsel i
+  // kortet — ingen toast, ingen stille dropp.
+  const overlapp = useMemo(() => finnOverlappVarsel(timerRader), [timerRader]);
+
   const db = () => hentDatabase()!;
 
   return (
@@ -99,6 +105,14 @@ export function DagSeksjon({
       <Text className="mb-2 px-4 text-sm font-semibold uppercase tracking-wide text-gray-700">
         {t("timer.dagsoversikt.dagen")}
       </Text>
+      {overlapp && (
+        <View className="mx-4 mb-2 flex-row items-start gap-2 rounded-lg bg-amber-50 px-3 py-2">
+          <AlertTriangle size={16} color="#b45309" />
+          <Text className="flex-1 text-sm text-amber-800">
+            {t("timer.feil.overlapp", { ...overlapp })}
+          </Text>
+        </View>
+      )}
 
       {/* Reise */}
       <View className="mx-4 rounded-lg border border-gray-200 bg-white">
@@ -161,7 +175,7 @@ export function DagSeksjon({
           projectId={forslagProsjekt}
           sedelByggeplassId={sedel.byggeplassId ?? null}
           aktivitetId={sedel.aktivitetId}
-          dagsrader={timerRader.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: erReise(r) }))}
+          dagsrader={timerRader.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: erReise(r), erOverforing: r.reiseKilde === "overforing" }))}
           resolverLonnsartId={reiseKnappLonnsartId}
           medOverforing
           skjulOverforingRetninger={timerRader.flatMap((r) =>

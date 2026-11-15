@@ -4,6 +4,7 @@ import {
   tidsromOverlapper,
   finnOverlappendeTidsrom,
   finnTidsromKonflikt,
+  finnOverlappVarsel,
 } from "./tidsromValidering";
 
 describe("tilErEtterFra", () => {
@@ -112,6 +113,34 @@ describe("finnTidsromKonflikt (batch-intern)", () => {
       finnTidsromKonflikt([
         { fraTid: "08:00", tilTid: "12:00" },
         { fraTid: "12:00", tilTid: "16:00" },
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("finnOverlappVarsel (17)", () => {
+  it("to overlappende rader gir varsel med begge tidsrom", () => {
+    expect(
+      finnOverlappVarsel([
+        { fraTid: "07:00", tilTid: "11:00" },
+        { fraTid: "10:00", tilTid: "15:00" },
+      ]),
+    ).toEqual({ fra: "07:00", til: "11:00", annenFra: "10:00", annenTil: "15:00" });
+  });
+  it("berøring i endepunkt gir ikke varsel", () => {
+    expect(
+      finnOverlappVarsel([
+        { fraTid: "07:00", tilTid: "11:00" },
+        { fraTid: "11:00", tilTid: "15:00" },
+      ]),
+    ).toBeNull();
+  });
+  it("rader uten tider eller med til ≤ fra hoppes over", () => {
+    expect(
+      finnOverlappVarsel([
+        { fraTid: null, tilTid: null },
+        { fraTid: "12:00", tilTid: "08:00" },
+        { fraTid: "09:00", tilTid: "10:00" },
       ]),
     ).toBeNull();
   });

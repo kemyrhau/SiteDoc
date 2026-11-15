@@ -132,12 +132,23 @@ describe("finnDagsramme", () => {
         { fraTid: "15:00", tilTid: "18:00", erReise: true },
         { fraTid: "12:00", tilTid: "15:30", erReise: false },
       ]),
-    ).toEqual({ dagStart: "07:30", dagSlutt: "15:30" });
+    ).toEqual({ dagStart: "07:30", dagSlutt: "15:30", kjedeStart: "06:00", kjedeSlutt: "18:00" });
+  });
+  it("(17) P1: overføring under terskel teller ikke som arbeid, men i kjeden", () => {
+    expect(
+      finnDagsramme([
+        { fraTid: "06:00", tilTid: "06:20", erReise: false, erOverforing: true },
+        { fraTid: "06:20", tilTid: "07:00", erReise: true },
+        { fraTid: "07:00", tilTid: "15:00", erReise: false },
+      ]),
+    ).toEqual({ dagStart: "07:00", dagSlutt: "15:00", kjedeStart: "06:00", kjedeSlutt: "15:00" });
   });
   it("ingen arbeidsrad med tid → null", () => {
     expect(finnDagsramme([{ fraTid: null, tilTid: null, erReise: false }])).toEqual({
       dagStart: null,
       dagSlutt: null,
+      kjedeStart: null,
+      kjedeSlutt: null,
     });
   });
 });
