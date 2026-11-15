@@ -6,6 +6,7 @@ import {
   lokaleGjesteprosjekter,
   serverGjesteprosjekter,
   utenGjesteprosjekter,
+  velgerGjesteprosjekter,
 } from "./gjesteprosjektListe";
 
 /** POST 2026-11-15 (15) punkt 4 — mobil: gruppen «Prosjekter i andre firma». */
@@ -44,13 +45,42 @@ describe("lokaleGjesteprosjekter (offline fra prosjekt_local)", () => {
 describe("serverGjesteprosjekter + utenGjesteprosjekter", () => {
   it("viser eierfirmaets navn fra serveren", () => {
     const g = serverGjesteprosjekter([
-      { id: "p-gjest", name: "Bru", projectNumber: "12", primaryOrganization: { name: "X AS" } },
+      { id: "p-gjest", name: "Bru", projectNumber: "12", primaryOrganizationId: X, primaryOrganization: { name: "X AS" } },
     ]);
-    expect(g).toEqual([{ id: "p-gjest", name: "Bru", projectNumber: "12", eierFirma: "X AS" }]);
+    expect(g).toEqual([
+      { id: "p-gjest", name: "Bru", projectNumber: "12", eierFirma: "X AS", primaryOrganizationId: X },
+    ]);
   });
   it("gjesteprosjekt tas ut av hovedlista, egne blir stående", () => {
     const hoved = [{ id: "p-eget" }, { id: "p-gjest" }];
     expect(utenGjesteprosjekter(hoved, [{ id: "p-gjest" }]).map((p) => p.id)).toEqual(["p-eget"]);
+  });
+});
+
+describe("velgerGjesteprosjekter — (16) punkt 2", () => {
+  const Y = "firma-y";
+  const g = (id: string, eier: string) => ({
+    id,
+    name: id,
+    projectNumber: null,
+    eierFirma: null,
+    primaryOrganizationId: eier,
+  });
+  const server = [g("p-x", X), g("p-y", Y)];
+  it("🔴 prosjekt eid av valgt firma ligger ikke i gjestegruppen (valgt firma uten ansettelse)", () => {
+    const ider = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X }).map((p) => p.id);
+    expect(ider).toEqual(["p-y"]);
+  });
+  it("🔴 samme regel offline (lokal cache)", () => {
+    const ider = velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X }).map((p) => p.id);
+    expect(ider).toEqual(["p-y"]);
+  });
+  it("valgt firma blir i hovedlista: utenGjesteprosjekter fjerner ikke valgt firmas prosjekt", () => {
+    const gjester = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X });
+    expect(utenGjesteprosjekter([{ id: "p-x" }], gjester).map((p) => p.id)).toEqual(["p-x"]);
+  });
+  it("feil-/lastevisning → ingen gjestegruppe", () => {
+    expect(velgerGjesteprosjekter({ visning: "feil", server, lokale: server, valgtFirmaId: null })).toEqual([]);
   });
 });
 
@@ -61,6 +91,9 @@ describe("koblinger (kilde-vakt)", () => {
     expect(k).toContain("trpc.prosjekt.hentGjesteprosjekter.useQuery");
     expect(k).toContain("hentGjesteprosjekterLokalt(mineFirmaIder)");
     expect(k.match(/utenGjesteprosjekter\(/g)?.length).toBe(2);
+    // (16): gruppen filtreres mot valgt firma.
+    expect(k).toContain("valgtFirmaId: valgtFirmaId ?? null");
+    expect(k).toContain("velgerGjesteprosjekter({");
   });
   it("ProsjektVelger viser gruppen og Hjem finner valgt gjesteprosjekt", () => {
     expect(les("../components/ProsjektVelger.tsx")).toContain('t("prosjektVelger.andreFirma")');

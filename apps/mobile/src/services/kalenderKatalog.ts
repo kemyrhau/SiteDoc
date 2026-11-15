@@ -1,6 +1,7 @@
 import { eq, and, desc } from "drizzle-orm";
 import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
+import { lokalIsoDato } from "../utils/dato";
 import {
   arbeidstidskalenderLocal,
   organizationSettingLocal,
@@ -164,8 +165,10 @@ export function hentArbeidsdagTiderLokalt(
   let sluttTid = setting?.standardSluttTid ?? DEFAULT_SLUTT_TID;
   let pauseMin = setting?.standardPauseMin ?? DEFAULT_PAUSE_MIN;
 
-  const aar = dato.getUTCFullYear();
-  const datoIso = dato.toISOString().slice(0, 10);
+  // (16) punkt 5: kallerne sender lokal midnatt (`new Date(\`${dato}T00:00:00\`)`)
+  // → lokal dato/år; `toISOString()` ga forrige dag i CET (1. jan → fjoråret).
+  const aar = dato.getFullYear();
+  const datoIso = lokalIsoDato(dato);
 
   // Siste aktive sommertid_start ≤ dato i samme år.
   const sommertidStart = db

@@ -11,6 +11,7 @@ import { GEOFENCE_GRENSER } from "@sitedoc/shared";
 import { sokAdresser } from "../services/rute-service";
 import {
   MANUELL_KILDE,
+  fyllManglendeKontorAvstander,
   kontorPar,
   recomputeKontorAvstand,
   recomputeMatrise,
@@ -240,6 +241,8 @@ export const oppmotestedRouter = router({
         }),
       ]);
       // L2: kontor ↔ kontor (overføring). Én rad pr. par, fra < til.
+      // (16) punkt 4: manglende par fylles før lesing.
+      await fyllManglendeKontorAvstander(orgId);
       const kontorRader = await ctx.prisma.oppmotestedAvstand.findMany({
         where: { organizationId: orgId },
         select: {
@@ -372,6 +375,8 @@ export const oppmotestedRouter = router({
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      // (16) punkt 4: manglende par fylles før lesing.
+      await fyllManglendeKontorAvstander(input.organizationId);
       return ctx.prisma.oppmotestedAvstand.findMany({
         where: { organizationId: input.organizationId },
         select: {

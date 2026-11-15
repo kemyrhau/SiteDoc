@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
+import { erProsjektRadValgt } from "@/lib/prosjektvelger";
+import { gjesteprosjekterIAndreFirma } from "@sitedoc/shared";
 import { useFavoritter } from "@/hooks/useFavoritter";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -243,7 +245,10 @@ export function KontekstChip() {
   // (15): gjesteprosjekter (medlem, men eid av et firma brukeren ikke er ansatt i) vises i
   // egen gruppe «Prosjekter i andre firma» — tas ut av hovedlista (hentAlle tar dem med
   // for vanlige brukere uavhengig av valgt firma).
-  const gjesteIdSet = new Set(gjesteprosjekter.map((p) => p.id));
+  // (16): gruppen tar bare prosjekter der eier-firmaet ≠ valgt firma. Har brukeren valgt et
+  // firma hen ikke er ansatt i (sitedoc_admin), står det firmaets prosjekter i hovedlista.
+  const andreFirmaProsjekter = gjesteprosjekterIAndreFirma(gjesteprosjekter, valgtFirma?.id);
+  const gjesteIdSet = new Set(andreFirmaProsjekter.map((p) => p.id));
   const prosjektKilde = (
     visScopePille
       ? prosjektFilter === "alle"
@@ -253,13 +258,13 @@ export function KontekstChip() {
   ).filter((p) => !gjesteIdSet.has(p.id));
   const pq = prosjektSøk.toLowerCase();
   const gjesteFiltrert = pq
-    ? gjesteprosjekter.filter(
+    ? andreFirmaProsjekter.filter(
         (p) =>
           p.name.toLowerCase().includes(pq) ||
           (p.internalProjectNumber?.toLowerCase().includes(pq) ?? false) ||
           (p.primaryOrganization?.name.toLowerCase().includes(pq) ?? false),
       )
-    : gjesteprosjekter;
+    : andreFirmaProsjekter;
   const prosjektFiltrert = pq
     ? prosjektKilde.filter(
         (p) =>
@@ -363,7 +368,7 @@ export function KontekstChip() {
       <TraktRad
         key={p.id}
         tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.address ? ` · ${p.address}` : ""}`}
-        valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
+        valgt={erProsjektRadValgt(p.id, valgtProsjekt?.id)}
         onVelg={() => velgProsjektTrakt(p.id)}
         handling={
           <button
@@ -389,7 +394,7 @@ export function KontekstChip() {
     <TraktRad
       key={p.id}
       tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.primaryOrganization ? ` · ${p.primaryOrganization.name}` : ""}`}
-      valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
+      valgt={erProsjektRadValgt(p.id, valgtProsjekt?.id)}
       onVelg={() => velgProsjektTrakt(p.id)}
     />
   );

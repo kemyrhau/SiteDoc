@@ -7,6 +7,7 @@ import {
   mineAnsattFirmaIder,
   serverGjesteprosjekter,
   utenGjesteprosjekter,
+  velgerGjesteprosjekter,
   type GjesteprosjektRad,
 } from "../utils/gjesteprosjektListe";
 import { velgHjemProsjektVisning, type HjemProsjektVisning } from "@sitedoc/shared";
@@ -88,15 +89,18 @@ export function useProsjektListe(): ProsjektListeResultat {
     harLokaleProsjekter: lokale.length > 0 || lokaleGjester.length > 0,
   });
 
+  // (16): gruppen tar bare prosjekter der eier-firmaet ≠ valgt firma — det valgte firmaets
+  // egne prosjekter står i hovedlista selv om brukeren ikke er ansatt der.
   const gjesteprosjekter = useMemo<GjesteprosjektRad[]>(() => {
-    if (visning === "server") {
-      // Lean cast som hovedlista (TS2589-vern).
-      const data = gjesteQuery.data as unknown as Parameters<typeof serverGjesteprosjekter>[0] | undefined;
-      return data ? serverGjesteprosjekter(data) : [];
-    }
-    if (visning === "lokal") return lokaleGjester;
-    return [];
-  }, [visning, gjesteQuery.data, lokaleGjester]);
+    // Lean cast som hovedlista (TS2589-vern).
+    const data = gjesteQuery.data as unknown as Parameters<typeof serverGjesteprosjekter>[0] | undefined;
+    return velgerGjesteprosjekter({
+      visning,
+      server: data ? serverGjesteprosjekter(data) : [],
+      lokale: lokaleGjester,
+      valgtFirmaId: valgtFirmaId ?? null,
+    });
+  }, [visning, gjesteQuery.data, lokaleGjester, valgtFirmaId]);
 
   const prosjekter = useMemo<ProsjektRad[]>(() => {
     if (visning === "server") {

@@ -7,6 +7,7 @@ import {
   sheetMachineLocal,
 } from "../db/schema";
 import { dedupPerDato, velgEldsteKonflikt, type DedupRad } from "../utils/dagsseddelListeVisning";
+import { lokalIsoDato } from "../utils/dato";
 
 /**
  * Lokale lesinger for timer-lista, ukesummen og statusbaren.
@@ -82,9 +83,9 @@ function ukestart(dato: Date): Date {
   return d;
 }
 
-function formatIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+// (16) punkt 5: lokal kalenderdato. `toISOString()` på lokal midnatt gir
+// forrige dag i CET → uka ble 08.–14.11 i stedet for 09.–15.11.
+const formatIso = lokalIsoDato;
 
 function isoUkenummer(dato: Date): number {
   const d = new Date(dato);
@@ -97,11 +98,13 @@ function isoUkenummer(dato: Date): number {
 }
 
 /** Innværende ukes totalsum for valgt firma (UkeTotalBanner). */
+export type UkeTotal = { totalt: number; antall: number; ukeNr: number };
+
 export function lesUkeTotalLokalt(
   userId: string,
   orgId: string | null | undefined,
   naa: Date = new Date(),
-): { totalt: number; antall: number; ukeNr: number } {
+): UkeTotal {
   const start = ukestart(naa);
   const ukeNr = isoUkenummer(start);
   const db = hentDatabase();

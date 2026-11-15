@@ -37,7 +37,12 @@ import {
   type UtkastMaal,
 } from "../utils/utkastListe";
 import type { UtkastOversikt } from "../utils/prosjektkortUtkast";
-import { lesDagssedlerLokalt, type DagsseddelRad } from "../services/timerListeLokal";
+import {
+  lesDagssedlerLokalt,
+  lesUkeTotalLokalt,
+  type DagsseddelRad,
+  type UkeTotal,
+} from "../services/timerListeLokal";
 import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
 
 /**
@@ -98,6 +103,7 @@ export function DagsseddelListe({
   const gpsUtkastBehandlerRef = useRef(false);
 
   const [rader, setRader] = useState<DagsseddelRad[]>([]);
+  const [ukeTotal, setUkeTotal] = useState<UkeTotal | null>(null);
   const [utkastInfo, setUtkastInfo] = useState<{
     utkast: UtkastOversikt[];
     paagaarIder: Set<string>;
@@ -136,6 +142,8 @@ export function DagsseddelListe({
   const lesAlt = useCallback(() => {
     if (!bruker?.id) return;
     setRader(lesDagssedlerLokalt(bruker.id, valgtFirmaId));
+    // (16) punkt 5: ukesummen leses sammen med lista, så den følger lagring/synk.
+    setUkeTotal(lesUkeTotalLokalt(bruker.id, valgtFirmaId));
     setUtkastInfo(lesUtkastLokalt(bruker.id, valgtFirmaId));
   }, [bruker?.id, valgtFirmaId]);
 
@@ -228,7 +236,7 @@ export function DagsseddelListe({
           viser i stedet den kompakte HjemTimerChip. */}
       <StartSluttDagKort onNyRad={() => setVisNyRad(true)} />
 
-      {bruker?.id && <UkeTotalBanner userId={bruker.id} orgId={valgtFirmaId} />}
+      {bruker?.id && ukeTotal && <UkeTotalBanner {...ukeTotal} />}
 
       {/* UF-3: mild kladd-påminnelse — trykk åpner eldste usendte kladd. */}
       {usendteKladder.length > 0 && (

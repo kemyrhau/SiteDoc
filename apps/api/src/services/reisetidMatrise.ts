@@ -261,17 +261,46 @@ export async function recomputeKontorAvstand(args: {
   organizationId: string;
   oppmotestedId?: string;
   plasseringEndret?: boolean;
-}): Promise<{ rader: number }> {
-  const { organizationId, oppmotestedId, plasseringEndret } = args;
+  /**
+   * (16) punkt 4: fyll bare par som mangler rad (uansett kilde). Eksisterende
+   * rader — manuelle, osrm og uoppnåelige (-1) — røres ikke, og OSRM kalles
+   * ikke i det hele tatt når ingen par mangler.
+   */
+  kunManglende?: boolean;
+}): Promise<{ rader: number; osrmKalt: boolean }> {
+  const { organizationId, oppmotestedId, plasseringEndret, kunManglende } = args;
   const kontorer = await prisma.oppmotested.findMany({
     where: { organizationId },
     select: { id: true, lat: true, lng: true },
     orderBy: { id: "asc" },
   });
-  if (kontorer.length < 2 || kontorer.length > OSRM_MAX_KOORDINATER) return { rader: 0 };
+  if (kontorer.length < 2 || kontorer.length > OSRM_MAX_KOORDINATER) {
+    return { rader: 0, osrmKalt: false };
+  }
 
   const berort = (a: string, b: string) =>
     !oppmotestedId || a === oppmotestedId || b === oppmotestedId;
+
+  // (16) punkt 4: «finnes rad» erstatter manuell-vakten (manuelle ⊂ alle).
+  let hoppOver: Set<string> | null = null;
+  if (kunManglende) {
+    const alle = await prisma.oppmotestedAvstand.findMany({
+      where: { organizationId },
+      select: { fraOppmotestedId: true, tilOppmotestedId: true },
+    });
+    hoppOver = new Set(alle.map((r) => `${r.fraOppmotestedId}|${r.tilOppmotestedId}`));
+    let mangler = false;
+    for (let i = 0; i < kontorer.length && !mangler; i++) {
+      for (let j = i + 1; j < kontorer.length; j++) {
+        const { fra, til } = kontorPar(kontorer[i]!.id, kontorer[j]!.id);
+        if (berort(fra, til) && !hoppOver.has(`${fra}|${til}`)) {
+          mangler = true;
+          break;
+        }
+      }
+    }
+    if (!mangler) return { rader: 0, osrmKalt: false };
+  }
   const manuellFilter = {
     organizationId,
     ...MANUELL_FILTER,
@@ -279,11 +308,14 @@ export async function recomputeKontorAvstand(args: {
       ? { OR: [{ fraOppmotestedId: oppmotestedId }, { tilOppmotestedId: oppmotestedId }] }
       : {}),
   };
-  const manuelle = await prisma.oppmotestedAvstand.findMany({
-    where: manuellFilter,
-    select: { fraOppmotestedId: true, tilOppmotestedId: true },
-  });
-  const manuellPar = new Set(manuelle.map((m) => `${m.fraOppmotestedId}|${m.tilOppmotestedId}`));
+  const manuelle = hoppOver
+    ? []
+    : await prisma.oppmotestedAvstand.findMany({
+        where: manuellFilter,
+        select: { fraOppmotestedId: true, tilOppmotestedId: true },
+      });
+  const manuellPar =
+    hoppOver ?? new Set(manuelle.map((m) => `${m.fraOppmotestedId}|${m.tilOppmotestedId}`));
   if (plasseringEndret && manuelle.length > 0) {
     await prisma.oppmotestedAvstand.updateMany({
       where: manuellFilter,
@@ -293,7 +325,7 @@ export async function recomputeKontorAvstand(args: {
 
   const koord: Coord[] = kontorer.map((k) => ({ lat: k.lat, lng: k.lng }));
   const matrise = await hentKjoretidMatrise(koord, koord);
-  if (!matrise) return { rader: 0 }; // OSRM-feil → behold eksisterende rader
+  if (!matrise) return { rader: 0, osrmKalt: true }; // OSRM-feil → behold eksisterende rader
 
   const ops = [];
   for (let i = 0; i < kontorer.length; i++) {
@@ -309,13 +341,48 @@ export async function recomputeKontorAvstand(args: {
         prisma.oppmotestedAvstand.upsert({
           where: { fraOppmotestedId_tilOppmotestedId: { fraOppmotestedId: fra, tilOppmotestedId: til } },
           create: { organizationId, fraOppmotestedId: fra, tilOppmotestedId: til, kjoretidMin, avstandM, kilde: "osrm" },
-          update: { kjoretidMin, avstandM, kilde: "osrm", beregnetAt: new Date() },
+          // 🔴 Fylling oppretter bare, oppdaterer aldri (RETUR (16) vilkår 1):
+          // `hoppOver` leses FØR OSRM-kallet (opptil 8 s). En manuell verdi lagret
+          // i det vinduet skal stå urørt — derfor tom `update` i kunManglende-modus.
+          update: kunManglende ? {} : { kjoretidMin, avstandM, kilde: "osrm", beregnetAt: new Date() },
         }),
       );
     }
   }
   if (ops.length > 0) await prisma.$transaction(ops);
-  return { rader: ops.length };
+  return { rader: ops.length, osrmKalt: true };
+}
+
+/**
+ * (16) punkt 4: manglende kontor-par beregnes uten at firmaadmin trykker noe —
+ * også for firmaer som hadde kontorer før L2 kom. Kalles (await) fra lesestiene
+ * `oppmotested.hentAvstander` (fanen Avstander, firmaadmin) og
+ * `oppmotested.hentKontorAvstanderForFirma` (mobil-cache for overføring).
+ *
+ * Kostnad: to små spørringer pr. lesing (kontorer + eksisterende par). OSRM
+ * kalles bare når et par mangler — ett `/table`-kall for hele firmaet. Etter et
+ * OSRM-forsøk venter firmaet {@link KONTOR_FYLL_PAUSE_MS} før neste, så OSRM
+ * nede ikke gjør hver lesing treg. OSRM-feil → ingen rad skrives (som før).
+ * Feil kastes aldri videre — lesingen skal alltid svare.
+ */
+export const KONTOR_FYLL_PAUSE_MS = 10 * 60 * 1000;
+const sisteKontorFyll = new Map<string, number>();
+
+export async function fyllManglendeKontorAvstander(
+  organizationId: string,
+  naa: number = Date.now(),
+): Promise<{ rader: number }> {
+  const sist = sisteKontorFyll.get(organizationId);
+  if (sist != null && naa - sist < KONTOR_FYLL_PAUSE_MS) return { rader: 0 };
+  try {
+    const res = await recomputeKontorAvstand({ organizationId, kunManglende: true });
+    if (res.osrmKalt) sisteKontorFyll.set(organizationId, naa);
+    return { rader: res.rader };
+  } catch (e) {
+    sisteKontorFyll.set(organizationId, naa);
+    console.error("[reisetid-matrise] fyll manglende kontor-par feilet (ikke-blokkerende):", e);
+    return { rader: 0 };
+  }
 }
 
 /**

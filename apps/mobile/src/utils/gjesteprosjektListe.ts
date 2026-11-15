@@ -1,4 +1,4 @@
-import { erGjesteprosjekt } from "@sitedoc/shared";
+import { erGjesteprosjekt, gjesteprosjekterIAndreFirma } from "@sitedoc/shared";
 
 /* ============================================================================
  *  Gjesteprosjekter i prosjektvelgeren (POST 2026-11-15 (15)).
@@ -20,6 +20,8 @@ export interface GjesteprosjektRad {
   projectNumber: string | null;
   /** Eierfirmaets navn — `null` offline (cachen har bare org-id). */
   eierFirma: string | null;
+  /** Eierfirmaets id — (16): gruppen «andre firma» tar bare eier ≠ valgt firma. */
+  primaryOrganizationId: string | null;
 }
 
 /**
@@ -49,7 +51,13 @@ export function lokaleGjesteprosjekter(
   if (!mineFirmaIder) return [];
   return rader
     .filter((r) => erGjesteprosjekt({ primaryOrganizationId: r.organizationId }, mineFirmaIder))
-    .map((r) => ({ id: r.id, name: r.name, projectNumber: r.projectNumber ?? null, eierFirma: null }));
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      projectNumber: r.projectNumber ?? null,
+      eierFirma: null,
+      primaryOrganizationId: r.organizationId,
+    }));
 }
 
 /** Server-svaret fra `prosjekt.hentGjesteprosjekter` til listerader. */
@@ -58,6 +66,7 @@ export function serverGjesteprosjekter(
     id: string;
     name: string;
     projectNumber: string | null;
+    primaryOrganizationId: string | null;
     primaryOrganization: { name: string } | null;
   }>,
 ): GjesteprosjektRad[] {
@@ -66,7 +75,25 @@ export function serverGjesteprosjekter(
     name: p.name,
     projectNumber: p.projectNumber ?? null,
     eierFirma: p.primaryOrganization?.name ?? null,
+    primaryOrganizationId: p.primaryOrganizationId ?? null,
   }));
+}
+
+/**
+ * Gjestegruppen velgeren viser (POST 2026-11-15 (16), punkt 2): server-svaret på nett,
+ * lokal cache frakoblet — og bare prosjekter der eier-firmaet ≠ valgt firma. Et valgt
+ * firma brukeren ikke er ansatt i (typisk sitedoc_admin) skal ha sine prosjekter i
+ * hovedlista, ikke under «Prosjekter i andre firma».
+ */
+export function velgerGjesteprosjekter(input: {
+  visning: "server" | "lokal" | string;
+  server: GjesteprosjektRad[];
+  lokale: GjesteprosjektRad[];
+  valgtFirmaId: string | null;
+}): GjesteprosjektRad[] {
+  const kilde =
+    input.visning === "server" ? input.server : input.visning === "lokal" ? input.lokale : [];
+  return gjesteprosjekterIAndreFirma(kilde, input.valgtFirmaId);
 }
 
 /** Hovedlista uten prosjekter som vises i gjestegruppen. */
