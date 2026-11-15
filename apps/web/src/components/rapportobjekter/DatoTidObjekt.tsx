@@ -1,10 +1,11 @@
 import type { RapportObjektProps } from "./typer";
+import { datoInputVerdi } from "./datoInput";
 
 export function DatoTidObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const datoVerdi = typeof verdi === "string" ? new Date(verdi) : null;
 
   // Konverter til YYYY-MM-DD og HH:MM for native inputs
-  const datoInput = datoVerdi ? datoVerdi.toISOString().split("T")[0] : "";
+  const datoInput = datoInputVerdi(verdi); // lokal dato, samme klokke som tidInput
   const tidInput = datoVerdi
     ? `${String(datoVerdi.getHours()).padStart(2, "0")}:${String(datoVerdi.getMinutes()).padStart(2, "0")}`
     : "";

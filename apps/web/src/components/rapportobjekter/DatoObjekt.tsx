@@ -1,14 +1,13 @@
 import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
+import { datoInputVerdi } from "./datoInput";
 
 export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();
   const datoVerdi = typeof verdi === "string" ? new Date(verdi) : null;
 
-  // Konverter til YYYY-MM-DD for input[type=date]
-  const inputVerdi = datoVerdi
-    ? datoVerdi.toISOString().split("T")[0]
-    : "";
+  // Lokal kalenderdato YYYY-MM-DD for input[type=date] (ikke UTC)
+  const inputVerdi = datoInputVerdi(verdi);
 
   const erIDag = (dato: Date) => {
     const iDag = new Date();

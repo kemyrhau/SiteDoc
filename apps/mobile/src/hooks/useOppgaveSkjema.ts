@@ -10,6 +10,7 @@ import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { avvisningsVarsel, klassifiserLagreFeil, type AvvisningsVarsel } from "../utils/lagreFeil";
 import { useAuth } from "../providers/AuthProvider";
+import { lokalIsoDato } from "../utils/dato";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
 import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
@@ -352,7 +353,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
         ) {
           switch (objekt.type) {
             case "date":
-              autoVerdi = new Date().toISOString().split("T")[0];
+              autoVerdi = lokalIsoDato(new Date()); // lokal dato, ikke UTC (ordre (17) P4)
               break;
             case "date_time":
               autoVerdi = new Date().toISOString();
