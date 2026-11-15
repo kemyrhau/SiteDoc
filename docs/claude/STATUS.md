@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-15
+- 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (14) Timer firmafilter merget (`089c86e0`)** (develop, docs-only, orkestrator): ✅-innslag med oppfølgere, funksjonsendringsrad, «Sist ført».
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (13) L2 del A + C merget (`54a2df79`) og del B merget (`e56430e0`)** (develop, docs-only, orkestrator): ✅-innslag, funksjonsendringsrader, «Sist ført» (test `11fa66ad`, OTA `01a1dec5`). Migrering del B ikke kjørt.
 - 2026-11-15 — **`timer.md` + `arkitektur.md` + `hjelpetekster.md`: midlertidig oppmøtested via overføring, POST (13) del B** (branch `feat/oppmote-overforing`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): `kilde` + løsnet `fast_check` + unik indeks for én åpen midlertidig (migrasjon `20261115130000_oppmote_overforing`), delt `planleggOverforing`, `oppmotePeriode.overforing`, mobil-kø `oppmote_overforing_ko`, «Overføring til annet kontor» i reise-kortet (web + mobil). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-15 — **`timer.md`: varsel når timer skjules for sitedoc_admin (TILLEGG (14))** (branch `fix/timer-firmafilter`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): tom timer-liste (mobil + web «Mine timer») viser varsel om impersonering når sitedoc_admin ikke er ansatt i valgt firma; web lenker til firmaets brukerfane (`?fane=brukere`). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
