@@ -17,6 +17,7 @@ import {
   verifiserByggeplassIProsjekt,
   verifiserOmradeIProsjekt,
 } from "../services/tegningVakt";
+import { velgTaskByggeplass, hentTegningensByggeplassId } from "../services/taskByggeplass";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
 import { berikMedMetadata } from "../services/dokumentMetadata";
@@ -601,9 +602,15 @@ export const sjekklisteRouter = router({
         if (input.byggeplassId) {
           await verifiserByggeplassIProsjekt(tx, input.byggeplassId, mal.projectId);
         }
-        // ORDRE 29 #13 + ORDRE 33: område må tilhøre prosjektet og valgt byggeplass.
+        // ORDRE (21) 2026-11-15: byggeplassen følger tegningen — samme regel som oppgave
+        // (`velgTaskByggeplass`). Har tegningen en byggeplass, vinner den over klientens valg.
+        const effektivByggeplassId = velgTaskByggeplass({
+          tegningensByggeplassId: await hentTegningensByggeplassId(tx, input.drawingId),
+          oensket: input.byggeplassId,
+        });
+        // ORDRE 29 #13 + ORDRE 33: område må tilhøre prosjektet og (effektiv) byggeplass.
         if (input.omradeId) {
-          await verifiserOmradeIProsjekt(tx, input.omradeId, mal.projectId, input.byggeplassId);
+          await verifiserOmradeIProsjekt(tx, input.omradeId, mal.projectId, effektivByggeplassId);
         }
 
         // Auto-generer tittel fra malnavn (nummer vises separat i Nr-kolonne)
@@ -645,7 +652,7 @@ export const sjekklisteRouter = router({
             number: nummer,
             dokumentflytId: erHms ? hmsFlytId : effektivFlytId,
             subject: input.subject,
-            byggeplassId: input.byggeplassId,
+            byggeplassId: effektivByggeplassId,
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
@@ -716,6 +723,8 @@ export const sjekklisteRouter = router({
           template: { select: { projectId: true, domain: true } },
           // 3b: koblet kontrollpunkt (om noen) — for å speile lokasjon dit.
           kontrollplanPunkt: { select: { id: true } },
+          // ORDRE (21): byggeplassen følger dagens tegning når klienten ikke bytter den.
+          drawing: { select: { byggeplassId: true } },
         },
       });
       await verifiserDokumentTilgang(
@@ -772,22 +781,44 @@ export const sjekklisteRouter = router({
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, sjekkliste.template.projectId);
       }
-      // ORDRE 29 #13 + ORDRE 33: området må tilhøre prosjektet og den effektive byggeplassen
-      // (input der satt, ellers radens). Sjekkes også når kun byggeplassen byttes og området
-      // beholdes. `null` = fjern område, ingen sjekk.
+      // ORDRE (21) 2026-11-15: byggeplassen følger tegningen — samme regel som oppgave.oppdater
+      // (`velgTaskByggeplass`). Har (ny eller dagens) tegning en byggeplass, vinner den: en
+      // `byggeplassId` som strider mot tegningen ignoreres (ikke avvist — offline-køen spiller av
+      // gamle mutasjoner). Byttes tegningen uten ny posisjon, nullstilles punktet: koordinatene er
+      // prosent av den gamle tegningen og betyr ingenting på den nye.
+      const tegningByttes = input.drawingId !== undefined && input.drawingId !== sjekkliste.drawingId;
+      const rørerByggeplass = input.drawingId !== undefined || input.byggeplassId !== undefined;
+      const nyByggeplassId = rørerByggeplass
+        ? velgTaskByggeplass({
+            tegningensByggeplassId:
+              input.drawingId !== undefined
+                ? await hentTegningensByggeplassId(ctx.prisma, input.drawingId)
+                : (sjekkliste.drawing?.byggeplassId ?? null),
+            oensket: input.byggeplassId,
+            naavaerende: sjekkliste.byggeplassId,
+          })
+        : sjekkliste.byggeplassId;
+      const byggeplassEndres = nyByggeplassId !== sjekkliste.byggeplassId;
+
+      // ORDRE 29 #13 + ORDRE 33: området må tilhøre prosjektet og den effektive byggeplassen.
+      // Sjekkes også når kun byggeplassen byttes og området beholdes. `null` = fjern område.
       const effektivtOmrade = input.omradeId !== undefined ? input.omradeId : sjekkliste.omradeId;
-      if (effektivtOmrade && (input.omradeId !== undefined || input.byggeplassId !== undefined)) {
-        const effektivByggeplass =
-          input.byggeplassId !== undefined ? input.byggeplassId : sjekkliste.byggeplassId;
+      if (effektivtOmrade && (input.omradeId !== undefined || byggeplassEndres)) {
         await verifiserOmradeIProsjekt(
           ctx.prisma,
           effektivtOmrade,
           sjekkliste.template.projectId,
-          effektivByggeplass,
+          nyByggeplassId,
         );
       }
 
-      const { id, ...data } = input;
+      const { id, byggeplassId: _oensketByggeplass, ...resten } = input;
+      const data = {
+        ...resten,
+        byggeplassId: byggeplassEndres ? nyByggeplassId : undefined,
+        ...(tegningByttes && input.positionX === undefined ? { positionX: null } : {}),
+        ...(tegningByttes && input.positionY === undefined ? { positionY: null } : {}),
+      };
       const oppdatert = await ctx.prisma.checklist.update({
         where: { id },
         data,
@@ -800,19 +831,19 @@ export const sjekklisteRouter = router({
       // sjekkliste-detalj/utskrift). Samme nullstill-regel som settPunktPlassering:
       // fjernes tegningen, tømmes posisjonen.
       const rørerLokasjon =
-        input.drawingId !== undefined || input.positionX !== undefined || input.positionY !== undefined;
+        data.drawingId !== undefined || data.positionX !== undefined || data.positionY !== undefined;
       if (rørerLokasjon && sjekkliste.kontrollplanPunkt) {
         // Trygt ved konstruksjon: skill «feltet er utelatt» (behold) fra «feltet er satt til
         // null» (tøm), likt Checklist.update over. `?? null` tømte tidligere en posisjon som
         // bare var utelatt. Fjernes tegningen (eksplisitt null), tømmes posisjonen med — en
         // pin uten tegning er meningsløs.
         const punktData: Prisma.KontrollplanPunktUncheckedUpdateInput =
-          input.drawingId === null
+          data.drawingId === null
             ? { drawingId: null, positionX: null, positionY: null }
             : {
-                ...(input.drawingId !== undefined ? { drawingId: input.drawingId } : {}),
-                ...(input.positionX !== undefined ? { positionX: input.positionX } : {}),
-                ...(input.positionY !== undefined ? { positionY: input.positionY } : {}),
+                ...(data.drawingId !== undefined ? { drawingId: data.drawingId } : {}),
+                ...(data.positionX !== undefined ? { positionX: data.positionX } : {}),
+                ...(data.positionY !== undefined ? { positionY: data.positionY } : {}),
               };
         await ctx.prisma.kontrollplanPunkt.update({
           where: { id: sjekkliste.kontrollplanPunkt.id },

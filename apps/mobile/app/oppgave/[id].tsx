@@ -39,7 +39,7 @@ import {
   Eye,
   Scale,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, visByggeplassIkkeValgt, byggeplassByttInput } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -1514,12 +1514,14 @@ export default function OppgaveDetalj() {
             // frivillig. Tegning/pin/område nullstilles (samme regel som web-chipen); med
             // drawingId null vinner ønsket byggeplass på serveren (velgTaskByggeplass).
             valgtByggeplassId={oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null}
-            onVelgByggeplass={(byggeplassId) => {
+            // ORDRE (21): kun uten tegning — med tegning følger byggeplassen tegningen og byttes
+            // ved å velge en tegning fra en annen byggeplass (byggeplassene skjules).
+            onVelgByggeplass={kanVelgeByggeplassDirekte(oppgaveDetalj?.drawingId) ? (byggeplassId) => {
               if (byggeplassId !== (oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null)) {
                 oppdaterMutasjon.mutate({ id: id!, ...byggeplassByttInput(oppgaveDetalj?.lokasjonOmfang, byggeplassId) });
               }
               settVisTegningVelger(false);
-            }}
+            } : undefined}
             onVelg={(valgt) => {
               oppdaterMutasjon.mutate(byttTegningInput(id!, valgt.id));
               const byggeplassId = valgt.byggeplassId ?? valgt.byggeplass?.id ?? null;

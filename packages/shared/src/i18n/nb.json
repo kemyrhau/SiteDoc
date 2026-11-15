@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Hele prosjektet",
   "kontekstChip.faggruppeKunUtkast": "Faggruppe kan kun endres i utkast",
   "kontekstChip.byggeplassLaastGodkjent": "Byggeplass er låst etter godkjenning. Gjenåpne sjekklisten for å endre den.",
+  "kontekstChip.byggeplassFolgerTegning": "Byggeplassen følger tegningen. Velg en tegning fra en annen byggeplass for å bytte.",
   "kontekstChip.velgFelt": "Velg {{felt}}",
   "felles.ingenTreff": "Ingen treff",
   "kontekstChip.allePaa": "Alle på {{prosjekt}}",

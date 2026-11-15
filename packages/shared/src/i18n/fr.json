@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Projet entier",
   "kontekstChip.faggruppeKunUtkast": "Le commerce ne peut être modifié que dans le brouillon",
   "kontekstChip.byggeplassLaastGodkjent": "Le chantier est verrouillé après approbation. Rouvrez la liste de contrôle pour la modifier.",
+  "kontekstChip.byggeplassFolgerTegning": "Le chantier suit le dessin. Sélectionnez un dessin d'un autre chantier pour le modifier.",
   "kontekstChip.velgFelt": "Sélectionnez {{felt}}",
   "felles.ingenTreff": "Aucune correspondance",
   "kontekstChip.allePaa": "Tout en {{prosjekt}}",

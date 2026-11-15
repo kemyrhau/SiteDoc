@@ -8,7 +8,7 @@ import { SignertBilde } from "@/components/SignertBilde";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { byggeplassForLokasjon, filtrerOmrader, manglerByggeplassValg } from "@/lib/dokument-lokasjon";
-import { harTegningsmarkor } from "@sitedoc/shared";
+import { harTegningsmarkor, kanVelgeByggeplassDirekte } from "@sitedoc/shared";
 import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
 type LokasjonOmfang = "punkt" | "byggeplass" | "omrade";
@@ -111,8 +111,15 @@ export function LokasjonVelger({
   const omrader = (omraderRå ?? []) as Array<{
     id: string; navn: string; type: string; byggeplassId: string; byggeplass?: { name: string } | null;
   }>;
+  // ORDRE (21): med tegning følger byggeplassen tegningen. Byggeplass-nedtrekket filtrerer da bare
+  // tegningslista (bytte skjer ved å velge en tegning fra en annen byggeplass); område, fritekst og
+  // «hele byggeplassen» holdes på dokumentets byggeplass.
+  const byggeplassFolgerTegning = !!byggeplassId && !kanVelgeByggeplassDirekte(tegningId);
   // ORDRE 29 #1: bare områdene på valgt byggeplass kan velges (alle når «Alle» er valgt).
-  const omraderForByggeplass = filtrerOmrader(omrader, valgtBygningId);
+  const omraderForByggeplass = filtrerOmrader(
+    omrader,
+    byggeplassFolgerTegning ? byggeplassId : valgtBygningId,
+  );
   const harOmrader = omraderForByggeplass.length > 0;
   const valgtOmradeNavn = omrader.find((o) => o.id === (omradeId ?? valgtOmradeId))?.navn ?? null;
 
@@ -237,7 +244,7 @@ export function LokasjonVelger({
   // Velgerens byggeplass når modalen er åpen; ellers dokumentets, så toppbarens (passiv knapp).
   function lokasjonsByggeplass() {
     return byggeplassForLokasjon({
-      valgt: open ? valgtBygningId : undefined,
+      valgt: open && !byggeplassFolgerTegning ? valgtBygningId : undefined,
       dokument: byggeplassId,
       aktiv: aktivByggeplass?.id,
     });

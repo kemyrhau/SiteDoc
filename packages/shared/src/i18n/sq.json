@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "I gjithë projekti",
   "kontekstChip.faggruppeKunUtkast": "Tregtia mund të ndryshohet vetëm në draft",
   "kontekstChip.byggeplassLaastGodkjent": "Vendi i ndërtimit mbyllet pas miratimit. Rihap listën e kontrollit për ta ndryshuar atë.",
+  "kontekstChip.byggeplassFolgerTegning": "Sheshi i ndërtimit ndjek vizatimin. Zgjidhni një vizatim nga një kantier tjetër ndërtimi për ta ndryshuar atë.",
   "kontekstChip.velgFelt": "Zgjidh {{felt}}",
   "felles.ingenTreff": "Nuk ka ndeshje",
   "kontekstChip.allePaa": "Të gjitha në {{prosjekt}}",

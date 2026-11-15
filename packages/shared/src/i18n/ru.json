@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Весь проект",
   "kontekstChip.faggruppeKunUtkast": "Сделку можно изменить только в черновике",
   "kontekstChip.byggeplassLaastGodkjent": "Строительная площадка блокируется после одобрения. Снова откройте контрольный список, чтобы изменить его.",
+  "kontekstChip.byggeplassFolgerTegning": "Строительная площадка соответствует рисунку. Выберите чертеж на другой строительной площадке, чтобы изменить его.",
   "kontekstChip.velgFelt": "Выберите {{felt}}",
   "felles.ingenTreff": "Нет совпадений",
   "kontekstChip.allePaa": "Все в {{prosjekt}}",

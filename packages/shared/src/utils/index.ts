@@ -620,6 +620,6 @@ export type {
   ByggeplassValg,
 } from "./prosjektByggeplassValg";
 export {
-  visByggeplassIkkeValgt, byggeplassByttInput,
+  visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte,
 } from "./byggeplassIkkeValgt";
 export type { ByggeplassIkkeValgtInput } from "./byggeplassIkkeValgt";

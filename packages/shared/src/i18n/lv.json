@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Viss projekts",
   "kontekstChip.faggruppeKunUtkast": "Tirdzniecību var mainīt tikai projektā",
   "kontekstChip.byggeplassLaastGodkjent": "Pēc saskaņošanas būvlaukums ir bloķēts. Atkārtoti atveriet kontrolsarakstu, lai to mainītu.",
+  "kontekstChip.byggeplassFolgerTegning": "Būvlaukums atbilst zīmējumam. Izvēlieties zīmējumu no citas būvlaukuma, lai to mainītu.",
   "kontekstChip.velgFelt": "Atlasiet {{felt}}",
   "felles.ingenTreff": "Nav nevienas spēles",
   "kontekstChip.allePaa": "Viss {{prosjekt}}",

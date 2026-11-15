@@ -177,6 +177,7 @@
   "kontekstChip.heleProsjektet": "Visas projektas",
   "kontekstChip.faggruppeKunUtkast": "Prekyba gali būti pakeista tik juodraštyje",
   "kontekstChip.byggeplassLaastGodkjent": "Po patvirtinimo statybvietė užrakinta. Iš naujo atidarykite kontrolinį sąrašą, kad jį pakeistumėte.",
+  "kontekstChip.byggeplassFolgerTegning": "Statybos aikštelė atitinka brėžinį. Pasirinkite brėžinį iš kitos statybvietės, kad jį pakeistumėte.",
   "kontekstChip.velgFelt": "Pasirinkite {{felt}}",
   "felles.ingenTreff": "Jokių atitikmenų",
   "kontekstChip.allePaa": "Viskas {{prosjekt}}",

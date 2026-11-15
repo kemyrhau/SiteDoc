@@ -242,6 +242,8 @@ Eksisterende filter (admin → null; HMS-gruppe-medlem → null; ellers privat-p
 - Prosjekt-brede dokumenter (`null`) inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
 - Eksisterende Task-`OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten Prisma-OR-konflikt.
 
+**Byggeplassen følger tegningen (ORDRE 2026-11-15 (21), 🟡 `fix/byggeplass-folger-tegning`, ikke merget):** `sjekkliste.opprett` og `sjekkliste.oppdater` velger byggeplass med `velgTaskByggeplass` (`apps/api/src/services/taskByggeplass.ts`), som `oppgave` allerede gjør: har dokumentet (eller input) en tegning med byggeplass, vinner tegningens byggeplass, og en `byggeplassId` som strider mot den lagres ikke. Prosjekt-tegning (uten byggeplass) eller ingen tegning → ønsket (`byggeplassId` i input) → nåværende. `oppdater` nullstiller `positionX`/`positionY` bare når `drawingId` byttes (eller fjernes) uten ny posisjon i samme kall; byggeplassbytte via tegning beholder tegning og punkt. Kontrollplan-speilingen bruker de faktisk lagrede verdiene. Test: `apps/api/src/routes/sjekkliste-byggeplass-folger-tegning.test.ts` (7 tester; 4 røde mot develop).
+
 **Filterfelt på `hms.hentDokumenter` (filter-hms, 2026-11-03):** additiv select for mobilens HMS-filterark —
 Task: `subject`, `priority`, `drawing.name` (ved siden av `drawing.byggeplassId`), `utforerFaggruppe.name`;
 Checklist: `subject`, `drawing.name`, `utforerFaggruppe.name`. Ingen ny prosedyre, tilgangssjekk eller skjemaendring.

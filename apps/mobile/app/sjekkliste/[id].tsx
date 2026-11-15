@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, visByggeplassIkkeValgt, byggeplassByttInput } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument, PdfValg } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
@@ -1066,6 +1066,7 @@ export default function SjekklisteUtfylling() {
           byggeplassId: sjekklisteDetalj?.byggeplass?.id ?? null,
           antallByggeplasser: bygninger.length,
           kanRedigere: !leseModus,
+          drawingId: sjekklisteDetalj?.drawingId ?? null,
         }) && <ByggeplassIkkeValgtLinje onVelg={aapneByggeplassValg} />}
 
         {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
@@ -1563,7 +1564,9 @@ export default function SjekklisteUtfylling() {
                     bygninger={bygninger}
                     valgtTegningId={lokTempTegningId}
                     valgtByggeplassId={sjekklisteDetalj?.byggeplass?.id ?? null}
-                    onVelgByggeplass={velgByggeplass}
+                    // ORDRE (21): med tegning følger byggeplassen tegningen — byttes ved å velge
+                    // en tegning fra en annen byggeplass, ikke direkte (byggeplassene skjules).
+                    onVelgByggeplass={kanVelgeByggeplassDirekte(sjekklisteDetalj?.drawingId) ? velgByggeplass : undefined}
                     onVelg={(valgt) => {
                       setLokTempTegningId(valgt.id);
                       setLokTempBygningId(valgt.byggeplassId ?? valgt.byggeplass?.id ?? null);
@@ -1663,7 +1666,9 @@ export default function SjekklisteUtfylling() {
                     onPress={() => {
                       oppdaterMutasjon.mutate({
                         id: id!,
-                        byggeplassId: lokTempBygningId,
+                        // ORDRE (21): med tegning setter serveren byggeplassen fra tegningen;
+                        // prosjekt-tegning (uten byggeplass) sender undefined, ikke null.
+                        byggeplassId: lokTempTegningId ? (lokTempBygningId ?? undefined) : lokTempBygningId,
                         drawingId: lokTempTegningId,
                         positionX: lokTempPosX,
                         positionY: lokTempPosY,

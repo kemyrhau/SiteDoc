@@ -168,6 +168,7 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - **Forklaring:** «Dokumentet er ikke knyttet til en byggeplass. Velg byggeplassen det hører til.» (`kontekstChip.byggeplassIkkeValgtHjelp`). Web: tooltip på linja. Mobil: `accessibilityHint`. «Hele prosjektet» er bare et listefilter ((20b)) og tilbys ikke som verdi på dokumentet.
 - **Vises når:** dokumentet mangler byggeplass, prosjektet har minst én og brukeren kan redigere (`visByggeplassIkkeValgt`, `@sitedoc/shared`).
 - **«Velg» åpner:** web sjekkliste → byggeplass-chipen (uten tomvalg); web oppgave → lokasjonsvelgeren; mobil sjekkliste og oppgave → velgeren med byggeplassene øverst («Byggeplass», `lokasjonVelger.byggeplassOverskrift`) over tegningene. Ett trykk på en byggeplass setter den; tegning er frivillig.
+- **Byggeplassen følger tegningen (ORDRE (21), 🟡 ikke merget):** med tegning er web-chipen deaktivert med tooltip «Byggeplassen følger tegningen. Velg en tegning fra en annen byggeplass for å bytte.» (`kontekstChip.byggeplassFolgerTegning`); mobil viser ikke byggeplassene øverst i lista.
 - **Web lokasjonsvelger uten byggeplass:** nedtrekket viser «Velg byggeplass …» (`lokasjonVelger.velgByggeplassPlassholder`). «Gjelder hele byggeplassen» og fritekst er sperret med forklaringen «Velg en byggeplass først» (`sperret.velgByggeplass`).
 
 ## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
