@@ -28,13 +28,15 @@ export function manueltValg(
   return { id, tid: meta?.tid ?? 0, gpsVedValg: meta?.gps ?? null };
 }
 
-/** Nyeste innsjekk av PSI (`minStatus`) og dagens siste timer-besøk på prosjektet. */
+/** Nyeste innsjekk av PSI (`minStatus`) og dagens siste timer-besøk på prosjektet.
+ *  En innsjekk uten byggeplass (`id` null) peker ikke på noen byggeplass og teller ikke
+ *  (RETUR (22) etter GATE (49)): da gjelder neste nyeste kilde med byggeplass. */
 export function nyesteInnsjekk(
   kilder: ReadonlyArray<{ id: string | null; tid: number } | null | undefined>,
 ): { id: string | null; tid: number } | null {
   let best: { id: string | null; tid: number } | null = null;
   for (const k of kilder) {
-    if (!k || !Number.isFinite(k.tid)) continue;
+    if (!k || !k.id || !Number.isFinite(k.tid)) continue;
     if (!best || k.tid > best.tid) best = k;
   }
   return best;

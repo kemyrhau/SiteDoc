@@ -30,6 +30,12 @@ describe("(22) nyesteInnsjekk — PSI og timer-besøk, nyeste vinner", () => {
   it("PSI nyere enn besøk vinner", () => {
     expect(nyesteInnsjekk([{ id: "psi", tid: 3 }, { id: "besok", tid: 2 }])?.id).toBe("psi");
   });
+  it("innsjekk uten byggeplass teller ikke: eldre timer-besøk på B gjelder", () => {
+    expect(nyesteInnsjekk([{ id: null, tid: 5 }, { id: "B", tid: 2 }])?.id).toBe("B");
+  });
+  it("negativkontroll: bare innsjekk uten byggeplass → null (ikke en innsjekk)", () => {
+    expect(nyesteInnsjekk([{ id: null, tid: 5 }, null])).toBeNull();
+  });
   it("ingen kilder → null; ugyldig tid hoppes over", () => {
     expect(nyesteInnsjekk([null, undefined, { id: "x", tid: Number.NaN }])).toBeNull();
   });
