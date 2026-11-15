@@ -291,6 +291,13 @@ Fasit: `tegningNedlasting.test.ts`.
 
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
+### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))
+
+| Funksjon | Hva |
+|----------|-----|
+| `sekvenserReisekjede(kort: KjedeKort[])` → `KjedeKort[]` | Legger overføring/reise/arbeid etter hverandre uten overlapp, minutter fra midnatt. Rettet kort (`rettet`, `rettetFra`/`rettetTil`) er fast punkt; beregnede naboer flytter seg. Uten retting står arbeid fast, reisene legges bakover og returen framover. Ingen klemming mot døgnet. Fasit: `reiseKjede.test.ts` |
+| `finnOverlappVarsel(rader)` → `OverlappVarsel \| null` (`tidsromValidering.ts`) | Første overlapp mellom rader med begge tider (til > fra), via `finnTidsromKonflikt`. Brukes til varsel i prosjektkortet (mobil + web). Fasit: `tidsromValidering.test.ts` |
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

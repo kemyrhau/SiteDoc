@@ -103,6 +103,8 @@ export {
   klokkeTilMin,
   minTilKlokke,
 } from "./reiseManuell";
+export { sekvenserReisekjede } from "./reiseKjede";
+export type { KjedeKort } from "./reiseKjede";
 export type {
   ManuellReiseInput,
   ManuellReiseForklaring,
@@ -231,8 +233,9 @@ export {
   tidsromOverlapper,
   finnOverlappendeTidsrom,
   finnTidsromKonflikt,
+  finnOverlappVarsel,
 } from "./tidsromValidering";
-export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
+export type { Tidsrom, TidsromKonflikt, OverlappVarsel } from "./tidsromValidering";
 export {
   byggForsonInputFraValg,
   parForslagMotSedel,

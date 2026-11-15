@@ -81,7 +81,7 @@ export function ReiseKort({
   sedelByggeplassId: string | null;
   /** Sedelens aktivitet — reise-raden får den automatisk. null → Lagre sperret. */
   aktivitetId: string | null;
-  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[];
+  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean; erOverforing?: boolean }[];
   resolverLonnsartId: string | null;
   /** false i Bekreft dag: der er overføringen alt en forslagsrad (unngår dobbel). */
   medOverforing: boolean;
@@ -158,10 +158,7 @@ export function ReiseKort({
       externalCostObjectId: ecoId,
       reiseSpor,
     });
-    if (erKontor) {
-      reise.lastPerioderPaaNytt();
-      void triggerSync();
-    }
+    if (erKontor) void triggerSync();
   }
 
   /** Avslutt uten reise: perioden slutter dagen før sedeldatoen (slettes om den startet i dag). */
@@ -173,7 +170,6 @@ export function ReiseKort({
       dato: periodeDatoFraOverforing(dato, "00:00", "retur"),
     });
     setValg(null);
-    reise.lastPerioderPaaNytt();
     void triggerSync();
   }
 

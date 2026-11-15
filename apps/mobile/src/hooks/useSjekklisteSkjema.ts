@@ -17,6 +17,7 @@ import { anvendOpplasting } from "../lib/originalOpplasting";
 import { lagreUtvalg } from "../lib/lagreUtvalg";
 import type { DokumentRettighet, AnnoteringsLag } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
+import { lokalIsoDato } from "../utils/dato";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
 type SynkStatus = "synkronisert" | "lokalt_lagret" | "synkroniserer";
@@ -372,7 +373,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
         ) {
           switch (objekt.type) {
             case "date":
-              autoVerdi = new Date().toISOString().split("T")[0];
+              autoVerdi = lokalIsoDato(new Date()); // lokal dato, ikke UTC (ordre (17) P4)
               break;
             case "date_time":
               autoVerdi = new Date().toISOString();

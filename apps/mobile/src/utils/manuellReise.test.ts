@@ -97,6 +97,8 @@ describe("POST (8) punkt 1 — manuell reise i Bekreft dag", () => {
         reiseKilde: "manuell",
         reiseRegel: null,
         tidKilde: "manuell",
+        kjedeNokkel: "manuell-0",
+        kjedeSide: "retur",
       },
     ]);
   });
@@ -315,5 +317,88 @@ describe("Ordre (11) C — mangler standard lønnsart (mobil)", () => {
     expect(nb["timer.reiseTerskel.manglerArt"]).toBe(
       "Firmaet mangler standard lønnsart — be firmaadmin sette den",
     );
+  });
+});
+
+// Ordre 2026-11-15 (17) P1 + Kenneth-vedtak 2026-11-15: rettet kort er fast
+// punkt, beregnede naboer flytter seg, rettede naboer står.
+describe("(17) reisekjeden i Bekreft dag", () => {
+  const UT_A: DagsforslagManuellReise = { ...REISE, timer: 1, fraTid: "05:30", tilTid: "06:30" };
+  const UT_B: DagsforslagManuellReise = { ...REISE, timer: 0.5, fraTid: "06:30", tilTid: "07:00" };
+  const tider = (f: ReturnType<typeof beregnDagsforslag>) =>
+    f.datoer[0]!.rader.map((r) => `${r.kjedeNokkel ?? "arbeid"} ${r.fraTid}–${r.tilTid}`);
+  const arbeidFra = (f: ReturnType<typeof beregnDagsforslag>) =>
+    f.datoer[0]!.rader.filter((r) => !r.erReise).map((r) => r.fraTid)[0];
+
+  it("uten retting: kortene ligger etter hverandre, arbeid står", () => {
+    const f = beregnDagsforslag({ ...manuellInput(), retting: { manuellReise: [UT_A, UT_B] } });
+    expect(tider(f)).toContain("manuell-0 05:30–06:30");
+    expect(tider(f)).toContain("manuell-1 06:30–07:00");
+    expect(arbeidFra(f)).toBe("07:00");
+    expect(f.datoer[0]!.kjedeKonflikt).toBeNull();
+  });
+
+  it("rett midtkort: begge naboer flytter (forrige reise og arbeidsstart)", () => {
+    const f = beregnDagsforslag({
+      ...manuellInput(),
+      retting: {
+        manuellReise: [UT_A, UT_B],
+        perDato: { [DATO]: { reiseTid: { "manuell-1": { fraTid: "07:00", tilTid: "07:30" } } } },
+      },
+    });
+    expect(tider(f)).toContain("manuell-0 06:00–07:00");
+    expect(tider(f)).toContain("manuell-1 07:00–07:30");
+    expect(arbeidFra(f)).toBe("07:30");
+  });
+
+  it("rett midtkort: en rettet nabo står", () => {
+    const f = beregnDagsforslag({
+      ...manuellInput(),
+      retting: {
+        manuellReise: [UT_A, UT_B],
+        perDato: {
+          [DATO]: {
+            reiseTid: {
+              "manuell-0": { fraTid: "05:00", tilTid: "06:00" },
+              "manuell-1": { fraTid: "07:00", tilTid: "07:30" },
+            },
+          },
+        },
+      },
+    });
+    expect(tider(f)).toContain("manuell-0 05:00–06:00");
+    expect(tider(f)).toContain("manuell-1 07:00–07:30");
+    expect(arbeidFra(f)).toBe("07:30");
+  });
+
+  it("forsinkelse: rettet ankomst gir lengre reise og senere arbeidsstart, timene følger", () => {
+    const uten = beregnDagsforslag({ ...manuellInput(), retting: { manuellReise: [UT_B] } });
+    const med = beregnDagsforslag({
+      ...manuellInput(),
+      retting: {
+        manuellReise: [UT_B],
+        perDato: { [DATO]: { reiseTid: { "manuell-0": { fraTid: "06:30", tilTid: "07:20" } } } },
+      },
+    });
+    const reise = med.datoer[0]!.rader.find((r) => r.kjedeNokkel === "manuell-0")!;
+    expect(reise).toMatchObject({ fraTid: "06:30", tilTid: "07:20", timer: 0.83 });
+    expect(arbeidFra(med)).toBe("07:20");
+    const sum = (f: typeof med) =>
+      f.datoer[0]!.rader.filter((r) => !r.erReise).reduce((a, r) => a + r.timer, 0);
+    expect(sum(med)).toBeLessThan(sum(uten));
+  });
+
+  it("overlapp med lagret rad: raden står, dagen får begrunnelse (ingen stille drop)", () => {
+    const f = beregnDagsforslag({
+      ...manuellInput(),
+      retting: { manuellReise: [UT_B] },
+      eksisterendeSedelPerDato: {
+        [DATO]: { finnes: true, status: "draft", eksisterendeRader: [{ fraTid: "06:00", tilTid: "06:45" }] },
+      } as unknown as ReturnType<typeof manuellInput>["eksisterendeSedelPerDato"],
+    });
+    expect(tider(f)).toContain("manuell-0 06:30–07:00");
+    expect(f.datoer[0]!.kjedeKonflikt).toEqual({
+      type: "overlapp", fraTid: "06:30", tilTid: "07:00", annenFraTid: "06:00", annenTilTid: "06:45",
+    });
   });
 });

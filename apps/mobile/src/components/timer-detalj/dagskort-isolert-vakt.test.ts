@@ -49,6 +49,12 @@ const BEKREFT_DAG_PROPS = [
   "fjernReise",
   "gpsLinje",
   "gpsForslagLinje",
+  // ORDRE (17) 2026-11-15: reisekjede, retting i kortet og overlapp-varsel —
+  // kun Bekreft dag og prosjektkortet.
+  "kompakt",
+  "kjedeKonflikt",
+  "finnOverlappVarsel",
+  "useOppmotePeriodeVersjon",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
@@ -79,6 +85,17 @@ describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
       expect(PROSJEKTGRUPPE).not.toContain(navn);
     },
   );
+
+  it("🔴 (17) FraTilTidFelt: standard kompakt = false, og dagskortets seksjoner sender den ikke", () => {
+    const felt = les("FraTilTidFelt.tsx");
+    expect(felt).toMatch(/kompakt = false/);
+    for (const fil of ["TimerSeksjon.tsx", "MaskinSeksjon.tsx"]) {
+      const kilde = les(fil);
+      const tagger = [...kilde.matchAll(/<FraTilTidFelt[\s\S]*?\/>/g)].map((m) => m[0]);
+      expect(tagger.length).toBeGreaterThan(0);
+      for (const tagg of tagger) expect(tagg).not.toContain("kompakt");
+    }
+  });
 
   it("prosjektkortets MaskinSeksjon har fortsatt mengde (pkt 1b alt. 1 — kun fjernet i Bekreft dag)", () => {
     expect(MASKIN).toContain("mengde");

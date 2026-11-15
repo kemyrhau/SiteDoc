@@ -122,8 +122,8 @@ ingen personvernvurdering finnes. Avvist: automatisk besøk uten trykk (`mannska
   fører manuelt på en timerad. Ingen posisjon, ingen bevegelse mellom stopp.
 - Grunnlag som for timer ellers (`mannskap.md:34/40`: GDPR art. 6(1)(c), ikke samtykke). Lokal besøkslogg er
   arbeiderens egen telefon; serveren får bare bekreftede rader.
-- **PSI-innsjekk brukes ikke som kilde for besøk** og foreslår aldri timer (minne «Tilstedeværelse ≠ arbeidstid»;
-  `mannskap.md:197`). Kenneths ordre 06.11 gjelder Start/Slutt dag-økta, ikke innsjekk. Bekreftes i K17.
+- **PSI-innsjekk brukes ikke som kilde for besøk** (ennå). *«Foreslår aldri timer» er opphevet* — **Kenneth-vedtak 2026-11-15 (ordre 17) — erstatter «tilstedeværelse ≠ arbeidstid / innsjekk foreslår aldri arbeidstid»:** målte tidspunkter (GPS-geofence, PSI-innsjekk/utsjekk) KAN foreslås for arbeideren, også for reisens slutt og arbeidstid. Arbeideren bestemmer alltid: forslaget vises med kilde, settes aldri stille og kan rettes. Overlapp mellom kort samme dag gir varsel. PSI som tidskilde
+  er egen ordre (⏳); i (17) er målt ankomst kun `arbeidsdag_besok_local`.
 - Kjent gjerde som lag 4 gjør mer synlig: `hentTilAttestering` viser timer-linjer på tvers av prosjekt for
   prosjektadmin når én sedel spenner flere prosjekter (minne «persondata-gjerder», meldt, ikke fikset). Lag 4 lager
   flere slike sedler → må lukkes **før** L4-C (§ 6).
@@ -440,7 +440,8 @@ arbeidstid». Brudd?
    reverseres de tre kodekommentarene (`useArbeidsdag.ts:67-77`, `:150-153`, `dagsforslag.ts` topptekst) til:
    *«GPS gir FORSLAG til sted, prosjekt og reise. Forslaget blir lønnsgrunnlag først når arbeideren bekrefter i
    `/timer/bekreft-dag` (helhetsplan § 3 G1, Kenneth 2026-11-06). Arbeider-valget i skjermen er autoritativt.»*
-4. **Vedtaket «tilstedeværelse ≠ arbeidstid» står uendret:** det gjelder innsjekk/PSI/geofence-tilstedeværelse. Start
+4. ~~Vedtaket «tilstedeværelse ≠ arbeidstid» står uendret~~ — **erstattet av Kenneth-vedtak 2026-11-15 (17):** målte
+   tidspunkter KAN foreslås, også for arbeidstid; arbeideren velger og retter. Opprinnelig tekst: Start
    dag er en *villet* handling («Jeg trykker på start dag»), og hvert besøk er bekreftet med et trykk (§ 2.1). GPS
    forteller *hvor* — arbeideren forteller *at* det var arbeid.
 5. Ført som **H26** i planen § 4: «anvend uten port» — lukkes av L3-A.

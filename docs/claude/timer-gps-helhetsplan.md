@@ -325,7 +325,8 @@ er kjernen; spec-en har skjerm, klikktelling, arkitektur, tester, **ORDRE-tekst 
   `bekreft-dag.tsx:296`); serveren avviser vareforbruk på sendt sedel (ORDRE 33, sikkerhet.md § 8m).
 - 🟢 **G1-konflikten (H26) lukket av L3-A** (anvend bak Bekreft; G1-ordlyden står i `useArbeidsdag.ts`). Avgjort i spec § 5: dagens `anvendDagsforslag` rett etter «Slutt dag» er et brudd
   i form (ingen port) men dempet i virkning (`draft` + manuell sending). `anvend` flyttes bak «Bekreft» i **L3-A**;
-  ingen tilbakerulling. «Tilstedeværelse ≠ arbeidstid» står: det gjelder innsjekk/PSI, ikke en villet «Start dag».
+  ingen tilbakerulling. ~~«Tilstedeværelse ≠ arbeidstid» står~~ — erstattet av **Kenneth-vedtak 2026-11-15 (17)**: målte
+  tidspunkter (geofence, PSI) KAN foreslås, også for arbeidstid; arbeideren bestemmer, forslaget vises med kilde og kan rettes.
 - **Sammenligningsvisningen ved konflikt** — 🟢 **LEVERT** (`e4866f8d` + `9c7c1ad1`).
 - **Forespørsel til leder når dagskortet er attestert** (U-BEKREFT-R) — krever én migrering. L3-C, etter L3-A.
 - **Bekreftelsesskjermen bærer årsakene** når reise ikke er foreslått (**V12**, **V13**): «posisjon

@@ -259,23 +259,47 @@ export function minTilKlokke(min: number): string {
 
 /**
  * Dagens ramme for reise-kortet: første fraTid og siste tilTid blant
- * sedelens ikke-reise-rader. Rader uten gyldig tid hoppes over.
+ * sedelens arbeidsrader (ikke reise, ikke overføring). Rader uten gyldig tid
+ * hoppes over.
+ *
+ * `kjedeStart`/`kjedeSlutt` (ordre (17) P1): første/siste tid blant ALLE
+ * rader. En overføring legges ytterst i kjeden — før reisen til byggeplass og
+ * etter reisen hjem — og forankres der, så den aldri overlapper en reise.
+ * `erOverforing` skiller en overføring under terskel (føres som arbeidstid,
+ * `erReise` false) fra arbeid.
  */
 export function finnDagsramme(
-  rader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[],
-): { dagStart: string | null; dagSlutt: string | null } {
+  rader: readonly {
+    fraTid: string | null;
+    tilTid: string | null;
+    erReise: boolean;
+    erOverforing?: boolean;
+  }[],
+): {
+  dagStart: string | null;
+  dagSlutt: string | null;
+  kjedeStart: string | null;
+  kjedeSlutt: string | null;
+} {
   let start: number | null = null;
   let slutt: number | null = null;
+  let kStart: number | null = null;
+  let kSlutt: number | null = null;
   for (const r of rader) {
-    if (r.erReise) continue;
     const f = klokkeTilMin(r.fraTid);
     const t = klokkeTilMin(r.tilTid);
+    if (f != null && (kStart == null || f < kStart)) kStart = f;
+    if (t != null && (kSlutt == null || t > kSlutt)) kSlutt = t;
+    if (r.erReise || r.erOverforing) continue;
     if (f != null && (start == null || f < start)) start = f;
     if (t != null && (slutt == null || t > slutt)) slutt = t;
   }
+  const kl = (v: number | null) => (v == null ? null : minTilKlokke(v));
   return {
-    dagStart: start == null ? null : minTilKlokke(start),
-    dagSlutt: slutt == null ? null : minTilKlokke(slutt),
+    dagStart: kl(start),
+    dagSlutt: kl(slutt),
+    kjedeStart: kl(kStart),
+    kjedeSlutt: kl(kSlutt),
   };
 }
 

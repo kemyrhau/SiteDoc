@@ -72,7 +72,7 @@ export function useManuellReiseWeb({
   byggeplasser: readonly ReiseKortByggeplass[];
   prosjektNavn: (projectId: string) => string;
   /** Dagens rader — dagsrammen regnes av ikke-reise-radene. */
-  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[];
+  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean; erOverforing?: boolean }[];
   resolverLonnsartId: string | null;
   /** null = standardvalget: første tilbudte overføring, ellers Tur (TILLEGG). */
   valg: ReiseKortValg | null;
@@ -205,6 +205,9 @@ export function useManuellReiseWeb({
       const celle = kontorAvstand.get(`${kontorOppsett.fraKontorId}|${kontorValg}`) ?? null;
       return løsOverforingKort({
         ...felles,
+        // (17) P1: overføringen ligger ytterst i kjeden, aldri oppå en reise.
+        dagStart: ramme.kjedeStart,
+        dagSlutt: ramme.kjedeSlutt,
         overforing: {
           retning: kontorRetning === "tur" ? "ut" : "retur",
           fra: { type: "kontor", oppmotestedId: kontorOppsett.fraKontorId },
@@ -222,6 +225,9 @@ export function useManuellReiseWeb({
       if (o) {
         return løsOverforingKort({
           ...felles,
+          // (17) P1: overføringen ligger ytterst i kjeden, aldri oppå en reise.
+          dagStart: ramme.kjedeStart,
+          dagSlutt: ramme.kjedeSlutt,
           overforing: o.overforing,
           oppmotestedId: o.oppmotestedId,
           kjoretidMin: o.celle?.kjoretidMin ?? null,

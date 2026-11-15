@@ -59,6 +59,8 @@ import {
   byggOverforingOppslag,
   type DagsforslagOverforingOppslag,
   OVERTID_NIVAA_50,
+  sekvenserReisekjede,
+  type KjedeKort,
 } from "@sitedoc/shared";
 import { rundTidspunktTilNarmeste } from "./tidsrunding";
 import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
@@ -296,7 +298,31 @@ export type DagsforslagRad = {
    * `reiseKilde`/`reiseRegel.overforing`.
    */
   overforing?: { retning: "ut" | "retur"; fraNavn: string; tilNavn: string };
+  /**
+   * Ordre 2026-11-15 (17): kortets nøkkel i reisekjeden — `reise-ut`/
+   * `reise-retur` (auto-reise), `manuell-<i>` (reise-kortet), `overforing-ut`/
+   * `overforing-retur`. Utelatt på arbeidsrader. Nøkkelen bærer arbeiderens
+   * retting (`DagsforslagRettingDato.reiseTid`). Lagres ikke.
+   */
+  kjedeNokkel?: string;
+  /** Ordre (17): kjedesiden — før arbeid («ut») eller etter («retur»). */
+  kjedeSide?: "ut" | "retur";
 };
+
+/**
+ * Ordre 2026-11-15 (17) punkt 2: hvorfor dagen ikke kan bekreftes. «Bekreft og
+ * lagre» sperres og begrunnelsen vises i kortet — raden droppes aldri stille.
+ */
+export type DagsforslagKjedeKonflikt =
+  | {
+      type: "overlapp";
+      fraTid: string;
+      tilTid: string;
+      annenFraTid: string;
+      annenTilTid: string;
+    }
+  /** `erOverforing`: kortet over midnatt er en overføring — kan fjernes (`fjernOverforing`). */
+  | { type: "overMidnatt"; retning: "ut" | "retur"; erOverforing: boolean };
 
 // POST (13) L2 commit 8: oppslaget bor i @sitedoc/shared (delt med web-reisekortet).
 export type { DagsforslagOverforingOppslag };
@@ -329,6 +355,8 @@ export type DagsforslagDag = {
   /** Arbeidsrader som ble hoppet over fordi lønnsarten manglet (aldri gjettet). */
   raderDroppetUtenLonnsart: number;
   rader: DagsforslagRad[];
+  /** Ordre (17) punkt 2: satt → Bekreft sperres med begrunnelse. */
+  kjedeKonflikt?: DagsforslagKjedeKonflikt | null;
 };
 
 /** Hele forslaget — én dag normalt, flere ved midnatt-splitt. */
@@ -464,7 +492,7 @@ export function leggTilManuellReise(
   if (!reiser || reiser.length === 0) return datoer;
   const idx = datoer.findIndex((d) => !d.blokkert);
   if (idx === -1) return datoer;
-  const rader: DagsforslagRad[] = reiser.map((r) => ({
+  const rader: DagsforslagRad[] = reiser.map((r, i) => ({
     projectId: r.projectId,
     lonnsartId: r.lonnsartId,
     aktivitetId: r.aktivitetId,
@@ -483,6 +511,7 @@ export function leggTilManuellReise(
     reiseKilde: r.reiseSpor ? r.reiseSpor.reiseKilde : "manuell",
     reiseRegel: r.reiseSpor ? r.reiseSpor.reiseRegel : null,
     tidKilde: "manuell",
+    kjedeNokkel: `manuell-${i}`,
   }));
   return datoer.map((d, i) => (i === idx ? { ...d, rader: [...d.rader, ...rader] } : d));
 }
@@ -508,6 +537,12 @@ export type DagsforslagRettingDato = {
   overtidLonnsartId?: string;
   /** POST (13) L2: overføringsrader arbeideren har fjernet for datoen. */
   fjernOverforing?: Array<"ut" | "retur">;
+  /**
+   * Kenneth-vedtak 2026-11-15: reisekort arbeideren har rettet, pr.
+   * `kjedeNokkel`. Rettet kort er fast punkt; beregnede naboer flytter seg
+   * (`sekvenserReisekjede`).
+   */
+  reiseTid?: Record<string, { fraTid: string; tilTid: string }>;
 };
 
 /**
@@ -544,6 +579,7 @@ export function leggTilOverforinger(
     if (d.blokkert) return d;
     const fjernet = ctx.perDato?.[d.dato]?.fjernOverforing ?? [];
     const tillegg: DagsforslagRad[] = [];
+    let konflikt: DagsforslagKjedeKonflikt | null = null;
     for (const o of oppslag) {
       if (o.dato !== d.dato || fjernet.includes(o.overforing.retning)) continue;
       if (o.celle == null) {
@@ -578,11 +614,14 @@ export function leggTilOverforinger(
       if (ankerMin == null) continue;
       const fraMin = ut ? ankerMin - kjoretid : ankerMin;
       const tilMin = ut ? ankerMin : ankerMin + kjoretid;
-      if (fraMin < 0 || tilMin > 24 * 60) continue;
+      // Ordre (17) punkt 2: over midnatt → ingen rad, men varsel (aldri stille).
+      // Overlapp med lagret rad avgjøres etter sekvenseringen (`sekvenserDag`).
+      if (fraMin < 0 || tilMin > 24 * 60) {
+        konflikt ??= { type: "overMidnatt", retning: o.overforing.retning, erOverforing: true };
+        continue;
+      }
       const fraTid = minTilHhmm(fraMin);
       const tilTid = minTilHhmm(tilMin);
-      const andre = ctx.eksisterendeSedelPerDato[d.dato]?.eksisterendeRader ?? [];
-      if (finnOverlappendeTidsrom(fraTid, tilTid, andre) != null) continue;
       const reiseRegel: ReiseRegelSnapshot = {
         ...k.reiseRegel,
         overforing: {
@@ -613,9 +652,13 @@ export function leggTilOverforinger(
           fraNavn: o.fraNavn,
           tilNavn: o.tilNavn,
         },
+        kjedeNokkel: `overforing-${o.overforing.retning}`,
       });
     }
-    return tillegg.length > 0 ? { ...d, rader: [...d.rader, ...tillegg] } : d;
+    const medKonflikt = konflikt ? { ...d, kjedeKonflikt: konflikt } : d;
+    return tillegg.length > 0
+      ? { ...medKonflikt, rader: [...d.rader, ...tillegg] }
+      : medKonflikt;
   });
   return { datoer: nye, aarsak };
 }
@@ -938,7 +981,7 @@ export function fordelPause(
  * `prosjektId: null` = prosjekt/aktivitet kunne ikke utledes → kalleren går til
  * manuell opprettelse (samme som dagens `genererForslag` returnerte `id: null`).
  */
-export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
+function beregnDagsforslagKjerne(input: BeregnDagsforslagInput): Dagsforslag {
   const tomt: Dagsforslag = {
     prosjektId: null,
     aktivitetId: null,
@@ -1263,6 +1306,196 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     ...(retting?.beskrivelse ? { beskrivelsePerKort: retting.beskrivelse } : {}),
     ...(retting?.beskrivelsePerRad ? { beskrivelsePerRad: retting.beskrivelsePerRad } : {}),
   };
+}
+
+/**
+ * Ordre 2026-11-15 (17) P1 + Kenneth-vedtak 2026-11-15: forslaget med
+ * reisekjeden lagt etter hverandre (overføring → reise → arbeid → reise →
+ * overføring). Kortet arbeideren har rettet (`perDato.reiseTid`) er fast
+ * punkt; beregnede naboer flytter seg, rettede naboer står. Flytter en rettet
+ * reise arbeidsstart/-slutt, regnes kjernen ut på nytt med det nye
+ * arbeidsvinduet (arbeidstimer, pause og overtid følger).
+ */
+export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
+  const forste = beregnDagsforslagKjerne(input);
+  const perDato = input.retting?.perDato ?? {};
+  const injisert: Record<string, DagsforslagRettingDato> = {};
+  for (const d of forste.datoer) {
+    const plan = planleggKjede(d, perDato[d.dato]);
+    if (!plan) continue;
+    const rett = perDato[d.dato];
+    const arbeid = plan.ut.find((k) => k.type === "arbeid");
+    if (!arbeid) continue;
+    const ramme = plan.ramme;
+    const nyFra = !rett?.arbeidFra && arbeid.fraMin !== ramme.fraMin ? minTilHhmm(arbeid.fraMin) : undefined;
+    const nyTil = !rett?.arbeidTil && arbeid.tilMin !== ramme.tilMin ? minTilHhmm(arbeid.tilMin) : undefined;
+    if (nyFra || nyTil) {
+      injisert[d.dato] = {
+        ...rett,
+        ...(nyFra ? { arbeidFra: nyFra } : {}),
+        ...(nyTil ? { arbeidTil: nyTil } : {}),
+      };
+    }
+  }
+  const forslag =
+    Object.keys(injisert).length === 0
+      ? forste
+      : beregnDagsforslagKjerne({
+          ...input,
+          retting: { ...input.retting, perDato: { ...perDato, ...injisert } },
+        });
+  return {
+    ...forslag,
+    datoer: forslag.datoer.map((d) =>
+      sekvenserDag(d, perDato[d.dato], input.eksisterendeSedelPerDato[d.dato]?.eksisterendeRader ?? []),
+    ),
+  };
+}
+
+type KjedePlan = {
+  /** Kortene i kjederekkefølge, sekvensert. */
+  ut: KjedeKort[];
+  /** Arbeidsrammen før sekvensering (min fra / maks til av arbeidsradene). */
+  ramme: { fraMin: number; tilMin: number };
+  /** Kortnøkkel → radindekser i `dag.rader`. */
+  rader: Map<string, number[]>;
+};
+
+/** Bygger og sekvenserer dagens kjede. `null` = ingen kjede (ingen arbeid eller ingen reise). */
+function planleggKjede(
+  d: DagsforslagDag,
+  rett: DagsforslagRettingDato | undefined,
+): KjedePlan | null {
+  const erKjedeRad = (r: DagsforslagRad) => r.kjedeNokkel != null || r.erReise;
+  const arbeidIdx = d.rader
+    .map((r, i) => (!erKjedeRad(r) && r.fraTid && r.tilTid ? i : -1))
+    .filter((i) => i !== -1);
+  const kjedeIdx = d.rader
+    .map((r, i) => (erKjedeRad(r) && r.fraTid && r.tilTid ? i : -1))
+    .filter((i) => i !== -1);
+  if (arbeidIdx.length === 0 || kjedeIdx.length === 0) return null;
+  const fraMin = Math.min(...arbeidIdx.map((i) => hhmmTilMin(d.rader[i]!.fraTid!)));
+  const tilMin = Math.max(...arbeidIdx.map((i) => hhmmTilMin(d.rader[i]!.tilTid!)));
+  const midt = (fraMin + tilMin) / 2;
+
+  type Kandidat = { nokkel: string; side: "ut" | "retur"; ytterst: boolean; fra: number; til: number };
+  const kandidater: Kandidat[] = [];
+  const rader = new Map<string, number[]>();
+  for (const i of kjedeIdx) {
+    const r = d.rader[i]!;
+    const fra = hhmmTilMin(r.fraTid!);
+    const til = hhmmTilMin(r.tilTid!);
+    const side: "ut" | "retur" =
+      r.overforing?.retning ?? r.reiseRetning ?? ((fra + til) / 2 <= midt ? "ut" : "retur");
+    const nokkel = r.kjedeNokkel ?? `reise-${side}`;
+    const fins = rader.get(nokkel);
+    if (fins) {
+      fins.push(i);
+      continue;
+    }
+    rader.set(nokkel, [i]);
+    kandidater.push({ nokkel, side, ytterst: r.overforing != null, fra, til });
+  }
+  // Ut-siden: overføring ytterst, så reisene i tidsrekkefølge. Retur speilet.
+  const ut = kandidater
+    .filter((k) => k.side === "ut")
+    .sort((a, b) => Number(b.ytterst) - Number(a.ytterst) || a.fra - b.fra);
+  const retur = kandidater
+    .filter((k) => k.side === "retur")
+    .sort((a, b) => Number(a.ytterst) - Number(b.ytterst) || a.fra - b.fra);
+  const tilKort = (k: Kandidat): KjedeKort => {
+    const rettet = rett?.reiseTid?.[k.nokkel];
+    return rettet
+      ? {
+          nokkel: k.nokkel,
+          type: "reise",
+          fraMin: hhmmTilMin(rettet.fraTid),
+          tilMin: hhmmTilMin(rettet.tilTid),
+          rettet: true,
+        }
+      : { nokkel: k.nokkel, type: "reise", fraMin: k.fra, tilMin: k.til };
+  };
+  const kort: KjedeKort[] = [
+    ...ut.map(tilKort),
+    {
+      nokkel: "arbeid",
+      type: "arbeid",
+      fraMin,
+      tilMin,
+      rettetFra: rett?.arbeidFra != null,
+      rettetTil: rett?.arbeidTil != null,
+    },
+    ...retur.map(tilKort),
+  ];
+  return { ut: sekvenserReisekjede(kort), ramme: { fraMin, tilMin }, rader };
+}
+
+/**
+ * Etterpass: setter kjedens tider på reise-/overføringsradene, nøkkelen på
+ * auto-reisen, og sjekker overlapp mot dagens og lagrede rader (ordre (17)
+ * punkt 2 — sperres med begrunnelse, droppes aldri stille).
+ */
+function sekvenserDag(
+  d: DagsforslagDag,
+  rett: DagsforslagRettingDato | undefined,
+  eksisterende: ReadonlyArray<{ fraTid?: string | null; tilTid?: string | null }>,
+): DagsforslagDag {
+  if (d.blokkert) return d;
+  let rader = d.rader;
+  let konflikt = d.kjedeKonflikt ?? null;
+  const plan = planleggKjede(d, rett);
+  if (plan) {
+    rader = [...d.rader];
+    const fjern = new Set<number>();
+    const arbeidPos = plan.ut.findIndex((k) => k.type === "arbeid");
+    for (const [pos, k] of plan.ut.entries()) {
+      if (k.type !== "reise") continue;
+      const idx = plan.rader.get(k.nokkel) ?? [];
+      const overforing = rader[idx[0]!]?.overforing;
+      if (k.fraMin < 0 || k.tilMin > 24 * 60) {
+        // Retting skjøv en beregnet overføring/reise over midnatt.
+        konflikt ??= {
+          type: "overMidnatt",
+          retning: overforing?.retning ?? (k.fraMin < 0 ? "ut" : "retur"),
+          erOverforing: overforing != null,
+        };
+        if (overforing) idx.forEach((i) => fjern.add(i));
+        continue;
+      }
+      if (idx.length !== 1) continue; // flere rader på samme nøkkel: urørt
+      const i = idx[0]!;
+      const r = rader[i]!;
+      const fraTid = minTilHhmm(k.fraMin);
+      const tilTid = minTilHhmm(k.tilMin);
+      rader[i] = {
+        ...r,
+        fraTid,
+        tilTid,
+        kjedeNokkel: k.nokkel,
+        kjedeSide: pos < arbeidPos ? "ut" : "retur",
+        ...(k.rettet ? { timer: Math.round(((k.tilMin - k.fraMin) / 60) * 100) / 100 } : {}),
+      };
+    }
+    rader = rader.filter((_, i) => !fjern.has(i));
+  }
+  if (!konflikt) {
+    for (let i = 0; i < rader.length; i++) {
+      const r = rader[i]!;
+      if (!r.fraTid || !r.tilTid) continue;
+      const annen = finnOverlappendeTidsrom(r.fraTid, r.tilTid, [...rader.slice(i + 1), ...eksisterende]);
+      if (annen?.fraTid && annen.tilTid) {
+        konflikt = {
+          type: "overlapp",
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+          annenFraTid: annen.fraTid,
+          annenTilTid: annen.tilTid,
+        };
+        break;
+      }
+    }
+  }
+  return { ...d, rader, kjedeKonflikt: konflikt };
 }
 
 /**

@@ -344,10 +344,14 @@ Per 1D-anker er mannskap-funksjonaliteten en vy i PSI-modulen. PSI eier tilstede
 
 ### Timer (separat — ingen automatisk kobling)
 
-Innsjekk-tidspunkt skal **ikke** brukes som forslag til arbeidstid. Tilstedeværelse på byggeplass ≠ arbeidstid:
+**Kenneth-vedtak 2026-11-15 (ordre 17) — erstatter «tilstedeværelse ≠ arbeidstid / innsjekk foreslår aldri arbeidstid»:** målte tidspunkter (GPS-geofence, PSI-innsjekk/utsjekk) KAN foreslås for arbeideren, også for reisens slutt og arbeidstid. Arbeideren bestemmer alltid: forslaget vises med kilde, settes aldri stille og kan rettes. Overlapp mellom kort samme dag gir varsel.
+
+~~Innsjekk-tidspunkt skal ikke brukes som forslag til arbeidstid.~~ (opphevet av vedtaket over). Det som står igjen: målt tid er et *forslag*, ikke fasit —
 - Reisetid fra oppmøtested til byggeplass er ikke arbeidstid (men kan være betalt reisetid)
 - Pauser inne i geofence er ikke arbeidstid
 - Arbeidstidsordninger varierer mellom firmaer og prosjekter
+
+I kode: Bekreft dag viser målt ankomst (`arbeidsdag_besok_local`) som valg ved siden av beregnet arbeidsstart (`maaltAnkomst` i `apps/mobile/src/utils/maaltArbeidstid.ts`). PSI som tidskilde er egen ordre (⏳).
 
 Timer-modulen står på egne ben. Mannskapsregistrering er HMS/§15, ikke tidsregistrering.
 

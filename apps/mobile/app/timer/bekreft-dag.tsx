@@ -14,7 +14,7 @@ import {
   type TextInput,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
-import { ArrowLeft, Calendar, Car, ChevronRight, Minus, Plus, Trash2, Undo2 } from "lucide-react-native";
+import { AlertTriangle, ArrowLeft, Calendar, Car, ChevronRight, Minus, Plus, Trash2, Undo2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import { eq, and } from "drizzle-orm";
@@ -43,6 +43,11 @@ import { ReiseKort } from "../../src/components/timer-detalj/ReiseKort";
 import { hentWebUrl } from "../../src/config/auth";
 import { apnLenke } from "../../src/lib/apnLenke";
 import { FraTilTidFelt } from "../../src/components/timer-detalj/FraTilTidFelt";
+import { hentBesok } from "../../src/services/arbeidsdagBesok";
+import { hentOppmotederLokalt } from "../../src/services/oppmotestedKatalog";
+import { useOppmotePeriodeVersjon } from "../../src/services/oppmotePeriodeKatalog";
+import { maaltAnkomst, type MaaltTidspunkt } from "../../src/utils/maaltArbeidstid";
+import { hhmmTilMin, minTilHhmm } from "@sitedoc/shared";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { OppmoteSporsmaalArk, useOppmoteSporsmaal } from "../../src/components/OppmoteSporsmaal";
 import { useModalInnsetter } from "../../src/components/ModalInnsetter";
@@ -110,6 +115,7 @@ import type {
   DagsforslagDag,
   DagsforslagRad,
   DagsforslagLonnsart,
+  DagsforslagKjedeKonflikt,
 } from "../../src/utils/dagsforslag";
 
 /**
@@ -371,6 +377,8 @@ export default function BekreftDagSkjerm() {
   }, [manuell, params.arbeidsdagId]);
 
   // LES + REGN på nytt ved hver retting. Ingen skriving.
+  // (17, P2): kjeden beregnes på nytt når periode-cachen skrives (overføring/refresh).
+  const periodeVersjon = useOppmotePeriodeVersjon();
   const beregnet = useMemo(() => {
     const db = hentDatabase();
     if (!db || !bruker?.id) return null;
@@ -409,7 +417,7 @@ export default function BekreftDagSkjerm() {
     );
     return { ...lest, sluttIso: brukSluttIso };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: re-les svar-cachen (funn 3)
-  }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting]);
+  }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting, periodeVersjon]);
   // DEL 5 c: panelet for anslått slutt — GPS-veien, slutten satt av systemet
   // (glemt dag) eller kappet. Står også etter retting, så arbeideren ser tiden.
   const sluttPanel =
@@ -548,6 +556,19 @@ export default function BekreftDagSkjerm() {
     () => (prosjektId ? hentByggeplasserForProsjektLokalt(prosjektId) : []),
     [prosjektId],
   );
+  // Ordre (17): stedsnavn for reisekjeden («Reise Kontor → Byggeplass»).
+  const stedNavn = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!orgId) return m;
+    for (const o of hentOppmotederLokalt(orgId)) if (o.navn) m.set(o.id, o.navn);
+    for (const b of hentByggeplasserForFirmaLokalt(orgId)) if (b.navn) m.set(b.id, b.navn);
+    return m;
+  }, [orgId]);
+  // Ordre (17) punkt 3: dagens bekreftede besøk — målt ankomst (kun lesing).
+  const besok = useMemo(() => {
+    const db = hentDatabase();
+    return db && !manuell && params.arbeidsdagId ? hentBesok(db, params.arbeidsdagId) : [];
+  }, [manuell, params.arbeidsdagId]);
   // POST (8) TILLEGG punkt 4: firmaets byggeplasser for den gule GPS-linja
   // (forslaget kan høre til et annet prosjekt enn kortets).
   const firmaByggeplasser = useMemo(
@@ -811,6 +832,8 @@ export default function BekreftDagSkjerm() {
       harArbeidsdagId: !!params.arbeidsdagId,
       manglerProsjekt: beregnet?.forslag.prosjektId == null,
       sluttIkkeGodkjent,
+      // Ordre (17) punkt 2: overlapp/over midnatt sperrer lagring; begrunnelsen står i kortet.
+      kjedeKonflikt: beregnet?.forslag.datoer.some((d) => !d.blokkert && d.kjedeKonflikt) ?? false,
     });
     if (sperre || !db || !beregnet || !bruker?.id) {
       Alert.alert(
@@ -1345,6 +1368,10 @@ export default function BekreftDagSkjerm() {
                 overtidValg={overtidValg}
                 alleLonnsarter={input.alleLonnsarter}
                 rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}
+                rettetArbeidFra={retting.perDato?.[d.dato]?.arbeidFra}
+                rettetReiseTid={retting.perDato?.[d.dato]?.reiseTid ?? {}}
+                maaltAnkomst={maaltAnkomst(besok, d.dato)}
+                stedNavn={stedNavn}
                 tidsrunding={input.regel?.tidsrundingMinutter ?? null}
                 onRett={(endring) => rettDato(d.dato, endring)}
               />
@@ -1427,7 +1454,13 @@ export default function BekreftDagSkjerm() {
                 (utkastet) og skrives som erReise ved Bekreft. */}
             {manuell && !alleSendt && !ikkeAnsatt && !tomt && prosjektId ? (
               <View className="rounded-lg border border-gray-200 bg-white">
-                {(retting.manuellReise ?? []).map((r, i) => (
+                {(retting.manuellReise ?? []).map((r0, i) => {
+                  // Ordre (17): vis tidene slik reisekjeden har lagt dem.
+                  const sekvensert = forslag.datoer
+                    .flatMap((d) => d.rader)
+                    .find((x) => x.kjedeNokkel === `manuell-${i}`);
+                  const r = { ...r0, fraTid: sekvensert?.fraTid ?? r0.fraTid, tilTid: sekvensert?.tilTid ?? r0.tilTid };
+                  return (
                   <View
                     key={`${i}-${r.fraTid ?? ""}`}
                     className="min-h-[44px] flex-row items-center gap-3 border-b border-gray-100 px-4 py-2"
@@ -1458,7 +1491,8 @@ export default function BekreftDagSkjerm() {
                       <Trash2 size={16} color="#6b7280" />
                     </Pressable>
                   </View>
-                ))}
+                  );
+                })}
                 {reiseKnappLonnsartId != null ? (
                   <Pressable
                     onPress={() => setReiseModalApen(true)}
@@ -1500,7 +1534,12 @@ export default function BekreftDagSkjerm() {
                 projectId={prosjektId}
                 sedelByggeplassId={forsteDag.byggeplassId}
                 aktivitetId={forslag.aktivitetId}
-                dagsrader={forsteDag.rader}
+                dagsrader={forsteDag.rader.map((r) => ({
+                  fraTid: r.fraTid,
+                  tilTid: r.tilTid,
+                  erReise: r.erReise,
+                  erOverforing: !!r.overforing || r.reiseKilde === "overforing",
+                }))}
                 resolverLonnsartId={reiseKnappLonnsartId}
                 medOverforing={false}
                 onLagre={(l) => {
@@ -1694,6 +1733,10 @@ function DatoKort({
   overtidValg,
   alleLonnsarter,
   rettetOvertidFra,
+  rettetArbeidFra,
+  rettetReiseTid,
+  maaltAnkomst: maalt,
+  stedNavn,
   tidsrunding,
   onRett,
 }: {
@@ -1705,56 +1748,94 @@ function DatoKort({
   overtidValg: Array<{ id: string; navn: string }>;
   alleLonnsarter: DagsforslagLonnsart[];
   rettetOvertidFra: string | undefined;
+  /** Ordre (17): arbeiderens rettede arbeidsstart (ankomst). */
+  rettetArbeidFra: string | undefined;
+  /** Ordre (17): rettede kjedekort pr. nøkkel — fast punkt i kjeden. */
+  rettetReiseTid: Record<string, { fraTid: string; tilTid: string }>;
+  /** Ordre (17) punkt 3: målt ankomst fra dagens besøk, ellers null. */
+  maaltAnkomst: MaaltTidspunkt | null;
+  stedNavn: Map<string, string>;
   tidsrunding: number | null;
   onRett: (endring: DagsforslagRettingDato) => void;
 }) {
   const { t } = useTranslation();
   const [redigerOvertid, setRedigerOvertid] = useState(false);
+  // Ordre (17): kjedens kort pr. side, i tidsrekkefølge (overføring + reiser).
+  const kjede = (side: "ut" | "retur") =>
+    dag.rader
+      .filter((r) => r.kjedeNokkel && r.kjedeSide === side)
+      .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""));
+  const rettKjedeKort = (nokkel: string, fraTid: string, tilTid: string) =>
+    onRett({ reiseTid: { ...rettetReiseTid, [nokkel]: { fraTid, tilTid } } });
+  const angreKjedeKort = (nokkel: string) => {
+    const { [nokkel]: _fjern, ...rest } = rettetReiseTid;
+    onRett({ reiseTid: rest });
+  };
+  const kjedeLinjer = (side: "ut" | "retur") =>
+    kjede(side).map((rad) => (
+      <KjedeLinje
+        key={rad.kjedeNokkel}
+        rad={rad}
+        side={side}
+        stedNavn={stedNavn}
+        rettet={rad.kjedeNokkel! in rettetReiseTid}
+        tidsrunding={tidsrunding}
+        onRett={(fra, til) => rettKjedeKort(rad.kjedeNokkel!, fra, til)}
+        onAngre={() => angreKjedeKort(rad.kjedeNokkel!)}
+        onFjernOverforing={
+          rad.overforing
+            ? () => onRett({ fjernOverforing: [...fjernetOverforing, rad.overforing!.retning] })
+            : undefined
+        }
+      />
+    ));
   // POST (13) L2: overføringsrader vises på egen linje, ikke som arbeid/reise.
   const vanlige = dag.rader.filter((r) => !r.overforing);
-  const overforinger = dag.rader.filter((r) => r.overforing);
   const arbeid = vanlige.filter((r) => !r.erReise);
   const ut = vanlige.find((r) => r.erReise && r.reiseRetning === "ut");
   const retur = vanlige.find((r) => r.erReise && r.reiseRetning === "retur");
-  const overforingLinje = (retning: "ut" | "retur") => {
-    const rad = overforinger.find((r) => r.overforing?.retning === retning);
-    if (rad?.overforing) {
-      return (
-        <OverforingLinje
-          rad={rad}
-          onFjern={() => onRett({ fjernOverforing: [...fjernetOverforing, retning] })}
-        />
-      );
-    }
-    if (fjernetOverforing.includes(retning)) {
-      return (
-        <View className="flex-row items-center justify-between px-1">
-          <Text className="flex-1 text-xs text-gray-500">{t("timer.bekreftDag.overforingFjernet")}</Text>
-          <Pressable
-            onPress={() => onRett({ fjernOverforing: fjernetOverforing.filter((x) => x !== retning) })}
-            hitSlop={8}
-            className="flex-row items-center gap-1"
-          >
-            <Undo2 size={14} color="#1d4ed8" />
-            <Text className="text-xs font-medium text-blue-700">{t("timer.bekreftDag.angre")}</Text>
-          </Pressable>
-        </View>
-      );
-    }
-    return null;
-  };
+  // POST (13) L2: fjernet overføring kan angres.
+  const overforingFjernetLinje = (retning: "ut" | "retur") =>
+    fjernetOverforing.includes(retning) ? (
+      <View className="flex-row items-center justify-between px-1">
+        <Text className="flex-1 text-xs text-gray-500">{t("timer.bekreftDag.overforingFjernet")}</Text>
+        <Pressable
+          onPress={() => onRett({ fjernOverforing: fjernetOverforing.filter((x) => x !== retning) })}
+          hitSlop={8}
+          className="flex-row items-center gap-1"
+        >
+          <Undo2 size={14} color="#1d4ed8" />
+          <Text className="text-xs font-medium text-blue-700">{t("timer.bekreftDag.angre")}</Text>
+        </Pressable>
+      </View>
+    ) : null;
   const arbeidTimer = arbeid.reduce((s, r) => s + r.timer, 0);
   const forsteOt = arbeid.find((r) => otNivaa.get(r.lonnsartId) != null);
   const otFra = overtidEditorFra(forsteOt?.fraTid, rettetOvertidFra);
   // Fra/til vises fra radene; ved «fjernet» fra arbeidsvinduet mellom reisene.
   const fra = arbeid[0]?.fraTid ?? ut?.tilTid ?? tilHHMM(dag.segmentStartIso);
   const til = arbeid[arbeid.length - 1]?.tilTid ?? retur?.fraTid ?? tilHHMM(dag.segmentSluttIso);
+  // Ordre (17) punkt 3: beregnet ankomst huskes mens arbeidsstart ikke er rettet,
+  // så valget «Beregnet» kan vises etter at «Målt» er valgt.
+  const beregnetFraRef = useRef<string | null>(null);
+  if (rettetArbeidFra == null) beregnetFraRef.current = fra;
+  const beregnetFra = beregnetFraRef.current;
+  const maaltValgt = maalt != null && rettetArbeidFra === maalt.tid;
+  const visAnkomst = maalt != null && (maaltValgt || maalt.tid !== fra);
 
   return (
     <View className="gap-2 rounded-lg border border-gray-200 bg-white p-3">
       {visDato ? <Text className="text-xs font-semibold text-gray-500">{dag.dato}</Text> : null}
-      {overforingLinje("ut")}
-      {ut ? <ReiseLinje rad={ut} tekst={t("timer.bekreftDag.reiseUt")} /> : null}
+      {dag.kjedeKonflikt ? (
+        <KjedeKonfliktLinje
+          konflikt={dag.kjedeKonflikt}
+          onFjernOverforing={(retning) =>
+            onRett({ fjernOverforing: [...fjernetOverforing, retning] })
+          }
+        />
+      ) : null}
+      {overforingFjernetLinje("ut")}
+      {kjedeLinjer("ut")}
 
       {fjernet ? (
         <View className="flex-row items-center justify-between rounded-md bg-gray-50 p-2">
@@ -1781,6 +1862,34 @@ function DatoKort({
             onFraEndret={(hhmm) => onRett({ arbeidFra: hhmm })}
             onTilEndret={(hhmm) => onRett({ arbeidTil: hhmm })}
           />
+          {visAnkomst && maalt ? (
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Text className="text-xs text-gray-600">{t("timer.bekreftDag.ankomst")}</Text>
+              <Pressable
+                onPress={() => onRett({ arbeidFra: maalt.tid })}
+                accessibilityState={{ selected: maaltValgt }}
+                className={`rounded-full border px-2 py-0.5 ${maaltValgt ? "border-blue-600 bg-blue-50" : "border-gray-300"}`}
+              >
+                <Text className={`text-xs ${maaltValgt ? "font-semibold text-blue-700" : "text-gray-700"}`}>
+                  {t("timer.bekreftDag.maalt", { tid: maalt.tid })}
+                  {t(`timer.bekreftDag.maaltKilde.${maalt.kilde}`, { defaultValue: "" })
+                    ? ` (${t(`timer.bekreftDag.maaltKilde.${maalt.kilde}`)})`
+                    : ""}
+                </Text>
+              </Pressable>
+              {beregnetFra ? (
+                <Pressable
+                  onPress={() => onRett({ arbeidFra: undefined })}
+                  accessibilityState={{ selected: !maaltValgt }}
+                  className={`rounded-full border px-2 py-0.5 ${!maaltValgt ? "border-blue-600 bg-blue-50" : "border-gray-300"}`}
+                >
+                  <Text className={`text-xs ${!maaltValgt ? "font-semibold text-blue-700" : "text-gray-700"}`}>
+                    {t("timer.bekreftDag.beregnet", { tid: beregnetFra })}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
           {forsteOt?.fraTid ? (
             <Pressable
               onPress={() => setRedigerOvertid((v) => !v)}
@@ -1884,47 +1993,123 @@ function DatoKort({
         </View>
       )}
 
-      {retur ? <ReiseLinje rad={retur} tekst={t("timer.bekreftDag.reiseRetur")} /> : null}
-      {overforingLinje("retur")}
+      {kjedeLinjer("retur")}
+      {overforingFjernetLinje("retur")}
     </View>
   );
 }
 
-/** POST (13) L2 TILLEGG: «Overføring Narvik → Tromsø» — forslag som kan fjernes. */
-function OverforingLinje({ rad, onFjern }: { rad: DagsforslagRad; onFjern: () => void }) {
+/**
+ * Ordre (17): ett kort i reisekjeden — «Reise X → Y 06:30–07:00 · 30 min» eller
+ * «Overføring X → Y …». Tidene rettes med ett trykk (kompakt tidsfelt); rettet
+ * kort er fast punkt, beregnede naboer flytter seg.
+ */
+function KjedeLinje({
+  rad,
+  side,
+  stedNavn,
+  rettet,
+  tidsrunding,
+  onRett,
+  onAngre,
+  onFjernOverforing,
+}: {
+  rad: DagsforslagRad;
+  side: "ut" | "retur";
+  stedNavn: Map<string, string>;
+  rettet: boolean;
+  tidsrunding: number | null;
+  onRett: (fraTid: string, tilTid: string) => void;
+  onAngre: () => void;
+  onFjernOverforing?: () => void;
+}) {
   const { t } = useTranslation();
+  const fra = rad.fraTid ?? "";
+  const til = rad.tilTid ?? "";
+  const min = fra && til ? Math.max(0, hhmmTilMin(til) - hhmmTilMin(fra)) : Math.round(rad.timer * 60);
+  let etikett: string;
+  if (rad.overforing) {
+    etikett = t("timer.bekreftDag.overforingRute", {
+      fra: rad.overforing.fraNavn,
+      til: rad.overforing.tilNavn,
+    });
+  } else {
+    const kontor = rad.reiseOppmotestedId ? stedNavn.get(rad.reiseOppmotestedId) : undefined;
+    const plass = rad.byggeplassId ? stedNavn.get(rad.byggeplassId) : undefined;
+    const [a, b] = side === "ut" ? [kontor, plass] : [plass, kontor];
+    etikett =
+      a && b
+        ? t("timer.bekreftDag.reiseRute", { fra: a, til: b })
+        : t(side === "ut" ? "timer.bekreftDag.reiseUt" : "timer.bekreftDag.reiseRetur");
+  }
   return (
-    <View className="flex-row items-center gap-2 px-1">
+    <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1 px-1">
       <Car size={14} color="#6b7280" />
-      <Text className="flex-1 text-xs text-gray-600">
-        {t("timer.bekreftDag.overforing", {
-          fra: rad.overforing?.fraNavn ?? "",
-          til: rad.overforing?.tilNavn ?? "",
-          fraTid: rad.fraTid ?? "",
-          tilTid: rad.tilTid ?? "",
-          min: Math.round(rad.timer * 60),
-        })}
-      </Text>
-      <Pressable onPress={onFjern} hitSlop={8} accessibilityLabel={t("timer.bekreftDag.overforingFjern")}>
-        <Trash2 size={16} color="#dc2626" />
-      </Pressable>
+      <Text className="text-xs text-gray-600">{etikett}</Text>
+      <FraTilTidFelt
+        kompakt
+        fraTid={fra || null}
+        tilTid={til || null}
+        tidsrundingMinutter={tidsrunding}
+        onFraEndret={(nyFra) => {
+          // Ny start beholder slutten; havner start etter slutt, beholdes lengden.
+          const nyTil = hhmmTilMin(nyFra) < hhmmTilMin(til || nyFra) ? til : minTilHhmm(hhmmTilMin(nyFra) + min);
+          onRett(nyFra, nyTil);
+        }}
+        onTilEndret={(nyTil) => onRett(fra || nyTil, nyTil)}
+      />
+      <Text className="text-xs text-gray-600">{t("timer.bekreftDag.kjedeMin", { min })}</Text>
+      {rettet ? (
+        <Pressable onPress={onAngre} hitSlop={8} className="flex-row items-center gap-1">
+          <Text className="text-xs text-gray-500">{t("timer.bekreftDag.kjedeRettet")}</Text>
+          <Undo2 size={14} color="#1d4ed8" />
+          <Text className="text-xs font-medium text-blue-700">{t("timer.bekreftDag.angre")}</Text>
+        </Pressable>
+      ) : null}
+      <View className="flex-1" />
+      {onFjernOverforing ? (
+        <Pressable onPress={onFjernOverforing} hitSlop={8} accessibilityLabel={t("timer.bekreftDag.overforingFjern")}>
+          <Trash2 size={16} color="#dc2626" />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
-function ReiseLinje({ rad, tekst }: { rad: DagsforslagRad; tekst: string }) {
+/** Ordre (17) punkt 2: kjeden henger ikke sammen — Bekreft er sperret til den er rettet. */
+function KjedeKonfliktLinje({
+  konflikt,
+  onFjernOverforing,
+}: {
+  konflikt: DagsforslagKjedeKonflikt;
+  onFjernOverforing: (retning: "ut" | "retur") => void;
+}) {
   const { t } = useTranslation();
+  const tekst =
+    konflikt.type === "overlapp"
+      ? t("timer.bekreftDag.kjedeKonflikt.overlapp", {
+          fraTid: konflikt.fraTid,
+          tilTid: konflikt.tilTid,
+          annenFraTid: konflikt.annenFraTid,
+          annenTilTid: konflikt.annenTilTid,
+        })
+      : t("timer.bekreftDag.kjedeKonflikt.overMidnatt");
   return (
-    <View className="flex-row items-center gap-2 px-1">
-      <Car size={14} color="#6b7280" />
-      <Text className="flex-1 text-xs text-gray-600">
-        {t("timer.bekreftDag.reiseLinje", {
-          retning: tekst,
-          fra: rad.fraTid ?? "",
-          til: rad.tilTid ?? "",
-          min: rad.reiseKjoretidMin ?? Math.round(rad.timer * 60),
-        })}
-      </Text>
+    <View className="gap-1 rounded-md border border-amber-300 bg-amber-50 p-2">
+      <View className="flex-row items-start gap-2">
+        <AlertTriangle size={14} color="#b45309" />
+        <Text className="flex-1 text-xs text-amber-800">{tekst}</Text>
+      </View>
+      {konflikt.type === "overMidnatt" && konflikt.erOverforing ? (
+        <Pressable
+          onPress={() => onFjernOverforing(konflikt.retning)}
+          hitSlop={8}
+          className="flex-row items-center gap-1 self-start"
+        >
+          <Trash2 size={14} color="#dc2626" />
+          <Text className="text-xs font-medium text-red-700">{t("timer.bekreftDag.overforingFjern")}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
