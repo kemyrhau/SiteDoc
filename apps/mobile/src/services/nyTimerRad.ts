@@ -248,6 +248,10 @@ export function settInnTimerRad(
       // regelen lagres på begge så klassifiseringen kan etterprøves.
       reiseAvstandM: spor?.erReise ? spor.reiseAvstandM : null,
       reiseOppmotestedId: spor?.erReise ? spor.reiseOppmotestedId : null,
+      // POST (13) L2: reise-kortet regner retning og kjøretid — lagres på
+      // reise-rader (C2 tillater dem på manuell; overføring krever dem).
+      reiseRetning: spor?.erReise ? spor.reiseRetning : null,
+      reiseKjoretidMin: spor?.erReise ? spor.reiseKjoretidMin : null,
       reiseRegel: spor ? JSON.stringify(spor.reiseRegel) : null,
       tidKilde: "manuell",
       sistEndretLokalt: Date.now(),

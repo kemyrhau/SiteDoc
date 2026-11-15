@@ -24,7 +24,7 @@ import {
   type ReiseRegelSnapshot,
   type ReiseRegelsett,
 } from "./reise";
-import type { OppmoteResultat } from "./oppmote";
+import type { OppmoteResultat, Overforing } from "./oppmote";
 
 export interface ManuellReiseInput {
   regel: ReiseRegelsett;
@@ -138,7 +138,8 @@ export function klassifiserManuellReise(
 /** Reise-sporet som lagres på raden (mobil `NyRad.reiseSpor` / bekreft-dag). */
 export interface ManuellReiseSpor {
   erReise: boolean;
-  reiseKilde: "manuell" | null;
+  /** POST (13) L2 TILLEGG: "overforing" fra reise-kortets overføringsvalg. */
+  reiseKilde: "manuell" | "overforing" | null;
   reiseAvstandM: number | null;
   /** Kun på reise-rader (ikke-reise-rad bærer aldri oppmøtested — C2/DB-CHECK). */
   reiseOppmotestedId: string | null;
@@ -147,6 +148,11 @@ export interface ManuellReiseSpor {
    * (lag 2) krever null retning på ikke-reise-rad.
    */
   reiseRetning: "ut" | "retur" | null;
+  /**
+   * POST (13) L2: matrisens/kontor-avstandens kjøretid (min). Kun på
+   * reise-rader (DB-CHECK: ikke-reise-rad bærer ingen kjøretid).
+   */
+  reiseKjoretidMin: number | null;
   reiseRegel: ReiseRegelSnapshot;
 }
 
@@ -154,6 +160,7 @@ export function tilManuellReiseSpor(
   k: ManuellReiseKlassifisering,
   oppmotestedId: string | null,
   retning: "ut" | "retur" | null = null,
+  kjoretidMin: number | null = null,
 ): ManuellReiseSpor {
   return {
     erReise: k.erReise,
@@ -161,6 +168,7 @@ export function tilManuellReiseSpor(
     reiseAvstandM: k.reiseAvstandM,
     reiseOppmotestedId: k.erReise ? oppmotestedId : null,
     reiseRetning: k.erReise ? retning : null,
+    reiseKjoretidMin: k.erReise ? kjoretidMin : null,
     reiseRegel: k.reiseRegel,
   };
 }
@@ -405,8 +413,69 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
   return {
     ...basis,
     klassifisering,
-    spor: tilManuellReiseSpor(klassifisering, oppmotestedId, k.retning === "tur" ? "ut" : "retur"),
+    spor: tilManuellReiseSpor(
+      klassifisering,
+      oppmotestedId,
+      k.retning === "tur" ? "ut" : "retur",
+      kjoretidMin,
+    ),
     sperre: klassifisering.lonnsartId == null ? "manglerArt" : null,
+  };
+}
+
+/**
+ * POST (13) L2 TILLEGG: reise-kortets overføringsvalg («Overføring Narvik →
+ * Tromsø») første/siste dag i en periode. Samme regel som `løsReiseKort`
+ * (dagsramme, terskel, bånd), men kjøretiden er gitt av kalleren (kontor-
+ * avstand eller matrisecelle, jf. `byggOverforingOppslag`) og sporet bærer
+ * `reiseKilde "overforing"` + ruten i `reiseRegel.overforing`. Under terskel
+ * blir raden ordinær (erReise false) med ruten fortsatt i regel-snapshoten.
+ */
+export interface OverforingKortInput {
+  overforing: Overforing;
+  /** Kontor-enden (fra-kontoret når begge ender er kontor). */
+  oppmotestedId: string;
+  /** null = ukjent kjøretid (mangler matrise/byggeplass), < 0 = uoppnåelig. */
+  kjoretidMin: number | null;
+  avstandM: number | null;
+  dagStart: string | null;
+  dagSlutt: string | null;
+  regel: ReiseRegelsett | null;
+  grensepunkter: ReiseGrensepunkt[];
+  resolverLonnsartId: string | null;
+  standardLonnsartId: string | null;
+}
+
+export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
+  const r = løsReiseKort({
+    retning: k.overforing.retning === "ut" ? "tur" : "retur",
+    oppmote: { kilde: "fast", oppmotestedId: k.oppmotestedId },
+    dagStart: k.dagStart,
+    dagSlutt: k.dagSlutt,
+    byggeplassId: "overforing",
+    kjoretidFor: () => k.kjoretidMin,
+    avstandFor: () => k.avstandM,
+    regel: k.regel,
+    grensepunkter: k.grensepunkter,
+    resolverLonnsartId: k.resolverLonnsartId,
+    standardLonnsartId: k.standardLonnsartId,
+  });
+  if (!r.spor) return r;
+  const reiseRegel: ReiseRegelSnapshot = {
+    ...r.spor.reiseRegel,
+    overforing: {
+      fra: k.overforing.fra,
+      til: k.overforing.til,
+      periodeId: k.overforing.periodeId,
+    },
+  };
+  return {
+    ...r,
+    spor: {
+      ...r.spor,
+      reiseKilde: r.spor.erReise ? "overforing" : null,
+      reiseRegel,
+    },
   };
 }
 

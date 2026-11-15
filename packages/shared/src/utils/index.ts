@@ -99,6 +99,7 @@ export {
   manuellReiseForklaringTekst,
   manuellReiseManglerArt,
   løsReiseKort,
+  løsOverforingKort,
   finnDagsramme,
   klokkeTilMin,
   minTilKlokke,
@@ -113,6 +114,7 @@ export type {
   ManuellReiseResultat,
   ReiseKortRetning,
   ReiseKortSperre,
+  OverforingKortInput,
   ReiseKortInput,
   ReiseKortResultat,
 } from "./reiseManuell";

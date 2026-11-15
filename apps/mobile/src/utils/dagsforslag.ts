@@ -466,7 +466,8 @@ export type DagsforslagManuellReise = {
  * POST (8) punkt 1 — REN: legger arbeiderens manuelle reise-rader på første
  * dato som ikke er blokkert (sendt/godkjent). Feltene speiler `settInnTimerRad`
  * for en reise-lønnsart: `erReise`, `reiseKilde "manuell"`, `tidKilde
- * "manuell"`, ingen retning/oppmøtested/matrise-spor, ingen pause.
+ * "manuell"`, ingen pause. POST (13) L2: retning/kjøretid/oppmøtested fra
+ * reise-kortets spor på reise-rader.
  */
 export function leggTilManuellReise(
   datoer: DagsforslagDag[],
@@ -484,11 +485,12 @@ export function leggTilManuellReise(
     tilTid: r.tilTid,
     pauseMin: 0,
     erReise: r.reiseSpor ? r.reiseSpor.erReise : true,
-    reiseRetning: null,
+    // POST (13) L2: reise-kortets retning/kjøretid følger med på reise-rader.
+    reiseRetning: r.reiseSpor?.erReise ? r.reiseSpor.reiseRetning : null,
     // Ordre (9): ikke-reise-rad bærer aldri avstand/oppmøtested (C2 + DB-CHECK).
     reiseOppmotestedId: r.reiseSpor?.erReise ? r.reiseSpor.reiseOppmotestedId : null,
     byggeplassId: r.byggeplassId,
-    reiseKjoretidMin: null,
+    reiseKjoretidMin: r.reiseSpor?.erReise ? r.reiseSpor.reiseKjoretidMin : null,
     reiseAvstandM: r.reiseSpor?.erReise ? r.reiseSpor.reiseAvstandM : null,
     reiseKilde: r.reiseSpor ? r.reiseSpor.reiseKilde : "manuell",
     reiseRegel: r.reiseSpor ? r.reiseSpor.reiseRegel : null,

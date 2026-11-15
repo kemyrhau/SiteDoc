@@ -5,6 +5,7 @@ import {
   manuellReiseManglerArt,
   velgOppmotested,
   løsReiseKort,
+  løsOverforingKort,
   finnDagsramme,
 } from "./reiseManuell";
 import type { ReiseRegelsett } from "./reise";
@@ -239,6 +240,7 @@ describe("løsReiseKort", () => {
     expect(r).toMatchObject({ fraTid: "06:15", tilTid: "07:00", timer: 0.75, kjoretidMin: 45, sperre: null });
     expect(r.spor?.reiseRetning).toBe("ut");
     expect(r.spor?.reiseOppmotestedId).toBe("narvik");
+    expect(r.spor?.reiseKjoretidMin).toBe(45);
   });
 
   it("Retur: fraTid = dagSlutt, tilTid = dagSlutt + kjøretid", () => {
@@ -299,5 +301,66 @@ describe("løsReiseKort", () => {
 
   it("uten regelsett → manglerRegel", () => {
     expect(kort({ regel: null }).sperre).toBe("manglerRegel");
+  });
+});
+
+describe("løsOverforingKort — POST (13) L2 TILLEGG", () => {
+  const ov = {
+    retning: "ut" as const,
+    fra: { type: "kontor" as const, oppmotestedId: "narvik" },
+    til: { type: "kontor" as const, oppmotestedId: "tromso" },
+    periodeId: "p1",
+  };
+  const kort = (over: Partial<Parameters<typeof løsOverforingKort>[0]> = {}) =>
+    løsOverforingKort({
+      overforing: ov,
+      oppmotestedId: "narvik",
+      kjoretidMin: 180,
+      avstandM: 250000,
+      dagStart: "07:00",
+      dagSlutt: "15:00",
+      regel: minutter,
+      ...basis,
+      ...over,
+    });
+
+  it("ut: før dagstart, reiseKilde overforing, rute + periode i regel-snapshoten", () => {
+    const r = kort();
+    expect(r).toMatchObject({ fraTid: "04:00", tilTid: "07:00", timer: 3, sperre: null });
+    expect(r.spor).toMatchObject({
+      erReise: true,
+      reiseKilde: "overforing",
+      reiseRetning: "ut",
+      reiseOppmotestedId: "narvik",
+      reiseKjoretidMin: 180,
+    });
+    expect(r.spor?.reiseRegel.overforing).toEqual({ fra: ov.fra, til: ov.til, periodeId: "p1" });
+  });
+
+  it("retur: etter dagslutt", () => {
+    const r = kort({ overforing: { ...ov, retning: "retur", fra: ov.til, til: ov.fra } });
+    expect(r).toMatchObject({ fraTid: "15:00", tilTid: "18:00" });
+    expect(r.spor?.reiseRetning).toBe("retur");
+  });
+
+  it("under terskel → ordinær rad uten reise-felter, ruten står i snapshoten", () => {
+    const r = kort({ kjoretidMin: 20 });
+    expect(r.spor).toMatchObject({
+      erReise: false,
+      reiseKilde: null,
+      reiseRetning: null,
+      reiseOppmotestedId: null,
+      reiseKjoretidMin: null,
+    });
+    expect(r.spor?.reiseRegel.overforing?.periodeId).toBe("p1");
+  });
+
+  it("ukjent eller uoppnåelig kjøretid → manglerKjoretid", () => {
+    expect(kort({ kjoretidMin: null }).sperre).toBe("manglerKjoretid");
+    expect(kort({ kjoretidMin: -1 }).sperre).toBe("manglerKjoretid");
+  });
+
+  it("uten dagstid → manglerDagstid", () => {
+    expect(kort({ dagStart: null }).sperre).toBe("manglerDagstid");
   });
 });

@@ -38,7 +38,7 @@ import {
 } from "../../src/services/byggeplassKatalog";
 import { gpsForslagLinje } from "../../src/utils/gpsForslagLinje";
 import { hentUnderprosjekterLokalt, hentReiseKnappLokalt } from "../../src/services/timerKatalog";
-import { TimerRadModal } from "../../src/components/timer-detalj/TimerSeksjon";
+import { ReiseKort } from "../../src/components/timer-detalj/ReiseKort";
 import { hentWebUrl } from "../../src/config/auth";
 import { apnLenke } from "../../src/lib/apnLenke";
 import { FraTilTidFelt } from "../../src/components/timer-detalj/FraTilTidFelt";
@@ -1477,41 +1477,34 @@ export default function BekreftDagSkjerm() {
                 ) : null}
               </View>
             ) : null}
-            {reiseModalApen && reiseKnappLonnsartId != null && prosjektId && forsteDag ? (
-              <TimerRadModal
-                sheetId=""
+            {/* POST (13) L2 § 7 C: «+ Reise» → reise-kortet. Overføringen er alt en
+                forslagsrad her (Fjern/Angre), så kortet tilbyr bare Tur/Retur. */}
+            {reiseModalApen && reiseKnappLonnsartId != null && prosjektId && forsteDag && bruker?.id ? (
+              <ReiseKort
                 organizationId={orgId}
-                defaultProjectId={prosjektId}
-                defaultEcoId={null}
+                userId={bruker.id}
                 dato={forsteDag.dato}
-                sheetPauseMin={0}
-                harEquipmentCache={false}
-                eksisterendeRader={[]}
-                alleTimerRader={[]}
-                defaultAktivitetId={forslag.aktivitetId}
-                eksisterendeRad={null}
-                tvungetValg={null}
+                projectId={prosjektId}
                 sedelByggeplassId={forsteDag.byggeplassId}
-                reise={{ lonnsartId: reiseKnappLonnsartId, laast: true }}
-                onLagre={(
-                  projectId,
-                  byggeplassId,
-                  lonnsartId,
-                  aktivitetId,
-                  timer,
-                  _eco,
-                  fraTid,
-                  tilTid,
-                  _beskrivelse,
-                  _pauseMin,
-                  _maskin,
-                  reiseSpor,
-                ) => {
+                aktivitetId={forslag.aktivitetId}
+                dagsrader={forsteDag.rader}
+                resolverLonnsartId={reiseKnappLonnsartId}
+                medOverforing={false}
+                onLagre={(l) => {
                   setRetting((x) => ({
                     ...x,
                     manuellReise: [
                       ...(x.manuellReise ?? []),
-                      { projectId, byggeplassId, lonnsartId, aktivitetId, timer, fraTid, tilTid, reiseSpor },
+                      {
+                        projectId: l.projectId,
+                        byggeplassId: l.byggeplassId,
+                        lonnsartId: l.lonnsartId,
+                        aktivitetId: l.aktivitetId,
+                        timer: l.timer,
+                        fraTid: l.fraTid,
+                        tilTid: l.tilTid,
+                        reiseSpor: l.reiseSpor,
+                      },
                     ],
                   }));
                   setReiseModalApen(false);

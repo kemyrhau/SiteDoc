@@ -18,7 +18,6 @@ import {
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
   type DagsforslagEksisterendeSedel,
-  byggOverforingOppslag,
 } from "../utils/dagsforslag";
 import {
   tolkStart,
@@ -41,7 +40,7 @@ import {
 } from "./byggeplassKatalog";
 import { hentOppmotederLokalt } from "./oppmotestedKatalog";
 import { hentReiseGrensepunkterLokalt } from "./reiseGrensepunktKatalog";
-import { hentKontorAvstandLokalt } from "./oppmotestedAvstandKatalog";
+import { hentOverforingOppslagLokalt } from "./overforingOppslag";
 
 type Celle = { kjoretidMin: number; avstandM: number | null };
 
@@ -277,7 +276,8 @@ export function samleDagsforslagInput(
 
   // POST (13) L2 TILLEGG: overføring første/siste dag i perioden.
   const overforinger = regel
-    ? byggOverforingOppslag({
+    ? hentOverforingOppslagLokalt({
+        organizationId: orgId,
         datoer: [...new Set(segmenter.map((s) => s.dato))],
         perioder,
         destinasjonByggeplassId:
@@ -285,18 +285,6 @@ export function samleDagsforslagInput(
             ? reiseOppslag.destinasjon.byggeplassId
             : null,
         kontekstByggeplassId: p.kontekstByggeplassId,
-        byggeplasserForProsjekt: (projectId) =>
-          hentByggeplasserForProsjektLokalt(projectId).map((b) => ({ id: b.id, navn: b.navn ?? null })),
-        kontorNavn: (id) => hentOppmotederLokalt(orgId).find((o) => o.id === id)?.navn ?? "",
-        prosjektNavn: (id) => hentProsjekterLokalt(orgId).find((pr) => pr.id === id)?.name ?? "",
-        kontorAvstand: (x, y) => {
-          const r = hentKontorAvstandLokalt(x, y);
-          return r && r.kjoretidMin != null ? { kjoretidMin: r.kjoretidMin, avstandM: r.avstandM } : null;
-        },
-        matrise: (o, b) => {
-          const r = hentMatriseRadLokalt(o, b);
-          return r ? { kjoretidMin: r.kjoretidMin, avstandM: r.avstandM ?? null } : null;
-        },
       })
     : [];
 

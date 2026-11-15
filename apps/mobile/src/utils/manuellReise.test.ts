@@ -137,7 +137,8 @@ describe("POST (8) punkt 1 — samme knapp og skjuleregel som det lagrede kortet
   it.each([
     ["resolveren", "hentReiseKnappLokalt("],
     ["valgt/automatisk viser knappen", 'status === "valgt" || reiseKnapp?.status === "automatisk"'],
-    ["låst reise-lønnsart", "reise={{ lonnsartId: reiseKnappLonnsartId, laast: true }}"],
+    ["reise-kortet (L2 § 7 C)", "<ReiseKort"],
+    ["resolverens art til kortet", "resolverLonnsartId={reiseKnappLonnsartId}"],
     ["admin-hint ved skjult knapp", "timer.prosjektkort.reiseSkjultFlere"],
     ["hint-lenka", "/dashbord/firma/innstillinger#reise-regelsett"],
     ["knappen vises kun med lønnsart", "reiseKnappLonnsartId != null ?"],
@@ -145,9 +146,10 @@ describe("POST (8) punkt 1 — samme knapp og skjuleregel som det lagrede kortet
     expect(BEKREFT).toContain(nål);
   });
 
-  it("negativkontroll: DagSeksjon (referansen) har samme resolver og låste reise", () => {
+  it("negativkontroll: DagSeksjon (referansen) har samme resolver og samme reise-kort", () => {
     expect(DAGSEKSJON).toContain("hentReiseKnappLokalt(");
-    expect(DAGSEKSJON).toContain("{ lonnsartId: reiseKnappLonnsartId, laast: true }");
+    expect(DAGSEKSJON).toContain("<ReiseKort");
+    expect(DAGSEKSJON).toContain("resolverLonnsartId={reiseKnappLonnsartId}");
   });
 
   it("knappen er kun i manuell modus", () => {
@@ -228,6 +230,33 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
     expect(reise[0]!.reiseRegel).toMatchObject({ kategori: "reisetid", grensepunktTreff: true });
   });
 
+  it("POST (13) L2: retning og kjøretid følger reise-raden; ikke-reise-rad bærer dem aldri", () => {
+    const k = klassifiserManuellReise({
+      regel: REGEL_KM,
+      reisetimer: 1.5,
+      avstandM: 45000,
+      grensepunkter: [],
+      resolverLonnsartId: L_REISE,
+      standardLonnsartId: L_NORMAL,
+    });
+    const over = { ...tilManuellReiseSpor(k, "opp1"), reiseRetning: "retur" as const, reiseKjoretidMin: 50 };
+    const f = beregnDagsforslag({
+      ...manuellInput(),
+      retting: { manuellReise: [{ ...REISE, lonnsartId: k.lonnsartId!, reiseSpor: over }] },
+    });
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise)[0]).toMatchObject({
+      reiseRetning: "retur",
+      reiseKjoretidMin: 50,
+    });
+    const under = { ...over, erReise: false, reiseKilde: null };
+    const g = beregnDagsforslag({
+      ...manuellInput(),
+      retting: { manuellReise: [{ ...REISE, lonnsartId: L_NORMAL, reiseSpor: under }] },
+    });
+    const sist = g.datoer[0]!.rader[g.datoer[0]!.rader.length - 1]!;
+    expect(sist).toMatchObject({ erReise: false, reiseRetning: null, reiseKjoretidMin: null });
+  });
+
   it("uten spor (regelsett ikke synket / eldre utkast) → reise-rad som før", () => {
     const f = beregnDagsforslag({ ...manuellInput(), retting: { manuellReise: [REISE] } });
     expect(f.datoer[0]!.rader.filter((r) => r.erReise)[0]).toMatchObject({
@@ -238,16 +267,20 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
   });
 
   it("begge flater sender sporet fra samme modal-hook videre til lagringen", () => {
-    const MODAL = les("../components/timer-detalj/TimerSeksjon.tsx").replace(/\s+/g, " ");
+    const KORT = les("../components/timer-detalj/ReiseKort.tsx").replace(/\s+/g, " ");
     const HOOK = les("../components/timer-detalj/useManuellReise.ts");
     const BEKREFT = les("../../app/timer/bekreft-dag.tsx").replace(/\s+/g, " ");
     const DAGSEKSJON = les("../components/timer-detalj/prosjektkort/DagSeksjon.tsx").replace(/\s+/g, " ");
-    expect(HOOK).toContain("løsManuellReise(");
-    expect(HOOK).toContain("velgOppmotested(");
-    expect(MODAL).toContain("useManuellReise(");
-    expect(MODAL).toContain("manuellReise.spor ?? undefined");
-    expect(DAGSEKSJON).toContain("leggTilTimerRad(db(), k, felt, maskin.linjer, reiseSpor)");
-    expect(BEKREFT).toContain("timer, fraTid, tilTid, reiseSpor }");
+    // POST (13) L2 § 7 C: perioderesolveren velger oppmøtestedet, aldri «siste valg».
+    expect(HOOK).toContain("løsOppmote(");
+    expect(HOOK).toContain("løsReiseKort(");
+    expect(HOOK).toContain("løsOverforingKort(");
+    expect(HOOK).not.toContain("SecureStore");
+    expect(HOOK).not.toContain("velgOppmotested(");
+    expect(KORT).toContain("useManuellReise(");
+    expect(KORT).toContain("reiseSpor: resultat.spor");
+    expect(DAGSEKSJON).toContain("l.reiseSpor");
+    expect(BEKREFT).toContain("reiseSpor: l.reiseSpor");
   });
 });
 
@@ -257,11 +290,13 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
  * lagring sperres — samme delte sjekk som web.
  */
 describe("Ordre (11) C — mangler standard lønnsart (mobil)", () => {
-  const MODAL = les("../components/timer-detalj/TimerSeksjon.tsx").replace(/\s+/g, " ");
+  // POST (13) L2: sjekken bor i den delte `løsReiseKort` (sperre «manglerArt»);
+  // reise-kortet viser den felles teksten.
+  const KORT = les("../components/timer-detalj/ReiseKort.tsx").replace(/\s+/g, " ");
 
-  it("modalen bruker den delte sjekken og den felles teksten", () => {
-    expect(MODAL).toContain("manuellReiseManglerArt(manuellKlassifisering)");
-    expect(MODAL).toContain('t("timer.reiseTerskel.manglerArt")');
+  it("reise-kortet viser den felles teksten for sperren", () => {
+    expect(KORT).toContain('manglerArt: "timer.reiseTerskel.manglerArt"');
+    expect(KORT).toContain("t(SPERRE_NOKKEL[sperre])");
   });
 
   it("teksten i nb er veiledningen fra ordren", () => {
