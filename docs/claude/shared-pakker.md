@@ -139,6 +139,7 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `gpsTilTegning()`, `tegningTilGps()`, `erInnenforTegning()`
 - `utm33TilLatLng()` — UTM sone 33N → WGS84
 - `parserKoordinater(tekst)` — UTM33, DMS, desimal
+- `velgFilterByggeplass({byggeplassIder, innsjekk, gps, manuelt})` (`standardByggeplass.ts`, ORDRE (22)) — listefilterets byggeplass: ny innsjekk → GPS → sist valgte → null («Velg byggeplass»), nyeste hendelse vinner. Aldri «første», aldri sentinelen `HELE_PROSJEKTET_VALG`. Brukes av web `byggeplass-kontekst.tsx` og mobil `ByggeplassKontekst.tsx`. `velgStandardByggeplass`/`velgTimerByggeplass` (timer) er uendret.
 
 ### Søk-utsnitt (`packages/shared/src/sok/`)
 

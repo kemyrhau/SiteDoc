@@ -3,6 +3,7 @@ import {
   velgStandardByggeplass,
   velgTimerByggeplass,
   velgByggeplassUtenGjett,
+  velgFilterByggeplass,
   HELE_PROSJEKTET_VALG,
 } from "./standardByggeplass";
 
@@ -113,5 +114,75 @@ describe("(20) velgByggeplassUtenGjett — dokumentopprettelse", () => {
     expect(
       velgByggeplassUtenGjett({ byggeplassIder: ider, lagret: HELE_PROSJEKTET_VALG, gpsNaermeste: "b2" }),
     ).toBeNull();
+  });
+});
+
+/** ORDRE 2026-11-15 (22) — byggeplassfilteret: innsjekk → GPS → sist valgte → «Velg byggeplass». */
+describe("velgFilterByggeplass — (22) nyeste hendelse vinner", () => {
+  const ider = ["b1", "b2", "b3"];
+  it("uten noe: null («Velg byggeplass»), aldri første", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: ider })).toBeNull();
+  });
+  it("uten manuelt valg: innsjekk før GPS", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: ider, innsjekk: { id: "b2", tid: 1 }, gps: "b3" })).toBe("b2");
+  });
+  it("uten manuelt valg og innsjekk: GPS", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: ider, gps: "b3" })).toBe("b3");
+  });
+  it("sist valgte når verken innsjekk eller GPS finnes", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: ider, manuelt: { id: "b2", tid: 5 } })).toBe("b2");
+  });
+  it("TILLEGG: innsjekk nyere enn manuelt valg vinner", () => {
+    expect(
+      velgFilterByggeplass({ byggeplassIder: ider, innsjekk: { id: "b3", tid: 10 }, manuelt: { id: "b1", tid: 5 } }),
+    ).toBe("b3");
+  });
+  it("manuelt valg etter innsjekken står", () => {
+    expect(
+      velgFilterByggeplass({ byggeplassIder: ider, innsjekk: { id: "b3", tid: 5 }, manuelt: { id: "b1", tid: 10 } }),
+    ).toBe("b1");
+  });
+  it("GPS på samme byggeplass som da valget ble gjort overstyrer ikke valget", () => {
+    expect(
+      velgFilterByggeplass({ byggeplassIder: ider, gps: "b2", manuelt: { id: "b1", tid: 5, gpsVedValg: "b2" } }),
+    ).toBe("b1");
+  });
+  it("GPS på en annen byggeplass enn ved valget vinner", () => {
+    expect(
+      velgFilterByggeplass({ byggeplassIder: ider, gps: "b3", manuelt: { id: "b1", tid: 5, gpsVedValg: "b2" } }),
+    ).toBe("b3");
+  });
+  it("GPS-treff uten GPS ved valget vinner (ny hendelse)", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: ider, gps: "b3", manuelt: { id: "b1", tid: 5 } })).toBe("b3");
+  });
+  it("id-er utenfor prosjektet teller ikke", () => {
+    expect(
+      velgFilterByggeplass({
+        byggeplassIder: ider,
+        innsjekk: { id: "fremmed", tid: 99 },
+        gps: "fremmed2",
+        manuelt: { id: "b2", tid: 1 },
+      }),
+    ).toBe("b2");
+  });
+  it("innsjekk uten byggeplass (prosjektnivå) teller ikke", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: ider, innsjekk: { id: null, tid: 99 } })).toBeNull();
+  });
+  it("0 byggeplasser → null", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: [], manuelt: { id: "b1", tid: 1 } })).toBeNull();
+  });
+  // Negativkontroller
+  it("negativkontroll: gammel «Hele prosjektet»-sentinel som manuelt valg gir aldri sentinel", () => {
+    const v = velgFilterByggeplass({ byggeplassIder: ider, manuelt: { id: HELE_PROSJEKTET_VALG, tid: 1 } });
+    expect(v).not.toBe(HELE_PROSJEKTET_VALG);
+    expect(v).toBeNull();
+  });
+  it("negativkontroll: eldre innsjekk overstyrer ikke nyere manuelt valg", () => {
+    expect(
+      velgFilterByggeplass({ byggeplassIder: ider, innsjekk: { id: "b3", tid: 1 }, manuelt: { id: "b1", tid: 2 } }),
+    ).not.toBe("b3");
+  });
+  it("negativkontroll: aldri første byggeplass som gjett", () => {
+    expect(velgFilterByggeplass({ byggeplassIder: ider, gps: null, innsjekk: null, manuelt: null })).not.toBe("b1");
   });
 });

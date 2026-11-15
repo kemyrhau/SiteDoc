@@ -71,3 +71,43 @@ export function velgTimerByggeplass(input: StandardByggeplassInput): string | nu
  * aldri (c) «første byggeplass»; dokumentet får byggeplass bare når brukeren har valgt en.
  */
 export const velgByggeplassUtenGjett = velgTimerByggeplass;
+
+/**
+ * (22) Byggeplassfilteret i toppen (web + mobil) — Kenneth 2026-11-15: «Hele prosjektet» er
+ * ikke et alternativ; «velg fra gps hvis tilgjengelig, neste sist valgte, tredje, be bruker
+ * velge byggeplass» + TILLEGG «sjekker inn på ny byggeplass -> da åpnes det innsjekkede
+ * byggeplassen først».
+ *
+ * Nyeste hendelse vinner:
+ *   1. Innsjekk (timer-besøk eller PSI) som er NYERE enn det manuelle valget.
+ *   2. GPS-treff på en ANNEN byggeplass enn GPS viste da det manuelle valget ble gjort
+ *      (ellers ville GPS overstyre brukerens bevisste valg ved hver lasting).
+ *   3. Sist manuelle valg.
+ *   4. null → «Velg byggeplass» (brukeren velger). Aldri «første», aldri «Hele prosjektet».
+ * Uten manuelt valg: innsjekk → GPS → null. Id-er som ikke finnes i prosjektet (slettet
+ * byggeplass, annet prosjekt, gammel «Hele prosjektet»-sentinel) teller ikke.
+ * Timer/Bekreft dag/innsjekk bruker fortsatt `velgTimerByggeplass` (urørt).
+ */
+export interface FilterByggeplassInput {
+  /** Prosjektets byggeplass-id-er. */
+  byggeplassIder: readonly string[];
+  /** Nyeste innsjekk på prosjektet (`tid` i ms). */
+  innsjekk?: { id: string | null; tid: number } | null;
+  /** Nærmeste byggeplass etter GPS nå (kun mobil). */
+  gps?: string | null;
+  /** Sist manuelle valg: `tid` i ms, `gpsVedValg` = GPS-treffet da valget ble gjort. */
+  manuelt?: { id: string; tid: number; gpsVedValg?: string | null } | null;
+}
+
+export function velgFilterByggeplass(input: FilterByggeplassInput): string | null {
+  const { byggeplassIder, innsjekk, gps, manuelt } = input;
+  if (byggeplassIder.length === 0) return null;
+  const finnes = (id: string | null | undefined): id is string =>
+    !!id && byggeplassIder.includes(id);
+
+  const m = manuelt && finnes(manuelt.id) ? manuelt : null;
+  if (innsjekk && finnes(innsjekk.id) && (!m || innsjekk.tid > m.tid)) return innsjekk.id;
+  if (finnes(gps) && (!m || gps !== (m.gpsVedValg ?? null))) return gps;
+  if (m) return m.id;
+  return null;
+}

@@ -162,6 +162,13 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - **Forklaring:** «Du er medlem av disse prosjektene, men de eies av et firma du ikke er ansatt i.» (`prosjektVelger.andreFirmaHjelp`). På web står den som ?-ikon med tooltip ved overskriften (`KontekstChip.tsx`). På mobil står den som grå linje under overskriften (`ProsjektVelger.tsx`).
 - **Rad:** prosjektnavn · eierfirma (web på samme linje, mobil på linja under; eierfirma mangler offline).
 
+## Web og mobil: byggeplassfilteret husker siste valg (ORDRE 2026-11-15 (22), 🟡 ikke merget)
+
+Ingen ?-tekst og ingen toast — veiledningen står i lista:
+- **Liste uten valg:** «Velg byggeplass» (`byggeplass.velgByggeplass`) · «Velg byggeplassen du jobber på for å se lista.» (`byggeplass.velgForListe`) + én knapp pr. byggeplass. Web: `ByggeplassFilterPort.tsx`; mobil: `VelgByggeplassTom.tsx`.
+- **Prosjekt uten byggeplass (web):** «Prosjektet har ingen byggeplass» (`byggeplass.prosjektManglerByggeplass`) + lenke «Legg til byggeplass» (`byggeplass.leggTil`) for den som har rett.
+- **Toppvelger uten valg:** web-chip «· Velg byggeplass»; mobil-chip «Velg byggeplass». «Hele prosjektet» tilbys ikke.
+
 ## Web og mobil: «Byggeplass ikke valgt · Velg» på sjekkliste og oppgave (ORDRE 2026-11-15 (20) linja + (20b))
 
 - **Linje:** «Byggeplass ikke valgt» (`kontekstChip.byggeplassIkkeValgt`) · «Velg» (`handling.velg`). Amber linje under lokasjons-/kontekstfeltet, ingen toast eller banner.

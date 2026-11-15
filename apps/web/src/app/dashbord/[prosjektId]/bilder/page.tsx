@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { ByggeplassFilterPort } from "@/components/ByggeplassFilterPort";
 import { useBilder } from "@/kontekst/bilder-kontekst";
 import { Spinner } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
@@ -132,7 +133,9 @@ function harGpsUtenforTegninger(
 export default function BilderSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
-  const { aktivByggeplass, aktivTegning } = useByggeplass();
+  const { aktivByggeplass, aktivTegning, harByggeplasser } = useByggeplass();
+  // (22) Lista filtrerer alltid på valgt byggeplass; uten valg vises «Velg byggeplass».
+  const måVelgeByggeplass = harByggeplasser && !aktivByggeplass;
   const {
     visningsmodus,
     plasseringsmodus,
@@ -158,7 +161,7 @@ export default function BilderSide() {
 
   const { data, isLoading } = trpc.bilde.hentForProsjekt.useQuery(
     { projectId: params.prosjektId, ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}) },
-    { enabled: !!params.prosjektId },
+    { enabled: !!params.prosjektId && !(visningsmodus === "liste" && måVelgeByggeplass) },
   );
 
   // Hent tegningsdata (med fileUrl) for valgt tegning
@@ -361,6 +364,13 @@ export default function BilderSide() {
   // ──────────────────────────────────────────────────────────
 
   if (visningsmodus === "liste") {
+    if (måVelgeByggeplass) {
+      return (
+        <div className="flex-1 overflow-auto bg-gray-50 p-6">
+          <ByggeplassFilterPort>{null}</ByggeplassFilterPort>
+        </div>
+      );
+    }
     if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center">

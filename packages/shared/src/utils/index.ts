@@ -602,9 +602,10 @@ export {
   velgStandardByggeplass,
   velgTimerByggeplass,
   velgByggeplassUtenGjett,
+  velgFilterByggeplass,
   HELE_PROSJEKTET_VALG,
 } from "./standardByggeplass";
-export type { StandardByggeplassInput } from "./standardByggeplass";
+export type { StandardByggeplassInput, FilterByggeplassInput } from "./standardByggeplass";
 export {
   velgByggeplassKilde,
   antallByggeplasser,
