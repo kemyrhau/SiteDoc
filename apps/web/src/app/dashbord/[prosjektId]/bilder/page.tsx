@@ -434,8 +434,8 @@ export default function BilderSide() {
                       <div key={key} className="rounded-lg border border-gray-200 bg-white p-3">
                         {/* Tilhørighet på dokument-gruppens header (byggeplass-regelen:
                             raden viser tilhørighet når konteksten er bredere enn objektets
-                            hjem). Blå = byggeplass, grå «Hele prosjektet» = prosjekt-bilde.
-                            Byggeplass valgt → kun prosjekt-bilder merkes; ellers hver gruppe. */}
+                            hjem). Blå = byggeplass. Bilder uten byggeplass merkes ikke
+                            (TILLEGG (22)). Byggeplass valgt → ingen merking. */}
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <Link
                             href={parentUrl}
@@ -443,16 +443,11 @@ export default function BilderSide() {
                           >
                             {first.parentLabel}
                           </Link>
-                          {(!aktivByggeplass || first.byggeplassId == null) &&
-                            (first.byggeplassId == null ? (
-                              <span className="inline-flex items-center rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500">
-                                {t("kontekstChip.heleProsjektet")}
-                              </span>
-                            ) : first.byggeplassName ? (
-                              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                                {first.byggeplassName}
-                              </span>
-                            ) : null)}
+                          {!aktivByggeplass && first.byggeplassId != null && first.byggeplassName ? (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              {first.byggeplassName}
+                            </span>
+                          ) : null}
                         </div>
                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                           {bilder.map((b, idx) => {

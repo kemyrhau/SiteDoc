@@ -111,7 +111,7 @@ export function ByggeplassChip() {
     );
   }
 
-  // (22) Uten valg: «Velg byggeplass» — aldri «Hele prosjektet».
+  // (22) Uten valg: «Velg byggeplass».
   const tittel = valgt?.name ?? t("byggeplass.velgByggeplass");
 
   return (
@@ -126,14 +126,12 @@ export function ByggeplassChip() {
             {tittel}
           </Text>
           {/* Når en byggeplass filtrerer lista, si det eksplisitt — feltarbeideren
-              skal aldri se et avkortet sett uten å vite at noe er skjult (mobil-
-              speiling av webs «Viser: <byggeplass> · Vis hele prosjektet»). */}
+              skal aldri se et avkortet sett uten å vite at noe er skjult. */}
           {valgtBygningId != null && (
-            // Kortform (fabel-mockup panel 1): den lange «Viser denne byggeplassen
-            // + dokumenter for hele prosjektet» trunkeres til «…hele prosje…» på
-            // mobilbredde (Kenneth-skjermbilde). Kortformen overlever numberOfLines=1.
+            // Kortform (fabel-mockup panel 1): den lange linja trunkeres på mobilbredde
+            // (Kenneth-skjermbilde). Kortformen overlever numberOfLines=1.
             <Text className="text-xs text-amber-600" numberOfLines={1}>
-              {t("byggeplass.filtrererListeKort")}
+              {t("byggeplass.viserByggeplassOgUtenByggeplassKort")}
             </Text>
           )}
           {paaPlass && (
@@ -163,7 +161,7 @@ export function ByggeplassChip() {
             number: b.number ?? null,
           }))}
           onVelg={(id) => {
-            // (22) Ingen «Hele prosjektet»-rad — kun byggeplasser.
+            // (22) Kun byggeplasser.
             if (id) settBygning(id);
             setVisVelger(false);
           }}

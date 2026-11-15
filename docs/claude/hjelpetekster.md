@@ -167,12 +167,14 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 Ingen ?-tekst og ingen toast — veiledningen står i lista:
 - **Liste uten valg:** «Velg byggeplass» (`byggeplass.velgByggeplass`) · «Velg byggeplassen du jobber på for å se lista.» (`byggeplass.velgForListe`) + én knapp pr. byggeplass. Web: `ByggeplassFilterPort.tsx`; mobil: `VelgByggeplassTom.tsx`.
 - **Prosjekt uten byggeplass (web):** «Prosjektet har ingen byggeplass» (`byggeplass.prosjektManglerByggeplass`) + lenke «Legg til byggeplass» (`byggeplass.leggTil`) for den som har rett.
-- **Toppvelger uten valg:** web-chip «· Velg byggeplass»; mobil-chip «Velg byggeplass». «Hele prosjektet» tilbys ikke.
+- **Toppvelger uten valg:** web-chip «· Velg byggeplass»; mobil-chip «Velg byggeplass».
+- **Filterlinje med valgt byggeplass:** web-sjekklister «Viser denne byggeplassen + dokumenter uten byggeplass» (`byggeplass.viserByggeplassOgUtenByggeplass`); mobil-chip og tegninger «+ dokumenter uten byggeplass» (`byggeplass.viserByggeplassOgUtenByggeplassKort`).
+- **Fjernet atferd (TILLEGG (22), Kenneth 2026-11-15 «fjern "hele prosjektet" fra alle referanser»):** «Hele prosjektet» finnes ikke lenger som filtervalg, chip-tekst eller merkelapp på dokumenter. Dokumenter uten byggeplass får ingen merkelapp i lister og «—» i detalj-chipen. Slettede nøkler: `kontekstChip.heleProsjektet`, `mannskap.heleProsjektet`, `byggeplass.filtrererListe`, `byggeplass.filtrererListeKort`, `sjekklister.viser`, `sjekklister.visHeleProsjektet`, `sjekklister.filtrerPaaByggeplass`. PSI («hele prosjektet» som PSI-omfang) og dokumentsøk («Søk … i hele prosjektet») er andre domener og står.
 
 ## Web og mobil: «Byggeplass ikke valgt · Velg» på sjekkliste og oppgave (ORDRE 2026-11-15 (20) linja + (20b))
 
 - **Linje:** «Byggeplass ikke valgt» (`kontekstChip.byggeplassIkkeValgt`) · «Velg» (`handling.velg`). Amber linje under lokasjons-/kontekstfeltet, ingen toast eller banner.
-- **Forklaring:** «Dokumentet er ikke knyttet til en byggeplass. Velg byggeplassen det hører til.» (`kontekstChip.byggeplassIkkeValgtHjelp`). Web: tooltip på linja. Mobil: `accessibilityHint`. «Hele prosjektet» er bare et listefilter ((20b)) og tilbys ikke som verdi på dokumentet.
+- **Forklaring:** «Dokumentet er ikke knyttet til en byggeplass. Velg byggeplassen det hører til.» (`kontekstChip.byggeplassIkkeValgtHjelp`). Web: tooltip på linja. Mobil: `accessibilityHint`.
 - **Vises når:** dokumentet mangler byggeplass, prosjektet har minst én og brukeren kan redigere (`visByggeplassIkkeValgt`, `@sitedoc/shared`).
 - **«Velg» åpner:** web sjekkliste → byggeplass-chipen (uten tomvalg); web oppgave → lokasjonsvelgeren; mobil sjekkliste og oppgave → velgeren med byggeplassene øverst («Byggeplass», `lokasjonVelger.byggeplassOverskrift`) over tegningene. Ett trykk på en byggeplass setter den; tegning er frivillig.
 - **Byggeplassen følger tegningen (ORDRE (21), 🟡 ikke merget):** med tegning er web-chipen deaktivert med tooltip «Byggeplassen følger tegningen. Velg en tegning fra en annen byggeplass for å bytte.» (`kontekstChip.byggeplassFolgerTegning`); mobil viser ikke byggeplassene øverst i lista.

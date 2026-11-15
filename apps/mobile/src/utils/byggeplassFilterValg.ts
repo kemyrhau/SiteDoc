@@ -1,4 +1,4 @@
-import { HELE_PROSJEKTET_VALG } from "@sitedoc/shared";
+import { rensLagretByggeplassValg } from "@sitedoc/shared";
 
 /**
  * ORDRE (22) 2026-11-15 — mobilens kilder til byggeplassfilteret (rene funksjoner, testet).
@@ -14,15 +14,15 @@ export interface ValgtTid {
   auto?: boolean;
 }
 
-/** Sist manuelle valg for prosjektet, eller null. «Hele prosjektet»-sentinel og GPS-autovalg
+/** Sist manuelle valg for prosjektet, eller null. Utgått streng-verdi fra før (22) og GPS-autovalg
  *  er ikke manuelle valg. Eldre valg uten tidsstempel teller med tid 0 (eldst). */
 export function manueltValg(
   bygningMap: Record<string, string>,
   valgtTidMap: Record<string, ValgtTid>,
   prosjektId: string,
 ): { id: string; tid: number; gpsVedValg: string | null } | null {
-  const id = bygningMap[prosjektId];
-  if (!id || id === HELE_PROSJEKTET_VALG) return null;
+  const id = rensLagretByggeplassValg(bygningMap[prosjektId]);
+  if (!id) return null;
   const meta = valgtTidMap[prosjektId];
   if (meta?.auto) return null;
   return { id, tid: meta?.tid ?? 0, gpsVedValg: meta?.gps ?? null };

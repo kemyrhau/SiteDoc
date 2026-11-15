@@ -139,7 +139,9 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `gpsTilTegning()`, `tegningTilGps()`, `erInnenforTegning()`
 - `utm33TilLatLng()` — UTM sone 33N → WGS84
 - `parserKoordinater(tekst)` — UTM33, DMS, desimal
-- `velgFilterByggeplass({byggeplassIder, innsjekk, gps, manuelt})` (`standardByggeplass.ts`, ORDRE (22)) — listefilterets byggeplass: ny innsjekk → GPS → sist valgte → null («Velg byggeplass»), nyeste hendelse vinner. Aldri «første», aldri sentinelen `HELE_PROSJEKTET_VALG`. Brukes av web `byggeplass-kontekst.tsx` og mobil `ByggeplassKontekst.tsx`. `velgStandardByggeplass`/`velgTimerByggeplass` (timer) er uendret.
+- `velgFilterByggeplass({byggeplassIder, innsjekk, gps, manuelt})` (`standardByggeplass.ts`, ORDRE (22)) — listefilterets byggeplass: ny innsjekk → GPS → sist valgte → null («Velg byggeplass»), nyeste hendelse vinner. Aldri «første». Brukes av web `byggeplass-kontekst.tsx` og mobil `ByggeplassKontekst.tsx`.
+- `rensLagretByggeplassValg(id)` (`standardByggeplass.ts`, TILLEGG (22)) — tom verdi og den utgåtte strengen fra før TILLEGG (22) (lagret «hele prosjektet»-valg) leses som `null` (intet valg). Brukes av `velgTimerByggeplass`, web `byggeplass-kontekst.tsx` og mobil `byggeplassFilterValg.ts`.
+- `velgTimerByggeplass` (timer) — lagret valg (renset) → GPS → null. TILLEGG (22): en lagret utgått streng gir nå GPS i stedet for null. `velgStandardByggeplass` og eksporten `HELE_PROSJEKTET_VALG` er fjernet (TILLEGG (22)).
 
 ### Søk-utsnitt (`packages/shared/src/sok/`)
 

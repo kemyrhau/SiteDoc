@@ -18,7 +18,7 @@ import { TraktRad, SøkeFelt, SeksjonsLabel } from "./trakt-primitiver";
  */
 
 export type ChipAlternativ = {
-  /** null = «tom»-valget (f.eks. «Hele prosjektet» for byggeplass). */
+  /** null = «tom»-valget (f.eks. ingen byggeplass). */
   id: string | null;
   navn: string;
   undertekst?: string;

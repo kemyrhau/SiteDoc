@@ -3,7 +3,7 @@
  *
  * Prosjektlista øverst, byggeplasslista for det MARKERTE prosjektet under. Et trykk
  * på et prosjekt markerer det bare (ingenting velges). Et trykk på en byggeplass
- * eller på «Hele prosjektet» velger prosjekt + byggeplass og lukker. Et prosjekt med
+ * velger prosjekt + byggeplass og lukker. Et prosjekt med
  * 0 byggeplasser, eller uten kjent liste offline, velges direkte som før (18).
  */
 
@@ -60,12 +60,12 @@ export function vedProsjektTrykk(prosjektId: string, kilde: ByggeplassKilde): Pr
 export interface ByggeplassValg {
   /** Prosjektet som blir aktivt. */
   prosjektId: string;
-  /** Byggeplassen som lagres på `prosjektId`; null = «Hele prosjektet». */
+  /** Byggeplassen som lagres på `prosjektId`; null = intet valg. */
   byggeplassId: string | null;
 }
 
 /**
- * Trykk på en byggeplass (eller «Hele prosjektet» med `byggeplassId = null`) i lista
+ * Trykk på en byggeplass i lista
  * for det markerte prosjektet. Valget lagres alltid på det MARKERTE prosjektet —
  * ikke på prosjektet som var aktivt før velgeren ble åpnet.
  */
@@ -78,17 +78,16 @@ export function erByggeplassAvhuket(input: {
   markertProsjektId: string | null;
   valgtProsjektId: string | null;
   valgtBygningId: string | null;
-  erHeleProsjektet: boolean;
   byggeplassId: string | null;
 }): boolean {
   if (!input.markertProsjektId || input.markertProsjektId !== input.valgtProsjektId) return false;
-  if (input.byggeplassId === null) return input.erHeleProsjektet;
+  if (input.byggeplassId === null) return false;
   return input.byggeplassId === input.valgtBygningId;
 }
 
 /**
- * Neste `bygningMap` når et valg lagres på `prosjektId`. Brukes av `settBygning` /
- * `velgHeleProsjektet` i `ByggeplassKontekst` — prosjekt-id-en er et parameter, ikke
+ * Neste `bygningMap` når et valg lagres på `prosjektId`. Brukes av `settBygning` i
+ * `ByggeplassKontekst` — prosjekt-id-en er et parameter, ikke
  * det aktive prosjektet fra closure, så velgeren lagrer på riktig prosjekt selv om
  * prosjektbyttet ikke er gjennomført ennå (18).
  */

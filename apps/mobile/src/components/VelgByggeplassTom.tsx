@@ -17,7 +17,7 @@ export function useMaaVelgeByggeplass(): boolean {
 
 /**
  * (22) Tomtilstand for lister uten byggeplassvalg: «Velg byggeplass» med ett-trykks-knapp
- * pr. byggeplass (samme kilde som toppvelgeren). Erstatter «Hele prosjektet» som standard.
+ * pr. byggeplass (samme kilde som toppvelgeren).
  * Valget lagres som manuelt valg (`settBygning`) og huskes.
  */
 export function VelgByggeplassTom() {

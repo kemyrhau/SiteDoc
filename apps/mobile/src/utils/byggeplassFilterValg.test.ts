@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { HELE_PROSJEKTET_VALG } from "@sitedoc/shared";
 import { manueltValg, nyesteInnsjekk, serverVinner } from "./byggeplassFilterValg";
+
+/** Lest legacy-data: strengen eldre versjoner lagret (før TILLEGG (22)). */
+const UTGAATT = "__hele_prosjektet__";
 
 describe("(22) manueltValg", () => {
   it("lagret byggeplass med tid og GPS ved valg", () => {
@@ -9,8 +11,8 @@ describe("(22) manueltValg", () => {
   it("eldre valg uten tid teller som eldst (tid 0)", () => {
     expect(manueltValg({ P: "b1" }, {}, "P")).toEqual({ id: "b1", tid: 0, gpsVedValg: null });
   });
-  it("negativkontroll: «Hele prosjektet»-sentinel er ikke et valg", () => {
-    expect(manueltValg({ P: HELE_PROSJEKTET_VALG }, { P: { tid: 9 } }, "P")).toBeNull();
+  it("negativkontroll: utgått streng-verdi fra før (22) er ikke et valg", () => {
+    expect(manueltValg({ P: UTGAATT }, { P: { tid: 9 } }, "P")).toBeNull();
   });
   it("negativkontroll: GPS-autovalg (D1) er ikke et manuelt valg", () => {
     expect(manueltValg({ P: "b1" }, { P: { tid: 0, auto: true } }, "P")).toBeNull();

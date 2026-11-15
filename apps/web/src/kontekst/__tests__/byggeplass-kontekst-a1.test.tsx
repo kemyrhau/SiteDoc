@@ -2,8 +2,8 @@
 /**
  * Web `ByggeplassProvider` — ORDRE (18) RETUR vilkår 1, (20) og (22) «husk siste valg».
  *
- * (22): ny innsjekk → sist valgte → «Velg byggeplass» (null). Aldri «første», aldri
- * «Hele prosjektet» (gammel sentinel i lageret leses som intet valg). Nyeste hendelse vinner.
+ * (22): ny innsjekk → sist valgte → «Velg byggeplass» (null). Aldri «første»; gammel
+ * streng-verdi fra før (22) i lageret leses som intet valg. Nyeste hendelse vinner.
  */
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,7 +54,9 @@ vi.mock("@/lib/trpc", () => {
 });
 
 import { ByggeplassProvider, useByggeplass } from "../byggeplass-kontekst";
-import { HELE_PROSJEKTET_VALG } from "@sitedoc/shared";
+
+/** Lest legacy-data: strengen eldre versjoner lagret (før TILLEGG (22)). */
+const UTGAATT = "__hele_prosjektet__";
 
 const NOKKEL = "sitedoc-aktiv-bygning";
 type Kontekst = ReturnType<typeof useByggeplass>;
@@ -130,9 +132,9 @@ describe("(22) aldri gjett — «Velg byggeplass»", () => {
     expect("B" in lagret()).toBe(false);
   });
 
-  it("gammel «Hele prosjektet»-sentinel i lageret leses som intet valg", () => {
+  it("gammel streng-verdi fra før (22) i lageret leses som intet valg", () => {
     h.prosjektId = "B";
-    h.lager[NOKKEL] = JSON.stringify({ B: HELE_PROSJEKTET_VALG });
+    h.lager[NOKKEL] = JSON.stringify({ B: UTGAATT });
     render(tre());
     expect(siste?.aktivByggeplass).toBeNull();
     expect(siste?.opprettByggeplass).toBeNull();

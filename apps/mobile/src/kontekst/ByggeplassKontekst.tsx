@@ -36,8 +36,8 @@ import {
 } from "../services/byggeplassKatalog";
 
 const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
-// (22) «Hele prosjektet» er ikke lenger et valg. En gammel sentinel i bygningMap leses som
-// intet valg av filteret (`manueltValg`); timer leser den som før (`velgTimerByggeplass`).
+// (22) En utgått streng-verdi fra før (22) i bygningMap leses som intet valg — av filteret
+// (`manueltValg`) og av timer (`velgTimerByggeplass`), begge via `rensLagretByggeplassValg`.
 // (22) Når hvert manuelle valg ble gjort + hva GPS viste da ({prosjektId: ValgtTid}).
 // Egen nøkkel så bygningMap (delt med timer) beholder formatet.
 const VALGT_TID_KEY = "sitedoc_byggeplass_valgt_tid";
@@ -60,7 +60,7 @@ const FAVORITT_KEY = "sitedoc_byggeplass_favoritter";
 // prosjekt — samme klasse som kollisjonssakene.)
 //
 // - Byggeplass: nøkkel `sistBruktByggeplass`, projectId=<prosjekt>, verdi = byggeplassId
-//   (eller HELE_PROSJEKTET-sentinel). Én rad per prosjekt.
+//   (eldre versjoner kan ha lagret en utgått streng-verdi; den leses som intet valg). Én rad per prosjekt.
 // - Tegning: nøkkel `sistBruktTegning`, projectId=<prosjekt>, verdi = liten map
 //   `{byggeplassId: tegningId}`. Én rad per prosjekt; mappen bærer byggeplass-dimensjonen
 //   (tegning er per byggeplass, men `projectId` har bare én dimensjon — cowork-rangering).
@@ -92,7 +92,7 @@ async function hentVerdi(key: string): Promise<string | null> {
 
 interface ByggeplassKontekstType {
   /** (22) Filterets byggeplass: ny innsjekk → GPS → sist valgte (nyeste hendelse vinner),
-   *  ellers null = «Velg byggeplass». Aldri «første», aldri «Hele prosjektet». */
+   *  ellers null = «Velg byggeplass». Aldri «første». */
   valgtBygningId: string | null;
   /** (22) Prosjektet har minst én byggeplass (null = lista ikke kjent ennå). */
   harByggeplasser: boolean | null;
@@ -350,7 +350,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
 
   // (22) Filterets byggeplass: ny innsjekk → GPS → sist valgte → null («Velg byggeplass»).
   // Nyeste hendelse vinner; et manuelt valg står til nyere innsjekk eller GPS-treff på en annen
-  // byggeplass enn GPS viste da valget ble gjort. Aldri «første», aldri «Hele prosjektet».
+  // byggeplass enn GPS viste da valget ble gjort. Aldri «første».
   // Avledet, ikke lagret — innsjekk og GPS skrives aldri som valg.
   const valgtBygningId = useMemo(() => {
     if (!valgtProsjektId || lasterBygningId) return null;

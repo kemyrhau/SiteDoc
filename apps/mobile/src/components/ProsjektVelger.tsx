@@ -45,7 +45,7 @@ interface ProsjektRadVisning {
 /**
  * (18) Delt prosjekt- og byggeplassvelger. Prosjektlista øverst (inkl. «Prosjekter i
  * andre firma»), byggeplassene for det MARKERTE prosjektet under. Trykk på prosjekt
- * markerer; trykk på byggeplass velger begge og lukker. (22) «Hele prosjektet» er
+ * markerer; trykk på byggeplass velger begge og lukker. (22) Kun byggeplasser er
  * ikke et valg.
  * Prosjekt med 0 byggeplasser, eller uten lokal katalog offline, velges direkte.
  * Ren logikk: `utils/prosjektByggeplassValg.ts`.
@@ -212,7 +212,6 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
         markertProsjektId: markertId,
         valgtProsjektId,
         valgtBygningId,
-        erHeleProsjektet: false,
         byggeplassId: b.id,
       });
       const naerDeg = b.id !== null && b.id === gpsByggeplassId;

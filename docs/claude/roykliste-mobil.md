@@ -219,6 +219,7 @@ lå død på y=43 i bygg 46).
   «Utkastet består» = det lagrede utkastet, ikke siste keystroke.
 
 ### Flyt 11 — Byggeplass-filter → «Hele prosjektet» (måling + negativ kontroll)
+> **Utgått (TILLEGG (22), 2026-11-15):** valget «Hele prosjektet» er fjernet. Uten valgt byggeplass viser lista «Velg byggeplass» (`VelgByggeplassTom.tsx`). Flyten under er historikk; ny måling: tell lista med byggeplass A og B valgt, negativkontroll = bytt tilbake gir første tall igjen.
 - **Start:** et prosjekt med sjekklister spredt på flere byggeplasser (test: `Test prosjekt
   SiteDoc Røstbakken`, byggeplass-chip aktiv).
 - **Trykk:** les sjekkliste-antall i filtrert tilstand (byggeplass valgt) → tap chip → **«Hele

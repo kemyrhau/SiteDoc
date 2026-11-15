@@ -106,9 +106,7 @@ export default function MannskapSide() {
           {t("mannskap.paaPlassNaa", { antall: filtrert.length })}
           {aktivByggeplass?.name ? (
             <span className="text-gray-400">· {aktivByggeplass.name}</span>
-          ) : (
-            <span className="text-gray-400">· {t("mannskap.heleProsjektet")}</span>
-          )}
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[220px] flex-1">

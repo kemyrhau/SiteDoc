@@ -28,7 +28,7 @@ interface AktivByggeplass {
 }
 
 /** (22) Lagret manuelt valg pr. prosjekt. `tid` (ms) mangler i eldre oppføringer → 0.
- *  Gamle «Hele prosjektet»-oppføringer (streng-sentinel) leses som «intet valg». */
+ *  Gamle streng-oppføringer fra før (22) leses som «intet valg» (`rensLagretByggeplassValg`). */
 type LagretValg = AktivByggeplass & { tid?: number };
 
 interface StandardTegning {
@@ -50,7 +50,7 @@ export interface PosisjonsResultat {
 
 interface ByggeplassKontekstType {
   /** (22) Byggeplassen filteret står på: ny innsjekk → sist valgte → null («Velg byggeplass»).
-   *  Aldri «første», aldri «Hele prosjektet». */
+   *  Aldri «første». */
   aktivByggeplass: AktivByggeplass | null;
   /** (22) Prosjektet har minst én byggeplass (false også mens lista laster). */
   harByggeplasser: boolean;

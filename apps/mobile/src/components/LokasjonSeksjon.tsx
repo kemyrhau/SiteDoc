@@ -134,7 +134,7 @@ export function LokasjonSeksjon({
  * Tegninger uten (kjent) byggeplass samles under «Kart» — ellers usynlige i lista.
  *
  * ORDRE (20b) punkt 3: med `onVelgByggeplass` vises byggeplassene øverst — ett trykk setter
- * byggeplass, tegning er frivillig. Ingen rad for «Hele prosjektet» (kun et visningsfilter).
+ * byggeplass, tegning er frivillig.
  */
 export function TegningVelgerListe({
   tegninger,

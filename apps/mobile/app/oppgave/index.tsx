@@ -396,7 +396,7 @@ export default function OppgaveListe() {
         </View>
       )}
 
-      {/* (22) Uten byggeplassvalg: «Velg byggeplass», ikke hele prosjektet. Søk gjelder
+      {/* (22) Uten byggeplassvalg: «Velg byggeplass». Søk gjelder
           fortsatt hele prosjektet. */}
       {!søkerNaa && maaVelgeByggeplass ? (
         <VelgByggeplassTom />

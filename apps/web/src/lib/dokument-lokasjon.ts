@@ -75,7 +75,7 @@ export function byggeplassForLokasjon(kilder: {
 }
 
 /**
- * ORDRE (20b): «Hele prosjektet» er kun et visningsfilter. I et prosjekt med byggeplasser kan
+ * ORDRE (20b): I et prosjekt med byggeplasser kan
  * «Gjelder hele byggeplassen» / fritekst-sted bare lagres når en byggeplass er kjent — ellers ville
  * omfang «byggeplass» lagres uten byggeplass. Prosjekter uten byggeplasser er uendret.
  */

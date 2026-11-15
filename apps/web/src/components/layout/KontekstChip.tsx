@@ -400,7 +400,7 @@ export function KontekstChip() {
   }
   // (18) Trykk på byggeplass velger prosjekt + byggeplass og lukker. Valget lagres på det
   // MARKERTE prosjektet før prosjektbyttet, så byggeplass-konteksten leser det inn når
-  // prosjektet blir aktivt. (22) «Hele prosjektet» er ikke et valg.
+  // prosjektet blir aktivt. (22) Kun byggeplasser er valg.
   function velgByggeplassTrakt(b: Byggeplass) {
     if (!markertId) return;
     const v = vedByggeplassTrykk(markertId, b.id);
@@ -413,7 +413,6 @@ export function KontekstChip() {
       markertProsjektId: markertId,
       valgtProsjektId: prosjektId ?? null,
       valgtBygningId: aktivByggeplass?.id ?? null,
-      erHeleProsjektet: false,
       byggeplassId,
     });
   const antallTekst = (id: string): string | undefined => {
@@ -605,7 +604,7 @@ export function KontekstChip() {
 
       {/* --- BYGGEPLASSER FOR MARKERT PROSJEKT (18) ------------------ */}
       {/* Under prosjektlista: byggeplassene til det markerte prosjektet, aktiv avhuket.
-          (22) Ingen «Hele prosjektet»-rad. Markert prosjekt uten byggeplasser → ingen liste
+          (22) Kun byggeplass-rader. Markert prosjekt uten byggeplasser → ingen liste
           (trykk på det velger direkte). */}
       {åpentNivå === "prosjekt" &&
         (!markertId ? (

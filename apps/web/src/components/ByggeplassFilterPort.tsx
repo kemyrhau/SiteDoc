@@ -10,7 +10,7 @@ import { useKanManageField } from "@/hooks/useKanManageField";
 import { trpc } from "@/lib/trpc";
 
 /**
- * ORDRE (22) 2026-11-15: lister filtrerer alltid på valgt byggeplass — «Hele prosjektet» er
+ * ORDRE (22) 2026-11-15: lister filtrerer alltid på valgt byggeplass — det finnes intet valg for alle byggeplasser; det er
  * ikke et alternativ. Porten står rundt selve lista (ikke rundt siden, så «Ny …» virker):
  *   · prosjektet har byggeplasser, ingen valgt → «Velg byggeplass» med ett-klikks-knapper
  *     i stedet for lista

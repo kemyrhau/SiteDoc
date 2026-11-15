@@ -728,7 +728,7 @@ export const tegningRouter = router({
           ...(discipline ? { discipline } : {}),
           ...(status ? { status } : {}),
           // Byggeplass-tilhørighet (mykt), regel i byggeplassFilter.ts. Byggeplass-løse
-          // tegninger merkes «Hele prosjektet» i lista (klient).
+          // tegninger vises i alle byggeplass-visninger.
           ...(byggeplassFilterDirekte(byggeplassId) ?? {}),
           ...(floor ? { floor } : {}),
         },

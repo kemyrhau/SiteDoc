@@ -599,11 +599,10 @@ export {
   type ProsjektForNullstilling,
 } from "./gjesteprosjekt";
 export {
-  velgStandardByggeplass,
   velgTimerByggeplass,
   velgByggeplassUtenGjett,
   velgFilterByggeplass,
-  HELE_PROSJEKTET_VALG,
+  rensLagretByggeplassValg,
 } from "./standardByggeplass";
 export type { StandardByggeplassInput, FilterByggeplassInput } from "./standardByggeplass";
 export {

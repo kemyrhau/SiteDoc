@@ -24,7 +24,7 @@ describe("(20b) byggeplassvalg øverst i lokasjonslista", () => {
     expect(blokk).toMatch(/onPress=\{\(\) => onVelgByggeplass\?\.\(b\.id\)\}/);
   });
 
-  it("negativkontroll: ingen «Hele prosjektet»-rad i lista", () => {
+  it("negativkontroll: ingen rad for alle byggeplasser i lista", () => {
     expect(blokk).not.toMatch(/heleProsjektet|HELE_PROSJEKTET|__hele_prosjektet__/);
   });
 
