@@ -8,15 +8,25 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import * as Location from "expo-location";
 import { useProsjekt } from "./ProsjektKontekst";
+import { and, desc, eq } from "drizzle-orm";
 import {
   oppdaterBygningMap,
-  velgStandardByggeplass,
+  velgFilterByggeplass,
   velgTimerByggeplass,
-  HELE_PROSJEKTET_VALG,
 } from "@sitedoc/shared";
+import { hentDatabase } from "../db/database";
+import { arbeidsdagLocal } from "../db/schema";
+import { sisteBesok } from "../services/arbeidsdagBesok";
+import {
+  flettServerValg,
+  manueltValg,
+  nyesteInnsjekk,
+  psiModulAktiv,
+  type ValgtTid,
+} from "../utils/byggeplassFilterValg";
 import { hentByggeplasserNavLokalt } from "../services/tegningKatalog";
 import { useFirma } from "./FirmaKontekst";
 import { useAuth } from "../providers/AuthProvider";
@@ -27,11 +37,13 @@ import {
 } from "../services/byggeplassKatalog";
 
 const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
-// Sentinel i bygningMap: brukeren har EKSPLISITT valgt «Hele prosjektet» (ingen
-// byggeplass-avgrensning). Må lagres som en verdi — ikke fravær av nøkkel — ellers
-// ville GPS-autovalget (D1: «auto-set kun når tom») fylle inn en byggeplass stille
-// igjen, som er nøyaktig feilen vi retter (feltarbeideren har ingen vei ut av filteret).
-const HELE_PROSJEKTET = HELE_PROSJEKTET_VALG; // "__hele_prosjektet__", delt med web (18)
+// (22) En utgått streng-verdi fra før (22) i bygningMap leses som intet valg — av filteret
+// (`manueltValg`) og av timer (`velgTimerByggeplass`), begge via `rensLagretByggeplassValg`.
+// (22) Når hvert manuelle valg ble gjort + hva GPS viste da ({prosjektId: ValgtTid}).
+// Egen nøkkel så bygningMap (delt med timer) beholder formatet.
+const VALGT_TID_KEY = "sitedoc_byggeplass_valgt_tid";
+// (22) Hvor ofte dagens siste timer-besøk leses lokalt (SQLite, billig).
+const BESOK_LES_MS = 30_000;
 // F1: per-byggeplass siste-tegning-minne. Erstatter de per-prosjekt-nøklede
 // `sitedoc_sist_tegning_{prosjektId}` i OpprettDokumentModal — flyttes hit så
 // ByggeplassKontekst er eneste kilde (mockup: «Husker siste tegning per byggeplass»).
@@ -49,7 +61,7 @@ const FAVORITT_KEY = "sitedoc_byggeplass_favoritter";
 // prosjekt — samme klasse som kollisjonssakene.)
 //
 // - Byggeplass: nøkkel `sistBruktByggeplass`, projectId=<prosjekt>, verdi = byggeplassId
-//   (eller HELE_PROSJEKTET-sentinel). Én rad per prosjekt.
+//   (eldre versjoner kan ha lagret en utgått streng-verdi; den leses som intet valg). Én rad per prosjekt.
 // - Tegning: nøkkel `sistBruktTegning`, projectId=<prosjekt>, verdi = liten map
 //   `{byggeplassId: tegningId}`. Én rad per prosjekt; mappen bærer byggeplass-dimensjonen
 //   (tegning er per byggeplass, men `projectId` har bare én dimensjon — cowork-rangering).
@@ -80,21 +92,17 @@ async function hentVerdi(key: string): Promise<string | null> {
 }
 
 interface ByggeplassKontekstType {
-  /** Aktiv byggeplass-id, eller null når ingen avgrensning gjelder (uvalgt ELLER
-   *  «Hele prosjektet»). Lister sender denne som `byggeplassId` → null = hele prosjektet. */
+  /** (22) Filterets byggeplass: ny innsjekk → GPS → sist valgte (nyeste hendelse vinner),
+   *  ellers null = «Velg byggeplass». Aldri «første». */
   valgtBygningId: string | null;
+  /** (22) Prosjektet har minst én byggeplass (null = lista ikke kjent ennå). */
+  harByggeplasser: boolean | null;
   /** (18) RETUR vilkår 2: byggeplass for Bekreft dag, innsjekk og ny timer-rad — lagret
    *  valg eller GPS, ellers null. Aldri (c) «første byggeplass» (som `valgtBygningId` kan være). */
   kontekstByggeplassId: string | null;
   /** Velg byggeplass. `prosjektId` (18) lagrer valget på det prosjektet i stedet for
    *  det aktive — den delte velgeren bytter prosjekt og byggeplass i samme trykk. */
   settBygning: (id: string, prosjektId?: string) => void;
-  /** True når brukeren EKSPLISITT valgte «Hele prosjektet». Skiller det bevisste
-   *  valget fra «ingen valgt ennå» (som GPS fortsatt kan fylle inn). */
-  erHeleProsjektet: boolean;
-  /** Velg «Hele prosjektet» — nullstiller byggeplass-filteret og hindrer at GPS
-   *  autovalg setter en byggeplass stille igjen. */
-  velgHeleProsjektet: (prosjektId?: string) => void;
   lasterBygningId: boolean;
   /** F1: siste brukte tegning for en gitt byggeplass (null hvis ingen). */
   hentSistTegning: (byggeplassId: string) => string | null;
@@ -111,10 +119,9 @@ interface ByggeplassKontekstType {
 
 const ByggeplassContext = createContext<ByggeplassKontekstType>({
   valgtBygningId: null,
+  harByggeplasser: null,
   kontekstByggeplassId: null,
   settBygning: () => {},
-  erHeleProsjektet: false,
-  velgHeleProsjektet: () => {},
   lasterBygningId: true,
   hentSistTegning: () => null,
   settSistTegning: () => {},
@@ -133,6 +140,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { bruker } = useAuth();
   const userId = bruker?.id ?? null;
   const [bygningMap, setBygningMap] = useState<Record<string, string>>({});
+  const [valgtTidMap, setValgtTidMap] = useState<Record<string, ValgtTid>>({});
   const [sistTegningMap, setSistTegningMap] = useState<Record<string, string>>({});
   const [gpsByggeplassId, setGpsByggeplassId] = useState<string | null>(null);
   const [favorittIder, setFavorittIder] = useState<string[]>([]);
@@ -174,12 +182,14 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function lastLagret() {
       try {
-        const [lagretBygning, lagretTegning, lagretFavoritt] = await Promise.all([
+        const [lagretBygning, lagretTegning, lagretFavoritt, lagretTid] = await Promise.all([
           hentVerdi(BYGGEPLASS_MAP_KEY),
           hentVerdi(SIST_TEGNING_MAP_KEY),
           hentVerdi(FAVORITT_KEY),
+          hentVerdi(VALGT_TID_KEY),
         ]);
         if (lagretBygning) setBygningMap(JSON.parse(lagretBygning));
+        if (lagretTid) setValgtTidMap(JSON.parse(lagretTid));
         if (lagretTegning) setSistTegningMap(JSON.parse(lagretTegning));
         if (lagretFavoritt) setFavorittIder(JSON.parse(lagretFavoritt));
       } catch {
@@ -201,18 +211,30 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   }, [userId]);
   useEffect(() => {
     const data = innstillingerQuery.data;
-    if (!data || serverMerget.current) return;
+    // (22) Vent på lokal lasting — ellers overskriver lastingen det flettede resultatet.
+    if (!data || serverMerget.current || lasterBygningId) return;
     serverMerget.current = true;
     // Kun rader med `projectId` satt teller — gamle globale fase-1-rader (projectId=null,
     // nøkler `sistByggeplassPerProsjekt`/`sistTegningPerByggeplass`) ignoreres bevisst.
     // verdi kommer som JSON-streng (se brukerinnstilling-router) — parse trygt.
     const nyBygg: Record<string, string> = {}; // {prosjektId: byggeplassId|sentinel}
+    const nyTid: Record<string, ValgtTid> = {}; // (22) serverradens tid (`oppdatert`)
     const nyTegnFlat: Record<string, string> = {}; // flat cache {byggeplassId: tegningId}
     for (const rad of data) {
       if (!rad.projectId) continue;
       if (rad.nokkel === SERVER_NOKKEL_BYGGEPLASS) {
         try {
-          nyBygg[rad.projectId] = JSON.parse(rad.verdi) as string;
+          // (22) Nyeste valg vinner: et lokalt valg skrevet etter serverraden (f.eks. offline,
+          // ennå ikke synket) står. Før (22): serveren vant alltid.
+          const serverTid = new Date(rad.oppdatert as unknown as string).getTime();
+          const tid = Number.isFinite(serverTid) ? serverTid : 0;
+          // GATE (49) V2: samme id som lokalt → behold lokale metadata (GPS ved valget).
+          const serverId = JSON.parse(rad.verdi) as string;
+          const meta = flettServerValg(bygningMap[rad.projectId], valgtTidMap[rad.projectId], serverId, tid);
+          if (meta) {
+            nyBygg[rad.projectId] = serverId;
+            nyTid[rad.projectId] = meta;
+          }
         } catch {
           // hopp over korrupt rad
         }
@@ -228,8 +250,13 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     }
     if (Object.keys(nyBygg).length > 0) {
       setBygningMap((prev) => {
-        const neste = { ...prev, ...nyBygg }; // server vinner ved konflikt
+        const neste = { ...prev, ...nyBygg }; // nyeste vinner (filtrert over)
         lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        return neste;
+      });
+      setValgtTidMap((prev) => {
+        const neste = { ...prev, ...nyTid };
+        lagreVerdi(VALGT_TID_KEY, JSON.stringify(neste)).catch(() => {});
         return neste;
       });
     }
@@ -240,7 +267,9 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
         return neste;
       });
     }
-  }, [innstillingerQuery.data, userId]);
+    // valgtTidMap og bygningMap leses bevisst kun ved flettingen (én gang pr. innlogging).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [innstillingerQuery.data, userId, lasterBygningId]);
 
   // (18) Prosjektets byggeplasser for standardvalget: server på nett (sortert på nummer),
   // ellers lokal katalog `byggeplass_nav_local`. React-query deduper mot velgerens kall.
@@ -255,26 +284,93 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     if (!userId) return [];
     return hentByggeplasserNavLokalt(valgtProsjektId, userId).map((b) => b.id);
   }, [valgtProsjektId, byggeplassQuery.data, userId]);
+  // (22) null = ukjent ennå (server laster, ingen lokal katalog) — da vises ikke «Velg byggeplass».
+  const harByggeplasser = useMemo<boolean | null>(() => {
+    if (!valgtProsjektId) return null;
+    if (prosjektByggeplassIder.length > 0) return true;
+    if (byggeplassQuery.data) return false;
+    return byggeplassQuery.isError ? false : null;
+  }, [valgtProsjektId, prosjektByggeplassIder, byggeplassQuery.data, byggeplassQuery.isError]);
 
-  // Sentinel-verdien HELE_PROSJEKTET betyr «ingen avgrensning» → valgtBygningId er
-  // null (lister sender ingen byggeplassId, akkurat som web «Hele prosjektet»).
-  // (18) Uten lagret valg står prosjektet på en byggeplass, ikke «Hele prosjektet»:
-  // (a) sist brukt (= lagret map, speilet fra server) → (b) GPS → (c) første. Standarden
-  // er avledet, ikke lagret — et lagret valg røres ikke, og GPS kan gi annen neste gang.
+  // (22) Innsjekk, kilde 1: PSI `minStatus` (kun når PSI-modulen er aktiv — kaster ellers).
+  const modulQuery = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId ?? "" },
+    { enabled: !!valgtProsjektId },
+  );
+  const psiAktiv = psiModulAktiv(modulQuery.data as { moduleSlug: string; status?: string }[] | undefined);
+  const psiStatus = trpc.mannskap.minStatus.useQuery(
+    { projectId: valgtProsjektId ?? "" },
+    { enabled: !!valgtProsjektId && psiAktiv, retry: false, staleTime: 60_000 },
+  );
+  // (22) Innsjekk, kilde 2: dagens siste timer-besøk (lokalt, kun lesing) på dette prosjektet.
+  const [besokInnsjekk, setBesokInnsjekk] = useState<{ id: string | null; tid: number } | null>(null);
+  useEffect(() => {
+    if (!valgtProsjektId || !userId) {
+      setBesokInnsjekk(null);
+      return;
+    }
+    const les = () => {
+      try {
+        const db = hentDatabase();
+        if (!db) return setBesokInnsjekk(null);
+        const dag = db
+          .select()
+          .from(arbeidsdagLocal)
+          .where(and(eq(arbeidsdagLocal.userId, userId), eq(arbeidsdagLocal.status, "paagaar")))
+          .orderBy(desc(arbeidsdagLocal.startAt))
+          .all()[0];
+        const besok = dag ? sisteBesok(db, dag.id) : null;
+        const tid = besok ? Date.parse(besok.ankomstAt) : Number.NaN;
+        setBesokInnsjekk((forrige) => {
+          const neste =
+            besok && besok.prosjektId === valgtProsjektId && Number.isFinite(tid)
+              ? { id: besok.byggeplassId ?? null, tid }
+              : null;
+          return forrige?.id === neste?.id && forrige?.tid === neste?.tid ? forrige : neste;
+        });
+      } catch {
+        setBesokInnsjekk(null);
+      }
+    };
+    les();
+    const iv = setInterval(les, BESOK_LES_MS);
+    const sub = AppState.addEventListener("change", (t) => {
+      if (t === "active") les();
+    });
+    return () => {
+      clearInterval(iv);
+      sub.remove();
+    };
+  }, [valgtProsjektId, userId]);
+  const innsjekk = useMemo(() => {
+    const s = psiAktiv ? psiStatus.data : null;
+    const psi = s
+      ? { id: s.byggeplassId ?? null, tid: new Date(s.innsjekkTid as unknown as string).getTime() }
+      : null;
+    return nyesteInnsjekk([psi, besokInnsjekk]);
+  }, [psiAktiv, psiStatus.data, besokInnsjekk]);
+
+  // (22) Filterets byggeplass: ny innsjekk → GPS → sist valgte → null («Velg byggeplass»).
+  // Nyeste hendelse vinner; et manuelt valg står til nyere innsjekk eller GPS-treff på en annen
+  // byggeplass enn GPS viste da valget ble gjort. Aldri «første».
+  // Avledet, ikke lagret — innsjekk og GPS skrives aldri som valg.
   const valgtBygningId = useMemo(() => {
     if (!valgtProsjektId || lasterBygningId) return null;
-    const valg = velgStandardByggeplass({
+    return velgFilterByggeplass({
       byggeplassIder: prosjektByggeplassIder,
-      lagret: bygningMap[valgtProsjektId] ?? null,
-      gpsNaermeste: gpsByggeplassId,
+      innsjekk,
+      gps: gpsByggeplassId,
+      manuelt: manueltValg(bygningMap, valgtTidMap, valgtProsjektId),
     });
-    if (valg === null) {
-      // 0 byggeplasser (eller ukjent liste): uendret — lagret verdi som før.
-      const raa = bygningMap[valgtProsjektId] ?? null;
-      return raa === HELE_PROSJEKTET ? null : raa;
-    }
-    return valg === HELE_PROSJEKTET ? null : valg;
-  }, [valgtProsjektId, lasterBygningId, prosjektByggeplassIder, bygningMap, gpsByggeplassId]);
+  }, [
+    valgtProsjektId,
+    lasterBygningId,
+    prosjektByggeplassIder,
+    innsjekk,
+    gpsByggeplassId,
+    bygningMap,
+    valgtTidMap,
+  ]);
 
   const kontekstByggeplassId = useMemo(() => {
     if (!valgtProsjektId || lasterBygningId) return null;
@@ -285,11 +381,6 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
       gpsNaermeste: gpsByggeplassId,
     });
   }, [valgtProsjektId, lasterBygningId, prosjektByggeplassIder, bygningMap, gpsByggeplassId]);
-
-  const erHeleProsjektet = useMemo(
-    () => (valgtProsjektId ? bygningMap[valgtProsjektId] === HELE_PROSJEKTET : false),
-    [valgtProsjektId, bygningMap],
-  );
 
   // (18) `prosjektId` overstyrer det aktive prosjektet: den delte velgeren kaller
   // byttProsjekt(p) + settBygning(id, p) i samme trykk, før valgtProsjektId er oppdatert.
@@ -305,23 +396,16 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
         synkTilServer(SERVER_NOKKEL_BYGGEPLASS, id, pid);
         return neste;
       });
-    },
-    [valgtProsjektId, synkTilServer],
-  );
-
-  const velgHeleProsjektet = useCallback(
-    (prosjektId?: string) => {
-      const pid = prosjektId ?? valgtProsjektId;
-      if (!pid) return;
-      setBygningMap((prev) => {
-        const neste = oppdaterBygningMap(prev, pid, HELE_PROSJEKTET);
-        lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
-        // Sentinel-verdien lagres eksplisitt per prosjekt (samme som lokal).
-        synkTilServer(SERVER_NOKKEL_BYGGEPLASS, HELE_PROSJEKTET, pid);
+      // (22) Tidsstempel + hva GPS viste da (GPS på samme byggeplass overstyrer ikke valget).
+      // GPS gjelder bare det aktive prosjektet.
+      const gps = pid === valgtProsjektId ? gpsByggeplassId : null;
+      setValgtTidMap((prev) => {
+        const neste = { ...prev, [pid]: { tid: Date.now(), gps } };
+        lagreVerdi(VALGT_TID_KEY, JSON.stringify(neste)).catch(() => {});
         return neste;
       });
     },
-    [valgtProsjektId, synkTilServer],
+    [valgtProsjektId, synkTilServer, gpsByggeplassId],
   );
 
   // F3: GPS-identifiser byggeplass (best-effort — kun hvis posisjon ALLEREDE er
@@ -364,7 +448,13 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
             if (!iProsjekt) return prev;
             const neste = { ...prev, [valgtProsjektId]: bygg.id };
             lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
-            synkTilServer(SERVER_NOKKEL_BYGGEPLASS, bygg.id, valgtProsjektId);
+            // (22) GPS lagres aldri som manuelt valg: merkes `auto` lokalt og speiles ikke
+            // lenger til brukerminnet (der ville web og andre enheter lest det som valg).
+            setValgtTidMap((p) => {
+              const n = { ...p, [valgtProsjektId]: { tid: 0, auto: true } };
+              lagreVerdi(VALGT_TID_KEY, JSON.stringify(n)).catch(() => {});
+              return n;
+            });
             return neste;
           });
         }
@@ -375,7 +465,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     return () => {
       aktiv = false;
     };
-  }, [valgtProsjektId, valgtFirmaId, lasterBygningId, synkTilServer]);
+  }, [valgtProsjektId, valgtFirmaId, lasterBygningId]);
 
   const hentSistTegning = useCallback(
     (byggeplassId: string) => sistTegningMap[byggeplassId] ?? null,
@@ -415,10 +505,9 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     <ByggeplassContext.Provider
       value={{
         valgtBygningId,
+        harByggeplasser,
         kontekstByggeplassId,
         settBygning,
-        erHeleProsjektet,
-        velgHeleProsjektet,
         lasterBygningId,
         hentSistTegning,
         settSistTegning,

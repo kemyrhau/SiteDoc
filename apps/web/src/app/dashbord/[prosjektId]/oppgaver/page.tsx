@@ -9,6 +9,7 @@ import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type 
 import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { ByggeplassFilterPort } from "@/components/ByggeplassFilterPort";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { Plus, Search, ChevronDown, ChevronRight, Scale } from "lucide-react";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
@@ -1049,6 +1050,7 @@ export default function OppgaverSide() {
         </div>
       )}
 
+      <ByggeplassFilterPort>
       {!oppgaver?.length ? (
         <EmptyState
           title={t("oppgaver.ingen")}
@@ -1075,6 +1077,7 @@ export default function OppgaverSide() {
           />
         </FlyttbareKolonner>
       )}
+      </ByggeplassFilterPort>
 
       <Modal
         open={visModal}

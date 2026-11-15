@@ -164,7 +164,7 @@ interface OmradeData {
 export default function LokasjonerSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, erHeleProsjektet, settBygning, settSistTegning } = useByggeplass();
+  const { valgtBygningId, settBygning, settSistTegning } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
@@ -372,15 +372,8 @@ export default function LokasjonerSkjerm() {
     [omradeQuery.data, detaljSpeil],
   );
 
-  // Auto-velg første bygning hvis ingen er valgt (og ingen dyplenke satte den).
-  // MEN ikke når brukeren eksplisitt valgte «Hele prosjektet» — da ville dette
-  // skjult-skrive en byggeplass til den globale konteksten og slå filteret på
-  // igjen på tvers av alle skjermer (nøyaktig feilen vi retter).
-  useEffect(() => {
-    if (!valgtBygningId && !erHeleProsjektet && bygninger.length > 0 && bygninger[0]) {
-      settBygning(bygninger[0].id);
-    }
-  }, [valgtBygningId, erHeleProsjektet, bygninger, settBygning]);
+  // (22) Ingen auto-valg av første byggeplass: uten valg viser headeren «Velg bygning»
+  // og brukeren velger selv (aldri gjett, og aldri skriv et gjett som manuelt valg).
 
   const lasterData = bygningQuery.isLoading || tegningQuery.isLoading;
 

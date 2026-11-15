@@ -1,12 +1,9 @@
 // @vitest-environment jsdom
 /**
- * ORDRE 2026-11-15 (18) RETUR — GATE (42) vilkår 1 og 3 (web `ByggeplassProvider`).
+ * Web `ByggeplassProvider` — ORDRE (18) RETUR vilkår 1, (20) og (22) «husk siste valg».
  *
- * 1. Byggeplass valgt i et annet prosjekt (KontekstChip: lagre for prosjekt B, så bytt
- *    prosjekt) skal stå. A1-standardvalget skal ikke overskrive det før lagret valg for B
- *    er lest inn.
- * 3. Prosjekt med 0 byggeplasser: resten fjernes uten sentinel — «Hele prosjektet» lagres
- *    bare ved eget trykk.
+ * (22): ny innsjekk → sist valgte → «Velg byggeplass» (null). Aldri «første»; gammel
+ * streng-verdi fra før (22) i lageret leses som intet valg. Nyeste hendelse vinner.
  */
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,14 +12,13 @@ const h = vi.hoisted(() => ({
   prosjektId: "A" as string | null,
   lister: {} as Record<string, { id: string; name: string; number: number }[]>,
   lager: {} as Record<string, string>,
-  brukerminne: [] as { projectId: string; nokkel: string; verdi: string }[],
+  brukerminne: [] as { projectId: string; nokkel: string; verdi: string; oppdatert: string }[],
+  psi: false,
+  status: null as null | { byggeplassId: string | null; innsjekkTid: string },
 }));
 
 vi.mock("@/kontekst/prosjekt-kontekst", () => ({
   useProsjekt: () => ({ prosjektId: h.prosjektId }),
-}));
-vi.mock("@/kontekst/firma-kontekst", () => ({
-  useFirma: () => ({ valgtFirma: { id: "f1" } }),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {} }),
@@ -41,6 +37,10 @@ vi.mock("@/lib/trpc", () => {
               return { data: h.lister[input?.projectId ?? ""], isLoading: false };
             }
             if (key === "brukerinnstilling.hent") return { data: h.brukerminne, isLoading: false };
+            if (key === "modul.hentForProsjekt") {
+              return { data: h.psi ? [{ moduleSlug: "psi", status: "aktiv" }] : [], isLoading: false };
+            }
+            if (key === "mannskap.minStatus") return { data: h.status, isLoading: false };
             return { data: undefined, isLoading: false };
           };
         }
@@ -54,7 +54,9 @@ vi.mock("@/lib/trpc", () => {
 });
 
 import { ByggeplassProvider, useByggeplass } from "../byggeplass-kontekst";
-import { HELE_PROSJEKTET_VALG } from "@sitedoc/shared";
+
+/** Lest legacy-data: strengen eldre versjoner lagret (før TILLEGG (22)). */
+const UTGAATT = "__hele_prosjektet__";
 
 const NOKKEL = "sitedoc-aktiv-bygning";
 type Kontekst = ReturnType<typeof useByggeplass>;
@@ -70,6 +72,8 @@ const tre = () => (
   </ByggeplassProvider>
 );
 const lagret = (): Record<string, unknown> => JSON.parse(h.lager[NOKKEL] ?? "{}");
+const T0 = Date.parse("2026-11-15T07:00:00Z");
+const iso = (ms: number) => new Date(ms).toISOString();
 
 beforeEach(() => {
   h.lager = {};
@@ -91,6 +95,8 @@ beforeEach(() => {
     C: [],
   };
   h.brukerminne = [];
+  h.psi = false;
+  h.status = null;
   siste = null;
 });
 afterEach(() => {
@@ -98,7 +104,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("vilkår 1 — valg i annet prosjekt overskrives ikke", () => {
+describe("(18) vilkår 1 — valg i annet prosjekt overskrives ikke", () => {
   it("velg B2 i prosjekt B fra prosjekt A → B2 står etter prosjektbyttet", () => {
     h.prosjektId = "A";
     h.lager[NOKKEL] = JSON.stringify({ A: { id: "a1", name: "A1", number: 1 } });
@@ -113,91 +119,132 @@ describe("vilkår 1 — valg i annet prosjekt overskrives ikke", () => {
     expect(siste?.aktivByggeplass?.id).toBe("b2");
     expect((lagret().B as { id: string }).id).toBe("b2");
   });
-
-  // Negativkontroll: uten lagret valg for B gjelder standardvalget fortsatt (c) første.
-  it("negativkontroll: uten lagret valg for B velges første byggeplass", () => {
-    h.prosjektId = "A";
-    h.lager[NOKKEL] = JSON.stringify({ A: { id: "a1", name: "A1", number: 1 } });
-    const { rerender } = render(tre());
-    h.prosjektId = "B";
-    rerender(tre());
-    expect(siste?.aktivByggeplass?.id).toBe("b1");
-  });
 });
 
-describe("vilkår 3 — 0 byggeplasser lagres ikke som «Hele prosjektet»", () => {
-  it("prosjekt uten byggeplasser med rest i lageret → nøkkelen fjernes, ingen sentinel", () => {
-    h.prosjektId = "C";
-    h.lager[NOKKEL] = JSON.stringify({ C: { id: "borte", name: "Borte", number: 9 } });
-    render(tre());
-    expect(siste?.aktivByggeplass).toBeNull();
-    expect(siste?.erHeleProsjektet).toBe(false);
-    expect("C" in lagret()).toBe(false);
-  });
-
-  it("får prosjektet byggeplasser senere, gjelder standardvalget", () => {
-    h.prosjektId = "C";
-    h.lager[NOKKEL] = JSON.stringify({ C: { id: "borte", name: "Borte", number: 9 } });
-    const { rerender } = render(tre());
-    h.lister.C = [{ id: "c1", name: "C1", number: 1 }];
-    rerender(tre());
-    expect(siste?.aktivByggeplass?.id).toBe("c1");
-  });
-
-  // Negativkontroll: eget trykk på «Hele prosjektet» lagrer fortsatt sentinel og huskes.
-  it("negativkontroll: eget trykk på «Hele prosjektet» lagrer sentinel", () => {
+describe("(22) aldri gjett — «Velg byggeplass»", () => {
+  // Negativkontroll mot gammel atferd (A1 (c) «første»): uten valg og innsjekk → null.
+  it("uten lagret valg og innsjekk: ingen byggeplass (ikke første)", () => {
     h.prosjektId = "B";
     render(tre());
-    act(() => siste!.velgByggeplass(null));
-    expect(lagret().B).toBe(HELE_PROSJEKTET_VALG);
-    expect(siste?.erHeleProsjektet).toBe(true);
     expect(siste?.aktivByggeplass).toBeNull();
-  });
-});
-
-/**
- * ORDRE 2026-11-15 (20) punkt 1: nye dokumenter får lagret/eget valg, ellers ingen byggeplass —
- * aldri A1-forvalget (c) «første». Velgeren (aktivByggeplass) viser fortsatt forvalget.
- */
-describe("(20) opprettByggeplass — ingen gjett", () => {
-  it("uten lagret valg: velgeren viser første, nye dokumenter får ingen byggeplass", () => {
-    h.prosjektId = "B";
-    render(tre());
-    expect(siste?.aktivByggeplass?.id).toBe("b1");
-    expect(siste?.opprettByggeplass).toBeNull();
-    expect(siste?.opprettTegning).toBeNull();
-    // Forvalget lagres ikke — ellers leses gjettet neste gang som lagret valg.
+    expect(siste?.harByggeplasser).toBe(true);
+    expect(siste?.byggeplasserLastet).toBe(true);
     expect("B" in lagret()).toBe(false);
   });
 
-  it("lagret valg i nettleseren følger med nye dokumenter", () => {
+  it("gammel streng-verdi fra før (22) i lageret leses som intet valg", () => {
     h.prosjektId = "B";
-    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b2", name: "B2", number: 2 } });
+    h.lager[NOKKEL] = JSON.stringify({ B: UTGAATT });
     render(tre());
-    expect(siste?.opprettByggeplass?.id).toBe("b2");
+    expect(siste?.aktivByggeplass).toBeNull();
+    expect(siste?.opprettByggeplass).toBeNull();
   });
 
-  it("sist brukt fra brukerminnet følger med nye dokumenter", () => {
+  it("lagret byggeplass som ikke finnes i prosjektet → ingen byggeplass", () => {
     h.prosjektId = "B";
-    h.brukerminne = [{ projectId: "B", nokkel: "sistBruktByggeplass", verdi: JSON.stringify("b2") }];
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "borte", name: "Borte", number: 9 } });
+    render(tre());
+    expect(siste?.aktivByggeplass).toBeNull();
+  });
+
+  it("prosjekt uten byggeplasser: harByggeplasser false, ingen valg", () => {
+    h.prosjektId = "C";
+    render(tre());
+    expect(siste?.aktivByggeplass).toBeNull();
+    expect(siste?.harByggeplasser).toBe(false);
+    expect(siste?.byggeplasserLastet).toBe(true);
+  });
+});
+
+describe("(22) husk siste valg", () => {
+  it("lagret valg i nettleseren gjelder etter last og følger nye dokumenter", () => {
+    h.prosjektId = "B";
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b2", name: "B2", number: 2, tid: T0 } });
     render(tre());
     expect(siste?.aktivByggeplass?.id).toBe("b2");
     expect(siste?.opprettByggeplass?.id).toBe("b2");
   });
 
-  it("eget valg i velgeren etter forvalget følger med nye dokumenter", () => {
+  it("eldre lagringsformat uten tid leses fortsatt", () => {
+    h.prosjektId = "B";
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b2", name: "B2", number: 2 } });
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b2");
+  });
+
+  it("brukerminnet (annen enhet) brukes når nettleseren ikke har valg", () => {
+    h.prosjektId = "B";
+    h.brukerminne = [{ projectId: "B", nokkel: "sistBruktByggeplass", verdi: JSON.stringify("b2"), oppdatert: iso(T0) }];
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b2");
+    expect(siste?.opprettByggeplass?.id).toBe("b2");
+  });
+
+  it("nyeste av nettleser og brukerminne vinner", () => {
+    h.prosjektId = "B";
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b1", name: "B1", number: 1, tid: T0 } });
+    h.brukerminne = [{ projectId: "B", nokkel: "sistBruktByggeplass", verdi: JSON.stringify("b2"), oppdatert: iso(T0 + 60_000) }];
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b2");
+  });
+
+  // Negativkontroll: eldre brukerminne slår ikke nyere lokalt valg.
+  it("negativkontroll: eldre brukerminne taper mot nyere lokalt valg", () => {
+    h.prosjektId = "B";
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b1", name: "B1", number: 1, tid: T0 + 60_000 } });
+    h.brukerminne = [{ projectId: "B", nokkel: "sistBruktByggeplass", verdi: JSON.stringify("b2"), oppdatert: iso(T0) }];
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b1");
+  });
+
+  it("eget valg lagres med tid og følger nye dokumenter", () => {
     h.prosjektId = "B";
     render(tre());
     expect(siste?.opprettByggeplass).toBeNull();
     act(() => siste!.velgByggeplass({ id: "b1", name: "B1", number: 1 }));
+    expect(siste?.aktivByggeplass?.id).toBe("b1");
     expect(siste?.opprettByggeplass?.id).toBe("b1");
-    expect((lagret().B as { id: string }).id).toBe("b1");
+    const rad = lagret().B as { id: string; tid: number };
+    expect(rad.id).toBe("b1");
+    expect(typeof rad.tid).toBe("number");
+  });
+});
+
+describe("(22) innsjekk — nyeste hendelse vinner", () => {
+  it("ny innsjekk på annen byggeplass åpner den", () => {
+    h.prosjektId = "B";
+    h.psi = true;
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b1", name: "B1", number: 1, tid: T0 } });
+    h.status = { byggeplassId: "b2", innsjekkTid: iso(T0 + 60_000) };
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b2");
+    // Innsjekk-avledet filter setter ikke byggeplass på nye dokumenter (kun eget valg).
+    expect(siste?.opprettByggeplass).toBeNull();
   });
 
-  it("«Hele prosjektet» valgt → ingen byggeplass", () => {
+  it("eget valg etter innsjekken står til neste innsjekk", () => {
     h.prosjektId = "B";
-    h.lager[NOKKEL] = JSON.stringify({ B: HELE_PROSJEKTET_VALG });
+    h.psi = true;
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b1", name: "B1", number: 1, tid: T0 + 120_000 } });
+    h.status = { byggeplassId: "b2", innsjekkTid: iso(T0 + 60_000) };
     render(tre());
-    expect(siste?.opprettByggeplass).toBeNull();
+    expect(siste?.aktivByggeplass?.id).toBe("b1");
+  });
+
+  it("innsjekk uten noe lagret valg gir byggeplassen", () => {
+    h.prosjektId = "B";
+    h.psi = true;
+    h.status = { byggeplassId: "b2", innsjekkTid: iso(T0) };
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b2");
+  });
+
+  // Negativkontroll: PSI ikke aktiv → innsjekk brukes ikke (minStatus kalles ikke).
+  it("negativkontroll: PSI av → innsjekk ignoreres", () => {
+    h.prosjektId = "B";
+    h.psi = false;
+    h.status = { byggeplassId: "b2", innsjekkTid: iso(T0) };
+    render(tre());
+    expect(siste?.aktivByggeplass).toBeNull();
   });
 });

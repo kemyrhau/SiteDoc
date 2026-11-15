@@ -101,7 +101,7 @@ export function KontekstChip() {
     gjesteprosjekter,
     velgProsjekt,
   } = useProsjekt();
-  const { aktivByggeplass, erHeleProsjektet, velgByggeplass } = useByggeplass();
+  const { aktivByggeplass, velgByggeplass } = useByggeplass();
   // ⇄-utledning: nav-elementene (begge tilgangs-/modul-filtrert i sine hooks).
   const firmaNav = useFirmaNavElementer();
   const { filtrertHovedelementer } = useSidebarElementer();
@@ -379,8 +379,8 @@ export function KontekstChip() {
     setApen(true);
   }
 
-  // Firmabytte: velgFirma nullstiller nedover via effekter i prosjekt-/
-  // byggeplass-kontekst. Traktens jobb er å avansere til prosjekt-steget.
+  // Firmabytte: velgFirma nullstiller nedover via effekter i prosjekt-kontekst
+  // (byggeplassvalget er nøklet på prosjekt, 22). Traktens jobb er å avansere til prosjekt-steget.
   function velgFirmaTrakt(id: string) {
     velgFirma(id);
     setMarkertId(null);
@@ -398,13 +398,13 @@ export function KontekstChip() {
     setMarkertId(h.prosjektId);
     setByggeplassSøk("");
   }
-  // (18) Trykk på byggeplass (eller «Hele prosjektet») velger prosjekt + byggeplass og
-  // lukker. Valget lagres på det MARKERTE prosjektet før prosjektbyttet, så
-  // byggeplass-konteksten leser det inn når prosjektet blir aktivt.
-  function velgByggeplassTrakt(b: Byggeplass | null) {
+  // (18) Trykk på byggeplass velger prosjekt + byggeplass og lukker. Valget lagres på det
+  // MARKERTE prosjektet før prosjektbyttet, så byggeplass-konteksten leser det inn når
+  // prosjektet blir aktivt. (22) Kun byggeplasser er valg.
+  function velgByggeplassTrakt(b: Byggeplass) {
     if (!markertId) return;
-    const v = vedByggeplassTrykk(markertId, b?.id ?? null);
-    velgByggeplass(b ? { id: b.id, name: b.name, number: b.number } : null, v.prosjektId);
+    const v = vedByggeplassTrykk(markertId, b.id);
+    velgByggeplass({ id: b.id, name: b.name, number: b.number }, v.prosjektId);
     if (v.prosjektId !== prosjektId) velgProsjekt(v.prosjektId);
     setApen(false);
   }
@@ -413,7 +413,6 @@ export function KontekstChip() {
       markertProsjektId: markertId,
       valgtProsjektId: prosjektId ?? null,
       valgtBygningId: aktivByggeplass?.id ?? null,
-      erHeleProsjektet,
       byggeplassId,
     });
   const antallTekst = (id: string): string | undefined => {
@@ -590,7 +589,7 @@ export function KontekstChip() {
           etikettKlasse="text-[#1e40af]"
           verdi={
             valgtProsjekt
-              ? `${prosjektEtikett}${harByggeplasser ? ` · ${aktivByggeplass?.name ?? t("kontekstChip.heleProsjektet")}` : ""}`
+              ? `${prosjektEtikett}${harByggeplasser ? ` · ${aktivByggeplass?.name ?? t("byggeplass.velgByggeplass")}` : ""}`
               : prosjektTekst
           }
           kanEndre
@@ -605,7 +604,7 @@ export function KontekstChip() {
 
       {/* --- BYGGEPLASSER FOR MARKERT PROSJEKT (18) ------------------ */}
       {/* Under prosjektlista: byggeplassene til det markerte prosjektet, aktiv avhuket.
-          «Hele prosjektet» står nederst. Markert prosjekt uten byggeplasser → ingen liste
+          (22) Kun byggeplass-rader. Markert prosjekt uten byggeplasser → ingen liste
           (trykk på det velger direkte). */}
       {åpentNivå === "prosjekt" &&
         (!markertId ? (
@@ -632,12 +631,6 @@ export function KontekstChip() {
                 </>
               )}
               {øvrigeByggeplass.map(byggeplassRad)}
-              <TraktRad
-                tittel={t("kontekstChip.heleProsjektet")}
-                valgt={erAvhuket(null)}
-                onVelg={() => velgByggeplassTrakt(null)}
-                handling={avhuking(erAvhuket(null))}
-              />
             </div>
           </div>
         ) : null)}
@@ -741,6 +734,16 @@ export function KontekstChip() {
                 <span className="ml-1 min-w-0 truncate whitespace-nowrap text-blue-200/70">
                   · {aktivByggeplass.name}
                 </span>
+              )}
+              {/* (22) Prosjektet har byggeplasser, men ingen er valgt: be brukeren velge. */}
+              {valgtProsjekt && !aktivByggeplass && harByggeplasser && (
+                <button
+                  type="button"
+                  onClick={åpne}
+                  className="ml-1 min-w-0 truncate whitespace-nowrap text-amber-200 underline-offset-2 hover:underline"
+                >
+                  · {t("byggeplass.velgByggeplass")}
+                </button>
               )}
             </span>
             {velgerKnapper}

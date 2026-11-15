@@ -81,7 +81,7 @@ export default function TegningerTab() {
   const router = useRouter();
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, velgHeleProsjektet, hentSistTegning } = useByggeplass();
+  const { valgtBygningId, hentSistTegning } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
@@ -91,7 +91,7 @@ export default function TegningerTab() {
 
   // B (bygg 50): tegninger var eneste skjerm som ignorerte den aktive byggeplassen.
   // Send `byggeplassId` når en byggeplass er valgt (serveren filtrerer hardt,
-  // `tegning.ts:57`); ved «Hele prosjektet» (valgtBygningId == null) sendes den ikke,
+  // `tegning.ts:57`); uten valgt byggeplass (valgtBygningId == null) sendes den ikke,
   // og dagens gruppering per byggeplass-navn beholdes.
   // RETUR 2: spør serveren KUN online; offline leses lista fra det lokale speilet.
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
@@ -172,13 +172,12 @@ export default function TegningerTab() {
       );
     });
     // Filtrert visning (byggeplass valgt): flat liste uten gruppering. Byggeplass-
-    // løse tegninger dukker nå opp (mykt filter) og merkes «Hele prosjektet» på raden
-    // — et eget «Uten byggeplass»-gruppehode I TILLEGG til badge ville vært dobbel-
-    // merking (avvik 3, godkjent). Tom tittel → intet seksjonshode.
+    // løse tegninger dukker opp (mykt filter) uten merking (TILLEGG (22)).
+    // Tom tittel → intet seksjonshode.
     if (valgtBygningId != null) {
       return [{ tittel: "", data: to_d }];
     }
-    // «Hele prosjektet»: behold grupperingen per byggeplass — gruppehodene ER
+    // Uten valgt byggeplass: behold grupperingen per byggeplass — gruppehodene ER
     // tilhørigheten, så radene bærer ingen badge her.
     const grupper = new Map<string, TegningRad[]>();
     for (const tg of to_d) {
@@ -270,19 +269,17 @@ export default function TegningerTab() {
         </View>
       )}
 
-      {/* B Krav 2: si eksplisitt at lista er avkortet av byggeplass-filteret, med
-          vei ut til hele prosjektet. Gjenbruker chippens tekst + `velgHeleProsjektet`
-          (tegninger-tab-en monterer ikke selve ByggeplassChip). */}
+      {/* B Krav 2: si eksplisitt at lista er avkortet av byggeplass-filteret.
+          (22) Byggeplass byttes i toppvelgeren. */}
       {valgtBygningId != null && (
-        <Pressable
-          onPress={() => velgHeleProsjektet()}
-          className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 active:bg-amber-100"
+        <View
+          className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2"
         >
           <MapPin size={14} color="#d97706" />
           <Text className="flex-1 text-xs text-amber-700" numberOfLines={1}>
-            {t("byggeplass.filtrererListe")}
+            {t("byggeplass.viserByggeplassOgUtenByggeplass")}
           </Text>
-        </Pressable>
+        </View>
       )}
 
       {/* B Krav 3: søk på navn + tegningsnummer (prosjekter med 30-40 tegninger). */}
@@ -392,14 +389,6 @@ export default function TegningerTab() {
                   <Text className="mt-0.5 text-xs text-gray-400">
                     {radMetaTekst(item, t)}
                   </Text>
-                  {/* Filtrert visning: byggeplass-løse tegninger merkes «Hele
-                      prosjektet» (grå). Selve byggeplassens tegninger er hjemme →
-                      ingen badge. I gruppert visning gjør gruppehodet jobben. */}
-                  {valgtBygningId != null && item.byggeplass == null ? (
-                    <Text className="mt-1 self-start rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500">
-                      {t("kontekstChip.heleProsjektet")}
-                    </Text>
-                  ) : null}
                 </View>
                 <ChevronRight size={16} color="#9ca3af" />
               </Pressable>

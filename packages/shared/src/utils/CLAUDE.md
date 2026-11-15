@@ -300,9 +300,9 @@ Fasit: `tegningNedlasting.test.ts`.
 
 ### Prosjekt- og byggeplassvelger (`standardByggeplass.ts`, `prosjektByggeplassValg.ts`, ordre 2026-11-15 (18))
 
-- `velgStandardByggeplass({ byggeplassIder, lagret, sistBrukt?, gpsNaermeste? })` → byggeplass-id | `HELE_PROSJEKTET_VALG` | null. Et lagret valg står. Uten lagret valg: (a) sist brukt, så (b) GPS, så (c) første. «Hele prosjektet» kommer bare fra et eksplisitt lagret valg eller fra brukerminnet. 0 byggeplasser → null.
-- `velgTimerByggeplass(samme input)` → id | null: forbrukerverdien for mobil Bekreft dag, innsjekk og ny timer-rad. Lagret valg eller GPS, ellers null, aldri (c) (GATE (42) vilkår 2). Ukjent liste gir lagret verdi som før.
-- `HELE_PROSJEKTET_VALG = "__hele_prosjektet__"`: sentinel for et eksplisitt «Hele prosjektet» (mobil `bygningMap`, web `sitedoc-aktiv-bygning`).
+- `velgTimerByggeplass({ byggeplassIder, lagret, gpsNaermeste? })` → id | null: forbrukerverdien for mobil Bekreft dag, innsjekk og ny timer-rad. Lagret valg i lista, så GPS, ellers null — aldri «første» (GATE (42) vilkår 2). Ukjent liste (0 ider) gir renset lagret verdi. `velgByggeplassUtenGjett` er samme funksjon.
+- `velgFilterByggeplass(...)`: toppfilteret (web + mobil) — ny innsjekk → GPS → sist valgte → null («Velg byggeplass»). Aldri «første».
+- `rensLagretByggeplassValg(id)` → id | null: tom verdi og den utgåtte strengen eldre app-versjoner lagret for «hele prosjektet» (før TILLEGG (22), 2026-11-15) leses som intet valg (null). Verdien eksporteres ikke; den finnes kun som lest legacy-data.
 - `prosjektByggeplassValg.ts` er ren velgerlogikk for mobil `ProsjektVelger` og web `KontekstChip`:
   - `velgByggeplassKilde`: server eller lokal katalog;
   - `antallByggeplasser`;

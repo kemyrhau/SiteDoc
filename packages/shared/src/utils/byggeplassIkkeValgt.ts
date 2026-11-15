@@ -2,8 +2,7 @@
  * ORDRE (20) linja + (20b) (Kenneth-vedtak 2026-11-15): «Byggeplass ikke valgt · Velg» øverst i
  * sjekkliste/oppgave (mobil + web).
  *
- * «Hele prosjektet» er kun et visningsfilter — aldri en verdi på dokumentet. I et prosjekt med
- * byggeplasser hører hvert dokument til én byggeplass; mangler den, ber linja om valg.
+ * I et prosjekt med byggeplasser hører hvert dokument til én byggeplass; mangler den, ber linja om valg.
  */
 export interface ByggeplassIkkeValgtInput {
   byggeplassId: string | null | undefined;

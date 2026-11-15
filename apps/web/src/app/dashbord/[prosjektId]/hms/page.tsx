@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { ByggeplassFilterPort } from "@/components/ByggeplassFilterPort";
 import { Spinner, Modal, SearchInput } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
@@ -478,6 +479,8 @@ export default function HmsSide() {
       )}
 
       {/* Tab-innhold */}
+      {/* (22) Avvik/SJA/RUH følger valgt byggeplass; uten valg «Velg byggeplass». */}
+      <ByggeplassFilterPort>
       {aktivTab === "avvik" && (
         <AvvikTabell
           rader={filtrer(avvik)}
@@ -504,6 +507,7 @@ export default function HmsSide() {
           mineIder={mineIder}
         />
       )}
+      </ByggeplassFilterPort>
       {aktivTab === "statistikk" && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <MånedSøyler data={månederData} label={t("hms.stat.avvikPerManed")} />

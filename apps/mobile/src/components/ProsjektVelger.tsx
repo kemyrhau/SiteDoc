@@ -45,15 +45,15 @@ interface ProsjektRadVisning {
 /**
  * (18) Delt prosjekt- og byggeplassvelger. Prosjektlista øverst (inkl. «Prosjekter i
  * andre firma»), byggeplassene for det MARKERTE prosjektet under. Trykk på prosjekt
- * markerer; trykk på byggeplass (eller «Hele prosjektet») velger begge og lukker.
+ * markerer; trykk på byggeplass velger begge og lukker. (22) Kun byggeplasser er
+ * ikke et valg.
  * Prosjekt med 0 byggeplasser, eller uten lokal katalog offline, velges direkte.
  * Ren logikk: `utils/prosjektByggeplassValg.ts`.
  */
 export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
   const { t } = useTranslation();
   const { valgtProsjektId, byttProsjekt } = useProsjekt();
-  const { valgtBygningId, erHeleProsjektet, settBygning, velgHeleProsjektet, gpsByggeplassId } =
-    useByggeplass();
+  const { valgtBygningId, settBygning, gpsByggeplassId } = useByggeplass();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
   const utils = trpc.useUtils();
@@ -147,7 +147,6 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
     // Prosjekt-id som parameter: valget lagres på det markerte prosjektet, også
     // servermirror sistBruktByggeplass — ikke på prosjektet som var aktivt.
     if (valg.byggeplassId) settBygning(valg.byggeplassId, valg.prosjektId);
-    else velgHeleProsjektet(valg.prosjektId);
     onLukk();
   }
 
@@ -207,14 +206,12 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
     }
     const rader: Array<{ id: string | null; name: string }> = [
       ...markertKilde.map((b) => ({ id: b.id as string | null, name: b.name })),
-      { id: null, name: t("kontekstChip.heleProsjektet") },
     ];
     return rader.map((b) => {
       const avhuket = erByggeplassAvhuket({
         markertProsjektId: markertId,
         valgtProsjektId,
         valgtBygningId,
-        erHeleProsjektet,
         byggeplassId: b.id,
       });
       const naerDeg = b.id !== null && b.id === gpsByggeplassId;

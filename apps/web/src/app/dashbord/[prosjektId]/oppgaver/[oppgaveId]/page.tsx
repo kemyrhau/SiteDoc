@@ -654,12 +654,10 @@ export default function OppgaveDetaljSide() {
     {
       etikett: t("kontekstChip.byggeplass"),
       // Byggeplass: oppgavens egen, ellers tegningens (ORDRE 28). Fra
-      // lesDokumentLokasjon (rå hentMedId) — det omformede `oppgave` dropper `drawing` → viste ellers
-      // «Hele prosjektet» selv når oppgaven har en tegning (samme rotårsak som lokasjon).
-      // (20b): «Hele prosjektet» er kun et visningsfilter — med byggeplasser på prosjektet vises «—».
-      verdi:
-        oppgaveLokasjon.bygningNavn ??
-        (((bygningerRå as unknown[] | undefined)?.length ?? 0) > 0 ? "—" : t("kontekstChip.heleProsjektet")),
+      // lesDokumentLokasjon (rå hentMedId) — det omformede `oppgave` dropper `drawing` → manglet
+      // ellers byggeplass selv når oppgaven har en tegning (samme rotårsak som lokasjon).
+      // (20b) + TILLEGG (22): uten byggeplass vises «—».
+      verdi: oppgaveLokasjon.bygningNavn ?? "—",
       type: "display",
     },
     {

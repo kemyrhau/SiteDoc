@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { ByggeplassFilterPort } from "@/components/ByggeplassFilterPort";
 import { useBilder } from "@/kontekst/bilder-kontekst";
 import { Spinner } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
@@ -132,7 +133,9 @@ function harGpsUtenforTegninger(
 export default function BilderSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
-  const { aktivByggeplass, aktivTegning } = useByggeplass();
+  const { aktivByggeplass, aktivTegning, harByggeplasser } = useByggeplass();
+  // (22) Lista filtrerer alltid på valgt byggeplass; uten valg vises «Velg byggeplass».
+  const måVelgeByggeplass = harByggeplasser && !aktivByggeplass;
   const {
     visningsmodus,
     plasseringsmodus,
@@ -158,7 +161,7 @@ export default function BilderSide() {
 
   const { data, isLoading } = trpc.bilde.hentForProsjekt.useQuery(
     { projectId: params.prosjektId, ...(aktivByggeplass?.id ? { byggeplassId: aktivByggeplass.id } : {}) },
-    { enabled: !!params.prosjektId },
+    { enabled: !!params.prosjektId && !(visningsmodus === "liste" && måVelgeByggeplass) },
   );
 
   // Hent tegningsdata (med fileUrl) for valgt tegning
@@ -361,6 +364,13 @@ export default function BilderSide() {
   // ──────────────────────────────────────────────────────────
 
   if (visningsmodus === "liste") {
+    if (måVelgeByggeplass) {
+      return (
+        <div className="flex-1 overflow-auto bg-gray-50 p-6">
+          <ByggeplassFilterPort>{null}</ByggeplassFilterPort>
+        </div>
+      );
+    }
     if (isLoading) {
       return (
         <div className="flex flex-1 items-center justify-center">
@@ -424,8 +434,8 @@ export default function BilderSide() {
                       <div key={key} className="rounded-lg border border-gray-200 bg-white p-3">
                         {/* Tilhørighet på dokument-gruppens header (byggeplass-regelen:
                             raden viser tilhørighet når konteksten er bredere enn objektets
-                            hjem). Blå = byggeplass, grå «Hele prosjektet» = prosjekt-bilde.
-                            Byggeplass valgt → kun prosjekt-bilder merkes; ellers hver gruppe. */}
+                            hjem). Blå = byggeplass. Bilder uten byggeplass merkes ikke
+                            (TILLEGG (22)). Byggeplass valgt → ingen merking. */}
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <Link
                             href={parentUrl}
@@ -433,16 +443,11 @@ export default function BilderSide() {
                           >
                             {first.parentLabel}
                           </Link>
-                          {(!aktivByggeplass || first.byggeplassId == null) &&
-                            (first.byggeplassId == null ? (
-                              <span className="inline-flex items-center rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500">
-                                {t("kontekstChip.heleProsjektet")}
-                              </span>
-                            ) : first.byggeplassName ? (
-                              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                                {first.byggeplassName}
-                              </span>
-                            ) : null)}
+                          {!aktivByggeplass && first.byggeplassId != null && first.byggeplassName ? (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              {first.byggeplassName}
+                            </span>
+                          ) : null}
                         </div>
                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                           {bilder.map((b, idx) => {

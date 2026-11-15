@@ -613,8 +613,8 @@ export default function SjekklisteDetaljSide() {
     }
   }
 
-  // ORDRE (20b) linja: dokument uten byggeplass i et prosjekt som har byggeplasser («Hele prosjektet»
-  // er kun et visningsfilter, aldri en verdi på dokumentet). Kun der byggeplass-chipen kan brukes.
+  // ORDRE (20b) linja: dokument uten byggeplass i et prosjekt som har byggeplasser. Kun der
+  // byggeplass-chipen kan brukes.
   const visIkkeValgt = visByggeplassIkkeValgt({
     byggeplassId: fullSjekkliste?.byggeplass?.id ?? null,
     antallByggeplasser: bygninger.length,
@@ -632,11 +632,8 @@ export default function SjekklisteDetaljSide() {
     },
     {
       etikett: t("kontekstChip.byggeplass"),
-      // (20b): «Hele prosjektet» er kun et visningsfilter. Med byggeplasser på prosjektet vises «—»
-      // til en byggeplass er valgt; uten byggeplasser er teksten uendret.
-      verdi:
-        fullSjekkliste?.byggeplass?.name ??
-        (bygninger.length > 0 ? "—" : t("kontekstChip.heleProsjektet")),
+      // (20b) + TILLEGG (22): uten byggeplass på dokumentet vises «—».
+      verdi: fullSjekkliste?.byggeplass?.name ?? "—",
       type: "velger",
       deaktivert: erLaast || byggeplassFolgerTegning,
       deaktivertGrunn: erLaast

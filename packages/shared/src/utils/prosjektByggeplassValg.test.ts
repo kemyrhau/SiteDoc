@@ -45,7 +45,7 @@ describe("vedByggeplassTrykk + oppdaterBygningMap — lagring på riktig prosjek
     expect(map[A]).toBe("a1");
     expect(map[B]).not.toBe("a1");
   });
-  it("«Hele prosjektet» gir byggeplassId null", () => {
+  it("null gir byggeplassId null (intet valg)", () => {
     expect(vedByggeplassTrykk(B, null)).toEqual({ prosjektId: B, byggeplassId: null });
   });
   it("oppdaterBygningMap muterer ikke forrige map", () => {
@@ -89,17 +89,16 @@ describe("velgByggeplassKilde — offline-kilde", () => {
 });
 
 describe("erByggeplassAvhuket — åpning: aktiv byggeplass avhuket", () => {
-  const basis = { valgtProsjektId: A, valgtBygningId: "a1", erHeleProsjektet: false };
+  const basis = { valgtProsjektId: A, valgtBygningId: "a1" };
   it("aktiv byggeplass i aktivt prosjekt er avhuket", () => {
     expect(erByggeplassAvhuket({ ...basis, markertProsjektId: A, byggeplassId: "a1" })).toBe(true);
   });
   it("samme byggeplass-id i et annet markert prosjekt er ikke avhuket", () => {
     expect(erByggeplassAvhuket({ ...basis, markertProsjektId: B, byggeplassId: "a1" })).toBe(false);
   });
-  it("«Hele prosjektet» avhuket kun når det er eksplisitt valgt", () => {
+  // Negativkontroll (TILLEGG (22)): en rad uten byggeplass huker aldri av, heller ikke uten valg.
+  it("negativkontroll: rad uten byggeplass-id er aldri avhuket", () => {
     expect(erByggeplassAvhuket({ ...basis, markertProsjektId: A, byggeplassId: null })).toBe(false);
-    expect(
-      erByggeplassAvhuket({ ...basis, valgtBygningId: null, erHeleProsjektet: true, markertProsjektId: A, byggeplassId: null }),
-    ).toBe(true);
+    expect(erByggeplassAvhuket({ ...basis, valgtBygningId: null, markertProsjektId: A, byggeplassId: null })).toBe(false);
   });
 });

@@ -3,7 +3,8 @@
  *
  * Listen følger toppbarens byggeplass: aktiv byggeplass sendes, og serveren scoper med
  * `byggeplassFilterViaTegning` (egen byggeplass, ellers tegningens; byggeplass-løse vises
- * overalt). «Hele prosjektet» (ingen aktiv byggeplass) = ingen `byggeplassId` → ufiltrert.
+ * overalt). Ingen aktiv byggeplass = ingen `byggeplassId` → ufiltrert — gjelder (22) kun
+ * prosjekt uten byggeplasser; ellers viser `ByggeplassFilterPort` «Velg byggeplass».
  * Paritet med HMS-siden og mobil `oppgave/index.tsx`.
  */
 export function oppgaveListeInput(
