@@ -47,3 +47,20 @@ export function velgStandardByggeplass(input: StandardByggeplassInput): string |
   // (c) Første i lista.
   return byggeplassIder[0]!;
 }
+
+/**
+ * (18) RETUR, GATE (42) vilkår 2: byggeplassen timer-/innsjekk-forbrukerne (mobil Bekreft dag,
+ * innsjekk, ny timer-rad) får. Samme som før (18): lagret valg eller GPS, ellers null —
+ * ALDRI (c) «første byggeplass». Et gjett som destinasjon for reise/km bryter
+ * «Bekreft dag påvirkes ikke» og `velgDestinasjon` (`sted.ts`: «ALDRI prosjekter[0]»).
+ * Visning og listefilter bruker `velgStandardByggeplass` (med (c)).
+ */
+export function velgTimerByggeplass(input: StandardByggeplassInput): string | null {
+  const { byggeplassIder, lagret, gpsNaermeste } = input;
+  if (lagret === HELE_PROSJEKTET_VALG) return null;
+  // Ukjent/tom liste: lagret verdi som før (ingen validering mulig).
+  if (byggeplassIder.length === 0) return lagret ?? null;
+  if (lagret && byggeplassIder.includes(lagret)) return lagret;
+  if (gpsNaermeste && byggeplassIder.includes(gpsNaermeste)) return gpsNaermeste;
+  return null;
+}

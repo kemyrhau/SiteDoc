@@ -75,7 +75,10 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
   // Byggeplasser pr. prosjekt (antall på raden + lista under). Kun på nett og når åpen.
   const byggeplassQueries = trpc.useQueries((tq) =>
     alleIder.map((id) =>
-      tq.bygning.hentForProsjekt({ projectId: id }, { enabled: synlig && erPaaNettet }),
+      tq.bygning.hentForProsjekt(
+        { projectId: id },
+        { enabled: synlig && erPaaNettet, staleTime: 60_000 },
+      ),
     ),
   );
   const serverStatus = byggeplassQueries.map((q) => q.status).join(",");

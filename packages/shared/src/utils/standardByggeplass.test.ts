@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { velgStandardByggeplass, HELE_PROSJEKTET_VALG } from "./standardByggeplass";
+import { velgStandardByggeplass, velgTimerByggeplass, HELE_PROSJEKTET_VALG } from "./standardByggeplass";
 
 /** ORDRE 2026-11-15 (18) TILLEGG — standardvalg byggeplass (a) sist brukt → (b) GPS → (c) første. */
 const liste = ["b1", "b2", "b3"];
@@ -63,5 +63,31 @@ describe("velgStandardByggeplass — lagrede valg røres ikke", () => {
 describe("velgStandardByggeplass — prosjekt uten byggeplasser", () => {
   it("0 byggeplasser gir null (uendret)", () => {
     expect(velgStandardByggeplass({ byggeplassIder: [], lagret: null, sistBrukt: "b1", gpsNaermeste: "b1" })).toBeNull();
+  });
+});
+
+/** (18) RETUR vilkår 2 — forbrukerverdien for Bekreft dag/innsjekk/ny timer-rad har ikke (c). */
+describe("velgTimerByggeplass — uten (c) første", () => {
+  it("null når bare (c) ville slått til", () => {
+    expect(velgTimerByggeplass({ byggeplassIder: liste, lagret: null, gpsNaermeste: null })).toBeNull();
+  });
+  // Negativkontroll: visningsverdien for samme inndata ER første — forskjellen er tilsiktet.
+  it("negativkontroll: visningsverdien er (c) første for samme inndata", () => {
+    expect(velgStandardByggeplass({ byggeplassIder: liste, lagret: null, gpsNaermeste: null })).toBe("b1");
+  });
+  it("lagret valg gjelder", () => {
+    expect(velgTimerByggeplass({ byggeplassIder: liste, lagret: "b2", gpsNaermeste: "b3" })).toBe("b2");
+  });
+  it("GPS gjelder uten lagret valg", () => {
+    expect(velgTimerByggeplass({ byggeplassIder: liste, lagret: null, gpsNaermeste: "b3" })).toBe("b3");
+  });
+  it("eksplisitt «Hele prosjektet» → null", () => {
+    expect(velgTimerByggeplass({ byggeplassIder: liste, lagret: HELE_PROSJEKTET_VALG, gpsNaermeste: "b1" })).toBeNull();
+  });
+  it("GPS utenfor prosjektet → null, ikke første", () => {
+    expect(velgTimerByggeplass({ byggeplassIder: liste, lagret: null, gpsNaermeste: "annet" })).toBeNull();
+  });
+  it("ukjent liste: lagret verdi som før", () => {
+    expect(velgTimerByggeplass({ byggeplassIder: [], lagret: "x" })).toBe("x");
   });
 });

@@ -51,7 +51,8 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
   const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
   const { triggerSync, oppdaterTellere } = useTimerSync();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useByggeplass();
+  // (18) RETUR: ny timer-rad får aldri (c) «første byggeplass» — kun lagret valg/GPS.
+  const { kontekstByggeplassId: valgtBygningId } = useByggeplass();
 
   const orgId = valgtFirmaId ?? null;
   const prosjekter = useMemo(() => (orgId ? hentProsjekterLokalt(orgId) : []), [orgId]);

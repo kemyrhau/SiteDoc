@@ -15,7 +15,8 @@ import { useNettverk } from "../providers/NettverkProvider";
 export function MannskapInnsjekkKort() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useByggeplass();
+  // (18) RETUR: innsjekk får aldri (c) «første byggeplass» — kun lagret valg/GPS.
+  const { kontekstByggeplassId: valgtBygningId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
 

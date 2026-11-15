@@ -57,7 +57,7 @@ describe("Bekreft dag bruker Hjems GPS-kilde, kun i manuell modus, uten å endre
   const BEKREFT = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
 
   it("samme kilde som Hjem (ByggeplassKontekst.gpsByggeplassId)", () => {
-    expect(BEKREFT).toContain("const { valgtBygningId, gpsByggeplassId } = useByggeplass();");
+    expect(BEKREFT).toContain("const { kontekstByggeplassId: valgtBygningId, gpsByggeplassId } = useByggeplass();");
     expect(BEKREFT).not.toContain("Location.getCurrentPositionAsync");
   });
 

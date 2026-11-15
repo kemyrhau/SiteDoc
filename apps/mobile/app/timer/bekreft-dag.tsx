@@ -176,7 +176,8 @@ export default function BekreftDagSkjerm() {
   const { bruker } = useAuth();
   const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, gpsByggeplassId } = useByggeplass();
+  // (18) RETUR: aldri (c) «første byggeplass» i Bekreft dag — kun lagret valg/GPS.
+  const { kontekstByggeplassId: valgtBygningId, gpsByggeplassId } = useByggeplass();
   const { triggerSync, oppdaterTellere } = useTimerSync();
 
   const orgId = valgtFirmaId ?? "";

@@ -11,7 +11,12 @@ import type { ReactNode } from "react";
 import { Platform } from "react-native";
 import * as Location from "expo-location";
 import { useProsjekt } from "./ProsjektKontekst";
-import { oppdaterBygningMap, velgStandardByggeplass, HELE_PROSJEKTET_VALG } from "@sitedoc/shared";
+import {
+  oppdaterBygningMap,
+  velgStandardByggeplass,
+  velgTimerByggeplass,
+  HELE_PROSJEKTET_VALG,
+} from "@sitedoc/shared";
 import { hentByggeplasserNavLokalt } from "../services/tegningKatalog";
 import { useFirma } from "./FirmaKontekst";
 import { useAuth } from "../providers/AuthProvider";
@@ -78,6 +83,9 @@ interface ByggeplassKontekstType {
   /** Aktiv byggeplass-id, eller null når ingen avgrensning gjelder (uvalgt ELLER
    *  «Hele prosjektet»). Lister sender denne som `byggeplassId` → null = hele prosjektet. */
   valgtBygningId: string | null;
+  /** (18) RETUR vilkår 2: byggeplass for Bekreft dag, innsjekk og ny timer-rad — lagret
+   *  valg eller GPS, ellers null. Aldri (c) «første byggeplass» (som `valgtBygningId` kan være). */
+  kontekstByggeplassId: string | null;
   /** Velg byggeplass. `prosjektId` (18) lagrer valget på det prosjektet i stedet for
    *  det aktive — den delte velgeren bytter prosjekt og byggeplass i samme trykk. */
   settBygning: (id: string, prosjektId?: string) => void;
@@ -103,6 +111,7 @@ interface ByggeplassKontekstType {
 
 const ByggeplassContext = createContext<ByggeplassKontekstType>({
   valgtBygningId: null,
+  kontekstByggeplassId: null,
   settBygning: () => {},
   erHeleProsjektet: false,
   velgHeleProsjektet: () => {},
@@ -267,6 +276,16 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     return valg === HELE_PROSJEKTET ? null : valg;
   }, [valgtProsjektId, lasterBygningId, prosjektByggeplassIder, bygningMap, gpsByggeplassId]);
 
+  const kontekstByggeplassId = useMemo(() => {
+    if (!valgtProsjektId || lasterBygningId) return null;
+    const raa = bygningMap[valgtProsjektId] ?? null;
+    return velgTimerByggeplass({
+      byggeplassIder: prosjektByggeplassIder,
+      lagret: raa,
+      gpsNaermeste: gpsByggeplassId,
+    });
+  }, [valgtProsjektId, lasterBygningId, prosjektByggeplassIder, bygningMap, gpsByggeplassId]);
+
   const erHeleProsjektet = useMemo(
     () => (valgtProsjektId ? bygningMap[valgtProsjektId] === HELE_PROSJEKTET : false),
     [valgtProsjektId, bygningMap],
@@ -396,6 +415,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     <ByggeplassContext.Provider
       value={{
         valgtBygningId,
+        kontekstByggeplassId,
         settBygning,
         erHeleProsjektet,
         velgHeleProsjektet,

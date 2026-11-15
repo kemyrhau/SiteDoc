@@ -90,6 +90,10 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { valgtFirma } = useFirma();
   const [aktivByggeplass, setAktivByggeplass] = useState<AktivByggeplass | null>(null);
   const [erHeleProsjektet, setErHeleProsjektet] = useState(false);
+  // (18) RETUR vilkår 1: prosjektet hvis lagrede valg er lest inn i state. A1 venter til
+  // dette er nåværende prosjekt — ellers ser A1 forrige prosjekts byggeplass i samme commit
+  // som prosjektbyttet, tolker den som ugyldig og overskriver brukerens valg.
+  const [lestForProsjektId, setLestForProsjektId] = useState<string | null>(null);
   const [standardTegning, setStandardTegning] = useState<StandardTegning | null>(null);
   const [aktivTegning, setAktivTegning] = useState<AktivTegning | null>(null);
   const [posisjonsvelgerAktiv, setPosisjonsvelgerAktiv] = useState(false);
@@ -127,6 +131,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
       setAktivByggeplass(null);
       setErHeleProsjektet(false);
       setStandardTegning(null);
+      setLestForProsjektId(null);
       return;
     }
 
@@ -165,6 +170,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignorer ugyldig localStorage-data
     }
+    setLestForProsjektId(prosjektId);
   }, [prosjektId]);
 
   const velgByggeplass = useCallback(
@@ -233,6 +239,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const brukerminneKlart = !brukerminne.isLoading;
   useEffect(() => {
     if (!prosjektId) return;
+    if (lestForProsjektId !== prosjektId) return; // lagret valg ikke lest inn ennå
     const liste = byggeplassListe.data;
     if (!liste) return; // vent på lista før valget røres (unngår stale-race)
     if (erHeleProsjektet && liste.length > 0) return; // brukerens eget valg
@@ -252,9 +259,24 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
       const b = liste.find((x) => x.id === valg) ?? liste[0]!;
       velgByggeplass({ id: b.id, name: b.name, number: b.number });
     } else if (aktivByggeplass) {
-      velgByggeplass(null); // prosjektet har ingen byggeplasser → nullstill rest
+      // Prosjektet har ingen byggeplasser → fjern resten. (18) RETUR vilkår 3: nøkkelen
+      // slettes, ingen sentinel — brukeren har ikke valgt «Hele prosjektet», og får
+      // prosjektet byggeplasser senere, skal standardvalget gjelde.
+      try {
+        const lagret = localStorage.getItem(BYGGEPLASS_STORAGE_KEY);
+        const parsed = lagret ? (JSON.parse(lagret) as Record<string, LagretByggeplass>) : {};
+        delete parsed[prosjektId];
+        localStorage.setItem(BYGGEPLASS_STORAGE_KEY, JSON.stringify(parsed));
+      } catch {
+        // Ignorer localStorage-feil
+      }
+      setAktivByggeplass(null);
+      setErHeleProsjektet(false);
+      setStandardTegning(null);
+      setAktivTegning(null);
     }
   }, [
+    lestForProsjektId,
     prosjektId,
     byggeplassListe.data,
     aktivByggeplass,
