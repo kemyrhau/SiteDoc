@@ -32,6 +32,8 @@ sist_verifisert_mot_kode: 2026-08-09
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 
+> ✅ **Byggeplassfilteret husker valg (22) MERGET 2026-11-15** (merge `467e0e04` av `94e01a2a`; Kontrollør GODKJENT GATE (49) re-gate). Ny innsjekk → GPS → sist valgte → «Velg byggeplass»; «Hele prosjektet» fjernet fra filteret; web-valg overlever sidelasting. Ikke deployet/OTA-et (samles med (18)–(23)). Skjermbilder web tas på test etter deploy. Åpent spor: mobil `hjem.tsx:152/158` bruker `m.active` (finnes ikke) for 3D/PSI-knapp; byggeplass-nøkler feiloversatt «site»→nettsted i genererte språk.
+>
 > ✅ **Gjenåpne på kortskjermen (23) MERGET 2026-11-15** (merge `eceec8e0` av `3cc79d22`; Kontrollør GODKJENT GATE (48)). Kortskjermen for sendt seddel tilbyr gjenåpne via felles `useGjenaapneDagsseddel`, feil vises synlig, «Se hele dagen (N prosjekter)» med `dismissTo`. Dagskort, syncBatch urørt, ingen migrering. Ikke deployet/OTA-et (samles med (18)–(22)). `relay/timer-dagskort/slett-1311.sql` ikke kjørt (13.11 gjenåpnet av Kenneth).
 >
 > ✅ **Byggeplass følger tegningen (21) MERGET 2026-11-15** (merge `979cafec` av `d50039b5`; Kontrollør GODKJENT GATE (47)). Uten tegning velges byggeplass direkte; med tegning er chip/rad visning og byggeplass byttes via tegningsvalg; sjekkliste-server bruker `velgTaskByggeplass` (tegningen vinner) og nullstiller punkt ved tegningsbytte uten posisjon; mobil prosjekt-tegning sender `undefined`. **Ikke deployet.** Ikke-blokkerende fra gate: ingen test for `opprett`-grenen/kontrollplan-speiling; mobil oppgave sender ikke `drawingId` til `visByggeplassIkkeValgt` (`oppgave/[id].tsx:948`); gamle klienter kan bytte byggeplass direkte til OTA. Åpne spor: rettighetsparitet web/mobil for lokasjon (Kenneth: eget spor senere); rad utenfor dagsramme — eget spor senere, avvik aksepteres når firmaet har valgt avrunding (Kenneth 2026-11-15).
@@ -92,7 +94,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 **Eneste skribent: orkestrator.** 🔴 **Føres FRA MÅLING — `git log origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-11-15 · develop `eceec8e0` · test web: gitSha `a8caf6a9` · OTA testkanal `a8caf6a9` (OTA `01a1e014`, sett på Kenneths telefon 2026-11-15).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
+**Sist ført: 2026-11-15 · develop `467e0e04` · test web: gitSha `a8caf6a9` · OTA testkanal `a8caf6a9` (OTA `01a1e014`, sett på Kenneths telefon 2026-11-15).** Forrige tavle (sist ført 2026-09-23 → 2026-11-05) og coworks kø er flyttet ordrett til [historikk-2026-11.md](historikk-2026-11.md).
 
 | Agent | Worktree | Branch @ hash | Tilstand |
 |---|---|---|---|
