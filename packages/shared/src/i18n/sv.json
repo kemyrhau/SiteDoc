@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Ta bort period",
   "firma.ansatte.oppmote.slettTittel": "Vill du radera perioden?",
   "firma.ansatte.oppmote.feil.lukketFast": "En stängd permanent plats är historik och kan inte raderas. Ställ in en ny permanent plats istället.",
-  "firma.ansatte.oppmote.slettHva": "Datum i perioden får medarbetarens andra rapporteringsplats. Om du tar bort en permanent plats gäller den tidigare permanenta platsen igen."
+  "firma.ansatte.oppmote.slettHva": "Datum i perioden får medarbetarens andra rapporteringsplats. Om du tar bort en permanent plats gäller den tidigare permanenta platsen igen.",
+  "timer.reiseKort.annetKontor": "Flytta till ett annat kontor",
+  "timer.reiseKort.tilKontor": "Till {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Tillfälligt: ​​{{navn}} från {{dato}}",
+  "timer.reiseKort.avslutt": "Avsluta",
+  "timer.reiseKort.sperre.adminMidlertidig": "En företagsadministratör har angett en tillfällig mötesplats – be en företagsadministratör att ändra den",
+  "firma.ansatte.oppmote.viaOverforing": "via överföring"
 }

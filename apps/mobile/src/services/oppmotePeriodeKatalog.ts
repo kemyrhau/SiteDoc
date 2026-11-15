@@ -57,6 +57,8 @@ export function skrivOppmotePerioderLokalt(
         projectId: p.projectId,
         fraDato: p.fraDato,
         tilDato: p.tilDato,
+        // Del B: 'overforing' skilles fra admin (reise-kortets «Avslutt», finnOverforinger).
+        kilde: p.kilde === "overforing" ? "overforing" : "admin",
         sistOppdatert: naa,
       })
       .run();
@@ -64,7 +66,10 @@ export function skrivOppmotePerioderLokalt(
 }
 
 /** Synkron lesing for resolveren. Tom liste hvis cachen ikke er fylt. */
-export function hentOppmotePerioderLokalt(userId: string, organizationId: string): OppmotePeriodeInput[] {
+export function hentOppmotePerioderLokalt(
+  userId: string,
+  organizationId: string,
+): Array<OppmotePeriodeInput & { id: string }> {
   const db = hentDatabase();
   if (!db) return [];
   return db
@@ -75,11 +80,12 @@ export function hentOppmotePerioderLokalt(userId: string, organizationId: string
     .map((r) => ({
       // id (L2): overføringsforslaget fører periode-id-en videre til reiseRegel.
       id: r.id,
-      type: r.type === "byggeplass" ? "byggeplass" : "kontor",
+      type: (r.type === "byggeplass" ? "byggeplass" : "kontor") as OppmotePeriodeInput["type"],
       fast: r.fast,
       oppmotestedId: r.oppmotestedId,
       projectId: r.projectId,
       fraDato: r.fraDato,
       tilDato: r.tilDato,
+      kilde: r.kilde === "overforing" ? "overforing" : "admin",
     }));
 }

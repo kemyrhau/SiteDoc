@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Dzēst periodu",
   "firma.ansatte.oppmote.slettTittel": "Vai dzēst periodu?",
   "firma.ansatte.oppmote.feil.lukketFast": "Slēgta pastāvīgā atrašanās vieta ir vēsture, un to nevar izdzēst. Tā vietā iestatiet jaunu pastāvīgu atrašanās vietu.",
-  "firma.ansatte.oppmote.slettHva": "Perioda datumi iegūst citu darbinieka ziņošanas vietu. Ja izdzēšat pastāvīgu atrašanās vietu, atkal tiek piemērota iepriekšējā pastāvīgā atrašanās vieta."
+  "firma.ansatte.oppmote.slettHva": "Perioda datumi iegūst citu darbinieka ziņošanas vietu. Ja izdzēšat pastāvīgu atrašanās vietu, atkal tiek piemērota iepriekšējā pastāvīgā atrašanās vieta.",
+  "timer.reiseKort.annetKontor": "Pārcelšanās uz citu biroju",
+  "timer.reiseKort.tilKontor": "Uz {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Pagaidu: {{navn}} no {{dato}}",
+  "timer.reiseKort.avslutt": "Beigas",
+  "timer.reiseKort.sperre.adminMidlertidig": "Uzņēmuma administrators ir iestatījis pagaidu tikšanās punktu — lūdziet uzņēmuma administratoram to mainīt",
+  "firma.ansatte.oppmote.viaOverforing": "izmantojot pārskaitījumu"
 }

@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Zeitraum löschen",
   "firma.ansatte.oppmote.slettTittel": "Zeitraum löschen?",
   "firma.ansatte.oppmote.feil.lukketFast": "Ein geschlossener dauerhafter Standort ist Geschichte und kann nicht gelöscht werden. Legen Sie stattdessen einen neuen dauerhaften Standort fest.",
-  "firma.ansatte.oppmote.slettHva": "Daten in der Periode erhalten den anderen Meldeort des Mitarbeiters. Wenn Sie einen festen Standort löschen, gilt wieder der bisherige feste Standort."
+  "firma.ansatte.oppmote.slettHva": "Daten in der Periode erhalten den anderen Meldeort des Mitarbeiters. Wenn Sie einen festen Standort löschen, gilt wieder der bisherige feste Standort.",
+  "timer.reiseKort.annetKontor": "Versetzung in ein anderes Büro",
+  "timer.reiseKort.tilKontor": "An {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Temporär: {{navn}} von {{dato}}",
+  "timer.reiseKort.avslutt": "Ende",
+  "timer.reiseKort.sperre.adminMidlertidig": "Ein Firmenadministrator hat einen temporären Treffpunkt festgelegt – bitten Sie einen Firmenadministrator, diesen zu ändern",
+  "firma.ansatte.oppmote.viaOverforing": "per Überweisung"
 }

@@ -104,6 +104,8 @@ export function OppmotePerioder({
                     navn: p.sattAvNavn ?? t("firma.ansatte.utenNavn"),
                     dato: new Date(p.sattVed).toLocaleDateString("nb-NO"),
                   })}
+                  {/* Del B: satt av den ansatte selv fra reise-kortet. */}
+                  {p.kilde === "overforing" && ` · ${t("firma.ansatte.oppmote.viaOverforing")}`}
                 </div>
               </div>
               {/* Lukket fast sted er historikk — kan ikke slettes (serveren avviser). */}

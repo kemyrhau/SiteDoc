@@ -4,7 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Button, Modal } from "@sitedoc/ui";
-import { manuellReiseForklaringTekst, type ReiseKortSperre } from "@sitedoc/shared";
+import {
+  manuellReiseForklaringTekst,
+  medOverforingPeriodeId,
+  periodeDatoFraOverforing,
+  type ReiseKortSperre,
+} from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { RadByggeplassFelt, useRadByggeplass } from "@/components/timer/RadByggeplassFelt";
@@ -22,7 +27,17 @@ import { useManuellReiseWeb, type ReiseKortValg } from "@/hooks/useManuellReiseW
  *
  *  Lagre sperres (KnappMedForklaring) når resultatet har en sperre, når
  *  oppslagene ikke er lastet, eller når sedelen mangler aktivitet.
+ *
+ *  Del B (POST 2026-11-15 (13)): «Overføring til annet kontor» (≥ 2 aktive
+ *  kontorer) setter et midlertidig oppmøtested — `oppmotePeriode.overforing`
+ *  kalles FØR raden, så raden bærer periodens id. Valg av eget faste kontor
+ *  avslutter det. Kortlinjen «Midlertidig: X fra dd.mm · Avslutt» angrer.
  * ============================================================================ */
+
+/** YYYY-MM-DD → dd.mm */
+function kortDato(d: string): string {
+  return `${d.slice(8, 10)}.${d.slice(5, 7)}`;
+}
 
 export const SPERRE_NOKKEL: Record<ReiseKortSperre, string> = {
   byggeplassPeriode: "timer.reiseKort.sperre.byggeplassPeriode",
@@ -90,6 +105,12 @@ export function ReiseKort({
   const { overforingValg, aktivtValg, resultat, oppmotestedNavn, regelStatus } = reise;
   const erOverforing = aktivtValg.type === "overforing";
   const overforing = erOverforing ? reise.overforinger[aktivtValg.indeks] : undefined;
+  const erKontor = aktivtValg.type === "kontor";
+  const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing } = reise;
+
+  const overforingMut = trpc.oppmotePeriode.overforing.useMutation({
+    onSettled: () => utils.oppmotePeriode.hentMine.invalidate(),
+  });
 
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation({
     onSuccess: () => {
@@ -103,6 +124,8 @@ export function ReiseKort({
   const kanLagre =
     regelStatus === "klar" &&
     sperre == null &&
+    !kontorKonflikt &&
+    !overforingMut.isPending &&
     !!aktivitetId &&
     !!resultat.spor &&
     !!resultat.klassifisering?.lonnsartId &&
@@ -118,14 +141,33 @@ export function ReiseKort({
           ? t("timer.reiseTerskel.manglerStandardArt")
           : sperre
           ? t(SPERRE_NOKKEL[sperre])
-          : !aktivitetId
+          : kontorKonflikt
+            ? t("timer.reiseKort.sperre.adminMidlertidig")
+            : !aktivitetId
             ? t("timer.feil.aktivitetPaakrevd")
             : "";
 
-  function lagre() {
+  async function lagre() {
     if (!kanLagre || !aktivitetId || !resultat.spor || !resultat.klassifisering?.lonnsartId) return;
     setFeil(null);
-    const s = resultat.spor;
+    let s = resultat.spor;
+    if (erKontor && kontorKall) {
+      // Perioden skrives FØR raden, så raden bærer periodens id i reiseRegel.
+      try {
+        const r = await overforingMut.mutateAsync({
+          id: crypto.randomUUID(),
+          organizationId,
+          handling: kontorKall.handling,
+          ...(kontorKall.oppmotestedId ? { oppmotestedId: kontorKall.oppmotestedId } : {}),
+          dato: kontorKall.dato,
+        });
+        // Ny ved «opprettet», lukket ved «lukket», åpen ved «ingen», null ved «slettet».
+        s = medOverforingPeriodeId(s, r.periode?.id ?? null);
+      } catch (e) {
+        setFeil(e instanceof Error ? e.message : String(e));
+        return;
+      }
+    }
     tilfoy.mutate({
       sheetId,
       projectId,
@@ -139,7 +181,11 @@ export function ReiseKort({
       tilTid: resultat.tilTid,
       // Reise bærer aldri matpausen (pauseFraForRad hopper over erReise).
       pauseMin: 0,
-      byggeplassId: erOverforing ? (overforing?.byggeplassId ?? bp.byggeplassId) : bp.byggeplassId,
+      byggeplassId: erKontor
+        ? null
+        : erOverforing
+          ? (overforing?.byggeplassId ?? bp.byggeplassId)
+          : bp.byggeplassId,
       // Sporet kun når regelen sier reise; under terskel er raden ordinær
       // (reiseKilde null → serveren nuller sporet).
       ...(s.erReise && s.reiseKilde
@@ -155,10 +201,28 @@ export function ReiseKort({
     });
   }
 
+  /** Avslutt uten reise: perioden slutter dagen før sedeldatoen (slettes om den startet i dag). */
+  function avsluttOverforing() {
+    setFeil(null);
+    overforingMut.mutate(
+      {
+        id: crypto.randomUUID(),
+        organizationId,
+        handling: "slutt",
+        dato: periodeDatoFraOverforing(dato, "00:00", "retur"),
+      },
+      {
+        onSuccess: () => setValg(null),
+        onError: (e: { message: string }) => setFeil(e.message),
+      },
+    );
+  }
+
   const valgKnapp = (v: ReiseKortValg, tekst: string, key: string) => {
     const aktiv =
       v.type === aktivtValg.type &&
-      (v.type !== "overforing" || (aktivtValg.type === "overforing" && v.indeks === aktivtValg.indeks));
+      (v.type !== "overforing" || (aktivtValg.type === "overforing" && v.indeks === aktivtValg.indeks)) &&
+      (v.type !== "kontor" || (aktivtValg.type === "kontor" && v.oppmotestedId === aktivtValg.oppmotestedId));
     return (
       <button
         key={key}
@@ -193,11 +257,44 @@ export function ReiseKort({
           </div>
         )}
 
-        {!erOverforing && oppmotestedNavn && (
+        {kontorOppsett && kontorOppsett.andre.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-gray-700">{t("timer.reiseKort.annetKontor")}</p>
+            <div className="flex flex-wrap gap-2">
+              {kontorOppsett.andre.map((id) =>
+                valgKnapp(
+                  { type: "kontor", oppmotestedId: id },
+                  t("timer.reiseKort.tilKontor", { navn: reise.kontorNavn(id) }),
+                  `kontor-${id}`,
+                ),
+              )}
+            </div>
+          </div>
+        )}
+
+        {apenOverforing && apenOverforing.oppmotestedId && (
+          <p className="text-sm text-gray-700">
+            {t("timer.reiseKort.midlertidigLinje", {
+              navn: reise.kontorNavn(apenOverforing.oppmotestedId),
+              dato: kortDato(apenOverforing.fraDato),
+            })}
+            <span className="mx-1 text-gray-400">·</span>
+            <button
+              type="button"
+              onClick={avsluttOverforing}
+              disabled={overforingMut.isPending}
+              className="font-medium text-blue-700 hover:underline disabled:opacity-50"
+            >
+              {t("timer.reiseKort.avslutt")}
+            </button>
+          </p>
+        )}
+
+        {!erOverforing && !erKontor && oppmotestedNavn && (
           <p className="text-sm text-gray-700">{t("timer.reiseKort.fraOppmotested", { navn: oppmotestedNavn })}</p>
         )}
 
-        {!erOverforing && (
+        {!erOverforing && !erKontor && (
           <RadByggeplassFelt kandidater={bp.kandidater} verdi={bp.byggeplassId} onEndre={bp.setByggeplassId} />
         )}
 
@@ -243,6 +340,9 @@ export function ReiseKort({
         {sperre && sperre !== "manglerArt" && forklaring && (
           <p className="text-xs font-medium text-red-700">{forklaring}</p>
         )}
+        {!sperre && kontorKonflikt && (
+          <p className="text-xs font-medium text-red-700">{t("timer.reiseKort.sperre.adminMidlertidig")}</p>
+        )}
 
         {ecoer && ecoer.length > 0 && (
           <div>
@@ -271,8 +371,8 @@ export function ReiseKort({
             {t("handling.avbryt")}
           </Button>
           <KnappMedForklaring sperret={!kanLagre && !tilfoy.isPending} forklaring={forklaring}>
-            <Button type="button" onClick={lagre} disabled={!kanLagre || tilfoy.isPending}>
-              {tilfoy.isPending ? t("handling.lagrer") : t("handling.lagre")}
+            <Button type="button" onClick={() => void lagre()} disabled={!kanLagre || tilfoy.isPending}>
+              {tilfoy.isPending || overforingMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
           </KnappMedForklaring>
         </div>

@@ -405,3 +405,158 @@ describe("oppmotested.slett — i bruk", () => {
     ).rejects.toMatchObject({ code: "CONFLICT", message: "I bruk — deaktiver i stedet" });
   });
 });
+
+// ── POST 2026-11-15 (13) del B — overforing (reise-kortet) ──────────────────
+describe("overforing (del B)", () => {
+  const ID = "66666666-6666-6666-6666-666666666666";
+  const TROMSO = "77777777-7777-7777-7777-777777777777";
+  const fastNarvik = rad({ id: "p-fast", fast: true, oppmotestedId: NARVIK, kilde: "admin" });
+  const apenOvf = (o: Partial<Record<string, unknown>> = {}) =>
+    rad({ id: "p-ovf", fast: false, oppmotestedId: RAMSUND, fraDato: d("2026-11-10"), kilde: "overforing", ...o });
+  const start = (o: Partial<Record<string, unknown>> = {}) =>
+    caller().overforing({ id: ID, organizationId: ORG_A, handling: "start", oppmotestedId: TROMSO, dato: "2026-11-15", ...o });
+  const slutt = (dato = "2026-11-20") =>
+    caller().overforing({ id: ID, organizationId: ORG_A, handling: "slutt", dato });
+
+  beforeEach(() => {
+    m.stedFindFirst.mockResolvedValue({ id: TROMSO });
+    m.periodeFindMany.mockResolvedValue([fastNarvik]);
+  });
+
+  it("start: oppretter åpen kontor-periode, fast=false, kilde='overforing', klient-id, eget medlem", async () => {
+    const r = await start();
+    expect(r.utfall).toBe("opprettet");
+    expect(m.periodeCreate).toHaveBeenCalledTimes(1);
+    expect(m.periodeCreate.mock.calls[0]![0].data).toMatchObject({
+      id: ID,
+      organizationId: ORG_A,
+      organizationMemberId: MEDLEM,
+      type: "kontor",
+      fast: false,
+      oppmotestedId: TROMSO,
+      tilDato: null,
+      kilde: "overforing",
+    });
+    expect(m.stedFindFirst.mock.calls[0]![0].where).toMatchObject({ id: TROMSO, organizationId: ORG_A, aktiv: true });
+  });
+
+  it("🔴 (i) fremmed firma → FORBIDDEN, ingen rad", async () => {
+    m.medlemFindUnique.mockResolvedValue(null);
+    await expect(start({ organizationId: ORG_B })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+  });
+
+  it("🔴 (ii) kontor i annet firma (eller inaktivt) → NOT_FOUND, ingen rad", async () => {
+    m.stedFindFirst.mockResolvedValue(null);
+    await expect(start()).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+  });
+
+  it("🔴 (iii) slutt leser KUN eget medlemskap — en annen ansatts periode røres ikke", async () => {
+    // DB-en (mocket) svarer kun med det som matcher where; annen ansatts åpne
+    // overføring finnes, men spørringen er låst til eget medlem → ingen endring.
+    m.periodeFindMany.mockImplementation(async (a: { where: { organizationMemberId: string } }) =>
+      a.where.organizationMemberId === MEDLEM ? [fastNarvik] : [apenOvf({ id: "annen" })],
+    );
+    const r = await slutt();
+    expect(r.utfall).toBe("ingen");
+    expect(m.periodeFindMany.mock.calls[0]![0].where).toMatchObject({ organizationMemberId: MEDLEM, organizationId: ORG_A });
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+    expect(m.periodeDelete).not.toHaveBeenCalled();
+  });
+
+  it("🔴 (iv) slutt på admin-periode eller fast sted → ingen endring", async () => {
+    m.periodeFindMany.mockResolvedValue([
+      fastNarvik,
+      rad({ id: "p-admin", fast: false, oppmotestedId: RAMSUND, fraDato: d("2026-11-01"), tilDato: null, kilde: "admin" }),
+    ]);
+    const r = await slutt();
+    expect(r.utfall).toBe("ingen");
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+    expect(m.periodeDelete).not.toHaveBeenCalled();
+  });
+
+  it("🔴 (v) strict input: fast/type/kilde/organizationMemberId avvises", async () => {
+    for (const ekstra of [{ fast: true }, { type: "kontor" }, { kilde: "admin" }, { organizationMemberId: MEDLEM }]) {
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        caller().overforing({ id: ID, organizationId: ORG_A, handling: "start", oppmotestedId: TROMSO, dato: "2026-11-15", ...ekstra } as any),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    }
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+  });
+
+  it("🔴 (vi) samme id to ganger → én rad", async () => {
+    await start();
+    m.periodeFindFirst.mockResolvedValue(apenOvf({ id: ID, oppmotestedId: TROMSO, fraDato: d("2026-11-15") }));
+    const r = await start();
+    expect(r.utfall).toBe("opprettet");
+    expect(r.periode?.id).toBe(ID);
+    expect(m.periodeCreate).toHaveBeenCalledTimes(1);
+    expect(m.periodeFindFirst.mock.calls[0]![0].where).toMatchObject({ id: ID, organizationMemberId: MEDLEM });
+  });
+
+  it("🔴 (vii) konflikt med admin-periode → CONFLICT, ingen rad", async () => {
+    m.periodeFindMany.mockResolvedValue([
+      fastNarvik,
+      rad({ id: "p-admin", fast: false, oppmotestedId: RAMSUND, fraDato: d("2026-12-01"), tilDato: d("2026-12-10"), kilde: "admin" }),
+    ]);
+    await expect(start()).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+  });
+
+  it("🔴 (vii-b) åpen admin-satt midlertidig periode → CONFLICT, admin-perioden urørt", async () => {
+    m.periodeFindMany.mockResolvedValue([
+      fastNarvik,
+      rad({ id: "p-admin", fast: false, oppmotestedId: RAMSUND, fraDato: d("2026-11-01"), tilDato: null, kilde: "admin" }),
+    ]);
+    await expect(start()).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+    expect(m.periodeDelete).not.toHaveBeenCalled();
+  });
+
+  it("ny Tur mens overføring er åpen: lukker den gamle (dato − 1) og oppretter ny", async () => {
+    m.periodeFindMany.mockResolvedValue([fastNarvik, apenOvf()]);
+    const r = await start();
+    expect(r.utfall).toBe("opprettet");
+    expect(m.periodeUpdate.mock.calls[0]![0]).toMatchObject({ where: { id: "p-ovf" }, data: { tilDato: d("2026-11-14") } });
+    expect(m.periodeCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("ny Tur samme dag som den åpne startet: den gamle slettes (tom), ny opprettes", async () => {
+    m.periodeFindMany.mockResolvedValue([fastNarvik, apenOvf({ fraDato: d("2026-11-15") })]);
+    await start();
+    expect(m.periodeDelete).toHaveBeenCalledWith({ where: { id: "p-ovf" } });
+    expect(m.periodeCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("Tur til eget faste kontor: ingen periode", async () => {
+    m.stedFindFirst.mockResolvedValue({ id: NARVIK });
+    const r = await start({ oppmotestedId: NARVIK });
+    expect(r.utfall).toBe("ingen");
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+  });
+
+  it("slutt: setter tilDato på egen åpne overføring", async () => {
+    m.periodeFindMany.mockResolvedValue([fastNarvik, apenOvf()]);
+    m.periodeUpdate.mockImplementation(async (a: { data: Record<string, unknown> }) => apenOvf(a.data));
+    const r = await slutt("2026-11-20");
+    expect(r.utfall).toBe("lukket");
+    expect(m.periodeUpdate.mock.calls[0]![0]).toMatchObject({ where: { id: "p-ovf" }, data: { tilDato: d("2026-11-20") } });
+  });
+
+  it("slutt før start (angre / «Avslutt» samme dag) → perioden slettes", async () => {
+    m.periodeFindMany.mockResolvedValue([fastNarvik, apenOvf()]);
+    const r = await slutt("2026-11-09");
+    expect(r.utfall).toBe("slettet");
+    expect(m.periodeDelete).toHaveBeenCalledWith({ where: { id: "p-ovf" } });
+  });
+
+  it("start krever oppmotestedId", async () => {
+    await expect(
+      caller().overforing({ id: ID, organizationId: ORG_A, handling: "start", dato: "2026-11-15" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});

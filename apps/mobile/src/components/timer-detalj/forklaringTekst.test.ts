@@ -18,6 +18,7 @@ vi.mock("../../services/reiseGrensepunktKatalog", () => ({}));
 vi.mock("../../services/timerKatalog", () => ({}));
 vi.mock("../../services/oppmotePeriodeKatalog", () => ({}));
 vi.mock("../../services/overforingOppslag", () => ({}));
+vi.mock("../../services/oppmotestedAvstandKatalog", () => ({}));
 
 const { forklaringTekst } = await import("./useManuellReise");
 

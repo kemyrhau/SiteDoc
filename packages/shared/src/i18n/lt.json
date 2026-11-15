@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Ištrinti laikotarpį",
   "firma.ansatte.oppmote.slettTittel": "Ištrinti laikotarpį?",
   "firma.ansatte.oppmote.feil.lukketFast": "Uždaryta nuolatinė vieta yra istorija ir jos negalima ištrinti. Vietoj to nustatykite naują nuolatinę vietą.",
-  "firma.ansatte.oppmote.slettHva": "Laikotarpio datos gauna kitą darbuotojo ataskaitų teikimo vietą. Jei ištrinsite nuolatinę vietą, vėl bus taikoma ankstesnė nuolatinė vieta."
+  "firma.ansatte.oppmote.slettHva": "Laikotarpio datos gauna kitą darbuotojo ataskaitų teikimo vietą. Jei ištrinsite nuolatinę vietą, vėl bus taikoma ankstesnė nuolatinė vieta.",
+  "timer.reiseKort.annetKontor": "Perkėlimas į kitą biurą",
+  "timer.reiseKort.tilKontor": "Į {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Laikinas: {{navn}} nuo {{dato}}",
+  "timer.reiseKort.avslutt": "Pabaiga",
+  "timer.reiseKort.sperre.adminMidlertidig": "Įmonės administratorius nustatė laikiną susitikimo vietą – paprašykite įmonės administratoriaus jį pakeisti",
+  "firma.ansatte.oppmote.viaOverforing": "per pavedimą"
 }

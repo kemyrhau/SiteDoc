@@ -278,7 +278,10 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
     expect(HOOK).not.toContain("SecureStore");
     expect(HOOK).not.toContain("velgOppmotested(");
     expect(KORT).toContain("useManuellReise(");
-    expect(KORT).toContain("reiseSpor: resultat.spor");
+    expect(KORT).toContain("let reiseSpor = resultat.spor;");
+    // Del B: overføringen fører bare periode-id-en inn i samme spor, ingen nytt spor.
+    expect(KORT).toContain("reiseSpor = medOverforingPeriodeId(reiseSpor,");
+    expect(KORT).toMatch(/onLagre\(\{[^}]*\breiseSpor\b/);
     expect(DAGSEKSJON).toContain("l.reiseSpor");
     expect(BEKREFT).toContain("reiseSpor: l.reiseSpor");
   });

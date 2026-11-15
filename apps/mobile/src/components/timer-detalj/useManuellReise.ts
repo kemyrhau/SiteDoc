@@ -1,10 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+  erApenOverforing,
   finnDagsramme,
+  kontorOverforingOppsett,
+  kontorOverforingRetning,
   løsOppmote,
   løsOverforingKort,
   løsReiseKort,
   manuellReiseForklaringTekst,
+  periodeDatoFraOverforing,
+  planleggOverforing,
   type ManuellReiseSpor,
   type OppmoteResultat,
   type ReiseKortResultat,
@@ -17,6 +22,7 @@ import { hentMatriseRadLokalt } from "../../services/reisetidMatriseKatalog";
 import { hentReiseGrensepunkterLokalt } from "../../services/reiseGrensepunktKatalog";
 import { hentLonnsarterLokalt, hentStandardLonnsartLokalt } from "../../services/timerKatalog";
 import { hentOverforingOppslagLokalt } from "../../services/overforingOppslag";
+import { hentKontorAvstandLokalt } from "../../services/oppmotestedAvstandKatalog";
 import type { DagsforslagOverforingOppslag } from "../../utils/dagsforslag";
 
 /* ============================================================================
@@ -39,7 +45,17 @@ export const forklaringTekst = manuellReiseForklaringTekst;
 export type ReiseKortValg =
   | { type: "tur" }
   | { type: "retur" }
-  | { type: "overforing"; indeks: number };
+  | { type: "overforing"; indeks: number }
+  /** Del B: overføring til annet kontor (setter/avslutter midlertidig oppmøtested). */
+  | { type: "kontor"; oppmotestedId: string };
+
+/** Kallet `registrerOverforing` får når et kontorvalg lagres. */
+export type KontorOverforingKall = {
+  handling: "start" | "slutt";
+  oppmotestedId: string | null;
+  /** Periodedato etter kl. 12-regelen. */
+  dato: string;
+};
 
 function lesRegel(organizationId: string): ReiseRegelsett | null {
   const r = hentOrganizationSettingLokalt(organizationId);
@@ -87,9 +103,12 @@ export function useManuellReise({
 }) {
   const regel = useMemo(() => lesRegel(organizationId), [organizationId]);
   const oppmotesteder = useMemo(() => hentOppmotederLokalt(organizationId), [organizationId]);
+  // Teller: perioder leses på nytt etter en overføring (optimistisk skriving).
+  const [periodeVersjon, setPeriodeVersjon] = useState(0);
   const perioder = useMemo(
     () => hentOppmotePerioderLokalt(userId, organizationId),
-    [userId, organizationId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- periodeVersjon tvinger ny lesing
+    [userId, organizationId, periodeVersjon],
   );
   const grensepunkter = useMemo(
     () => hentReiseGrensepunkterLokalt(organizationId),
@@ -134,6 +153,15 @@ export function useManuellReise({
 
   const ramme = useMemo(() => finnDagsramme(dagsrader), [dagsrader]);
 
+  // Del B: «Overføring til annet kontor» — cachen speiler bare aktive kontorer.
+  const kontorOppsett = useMemo(
+    () => kontorOverforingOppsett(dato, projectId, perioder, oppmotesteder.map((o) => o.id)),
+    [dato, projectId, perioder, oppmotesteder],
+  );
+  const apenOverforing = useMemo(() => perioder.find(erApenOverforing) ?? null, [perioder]);
+  const kontorValg = aktivtValg.type === "kontor" && kontorOppsett ? aktivtValg.oppmotestedId : null;
+  const kontorRetning = kontorValg && kontorOppsett ? kontorOverforingRetning(kontorOppsett, kontorValg) : null;
+
   const resultat: ReiseKortResultat = useMemo(() => {
     const felles = {
       dagStart: ramme.dagStart,
@@ -143,6 +171,22 @@ export function useManuellReise({
       resolverLonnsartId,
       standardLonnsartId,
     };
+    if (kontorValg && kontorOppsett && kontorRetning) {
+      const celle = hentKontorAvstandLokalt(kontorOppsett.fraKontorId, kontorValg);
+      return løsOverforingKort({
+        ...felles,
+        overforing: {
+          retning: kontorRetning === "tur" ? "ut" : "retur",
+          fra: { type: "kontor", oppmotestedId: kontorOppsett.fraKontorId },
+          til: { type: "kontor", oppmotestedId: kontorValg },
+          // Tur: settes til den nye periodens id ved lagring. Retur: perioden som avsluttes.
+          periodeId: kontorRetning === "retur" ? (apenOverforing?.id ?? null) : null,
+        },
+        oppmotestedId: kontorOppsett.fraKontorId,
+        kjoretidMin: celle?.kjoretidMin ?? null,
+        avstandM: celle?.avstandM ?? null,
+      });
+    }
     if (aktivtValg.type === "overforing") {
       const o = overforinger[aktivtValg.indeks];
       if (o) {
@@ -164,7 +208,7 @@ export function useManuellReise({
       avstandFor: (o, b) => hentMatriseRadLokalt(o, b)?.avstandM ?? null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- aktivtValg er avledet av valg + overforinger
-  }, [valg, forsteOverforing, overforinger, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId]);
+  }, [valg, forsteOverforing, overforinger, kontorOppsett, apenOverforing, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId]);
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
   const oppmotestedNavn =
@@ -172,7 +216,27 @@ export function useManuellReise({
       ? (oppmotesteder.find((o) => o.id === oppmote.oppmotestedId)?.navn ?? null)
       : null;
 
+  // Kallet lagringen gjør, og om serveren ville avvist det (admin-satt midlertidig).
+  const kontorKall: KontorOverforingKall | null =
+    kontorValg && kontorRetning
+      ? {
+          handling: kontorRetning === "tur" ? "start" : "slutt",
+          oppmotestedId: kontorRetning === "tur" ? kontorValg : null,
+          dato: periodeDatoFraOverforing(dato, resultat.fraTid, kontorRetning),
+        }
+      : null;
+  const kontorKonflikt =
+    kontorKall != null && planleggOverforing(perioder, kontorKall).utfall === "konflikt";
+
+  const kontorNavn = (id: string) => oppmotesteder.find((o) => o.id === id)?.navn ?? "";
+
   return {
+    kontorOppsett,
+    kontorKall,
+    kontorKonflikt,
+    apenOverforing,
+    kontorNavn,
+    lastPerioderPaaNytt: () => setPeriodeVersjon((v) => v + 1),
     oppmote,
     oppmotestedNavn,
     overforinger,
