@@ -964,10 +964,18 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       : null;
   // L3-A: arbeiderens valg i bekreft-skjermen vinner.
   const retting = input.retting;
+  // (15): globalt aktivt prosjekt kan være et gjesteprosjekt (annet firma) som
+  // ikke finnes i timer-katalogen. Da ignoreres det → prosjektUkjent («velg
+  // prosjekt»), aldri et timerprosjekt som feiler ved lagring/sync.
+  const aktivtTimerProsjektId =
+    input.aktivtProsjektId != null &&
+    input.prosjekter.some((p) => p.id === input.aktivtProsjektId)
+      ? input.aktivtProsjektId
+      : null;
   const prosjektId =
     retting?.prosjektId ??
     input.destinasjonProsjektId ??
-    input.aktivtProsjektId;
+    aktivtTimerProsjektId;
   if (prosjektId == null) {
     // Dagen holdes åpen; meldingen navngir veien ut (velg prosjekt, prøv igjen).
     return { ...tomt, prosjektUkjent: true, destinasjonAarsak };

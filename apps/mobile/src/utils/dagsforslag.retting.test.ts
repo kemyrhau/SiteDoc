@@ -397,3 +397,56 @@ describe("ORDRE 36e pkt. 4 — pausen bæres også på en kort dag", () => {
     expect(k("12:00", 3.5, 0)).toBe("12:00"); // ingen pause → ingen klemming
   });
 });
+
+/**
+ * (15) gate (37) vilkår 1 — globalt aktivt prosjekt kan være et gjesteprosjekt
+ * (annet firma) som ikke er i timer-katalogen (`input.prosjekter`). Vakten i
+ * `beregnDagsforslag` er felles for Bekreft dag (`bekreftDag.ts`) og manuell
+ * dag (`manuellDag.ts`).
+ */
+describe("(15) gjesteprosjekt som aktivt prosjekt", () => {
+  it("gjesteprosjekt utenfor timer-katalogen → prosjektUkjent, ingen rader", () => {
+    const f = beregnDagsforslag(
+      lagInput({ aktivtProsjektId: "gjest-p", destinasjonProsjektId: null }),
+    );
+    expect(f.prosjektUkjent).toBe(true);
+    expect(f.prosjektId).toBeNull();
+    expect(f.datoer).toEqual([]);
+  });
+
+  it("eget prosjekt i katalogen → uendret forslag", () => {
+    const f = beregnDagsforslag(
+      lagInput({ aktivtProsjektId: "p2", destinasjonProsjektId: null }),
+    );
+    expect(f.prosjektUkjent).toBe(false);
+    expect(f.prosjektId).toBe("p2");
+    expect(arbeid(f).length).toBeGreaterThan(0);
+  });
+
+  it("arbeiderens prosjekt-retting løser gjeste-tilfellet", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        aktivtProsjektId: "gjest-p",
+        destinasjonProsjektId: null,
+        retting: { prosjektId: "p1" },
+      }),
+    );
+    expect(f.prosjektUkjent).toBe(false);
+    expect(f.prosjektId).toBe("p1");
+  });
+
+  it("begge innganger går via beregnDagsforslag; dagskortet bruker den ikke", () => {
+    const her = dirname(fileURLToPath(import.meta.url));
+    for (const fil of ["bekreftDag.ts", "manuellDag.ts"]) {
+      expect(readFileSync(join(her, fil), "utf8")).toMatch(/beregnDagsforslag\(/);
+    }
+    const dagskort = [
+      "../lib/dagskortSammenligning.ts",
+      "../components/timer-detalj/DagskortSammenligning.tsx",
+      "./prosjektkortUtkast.ts",
+    ];
+    for (const fil of dagskort) {
+      expect(readFileSync(join(her, fil), "utf8")).not.toMatch(/beregnDagsforslag/);
+    }
+  });
+});

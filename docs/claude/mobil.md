@@ -258,6 +258,7 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 - **På nett:** kilden er `prosjekt.hentGjesteprosjekter`.
 - **Offline:** kilden er `hentGjesteprosjekterLokalt` (`services/prosjektKatalog.ts`). Den leser eksisterende `prosjekt_local`, som lagrer prosjektet under eierens org-id, så ingen ny tabell trengs. Eiernavnet er ukjent offline. Er ansettelsen ukjent (`mineAnsattFirmaIder` → `null`), vises ingen gjestegruppe. Ren logikk: `utils/gjesteprosjektListe.ts`.
 - **Timer:** mobilen har ingen prosjekt-skopet Timer-inngang. Timer følger valgt eget firma (`useFirmamodulSkjult`), og prosjektlista i Timer kommer fra `hentForTimer`, som ikke tar med gjesteprosjekter uten firmakobling.
+- **Bekreft dag / manuell dag:** et globalt aktivt prosjekt som ikke er i timer-katalogen (`input.prosjekter`), for eksempel et gjesteprosjekt, ignoreres i `beregnDagsforslag` (`utils/dagsforslag.ts`, `aktivtTimerProsjektId`). Forslaget faller da til `prosjektUkjent` («velg prosjekt»). Dagskortet bruker ikke `beregnDagsforslag` (kildevakt i `dagsforslag.retting.test.ts`).
 
 ## Flerspråklig (i18n)
 
