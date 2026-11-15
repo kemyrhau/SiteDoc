@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { hentDatabase } from "../../src/db/database";
+import { lokalIsoDato } from "../../src/utils/dato";
 import {
   dagsseddelLocal,
   sheetTimerLocal,
@@ -47,9 +48,8 @@ function ukestart(dato: Date): Date {
   return d;
 }
 
-function tilIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+// (16) punkt 5: lokal kalenderdato (`toISOString()` på lokal midnatt = forrige dag i CET).
+const tilIso = lokalIsoDato;
 
 function formatDato(iso: string): string {
   return new Date(iso).toLocaleDateString("no-NB", {

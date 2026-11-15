@@ -33,7 +33,12 @@ vi.mock("./rute-service", () => ({
   hentKjoretidMatrise: (...a: unknown[]) => hentKjoretidMatrise(...a),
 }));
 
-import { kontorPar, recomputeKontorAvstand } from "./reisetidMatrise";
+import {
+  KONTOR_FYLL_PAUSE_MS,
+  fyllManglendeKontorAvstander,
+  kontorPar,
+  recomputeKontorAvstand,
+} from "./reisetidMatrise";
 
 const ORG = "org-1";
 const KA = { id: "a", lat: 68.4, lng: 17.4 }; // Narvik
@@ -120,5 +125,66 @@ describe("recomputeKontorAvstand", () => {
     oppmotestedFindMany.mockResolvedValue([KA]);
     expect((await recomputeKontorAvstand({ organizationId: ORG })).rader).toBe(0);
     expect(avstandUpsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("fyllManglendeKontorAvstander — (16) punkt 4", () => {
+  const MATRISE3 = {
+    durations: [[0, 180, 200], [180, 0, 330], [200, 330, 0]],
+    distances: [[0, 250000, 290000], [250000, 0, 540000], [290000, 540000, 0]],
+  };
+
+  it("manglende par beregnes; eksisterende (manuell) rad står urørt", async () => {
+    oppmotestedFindMany.mockResolvedValue([KA, KB, KC]);
+    // a|b finnes (manuell), a|c og b|c mangler.
+    avstandFindMany.mockResolvedValue([{ fraOppmotestedId: "a", tilOppmotestedId: "b" }]);
+    hentKjoretidMatrise.mockResolvedValue(MATRISE3);
+    const res = await fyllManglendeKontorAvstander("org-fyll-1");
+    expect(par()).toEqual(["a|c", "b|c"]);
+    expect(res.rader).toBe(2);
+    // Hele firmaets rader (alle kilder) teller som «finnes».
+    expect(avstandFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { organizationId: "org-fyll-1" } }),
+    );
+    expect(avstandUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("ingen par mangler → OSRM kalles ikke, ingen skriving", async () => {
+    oppmotestedFindMany.mockResolvedValue([KA, KB]);
+    avstandFindMany.mockResolvedValue([{ fraOppmotestedId: "a", tilOppmotestedId: "b" }]);
+    expect((await fyllManglendeKontorAvstander("org-fyll-2")).rader).toBe(0);
+    expect(hentKjoretidMatrise).not.toHaveBeenCalled();
+    expect(avstandUpsert).not.toHaveBeenCalled();
+  });
+
+  it("OSRM-feil → ingen skriving, og nytt forsøk først etter pausen", async () => {
+    oppmotestedFindMany.mockResolvedValue([KA, KB]);
+    hentKjoretidMatrise.mockResolvedValue(null);
+    const t0 = 1_000_000;
+    expect((await fyllManglendeKontorAvstander("org-fyll-3", t0)).rader).toBe(0);
+    expect(avstandUpsert).not.toHaveBeenCalled();
+    expect(hentKjoretidMatrise).toHaveBeenCalledTimes(1);
+    await fyllManglendeKontorAvstander("org-fyll-3", t0 + KONTOR_FYLL_PAUSE_MS - 1);
+    expect(hentKjoretidMatrise).toHaveBeenCalledTimes(1);
+    hentKjoretidMatrise.mockResolvedValue({ durations: [[0, 180], [180, 0]], distances: [[0, 1], [1, 0]] });
+    expect((await fyllManglendeKontorAvstander("org-fyll-3", t0 + KONTOR_FYLL_PAUSE_MS)).rader).toBe(1);
+  });
+
+  it("DB-feil kastes ikke videre — lesingen skal alltid svare", async () => {
+    oppmotestedFindMany.mockRejectedValue(new Error("db nede"));
+    const feil = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(fyllManglendeKontorAvstander("org-fyll-4")).resolves.toEqual({ rader: 0 });
+    feil.mockRestore();
+  });
+
+  it("vakt: begge lesestiene fyller før lesing", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const kilde = readFileSync(
+      fileURLToPath(new URL("../routes/oppmotested.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(kilde).toContain("await fyllManglendeKontorAvstander(orgId);");
+    expect(kilde).toContain("await fyllManglendeKontorAvstander(input.organizationId);");
   });
 });

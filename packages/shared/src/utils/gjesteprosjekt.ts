@@ -35,3 +35,20 @@ export function skjulFirmaModulForGjest(
   if (modul === "timer") return !gjest.firmaKoblet;
   return true;
 }
+
+/**
+ * Prosjektvelgerens «Prosjekter i andre firma»-gruppe (POST 2026-11-15 (16), punkt 2).
+ *
+ * `prosjekt.hentGjesteprosjekter` er uavhengig av valgt firma: et firma brukeren har VALGT,
+ * men ikke er ansatt i (typisk sitedoc_admin), gir gjesteprosjekter som eies av nettopp det
+ * valgte firmaet. De hører hjemme i hovedlista (Alle/Mine-filteret), ikke under «andre firma».
+ * Gruppen viser derfor bare prosjekter der eier-firmaet ≠ valgt firma. Uten valgt firma vises
+ * hele gjestelista som før. Påvirker kun visningen — ikke tilgang eller Timer-skjuling.
+ */
+export function gjesteprosjekterIAndreFirma<T extends { primaryOrganizationId: string | null }>(
+  gjesteprosjekter: readonly T[],
+  valgtFirmaId: string | null | undefined,
+): T[] {
+  if (!valgtFirmaId) return [...gjesteprosjekter];
+  return gjesteprosjekter.filter((p) => p.primaryOrganizationId !== valgtFirmaId);
+}

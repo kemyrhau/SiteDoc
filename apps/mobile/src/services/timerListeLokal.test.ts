@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 
@@ -121,5 +122,45 @@ describe("POST (14) (i) — bare valgt firma", () => {
     expect([tellConflict("u1", "firma-b"), tellAvvist("u1", "firma-b")]).toEqual([1, 0]);
     expect([tellConflict("u1", null), tellAvvist("u1", null)]).toEqual([0, 0]);
     expect([tellConflict("u1"), tellAvvist("u1")]).toEqual([2, 1]);
+  });
+});
+
+describe("(16) punkt 5 — ukeintervall på lokal dato (TZ=Europe/Oslo)", () => {
+  let forrigeTz: string | undefined;
+  beforeAll(() => {
+    forrigeTz = process.env.TZ;
+    process.env.TZ = "Europe/Oslo";
+  });
+  afterAll(() => {
+    if (forrigeTz === undefined) delete process.env.TZ;
+    else process.env.TZ = forrigeTz;
+  });
+
+  it("søndag 15.11 tas med i uka, forrige søndag 08.11 ikke", () => {
+    // Bevis på at TZ faktisk virker i denne prosessen (CET = UTC+1).
+    expect(new Date(2026, 10, 15).getTimezoneOffset()).toBe(-60);
+    sedel("tz-man", "firma-tz", "2026-11-09", "synced", 1);
+    sedel("tz-son", "firma-tz", "2026-11-15", "synced", 3);
+    sedel("tz-forrige-son", "firma-tz", "2026-11-08", "synced", 5);
+    const sondag = new Date(2026, 10, 15, 12, 0, 0);
+    expect(lesUkeTotalLokalt("u1", "firma-tz", sondag)).toMatchObject({ totalt: 4, antall: 2, ukeNr: 46 });
+  });
+});
+
+describe("(16) punkt 5 — vakter", () => {
+  const les = (rel: string) => readFileSync(path.join(__dirname, rel), "utf8");
+
+  it("ingen UTC-dato fra lokal midnatt i timer-lesingene", () => {
+    for (const f of ["./timerListeLokal.ts", "./kalenderKatalog.ts", "../../app/timer/mine.tsx"]) {
+      const kode = les(f).replace(/datoRaw\.toISOString\(\)\.slice\(0, 10\)/g, "");
+      expect(kode, f).not.toContain("toISOString().slice(0, 10)");
+    }
+  });
+
+  it("ukesummen leses sammen med lista (følger lagring/synk), ikke i en memo i banneret", () => {
+    expect(les("../components/UkeTotalBanner.tsx")).not.toContain("lesUkeTotalLokalt");
+    expect(les("../components/DagsseddelListe.tsx")).toContain(
+      "setUkeTotal(lesUkeTotalLokalt(bruker.id, valgtFirmaId));",
+    );
   });
 });

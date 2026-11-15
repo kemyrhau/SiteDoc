@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Pencil, RotateCcw } from "lucide-react";
 import { formaterKjoretid } from "@sitedoc/shared";
+import { kontorAvstandStartverdier, tolkKontorAvstand } from "@/lib/kontorAvstandSkjema";
 
 /* ============================================================================
  *  POST 2026-11-14 (10) B: fanen «Avstander» under Firma → Oppmøtesteder.
@@ -478,6 +479,11 @@ function RedigerAvstandModal({
     enhet === "km" ? (kjentKm != null ? String(kjentKm) : "") : kjentMin != null ? String(kjentMin) : "",
   );
   const [ekstraMin, setEkstraMin] = useState("");
+  // (16) punkt 3: kontor ↔ kontor viser alltid både km og kjøretid, forhåndsutfylt.
+  const erKontor = maal.type === "kontor";
+  const kontorStart = kontorAvstandStartverdier(c);
+  const [kontorKm, setKontorKm] = useState(kontorStart.km);
+  const [kontorMin, setKontorMin] = useState(kontorStart.min);
   const [feil, setFeil] = useState<string | null>(null);
 
   const lagreByggeplass = trpc.oppmotested.oppdaterAvstand.useMutation({
@@ -508,6 +514,15 @@ function RedigerAvstandModal({
   };
 
   function send() {
+    if (erKontor) {
+      const v = tolkKontorAvstand(kontorKm, kontorMin);
+      if (!v) {
+        setFeil(t("firma.avstander.ugyldig"));
+        return;
+      }
+      mutate(v);
+      return;
+    }
     const tall = Number(hoved.replace(",", "."));
     if (!Number.isFinite(tall) || tall <= 0) {
       setFeil(t("firma.avstander.ugyldig"));
@@ -535,13 +550,30 @@ function RedigerAvstandModal({
         <p className="text-sm text-gray-600">
           {redigering.undertittel}
         </p>
-        <Input
-          label={enhet === "km" ? t("firma.avstander.felt.avstand") : t("firma.avstander.felt.kjoretid")}
-          value={hoved}
-          onChange={(e) => setHoved(e.target.value)}
-          inputMode="decimal"
-        />
-        {trengerMin && (
+        {erKontor ? (
+          <>
+            <Input
+              label={t("firma.avstander.felt.avstand")}
+              value={kontorKm}
+              onChange={(e) => setKontorKm(e.target.value)}
+              inputMode="decimal"
+            />
+            <Input
+              label={t("firma.avstander.felt.kjoretid")}
+              value={kontorMin}
+              onChange={(e) => setKontorMin(e.target.value)}
+              inputMode="numeric"
+            />
+          </>
+        ) : (
+          <Input
+            label={enhet === "km" ? t("firma.avstander.felt.avstand") : t("firma.avstander.felt.kjoretid")}
+            value={hoved}
+            onChange={(e) => setHoved(e.target.value)}
+            inputMode="decimal"
+          />
+        )}
+        {!erKontor && trengerMin && (
           <Input
             label={t("firma.avstander.felt.kjoretid")}
             value={ekstraMin}
