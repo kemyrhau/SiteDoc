@@ -11,7 +11,9 @@ import { byggeplassForLokasjon, filtrerOmrader } from "@/lib/dokument-lokasjon";
 import { harTegningsmarkor } from "@sitedoc/shared";
 import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
-type LokasjonOmfang = "punkt" | "byggeplass" | "omrade";
+// «prosjekt» (ORDRE (20), 2026-11-15): brukeren valgte selv «Hele prosjektet». Velgeren lagrer det
+// aldri selv; verdien stopper bare auto-åpningen (kalleren sjekker `== null`).
+type LokasjonOmfang = "punkt" | "byggeplass" | "omrade" | "prosjekt";
 
 interface LokasjonVelgerProps {
   prosjektId: string;
@@ -51,6 +53,8 @@ interface LokasjonVelgerProps {
    * Modalen har synlig utvei (Avbryt), og å lukke uten valg lagrer INGENTING — lukking ≠ byggeplass.
    */
   autoÅpne?: boolean;
+  /** Åpner velgeren hver gang tallet øker (ORDRE (20): «Velg» i «Byggeplass ikke valgt»-linja). */
+  åpneSignal?: number;
 }
 
 export function LokasjonVelger({
@@ -68,6 +72,7 @@ export function LokasjonVelger({
   onLagre,
   leseModus,
   autoÅpne,
+  åpneSignal,
 }: LokasjonVelgerProps) {
   const { t } = useTranslation();
   const { aktivByggeplass, standardTegning } = useByggeplass();
@@ -171,6 +176,12 @@ export function LokasjonVelger({
       åpne();
     }
   }, [autoÅpne, leseModus, åpne]);
+
+  // «Velg» i «Byggeplass ikke valgt»-linja: åpne ved hver økning (0/undefined = ingen handling).
+  useEffect(() => {
+    if (åpneSignal && !leseModus) åpne();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- kun signalet skal utløse åpning
+  }, [åpneSignal]);
 
   const handleImgKlikk = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {

@@ -170,6 +170,8 @@
   "kontekstChip.byggeplass": "Building site",
   "kontekstChip.endre": "Change",
   "kontekstChip.sistBrukt": "Recently used",
+  "kontekstChip.byggeplassIkkeValgt": "Building site not selected",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "The document is not linked to a building site. Select a building site – or “Entire project” if it applies to the whole project.",
   "kontekstChip.favoritter": "Favorites",
   "kontekstChip.leggTilFavoritt": "Add favorite",
   "kontekstChip.fjernFavoritt": "Remove favorite",

@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Будівельний майданчик",
   "kontekstChip.endre": "Зміна",
   "kontekstChip.sistBrukt": "Нещодавно використаний",
+  "kontekstChip.byggeplassIkkeValgt": "Місце для будівництва не обрано",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Документ не прив'язаний до будівельного майданчика. Виберіть будівельний майданчик або «Весь проект», якщо це стосується всього проекту.",
   "kontekstChip.favoritter": "Вибране",
   "kontekstChip.leggTilFavoritt": "Додати улюблене",
   "kontekstChip.fjernFavoritt": "Видалити улюблене",

@@ -13,7 +13,8 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsFlytStripe } from "@/components/HmsFlytStripe";
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, formaterNummer, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, formaterNummer, TERMINALE_DOKUMENTSTATUSER, visByggeplassIkkeValgt } from "@sitedoc/shared";
+import { ByggeplassIkkeValgtLinje } from "@/components/ByggeplassIkkeValgtLinje";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -225,6 +226,11 @@ export default function OppgaveDetaljSide() {
     [mineTillatelserRå],
   );
 
+  // ORDRE (20) linja: antall byggeplasser i prosjektet («Byggeplass ikke valgt» kun når det finnes noen).
+  const { data: bygningerRå } = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
   const { data: alleFaggrupperRå } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -243,6 +249,8 @@ export default function OppgaveDetaljSide() {
   );
   // P4b: redigerbar tittel (utfyllingsmodus).
   const [redigererTittel, setRedigererTittel] = useState(false);
+  // ORDRE (20) linja: «Velg» i «Byggeplass ikke valgt» åpner lokasjonsvelgeren.
+  const [lokasjonÅpneSignal, setLokasjonÅpneSignal] = useState(0);
   const [tittelUtkast, setTittelUtkast] = useState("");
 
   // Hent full oppgavedata for tidslinje/recipient/creator (cast for TS2589)
@@ -623,6 +631,21 @@ export default function OppgaveDetaljSide() {
     }
   }
 
+  // ORDRE (20) linja: oppgave uten byggeplass (egen eller tegningens) i et prosjekt med byggeplasser,
+  // uten eget «Hele prosjektet»-valg. Kun i utkast (server-vakten) og når malen viser lokasjon —
+  // «Velg» åpner lokasjonsvelgeren, som ellers ikke finnes på siden.
+  const visIkkeValgt = visByggeplassIkkeValgt({
+    byggeplassId:
+      (fullOppgaveRå as { byggeplassId?: string | null } | undefined)?.byggeplassId ??
+      (oppgaveLokasjon.bygningNavn ? "tegningens" : null),
+    antallByggeplasser: (bygningerRå as unknown[] | undefined)?.length ?? 0,
+    lokasjonOmfang: oppgaveLokasjon.lokasjonOmfang,
+    kanRedigere:
+      !leseModus &&
+      (oppgave.status ?? "") === "draft" &&
+      (fullOppgaveRå as unknown as { template?: { showLocation?: boolean } | null })?.template?.showLocation !== false,
+  });
+
   const kontekstChips: import("@/components/kontekst-chip/DokumentKontekstChipLinje").Chip[] = [
     {
       etikett: t("kontekstChip.prosjekt"),
@@ -808,6 +831,11 @@ export default function OppgaveDetaljSide() {
         {/* P4b Rad 1b: kontekst-chip-linje (utfyllingsmodus). */}
         <div className="print-skjul mt-2">
           <DokumentKontekstChipLinje chips={kontekstChips} />
+          {visIkkeValgt && (
+            <div className="mt-1.5">
+              <ByggeplassIkkeValgtLinje onVelg={() => setLokasjonÅpneSignal((n) => n + 1)} />
+            </div>
+          )}
         </div>
 
         {/* Rad 2 (HMS, Spor 2 / 5c): dedikert HMS-flyt-stripe — Meldt → Hos {behandler} → Lukket.
@@ -973,6 +1001,7 @@ export default function OppgaveDetaljSide() {
             // Cowork-vedtak 2026-08-29: speil server-vakten (oppgave.ts:670, draft-only) —
             // ikke ["closed","approved"], som viste velgeren redigerbar i sent men fikk stille avvisning.
             leseModus={(oppgave.status ?? "") !== "draft"}
+            åpneSignal={lokasjonÅpneSignal}
             /* Auto-åpning (krav 3): kun utkast, omfang ikke valgt, ingen tegning fra før. */
             autoÅpne={
               (oppgave.status ?? "") === "draft" &&

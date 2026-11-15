@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Chantier",
   "kontekstChip.endre": "Changement",
   "kontekstChip.sistBrukt": "Récemment utilisé",
+  "kontekstChip.byggeplassIkkeValgt": "Chantier non sélectionné",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Le document n'est pas lié à un chantier. Sélectionnez un chantier – ou « Projet entier » si cela s'applique à l'ensemble du projet.",
   "kontekstChip.favoritter": "Favoris",
   "kontekstChip.leggTilFavoritt": "Ajouter un favori",
   "kontekstChip.fjernFavoritt": "Supprimer le favori",

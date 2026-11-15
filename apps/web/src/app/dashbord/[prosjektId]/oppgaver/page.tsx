@@ -258,7 +258,7 @@ export default function OppgaverSide() {
   // ORDRE 28: oppgave.opprett tar byggeplassId — aktiv byggeplass sendes, så en
   // oppgave uten standardtegning likevel fester seg til byggeplassen. Tegningens
   // byggeplass vinner på serveren når standardTegning er satt.
-  const { aktivByggeplass, opprettByggeplass, opprettTegning } = useByggeplass();
+  const { aktivByggeplass, opprettByggeplass, opprettTegning, opprettLokasjonOmfang } = useByggeplass();
 
   // TILLEGG ORDRE 28: listen følger toppbarens byggeplass (serveren scoper, 4 ledd).
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
@@ -418,6 +418,7 @@ export default function OppgaverSide() {
       dokumentflytId: k.flytId,
       drawingId: opprettTegning?.id,
       byggeplassId: opprettByggeplass?.id,
+      lokasjonOmfang: opprettLokasjonOmfang,
     });
   }
 
@@ -435,6 +436,7 @@ export default function OppgaverSide() {
         priority: "medium",
         drawingId: opprettTegning?.id,
         byggeplassId: opprettByggeplass?.id,
+        lokasjonOmfang: opprettLokasjonOmfang,
       });
       return;
     }

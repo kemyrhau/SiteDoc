@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Staveniště",
   "kontekstChip.endre": "Přeměna",
   "kontekstChip.sistBrukt": "Nedávno použité",
+  "kontekstChip.byggeplassIkkeValgt": "Stavební pozemek není vybrán",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Dokument není spojen se staveništěm. Vyberte staveniště – nebo „Celý projekt“, pokud se vztahuje na celý projekt.",
   "kontekstChip.favoritter": "Oblíbené",
   "kontekstChip.leggTilFavoritt": "Přidat oblíbené",
   "kontekstChip.fjernFavoritt": "Odebrat oblíbené",

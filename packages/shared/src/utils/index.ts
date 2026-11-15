@@ -619,3 +619,9 @@ export type {
   ProsjektTrykkHandling,
   ByggeplassValg,
 } from "./prosjektByggeplassValg";
+export {
+  LOKASJON_OMFANG_PROSJEKT,
+  visByggeplassIkkeValgt,
+  opprettLokasjonOmfang,
+} from "./byggeplassIkkeValgt";
+export type { ByggeplassIkkeValgtInput } from "./byggeplassIkkeValgt";

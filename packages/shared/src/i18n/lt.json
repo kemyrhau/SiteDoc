@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Statybos aikštelė",
   "kontekstChip.endre": "Keisti",
   "kontekstChip.sistBrukt": "Neseniai naudotas",
+  "kontekstChip.byggeplassIkkeValgt": "Statybos vieta nepasirinkta",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Dokumentas nesusietas su statybviete. Pasirinkite statybvietę arba „Visą projektą“, jei tai taikoma visam projektui.",
   "kontekstChip.favoritter": "Mėgstamiausi",
   "kontekstChip.leggTilFavoritt": "Pridėti mėgstamiausią",
   "kontekstChip.fjernFavoritt": "Pašalinti mėgstamiausią",

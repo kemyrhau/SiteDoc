@@ -141,8 +141,21 @@ describe("ORDRE 29 #6: byggeplassByttInput", () => {
     expect(byggeplassByttInput("punkt", "bp2").lokasjonOmfang).toBeNull();
   });
   it("hele byggeplassen beholdes (gjelder den nye byggeplassen)", () => {
-    const ut = byggeplassByttInput("byggeplass", null);
+    const ut = byggeplassByttInput("byggeplass", "bp2");
     expect(ut).not.toHaveProperty("lokasjonOmfang");
-    expect(ut).toMatchObject({ byggeplassId: null, omradeId: null, drawingId: null });
+    expect(ut).toMatchObject({ byggeplassId: "bp2", omradeId: null, drawingId: null });
+  });
+});
+
+describe("ORDRE (20) linja: «Hele prosjektet» i byggeplass-chipen", () => {
+  it("🔴 tomvalget lagres som omfang «prosjekt»", () => {
+    expect(byggeplassByttInput("byggeplass", null)).toMatchObject({ byggeplassId: null, lokasjonOmfang: "prosjekt" });
+    expect(byggeplassByttInput(null, null).lokasjonOmfang).toBe("prosjekt");
+  });
+  it("🔴 valg av byggeplass nullstiller «prosjekt»", () => {
+    expect(byggeplassByttInput("prosjekt", "bp2")).toMatchObject({ byggeplassId: "bp2", lokasjonOmfang: null });
+  });
+  it("negativkontroll: byggeplass-valg uten omfang setter ikke «prosjekt»", () => {
+    expect(byggeplassByttInput(null, "bp2")).not.toHaveProperty("lokasjonOmfang");
   });
 });

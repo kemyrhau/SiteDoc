@@ -73,7 +73,7 @@ interface HmsDokumenter {
 export default function HmsListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useByggeplass();
+  const { valgtBygningId, opprettLokasjonOmfang } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const router = useRouter();
@@ -214,7 +214,7 @@ export default function HmsListe() {
   // Lean mutate-signaturer (TS2589, docs/claude/api.md § TS/tRPC-fallgruver): med
   // byggeplassId i oppgave.opprett-inputen (ORDRE 28) tåler ikke useCallback-deps de
   // dype tRPC-typene — `as unknown as` FØR de brukes i callbacken.
-  type OpprettInn = { templateId: string; title: string; byggeplassId?: string };
+  type OpprettInn = { templateId: string; title: string; byggeplassId?: string; lokasjonOmfang?: "prosjekt" };
   const opprettOppgaveMutate = opprettOppgave.mutate as unknown as (inn: OpprettInn) => void;
   const opprettSjekklisteMutate = opprettSjekkliste.mutate as unknown as (inn: OpprettInn) => void;
 
@@ -230,6 +230,7 @@ export default function HmsListe() {
           templateId: mal.id,
           title: mal.name,
           byggeplassId: valgtBygningId ?? undefined,
+          lokasjonOmfang: opprettLokasjonOmfang,
         });
       } else {
         // Avvik/RUH = oppgave. ORDRE 28: oppgave.opprett tar byggeplassId — aktiv
@@ -238,10 +239,11 @@ export default function HmsListe() {
           templateId: mal.id,
           title: mal.name,
           byggeplassId: valgtBygningId ?? undefined,
+          lokasjonOmfang: opprettLokasjonOmfang,
         });
       }
     },
-    [opprettOppgaveMutate, opprettSjekklisteMutate, valgtBygningId],
+    [opprettOppgaveMutate, opprettSjekklisteMutate, valgtBygningId, opprettLokasjonOmfang],
   );
 
   const onRefresh = useCallback(() => {

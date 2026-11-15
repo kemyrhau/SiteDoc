@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Строительная площадка",
   "kontekstChip.endre": "Изменять",
   "kontekstChip.sistBrukt": "Недавно использовано",
+  "kontekstChip.byggeplassIkkeValgt": "Строительная площадка не выбрана",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Документ не привязан к строительной площадке. Выберите строительную площадку или «Весь проект», если это относится ко всему проекту.",
   "kontekstChip.favoritter": "Избранное",
   "kontekstChip.leggTilFavoritt": "Добавить в избранное",
   "kontekstChip.fjernFavoritt": "Удалить избранное",

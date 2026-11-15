@@ -9,14 +9,17 @@
  * fullSjekklisteRå), så feltene faktisk finnes. Byggeplass (ORDRE 28): dokumentets egen byggeplass
  * først, tegningens som reserve (eldre Task-rader uten egen verdi).
  */
+export type LokasjonOmfangVerdi = "punkt" | "byggeplass" | "omrade" | "prosjekt";
+
 export interface DokumentLokasjon {
   tegningId: string | null;
   tegningNavn: string | null;
   bygningNavn: string | null;
   positionX: number | null;
   positionY: number | null;
-  /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | "omrade" (steg 2b) | null. */
-  lokasjonOmfang: "punkt" | "byggeplass" | "omrade" | null;
+  /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | "omrade" (steg 2b) | "prosjekt"
+   * (ORDRE (20), 2026-11-15: brukeren valgte selv «Hele prosjektet») | null. */
+  lokasjonOmfang: LokasjonOmfangVerdi | null;
   /** Fritekst-sted (2026-09-06) — påheng på byggeplass når tegning mangler. */
   lokasjonFritekst: string | null;
   /** Område-referanse (steg 2b, 2026-09-23) — satt når lokasjonOmfang="omrade". */
@@ -29,7 +32,7 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
         drawingId?: string | null;
         positionX?: number | null;
         positionY?: number | null;
-        lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
+        lokasjonOmfang?: LokasjonOmfangVerdi | null;
         lokasjonFritekst?: string | null;
         omradeId?: string | null;
         drawing?: { name?: string | null; byggeplass?: { name?: string | null } | null } | null;
@@ -80,9 +83,12 @@ export function byggeplassForLokasjon(kilder: {
  * nullstilles sammen med `omradeId` — ellers ville serveren avvise omfang «omrade» uten område.
  * Omfang «punkt» mister tegningen og nullstilles, og pinnen tømmes (en pin uten tegning er
  * meningsløs). «Hele byggeplassen» (+ fritekst) gjelder like godt den nye byggeplassen og beholdes.
+ * ORDRE (20) linja: tomvalget («Hele prosjektet», `nyByggeplassId` null) er brukerens eget valg og
+ * lagres som omfang «prosjekt», så «Byggeplass ikke valgt» ikke vises. Valg av en byggeplass
+ * nullstiller «prosjekt» (serveren gjør det samme).
  */
 export function byggeplassByttInput(
-  naavaerendeOmfang: "punkt" | "byggeplass" | "omrade" | null | undefined,
+  naavaerendeOmfang: LokasjonOmfangVerdi | null | undefined,
   nyByggeplassId: string | null,
 ): {
   byggeplassId: string | null;
@@ -90,7 +96,7 @@ export function byggeplassByttInput(
   positionX: null;
   positionY: null;
   omradeId: null;
-  lokasjonOmfang?: null;
+  lokasjonOmfang?: null | "prosjekt";
 } {
   const base = {
     byggeplassId: nyByggeplassId,
@@ -99,7 +105,8 @@ export function byggeplassByttInput(
     positionY: null,
     omradeId: null,
   } as const;
-  return naavaerendeOmfang === "omrade" || naavaerendeOmfang === "punkt"
+  if (nyByggeplassId === null) return { ...base, lokasjonOmfang: "prosjekt" };
+  return naavaerendeOmfang === "omrade" || naavaerendeOmfang === "punkt" || naavaerendeOmfang === "prosjekt"
     ? { ...base, lokasjonOmfang: null }
     : { ...base };
 }

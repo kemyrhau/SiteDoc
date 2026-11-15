@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Ehitusplats",
   "kontekstChip.endre": "Muuda",
   "kontekstChip.sistBrukt": "Hiljuti kasutatud",
+  "kontekstChip.byggeplassIkkeValgt": "Ehitusplats pole valitud",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Dokument ei ole seotud ehitusplatsiga. Valige ehitusplats või \"Kogu projekt\", kui see kehtib kogu projekti kohta.",
   "kontekstChip.favoritter": "Lemmikud",
   "kontekstChip.leggTilFavoritt": "Lisa lemmik",
   "kontekstChip.fjernFavoritt": "Eemalda lemmik",

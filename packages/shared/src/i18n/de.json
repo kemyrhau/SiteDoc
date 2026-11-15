@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Baustelle",
   "kontekstChip.endre": "Ändern",
   "kontekstChip.sistBrukt": "Kürzlich verwendet",
+  "kontekstChip.byggeplassIkkeValgt": "Baustelle nicht ausgewählt",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Das Dokument ist nicht mit einer Baustelle verknüpft. Wählen Sie eine Baustelle aus – oder „Gesamtes Projekt“, wenn es sich um das gesamte Projekt handelt.",
   "kontekstChip.favoritter": "Favoritinnen",
   "kontekstChip.leggTilFavoritt": "Favorit hinzufügen",
   "kontekstChip.fjernFavoritt": "Favorit entfernen",

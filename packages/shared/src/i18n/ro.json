@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Şantier de construcţie",
   "kontekstChip.endre": "Schimba",
   "kontekstChip.sistBrukt": "Folosit recent",
+  "kontekstChip.byggeplassIkkeValgt": "Şantier de construcţie nu a fost selectat",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Documentul nu este legat de un șantier. Selectați un șantier – sau „Întregul proiect” dacă se aplică întregului proiect.",
   "kontekstChip.favoritter": "Favorite",
   "kontekstChip.leggTilFavoritt": "Adăugați favorit",
   "kontekstChip.fjernFavoritt": "Eliminați preferatul",

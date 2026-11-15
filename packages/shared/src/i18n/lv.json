@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Būvlaukums",
   "kontekstChip.endre": "Mainīt",
   "kontekstChip.sistBrukt": "Nesen lietots",
+  "kontekstChip.byggeplassIkkeValgt": "Ēkas vieta nav izvēlēta",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Dokuments nav saistīts ar būvlaukumu. Izvēlieties būvlaukumu vai “Visu projektu”, ja tas attiecas uz visu projektu.",
   "kontekstChip.favoritter": "Izlase",
   "kontekstChip.leggTilFavoritt": "Pievienot izlasi",
   "kontekstChip.fjernFavoritt": "Noņemt izlasi",

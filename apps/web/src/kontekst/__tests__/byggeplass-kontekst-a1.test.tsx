@@ -201,3 +201,35 @@ describe("(20) opprettByggeplass — ingen gjett", () => {
     expect(siste?.opprettByggeplass).toBeNull();
   });
 });
+
+/**
+ * ORDRE 2026-11-15 (20) linja: «prosjekt» sendes ved opprettelse KUN når brukeren selv har valgt
+ * «Hele prosjektet» — ellers står dokumentet uten omfang og får linja «Byggeplass ikke valgt».
+ */
+describe("(20) linja — opprettLokasjonOmfang", () => {
+  it("eget trykk på «Hele prosjektet» → «prosjekt»", () => {
+    h.prosjektId = "B";
+    render(tre());
+    act(() => siste!.velgByggeplass(null));
+    expect(siste?.opprettLokasjonOmfang).toBe("prosjekt");
+  });
+
+  it("lagret «Hele prosjektet» → «prosjekt»", () => {
+    h.prosjektId = "B";
+    h.lager[NOKKEL] = JSON.stringify({ B: HELE_PROSJEKTET_VALG });
+    render(tre());
+    expect(siste?.opprettLokasjonOmfang).toBe("prosjekt");
+  });
+
+  it("negativkontroll: forvalgt første (ingen eget valg) → ikke «prosjekt»", () => {
+    h.prosjektId = "B";
+    render(tre());
+    expect(siste?.opprettLokasjonOmfang).toBeUndefined();
+  });
+
+  it("negativkontroll: prosjekt uten byggeplasser → ikke «prosjekt»", () => {
+    h.prosjektId = "C";
+    render(tre());
+    expect(siste?.opprettLokasjonOmfang).toBeUndefined();
+  });
+});

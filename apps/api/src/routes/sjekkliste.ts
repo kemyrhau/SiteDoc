@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
-import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
+import { krevOmradeVedOmradeOmfang, LOKASJON_OMFANG, omfangMedByggeplass } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
@@ -344,7 +344,7 @@ export const sjekklisteRouter = router({
         positionY: z.number().min(0).max(100).optional(),
         // Lokasjonsomfang (2026-09-04): "byggeplass" = hele byggeplassen · "punkt" = pin ·
         // "omrade" (steg 2b) = et definert område (krever omradeId — DoD 12).
-        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        lokasjonOmfang: z.enum(LOKASJON_OMFANG).nullable().optional(),
         omradeId: z.string().nullable().optional(),
         // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass når tegning mangler.
         lokasjonFritekst: z.string().max(200).nullable().optional(),
@@ -649,7 +649,11 @@ export const sjekklisteRouter = router({
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
-            lokasjonOmfang: input.lokasjonOmfang,
+            lokasjonOmfang: omfangMedByggeplass({
+              inputOmfang: input.lokasjonOmfang,
+              naavaerendeOmfang: undefined,
+              effektivByggeplassId: input.byggeplassId,
+            }),
             omradeId: input.omradeId,
             lokasjonFritekst: input.lokasjonFritekst,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
@@ -704,7 +708,7 @@ export const sjekklisteRouter = router({
         byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
-        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        lokasjonOmfang: z.enum(LOKASJON_OMFANG).nullable().optional(),
         omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
@@ -790,7 +794,16 @@ export const sjekklisteRouter = router({
       const { id, ...data } = input;
       const oppdatert = await ctx.prisma.checklist.update({
         where: { id },
-        data,
+        data: {
+          ...data,
+          // (20) alt. A: byggeplass satt → «Hele prosjektet» (omfang «prosjekt») gjelder ikke lenger.
+          lokasjonOmfang: omfangMedByggeplass({
+            inputOmfang: input.lokasjonOmfang,
+            naavaerendeOmfang: sjekkliste.lokasjonOmfang,
+            effektivByggeplassId:
+              input.byggeplassId !== undefined ? input.byggeplassId : sjekkliste.byggeplassId,
+          }),
+        },
       });
 
       // 3b: Er sjekklista koblet til et kontrollpunkt og «lokasjoner»-flyttingen rører

@@ -137,6 +137,7 @@ export function OpprettDokumentModal({
   // global kontekst. Modalen kaller IKKE settBygning (ingen stille nav-bytte).
   const {
     kontekstByggeplassId: kontekstBygningId,
+    opprettLokasjonOmfang,
     hentSistTegning,
     settSistTegning,
   } = useByggeplass();
@@ -408,6 +409,7 @@ export function OpprettDokumentModal({
     drawingId?: string;
     positionX?: number;
     positionY?: number;
+    lokasjonOmfang?: "prosjekt";
   }) => void;
 
   const nullstillSkjema = useCallback(() => {
@@ -481,6 +483,9 @@ export function OpprettDokumentModal({
         drawingId: valgtTegningId ?? undefined,
         positionX: posisjon?.x,
         positionY: posisjon?.y,
+        // ORDRE (20) linja: eget «Hele prosjektet»-valg → omfang «prosjekt» (serveren nullstiller
+        // det når dokumentet likevel får byggeplass).
+        lokasjonOmfang: opprettLokasjonOmfang,
       });
     } else {
       // Oppgave-tittel: fra sjekklistefelt, ellers redigert tittel (default malnavn).
@@ -503,6 +508,9 @@ export function OpprettDokumentModal({
         drawingId: valgtTegningId ?? undefined,
         positionX: posisjon?.x,
         positionY: posisjon?.y,
+        // ORDRE (20) linja: eget «Hele prosjektet»-valg → omfang «prosjekt» (serveren nullstiller
+        // det når dokumentet likevel får byggeplass).
+        lokasjonOmfang: opprettLokasjonOmfang,
       });
     }
   }, [
@@ -526,6 +534,7 @@ export function OpprettDokumentModal({
     sjekklisteNummer,
     feltLabel,
     posisjon,
+    opprettLokasjonOmfang,
   ]);
 
   const kanOpprett = !!oppretterFaggruppeId && !!valgtKandidat && !erPending;

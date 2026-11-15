@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Vend ndërtimi",
   "kontekstChip.endre": "Ndryshimi",
   "kontekstChip.sistBrukt": "Kohët e fundit të përdorura",
+  "kontekstChip.byggeplassIkkeValgt": "Vendi i ndërtimit nuk është zgjedhur",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Dokumenti nuk është i lidhur me një kantier ndërtimi. Zgjidhni një kantier ndërtimi - ose \"E gjithë projekti\" nëse zbatohet për të gjithë projektin.",
   "kontekstChip.favoritter": "Të preferuarat",
   "kontekstChip.leggTilFavoritt": "Shto të preferuarin",
   "kontekstChip.fjernFavoritt": "Hiq të preferuarin",

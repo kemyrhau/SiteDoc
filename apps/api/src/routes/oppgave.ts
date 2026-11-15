@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
-import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
+import { krevOmradeVedOmradeOmfang, LOKASJON_OMFANG, omfangMedByggeplass } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
@@ -511,7 +511,7 @@ export const oppgaveRouter = router({
         positionY: z.number().min(0).max(100).optional(),
         // Lokasjonsomfang (2026-09-04): "byggeplass" = hele byggeplassen · "punkt" = pin ·
         // "omrade" (steg 2b) = et definert område (krever omradeId — DoD 12).
-        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        lokasjonOmfang: z.enum(LOKASJON_OMFANG).nullable().optional(),
         omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
         dokumentflytId: z.string().uuid().optional(),
@@ -747,7 +747,11 @@ export const oppgaveRouter = router({
             byggeplassId,
             positionX: input.positionX,
             positionY: input.positionY,
-            lokasjonOmfang: input.lokasjonOmfang,
+            lokasjonOmfang: omfangMedByggeplass({
+              inputOmfang: input.lokasjonOmfang,
+              naavaerendeOmfang: undefined,
+              effektivByggeplassId: byggeplassId,
+            }),
             omradeId: input.omradeId,
             lokasjonFritekst: input.lokasjonFritekst,
             dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
@@ -797,7 +801,7 @@ export const oppgaveRouter = router({
         byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
-        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        lokasjonOmfang: z.enum(LOKASJON_OMFANG).nullable().optional(),
         omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
@@ -882,6 +886,12 @@ export const oppgaveRouter = router({
         data: {
           ...data,
           byggeplassId: nyByggeplassId !== oppgave.byggeplassId ? nyByggeplassId : undefined,
+          // (20) alt. A: byggeplass satt (også via tegning) → omfang «prosjekt» gjelder ikke lenger.
+          lokasjonOmfang: omfangMedByggeplass({
+            inputOmfang: input.lokasjonOmfang,
+            naavaerendeOmfang: oppgave.lokasjonOmfang,
+            effektivByggeplassId: nyByggeplassId,
+          }),
           // Bytte av tegning: gammel pin gir ingen mening på ny tegning. Nullstill med mindre
           // klienten sender ny posisjon i samme kall.
           ...(tegningByttes && input.positionX === undefined ? { positionX: null } : {}),

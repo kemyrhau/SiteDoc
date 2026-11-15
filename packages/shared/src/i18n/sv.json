@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Byggarbetsplats",
   "kontekstChip.endre": "Ändra",
   "kontekstChip.sistBrukt": "Nyligen använd",
+  "kontekstChip.byggeplassIkkeValgt": "Byggplats inte vald",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Dokumentet är inte kopplat till en byggarbetsplats. Välj en byggarbetsplats – eller ”Hela projektet” om det gäller hela projektet.",
   "kontekstChip.favoritter": "Favoriter",
   "kontekstChip.leggTilFavoritt": "Lägg till favorit",
   "kontekstChip.fjernFavoritt": "Ta bort favorit",

@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Byggeplass",
   "kontekstChip.endre": "Endre",
   "kontekstChip.sistBrukt": "Sist brukt",
+  "kontekstChip.byggeplassIkkeValgt": "Byggeplass ikke valgt",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Dokumentet er ikke knyttet til en byggeplass. Velg byggeplass – eller «Hele prosjektet» hvis det gjelder hele prosjektet.",
   "kontekstChip.favoritter": "Favoritter",
   "kontekstChip.leggTilFavoritt": "Legg til favoritt",
   "kontekstChip.fjernFavoritt": "Fjern favoritt",

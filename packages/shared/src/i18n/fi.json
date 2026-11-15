@@ -169,6 +169,8 @@
   "kontekstChip.byggeplass": "Rakennustyömaa",
   "kontekstChip.endre": "Muuttaa",
   "kontekstChip.sistBrukt": "Äskettäin käytetty",
+  "kontekstChip.byggeplassIkkeValgt": "Rakennuspaikkaa ei valittu",
+  "kontekstChip.byggeplassIkkeValgtHjelp": "Asiakirjaa ei ole linkitetty rakennustyömaahan. Valitse rakennuspaikka – tai \"Koko projekti\", jos se koskee koko hanketta.",
   "kontekstChip.favoritter": "Suosikit",
   "kontekstChip.leggTilFavoritt": "Lisää suosikki",
   "kontekstChip.fjernFavoritt": "Poista suosikki",
