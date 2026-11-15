@@ -367,8 +367,6 @@
   "timer.reiseTerskel.manglerArt": "В компании нет типа оплаты по умолчанию — попросите администратора компании установить его.",
   "timer.reiseTerskel.manglerStandardArt": "У компании нет вида оплаты по умолчанию.",
   "timer.reiseTerskel.settStandardArt": "Установить тип оплаты по умолчанию",
-  "timer.reiseTerskel.fraOppmotested": "От места встречи",
-  "timer.reiseTerskel.velgOppmotested": "Выберите место встречи",
   "timer.reiseKort.tittel": "Путешествовать",
   "timer.reiseKort.tur": "Исходящий",
   "timer.reiseKort.retur": "Возвращаться",

@@ -367,8 +367,6 @@
   "timer.reiseTerskel.manglerArt": "Yrityksellä ei ole oletuspalkkatyyppiä – pyydä yrityksen järjestelmänvalvojaa asettamaan se",
   "timer.reiseTerskel.manglerStandardArt": "Yrityksellä ei ole oletuspalkkatyyppiä",
   "timer.reiseTerskel.settStandardArt": "Aseta oletuspalkkatyyppi",
-  "timer.reiseTerskel.fraOppmotested": "Kohtauspaikasta",
-  "timer.reiseTerskel.velgOppmotested": "Valitse kohtauspaikka",
   "timer.reiseKort.tittel": "Matkustaa",
   "timer.reiseKort.tur": "Lähtevä",
   "timer.reiseKort.retur": "Palata",

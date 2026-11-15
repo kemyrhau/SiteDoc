@@ -367,8 +367,6 @@
   "timer.reiseTerskel.manglerArt": "The company has no default wage type — ask a company admin to set it",
   "timer.reiseTerskel.manglerStandardArt": "The company has no default wage type",
   "timer.reiseTerskel.settStandardArt": "Set default wage type",
-  "timer.reiseTerskel.fraOppmotested": "From meeting point",
-  "timer.reiseTerskel.velgOppmotested": "Choose meeting point",
   "timer.reiseKort.tittel": "Travel",
   "timer.reiseKort.tur": "Outbound",
   "timer.reiseKort.retur": "Return",

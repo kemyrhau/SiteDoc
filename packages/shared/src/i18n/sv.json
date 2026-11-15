@@ -367,8 +367,6 @@
   "timer.reiseTerskel.manglerArt": "Företaget har ingen standardlönetyp – be en företagsadministratör att ställa in den",
   "timer.reiseTerskel.manglerStandardArt": "Företaget har ingen standardlöneslag",
   "timer.reiseTerskel.settStandardArt": "Ställ in standardlönetyp",
-  "timer.reiseTerskel.fraOppmotested": "Från mötesplatsen",
-  "timer.reiseTerskel.velgOppmotested": "Välj mötesplats",
   "timer.reiseKort.tittel": "Resa",
   "timer.reiseKort.tur": "Utgående",
   "timer.reiseKort.retur": "Återvända",

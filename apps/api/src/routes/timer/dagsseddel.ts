@@ -423,7 +423,20 @@ function byggTimerRadData(
   // Ordre (6): «+ Reise» merker raden manuell. Kun satt når erReise = true
   // (kalleren avviser ellers) — speiler validerReiseInvarianter.
   reiseKilde: "manuell" | null = null,
+  // POST (13) L2 commit 8: web-reisekortet sender hele sporet (manuell/overføring).
+  // Ferdig C2-validert av byggReiseFelterForSynk — samme felter som synken skriver.
+  // Når satt overstyrer det `reiseKilde`; uten det er feltformen som før.
+  reiseSpor: ReiseFelter | null = null,
 ): Prisma.SheetTimerUncheckedCreateInput {
+  if (reiseSpor) {
+    const { tidKilde: _tidKilde, ...spor } = reiseSpor;
+    return {
+      ...byggTimerRadData(sheetId, r, erReise, null),
+      ...spor,
+      erReise,
+      reiseRegel: jsonEllerNull(spor.reiseRegel),
+    };
+  }
   return {
     sheetId,
     projectId: r.projectId,
@@ -2386,7 +2399,15 @@ export const dagsseddelRouter = router({
         // Ordre 2026-11-14 (6): «+ Reise» sender kilden "manuell". Flagget
         // erReise utledes fortsatt fra lønnsarten; kilden avvises hvis
         // lønnsarten ikke er en reise-art (ingen falsk reise-rad).
-        reiseKilde: z.literal("manuell").optional(),
+        // POST (13) L2 commit 8: reise-kortet kan også sende "overforing" og
+        // hele sporet. Sporet lagres KUN sammen med en kilde på en reise-art
+        // (C2-validert som i synken); uten kilde ignoreres feltene (null-spor).
+        reiseKilde: z.enum(["manuell", "overforing"]).optional(),
+        reiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
+        reiseOppmotestedId: z.string().uuid().nullable().optional(),
+        reiseKjoretidMin: z.number().int().min(0).nullable().optional(),
+        reiseAvstandM: z.number().int().min(0).nullable().optional(),
+        reiseRegel: z.record(z.unknown()).nullable().optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2459,6 +2480,41 @@ export const dagsseddelRouter = router({
           code: "BAD_REQUEST",
           message: "Lønnsarten er ikke en reise-lønnsart",
         });
+      }
+      // POST (13) L2 commit 8: sporet valideres (C2) og kontrolleres (C3) med
+      // SAMME funksjon som synken — oppmøtestedet må høre til sedelens firma,
+      // overføringen må ha retning/kjøretid/rute. Brudd → BAD_REQUEST, ingen rad.
+      let reiseSpor: ReiseFelter | null = null;
+      if (input.reiseKilde && erReise) {
+        const firmaOppmotesteder = await prisma.oppmotested.findMany({
+          where: { organizationId: sheet.organizationId },
+          select: { id: true },
+        });
+        const spor = await byggReiseFelterForSynk(
+          [
+            {
+              id: "ny",
+              lonnsartId: input.lonnsartId,
+              byggeplassId: input.byggeplassId ?? null,
+              erReise: true,
+              reiseKilde: input.reiseKilde,
+              reiseRetning: input.reiseRetning ?? null,
+              reiseOppmotestedId: input.reiseOppmotestedId ?? null,
+              reiseKjoretidMin: input.reiseKjoretidMin ?? null,
+              reiseAvstandM: input.reiseAvstandM ?? null,
+              reiseRegel: input.reiseRegel ?? null,
+              tidKilde: null,
+            },
+          ],
+          null,
+          erReiseKtx,
+          new Map([[input.lonnsartId, lonnsart.navn]]),
+          new Set(firmaOppmotesteder.map((o) => o.id)),
+        );
+        if (!spor.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: spor.feilmelding });
+        }
+        reiseSpor = spor.felter.get("ny") ?? null;
       }
 
       // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
@@ -2535,7 +2591,8 @@ export const dagsseddelRouter = router({
             input.sheetId,
             { ...input, pauseMin: vurdering.pauseMin },
             erReise,
-            input.reiseKilde ?? null,
+            null,
+            reiseSpor,
           ),
         });
         await synkroniserHodePause(tx, input.sheetId);

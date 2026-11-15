@@ -367,8 +367,6 @@
   "timer.reiseTerskel.manglerArt": "L'entreprise n'a pas de rubrique de salaire par défaut : demandez à un administrateur de l'entreprise de la définir.",
   "timer.reiseTerskel.manglerStandardArt": "L'entreprise n'a pas de rubrique par défaut",
   "timer.reiseTerskel.settStandardArt": "Définir la rubrique par défaut",
-  "timer.reiseTerskel.fraOppmotested": "Du point de rendez-vous",
-  "timer.reiseTerskel.velgOppmotested": "Choisissez le point de rendez-vous",
   "timer.reiseKort.tittel": "Travel",
   "timer.reiseKort.tur": "Outbound",
   "timer.reiseKort.retur": "Return",

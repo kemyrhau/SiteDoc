@@ -367,8 +367,6 @@
   "timer.reiseTerskel.manglerArt": "Ettevõttel ei ole vaikimisi palgatüüpi – paluge see määrata ettevõtte administraatoril",
   "timer.reiseTerskel.manglerStandardArt": "The company has no default wage type",
   "timer.reiseTerskel.settStandardArt": "Määrake vaikepalga tüüp",
-  "timer.reiseTerskel.fraOppmotested": "Kohtumiskohast",
-  "timer.reiseTerskel.velgOppmotested": "Valige kohtumispunkt",
   "timer.reiseKort.tittel": "Reisimine",
   "timer.reiseKort.tur": "Väljuv",
   "timer.reiseKort.retur": "Tagasi",

@@ -367,8 +367,6 @@
   "timer.reiseTerskel.manglerArt": "Kompania nuk ka lloj pagash të paracaktuar - kërkoni nga një administrator i kompanisë që ta vendosë atë",
   "timer.reiseTerskel.manglerStandardArt": "Kompania nuk ka lloj pagash të paracaktuar",
   "timer.reiseTerskel.settStandardArt": "Cakto llojin e paracaktuar të pagës",
-  "timer.reiseTerskel.fraOppmotested": "Nga pika e takimit",
-  "timer.reiseTerskel.velgOppmotested": "Zgjidhni pikën e takimit",
   "timer.reiseKort.tittel": "Udhëtoni",
   "timer.reiseKort.tur": "Jashtë",
   "timer.reiseKort.retur": "Kthimi",

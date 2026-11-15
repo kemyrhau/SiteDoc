@@ -267,6 +267,7 @@ Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sa
 | `finnPeriodeKonflikt(ny, øvrige)` | Overlapp innen samme slag (byggeplass pr. prosjekt, midlertidig, fast). Server og admin-UI bruker samme regel |
 | `tilIsoDato(d)` | `Date`/streng → `YYYY-MM-DD` (UTC) |
 | `finnOverforinger(dato, perioder)` → `Overforing[]` | Ut-overføring første dag og retur siste dag i en midlertidig eller byggeplass-periode, fra hjemstedet (`løsOppmote` uten perioden; `ikkeValgt` eller samme kontor gir ingenting). Mellomdager gir ingenting. Brukes av mobilens Bekreft dag (L2) |
+| `byggOverforingOppslag(args)` → `DagsforslagOverforingOppslag[]` | Slår opp overføringens kontor-/byggeplass-ende, navn og kjøretid (kontor↔kontor eller matrise) for hver dato. Flyttet hit fra mobil `dagsforslag.ts` (som re-eksporterer) i L2 commit 8, så web-`ReiseKort` og mobil deler samme oppslag |
 
 ### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
 
