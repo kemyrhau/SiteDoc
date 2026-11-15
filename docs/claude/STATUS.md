@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-15
+- 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md` + `web.md`/`mobil.md`/`timer.md`/`arkitektur.md`: (16) prosjektvelger + kontoravstand + ukesum merget (`0ec0cc0c`)** (develop, docs-only, orkestrator): ✅-innslag med åpne funn, funksjonsendringsrad, «Sist ført»; (15)- og (16)-markører «ikke merget» → merget.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (15) prosjektvalg på tvers av firma merget (`ca50ba1f`)** (develop, docs-only, orkestrator): ✅-innslag med oppfølgere, funksjonsendringsrad, «Sist ført».
 - 2026-11-15 — **`web.md` + `mobil.md` + `arkitektur.md` § Roller + `hjelpetekster.md`: prosjekter i andre firma (POST (15))** (branch `feat/prosjekt-andre-firma`, kode + docs, Redesign, ⚠️ venter Kontrollør-gate): gruppen «Prosjekter i andre firma» i prosjektvelgeren (web + mobil, offline fra `prosjekt_local`), `prosjekt.hentGjesteprosjekter`, ingen nullstilling av gjesteprosjekt ved firmabytte, Timer/Vareforbruk skjult i sidemenyen for gjest, `medlem.registrer` avviser ansettelse nr. 2 (én bruker, ett firma). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (14) Timer firmafilter merget (`089c86e0`)** (develop, docs-only, orkestrator): ✅-innslag med oppfølgere, funksjonsendringsrad, «Sist ført».

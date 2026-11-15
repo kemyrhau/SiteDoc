@@ -393,7 +393,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
 - Firma-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
-- **Én bruker, ett firma** (Kenneth 2026-11-15, POST (15), 🟡 `feat/prosjekt-andre-firma`, ikke merget):
+- **Én bruker, ett firma** (Kenneth 2026-11-15, POST (15), ✅ merget `ca50ba1f`):
   - `medlem.registrer` med `organizationId` avviser med FORBIDDEN når brukeren allerede er aktivt ansatt i et annet firma og ikke har rad i dette (`medlem.ts`). Uten `organizationId` legges brukeren til prosjektet som før.
   - **Gjesteprosjekt** = medlem i prosjektet, men eierfirmaet (`primaryOrganizationId`) er ikke et firma brukeren er aktivt ansatt i (`erGjesteprosjekt`, `packages/shared/src/utils/gjesteprosjekt.ts`). Det hentes med `prosjekt.hentGjesteprosjekter`, som utelater deaktiverte eierfirmaer og standalone.
   - **Timer følger eget firma:** en ren gjest fører ikke timer på prosjektet. `ProjectOrganization`-koblingen er uendret, så et koblet eget firma kan fortsatt føre timer (T.10, `hentForTimer`, `verifiserProsjekterTilhørerFirma`).

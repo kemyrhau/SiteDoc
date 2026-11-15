@@ -252,18 +252,18 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 
 **Offline-cacher (Drizzle/SQLite) for «Start/Slutt dag»-forslag:** `oppmotested_local` (Fase 1, GPS-kontor-identifikasjon) + `arbeidstidskalender_local`/`organization_setting_local` (arbeidstid/reise-regelsett) + **R4 (2026-06-11):** `reisetid_matrise_local` (kjøretid kontor×byggeplass, `kjoretidMin < 0` = uoppnåelig) + `byggeplass_local` (id/projectId/number/status for prosjekt→primær-byggeplass-resolusjon). Refresh via katalog-tjenestene (`oppmotestedKatalog`, `reisetidMatriseKatalog`, `byggeplassKatalog`, `vareKatalog` (L3), …) wiret i `TimerSyncProvider` (per-org, ved login + nett-gjenkomst). Reise-forslaget (`beregnDagsforslag`, lese-fasen `services/dagsforslagInput.ts`) slår opp matrisen (kontor→primær-byggeplass → faktisk reisetid), med graceful `estimerReisetidMin`-fallback når rad mangler. Detaljer i [timer.md § Reise og oppmøtested](timer.md).
 
-### Ukesum og ukeintervall på lokal dato (POST 2026-11-15 (16) punkt 5, 🟡 `fix/prosjektvelger-aktiv-gjest`, ikke merget)
+### Ukesum og ukeintervall på lokal dato (POST 2026-11-15 (16) punkt 5, ✅ merget `0ec0cc0c`)
 
 - **Ukeintervallet regnes på lokal dato.** `lesUkeTotalLokalt` (`services/timerListeLokal.ts`) og periodene i `app/timer/mine.tsx` bruker `lokalIsoDato` (`utils/dato.ts`). Før brukte de `toISOString()` på lokal midnatt, som i CET ga forrige dag: uka ble 08.–14.11 i stedet for 09.–15.11, og «denne måneden» startet 31.10.
 - **Kalenderoppslaget bruker samme regel.** `hentArbeidsdagTiderLokalt` (`services/kalenderKatalog.ts`) bruker lokal dato og lokalt år for sommertid-oppslaget. Kallerne sender ``new Date(`${dato}T00:00:00`)``, som er lokal midnatt.
 - **Ukesummen følger lagring og synk.** `UkeTotalBanner` er nå ren visning. `DagsseddelListe` leser summen i `lesAlt`, som kjøres ved fokus, synk og dra-ned. Før lå summen i en memo på `[userId, orgId]` og ble stående gammel etter lagring.
 - **Test:** `timerListeLokal.test.ts` § (16) punkt 5. Testen setter `TZ=Europe/Oslo`, og søndagen tas med mens forrige søndag holdes ute. Vakter hindrer `toISOString().slice(0, 10)` i de tre filene og memoen i banneret.
 
-### Prosjekter i andre firma (POST 2026-11-15 (15), 🟡 `feat/prosjekt-andre-firma`, ikke merget)
+### Prosjekter i andre firma (POST 2026-11-15 (15), ✅ merget `ca50ba1f`)
 
 `useProsjektListe.ts` returnerer `gjesteprosjekter` i tillegg til `prosjekter`. Det er prosjekter der brukeren er medlem, men som eies av et firma brukeren ikke er aktivt ansatt i (`erGjesteprosjekt`, `@sitedoc/shared`). De tas ut av hovedlista. `ProsjektVelger.tsx` viser dem som gruppen «Prosjekter i andre firma» med eierfirmaets navn. Hjem (`app/(tabs)/hjem.tsx`) finner et valgt gjesteprosjekt for tittelen.
 
-(POST 2026-11-15 (16), 🟡 `fix/prosjektvelger-aktiv-gjest`, ikke merget) Gruppen tar bare prosjekter der eierfirmaet ≠ valgt firma (`velgerGjesteprosjekter` i `utils/gjesteprosjektListe.ts` → `gjesteprosjekterIAndreFirma`, `@sitedoc/shared`), både fra server og fra lokal cache. Et valgt firma brukeren ikke er ansatt i får sine prosjekter i hovedlista. `GjesteprosjektRad` bærer `primaryOrganizationId` for dette.
+(POST 2026-11-15 (16), ✅ merget `0ec0cc0c`) Gruppen tar bare prosjekter der eierfirmaet ≠ valgt firma (`velgerGjesteprosjekter` i `utils/gjesteprosjektListe.ts` → `gjesteprosjekterIAndreFirma`, `@sitedoc/shared`), både fra server og fra lokal cache. Et valgt firma brukeren ikke er ansatt i får sine prosjekter i hovedlista. `GjesteprosjektRad` bærer `primaryOrganizationId` for dette.
 - **På nett:** kilden er `prosjekt.hentGjesteprosjekter`.
 - **Offline:** kilden er `hentGjesteprosjekterLokalt` (`services/prosjektKatalog.ts`). Den leser eksisterende `prosjekt_local`, som lagrer prosjektet under eierens org-id, så ingen ny tabell trengs. Eiernavnet er ukjent offline. Er ansettelsen ukjent (`mineAnsattFirmaIder` → `null`), vises ingen gjestegruppe. Ren logikk: `utils/gjesteprosjektListe.ts`.
 - **Timer:** mobilen har ingen prosjekt-skopet Timer-inngang. Timer følger valgt eget firma (`useFirmamodulSkjult`), og prosjektlista i Timer kommer fra `hentForTimer`, som ikke tar med gjesteprosjekter uten firmakobling.
