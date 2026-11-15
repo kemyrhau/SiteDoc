@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
 import { Spinner, Input, Modal, Button } from "@sitedoc/ui";
 import { MultiComboks } from "@/components/ui/MultiComboks";
 import { Clock, FileText, Briefcase, Activity, Plus, Info, ChevronRight, Trash2 } from "lucide-react";
@@ -129,7 +130,7 @@ export default function MineTimerSide() {
   const { t } = useTranslation();
   // Kenneth-vedtak 2026-10-09: timer følger innlogget firma — samme firmakilde til
   // både prosjektliste og dagsseddel-lista.
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, erSitedocAdmin } = useFirma();
   const orgId = valgtFirma?.id ?? undefined;
   const utils = trpc.useUtils();
 
@@ -181,6 +182,12 @@ export default function MineTimerSide() {
   });
   const kanFoereTimer = ansattStatus?.kanFoere ?? true;
   const ansattFirmanavn = ansattStatus?.firmanavn ?? valgtFirma?.name ?? "";
+  // TILLEGG (14): sitedoc_admin uten ansettelse i valgt firma → varsel i stedet
+  // for tom liste, med lenke til firmaets brukerfane (impersonering).
+  const varsleSkjulteTimer = skalVarsleSkjulteTimer({
+    rolle: erSitedocAdmin ? "sitedoc_admin" : null,
+    erAnsatt: ansattStatus?.kanFoere,
+  });
 
   const { data: rader, isLoading } = trpc.timer.dagsseddel.list.useQuery({
     fra,
@@ -464,7 +471,21 @@ export default function MineTimerSide() {
         </div>
       ) : liste.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">{t("timer.mine.ingenSedler")}</p>
+          {varsleSkjulteTimer && orgId ? (
+            <>
+              <p className="text-sm text-gray-500">
+                {t("timer.mine.skjultForAdmin", { firma: ansattFirmanavn })}
+              </p>
+              <Link
+                href={`/dashbord/admin/firmaer/${orgId}?fane=brukere`}
+                className="mt-2 inline-block text-sm text-blue-600 hover:underline"
+              >
+                {t("timer.mine.gaaTilBrukere", { firma: ansattFirmanavn })}
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">{t("timer.mine.ingenSedler")}</p>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">

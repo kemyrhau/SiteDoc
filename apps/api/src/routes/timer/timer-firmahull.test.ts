@@ -106,7 +106,6 @@ import { resolverOrgForEgenTimeføring, verifiserAnsattIFirma } from "../../trpc
 const caller = (ctx: unknown) =>
   dagsseddelRouter.createCaller(ctx as Parameters<typeof dagsseddelRouter.createCaller>[0]);
 
-const AVVIST = /hører ikke til radens prosjekt/;
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -184,8 +183,6 @@ describe("(v) underprosjekt — maskin.tilfoy / maskin.oppdater", () => {
 });
 
 const CLIENT_UUID = "c1c1c1c1-c1c1-c1c1-c1c1-c1c1c1c1c1c1";
-const TL_ID = "f0000000-0000-0000-0000-000000000001";
-const UT_ID = "f0000000-0000-0000-0000-000000000002";
 
 function lagSyncCtx() {
   const tilleggCreateMany = vi.fn().mockResolvedValue({ count: 1 });

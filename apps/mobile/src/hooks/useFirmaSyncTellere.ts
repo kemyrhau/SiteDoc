@@ -23,5 +23,6 @@ export function useFirmaSyncTellere(): { conflictAntall: number; avvistAntall: n
       avvistAntall: tellAvvist(userId, valgtFirmaId ?? null),
     };
     // signal* er bevisst med: provideren endrer dem etter hver synk.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- signal for ny lesing
   }, [userId, valgtFirmaId, signalKonflikt, signalAvvist]);
 }

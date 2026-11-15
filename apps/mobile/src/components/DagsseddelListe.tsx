@@ -38,6 +38,7 @@ import {
 } from "../utils/utkastListe";
 import type { UtkastOversikt } from "../utils/prosjektkortUtkast";
 import { lesDagssedlerLokalt, type DagsseddelRad } from "../services/timerListeLokal";
+import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
 
 /**
  * Utkast for prosjektkort (C3): rydd GPS-utkast for avsluttede dager, slett
@@ -104,6 +105,13 @@ export function DagsseddelListe({
   // ORDRE 17: «+» åpner timer-raden direkte (erstatter /timer/ny).
   const [visNyRad, setVisNyRad] = useState(false);
   const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
+  // TILLEGG (14): sitedoc_admin uten ansettelse i valgt firma får varsel i
+  // stedet for tom liste (timer vises bare for ansatte → impersonering på web).
+  const minBruker = trpc.bruker.hentMin.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const varsleSkjulteTimer = skalVarsleSkjulteTimer({
+    rolle: minBruker.data?.role,
+    erAnsatt: erAnsattIValgtFirma,
+  });
 
   // ORDRE 36c: i prosjektkort-modus åpner «+» Bekreft dag uten GPS (dagens
   // dato forhåndsvalgt, kan byttes). Dagskort-modus beholder timer-raden.
@@ -252,7 +260,9 @@ export function DagsseddelListe({
         ListEmptyComponent={() => (
           <View className="px-6 py-12">
             <Text className="text-center text-gray-500">
-              {t("timer.ingenSedler")}
+              {varsleSkjulteTimer
+                ? t("timer.skjultForAdmin", { firma: valgtFirma?.name ?? "" })
+                : t("timer.ingenSedler")}
             </Text>
           </View>
         )}
