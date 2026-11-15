@@ -153,14 +153,14 @@ Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banne
 
 ## Mobil og web: reise-kortet («+ Reise», `ReiseKort.tsx`, POST 2026-11-15 (13) L2 § 7 C)
 
-Web (`apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`) bruker samme nøkler og tekster som mobil; sperreteksten vises som rød linje i kortet og ved hover på den sperrede Lagre-knappen.
+Web (`apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`) bruker samme nøkler og tekster som mobil; sperreteksten vises som rød linje i kortet og ved hover på den sperrede Lagre-knappen. Mobil viser samme røde linje i kortet.
 
 Ingen ?-tekst — kortet viser én resultatlinje og, når Lagre er sperret, én forklaring under knappen (`KnappMedForklaring`):
 
 - **Valg:** «Tur» / «Retur» (`timer.reiseKort.tur` / `.retur`); første og siste dag i en midlertidig periode også «Overføring X → Y» (`timer.reiseKort.overforing`), forhåndsvalgt.
 - **Oppmøtested** vises som tekst «Fra {navn}» (`timer.reiseKort.fraOppmotested`) bare når firmaet har flere — den ansatte velger det aldri.
 - **Resultat:** «08:00–08:45 · 45 min kjøring» (`timer.reiseKort.resultat`) + grå forklaringslinje (arbeid/reise og hvorfor).
-- **Sperretekster** (`timer.reiseKort.sperre.*`): «Møter på byggeplass, ingen reise» · «Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander» · «Før arbeidstid på dagen først — reisen legges før eller etter den» · «Reisen går over midnatt — før den på dagen den hører til» · «Firmaet har ikke satt opp reiseregler — be firmaadmin sette dem». Mangler standard lønnsart: `timer.reiseTerskel.manglerArt` (over).
+- **Sperretekster** (`timer.reiseKort.sperre.*`): «Møter på byggeplass, ingen reise» · «Oppmøtested er ikke valgt — koble til nett for å velge» · «Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander» · «Før arbeidstid på dagen først — reisen legges før eller etter den» · «Reisen går over midnatt — før den på dagen den hører til» · «Firmaet har ikke satt opp reiseregler — be firmaadmin sette dem». Mangler standard lønnsart: `timer.reiseTerskel.manglerArt` (over).
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 

@@ -197,8 +197,10 @@ describe("løsReiseKort", () => {
     expect(kort({ kjoretidFor: () => -1 }).sperre).toBe("manglerKjoretid");
   });
 
-  it("ikkeValgt → manglerKjoretid (ingen kjøretid uten oppmøtested)", () => {
-    expect(kort({ oppmote: { kilde: "ikkeValgt" } }).sperre).toBe("manglerKjoretid");
+  it("ikkeValgt → sperret med oppmoteIkkeValgt (vedtak 2026-11-15: ingen kjøretid uten oppmøtested)", () => {
+    const r = kort({ oppmote: { kilde: "ikkeValgt" } });
+    expect(r.sperre).toBe("oppmoteIkkeValgt");
+    expect(r.spor).toBeNull();
   });
 
   it("uten byggeplass → manglerKjoretid", () => {

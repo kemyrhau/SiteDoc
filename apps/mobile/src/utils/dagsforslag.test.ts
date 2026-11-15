@@ -897,4 +897,22 @@ describe("POST (13) L2 — overføring som forslagsrad (TILLEGG)", () => {
     const uten = byggOverforingOppslag({ ...felles, kontekstByggeplassId: null });
     expect(uten[0]).toMatchObject({ byggeplassId: null, tilNavn: "Prosjekt", celle: null });
   });
+  // Gate (32) vilkår 3: koblingen inn i beregnDagsforslag — ikke bare
+  // leggTilOverforinger isolert. Dreper M5 (datoer i stedet for
+  // medOverforing.datoer) og M7 (fjernet reiseAarsak ??= medOverforing.aarsak).
+  it("kobling: beregnDagsforslag med input.overforinger gir forslagsraden i datoer", () => {
+    const f = beregnDagsforslag(lagInput({ reiseOppslag: lagReise({ start: { type: "utenfor" } }), overforinger: [oppslag()] }));
+    const r = f.datoer.flatMap((x) => x.rader).filter((x) => x.overforing);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ fraTid: "04:00", tilTid: "07:00", erReise: true, lonnsartId: L_REISE });
+  });
+
+  it("kobling: beregnDagsforslag løfter overføringens årsak mangler_reise_lonnsart til reiseAarsak", () => {
+    const utenArt = lagReise({ start: { type: "utenfor" }, fallbackReiseLonnsartId: null });
+    // Negativkontroll: uten overføring gir samme dag ingen årsak.
+    expect(beregnDagsforslag(lagInput({ reiseOppslag: utenArt })).reiseAarsak).toBeNull();
+    const f = beregnDagsforslag(lagInput({ reiseOppslag: utenArt, overforinger: [oppslag()] }));
+    expect(f.reiseAarsak).toBe("mangler_reise_lonnsart");
+    expect(f.datoer.flatMap((x) => x.rader).filter((x) => x.overforing)).toHaveLength(0);
+  });
 });

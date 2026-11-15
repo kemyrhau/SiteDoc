@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "Fra {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} min kjøring",
   "timer.reiseKort.sperre.byggeplassPeriode": "Møter på byggeplass, ingen reise",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Oppmøtested er ikke valgt — koble til nett for å velge",
   "timer.reiseKort.sperre.manglerKjoretid": "Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander",
   "timer.reiseKort.sperre.manglerDagstid": "Før arbeidstid på dagen først — reisen legges før eller etter den",
   "timer.reiseKort.sperre.utenforDognet": "Reisen går over midnatt — før den på dagen den hører til",

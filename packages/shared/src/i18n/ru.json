@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "От {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} мин езды",
   "timer.reiseKort.sperre.byggeplassPeriode": "Встреча на объекте, без выезда",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Место встречи не выбрано — подключитесь к сети, чтобы выбрать его.",
   "timer.reiseKort.sperre.manglerKjoretid": "Для этого маршрута не указано время в пути — попросите администратора компании добавить его в разделе «Расстояния».",
   "timer.reiseKort.sperre.manglerDagstid": "Сначала регистрируйте рабочее время за день — проезд размещается до или после него",
   "timer.reiseKort.sperre.utenforDognet": "Поездка пересекает полночь — зарегистрируйте ее в тот день, когда она принадлежит",

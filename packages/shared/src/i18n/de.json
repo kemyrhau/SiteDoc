@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "Von {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} Minuten Fahrt",
   "timer.reiseKort.sperre.byggeplassPeriode": "Treffen vor Ort, keine Anreise",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Kein Treffpunkt ausgewählt – stellen Sie eine Verbindung zum Netzwerk her, um einen auszuwählen",
   "timer.reiseKort.sperre.manglerKjoretid": "Für diese Route fehlt die Fahrzeit. Bitten Sie den Unternehmensadministrator, sie unter „Entfernungen“ hinzuzufügen",
   "timer.reiseKort.sperre.manglerDagstid": "Registrieren Sie zunächst die Arbeitszeit für den Tag – die Fahrt wird davor oder danach platziert",
   "timer.reiseKort.sperre.utenforDognet": "Die Reise überschreitet Mitternacht – registrieren Sie sie an dem Tag, zu dem sie gehört",

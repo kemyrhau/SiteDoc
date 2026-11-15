@@ -190,8 +190,11 @@ export type ReiseKortRetning = "tur" | "retur";
 /**
  * Hvorfor reise-kortet ikke kan lagres. null = kan lagres.
  *  - byggeplassPeriode: den ansatte møter på byggeplassen — ingen reise.
- *  - manglerKjoretid: intet oppmøtested, ingen byggeplass, ingen matrisecelle
- *    eller uoppnåelig par. Ingen estimat-fallback (V13).
+ *  - oppmoteIkkeValgt: den ansatte har ikke valgt oppmøtested (første valg
+ *    ikke gjort, enheten offline). Kenneth-vedtak 2026-11-15: Lagre sperres —
+ *    kortet har ikke noe tidsfelt, så uten oppmøtested finnes ingen kjøretid.
+ *  - manglerKjoretid: ingen byggeplass, ingen matrisecelle eller uoppnåelig
+ *    par. Ingen estimat-fallback (V13).
  *  - manglerDagstid: sedelen har ingen arbeidsrad med tid å regne fra.
  *  - utenforDognet: Tur før 00:00 eller Retur etter 24:00.
  *  - manglerArt: ingen lønnsart å føre på (jf. `manuellReiseManglerArt`).
@@ -199,6 +202,7 @@ export type ReiseKortRetning = "tur" | "retur";
  */
 export type ReiseKortSperre =
   | "byggeplassPeriode"
+  | "oppmoteIkkeValgt"
   | "manglerKjoretid"
   | "manglerDagstid"
   | "utenforDognet"
@@ -290,14 +294,17 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
   // 1. Byggeplass-periode: møter på byggeplassen, arbeidstid fra første minutt.
   if (k.oppmote.kilde === "byggeplass") return tom("byggeplassPeriode");
 
-  // 2. Kjøretid fra oppmøtested × byggeplass. ikkeValgt har ingen kjøretid —
-  //    det finnes ikke lenger noe manuelt timefelt å falle tilbake på.
-  const oppmotestedId = k.oppmote.kilde === "ikkeValgt" ? null : k.oppmote.oppmotestedId;
+  // 2. Uten oppmøtested finnes ingen kjøretid — og ikke noe manuelt timefelt å
+  //    falle tilbake på. Egen sperre, så kortet kan be om nett (vedtak 2026-11-15).
+  if (k.oppmote.kilde === "ikkeValgt") return tom("oppmoteIkkeValgt");
+
+  // 3. Kjøretid fra oppmøtested × byggeplass.
+  const oppmotestedId = k.oppmote.oppmotestedId;
   const kjoretidMin =
     oppmotestedId && k.byggeplassId ? k.kjoretidFor(oppmotestedId, k.byggeplassId) : null;
   if (kjoretidMin == null || kjoretidMin < 0) return tom("manglerKjoretid", oppmotestedId);
 
-  // 3. Tidspunkt fra dagens arbeidsrader.
+  // 4. Tidspunkt fra dagens arbeidsrader.
   const anker = klokkeTilMin(k.retning === "tur" ? k.dagStart : k.dagSlutt);
   if (anker == null) return tom("manglerDagstid", oppmotestedId);
   const fra = k.retning === "tur" ? anker - kjoretidMin : anker;
@@ -316,7 +323,7 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
     return { ...basis, klassifisering: null, spor: null, sperre: "manglerRegel" };
   }
 
-  // 4. Terskel og bånd — samme regel som før (`klassifiserManuellReise`).
+  // 5. Terskel og bånd — samme regel som før (`klassifiserManuellReise`).
   const avstandM = oppmotestedId && k.byggeplassId ? k.avstandFor(oppmotestedId, k.byggeplassId) : null;
   const klassifisering = klassifiserManuellReise({
     regel: k.regel,

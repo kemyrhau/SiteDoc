@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "From {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} min driving",
   "timer.reiseKort.sperre.byggeplassPeriode": "Meeting at the site, no travel",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Aucun point de rendez-vous sélectionné : connectez-vous au réseau pour en choisir un",
   "timer.reiseKort.sperre.manglerKjoretid": "Driving time is missing for this route — ask the company admin to add it under Distances",
   "timer.reiseKort.sperre.manglerDagstid": "Register working time for the day first — travel is placed before or after it",
   "timer.reiseKort.sperre.utenforDognet": "The trip crosses midnight — register it on the day it belongs to",

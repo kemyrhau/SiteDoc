@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "Od {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} min jazdy",
   "timer.reiseKort.sperre.byggeplassPeriode": "Spotkanie na miejscu, bez dojazdów",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Nie wybrano miejsca spotkania — połącz się z siecią, aby wybrać jedno",
   "timer.reiseKort.sperre.manglerKjoretid": "Na tej trasie brakuje czasu jazdy — poproś administratora firmy o dodanie go w obszarze Odległości",
   "timer.reiseKort.sperre.manglerDagstid": "Najpierw zarejestruj czas pracy dla danego dnia – podróż umieszczana jest przed nim lub po nim",
   "timer.reiseKort.sperre.utenforDognet": "Wycieczka kończy się o północy — zarejestruj ją w dniu, do którego należy",

@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "Nga {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} minuta ngarje",
   "timer.reiseKort.sperre.byggeplassPeriode": "Takimi në vend, nuk ka udhëtim",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Nuk është zgjedhur asnjë pikë takimi — lidheni me rrjetin për të zgjedhur një",
   "timer.reiseKort.sperre.manglerKjoretid": "Koha e vozitjes mungon për këtë itinerar — kërkoni nga administratori i kompanisë që ta shtojë atë te Distancat",
   "timer.reiseKort.sperre.manglerDagstid": "Regjistroni kohën e punës për ditën e parë - udhëtimi vendoset para ose pas saj",
   "timer.reiseKort.sperre.utenforDognet": "Udhëtimi kalon mesnatën - regjistrojeni në ditën që i përket",

@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "Від {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} хв автомобілем",
   "timer.reiseKort.sperre.byggeplassPeriode": "Зустріч на місці, без проїзду",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Точку зустрічі не вибрано — підключіться до мережі, щоб вибрати одну",
   "timer.reiseKort.sperre.manglerKjoretid": "Для цього маршруту не вказано час у дорозі — попросіть адміністратора компанії додати його в розділі «Відстані».",
   "timer.reiseKort.sperre.manglerDagstid": "Спершу реєструйте робочий час за день — проїзд ставиться до або після нього",
   "timer.reiseKort.sperre.utenforDognet": "Поїздка перетинає північ — зареєструйте її в день, до якого вона належить",

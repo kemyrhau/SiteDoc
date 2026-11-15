@@ -26,6 +26,7 @@ import { useManuellReiseWeb, type ReiseKortValg } from "@/hooks/useManuellReiseW
 
 export const SPERRE_NOKKEL: Record<ReiseKortSperre, string> = {
   byggeplassPeriode: "timer.reiseKort.sperre.byggeplassPeriode",
+  oppmoteIkkeValgt: "timer.reiseKort.sperre.oppmoteIkkeValgt",
   manglerKjoretid: "timer.reiseKort.sperre.manglerKjoretid",
   manglerDagstid: "timer.reiseKort.sperre.manglerDagstid",
   utenforDognet: "timer.reiseKort.sperre.utenforDognet",

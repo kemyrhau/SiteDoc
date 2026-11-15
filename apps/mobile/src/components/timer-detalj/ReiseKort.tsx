@@ -38,6 +38,7 @@ export type ReiseKortLagring = {
 
 const SPERRE_NOKKEL: Record<ReiseKortSperre, string> = {
   byggeplassPeriode: "timer.reiseKort.sperre.byggeplassPeriode",
+  oppmoteIkkeValgt: "timer.reiseKort.sperre.oppmoteIkkeValgt",
   manglerKjoretid: "timer.reiseKort.sperre.manglerKjoretid",
   manglerDagstid: "timer.reiseKort.sperre.manglerDagstid",
   utenforDognet: "timer.reiseKort.sperre.utenforDognet",
@@ -221,6 +222,12 @@ export function ReiseKort({
                 </Text>
               )}
             </View>
+          )}
+
+          {/* Sperreårsaken synlig i kortet — på telefon er den ellers bare
+              tilgjengelig ved trykk på den grå Lagre-knappen (L2 commit 9 / vilkår 1). */}
+          {sperre && (
+            <Text className="text-xs font-medium text-red-700">{t(SPERRE_NOKKEL[sperre])}</Text>
           )}
 
           {underprosjekter.length > 0 && (

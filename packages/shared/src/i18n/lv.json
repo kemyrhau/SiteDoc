@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "No {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} min braukšanas",
   "timer.reiseKort.sperre.byggeplassPeriode": "Tikšanās vietā, bez ceļošanas",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Nav atlasīts neviens tikšanās punkts — izveidojiet savienojumu ar tīklu, lai izvēlētos vienu",
   "timer.reiseKort.sperre.manglerKjoretid": "Šim maršrutam trūkst braukšanas laika — lūdziet uzņēmuma administratoram pievienot to sadaļā Attālumi",
   "timer.reiseKort.sperre.manglerDagstid": "Vispirms reģistrē darba laiku dienai – braucienu ievieto pirms vai pēc tās",
   "timer.reiseKort.sperre.utenforDognet": "Ceļojums šķērso pusnakti — reģistrējiet to dienā, kurai tas pieder",

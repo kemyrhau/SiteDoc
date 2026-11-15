@@ -197,6 +197,11 @@ function lagreKnapp(dialog: HTMLElement) {
   return within(dialog).getByRole("button", { name: "handling.lagre" }) as HTMLButtonElement;
 }
 
+/** Rød sperretekst i selve kortet (ikke tooltipen) — kun når sperren ikke er manglerArt. */
+function rodSperretekst(dialog: HTMLElement) {
+  return dialog.querySelector("p.text-red-700")?.textContent ?? null;
+}
+
 function lagre(dialog: HTMLElement) {
   fireEvent.click(lagreKnapp(dialog));
   return h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
@@ -302,12 +307,28 @@ describe("web «+ Reise» — Lagre sperret (beslutning 2 og 3)", () => {
     expect(lagre(dialog)).toBeUndefined();
   });
 
-  it("ikke valgt oppmøtested: sperret (ingen kjøretid) — men ingen egen sperre for ikkeValgt", () => {
+  it("ikke valgt oppmøtested: sperret med egen tekst — i kortet og i tooltipen (vedtak 2026-11-15)", () => {
     const dialog = rendre({ perioder: [] });
     const knapp = lagreKnapp(dialog);
     expect(knapp.disabled).toBe(true);
+    expect(rodSperretekst(dialog)).toBe("timer.reiseKort.sperre.oppmoteIkkeValgt");
     fireEvent.mouseEnter(knapp.parentElement!);
-    expect(document.body.textContent).toContain("timer.reiseKort.sperre.manglerKjoretid");
+    expect(screen.getByRole("tooltip", { hidden: true }).textContent).toContain(
+      "timer.reiseKort.sperre.oppmoteIkkeValgt",
+    );
+    expect(lagre(dialog)).toBeUndefined();
+  });
+
+  it("commit 9: sperreårsaken står som rød tekst i KORTET (ikke bare i tooltipen, som er portalet til body)", () => {
+    const dialog = rendre({ kjoretidMin: null });
+    // Tooltipen ligger utenfor dialogen — teksten i dialogen kan bare komme fra kortet.
+    expect(screen.getByRole("tooltip", { hidden: true }).closest('[role="dialog"]')).toBeNull();
+    expect(rodSperretekst(dialog)).toBe("timer.reiseKort.sperre.manglerKjoretid");
+  });
+
+  it("negativkontroll: uten sperre finnes ingen rød sperretekst i kortet", () => {
+    const dialog = rendre();
+    expect(dialog.querySelector("p.text-red-700")).toBeNull();
   });
 
   it.each([
@@ -343,6 +364,20 @@ describe("web «+ Reise» — mangler lønnsart (C)", () => {
     expect(dialog.textContent).toContain("timer.reiseTerskel.manglerStandardArt");
     const lenke = within(dialog).getByRole("link", { name: "timer.reiseTerskel.settStandardArt" });
     expect(lenke.getAttribute("href")).toBe("/dashbord/firma/innstillinger#reise-regelsett");
+  });
+
+  it("commit 9: firma-admin får «mangler standard lønnsart» også i tooltipen (ikke «be firmaadmin»)", () => {
+    const dialog = rendre({ lonnsarter: utenStandard, admin: true, kjoretidMin: 15 });
+    fireEvent.mouseEnter(lagreKnapp(dialog).parentElement!);
+    const tooltip = screen.getByRole("tooltip", { hidden: true }).textContent ?? "";
+    expect(tooltip).toContain("timer.reiseTerskel.manglerStandardArt");
+    expect(tooltip).not.toContain("timer.reiseTerskel.manglerArt");
+  });
+
+  it("arbeider får «be firmaadmin»-teksten i tooltipen", () => {
+    const dialog = rendre({ lonnsarter: utenStandard, kjoretidMin: 15 });
+    fireEvent.mouseEnter(lagreKnapp(dialog).parentElement!);
+    expect(screen.getByRole("tooltip", { hidden: true }).textContent).toContain("timer.reiseTerskel.manglerArt");
   });
 
   it("negativkontroll: med standardart vises ingen veiledning", () => {

@@ -282,6 +282,14 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
     expect(DAGSEKSJON).toContain("l.reiseSpor");
     expect(BEKREFT).toContain("reiseSpor: l.reiseSpor");
   });
+
+  it("gate (32) vilkår 1: sperreårsaken (også oppmoteIkkeValgt) står som rød tekst i kortet, ikke bare bak Lagre", () => {
+    const KORT = les("../components/timer-detalj/ReiseKort.tsx").replace(/\s+/g, " ");
+    expect(KORT).toContain('oppmoteIkkeValgt: "timer.reiseKort.sperre.oppmoteIkkeValgt"');
+    expect(KORT).toContain(
+      '{sperre && ( <Text className="text-xs font-medium text-red-700">{t(SPERRE_NOKKEL[sperre])}</Text> )}',
+    );
+  });
 });
 
 /**

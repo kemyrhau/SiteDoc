@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "De la {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} min. cu mașina",
   "timer.reiseKort.sperre.byggeplassPeriode": "Întâlnire la fața locului, fără călătorii",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Niciun punct de întâlnire selectat — conectați-vă la rețea pentru a alege unul",
   "timer.reiseKort.sperre.manglerKjoretid": "Timpul de condus lipsește pentru această rută — cereți administratorului companiei să îl adauge sub Distanțe",
   "timer.reiseKort.sperre.manglerDagstid": "Înregistrați timpul de lucru pentru prima zi - călătoria este plasată înainte sau după aceasta",
   "timer.reiseKort.sperre.utenforDognet": "Călătoria trece de miezul nopții - înregistrați-o în ziua căreia îi aparține",

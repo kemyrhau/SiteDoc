@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "Från {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} min körning",
   "timer.reiseKort.sperre.byggeplassPeriode": "Möte på plats, inga resor",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Ingen mötespunkt vald — anslut till nätverket för att välja en",
   "timer.reiseKort.sperre.manglerKjoretid": "Körtid saknas för den här rutten – be företagets administratör att lägga till den under Avstånd",
   "timer.reiseKort.sperre.manglerDagstid": "Registrera arbetstid för dagen först — resan läggs före eller efter den",
   "timer.reiseKort.sperre.utenforDognet": "Resan passerar midnatt — registrera den den dag den tillhör",

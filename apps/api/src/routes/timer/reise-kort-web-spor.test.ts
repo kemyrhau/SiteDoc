@@ -10,8 +10,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const findUniqueSetting = vi.fn();
 const kontorAvstand = vi.fn();
-vi.mock("../../trpc/tilgangskontroll", () => ({
-  verifiserProsjekterTilhørerFirma: vi.fn().mockResolvedValue(undefined),
+// Prosjektene «databasen» kjenner i sedelens firma. Den EKTE
+// verifiserProsjekterTilhørerFirma kjøres mot denne (gate (32) vilkår 2).
+const FIRMAETS_PROSJEKTER = new Set(["33333333-3333-3333-3333-333333333333"]);
+const projectFindMany = vi.fn(async (a: { where: { id: { in: string[] } } }) =>
+  a.where.id.in.filter((id) => FIRMAETS_PROSJEKTER.has(id)).map((id) => ({ id, name: id })),
+);
+vi.mock("../../trpc/tilgangskontroll", async (importActual) => ({
+  verifiserProsjekterTilhørerFirma: (
+    await importActual<typeof import("../../trpc/tilgangskontroll")>()
+  ).verifiserProsjekterTilhørerFirma,
   autoriserAdminForFirma: vi.fn().mockResolvedValue(undefined),
   verifiserProsjektmedlem: vi.fn().mockResolvedValue(undefined),
   hentBrukersOrg: vi.fn(),
@@ -35,7 +43,7 @@ vi.mock("@sitedoc/db", () => ({
       findFirst: vi.fn().mockResolvedValue({ id: "bp" }),
       findMany: vi.fn().mockResolvedValue([]),
     },
-    project: { findMany: vi.fn().mockResolvedValue([]) },
+    project: { findMany: (...a: unknown[]) => projectFindMany(...(a as [never])) },
   },
 }));
 vi.mock("@sitedoc/db-maskin", () => ({
@@ -54,6 +62,7 @@ const AKTIVITET = "55555555-5555-5555-5555-555555555555";
 const OPPMOTE = "77777777-7777-7777-7777-777777777777";
 const KONTOR_B = "78787878-7878-7878-7878-787878787878";
 const FREMMED = "79797979-7979-7979-7979-797979797979";
+const FREMMED_PROSJEKT = "39393939-3939-3939-3939-393939393939";
 
 const ARTER: Record<string, { id: string; navn: string; satsEnhet: string }> = {
   [ORDINAER]: { id: ORDINAER, navn: "Ordinær", satsEnhet: "per_time" },
@@ -146,6 +155,18 @@ describe("tilfoyTimerRad — reise-spor fra web-reisekortet", () => {
       }),
     ).rejects.toThrow(/tilhører ikke firmaet|ikke tilhører firmaet/);
     expect(timerCreate).not.toHaveBeenCalled();
+  });
+
+  it("🔴 prosjekt i et annet firma → FORBIDDEN, ingen rad (dagsseddel.ts verifiserProsjekterTilhørerFirma)", async () => {
+    const { ctx, timerCreate } = lagCtx();
+    await expect(
+      caller(ctx).tilfoyTimerRad({
+        ...basis(REISE), projectId: FREMMED_PROSJEKT, reiseKilde: "manuell", reiseRetning: "ut",
+        reiseOppmotestedId: OPPMOTE, reiseKjoretidMin: 30, reiseAvstandM: 42000, reiseRegel: regel,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(timerCreate).not.toHaveBeenCalled();
+    expect(projectFindMany).toHaveBeenCalled();
   });
 
   it("🔴 overføring uten rute i regel-snapshoten → BAD_REQUEST, ingen rad", async () => {

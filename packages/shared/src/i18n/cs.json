@@ -374,6 +374,7 @@
   "timer.reiseKort.fraOppmotested": "Od {{navn}}",
   "timer.reiseKort.resultat": "{{fraTid}}–{{tilTid}} · {{min}} min jízdy",
   "timer.reiseKort.sperre.byggeplassPeriode": "Sraz na místě, žádné cestování",
+  "timer.reiseKort.sperre.oppmoteIkkeValgt": "Není vybrán žádný bod schůzky – připojte se k síti a vyberte jej",
   "timer.reiseKort.sperre.manglerKjoretid": "Na této trase chybí doba jízdy — požádejte správce společnosti, aby ji přidal do části Vzdálenosti",
   "timer.reiseKort.sperre.manglerDagstid": "Nejprve zaregistrujte pracovní dobu pro daný den – cestování je umístěno před nebo po ní",
   "timer.reiseKort.sperre.utenforDognet": "Cesta překročí půlnoc — zaregistrujte si ji v den, ke kterému patří",
