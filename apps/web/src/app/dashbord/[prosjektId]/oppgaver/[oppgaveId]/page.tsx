@@ -656,7 +656,10 @@ export default function OppgaveDetaljSide() {
       // Byggeplass: oppgavens egen, ellers tegningens (ORDRE 28). Fra
       // lesDokumentLokasjon (rå hentMedId) — det omformede `oppgave` dropper `drawing` → viste ellers
       // «Hele prosjektet» selv når oppgaven har en tegning (samme rotårsak som lokasjon).
-      verdi: oppgaveLokasjon.bygningNavn ?? t("kontekstChip.heleProsjektet"),
+      // (20b): «Hele prosjektet» er kun et visningsfilter — med byggeplasser på prosjektet vises «—».
+      verdi:
+        oppgaveLokasjon.bygningNavn ??
+        (((bygningerRå as unknown[] | undefined)?.length ?? 0) > 0 ? "—" : t("kontekstChip.heleProsjektet")),
       type: "display",
     },
     {
