@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "для маршруту не вказано час у дорозі",
   "timer.bekreftDag.aarsak.uoppnaaelig": "маршрут не проїзний",
   "timer.bekreftDag.aarsak.mangler_avstand": "для маршруту не вказано відстань",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "не встановлено тип оплати за відрядження",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "кілька сайтів поблизу",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "жоден сайт не має точки на карті",
   "timer.bekreftDag.hjelp": "Підтвердження зберігає день як чернетку для вас. «Не зараз» залишає день відкритим.",

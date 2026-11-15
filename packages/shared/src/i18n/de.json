@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "Für die Route fehlt die Reisezeit",
   "timer.bekreftDag.aarsak.uoppnaaelig": "Die Strecke ist nicht befahrbar",
   "timer.bekreftDag.aarsak.mangler_avstand": "Für die Route fehlt die Entfernung",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "Es ist keine Reisevergütungsart eingerichtet",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "mehrere Standorte in der Nähe",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "Keine Site verfügt über einen Kartenpunkt",
   "timer.bekreftDag.hjelp": "Bestätigen speichert den Tag als Entwurf eines Stundenzettels für Sie. „Nicht jetzt“ lässt den Tag offen.",

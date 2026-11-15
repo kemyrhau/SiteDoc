@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "maršrutui trūksta kelionės laiko",
   "timer.bekreftDag.aarsak.uoppnaaelig": "maršrutas nevažiuojamas",
   "timer.bekreftDag.aarsak.mangler_avstand": "maršrutui trūksta atstumo",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "kelionės apmokėjimo tipas nenustatytas",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "kelios aikštelės netoliese",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "jokia svetainė neturi žemėlapio taško",
   "timer.bekreftDag.hjelp": "Patvirtinkite, kad diena išsaugoma kaip laiko apskaitos žiniaraščio juodraštis. „Ne dabar“ palieka dieną atvirą.",

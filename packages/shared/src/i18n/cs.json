@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "na trase chybí doba jízdy",
   "timer.bekreftDag.aarsak.uoppnaaelig": "trasa není sjízdná",
   "timer.bekreftDag.aarsak.mangler_avstand": "pro trasu chybí vzdálenost",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "není nastaven žádný typ cestovního platu",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "několik míst v okolí",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "žádný web nemá bod na mapě",
   "timer.bekreftDag.hjelp": "Potvrdit uloží den jako koncept časového rozvrhu. „Teď ne“ nechává den otevřený.",

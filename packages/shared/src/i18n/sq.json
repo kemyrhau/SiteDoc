@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "koha e udhëtimit mungon për itinerarin",
   "timer.bekreftDag.aarsak.uoppnaaelig": "rruga nuk është e lëvizshme",
   "timer.bekreftDag.aarsak.mangler_avstand": "distanca mungon për itinerarin",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "asnjë lloj pagese udhëtimi nuk është caktuar",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "disa vende aty pranë",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "asnjë faqe nuk ka një pikë hartë",
   "timer.bekreftDag.hjelp": "Konfirmo që e ruan ditën si një draft fletë kohore për ju. \"Jo tani\" e lë ditën hapur.",

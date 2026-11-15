@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "marsruudi jaoks puudub reisiaeg",
   "timer.bekreftDag.aarsak.uoppnaaelig": "marsruut ei ole sõidetav",
   "timer.bekreftDag.aarsak.mangler_avstand": "marsruudil puudub vahemaa",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "reisitasu tüüpi pole seadistatud",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "läheduses mitu saiti",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "ühelgi saidil pole kaardipunkti",
   "timer.bekreftDag.hjelp": "Kinnita salvestab päeva teie jaoks ajatabeli mustandina. \"Mitte praegu\" jätab päeva lahtiseks.",

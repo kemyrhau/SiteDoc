@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "timpul de călătorie lipsește pentru traseu",
   "timer.bekreftDag.aarsak.uoppnaaelig": "traseul nu este circulabil",
   "timer.bekreftDag.aarsak.mangler_avstand": "distanta lipseste pentru traseu",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "nu este configurat niciun tip de plată de călătorie",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "mai multe site-uri în apropiere",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "niciun site nu are un punct de hartă",
   "timer.bekreftDag.hjelp": "Confirmați salvează ziua ca o schiță de pontaj pentru dvs. „Nu acum” lasă ziua deschisă.",

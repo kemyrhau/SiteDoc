@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "il manque du temps de trajet pour l'itinéraire",
   "timer.bekreftDag.aarsak.uoppnaaelig": "l'itinéraire n'est pas praticable",
   "timer.bekreftDag.aarsak.mangler_avstand": "la distance manque pour l'itinéraire",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "aucun type de paiement de déplacement n'est configuré",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "plusieurs sites à proximité",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "aucun site n'a de point sur la carte",
   "timer.bekreftDag.hjelp": "Confirmer enregistre la journée sous forme de brouillon de feuille de temps pour vous. « Pas maintenant » laisse la journée ouverte.",

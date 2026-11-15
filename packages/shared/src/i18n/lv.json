@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "maršrutam trūkst brauciena laika",
   "timer.bekreftDag.aarsak.uoppnaaelig": "maršruts nav braucams",
   "timer.bekreftDag.aarsak.mangler_avstand": "maršrutam trūkst attāluma",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "nav iestatīts ceļojuma apmaksas veids",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "vairākas vietas tuvumā",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "nevienai vietnei nav kartes punkta",
   "timer.bekreftDag.hjelp": "Apstiprināt saglabā dienu kā laika uzskaites uzmetumu. “Ne tagad” atstāj dienu atvērtu.",

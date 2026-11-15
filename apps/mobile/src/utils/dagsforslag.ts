@@ -174,7 +174,13 @@ export type ReiseAarsak =
   | "posisjon_utilgjengelig"
   | "mangler_matrise"
   | "uoppnaaelig"
-  | "mangler_avstand";
+  | "mangler_avstand"
+  /**
+   * POST (12)/(13) B: etappen er reisetid, men firmaet har verken et treffende
+   * avstandsbånd eller en reise-lønnsart (`reiseLonnsartId`/navne-match).
+   * Tidligere forsvant reisen stille (null) — nå navngis årsaken.
+   */
+  | "mangler_reise_lonnsart";
 
 /**
  * Én reise-etappe (B1, V7/V10). `ut` = oppmøtested → destinasjon,
@@ -840,7 +846,12 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       reiseOppslag.grensepunkter,
       reiseOppslag.fallbackReiseLonnsartId,
     );
-    if (!lonnsartId) return null;
+    if (!lonnsartId) {
+      // POST (13) B: aldri stille — reisetid-etappen fantes, men ingen art å
+      // føre den på. Første årsak vinner (ut-årsaken settes av beregnReiseEtapper).
+      reiseAarsak ??= "mangler_reise_lonnsart";
+      return null;
+    }
     const reiseRegel: ReiseRegelSnapshot = {
       enhet: regel.reiseTerskelEnhet as ReiseEnhet,
       terskelMin: regel.reiseTerskelMin,

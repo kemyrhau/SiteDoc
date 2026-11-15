@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "время в пути отсутствует для маршрута",
   "timer.bekreftDag.aarsak.uoppnaaelig": "маршрут не проходим",
   "timer.bekreftDag.aarsak.mangler_avstand": "для маршрута не указано расстояние",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "тип оплаты проезда не настроен",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "несколько мест поблизости",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "ни на одном сайте нет точки на карте",
   "timer.bekreftDag.hjelp": "Подтвердить сохраняет для вас день в виде черновика расписания. «Не сейчас» оставляет день открытым.",

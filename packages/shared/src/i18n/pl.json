@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "brak czasu przejazdu na danej trasie",
   "timer.bekreftDag.aarsak.uoppnaaelig": "trasa nie jest przejezdna",
   "timer.bekreftDag.aarsak.mangler_avstand": "brakuje dystansu dla trasy",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "nie ustawiono żadnego rodzaju płatności za podróż",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "kilka miejsc w pobliżu",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "żadne miejsce nie ma punktu na mapie",
   "timer.bekreftDag.hjelp": "Potwierdź zapisuje dzień jako wersję roboczą grafiku dla Ciebie. „Nie teraz” pozostawia dzień otwarty.",

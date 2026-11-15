@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "matka-aika puuttuu reitiltä",
   "timer.bekreftDag.aarsak.uoppnaaelig": "reitti ei ole ajettava",
   "timer.bekreftDag.aarsak.mangler_avstand": "reitiltä puuttuu etäisyys",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "matkamaksutyyppiä ei ole määritetty",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "useita kohteita lähellä",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "millään sivustolla ei ole karttapistettä",
   "timer.bekreftDag.hjelp": "Vahvista tallentaa päivän työaikataulukkoluonnoksena sinulle. \"Ei nyt\" jättää päivän avoimeksi.",

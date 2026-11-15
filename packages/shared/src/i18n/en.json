@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "travel time is missing for the route",
   "timer.bekreftDag.aarsak.uoppnaaelig": "the route is not drivable",
   "timer.bekreftDag.aarsak.mangler_avstand": "distance is missing for the route",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "no travel pay type is set up",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "several sites nearby",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "no site has a map point",
   "timer.bekreftDag.hjelp": "Confirm saves the day as a draft timesheet for you. “Not now” leaves the day open.",

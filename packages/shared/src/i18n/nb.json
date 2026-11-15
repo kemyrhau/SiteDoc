@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "reisetid mangler for strekningen",
   "timer.bekreftDag.aarsak.uoppnaaelig": "strekningen er ikke kjørbar",
   "timer.bekreftDag.aarsak.mangler_avstand": "avstand mangler for strekningen",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "reise-lønnsart er ikke satt opp",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "flere byggeplasser i nærheten",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "ingen byggeplass har kartpunkt",
   "timer.bekreftDag.hjelp": "Bekreft lagrer dagen som dagsseddel-utkast hos deg. «Ikke nå» lar dagen stå åpen.",

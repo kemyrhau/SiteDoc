@@ -5022,6 +5022,7 @@
   "timer.bekreftDag.aarsak.mangler_matrise": "restid saknas för rutten",
   "timer.bekreftDag.aarsak.uoppnaaelig": "rutten är inte körbar",
   "timer.bekreftDag.aarsak.mangler_avstand": "avstånd saknas för rutten",
+  "timer.bekreftDag.aarsak.mangler_reise_lonnsart": "ingen reselönetyp är inställd",
   "timer.bekreftDag.aarsak.flere_byggeplasser": "flera platser i närheten",
   "timer.bekreftDag.aarsak.ingen_byggeplass_med_punkt": "ingen plats har en kartpunkt",
   "timer.bekreftDag.hjelp": "Bekräfta sparar dagen som ett utkast till tidrapport åt dig. \"Inte nu\" lämnar dagen öppen.",

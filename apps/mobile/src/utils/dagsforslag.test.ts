@@ -454,6 +454,18 @@ describe("beregnDagsforslag — L1-B fasit-dager (etapper + vindu)", () => {
     expect(normalt!.fraTid).toBe("05:00");
   });
 
+  it("🔴 POST (13) B: reisetid-etappe uten reise-lønnsart → reiseAarsak = 'mangler_reise_lonnsart' (aldri stille null)", () => {
+    const f = dagMedReise({}, { fallbackReiseLonnsartId: null, grensepunkter: [] });
+    expect(f.reiseAarsak).toBe("mangler_reise_lonnsart");
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise)).toHaveLength(0);
+  });
+
+  it("POST (13) B: med reise-lønnsart → ingen årsak, reise-raden føres", () => {
+    const f = dagMedReise();
+    expect(f.reiseAarsak).toBeNull();
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise).length).toBeGreaterThan(0);
+  });
+
   it("§2 prosjektUkjent: ingen destinasjon OG ingen aktivtProsjektId → dagen åpen, prosjektId null", () => {
     const f = beregnDagsforslag(
       lagInput({ aktivtProsjektId: null, destinasjonProsjektId: null }),
