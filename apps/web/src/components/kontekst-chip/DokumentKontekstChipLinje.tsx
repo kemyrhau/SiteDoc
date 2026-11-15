@@ -49,6 +49,8 @@ export type Chip =
       /** Deaktivert (f.eks. faggruppe utenfor utkast) + grunn som tittel. */
       deaktivert?: boolean;
       deaktivertGrunn?: string;
+      /** Åpner nedtrekket hver gang tallet øker (ORDRE (20): «Velg» i «Byggeplass ikke valgt»). */
+      åpneSignal?: number;
     };
 
 export function DokumentKontekstChipLinje({ chips }: { chips: Chip[] }) {
@@ -125,6 +127,12 @@ function VelgerChip({ chip }: { chip: Extract<Chip, { type: "velger" }> }) {
     document.addEventListener("mousedown", handleKlikk);
     return () => document.removeEventListener("mousedown", handleKlikk);
   }, []);
+
+  // Ekstern åpning («Velg» utenfor chippen): hver økning åpner nedtrekket.
+  useEffect(() => {
+    if (chip.åpneSignal && !chip.deaktivert) setÅpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- kun signalet skal utløse åpning
+  }, [chip.åpneSignal]);
 
   const q = søk.toLowerCase();
   const filtrert = q

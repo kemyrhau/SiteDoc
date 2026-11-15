@@ -73,7 +73,7 @@ interface HmsDokumenter {
 export default function HmsListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useByggeplass();
+  const { valgtBygningId, kontekstByggeplassId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const router = useRouter();
@@ -224,12 +224,12 @@ export default function HmsListe() {
     (mal: HmsMal) => {
       settVisMalVelger(false);
       if (mal.subdomain === "sja") {
-        // Kontekst-default (V2): aktiv byggeplass fra global kontekst settes ved
-        // opprettelse. sjekkliste.opprett tar byggeplassId direkte.
+        // (20b): byggeplass uten gjett (lagret valg → GPS → ingen), aldri «første».
+        // sjekkliste.opprett tar byggeplassId direkte.
         opprettSjekklisteMutate({
           templateId: mal.id,
           title: mal.name,
-          byggeplassId: valgtBygningId ?? undefined,
+          byggeplassId: kontekstByggeplassId ?? undefined,
         });
       } else {
         // Avvik/RUH = oppgave. ORDRE 28: oppgave.opprett tar byggeplassId — aktiv
@@ -237,11 +237,11 @@ export default function HmsListe() {
         opprettOppgaveMutate({
           templateId: mal.id,
           title: mal.name,
-          byggeplassId: valgtBygningId ?? undefined,
+          byggeplassId: kontekstByggeplassId ?? undefined,
         });
       }
     },
-    [opprettOppgaveMutate, opprettSjekklisteMutate, valgtBygningId],
+    [opprettOppgaveMutate, opprettSjekklisteMutate, kontekstByggeplassId],
   );
 
   const onRefresh = useCallback(() => {

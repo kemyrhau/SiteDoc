@@ -75,31 +75,13 @@ export function byggeplassForLokasjon(kilder: {
 }
 
 /**
- * ORDRE 29 #6: bytte av byggeplass via sjekkliste-chipen. Tegningen fjernes alltid (den hører til
- * den gamle byggeplassen). Et område hører også til den gamle byggeplassen, så omfang «omrade»
- * nullstilles sammen med `omradeId` — ellers ville serveren avvise omfang «omrade» uten område.
- * Omfang «punkt» mister tegningen og nullstilles, og pinnen tømmes (en pin uten tegning er
- * meningsløs). «Hele byggeplassen» (+ fritekst) gjelder like godt den nye byggeplassen og beholdes.
+ * ORDRE (20b): «Hele prosjektet» er kun et visningsfilter. I et prosjekt med byggeplasser kan
+ * «Gjelder hele byggeplassen» / fritekst-sted bare lagres når en byggeplass er kjent — ellers ville
+ * omfang «byggeplass» lagres uten byggeplass. Prosjekter uten byggeplasser er uendret.
  */
-export function byggeplassByttInput(
-  naavaerendeOmfang: "punkt" | "byggeplass" | "omrade" | null | undefined,
-  nyByggeplassId: string | null,
-): {
-  byggeplassId: string | null;
-  drawingId: null;
-  positionX: null;
-  positionY: null;
-  omradeId: null;
-  lokasjonOmfang?: null;
-} {
-  const base = {
-    byggeplassId: nyByggeplassId,
-    drawingId: null,
-    positionX: null,
-    positionY: null,
-    omradeId: null,
-  } as const;
-  return naavaerendeOmfang === "omrade" || naavaerendeOmfang === "punkt"
-    ? { ...base, lokasjonOmfang: null }
-    : { ...base };
+export function manglerByggeplassValg(d: { antallByggeplasser: number; byggeplassId: string | undefined }): boolean {
+  return d.antallByggeplasser > 0 && !d.byggeplassId;
 }
+
+// ORDRE 29 #6 / (20b): flyttet til @sitedoc/shared så mobilens byggeplassvalg bruker samme regel.
+export { byggeplassByttInput } from "@sitedoc/shared";

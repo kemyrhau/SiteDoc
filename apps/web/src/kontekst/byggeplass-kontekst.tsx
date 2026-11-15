@@ -244,7 +244,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   // - Eksplisitt «Hele prosjektet» (18) respekteres — ingen autovalg over det.
   // - Ingen gyldig byggeplass valgt + prosjektet har byggeplasser → standardvalg (18):
   //   (a) sist brukt fra brukerminnet → (c) første (GPS (b) finnes bare på mobil).
-  //   `velgByggeplass` persisterer, akkurat som det gamle autovalget gjorde.
+  //   (a) persisteres via `velgByggeplass`; (c) «første» er et forvalg og lagres ikke (20).
   const sistBrukt = (() => {
     const rad = brukerminne.data?.find(
       (r) => r.projectId === prosjektId && r.nokkel === SERVER_NOKKEL_BYGGEPLASS,

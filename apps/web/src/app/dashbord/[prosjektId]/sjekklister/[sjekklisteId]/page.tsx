@@ -10,6 +10,7 @@ import { byggObjektTre } from "@sitedoc/shared/types";
 import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight, Anchor } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { byggeplassByttInput } from "@/lib/dokument-lokasjon";
+import { ByggeplassIkkeValgtLinje } from "@/components/ByggeplassIkkeValgtLinje";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -24,7 +25,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, type PdfValg } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, type PdfValg, visByggeplassIkkeValgt } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -259,6 +260,8 @@ export default function SjekklisteDetaljSide() {
   // eksport-PDF: rendr dokumentet til én PDF og last den ned (vei 3b — PDF i respons).
   // Melding skilles bevisst: timeout → «prøv igjen» hjelper; manglende vedlegg →
   // dokumentet ER ufullstendig (last ned likevel, hullet er merket i PDF-en).
+  // ORDRE (20) linja: «Velg» i «Byggeplass ikke valgt» åpner byggeplass-chipens nedtrekk.
+  const [byggeplassÅpneSignal, setByggeplassÅpneSignal] = useState(0);
   const [eksportMelding, setEksportMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   // PDF-1: utskriftsvalg — begge av som standard (STANDARD_PDF_VALG). Velges i nedtrekket ved knappen.
   const [pdfValg, setPdfValg] = useState<PdfValg>(STANDARD_PDF_VALG);
@@ -610,6 +613,14 @@ export default function SjekklisteDetaljSide() {
     }
   }
 
+  // ORDRE (20b) linja: dokument uten byggeplass i et prosjekt som har byggeplasser («Hele prosjektet»
+  // er kun et visningsfilter, aldri en verdi på dokumentet). Kun der byggeplass-chipen kan brukes.
+  const visIkkeValgt = visByggeplassIkkeValgt({
+    byggeplassId: fullSjekkliste?.byggeplass?.id ?? null,
+    antallByggeplasser: bygninger.length,
+    kanRedigere: !leseModus && !erLaast,
+  });
+
   const kontekstChips: import("@/components/kontekst-chip/DokumentKontekstChipLinje").Chip[] = [
     {
       etikett: t("kontekstChip.prosjekt"),
@@ -618,12 +629,16 @@ export default function SjekklisteDetaljSide() {
     },
     {
       etikett: t("kontekstChip.byggeplass"),
-      verdi: fullSjekkliste?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      // (20b): «Hele prosjektet» er kun et visningsfilter. Med byggeplasser på prosjektet vises «—»
+      // til en byggeplass er valgt; uten byggeplasser er teksten uendret.
+      verdi:
+        fullSjekkliste?.byggeplass?.name ??
+        (bygninger.length > 0 ? "—" : t("kontekstChip.heleProsjektet")),
       type: "velger",
       deaktivert: erLaast,
       deaktivertGrunn: t("kontekstChip.byggeplassLaastGodkjent"),
       valgtId: fullSjekkliste?.byggeplass?.id ?? null,
-      tomLabel: t("kontekstChip.heleProsjektet"),
+      åpneSignal: byggeplassÅpneSignal,
       alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),
       // ORDRE 29 #6: tegning, pin og område hører til den gamle byggeplassen og nullstilles.
       onVelg: (id) =>
@@ -779,6 +794,11 @@ export default function SjekklisteDetaljSide() {
             byggeplass · faggruppe · mal. Skjult ved print. */}
         <div className="print-skjul mt-2">
           <DokumentKontekstChipLinje chips={kontekstChips} />
+          {visIkkeValgt && (
+            <div className="mt-1.5">
+              <ByggeplassIkkeValgtLinje onVelg={() => setByggeplassÅpneSignal((n) => n + 1)} />
+            </div>
+          )}
         </div>
 
         {/* Rad 2: FlytIndikator (full bredde på mobil).

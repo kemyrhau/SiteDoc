@@ -132,17 +132,24 @@ export function LokasjonSeksjon({
 /**
  * Tegnings-/kartliste gruppert pr. byggeplass (flyttet fra sjekklistens «Bytt tegning»).
  * Tegninger uten (kjent) byggeplass samles under «Kart» — ellers usynlige i lista.
+ *
+ * ORDRE (20b) punkt 3: med `onVelgByggeplass` vises byggeplassene øverst — ett trykk setter
+ * byggeplass, tegning er frivillig. Ingen rad for «Hele prosjektet» (kun et visningsfilter).
  */
 export function TegningVelgerListe({
   tegninger,
   bygninger,
   valgtTegningId,
   onVelg,
+  valgtByggeplassId,
+  onVelgByggeplass,
 }: {
   tegninger: LokasjonTegning[];
   bygninger: Array<{ id: string; name: string }>;
   valgtTegningId: string | null;
   onVelg: (tegning: LokasjonTegning) => void;
+  valgtByggeplassId?: string | null;
+  onVelgByggeplass?: (byggeplassId: string) => void;
 }) {
   const { t } = useTranslation();
   const bygningIder = new Set(bygninger.map((b) => b.id));
@@ -158,8 +165,28 @@ export function TegningVelgerListe({
     grupper.push({ id: "__løse", navn: t("lokasjonVelger.kart"), tegninger: løse });
   }
 
+  const visByggeplasser = !!onVelgByggeplass && bygninger.length > 0;
+
   return (
     <ScrollView className="flex-1" contentContainerClassName="p-3 gap-1">
+      {visByggeplasser && (
+        <View className="mb-2">
+          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
+            {t("lokasjonVelger.byggeplassOverskrift")}
+          </Text>
+          {bygninger.map((b) => (
+            <Pressable
+              key={b.id}
+              onPress={() => onVelgByggeplass?.(b.id)}
+              className={`flex-row items-center gap-2 rounded-lg px-3 py-2.5 ${valgtByggeplassId === b.id ? "bg-blue-50" : "bg-white"}`}
+            >
+              <Text className={`flex-1 text-sm ${valgtByggeplassId === b.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                {b.name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
       {grupper.length === 0 ? (
         <Text className="mt-8 px-6 text-center text-sm text-gray-500">
           {t("lokasjonVelger.ingenTegningEllerKart")}

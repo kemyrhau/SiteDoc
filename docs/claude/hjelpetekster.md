@@ -162,6 +162,14 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - **Forklaring:** «Du er medlem av disse prosjektene, men de eies av et firma du ikke er ansatt i.» (`prosjektVelger.andreFirmaHjelp`). På web står den som ?-ikon med tooltip ved overskriften (`KontekstChip.tsx`). På mobil står den som grå linje under overskriften (`ProsjektVelger.tsx`).
 - **Rad:** prosjektnavn · eierfirma (web på samme linje, mobil på linja under; eierfirma mangler offline).
 
+## Web og mobil: «Byggeplass ikke valgt · Velg» på sjekkliste og oppgave (ORDRE 2026-11-15 (20) linja + (20b))
+
+- **Linje:** «Byggeplass ikke valgt» (`kontekstChip.byggeplassIkkeValgt`) · «Velg» (`handling.velg`). Amber linje under lokasjons-/kontekstfeltet, ingen toast eller banner.
+- **Forklaring:** «Dokumentet er ikke knyttet til en byggeplass. Velg byggeplassen det hører til.» (`kontekstChip.byggeplassIkkeValgtHjelp`). Web: tooltip på linja. Mobil: `accessibilityHint`. «Hele prosjektet» er bare et listefilter ((20b)) og tilbys ikke som verdi på dokumentet.
+- **Vises når:** dokumentet mangler byggeplass, prosjektet har minst én og brukeren kan redigere (`visByggeplassIkkeValgt`, `@sitedoc/shared`).
+- **«Velg» åpner:** web sjekkliste → byggeplass-chipen (uten tomvalg); web oppgave → lokasjonsvelgeren; mobil sjekkliste og oppgave → velgeren med byggeplassene øverst («Byggeplass», `lokasjonVelger.byggeplassOverskrift`) over tegningene. Ett trykk på en byggeplass setter den; tegning er frivillig.
+- **Web lokasjonsvelger uten byggeplass:** nedtrekket viser «Velg byggeplass …» (`lokasjonVelger.velgByggeplassPlassholder`). «Gjelder hele byggeplassen» og fritekst er sperret med forklaringen «Velg en byggeplass først» (`sperret.velgByggeplass`).
+
 ## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
 
 Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banner:

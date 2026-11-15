@@ -26,4 +26,20 @@ describe("dokumentopprettelse bruker byggeplass uten (c)", () => {
     // Negativkontroll: den gamle aliasingen av visningsverdien er borte.
     expect(kilde).not.toMatch(/valgtBygningId: kontekstBygningId/);
   });
+
+  it("(20b) mobil-HMS oppretter SJA/avvik/RUH med kontekstByggeplassId, aldri «første»", () => {
+    const kilde = les("../../app/hms/index.tsx");
+    const opprett = kilde.slice(kilde.indexOf("const håndterMal"), kilde.indexOf("const håndterMal") + 1200);
+    expect(opprett.match(/byggeplassId: kontekstByggeplassId \?\? undefined/g)?.length).toBe(2);
+    // Negativkontroll: visningsverdien (med (c) «første») brukes ikke ved opprettelse.
+    expect(opprett).not.toMatch(/byggeplassId: valgtBygningId/);
+  });
+
+  it("(20b) ingen opprett-flyt sender lokasjonOmfang «prosjekt»", () => {
+    for (const fil of ["../components/OpprettVelger.tsx", "../components/OpprettDokumentModal.tsx", "../../app/hms/index.tsx"]) {
+      const kilde = les(fil);
+      expect(kilde).not.toMatch(/lokasjonOmfang/);
+      expect(kilde).not.toMatch(/"prosjekt"/);
+    }
+  });
 });

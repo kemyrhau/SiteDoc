@@ -4,6 +4,7 @@ import {
   byggeplassForLokasjon,
   filtrerOmrader,
   lesDokumentLokasjon,
+  manglerByggeplassValg,
 } from "../dokument-lokasjon";
 
 /**
@@ -144,5 +145,17 @@ describe("ORDRE 29 #6: byggeplassByttInput", () => {
     const ut = byggeplassByttInput("byggeplass", null);
     expect(ut).not.toHaveProperty("lokasjonOmfang");
     expect(ut).toMatchObject({ byggeplassId: null, omradeId: null, drawingId: null });
+  });
+});
+
+describe("ORDRE (20b): manglerByggeplassValg", () => {
+  it("🔴 byggeplasser finnes, ingen kjent → mangler (ingen lagring av «hele byggeplassen» uten byggeplass)", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 2, byggeplassId: undefined })).toBe(true);
+  });
+  it("byggeplass kjent → ok", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 2, byggeplassId: "bp1" })).toBe(false);
+  });
+  it("prosjekt uten byggeplasser er uendret → ok", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 0, byggeplassId: undefined })).toBe(false);
   });
 });

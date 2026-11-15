@@ -39,10 +39,11 @@ import {
   Eye,
   Scale,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, visByggeplassIkkeValgt, byggeplassByttInput } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
+import { ByggeplassIkkeValgtLinje } from "../../src/components/ByggeplassIkkeValgtLinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { EmneFelt } from "../../src/components/EmneFelt";
@@ -153,8 +154,9 @@ export default function OppgaveDetalj() {
     transfers?: Transfer[];
     // fileUrl/imageWidth/imageHeight følger allerede med fra serveren (drawing-relasjonen
     // inkluderes uten select) — kun typingen manglet dem, derfor kunne ikke punktet åpnes.
-    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
+    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null; byggeplassId?: string | null } | null;
     drawingId?: string | null;
+    byggeplassId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
     lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
@@ -941,6 +943,13 @@ export default function OppgaveDetalj() {
             />
           );
         })()}
+        {/* ORDRE (20) linja: byggeplass satt = oppgavens egen eller tegningens. «Velg» åpner
+            tegningsvelgeren (mobil har ikke eget byggeplassvalg uten tegning). */}
+        {visLokasjon(oppgaveDetalj?.template) && visByggeplassIkkeValgt({
+          byggeplassId: oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null,
+          antallByggeplasser: bygninger.length,
+          kanRedigere: kanRedigerePunkt && !leseModus,
+        }) && <ByggeplassIkkeValgtLinje onVelg={() => settVisTegningVelger(true)} />}
 
         {/* Tittel */}
         <View className="rounded-lg bg-white p-4">
@@ -1501,6 +1510,16 @@ export default function OppgaveDetalj() {
             tegninger={tilgjengeligeTegninger}
             bygninger={bygninger}
             valgtTegningId={null}
+            // ORDRE (20b) punkt 3: byggeplassene øverst — ett trykk setter byggeplass, tegning er
+            // frivillig. Tegning/pin/område nullstilles (samme regel som web-chipen); med
+            // drawingId null vinner ønsket byggeplass på serveren (velgTaskByggeplass).
+            valgtByggeplassId={oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null}
+            onVelgByggeplass={(byggeplassId) => {
+              if (byggeplassId !== (oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null)) {
+                oppdaterMutasjon.mutate({ id: id!, ...byggeplassByttInput(oppgaveDetalj?.lokasjonOmfang, byggeplassId) });
+              }
+              settVisTegningVelger(false);
+            }}
             onVelg={(valgt) => {
               oppdaterMutasjon.mutate(byttTegningInput(id!, valgt.id));
               const byggeplassId = valgt.byggeplassId ?? valgt.byggeplass?.id ?? null;

@@ -312,6 +312,11 @@ Fasit: `tegningNedlasting.test.ts`.
   - `oppdaterBygningMap`.
 - Tester med negativkontroll ligger i `.test.ts` ved siden av.
 
+### Byggeplass ikke valgt (`byggeplassIkkeValgt.ts`, ORDRE 2026-11-15 (20) + (20b))
+
+- `visByggeplassIkkeValgt({ byggeplassId, antallByggeplasser, kanRedigere })` → `boolean`: linja «Byggeplass ikke valgt · Velg» på web og mobil.
+- `byggeplassByttInput(naavaerendeOmfang, nyByggeplassId)`: oppdater-input ved bytte av byggeplass — nullstiller tegning, punkt og område, og omfang `omrade`/`punkt`. Brukt av web-chipen og mobil sjekkliste/oppgave.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først
