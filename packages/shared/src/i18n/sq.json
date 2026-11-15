@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Periudha e kursimit",
   "firma.ansatte.oppmote.slett": "Fshi periudhën",
   "firma.ansatte.oppmote.slettTittel": "Të fshihet periudha?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Një vendndodhje e përhershme e mbyllur është historik dhe nuk mund të fshihet. Përkundrazi, cakto një vendndodhje të re të përhershme.",
   "firma.ansatte.oppmote.slettHva": "Datat në periudhë marrin vendndodhjen tjetër të raportimit të punonjësit. Nëse fshini një vendndodhje të përhershme, vendndodhja e mëparshme e përhershme do të zbatohet përsëri."
 }

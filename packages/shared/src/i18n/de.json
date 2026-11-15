@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Zeitraum speichern",
   "firma.ansatte.oppmote.slett": "Zeitraum löschen",
   "firma.ansatte.oppmote.slettTittel": "Zeitraum löschen?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Ein geschlossener dauerhafter Standort ist Geschichte und kann nicht gelöscht werden. Legen Sie stattdessen einen neuen dauerhaften Standort fest.",
   "firma.ansatte.oppmote.slettHva": "Daten in der Periode erhalten den anderen Meldeort des Mitarbeiters. Wenn Sie einen festen Standort löschen, gilt wieder der bisherige feste Standort."
 }

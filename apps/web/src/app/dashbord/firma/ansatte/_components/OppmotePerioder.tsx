@@ -106,14 +106,17 @@ export function OppmotePerioder({
                   })}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setSlettRad(p)}
-                className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
-                aria-label={t("firma.ansatte.oppmote.slett")}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {/* Lukket fast sted er historikk — kan ikke slettes (serveren avviser). */}
+              {!(p.fast && p.tilDato) && (
+                <button
+                  type="button"
+                  onClick={() => setSlettRad(p)}
+                  className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                  aria-label={t("firma.ansatte.oppmote.slett")}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -125,7 +128,10 @@ export function OppmotePerioder({
           organizationMemberId={organizationMemberId}
           perioder={perioder}
           steder={steder ?? []}
-          prosjekter={(prosjekter ?? []).map((p) => ({ id: p.id, navn: p.name }))}
+          prosjekter={(prosjekter ?? [])
+            // Samme regel som serveren (verifiserMaal): kun prosjekter firmaet eier.
+            .filter((p) => p.primaryOrganizationId === organizationId)
+            .map((p) => ({ id: p.id, navn: p.name }))}
           onAvbryt={() => setNyAapen(false)}
           onLagret={() => {
             setNyAapen(false);
@@ -334,7 +340,9 @@ function SlettPeriodeModal({
         <div className="space-y-3 px-5 py-4">
           <p className="text-sm text-gray-900">{tekst}</p>
           <p className="text-sm text-gray-600">{t("firma.ansatte.oppmote.slettHva")}</p>
-          {slett.isError && <p className="text-sm text-red-600">{slett.error.message}</p>}
+          {slett.isError && (
+            <p className="text-sm text-red-600">{t(slett.error.message, { defaultValue: slett.error.message })}</p>
+          )}
           <div className="flex justify-end gap-2 border-t border-gray-200 pt-3">
             <button
               type="button"

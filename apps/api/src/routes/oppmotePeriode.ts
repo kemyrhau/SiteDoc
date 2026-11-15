@@ -327,29 +327,37 @@ export const oppmotePeriodeRouter = router({
     avvisKonflikt(ny, ovrige);
 
     const apenFast = ny.fast ? ovrige.find((p) => p.fast && p.tilDato == null) : undefined;
-    return db.$transaction(async (tx) => {
-      if (apenFast) {
-        await tx.oppmotePeriode.update({
-          where: { id: apenFast.id },
-          data: { tilDato: tilDbDato(dagenFor(ny.fraDato)) },
+    try {
+      return await db.$transaction(async (tx) => {
+        if (apenFast) {
+          await tx.oppmotePeriode.update({
+            where: { id: apenFast.id },
+            data: { tilDato: tilDbDato(dagenFor(ny.fraDato)) },
+          });
+        }
+        const rad = await tx.oppmotePeriode.create({
+          data: {
+            organizationId: input.organizationId,
+            organizationMemberId: input.organizationMemberId,
+            type: ny.type,
+            fast: ny.fast,
+            oppmotestedId: ny.oppmotestedId,
+            projectId: ny.projectId,
+            fraDato: tilDbDato(ny.fraDato),
+            tilDato: ny.tilDato ? tilDbDato(ny.tilDato) : null,
+            sattAvUserId: ctx.userId,
+          },
+          select: PERIODE_SELECT,
         });
-      }
-      const rad = await tx.oppmotePeriode.create({
-        data: {
-          organizationId: input.organizationId,
-          organizationMemberId: input.organizationMemberId,
-          type: ny.type,
-          fast: ny.fast,
-          oppmotestedId: ny.oppmotestedId,
-          projectId: ny.projectId,
-          fraDato: tilDbDato(ny.fraDato),
-          tilDato: ny.tilDato ? tilDbDato(ny.tilDato) : null,
-          sattAvUserId: ctx.userId,
-        },
-        select: PERIODE_SELECT,
+        return tilInput(rad);
       });
-      return tilInput(rad);
-    });
+    } catch (e) {
+      // Kappløp om gjeldende fast sted: den partielle unike indeksen slår inn.
+      if (erUnikBrudd(e)) {
+        throw new TRPCError({ code: "CONFLICT", message: "Den ansatte har allerede et gjeldende fast sted" });
+      }
+      throw e;
+    }
   }),
 
   /**
@@ -430,6 +438,11 @@ export const oppmotePeriodeRouter = router({
         select: { ...PERIODE_SELECT, organizationMemberId: true },
       });
       if (!eks) throw new TRPCError({ code: "NOT_FOUND", message: "Perioden finnes ikke" });
+      // Et lukket fast sted er historikk: sletting ville gitt et datohull der
+      // etterregistrering får «ikke valgt» (ingen reise) — stille lønnseffekt.
+      if (eks.fast && eks.tilDato != null) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "firma.ansatte.oppmote.feil.lukketFast" });
+      }
 
       return db.$transaction(async (tx) => {
         await tx.oppmotePeriode.delete({ where: { id: eks.id } });

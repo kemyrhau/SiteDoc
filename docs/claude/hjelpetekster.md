@@ -170,6 +170,7 @@ Ansatte-siden har ingen `?`-komponent; teksten står i feltet (`firma.ansatte.op
 - **Fast:** «Gjelder til et nytt fast sted settes. Det forrige faste stedet avsluttes dagen før.»
 - **Overlapp:** «Overlapper en eksisterende periode av samme type.» — Lagre er sperret.
 - **Slett:** «Datoene i perioden får ansattens øvrige oppmøtested. Sletter du et fast sted, gjelder det forrige faste stedet igjen.»
+- **Lukket fast sted** har ingen slettknapp. Avviser serveren likevel: «Et avsluttet fast sted er historikk og kan ikke slettes. Sett et nytt fast sted i stedet.»
 - **Spørsmålet til den ansatte (web + mobil, `timer.oppmote.*`):** «Hvor møter du vanligvis?» — «Velg stedet du møter på. Det brukes til å beregne reise. Firmaet kan endre det senere.»
 
 ## Web: Deaktiver ansatt (`firma/ansatte/_components/DeaktiverModal.tsx`, ordre 2026-11-05 (11), (12))

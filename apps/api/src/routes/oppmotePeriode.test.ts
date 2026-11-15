@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { TRPCError } from "@trpc/server";
 
 /**
  * POST 2026-11-15 (12) D: oppmøtested med perioder — firmagrense og vakter.
@@ -304,6 +305,95 @@ describe("oppdater / slett (firmaadmin)", () => {
     await caller().slett({ id: MEDLEM, organizationId: ORG_A });
     expect(m.periodeFindFirst.mock.calls[1]![0]).toMatchObject({ where: { fast: true, tilDato: d("2026-08-31") } });
     expect(m.periodeUpdate).toHaveBeenCalledWith({ where: { id: "narvik" }, data: { tilDato: null } });
+  });
+});
+
+const IKKE_ADMIN = () => m.admin.mockRejectedValue(new TRPCError({ code: "FORBIDDEN", message: "Ikke firmaadmin" }));
+const MIDL = { ...rad({ id: "m1", fast: false, oppmotestedId: RAMSUND, fraDato: d("2026-09-01"), tilDato: d("2026-09-30") }), organizationMemberId: MEDLEM };
+const ENDRE = { id: MEDLEM, organizationId: ORG_A, fraDato: "2026-09-05", tilDato: "2026-09-20" };
+
+describe("regel 10 — gate POST (29) A", () => {
+  it("hentForFirma: vanlig ansatt → FORBIDDEN, leser ingenting", async () => {
+    IKKE_ADMIN();
+    await expect(caller().hentForFirma({ organizationId: ORG_A })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(m.admin).toHaveBeenCalledWith("u1", ORG_A);
+    expect(m.periodeFindMany).not.toHaveBeenCalled();
+  });
+
+  it("hentForFirma: filtrerer på eget firma — annet firmas perioder returneres aldri", async () => {
+    const annet = { ...rad({ id: "fra-b" }), organizationMemberId: "b", sattAvUserId: "u9", sattVed: d("2026-01-01"), oppmotested: null, project: null };
+    const eget = { ...rad({ id: "fra-a" }), organizationMemberId: MEDLEM, sattAvUserId: "u1", sattVed: d("2026-01-01"), oppmotested: null, project: null };
+    // Mocken etterligner DB-en: rader filtreres på where.organizationId.
+    m.periodeFindMany.mockImplementation(async (a: { where: { organizationId?: string } }) =>
+      [
+        { ...eget, organizationId: ORG_A },
+        { ...annet, organizationId: ORG_B },
+      ].filter((r) => r.organizationId === a.where.organizationId),
+    );
+    const r = await caller().hentForFirma({ organizationId: ORG_A });
+    expect(r.map((x) => x.id)).toEqual(["fra-a"]);
+  });
+
+  it("oppdater: vanlig ansatt → FORBIDDEN, ingenting skrives", async () => {
+    IKKE_ADMIN();
+    m.periodeFindFirst.mockResolvedValue(MIDL);
+    await expect(caller().oppdater(ENDRE)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+  });
+
+  it("slett: vanlig ansatt → FORBIDDEN, ingenting slettes", async () => {
+    IKKE_ADMIN();
+    m.periodeFindFirst.mockResolvedValue(MIDL);
+    await expect(caller().slett({ id: MEDLEM, organizationId: ORG_A })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(m.periodeDelete).not.toHaveBeenCalled();
+  });
+
+  it("oppdater: overlapp med annen midlertidig → CONFLICT, ingenting skrives", async () => {
+    m.periodeFindFirst.mockResolvedValue(MIDL);
+    m.periodeFindMany.mockResolvedValue([rad({ id: "m2", fast: false, fraDato: d("2026-09-15"), tilDato: d("2026-10-15") })]);
+    await expect(caller().oppdater(ENDRE)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+  });
+
+  it("oppdater: oppmøtested i annet firma → NOT_FOUND, ingenting skrives", async () => {
+    m.periodeFindFirst.mockResolvedValue(MIDL);
+    m.stedFindFirst.mockResolvedValue(null);
+    await expect(caller().oppdater({ ...ENDRE, oppmotestedId: NARVIK })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(m.stedFindFirst.mock.calls[0]![0]).toMatchObject({ where: { id: NARVIK, organizationId: ORG_A } });
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+  });
+
+  it("oppdater: prosjekt i annet firma → NOT_FOUND, ingenting skrives", async () => {
+    m.periodeFindFirst.mockResolvedValue({ ...MIDL, type: "byggeplass", oppmotestedId: null, projectId: PROSJEKT });
+    m.prosjektFindFirst.mockResolvedValue(null);
+    await expect(caller().oppdater({ ...ENDRE, projectId: PROSJEKT })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(m.prosjektFindFirst.mock.calls[0]![0]).toMatchObject({ where: { id: PROSJEKT, primaryOrganizationId: ORG_A } });
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("slett lukket fast sted — gate POST (29) B", () => {
+  it("lukket fast (tilDato satt) → BAD_REQUEST med i18n-nøkkel, ingenting slettes", async () => {
+    m.periodeFindFirst.mockResolvedValue({ ...rad({ id: "a2", tilDato: d("2026-08-31") }), organizationMemberId: MEDLEM });
+    await expect(caller().slett({ id: MEDLEM, organizationId: ORG_A })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: "firma.ansatte.oppmote.feil.lukketFast",
+    });
+    expect(m.periodeDelete).not.toHaveBeenCalled();
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+  });
+
+  it("midlertidig med tilDato kan fortsatt slettes", async () => {
+    m.periodeFindFirst.mockResolvedValue(MIDL);
+    await caller().slett({ id: MEDLEM, organizationId: ORG_A });
+    expect(m.periodeDelete).toHaveBeenCalledWith({ where: { id: "m1" } });
+  });
+});
+
+describe("opprett — kappløp om fast sted", () => {
+  it("unik-brudd (P2002) → CONFLICT, ikke 500", async () => {
+    m.periodeCreate.mockRejectedValue(new PrismaFeil("P2002"));
+    await expect(caller().opprett(FAST_INPUT)).rejects.toMatchObject({ code: "CONFLICT" });
   });
 });
 

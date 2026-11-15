@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Tallenna ajanjakso",
   "firma.ansatte.oppmote.slett": "Poista ajanjakso",
   "firma.ansatte.oppmote.slettTittel": "Poistetaanko ajanjakso?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Suljettu pysyvä sijainti on historiaa, eikä sitä voi poistaa. Aseta sen sijaan uusi pysyvä sijainti.",
   "firma.ansatte.oppmote.slettHva": "Jakson päivämäärät saavat työntekijän toisen raportointipaikan. Jos poistat pysyvän sijainnin, edellinen pysyvä sijainti otetaan uudelleen käyttöön."
 }

@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Išsaugoti laikotarpį",
   "firma.ansatte.oppmote.slett": "Ištrinti laikotarpį",
   "firma.ansatte.oppmote.slettTittel": "Ištrinti laikotarpį?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Uždaryta nuolatinė vieta yra istorija ir jos negalima ištrinti. Vietoj to nustatykite naują nuolatinę vietą.",
   "firma.ansatte.oppmote.slettHva": "Laikotarpio datos gauna kitą darbuotojo ataskaitų teikimo vietą. Jei ištrinsite nuolatinę vietą, vėl bus taikoma ankstesnė nuolatinė vieta."
 }

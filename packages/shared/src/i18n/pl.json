@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Save period",
   "firma.ansatte.oppmote.slett": "Delete period",
   "firma.ansatte.oppmote.slettTittel": "Delete the period?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Zamknięta stała lokalizacja jest historią i nie można jej usunąć. Zamiast tego ustaw nową stałą lokalizację.",
   "firma.ansatte.oppmote.slettHva": "Dates in the period get the employee's other reporting location. If you delete a permanent location, the previous permanent location applies again."
 }

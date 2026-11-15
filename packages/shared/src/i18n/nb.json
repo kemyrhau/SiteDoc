@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Lagre periode",
   "firma.ansatte.oppmote.slett": "Slett periode",
   "firma.ansatte.oppmote.slettTittel": "Slette perioden?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Et avsluttet fast sted er historikk og kan ikke slettes. Sett et nytt fast sted i stedet.",
   "firma.ansatte.oppmote.slettHva": "Datoene i perioden får ansattens øvrige oppmøtested. Sletter du et fast sted, gjelder det forrige faste stedet igjen."
 }

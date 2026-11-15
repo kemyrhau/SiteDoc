@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Période de sauvegarde",
   "firma.ansatte.oppmote.slett": "Supprimer la période",
   "firma.ansatte.oppmote.slettTittel": "Supprimer le point ?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Un emplacement permanent fermé appartient au passé et ne peut pas être supprimé. Définissez plutôt un nouvel emplacement permanent.",
   "firma.ansatte.oppmote.slettHva": "Les dates de la période obtiennent l'autre lieu de reporting de l'employé. Si vous supprimez un emplacement permanent, l'emplacement permanent précédent s'applique à nouveau."
 }

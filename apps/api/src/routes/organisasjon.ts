@@ -355,6 +355,7 @@ export const organisasjonRouter = router({
       internalProjectNumber: op.project.internalProjectNumber,
       name: op.project.name,
       status: op.project.status,
+      primaryOrganizationId: op.project.primaryOrganizationId,
       antallMedlemmer: op.project.members.length,
       antallFaggrupper: op.project.faggrupper.length,
       createdAt: op.project.createdAt,

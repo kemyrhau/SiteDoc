@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Salvesta periood",
   "firma.ansatte.oppmote.slett": "Kustuta periood",
   "firma.ansatte.oppmote.slettTittel": "Kas kustutada periood?",
+  "firma.ansatte.oppmote.feil.lukketFast": "Suletud alaline asukoht on ajalugu ja seda ei saa kustutada. Määrake selle asemel uus alaline asukoht.",
   "firma.ansatte.oppmote.slettHva": "Perioodi kuupäevad saavad töötaja teise aruandluskoha. Kui kustutate püsiva asukoha, rakendub uuesti eelmine püsiasukoht."
 }

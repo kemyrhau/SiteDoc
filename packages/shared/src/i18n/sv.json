@@ -5622,5 +5622,6 @@
   "firma.ansatte.oppmote.lagre": "Spara period",
   "firma.ansatte.oppmote.slett": "Ta bort period",
   "firma.ansatte.oppmote.slettTittel": "Vill du radera perioden?",
+  "firma.ansatte.oppmote.feil.lukketFast": "En stängd permanent plats är historik och kan inte raderas. Ställ in en ny permanent plats istället.",
   "firma.ansatte.oppmote.slettHva": "Datum i perioden får medarbetarens andra rapporteringsplats. Om du tar bort en permanent plats gäller den tidigare permanenta platsen igen."
 }
