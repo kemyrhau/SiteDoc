@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { manueltValg, nyesteInnsjekk, psiModulAktiv, serverVinner } from "./byggeplassFilterValg";
+import { velgFilterByggeplass } from "@sitedoc/shared";
+import { flettServerValg, manueltValg, nyesteInnsjekk, psiModulAktiv, serverVinner } from "./byggeplassFilterValg";
 
 /** Lest legacy-data: strengen eldre versjoner lagret (før TILLEGG (22)). */
 const UTGAATT = "__hele_prosjektet__";
@@ -56,5 +57,37 @@ describe("GATE (49) V1 psiModulAktiv — samme regel som web", () => {
     expect(psiModulAktiv([{ moduleSlug: "psi", status: "arkivert" }])).toBe(false);
     expect(psiModulAktiv([{ moduleSlug: "timer", status: "aktiv" }])).toBe(false);
     expect(psiModulAktiv(undefined)).toBe(false);
+  });
+});
+
+describe("GATE (49) V2 flettServerValg — manuelt valg overlever kaldstart", () => {
+  const T = 1000;
+  // Brukeren sto på A (GPS = A) og valgte B bevisst; speilingen til serveren fikk nyere `oppdatert`.
+  const lokalMap = { P: "B" };
+  const lokalTid = { P: { tid: T, gps: "A" } };
+
+  it("samme id på server → lokale metadata beholdes, GPS A overstyrer ikke B", () => {
+    const meta = flettServerValg(lokalMap.P, lokalTid.P, "B", T + 500);
+    expect(meta).toEqual({ tid: T, gps: "A" });
+    const m = manueltValg({ P: "B" }, { P: meta! }, "P");
+    expect(m?.gpsVedValg).toBe("A");
+    expect(velgFilterByggeplass({ byggeplassIder: ["A", "B"], gps: "A", manuelt: m })).toBe("B");
+  });
+
+  it("negativkontroll: metadata erstattet med bare { tid } (gammel fletting) gir A", () => {
+    const m = manueltValg({ P: "B" }, { P: { tid: T + 500 } }, "P");
+    expect(velgFilterByggeplass({ byggeplassIder: ["A", "B"], gps: "A", manuelt: m })).toBe("A");
+  });
+
+  it("annen id på server (valgt på annen enhet, nyere) → serverens tid, uten lokal GPS", () => {
+    expect(flettServerValg("B", { tid: T, gps: "A" }, "C", T + 500)).toEqual({ tid: T + 500 });
+  });
+
+  it("lokalt nyere → null (lokalt står)", () => {
+    expect(flettServerValg("B", { tid: T + 900, gps: "A" }, "C", T + 500)).toBeNull();
+  });
+
+  it("GPS-autovalg lokalt med samme id → serverens tid (auto er ikke et manuelt valg)", () => {
+    expect(flettServerValg("B", { tid: T, auto: true }, "B", 0)).toEqual({ tid: 0 });
   });
 });

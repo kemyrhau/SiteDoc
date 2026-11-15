@@ -53,3 +53,21 @@ export function psiModulAktiv(
 ): boolean {
   return !!moduler?.some((m) => m.moduleSlug === "psi" && m.status === "aktiv");
 }
+
+/**
+ * GATE (49) V2: server-raden `sistBruktByggeplass` flettes inn ved kaldstart.
+ * Returnerer metadata som skal lagres for prosjektet, eller null når det lokale valget står.
+ * Er serverens id den samme som det lokale valget, er det samme valg speilet opp — da beholdes
+ * de lokale metadataene (`tid`, `gps` ved valget). Ellers ville `gps` forsvinne, og et bevisst
+ * valg av B mens GPS viste A ble overstyrt av A etter neste omstart.
+ */
+export function flettServerValg(
+  lokalId: string | undefined,
+  lokal: ValgtTid | undefined,
+  serverId: string,
+  serverTid: number,
+): ValgtTid | null {
+  if (!serverVinner(lokal, serverTid)) return null;
+  if (lokal && !lokal.auto && rensLagretByggeplassValg(lokalId) === serverId) return lokal;
+  return { tid: serverTid };
+}

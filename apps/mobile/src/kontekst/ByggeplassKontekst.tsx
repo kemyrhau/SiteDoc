@@ -21,10 +21,10 @@ import { hentDatabase } from "../db/database";
 import { arbeidsdagLocal } from "../db/schema";
 import { sisteBesok } from "../services/arbeidsdagBesok";
 import {
+  flettServerValg,
   manueltValg,
   nyesteInnsjekk,
   psiModulAktiv,
-  serverVinner,
   type ValgtTid,
 } from "../utils/byggeplassFilterValg";
 import { hentByggeplasserNavLokalt } from "../services/tegningKatalog";
@@ -228,9 +228,12 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
           // ennå ikke synket) står. Før (22): serveren vant alltid.
           const serverTid = new Date(rad.oppdatert as unknown as string).getTime();
           const tid = Number.isFinite(serverTid) ? serverTid : 0;
-          if (serverVinner(valgtTidMap[rad.projectId], tid)) {
-            nyBygg[rad.projectId] = JSON.parse(rad.verdi) as string;
-            nyTid[rad.projectId] = { tid };
+          // GATE (49) V2: samme id som lokalt → behold lokale metadata (GPS ved valget).
+          const serverId = JSON.parse(rad.verdi) as string;
+          const meta = flettServerValg(bygningMap[rad.projectId], valgtTidMap[rad.projectId], serverId, tid);
+          if (meta) {
+            nyBygg[rad.projectId] = serverId;
+            nyTid[rad.projectId] = meta;
           }
         } catch {
           // hopp over korrupt rad
@@ -264,7 +267,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
         return neste;
       });
     }
-    // valgtTidMap leses bevisst kun ved flettingen (én gang pr. innlogging).
+    // valgtTidMap og bygningMap leses bevisst kun ved flettingen (én gang pr. innlogging).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [innstillingerQuery.data, userId, lasterBygningId]);
 
