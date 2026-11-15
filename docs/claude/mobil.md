@@ -269,6 +269,18 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 - **Timer:** mobilen har ingen prosjekt-skopet Timer-inngang. Timer følger valgt eget firma (`useFirmamodulSkjult`), og prosjektlista i Timer kommer fra `hentForTimer`, som ikke tar med gjesteprosjekter uten firmakobling.
 - **Bekreft dag / manuell dag:** et globalt aktivt prosjekt som ikke er i timer-katalogen (`input.prosjekter`), for eksempel et gjesteprosjekt, ignoreres i `beregnDagsforslag` (`utils/dagsforslag.ts`, `aktivtTimerProsjektId`). Forslaget faller da til `prosjektUkjent` («velg prosjekt»). Dagskortet bruker ikke `beregnDagsforslag` (kildevakt i `dagsforslag.retting.test.ts`).
 
+### Prosjekt- og byggeplassvelger (ORDRE 2026-11-15 (18), 🟡 `feat/prosjektvelger-byggeplass`, ikke merget)
+
+`ProsjektVelger.tsx` (åpnes fra `app/(tabs)/hjem.tsx`) er delt i to: prosjektlista øverst (scroll, inkl. «Prosjekter i andre firma») og byggeplassene for det **markerte** prosjektet under (scroll, overskrift «Byggeplasser · <prosjekt>»). Det gjelder både med flere prosjekter og med ett prosjekt.
+- **Markering vs. valg:** trykk på prosjekt markerer bare. Trykk på byggeplass eller «Hele prosjektet» (nederst) kaller `byttProsjekt(p)` + `settBygning(id, p)` / `velgHeleProsjektet(p)` og lukker. Ved åpning er aktivt prosjekt markert og aktiv byggeplass avhuket (`erByggeplassAvhuket`).
+- **Direkte valg:** prosjekt med 0 byggeplasser, eller offline uten lokal katalog, velges med ett trykk som før (`vedProsjektTrykk`).
+- **Prosjekt-id som parameter:** `settBygning(id, prosjektId?)` og `velgHeleProsjektet(prosjektId?)` i `ByggeplassKontekst.tsx` lagrer på oppgitt prosjekt (lokal map + servermirror `sistBruktByggeplass`), ellers på det aktive. Uten parameteren skjer det samme som før.
+- **Kilde og antall:** på nett `bygning.hentForProsjekt` pr. prosjekt (`trpc.useQueries`, bare mens velgeren er åpen). Offline `hentByggeplasserNavLokalt` (`byggeplass_nav_local`). En tom lokal katalog betyr «ukjent», ikke «0» (`velgByggeplassKilde`). Antallet vises på prosjektraden når det er kjent og > 0. Markert prosjekts serverdata skrives gjennom til nav-katalogen.
+- **«Nær deg»:** merke på byggeplassen lik `gpsByggeplassId` fra eksisterende GPS-logikk. Ingen ny posisjonsinnhenting.
+- **Standardvalg er en byggeplass (TILLEGG (18)):** når et prosjekt med byggeplasser ikke har et lagret valg i `bygningMap`, avledes `valgtBygningId` med `velgStandardByggeplass` i denne rekkefølgen: (a) sist brukt (servermirror `sistBruktByggeplass`), (b) nærmeste etter GPS, (c) første i lista. Resultatet lagres ikke. «Hele prosjektet» blir bare valgt ved eget trykk; det lagres som sentinel `__hele_prosjektet__` (`HELE_PROSJEKTET_VALG`) og huskes. Lagrede valg røres ikke. 0 byggeplasser er uendret. **Timer og innsjekk (RETUR, GATE (42)):** Bekreft dag, `MannskapInnsjekkKort` og `NyTimerRadFlyt` leser `kontekstByggeplassId` (`velgTimerByggeplass`: lagret valg eller GPS, ellers null), aldri (c). Dermed blir første byggeplass aldri destinasjon for reise/km eller byggeplass ved innsjekk uten at brukeren har valgt den. (c) gjelder bare visning og listefilter (`valgtBygningId`). Tellingen i velgeren har `staleTime` 60 s.
+- Web (`KontekstChip`) har samme oppsett og atferd ([web.md](web.md) § Prosjekt- og byggeplassvelger). Dagskortet og Bekreft dag er urørt.
+- Ren logikk og tester (delt mobil + web): `packages/shared/src/utils/prosjektByggeplassValg.ts` og `standardByggeplass.ts`, med `.test.ts`.
+
 ## Flerspråklig (i18n)
 
 **Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (samme språk og nøkler som web — kanon-liste i `STOETTEDE_SPRAAK`).

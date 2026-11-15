@@ -275,7 +275,7 @@ export default function TegningerTab() {
           (tegninger-tab-en monterer ikke selve ByggeplassChip). */}
       {valgtBygningId != null && (
         <Pressable
-          onPress={velgHeleProsjektet}
+          onPress={() => velgHeleProsjektet()}
           className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 active:bg-amber-100"
         >
           <MapPin size={14} color="#d97706" />

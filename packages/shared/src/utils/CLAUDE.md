@@ -298,6 +298,20 @@ Fasit: `tegningNedlasting.test.ts`.
 | `sekvenserReisekjede(kort: KjedeKort[])` → `KjedeKort[]` | Legger overføring/reise/arbeid etter hverandre uten overlapp, minutter fra midnatt. Rettet kort (`rettet`, `rettetFra`/`rettetTil`) er fast punkt; beregnede naboer flytter seg. Uten retting står arbeid fast, reisene legges bakover og returen framover. Ingen klemming mot døgnet. Fasit: `reiseKjede.test.ts` |
 | `finnOverlappVarsel(rader)` → `OverlappVarsel \| null` (`tidsromValidering.ts`) | Første overlapp mellom rader med begge tider (til > fra), via `finnTidsromKonflikt`. Brukes til varsel i prosjektkortet (mobil + web). Fasit: `tidsromValidering.test.ts` |
 
+### Prosjekt- og byggeplassvelger (`standardByggeplass.ts`, `prosjektByggeplassValg.ts`, ordre 2026-11-15 (18))
+
+- `velgStandardByggeplass({ byggeplassIder, lagret, sistBrukt?, gpsNaermeste? })` → byggeplass-id | `HELE_PROSJEKTET_VALG` | null. Et lagret valg står. Uten lagret valg: (a) sist brukt, så (b) GPS, så (c) første. «Hele prosjektet» kommer bare fra et eksplisitt lagret valg eller fra brukerminnet. 0 byggeplasser → null.
+- `velgTimerByggeplass(samme input)` → id | null: forbrukerverdien for mobil Bekreft dag, innsjekk og ny timer-rad. Lagret valg eller GPS, ellers null, aldri (c) (GATE (42) vilkår 2). Ukjent liste gir lagret verdi som før.
+- `HELE_PROSJEKTET_VALG = "__hele_prosjektet__"`: sentinel for et eksplisitt «Hele prosjektet» (mobil `bygningMap`, web `sitedoc-aktiv-bygning`).
+- `prosjektByggeplassValg.ts` er ren velgerlogikk for mobil `ProsjektVelger` og web `KontekstChip`:
+  - `velgByggeplassKilde`: server eller lokal katalog;
+  - `antallByggeplasser`;
+  - `vedProsjektTrykk`: markér, eller velg direkte ved 0 byggeplasser;
+  - `vedByggeplassTrykk`: prosjekt + byggeplass, lagret på riktig prosjekt-id;
+  - `erByggeplassAvhuket`;
+  - `oppdaterBygningMap`.
+- Tester med negativkontroll ligger i `.test.ts` ved siden av.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først
