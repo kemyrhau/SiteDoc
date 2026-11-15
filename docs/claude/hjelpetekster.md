@@ -153,7 +153,7 @@ Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banne
 
 ## Mobil og web: reise-kortet («+ Reise», `ReiseKort.tsx`, POST 2026-11-15 (13) L2 § 7 C)
 
-Web (`apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`) bruker samme nøkler og tekster som mobil; forklaringen vises ved hover på den sperrede Lagre-knappen.
+Web (`apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`) bruker samme nøkler og tekster som mobil; sperreteksten vises som rød linje i kortet og ved hover på den sperrede Lagre-knappen.
 
 Ingen ?-tekst — kortet viser én resultatlinje og, når Lagre er sperret, én forklaring under knappen (`KnappMedForklaring`):
 

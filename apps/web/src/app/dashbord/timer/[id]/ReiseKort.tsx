@@ -113,7 +113,9 @@ export function ReiseKort({
       ? t("sperret.reiseRegelFeilet")
       : regelStatus === "laster"
         ? t("sperret.reiseRegelLaster")
-        : sperre
+        : sperre === "manglerArt" && erFirmaAdmin
+          ? t("timer.reiseTerskel.manglerStandardArt")
+          : sperre
           ? t(SPERRE_NOKKEL[sperre])
           : !aktivitetId
             ? t("timer.feil.aktivitetPaakrevd")
@@ -234,6 +236,11 @@ export function ReiseKort({
               </>
             )}
           </p>
+        )}
+        {/* Øvrige sperrer (mangler kjøretid, utenfor døgnet …) vises synlig i
+            kortet — tooltipen alene når ikke berøringsskjerm og havner bak modalen. */}
+        {sperre && sperre !== "manglerArt" && forklaring && (
+          <p className="text-xs font-medium text-red-700">{forklaring}</p>
         )}
 
         {ecoer && ecoer.length > 0 && (
