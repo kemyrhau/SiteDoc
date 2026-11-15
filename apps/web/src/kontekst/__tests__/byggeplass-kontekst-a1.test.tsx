@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   prosjektId: "A" as string | null,
   lister: {} as Record<string, { id: string; name: string; number: number }[]>,
   lager: {} as Record<string, string>,
+  brukerminne: [] as { projectId: string; nokkel: string; verdi: string }[],
 }));
 
 vi.mock("@/kontekst/prosjekt-kontekst", () => ({
@@ -39,7 +40,7 @@ vi.mock("@/lib/trpc", () => {
             if (key === "bygning.hentForProsjekt") {
               return { data: h.lister[input?.projectId ?? ""], isLoading: false };
             }
-            if (key === "brukerinnstilling.hent") return { data: [], isLoading: false };
+            if (key === "brukerinnstilling.hent") return { data: h.brukerminne, isLoading: false };
             return { data: undefined, isLoading: false };
           };
         }
@@ -89,6 +90,7 @@ beforeEach(() => {
     ],
     C: [],
   };
+  h.brukerminne = [];
   siste = null;
 });
 afterEach(() => {
@@ -150,5 +152,52 @@ describe("vilkår 3 — 0 byggeplasser lagres ikke som «Hele prosjektet»", () 
     expect(lagret().B).toBe(HELE_PROSJEKTET_VALG);
     expect(siste?.erHeleProsjektet).toBe(true);
     expect(siste?.aktivByggeplass).toBeNull();
+  });
+});
+
+/**
+ * ORDRE 2026-11-15 (20) punkt 1: nye dokumenter får lagret/eget valg, ellers ingen byggeplass —
+ * aldri A1-forvalget (c) «første». Velgeren (aktivByggeplass) viser fortsatt forvalget.
+ */
+describe("(20) opprettByggeplass — ingen gjett", () => {
+  it("uten lagret valg: velgeren viser første, nye dokumenter får ingen byggeplass", () => {
+    h.prosjektId = "B";
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b1");
+    expect(siste?.opprettByggeplass).toBeNull();
+    expect(siste?.opprettTegning).toBeNull();
+    // Forvalget lagres ikke — ellers leses gjettet neste gang som lagret valg.
+    expect("B" in lagret()).toBe(false);
+  });
+
+  it("lagret valg i nettleseren følger med nye dokumenter", () => {
+    h.prosjektId = "B";
+    h.lager[NOKKEL] = JSON.stringify({ B: { id: "b2", name: "B2", number: 2 } });
+    render(tre());
+    expect(siste?.opprettByggeplass?.id).toBe("b2");
+  });
+
+  it("sist brukt fra brukerminnet følger med nye dokumenter", () => {
+    h.prosjektId = "B";
+    h.brukerminne = [{ projectId: "B", nokkel: "sistBruktByggeplass", verdi: JSON.stringify("b2") }];
+    render(tre());
+    expect(siste?.aktivByggeplass?.id).toBe("b2");
+    expect(siste?.opprettByggeplass?.id).toBe("b2");
+  });
+
+  it("eget valg i velgeren etter forvalget følger med nye dokumenter", () => {
+    h.prosjektId = "B";
+    render(tre());
+    expect(siste?.opprettByggeplass).toBeNull();
+    act(() => siste!.velgByggeplass({ id: "b1", name: "B1", number: 1 }));
+    expect(siste?.opprettByggeplass?.id).toBe("b1");
+    expect((lagret().B as { id: string }).id).toBe("b1");
+  });
+
+  it("«Hele prosjektet» valgt → ingen byggeplass", () => {
+    h.prosjektId = "B";
+    h.lager[NOKKEL] = JSON.stringify({ B: HELE_PROSJEKTET_VALG });
+    render(tre());
+    expect(siste?.opprettByggeplass).toBeNull();
   });
 });

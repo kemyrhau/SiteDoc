@@ -136,7 +136,7 @@ export function OpprettDokumentModal({
   // F1 (Option B): les default byggeplass + per-byggeplass siste-tegning fra
   // global kontekst. Modalen kaller IKKE settBygning (ingen stille nav-bytte).
   const {
-    valgtBygningId: kontekstBygningId,
+    kontekstByggeplassId: kontekstBygningId,
     hentSistTegning,
     settSistTegning,
   } = useByggeplass();

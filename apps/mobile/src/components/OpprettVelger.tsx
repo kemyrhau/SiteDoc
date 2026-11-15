@@ -88,7 +88,7 @@ export function OpprettVelger({ synlig, kategori, onOpprettet, onLukk }: Opprett
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   // Lokasjon arves fra global kontekst (samme kilde som chip/GPS skriver til).
-  const { valgtBygningId, hentSistTegning } = useByggeplass();
+  const { kontekstByggeplassId: valgtBygningId, hentSistTegning } = useByggeplass();
 
   const malQuery = trpc.mal.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },

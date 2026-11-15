@@ -100,7 +100,7 @@ export default function HmsSide() {
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { aktivByggeplass, standardTegning } = useByggeplass();
+  const { aktivByggeplass, opprettByggeplass, opprettTegning } = useByggeplass();
 
   const [aktivTab, setAktivTab] = useState<Tab>("avvik");
   // Segmentert status-filter (Ordre 2.3/Funn F): avledet status, ikke rå enum.
@@ -189,8 +189,8 @@ export default function HmsSide() {
         priority: "medium",
         // Kontekst-default (V2) + ORDRE 28: oppgave tar drawingId og byggeplassId
         // (tegningens byggeplass vinner på serveren når standardTegning er satt).
-        drawingId: standardTegning?.id,
-        byggeplassId: aktivByggeplass?.id,
+        drawingId: opprettTegning?.id,
+        byggeplassId: opprettByggeplass?.id,
       })) as { id: string };
       await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
       router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
@@ -199,8 +199,8 @@ export default function HmsSide() {
         templateId: mal.id,
         title: mal.name,
         // Kontekst-default (V2): sjekkliste.opprett tar begge felt.
-        byggeplassId: aktivByggeplass?.id,
-        drawingId: standardTegning?.id,
+        byggeplassId: opprettByggeplass?.id,
+        drawingId: opprettTegning?.id,
       })) as { id: string };
       await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
       router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);

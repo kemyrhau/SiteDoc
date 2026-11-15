@@ -234,7 +234,7 @@ export default function SjekklisteSide() {
   const statusFilter = searchParams.get("status");
   const sok = (searchParams.get("sok") ?? "").trim().toLowerCase();
   const utils = trpc.useUtils();
-  const { aktivByggeplass, standardTegning } = useByggeplass();
+  const { aktivByggeplass, opprettByggeplass, opprettTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
   const [mineOppgaver, setMineOppgaver] = useState(false);
   // B-0 (metadata-spec): periodefilter på opprettet/endret — samme delte logikk som mobilens filterark.
@@ -363,8 +363,8 @@ export default function SjekklisteSide() {
       dokumentflytId: k.flytId,
       // Kontekst-default: aktiv byggeplass/tegning fra header settes ved opprettelse
       // så dokumentet arver lokasjon (V2 — server tar begge på sjekkliste.opprett).
-      byggeplassId: aktivByggeplass?.id,
-      drawingId: standardTegning?.id,
+      byggeplassId: opprettByggeplass?.id,
+      drawingId: opprettTegning?.id,
     });
   }
 
@@ -438,9 +438,9 @@ export default function SjekklisteSide() {
     }
     return h;
     // eslint-disable-next-line
-  }, [valgte, params.prosjektId, router, aktivByggeplass?.id, standardTegning?.id]);
+  }, [valgte, params.prosjektId, router, opprettByggeplass?.id, opprettTegning?.id]);
 
-  useVerktoylinje(verktoylinjeHandlinger, [valgte.size, aktivByggeplass?.id, standardTegning?.id]);
+  useVerktoylinje(verktoylinjeHandlinger, [valgte.size, opprettByggeplass?.id, opprettTegning?.id]);
 
   // Verdier-kolonner fra maler
   const verdiFelter = useMemo<KolonneParam[]>(() => {

@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { velgStandardByggeplass, velgTimerByggeplass, HELE_PROSJEKTET_VALG } from "./standardByggeplass";
+import {
+  velgStandardByggeplass,
+  velgTimerByggeplass,
+  velgByggeplassUtenGjett,
+  HELE_PROSJEKTET_VALG,
+} from "./standardByggeplass";
 
 /** ORDRE 2026-11-15 (18) TILLEGG — standardvalg byggeplass (a) sist brukt → (b) GPS → (c) første. */
 const liste = ["b1", "b2", "b3"];
@@ -89,5 +94,24 @@ describe("velgTimerByggeplass — uten (c) første", () => {
   });
   it("ukjent liste: lagret verdi som før", () => {
     expect(velgTimerByggeplass({ byggeplassIder: [], lagret: "x" })).toBe("x");
+  });
+});
+
+describe("(20) velgByggeplassUtenGjett — dokumentopprettelse", () => {
+  const ider = ["b1", "b2"];
+  it("er samme funksjon som timeføringen (ingen kopi)", () => {
+    expect(velgByggeplassUtenGjett).toBe(velgTimerByggeplass);
+  });
+  it("uten lagret valg og GPS → ingen byggeplass (aldri første)", () => {
+    expect(velgByggeplassUtenGjett({ byggeplassIder: ider, lagret: null, gpsNaermeste: null })).toBeNull();
+    // Negativkontroll: visningsregelen gjetter første i samme situasjon.
+    expect(velgStandardByggeplass({ byggeplassIder: ider, lagret: null })).toBe("b1");
+  });
+  it("lagret valg → GPS → ingen", () => {
+    expect(velgByggeplassUtenGjett({ byggeplassIder: ider, lagret: "b2", gpsNaermeste: "b1" })).toBe("b2");
+    expect(velgByggeplassUtenGjett({ byggeplassIder: ider, lagret: null, gpsNaermeste: "b2" })).toBe("b2");
+    expect(
+      velgByggeplassUtenGjett({ byggeplassIder: ider, lagret: HELE_PROSJEKTET_VALG, gpsNaermeste: "b2" }),
+    ).toBeNull();
   });
 });
