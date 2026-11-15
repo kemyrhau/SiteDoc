@@ -341,7 +341,10 @@ export async function recomputeKontorAvstand(args: {
         prisma.oppmotestedAvstand.upsert({
           where: { fraOppmotestedId_tilOppmotestedId: { fraOppmotestedId: fra, tilOppmotestedId: til } },
           create: { organizationId, fraOppmotestedId: fra, tilOppmotestedId: til, kjoretidMin, avstandM, kilde: "osrm" },
-          update: { kjoretidMin, avstandM, kilde: "osrm", beregnetAt: new Date() },
+          // 🔴 Fylling oppretter bare, oppdaterer aldri (RETUR (16) vilkår 1):
+          // `hoppOver` leses FØR OSRM-kallet (opptil 8 s). En manuell verdi lagret
+          // i det vinduet skal stå urørt — derfor tom `update` i kunManglende-modus.
+          update: kunManglende ? {} : { kjoretidMin, avstandM, kilde: "osrm", beregnetAt: new Date() },
         }),
       );
     }

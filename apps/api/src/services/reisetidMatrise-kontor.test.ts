@@ -170,6 +170,26 @@ describe("fyllManglendeKontorAvstander — (16) punkt 4", () => {
     expect((await fyllManglendeKontorAvstander("org-fyll-3", t0 + KONTOR_FYLL_PAUSE_MS)).rader).toBe(1);
   });
 
+  it("race: manuell rad lagret under OSRM-kallet står urørt (oppretter bare, oppdaterer aldri)", async () => {
+    // Prisma-semantikk i minnet: finnes raden, brukes `update`; ellers `create`.
+    const lager = new Map<string, Record<string, unknown>>();
+    avstandUpsert.mockImplementation((arg: UpsertArg & { update: Record<string, unknown> }) => {
+      const w = arg.where.fraOppmotestedId_tilOppmotestedId;
+      const nokkel = `${w.fraOppmotestedId}|${w.tilOppmotestedId}`;
+      const fra = lager.get(nokkel);
+      lager.set(nokkel, fra ? { ...fra, ...arg.update } : { ...arg.create });
+    });
+    oppmotestedFindMany.mockResolvedValue([KA, KB]);
+    avstandFindMany.mockResolvedValue([]); // a|b mangler da hoppOver ble lest
+    hentKjoretidMatrise.mockImplementation(async () => {
+      // Firmaadmin lagrer manuell verdi mens OSRM regner.
+      lager.set("a|b", { kjoretidMin: 95, avstandM: 120000, kilde: "manuell" });
+      return { durations: [[0, 180], [180, 0]], distances: [[0, 250000], [250000, 0]] };
+    });
+    await fyllManglendeKontorAvstander("org-fyll-race");
+    expect(lager.get("a|b")).toEqual({ kjoretidMin: 95, avstandM: 120000, kilde: "manuell" });
+  });
+
   it("DB-feil kastes ikke videre — lesingen skal alltid svare", async () => {
     oppmotestedFindMany.mockRejectedValue(new Error("db nede"));
     const feil = vi.spyOn(console, "error").mockImplementation(() => {});
