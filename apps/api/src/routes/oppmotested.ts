@@ -11,6 +11,8 @@ import { GEOFENCE_GRENSER } from "@sitedoc/shared";
 import { geokodAdresse } from "../services/rute-service";
 import {
   MANUELL_KILDE,
+  kontorPar,
+  recomputeKontorAvstand,
   recomputeMatrise,
   recomputeMatriseIBakgrunn,
 } from "../services/reisetidMatrise";
@@ -235,6 +237,18 @@ export const oppmotestedRouter = router({
           },
         }),
       ]);
+      // L2: kontor ↔ kontor (overføring). Én rad pr. par, fra < til.
+      const kontorRader = await ctx.prisma.oppmotestedAvstand.findMany({
+        where: { organizationId: orgId },
+        select: {
+          fraOppmotestedId: true,
+          tilOppmotestedId: true,
+          kjoretidMin: true,
+          avstandM: true,
+          kilde: true,
+          beregnetAt: true,
+        },
+      });
       return {
         enhet: (innstilling?.reiseTerskelEnhet ?? "minutter") as "minutter" | "km",
         oppmotesteder,
@@ -246,6 +260,7 @@ export const oppmotestedRouter = router({
           prosjekt: b.project,
         })),
         rader,
+        kontorRader,
       };
     }),
 
@@ -347,6 +362,100 @@ export const oppmotestedRouter = router({
         },
       });
       return recomputeMatrise({ organizationId: orgId, byggeplassId: input.byggeplassId });
+    }),
+
+  // POST 2026-11-15 (13) L2: member-lesbar kontor ↔ kontor-avstand (mobil-cache
+  // for overføringen). Samme tilgangsflate som hentMatriseForFirma.
+  hentKontorAvstanderForFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      return ctx.prisma.oppmotestedAvstand.findMany({
+        where: { organizationId: input.organizationId },
+        select: {
+          fraOppmotestedId: true,
+          tilOppmotestedId: true,
+          kjoretidMin: true,
+          avstandM: true,
+          kilde: true,
+        },
+      });
+    }),
+
+  // L2: firmaets egen verdi for et kontor-par (beslutning 6: manuell
+  // overstyring). Rekkefølgen normaliseres (fra < til). kilde="manuell";
+  // recompute overskriver den aldri.
+  oppdaterKontorAvstand: protectedProcedure
+    .input(
+      z
+        .object({
+          organizationId: z.string().uuid(),
+          oppmotestedIdA: z.string().uuid(),
+          oppmotestedIdB: z.string().uuid(),
+          avstandKm: z.number().positive().max(MANUELL_AVSTAND_GRENSER.maksKm).optional(),
+          kjoretidMin: z.number().int().positive().max(MANUELL_AVSTAND_GRENSER.maksMin).optional(),
+        })
+        .refine((v) => v.oppmotestedIdA !== v.oppmotestedIdB, { message: "Velg to ulike oppmøtesteder" })
+        .refine((v) => v.avstandKm !== undefined || v.kjoretidMin !== undefined, {
+          message: "Oppgi avstand eller kjøretid",
+        }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await hentOppmotestedForFirma(input.oppmotestedIdA, orgId);
+      await hentOppmotestedForFirma(input.oppmotestedIdB, orgId);
+      const { fra, til } = kontorPar(input.oppmotestedIdA, input.oppmotestedIdB);
+      const eksisterende = await ctx.prisma.oppmotestedAvstand.findFirst({
+        where: { organizationId: orgId, fraOppmotestedId: fra, tilOppmotestedId: til },
+        select: { kjoretidMin: true, avstandM: true },
+      });
+      const kjoretidMin =
+        input.kjoretidMin ??
+        (eksisterende && eksisterende.kjoretidMin >= 0 ? eksisterende.kjoretidMin : null);
+      if (kjoretidMin == null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kjøretid er ikke kjent for dette paret — oppgi kjøretid også",
+        });
+      }
+      const avstandM =
+        input.avstandKm !== undefined
+          ? Math.round(input.avstandKm * 1000)
+          : eksisterende?.avstandM != null && eksisterende.avstandM >= 0
+            ? eksisterende.avstandM
+            : null;
+      return ctx.prisma.oppmotestedAvstand.upsert({
+        where: { fraOppmotestedId_tilOppmotestedId: { fraOppmotestedId: fra, tilOppmotestedId: til } },
+        create: {
+          organizationId: orgId,
+          fraOppmotestedId: fra,
+          tilOppmotestedId: til,
+          kjoretidMin,
+          avstandM,
+          kilde: MANUELL_KILDE,
+        },
+        update: { kjoretidMin, avstandM, kilde: MANUELL_KILDE, beregnetAt: new Date() },
+      });
+    }),
+
+  // L2: «Tilbakestill» for et kontor-par — fjern firmaets verdi og beregn på nytt.
+  tilbakestillKontorAvstand: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        oppmotestedIdA: z.string().uuid(),
+        oppmotestedIdB: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await hentOppmotestedForFirma(input.oppmotestedIdA, orgId);
+      await hentOppmotestedForFirma(input.oppmotestedIdB, orgId);
+      const { fra, til } = kontorPar(input.oppmotestedIdA, input.oppmotestedIdB);
+      await ctx.prisma.oppmotestedAvstand.deleteMany({
+        where: { organizationId: orgId, fraOppmotestedId: fra, tilOppmotestedId: til },
+      });
+      return recomputeKontorAvstand({ organizationId: orgId, oppmotestedId: fra });
     }),
 
   // Opprett nytt oppmøtested

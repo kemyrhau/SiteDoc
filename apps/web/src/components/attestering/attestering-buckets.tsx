@@ -55,7 +55,7 @@ export type TimerRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
   reiseAvvik?: boolean | null;
 };

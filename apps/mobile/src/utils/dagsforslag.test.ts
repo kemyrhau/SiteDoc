@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
   brukOppmoteResolver,
+  leggTilOverforinger,
+  byggOverforingOppslag,
+  type DagsforslagOverforingOppslag,
   avgjorSluttDagHandling,
   skalMarkereAvsluttet,
   type BeregnDagsforslagInput,
@@ -747,5 +750,151 @@ describe("brukOppmoteResolver", () => {
     const f2 = beregnDagsforslag({ ...basis, reiseOppslag: { ...oppslag, ...paaPlass } });
     expect(f2.reiseAarsak).toBeNull();
     expect(f2.datoer[0]!.rader.some((r) => r.erReise)).toBe(false);
+  });
+});
+
+describe("POST (13) L2 — overføring som forslagsrad (TILLEGG)", () => {
+  const DATO = "2026-10-01";
+  const PERIODE = {
+    id: "per1", type: "kontor" as const, fast: false, oppmotestedId: "tromso",
+    projectId: null, fraDato: DATO, tilDato: "2026-10-05",
+  };
+  const FAST = {
+    id: "fast1", type: "kontor" as const, fast: true, oppmotestedId: "narvik",
+    projectId: null, fraDato: "2026-01-01", tilDato: null,
+  };
+  /** Grunndag uten reise: arbeid 07:00–15:00. */
+  function grunnDag() {
+    return beregnDagsforslag(lagInput()).datoer;
+  }
+  function oppslag(over: Partial<DagsforslagOverforingOppslag> = {}): DagsforslagOverforingOppslag {
+    return {
+      dato: DATO,
+      overforing: {
+        retning: "ut",
+        fra: { type: "kontor", oppmotestedId: "narvik" },
+        til: { type: "kontor", oppmotestedId: "tromso" },
+        periodeId: "per1",
+      },
+      oppmotestedId: "narvik",
+      byggeplassId: null,
+      fraNavn: "Narvik",
+      tilNavn: "Tromsø",
+      celle: { kjoretidMin: 180, avstandM: 250000 },
+      ...over,
+    };
+  }
+  const CTX = {
+    regel: lagInput().regel,
+    grensepunkter: [],
+    fallbackReiseLonnsartId: L_REISE,
+    standardLonnsartId: L_NORMAL,
+    prosjektId: "p1",
+    aktivitetId: "a1",
+    eksisterendeSedelPerDato: {},
+    perDato: undefined,
+  };
+  const overf = (d: ReturnType<typeof leggTilOverforinger>) =>
+    d.datoer.flatMap((x) => x.rader).filter((r) => r.overforing);
+
+  it("første dag: ut legges FØR dagens start med kjøretiden som lengde, over terskel = reise", () => {
+    const r = overf(leggTilOverforinger(grunnDag(), [oppslag()], CTX));
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({
+      fraTid: "04:00", tilTid: "07:00", timer: 3, erReise: true, reiseRetning: "ut",
+      lonnsartId: L_REISE, reiseKilde: "overforing", reiseOppmotestedId: "narvik",
+      reiseKjoretidMin: 180, overforing: { retning: "ut", fraNavn: "Narvik", tilNavn: "Tromsø" },
+    });
+    expect(r[0].reiseRegel?.overforing).toEqual({
+      fra: { type: "kontor", oppmotestedId: "narvik" },
+      til: { type: "kontor", oppmotestedId: "tromso" },
+      periodeId: "per1",
+    });
+  });
+
+  it("siste dag: retur legges ETTER dagens slutt", () => {
+    const o = oppslag({ overforing: { ...oppslag().overforing, retning: "retur" } });
+    const r = overf(leggTilOverforinger(grunnDag(), [o], CTX));
+    expect(r[0]).toMatchObject({ fraTid: "15:00", tilTid: "18:00", reiseRetning: "retur" });
+  });
+
+  it("under terskel: ordinær rad på standard-lønnsart, ikke reise, men sporet beholdes", () => {
+    const o = oppslag({ celle: { kjoretidMin: 20, avstandM: 15000 } });
+    const r = overf(leggTilOverforinger(grunnDag(), [o], CTX));
+    expect(r[0]).toMatchObject({ erReise: false, lonnsartId: L_NORMAL, reiseKilde: null, reiseRetning: null });
+    expect(r[0].reiseRegel?.overforing?.periodeId).toBe("per1");
+  });
+
+  it("mangler kjøretid → ingen rad, årsak mangler_matrise", () => {
+    const res = leggTilOverforinger(grunnDag(), [oppslag({ celle: null })], CTX);
+    expect(overf(res)).toHaveLength(0);
+    expect(res.aarsak).toBe("mangler_matrise");
+  });
+
+  it("over terskel uten reise-lønnsart → årsak mangler_reise_lonnsart", () => {
+    const res = leggTilOverforinger(grunnDag(), [oppslag()], { ...CTX, fallbackReiseLonnsartId: null });
+    expect(overf(res)).toHaveLength(0);
+    expect(res.aarsak).toBe("mangler_reise_lonnsart");
+  });
+
+  it("fjernet av arbeideren → ingen rad (forslaget kan fjernes)", () => {
+    const res = leggTilOverforinger(grunnDag(), [oppslag()], {
+      ...CTX, perDato: { [DATO]: { fjernOverforing: ["ut"] } },
+    });
+    expect(overf(res)).toHaveLength(0);
+  });
+
+  it("over midnatt eller overlapp med lagret rad → hoppes over, aldri oppfunnet", () => {
+    const lang = oppslag({ celle: { kjoretidMin: 8 * 60, avstandM: 600000 } });
+    expect(overf(leggTilOverforinger(grunnDag(), [lang], CTX))).toHaveLength(0);
+    const overlapp = leggTilOverforinger(grunnDag(), [oppslag()], {
+      ...CTX,
+      eksisterendeSedelPerDato: {
+        [DATO]: { eksisterendeRader: [{ fraTid: "05:00", tilTid: "06:00" }] },
+      } as unknown as typeof CTX.eksisterendeSedelPerDato,
+    });
+    expect(overf(overlapp)).toHaveLength(0);
+  });
+
+  it("byggOverforingOppslag: første og siste dag av midlertidig kontor gir ut + retur med navn og kontor-celle", () => {
+    const felles = {
+      perioder: [FAST, PERIODE],
+      destinasjonByggeplassId: null,
+      kontekstByggeplassId: null,
+      byggeplasserForProsjekt: () => [],
+      kontorNavn: (id: string) => (id === "narvik" ? "Narvik" : "Tromsø"),
+      prosjektNavn: () => "P",
+      kontorAvstand: () => ({ kjoretidMin: 180, avstandM: 250000 }),
+      matrise: () => null,
+    };
+    const forste = byggOverforingOppslag({ ...felles, datoer: [DATO] });
+    expect(forste).toHaveLength(1);
+    expect(forste[0]).toMatchObject({ fraNavn: "Narvik", tilNavn: "Tromsø", oppmotestedId: "narvik" });
+    expect(forste[0].overforing.retning).toBe("ut");
+    const siste = byggOverforingOppslag({ ...felles, datoer: ["2026-10-05"] });
+    expect(siste[0]).toMatchObject({ fraNavn: "Tromsø", tilNavn: "Narvik" });
+    expect(siste[0].overforing.retning).toBe("retur");
+    expect(byggOverforingOppslag({ ...felles, datoer: ["2026-10-03"] })).toHaveLength(0);
+  });
+
+  it("byggOverforingOppslag: byggeplass-periode bruker kontekst-byggeplassen og matrisen; uten valg → celle null", () => {
+    const bpPeriode = {
+      id: "per2", type: "byggeplass" as const, fast: false, oppmotestedId: null,
+      projectId: "p1", fraDato: DATO, tilDato: "2026-10-05",
+    };
+    const felles = {
+      datoer: [DATO],
+      perioder: [FAST, bpPeriode],
+      destinasjonByggeplassId: null,
+      byggeplasserForProsjekt: () => [{ id: "b1", navn: "Bru" }, { id: "b2", navn: "Tunnel" }],
+      kontorNavn: () => "Narvik",
+      prosjektNavn: () => "Prosjekt",
+      kontorAvstand: () => null,
+      matrise: (_o: string, b: string) => (b === "b2" ? { kjoretidMin: 60, avstandM: 70000 } : null),
+    };
+    const medKontekst = byggOverforingOppslag({ ...felles, kontekstByggeplassId: "b2" });
+    expect(medKontekst[0]).toMatchObject({ byggeplassId: "b2", tilNavn: "Tunnel", celle: { kjoretidMin: 60 } });
+    const uten = byggOverforingOppslag({ ...felles, kontekstByggeplassId: null });
+    expect(uten[0]).toMatchObject({ byggeplassId: null, tilNavn: "Prosjekt", celle: null });
   });
 });

@@ -214,6 +214,65 @@ export function beregnReiseAvvik(
   return avstand || kjoretid;
 }
 
+// ── L2 6b: overføringens rute ─────────────────────────────────────────────
+
+type OverforingStedLest =
+  | { type: "kontor"; oppmotestedId: string }
+  | { type: "byggeplass"; projectId: string };
+
+function lesSted(v: unknown): OverforingStedLest | null {
+  if (v == null || typeof v !== "object") return null;
+  const o = v as Record<string, unknown>;
+  if (o.type === "kontor" && typeof o.oppmotestedId === "string") {
+    return { type: "kontor", oppmotestedId: o.oppmotestedId };
+  }
+  if (o.type === "byggeplass" && typeof o.projectId === "string") {
+    return { type: "byggeplass", projectId: o.projectId };
+  }
+  return null;
+}
+
+/**
+ * Leser `reiseRegel.overforing` defensivt (JSON fra klient). null = mangler
+ * eller ugyldig form — C2 avviser da raden.
+ */
+export function lesOverforingRute(
+  regel: unknown,
+): { fra: OverforingStedLest; til: OverforingStedLest } | null {
+  if (regel == null || typeof regel !== "object") return null;
+  const ov = (regel as Record<string, unknown>).overforing;
+  if (ov == null || typeof ov !== "object") return null;
+  const fra = lesSted((ov as Record<string, unknown>).fra);
+  const til = lesSted((ov as Record<string, unknown>).til);
+  if (!fra || !til) return null;
+  if (fra.type === "byggeplass" && til.type === "byggeplass") return null;
+  return { fra, til };
+}
+
+/**
+ * Hvilken celle C3 skal kontrollere en overføring mot: kontor↔kontor-paret
+ * (normalisert fra < til) eller matrisen (kontor × byggeplass). null = ikke
+ * kontrollerbar (byggeplass uten id på raden) → reiseAvvik null.
+ */
+export function overforingKontrollNokkel(
+  rute: { fra: OverforingStedLest; til: OverforingStedLest },
+  byggeplassId: string | null,
+):
+  | { type: "kontor"; fra: string; til: string }
+  | { type: "matrise"; oppmotestedId: string; byggeplassId: string }
+  | null {
+  const { fra, til } = rute;
+  if (fra.type === "kontor" && til.type === "kontor") {
+    if (fra.oppmotestedId === til.oppmotestedId) return null;
+    return fra.oppmotestedId < til.oppmotestedId
+      ? { type: "kontor", fra: fra.oppmotestedId, til: til.oppmotestedId }
+      : { type: "kontor", fra: til.oppmotestedId, til: fra.oppmotestedId };
+  }
+  const kontor = fra.type === "kontor" ? fra.oppmotestedId : (til as { oppmotestedId: string }).oppmotestedId;
+  if (!byggeplassId) return null;
+  return { type: "matrise", oppmotestedId: kontor, byggeplassId };
+}
+
 // ── C2: invarianter ved mottak ────────────────────────────────────────────
 
 /** En reise-rad slik den kom inn på synken, redusert til det C2 trenger. */
@@ -271,6 +330,28 @@ export function validerReiseInvarianter(
     }
     if (rad.reiseRegel == null) {
       return "Matrise-reise mangler regel-snapshot.";
+    }
+  }
+  // L2 6b: overføring (fast → midlertidig sted). Retning, fra-kontor, kjøretid
+  // og rute i regel-snapshoten er påkrevd — uten dem kan C3 ikke kontrollere.
+  if (rad.reiseKilde === "overforing") {
+    if (rad.reiseRetning == null) {
+      return "Overføring mangler retning (ut/retur).";
+    }
+    if (rad.reiseOppmotestedId == null) {
+      return "Overføring mangler oppmøtested.";
+    }
+    if (rad.reiseKjoretidMin == null || rad.reiseKjoretidMin < 0) {
+      return "Overføring mangler gyldig kjøretid.";
+    }
+    const rute = lesOverforingRute(rad.reiseRegel);
+    if (rute == null) {
+      return "Overføring mangler rute i regel-snapshot.";
+    }
+    for (const sted of [rute.fra, rute.til]) {
+      if (sted.type === "kontor" && !gyldigeOppmotesteder.has(sted.oppmotestedId)) {
+        return "Overføringens rute peker på et oppmøtested som ikke tilhører firmaet.";
+      }
     }
   }
   if (

@@ -42,6 +42,7 @@ import {
   minTilHhmm,
   løsReiseLonnsartId,
   grensepunktTraff,
+  klassifiserManuellReise,
   DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
   type ReiseEnhet,
@@ -54,6 +55,9 @@ import {
   type Destinasjon,
   type ArbeidstidSegment,
   type OppmoteResultat,
+  type Overforing,
+  finnOverforinger,
+  type OppmotePeriodeInput,
   OVERTID_NIVAA_50,
 } from "@sitedoc/shared";
 import { rundTidspunktTilNarmeste } from "./tidsrunding";
@@ -274,7 +278,7 @@ export type DagsforslagRad = {
   byggeplassId: string | null;
   reiseKjoretidMin: number | null;
   reiseAvstandM: number | null;
-  reiseKilde: "matrise" | "manuell" | null;
+  reiseKilde: "matrise" | "manuell" | "overforing" | null;
   reiseRegel: ReiseRegelSnapshot | null;
   /** V8: "utledet" på auto-reise-rader (vindu fra GPS ± matrise). null ellers. */
   tidKilde: "stempel" | "utledet" | "manuell" | null;
@@ -285,6 +289,29 @@ export type DagsforslagRad = {
    * rettes. Utelatt på reise-rader.
    */
   radIndeks?: number;
+  /**
+   * POST (13) L2 TILLEGG: overføringsrad (første/siste dag i en periode).
+   * Kun UI-markør — Bekreft dag viser den som «Overføring {fra} → {til}» og
+   * kan fjerne den (`fjernOverforing`). Lagres ikke; sporet ligger i
+   * `reiseKilde`/`reiseRegel.overforing`.
+   */
+  overforing?: { retning: "ut" | "retur"; fraNavn: string; tilNavn: string };
+};
+
+/**
+ * POST (13) L2 TILLEGG: én overføring slik lese-fasen har slått den opp.
+ * `oppmotestedId` = kontor-enden (fra-kontoret når begge ender er kontor);
+ * `byggeplassId` = byggeplass-enden (null når kontor↔kontor eller ikke valgt).
+ * `celle` = kjøretid/avstand fra kontor-avstanden eller matrisen; null = mangler.
+ */
+export type DagsforslagOverforingOppslag = {
+  dato: string;
+  overforing: Overforing;
+  oppmotestedId: string;
+  byggeplassId: string | null;
+  fraNavn: string;
+  tilNavn: string;
+  celle: { kjoretidMin: number; avstandM: number | null } | null;
 };
 
 /** Forslaget for én kalenderdag (ett midnatt-segment). */
@@ -385,6 +412,8 @@ export type BeregnDagsforslagInput = {
   standardLonnsartId: string | null;
   regel: DagsforslagRegel | null;
   reiseOppslag: DagsforslagReiseOppslag | null;
+  /** POST (13) L2: overføringer (første/siste dag i en periode). Utelatt = ingen. */
+  overforinger?: DagsforslagOverforingOppslag[];
   /** Effektiv arbeidstid per dato — MÅ dekke startdato + alle segment-datoer. */
   effektivPerDato: Record<string, DagsforslagEffektiv>;
   eksisterendeSedelPerDato: Record<string, DagsforslagEksisterendeSedel>;
@@ -487,7 +516,180 @@ export type DagsforslagRettingDato = {
    * godtas — ellers faller valget tilbake til `velgOvertidLonnsart`.
    */
   overtidLonnsartId?: string;
+  /** POST (13) L2: overføringsrader arbeideren har fjernet for datoen. */
+  fjernOverforing?: Array<"ut" | "retur">;
 };
+
+type DagsforslagOverforingCelle = { kjoretidMin: number; avstandM: number | null };
+
+/**
+ * POST (13) L2 TILLEGG — REN: overføringene (første/siste dag i en periode)
+ * for datoene, med kjøretid og navn slått opp via de innsendte oppslagene.
+ *
+ * Byggeplass-enden velges: destinasjonen (når den hører til periodens
+ * prosjekt) → kontekst-byggeplassen (samme vilkår) → prosjektets eneste
+ * byggeplass → null («velg byggeplass» i skjermen; da mangler cellen).
+ * `oppmotestedId` = kontor-enden (fra-kontoret når begge ender er kontor).
+ */
+export function byggOverforingOppslag(a: {
+  datoer: string[];
+  perioder: readonly OppmotePeriodeInput[];
+  destinasjonByggeplassId: string | null;
+  kontekstByggeplassId: string | null;
+  byggeplasserForProsjekt: (projectId: string) => Array<{ id: string; navn: string | null }>;
+  kontorNavn: (oppmotestedId: string) => string;
+  prosjektNavn: (projectId: string) => string;
+  kontorAvstand: (a: string, b: string) => DagsforslagOverforingCelle | null;
+  matrise: (oppmotestedId: string, byggeplassId: string) => DagsforslagOverforingCelle | null;
+}): DagsforslagOverforingOppslag[] {
+  const ut: DagsforslagOverforingOppslag[] = [];
+  for (const dato of a.datoer) {
+    for (const o of finnOverforinger(dato, a.perioder)) {
+      const kontor = o.fra.type === "kontor" ? o.fra : o.til.type === "kontor" ? o.til : null;
+      if (kontor == null) continue; // byggeplass↔byggeplass finnes ikke (finnOverforinger)
+      const bp = o.fra.type === "byggeplass" ? o.fra : o.til.type === "byggeplass" ? o.til : null;
+      let byggeplassId: string | null = null;
+      let bpNavn: string | null = null;
+      if (bp) {
+        const kandidater = a.byggeplasserForProsjekt(bp.projectId);
+        const valgt =
+          kandidater.find((b) => b.id === a.destinasjonByggeplassId) ??
+          kandidater.find((b) => b.id === a.kontekstByggeplassId) ??
+          (kandidater.length === 1 ? kandidater[0] : undefined);
+        byggeplassId = valgt?.id ?? null;
+        bpNavn = valgt?.navn ?? null;
+      }
+      const navn = (s: typeof o.fra) =>
+        s.type === "kontor" ? a.kontorNavn(s.oppmotestedId) : (bpNavn ?? a.prosjektNavn(s.projectId));
+      let celle: DagsforslagOverforingCelle | null = null;
+      if (o.fra.type === "kontor" && o.til.type === "kontor") {
+        celle = a.kontorAvstand(o.fra.oppmotestedId, o.til.oppmotestedId);
+      } else if (byggeplassId) {
+        celle = a.matrise(kontor.oppmotestedId, byggeplassId);
+      }
+      ut.push({
+        dato,
+        overforing: o,
+        oppmotestedId: kontor.oppmotestedId,
+        byggeplassId,
+        fraNavn: navn(o.fra),
+        tilNavn: navn(o.til),
+        celle,
+      });
+    }
+  }
+  return ut;
+}
+
+/**
+ * POST (13) L2 TILLEGG — REN: legger overføringsradene på datoene sine.
+ *
+ *  - Klassifiseres som en manuell reise (`klassifiserManuellReise`): under
+ *    terskel → ordinær standard-art, `erReise` false; over → reise-art fra bånd
+ *    eller fallback, `reiseKilde "overforing"`.
+ *  - `ut` legges FØR dagens tidligste rad, `retur` ETTER dagens seneste, med
+ *    kjøretiden som lengde. Krysser den midnatt eller overlapper en eksisterende
+ *    rad, foreslås den ikke (arbeideren fører den med «+ Reise»).
+ *  - Mangler celle → `mangler_matrise`; kjøretid < 0 → `uoppnaaelig`; reise uten
+ *    art → `mangler_reise_lonnsart`. Første årsak vinner (som auto-reisen).
+ *  - Blokkerte datoer og fjernede retninger hoppes over.
+ */
+export function leggTilOverforinger(
+  datoer: DagsforslagDag[],
+  oppslag: DagsforslagOverforingOppslag[] | undefined,
+  ctx: {
+    regel: DagsforslagRegel | null;
+    grensepunkter: ReiseGrensepunkt[];
+    fallbackReiseLonnsartId: string | null;
+    standardLonnsartId: string | null;
+    prosjektId: string;
+    aktivitetId: string;
+    eksisterendeSedelPerDato: Record<string, DagsforslagEksisterendeSedel>;
+    perDato: Record<string, DagsforslagRettingDato> | undefined;
+  },
+): { datoer: DagsforslagDag[]; aarsak: ReiseAarsak | null } {
+  if (!oppslag || oppslag.length === 0 || !ctx.regel) return { datoer, aarsak: null };
+  const regel = ctx.regel;
+  let aarsak: ReiseAarsak | null = null;
+  const nye = datoer.map((d) => {
+    if (d.blokkert) return d;
+    const fjernet = ctx.perDato?.[d.dato]?.fjernOverforing ?? [];
+    const tillegg: DagsforslagRad[] = [];
+    for (const o of oppslag) {
+      if (o.dato !== d.dato || fjernet.includes(o.overforing.retning)) continue;
+      if (o.celle == null) {
+        aarsak ??= "mangler_matrise";
+        continue;
+      }
+      if (o.celle.kjoretidMin < 0) {
+        aarsak ??= "uoppnaaelig";
+        continue;
+      }
+      const kjoretid = o.celle.kjoretidMin;
+      const k = klassifiserManuellReise({
+        regel: reiseRegelsett(regel),
+        reisetimer: kjoretid / 60,
+        avstandM: o.celle.avstandM,
+        grensepunkter: ctx.grensepunkter,
+        resolverLonnsartId: ctx.fallbackReiseLonnsartId,
+        standardLonnsartId: ctx.standardLonnsartId,
+      });
+      if (!k.lonnsartId) {
+        if (k.erReise) aarsak ??= "mangler_reise_lonnsart";
+        continue;
+      }
+      const tider = d.rader
+        .flatMap((r) => [r.fraTid, r.tilTid])
+        .filter((t): t is string => t != null)
+        .map(hhmmTilMin);
+      const ut = o.overforing.retning === "ut";
+      const ankerMin = tider.length > 0
+        ? (ut ? Math.min(...tider) : Math.max(...tider))
+        : null;
+      if (ankerMin == null) continue;
+      const fraMin = ut ? ankerMin - kjoretid : ankerMin;
+      const tilMin = ut ? ankerMin : ankerMin + kjoretid;
+      if (fraMin < 0 || tilMin > 24 * 60) continue;
+      const fraTid = minTilHhmm(fraMin);
+      const tilTid = minTilHhmm(tilMin);
+      const andre = ctx.eksisterendeSedelPerDato[d.dato]?.eksisterendeRader ?? [];
+      if (finnOverlappendeTidsrom(fraTid, tilTid, andre) != null) continue;
+      const reiseRegel: ReiseRegelSnapshot = {
+        ...k.reiseRegel,
+        overforing: {
+          fra: o.overforing.fra,
+          til: o.overforing.til,
+          periodeId: o.overforing.periodeId,
+        },
+      };
+      tillegg.push({
+        projectId: ctx.prosjektId,
+        lonnsartId: k.lonnsartId,
+        aktivitetId: ctx.aktivitetId,
+        timer: Math.round((kjoretid / 60) * 100) / 100,
+        fraTid,
+        tilTid,
+        pauseMin: 0,
+        erReise: k.erReise,
+        reiseRetning: k.erReise ? o.overforing.retning : null,
+        reiseOppmotestedId: k.erReise ? o.oppmotestedId : null,
+        byggeplassId: o.byggeplassId,
+        reiseKjoretidMin: k.erReise ? kjoretid : null,
+        reiseAvstandM: k.reiseAvstandM,
+        reiseKilde: k.erReise ? "overforing" : null,
+        reiseRegel,
+        tidKilde: "utledet",
+        overforing: {
+          retning: o.overforing.retning,
+          fraNavn: o.fraNavn,
+          tilNavn: o.tilNavn,
+        },
+      });
+    }
+    return tillegg.length > 0 ? { ...d, rader: [...d.rader, ...tillegg] } : d;
+  });
+  return { datoer: nye, aarsak };
+}
 
 /**
  * ORDRE 34 pkt 4: normaltid/overtid-segmenter når arbeideren har rettet
@@ -1098,6 +1300,20 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     });
   });
 
+  // POST (13) L2 TILLEGG: overføring første/siste dag i perioden — egen
+  // forslagsrad, aldri automatisk lagret (arbeideren bekrefter/fjerner den).
+  const medOverforing = leggTilOverforinger(datoer, input.overforinger, {
+    regel,
+    grensepunkter: reiseOppslag?.grensepunkter ?? [],
+    fallbackReiseLonnsartId: reiseOppslag?.fallbackReiseLonnsartId ?? null,
+    standardLonnsartId: input.standardLonnsartId,
+    prosjektId,
+    aktivitetId: aktivitet.id,
+    eksisterendeSedelPerDato: input.eksisterendeSedelPerDato,
+    perDato: retting?.perDato,
+  });
+  reiseAarsak ??= medOverforing.aarsak;
+
   return {
     prosjektId,
     aktivitetId: aktivitet.id,
@@ -1106,7 +1322,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     reiseAarsak,
     destinasjonAarsak,
     normStatus: effektivStartDag.normStatus ?? null,
-    datoer: leggTilManuellReise(datoer, retting?.manuellReise),
+    datoer: leggTilManuellReise(medOverforing.datoer, retting?.manuellReise),
     ...(retting?.beskrivelse ? { beskrivelsePerKort: retting.beskrivelse } : {}),
     ...(retting?.beskrivelsePerRad ? { beskrivelsePerRad: retting.beskrivelsePerRad } : {}),
   };

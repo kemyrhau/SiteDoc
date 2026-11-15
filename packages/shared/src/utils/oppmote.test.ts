@@ -5,6 +5,7 @@ import {
   trengerOppmoteValg,
   tilIsoDato,
   finnPeriodeKonflikt,
+  finnOverforinger,
   type OppmotePeriodeInput,
 } from "./oppmote";
 
@@ -152,5 +153,67 @@ describe("finnPeriodeKonflikt", () => {
     expect(finnPeriodeKonflikt(fast(TROMSO, "2026-10-01"), [lukket, apen])).toBeNull();
     expect(finnPeriodeKonflikt(fast(TROMSO, "2026-09-01"), [lukket, apen])).toBe(apen);
     expect(finnPeriodeKonflikt(fast(TROMSO, "2026-08-01"), [lukket])).toBe(lukket);
+  });
+});
+
+describe("finnOverforinger — første/siste dag i periode", () => {
+  const perioder = (): OppmotePeriodeInput[] => [
+    { ...fast(NARVIK), id: "p-fast" },
+    { ...midl(TROMSO, "2026-11-10", "2026-11-20"), id: "p-midl" },
+  ];
+
+  it("første dag i midlertidig periode gir ut fra fast til midlertidig", () => {
+    expect(finnOverforinger("2026-11-10", perioder())).toEqual([
+      {
+        retning: "ut",
+        fra: { type: "kontor", oppmotestedId: NARVIK },
+        til: { type: "kontor", oppmotestedId: TROMSO },
+        periodeId: "p-midl",
+      },
+    ]);
+  });
+
+  it("siste dag gir retur til fast sted", () => {
+    expect(finnOverforinger("2026-11-20", perioder())).toEqual([
+      {
+        retning: "retur",
+        fra: { type: "kontor", oppmotestedId: TROMSO },
+        til: { type: "kontor", oppmotestedId: NARVIK },
+        periodeId: "p-midl",
+      },
+    ]);
+  });
+
+  it("dag inne i perioden gir ingen overføring", () => {
+    expect(finnOverforinger("2026-11-15", perioder())).toEqual([]);
+  });
+
+  it("én-dags periode gir både ut og retur", () => {
+    const r = finnOverforinger("2026-11-12", [fast(NARVIK), midl(RAMSUND, "2026-11-12", "2026-11-12")]);
+    expect(r.map((o) => o.retning)).toEqual(["ut", "retur"]);
+    expect(r[0]!.periodeId).toBeNull();
+  });
+
+  it("uten fast sted (ikkeValgt) finnes ingen hjemsted og ingen overføring", () => {
+    expect(finnOverforinger("2026-11-10", [midl(TROMSO, "2026-11-10", "2026-11-20")])).toEqual([]);
+  });
+
+  it("byggeplass-periode gir ut til prosjektet første dag", () => {
+    expect(finnOverforinger("2026-11-01", [fast(NARVIK), { ...byggeplass(E6, "2026-11-01", null), id: "p-bp" }])).toEqual([
+      {
+        retning: "ut",
+        fra: { type: "kontor", oppmotestedId: NARVIK },
+        til: { type: "byggeplass", projectId: E6 },
+        periodeId: "p-bp",
+      },
+    ]);
+  });
+
+  it("midlertidig til samme kontor som fast gir ingen overføring", () => {
+    expect(finnOverforinger("2026-11-10", [fast(NARVIK), midl(NARVIK, "2026-11-10", "2026-11-20")])).toEqual([]);
+  });
+
+  it("fast periode alene gir ingen overføring", () => {
+    expect(finnOverforinger("2026-01-01", [fast(NARVIK)])).toEqual([]);
   });
 });

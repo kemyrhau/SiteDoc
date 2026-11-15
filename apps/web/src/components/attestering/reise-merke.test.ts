@@ -31,4 +31,13 @@ describe("reiseMerkeNokkel — aldri «ut» uten faktisk retning", () => {
       "timer.attestering.reise.merkeRetur",
     );
   });
+
+  it("overføring får eget merke uansett retning (L2 6b)", () => {
+    expect(reiseMerkeNokkel({ reiseKilde: "overforing", reiseRetning: "ut" })).toBe(
+      "timer.attestering.reise.merkeOverforing",
+    );
+    expect(reiseMerkeNokkel({ reiseKilde: "overforing", reiseRetning: "retur" })).toBe(
+      "timer.attestering.reise.merkeOverforing",
+    );
+  });
 });

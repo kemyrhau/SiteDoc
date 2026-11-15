@@ -18,6 +18,7 @@ import {
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
   type DagsforslagEksisterendeSedel,
+  byggOverforingOppslag,
 } from "../utils/dagsforslag";
 import {
   tolkStart,
@@ -40,6 +41,9 @@ import {
 } from "./byggeplassKatalog";
 import { hentOppmotederLokalt } from "./oppmotestedKatalog";
 import { hentReiseGrensepunkterLokalt } from "./reiseGrensepunktKatalog";
+import { hentKontorAvstandLokalt } from "./oppmotestedAvstandKatalog";
+
+type Celle = { kjoretidMin: number; avstandM: number | null };
 
 export type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
@@ -141,6 +145,7 @@ export function samleDagsforslagInput(
   // (nærmeste-uten-grense + primærbyggeplass) er erstattet av A5.
   let reiseOppslag: BeregnDagsforslagInput["reiseOppslag"] = null;
   let destinasjonProsjektId: string | null = null;
+  const perioder = hentOppmotePerioderLokalt(p.userId, orgId);
   if (regel) {
     // V17-A: geofence-kandidater via tilGeofencer (A4) — de to radius-null-
     // filtrene er borte. I V17-A gir byggeplass én sirkel hver (ingen sone-data);
@@ -187,7 +192,7 @@ export function samleDagsforslagInput(
     const oppmote = løsOppmote(
       formatIsoDato(new Date(dag.startAt)),
       destinasjonProsjektId ?? p.aktivtProsjektId,
-      hentOppmotePerioderLokalt(p.userId, orgId),
+      perioder,
       gpsStart.type === "kontor" ? gpsStart.oppmotestedId : null,
     );
     const { start, slutt } = brukOppmoteResolver(gpsStart, gpsSlutt, destinasjon, oppmote);
@@ -270,6 +275,31 @@ export function samleDagsforslagInput(
     };
   }
 
+  // POST (13) L2 TILLEGG: overføring første/siste dag i perioden.
+  const overforinger = regel
+    ? byggOverforingOppslag({
+        datoer: [...new Set(segmenter.map((s) => s.dato))],
+        perioder,
+        destinasjonByggeplassId:
+          reiseOppslag?.destinasjon.type === "byggeplass"
+            ? reiseOppslag.destinasjon.byggeplassId
+            : null,
+        kontekstByggeplassId: p.kontekstByggeplassId,
+        byggeplasserForProsjekt: (projectId) =>
+          hentByggeplasserForProsjektLokalt(projectId).map((b) => ({ id: b.id, navn: b.navn ?? null })),
+        kontorNavn: (id) => hentOppmotederLokalt(orgId).find((o) => o.id === id)?.navn ?? "",
+        prosjektNavn: (id) => hentProsjekterLokalt(orgId).find((pr) => pr.id === id)?.name ?? "",
+        kontorAvstand: (x, y) => {
+          const r = hentKontorAvstandLokalt(x, y);
+          return r && r.kjoretidMin != null ? { kjoretidMin: r.kjoretidMin, avstandM: r.avstandM } : null;
+        },
+        matrise: (o, b) => {
+          const r = hentMatriseRadLokalt(o, b);
+          return r ? { kjoretidMin: r.kjoretidMin, avstandM: r.avstandM ?? null } : null;
+        },
+      })
+    : [];
+
   const eksisterendeSedelPerDato: Record<
     string,
     DagsforslagEksisterendeSedel
@@ -297,6 +327,7 @@ export function samleDagsforslagInput(
     aktivtProsjektId: p.aktivtProsjektId,
     destinasjonProsjektId,
     sisteSegmentKilde: p.sisteSegmentKilde,
+    ...(overforinger.length > 0 ? { overforinger } : {}),
     prosjekter,
     aktiviteter,
     alleLonnsarter,

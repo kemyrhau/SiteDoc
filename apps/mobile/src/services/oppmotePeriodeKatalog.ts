@@ -73,6 +73,8 @@ export function hentOppmotePerioderLokalt(userId: string, organizationId: string
     .where(and(eq(oppmotePeriodeLocal.userId, userId), eq(oppmotePeriodeLocal.organizationId, organizationId)))
     .all()
     .map((r) => ({
+      // id (L2): overføringsforslaget fører periode-id-en videre til reiseRegel.
+      id: r.id,
       type: r.type === "byggeplass" ? "byggeplass" : "kontor",
       fast: r.fast,
       oppmotestedId: r.oppmotestedId,

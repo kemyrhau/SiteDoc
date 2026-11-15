@@ -266,6 +266,7 @@ Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sa
 | `trengerOppmoteValg(antallAktiveKontorer, perioder)` | `true` når ≥ 2 aktive kontorer og intet fast sted — styrer «Hvor møter du vanligvis?» |
 | `finnPeriodeKonflikt(ny, øvrige)` | Overlapp innen samme slag (byggeplass pr. prosjekt, midlertidig, fast). Server og admin-UI bruker samme regel |
 | `tilIsoDato(d)` | `Date`/streng → `YYYY-MM-DD` (UTC) |
+| `finnOverforinger(dato, perioder)` → `Overforing[]` | Ut-overføring første dag og retur siste dag i en midlertidig eller byggeplass-periode, fra hjemstedet (`løsOppmote` uten perioden; `ikkeValgt` eller samme kontor gir ingenting). Mellomdager gir ingenting. Brukes av mobilens Bekreft dag (L2) |
 
 ### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
 

@@ -119,7 +119,7 @@ export type DetaljEksport = {
     tilSted: string | null;
     reiseAvstandM: number | null;
     reiseKjoretidMin: number | null;
-    reiseKilde: "matrise" | "manuell" | null;
+    reiseKilde: "matrise" | "manuell" | "overforing" | null;
     tidKilde: "stempel" | "utledet" | "manuell" | null;
     normStatus: "server" | "cachet" | "ukjent" | null;
     radstatus: string; // T.3 attestertStatus per rad, ikke sedel-status

@@ -141,6 +141,7 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - **Manuell:** en rettet verdi merkes «Manuell», brukes i reiseberegningen og overskrives aldri av ny beregning. Flyttes byggeplassen eller oppmøtestedet, står verdien, men merkes. «Tilbakestill» fjerner den og beregner på nytt.
 - **Status:** «Ingen rute» = ingen kjørbar vei; «Ikke beregnet» = paret mangler verdi, trykk «Beregn».
 - **Kjøretid** vises som «1 t 35 min» over én time og «45 min» under (`timer.kjoretid.*`, ordre 2026-11-14 (11) B). Redigering skjer i minutter.
+- **Mellom oppmøtesteder** (`firma.avstander.hjelp.kontor`, POST 2026-11-15 (13) L2): kjøretid mellom firmaets oppmøtesteder, vist når firmaet har minst to. Brukes til overføringsforslaget i Bekreft dag første og siste dag i en midlertidig periode. Kan rettes («Manuell») og tilbakestilles som byggeplass-avstandene.
 
 ## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
 

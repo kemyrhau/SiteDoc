@@ -37,6 +37,8 @@ import {
   utledErReise,
   beregnReiseAvvik,
   validerReiseInvarianter,
+  lesOverforingRute,
+  overforingKontrollNokkel,
   arvReiseSpor,
   type ReiseRadInvariantInput,
   type ReiseSporKilde,
@@ -489,7 +491,7 @@ type OverlappPayloadRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
 };
@@ -845,7 +847,7 @@ type SynkTimerRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
 };
@@ -910,6 +912,54 @@ async function byggReiseFelterForSynk(
     }
   }
 
+  // L2 6b: overføringer kontrolleres mot OppmotestedAvstand (kontor↔kontor)
+  // eller samme matrisecelle som over (kontor × byggeplass). Ett oppslag hver.
+  const kontorNokler = new Map<string, { fra: string; til: string }>();
+  const overforingNokkel = new Map<string, ReturnType<typeof overforingKontrollNokkel>>();
+  const ekstraMatrise = new Map<string, { oppmotestedId: string; byggeplassId: string }>();
+  for (const r of rader) {
+    if (r.erReise !== true || r.reiseKilde !== "overforing") continue;
+    const rute = lesOverforingRute(r.reiseRegel);
+    if (!rute) continue;
+    const n = overforingKontrollNokkel(rute, r.byggeplassId ?? sedelByggeplassId ?? null);
+    overforingNokkel.set(r.id, n);
+    if (n?.type === "kontor") kontorNokler.set(`${n.fra}::${n.til}`, n);
+    if (n?.type === "matrise") {
+      const k = `${n.oppmotestedId}::${n.byggeplassId}`;
+      if (!celleMap.has(k)) ekstraMatrise.set(k, n);
+    }
+  }
+  if (ekstraMatrise.size > 0) {
+    const celler = await prisma.reisetidMatrise.findMany({
+      where: { OR: Array.from(ekstraMatrise.values()) },
+      select: { oppmotestedId: true, byggeplassId: true, avstandM: true, kjoretidMin: true },
+    });
+    for (const c of celler) {
+      celleMap.set(`${c.oppmotestedId}::${c.byggeplassId}`, {
+        avstandM: c.avstandM,
+        kjoretidMin: c.kjoretidMin,
+      });
+    }
+  }
+  const kontorCelleMap = new Map<string, { avstandM: number | null; kjoretidMin: number | null }>();
+  if (kontorNokler.size > 0) {
+    const par = await prisma.oppmotestedAvstand.findMany({
+      where: {
+        OR: Array.from(kontorNokler.values()).map((n) => ({
+          fraOppmotestedId: n.fra,
+          tilOppmotestedId: n.til,
+        })),
+      },
+      select: { fraOppmotestedId: true, tilOppmotestedId: true, avstandM: true, kjoretidMin: true },
+    });
+    for (const p of par) {
+      kontorCelleMap.set(`${p.fraOppmotestedId}::${p.tilOppmotestedId}`, {
+        avstandM: p.avstandM,
+        kjoretidMin: p.kjoretidMin,
+      });
+    }
+  }
+
   const felter = new Map<string, ReiseFelter>();
   for (const r of rader) {
     if (r.erReise === undefined) {
@@ -956,6 +1006,23 @@ async function byggReiseFelterForSynk(
         { avstandM: r.reiseAvstandM ?? null, kjoretidMin: r.reiseKjoretidMin ?? null },
         celle,
       );
+    }
+    if (r.erReise && r.reiseKilde === "overforing") {
+      const n = overforingNokkel.get(r.id) ?? null;
+      const celle =
+        n?.type === "kontor"
+          ? kontorCelleMap.get(`${n.fra}::${n.til}`) ?? null
+          : n?.type === "matrise"
+            ? celleMap.get(`${n.oppmotestedId}::${n.byggeplassId}`) ?? null
+            : null;
+      // Uoppnåelig/ukjent celle (null/-1) gir ingen kontroll — ikke et avvik.
+      reiseAvvik =
+        celle && celle.kjoretidMin != null && celle.kjoretidMin >= 0
+          ? beregnReiseAvvik(
+              { avstandM: r.reiseAvstandM ?? null, kjoretidMin: r.reiseKjoretidMin ?? null },
+              { avstandM: celle.avstandM, kjoretidMin: celle.kjoretidMin },
+            )
+          : null;
     }
 
     felter.set(r.id, {
@@ -6347,7 +6414,7 @@ export const dagsseddelRouter = router({
                 reiseOppmotestedId: z.string().uuid().nullable().optional(),
                 reiseKjoretidMin: z.number().int().nullable().optional(),
                 reiseAvstandM: z.number().int().nullable().optional(),
-                reiseKilde: z.enum(["matrise", "manuell"]).nullable().optional(),
+                reiseKilde: z.enum(["matrise", "manuell", "overforing"]).nullable().optional(),
                 // Json-snapshot av regelen. z.unknown() → vilkårlig Json; C2 krever
                 // at den finnes for matrise-rader.
                 reiseRegel: z.unknown().optional(),

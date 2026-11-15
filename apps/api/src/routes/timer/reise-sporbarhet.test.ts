@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   beregnReiseAvvik,
   validerReiseInvarianter,
+  lesOverforingRute,
+  overforingKontrollNokkel,
   REISEAVVIK_MIN_PROSENT,
   REISEAVVIK_MIN_AVSTAND_M,
   REISEAVVIK_MIN_KJORETID_MIN,
@@ -244,5 +246,102 @@ describe("C2 — validerReiseInvarianter (eksplisitt erReise)", () => {
         oppmotesteder,
       ),
     ).toBeNull();
+  });
+});
+
+describe("L2 6b — overføring (C2 + C3-nøkkel)", () => {
+  const oppmotesteder = new Set(["kontor-a", "kontor-b"]);
+  const regel = {
+    kategori: "reisetid",
+    overforing: {
+      fra: { type: "kontor", oppmotestedId: "kontor-a" },
+      til: { type: "kontor", oppmotestedId: "kontor-b" },
+      periodeId: "p-1",
+    },
+  };
+  const base: ReiseRadInvariantInput = {
+    erReise: true,
+    reiseRetning: "ut",
+    reiseKilde: "overforing",
+    reiseOppmotestedId: "kontor-a",
+    reiseKjoretidMin: 95,
+    reiseAvstandM: 110000,
+    reiseRegel: regel,
+  };
+
+  it("gyldig kontor→kontor-overføring → null", () => {
+    expect(validerReiseInvarianter(base, oppmotesteder)).toBeNull();
+  });
+
+  it("mangler retning / oppmøtested / kjøretid / rute → navngitt feil", () => {
+    expect(validerReiseInvarianter({ ...base, reiseRetning: null }, oppmotesteder)).toMatch(/retning/);
+    expect(validerReiseInvarianter({ ...base, reiseOppmotestedId: null }, oppmotesteder)).toMatch(/oppmøtested/);
+    expect(validerReiseInvarianter({ ...base, reiseKjoretidMin: null }, oppmotesteder)).toMatch(/kjøretid/);
+    expect(validerReiseInvarianter({ ...base, reiseKjoretidMin: -1 }, oppmotesteder)).toMatch(/kjøretid/);
+    expect(
+      validerReiseInvarianter({ ...base, reiseRegel: { kategori: "reisetid" } }, oppmotesteder),
+    ).toMatch(/rute/);
+  });
+
+  it("rute-kontor fra annet firma → avvist", () => {
+    const fremmed = {
+      ...regel,
+      overforing: { ...regel.overforing, til: { type: "kontor", oppmotestedId: "kontor-x" } },
+    };
+    expect(
+      validerReiseInvarianter({ ...base, reiseRegel: fremmed }, oppmotesteder),
+    ).toMatch(/tilhører firmaet/);
+  });
+
+  it("lesOverforingRute avviser byggeplass→byggeplass og ugyldig form", () => {
+    expect(
+      lesOverforingRute({
+        overforing: {
+          fra: { type: "byggeplass", projectId: "p1" },
+          til: { type: "byggeplass", projectId: "p2" },
+        },
+      }),
+    ).toBeNull();
+    expect(lesOverforingRute({ overforing: { fra: { type: "kontor" }, til: null } })).toBeNull();
+    expect(lesOverforingRute(null)).toBeNull();
+  });
+
+  it("C3-nøkkel: kontor-par normaliseres, samme kontor → null", () => {
+    const rute = lesOverforingRute(regel)!;
+    expect(overforingKontrollNokkel(rute, null)).toEqual({ type: "kontor", fra: "kontor-a", til: "kontor-b" });
+    const motsatt = lesOverforingRute({
+      overforing: { fra: regel.overforing.til, til: regel.overforing.fra },
+    })!;
+    expect(overforingKontrollNokkel(motsatt, null)).toEqual({ type: "kontor", fra: "kontor-a", til: "kontor-b" });
+    const samme = lesOverforingRute({
+      overforing: { fra: regel.overforing.fra, til: regel.overforing.fra },
+    })!;
+    expect(overforingKontrollNokkel(samme, null)).toBeNull();
+  });
+
+  it("C3-nøkkel: kontor↔byggeplass → matrise-celle med kontor-enden; uten byggeplassId → null", () => {
+    const ut = lesOverforingRute({
+      overforing: {
+        fra: { type: "kontor", oppmotestedId: "kontor-a" },
+        til: { type: "byggeplass", projectId: "p1" },
+      },
+    })!;
+    expect(overforingKontrollNokkel(ut, "bp-1")).toEqual({
+      type: "matrise",
+      oppmotestedId: "kontor-a",
+      byggeplassId: "bp-1",
+    });
+    const retur = lesOverforingRute({
+      overforing: {
+        fra: { type: "byggeplass", projectId: "p1" },
+        til: { type: "kontor", oppmotestedId: "kontor-b" },
+      },
+    })!;
+    expect(overforingKontrollNokkel(retur, "bp-1")).toEqual({
+      type: "matrise",
+      oppmotestedId: "kontor-b",
+      byggeplassId: "bp-1",
+    });
+    expect(overforingKontrollNokkel(ut, null)).toBeNull();
   });
 });

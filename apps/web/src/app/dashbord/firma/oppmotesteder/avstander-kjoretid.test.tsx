@@ -76,3 +76,35 @@ describe("Avstander-fanen — kjøretid (B)", () => {
     expect(html).not.toMatch(/>95</);
   });
 });
+
+describe("Avstander-fanen — mellom oppmøtesteder (POST (13) L2, beslutning 4)", () => {
+  function rendreKontor(antall: number, kontorRader: unknown[]) {
+    const steder = [
+      { id: "o1", navn: "Narvik" },
+      { id: "o2", navn: "Tromsø" },
+      { id: "o3", navn: "Bodø" },
+    ].slice(0, antall);
+    h.data = {
+      "oppmotested.hentAvstander": { enhet: "minutter", oppmotesteder: steder, byggeplasser: [], rader: [] },
+      "oppmotested.hentKontorAvstanderForFirma": kontorRader,
+    };
+    return renderToStaticMarkup(<AvstanderFane orgId="org1" />);
+  }
+
+  it("to kontorer: ett par med kjøretid og kilde; manglende par står som «Ikke beregnet»", () => {
+    const html = rendreKontor(3, [
+      { fraOppmotestedId: "o1", tilOppmotestedId: "o2", kjoretidMin: 255, avstandM: 250000, kilde: "manuell" },
+    ]);
+    expect(html).toContain("Mellom oppmøtesteder");
+    expect(html).toContain("Narvik ↔ Tromsø");
+    expect(html).toContain(">4 t 15 min<");
+    expect(html).toContain(">Manuell<");
+    // o1–o3 og o2–o3 mangler.
+    expect(html.match(/Ikke beregnet/g)?.length).toBe(2);
+  });
+
+  it("negativkontroll: ett kontor gir ingen kontor-seksjon", () => {
+    const html = rendreKontor(1, []);
+    expect(html).not.toContain("Mellom oppmøtesteder");
+  });
+});

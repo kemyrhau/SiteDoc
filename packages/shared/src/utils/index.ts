@@ -75,6 +75,7 @@ export type {
   TidKilde,
   NormStatus,
   ReiseRegelSnapshot,
+  OverforingSnapshot,
   NormSnapshot,
 } from "./reise";
 export {
@@ -115,8 +116,8 @@ export type {
   ReiseKortInput,
   ReiseKortResultat,
 } from "./reiseManuell";
-export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt } from "./oppmote";
-export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat } from "./oppmote";
+export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger } from "./oppmote";
+export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted } from "./oppmote";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";

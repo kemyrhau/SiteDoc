@@ -119,6 +119,7 @@ export default function OppmotesterSide() {
             <p>{t("firma.avstander.hjelp.enhet")}</p>
             <p>{t("firma.avstander.hjelp.manuell")}</p>
             <p>{t("firma.avstander.hjelp.status")}</p>
+            <p>{t("firma.avstander.hjelp.kontor")}</p>
           </div>
         ) : (
           <div className="space-y-2 text-sm text-gray-600">

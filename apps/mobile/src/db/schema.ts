@@ -185,7 +185,7 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   reiseOppmotestedId: text("reise_oppmotested_id"), // svak FK → Oppmotested
   reiseKjoretidMin: integer("reise_kjoretid_min"), // matrisecellens kjøretid
   reiseAvstandM: integer("reise_avstand_m"), // matrisecellens avstand (meter)
-  reiseKilde: text("reise_kilde"), // "matrise" | "manuell" | null
+  reiseKilde: text("reise_kilde"), // "matrise" | "manuell" | "overforing" | null
   // JSON-snapshot av reise-regelen (ReiseRegelSnapshot) slik den var da raden
   // ble laget. Lagres som TEXT (JSON.stringify); server tar imot som Json.
   reiseRegel: text("reise_regel"),
@@ -591,6 +591,28 @@ export const oppmotePeriodeLocal = sqliteTable("oppmote_periode_local", {
   tilDato: text("til_dato"), // YYYY-MM-DD, null = gjeldende
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
+
+/**
+ * oppmotested_avstand_local — kontor↔kontor-kjøretid/avstand (L2, POST
+ * 2026-11-15 (13) 6b). Speiler server OppmotestedAvstand for overføring
+ * første/siste dag i midlertidig periode. Paret normalisert (fra < til);
+ * -1 = uoppnåelig, null = ukjent. Refresh via
+ * oppmotestedAvstandKatalog.refreshOppmotestedAvstandKatalog. KUN lokal.
+ */
+export const oppmotestedAvstandLocal = sqliteTable(
+  "oppmotested_avstand_local",
+  {
+    organizationId: text("organization_id").notNull(),
+    fraOppmotestedId: text("fra_oppmotested_id").notNull(),
+    tilOppmotestedId: text("til_oppmotested_id").notNull(),
+    kjoretidMin: integer("kjoretid_min"),
+    avstandM: integer("avstand_m"),
+    sistOppdatert: integer("sist_oppdatert").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.fraOppmotestedId, t.tilOppmotestedId] }),
+  }),
+);
 
 /**
  * byggeplass_local — offline-cache av firmaets byggeplasser (R4, 2026-06-11).
