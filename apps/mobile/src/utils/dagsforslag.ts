@@ -390,11 +390,6 @@ export type Dagsforslag = {
    * `anvendDagsforslag` skriver teksten på kortets arbeidsrader.
    */
   beskrivelsePerKort?: Record<string, string>;
-  /**
-   * Radform (beslutning 2): overstyrt beskrivelse pr. arbeidsrad, nøkkel fra
-   * `radBeskrivelseNokkel`. Tom/utelatt = radens korttekst.
-   */
-  beskrivelsePerRad?: Record<string, string>;
 };
 
 /** Alt `beregnDagsforslag` trenger — ferdig lest ut av kalleren (ingen DB her). */
@@ -450,8 +445,6 @@ export type DagsforslagRetting = {
   perDato?: Record<string, DagsforslagRettingDato>;
   /** ORDRE 36a/36b: beskrivelse pr. kort (påkrevd før Bekreft) — se `beskrivelsePerKort`. */
   beskrivelse?: Record<string, string>;
-  /** Radform: overstyring pr. arbeidsrad — se `beskrivelsePerRad`. */
-  beskrivelsePerRad?: Record<string, string>;
   /**
    * POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort (manuell modus).
    * Reise-rader arbeideren har ført selv; legges på første åpne dato som
@@ -1304,7 +1297,6 @@ function beregnDagsforslagKjerne(input: BeregnDagsforslagInput): Dagsforslag {
     normStatus: effektivStartDag.normStatus ?? null,
     datoer: leggTilManuellReise(medOverforing.datoer, retting?.manuellReise),
     ...(retting?.beskrivelse ? { beskrivelsePerKort: retting.beskrivelse } : {}),
-    ...(retting?.beskrivelsePerRad ? { beskrivelsePerRad: retting.beskrivelsePerRad } : {}),
   };
 }
 

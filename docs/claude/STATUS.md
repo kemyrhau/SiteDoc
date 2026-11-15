@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`timer.md` § Dagsoversikt i radform + `mobil.md` `bekreft-dag.tsx` + `maskin.md` «Maskinrad fra Bekreft dag»: ORDRE 24 én beskrivelse og ett sett maskin/varer pr. prosjektkort** (branch `fix/prosjektkort-en-beskrivelse`, kode + docs, Timer-feilsøk, ⚠️ venter Kontrollør-gate): radfelt fjernet, fordeling av maskintimer fra første rad. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`timer.md`: Kenneths midnattsvedtak ført** (develop, docs-only, orkestrator): et prosjektkort inneholder aldri to datoer; nattevakt = to kort delt ved midnatt, maskin ≤ kortets timer, «+ Maskin» fyller kortets timer og arbeider reduserer, kort 2 starter med tom beskrivelse. 🟡 RETUR (24).
 - 2026-11-16 — **`timer.md` + `SAMARBEIDSREGLER.md` + `CLAUDE.md` + `eas-build-veileder.md`: Kenneths beslutninger 2026-11-16 ført** (develop, docs-only, orkestrator): én beskrivelse og ett sett maskin/varer pr. prosjektkort (🟡 ordre 24, erstatter «beskrivelse pr. rad»); beslutninger skrives i repo-dokument i samme tur (erstatter regelen «beslutninger hører i et repo-dokument»); hele SAMARBEIDSREGLER leses etter compact; OTA-logg `8f9fdb86` på test. Telling uendret.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (22) byggeplassfilteret husker valg (`467e0e04`) merget** (develop, docs-only, orkestrator): ett ✅-innslag, én funksjonsendringsrad, «Sist ført» develop `467e0e04`.

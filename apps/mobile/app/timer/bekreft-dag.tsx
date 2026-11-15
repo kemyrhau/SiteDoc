@@ -87,7 +87,7 @@ import { trpc } from "../../src/lib/trpc";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
-import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, RAD_PREFIKS, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
+import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
 import { knyttLonnUtleggTilKort } from "../../src/utils/lonnUtleggKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
@@ -104,6 +104,7 @@ import {
   TilleggLinjer,
   useTilleggKatalog,
 } from "../../src/components/timer-detalj/BekreftDagRadTillegg";
+import { kortArbeidstimer, settTilleggPaaKort, tilleggPaaKort } from "../../src/utils/tilleggPaaKort";
 import {
   leggTilOvertidRetting,
   overtidEditorFra,
@@ -263,8 +264,6 @@ export default function BekreftDagSkjerm() {
   // RETUR 36c-2 (D4): tekstfeltets y innenfor kortet — rullemålet er feltet.
   const beskrivelseFeltY = useRef(new Map<string, number>());
   // Radform: radfeltene inne i kortet (nøkkel `rad:…`).
-  const radFelt = useRef(new Map<string, TextInput>());
-  const radY = useRef(new Map<string, number>());
   const [tastaturOppe, setTastaturOppe] = useState(false);
   useEffect(() => {
     const vis = Keyboard.addListener("keyboardDidShow", () => setTastaturOppe(true));
@@ -506,29 +505,12 @@ export default function BekreftDagSkjerm() {
     setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
     endret();
   }, [endret]);
-  const raderPerKortRef = useRef(raderPerKort);
-  raderPerKortRef.current = raderPerKort;
-  const settRadBeskrivelse = useCallback((nokkel: string, tekst: string) => {
-    setRetting((r) => ({ ...r, beskrivelsePerRad: { ...r.beskrivelsePerRad, [nokkel]: tekst } }));
-    endret();
-  }, [endret]);
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
     setForsoktBekreft(true);
     const forste = nokler[0];
     if (!forste) return;
-    // Radform (beslutning 3): en radnøkkel ruller til radfeltet i sitt kort.
-    if (forste.startsWith(RAD_PREFIKS)) {
-      const kort = [...raderPerKortRef.current.entries()].find(([, rader]) =>
-        rader.some((r) => r.nokkel === forste),
-      )?.[0];
-      const kortY = kort ? beskrivelseY.current.get(kort) : undefined;
-      const y = kortY != null ? kortY + (radY.current.get(forste) ?? 0) : undefined;
-      if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
-      radFelt.current.get(forste)?.focus();
-      return;
-    }
     const y = beskrivelseY.current.get(forste);
     if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
     beskrivelseFelt.current.get(forste)?.focus();
@@ -1397,42 +1379,36 @@ export default function BekreftDagSkjerm() {
                 chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
                 visFeil={forsoktBekreft && manglerNokler.includes(k.nokkel)}
                 onEndre={(tekst) => settBeskrivelse(k.nokkel, tekst)}
-                rader={(raderPerKort.get(k.nokkel) ?? []).map((r) => ({
-                  nokkel: r.nokkel,
-                  tid: r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : t("timer.dagsoversikt.utenTid"),
-                  verdi: retting.beskrivelsePerRad?.[r.nokkel] ?? "",
-                  visFeil: forsoktBekreft && manglerNokler.includes(r.nokkel),
-                }))}
-                onEndreRad={settRadBeskrivelse}
-                radRef={(nokkel, felt) => {
-                  if (felt) radFelt.current.set(nokkel, felt);
-                  else radFelt.current.delete(nokkel);
-                }}
-                onRadY={(nokkel, y) => radY.current.set(nokkel, y)}
-                radTillegg={(nokkel) => {
-                  const r = (raderPerKort.get(k.nokkel) ?? []).find((x) => x.nokkel === nokkel);
-                  if (!r?.tilleggNokkel || alleSendt || ikkeAnsatt || tomt || !bruker?.id) return null;
-                  const tn = r.tilleggNokkel;
-                  const egne = tilleggPerRad[tn] ?? { maskiner: [], varer: [] };
+                tillegg={(() => {
+                  // ORDRE 24 (Kenneth 2026-11-16): ETT sett maskin/varer pr. kort.
+                  // Holdes under første arbeidsrads nøkkel; fordeles på radene ved
+                  // Bekreft (`fordelTilleggPaaKort`). Vakten: maskin ≤ kortets sum.
+                  const rader = raderPerKort.get(k.nokkel) ?? [];
+                  const forste = rader.find((x) => x.tilleggNokkel);
+                  if (!forste || alleSendt || ikkeAnsatt || tomt || !bruker?.id) return null;
+                  const egne = tilleggPaaKort(tilleggPerRad, rader);
                   return (
                     <BekreftDagRadTillegg
                       orgId={orgId}
                       userId={bruker.id}
                       projectId={k.projectId}
                       prosjektNavn={prosjekter.find((pr) => pr.id === k.projectId)?.name ?? ""}
-                      dato={r.dato}
-                      byggeplassId={r.byggeplassId}
-                      radTimer={r.timer}
-                      grunnlag={grunnlagPerDato.get(r.dato) ?? null}
-                      andreMaskiner={maskinerForDato(forslag, tilleggPerRad, r.dato).filter(
+                      dato={forste.dato}
+                      byggeplassId={forste.byggeplassId}
+                      radTimer={kortArbeidstimer(rader)}
+                      grunnlag={grunnlagPerDato.get(forste.dato) ?? null}
+                      andreMaskiner={maskinerForDato(forslag, tilleggPerRad, forste.dato).filter(
                         (m) => !egne.maskiner.some((e) => e.lokalId === m.lokalId),
                       )}
                       katalog={tilleggKatalog}
                       tillegg={egne}
-                      onEndre={(neste) => settRadTillegg(tn, neste)}
+                      onEndre={(neste) => {
+                        setTilleggPerRad((tl) => settTilleggPaaKort(tl, rader, neste));
+                        endret();
+                      }}
                     />
                   );
-                }}
+                })()}
               />
             ))}
 

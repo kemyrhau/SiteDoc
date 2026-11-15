@@ -307,7 +307,10 @@ gren) → arvet likt av skjerm/PDF/Excel (flateparitet). Api-en bærer `utleieEn
 **Maskinrad fra «Bekreft dag» (L3-D 2026-11-06; PRESISERING TILLEGG 2026-11-13, `feat/timer-dagsoversikt-radform`, ⚠️ venter gate):** mobilens
 `/timer/bekreft-dag` fører maskin pr. arbeidsrad med antall timer — `sheetTimerId` = radens id, radens prosjekt,
 byggeplass og underprosjekt, `fraTid/tilTid = NULL` (`skrivTillegg` i `apps/mobile/src/utils/dagsforslagAnvend.ts`).
-Maskinens timer ≤ radens timer (`maskinerOverRaden`). Detalj: `timer.md` § Dagsoversikt i radform, TILLEGG. Lokal vakt med samme regel som serveren
+Maskinens timer ≤ radens timer (`maskinerOverRaden`, kun lokalt — serveren har bare bøtte-regelen). ORDRE 24
+(Kenneth 2026-11-16, 🟡 `fix/prosjektkort-en-beskrivelse`): ett maskinsett pr. prosjektkort; UI-vakt maskin ≤ kortets sum;
+ved lagring kobles maskinen til kortets første arbeidsrad, og timer utover radens fordeles på neste rad
+(`fordelTilleggPaaKort`, `apps/mobile/src/utils/tilleggPaaKort.ts`). Detalj: `timer.md` § Dagsoversikt i radform, TILLEGG. Lokal vakt med samme regel som serveren
 (`beregnMaskinBrudd`, maskin ≤ arbeid pr. prosjekt+ECO) før skriving (`maskinBruddForTillegg`,
 `apps/mobile/src/utils/bekreftDagTillegg.ts`); serveren validerer på nytt ved sync.
 

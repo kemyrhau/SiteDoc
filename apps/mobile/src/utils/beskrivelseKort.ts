@@ -58,31 +58,10 @@ export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
 }
 
 /**
- * Radform (Kenneth 2026-11-12, beslutning 2): kortteksten forhåndsutfyller
- * hver rad; hver arbeidsrad kan overstyres i `beskrivelsePerRad`.
- *
- * Radnøkkel = `rad:` + dato | prosjekt | fra-tid | n (n = løpenummer blant
- * like rader samme dato). Endres fra-tid, faller overstyringen bort og raden
- * får kortteksten igjen — aldri en annen rads tekst.
+ * Arbeidsrad på et kort. Kenneth 2026-11-16 (ORDRE 24): kortet har ÉN
+ * beskrivelse og ETT sett maskin/varer — radene bærer ingen egen tekst.
  */
-export const RAD_PREFIKS = "rad:";
-
-type RadNokkelGrunnlag = { projectId: string; fraTid: string | null; erReise: boolean };
-
-export function radBeskrivelseNokkel(
-  d: { dato: string; rader: readonly RadNokkelGrunnlag[] },
-  rad: RadNokkelGrunnlag,
-): string | null {
-  const i = d.rader.indexOf(rad);
-  if (i < 0 || rad.erReise) return null;
-  const n = d.rader
-    .slice(0, i)
-    .filter((r) => !r.erReise && r.projectId === rad.projectId && r.fraTid === rad.fraTid).length;
-  return `${RAD_PREFIKS}${d.dato}|${rad.projectId}|${rad.fraTid ?? ""}|${n}`;
-}
-
 export type BeskrivelseRad = {
-  nokkel: string;
   /** Kortet raden hører til (nøkkel i `beskrivelsePerKort`). */
   kortNokkel: string;
   fraTid: string | null;
@@ -103,35 +82,33 @@ export function arbeidsraderPerKort(forslag: Dagsforslag): Map<string, Beskrivel
     if (d.blokkert) continue;
     for (const r of d.rader) {
       if (r.erReise || !(r.timer > 0)) continue;
-      const nokkel = radBeskrivelseNokkel(d, r);
       const k = radKortNokkel(r, d);
       const kn = kort.find((x) => kortNokkelFraKort(x) === k)?.nokkel ?? r.projectId;
-      if (nokkel) {
-        ut.get(kn)?.push({
-          nokkel,
-          kortNokkel: kn,
-          fraTid: r.fraTid,
-          tilTid: r.tilTid,
-          tilleggNokkel: radTilleggNokkel(d.dato, r),
-          dato: d.dato,
-          timer: r.timer,
-          byggeplassId: r.byggeplassId ?? d.byggeplassId,
-        });
-      }
+      ut.get(kn)?.push({
+        kortNokkel: kn,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        tilleggNokkel: radTilleggNokkel(d.dato, r),
+        dato: d.dato,
+        timer: r.timer,
+        byggeplassId: r.byggeplassId ?? d.byggeplassId,
+      });
     }
   }
   return ut;
 }
 
-/** Teksten (trimmet, null = tom) en arbeidsrad på dato `d` skal få. */
+/**
+ * Teksten (trimmet, null = tom) en arbeidsrad på dato `d` skal få: kortets
+ * tekst — på alle kortets arbeidsrader, også overtidsraden (Kenneth
+ * 2026-11-16: «hvert prosjektkort skal ha sin egen beskrivelse»). Et gammelt
+ * utkast med `beskrivelsePerRad` (radform 2026-11-12) leses ikke.
+ */
 export function beskrivelseForRad(
   forslag: Dagsforslag,
-  rad: RadKortGrunnlag & RadNokkelGrunnlag,
-  d: Pick<DagsforslagDag, "byggeplassId" | "dato" | "rader">,
+  rad: RadKortGrunnlag,
+  d: Pick<DagsforslagDag, "byggeplassId">,
 ): string | null {
-  const radNokkel = radBeskrivelseNokkel(d, rad);
-  const egen = radNokkel ? forslag.beskrivelsePerRad?.[radNokkel]?.trim() : undefined;
-  if (egen) return egen;
   const b = forslag.beskrivelsePerKort;
   if (!b) return null;
   const k = radKortNokkel(rad, d);

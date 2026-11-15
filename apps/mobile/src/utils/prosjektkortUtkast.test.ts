@@ -123,6 +123,21 @@ describe("T2 — upsert", () => {
   });
 });
 
+describe("ORDRE 24 — gammelt utkast med beskrivelsePerRad", () => {
+  it("🔴 lastes uten feil; radteksten teller ikke som innhold, kortets tekst står", () => {
+    const gammelt = {
+      ...medBeskrivelse("Forskaling"),
+      retting: { beskrivelse: { p1: "Forskaling" }, beskrivelsePerRad: { "rad:2026-11-13|p1|07:00|0": "Gammel" } },
+    } as unknown as UtkastData;
+    lagre(A, NOKKEL, gammelt);
+    const u = finnUtkast(db(), { ...A, nokkel: NOKKEL });
+    expect(u?.data.retting.beskrivelse).toEqual({ p1: "Forskaling" });
+    expect(
+      erTomtUtkast({ ...tomt(), retting: { beskrivelsePerRad: { r: "x" } } } as unknown as UtkastData),
+    ).toBe(true);
+  });
+});
+
 describe("T3/T4 — isolasjon", () => {
   it("🔴 T3 bruker B ser ikke A sitt utkast; negativkontroll: A ser det", () => {
     lagre(A, NOKKEL, medBeskrivelse());
@@ -167,7 +182,6 @@ describe("T5 — tom delta = ingen rad", () => {
       { ...tomt(), retting: { aktivitetId: "a1" } },
       { ...tomt(), retting: { byggeplassId: null } },
       { ...tomt(), retting: { perDato: { [DATO]: { pauseMin: 30 } } } },
-      { ...tomt(), retting: { beskrivelsePerRad: { r: "x" } } },
       { ...tomt(), tilleggPerRad: { k: { maskiner: [{} as never], varer: [] } } },
       { ...tomt(), lonnUtlegg: { tillegg: [{} as never], utlegg: [] } },
       { ...tomt(), lonnUtlegg: { tillegg: [], utlegg: [utlegg("u1", null)] } },
