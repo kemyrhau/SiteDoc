@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-15
+- 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (19) gjestevern firmabytte (`1a287c5d`) + (20) punkt 1 dokumentopprettelse uten gjettet byggeplass (`cdf53af4`) merget** (develop, docs-only, orkestrator): to ✅-innslag, to funksjonsendringsrader, «Sist ført» develop `cdf53af4`.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (18) prosjektvelger med byggeplassliste merget (`61b230fb`)** (develop, docs-only, orkestrator): ✅-innslag med åpne punkter, funksjonsendringsrad, «Sist ført» inkl. test/OTA `a8caf6a9`.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md` + `timer.md`: (17) overføringsdag og reiser merget (`22948f5c`)** (develop, docs-only, orkestrator): ✅-innslag med åpne funn, funksjonsendringsrad, «Sist ført»; (17)-markør i `timer.md` «venter gate» → merget.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md` + `web.md`/`mobil.md`/`timer.md`/`arkitektur.md`: (16) prosjektvelger + kontoravstand + ukesum merget (`0ec0cc0c`)** (develop, docs-only, orkestrator): ✅-innslag med åpne funn, funksjonsendringsrad, «Sist ført»; (15)- og (16)-markører «ikke merget» → merget.
