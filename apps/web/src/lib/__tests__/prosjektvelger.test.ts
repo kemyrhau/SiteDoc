@@ -25,8 +25,10 @@ describe("KontekstChip — (16) vakt", () => {
   );
   it("🔴 markeringen av prosjektrader er ikke betinget av prosjektScope", () => {
     expect(kilde).not.toMatch(/valgt=\{[^}]*prosjektScope/);
-    // Begge grupper (hovedliste + andre firma) bruker samme regel.
-    expect(kilde.match(/valgt=\{erProsjektRadValgt\(p\.id, valgtProsjekt\?\.id\)\}/g)?.length).toBe(2);
+    // Begge grupper (hovedliste + andre firma) bruker samme regel. (18): raden som er
+    // markert i velgeren — ved åpning er det aktivt prosjekt (`setMarkertId(prosjektId)`).
+    expect(kilde.match(/valgt=\{erProsjektRadValgt\(p\.id, markertId \?\? undefined\)\}/g)?.length).toBe(2);
+    expect(kilde).toMatch(/function åpne\(\) \{[\s\S]*?setMarkertId\(prosjektId \?\? null\)/);
   });
   it("🔴 «andre firma»-gruppen filtreres mot valgt firma", () => {
     expect(kilde).toMatch(/gjesteprosjekterIAndreFirma\(gjesteprosjekter, valgtFirma\?\.id\)/);

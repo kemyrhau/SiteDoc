@@ -592,3 +592,19 @@ export {
 export { formaterKjoretid } from "./kjoretid";
 export { skalVarsleSkjulteTimer } from "./timerSkjultVarsel";
 export { erGjesteprosjekt, skjulFirmaModulForGjest, gjesteprosjekterIAndreFirma } from "./gjesteprosjekt";
+export { velgStandardByggeplass, HELE_PROSJEKTET_VALG } from "./standardByggeplass";
+export type { StandardByggeplassInput } from "./standardByggeplass";
+export {
+  velgByggeplassKilde,
+  antallByggeplasser,
+  vedProsjektTrykk,
+  vedByggeplassTrykk,
+  erByggeplassAvhuket,
+  oppdaterBygningMap,
+} from "./prosjektByggeplassValg";
+export type {
+  ByggeplassValgRad,
+  ByggeplassKilde,
+  ProsjektTrykkHandling,
+  ByggeplassValg,
+} from "./prosjektByggeplassValg";
