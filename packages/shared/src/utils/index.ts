@@ -97,6 +97,10 @@ export {
   løsManuellReise,
   manuellReiseForklaringTekst,
   manuellReiseManglerArt,
+  løsReiseKort,
+  finnDagsramme,
+  klokkeTilMin,
+  minTilKlokke,
 } from "./reiseManuell";
 export type {
   ManuellReiseInput,
@@ -106,6 +110,10 @@ export type {
   OppmotestedValg,
   ManuellReiseKontekst,
   ManuellReiseResultat,
+  ReiseKortRetning,
+  ReiseKortSperre,
+  ReiseKortInput,
+  ReiseKortResultat,
 } from "./reiseManuell";
 export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt } from "./oppmote";
 export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat } from "./oppmote";

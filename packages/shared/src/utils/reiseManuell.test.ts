@@ -4,6 +4,8 @@ import {
   løsManuellReise,
   manuellReiseManglerArt,
   velgOppmotested,
+  løsReiseKort,
+  finnDagsramme,
 } from "./reiseManuell";
 import type { ReiseRegelsett } from "./reise";
 
@@ -190,5 +192,112 @@ describe("løsManuellReise — felles fasit for mobil og web", () => {
     expect(manuellReiseManglerArt(r.klassifisering)).toBe(true);
     expect(manuellReiseManglerArt(kontekst({ reisetimer: 0.25 }).klassifisering)).toBe(false);
     expect(manuellReiseManglerArt(null)).toBe(false);
+  });
+});
+
+// ============================================================================
+//  POST 2026-11-15 (13) L2: reise-kortet (Tur/Retur)
+// ============================================================================
+
+describe("finnDagsramme", () => {
+  it("første fraTid og siste tilTid blant ikke-reise-rader", () => {
+    expect(
+      finnDagsramme([
+        { fraTid: "09:00", tilTid: "11:00", erReise: false },
+        { fraTid: "06:00", tilTid: "07:00", erReise: true },
+        { fraTid: "07:30", tilTid: "08:30", erReise: false },
+        { fraTid: "15:00", tilTid: "18:00", erReise: true },
+        { fraTid: "12:00", tilTid: "15:30", erReise: false },
+      ]),
+    ).toEqual({ dagStart: "07:30", dagSlutt: "15:30" });
+  });
+  it("ingen arbeidsrad med tid → null", () => {
+    expect(finnDagsramme([{ fraTid: null, tilTid: null, erReise: false }])).toEqual({
+      dagStart: null,
+      dagSlutt: null,
+    });
+  });
+});
+
+describe("løsReiseKort", () => {
+  const kort = (over: Partial<Parameters<typeof løsReiseKort>[0]> = {}) =>
+    løsReiseKort({
+      retning: "tur",
+      oppmote: { kilde: "fast", oppmotestedId: "narvik" },
+      dagStart: "07:00",
+      dagSlutt: "15:00",
+      byggeplassId: "bp",
+      kjoretidFor: (o, b) => (o === "narvik" && b === "bp" ? 45 : null),
+      avstandFor: (o, b) => (o === "narvik" && b === "bp" ? 40000 : null),
+      regel: minutter,
+      ...basis,
+      ...over,
+    });
+
+  it("Tur: tilTid = dagStart, fraTid = dagStart − kjøretid", () => {
+    const r = kort();
+    expect(r).toMatchObject({ fraTid: "06:15", tilTid: "07:00", timer: 0.75, kjoretidMin: 45, sperre: null });
+    expect(r.spor?.reiseRetning).toBe("ut");
+    expect(r.spor?.reiseOppmotestedId).toBe("narvik");
+  });
+
+  it("Retur: fraTid = dagSlutt, tilTid = dagSlutt + kjøretid", () => {
+    const r = kort({ retning: "retur" });
+    expect(r).toMatchObject({ fraTid: "15:00", tilTid: "15:45", sperre: null });
+    expect(r.spor?.reiseRetning).toBe("retur");
+  });
+
+  it("over terskel (45 ≥ 30 min) → reisetid på båndets art", () => {
+    const r = kort();
+    expect(r.klassifisering?.erReise).toBe(true);
+    expect(r.klassifisering?.lonnsartId).toBe("reise-30-60");
+  });
+
+  it("under terskel → arbeidstid, ingen retning/oppmøtested på sporet (DB-CHECK)", () => {
+    const r = kort({ kjoretidFor: () => 20 });
+    expect(r.klassifisering?.erReise).toBe(false);
+    expect(r.spor).toMatchObject({ reiseRetning: null, reiseOppmotestedId: null, reiseKilde: null });
+    expect(r.sperre).toBeNull();
+  });
+
+  it("byggeplass-periode → ingen reise, sperret", () => {
+    const r = kort({ oppmote: { kilde: "byggeplass", projectId: "p" } });
+    expect(r).toMatchObject({ sperre: "byggeplassPeriode", spor: null, timer: 0 });
+  });
+
+  it("manglende matrisecelle → manglerKjoretid (ingen estimat)", () => {
+    expect(kort({ kjoretidFor: () => null }).sperre).toBe("manglerKjoretid");
+  });
+
+  it("uoppnåelig par (−1) → manglerKjoretid", () => {
+    expect(kort({ kjoretidFor: () => -1 }).sperre).toBe("manglerKjoretid");
+  });
+
+  it("ikkeValgt → manglerKjoretid (ingen kjøretid uten oppmøtested)", () => {
+    expect(kort({ oppmote: { kilde: "ikkeValgt" } }).sperre).toBe("manglerKjoretid");
+  });
+
+  it("uten byggeplass → manglerKjoretid", () => {
+    expect(kort({ byggeplassId: null }).sperre).toBe("manglerKjoretid");
+  });
+
+  it("Tur uten dagStart → manglerDagstid; Retur bruker dagSlutt", () => {
+    expect(kort({ dagStart: null }).sperre).toBe("manglerDagstid");
+    expect(kort({ dagStart: null, retning: "retur" }).sperre).toBeNull();
+    expect(kort({ dagSlutt: null, retning: "retur" }).sperre).toBe("manglerDagstid");
+  });
+
+  it("Tur før midnatt → utenforDognet", () => {
+    expect(kort({ dagStart: "00:30" }).sperre).toBe("utenforDognet");
+    expect(kort({ dagSlutt: "23:30", retning: "retur" }).sperre).toBe("utenforDognet");
+  });
+
+  it("manglende art → manglerArt", () => {
+    const r = kort({ kjoretidFor: () => 20, standardLonnsartId: null });
+    expect(r.sperre).toBe("manglerArt");
+  });
+
+  it("uten regelsett → manglerRegel", () => {
+    expect(kort({ regel: null }).sperre).toBe("manglerRegel");
   });
 });

@@ -53,6 +53,7 @@ import {
   type Sluttsted,
   type Destinasjon,
   type ArbeidstidSegment,
+  type OppmoteResultat,
   OVERTID_NIVAA_50,
 } from "@sitedoc/shared";
 import { rundTidspunktTilNarmeste } from "./tidsrunding";
@@ -647,6 +648,47 @@ function byggEtappe(
     aarsak: null,
   };
 }
+
+/**
+ * POST 2026-11-15 (13) L2, Kenneth-beslutning 1: perioderesolveren
+ * (`løsOppmote`) styrer også den automatiske reisen i Bekreft dag, så «+ Reise»
+ * og Bekreft dag sier det samme om samme dag.
+ *
+ *  - Byggeplass-periode på dagens prosjekt → den ansatte møter på byggeplassen:
+ *    start og slutt tolkes som byggeplass (ingen ut-, ingen retur-etappe, ingen
+ *    årsak — V11).
+ *  - GPS-start ukjent → startstedet blir resolverens kontor (midlertidig/fast)
+ *    i stedet for `posisjon_utilgjengelig`. GPS-start på byggeplass/utenfor
+ *    beholdes (V11). `ikkeValgt` → uendret.
+ *  - Retur bygges fortsatt bare fra GPS-slutt på kontor — den finnes ikke uten
+ *    at den ansatte faktisk kom tilbake.
+ */
+export function brukOppmoteResolver(
+  start: Startsted,
+  slutt: Sluttsted,
+  destinasjon: Destinasjon,
+  oppmote: OppmoteResultat,
+): { start: Startsted; slutt: Sluttsted } {
+  if (oppmote.kilde === "byggeplass") {
+    const paaPlass: Startsted =
+      destinasjon.type === "byggeplass"
+        ? { type: "byggeplass", byggeplassId: destinasjon.byggeplassId }
+        : { type: "utenfor" };
+    return { start: paaPlass, slutt: paaPlass };
+  }
+  if (
+    start.type === "ukjent" &&
+    (oppmote.kilde === "midlertidig" || oppmote.kilde === "fast")
+  ) {
+    return {
+      start: { type: "kontor", oppmotestedId: oppmote.oppmotestedId, byggeplassId: null },
+      slutt,
+    };
+  }
+  return { start, slutt };
+}
+
+
 
 /**
  * B1 — bygg reise-etappene for en dag (V7/V10/V11/V12/V15).

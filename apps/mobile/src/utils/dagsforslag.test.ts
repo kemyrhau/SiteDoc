@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
+  brukOppmoteResolver,
   avgjorSluttDagHandling,
   skalMarkereAvsluttet,
   type BeregnDagsforslagInput,
@@ -677,5 +678,74 @@ describe("Ikke ansatt / mangler lønnsart (ordre 2026-11-04 (8))", () => {
   it("(c) regresjon: med standard-lønnsart droppes ingenting", () => {
     const f = beregnDagsforslag(lagInput());
     expect(f.datoer[0].raderDroppetUtenLonnsart).toBe(0);
+  });
+});
+
+// POST 2026-11-15 (13) L2, beslutning 1: perioderesolveren styrer Bekreft dag.
+describe("brukOppmoteResolver", () => {
+  const dest = { type: "byggeplass" as const, byggeplassId: "bp" };
+  const ukjent = { type: "ukjent" as const, aarsak: "posisjon_utilgjengelig" as const };
+  const kontorGps = { type: "kontor" as const, oppmotestedId: "narvik", byggeplassId: null };
+
+  it("byggeplass-periode → start og slutt på byggeplassen (ingen reise)", () => {
+    const r = brukOppmoteResolver(kontorGps, kontorGps, dest, { kilde: "byggeplass", projectId: "p" });
+    expect(r.start).toEqual({ type: "byggeplass", byggeplassId: "bp" });
+    expect(r.slutt).toEqual({ type: "byggeplass", byggeplassId: "bp" });
+  });
+
+  it("ukjent GPS-start + midlertidig kontor → start på det kontoret", () => {
+    const r = brukOppmoteResolver(ukjent, ukjent, dest, { kilde: "midlertidig", oppmotestedId: "tromso" });
+    expect(r.start).toEqual({ type: "kontor", oppmotestedId: "tromso", byggeplassId: null });
+    expect(r.slutt).toEqual(ukjent); // retur oppfinnes ikke
+  });
+
+  it("ukjent GPS-start + fast kontor → start på det faste", () => {
+    const r = brukOppmoteResolver(ukjent, ukjent, dest, { kilde: "fast", oppmotestedId: "narvik" });
+    expect(r.start).toMatchObject({ type: "kontor", oppmotestedId: "narvik" });
+  });
+
+  it("GPS-start på byggeplass beholdes (V11) og ikkeValgt endrer ingenting", () => {
+    const paaPlass = { type: "byggeplass" as const, byggeplassId: "x" };
+    expect(brukOppmoteResolver(paaPlass, ukjent, dest, { kilde: "fast", oppmotestedId: "n" }).start).toEqual(paaPlass);
+    expect(brukOppmoteResolver(ukjent, ukjent, dest, { kilde: "ikkeValgt" }).start).toEqual(ukjent);
+  });
+
+  it("med beregnDagsforslag: ukjent start + fast kontor gir ut-etappe, byggeplass-periode gir ingen", () => {
+    const basis = lagInput({
+      dag: {
+        startAt: "2026-07-01T05:00:00",
+        startLat: 59.9,
+        startLng: 10.7,
+        oppmotestedId: null,
+        byggeplassId: null,
+      },
+      sluttIso: "2026-07-01T19:30:00",
+      endLat: 59.9,
+      endLng: 10.7,
+      destinasjonProsjektId: "p1",
+      effektivPerDato: { "2026-07-01": SOMMER_EFFEKTIV },
+      reiseOppslag: lagReise({
+        start: ukjent,
+        slutt: { type: "kontor", oppmotestedId: "kontor-1", byggeplassId: null },
+        utCelle: { kjoretidMin: 120, avstandM: 50000 },
+        returCelle: { kjoretidMin: 120, avstandM: 50000 },
+      }),
+    });
+    const oppslag = basis.reiseOppslag!;
+    const medFast = brukOppmoteResolver(ukjent, oppslag.slutt, oppslag.destinasjon, {
+      kilde: "fast",
+      oppmotestedId: "kontor-1",
+    });
+    const f1 = beregnDagsforslag({ ...basis, reiseOppslag: { ...oppslag, ...medFast } });
+    expect(f1.reiseAarsak).toBeNull();
+    expect(f1.datoer[0]!.rader.some((r) => r.erReise && r.reiseRetning === "ut")).toBe(true);
+
+    const paaPlass = brukOppmoteResolver(oppslag.start, oppslag.slutt, oppslag.destinasjon, {
+      kilde: "byggeplass",
+      projectId: "p",
+    });
+    const f2 = beregnDagsforslag({ ...basis, reiseOppslag: { ...oppslag, ...paaPlass } });
+    expect(f2.reiseAarsak).toBeNull();
+    expect(f2.datoer[0]!.rader.some((r) => r.erReise)).toBe(false);
   });
 });

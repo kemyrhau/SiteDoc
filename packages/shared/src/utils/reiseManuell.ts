@@ -24,6 +24,7 @@ import {
   type ReiseRegelSnapshot,
   type ReiseRegelsett,
 } from "./reise";
+import type { OppmoteResultat } from "./oppmote";
 
 export interface ManuellReiseInput {
   regel: ReiseRegelsett;
@@ -141,18 +142,25 @@ export interface ManuellReiseSpor {
   reiseAvstandM: number | null;
   /** Kun på reise-rader (ikke-reise-rad bærer aldri oppmøtested — C2/DB-CHECK). */
   reiseOppmotestedId: string | null;
+  /**
+   * POST (13) L2: Tur → "ut", Retur → "retur". Kun på reise-rader — DB-CHECK
+   * (lag 2) krever null retning på ikke-reise-rad.
+   */
+  reiseRetning: "ut" | "retur" | null;
   reiseRegel: ReiseRegelSnapshot;
 }
 
 export function tilManuellReiseSpor(
   k: ManuellReiseKlassifisering,
   oppmotestedId: string | null,
+  retning: "ut" | "retur" | null = null,
 ): ManuellReiseSpor {
   return {
     erReise: k.erReise,
     reiseKilde: k.reiseKilde,
     reiseAvstandM: k.reiseAvstandM,
     reiseOppmotestedId: k.erReise ? oppmotestedId : null,
+    reiseRetning: k.erReise ? retning : null,
     reiseRegel: k.reiseRegel,
   };
 }
@@ -239,6 +247,166 @@ export function løsManuellReise(k: ManuellReiseKontekst): ManuellReiseResultat 
     oppmotestedId,
     valg,
     visVelger,
+  };
+}
+
+// ============================================================================
+//  POST 2026-11-15 (13) L2: reise-kortet (Tur/Retur).
+//
+//  Erstatter «+ Reise» med manuelt timefelt og oppmøtested-nedtrekk. Den
+//  ansatte velger bare retning; oppmøtestedet kommer fra perioderesolveren
+//  (`løsOppmote`), tiden fra kjøretiden i matrisen og dagens arbeidsrader:
+//    - Tur:   tilTid = dagStart,  fraTid = dagStart − kjøretid
+//    - Retur: fraTid = dagSlutt,  tilTid = dagSlutt + kjøretid
+//  Mobil og web kaller samme funksjon; plattformene henter bare data.
+// ============================================================================
+
+export type ReiseKortRetning = "tur" | "retur";
+
+/**
+ * Hvorfor reise-kortet ikke kan lagres. null = kan lagres.
+ *  - byggeplassPeriode: den ansatte møter på byggeplassen — ingen reise.
+ *  - manglerKjoretid: intet oppmøtested, ingen byggeplass, ingen matrisecelle
+ *    eller uoppnåelig par. Ingen estimat-fallback (V13).
+ *  - manglerDagstid: sedelen har ingen arbeidsrad med tid å regne fra.
+ *  - utenforDognet: Tur før 00:00 eller Retur etter 24:00.
+ *  - manglerArt: ingen lønnsart å føre på (jf. `manuellReiseManglerArt`).
+ *  - manglerRegel: firmaets regelsett er ikke lastet/cachet.
+ */
+export type ReiseKortSperre =
+  | "byggeplassPeriode"
+  | "manglerKjoretid"
+  | "manglerDagstid"
+  | "utenforDognet"
+  | "manglerArt"
+  | "manglerRegel";
+
+export interface ReiseKortInput {
+  retning: ReiseKortRetning;
+  oppmote: OppmoteResultat;
+  /** HH:MM — første fraTid blant sedelens ikke-reise-rader (`finnDagsramme`). */
+  dagStart: string | null;
+  /** HH:MM — siste tilTid blant sedelens ikke-reise-rader. */
+  dagSlutt: string | null;
+  byggeplassId: string | null;
+  /** Matrise: oppmøtested × byggeplass → minutter. null = ukjent, < 0 = uoppnåelig. */
+  kjoretidFor: (oppmotestedId: string, byggeplassId: string) => number | null;
+  /** Matrise: oppmøtested × byggeplass → meter. null = ukjent. */
+  avstandFor: (oppmotestedId: string, byggeplassId: string) => number | null;
+  regel: ReiseRegelsett | null;
+  grensepunkter: ReiseGrensepunkt[];
+  resolverLonnsartId: string | null;
+  standardLonnsartId: string | null;
+}
+
+export interface ReiseKortResultat {
+  /** Desimaltimer (kjøretid / 60). 0 når sperret uten kjøretid. */
+  timer: number;
+  fraTid: string | null;
+  tilTid: string | null;
+  oppmotestedId: string | null;
+  kjoretidMin: number | null;
+  klassifisering: ManuellReiseKlassifisering | null;
+  spor: ManuellReiseSpor | null;
+  sperre: ReiseKortSperre | null;
+}
+
+/** "HH:MM" → minutter etter midnatt; null ved ugyldig format. */
+export function klokkeTilMin(hhmm: string | null | undefined): number | null {
+  if (!hhmm) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return null;
+  const t = Number(m[1]);
+  const min = Number(m[2]);
+  if (t > 24 || min > 59 || (t === 24 && min > 0)) return null;
+  return t * 60 + min;
+}
+
+/** Minutter etter midnatt → "HH:MM" (0–1440). */
+export function minTilKlokke(min: number): string {
+  const t = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Dagens ramme for reise-kortet: første fraTid og siste tilTid blant
+ * sedelens ikke-reise-rader. Rader uten gyldig tid hoppes over.
+ */
+export function finnDagsramme(
+  rader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[],
+): { dagStart: string | null; dagSlutt: string | null } {
+  let start: number | null = null;
+  let slutt: number | null = null;
+  for (const r of rader) {
+    if (r.erReise) continue;
+    const f = klokkeTilMin(r.fraTid);
+    const t = klokkeTilMin(r.tilTid);
+    if (f != null && (start == null || f < start)) start = f;
+    if (t != null && (slutt == null || t > slutt)) slutt = t;
+  }
+  return {
+    dagStart: start == null ? null : minTilKlokke(start),
+    dagSlutt: slutt == null ? null : minTilKlokke(slutt),
+  };
+}
+
+export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
+  const tom = (sperre: ReiseKortSperre, oppmotestedId: string | null = null): ReiseKortResultat => ({
+    timer: 0,
+    fraTid: null,
+    tilTid: null,
+    oppmotestedId,
+    kjoretidMin: null,
+    klassifisering: null,
+    spor: null,
+    sperre,
+  });
+
+  // 1. Byggeplass-periode: møter på byggeplassen, arbeidstid fra første minutt.
+  if (k.oppmote.kilde === "byggeplass") return tom("byggeplassPeriode");
+
+  // 2. Kjøretid fra oppmøtested × byggeplass. ikkeValgt har ingen kjøretid —
+  //    det finnes ikke lenger noe manuelt timefelt å falle tilbake på.
+  const oppmotestedId = k.oppmote.kilde === "ikkeValgt" ? null : k.oppmote.oppmotestedId;
+  const kjoretidMin =
+    oppmotestedId && k.byggeplassId ? k.kjoretidFor(oppmotestedId, k.byggeplassId) : null;
+  if (kjoretidMin == null || kjoretidMin < 0) return tom("manglerKjoretid", oppmotestedId);
+
+  // 3. Tidspunkt fra dagens arbeidsrader.
+  const anker = klokkeTilMin(k.retning === "tur" ? k.dagStart : k.dagSlutt);
+  if (anker == null) return tom("manglerDagstid", oppmotestedId);
+  const fra = k.retning === "tur" ? anker - kjoretidMin : anker;
+  const til = k.retning === "tur" ? anker : anker + kjoretidMin;
+  if (fra < 0 || til > 24 * 60) return tom("utenforDognet", oppmotestedId);
+
+  const timer = kjoretidMin / 60;
+  const basis = {
+    timer,
+    fraTid: minTilKlokke(fra),
+    tilTid: minTilKlokke(til),
+    oppmotestedId,
+    kjoretidMin,
+  };
+  if (!k.regel) {
+    return { ...basis, klassifisering: null, spor: null, sperre: "manglerRegel" };
+  }
+
+  // 4. Terskel og bånd — samme regel som før (`klassifiserManuellReise`).
+  const avstandM = oppmotestedId && k.byggeplassId ? k.avstandFor(oppmotestedId, k.byggeplassId) : null;
+  const klassifisering = klassifiserManuellReise({
+    regel: k.regel,
+    reisetimer: timer,
+    avstandM,
+    grensepunkter: k.grensepunkter,
+    resolverLonnsartId: k.resolverLonnsartId,
+    standardLonnsartId: k.standardLonnsartId,
+  });
+  return {
+    ...basis,
+    klassifisering,
+    spor: tilManuellReiseSpor(klassifisering, oppmotestedId, k.retning === "tur" ? "ut" : "retur"),
+    sperre: klassifisering.lonnsartId == null ? "manglerArt" : null,
   };
 }
 
