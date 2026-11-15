@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { manueltValg, nyesteInnsjekk, serverVinner } from "./byggeplassFilterValg";
+import { manueltValg, nyesteInnsjekk, psiModulAktiv, serverVinner } from "./byggeplassFilterValg";
 
 /** Lest legacy-data: strengen eldre versjoner lagret (før TILLEGG (22)). */
 const UTGAATT = "__hele_prosjektet__";
@@ -42,5 +42,19 @@ describe("(22) serverVinner — nyeste valg på tvers av enheter", () => {
   it("ingen lokal tid eller GPS-autovalg → server", () => {
     expect(serverVinner(undefined, 0)).toBe(true);
     expect(serverVinner({ tid: 9, auto: true }, 0)).toBe(true);
+  });
+});
+
+describe("GATE (49) V1 psiModulAktiv — samme regel som web", () => {
+  it("status «aktiv» → true", () => {
+    expect(psiModulAktiv([{ moduleSlug: "psi", status: "aktiv" }])).toBe(true);
+  });
+  it("negativkontroll: `active: true` uten status (feltet finnes ikke på ProjectModule) → false", () => {
+    expect(psiModulAktiv([{ moduleSlug: "psi", active: true } as { moduleSlug: string }])).toBe(false);
+  });
+  it("arkivert PSI, annen modul eller ingen data → false", () => {
+    expect(psiModulAktiv([{ moduleSlug: "psi", status: "arkivert" }])).toBe(false);
+    expect(psiModulAktiv([{ moduleSlug: "timer", status: "aktiv" }])).toBe(false);
+    expect(psiModulAktiv(undefined)).toBe(false);
   });
 });

@@ -45,3 +45,11 @@ export function serverVinner(lokal: ValgtTid | undefined, serverTid: number): bo
   if (!lokal || lokal.auto) return true;
   return serverTid >= lokal.tid;
 }
+
+/** GATE (49) V1: PSI-modulen er aktiv på prosjektet. `ProjectModule` har `status`
+ *  (`aktiv|arkivert|slettet`), ikke `active` — samme regel som web `byggeplass-kontekst.tsx`. */
+export function psiModulAktiv(
+  moduler: ReadonlyArray<{ moduleSlug: string; status?: string | null }> | null | undefined,
+): boolean {
+  return !!moduler?.some((m) => m.moduleSlug === "psi" && m.status === "aktiv");
+}

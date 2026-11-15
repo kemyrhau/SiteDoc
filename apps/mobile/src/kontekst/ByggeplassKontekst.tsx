@@ -23,6 +23,7 @@ import { sisteBesok } from "../services/arbeidsdagBesok";
 import {
   manueltValg,
   nyesteInnsjekk,
+  psiModulAktiv,
   serverVinner,
   type ValgtTid,
 } from "../utils/byggeplassFilterValg";
@@ -293,9 +294,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     { projectId: valgtProsjektId ?? "" },
     { enabled: !!valgtProsjektId },
   );
-  const psiAktiv = !!(modulQuery.data as { moduleSlug: string; active: boolean }[] | undefined)?.some(
-    (m) => m.moduleSlug === "psi" && m.active,
-  );
+  const psiAktiv = psiModulAktiv(modulQuery.data as { moduleSlug: string; status?: string }[] | undefined);
   const psiStatus = trpc.mannskap.minStatus.useQuery(
     { projectId: valgtProsjektId ?? "" },
     { enabled: !!valgtProsjektId && psiAktiv, retry: false, staleTime: 60_000 },
