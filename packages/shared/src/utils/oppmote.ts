@@ -21,6 +21,8 @@
 export type OppmotePeriodeType = "kontor" | "byggeplass";
 
 export interface OppmotePeriodeInput {
+  /** Periodens id (overføringen peker på den). Valgfri for eldre kallere. */
+  id?: string;
   type: OppmotePeriodeType;
   /** Fast oppmøtested (kun kontor). false = midlertidig kontor / byggeplass. */
   fast: boolean;
@@ -143,4 +145,138 @@ export function finnPeriodeKonflikt<T extends OppmotePeriodeInput>(
     }
   }
   return null;
+}
+
+// ============================================================================
+//  Overføring (POST 2026-11-15 (12) TILLEGG 6b, (13) L2)
+//
+//  Første dag i en midlertidig kontor-periode (med tilDato) eller en
+//  byggeplass-periode: «ut» fra stedet den ansatte ellers ville møtt på
+//  (resolveren UTEN denne perioden) til periodens mål. Siste dag (dato ===
+//  tilDato): «retur» motsatt vei. Dagene imellom: ingen. Én-dags periode:
+//  begge. Er utgangspunktet «ikke valgt» (eller samme kontor), finnes ingen
+//  overføring. Overføringen blir aldri en automatisk rad — den er et forslag.
+// ============================================================================
+
+export type OverforingSted =
+  | { type: "kontor"; oppmotestedId: string }
+  | { type: "byggeplass"; projectId: string };
+
+export interface Overforing {
+  retning: "ut" | "retur";
+  fra: OverforingSted;
+  til: OverforingSted;
+  periodeId: string | null;
+}
+
+export function finnOverforinger(
+  dato: string,
+  perioder: readonly OppmotePeriodeInput[],
+): Overforing[] {
+  const ut: Overforing[] = [];
+  for (const p of perioder) {
+    const erMidlertidigKontor =
+      p.type === "kontor" && !p.fast && p.tilDato != null && p.oppmotestedId != null;
+    const erByggeplass = p.type === "byggeplass" && p.projectId != null;
+    if (!erMidlertidigKontor && !erByggeplass) continue;
+    const forste = dato === p.fraDato;
+    const siste = p.tilDato != null && dato === p.tilDato;
+    if (!forste && !siste) continue;
+
+    // Hjemsted = der den ansatte ville møtt uten denne perioden (ingen GPS,
+    // ingen prosjekt — byggeplass-regelen gjelder kun dagens prosjekt).
+    const uten = perioder.filter((q) => q !== p);
+    const hjem = løsOppmote(dato, null, uten, null);
+    if (hjem.kilde === "ikkeValgt" || hjem.kilde === "byggeplass") continue;
+    const hjemSted: OverforingSted = { type: "kontor", oppmotestedId: hjem.oppmotestedId };
+    const maal: OverforingSted = erByggeplass
+      ? { type: "byggeplass", projectId: p.projectId! }
+      : { type: "kontor", oppmotestedId: p.oppmotestedId! };
+    if (maal.type === "kontor" && maal.oppmotestedId === hjem.oppmotestedId) continue;
+
+    const periodeId = p.id ?? null;
+    if (forste) ut.push({ retning: "ut", fra: hjemSted, til: maal, periodeId });
+    if (siste) ut.push({ retning: "retur", fra: maal, til: hjemSted, periodeId });
+  }
+  return ut;
+}
+
+// ── POST (13) L2 commit 8: overføringsoppslag (flyttet fra mobilens dagsforslag.ts,
+//    så web-reisekortet og mobil bruker SAMME funksjon) ──────────────────────
+
+/**
+ * POST (13) L2 TILLEGG: én overføring slik lese-fasen har slått den opp.
+ * `oppmotestedId` = kontor-enden (fra-kontoret når begge ender er kontor);
+ * `byggeplassId` = byggeplass-enden (null når kontor↔kontor eller ikke valgt).
+ * `celle` = kjøretid/avstand fra kontor-avstanden eller matrisen; null = mangler.
+ */
+export type DagsforslagOverforingOppslag = {
+  dato: string;
+  overforing: Overforing;
+  oppmotestedId: string;
+  byggeplassId: string | null;
+  fraNavn: string;
+  tilNavn: string;
+  celle: DagsforslagOverforingCelle | null;
+};
+
+export type DagsforslagOverforingCelle = { kjoretidMin: number; avstandM: number | null };
+
+/**
+ * POST (13) L2 TILLEGG — REN: overføringene (første/siste dag i en periode)
+ * for datoene, med kjøretid og navn slått opp via de innsendte oppslagene.
+ *
+ * Byggeplass-enden velges: destinasjonen (når den hører til periodens
+ * prosjekt) → kontekst-byggeplassen (samme vilkår) → prosjektets eneste
+ * byggeplass → null («velg byggeplass» i skjermen; da mangler cellen).
+ * `oppmotestedId` = kontor-enden (fra-kontoret når begge ender er kontor).
+ */
+export function byggOverforingOppslag(a: {
+  datoer: string[];
+  perioder: readonly OppmotePeriodeInput[];
+  destinasjonByggeplassId: string | null;
+  kontekstByggeplassId: string | null;
+  byggeplasserForProsjekt: (projectId: string) => Array<{ id: string; navn: string | null }>;
+  kontorNavn: (oppmotestedId: string) => string;
+  prosjektNavn: (projectId: string) => string;
+  kontorAvstand: (a: string, b: string) => DagsforslagOverforingCelle | null;
+  matrise: (oppmotestedId: string, byggeplassId: string) => DagsforslagOverforingCelle | null;
+}): DagsforslagOverforingOppslag[] {
+  const ut: DagsforslagOverforingOppslag[] = [];
+  for (const dato of a.datoer) {
+    for (const o of finnOverforinger(dato, a.perioder)) {
+      const kontor = o.fra.type === "kontor" ? o.fra : o.til.type === "kontor" ? o.til : null;
+      if (kontor == null) continue; // byggeplass↔byggeplass finnes ikke (finnOverforinger)
+      const bp = o.fra.type === "byggeplass" ? o.fra : o.til.type === "byggeplass" ? o.til : null;
+      let byggeplassId: string | null = null;
+      let bpNavn: string | null = null;
+      if (bp) {
+        const kandidater = a.byggeplasserForProsjekt(bp.projectId);
+        const valgt =
+          kandidater.find((b) => b.id === a.destinasjonByggeplassId) ??
+          kandidater.find((b) => b.id === a.kontekstByggeplassId) ??
+          (kandidater.length === 1 ? kandidater[0] : undefined);
+        byggeplassId = valgt?.id ?? null;
+        bpNavn = valgt?.navn ?? null;
+      }
+      const navn = (s: typeof o.fra) =>
+        s.type === "kontor" ? a.kontorNavn(s.oppmotestedId) : (bpNavn ?? a.prosjektNavn(s.projectId));
+      let celle: DagsforslagOverforingCelle | null = null;
+      if (o.fra.type === "kontor" && o.til.type === "kontor") {
+        celle = a.kontorAvstand(o.fra.oppmotestedId, o.til.oppmotestedId);
+      } else if (byggeplassId) {
+        celle = a.matrise(kontor.oppmotestedId, byggeplassId);
+      }
+      ut.push({
+        dato,
+        overforing: o,
+        oppmotestedId: kontor.oppmotestedId,
+        byggeplassId,
+        fraNavn: navn(o.fra),
+        tilNavn: navn(o.til),
+        celle,
+      });
+    }
+  }
+  return ut;
 }

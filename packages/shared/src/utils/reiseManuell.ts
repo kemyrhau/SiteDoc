@@ -24,6 +24,7 @@ import {
   type ReiseRegelSnapshot,
   type ReiseRegelsett,
 } from "./reise";
+import type { OppmoteResultat, Overforing } from "./oppmote";
 
 export interface ManuellReiseInput {
   regel: ReiseRegelsett;
@@ -137,108 +138,267 @@ export function klassifiserManuellReise(
 /** Reise-sporet som lagres på raden (mobil `NyRad.reiseSpor` / bekreft-dag). */
 export interface ManuellReiseSpor {
   erReise: boolean;
-  reiseKilde: "manuell" | null;
+  /** POST (13) L2 TILLEGG: "overforing" fra reise-kortets overføringsvalg. */
+  reiseKilde: "manuell" | "overforing" | null;
   reiseAvstandM: number | null;
   /** Kun på reise-rader (ikke-reise-rad bærer aldri oppmøtested — C2/DB-CHECK). */
   reiseOppmotestedId: string | null;
+  /**
+   * POST (13) L2: Tur → "ut", Retur → "retur". Kun på reise-rader — DB-CHECK
+   * (lag 2) krever null retning på ikke-reise-rad.
+   */
+  reiseRetning: "ut" | "retur" | null;
+  /**
+   * POST (13) L2: matrisens/kontor-avstandens kjøretid (min). Kun på
+   * reise-rader (DB-CHECK: ikke-reise-rad bærer ingen kjøretid).
+   */
+  reiseKjoretidMin: number | null;
   reiseRegel: ReiseRegelSnapshot;
 }
 
 export function tilManuellReiseSpor(
   k: ManuellReiseKlassifisering,
   oppmotestedId: string | null,
+  retning: "ut" | "retur" | null = null,
+  kjoretidMin: number | null = null,
 ): ManuellReiseSpor {
   return {
     erReise: k.erReise,
     reiseKilde: k.reiseKilde,
     reiseAvstandM: k.reiseAvstandM,
     reiseOppmotestedId: k.erReise ? oppmotestedId : null,
+    reiseRetning: k.erReise ? retning : null,
+    reiseKjoretidMin: k.erReise ? kjoretidMin : null,
     reiseRegel: k.reiseRegel,
   };
 }
 
-/** Resultat av oppmøtested-valget for en manuell reise. */
-export type OppmotestedValg =
-  | { modus: "ingen" }
-  | { modus: "auto"; oppmotestedId: string }
-  | { modus: "velg"; valgtId: string | null; ider: string[] };
+
+// ============================================================================
+//  POST 2026-11-15 (13) L2: reise-kortet (Tur/Retur).
+//
+//  Erstatter «+ Reise» med manuelt timefelt og oppmøtested-nedtrekk. Den
+//  ansatte velger bare retning; oppmøtestedet kommer fra perioderesolveren
+//  (`løsOppmote`), tiden fra kjøretiden i matrisen og dagens arbeidsrader:
+//    - Tur:   tilTid = dagStart,  fraTid = dagStart − kjøretid
+//    - Retur: fraTid = dagSlutt,  tilTid = dagSlutt + kjøretid
+//  Mobil og web kaller samme funksjon; plattformene henter bare data.
+// ============================================================================
+
+export type ReiseKortRetning = "tur" | "retur";
 
 /**
- * Hvilket oppmøtested avstanden måles fra.
- *  - Ingen oppmøtesteder → `ingen` (avstand ukjent).
- *  - Nøyaktig ett → `auto`, brukes uten spørsmål.
- *  - Flere → `velg`: nedtrekk, siste valg forhåndsvalgt når det fortsatt
- *    finnes. Uten gyldig siste valg er ingenting valgt — vi gjetter ikke.
+ * Hvorfor reise-kortet ikke kan lagres. null = kan lagres.
+ *  - byggeplassPeriode: den ansatte møter på byggeplassen — ingen reise.
+ *  - oppmoteIkkeValgt: den ansatte har ikke valgt oppmøtested (første valg
+ *    ikke gjort, enheten offline). Kenneth-vedtak 2026-11-15: Lagre sperres —
+ *    kortet har ikke noe tidsfelt, så uten oppmøtested finnes ingen kjøretid.
+ *  - manglerKjoretid: ingen byggeplass, ingen matrisecelle eller uoppnåelig
+ *    par. Ingen estimat-fallback (V13).
+ *  - manglerDagstid: sedelen har ingen arbeidsrad med tid å regne fra.
+ *  - utenforDognet: Tur før 00:00 eller Retur etter 24:00.
+ *  - manglerArt: ingen lønnsart å føre på (jf. `manuellReiseManglerArt`).
+ *  - manglerRegel: firmaets regelsett er ikke lastet/cachet.
  */
-export function velgOppmotested(
-  oppmotesteder: readonly { id: string }[],
-  sisteValgId: string | null | undefined,
-): OppmotestedValg {
-  if (oppmotesteder.length === 0) return { modus: "ingen" };
-  if (oppmotesteder.length === 1) {
-    return { modus: "auto", oppmotestedId: oppmotesteder[0]!.id };
-  }
-  const ider = oppmotesteder.map((o) => o.id);
-  const valgtId = sisteValgId && ider.includes(sisteValgId) ? sisteValgId : null;
-  return { modus: "velg", valgtId, ider };
-}
+export type ReiseKortSperre =
+  | "byggeplassPeriode"
+  | "oppmoteIkkeValgt"
+  | "manglerKjoretid"
+  | "manglerDagstid"
+  | "utenforDognet"
+  | "manglerArt"
+  | "manglerRegel";
 
-// ============================================================================
-//  Ordre 2026-11-14 (11) A: hele «+ Reise»-oppslaget som ÉN delt funksjon.
-//  Mobilens `useManuellReise` (lokal cache) og webens `useManuellReiseWeb`
-//  (tRPC) henter bare data og kaller denne — oppmøtested-valg, avstand og
-//  klassifisering avgjøres aldri i plattformkoden.
-// ============================================================================
-
-export interface ManuellReiseKontekst {
-  /** Firmaets regelsett; null = ikke lastet/cachet → ingen klassifisering. */
-  regel: ReiseRegelsett | null;
-  oppmotesteder: readonly { id: string }[];
-  /** Siste valg husket på enheten (undefined = ikke lest ennå). */
-  sisteValgId: string | null | undefined;
-  /** Valget i nedtrekket (kun brukt når nedtrekket vises). */
-  valgtId: string | null;
+export interface ReiseKortInput {
+  retning: ReiseKortRetning;
+  oppmote: OppmoteResultat;
+  /** HH:MM — første fraTid blant sedelens ikke-reise-rader (`finnDagsramme`). */
+  dagStart: string | null;
+  /** HH:MM — siste tilTid blant sedelens ikke-reise-rader. */
+  dagSlutt: string | null;
   byggeplassId: string | null;
-  /** Matrise-oppslag oppmøtested × byggeplass → meter, null = ukjent. */
+  /** Matrise: oppmøtested × byggeplass → minutter. null = ukjent, < 0 = uoppnåelig. */
+  kjoretidFor: (oppmotestedId: string, byggeplassId: string) => number | null;
+  /** Matrise: oppmøtested × byggeplass → meter. null = ukjent. */
   avstandFor: (oppmotestedId: string, byggeplassId: string) => number | null;
-  reisetimer: number;
+  regel: ReiseRegelsett | null;
   grensepunkter: ReiseGrensepunkt[];
   resolverLonnsartId: string | null;
   standardLonnsartId: string | null;
 }
 
-export interface ManuellReiseResultat {
+export interface ReiseKortResultat {
+  /** Desimaltimer (kjøretid / 60). 0 når sperret uten kjøretid. */
+  timer: number;
+  fraTid: string | null;
+  tilTid: string | null;
+  oppmotestedId: string | null;
+  kjoretidMin: number | null;
   klassifisering: ManuellReiseKlassifisering | null;
   spor: ManuellReiseSpor | null;
-  oppmotestedId: string | null;
-  valg: OppmotestedValg;
-  /** Nedtrekket vises kun når terskelen måles i km og firmaet har flere steder. */
-  visVelger: boolean;
+  sperre: ReiseKortSperre | null;
 }
 
-export function løsManuellReise(k: ManuellReiseKontekst): ManuellReiseResultat {
-  const valg = velgOppmotested(k.oppmotesteder, k.sisteValgId);
-  const visVelger = !!k.regel && k.regel.reiseTerskelEnhet === "km" && valg.modus === "velg";
-  const oppmotestedId =
-    valg.modus === "auto" ? valg.oppmotestedId : visVelger ? k.valgtId : null;
-  const avstandM =
-    oppmotestedId && k.byggeplassId ? k.avstandFor(oppmotestedId, k.byggeplassId) : null;
-  const klassifisering = k.regel
-    ? klassifiserManuellReise({
-        regel: k.regel,
-        reisetimer: k.reisetimer,
-        avstandM,
-        grensepunkter: k.grensepunkter,
-        resolverLonnsartId: k.resolverLonnsartId,
-        standardLonnsartId: k.standardLonnsartId,
-      })
-    : null;
+/** "HH:MM" → minutter etter midnatt; null ved ugyldig format. */
+export function klokkeTilMin(hhmm: string | null | undefined): number | null {
+  if (!hhmm) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return null;
+  const t = Number(m[1]);
+  const min = Number(m[2]);
+  if (t > 24 || min > 59 || (t === 24 && min > 0)) return null;
+  return t * 60 + min;
+}
+
+/** Minutter etter midnatt → "HH:MM" (0–1440). */
+export function minTilKlokke(min: number): string {
+  const t = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Dagens ramme for reise-kortet: første fraTid og siste tilTid blant
+ * sedelens ikke-reise-rader. Rader uten gyldig tid hoppes over.
+ */
+export function finnDagsramme(
+  rader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[],
+): { dagStart: string | null; dagSlutt: string | null } {
+  let start: number | null = null;
+  let slutt: number | null = null;
+  for (const r of rader) {
+    if (r.erReise) continue;
+    const f = klokkeTilMin(r.fraTid);
+    const t = klokkeTilMin(r.tilTid);
+    if (f != null && (start == null || f < start)) start = f;
+    if (t != null && (slutt == null || t > slutt)) slutt = t;
+  }
   return {
-    klassifisering,
-    spor: klassifisering ? tilManuellReiseSpor(klassifisering, oppmotestedId) : null,
+    dagStart: start == null ? null : minTilKlokke(start),
+    dagSlutt: slutt == null ? null : minTilKlokke(slutt),
+  };
+}
+
+export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
+  const tom = (sperre: ReiseKortSperre, oppmotestedId: string | null = null): ReiseKortResultat => ({
+    timer: 0,
+    fraTid: null,
+    tilTid: null,
     oppmotestedId,
-    valg,
-    visVelger,
+    kjoretidMin: null,
+    klassifisering: null,
+    spor: null,
+    sperre,
+  });
+
+  // 1. Byggeplass-periode: møter på byggeplassen, arbeidstid fra første minutt.
+  if (k.oppmote.kilde === "byggeplass") return tom("byggeplassPeriode");
+
+  // 2. Uten oppmøtested finnes ingen kjøretid — og ikke noe manuelt timefelt å
+  //    falle tilbake på. Egen sperre, så kortet kan be om nett (vedtak 2026-11-15).
+  if (k.oppmote.kilde === "ikkeValgt") return tom("oppmoteIkkeValgt");
+
+  // 3. Kjøretid fra oppmøtested × byggeplass.
+  const oppmotestedId = k.oppmote.oppmotestedId;
+  const kjoretidMin =
+    oppmotestedId && k.byggeplassId ? k.kjoretidFor(oppmotestedId, k.byggeplassId) : null;
+  if (kjoretidMin == null || kjoretidMin < 0) return tom("manglerKjoretid", oppmotestedId);
+
+  // 4. Tidspunkt fra dagens arbeidsrader.
+  const anker = klokkeTilMin(k.retning === "tur" ? k.dagStart : k.dagSlutt);
+  if (anker == null) return tom("manglerDagstid", oppmotestedId);
+  const fra = k.retning === "tur" ? anker - kjoretidMin : anker;
+  const til = k.retning === "tur" ? anker : anker + kjoretidMin;
+  if (fra < 0 || til > 24 * 60) return tom("utenforDognet", oppmotestedId);
+
+  const timer = kjoretidMin / 60;
+  const basis = {
+    timer,
+    fraTid: minTilKlokke(fra),
+    tilTid: minTilKlokke(til),
+    oppmotestedId,
+    kjoretidMin,
+  };
+  if (!k.regel) {
+    return { ...basis, klassifisering: null, spor: null, sperre: "manglerRegel" };
+  }
+
+  // 5. Terskel og bånd — samme regel som før (`klassifiserManuellReise`).
+  const avstandM = oppmotestedId && k.byggeplassId ? k.avstandFor(oppmotestedId, k.byggeplassId) : null;
+  const klassifisering = klassifiserManuellReise({
+    regel: k.regel,
+    reisetimer: timer,
+    avstandM,
+    grensepunkter: k.grensepunkter,
+    resolverLonnsartId: k.resolverLonnsartId,
+    standardLonnsartId: k.standardLonnsartId,
+  });
+  return {
+    ...basis,
+    klassifisering,
+    spor: tilManuellReiseSpor(
+      klassifisering,
+      oppmotestedId,
+      k.retning === "tur" ? "ut" : "retur",
+      kjoretidMin,
+    ),
+    sperre: klassifisering.lonnsartId == null ? "manglerArt" : null,
+  };
+}
+
+/**
+ * POST (13) L2 TILLEGG: reise-kortets overføringsvalg («Overføring Narvik →
+ * Tromsø») første/siste dag i en periode. Samme regel som `løsReiseKort`
+ * (dagsramme, terskel, bånd), men kjøretiden er gitt av kalleren (kontor-
+ * avstand eller matrisecelle, jf. `byggOverforingOppslag`) og sporet bærer
+ * `reiseKilde "overforing"` + ruten i `reiseRegel.overforing`. Under terskel
+ * blir raden ordinær (erReise false) med ruten fortsatt i regel-snapshoten.
+ */
+export interface OverforingKortInput {
+  overforing: Overforing;
+  /** Kontor-enden (fra-kontoret når begge ender er kontor). */
+  oppmotestedId: string;
+  /** null = ukjent kjøretid (mangler matrise/byggeplass), < 0 = uoppnåelig. */
+  kjoretidMin: number | null;
+  avstandM: number | null;
+  dagStart: string | null;
+  dagSlutt: string | null;
+  regel: ReiseRegelsett | null;
+  grensepunkter: ReiseGrensepunkt[];
+  resolverLonnsartId: string | null;
+  standardLonnsartId: string | null;
+}
+
+export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
+  const r = løsReiseKort({
+    retning: k.overforing.retning === "ut" ? "tur" : "retur",
+    oppmote: { kilde: "fast", oppmotestedId: k.oppmotestedId },
+    dagStart: k.dagStart,
+    dagSlutt: k.dagSlutt,
+    byggeplassId: "overforing",
+    kjoretidFor: () => k.kjoretidMin,
+    avstandFor: () => k.avstandM,
+    regel: k.regel,
+    grensepunkter: k.grensepunkter,
+    resolverLonnsartId: k.resolverLonnsartId,
+    standardLonnsartId: k.standardLonnsartId,
+  });
+  if (!r.spor) return r;
+  const reiseRegel: ReiseRegelSnapshot = {
+    ...r.spor.reiseRegel,
+    overforing: {
+      fra: k.overforing.fra,
+      til: k.overforing.til,
+      periodeId: k.overforing.periodeId,
+    },
+  };
+  return {
+    ...r,
+    spor: {
+      ...r.spor,
+      reiseKilde: r.spor.erReise ? "overforing" : null,
+      reiseRegel,
+    },
   };
 }
 

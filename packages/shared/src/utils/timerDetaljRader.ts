@@ -72,7 +72,7 @@ export type DetaljEksportKilde = {
     tilSted: string | null; // byggeplass (ut) / oppmøtested (retur)
     reiseAvstandM: number | null; // meter — avstandKm avledes ved rendering
     reiseKjoretidMin: number | null;
-    reiseKilde: "matrise" | "manuell" | null;
+    reiseKilde: "matrise" | "manuell" | "overforing" | null;
     tidKilde: "stempel" | "utledet" | "manuell" | null;
     normStatus: "server" | "cachet" | "ukjent" | null; // sedelens norm-status (DailySheet)
     byggeplass?: string | null;
@@ -158,7 +158,7 @@ export type DetaljRad = {
   tilSted: string | null;
   reiseAvstandM: number | null; // meter
   reiseKjoretidMin: number | null;
-  reiseKilde: "matrise" | "manuell" | null;
+  reiseKilde: "matrise" | "manuell" | "overforing" | null;
   tidKilde: "stempel" | "utledet" | "manuell" | null;
   normStatus: "server" | "cachet" | "ukjent" | null;
   /** Radstatus (timer/maskin/tillegg) · seddelstatus (utlegg). */

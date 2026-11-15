@@ -38,7 +38,7 @@ import {
 } from "../../src/services/byggeplassKatalog";
 import { gpsForslagLinje } from "../../src/utils/gpsForslagLinje";
 import { hentUnderprosjekterLokalt, hentReiseKnappLokalt } from "../../src/services/timerKatalog";
-import { TimerRadModal } from "../../src/components/timer-detalj/TimerSeksjon";
+import { ReiseKort } from "../../src/components/timer-detalj/ReiseKort";
 import { hentWebUrl } from "../../src/config/auth";
 import { apnLenke } from "../../src/lib/apnLenke";
 import { FraTilTidFelt } from "../../src/components/timer-detalj/FraTilTidFelt";
@@ -1327,6 +1327,7 @@ export default function BekreftDagSkjerm() {
                 dag={d}
                 visDato={forslag.datoer.length > 1}
                 fjernet={retting.perDato?.[d.dato]?.fjernArbeid === true}
+                fjernetOverforing={retting.perDato?.[d.dato]?.fjernOverforing ?? []}
                 otNivaa={otNivaa}
                 overtidValg={overtidValg}
                 alleLonnsarter={input.alleLonnsarter}
@@ -1476,41 +1477,34 @@ export default function BekreftDagSkjerm() {
                 ) : null}
               </View>
             ) : null}
-            {reiseModalApen && reiseKnappLonnsartId != null && prosjektId && forsteDag ? (
-              <TimerRadModal
-                sheetId=""
+            {/* POST (13) L2 § 7 C: «+ Reise» → reise-kortet. Overføringen er alt en
+                forslagsrad her (Fjern/Angre), så kortet tilbyr bare Tur/Retur. */}
+            {reiseModalApen && reiseKnappLonnsartId != null && prosjektId && forsteDag && bruker?.id ? (
+              <ReiseKort
                 organizationId={orgId}
-                defaultProjectId={prosjektId}
-                defaultEcoId={null}
+                userId={bruker.id}
                 dato={forsteDag.dato}
-                sheetPauseMin={0}
-                harEquipmentCache={false}
-                eksisterendeRader={[]}
-                alleTimerRader={[]}
-                defaultAktivitetId={forslag.aktivitetId}
-                eksisterendeRad={null}
-                tvungetValg={null}
+                projectId={prosjektId}
                 sedelByggeplassId={forsteDag.byggeplassId}
-                reise={{ lonnsartId: reiseKnappLonnsartId, laast: true }}
-                onLagre={(
-                  projectId,
-                  byggeplassId,
-                  lonnsartId,
-                  aktivitetId,
-                  timer,
-                  _eco,
-                  fraTid,
-                  tilTid,
-                  _beskrivelse,
-                  _pauseMin,
-                  _maskin,
-                  reiseSpor,
-                ) => {
+                aktivitetId={forslag.aktivitetId}
+                dagsrader={forsteDag.rader}
+                resolverLonnsartId={reiseKnappLonnsartId}
+                medOverforing={false}
+                onLagre={(l) => {
                   setRetting((x) => ({
                     ...x,
                     manuellReise: [
                       ...(x.manuellReise ?? []),
-                      { projectId, byggeplassId, lonnsartId, aktivitetId, timer, fraTid, tilTid, reiseSpor },
+                      {
+                        projectId: l.projectId,
+                        byggeplassId: l.byggeplassId,
+                        lonnsartId: l.lonnsartId,
+                        aktivitetId: l.aktivitetId,
+                        timer: l.timer,
+                        fraTid: l.fraTid,
+                        tilTid: l.tilTid,
+                        reiseSpor: l.reiseSpor,
+                      },
                     ],
                   }));
                   setReiseModalApen(false);
@@ -1682,6 +1676,7 @@ function DatoKort({
   dag,
   visDato,
   fjernet,
+  fjernetOverforing,
   otNivaa,
   overtidValg,
   alleLonnsarter,
@@ -1692,6 +1687,7 @@ function DatoKort({
   dag: DagsforslagDag;
   visDato: boolean;
   fjernet: boolean;
+  fjernetOverforing: Array<"ut" | "retur">;
   otNivaa: Map<string, number | null>;
   overtidValg: Array<{ id: string; navn: string }>;
   alleLonnsarter: DagsforslagLonnsart[];
@@ -1701,9 +1697,39 @@ function DatoKort({
 }) {
   const { t } = useTranslation();
   const [redigerOvertid, setRedigerOvertid] = useState(false);
-  const arbeid = dag.rader.filter((r) => !r.erReise);
-  const ut = dag.rader.find((r) => r.erReise && r.reiseRetning === "ut");
-  const retur = dag.rader.find((r) => r.erReise && r.reiseRetning === "retur");
+  // POST (13) L2: overføringsrader vises på egen linje, ikke som arbeid/reise.
+  const vanlige = dag.rader.filter((r) => !r.overforing);
+  const overforinger = dag.rader.filter((r) => r.overforing);
+  const arbeid = vanlige.filter((r) => !r.erReise);
+  const ut = vanlige.find((r) => r.erReise && r.reiseRetning === "ut");
+  const retur = vanlige.find((r) => r.erReise && r.reiseRetning === "retur");
+  const overforingLinje = (retning: "ut" | "retur") => {
+    const rad = overforinger.find((r) => r.overforing?.retning === retning);
+    if (rad?.overforing) {
+      return (
+        <OverforingLinje
+          rad={rad}
+          onFjern={() => onRett({ fjernOverforing: [...fjernetOverforing, retning] })}
+        />
+      );
+    }
+    if (fjernetOverforing.includes(retning)) {
+      return (
+        <View className="flex-row items-center justify-between px-1">
+          <Text className="flex-1 text-xs text-gray-500">{t("timer.bekreftDag.overforingFjernet")}</Text>
+          <Pressable
+            onPress={() => onRett({ fjernOverforing: fjernetOverforing.filter((x) => x !== retning) })}
+            hitSlop={8}
+            className="flex-row items-center gap-1"
+          >
+            <Undo2 size={14} color="#1d4ed8" />
+            <Text className="text-xs font-medium text-blue-700">{t("timer.bekreftDag.angre")}</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return null;
+  };
   const arbeidTimer = arbeid.reduce((s, r) => s + r.timer, 0);
   const forsteOt = arbeid.find((r) => otNivaa.get(r.lonnsartId) != null);
   const otFra = overtidEditorFra(forsteOt?.fraTid, rettetOvertidFra);
@@ -1714,6 +1740,7 @@ function DatoKort({
   return (
     <View className="gap-2 rounded-lg border border-gray-200 bg-white p-3">
       {visDato ? <Text className="text-xs font-semibold text-gray-500">{dag.dato}</Text> : null}
+      {overforingLinje("ut")}
       {ut ? <ReiseLinje rad={ut} tekst={t("timer.bekreftDag.reiseUt")} /> : null}
 
       {fjernet ? (
@@ -1845,6 +1872,29 @@ function DatoKort({
       )}
 
       {retur ? <ReiseLinje rad={retur} tekst={t("timer.bekreftDag.reiseRetur")} /> : null}
+      {overforingLinje("retur")}
+    </View>
+  );
+}
+
+/** POST (13) L2 TILLEGG: «Overføring Narvik → Tromsø» — forslag som kan fjernes. */
+function OverforingLinje({ rad, onFjern }: { rad: DagsforslagRad; onFjern: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <View className="flex-row items-center gap-2 px-1">
+      <Car size={14} color="#6b7280" />
+      <Text className="flex-1 text-xs text-gray-600">
+        {t("timer.bekreftDag.overforing", {
+          fra: rad.overforing?.fraNavn ?? "",
+          til: rad.overforing?.tilNavn ?? "",
+          fraTid: rad.fraTid ?? "",
+          tilTid: rad.tilTid ?? "",
+          min: Math.round(rad.timer * 60),
+        })}
+      </Text>
+      <Pressable onPress={onFjern} hitSlop={8} accessibilityLabel={t("timer.bekreftDag.overforingFjern")}>
+        <Trash2 size={16} color="#dc2626" />
+      </Pressable>
     </View>
   );
 }

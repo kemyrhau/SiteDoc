@@ -42,6 +42,7 @@ import {
   minTilHhmm,
   løsReiseLonnsartId,
   grensepunktTraff,
+  klassifiserManuellReise,
   DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
   type ReiseEnhet,
@@ -53,6 +54,10 @@ import {
   type Sluttsted,
   type Destinasjon,
   type ArbeidstidSegment,
+  type OppmoteResultat,
+  type Overforing,
+  byggOverforingOppslag,
+  type DagsforslagOverforingOppslag,
   OVERTID_NIVAA_50,
 } from "@sitedoc/shared";
 import { rundTidspunktTilNarmeste } from "./tidsrunding";
@@ -174,7 +179,13 @@ export type ReiseAarsak =
   | "posisjon_utilgjengelig"
   | "mangler_matrise"
   | "uoppnaaelig"
-  | "mangler_avstand";
+  | "mangler_avstand"
+  /**
+   * POST (12)/(13) B: etappen er reisetid, men firmaet har verken et treffende
+   * avstandsbånd eller en reise-lønnsart (`reiseLonnsartId`/navne-match).
+   * Tidligere forsvant reisen stille (null) — nå navngis årsaken.
+   */
+  | "mangler_reise_lonnsart";
 
 /**
  * Én reise-etappe (B1, V7/V10). `ut` = oppmøtested → destinasjon,
@@ -267,7 +278,7 @@ export type DagsforslagRad = {
   byggeplassId: string | null;
   reiseKjoretidMin: number | null;
   reiseAvstandM: number | null;
-  reiseKilde: "matrise" | "manuell" | null;
+  reiseKilde: "matrise" | "manuell" | "overforing" | null;
   reiseRegel: ReiseRegelSnapshot | null;
   /** V8: "utledet" på auto-reise-rader (vindu fra GPS ± matrise). null ellers. */
   tidKilde: "stempel" | "utledet" | "manuell" | null;
@@ -278,7 +289,18 @@ export type DagsforslagRad = {
    * rettes. Utelatt på reise-rader.
    */
   radIndeks?: number;
+  /**
+   * POST (13) L2 TILLEGG: overføringsrad (første/siste dag i en periode).
+   * Kun UI-markør — Bekreft dag viser den som «Overføring {fra} → {til}» og
+   * kan fjerne den (`fjernOverforing`). Lagres ikke; sporet ligger i
+   * `reiseKilde`/`reiseRegel.overforing`.
+   */
+  overforing?: { retning: "ut" | "retur"; fraNavn: string; tilNavn: string };
 };
+
+// POST (13) L2 commit 8: oppslaget bor i @sitedoc/shared (delt med web-reisekortet).
+export type { DagsforslagOverforingOppslag };
+export { byggOverforingOppslag };
 
 /** Forslaget for én kalenderdag (ett midnatt-segment). */
 export type DagsforslagDag = {
@@ -378,6 +400,8 @@ export type BeregnDagsforslagInput = {
   standardLonnsartId: string | null;
   regel: DagsforslagRegel | null;
   reiseOppslag: DagsforslagReiseOppslag | null;
+  /** POST (13) L2: overføringer (første/siste dag i en periode). Utelatt = ingen. */
+  overforinger?: DagsforslagOverforingOppslag[];
   /** Effektiv arbeidstid per dato — MÅ dekke startdato + alle segment-datoer. */
   effektivPerDato: Record<string, DagsforslagEffektiv>;
   eksisterendeSedelPerDato: Record<string, DagsforslagEksisterendeSedel>;
@@ -430,7 +454,8 @@ export type DagsforslagManuellReise = {
  * POST (8) punkt 1 — REN: legger arbeiderens manuelle reise-rader på første
  * dato som ikke er blokkert (sendt/godkjent). Feltene speiler `settInnTimerRad`
  * for en reise-lønnsart: `erReise`, `reiseKilde "manuell"`, `tidKilde
- * "manuell"`, ingen retning/oppmøtested/matrise-spor, ingen pause.
+ * "manuell"`, ingen pause. POST (13) L2: retning/kjøretid/oppmøtested fra
+ * reise-kortets spor på reise-rader.
  */
 export function leggTilManuellReise(
   datoer: DagsforslagDag[],
@@ -448,11 +473,12 @@ export function leggTilManuellReise(
     tilTid: r.tilTid,
     pauseMin: 0,
     erReise: r.reiseSpor ? r.reiseSpor.erReise : true,
-    reiseRetning: null,
+    // POST (13) L2: reise-kortets retning/kjøretid følger med på reise-rader.
+    reiseRetning: r.reiseSpor?.erReise ? r.reiseSpor.reiseRetning : null,
     // Ordre (9): ikke-reise-rad bærer aldri avstand/oppmøtested (C2 + DB-CHECK).
     reiseOppmotestedId: r.reiseSpor?.erReise ? r.reiseSpor.reiseOppmotestedId : null,
     byggeplassId: r.byggeplassId,
-    reiseKjoretidMin: null,
+    reiseKjoretidMin: r.reiseSpor?.erReise ? r.reiseSpor.reiseKjoretidMin : null,
     reiseAvstandM: r.reiseSpor?.erReise ? r.reiseSpor.reiseAvstandM : null,
     reiseKilde: r.reiseSpor ? r.reiseSpor.reiseKilde : "manuell",
     reiseRegel: r.reiseSpor ? r.reiseSpor.reiseRegel : null,
@@ -480,7 +506,119 @@ export type DagsforslagRettingDato = {
    * godtas — ellers faller valget tilbake til `velgOvertidLonnsart`.
    */
   overtidLonnsartId?: string;
+  /** POST (13) L2: overføringsrader arbeideren har fjernet for datoen. */
+  fjernOverforing?: Array<"ut" | "retur">;
 };
+
+/**
+ * POST (13) L2 TILLEGG — REN: legger overføringsradene på datoene sine.
+ *
+ *  - Klassifiseres som en manuell reise (`klassifiserManuellReise`): under
+ *    terskel → ordinær standard-art, `erReise` false; over → reise-art fra bånd
+ *    eller fallback, `reiseKilde "overforing"`.
+ *  - `ut` legges FØR dagens tidligste rad, `retur` ETTER dagens seneste, med
+ *    kjøretiden som lengde. Krysser den midnatt eller overlapper en eksisterende
+ *    rad, foreslås den ikke (arbeideren fører den med «+ Reise»).
+ *  - Mangler celle → `mangler_matrise`; kjøretid < 0 → `uoppnaaelig`; reise uten
+ *    art → `mangler_reise_lonnsart`. Første årsak vinner (som auto-reisen).
+ *  - Blokkerte datoer og fjernede retninger hoppes over.
+ */
+export function leggTilOverforinger(
+  datoer: DagsforslagDag[],
+  oppslag: DagsforslagOverforingOppslag[] | undefined,
+  ctx: {
+    regel: DagsforslagRegel | null;
+    grensepunkter: ReiseGrensepunkt[];
+    fallbackReiseLonnsartId: string | null;
+    standardLonnsartId: string | null;
+    prosjektId: string;
+    aktivitetId: string;
+    eksisterendeSedelPerDato: Record<string, DagsforslagEksisterendeSedel>;
+    perDato: Record<string, DagsforslagRettingDato> | undefined;
+  },
+): { datoer: DagsforslagDag[]; aarsak: ReiseAarsak | null } {
+  if (!oppslag || oppslag.length === 0 || !ctx.regel) return { datoer, aarsak: null };
+  const regel = ctx.regel;
+  let aarsak: ReiseAarsak | null = null;
+  const nye = datoer.map((d) => {
+    if (d.blokkert) return d;
+    const fjernet = ctx.perDato?.[d.dato]?.fjernOverforing ?? [];
+    const tillegg: DagsforslagRad[] = [];
+    for (const o of oppslag) {
+      if (o.dato !== d.dato || fjernet.includes(o.overforing.retning)) continue;
+      if (o.celle == null) {
+        aarsak ??= "mangler_matrise";
+        continue;
+      }
+      if (o.celle.kjoretidMin < 0) {
+        aarsak ??= "uoppnaaelig";
+        continue;
+      }
+      const kjoretid = o.celle.kjoretidMin;
+      const k = klassifiserManuellReise({
+        regel: reiseRegelsett(regel),
+        reisetimer: kjoretid / 60,
+        avstandM: o.celle.avstandM,
+        grensepunkter: ctx.grensepunkter,
+        resolverLonnsartId: ctx.fallbackReiseLonnsartId,
+        standardLonnsartId: ctx.standardLonnsartId,
+      });
+      if (!k.lonnsartId) {
+        if (k.erReise) aarsak ??= "mangler_reise_lonnsart";
+        continue;
+      }
+      const tider = d.rader
+        .flatMap((r) => [r.fraTid, r.tilTid])
+        .filter((t): t is string => t != null)
+        .map(hhmmTilMin);
+      const ut = o.overforing.retning === "ut";
+      const ankerMin = tider.length > 0
+        ? (ut ? Math.min(...tider) : Math.max(...tider))
+        : null;
+      if (ankerMin == null) continue;
+      const fraMin = ut ? ankerMin - kjoretid : ankerMin;
+      const tilMin = ut ? ankerMin : ankerMin + kjoretid;
+      if (fraMin < 0 || tilMin > 24 * 60) continue;
+      const fraTid = minTilHhmm(fraMin);
+      const tilTid = minTilHhmm(tilMin);
+      const andre = ctx.eksisterendeSedelPerDato[d.dato]?.eksisterendeRader ?? [];
+      if (finnOverlappendeTidsrom(fraTid, tilTid, andre) != null) continue;
+      const reiseRegel: ReiseRegelSnapshot = {
+        ...k.reiseRegel,
+        overforing: {
+          fra: o.overforing.fra,
+          til: o.overforing.til,
+          periodeId: o.overforing.periodeId,
+        },
+      };
+      tillegg.push({
+        projectId: ctx.prosjektId,
+        lonnsartId: k.lonnsartId,
+        aktivitetId: ctx.aktivitetId,
+        timer: Math.round((kjoretid / 60) * 100) / 100,
+        fraTid,
+        tilTid,
+        pauseMin: 0,
+        erReise: k.erReise,
+        reiseRetning: k.erReise ? o.overforing.retning : null,
+        reiseOppmotestedId: k.erReise ? o.oppmotestedId : null,
+        byggeplassId: o.byggeplassId,
+        reiseKjoretidMin: k.erReise ? kjoretid : null,
+        reiseAvstandM: k.reiseAvstandM,
+        reiseKilde: k.erReise ? "overforing" : null,
+        reiseRegel,
+        tidKilde: "utledet",
+        overforing: {
+          retning: o.overforing.retning,
+          fraNavn: o.fraNavn,
+          tilNavn: o.tilNavn,
+        },
+      });
+    }
+    return tillegg.length > 0 ? { ...d, rader: [...d.rader, ...tillegg] } : d;
+  });
+  return { datoer: nye, aarsak };
+}
 
 /**
  * ORDRE 34 pkt 4: normaltid/overtid-segmenter når arbeideren har rettet
@@ -641,6 +779,47 @@ function byggEtappe(
     aarsak: null,
   };
 }
+
+/**
+ * POST 2026-11-15 (13) L2, Kenneth-beslutning 1: perioderesolveren
+ * (`løsOppmote`) styrer også den automatiske reisen i Bekreft dag, så «+ Reise»
+ * og Bekreft dag sier det samme om samme dag.
+ *
+ *  - Byggeplass-periode på dagens prosjekt → den ansatte møter på byggeplassen:
+ *    start og slutt tolkes som byggeplass (ingen ut-, ingen retur-etappe, ingen
+ *    årsak — V11).
+ *  - GPS-start ukjent → startstedet blir resolverens kontor (midlertidig/fast)
+ *    i stedet for `posisjon_utilgjengelig`. GPS-start på byggeplass/utenfor
+ *    beholdes (V11). `ikkeValgt` → uendret.
+ *  - Retur bygges fortsatt bare fra GPS-slutt på kontor — den finnes ikke uten
+ *    at den ansatte faktisk kom tilbake.
+ */
+export function brukOppmoteResolver(
+  start: Startsted,
+  slutt: Sluttsted,
+  destinasjon: Destinasjon,
+  oppmote: OppmoteResultat,
+): { start: Startsted; slutt: Sluttsted } {
+  if (oppmote.kilde === "byggeplass") {
+    const paaPlass: Startsted =
+      destinasjon.type === "byggeplass"
+        ? { type: "byggeplass", byggeplassId: destinasjon.byggeplassId }
+        : { type: "utenfor" };
+    return { start: paaPlass, slutt: paaPlass };
+  }
+  if (
+    start.type === "ukjent" &&
+    (oppmote.kilde === "midlertidig" || oppmote.kilde === "fast")
+  ) {
+    return {
+      start: { type: "kontor", oppmotestedId: oppmote.oppmotestedId, byggeplassId: null },
+      slutt,
+    };
+  }
+  return { start, slutt };
+}
+
+
 
 /**
  * B1 — bygg reise-etappene for en dag (V7/V10/V11/V12/V15).
@@ -840,7 +1019,12 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       reiseOppslag.grensepunkter,
       reiseOppslag.fallbackReiseLonnsartId,
     );
-    if (!lonnsartId) return null;
+    if (!lonnsartId) {
+      // POST (13) B: aldri stille — reisetid-etappen fantes, men ingen art å
+      // føre den på. Første årsak vinner (ut-årsaken settes av beregnReiseEtapper).
+      reiseAarsak ??= "mangler_reise_lonnsart";
+      return null;
+    }
     const reiseRegel: ReiseRegelSnapshot = {
       enhet: regel.reiseTerskelEnhet as ReiseEnhet,
       terskelMin: regel.reiseTerskelMin,
@@ -1045,6 +1229,20 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     });
   });
 
+  // POST (13) L2 TILLEGG: overføring første/siste dag i perioden — egen
+  // forslagsrad, aldri automatisk lagret (arbeideren bekrefter/fjerner den).
+  const medOverforing = leggTilOverforinger(datoer, input.overforinger, {
+    regel,
+    grensepunkter: reiseOppslag?.grensepunkter ?? [],
+    fallbackReiseLonnsartId: reiseOppslag?.fallbackReiseLonnsartId ?? null,
+    standardLonnsartId: input.standardLonnsartId,
+    prosjektId,
+    aktivitetId: aktivitet.id,
+    eksisterendeSedelPerDato: input.eksisterendeSedelPerDato,
+    perDato: retting?.perDato,
+  });
+  reiseAarsak ??= medOverforing.aarsak;
+
   return {
     prosjektId,
     aktivitetId: aktivitet.id,
@@ -1053,7 +1251,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
     reiseAarsak,
     destinasjonAarsak,
     normStatus: effektivStartDag.normStatus ?? null,
-    datoer: leggTilManuellReise(datoer, retting?.manuellReise),
+    datoer: leggTilManuellReise(medOverforing.datoer, retting?.manuellReise),
     ...(retting?.beskrivelse ? { beskrivelsePerKort: retting.beskrivelse } : {}),
     ...(retting?.beskrivelsePerRad ? { beskrivelsePerRad: retting.beskrivelsePerRad } : {}),
   };

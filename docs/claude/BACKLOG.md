@@ -3487,7 +3487,9 @@ Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/…`) bærer **`a
 
 **Metode-lærdom verdt å beholde:** en Claude-økt tok inn en ekstern leverandør-avhengighet i produktet uten at eieren visste det, og det ble oppdaget fire måneder senere ved en tilfeldighet under en exit-runde. Samme klasse som dagens doc-drift: gjort, aldri skrevet ned.
 
-### 🟡 To geokodere sameksisterer — `oppmotested.geokod` bør adoptere `sokAdresser` (G2-gevinsten)
+### ✅ To geokodere sameksisterer — `oppmotested.geokod` bør adoptere `sokAdresser` (G2-gevinsten)
+
+> **Løst på `feat/reise-kort-l2` (TILLEGG 2026-11-15 (13) L2 del C, venter gate):** `oppmotested.geokod` kaller `sokAdresser` (`oppmotested.ts:166`); oppmøtested-modalen (`firma/oppmotesteder/OppmotestedModal.tsx`) og byggeplass deler `components/AdresseTreffliste.tsx`. `sokAdresser` prøver normaliserte varianter ved 0 treff (`normaliserteAdresseVarianter`, `rute-service.ts`) — gjelder også byggeplass. `geokodAdresse` (Nominatim) har nå **ingen kallere i kode** (reisetid-matrisen bruker den ikke — målt); beholdt til ordre om sletting. Gjenstår: `GeoReferanseEditor.tsx` har en tredje kopi av trefflista (ikke byttet).
 
 Etter G2 (`387d10a2`) bruker `bygning.geokod` **Kartverket** (`sokAdresser`, fuzzy, inntil 5 treff som klikkbar liste), mens **`oppmotested.geokod` + reisetid-matrisen fortsatt bruker Nominatim** (`geokodAdresse`, single-treff, krever presis staving). Oppmøtested-brukere får altså nøyaktig den dårligere opplevelsen G2 fjernet for byggeplasser.
 

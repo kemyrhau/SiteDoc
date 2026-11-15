@@ -28,8 +28,20 @@ export type ReiseKategori = "arbeidstid" | "reisetid";
 /** Etappens retning. Lag 4 utvider med "mellom" (mellometapper). */
 export type ReiseRetning = "ut" | "retur";
 
-/** Hvor reise-tallene (kjøretid/avstand) kom fra. */
-export type ReiseKilde = "matrise" | "manuell";
+/**
+ * Hvor reise-tallene (kjøretid/avstand) kom fra. "overforing" (L2, POST
+ * 2026-11-15 (13) 6b) = kjøring fra fast sted til midlertidig sted første/siste
+ * dag i perioden — tallene fra OppmotestedAvstand (kontor↔kontor) eller
+ * matrisen (kontor→byggeplass). Destinasjon + periode står i `reiseRegel.overforing`.
+ */
+export type ReiseKilde = "matrise" | "manuell" | "overforing";
+
+/** Overføringens rute i regel-snapshoten (ingen db-timer-kolonne trengs). */
+export interface OverforingSnapshot {
+  fra: { type: "kontor"; oppmotestedId: string } | { type: "byggeplass"; projectId: string };
+  til: { type: "kontor"; oppmotestedId: string } | { type: "byggeplass"; projectId: string };
+  periodeId: string | null;
+}
 
 /**
  * V8 tidskilde på en rad. "utledet" = vindu fra GPS ± matrise (ser målt ut, er
@@ -56,6 +68,8 @@ export interface ReiseRegelSnapshot {
   kategori: ReiseKategori;
   /** true når en grensepunkt-art (avstandsbånd) avgjorde lønnsarten. */
   grensepunktTreff: boolean;
+  /** Kun på `reiseKilde "overforing"`: rute + periode (POST (13) 6b). */
+  overforing?: OverforingSnapshot;
 }
 
 /**

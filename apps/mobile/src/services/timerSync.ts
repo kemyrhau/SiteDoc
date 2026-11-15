@@ -32,7 +32,7 @@ type SporFelter = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
   // V19.9.1 (B'-2): radversjonen fra pull (`SheetTimer.updatedAt`, ISO-ms). Mangler
@@ -84,7 +84,7 @@ type RaaTimerRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
   updatedAt: string | Date;
@@ -930,7 +930,7 @@ async function kjorTimerSync(
             reiseOppmotestedId: t.reiseOppmotestedId ?? null,
             reiseKjoretidMin: t.reiseKjoretidMin ?? null,
             reiseAvstandM: t.reiseAvstandM ?? null,
-            reiseKilde: (t.reiseKilde ?? null) as "matrise" | "manuell" | null,
+            reiseKilde: (t.reiseKilde ?? null) as "matrise" | "manuell" | "overforing" | null,
             reiseRegel: t.reiseRegel
               ? (JSON.parse(t.reiseRegel) as unknown)
               : null,

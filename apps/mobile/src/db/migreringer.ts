@@ -1488,6 +1488,23 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_oppmote_periode_local_bruker_org
       ON oppmote_periode_local(user_id, organization_id);
   `);
+
+  // L2 (POST 2026-11-15 (13) 6b): kontor↔kontor-avstand for overføring
+  // (første/siste dag i midlertidig periode). Speiler server
+  // OppmotestedAvstand. Paret er normalisert (fra < til). KUN lokal.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS oppmotested_avstand_local (
+      organization_id TEXT NOT NULL,
+      fra_oppmotested_id TEXT NOT NULL,
+      til_oppmotested_id TEXT NOT NULL,
+      kjoretid_min INTEGER,
+      avstand_m INTEGER,
+      sist_oppdatert INTEGER NOT NULL,
+      PRIMARY KEY (fra_oppmotested_id, til_oppmotested_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_oppmotested_avstand_local_org
+      ON oppmotested_avstand_local(organization_id);
+  `);
 }
 
 /** Utkast for prosjektkort: lokal tabell + unik indeks. */

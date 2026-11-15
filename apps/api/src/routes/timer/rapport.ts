@@ -591,7 +591,7 @@ export const rapportRouter = router({
           tilSted,
           reiseAvstandM: r.reiseAvstandM,
           reiseKjoretidMin: r.reiseKjoretidMin,
-          reiseKilde: tilEnum(r.reiseKilde, ["matrise", "manuell"] as const),
+          reiseKilde: tilEnum(r.reiseKilde, ["matrise", "manuell", "overforing"] as const),
           tidKilde: tilEnum(r.tidKilde, ["stempel", "utledet", "manuell"] as const),
           normStatus: tilEnum(s.normStatus, ["server", "cachet", "ukjent"] as const),
           // T.3: RAD-status (attestertStatus), ikke sedel-status. Lønn spør om

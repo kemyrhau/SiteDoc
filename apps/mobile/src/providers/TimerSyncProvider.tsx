@@ -34,6 +34,7 @@ import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
 import { refreshOppmotePeriodeKatalog } from "../services/oppmotePeriodeKatalog";
 import { refreshByggeplassKatalog } from "../services/byggeplassKatalog";
 import { refreshReisetidMatriseKatalog } from "../services/reisetidMatriseKatalog";
+import { refreshOppmotestedAvstandKatalog } from "../services/oppmotestedAvstandKatalog";
 import { refreshReiseGrensepunktKatalog } from "../services/reiseGrensepunktKatalog";
 import { refreshVareKatalog } from "../services/vareKatalog";
 import { syncVareforbruk } from "../services/vareforbrukSync";
@@ -142,6 +143,10 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
             ),
             refreshByggeplassKatalog(utils.client, orgId),
             refreshReisetidMatriseKatalog(utils.client, orgId),
+            // L2 overføring: egen catch — eldre server uten endepunktet skal ikke velte resten.
+            refreshOppmotestedAvstandKatalog(utils.client, orgId).catch((e) =>
+              console.warn("[KONTOR-AVSTAND] Refresh feilet for firma", orgId, e),
+            ),
             refreshReiseGrensepunktKatalog(utils.client, orgId),
             // Prosjektkort L3: egen catch — vare-katalogen skal aldri velte timer-katalogene.
             refreshVareKatalog(utils.client, orgId).catch((e) =>

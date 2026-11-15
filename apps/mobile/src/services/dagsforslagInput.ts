@@ -14,6 +14,7 @@ import {
 import { splittVedMidnatt, kappGlemtDagSlutt } from "../utils/dagsegment";
 import {
   MAKS_ENKELTSKIFT_TIMER,
+  brukOppmoteResolver,
   type BeregnDagsforslagInput,
   type DagsforslagEffektiv,
   type DagsforslagEksisterendeSedel,
@@ -23,8 +24,10 @@ import {
   tolkSlutt,
   velgDestinasjon,
   tilGeofencer,
+  løsOppmote,
   type Destinasjon,
 } from "@sitedoc/shared";
+import { hentOppmotePerioderLokalt } from "./oppmotePeriodeKatalog";
 import { hentProsjekterLokalt } from "./prosjektKatalog";
 import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 import { hentDagsnormLokalt } from "./arbeidstidSvarKatalog";
@@ -37,6 +40,9 @@ import {
 } from "./byggeplassKatalog";
 import { hentOppmotederLokalt } from "./oppmotestedKatalog";
 import { hentReiseGrensepunkterLokalt } from "./reiseGrensepunktKatalog";
+import { hentOverforingOppslagLokalt } from "./overforingOppslag";
+
+type Celle = { kjoretidMin: number; avstandM: number | null };
 
 export type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
@@ -138,6 +144,7 @@ export function samleDagsforslagInput(
   // (nærmeste-uten-grense + primærbyggeplass) er erstattet av A5.
   let reiseOppslag: BeregnDagsforslagInput["reiseOppslag"] = null;
   let destinasjonProsjektId: string | null = null;
+  const perioder = hentOppmotePerioderLokalt(p.userId, orgId);
   if (regel) {
     // V17-A: geofence-kandidater via tilGeofencer (A4) — de to radius-null-
     // filtrene er borte. I V17-A gir byggeplass én sirkel hver (ingen sone-data);
@@ -158,8 +165,8 @@ export function samleDagsforslagInput(
       p.endLat != null && p.endLng != null
         ? { lat: p.endLat, lng: p.endLng }
         : null;
-    const start = tolkStart(startPos, oppmGeofencer, byggGeofencer);
-    const slutt = tolkSlutt(sluttPos, oppmGeofencer, byggGeofencer);
+    const gpsStart = tolkStart(startPos, oppmGeofencer, byggGeofencer);
+    const gpsSlutt = tolkSlutt(sluttPos, oppmGeofencer, byggGeofencer);
     // A5-regel (3): prosjektets byggeplasser = arbeiderens AKTIVE prosjekt (§2).
     const prosjektByggeplasser = p.aktivtProsjektId
       ? hentByggeplasserForProsjektLokalt(p.aktivtProsjektId).map((b) => ({
@@ -170,7 +177,7 @@ export function samleDagsforslagInput(
     const destinasjon: Destinasjon = p.valgtByggeplassId
       ? { type: "byggeplass", byggeplassId: p.valgtByggeplassId }
       : velgDestinasjon({
-          sluttsted: slutt,
+          sluttsted: gpsSlutt,
           kontekstByggeplassId: p.kontekstByggeplassId,
           prosjektByggeplasser,
         });
@@ -179,6 +186,15 @@ export function samleDagsforslagInput(
         alleByggeplasser.find((b) => b.id === destinasjon.byggeplassId)
           ?.projectId ?? null;
     }
+    // POST (13) L2, beslutning 1: perioderesolveren på dagsseddelens dato.
+    // Byggeplass-periode → ingen reise; ukjent GPS-start → midlertidig/fast kontor.
+    const oppmote = løsOppmote(
+      formatIsoDato(new Date(dag.startAt)),
+      destinasjonProsjektId ?? p.aktivtProsjektId,
+      perioder,
+      gpsStart.type === "kontor" ? gpsStart.oppmotestedId : null,
+    );
+    const { start, slutt } = brukOppmoteResolver(gpsStart, gpsSlutt, destinasjon, oppmote);
     // Matriseceller: ut fra start-oppmøtested, retur fra slutt-oppmøtested —
     // begge mot destinasjonen (A5). hentMatriseRadLokalt beholdt.
     const utRad =
@@ -258,6 +274,20 @@ export function samleDagsforslagInput(
     };
   }
 
+  // POST (13) L2 TILLEGG: overføring første/siste dag i perioden.
+  const overforinger = regel
+    ? hentOverforingOppslagLokalt({
+        organizationId: orgId,
+        datoer: [...new Set(segmenter.map((s) => s.dato))],
+        perioder,
+        destinasjonByggeplassId:
+          reiseOppslag?.destinasjon.type === "byggeplass"
+            ? reiseOppslag.destinasjon.byggeplassId
+            : null,
+        kontekstByggeplassId: p.kontekstByggeplassId,
+      })
+    : [];
+
   const eksisterendeSedelPerDato: Record<
     string,
     DagsforslagEksisterendeSedel
@@ -285,6 +315,7 @@ export function samleDagsforslagInput(
     aktivtProsjektId: p.aktivtProsjektId,
     destinasjonProsjektId,
     sisteSegmentKilde: p.sisteSegmentKilde,
+    ...(overforinger.length > 0 ? { overforinger } : {}),
     prosjekter,
     aktiviteter,
     alleLonnsarter,

@@ -43,6 +43,8 @@ const BEKREFT_DAG_PROPS = [
   "BekreftDagLonnUtlegg",
   // POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort — kun Bekreft dag.
   "manuellReise",
+  // POST 2026-11-15 (13) L2: reise-kortet — kun prosjektkortet og Bekreft dag.
+  "ReiseKort",
   "reiseKnapp",
   "fjernReise",
   "gpsLinje",
@@ -287,8 +289,9 @@ describe("ORDRE 36b — kortvalg og dag-seksjonen rører ikke dagskortet", () =>
   );
 
   it("🔴 nye props er valgfrie, og uten dem er visningen som før", () => {
-    // Ordre (6): `laast` er valgfri — uten den (og uten `reise`) er visningen som før.
-    expect(flat(TIMER_SEKSJON)).toContain("reise?: { lonnsartId: string | null; laast?: boolean }");
+    // Ordre (6) / POST (13) L2: `reise` er valgfri — uten den er visningen som før
+    // (`laast` er borte: ny reise-rad føres i ReiseKort).
+    expect(flat(TIMER_SEKSJON)).toContain("reise?: { lonnsartId: string | null }");
     expect(UTLEGG).toContain("prosjektValg?: { id: string; navn: string }[]");
     for (const v of REISE_VILKAAR) expect(flat(TIMER_SEKSJON)).toContain(v);
     expect(UTLEGG).toContain(UTLEGG_CHIPS);

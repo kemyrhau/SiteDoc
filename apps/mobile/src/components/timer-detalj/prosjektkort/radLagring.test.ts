@@ -204,6 +204,12 @@ describe("oppdaterTimerRad", () => {
     expect(timerRad("t2")).toMatchObject({ erReise: false, reiseKilde: null, reiseAvstandM: null });
   });
 
+  it("POST (13) L2: redigert overføringsrad blir manuell reise — overføringssporet følger ikke med", () => {
+    seedTimer("t3", { erReise: true, reiseKilde: "overforing", reiseAvstandM: 250000, reiseKjoretidMin: 180, lonnsartId: "l-reise" });
+    oppdaterTimerRad(db(), K, "t3", { ...felt, lonnsartId: "l-reise" });
+    expect(timerRad("t3")).toMatchObject({ erReise: true, reiseKilde: "manuell", reiseAvstandM: null, reiseKjoretidMin: null });
+  });
+
   it("maskin undefined rører ikke koblet maskinrad; ny linje oppretter, linje med id oppdaterer", () => {
     seedTimer("t1");
     expect(oppdaterTimerRad(db(), K, "t1", felt)).toEqual({ ok: true });

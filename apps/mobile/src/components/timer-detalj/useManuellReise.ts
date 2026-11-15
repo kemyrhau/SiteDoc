@@ -1,40 +1,45 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
-  løsManuellReise,
+  finnDagsramme,
+  løsOppmote,
+  løsOverforingKort,
+  løsReiseKort,
   manuellReiseForklaringTekst,
-  velgOppmotested,
   type ManuellReiseSpor,
+  type OppmoteResultat,
+  type ReiseKortResultat,
   type ReiseRegelsett,
 } from "@sitedoc/shared";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { hentOppmotederLokalt } from "../../services/oppmotestedKatalog";
+import { hentOppmotePerioderLokalt } from "../../services/oppmotePeriodeKatalog";
 import { hentMatriseRadLokalt } from "../../services/reisetidMatriseKatalog";
 import { hentReiseGrensepunkterLokalt } from "../../services/reiseGrensepunktKatalog";
 import { hentLonnsarterLokalt, hentStandardLonnsartLokalt } from "../../services/timerKatalog";
-import {
-  hentSisteReiseOppmotested,
-  lagreSisteReiseOppmotested,
-} from "../../lib/reiseOppmotestedLagring";
+import { hentOverforingOppslagLokalt } from "../../services/overforingOppslag";
+import type { DagsforslagOverforingOppslag } from "../../utils/dagsforslag";
 
 /* ============================================================================
- *  Ordre 2026-11-14 (9): terskel og avstandsbånd på «+ Reise» (mobil).
+ *  POST 2026-11-15 (13) L2 § 7 C: reise-kortet («+ Reise») på mobil.
  *
- *  Leser regelsett, oppmøtesteder, matrisecelle og bånd fra lokal cache (virker
- *  offline) og kaller den DELTE `klassifiserManuellReise` — samme regel i
- *  prosjektkortet (DagSeksjon) og Bekreft dag manuell modus, siden begge åpner
- *  `TimerRadModal` med `reise.laast`.
+ *  Den ansatte velger aldri oppmøtested. Hooken leser periodene lokalt
+ *  (offline), løser oppmøtestedet med den DELTE `løsOppmote` og regner tid,
+ *  kjøretid og lønnsart med `løsReiseKort` — samme funksjoner som web og
+ *  Bekreft dag. Overføring første/siste dag i en periode (TILLEGG) regnes med
+ *  `løsOverforingKort` fra oppslagene `byggOverforingOppslag` gir.
  *
- *  Uten cachet regelsett (aldri synket) er `klassifisering` null → modalen
- *  oppfører seg som før (reise-art, erReise fra lønnsarten).
+ *  «Siste valg på enheten» er fjernet (Kenneth-beslutning 7).
  * ============================================================================ */
 
 export type { ManuellReiseSpor };
 
-/**
- * Grå forklaringslinje — delt med web (ordre (11) A). Beholdt navn for
- * eksisterende kallere.
- */
+/** Grå forklaringslinje — delt med web (ordre (11) A). */
 export const forklaringTekst = manuellReiseForklaringTekst;
+
+export type ReiseKortValg =
+  | { type: "tur" }
+  | { type: "retur" }
+  | { type: "overforing"; indeks: number };
 
 function lesRegel(organizationId: string): ReiseRegelsett | null {
   const r = hentOrganizationSettingLokalt(organizationId);
@@ -49,90 +54,131 @@ function lesRegel(organizationId: string): ReiseRegelsett | null {
 }
 
 export function useManuellReise({
-  aktiv,
   organizationId,
+  userId,
+  dato,
+  projectId,
   byggeplassId,
-  timer,
+  dagsrader,
   resolverLonnsartId,
+  valg,
+  skjulOverforingRetninger = [],
+  medOverforing,
+  kontekstByggeplassId,
 }: {
-  /** Kun NY rad fra «+ Reise» (`reise.laast && !eksisterendeRad`). */
-  aktiv: boolean;
   organizationId: string;
-  /** Kortets effektive byggeplass (radens, ellers sedelens). */
+  userId: string;
+  /** Sedelens dato (YYYY-MM-DD) — perioden som gjaldt da. */
+  dato: string;
+  projectId: string;
+  /** Byggeplassen reisen går til (kortets valg). null = ikke valgt. */
   byggeplassId: string | null;
-  /** Innførte reisetimer (desimal). */
-  timer: number;
+  /** Dagens rader — dagsrammen (første fra / siste til) regnes av ikke-reise-radene. */
+  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[];
   resolverLonnsartId: string | null;
+  /** null = standardvalget: første tilbudte overføring, ellers Tur (TILLEGG). */
+  valg: ReiseKortValg | null;
+  /** Retninger sedelen alt har en overføringsrad for — tilbys ikke igjen. */
+  skjulOverforingRetninger?: ReadonlyArray<"ut" | "retur">;
+  /** false = kalleren viser overføringen selv (Bekreft dag har den som forslagsrad). */
+  medOverforing: boolean;
+  /** Kontekst-byggeplassen overføringen til et prosjekt lander på. */
+  kontekstByggeplassId: string | null;
 }) {
-  const regel = useMemo(() => (aktiv ? lesRegel(organizationId) : null), [aktiv, organizationId]);
-  const oppmotesteder = useMemo(
-    () => (aktiv ? hentOppmotederLokalt(organizationId) : []),
-    [aktiv, organizationId],
+  const regel = useMemo(() => lesRegel(organizationId), [organizationId]);
+  const oppmotesteder = useMemo(() => hentOppmotederLokalt(organizationId), [organizationId]);
+  const perioder = useMemo(
+    () => hentOppmotePerioderLokalt(userId, organizationId),
+    [userId, organizationId],
   );
   const grensepunkter = useMemo(
-    () => (aktiv ? hentReiseGrensepunkterLokalt(organizationId) : []),
-    [aktiv, organizationId],
+    () => hentReiseGrensepunkterLokalt(organizationId),
+    [organizationId],
   );
   const standardLonnsartId = useMemo(
-    () => (aktiv ? (hentStandardLonnsartLokalt(organizationId)?.id ?? null) : null),
-    [aktiv, organizationId],
+    () => hentStandardLonnsartLokalt(organizationId)?.id ?? null,
+    [organizationId],
   );
-  const lonnsartNavn = useMemo(() => {
-    if (!aktiv) return new Map<string, string>();
-    return new Map(hentLonnsarterLokalt(organizationId).map((l) => [l.id, l.navn]));
-  }, [aktiv, organizationId]);
+  const lonnsartNavn = useMemo(
+    () => new Map(hentLonnsarterLokalt(organizationId).map((l) => [l.id, l.navn])),
+    [organizationId],
+  );
 
-  // Siste valg leses asynkront (SecureStore); undefined = ikke lest ennå.
-  const [sisteValg, setSisteValg] = useState<string | null | undefined>(undefined);
-  const [valgtId, setValgtId] = useState<string | null>(null);
-  useEffect(() => {
-    if (!aktiv) return;
-    let avbrutt = false;
-    void hentSisteReiseOppmotested(organizationId).then((id) => {
-      if (avbrutt) return;
-      setSisteValg(id);
-      const v = velgOppmotested(hentOppmotederLokalt(organizationId), id);
-      if (v.modus === "velg") setValgtId(v.valgtId);
-    });
-    return () => {
-      avbrutt = true;
-    };
-  }, [aktiv, organizationId]);
+  // Manuell dag har ingen GPS-start → gpsStartKontorId null.
+  const oppmote: OppmoteResultat = useMemo(
+    () => løsOppmote(dato, projectId, perioder, null),
+    [dato, projectId, perioder],
+  );
 
-  // Ordre (11) A: oppmøtested-valg, avstand og klassifisering i ÉN delt
-  // funksjon — webens «+ Reise» kaller den samme.
-  const res = useMemo(
+  const overforinger: DagsforslagOverforingOppslag[] = useMemo(
     () =>
-      løsManuellReise({
-        regel,
-        oppmotesteder,
-        sisteValgId: sisteValg,
-        valgtId,
-        byggeplassId,
-        avstandFor: (o, b) => hentMatriseRadLokalt(o, b)?.avstandM ?? null,
-        reisetimer: timer,
-        grensepunkter,
-        resolverLonnsartId,
-        standardLonnsartId,
-      }),
-    [regel, oppmotesteder, sisteValg, valgtId, byggeplassId, timer, grensepunkter, resolverLonnsartId, standardLonnsartId],
+      medOverforing
+        ? hentOverforingOppslagLokalt({
+            organizationId,
+            datoer: [dato],
+            perioder,
+            destinasjonByggeplassId: null,
+            kontekstByggeplassId,
+          })
+        : [],
+    [medOverforing, organizationId, dato, perioder, kontekstByggeplassId],
   );
 
-  function velg(id: string) {
-    setValgtId(id);
-    void lagreSisteReiseOppmotested(organizationId, id);
-  }
+  // Overføringene som tilbys; indeksen peker inn i `overforinger`.
+  const overforingValg = overforinger
+    .map((o, indeks) => ({ o, indeks }))
+    .filter(({ o }) => !skjulOverforingRetninger.includes(o.overforing.retning));
+  const forsteOverforing = overforingValg[0]?.indeks ?? null;
+  const aktivtValg: ReiseKortValg =
+    valg ?? (forsteOverforing != null ? { type: "overforing", indeks: forsteOverforing } : { type: "tur" });
+
+  const ramme = useMemo(() => finnDagsramme(dagsrader), [dagsrader]);
+
+  const resultat: ReiseKortResultat = useMemo(() => {
+    const felles = {
+      dagStart: ramme.dagStart,
+      dagSlutt: ramme.dagSlutt,
+      regel,
+      grensepunkter,
+      resolverLonnsartId,
+      standardLonnsartId,
+    };
+    if (aktivtValg.type === "overforing") {
+      const o = overforinger[aktivtValg.indeks];
+      if (o) {
+        return løsOverforingKort({
+          ...felles,
+          overforing: o.overforing,
+          oppmotestedId: o.oppmotestedId,
+          kjoretidMin: o.celle?.kjoretidMin ?? null,
+          avstandM: o.celle?.avstandM ?? null,
+        });
+      }
+    }
+    return løsReiseKort({
+      ...felles,
+      retning: aktivtValg.type === "retur" ? "retur" : "tur",
+      oppmote,
+      byggeplassId,
+      kjoretidFor: (o, b) => hentMatriseRadLokalt(o, b)?.kjoretidMin ?? null,
+      avstandFor: (o, b) => hentMatriseRadLokalt(o, b)?.avstandM ?? null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- aktivtValg er avledet av valg + overforinger
+  }, [valg, forsteOverforing, overforinger, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId]);
+
+  // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
+  const oppmotestedNavn =
+    oppmotesteder.length > 1 && (oppmote.kilde === "fast" || oppmote.kilde === "midlertidig" || oppmote.kilde === "gps")
+      ? (oppmotesteder.find((o) => o.id === oppmote.oppmotestedId)?.navn ?? null)
+      : null;
 
   return {
-    klassifisering: res.klassifisering,
-    spor: res.spor,
+    oppmote,
+    oppmotestedNavn,
+    overforinger,
+    overforingValg,
+    aktivtValg,
+    resultat,
     lonnsartNavn: (id: string | null) => (id ? (lonnsartNavn.get(id) ?? null) : null),
-    velger: res.visVelger
-      ? {
-          valgtId,
-          steder: oppmotesteder.map((o) => ({ id: o.id, navn: o.navn })),
-          velg,
-        }
-      : null,
   };
 }

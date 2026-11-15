@@ -79,6 +79,14 @@ export async function recomputeMatrise(
 ): Promise<RecomputeResultat> {
   const { organizationId, oppmotestedId, byggeplassId, plasseringEndret } = args;
 
+  // L2: kontor ↔ kontor følger kontor-triggerne og full backfill (ikke
+  // byggeplass-raden). Egen feilhåndtering — matrisen skal aldri feile på den.
+  if (!byggeplassId) {
+    await recomputeKontorAvstand({ organizationId, oppmotestedId, plasseringEndret }).catch((e) =>
+      console.error("[reisetid-matrise] kontor-avstand feilet (ikke-blokkerende):", e),
+    );
+  }
+
   // 1. Kontorer (sources). lat/lng er påkrevde felt på Oppmotested.
   const kontorer = await prisma.oppmotested.findMany({
     where: oppmotestedId
@@ -234,6 +242,80 @@ export async function recomputeMatrise(
   }
 
   return { rader, manglerPunkt, uoppnaaelige };
+}
+
+/**
+ * POST 2026-11-15 (13) L2 / (12) TILLEGG: kjøretid/avstand kontor ↔ kontor
+ * (overføringen gir reisetid). Én rad pr. par i fast rekkefølge
+ * (`fra < til`, samme som CHECK i `oppmotested_avstand`) — avstanden er lik
+ * begge veier, så vi bruker OSRM-cellen [fra → til]. Samme 🔴 MANUELL-VAKT som
+ * matrisen: en «manuell…»-rad overskrives aldri; flyttet punkt → "manuell_endret".
+ * Uoppnåelig par = -1. UUID-er har bindestrek på samme plass, så JS-`<` og
+ * Postgres-sammenligningen gir samme rekkefølge.
+ */
+export function kontorPar(a: string, b: string): { fra: string; til: string } {
+  return a < b ? { fra: a, til: b } : { fra: b, til: a };
+}
+
+export async function recomputeKontorAvstand(args: {
+  organizationId: string;
+  oppmotestedId?: string;
+  plasseringEndret?: boolean;
+}): Promise<{ rader: number }> {
+  const { organizationId, oppmotestedId, plasseringEndret } = args;
+  const kontorer = await prisma.oppmotested.findMany({
+    where: { organizationId },
+    select: { id: true, lat: true, lng: true },
+    orderBy: { id: "asc" },
+  });
+  if (kontorer.length < 2 || kontorer.length > OSRM_MAX_KOORDINATER) return { rader: 0 };
+
+  const berort = (a: string, b: string) =>
+    !oppmotestedId || a === oppmotestedId || b === oppmotestedId;
+  const manuellFilter = {
+    organizationId,
+    ...MANUELL_FILTER,
+    ...(oppmotestedId
+      ? { OR: [{ fraOppmotestedId: oppmotestedId }, { tilOppmotestedId: oppmotestedId }] }
+      : {}),
+  };
+  const manuelle = await prisma.oppmotestedAvstand.findMany({
+    where: manuellFilter,
+    select: { fraOppmotestedId: true, tilOppmotestedId: true },
+  });
+  const manuellPar = new Set(manuelle.map((m) => `${m.fraOppmotestedId}|${m.tilOppmotestedId}`));
+  if (plasseringEndret && manuelle.length > 0) {
+    await prisma.oppmotestedAvstand.updateMany({
+      where: manuellFilter,
+      data: { kilde: MANUELL_ENDRET_KILDE },
+    });
+  }
+
+  const koord: Coord[] = kontorer.map((k) => ({ lat: k.lat, lng: k.lng }));
+  const matrise = await hentKjoretidMatrise(koord, koord);
+  if (!matrise) return { rader: 0 }; // OSRM-feil → behold eksisterende rader
+
+  const ops = [];
+  for (let i = 0; i < kontorer.length; i++) {
+    for (let j = i + 1; j < kontorer.length; j++) {
+      const { fra, til } = kontorPar(kontorer[i]!.id, kontorer[j]!.id);
+      if (!berort(fra, til)) continue;
+      // 🔴 Manuell-vakt: firmaets egen verdi overskrives aldri.
+      if (manuellPar.has(`${fra}|${til}`)) continue;
+      const kjoretidMin = matrise.durations[i]?.[j];
+      if (kjoretidMin == null) continue;
+      const avstandM = matrise.distances[i]?.[j] ?? null;
+      ops.push(
+        prisma.oppmotestedAvstand.upsert({
+          where: { fraOppmotestedId_tilOppmotestedId: { fraOppmotestedId: fra, tilOppmotestedId: til } },
+          create: { organizationId, fraOppmotestedId: fra, tilOppmotestedId: til, kjoretidMin, avstandM, kilde: "osrm" },
+          update: { kjoretidMin, avstandM, kilde: "osrm", beregnetAt: new Date() },
+        }),
+      );
+    }
+  }
+  if (ops.length > 0) await prisma.$transaction(ops);
+  return { rader: ops.length };
 }
 
 /**

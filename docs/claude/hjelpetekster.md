@@ -141,14 +141,33 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 - **Manuell:** en rettet verdi merkes «Manuell», brukes i reiseberegningen og overskrives aldri av ny beregning. Flyttes byggeplassen eller oppmøtestedet, står verdien, men merkes. «Tilbakestill» fjerner den og beregner på nytt.
 - **Status:** «Ingen rute» = ingen kjørbar vei; «Ikke beregnet» = paret mangler verdi, trykk «Beregn».
 - **Kjøretid** vises som «1 t 35 min» over én time og «45 min» under (`timer.kjoretid.*`, ordre 2026-11-14 (11) B). Redigering skjer i minutter.
+- **Mellom oppmøtesteder** (`firma.avstander.hjelp.kontor`, POST 2026-11-15 (13) L2): kjøretid mellom firmaets oppmøtesteder, vist når firmaet har minst to. Brukes til overføringsforslaget i Bekreft dag første og siste dag i en midlertidig periode. Kan rettes («Manuell») og tilbakestilles som byggeplass-avstandene.
+
+## Web: Oppmøtested — adressesøk (`firma/oppmotesteder/OppmotestedModal.tsx`, TILLEGG 2026-11-15 (13) L2 del C)
+
+- «Geokod» søker i Kartverkets adresser (`oppmotested.geokod` → `sokAdresser`), samme søk og treffliste (`components/AdresseTreffliste.tsx`) som byggeplass. Ett treff settes direkte; flere vises som klikkbar liste. Valgt treff setter punktet og adresseteksten.
+- Skrivemåter som «sommerfeldtsgate», «Storgt.», «vn» og avsluttende «Norge» prøves automatisk normalisert når første søk gir 0 treff (gjelder også byggeplass).
+- 0 treff (`firma.oppmotested.geokodIngen`): «Fant ingen treff på adressen. Du kan likevel lagre stedet: klikk i kartet for å sette punktet.» Lagre sperres ikke av 0 treff — bare av manglende punkt.
+- Under lista: «Adressedata © Kartverket» (`georef.attribusjonKartverket`).
 
 ## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
 
 Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banner:
 
-- **«+ Reise» under terskel** (web-dialogen og mobilens timer-modal): rød linje «Firmaet mangler standard lønnsart — be firmaadmin sette den» (`timer.reiseTerskel.manglerArt`); lagre er sperret. Firmaadmin på web ser i stedet «Firmaet mangler standard lønnsart» (`timer.reiseTerskel.manglerStandardArt`) med lenken «Sett standard lønnsart» (`timer.reiseTerskel.settStandardArt`) til Lønnsarter.
+- **«+ Reise» under terskel** (web-dialogen og mobilens reise-kort `ReiseKort.tsx`, POST 2026-11-15 (13) L2): rød linje «Firmaet mangler standard lønnsart — be firmaadmin sette den» (`timer.reiseTerskel.manglerArt`); lagre er sperret. Firmaadmin på web ser i stedet «Firmaet mangler standard lønnsart» (`timer.reiseTerskel.manglerStandardArt`) med lenken «Sett standard lønnsart» (`timer.reiseTerskel.settStandardArt`) til reise-regelsettet (`/dashbord/firma/innstillinger#reise-regelsett`, fra POST (13) L2 web-reisekortet).
 - **«+ Reise» på web før regelsettet er hentet:** Lagre er sperret med forklaring «Henter firmaets reiseregler …» (`sperret.reiseRegelLaster`), eller «Fikk ikke hentet firmaets reiseregler — lukk og prøv igjen» (`sperret.reiseRegelFeilet`) ved feil.
 - **Firmainnstillinger → Reise:** gul linje (`firma.innstillinger.reise.manglerStandardArt`) med lenke (`firma.innstillinger.reise.settStandardArt`) når terskelen er i bruk og ingen lønnsart er merket som standard.
+
+## Mobil og web: reise-kortet («+ Reise», `ReiseKort.tsx`, POST 2026-11-15 (13) L2 § 7 C)
+
+Web (`apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`) bruker samme nøkler og tekster som mobil; sperreteksten vises som rød linje i kortet og ved hover på den sperrede Lagre-knappen. Mobil viser samme røde linje i kortet.
+
+Ingen ?-tekst — kortet viser én resultatlinje og, når Lagre er sperret, én forklaring under knappen (`KnappMedForklaring`):
+
+- **Valg:** «Tur» / «Retur» (`timer.reiseKort.tur` / `.retur`); første og siste dag i en midlertidig periode også «Overføring X → Y» (`timer.reiseKort.overforing`), forhåndsvalgt.
+- **Oppmøtested** vises som tekst «Fra {navn}» (`timer.reiseKort.fraOppmotested`) bare når firmaet har flere — den ansatte velger det aldri.
+- **Resultat:** «08:00–08:45 · 45 min kjøring» (`timer.reiseKort.resultat`) + grå forklaringslinje (arbeid/reise og hvorfor).
+- **Sperretekster** (`timer.reiseKort.sperre.*`): «Møter på byggeplass, ingen reise» · «Oppmøtested er ikke valgt — koble til nett for å velge» · «Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander» · «Før arbeidstid på dagen først — reisen legges før eller etter den» · «Reisen går over midnatt — før den på dagen den hører til» · «Firmaet har ikke satt opp reiseregler — be firmaadmin sette dem». Mangler standard lønnsart: `timer.reiseTerskel.manglerArt` (over).
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 

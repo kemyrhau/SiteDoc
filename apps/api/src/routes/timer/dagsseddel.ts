@@ -37,6 +37,8 @@ import {
   utledErReise,
   beregnReiseAvvik,
   validerReiseInvarianter,
+  lesOverforingRute,
+  overforingKontrollNokkel,
   arvReiseSpor,
   type ReiseRadInvariantInput,
   type ReiseSporKilde,
@@ -421,7 +423,20 @@ function byggTimerRadData(
   // Ordre (6): «+ Reise» merker raden manuell. Kun satt når erReise = true
   // (kalleren avviser ellers) — speiler validerReiseInvarianter.
   reiseKilde: "manuell" | null = null,
+  // POST (13) L2 commit 8: web-reisekortet sender hele sporet (manuell/overføring).
+  // Ferdig C2-validert av byggReiseFelterForSynk — samme felter som synken skriver.
+  // Når satt overstyrer det `reiseKilde`; uten det er feltformen som før.
+  reiseSpor: ReiseFelter | null = null,
 ): Prisma.SheetTimerUncheckedCreateInput {
+  if (reiseSpor) {
+    const { tidKilde: _tidKilde, ...spor } = reiseSpor;
+    return {
+      ...byggTimerRadData(sheetId, r, erReise, null),
+      ...spor,
+      erReise,
+      reiseRegel: jsonEllerNull(spor.reiseRegel),
+    };
+  }
   return {
     sheetId,
     projectId: r.projectId,
@@ -489,7 +504,7 @@ type OverlappPayloadRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
 };
@@ -845,7 +860,7 @@ type SynkTimerRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
 };
@@ -910,6 +925,54 @@ async function byggReiseFelterForSynk(
     }
   }
 
+  // L2 6b: overføringer kontrolleres mot OppmotestedAvstand (kontor↔kontor)
+  // eller samme matrisecelle som over (kontor × byggeplass). Ett oppslag hver.
+  const kontorNokler = new Map<string, { fra: string; til: string }>();
+  const overforingNokkel = new Map<string, ReturnType<typeof overforingKontrollNokkel>>();
+  const ekstraMatrise = new Map<string, { oppmotestedId: string; byggeplassId: string }>();
+  for (const r of rader) {
+    if (r.erReise !== true || r.reiseKilde !== "overforing") continue;
+    const rute = lesOverforingRute(r.reiseRegel);
+    if (!rute) continue;
+    const n = overforingKontrollNokkel(rute, r.byggeplassId ?? sedelByggeplassId ?? null);
+    overforingNokkel.set(r.id, n);
+    if (n?.type === "kontor") kontorNokler.set(`${n.fra}::${n.til}`, n);
+    if (n?.type === "matrise") {
+      const k = `${n.oppmotestedId}::${n.byggeplassId}`;
+      if (!celleMap.has(k)) ekstraMatrise.set(k, n);
+    }
+  }
+  if (ekstraMatrise.size > 0) {
+    const celler = await prisma.reisetidMatrise.findMany({
+      where: { OR: Array.from(ekstraMatrise.values()) },
+      select: { oppmotestedId: true, byggeplassId: true, avstandM: true, kjoretidMin: true },
+    });
+    for (const c of celler) {
+      celleMap.set(`${c.oppmotestedId}::${c.byggeplassId}`, {
+        avstandM: c.avstandM,
+        kjoretidMin: c.kjoretidMin,
+      });
+    }
+  }
+  const kontorCelleMap = new Map<string, { avstandM: number | null; kjoretidMin: number | null }>();
+  if (kontorNokler.size > 0) {
+    const par = await prisma.oppmotestedAvstand.findMany({
+      where: {
+        OR: Array.from(kontorNokler.values()).map((n) => ({
+          fraOppmotestedId: n.fra,
+          tilOppmotestedId: n.til,
+        })),
+      },
+      select: { fraOppmotestedId: true, tilOppmotestedId: true, avstandM: true, kjoretidMin: true },
+    });
+    for (const p of par) {
+      kontorCelleMap.set(`${p.fraOppmotestedId}::${p.tilOppmotestedId}`, {
+        avstandM: p.avstandM,
+        kjoretidMin: p.kjoretidMin,
+      });
+    }
+  }
+
   const felter = new Map<string, ReiseFelter>();
   for (const r of rader) {
     if (r.erReise === undefined) {
@@ -956,6 +1019,23 @@ async function byggReiseFelterForSynk(
         { avstandM: r.reiseAvstandM ?? null, kjoretidMin: r.reiseKjoretidMin ?? null },
         celle,
       );
+    }
+    if (r.erReise && r.reiseKilde === "overforing") {
+      const n = overforingNokkel.get(r.id) ?? null;
+      const celle =
+        n?.type === "kontor"
+          ? kontorCelleMap.get(`${n.fra}::${n.til}`) ?? null
+          : n?.type === "matrise"
+            ? celleMap.get(`${n.oppmotestedId}::${n.byggeplassId}`) ?? null
+            : null;
+      // Uoppnåelig/ukjent celle (null/-1) gir ingen kontroll — ikke et avvik.
+      reiseAvvik =
+        celle && celle.kjoretidMin != null && celle.kjoretidMin >= 0
+          ? beregnReiseAvvik(
+              { avstandM: r.reiseAvstandM ?? null, kjoretidMin: r.reiseKjoretidMin ?? null },
+              { avstandM: celle.avstandM, kjoretidMin: celle.kjoretidMin },
+            )
+          : null;
     }
 
     felter.set(r.id, {
@@ -2319,7 +2399,15 @@ export const dagsseddelRouter = router({
         // Ordre 2026-11-14 (6): «+ Reise» sender kilden "manuell". Flagget
         // erReise utledes fortsatt fra lønnsarten; kilden avvises hvis
         // lønnsarten ikke er en reise-art (ingen falsk reise-rad).
-        reiseKilde: z.literal("manuell").optional(),
+        // POST (13) L2 commit 8: reise-kortet kan også sende "overforing" og
+        // hele sporet. Sporet lagres KUN sammen med en kilde på en reise-art
+        // (C2-validert som i synken); uten kilde ignoreres feltene (null-spor).
+        reiseKilde: z.enum(["manuell", "overforing"]).optional(),
+        reiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
+        reiseOppmotestedId: z.string().uuid().nullable().optional(),
+        reiseKjoretidMin: z.number().int().min(0).nullable().optional(),
+        reiseAvstandM: z.number().int().min(0).nullable().optional(),
+        reiseRegel: z.record(z.unknown()).nullable().optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2392,6 +2480,41 @@ export const dagsseddelRouter = router({
           code: "BAD_REQUEST",
           message: "Lønnsarten er ikke en reise-lønnsart",
         });
+      }
+      // POST (13) L2 commit 8: sporet valideres (C2) og kontrolleres (C3) med
+      // SAMME funksjon som synken — oppmøtestedet må høre til sedelens firma,
+      // overføringen må ha retning/kjøretid/rute. Brudd → BAD_REQUEST, ingen rad.
+      let reiseSpor: ReiseFelter | null = null;
+      if (input.reiseKilde && erReise) {
+        const firmaOppmotesteder = await prisma.oppmotested.findMany({
+          where: { organizationId: sheet.organizationId },
+          select: { id: true },
+        });
+        const spor = await byggReiseFelterForSynk(
+          [
+            {
+              id: "ny",
+              lonnsartId: input.lonnsartId,
+              byggeplassId: input.byggeplassId ?? null,
+              erReise: true,
+              reiseKilde: input.reiseKilde,
+              reiseRetning: input.reiseRetning ?? null,
+              reiseOppmotestedId: input.reiseOppmotestedId ?? null,
+              reiseKjoretidMin: input.reiseKjoretidMin ?? null,
+              reiseAvstandM: input.reiseAvstandM ?? null,
+              reiseRegel: input.reiseRegel ?? null,
+              tidKilde: null,
+            },
+          ],
+          null,
+          erReiseKtx,
+          new Map([[input.lonnsartId, lonnsart.navn]]),
+          new Set(firmaOppmotesteder.map((o) => o.id)),
+        );
+        if (!spor.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: spor.feilmelding });
+        }
+        reiseSpor = spor.felter.get("ny") ?? null;
       }
 
       // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
@@ -2468,7 +2591,8 @@ export const dagsseddelRouter = router({
             input.sheetId,
             { ...input, pauseMin: vurdering.pauseMin },
             erReise,
-            input.reiseKilde ?? null,
+            null,
+            reiseSpor,
           ),
         });
         await synkroniserHodePause(tx, input.sheetId);
@@ -6347,7 +6471,7 @@ export const dagsseddelRouter = router({
                 reiseOppmotestedId: z.string().uuid().nullable().optional(),
                 reiseKjoretidMin: z.number().int().nullable().optional(),
                 reiseAvstandM: z.number().int().nullable().optional(),
-                reiseKilde: z.enum(["matrise", "manuell"]).nullable().optional(),
+                reiseKilde: z.enum(["matrise", "manuell", "overforing"]).nullable().optional(),
                 // Json-snapshot av regelen. z.unknown() → vilkårlig Json; C2 krever
                 // at den finnes for matrise-rader.
                 reiseRegel: z.unknown().optional(),

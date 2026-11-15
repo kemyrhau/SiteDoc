@@ -16,7 +16,8 @@ vi.mock("../../services/oppmotestedKatalog", () => ({}));
 vi.mock("../../services/reisetidMatriseKatalog", () => ({}));
 vi.mock("../../services/reiseGrensepunktKatalog", () => ({}));
 vi.mock("../../services/timerKatalog", () => ({}));
-vi.mock("../../lib/reiseOppmotestedLagring", () => ({}));
+vi.mock("../../services/oppmotePeriodeKatalog", () => ({}));
+vi.mock("../../services/overforingOppslag", () => ({}));
 
 const { forklaringTekst } = await import("./useManuellReise");
 

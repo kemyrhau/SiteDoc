@@ -100,12 +100,13 @@ describe("oppmotePeriodeKatalog", () => {
     skrivOppmotePerioderLokalt("u1", "o1", [NARVIK_GAMMEL, TROMSO_NY, BYGGEPLASS]);
     const lest = hentOppmotePerioderLokalt("u1", "o1");
     expect(lest).toHaveLength(3);
+    // id leses tilbake (L2): overføringen fører periode-id-en til reiseRegel.
     expect(lest).toContainEqual({
-      type: "kontor", fast: true, oppmotestedId: "narvik", projectId: null,
+      id: "p1", type: "kontor", fast: true, oppmotestedId: "narvik", projectId: null,
       fraDato: "2026-01-01", tilDato: "2026-10-31",
     });
     expect(lest).toContainEqual({
-      type: "byggeplass", fast: false, oppmotestedId: null, projectId: "e6",
+      id: "p3", type: "byggeplass", fast: false, oppmotestedId: null, projectId: "e6",
       fraDato: "2026-12-01", tilDato: "2027-01-31",
     });
   });

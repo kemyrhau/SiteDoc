@@ -37,6 +37,17 @@ interface Rad {
   celle: Celle | null;
 }
 
+/** Hva en rettet verdi gjelder: kontor → byggeplass, eller kontor ↔ kontor (L2). */
+type Maal =
+  | { type: "byggeplass"; oppmotestedId: string; byggeplassId: string }
+  | { type: "kontor"; oppmotestedIdA: string; oppmotestedIdB: string };
+
+interface Redigering {
+  undertittel: string;
+  celle: Celle | null;
+  maal: Maal;
+}
+
 function erManuell(kilde: string) {
   return kilde.startsWith("manuell");
 }
@@ -51,10 +62,11 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
   const { data, isLoading } = trpc.oppmotested.hentAvstander.useQuery({
     organizationId: orgId,
   });
-  const [rediger, setRediger] = useState<Rad | null>(null);
+  const [rediger, setRediger] = useState<Redigering | null>(null);
 
   const invalider = () => {
     void utils.oppmotested.hentAvstander.invalidate({ organizationId: orgId });
+    void utils.oppmotested.hentKontorAvstanderForFirma.invalidate({ organizationId: orgId });
     void utils.oppmotested.hentMatriseForFirma.invalidate({ organizationId: orgId });
   };
   const beregn = trpc.oppmotested.beregnMatrise.useMutation({
@@ -104,17 +116,47 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
 
   const enhet: Enhet = data.enhet;
 
+  const redigerModal = rediger && (
+    <RedigerAvstandModal
+      orgId={orgId}
+      enhet={enhet}
+      redigering={rediger}
+      onLukk={() => setRediger(null)}
+      onLagret={() => {
+        invalider();
+        setRediger(null);
+      }}
+    />
+  );
+  // L2 beslutning 4: kontor ↔ kontor (OSRM, manuell overstyring) — vises når
+  // firmaet har minst to oppmøtesteder; brukes til overføring mellom kontorer.
+  const kontorDel =
+    data.oppmotesteder.length >= 2 ? (
+      <KontorAvstander
+        orgId={orgId}
+        enhet={enhet}
+        oppmotesteder={data.oppmotesteder}
+        onRediger={setRediger}
+        onInvalider={invalider}
+      />
+    ) : null;
+
   if (data.oppmotesteder.length === 0 || rader.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
-        {data.oppmotesteder.length === 0
-          ? t("firma.avstander.ingenOppmotesteder")
-          : t("firma.avstander.ingenByggeplasser")}
+      <div className="space-y-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
+          {data.oppmotesteder.length === 0
+            ? t("firma.avstander.ingenOppmotesteder")
+            : t("firma.avstander.ingenByggeplasser")}
+        </div>
+        {kontorDel}
+        {redigerModal}
       </div>
     );
   }
 
   return (
+    <div className="space-y-4">
     <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <p className="border-b border-gray-100 px-3 py-2 text-xs text-gray-500">
         {enhet === "km" ? t("firma.avstander.malesIKm") : t("firma.avstander.malesIMin")}
@@ -205,7 +247,17 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
                       </Button>
                     )}
                     <button
-                      onClick={() => setRediger(r)}
+                      onClick={() =>
+                        setRediger({
+                          undertittel: `${r.byggeplassNavn} · ${r.oppmotestedNavn}`,
+                          celle: r.celle,
+                          maal: {
+                            type: "byggeplass",
+                            oppmotestedId: r.oppmotestedId,
+                            byggeplassId: r.byggeplassId,
+                          },
+                        })
+                      }
                       className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                       title={t("handling.rediger")}
                     >
@@ -234,19 +286,168 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
           })}
         </tbody>
       </table>
+    </div>
+    {kontorDel}
+    {redigerModal}
+    </div>
+  );
+}
 
-      {rediger && (
-        <RedigerAvstandModal
-          orgId={orgId}
-          enhet={enhet}
-          rad={rediger}
-          onLukk={() => setRediger(null)}
-          onLagret={() => {
-            invalider();
-            setRediger(null);
-          }}
-        />
-      )}
+/**
+ * L2 (POST 2026-11-15 (13), beslutning 4): kjøretid/avstand mellom firmaets
+ * oppmøtesteder. Ett par pr. rad (fra < til, samme normalisering som serveren).
+ * Brukes når en arbeider overføres mellom kontorer (første/siste dag i perioden).
+ */
+function KontorAvstander({
+  orgId,
+  enhet,
+  oppmotesteder,
+  onRediger,
+  onInvalider,
+}: {
+  orgId: string;
+  enhet: Enhet;
+  oppmotesteder: Array<{ id: string; navn: string }>;
+  onRediger: (r: Redigering) => void;
+  onInvalider: () => void;
+}) {
+  const { t } = useTranslation();
+  const { data } = trpc.oppmotested.hentKontorAvstanderForFirma.useQuery({
+    organizationId: orgId,
+  });
+  const beregn = trpc.oppmotested.beregnMatrise.useMutation({
+    onSuccess: onInvalider,
+    onError: (e) => alert(e.message),
+  });
+  const tilbakestill = trpc.oppmotested.tilbakestillKontorAvstand.useMutation({
+    onSuccess: onInvalider,
+    onError: (e) => alert(e.message),
+  });
+
+  const par = useMemo(() => {
+    const celler = new Map(
+      (data ?? []).map((r) => [`${r.fraOppmotestedId}|${r.tilOppmotestedId}`, r]),
+    );
+    const sortert = [...oppmotesteder].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const ut: Array<{ a: (typeof oppmotesteder)[number]; b: (typeof oppmotesteder)[number]; celle: Celle | null }> = [];
+    for (let i = 0; i < sortert.length; i++) {
+      for (let j = i + 1; j < sortert.length; j++) {
+        const a = sortert[i]!;
+        const b = sortert[j]!;
+        ut.push({ a, b, celle: celler.get(`${a.id}|${b.id}`) ?? null });
+      }
+    }
+    return ut;
+  }, [data, oppmotesteder]);
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
+        <p className="text-sm font-medium text-gray-900">{t("firma.avstander.kontor.tittel")}</p>
+        {par.some((p) => !p.celle) && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => beregn.mutate({ organizationId: orgId })}
+            disabled={beregn.isPending}
+          >
+            {t("firma.avstander.beregn")}
+          </Button>
+        )}
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase text-gray-500">
+            <th className="px-3 py-3">{t("firma.avstander.kontor.mellom")}</th>
+            {enhet === "km" ? (
+              <>
+                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.avstand")}</th>
+                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.kjoretidKolonne")}</th>
+              </>
+            ) : (
+              <>
+                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.kjoretidKolonne")}</th>
+                <th className="px-3 py-3 text-right">{t("firma.avstander.felt.avstand")}</th>
+              </>
+            )}
+            <th className="px-3 py-3">{t("firma.avstander.felt.kilde")}</th>
+            <th className="px-3 py-3 text-right">{t("handling.handlinger")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {par.map(({ a, b, celle: c }) => {
+            const uoppnaaelig = !!c && !erManuell(c.kilde) && c.kjoretidMin < 0;
+            const km = c && c.avstandM != null && c.avstandM >= 0 ? formaterKm(c.avstandM) : null;
+            const min = c && c.kjoretidMin >= 0 ? formaterKjoretid(t, c.kjoretidMin) : null;
+            const hoved = enhet === "km" ? km : min;
+            const sekundaer = enhet === "km" ? min : km;
+            const navn = `${a.navn} ↔ ${b.navn}`;
+            return (
+              <tr key={`${a.id}|${b.id}`} className="border-b border-gray-100 last:border-b-0">
+                <td className="px-3 py-2.5 font-medium text-gray-900">{navn}</td>
+                {!c ? (
+                  <td colSpan={2} className="px-3 py-2.5 text-right text-gray-400">
+                    {t("firma.avstander.ikkeBeregnet")}
+                  </td>
+                ) : uoppnaaelig ? (
+                  <td colSpan={2} className="px-3 py-2.5 text-right text-gray-500">
+                    {t("firma.avstander.ingenRute")}
+                  </td>
+                ) : (
+                  <>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right font-medium tabular-nums text-gray-900">
+                      {hoved ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-right tabular-nums text-gray-400">
+                      {sekundaer ?? "—"}
+                    </td>
+                  </>
+                )}
+                <td className="px-3 py-2.5 text-gray-600">
+                  {!c
+                    ? null
+                    : erManuell(c.kilde)
+                      ? t("firma.avstander.kilde.manuell")
+                      : t("firma.avstander.kilde.beregnet")}
+                </td>
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() =>
+                        onRediger({
+                          undertittel: navn,
+                          celle: c,
+                          maal: { type: "kontor", oppmotestedIdA: a.id, oppmotestedIdB: b.id },
+                        })
+                      }
+                      className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                      title={t("handling.rediger")}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    {c && erManuell(c.kilde) && (
+                      <button
+                        onClick={() =>
+                          tilbakestill.mutate({
+                            organizationId: orgId,
+                            oppmotestedIdA: a.id,
+                            oppmotestedIdB: b.id,
+                          })
+                        }
+                        disabled={tilbakestill.isPending}
+                        className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        title={t("firma.avstander.tilbakestill")}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -254,18 +455,19 @@ export function AvstanderFane({ orgId }: { orgId: string }) {
 function RedigerAvstandModal({
   orgId,
   enhet,
-  rad,
+  redigering,
   onLukk,
   onLagret,
 }: {
   orgId: string;
   enhet: Enhet;
-  rad: Rad;
+  redigering: Redigering;
   onLukk: () => void;
   onLagret: () => void;
 }) {
   const { t } = useTranslation();
-  const c = rad.celle;
+  const c = redigering.celle;
+  const maal = redigering.maal;
   const kjentMin = c && c.kjoretidMin >= 0 ? c.kjoretidMin : null;
   const kjentKm = c && c.avstandM != null && c.avstandM >= 0 ? c.avstandM / 1000 : null;
   // Kjøretid er påkrevd i matrisen. Måles det i km og kjøretiden er ukjent,
@@ -278,10 +480,32 @@ function RedigerAvstandModal({
   const [ekstraMin, setEkstraMin] = useState("");
   const [feil, setFeil] = useState<string | null>(null);
 
-  const lagre = trpc.oppmotested.oppdaterAvstand.useMutation({
+  const lagreByggeplass = trpc.oppmotested.oppdaterAvstand.useMutation({
     onSuccess: onLagret,
     onError: (e) => setFeil(e.message),
   });
+  const lagreKontor = trpc.oppmotested.oppdaterKontorAvstand.useMutation({
+    onSuccess: onLagret,
+    onError: (e) => setFeil(e.message),
+  });
+  const lagrer = lagreByggeplass.isPending || lagreKontor.isPending;
+  const mutate = (v: { avstandKm?: number; kjoretidMin?: number }) => {
+    if (maal.type === "kontor") {
+      lagreKontor.mutate({
+        organizationId: orgId,
+        oppmotestedIdA: maal.oppmotestedIdA,
+        oppmotestedIdB: maal.oppmotestedIdB,
+        ...v,
+      });
+    } else {
+      lagreByggeplass.mutate({
+        organizationId: orgId,
+        oppmotestedId: maal.oppmotestedId,
+        byggeplassId: maal.byggeplassId,
+        ...v,
+      });
+    }
+  };
 
   function send() {
     const tall = Number(hoved.replace(",", "."));
@@ -289,24 +513,19 @@ function RedigerAvstandModal({
       setFeil(t("firma.avstander.ugyldig"));
       return;
     }
-    const base = {
-      organizationId: orgId,
-      oppmotestedId: rad.oppmotestedId,
-      byggeplassId: rad.byggeplassId,
-    };
     if (enhet === "km") {
       const min = trengerMin ? Number(ekstraMin) : undefined;
       if (trengerMin && (!Number.isInteger(min) || (min ?? 0) <= 0)) {
         setFeil(t("firma.avstander.ugyldig"));
         return;
       }
-      lagre.mutate({ ...base, avstandKm: tall, kjoretidMin: min });
+      mutate({ avstandKm: tall, kjoretidMin: min });
     } else {
       if (!Number.isInteger(tall)) {
         setFeil(t("firma.avstander.ugyldig"));
         return;
       }
-      lagre.mutate({ ...base, kjoretidMin: tall });
+      mutate({ kjoretidMin: tall });
     }
   }
 
@@ -314,7 +533,7 @@ function RedigerAvstandModal({
     <Modal open onClose={onLukk} title={t("firma.avstander.redigerTittel")}>
       <div className="space-y-3">
         <p className="text-sm text-gray-600">
-          {rad.byggeplassNavn} · {rad.oppmotestedNavn}
+          {redigering.undertittel}
         </p>
         <Input
           label={enhet === "km" ? t("firma.avstander.felt.avstand") : t("firma.avstander.felt.kjoretid")}
@@ -337,7 +556,7 @@ function RedigerAvstandModal({
         <Button variant="secondary" onClick={onLukk}>
           {t("handling.avbryt")}
         </Button>
-        <Button onClick={send} disabled={lagre.isPending}>
+        <Button onClick={send} disabled={lagrer}>
           {t("handling.lagre")}
         </Button>
       </div>

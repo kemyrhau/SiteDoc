@@ -34,6 +34,7 @@ vi.mock("@sitedoc/db", () => ({
     organizationSetting: { findUnique: (...a: unknown[]) => findUniqueSetting(...a) },
     organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
     reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
+    oppmotested: { findMany: vi.fn().mockResolvedValue([]) },
     byggeplass: {
       findFirst: vi.fn().mockResolvedValue({ id: "bp" }),
       findMany: vi.fn().mockResolvedValue([]),

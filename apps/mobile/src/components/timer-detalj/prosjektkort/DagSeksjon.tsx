@@ -10,6 +10,7 @@ import { erReiseRadVisning } from "../../../utils/reiseRad";
 import { formatKortTall } from "../../../lib/prosjektkortMobil";
 import { TimerRadModal } from "../TimerSeksjon";
 import { SplittRadModal } from "../SplittRadModal";
+import { ReiseKort } from "../ReiseKort";
 import { leggTilTimerRad, oppdaterTimerRad, fjernTimerRad, type RadKontekst } from "./radLagring";
 import type { Sedel, TimerRad } from "../../../types/timer-detalj";
 
@@ -150,7 +151,51 @@ export function DagSeksjon({
         )}
       </View>
 
-      {reiseModal && (
+      {/* POST (13) L2 § 7 C: NY reise-rad → reise-kortet (Tur/Retur/overføring).
+          Eksisterende reise-rad redigeres fortsatt i TimerRadModal. */}
+      {reiseModal && !reiseModal.rad && (
+        <ReiseKort
+          organizationId={sedel.organizationId}
+          userId={sedel.userId}
+          dato={sedel.dato}
+          projectId={forslagProsjekt}
+          sedelByggeplassId={sedel.byggeplassId ?? null}
+          aktivitetId={sedel.aktivitetId}
+          dagsrader={timerRader.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: erReise(r) }))}
+          resolverLonnsartId={reiseKnappLonnsartId}
+          medOverforing
+          skjulOverforingRetninger={timerRader.flatMap((r) =>
+            r.reiseKilde === "overforing" && (r.reiseRetning === "ut" || r.reiseRetning === "retur")
+              ? [r.reiseRetning]
+              : [],
+          )}
+          onLagre={(l) => {
+            leggTilTimerRad(
+              db(),
+              k,
+              {
+                projectId: l.projectId,
+                byggeplassId: l.byggeplassId,
+                lonnsartId: l.lonnsartId,
+                aktivitetId: l.aktivitetId,
+                timer: l.timer,
+                externalCostObjectId: l.externalCostObjectId,
+                fraTid: l.fraTid,
+                tilTid: l.tilTid,
+                beskrivelse: null,
+                pauseMin: 0,
+              },
+              [],
+              l.reiseSpor,
+            );
+            setReiseModal(null);
+            onEndret();
+          }}
+          onLukk={() => setReiseModal(null)}
+        />
+      )}
+
+      {reiseModal?.rad && (
         <TimerRadModal
           sheetId={sheetId}
           organizationId={sedel.organizationId}
@@ -165,26 +210,18 @@ export function DagSeksjon({
           eksisterendeRad={reiseModal.rad}
           tvungetValg={null}
           sedelByggeplassId={sedel.byggeplassId ?? null}
-          reise={
-            reiseModal.rad
-              ? { lonnsartId: reiseLonnsartId }
-              : { lonnsartId: reiseKnappLonnsartId, laast: true }
-          }
-          handlinger={
-            reiseModal.rad
-              ? {
-                  onDelOpp: () => {
-                    setSplitt(reiseModal.rad);
-                    setReiseModal(null);
-                  },
-                  onSlett: () => {
-                    fjernTimerRad(db(), k, reiseModal.rad!.id);
-                    setReiseModal(null);
-                    onEndret();
-                  },
-                }
-              : undefined
-          }
+          reise={{ lonnsartId: reiseLonnsartId }}
+          handlinger={{
+            onDelOpp: () => {
+              setSplitt(reiseModal.rad);
+              setReiseModal(null);
+            },
+            onSlett: () => {
+              fjernTimerRad(db(), k, reiseModal.rad!.id);
+              setReiseModal(null);
+              onEndret();
+            },
+          }}
           onLagre={(
             projectId,
             byggeplassId,
@@ -197,7 +234,6 @@ export function DagSeksjon({
             beskrivelse,
             pauseMin,
             maskin,
-            reiseSpor,
           ) => {
             const felt = {
               projectId,
@@ -212,7 +248,6 @@ export function DagSeksjon({
               pauseMin,
             };
             if (reiseModal.rad) oppdaterTimerRad(db(), k, reiseModal.rad.id, felt, maskin);
-            else leggTilTimerRad(db(), k, felt, maskin.linjer, reiseSpor);
             setReiseModal(null);
             onEndret();
           }}
