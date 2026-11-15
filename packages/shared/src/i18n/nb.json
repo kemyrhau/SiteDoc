@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Uten",
   "timer.kortValg.flyttTittel": "Flytt raden til",
   "timer.kort.endre": "Endre kort",
+  "timer.kort.seHeleDagen": "Se hele dagen ({{antall}} prosjekter)",
   "timer.kort.slett": "Slett kort",
   "timer.kort.flyttTittel": "Flytt kortet til",
   "timer.kort.flyttKnapp": "Flytt kortet",

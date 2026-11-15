@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Keiner",
   "timer.kortValg.flyttTittel": "Zeile verschieben nach",
   "timer.kort.endre": "Karte wechseln",
+  "timer.kort.seHeleDagen": "Den ganzen Tag ansehen ({{antall}} Projekte)",
   "timer.kort.slett": "Karte löschen",
   "timer.kort.flyttTittel": "Verschieben Sie die Karte nach",
   "timer.kort.flyttKnapp": "Karte verschieben",

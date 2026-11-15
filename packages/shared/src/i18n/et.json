@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Mitte ühtegi",
   "timer.kortValg.flyttTittel": "Teisalda rida asukohta",
   "timer.kort.endre": "Vaheta kaarti",
+  "timer.kort.seHeleDagen": "Vaadake tervet päeva ({{antall}} projekti)",
   "timer.kort.slett": "Kustuta kaart",
   "timer.kort.flyttTittel": "Liigutage kaart kohta",
   "timer.kort.flyttKnapp": "Liiguta kaarti",

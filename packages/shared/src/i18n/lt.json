@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Nėra",
   "timer.kortValg.flyttTittel": "Perkelti eilutę į",
   "timer.kort.endre": "Keisti kortelę",
+  "timer.kort.seHeleDagen": "Peržiūrėkite visą dieną ({{antall}} projektai)",
   "timer.kort.slett": "Ištrinti kortelę",
   "timer.kort.flyttTittel": "Perkelkite kortelę į",
   "timer.kort.flyttKnapp": "Perkelti kortelę",

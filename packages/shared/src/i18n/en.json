@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "None",
   "timer.kortValg.flyttTittel": "Move row to",
   "timer.kort.endre": "Change card",
+  "timer.kort.seHeleDagen": "See the whole day ({{antall}} projects)",
   "timer.kort.slett": "Delete card",
   "timer.kort.flyttTittel": "Move the card to",
   "timer.kort.flyttKnapp": "Move card",

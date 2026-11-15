@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Ingen",
   "timer.kortValg.flyttTittel": "Flytta rad till",
   "timer.kort.endre": "Byt kort",
+  "timer.kort.seHeleDagen": "Se hela dagen ({{antall}} projekt)",
   "timer.kort.slett": "Ta bort kort",
   "timer.kort.flyttTittel": "Flytta kortet till",
   "timer.kort.flyttKnapp": "Flytta kort",

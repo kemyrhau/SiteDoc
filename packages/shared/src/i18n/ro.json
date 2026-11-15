@@ -5590,6 +5590,7 @@
   "timer.kortValg.uten": "Nici unul",
   "timer.kortValg.flyttTittel": "Mutați rândul la",
   "timer.kort.endre": "Schimbați cardul",
+  "timer.kort.seHeleDagen": "Vedeți toată ziua ({{antall}} proiecte)",
   "timer.kort.slett": "Ștergeți cardul",
   "timer.kort.flyttTittel": "Mutați cardul în",
   "timer.kort.flyttKnapp": "Mutați cardul",
