@@ -16,7 +16,6 @@ import {
   velgStandardByggeplass,
   velgTimerByggeplass,
   HELE_PROSJEKTET_VALG,
-  opprettLokasjonOmfang as utledOpprettLokasjonOmfang,
 } from "@sitedoc/shared";
 import { hentByggeplasserNavLokalt } from "../services/tegningKatalog";
 import { useFirma } from "./FirmaKontekst";
@@ -96,9 +95,6 @@ interface ByggeplassKontekstType {
   /** Velg «Hele prosjektet» — nullstiller byggeplass-filteret og hindrer at GPS
    *  autovalg setter en byggeplass stille igjen. */
   velgHeleProsjektet: (prosjektId?: string) => void;
-  /** ORDRE (20) linja: omfang nye dokumenter får — «prosjekt» når brukeren selv valgte «Hele
-   *  prosjektet» på et prosjekt med byggeplasser, ellers undefined (urørt). */
-  opprettLokasjonOmfang: "prosjekt" | undefined;
   lasterBygningId: boolean;
   /** F1: siste brukte tegning for en gitt byggeplass (null hvis ingen). */
   hentSistTegning: (byggeplassId: string) => string | null;
@@ -119,7 +115,6 @@ const ByggeplassContext = createContext<ByggeplassKontekstType>({
   settBygning: () => {},
   erHeleProsjektet: false,
   velgHeleProsjektet: () => {},
-  opprettLokasjonOmfang: undefined,
   lasterBygningId: true,
   hentSistTegning: () => null,
   settSistTegning: () => {},
@@ -296,8 +291,6 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     [valgtProsjektId, bygningMap],
   );
 
-  const opprettLokasjonOmfang = utledOpprettLokasjonOmfang(erHeleProsjektet, prosjektByggeplassIder.length);
-
   // (18) `prosjektId` overstyrer det aktive prosjektet: den delte velgeren kaller
   // byttProsjekt(p) + settBygning(id, p) i samme trykk, før valgtProsjektId er oppdatert.
   // Lokal map og servermirror (sistBruktByggeplass) skrives da på p, ikke på det gamle.
@@ -426,7 +419,6 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
         settBygning,
         erHeleProsjektet,
         velgHeleProsjektet,
-        opprettLokasjonOmfang,
         lasterBygningId,
         hentSistTegning,
         settSistTegning,

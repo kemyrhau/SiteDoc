@@ -39,7 +39,7 @@ import {
   Eye,
   Scale,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, visByggeplassIkkeValgt } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, visByggeplassIkkeValgt, byggeplassByttInput } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -159,7 +159,7 @@ export default function OppgaveDetalj() {
     byggeplassId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
-    lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | "prosjekt" | null;
+    lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
     lokasjonFritekst?: string | null;
     omradeId?: string | null;
     omrade?: { id: string; navn: string; type: string } | null;
@@ -948,7 +948,6 @@ export default function OppgaveDetalj() {
         {visLokasjon(oppgaveDetalj?.template) && visByggeplassIkkeValgt({
           byggeplassId: oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null,
           antallByggeplasser: bygninger.length,
-          lokasjonOmfang: oppgaveDetalj?.lokasjonOmfang ?? null,
           kanRedigere: kanRedigerePunkt && !leseModus,
         }) && <ByggeplassIkkeValgtLinje onVelg={() => settVisTegningVelger(true)} />}
 
@@ -1511,6 +1510,16 @@ export default function OppgaveDetalj() {
             tegninger={tilgjengeligeTegninger}
             bygninger={bygninger}
             valgtTegningId={null}
+            // ORDRE (20b) punkt 3: byggeplassene øverst — ett trykk setter byggeplass, tegning er
+            // frivillig. Tegning/pin/område nullstilles (samme regel som web-chipen); med
+            // drawingId null vinner ønsket byggeplass på serveren (velgTaskByggeplass).
+            valgtByggeplassId={oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null}
+            onVelgByggeplass={(byggeplassId) => {
+              if (byggeplassId !== (oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null)) {
+                oppdaterMutasjon.mutate({ id: id!, ...byggeplassByttInput(oppgaveDetalj?.lokasjonOmfang, byggeplassId) });
+              }
+              settVisTegningVelger(false);
+            }}
             onVelg={(valgt) => {
               oppdaterMutasjon.mutate(byttTegningInput(id!, valgt.id));
               const byggeplassId = valgt.byggeplassId ?? valgt.byggeplass?.id ?? null;

@@ -20,25 +20,3 @@ export function krevOmradeVedOmradeOmfang(
     });
   }
 }
-
-/**
- * ORDRE (20) punkt 2, alternativ A (2026-11-15): «prosjekt» = brukeren valgte selv «Hele
- * prosjektet». Skiller det bevisste valget fra null («ikke valgt ennå», også alle eldre
- * dokumenter). Kolonnen er String — ingen migrering.
- */
-export const LOKASJON_OMFANG = ["punkt", "byggeplass", "omrade", "prosjekt"] as const;
-
-/**
- * Omfanget som skal skrives når byggeplassen kan ha endret seg. «prosjekt» og en byggeplass
- * motsier hverandre: får dokumentet byggeplass, nullstilles «prosjekt». Ellers returneres
- * input uendret (`undefined` = ikke rør kolonnen).
- */
-export function omfangMedByggeplass(args: {
-  inputOmfang: string | null | undefined;
-  naavaerendeOmfang: string | null | undefined;
-  effektivByggeplassId: string | null | undefined;
-}): string | null | undefined {
-  const effektivt = args.inputOmfang !== undefined ? args.inputOmfang : args.naavaerendeOmfang;
-  if (effektivt === "prosjekt" && args.effektivByggeplassId) return null;
-  return args.inputOmfang;
-}

@@ -1,38 +1,49 @@
 /**
- * ORDRE (20) punkt 2, alternativ A (2026-11-15): «Byggeplass ikke valgt · Velg» øverst i
+ * ORDRE (20) linja + (20b) (Kenneth-vedtak 2026-11-15): «Byggeplass ikke valgt · Velg» øverst i
  * sjekkliste/oppgave (mobil + web).
  *
- * `lokasjonOmfang = "prosjekt"` betyr at brukeren selv valgte «Hele prosjektet». null betyr
- * «ikke valgt» — også alle dokumenter fra før verdien fantes. Kolonnen er String; ingen migrering.
+ * «Hele prosjektet» er kun et visningsfilter — aldri en verdi på dokumentet. I et prosjekt med
+ * byggeplasser hører hvert dokument til én byggeplass; mangler den, ber linja om valg.
  */
-export const LOKASJON_OMFANG_PROSJEKT = "prosjekt";
-
 export interface ByggeplassIkkeValgtInput {
   byggeplassId: string | null | undefined;
   /** Antall byggeplasser på prosjektet. */
   antallByggeplasser: number;
-  lokasjonOmfang: string | null | undefined;
   /** Brukeren kan redigere dokumentet (ikke lesemodus/låst). */
   kanRedigere: boolean;
 }
 
-/** Linja vises når byggeplass mangler, prosjektet har byggeplasser, ingen bevisst «Hele prosjektet», og brukeren kan redigere. */
+/** Linja vises når byggeplass mangler, prosjektet har byggeplasser og brukeren kan redigere. */
 export function visByggeplassIkkeValgt(d: ByggeplassIkkeValgtInput): boolean {
-  return (
-    !d.byggeplassId &&
-    d.antallByggeplasser > 0 &&
-    d.lokasjonOmfang !== LOKASJON_OMFANG_PROSJEKT &&
-    d.kanRedigere
-  );
+  return !d.byggeplassId && d.antallByggeplasser > 0 && d.kanRedigere;
 }
 
 /**
- * Omfanget et nytt dokument skal få fra brukerens kontekstvalg: «prosjekt» kun når brukeren
- * selv har valgt «Hele prosjektet» på et prosjekt med byggeplasser. Ellers `undefined` (urørt).
+ * ORDRE 29 #6: bytte av byggeplass (web-sjekklistechipen; (20b) også mobilens byggeplassvalg). Tegningen fjernes alltid (den hører til
+ * den gamle byggeplassen). Et område hører også til den gamle byggeplassen, så omfang «omrade»
+ * nullstilles sammen med `omradeId` — ellers ville serveren avvise omfang «omrade» uten område.
+ * Omfang «punkt» mister tegningen og nullstilles, og pinnen tømmes (en pin uten tegning er
+ * meningsløs). «Hele byggeplassen» (+ fritekst) gjelder like godt den nye byggeplassen og beholdes.
  */
-export function opprettLokasjonOmfang(
-  erHeleProsjektet: boolean,
-  antallByggeplasser: number,
-): typeof LOKASJON_OMFANG_PROSJEKT | undefined {
-  return erHeleProsjektet && antallByggeplasser > 0 ? LOKASJON_OMFANG_PROSJEKT : undefined;
+export function byggeplassByttInput(
+  naavaerendeOmfang: "punkt" | "byggeplass" | "omrade" | null | undefined,
+  nyByggeplassId: string | null,
+): {
+  byggeplassId: string | null;
+  drawingId: null;
+  positionX: null;
+  positionY: null;
+  omradeId: null;
+  lokasjonOmfang?: null;
+} {
+  const base = {
+    byggeplassId: nyByggeplassId,
+    drawingId: null,
+    positionX: null,
+    positionY: null,
+    omradeId: null,
+  } as const;
+  return naavaerendeOmfang === "omrade" || naavaerendeOmfang === "punkt"
+    ? { ...base, lokasjonOmfang: null }
+    : { ...base };
 }

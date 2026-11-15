@@ -631,15 +631,14 @@ export default function OppgaveDetaljSide() {
     }
   }
 
-  // ORDRE (20) linja: oppgave uten byggeplass (egen eller tegningens) i et prosjekt med byggeplasser,
-  // uten eget «Hele prosjektet»-valg. Kun i utkast (server-vakten) og når malen viser lokasjon —
+  // ORDRE (20b) linja: oppgave uten byggeplass (egen eller tegningens) i et prosjekt med byggeplasser.
+  // Kun i utkast (server-vakten) og når malen viser lokasjon —
   // «Velg» åpner lokasjonsvelgeren, som ellers ikke finnes på siden.
   const visIkkeValgt = visByggeplassIkkeValgt({
     byggeplassId:
       (fullOppgaveRå as { byggeplassId?: string | null } | undefined)?.byggeplassId ??
       (oppgaveLokasjon.bygningNavn ? "tegningens" : null),
     antallByggeplasser: (bygningerRå as unknown[] | undefined)?.length ?? 0,
-    lokasjonOmfang: oppgaveLokasjon.lokasjonOmfang,
     kanRedigere:
       !leseModus &&
       (oppgave.status ?? "") === "draft" &&

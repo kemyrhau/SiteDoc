@@ -7,13 +7,11 @@ import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { SignertBilde } from "@/components/SignertBilde";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-import { byggeplassForLokasjon, filtrerOmrader } from "@/lib/dokument-lokasjon";
+import { byggeplassForLokasjon, filtrerOmrader, manglerByggeplassValg } from "@/lib/dokument-lokasjon";
 import { harTegningsmarkor } from "@sitedoc/shared";
 import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
-// «prosjekt» (ORDRE (20), 2026-11-15): brukeren valgte selv «Hele prosjektet». Velgeren lagrer det
-// aldri selv; verdien stopper bare auto-åpningen (kalleren sjekker `== null`).
-type LokasjonOmfang = "punkt" | "byggeplass" | "omrade" | "prosjekt";
+type LokasjonOmfang = "punkt" | "byggeplass" | "omrade";
 
 interface LokasjonVelgerProps {
   prosjektId: string;
@@ -89,10 +87,9 @@ export function LokasjonVelger({
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data: bygninger } = trpc.bygning.hentForProsjekt.useQuery(
-    { projectId: prosjektId },
-    { enabled: open },
-  );
+  // (20b): hentes også i passiv tilstand — «Gjelder hele byggeplassen» må vite om prosjektet har
+  // byggeplasser før den kan lagre uten å åpne velgeren.
+  const { data: bygninger } = trpc.bygning.hentForProsjekt.useQuery({ projectId: prosjektId });
 
   const { data: tegningerRå } = trpc.tegning.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -246,6 +243,12 @@ export function LokasjonVelger({
     });
   }
 
+  // (20b): i et prosjekt med byggeplasser lagres aldri omfang «byggeplass» uten byggeplass.
+  const manglerByggeplass = manglerByggeplassValg({
+    antallByggeplasser: bygninger?.length ?? 0,
+    byggeplassId: lokasjonsByggeplass(),
+  });
+
   function handleFjern() {
     // Fjern lokasjon tømmer tegning/pin/område — ikke byggeplassen (den eier toppbaren/chipen).
     onLagre({ drawingId: null, positionX: null, positionY: null, lokasjonOmfang: null, lokasjonFritekst: null, omradeId: null });
@@ -266,6 +269,11 @@ export function LokasjonVelger({
   // tegning/pin — omfanget ER svaret. Fungerer både fra passiv tilstand og inne i (auto-)åpnet modal.
   // ORDRE 29 #5: bærer valgt/dokumentets/aktiv byggeplass — aldri null.
   function handleByggeplass() {
+    // (20b): passiv knapp uten kjent byggeplass åpner velgeren i stedet for å lagre.
+    if (manglerByggeplass) {
+      if (!open) åpne();
+      return;
+    }
     onLagre({ drawingId: null, byggeplassId: lokasjonsByggeplass(), positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: null, omradeId: null });
     setOpen(false);
   }
@@ -275,7 +283,7 @@ export function LokasjonVelger({
   // forblir førstevalget; dette er stedet «Akse 4» får stå når det ikke er noe å pinne på.
   function handleFritekst() {
     const tekst = fritekst.trim();
-    if (!tekst) return;
+    if (!tekst || manglerByggeplass) return;
     onLagre({ drawingId: null, byggeplassId: lokasjonsByggeplass(), positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: tekst, omradeId: null });
     setOpen(false);
   }
@@ -426,7 +434,7 @@ export function LokasjonVelger({
                   if (!filtrerOmrader(omrader, ny).some((o) => o.id === valgtOmradeId)) setValgtOmradeId("");
                 }}
               >
-                <option value="">{t("lokasjonVelger.alleBygninger")}</option>
+                <option value="">{t("lokasjonVelger.velgByggeplassPlassholder")}</option>
                 {(bygninger ?? []).map((b: { id: string; name: string; number: number | null }) => (
                   <option key={b.id} value={b.id}>
                     {b.number ? `${b.number}. ${b.name}` : b.name}
@@ -506,7 +514,7 @@ export function LokasjonVelger({
                 placeholder={t("lokasjonVelger.fritekstPlassholder", "F.eks. «Akse 4», «Nordre rampe»")}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
-              <Button variant="secondary" disabled={!fritekst.trim()} onClick={handleFritekst}>
+              <Button variant="secondary" disabled={!fritekst.trim() || manglerByggeplass} onClick={handleFritekst}>
                 {t("lokasjonVelger.lagreSted", "Lagre sted")}
               </Button>
             </div>
@@ -595,14 +603,17 @@ export function LokasjonVelger({
             </Button>
             {/* Alternativ til pin: erklær hele byggeplassen (krav 2). Auto-åpnet velger →
                 ett trykk her er nok. Ingen bekreftelse. */}
-            <button
-              type="button"
-              onClick={handleByggeplass}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-sitedoc-secondary hover:bg-gray-50"
-            >
-              <MapPin className="h-4 w-4" />
-              {t("lokasjonVelger.gjelderByggeplass")}
-            </button>
+            <KnappMedForklaring wrapperKlasse="ml-auto" sperret={manglerByggeplass} forklaring={t("sperret.velgByggeplass")}>
+                <button
+                  type="button"
+                  onClick={handleByggeplass}
+                  disabled={manglerByggeplass}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-sitedoc-secondary hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent"
+                >
+                  <MapPin className="h-4 w-4" />
+                  {t("lokasjonVelger.gjelderByggeplass")}
+                </button>
+            </KnappMedForklaring>
           </div>
         </div>
       </Modal>

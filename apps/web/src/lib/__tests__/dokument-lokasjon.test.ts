@@ -4,6 +4,7 @@ import {
   byggeplassForLokasjon,
   filtrerOmrader,
   lesDokumentLokasjon,
+  manglerByggeplassValg,
 } from "../dokument-lokasjon";
 
 /**
@@ -141,21 +142,20 @@ describe("ORDRE 29 #6: byggeplassByttInput", () => {
     expect(byggeplassByttInput("punkt", "bp2").lokasjonOmfang).toBeNull();
   });
   it("hele byggeplassen beholdes (gjelder den nye byggeplassen)", () => {
-    const ut = byggeplassByttInput("byggeplass", "bp2");
+    const ut = byggeplassByttInput("byggeplass", null);
     expect(ut).not.toHaveProperty("lokasjonOmfang");
-    expect(ut).toMatchObject({ byggeplassId: "bp2", omradeId: null, drawingId: null });
+    expect(ut).toMatchObject({ byggeplassId: null, omradeId: null, drawingId: null });
   });
 });
 
-describe("ORDRE (20) linja: «Hele prosjektet» i byggeplass-chipen", () => {
-  it("🔴 tomvalget lagres som omfang «prosjekt»", () => {
-    expect(byggeplassByttInput("byggeplass", null)).toMatchObject({ byggeplassId: null, lokasjonOmfang: "prosjekt" });
-    expect(byggeplassByttInput(null, null).lokasjonOmfang).toBe("prosjekt");
+describe("ORDRE (20b): manglerByggeplassValg", () => {
+  it("🔴 byggeplasser finnes, ingen kjent → mangler (ingen lagring av «hele byggeplassen» uten byggeplass)", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 2, byggeplassId: undefined })).toBe(true);
   });
-  it("🔴 valg av byggeplass nullstiller «prosjekt»", () => {
-    expect(byggeplassByttInput("prosjekt", "bp2")).toMatchObject({ byggeplassId: "bp2", lokasjonOmfang: null });
+  it("byggeplass kjent → ok", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 2, byggeplassId: "bp1" })).toBe(false);
   });
-  it("negativkontroll: byggeplass-valg uten omfang setter ikke «prosjekt»", () => {
-    expect(byggeplassByttInput(null, "bp2")).not.toHaveProperty("lokasjonOmfang");
+  it("prosjekt uten byggeplasser er uendret → ok", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 0, byggeplassId: undefined })).toBe(false);
   });
 });

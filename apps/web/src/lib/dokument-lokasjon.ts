@@ -9,17 +9,14 @@
  * fullSjekklisteRå), så feltene faktisk finnes. Byggeplass (ORDRE 28): dokumentets egen byggeplass
  * først, tegningens som reserve (eldre Task-rader uten egen verdi).
  */
-export type LokasjonOmfangVerdi = "punkt" | "byggeplass" | "omrade" | "prosjekt";
-
 export interface DokumentLokasjon {
   tegningId: string | null;
   tegningNavn: string | null;
   bygningNavn: string | null;
   positionX: number | null;
   positionY: number | null;
-  /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | "omrade" (steg 2b) | "prosjekt"
-   * (ORDRE (20), 2026-11-15: brukeren valgte selv «Hele prosjektet») | null. */
-  lokasjonOmfang: LokasjonOmfangVerdi | null;
+  /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | "omrade" (steg 2b) | null. */
+  lokasjonOmfang: "punkt" | "byggeplass" | "omrade" | null;
   /** Fritekst-sted (2026-09-06) — påheng på byggeplass når tegning mangler. */
   lokasjonFritekst: string | null;
   /** Område-referanse (steg 2b, 2026-09-23) — satt når lokasjonOmfang="omrade". */
@@ -32,7 +29,7 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
         drawingId?: string | null;
         positionX?: number | null;
         positionY?: number | null;
-        lokasjonOmfang?: LokasjonOmfangVerdi | null;
+        lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
         lokasjonFritekst?: string | null;
         omradeId?: string | null;
         drawing?: { name?: string | null; byggeplass?: { name?: string | null } | null } | null;
@@ -78,35 +75,13 @@ export function byggeplassForLokasjon(kilder: {
 }
 
 /**
- * ORDRE 29 #6: bytte av byggeplass via sjekkliste-chipen. Tegningen fjernes alltid (den hører til
- * den gamle byggeplassen). Et område hører også til den gamle byggeplassen, så omfang «omrade»
- * nullstilles sammen med `omradeId` — ellers ville serveren avvise omfang «omrade» uten område.
- * Omfang «punkt» mister tegningen og nullstilles, og pinnen tømmes (en pin uten tegning er
- * meningsløs). «Hele byggeplassen» (+ fritekst) gjelder like godt den nye byggeplassen og beholdes.
- * ORDRE (20) linja: tomvalget («Hele prosjektet», `nyByggeplassId` null) er brukerens eget valg og
- * lagres som omfang «prosjekt», så «Byggeplass ikke valgt» ikke vises. Valg av en byggeplass
- * nullstiller «prosjekt» (serveren gjør det samme).
+ * ORDRE (20b): «Hele prosjektet» er kun et visningsfilter. I et prosjekt med byggeplasser kan
+ * «Gjelder hele byggeplassen» / fritekst-sted bare lagres når en byggeplass er kjent — ellers ville
+ * omfang «byggeplass» lagres uten byggeplass. Prosjekter uten byggeplasser er uendret.
  */
-export function byggeplassByttInput(
-  naavaerendeOmfang: LokasjonOmfangVerdi | null | undefined,
-  nyByggeplassId: string | null,
-): {
-  byggeplassId: string | null;
-  drawingId: null;
-  positionX: null;
-  positionY: null;
-  omradeId: null;
-  lokasjonOmfang?: null | "prosjekt";
-} {
-  const base = {
-    byggeplassId: nyByggeplassId,
-    drawingId: null,
-    positionX: null,
-    positionY: null,
-    omradeId: null,
-  } as const;
-  if (nyByggeplassId === null) return { ...base, lokasjonOmfang: "prosjekt" };
-  return naavaerendeOmfang === "omrade" || naavaerendeOmfang === "punkt" || naavaerendeOmfang === "prosjekt"
-    ? { ...base, lokasjonOmfang: null }
-    : { ...base };
+export function manglerByggeplassValg(d: { antallByggeplasser: number; byggeplassId: string | undefined }): boolean {
+  return d.antallByggeplasser > 0 && !d.byggeplassId;
 }
+
+// ORDRE 29 #6 / (20b): flyttet til @sitedoc/shared så mobilens byggeplassvalg bruker samme regel.
+export { byggeplassByttInput } from "@sitedoc/shared";

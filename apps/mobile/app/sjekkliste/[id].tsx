@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, visByggeplassIkkeValgt } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, visByggeplassIkkeValgt, byggeplassByttInput } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument, PdfValg } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
@@ -178,7 +178,7 @@ export default function SjekklisteUtfylling() {
     positionX?: number | null;
     positionY?: number | null;
     byggeplass?: { id: string; name: string } | null;
-    lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | "prosjekt" | null;
+    lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
     lokasjonFritekst?: string | null;
     omradeId?: string | null;
     omrade?: { id: string; navn: string; type: string } | null;
@@ -842,6 +842,26 @@ export default function SjekklisteUtfylling() {
           : lokasjonTekst;
 
   // Åpner lokasjonsvelgeren i redigeringsmodus — felles for lokasjonsfeltet og «Byggeplass ikke valgt · Velg».
+  // ORDRE (20b) punkt 3: «Velg» i «Byggeplass ikke valgt»-linja går rett til lista med
+  // byggeplassene øverst — ett trykk setter byggeplass, tegning er frivillig.
+  const aapneByggeplassValg = () => {
+    aapneLokasjonRedigering();
+    setVisLokByttTegning(true);
+  };
+
+  // (20b): ett trykk på en byggeplass lagrer den. Tegning/pin/område hører til den gamle
+  // byggeplassen og nullstilles (samme regel som web-chipen, `byggeplassByttInput`).
+  const velgByggeplass = (byggeplassId: string) => {
+    if (byggeplassId !== (sjekklisteDetalj?.byggeplass?.id ?? null)) {
+      oppdaterMutasjon.mutate({
+        id: id!,
+        ...byggeplassByttInput(sjekklisteDetalj?.lokasjonOmfang, byggeplassId),
+      });
+    }
+    setVisLokByttTegning(false);
+    setVisLokasjonModal(false);
+  };
+
   const aapneLokasjonRedigering = () => {
     // Initialiser temp-state fra nåværende lokasjon
     const harLagretTegning = !!sjekklisteDetalj?.drawingId;
@@ -1045,9 +1065,8 @@ export default function SjekklisteUtfylling() {
         {visLokasjon(sjekklisteDetalj?.template) && visByggeplassIkkeValgt({
           byggeplassId: sjekklisteDetalj?.byggeplass?.id ?? null,
           antallByggeplasser: bygninger.length,
-          lokasjonOmfang: sjekklisteDetalj?.lokasjonOmfang ?? null,
           kanRedigere: !leseModus,
-        }) && <ByggeplassIkkeValgtLinje onVelg={aapneLokasjonRedigering} />}
+        }) && <ByggeplassIkkeValgtLinje onVelg={aapneByggeplassValg} />}
 
         {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
             (ordre 2026-09-22). Redigerbart for den som kan redigere (samme leseModus),
@@ -1543,6 +1562,8 @@ export default function SjekklisteUtfylling() {
                     tegninger={tilgjengeligeTegninger}
                     bygninger={bygninger}
                     valgtTegningId={lokTempTegningId}
+                    valgtByggeplassId={sjekklisteDetalj?.byggeplass?.id ?? null}
+                    onVelgByggeplass={velgByggeplass}
                     onVelg={(valgt) => {
                       setLokTempTegningId(valgt.id);
                       setLokTempBygningId(valgt.byggeplassId ?? valgt.byggeplass?.id ?? null);

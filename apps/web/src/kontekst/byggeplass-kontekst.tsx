@@ -16,7 +16,6 @@ import { trpc } from "@/lib/trpc";
 import {
   velgStandardByggeplass,
   velgByggeplassUtenGjett,
-  opprettLokasjonOmfang as utledOpprettLokasjonOmfang,
   HELE_PROSJEKTET_VALG,
 } from "@sitedoc/shared";
 
@@ -64,9 +63,6 @@ interface ByggeplassKontekstType {
   opprettByggeplass: AktivByggeplass | null;
   /** (20) Standard-tegning for nye dokumenter — kun når `opprettByggeplass` er satt. */
   opprettTegning: StandardTegning | null;
-  /** (20) alt. A: «prosjekt» når brukeren selv valgte «Hele prosjektet» (prosjekt med
-   *  byggeplasser) — skiller det bevisste valget fra «ikke valgt». Ellers undefined. */
-  opprettLokasjonOmfang: "prosjekt" | undefined;
   standardTegning: StandardTegning | null;
   settStandardTegning: (tegning: StandardTegning | null) => void;
   aktivTegning: AktivTegning | null;
@@ -330,10 +326,6 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     return id && aktivByggeplass?.id === id ? aktivByggeplass : null;
   }, [byggeplassListe.data, erHeleProsjektet, erForvalgtForste, aktivByggeplass]);
   const opprettTegning = opprettByggeplass ? standardTegning : null;
-  const opprettLokasjonOmfang = utledOpprettLokasjonOmfang(
-    erHeleProsjektet,
-    byggeplassListe.data?.length ?? 0,
-  );
 
   const settStandardTegning = useCallback(
     (tegning: StandardTegning | null) => {
@@ -399,7 +391,6 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
         velgByggeplass,
         opprettByggeplass,
         opprettTegning,
-        opprettLokasjonOmfang,
         standardTegning,
         settStandardTegning,
         aktivTegning,

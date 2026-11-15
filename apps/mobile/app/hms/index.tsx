@@ -73,7 +73,7 @@ interface HmsDokumenter {
 export default function HmsListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, opprettLokasjonOmfang } = useByggeplass();
+  const { valgtBygningId, kontekstByggeplassId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const router = useRouter();
@@ -214,7 +214,7 @@ export default function HmsListe() {
   // Lean mutate-signaturer (TS2589, docs/claude/api.md § TS/tRPC-fallgruver): med
   // byggeplassId i oppgave.opprett-inputen (ORDRE 28) tåler ikke useCallback-deps de
   // dype tRPC-typene — `as unknown as` FØR de brukes i callbacken.
-  type OpprettInn = { templateId: string; title: string; byggeplassId?: string; lokasjonOmfang?: "prosjekt" };
+  type OpprettInn = { templateId: string; title: string; byggeplassId?: string };
   const opprettOppgaveMutate = opprettOppgave.mutate as unknown as (inn: OpprettInn) => void;
   const opprettSjekklisteMutate = opprettSjekkliste.mutate as unknown as (inn: OpprettInn) => void;
 
@@ -224,13 +224,12 @@ export default function HmsListe() {
     (mal: HmsMal) => {
       settVisMalVelger(false);
       if (mal.subdomain === "sja") {
-        // Kontekst-default (V2): aktiv byggeplass fra global kontekst settes ved
-        // opprettelse. sjekkliste.opprett tar byggeplassId direkte.
+        // (20b): byggeplass uten gjett (lagret valg → GPS → ingen), aldri «første».
+        // sjekkliste.opprett tar byggeplassId direkte.
         opprettSjekklisteMutate({
           templateId: mal.id,
           title: mal.name,
-          byggeplassId: valgtBygningId ?? undefined,
-          lokasjonOmfang: opprettLokasjonOmfang,
+          byggeplassId: kontekstByggeplassId ?? undefined,
         });
       } else {
         // Avvik/RUH = oppgave. ORDRE 28: oppgave.opprett tar byggeplassId — aktiv
@@ -238,12 +237,11 @@ export default function HmsListe() {
         opprettOppgaveMutate({
           templateId: mal.id,
           title: mal.name,
-          byggeplassId: valgtBygningId ?? undefined,
-          lokasjonOmfang: opprettLokasjonOmfang,
+          byggeplassId: kontekstByggeplassId ?? undefined,
         });
       }
     },
-    [opprettOppgaveMutate, opprettSjekklisteMutate, valgtBygningId, opprettLokasjonOmfang],
+    [opprettOppgaveMutate, opprettSjekklisteMutate, kontekstByggeplassId],
   );
 
   const onRefresh = useCallback(() => {

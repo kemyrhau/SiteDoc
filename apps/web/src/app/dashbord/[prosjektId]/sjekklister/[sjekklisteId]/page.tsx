@@ -9,7 +9,7 @@ import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/p
 import { byggObjektTre } from "@sitedoc/shared/types";
 import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight, Anchor } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { byggeplassByttInput, type LokasjonOmfangVerdi } from "@/lib/dokument-lokasjon";
+import { byggeplassByttInput } from "@/lib/dokument-lokasjon";
 import { ByggeplassIkkeValgtLinje } from "@/components/ByggeplassIkkeValgtLinje";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -613,12 +613,11 @@ export default function SjekklisteDetaljSide() {
     }
   }
 
-  // ORDRE (20) linja: dokument uten byggeplass i et prosjekt som har byggeplasser, og brukeren har
-  // ikke selv valgt «Hele prosjektet» (omfang «prosjekt»). Kun der byggeplass-chipen kan brukes.
+  // ORDRE (20b) linja: dokument uten byggeplass i et prosjekt som har byggeplasser («Hele prosjektet»
+  // er kun et visningsfilter, aldri en verdi på dokumentet). Kun der byggeplass-chipen kan brukes.
   const visIkkeValgt = visByggeplassIkkeValgt({
     byggeplassId: fullSjekkliste?.byggeplass?.id ?? null,
     antallByggeplasser: bygninger.length,
-    lokasjonOmfang: (fullSjekkliste as unknown as { lokasjonOmfang?: LokasjonOmfangVerdi | null })?.lokasjonOmfang ?? null,
     kanRedigere: !leseModus && !erLaast,
   });
 
@@ -630,12 +629,15 @@ export default function SjekklisteDetaljSide() {
     },
     {
       etikett: t("kontekstChip.byggeplass"),
-      verdi: fullSjekkliste?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      // (20b): «Hele prosjektet» er kun et visningsfilter. Med byggeplasser på prosjektet vises «—»
+      // til en byggeplass er valgt; uten byggeplasser er teksten uendret.
+      verdi:
+        fullSjekkliste?.byggeplass?.name ??
+        (bygninger.length > 0 ? "—" : t("kontekstChip.heleProsjektet")),
       type: "velger",
       deaktivert: erLaast,
       deaktivertGrunn: t("kontekstChip.byggeplassLaastGodkjent"),
       valgtId: fullSjekkliste?.byggeplass?.id ?? null,
-      tomLabel: t("kontekstChip.heleProsjektet"),
       åpneSignal: byggeplassÅpneSignal,
       alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),
       // ORDRE 29 #6: tegning, pin og område hører til den gamle byggeplassen og nullstilles.
@@ -643,7 +645,7 @@ export default function SjekklisteDetaljSide() {
         oppdaterMutasjon.mutate({
           id: params.sjekklisteId,
           ...byggeplassByttInput(
-            (fullSjekkliste as unknown as { lokasjonOmfang?: LokasjonOmfangVerdi | null })
+            (fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null })
               .lokasjonOmfang,
             id,
           ),
@@ -985,7 +987,7 @@ export default function SjekklisteDetaljSide() {
             bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
             positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
             positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
-            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: LokasjonOmfangVerdi | null }).lokasjonOmfang ?? null}
+            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null}
             lokasjonFritekst={(fullSjekkliste as unknown as { lokasjonFritekst?: string | null }).lokasjonFritekst ?? null}
             omradeId={(fullSjekkliste as unknown as { omradeId?: string | null }).omradeId ?? null}
             byggeplassId={fullSjekkliste?.byggeplass?.id ?? null}
@@ -1007,7 +1009,7 @@ export default function SjekklisteDetaljSide() {
                showLocation-gaten wrapper allerede blokka. Lukking uten valg lagrer ingenting. */
             autoÅpne={
               sjekkliste.status === "draft" &&
-              ((fullSjekkliste as unknown as { lokasjonOmfang?: LokasjonOmfangVerdi | null }).lokasjonOmfang ?? null) == null &&
+              ((fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null) == null &&
               !(sjekkliste as unknown as { drawingId?: string | null }).drawingId
             }
           />

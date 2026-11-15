@@ -15,7 +15,7 @@ const les = (sti: string) => readFileSync(join(her, sti), "utf-8").replace(/\s+/
 describe("dokumentopprettelse bruker byggeplass uten (c)", () => {
   it("OpprettVelger (direkte opprett fra blad) henter kontekstByggeplassId", () => {
     const kilde = les("../components/OpprettVelger.tsx");
-    expect(kilde).toMatch(/const \{ kontekstByggeplassId: valgtBygningId, hentSistTegning(, opprettLokasjonOmfang)? \} = useByggeplass\(\)/);
+    expect(kilde).toMatch(/const \{ kontekstByggeplassId: valgtBygningId, hentSistTegning \} = useByggeplass\(\)/);
     // Negativkontroll: visningsverdien (med (c)) destruktureres ikke direkte.
     expect(kilde).not.toMatch(/const \{ valgtBygningId[ ,}]/);
   });
@@ -26,34 +26,20 @@ describe("dokumentopprettelse bruker byggeplass uten (c)", () => {
     // Negativkontroll: den gamle aliasingen av visningsverdien er borte.
     expect(kilde).not.toMatch(/valgtBygningId: kontekstBygningId/);
   });
-});
 
-/**
- * ORDRE 2026-11-15 (20) linja: opprettelsen sender «prosjekt» ved eget «Hele prosjektet»-valg,
- * og detaljsidene viser «Byggeplass ikke valgt · Velg» via `visByggeplassIkkeValgt`.
- */
-describe("(20) linja — opprettelse og detaljsider", () => {
-  it.each([
-    ["../components/OpprettVelger.tsx"],
-    ["../components/OpprettDokumentModal.tsx"],
-    ["../../app/hms/index.tsx"],
-  ])("%s sender lokasjonOmfang fra konteksten", (sti) => {
-    const kilde = les(sti);
-    expect(kilde).toMatch(/const \{[^}]*\bopprettLokasjonOmfang\b[^}]*\} = useByggeplass\(\)/);
-    expect((kilde.match(/lokasjonOmfang: opprettLokasjonOmfang/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  it("(20b) mobil-HMS oppretter SJA/avvik/RUH med kontekstByggeplassId, aldri «første»", () => {
+    const kilde = les("../../app/hms/index.tsx");
+    const opprett = kilde.slice(kilde.indexOf("const håndterMal"), kilde.indexOf("const håndterMal") + 1200);
+    expect(opprett.match(/byggeplassId: kontekstByggeplassId \?\? undefined/g)?.length).toBe(2);
+    // Negativkontroll: visningsverdien (med (c) «første») brukes ikke ved opprettelse.
+    expect(opprett).not.toMatch(/byggeplassId: valgtBygningId/);
   });
 
-  it.each([
-    ["../../app/sjekkliste/[id].tsx", "aapneLokasjonRedigering"],
-    ["../../app/oppgave/[id].tsx", "settVisTegningVelger\\(true\\)"],
-  ])("%s viser linja og «Velg» åpner velgeren", (sti, handling) => {
-    const kilde = les(sti);
-    expect(kilde).toMatch(/visByggeplassIkkeValgt\(\{/);
-    expect(kilde).toMatch(new RegExp(`<ByggeplassIkkeValgtLinje onVelg=\\{(\\(\\) => )?${handling}\\} \\/>`));
-  });
-
-  // Negativkontroll: regexen treffer ikke en side uten linja.
-  it("negativkontroll: OpprettVelger har ingen linje", () => {
-    expect(les("../components/OpprettVelger.tsx")).not.toMatch(/ByggeplassIkkeValgtLinje/);
+  it("(20b) ingen opprett-flyt sender lokasjonOmfang «prosjekt»", () => {
+    for (const fil of ["../components/OpprettVelger.tsx", "../components/OpprettDokumentModal.tsx", "../../app/hms/index.tsx"]) {
+      const kilde = les(fil);
+      expect(kilde).not.toMatch(/lokasjonOmfang/);
+      expect(kilde).not.toMatch(/"prosjekt"/);
+    }
   });
 });
