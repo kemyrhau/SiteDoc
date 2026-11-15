@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Proiectele nu au putut fi încărcate",
   "prosjektVelger.sjekkNettverk": "Verificați conexiunea la rețea",
   "prosjektVelger.ingenBeskrivelse": "Vă puteți autentifica pe sitedoc.no și vă puteți înregistra un nou proiect",
+  "prosjektVelger.andreFirma": "Proiecte în alte companii",
+  "prosjektVelger.andreFirmaHjelp": "Sunteți membru al acestor proiecte, dar sunt deținute de o companie la care nu sunteți angajat.",
   "topbar.firma": "Companie",
   "topbar.sokProsjekt": "Cauta proiecte...",
   "topbar.ingenProsjekter": "Fara proiecte",

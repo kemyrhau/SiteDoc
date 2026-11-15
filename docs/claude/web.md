@@ -210,6 +210,7 @@ Arbeiderens fritekst auto-oversettes til prosjektspråket ved lagring.
 ## Layout-komponenter
 
 - `Toppbar` — Klikkbar logo (→ `/`), prosjektvelger, brukermeny, `SpraakVelger`, hamburgermeny (mobil). Admin: ShieldCheck-ikon, Firma: Building2-ikon
+- **Prosjekter i andre firma** (POST 2026-11-15 (15), 🟡 `feat/prosjekt-andre-firma`, ikke merget): prosjektvelgeren i `KontekstChip.tsx` viser prosjekter der brukeren er medlem, men eierfirmaet ikke er et firma brukeren er aktivt ansatt i, i egen gruppe «Prosjekter i andre firma» (`prosjektVelger.andreFirma`, ?-tekst `prosjektVelger.andreFirmaHjelp`), med eierfirmaets navn bak prosjektnavnet. Kilde: `prosjekt.hentGjesteprosjekter`; de tas ut av hovedlista. `prosjekt-kontekst.tsx` nullstiller ikke et valgt gjesteprosjekt ved firmabytte (`skalNullstilleProsjekt`, `lib/gjesteprosjekt.ts`) og eksponerer `gjesteprosjekter` + `valgtGjest`. Sidemenyen (`sidebar-elementer.tsx`) skjuler Timer for gjest uten firmakobling og Vareforbruk alltid for gjest (`skjulFirmaModulForGjest`, `@sitedoc/shared`).
 - `HovedSidebar` — 60px ikonbar (`hidden md:flex`), deaktiverte ikoner uten prosjekt
 - `SekundaertPanel` — 280px panel (`hidden md:flex`)
 - `Verktoylinje` — Kontekstuell handlingsbar

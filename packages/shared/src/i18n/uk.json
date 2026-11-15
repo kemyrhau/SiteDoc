@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Не вдалося завантажити проекти",
   "prosjektVelger.sjekkNettverk": "Перевірте підключення до мережі",
   "prosjektVelger.ingenBeskrivelse": "Ви можете увійти на sitedoc.no і зареєструвати новий проект",
+  "prosjektVelger.andreFirma": "Проекти в інших компаніях",
+  "prosjektVelger.andreFirmaHjelp": "Ви є учасником цих проектів, але вони належать компанії, у якій ви не працюєте.",
   "topbar.firma": "Компанія",
   "topbar.sokProsjekt": "Пошук проектів…",
   "topbar.ingenProsjekter": "Жодних проектів",

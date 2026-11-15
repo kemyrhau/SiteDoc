@@ -49,7 +49,7 @@ function lagPrisma(erKunde: boolean) {
       create: vi.fn().mockResolvedValue({ id: BRUKER, email: "ny@firma.no", name: "Ny Person" }),
       update: vi.fn(),
     },
-    organizationMember: { upsert: vi.fn().mockResolvedValue({}) },
+    organizationMember: { upsert: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]) },
     projectMember: {
       findUnique: vi
         .fn()

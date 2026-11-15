@@ -588,3 +588,4 @@ export {
 } from "./maskinSortering";
 export { formaterKjoretid } from "./kjoretid";
 export { skalVarsleSkjulteTimer } from "./timerSkjultVarsel";
+export { erGjesteprosjekt, skjulFirmaModulForGjest } from "./gjesteprosjekt";

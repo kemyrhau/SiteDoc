@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, ArrowLeftRight, Star } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Star, HelpCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
@@ -87,6 +87,7 @@ export function KontekstChip() {
     prosjektScope,
     prosjekter,
     mineProsjekter,
+    gjesteprosjekter,
     velgProsjekt,
   } = useProsjekt();
   const { aktivByggeplass, velgByggeplass } = useByggeplass();
@@ -239,12 +240,26 @@ export function KontekstChip() {
 
   // Prosjektliste: Alle/Mine er en filter-pille (ikke egne rader). Uten pille
   // (menig ansatt) vises hele prosjektsettet som før.
-  const prosjektKilde = visScopePille
-    ? prosjektFilter === "alle"
-      ? prosjekter
-      : mineProsjekter
-    : prosjekter;
+  // (15): gjesteprosjekter (medlem, men eid av et firma brukeren ikke er ansatt i) vises i
+  // egen gruppe «Prosjekter i andre firma» — tas ut av hovedlista (hentAlle tar dem med
+  // for vanlige brukere uavhengig av valgt firma).
+  const gjesteIdSet = new Set(gjesteprosjekter.map((p) => p.id));
+  const prosjektKilde = (
+    visScopePille
+      ? prosjektFilter === "alle"
+        ? prosjekter
+        : mineProsjekter
+      : prosjekter
+  ).filter((p) => !gjesteIdSet.has(p.id));
   const pq = prosjektSøk.toLowerCase();
+  const gjesteFiltrert = pq
+    ? gjesteprosjekter.filter(
+        (p) =>
+          p.name.toLowerCase().includes(pq) ||
+          (p.internalProjectNumber?.toLowerCase().includes(pq) ?? false) ||
+          (p.primaryOrganization?.name.toLowerCase().includes(pq) ?? false),
+      )
+    : gjesteprosjekter;
   const prosjektFiltrert = pq
     ? prosjektKilde.filter(
         (p) =>
@@ -369,6 +384,16 @@ export function KontekstChip() {
     );
   };
 
+  // (15): gjesterad viser eier-firmaet etter navnet — brukeren ser hvem prosjektet tilhører.
+  const gjesteRad = (p: (typeof gjesteprosjekter)[number]) => (
+    <TraktRad
+      key={p.id}
+      tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.primaryOrganization ? ` · ${p.primaryOrganization.name}` : ""}`}
+      valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
+      onVelg={() => velgProsjektTrakt(p.id)}
+    />
+  );
+
   const byggeplassRad = (b: Byggeplass) => (
     <TraktRad
       key={b.id}
@@ -446,7 +471,7 @@ export function KontekstChip() {
             <SøkeFelt verdi={prosjektSøk} onEndre={setProsjektSøk} placeholder={t("prosjektVelger.sok")} autoFokus />
           )}
           <div className="max-h-64 overflow-auto pb-1">
-            {prosjektFiltrert.length === 0 ? (
+            {prosjektFiltrert.length === 0 && gjesteFiltrert.length > 0 ? null : prosjektFiltrert.length === 0 ? (
               <p className="px-3 py-2 text-sm text-gray-400">{t("prosjektVelger.ingen")}</p>
             ) : (
               <>
@@ -468,6 +493,17 @@ export function KontekstChip() {
                     <SeksjonsLabel>{t("prosjektVelger.alleProsjekter")}</SeksjonsLabel>
                   )}
                 {øvrigeUtenFav.map(prosjektRad)}
+              </>
+            )}
+            {gjesteFiltrert.length > 0 && (
+              <>
+                <SeksjonsLabel>
+                  <span className="inline-flex items-center gap-1" title={t("prosjektVelger.andreFirmaHjelp")}>
+                    {t("prosjektVelger.andreFirma")}
+                    <HelpCircle className="h-3 w-3" aria-label={t("prosjektVelger.andreFirmaHjelp")} />
+                  </span>
+                </SeksjonsLabel>
+                {gjesteFiltrert.map(gjesteRad)}
               </>
             )}
           </div>

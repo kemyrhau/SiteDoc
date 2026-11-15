@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Det gick inte att läsa in projekt",
   "prosjektVelger.sjekkNettverk": "Kontrollera din nätverksanslutning",
   "prosjektVelger.ingenBeskrivelse": "Du kan logga in på sitedoc.no och registrera ett nytt projekt",
+  "prosjektVelger.andreFirma": "Projekt i andra företag",
+  "prosjektVelger.andreFirmaHjelp": "Du är medlem i dessa projekt, men de ägs av ett företag du inte är anställd av.",
   "topbar.firma": "Företag",
   "topbar.sokProsjekt": "Sök efter projekt...",
   "topbar.ingenProsjekter": "Inga projekt",

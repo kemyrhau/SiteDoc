@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Could not load projects",
   "prosjektVelger.sjekkNettverk": "Check your network connection",
   "prosjektVelger.ingenBeskrivelse": "You can log in at sitedoc.no and register a new project",
+  "prosjektVelger.andreFirma": "Projects in other companies",
+  "prosjektVelger.andreFirmaHjelp": "You are a member of these projects, but they are owned by a company you are not employed by.",
   "topbar.firma": "Company",
   "topbar.sokProsjekt": "Search projects…",
   "topbar.ingenProsjekter": "No projects",

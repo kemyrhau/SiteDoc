@@ -22,7 +22,8 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
   const { t } = useTranslation();
   const { valgtProsjektId, byttProsjekt } = useProsjekt();
   // Delt hook med offline-fallback til prosjekt_local (feltfunn 2026-10-04).
-  const { visning, prosjekter, erFrakoblet, erPaaNettet, feilmelding, refetch } = useProsjektListe();
+  const { visning, prosjekter, gjesteprosjekter, erFrakoblet, erPaaNettet, feilmelding, refetch } =
+    useProsjektListe();
 
   function velgProsjekt(id: string) {
     byttProsjekt(id);
@@ -77,7 +78,7 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
               </Pressable>
             </View>
           )
-        ) : prosjekter.length === 0 ? (
+        ) : prosjekter.length === 0 && gjesteprosjekter.length === 0 ? (
           <View className="flex-1 items-center justify-center px-4">
             <Text className="text-center text-sm text-gray-500">
               {t("prosjektVelger.ingenBeskrivelse")}
@@ -97,6 +98,47 @@ export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
             <FlatList
               data={prosjekter}
               keyExtractor={(item) => item.id}
+              // (15) Egen gruppe «Prosjekter i andre firma» under hovedlista.
+              ListFooterComponent={
+                gjesteprosjekter.length > 0 ? (
+                  <View>
+                    <View className="border-b border-gray-200 bg-gray-50 px-4 pb-2 pt-4">
+                      <Text className="text-xs font-semibold uppercase text-gray-500">
+                        {t("prosjektVelger.andreFirma")}
+                      </Text>
+                      <Text className="mt-0.5 text-xs text-gray-400">
+                        {t("prosjektVelger.andreFirmaHjelp")}
+                      </Text>
+                    </View>
+                    {gjesteprosjekter.map((item) => {
+                      const erValgt = item.id === valgtProsjektId;
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => velgProsjekt(item.id)}
+                          className={`flex-row items-center justify-between border-b border-gray-100 px-4 py-4 ${
+                            erValgt ? "bg-blue-50" : ""
+                          }`}
+                        >
+                          <View className="flex-1">
+                            <Text
+                              className={`text-base font-medium ${
+                                erValgt ? "text-blue-700" : "text-gray-900"
+                              }`}
+                            >
+                              {item.name}
+                            </Text>
+                            {item.eierFirma && (
+                              <Text className="mt-0.5 text-xs text-gray-500">{item.eierFirma}</Text>
+                            )}
+                          </View>
+                          {erValgt && <Check size={20} color="#1d4ed8" />}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null
+              }
               renderItem={({ item }) => {
                 const erValgt = item.id === valgtProsjektId;
                 return (

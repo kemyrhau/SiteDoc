@@ -119,12 +119,16 @@ export default function HjemSkjerm() {
   const {
     visning: prosjektVisning,
     prosjekter: prosjektListe,
+    gjesteprosjekter,
     erFrakoblet: prosjektFrakoblet,
     erPaaNettet,
     feilmelding: prosjektFeilmelding,
     refetch: refetchProsjekt,
   } = useProsjektListe();
-  const valgtProsjekt = prosjektListe.find((p) => p.id === valgtProsjektId);
+  // (15) Valgt prosjekt kan ligge i gruppen «Prosjekter i andre firma».
+  const valgtProsjekt =
+    prosjektListe.find((p) => p.id === valgtProsjektId) ??
+    gjesteprosjekter.find((p) => p.id === valgtProsjektId);
 
   // Hent bygninger for å vise valgt bygningsnavn
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -422,7 +426,7 @@ export default function HjemSkjerm() {
         ) : !valgtProsjektId ? (
           /* Ingen prosjekt valgt */
           <View className="flex-1 items-center justify-center px-4 pt-20">
-            {prosjektListe.length === 0 ? (
+            {prosjektListe.length === 0 && gjesteprosjekter.length === 0 ? (
               <Text className="text-center text-base text-gray-500">
                 {t("hjem.registrerPaaSitedoc")}
               </Text>

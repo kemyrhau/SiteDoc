@@ -1612,6 +1612,8 @@
   "prosjektVelger.kunneIkkeHente": "Nie udało się wczytać projektów",
   "prosjektVelger.sjekkNettverk": "Sprawdź połączenie sieciowe",
   "prosjektVelger.ingenBeskrivelse": "Możesz zalogować się na sitedoc.no i zarejestrować nowy projekt",
+  "prosjektVelger.andreFirma": "Projekty w innych firmach",
+  "prosjektVelger.andreFirmaHjelp": "Jesteś członkiem tych projektów, ale są one własnością firmy, w której nie jesteś zatrudniony.",
   "topbar.firma": "Firma",
   "topbar.sokProsjekt": "Wyszukaj projekty…",
   "topbar.ingenProsjekter": "Brak projektów",

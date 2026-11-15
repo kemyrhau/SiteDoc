@@ -393,6 +393,10 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
 - Firma-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
+- **Én bruker, ett firma** (Kenneth 2026-11-15, POST (15), 🟡 `feat/prosjekt-andre-firma`, ikke merget):
+  - `medlem.registrer` med `organizationId` avviser med FORBIDDEN når brukeren allerede er aktivt ansatt i et annet firma og ikke har rad i dette (`medlem.ts`). Uten `organizationId` legges brukeren til prosjektet som før.
+  - **Gjesteprosjekt** = medlem i prosjektet, men eierfirmaet (`primaryOrganizationId`) er ikke et firma brukeren er aktivt ansatt i (`erGjesteprosjekt`, `packages/shared/src/utils/gjesteprosjekt.ts`). Det hentes med `prosjekt.hentGjesteprosjekter`, som utelater deaktiverte eierfirmaer og standalone.
+  - **Timer følger eget firma:** en ren gjest fører ikke timer på prosjektet. `ProjectOrganization`-koblingen er uendret, så et koblet eget firma kan fortsatt føre timer (T.10, `hentForTimer`, `verifiserProsjekterTilhørerFirma`).
 - **`sitedoc_admin` som har valgt et firma opptrer som firmaadmin for det firmaet** (Kenneth 2026-11-14): `verifiserOrganisasjonTilgang` (`tilgangskontroll.ts:873`) og `autoriserAdminForFirma` (`:910`) slipper rollen likt gjennom uten medlemskap. Kallerliste: [sikkerhet.md § 8o](sikkerhet.md).
 - En firma-admin kan bare koble prosjekter **firmaet selv eier** til firmaet: `organisasjon.leggTilProsjekt` krever `project.primaryOrganizationId === organizationId` (prosjekt uten eier avvises). Andre firmaer kobles bare av sitedoc_admin (`admin.tilknyttProsjekt`). Se [sikkerhet.md § 8e](sikkerhet.md)
 - Firma-admin-bypassen (`erFirmaAdminForProsjekt`) gjelder **kun eierfirmaet** (`Project.primaryOrganizationId`); eier `null` gir ingen bypass. En `ProjectOrganization`-rad for et deltakerfirma gir ingen admin-rett — firma-admin der er vanlig medlem. Ingen rute skal ha egen kobling-bypass (`gruppe.hentMinFlytInfo` og `dagsseddel.erProsjektLeder` bruker predikatet). Se [sikkerhet.md § 8g](sikkerhet.md)
