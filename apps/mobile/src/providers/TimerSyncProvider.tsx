@@ -31,6 +31,7 @@ import { refreshHmsKatalog } from "../services/hmsKatalog";
 import { refreshKalenderKatalog } from "../services/kalenderKatalog";
 import { refreshOrganizationSettingKatalog } from "../services/organizationSettingKatalog";
 import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
+import { refreshOppmotePeriodeKatalog } from "../services/oppmotePeriodeKatalog";
 import { refreshByggeplassKatalog } from "../services/byggeplassKatalog";
 import { refreshReisetidMatriseKatalog } from "../services/reisetidMatriseKatalog";
 import { refreshReiseGrensepunktKatalog } from "../services/reiseGrensepunktKatalog";
@@ -134,6 +135,11 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
             refreshKalenderKatalog(utils.client, orgId),
             refreshOrganizationSettingKatalog(utils.client, orgId),
             refreshOppmotestedKatalog(utils.client, orgId),
+            // Oppmøtested-perioder (POST (12)): egen catch — ikke-medlem i et firma
+            // (FORBIDDEN) skal aldri velte de andre katalogene; cachen beholdes.
+            refreshOppmotePeriodeKatalog(utils.client, bruker.id, orgId).catch((e) =>
+              console.warn("[OPPMOTE-PERIODE] Refresh feilet for firma", orgId, e),
+            ),
             refreshByggeplassKatalog(utils.client, orgId),
             refreshReisetidMatriseKatalog(utils.client, orgId),
             refreshReiseGrensepunktKatalog(utils.client, orgId),

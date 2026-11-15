@@ -33,6 +33,7 @@ import {
   type BesokSted,
 } from "../services/arbeidsdagBesok";
 import { AnkommetHvorModal } from "./AnkommetHvorModal";
+import { OppmoteSporsmaalArk, useOppmoteSporsmaal } from "./OppmoteSporsmaal";
 
 /**
  * `onNyRad`: beholdt i signaturen (A5, ORDRE 30). Var fallback ved
@@ -60,6 +61,9 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
   const [visS2, setVisS2] = useState(false);
   const [s2Treff, setS2Treff] = useState<BesokSted | null>(null);
   const orgIdKort = valgtFirmaId ?? "";
+  // POST (12) D: «Hvor møter du vanligvis?» før første Start dag (kun på nett).
+  const oppmote = useOppmoteSporsmaal(orgIdKort);
+  const [visOppmote, setVisOppmote] = useState(false);
 
   useEffect(() => {
     const db = hentDatabase();
@@ -202,8 +206,9 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
   // Inaktiv — «Start dag»
   if (!aktivDag) {
     return (
+      <>
       <Pressable
-        onPress={startDag}
+        onPress={() => (oppmote.trengerValg ? setVisOppmote(true) : void startDag())}
         disabled={behandler}
         className="mx-4 mt-3 flex-row items-center justify-center gap-2 rounded-lg bg-blue-600 py-4 active:bg-blue-700 disabled:opacity-50"
       >
@@ -216,6 +221,21 @@ export function StartSluttDagKort({ onNyRad: _onNyRad }: { onNyRad?: () => void 
           {t("timer.startDag.start")}
         </Text>
       </Pressable>
+      {visOppmote ? (
+        <OppmoteSporsmaalArk
+          orgId={orgIdKort}
+          onVelg={async (id) => {
+            await oppmote.velg(id);
+            setVisOppmote(false);
+            void startDag();
+          }}
+          onLukk={() => {
+            setVisOppmote(false);
+            void startDag();
+          }}
+        />
+      ) : null}
+      </>
     );
   }
 

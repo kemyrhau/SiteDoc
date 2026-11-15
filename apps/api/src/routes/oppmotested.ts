@@ -469,6 +469,20 @@ export const oppmotestedRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await hentOppmotestedForFirma(input.id, orgId);
-      return ctx.prisma.oppmotested.delete({ where: { id: input.id } });
+      try {
+        return await ctx.prisma.oppmotested.delete({ where: { id: input.id } });
+      } catch (e) {
+        // (12): ansattes perioder peker hit (FK Restrict) — historikken skal stå.
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === "P2003"
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "I bruk — deaktiver i stedet",
+          });
+        }
+        throw e;
+      }
     }),
 });
