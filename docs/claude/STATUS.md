@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-11-15
+**Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`timer.md` + `SAMARBEIDSREGLER.md` + `CLAUDE.md` + `eas-build-veileder.md`: Kenneths beslutninger 2026-11-16 ført** (develop, docs-only, orkestrator): én beskrivelse og ett sett maskin/varer pr. prosjektkort (🟡 ordre 24, erstatter «beskrivelse pr. rad»); beslutninger skrives i repo-dokument i samme tur (erstatter regelen «beslutninger hører i et repo-dokument»); hele SAMARBEIDSREGLER leses etter compact; OTA-logg `8f9fdb86` på test. Telling uendret.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (22) byggeplassfilteret husker valg (`467e0e04`) merget** (develop, docs-only, orkestrator): ett ✅-innslag, én funksjonsendringsrad, «Sist ført» develop `467e0e04`.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (23) gjenåpne på kortskjermen (`eceec8e0`) merget** (develop, docs-only, orkestrator): ett ✅-innslag, én funksjonsendringsrad, «Sist ført» develop `eceec8e0`.
 - 2026-11-15 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (21) byggeplass følger tegningen (`979cafec`) merget** (develop, docs-only, orkestrator): ett ✅-innslag, én funksjonsendringsrad, «Sist ført» develop `979cafec`.

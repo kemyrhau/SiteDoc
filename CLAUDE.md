@@ -4,7 +4,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Sesjonstart
 
-- 🔴 **Orkestrator leser [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) § 0 + § 0b FØRST** — også etter compact/clear. Deretter tavla øverst i [STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md). En agent som nettopp er tømt, følger § /clear-REGELEN punkt C.
+- 🔴 **Orkestrator leser CLAUDE.md og hele [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) FØRST** — også etter compact/clear. Deretter tavla øverst i [STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md). En agent som nettopp er tømt, følger § /clear-REGELEN punkt C.
 - [SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) vises ved sesjonstart. [BACKLOG.md](docs/claude/BACKLOG.md) leses kun ved strategisk planlegging.
 - **Ved «oppdater CLAUDE.md»:** oppdater detaljfila i `docs/claude/` ([DOC-MAP.md](docs/claude/DOC-MAP.md) sier hvilken), ikke denne — med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller ufravikelige regler.
 

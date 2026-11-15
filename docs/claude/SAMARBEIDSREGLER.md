@@ -81,7 +81,7 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 - 🔴 **Kanalen er HOVEDTREETS kopi med absolutt sti:** `~/Documents/Programmering/SiteDoc/relay/…`. `relay/` er gitignorert (`.gitignore:68`), følger ikke med en branch og synkes ikke mellom trær — skrevet relativt i et annet tre lander det der ingen leser.
 - **Nye poster føyes til NEDERST, bare nederst.** Leseren leser halen.
 - **Leveranser og SJEKKPUNKT** skrives nederst i `relay/inbox-orkestrator.md` med overskrift `## [dato] fra <Agent> → orkestrator: …`.
-- **Beslutninger hører i et repo-dokument, ikke i `relay/`** — særlig «ikke fjern dette»-vedtak. Relay er arbeidssedler.
+- 🔴 **Kenneths beslutning skrives i repo-dokumentet (fil fra DOC-MAP) i samme tur som den tas, ikke bare i `relay/`.** Gammel tekst byttes ut og blir ikke stående ved siden av. Det som ikke er bygget, merkes 🟡 med dato og ordre. Orkestrator viser endringen i sidepanelet før commit, senest før compact. Er beslutningen uklar, stilles et kontrollspørsmål i stedet for en tolkning. *(Kenneth 2026-11-16.)*
 - **Innboksene ryddes av orkestrator:** avsluttede poster til `relay/arkiv/<innboks>-til-<dato>.md` ved prod-deploy eller når en innboks passerer ~300 linjer; øverst står en peker til arkivet.
 - **Endres et filnavn**, føres det gamle navnet som DØDT i innboksen.
 
