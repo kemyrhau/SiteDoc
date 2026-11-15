@@ -103,11 +103,11 @@ describe("oppmotePeriodeKatalog", () => {
     // id leses tilbake (L2): overføringen fører periode-id-en til reiseRegel.
     expect(lest).toContainEqual({
       id: "p1", type: "kontor", fast: true, oppmotestedId: "narvik", projectId: null,
-      fraDato: "2026-01-01", tilDato: "2026-10-31",
+      fraDato: "2026-01-01", tilDato: "2026-10-31", kilde: "admin",
     });
     expect(lest).toContainEqual({
       id: "p3", type: "byggeplass", fast: false, oppmotestedId: null, projectId: "e6",
-      fraDato: "2026-12-01", tilDato: "2027-01-31",
+      fraDato: "2026-12-01", tilDato: "2027-01-31", kilde: "admin",
     });
   });
 

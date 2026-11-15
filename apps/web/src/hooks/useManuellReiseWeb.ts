@@ -3,10 +3,15 @@
 import { useMemo } from "react";
 import {
   byggOverforingOppslag,
+  erApenOverforing,
   finnDagsramme,
+  kontorOverforingOppsett,
+  kontorOverforingRetning,
   løsOppmote,
   løsOverforingKort,
   løsReiseKort,
+  periodeDatoFraOverforing,
+  planleggOverforing,
   type DagsforslagOverforingCelle,
   type DagsforslagOverforingOppslag,
   type OppmoteResultat,
@@ -31,7 +36,17 @@ import { trpc } from "@/lib/trpc";
 export type ReiseKortValg =
   | { type: "tur" }
   | { type: "retur" }
-  | { type: "overforing"; indeks: number };
+  | { type: "overforing"; indeks: number }
+  /** Del B: overføring til annet kontor (setter/avslutter midlertidig oppmøtested). */
+  | { type: "kontor"; oppmotestedId: string };
+
+/** Kallet `oppmotePeriode.overforing` får når et kontorvalg lagres (uten id/organizationId). */
+export type KontorOverforingKall = {
+  handling: "start" | "slutt";
+  oppmotestedId: string | null;
+  /** Periodedato etter kl. 12-regelen. */
+  dato: string;
+};
 
 export type ReiseKortByggeplass = { id: string; projectId: string; name: string | null };
 
@@ -168,6 +183,15 @@ export function useManuellReiseWeb({
 
   const ramme = useMemo(() => finnDagsramme(dagsrader), [dagsrader]);
 
+  // Del B: «Overføring til annet kontor» — `hentForFirma` gir bare aktive kontorer.
+  const kontorOppsett = useMemo(
+    () => kontorOverforingOppsett(dato, projectId, perioder, steder.map((o) => o.id)),
+    [dato, projectId, perioder, steder],
+  );
+  const apenOverforing = useMemo(() => perioder.find(erApenOverforing) ?? null, [perioder]);
+  const kontorValg = aktivtValg.type === "kontor" && kontorOppsett ? aktivtValg.oppmotestedId : null;
+  const kontorRetning = kontorValg && kontorOppsett ? kontorOverforingRetning(kontorOppsett, kontorValg) : null;
+
   const resultat: ReiseKortResultat = useMemo(() => {
     const felles = {
       dagStart: ramme.dagStart,
@@ -177,6 +201,22 @@ export function useManuellReiseWeb({
       resolverLonnsartId,
       standardLonnsartId,
     };
+    if (kontorValg && kontorOppsett && kontorRetning) {
+      const celle = kontorAvstand.get(`${kontorOppsett.fraKontorId}|${kontorValg}`) ?? null;
+      return løsOverforingKort({
+        ...felles,
+        overforing: {
+          retning: kontorRetning === "tur" ? "ut" : "retur",
+          fra: { type: "kontor", oppmotestedId: kontorOppsett.fraKontorId },
+          til: { type: "kontor", oppmotestedId: kontorValg },
+          // Tur: settes til den nye periodens id ved lagring. Retur: perioden som avsluttes.
+          periodeId: kontorRetning === "retur" ? (apenOverforing?.id ?? null) : null,
+        },
+        oppmotestedId: kontorOppsett.fraKontorId,
+        kjoretidMin: celle?.kjoretidMin ?? null,
+        avstandM: celle?.avstandM ?? null,
+      });
+    }
     if (aktivtValg.type === "overforing") {
       const o = overforinger[aktivtValg.indeks];
       if (o) {
@@ -198,7 +238,7 @@ export function useManuellReiseWeb({
       avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- aktivtValg er avledet av valg + overforinger
-  }, [valg, forsteOverforing, overforinger, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise]);
+  }, [valg, forsteOverforing, overforinger, kontorOppsett, apenOverforing, kontorAvstand, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise]);
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
   const oppmotestedNavn =
@@ -206,7 +246,24 @@ export function useManuellReiseWeb({
       ? (steder.find((o) => o.id === oppmote.oppmotestedId)?.navn ?? null)
       : null;
 
+  // Kallet lagringen gjør, og om serveren ville avvist det (admin-satt midlertidig).
+  const kontorKall: KontorOverforingKall | null =
+    kontorValg && kontorRetning
+      ? {
+          handling: kontorRetning === "tur" ? "start" : "slutt",
+          oppmotestedId: kontorRetning === "tur" ? kontorValg : null,
+          dato: periodeDatoFraOverforing(dato, resultat.fraTid, kontorRetning),
+        }
+      : null;
+  const kontorKonflikt =
+    kontorKall != null && planleggOverforing(perioder, kontorKall).utfall === "konflikt";
+
   return {
+    kontorOppsett,
+    kontorKall,
+    kontorKonflikt,
+    apenOverforing,
+    kontorNavn: (id: string) => steder.find((o) => o.id === id)?.navn ?? "",
     regelStatus,
     oppmote,
     oppmotestedNavn,

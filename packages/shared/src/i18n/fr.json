@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Supprimer la période",
   "firma.ansatte.oppmote.slettTittel": "Supprimer le point ?",
   "firma.ansatte.oppmote.feil.lukketFast": "Un emplacement permanent fermé appartient au passé et ne peut pas être supprimé. Définissez plutôt un nouvel emplacement permanent.",
-  "firma.ansatte.oppmote.slettHva": "Les dates de la période obtiennent l'autre lieu de reporting de l'employé. Si vous supprimez un emplacement permanent, l'emplacement permanent précédent s'applique à nouveau."
+  "firma.ansatte.oppmote.slettHva": "Les dates de la période obtiennent l'autre lieu de reporting de l'employé. Si vous supprimez un emplacement permanent, l'emplacement permanent précédent s'applique à nouveau.",
+  "timer.reiseKort.annetKontor": "Transfert vers un autre bureau",
+  "timer.reiseKort.tilKontor": "À {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Temporaire : {{navn}} à partir de {{dato}}",
+  "timer.reiseKort.avslutt": "Fin",
+  "timer.reiseKort.sperre.adminMidlertidig": "Un administrateur d'entreprise a défini un point de rendez-vous temporaire : demandez à un administrateur d'entreprise de le modifier",
+  "firma.ansatte.oppmote.viaOverforing": "par virement"
 }

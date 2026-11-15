@@ -6,6 +6,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 import {
   finnPeriodeKonflikt,
+  planleggOverforing,
   tilIsoDato,
   trengerOppmoteValg,
   type OppmotePeriodeInput,
@@ -22,6 +23,9 @@ import {
 //              slett. Nytt fast sted lukker det forrige (tilDato = ny fraDato
 //              − 1) i samme transaksjon; historikken står, så etterregistrering
 //              i gammel periode gir gammelt sted.
+//
+//  Ansatt (del B): overforing — Tur/Retur til annet kontor i reise-kortet
+//              setter/avslutter et ÅPENT midlertidig kontor (kilde='overforing').
 //
 //  Firmagrensen sjekkes alltid her: medlem, oppmøtested og prosjekt må tilhøre
 //  input.organizationId, ellers NOT_FOUND (vi røper ikke at de finnes).
@@ -53,6 +57,7 @@ type PeriodeRad = {
   projectId: string | null;
   fraDato: Date;
   tilDato: Date | null;
+  kilde: string | null;
 };
 
 function tilInput(p: PeriodeRad): OppmotePeriodeInput & { id: string } {
@@ -64,6 +69,7 @@ function tilInput(p: PeriodeRad): OppmotePeriodeInput & { id: string } {
     projectId: p.projectId,
     fraDato: tilIsoDato(p.fraDato),
     tilDato: p.tilDato ? tilIsoDato(p.tilDato) : null,
+    kilde: p.kilde === "overforing" ? "overforing" : "admin",
   };
 }
 
@@ -75,6 +81,7 @@ const PERIODE_SELECT = {
   projectId: true,
   fraDato: true,
   tilDato: true,
+  kilde: true,
 } as const;
 
 /** Innlogget brukers AKTIVE medlemskap i firmaet, ellers FORBIDDEN. */
@@ -173,6 +180,50 @@ const periodeInput = z
     }
   });
 
+/**
+ * POST 2026-11-15 (13) del B — overføring fra reise-kortet. Strict: input kan
+ * ikke bære `fast`, `type`, `kilde` eller `organizationMemberId` — medlemskapet
+ * er alltid den innloggede brukerens eget (`hentEgetMedlem`).
+ * `dato` er periodedatoen klienten har regnet ut med `periodeDatoFraOverforing`
+ * (kl. 12-regelen); serveren bruker den som gitt.
+ */
+const overforingInput = z
+  .object({
+    /** Klient-UUID: id-en på perioden «start» oppretter (idempotens ved re-sending). */
+    id: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    handling: z.enum(["start", "slutt"]),
+    oppmotestedId: z.string().uuid().optional(),
+    dato: isoDato,
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (v.handling === "start" && !v.oppmotestedId) {
+      ctx.addIssue({ code: "custom", message: "Velg oppmøtested", path: ["oppmotestedId"] });
+    }
+  });
+
+type OverforingUtfall = "opprettet" | "lukket" | "slettet" | "ingen";
+
+/** Lukk en åpen overføring på `til`, eller slett den når `til` er før start (angre). */
+async function lukkEllerSlett(
+  db: Db,
+  apen: OppmotePeriodeInput & { id: string },
+  til: string,
+  userId: string,
+): Promise<{ utfall: OverforingUtfall; periode: (OppmotePeriodeInput & { id: string }) | null }> {
+  if (til < apen.fraDato) {
+    await db.oppmotePeriode.delete({ where: { id: apen.id } });
+    return { utfall: "slettet", periode: null };
+  }
+  const rad = await db.oppmotePeriode.update({
+    where: { id: apen.id },
+    data: { tilDato: tilDbDato(til), sattAvUserId: userId, sattVed: new Date() },
+    select: PERIODE_SELECT,
+  });
+  return { utfall: "lukket", periode: tilInput(rad) };
+}
+
 export const oppmotePeriodeRouter = router({
   // ── Ansatt ────────────────────────────────────────────────────────────────
 
@@ -268,6 +319,100 @@ export const oppmotePeriodeRouter = router({
         throw e;
       }
     }),
+
+  /**
+   * Del B: Tur til annet kontor («start») / avslutt («slutt»). Rører KUN egen
+   * åpen periode med kilde='overforing'; admin-perioder og fast sted er urørt.
+   *  - start: lukker egen åpne overføring (tilDato = dato − 1; slettes om den
+   *    da slutter før den startet) og oppretter ny i samme transaksjon.
+   *    Tur til eget faste kontor → ingen periode. Konflikt med admin-periode
+   *    → CONFLICT. Samme `id` igjen → samme rad (idempotent).
+   *  - slutt: tilDato = dato; slutt før start → perioden slettes (angre).
+   *    Ingen åpen overføring → ingen endring.
+   */
+  overforing: protectedProcedure.input(overforingInput).mutation(async ({ ctx, input }) => {
+    const db = ctx.prisma as Db;
+    const medlem = await hentEgetMedlem(db, ctx.userId, input.organizationId);
+
+    if (input.handling === "start") {
+      const sted = await db.oppmotested.findFirst({
+        where: { id: input.oppmotestedId!, organizationId: input.organizationId, aktiv: true },
+        select: { id: true },
+      });
+      if (!sted) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Oppmøtested finnes ikke eller tilhører ikke ditt firma" });
+      }
+    }
+
+    // Idempotens: perioden med denne id-en finnes alt (re-sending fra køen).
+    const fins = await db.oppmotePeriode.findFirst({
+      where: { id: input.id, organizationMemberId: medlem.id, organizationId: input.organizationId },
+      select: PERIODE_SELECT,
+    });
+    if (fins) return { utfall: "opprettet" as OverforingUtfall, periode: tilInput(fins) };
+
+    const perioder = (
+      await db.oppmotePeriode.findMany({
+        where: { organizationMemberId: medlem.id, organizationId: input.organizationId },
+        select: PERIODE_SELECT,
+      })
+    ).map(tilInput);
+    // Én regel med mobilens optimistiske skriving: planleggOverforing (shared).
+    const plan = planleggOverforing(perioder, input);
+    if (plan.utfall === "ingen") return { utfall: "ingen" as OverforingUtfall, periode: plan.periode };
+    if (plan.utfall === "konflikt") {
+      // En åpen midlertidig periode som IKKE er overføring (admin) → serveren vinner.
+      throw new TRPCError({ code: "CONFLICT", message: "Overlapper en annen midlertidig periode" });
+    }
+    if (plan.utfall !== "opprettet") {
+      return lukkEllerSlett(db, plan.apen, plan.til, ctx.userId);
+    }
+
+    const { apen, lukkTil, slettApen, ny } = plan;
+    const ovrige = perioder
+      .filter((p) => p !== apen)
+      .concat(apen && !slettApen ? [{ ...apen, tilDato: lukkTil }] : []);
+    avvisKonflikt(ny, ovrige);
+
+    try {
+      const rad = await db.$transaction(async (tx) => {
+        if (apen && slettApen) await tx.oppmotePeriode.delete({ where: { id: apen.id } });
+        else if (apen) {
+          await tx.oppmotePeriode.update({
+            where: { id: apen.id },
+            data: { tilDato: tilDbDato(lukkTil!), sattAvUserId: ctx.userId, sattVed: new Date() },
+          });
+        }
+        return tx.oppmotePeriode.create({
+          data: {
+            id: input.id,
+            organizationId: input.organizationId,
+            organizationMemberId: medlem.id,
+            type: "kontor",
+            fast: false,
+            oppmotestedId: ny.oppmotestedId,
+            fraDato: tilDbDato(input.dato),
+            tilDato: null,
+            kilde: "overforing",
+            sattAvUserId: ctx.userId,
+          },
+          select: PERIODE_SELECT,
+        });
+      });
+      return { utfall: "opprettet" as OverforingUtfall, periode: tilInput(rad) };
+    } catch (e) {
+      // Kappløp: samme id sendt samtidig, eller delindeksen «maks én åpen».
+      if (erUnikBrudd(e)) {
+        const igjen = await db.oppmotePeriode.findFirst({
+          where: { id: input.id, organizationMemberId: medlem.id },
+          select: PERIODE_SELECT,
+        });
+        if (igjen) return { utfall: "opprettet" as OverforingUtfall, periode: tilInput(igjen) };
+        throw new TRPCError({ code: "CONFLICT", message: "Overlapper en annen midlertidig periode" });
+      }
+      throw e;
+    }
+  }),
 
   // ── Firmaadmin ────────────────────────────────────────────────────────────
 

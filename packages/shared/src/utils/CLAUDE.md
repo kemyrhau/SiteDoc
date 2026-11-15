@@ -266,8 +266,13 @@ Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sa
 | `trengerOppmoteValg(antallAktiveKontorer, perioder)` | `true` når ≥ 2 aktive kontorer og intet fast sted — styrer «Hvor møter du vanligvis?» |
 | `finnPeriodeKonflikt(ny, øvrige)` | Overlapp innen samme slag (byggeplass pr. prosjekt, midlertidig, fast). Server og admin-UI bruker samme regel |
 | `tilIsoDato(d)` | `Date`/streng → `YYYY-MM-DD` (UTC) |
-| `finnOverforinger(dato, perioder)` → `Overforing[]` | Ut-overføring første dag og retur siste dag i en midlertidig eller byggeplass-periode, fra hjemstedet (`løsOppmote` uten perioden; `ikkeValgt` eller samme kontor gir ingenting). Mellomdager gir ingenting. Brukes av mobilens Bekreft dag (L2) |
+| `finnOverforinger(dato, perioder)` → `Overforing[]` | Ut-overføring første dag og retur siste dag i en midlertidig eller byggeplass-periode, fra hjemstedet (`løsOppmote` uten perioden; `ikkeValgt` eller samme kontor gir ingenting). Mellomdager gir ingenting. Brukes av mobilens Bekreft dag (L2). Del B: åpen midlertidig kontorperiode tåles (gir ingen retur før `tilDato` settes); periode med `kilde='overforing'` gir aldri «ut» — Tur-raden i reise-kortet opprettet den |
+| `periodeDatoFraOverforing(dato, fraTid, retning)` | Kl. 12-regelen (POST (13) del B): Tur før 12:00 → periode fra samme dag, ellers dagen etter; Retur før 12:00 → slutt dagen før, ellers samme dag. Manglende `fraTid` = 00:00. Klienten regner ut datoen, serveren bruker den som gitt |
+| `leggTilDager(dato, n)` | `YYYY-MM-DD` ± n dager i UTC (ingen tidssone-drift) |
 | `byggOverforingOppslag(args)` → `DagsforslagOverforingOppslag[]` | Slår opp overføringens kontor-/byggeplass-ende, navn og kjøretid (kontor↔kontor eller matrise) for hver dato. Flyttet hit fra mobil `dagsforslag.ts` (som re-eksporterer) i L2 commit 8, så web-`ReiseKort` og mobil deler samme oppslag |
+| `erApenOverforing(p)` | Åpen midlertidig kontorperiode med `kilde='overforing'` (del B) |
+| `planleggOverforing(perioder, {handling, oppmotestedId, dato})` → `OverforingPlan` | Del B: én regel for server, mobil og web — `ingen`/`konflikt`/`lukket`/`slettet`/`opprettet`. Rører kun egen åpen overføring; åpen admin-midlertidig → `konflikt` |
+| `kontorOverforingOppsett(dato, prosjektId, perioder, aktiveKontorIder)` / `kontorOverforingRetning(oppsett, tilId)` | Del B: hva reise-kortet tilbyr (`null` ved < 2 kontorer, byggeplass-periode eller `ikkeValgt`); fast kontor = retur, ellers tur |
 
 ### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
 
@@ -281,6 +286,10 @@ Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sa
 | `filendelseFraUrl(url)` → `string` | Endelse (med punktum) fra URL/sti, ignorerer query-signatur |
 
 Fasit: `tegningNedlasting.test.ts`.
+
+### Reise-kort (`reiseManuell.ts`) — del B-tillegg
+
+`medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
 ## Fallgruver
 

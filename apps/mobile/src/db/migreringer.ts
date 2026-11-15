@@ -1505,7 +1505,39 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_oppmotested_avstand_local_org
       ON oppmotested_avstand_local(organization_id);
   `);
+
+  // POST (13) del B: `kilde` på periode-cachen (additiv, nullable TEXT, ingen
+  // backfill — neste refresh skriver verdien) + utgående overføringskø.
+  for (const [tabell, kol] of OPPMOTE_KILDE_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS ${OPPMOTE_OVERFORING_KO} (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      handling TEXT NOT NULL,
+      oppmotested_id TEXT,
+      dato TEXT NOT NULL,
+      opprettet INTEGER NOT NULL,
+      forsok INTEGER NOT NULL DEFAULT 0,
+      feilmelding TEXT
+    );
+  `);
 }
+
+/** POST (13) del B: periode-cachens kilde-kolonne (tabell, kolonne). */
+export const OPPMOTE_KILDE_KOLONNER = [["oppmote_periode_local", "kilde"]] as const;
+
+/** POST (13) del B: utgående kø for `oppmotePeriode.overforing`. */
+export const OPPMOTE_OVERFORING_KO = "oppmote_overforing_ko" as const;
 
 /** Utkast for prosjektkort: lokal tabell + unik indeks. */
 export const UTKAST_LOCAL_TABELL = "prosjektkort_utkast_local" as const;

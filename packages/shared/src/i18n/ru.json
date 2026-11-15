@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Удалить период",
   "firma.ansatte.oppmote.slettTittel": "Удалить период?",
   "firma.ansatte.oppmote.feil.lukketFast": "Закрытое постоянное местоположение является историей и не может быть удалено. Вместо этого установите новое постоянное местоположение.",
-  "firma.ansatte.oppmote.slettHva": "Даты в периоде получают другое место отчетности сотрудника. Если вы удалите постоянное местоположение, предыдущее постоянное местоположение будет применено снова."
+  "firma.ansatte.oppmote.slettHva": "Даты в периоде получают другое место отчетности сотрудника. Если вы удалите постоянное местоположение, предыдущее постоянное местоположение будет применено снова.",
+  "timer.reiseKort.annetKontor": "Переезд в другой офис",
+  "timer.reiseKort.tilKontor": "В {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Временно: {{navn}} от {{dato}}",
+  "timer.reiseKort.avslutt": "Конец",
+  "timer.reiseKort.sperre.adminMidlertidig": "Администратор компании назначил временное место встречи — попросите администратора компании изменить его.",
+  "firma.ansatte.oppmote.viaOverforing": "через трансфер"
 }

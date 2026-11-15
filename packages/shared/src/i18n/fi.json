@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Poista ajanjakso",
   "firma.ansatte.oppmote.slettTittel": "Poistetaanko ajanjakso?",
   "firma.ansatte.oppmote.feil.lukketFast": "Suljettu pysyvä sijainti on historiaa, eikä sitä voi poistaa. Aseta sen sijaan uusi pysyvä sijainti.",
-  "firma.ansatte.oppmote.slettHva": "Jakson päivämäärät saavat työntekijän toisen raportointipaikan. Jos poistat pysyvän sijainnin, edellinen pysyvä sijainti otetaan uudelleen käyttöön."
+  "firma.ansatte.oppmote.slettHva": "Jakson päivämäärät saavat työntekijän toisen raportointipaikan. Jos poistat pysyvän sijainnin, edellinen pysyvä sijainti otetaan uudelleen käyttöön.",
+  "timer.reiseKort.annetKontor": "Siirto toiseen toimistoon",
+  "timer.reiseKort.tilKontor": "Kohteeseen {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Väliaikainen: {{navn}} alkaen {{dato}}",
+  "timer.reiseKort.avslutt": "Loppu",
+  "timer.reiseKort.sperre.adminMidlertidig": "Yrityksen järjestelmänvalvoja on asettanut väliaikaisen kohtaamispaikan – pyydä yrityksen järjestelmänvalvojaa muuttamaan se",
+  "firma.ansatte.oppmote.viaOverforing": "siirron kautta"
 }

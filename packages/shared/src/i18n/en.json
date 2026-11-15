@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Delete period",
   "firma.ansatte.oppmote.slettTittel": "Delete the period?",
   "firma.ansatte.oppmote.feil.lukketFast": "A closed permanent location is history and cannot be deleted. Set a new permanent location instead.",
-  "firma.ansatte.oppmote.slettHva": "Dates in the period get the employee's other reporting location. If you delete a permanent location, the previous permanent location applies again."
+  "firma.ansatte.oppmote.slettHva": "Dates in the period get the employee's other reporting location. If you delete a permanent location, the previous permanent location applies again.",
+  "timer.reiseKort.annetKontor": "Transfer to another office",
+  "timer.reiseKort.tilKontor": "To {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Temporary: {{navn}} from {{dato}}",
+  "timer.reiseKort.avslutt": "End",
+  "timer.reiseKort.sperre.adminMidlertidig": "A company admin has set a temporary meeting point — ask a company admin to change it",
+  "firma.ansatte.oppmote.viaOverforing": "via transfer"
 }

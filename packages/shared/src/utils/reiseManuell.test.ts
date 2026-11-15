@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   klassifiserManuellReise,
-  manuellReiseManglerArt,
   løsReiseKort,
   løsOverforingKort,
+  medOverforingPeriodeId,
   finnDagsramme,
 } from "./reiseManuell";
 import type { ReiseRegelsett } from "./reise";
@@ -247,6 +247,14 @@ describe("løsOverforingKort — POST (13) L2 TILLEGG", () => {
       ...basis,
       ...over,
     });
+
+  it("medOverforingPeriodeId (del B): setter periode-id ved lagring, null/ingen overføring er urørt", () => {
+    const spor = kort({ overforing: { ...ov, periodeId: null } }).spor!;
+    expect(medOverforingPeriodeId(spor, "ny-id").reiseRegel.overforing?.periodeId).toBe("ny-id");
+    expect(medOverforingPeriodeId(spor, null)).toBe(spor);
+    const vanlig = { ...spor, reiseRegel: { ...spor.reiseRegel, overforing: undefined } };
+    expect(medOverforingPeriodeId(vanlig, "x")).toBe(vanlig);
+  });
 
   it("ut: før dagstart, reiseKilde overforing, rute + periode i regel-snapshoten", () => {
     const r = kort();

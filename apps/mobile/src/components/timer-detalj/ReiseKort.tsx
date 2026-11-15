@@ -4,13 +4,16 @@ import { View, Text, Pressable, Modal, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Check, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import type { ReiseKortSperre } from "@sitedoc/shared";
+import { randomUUID } from "expo-crypto";
+import { medOverforingPeriodeId, periodeDatoFraOverforing, type ReiseKortSperre } from "@sitedoc/shared";
 import { forklaringTekst, useManuellReise, type ManuellReiseSpor, type ReiseKortValg } from "./useManuellReise";
 import { VelgerFelt } from "./VelgerFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { KnappMedForklaring } from "../KnappMedForklaring";
 import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
 import { hentUnderprosjekterLokalt } from "../../services/timerKatalog";
+import { registrerOverforing } from "../../services/oppmoteOverforing";
+import { useTimerSync } from "../../providers/TimerSyncProvider";
 
 /* ============================================================================
  *  POST 2026-11-15 (13) L2 § 7 C: reise-kortet («+ Reise»).
@@ -22,7 +25,17 @@ import { hentUnderprosjekterLokalt } from "../../services/timerKatalog";
  *  velger aldri oppmøtested, maskin eller beskrivelse.
  *
  *  Lagre sperres (KnappMedForklaring) når resultatet har en sperre.
+ *
+ *  Del B (POST 2026-11-15 (13)): «Overføring til annet kontor» (≥ 2 aktive
+ *  kontorer) setter et midlertidig oppmøtested ved lagring
+ *  (`registrerOverforing`, optimistisk + kø); valg av eget faste kontor
+ *  avslutter det. Kortlinjen «Midlertidig: X fra dd.mm · Avslutt» angrer.
  * ============================================================================ */
+
+/** YYYY-MM-DD → dd.mm */
+function kortDato(d: string): string {
+  return `${d.slice(8, 10)}.${d.slice(5, 7)}`;
+}
 
 export type ReiseKortLagring = {
   projectId: string;
@@ -78,6 +91,7 @@ export function ReiseKort({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const { triggerSync } = useTimerSync();
 
   const byggeplasser = useMemo(
     () => hentByggeplasserForProsjektLokalt(projectId).map((b) => ({ id: b.id, navn: b.navn ?? "" })),
@@ -108,13 +122,16 @@ export function ReiseKort({
   const { overforingValg, aktivtValg, resultat, oppmotestedNavn } = reise;
 
   const erOverforing = aktivtValg.type === "overforing";
+  const erKontor = aktivtValg.type === "kontor";
   const overforing = erOverforing ? reise.overforinger[aktivtValg.indeks] : undefined;
-  const visByggeplassVelger = !erOverforing && byggeplasser.length > 1;
+  const visByggeplassVelger = !erOverforing && !erKontor && byggeplasser.length > 1;
+  const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing } = reise;
   const eco = underprosjekter.find((u) => u.id === ecoId) ?? null;
 
   const sperre = resultat.sperre;
   const kanLagre =
     sperre == null &&
+    !kontorKonflikt &&
     !!aktivitetId &&
     !!resultat.spor &&
     !!resultat.klassifisering?.lonnsartId &&
@@ -123,23 +140,48 @@ export function ReiseKort({
 
   function lagre() {
     if (!kanLagre || !aktivitetId || !resultat.spor || !resultat.klassifisering?.lonnsartId) return;
+    let reiseSpor = resultat.spor;
+    if (erKontor && kontorKall) {
+      // Perioden skrives FØR raden, så raden bærer periodens id i reiseRegel.
+      const r = registrerOverforing({ userId, organizationId, ...kontorKall, id: randomUUID() });
+      if (r.utfall === "konflikt") return;
+      reiseSpor = medOverforingPeriodeId(reiseSpor, r.periodeId);
+    }
     onLagre({
       projectId,
-      byggeplassId: erOverforing ? (overforing?.byggeplassId ?? byggeplassId) : byggeplassId,
+      byggeplassId: erKontor ? null : erOverforing ? (overforing?.byggeplassId ?? byggeplassId) : byggeplassId,
       lonnsartId: resultat.klassifisering.lonnsartId,
       aktivitetId,
       timer: resultat.timer,
       fraTid: resultat.fraTid!,
       tilTid: resultat.tilTid!,
       externalCostObjectId: ecoId,
-      reiseSpor: resultat.spor,
+      reiseSpor,
     });
+    if (erKontor) {
+      reise.lastPerioderPaaNytt();
+      void triggerSync();
+    }
+  }
+
+  /** Avslutt uten reise: perioden slutter dagen før sedeldatoen (slettes om den startet i dag). */
+  function avsluttOverforing() {
+    registrerOverforing({
+      userId,
+      organizationId,
+      handling: "slutt",
+      dato: periodeDatoFraOverforing(dato, "00:00", "retur"),
+    });
+    setValg(null);
+    reise.lastPerioderPaaNytt();
+    void triggerSync();
   }
 
   const valgKnapp = (v: ReiseKortValg, tekst: string, key: string) => {
     const aktiv =
       v.type === aktivtValg.type &&
-      (v.type !== "overforing" || (aktivtValg.type === "overforing" && v.indeks === aktivtValg.indeks));
+      (v.type !== "overforing" || (aktivtValg.type === "overforing" && v.indeks === aktivtValg.indeks)) &&
+      (v.type !== "kontor" || (aktivtValg.type === "kontor" && v.oppmotestedId === aktivtValg.oppmotestedId));
     return (
       <Pressable
         key={key}
@@ -178,10 +220,40 @@ export function ReiseKort({
             </View>
           )}
 
+          {kontorOppsett && kontorOppsett.andre.length > 0 && (
+            <View className="gap-2">
+              <Text className="text-sm font-medium text-gray-700">{t("timer.reiseKort.annetKontor")}</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {kontorOppsett.andre.map((id) =>
+                  valgKnapp(
+                    { type: "kontor", oppmotestedId: id },
+                    t("timer.reiseKort.tilKontor", { navn: reise.kontorNavn(id) }),
+                    `kontor-${id}`,
+                  ),
+                )}
+              </View>
+            </View>
+          )}
+
           {!erOverforing && oppmotestedNavn && (
             <Text className="text-sm text-gray-700">
               {t("timer.reiseKort.fraOppmotested", { navn: oppmotestedNavn })}
             </Text>
+          )}
+
+          {apenOverforing && apenOverforing.oppmotestedId && (
+            <View className="flex-row items-center gap-2">
+              <Text className="text-sm text-gray-700">
+                {t("timer.reiseKort.midlertidigLinje", {
+                  navn: reise.kontorNavn(apenOverforing.oppmotestedId),
+                  dato: kortDato(apenOverforing.fraDato),
+                })}
+              </Text>
+              <Text className="text-sm text-gray-400">·</Text>
+              <Pressable onPress={avsluttOverforing} hitSlop={8}>
+                <Text className="text-sm font-medium text-blue-700">{t("timer.reiseKort.avslutt")}</Text>
+              </Pressable>
+            </View>
           )}
 
           {visByggeplassVelger && (
@@ -229,6 +301,9 @@ export function ReiseKort({
           {sperre && (
             <Text className="text-xs font-medium text-red-700">{t(SPERRE_NOKKEL[sperre])}</Text>
           )}
+          {!sperre && kontorKonflikt && (
+            <Text className="text-xs font-medium text-red-700">{t("timer.reiseKort.sperre.adminMidlertidig")}</Text>
+          )}
 
           {underprosjekter.length > 0 && (
             <View>
@@ -242,7 +317,13 @@ export function ReiseKort({
           )}
 
           <KnappMedForklaring sperret={!kanLagre} forklaring={
-              sperre ? t(SPERRE_NOKKEL[sperre]) : !aktivitetId ? t("timer.feil.aktivitetPaakrevd") : ""
+              sperre
+                ? t(SPERRE_NOKKEL[sperre])
+                : kontorKonflikt
+                  ? t("timer.reiseKort.sperre.adminMidlertidig")
+                  : !aktivitetId
+                    ? t("timer.feil.aktivitetPaakrevd")
+                    : ""
             }>
             <Pressable
               onPress={lagre}

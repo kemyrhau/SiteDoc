@@ -402,6 +402,16 @@ export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
   };
 }
 
+/**
+ * Del B: kontoroverføringens periode-id er først kjent ved lagring (ny UUID ved
+ * «start», den lukkede perioden ved «slutt»). null = sporet beholdes urørt.
+ */
+export function medOverforingPeriodeId(spor: ManuellReiseSpor, periodeId: string | null): ManuellReiseSpor {
+  const ovf = spor.reiseRegel.overforing;
+  if (!ovf || periodeId == null) return spor;
+  return { ...spor, reiseRegel: { ...spor.reiseRegel, overforing: { ...ovf, periodeId } } };
+}
+
 /** i18next-kompatibel oversetter (samme form som `grenseSjekk`). */
 type Oversett = (key: string, opts?: Record<string, unknown>) => string;
 

@@ -2914,7 +2914,9 @@ model Oppmotested {
 //   fast=true         = fast oppmøtested (kun kontor). Åpent (tilDato null) = gjeldende,
 //                       maks ett pr. ansatt (partiell unik i SQL). Bytte av fast lukker
 //                       det forrige (tilDato = ny fraDato − 1) — historikken står.
-//   fast=false        = midlertidig kontor (tilDato påkrevd) eller byggeplass-periode
+//   fast=false        = midlertidig kontor eller byggeplass-periode. Midlertidig kontor
+//                       har sluttdato når firmaadmin setter det; en overføring
+//                       (kilde='overforing') står åpen til Retur — maks én åpen pr. ansatt.
 //
 // Ingen backfill: tomt = «ikke valgt ennå». Resolveren er `løsOppmote` i
 // packages/shared/src/utils/oppmote.ts. sattAvUserId uten @relation (A.3-mønster,
@@ -2935,6 +2937,9 @@ model OppmotePeriode {
   tilDato              DateTime? @map("til_dato") @db.Date
   sattAvUserId         String    @map("satt_av_user_id")
   sattVed              DateTime  @default(now()) @map("satt_ved")
+  /// 'admin' (satt av firmaadmin / eget førstevalg) | 'overforing' (Tur til annet
+  /// kontor i reise-kortet, POST (13) del B). Nullable (to-stegs-policy).
+  kilde                String?   @default("admin") @map("kilde")
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   member       OrganizationMember @relation(fields: [organizationMemberId], references: [id], onDelete: Cascade)

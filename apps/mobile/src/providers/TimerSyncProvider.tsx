@@ -38,6 +38,7 @@ import { refreshOppmotestedAvstandKatalog } from "../services/oppmotestedAvstand
 import { refreshReiseGrensepunktKatalog } from "../services/reiseGrensepunktKatalog";
 import { refreshVareKatalog } from "../services/vareKatalog";
 import { syncVareforbruk } from "../services/vareforbrukSync";
+import { sendOverforingKo } from "../services/oppmoteOverforing";
 import { hentLagretFirmaId } from "../kontekst/FirmaKontekst";
 
 interface TimerSyncKontekst {
@@ -213,6 +214,10 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
       // synket sedel). Egen catch — skal aldri velte timer-synken.
       await syncVareforbruk(utils.client, bruker.id).catch((e) =>
         console.warn("[VAREFORBRUK-SYNC] feilet:", e),
+      );
+      // POST (13) del B: overføring fra reise-kortet. Etter sedlene; egen catch.
+      await sendOverforingKo(utils.client, bruker.id).catch((e) =>
+        console.warn("[OPPMOTE-OVERFORING] feilet:", e),
       );
       setSistSynkronisert(Date.now());
       setSisteFeil(resultat.feil ?? null);

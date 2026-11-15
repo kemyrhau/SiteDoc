@@ -5642,5 +5642,11 @@
   "firma.ansatte.oppmote.slett": "Delete period",
   "firma.ansatte.oppmote.slettTittel": "Delete the period?",
   "firma.ansatte.oppmote.feil.lukketFast": "Zamknięta stała lokalizacja jest historią i nie można jej usunąć. Zamiast tego ustaw nową stałą lokalizację.",
-  "firma.ansatte.oppmote.slettHva": "Dates in the period get the employee's other reporting location. If you delete a permanent location, the previous permanent location applies again."
+  "firma.ansatte.oppmote.slettHva": "Dates in the period get the employee's other reporting location. If you delete a permanent location, the previous permanent location applies again.",
+  "timer.reiseKort.annetKontor": "Przeniesienie do innego biura",
+  "timer.reiseKort.tilKontor": "Do {{navn}}",
+  "timer.reiseKort.midlertidigLinje": "Tymczasowo: {{navn}} z {{dato}}",
+  "timer.reiseKort.avslutt": "Koniec",
+  "timer.reiseKort.sperre.adminMidlertidig": "Administrator firmy ustalił tymczasowe miejsce spotkania — poproś administratora firmy o zmianę",
+  "firma.ansatte.oppmote.viaOverforing": "poprzez przelew"
 }

@@ -98,6 +98,7 @@ export {
   manuellReiseManglerArt,
   løsReiseKort,
   løsOverforingKort,
+  medOverforingPeriodeId,
   finnDagsramme,
   klokkeTilMin,
   minTilKlokke,
@@ -113,8 +114,8 @@ export type {
   ReiseKortInput,
   ReiseKortResultat,
 } from "./reiseManuell";
-export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag } from "./oppmote";
-export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle } from "./oppmote";
+export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag, leggTilDager, periodeDatoFraOverforing, planleggOverforing, erApenOverforing, kontorOverforingOppsett, kontorOverforingRetning } from "./oppmote";
+export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle, OverforingPeriode, OverforingPlan, KontorOverforingOppsett } from "./oppmote";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";

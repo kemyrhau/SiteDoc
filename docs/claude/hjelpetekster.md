@@ -168,6 +168,7 @@ Ingen ?-tekst — kortet viser én resultatlinje og, når Lagre er sperret, én 
 - **Oppmøtested** vises som tekst «Fra {navn}» (`timer.reiseKort.fraOppmotested`) bare når firmaet har flere — den ansatte velger det aldri.
 - **Resultat:** «08:00–08:45 · 45 min kjøring» (`timer.reiseKort.resultat`) + grå forklaringslinje (arbeid/reise og hvorfor).
 - **Sperretekster** (`timer.reiseKort.sperre.*`): «Møter på byggeplass, ingen reise» · «Oppmøtested er ikke valgt — koble til nett for å velge» · «Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander» · «Før arbeidstid på dagen først — reisen legges før eller etter den» · «Reisen går over midnatt — før den på dagen den hører til» · «Firmaet har ikke satt opp reiseregler — be firmaadmin sette dem». Mangler standard lønnsart: `timer.reiseTerskel.manglerArt` (over).
+- **Overføring til annet kontor** (del B, POST (13)): seksjon «Overføring til annet kontor» (`timer.reiseKort.annetKontor`) med knapper «Til {navn}» (`timer.reiseKort.tilKontor`), bare ved ≥ 2 aktive kontorer. Åpen overføring vises som «Midlertidig: {navn} fra {dato}» (`timer.reiseKort.midlertidigLinje`) med «Avslutt» (`timer.reiseKort.avslutt`). Åpen admin-satt periode sperrer: «Firmaadmin har satt et midlertidig oppmøtested — be firmaadmin endre det» (`timer.reiseKort.sperre.adminMidlertidig`). Firmaadmin ser «via overføring» (`firma.ansatte.oppmote.viaOverforing`) på perioden.
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 

@@ -589,7 +589,29 @@ export const oppmotePeriodeLocal = sqliteTable("oppmote_periode_local", {
   projectId: text("project_id"),
   fraDato: text("fra_dato").notNull(), // YYYY-MM-DD
   tilDato: text("til_dato"), // YYYY-MM-DD, null = gjeldende
+  /** POST (13) del B: 'admin' | 'overforing'. NULL på gamle rader til neste refresh (= admin). */
+  kilde: text("kilde"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * oppmote_overforing_ko — utgående kø for overføring fra reise-kortet (POST
+ * 2026-11-15 (13) del B). Optimistisk skriving går til oppmote_periode_local;
+ * kallet `oppmotePeriode.overforing` legges her og sendes av TimerSyncProvider
+ * ETTER syncBatch (som ikke røres). id = klient-UUID = periodens id ved
+ * «start» (serveren er idempotent på den). Raden slettes ved suksess OG ved
+ * CONFLICT/NOT_FOUND/FORBIDDEN (serveren vinner; refresh overskriver cachen).
+ */
+export const oppmoteOverforingKo = sqliteTable("oppmote_overforing_ko", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(),
+  handling: text("handling").notNull(), // "start" | "slutt"
+  oppmotestedId: text("oppmotested_id"),
+  dato: text("dato").notNull(), // YYYY-MM-DD, ferdig utregnet (kl. 12-regelen)
+  opprettet: integer("opprettet").notNull(),
+  forsok: integer("forsok").notNull().default(0),
+  feilmelding: text("feilmelding"),
 });
 
 /**
