@@ -27,6 +27,7 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { VelgByggeplassTom, useMaaVelgeByggeplass } from "../../src/components/VelgByggeplassTom";
 import { ProsjektSokRad } from "../../src/components/sok/ProsjektSokRad";
 import {
   MedUtheving,
@@ -70,6 +71,7 @@ export default function OppgaveListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
+  const maaVelgeByggeplass = useMaaVelgeByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const router = useRouter();
@@ -394,7 +396,11 @@ export default function OppgaveListe() {
         </View>
       )}
 
-      {oppgaveQuery.isLoading && lokaleRader.length === 0 ? (
+      {/* (22) Uten byggeplassvalg: «Velg byggeplass», ikke hele prosjektet. Søk gjelder
+          fortsatt hele prosjektet. */}
+      {!søkerNaa && maaVelgeByggeplass ? (
+        <VelgByggeplassTom />
+      ) : oppgaveQuery.isLoading && lokaleRader.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>

@@ -32,8 +32,7 @@ import { ByggeplassVelgerModal } from "./timer-detalj/ByggeplassVelger";
 export function ByggeplassChip() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, erHeleProsjektet, settBygning, velgHeleProsjektet, gpsByggeplassId } =
-    useByggeplass();
+  const { valgtBygningId, settBygning, gpsByggeplassId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
@@ -112,9 +111,8 @@ export function ByggeplassChip() {
     );
   }
 
-  const tittel = erHeleProsjektet
-    ? t("kontekstChip.heleProsjektet")
-    : valgt?.name ?? t("byggeplassVelger.velg");
+  // (22) Uten valg: «Velg byggeplass» — aldri «Hele prosjektet».
+  const tittel = valgt?.name ?? t("byggeplass.velgByggeplass");
 
   return (
     <>
@@ -157,8 +155,6 @@ export function ByggeplassChip() {
           projectId={valgtProsjektId}
           valgtId={valgtBygningId}
           gpsForeslagId={gpsByggeplassId}
-          tillatIngen
-          ingenLabel={t("kontekstChip.heleProsjektet")}
           // Prosjekt-scopet server-kilde (samme som chippen viser) → velgeren er
           // uavhengig av timer-cachens org-oppslag, som var tomt for standalone.
           eksterneByggeplasser={byggeplasser.map((b) => ({
@@ -167,10 +163,8 @@ export function ByggeplassChip() {
             number: b.number ?? null,
           }))}
           onVelg={(id) => {
-            // «Hele prosjektet»-raden (id === null) gir samme utvei som webs
-            // globale velger: nullstiller filteret OG blokkerer GPS-autovalg.
+            // (22) Ingen «Hele prosjektet»-rad — kun byggeplasser.
             if (id) settBygning(id);
-            else velgHeleProsjektet();
             setVisVelger(false);
           }}
           onLukk={() => setVisVelger(false)}

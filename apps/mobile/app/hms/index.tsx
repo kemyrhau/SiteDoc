@@ -27,6 +27,7 @@ import {
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { VelgByggeplassTom, useMaaVelgeByggeplass } from "../../src/components/VelgByggeplassTom";
 import { ProsjektSokRad } from "../../src/components/sok/ProsjektSokRad";
 import { HmsMalVelger, type HmsMal, type HmsSubdomain } from "../../src/components/HmsMalVelger";
 import {
@@ -74,6 +75,7 @@ export default function HmsListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId, kontekstByggeplassId } = useByggeplass();
+  const maaVelgeByggeplass = useMaaVelgeByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const router = useRouter();
@@ -432,7 +434,11 @@ export default function HmsListe() {
         </View>
       )}
 
-      {dokQuery.isLoading && lokalAntall === 0 ? (
+      {/* (22) Uten byggeplassvalg: «Velg byggeplass», ikke hele prosjektet. Søk gjelder
+          fortsatt hele prosjektet. */}
+      {!søkerNaa && maaVelgeByggeplass ? (
+        <VelgByggeplassTom />
+      ) : dokQuery.isLoading && lokalAntall === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>

@@ -81,7 +81,7 @@ export default function TegningerTab() {
   const router = useRouter();
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, velgHeleProsjektet, hentSistTegning } = useByggeplass();
+  const { valgtBygningId, hentSistTegning } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
@@ -270,19 +270,17 @@ export default function TegningerTab() {
         </View>
       )}
 
-      {/* B Krav 2: si eksplisitt at lista er avkortet av byggeplass-filteret, med
-          vei ut til hele prosjektet. Gjenbruker chippens tekst + `velgHeleProsjektet`
-          (tegninger-tab-en monterer ikke selve ByggeplassChip). */}
+      {/* B Krav 2: si eksplisitt at lista er avkortet av byggeplass-filteret.
+          (22) Ingen vei ut til «Hele prosjektet» — byggeplass byttes i toppvelgeren. */}
       {valgtBygningId != null && (
-        <Pressable
-          onPress={() => velgHeleProsjektet()}
-          className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 active:bg-amber-100"
+        <View
+          className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2"
         >
           <MapPin size={14} color="#d97706" />
           <Text className="flex-1 text-xs text-amber-700" numberOfLines={1}>
             {t("byggeplass.filtrererListe")}
           </Text>
-        </Pressable>
+        </View>
       )}
 
       {/* B Krav 3: søk på navn + tegningsnummer (prosjekter med 30-40 tegninger). */}
