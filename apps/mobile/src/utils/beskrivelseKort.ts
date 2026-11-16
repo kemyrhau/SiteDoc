@@ -11,13 +11,14 @@ import { radTilleggNokkel } from "./bekreftDagTillegg";
  * prosjekt = to kort (21–24 og 00–06), hvert med egen beskrivelse og eget
  * sett maskin/varer.
  *
- * Nøkkelen i `beskrivelsePerKort` er grunnøkkelen på kortets FØRSTE dato
- * og `${dato}|${grunnøkkel}` på senere datoer. Grunnøkkelen er:
+ * Nøkkelen i `beskrivelsePerKort` er grunnøkkelen på FORSLAGETS STARTDATO
+ * og `${dato}|${grunnøkkel}` på alle senere datoer — også når startdatoens
+ * kort mangler (0 t eller blokkert sedel; RETUR 2 (24)). Grunnøkkelen er:
  *  - `projectId` når prosjektet har ETT kort-sted (byggeplass) i forslaget —
  *    identisk med 36a, så teksten overlever bytte av dagens byggeplass;
  *  - `kortNokkel(...)` når prosjektet har flere byggeplasser.
- * Slik havner et utkast lagret før RETUR (24) (nøkkel uten dato) på første
- * datos kort, og kortet etter midnatt starter tomt.
+ * Slik havner et utkast lagret før RETUR (24) (nøkkel uten dato) bare på
+ * startdatoens kort, og kortet etter midnatt starter tomt.
  *
  * Effektiv byggeplass = radens egen `byggeplassId ?? sedelens` (arbeidsrader
  * har normalt null = arver dagens).
@@ -56,6 +57,11 @@ function kortId(k: BeskrivelseKort): string {
   return `${k.dato}|${kortNokkel({ projectId: k.projectId, byggeplassId: k.byggeplassId, ecoId: null })}`;
 }
 
+/** Forslagets startdato: start-segmentets dato, ellers første dato. Blokkert eller ei. */
+function forslagStartDato(forslag: Dagsforslag): string | null {
+  return (forslag.datoer.find((d) => d.erStartSegment) ?? forslag.datoer[0])?.dato ?? null;
+}
+
 /** Kortene med arbeid (ikke reise) på åpne datoer, i forslagets rekkefølge — ett pr. dato. */
 export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
   const kort: { id: string; sted: string; dato: string; projectId: string; byggeplassId: string | null }[] = [];
@@ -74,14 +80,16 @@ export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
       });
     }
   }
-  const brukt = new Set<string>();
+  const startDato = forslagStartDato(forslag);
   return kort.map((k) => {
     const egne = kort.filter((x) => x.projectId === k.projectId);
     const delerProsjekt = new Set(egne.map((x) => x.sted)).size > 1;
     const visDato = new Set(egne.map((x) => x.dato)).size > 1;
     const grunn = delerProsjekt ? k.sted : k.projectId;
-    const nokkel = brukt.has(grunn) ? `${k.dato}|${grunn}` : grunn;
-    brukt.add(grunn);
+    // RETUR 2 (24): grunnøkkelen uten dato tilhører KUN startdatoens kort —
+    // også når det kortet mangler (0 t / blokkert). Ellers arvet kortet
+    // 00–06 teksten fra 21–24 og arbeiderens egen tekst lå skjult.
+    const nokkel = k.dato === startDato ? grunn : `${k.dato}|${grunn}`;
     return { nokkel, projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato, delerProsjekt, visDato };
   });
 }

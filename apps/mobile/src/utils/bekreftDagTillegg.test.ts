@@ -1029,6 +1029,45 @@ describe("RETUR (24) — kort over midnatt", () => {
     expect(sedel.dato).toBe(neste);
   });
 
+  // RETUR 2 (24), vilkår 1: grunnøkkelen uten dato gjelder KUN startdatoens kort.
+  // Mangler det kortet (0 t / blokkert), skal kortet 00–06 likevel aldri vise 21–24-teksten.
+  const TO_TEKSTER = (neste: string) => ({ p1: "TEKST DATO 1", [`${neste}|p1`]: "TEKST DATO 2" });
+  function utenStartKort(forslag: Dagsforslag, hvordan: "nullTimer" | "blokkert"): Dagsforslag {
+    return {
+      ...forslag,
+      datoer: forslag.datoer.map((d) => {
+        if (!d.erStartSegment) return d;
+        return hvordan === "blokkert"
+          ? { ...d, blokkert: true, rader: [] }
+          : { ...d, rader: d.rader.map((r) => (r.erReise ? r : { ...r, timer: 0 })) };
+      }),
+    };
+  }
+
+  for (const hvordan of ["nullTimer", "blokkert"] as const) {
+    it(`🔴 RETUR 2 (${hvordan === "nullTimer" ? "a" : "b"}): startdato ${hvordan === "nullTimer" ? "med 0 t" : "blokkert"} → kort 00–06 har dato-nøkkel og egen tekst, aldri dato 1-teksten`, () => {
+      const { forslag, neste, ctx } = natt();
+      const uten = utenStartKort(forslag, hvordan);
+      expect(kortMedArbeid(uten).map((k) => k.nokkel)).toEqual([`${neste}|p1`]);
+      // Bare gammel tekst under grunnøkkelen → kortet 00–06 er tomt og sperrer.
+      const bareDato1 = bekreftDag(lokalDb(), { ...uten, beskrivelsePerKort: { p1: "TEKST DATO 1" } }, ctx, {});
+      expect(bareDato1.handling).toEqual({ type: "manglerBeskrivelse", nokler: [`${neste}|p1`] });
+      expect(db().select().from(dagsseddelLocal).all()).toHaveLength(0);
+      // Begge tekster → kortet 00–06 lagrer sin egen.
+      const med = { ...uten, beskrivelsePerKort: TO_TEKSTER(neste) };
+      expect(bekreftDag(lokalDb(), med, ctx, {}).handling.type).toBe("suksess");
+      const sedler = new Map(db().select().from(dagsseddelLocal).all().map((x) => [x.id, x.dato]));
+      const paaNeste = arbeidsrader().filter((r) => sedler.get(r.dagsseddelId) === neste);
+      expect(paaNeste.map((r) => r.beskrivelse)).toEqual(["TEKST DATO 2"]);
+    });
+  }
+
+  it("🔴 RETUR 2: med startdatoens kort til stede får hvert kort sin tekst (regresjon)", () => {
+    const { forslag, neste } = natt();
+    const kort = kortMedArbeid({ ...forslag, beskrivelsePerKort: TO_TEKSTER(neste) });
+    expect(kort.map((k) => k.nokkel)).toEqual(["p1", `${neste}|p1`]);
+  });
+
   it("🔴 dagsvakt med to arbeidsrader samme dato er fortsatt ETT kort uten dato i etiketten", () => {
     const forslag = toRader(VANLIG);
     const kort = kortMedArbeid(forslag);
