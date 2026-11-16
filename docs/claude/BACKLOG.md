@@ -4393,6 +4393,10 @@ mobil har prosjekt i hver rad-modal.
 
 F4-1b gjorde `hentEgenDagsseddel` identitets-robust (`id ?? clientUuid`), men flere arbeider-mutasjoner **skriver/validerer** deretter på rå `input.id`/`input.sheetId` i stedet for den resolverte `sheet.id`: `oppdater` (`dagsseddel.ts:833-834` `dailySheet.update({ where: { id: input.id } })`), `tilfoyTimerRad`/`tilfoyTilleggRad`/`maskin.tilfoy` (bruker `input.sheetId` til `hentRaderForValidering`/`sjekkTimerOverlapp` + rad-FK). **Web-only i dag** (web sender server-`id` fra egne queryer → treffer), men brekker hvis en fremtidig mobil-flyt kaller dem med lokal `clientUuid`-id (pre-invariant sedel): update/rad-FK ville bomme på server-PK. Fiks: bytt disse til resolvert `sheet.id` (samme mønster som F4-1b). Ikke #38 (mobil kaller dem ikke i dag — kun `gjenaapneDagsseddel`, som alt bruker `sheet.id`).
 
+### 🔵 Fravær over flere dager: ferie som blir sykdom — F8 (Kenneth 2026-11-16)
+
+Egen ordre etter d i kort-id-specen, med egen spec fra Fabel. Kenneth 2026-11-16: «dersom en arbeidstaker fyller ut ferie før han reiser, og blir syk mens han er på ferie ->arbeidsgiver åpner kortene for redigering -> ferie byttes til sykdom iht. regler om evt. legeerklæring -> ferie vil da bli omgjort til sykedager, og feriedager vil kunne tas ut senere.» Omfang: flerdagers føring av fravær («til og med dato»), lønnsansvarlig bytter lønnsart på flere dager samtidig, feriesaldo (finnes ikke i dag). Føring fram i tid én dag om gangen bygges allerede i b–d. Spec: `prosjektkort-kortid-spec.md` § 11.9 F8. Ikke bygget.
+
 ### 🔵 B10-taket i dagskort-modus (firma uten prosjektkort) — F11 (Kenneth 2026-11-16)
 
 Kenneth 2026-11-16: «før f 11 i backlogg». Taket for betalt fravær (B10: fravær med tak + arbeid ≤ dagsnormen) bygges i prosjektkort-flaten i ordre b–d, men ikke i rad-vinduet i dagskort-modus, fordi den skjermen er vernet (dagskort isolert). Til det bygges, stopper F9 = A en dag over taket ved attestering. Spec: `prosjektkort-kortid-spec.md` § 11.9 F11 og § 11.10. Ikke bygget.
