@@ -175,21 +175,31 @@ i samme kjøring. Koblet maskin/vare får radens id. Ingen Prisma-endring; SQLit
 | (b) DB-garanti | `CHECK` på rad-nivå: `sheet_timer`: `(er_reise AND kort_id IS NULL) OR (NOT er_reise AND kort_id IS NOT NULL)`; maskin/tillegg/utlegg: `kort_id IS NOT NULL`; vareforbruk: `dagsseddel_id IS NULL OR kort_id IS NOT NULL`. **Når** den legges på er B2. |
 | (c) Test som feiler når feltet er tomt | Integrasjonstest pr. skrivevei i M8 (rad uten `kort_id` etter kall = rød) + mobiltest pr. skrivevei i M9 + gate-SQL under. |
 
-**Gate-SQL Kenneth kjører etter migrering (skal gi 0 på alle tre):**
+**Gate-SQL Kenneth kjører etter migrering (1, 2 og 3a skal gi 0; 3b er til orientering):**
 
 ```sql
 -- 1) arbeidsrad uten kort
 select count(*) from timer.sheet_timer where er_reise = false and kort_id is null;
--- 2) kort som spenner flere sedler, prosjekter eller underprosjekt
+-- 2) kort som spenner flere sedler, prosjekter eller underprosjekt («uten prosjekt» teller som eget prosjekt)
 select count(*) from (select kort_id from timer.sheet_timer where kort_id is not null
-  group by kort_id having count(distinct sheet_id) > 1 or count(distinct project_id) > 1
+  group by kort_id having count(distinct sheet_id) > 1 or count(distinct coalesce(project_id,'ingen')) > 1
      or count(distinct coalesce(external_cost_object_id,'')) > 1) x;
--- 3) koblet maskin med annet kort enn raden
+-- 3a) koblet maskin på samme sedel og prosjekt som raden, med annet kort enn raden (skal gi 0)
 select count(*) from timer.sheet_machines m join timer.sheet_timer t on t.id = m.sheet_timer_id
- where m.kort_id is distinct from t.kort_id;
+ where m.sheet_id = t.sheet_id and m.project_id = t.project_id and m.kort_id is distinct from t.kort_id;
+-- 3b) til orientering: maskin koblet til en timerrad på et annet prosjekt eller en annen sedel
+select count(*) from timer.sheet_machines m join timer.sheet_timer t on t.id = m.sheet_timer_id
+ where m.sheet_id is distinct from t.sheet_id or m.project_id is distinct from t.project_id;
 ```
 
-Gate-SQL 2 får `coalesce(project_id, 'ingen')` når fraværskort uten prosjekt bygges (§ 11.2).
+Gate-SQL 2 bruker `coalesce(project_id,'ingen')` fordi `count(distinct …)` hopper over `NULL`: uten den teller et kort
+som blander prosjekt og «uten prosjekt» (§ 11.2) som ett prosjekt og slipper gjennom.
+
+Gate-SQL 3 er delt fordi 3a speiler `WHERE` i backfill 2 (§ 3.2). **Tallet i 3b** er eldre koblinger der maskinen står
+på et annet prosjekt (eller en annen sedel) enn timerraden den er koblet til — kortet kan ikke både ha ett prosjekt
+(K2) og bære maskinen til radens kort (K6), så maskinen beholder kortet for sitt eget prosjekt; **det stopper ikke
+deploy.** Samme regel på server: `kobletFolger` (`apps/api/src/services/timer/kortId.ts:242`, 🟡
+`feat/kortid-b-skjema` @ `c39ca519`, ikke merget).
 
 🔴 **Spenning mellom to regler (B2):** «stille tomhet» krever DB-garantien i samme release; to-stegs-policyen sier
 `NOT NULL`/garanti i *neste* release. Legges `CHECK` på i steg 1, kan ikke den gamle API-versjonen skrive en eneste
@@ -578,7 +588,7 @@ select count(*) from timer.sheet_timer t join timer.lonnsarter l on l.id = t.lon
  where t.uten_prosjekt and l.type <> 'fravaer';
 -- B) til orientering: fravær ført med prosjekt fram til nå (tallet sier hvor mye historikk som blir stående slik)
 select count(*) from timer.sheet_timer t join timer.lonnsarter l on l.id = t.lonnsart_id
- where l.type = 'fravaer';
+ where l.type = 'fravaer' and not t.uten_prosjekt;
 ```
 
 **`kort_id` og `kortNokkel` for fraværskortet:**
