@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSession } from "next-auth/react";
-import { ChevronDown, ChevronRight, Download } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, X } from "lucide-react";
+import { lastNedBase64 } from "@/lib/pdf-eksport-nedlasting";
 import { trpc } from "@/lib/trpc";
 import {
   ALLE_RADTYPER,
@@ -241,21 +242,6 @@ function førsteOgSisteIMåneden(): { fra: string; til: string } {
   };
 }
 
-/** Last ned base64-PDF fra pdfEksport-prosedyren. */
-function lastNedBase64(base64: string, filnavn: string, mime: string): void {
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filnavn;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 /** Alle oversatte PDF-overskrifter/etiketter (1:1 med teksterSchema server-side).
  *  PDF-overskrifter er synlige strenger → gjennom t(), som arknavnene. */
 function byggPdfTekster(
@@ -369,6 +355,11 @@ export default function TimerRapportSide() {
   // 1c: try/finally uten catch svelget kastet → «virker ikke» uten spor. Vis
   // feilen til brukeren så den blir konkret (og logg for feilsøking).
   const [eksportFeil, setEksportFeil] = useState<string | null>(null);
+  // Ordre (34): PDF-eksporten gir alltid et synlig utfall — bekreftelse med filnavn,
+  // eller melding om at utvalget er tomt (i stedet for en PDF som bare sier «ingen data»).
+  const [eksportInfo, setEksportInfo] = useState<
+    { type: "lastetNed"; filnavn: string } | { type: "tomtUtvalg"; taMedUattesterte: boolean } | null
+  >(null);
 
   const { data: prosjekter } = trpc.timer.rapport.hentFirmaProsjekterMedTimer.useQuery(
     { organizationId: orgId! },
@@ -541,6 +532,7 @@ export default function TimerRapportSide() {
     const radTyper = cfg.radTyper;
     setEksportÅpen(false);
     setEksportFeil(null);
+    setEksportInfo(null);
     setEksporterer(true);
     try {
       if (utFormat === "pdf") {
@@ -575,7 +567,12 @@ export default function TimerRapportSide() {
           taMedUattesterte: cfg.taMedUattesterte,
           tekster: byggPdfTekster(t, byggStatusEtiketter(t)),
         });
+        if (res.tomtUtvalg) {
+          setEksportInfo({ type: "tomtUtvalg", taMedUattesterte: cfg.taMedUattesterte });
+          return;
+        }
         lastNedBase64(res.pdf, res.filnavn, "application/pdf");
+        setEksportInfo({ type: "lastetNed", filnavn: res.filnavn });
         return;
       }
 
@@ -636,7 +633,11 @@ export default function TimerRapportSide() {
       // det faktiske kastet (exceljs-runtime mistenkt); brukeren får en konkret
       // melding i stedet for en fil som aldri kom.
       console.error("[timer-eksport] eksport feilet", e);
-      setEksportFeil(e instanceof Error ? e.message : String(e));
+      const melding = e instanceof Error ? e.message : String(e);
+      // Ordre (34): PDF-feilen sier også hva brukeren kan gjøre.
+      setEksportFeil(
+        utFormat === "pdf" ? t("firma.timer.rapport.eksport.pdfFeilet", { melding }) : melding,
+      );
     } finally {
       setEksporterer(false);
     }
@@ -790,7 +791,8 @@ export default function TimerRapportSide() {
                 />
                 <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
                   {/* Lagrede maler — «Mine» øverst, så «Firmaets». Klikk på raden
-                      eksporterer med malens config; «Rediger» åpner redigereren. */}
+                      legger malen på skjermen (brukMal, eksporterer ikke); «Rediger»
+                      åpner redigereren. */}
                   {mineMalene.length > 0 && (
                     <MalSeksjon
                       tittel={t("firma.timer.rapport.maler.mine")}
@@ -815,8 +817,9 @@ export default function TimerRapportSide() {
                   )}
 
                   {/* Innebygde maler (kode): Full eksport · Lønnsgrunnlag ·
-                      Fakturagrunnlag. Rad-klikk = ett-klikk-eksport med malens
-                      config; «Rediger» åpner redigereren forhåndsutfylt. */}
+                      Fakturagrunnlag. Rad-klikk legger malens config på skjermen
+                      (brukInnebygd, eksporterer ikke); «Rediger» åpner redigereren
+                      forhåndsutfylt. */}
                   <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                     {t("firma.timer.rapport.maler.innebygd")}
                   </div>
@@ -939,6 +942,32 @@ export default function TimerRapportSide() {
       {eksportFeil && (
         <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {t("firma.timer.rapport.eksport.feil")}: {eksportFeil}
+        </div>
+      )}
+
+      {eksportInfo && (
+        <div
+          className={`mb-4 flex items-start justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
+            eksportInfo.type === "lastetNed"
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          <span>
+            {eksportInfo.type === "lastetNed"
+              ? t("firma.timer.rapport.eksport.lastetNed", { filnavn: eksportInfo.filnavn })
+              : eksportInfo.taMedUattesterte
+                ? t("firma.timer.rapport.eksport.tomtUtvalg")
+                : t("firma.timer.rapport.eksport.tomtUtvalgAttesterte")}
+          </span>
+          <button
+            type="button"
+            onClick={() => setEksportInfo(null)}
+            aria-label={t("handling.lukk")}
+            className="text-current opacity-60 hover:opacity-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
